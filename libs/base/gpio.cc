@@ -50,6 +50,11 @@ GPIO_Type* PinNameToModule[Gpio::kCount] = {
     [Gpio::kAB] = GPIO3,           [Gpio::kUartCts] = GPIO2,
     [Gpio::kUartRts] = GPIO2,      [Gpio::kPwm1] = GPIO3,
     [Gpio::kPwm0] = GPIO2,         [Gpio::kScl6] = GPIO6,
+
+    // new GPIO for OV5640 camera
+    [Gpio::kOvAD03] = GPIO9,        
+    [Gpio::kOvAD26] = GPIO9,        [Gpio::kOvAD27] = GPIO9, 
+    [Gpio::kOvDispB2_15] = GPIO11,   [Gpio::kOvDispB2_09] = GPIO11, 
 };
 
 constexpr uint32_t PinNameToPin[Gpio::kCount] = {
@@ -83,6 +88,13 @@ constexpr uint32_t PinNameToPin[Gpio::kCount] = {
     [Gpio::kPwm1] = 0,
     [Gpio::kPwm0] = 31,
     [Gpio::kScl6] = 7,
+
+    //add for OV5640 camera
+    [Gpio::kOvAD03] = 32,
+    [Gpio::kOvAD26] = 33,
+    [Gpio::kOvAD27] = 34,
+    [Gpio::kOvDispB2_15] = 35,
+    [Gpio::kOvDispB2_09] = 36,
 };
 
 gpio_pin_config_t PinNameToConfig[Gpio::kCount] = {
@@ -266,6 +278,38 @@ gpio_pin_config_t PinNameToConfig[Gpio::kCount] = {
             .outputLogic = 0,
             .interruptMode = kGPIO_NoIntmode,
         },
+
+    // added for OV5640
+    [Gpio::kOvAD03] =
+        {
+            .direction = kGPIO_DigitalOutput,
+            .outputLogic = 0,
+            .interruptMode = kGPIO_NoIntmode,
+        },
+    [Gpio::kOvAD26] =
+        {
+            .direction = kGPIO_DigitalOutput,
+            .outputLogic = 0,
+            .interruptMode = kGPIO_NoIntmode,
+        },
+    [Gpio::kOvAD27] =
+        {
+            .direction = kGPIO_DigitalOutput,
+            .outputLogic = 0,
+            .interruptMode = kGPIO_NoIntmode,
+        },
+    [Gpio::kOvDispB2_15] =
+        {
+            .direction = kGPIO_DigitalOutput,
+            .outputLogic = 0,
+            .interruptMode = kGPIO_NoIntmode,
+        },
+    [Gpio::kOvDispB2_09] =
+        {
+            .direction = kGPIO_DigitalOutput,
+            .outputLogic = 0,
+            .interruptMode = kGPIO_NoIntmode,
+        },
 };
 
 constexpr IRQn_Type PinNameToIRQ[Gpio::kCount] = {
@@ -299,6 +343,14 @@ constexpr IRQn_Type PinNameToIRQ[Gpio::kCount] = {
     [Gpio::kPwm1] = GPIO3_Combined_0_15_IRQn,
     [Gpio::kPwm0] = GPIO2_Combined_16_31_IRQn,
     [Gpio::kScl6] = GPIO6_Combined_0_15_IRQn,
+
+    // camera OV5640
+    [Gpio::kOvAD03] = HardFault_IRQn,
+    [Gpio::kOvAD26] = HardFault_IRQn,
+    [Gpio::kOvAD27] = HardFault_IRQn,
+    [Gpio::kOvDispB2_15] = HardFault_IRQn,
+    [Gpio::kOvDispB2_09] = HardFault_IRQn,
+
 };
 
 constexpr uint32_t PinNameToIOMUXC[Gpio::kCount][5] = {
@@ -332,6 +384,14 @@ constexpr uint32_t PinNameToIOMUXC[Gpio::kCount][5] = {
     [Gpio::kPwm1] = {IOMUXC_GPIO_AD_01_GPIO_MUX3_IO00},
     [Gpio::kPwm0] = {IOMUXC_GPIO_AD_00_GPIO_MUX2_IO31},
     [Gpio::kScl6] = {IOMUXC_GPIO_LPSR_07_GPIO_MUX6_IO07},
+
+    //added for camera OV5640
+    [Gpio::kOvAD03] = {IOMUXC_GPIO_AD_03_GPIO9_IO02},
+    [Gpio::kOvAD26] = {IOMUXC_GPIO_AD_26_GPIO9_IO25},
+    [Gpio::kOvAD27] = {IOMUXC_GPIO_AD_27_GPIO9_IO26},
+    [Gpio::kOvDispB2_15] = {IOMUXC_GPIO_DISP_B2_15_GPIO11_IO16},
+    [Gpio::kOvDispB2_09] = {IOMUXC_GPIO_DISP_B2_09_GPIO11_IO10},
+
 };
 
 constexpr uint32_t PinNameToPullMask[Gpio::kCount] = {
@@ -365,6 +425,13 @@ constexpr uint32_t PinNameToPullMask[Gpio::kCount] = {
     [Gpio::kPwm1] = 0x0000000C,
     [Gpio::kPwm0] = 0x0000000C,
     [Gpio::kScl6] = 0x0000000C,
+
+    //added for camera OV5640
+    [Gpio::kOvAD03] = 0x0000000C,
+    [Gpio::kOvAD26] = 0x0000000C,
+    [Gpio::kOvAD27] = 0x0000000C,
+    [Gpio::kOvDispB2_15] = 0x0000000C,
+    [Gpio::kOvDispB2_09] = 0x0000000C,
 };
 
 constexpr uint32_t PinNameToNoPull[Gpio::kCount] = {
@@ -398,6 +465,13 @@ constexpr uint32_t PinNameToNoPull[Gpio::kCount] = {
     [Gpio::kPwm1] = 0x00000000,
     [Gpio::kPwm0] = 0x00000000,
     [Gpio::kScl6] = 0x00000000,
+
+    //added for camera OV5640
+    [Gpio::kOvAD03] = 0x00000000,
+    [Gpio::kOvAD26] = 0x00000000,
+    [Gpio::kOvAD27] = 0x00000000,
+    [Gpio::kOvDispB2_15] = 0x00000000,
+    [Gpio::kOvDispB2_09] = 0x00000000,
 };
 
 constexpr uint32_t PinNameToPullUp[Gpio::kCount] = {
@@ -431,6 +505,15 @@ constexpr uint32_t PinNameToPullUp[Gpio::kCount] = {
     [Gpio::kPwm1] = 0x0000000C,
     [Gpio::kPwm0] = 0x0000000C,
     [Gpio::kScl6] = 0x0000000C,
+
+    //added for camera OV5640
+    [Gpio::kOvAD03] = 0x00000000,
+    [Gpio::kOvAD26] = 0x00000000,
+    [Gpio::kOvAD27] = 0x00000000,
+    [Gpio::kOvDispB2_15] = 0x00000000,
+    [Gpio::kOvDispB2_09] = 0x00000000,    
+
+
 };
 
 constexpr uint32_t PinNameToPullDown[Gpio::kCount] = {
@@ -464,6 +547,13 @@ constexpr uint32_t PinNameToPullDown[Gpio::kCount] = {
     [Gpio::kPwm1] = 0x00000004,
     [Gpio::kPwm0] = 0x00000004,
     [Gpio::kScl6] = 0x00000004,
+
+    //added for camera OV5640
+    [Gpio::kOvAD03] = 0x00000000,
+    [Gpio::kOvAD26] = 0x00000000,
+    [Gpio::kOvAD27] = 0x00000000,
+    [Gpio::kOvDispB2_15] = 0x00000000,
+    [Gpio::kOvDispB2_09] = 0x00000000,    
 };
 
 constexpr gpio_interrupt_mode_t
@@ -563,7 +653,7 @@ void GpioSetMode(Gpio gpio, GpioMode mode) {
   uint32_t pin_config = *((volatile uint32_t*)iomuxc[4]);
   pin_config &= ~PinNameToPullMask[gpio];
   if (mode == GpioMode::kInputPullUp) {
-    pin_config |= PinNameToPullUp[gpio];
+    pin_config |= PinNameToPullUp[gpio];S
   } else if (mode == GpioMode::kInputPullDown) {
     pin_config |= PinNameToPullDown[gpio];
   } else {

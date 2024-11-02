@@ -86,6 +86,13 @@ enum Gpio {
   kPwm0,
   // I2C6_SCL (GPIO_LPSR_07); left header (J9), pin 11
   kScl6,
+
+  // GPIO's to configure for new camera OV5640
+  kOvAD03,
+  kOvAD26,
+  kOvAD27,
+  kOvDispB2_15,
+  kOvDispB2_09,
   // Number of pre-configured GPIOs
   kCount,
 
