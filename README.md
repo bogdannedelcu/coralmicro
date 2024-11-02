@@ -1,5 +1,9 @@
-F
-C
+GPIO_AD_03
+GPIO_AD_27
+GPIO_AD_26
+GPIO_DISP_B2_15
+GPIO_DISP_B2_09
+
 # BN Fork of Coral Dev Board Micro source code (coralmicro)
 
 # Coral Dev Board Micro source code (coralmicro)
