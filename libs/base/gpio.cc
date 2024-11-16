@@ -74,7 +74,8 @@ constexpr uint32_t PinNameToPin[Gpio::kCount] = {
     [Gpio::kAntennaSelect] = 7,
     [Gpio::kBtHostWake] = 10,
 //    [Gpio::kBtHostWake] = 16,
-    [Gpio::kBtDevWake] = 15,
+    [Gpio::kBtDevWake] = 16,
+//    [Gpio::kBtDevWake] = 15,
     [Gpio::kEthPhyRst] = 13,
     [Gpio::kCameraPrivacyOverride] = 22,
     [Gpio::kCryptoRst] = 8,
@@ -177,7 +178,8 @@ gpio_pin_config_t PinNameToConfig[Gpio::kCount] = {
     [Gpio::kBtDevWake] =
         {
             .direction = kGPIO_DigitalOutput,
-            .outputLogic = 1,
+//            .outputLogic = 1,
+            .outputLogic = 0,
             .interruptMode = kGPIO_NoIntmode,
         },
     [Gpio::kEthPhyRst] =
@@ -394,7 +396,8 @@ constexpr uint32_t PinNameToIOMUXC[Gpio::kCount][5] = {
     [Gpio::kAntennaSelect] = {IOMUXC_GPIO_DISP_B2_06_GPIO11_IO07},
     [Gpio::kBtHostWake] = {IOMUXC_GPIO_DISP_B2_09_GPIO11_IO10},
 //    [Gpio::kBtHostWake] = {IOMUXC_GPIO_DISP_B2_15_GPIO11_IO16},
-    [Gpio::kBtDevWake] = {IOMUXC_GPIO_DISP_B2_14_GPIO11_IO15},
+    [Gpio::kBtDevWake] = {IOMUXC_GPIO_DISP_B2_15_GPIO11_IO16},
+//    [Gpio::kBtDevWake] = {IOMUXC_GPIO_DISP_B2_14_GPIO11_IO15},
     [Gpio::kEthPhyRst] = {IOMUXC_GPIO_EMC_B2_03_GPIO8_IO13},
     [Gpio::kCameraPrivacyOverride] = {IOMUXC_GPIO_EMC_B2_12_GPIO8_IO22},
     [Gpio::kCryptoRst] = {IOMUXC_GPIO_LPSR_08_GPIO12_IO08},
@@ -482,7 +485,8 @@ constexpr uint32_t PinNameToNoPull[Gpio::kCount] = {
     [Gpio::kAntennaSelect] = 0x00000000,
     [Gpio::kBtHostWake] = 0x0000000C,
 //    [Gpio::kBtHostWake] = 0x00000000,
-    [Gpio::kBtDevWake] = 0x00000000,
+    [Gpio::kBtDevWake] = 0x0000000C,
+//    [Gpio::kBtDevWake] = 0x00000000,
     [Gpio::kEthPhyRst] = 0x0000000C,
     [Gpio::kCameraPrivacyOverride] = 0x0000000C,
     [Gpio::kCryptoRst] = 0x00000000,
@@ -568,7 +572,8 @@ constexpr uint32_t PinNameToPullDown[Gpio::kCount] = {
     [Gpio::kAntennaSelect] = 0x00000004,
     [Gpio::kBtHostWake] = 0x00000004,
 //    [Gpio::kBtHostWake] = 0x00000008,
-    [Gpio::kBtDevWake] = 0x00000008,
+    [Gpio::kBtDevWake] = 0x00000004,
+//    [Gpio::kBtDevWake] = 0x00000008,
     [Gpio::kEthPhyRst] = 0x00000008,
     [Gpio::kCameraPrivacyOverride] = 0x00000008,
     [Gpio::kCryptoRst] = 0x00000004,
@@ -658,7 +663,7 @@ void GpioInit() {
       case Gpio::kEdgeTpuReset:
       case Gpio::kEdgeTpuPmic:
 //      case Gpio::kBtHostWake:
-      case Gpio::kBtDevWake:
+//      case Gpio::kBtDevWake:
       case Gpio::kEthPhyRst:
 #if (__CORTEX_M == 4)
         break;  // Do not initialize tpu or ethernet gpios for the m4.
