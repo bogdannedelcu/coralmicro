@@ -50,7 +50,8 @@ MEMORY
   m_ocram               (RX)  : ORIGIN = 0x20240000, LENGTH = 0x00080000
   rpmsg_sh_mem          (RW)  : ORIGIN = 0x202C0000, LENGTH = RPMSG_SHMEM_SIZE
   m_heap                (RW)  : ORIGIN = 0x80000000, LENGTH = HEAP_SIZE
-  m_sdram               (RX)  : ORIGIN = 0x80000000 + HEAP_SIZE, LENGTH = 0x03000000 - HEAP_SIZE
+  m_sdram               (RX)  : ORIGIN = 0x80000000 + HEAP_SIZE, LENGTH = 0x02000000 - HEAP_SIZE
+  m_ncamera             (RW)  : ORIGIN = 0x82000000, LENGTH = 0x01000000
 }
 
 /* Define output sections */
@@ -58,6 +59,9 @@ SECTIONS
 {
   __NCACHE_REGION_START = ORIGIN(m_ncache);
   __NCACHE_REGION_SIZE  = LENGTH(m_ncache);
+
+  __NCAMERA_REGION_START = ORIGIN(m_ncamera);
+  __NCAMERA_REGION_SIZE  = LENGTH(m_ncamera);
 
   __RPMSG_SH_MEM_START = ORIGIN(rpmsg_sh_mem);
   __RPMSG_SH_MEM_SIZE  = LENGTH(rpmsg_sh_mem);
@@ -450,6 +454,14 @@ SECTIONS
     . = ALIGN(8);
     . += STACK_SIZE;
   } > m_data
+
+  .ncamera :
+  {
+    __noncachecameradata_start__ = .;
+    *(NonCacheableCamera)
+    . = ALIGN(64);
+    __noncachecameradata_end__ = .;
+  } > m_ncamera
 
   /* Initializes stack on the end of block */
   __StackTop   = ORIGIN(m_data) + LENGTH(m_data);
