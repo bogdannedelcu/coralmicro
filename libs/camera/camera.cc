@@ -16,12 +16,50 @@
 
 #include "libs/camera/camera.h"
 
+#include "camera.h"
 #include "libs/base/check.h"
 #include "libs/base/gpio.h"
 #include "libs/pmic/pmic.h"
 #include "third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_csi.h"
 #include "third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_lpi2c.h"
 #include "third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_lpi2c_freertos.h"
+
+#include "fsl_gpio.h"
+#include "fsl_csi.h"
+#include "fsl_mipi_csi2rx.h"
+#include "fsl_camera.h"
+#include "fsl_camera_receiver.h"
+#include "fsl_camera_device.h"
+#include "fsl_csi_camera_adapter.h"
+#include "fsl_ov5640.h"
+#include "fsl_pxp.h"
+
+/*******************************************************************************
+ * Definitions
+ ******************************************************************************/
+
+#ifdef CPU_MIMXRT1176CVM8A_cm4
+#undef DEMO_CAMERA_BUFFER_COUNT
+#define DEMO_CAMERA_BUFFER_COUNT 1
+
+#undef DEMO_CAMERA_BUFFER_BPP
+#define DEMO_CAMERA_BUFFER_BPP 1
+#endif
+
+#define DBG_OUTPUT(...)  printf(__VA_ARGS__)
+// #define DBG_OUTPUT(...)
+
+// #define DEBUG_LINE()  printf("D:%s:%d\n", __FILE__, __LINE__)
+
+#ifdef CPU_MIMXRT1176CVM8A_cm4
+uint8_t pxp_buffer[1];
+#else
+// __attribute__((section("NonCacheableCamera,\"aw\",%nobits @")))
+// __attribute__((aligned(DEMO_CAMERA_BUFFER_ALIGN)))
+// uint8_t
+//     pxp_buffer[DEMO_CAMERA_HEIGHT][(DEMO_CAMERA_WIDTH + LINE_PADDING) * 3];
+uint8_t pxp_buffer[1];
+#endif
 
 #if (__CORTEX_M == 7)
 #include "third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/cm7/fsl_cache.h"
@@ -32,100 +70,76 @@
 #include <cstring>
 #include <memory>
 
+status_t BOARD_Camera_I2C_SendSCCB(
+    uint8_t deviceAddress, uint32_t subAddress, uint8_t subAddressSize, const uint8_t *txBuff, uint8_t txBuffSize)
+{
+  return coralmicro::CameraTask::GetSingleton()->Write(
+        subAddress, txBuff, txBuffSize) ? kStatus_Success : !kStatus_Success;
+}
+
+status_t BOARD_Camera_I2C_ReceiveSCCB(
+    uint8_t deviceAddress, uint32_t subAddress, uint8_t subAddressSize, uint8_t *rxBuff, uint8_t rxBuffSize)
+{
+  return coralmicro::CameraTask::GetSingleton()->Read(subAddress, &rxBuff[0]) ? kStatus_Success : !kStatus_Success;
+}
+
+void BOARD_PullCameraResetPin(bool pullUp)
+{
+  printf("BOARD_PullCameraResetPin:%d\n", pullUp);
+  coralmicro::GpioSet((coralmicro::Gpio) coralmicro::Gpio::kCamReset, pullUp);
+}
+
+void BOARD_PullCameraPowerDownPin(bool pullUp)
+{
+  printf("BOARD_PullCameraPowerDownPin:%d\n", pullUp);
+  coralmicro::GpioSet((coralmicro::Gpio) coralmicro::Gpio::kCamPwrDn, pullUp);
+}
+
 namespace coralmicro {
 namespace {
-constexpr uint8_t kCameraAddress = 0x24;
-constexpr int kFramebufferCount = 4;
+constexpr uint8_t kCameraAddress = 0x3c;
+constexpr int kFramebufferCount = DEMO_CAMERA_BUFFER_COUNT;
+constexpr uint8_t kModelIdHExpected = 0x56;
+constexpr uint8_t kModelIdLExpected = 0x40;
+
 constexpr float kRedCoefficient = .2126;
 constexpr float kGreenCoefficient = .7152;
 constexpr float kBlueCoefficient = .0722;
 constexpr float kUint8Max = 255.0;
 
-constexpr uint8_t kModelIdHExpected = 0x01;
-constexpr uint8_t kModelIdLExpected = 0xB0;
-
-// CSI driver wants width to be divisible by 8, and 324 is not.
-// 324 * 324 == 13122 * 8 -- this makes the CSI driver happy!
-constexpr size_t kCsiWidth = 8;
-constexpr size_t kCsiHeight = 13122;
-
-struct CameraRegisters {
-  enum : uint16_t {
-    kModelIdH = 0x0000,
-    kModelIdL = 0x0001,
-    kModeSelect = 0x0100,
-    kSwReset = 0x0103,
-    kAnalogGain = 0x0205,
-    kDigitalGainH = 0x020E,
-    kDigitalGainL = 0x020F,
-    kDgainControl = 0x0350,
-    kTestPatternMode = 0x0601,
-    kBlcCfg = 0x1000,
-    kBlcDither = 0x1001,
-    kBlcDarkpixel = 0x1002,
-    kBlcTgt = 0x1003,
-    kBliEn = 0x1006,
-    kBlc2Tgt = 0x1007,
-    kDpcCtrl = 0x1008,
-    kClusterThrHot = 0x1009,
-    kClusterThrCold = 0x100A,
-    kSingleThrHot = 0x100B,
-    kSingleThrCold = 0x100C,
-    kVsyncHsyncPixelShiftEn = 0x1012,
-    kStatisticCtrl = 0x2000,
-    kMdLroiXStartH = 0x2011,
-    kMdLroiXStartL = 0x2012,
-    kMdLroiYStartH = 0x2013,
-    kMdLroiYStartL = 0x2014,
-    kMdLroiXEndH = 0x2015,
-    kMdLroiXEndL = 0x2016,
-    kMdLroiYEndH = 0x2017,
-    kMdLroiYEndL = 0x2018,
-    kAeCtrl = 0x2100,
-    kAeTargetMean = 0x2101,
-    kAeMinMean = 0x2102,
-    kConvergeInTh = 0x2103,
-    kConvergeOutTh = 0x2104,
-    kMaxIntgH = 0x2105,
-    kMaxIntgL = 0x2106,
-    kMinIntg = 0x2107,
-    kMaxAgainFull = 0x2108,
-    kMaxAgainBin2 = 0x2109,
-    kMinAgain = 0x210A,
-    kMaxDgain = 0x210B,
-    kMinDgain = 0x210C,
-    kDampingFactor = 0x210D,
-    kFsCtrl = 0x210E,
-    kFs60HzH = 0x210F,
-    kFs60HzL = 0x2110,
-    kFs50HzH = 0x2111,
-    kFs50HzL = 0x2112,
-    kMdCtrl = 0x2150,
-    kMdThl = 0x215B,
-    kI2cClear = 0x2153,
-    kBitControl = 0x3059,
-    kOscClkDiv = 0x3060,
-  };
-};
-
-__attribute__((section(".sdram_bss,\"aw\",%nobits @")))
-__attribute__((aligned(64))) uint8_t
-    framebuffers[kFramebufferCount][CameraTask::kHeight][CameraTask::kWidth];
-
-uint8_t* IndexToFramebufferPtr(int index) {
-  if (index < 0 || index >= kFramebufferCount) {
-    return nullptr;
-  }
-  return reinterpret_cast<uint8_t*>(framebuffers[index]);
-}
-
-int FramebufferPtrToIndex(const uint8_t* framebuffer_ptr) {
-  for (int i = 0; i < kFramebufferCount; ++i) {
-    if (reinterpret_cast<uint8_t*>(framebuffers[i]) == framebuffer_ptr) {
-      return i;
+static void Rgb8888ToRgb(const uint8_t* in, uint8_t* out, int width, int height, int line_padding=LINE_PADDING) {
+  for (int y = 0; y < height; ++y) {
+    for (int x = 0; x < width; ++x) {
+      // BGRA - BGR
+      out[(x * 3) + (y * width * 3) + 0] = in[(x * 4) + (y * (width + line_padding) * 4) + 0];
+      out[(x * 3) + (y * width * 3) + 1] = in[(x * 4) + (y * (width + line_padding) * 4) + 1];
+      out[(x * 3) + (y * width * 3) + 2] = in[(x * 4) + (y * (width + line_padding) * 4) + 2];
     }
   }
-  return -1;
+}
+
+static void Rgb888ToRgb(const uint8_t* in, uint8_t* out, int width, int height, int line_padding=LINE_PADDING) {
+  for (int y = 0; y < height; ++y) {
+    for (int x = 0; x < width; ++x) {
+      // BGRA - BGR
+      out[(x * 3) + (y * width * 3) + 0] = in[(x * 3) + (y * (width + line_padding) * 3) + 0];
+      out[(x * 3) + (y * width * 3) + 1] = in[(x * 3) + (y * (width + line_padding) * 3) + 1];
+      out[(x * 3) + (y * width * 3) + 2] = in[(x * 3) + (y * (width + line_padding) * 3) + 2];
+    }
+  }
+}
+
+} // namespace
+
+int CameraFormatBpp(CameraFormat fmt) {
+  switch (fmt) {
+    case CameraFormat::kRgb:
+      return 3;
+    case CameraFormat::kRaw:
+    case CameraFormat::kY8:
+      return 1;
+  }
+  return 0;
 }
 
 void ResizeNearestNeighbor(const uint8_t* src, int src_w, int src_h,
@@ -412,144 +426,40 @@ void RgbToGrayscale(const uint8_t* camera_rgb, uint8_t* camera_grayscale,
   }
 }
 
-void AutoWhiteBalance(uint8_t* camera_rgb, int width, int height) {
-  unsigned int r_sum = 0, g_sum = 0, b_sum = 0;
-  float r_sum_f = 0.0, g_sum_f = 0.0, b_sum_f = 0.0;
-  float threshold = 0.9f;
-  uint16_t threshold16 = static_cast<uint16_t>(threshold * 255);
-  uint16_t min_rgb, max_rgb;
-  for (int i = 0; i < width * height; ++i) {
-    uint8_t r = camera_rgb[i * 3 + 0];
-    uint8_t g = camera_rgb[i * 3 + 1];
-    uint8_t b = camera_rgb[i * 3 + 2];
-    min_rgb = static_cast<uint16_t>(std::min(r, std::min(g, b)));
-    max_rgb = static_cast<uint16_t>(std::max(r, std::max(g, b)));
-    if (((max_rgb - min_rgb) * 255) > (threshold16 * max_rgb)) {
-      continue;
-    }
-    r_sum += r;
-    g_sum += g;
-    b_sum += b;
-  }
-  r_sum_f = static_cast<float>(r_sum);
-  g_sum_f = static_cast<float>(g_sum);
-  b_sum_f = static_cast<float>(b_sum);
-  float max_channel = std::max(r_sum_f, std::max(g_sum_f, b_sum_f));
-  float epsilon = 0.1;
-  float r_gain_f = r_sum_f < epsilon ? 0.0f : max_channel / r_sum_f;
-  float g_gain_f = g_sum_f < epsilon ? 0.0f : max_channel / g_sum_f;
-  float b_gain_f = b_sum_f < epsilon ? 0.0f : max_channel / b_sum_f;
-  uint16_t r_gain_i = static_cast<uint16_t>(r_gain_f * (1 << 8));
-  uint16_t g_gain_i = static_cast<uint16_t>(g_gain_f * (1 << 8));
-  uint16_t b_gain_i = static_cast<uint16_t>(b_gain_f * (1 << 8));
-  for (int i = 0; i < width * height; ++i) {
-    uint8_t r = camera_rgb[i * 3 + 0];
-    uint8_t g = camera_rgb[i * 3 + 1];
-    uint8_t b = camera_rgb[i * 3 + 2];
-    camera_rgb[i * 3 + 0] = static_cast<uint8_t>(
-        std::min(255UL, (static_cast<uint32_t>(r) * r_gain_i) >> 8));
-    camera_rgb[i * 3 + 1] = static_cast<uint8_t>(
-        std::min(255UL, (static_cast<uint32_t>(g) * g_gain_i) >> 8));
-    camera_rgb[i * 3 + 2] = static_cast<uint8_t>(
-        std::min(255UL, (static_cast<uint32_t>(b) * b_gain_i) >> 8));
-  }
-}
-}  // namespace
-
-extern "C" void CSI_DriverIRQHandler(void);
-extern "C" void CSI_IRQHandler(void) {
-  CSI_DriverIRQHandler();
-  __DSB();
-}
-
-int CameraFormatBpp(CameraFormat fmt) {
-  switch (fmt) {
-    case CameraFormat::kRgb:
-      return 3;
-    case CameraFormat::kRaw:
-    case CameraFormat::kY8:
-      return 1;
-  }
-  return 0;
-}
-
 bool CameraTask::GetFrame(const std::vector<CameraFrameFormat>& fmts) {
   if (!enabled_) {
     printf("Camera is not enabled, cannot capture frame.\r\n");
     return false;
   }
-  if (mode_ == CameraMode::kTrigger && !GpioGet(Gpio::kCameraTrigger)) {
-    printf("Camera is in trigger mode but was never triggered\r\n");
-    return false;
-  }
+
+  // if (mode_ == CameraMode::kTrigger && !GpioGet(Gpio::kCameraTrigger)) {
+  //   printf("Camera is in trigger mode but was never triggered\r\n");
+  //   return false;
+  // }
 
   bool ret = true;
-  uint8_t* raw = nullptr;
-  int index = GetFrame(&raw, true);
+  static uint8_t* raw = nullptr;
+  int index = 0;
+
+  // if (raw == nullptr)
+  index = GetFrame(&raw, true);
+
   if (!raw) {
+    printf("No frame!!!\r\n");
     return false;
   }
-  if (mode_ == CameraMode::kTrigger) {
-    GpioSet(Gpio::kCameraTrigger, false);
-  }
+
+  // if (mode_ == CameraMode::kTrigger) {
+  //   GpioSet(Gpio::kCameraTrigger, false);
+  // }
 
   for (const CameraFrameFormat& fmt : fmts) {
-    switch (fmt.fmt) {
-      case CameraFormat::kRgb: {
-        if (fmt.width == kWidth && fmt.height == kHeight) {
-          BayerToRgb(raw, fmt.buffer, fmt.width, fmt.height, fmt.filter,
-                     fmt.rotation);
-          if (fmt.white_balance &&
-              GetSingleton()->test_pattern_ == CameraTestPattern::kNone) {
-            AutoWhiteBalance(fmt.buffer, fmt.width, fmt.height);
-          }
-        } else {
-          auto buffer_rgb = std::make_unique<uint8_t[]>(
-              CameraFormatBpp(CameraFormat::kRgb) * kWidth * kHeight);
-          BayerToRgb(raw, buffer_rgb.get(), kWidth, kHeight, fmt.filter,
-                     fmt.rotation);
-          if (fmt.white_balance &&
-              GetSingleton()->test_pattern_ == CameraTestPattern::kNone) {
-            AutoWhiteBalance(buffer_rgb.get(), kWidth, kHeight);
-          }
-          ResizeNearestNeighbor(buffer_rgb.get(), kWidth, kHeight, fmt.buffer,
-                                fmt.width, fmt.height,
-                                CameraFormatBpp(CameraFormat::kRgb),
-                                fmt.preserve_ratio);
-        }
-        break;
-        case CameraFormat::kY8: {
-          if (fmt.width == kWidth && fmt.height == kHeight) {
-            BayerToGrayscale(raw, fmt.buffer, kWidth, kHeight, fmt.filter,
-                             fmt.rotation);
-          } else {
-            auto buffer_rgb = std::make_unique<uint8_t[]>(
-                CameraFormatBpp(CameraFormat::kRgb) * kWidth * kHeight);
-            auto buffer_rgb_scaled = std::make_unique<uint8_t[]>(
-                CameraFormatBpp(CameraFormat::kRgb) * fmt.width * fmt.height);
-            BayerToRgb(raw, buffer_rgb.get(), kWidth, kHeight, fmt.filter,
-                       fmt.rotation);
-            ResizeNearestNeighbor(
-                buffer_rgb.get(), kWidth, kHeight, buffer_rgb_scaled.get(),
-                fmt.width, fmt.height, CameraFormatBpp(CameraFormat::kRgb),
-                fmt.preserve_ratio);
-            RgbToGrayscale(buffer_rgb_scaled.get(), fmt.buffer, fmt.width,
-                           fmt.height);
-          }
-        } break;
-        case CameraFormat::kRaw:
-          if (fmt.width != kWidth || fmt.height != kHeight) {
-            ret = false;
-            break;
-          }
-          std::memcpy(fmt.buffer, raw,
-                      kWidth * kHeight * CameraFormatBpp(CameraFormat::kRaw));
-          ret = true;
-          break;
-        default:
-          ret = false;
-      }
-    }
+    DBG_OUTPUT("F%d:%dx%d\n", index, kWidth, kHeight);
+    // std::memcpy(fmt.buffer, raw, kWidth * kHeight * 4);
+    Rgb8888ToRgb(raw, fmt.buffer, fmt.width, fmt.height);
+
+    ret = true;
+    break;
   }
 
   GetSingleton()->ReturnFrame(index);
@@ -566,34 +476,42 @@ bool CameraTask::Read(uint16_t reg, uint8_t* val) {
   transfer.data = val;
   transfer.dataSize = sizeof(*val);
   status_t status = LPI2C_RTOS_Transfer(i2c_handle_, &transfer);
+  DBG_OUTPUT("Rx|0x%04X=0x%02X|(%ld)\n", reg, *val, status);
   return status == kStatus_Success;
 }
 
 bool CameraTask::Write(uint16_t reg, uint8_t val) {
+  return Write(reg, &val, sizeof(val));
+}
+
+bool CameraTask::Write(uint16_t reg, const uint8_t *val, int size) {
   lpi2c_master_transfer_t transfer;
   transfer.flags = kLPI2C_TransferDefaultFlag;
   transfer.slaveAddress = kCameraAddress;
   transfer.direction = kLPI2C_Write;
   transfer.subaddress = static_cast<uint16_t>(reg);
   transfer.subaddressSize = sizeof(reg);
-  transfer.data = &val;
-  transfer.dataSize = sizeof(val);
+  transfer.data = (void *)val;
+  transfer.dataSize = size;
   status_t status = LPI2C_RTOS_Transfer(i2c_handle_, &transfer);
+  DBG_OUTPUT("Tx|0x%04X=0x%02X|(%ld)\n", reg, val[0], status);
   return status == kStatus_Success;
 }
 
-void CameraTask::Init(lpi2c_rtos_handle_t* i2c_handle) {
+void CameraTask::Init(lpi2c_rtos_handle_t* i2c_handle, lpi2c_rtos_handle_t* i2c_handle2) {
   QueueTask::Init();
   i2c_handle_ = i2c_handle;
+  i2c_handle2_ = i2c_handle2;
   enabled_ = false;
   GetMotionDetectionConfigDefault(md_config_);
   md_config_.enable = false;
-  GpioConfigureInterrupt(
-      Gpio::kCameraInt, GpioInterruptMode::kIntModeRising, [this]() {
-        camera::Request req;
-        req.type = camera::RequestType::kMotionDetectionInterrupt;
-        this->SendRequestAsync(req);
-      });
+
+  // GpioConfigureInterrupt(
+  //     Gpio::kCameraInt, GpioInterruptMode::kIntModeRising, [this]() {
+  //       camera::Request req;
+  //       req.type = camera::RequestType::kMotionDetectionInterrupt;
+  //       this->SendRequestAsync(req);
+  //     });
 }
 
 int CameraTask::GetFrame(uint8_t** buffer, bool block) {
@@ -638,6 +556,20 @@ bool CameraTask::SetPower(bool enable) {
   return resp.response.power.success;
 }
 
+void CameraTask::ChangePattern(void)
+{
+  CameraTestPattern val = CameraTestPattern::kNone;
+
+  if (test_pattern_ == CameraTestPattern::kNone)
+    val = CameraTestPattern::kColorBar;
+  else if (test_pattern_ == CameraTestPattern::kColorBar)
+    val = CameraTestPattern::kWalkingOnes;
+  else
+    val = CameraTestPattern::kNone;
+
+  SetTestPattern(val);
+}
+
 void CameraTask::SetTestPattern(CameraTestPattern pattern) {
   camera::Request req;
   req.type = camera::RequestType::kTestPattern;
@@ -645,7 +577,7 @@ void CameraTask::SetTestPattern(CameraTestPattern pattern) {
   SendRequest(req);
 }
 
-void CameraTask::Trigger() { GpioSet(Gpio::kCameraTrigger, true); }
+void CameraTask::Trigger() {}
 
 void CameraTask::DiscardFrames(int count) {
   camera::Request req;
@@ -655,20 +587,8 @@ void CameraTask::DiscardFrames(int count) {
 }
 
 void CameraTask::TaskInit() {
-  status_t status;
-  csi_config_.width = kCsiWidth;
-  csi_config_.height = kCsiHeight;
-  csi_config_.polarityFlags =
-      kCSI_HsyncActiveHigh | kCSI_VsyncActiveHigh | kCSI_DataLatchOnRisingEdge;
-  csi_config_.bytesPerPixel = 1;
-  csi_config_.linePitch_Bytes = kCsiWidth * 1;
-  csi_config_.workMode = kCSI_GatedClockMode;
-  csi_config_.dataBus = kCSI_DataBus8Bit;
-  csi_config_.useExtVsync = true;
-  status = CSI_Init(CSI, &csi_config_);
-  if (status != kStatus_Success) {
-    return;
-  }
+  printf("Camera %dx%d@%d %d bits per pixel\n",
+    DEMO_CAMERA_WIDTH, DEMO_CAMERA_HEIGHT, DEMO_CAMERA_FRAME_RATE, DEMO_CAMERA_BUFFER_BPP * 8);
 
   camera::PowerRequest req;
   req.enable = false;
@@ -677,180 +597,219 @@ void CameraTask::TaskInit() {
 
 void CameraTask::SetMotionDetectionRegisters() {
   if (md_config_.enable) {
-    Write(CameraRegisters::kMdCtrl, 3);
-    Write(CameraRegisters::kMdThl, 1);
-    Write(CameraRegisters::kMdLroiXStartH, md_config_.x0 >> 8);
-    Write(CameraRegisters::kMdLroiXStartL, md_config_.x0 & 0xFF);
-    Write(CameraRegisters::kMdLroiYStartH, md_config_.y0 >> 8);
-    Write(CameraRegisters::kMdLroiYStartL, md_config_.y0 & 0xFF);
-    Write(CameraRegisters::kMdLroiXEndH, md_config_.x1 >> 8);
-    Write(CameraRegisters::kMdLroiXEndL, md_config_.x1 & 0xFF);
-    Write(CameraRegisters::kMdLroiYEndH, md_config_.y1 >> 8);
-    Write(CameraRegisters::kMdLroiYEndL, md_config_.y1 & 0xFF);
-    Write(CameraRegisters::kI2cClear, 1);
   } else {
-    Write(CameraRegisters::kMdCtrl, 0);
   }
 }
 
-void CameraTask::SetDefaultRegisters() {
-  // Taken from Tensorflow's configuration in the person detection sample
-  /* Analog settings */
-  Write(CameraRegisters::kBlcTgt, 0x08);
-  Write(CameraRegisters::kBlc2Tgt, 0x08);
-  /* These registers are RESERVED in the datasheet,
-   * but without them the picture is bad. */
-  Write(0x3044, 0x0A);
-  Write(0x3045, 0x00);
-  Write(0x3047, 0x0A);
-  Write(0x3050, 0xC0);
-  Write(0x3051, 0x42);
-  Write(0x3052, 0x50);
-  Write(0x3053, 0x00);
-  Write(0x3054, 0x03);
-  Write(0x3055, 0xF7);
-  Write(0x3056, 0xF8);
-  Write(0x3057, 0x29);
-  Write(0x3058, 0x1F);
-  Write(CameraRegisters::kBitControl, 0x1E);
-  /* Digital settings */
-  Write(CameraRegisters::kBlcCfg, 0x43);
-  Write(CameraRegisters::kBlcDither, 0x40);
-  Write(CameraRegisters::kBlcDarkpixel, 0x32);
-  Write(CameraRegisters::kDgainControl, 0x7F);
-  Write(CameraRegisters::kBliEn, 0x01);
-  Write(CameraRegisters::kDpcCtrl, 0x00);
-  Write(CameraRegisters::kClusterThrHot, 0xA0);
-  Write(CameraRegisters::kClusterThrCold, 0x60);
-  Write(CameraRegisters::kSingleThrHot, 0x90);
-  Write(CameraRegisters::kSingleThrCold, 0x40);
-  /* AE settings */
-  Write(CameraRegisters::kStatisticCtrl, 0x07);
-  Write(CameraRegisters::kAeCtrl, 0x01);
-  Write(CameraRegisters::kAeTargetMean, 0x5F);
-  Write(CameraRegisters::kAeMinMean, 0x0A);
-  Write(CameraRegisters::kConvergeInTh, 0x03);
-  Write(CameraRegisters::kConvergeOutTh, 0x05);
-  Write(CameraRegisters::kMaxIntgH, 0x02);
-  Write(CameraRegisters::kMaxIntgL, 0x14);
-  Write(CameraRegisters::kMinIntg, 0x02);
-  Write(CameraRegisters::kMaxAgainFull, 0x03);
-  Write(CameraRegisters::kMaxAgainBin2, 0x03);
-  Write(CameraRegisters::kMinAgain, 0x00);
-  Write(CameraRegisters::kMaxDgain, 0x80);
-  Write(CameraRegisters::kMinDgain, 0x40);
-  Write(CameraRegisters::kDampingFactor, 0x20);
-  /* 60Hz flicker */
-  Write(CameraRegisters::kFsCtrl, 0x03);
-  Write(CameraRegisters::kFs60HzH, 0x00);
-  Write(CameraRegisters::kFs60HzL, 0x85);
-  Write(CameraRegisters::kFs50HzH, 0x00);
-  Write(CameraRegisters::kFs50HzL, 0xA0);
+bool CameraTask::VideoConvert(uint32_t in)
+{
+      pxp_ps_buffer_config_t psBufferConfig = {
+#if (!(defined(FSL_FEATURE_PXP_HAS_NO_EXTEND_PIXEL_FORMAT) && FSL_FEATURE_PXP_HAS_NO_EXTEND_PIXEL_FORMAT)) || \
+    (!(defined(FSL_FEATURE_PXP_V3) && FSL_FEATURE_PXP_V3))
+        .pixelFormat = kPXP_PsPixelFormatRGB888, //kPXP_PsPixelFormatARGB8888,
+#else
+        .pixelFormat = kPXP_PsPixelFormatRGB888, /* Note: This is 32-bit per pixel */
+#endif
+        .swapByte    = false,
+        .bufferAddrU = 0U,
+        .bufferAddrV = 0U,
+        .pitchBytes  = DEMO_CAMERA_WIDTH * DEMO_CAMERA_BUFFER_BPP,
+    };
 
-  SetMotionDetectionRegisters();
+    /* Output config. */
+    pxp_output_buffer_config_t outputBufferConfig = {
+        .pixelFormat    = kPXP_OutputPixelFormatRGB888P,
+        .interlacedMode = kPXP_OutputProgressive,
+        .buffer1Addr    = 0U,
+        .pitchBytes     = DEMO_BUFFER_WIDTH * 3,
+#if DEMO_ROTATE_FRAME
+        .width  = DEMO_BUFFER_HEIGHT,
+        .height = DEMO_BUFFER_WIDTH,
+#else
+        .width       = DEMO_BUFFER_WIDTH,
+        .height      = DEMO_BUFFER_HEIGHT,
+#endif
+    };
+
+  /* Convert the camera input picture to RGB format. */
+  psBufferConfig.bufferAddr = in;
+  PXP_SetProcessSurfaceBufferConfig(DEMO_PXP, &psBufferConfig);
+
+  outputBufferConfig.buffer0Addr = (uint32_t)pxp_buffer;
+  PXP_SetOutputBufferConfig(DEMO_PXP, &outputBufferConfig);
+
+  printf("pxp starting ...\r\n");
+
+  PXP_Start(DEMO_PXP);
+
+  printf("pxp waiting to complete ...\r\n");
+
+  /* Wait for PXP process complete. */
+  while (!(kPXP_CompleteFlag & PXP_GetStatusFlags(DEMO_PXP)));
+
+  printf("pxp done\r\n");
+
+  PXP_ClearStatusFlags(DEMO_PXP, kPXP_CompleteFlag);
 }
 
 camera::EnableResponse CameraTask::HandleEnableRequest(const CameraMode& mode) {
   camera::EnableResponse resp;
   status_t status;
+  camera_config_t cameraConfig;
 
-  // Gated clock mode
-  uint8_t osc_clk_div;
-  Read(CameraRegisters::kOscClkDiv, &osc_clk_div);
-  osc_clk_div |= 1 << 5;
-  Write(CameraRegisters::kOscClkDiv, osc_clk_div);
+  BOARD_InitPxp();
+  BOARD_InitCamera();
 
-  SetDefaultRegisters();
-
-  // Shifting
-  Write(CameraRegisters::kVsyncHsyncPixelShiftEn, 0x0);
-
-  status = CSI_TransferCreateHandle(CSI, &csi_handle_, nullptr, 0);
-
-  int framebuffer_count = kFramebufferCount;
-  if (mode == CameraMode::kTrigger) {
-    framebuffer_count = 2;
-  }
-  for (int i = 0; i < framebuffer_count; i++) {
-    status = CSI_TransferSubmitEmptyBuffer(
-        CSI, &csi_handle_, reinterpret_cast<uint32_t>(framebuffers[i]));
+  for(int n=0; n<10; n++)
+  {
+    uint8_t val;
+    Read(0x3008, &val);
+    vTaskDelay(pdMS_TO_TICKS(10));
   }
 
-  // Streaming
-  status = CSI_TransferStart(CSI, &csi_handle_);
-  SetMode(mode);
+  BOARD_PxpConfig();
+
+  coralmicro::GpioSet((coralmicro::Gpio) coralmicro::Gpio::kUserLed, 1);
+
+  status = CAMERA_RECEIVER_Start(&cameraReceiver);
+  printf("CAMERA_RECEIVER_Start = %ld\n", status);
+
   resp.success = (status == kStatus_Success);
+
   return resp;
+}
+
+bool CameraTask::Detect(void)
+{
+  uint8_t model_id_h = 0xff, model_id_l = 0xff;
+
+  for (int i = 0; i < 10; ++i) {
+      Read(0x300A, &model_id_h);
+      Read(0x300B, &model_id_l);
+      if (model_id_h == kModelIdHExpected && model_id_l == kModelIdLExpected) {
+        return true;
+      }
+  }
+
+  if (model_id_h != kModelIdHExpected || model_id_l != kModelIdLExpected) {
+    printf("Camera model id not as expected!!!!!: 0x%02x%02x\r\n", model_id_h,
+            model_id_l);
+  }
+
+  return false;
 }
 
 void CameraTask::HandleDisableRequest() {
   enabled_ = false;
-  Write(CameraRegisters::kModeSelect, 0);
-  CSI_TransferStop(CSI, &csi_handle_);
+
+  status_t status = CAMERA_RECEIVER_Stop(&cameraReceiver);
+  printf("CAMERA_RECEIVER_Stop = %ld\n", status);
 }
 
 camera::PowerResponse CameraTask::HandlePowerRequest(
     const camera::PowerRequest& power) {
   camera::PowerResponse resp;
   resp.success = true;
+
   PmicTask::GetSingleton()->SetRailState(PmicRail::kCam2V8, power.enable);
   PmicTask::GetSingleton()->SetRailState(PmicRail::kCam1V8, power.enable);
   vTaskDelay(pdMS_TO_TICKS(10));
 
   if (power.enable) {
-    uint8_t model_id_h = 0xff, model_id_l = 0xff;
-    for (int i = 0; i < 10; ++i) {
-      Read(CameraRegisters::kModelIdH, &model_id_h);
-      Read(CameraRegisters::kModelIdL, &model_id_l);
-      Write(CameraRegisters::kSwReset, 0x00);
-      if (model_id_h == kModelIdHExpected && model_id_l == kModelIdLExpected) {
-        break;
-      }
-    }
 
-    if (model_id_h != kModelIdHExpected || model_id_l != kModelIdLExpected) {
-      printf("Camera model id not as expected: 0x%02x%02x\r\n", model_id_h,
-             model_id_l);
-      resp.success = false;
+    coralmicro::GpioSet((coralmicro::Gpio) Gpio::kCamPwrDn, 0);
+    vTaskDelay(pdMS_TO_TICKS(2));
+
+    coralmicro::GpioSet((coralmicro::Gpio) Gpio::kCamReset, 1);
+    vTaskDelay(pdMS_TO_TICKS(40));
+
+    // Check on first I2C bus, then switch on 2nd if fail
+    resp.success = CameraTask::Detect();
+    if (!resp.success && i2c_handle2_)
+    {
+      i2c_handle_ = i2c_handle2_;
+      resp.success = CameraTask::Detect();
     }
+    else
+      resp.success = true;
   }
+
   return resp;
 }
 
 camera::FrameResponse CameraTask::HandleFrameRequest(
     const camera::FrameRequest& frame) {
-  camera::FrameResponse resp;
-  resp.index = -1;
+  camera::FrameResponse resp = {
+    .index = -1
+  };
+  status_t status;
   uint32_t buffer;
+
+  coralmicro::GpioSet((coralmicro::Gpio) coralmicro::Gpio::kStatusLed, 0);
+
   if (frame.index == -1) {  // GET
-    status_t status = CSI_TransferGetFullBuffer(CSI, &csi_handle_, &buffer);
+    // get new frame buffer
+    int n = 40;
+    bool state = true;
+
+    DBG_OUTPUT ("CAMERA_RECEIVER_GetFullBuffer:waiting...\n");
+
+    while(n--)
+    {
+      status = CAMERA_RECEIVER_GetFullBuffer(&cameraReceiver, &buffer);
+      if (status == kStatus_Success)
+      {
+        break;
+      }
+
+      vTaskDelay(100);
+
+      coralmicro::GpioSet((coralmicro::Gpio) coralmicro::Gpio::kStatusLed, state);
+      state = !state;
+    }
+
+    DBG_OUTPUT("CAMERA_RECEIVER_GetFullBuffer = %ld\n", status);
+
     if (status == kStatus_Success) {
-      DCACHE_InvalidateByRange(buffer, kHeight * kWidth);
+      // DBG_OUTPUT ("CAMERA_RECEIVER_GetFullBuffer:status = OK, invalidate %d bytes\n", sizeof(framebuffers[0]));
+      // DCACHE_InvalidateByRange(buffer, sizeof(framebuffers[0]));
+
+      coralmicro::GpioSet((coralmicro::Gpio) coralmicro::Gpio::kStatusLed, 0);
+
       resp.index = FramebufferPtrToIndex(reinterpret_cast<uint8_t*>(buffer));
+    }
+    else {
+      printf ("CAMERA_RECEIVER_GetFullBuffer:status = %ld\n", status);
+
+      coralmicro::GpioSet((coralmicro::Gpio) coralmicro::Gpio::kStatusLed, 1);
     }
   } else {  // RETURN
     buffer = reinterpret_cast<uint32_t>(IndexToFramebufferPtr(frame.index));
+
     if (buffer) {
-      CSI_TransferSubmitEmptyBuffer(CSI, &csi_handle_, buffer);
+      status = CAMERA_RECEIVER_SubmitEmptyBuffer(&cameraReceiver, (uint32_t)buffer);
+      DBG_OUTPUT ("CAMERA_RECEIVER_SubmitEmptyBuffer:status = %ld\n", status);
     }
   }
+
+  coralmicro::GpioSet((coralmicro::Gpio) coralmicro::Gpio::kStatusLed, 0);
+
+  // CamDumpRegistersOnly();
+
+  uint32_t reg1 = 0x40810108;
+  uint32_t reg2 = 0x4081010c;
+  if (*(uint32_t*)reg1)
+    printf ("%08lX=%08lX\n",reg1, *(uint32_t*)reg1);
+
+  if (*(uint32_t*)reg2)
+    printf ("%08lX=%08lX\n",reg2, *(uint32_t*)reg2);
+
   return resp;
 }
 
 void CameraTask::HandleTestPatternRequest(
     const camera::TestPatternRequest& test_pattern) {
-  if (test_pattern.pattern == CameraTestPattern::kNone) {
-    SetDefaultRegisters();
-  } else {
-    Write(CameraRegisters::kAeCtrl, 0x00);
-    Write(CameraRegisters::kBlcCfg, 0x00);
-    Write(CameraRegisters::kDpcCtrl, 0x00);
-    Write(CameraRegisters::kAnalogGain, 0x00);
-    Write(CameraRegisters::kDigitalGainH, 0x01);
-    Write(CameraRegisters::kDigitalGainL, 0x00);
-  }
-  Write(CameraRegisters::kTestPatternMode,
-        static_cast<uint8_t>(test_pattern.pattern));
+  Write(0x503D, (uint8_t)test_pattern.pattern);
   test_pattern_ = test_pattern.pattern;
 }
 
@@ -895,14 +854,12 @@ void CameraTask::HandleMotionDetectionConfig(
 }
 
 void CameraTask::HandleMotionDetectionInterrupt() {
-  Write(CameraRegisters::kI2cClear, 1);
   if (md_config_.cb) {
-    md_config_.cb(md_config_.cb_param);
+    // md_config_.cb(md_config_.cb_param);
   }
 }
 
 void CameraTask::SetMode(const CameraMode& mode) {
-  Write(CameraRegisters::kModeSelect, static_cast<uint8_t>(mode));
   mode_ = mode;
 }
 

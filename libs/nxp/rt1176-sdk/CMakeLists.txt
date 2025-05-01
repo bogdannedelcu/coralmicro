@@ -83,6 +83,12 @@ set(libs_nxp_rt1176-sdk_SOURCES
     ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/output/source/device/class/usb_device_hid.c
     ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/output/source/device/usb_device_ch9.c
     ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/phy/usb_phy.c
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_mipi_csi2rx.c
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_soc_mipi_csi2rx.c
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/components/video/camera/device/ov5640/fsl_ov5640.c
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/components/video/camera/device/sccb/fsl_sccb.c
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/components/video/fsl_video_common.c
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/components/video/camera/receiver/csi/fsl_csi_camera_adapter.c
     ${libs_CMSIS_SOURCES}
 )
 
@@ -151,6 +157,13 @@ set(libs_nxp_rt1176-sdk_TARGET_INCLUDE_DIRECTORIES
     ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/output/source/device
     ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/output/source/device/class
     ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/phy
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/components/video
+${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/components/video/camera
+${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/components/video/camera/device
+${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/components/video/camera/device/sccb
+${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/components/video/camera/device/ov5640
+${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/components/video/camera/receiver
+${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/components/video/camera/receiver/csi
 )
 
 set(libs_nxp_rt1176-sdk-m7_TARGET_INCLUDE_DIRECTORIES
