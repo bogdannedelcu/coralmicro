@@ -85,13 +85,24 @@ enum Gpio {
   // PWM_A (GPIO_AD_00); left header (J9), pin 10
   kPwm0,
   // I2C6_SCL (GPIO_LPSR_07); left header (J9), pin 11
+
   // kScl6,
   // GPIO_DISP_B2_09 - PWDN - camera
   kCamPwrDn,
   // GPIO_AD_26 - Reset - Camera
   kCamReset,
+
   // Number of pre-configured GPIOs
   kCount,
+/*
+
+  // GPIO's to configure for new camera OV5640
+  kOvAD03,
+  kOvAD26,
+  kOvAD27,
+  kOvDispB2_15,
+  kOvDispB2_09,
+*/
 
   // @cond Do not generate docs
   // kArduinoD0 = kScl6,
