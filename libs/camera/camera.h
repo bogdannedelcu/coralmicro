@@ -26,8 +26,6 @@
 #include "third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_csi.h"
 #include "third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_lpi2c_freertos.h"
 
-#include "camera_support.h"
-
 namespace coralmicro {
 
 // The camera operating mode for `CameraTask::Enable()`.
@@ -45,8 +43,8 @@ enum class CameraMode : uint8_t {
 // Test patterns to use with `CameraTask::SetTestPattern()`
 enum class CameraTestPattern : uint8_t {
   kNone = 0x00,
-  kColorBar = 0x80,
-  kWalkingOnes = 0x84,
+  kColorBar = 0x01,
+  kWalkingOnes = 0x11,
 };
 
 // The function type required by `CameraMotionDetectionConfig`.
@@ -239,7 +237,7 @@ class CameraTask
   // ```
   //
   // @param i2c_handle The camera I2C handle: `I2C5Handle()`.
-  void Init(lpi2c_rtos_handle_t* i2c_handle, lpi2c_rtos_handle_t* i2c_handle_2nd = nullptr);
+  void Init(lpi2c_rtos_handle_t* i2c_handle);
 
   // Gets the `CameraTask` singleton.
   //
@@ -254,7 +252,6 @@ class CameraTask
   // @param mode The operating mode (either `kStreaming` or `kTrigger`).
   // @return True if camera is enabled, false otherwise.
   bool Enable(CameraMode mode);
-  void ChangePattern(void);
 
   // Sets the camera into a low-power state, using appoximately 200 μW
   // (compared to approximately 4 mW when streaming). The camera configuration
@@ -314,17 +311,12 @@ class CameraTask
   void SetMotionDetectionConfig(const CameraMotionDetectionConfig& config);
 
   // Native image pixel width.
-  static constexpr size_t kWidth = DEMO_CAMERA_WIDTH;
+  static constexpr size_t kWidth = 324;
 
   // Native image pixel height.
-  static constexpr size_t kHeight = DEMO_CAMERA_HEIGHT;
-
-  bool Read(uint16_t reg, uint8_t* val);
-  bool Write(uint16_t reg, uint8_t val);
-  bool Write(uint16_t reg, const uint8_t *val, int size);
+  static constexpr size_t kHeight = 324;
 
  private:
-  bool VideoConvert(uint32_t in);
   int GetFrame(uint8_t** buffer, bool block);
   void ReturnFrame(int index);
   void TaskInit() override;
@@ -338,12 +330,12 @@ class CameraTask
   void HandleMotionDetectionInterrupt();
   void HandleMotionDetectionConfig(const CameraMotionDetectionConfig& config);
   void SetMode(const CameraMode& mode);
+  bool Read(uint16_t reg, uint8_t* val);
+  bool Write(uint16_t reg, uint8_t val);
   void SetDefaultRegisters();
   void SetMotionDetectionRegisters();
-  bool Detect(void);
 
   lpi2c_rtos_handle_t* i2c_handle_;
-  lpi2c_rtos_handle_t* i2c_handle2_;
   csi_handle_t csi_handle_;
   csi_config_t csi_config_;
   CameraMode mode_;

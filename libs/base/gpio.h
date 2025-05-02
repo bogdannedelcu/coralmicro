@@ -67,7 +67,7 @@ enum Gpio {
   // SPI6_SDI (GPIO_LPSR_12); right header (J10); pin 8
   kSpiSdi,
   // I2C6_SDA (GPIO_LPSR_06); right header (J10); pin 10
-  // kSda6,
+  kSda6,
   // I2C1_SCL (GPIO_AD_32); right header (J10); pin 11
   kScl1,
   // I2C1_SDA (GPIO_AD_33); right header (J10); pin 12
@@ -85,12 +85,7 @@ enum Gpio {
   // PWM_A (GPIO_AD_00); left header (J9), pin 10
   kPwm0,
   // I2C6_SCL (GPIO_LPSR_07); left header (J9), pin 11
-
-  // kScl6,
-  // GPIO_DISP_B2_09 - PWDN - camera
-  kCamPwrDn,
-  // GPIO_AD_26 - Reset - Camera
-  kCamReset,
+  kScl6,
 
   // Number of pre-configured GPIOs
   kCount,
@@ -105,10 +100,10 @@ enum Gpio {
 */
 
   // @cond Do not generate docs
-  // kArduinoD0 = kScl6,
+  kArduinoD0 = kScl6,
   kArduinoD1 = kUartRts,
   kArduinoD2 = kUartCts,
-  // kArduinoD3 = kSda6,
+  kArduinoD3 = kSda6,
   kArduinoA0 = kAB,
   kArduinoA1 = kAA,
   kArduinoA3 = kPwm0,

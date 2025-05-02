@@ -38,6 +38,8 @@
                             imgElt.src = imgReader.result;
                             imgElt.width = document.getElementById("image-width").value;
                             imgElt.height = document.getElementById("image-height").value;
+                            let rotation = document.getElementById("image-rotation").value;
+                            imgElt.style.transform = 'rotate(' + rotation.toString() + 'deg)';
                         };
                     })
                     .catch((reason => {
@@ -93,15 +95,15 @@
     <div id="setting-menu">
         <div style="margin-top: 10px"></div>
         <label for="image-width" class="input-label">Image Width:</label>
-        <input id="image-width" type="number" required value=1280>
+        <input id="image-width" type="number" required value=500>
         <label for="image-height" class="input-label">Image Height:</label>
-        <input id="image-height" type="number" required value=720>
+        <input id="image-height" type="number" required value=500>
         <label for="image-rotation" class="input-label">Rotation:</label>
         <select name="image-rotation" id="image-rotation">
-            <option value=0 selected>0</option>
+            <option value=0>0</option>
             <option value=90>90</option>
             <option value=180>180</option>
-            <option value=270>0</option>
+            <option value=270 selected>270</option>
         </select>
     </div>
     <img id="coral-micro-camera-image"

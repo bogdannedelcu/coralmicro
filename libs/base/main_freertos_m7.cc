@@ -46,7 +46,6 @@
 
 namespace {
 lpi2c_rtos_handle_t g_i2c5_handle;
-lpi2c_rtos_handle_t g_i2c6_handle;
 coralmicro::CdcEem g_cdc_eem;
 
 void InitializeCDCEEM() {
@@ -72,22 +71,6 @@ extern "C" int main(int argc, char** argv) {
   return real_main(argc, argv, true, true);
 }
 
-static inline void IOMUXC_SetPinMux(uint32_t muxRegister,
-                                    uint32_t muxMode,
-                                    uint32_t inputRegister,
-                                    uint32_t inputDaisy,
-                                    uint32_t configRegister,
-                                    uint32_t inputOnfield)
-{
-    *((volatile uint32_t *)muxRegister) =
-        IOMUXC_SW_MUX_CTL_PAD_MUX_MODE(muxMode) | IOMUXC_SW_MUX_CTL_PAD_SION(inputOnfield);
-
-    if (inputRegister != 0UL)
-    {
-        *((volatile uint32_t *)inputRegister) = inputDaisy;
-    }
-}
-
 extern "C" int real_main(int argc, char** argv, bool init_console_tx,
                          bool init_console_rx) {
   BOARD_InitHardware(true);
@@ -98,7 +81,6 @@ extern "C" int real_main(int argc, char** argv, bool init_console_tx,
   coralmicro::IpcM7::GetSingleton()->Init();
   coralmicro::RandomInit();
   coralmicro::ConsoleM7::GetSingleton()->Init(init_console_tx, init_console_rx);
-
   CHECK(coralmicro::LfsInit());
   // Make sure this happens before EEM or WICED are initialized.
   tcpip_init(nullptr, nullptr);
@@ -110,8 +92,6 @@ extern "C" int real_main(int argc, char** argv, bool init_console_tx,
   coralmicro::EdgeTpuTask::GetSingleton()->Init();
   coralmicro::TempSensorInit();
 
-  printf("!!!! START %s %s!!!\n", __DATE__, __TIME__);
-
   // Initialize I2C5 state
   NVIC_SetPriority(LPI2C5_IRQn, 3);
   lpi2c_master_config_t config;
@@ -119,25 +99,8 @@ extern "C" int real_main(int argc, char** argv, bool init_console_tx,
   LPI2C_RTOS_Init(&g_i2c5_handle, reinterpret_cast<LPI2C_Type*>(LPI2C5_BASE),
                   &config, CLOCK_GetFreq(kCLOCK_OscRc48MDiv2));
 
-  // Initialize I2C6 state
-#define IOMUXC_GPIO_LPSR_07_LPI2C6_SCL 0x40C0801CU, 0x0U, 0x40C0808CU, 0x0U, 0x40C0805CU
-#define IOMUXC_GPIO_LPSR_06_LPI2C6_SDA 0x40C08018U, 0x0U, 0x40C08090U, 0x0U, 0x40C08058U
-
-  IOMUXC_SetPinMux(
-      IOMUXC_GPIO_LPSR_06_LPI2C6_SDA,         /* GPIO_LPSR_06 is configured as LPI2C6_SDA */
-      1U);                                    /* Software Input On Field: Force input path of pad GPIO_LPSR_06 */
-  IOMUXC_SetPinMux(
-      IOMUXC_GPIO_LPSR_07_LPI2C6_SCL,         /* GPIO_LPSR_07 is configured as LPI2C6_SCL */
-      1U);                                    /* Software Input On Field: Force input path of pad GPIO_LPSR_07 */
-
-  NVIC_SetPriority(LPI2C6_IRQn, 3);
-  lpi2c_master_config_t config6;
-  LPI2C_MasterGetDefaultConfig(&config6);
-  LPI2C_RTOS_Init(&g_i2c6_handle, reinterpret_cast<LPI2C_Type*>(LPI2C6_BASE),
-                  &config6, CLOCK_GetFreq(kCLOCK_OscRc48MDiv2));
-
   coralmicro::PmicTask::GetSingleton()->Init(&g_i2c5_handle);
-  coralmicro::CameraTask::GetSingleton()->Init(&g_i2c5_handle, &g_i2c6_handle);
+  coralmicro::CameraTask::GetSingleton()->Init(&g_i2c5_handle);
 
   CHECK(xTaskCreate(app_main, "app_main", configMINIMAL_STACK_SIZE * 30,
                     nullptr, coralmicro::kAppTaskPriority, nullptr) == pdPASS);

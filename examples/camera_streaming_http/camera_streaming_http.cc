@@ -23,7 +23,6 @@
 #include "libs/libjpeg/jpeg.h"
 #include "third_party/freertos_kernel/include/FreeRTOS.h"
 #include "third_party/freertos_kernel/include/task.h"
-#include "libs/base/gpio.h"
 
 #if defined(CAMERA_STREAMING_HTTP_ETHERNET)
 #include "libs/base/ethernet.h"
@@ -40,18 +39,12 @@ namespace {
 
 constexpr char kIndexFileName[] = "/coral_micro_camera.html";
 constexpr char kCameraStreamUrlPrefix[] = "/camera_stream";
-constexpr float kRedCoefficient = .2126;
-constexpr float kGreenCoefficient = .7152;
-constexpr float kBlueCoefficient = .0722;
-constexpr float kUint8Max = 255.0;
 
 HttpServer::Content UriHandler(const char* uri) {
-  // printf("HTTP url: %s\n", uri);
   if (StrEndsWith(uri, "index.shtml") ||
       StrEndsWith(uri, "coral_micro_camera.html")) {
     return std::string(kIndexFileName);
-  } else if (StrEndsWith(uri, kCameraStreamUrlPrefix))
-  {
+  } else if (StrEndsWith(uri, kCameraStreamUrlPrefix)) {
     // [start-snippet:jpeg]
     std::vector<uint8_t> buf(CameraTask::kWidth * CameraTask::kHeight *
                              CameraFormatBpp(CameraFormat::kRgb));
@@ -59,18 +52,15 @@ HttpServer::Content UriHandler(const char* uri) {
         CameraFormat::kRgb,       CameraFilterMethod::kBilinear,
         CameraRotation::k0,       CameraTask::kWidth,
         CameraTask::kHeight,
-        /*preserve_ratio=*/false, (uint8_t *)buf.data(),
+        /*preserve_ratio=*/false, buf.data(),
         /*while_balance=*/true};
-
-    // CameraTask::GetSingleton()->SetTestPattern(CameraTestPattern::kColorBar);
-
     if (!CameraTask::GetSingleton()->GetFrame({fmt})) {
       printf("Unable to get frame from camera\r\n");
       return {};
     }
 
     std::vector<uint8_t> jpeg;
-    JpegCompressRgb((uint8_t *)buf.data(), fmt.width, fmt.height, /*quality=*/75, &jpeg);
+    JpegCompressRgb(buf.data(), fmt.width, fmt.height, /*quality=*/75, &jpeg);
     // [end-snippet:jpeg]
     return jpeg;
   }
@@ -84,12 +74,6 @@ void Main() {
 
   CameraTask::GetSingleton()->SetPower(true);
   CameraTask::GetSingleton()->Enable(CameraMode::kStreaming);
-
-  // Register callback for the user button.
-  GpioConfigureInterrupt(
-      coralmicro::Gpio::kUserButton, coralmicro::GpioInterruptMode::kIntModeFalling,
-      [handle = xTaskGetCurrentTaskHandle()]() { xTaskResumeFromISR(handle); },
-      /*debounce_interval_us=*/50 * 1e3);
 
 #if defined(CAMERA_STREAMING_HTTP_ETHERNET)
   EthernetInit(/*default_iface=*/false);
@@ -122,7 +106,7 @@ void Main() {
 #else   // USB
   std::string usb_ip;
   if (GetUsbIpAddress(&usb_ip)) {
-    printf("Serving on---: http://%s\r\n", usb_ip.c_str());
+    printf("Serving on: http://%s\r\n", usb_ip.c_str());
   }
 #endif  // defined(CAMERA_STREAMING_HTTP_ETHERNET)
 
@@ -130,10 +114,7 @@ void Main() {
   http_server.AddUriHandler(UriHandler);
   UseHttpServer(&http_server);
 
-  while (true) {
-    vTaskSuspend(nullptr);
-    CameraTask::GetSingleton()->ChangePattern();
-  }
+  vTaskSuspend(nullptr);
 }
 }  // namespace
 }  // namespace coralmicro
