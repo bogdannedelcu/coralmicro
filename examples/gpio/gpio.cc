@@ -36,11 +36,8 @@ namespace {
   LedSet(Led::kStatus, true);
 
   constexpr Gpio kGpiosToTest[] = {
-      kSpiCs, kSpiSck, kSpiSdo,  kSpiSdi,
-      //kSda6,
-      kScl1, kSda1,
-      kAA,    kAB,     kUartCts, kUartRts, kPwm1, kPwm0,
-      //kScl6,
+      kSpiCs, kSpiSck, kSpiSdo,  kSpiSdi,  kSda6, kScl1, kSda1,
+      kAA,    kAB,     kUartCts, kUartRts, kPwm1, kPwm0, kScl6,
   };
 
   for (auto gpio : kGpiosToTest) {
