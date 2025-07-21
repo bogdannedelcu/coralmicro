@@ -88,6 +88,12 @@ struct CameraMotionDetectionConfig {
   size_t y1;
 };
 
+enum class SwitchCameraId : uint8_t {
+  kCameraFront = 0,
+  kCameraBack = 1,
+};
+
+
 // @cond Do not generate docs
 inline constexpr char kCameraTaskName[] = "camera_task";
 
@@ -102,6 +108,7 @@ enum class RequestType : uint8_t {
   kDiscard,
   kMotionDetectionInterrupt,
   kMotionDetectionConfig,
+  kSwitchCamera,
 };
 
 struct FrameRequest {
@@ -150,6 +157,7 @@ struct Request {
     CameraMode mode;
     DiscardRequest discard;
     CameraMotionDetectionConfig motion_detection_config;
+    SwitchCameraId switchCameraId;
   } request;
   std::function<void(Response)> callback;
 };
@@ -313,6 +321,11 @@ class CameraTask
   // @param config `CameraMotionDetectionConfig` to apply to the camera.
   void SetMotionDetectionConfig(const CameraMotionDetectionConfig& config);
 
+  // Select the camera to read from.
+  //
+  // @param cameraId to select the MIPI lines.
+  void SwitchCamera(SwitchCameraId cameraId);
+
   // Native image pixel width.
   static constexpr size_t kWidth = DEMO_CAMERA_WIDTH;
 
@@ -333,6 +346,7 @@ class CameraTask
   void HandleDisableRequest();
   camera::PowerResponse HandlePowerRequest(const camera::PowerRequest& power);
   camera::FrameResponse HandleFrameRequest(const camera::FrameRequest& frame);
+  void HandleSwitchCameraRequest(const SwitchCameraId cameraId);
   void HandleTestPatternRequest(const camera::TestPatternRequest& test_pattern);
   void HandleDiscardRequest(const camera::DiscardRequest& discard);
   void HandleMotionDetectionInterrupt();

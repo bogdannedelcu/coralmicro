@@ -199,7 +199,7 @@ bool EthernetInit(bool default_iface) {
   // Hold PHY in reset
   GpioSet(Gpio::kEthPhyRst, false);
   // Enable 3.3V power for the PHY
-  GpioSet(Gpio::kBtHostWake, true);
+  // GpioSet(Gpio::kBtHostWake, true);
   // Hold in reset for 10ms
   SDK_DelayAtLeastUs(10000, CLOCK_GetFreq(kCLOCK_CpuClk));
   GpioSet(Gpio::kEthPhyRst, true);

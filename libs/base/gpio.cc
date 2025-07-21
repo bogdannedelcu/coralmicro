@@ -40,7 +40,8 @@ GPIO_Type* PinNameToModule[Gpio::kCount] = {
     [Gpio::kEdgeTpuPmic] = GPIO8,  [Gpio::kBtRegOn] = GPIO10,
     [Gpio::kUserButton] = GPIO13,  [Gpio::kCameraTrigger] = GPIO8,
     [Gpio::kCameraInt] = GPIO13,   [Gpio::kAntennaSelect] = GPIO11,
-    [Gpio::kBtHostWake] = GPIO11,  [Gpio::kBtDevWake] = GPIO11,
+    // [Gpio::kBtHostWake] = GPIO11,
+    [Gpio::kBtDevWake] = GPIO11,
     [Gpio::kEthPhyRst] = GPIO8,    [Gpio::kCameraPrivacyOverride] = GPIO8,
     [Gpio::kCryptoRst] = GPIO12,   [Gpio::kLpuart1SwitchEnable] = GPIO9,
     [Gpio::kSpiCs] = GPIO6,        [Gpio::kSpiSck] = GPIO6,
@@ -53,6 +54,8 @@ GPIO_Type* PinNameToModule[Gpio::kCount] = {
     [Gpio::kPwm0] = GPIO2,
     // [Gpio::kScl6] = GPIO6,
     [Gpio::kCamPwrDn] = GPIO5,     [Gpio::kCamReset] = GPIO3,
+    [Gpio::kCamPwrDn2] = GPIO11,   [Gpio::kCamReset2] = GPIO9,
+	[Gpio::kCamMux] = GPIO11,
 };
 
 constexpr uint32_t PinNameToPin[Gpio::kCount] = {
@@ -66,7 +69,7 @@ constexpr uint32_t PinNameToPin[Gpio::kCount] = {
     [Gpio::kCameraTrigger] = 27,
     [Gpio::kCameraInt] = 8,
     [Gpio::kAntennaSelect] = 7,
-    [Gpio::kBtHostWake] = 16,
+    // [Gpio::kBtHostWake] = 16,
     [Gpio::kBtDevWake] = 15,
     [Gpio::kEthPhyRst] = 13,
     [Gpio::kCameraPrivacyOverride] = 22,
@@ -88,6 +91,9 @@ constexpr uint32_t PinNameToPin[Gpio::kCount] = {
     // [Gpio::kScl6] = 7,
     [Gpio::kCamPwrDn] = 10,
     [Gpio::kCamReset] = 25,
+    [Gpio::kCamPwrDn2] = 16,
+    [Gpio::kCamReset2] = 10,
+    [Gpio::kCamMux] = 8,
 };
 
 gpio_pin_config_t PinNameToConfig[Gpio::kCount] = {
@@ -151,12 +157,12 @@ gpio_pin_config_t PinNameToConfig[Gpio::kCount] = {
             .outputLogic = 0,
             .interruptMode = kGPIO_NoIntmode,
         },
-    [Gpio::kBtHostWake] =
-        {
-            .direction = kGPIO_DigitalOutput,
-            .outputLogic = 0,
-            .interruptMode = kGPIO_NoIntmode,
-        },
+    // [Gpio::kBtHostWake] =
+    //     {
+    //         .direction = kGPIO_DigitalOutput,
+    //         .outputLogic = 0,
+    //         .interruptMode = kGPIO_NoIntmode,
+    //     },
     [Gpio::kBtDevWake] =
         {
             .direction = kGPIO_DigitalOutput,
@@ -283,6 +289,24 @@ gpio_pin_config_t PinNameToConfig[Gpio::kCount] = {
             .outputLogic = 1,
             .interruptMode = kGPIO_NoIntmode,
         },
+    [Gpio::kCamPwrDn2] =
+        {
+            .direction = kGPIO_DigitalOutput,
+            .outputLogic = 1,
+            .interruptMode = kGPIO_NoIntmode,
+        },
+    [Gpio::kCamReset2] =
+        {
+            .direction = kGPIO_DigitalOutput,
+            .outputLogic = 1,
+            .interruptMode = kGPIO_NoIntmode,
+        },
+    [Gpio::kCamMux] =
+        {
+            .direction = kGPIO_DigitalOutput,
+            .outputLogic = 1,
+            .interruptMode = kGPIO_NoIntmode,
+        },
 };
 
 constexpr IRQn_Type PinNameToIRQ[Gpio::kCount] = {
@@ -296,7 +320,7 @@ constexpr IRQn_Type PinNameToIRQ[Gpio::kCount] = {
     [Gpio::kCameraTrigger] = HardFault_IRQn,
     [Gpio::kCameraInt] = GPIO13_Combined_0_31_IRQn,
     [Gpio::kAntennaSelect] = HardFault_IRQn,
-    [Gpio::kBtHostWake] = HardFault_IRQn,
+    // [Gpio::kBtHostWake] = HardFault_IRQn,
     [Gpio::kBtDevWake] = HardFault_IRQn,
     [Gpio::kEthPhyRst] = HardFault_IRQn,
     [Gpio::kCameraPrivacyOverride] = HardFault_IRQn,
@@ -329,7 +353,7 @@ constexpr uint32_t PinNameToIOMUXC[Gpio::kCount][5] = {
     [Gpio::kCameraTrigger] = {IOMUXC_GPIO_EMC_B2_17_GPIO8_IO27},
     [Gpio::kCameraInt] = {IOMUXC_GPIO_SNVS_05_DIG_GPIO13_IO08},
     [Gpio::kAntennaSelect] = {IOMUXC_GPIO_DISP_B2_06_GPIO11_IO07},
-    [Gpio::kBtHostWake] = {IOMUXC_GPIO_DISP_B2_15_GPIO11_IO16},
+    // [Gpio::kBtHostWake] = {IOMUXC_GPIO_DISP_B2_15_GPIO11_IO16},
     [Gpio::kBtDevWake] = {IOMUXC_GPIO_DISP_B2_14_GPIO11_IO15},
     [Gpio::kEthPhyRst] = {IOMUXC_GPIO_EMC_B2_03_GPIO8_IO13},
     [Gpio::kCameraPrivacyOverride] = {IOMUXC_GPIO_EMC_B2_12_GPIO8_IO22},
@@ -351,6 +375,9 @@ constexpr uint32_t PinNameToIOMUXC[Gpio::kCount][5] = {
     // [Gpio::kScl6] = {IOMUXC_GPIO_LPSR_07_GPIO_MUX6_IO07},
     [Gpio::kCamPwrDn] = {IOMUXC_GPIO_DISP_B2_09_GPIO_MUX5_IO10},
     [Gpio::kCamReset] = {IOMUXC_GPIO_AD_26_GPIO_MUX3_IO25},
+    [Gpio::kCamPwrDn2] = {IOMUXC_GPIO_DISP_B2_15_GPIO11_IO16},
+    [Gpio::kCamReset2] = {IOMUXC_GPIO_AD_11_GPIO9_IO10},
+    [Gpio::kCamMux] = {IOMUXC_GPIO_DISP_B2_07_GPIO11_IO08},
 };
 
 constexpr uint32_t PinNameToPullMask[Gpio::kCount] = {
@@ -364,7 +391,7 @@ constexpr uint32_t PinNameToPullMask[Gpio::kCount] = {
     [Gpio::kCameraTrigger] = 0x0000000C,
     [Gpio::kCameraInt] = 0x0000000C,
     [Gpio::kAntennaSelect] = 0x0000000C,
-    [Gpio::kBtHostWake] = 0x0000000C,
+    // [Gpio::kBtHostWake] = 0x0000000C,
     [Gpio::kBtDevWake] = 0x0000000C,
     [Gpio::kEthPhyRst] = 0x0000000C,
     [Gpio::kCameraPrivacyOverride] = 0x0000000C,
@@ -386,6 +413,9 @@ constexpr uint32_t PinNameToPullMask[Gpio::kCount] = {
     // [Gpio::kScl6] = 0x0000000C,
     [Gpio::kCamPwrDn] = 0x0000000C,
     [Gpio::kCamReset] = 0x0000000C,
+    [Gpio::kCamPwrDn2] = 0x0000000C,
+    [Gpio::kCamReset2] = 0x0000000C,
+    [Gpio::kCamMux] = 0x0000000C,
 };
 
 constexpr uint32_t PinNameToNoPull[Gpio::kCount] = {
@@ -399,7 +429,7 @@ constexpr uint32_t PinNameToNoPull[Gpio::kCount] = {
     [Gpio::kCameraTrigger] = 0x0000000C,
     [Gpio::kCameraInt] = 0x00000000,
     [Gpio::kAntennaSelect] = 0x00000000,
-    [Gpio::kBtHostWake] = 0x00000000,
+    // [Gpio::kBtHostWake] = 0x00000000,
     [Gpio::kBtDevWake] = 0x00000000,
     [Gpio::kEthPhyRst] = 0x0000000C,
     [Gpio::kCameraPrivacyOverride] = 0x0000000C,
@@ -421,6 +451,9 @@ constexpr uint32_t PinNameToNoPull[Gpio::kCount] = {
     // [Gpio::kScl6] = 0x00000000,
     [Gpio::kCamPwrDn] = 0x00000000,
     [Gpio::kCamReset] = 0x00000000,
+    [Gpio::kCamPwrDn2] = 0x00000000,
+    [Gpio::kCamReset2] = 0x00000000,
+    [Gpio::kCamMux] = 0x00000000,
 };
 
 constexpr uint32_t PinNameToPullUp[Gpio::kCount] = {
@@ -434,7 +467,7 @@ constexpr uint32_t PinNameToPullUp[Gpio::kCount] = {
     [Gpio::kCameraTrigger] = 0x00000004,
     [Gpio::kCameraInt] = 0x0000000C,
     [Gpio::kAntennaSelect] = 0x0000000C,
-    [Gpio::kBtHostWake] = 0x0000000C,
+    // [Gpio::kBtHostWake] = 0x0000000C,
     [Gpio::kBtDevWake] = 0x0000000C,
     [Gpio::kEthPhyRst] = 0x00000004,
     [Gpio::kCameraPrivacyOverride] = 0x00000004,
@@ -456,6 +489,9 @@ constexpr uint32_t PinNameToPullUp[Gpio::kCount] = {
     // [Gpio::kScl6] = 0x0000000C,
     [Gpio::kCamPwrDn] = 0x0000000C,
     [Gpio::kCamReset] = 0x0000000C,
+    [Gpio::kCamPwrDn2] = 0x0000000C,
+    [Gpio::kCamReset2] = 0x0000000C,
+    [Gpio::kCamMux] = 0x0000000C,
 };
 
 constexpr uint32_t PinNameToPullDown[Gpio::kCount] = {
@@ -469,7 +505,7 @@ constexpr uint32_t PinNameToPullDown[Gpio::kCount] = {
     [Gpio::kCameraTrigger] = 0x00000008,
     [Gpio::kCameraInt] = 0x00000004,
     [Gpio::kAntennaSelect] = 0x00000004,
-    [Gpio::kBtHostWake] = 0x00000008,
+    // [Gpio::kBtHostWake] = 0x00000008,
     [Gpio::kBtDevWake] = 0x00000008,
     [Gpio::kEthPhyRst] = 0x00000008,
     [Gpio::kCameraPrivacyOverride] = 0x00000008,
@@ -491,6 +527,9 @@ constexpr uint32_t PinNameToPullDown[Gpio::kCount] = {
     // [Gpio::kScl6] = 0x00000004,
     [Gpio::kCamPwrDn] = 0x00000004,
     [Gpio::kCamReset] = 0x00000004,
+    [Gpio::kCamPwrDn2] = 0x00000004,
+    [Gpio::kCamReset2] = 0x00000004,
+    [Gpio::kCamMux] = 0x00000004,
 };
 
 constexpr gpio_interrupt_mode_t
@@ -550,7 +589,7 @@ void GpioInit() {
       case Gpio::kEdgeTpuPgood:
       case Gpio::kEdgeTpuReset:
       case Gpio::kEdgeTpuPmic:
-      case Gpio::kBtHostWake:
+    //   case Gpio::kBtHostWake:
       case Gpio::kBtDevWake:
       case Gpio::kEthPhyRst:
 #if (__CORTEX_M == 4)

@@ -43,6 +43,8 @@
 #include "third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_lpi2c_freertos.h"
 #include "third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_sema4.h"
 #include "third_party/nxp/rt1176-sdk/middleware/lwip/src/include/lwip/apps/httpd.h"
+#include "third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_gpio.h"
+#include "third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_iomuxc.h"
 
 namespace {
 lpi2c_rtos_handle_t g_i2c5_handle;
@@ -70,22 +72,6 @@ extern "C" int main(int argc, char** argv) __attribute__((weak));
 
 extern "C" int main(int argc, char** argv) {
   return real_main(argc, argv, true, true);
-}
-
-static inline void IOMUXC_SetPinMux(uint32_t muxRegister,
-                                    uint32_t muxMode,
-                                    uint32_t inputRegister,
-                                    uint32_t inputDaisy,
-                                    uint32_t configRegister,
-                                    uint32_t inputOnfield)
-{
-    *((volatile uint32_t *)muxRegister) =
-        IOMUXC_SW_MUX_CTL_PAD_MUX_MODE(muxMode) | IOMUXC_SW_MUX_CTL_PAD_SION(inputOnfield);
-
-    if (inputRegister != 0UL)
-    {
-        *((volatile uint32_t *)inputRegister) = inputDaisy;
-    }
 }
 
 extern "C" int real_main(int argc, char** argv, bool init_console_tx,
@@ -129,6 +115,28 @@ extern "C" int real_main(int argc, char** argv, bool init_console_tx,
   IOMUXC_SetPinMux(
       IOMUXC_GPIO_LPSR_07_LPI2C6_SCL,         /* GPIO_LPSR_07 is configured as LPI2C6_SCL */
       1U);                                    /* Software Input On Field: Force input path of pad GPIO_LPSR_07 */
+  IOMUXC_SetPinConfig(
+        IOMUXC_GPIO_LPSR_06_LPI2C6_SDA, /* GPIO_LPSR_06 PAD functional
+                                           properties : */
+        0x20U);                         /* Slew Rate Field: Slow Slew Rate
+                                           Drive Strength Field: normal driver
+                                           Pull / Keep Select Field: Pull Disable
+                                           Pull Up / Down Config. Field: Weak pull down
+                                           Open Drain LPSR Field: Enabled
+                                           Domain write protection: Both cores are allowed
+                                           Domain write protection lock: Neither of DWP bits is locked
+                                         */
+    IOMUXC_SetPinConfig(
+        IOMUXC_GPIO_LPSR_07_LPI2C6_SCL, /* GPIO_LPSR_05 PAD functional
+                                           properties : */
+        0x20U);                         /* Slew Rate Field: Slow Slew Rate
+                                           Drive Strength Field: normal driver
+                                           Pull / Keep Select Field: Pull Disable
+                                           Pull Up / Down Config. Field: Weak pull down
+                                           Open Drain LPSR Field: Enabled
+                                           Domain write protection: Both cores are allowed
+                                           Domain write protection lock: Neither of DWP bits is locked
+                                         */
 
   NVIC_SetPriority(LPI2C6_IRQn, 3);
   lpi2c_master_config_t config6;

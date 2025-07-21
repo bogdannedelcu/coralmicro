@@ -131,8 +131,15 @@ void Main() {
   UseHttpServer(&http_server);
 
   while (true) {
+    // By default, front camera is selected already
+    static bool front = true;
+
+    front = !front;
+
     vTaskSuspend(nullptr);
-    CameraTask::GetSingleton()->ChangePattern();
+    // CameraTask::GetSingleton()->ChangePattern();
+    CameraTask::GetSingleton()->SwitchCamera(front ?
+      SwitchCameraId::kCameraFront : SwitchCameraId::kCameraBack);
   }
 }
 }  // namespace

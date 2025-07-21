@@ -67,6 +67,11 @@ uint8_t pxp_buffer[1];
 #include "third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/cm4/fsl_cache.h"
 #endif
 
+// Camera MUX
+// TODO: Interchange these values when the enclosure details are clear
+#define MUX_BACK_CAMERA 0
+#define MUX_FRONT_CAMERA 1
+
 #include <cstring>
 #include <memory>
 
@@ -87,12 +92,14 @@ void BOARD_PullCameraResetPin(bool pullUp)
 {
   printf("BOARD_PullCameraResetPin:%d\n", pullUp);
   coralmicro::GpioSet((coralmicro::Gpio) coralmicro::Gpio::kCamReset, pullUp);
+  coralmicro::GpioSet((coralmicro::Gpio) coralmicro::Gpio::kCamReset2, pullUp);
 }
 
 void BOARD_PullCameraPowerDownPin(bool pullUp)
 {
   printf("BOARD_PullCameraPowerDownPin:%d\n", pullUp);
   coralmicro::GpioSet((coralmicro::Gpio) coralmicro::Gpio::kCamPwrDn, pullUp);
+  coralmicro::GpioSet((coralmicro::Gpio) coralmicro::Gpio::kCamPwrDn2, pullUp);
 }
 
 namespace coralmicro {
@@ -442,6 +449,8 @@ bool CameraTask::GetFrame(const std::vector<CameraFrameFormat>& fmts) {
   int index = 0;
 
   // if (raw == nullptr)
+
+  // GpioSet(Gpio::kCameraTrigger, false);
   index = GetFrame(&raw, true);
 
   if (!raw) {
@@ -475,9 +484,13 @@ bool CameraTask::Read(uint16_t reg, uint8_t* val) {
   transfer.subaddressSize = sizeof(reg);
   transfer.data = val;
   transfer.dataSize = sizeof(*val);
-  status_t status = LPI2C_RTOS_Transfer(i2c_handle_, &transfer);
-  DBG_OUTPUT("Rx|0x%04X=0x%02X|(%ld)\n", reg, *val, status);
-  return status == kStatus_Success;
+
+  status_t status2 = LPI2C_RTOS_Transfer(i2c_handle2_, &transfer);
+  status_t status1 = LPI2C_RTOS_Transfer(i2c_handle_, &transfer);
+
+  DBG_OUTPUT("Rx|0x%04X=0x%02X|(s1: %ld)(s2:%ld)\n", reg, val[0], status1, status2);
+
+  return status1 == kStatus_Success;
 }
 
 bool CameraTask::Write(uint16_t reg, uint8_t val) {
@@ -493,9 +506,13 @@ bool CameraTask::Write(uint16_t reg, const uint8_t *val, int size) {
   transfer.subaddressSize = sizeof(reg);
   transfer.data = (void *)val;
   transfer.dataSize = size;
-  status_t status = LPI2C_RTOS_Transfer(i2c_handle_, &transfer);
-  DBG_OUTPUT("Tx|0x%04X=0x%02X|(%ld)\n", reg, val[0], status);
-  return status == kStatus_Success;
+
+  status_t status1 = LPI2C_RTOS_Transfer(i2c_handle_, &transfer);
+  status_t status2 = LPI2C_RTOS_Transfer(i2c_handle2_, &transfer);
+
+  DBG_OUTPUT("Tx|0x%04X=0x%02X|(s1: %ld)(s2:%ld)\n", reg, val[0], status1, status2);
+
+  return status1 == kStatus_Success;
 }
 
 void CameraTask::Init(lpi2c_rtos_handle_t* i2c_handle, lpi2c_rtos_handle_t* i2c_handle2) {
@@ -506,12 +523,21 @@ void CameraTask::Init(lpi2c_rtos_handle_t* i2c_handle, lpi2c_rtos_handle_t* i2c_
   GetMotionDetectionConfigDefault(md_config_);
   md_config_.enable = false;
 
-  // GpioConfigureInterrupt(
-  //     Gpio::kCameraInt, GpioInterruptMode::kIntModeRising, [this]() {
-  //       camera::Request req;
-  //       req.type = camera::RequestType::kMotionDetectionInterrupt;
-  //       this->SendRequestAsync(req);
-  //     });
+  // Init GPIO used by camera
+  // GpioSetMode(Gpio::kCamReset, GpioMode::kOutput);
+  GpioSetMode(Gpio::kCamReset2, GpioMode::kOutput);
+  // GpioSetMode(Gpio::kCamPwrDn, GpioMode::kOutput);
+  // GpioSetMode(Gpio::kCamPwrDn2, GpioMode::kOutput);
+  // GpioSetMode(Gpio::kCamMux, GpioMode::kOutput);
+
+  printf ("%s: i2c_Handle: 0x%x, i2c_handle2: 0x%x", __func__, i2c_handle, i2c_handle2);
+}
+
+void CameraTask::SwitchCamera(SwitchCameraId cameraId) {
+  camera::Request req;
+  req.type = camera::RequestType::kSwitchCamera;
+  req.request.switchCameraId = cameraId;
+  SendRequest(req);
 }
 
 int CameraTask::GetFrame(uint8_t** buffer, bool block) {
@@ -519,6 +545,7 @@ int CameraTask::GetFrame(uint8_t** buffer, bool block) {
   req.type = camera::RequestType::kFrame;
   req.request.frame.index = -1;
   camera::Response resp;
+
   do {
     resp = SendRequest(req);
   } while (block && resp.response.frame.index == -1);
@@ -652,10 +679,53 @@ bool CameraTask::VideoConvert(uint32_t in)
   PXP_ClearStatusFlags(DEMO_PXP, kPXP_CompleteFlag);
 }
 
+void CameraTask::HandleSwitchCameraRequest(const SwitchCameraId cameraId) {
+  bool discard = false;
+
+  switch(cameraId) {
+    case coralmicro::SwitchCameraId::kCameraBack:
+        coralmicro::GpioSet((coralmicro::Gpio) Gpio::kCamMux, MUX_BACK_CAMERA);
+        discard = true;
+        printf("BACK camera selected\n");
+        break;
+
+    case coralmicro::SwitchCameraId::kCameraFront:
+        coralmicro::GpioSet((coralmicro::Gpio) Gpio::kCamMux, MUX_FRONT_CAMERA);
+        discard = true;
+        printf("FRONT camera selected\n");
+        break;
+
+    default:
+        printf("Invalid switchCameraId: %d,", cameraId);
+        break;
+  }
+
+  if (discard) {
+      uint32_t buffer;
+
+      // Discard the old frames acquired
+      for (int n=0; n<DEMO_CAMERA_BUFFER_COUNT; n++)
+      {
+        status_t status = CAMERA_RECEIVER_GetFullBuffer(&cameraReceiver, &buffer);
+
+        if (status == kStatus_Success)
+        {
+          CAMERA_RECEIVER_SubmitEmptyBuffer(&cameraReceiver, (uint32_t)buffer);
+        }
+        else {
+          break;
+        }
+      }
+    }
+}
+
+
 camera::EnableResponse CameraTask::HandleEnableRequest(const CameraMode& mode) {
   camera::EnableResponse resp;
   status_t status;
   camera_config_t cameraConfig;
+
+  // vTaskDelay(pdMS_TO_TICKS(1000));
 
   BOARD_InitPxp();
   BOARD_InitCamera();
@@ -717,21 +787,37 @@ camera::PowerResponse CameraTask::HandlePowerRequest(
 
   if (power.enable) {
 
+    coralmicro::GpioSet((coralmicro::Gpio) Gpio::kCamMux, 0);
+
     coralmicro::GpioSet((coralmicro::Gpio) Gpio::kCamPwrDn, 0);
     vTaskDelay(pdMS_TO_TICKS(2));
 
     coralmicro::GpioSet((coralmicro::Gpio) Gpio::kCamReset, 1);
     vTaskDelay(pdMS_TO_TICKS(40));
 
-    // Check on first I2C bus, then switch on 2nd if fail
+    coralmicro::GpioSet((coralmicro::Gpio) Gpio::kCamPwrDn2, 0);
+    vTaskDelay(pdMS_TO_TICKS(2));
+
+    coralmicro::GpioSet((coralmicro::Gpio) Gpio::kCamReset2, 1);
+    vTaskDelay(pdMS_TO_TICKS(40));
+
+    // Set MUX on front camera by default
+    coralmicro::GpioSet((coralmicro::Gpio) Gpio::kCamMux, MUX_FRONT_CAMERA);
+
+    // Init Cam on I2C1
     resp.success = CameraTask::Detect();
-    if (!resp.success && i2c_handle2_)
-    {
+    printf ("%s: try I2C1: %s\n", __func__,
+      resp.success ? "Success":"Failed");
+
+    if (i2c_handle2_) {
+      lpi2c_rtos_handle_t *old = i2c_handle_;
       i2c_handle_ = i2c_handle2_;
+      // Init Cam on I2C2
       resp.success = CameraTask::Detect();
+      printf ("%s: try I2C2: %s\n", __func__,
+        resp.success ? "Success":"Failed");
+      i2c_handle_ = old;
     }
-    else
-      resp.success = true;
   }
 
   return resp;
@@ -808,7 +894,7 @@ camera::FrameResponse CameraTask::HandleFrameRequest(
 }
 
 void CameraTask::HandleTestPatternRequest(
-    const camera::TestPatternRequest& test_pattern) {
+  const camera::TestPatternRequest& test_pattern) {
   Write(0x503D, (uint8_t)test_pattern.pattern);
   test_pattern_ = test_pattern.pattern;
 }
@@ -890,6 +976,9 @@ void CameraTask::RequestHandler(camera::Request* req) {
       break;
     case camera::RequestType::kMotionDetectionConfig:
       HandleMotionDetectionConfig(req->request.motion_detection_config);
+      break;
+    case camera::RequestType::kSwitchCamera:
+      HandleSwitchCameraRequest(req->request.switchCameraId);
       break;
   }
   if (req->callback) req->callback(resp);

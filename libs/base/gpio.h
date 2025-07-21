@@ -46,7 +46,7 @@ enum Gpio {
   // Low for internal, high for external.
   kAntennaSelect,
   // Input from Bluetooth to wake the host, if it was sleeping.
-  kBtHostWake,
+  // kBtHostWake,
   // Output to Bluetooth, to wake the Bluetooth module from sleep.
   kBtDevWake,
   // Reset signal to the Ethernet PHY. Active low.
@@ -90,6 +90,12 @@ enum Gpio {
   kCamPwrDn,
   // GPIO_AD_26 - Reset - Camera
   kCamReset,
+  // GPIO_DISP_B2_15 - PWDN - camera2
+  kCamPwrDn2,
+  // GPIO_AD_11 - Reset - Camera 2
+  kCamReset2,
+  // WL_HOST_WAKE Camera MUX selector.
+  kCamMux,
   // Number of pre-configured GPIOs
   kCount,
 
