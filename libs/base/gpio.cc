@@ -46,6 +46,7 @@ GPIO_Type* PinNameToModule[Gpio::kCount] = {
     [Gpio::kCryptoRst] = GPIO12,   [Gpio::kLpuart1SwitchEnable] = GPIO9,
     [Gpio::kSpiCs] = GPIO6,        [Gpio::kSpiSck] = GPIO6,
     [Gpio::kSpiSdo] = GPIO6,       [Gpio::kSpiSdi] = GPIO6,
+
     // [Gpio::kSda6] = GPIO6,
     [Gpio::kScl1] = GPIO3,
     [Gpio::kSda1] = GPIO4,         [Gpio::kAA] = GPIO3,
@@ -82,12 +83,15 @@ constexpr uint32_t PinNameToPin[Gpio::kCount] = {
     // [Gpio::kSda6] = 6,
     [Gpio::kScl1] = 31,
     [Gpio::kSda1] = 0,
-    [Gpio::kAA] = 5,
-    [Gpio::kAB] = 6,
+
+    [Gpio::kAA] = 25,
+    [Gpio::kAB] = 26,
+
     [Gpio::kUartCts] = 10,
     [Gpio::kUartRts] = 11,
     [Gpio::kPwm1] = 0,
     [Gpio::kPwm0] = 31,
+
     // [Gpio::kScl6] = 7,
     [Gpio::kCamPwrDn] = 10,
     [Gpio::kCamReset] = 25,
@@ -166,7 +170,8 @@ gpio_pin_config_t PinNameToConfig[Gpio::kCount] = {
     [Gpio::kBtDevWake] =
         {
             .direction = kGPIO_DigitalOutput,
-            .outputLogic = 1,
+//            .outputLogic = 1,
+            .outputLogic = 0,
             .interruptMode = kGPIO_NoIntmode,
         },
     [Gpio::kEthPhyRst] =
@@ -237,6 +242,18 @@ gpio_pin_config_t PinNameToConfig[Gpio::kCount] = {
         },
     [Gpio::kAA] =
         {
+            .direction = kGPIO_DigitalOutput,
+            .outputLogic = 0,
+            .interruptMode = kGPIO_NoIntmode,
+        },
+    [Gpio::kAB] =
+        {
+            .direction = kGPIO_DigitalOutput,
+            .outputLogic = 0,
+            .interruptMode = kGPIO_NoIntmode,
+        },
+/*    [Gpio::kAA] =
+        {
             .direction = kGPIO_DigitalInput,
             .outputLogic = 0,
             .interruptMode = kGPIO_NoIntmode,
@@ -247,6 +264,7 @@ gpio_pin_config_t PinNameToConfig[Gpio::kCount] = {
             .outputLogic = 0,
             .interruptMode = kGPIO_NoIntmode,
         },
+*/
     [Gpio::kUartCts] =
         {
             .direction = kGPIO_DigitalInput,
@@ -333,13 +351,17 @@ constexpr IRQn_Type PinNameToIRQ[Gpio::kCount] = {
     // [Gpio::kSda6] = GPIO6_Combined_0_15_IRQn,
     [Gpio::kScl1] = GPIO3_Combined_16_31_IRQn,
     [Gpio::kSda1] = GPIO4_Combined_0_15_IRQn,
-    [Gpio::kAA] = GPIO3_Combined_0_15_IRQn,
-    [Gpio::kAB] = GPIO3_Combined_0_15_IRQn,
+    [Gpio::kAA] = HardFault_IRQn,
+    [Gpio::kAB] = HardFault_IRQn,
+//    [Gpio::kAA] = GPIO3_Combined_0_15_IRQn,
+//    [Gpio::kAB] = GPIO3_Combined_0_15_IRQn,
     [Gpio::kUartCts] = GPIO2_Combined_0_15_IRQn,
     [Gpio::kUartRts] = GPIO2_Combined_0_15_IRQn,
     [Gpio::kPwm1] = GPIO3_Combined_0_15_IRQn,
     [Gpio::kPwm0] = GPIO2_Combined_16_31_IRQn,
+
     // [Gpio::kScl6] = GPIO6_Combined_0_15_IRQn,
+
 };
 
 constexpr uint32_t PinNameToIOMUXC[Gpio::kCount][5] = {
@@ -366,12 +388,16 @@ constexpr uint32_t PinNameToIOMUXC[Gpio::kCount][5] = {
     // [Gpio::kSda6] = {IOMUXC_GPIO_LPSR_06_GPIO_MUX6_IO06},
     [Gpio::kScl1] = {IOMUXC_GPIO_AD_32_GPIO_MUX3_IO31},
     [Gpio::kSda1] = {IOMUXC_GPIO_AD_33_GPIO_MUX4_IO00},
-    [Gpio::kAA] = {IOMUXC_GPIO_AD_06_GPIO_MUX3_IO05},
-    [Gpio::kAB] = {IOMUXC_GPIO_AD_07_GPIO_MUX3_IO06},
+//    [Gpio::kAA] = {IOMUXC_GPIO_AD_06_GPIO_MUX3_IO05},
+//    [Gpio::kAB] = {IOMUXC_GPIO_AD_07_GPIO_MUX3_IO06},
+    [Gpio::kAA] = {IOMUXC_GPIO_AD_26_GPIO9_IO25},
+    [Gpio::kAB] = {IOMUXC_GPIO_AD_27_GPIO9_IO26},
+//    [Gpio::kAB] = {IOMUXC_GPIO_DISP_B2_15_GPIO11_IO16},
     [Gpio::kUartCts] = {IOMUXC_GPIO_EMC_B2_00_GPIO_MUX2_IO10},
     [Gpio::kUartRts] = {IOMUXC_GPIO_EMC_B2_01_GPIO_MUX2_IO11},
     [Gpio::kPwm1] = {IOMUXC_GPIO_AD_01_GPIO_MUX3_IO00},
     [Gpio::kPwm0] = {IOMUXC_GPIO_AD_00_GPIO_MUX2_IO31},
+
     // [Gpio::kScl6] = {IOMUXC_GPIO_LPSR_07_GPIO_MUX6_IO07},
     [Gpio::kCamPwrDn] = {IOMUXC_GPIO_DISP_B2_09_GPIO_MUX5_IO10},
     [Gpio::kCamReset] = {IOMUXC_GPIO_AD_26_GPIO_MUX3_IO25},
@@ -410,6 +436,7 @@ constexpr uint32_t PinNameToPullMask[Gpio::kCount] = {
     [Gpio::kUartRts] = 0x0000000C,
     [Gpio::kPwm1] = 0x0000000C,
     [Gpio::kPwm0] = 0x0000000C,
+
     // [Gpio::kScl6] = 0x0000000C,
     [Gpio::kCamPwrDn] = 0x0000000C,
     [Gpio::kCamReset] = 0x0000000C,
@@ -442,12 +469,13 @@ constexpr uint32_t PinNameToNoPull[Gpio::kCount] = {
     // [Gpio::kSda6] = 0x00000000,
     [Gpio::kScl1] = 0x00000000,
     [Gpio::kSda1] = 0x00000000,
-    [Gpio::kAA] = 0x00000000,
-    [Gpio::kAB] = 0x00000000,
+    [Gpio::kAA] = 0x0000000C,
+    [Gpio::kAB] = 0x0000000C,
     [Gpio::kUartCts] = 0x0000000C,
     [Gpio::kUartRts] = 0x0000000C,
     [Gpio::kPwm1] = 0x00000000,
     [Gpio::kPwm0] = 0x00000000,
+
     // [Gpio::kScl6] = 0x00000000,
     [Gpio::kCamPwrDn] = 0x00000000,
     [Gpio::kCamReset] = 0x00000000,
@@ -486,6 +514,7 @@ constexpr uint32_t PinNameToPullUp[Gpio::kCount] = {
     [Gpio::kUartRts] = 0x00000004,
     [Gpio::kPwm1] = 0x0000000C,
     [Gpio::kPwm0] = 0x0000000C,
+
     // [Gpio::kScl6] = 0x0000000C,
     [Gpio::kCamPwrDn] = 0x0000000C,
     [Gpio::kCamReset] = 0x0000000C,
@@ -520,10 +549,13 @@ constexpr uint32_t PinNameToPullDown[Gpio::kCount] = {
     [Gpio::kSda1] = 0x00000004,
     [Gpio::kAA] = 0x00000004,
     [Gpio::kAB] = 0x00000004,
+//    [Gpio::kAA] = 0x00000004,
+//    [Gpio::kAB] = 0x00000004,
     [Gpio::kUartCts] = 0x00000008,
     [Gpio::kUartRts] = 0x00000008,
     [Gpio::kPwm1] = 0x00000004,
     [Gpio::kPwm0] = 0x00000004,
+
     // [Gpio::kScl6] = 0x00000004,
     [Gpio::kCamPwrDn] = 0x00000004,
     [Gpio::kCamReset] = 0x00000004,

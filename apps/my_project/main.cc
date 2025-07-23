@@ -17,28 +17,45 @@
 #include "libs/base/console_m7.h"
 #include "libs/base/led.h"
 #include "libs/base/tasks.h"
+#include "third_party/freertos_kernel/include/FreeRTOS.h"
+#include "third_party/freertos_kernel/include/task.h"
 
-// Reads character input from the serial console and writes it back.
+// Prints "hello world" in the serial console.
 //
 // To build and flash from coralmicro root:
 //    bash build.sh
-//    python3 scripts/flashtool.py -e console_read_write
+//    python3 scripts/flashtool.py -e my_project
 
-extern "C" [[noreturn]] void app_main(void* param) {
-  (void)param; 
-
-  printf("Console Read Write Example!\r\n");
-  // Turn on Status LED to show the board is on.
-  LedSet(coralmicro::Led::kStatus, true);
-
-  printf("Type into the serial console.\r\n");
-
+[[noreturn]] void blink_task(void* param) {
+  auto led_type = static_cast<coralmicro::Led*>(param);
+  bool on = true;
+  while (true) {
+    on = !on;
+    coralmicro::LedSet(*led_type, on);
+    vTaskDelay(pdMS_TO_TICKS(500));
+  }
+}
+[[noreturn]] void read_task(void* param) {
   char ch;
   while (true) {
     int bytes = coralmicro::ConsoleM7::GetSingleton()->Read(&ch, 1);
     if (bytes == 1) {
       coralmicro::ConsoleM7::GetSingleton()->Write(&ch, 1);
+      coralmicro::ConsoleM7::GetSingleton()->Write(&ch, 1);
     }
-    taskYIELD();
+    vTaskDelay(pdMS_TO_TICKS(500));
   }
+}
+
+
+
+extern "C" [[noreturn]] void app_main(void *param) {
+  (void)param;
+  
+  auto user_led = coralmicro::Led::kUser;
+  xTaskCreate(&blink_task, "blink_user_led_task", configMINIMAL_STACK_SIZE,
+              &user_led, coralmicro::kAppTaskPriority, nullptr);
+
+  printf("Hello world!\r\n");
+  vTaskSuspend(nullptr);
 }

@@ -13,3 +13,4 @@ __pycache__
 *.spec
 *.swp
 
+third_party/nxp/rt1176-sdk
