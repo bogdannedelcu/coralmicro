@@ -1,9 +1,67 @@
-Add these GPIO's to the GpioInit function
-- GPIO_AD_03
-- GPIO_AD_27
-- GPIO_AD_26
-- GPIO_DISP_B2_15
-- GPIO_DISP_B2_09
+# Power Profiling — Coral Dev Board Micro + Dual OV5640 + EdgeTPU
+
+## 🔍 Overview
+This document summarizes the power consumption measurements and runtime behavior of the **Coral Dev Board Micro** (NXP i.MX RT1176) when running **EdgeTPU inference locally** with two **OV5640** cameras attached.
+
+The goal of this test was to **minimize total power draw** during inference by disabling all unnecessary peripherals (USB, network, serial output) and measure the **baseline vs. active current**.
+
+---
+
+## ⚙️ Test Setup
+
+| Component | Description |
+|------------|-------------|
+| **Board** | Coral Dev Board Micro (i.MX RT1176, EdgeTPU) |
+| **Cameras** | 2 × OV5640 connected via CSI |
+| **Model** | Custom EdgeTPU detection model |
+| **Measurement** | Power supply: 5.00 V regulated / Current meter inline |
+| **Interfaces** | USB, WiFi, and Ethernet **disabled** |
+| **Mode** | Inference performed locally, no data transfer to host |
+
+---
+
+## ⚡ Measured Power Draw
+
+| System State | Active Components | Current (A) | Power (W @ 5 V) | Notes |
+|---------------|------------------|-------------|------------------|-------|
+| **Idle** | CPU + basic peripherals only | **0.157 A** | **0.785 W** | Cameras + TPU off |
+| **Inference** | 2× cameras + EdgeTPU + CPU | **0.260 A** | **1.30 W** | Running full inference locally |
+| **Δ Active vs Idle** | — | **+0.103 A** | **+0.515 W** | Overhead from cameras + TPU |
+
+### 🔹 Interpretation
+- Total consumption during active detection ≈ **1.3 W**, which is low for dual-camera EdgeTPU processing.
+- Enabling cameras and TPU adds ~0.5 W over idle.
+- EdgeTPU inference duration (for lightweight detection models) is **under 100 ms**, showing efficient processing.
+
+---
+
+## 🧠 Optimization Notes
+- USB and networking stacks were explicitly powered down to prevent background current draw.
+- Serial output minimized to reduce UART and CPU activity.
+- Cameras are powered and clocked only during capture periods.
+- EdgeTPU remains off or clock-gated between detections when possible.
+
+---
+
+## ✅ Conclusions
+- The Coral Dev Board Micro can sustain **dual-camera EdgeTPU inference** at ~1.3 W total power.
+- Difference between idle and active states is small (≈0.5 W), demonstrating excellent hardware efficiency.
+- System is suitable for **battery-powered edge AI** and **low-duty-cycle IoT inference**.
+
+---
+
+## 🔄 Next Steps
+- Implement **GPIO-controlled sleep mode** for cameras and EdgeTPU to reduce idle current below **0.1 A**.
+- Profile **deep sleep entry/exit times** using the NXP `LPM_EnterSleepMode()` API.
+- Automate power logging via INA219 / INA260 sensor on the 5 V rail.
+- Correlate measured current spikes with camera DMA and TPU workload in a timing trace.
+
+---
+
+**Author:** Bogdan Nedelcu  
+**Date:** October 2025  
+**Commit:** [`cd0a5114203a52f817978153d6a6bb37d9e12a2a`](https://github.com/bogdannedelcu/coralmicro/commit/cd0a5114203a52f817978153d6a6bb37d9e12a2a)
+
 
 # BN Fork of Coral Dev Board Micro source code (coralmicro)
 
