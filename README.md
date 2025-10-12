@@ -12,7 +12,7 @@ The goal of this test was to **minimize total power draw** during inference by d
 | Component | Description |
 |------------|-------------|
 | **Board** | Coral Dev Board Micro (i.MX RT1176, EdgeTPU) |
-| **Cameras** | 2 × OV5640 connected via CSI |
+| **Cameras** | 2 × OV5640 connected via MIPI |
 | **Model** | Custom EdgeTPU detection model |
 | **Measurement** | Power supply: 5.00 V regulated / Current meter inline |
 | **Interfaces** | USB, WiFi, and Ethernet **disabled** |
