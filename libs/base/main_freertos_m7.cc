@@ -51,6 +51,21 @@ lpi2c_rtos_handle_t g_i2c5_handle;
 lpi2c_rtos_handle_t g_i2c6_handle;
 coralmicro::CdcEem g_cdc_eem;
 
+// Low-power feature toggles. Set to 1 to enable the corresponding init.
+// Dissable network, temp and USB and get 0.1570 Amps on M7
+#ifndef ENABLE_NETWORK_STACK
+#define ENABLE_NETWORK_STACK 1
+#endif
+#ifndef ENABLE_USB_EEM
+#define ENABLE_USB_EEM 1
+#endif
+#ifndef ENABLE_TEMP_SENSOR
+#define ENABLE_TEMP_SENSOR 1
+#endif
+#ifndef ENABLE_EDGETPU_DFU
+#define ENABLE_EDGETPU_DFU 1
+#endif
+
 void InitializeCDCEEM() {
   using namespace std::placeholders;
   g_cdc_eem.Init(
@@ -87,14 +102,22 @@ extern "C" int real_main(int argc, char** argv, bool init_console_tx,
 
   CHECK(coralmicro::LfsInit());
   // Make sure this happens before EEM or WICED are initialized.
-  tcpip_init(nullptr, nullptr);
-  coralmicro::DnsInit();
-  InitializeCDCEEM();
+  #if ENABLE_NETWORK_STACK
+    tcpip_init(nullptr, nullptr);
+    coralmicro::DnsInit();
+  #endif
+  #if ENABLE_USB_EEM
+    InitializeCDCEEM();
+  #endif
   coralmicro::UsbDeviceTask::GetSingleton()->Init();
   coralmicro::UsbHostTask::GetSingleton()->Init();
-  coralmicro::EdgeTpuDfuTask::GetSingleton()->Init();
+  #if ENABLE_EDGETPU_DFU
+    coralmicro::EdgeTpuDfuTask::GetSingleton()->Init();
+  #endif
   coralmicro::EdgeTpuTask::GetSingleton()->Init();
-  coralmicro::TempSensorInit();
+  #if ENABLE_TEMP_SENSOR
+    coralmicro::TempSensorInit();
+  #endif
 
   printf("!!!! START %s %s!!!\n", __DATE__, __TIME__);
 

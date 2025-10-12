@@ -42,11 +42,8 @@ bool LedSetBrightness(Led led, int brightness) {
     case Led::kTpu:
 #if __CORTEX_M == 7
       PwmInit();
-      if (!GpioGet(Gpio::kEdgeTpuPmic)) {
-        printf("TPU LED requires TPU power to be enabled.\r\n");
-        ret = false;
-        break;
-      }
+
+ 
       coralmicro::PwmPinConfig pin_a_config;
       pin_a_config.duty_cycle = brightness;
       pin_a_config.frequency = 1000;

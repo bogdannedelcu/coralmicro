@@ -89,6 +89,7 @@ bool DetectFromCamera(tflite::MicroInterpreter* interpreter, int model_width,
                         image->data()};
 
   CameraTask::GetSingleton()->Trigger();
+  CameraTask::GetSingleton()->DiscardOldFrames();
   if (!CameraTask::GetSingleton()->GetFrame({fmt})) return false;
 
   std::memcpy(tflite::GetTensorData<uint8_t>(input_tensor), image->data(),
@@ -131,11 +132,25 @@ void DetectRpc(struct jsonrpc_request* r) {
 }
 
 void DetectConsole(tflite::MicroInterpreter* interpreter) {
+
+  LedSet(Led::kStatus, false);
+  LedSet(Led::kTpu, false);
+  LedSet(Led::kUser, false);
+
+  printf("Enter Detection console ... \r\n");
   auto* input_tensor = interpreter->input_tensor(0);
   int model_height = input_tensor->dims->data[1];
   int model_width = input_tensor->dims->data[2];
   std::vector<uint8> image(model_height * model_width *
                            CameraFormatBpp(CameraFormat::kRgb));
+
+  printf("Enabling camera, power on\r\n");
+   // Starting Camera.
+  CameraTask::GetSingleton()->SetPower(true);
+  CameraTask::GetSingleton()->Enable(CameraMode::kTrigger);                          
+
+
+  printf("Detecting from camera ... \r\n");
   std::vector<tensorflow::Object> results;
   if (DetectFromCamera(interpreter, model_width, model_height, &results,
                        &image)) {
@@ -143,12 +158,23 @@ void DetectConsole(tflite::MicroInterpreter* interpreter) {
   } else {
     printf("Failed to detect image from camera.\r\n");
   }
+
+  printf("Disabling camera, power off\r\n");
+  CameraTask::GetSingleton()->Disable();
+  CameraTask::GetSingleton()->SetPower(false);
+  printf("Detection done.\r\n");
+
+  LedSet(Led::kStatus, false);
+  LedSet(Led::kTpu, false);
+  LedSet(Led::kUser, false);
 }
 
 [[noreturn]] void Main() {
   printf("Detection Camera Example!\r\n");
   // Turn on Status LED to show the board is on.
-  LedSet(Led::kStatus, true);
+  LedSet(Led::kStatus, false);
+  LedSet(Led::kTpu, false);
+  LedSet(Led::kUser, false);
 
   std::vector<uint8_t> model;
   if (!LfsReadFile(kModelPath, &model)) {
@@ -182,14 +208,14 @@ void DetectConsole(tflite::MicroInterpreter* interpreter) {
   }
 
   // Starting Camera.
-  CameraTask::GetSingleton()->SetPower(true);
-  CameraTask::GetSingleton()->Enable(CameraMode::kTrigger);
+//  CameraTask::GetSingleton()->SetPower(true);
+//  CameraTask::GetSingleton()->Enable(CameraMode::kTrigger);
 
   printf("Initializing detection server...\r\n");
-  jsonrpc_init(nullptr, &interpreter);
-  jsonrpc_export("detect_from_camera", DetectRpc);
-  UseHttpServer(new JsonRpcHttpServer);
-  printf("Detection server ready!\r\n");
+ // jsonrpc_init(nullptr, &interpreter);
+ // jsonrpc_export("detect_from_camera", DetectRpc);
+ // UseHttpServer(new JsonRpcHttpServer);
+  printf("Detection server stopped!\r\n");
   GpioConfigureInterrupt(
       Gpio::kUserButton, GpioInterruptMode::kIntModeFalling,
       [handle = xTaskGetCurrentTaskHandle()]() { xTaskResumeFromISR(handle); },

@@ -53,6 +53,8 @@ HttpServer::Content UriHandler(const char* uri) {
   } else if (StrEndsWith(uri, kCameraStreamUrlPrefix))
   {
     // [start-snippet:jpeg]
+    CameraTask::GetSingleton()->DiscardOldFrames();
+
     std::vector<uint8_t> buf(CameraTask::kWidth * CameraTask::kHeight *
                              CameraFormatBpp(CameraFormat::kRgb));
     auto fmt = CameraFrameFormat{

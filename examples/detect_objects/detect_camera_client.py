@@ -65,9 +65,14 @@ def main():
   width = get_field_or_die(result, 'width')
   height = get_field_or_die(result, 'height')
 
+  print(width, height)
+  width = 320
+  height = 240
+
   # Decode the image data
   image_data_base64 = get_field_or_die(result, 'base64_data')
   image_data = base64.b64decode(image_data_base64)
+  print(image_data.__sizeof__())
   im = Image.frombytes('RGB', (width, height), image_data, 'raw')
 
   # Get the top detection coordinates
@@ -83,7 +88,7 @@ def main():
   text = f'ID: {detection["id"]} Score: {detection["score"]}'
   draw.text((left, bottom), text)
 
-  im.show()
+  #im.show()
 
 
 if __name__ == '__main__':

@@ -7,7 +7,7 @@
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
+ * Unless required by applicable law or agreed to in writing, softwareSwitchCamera
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
@@ -48,6 +48,7 @@ enum class CameraTestPattern : uint8_t {
   kColorBar = 0x80,
   kWalkingOnes = 0x84,
 };
+
 
 // The function type required by `CameraMotionDetectionConfig`.
 using CameraMotionDetectionCallback = void (*)(void* param);
@@ -126,6 +127,7 @@ struct PowerRequest {
 struct DiscardRequest {
   int count;
 };
+
 
 struct EnableResponse {
   bool success;
@@ -308,6 +310,9 @@ class CameraTask
   // begin using images with `GetFrame()`.
   void DiscardFrames(int count);
 
+  // In camera.h (public section)
+  int DiscardOldFrames();
+
   // Gets the default configuration for motion detection.
   //
   // @param config The `CameraMotionDetectionConfig` struct to fill with default
@@ -365,6 +370,9 @@ class CameraTask
   CameraMotionDetectionConfig md_config_;
   bool enabled_{false};
 };
+void ResizeNearestNeighbor(const uint8_t* src, int src_w, int src_h,
+                          uint8_t* dst, int dst_w, int dst_h, int comps,
+                          bool preserve_aspect);
 
 }  // namespace coralmicro
 

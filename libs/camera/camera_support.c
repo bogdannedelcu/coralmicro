@@ -320,7 +320,7 @@ void BOARD_InitCamera(void)
     for (uint32_t i = 0; i < DEMO_CAMERA_BUFFER_COUNT; i++)
     {
         status = CAMERA_RECEIVER_SubmitEmptyBuffer(&cameraReceiver, (uint32_t)(framebuffers[i]));
-        printf("CAMERA_RECEIVER_SubmitEmptyBuffer (%08lX) = %ld\n", (uint32_t)framebuffers[i], status);
+        // printf("CAMERA_RECEIVER_SubmitEmptyBuffer (%08lX) = %ld\n", (uint32_t)framebuffers[i], status);
     }
 }
 
