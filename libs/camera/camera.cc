@@ -886,8 +886,22 @@ camera::FrameResponse CameraTask::HandleFrameRequest(
     DBG_OUTPUT("CAMERA_RECEIVER_GetFullBuffer = %ld\n", status);
 
     if (status == kStatus_Success) {
-      // DBG_OUTPUT ("CAMERA_RECEIVER_GetFullBuffer:status = OK, invalidate %d bytes\n", sizeof(framebuffers[0]));
-      // DCACHE_InvalidateByRange(buffer, sizeof(framebuffers[0]));
+      DBG_OUTPUT ("CAMERA_RECEIVER_GetFullBuffer:status = OK, invalidate %u bytes\n",
+                  (unsigned)(DEMO_CAMERA_HEIGHT * (DEMO_CAMERA_WIDTH + LINE_PADDING) * DEMO_CAMERA_BUFFER_BPP));
+#if (__CORTEX_M == 7) || (__CORTEX_M == 4)
+      DCACHE_InvalidateByRange(buffer,
+                               DEMO_CAMERA_HEIGHT * (DEMO_CAMERA_WIDTH + LINE_PADDING) * DEMO_CAMERA_BUFFER_BPP);
+#if defined(__DSB)
+  __DSB();
+#else
+  __asm volatile ("dsb 0xF" ::: "memory");
+#endif
+#if defined(__ISB)
+  __ISB();
+#else
+  __asm volatile ("isb 0xF" ::: "memory");
+#endif
+#endif
 
       if (kCameraUseStatusLed) {
         coralmicro::GpioSet((coralmicro::Gpio) coralmicro::Gpio::kStatusLed, 0);
@@ -905,6 +919,10 @@ camera::FrameResponse CameraTask::HandleFrameRequest(
     buffer = reinterpret_cast<uint32_t>(IndexToFramebufferPtr(frame.index));
 
     if (buffer) {
+#if (__CORTEX_M == 7) || (__CORTEX_M == 4)
+      DCACHE_CleanInvalidateByRange(buffer,
+                                    DEMO_CAMERA_HEIGHT * (DEMO_CAMERA_WIDTH + LINE_PADDING) * DEMO_CAMERA_BUFFER_BPP);
+#endif
       status = CAMERA_RECEIVER_SubmitEmptyBuffer(&cameraReceiver, (uint32_t)buffer);
       DBG_OUTPUT ("CAMERA_RECEIVER_SubmitEmptyBuffer:status = %ld\n", status);
     }

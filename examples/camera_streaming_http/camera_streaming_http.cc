@@ -53,7 +53,9 @@ HttpServer::Content UriHandler(const char* uri) {
   } else if (StrEndsWith(uri, kCameraStreamUrlPrefix))
   {
     // [start-snippet:jpeg]
-    CameraTask::GetSingleton()->DiscardOldFrames();
+    // Note: avoid discarding frames per-request here — `GetFrame` blocks
+    // until a new frame is available. Calling `DiscardOldFrames` can cause
+    // races where an older buffer is returned immediately.
 
     std::vector<uint8_t> buf(CameraTask::kWidth * CameraTask::kHeight *
                              CameraFormatBpp(CameraFormat::kRgb));
