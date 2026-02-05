@@ -125,11 +125,13 @@ static constexpr bool kCameraUseUserLed = false;
 static void Rgb8888ToRgbPxp(const uint8_t* in, uint8_t* out, int width,
                             int height, int line_padding = LINE_PADDING) {
   // Configure PXP Process Surface (input) - XRGB8888 format
+  // Note: Despite the enum name kPXP_PsPixelFormatRGB888, this represents
+  // a 32-bit XRGB8888 format on the RT1176 hardware (4 bytes per pixel).
   pxp_ps_buffer_config_t psBufferConfig = {
 #if (!(defined(FSL_FEATURE_PXP_HAS_NO_EXTEND_PIXEL_FORMAT) && \
        FSL_FEATURE_PXP_HAS_NO_EXTEND_PIXEL_FORMAT)) ||        \
     (!(defined(FSL_FEATURE_PXP_V3) && FSL_FEATURE_PXP_V3))
-      .pixelFormat = kPXP_PsPixelFormatRGB888,  // 32-bit XRGB8888
+      .pixelFormat = kPXP_PsPixelFormatRGB888,  // Hardware uses 32-bit XRGB8888
 #else
       .pixelFormat =
           kPXP_PsPixelFormatRGB888,  // Note: This is 32-bit per pixel
@@ -161,26 +163,22 @@ static void Rgb8888ToRgbPxp(const uint8_t* in, uint8_t* out, int width,
 
   PXP_Start(DEMO_PXP);
 
-  // Wait for PXP to complete
-  while (!(kPXP_CompleteFlag & PXP_GetStatusFlags(DEMO_PXP)));
+  // Wait for PXP to complete with timeout protection
+  constexpr int kPxpTimeoutMs = 1000;  // 1 second timeout
+  constexpr int kPollDelayUs = 10;     // Poll every 10 microseconds
+  int timeout_counter = (kPxpTimeoutMs * 1000) / kPollDelayUs;
+
+  while (!(kPXP_CompleteFlag & PXP_GetStatusFlags(DEMO_PXP))) {
+    if (--timeout_counter <= 0) {
+      printf("ERROR: PXP timeout waiting for conversion to complete\r\n");
+      PXP_ClearStatusFlags(DEMO_PXP, kPXP_CompleteFlag);
+      return;  // Return without completing conversion
+    }
+    // Small delay to avoid excessive polling
+    for (volatile int i = 0; i < 100; ++i);
+  }
 
   PXP_ClearStatusFlags(DEMO_PXP, kPXP_CompleteFlag);
-}
-
-// Legacy software-based conversion (kept for reference, no longer used)
-static void Rgb8888ToRgb_Software(const uint8_t* in, uint8_t* out, int width,
-                                  int height, int line_padding = LINE_PADDING) {
-  for (int y = 0; y < height; ++y) {
-    for (int x = 0; x < width; ++x) {
-      // BGRA to RGB: swap red and blue channels
-      out[(x * 3) + (y * width * 3) + 0] =
-          in[(x * 4) + (y * (width + line_padding) * 4) + 2];  // R
-      out[(x * 3) + (y * width * 3) + 1] =
-          in[(x * 4) + (y * (width + line_padding) * 4) + 1];  // G
-      out[(x * 3) + (y * width * 3) + 2] =
-          in[(x * 4) + (y * (width + line_padding) * 4) + 0];  // B
-    }
-  }
 }
 
 static void Rgb888ToRgb(const uint8_t* in, uint8_t* out, int width, int height,
