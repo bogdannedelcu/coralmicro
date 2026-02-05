@@ -17,22 +17,21 @@
 #include "libs/camera/camera.h"
 
 #include "camera.h"
+#include "fsl_camera.h"
+#include "fsl_camera_device.h"
+#include "fsl_camera_receiver.h"
+#include "fsl_csi.h"
+#include "fsl_csi_camera_adapter.h"
+#include "fsl_gpio.h"
+#include "fsl_mipi_csi2rx.h"
+#include "fsl_ov5640.h"
+#include "fsl_pxp.h"
 #include "libs/base/check.h"
 #include "libs/base/gpio.h"
 #include "libs/pmic/pmic.h"
 #include "third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_csi.h"
 #include "third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_lpi2c.h"
 #include "third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_lpi2c_freertos.h"
-
-#include "fsl_gpio.h"
-#include "fsl_csi.h"
-#include "fsl_mipi_csi2rx.h"
-#include "fsl_camera.h"
-#include "fsl_camera_receiver.h"
-#include "fsl_camera_device.h"
-#include "fsl_csi_camera_adapter.h"
-#include "fsl_ov5640.h"
-#include "fsl_pxp.h"
 
 /*******************************************************************************
  * Definitions
@@ -46,7 +45,7 @@
 #define DEMO_CAMERA_BUFFER_BPP 1
 #endif
 
-#define DBG_OUTPUT(...)  printf(__VA_ARGS__)
+#define DBG_OUTPUT(...) printf(__VA_ARGS__)
 // #define DBG_OUTPUT(...)
 
 // #define DEBUG_LINE()  printf("D:%s:%d\n", __FILE__, __LINE__)
@@ -75,31 +74,34 @@ uint8_t pxp_buffer[1];
 #include <cstring>
 #include <memory>
 
-status_t BOARD_Camera_I2C_SendSCCB(
-    uint8_t deviceAddress, uint32_t subAddress, uint8_t subAddressSize, const uint8_t *txBuff, uint8_t txBuffSize)
-{
-  return coralmicro::CameraTask::GetSingleton()->Write(
-        subAddress, txBuff, txBuffSize) ? kStatus_Success : !kStatus_Success;
+status_t BOARD_Camera_I2C_SendSCCB(uint8_t deviceAddress, uint32_t subAddress,
+                                   uint8_t subAddressSize,
+                                   const uint8_t* txBuff, uint8_t txBuffSize) {
+  return coralmicro::CameraTask::GetSingleton()->Write(subAddress, txBuff,
+                                                       txBuffSize)
+             ? kStatus_Success
+             : !kStatus_Success;
 }
 
-status_t BOARD_Camera_I2C_ReceiveSCCB(
-    uint8_t deviceAddress, uint32_t subAddress, uint8_t subAddressSize, uint8_t *rxBuff, uint8_t rxBuffSize)
-{
-  return coralmicro::CameraTask::GetSingleton()->Read(subAddress, &rxBuff[0]) ? kStatus_Success : !kStatus_Success;
+status_t BOARD_Camera_I2C_ReceiveSCCB(uint8_t deviceAddress,
+                                      uint32_t subAddress,
+                                      uint8_t subAddressSize, uint8_t* rxBuff,
+                                      uint8_t rxBuffSize) {
+  return coralmicro::CameraTask::GetSingleton()->Read(subAddress, &rxBuff[0])
+             ? kStatus_Success
+             : !kStatus_Success;
 }
 
-void BOARD_PullCameraResetPin(bool pullUp)
-{
+void BOARD_PullCameraResetPin(bool pullUp) {
   printf("BOARD_PullCameraResetPin:%d\n", pullUp);
-  coralmicro::GpioSet((coralmicro::Gpio) coralmicro::Gpio::kCamReset, pullUp);
-  coralmicro::GpioSet((coralmicro::Gpio) coralmicro::Gpio::kCamReset2, pullUp);
+  coralmicro::GpioSet((coralmicro::Gpio)coralmicro::Gpio::kCamReset, pullUp);
+  coralmicro::GpioSet((coralmicro::Gpio)coralmicro::Gpio::kCamReset2, pullUp);
 }
 
-void BOARD_PullCameraPowerDownPin(bool pullUp)
-{
+void BOARD_PullCameraPowerDownPin(bool pullUp) {
   printf("BOARD_PullCameraPowerDownPin:%d\n", pullUp);
-  coralmicro::GpioSet((coralmicro::Gpio) coralmicro::Gpio::kCamPwrDn, pullUp);
-  coralmicro::GpioSet((coralmicro::Gpio) coralmicro::Gpio::kCamPwrDn2, pullUp);
+  coralmicro::GpioSet((coralmicro::Gpio)coralmicro::Gpio::kCamPwrDn, pullUp);
+  coralmicro::GpioSet((coralmicro::Gpio)coralmicro::Gpio::kCamPwrDn2, pullUp);
 }
 
 namespace coralmicro {
@@ -119,29 +121,84 @@ constexpr float kUint8Max = 255.0;
 static constexpr bool kCameraUseStatusLed = false;
 static constexpr bool kCameraUseUserLed = false;
 
-static void Rgb8888ToRgb(const uint8_t* in, uint8_t* out, int width, int height, int line_padding=LINE_PADDING) {
+// Hardware-accelerated RGB8888 to RGB conversion using NXP PXP
+static void Rgb8888ToRgbPxp(const uint8_t* in, uint8_t* out, int width,
+                            int height, int line_padding = LINE_PADDING) {
+  // Configure PXP Process Surface (input) - XRGB8888 format
+  pxp_ps_buffer_config_t psBufferConfig = {
+#if (!(defined(FSL_FEATURE_PXP_HAS_NO_EXTEND_PIXEL_FORMAT) && \
+       FSL_FEATURE_PXP_HAS_NO_EXTEND_PIXEL_FORMAT)) ||        \
+    (!(defined(FSL_FEATURE_PXP_V3) && FSL_FEATURE_PXP_V3))
+      .pixelFormat = kPXP_PsPixelFormatRGB888,  // 32-bit XRGB8888
+#else
+      .pixelFormat =
+          kPXP_PsPixelFormatRGB888,  // Note: This is 32-bit per pixel
+#endif
+      .swapByte = false,
+      .bufferAddr = (uint32_t)in,
+      .bufferAddrU = 0U,
+      .bufferAddrV = 0U,
+      .pitchBytes = (width + line_padding) * 4,
+  };
+
+  // Configure PXP Output Buffer - RGB888P packed format
+  pxp_output_buffer_config_t outputBufferConfig = {
+      .pixelFormat = kPXP_OutputPixelFormatRGB888P,  // Packed 24-bit RGB
+      .interlacedMode = kPXP_OutputProgressive,
+      .buffer0Addr = (uint32_t)out,
+      .buffer1Addr = 0U,
+      .pitchBytes = width * 3,
+      .width = width,
+      .height = height,
+  };
+
+  // Set process surface position to cover the entire image
+  PXP_SetProcessSurfacePosition(DEMO_PXP, 0U, 0U, width - 1U, height - 1U);
+
+  // Configure and start PXP conversion
+  PXP_SetProcessSurfaceBufferConfig(DEMO_PXP, &psBufferConfig);
+  PXP_SetOutputBufferConfig(DEMO_PXP, &outputBufferConfig);
+
+  PXP_Start(DEMO_PXP);
+
+  // Wait for PXP to complete
+  while (!(kPXP_CompleteFlag & PXP_GetStatusFlags(DEMO_PXP)));
+
+  PXP_ClearStatusFlags(DEMO_PXP, kPXP_CompleteFlag);
+}
+
+// Legacy software-based conversion (kept for reference, no longer used)
+static void Rgb8888ToRgb_Software(const uint8_t* in, uint8_t* out, int width,
+                                  int height, int line_padding = LINE_PADDING) {
   for (int y = 0; y < height; ++y) {
     for (int x = 0; x < width; ++x) {
-  // BGRA to RGB: swap red and blue channels
-  out[(x * 3) + (y * width * 3) + 0] = in[(x * 4) + (y * (width + line_padding) * 4) + 2]; // R
-  out[(x * 3) + (y * width * 3) + 1] = in[(x * 4) + (y * (width + line_padding) * 4) + 1]; // G
-  out[(x * 3) + (y * width * 3) + 2] = in[(x * 4) + (y * (width + line_padding) * 4) + 0]; // B
+      // BGRA to RGB: swap red and blue channels
+      out[(x * 3) + (y * width * 3) + 0] =
+          in[(x * 4) + (y * (width + line_padding) * 4) + 2];  // R
+      out[(x * 3) + (y * width * 3) + 1] =
+          in[(x * 4) + (y * (width + line_padding) * 4) + 1];  // G
+      out[(x * 3) + (y * width * 3) + 2] =
+          in[(x * 4) + (y * (width + line_padding) * 4) + 0];  // B
     }
   }
 }
 
-static void Rgb888ToRgb(const uint8_t* in, uint8_t* out, int width, int height, int line_padding=LINE_PADDING) {
+static void Rgb888ToRgb(const uint8_t* in, uint8_t* out, int width, int height,
+                        int line_padding = LINE_PADDING) {
   for (int y = 0; y < height; ++y) {
     for (int x = 0; x < width; ++x) {
       // BGRA - BGR
-      out[(x * 3) + (y * width * 3) + 0] = in[(x * 3) + (y * (width + line_padding) * 3) + 0];
-      out[(x * 3) + (y * width * 3) + 1] = in[(x * 3) + (y * (width + line_padding) * 3) + 1];
-      out[(x * 3) + (y * width * 3) + 2] = in[(x * 3) + (y * (width + line_padding) * 3) + 2];
+      out[(x * 3) + (y * width * 3) + 0] =
+          in[(x * 3) + (y * (width + line_padding) * 3) + 0];
+      out[(x * 3) + (y * width * 3) + 1] =
+          in[(x * 3) + (y * (width + line_padding) * 3) + 1];
+      out[(x * 3) + (y * width * 3) + 2] =
+          in[(x * 3) + (y * (width + line_padding) * 3) + 2];
     }
   }
 }
 
-} // namespace
+}  // namespace
 
 int CameraFormatBpp(CameraFormat fmt) {
   switch (fmt) {
@@ -470,7 +527,7 @@ bool CameraTask::GetFrame(const std::vector<CameraFrameFormat>& fmts) {
   for (const CameraFrameFormat& fmt : fmts) {
     DBG_OUTPUT("F%d:%dx%d\n", index, kWidth, kHeight);
     // std::memcpy(fmt.buffer, raw, kWidth * kHeight * 4);
-    Rgb8888ToRgb(raw, fmt.buffer, fmt.width, fmt.height);
+    Rgb8888ToRgbPxp(raw, fmt.buffer, fmt.width, fmt.height);
 
     ret = true;
     break;
@@ -493,7 +550,8 @@ bool CameraTask::Read(uint16_t reg, uint8_t* val) {
   status_t status2 = LPI2C_RTOS_Transfer(i2c_handle2_, &transfer);
   status_t status1 = LPI2C_RTOS_Transfer(i2c_handle_, &transfer);
 
-  DBG_OUTPUT("Rx|0x%04X=0x%02X|(s1: %ld)(s2:%ld)\n", reg, val[0], status1, status2);
+  DBG_OUTPUT("Rx|0x%04X=0x%02X|(s1: %ld)(s2:%ld)\n", reg, val[0], status1,
+             status2);
 
   return status1 == kStatus_Success;
 }
@@ -502,25 +560,27 @@ bool CameraTask::Write(uint16_t reg, uint8_t val) {
   return Write(reg, &val, sizeof(val));
 }
 
-bool CameraTask::Write(uint16_t reg, const uint8_t *val, int size) {
+bool CameraTask::Write(uint16_t reg, const uint8_t* val, int size) {
   lpi2c_master_transfer_t transfer;
   transfer.flags = kLPI2C_TransferDefaultFlag;
   transfer.slaveAddress = kCameraAddress;
   transfer.direction = kLPI2C_Write;
   transfer.subaddress = static_cast<uint16_t>(reg);
   transfer.subaddressSize = sizeof(reg);
-  transfer.data = (void *)val;
+  transfer.data = (void*)val;
   transfer.dataSize = size;
 
   status_t status1 = LPI2C_RTOS_Transfer(i2c_handle_, &transfer);
   status_t status2 = LPI2C_RTOS_Transfer(i2c_handle2_, &transfer);
 
-  DBG_OUTPUT("Tx|0x%04X=0x%02X|(s1: %ld)(s2:%ld)\n", reg, val[0], status1, status2);
+  DBG_OUTPUT("Tx|0x%04X=0x%02X|(s1: %ld)(s2:%ld)\n", reg, val[0], status1,
+             status2);
 
   return status1 == kStatus_Success;
 }
 
-void CameraTask::Init(lpi2c_rtos_handle_t* i2c_handle, lpi2c_rtos_handle_t* i2c_handle2) {
+void CameraTask::Init(lpi2c_rtos_handle_t* i2c_handle,
+                      lpi2c_rtos_handle_t* i2c_handle2) {
   QueueTask::Init();
   i2c_handle_ = i2c_handle;
   i2c_handle2_ = i2c_handle2;
@@ -535,7 +595,8 @@ void CameraTask::Init(lpi2c_rtos_handle_t* i2c_handle, lpi2c_rtos_handle_t* i2c_
   // GpioSetMode(Gpio::kCamPwrDn2, GpioMode::kOutput);
   // GpioSetMode(Gpio::kCamMux, GpioMode::kOutput);
 
-  printf ("%s: i2c_Handle: 0x%x, i2c_handle2: 0x%x", __func__, i2c_handle, i2c_handle2);
+  printf("%s: i2c_Handle: 0x%x, i2c_handle2: 0x%x", __func__, i2c_handle,
+         i2c_handle2);
 }
 
 void CameraTask::SwitchCamera(SwitchCameraId cameraId) {
@@ -588,8 +649,7 @@ bool CameraTask::SetPower(bool enable) {
   return resp.response.power.success;
 }
 
-void CameraTask::ChangePattern(void)
-{
+void CameraTask::ChangePattern(void) {
   CameraTestPattern val = CameraTestPattern::kNone;
 
   if (test_pattern_ == CameraTestPattern::kNone)
@@ -636,8 +696,9 @@ int CameraTask::DiscardOldFrames() {
 }
 
 void CameraTask::TaskInit() {
-  printf("Camera %dx%d@%d %d bits per pixel\n",
-    DEMO_CAMERA_WIDTH, DEMO_CAMERA_HEIGHT, DEMO_CAMERA_FRAME_RATE, DEMO_CAMERA_BUFFER_BPP * 8);
+  printf("Camera %dx%d@%d %d bits per pixel\n", DEMO_CAMERA_WIDTH,
+         DEMO_CAMERA_HEIGHT, DEMO_CAMERA_FRAME_RATE,
+         DEMO_CAMERA_BUFFER_BPP * 8);
 
   camera::PowerRequest req;
   req.enable = false;
@@ -650,35 +711,36 @@ void CameraTask::SetMotionDetectionRegisters() {
   }
 }
 
-bool CameraTask::VideoConvert(uint32_t in)
-{
-      pxp_ps_buffer_config_t psBufferConfig = {
-#if (!(defined(FSL_FEATURE_PXP_HAS_NO_EXTEND_PIXEL_FORMAT) && FSL_FEATURE_PXP_HAS_NO_EXTEND_PIXEL_FORMAT)) || \
+bool CameraTask::VideoConvert(uint32_t in) {
+  pxp_ps_buffer_config_t psBufferConfig = {
+#if (!(defined(FSL_FEATURE_PXP_HAS_NO_EXTEND_PIXEL_FORMAT) && \
+       FSL_FEATURE_PXP_HAS_NO_EXTEND_PIXEL_FORMAT)) ||        \
     (!(defined(FSL_FEATURE_PXP_V3) && FSL_FEATURE_PXP_V3))
-        .pixelFormat = kPXP_PsPixelFormatRGB888, //kPXP_PsPixelFormatARGB8888,
+      .pixelFormat = kPXP_PsPixelFormatRGB888,  // kPXP_PsPixelFormatARGB8888,
 #else
-        .pixelFormat = kPXP_PsPixelFormatRGB888, /* Note: This is 32-bit per pixel */
+      .pixelFormat =
+          kPXP_PsPixelFormatRGB888, /* Note: This is 32-bit per pixel */
 #endif
-        .swapByte    = false,
-        .bufferAddrU = 0U,
-        .bufferAddrV = 0U,
-        .pitchBytes  = DEMO_CAMERA_WIDTH * DEMO_CAMERA_BUFFER_BPP,
-    };
+      .swapByte = false,
+      .bufferAddrU = 0U,
+      .bufferAddrV = 0U,
+      .pitchBytes = DEMO_CAMERA_WIDTH * DEMO_CAMERA_BUFFER_BPP,
+  };
 
-    /* Output config. */
-    pxp_output_buffer_config_t outputBufferConfig = {
-        .pixelFormat    = kPXP_OutputPixelFormatRGB888P,
-        .interlacedMode = kPXP_OutputProgressive,
-        .buffer1Addr    = 0U,
-        .pitchBytes     = DEMO_BUFFER_WIDTH * 3,
+  /* Output config. */
+  pxp_output_buffer_config_t outputBufferConfig = {
+      .pixelFormat = kPXP_OutputPixelFormatRGB888P,
+      .interlacedMode = kPXP_OutputProgressive,
+      .buffer1Addr = 0U,
+      .pitchBytes = DEMO_BUFFER_WIDTH * 3,
 #if DEMO_ROTATE_FRAME
-        .width  = DEMO_BUFFER_HEIGHT,
-        .height = DEMO_BUFFER_WIDTH,
+      .width = DEMO_BUFFER_HEIGHT,
+      .height = DEMO_BUFFER_WIDTH,
 #else
-        .width       = DEMO_BUFFER_WIDTH,
-        .height      = DEMO_BUFFER_HEIGHT,
+      .width = DEMO_BUFFER_WIDTH,
+      .height = DEMO_BUFFER_HEIGHT,
 #endif
-    };
+  };
 
   /* Convert the camera input picture to RGB format. */
   psBufferConfig.bufferAddr = in;
@@ -704,43 +766,39 @@ bool CameraTask::VideoConvert(uint32_t in)
 void CameraTask::HandleSwitchCameraRequest(const SwitchCameraId cameraId) {
   bool discard = false;
 
-  switch(cameraId) {
+  switch (cameraId) {
     case coralmicro::SwitchCameraId::kCameraBack:
-        coralmicro::GpioSet((coralmicro::Gpio) Gpio::kCamMux, MUX_BACK_CAMERA);
-        discard = true;
-        printf("BACK camera selected\n");
-        break;
+      coralmicro::GpioSet((coralmicro::Gpio)Gpio::kCamMux, MUX_BACK_CAMERA);
+      discard = true;
+      printf("BACK camera selected\n");
+      break;
 
     case coralmicro::SwitchCameraId::kCameraFront:
-        coralmicro::GpioSet((coralmicro::Gpio) Gpio::kCamMux, MUX_FRONT_CAMERA);
-        discard = true;
-        printf("FRONT camera selected\n");
-        break;
+      coralmicro::GpioSet((coralmicro::Gpio)Gpio::kCamMux, MUX_FRONT_CAMERA);
+      discard = true;
+      printf("FRONT camera selected\n");
+      break;
 
     default:
-        printf("Invalid switchCameraId: %d,", cameraId);
-        break;
+      printf("Invalid switchCameraId: %d,", cameraId);
+      break;
   }
 
   if (discard) {
-      uint32_t buffer;
+    uint32_t buffer;
 
-      // Discard the old frames acquired
-      for (int n=0; n<DEMO_CAMERA_BUFFER_COUNT; n++)
-      {
-        status_t status = CAMERA_RECEIVER_GetFullBuffer(&cameraReceiver, &buffer);
+    // Discard the old frames acquired
+    for (int n = 0; n < DEMO_CAMERA_BUFFER_COUNT; n++) {
+      status_t status = CAMERA_RECEIVER_GetFullBuffer(&cameraReceiver, &buffer);
 
-        if (status == kStatus_Success)
-        {
-          CAMERA_RECEIVER_SubmitEmptyBuffer(&cameraReceiver, (uint32_t)buffer);
-        }
-        else {
-          break;
-        }
+      if (status == kStatus_Success) {
+        CAMERA_RECEIVER_SubmitEmptyBuffer(&cameraReceiver, (uint32_t)buffer);
+      } else {
+        break;
       }
     }
+  }
 }
-
 
 camera::EnableResponse CameraTask::HandleEnableRequest(const CameraMode& mode) {
   camera::EnableResponse resp;
@@ -752,8 +810,7 @@ camera::EnableResponse CameraTask::HandleEnableRequest(const CameraMode& mode) {
   BOARD_InitPxp();
   BOARD_InitCamera();
 
-  for(int n=0; n<10; n++)
-  {
+  for (int n = 0; n < 10; n++) {
     uint8_t val;
     Read(0x3008, &val);
     vTaskDelay(pdMS_TO_TICKS(10));
@@ -761,7 +818,7 @@ camera::EnableResponse CameraTask::HandleEnableRequest(const CameraMode& mode) {
 
   BOARD_PxpConfig();
   if (kCameraUseUserLed) {
-    coralmicro::GpioSet((coralmicro::Gpio) coralmicro::Gpio::kUserLed, 1);
+    coralmicro::GpioSet((coralmicro::Gpio)coralmicro::Gpio::kUserLed, 1);
   }
 
   status = CAMERA_RECEIVER_Start(&cameraReceiver);
@@ -772,21 +829,20 @@ camera::EnableResponse CameraTask::HandleEnableRequest(const CameraMode& mode) {
   return resp;
 }
 
-bool CameraTask::Detect(void)
-{
+bool CameraTask::Detect(void) {
   uint8_t model_id_h = 0xff, model_id_l = 0xff;
 
   for (int i = 0; i < 10; ++i) {
-      Read(0x300A, &model_id_h);
-      Read(0x300B, &model_id_l);
-      if (model_id_h == kModelIdHExpected && model_id_l == kModelIdLExpected) {
-        return true;
-      }
+    Read(0x300A, &model_id_h);
+    Read(0x300B, &model_id_l);
+    if (model_id_h == kModelIdHExpected && model_id_l == kModelIdLExpected) {
+      return true;
+    }
   }
 
   if (model_id_h != kModelIdHExpected || model_id_l != kModelIdLExpected) {
     printf("Camera model id not as expected!!!!!: 0x%02x%02x\r\n", model_id_h,
-            model_id_l);
+           model_id_l);
   }
 
   return false;
@@ -808,30 +864,28 @@ camera::PowerResponse CameraTask::HandlePowerRequest(
   PmicTask::GetSingleton()->SetRailState(PmicRail::kCam1V8, power.enable);
   vTaskDelay(pdMS_TO_TICKS(10));
 
-
   if (power.enable) {
-    coralmicro::GpioSet((coralmicro::Gpio) Gpio::kCamMux, 0);
-    coralmicro::GpioSet((coralmicro::Gpio) Gpio::kCamPwrDn, 0);
+    coralmicro::GpioSet((coralmicro::Gpio)Gpio::kCamMux, 0);
+    coralmicro::GpioSet((coralmicro::Gpio)Gpio::kCamPwrDn, 0);
     vTaskDelay(pdMS_TO_TICKS(2));
-    coralmicro::GpioSet((coralmicro::Gpio) Gpio::kCamReset, 1);
+    coralmicro::GpioSet((coralmicro::Gpio)Gpio::kCamReset, 1);
     vTaskDelay(pdMS_TO_TICKS(40));
-    coralmicro::GpioSet((coralmicro::Gpio) Gpio::kCamPwrDn2, 0);
+    coralmicro::GpioSet((coralmicro::Gpio)Gpio::kCamPwrDn2, 0);
     vTaskDelay(pdMS_TO_TICKS(2));
-    coralmicro::GpioSet((coralmicro::Gpio) Gpio::kCamReset2, 1);
+    coralmicro::GpioSet((coralmicro::Gpio)Gpio::kCamReset2, 1);
     vTaskDelay(pdMS_TO_TICKS(40));
     // Set MUX on front camera by default
-    coralmicro::GpioSet((coralmicro::Gpio) Gpio::kCamMux, MUX_FRONT_CAMERA);
+    coralmicro::GpioSet((coralmicro::Gpio)Gpio::kCamMux, MUX_FRONT_CAMERA);
     // Init Cam on I2C1
     resp.success = CameraTask::Detect();
-    printf ("%s: try I2C1: %s\n", __func__,
-      resp.success ? "Success":"Failed");
+    printf("%s: try I2C1: %s\n", __func__, resp.success ? "Success" : "Failed");
     if (i2c_handle2_) {
-      lpi2c_rtos_handle_t *old = i2c_handle_;
+      lpi2c_rtos_handle_t* old = i2c_handle_;
       i2c_handle_ = i2c_handle2_;
       // Init Cam on I2C2
       resp.success = CameraTask::Detect();
-      printf ("%s: try I2C2: %s\n", __func__,
-        resp.success ? "Success":"Failed");
+      printf("%s: try I2C2: %s\n", __func__,
+             resp.success ? "Success" : "Failed");
       i2c_handle_ = old;
     }
   } else {
@@ -851,13 +905,11 @@ camera::PowerResponse CameraTask::HandlePowerRequest(
 
 camera::FrameResponse CameraTask::HandleFrameRequest(
     const camera::FrameRequest& frame) {
-  camera::FrameResponse resp = {
-    .index = -1
-  };
+  camera::FrameResponse resp = {.index = -1};
   status_t status;
   uint32_t buffer;
   if (kCameraUseStatusLed) {
-    coralmicro::GpioSet((coralmicro::Gpio) coralmicro::Gpio::kStatusLed, 0);
+    coralmicro::GpioSet((coralmicro::Gpio)coralmicro::Gpio::kStatusLed, 0);
   }
 
   if (frame.index == -1) {  // GET
@@ -865,20 +917,19 @@ camera::FrameResponse CameraTask::HandleFrameRequest(
     int n = 40;
     bool state = true;
 
-    DBG_OUTPUT ("CAMERA_RECEIVER_GetFullBuffer:waiting...\n");
+    DBG_OUTPUT("CAMERA_RECEIVER_GetFullBuffer:waiting...\n");
 
-    while(n--)
-    {
+    while (n--) {
       status = CAMERA_RECEIVER_GetFullBuffer(&cameraReceiver, &buffer);
-      if (status == kStatus_Success)
-      {
+      if (status == kStatus_Success) {
         break;
       }
 
       vTaskDelay(100);
 
       if (kCameraUseStatusLed) {
-        coralmicro::GpioSet((coralmicro::Gpio) coralmicro::Gpio::kStatusLed, state);
+        coralmicro::GpioSet((coralmicro::Gpio)coralmicro::Gpio::kStatusLed,
+                            state);
         state = !state;
       }
     }
@@ -886,33 +937,35 @@ camera::FrameResponse CameraTask::HandleFrameRequest(
     DBG_OUTPUT("CAMERA_RECEIVER_GetFullBuffer = %ld\n", status);
 
     if (status == kStatus_Success) {
-      DBG_OUTPUT ("CAMERA_RECEIVER_GetFullBuffer:status = OK, invalidate %u bytes\n",
-                  (unsigned)(DEMO_CAMERA_HEIGHT * (DEMO_CAMERA_WIDTH + LINE_PADDING) * DEMO_CAMERA_BUFFER_BPP));
+      DBG_OUTPUT(
+          "CAMERA_RECEIVER_GetFullBuffer:status = OK, invalidate %u bytes\n",
+          (unsigned)(DEMO_CAMERA_HEIGHT * (DEMO_CAMERA_WIDTH + LINE_PADDING) *
+                     DEMO_CAMERA_BUFFER_BPP));
 #if (__CORTEX_M == 7) || (__CORTEX_M == 4)
-      DCACHE_InvalidateByRange(buffer,
-                               DEMO_CAMERA_HEIGHT * (DEMO_CAMERA_WIDTH + LINE_PADDING) * DEMO_CAMERA_BUFFER_BPP);
+      DCACHE_InvalidateByRange(buffer, DEMO_CAMERA_HEIGHT *
+                                           (DEMO_CAMERA_WIDTH + LINE_PADDING) *
+                                           DEMO_CAMERA_BUFFER_BPP);
 #if defined(__DSB)
-  __DSB();
+      __DSB();
 #else
-  __asm volatile ("dsb 0xF" ::: "memory");
+      __asm volatile("dsb 0xF" ::: "memory");
 #endif
 #if defined(__ISB)
-  __ISB();
+      __ISB();
 #else
-  __asm volatile ("isb 0xF" ::: "memory");
+      __asm volatile("isb 0xF" ::: "memory");
 #endif
 #endif
 
       if (kCameraUseStatusLed) {
-        coralmicro::GpioSet((coralmicro::Gpio) coralmicro::Gpio::kStatusLed, 0);
+        coralmicro::GpioSet((coralmicro::Gpio)coralmicro::Gpio::kStatusLed, 0);
       }
 
       resp.index = FramebufferPtrToIndex(reinterpret_cast<uint8_t*>(buffer));
-    }
-    else {
-      //printf ("CAMERA_RECEIVER_GetFullBuffer:status = %ld\n", status);
+    } else {
+      // printf ("CAMERA_RECEIVER_GetFullBuffer:status = %ld\n", status);
       if (kCameraUseStatusLed) {
-        coralmicro::GpioSet((coralmicro::Gpio) coralmicro::Gpio::kStatusLed, 1);
+        coralmicro::GpioSet((coralmicro::Gpio)coralmicro::Gpio::kStatusLed, 1);
       }
     }
   } else {  // RETURN
@@ -920,33 +973,33 @@ camera::FrameResponse CameraTask::HandleFrameRequest(
 
     if (buffer) {
 #if (__CORTEX_M == 7) || (__CORTEX_M == 4)
-      DCACHE_CleanInvalidateByRange(buffer,
-                                    DEMO_CAMERA_HEIGHT * (DEMO_CAMERA_WIDTH + LINE_PADDING) * DEMO_CAMERA_BUFFER_BPP);
+      DCACHE_CleanInvalidateByRange(
+          buffer, DEMO_CAMERA_HEIGHT * (DEMO_CAMERA_WIDTH + LINE_PADDING) *
+                      DEMO_CAMERA_BUFFER_BPP);
 #endif
-      status = CAMERA_RECEIVER_SubmitEmptyBuffer(&cameraReceiver, (uint32_t)buffer);
-      DBG_OUTPUT ("CAMERA_RECEIVER_SubmitEmptyBuffer:status = %ld\n", status);
+      status =
+          CAMERA_RECEIVER_SubmitEmptyBuffer(&cameraReceiver, (uint32_t)buffer);
+      DBG_OUTPUT("CAMERA_RECEIVER_SubmitEmptyBuffer:status = %ld\n", status);
     }
   }
 
   if (kCameraUseStatusLed) {
-    coralmicro::GpioSet((coralmicro::Gpio) coralmicro::Gpio::kStatusLed, 0);
+    coralmicro::GpioSet((coralmicro::Gpio)coralmicro::Gpio::kStatusLed, 0);
   }
 
   // CamDumpRegistersOnly();
 
   uint32_t reg1 = 0x40810108;
   uint32_t reg2 = 0x4081010c;
-  if (*(uint32_t*)reg1)
-    printf ("%08lX=%08lX\n",reg1, *(uint32_t*)reg1);
+  if (*(uint32_t*)reg1) printf("%08lX=%08lX\n", reg1, *(uint32_t*)reg1);
 
-  if (*(uint32_t*)reg2)
-    printf ("%08lX=%08lX\n",reg2, *(uint32_t*)reg2);
+  if (*(uint32_t*)reg2) printf("%08lX=%08lX\n", reg2, *(uint32_t*)reg2);
 
   return resp;
 }
 
 void CameraTask::HandleTestPatternRequest(
-  const camera::TestPatternRequest& test_pattern) {
+    const camera::TestPatternRequest& test_pattern) {
   Write(0x503D, (uint8_t)test_pattern.pattern);
   test_pattern_ = test_pattern.pattern;
 }
@@ -997,9 +1050,7 @@ void CameraTask::HandleMotionDetectionInterrupt() {
   }
 }
 
-void CameraTask::SetMode(const CameraMode& mode) {
-  mode_ = mode;
-}
+void CameraTask::SetMode(const CameraMode& mode) { mode_ = mode; }
 
 void CameraTask::RequestHandler(camera::Request* req) {
   camera::Response resp;
