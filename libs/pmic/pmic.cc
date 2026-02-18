@@ -24,64 +24,71 @@
 
 namespace coralmicro {
 namespace {
-constexpr uint8_t kPmicAddress = 0x58;
+// MCP16701 PMIC I2C address (7-bit, default from datasheet)
+constexpr uint8_t kPmicAddress = 0x5B;
 constexpr uint32_t kMaxTransferRetries = 10;
 
+// MCP16701 register addresses (volatile config space at 0x200 offset from NVM)
 struct PmicRegisters {
   enum : uint16_t {
-    kPageCon = 0x000,
-    kLdo2Cont = 0x027,
-    kLdo3Cont = 0x028,
-    kLdo4Cont = 0x029,
-    kDeviceId = 0x181,
+    // Device identification
+    kDeviceId = 0x001,
+
+    // Volatile LDO config registers (CFG1 — bit 0 = ENABLE)
+    kLdo1Cfg1 = 0x259,  // VDD_1V8_CAM2
+    kLdo2Cfg1 = 0x260,  // VDD_2V8_CAM2
+    kLdo3Cfg1 = 0x267,  // VDD_2V8_CAM1
+    kLdo4Cfg1 = 0x26E,  // VDD_1V8_CAM1
+
     kUnknown = 0xFFF,
   };
 };
 }  // namespace
 
-bool PmicTask::Read(uint16_t reg, uint8_t* val) {
-  if (!SetPage(reg)) return false;
+// MCP16701 I2C subaddress encoding:
+//   OPCODE_H = [N5:N0, A9, A8]  (byte count + upper address bits)
+//   OPCODE_L = [A7:A0]          (lower address bits)
+// The NXP I2C driver sends high byte first when subaddressSize=2.
+uint32_t PmicTask::MakeSubaddress(uint16_t reg, uint8_t byte_count) {
+  uint8_t opcode_h = (byte_count << 2) | ((reg >> 8) & 0x3);
+  uint8_t opcode_l = reg & 0xFF;
+  return (static_cast<uint32_t>(opcode_h) << 8) | opcode_l;
+}
 
+bool PmicTask::Read(uint16_t reg, uint8_t* val) {
   lpi2c_master_transfer_t transfer;
   transfer.flags = kLPI2C_TransferDefaultFlag;
   transfer.slaveAddress = kPmicAddress;
   transfer.direction = kLPI2C_Read;
-  transfer.subaddress = reg & 0xFF;
-  transfer.subaddressSize = sizeof(uint8_t);
+  transfer.subaddress = MakeSubaddress(reg, 1);
+  transfer.subaddressSize = 2;
   transfer.data = val;
   transfer.dataSize = sizeof(*val);
   return Transfer(&transfer);
 }
 
 bool PmicTask::Write(uint16_t reg, uint8_t val) {
-  if (!SetPage(reg)) return false;
-
   lpi2c_master_transfer_t transfer;
   transfer.flags = kLPI2C_TransferDefaultFlag;
   transfer.slaveAddress = kPmicAddress;
   transfer.direction = kLPI2C_Write;
-  transfer.subaddress = reg & 0xFF;
-  transfer.subaddressSize = sizeof(uint8_t);
+  transfer.subaddress = MakeSubaddress(reg, 1);
+  transfer.subaddressSize = 2;
   transfer.data = &val;
   transfer.dataSize = sizeof(val);
-  return Transfer(&transfer);
-}
+  if (!Transfer(&transfer)) return false;
 
-bool PmicTask::SetPage(uint16_t reg) {
-  uint8_t page = (reg >> 7) & 0x3;
-  // Revert after transaction (probably not ideal. cache our page and only
-  // change as needed)
-  uint8_t page_con_reg = 0x80 | page;
-
-  lpi2c_master_transfer_t transfer;
-  transfer.flags = kLPI2C_TransferDefaultFlag;
-  transfer.slaveAddress = kPmicAddress;
-  transfer.direction = kLPI2C_Write;
-  transfer.subaddress = static_cast<uint32_t>(PmicRegisters::kPageCon);
-  transfer.subaddressSize = sizeof(uint8_t);
-  transfer.data = &page_con_reg;
-  transfer.dataSize = sizeof(page_con_reg);
-  return Transfer(&transfer);
+  // MCP16701 requires a dummy read after every write
+  uint8_t dummy;
+  lpi2c_master_transfer_t dummy_transfer;
+  dummy_transfer.flags = kLPI2C_TransferDefaultFlag;
+  dummy_transfer.slaveAddress = kPmicAddress;
+  dummy_transfer.direction = kLPI2C_Read;
+  dummy_transfer.subaddress = MakeSubaddress(reg, 1);
+  dummy_transfer.subaddressSize = 2;
+  dummy_transfer.data = &dummy;
+  dummy_transfer.dataSize = sizeof(dummy);
+  return Transfer(&dummy_transfer);
 }
 
 bool PmicTask::Transfer(lpi2c_master_transfer_t* transfer) {
@@ -115,14 +122,17 @@ void PmicTask::HandleRailRequest(const pmic::RailRequest& rail) {
   auto reg = PmicRegisters::kUnknown;
   uint8_t val;
   switch (rail.rail) {
-    case PmicRail::kCam2V8:
-      reg = PmicRegisters::kLdo2Cont;
+    case PmicRail::kCam2_2V8:
+      reg = PmicRegisters::kLdo2Cfg1;
       break;
-    case PmicRail::kCam1V8:
-      reg = PmicRegisters::kLdo3Cont;
+    case PmicRail::kCam1_2V8:
+      reg = PmicRegisters::kLdo3Cfg1;
       break;
-    case PmicRail::kMic1V8:
-      reg = PmicRegisters::kLdo4Cont;
+    case PmicRail::kCam2_1V8:
+      reg = PmicRegisters::kLdo1Cfg1;
+      break;
+    case PmicRail::kCam1_1V8:
+      reg = PmicRegisters::kLdo3Cfg1;
       break;
   }
   CHECK(Read(reg, &val));

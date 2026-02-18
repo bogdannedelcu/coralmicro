@@ -96,6 +96,8 @@ enum Gpio {
   kCamReset2,
   // WL_HOST_WAKE Camera MUX selector.
   kCamMux,
+  // MIC_CLK_FEEDBACK (GPIO_SD_B1_05 as GPIO_MUX4_IO08)
+  kMicClkFeedback,
   // Number of pre-configured GPIOs
   kCount,
 

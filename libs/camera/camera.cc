@@ -781,8 +781,11 @@ camera::PowerResponse CameraTask::HandlePowerRequest(
   camera::PowerResponse resp;
   resp.success = true;
 
-  PmicTask::GetSingleton()->SetRailState(PmicRail::kCam2V8, power.enable);
-  PmicTask::GetSingleton()->SetRailState(PmicRail::kCam1V8, power.enable);
+  // PmicTask::GetSingleton()->SetRailState(PmicRail::kCam2_2V8, power.enable);
+  // PmicTask::GetSingleton()->SetRailState(PmicRail::kCam2_1V8, power.enable);
+  // PmicTask::GetSingleton()->SetRailState(PmicRail::kCam1_2V8, power.enable);
+  // PmicTask::GetSingleton()->SetRailState(PmicRail::kCam1_1V8, power.enable);
+  
   vTaskDelay(pdMS_TO_TICKS(10));
 
   if (power.enable) {

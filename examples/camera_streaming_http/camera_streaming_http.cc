@@ -12,15 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <cmath>
 #include <cstdio>
 #include <vector>
 
 #include "libs/base/http_server.h"
 #include "libs/base/led.h"
+#include "libs/base/main_freertos_m7.h"
 #include "libs/base/strings.h"
 #include "libs/base/utils.h"
 #include "libs/camera/camera.h"
 #include "libs/libjpeg/jpeg.h"
+#include "libs/audio/audio_service.h"
+#include "libs/lis2du12/lis2du12.h"
 #include "third_party/freertos_kernel/include/FreeRTOS.h"
 #include "third_party/freertos_kernel/include/task.h"
 #include "libs/base/gpio.h"
@@ -38,12 +42,101 @@
 namespace coralmicro {
 namespace {
 
+volatile uint32_t g_mic_clk_feedback_irq_count = 0;
+
+// Audio service buffers and state
+AudioDriverBuffers</*NumDmaBuffers=*/4, /*CombinedDmaBufferSize=*/6 * 1024>
+    g_audio_buffers;
+volatile float g_rms_level = 0.0f;
+
+bool AudioCallback(void* ctx, const int32_t* samples, size_t num_samples) {
+  (void)ctx;
+  double sum = 0.0;
+  for (size_t i = 0; i < num_samples; ++i) {
+    double s = static_cast<double>(samples[i]);
+    sum += s * s;
+  }
+  g_rms_level = static_cast<float>(sqrt(sum / num_samples));
+  return true;
+}
+
+void AudioTask(void* param) {
+  (void)param;
+  printf("[AudioTask] Starting audio service task\r\n");
+
+  AudioDriver driver(g_audio_buffers);
+  const AudioDriverConfig config{AudioSampleRate::k16000_Hz,
+                                 /*num_dma_buffers=*/4,
+                                 /*dma_buffer_size_ms=*/50};
+  if (!g_audio_buffers.CanHandle(config)) {
+    printf("[AudioTask] ERROR: Not enough static memory for DMA buffers\r\n");
+    vTaskSuspend(nullptr);
+  }
+
+  AudioService service(&driver, config, /*task_priority=*/3,
+                        /*drop_first_samples_ms=*/200);
+  service.AddCallback(nullptr, AudioCallback);
+  printf("[AudioTask] Audio service running\r\n");
+
+  while (true) {
+    float rms = g_rms_level;
+    printf("[AudioTask] RMS: %10.0f\r\n", static_cast<double>(rms));
+    vTaskDelay(pdMS_TO_TICKS(500));
+  }
+}
+
 constexpr char kIndexFileName[] = "/coral_micro_camera.html";
 constexpr char kCameraStreamUrlPrefix[] = "/camera_stream";
 constexpr float kRedCoefficient = .2126;
 constexpr float kGreenCoefficient = .7152;
 constexpr float kBlueCoefficient = .0722;
 constexpr float kUint8Max = 255.0;
+
+void AccelTask(void* param) {
+  (void)param;
+  Lis2du12 g_accel;
+
+  printf("[AccelTask] Starting LIS2DU12 accelerometer task\r\n");
+
+  if (!g_accel.Init(I2C5Handle(), 0x19)) {
+    printf("[AccelTask] ERROR: LIS2DU12 init failed\r\n");
+    vTaskSuspend(nullptr);
+  }
+
+  AccelData data;
+  // Check if a wake-up event occurred
+  lis2du12_all_sources_t sources{};
+  if (lis2du12_all_sources_get(g_accel.GetDevCtx(), &sources) == 0 &&
+      sources.wake_up) {
+    printf("[AccelTask] Wake-up detected! x=%d y=%d z=%d\r\n",
+            sources.wake_up_x, sources.wake_up_y, sources.wake_up_z);
+    g_accel.ClearWakeUpInterrupt();
+  }
+
+  // Configure wake-up interrupt on INT2 for all axes.
+  // Threshold ~500 mg at +/-2g (threshold=64 -> 64 * 7.8mg ~= 500mg)
+  constexpr uint8_t kWakeUpThreshold = 64;
+  if (!g_accel.SetInt2WakeUpThreshold(kWakeUpThreshold, true, true, true)) {
+    printf("[AccelTask] ERROR: SetInt2WakeUpThreshold failed\r\n");
+    vTaskSuspend(nullptr);
+  }
+
+  // Read accelerometer data after wake-up
+  while (true) {
+    bool ready = false;
+    if (g_accel.IsDataReady(&ready) && ready) {
+      if (g_accel.ReadData(&data)) {
+        // printf("[AccelTask] X=%.1f Y=%.1f Z=%.1f mg  T=%.1f C\r\n",
+        //         static_cast<double>(data.x_mg),
+        //         static_cast<double>(data.y_mg),
+        //         static_cast<double>(data.z_mg),
+        //         static_cast<double>(data.temp_deg_c));
+        ;
+      }
+    }
+    vTaskDelay(pdMS_TO_TICKS(100));
+  } // while
+}
 
 HttpServer::Content UriHandler(const char* uri) {
   // printf("HTTP url: %s\n", uri);
@@ -91,6 +184,15 @@ void Main() {
       [handle = xTaskGetCurrentTaskHandle()]() { xTaskResumeFromISR(handle); },
       /*debounce_interval_us=*/50 * 1e3);
 
+  // Register MIC_CLK_FEEDBACK rising edge interrupt with counter.
+  GpioConfigureInterrupt(
+      coralmicro::Gpio::kMicClkFeedback, coralmicro::GpioInterruptMode::kIntModeRising,
+      []() {
+        ++g_mic_clk_feedback_irq_count;
+        printf("[MIC_CLK_FB] IRQ count: %lu\r\n",
+               static_cast<unsigned long>(g_mic_clk_feedback_irq_count));
+      });
+
 #if defined(CAMERA_STREAMING_HTTP_ETHERNET)
   EthernetInit(/*default_iface=*/false);
   auto* ethernet = EthernetGetInterface();
@@ -125,6 +227,14 @@ void Main() {
     printf("Serving on---: http://%s\r\n", usb_ip.c_str());
   }
 #endif  // defined(CAMERA_STREAMING_HTTP_ETHERNET)
+
+  // Start LIS2DU12 accelerometer task
+  xTaskCreate(AccelTask, "accel_task", configMINIMAL_STACK_SIZE * 4,
+              nullptr, 2, nullptr);
+
+  // Start audio service task
+  xTaskCreate(AudioTask, "audio_task", configMINIMAL_STACK_SIZE * 30,
+              nullptr, 3, nullptr);
 
   HttpServer http_server;
   http_server.AddUriHandler(UriHandler);

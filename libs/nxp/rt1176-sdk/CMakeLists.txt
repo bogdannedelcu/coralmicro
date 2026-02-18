@@ -320,6 +320,41 @@ target_link_libraries(libs_nxp_rt1176-sdk_sdmmc
     libs_nxp_rt1176-sdk_freertos
 )
 
+add_library_m7(libs_nxp_rt1176-sdk_middleware_sdmmc_sd
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/sdmmc/sd/fsl_sd.c
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/sdmmc/common/fsl_sdmmc_common.c
+)
+
+target_include_directories(libs_nxp_rt1176-sdk_middleware_sdmmc_sd PUBLIC
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/sdmmc/sd
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/sdmmc/common
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/sdmmc/host/usdhc
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/sdmmc/osa
+)
+
+target_link_libraries(libs_nxp_rt1176-sdk_middleware_sdmmc_sd
+    libs_nxp_rt1176-sdk_sdmmc
+)
+
+add_library_m7(libs_nxp_rt1176-sdk_fatfs
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/fatfs/source/ff.c
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/fatfs/source/ffsystem.c
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/fatfs/source/ffunicode.c
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/fatfs/source/diskio.c
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/fatfs/source/fsl_sd_disk/fsl_sd_disk.c
+)
+
+target_include_directories(libs_nxp_rt1176-sdk_fatfs PUBLIC
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/fatfs/source
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/fatfs/source/fsl_sd_disk
+    ${PROJECT_SOURCE_DIR}/third_party/modified/nxp/rt1176-sdk/fatfs
+)
+
+target_link_libraries(libs_nxp_rt1176-sdk_fatfs
+    libs_nxp_rt1176-sdk_middleware_sdmmc_sd
+    libs_nxp_rt1176-sdk_freertos
+)
+
 add_library_m7(libs_nxp_rt1176-sdk_lwip
     ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/lwip/src/apps/sntp/sntp.c
     ${PROJECT_SOURCE_DIR}/third_party/modified/nxp/rt1176-sdk/dhcp_server.c

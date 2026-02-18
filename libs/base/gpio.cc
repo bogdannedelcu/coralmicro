@@ -56,6 +56,7 @@ GPIO_Type* PinNameToModule[Gpio::kCount] = {
     [Gpio::kCamPwrDn] = GPIO5,     [Gpio::kCamReset] = GPIO3,
     [Gpio::kCamPwrDn2] = GPIO11,   [Gpio::kCamReset2] = GPIO9,
 	[Gpio::kCamMux] = GPIO11,
+    [Gpio::kMicClkFeedback] = GPIO4,
 };
 
 constexpr uint32_t PinNameToPin[Gpio::kCount] = {
@@ -94,6 +95,7 @@ constexpr uint32_t PinNameToPin[Gpio::kCount] = {
     [Gpio::kCamPwrDn2] = 16,
     [Gpio::kCamReset2] = 10,
     [Gpio::kCamMux] = 8,
+    [Gpio::kMicClkFeedback] = 8,
 };
 
 gpio_pin_config_t PinNameToConfig[Gpio::kCount] = {
@@ -307,6 +309,12 @@ gpio_pin_config_t PinNameToConfig[Gpio::kCount] = {
             .outputLogic = 1,
             .interruptMode = kGPIO_NoIntmode,
         },
+    [Gpio::kMicClkFeedback] =
+        {
+            .direction = kGPIO_DigitalInput,
+            .outputLogic = 0,
+            .interruptMode = kGPIO_NoIntmode,
+        },
 };
 
 constexpr IRQn_Type PinNameToIRQ[Gpio::kCount] = {
@@ -378,6 +386,7 @@ constexpr uint32_t PinNameToIOMUXC[Gpio::kCount][5] = {
     [Gpio::kCamPwrDn2] = {IOMUXC_GPIO_DISP_B2_15_GPIO11_IO16},
     [Gpio::kCamReset2] = {IOMUXC_GPIO_AD_11_GPIO9_IO10},
     [Gpio::kCamMux] = {IOMUXC_GPIO_DISP_B2_07_GPIO11_IO08},
+    [Gpio::kMicClkFeedback] = {IOMUXC_GPIO_SD_B1_05_GPIO_MUX4_IO08},
 };
 
 constexpr uint32_t PinNameToPullMask[Gpio::kCount] = {
@@ -416,6 +425,7 @@ constexpr uint32_t PinNameToPullMask[Gpio::kCount] = {
     [Gpio::kCamPwrDn2] = 0x0000000C,
     [Gpio::kCamReset2] = 0x0000000C,
     [Gpio::kCamMux] = 0x0000000C,
+    [Gpio::kMicClkFeedback] = 0x0000000C,
 };
 
 constexpr uint32_t PinNameToNoPull[Gpio::kCount] = {
@@ -454,6 +464,7 @@ constexpr uint32_t PinNameToNoPull[Gpio::kCount] = {
     [Gpio::kCamPwrDn2] = 0x00000000,
     [Gpio::kCamReset2] = 0x00000000,
     [Gpio::kCamMux] = 0x00000000,
+    [Gpio::kMicClkFeedback] = 0x00000000,
 };
 
 constexpr uint32_t PinNameToPullUp[Gpio::kCount] = {
@@ -492,6 +503,7 @@ constexpr uint32_t PinNameToPullUp[Gpio::kCount] = {
     [Gpio::kCamPwrDn2] = 0x0000000C,
     [Gpio::kCamReset2] = 0x0000000C,
     [Gpio::kCamMux] = 0x0000000C,
+    [Gpio::kMicClkFeedback] = 0x0000000C,
 };
 
 constexpr uint32_t PinNameToPullDown[Gpio::kCount] = {
@@ -530,6 +542,7 @@ constexpr uint32_t PinNameToPullDown[Gpio::kCount] = {
     [Gpio::kCamPwrDn2] = 0x00000004,
     [Gpio::kCamReset2] = 0x00000004,
     [Gpio::kCamMux] = 0x00000004,
+    [Gpio::kMicClkFeedback] = 0x00000004,
 };
 
 constexpr gpio_interrupt_mode_t

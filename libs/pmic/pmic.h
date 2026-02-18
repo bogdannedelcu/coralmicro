@@ -27,8 +27,10 @@
 namespace coralmicro {
 
 enum class PmicRail : uint8_t {
-  kCam2V8,
-  kCam1V8,
+  kCam1_2V8,
+  kCam2_2V8,
+  kCam1_1V8,
+  kCam2_1V8,
   kMic1V8,
 };
 
@@ -79,7 +81,7 @@ class PmicTask : public QueueTask<pmic::Request, pmic::Response, kPmicTaskName,
   void RequestHandler(pmic::Request* req) override;
   void HandleRailRequest(const pmic::RailRequest& rail);
   uint8_t HandleChipIdRequest();
-  bool SetPage(uint16_t reg);
+  uint32_t MakeSubaddress(uint16_t reg, uint8_t byte_count = 1);
   bool Read(uint16_t reg, uint8_t* val);
   bool Write(uint16_t reg, uint8_t val);
   bool Transfer(lpi2c_master_transfer_t* transfer);

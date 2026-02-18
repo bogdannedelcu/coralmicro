@@ -161,8 +161,8 @@ bool T5838::Enable() {
   }
 
   PDM_Reset(PDM);
-  // PDM_EnableInterrupts(PDM, kPDM_ErrorInterruptEnable);
-  // EnableIRQ(PDM_ERROR_IRQn);
+  PDM_EnableInterrupts(PDM, kPDM_ErrorInterruptEnable);
+  EnableIRQ(PDM_ERROR_IRQn);
 
   // Install EDMA TCD memory
   PDM_TransferInstallEDMATCDMemory(&pdm_edma_handle_, edma_tcd_,
@@ -383,6 +383,8 @@ void T5838::StaticPdmCallback(PDM_Type* base, pdm_edma_handle_t* handle,
 void T5838::PdmCallback(PDM_Type* base, pdm_edma_handle_t* handle,
                          status_t status) {
   auto& pdm_transfer = pdm_transfers_[pdm_transfer_index_];
+
+  printf("[T5838] PdmCallback\r\n");
 
   if (audio_cb_) {
     audio_cb_(audio_ctx_,
