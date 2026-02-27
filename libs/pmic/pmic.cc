@@ -90,25 +90,30 @@ bool PmicTask::Write(uint16_t reg, uint8_t val) {
   dummy_transfer.dataSize = sizeof(dummy);
   return Transfer(&dummy_transfer);
 }
-
+  
 bool PmicTask::Transfer(lpi2c_master_transfer_t* transfer) {
   status_t res = kStatus_Success;
   uint32_t attempts = 0;
 
-  do {
-    if (res == kStatus_LPI2C_Busy) {
-      taskYIELD();
-    } else if (res == kStatus_LPI2C_ArbitrationLost) {
-      attempts++;
-      if (attempts >= kMaxTransferRetries) {
-        break;
-      } else {
-        // Retry right away.
-      }
-    }
-    res = LPI2C_RTOS_Transfer(i2c_handle_, transfer);
-  } while ((res == kStatus_LPI2C_Busy) ||
-           (res == kStatus_LPI2C_ArbitrationLost));
+  res = LPI2C_RTOS_Transfer(i2c_handle_, transfer);
+  printf("%s|0x%04X=0x%02X|(s1: %ld)\n", 
+      transfer->direction == kLPI2C_Read ? "Rx" : "Tx", 
+      transfer->subaddress, *(uint8_t*)transfer->data, res);
+
+  // do {
+  //   if (res == kStatus_LPI2C_Busy) {
+  //     taskYIELD();
+  //   } else if (res == kStatus_LPI2C_ArbitrationLost) {
+  //     attempts++;
+  //     if (attempts >= kMaxTransferRetries) {
+  //       break;
+  //     } else {
+  //       // Retry right away.
+  //     }
+  //   }
+  //   res = LPI2C_RTOS_Transfer(i2c_handle_, transfer);
+  // } while ((res == kStatus_LPI2C_Busy) ||
+  //          (res == kStatus_LPI2C_ArbitrationLost));
 
   return res == kStatus_Success;
 }
@@ -132,7 +137,7 @@ void PmicTask::HandleRailRequest(const pmic::RailRequest& rail) {
       reg = PmicRegisters::kLdo1Cfg1;
       break;
     case PmicRail::kCam1_1V8:
-      reg = PmicRegisters::kLdo3Cfg1;
+      reg = PmicRegisters::kLdo4Cfg1;
       break;
   }
   CHECK(Read(reg, &val));

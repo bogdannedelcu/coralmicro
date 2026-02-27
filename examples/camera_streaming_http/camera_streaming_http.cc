@@ -28,6 +28,7 @@
 #include "third_party/freertos_kernel/include/FreeRTOS.h"
 #include "third_party/freertos_kernel/include/task.h"
 #include "libs/base/gpio.h"
+#include "libs/pmic/pmic.h"
 
 #if defined(CAMERA_STREAMING_HTTP_ETHERNET)
 #include "libs/base/ethernet.h"
@@ -126,14 +127,15 @@ void AccelTask(void* param) {
     bool ready = false;
     if (g_accel.IsDataReady(&ready) && ready) {
       if (g_accel.ReadData(&data)) {
-        // printf("[AccelTask] X=%.1f Y=%.1f Z=%.1f mg  T=%.1f C\r\n",
-        //         static_cast<double>(data.x_mg),
-        //         static_cast<double>(data.y_mg),
-        //         static_cast<double>(data.z_mg),
-        //         static_cast<double>(data.temp_deg_c));
-        ;
+        printf("[AccelTask] X=%.1f Y=%.1f Z=%.1f mg  T=%.1f C\r\n",
+                static_cast<double>(data.x_mg),
+                static_cast<double>(data.y_mg),
+                static_cast<double>(data.z_mg),
+                static_cast<double>(data.temp_deg_c));
+
       }
     }
+
     vTaskDelay(pdMS_TO_TICKS(100));
   } // while
 }
@@ -172,6 +174,63 @@ HttpServer::Content UriHandler(const char* uri) {
 
 void Main() {
   printf("Camera HTTP Example!\r\n");
+  
+  bool value = false;
+
+  // while(true)
+  // while(false)
+  {
+    // value = !value;
+
+    // PmicTask::GetSingleton()->SetRailState(PmicRail::kCam1_2V8, true);
+    // PmicTask::GetSingleton()->SetRailState(PmicRail::kCam2_2V8, true);
+    // vTaskDelay(pdMS_TO_TICKS(1000));
+
+    // PmicTask::GetSingleton()->SetRailState(PmicRail::kCam1_2V8, false);
+    // PmicTask::GetSingleton()->SetRailState(PmicRail::kCam2_2V8, false);
+    // vTaskDelay(pdMS_TO_TICKS(1000));
+    // value = false;
+
+    // vTaskDelay(pdMS_TO_TICKS(100));
+    // PmicTask::GetSingleton()->SetRailState(PmicRail::kCam2_2V8, value);
+    // vTaskDelay(pdMS_TO_TICKS(100));
+    // PmicTask::GetSingleton()->SetRailState(PmicRail::kCam2_1V8, value);
+    // vTaskDelay(pdMS_TO_TICKS(100));
+
+    // PmicTask::GetSingleton()->SetRailState(PmicRail::kCam1_2V8, value);
+    // vTaskDelay(pdMS_TO_TICKS(100));
+    // PmicTask::GetSingleton()->SetRailState(PmicRail::kCam1_1V8, value);
+    // vTaskDelay(pdMS_TO_TICKS(100));
+    
+    // value = true;
+
+    // PmicTask::GetSingleton()->SetRailState(PmicRail::kCam2_2V8, value);
+    // vTaskDelay(pdMS_TO_TICKS(100));
+    // PmicTask::GetSingleton()->SetRailState(PmicRail::kCam2_1V8, value);
+    // vTaskDelay(pdMS_TO_TICKS(100));
+    // PmicTask::GetSingleton()->SetRailState(PmicRail::kCam1_2V8, value);
+    // vTaskDelay(pdMS_TO_TICKS(100));
+    // PmicTask::GetSingleton()->SetRailState(PmicRail::kCam1_1V8, value);
+    // vTaskDelay(pdMS_TO_TICKS(100));
+  }
+
+  // Read Chip ID from PMIC and print it out
+  uint8_t pmicChipId = coralmicro::PmicTask::GetSingleton()->GetChipId();
+  printf("PMIC chip ID: %d\r\n", pmicChipId);
+
+  // // Reset the camera power here until we fix the camera power handling
+  // PmicTask::GetSingleton()->SetRailState(PmicRail::kCam1_1V8, false);
+  // PmicTask::GetSingleton()->SetRailState(PmicRail::kCam2_1V8, false);
+  // PmicTask::GetSingleton()->SetRailState(PmicRail::kCam1_2V8, false);
+  // PmicTask::GetSingleton()->SetRailState(PmicRail::kCam2_2V8, false);
+  // vTaskDelay(pdMS_TO_TICKS(100));
+
+  // PmicTask::GetSingleton()->SetRailState(PmicRail::kCam1_2V8, true);
+  // PmicTask::GetSingleton()->SetRailState(PmicRail::kCam2_2V8, true);
+  // PmicTask::GetSingleton()->SetRailState(PmicRail::kCam1_1V8, true);
+  // PmicTask::GetSingleton()->SetRailState(PmicRail::kCam2_1V8, true);
+  vTaskDelay(pdMS_TO_TICKS(100));
+
   // Turn on Status LED to show the board is on.
   LedSet(Led::kStatus, true);
 
@@ -192,6 +251,8 @@ void Main() {
         printf("[MIC_CLK_FB] IRQ count: %lu\r\n",
                static_cast<unsigned long>(g_mic_clk_feedback_irq_count));
       });
+
+
 
 #if defined(CAMERA_STREAMING_HTTP_ETHERNET)
   EthernetInit(/*default_iface=*/false);

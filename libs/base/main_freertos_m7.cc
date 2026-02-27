@@ -145,12 +145,6 @@ extern "C" int real_main(int argc, char** argv, bool init_console_tx,
                   &config6, CLOCK_GetFreq(kCLOCK_OscRc48MDiv2));
 
   
-  // coralmicro::PmicTask::GetSingleton()->Init(&g_i2c5_handle);
-  // uint8_t pmicChipId = coralmicro::PmicTask::GetSingleton()->GetChipId();
-  // printf("PMIC chip ID: %d\r\n", pmicChipId);
-
-  coralmicro::CameraTask::GetSingleton()->Init(&g_i2c5_handle, &g_i2c6_handle);
-
 #define LDO_1V8_INT_EN_GPIO      GPIO9
 #define LDO_1V8_INT_EN_PIN       20U
   // Initialize VDD_1V8_INT_EN pin as output
@@ -177,14 +171,19 @@ extern "C" int real_main(int argc, char** argv, bool init_console_tx,
   GPIO_PinWrite(THRS_GPIO, THRS_PIN, 0);
   printf("Enable the THRS pin\n");
 
-
-  CHECK(xTaskCreate(app_main, "app_main", configMINIMAL_STACK_SIZE * 30,
-                    nullptr, coralmicro::kAppTaskPriority, nullptr) == pdPASS);
-
   // Allows the AHB clock to run while the core is asleep,
   // so that the TCM is accessible.
   // See section 12.4.4.18 in the IMX1170 TRM for more details.
   IOMUXC_GPR->GPR16 |= IOMUXC_GPR_GPR16_CM7_FORCE_HCLK_EN(1);
+
+  coralmicro::CameraTask::GetSingleton()->Init(&g_i2c5_handle, &g_i2c6_handle);
+
+  coralmicro::PmicTask::GetSingleton()->Init(&g_i2c5_handle);
+
+  CHECK(xTaskCreate(app_main, "app_main", configMINIMAL_STACK_SIZE * 30,
+                    nullptr, coralmicro::kAppTaskPriority, nullptr) == pdPASS);
+
+
   vTaskStartScheduler();
   return 0;
 }
