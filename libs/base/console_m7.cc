@@ -157,12 +157,19 @@ void ConsoleM7::M7ConsoleTaskRxFn(void* param) {
   }
 }
 
+void ConsoleM7::SetLogPipe(StreamBufferHandle_t pipe) { log_pipe_ = pipe; }
+
 void ConsoleM7::M7ConsoleTaskTxFn(void* param) {
   while (true) {
     ConsoleMessage msg;
     if (xQueueReceive(console_queue_, &msg, portMAX_DELAY) == pdTRUE) {
       DbgConsole_SendDataReliable(msg.str, msg.len);
       cdc_acm_.Transmit(msg.str, msg.len);
+      // Mirror to TCP log pipe if registered; non-blocking — drops if full.
+      StreamBufferHandle_t pipe = log_pipe_;
+      if (pipe) {
+        xStreamBufferSend(pipe, msg.str, msg.len, 0);
+      }
       delete[] msg.str;
 #ifdef BLOCKING_PRINTF
       DbgConsole_Flush();

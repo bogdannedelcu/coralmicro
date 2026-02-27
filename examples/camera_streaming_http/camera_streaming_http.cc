@@ -24,9 +24,13 @@
 #include "libs/camera/camera.h"
 #include "libs/libjpeg/jpeg.h"
 #include "libs/audio/audio_service.h"
+#include "libs/base/console_m7.h"
+#include "libs/base/network.h"
 #include "libs/lis2du12/lis2du12.h"
 #include "third_party/freertos_kernel/include/FreeRTOS.h"
+#include "third_party/freertos_kernel/include/stream_buffer.h"
 #include "third_party/freertos_kernel/include/task.h"
+#include "third_party/nxp/rt1176-sdk/middleware/lwip/src/include/lwip/sockets.h"
 #include "libs/base/gpio.h"
 #include "libs/pmic/pmic.h"
 
@@ -83,6 +87,55 @@ void AudioTask(void* param) {
     float rms = g_rms_level;
     printf("[AudioTask] RMS: %10.0f\r\n", static_cast<double>(rms));
     vTaskDelay(pdMS_TO_TICKS(500));
+  }
+}
+
+constexpr int kLogPort = 1234;
+// Stream buffer used to pipe all printf/UART output to the TCP log client.
+// Large enough to buffer a burst of output without blocking the UART task.
+constexpr size_t kLogPipeBytes = 4096;
+
+void TcpLogTask(void* param) {
+  (void)param;
+
+  // Allocate the pipe and register it with the console so every printf call
+  // is mirrored here in addition to UART/USB-CDC.
+  StreamBufferHandle_t log_pipe = xStreamBufferCreate(kLogPipeBytes, 1);
+  if (!log_pipe) {
+    printf("[TcpLog] ERROR: Failed to allocate log pipe\r\n");
+    vTaskSuspend(nullptr);
+  }
+  ConsoleM7::GetSingleton()->SetLogPipe(log_pipe);
+
+  const int server_fd = SocketServer(kLogPort, /*backlog=*/1);
+  if (server_fd < 0) {
+    printf("[TcpLog] ERROR: Cannot bind port %d\r\n", kLogPort);
+    vTaskSuspend(nullptr);
+  }
+  printf("[TcpLog] Listening on port %d\r\n", kLogPort);
+
+  char buf[256];
+  while (true) {
+    const int client_fd = SocketAccept(server_fd);
+    if (client_fd < 0) {
+      vTaskDelay(pdMS_TO_TICKS(100));
+      continue;
+    }
+    printf("[TcpLog] Client connected (fd=%d)\r\n", client_fd);
+
+    // Discard any log data that accumulated while no client was connected.
+    xStreamBufferReset(log_pipe);
+
+    while (true) {
+      size_t n = xStreamBufferReceive(log_pipe, buf, sizeof(buf),
+                                      pdMS_TO_TICKS(200));
+      if (n == 0) continue;
+      if (WriteArray(client_fd, buf, n) != IOStatus::kOk) break;
+    }
+
+    printf("[TcpLog] Client disconnected\r\n");
+    SocketClose(client_fd);
+    xStreamBufferReset(log_pipe);
   }
 }
 
@@ -296,6 +349,10 @@ void Main() {
   // Start audio service task
   xTaskCreate(AudioTask, "audio_task", configMINIMAL_STACK_SIZE * 30,
               nullptr, 3, nullptr);
+
+  // Start TCP log server — mirrors all UART output to port 1234
+  xTaskCreate(TcpLogTask, "tcp_log_task", configMINIMAL_STACK_SIZE * 4,
+              nullptr, 2, nullptr);
 
   HttpServer http_server;
   http_server.AddUriHandler(UriHandler);
