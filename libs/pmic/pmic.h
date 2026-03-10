@@ -39,6 +39,7 @@ namespace pmic {
 enum class RequestType : uint8_t {
   kRail,
   kChipId,
+  kStatusDump,
 };
 
 struct RailRequest {
@@ -76,11 +77,13 @@ class PmicTask : public QueueTask<pmic::Request, pmic::Response, kPmicTaskName,
   }
   void SetRailState(PmicRail rail, bool enable);
   uint8_t GetChipId();
+  void DumpStatus();
 
  private:
   void RequestHandler(pmic::Request* req) override;
   void HandleRailRequest(const pmic::RailRequest& rail);
   uint8_t HandleChipIdRequest();
+  void HandleStatusDump();
   uint32_t MakeSubaddress(uint16_t reg, uint8_t byte_count = 1);
   bool Read(uint16_t reg, uint8_t* val);
   bool Write(uint16_t reg, uint8_t val);
