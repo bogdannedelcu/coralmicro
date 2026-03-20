@@ -267,6 +267,47 @@ bool Lis2du12::SetInt2WakeUpThreshold(uint8_t threshold, bool x_en,
   return true;
 }
 
+bool Lis2du12::SetInt2DoubleTap() {
+  LIS2DU12_LOG("[LIS2DU12] SetInt2DoubleTap\r\n");
+
+  // All axes, threshold=3 (~187mg at +/-2g, 1 LSB = FS/32 = 62.5mg).
+  // shock=1 → 12 ODR times (~120ms max tap duration at 100Hz).
+  // quiet=1 → 6 ODR times (~60ms dead-time after tap).
+  // latency=1 → 48 ODR times (~480ms max gap between two taps at 100Hz).
+  lis2du12_tap_md_t tap{};
+  tap.x_en = 1;
+  tap.y_en = 1;
+  tap.z_en = 1;
+  tap.threshold.x = 3;
+  tap.threshold.y = 3;
+  tap.threshold.z = 3;
+  tap.shock = 1;
+  tap.quiet = 1;
+  tap.priority = LIS2DU12_XYZ;
+  tap.tap_double.en = 1;
+  tap.tap_double.latency = 1;
+
+  if (lis2du12_tap_mode_set(&dev_ctx_, &tap) != 0) {
+    LIS2DU12_LOG("[LIS2DU12] ERROR: tap_mode_set failed\r\n");
+    return false;
+  }
+
+  // Read-modify-write: add double_tap to INT2 route without clearing wake_up.
+  lis2du12_pin_int_route_t route{};
+  if (lis2du12_pin_int2_route_get(&dev_ctx_, &route) != 0) {
+    LIS2DU12_LOG("[LIS2DU12] ERROR: pin_int2_route_get failed\r\n");
+    return false;
+  }
+  route.double_tap = 1;
+  if (lis2du12_pin_int2_route_set(&dev_ctx_, &route) != 0) {
+    LIS2DU12_LOG("[LIS2DU12] ERROR: pin_int2_route_set failed\r\n");
+    return false;
+  }
+
+  LIS2DU12_LOG("[LIS2DU12] SetInt2DoubleTap OK\r\n");
+  return true;
+}
+
 bool Lis2du12::ClearWakeUpInterrupt() {
   lis2du12_all_sources_t sources;
   if (lis2du12_all_sources_get(&dev_ctx_, &sources) != 0) {

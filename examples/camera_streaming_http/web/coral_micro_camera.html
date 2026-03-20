@@ -64,6 +64,15 @@
             }
         }
 
+        async function setLogSection(section, enabled) {
+            const sub = enabled ? "log_enable" : "log_disable";
+            try {
+                await fetch("/command/" + sub + "/" + section);
+            } catch (e) {
+                console.error("Log toggle error:", e);
+            }
+        }
+
         async function pollAudio() {
             const bar = document.getElementById("cmd-audio-bar");
             const audio = document.getElementById("cmd-audio");
@@ -286,6 +295,27 @@
             height: 32px;
         }
 
+        #log-section-bar {
+            background: #f5d0cb;
+            border-bottom: 1px solid #53bfc1;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            padding: 4px 10px;
+            gap: 14px;
+            font-size: 12px;
+            color: #fd5e4d;
+        }
+
+        #log-section-bar label {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            user-select: none;
+        }
+
         #log-panel {
             flex: 1 1 auto;
             background: #111;
@@ -361,6 +391,29 @@
                     onclick="rawLog=''; document.getElementById('log-panel').textContent=''">
                 Clear
             </button>
+        </div>
+        <div id="log-section-bar">
+            <span>Print:</span>
+            <label>
+                <input type="checkbox" checked
+                       onchange="setLogSection('camera', this.checked)">
+                Camera
+            </label>
+            <label>
+                <input type="checkbox" checked
+                       onchange="setLogSection('accel', this.checked)">
+                Accel
+            </label>
+            <label>
+                <input type="checkbox" checked
+                       onchange="setLogSection('pmic', this.checked)">
+                PMIC
+            </label>
+            <label>
+                <input type="checkbox" checked
+                       onchange="setLogSection('mic', this.checked)">
+                Microphone
+            </label>
         </div>
         <pre id="log-panel"></pre>
     </div>

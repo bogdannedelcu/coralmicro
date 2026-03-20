@@ -8,6 +8,7 @@
 
 #include "fsl_common.h"
 #include "fsl_iomuxc.h"
+#include "fsl_gpio.h"
 #include "pin_mux.h"
 
 void InitArduinoPins(void);
@@ -33,6 +34,31 @@ void BOARD_InitBootPins(void) { BOARD_InitPins(); }
  * ****************************************************************************************************************/
 void BOARD_InitPins(void) {
     CLOCK_EnableClock(kCLOCK_Iomuxc); /* LPCG on: LPCG is ON. */
+
+      /* GPIO configuration of USER_BUTTON on WAKEUP_DIG (pin T8) */
+    gpio_pin_config_t USER_BUTTON_config = {
+      .direction = kGPIO_DigitalInput,
+      .outputLogic = 0U,
+      .interruptMode = kGPIO_IntFallingEdge
+    };
+    /* Initialize GPIO functionality on WAKEUP_DIG (pin T8) */
+    GPIO_PinInit(GPIO13, 0U, &USER_BUTTON_config);
+    /* Enable GPIO pin interrupt on WAKEUP_DIG (pin T8) */
+    GPIO_PortEnableInterrupts(GPIO13, 1U << 0U);
+
+    IOMUXC_SetPinMux(
+      IOMUXC_WAKEUP_DIG_GPIO13_IO00,          /* WAKEUP_DIG is configured as GPIO13_IO00 */
+      0U);                                    /* Software Input On Field: Input Path is determined by functionality */
+
+    IOMUXC_SetPinConfig(
+      IOMUXC_WAKEUP_DIG_GPIO13_IO00,          /* WAKEUP_DIG PAD functional properties : */
+      0x0EU);                                 /* Slew Rate Field: Slow Slew Rate
+                                                 Drive Strength Field: high driver
+                                                 Pull / Keep Select Field: Pull Enable
+                                                 Pull Up / Down Config. Field: Weak pull up
+                                                 Open Drain SNVS Field: Disabled
+                                                 Domain write protection: Both cores are allowed
+                                                 Domain write protection lock: Neither of DWP bits is locked */
 
     // TPU MCM Pins
     IOMUXC_SetPinMux(IOMUXC_GPIO_EMC_B2_16_GPIO8_IO26, 0U);

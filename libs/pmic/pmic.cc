@@ -152,30 +152,30 @@ bool PmicTask::Read(uint16_t reg, uint8_t* val) {
 }
 
 // Enable the PMIC EN pin
-static void enable_pmic_en()
-{
-// IOMUXC_PMIC_ON_REQ_DIG_GPIO13_IO01
-#define PMIC_EN_GPIO      GPIO13
-#define PMIC_EN_PIN       1U
-  // Initialize VDD_1V8_INT_EN pin as output
-  gpio_pin_config_t pmic_pin_config = {
-      .direction = kGPIO_DigitalOutput,
-      .outputLogic = 0,
-      .interruptMode = kGPIO_NoIntmode,
-  };
+// static void enable_pmic_en()
+// {
+// // IOMUXC_PMIC_ON_REQ_DIG_GPIO13_IO01
+// #define PMIC_EN_GPIO      GPIO13
+// #define PMIC_EN_PIN       1U
+//   // Initialize VDD_1V8_INT_EN pin as output
+//   gpio_pin_config_t pmic_pin_config = {
+//       .direction = kGPIO_DigitalOutput,
+//       .outputLogic = 0,
+//       .interruptMode = kGPIO_NoIntmode,
+//   };
 
-  GPIO_PinInit(PMIC_EN_GPIO, PMIC_EN_PIN, &pmic_pin_config);
-  GPIO_PinWrite(PMIC_EN_GPIO, PMIC_EN_PIN, 1);
+//   GPIO_PinInit(PMIC_EN_GPIO, PMIC_EN_PIN, &pmic_pin_config);
+//   GPIO_PinWrite(PMIC_EN_GPIO, PMIC_EN_PIN, 1);
 
-  printf("[PMIC] Init PMIC_EN\n");
-}
+//   printf("[PMIC] Init PMIC_EN\n");
+// }
 
-static void set_pmic_en(bool enable)
-{
-  GPIO_PinWrite(PMIC_EN_GPIO, PMIC_EN_PIN, enable ? 1 : 0);
-  vTaskDelay(pdMS_TO_TICKS(1));
-  printf("[PMIC] Set PMIC_EN to %s\n", enable ? "enabled" : "disabled");
-}
+// static void set_pmic_en(bool enable)
+// {
+//   GPIO_PinWrite(PMIC_EN_GPIO, PMIC_EN_PIN, enable ? 1 : 0);
+//   vTaskDelay(pdMS_TO_TICKS(1));
+//   printf("[PMIC] Set PMIC_EN to %s\n", enable ? "enabled" : "disabled");
+// }
 
 bool PmicTask::Write(uint16_t reg, uint8_t val) {
   const uint32_t subaddr = MakeSubaddress(reg, 1);

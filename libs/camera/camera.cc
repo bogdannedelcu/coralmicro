@@ -856,7 +856,7 @@ camera::FrameResponse CameraTask::HandleFrameRequest(
     int n = 40;
     bool state = true;
 
-    DBG_OUTPUT ("CAMERA_RECEIVER_GetFullBuffer:waiting...\n");
+    // DBG_OUTPUT ("CAMERA_RECEIVER_GetFullBuffer:waiting...\n");
 
     while(n--)
     {
@@ -872,7 +872,7 @@ camera::FrameResponse CameraTask::HandleFrameRequest(
       state = !state;
     }
 
-    DBG_OUTPUT("CAMERA_RECEIVER_GetFullBuffer = %ld\n", status);
+    // DBG_OUTPUT("CAMERA_RECEIVER_GetFullBuffer = %ld\n", status);
 
     if (status == kStatus_Success) {
       // DBG_OUTPUT ("CAMERA_RECEIVER_GetFullBuffer:status = OK, invalidate %d bytes\n", sizeof(framebuffers[0]));
@@ -883,7 +883,7 @@ camera::FrameResponse CameraTask::HandleFrameRequest(
       resp.index = FramebufferPtrToIndex(reinterpret_cast<uint8_t*>(buffer));
     }
     else {
-      printf ("CAMERA_RECEIVER_GetFullBuffer:status = %ld\n", status);
+      // printf ("CAMERA_RECEIVER_GetFullBuffer:status = %ld\n", status);
 
       coralmicro::GpioSet((coralmicro::Gpio) coralmicro::Gpio::kStatusLed, 1);
     }
@@ -892,7 +892,7 @@ camera::FrameResponse CameraTask::HandleFrameRequest(
 
     if (buffer) {
       status = CAMERA_RECEIVER_SubmitEmptyBuffer(&cameraReceiver, (uint32_t)buffer);
-      DBG_OUTPUT ("CAMERA_RECEIVER_SubmitEmptyBuffer:status = %ld\n", status);
+      // DBG_OUTPUT ("CAMERA_RECEIVER_SubmitEmptyBuffer:status = %ld\n", status);
     }
   }
 

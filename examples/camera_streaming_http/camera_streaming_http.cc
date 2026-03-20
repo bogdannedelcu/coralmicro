@@ -32,6 +32,10 @@
 #include "libs/base/strings.h"
 #include "libs/base/timer.h"
 #include "libs/base/utils.h"
+#include "third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_gpc.h"
+#include "third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_iomuxc.h"
+#include "third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_snvs_hp.h"
+#include "third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_snvs_lp.h"
 #include "libs/camera/camera.h"
 #include "libs/libjpeg/jpeg.h"
 #include "libs/lis2du12/lis2du12.h"
@@ -75,6 +79,12 @@ TaskHandle_t g_accel_task_handle = nullptr;
 // Camera side: 0 = front, 1 = back.
 volatile int g_camera_side = 0;
 
+// Per-section log enable flags (set via /command/log_enable|log_disable/<section>).
+volatile bool g_log_camera = true;
+volatile bool g_log_accel  = true;
+volatile bool g_log_pmic   = true;
+volatile bool g_log_mic    = true;
+
 // Audio recording.
 constexpr int kRecordingSeconds = 3;
 constexpr size_t kRecordingSamples = 16000u * kRecordingSeconds;
@@ -83,6 +93,8 @@ volatile bool g_audio_ready = false;
 SemaphoreHandle_t g_audio_wav_mutex = nullptr;
 std::vector<int16_t> g_recording_buf;
 std::vector<uint8_t> g_audio_wav_data;
+
+static void PrintSnvsRegisters();
 
 void OnLogMessage(const char* data, int len) {
   if (!g_log_mutex) return;
@@ -95,6 +107,77 @@ void OnLogMessage(const char* data, int len) {
   }
   g_log_buffer.append(data, static_cast<size_t>(len));
   xSemaphoreGive(g_log_mutex);
+}
+
+static void APP_SetSrtcWakeupConfig(uint8_t wakeupTimeout);
+
+static void shutdown_system(void)
+{
+  const uint32_t wakeup_secs = 60;
+
+  // Ensure SRTC is running before reading its time.
+  // SNVS_LP_Init() is intentionally NOT called here — it reconfigures LPCR
+  // and may stop/reset the SRTC, corrupting GetDatetime() and the alarm.
+  SNVS_LP_SRTC_StartTimer(SNVS);
+
+  // Clear any stale SRTC alarm flag from a previous cycle.
+  SNVS_LP_SRTC_ClearStatusFlags(SNVS, kSNVS_SRTC_AlarmInterruptFlag);
+
+  // Compute alarm = SRTC now + wakeup_secs (carry through min/hour/day).
+  snvs_lp_srtc_datetime_t alarm_dt;
+  SNVS_LP_SRTC_GetDatetime(SNVS, &alarm_dt);
+
+  uint32_t total_s = alarm_dt.second + wakeup_secs;
+  alarm_dt.second  = total_s % 60u;
+  uint32_t total_m = alarm_dt.minute + total_s / 60u;
+  alarm_dt.minute  = total_m % 60u;
+  uint32_t total_h = alarm_dt.hour + total_m / 60u;
+  alarm_dt.hour    = static_cast<uint8_t>(total_h % 24u);
+  alarm_dt.day    += static_cast<uint8_t>(total_h / 24u);
+
+  if (SNVS_LP_SRTC_SetAlarm(SNVS, &alarm_dt) == kStatus_Success) {
+    SNVS_LP_SRTC_EnableInterrupts(SNVS, kSNVS_SRTC_AlarmInterrupt);
+    printf("[CMD] SRTC wakeup in %lu s (alarm at day=%u %02d:%02d:%02d)\r\n",
+           static_cast<unsigned long>(wakeup_secs),
+           alarm_dt.day, alarm_dt.hour, alarm_dt.minute, alarm_dt.second);
+  } else {
+    printf("[CMD] SRTC alarm set failed — powering off without wakeup\r\n");
+  }
+
+  // Configure GPIO_SNVS_00 (user button) as an SNVS passive tamper wakeup
+  // source.  The pin must be switched from GPIO13_IO03 (mux mode 5) to
+  // SNVS_TAMPER0 (mux mode 0) so that the SNVS LP domain can observe it
+  // during deep power-down when the main power domains are off.
+  // Pad config 0x0C: PUE=1 (bit2) + PUS=1 (bit3) = 100kΩ pull-up.
+  // The line is HIGH at rest; pressing the button pulls it LOW → tamper event.
+  IOMUXC_SetPinMux(IOMUXC_GPIO_SNVS_00_DIG_SNVS_TAMPER0, 0U);
+  IOMUXC_SetPinConfig(IOMUXC_GPIO_SNVS_00_DIG_SNVS_TAMPER0, 0x0CU);
+
+  // Clear any stale tamper status from a previous cycle.
+  SNVS_LP_ClearExternalTamperStatus(SNVS, kSNVS_ExternalTamper1);
+
+  // Enable passive tamper 1: active-low (button press = LOW = wakeup event).
+  // snvs_lp_passive_tamper_t tamper_cfg{};
+  // tamper_cfg.polarity = static_cast<uint8_t>(kSNVS_ExternalTamperActiveLow);
+  // SNVS_LP_EnablePassiveTamper(SNVS, kSNVS_ExternalTamper1, tamper_cfg);
+
+  // LPWUI_EN: route any LP wakeup event (tamper or SRTC alarm) to PMIC_ON_REQ.
+  // Required so that pressing the user button wakes the system from DPD.
+  SNVS->LPCR |= SNVS_LPCR_LPWUI_EN_MASK;
+
+  PrintSnvsRegisters();
+
+  // Assert SNVS LP DP_EN + TOP:
+  //   DP_EN — keeps SNVS LP in "stay-off" state; without it TOP just
+  //            triggers a power cycle and the PMIC restarts in ~1 s.
+  //   TOP   — deasserts PMIC_ON_REQ; all main rails go off.
+  // The SRTC alarm (LPTA) or a button press (ET1) will re-assert PMIC_ON_REQ.
+  printf("[CMD] Entering deep power-down (DP_EN+TOP)...\r\n");
+  vTaskDelay(pdMS_TO_TICKS(300));  // allow log to flush
+  SNVS->LPCR |= SNVS_LPCR_DP_EN_MASK | SNVS_LPCR_TOP_MASK;
+
+  // Should not reach here — spin in case the write takes a cycle.
+  while (true) {}
 }
 
 // Builds a 16-bit mono PCM WAV file from int16_t samples.
@@ -168,25 +251,27 @@ bool AudioCallback(void* ctx, const int32_t* samples, size_t num_samples) {
 
 void AudioTask(void* param) {
   (void)param;
-  printf("[AudioTask] Starting audio service task\r\n");
+  if (g_log_mic) printf("[AudioTask] Starting audio service task\r\n");
 
   AudioDriver driver(g_audio_buffers);
   const AudioDriverConfig config{AudioSampleRate::k16000_Hz,
                                  /*num_dma_buffers=*/4,
                                  /*dma_buffer_size_ms=*/50};
   if (!g_audio_buffers.CanHandle(config)) {
-    printf("[AudioTask] ERROR: Not enough static memory for DMA buffers\r\n");
+    if (g_log_mic) printf("[AudioTask] ERROR: Not enough static memory for DMA buffers\r\n");
     vTaskSuspend(nullptr);
   }
 
   AudioService service(&driver, config, /*task_priority=*/3,
                         /*drop_first_samples_ms=*/200);
   service.AddCallback(nullptr, AudioCallback);
-  printf("[AudioTask] Audio service running\r\n");
+  if (g_log_mic) printf("[AudioTask] Audio service running\r\n");
 
   while (true) {
-    float rms = g_rms_level;
-    printf("[AudioTask] RMS: %10.0f\r\n", static_cast<double>(rms));
+    if (g_log_mic) {
+      float rms = g_rms_level;
+      printf("[AudioTask] RMS: %10.0f\r\n", static_cast<double>(rms));
+    }
     vTaskDelay(pdMS_TO_TICKS(500));
   }
 }
@@ -240,16 +325,52 @@ void TcpLogTask(void* param) {
   }
 }
 
-// FreeRTOS one-shot timer callback: fires when the "alarm 1 minute" expires.
-static void RtcAlarmCallback(TimerHandle_t) {
-  struct tm now;
-  TimerGetRtcTime(&now);
-  printf("[Alarm] RTC alarm fired at %04d-%02d-%02d %02d:%02d:%02d UTC\r\n",
-         now.tm_year + 1900, now.tm_mon + 1, now.tm_mday,
-         now.tm_hour, now.tm_min, now.tm_sec);
-  LedSet(Led::kStatus, true);
-  vTaskDelay(pdMS_TO_TICKS(300));
-  LedSet(Led::kStatus, false);
+// Binary semaphore given by the SNVS HP RTC alarm ISR.
+static SemaphoreHandle_t g_rtc_alarm_sem = nullptr;
+
+// Task that blocks on the semaphore and handles the alarm action.
+static void RtcAlarmTask(void*) {
+  while (true) {
+    if (xSemaphoreTake(g_rtc_alarm_sem, portMAX_DELAY) == pdTRUE) {
+      struct tm now;
+      TimerGetRtcTime(&now);
+      printf("[Alarm] RTC HW alarm fired at %04d-%02d-%02d %02d:%02d:%02d UTC\r\n",
+             now.tm_year + 1900, now.tm_mon + 1, now.tm_mday,
+             now.tm_hour, now.tm_min, now.tm_sec);
+      LedSet(Led::kStatus, true);
+      vTaskDelay(pdMS_TO_TICKS(300));
+      LedSet(Led::kStatus, false);
+    }
+  }
+}
+
+// Configure the SNVS LP SRTC to fire an alarm after wakeupTimeout seconds
+// and register it as the sole GPC wakeup source for the CM7 domain.
+static void APP_SetSrtcWakeupConfig(uint8_t wakeupTimeout)
+{
+    /* Stop SRTC counter and clear any pending alarm interrupt */
+    SNVS_LP_SRTC_StopTimer(SNVS);
+    SNVS_LP_SRTC_DisableInterrupts(SNVS, kSNVS_SRTC_AlarmInterrupt);
+    SNVS_LP_SRTC_ClearStatusFlags(SNVS, kSNVS_SRTC_AlarmInterruptFlag);
+
+    /* Reset SRTC counter to 0 and set alarm = wakeupTimeout seconds from now */
+    SNVS->LPSRTCMR = 0x00U;
+    SNVS->LPSRTCLR = 0x00U;
+    SNVS->LPTAR    = wakeupTimeout;
+
+    /* Enable the SNVS HP consolidated IRQ in NVIC */
+    EnableIRQ(SNVS_HP_NON_TZ_IRQn);
+
+    /* Mask every GPC CM7 IRQ wakeup source, then unmask only the SNVS one.
+     * CM_IRQ_WAKEUP_MASK[0..7] covers IRQ 0-255; 1 = masked, 0 = wakeup enabled. */
+    for (uint32_t i = 0U; i < 8U; i++) {
+        GPC_CPU_MODE_CTRL_0->CM_IRQ_WAKEUP_MASK[i] = 0xFFFFFFFFU;
+    }
+    GPC_CM_EnableIrqWakeup(GPC_CPU_MODE_CTRL_0, (uint32_t)SNVS_HP_NON_TZ_IRQn, true);
+
+    /* Re-start SRTC counter and enable alarm interrupt */
+    SNVS_LP_SRTC_StartTimer(SNVS);
+    SNVS_LP_SRTC_EnableInterrupts(SNVS, kSNVS_SRTC_AlarmInterrupt);
 }
 
 // Handles GET /command/<name>[/<extra>], e.g. /command/cam1_on
@@ -273,25 +394,45 @@ static HttpServer::Content HandleCommand(const char* uri) {
   printf("[CMD] %s\r\n", cmd.c_str());
 
   if (cmd == "cam1_on") {
+#if 0
     PmicTask::GetSingleton()->SetRailState(PmicRail::kCam1_2V8, true);
     PmicTask::GetSingleton()->SetRailState(PmicRail::kCam1_1V8, true);
+#else
+    coralmicro::GpioSet((coralmicro::Gpio) Gpio::kCamPwrDn, 0);
+    coralmicro::GpioSet((coralmicro::Gpio) Gpio::kCamReset, 1);
+#endif
+
     printf("[CMD] Camera 1 rails ON\r\n");
 
   } else if (cmd == "cam1_off") {
+#if 0
     PmicTask::GetSingleton()->SetRailState(PmicRail::kCam1_1V8, false);
     PmicTask::GetSingleton()->SetRailState(PmicRail::kCam1_2V8, false);
+#else
+    coralmicro::GpioSet((coralmicro::Gpio) Gpio::kCamPwrDn, 1);
+    coralmicro::GpioSet((coralmicro::Gpio) Gpio::kCamReset, 0);
+#endif
 
     printf("[CMD] Camera 1 rails OFF\r\n");
 
   } else if (cmd == "cam2_on") {
+#if 0
     PmicTask::GetSingleton()->SetRailState(PmicRail::kCam2_2V8, true);
     PmicTask::GetSingleton()->SetRailState(PmicRail::kCam2_1V8, true);
-
+#else
+    coralmicro::GpioSet((coralmicro::Gpio) Gpio::kCamPwrDn2, 0);
+    coralmicro::GpioSet((coralmicro::Gpio) Gpio::kCamReset2, 1);
+#endif
     printf("[CMD] Camera 2 rails ON\r\n");
 
   } else if (cmd == "cam2_off") {
+#if 0
     PmicTask::GetSingleton()->SetRailState(PmicRail::kCam2_1V8, false);
     PmicTask::GetSingleton()->SetRailState(PmicRail::kCam2_2V8, false);
+#else
+    coralmicro::GpioSet((coralmicro::Gpio) Gpio::kCamPwrDn2, 1);
+    coralmicro::GpioSet((coralmicro::Gpio) Gpio::kCamReset2, 0);
+#endif
 
     printf("[CMD] Camera 2 rails OFF\r\n");
 
@@ -345,16 +486,35 @@ static HttpServer::Content HandleCommand(const char* uri) {
     }
 
   } else if (cmd == "set_rtc_alarm_1m") {
-    TimerHandle_t alarm =
-        xTimerCreate("rtc_alarm", pdMS_TO_TICKS(60000),
-                     /*uxAutoReload=*/pdFALSE, nullptr, RtcAlarmCallback);
-    if (alarm) {
-      xTimerStart(alarm, 0);
-      struct tm now;
-      TimerGetRtcTime(&now);
-      printf("[CMD] 1-minute alarm set (now %04d-%02d-%02d %02d:%02d:%02d)\r\n",
-             now.tm_year + 1900, now.tm_mon + 1, now.tm_mday,
-             now.tm_hour, now.tm_min, now.tm_sec);
+    // Compute alarm time = now + 60 seconds using SNVS HP datetime directly.
+    snvs_hp_rtc_datetime_t alarm_dt;
+    SNVS_HP_RTC_GetDatetime(SNVS, &alarm_dt);
+    struct tm now;
+    TimerGetRtcTime(&now);
+    printf("[CMD] 1-minute HW alarm set (now %04d-%02d-%02d %02d:%02d:%02d)\r\n",
+           now.tm_year + 1900, now.tm_mon + 1, now.tm_mday,
+           now.tm_hour, now.tm_min, now.tm_sec);
+
+    alarm_dt.second += 60;
+    if (alarm_dt.second >= 60) {
+      alarm_dt.minute += alarm_dt.second / 60;
+      alarm_dt.second  %= 60;
+    }
+    if (alarm_dt.minute >= 60) {
+      alarm_dt.hour  += alarm_dt.minute / 60;
+      alarm_dt.minute %= 60;
+    }
+    if (alarm_dt.hour >= 24) {
+      alarm_dt.hour %= 24;  // day roll-over not needed for a 1-min alarm
+    }
+
+    if (SNVS_HP_RTC_SetAlarm(SNVS, &alarm_dt) == kStatus_Success) {
+      SNVS_HP_RTC_EnableInterrupts(SNVS, kSNVS_RTC_AlarmInterrupt);
+      EnableIRQ(SNVS_HP_NON_TZ_IRQn);
+      printf("[CMD] HW alarm armed for %02d:%02d:%02d\r\n",
+             alarm_dt.hour, alarm_dt.minute, alarm_dt.second);
+    } else {
+      printf("[CMD] SNVS_HP_RTC_SetAlarm failed\r\n");
     }
 
   } else if (cmd == "ldo_1v8_on") {
@@ -365,10 +525,23 @@ static HttpServer::Content HandleCommand(const char* uri) {
     GPIO_PinWrite(LDO_1V8_INT_EN_GPIO, LDO_1V8_INT_EN_PIN, 0U);
     printf("[CMD] LDO_1V8_INT_EN OFF\r\n");
 
-  } else if (cmd == "shutdown") {
-    printf("[CMD] Shutting down...\r\n");
+  } else if (cmd == "reboot") {
+    printf("[CMD] Rebooting (software reset)...\r\n");
     vTaskDelay(pdMS_TO_TICKS(300));  // allow log to flush
-    ResetToFlash();
+    NVIC_SystemReset();
+
+  } else if (cmd == "shutdown") {
+    shutdown_system();
+
+  } else if (cmd == "log_enable" || cmd == "log_disable") {
+    const bool enable = (cmd == "log_enable");
+    if (slash && *(slash + 1) != '\0') {
+      const std::string section(slash + 1);
+      if      (section == "camera") g_log_camera = enable;
+      else if (section == "accel")  g_log_accel  = enable;
+      else if (section == "pmic")   g_log_pmic   = enable;
+      else if (section == "mic")    g_log_mic    = enable;
+    }
 
   } else {
     printf("[CMD] Unknown command: %s\r\n", cmd.c_str());
@@ -389,7 +562,7 @@ static void PmicStatusTask(void*) {
   // Wait for PmicTask to be ready.
   vTaskDelay(pdMS_TO_TICKS(2000));
   while (true) {
-    PmicTask::GetSingleton()->DumpStatus();
+    if (g_log_pmic) PmicTask::GetSingleton()->DumpStatus();
     vTaskDelay(pdMS_TO_TICKS(2000));
   }
 }
@@ -415,25 +588,34 @@ void AccelTask(void* param) {
     g_accel.ClearWakeUpInterrupt();
   }
 
+#if 1
   // Configure wake-up interrupt on INT2 for all axes.
-  // Threshold ~500 mg at +/-2g (threshold=64 -> 64 * 7.8mg ~= 500mg)
-  constexpr uint8_t kWakeUpThreshold = 64;
+  // The driver uses coarse mode (wake_ths_w=0) for threshold > 63:
+  //   wk_ths = threshold / 4; 1 LSB = FS_XL/64 = 2000mg/64 = 31.25mg at +/-2g
+  // For 1.3g: wk_ths = round(1300/31.25) = 42 → threshold = 42 * 4 = 168
+  constexpr uint8_t kWakeUpThreshold = 168;  // ~1.3g at +/-2g
   if (!g_accel.SetInt2WakeUpThreshold(kWakeUpThreshold, true, true, true)) {
     printf("[AccelTask] ERROR: SetInt2WakeUpThreshold failed\r\n");
+    vTaskSuspend(nullptr);
+  }
+#endif
+
+  // Enable double-tap detection on INT2 (routes alongside wake_up).
+  if (!g_accel.SetInt2DoubleTap()) {
+    printf("[AccelTask] ERROR: SetInt2DoubleTap failed\r\n");
     vTaskSuspend(nullptr);
   }
 
   // Read accelerometer data after wake-up
   while (true) {
     bool ready = false;
-    if (g_accel.IsDataReady(&ready) && ready) {
+    if (g_log_accel && g_accel.IsDataReady(&ready) && ready) {
       if (g_accel.ReadData(&data)) {
         printf("[AccelTask] X=%.1f Y=%.1f Z=%.1f mg  T=%.1f C\r\n",
                 static_cast<double>(data.x_mg),
                 static_cast<double>(data.y_mg),
                 static_cast<double>(data.z_mg),
                 static_cast<double>(data.temp_deg_c));
-
       }
     }
 
@@ -449,8 +631,8 @@ HttpServer::Content UriHandler(const char* uri) {
   } else if (StrEndsWith(uri, kCameraStreamUrlPrefix))
   {
     // [start-snippet:jpeg]
-    std::vector<uint8_t> buf(CameraTask::kWidth * CameraTask::kHeight *
-                             CameraFormatBpp(CameraFormat::kRgb));
+  std::vector<uint8_t> buf(CameraTask::kWidth * CameraTask::kHeight *
+                           CameraFormatBpp(CameraFormat::kRgb));
     auto fmt = CameraFrameFormat{
         CameraFormat::kRgb,       CameraFilterMethod::kBilinear,
         CameraRotation::k0,       CameraTask::kWidth,
@@ -461,8 +643,14 @@ HttpServer::Content UriHandler(const char* uri) {
     // CameraTask::GetSingleton()->SetTestPattern(CameraTestPattern::kColorBar);
 
     if (!CameraTask::GetSingleton()->GetFrame({fmt})) {
-      printf("Unable to get frame from camera\r\n");
+      printf("[camera]: Unable to get frame from camera\r\n");
       return {};
+    }
+    else {
+      if (g_log_camera) {
+        printf("[camera]: Frame captured: %u x %u\r\n",
+               fmt.width, fmt.height);
+      }
     }
 
     std::vector<uint8_t> jpeg;
@@ -622,15 +810,158 @@ void i2c_issue(void)
 }
 #endif // PMIC issue
 
+// Decode and print all relevant SNVS registers in human-readable form.
+// Called once at the very start of Main() before anything else runs.
+static void PrintSnvsRegisters() {
+  const uint32_t lpsr  = SNVS->LPSR;
+  const uint32_t hpsr  = SNVS->HPSR;
+  const uint32_t lpcr  = SNVS->LPCR;
+  const uint32_t hpcr  = SNVS->HPCR;
+  const uint32_t srtc_msb = SNVS->LPSRTCMR;
+  const uint32_t srtc_lsb = SNVS->LPSRTCLR;
+  const uint32_t lptar = SNVS->LPTAR;
+
+  // SRTC is a 47-bit counter at 32 768 Hz.
+  // Seconds = ((MSB[14:0] << 17) | (LSB[31:15]))
+  const uint32_t srtc_secs =
+      ((srtc_msb & 0x7FFFu) << 17) | (srtc_lsb >> 15);
+
+  // SSM state names (HPSR[11:8])
+  static const char* const kSsmState[] = {
+    "Init","HardFail","?","SoftFail","InitInter","CheckInter","?","NonSecure",
+    "Trusted","Secure","?","SecureInter","?","?","?","CheckSecurity"
+  };
+  const uint32_t ssm = (hpsr >> 8) & 0xFu;
+
+  printf("[SNVS] ===== SNVS Register Dump =====\r\n");
+
+  // HP Status Register
+  printf("[SNVS] HPSR  = 0x%08lX\r\n"
+         "         HPTA=%lu PI=%lu LPDIS=%lu BTN=%lu BI=%lu"
+         " SSM_STATE=%lu(%s) SECURE_BOOT=%lu"
+         " OTPMK_ZERO=%lu ZMK_ZERO=%lu\r\n",
+         static_cast<unsigned long>(hpsr),
+         static_cast<unsigned long>(hpsr & SNVS_HPSR_HPTA_MASK),
+         static_cast<unsigned long>((hpsr & SNVS_HPSR_PI_MASK) >> 1),
+         static_cast<unsigned long>((hpsr & SNVS_HPSR_LPDIS_MASK) >> 4),
+         static_cast<unsigned long>((hpsr & SNVS_HPSR_BTN_MASK) >> 6),
+         static_cast<unsigned long>((hpsr & SNVS_HPSR_BI_MASK) >> 7),
+         static_cast<unsigned long>(ssm), kSsmState[ssm],
+         static_cast<unsigned long>((hpsr & SNVS_HPSR_SYS_SECURE_BOOT_MASK) >> 15),
+         static_cast<unsigned long>((hpsr & SNVS_HPSR_OTPMK_ZERO_MASK) >> 27),
+         static_cast<unsigned long>((hpsr & SNVS_HPSR_ZMK_ZERO_MASK) >> 31));
+
+  // LP Status Register — wake-up cause is here
+  printf("[SNVS] LPSR  = 0x%08lX\r\n"
+         "         LPTA=%lu SRTCR=%lu MCR=%lu LVD=%lu CTD=%lu TTD=%lu VTD=%lu"
+         " ET1D=%lu ET2D=%lu ESVD=%lu EO=%lu SPOF=%lu LPS=%lu LPNS=%lu\r\n",
+         static_cast<unsigned long>(lpsr),
+         static_cast<unsigned long>(lpsr & SNVS_LPSR_LPTA_MASK),
+         static_cast<unsigned long>((lpsr & SNVS_LPSR_SRTCR_MASK) >> 1),
+         static_cast<unsigned long>((lpsr & SNVS_LPSR_MCR_MASK)   >> 2),
+         static_cast<unsigned long>((lpsr & SNVS_LPSR_LVD_MASK)   >> 3),
+         static_cast<unsigned long>((lpsr & SNVS_LPSR_CTD_MASK)   >> 4),
+         static_cast<unsigned long>((lpsr & SNVS_LPSR_TTD_MASK)   >> 5),
+         static_cast<unsigned long>((lpsr & SNVS_LPSR_VTD_MASK)   >> 6),
+         static_cast<unsigned long>((lpsr & SNVS_LPSR_ET1D_MASK)  >> 9),
+         static_cast<unsigned long>((lpsr & SNVS_LPSR_ET2D_MASK)  >> 10),
+         static_cast<unsigned long>((lpsr & SNVS_LPSR_ESVD_MASK)  >> 16),
+         static_cast<unsigned long>((lpsr & SNVS_LPSR_EO_MASK)    >> 17),
+         static_cast<unsigned long>((lpsr & SNVS_LPSR_SPOF_MASK)  >> 18),
+         static_cast<unsigned long>((lpsr & SNVS_LPSR_LPS_MASK)   >> 31),
+         static_cast<unsigned long>((lpsr & SNVS_LPSR_LPNS_MASK)  >> 30));
+
+  // LP Control Register
+  printf("[SNVS] LPCR  = 0x%08lX\r\n"
+         "         SRTC_EN=%lu LPTA_EN=%lu MC_EN=%lu LPWUI_EN=%lu"
+         " SRTC_INV_EN=%lu DP_EN=%lu TOP=%lu LVD_EN=%lu LPCALB_EN=%lu\r\n",
+         static_cast<unsigned long>(lpcr),
+         static_cast<unsigned long>(lpcr & SNVS_LPCR_SRTC_ENV_MASK),
+         static_cast<unsigned long>((lpcr & SNVS_LPCR_LPTA_EN_MASK)    >> 1),
+         static_cast<unsigned long>((lpcr & SNVS_LPCR_MC_ENV_MASK)     >> 2),
+         static_cast<unsigned long>((lpcr & SNVS_LPCR_LPWUI_EN_MASK)   >> 3),
+         static_cast<unsigned long>((lpcr & SNVS_LPCR_SRTC_INV_EN_MASK)>> 4),
+         static_cast<unsigned long>((lpcr & SNVS_LPCR_DP_EN_MASK)      >> 5),
+         static_cast<unsigned long>((lpcr & SNVS_LPCR_TOP_MASK)        >> 6),
+         static_cast<unsigned long>((lpcr & SNVS_LPCR_LVD_EN_MASK)     >> 7),
+         static_cast<unsigned long>((lpcr & SNVS_LPCR_LPCALB_EN_MASK)  >> 8));
+
+  // HP Control Register
+  printf("[SNVS] HPCR  = 0x%08lX  RTC_EN=%lu HPTA_EN=%lu\r\n",
+         static_cast<unsigned long>(hpcr),
+         static_cast<unsigned long>(hpcr & SNVS_HPCR_RTC_EN_MASK),
+         static_cast<unsigned long>((hpcr & SNVS_HPCR_HPTA_EN_MASK) >> 1));
+
+  // SRTC time and alarm
+  printf("[SNVS] SRTC  = MSB=0x%08lX LSB=0x%08lX  => %lu s\r\n",
+         static_cast<unsigned long>(srtc_msb),
+         static_cast<unsigned long>(srtc_lsb),
+         static_cast<unsigned long>(srtc_secs));
+  printf("[SNVS] LPTAR = 0x%08lX  (%lu s)\r\n",
+         static_cast<unsigned long>(lptar),
+         static_cast<unsigned long>(lptar));
+
+  // General purpose registers (survive deep-power-down)
+  printf("[SNVS] GPR   = 0x%08lX 0x%08lX 0x%08lX 0x%08lX\r\n",
+         static_cast<unsigned long>(SNVS->LPGPR[0]),
+         static_cast<unsigned long>(SNVS->LPGPR[1]),
+         static_cast<unsigned long>(SNVS->LPGPR[2]),
+         static_cast<unsigned long>(SNVS->LPGPR[3]));
+
+  printf("[SNVS] ==================================\r\n");
+}
+
+// SNVS HP RTC consolidated interrupt — fired by the hardware alarm.
+// Must be defined at C linkage so the vector table resolves it correctly.
+extern "C" void SNVS_HP_NON_TZ_IRQHandler() {
+  uint32_t flags = SNVS_HP_RTC_GetStatusFlags(SNVS);
+  if (flags & kSNVS_RTC_AlarmInterruptFlag) {
+    SNVS_HP_RTC_ClearStatusFlags(SNVS, kSNVS_RTC_AlarmInterruptFlag);
+    SNVS_HP_RTC_DisableInterrupts(SNVS, kSNVS_RTC_AlarmInterrupt);
+    BaseType_t woken = pdFALSE;
+    xSemaphoreGiveFromISR(g_rtc_alarm_sem, &woken);
+    portYIELD_FROM_ISR(woken);
+  }
+}
+
 void Main() {
   // Set up the HTTP log buffer before any printf so messages are captured.
   g_log_mutex = xSemaphoreCreateMutex();
   g_audio_wav_mutex = xSemaphoreCreateMutex();
+  g_rtc_alarm_sem = xSemaphoreCreateBinary();
   ConsoleM7::GetSingleton()->SetLogCallback(OnLogMessage);
 
   printf("Camera HTTP Example!\r\n");
-  
-  bool value = false;
+
+  // Clear any stale SRTC alarm left by a previous shutdown_system() call.
+  // Without this, LPTA_EN=1 + a stale LPTAR value causes the system to reset
+  // when SRTC reaches that old alarm value during normal operation.
+  SNVS_LP_SRTC_DisableInterrupts(SNVS, kSNVS_SRTC_AlarmInterrupt);
+  SNVS_LP_SRTC_ClearStatusFlags(SNVS, kSNVS_SRTC_AlarmInterruptFlag);
+
+  // Disable the passive tamper wakeup configured by the previous shutdown.
+  // The SNVS LP domain retains its state through DPD, so ET1_EN and LPWUI_EN
+  // remain set after a button-press or alarm wakeup.  Clear them now so the
+  // running system is not affected by spurious tamper events.
+  SNVS_LP_DisableExternalTamper(SNVS, kSNVS_ExternalTamper1);
+  SNVS_LP_ClearExternalTamperStatus(SNVS, kSNVS_ExternalTamper1);
+  SNVS->LPCR &= ~SNVS_LPCR_LPWUI_EN_MASK;
+  // Restore GPIO_SNVS_00 to GPIO13_IO03 (mux mode 5) for normal button use.
+  IOMUXC_SetPinMux(IOMUXC_GPIO_SNVS_00_DIG_GPIO13_IO03, 0U);
+  IOMUXC_SetPinConfig(IOMUXC_GPIO_SNVS_00_DIG_GPIO13_IO03, 0x0CU);
+
+  PrintSnvsRegisters();
+
+  if (SNVS->LPSR & SNVS_LPSR_SPOF_MASK) {
+    printf("[SNVS] Woke up from deep power-down (SPOF set)\r\n");
+  }
+
+  // Route PMIC_ON_REQ pad to the SNVS LP hardware (mux mode 0).
+  // This is required for the SNVS to control PMIC power-on/off and to
+  // re-assert PMIC_ON_REQ when the SRTC wakeup alarm fires after deep sleep.
+  // SION=0 (output only), pad config 0x00 = push-pull, slow slew, no pull.
+  IOMUXC_SetPinMux(IOMUXC_PMIC_ON_REQ_DIG_SNVS_LP_PMIC_ON_REQ, 0U);
+  IOMUXC_SetPinConfig(IOMUXC_PMIC_ON_REQ_DIG_SNVS_LP_PMIC_ON_REQ, 0x00U);
 
   // Turn on Status LED to show the board is on.
   LedSet(Led::kStatus, true);
@@ -649,7 +980,7 @@ void Main() {
       coralmicro::Gpio::kMicClkFeedback, coralmicro::GpioInterruptMode::kIntModeRising,
       []() {
         ++g_mic_clk_feedback_irq_count;
-        printf("[MIC_CLK_FB] IRQ count: %lu\r\n",
+        if (g_log_mic) printf("[MIC_CLK_FB] IRQ count: %lu\r\n",
                static_cast<unsigned long>(g_mic_clk_feedback_irq_count));
       });
 
@@ -690,6 +1021,10 @@ void Main() {
   }
 #endif  // defined(CAMERA_STREAMING_HTTP_ETHERNET)
 
+  // Start RTC hardware alarm handler task.
+  xTaskCreate(RtcAlarmTask, "rtc_alarm_task", configMINIMAL_STACK_SIZE * 4,
+              nullptr, 2, nullptr);
+
   // Start LIS2DU12 accelerometer task (save handle for start/stop commands).
   xTaskCreate(AccelTask, "accel_task", configMINIMAL_STACK_SIZE * 4,
               nullptr, 2, &g_accel_task_handle);
@@ -718,8 +1053,10 @@ void Main() {
 
     vTaskSuspend(nullptr);
     // CameraTask::GetSingleton()->ChangePattern();
-    CameraTask::GetSingleton()->SwitchCamera(front ?
-      SwitchCameraId::kCameraFront : SwitchCameraId::kCameraBack);
+    // CameraTask::GetSingleton()->SwitchCamera(front ?
+    //   SwitchCameraId::kCameraFront : SwitchCameraId::kCameraBack);
+
+    shutdown_system();
   }
 }
 }  // namespace

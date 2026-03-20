@@ -43,11 +43,19 @@ class Lis2du12 {
   bool ExitSleep();
 
   // Configure wake-up threshold interrupt on INT2.
-  // threshold: 1 LSB = FS_XL / 256 (e.g. at +/-2g: 1 LSB ~= 7.8 mg).
-  //            Valid range: 0-63 (6 bits). Values >63 use coarser 1/4 step.
+  // threshold: driver selects resolution based on value:
+  //   0-63  → fine mode:   1 LSB = FS_XL/256 (e.g. at +/-2g: 7.8 mg/LSB)
+  //   64-255 → coarse mode: 1 LSB = FS_XL/64  (e.g. at +/-2g: 31.25 mg/LSB)
+  //            In coarse mode the raw register value = threshold / 4.
+  //            Example: threshold=168 → wk_ths=42 → 42×31.25=1312.5mg ≈ 1.3g
   // x_en, y_en, z_en: enable detection on each axis.
   bool SetInt2WakeUpThreshold(uint8_t threshold, bool x_en, bool y_en,
                               bool z_en);
+
+  // Configure double-tap detection and route double_tap to INT2.
+  // Tap threshold ~187mg at +/-2g (3 LSB = 3 * FS/32 = 3 * 62.5mg).
+  // Preserves any previously routed INT2 sources (e.g. wake_up).
+  bool SetInt2DoubleTap();
 
   // Clear the wake-up interrupt by reading the source register.
   bool ClearWakeUpInterrupt();
