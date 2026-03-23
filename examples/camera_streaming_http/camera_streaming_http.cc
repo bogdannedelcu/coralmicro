@@ -40,6 +40,7 @@
 #include "libs/libjpeg/jpeg.h"
 #include "libs/lis2du12/lis2du12.h"
 #include "libs/pmic/pmic.h"
+#include "libs/t5838/t5838.h"
 #include "third_party/freertos_kernel/include/FreeRTOS.h"
 #include "third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_gpio.h"
 #include "third_party/freertos_kernel/include/semphr.h"
@@ -984,7 +985,15 @@ void Main() {
                static_cast<unsigned long>(g_mic_clk_feedback_irq_count));
       });
 
+  T5838Aad mic_aad;
+  mic_aad.Init();
 
+  // Configure wake-up AAD
+  T5838AadAConf conf = {kT5838AadALpf4_4kHz, kT5838AadAThr70dB};
+  if (!mic_aad.AadAModeSet(conf)) {
+    printf("Failed to set AAD mode\r\n");
+  }
+  mic_aad.RestorePdmClk();    // restore MIC_CLK function
 
 #if defined(CAMERA_STREAMING_HTTP_ETHERNET)
   EthernetInit(/*default_iface=*/false);
