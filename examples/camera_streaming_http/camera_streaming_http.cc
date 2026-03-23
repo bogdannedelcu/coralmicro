@@ -690,8 +690,7 @@ HttpServer::Content UriHandler(const char* uri) {
   return {};
 }
 
-// I2C helpers for PMIC issue
-#if 0
+#if 0 // I2C helpers for PMIC issue investigation
 void CameraTaskRead(uint16_t reg, const uint8_t *val, int size) {
   lpi2c_master_transfer_t transfer;
   transfer.flags = kLPI2C_TransferDefaultFlag;
@@ -1063,7 +1062,7 @@ void Main() {
   xTaskCreate(AccelTask, "accel_task", configMINIMAL_STACK_SIZE * 4,
               nullptr, 2, &g_accel_task_handle);
 
-  // Periodic PMIC status dump every 2 s.
+  // Periodic PMIC status dump every 2 s. - debug purpose, can be removed if not needed.
   // xTaskCreate(PmicStatusTask, "pmic_status", configMINIMAL_STACK_SIZE * 4,
   //             nullptr, 2, nullptr);
 
@@ -1075,6 +1074,7 @@ void Main() {
   xTaskCreate(TcpLogTask, "tcp_log_task", configMINIMAL_STACK_SIZE * 4,
               nullptr, 2, nullptr);
 
+#if 0 // Used to validate the new I2C interface for PMIC in v2
   // Initialize I2C1 controller and start write task.
   g_i2c1_config = coralmicro::I2cGetDefaultConfig(coralmicro::I2c::kI2c1);
   if (coralmicro::I2cInitController(g_i2c1_config)) {
@@ -1083,6 +1083,7 @@ void Main() {
   } else {
       printf("[I2C1] Controller init failed\r\n");
   }
+#endif
 
   HttpServer http_server;
   http_server.AddUriHandler(UriHandler);
@@ -1099,6 +1100,7 @@ void Main() {
     // CameraTask::GetSingleton()->SwitchCamera(front ?
     //   SwitchCameraId::kCameraFront : SwitchCameraId::kCameraBack);
 
+    // Go to deep sleep on user button short press
     shutdown_system();
   }
 }
