@@ -167,16 +167,46 @@ extern "C" int real_main(int argc, char** argv, bool init_console_tx,
   LPI2C_RTOS_Init(&g_i2c6_handle, reinterpret_cast<LPI2C_Type*>(LPI2C6_BASE),
                   &config6, CLOCK_GetFreq(kCLOCK_OscRc48MDiv2));
 
-  coralmicro::PmicTask::GetSingleton()->Init(&g_i2c5_handle);
-  coralmicro::CameraTask::GetSingleton()->Init(&g_i2c5_handle, &g_i2c6_handle);
+  
+#define LDO_1V8_INT_EN_GPIO      GPIO9
+#define LDO_1V8_INT_EN_PIN       20U
+  // Initialize VDD_1V8_INT_EN pin as output
+  gpio_pin_config_t ldo_1v8_pin_config = {
+      .direction = kGPIO_DigitalOutput,
+      .outputLogic = 0,
+      .interruptMode = kGPIO_NoIntmode,
+  };
 
-  CHECK(xTaskCreate(app_main, "app_main", configMINIMAL_STACK_SIZE * 30,
-                    nullptr, coralmicro::kAppTaskPriority, nullptr) == pdPASS);
+  GPIO_PinInit(LDO_1V8_INT_EN_GPIO, LDO_1V8_INT_EN_PIN, &ldo_1v8_pin_config);
+  GPIO_PinWrite(LDO_1V8_INT_EN_GPIO, LDO_1V8_INT_EN_PIN, 0);
+  printf("Enable the LDO_1V8_INT_EN\n");
+
+#define THRS_GPIO      GPIO10
+#define THRS_PIN       6U
+  // Initialize THRS pin as output
+  gpio_pin_config_t thrs_pin_config = {
+      .direction = kGPIO_DigitalOutput,
+      .outputLogic = 0,
+      .interruptMode = kGPIO_NoIntmode,
+  };
+
+  GPIO_PinInit(THRS_GPIO, THRS_PIN, &thrs_pin_config);
+  GPIO_PinWrite(THRS_GPIO, THRS_PIN, 0);
+  printf("Enable the THRS pin\n");
 
   // Allows the AHB clock to run while the core is asleep,
   // so that the TCM is accessible.
   // See section 12.4.4.18 in the IMX1170 TRM for more details.
   IOMUXC_GPR->GPR16 |= IOMUXC_GPR_GPR16_CM7_FORCE_HCLK_EN(1);
+
+  coralmicro::CameraTask::GetSingleton()->Init(&g_i2c5_handle, &g_i2c6_handle);
+
+  coralmicro::PmicTask::GetSingleton()->Init(&g_i2c5_handle);
+
+  CHECK(xTaskCreate(app_main, "app_main", configMINIMAL_STACK_SIZE * 30,
+                    nullptr, coralmicro::kAppTaskPriority, nullptr) == pdPASS);
+
+
   vTaskStartScheduler();
   return 0;
 }

@@ -22,6 +22,7 @@
 #include "libs/base/ipc_message_buffer.h"
 #include "libs/cdc_acm/cdc_acm.h"
 #include "third_party/freertos_kernel/include/FreeRTOS.h"
+#include "third_party/freertos_kernel/include/stream_buffer.h"
 
 namespace coralmicro {
 
@@ -34,6 +35,13 @@ class ConsoleM7 {
   void Init(bool init_tx, bool init_rx);
   IpcStreamBuffer* GetM4ConsoleBufferPtr();
   void Write(char* buffer, int size);
+  // Registers a FreeRTOS stream buffer to receive a copy of all console output.
+  // Pass nullptr to unregister. Non-blocking: data is dropped when buffer full.
+  void SetLogPipe(StreamBufferHandle_t pipe);
+  // Registers a callback invoked from the console TX task for every chunk of
+  // output. The callback must be fast and non-blocking. Pass nullptr to remove.
+  using LogCallback = void (*)(const char* data, int len);
+  void SetLogCallback(LogCallback cb);
   // NOTE: This reads from the internal buffer, not directly from a serial
   // device.
   int Read(char* buffer, int size);
@@ -75,6 +83,8 @@ class ConsoleM7 {
 
   QueueHandle_t console_queue_ = nullptr;
   CdcAcm cdc_acm_;
+  volatile StreamBufferHandle_t log_pipe_ = nullptr;
+  volatile LogCallback log_callback_ = nullptr;
 
   IpcStreamBuffer* m4_console_buffer_ = nullptr;
   static constexpr size_t kM4ConsoleBufferBytes = 128;

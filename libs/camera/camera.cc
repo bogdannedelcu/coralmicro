@@ -529,11 +529,11 @@ void CameraTask::Init(lpi2c_rtos_handle_t* i2c_handle, lpi2c_rtos_handle_t* i2c_
   md_config_.enable = false;
 
   // Init GPIO used by camera
-  // GpioSetMode(Gpio::kCamReset, GpioMode::kOutput);
+  GpioSetMode(Gpio::kCamReset, GpioMode::kOutput);
   GpioSetMode(Gpio::kCamReset2, GpioMode::kOutput);
-  // GpioSetMode(Gpio::kCamPwrDn, GpioMode::kOutput);
-  // GpioSetMode(Gpio::kCamPwrDn2, GpioMode::kOutput);
-  // GpioSetMode(Gpio::kCamMux, GpioMode::kOutput);
+  GpioSetMode(Gpio::kCamPwrDn, GpioMode::kOutput);
+  GpioSetMode(Gpio::kCamPwrDn2, GpioMode::kOutput);
+  GpioSetMode(Gpio::kCamMux, GpioMode::kOutput);
 
   printf ("%s: i2c_Handle: 0x%x, i2c_handle2: 0x%x", __func__, i2c_handle, i2c_handle2);
 }
@@ -804,9 +804,27 @@ camera::PowerResponse CameraTask::HandlePowerRequest(
   camera::PowerResponse resp;
   resp.success = true;
 
-  PmicTask::GetSingleton()->SetRailState(PmicRail::kCam2V8, power.enable);
-  PmicTask::GetSingleton()->SetRailState(PmicRail::kCam1V8, power.enable);
-  vTaskDelay(pdMS_TO_TICKS(10));
+#if 0 // PMIC is not working well
+  // power off the 1v8 first / power on the 2v8 first
+  if (power.enable) {
+    printf("Powering on camera\n");
+    
+    PmicTask::GetSingleton()->SetRailState(PmicRail::kCam2_2V8, true);
+    PmicTask::GetSingleton()->SetRailState(PmicRail::kCam1_2V8, true);
+    vTaskDelay(pdMS_TO_TICKS(200));
+    PmicTask::GetSingleton()->SetRailState(PmicRail::kCam2_1V8, true);
+    PmicTask::GetSingleton()->SetRailState(PmicRail::kCam1_1V8, true);
+  } 
+  else {
+    printf("Powering off camera\n");
+    
+    PmicTask::GetSingleton()->SetRailState(PmicRail::kCam2_1V8, false);
+    PmicTask::GetSingleton()->SetRailState(PmicRail::kCam1_1V8, false);
+    vTaskDelay(pdMS_TO_TICKS(200));
+    PmicTask::GetSingleton()->SetRailState(PmicRail::kCam2_2V8, false);
+    PmicTask::GetSingleton()->SetRailState(PmicRail::kCam1_2V8, false);
+  }
+#endif
 
 
   if (power.enable) {
@@ -865,7 +883,7 @@ camera::FrameResponse CameraTask::HandleFrameRequest(
     int n = 40;
     bool state = true;
 
-    DBG_OUTPUT ("CAMERA_RECEIVER_GetFullBuffer:waiting...\n");
+    // DBG_OUTPUT ("CAMERA_RECEIVER_GetFullBuffer:waiting...\n");
 
     while(n--)
     {
@@ -883,7 +901,7 @@ camera::FrameResponse CameraTask::HandleFrameRequest(
       }
     }
 
-    DBG_OUTPUT("CAMERA_RECEIVER_GetFullBuffer = %ld\n", status);
+    // DBG_OUTPUT("CAMERA_RECEIVER_GetFullBuffer = %ld\n", status);
 
     if (status == kStatus_Success) {
       DBG_OUTPUT ("CAMERA_RECEIVER_GetFullBuffer:status = OK, invalidate %u bytes\n",
@@ -924,7 +942,7 @@ camera::FrameResponse CameraTask::HandleFrameRequest(
                                     DEMO_CAMERA_HEIGHT * (DEMO_CAMERA_WIDTH + LINE_PADDING) * DEMO_CAMERA_BUFFER_BPP);
 #endif
       status = CAMERA_RECEIVER_SubmitEmptyBuffer(&cameraReceiver, (uint32_t)buffer);
-      DBG_OUTPUT ("CAMERA_RECEIVER_SubmitEmptyBuffer:status = %ld\n", status);
+      // DBG_OUTPUT ("CAMERA_RECEIVER_SubmitEmptyBuffer:status = %ld\n", status);
     }
   }
 

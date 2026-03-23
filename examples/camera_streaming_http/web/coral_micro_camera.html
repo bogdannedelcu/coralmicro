@@ -19,14 +19,13 @@
     <meta charset="UTF-8">
     <title>Coral Micro Cam HTTP</title>
     <script type="text/javascript">
-        // Coral Micro's image url.
         const imgUrl = "/camera_stream";
-        // Sleeps for micro seconds.
-        function sleep (micro) {
+
+        function sleep(micro) {
             return new Promise((resolve) => setTimeout(resolve, micro));
         }
-        // Main loop that updates the img tag.
-        async function updateImage () {
+
+        async function updateImage() {
             const imgReader = new FileReader();
             while (1) {
                 fetch(imgUrl)
@@ -34,34 +33,136 @@
                     .then((imageBlob) => {
                         imgReader.readAsDataURL(imageBlob);
                         imgReader.onloadend = () => {
-                            let imgElt = document.getElementById("coral-micro-camera-image")
+                            let imgElt = document.getElementById("coral-micro-camera-image");
                             imgElt.src = imgReader.result;
                             imgElt.width = document.getElementById("image-width").value;
                             imgElt.height = document.getElementById("image-height").value;
                         };
                     })
-                    .catch((reason => {
+                    .catch((reason) => {
                         console.error("Error while fetching image: " + reason.toString());
-                    }));
+                    });
                 await sleep(100);
             }
         }
+
+        async function sendCommand() {
+            const cmd = document.getElementById("cmd-select").value;
+            // Commands are path-encoded (/command/<cmd>[/<extra>]) because
+            // lwIP strips query params before calling our file handler.
+            let url = "/command/" + cmd;
+            if (cmd === "set_rtc") {
+                url += "/" + Math.floor(Date.now() / 1000);
+            }
+            try {
+                await fetch(url);
+            } catch (e) {
+                console.error("Command error:", e);
+            }
+            if (cmd === "record_audio") {
+                pollAudio();
+            }
+        }
+
+        async function setLogSection(section, enabled) {
+            const sub = enabled ? "log_enable" : "log_disable";
+            try {
+                await fetch("/command/" + sub + "/" + section);
+            } catch (e) {
+                console.error("Log toggle error:", e);
+            }
+        }
+
+        async function pollAudio() {
+            const bar = document.getElementById("cmd-audio-bar");
+            const audio = document.getElementById("cmd-audio");
+            bar.style.display = "flex";
+            audio.src = "";
+            // Poll /audio_data until a non-empty response arrives (up to ~15 s).
+            for (let i = 0; i < 30; i++) {
+                await sleep(500);
+                try {
+                    const r = await fetch("/audio_data");
+                    const buf = await r.arrayBuffer();
+                    if (buf.byteLength > 44) {
+                        const blob = new Blob([buf], { type: "audio/wav" });
+                        audio.src = URL.createObjectURL(blob);
+                        audio.play();
+                        return;
+                    }
+                } catch (e) { /* transient */ }
+            }
+        }
+
+        let rawLog = "";
+        const maxLogChars = 32 * 1024;
+
+        function renderLog() {
+            const logPanel = document.getElementById("log-panel");
+            const filter = document.getElementById("log-filter").value;
+            const atBottom =
+                logPanel.scrollHeight - logPanel.clientHeight <= logPanel.scrollTop + 4;
+
+            if (!filter) {
+                logPanel.textContent = rawLog;
+            } else {
+                const lower = filter.toLowerCase();
+                logPanel.textContent = rawLog
+                    .split("\n")
+                    .filter(line => line.toLowerCase().includes(lower))
+                    .join("\n");
+            }
+
+            if (atBottom) logPanel.scrollTop = logPanel.scrollHeight;
+        }
+
+        // Polls /log every 500 ms and appends new UART output to the log panel.
+        function startLogPolling() {
+            setInterval(async () => {
+                try {
+                    const r = await fetch("/log");
+                    const text = await r.text();
+                    if (!text) return;
+                    rawLog += text;
+                    // Keep memory bounded by trimming the oldest content.
+                    if (rawLog.length > maxLogChars) {
+                        rawLog = rawLog.slice(-maxLogChars);
+                    }
+                    renderLog();
+                } catch (e) { /* ignore transient errors */ }
+            }, 500);
+        }
     </script>
     <style>
+        * { box-sizing: border-box; }
+
         body {
             margin: 0;
             padding: 0;
+            display: flex;
+            flex-direction: row;
+            height: 100vh;
+            overflow: hidden;
             color: #fd5e4d;
+            font-family: sans-serif;
         }
-        #main-container {
+
+        /* ── Left: camera panel ── */
+        #camera-panel {
+            flex: 0 0 auto;
+            display: flex;
+            flex-direction: column;
             border: 1px solid #53bfc1;
         }
+
         #coral-cam-title-container {
             white-space: nowrap;
             height: 45px;
             background: #fd5e4d;
             border-bottom: 1px solid #53bfc1;
+            flex-shrink: 0;
         }
+
         .coral-cam-title {
             line-height: 45px;
             font-size: 30px;
@@ -69,44 +170,253 @@
             color: #f5d0cb;
             padding-left: 10px;
         }
+
         #coral-micro-camera-image {
             display: block;
             margin-left: auto;
             margin-right: auto;
-            border-top: 1px solid #53bfc1;
         }
+
         #setting-menu {
             height: 50px;
             background: #f5d0cb;
             border-top: 1px solid #53bfc1;
+            border-bottom: 1px solid #53bfc1;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
         }
-        .input-label {
-            padding-left: 10px;
+
+        .input-label { padding-left: 10px; }
+
+        /* ── Right: log panel ── */
+        #log-panel-container {
+            flex: 1 1 auto;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid #53bfc1;
+            border-left: none;
+            min-width: 320px;
+        }
+
+        #log-title-bar {
+            height: 45px;
+            background: #fd5e4d;
+            border-bottom: 1px solid #53bfc1;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 12px;
+        }
+
+        #log-title-bar span {
+            font-size: 20px;
+            color: #f5d0cb;
+        }
+
+        #log-clear-btn {
+            background: #f5d0cb;
+            color: #fd5e4d;
+            border: none;
+            border-radius: 4px;
+            padding: 4px 12px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        #log-clear-btn:hover { background: #ffffff; }
+
+        #log-filter {
+            flex: 1 1 auto;
+            min-width: 60px;
+            max-width: 200px;
+            margin: 0 8px;
+            padding: 3px 6px;
+            border: 1px solid #53bfc1;
+            border-radius: 4px;
+            background: #222;
+            color: #00ff41;
+            font-family: "Courier New", Courier, monospace;
+            font-size: 12px;
+        }
+
+        #log-filter::placeholder { color: #555; }
+
+        /* ── Command row ── */
+        #command-row {
+            height: 50px;
+            background: #f5d0cb;
+            border-top: 1px solid #53bfc1;
+            border-bottom: 1px solid #53bfc1;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            padding: 0 6px;
+            gap: 6px;
+        }
+
+        #cmd-select {
+            flex: 1 1 auto;
+            padding: 4px 4px;
+            border: 1px solid #53bfc1;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        #cmd-send-btn {
+            background: #fd5e4d;
+            color: #ffffff;
+            border: none;
+            border-radius: 4px;
+            padding: 5px 14px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        #cmd-send-btn:hover { background: #e04030; }
+
+        #cmd-audio-bar {
+            background: #f5d0cb;
+            border-bottom: 1px solid #53bfc1;
+            flex-shrink: 0;
+            display: none;
+            align-items: center;
+            padding: 4px 8px;
+            gap: 6px;
+        }
+
+        #cmd-audio {
+            flex: 1 1 auto;
+            height: 32px;
+        }
+
+        #log-section-bar {
+            background: #f5d0cb;
+            border-bottom: 1px solid #53bfc1;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            padding: 4px 10px;
+            gap: 14px;
+            font-size: 12px;
+            color: #fd5e4d;
+        }
+
+        #log-section-bar label {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            user-select: none;
+        }
+
+        #log-panel {
+            flex: 1 1 auto;
+            background: #111;
+            color: #00ff41;
+            font-family: "Courier New", Courier, monospace;
+            font-size: 12px;
+            line-height: 1.5;
+            padding: 8px;
+            margin: 0;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
         }
     </style>
 </head>
-<body id="body" onload="updateImage()">
-<div id="main-container">
-    <div id="coral-cam-title-container">
-        <label class="coral-cam-title">Coral Micro Cam</label>
+<body onload="updateImage(); startLogPolling()">
+
+    <!-- Camera panel (left) -->
+    <div id="camera-panel">
+        <div id="coral-cam-title-container">
+            <label class="coral-cam-title">Coral Micro Cam</label>
+        </div>
+        <div id="setting-menu">
+            <label for="image-width" class="input-label">Width:</label>
+            <input id="image-width" type="number" required value=1280
+                   style="width:70px; margin-left:4px;">
+            <label for="image-height" class="input-label">Height:</label>
+            <input id="image-height" type="number" required value=720
+                   style="width:70px; margin-left:4px;">
+            <label for="image-rotation" class="input-label">Rotation:</label>
+            <select name="image-rotation" id="image-rotation"
+                    style="margin-left:4px;">
+                <option value=0 selected>0°</option>
+                <option value=90>90°</option>
+                <option value=180>180°</option>
+                <option value=270>270°</option>
+            </select>
+        </div>
+        <div id="command-row">
+            <select id="cmd-select">
+                <option value="cam1_on">Turn On Camera 1</option>
+                <option value="cam1_off">Turn Off Camera 1</option>
+                <option value="cam2_on">Turn On Camera 2</option>
+                <option value="cam2_off">Turn Off Camera 2</option>
+                <option value="switch_camera">Switch Camera</option>
+                <option value="start_accel">Start Accel</option>
+                <option value="stop_accel">Stop Accel</option>
+                <option value="record_audio">Record Audio (3 s) &amp; Play</option>
+                <option value="set_rtc">Set RTC (browser time)</option>
+                <option value="set_rtc_alarm_1m">Set RTC Alarm (1 min)</option>
+                <option value="ldo_1v8_on">LDO 1V8 INT EN — On</option>
+                <option value="ldo_1v8_off">LDO 1V8 INT EN — Off</option>
+                <option value="shutdown">Shutdown</option>
+            </select>
+            <button id="cmd-send-btn" onclick="sendCommand()">Send</button>
+        </div>
+        <div id="cmd-audio-bar">
+            <span style="font-size:12px; color:#fd5e4d; white-space:nowrap;">Recorded audio:</span>
+            <audio id="cmd-audio" controls></audio>
+        </div>
+        <img id="coral-micro-camera-image"
+             src="https://picsum.photos/200/300"
+             alt="Image cannot be displayed">
     </div>
-    <div id="setting-menu">
-        <div style="margin-top: 10px"></div>
-        <label for="image-width" class="input-label">Image Width:</label>
-        <input id="image-width" type="number" required value=1280>
-        <label for="image-height" class="input-label">Image Height:</label>
-        <input id="image-height" type="number" required value=720>
-        <label for="image-rotation" class="input-label">Rotation:</label>
-        <select name="image-rotation" id="image-rotation">
-            <option value=0 selected>0</option>
-            <option value=90>90</option>
-            <option value=180>180</option>
-            <option value=270>0</option>
-        </select>
+
+    <!-- Log panel (right) -->
+    <div id="log-panel-container">
+        <div id="log-title-bar">
+            <span>Serial Log</span>
+            <input id="log-filter" type="text" placeholder="filter…"
+                   oninput="renderLog()">
+            <button id="log-clear-btn"
+                    onclick="rawLog=''; document.getElementById('log-panel').textContent=''">
+                Clear
+            </button>
+        </div>
+        <div id="log-section-bar">
+            <span>Print:</span>
+            <label>
+                <input type="checkbox" checked
+                       onchange="setLogSection('camera', this.checked)">
+                Camera
+            </label>
+            <label>
+                <input type="checkbox" checked
+                       onchange="setLogSection('accel', this.checked)">
+                Accel
+            </label>
+            <label>
+                <input type="checkbox" checked
+                       onchange="setLogSection('pmic', this.checked)">
+                PMIC
+            </label>
+            <label>
+                <input type="checkbox" checked
+                       onchange="setLogSection('mic', this.checked)">
+                Microphone
+            </label>
+        </div>
+        <pre id="log-panel"></pre>
     </div>
-    <img id="coral-micro-camera-image"
-         src="https://picsum.photos/200/300"
-         alt="Image cannot be displayed">
-</div>
+
 </body>
 </html>
