@@ -40,6 +40,7 @@
 #include "libs/libjpeg/jpeg.h"
 #include "libs/lis2du12/lis2du12.h"
 #include "libs/pmic/pmic.h"
+#include "libs/base/i2c.h"
 #include "libs/t5838/t5838.h"
 #include "third_party/freertos_kernel/include/FreeRTOS.h"
 #include "third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_gpio.h"
@@ -925,6 +926,26 @@ extern "C" void SNVS_HP_NON_TZ_IRQHandler() {
   }
 }
 
+// ---------------------------------------------------------------------------
+// I2C1 loopback task
+// Continuously writes register 0xAA = 0x55 to 7-bit address 0x32 on I2C1
+// (GPIO_AD_32 = SCL, GPIO_AD_33 = SDA).
+// ---------------------------------------------------------------------------
+namespace {
+coralmicro::I2cConfig g_i2c1_config;
+}  // namespace
+
+[[noreturn]] static void I2c1WriteTask(void* /*param*/) {
+    uint8_t buf[2] = {0xAAu, 0x55u};
+    while (true) {
+        bool ok = coralmicro::I2cControllerWrite(g_i2c1_config, 0x32u, buf, sizeof(buf));
+        if (!ok) {
+            printf("[I2C1] Write to 0x32 failed\r\n");
+        }
+        vTaskDelay(pdMS_TO_TICKS(10));
+    }
+}
+
 void Main() {
   // Set up the HTTP log buffer before any printf so messages are captured.
   g_log_mutex = xSemaphoreCreateMutex();
@@ -1049,6 +1070,15 @@ void Main() {
   // Start TCP log server — mirrors all UART output to port 1234
   xTaskCreate(TcpLogTask, "tcp_log_task", configMINIMAL_STACK_SIZE * 4,
               nullptr, 2, nullptr);
+
+  // Initialize I2C1 controller and start write task.
+  g_i2c1_config = coralmicro::I2cGetDefaultConfig(coralmicro::I2c::kI2c1);
+  if (coralmicro::I2cInitController(g_i2c1_config)) {
+      xTaskCreate(I2c1WriteTask, "i2c1_write", configMINIMAL_STACK_SIZE * 4,
+                  nullptr, 2, nullptr);
+  } else {
+      printf("[I2C1] Controller init failed\r\n");
+  }
 
   HttpServer http_server;
   http_server.AddUriHandler(UriHandler);
