@@ -24,13 +24,13 @@
 #else
 
 // Choose here your resolution and number of FBs
-//#define DEMO_CAMERA_HEIGHT  720
-//#define DEMO_CAMERA_WIDTH   1280
-//#define DEMO_CAMERA_BUFFER_COUNT 3
+#define DEMO_CAMERA_HEIGHT  720
+#define DEMO_CAMERA_WIDTH   1280
+#define DEMO_CAMERA_BUFFER_COUNT 4
 
-#define DEMO_CAMERA_HEIGHT  240
-#define DEMO_CAMERA_WIDTH   320
-#define DEMO_CAMERA_BUFFER_COUNT 3
+//#define DEMO_CAMERA_HEIGHT  240
+//#define DEMO_CAMERA_WIDTH   320
+//#define DEMO_CAMERA_BUFFER_COUNT 3
 
 // #define DEMO_CAMERA_HEIGHT  1080
 // #define DEMO_CAMERA_WIDTH   1920

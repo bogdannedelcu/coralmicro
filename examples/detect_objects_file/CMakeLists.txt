@@ -15,10 +15,15 @@
 add_executable_m7(detect_objects_file
     detect_objects_file.cc
     DATA
-    cat_300x300.rgb
-    ${PROJECT_SOURCE_DIR}/models/tf2_ssd_mobilenet_v2_coco17_ptq_edgetpu.tflite
+    #cat_300x300.rgb
+    test_512x512.rgb
+    #test_1024x1024.rgb
+    ${PROJECT_SOURCE_DIR}/models/yolo_1_class_512_1_upsample_1_c3_512_inloc_de_1024_la_P5_32.tflite
+    #${PROJECT_SOURCE_DIR}/models/tf2_ssd_mobilenet_v2_coco17_ptq_edgetpu.tflite
 )
 
 target_link_libraries(detect_objects_file
     libs_base-m7_freertos
 )
+
+target_compile_options(detect_objects_file PRIVATE -O2)

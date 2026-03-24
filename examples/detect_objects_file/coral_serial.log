@@ -1,0 +1,692 @@
+[2026-03-22 18:03:57] Connecting to /dev/ttyACM0
+[2026-03-22 18:03:57] Disconnected: [Errno 16] could not open port /dev/ttyACM0: [Errno 16] Device or resource busy: '/dev/ttyACM0'
+[2026-03-22 18:03:58] Connecting to /dev/ttyACM0
+[2026-03-22 18:03:58] Disconnected: [Errno 16] could not open port /dev/ttyACM0: [Errno 16] Device or resource busy: '/dev/ttyACM0'
+[2026-03-22 18:03:59] Connecting to /dev/ttyACM0
+[2026-03-22 18:03:59] Disconnected: [Errno 16] could not open port /dev/ttyACM0: [Errno 16] Device or resource busy: '/dev/ttyACM0'
+[2026-03-22 18:04:00] Connecting to /dev/ttyACM0
+[2026-03-22 18:04:00] Disconnected: [Errno 16] could not open port /dev/ttyACM0: [Errno 16] Device or resource busy: '/dev/ttyACM0'
+[2026-03-22 18:04:01] Connecting to /dev/ttyACM0
+[2026-03-22 18:04:01] Disconnected: [Errno 16] could not open port /dev/ttyACM0: [Errno 16] Device or resource busy: '/dev/ttyACM0'
+[2026-03-22 18:04:02] Connecting to /dev/ttyACM0
+[2026-03-22 18:04:02] Disconnected: [Errno 16] could not open port /dev/ttyACM0: [Errno 16] Device or resource busy: '/dev/ttyACM0'
+[2026-03-22 18:04:03] Connecting to /dev/ttyACM0
+[2026-03-22 18:04:03] Disconnected: [Errno 16] could not open port /dev/ttyACM0: [Errno 16] Device or resource busy: '/dev/ttyACM0'
+[2026-03-22 18:04:04] Connecting to /dev/ttyACM0
+[2026-03-22 18:04:04] Disconnected: [Errno 16] could not open port /dev/ttyACM0: [Errno 16] Device or resource busy: '/dev/ttyACM0'
+[2026-03-22 18:04:05] Connecting to /dev/ttyUSB0
+[2026-03-22 18:04:05] Disconnected: [Errno 16] could not open port /dev/ttyUSB0: [Errno 16] Device or resource busy: '/dev/ttyUSB0'
+[2026-03-22 18:04:06] Connecting to /dev/ttyUSB0
+[2026-03-22 18:04:06] Disconnected: [Errno 16] could not open port /dev/ttyUSB0: [Errno 16] Device or resource busy: '/dev/ttyUSB0'
+[2026-03-22 18:04:07] Connecting to /dev/ttyACM0
+[2026-03-22 18:04:08] [TIMER] Load model file: 2326 ms
+[2026-03-22 18:04:16] [R[R[[[[[R[[[R[R[[RRR[[[[[[R[[R[[R[R[R[[R[R[TR[[R[TR[T[R[T[TIMER] Invoke iRu[TIMER] Invoke iRu[[[TIMER] InvokR[[TIMER] Invoke inferR[[TIMER] Invoke inference: 62 ms
+[2026-03-22 18:04:19] R[[R[[T[[T[[[R[T[TR[R[[TIMERR[T[TIMERRu[TRRRR[[Ru[[[[R[
+[2026-03-22 18:06:00] Connecting to /dev/ttyACM0
+[2026-03-22 18:06:06] Disconnected: device reports readiness to read but returned no data (device disconnected or multiple access on port?)
+[2026-03-22 18:06:07] Connecting to /dev/ttyUSB0
+[2026-03-22 18:06:07] Disconnected: [Errno 16] could not open port /dev/ttyUSB0: [Errno 16] Device or resource busy: '/dev/ttyUSB0'
+[2026-03-22 18:06:08] Connecting to /dev/ttyUSB0
+[2026-03-22 18:06:08] Disconnected: [Errno 16] could not open port /dev/ttyUSB0: [Errno 16] Device or resource busy: '/dev/ttyUSB0'
+[2026-03-22 18:06:09] Connecting to /dev/ttyACM0
+[2026-03-22 18:06:11] [TIMER] OpenDevice: 1163 ms
+[2026-03-22 18:06:11] [TIMER] Setup resolver and interpreter: 1 ms
+[2026-03-22 18:06:11] [TIMER] Load image file once: 100 ms
+[2026-03-22 18:06:11] Running inference 1/10...
+[2026-03-22 18:06:11] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:06:11] [TOTAL] Time from Main start to first detection complete: 3735 ms
+[2026-03-22 18:06:12] Running i[TIMER] Invoke inference: 62 ms
+[2026-03-22 18:06:12] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:06:12] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:06:13] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.[TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:06:13] [TIMER] Invoke inference: 71 ms
+[2026-03-22 18:06:13] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:06:13] Running inference 12/10...
+[2026-03-22 18:06:13] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:06:13] [TIMER] Invoke inferenceRunning inference 17/10...
+[2026-03-22 18:06:13] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:06:13] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:06:13] [TIMER] Invoke inference: 71 ms
+[2026-03-22 18:06:13] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -Running inference 19/10...
+[2026-03-22 18:06:13] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:06:13] Running inference 20/10...
+[2026-03-22 18:06:13] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:06:13] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:06:14] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.9999Running inference 21/10...
+[2026-03-22 18:06:14] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:06:14] Running inference 26/10...
+[2026-03-22 18:06:14] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:06:14] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:06:14] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.9999Running inference 27/10...
+[2026-03-22 18:06:14] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:06:14] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:06:14] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:06:14] Running inference 30/10...
+[2026-03-22 18:06:14] [TIMER] Copy image to tensor: 7 [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:06:14] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:06:14] Running inference 31/10...
+[2026-03-22 18:06:14] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:06:14] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:06:14] id: 16 -- score: 0.695312 -[TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:06:14] Running inference 33/10...
+[2026-03-22 18:06:14] Running inference 34/10...
+[2026-03-22 18:06:14] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:06:14] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:06:15] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.9999[TIMER] Invoke inference: 62 ms
+[2026-03-22 18:06:15] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:06:15] Running inference 36/10...
+[2026-03-22 18:06:15] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:06:15] [TIMER] Invoke inference: 61 ms
+[2026-03-22 18:06:15] id: 16 -- score: 0.695312 -Running inference 37/10...
+[2026-03-22 18:06:15] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:06:15] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:06:15] Running inference 38/10...
+[2026-03-22 18:06:15] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:06:16] [TIMER] Invoke inference: 62 msRunning inference 39/10...
+[2026-03-22 18:06:16] Running inference 50/10...
+[2026-03-22 18:06:16] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:06:16] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:06:16] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:06:16] Running inference 51/10...
+[2026-03-22 18:06:16] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:06:16] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:06:16] id: 16 -- score: 0.695312 -[TIMER] Invoke inference: 72 ms
+[2026-03-22 18:06:16] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:06:16] Running inference 54/10...
+[2026-03-22 18:06:16] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:06:16] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:06:16] id: 16 -- score: 0.695312 -Running inference 55/10...
+[2026-03-22 18:06:16] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:06:16] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:06:16] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:06:16] [TIMER] Invoke inference: 61 ms
+[2026-03-22 18:06:17] id: 16 -- score: 0.695312 -Running inference 59/10...
+[2026-03-22 18:06:17] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:06:17] Running inference 60/10...
+[2026-03-22 18:06:17] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:06:17] Running inference 61/10...
+[2026-03-22 18:06:17] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:06:17] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:06:17] id: 16 -- score: 0.695312 -- xmRunning inference 64/10...
+[2026-03-22 18:06:17] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:06:17] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:06:17] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:06:17] Running inference 65/10...
+[2026-03-22 18:06:17] [TIMER] Copy image to tensor: 7 Running inference 66/10...
+[2026-03-22 18:06:17] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:06:17] [TIMER] Invoke inference: 67 ms
+[2026-03-22 18:06:17] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:06:17] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:06:18] id: 16 -- score: 0.695312 -[TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:06:18] Running inference 74/10...
+[2026-03-22 18:06:18] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:06:18] [TIMER] Invoke inference: 65 ms
+[2026-03-22 18:06:18] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:06:18] Running inference 75/10.[TIMER] Invoke inference: 62 ms
+[2026-03-22 18:06:18] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:06:18] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:06:19] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.[TIMER] Invoke inference: 62 ms
+[2026-03-22 18:06:19] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:06:19] Running inference 81/10...
+[2026-03-22 18:06:19] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:06:19] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:06:19] [TIMER] Invoke inferenceRunning inference 85/10...
+[2026-03-22 18:06:19] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:06:19] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:06:19] [TIMER] Invoke inference: 61 ms
+[2026-03-22 18:06:19] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:06:20] Running inference 89/10.[TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:09:15] Stopped by user
+[2026-03-22 18:13:28] Connecting to /dev/ttyACM0
+[2026-03-22 18:13:32] Disconnected: device reports readiness to read but returned no data (device disconnected or multiple access on port?)
+[2026-03-22 18:13:33] Connecting to /dev/ttyUSB0
+[2026-03-22 18:13:33] Disconnected: [Errno 16] could not open port /dev/ttyUSB0: [Errno 16] Device or resource busy: '/dev/ttyUSB0'
+[2026-03-22 18:13:34] Connecting to /dev/ttyUSB0
+[2026-03-22 18:13:34] Disconnected: [Errno 16] could not open port /dev/ttyUSB0: [Errno 16] Device or resource busy: '/dev/ttyUSB0'
+[2026-03-22 18:13:35] Connecting to /dev/ttyACM0
+[2026-03-22 18:13:37] [TIMER] Load model file: 2325 ms
+[2026-03-22 18:13:38] Running inference 1/10...
+[2026-03-22 18:13:38] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:13:38] [TIMER] Invoke inference: 135 ms
+[2026-03-22 18:13:38] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:13:38] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:13:38] [TIMER] Invoke inferenceRunning inference 4/10...
+[2026-03-22 18:13:38] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:13:38] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:13:38] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:13:38] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005Running inference 7/10...
+[2026-03-22 18:13:38] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:13:38] Running inference 8/10...
+[2026-03-22 18:13:38] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:13:38] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:13:38] Running inference 9/10...
+[2026-03-22 18:13:39] [TIMER][TIMER] Invoke inference: 62 ms
+[2026-03-22 18:13:39] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:13:39] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:13:39] Running inference 13/10...
+[2026-03-22 18:13:39] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:13:39] [TIMER] Invoke inference: 61 ms
+[2026-03-22 18:13:39] Running inference 14/10...
+[2026-03-22 18:13:39] [TIMER] Copy image to tensor:id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:13:39] Running inference 15/10...
+[2026-03-22 18:13:39] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:13:39] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:13:39] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.10900Running inference 16/10...
+[2026-03-22 18:13:39] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:13:39] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:13:39] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:13:39] Running inference 17/10...
+[2026-03-22 18:13:40] [TIMER] Copy image to tensor: 7 [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:13:40] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:13:40] Running inference 20/10...
+[2026-03-22 18:13:40] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:13:40] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:13:41] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.99id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:13:41] Running inference 25/10...
+[2026-03-22 18:13:41] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:13:41] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:13:41] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.10900Running inference 26/10...
+[2026-03-22 18:13:41] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:13:41] Running inference 27/10...
+[2026-03-22 18:13:41] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:13:41] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:13:41] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.9999Running inference 28/10...
+[2026-03-22 18:13:41] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:13:41] [TIMER] Invoke inference: 66 ms
+[2026-03-22 18:13:41] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:13:41] Running inference 29/10...
+[2026-03-22 18:13:42] [TIMER] Copy image to tensor: 7 [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:13:42] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:13:42] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:13:42] [TIMER] Invoke inference:Running inference 36/10...
+[2026-03-22 18:13:42] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:13:42] Running inference 37/10...
+[2026-03-22 18:13:42] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:13:42] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:13:43] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.9999Running inference 39/10...
+[2026-03-22 18:13:43] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:13:43] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:13:43] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:13:43] Running inference 41/10...
+[2026-03-22 18:13:43] [TIMER] Copy image to tensor: 7 id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:13:43] Running inference 42/10...
+[2026-03-22 18:13:43] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:13:43] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:13:43] [TIMER] Invoke inference: 67 ms
+[2026-03-22 18:13:44] id: 16 -- score: 0.695312 -Running inference 44/10...
+[2026-03-22 18:13:44] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:13:44] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:13:44] Running inference 46/10...
+[2026-03-22 18:13:44] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:13:44] Running inference 47/10...
+[2026-03-22 18:13:44] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:13:44] id: 16 -- score: 0.695312 -- xmRunning inference 51/10...
+[2026-03-22 18:13:44] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:13:44] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:13:44] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:13:44] Running inference 52/10...
+[2026-03-22 18:13:44] [TIMER] Copy image to tensor: 7 id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:13:44] Running inference 53/10...
+[2026-03-22 18:13:44] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:13:44] [TIMER] Invoke inference: 68 ms
+[2026-03-22 18:13:45] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.10900id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:13:45] Running inference 56/10...
+[2026-03-22 18:13:45] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:13:45] [TIMER] Invoke inference: 61 ms
+[2026-03-22 18:13:45] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.10900id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:13:45] Running inference 60/10...
+[2026-03-22 18:13:45] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:13:45] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:13:46] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.10900Running inference 62/10...
+[2026-03-22 18:13:46] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:13:46] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:13:46] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:13:46] Running inference 63/10...
+[2026-03-22 18:13:46] [TIMER] Copy image to tensor: 7 id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:13:46] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:13:46] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:13:46] Running inference 65/10..id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:13:46] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:13:46] Running inference 68/10...
+[2026-03-22 18:13:46] [TIMER] Copy image to tensor: [TIMER] Invoke inference: 67 ms
+[2026-03-22 18:13:46] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:13:46] Running inference 69/10...
+[2026-03-22 18:13:46] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:13:46] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:13:47] id: 16 -- score: 0.695312 -Running inference 71/10...
+[2026-03-22 18:13:47] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:13:47] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:13:47] Running inference 72/10...
+[2026-03-22 18:13:47] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:13:47] [TIMER] Invoke inference: 62 id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:13:47] Running inference 73/10...
+[2026-03-22 18:13:47] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:13:47] [TIMER] Invoke inference: 67 ms
+[2026-03-22 18:13:47] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.10900Running inference 74/10...
+[2026-03-22 18:13:47] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:13:47] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:13:47] Running inference 75/10...
+[2026-03-22 18:13:47] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:13:47] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:13:47] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 Running inference 76/10...
+[2026-03-22 18:13:47] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:13:47] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:13:47] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:13:47] Running inference 77/10...
+[2026-03-22 18:13:48] [TIMER] Copy image to tensor: 7 [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:13:48] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:13:48] Running inference 78/10...
+[2026-03-22 18:13:48] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:13:48] [TIMER] Invoke inference: 67 ms
+[2026-03-22 18:13:49] id: 16 -- score: 0.695312 -Running inference 80/10...
+[2026-03-22 18:13:49] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:13:49] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:13:49] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:13:49] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:13:49] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:13:50] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax:id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:13:50] Running inference 91/10...
+[2026-03-22 18:13:50] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:13:50] Running inference 93/10...
+[2026-03-22 18:13:50] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:13:50] Running inference 94/10...
+[2026-03-22 18:13:50] [[TIMER] Invoke inference: 62 ms
+[2026-03-22 18:13:50] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:13:50] Running inference 98/10...
+[2026-03-22 18:13:50] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:13:50] [TIMER] Invoke inference: 67 ms
+[2026-03-22 18:17:07] Disconnected: device reports readiness to read but returned no data (device disconnected or multiple access on port?)
+[2026-03-22 18:17:08] Connecting to /dev/ttyUSB0
+[2026-03-22 18:17:08] Disconnected: [Errno 16] could not open port /dev/ttyUSB0: [Errno 16] Device or resource busy: '/dev/ttyUSB0'
+[2026-03-22 18:17:09] Connecting to /dev/ttyUSB0
+[2026-03-22 18:17:09] Disconnected: [Errno 16] could not open port /dev/ttyUSB0: [Errno 16] Device or resource busy: '/dev/ttyUSB0'
+[2026-03-22 18:17:10] Connecting to /dev/ttyACM0
+[2026-03-22 18:17:12] [TIMER] Load model file: 2325 ms
+[2026-03-22 18:17:12] [TIMER] OpenDevice: 1162 ms
+[2026-03-22 18:17:12] [TIMER] Setup resolver and interpreter: 1 ms
+[2026-03-22 18:17:12] [TIMER] Load image file once: 100 ms
+[2026-03-22 18:17:12] Running inference 1/10...
+[2026-03-22 18:17:12] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:17:12] [TIMER] Invoke inference: 135 ms
+[2026-03-22 18:17:13] id: 16 -- score: 0.695312 -- xmin: 0.005271 --
+[2026-03-22 18:17:13] [TOTAL] Time from Main start to first detection complete: 3801 ms
+[2026-03-22 18:17:13] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:17:13] Running inference 3/10...
+[2026-03-22 18:17:13] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:17:13] id: 16 -- score: 0.6953[TIMER] Invoke inference: 62 ms
+[2026-03-22 18:17:13] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:17:13] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:17:14] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.[TIMER] Invoke inference: 62 ms
+[2026-03-22 18:17:14] Running inference 9/10...
+[2026-03-22 18:17:14] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:17:14] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:17:14] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:17:14] Running inference 12/10...
+[2026-03-22 18:17:14] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:17:14] Running inference 13/10...
+[2026-03-22 18:17:14] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:17:14] [TIMER] Invoke inference: 61 ms
+[2026-03-22 18:17:14] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.10900Running inference 14/10...
+[2026-03-22 18:17:14] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:17:14] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:17:14] Running inference 15/10...
+[2026-03-22 18:17:14] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:17:15] id: 16 -- score: 0.695312 -- Running inference 17/10...
+[2026-03-22 18:17:15] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:17:15] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:17:15] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:17:15] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.10900Running inference 19/10...
+[2026-03-22 18:17:15] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:17:15] [TIMER] Invoke inference: 61 ms
+[2026-03-22 18:17:15] Running inference 20/10...
+[2026-03-22 18:17:15] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:17:15] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:17:15] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 Running inference 21/10...
+[2026-03-22 18:17:15] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:17:15] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:17:15] Running inference 24/10...
+[2026-03-22 18:17:15] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:17:16] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.9999[TIMER] Invoke inference: 62 ms
+[2026-03-22 18:17:16] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:17:16] [TIMER] Invoke inference: 66 ms
+[2026-03-22 18:17:16] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.Running inference 29/10...
+[2026-03-22 18:17:16] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:17:16] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:17:16] Running inference 30/10...
+[2026-03-22 18:17:16] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:17:17] id: 16 -- score: 0.695312 -- id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:17:17] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:17:17] Running inference 37/10...
+[2026-03-22 18:17:18] [TIMER] Copy image to tensor: Running inference 38/10...
+[2026-03-22 18:17:18] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:17:18] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:17:18] Running inference 39/10...
+[2026-03-22 18:17:18] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:17:18] id: 16 -- score: 0.695312 -- Running inference 41/10...
+[2026-03-22 18:17:18] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:17:18] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:17:18] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:17:18] [TIMER] Invoke inference: 67 ms
+[2026-03-22 18:17:18] id: 16 -- score: 0.695312 -[TIMER] Invoke inference: 62 ms
+[2026-03-22 18:17:18] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:17:18] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:17:18] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.Running inference 46/10...
+[2026-03-22 18:17:18] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:17:18] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:17:18] Running inference 47/10...
+[2026-03-22 18:17:18] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:17:19] [TIMER] Invoke inference: 62 id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:17:19] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:17:19] Running inference 49/10...
+[2026-03-22 18:17:19] [TIMER] Copy image to tensor: [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:17:19] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:17:19] Running inference 50/10...
+[2026-03-22 18:17:19] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:17:19] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.10900Running inference 52/10...
+[2026-03-22 18:17:19] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:17:19] Running inference 53/10...
+[2026-03-22 18:17:19] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:17:19] [TIMER] Invoke inference: 67 ms
+[2026-03-22 18:17:19] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.9999Running inference 54/10...
+[2026-03-22 18:17:19] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:17:19] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:17:19] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:17:19] Running inference 55/10...
+[2026-03-22 18:17:20] [TIMER] Copy image to tensor: 7 [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:17:20] Running inference 57/10...
+[2026-03-22 18:17:20] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:17:20] Running inference 60/10...
+[2026-03-22 18:17:20] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:17:20] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:17:20] Running inference 61/10...
+[2026-03-22 18:17:21] [TIMER] Copy image to tensor: 7 msid: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:17:21] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:17:21] Running inference 65/10...
+[2026-03-22 18:17:21] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:17:21] Running inference 66/10...
+[2026-03-22 18:17:22] [TIMER] Copy image to tensor: 7 Running inference 67/10...
+[2026-03-22 18:17:22] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:17:22] Running inference 68/10...
+[2026-03-22 18:17:22] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:17:22] [TIMER] Invoke inference: 68 ms
+[2026-03-22 18:17:22] Running inference 69/10...
+[2026-03-22 18:17:22] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:17:22] [TIMER] Invoke inference: 67 ms
+[2026-03-22 18:17:22] Running inference 75/10...
+[2026-03-22 18:17:22] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:17:22] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:17:22] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:17:23] Running inference 76/10...[TIMER] Invoke inference: 62 ms
+[2026-03-22 18:17:23] Running inference 77/10...
+[2026-03-22 18:17:23] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:17:23] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:17:23] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:17:23] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:17:23] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:17:23] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:17:23] Running inference 81/10...
+[2026-03-22 18:17:23] [TIMER] Copy image to te[TIMER] Invoke inference: 67 ms
+[2026-03-22 18:17:23] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:17:23] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:17:24] [TIMER] Invoke inference:Running inference 86/10...
+[2026-03-22 18:17:24] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:17:24] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:17:24] Running inference 87/10...
+[2026-03-22 18:17:24] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:17:24] [TIMER] Invoke inference: 62 id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:17:24] Running inference 88/10...
+[2026-03-22 18:17:24] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:17:24] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.99id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:17:24] Running inference 90/10...
+[2026-03-22 18:17:24] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:17:24] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:17:25] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.10900[TIMER] Invoke inference: 62 ms
+[2026-03-22 18:17:25] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:17:25] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:17:25] Running inference 94/10..id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:17:25] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:17:25] Running inference 96/10...
+[2026-03-22 18:17:25] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:17:25] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:17:26] id: 16 -- score: 0.695312 -Running inference 97/10...
+[2026-03-22 18:17:26] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:17:26] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:18:13] Disconnected: device reports readiness to read but returned no data (device disconnected or multiple access on port?)
+[2026-03-22 18:18:14] Connecting to /dev/ttyUSB0
+[2026-03-22 18:18:14] Disconnected: [Errno 16] could not open port /dev/ttyUSB0: [Errno 16] Device or resource busy: '/dev/ttyUSB0'
+[2026-03-22 18:18:15] Connecting to /dev/ttyUSB0
+[2026-03-22 18:18:15] Disconnected: [Errno 16] could not open port /dev/ttyUSB0: [Errno 16] Device or resource busy: '/dev/ttyUSB0'
+[2026-03-22 18:18:16] Connecting to /dev/ttyACM0
+[2026-03-22 18:18:18] [TIMER] Load model file: 2325 ms
+[2026-03-22 18:18:19] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:18:19] [TOTAL] Time from Main start to first detection complete: 3802 ms
+[2026-03-22 18:18:19] Running inference 2/10...
+[2026-03-22 18:18:19] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:18:19] [TIMER] Invoke inferencid: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:18:19] Running inference 3/10...
+[2026-03-22 18:18:19] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:18:19] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999Running inference 5/10...
+[2026-03-22 18:18:19] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:18:19] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:18:19] Running inference 6/10...
+[2026-03-22 18:18:19] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:18:20] [TIMER] Invoke inference: 62 msid: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:18:20] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:18:20] [TIMER] Invoke inference: 61 ms
+[2026-03-22 18:18:20] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:18:20] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:18:20] Running inference 13/10...
+[2026-03-22 18:18:20] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:18:21] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.99[TIMER] Invoke inference: 62 ms
+[2026-03-22 18:18:21] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:18:21] Running inference 16/10...
+[2026-03-22 18:18:21] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:18:21] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:18:21] id: 16 -- score: 0.695312 -Running inference 17/10...
+[2026-03-22 18:18:21] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:18:21] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:18:21] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:18:21] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -Running inference 19/10...
+[2026-03-22 18:18:21] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:18:21] Running inference 20/10...
+[2026-03-22 18:18:21] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:18:21] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:18:22] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.9999Running inference 22/10...
+[2026-03-22 18:18:22] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:18:22] Running inference 23/10...
+[2026-03-22 18:18:22] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:18:22] Running inference 24/10...
+[2026-03-22 18:18:22] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:18:22] Running inference 26/10...
+[2026-03-22 18:18:22] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:18:23] Running inference 27/10...
+[2026-03-22 18:18:23] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:18:23] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:18:23] [TIMER] Invoke inference: 67 ms
+[2026-03-22 18:18:23] Running inference 30/10...
+[2026-03-22 18:18:23] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:18:23] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:18:23] Running inference 32/10...
+[2026-03-22 18:18:23] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:18:23] Running inference 33/10...
+[2026-03-22 18:18:23] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:18:23] [TIMER] Invoke inference: 67 id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:18:23] Running inference 34/10...
+[2026-03-22 18:18:23] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:18:24] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.99Running inference 35/10...
+[2026-03-22 18:18:24] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:18:24] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:18:24] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:18:24] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:18:24] id: 16 -- score: 0.695312 -Running inference 38/10...
+[2026-03-22 18:18:24] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:18:24] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:18:24] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:18:25] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.10900id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:18:25] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:18:25] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:18:25] Running inference 47/10..Running inference 48/10...
+[2026-03-22 18:18:25] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:18:25] [TIMER] Invoke inference: 67 ms
+[2026-03-22 18:18:25] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:18:25] Running inference 49/10...
+[2026-03-22 18:18:25] [TIMER] Copy image to tensor: 7 Running inference 50/10...
+[2026-03-22 18:18:25] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:18:25] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:18:25] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:18:26] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.10900Running inference 53/10...
+[2026-03-22 18:18:26] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:18:26] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:18:26] Running inference 54/10...
+[2026-03-22 18:18:26] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:18:27] id: 16 -- score: 0.695312 -- [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:18:27] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:18:27] Running inference 57/10...
+[2026-03-22 18:18:27] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:18:27] [TIMER] Invoke inference: 67 ms
+[2026-03-22 18:18:27] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:18:27] Running inference 65/10...
+[2026-03-22 18:18:27] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:18:28] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.99[TIMER] Invoke inference: 62 ms
+[2026-03-22 18:18:28] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:18:28] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:18:28] Running inference 68/10...
+[2026-03-22 18:18:28] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:18:28] id: 16 -- score: 0.695312 -Running inference 69/10...
+[2026-03-22 18:18:28] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:18:28] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:18:28] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:18:28] Running inference 70/10...
+[2026-03-22 18:18:28] [TIMER] Copy image to tensor: 7 [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:18:28] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:18:28] Running inference 71/10...
+[2026-03-22 18:18:28] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:18:28] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:18:28] id: 16 -- score: 0.695312 -Running inference 72/10...
+[2026-03-22 18:18:28] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:18:28] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:18:28] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:18:28] [TIMER] Invoke inference: 68 ms
+[2026-03-22 18:18:28] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:18:28] Running inference 74/10...
+[2026-03-22 18:18:28] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:18:28] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:18:29] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax[TIMER] Invoke inference: 62 ms
+[2026-03-22 18:18:29] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:18:29] Running inference 76/10...
+[2026-03-22 18:18:29] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:18:29] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:18:29] id: 16 -- score: 0.695312 -[TIMER] Invoke inference: 68 ms
+[2026-03-22 18:18:29] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:18:29] Running inference 79/10...
+[2026-03-22 18:18:29] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:18:29] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:18:29] id: 16 -- score: 0.695312 -Running inference 80/10...
+[2026-03-22 18:18:29] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:18:29] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:18:29] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:18:29] Running inference 81/10...
+[2026-03-22 18:18:29] [TIMER] Copy image to tensor: 7 [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:18:29] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:18:29] Running inference 82/10...
+[2026-03-22 18:18:29] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:18:29] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:18:30] id: 16 -- score: 0.695312 -Running inference 83/10...
+[2026-03-22 18:18:30] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:18:30] [TIMER] Invoke inference: 67 ms
+[2026-03-22 18:18:30] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:18:30] Running inference 84/10...
+[2026-03-22 18:18:30] [TIMER] Copy image to tensor: 7 [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:18:30] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:18:30] Running inference 85/10...
+[2026-03-22 18:18:30] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:18:30] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:18:30] id: 16 -- score: 0.695312 -Running inference 86/10...
+[2026-03-22 18:18:30] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:18:30] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:18:30] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:18:30] Running inference 87/10...
+[2026-03-22 18:18:30] [TIMER] Copy image to tensor: 7 [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:18:30] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:18:30] Running inference 88/10...
+[2026-03-22 18:18:30] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:18:30] [TIMER] Invoke inference: 67 ms
+[2026-03-22 18:18:30] id: 16 -- score: 0.695312 -Running inference 89/10...
+[2026-03-22 18:18:30] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:18:30] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:18:30] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:18:30] Running inference 90/10...
+[2026-03-22 18:18:31] [TIMER] Copy image to tensor: 7 [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:18:31] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:18:31] Running inference 91/10...
+[2026-03-22 18:18:31] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:18:31] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:18:31] id: 16 -- score: 0.695312 -Running inference 92/10...
+[2026-03-22 18:18:31] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:18:31] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:18:31] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:18:31] Running inference 93/10...
+[2026-03-22 18:18:31] [TIMER] Copy image to tensor: 7 [TIMER] Invoke inference: 67 ms
+[2026-03-22 18:18:31] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:18:31] Running inference 94/10...
+[2026-03-22 18:18:31] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:18:31] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:18:31] id: 16 -- score: 0.695312 -Running inference 95/10...
+[2026-03-22 18:18:31] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:18:31] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:18:31] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:18:31] Running inference 96/10...
+[2026-03-22 18:18:31] [TIMER] Copy image to tensor: 7 [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:18:31] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:18:31] Running inference 97/10...
+[2026-03-22 18:18:31] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:18:31] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:18:32] id: 16 -- score: 0.695312 -Running inference 98/10...
+[2026-03-22 18:18:32] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:18:32] [TIMER] Invoke inference: 67 ms
+[2026-03-22 18:18:32] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:18:32] Running inference 99/10...
+[2026-03-22 18:18:32] [TIMER] Copy image to tensor: 7 [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:18:32] id: 16 -- score: 0.695312 -- xmin: 0.005271 -- ymin: 0.109005 -- xmax: 0.831370 -- ymax: 0.999901
+[2026-03-22 18:18:32] Running inference 100/10...
+[2026-03-22 18:18:32] [TIMER] Copy image to tensor: 7 ms
+[2026-03-22 18:18:32] [TIMER] Invoke inference: 62 ms
+[2026-03-22 18:25:25] Stopped by user
+[2026-03-22 18:28:28] Connecting to /dev/ttyACM0
+[2026-03-22 18:28:28] Disconnected: [Errno 16] could not open port /dev/ttyACM0: [Errno 16] Device or resource busy: '/dev/ttyACM0'
+[2026-03-22 18:28:29] Connecting to /dev/ttyACM0
+[2026-03-22 18:28:29] Disconnected: [Errno 16] could not open port /dev/ttyACM0: [Errno 16] Device or resource busy: '/dev/ttyACM0'
+[2026-03-22 18:28:30] Connecting to /dev/ttyACM0
+[2026-03-22 18:28:30] Disconnected: [Errno 16] could not open port /dev/ttyACM0: [Errno 16] Device or resource busy: '/dev/ttyACM0'
+[2026-03-22 18:28:31] Connecting to /dev/ttyACM0
+[2026-03-22 18:28:31] Disconnected: [Errno 16] could not open port /dev/ttyACM0: [Errno 16] Device or resource busy: '/dev/ttyACM0'
+[2026-03-22 18:28:32] Connecting to /dev/ttyACM0
+[2026-03-22 18:28:32] Disconnected: [Errno 16] could not open port /dev/ttyACM0: [Errno 16] Device or resource busy: '/dev/ttyACM0'
+[2026-03-22 18:28:33] Connecting to /dev/ttyACM0
+[2026-03-22 18:28:33] Disconnected: [Errno 16] could not open port /dev/ttyACM0: [Errno 16] Device or resource busy: '/dev/ttyACM0'
+[2026-03-22 18:28:34] Connecting to /dev/ttyACM0
+[2026-03-22 18:28:34] Disconnected: [Errno 16] could not open port /dev/ttyACM0: [Errno 16] Device or resource busy: '/dev/ttyACM0'
+[2026-03-22 18:28:35] Connecting to /dev/ttyACM0
+[2026-03-22 18:28:35] Disconnected: [Errno 16] could not open port /dev/ttyACM0: [Errno 16] Device or resource busy: '/dev/ttyACM0'
+[2026-03-22 18:28:36] Connecting to /dev/ttyACM0
+[2026-03-22 18:28:36] Disconnected: [Errno 16] could not open port /dev/ttyACM0: [Errno 16] Device or resource busy: '/dev/ttyACM0'
+[2026-03-22 18:28:37] Connecting to /dev/ttyACM0
+[2026-03-22 18:28:37] Disconnected: [Errno 16] could not open port /dev/ttyACM0: [Errno 16] Device or resource busy: '/dev/ttyACM0'
+[2026-03-22 18:28:38] Connecting to /dev/ttyACM0
+[2026-03-22 18:28:38] Disconnected: [Errno 16] could not open port /dev/ttyACM0: [Errno 16] Device or resource busy: '/dev/ttyACM0'
+[2026-03-22 18:28:39] Connecting to /dev/ttyACM0
+[2026-03-22 18:28:39] Disconnected: [Errno 16] could not open port /dev/ttyACM0: [Errno 16] Device or resource busy: '/dev/ttyACM0'
+[2026-03-22 18:28:40] Connecting to /dev/ttyACM0
+[2026-03-22 18:28:40] Disconnected: [Errno 16] could not open port /dev/ttyACM0: [Errno 16] Device or resource busy: '/dev/ttyACM0'
+[2026-03-22 18:28:41] Connecting to /dev/ttyACM0
+[2026-03-22 18:28:41] Disconnected: [Errno 16] could not open port /dev/ttyACM0: [Errno 16] Device or resource busy: '/dev/ttyACM0'
+[2026-03-22 18:28:42] Connecting to /dev/ttyACM0
+[2026-03-22 18:28:42] Disconnected: [Errno 16] could not open port /dev/ttyACM0: [Errno 16] Device or resource busy: '/dev/ttyACM0'
+[2026-03-22 18:28:43] Connecting to /dev/ttyACM0
+[2026-03-22 18:28:43] Disconnected: [Errno 16] could not open port /dev/ttyACM0: [Errno 16] Device or resource busy: '/dev/ttyACM0'
+[2026-03-22 18:28:44] Connecting to /dev/ttyACM0
+[2026-03-22 18:28:44] Disconnected: [Errno 16] could not open port /dev/ttyACM0: [Errno 16] Device or resource busy: '/dev/ttyACM0'
+[2026-03-22 18:28:45] Connecting to /dev/ttyACM0
+[2026-03-22 18:28:45] Disconnected: [Errno 16] could not open port /dev/ttyACM0: [Errno 16] Device or resource busy: '/dev/ttyACM0'
+[2026-03-22 18:28:46] Connecting to /dev/ttyACM0
+[2026-03-22 18:28:50] Stopped by user

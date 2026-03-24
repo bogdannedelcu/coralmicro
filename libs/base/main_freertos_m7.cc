@@ -167,7 +167,7 @@ extern "C" int real_main(int argc, char** argv, bool init_console_tx,
   LPI2C_RTOS_Init(&g_i2c6_handle, reinterpret_cast<LPI2C_Type*>(LPI2C6_BASE),
                   &config6, CLOCK_GetFreq(kCLOCK_OscRc48MDiv2));
 
-  coralmicro::PmicTask::GetSingleton()->Init(&g_i2c5_handle);
+  //coralmicro::PmicTask::GetSingleton()->Init(&g_i2c5_handle);
   coralmicro::CameraTask::GetSingleton()->Init(&g_i2c5_handle, &g_i2c6_handle);
 
   CHECK(xTaskCreate(app_main, "app_main", configMINIMAL_STACK_SIZE * 30,
