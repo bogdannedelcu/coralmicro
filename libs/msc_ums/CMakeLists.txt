@@ -22,5 +22,6 @@ add_library_m7(libs_msc_ums_freertos STATIC
     ${libs_msc_ums_SOURCES}
 )
 target_link_libraries(libs_msc_ums_freertos
-    libs_base-m7_freertos
+    libs_nxp_rt1176-sdk_freertos
+    libs_usb_device_task_freertos
 )

@@ -77,6 +77,11 @@ void MscUms::Init(uint8_t bulk_in_ep, uint8_t bulk_out_ep, uint8_t data_iface) {
   msc_ums_data_endpoints_[DATA_OUT].endpointAddress =
       bulk_out_ep | (USB_OUT << 7);
   msc_ums_interfaces_[0].interfaceNumber = data_iface;
+
+  // Update the descriptor sent to host during enumeration.
+  descriptor_.iface.interface_number = data_iface;
+  descriptor_.in_ep.endpoint_address = bulk_in_ep | (USB_IN << 7);
+  descriptor_.out_ep.endpoint_address = bulk_out_ep | (USB_OUT << 7);
 }
 
 void MscUms::SetClassHandle(class_handle_t class_handle) {
@@ -203,6 +208,12 @@ usb_status_t MscUms::Handler(uint32_t event, void *param) {
       /*change the test unit ready command's sense data if need, be careful to
        * modify*/
       ufi = (usb_device_ufi_app_struct_t *)param;
+      if (!unit_ready_) {
+        ufi->requestSense->senseKey = 0x02;  // NOT READY
+        ufi->requestSense->additionalSenseCode = 0x3A;  // MEDIUM NOT PRESENT
+        ufi->requestSense->additionalSenseQualifer = 0x00;
+        error = kStatus_USB_Error;
+      }
       break;
     case kUSB_DeviceMscEventInquiry:
       ufi = (usb_device_ufi_app_struct_t *)param;

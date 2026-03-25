@@ -13,7 +13,7 @@
 # limitations under the License.
 
 add_subdirectory(analog)
-add_subdirectory(audio_streaming)
+#add_subdirectory(audio_streaming)  # disabled: .bss overflows m_data with UMS enabled
 add_subdirectory(ble_beacon)
 add_subdirectory(ble_beacon_scan)
 add_subdirectory(blink_led)

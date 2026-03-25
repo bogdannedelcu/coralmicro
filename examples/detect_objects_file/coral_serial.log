@@ -690,3 +690,50 @@
 [2026-03-22 18:28:45] Disconnected: [Errno 16] could not open port /dev/ttyACM0: [Errno 16] Device or resource busy: '/dev/ttyACM0'
 [2026-03-22 18:28:46] Connecting to /dev/ttyACM0
 [2026-03-22 18:28:50] Stopped by user
+[2026-03-25 08:59:58] Connecting to /dev/ttyACM0
+[2026-03-25 09:00:07] Stopped by user
+[2026-03-25 09:00:08] Connecting to /dev/ttyACM0
+[2026-03-25 09:00:11] Disconnected: device reports readiness to read but returned no data (device disconnected or multiple access on port?)
+[2026-03-25 09:00:12] Connecting to /dev/ttyUSB0
+[2026-03-25 09:00:12] Disconnected: [Errno 16] could not open port /dev/ttyUSB0: [Errno 16] Device or resource busy: '/dev/ttyUSB0'
+[2026-03-25 09:00:13] Connecting to /dev/ttyUSB0
+[2026-03-25 09:00:13] Disconnected: [Errno 16] could not open port /dev/ttyUSB0: [Errno 16] Device or resource busy: '/dev/ttyUSB0'
+[2026-03-25 09:00:14] Connecting to /dev/ttyACM0
+[2026-03-25 09:00:17] [00:03:985] Edge TPU device opened successfully in mode 3
+[2026-03-25 09:00:17] [00:03:985] Tensor arena allocated successfully
+[2026-03-25 09:00:17] [00:03:985] Tensor arena used: 794900 bytes (776 KB) out of 8388608 bytes (8192 KB)
+[2026-03-25 09:00:27] [00:03:985] Input tensor: 786432 bytes, dims=[1,512,512,3], typ[Python] Blink 10
+[2026-03-25 09:00:27] [Python] Blink script done
+[2026-03-25 09:00:27] [MicroPython] Script finished
+[2026-03-25 09:00:27] [MicroPython] Interpreter deinitialized
+[2026-03-25 09:00:34] Disconnected: device reports readiness to read but returned no data (device disconnected or multiple access on port?)
+[2026-03-25 09:00:35] Connecting to /dev/ttyUSB0
+[2026-03-25 09:00:35] Disconnected: [Errno 16] could not open port /dev/ttyUSB0: [Errno 16] Device or resource busy: '/dev/ttyUSB0'
+[2026-03-25 09:00:36] Connecting to /dev/ttyUSB0
+[2026-03-25 09:00:36] Disconnected: [Errno 16] could not open port /dev/ttyUSB0: [Errno 16] Device or resource busy: '/dev/ttyUSB0'
+[2026-03-25 09:00:37] Connecting to /dev/ttyACM0
+[2026-03-25 09:00:39] [00:02:822] Model loaded of size: 5591680 bytes
+[2026-03-25 09:00:39] [MicroPython] Task started
+[2026-03-25 09:00:39] [MicroPython] Interpreter initialized (GC heap=32768 bytes)
+[2026-03-25 09:00:39] [MicroPython] Executing script...
+[2026-03-25 09:00:39] [Python] Blink script started
+[2026-03-25 09:00:40] [00:03:988] Edge TPU device opened successfully in mode 3
+[2026-03-25 09:00:40] [00:03:989] Tensor arena allocated successfully
+[2026-03-25 09:00:40] [00:03:989] Tensor arena used: 794900 bytes (776 KB) out of 8388608 bytes (8192 KB)
+[2026-03-25 09:00:40] [00:04:252] Image loaded of size: 786432 bytes
+[2026-03-25 09:00:43] [00:05:795]
+[2026-03-25 09:00:43] ==== BENCHMARK RESULTS ====
+[2026-03-25 09:00:43] run,memcpy_ms,inference_ms,detection_ms,total_ms,num_detections
+[2026-03-25 09:00:43] 1,0,86,0,86,0
+[2026-03-25 09:00:43] 2,0,24,0,24,0
+[2026-03-25 09:00:43] 3,0,24,0,24,0
+[2026-03-25 09:00:43] 4,0,27,0,27,0
+[2026-03-25 09:00:43] 9,0,22,0,22,0
+[2026-03-25 09:00:43] 10,0,23,0,23,0
+[2026-03-25 09:00:43] 11,0,22,0,22,0
+[2026-03-25 09:00:43] 14,0,22,0,22,0
+[2026-03-25 09:00:43] 19,0,22,0,22,0
+[2026-03-25 09:00:44] 20,0,22,0[00:05:825] Powering off EdgeTPU...
+[2026-03-25 09:00:44] [00:05:825] EdgeTPU powered off. Entering CM7 low-power sleep for 5s...
+[2026-03-25 09:00:49] [00:10:825] Woke up from sleep!
+[2026-03-25 09:00:59] Stopped by user

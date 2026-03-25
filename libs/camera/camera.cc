@@ -438,6 +438,20 @@ void RgbToGrayscale(const uint8_t* camera_rgb, uint8_t* camera_grayscale,
   }
 }
 
+int CameraTask::GetRawFrame(uint8_t** buffer) {
+  if (!enabled_) {
+    *buffer = nullptr;
+    return -1;
+  }
+  int index = GetFrame(buffer, true);
+  if (!*buffer) return -1;
+  return index;
+}
+
+void CameraTask::ReturnRawFrame(int index) {
+  ReturnFrame(index);
+}
+
 bool CameraTask::GetFrame(const std::vector<CameraFrameFormat>& fmts) {
   if (!enabled_) {
     printf("Camera is not enabled, cannot capture frame.\r\n");

@@ -1,0 +1,3 @@
+CORAL_MOD_DIR := $(USERMOD_DIR)
+
+SRC_USERMOD_C += $(CORAL_MOD_DIR)/modcoral.c

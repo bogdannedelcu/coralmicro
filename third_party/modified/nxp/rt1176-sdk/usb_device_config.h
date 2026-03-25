@@ -84,7 +84,7 @@
 #define USB_DEVICE_CONFIG_SELF_POWER (0U)
 
 /*! @brief How many endpoints are supported in the stack. */
-#define USB_DEVICE_CONFIG_ENDPOINTS (6U)
+#define USB_DEVICE_CONFIG_ENDPOINTS (8U)
 
 /*! @brief Whether the device task is enabled. */
 #define USB_DEVICE_CONFIG_USE_TASK (1U)

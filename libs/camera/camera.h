@@ -337,6 +337,15 @@ class CameraTask
   // Native image pixel height.
   static constexpr size_t kHeight = DEMO_CAMERA_HEIGHT;
 
+  // Get a raw XRGB8888 frame directly from the camera.
+  // Returns the framebuffer index (>=0) on success, -1 on failure.
+  // The raw pointer is written to *buffer.
+  // Caller MUST call ReturnRawFrame(index) when done.
+  int GetRawFrame(uint8_t** buffer);
+
+  // Return a raw frame obtained via GetRawFrame().
+  void ReturnRawFrame(int index);
+
   bool Read(uint16_t reg, uint8_t* val);
   bool Write(uint16_t reg, uint8_t val);
   bool Write(uint16_t reg, const uint8_t *val, int size);
