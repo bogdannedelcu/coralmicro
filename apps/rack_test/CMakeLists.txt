@@ -40,12 +40,12 @@ target_link_libraries(rack_test_m4
 )
 
 
-# For wifi tests.
-add_executable_m7(rack_test_wifi
-    rack_test.cc
-    M4_EXECUTABLE
-    rack_test_m4
-)
+# For wifi tests. (disabled - m_text region overflow)
+#add_executable_m7(rack_test_wifi
+#    rack_test.cc
+#    M4_EXECUTABLE
+#    rack_test_m4
+#)
 
 # For bluetooth tests.
 add_executable_m7(rack_test_ble
@@ -54,13 +54,13 @@ add_executable_m7(rack_test_ble
      rack_test_m4
 )
 
-target_compile_definitions(rack_test_wifi PUBLIC TEST_WIFI)
 target_compile_definitions(rack_test_ble PUBLIC TEST_BLE)
 
-target_link_libraries(rack_test_wifi
-    ${RACK_TEST_LINK_LIBRARIES}
-    libs_base-m7_wifi
-)
+#target_compile_definitions(rack_test_wifi PUBLIC TEST_WIFI)
+#target_link_libraries(rack_test_wifi
+#    ${RACK_TEST_LINK_LIBRARIES}
+#    libs_base-m7_wifi
+#)
 
 target_link_libraries(rack_test_ble
     ${RACK_TEST_LINK_LIBRARIES}
