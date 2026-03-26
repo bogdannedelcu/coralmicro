@@ -256,9 +256,9 @@ Object detection
 
 These APIs simplify the post-processing for object detection models.
 
-**Example** (from `examples/detect_objects_file/`):
+**Example** (from `examples/sentai_runtime/`):
 
-.. literalinclude:: ../examples/detect_objects_file/detect_objects_file.cc
+.. literalinclude:: ../examples/sentai_runtime/sentai_runtime.cc
    :start-after: [start-sphinx-snippet:detect-image]
    :end-before: [end-sphinx-snippet:detect-image]
 

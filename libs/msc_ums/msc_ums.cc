@@ -35,9 +35,9 @@ extern "C" nand_handle_t *BOARD_GetNANDHandle(void);
 namespace coralmicro {
 namespace {
 constexpr int kPagesPerBlock = 64;
-constexpr int kFilesystemBaseBlock = 12;
+constexpr int kUserBaseBlock = 76;   // Must match filesystem.cc kUserBaseBlock
+constexpr int kUserBlockCount = 448; // Must match filesystem.cc kUserBlockCount
 constexpr size_t kPageSize = 2048;
-constexpr size_t kFlashSize = 0x10000 * 1024;
 constexpr uint32_t kInvalidDataPattern = __htonl(0xdeadbeef);
 }  // namespace
 
@@ -54,8 +54,8 @@ usb_device_inquiry_data_fromat_struct_t g_InquiryInfo = {
     0x02,
     USB_DEVICE_MSC_UFI_ADDITIONAL_LENGTH,
     {0x00, 0x00, 0x00},
-    {'C', 'O', 'R', 'A', 'L'},
-    {'M', 'A', 'S', 'S', ' ', 'S', 'T', 'O', 'R', 'A', 'G', 'E'},
+    {'S', 'E', 'N', 'T', 'A', 'I'},
+    {'F', 'L', 'A', 'S', 'H', ' ', 'S', 'T', 'O', 'R', 'A', 'G', 'E'},
     {'0', '0', '0', '1'}};
 usb_device_mode_parameters_header_struct_t g_ModeParametersHeader = {
     /*refer to ufi spec mode parameter header*/
@@ -94,6 +94,7 @@ bool MscUms::HandleEvent(uint32_t event, void *param) {
 
   switch (event) {
     case kUSB_DeviceEventSetConfiguration:
+    case 10:  // kUSB_DeviceEventSetInterface — benign, ignore
       // Don't care.
       break;
     default:
@@ -123,7 +124,7 @@ usb_status_t MscUms::Handler(uint32_t event, void *param) {
                                           sizeof(kInvalidDataPattern)) == 0) {
         uint32_t block = __ntohl(*reinterpret_cast<uint32_t *>(
             lba->buffer + sizeof(kInvalidDataPattern)));
-        uint32_t erase_block = kFilesystemBaseBlock + block;
+        uint32_t erase_block = kUserBaseBlock + block;
         errorCode = Nand_Flash_Erase_Block(nand, erase_block);
         if (errorCode != kStatus_Success) {
           printf("Nand_Flash_Erase_Block(%lu) failed (%ld), block %lu\r\n",
@@ -135,7 +136,7 @@ usb_status_t MscUms::Handler(uint32_t event, void *param) {
         uint32_t page_index = lba->offset;
         while (size != 0) {
           auto write_size = std::min(kPageSize, size);
-          auto write_index = kFilesystemBaseBlock * kPagesPerBlock + page_index;
+          auto write_index = kUserBaseBlock * kPagesPerBlock + page_index;
           DCACHE_CleanInvalidateByRange(reinterpret_cast<uint32_t>(buf),
                                         write_size);
           errorCode =
@@ -169,11 +170,17 @@ usb_status_t MscUms::Handler(uint32_t event, void *param) {
         uint32_t page_index = lba->offset;
         while (size != 0) {
           auto read_size = std::min(kPageSize, size);
-          auto read_index = kFilesystemBaseBlock * kPagesPerBlock + page_index;
-          errorCode = Nand_Flash_Read_Page(nand, read_index, buf, read_size);
+          auto read_index = kUserBaseBlock * kPagesPerBlock + page_index;
+          errorCode = kStatus_Fail;
+          for (int retry = 0; retry < 3; ++retry) {
+            errorCode = Nand_Flash_Read_Page(nand, read_index, buf, read_size);
+            if (errorCode == kStatus_Success) break;
+            printf("MSC_Read: NAND page %lu retry %d (err %ld)\r\n",
+                   read_index, retry, errorCode);
+          }
           if (errorCode != kStatus_Success) {
-            printf("Nand_Flash_Read_Page(%lu, %u) failed (%ld), page %lu\r\n",
-                   read_index, read_size, errorCode, page_index);
+            printf("MSC_Read: NAND page %lu FAILED after retries\r\n",
+                   read_index);
             break;
           }
           ++page_index;
@@ -198,7 +205,7 @@ usb_status_t MscUms::Handler(uint32_t event, void *param) {
       lbaInformation->logicalUnitNumberSupported = LOGICAL_UNIT_SUPPORTED;
       lbaInformation->logicalUnitInformations[0].lengthOfEachLba = kPageSize;
       lbaInformation->logicalUnitInformations[0].totalLbaNumberSupports =
-          kFlashSize / kPageSize - kFilesystemBaseBlock * kPagesPerBlock;
+          kUserBlockCount * kPagesPerBlock;
       lbaInformation->logicalUnitInformations[0].bulkInBufferSize =
           sizeof(g_mscReadRequestBuffer);
       lbaInformation->logicalUnitInformations[0].bulkOutBufferSize =
@@ -238,13 +245,13 @@ usb_status_t MscUms::Handler(uint32_t event, void *param) {
       capacityInformation = (usb_device_capacity_information_struct_t *)param;
       capacityInformation->lengthOfEachLba = kPageSize;
       capacityInformation->totalLbaNumberSupports =
-          kFlashSize / kPageSize - kFilesystemBaseBlock * kPagesPerBlock;
+          kUserBlockCount * kPagesPerBlock;
       break;
     case kUSB_DeviceMscEventReadFormatCapacity:
       capacityInformation = (usb_device_capacity_information_struct_t *)param;
       capacityInformation->lengthOfEachLba = kPageSize;
       capacityInformation->totalLbaNumberSupports =
-          kFlashSize / kPageSize - kFilesystemBaseBlock * kPagesPerBlock;
+          kUserBlockCount * kPagesPerBlock;
       break;
     default:
       error = kStatus_USB_InvalidRequest;

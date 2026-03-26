@@ -99,9 +99,25 @@ void InitializeUMS() {
 }
 }  // namespace
 
-extern "C" int coral_usb_drive_set(int on) {
+extern "C" int sentai_usb_drive_set(int on) {
+  if (on) {
+    // Unmount user LFS before enabling USB MSC so host has exclusive
+    // NAND access and there are no stale LFS cache conflicts.
+    lfs_unmount(coralmicro::LfsUser());
+  }
   g_msc_ums.SetUnitReady(on != 0);
+  if (!on) {
+    // Remount user LFS after disabling USB MSC to pick up any changes
+    // the host made (new/modified/deleted files).
+    // Use LfsUserRemount() — it does NOT auto-format on failure,
+    // so user data isn't silently destroyed if mount fails.
+    coralmicro::LfsUserRemount();
+  }
   return on != 0 ? 1 : 0;
+}
+
+extern "C" int sentai_usb_drive_get(void) {
+  return g_msc_ums.IsUnitReady() ? 1 : 0;
 }
 
 extern "C" lpi2c_rtos_handle_t* I2C5Handle() { return &g_i2c5_handle; }
@@ -125,6 +141,7 @@ extern "C" int real_main(int argc, char** argv, bool init_console_tx,
   coralmicro::ConsoleM7::GetSingleton()->Init(init_console_tx, init_console_rx);
 
   CHECK(coralmicro::LfsInit());
+  CHECK(coralmicro::LfsUserInit());
   // Make sure this happens before EEM or WICED are initialized.
   #if ENABLE_NETWORK_STACK
     tcpip_init(nullptr, nullptr);
@@ -146,7 +163,7 @@ extern "C" int real_main(int argc, char** argv, bool init_console_tx,
     coralmicro::TempSensorInit();
   #endif
 
-  printf("!!!! START %s %s!!!\n", __DATE__, __TIME__);
+  printf("\r\n\r\n!!!! SentAI  %s %s!!!\r\n", __DATE__, __TIME__);
 
   // Initialize I2C5 state
   NVIC_SetPriority(LPI2C5_IRQn, 3);

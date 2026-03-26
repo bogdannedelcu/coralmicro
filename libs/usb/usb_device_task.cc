@@ -95,11 +95,11 @@ usb_status_t UsbDeviceTask::Handler(usb_device_handle device_handle,
       }
       switch (string_desc->stringIndex) {
         case 1:
-          ToUsbStringDescriptor("Google", string_desc);
+          ToUsbStringDescriptor("autonomous.ro", string_desc);
           ret = kStatus_USB_Success;
           break;
         case 2:
-          ToUsbStringDescriptor("Coral Dev Board Micro", string_desc);
+          ToUsbStringDescriptor("- autonomous.ro SentAI board v1.0", string_desc);
           ret = kStatus_USB_Success;
           break;
         case 3:

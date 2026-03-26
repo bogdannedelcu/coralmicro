@@ -1,0 +1,3 @@
+SENTAI_MOD_DIR := $(USERMOD_DIR)
+
+SRC_USERMOD_C += $(SENTAI_MOD_DIR)/modsentai.c

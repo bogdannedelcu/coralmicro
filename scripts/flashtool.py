@@ -87,7 +87,8 @@ SDP_PID = 0x013d
 FLASHLOADER_VID = 0x15a2
 FLASHLOADER_PID = 0x0073
 
-ELFLOADER_VID = 0x18d1
+ELFLOADER_VID = 0x1fc9
+ELFLOADER_LEGACY_VID = 0x18d1
 ELFLOADER_PID = 0x9307
 ELFLOADER_OLD_PID = 0x93fe
 
@@ -175,14 +176,11 @@ def is_coral_micro_connected(serial_number):
 
 
 def is_elfloader_connected(serial_number):
-  for device in usb.core.find(idVendor=ELFLOADER_VID, idProduct=ELFLOADER_PID,
-                              find_all=True):
-    if not serial_number or device.serial_number == serial_number:
-      return True
-  for device in usb.core.find(idVendor=ELFLOADER_VID, idProduct=ELFLOADER_OLD_PID,
-                              find_all=True):
-    if not serial_number or device.serial_number == serial_number:
-      return True
+  for vid in (ELFLOADER_VID, ELFLOADER_LEGACY_VID):
+    for pid in (ELFLOADER_PID, ELFLOADER_OLD_PID):
+      for device in usb.core.find(idVendor=vid, idProduct=pid, find_all=True):
+        if not serial_number or device.serial_number == serial_number:
+          return True
   return False
 
 
@@ -203,10 +201,12 @@ def EnumerateFlashloader():
 
 
 def EnumerateElfloader():
-  return hid.enumerate(ELFLOADER_VID, ELFLOADER_PID)
+  devices = hid.enumerate(ELFLOADER_VID, ELFLOADER_PID)
+  devices += hid.enumerate(ELFLOADER_LEGACY_VID, ELFLOADER_PID)
+  return devices
 
 
-SERIAL_PORT_RE = re.compile(f'USB VID:PID=18D1:(9308|93FF) SER=([0-9A-Fa-f]+)')
+SERIAL_PORT_RE = re.compile(f'USB VID:PID=(18D1|1FC9):(9308|C0A1|93FF) SER=([0-9A-Fa-f]+)')
 
 
 def EnumerateCoralMicro():
@@ -214,7 +214,7 @@ def EnumerateCoralMicro():
   for port in serial.tools.list_ports.comports():
     matches = SERIAL_PORT_RE.match(port.hwid)
     if matches:
-      serial_list.append(matches.group(2).lower())
+      serial_list.append(matches.group(3).lower())
   return serial_list
 
 
@@ -1159,9 +1159,11 @@ def main():
     return
   if not serial_number and len(serial_list) == 1:
     serial_number = serial_list[0]
-  if not serial_number:
+  if not serial_number and not serial_list:
     print('No Dev Board Micro devices detected!')
     return
+  # Normalize empty serial_number to None (elfloader may not report one)
+  serial_number = serial_number or None
 
   with tempfile.TemporaryDirectory() as workdir:
     sbfile_path = None

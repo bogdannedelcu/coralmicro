@@ -650,7 +650,7 @@ int CameraTask::DiscardOldFrames() {
 }
 
 void CameraTask::TaskInit() {
-  printf("Camera %dx%d@%d %d bits per pixel\n",
+  printf("Camera %dx%d@%d %d bits per pixel\r\n",
     DEMO_CAMERA_WIDTH, DEMO_CAMERA_HEIGHT, DEMO_CAMERA_FRAME_RATE, DEMO_CAMERA_BUFFER_BPP * 8);
 
   camera::PowerRequest req;
