@@ -298,7 +298,7 @@ void BOARD_InitCamera(void)
     cameraConfig.framePerSec                = DEMO_CAMERA_FRAME_RATE;
 
     status = CAMERA_RECEIVER_Init(&cameraReceiver, &cameraConfig, NULL, NULL);
-    printf("CAMERA_RECEIVER_Init = %ld\n", status);
+    printf("CAMERA_RECEIVER_Init = %ld\r\n", status);
 
     BOARD_InitMipiCsi();
 

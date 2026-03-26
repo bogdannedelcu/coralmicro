@@ -538,6 +538,8 @@ Q(__name__)
 
 Q(__name__)
 
+Q(__name__)
+
 Q(__ne__)
 
 Q(__new__)
@@ -674,6 +676,8 @@ Q(closure)
 
 Q(collect)
 
+Q(console)
+
 Q(copy)
 
 Q(copy)
@@ -761,6 +765,8 @@ Q(hasattr)
 Q(hash)
 
 Q(heap)
+
+Q(help)
 
 Q(hex)
 
@@ -968,6 +974,26 @@ Q(sentai)
 
 Q(sep)
 
+Q(serial_available)
+
+Q(serial_available)
+
+Q(serial_close)
+
+Q(serial_close)
+
+Q(serial_open)
+
+Q(serial_open)
+
+Q(serial_read)
+
+Q(serial_read)
+
+Q(serial_write)
+
+Q(serial_write)
+
 Q(set_res)
 
 Q(setattr)
@@ -1035,6 +1061,10 @@ Q(tuple)
 Q(type)
 
 Q(type)
+
+Q(uart)
+
+Q(uart)
 
 Q(update)
 

@@ -2632,6 +2632,31 @@ extern int sentai_usb_drive_set(int on);
 extern int sentai_usb_drive_get(void);
 
 
+extern int sentai_usb_serial_open(void);
+extern void sentai_usb_serial_close(void);
+extern int sentai_usb_serial_is_open(void);
+extern int sentai_usb_serial_write(const uint8_t* buf, int size);
+extern int sentai_usb_serial_read(uint8_t* buf, int max_size, int timeout_ms);
+extern int sentai_usb_serial_available(void);
+
+
+extern int sentai_console_set_target(int target);
+extern int sentai_console_get_target(void);
+
+
+extern int sentai_uart_serial_open(void);
+extern void sentai_uart_serial_close(void);
+extern int sentai_uart_serial_is_open(void);
+extern int sentai_uart_serial_write(const uint8_t* buf, int size);
+extern int sentai_uart_serial_read(uint8_t* buf, int max_size, int timeout_ms);
+extern int sentai_uart_serial_available(void);
+extern void sentai_uart_set_baudrate(uint32_t baudrate);
+extern void sentai_uart_restore_baudrate(void);
+
+
+extern int sentai_help_read(char* buf, int max_size);
+
+
 
 
 static void _fs_check_usb(void) {
@@ -2955,9 +2980,9 @@ static mp_obj_t mod_sentai_ls(mp_obj_t path_obj) {
     _fs_check_usb();
     const char* path = mp_obj_str_get_str(path_obj);
     mp_obj_list_t* result = ((void *)(mp_obj_new_list(0, 
-# 392 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
+# 417 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
                            ((void *)0)
-# 392 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
+# 417 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
                            )));
     listdir_ctx_t ctx = { .list = result };
     int n = sentai_fs_listdir(path, listdir_cb, &ctx);
@@ -2977,9 +3002,9 @@ static mp_obj_t mod_sentai_cam_init(size_t n_args, const mp_obj_t *args) {
     return mp_obj_new_int(sentai_cam_init(streaming));
 }
 static const mp_obj_fun_builtin_var_t mod_sentai_cam_init_obj = {{&mp_type_fun_builtin_var}, ((uint32_t)((((uint32_t)(0)) << 17) | (((uint32_t)(1)) << 1) | ((
-# 410 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
+# 435 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
       0
-# 410 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
+# 435 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
       ) ? 1 : 0))), .fun.var = mod_sentai_cam_init};
 
 
@@ -3007,9 +3032,9 @@ static mp_obj_t mod_sentai_cam_jpeg(size_t n_args, const mp_obj_t *args) {
     return result;
 }
 static const mp_obj_fun_builtin_var_t mod_sentai_cam_jpeg_obj = {{&mp_type_fun_builtin_var}, ((uint32_t)((((uint32_t)(0)) << 17) | (((uint32_t)(1)) << 1) | ((
-# 436 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
+# 461 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
       0
-# 436 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
+# 461 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
       ) ? 1 : 0))), .fun.var = mod_sentai_cam_jpeg};
 
 
@@ -3041,9 +3066,9 @@ static mp_obj_t mod_sentai_cam_save_jpeg(size_t n_args, const mp_obj_t *args) {
     return mp_obj_new_int(jpeg_size);
 }
 static const mp_obj_fun_builtin_var_t mod_sentai_cam_save_jpeg_obj = {{&mp_type_fun_builtin_var}, ((uint32_t)((((uint32_t)(1)) << 17) | (((uint32_t)(2)) << 1) | ((
-# 466 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
+# 491 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
       0
-# 466 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
+# 491 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
       ) ? 1 : 0))), .fun.var = mod_sentai_cam_save_jpeg};
 
 
@@ -3082,11 +3107,87 @@ static const mp_obj_fun_builtin_fixed_t mod_sentai_cam_switch_obj = {{&mp_type_f
 
 
 
+
 static mp_obj_t mod_sentai_usb_drive(mp_obj_t on_obj) {
     int on = mp_obj_get_int(on_obj);
+    if (on) {
+
+        sentai_console_set_target(1);
+    }
     return mp_obj_new_int(sentai_usb_drive_set(on));
 }
 static const mp_obj_fun_builtin_fixed_t mod_sentai_usb_drive_obj = {{&mp_type_fun_builtin_1}, .fun._1 = mod_sentai_usb_drive};
+
+
+
+
+
+
+static mp_obj_t mod_sentai_usb_serial_open(void) {
+    if (sentai_console_get_target() != 1) {
+        mp_raise_msg(&mp_type_OSError,
+            (mp_rom_error_text_t)"REPL must be on UART: call sentai.console('uart')");
+    }
+    if (sentai_usb_drive_get()) {
+        mp_raise_msg(&mp_type_OSError,
+            (mp_rom_error_text_t)"USB drive active: call sentai.usb.drive(0) first");
+    }
+    return mp_obj_new_bool(sentai_usb_serial_open());
+}
+static const mp_obj_fun_builtin_fixed_t mod_sentai_usb_serial_open_obj = {{&mp_type_fun_builtin_0}, .fun._0 = mod_sentai_usb_serial_open};
+
+
+
+static mp_obj_t mod_sentai_usb_serial_close(void) {
+    sentai_usb_serial_close();
+    return ((mp_obj_t)(((0) << 3) | 6));
+}
+static const mp_obj_fun_builtin_fixed_t mod_sentai_usb_serial_close_obj = {{&mp_type_fun_builtin_0}, .fun._0 = mod_sentai_usb_serial_close};
+
+
+
+static mp_obj_t mod_sentai_usb_serial_write(mp_obj_t data_obj) {
+    if (!sentai_usb_serial_is_open()) {
+        mp_raise_msg(&mp_type_OSError, (mp_rom_error_text_t)"serial not open");
+    }
+    mp_buffer_info_t bufinfo;
+    mp_get_buffer_raise(data_obj, &bufinfo, (1));
+    int n = sentai_usb_serial_write((const uint8_t*)bufinfo.buf, bufinfo.len);
+    return mp_obj_new_int(n);
+}
+static const mp_obj_fun_builtin_fixed_t mod_sentai_usb_serial_write_obj = {{&mp_type_fun_builtin_1}, .fun._1 = mod_sentai_usb_serial_write};
+
+
+
+
+static mp_obj_t mod_sentai_usb_serial_read(size_t n_args, const mp_obj_t *args) {
+    if (!sentai_usb_serial_is_open()) {
+        mp_raise_msg(&mp_type_OSError, (mp_rom_error_text_t)"serial not open");
+    }
+    int max_bytes = (n_args > 0) ? mp_obj_get_int(args[0]) : 256;
+    int timeout_ms = (n_args > 1) ? mp_obj_get_int(args[1]) : 1000;
+    if (max_bytes <= 0 || max_bytes > 2048) max_bytes = 256;
+    uint8_t* buf = ((uint8_t *)(m_malloc(sizeof(uint8_t) * (max_bytes))));
+    int n = sentai_usb_serial_read(buf, max_bytes, timeout_ms);
+    if (n <= 0) {
+        ((void)(max_bytes), m_free(buf));
+        return mp_obj_new_bytes((const byte*)"", 0);
+    }
+    mp_obj_t result = mp_obj_new_bytes(buf, n);
+    ((void)(max_bytes), m_free(buf));
+    return result;
+}
+static const mp_obj_fun_builtin_var_t mod_sentai_usb_serial_read_obj = {{&mp_type_fun_builtin_var}, ((uint32_t)((((uint32_t)(0)) << 17) | (((uint32_t)(2)) << 1) | ((
+# 599 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
+      0
+# 599 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
+      ) ? 1 : 0))), .fun.var = mod_sentai_usb_serial_read};
+
+
+static mp_obj_t mod_sentai_usb_serial_available(void) {
+    return mp_obj_new_int(sentai_usb_serial_available());
+}
+static const mp_obj_fun_builtin_fixed_t mod_sentai_usb_serial_available_obj = {{&mp_type_fun_builtin_0}, .fun._0 = mod_sentai_usb_serial_available};
 
 
 static mp_obj_t mod_sentai_load_model(mp_obj_t path_obj) {
@@ -3144,9 +3245,9 @@ static mp_obj_t mod_sentai_run(mp_obj_t path_obj) {
     qstr source_name = lex->source_name;
     mp_parse_tree_t parse_tree = mp_parse(lex, MP_PARSE_FILE_INPUT);
     mp_obj_t module_fun = mp_compile(&parse_tree, source_name, 
-# 565 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
+# 662 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
                                                               1
-# 565 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
+# 662 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
                                                                   );
     mp_call_function_0(module_fun);
 
@@ -3167,9 +3268,9 @@ static mp_obj_t mod_sentai_tasks(void) {
     UBaseType_t n = uxTaskGetSystemState(task_buf, 24, &total_runtime);
 
     mp_obj_list_t* result = ((void *)(mp_obj_new_list(0, 
-# 584 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
+# 681 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
                            ((void *)0)
-# 584 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
+# 681 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
                            )));
 
     for (UBaseType_t i = 0; i < n; i++) {
@@ -3245,9 +3346,9 @@ static mp_obj_t mod_sentai_cpu(void) {
     UBaseType_t n = uxTaskGetSystemState(task_buf, 24, &total_runtime);
 
     mp_obj_list_t* result = ((void *)(mp_obj_new_list(0, 
-# 658 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
+# 755 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
                            ((void *)0)
-# 658 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
+# 755 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
                            )));
 
     if (total_runtime == 0) total_runtime = 1;
@@ -3276,9 +3377,176 @@ static const mp_obj_fun_builtin_fixed_t mod_sentai_uptime_obj = {{&mp_type_fun_b
 
 
 
+static int help_find_section(const char* buf, int len, const char* section,
+                             const char** out_start, const char** out_end) {
+    char marker[32];
+    int mlen = snprintf(marker, sizeof(marker), "[%s]", section);
+    const char* buf_end = buf + len;
+
+    for (const char* p = buf; p < buf_end - mlen; p++) {
+        if ((p == buf || *(p-1) == '\n') && memcmp(p, marker, mlen) == 0) {
+            const char* start = p + mlen;
+            while (start < buf_end && *start != '\n') start++;
+            if (start < buf_end) start++;
+            const char* end = start;
+            while (end < buf_end) {
+                if (*end == '[' && (end == start || *(end-1) == '\n')) break;
+                end++;
+            }
+            *out_start = start;
+            *out_end = end;
+            return 1;
+        }
+    }
+    return 0;
+}
+
+extern void mp_hal_stdout_tx_strn_cooked(const char *str, size_t len);
 
 
 
+static mp_obj_t mod_sentai_help(size_t n_args, const mp_obj_t *args) {
+    const char* topic = (n_args > 0) ? mp_obj_str_get_str(args[0]) : 
+# 812 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
+                                                                    ((void *)0)
+# 812 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
+                                                                        ;
+
+
+    char* hbuf = ((char *)(m_malloc(sizeof(char) * (4096))));
+    int n = sentai_help_read(hbuf, 4096);
+
+    if (n <= 0) {
+        ((void)(4096), m_free(hbuf));
+        mp_print_str(&mp_plat_print, "Help file not found on flash.\n");
+        return ((mp_obj_t)(((0) << 3) | 6));
+    }
+
+    if (topic == 
+# 824 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
+                ((void *)0)
+# 824 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
+                    ) {
+        const char *start, *end;
+        if (help_find_section(hbuf, n, "overview", &start, &end)) {
+            mp_hal_stdout_tx_strn_cooked(start, end - start);
+        }
+    } else if (strcmp(topic, "all") == 0) {
+        mp_hal_stdout_tx_strn_cooked(hbuf, n);
+    } else {
+        const char *start, *end;
+        if (help_find_section(hbuf, n, topic, &start, &end)) {
+            mp_hal_stdout_tx_strn_cooked(start, end - start);
+        } else {
+            mp_print_str(&mp_plat_print,
+                "Unknown topic. Available: io, rtos, tpu, fs, camera, usb, uart, console, all\n");
+        }
+    }
+
+    ((void)(4096), m_free(hbuf));
+
+    return ((mp_obj_t)(((0) << 3) | 6));
+}
+static const mp_obj_fun_builtin_var_t mod_sentai_help_obj = {{&mp_type_fun_builtin_var}, ((uint32_t)((((uint32_t)(0)) << 17) | (((uint32_t)(1)) << 1) | ((
+# 845 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
+      0
+# 845 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
+      ) ? 1 : 0))), .fun.var = mod_sentai_help};
+
+
+
+
+
+static mp_obj_t mod_sentai_console(size_t n_args, const mp_obj_t *args) {
+    if (n_args > 0) {
+        const char* target = mp_obj_str_get_str(args[0]);
+        if (strcmp(target, "usb") == 0) {
+            sentai_console_set_target(0);
+        } else if (strcmp(target, "uart") == 0) {
+            sentai_console_set_target(1);
+        } else {
+            mp_raise_ValueError((mp_rom_error_text_t)"use 'usb' or 'uart'");
+        }
+    }
+    int t = sentai_console_get_target();
+    return mp_obj_new_str(t == 0 ? "usb" : "uart", t == 0 ? 3 : 4);
+}
+static const mp_obj_fun_builtin_var_t mod_sentai_console_obj = {{&mp_type_fun_builtin_var}, ((uint32_t)((((uint32_t)(0)) << 17) | (((uint32_t)(1)) << 1) | ((
+# 865 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
+      0
+# 865 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
+      ) ? 1 : 0))), .fun.var = mod_sentai_console};
+
+
+
+
+static mp_obj_t mod_sentai_uart_serial_open(size_t n_args, const mp_obj_t *args) {
+    int baudrate = (n_args > 0) ? mp_obj_get_int(args[0]) : 115200;
+    if (sentai_console_get_target() != 0) {
+        mp_raise_msg(&mp_type_OSError,
+            (mp_rom_error_text_t)"REPL must be on USB: call sentai.console('usb')");
+    }
+    if (baudrate != 115200 && baudrate > 0) {
+        sentai_uart_set_baudrate((uint32_t)baudrate);
+    }
+    return mp_obj_new_bool(sentai_uart_serial_open());
+}
+static const mp_obj_fun_builtin_var_t mod_sentai_uart_serial_open_obj = {{&mp_type_fun_builtin_var}, ((uint32_t)((((uint32_t)(0)) << 17) | (((uint32_t)(1)) << 1) | ((
+# 881 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
+      0
+# 881 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
+      ) ? 1 : 0))), .fun.var = mod_sentai_uart_serial_open};
+
+
+static mp_obj_t mod_sentai_uart_serial_close(void) {
+    sentai_uart_restore_baudrate();
+    sentai_uart_serial_close();
+    return ((mp_obj_t)(((0) << 3) | 6));
+}
+static const mp_obj_fun_builtin_fixed_t mod_sentai_uart_serial_close_obj = {{&mp_type_fun_builtin_0}, .fun._0 = mod_sentai_uart_serial_close};
+
+
+static mp_obj_t mod_sentai_uart_serial_write(mp_obj_t data_obj) {
+    if (!sentai_uart_serial_is_open()) {
+        mp_raise_msg(&mp_type_OSError, (mp_rom_error_text_t)"UART serial not open");
+    }
+    mp_buffer_info_t bufinfo;
+    mp_get_buffer_raise(data_obj, &bufinfo, (1));
+    int n = sentai_uart_serial_write((const uint8_t*)bufinfo.buf, bufinfo.len);
+    return mp_obj_new_int(n);
+}
+static const mp_obj_fun_builtin_fixed_t mod_sentai_uart_serial_write_obj = {{&mp_type_fun_builtin_1}, .fun._1 = mod_sentai_uart_serial_write};
+
+
+static mp_obj_t mod_sentai_uart_serial_read(size_t n_args, const mp_obj_t *args) {
+    if (!sentai_uart_serial_is_open()) {
+        mp_raise_msg(&mp_type_OSError, (mp_rom_error_text_t)"UART serial not open");
+    }
+    int max_bytes = (n_args > 0) ? mp_obj_get_int(args[0]) : 256;
+    int timeout_ms = (n_args > 1) ? mp_obj_get_int(args[1]) : 1000;
+    if (max_bytes <= 0 || max_bytes > 2048) max_bytes = 256;
+    uint8_t* buf = ((uint8_t *)(m_malloc(sizeof(uint8_t) * (max_bytes))));
+    int n = sentai_uart_serial_read(buf, max_bytes, timeout_ms);
+    if (n <= 0) {
+        ((void)(max_bytes), m_free(buf));
+        return mp_obj_new_bytes((const byte*)"", 0);
+    }
+    mp_obj_t result = mp_obj_new_bytes(buf, n);
+    ((void)(max_bytes), m_free(buf));
+    return result;
+}
+static const mp_obj_fun_builtin_var_t mod_sentai_uart_serial_read_obj = {{&mp_type_fun_builtin_var}, ((uint32_t)((((uint32_t)(0)) << 17) | (((uint32_t)(2)) << 1) | ((
+# 921 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
+      0
+# 921 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
+      ) ? 1 : 0))), .fun.var = mod_sentai_uart_serial_read};
+
+
+static mp_obj_t mod_sentai_uart_serial_available(void) {
+    return mp_obj_new_int(sentai_uart_serial_available());
+}
+static const mp_obj_fun_builtin_fixed_t mod_sentai_uart_serial_available_obj = {{&mp_type_fun_builtin_0}, .fun._0 = mod_sentai_uart_serial_available};
+# 936 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
 static const mp_rom_map_elem_t sentai_io_globals_table[] = {
     { ((mp_obj_t)((((mp_uint_t)(MP_QSTR___name__)) << 3) | 2)), ((mp_obj_t)((((mp_uint_t)(MP_QSTR_io)) << 3) | 2)) },
     { ((mp_obj_t)((((mp_uint_t)(MP_QSTR_led_on)) << 3) | 2)), (&mod_sentai_led_on_obj) },
@@ -3371,16 +3639,38 @@ static const mp_obj_module_t sentai_camera_module = {
 static const mp_rom_map_elem_t sentai_usb_globals_table[] = {
     { ((mp_obj_t)((((mp_uint_t)(MP_QSTR___name__)) << 3) | 2)), ((mp_obj_t)((((mp_uint_t)(MP_QSTR_usb)) << 3) | 2)) },
     { ((mp_obj_t)((((mp_uint_t)(MP_QSTR_drive)) << 3) | 2)), (&mod_sentai_usb_drive_obj) },
+    { ((mp_obj_t)((((mp_uint_t)(MP_QSTR_serial_open)) << 3) | 2)), (&mod_sentai_usb_serial_open_obj) },
+    { ((mp_obj_t)((((mp_uint_t)(MP_QSTR_serial_close)) << 3) | 2)), (&mod_sentai_usb_serial_close_obj) },
+    { ((mp_obj_t)((((mp_uint_t)(MP_QSTR_serial_write)) << 3) | 2)), (&mod_sentai_usb_serial_write_obj) },
+    { ((mp_obj_t)((((mp_uint_t)(MP_QSTR_serial_read)) << 3) | 2)), (&mod_sentai_usb_serial_read_obj) },
+    { ((mp_obj_t)((((mp_uint_t)(MP_QSTR_serial_available)) << 3) | 2)), (&mod_sentai_usb_serial_available_obj) },
 };
 static const mp_obj_dict_t sentai_usb_globals = { .base = {&mp_type_dict}, .map = { .all_keys_are_qstrs = 1, .is_fixed = 1, .is_ordered = 1, .used = (sizeof(sentai_usb_globals_table) / sizeof((sentai_usb_globals_table)[0])), .alloc = (sizeof(sentai_usb_globals_table) / sizeof((sentai_usb_globals_table)[0])), .table = (mp_map_elem_t *)(mp_rom_map_elem_t *)sentai_usb_globals_table, }, };
 static const mp_obj_module_t sentai_usb_module = {
     .base = { &mp_type_module },
     .globals = (mp_obj_dict_t *)&sentai_usb_globals,
 };
-# 801 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
+
+
+static const mp_rom_map_elem_t sentai_uart_globals_table[] = {
+    { ((mp_obj_t)((((mp_uint_t)(MP_QSTR___name__)) << 3) | 2)), ((mp_obj_t)((((mp_uint_t)(MP_QSTR_uart)) << 3) | 2)) },
+    { ((mp_obj_t)((((mp_uint_t)(MP_QSTR_serial_open)) << 3) | 2)), (&mod_sentai_uart_serial_open_obj) },
+    { ((mp_obj_t)((((mp_uint_t)(MP_QSTR_serial_close)) << 3) | 2)), (&mod_sentai_uart_serial_close_obj) },
+    { ((mp_obj_t)((((mp_uint_t)(MP_QSTR_serial_write)) << 3) | 2)), (&mod_sentai_uart_serial_write_obj) },
+    { ((mp_obj_t)((((mp_uint_t)(MP_QSTR_serial_read)) << 3) | 2)), (&mod_sentai_uart_serial_read_obj) },
+    { ((mp_obj_t)((((mp_uint_t)(MP_QSTR_serial_available)) << 3) | 2)), (&mod_sentai_uart_serial_available_obj) },
+};
+static const mp_obj_dict_t sentai_uart_globals = { .base = {&mp_type_dict}, .map = { .all_keys_are_qstrs = 1, .is_fixed = 1, .is_ordered = 1, .used = (sizeof(sentai_uart_globals_table) / sizeof((sentai_uart_globals_table)[0])), .alloc = (sizeof(sentai_uart_globals_table) / sizeof((sentai_uart_globals_table)[0])), .table = (mp_map_elem_t *)(mp_rom_map_elem_t *)sentai_uart_globals_table, }, };
+static const mp_obj_module_t sentai_uart_module = {
+    .base = { &mp_type_module },
+    .globals = (mp_obj_dict_t *)&sentai_uart_globals,
+};
+# 1068 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
 static const mp_rom_map_elem_t sentai_module_globals_table[] = {
     { ((mp_obj_t)((((mp_uint_t)(MP_QSTR___name__)) << 3) | 2)), ((mp_obj_t)((((mp_uint_t)(MP_QSTR_sentai)) << 3) | 2)) },
 
+    { ((mp_obj_t)((((mp_uint_t)(MP_QSTR_help)) << 3) | 2)), (&mod_sentai_help_obj) },
+    { ((mp_obj_t)((((mp_uint_t)(MP_QSTR_console)) << 3) | 2)), (&mod_sentai_console_obj) },
     { ((mp_obj_t)((((mp_uint_t)(MP_QSTR_run)) << 3) | 2)), (&mod_sentai_run_obj) },
 
     { ((mp_obj_t)((((mp_uint_t)(MP_QSTR_io)) << 3) | 2)), (&sentai_io_module) },
@@ -3389,6 +3679,7 @@ static const mp_rom_map_elem_t sentai_module_globals_table[] = {
     { ((mp_obj_t)((((mp_uint_t)(MP_QSTR_fs)) << 3) | 2)), (&sentai_fs_module) },
     { ((mp_obj_t)((((mp_uint_t)(MP_QSTR_camera)) << 3) | 2)), (&sentai_camera_module) },
     { ((mp_obj_t)((((mp_uint_t)(MP_QSTR_usb)) << 3) | 2)), (&sentai_usb_module) },
+    { ((mp_obj_t)((((mp_uint_t)(MP_QSTR_uart)) << 3) | 2)), (&sentai_uart_module) },
 };
 static const mp_obj_dict_t sentai_module_globals = { .base = {&mp_type_dict}, .map = { .all_keys_are_qstrs = 1, .is_fixed = 1, .is_ordered = 1, .used = (sizeof(sentai_module_globals_table) / sizeof((sentai_module_globals_table)[0])), .alloc = (sizeof(sentai_module_globals_table) / sizeof((sentai_module_globals_table)[0])), .table = (mp_map_elem_t *)(mp_rom_map_elem_t *)sentai_module_globals_table, }, };
 

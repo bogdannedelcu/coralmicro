@@ -8,6 +8,7 @@
 #include "py/parse.h"
 #include "py/compile.h"
 #include <string.h>
+#include <stdlib.h>
 
 // FreeRTOS - for sentai.tasks(), coral.heap() (guarded for QSTR generation pass)
 #ifndef NO_QSTR
@@ -65,6 +66,31 @@ extern int sentai_save_output(const char* path);
 // USB drive bridge - implemented in main_freertos_m7.cc
 extern int sentai_usb_drive_set(int on);
 extern int sentai_usb_drive_get(void);
+
+// USB serial bridge - implemented in modsentai_hal.cc
+extern int sentai_usb_serial_open(void);
+extern void sentai_usb_serial_close(void);
+extern int sentai_usb_serial_is_open(void);
+extern int sentai_usb_serial_write(const uint8_t* buf, int size);
+extern int sentai_usb_serial_read(uint8_t* buf, int max_size, int timeout_ms);
+extern int sentai_usb_serial_available(void);
+
+// Console REPL target - implemented in modsentai_hal.cc
+extern int sentai_console_set_target(int target);
+extern int sentai_console_get_target(void);
+
+// UART serial bridge - implemented in modsentai_hal.cc
+extern int sentai_uart_serial_open(void);
+extern void sentai_uart_serial_close(void);
+extern int sentai_uart_serial_is_open(void);
+extern int sentai_uart_serial_write(const uint8_t* buf, int size);
+extern int sentai_uart_serial_read(uint8_t* buf, int max_size, int timeout_ms);
+extern int sentai_uart_serial_available(void);
+extern void sentai_uart_set_baudrate(uint32_t baudrate);
+extern void sentai_uart_restore_baudrate(void);
+
+// Help file reading from system flash partition
+extern int sentai_help_read(char* buf, int max_size);
 
 // Check USB drive state; raise OSError if active.
 // Filesystem is unmounted while USB MSC is active — Python must not
@@ -423,14 +449,17 @@ static mp_obj_t mod_sentai_cam_jpeg(size_t n_args, const mp_obj_t *args) {
     int h = sentai_cam_get_height();
     // Max JPEG buffer - typically much smaller than RGB
     int max_jpeg = w * h;  // generous upper bound
-    uint8_t* buf = m_new(uint8_t, max_jpeg);
+    uint8_t* buf = (uint8_t*)malloc(max_jpeg);
+    if (!buf) {
+        mp_raise_msg(&mp_type_MemoryError, MP_ERROR_TEXT("jpeg buf alloc"));
+    }
     int jpeg_size = sentai_cam_capture_jpeg(buf, max_jpeg, w, h, quality);
     if (jpeg_size <= 0) {
-        m_del(uint8_t, buf, max_jpeg);
+        free(buf);
         mp_raise_msg(&mp_type_RuntimeError, MP_ERROR_TEXT("cam capture fail"));
     }
     mp_obj_t result = mp_obj_new_bytes(buf, jpeg_size);
-    m_del(uint8_t, buf, max_jpeg);
+    free(buf);
     return result;
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_cam_jpeg_obj, 0, 1, mod_sentai_cam_jpeg);
@@ -450,14 +479,17 @@ static mp_obj_t mod_sentai_cam_save_jpeg(size_t n_args, const mp_obj_t *args) {
     int w = sentai_cam_get_width();
     int h = sentai_cam_get_height();
     int max_jpeg = w * h;
-    uint8_t* buf = m_new(uint8_t, max_jpeg);
+    uint8_t* buf = (uint8_t*)malloc(max_jpeg);
+    if (!buf) {
+        mp_raise_msg(&mp_type_MemoryError, MP_ERROR_TEXT("jpeg buf alloc"));
+    }
     int jpeg_size = sentai_cam_capture_jpeg(buf, max_jpeg, w, h, quality);
     if (jpeg_size <= 0) {
-        m_del(uint8_t, buf, max_jpeg);
+        free(buf);
         mp_raise_msg(&mp_type_RuntimeError, MP_ERROR_TEXT("cam capture fail"));
     }
     int ok = sentai_fs_write(path, buf, jpeg_size);
-    m_del(uint8_t, buf, max_jpeg);
+    free(buf);
     if (!ok) {
         mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("write fail"));
     }
@@ -501,11 +533,83 @@ static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_cam_switch_obj, mod_sentai_cam_switc
 
 // sentai.usb_drive(on) -> int (1=enabled, 0=disabled)
 // Enable/disable USB mass storage. 1=drive visible to host, 0=ejected.
+// Auto-switches REPL to UART when mounting drive.
 static mp_obj_t mod_sentai_usb_drive(mp_obj_t on_obj) {
     int on = mp_obj_get_int(on_obj);
+    if (on) {
+        // Auto-switch REPL to UART when mounting USB drive
+        sentai_console_set_target(1);  // 1 = UART
+    }
     return mp_obj_new_int(sentai_usb_drive_set(on));
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_usb_drive_obj, mod_sentai_usb_drive);
+
+// ===================== USB Serial functions =====================
+
+// sentai.usb.serial_open() -> bool
+// Opens USB CDC ACM port for Python serial I/O.
+// Requires REPL on UART. Fails if USB drive is active.
+static mp_obj_t mod_sentai_usb_serial_open(void) {
+    if (sentai_console_get_target() != 1) {
+        mp_raise_msg(&mp_type_OSError,
+            MP_ERROR_TEXT("REPL must be on UART: call sentai.console('uart')"));
+    }
+    if (sentai_usb_drive_get()) {
+        mp_raise_msg(&mp_type_OSError,
+            MP_ERROR_TEXT("USB drive active: call sentai.usb.drive(0) first"));
+    }
+    return mp_obj_new_bool(sentai_usb_serial_open());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_usb_serial_open_obj, mod_sentai_usb_serial_open);
+
+// sentai.usb.serial_close()
+// Returns USB CDC ACM to normal console mode.
+static mp_obj_t mod_sentai_usb_serial_close(void) {
+    sentai_usb_serial_close();
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_usb_serial_close_obj, mod_sentai_usb_serial_close);
+
+// sentai.usb.serial_write(data) -> int (bytes written, -1 on error)
+// data: str or bytes
+static mp_obj_t mod_sentai_usb_serial_write(mp_obj_t data_obj) {
+    if (!sentai_usb_serial_is_open()) {
+        mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("serial not open"));
+    }
+    mp_buffer_info_t bufinfo;
+    mp_get_buffer_raise(data_obj, &bufinfo, MP_BUFFER_READ);
+    int n = sentai_usb_serial_write((const uint8_t*)bufinfo.buf, bufinfo.len);
+    return mp_obj_new_int(n);
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_usb_serial_write_obj, mod_sentai_usb_serial_write);
+
+// sentai.usb.serial_read(max_bytes=256, timeout_ms=1000) -> bytes
+// Returns up to max_bytes of data received from USB host.
+// timeout_ms: -1=block forever, 0=non-blocking, >0=wait up to N ms
+static mp_obj_t mod_sentai_usb_serial_read(size_t n_args, const mp_obj_t *args) {
+    if (!sentai_usb_serial_is_open()) {
+        mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("serial not open"));
+    }
+    int max_bytes = (n_args > 0) ? mp_obj_get_int(args[0]) : 256;
+    int timeout_ms = (n_args > 1) ? mp_obj_get_int(args[1]) : 1000;
+    if (max_bytes <= 0 || max_bytes > 2048) max_bytes = 256;
+    uint8_t* buf = m_new(uint8_t, max_bytes);
+    int n = sentai_usb_serial_read(buf, max_bytes, timeout_ms);
+    if (n <= 0) {
+        m_del(uint8_t, buf, max_bytes);
+        return mp_obj_new_bytes((const byte*)"", 0);
+    }
+    mp_obj_t result = mp_obj_new_bytes(buf, n);
+    m_del(uint8_t, buf, max_bytes);
+    return result;
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_usb_serial_read_obj, 0, 2, mod_sentai_usb_serial_read);
+
+// sentai.usb.serial_available() -> int (bytes waiting in RX buffer)
+static mp_obj_t mod_sentai_usb_serial_available(void) {
+    return mp_obj_new_int(sentai_usb_serial_available());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_usb_serial_available_obj, mod_sentai_usb_serial_available);
 
 // sentai.load_model(path) - Load a TFLite model from flash
 static mp_obj_t mod_sentai_load_model(mp_obj_t path_obj) {
@@ -680,9 +784,180 @@ static mp_obj_t mod_sentai_uptime(void) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_uptime_obj, mod_sentai_uptime);
 
+// ===================== Help system (flash-based) =====================
+
+// Search for "[section_name]" in buf and return pointers to content
+static int help_find_section(const char* buf, int len, const char* section,
+                             const char** out_start, const char** out_end) {
+    char marker[32];
+    int mlen = snprintf(marker, sizeof(marker), "[%s]", section);
+    const char* buf_end = buf + len;
+
+    for (const char* p = buf; p < buf_end - mlen; p++) {
+        if ((p == buf || *(p-1) == '\n') && memcmp(p, marker, mlen) == 0) {
+            const char* start = p + mlen;
+            while (start < buf_end && *start != '\n') start++;
+            if (start < buf_end) start++;
+            const char* end = start;
+            while (end < buf_end) {
+                if (*end == '[' && (end == start || *(end-1) == '\n')) break;
+                end++;
+            }
+            *out_start = start;
+            *out_end = end;
+            return 1;
+        }
+    }
+    return 0;
+}
+
+// Print text line-by-line with \r\n, using mp_print_str for each line.
+// This avoids the cooked-output path that fragments USB CDC packets.
+static void help_print(const char *text, int len) {
+    const char *p = text;
+    const char *end = text + len;
+    char line[120];
+    while (p < end) {
+        const char *nl = p;
+        while (nl < end && *nl != '\n') nl++;
+        int llen = nl - p;
+        if (llen > (int)sizeof(line) - 3) llen = (int)sizeof(line) - 3;
+        memcpy(line, p, llen);
+        line[llen] = '\r';
+        line[llen+1] = '\n';
+        line[llen+2] = '\0';
+        mp_print_str(MP_PYTHON_PRINTER, line);
+        p = (nl < end) ? nl + 1 : end;
+    }
+}
+
+// sentai.help([topic]) — read and print help from flash
+// topic: "io", "rtos", "tpu", "fs", "camera", "usb", "uart", "console", "all"
+static mp_obj_t mod_sentai_help(size_t n_args, const mp_obj_t *args) {
+    const char* topic = (n_args > 0) ? mp_obj_str_get_str(args[0]) : NULL;
+
+    #define HELP_BUF_SIZE 4096
+    char* hbuf = (char*)malloc(HELP_BUF_SIZE);
+    if (!hbuf) {
+        mp_raise_msg(&mp_type_MemoryError, MP_ERROR_TEXT("help buf alloc"));
+    }
+    int n = sentai_help_read(hbuf, HELP_BUF_SIZE);
+
+    if (n <= 0) {
+        free(hbuf);
+        mp_print_str(MP_PYTHON_PRINTER, "Help file not found on flash.\r\n");
+        return mp_const_none;
+    }
+
+    if (topic == NULL) {
+        const char *start, *end;
+        if (help_find_section(hbuf, n, "overview", &start, &end)) {
+            help_print(start, end - start);
+        }
+    } else if (strcmp(topic, "all") == 0) {
+        help_print(hbuf, n);
+    } else {
+        const char *start, *end;
+        if (help_find_section(hbuf, n, topic, &start, &end)) {
+            help_print(start, end - start);
+        } else {
+            mp_print_str(MP_PYTHON_PRINTER,
+                "Unknown topic. Available: io, rtos, tpu, fs, camera, usb, uart, console, all\r\n");
+        }
+    }
+
+    free(hbuf);
+    #undef HELP_BUF_SIZE
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_help_obj, 0, 1, mod_sentai_help);
+
+// ===================== Console REPL target =====================
+
+// sentai.console([target]) -> str
+// Get or set the REPL console target ("usb" or "uart").
+static mp_obj_t mod_sentai_console(size_t n_args, const mp_obj_t *args) {
+    if (n_args > 0) {
+        const char* target = mp_obj_str_get_str(args[0]);
+        if (strcmp(target, "usb") == 0) {
+            sentai_console_set_target(0);
+        } else if (strcmp(target, "uart") == 0) {
+            sentai_console_set_target(1);
+        } else {
+            mp_raise_ValueError(MP_ERROR_TEXT("use 'usb' or 'uart'"));
+        }
+    }
+    int t = sentai_console_get_target();
+    return mp_obj_new_str(t == 0 ? "usb" : "uart", t == 0 ? 3 : 4);
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_console_obj, 0, 1, mod_sentai_console);
+
+// ===================== UART Serial functions =====================
+
+// sentai.uart.serial_open(baudrate=115200) -> bool
+static mp_obj_t mod_sentai_uart_serial_open(size_t n_args, const mp_obj_t *args) {
+    int baudrate = (n_args > 0) ? mp_obj_get_int(args[0]) : 115200;
+    if (sentai_console_get_target() != 0) {
+        mp_raise_msg(&mp_type_OSError,
+            MP_ERROR_TEXT("REPL must be on USB: call sentai.console('usb')"));
+    }
+    if (baudrate != 115200 && baudrate > 0) {
+        sentai_uart_set_baudrate((uint32_t)baudrate);
+    }
+    return mp_obj_new_bool(sentai_uart_serial_open());
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_uart_serial_open_obj, 0, 1, mod_sentai_uart_serial_open);
+
+// sentai.uart.serial_close()
+static mp_obj_t mod_sentai_uart_serial_close(void) {
+    sentai_uart_restore_baudrate();
+    sentai_uart_serial_close();
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_uart_serial_close_obj, mod_sentai_uart_serial_close);
+
+// sentai.uart.serial_write(data) -> int
+static mp_obj_t mod_sentai_uart_serial_write(mp_obj_t data_obj) {
+    if (!sentai_uart_serial_is_open()) {
+        mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("UART serial not open"));
+    }
+    mp_buffer_info_t bufinfo;
+    mp_get_buffer_raise(data_obj, &bufinfo, MP_BUFFER_READ);
+    int n = sentai_uart_serial_write((const uint8_t*)bufinfo.buf, bufinfo.len);
+    return mp_obj_new_int(n);
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_uart_serial_write_obj, mod_sentai_uart_serial_write);
+
+// sentai.uart.serial_read(max_bytes=256, timeout_ms=1000) -> bytes
+static mp_obj_t mod_sentai_uart_serial_read(size_t n_args, const mp_obj_t *args) {
+    if (!sentai_uart_serial_is_open()) {
+        mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("UART serial not open"));
+    }
+    int max_bytes = (n_args > 0) ? mp_obj_get_int(args[0]) : 256;
+    int timeout_ms = (n_args > 1) ? mp_obj_get_int(args[1]) : 1000;
+    if (max_bytes <= 0 || max_bytes > 2048) max_bytes = 256;
+    uint8_t* buf = m_new(uint8_t, max_bytes);
+    int n = sentai_uart_serial_read(buf, max_bytes, timeout_ms);
+    if (n <= 0) {
+        m_del(uint8_t, buf, max_bytes);
+        return mp_obj_new_bytes((const byte*)"", 0);
+    }
+    mp_obj_t result = mp_obj_new_bytes(buf, n);
+    m_del(uint8_t, buf, max_bytes);
+    return result;
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_uart_serial_read_obj, 0, 2, mod_sentai_uart_serial_read);
+
+// sentai.uart.serial_available() -> int
+static mp_obj_t mod_sentai_uart_serial_available(void) {
+    return mp_obj_new_int(sentai_uart_serial_available());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_uart_serial_available_obj, mod_sentai_uart_serial_available);
+
 // =====================================================================
 // Sub-module definitions: sentai.io, sentai.rtos, sentai.tpu,
-//                         sentai.fs, sentai.camera, sentai.usb
+//                         sentai.fs, sentai.camera, sentai.usb,
+//                         sentai.uart
 // =====================================================================
 
 // ============== sentai.io — LED / GPIO ==============
@@ -774,15 +1049,35 @@ static const mp_obj_module_t sentai_camera_module = {
     .globals = (mp_obj_dict_t *)&sentai_camera_globals,
 };
 
-// ============== sentai.usb — USB mass storage ==============
+// ============== sentai.usb — USB mass storage + serial ==============
 static const mp_rom_map_elem_t sentai_usb_globals_table[] = {
-    { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_usb) },
-    { MP_ROM_QSTR(MP_QSTR_drive),    MP_ROM_PTR(&mod_sentai_usb_drive_obj) },
+    { MP_ROM_QSTR(MP_QSTR___name__),          MP_ROM_QSTR(MP_QSTR_usb) },
+    { MP_ROM_QSTR(MP_QSTR_drive),             MP_ROM_PTR(&mod_sentai_usb_drive_obj) },
+    { MP_ROM_QSTR(MP_QSTR_serial_open),       MP_ROM_PTR(&mod_sentai_usb_serial_open_obj) },
+    { MP_ROM_QSTR(MP_QSTR_serial_close),      MP_ROM_PTR(&mod_sentai_usb_serial_close_obj) },
+    { MP_ROM_QSTR(MP_QSTR_serial_write),      MP_ROM_PTR(&mod_sentai_usb_serial_write_obj) },
+    { MP_ROM_QSTR(MP_QSTR_serial_read),       MP_ROM_PTR(&mod_sentai_usb_serial_read_obj) },
+    { MP_ROM_QSTR(MP_QSTR_serial_available),  MP_ROM_PTR(&mod_sentai_usb_serial_available_obj) },
 };
 static MP_DEFINE_CONST_DICT(sentai_usb_globals, sentai_usb_globals_table);
 static const mp_obj_module_t sentai_usb_module = {
     .base = { &mp_type_module },
     .globals = (mp_obj_dict_t *)&sentai_usb_globals,
+};
+
+// ============== sentai.uart — UART serial I/O ==============
+static const mp_rom_map_elem_t sentai_uart_globals_table[] = {
+    { MP_ROM_QSTR(MP_QSTR___name__),          MP_ROM_QSTR(MP_QSTR_uart) },
+    { MP_ROM_QSTR(MP_QSTR_serial_open),       MP_ROM_PTR(&mod_sentai_uart_serial_open_obj) },
+    { MP_ROM_QSTR(MP_QSTR_serial_close),      MP_ROM_PTR(&mod_sentai_uart_serial_close_obj) },
+    { MP_ROM_QSTR(MP_QSTR_serial_write),      MP_ROM_PTR(&mod_sentai_uart_serial_write_obj) },
+    { MP_ROM_QSTR(MP_QSTR_serial_read),       MP_ROM_PTR(&mod_sentai_uart_serial_read_obj) },
+    { MP_ROM_QSTR(MP_QSTR_serial_available),  MP_ROM_PTR(&mod_sentai_uart_serial_available_obj) },
+};
+static MP_DEFINE_CONST_DICT(sentai_uart_globals, sentai_uart_globals_table);
+static const mp_obj_module_t sentai_uart_module = {
+    .base = { &mp_type_module },
+    .globals = (mp_obj_dict_t *)&sentai_uart_globals,
 };
 
 // =====================================================================
@@ -800,15 +1095,18 @@ static const mp_obj_module_t sentai_usb_module = {
 
 static const mp_rom_map_elem_t sentai_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_sentai) },
-    // Script execution
-    { MP_ROM_QSTR(MP_QSTR_run),      MP_ROM_PTR(&mod_sentai_run_obj) },
+    // Help, console control & script execution
+    { MP_ROM_QSTR(MP_QSTR_help),      MP_ROM_PTR(&mod_sentai_help_obj) },
+    { MP_ROM_QSTR(MP_QSTR_console),   MP_ROM_PTR(&mod_sentai_console_obj) },
+    { MP_ROM_QSTR(MP_QSTR_run),       MP_ROM_PTR(&mod_sentai_run_obj) },
     // Sub-modules
-    { MP_ROM_QSTR(MP_QSTR_io),       MP_ROM_PTR(&sentai_io_module) },
-    { MP_ROM_QSTR(MP_QSTR_rtos),     MP_ROM_PTR(&sentai_rtos_module) },
-    { MP_ROM_QSTR(MP_QSTR_tpu),      MP_ROM_PTR(&sentai_tpu_module) },
-    { MP_ROM_QSTR(MP_QSTR_fs),       MP_ROM_PTR(&sentai_fs_module) },
-    { MP_ROM_QSTR(MP_QSTR_camera),   MP_ROM_PTR(&sentai_camera_module) },
-    { MP_ROM_QSTR(MP_QSTR_usb),      MP_ROM_PTR(&sentai_usb_module) },
+    { MP_ROM_QSTR(MP_QSTR_io),        MP_ROM_PTR(&sentai_io_module) },
+    { MP_ROM_QSTR(MP_QSTR_rtos),      MP_ROM_PTR(&sentai_rtos_module) },
+    { MP_ROM_QSTR(MP_QSTR_tpu),       MP_ROM_PTR(&sentai_tpu_module) },
+    { MP_ROM_QSTR(MP_QSTR_fs),        MP_ROM_PTR(&sentai_fs_module) },
+    { MP_ROM_QSTR(MP_QSTR_camera),    MP_ROM_PTR(&sentai_camera_module) },
+    { MP_ROM_QSTR(MP_QSTR_usb),       MP_ROM_PTR(&sentai_usb_module) },
+    { MP_ROM_QSTR(MP_QSTR_uart),      MP_ROM_PTR(&sentai_uart_module) },
 };
 static MP_DEFINE_CONST_DICT(sentai_module_globals, sentai_module_globals_table);
 

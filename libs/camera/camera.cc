@@ -779,7 +779,7 @@ camera::EnableResponse CameraTask::HandleEnableRequest(const CameraMode& mode) {
   }
 
   status = CAMERA_RECEIVER_Start(&cameraReceiver);
-  printf("CAMERA_RECEIVER_Start = %ld\n", status);
+  printf("CAMERA_RECEIVER_Start = %ld\r\n", status);
 
   resp.success = (status == kStatus_Success);
 
@@ -810,7 +810,7 @@ void CameraTask::HandleDisableRequest() {
   enabled_ = false;
 
   status_t status = CAMERA_RECEIVER_Stop(&cameraReceiver);
-  printf("CAMERA_RECEIVER_Stop = %ld\n", status);
+  printf("CAMERA_RECEIVER_Stop = %ld\r\n", status);
 }
 
 camera::PowerResponse CameraTask::HandlePowerRequest(
@@ -879,7 +879,7 @@ camera::FrameResponse CameraTask::HandleFrameRequest(
     int n = 40;
     bool state = true;
 
-    DBG_OUTPUT ("CAMERA_RECEIVER_GetFullBuffer:waiting...\n");
+    DBG_OUTPUT ("CAMERA_RECEIVER_GetFullBuffer:waiting...\r\n");
 
     while(n--)
     {
@@ -897,10 +897,10 @@ camera::FrameResponse CameraTask::HandleFrameRequest(
       }
     }
 
-    DBG_OUTPUT("CAMERA_RECEIVER_GetFullBuffer = %ld\n", status);
+    DBG_OUTPUT("CAMERA_RECEIVER_GetFullBuffer = %ld\r\n", status);
 
     if (status == kStatus_Success) {
-      DBG_OUTPUT ("CAMERA_RECEIVER_GetFullBuffer:status = OK, invalidate %u bytes\n",
+      DBG_OUTPUT ("CAMERA_RECEIVER_GetFullBuffer:status = OK, invalidate %u bytes\r\n",
                   (unsigned)(DEMO_CAMERA_HEIGHT * (DEMO_CAMERA_WIDTH + LINE_PADDING) * DEMO_CAMERA_BUFFER_BPP));
 #if (__CORTEX_M == 7) || (__CORTEX_M == 4)
       DCACHE_InvalidateByRange(buffer,
@@ -938,7 +938,7 @@ camera::FrameResponse CameraTask::HandleFrameRequest(
                                     DEMO_CAMERA_HEIGHT * (DEMO_CAMERA_WIDTH + LINE_PADDING) * DEMO_CAMERA_BUFFER_BPP);
 #endif
       status = CAMERA_RECEIVER_SubmitEmptyBuffer(&cameraReceiver, (uint32_t)buffer);
-      DBG_OUTPUT ("CAMERA_RECEIVER_SubmitEmptyBuffer:status = %ld\n", status);
+      DBG_OUTPUT ("CAMERA_RECEIVER_SubmitEmptyBuffer:status = %ld\r\n", status);
     }
   }
 

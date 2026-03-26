@@ -66,6 +66,8 @@ add_executable_m7(sentai_runtime
     LINKER_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/MIMXRT1176xxxxx_cm7_ram_mp.ld
     sentai_runtime.cc
     modsentai_hal.cc
+    DATA
+    help.txt
 )
 
 target_link_libraries(sentai_runtime

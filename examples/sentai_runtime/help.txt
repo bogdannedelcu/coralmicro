@@ -1,0 +1,117 @@
+[overview]
+sentai - Coral Dev Board Micro Python Runtime
+==============================================
+  sentai.help()          Show this help
+  sentai.help('tpu')     Help for a specific sub-module
+  sentai.help('all')     Show all documentation
+  sentai.run(path)       Execute a .py script from flash
+  sentai.console(target) Set REPL target: 'usb' or 'uart'
+
+Sub-modules:
+  sentai.io       LED / GPIO control
+  sentai.rtos     FreeRTOS system info
+  sentai.tpu      EdgeTPU inference
+  sentai.fs       Filesystem (LittleFS)
+  sentai.camera   Camera capture
+  sentai.usb      USB mass-storage & serial
+  sentai.uart     UART serial I/O
+
+[io]
+sentai.io - LED / GPIO
+======================
+  led_on()        Turn user LED on (green)
+  led_off()       Turn user LED off
+
+[rtos]
+sentai.rtos - FreeRTOS system
+=============================
+  sleep_ms(ms)    Sleep for ms milliseconds
+  ticks_ms()      Monotonic ms counter (wraps at 2^32)
+  tasks()         List tasks: [(name, state, prio, stack_hwm)]
+  heap()          Heap stats dict {rtos_free, gc_total, gc_used, ...}
+  cpu()           CPU usage: [(name, percent)]
+  uptime()        Seconds since boot
+
+[tpu]
+sentai.tpu - EdgeTPU inference
+==============================
+  load(path)            Load .tflite model from flash
+  load_image(path)      Load image into input tensor
+  invoke()              Run inference -> ms elapsed (-1=not ready)
+  ready()               True if model & interpreter ready
+  num_outputs()         Number of output tensors
+  output_size(idx)      Byte size of output tensor idx
+  output(idx)           Raw bytes of output tensor idx
+  output_dims(idx)      Shape tuple, e.g. (1, 1344, 5)
+  output_type(idx)      TfLiteType (3=uint8, 9=int8, 2=int32)
+  row(idx, r)           Tuple of values at row r
+  val(idx, flat_i)      Single value at flat index
+  save_output(path)     Save all outputs to CSV file
+
+[fs]
+sentai.fs - Filesystem (LittleFS)
+=================================
+  read(path)            Read file -> bytes
+  read_str(path)        Read file -> str
+  read_base64(path)     Read file -> base64 str (also printed)
+  write(path, data)     Write bytes/str -> bool
+  size(path)            File size in bytes (-1 if missing)
+  exists(path)          True if file or dir exists
+  remove(path)          Delete file -> bool
+  mkdir(path)           Create directory (mkdir -p) -> bool
+  ls(path)              List dir -> [(name, type, size)]
+                        type: 1=file, 2=dir
+  format()              Reformat user partition (erases all!)
+
+[camera]
+sentai.camera - Camera
+======================
+  init(streaming=1)     Start camera (1=continuous, 0=trigger)
+  stop()                Stop camera
+  jpeg(quality=75)      Capture -> JPEG bytes
+  save_jpeg(path, q=75) Capture + save JPEG to flash
+  to_tensor()           Capture frame -> TPU input tensor
+  res()                 Current resolution -> (w, h)
+  set_res(w, h)         Set capture resolution
+  native_res()          Sensor native resolution -> (w, h)
+  switch(id)            Switch camera (0=front, 1=back)
+
+[usb]
+sentai.usb - USB mass-storage & serial
+=======================================
+  drive(on)             1=expose flash as USB drive, 0=eject
+                        REPL auto-switches to UART when active.
+                        Filesystem is locked while drive is on.
+
+  serial_open()         Open USB CDC ACM for Python serial I/O
+                        Requires REPL on UART (sentai.console('uart'))
+  serial_close()        Return CDC ACM to normal
+  serial_write(data)    Send bytes/str to USB host -> int
+  serial_read(max=256, timeout_ms=1000)
+                        Read from USB host -> bytes
+                        timeout: -1=block, 0=poll, >0=ms
+  serial_available()    Bytes waiting in RX buffer
+
+[uart]
+sentai.uart - UART serial I/O
+==============================
+  Available when REPL is on USB (default).
+  UART = LPUART6 on /dev/ttyUSB0 via FTDI.
+
+  serial_open(baud=115200)  Open UART for serial I/O
+                            Supported: 9600..921600
+  serial_close()            Close UART serial, restore 115200
+  serial_write(data)        Send bytes/str over UART -> int
+  serial_read(max=256, timeout_ms=1000)
+                            Read from UART -> bytes
+  serial_available()        Bytes waiting in RX buffer
+
+[console]
+sentai.console - REPL target control
+=====================================
+  sentai.console()        Return current target: 'usb' or 'uart'
+  sentai.console('usb')   Move REPL to USB CDC ACM (/dev/ttyACM0)
+  sentai.console('uart')  Move REPL to UART (/dev/ttyUSB0)
+
+  Default: USB. Auto-switches to UART when USB drive is mounted.
+  The non-REPL peripheral is available for serial I/O.

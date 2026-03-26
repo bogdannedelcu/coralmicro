@@ -7,6 +7,7 @@
 #include "third_party/freertos_kernel/include/FreeRTOS.h"
 #include "third_party/freertos_kernel/include/task.h"
 #include "third_party/nxp/rt1176-sdk/middleware/littlefs/lfs.h"
+#include "third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_lpuart.h"
 
 #include <cstring>
 #include <vector>
@@ -102,6 +103,102 @@ int sentai_fs_listdir(const char* path,
     }
     lfs_dir_close(coralmicro::LfsUser(), &dir);
     return count;
+}
+
+// ===================== USB Serial bridge =====================
+// Reuses the console's CDC ACM port (ttyACM0 on host).
+// When open: printf goes to UART only, USB is reserved for Python.
+// When closed: normal console (printf → UART + USB).
+
+int sentai_usb_serial_open(void) {
+    return coralmicro::ConsoleM7::GetSingleton()->UsbSerialOpen() ? 1 : 0;
+}
+
+void sentai_usb_serial_close(void) {
+    coralmicro::ConsoleM7::GetSingleton()->UsbSerialClose();
+}
+
+int sentai_usb_serial_is_open(void) {
+    return coralmicro::ConsoleM7::GetSingleton()->UsbSerialIsOpen() ? 1 : 0;
+}
+
+int sentai_usb_serial_write(const uint8_t* buf, int size) {
+    return coralmicro::ConsoleM7::GetSingleton()->UsbTransmit(buf, (size_t)size) ? size : -1;
+}
+
+int sentai_usb_serial_read(uint8_t* buf, int max_size, int timeout_ms) {
+    return coralmicro::ConsoleM7::GetSingleton()->UsbRead(buf, max_size, timeout_ms);
+}
+
+int sentai_usb_serial_available(void) {
+    return coralmicro::ConsoleM7::GetSingleton()->UsbAvailable();
+}
+
+// ===================== REPL target control =====================
+
+int sentai_console_set_target(int target) {
+    using RT = coralmicro::ConsoleM7::ReplTarget;
+    auto t = (target == 0) ? RT::kUsb : RT::kUart;
+    coralmicro::ConsoleM7::GetSingleton()->SetReplTarget(t);
+    return 0;
+}
+
+int sentai_console_get_target(void) {
+    using RT = coralmicro::ConsoleM7::ReplTarget;
+    return (coralmicro::ConsoleM7::GetSingleton()->GetReplTarget() == RT::kUsb) ? 0 : 1;
+}
+
+// ===================== UART Serial bridge =====================
+
+int sentai_uart_serial_open(void) {
+    return coralmicro::ConsoleM7::GetSingleton()->UartSerialOpen() ? 1 : 0;
+}
+
+void sentai_uart_serial_close(void) {
+    coralmicro::ConsoleM7::GetSingleton()->UartSerialClose();
+}
+
+int sentai_uart_serial_is_open(void) {
+    return coralmicro::ConsoleM7::GetSingleton()->UartSerialIsOpen() ? 1 : 0;
+}
+
+int sentai_uart_serial_write(const uint8_t* buf, int size) {
+    return coralmicro::ConsoleM7::GetSingleton()->UartTransmit(buf, (size_t)size) ? size : -1;
+}
+
+int sentai_uart_serial_read(uint8_t* buf, int max_size, int timeout_ms) {
+    return coralmicro::ConsoleM7::GetSingleton()->UartRead(buf, max_size, timeout_ms);
+}
+
+int sentai_uart_serial_available(void) {
+    return coralmicro::ConsoleM7::GetSingleton()->UartAvailable();
+}
+
+// ===================== UART baudrate =====================
+// LPUART6 is the M7 debug console UART.
+// Clock source: OSC_RC_48M_DIV2 = 24 MHz (configured in board init).
+
+#define LPUART6_CLOCK_FREQ  24000000U
+
+void sentai_uart_set_baudrate(uint32_t baudrate) {
+    LPUART_SetBaudRate(LPUART6, baudrate, LPUART6_CLOCK_FREQ);
+}
+
+void sentai_uart_restore_baudrate(void) {
+    LPUART_SetBaudRate(LPUART6, 115200U, LPUART6_CLOCK_FREQ);
+}
+
+// ===================== Help file (system partition) =====================
+
+int sentai_help_read(char* buf, int max_size) {
+    size_t n = coralmicro::LfsReadFile(
+        "examples/sentai_runtime/help.txt",
+        reinterpret_cast<uint8_t*>(buf), (size_t)(max_size - 1));
+    if (n > 0) {
+        buf[n] = '\0';
+        return (int)n;
+    }
+    return -1;
 }
 
 }  // extern "C"
