@@ -946,6 +946,8 @@ Q(rfind)
 
 Q(rindex)
 
+Q(rotate)
+
 Q(round)
 
 Q(row)

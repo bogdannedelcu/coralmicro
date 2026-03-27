@@ -46,8 +46,8 @@
 #define DEMO_CAMERA_BUFFER_BPP 1
 #endif
 
-#define DBG_OUTPUT(...)  printf(__VA_ARGS__)
-// #define DBG_OUTPUT(...)
+// #define DBG_OUTPUT(...)  printf(__VA_ARGS__)
+#define DBG_OUTPUT(...)
 
 // #define DEBUG_LINE()  printf("D:%s:%d\n", __FILE__, __LINE__)
 
@@ -534,6 +534,92 @@ bool CameraTask::Write(uint16_t reg, const uint8_t *val, int size) {
   return status1 == kStatus_Success;
 }
 
+bool CameraTask::WriteToCam(int cam_id, uint16_t reg, uint8_t val) {
+  lpi2c_rtos_handle_t* handle = (cam_id == 0) ? i2c_handle_ : i2c_handle2_;
+  if (!handle) return false;
+
+  lpi2c_master_transfer_t transfer;
+  transfer.flags = kLPI2C_TransferDefaultFlag;
+  transfer.slaveAddress = kCameraAddress;
+  transfer.direction = kLPI2C_Write;
+  transfer.subaddress = static_cast<uint16_t>(reg);
+  transfer.subaddressSize = sizeof(reg);
+  transfer.data = &val;
+  transfer.dataSize = 1;
+
+  status_t status = LPI2C_RTOS_Transfer(handle, &transfer);
+  printf("[CAM%d] W 0x%04X=0x%02X (%ld)\r\n", cam_id, reg, val, status);
+  return status == kStatus_Success;
+}
+
+bool CameraTask::ReadFromCam(int cam_id, uint16_t reg, uint8_t* val) {
+  lpi2c_rtos_handle_t* handle = (cam_id == 0) ? i2c_handle_ : i2c_handle2_;
+  if (!handle) return false;
+
+  lpi2c_master_transfer_t transfer;
+  transfer.flags = kLPI2C_TransferDefaultFlag;
+  transfer.slaveAddress = kCameraAddress;
+  transfer.direction = kLPI2C_Read;
+  transfer.subaddress = static_cast<uint16_t>(reg);
+  transfer.subaddressSize = sizeof(reg);
+  transfer.data = val;
+  transfer.dataSize = 1;
+
+  status_t status = LPI2C_RTOS_Transfer(handle, &transfer);
+  return status == kStatus_Success;
+}
+
+bool CameraTask::SetCameraRotation(int cam_id, int degrees) {
+  // OV5640 rotation via mirror/flip registers:
+  //   0x3820 bit[2]=ISP vflip,  bit[1]=sensor vflip
+  //   0x3821 bit[2]=ISP mirror, bit[1]=sensor mirror
+  //
+  // We read-modify-write to preserve other bits (bit0, bit6, etc.)
+  //   0°   = no mirror, no flip
+  //   90°  = mirror only (horizontal flip)
+  //   180° = mirror + flip
+  //   270° = flip only (vertical flip)
+
+  bool do_mirror = false, do_flip = false;
+  switch (degrees) {
+    case 0:   do_mirror = false; do_flip = false; break;
+    case 90:  do_mirror = true;  do_flip = false; break;
+    case 180: do_mirror = true;  do_flip = true;  break;
+    case 270: do_mirror = false; do_flip = true;  break;
+    default:
+      printf("[CAM%d] SetCameraRotation: invalid degrees %d\r\n", cam_id, degrees);
+      return false;
+  }
+
+  uint8_t reg20 = 0, reg21 = 0;
+  if (!ReadFromCam(cam_id, 0x3820, &reg20)) return false;
+  if (!ReadFromCam(cam_id, 0x3821, &reg21)) return false;
+
+  printf("[CAM%d] Rotation %d° (mirror=%d flip=%d) reg20=0x%02X reg21=0x%02X ->",
+         cam_id, degrees, do_mirror, do_flip, reg20, reg21);
+
+  // Set/clear vflip bits (bit1 + bit2) in 0x3820
+  if (do_flip) {
+    reg20 |=  0x06;  // set bits 1,2
+  } else {
+    reg20 &= ~0x06;  // clear bits 1,2
+  }
+
+  // Set/clear mirror bits (bit1 + bit2) in 0x3821
+  if (do_mirror) {
+    reg21 |=  0x06;  // set bits 1,2
+  } else {
+    reg21 &= ~0x06;  // clear bits 1,2
+  }
+
+  printf(" reg20=0x%02X reg21=0x%02X\r\n", reg20, reg21);
+
+  if (!WriteToCam(cam_id, 0x3820, reg20)) return false;
+  if (!WriteToCam(cam_id, 0x3821, reg21)) return false;
+
+  return true;
+}
+
 void CameraTask::Init(lpi2c_rtos_handle_t* i2c_handle, lpi2c_rtos_handle_t* i2c_handle2) {
   QueueTask::Init();
   i2c_handle_ = i2c_handle;
@@ -716,43 +802,46 @@ bool CameraTask::VideoConvert(uint32_t in)
 }
 
 void CameraTask::HandleSwitchCameraRequest(const SwitchCameraId cameraId) {
-  bool discard = false;
 
+  // CSI keeps running — do NOT stop it. Stopping CSI kills the MIPI bridge
+  // sync and CSI_TransferStart alone cannot recover it.
+  //
+  // Strategy: switch MUX, wait for MIPI re-lock + new frames, drain stale buffers.
+
+  // 1. Switch MUX GPIO (CSI still running — at most one frame will be mixed)
   switch(cameraId) {
     case coralmicro::SwitchCameraId::kCameraBack:
         coralmicro::GpioSet((coralmicro::Gpio) Gpio::kCamMux, MUX_BACK_CAMERA);
-        discard = true;
         printf("BACK camera selected\n");
         break;
 
     case coralmicro::SwitchCameraId::kCameraFront:
         coralmicro::GpioSet((coralmicro::Gpio) Gpio::kCamMux, MUX_FRONT_CAMERA);
-        discard = true;
         printf("FRONT camera selected\n");
         break;
 
     default:
-        printf("Invalid switchCameraId: %d,", cameraId);
-        break;
+        printf("Invalid switchCameraId: %d\n", cameraId);
+        return;
   }
 
-  if (discard) {
-      uint32_t buffer;
+  // 2. Wait for MIPI CSI-2 bridge to re-lock + CSI to fill buffers.
+  //    200ms ≈ 6 frames at 30fps — enough for bridge re-lock + buffer fill.
+  vTaskDelay(pdMS_TO_TICKS(200));
 
-      // Discard the old frames acquired
-      for (int n=0; n<DEMO_CAMERA_BUFFER_COUNT; n++)
-      {
-        status_t status = CAMERA_RECEIVER_GetFullBuffer(&cameraReceiver, &buffer);
-
-        if (status == kStatus_Success)
-        {
-          CAMERA_RECEIVER_SubmitEmptyBuffer(&cameraReceiver, (uint32_t)buffer);
-        }
-        else {
-          break;
-        }
-      }
+  // 3. Drain ALL stale full buffers (old camera + mixed + early new camera frames)
+  {
+    uint32_t buf;
+    int drained = 0;
+    while (CAMERA_RECEIVER_GetFullBuffer(&cameraReceiver, &buf) == kStatus_Success) {
+      CAMERA_RECEIVER_SubmitEmptyBuffer(&cameraReceiver, buf);
+      drained++;
     }
+    printf("[DBG] SwitchCamera: drained %d stale buffers\r\n", drained);
+  }
+
+  // 4. Wait one frame period for fresh frame from new camera.
+  vTaskDelay(pdMS_TO_TICKS(50));
 }
 
 
@@ -774,6 +863,28 @@ camera::EnableResponse CameraTask::HandleEnableRequest(const CameraMode& mode) {
   }
 
   BOARD_PxpConfig();
+
+  // Default orientation:
+  //   cam0 (front) is physically upside-down → 180° rotation (mirror + vflip)
+  //   cam1 (back) is physically upright → 0° (no rotation)
+  SetCameraRotation(0, 180);
+  SetCameraRotation(1, 0);
+
+  // Both cameras show horizontally flipped by default, so toggle mirror
+  // OV5640 reg 0x3821 bits[2:1] = ISP mirror + sensor mirror
+  {
+    uint8_t reg21;
+    ReadFromCam(0, 0x3821, &reg21);
+    reg21 ^= 0x06;  // toggle mirror bits
+    WriteToCam(0, 0x3821, reg21);
+    printf("[CAM0] hmirror toggle: reg21=0x%02X\r\n", reg21);
+
+    ReadFromCam(1, 0x3821, &reg21);
+    reg21 ^= 0x06;  // toggle mirror bits
+    WriteToCam(1, 0x3821, reg21);
+    printf("[CAM1] hmirror toggle: reg21=0x%02X\r\n", reg21);
+  }
+
   if (kCameraUseUserLed) {
     coralmicro::GpioSet((coralmicro::Gpio) coralmicro::Gpio::kUserLed, 1);
   }
@@ -948,13 +1059,13 @@ camera::FrameResponse CameraTask::HandleFrameRequest(
 
   // CamDumpRegistersOnly();
 
-  uint32_t reg1 = 0x40810108;
-  uint32_t reg2 = 0x4081010c;
-  if (*(uint32_t*)reg1)
-    printf ("%08lX=%08lX\n",reg1, *(uint32_t*)reg1);
+  // uint32_t reg1 = 0x40810108;
+  // uint32_t reg2 = 0x4081010c;
+  // if (*(uint32_t*)reg1)
+  //   printf ("%08lX=%08lX\n",reg1, *(uint32_t*)reg1);
 
-  if (*(uint32_t*)reg2)
-    printf ("%08lX=%08lX\n",reg2, *(uint32_t*)reg2);
+  // if (*(uint32_t*)reg2)
+  //   printf ("%08lX=%08lX\n",reg2, *(uint32_t*)reg2);
 
   return resp;
 }

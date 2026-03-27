@@ -511,7 +511,11 @@ extern "C" int sentai_cam_capture_rgb(uint8_t* buf, int width, int height) {
   if (!g_cam_initialized) return -1;
   auto* cam = coralmicro::CameraTask::GetSingleton();
   uint8_t* raw = nullptr;
+  uint32_t t0 = xTaskGetTickCount();
+  printf("[DBG] @%lu capture_rgb: calling GetRawFrame...\r\n", (unsigned long)t0);
   int idx = cam->GetRawFrame(&raw);
+  uint32_t t1 = xTaskGetTickCount();
+  printf("[DBG] @%lu capture_rgb: GetRawFrame returned idx=%d raw=%p (+%lums)\r\n", (unsigned long)t1, idx, raw, (unsigned long)(t1-t0));
   if (idx < 0 || !raw) return -2;
 
   int rc;
@@ -524,7 +528,10 @@ extern "C" int sentai_cam_capture_rgb(uint8_t* buf, int width, int height) {
     rc = pxp_scale_xrgb_to_rgb(raw, DEMO_CAMERA_WIDTH, DEMO_CAMERA_HEIGHT,
                                 buf, width, height);
   }
+  uint32_t t2 = xTaskGetTickCount();
+  printf("[DBG] @%lu capture_rgb: PXP done rc=%d (+%lums), ReturnRawFrame(%d)\r\n", (unsigned long)t2, rc, (unsigned long)(t2-t1), idx);
   cam->ReturnRawFrame(idx);
+  printf("[DBG] @%lu capture_rgb: done (total %lums)\r\n", (unsigned long)xTaskGetTickCount(), (unsigned long)(xTaskGetTickCount()-t0));
   return rc;
 }
 
@@ -566,6 +573,8 @@ extern "C" int sentai_cam_to_tensor(void) {
 extern "C" int sentai_cam_switch(int id) {
   if (!g_cam_initialized) return -1;
   auto* cam = coralmicro::CameraTask::GetSingleton();
+  uint32_t ts0 = xTaskGetTickCount();
+  printf("[DBG] @%lu cam_switch: id=%d, calling SwitchCamera...\r\n", (unsigned long)ts0, id);
   if (id == 0) {
     cam->SwitchCamera(coralmicro::SwitchCameraId::kCameraFront);
   } else if (id == 1) {
@@ -573,7 +582,17 @@ extern "C" int sentai_cam_switch(int id) {
   } else {
     return -2;
   }
+  uint32_t ts1 = xTaskGetTickCount();
+  printf("[DBG] @%lu cam_switch: done (+%lums)\r\n", (unsigned long)ts1, (unsigned long)(ts1-ts0));
   return 0;
+}
+
+// Rotate camera image. cam_id: 0=front, 1=back. degrees: 0, 90, 180, 270.
+extern "C" int sentai_cam_rotate(int cam_id, int degrees) {
+  if (!g_cam_initialized) return -1;
+  auto* cam = coralmicro::CameraTask::GetSingleton();
+  bool ok = cam->SetCameraRotation(cam_id, degrees);
+  return ok ? 0 : -2;
 }
 
 extern "C" int sentai_cam_get_width(void) {

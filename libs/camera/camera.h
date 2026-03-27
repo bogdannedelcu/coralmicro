@@ -350,6 +350,15 @@ class CameraTask
   bool Write(uint16_t reg, uint8_t val);
   bool Write(uint16_t reg, const uint8_t *val, int size);
 
+  // Per-camera I2C access (cam_id: 0=front/i2c1, 1=back/i2c2)
+  bool WriteToCam(int cam_id, uint16_t reg, uint8_t val);
+  bool ReadFromCam(int cam_id, uint16_t reg, uint8_t* val);
+
+  // Set OV5640 mirror/flip registers for rotation.
+  // cam_id: 0=front, 1=back.  degrees: 0, 90, 180, 270.
+  // 0=normal, 90=mirror only, 180=mirror+flip, 270=flip only.
+  bool SetCameraRotation(int cam_id, int degrees);
+
  private:
   bool VideoConvert(uint32_t in);
   int GetFrame(uint8_t** buffer, bool block);
