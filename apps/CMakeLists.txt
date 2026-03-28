@@ -13,8 +13,8 @@
 # limitations under the License.
 
 add_subdirectory(elf_loader)
-add_subdirectory(mfg_test)
+#add_subdirectory(mfg_test)
 #add_subdirectory(multicore_model_cascade)  # disabled: .bss overflows m_data with UMS enabled
 #add_subdirectory(rack_test)  # disabled: rack_test_ble .bss overflows m_data with UMS enabled
-add_subdirectory(usb_drive)
-add_subdirectory(my_project)
+#add_subdirectory(usb_drive)
+#add_subdirectory(my_project)

@@ -547,6 +547,21 @@ static MP_DEFINE_CONST_FUN_OBJ_2(mod_sentai_cam_rotate_obj, mod_sentai_cam_rotat
 static mp_obj_t mod_sentai_usb_drive(mp_obj_t on_obj) {
     int on = mp_obj_get_int(on_obj);
     if (on) {
+        // Print mount command hint before switching console away from USB
+        printf("\r\n*****\r\n"
+               "sudo littlefs-fuse "
+               "  --block_size=131072 "
+               "  --read_size=2048 "
+               "  --prog_size=2048 "
+               "  --block_count=448 "
+               "  --cache_size=2048 "
+               "  --lookahead_size=2048 "
+               "  -o allow_other "
+               "  /dev/sda /mnt/coral\r\n"
+               "*****\r\n"
+               "Switch to Linux\r\n");
+        // Let the TX task flush the message to USB before switching away
+        vTaskDelay(pdMS_TO_TICKS(100));
         // Auto-switch REPL to UART when mounting USB drive
         sentai_console_set_target(1);  // 1 = UART
     }

@@ -343,6 +343,10 @@ class CameraTask
   // Caller MUST call ReturnRawFrame(index) when done.
   int GetRawFrame(uint8_t** buffer);
 
+  // Non-blocking version: try once to get a raw frame.
+  // Returns framebuffer index (>=0) on success, -1 if no frame ready.
+  int TryGetRawFrame(uint8_t** buffer);
+
   // Return a raw frame obtained via GetRawFrame().
   void ReturnRawFrame(int index);
 

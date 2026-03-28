@@ -24,6 +24,7 @@ extern "C" {
 #undef FAR  // jpeglib defines FAR as empty, conflicts with NXP SDK struct field
 
 #include "libs/base/filesystem.h"
+#include "libs/base/gpio.h"
 #include "libs/base/led.h"
 #include "libs/camera/camera.h"
 #include "libs/libjpeg/jpeg.h"
@@ -108,6 +109,37 @@ extern "C" void app_main(void* param) {
   coralmicro::app_start_tick = xTaskGetTickCount();
   coralmicro::logf("\r\nSentAI build #%d (%s)\r\n", BUILD_VERSION, BUILD_TIMESTAMP);
   // vTaskDelay(pdMS_TO_TICKS(1000));  // Wait for console to be ready
+
+  // User button task: waits for notification from ISR, then safely
+  // calls sentai_usb_drive_set(0) from task context (not ISR).
+  static TaskHandle_t s_btn_task = nullptr;
+  xTaskCreate([](void*) {
+    for (;;) {
+      ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+      extern int sentai_usb_drive_get(void);
+      extern int sentai_usb_drive_set(int on);
+      extern int sentai_console_set_target(int target);
+      if (sentai_usb_drive_get()) {
+        sentai_usb_drive_set(0);
+        // Switch REPL back to USB (was moved to UART when drive was enabled)
+        sentai_console_set_target(0);  // 0 = USB
+        printf("\r\n*****\r\nBack from host\r\n*****\r\n>>> ");
+      }
+    }
+  }, "btn_usb", configMINIMAL_STACK_SIZE * 4, nullptr,
+     tskIDLE_PRIORITY + 1, &s_btn_task);
+
+  // ISR only sends a notification — no flash/LFS work in interrupt context.
+  coralmicro::GpioConfigureInterrupt(
+      coralmicro::Gpio::kUserButton,
+      coralmicro::GpioInterruptMode::kIntModeFalling,
+      [&]() {
+        BaseType_t woken = pdFALSE;
+        vTaskNotifyGiveFromISR(s_btn_task, &woken);
+        portYIELD_FROM_ISR(woken);
+      },
+      /*debounce_interval_us=*/200 * 1000);
+  coralmicro::logf("User button -> usb.drive(0)\r\n");
 
   // Launch MicroPython REPL task (interactive Python over serial)
   coralmicro::logf("Starting MicroPython REPL task...\r\n");
@@ -431,6 +463,7 @@ extern "C" int sentai_save_output(const char* path) {
 static volatile bool g_cam_initialized = false;
 static int g_cam_width = DEMO_CAMERA_WIDTH;
 static int g_cam_height = DEMO_CAMERA_HEIGHT;
+static int g_cam_current_id = 0;  // 0=front, 1=back
 
 // PXP hardware scale+convert: XRGB8888 (native cam) -> RGB888 (scaled output).
 // src must be in non-cacheable memory (camera framebuffer).
@@ -458,9 +491,11 @@ static int pxp_scale_xrgb_to_rgb(const uint8_t* src, int src_w, int src_h,
   out_cfg.width          = dst_w;
   out_cfg.height         = dst_h;
 
-  // Clean+invalidate dst cache region before PXP DMA writes
+  const uint32_t dst_size = dst_w * dst_h * 3;
+
+  // Clean dst cache so PXP DMA doesn't collide with dirty cache lines
 #if (__CORTEX_M == 7)
-  DCACHE_CleanInvalidateByRange((uint32_t)dst, dst_w * dst_h * 3);
+  DCACHE_CleanByRange((uint32_t)dst, dst_size);
 #endif
 
   PXP_SetProcessSurfaceBufferConfig(DEMO_PXP, &ps_cfg);
@@ -471,12 +506,16 @@ static int pxp_scale_xrgb_to_rgb(const uint8_t* src, int src_w, int src_h,
   PXP_SetOutputBufferConfig(DEMO_PXP, &out_cfg);
 
   PXP_Start(DEMO_PXP);
-  while (!(kPXP_CompleteFlag & PXP_GetStatusFlags(DEMO_PXP)));
+
+  // Yield CPU while PXP works instead of busy-waiting
+  while (!(kPXP_CompleteFlag & PXP_GetStatusFlags(DEMO_PXP))) {
+    taskYIELD();
+  }
   PXP_ClearStatusFlags(DEMO_PXP, kPXP_CompleteFlag);
 
   // Invalidate cache so CPU sees PXP DMA output
 #if (__CORTEX_M == 7)
-  DCACHE_InvalidateByRange((uint32_t)dst, dst_w * dst_h * 3);
+  DCACHE_InvalidateByRange((uint32_t)dst, dst_size);
 #endif
   return 0;
 }
@@ -495,6 +534,13 @@ extern "C" int sentai_cam_init(int streaming) {
                         : coralmicro::CameraMode::kTrigger;
   if (!cam->Enable(mode)) return -2;
   g_cam_initialized = true;
+
+  // Cycle through both cameras to ensure CSI/MIPI is fully initialized.
+  cam->SwitchCamera(coralmicro::SwitchCameraId::kCameraBack);
+  g_cam_current_id = 1;
+  cam->SwitchCamera(coralmicro::SwitchCameraId::kCameraFront);
+  g_cam_current_id = 0;
+
   return 0;
 }
 
@@ -506,28 +552,60 @@ extern "C" int sentai_cam_stop(void) {
   return 0;
 }
 
+// Try to get a raw frame with timeout and camera-toggle recovery.
+// Returns framebuffer index (>=0) on success, writes raw pointer to *raw_out.
+// On failure returns -2.
+static int sentai_cam_get_raw_with_recovery(uint8_t** raw_out) {
+  auto* cam = coralmicro::CameraTask::GetSingleton();
+  const int kTimeoutMs = 1000;    // 1 second timeout per attempt
+  const int kPollMs    = 50;      // poll interval
+  const int kMaxRecoveries = 2;   // how many toggle-recovery attempts
+
+  for (int recovery = 0; recovery <= kMaxRecoveries; ++recovery) {
+    uint32_t t0 = xTaskGetTickCount();
+    int idx = -1;
+    while ((int)(xTaskGetTickCount() - t0) < kTimeoutMs) {
+      *raw_out = nullptr;
+      idx = cam->TryGetRawFrame(raw_out);
+      if (idx >= 0 && *raw_out) {
+        return idx;
+      }
+      vTaskDelay(pdMS_TO_TICKS(kPollMs));
+    }
+
+    // Timed out — try toggling camera to kick CSI/MIPI
+    if (recovery < kMaxRecoveries) {
+      int other = (g_cam_current_id == 0) ? 1 : 0;
+      printf("[CAM] GetRawFrame timeout, toggling %d->%d->%d to recover...\r\n",
+             g_cam_current_id, other, g_cam_current_id);
+      cam->SwitchCamera(other == 0 ? coralmicro::SwitchCameraId::kCameraFront
+                                   : coralmicro::SwitchCameraId::kCameraBack);
+      vTaskDelay(pdMS_TO_TICKS(100));
+      cam->SwitchCamera(g_cam_current_id == 0 ? coralmicro::SwitchCameraId::kCameraFront
+                                              : coralmicro::SwitchCameraId::kCameraBack);
+      vTaskDelay(pdMS_TO_TICKS(100));
+    }
+  }
+
+  printf("[CAM] GetRawFrame failed after all recovery attempts\r\n");
+  *raw_out = nullptr;
+  return -2;
+}
+
 // Capture RGB frame via PXP hardware scaler. Returns 0 on success.
 extern "C" int sentai_cam_capture_rgb(uint8_t* buf, int width, int height) {
   if (!g_cam_initialized) return -1;
-  auto* cam = coralmicro::CameraTask::GetSingleton();
   uint8_t* raw = nullptr;
   uint32_t t0 = xTaskGetTickCount();
   printf("[DBG] @%lu capture_rgb: calling GetRawFrame...\r\n", (unsigned long)t0);
-  int idx = cam->GetRawFrame(&raw);
+  int idx = sentai_cam_get_raw_with_recovery(&raw);
   uint32_t t1 = xTaskGetTickCount();
   printf("[DBG] @%lu capture_rgb: GetRawFrame returned idx=%d raw=%p (+%lums)\r\n", (unsigned long)t1, idx, raw, (unsigned long)(t1-t0));
   if (idx < 0 || !raw) return -2;
 
-  int rc;
-  if (width == DEMO_CAMERA_WIDTH && height == DEMO_CAMERA_HEIGHT) {
-    // No scaling needed - just color convert XRGB->RGB (PXP 1:1)
-    rc = pxp_scale_xrgb_to_rgb(raw, DEMO_CAMERA_WIDTH, DEMO_CAMERA_HEIGHT,
-                                buf, width, height);
-  } else {
-    // PXP hardware downscale + color convert
-    rc = pxp_scale_xrgb_to_rgb(raw, DEMO_CAMERA_WIDTH, DEMO_CAMERA_HEIGHT,
-                                buf, width, height);
-  }
+  auto* cam = coralmicro::CameraTask::GetSingleton();
+  int rc = pxp_scale_xrgb_to_rgb(raw, DEMO_CAMERA_WIDTH, DEMO_CAMERA_HEIGHT,
+                                  buf, width, height);
   uint32_t t2 = xTaskGetTickCount();
   printf("[DBG] @%lu capture_rgb: PXP done rc=%d (+%lums), ReturnRawFrame(%d)\r\n", (unsigned long)t2, rc, (unsigned long)(t2-t1), idx);
   cam->ReturnRawFrame(idx);
@@ -559,10 +637,10 @@ extern "C" int sentai_cam_to_tensor(void) {
   int w = input->dims->data[2];
   uint8_t* tensor_buf = tflite::GetTensorData<uint8_t>(input);
 
-  auto* cam = coralmicro::CameraTask::GetSingleton();
   uint8_t* raw = nullptr;
-  int idx = cam->GetRawFrame(&raw);
+  int idx = sentai_cam_get_raw_with_recovery(&raw);
   if (idx < 0 || !raw) return -2;
+  auto* cam = coralmicro::CameraTask::GetSingleton();
   int rc = pxp_scale_xrgb_to_rgb(raw, DEMO_CAMERA_WIDTH, DEMO_CAMERA_HEIGHT,
                                   tensor_buf, w, h);
   cam->ReturnRawFrame(idx);
@@ -577,8 +655,10 @@ extern "C" int sentai_cam_switch(int id) {
   printf("[DBG] @%lu cam_switch: id=%d, calling SwitchCamera...\r\n", (unsigned long)ts0, id);
   if (id == 0) {
     cam->SwitchCamera(coralmicro::SwitchCameraId::kCameraFront);
+    g_cam_current_id = 0;
   } else if (id == 1) {
     cam->SwitchCamera(coralmicro::SwitchCameraId::kCameraBack);
+    g_cam_current_id = 1;
   } else {
     return -2;
   }

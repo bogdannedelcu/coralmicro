@@ -448,6 +448,19 @@ int CameraTask::GetRawFrame(uint8_t** buffer) {
   return index;
 }
 
+int CameraTask::TryGetRawFrame(uint8_t** buffer) {
+  if (!enabled_) {
+    *buffer = nullptr;
+    return -1;
+  }
+  int index = GetFrame(buffer, false);
+  if (index < 0 || !*buffer) {
+    *buffer = nullptr;
+    return -1;
+  }
+  return index;
+}
+
 void CameraTask::ReturnRawFrame(int index) {
   ReturnFrame(index);
 }

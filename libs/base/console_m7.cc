@@ -37,8 +37,35 @@ extern "C" int _write(int handle, char* buffer, int size) {
     return -1;
   }
 
-  coralmicro::ConsoleM7::GetSingleton()->Write(buffer, size);
+  // Convert bare \n to \r\n for USB/UART terminals.
+  // Use a stack buffer to avoid heap allocation/fragmentation.
+  // Worst case: every byte is a bare \n → 2× size, capped at 512.
+  char stack_buf[512];
+  char* out = buffer;
+  int out_len = size;
 
+  // Quick scan: does any \n lack a preceding \r?
+  bool needs_patch = false;
+  for (int i = 0; i < size; ++i) {
+    if (buffer[i] == '\n' && (i == 0 || buffer[i - 1] != '\r')) {
+      needs_patch = true;
+      break;
+    }
+  }
+  if (needs_patch) {
+    int j = 0;
+    int cap = (int)sizeof(stack_buf);
+    for (int i = 0; i < size && j < cap - 1; ++i) {
+      if (buffer[i] == '\n' && (i == 0 || buffer[i - 1] != '\r')) {
+        stack_buf[j++] = '\r';
+      }
+      if (j < cap) stack_buf[j++] = buffer[i];
+    }
+    out = stack_buf;
+    out_len = j;
+  }
+
+  coralmicro::ConsoleM7::GetSingleton()->Write(out, out_len);
   return size;
 }
 
@@ -175,11 +202,16 @@ void ConsoleM7::M7ConsoleTaskTxFn(void* param) {
   while (true) {
     ConsoleMessage msg;
     if (xQueueReceive(console_queue_, &msg, portMAX_DELAY) == pdTRUE) {
-      // Route output to REPL target only
-      if (repl_target_ == ReplTarget::kUart) {
-        DbgConsole_SendDataReliable(msg.str, msg.len);
-      } else {
-        cdc_acm_.Transmit(msg.str, msg.len);
+      // Route output to REPL target only, with retry on failure
+      bool ok = false;
+      for (int attempt = 0; attempt < 3 && !ok; ++attempt) {
+        if (repl_target_ == ReplTarget::kUart) {
+          DbgConsole_SendDataReliable(msg.str, msg.len);
+          ok = true;
+        } else {
+          ok = cdc_acm_.Transmit(msg.str, msg.len);
+          if (!ok) vTaskDelay(pdMS_TO_TICKS(10));
+        }
       }
       delete[] msg.str;
 #ifdef BLOCKING_PRINTF
@@ -222,7 +254,7 @@ void ConsoleM7::Init(bool init_tx, bool init_rx) {
       std::bind(&coralmicro::CdcAcm::HandleEvent, &cdc_acm_, _1, _2),
       cdc_acm_.descriptor_data(), cdc_acm_.descriptor_data_size());
 
-  console_queue_ = xQueueCreate(16, sizeof(ConsoleMessage));
+  console_queue_ = xQueueCreate(64, sizeof(ConsoleMessage));
   CHECK(console_queue_);
 
   rx_mutex_ = xSemaphoreCreateMutex();
