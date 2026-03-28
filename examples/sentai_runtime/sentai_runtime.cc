@@ -55,6 +55,63 @@ extern "C" {
 //    python3 scripts/flashtool.py -e detect_image
 
 // [start-sphinx-snippet:detect-image]
+// Global debug level: 0=silent, 1=verbose
+// Starts at 1 during boot (so boot.log captures everything), reset to 0 before REPL.
+extern "C" {
+  volatile int g_sentai_debug = 1;
+  int sentai_debug_get(void) { return g_sentai_debug; }
+  void sentai_debug_set(int level) { g_sentai_debug = level; }
+}
+
+// ===================== Boot log capture =====================
+// Intercepts _write (via linker --wrap) to capture ALL printf output
+// into a RAM buffer during boot, then flushes to /log/boot.log on
+// the LittleFS user partition before the REPL starts.
+
+#define BOOT_LOG_SIZE (32 * 1024)
+static char s_boot_log[BOOT_LOG_SIZE]
+    __attribute__((section(".sdram_bss,\"aw\",%nobits @")));
+static volatile uint32_t s_boot_log_pos = 0;
+static volatile bool s_boot_log_active = true;
+
+extern "C" int __real__write(int handle, char* buffer, int size);
+
+extern "C" int __wrap__write(int handle, char* buffer, int size) {
+  // Append to boot log buffer while active
+  if (s_boot_log_active) {
+    uint32_t pos = s_boot_log_pos;
+    uint32_t avail = BOOT_LOG_SIZE - pos;
+    uint32_t n = ((uint32_t)size < avail) ? (uint32_t)size : avail;
+    if (n > 0) {
+      memcpy(s_boot_log + pos, buffer, n);
+      s_boot_log_pos = pos + n;
+    }
+  }
+  // Forward to real _write (ConsoleM7::Write → UART/USB)
+  return __real__write(handle, buffer, size);
+}
+
+// Called from micropython_task.c right before the REPL loop starts.
+// Writes the captured boot output to /log/boot.log and stops capturing.
+extern "C" void boot_log_flush(void) {
+  s_boot_log_active = false;
+  uint32_t pos = s_boot_log_pos;
+
+  // Flush D-cache so LFS reads see the SDRAM data written via cache
+  if (pos > 0) {
+    SCB_CleanDCache_by_Addr((uint32_t*)s_boot_log, (int32_t)pos);
+  }
+
+  printf("[boot_log] captured %lu bytes, flushing to /log/boot.log\r\n",
+         (unsigned long)pos);
+
+  if (pos == 0) return;
+  bool mk = coralmicro::LfsUserMakeDirs("/log");
+  bool wr = coralmicro::LfsUserWriteFile("/log/boot.log",
+      reinterpret_cast<const uint8_t*>(s_boot_log), pos);
+  printf("[boot_log] mkdir=%d write=%d\r\n", mk, wr);
+}
+
 namespace coralmicro {
 namespace {
 
@@ -512,10 +569,10 @@ extern "C" int sentai_cam_capture_rgb(uint8_t* buf, int width, int height) {
   auto* cam = coralmicro::CameraTask::GetSingleton();
   uint8_t* raw = nullptr;
   uint32_t t0 = xTaskGetTickCount();
-  printf("[DBG] @%lu capture_rgb: calling GetRawFrame...\r\n", (unsigned long)t0);
+  if (g_sentai_debug) printf("[DBG] @%lu capture_rgb: calling GetRawFrame...\r\n", (unsigned long)t0);
   int idx = cam->GetRawFrame(&raw);
   uint32_t t1 = xTaskGetTickCount();
-  printf("[DBG] @%lu capture_rgb: GetRawFrame returned idx=%d raw=%p (+%lums)\r\n", (unsigned long)t1, idx, raw, (unsigned long)(t1-t0));
+  if (g_sentai_debug) printf("[DBG] @%lu capture_rgb: GetRawFrame returned idx=%d raw=%p (+%lums)\r\n", (unsigned long)t1, idx, raw, (unsigned long)(t1-t0));
   if (idx < 0 || !raw) return -2;
 
   int rc;
@@ -529,9 +586,9 @@ extern "C" int sentai_cam_capture_rgb(uint8_t* buf, int width, int height) {
                                 buf, width, height);
   }
   uint32_t t2 = xTaskGetTickCount();
-  printf("[DBG] @%lu capture_rgb: PXP done rc=%d (+%lums), ReturnRawFrame(%d)\r\n", (unsigned long)t2, rc, (unsigned long)(t2-t1), idx);
+  if (g_sentai_debug) printf("[DBG] @%lu capture_rgb: PXP done rc=%d (+%lums), ReturnRawFrame(%d)\r\n", (unsigned long)t2, rc, (unsigned long)(t2-t1), idx);
   cam->ReturnRawFrame(idx);
-  printf("[DBG] @%lu capture_rgb: done (total %lums)\r\n", (unsigned long)xTaskGetTickCount(), (unsigned long)(xTaskGetTickCount()-t0));
+  if (g_sentai_debug) printf("[DBG] @%lu capture_rgb: done (total %lums)\r\n", (unsigned long)xTaskGetTickCount(), (unsigned long)(xTaskGetTickCount()-t0));
   return rc;
 }
 
@@ -574,7 +631,7 @@ extern "C" int sentai_cam_switch(int id) {
   if (!g_cam_initialized) return -1;
   auto* cam = coralmicro::CameraTask::GetSingleton();
   uint32_t ts0 = xTaskGetTickCount();
-  printf("[DBG] @%lu cam_switch: id=%d, calling SwitchCamera...\r\n", (unsigned long)ts0, id);
+  if (g_sentai_debug) printf("[DBG] @%lu cam_switch: id=%d, calling SwitchCamera...\r\n", (unsigned long)ts0, id);
   if (id == 0) {
     cam->SwitchCamera(coralmicro::SwitchCameraId::kCameraFront);
   } else if (id == 1) {
@@ -583,7 +640,7 @@ extern "C" int sentai_cam_switch(int id) {
     return -2;
   }
   uint32_t ts1 = xTaskGetTickCount();
-  printf("[DBG] @%lu cam_switch: done (+%lums)\r\n", (unsigned long)ts1, (unsigned long)(ts1-ts0));
+  if (g_sentai_debug) printf("[DBG] @%lu cam_switch: done (+%lums)\r\n", (unsigned long)ts1, (unsigned long)(ts1-ts0));
   return 0;
 }
 

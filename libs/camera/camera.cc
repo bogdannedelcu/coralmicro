@@ -46,8 +46,9 @@
 #define DEMO_CAMERA_BUFFER_BPP 1
 #endif
 
-// #define DBG_OUTPUT(...)  printf(__VA_ARGS__)
-#define DBG_OUTPUT(...)
+extern volatile int g_sentai_debug;
+#define DBG_OUTPUT(...)  do { if (g_sentai_debug) printf(__VA_ARGS__); } while(0)
+// #define DBG_OUTPUT(...)
 
 // #define DEBUG_LINE()  printf("D:%s:%d\n", __FILE__, __LINE__)
 
@@ -90,14 +91,14 @@ status_t BOARD_Camera_I2C_ReceiveSCCB(
 
 void BOARD_PullCameraResetPin(bool pullUp)
 {
-  printf("BOARD_PullCameraResetPin:%d\n", pullUp);
+  if (g_sentai_debug) printf("BOARD_PullCameraResetPin:%d\r\n", pullUp);
   coralmicro::GpioSet((coralmicro::Gpio) coralmicro::Gpio::kCamReset, pullUp);
   coralmicro::GpioSet((coralmicro::Gpio) coralmicro::Gpio::kCamReset2, pullUp);
 }
 
 void BOARD_PullCameraPowerDownPin(bool pullUp)
 {
-  printf("BOARD_PullCameraPowerDownPin:%d\n", pullUp);
+  if (g_sentai_debug) printf("BOARD_PullCameraPowerDownPin:%d\r\n", pullUp);
   coralmicro::GpioSet((coralmicro::Gpio) coralmicro::Gpio::kCamPwrDn, pullUp);
   coralmicro::GpioSet((coralmicro::Gpio) coralmicro::Gpio::kCamPwrDn2, pullUp);
 }
@@ -482,7 +483,7 @@ bool CameraTask::GetFrame(const std::vector<CameraFrameFormat>& fmts) {
   // }
 
   for (const CameraFrameFormat& fmt : fmts) {
-    DBG_OUTPUT("F%d:%dx%d\n", index, kWidth, kHeight);
+    DBG_OUTPUT("F%d:%dx%d\r\n", index, kWidth, kHeight);
     // std::memcpy(fmt.buffer, raw, kWidth * kHeight * 4);
     Rgb8888ToRgb(raw, fmt.buffer, fmt.width, fmt.height);
 
@@ -507,7 +508,7 @@ bool CameraTask::Read(uint16_t reg, uint8_t* val) {
   status_t status2 = LPI2C_RTOS_Transfer(i2c_handle2_, &transfer);
   status_t status1 = LPI2C_RTOS_Transfer(i2c_handle_, &transfer);
 
-  DBG_OUTPUT("Rx|0x%04X=0x%02X|(s1: %ld)(s2:%ld)\n", reg, val[0], status1, status2);
+  DBG_OUTPUT("Rx|0x%04X=0x%02X|(s1: %ld)(s2:%ld)\r\n", reg, val[0], status1, status2);
 
   return status1 == kStatus_Success;
 }
@@ -529,7 +530,7 @@ bool CameraTask::Write(uint16_t reg, const uint8_t *val, int size) {
   status_t status1 = LPI2C_RTOS_Transfer(i2c_handle_, &transfer);
   status_t status2 = LPI2C_RTOS_Transfer(i2c_handle2_, &transfer);
 
-  DBG_OUTPUT("Tx|0x%04X=0x%02X|(s1: %ld)(s2:%ld)\n", reg, val[0], status1, status2);
+  DBG_OUTPUT("Tx|0x%04X=0x%02X|(s1: %ld)(s2:%ld)\r\n", reg, val[0], status1, status2);
 
   return status1 == kStatus_Success;
 }
@@ -548,7 +549,7 @@ bool CameraTask::WriteToCam(int cam_id, uint16_t reg, uint8_t val) {
   transfer.dataSize = 1;
 
   status_t status = LPI2C_RTOS_Transfer(handle, &transfer);
-  printf("[CAM%d] W 0x%04X=0x%02X (%ld)\r\n", cam_id, reg, val, status);
+  if (g_sentai_debug) printf("[CAM%d] W 0x%04X=0x%02X (%ld)\r\n", cam_id, reg, val, status);
   return status == kStatus_Success;
 }
 
@@ -629,11 +630,12 @@ void CameraTask::Init(lpi2c_rtos_handle_t* i2c_handle, lpi2c_rtos_handle_t* i2c_
   md_config_.enable = false;
 
   // Init GPIO used by camera
-  // GpioSetMode(Gpio::kCamReset, GpioMode::kOutput);
+  // Note: Do NOT call GpioSetMode on other camera pins — it calls
+  // IOMUXC_SetPinMux which re-routes pin muxing and can break the
+  // board-level default configuration that OV5640_Init relies on.
+  // GpioInit() already calls GPIO_PinInit for ALL pins (direction + value).
+  // GpioSet() works for pins already configured by GpioInit().
   GpioSetMode(Gpio::kCamReset2, GpioMode::kOutput);
-  // GpioSetMode(Gpio::kCamPwrDn, GpioMode::kOutput);
-  // GpioSetMode(Gpio::kCamPwrDn2, GpioMode::kOutput);
-  // GpioSetMode(Gpio::kCamMux, GpioMode::kOutput);
 
   printf ("%s: i2c_Handle: 0x%x, i2c_handle2: 0x%x", __func__, i2c_handle, i2c_handle2);
 }
@@ -651,11 +653,48 @@ int CameraTask::GetFrame(uint8_t** buffer, bool block) {
   req.request.frame.index = -1;
   camera::Response resp;
 
-  do {
-    resp = SendRequest(req);
-  } while (block && resp.response.frame.index == -1);
-  *buffer = IndexToFramebufferPtr(resp.response.frame.index);
-  return resp.response.frame.index;
+  // First attempt — 40×100ms inner loop in HandleFrameRequest
+  resp = SendRequest(req);
+  if (resp.response.frame.index != -1) {
+    *buffer = IndexToFramebufferPtr(resp.response.frame.index);
+    return resp.response.frame.index;
+  }
+
+  if (!block) {
+    *buffer = nullptr;
+    return -1;
+  }
+
+  // First attempt failed — auto-reinit camera (Disable + Enable)
+  printf("[GetFrame] frame capture failed, auto-reinit camera...\r\n");
+  {
+    camera::Request dreq;
+    dreq.type = camera::RequestType::kDisable;
+    SendRequest(dreq);
+
+    camera::Request ereq;
+    ereq.type = camera::RequestType::kEnable;
+    ereq.request.mode = CameraMode::kStreaming;
+    auto eresp = SendRequest(ereq);
+    if (!eresp.response.enable.success) {
+      printf("[GetFrame] auto-reinit FAILED, giving up\r\n");
+      *buffer = nullptr;
+      return -1;
+    }
+    enabled_ = true;
+    printf("[GetFrame] auto-reinit OK, retrying frame capture...\r\n");
+  }
+
+  // Second attempt after reinit
+  resp = SendRequest(req);
+  if (resp.response.frame.index != -1) {
+    *buffer = IndexToFramebufferPtr(resp.response.frame.index);
+    return resp.response.frame.index;
+  }
+
+  printf("[GetFrame] frame capture still failed after reinit, giving up\r\n");
+  *buffer = nullptr;
+  return -1;
 }
 
 void CameraTask::ReturnFrame(int index) {
@@ -736,7 +775,7 @@ int CameraTask::DiscardOldFrames() {
 }
 
 void CameraTask::TaskInit() {
-  printf("Camera %dx%d@%d %d bits per pixel\r\n",
+  if (g_sentai_debug) printf("Camera %dx%d@%d %d bits per pixel\r\n",
     DEMO_CAMERA_WIDTH, DEMO_CAMERA_HEIGHT, DEMO_CAMERA_FRAME_RATE, DEMO_CAMERA_BUFFER_BPP * 8);
 
   camera::PowerRequest req;
@@ -787,61 +826,65 @@ bool CameraTask::VideoConvert(uint32_t in)
   outputBufferConfig.buffer0Addr = (uint32_t)pxp_buffer;
   PXP_SetOutputBufferConfig(DEMO_PXP, &outputBufferConfig);
 
-  printf("pxp starting ...\r\n");
+  if (g_sentai_debug) printf("pxp starting ...\r\n");
 
   PXP_Start(DEMO_PXP);
 
-  printf("pxp waiting to complete ...\r\n");
+  if (g_sentai_debug) printf("pxp waiting to complete ...\r\n");
 
   /* Wait for PXP process complete. */
   while (!(kPXP_CompleteFlag & PXP_GetStatusFlags(DEMO_PXP)));
 
-  printf("pxp done\r\n");
+  if (g_sentai_debug) printf("pxp done\r\n");
 
   PXP_ClearStatusFlags(DEMO_PXP, kPXP_CompleteFlag);
 }
 
 void CameraTask::HandleSwitchCameraRequest(const SwitchCameraId cameraId) {
 
-  // CSI keeps running — do NOT stop it. Stopping CSI kills the MIPI bridge
-  // sync and CSI_TransferStart alone cannot recover it.
-  //
-  // Strategy: switch MUX, wait for MIPI re-lock + new frames, drain stale buffers.
+  // Old strategy (commit 167e851c) that worked:
+  //   Both cameras stream MIPI continuously.
+  //   Just switch MUX and drain stale buffers.
+  //   CSI picks up the new stream automatically.
+  bool discard = false;
 
-  // 1. Switch MUX GPIO (CSI still running — at most one frame will be mixed)
   switch(cameraId) {
     case coralmicro::SwitchCameraId::kCameraBack:
         coralmicro::GpioSet((coralmicro::Gpio) Gpio::kCamMux, MUX_BACK_CAMERA);
-        printf("BACK camera selected\n");
+        discard = true;
+        active_cam_id_ = 1;
+        if (g_sentai_debug) printf("BACK camera selected\r\n");
         break;
 
     case coralmicro::SwitchCameraId::kCameraFront:
         coralmicro::GpioSet((coralmicro::Gpio) Gpio::kCamMux, MUX_FRONT_CAMERA);
-        printf("FRONT camera selected\n");
+        discard = true;
+        active_cam_id_ = 0;
+        if (g_sentai_debug) printf("FRONT camera selected\r\n");
         break;
 
     default:
-        printf("Invalid switchCameraId: %d\n", cameraId);
-        return;
+        printf("Invalid switchCameraId: %d,", (int)cameraId);
+        break;
   }
 
-  // 2. Wait for MIPI CSI-2 bridge to re-lock + CSI to fill buffers.
-  //    200ms ≈ 6 frames at 30fps — enough for bridge re-lock + buffer fill.
-  vTaskDelay(pdMS_TO_TICKS(200));
+  if (discard) {
+      uint32_t buffer;
 
-  // 3. Drain ALL stale full buffers (old camera + mixed + early new camera frames)
-  {
-    uint32_t buf;
-    int drained = 0;
-    while (CAMERA_RECEIVER_GetFullBuffer(&cameraReceiver, &buf) == kStatus_Success) {
-      CAMERA_RECEIVER_SubmitEmptyBuffer(&cameraReceiver, buf);
-      drained++;
+      // Discard the old frames acquired
+      for (int n=0; n<DEMO_CAMERA_BUFFER_COUNT; n++)
+      {
+        status_t status = CAMERA_RECEIVER_GetFullBuffer(&cameraReceiver, &buffer);
+
+        if (status == kStatus_Success)
+        {
+          CAMERA_RECEIVER_SubmitEmptyBuffer(&cameraReceiver, (uint32_t)buffer);
+        }
+        else {
+          break;
+        }
+      }
     }
-    printf("[DBG] SwitchCamera: drained %d stale buffers\r\n", drained);
-  }
-
-  // 4. Wait one frame period for fresh frame from new camera.
-  vTaskDelay(pdMS_TO_TICKS(50));
 }
 
 
@@ -849,8 +892,6 @@ camera::EnableResponse CameraTask::HandleEnableRequest(const CameraMode& mode) {
   camera::EnableResponse resp;
   status_t status;
   camera_config_t cameraConfig;
-
-  // vTaskDelay(pdMS_TO_TICKS(1000));
 
   BOARD_InitPxp();
   BOARD_InitCamera();
@@ -862,35 +903,57 @@ camera::EnableResponse CameraTask::HandleEnableRequest(const CameraMode& mode) {
     vTaskDelay(pdMS_TO_TICKS(10));
   }
 
-  BOARD_PxpConfig();
-
-  // Default orientation:
-  //   cam0 (front) is physically upside-down → 180° rotation (mirror + vflip)
-  //   cam1 (back) is physically upright → 0° (no rotation)
-  SetCameraRotation(0, 180);
-  SetCameraRotation(1, 0);
-
-  // Both cameras show horizontally flipped by default, so toggle mirror
-  // OV5640 reg 0x3821 bits[2:1] = ISP mirror + sensor mirror
-  {
-    uint8_t reg21;
-    ReadFromCam(0, 0x3821, &reg21);
-    reg21 ^= 0x06;  // toggle mirror bits
-    WriteToCam(0, 0x3821, reg21);
-    printf("[CAM0] hmirror toggle: reg21=0x%02X\r\n", reg21);
-
-    ReadFromCam(1, 0x3821, &reg21);
-    reg21 ^= 0x06;  // toggle mirror bits
-    WriteToCam(1, 0x3821, reg21);
-    printf("[CAM1] hmirror toggle: reg21=0x%02X\r\n", reg21);
+  // --- Per-camera post-init settings ---
+  // I2C bus mapping is INVERTED relative to MUX GPIO routing:
+  //   cam_id=0 (I2C5) = physical BACK camera  (MUX_BACK_CAMERA=0 routes this)
+  //   cam_id=1 (I2C6) = physical FRONT camera (MUX_FRONT_CAMERA=1 routes this)
+  // OV5640_Init writes ISP/AWB registers via Write() (both I2C buses),
+  // but re-apply individually per camera to ensure nothing was missed.
+  // 0x5000=0xa7: LENC on, raw gamma on, BPC on, WPC on, CIP on
+  // 0x5001=0xa3: SDE on, scale on, AWB on
+  // 0x3406=0x00: AWB auto mode (not manual)
+  // 0x4300=0x6f: RGB565 pixel format
+  // 0x501f=0x01: ISP format MUX → RGB
+  for (int cam = 0; cam <= 1; cam++) {
+    WriteToCam(cam, 0x5000, 0xa7);
+    WriteToCam(cam, 0x5001, 0xa3);
+    WriteToCam(cam, 0x3406, 0x00);
+    WriteToCam(cam, 0x4300, 0x6f);
+    WriteToCam(cam, 0x501f, 0x01);
   }
 
+  // Front camera (cam_id=1 / I2C6): leave at SDK defaults (0x3820=0x41, 0x3821=0x07)
+  // SDK init table has mirror ON by default — DO NOT clear it, or Bayer demosaic breaks → green tint
+  // Back camera (cam_id=0 / I2C5): mounted upside-down, add vflip to existing mirror → 180°
+  SetCameraRotation(0, 180);
+
+  // Diagnostic: dump key ISP registers from both cameras for debugging
+  for (int cam = 0; cam <= 1; cam++) {
+    uint8_t r5000=0xFF, r5001=0xFF, r3406=0xFF, r3820=0xFF, r3821=0xFF;
+    uint8_t r4300=0xFF, r501f=0xFF, r3008=0xFF, r300e=0xFF;
+    ReadFromCam(cam, 0x5000, &r5000);
+    ReadFromCam(cam, 0x5001, &r5001);
+    ReadFromCam(cam, 0x3406, &r3406);
+    ReadFromCam(cam, 0x3820, &r3820);
+    ReadFromCam(cam, 0x3821, &r3821);
+    ReadFromCam(cam, 0x4300, &r4300);
+    ReadFromCam(cam, 0x501f, &r501f);
+    ReadFromCam(cam, 0x3008, &r3008);
+    ReadFromCam(cam, 0x300e, &r300e);
+    printf("[CAM%d/I2C%d] ISP:0x5000=%02X 0x5001=%02X AWB:0x3406=%02X "
+           "flip:0x3820=%02X mir:0x3821=%02X fmt:0x4300=%02X mux:0x501f=%02X "
+           "pwr:0x3008=%02X mipi:0x300e=%02X\r\n",
+           cam, (cam == 0) ? 5 : 6,
+           r5000, r5001, r3406, r3820, r3821, r4300, r501f, r3008, r300e);
+  }
+
+  BOARD_PxpConfig();
   if (kCameraUseUserLed) {
     coralmicro::GpioSet((coralmicro::Gpio) coralmicro::Gpio::kUserLed, 1);
   }
 
   status = CAMERA_RECEIVER_Start(&cameraReceiver);
-  printf("CAMERA_RECEIVER_Start = %ld\r\n", status);
+  if (g_sentai_debug) printf("CAMERA_RECEIVER_Start = %ld\r\n", status);
 
   resp.success = (status == kStatus_Success);
 
@@ -921,7 +984,7 @@ void CameraTask::HandleDisableRequest() {
   enabled_ = false;
 
   status_t status = CAMERA_RECEIVER_Stop(&cameraReceiver);
-  printf("CAMERA_RECEIVER_Stop = %ld\r\n", status);
+  if (g_sentai_debug) printf("CAMERA_RECEIVER_Stop = %ld\r\n", status);
 }
 
 camera::PowerResponse CameraTask::HandlePowerRequest(
@@ -946,16 +1009,18 @@ camera::PowerResponse CameraTask::HandlePowerRequest(
     vTaskDelay(pdMS_TO_TICKS(40));
     // Set MUX on front camera by default
     coralmicro::GpioSet((coralmicro::Gpio) Gpio::kCamMux, MUX_FRONT_CAMERA);
-    // Init Cam on I2C1
+    active_cam_id_ = 0;
+
+    // Detect cam0 (front) on I2C1
     resp.success = CameraTask::Detect();
-    printf ("%s: try I2C1: %s\n", __func__,
+    if (g_sentai_debug) printf ("%s: try I2C1: %s\r\n", __func__,
       resp.success ? "Success":"Failed");
     if (i2c_handle2_) {
       lpi2c_rtos_handle_t *old = i2c_handle_;
       i2c_handle_ = i2c_handle2_;
-      // Init Cam on I2C2
+      // Detect cam1 (back) on I2C2
       resp.success = CameraTask::Detect();
-      printf ("%s: try I2C2: %s\n", __func__,
+      if (g_sentai_debug) printf ("%s: try I2C2: %s\r\n", __func__,
         resp.success ? "Success":"Failed");
       i2c_handle_ = old;
     }
@@ -989,14 +1054,17 @@ camera::FrameResponse CameraTask::HandleFrameRequest(
     // get new frame buffer
     int n = 40;
     bool state = true;
+    static int get_frame_cycle = 0;
+    get_frame_cycle++;
 
-    DBG_OUTPUT ("CAMERA_RECEIVER_GetFullBuffer:waiting...\r\n");
+    if (g_sentai_debug) printf("[FRM] cycle=%d GetFullBuffer trying (40x100ms)...\r\n", get_frame_cycle);
 
     while(n--)
     {
       status = CAMERA_RECEIVER_GetFullBuffer(&cameraReceiver, &buffer);
       if (status == kStatus_Success)
       {
+        if (g_sentai_debug) printf("[FRM] cycle=%d got buffer at attempt %d\r\n", get_frame_cycle, 40-n);
         break;
       }
 
@@ -1006,6 +1074,17 @@ camera::FrameResponse CameraTask::HandleFrameRequest(
         coralmicro::GpioSet((coralmicro::Gpio) coralmicro::Gpio::kStatusLed, state);
         state = !state;
       }
+    }
+
+    if (status != kStatus_Success) {
+      // Read OV5640 status + CSI status
+      uint8_t reg3008 = 0xFF;
+      ReadFromCam(active_cam_id_, 0x3008, &reg3008);
+      uint8_t reg300e = 0xFF;
+      ReadFromCam(active_cam_id_, 0x300e, &reg300e);
+      printf("[FRM] ERROR cycle=%d FAILED 40 attempts! cam%d 0x3008=0x%02X 0x300e=0x%02X CSI_SR=0x%08lX\r\n",
+             get_frame_cycle, active_cam_id_, reg3008, reg300e,
+             CSI_REG_SR(CSI));
     }
 
     DBG_OUTPUT("CAMERA_RECEIVER_GetFullBuffer = %ld\r\n", status);

@@ -387,6 +387,7 @@ class CameraTask
   CameraTestPattern test_pattern_;
   CameraMotionDetectionConfig md_config_;
   bool enabled_{false};
+  int active_cam_id_{0};  // 0=front (default), 1=back
 };
 void ResizeNearestNeighbor(const uint8_t* src, int src_w, int src_h,
                           uint8_t* dst, int dst_w, int dst_h, int comps,

@@ -76,6 +76,10 @@ target_link_libraries(sentai_runtime
     libmicropython
 )
 
+# Intercept _write syscall to capture boot output into RAM buffer
+# __wrap__write logs to buffer + calls __real__write (original ConsoleM7::Write)
+target_link_options(sentai_runtime PRIVATE -Wl,--wrap=_write)
+
 # Include dirs for MicroPython headers in main sources
 target_include_directories(sentai_runtime PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}                # mpconfigport.h, micropython_task.h

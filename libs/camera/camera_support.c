@@ -15,6 +15,8 @@
 #include "fsl_debug_console.h"
 #include "fsl_pxp.h"
 
+extern volatile int g_sentai_debug;
+
 /*******************************************************************************
  * Definitions
  ******************************************************************************/
@@ -298,7 +300,7 @@ void BOARD_InitCamera(void)
     cameraConfig.framePerSec                = DEMO_CAMERA_FRAME_RATE;
 
     status = CAMERA_RECEIVER_Init(&cameraReceiver, &cameraConfig, NULL, NULL);
-    printf("CAMERA_RECEIVER_Init = %ld\r\n", status);
+    if (g_sentai_debug) printf("CAMERA_RECEIVER_Init = %ld\r\n", status);
 
     BOARD_InitMipiCsi();
 
@@ -311,10 +313,10 @@ void BOARD_InitCamera(void)
     cameraConfig.csiLanes      = DEMO_CAMERA_MIPI_CSI_LANE;
 
     status = CAMERA_DEVICE_Init(&cameraDevice, &cameraConfig);
-    printf("CAMERA_DEVICE_Init = %ld\n", status);
+    if (g_sentai_debug) printf("CAMERA_DEVICE_Init = %ld\r\n", status);
 
     status = CAMERA_DEVICE_Start(&cameraDevice);
-    printf("CAMERA_DEVICE_Start = %ld\n", status);
+    if (g_sentai_debug) printf("CAMERA_DEVICE_Start = %ld\r\n", status);
 
     /* Submit the empty frame buffers to buffer queue. */
     for (uint32_t i = 0; i < DEMO_CAMERA_BUFFER_COUNT; i++)
@@ -394,7 +396,7 @@ void CamDumpRegistersOnly(void)
             {0x6000, 0x603f}
     };
 
-    printf("Camera %dx%d@%d %d bits per pixel\n",
+    printf("Camera %dx%d@%d %d bits per pixel\r\n",
     DEMO_CAMERA_WIDTH, DEMO_CAMERA_HEIGHT, DEMO_CAMERA_FRAME_RATE, DEMO_CAMERA_BUFFER_BPP * 8);
 
     for (int n=0; n<sizeof(ov5640_regs)/sizeof(ov5640_regs[0]); n++)
@@ -402,7 +404,7 @@ void CamDumpRegistersOnly(void)
         for (uint16_t reg = ov5640_regs[n].start; reg <= ov5640_regs[n].end; reg++)
         {
             status_t ret = BOARD_Camera_I2C_ReceiveSCCB(0x3c, reg, 2, &val, sizeof(val));
-            printf ("0x%04X = 0x%02X (err: %ld)\n", reg, val, ret);
+            printf ("0x%04X = 0x%02X (err: %ld)\r\n", reg, val, ret);
         }
     }
 }
@@ -414,13 +416,13 @@ void CamDumpRegisters(void)
     };
     uint8_t val;
 
-    printf("Camera %dx%d@%d %d bits per pixel\n",
+    printf("Camera %dx%d@%d %d bits per pixel\r\n",
     DEMO_CAMERA_WIDTH, DEMO_CAMERA_HEIGHT, DEMO_CAMERA_FRAME_RATE, DEMO_CAMERA_BUFFER_BPP * 8);
 
     for (int n=0; n<sizeof(ov5640_regs)/sizeof(ov5640_regs[0]); n++)
     {
         status_t ret = BOARD_Camera_I2C_ReceiveSCCB(0x3c, ov5640_regs[n], 2, &val, sizeof(val));
-        printf ("0x%04X = 0x%02X (err: %ld)\n", ov5640_regs[n], val, ret);
+        printf ("0x%04X = 0x%02X (err: %ld)\r\n", ov5640_regs[n], val, ret);
     }
 
     uint32_t base1 = 0x40CC0000;
@@ -428,7 +430,7 @@ void CamDumpRegisters(void)
 
     for (int n=0; n<sizeof(offset1)/sizeof(offset1[0]); n++)
     {
-        printf ("0x%08lX=%08lX\n", base1 + offset1[n], *(uint32_t*)(base1 + offset1[n]));
+        printf ("0x%08lX=%08lX\r\n", base1 + offset1[n], *(uint32_t*)(base1 + offset1[n]));
     }
 
     uint32_t base2 = 0x400E4000;
@@ -436,12 +438,12 @@ void CamDumpRegisters(void)
 
     for (int n=0; n<sizeof(offset2)/sizeof(offset2[0]); n++)
     {
-        printf ("0x%08lX=%08lX\n", base2 + offset2[n], *(uint32_t*)(base2 + offset2[n]));
+        printf ("0x%08lX=%08lX\r\n", base2 + offset2[n], *(uint32_t*)(base2 + offset2[n]));
     }
 
     for (int n=0; n<14; n++)
     {
-        printf ("40810%03X=%08lX\n",0x100 + (n * 4),
+        printf ("40810%03X=%08lX\r\n",0x100 + (n * 4),
             *(uint32_t*)(0x40810000 + 0x100 + (n * 4)));
     }
 }

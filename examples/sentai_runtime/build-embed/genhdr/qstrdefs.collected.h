@@ -366,6 +366,8 @@ Q(count)
 
 Q(cpu)
 
+Q(debug)
+
 Q(dict)
 
 Q(dict)

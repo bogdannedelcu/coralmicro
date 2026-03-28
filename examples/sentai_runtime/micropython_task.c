@@ -354,6 +354,15 @@ static void micropython_repl_task(void* param) {
     repl_puts("Ctrl+C to interrupt running code or cancel input.\r\n");
     repl_puts("\r\n");
 
+    // Flush captured boot output to /log/boot.log on LittleFS user partition,
+    // then switch debug to silent mode for interactive use.
+    {
+        extern void boot_log_flush(void);
+        extern void sentai_debug_set(int level);
+        boot_log_flush();
+        sentai_debug_set(0);
+    }
+
     static char line[REPL_LINE_MAX];
     static char block[REPL_BLOCK_MAX];
 

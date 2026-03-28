@@ -93,6 +93,10 @@ extern void sentai_uart_restore_baudrate(void);
 // Help file reading from system flash partition
 extern int sentai_help_read(char* buf, int max_size);
 
+// Debug level control
+extern int sentai_debug_get(void);
+extern void sentai_debug_set(int level);
+
 // Check USB drive state; raise OSError if active.
 // Filesystem is unmounted while USB MSC is active — Python must not
 // access flash until the user calls sentai.usb.drive(0).
@@ -547,6 +551,13 @@ static MP_DEFINE_CONST_FUN_OBJ_2(mod_sentai_cam_rotate_obj, mod_sentai_cam_rotat
 static mp_obj_t mod_sentai_usb_drive(mp_obj_t on_obj) {
     int on = mp_obj_get_int(on_obj);
     if (on) {
+        // Print mount hint BEFORE switching console (so user sees it on current output)
+        mp_printf(&mp_plat_print,
+            "\r\nMount on Linux:\r\n"
+            "sudo littlefs-fuse "
+            "--block_size=131072 --read_size=2048 --prog_size=2048 "
+            "--block_count=448 --cache_size=2048 --lookahead_size=2048 "
+            "-o allow_other /dev/sda /mnt/coral\r\n\r\n");
         // Auto-switch REPL to UART when mounting USB drive
         sentai_console_set_target(1);  // 1 = UART
     }
@@ -1091,6 +1102,22 @@ static const mp_obj_module_t sentai_uart_module = {
     .globals = (mp_obj_dict_t *)&sentai_uart_globals,
 };
 
+// sentai.debug(level) -> int
+// Set debug verbosity: 0=silent (default), 1=verbose camera/I2C prints.
+// Called with no args or -1 returns current level.
+static mp_obj_t mod_sentai_debug(size_t n_args, const mp_obj_t *args) {
+    if (n_args == 0) {
+        return mp_obj_new_int(sentai_debug_get());
+    }
+    int level = mp_obj_get_int(args[0]);
+    if (level < 0) {
+        return mp_obj_new_int(sentai_debug_get());
+    }
+    sentai_debug_set(level);
+    return mp_obj_new_int(level);
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_debug_obj, 0, 1, mod_sentai_debug);
+
 // =====================================================================
 // Top-level module: import sentai
 // =====================================================================
@@ -1110,6 +1137,7 @@ static const mp_rom_map_elem_t sentai_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_help),      MP_ROM_PTR(&mod_sentai_help_obj) },
     { MP_ROM_QSTR(MP_QSTR_console),   MP_ROM_PTR(&mod_sentai_console_obj) },
     { MP_ROM_QSTR(MP_QSTR_run),       MP_ROM_PTR(&mod_sentai_run_obj) },
+    { MP_ROM_QSTR(MP_QSTR_debug),      MP_ROM_PTR(&mod_sentai_debug_obj) },
     // Sub-modules
     { MP_ROM_QSTR(MP_QSTR_io),        MP_ROM_PTR(&sentai_io_module) },
     { MP_ROM_QSTR(MP_QSTR_rtos),      MP_ROM_PTR(&sentai_rtos_module) },
