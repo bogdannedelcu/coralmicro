@@ -7,10 +7,10 @@
 
 
 
-# 1 "../../third_party/micropython/py/runtime.h" 1
-# 29 "../../third_party/micropython/py/runtime.h"
-# 1 "../../third_party/micropython/py/mpstate.h" 1
-# 29 "../../third_party/micropython/py/mpstate.h"
+# 1 "/home/bogdan/work/coralmicro/third_party/micropython/py/runtime.h" 1
+# 29 "/home/bogdan/work/coralmicro/third_party/micropython/py/runtime.h"
+# 1 "/home/bogdan/work/coralmicro/third_party/micropython/py/mpstate.h" 1
+# 29 "/home/bogdan/work/coralmicro/third_party/micropython/py/mpstate.h"
 # 1 "/usr/lib/gcc/x86_64-linux-gnu/13/include/stdint.h" 1 3 4
 # 9 "/usr/lib/gcc/x86_64-linux-gnu/13/include/stdint.h" 3 4
 # 1 "/usr/include/stdint.h" 1 3 4
@@ -245,19 +245,19 @@ typedef unsigned long int uintptr_t;
 typedef __intmax_t intmax_t;
 typedef __uintmax_t uintmax_t;
 # 10 "/usr/lib/gcc/x86_64-linux-gnu/13/include/stdint.h" 2 3 4
-# 30 "../../third_party/micropython/py/mpstate.h" 2
+# 30 "/home/bogdan/work/coralmicro/third_party/micropython/py/mpstate.h" 2
 
-# 1 "../../third_party/micropython/py/mpconfig.h" 1
-# 91 "../../third_party/micropython/py/mpconfig.h"
+# 1 "/home/bogdan/work/coralmicro/third_party/micropython/py/mpconfig.h" 1
+# 91 "/home/bogdan/work/coralmicro/third_party/micropython/py/mpconfig.h"
 # 1 "./mpconfigport.h" 1
 
 
 
 
-# 1 "../../third_party/micropython/ports/embed/port/mpconfigport_common.h" 1
-# 31 "../../third_party/micropython/ports/embed/port/mpconfigport_common.h"
+# 1 "/home/bogdan/work/coralmicro/third_party/micropython/ports/embed/port/mpconfigport_common.h" 1
+# 31 "/home/bogdan/work/coralmicro/third_party/micropython/ports/embed/port/mpconfigport_common.h"
 
-# 31 "../../third_party/micropython/ports/embed/port/mpconfigport_common.h"
+# 31 "/home/bogdan/work/coralmicro/third_party/micropython/ports/embed/port/mpconfigport_common.h"
 typedef intptr_t mp_int_t;
 typedef uintptr_t mp_uint_t;
 typedef long mp_off_t;
@@ -288,29 +288,29 @@ extern void *alloca (size_t __size) __attribute__ ((__nothrow__ , __leaf__));
 
 
 
-# 40 "../../third_party/micropython/ports/embed/port/mpconfigport_common.h" 2
+# 40 "/home/bogdan/work/coralmicro/third_party/micropython/ports/embed/port/mpconfigport_common.h" 2
 # 6 "./mpconfigport.h" 2
-# 92 "../../third_party/micropython/py/mpconfig.h" 2
-# 32 "../../third_party/micropython/py/mpstate.h" 2
-# 1 "../../third_party/micropython/py/mpthread.h" 1
-# 33 "../../third_party/micropython/py/mpstate.h" 2
-# 1 "../../third_party/micropython/py/misc.h" 1
-# 33 "../../third_party/micropython/py/misc.h"
+# 92 "/home/bogdan/work/coralmicro/third_party/micropython/py/mpconfig.h" 2
+# 32 "/home/bogdan/work/coralmicro/third_party/micropython/py/mpstate.h" 2
+# 1 "/home/bogdan/work/coralmicro/third_party/micropython/py/mpthread.h" 1
+# 33 "/home/bogdan/work/coralmicro/third_party/micropython/py/mpstate.h" 2
+# 1 "/home/bogdan/work/coralmicro/third_party/micropython/py/misc.h" 1
+# 33 "/home/bogdan/work/coralmicro/third_party/micropython/py/misc.h"
 # 1 "/usr/lib/gcc/x86_64-linux-gnu/13/include/stdbool.h" 1 3 4
-# 34 "../../third_party/micropython/py/misc.h" 2
+# 34 "/home/bogdan/work/coralmicro/third_party/micropython/py/misc.h" 2
 
 # 1 "/usr/lib/gcc/x86_64-linux-gnu/13/include/stddef.h" 1 3 4
 # 145 "/usr/lib/gcc/x86_64-linux-gnu/13/include/stddef.h" 3 4
 typedef long int ptrdiff_t;
 # 329 "/usr/lib/gcc/x86_64-linux-gnu/13/include/stddef.h" 3 4
 typedef int wchar_t;
-# 36 "../../third_party/micropython/py/misc.h" 2
+# 36 "/home/bogdan/work/coralmicro/third_party/micropython/py/misc.h" 2
 
 
-# 37 "../../third_party/micropython/py/misc.h"
+# 37 "/home/bogdan/work/coralmicro/third_party/micropython/py/misc.h"
 typedef unsigned char byte;
 typedef unsigned int uint;
-# 95 "../../third_party/micropython/py/misc.h"
+# 95 "/home/bogdan/work/coralmicro/third_party/micropython/py/misc.h"
 void *m_malloc(size_t num_bytes);
 void *m_malloc_maybe(size_t num_bytes);
 void *m_malloc_with_finaliser(size_t num_bytes);
@@ -322,14 +322,14 @@ void *m_malloc0(size_t num_bytes);
 
 void *m_realloc(void *ptr, size_t new_num_bytes);
 void *m_realloc_maybe(void *ptr, size_t new_num_bytes, 
-# 105 "../../third_party/micropython/py/misc.h" 3 4
+# 105 "/home/bogdan/work/coralmicro/third_party/micropython/py/misc.h" 3 4
                                                       _Bool 
-# 105 "../../third_party/micropython/py/misc.h"
+# 105 "/home/bogdan/work/coralmicro/third_party/micropython/py/misc.h"
                                                            allow_move);
 void m_free(void *ptr);
 
 __attribute__((noreturn)) void m_malloc_fail(size_t num_bytes);
-# 139 "../../third_party/micropython/py/misc.h"
+# 139 "/home/bogdan/work/coralmicro/third_party/micropython/py/misc.h"
 typedef uint unichar;
 
 
@@ -351,49 +351,49 @@ static inline size_t utf8_charlen(const byte *str, size_t len) {
 
 
 
-# 159 "../../third_party/micropython/py/misc.h" 3 4
+# 159 "/home/bogdan/work/coralmicro/third_party/micropython/py/misc.h" 3 4
 _Bool 
-# 159 "../../third_party/micropython/py/misc.h"
+# 159 "/home/bogdan/work/coralmicro/third_party/micropython/py/misc.h"
     unichar_isspace(unichar c);
 
-# 160 "../../third_party/micropython/py/misc.h" 3 4
+# 160 "/home/bogdan/work/coralmicro/third_party/micropython/py/misc.h" 3 4
 _Bool 
-# 160 "../../third_party/micropython/py/misc.h"
+# 160 "/home/bogdan/work/coralmicro/third_party/micropython/py/misc.h"
     unichar_isalpha(unichar c);
 
-# 161 "../../third_party/micropython/py/misc.h" 3 4
+# 161 "/home/bogdan/work/coralmicro/third_party/micropython/py/misc.h" 3 4
 _Bool 
-# 161 "../../third_party/micropython/py/misc.h"
+# 161 "/home/bogdan/work/coralmicro/third_party/micropython/py/misc.h"
     unichar_isprint(unichar c);
 
-# 162 "../../third_party/micropython/py/misc.h" 3 4
+# 162 "/home/bogdan/work/coralmicro/third_party/micropython/py/misc.h" 3 4
 _Bool 
-# 162 "../../third_party/micropython/py/misc.h"
+# 162 "/home/bogdan/work/coralmicro/third_party/micropython/py/misc.h"
     unichar_isdigit(unichar c);
 
-# 163 "../../third_party/micropython/py/misc.h" 3 4
+# 163 "/home/bogdan/work/coralmicro/third_party/micropython/py/misc.h" 3 4
 _Bool 
-# 163 "../../third_party/micropython/py/misc.h"
+# 163 "/home/bogdan/work/coralmicro/third_party/micropython/py/misc.h"
     unichar_isxdigit(unichar c);
 
-# 164 "../../third_party/micropython/py/misc.h" 3 4
+# 164 "/home/bogdan/work/coralmicro/third_party/micropython/py/misc.h" 3 4
 _Bool 
-# 164 "../../third_party/micropython/py/misc.h"
+# 164 "/home/bogdan/work/coralmicro/third_party/micropython/py/misc.h"
     unichar_isident(unichar c);
 
-# 165 "../../third_party/micropython/py/misc.h" 3 4
+# 165 "/home/bogdan/work/coralmicro/third_party/micropython/py/misc.h" 3 4
 _Bool 
-# 165 "../../third_party/micropython/py/misc.h"
+# 165 "/home/bogdan/work/coralmicro/third_party/micropython/py/misc.h"
     unichar_isalnum(unichar c);
 
-# 166 "../../third_party/micropython/py/misc.h" 3 4
+# 166 "/home/bogdan/work/coralmicro/third_party/micropython/py/misc.h" 3 4
 _Bool 
-# 166 "../../third_party/micropython/py/misc.h"
+# 166 "/home/bogdan/work/coralmicro/third_party/micropython/py/misc.h"
     unichar_isupper(unichar c);
 
-# 167 "../../third_party/micropython/py/misc.h" 3 4
+# 167 "/home/bogdan/work/coralmicro/third_party/micropython/py/misc.h" 3 4
 _Bool 
-# 167 "../../third_party/micropython/py/misc.h"
+# 167 "/home/bogdan/work/coralmicro/third_party/micropython/py/misc.h"
     unichar_islower(unichar c);
 unichar unichar_tolower(unichar c);
 unichar unichar_toupper(unichar c);
@@ -408,9 +408,9 @@ typedef struct _vstr_t {
     size_t len;
     char *buf;
     
-# 180 "../../third_party/micropython/py/misc.h" 3 4
+# 180 "/home/bogdan/work/coralmicro/third_party/micropython/py/misc.h" 3 4
    _Bool 
-# 180 "../../third_party/micropython/py/misc.h"
+# 180 "/home/bogdan/work/coralmicro/third_party/micropython/py/misc.h"
         fixed_buf;
 } vstr_t;
 
@@ -448,15 +448,15 @@ void vstr_cut_head_bytes(vstr_t *vstr, size_t bytes_to_cut);
 void vstr_cut_tail_bytes(vstr_t *vstr, size_t bytes_to_cut);
 void vstr_cut_out_bytes(vstr_t *vstr, size_t byte_pos, size_t bytes_to_cut);
 void vstr_printf(vstr_t *vstr, const char *fmt, ...);
-# 235 "../../third_party/micropython/py/misc.h"
+# 235 "/home/bogdan/work/coralmicro/third_party/micropython/py/misc.h"
 int DEBUG_printf(const char *fmt, ...);
 
 extern mp_uint_t mp_verbose_flag;
-# 328 "../../third_party/micropython/py/misc.h"
+# 328 "/home/bogdan/work/coralmicro/third_party/micropython/py/misc.h"
 typedef const char *mp_rom_error_text_t;
-# 34 "../../third_party/micropython/py/mpstate.h" 2
-# 1 "../../third_party/micropython/py/nlr.h" 1
-# 32 "../../third_party/micropython/py/nlr.h"
+# 34 "/home/bogdan/work/coralmicro/third_party/micropython/py/mpstate.h" 2
+# 1 "/home/bogdan/work/coralmicro/third_party/micropython/py/nlr.h" 1
+# 32 "/home/bogdan/work/coralmicro/third_party/micropython/py/nlr.h"
 # 1 "/usr/lib/gcc/x86_64-linux-gnu/13/include/limits.h" 1 3 4
 # 34 "/usr/lib/gcc/x86_64-linux-gnu/13/include/limits.h" 3 4
 # 1 "/usr/lib/gcc/x86_64-linux-gnu/13/include/syslimits.h" 1 3 4
@@ -475,7 +475,7 @@ typedef const char *mp_rom_error_text_t;
 # 206 "/usr/lib/gcc/x86_64-linux-gnu/13/include/limits.h" 2 3 4
 # 8 "/usr/lib/gcc/x86_64-linux-gnu/13/include/syslimits.h" 2 3 4
 # 35 "/usr/lib/gcc/x86_64-linux-gnu/13/include/limits.h" 2 3 4
-# 33 "../../third_party/micropython/py/nlr.h" 2
+# 33 "/home/bogdan/work/coralmicro/third_party/micropython/py/nlr.h" 2
 # 1 "/usr/include/assert.h" 1 3 4
 # 66 "/usr/include/assert.h" 3 4
 
@@ -500,10 +500,10 @@ extern void __assert (const char *__assertion, const char *__file, int __line)
 
 
 
-# 34 "../../third_party/micropython/py/nlr.h" 2
-# 103 "../../third_party/micropython/py/nlr.h"
+# 34 "/home/bogdan/work/coralmicro/third_party/micropython/py/nlr.h" 2
+# 103 "/home/bogdan/work/coralmicro/third_party/micropython/py/nlr.h"
 
-# 103 "../../third_party/micropython/py/nlr.h"
+# 103 "/home/bogdan/work/coralmicro/third_party/micropython/py/nlr.h"
 typedef struct _nlr_buf_t nlr_buf_t;
 struct _nlr_buf_t {
 
@@ -536,38 +536,38 @@ struct _nlr_jump_callback_node_t {
     nlr_jump_callback_node_t *prev;
     nlr_jump_callback_fun_t fun;
 };
-# 163 "../../third_party/micropython/py/nlr.h"
+# 163 "/home/bogdan/work/coralmicro/third_party/micropython/py/nlr.h"
 unsigned int nlr_push(nlr_buf_t *);
 
 
 unsigned int nlr_push_tail(nlr_buf_t *top);
 void nlr_pop(void);
 __attribute__((noreturn)) void nlr_jump(void *val);
-# 179 "../../third_party/micropython/py/nlr.h"
+# 179 "/home/bogdan/work/coralmicro/third_party/micropython/py/nlr.h"
 __attribute__((noreturn)) void nlr_jump_fail(void *val);
-# 204 "../../third_party/micropython/py/nlr.h"
+# 204 "/home/bogdan/work/coralmicro/third_party/micropython/py/nlr.h"
 void nlr_push_jump_callback(nlr_jump_callback_node_t *node, nlr_jump_callback_fun_t fun);
 
 
 
 void nlr_pop_jump_callback(
-# 208 "../../third_party/micropython/py/nlr.h" 3 4
+# 208 "/home/bogdan/work/coralmicro/third_party/micropython/py/nlr.h" 3 4
                           _Bool 
-# 208 "../../third_party/micropython/py/nlr.h"
+# 208 "/home/bogdan/work/coralmicro/third_party/micropython/py/nlr.h"
                                run_callback);
 
 
 void nlr_call_jump_callbacks(nlr_buf_t *nlr);
-# 35 "../../third_party/micropython/py/mpstate.h" 2
-# 1 "../../third_party/micropython/py/obj.h" 1
-# 29 "../../third_party/micropython/py/obj.h"
+# 35 "/home/bogdan/work/coralmicro/third_party/micropython/py/mpstate.h" 2
+# 1 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h" 1
+# 29 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h"
 # 1 "/usr/include/assert.h" 1 3 4
-# 30 "../../third_party/micropython/py/obj.h" 2
+# 30 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h" 2
 
 
 
-# 1 "../../third_party/micropython/py/qstr.h" 1
-# 39 "../../third_party/micropython/py/qstr.h"
+# 1 "/home/bogdan/work/coralmicro/third_party/micropython/py/qstr.h" 1
+# 39 "/home/bogdan/work/coralmicro/third_party/micropython/py/qstr.h"
 enum {
 
 
@@ -578,13 +578,13 @@ enum {
 
     MP_QSTRnumber_of_static,
     MP_QSTRstart_of_main = MP_QSTRnumber_of_static - 1,
-# 57 "../../third_party/micropython/py/qstr.h"
+# 57 "/home/bogdan/work/coralmicro/third_party/micropython/py/qstr.h"
     MP_QSTRnumber_of,
 };
 
 typedef size_t qstr;
 typedef uint16_t qstr_short_t;
-# 74 "../../third_party/micropython/py/qstr.h"
+# 74 "/home/bogdan/work/coralmicro/third_party/micropython/py/qstr.h"
 typedef uint8_t qstr_len_t;
 
 
@@ -623,9 +623,9 @@ const byte *qstr_data(qstr q, size_t *len);
 
 void qstr_pool_info(size_t *n_pool, size_t *n_qstr, size_t *n_str_data_bytes, size_t *n_total_bytes);
 void qstr_dump_data(void);
-# 34 "../../third_party/micropython/py/obj.h" 2
-# 1 "../../third_party/micropython/py/mpprint.h" 1
-# 48 "../../third_party/micropython/py/mpprint.h"
+# 34 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h" 2
+# 1 "/home/bogdan/work/coralmicro/third_party/micropython/py/mpprint.h" 1
+# 48 "/home/bogdan/work/coralmicro/third_party/micropython/py/mpprint.h"
 typedef void (*mp_print_strn_t)(void *data, const char *str, size_t len);
 
 typedef struct _mp_print_t {
@@ -656,9 +656,9 @@ int mp_print_strn(const mp_print_t *print, const char *str, size_t len, int flag
 
 
 int mp_printf(const mp_print_t *print, const char *fmt, ...);
-# 35 "../../third_party/micropython/py/obj.h" 2
-# 1 "../../third_party/micropython/py/runtime0.h" 1
-# 71 "../../third_party/micropython/py/runtime0.h"
+# 35 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h" 2
+# 1 "/home/bogdan/work/coralmicro/third_party/micropython/py/runtime0.h" 1
+# 71 "/home/bogdan/work/coralmicro/third_party/micropython/py/runtime0.h"
 typedef enum {
 
 
@@ -754,8 +754,8 @@ typedef enum {
     MP_BINARY_OP_NOT_IN,
     MP_BINARY_OP_IS_NOT,
 } mp_binary_op_t;
-# 36 "../../third_party/micropython/py/obj.h" 2
-# 44 "../../third_party/micropython/py/obj.h"
+# 36 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h" 2
+# 44 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h"
 typedef void *mp_obj_t;
 typedef const void *mp_const_obj_t;
 
@@ -770,11 +770,11 @@ struct _mp_obj_base_t {
     const mp_obj_type_t *type ;
 };
 typedef struct _mp_obj_base_t mp_obj_base_t;
-# 86 "../../third_party/micropython/py/obj.h"
+# 86 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h"
 static inline 
-# 86 "../../third_party/micropython/py/obj.h" 3 4
+# 86 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h" 3 4
              _Bool 
-# 86 "../../third_party/micropython/py/obj.h"
+# 86 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h"
                   mp_obj_is_small_int(mp_const_obj_t o) {
     return (((mp_int_t)(o)) & 1) != 0;
 }
@@ -782,9 +782,9 @@ static inline
 
 
 static inline 
-# 92 "../../third_party/micropython/py/obj.h" 3 4
+# 92 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h" 3 4
              _Bool 
-# 92 "../../third_party/micropython/py/obj.h"
+# 92 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h"
                   mp_obj_is_qstr(mp_const_obj_t o) {
     return (((mp_int_t)(o)) & 7) == 2;
 }
@@ -792,23 +792,23 @@ static inline
 
 
 static inline 
-# 98 "../../third_party/micropython/py/obj.h" 3 4
+# 98 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h" 3 4
              _Bool 
-# 98 "../../third_party/micropython/py/obj.h"
+# 98 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h"
                   mp_obj_is_immediate_obj(mp_const_obj_t o) {
     return (((mp_int_t)(o)) & 7) == 6;
 }
-# 125 "../../third_party/micropython/py/obj.h"
+# 125 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h"
 static inline 
-# 125 "../../third_party/micropython/py/obj.h" 3 4
+# 125 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h" 3 4
              _Bool 
-# 125 "../../third_party/micropython/py/obj.h"
+# 125 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h"
                   mp_obj_is_obj(mp_const_obj_t o) {
     return (((mp_int_t)(o)) & 3) == 0;
 }
-# 345 "../../third_party/micropython/py/obj.h"
+# 345 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h"
 typedef mp_const_obj_t mp_rom_obj_t;
-# 452 "../../third_party/micropython/py/obj.h"
+# 452 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h"
 typedef struct _mp_map_elem_t {
     mp_obj_t key;
     mp_obj_t value;
@@ -837,22 +837,22 @@ typedef enum _mp_map_lookup_kind_t {
 } mp_map_lookup_kind_t;
 
 static inline 
-# 479 "../../third_party/micropython/py/obj.h" 3 4
+# 479 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h" 3 4
              _Bool 
-# 479 "../../third_party/micropython/py/obj.h"
+# 479 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h"
                   mp_map_slot_is_filled(const mp_map_t *map, size_t pos) {
     
-# 480 "../../third_party/micropython/py/obj.h" 3 4
+# 480 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h" 3 4
    ((
-# 480 "../../third_party/micropython/py/obj.h"
+# 480 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h"
    pos < map->alloc
-# 480 "../../third_party/micropython/py/obj.h" 3 4
+# 480 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h" 3 4
    ) ? (void) (0) : __assert_fail (
-# 480 "../../third_party/micropython/py/obj.h"
+# 480 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h"
    "pos < map->alloc"
-# 480 "../../third_party/micropython/py/obj.h" 3 4
-   , "../../third_party/micropython/py/obj.h", 480, __extension__ __PRETTY_FUNCTION__))
-# 480 "../../third_party/micropython/py/obj.h"
+# 480 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h" 3 4
+   , "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h", 480, __extension__ __PRETTY_FUNCTION__))
+# 480 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h"
                            ;
     return (map)->table[pos].key != (((mp_obj_t)((void *)0))) && (map)->table[pos].key != (((mp_obj_t)((void *)4)));
 }
@@ -875,9 +875,9 @@ typedef struct _mp_set_t {
 } mp_set_t;
 
 static inline 
-# 501 "../../third_party/micropython/py/obj.h" 3 4
+# 501 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h" 3 4
              _Bool 
-# 501 "../../third_party/micropython/py/obj.h"
+# 501 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h"
                   mp_set_slot_is_filled(const mp_set_t *set, size_t pos) {
     return (set)->table[pos] != (((mp_obj_t)((void *)0))) && (set)->table[pos] != (((mp_obj_t)((void *)4)));
 }
@@ -897,7 +897,7 @@ typedef mp_obj_t (*mp_fun_var_t)(size_t n, const mp_obj_t *);
 
 
 typedef mp_obj_t (*mp_fun_kw_t)(size_t n, const mp_obj_t *, mp_map_t *);
-# 553 "../../third_party/micropython/py/obj.h"
+# 553 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h"
 typedef enum {
     PRINT_STR = 0,
     PRINT_REPR = 1,
@@ -948,9 +948,9 @@ typedef struct _mp_buffer_info_t {
 typedef mp_int_t (*mp_buffer_fun_t)(mp_obj_t obj, mp_buffer_info_t *bufinfo, mp_uint_t flags);
 
 
-# 602 "../../third_party/micropython/py/obj.h" 3 4
+# 602 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h" 3 4
 _Bool 
-# 602 "../../third_party/micropython/py/obj.h"
+# 602 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h"
     mp_get_buffer(mp_obj_t obj, mp_buffer_info_t *bufinfo, mp_uint_t flags);
 
 static inline void mp_get_buffer_raise(mp_obj_t obj, mp_buffer_info_t *bufinfo, mp_uint_t flags) {
@@ -969,7 +969,7 @@ struct _mp_obj_type_t {
 
 
     uint16_t name;
-# 628 "../../third_party/micropython/py/obj.h"
+# 628 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h"
     uint8_t slot_index_make_new;
 
 
@@ -982,7 +982,7 @@ struct _mp_obj_type_t {
 
     uint8_t slot_index_unary_op;
     uint8_t slot_index_binary_op;
-# 653 "../../third_party/micropython/py/obj.h"
+# 653 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h"
     uint8_t slot_index_attr;
 
 
@@ -991,7 +991,7 @@ struct _mp_obj_type_t {
 
 
     uint8_t slot_index_subscr;
-# 672 "../../third_party/micropython/py/obj.h"
+# 672 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h"
     uint8_t slot_index_iter;
 
 
@@ -1058,7 +1058,7 @@ typedef struct _mp_obj_full_type_t {
 
     const void *slots[11];
 } mp_obj_full_type_t;
-# 801 "../../third_party/micropython/py/obj.h"
+# 801 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h"
 extern const mp_obj_type_t mp_type_type;
 extern const mp_obj_type_t mp_type_object;
 extern const mp_obj_type_t mp_type_NoneType;
@@ -1139,20 +1139,20 @@ extern const mp_obj_type_t mp_type_UnicodeError;
 extern const mp_obj_type_t mp_type_ValueError;
 extern const mp_obj_type_t mp_type_ViperTypeError;
 extern const mp_obj_type_t mp_type_ZeroDivisionError;
-# 903 "../../third_party/micropython/py/obj.h"
+# 903 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h"
 extern const struct _mp_obj_str_t mp_const_empty_bytes_obj;
 extern const struct _mp_obj_tuple_t mp_const_empty_tuple_obj;
 extern const struct _mp_obj_dict_t mp_const_empty_dict_obj;
 extern const struct _mp_obj_singleton_t mp_const_ellipsis_obj;
 extern const struct _mp_obj_singleton_t mp_const_notimplemented_obj;
 extern const struct _mp_obj_exception_t mp_const_GeneratorExit_obj;
-# 920 "../../third_party/micropython/py/obj.h"
+# 920 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h"
 void *mp_obj_malloc_helper(size_t num_bytes, const mp_obj_type_t *type);
-# 960 "../../third_party/micropython/py/obj.h"
+# 960 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h"
 
-# 960 "../../third_party/micropython/py/obj.h" 3 4
+# 960 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h" 3 4
 _Bool 
-# 960 "../../third_party/micropython/py/obj.h"
+# 960 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h"
     mp_obj_is_dict_or_ordereddict(mp_obj_t o);
 
 
@@ -1164,9 +1164,9 @@ mp_obj_t mp_obj_new_cell(mp_obj_t obj);
 mp_obj_t mp_obj_new_int(mp_int_t value);
 mp_obj_t mp_obj_new_int_from_uint(mp_uint_t value);
 mp_obj_t mp_obj_new_int_from_str_len(const char **str, size_t len, 
-# 970 "../../third_party/micropython/py/obj.h" 3 4
+# 970 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h" 3 4
                                                                   _Bool 
-# 970 "../../third_party/micropython/py/obj.h"
+# 970 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h"
                                                                        neg, unsigned int base);
 mp_obj_t mp_obj_new_int_from_ll(long long val);
 mp_obj_t mp_obj_new_int_from_ull(unsigned long long val);
@@ -1213,9 +1213,9 @@ mp_obj_t mp_obj_new_memoryview(byte typecode, size_t nitems, void *items);
 const mp_obj_type_t *mp_obj_get_type(mp_const_obj_t o_in);
 const char *mp_obj_get_type_str(mp_const_obj_t o_in);
 
-# 1015 "../../third_party/micropython/py/obj.h" 3 4
+# 1015 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h" 3 4
 _Bool 
-# 1015 "../../third_party/micropython/py/obj.h"
+# 1015 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h"
     mp_obj_is_subclass_fast(mp_const_obj_t object, mp_const_obj_t classinfo);
 mp_obj_t mp_obj_cast_to_native_base(mp_obj_t self_in, mp_const_obj_t native_type);
 
@@ -1224,27 +1224,27 @@ void mp_obj_print(mp_obj_t o, mp_print_kind_t kind);
 void mp_obj_print_exception(const mp_print_t *print, mp_obj_t exc);
 
 
-# 1022 "../../third_party/micropython/py/obj.h" 3 4
+# 1022 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h" 3 4
 _Bool 
-# 1022 "../../third_party/micropython/py/obj.h"
+# 1022 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h"
     mp_obj_is_true(mp_obj_t arg);
 
-# 1023 "../../third_party/micropython/py/obj.h" 3 4
+# 1023 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h" 3 4
 _Bool 
-# 1023 "../../third_party/micropython/py/obj.h"
+# 1023 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h"
     mp_obj_is_callable(mp_obj_t o_in);
 mp_obj_t mp_obj_equal_not_equal(mp_binary_op_t op, mp_obj_t o1, mp_obj_t o2);
 
-# 1025 "../../third_party/micropython/py/obj.h" 3 4
+# 1025 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h" 3 4
 _Bool 
-# 1025 "../../third_party/micropython/py/obj.h"
+# 1025 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h"
     mp_obj_equal(mp_obj_t o1, mp_obj_t o2);
 
 
 static inline 
-# 1028 "../../third_party/micropython/py/obj.h" 3 4
+# 1028 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h" 3 4
              _Bool 
-# 1028 "../../third_party/micropython/py/obj.h"
+# 1028 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h"
                   mp_obj_is_integer(mp_const_obj_t o) {
     return (mp_obj_is_small_int(o) || (mp_obj_is_obj(o) && (((mp_obj_base_t *)((void *)(o)))->type == (&mp_type_int)))) || ((o) == ((mp_obj_t)(((1) << 3) | 6)) || (o) == ((mp_obj_t)(((3) << 3) | 6)));
 }
@@ -1252,9 +1252,9 @@ static inline
 mp_int_t mp_obj_get_int(mp_const_obj_t arg);
 mp_int_t mp_obj_get_int_truncated(mp_const_obj_t arg);
 
-# 1034 "../../third_party/micropython/py/obj.h" 3 4
+# 1034 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h" 3 4
 _Bool 
-# 1034 "../../third_party/micropython/py/obj.h"
+# 1034 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h"
     mp_obj_get_int_maybe(mp_const_obj_t arg, mp_int_t *value);
 
 
@@ -1265,9 +1265,9 @@ _Bool
 void mp_obj_get_array(mp_obj_t o, size_t *len, mp_obj_t **items);
 void mp_obj_get_array_fixed_n(mp_obj_t o, size_t len, mp_obj_t **items);
 size_t mp_get_index(const mp_obj_type_t *type, size_t len, mp_obj_t index, 
-# 1043 "../../third_party/micropython/py/obj.h" 3 4
+# 1043 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h" 3 4
                                                                           _Bool 
-# 1043 "../../third_party/micropython/py/obj.h"
+# 1043 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h"
                                                                                is_slice);
 mp_obj_t mp_obj_id(mp_obj_t o_in);
 mp_obj_t mp_obj_len(mp_obj_t o_in);
@@ -1301,24 +1301,24 @@ mp_uint_t mp_obj_int_get_uint_checked(mp_const_obj_t self_in);
 
 
 
-# 1075 "../../third_party/micropython/py/obj.h" 3 4
+# 1075 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h" 3 4
 _Bool 
-# 1075 "../../third_party/micropython/py/obj.h"
+# 1075 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h"
     mp_obj_is_native_exception_instance(mp_obj_t self_in);
 
-# 1076 "../../third_party/micropython/py/obj.h" 3 4
+# 1076 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h" 3 4
 _Bool 
-# 1076 "../../third_party/micropython/py/obj.h"
+# 1076 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h"
     mp_obj_is_exception_type(mp_obj_t self_in);
 
-# 1077 "../../third_party/micropython/py/obj.h" 3 4
+# 1077 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h" 3 4
 _Bool 
-# 1077 "../../third_party/micropython/py/obj.h"
+# 1077 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h"
     mp_obj_is_exception_instance(mp_obj_t self_in);
 
-# 1078 "../../third_party/micropython/py/obj.h" 3 4
+# 1078 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h" 3 4
 _Bool 
-# 1078 "../../third_party/micropython/py/obj.h"
+# 1078 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h"
     mp_obj_exception_match(mp_obj_t exc, mp_const_obj_t exc_type);
 void mp_obj_exception_clear_traceback(mp_obj_t self_in);
 void mp_obj_exception_add_traceback(mp_obj_t self_in, qstr file, size_t line, qstr block);
@@ -1329,30 +1329,30 @@ mp_obj_t mp_alloc_emergency_exception_buf(mp_obj_t size_in);
 void mp_init_emergency_exception_buf(void);
 static inline mp_obj_t mp_obj_new_exception_arg1(const mp_obj_type_t *exc_type, mp_obj_t arg) {
     
-# 1087 "../../third_party/micropython/py/obj.h" 3 4
+# 1087 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h" 3 4
    ((
-# 1087 "../../third_party/micropython/py/obj.h"
+# 1087 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h"
    ((mp_make_new_fun_t)(((exc_type)->slot_index_make_new) ? ((mp_make_new_fun_t)(exc_type)->slots[(exc_type)->slot_index_make_new - 1]) : 
-# 1087 "../../third_party/micropython/py/obj.h" 3 4
+# 1087 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h" 3 4
    ((void *)0)
-# 1087 "../../third_party/micropython/py/obj.h"
+# 1087 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h"
    )) == mp_obj_exception_make_new
-# 1087 "../../third_party/micropython/py/obj.h" 3 4
+# 1087 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h" 3 4
    ) ? (void) (0) : __assert_fail (
-# 1087 "../../third_party/micropython/py/obj.h"
+# 1087 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h"
    "MP_OBJ_TYPE_GET_SLOT_OR_NULL(exc_type, make_new) == mp_obj_exception_make_new"
-# 1087 "../../third_party/micropython/py/obj.h" 3 4
-   , "../../third_party/micropython/py/obj.h", 1087, __extension__ __PRETTY_FUNCTION__))
-# 1087 "../../third_party/micropython/py/obj.h"
+# 1087 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h" 3 4
+   , "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h", 1087, __extension__ __PRETTY_FUNCTION__))
+# 1087 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h"
                                                                                         ;
     return mp_obj_exception_make_new(exc_type, 1, 0, &arg);
 }
 
 
 
-# 1092 "../../third_party/micropython/py/obj.h" 3 4
+# 1092 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h" 3 4
 _Bool 
-# 1092 "../../third_party/micropython/py/obj.h"
+# 1092 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h"
     mp_obj_str_equal(mp_obj_t s1, mp_obj_t s2);
 qstr mp_obj_str_get_qstr(mp_obj_t self_in);
 const char *mp_obj_str_get_str(mp_obj_t self_in);
@@ -1360,11 +1360,11 @@ const char *mp_obj_str_get_data(mp_obj_t self_in, size_t *len);
 mp_obj_t mp_obj_str_intern(mp_obj_t str);
 mp_obj_t mp_obj_str_intern_checked(mp_obj_t obj);
 void mp_str_print_quoted(const mp_print_t *print, const byte *str_data, size_t str_len, 
-# 1098 "../../third_party/micropython/py/obj.h" 3 4
+# 1098 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h" 3 4
                                                                                        _Bool 
-# 1098 "../../third_party/micropython/py/obj.h"
+# 1098 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h"
                                                                                             is_bytes);
-# 1152 "../../third_party/micropython/py/obj.h"
+# 1152 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h"
 void mp_obj_tuple_get(mp_obj_t self_in, size_t *len, mp_obj_t **items);
 void mp_obj_tuple_del(mp_obj_t self_in);
 mp_int_t mp_obj_tuple_hash(mp_obj_t self_in);
@@ -1470,21 +1470,21 @@ void mp_seq_multiply(const void *items, size_t item_sz, size_t len, size_t times
 
 
 
-# 1256 "../../third_party/micropython/py/obj.h" 3 4
+# 1256 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h" 3 4
 _Bool 
-# 1256 "../../third_party/micropython/py/obj.h"
+# 1256 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h"
     mp_seq_cmp_bytes(mp_uint_t op, const byte *data1, size_t len1, const byte *data2, size_t len2);
 
-# 1257 "../../third_party/micropython/py/obj.h" 3 4
+# 1257 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h" 3 4
 _Bool 
-# 1257 "../../third_party/micropython/py/obj.h"
+# 1257 "/home/bogdan/work/coralmicro/third_party/micropython/py/obj.h"
     mp_seq_cmp_objs(mp_uint_t op, const mp_obj_t *items1, size_t len1, const mp_obj_t *items2, size_t len2);
 mp_obj_t mp_seq_index_obj(const mp_obj_t *items, size_t len, size_t n_args, const mp_obj_t *args);
 mp_obj_t mp_seq_count_obj(const mp_obj_t *items, size_t len, mp_obj_t value);
 mp_obj_t mp_seq_extract_slice(size_t len, const mp_obj_t *seq, mp_bound_slice_t *indexes);
-# 36 "../../third_party/micropython/py/mpstate.h" 2
-# 1 "../../third_party/micropython/py/objlist.h" 1
-# 31 "../../third_party/micropython/py/objlist.h"
+# 36 "/home/bogdan/work/coralmicro/third_party/micropython/py/mpstate.h" 2
+# 1 "/home/bogdan/work/coralmicro/third_party/micropython/py/objlist.h" 1
+# 31 "/home/bogdan/work/coralmicro/third_party/micropython/py/objlist.h"
 typedef struct _mp_obj_list_t {
     mp_obj_base_t base;
     size_t alloc;
@@ -1494,11 +1494,11 @@ typedef struct _mp_obj_list_t {
 
 void mp_obj_list_init(mp_obj_list_t *o, size_t n);
 mp_obj_t mp_obj_list_make_new(const mp_obj_type_t *type_in, size_t n_args, size_t n_kw, const mp_obj_t *args);
-# 37 "../../third_party/micropython/py/mpstate.h" 2
-# 1 "../../third_party/micropython/py/objexcept.h" 1
-# 30 "../../third_party/micropython/py/objexcept.h"
-# 1 "../../third_party/micropython/py/objtuple.h" 1
-# 31 "../../third_party/micropython/py/objtuple.h"
+# 37 "/home/bogdan/work/coralmicro/third_party/micropython/py/mpstate.h" 2
+# 1 "/home/bogdan/work/coralmicro/third_party/micropython/py/objexcept.h" 1
+# 30 "/home/bogdan/work/coralmicro/third_party/micropython/py/objexcept.h"
+# 1 "/home/bogdan/work/coralmicro/third_party/micropython/py/objtuple.h" 1
+# 31 "/home/bogdan/work/coralmicro/third_party/micropython/py/objtuple.h"
 typedef struct _mp_obj_tuple_t {
     mp_obj_base_t base;
     size_t len;
@@ -1518,9 +1518,9 @@ mp_obj_t mp_obj_tuple_subscr(mp_obj_t base, mp_obj_t index, mp_obj_t value);
 mp_obj_t mp_obj_tuple_getiter(mp_obj_t o_in, mp_obj_iter_buf_t *iter_buf);
 
 extern const mp_obj_type_t mp_type_attrtuple;
-# 62 "../../third_party/micropython/py/objtuple.h"
+# 62 "/home/bogdan/work/coralmicro/third_party/micropython/py/objtuple.h"
 mp_obj_t mp_obj_new_attrtuple(const qstr *fields, size_t n, const mp_obj_t *items);
-# 31 "../../third_party/micropython/py/objexcept.h" 2
+# 31 "/home/bogdan/work/coralmicro/third_party/micropython/py/objexcept.h" 2
 
 typedef struct _mp_obj_exception_t {
     mp_obj_base_t base;
@@ -1532,7 +1532,7 @@ typedef struct _mp_obj_exception_t {
 
 void mp_obj_exception_print(const mp_print_t *print, mp_obj_t o_in, mp_print_kind_t kind);
 void mp_obj_exception_attr(mp_obj_t self_in, qstr attr, mp_obj_t *dest);
-# 38 "../../third_party/micropython/py/mpstate.h" 2
+# 38 "/home/bogdan/work/coralmicro/third_party/micropython/py/mpstate.h" 2
 
 
 
@@ -1543,10 +1543,10 @@ void mp_obj_exception_attr(mp_obj_t self_in, qstr attr, mp_obj_t *dest);
 enum {
 
     MP_SYS_MUTABLE_PATH,
-# 56 "../../third_party/micropython/py/mpstate.h"
+# 56 "/home/bogdan/work/coralmicro/third_party/micropython/py/mpstate.h"
     MP_SYS_MUTABLE_NUM,
 };
-# 75 "../../third_party/micropython/py/mpstate.h"
+# 75 "/home/bogdan/work/coralmicro/third_party/micropython/py/mpstate.h"
 typedef struct _mp_sched_item_t {
     mp_obj_t func;
     mp_obj_t arg;
@@ -1583,9 +1583,9 @@ typedef struct _mp_state_mem_t {
 
     int gc_stack_overflow;
     size_t gc_block_stack[(64)];
-# 119 "../../third_party/micropython/py/mpstate.h"
+# 119 "/home/bogdan/work/coralmicro/third_party/micropython/py/mpstate.h"
     uint16_t gc_auto_collect_enabled;
-# 138 "../../third_party/micropython/py/mpstate.h"
+# 138 "/home/bogdan/work/coralmicro/third_party/micropython/py/mpstate.h"
 } mp_state_mem_t;
 
 
@@ -1606,7 +1606,7 @@ typedef struct _mp_state_vm_t {
 
 
     mp_obj_exception_t mp_emergency_exception_obj;
-# 172 "../../third_party/micropython/py/mpstate.h"
+# 172 "/home/bogdan/work/coralmicro/third_party/micropython/py/mpstate.h"
     mp_obj_exception_t mp_kbd_exception;
 
 
@@ -1615,7 +1615,7 @@ typedef struct _mp_state_vm_t {
 
 
     mp_obj_dict_t dict_main;
-# 199 "../../third_party/micropython/py/mpstate.h"
+# 199 "/home/bogdan/work/coralmicro/third_party/micropython/py/mpstate.h"
     char *qstr_last_chunk;
     size_t qstr_last_alloc;
     size_t qstr_last_used;
@@ -1627,7 +1627,7 @@ typedef struct _mp_state_vm_t {
 
 
     mp_uint_t mp_optimise_value;
-# 250 "../../third_party/micropython/py/mpstate.h"
+# 250 "/home/bogdan/work/coralmicro/third_party/micropython/py/mpstate.h"
 } mp_state_vm_t;
 
 
@@ -1637,7 +1637,7 @@ typedef struct _mp_state_vm_t {
 typedef struct _mp_state_thread_t {
 
     char *stack_top;
-# 271 "../../third_party/micropython/py/mpstate.h"
+# 271 "/home/bogdan/work/coralmicro/third_party/micropython/py/mpstate.h"
     uint16_t gc_lock_depth;
 
 
@@ -1674,9 +1674,9 @@ typedef struct _mp_state_ctx_t {
 } mp_state_ctx_t;
 
 extern mp_state_ctx_t mp_state_ctx;
-# 30 "../../third_party/micropython/py/runtime.h" 2
-# 1 "../../third_party/micropython/py/pystack.h" 1
-# 80 "../../third_party/micropython/py/pystack.h"
+# 30 "/home/bogdan/work/coralmicro/third_party/micropython/py/runtime.h" 2
+# 1 "/home/bogdan/work/coralmicro/third_party/micropython/py/pystack.h" 1
+# 80 "/home/bogdan/work/coralmicro/third_party/micropython/py/pystack.h"
 static inline void mp_local_free(void *ptr) {
     (void)ptr;
 }
@@ -1692,14 +1692,14 @@ static inline void *mp_nonlocal_realloc(void *ptr, size_t old_n_bytes, size_t ne
 static inline void mp_nonlocal_free(void *ptr, size_t n_bytes) {
     ((void)(n_bytes), m_free(ptr));
 }
-# 31 "../../third_party/micropython/py/runtime.h" 2
-# 1 "../../third_party/micropython/py/stackctrl.h" 1
-# 31 "../../third_party/micropython/py/stackctrl.h"
+# 31 "/home/bogdan/work/coralmicro/third_party/micropython/py/runtime.h" 2
+# 1 "/home/bogdan/work/coralmicro/third_party/micropython/py/stackctrl.h" 1
+# 31 "/home/bogdan/work/coralmicro/third_party/micropython/py/stackctrl.h"
 void mp_stack_ctrl_init(void);
 void mp_stack_set_top(void *top);
 mp_uint_t mp_stack_usage(void);
-# 32 "../../third_party/micropython/py/runtime.h" 2
-# 40 "../../third_party/micropython/py/runtime.h"
+# 32 "/home/bogdan/work/coralmicro/third_party/micropython/py/runtime.h" 2
+# 40 "/home/bogdan/work/coralmicro/third_party/micropython/py/runtime.h"
 typedef enum {
     MP_VM_RETURN_NORMAL,
     MP_VM_RETURN_YIELD,
@@ -1717,9 +1717,9 @@ typedef enum {
 
 typedef union _mp_arg_val_t {
     
-# 56 "../../third_party/micropython/py/runtime.h" 3 4
+# 56 "/home/bogdan/work/coralmicro/third_party/micropython/py/runtime.h" 3 4
    _Bool 
-# 56 "../../third_party/micropython/py/runtime.h"
+# 56 "/home/bogdan/work/coralmicro/third_party/micropython/py/runtime.h"
         u_bool;
     mp_int_t u_int;
     mp_obj_t u_obj;
@@ -1768,11 +1768,11 @@ void mp_sched_keyboard_interrupt(void);
 
 
 void mp_handle_pending(
-# 103 "../../third_party/micropython/py/runtime.h" 3 4
+# 103 "/home/bogdan/work/coralmicro/third_party/micropython/py/runtime.h" 3 4
                       _Bool 
-# 103 "../../third_party/micropython/py/runtime.h"
+# 103 "/home/bogdan/work/coralmicro/third_party/micropython/py/runtime.h"
                            raise_exc);
-# 114 "../../third_party/micropython/py/runtime.h"
+# 114 "/home/bogdan/work/coralmicro/third_party/micropython/py/runtime.h"
 void mp_event_handle_nowait(void);
 
 
@@ -1794,9 +1794,9 @@ int mp_print_mp_int(const mp_print_t *print, mp_obj_t x, int base, int base_char
 
 void mp_arg_check_num_sig(size_t n_args, size_t n_kw, uint32_t sig);
 static inline void mp_arg_check_num(size_t n_args, size_t n_kw, size_t n_args_min, size_t n_args_max, 
-# 134 "../../third_party/micropython/py/runtime.h" 3 4
+# 134 "/home/bogdan/work/coralmicro/third_party/micropython/py/runtime.h" 3 4
                                                                                                      _Bool 
-# 134 "../../third_party/micropython/py/runtime.h"
+# 134 "/home/bogdan/work/coralmicro/third_party/micropython/py/runtime.h"
                                                                                                           takes_kw) {
     mp_arg_check_num_sig(n_args, n_kw, ((uint32_t)((((uint32_t)(n_args_min)) << 17) | (((uint32_t)(n_args_max)) << 1) | ((takes_kw) ? 1 : 0))));
 }
@@ -1820,7 +1820,7 @@ static inline void mp_globals_set(mp_obj_dict_t *d) {
 
 void mp_globals_locals_set_from_nlr_jump_callback(void *ctx_in);
 void mp_call_function_1_from_nlr_jump_callback(void *ctx_in);
-# 184 "../../third_party/micropython/py/runtime.h"
+# 184 "/home/bogdan/work/coralmicro/third_party/micropython/py/runtime.h"
 mp_obj_t mp_load_name(qstr qst);
 mp_obj_t mp_load_global(qstr qst);
 mp_obj_t mp_load_build_class(void);
@@ -1838,9 +1838,9 @@ mp_obj_t mp_call_function_2(mp_obj_t fun, mp_obj_t arg1, mp_obj_t arg2);
 mp_obj_t mp_call_function_n_kw(mp_obj_t fun, size_t n_args, size_t n_kw, const mp_obj_t *args);
 mp_obj_t mp_call_method_n_kw(size_t n_args, size_t n_kw, const mp_obj_t *args);
 mp_obj_t mp_call_method_n_kw_var(
-# 200 "../../third_party/micropython/py/runtime.h" 3 4
+# 200 "/home/bogdan/work/coralmicro/third_party/micropython/py/runtime.h" 3 4
                                 _Bool 
-# 200 "../../third_party/micropython/py/runtime.h"
+# 200 "/home/bogdan/work/coralmicro/third_party/micropython/py/runtime.h"
                                      have_self, size_t n_args_n_kw, const mp_obj_t *args);
 mp_obj_t mp_call_method_self_n_kw(mp_obj_t meth, mp_obj_t self, size_t n_args, size_t n_kw, const mp_obj_t *args);
 
@@ -1853,7 +1853,7 @@ typedef struct _mp_call_args_t {
     size_t n_args, n_kw, n_alloc;
     mp_obj_t *args;
 } mp_call_args_t;
-# 221 "../../third_party/micropython/py/runtime.h"
+# 221 "/home/bogdan/work/coralmicro/third_party/micropython/py/runtime.h"
 void mp_unpack_sequence(mp_obj_t seq, size_t num, mp_obj_t *items);
 void mp_unpack_ex(mp_obj_t seq, size_t num, mp_obj_t *items);
 mp_obj_t mp_store_map(mp_obj_t map, mp_obj_t key, mp_obj_t value);
@@ -1862,9 +1862,9 @@ void mp_convert_member_lookup(mp_obj_t obj, const mp_obj_type_t *type, mp_obj_t 
 void mp_load_method(mp_obj_t base, qstr attr, mp_obj_t *dest);
 void mp_load_method_maybe(mp_obj_t base, qstr attr, mp_obj_t *dest);
 void mp_load_method_protected(mp_obj_t obj, qstr attr, mp_obj_t *dest, 
-# 228 "../../third_party/micropython/py/runtime.h" 3 4
+# 228 "/home/bogdan/work/coralmicro/third_party/micropython/py/runtime.h" 3 4
                                                                       _Bool 
-# 228 "../../third_party/micropython/py/runtime.h"
+# 228 "/home/bogdan/work/coralmicro/third_party/micropython/py/runtime.h"
                                                                            catch_all_exc);
 void mp_load_super_method(qstr attr, mp_obj_t *dest);
 void mp_store_attr(mp_obj_t base, qstr attr, mp_obj_t val);
@@ -1884,7 +1884,7 @@ mp_obj_t mp_make_raise_obj(mp_obj_t o);
 mp_obj_t mp_import_name(qstr name, mp_obj_t fromlist, mp_obj_t level);
 mp_obj_t mp_import_from(mp_obj_t module, qstr name);
 void mp_import_all(mp_obj_t module);
-# 260 "../../third_party/micropython/py/runtime.h"
+# 260 "/home/bogdan/work/coralmicro/third_party/micropython/py/runtime.h"
 __attribute__((noreturn)) void mp_raise_msg(const mp_obj_type_t *exc_type, mp_rom_error_text_t msg);
 __attribute__((noreturn)) void mp_raise_msg_varg(const mp_obj_type_t *exc_type, mp_rom_error_text_t fmt, ...);
 __attribute__((noreturn)) void mp_raise_ValueError(mp_rom_error_text_t msg);
@@ -1898,26 +1898,26 @@ __attribute__((noreturn)) void mp_raise_TypeError_int_conversion(mp_const_obj_t 
 __attribute__((noreturn)) void mp_raise_OSError(int errno_);
 __attribute__((noreturn)) void mp_raise_OSError_with_filename(int errno_, const char *filename);
 __attribute__((noreturn)) void mp_raise_recursion_depth(void);
-# 285 "../../third_party/micropython/py/runtime.h"
+# 285 "/home/bogdan/work/coralmicro/third_party/micropython/py/runtime.h"
 int mp_native_type_from_qstr(qstr qst);
 mp_uint_t mp_native_from_obj(mp_obj_t obj, mp_uint_t type);
 mp_obj_t mp_native_to_obj(mp_uint_t val, mp_uint_t type);
 # 5 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 2
 
-# 1 "../../third_party/micropython/py/gc.h" 1
-# 30 "../../third_party/micropython/py/gc.h"
+# 1 "/home/bogdan/work/coralmicro/third_party/micropython/py/gc.h" 1
+# 30 "/home/bogdan/work/coralmicro/third_party/micropython/py/gc.h"
 # 1 "/usr/lib/gcc/x86_64-linux-gnu/13/include/stddef.h" 1 3 4
-# 31 "../../third_party/micropython/py/gc.h" 2
+# 31 "/home/bogdan/work/coralmicro/third_party/micropython/py/gc.h" 2
 
 
 void gc_init(void *start, void *end);
-# 48 "../../third_party/micropython/py/gc.h"
+# 48 "/home/bogdan/work/coralmicro/third_party/micropython/py/gc.h"
 void gc_lock(void);
 void gc_unlock(void);
 
-# 50 "../../third_party/micropython/py/gc.h" 3 4
+# 50 "/home/bogdan/work/coralmicro/third_party/micropython/py/gc.h" 3 4
 _Bool 
-# 50 "../../third_party/micropython/py/gc.h"
+# 50 "/home/bogdan/work/coralmicro/third_party/micropython/py/gc.h"
     gc_is_locked(void);
 
 
@@ -1937,9 +1937,9 @@ void *gc_alloc(size_t n_bytes, unsigned int alloc_flags);
 void gc_free(void *ptr);
 size_t gc_nbytes(const void *ptr);
 void *gc_realloc(void *ptr, size_t n_bytes, 
-# 68 "../../third_party/micropython/py/gc.h" 3 4
+# 68 "/home/bogdan/work/coralmicro/third_party/micropython/py/gc.h" 3 4
                                            _Bool 
-# 68 "../../third_party/micropython/py/gc.h"
+# 68 "/home/bogdan/work/coralmicro/third_party/micropython/py/gc.h"
                                                 allow_move);
 
 typedef struct _gc_info_t {
@@ -1959,10 +1959,10 @@ void gc_info(gc_info_t *info);
 void gc_dump_info(const mp_print_t *print);
 void gc_dump_alloc_table(const mp_print_t *print);
 # 7 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 2
-# 1 "../../third_party/micropython/py/lexer.h" 1
-# 33 "../../third_party/micropython/py/lexer.h"
-# 1 "../../third_party/micropython/py/reader.h" 1
-# 36 "../../third_party/micropython/py/reader.h"
+# 1 "/home/bogdan/work/coralmicro/third_party/micropython/py/lexer.h" 1
+# 33 "/home/bogdan/work/coralmicro/third_party/micropython/py/lexer.h"
+# 1 "/home/bogdan/work/coralmicro/third_party/micropython/py/reader.h" 1
+# 36 "/home/bogdan/work/coralmicro/third_party/micropython/py/reader.h"
 typedef struct _mp_reader_t {
     void *data;
     mp_uint_t (*readbyte)(void *data);
@@ -1972,11 +1972,11 @@ typedef struct _mp_reader_t {
 void mp_reader_new_mem(mp_reader_t *reader, const byte *buf, size_t len, size_t free_len);
 void mp_reader_new_file(mp_reader_t *reader, qstr filename);
 void mp_reader_new_file_from_fd(mp_reader_t *reader, int fd, 
-# 44 "../../third_party/micropython/py/reader.h" 3 4
+# 44 "/home/bogdan/work/coralmicro/third_party/micropython/py/reader.h" 3 4
                                                             _Bool 
-# 44 "../../third_party/micropython/py/reader.h"
+# 44 "/home/bogdan/work/coralmicro/third_party/micropython/py/reader.h"
                                                                  close_fd);
-# 34 "../../third_party/micropython/py/lexer.h" 2
+# 34 "/home/bogdan/work/coralmicro/third_party/micropython/py/lexer.h" 2
 
 
 
@@ -2146,16 +2146,16 @@ mp_lexer_t *mp_lexer_new_from_file(qstr filename);
 void mp_lexer_free(mp_lexer_t *lex);
 void mp_lexer_to_next(mp_lexer_t *lex);
 # 8 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 2
-# 1 "../../third_party/micropython/py/parse.h" 1
-# 29 "../../third_party/micropython/py/parse.h"
+# 1 "/home/bogdan/work/coralmicro/third_party/micropython/py/parse.h" 1
+# 29 "/home/bogdan/work/coralmicro/third_party/micropython/py/parse.h"
 # 1 "/usr/lib/gcc/x86_64-linux-gnu/13/include/stddef.h" 1 3 4
-# 30 "../../third_party/micropython/py/parse.h" 2
+# 30 "/home/bogdan/work/coralmicro/third_party/micropython/py/parse.h" 2
 
 
 
 
 struct _mp_lexer_t;
-# 50 "../../third_party/micropython/py/parse.h"
+# 50 "/home/bogdan/work/coralmicro/third_party/micropython/py/parse.h"
 typedef uintptr_t mp_parse_node_t;
 
 typedef struct _mp_parse_node_struct_t {
@@ -2163,7 +2163,7 @@ typedef struct _mp_parse_node_struct_t {
     uint32_t kind_num_nodes;
     mp_parse_node_t nodes[];
 } mp_parse_node_struct_t;
-# 77 "../../third_party/micropython/py/parse.h"
+# 77 "/home/bogdan/work/coralmicro/third_party/micropython/py/parse.h"
 static inline mp_parse_node_t mp_parse_node_new_small_int(mp_int_t val) {
     return (mp_parse_node_t)((0x1) | ((mp_uint_t)val << 1));
 }
@@ -2182,19 +2182,19 @@ static inline mp_obj_t mp_parse_node_extract_const_object(mp_parse_node_struct_t
 }
 
 
-# 94 "../../third_party/micropython/py/parse.h" 3 4
+# 94 "/home/bogdan/work/coralmicro/third_party/micropython/py/parse.h" 3 4
 _Bool 
-# 94 "../../third_party/micropython/py/parse.h"
+# 94 "/home/bogdan/work/coralmicro/third_party/micropython/py/parse.h"
     mp_parse_node_is_const_false(mp_parse_node_t pn);
 
-# 95 "../../third_party/micropython/py/parse.h" 3 4
+# 95 "/home/bogdan/work/coralmicro/third_party/micropython/py/parse.h" 3 4
 _Bool 
-# 95 "../../third_party/micropython/py/parse.h"
+# 95 "/home/bogdan/work/coralmicro/third_party/micropython/py/parse.h"
     mp_parse_node_is_const_true(mp_parse_node_t pn);
 
-# 96 "../../third_party/micropython/py/parse.h" 3 4
+# 96 "/home/bogdan/work/coralmicro/third_party/micropython/py/parse.h" 3 4
 _Bool 
-# 96 "../../third_party/micropython/py/parse.h"
+# 96 "/home/bogdan/work/coralmicro/third_party/micropython/py/parse.h"
     mp_parse_node_get_int_maybe(mp_parse_node_t pn, mp_obj_t *o);
 size_t mp_parse_node_extract_list(mp_parse_node_t *pn, size_t pn_kind, mp_parse_node_t **nodes);
 void mp_parse_node_print(const mp_print_t *print, mp_parse_node_t pn, size_t indent);
@@ -2215,12 +2215,12 @@ typedef struct _mp_parse_t {
 mp_parse_tree_t mp_parse(struct _mp_lexer_t *lex, mp_parse_input_kind_t input_kind);
 void mp_parse_tree_clear(mp_parse_tree_t *tree);
 # 9 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 2
-# 1 "../../third_party/micropython/py/compile.h" 1
-# 31 "../../third_party/micropython/py/compile.h"
-# 1 "../../third_party/micropython/py/emitglue.h" 1
-# 30 "../../third_party/micropython/py/emitglue.h"
-# 1 "../../third_party/micropython/py/bc.h" 1
-# 176 "../../third_party/micropython/py/bc.h"
+# 1 "/home/bogdan/work/coralmicro/third_party/micropython/py/compile.h" 1
+# 31 "/home/bogdan/work/coralmicro/third_party/micropython/py/compile.h"
+# 1 "/home/bogdan/work/coralmicro/third_party/micropython/py/emitglue.h" 1
+# 30 "/home/bogdan/work/coralmicro/third_party/micropython/py/emitglue.h"
+# 1 "/home/bogdan/work/coralmicro/third_party/micropython/py/bc.h" 1
+# 176 "/home/bogdan/work/coralmicro/third_party/micropython/py/bc.h"
 typedef struct _mp_bytecode_prelude_t {
     uint n_state;
     uint n_exc_stack;
@@ -2289,7 +2289,7 @@ typedef struct _mp_code_state_t {
     uint16_t n_state;
     uint16_t exc_sp_idx;
     mp_obj_dict_t *old_globals;
-# 252 "../../third_party/micropython/py/bc.h"
+# 252 "/home/bogdan/work/coralmicro/third_party/micropython/py/bc.h"
     mp_obj_t state[0];
 
 
@@ -2325,7 +2325,7 @@ void mp_setup_code_state_native(mp_code_state_native_t *code_state, size_t n_arg
 void mp_bytecode_print(const mp_print_t *print, const struct _mp_raw_code_t *rc, size_t fun_data_len, const mp_module_constants_t *cm);
 void mp_bytecode_print2(const mp_print_t *print, const byte *ip, size_t len, struct _mp_raw_code_t *const *child_table, const mp_module_constants_t *cm);
 const byte *mp_bytecode_print_str(const mp_print_t *print, const byte *ip_start, const byte *ip, struct _mp_raw_code_t *const *child_table, const mp_module_constants_t *cm);
-# 295 "../../third_party/micropython/py/bc.h"
+# 295 "/home/bogdan/work/coralmicro/third_party/micropython/py/bc.h"
 static inline void mp_module_context_alloc_tables(mp_module_context_t *context, size_t n_qstr, size_t n_obj) {
 
 
@@ -2336,9 +2336,9 @@ static inline void mp_module_context_alloc_tables(mp_module_context_t *context, 
 
     if (n_obj == 0) {
         context->constants.obj_table = 
-# 304 "../../third_party/micropython/py/bc.h" 3 4
+# 304 "/home/bogdan/work/coralmicro/third_party/micropython/py/bc.h" 3 4
                                       ((void *)0)
-# 304 "../../third_party/micropython/py/bc.h"
+# 304 "/home/bogdan/work/coralmicro/third_party/micropython/py/bc.h"
                                           ;
     } else {
         context->constants.obj_table = ((mp_obj_t *)(m_malloc(sizeof(mp_obj_t) * (n_obj))));
@@ -2372,8 +2372,8 @@ static inline size_t mp_bytecode_get_source_line(const byte *line_info, const by
     }
     return source_line;
 }
-# 31 "../../third_party/micropython/py/emitglue.h" 2
-# 40 "../../third_party/micropython/py/emitglue.h"
+# 31 "/home/bogdan/work/coralmicro/third_party/micropython/py/emitglue.h" 2
+# 40 "/home/bogdan/work/coralmicro/third_party/micropython/py/emitglue.h"
 enum {
     MP_EMIT_OPT_NONE,
     MP_EMIT_OPT_BYTECODE,
@@ -2400,9 +2400,9 @@ typedef const void *mp_proto_fun_t;
 
 
 static inline 
-# 65 "../../third_party/micropython/py/emitglue.h" 3 4
+# 65 "/home/bogdan/work/coralmicro/third_party/micropython/py/emitglue.h" 3 4
              _Bool 
-# 65 "../../third_party/micropython/py/emitglue.h"
+# 65 "/home/bogdan/work/coralmicro/third_party/micropython/py/emitglue.h"
                   mp_proto_fun_is_bytecode(mp_proto_fun_t proto_fun) {
     const uint8_t *header = (const uint8_t *)proto_fun;
     return (header[0] | (header[1] << 8)) != ((0) | ((0) << 8));
@@ -2416,13 +2416,13 @@ typedef struct _mp_raw_code_t {
     uint8_t proto_fun_indicator[2];
     uint8_t kind;
     
-# 77 "../../third_party/micropython/py/emitglue.h" 3 4
+# 77 "/home/bogdan/work/coralmicro/third_party/micropython/py/emitglue.h" 3 4
    _Bool 
-# 77 "../../third_party/micropython/py/emitglue.h"
+# 77 "/home/bogdan/work/coralmicro/third_party/micropython/py/emitglue.h"
         is_generator;
     const void *fun_data;
     struct _mp_raw_code_t **children;
-# 99 "../../third_party/micropython/py/emitglue.h"
+# 99 "/home/bogdan/work/coralmicro/third_party/micropython/py/emitglue.h"
 } mp_raw_code_t;
 
 
@@ -2432,13 +2432,13 @@ typedef struct _mp_raw_code_truncated_t {
     uint8_t proto_fun_indicator[2];
     uint8_t kind;
     
-# 107 "../../third_party/micropython/py/emitglue.h" 3 4
+# 107 "/home/bogdan/work/coralmicro/third_party/micropython/py/emitglue.h" 3 4
    _Bool 
-# 107 "../../third_party/micropython/py/emitglue.h"
+# 107 "/home/bogdan/work/coralmicro/third_party/micropython/py/emitglue.h"
         is_generator;
     const void *fun_data;
     struct _mp_raw_code_t **children;
-# 121 "../../third_party/micropython/py/emitglue.h"
+# 121 "/home/bogdan/work/coralmicro/third_party/micropython/py/emitglue.h"
 } mp_raw_code_truncated_t;
 
 mp_raw_code_t *mp_emit_glue_new_raw_code(void);
@@ -2461,12 +2461,12 @@ void mp_emit_glue_assign_native(mp_raw_code_t *rc, mp_raw_code_kind_t kind, cons
 
 mp_obj_t mp_make_function_from_proto_fun(mp_proto_fun_t proto_fun, const mp_module_context_t *context, const mp_obj_t *def_args);
 mp_obj_t mp_make_closure_from_proto_fun(mp_proto_fun_t proto_fun, const mp_module_context_t *context, mp_uint_t n_closed_over, const mp_obj_t *args);
-# 32 "../../third_party/micropython/py/compile.h" 2
-# 41 "../../third_party/micropython/py/compile.h"
+# 32 "/home/bogdan/work/coralmicro/third_party/micropython/py/compile.h" 2
+# 41 "/home/bogdan/work/coralmicro/third_party/micropython/py/compile.h"
 mp_obj_t mp_compile(mp_parse_tree_t *parse_tree, qstr source_file, 
-# 41 "../../third_party/micropython/py/compile.h" 3 4
+# 41 "/home/bogdan/work/coralmicro/third_party/micropython/py/compile.h" 3 4
                                                                   _Bool 
-# 41 "../../third_party/micropython/py/compile.h"
+# 41 "/home/bogdan/work/coralmicro/third_party/micropython/py/compile.h"
                                                                        is_repl);
 
 
@@ -3258,6 +3258,17 @@ extern uint8_t sentai_link_rx_compid(const link_rx_msg_t* m);
 extern uint8_t sentai_link_rx_seq(const link_rx_msg_t* m);
 extern uint8_t sentai_link_rx_len(const link_rx_msg_t* m);
 
+extern void sentai_link_rx_local_pos(
+    const link_rx_msg_t* m,
+    uint32_t* time_boot_ms,
+    int32_t* x_mm, int32_t* y_mm, int32_t* z_mm,
+    int32_t* vx_mms, int32_t* vy_mms, int32_t* vz_mms);
+extern void sentai_link_rx_global_pos(
+    const link_rx_msg_t* m,
+    uint32_t* time_boot_ms,
+    int32_t* lat, int32_t* lon, int32_t* alt, int32_t* relative_alt,
+    int16_t* vx, int16_t* vy, int16_t* vz, uint16_t* hdg);
+
 
 extern int sentai_help_read(char* buf, int max_size);
 
@@ -3585,9 +3596,9 @@ static mp_obj_t mod_sentai_ls(mp_obj_t path_obj) {
     _fs_check_usb();
     const char* path = mp_obj_str_get_str(path_obj);
     mp_obj_list_t* result = ((void *)(mp_obj_new_list(0, 
-# 483 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
+# 494 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
                            ((void *)0)
-# 483 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
+# 494 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
                            )));
     listdir_ctx_t ctx = { .list = result };
     int n = sentai_fs_listdir(path, listdir_cb, &ctx);
@@ -3607,9 +3618,9 @@ static mp_obj_t mod_sentai_cam_init(size_t n_args, const mp_obj_t *args) {
     return mp_obj_new_int(sentai_cam_init(streaming));
 }
 static const mp_obj_fun_builtin_var_t mod_sentai_cam_init_obj = {{&mp_type_fun_builtin_var}, ((uint32_t)((((uint32_t)(0)) << 17) | (((uint32_t)(1)) << 1) | ((
-# 501 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
+# 512 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
       0
-# 501 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
+# 512 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
       ) ? 1 : 0))), .fun.var = mod_sentai_cam_init};
 
 
@@ -3640,9 +3651,9 @@ static mp_obj_t mod_sentai_cam_jpeg(size_t n_args, const mp_obj_t *args) {
     return result;
 }
 static const mp_obj_fun_builtin_var_t mod_sentai_cam_jpeg_obj = {{&mp_type_fun_builtin_var}, ((uint32_t)((((uint32_t)(0)) << 17) | (((uint32_t)(1)) << 1) | ((
-# 530 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
+# 541 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
       0
-# 530 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
+# 541 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
       ) ? 1 : 0))), .fun.var = mod_sentai_cam_jpeg};
 
 
@@ -3677,9 +3688,9 @@ static mp_obj_t mod_sentai_cam_save_jpeg(size_t n_args, const mp_obj_t *args) {
     return mp_obj_new_int(jpeg_size);
 }
 static const mp_obj_fun_builtin_var_t mod_sentai_cam_save_jpeg_obj = {{&mp_type_fun_builtin_var}, ((uint32_t)((((uint32_t)(1)) << 17) | (((uint32_t)(2)) << 1) | ((
-# 563 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
+# 574 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
       0
-# 563 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
+# 574 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
       ) ? 1 : 0))), .fun.var = mod_sentai_cam_save_jpeg};
 
 
@@ -3813,9 +3824,9 @@ static mp_obj_t mod_sentai_usb_serial_read(size_t n_args, const mp_obj_t *args) 
     return result;
 }
 static const mp_obj_fun_builtin_var_t mod_sentai_usb_serial_read_obj = {{&mp_type_fun_builtin_var}, ((uint32_t)((((uint32_t)(0)) << 17) | (((uint32_t)(2)) << 1) | ((
-# 695 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
+# 706 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
       0
-# 695 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
+# 706 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
       ) ? 1 : 0))), .fun.var = mod_sentai_usb_serial_read};
 
 
@@ -3880,9 +3891,9 @@ static mp_obj_t mod_sentai_run(mp_obj_t path_obj) {
     qstr source_name = lex->source_name;
     mp_parse_tree_t parse_tree = mp_parse(lex, MP_PARSE_FILE_INPUT);
     mp_obj_t module_fun = mp_compile(&parse_tree, source_name, 
-# 758 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
+# 769 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
                                                               1
-# 758 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
+# 769 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
                                                                   );
     mp_call_function_0(module_fun);
 
@@ -3903,9 +3914,9 @@ static mp_obj_t mod_sentai_tasks(void) {
     UBaseType_t n = uxTaskGetSystemState(task_buf, 24, &total_runtime);
 
     mp_obj_list_t* result = ((void *)(mp_obj_new_list(0, 
-# 777 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
+# 788 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
                            ((void *)0)
-# 777 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
+# 788 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
                            )));
 
     for (UBaseType_t i = 0; i < n; i++) {
@@ -3981,9 +3992,9 @@ static mp_obj_t mod_sentai_cpu(void) {
     UBaseType_t n = uxTaskGetSystemState(task_buf, 24, &total_runtime);
 
     mp_obj_list_t* result = ((void *)(mp_obj_new_list(0, 
-# 851 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
+# 862 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
                            ((void *)0)
-# 851 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
+# 862 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
                            )));
 
     if (total_runtime == 0) total_runtime = 1;
@@ -4060,9 +4071,9 @@ static void help_print(const char *text, int len) {
 
 static mp_obj_t mod_sentai_help(size_t n_args, const mp_obj_t *args) {
     const char* topic = (n_args > 0) ? mp_obj_str_get_str(args[0]) : 
-# 926 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
+# 937 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
                                                                     ((void *)0)
-# 926 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
+# 937 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
                                                                         ;
 
 
@@ -4079,9 +4090,9 @@ static mp_obj_t mod_sentai_help(size_t n_args, const mp_obj_t *args) {
     }
 
     if (topic == 
-# 941 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
+# 952 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
                 ((void *)0)
-# 941 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
+# 952 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
                     ) {
         const char *start, *end;
         if (help_find_section(hbuf, n, "overview", &start, &end)) {
@@ -4104,9 +4115,9 @@ static mp_obj_t mod_sentai_help(size_t n_args, const mp_obj_t *args) {
     return ((mp_obj_t)(((0) << 3) | 6));
 }
 static const mp_obj_fun_builtin_var_t mod_sentai_help_obj = {{&mp_type_fun_builtin_var}, ((uint32_t)((((uint32_t)(0)) << 17) | (((uint32_t)(1)) << 1) | ((
-# 962 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
+# 973 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
       0
-# 962 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
+# 973 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
       ) ? 1 : 0))), .fun.var = mod_sentai_help};
 
 
@@ -4128,16 +4139,16 @@ static mp_obj_t mod_sentai_console(size_t n_args, const mp_obj_t *args) {
     return mp_obj_new_str(t == 0 ? "usb" : "uart", t == 0 ? 3 : 4);
 }
 static const mp_obj_fun_builtin_var_t mod_sentai_console_obj = {{&mp_type_fun_builtin_var}, ((uint32_t)((((uint32_t)(0)) << 17) | (((uint32_t)(1)) << 1) | ((
-# 982 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
+# 993 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
       0
-# 982 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
+# 993 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
       ) ? 1 : 0))), .fun.var = mod_sentai_console};
 
 
 
 
 static mp_obj_t mod_sentai_uart_serial_open(size_t n_args, const mp_obj_t *args) {
-    int baudrate = (n_args > 0) ? mp_obj_get_int(args[0]) : 115200;
+    int baudrate = (n_args > 0) ? mp_obj_get_int(args[0]) : 38400;
     if (sentai_console_get_target() != 0) {
         mp_raise_msg(&mp_type_OSError,
             (mp_rom_error_text_t)"REPL must be on USB: call sentai.console('usb')");
@@ -4148,9 +4159,9 @@ static mp_obj_t mod_sentai_uart_serial_open(size_t n_args, const mp_obj_t *args)
     return mp_obj_new_bool(sentai_uart_serial_open());
 }
 static const mp_obj_fun_builtin_var_t mod_sentai_uart_serial_open_obj = {{&mp_type_fun_builtin_var}, ((uint32_t)((((uint32_t)(0)) << 17) | (((uint32_t)(1)) << 1) | ((
-# 998 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
+# 1009 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
       0
-# 998 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
+# 1009 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
       ) ? 1 : 0))), .fun.var = mod_sentai_uart_serial_open};
 
 
@@ -4192,9 +4203,9 @@ static mp_obj_t mod_sentai_uart_serial_read(size_t n_args, const mp_obj_t *args)
     return result;
 }
 static const mp_obj_fun_builtin_var_t mod_sentai_uart_serial_read_obj = {{&mp_type_fun_builtin_var}, ((uint32_t)((((uint32_t)(0)) << 17) | (((uint32_t)(2)) << 1) | ((
-# 1038 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
+# 1049 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
       0
-# 1038 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
+# 1049 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
       ) ? 1 : 0))), .fun.var = mod_sentai_uart_serial_read};
 
 
@@ -4207,7 +4218,7 @@ static const mp_obj_fun_builtin_fixed_t mod_sentai_uart_serial_available_obj = {
 
 
 static mp_obj_t mod_sentai_mesh_init(size_t n_args, const mp_obj_t *args) {
-    uint32_t baudrate = (n_args > 0) ? (uint32_t)mp_obj_get_int(args[0]) : 115200;
+    uint32_t baudrate = (n_args > 0) ? (uint32_t)mp_obj_get_int(args[0]) : 38400;
     if (sentai_console_get_target() != 0) {
         mp_raise_msg(&mp_type_OSError,
             (mp_rom_error_text_t)"REPL must be on USB: call sentai.console('usb')");
@@ -4215,9 +4226,9 @@ static mp_obj_t mod_sentai_mesh_init(size_t n_args, const mp_obj_t *args) {
     return mp_obj_new_int(sentai_mesh_init(baudrate));
 }
 static const mp_obj_fun_builtin_var_t mod_sentai_mesh_init_obj = {{&mp_type_fun_builtin_var}, ((uint32_t)((((uint32_t)(0)) << 17) | (((uint32_t)(1)) << 1) | ((
-# 1057 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
+# 1068 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
       0
-# 1057 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
+# 1068 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
       ) ? 1 : 0))), .fun.var = mod_sentai_mesh_init};
 
 
@@ -4235,9 +4246,9 @@ static mp_obj_t mod_sentai_mesh_send(size_t n_args, const mp_obj_t *args) {
     return mp_obj_new_int(sentai_mesh_send_text(text, dest, channel, want_ack));
 }
 static const mp_obj_fun_builtin_var_t mod_sentai_mesh_send_obj = {{&mp_type_fun_builtin_var}, ((uint32_t)((((uint32_t)(1)) << 17) | (((uint32_t)(4)) << 1) | ((
-# 1073 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
+# 1084 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
       0
-# 1073 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
+# 1084 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
       ) ? 1 : 0))), .fun.var = mod_sentai_mesh_send};
 
 
@@ -4258,9 +4269,9 @@ static mp_obj_t mod_sentai_mesh_send_detection(size_t n_args, const mp_obj_t *ar
     uint32_t class_id = (uint32_t)mp_obj_get_int(args[10]);
 
     const uint8_t* emb = 
-# 1092 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
+# 1103 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
                         ((void *)0)
-# 1092 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
+# 1103 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
                             ;
     uint32_t emb_len = 0;
     uint32_t emb_crc = 0;
@@ -4284,9 +4295,9 @@ static mp_obj_t mod_sentai_mesh_send_detection(size_t n_args, const mp_obj_t *ar
         dest, channel, want_ack));
 }
 static const mp_obj_fun_builtin_var_t mod_sentai_mesh_send_detection_obj = {{&mp_type_fun_builtin_var}, ((uint32_t)((((uint32_t)(11)) << 17) | (((uint32_t)(16)) << 1) | ((
-# 1114 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
+# 1125 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
       0
-# 1114 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
+# 1125 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
       ) ? 1 : 0))), .fun.var = mod_sentai_mesh_send_detection};
 
 
@@ -4313,9 +4324,9 @@ static mp_obj_t mod_sentai_mesh_send_update(size_t n_args, const mp_obj_t *args)
         dest, channel, want_ack));
 }
 static const mp_obj_fun_builtin_var_t mod_sentai_mesh_send_update_obj = {{&mp_type_fun_builtin_var}, ((uint32_t)((((uint32_t)(11)) << 17) | (((uint32_t)(14)) << 1) | ((
-# 1139 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
+# 1150 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
       0
-# 1139 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
+# 1150 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
       ) ? 1 : 0))), .fun.var = mod_sentai_mesh_send_update};
 
 
@@ -4343,9 +4354,9 @@ static mp_obj_t mod_sentai_mesh_receive(size_t n_args, const mp_obj_t *args) {
     return ((mp_obj_t)(d));
 }
 static const mp_obj_fun_builtin_var_t mod_sentai_mesh_receive_obj = {{&mp_type_fun_builtin_var}, ((uint32_t)((((uint32_t)(0)) << 17) | (((uint32_t)(1)) << 1) | ((
-# 1165 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
+# 1176 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
       0
-# 1165 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
+# 1176 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
       ) ? 1 : 0))), .fun.var = mod_sentai_mesh_receive};
 
 
@@ -4407,9 +4418,9 @@ static mp_obj_t mod_sentai_mesh_receive_vision(size_t n_args, const mp_obj_t *ar
     return ((mp_obj_t)(d));
 }
 static const mp_obj_fun_builtin_var_t mod_sentai_mesh_receive_vision_obj = {{&mp_type_fun_builtin_var}, ((uint32_t)((((uint32_t)(0)) << 17) | (((uint32_t)(1)) << 1) | ((
-# 1225 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
+# 1236 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
       0
-# 1225 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
+# 1236 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
       ) ? 1 : 0))), .fun.var = mod_sentai_mesh_receive_vision};
 
 
@@ -4436,16 +4447,16 @@ static mp_obj_t mod_sentai_mesh_config(size_t n_args, const mp_obj_t *args) {
     return mp_obj_new_int(sentai_mesh_request_config(nonce));
 }
 static const mp_obj_fun_builtin_var_t mod_sentai_mesh_config_obj = {{&mp_type_fun_builtin_var}, ((uint32_t)((((uint32_t)(0)) << 17) | (((uint32_t)(1)) << 1) | ((
-# 1250 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
+# 1261 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
       0
-# 1250 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
+# 1261 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
       ) ? 1 : 0))), .fun.var = mod_sentai_mesh_config};
 
 
 
 
 static mp_obj_t mod_sentai_link_init(size_t n_args, const mp_obj_t *args) {
-    uint32_t baudrate = (n_args > 0) ? (uint32_t)mp_obj_get_int(args[0]) : 38400;
+    uint32_t baudrate = (n_args > 0) ? (uint32_t)mp_obj_get_int(args[0]) : 57600;
     uint8_t sysid = (n_args > 1) ? (uint8_t)mp_obj_get_int(args[1]) : 1;
     uint8_t compid = (n_args > 2) ? (uint8_t)mp_obj_get_int(args[2]) : 191;
     if (sentai_console_get_target() != 0) {
@@ -4459,9 +4470,9 @@ static mp_obj_t mod_sentai_link_init(size_t n_args, const mp_obj_t *args) {
     return mp_obj_new_int(sentai_link_init(baudrate, sysid, compid));
 }
 static const mp_obj_fun_builtin_var_t mod_sentai_link_init_obj = {{&mp_type_fun_builtin_var}, ((uint32_t)((((uint32_t)(0)) << 17) | (((uint32_t)(3)) << 1) | ((
-# 1269 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
+# 1280 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
       0
-# 1269 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
+# 1280 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
       ) ? 1 : 0))), .fun.var = mod_sentai_link_init};
 
 
@@ -4472,14 +4483,23 @@ static const mp_obj_fun_builtin_fixed_t mod_sentai_link_stop_obj = {{&mp_type_fu
 
 
 
+extern void sentai_link_set_debug(int level);
+static mp_obj_t mod_sentai_link_debug(mp_obj_t level_obj) {
+    sentai_link_set_debug(mp_obj_get_int(level_obj));
+    return ((mp_obj_t)(((0) << 3) | 6));
+}
+static const mp_obj_fun_builtin_fixed_t mod_sentai_link_debug_obj = {{&mp_type_fun_builtin_1}, .fun._1 = mod_sentai_link_debug};
+
+
+
 static mp_obj_t mod_sentai_link_heartbeat(size_t n_args, const mp_obj_t *args) {
     uint8_t type = (n_args > 0) ? (uint8_t)mp_obj_get_int(args[0]) : 18;
     return mp_obj_new_int(sentai_link_send_heartbeat(type));
 }
 static const mp_obj_fun_builtin_var_t mod_sentai_link_heartbeat_obj = {{&mp_type_fun_builtin_var}, ((uint32_t)((((uint32_t)(0)) << 17) | (((uint32_t)(1)) << 1) | ((
-# 1283 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
+# 1303 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
       0
-# 1283 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
+# 1303 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
       ) ? 1 : 0))), .fun.var = mod_sentai_link_heartbeat};
 
 
@@ -4489,9 +4509,9 @@ static mp_obj_t mod_sentai_link_send(size_t n_args, const mp_obj_t *args) {
     return mp_obj_new_int(sentai_link_send_statustext(severity, text));
 }
 static const mp_obj_fun_builtin_var_t mod_sentai_link_send_obj = {{&mp_type_fun_builtin_var}, ((uint32_t)((((uint32_t)(1)) << 17) | (((uint32_t)(2)) << 1) | ((
-# 1291 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
+# 1311 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
       0
-# 1291 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
+# 1311 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
       ) ? 1 : 0))), .fun.var = mod_sentai_link_send};
 
 
@@ -4508,9 +4528,9 @@ static mp_obj_t mod_sentai_link_send_detection(size_t n_args, const mp_obj_t *ar
     uint32_t conf = (uint32_t)mp_obj_get_int(args[9]);
     uint32_t class_id = (uint32_t)mp_obj_get_int(args[10]);
     const uint8_t* emb = 
-# 1306 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
+# 1326 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
                         ((void *)0)
-# 1306 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
+# 1326 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
                             ;
     uint32_t emb_len = 0;
     uint32_t emb_crc = 0;
@@ -4529,9 +4549,9 @@ static mp_obj_t mod_sentai_link_send_detection(size_t n_args, const mp_obj_t *ar
         emb, emb_len, emb_crc, severity));
 }
 static const mp_obj_fun_builtin_var_t mod_sentai_link_send_detection_obj = {{&mp_type_fun_builtin_var}, ((uint32_t)((((uint32_t)(11)) << 17) | (((uint32_t)(14)) << 1) | ((
-# 1323 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
+# 1343 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
       0
-# 1323 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
+# 1343 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
       ) ? 1 : 0))), .fun.var = mod_sentai_link_send_detection};
 
 
@@ -4553,9 +4573,9 @@ static mp_obj_t mod_sentai_link_send_update(size_t n_args, const mp_obj_t *args)
         x, y, w, h, conf, age, severity));
 }
 static const mp_obj_fun_builtin_var_t mod_sentai_link_send_update_obj = {{&mp_type_fun_builtin_var}, ((uint32_t)((((uint32_t)(11)) << 17) | (((uint32_t)(12)) << 1) | ((
-# 1343 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
+# 1363 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
       0
-# 1343 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
+# 1363 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
       ) ? 1 : 0))), .fun.var = mod_sentai_link_send_update};
 
 
@@ -4576,9 +4596,9 @@ static mp_obj_t mod_sentai_link_command(size_t n_args, const mp_obj_t *args) {
         tsys, tcomp, cmd, conf, p1, p2, p3, p4, p5, p6, p7));
 }
 static const mp_obj_fun_builtin_var_t mod_sentai_link_command_obj = {{&mp_type_fun_builtin_var}, ((uint32_t)((((uint32_t)(3)) << 17) | (((uint32_t)(11)) << 1) | ((
-# 1362 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
+# 1382 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
       0
-# 1362 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
+# 1382 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
       ) ? 1 : 0))), .fun.var = mod_sentai_link_command};
 
 
@@ -4586,6 +4606,8 @@ static mp_obj_t mod_sentai_link_available(void) {
     return mp_obj_new_int(sentai_link_available());
 }
 static const mp_obj_fun_builtin_fixed_t mod_sentai_link_available_obj = {{&mp_type_fun_builtin_0}, .fun._0 = mod_sentai_link_available};
+
+
 
 
 
@@ -4598,20 +4620,48 @@ static mp_obj_t mod_sentai_link_receive(size_t n_args, const mp_obj_t *args) {
     else
         got = sentai_link_receive_wait(&rx, timeout_ms);
     if (!got) return ((mp_obj_t)(((0) << 3) | 6));
+    uint32_t mid = sentai_link_rx_msgid(&rx);
     mp_obj_dict_t *d = mp_obj_new_dict(5);
-    mp_obj_dict_store(d, ((mp_obj_t)((((mp_uint_t)(MP_QSTR_msgid)) << 3) | 2)), mp_obj_new_int_from_uint(sentai_link_rx_msgid(&rx)));
+    mp_obj_dict_store(d, ((mp_obj_t)((((mp_uint_t)(MP_QSTR_msgid)) << 3) | 2)), mp_obj_new_int_from_uint(mid));
     mp_obj_dict_store(d, ((mp_obj_t)((((mp_uint_t)(MP_QSTR_sysid)) << 3) | 2)), mp_obj_new_int(sentai_link_rx_sysid(&rx)));
     mp_obj_dict_store(d, ((mp_obj_t)((((mp_uint_t)(MP_QSTR_compid)) << 3) | 2)), mp_obj_new_int(sentai_link_rx_compid(&rx)));
     mp_obj_dict_store(d, ((mp_obj_t)((((mp_uint_t)(MP_QSTR_seq)) << 3) | 2)), mp_obj_new_int(sentai_link_rx_seq(&rx)));
     mp_obj_dict_store(d, ((mp_obj_t)((((mp_uint_t)(MP_QSTR_len)) << 3) | 2)), mp_obj_new_int(sentai_link_rx_len(&rx)));
+    if (mid == 32) {
+
+        uint32_t t; int32_t x, y, z, vx, vy, vz;
+        sentai_link_rx_local_pos(&rx, &t, &x, &y, &z, &vx, &vy, &vz);
+        mp_obj_dict_store(d, ((mp_obj_t)((((mp_uint_t)(MP_QSTR_time)) << 3) | 2)), mp_obj_new_int_from_uint(t));
+        mp_obj_dict_store(d, ((mp_obj_t)((((mp_uint_t)(MP_QSTR_x)) << 3) | 2)), mp_obj_new_int(x));
+        mp_obj_dict_store(d, ((mp_obj_t)((((mp_uint_t)(MP_QSTR_y)) << 3) | 2)), mp_obj_new_int(y));
+        mp_obj_dict_store(d, ((mp_obj_t)((((mp_uint_t)(MP_QSTR_z)) << 3) | 2)), mp_obj_new_int(z));
+        mp_obj_dict_store(d, ((mp_obj_t)((((mp_uint_t)(MP_QSTR_vx)) << 3) | 2)), mp_obj_new_int(vx));
+        mp_obj_dict_store(d, ((mp_obj_t)((((mp_uint_t)(MP_QSTR_vy)) << 3) | 2)), mp_obj_new_int(vy));
+        mp_obj_dict_store(d, ((mp_obj_t)((((mp_uint_t)(MP_QSTR_vz)) << 3) | 2)), mp_obj_new_int(vz));
+    } else if (mid == 33) {
+
+        uint32_t t; int32_t lat, lon, alt, rel_alt;
+        int16_t vx, vy, vz; uint16_t hdg;
+        sentai_link_rx_global_pos(&rx, &t, &lat, &lon, &alt, &rel_alt,
+                                  &vx, &vy, &vz, &hdg);
+        mp_obj_dict_store(d, ((mp_obj_t)((((mp_uint_t)(MP_QSTR_time)) << 3) | 2)), mp_obj_new_int_from_uint(t));
+        mp_obj_dict_store(d, ((mp_obj_t)((((mp_uint_t)(MP_QSTR_lat)) << 3) | 2)), mp_obj_new_int(lat));
+        mp_obj_dict_store(d, ((mp_obj_t)((((mp_uint_t)(MP_QSTR_lon)) << 3) | 2)), mp_obj_new_int(lon));
+        mp_obj_dict_store(d, ((mp_obj_t)((((mp_uint_t)(MP_QSTR_alt)) << 3) | 2)), mp_obj_new_int(alt));
+        mp_obj_dict_store(d, ((mp_obj_t)((((mp_uint_t)(MP_QSTR_rel_alt)) << 3) | 2)), mp_obj_new_int(rel_alt));
+        mp_obj_dict_store(d, ((mp_obj_t)((((mp_uint_t)(MP_QSTR_vx)) << 3) | 2)), mp_obj_new_int(vx));
+        mp_obj_dict_store(d, ((mp_obj_t)((((mp_uint_t)(MP_QSTR_vy)) << 3) | 2)), mp_obj_new_int(vy));
+        mp_obj_dict_store(d, ((mp_obj_t)((((mp_uint_t)(MP_QSTR_vz)) << 3) | 2)), mp_obj_new_int(vz));
+        mp_obj_dict_store(d, ((mp_obj_t)((((mp_uint_t)(MP_QSTR_hdg)) << 3) | 2)), mp_obj_new_int(hdg));
+    }
     return ((mp_obj_t)(d));
 }
 static const mp_obj_fun_builtin_var_t mod_sentai_link_receive_obj = {{&mp_type_fun_builtin_var}, ((uint32_t)((((uint32_t)(0)) << 17) | (((uint32_t)(1)) << 1) | ((
-# 1389 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
+# 1439 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c" 3 4
       0
-# 1389 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
+# 1439 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
       ) ? 1 : 0))), .fun.var = mod_sentai_link_receive};
-# 1398 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
+# 1448 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
 static const mp_rom_map_elem_t sentai_io_globals_table[] = {
     { ((mp_obj_t)((((mp_uint_t)(MP_QSTR___name__)) << 3) | 2)), ((mp_obj_t)((((mp_uint_t)(MP_QSTR_io)) << 3) | 2)) },
     { ((mp_obj_t)((((mp_uint_t)(MP_QSTR_led_on)) << 3) | 2)), (&mod_sentai_led_on_obj) },
@@ -4758,6 +4808,7 @@ static const mp_rom_map_elem_t sentai_link_globals_table[] = {
     { ((mp_obj_t)((((mp_uint_t)(MP_QSTR___name__)) << 3) | 2)), ((mp_obj_t)((((mp_uint_t)(MP_QSTR_link)) << 3) | 2)) },
     { ((mp_obj_t)((((mp_uint_t)(MP_QSTR_init)) << 3) | 2)), (&mod_sentai_link_init_obj) },
     { ((mp_obj_t)((((mp_uint_t)(MP_QSTR_stop)) << 3) | 2)), (&mod_sentai_link_stop_obj) },
+    { ((mp_obj_t)((((mp_uint_t)(MP_QSTR_debug)) << 3) | 2)), (&mod_sentai_link_debug_obj) },
     { ((mp_obj_t)((((mp_uint_t)(MP_QSTR_heartbeat)) << 3) | 2)), (&mod_sentai_link_heartbeat_obj) },
     { ((mp_obj_t)((((mp_uint_t)(MP_QSTR_send)) << 3) | 2)), (&mod_sentai_link_send_obj) },
     { ((mp_obj_t)((((mp_uint_t)(MP_QSTR_send_detection)) << 3) | 2)), (&mod_sentai_link_send_detection_obj) },
@@ -4771,7 +4822,7 @@ static const mp_obj_module_t sentai_link_module = {
     .base = { &mp_type_module },
     .globals = (mp_obj_dict_t *)&sentai_link_globals,
 };
-# 1571 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
+# 1622 "/home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai/modsentai.c"
 static const mp_rom_map_elem_t sentai_module_globals_table[] = {
     { ((mp_obj_t)((((mp_uint_t)(MP_QSTR___name__)) << 3) | 2)), ((mp_obj_t)((((mp_uint_t)(MP_QSTR_sentai)) << 3) | 2)) },
 

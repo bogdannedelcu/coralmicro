@@ -5,15 +5,15 @@
 # 0 "<command-line>" 2
 # 1 "<stdin>"
 # 29 "<stdin>"
-# 1 "../../third_party/micropython/py/mpconfig.h" 1
-# 91 "../../third_party/micropython/py/mpconfig.h"
+# 1 "/home/bogdan/work/coralmicro/third_party/micropython/py/mpconfig.h" 1
+# 91 "/home/bogdan/work/coralmicro/third_party/micropython/py/mpconfig.h"
 # 1 "./mpconfigport.h" 1
 
 
 
 
-# 1 "../../third_party/micropython/ports/embed/port/mpconfigport_common.h" 1
-# 27 "../../third_party/micropython/ports/embed/port/mpconfigport_common.h"
+# 1 "/home/bogdan/work/coralmicro/third_party/micropython/ports/embed/port/mpconfigport_common.h" 1
+# 27 "/home/bogdan/work/coralmicro/third_party/micropython/ports/embed/port/mpconfigport_common.h"
 # 1 "/usr/lib/gcc/x86_64-linux-gnu/13/include/stdint.h" 1 3 4
 # 9 "/usr/lib/gcc/x86_64-linux-gnu/13/include/stdint.h" 3 4
 # 1 "/usr/include/stdint.h" 1 3 4
@@ -248,12 +248,12 @@ typedef unsigned long int uintptr_t;
 typedef __intmax_t intmax_t;
 typedef __uintmax_t uintmax_t;
 # 10 "/usr/lib/gcc/x86_64-linux-gnu/13/include/stdint.h" 2 3 4
-# 28 "../../third_party/micropython/ports/embed/port/mpconfigport_common.h" 2
+# 28 "/home/bogdan/work/coralmicro/third_party/micropython/ports/embed/port/mpconfigport_common.h" 2
 
 
 
 
-# 31 "../../third_party/micropython/ports/embed/port/mpconfigport_common.h"
+# 31 "/home/bogdan/work/coralmicro/third_party/micropython/ports/embed/port/mpconfigport_common.h"
 typedef intptr_t mp_int_t;
 typedef uintptr_t mp_uint_t;
 typedef long mp_off_t;
@@ -284,9 +284,9 @@ extern void *alloca (size_t __size) __attribute__ ((__nothrow__ , __leaf__));
 
 
 
-# 40 "../../third_party/micropython/ports/embed/port/mpconfigport_common.h" 2
+# 40 "/home/bogdan/work/coralmicro/third_party/micropython/ports/embed/port/mpconfigport_common.h" 2
 # 6 "./mpconfigport.h" 2
-# 92 "../../third_party/micropython/py/mpconfig.h" 2
+# 92 "/home/bogdan/work/coralmicro/third_party/micropython/py/mpconfig.h" 2
 # 30 "<stdin>" 2
 
 
@@ -632,6 +632,8 @@ Q(alarm_type)
 
 Q(all)
 
+Q(alt)
+
 Q(any)
 
 Q(append)
@@ -724,6 +726,8 @@ Q(count)
 
 Q(cpu)
 
+Q(debug)
+
 Q(dict)
 
 Q(dict)
@@ -812,6 +816,8 @@ Q(hasattr)
 
 Q(hash)
 
+Q(hdg)
+
 Q(heap)
 
 Q(heartbeat)
@@ -892,6 +898,8 @@ Q(keys)
 
 Q(keys)
 
+Q(lat)
+
 Q(led_off)
 
 Q(led_on)
@@ -919,6 +927,8 @@ Q(load)
 Q(load_image)
 
 Q(locals)
+
+Q(lon)
 
 Q(lower)
 
@@ -1015,6 +1025,8 @@ Q(receive)
 Q(receive)
 
 Q(receive_vision)
+
+Q(rel_alt)
 
 Q(remove)
 
@@ -1150,6 +1162,10 @@ Q(throw)
 
 Q(ticks_ms)
 
+Q(time)
+
+Q(time)
+
 Q(timestamp)
 
 Q(to)
@@ -1206,6 +1222,18 @@ Q(version_info)
 
 Q(vision_available)
 
+Q(vx)
+
+Q(vx)
+
+Q(vy)
+
+Q(vy)
+
+Q(vz)
+
+Q(vz)
+
 Q(w)
 
 Q(w)
@@ -1220,9 +1248,15 @@ Q(x)
 
 Q(x)
 
+Q(x)
+
 Q(y)
 
 Q(y)
+
+Q(y)
+
+Q(z)
 
 Q(zip)
 

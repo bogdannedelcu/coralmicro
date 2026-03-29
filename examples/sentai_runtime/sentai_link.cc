@@ -35,6 +35,7 @@ extern void sentai_uart_restore_baudrate(void);
 
 // ===================== Module state =====================
 static volatile int      g_link_running = 0;
+static volatile int      g_link_debug = 0;  // 0=off, 1=summary, 2=hex
 static TaskHandle_t      g_link_rx_task = nullptr;
 static QueueHandle_t     g_link_rx_queue = nullptr;
 static SemaphoreHandle_t g_link_tx_mutex = nullptr;
@@ -68,9 +69,26 @@ static int link_send_msg(mavlink_message_t* msg) {
     uint16_t len = mavlink_msg_to_send_buffer(buf, msg);
     if (len == 0) return -1;
 
+    if (g_link_debug >= 1) {
+        printf("[link] TX msgid=%lu sysid=%u compid=%u seq=%u len=%u wire=%u\r\n",
+               (unsigned long)msg->msgid, msg->sysid, msg->compid,
+               msg->seq, msg->len, len);
+    }
+    if (g_link_debug >= 2) {
+        printf("[link] TX hex:");
+        for (int i = 0; i < (int)len && i < 32; i++)
+            printf(" %02X", buf[i]);
+        if (len > 32) printf(" ...");
+        printf("\r\n");
+    }
+
     xSemaphoreTake(g_link_tx_mutex, portMAX_DELAY);
     int n = sentai_uart_serial_write(buf, (int)len);
     xSemaphoreGive(g_link_tx_mutex);
+
+    if (g_link_debug >= 1 && n != (int)len) {
+        printf("[link] TX FAIL: wrote %d/%u\r\n", n, len);
+    }
 
     return (n == (int)len) ? 0 : -2;
 }
@@ -91,6 +109,11 @@ static void link_rx_task(void* param) {
         for (int i = 0; i < n; i++) {
             if (mavlink_parse_char(MAVLINK_COMM_0, buf[i], &rx_msg, &rx_status)) {
                 // Got a complete, CRC-valid message
+                if (g_link_debug >= 1) {
+                    printf("[link] RX msgid=%lu sysid=%u compid=%u seq=%u len=%u\r\n",
+                           (unsigned long)rx_msg.msgid, rx_msg.sysid,
+                           rx_msg.compid, rx_msg.seq, rx_msg.len);
+                }
                 link_rx_msg_t item;
                 memcpy(&item.msg, &rx_msg, sizeof(mavlink_message_t));
                 xQueueSend(g_link_rx_queue, &item, 0);
@@ -378,6 +401,12 @@ extern "C" int sentai_link_send_command_long(
     return link_send_msg(&msg);
 }
 
+// ===================== Debug level =====================
+extern "C" void sentai_link_set_debug(int level) {
+    g_link_debug = level;
+    printf("[link] debug=%d\r\n", level);
+}
+
 // ===================== Accessors for opaque link_rx_msg_t =====================
 // Used by modsentai.c (C code) which cannot include mavlink.h directly.
 
@@ -399,4 +428,46 @@ extern "C" uint8_t sentai_link_rx_seq(const link_rx_msg_t* m) {
 
 extern "C" uint8_t sentai_link_rx_len(const link_rx_msg_t* m) {
     return m->msg.len;
+}
+
+// ===================== Decode: LOCAL_POSITION_NED (msgid 32) =====================
+// Floats are returned as int32 × 1000 (millimetres, mm/s) since MicroPython has no float.
+extern "C" void sentai_link_rx_local_pos(
+    const link_rx_msg_t* m,
+    uint32_t* time_boot_ms,
+    int32_t* x_mm, int32_t* y_mm, int32_t* z_mm,
+    int32_t* vx_mms, int32_t* vy_mms, int32_t* vz_mms)
+{
+    mavlink_local_position_ned_t pos;
+    mavlink_msg_local_position_ned_decode(&m->msg, &pos);
+    *time_boot_ms = pos.time_boot_ms;
+    *x_mm   = (int32_t)(pos.x  * 1000.0f);
+    *y_mm   = (int32_t)(pos.y  * 1000.0f);
+    *z_mm   = (int32_t)(pos.z  * 1000.0f);
+    *vx_mms = (int32_t)(pos.vx * 1000.0f);
+    *vy_mms = (int32_t)(pos.vy * 1000.0f);
+    *vz_mms = (int32_t)(pos.vz * 1000.0f);
+}
+
+// ===================== Decode: GLOBAL_POSITION_INT (msgid 33) =====================
+// Already integer in MAVLink: lat/lon in degE7, alt in mm, vx/vy/vz in cm/s, hdg in cdeg.
+#include <standard/mavlink_msg_global_position_int.h>
+
+extern "C" void sentai_link_rx_global_pos(
+    const link_rx_msg_t* m,
+    uint32_t* time_boot_ms,
+    int32_t* lat, int32_t* lon, int32_t* alt, int32_t* relative_alt,
+    int16_t* vx, int16_t* vy, int16_t* vz, uint16_t* hdg)
+{
+    mavlink_global_position_int_t gpos;
+    mavlink_msg_global_position_int_decode(&m->msg, &gpos);
+    *time_boot_ms  = gpos.time_boot_ms;
+    *lat           = gpos.lat;
+    *lon           = gpos.lon;
+    *alt           = gpos.alt;
+    *relative_alt  = gpos.relative_alt;
+    *vx            = gpos.vx;
+    *vy            = gpos.vy;
+    *vz            = gpos.vz;
+    *hdg           = gpos.hdg;
 }

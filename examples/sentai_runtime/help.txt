@@ -227,10 +227,25 @@ sentai.link - MAVLink v2 telemetry bridge
   available()           Number of received MAVLink messages queued
   receive(timeout=0)    Get next msg -> dict or None
                         timeout: 0=poll, -1=block, >0=ms
-    Returns: {msgid, sysid, compid, seq, len}
+    Returns: {msgid, sysid, compid, seq, len, ...}
     msgid: MAVLink message ID (0=HEARTBEAT, 1=SYS_STATUS,
-           24=GPS_RAW_INT, 30=ATTITUDE, 33=GLOBAL_POSITION_INT,
-           253=STATUSTEXT, etc.)
+           24=GPS_RAW_INT, 30=ATTITUDE, 32=LOCAL_POSITION_NED,
+           33=GLOBAL_POSITION_INT, 253=STATUSTEXT, etc.)
+
+    Decoded messages (extra fields added automatically):
+
+    msgid 32 — LOCAL_POSITION_NED:
+      time  (uint32, ms since boot)
+      x, y, z       (int32, mm — float*1000)
+      vx, vy, vz    (int32, mm/s — float*1000)
+
+    msgid 33 — GLOBAL_POSITION_INT:
+      time      (uint32, ms since boot)
+      lat, lon  (int32, degrees * 1e7)
+      alt       (int32, mm above MSL)
+      rel_alt   (int32, mm above home)
+      vx,vy,vz  (int16, cm/s)
+      hdg       (uint16, heading in cdeg, 0..35999)
 
   --- Sending ---
   heartbeat(type=18)    Send HEARTBEAT (18=onboard controller)
@@ -255,4 +270,9 @@ sentai.link - MAVLink v2 telemetry bridge
     while True:
         msg = sentai.link.receive(5000)
         if msg:
-            print(msg['msgid'], msg['sysid'])
+            if msg['msgid'] == 33:   # GLOBAL_POSITION_INT
+                print('lat:', msg['lat'], 'lon:', msg['lon'])
+            elif msg['msgid'] == 32: # LOCAL_POSITION_NED
+                print('x:', msg['x'], 'y:', msg['y'], 'z:', msg['z'])
+            else:
+                print(msg['msgid'], msg['sysid'])

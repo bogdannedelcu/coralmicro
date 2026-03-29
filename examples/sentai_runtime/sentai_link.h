@@ -52,6 +52,9 @@ int sentai_link_stop(void);
 // Check if MAVLink bridge is running.
 int sentai_link_is_running(void);
 
+// Set debug level: 0=off, 1=TX/RX summary, 2=+hex dump
+void sentai_link_set_debug(int level);
+
 // Check how many received MAVLink messages are queued.
 int sentai_link_available(void);
 

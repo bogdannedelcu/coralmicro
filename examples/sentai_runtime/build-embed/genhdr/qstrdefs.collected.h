@@ -310,6 +310,8 @@ Q(alarm_type)
 
 Q(all)
 
+Q(alt)
+
 Q(any)
 
 Q(append)
@@ -402,6 +404,8 @@ Q(count)
 
 Q(cpu)
 
+Q(debug)
+
 Q(dict)
 
 Q(dict)
@@ -490,6 +494,8 @@ Q(hasattr)
 
 Q(hash)
 
+Q(hdg)
+
 Q(heap)
 
 Q(heartbeat)
@@ -570,6 +576,8 @@ Q(keys)
 
 Q(keys)
 
+Q(lat)
+
 Q(led_off)
 
 Q(led_on)
@@ -597,6 +605,8 @@ Q(load)
 Q(load_image)
 
 Q(locals)
+
+Q(lon)
 
 Q(lower)
 
@@ -693,6 +703,8 @@ Q(receive)
 Q(receive)
 
 Q(receive_vision)
+
+Q(rel_alt)
 
 Q(remove)
 
@@ -828,6 +840,10 @@ Q(throw)
 
 Q(ticks_ms)
 
+Q(time)
+
+Q(time)
+
 Q(timestamp)
 
 Q(to)
@@ -884,6 +900,18 @@ Q(version_info)
 
 Q(vision_available)
 
+Q(vx)
+
+Q(vx)
+
+Q(vy)
+
+Q(vy)
+
+Q(vz)
+
+Q(vz)
+
 Q(w)
 
 Q(w)
@@ -898,9 +926,15 @@ Q(x)
 
 Q(x)
 
+Q(x)
+
 Q(y)
 
 Q(y)
+
+Q(y)
+
+Q(z)
 
 Q(zip)
 

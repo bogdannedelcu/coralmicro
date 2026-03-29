@@ -153,6 +153,17 @@ extern uint8_t  sentai_link_rx_sysid(const link_rx_msg_t* m);
 extern uint8_t  sentai_link_rx_compid(const link_rx_msg_t* m);
 extern uint8_t  sentai_link_rx_seq(const link_rx_msg_t* m);
 extern uint8_t  sentai_link_rx_len(const link_rx_msg_t* m);
+// Decode accessors for specific MAVLink message types
+extern void sentai_link_rx_local_pos(
+    const link_rx_msg_t* m,
+    uint32_t* time_boot_ms,
+    int32_t* x_mm, int32_t* y_mm, int32_t* z_mm,
+    int32_t* vx_mms, int32_t* vy_mms, int32_t* vz_mms);
+extern void sentai_link_rx_global_pos(
+    const link_rx_msg_t* m,
+    uint32_t* time_boot_ms,
+    int32_t* lat, int32_t* lon, int32_t* alt, int32_t* relative_alt,
+    int16_t* vx, int16_t* vy, int16_t* vz, uint16_t* hdg);
 
 // Help file reading from system flash partition
 extern int sentai_help_read(char* buf, int max_size);
@@ -1274,6 +1285,15 @@ static mp_obj_t mod_sentai_link_stop(void) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_link_stop_obj, mod_sentai_link_stop);
 
+// sentai.link.debug(level) -> None
+// 0=off, 1=TX/RX summary on console, 2=+hex dump
+extern void sentai_link_set_debug(int level);
+static mp_obj_t mod_sentai_link_debug(mp_obj_t level_obj) {
+    sentai_link_set_debug(mp_obj_get_int(level_obj));
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_link_debug_obj, mod_sentai_link_debug);
+
 // sentai.link.heartbeat(type=18) -> int
 // type 18 = MAV_TYPE_ONBOARD_CONTROLLER
 static mp_obj_t mod_sentai_link_heartbeat(size_t n_args, const mp_obj_t *args) {
@@ -1368,7 +1388,9 @@ static mp_obj_t mod_sentai_link_available(void) {
 static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_link_available_obj, mod_sentai_link_available);
 
 // sentai.link.receive(timeout_ms=0) -> dict or None
-// Returns dict: {msgid, sysid, compid, seq, len}
+// Returns dict: {msgid, sysid, compid, seq, len, ...}
+// For msgid 32 (LOCAL_POSITION_NED): + time, x, y, z, vx, vy, vz (mm / mm/s)
+// For msgid 33 (GLOBAL_POSITION_INT): + time, lat, lon, alt, rel_alt, vx, vy, vz, hdg
 static mp_obj_t mod_sentai_link_receive(size_t n_args, const mp_obj_t *args) {
     int timeout_ms = (n_args > 0) ? mp_obj_get_int(args[0]) : 0;
     link_rx_msg_t rx;
@@ -1378,12 +1400,40 @@ static mp_obj_t mod_sentai_link_receive(size_t n_args, const mp_obj_t *args) {
     else
         got = sentai_link_receive_wait(&rx, timeout_ms);
     if (!got) return mp_const_none;
+    uint32_t mid = sentai_link_rx_msgid(&rx);
     mp_obj_dict_t *d = mp_obj_new_dict(5);
-    mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_msgid), mp_obj_new_int_from_uint(sentai_link_rx_msgid(&rx)));
+    mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_msgid), mp_obj_new_int_from_uint(mid));
     mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_sysid), mp_obj_new_int(sentai_link_rx_sysid(&rx)));
     mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_compid), mp_obj_new_int(sentai_link_rx_compid(&rx)));
     mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_seq), mp_obj_new_int(sentai_link_rx_seq(&rx)));
     mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_len), mp_obj_new_int(sentai_link_rx_len(&rx)));
+    if (mid == 32) {
+        // LOCAL_POSITION_NED — floats returned as int x1000 (mm, mm/s)
+        uint32_t t; int32_t x, y, z, vx, vy, vz;
+        sentai_link_rx_local_pos(&rx, &t, &x, &y, &z, &vx, &vy, &vz);
+        mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_time), mp_obj_new_int_from_uint(t));
+        mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_x), mp_obj_new_int(x));
+        mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_y), mp_obj_new_int(y));
+        mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_z), mp_obj_new_int(z));
+        mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_vx), mp_obj_new_int(vx));
+        mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_vy), mp_obj_new_int(vy));
+        mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_vz), mp_obj_new_int(vz));
+    } else if (mid == 33) {
+        // GLOBAL_POSITION_INT — already integer (degE7, mm, cm/s, cdeg)
+        uint32_t t; int32_t lat, lon, alt, rel_alt;
+        int16_t vx, vy, vz; uint16_t hdg;
+        sentai_link_rx_global_pos(&rx, &t, &lat, &lon, &alt, &rel_alt,
+                                  &vx, &vy, &vz, &hdg);
+        mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_time), mp_obj_new_int_from_uint(t));
+        mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_lat), mp_obj_new_int(lat));
+        mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_lon), mp_obj_new_int(lon));
+        mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_alt), mp_obj_new_int(alt));
+        mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_rel_alt), mp_obj_new_int(rel_alt));
+        mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_vx), mp_obj_new_int(vx));
+        mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_vy), mp_obj_new_int(vy));
+        mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_vz), mp_obj_new_int(vz));
+        mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_hdg), mp_obj_new_int(hdg));
+    }
     return MP_OBJ_FROM_PTR(d);
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_link_receive_obj, 0, 1, mod_sentai_link_receive);
@@ -1541,6 +1591,7 @@ static const mp_rom_map_elem_t sentai_link_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__),          MP_ROM_QSTR(MP_QSTR_link) },
     { MP_ROM_QSTR(MP_QSTR_init),              MP_ROM_PTR(&mod_sentai_link_init_obj) },
     { MP_ROM_QSTR(MP_QSTR_stop),              MP_ROM_PTR(&mod_sentai_link_stop_obj) },
+    { MP_ROM_QSTR(MP_QSTR_debug),             MP_ROM_PTR(&mod_sentai_link_debug_obj) },
     { MP_ROM_QSTR(MP_QSTR_heartbeat),         MP_ROM_PTR(&mod_sentai_link_heartbeat_obj) },
     { MP_ROM_QSTR(MP_QSTR_send),              MP_ROM_PTR(&mod_sentai_link_send_obj) },
     { MP_ROM_QSTR(MP_QSTR_send_detection),    MP_ROM_PTR(&mod_sentai_link_send_detection_obj) },
