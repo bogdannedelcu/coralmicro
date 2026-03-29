@@ -218,6 +218,10 @@ Q(__name__)
 
 Q(__name__)
 
+Q(__name__)
+
+Q(__name__)
+
 Q(__ne__)
 
 Q(__new__)
@@ -300,6 +304,10 @@ Q(_star_)
 
 Q(abs)
 
+Q(age)
+
+Q(alarm_type)
+
 Q(all)
 
 Q(any)
@@ -309,6 +317,14 @@ Q(append)
 Q(args)
 
 Q(argv)
+
+Q(available)
+
+Q(available)
+
+Q(available)
+
+Q(available)
 
 Q(bin)
 
@@ -336,8 +352,14 @@ Q(camera)
 
 Q(camera)
 
+Q(channel)
+
+Q(channel)
+
 Q(chr)
 
+Q(class_id)
+
 Q(classmethod)
 
 Q(classmethod)
@@ -345,6 +367,10 @@ Q(classmethod)
 Q(clear)
 
 Q(clear)
+
+Q(close)
+
+Q(close)
 
 Q(close)
 
@@ -353,6 +379,16 @@ Q(close)
 Q(closure)
 
 Q(collect)
+
+Q(command)
+
+Q(compid)
+
+Q(conf)
+
+Q(conf)
+
+Q(config)
 
 Q(console)
 
@@ -380,6 +416,10 @@ Q(divmod)
 
 Q(drive)
 
+Q(embed_crc8)
+
+Q(embedding)
+
 Q(enable)
 
 Q(end)
@@ -403,6 +443,10 @@ Q(find)
 Q(format)
 
 Q(format)
+
+Q(from)
+
+Q(from)
 
 Q(from_bytes)
 
@@ -438,15 +482,27 @@ Q(getattr)
 
 Q(globals)
 
+Q(h)
+
+Q(h)
+
 Q(hasattr)
 
 Q(hash)
 
 Q(heap)
 
+Q(heartbeat)
+
 Q(help)
 
 Q(hex)
+
+Q(hop_limit)
+
+Q(id)
+
+Q(id)
 
 Q(id)
 
@@ -457,6 +513,10 @@ Q(index)
 Q(index)
 
 Q(index)
+
+Q(init)
+
+Q(init)
 
 Q(init)
 
@@ -516,6 +576,12 @@ Q(led_on)
 
 Q(len)
 
+Q(len)
+
+Q(link)
+
+Q(link)
+
 Q(list)
 
 Q(list)
@@ -546,6 +612,10 @@ Q(mem_alloc)
 
 Q(mem_free)
 
+Q(mesh)
+
+Q(mesh)
+
 Q(micropython)
 
 Q(micropython)
@@ -556,9 +626,13 @@ Q(module)
 
 Q(modules)
 
+Q(msgid)
+
 Q(native_res)
 
 Q(next)
+
+Q(node)
 
 Q(num_outputs)
 
@@ -567,6 +641,10 @@ Q(object)
 Q(object)
 
 Q(oct)
+
+Q(open)
+
+Q(open)
 
 Q(ord)
 
@@ -600,11 +678,21 @@ Q(range)
 
 Q(read)
 
+Q(read)
+
+Q(read)
+
 Q(read_base64)
 
 Q(read_str)
 
 Q(ready)
+
+Q(receive)
+
+Q(receive)
+
+Q(receive_vision)
 
 Q(remove)
 
@@ -632,6 +720,10 @@ Q(row)
 
 Q(rsplit)
 
+Q(rssi)
+
+Q(rssi)
+
 Q(rstrip)
 
 Q(rtos)
@@ -648,31 +740,29 @@ Q(send)
 
 Q(send)
 
+Q(send)
+
+Q(send)
+
+Q(send_detection)
+
+Q(send_detection)
+
+Q(send_update)
+
+Q(send_update)
+
+Q(sensor_id)
+
 Q(sentai)
 
 Q(sentai)
 
 Q(sep)
 
-Q(serial_available)
+Q(seq)
 
-Q(serial_available)
-
-Q(serial_close)
-
-Q(serial_close)
-
-Q(serial_open)
-
-Q(serial_open)
-
-Q(serial_read)
-
-Q(serial_read)
-
-Q(serial_write)
-
-Q(serial_write)
+Q(seq)
 
 Q(set_res)
 
@@ -683,6 +773,10 @@ Q(setdefault)
 Q(size)
 
 Q(sleep_ms)
+
+Q(snr)
+
+Q(snr)
 
 Q(sort)
 
@@ -695,6 +789,10 @@ Q(startswith)
 Q(staticmethod)
 
 Q(staticmethod)
+
+Q(stop)
+
+Q(stop)
 
 Q(stop)
 
@@ -718,13 +816,23 @@ Q(sys)
 
 Q(sys)
 
+Q(sysid)
+
 Q(tasks)
+
+Q(text)
 
 Q(throw)
 
 Q(throw)
 
 Q(ticks_ms)
+
+Q(timestamp)
+
+Q(to)
+
+Q(to)
 
 Q(to_bytes)
 
@@ -734,9 +842,15 @@ Q(tpu)
 
 Q(tpu)
 
+Q(track_id)
+
 Q(tuple)
 
 Q(tuple)
+
+Q(type)
+
+Q(type)
 
 Q(type)
 
@@ -768,7 +882,25 @@ Q(version)
 
 Q(version_info)
 
+Q(vision_available)
+
+Q(w)
+
+Q(w)
+
 Q(write)
+
+Q(write)
+
+Q(write)
+
+Q(x)
+
+Q(x)
+
+Q(y)
+
+Q(y)
 
 Q(zip)
 

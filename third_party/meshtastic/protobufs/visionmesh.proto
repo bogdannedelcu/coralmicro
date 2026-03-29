@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package visionmesh;
+
+message VisionMessage {
+  uint32 app_version   = 1;
+  uint32 sensor_id     = 2;
+  uint32 track_id      = 3;
+  uint32 alarm_type    = 4;
+  uint32 timestamp_utc = 5;
+  uint32 seq           = 6;
+
+  oneof body {
+    NewDetection    new_detection    = 10;
+    UpdateDetection update_detection = 11;
+  }
+}
+
+message NewDetection {
+  fixed32 xywh_packed = 1;  // x,y,w,h each 1 byte packed
+  uint32 conf         = 2;  // 0..255
+  uint32 class_id     = 3;
+  bytes embedding     = 4;  // 64 bytes
+  uint32 embed_crc8   = 5;  // 0..255
+}
+
+message UpdateDetection {
+  fixed32 xywh_packed = 1;  // x,y,w,h each 1 byte packed
+  uint32 conf         = 2;
+  uint32 age          = 3;
+}

@@ -1,0 +1,2 @@
+# nanopb options for visionmesh.proto
+*NewDetection.embedding  max_size:64
