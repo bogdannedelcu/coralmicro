@@ -11,13 +11,21 @@ MQTT_URL = os.getenv("MQTT_URL", "mqtt://localhost:1883")
 MQTT_USERNAME = os.getenv("MQTT_USERNAME", "")
 MQTT_PASSWORD = os.getenv("MQTT_PASSWORD", "")
 MQTT_TOPIC_PREFIX = os.getenv("MQTT_TOPIC_PREFIX", "sentai")
-MQTT_STATUS_TOPIC = os.getenv("MQTT_STATUS_TOPIC", "sentai/status")
-MQTT_AVAILABILITY_TOPIC = os.getenv("MQTT_AVAILABILITY_TOPIC", "sentai/availability")
+PROXY_ID = os.getenv("PROXY_ID", "proxy01")
 
 
 def topic_for(node_id: int, suffix: str) -> str:
-    """Build per-node topic: sentai/{node_hex}/vision, sentai/{node_hex}/text, etc."""
-    return f"{MQTT_TOPIC_PREFIX}/{node_id:08x}/{suffix}"
+    """Build per-node topic: sentai/{proxy_id}/{node_hex}/vision, etc."""
+    return f"{MQTT_TOPIC_PREFIX}/{PROXY_ID}/{node_id:08x}/{suffix}"
+
+
+def proxy_topic(suffix: str) -> str:
+    """Build proxy-level topic: sentai/{proxy_id}/status, sentai/{proxy_id}/availability."""
+    return f"{MQTT_TOPIC_PREFIX}/{PROXY_ID}/{suffix}"
+
+
+MQTT_STATUS_TOPIC = proxy_topic("status")
+MQTT_AVAILABILITY_TOPIC = proxy_topic("availability")
 FORWARD_RAW_BASE64 = str(os.getenv("FORWARD_RAW_BASE64", "true")).lower() in {"1", "true", "yes", "on"}
 SPOOL_ROOT = Path(os.getenv("SPOOL_ROOT", str(Path(__file__).resolve().parent.parent / "spool")))
 PENDING_DIR = SPOOL_ROOT / "pending"
