@@ -89,21 +89,22 @@ def decode_vision_message_from_b64(b64_text: str) -> Optional[Dict]:
     return msg
 
 
-def handle_statustext(mqtt_pub, assembler: StatusTextAssembler, msg) -> None:
+def handle_statustext(mqtt_pub, assembler: StatusTextAssembler, msg, src_system: int = 0) -> None:
     assembled = assembler.push(msg)
     if not assembled:
         return
     kind, data = assembled
     if kind == 'text':
-        mqtt_pub.publish_json(config.MQTT_TEXT_TOPIC, data)
+        mqtt_pub.publish_json(config.topic_for(src_system, 'text'), data)
         return
     vision = decode_vision_message_from_b64(data['base64'])
     if vision is not None:
+        node_id = vision.get('node_id', src_system)
         out = {'ts': utc_now(), 'mavlink_msg_id': data['id'], 'severity': data['severity'], **vision}
-        mqtt_pub.publish_json(config.MQTT_VISION_TOPIC, out)
+        mqtt_pub.publish_json(config.topic_for(node_id, 'vision'), out)
         logging.info('[link:vision] msg_id=%s type=%s track=%s', data['id'], out.get('type'), out.get('track_id'))
     elif config.FORWARD_RAW_BASE64:
-        mqtt_pub.publish_json(config.MQTT_RAW_TOPIC, {'ts': utc_now(), 'kind': 'statustext-chunked', 'mavlink_msg_id': data['id'], 'severity': data['severity'], 'payload_b64': data['base64']})
+        mqtt_pub.publish_json(config.topic_for(src_system, 'raw'), {'ts': utc_now(), 'kind': 'statustext-chunked', 'mavlink_msg_id': data['id'], 'severity': data['severity'], 'payload_b64': data['base64']})
 
 
 def run_selftest() -> int:
@@ -150,7 +151,9 @@ def run_selftest() -> int:
 
 def handle_message(mqtt_pub, assembler: StatusTextAssembler, msg) -> None:
     recent_rx.mark()
+    src_system = getattr(msg, '_header', None)
+    src_system = int(src_system.srcSystem) if src_system and hasattr(src_system, 'srcSystem') else 0
     if msg.get_type() == 'STATUSTEXT':
-        handle_statustext(mqtt_pub, assembler, msg)
+        handle_statustext(mqtt_pub, assembler, msg, src_system)
     elif config.FORWARD_RAW_BASE64:
-        mqtt_pub.publish_json(config.MQTT_RAW_TOPIC, {'ts': utc_now(), 'kind': 'mavlink', 'mavlink_type': msg.get_type(), 'message': msg.to_dict()})
+        mqtt_pub.publish_json(config.topic_for(src_system, 'raw'), {'ts': utc_now(), 'kind': 'mavlink', 'mavlink_type': msg.get_type(), 'message': msg.to_dict()})

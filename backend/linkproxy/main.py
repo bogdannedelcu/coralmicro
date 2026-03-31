@@ -8,7 +8,7 @@ from pymavlink import mavutil
 from linkproxy import config
 from linkproxy.common import cleanup_sent_dir, ensure_dirs, utc_now
 from linkproxy.mqtt_client import MqttPublisher
-from linkproxy.protocol import StatusTextAssembler, handle_message, mesh_pb2, run_selftest
+from linkproxy.protocol import StatusTextAssembler, handle_message, visionmesh_pb2, run_selftest
 from linkproxy.telemetry import maybe_publish_telemetry
 
 
@@ -26,7 +26,7 @@ def main() -> int:
         'state': 'starting',
         'mavlink_tcp_host': config.MAVLINK_TCP_HOST,
         'mavlink_tcp_port': config.MAVLINK_TCP_PORT,
-        'protobuf_enabled': mesh_pb2 is not None,
+        'protobuf_enabled': visionmesh_pb2 is not None,
     })
 
     assembler = StatusTextAssembler()
