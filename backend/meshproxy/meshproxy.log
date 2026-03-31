@@ -1,0 +1,8 @@
+2026-03-31 12:15:21,724 INFO [spool] queued sentai/status -> 20260331T121521.724685Z_9d44f812359b422f9e0861253896b8e3.json
+2026-03-31 12:15:21,725 INFO [mqtt] connected to mqtt://localhost:1883
+2026-03-31 12:15:21,726 INFO [serial] open /dev/ttyACM0 @ 38400
+2026-03-31 12:15:26,728 WARNING [mqtt] publish failed, queued sentai/status -> 20260331T121526.727986Z_69fec1bddbb74bee9f93bd49ab62ac29.json
+2026-03-31 12:15:26,728 INFO [spool] flushing 2 queued messages
+2026-03-31 12:15:26,728 WARNING [mqtt] publish failed, queued sentai/status -> 20260331T121526.728481Z_fcbf71d55d984c1eb8f86325e89ac7ac.json
+2026-03-31 12:15:26,728 INFO [spool] flushing 3 queued messages
+2026-03-31 12:15:32,567 INFO [spool] flushing 3 queued messages

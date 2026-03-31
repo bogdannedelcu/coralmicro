@@ -1,18 +1,20 @@
 import logging
 import sys
+import time
 
-import serial
+from meshtastic.serial_interface import SerialInterface
 
+from commonproxy import utc_now
 from meshproxy import config
-from meshproxy.common import cleanup_sent_dir, ensure_dirs, utc_now
+from meshproxy.common import spool
 from meshproxy.mqtt_client import MqttPublisher
-from meshproxy.protocol import FrameReader, handle_frame, mesh_pb2
+from meshproxy.protocol import MeshSdkReceiver, mesh_pb2
 from meshproxy.telemetry import maybe_publish_telemetry
 
 
 def main() -> int:
-    ensure_dirs()
-    cleanup_sent_dir()
+    spool.ensure_dirs()
+    spool.cleanup_sent_dir()
 
     mqtt_pub = MqttPublisher()
     mqtt_pub.connect()
@@ -22,33 +24,33 @@ def main() -> int:
             'ts': utc_now(),
             'state': 'starting',
             'serial_port': config.SERIAL_PORT,
-            'serial_baud': config.SERIAL_BAUD,
+            'serial_baud': 115200,
             'protobuf_enabled': mesh_pb2 is not None,
+            'transport': 'meshtastic-python-sdk',
         },
     )
 
-    reader = FrameReader()
+    iface = None
     try:
-        with serial.Serial(config.SERIAL_PORT, config.SERIAL_BAUD, timeout=1) as ser:
-            logging.info('[serial] open %s @ %d', config.SERIAL_PORT, config.SERIAL_BAUD)
-            mqtt_pub.publish_json(
-                config.MQTT_STATUS_TOPIC,
-                {
-                    'ts': utc_now(),
-                    'state': 'serial-open',
-                    'serial_port': config.SERIAL_PORT,
-                    'serial_baud': config.SERIAL_BAUD,
-                },
-            )
-            while True:
-                if mqtt_pub.connected:
-                    mqtt_pub.flush_pending()
-                maybe_publish_telemetry(mqtt_pub)
-                chunk = ser.read(512)
-                if not chunk:
-                    continue
-                for frame in reader.feed(chunk):
-                    handle_frame(mqtt_pub, frame)
+        iface = SerialInterface(devPath=config.SERIAL_PORT, noProto=False, connectNow=True, noNodes=False, timeout=30)
+        iface.waitForConfig()
+        logging.info('[mesh] connected via meshtastic sdk to %s', config.SERIAL_PORT)
+        mqtt_pub.publish_json(config.MQTT_STATUS_TOPIC, {
+            'ts': utc_now(),
+            'state': 'serial-open',
+            'serial_port': config.SERIAL_PORT,
+            'serial_baud': 115200,
+            'transport': 'meshtastic-python-sdk',
+        })
+
+        receiver = MeshSdkReceiver(mqtt_pub)
+        receiver.subscribe()
+
+        while True:
+            if mqtt_pub.connected:
+                mqtt_pub.flush_pending()
+            maybe_publish_telemetry(mqtt_pub)
+            time.sleep(1)
     except KeyboardInterrupt:
         logging.info('stopped by user')
         return 0
@@ -56,6 +58,12 @@ def main() -> int:
         logging.exception('meshproxy failed: %s', exc)
         mqtt_pub.publish_json(config.MQTT_STATUS_TOPIC, {'ts': utc_now(), 'state': 'error', 'error': str(exc)})
         return 1
+    finally:
+        if iface is not None:
+            try:
+                iface.close()
+            except Exception:
+                pass
 
 
 if __name__ == '__main__':

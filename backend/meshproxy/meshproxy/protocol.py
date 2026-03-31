@@ -1,10 +1,10 @@
 import base64
 import logging
-import struct
 from typing import Dict, Optional
 
 from google.protobuf.json_format import MessageToDict
 from google.protobuf.message import DecodeError
+from pubsub import pub
 
 from commonproxy import utc_now
 
@@ -17,98 +17,89 @@ except ImportError:
     mesh_pb2 = None
 
 
-class FrameReader:
-    def __init__(self) -> None:
-        self.buffer = bytearray()
+class MeshSdkReceiver:
+    def __init__(self, mqtt_pub) -> None:
+        self.mqtt_pub = mqtt_pub
 
-    def feed(self, chunk: bytes):
-        self.buffer.extend(chunk)
-        frames = []
-        while len(self.buffer) >= 4:
-            start = self._find_start()
-            if start < 0:
-                self.buffer.clear()
-                break
-            if start > 0:
-                del self.buffer[:start]
-            if len(self.buffer) < 4:
-                break
-            length = struct.unpack('>H', self.buffer[2:4])[0]
-            frame_len = 4 + length
-            if len(self.buffer) < frame_len:
-                break
-            payload = bytes(self.buffer[4:frame_len])
-            del self.buffer[:frame_len]
-            frames.append(payload)
-        return frames
+    def subscribe(self) -> None:
+        pub.subscribe(self._on_text, 'meshtastic.receive.text')
+        pub.subscribe(self._on_data, 'meshtastic.receive.data')
+        pub.subscribe(self._on_unknown, 'meshtastic.receive')
+        pub.subscribe(self._on_connection_lost, 'meshtastic.connection.lost')
 
-    def _find_start(self) -> int:
-        for i in range(len(self.buffer) - 1):
-            if self.buffer[i] == config.START1 and self.buffer[i + 1] == config.START2:
-                return i
-        return -1
+    def _on_text(self, packet, interface) -> None:
+        recent_rx.mark()
+        decoded = packet.get('decoded', {})
+        payload = decoded.get('payload', b'')
+        if isinstance(payload, str):
+            text = payload
+        else:
+            try:
+                text = bytes(payload).decode('utf-8', errors='ignore').strip()
+            except Exception:
+                text = ''
+        self.mqtt_pub.publish_json(config.MQTT_TEXT_TOPIC, {
+            'ts': utc_now(),
+            'from': packet.get('from', 0),
+            'to': packet.get('to', 0),
+            'id': packet.get('id', 0),
+            'channel': packet.get('channel', 0),
+            'portnum': decoded.get('portnum', 'TEXT_MESSAGE_APP'),
+            'text': text,
+        })
 
+    def _on_data(self, packet, interface) -> None:
+        recent_rx.mark()
+        decoded = packet.get('decoded', {})
+        portnum = decoded.get('portnum')
+        payload = decoded.get('payload', b'')
+        raw_payload = payload.encode() if isinstance(payload, str) else bytes(payload)
 
-def try_extract_ascii_text(payload: bytes) -> Optional[str]:
-    cleaned = payload.replace(b'\x00', b'')
-    if not cleaned:
-        return None
-    try:
-        text = cleaned.decode('utf-8', errors='ignore').strip()
-    except Exception:
-        return None
-    if not text:
-        return None
-    printable = sum(1 for ch in text if ch.isprintable() or ch in '\r\n\t')
-    if printable / max(len(text), 1) < 0.85:
-        return None
-    return text
+        if portnum == 'PRIVATE_APP':
+            vision = decode_vision_message(raw_payload)
+            if vision is not None:
+                msg = {
+                    'ts': utc_now(),
+                    'from': packet.get('from', 0),
+                    'to': packet.get('to', 0),
+                    'id': packet.get('id', 0),
+                    'channel': packet.get('channel', 0),
+                    'portnum': portnum,
+                    'payload_b64': base64.b64encode(raw_payload).decode('ascii'),
+                    **vision,
+                }
+                self.mqtt_pub.publish_json(config.MQTT_VISION_TOPIC, msg)
+                logging.info('[mesh:vision] from=%s track=%s type=%s', msg.get('from'), msg.get('track_id'), msg.get('type'))
+                return
 
+        if config.FORWARD_RAW_BASE64:
+            self.mqtt_pub.publish_json(config.MQTT_RAW_TOPIC, {
+                'ts': utc_now(),
+                'kind': 'from-radio',
+                'packet': sanitize_packet(packet),
+            })
 
-def publish_raw(mqtt_pub, payload: bytes, note: str = 'raw-frame', decoded: Optional[dict] = None) -> None:
-    if not config.FORWARD_RAW_BASE64:
-        return
-    msg = {'ts': utc_now(), 'kind': note, 'payload_b64': base64.b64encode(payload).decode('ascii'), 'payload_hex': payload.hex()}
-    if decoded is not None:
-        msg['decoded'] = decoded
-    mqtt_pub.publish_json(config.MQTT_RAW_TOPIC, msg)
+    def _on_unknown(self, packet, interface) -> None:
+        recent_rx.mark()
 
-
-def decode_from_radio(payload: bytes):
-    if mesh_pb2 is None:
-        return None
-    msg = mesh_pb2.FromRadio()
-    try:
-        msg.ParseFromString(payload)
-        return msg
-    except DecodeError:
-        return None
-
-
-def packet_meta(packet, portnum: int, raw_payload: bytes) -> Dict:
-    return {
-        'ts': utc_now(), 'from': getattr(packet, 'from', 0), 'to': getattr(packet, 'to', 0), 'id': getattr(packet, 'id', 0),
-        'channel': getattr(packet, 'channel', 0), 'rx_time': getattr(packet, 'rx_time', 0), 'rx_snr': getattr(packet, 'rx_snr', 0),
-        'hop_limit': getattr(packet, 'hop_limit', 0), 'want_ack': getattr(packet, 'want_ack', False), 'priority': int(getattr(packet, 'priority', 0)),
-        'portnum': portnum, 'payload_b64': base64.b64encode(raw_payload).decode('ascii'),
-    }
+    def _on_connection_lost(self, interface) -> None:
+        self.mqtt_pub.publish_json(config.MQTT_STATUS_TOPIC, {'ts': utc_now(), 'state': 'connection-lost'})
 
 
-def maybe_extract_text_message(from_radio) -> Optional[Dict]:
-    if from_radio is None or not from_radio.HasField('packet'):
-        return None
-    packet = from_radio.packet
-    if not packet.HasField('decoded'):
-        return None
-    decoded = packet.decoded
-    portnum = int(decoded.portnum)
-    raw_payload = bytes(decoded.payload)
-    if portnum not in {config.TEXT_MESSAGE_APP, config.TEXT_MESSAGE_COMPRESSED_APP, config.DETECTION_SENSOR_APP, config.ALERT_APP}:
-        return None
-    text = try_extract_ascii_text(raw_payload) or base64.b64encode(raw_payload).decode('ascii')
-    msg = packet_meta(packet, portnum, raw_payload)
-    msg['text'] = text
-    return msg
+def sanitize_packet(packet: dict) -> dict:
+    out = dict(packet)
+    raw = out.get('raw')
+    if raw is not None:
+        out['raw'] = str(type(raw).__name__)
+    decoded = out.get('decoded')
+    if isinstance(decoded, dict):
+        d = dict(decoded)
+        payload = d.get('payload')
+        if isinstance(payload, (bytes, bytearray)):
+            d['payload_b64'] = base64.b64encode(bytes(payload)).decode('ascii')
+            del d['payload']
+        out['decoded'] = d
+    return out
 
 
 def decode_vision_message(raw_payload: bytes) -> Optional[Dict]:
@@ -134,46 +125,3 @@ def decode_vision_message(raw_payload: bytes) -> Optional[Dict]:
     else:
         msg['type'] = 'unknown'
     return msg
-
-
-def maybe_extract_vision_message(from_radio) -> Optional[Dict]:
-    if from_radio is None or not from_radio.HasField('packet'):
-        return None
-    packet = from_radio.packet
-    if not packet.HasField('decoded'):
-        return None
-    decoded = packet.decoded
-    portnum = int(decoded.portnum)
-    raw_payload = bytes(decoded.payload)
-    if portnum != config.PRIVATE_APP:
-        return None
-    vision = decode_vision_message(raw_payload)
-    if vision is None:
-        return None
-    msg = packet_meta(packet, portnum, raw_payload)
-    msg.update(vision)
-    return msg
-
-
-def handle_frame(mqtt_pub, payload: bytes) -> None:
-    from_radio = decode_from_radio(payload)
-    if from_radio is not None:
-        recent_rx.mark()
-        vision_msg = maybe_extract_vision_message(from_radio)
-        if vision_msg is not None:
-            mqtt_pub.publish_json(config.MQTT_VISION_TOPIC, vision_msg)
-            logging.info('[mesh:vision] from=%s track=%s type=%s', vision_msg.get('from'), vision_msg.get('track_id'), vision_msg.get('type'))
-            return
-        text_msg = maybe_extract_text_message(from_radio)
-        if text_msg is not None:
-            mqtt_pub.publish_json(config.MQTT_TEXT_TOPIC, text_msg)
-            logging.info('[mesh:text] from=%s to=%s ch=%s port=%s text=%s', text_msg['from'], text_msg['to'], text_msg['channel'], text_msg['portnum'], text_msg['text'])
-            return
-        publish_raw(mqtt_pub, payload, note='from-radio', decoded=MessageToDict(from_radio, preserving_proto_field_name=True))
-        return
-    text = try_extract_ascii_text(payload)
-    if text:
-        mqtt_pub.publish_json(config.MQTT_TEXT_TOPIC, {'ts': utc_now(), 'text': text, 'unframed': True})
-        logging.info('[mesh:text:fallback] %s', text)
-        return
-    publish_raw(mqtt_pub, payload)
