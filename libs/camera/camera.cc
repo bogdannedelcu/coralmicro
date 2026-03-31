@@ -642,11 +642,11 @@ void CameraTask::Init(lpi2c_rtos_handle_t* i2c_handle, lpi2c_rtos_handle_t* i2c_
   md_config_.enable = false;
 
   // Init GPIO used by camera
-  // GpioSetMode(Gpio::kCamReset, GpioMode::kOutput);
+  GpioSetMode(Gpio::kCamReset, GpioMode::kOutput);
   GpioSetMode(Gpio::kCamReset2, GpioMode::kOutput);
-  // GpioSetMode(Gpio::kCamPwrDn, GpioMode::kOutput);
-  // GpioSetMode(Gpio::kCamPwrDn2, GpioMode::kOutput);
-  // GpioSetMode(Gpio::kCamMux, GpioMode::kOutput);
+  GpioSetMode(Gpio::kCamPwrDn, GpioMode::kOutput);
+  GpioSetMode(Gpio::kCamPwrDn2, GpioMode::kOutput);
+  GpioSetMode(Gpio::kCamMux, GpioMode::kOutput);
 
   printf ("%s: i2c_Handle: 0x%x, i2c_handle2: 0x%x", __func__, i2c_handle, i2c_handle2);
 }
@@ -942,9 +942,27 @@ camera::PowerResponse CameraTask::HandlePowerRequest(
   camera::PowerResponse resp;
   resp.success = true;
 
-  //PmicTask::GetSingleton()->SetRailState(PmicRail::kCam2V8, power.enable);
-  //PmicTask::GetSingleton()->SetRailState(PmicRail::kCam1V8, power.enable);
-  vTaskDelay(pdMS_TO_TICKS(10));
+#if 0 // PMIC is not working well
+  // power off the 1v8 first / power on the 2v8 first
+  if (power.enable) {
+    printf("Powering on camera\n");
+    
+    PmicTask::GetSingleton()->SetRailState(PmicRail::kCam2_2V8, true);
+    PmicTask::GetSingleton()->SetRailState(PmicRail::kCam1_2V8, true);
+    vTaskDelay(pdMS_TO_TICKS(200));
+    PmicTask::GetSingleton()->SetRailState(PmicRail::kCam2_1V8, true);
+    PmicTask::GetSingleton()->SetRailState(PmicRail::kCam1_1V8, true);
+  } 
+  else {
+    printf("Powering off camera\n");
+    
+    PmicTask::GetSingleton()->SetRailState(PmicRail::kCam2_1V8, false);
+    PmicTask::GetSingleton()->SetRailState(PmicRail::kCam1_1V8, false);
+    vTaskDelay(pdMS_TO_TICKS(200));
+    PmicTask::GetSingleton()->SetRailState(PmicRail::kCam2_2V8, false);
+    PmicTask::GetSingleton()->SetRailState(PmicRail::kCam1_2V8, false);
+  }
+#endif
 
 
   if (power.enable) {

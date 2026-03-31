@@ -198,10 +198,24 @@ void ConsoleM7::M7ConsoleTaskRxFn(void* param) {
   }
 }
 
+void ConsoleM7::SetLogPipe(StreamBufferHandle_t pipe) { log_pipe_ = pipe; }
+void ConsoleM7::SetLogCallback(LogCallback cb) { log_callback_ = cb; }
+
 void ConsoleM7::M7ConsoleTaskTxFn(void* param) {
   while (true) {
     ConsoleMessage msg;
     if (xQueueReceive(console_queue_, &msg, portMAX_DELAY) == pdTRUE) {
+      DbgConsole_SendDataReliable(msg.str, msg.len);
+      cdc_acm_.Transmit(msg.str, msg.len);
+      // Mirror to TCP log pipe if registered; non-blocking — drops if full.
+      StreamBufferHandle_t pipe = log_pipe_;
+      if (pipe) {
+        xStreamBufferSend(pipe, msg.str, msg.len, 0);
+      }
+      // Mirror to HTTP log callback if registered.
+      LogCallback cb = log_callback_;
+      if (cb) {
+        cb(reinterpret_cast<const char*>(msg.str), msg.len);
       // Route output to REPL target only, with retry on failure
       bool ok = false;
       for (int attempt = 0; attempt < 3 && !ok; ++attempt) {

@@ -19,7 +19,7 @@
 #add_subdirectory(blink_led)
 #add_subdirectory(button_led)
 #add_subdirectory(camera_motion_detection)
-#add_subdirectory(camera_streaming_http)
+add_subdirectory(camera_streaming_http)
 #add_subdirectory(camera_streaming_rpc)
 #add_subdirectory(camera_triggered)
 #add_subdirectory(classify_audio)

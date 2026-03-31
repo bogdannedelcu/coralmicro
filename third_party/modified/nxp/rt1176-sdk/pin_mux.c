@@ -8,6 +8,7 @@
 
 #include "fsl_common.h"
 #include "fsl_iomuxc.h"
+#include "fsl_gpio.h"
 #include "pin_mux.h"
 
 void InitArduinoPins(void);
@@ -33,6 +34,31 @@ void BOARD_InitBootPins(void) { BOARD_InitPins(); }
  * ****************************************************************************************************************/
 void BOARD_InitPins(void) {
     CLOCK_EnableClock(kCLOCK_Iomuxc); /* LPCG on: LPCG is ON. */
+
+      /* GPIO configuration of USER_BUTTON on WAKEUP_DIG (pin T8) */
+    gpio_pin_config_t USER_BUTTON_config = {
+      .direction = kGPIO_DigitalInput,
+      .outputLogic = 0U,
+      .interruptMode = kGPIO_IntFallingEdge
+    };
+    /* Initialize GPIO functionality on WAKEUP_DIG (pin T8) */
+    GPIO_PinInit(GPIO13, 0U, &USER_BUTTON_config);
+    /* Enable GPIO pin interrupt on WAKEUP_DIG (pin T8) */
+    GPIO_PortEnableInterrupts(GPIO13, 1U << 0U);
+
+    IOMUXC_SetPinMux(
+      IOMUXC_WAKEUP_DIG_GPIO13_IO00,          /* WAKEUP_DIG is configured as GPIO13_IO00 */
+      0U);                                    /* Software Input On Field: Input Path is determined by functionality */
+
+    IOMUXC_SetPinConfig(
+      IOMUXC_WAKEUP_DIG_GPIO13_IO00,          /* WAKEUP_DIG PAD functional properties : */
+      0x0EU);                                 /* Slew Rate Field: Slow Slew Rate
+                                                 Drive Strength Field: high driver
+                                                 Pull / Keep Select Field: Pull Enable
+                                                 Pull Up / Down Config. Field: Weak pull up
+                                                 Open Drain SNVS Field: Disabled
+                                                 Domain write protection: Both cores are allowed
+                                                 Domain write protection lock: Neither of DWP bits is locked */
 
     // TPU MCM Pins
     IOMUXC_SetPinMux(IOMUXC_GPIO_EMC_B2_16_GPIO8_IO26, 0U);
@@ -61,6 +87,15 @@ void BOARD_InitPins(void) {
     IOMUXC_SetPinConfig(IOMUXC_GPIO_LPSR_00_MIC_CLK, 3U);
     IOMUXC_SetPinMux(IOMUXC_GPIO_LPSR_01_MIC_BITSTREAM0, 0U);
     IOMUXC_SetPinConfig(IOMUXC_GPIO_LPSR_01_MIC_BITSTREAM0, 3U);
+
+    // T5838 WAKE pin: floating (not connected)
+    // T5838 THRS pin (AAD threshold config) - GPIO_SD_B1_03 as GPIO10_IO06
+    IOMUXC_SetPinMux(IOMUXC_GPIO_SD_B1_03_GPIO10_IO06, 0U);
+    IOMUXC_SetPinConfig(IOMUXC_GPIO_SD_B1_03_GPIO10_IO06, 0U);
+
+    // Mic Clk feedback GPIO_SD_B1_05 as GPIO_MUX4_IO08 input (GPIO4 for IRQ support)
+    IOMUXC_SetPinMux(IOMUXC_GPIO_SD_B1_05_GPIO_MUX4_IO08, 0U);
+    IOMUXC_SetPinConfig(IOMUXC_GPIO_SD_B1_05_GPIO_MUX4_IO08, 0x3U);  // No pull-up
 
     // Ethernet
     IOMUXC_SetPinMux(IOMUXC_GPIO_DISP_B1_00_ENET_1G_RX_EN, 0U);
@@ -463,9 +498,9 @@ void BOARD_InitPins(void) {
     IOMUXC_SetPinMux(IOMUXC_GPIO_SD_B1_00_USDHC1_CMD, 1U);
     IOMUXC_SetPinMux(IOMUXC_GPIO_SD_B1_01_USDHC1_CLK, 1U);
     IOMUXC_SetPinMux(IOMUXC_GPIO_SD_B1_02_USDHC1_DATA0, 1U);
-    IOMUXC_SetPinMux(IOMUXC_GPIO_SD_B1_03_USDHC1_DATA1, 1U);
+    // IOMUXC_SetPinMux(IOMUXC_GPIO_SD_B1_03_USDHC1_DATA1, 1U);
     IOMUXC_SetPinMux(IOMUXC_GPIO_SD_B1_04_USDHC1_DATA2, 1U);
-    IOMUXC_SetPinMux(IOMUXC_GPIO_SD_B1_05_USDHC1_DATA3, 1U);
+    // IOMUXC_SetPinMux(IOMUXC_GPIO_SD_B1_05_USDHC1_DATA3, 1U);
     // WL_REG_ON
     IOMUXC_SetPinMux(IOMUXC_GPIO_AD_34_GPIO10_IO01, 0U);
     // WL_HOST_WAKE
@@ -480,6 +515,9 @@ void BOARD_InitPins(void) {
     IOMUXC_SetPinMux(IOMUXC_GPIO_DISP_B2_14_GPIO11_IO15, 0U);
     // BT_HOST_WAKE
     IOMUXC_SetPinMux(IOMUXC_GPIO_DISP_B2_15_GPIO11_IO16, 0U);
+    // VDD_1V8_INT_EN
+    IOMUXC_SetPinMux(IOMUXC_GPIO_AD_21_GPIO9_IO20, 0U);
+    IOMUXC_SetPinConfig(IOMUXC_GPIO_AD_21_GPIO9_IO20, 0U);
     // LPUART2 for BT
     IOMUXC_SetPinMux(IOMUXC_GPIO_DISP_B2_10_LPUART2_TXD, 1U);
     IOMUXC_SetPinMux(IOMUXC_GPIO_DISP_B2_11_LPUART2_RXD, 1U);
@@ -492,12 +530,12 @@ void BOARD_InitPins(void) {
     IOMUXC_SetPinConfig(IOMUXC_GPIO_SD_B1_01_USDHC1_CLK, 0xCU);
     // Pull-up
     IOMUXC_SetPinConfig(IOMUXC_GPIO_SD_B1_02_USDHC1_DATA0, 0x4U);
-    // Pull-up
-    IOMUXC_SetPinConfig(IOMUXC_GPIO_SD_B1_03_USDHC1_DATA1, 0x4U);
+    // Pull-up - Reused for MIC
+    // IOMUXC_SetPinConfig(IOMUXC_GPIO_SD_B1_03_USDHC1_DATA1, 0x4U);
     // Pull-up
     IOMUXC_SetPinConfig(IOMUXC_GPIO_SD_B1_04_USDHC1_DATA2, 0x4U);
-    // Pull-up
-    IOMUXC_SetPinConfig(IOMUXC_GPIO_SD_B1_05_USDHC1_DATA3, 0x4U);
+    // Pull-up - Reused for MIC
+    // IOMUXC_SetPinConfig(IOMUXC_GPIO_SD_B1_05_USDHC1_DATA3, 0x4U);
     // WL_REG_ON
     // Module has internal pull-down
     IOMUXC_SetPinConfig(IOMUXC_GPIO_AD_34_GPIO10_IO01, 0U);
@@ -520,7 +558,6 @@ void BOARD_InitPins(void) {
     IOMUXC_SetPinConfig(IOMUXC_GPIO_DISP_B2_11_LPUART2_RXD, 0U);
     IOMUXC_SetPinConfig(IOMUXC_GPIO_DISP_B2_12_LPUART2_CTS_B, 0U);
     IOMUXC_SetPinConfig(IOMUXC_GPIO_DISP_B2_13_LPUART2_RTS_B, 0U);
-
 #endif
 
     // GPIO Mode for J9/J10 Header

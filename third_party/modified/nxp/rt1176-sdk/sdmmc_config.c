@@ -3,6 +3,7 @@
 #include "third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_gpio.h"
 #include "third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_iomuxc.h"
 #include "third_party/nxp/rt1176-sdk/middleware/sdmmc/sdio/fsl_sdio.h"
+
 #include <stdio.h>
 
 #define SDMMC_HOST_DMA_DESCRIPTOR_BUFFER_SIZE (32U)
@@ -73,6 +74,22 @@ uint32_t BOARD_USDHC1ClockConfiguration(void) {
     return CLOCK_GetRootClockFreq(kCLOCK_Root_Usdhc1);
 }
 
+uint32_t BOARD_USDHC2ClockConfiguration(void) {
+    clock_root_config_t rootCfg = {0};
+    const clock_sys_pll2_config_t sysPll2Config = {
+        .ssEnable = false,
+    };
+
+    CLOCK_InitSysPll2(&sysPll2Config);
+    CLOCK_InitPfd(kCLOCK_PllSys2, kCLOCK_Pfd2, 24);
+
+    rootCfg.mux = 4;
+    rootCfg.div = 2;
+    CLOCK_SetRootClock(kCLOCK_Root_Usdhc2, &rootCfg);
+
+    return CLOCK_GetRootClockFreq(kCLOCK_Root_Usdhc2);
+}
+
 void BOARD_SDIO_Config(void *card, sd_cd_t cd, uint32_t hostIRQPriority, sdio_int_t cardInt) {
     AT_NONCACHEABLE_SECTION_ALIGN(static uint32_t s_sdmmcHostDmaBuffer[SDMMC_HOST_DMA_DESCRIPTOR_BUFFER_SIZE], SDMMCHOST_DMA_DESCRIPTOR_BUFFER_ALIGN_SIZE);
 #if defined SDMMCHOST_ENABLE_CACHE_LINE_ALIGN_TRANSFER && SDMMCHOST_ENABLE_CACHE_LINE_ALIGN_TRANSFER
@@ -97,8 +114,8 @@ void BOARD_SDIO_Config(void *card, sd_cd_t cd, uint32_t hostIRQPriority, sdio_in
 
     sdio_card_t* sdio_card = (sdio_card_t*)card;
     sdio_card->host = &s_host;
-    sdio_card->host->hostController.base = USDHC1;
-    sdio_card->host->hostController.sourceClock_Hz = BOARD_USDHC1ClockConfiguration();
+    sdio_card->host->hostController.base = USDHC2;
+    sdio_card->host->hostController.sourceClock_Hz = BOARD_USDHC2ClockConfiguration();
     sdio_card->usrParam.cd = &s_cd;
     sdio_card->usrParam.pwr = BOARD_SDCardPowerControl;
     sdio_card->usrParam.ioStrength = NULL;
@@ -113,7 +130,7 @@ void BOARD_SDIO_Config(void *card, sd_cd_t cd, uint32_t hostIRQPriority, sdio_in
     BOARD_SDCardPowerResetInit();
     BOARD_SDCardDetectInit(cd, NULL);
 
-    NVIC_SetPriority(USDHC1_IRQn, hostIRQPriority);
+    NVIC_SetPriority(USDHC2_IRQn, hostIRQPriority);
 
 #if __CORTEX_M == 7
     BOARD_USDHC_Errata();
