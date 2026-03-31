@@ -88,6 +88,10 @@ extern int sentai_uart_serial_is_open(void);
 extern int sentai_uart_serial_write(const uint8_t* buf, int size);
 extern int sentai_uart_serial_read(uint8_t* buf, int max_size, int timeout_ms);
 extern int sentai_uart_serial_available(void);
+
+// IMU (LIS2DU12 accelerometer) - implemented in modsentai_hal.cc
+extern int sentai_imu_init(void);
+extern int sentai_imu_read_accel(float* x_mg, float* y_mg, float* z_mg, float* temp_c);
 extern void sentai_uart_set_baudrate(uint32_t baudrate);
 extern void sentai_uart_restore_baudrate(void);
 
@@ -962,7 +966,7 @@ static mp_obj_t mod_sentai_help(size_t n_args, const mp_obj_t *args) {
             help_print(start, end - start);
         } else {
             mp_print_str(MP_PYTHON_PRINTER,
-                "Unknown topic. Available: io, rtos, tpu, fs, camera, usb, uart, console, mesh, link, serial, all\r\n");
+                "Unknown topic. Available: io, rtos, tpu, fs, camera, imu, usb, uart, console, mesh, link, serial, all\r\n");
         }
     }
 
@@ -1259,6 +1263,33 @@ static mp_obj_t mod_sentai_mesh_config(size_t n_args, const mp_obj_t *args) {
     return mp_obj_new_int(sentai_mesh_request_config(nonce));
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_mesh_config_obj, 0, 1, mod_sentai_mesh_config);
+
+// ============== sentai.imu — LIS2DU12 accelerometer ==============
+
+// sentai.imu.init() -> int
+// Returns 0 on success, -1 on failure
+static mp_obj_t mod_sentai_imu_init(void) {
+    return mp_obj_new_int(sentai_imu_init());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_imu_init_obj, mod_sentai_imu_init);
+
+// sentai.imu.read() -> dict or None
+// Returns {x, y, z, temp} in mg and °C, or None if not ready
+// x/y/z are int (mg × 1000 since MicroPython has no float)
+// temp is int (°C × 1000)
+static mp_obj_t mod_sentai_imu_read(void) {
+    float x, y, z, temp;
+    int ret = sentai_imu_read_accel(&x, &y, &z, &temp);
+    if (ret != 0) return mp_const_none;
+    
+    mp_obj_dict_t *d = mp_obj_new_dict(4);
+    mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_x), mp_obj_new_int((int)(x * 1000.0f)));
+    mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_y), mp_obj_new_int((int)(y * 1000.0f)));
+    mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_z), mp_obj_new_int((int)(z * 1000.0f)));
+    mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_temp), mp_obj_new_int((int)(temp * 1000.0f)));
+    return MP_OBJ_FROM_PTR(d);
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_imu_read_obj, mod_sentai_imu_read);
 
 // ===================== MAVLink link functions =====================
 
@@ -1606,6 +1637,18 @@ static const mp_obj_module_t sentai_link_module = {
     .globals = (mp_obj_dict_t *)&sentai_link_globals,
 };
 
+// ============== sentai.imu — LIS2DU12 accelerometer ==============
+static const mp_rom_map_elem_t sentai_imu_globals_table[] = {
+    { MP_ROM_QSTR(MP_QSTR___name__),   MP_ROM_QSTR(MP_QSTR_imu) },
+    { MP_ROM_QSTR(MP_QSTR_init),       MP_ROM_PTR(&mod_sentai_imu_init_obj) },
+    { MP_ROM_QSTR(MP_QSTR_read),       MP_ROM_PTR(&mod_sentai_imu_read_obj) },
+};
+static MP_DEFINE_CONST_DICT(sentai_imu_globals, sentai_imu_globals_table);
+static const mp_obj_module_t sentai_imu_module = {
+    .base = { &mp_type_module },
+    .globals = (mp_obj_dict_t *)&sentai_imu_globals,
+};
+
 // =====================================================================
 // Top-level module: import sentai
 // =====================================================================
@@ -1635,6 +1678,7 @@ static const mp_rom_map_elem_t sentai_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_uart),      MP_ROM_PTR(&sentai_uart_module) },
     { MP_ROM_QSTR(MP_QSTR_mesh),      MP_ROM_PTR(&sentai_mesh_module) },
     { MP_ROM_QSTR(MP_QSTR_link),      MP_ROM_PTR(&sentai_link_module) },
+    { MP_ROM_QSTR(MP_QSTR_imu),       MP_ROM_PTR(&sentai_imu_module) },
 };
 static MP_DEFINE_CONST_DICT(sentai_module_globals, sentai_module_globals_table);
 

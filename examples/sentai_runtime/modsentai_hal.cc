@@ -4,6 +4,8 @@
 #include "libs/base/console_m7.h"
 #include "libs/base/filesystem.h"
 #include "libs/base/led.h"
+#include "libs/lis2du12/lis2du12.h"
+#include "libs/base/main_freertos_m7.h"
 #include "third_party/freertos_kernel/include/FreeRTOS.h"
 #include "third_party/freertos_kernel/include/task.h"
 #include "third_party/nxp/rt1176-sdk/middleware/littlefs/lfs.h"
@@ -199,6 +201,42 @@ int sentai_help_read(char* buf, int max_size) {
         return (int)n;
     }
     return -1;
+}
+
+// ===================== IMU (LIS2DU12 accelerometer) =====================
+
+static coralmicro::Lis2du12 g_imu;
+static bool g_imu_initialized = false;
+
+int sentai_imu_init(void) {
+    if (g_imu_initialized) return 0;  // already initialized
+    
+    if (!g_imu.Init(I2C5Handle(), 0x19)) {
+        return -1;  // init failed
+    }
+    
+    g_imu_initialized = true;
+    return 0;
+}
+
+int sentai_imu_read_accel(float* x_mg, float* y_mg, float* z_mg, float* temp_c) {
+    if (!g_imu_initialized) return -1;
+    
+    bool ready = false;
+    if (!g_imu.IsDataReady(&ready) || !ready) {
+        return -2;  // data not ready
+    }
+    
+    coralmicro::AccelData data;
+    if (!g_imu.ReadData(&data)) {
+        return -3;  // read failed
+    }
+    
+    *x_mg = data.x_mg;
+    *y_mg = data.y_mg;
+    *z_mg = data.z_mg;
+    *temp_c = data.temp_deg_c;
+    return 0;
 }
 
 }  // extern "C"

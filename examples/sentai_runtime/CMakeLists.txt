@@ -115,6 +115,7 @@ add_executable_m7(sentai_runtime
 target_link_libraries(sentai_runtime
     libs_base-m7_freertos
     libs_jpeg_m7
+    libs_lis2du12_freertos
     libmicropython
     nanopb
     meshtastic_pb

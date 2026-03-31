@@ -52,6 +52,9 @@ sentai
 │   ├── set_res(w, h)
 │   ├── native_res()
 │   └── switch(id)
+├── imu                     # LIS2DU12 accelerometer
+│   ├── init()
+│   └── read()
 └── usb                    # USB mass storage
     └── drive(on)
 ```
@@ -480,6 +483,75 @@ Capture frame and load directly into TPU input tensor (PXP hardware scaled to mo
 0
 >>> ms = sentai.tpu.invoke()
 >>> print(f"Inference: {ms} ms")
+```
+
+---
+
+## sentai.imu — LIS2DU12 Accelerometer
+
+On-board STMicroelectronics LIS2DU12 3-axis accelerometer connected via I2C5 (address 0x19).  
+Returns acceleration in micro-g (µg) and temperature in milli-°C as integers (MicroPython has no float support).
+
+### `sentai.imu.init()` → int
+Initialize the LIS2DU12 accelerometer. Must be called once before `read()`.  
+Safe to call multiple times — subsequent calls return 0 immediately.  
+Returns 0 on success, -1 on failure (I2C error or sensor not found).
+```python
+>>> sentai.imu.init()
+0
+```
+
+### `sentai.imu.read()` → dict or None
+Read current acceleration and temperature.  
+Returns a dict with keys `x`, `y`, `z` (µg) and `temp` (milli-°C), or `None` if data not ready.
+
+Values are **integers** (float × 1000):
+- `x`, `y`, `z`: acceleration in µg (micro-g). At rest with z pointing up: x≈0, y≈0, z≈981000 (≈1g).
+- `temp`: temperature in milli-°C. Room temperature: ~25000 (= 25.000°C).
+
+```python
+>>> sentai.imu.init()
+0
+>>> sentai.imu.read()
+{'x': -12500, 'y': 3200, 'z': 981000, 'temp': 25300}
+>>> # -12.5 mg, 3.2 mg, 981.0 mg (≈1g gravity), 25.3°C
+```
+
+#### Continuous reading example
+```python
+import sentai
+
+sentai.imu.init()
+for i in range(10):
+    d = sentai.imu.read()
+    if d:
+        print(f"x={d['x']} y={d['y']} z={d['z']} T={d['temp']}")
+    sentai.rtos.sleep_ms(100)
+```
+
+#### Motion detection
+```python
+import sentai
+
+sentai.imu.init()
+threshold = 100000  # 100 mg in µg
+
+prev = sentai.imu.read()
+while True:
+    sentai.rtos.sleep_ms(50)
+    cur = sentai.imu.read()
+    if cur and prev:
+        dx = cur['x'] - prev['x']
+        dy = cur['y'] - prev['y']
+        dz = cur['z'] - prev['z']
+        # Simple magnitude squared (avoid sqrt)
+        mag2 = dx*dx + dy*dy + dz*dz
+        if mag2 > threshold * threshold:
+            print("Motion detected!")
+            sentai.io.led_on()
+            sentai.rtos.sleep_ms(200)
+            sentai.io.led_off()
+    prev = cur
 ```
 
 ---

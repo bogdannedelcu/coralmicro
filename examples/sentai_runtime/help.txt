@@ -14,6 +14,7 @@ Sub-modules:
   sentai.tpu      EdgeTPU inference
   sentai.fs       Filesystem (LittleFS)
   sentai.camera   Camera capture
+  sentai.imu      LIS2DU12 accelerometer
   sentai.usb      USB mass-storage & serial
   sentai.uart     UART serial I/O
   sentai.mesh     Meshtastic mesh radio bridge
@@ -78,6 +79,28 @@ sentai.camera - Camera
   set_res(w, h)         Set capture resolution
   native_res()          Sensor native resolution -> (w, h)
   switch(id)            Switch camera (0=front, 1=back)
+
+[imu]
+sentai.imu - LIS2DU12 accelerometer
+======================================
+  On-board 3-axis accelerometer (I2C5, addr 0x19).
+  Returns integer values (float x 1000, no FPU in MicroPython).
+
+  init()      Initialize sensor. Returns 0=ok, -1=fail.
+              Safe to call multiple times (no-op if already init).
+  read()      Read acceleration + temperature -> dict or None
+              Returns: {x, y, z, temp}
+                x,y,z  = micro-g (mg x 1000)
+                         At rest z-up: x~0, y~0, z~981000
+                temp   = milli-degC (25300 = 25.3 C)
+              Returns None if data not ready.
+
+  Example:
+    sentai.imu.init()
+    d = sentai.imu.read()
+    if d:
+        print('x:', d['x'], 'y:', d['y'], 'z:', d['z'])
+        print('temp:', d['temp'], 'mC')
 
 [usb]
 sentai.usb - USB mass-storage & serial
