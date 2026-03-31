@@ -1,1 +1,0 @@
-{"topic": "sentai/status", "payload": {"ts": "2026-03-31T12:15:21.724663+00:00", "state": "starting", "serial_port": "/dev/ttyACM0", "serial_baud": 38400, "protobuf_enabled": true}, "queued_at": "2026-03-31T12:15:21.724709+00:00"}
