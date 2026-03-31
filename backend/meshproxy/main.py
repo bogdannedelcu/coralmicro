@@ -156,8 +156,11 @@ def get_system_metrics() -> dict:
 
 
 def build_telemetry() -> dict:
+    now = datetime.now(timezone.utc)
     return {
-        "ts": utc_now(),
+        "ts": now.isoformat(),
+        "date": now.strftime("%Y-%m-%d"),
+        "time": now.strftime("%H:%M:%S"),
         "kind": "availability",
         "serial_configured_port": SERIAL_PORT,
         "serial_baud": SERIAL_BAUD,
