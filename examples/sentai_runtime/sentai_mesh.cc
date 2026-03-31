@@ -317,6 +317,7 @@ extern "C" int sentai_mesh_send_detection(
     visionmesh_VisionMessage vision = visionmesh_VisionMessage_init_zero;
     vision.app_version = APP_VERSION;
     vision.sensor_id = sensor_id;
+    vision.node_id = g_mesh_my_node_num;
     vision.track_id = track_id;
     vision.alarm_type = alarm_type;
     vision.timestamp_utc = timestamp_utc;
@@ -365,6 +366,7 @@ extern "C" int sentai_mesh_send_update(
     visionmesh_VisionMessage vision = visionmesh_VisionMessage_init_zero;
     vision.app_version = APP_VERSION;
     vision.sensor_id = sensor_id;
+    vision.node_id = g_mesh_my_node_num;
     vision.track_id = track_id;
     vision.alarm_type = alarm_type;
     vision.timestamp_utc = timestamp_utc;
