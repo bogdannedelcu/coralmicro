@@ -49,3 +49,6 @@
 [submodule "third_party/littlefs-fuse"]
 	path = third_party/littlefs-fuse
 	url = https://github.com/google-coral/coralmicro-littlefs-fuse
+[submodule "third_party/mavlink"]
+	path = third_party/mavlink
+	url = https://github.com/mavlink/c_library_v2.git
