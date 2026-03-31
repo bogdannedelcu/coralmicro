@@ -247,7 +247,7 @@ bool TpuDriver::CSRTransfer(uint64_t reg, void *data, bool read,
     printf("USB_HostEdgeTpuControl failed\r\n");
     goto exit;
   }
-  if (xSemaphoreTake(sema, pdMS_TO_TICKS(200)) == pdFALSE) {
+  if (xSemaphoreTake(sema, pdMS_TO_TICKS(2000)) == pdFALSE) {
     ret = false;
     printf("%s didn't get semaphore\r\n", __func__);
     goto exit;
@@ -328,7 +328,7 @@ ssize_t TpuDriver::BulkOutTransferInternal(uint8_t endpoint,
     goto exit;
   }
 
-  if (xSemaphoreTake(meta.sema, pdMS_TO_TICKS(200)) == pdFALSE) {
+  if (xSemaphoreTake(meta.sema, pdMS_TO_TICKS(2000)) == pdFALSE) {
     printf("%s didn't get semaphore\r\n", __func__);
   };
 
@@ -386,7 +386,7 @@ ssize_t TpuDriver::BulkInTransferInternal(uint8_t endpoint, uint8_t *data,
     goto exit;
   }
 
-  if (xSemaphoreTake(meta.sema, pdMS_TO_TICKS(200)) == pdFALSE) {
+  if (xSemaphoreTake(meta.sema, pdMS_TO_TICKS(2000)) == pdFALSE) {
     printf("%s didn't get semaphore\r\n", __func__);
   };
 
@@ -463,7 +463,7 @@ bool TpuDriver::ReadEvent() const {
     printf("ReadEvent failed\r\n");
     goto exit;
   }
-  if (xSemaphoreTake(sema, pdMS_TO_TICKS(200)) == pdFALSE) {
+  if (xSemaphoreTake(sema, pdMS_TO_TICKS(2000)) == pdFALSE) {
     goto exit;
   };
   ret = true;

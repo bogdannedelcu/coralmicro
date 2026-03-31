@@ -77,11 +77,11 @@ class UsbDeviceTask {
       .device_subclass = 0x02,
       .device_protocol = 0x01,
       .max_packet_size = 0x40,
-      .id_vendor = 0x18d1,
+      .id_vendor = 0x1fc9,
 #if defined(ELFLOADER)
       0x9307,
 #else
-      0x9308,
+      0xC0A1,
 #endif
       .bcd_device = 0x0001,
       .manufacturer = 1,

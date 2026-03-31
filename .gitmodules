@@ -52,3 +52,9 @@
 [submodule "third_party/st/lis2du12-pid"]
 	path = third_party/st/lis2du12-pid
 	url = https://github.com/STMicroelectronics/lis2du12-pid/
+[submodule "third_party/mavlink"]
+	path = third_party/mavlink
+	url = https://github.com/mavlink/c_library_v2.git
+[submodule "third_party/micropython"]
+        path = third_party/micropython
+        url = https://github.com/micropython/micropython.git

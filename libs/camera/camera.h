@@ -337,9 +337,31 @@ class CameraTask
   // Native image pixel height.
   static constexpr size_t kHeight = DEMO_CAMERA_HEIGHT;
 
+  // Get a raw XRGB8888 frame directly from the camera.
+  // Returns the framebuffer index (>=0) on success, -1 on failure.
+  // The raw pointer is written to *buffer.
+  // Caller MUST call ReturnRawFrame(index) when done.
+  int GetRawFrame(uint8_t** buffer);
+
+  // Non-blocking version: try once to get a raw frame.
+  // Returns framebuffer index (>=0) on success, -1 if no frame ready.
+  int TryGetRawFrame(uint8_t** buffer);
+
+  // Return a raw frame obtained via GetRawFrame().
+  void ReturnRawFrame(int index);
+
   bool Read(uint16_t reg, uint8_t* val);
   bool Write(uint16_t reg, uint8_t val);
   bool Write(uint16_t reg, const uint8_t *val, int size);
+
+  // Per-camera I2C access (cam_id: 0=front/i2c1, 1=back/i2c2)
+  bool WriteToCam(int cam_id, uint16_t reg, uint8_t val);
+  bool ReadFromCam(int cam_id, uint16_t reg, uint8_t* val);
+
+  // Set OV5640 mirror/flip registers for rotation.
+  // cam_id: 0=front, 1=back.  degrees: 0, 90, 180, 270.
+  // 0=normal, 90=mirror only, 180=mirror+flip, 270=flip only.
+  bool SetCameraRotation(int cam_id, int degrees);
 
  private:
   bool VideoConvert(uint32_t in);

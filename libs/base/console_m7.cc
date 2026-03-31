@@ -37,8 +37,35 @@ extern "C" int _write(int handle, char* buffer, int size) {
     return -1;
   }
 
-  coralmicro::ConsoleM7::GetSingleton()->Write(buffer, size);
+  // Convert bare \n to \r\n for USB/UART terminals.
+  // Use a stack buffer to avoid heap allocation/fragmentation.
+  // Worst case: every byte is a bare \n → 2× size, capped at 512.
+  char stack_buf[512];
+  char* out = buffer;
+  int out_len = size;
 
+  // Quick scan: does any \n lack a preceding \r?
+  bool needs_patch = false;
+  for (int i = 0; i < size; ++i) {
+    if (buffer[i] == '\n' && (i == 0 || buffer[i - 1] != '\r')) {
+      needs_patch = true;
+      break;
+    }
+  }
+  if (needs_patch) {
+    int j = 0;
+    int cap = (int)sizeof(stack_buf);
+    for (int i = 0; i < size && j < cap - 1; ++i) {
+      if (buffer[i] == '\n' && (i == 0 || buffer[i - 1] != '\r')) {
+        stack_buf[j++] = '\r';
+      }
+      if (j < cap) stack_buf[j++] = buffer[i];
+    }
+    out = stack_buf;
+    out_len = j;
+  }
+
+  coralmicro::ConsoleM7::GetSingleton()->Write(out, out_len);
   return size;
 }
 
@@ -89,6 +116,18 @@ void ConsoleM7::Write(char* buffer, int size) {
 }
 
 int ConsoleM7::Read(char* buffer, int size) {
+  // If REPL target is USB, read from USB RX buffer
+  if (repl_target_ == ReplTarget::kUsb) {
+    int n = (usb_rx_available_ < (size_t)size) ? (int)usb_rx_available_ : size;
+    if (n <= 0) return -1;
+    for (int i = 0; i < n; i++) {
+      buffer[i] = (char)usb_rx_buf_[usb_rx_read_];
+      usb_rx_read_ = (usb_rx_read_ + 1) % kUsbRxBufferSize;
+    }
+    usb_rx_available_ -= n;
+    return n;
+  }
+
   if (!rx_task_) {
     return -1;
   }
@@ -154,6 +193,8 @@ void ConsoleM7::M7ConsoleTaskRxFn(void* param) {
       }
       assert(rx_buffer_available_ <= kRxBufferSize);
     }
+    // Signal data available for UART reads (serial or REPL poll)
+    if (rx_sem_) xSemaphoreGive(rx_sem_);
   }
 }
 
@@ -175,6 +216,16 @@ void ConsoleM7::M7ConsoleTaskTxFn(void* param) {
       LogCallback cb = log_callback_;
       if (cb) {
         cb(reinterpret_cast<const char*>(msg.str), msg.len);
+      // Route output to REPL target only, with retry on failure
+      bool ok = false;
+      for (int attempt = 0; attempt < 3 && !ok; ++attempt) {
+        if (repl_target_ == ReplTarget::kUart) {
+          DbgConsole_SendDataReliable(msg.str, msg.len);
+          ok = true;
+        } else {
+          ok = cdc_acm_.Transmit(msg.str, msg.len);
+          if (!ok) vTaskDelay(pdMS_TO_TICKS(10));
+        }
       }
       delete[] msg.str;
 #ifdef BLOCKING_PRINTF
@@ -205,14 +256,19 @@ void ConsoleM7::Init(bool init_tx, bool init_rx) {
       coralmicro::UsbDeviceTask::GetSingleton()->next_descriptor_value(),
       coralmicro::UsbDeviceTask::GetSingleton()->next_interface_value(),
       coralmicro::UsbDeviceTask::GetSingleton()->next_interface_value(),
-      nullptr /*ReceiveHandler*/);
+      std::bind(&ConsoleM7::UsbRxHandler, this, _1, _2));
+
+  usb_rx_sem_ = xSemaphoreCreateBinary();
+  CHECK(usb_rx_sem_);
+  rx_sem_ = xSemaphoreCreateBinary();
+  CHECK(rx_sem_);
   coralmicro::UsbDeviceTask::GetSingleton()->AddDevice(
       cdc_acm_.config_data(),
       std::bind(&coralmicro::CdcAcm::SetClassHandle, &cdc_acm_, _1),
       std::bind(&coralmicro::CdcAcm::HandleEvent, &cdc_acm_, _1, _2),
       cdc_acm_.descriptor_data(), cdc_acm_.descriptor_data_size());
 
-  console_queue_ = xQueueCreate(16, sizeof(ConsoleMessage));
+  console_queue_ = xQueueCreate(64, sizeof(ConsoleMessage));
   CHECK(console_queue_);
 
   rx_mutex_ = xSemaphoreCreateMutex();
@@ -240,6 +296,176 @@ void ConsoleM7::Init(bool init_tx, bool init_rx) {
 
 IpcStreamBuffer* ConsoleM7::GetM4ConsoleBufferPtr() {
   return m4_console_buffer_;
+}
+
+// ===================== USB Serial Bridge =====================
+
+void ConsoleM7::UsbRxHandler(const uint8_t* data, uint32_t len) {
+  // Called from USB ISR context when data arrives on the CDC ACM bulk OUT EP.
+  if (len == 0) return;
+  // Buffer USB data when REPL reads from USB or USB serial mode is active
+  if (repl_target_ != ReplTarget::kUsb && !usb_serial_mode_) return;
+
+  for (uint32_t i = 0; i < len; i++) {
+    if (usb_rx_available_ >= kUsbRxBufferSize) break;  // drop if full
+    usb_rx_buf_[usb_rx_write_] = data[i];
+    usb_rx_write_ = (usb_rx_write_ + 1) % kUsbRxBufferSize;
+    ++usb_rx_available_;
+  }
+  // Wake up any task blocked in UsbRead()
+  BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+  xSemaphoreGiveFromISR(usb_rx_sem_, &xHigherPriorityTaskWoken);
+  portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+}
+
+bool ConsoleM7::UsbSerialOpen() {
+  if (repl_target_ != ReplTarget::kUart) return false;  // USB is used by REPL
+  if (usb_serial_mode_) return true;  // already open
+
+  // Flush USB RX buffer
+  usb_rx_read_ = 0;
+  usb_rx_write_ = 0;
+  usb_rx_available_ = 0;
+  xSemaphoreTake(usb_rx_sem_, 0);  // clear any pending signal
+
+  usb_serial_mode_ = true;
+  return true;
+}
+
+void ConsoleM7::UsbSerialClose() {
+  usb_serial_mode_ = false;
+  // Drain pending RX
+  usb_rx_read_ = 0;
+  usb_rx_write_ = 0;
+  usb_rx_available_ = 0;
+}
+
+bool ConsoleM7::UsbTransmit(const uint8_t* buf, size_t len) {
+  if (!usb_serial_mode_) return false;
+  // CdcAcm::Transmit has a 512 byte limit per call, chunk if needed
+  const uint8_t* p = buf;
+  size_t remaining = len;
+  while (remaining > 0) {
+    size_t chunk = (remaining > 512) ? 512 : remaining;
+    if (!cdc_acm_.Transmit(p, chunk)) return false;
+    p += chunk;
+    remaining -= chunk;
+  }
+  return true;
+}
+
+int ConsoleM7::UsbRead(uint8_t* buf, int max_size, int timeout_ms) {
+  if (!usb_serial_mode_) return -1;
+
+  // Wait for data if buffer is empty
+  if (usb_rx_available_ == 0) {
+    if (timeout_ms == 0) return 0;
+    TickType_t ticks = (timeout_ms < 0) ? portMAX_DELAY : pdMS_TO_TICKS(timeout_ms);
+    xSemaphoreTake(usb_rx_sem_, ticks);
+  }
+
+  // Copy available data
+  int n = (usb_rx_available_ < (size_t)max_size) ? (int)usb_rx_available_ : max_size;
+  for (int i = 0; i < n; i++) {
+    buf[i] = usb_rx_buf_[usb_rx_read_];
+    usb_rx_read_ = (usb_rx_read_ + 1) % kUsbRxBufferSize;
+  }
+  usb_rx_available_ -= n;
+  return n;
+}
+
+// ===================== REPL Target Switching =====================
+
+void ConsoleM7::SetReplTarget(ReplTarget target) {
+  if (target == repl_target_) return;
+
+  // Close serial mode on the destination peripheral (it's about to become REPL)
+  if (target == ReplTarget::kUsb && usb_serial_mode_) {
+    UsbSerialClose();
+  }
+  if (target == ReplTarget::kUart && uart_serial_mode_) {
+    UartSerialClose();
+  }
+
+  // Flush both RX buffers
+  {
+    MutexLock lock(rx_mutex_);
+    rx_buffer_read_ = 0;
+    rx_buffer_write_ = 0;
+    rx_buffer_available_ = 0;
+  }
+  usb_rx_read_ = 0;
+  usb_rx_write_ = 0;
+  usb_rx_available_ = 0;
+  if (usb_rx_sem_) xSemaphoreTake(usb_rx_sem_, 0);
+  if (rx_sem_) xSemaphoreTake(rx_sem_, 0);
+
+  repl_target_ = target;
+}
+
+// ===================== UART Serial Bridge =====================
+
+bool ConsoleM7::UartSerialOpen() {
+  if (repl_target_ != ReplTarget::kUsb) return false;  // UART is used by REPL
+  if (uart_serial_mode_) return true;  // already open
+
+  // Flush UART RX buffer
+  {
+    MutexLock lock(rx_mutex_);
+    rx_buffer_read_ = 0;
+    rx_buffer_write_ = 0;
+    rx_buffer_available_ = 0;
+  }
+  if (rx_sem_) xSemaphoreTake(rx_sem_, 0);
+
+  uart_serial_mode_ = true;
+  return true;
+}
+
+void ConsoleM7::UartSerialClose() {
+  if (!uart_serial_mode_) return;
+  uart_serial_mode_ = false;
+
+  // Flush buffer
+  {
+    MutexLock lock(rx_mutex_);
+    rx_buffer_read_ = 0;
+    rx_buffer_write_ = 0;
+    rx_buffer_available_ = 0;
+  }
+}
+
+bool ConsoleM7::UartTransmit(const uint8_t* buf, size_t len) {
+  if (!uart_serial_mode_) return false;
+  DbgConsole_SendDataReliable(const_cast<uint8_t*>(buf), len);
+  return true;
+}
+
+int ConsoleM7::UartRead(uint8_t* buf, int max_size, int timeout_ms) {
+  if (!uart_serial_mode_) return -1;
+
+  // Wait for data if buffer is empty
+  if (rx_buffer_available_ == 0) {
+    if (timeout_ms == 0) return 0;
+    TickType_t ticks = (timeout_ms < 0) ? portMAX_DELAY : pdMS_TO_TICKS(timeout_ms);
+    xSemaphoreTake(rx_sem_, ticks);
+  }
+
+  // Copy available data from rx_buffer_
+  MutexLock lock(rx_mutex_);
+  int n = (rx_buffer_available_ < (size_t)max_size) ? (int)rx_buffer_available_ : max_size;
+  if (n <= 0) return 0;
+
+  for (int i = 0; i < n; i++) {
+    buf[i] = rx_buffer_[rx_buffer_read_];
+    rx_buffer_read_ = (rx_buffer_read_ + 1) % kRxBufferSize;
+  }
+  rx_buffer_available_ -= n;
+  return n;
+}
+
+int ConsoleM7::UartAvailable() const {
+  return (int)rx_buffer_available_;
 }
 
 }  // namespace coralmicro

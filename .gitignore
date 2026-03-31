@@ -15,3 +15,6 @@ __pycache__
 /venv
 
 third_party/nxp/rt1176-sdk
+
+# MicroPython embed generated headers
+**/build-embed/genhdr/

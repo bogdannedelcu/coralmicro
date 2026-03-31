@@ -1,0 +1,170 @@
+PyTorch: starting from runs/train/exp10/weights/best.pt with output shape (1, 5376, 6) (13.8 MB)
+
+TensorFlow SavedModel: starting export with tensorflow 2.15.1...
+WARNING ⚠️ using Tensorflow 2.15.1 > 2.13.1 might cause issue when exporting the model to tflite https://github.com/ultralytics/yolov5/issues/12489
+
+                 from  n    params  module                                  arguments                     
+  0                -1  1      3520  models.common.Conv                      [3, 32, 6, 2, 2]              
+  1                -1  1     73856  models.common.Conv                      [32, 64, 6, 2, 2]             
+  2                -1  1     36992  models.common.Conv                      [64, 64, 3, 2]                
+  3                -1  1     18816  models.common.C3                        [64, 64, 1]                   
+  4                -1  1     73984  models.common.Conv                      [64, 128, 3, 2]               
+  5                -1  1    115712  models.common.C3                        [128, 128, 2]                 
+  6                -1  1    295424  models.common.Conv                      [128, 256, 3, 2]              
+  7                -1  1    625152  models.common.C3                        [256, 256, 3]                 
+  8                -1  1   1180672  models.common.Conv                      [256, 512, 3, 2]              
+  9                -1  1   1182720  models.common.C3                        [512, 512, 1]                 
+ 10                -1  1    656896  models.common.SPPF                      [512, 512, 5]                 
+ 11                -1  1    131584  models.common.Conv                      [512, 256, 1, 1]              
+ 12                -1  1         0  torch.nn.modules.upsampling.Upsample    [None, 2, 'nearest']          
+ 13           [-1, 7]  1         0  models.common.Concat                    [1]                           
+ 14                -1  1    361984  models.common.C3                        [512, 256, 1, False]          
+ 15                -1  1     33024  models.common.Conv                      [256, 128, 1, 1]              
+ 16                -1  1         0  torch.nn.modules.upsampling.Upsample    [None, 2, 'nearest']          
+ 17           [-1, 5]  1         0  models.common.Concat                    [1]                           
+ 18                -1  1     90880  models.common.C3                        [256, 128, 1, False]          
+ 19                -1  1    147712  models.common.Conv                      [128, 128, 3, 2]              
+ 20          [-1, 15]  1         0  models.common.Concat                    [1]                           
+ 21                -1  1    296448  models.common.C3                        [256, 256, 1, False]          
+ 22                -1  1    590336  models.common.Conv                      [256, 256, 3, 2]              
+ 23          [-1, 11]  1         0  models.common.Concat                    [1]                           
+ 24                -1  1   1182720  models.common.C3                        [512, 512, 1, False]          
+ 25      [18, 21, 24]  1      5394  models.yolo.Detect                      [1, [[10, 13], [30, 30], [60, 60]], [128, 256, 512], [1024, 1024]]
+Model: "model"
+__________________________________________________________________________________________________
+ Layer (type)                Output Shape                 Param #   Connected to                  
+==================================================================================================
+ input_1 (InputLayer)        [(1, 1024, 1024, 3)]         0         []                            
+                                                                                                  
+ tf_conv (TFConv)            (1, 512, 512, 32)            3488      ['input_1[0][0]']             
+                                                                                                  
+ tf_conv_1 (TFConv)          (1, 256, 256, 64)            73792     ['tf_conv[0][0]']             
+                                                                                                  
+ tf_conv_2 (TFConv)          (1, 128, 128, 64)            36928     ['tf_conv_1[0][0]']           
+                                                                                                  
+ tfc3 (TFC3)                 (1, 128, 128, 64)            18624     ['tf_conv_2[0][0]']           
+                                                                                                  
+ tf_conv_8 (TFConv)          (1, 64, 64, 128)             73856     ['tfc3[0][0]']                
+                                                                                                  
+ tfc3_1 (TFC3)               (1, 64, 64, 128)             115200    ['tf_conv_8[0][0]']           
+                                                                                                  
+ tf_conv_16 (TFConv)         (1, 32, 32, 256)             295168    ['tfc3_1[0][0]']              
+                                                                                                  
+ tfc3_2 (TFC3)               (1, 32, 32, 256)             623872    ['tf_conv_16[0][0]']          
+                                                                                                  
+ tf_conv_26 (TFConv)         (1, 16, 16, 512)             1180160   ['tfc3_2[0][0]']              
+                                                                                                  
+ tfc3_3 (TFC3)               (1, 16, 16, 512)             1181184   ['tf_conv_26[0][0]']          
+                                                                                                  
+ tfsppf (TFSPPF)             (1, 16, 16, 512)             656128    ['tfc3_3[0][0]']              
+                                                                                                  
+ tf_conv_34 (TFConv)         (1, 16, 16, 256)             131328    ['tfsppf[0][0]']              
+                                                                                                  
+ tf_upsample (TFUpsample)    (1, 32, 32, 256)             0         ['tf_conv_34[0][0]']          
+                                                                                                  
+ tf_concat (TFConcat)        (1, 32, 32, 512)             0         ['tf_upsample[0][0]',         
+                                                                     'tfc3_2[0][0]']              
+                                                                                                  
+ tfc3_4 (TFC3)               (1, 32, 32, 256)             361216    ['tf_concat[0][0]']           
+                                                                                                  
+ tf_conv_40 (TFConv)         (1, 32, 32, 128)             32896     ['tfc3_4[0][0]']              
+                                                                                                  
+ tf_upsample_1 (TFUpsample)  (1, 64, 64, 128)             0         ['tf_conv_40[0][0]']          
+                                                                                                  
+ tf_concat_1 (TFConcat)      (1, 64, 64, 256)             0         ['tf_upsample_1[0][0]',       
+                                                                     'tfc3_1[0][0]']              
+                                                                                                  
+ tfc3_5 (TFC3)               (1, 64, 64, 128)             90496     ['tf_concat_1[0][0]']         
+                                                                                                  
+ tf_conv_46 (TFConv)         (1, 32, 32, 128)             147584    ['tfc3_5[0][0]']              
+                                                                                                  
+ tf_concat_2 (TFConcat)      (1, 32, 32, 256)             0         ['tf_conv_46[0][0]',          
+                                                                     'tf_conv_40[0][0]']          
+                                                                                                  
+ tfc3_6 (TFC3)               (1, 32, 32, 256)             295680    ['tf_concat_2[0][0]']         
+                                                                                                  
+ tf_conv_52 (TFConv)         (1, 16, 16, 256)             590080    ['tfc3_6[0][0]']              
+                                                                                                  
+ tf_concat_3 (TFConcat)      (1, 16, 16, 512)             0         ['tf_conv_52[0][0]',          
+                                                                     'tf_conv_34[0][0]']          
+                                                                                                  
+ tfc3_7 (TFC3)               (1, 16, 16, 512)             1181184   ['tf_concat_3[0][0]']         
+                                                                                                  
+ tf_detect (TFDetect)        ((1, 5376, 6),               5394      ['tfc3_5[0][0]',              
+                             )                                       'tfc3_6[0][0]',              
+                                                                     'tfc3_7[0][0]']              
+                                                                                                  
+==================================================================================================
+Total params: 7094258 (27.06 MB)
+Trainable params: 0 (0.00 Byte)
+Non-trainable params: 7094258 (27.06 MB)
+__________________________________________________________________________________________________
+TensorFlow SavedModel: export success ✅ 3.7s, saved as runs/train/exp10/weights/best_saved_model (27.3 MB)
+
+TensorFlow Lite: starting export with tensorflow 2.15.1...
+Summary on the non-converted ops:
+---------------------------------
+ * Accepted dialects: tfl, builtin, func
+ * Non-Converted Ops: 148, Total Ops 410, % non-converted = 36.10 %
+ * 148 ARITH ops
+
+- arith.constant:  148 occurrences  (f32: 133, i32: 15)
+
+
+
+  (f32: 10)
+  (f32: 17)
+  (f32: 61)
+  (f32: 67)
+  (f32: 3)
+  (f32: 76)
+  (f32: 8)
+  (f32: 6)
+  (f32: 2)
+  (f32: 9)
+fully_quantize: 0, inference_type: 6, input_inference_type: UINT8, output_inference_type: UINT8
+TensorFlow Lite: export success ✅ 113.9s, saved as runs/train/exp10/weights/best-int8.tflite (7.1 MB)
+
+Edge TPU: starting export with Edge TPU compiler 16.0.384591198...
+Edge TPU Compiler version 16.0.384591198
+Searching for valid delegate with step 10
+Try to compile segment with 266 ops
+Started a compilation timeout timer of 180 seconds.
+
+Model compiled successfully in 2999 ms.
+
+Input model: runs/train/exp10/weights/best-int8.tflite
+Input size: 7.10MiB
+Output model: runs/train/exp10/weights/best-int8_edgetpu.tflite
+Output size: 8.47MiB
+On-chip memory used for caching model parameters: 5.31MiB
+On-chip memory remaining for caching model parameters: 0.00B
+Off-chip memory used for streaming uncached model parameters: 1.59MiB
+Number of Edge TPU subgraphs: 1
+Total number of operations: 266
+Operation log: runs/train/exp10/weights/best-int8_edgetpu.log
+
+Operator                       Count      Status
+
+CONV_2D                        61         Mapped to Edge TPU
+QUANTIZE                       7          Mapped to Edge TPU
+MUL                            76         Mapped to Edge TPU
+STRIDED_SLICE                  9          Mapped to Edge TPU
+MAX_POOL_2D                    3          Mapped to Edge TPU
+ADD                            10         Mapped to Edge TPU
+CONCATENATION                  17         Mapped to Edge TPU
+PAD                            8          Mapped to Edge TPU
+RESHAPE                        6          Mapped to Edge TPU
+RESIZE_NEAREST_NEIGHBOR        2          Mapped to Edge TPU
+LOGISTIC                       67         Mapped to Edge TPU
+Compilation child process completed within timeout period.
+Compilation succeeded! 
+Edge TPU: export success ✅ 3.2s, saved as runs/train/exp10/weights/best-int8_edgetpu.tflite (8.5 MB)
+
+Export complete (121.0s)
+Results saved to /home/bogdan/work/yolo/yolov5/runs/train/exp10/weights
+Detect:          python detect.py --weights runs/train/exp10/weights/best-int8_edgetpu.tflite 
+Validate:        python val.py --weights runs/train/exp10/weights/best-int8_edgetpu.tflite 
+PyTorch Hub:     model = torch.hub.load('ultralytics/yolov5', 'custom', 'runs/train/exp10/weights/best-int8_edgetpu.tflite')  
+Visualize:       https://netron.app
+

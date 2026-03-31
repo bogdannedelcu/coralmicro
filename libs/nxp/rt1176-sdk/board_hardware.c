@@ -115,7 +115,7 @@ void BOARD_InitNAND(void) {
       .deviceConfig =
           {
               .flexspiRootClk = CLOCK_GetRootClockFreq(kCLOCK_Root_Flexspi1),
-              .flashSize = 0x20000,
+              .flashSize = 0x40000,  // 256 MB virtual (data+spare), must cover 1024 blocks × 64 pages × 4096 B
               .CSIntervalUnit = kFLEXSPI_CsIntervalUnit1SckCycle,
               .CSInterval = 2,
               .CSHoldTime = 3,

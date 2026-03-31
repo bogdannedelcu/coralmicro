@@ -31,6 +31,7 @@
 #include "libs/base/timer.h"
 #include "libs/camera/camera.h"
 #include "libs/cdc_eem/cdc_eem.h"
+#include "libs/msc_ums/msc_ums.h"
 #include "libs/nxp/rt1176-sdk/board_hardware.h"
 #include "libs/pmic/pmic.h"
 #include "libs/tpu/edgetpu_dfu_task.h"
@@ -50,6 +51,7 @@ namespace {
 lpi2c_rtos_handle_t g_i2c5_handle;
 lpi2c_rtos_handle_t g_i2c6_handle;
 coralmicro::CdcEem g_cdc_eem;
+coralmicro::MscUms g_msc_ums;
 
 // Low-power feature toggles. Set to 1 to enable the corresponding init.
 // Dissable network, temp and USB and get 0.1570 Amps on M7
@@ -66,6 +68,10 @@ coralmicro::CdcEem g_cdc_eem;
 #define ENABLE_EDGETPU_DFU 1
 #endif
 
+#ifndef ENABLE_USB_UMS
+#define ENABLE_USB_UMS 1
+#endif
+
 void InitializeCDCEEM() {
   using namespace std::placeholders;
   g_cdc_eem.Init(
@@ -78,7 +84,41 @@ void InitializeCDCEEM() {
       std::bind(&coralmicro::CdcEem::HandleEvent, &g_cdc_eem, _1, _2),
       g_cdc_eem.descriptor_data(), g_cdc_eem.descriptor_data_size());
 }
+
+void InitializeUMS() {
+  using namespace std::placeholders;
+  g_msc_ums.Init(
+      coralmicro::UsbDeviceTask::GetSingleton()->next_descriptor_value(),
+      coralmicro::UsbDeviceTask::GetSingleton()->next_descriptor_value(),
+      coralmicro::UsbDeviceTask::GetSingleton()->next_interface_value());
+  coralmicro::UsbDeviceTask::GetSingleton()->AddDevice(
+      g_msc_ums.config_data(),
+      std::bind(&coralmicro::MscUms::SetClassHandle, &g_msc_ums, _1),
+      std::bind(&coralmicro::MscUms::HandleEvent, &g_msc_ums, _1, _2),
+      g_msc_ums.descriptor_data(), g_msc_ums.descriptor_data_size());
+}
 }  // namespace
+
+extern "C" int sentai_usb_drive_set(int on) {
+  if (on) {
+    // Unmount user LFS before enabling USB MSC so host has exclusive
+    // NAND access and there are no stale LFS cache conflicts.
+    lfs_unmount(coralmicro::LfsUser());
+  }
+  g_msc_ums.SetUnitReady(on != 0);
+  if (!on) {
+    // Remount user LFS after disabling USB MSC to pick up any changes
+    // the host made (new/modified/deleted files).
+    // Use LfsUserRemount() — it does NOT auto-format on failure,
+    // so user data isn't silently destroyed if mount fails.
+    coralmicro::LfsUserRemount();
+  }
+  return on != 0 ? 1 : 0;
+}
+
+extern "C" int sentai_usb_drive_get(void) {
+  return g_msc_ums.IsUnitReady() ? 1 : 0;
+}
 
 extern "C" lpi2c_rtos_handle_t* I2C5Handle() { return &g_i2c5_handle; }
 
@@ -101,6 +141,7 @@ extern "C" int real_main(int argc, char** argv, bool init_console_tx,
   coralmicro::ConsoleM7::GetSingleton()->Init(init_console_tx, init_console_rx);
 
   CHECK(coralmicro::LfsInit());
+  CHECK(coralmicro::LfsUserInit());
   // Make sure this happens before EEM or WICED are initialized.
   #if ENABLE_NETWORK_STACK
     tcpip_init(nullptr, nullptr);
@@ -108,6 +149,9 @@ extern "C" int real_main(int argc, char** argv, bool init_console_tx,
   #endif
   #if ENABLE_USB_EEM
     InitializeCDCEEM();
+  #endif
+  #if ENABLE_USB_UMS
+    InitializeUMS();
   #endif
   coralmicro::UsbDeviceTask::GetSingleton()->Init();
   coralmicro::UsbHostTask::GetSingleton()->Init();
@@ -119,7 +163,7 @@ extern "C" int real_main(int argc, char** argv, bool init_console_tx,
     coralmicro::TempSensorInit();
   #endif
 
-  printf("!!!! START %s %s!!!\n", __DATE__, __TIME__);
+  printf("\r\n\r\n!!!! SentAI  %s %s!!!\r\n", __DATE__, __TIME__);
 
   // Initialize I2C5 state
   NVIC_SetPriority(LPI2C5_IRQn, 3);

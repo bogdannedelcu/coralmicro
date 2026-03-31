@@ -101,6 +101,37 @@ bool LfsWriteFile(const char* path, const uint8_t* buf, size_t size);
 // @returns True upon success, false otherwise.
 bool LfsWriteFile(const char* path, const std::string& str);
 
+// ===================== User partition (USB-safe) =====================
+// Separate LFS partition for user data (models, images, etc.).
+// Only this partition is exposed via USB mass storage.
+
+lfs_t* LfsUser();
+
+bool LfsUserInit(bool force_format = false);
+
+// Remount user LFS after USB host access. Does NOT auto-format on failure.
+bool LfsUserRemount();
+
+bool LfsUserMakeDirs(const char* path);
+
+ssize_t LfsUserSize(const char* path);
+
+bool LfsUserDirExists(const char* path);
+
+bool LfsUserFileExists(const char* path);
+
+bool LfsUserReadFile(const char* path, std::vector<uint8_t>* buf);
+
+bool LfsUserReadFile(const char* path, std::string* str);
+
+size_t LfsUserReadFile(const char* path, uint8_t* buf, size_t size);
+
+bool LfsUserWriteFile(const char* path, const uint8_t* buf, size_t size);
+
+bool LfsUserWriteFile(const char* path, const std::string& str);
+
+int LfsUserRemove(const char* path);
+
 }  // namespace coralmicro
 
 #endif  // LIBS_BASE_FILESYSTEM_H_

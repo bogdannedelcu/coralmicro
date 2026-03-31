@@ -1,0 +1,278 @@
+[overview]
+sentai - Coral Dev Board Micro Python Runtime
+==============================================
+  sentai.help()          Show this help
+  sentai.help('tpu')     Help for a specific sub-module
+  sentai.help('serial')  UART/USB raw serial vs Meshtastic
+  sentai.help('all')     Show all documentation
+  sentai.run(path)       Execute a .py script from flash
+  sentai.console(target) Set REPL target: 'usb' or 'uart'
+
+Sub-modules:
+  sentai.io       LED / GPIO control
+  sentai.rtos     FreeRTOS system info
+  sentai.tpu      EdgeTPU inference
+  sentai.fs       Filesystem (LittleFS)
+  sentai.camera   Camera capture
+  sentai.usb      USB mass-storage & serial
+  sentai.uart     UART serial I/O
+  sentai.mesh     Meshtastic mesh radio bridge
+  sentai.link     MAVLink telemetry bridge
+
+[io]
+sentai.io - LED / GPIO
+======================
+  led_on()        Turn user LED on (green)
+  led_off()       Turn user LED off
+
+[rtos]
+sentai.rtos - FreeRTOS system
+=============================
+  sleep_ms(ms)    Sleep for ms milliseconds
+  ticks_ms()      Monotonic ms counter (wraps at 2^32)
+  tasks()         List tasks: [(name, state, prio, stack_hwm)]
+  heap()          Heap stats dict {rtos_free, gc_total, gc_used, ...}
+  cpu()           CPU usage: [(name, percent)]
+  uptime()        Seconds since boot
+
+[tpu]
+sentai.tpu - EdgeTPU inference
+==============================
+  load(path)            Load .tflite model from flash
+  load_image(path)      Load image into input tensor
+  invoke()              Run inference -> ms elapsed (-1=not ready)
+  ready()               True if model & interpreter ready
+  num_outputs()         Number of output tensors
+  output_size(idx)      Byte size of output tensor idx
+  output(idx)           Raw bytes of output tensor idx
+  output_dims(idx)      Shape tuple, e.g. (1, 1344, 5)
+  output_type(idx)      TfLiteType (3=uint8, 9=int8, 2=int32)
+  row(idx, r)           Tuple of values at row r
+  val(idx, flat_i)      Single value at flat index
+  save_output(path)     Save all outputs to CSV file
+
+[fs]
+sentai.fs - Filesystem (LittleFS)
+=================================
+  read(path)            Read file -> bytes
+  read_str(path)        Read file -> str
+  read_base64(path)     Read file -> base64 str (also printed)
+  write(path, data)     Write bytes/str -> bool
+  size(path)            File size in bytes (-1 if missing)
+  exists(path)          True if file or dir exists
+  remove(path)          Delete file -> bool
+  mkdir(path)           Create directory (mkdir -p) -> bool
+  ls(path)              List dir -> [(name, type, size)]
+                        type: 1=file, 2=dir
+  format()              Reformat user partition (erases all!)
+
+[camera]
+sentai.camera - Camera
+======================
+  init(streaming=1)     Start camera (1=continuous, 0=trigger)
+  stop()                Stop camera
+  jpeg(quality=75)      Capture -> JPEG bytes
+  save_jpeg(path, q=75) Capture + save JPEG to flash
+  to_tensor()           Capture frame -> TPU input tensor
+  res()                 Current resolution -> (w, h)
+  set_res(w, h)         Set capture resolution
+  native_res()          Sensor native resolution -> (w, h)
+  switch(id)            Switch camera (0=front, 1=back)
+
+[usb]
+sentai.usb - USB mass-storage & serial
+=======================================
+  drive(on)             1=expose flash as USB drive, 0=eject
+                        REPL auto-switches to UART when active.
+                        Filesystem is locked while drive is on.
+
+  open()                Open USB CDC ACM for Python serial I/O
+                        Requires REPL on UART (sentai.console('uart'))
+  close()               Return CDC ACM to normal
+  write(data)           Send bytes/str to USB host -> int
+  read(max=256, timeout_ms=1000)
+                        Read from USB host -> bytes
+                        timeout: -1=block, 0=poll, >0=ms
+  available()           Bytes waiting in RX buffer
+
+[uart]
+sentai.uart - UART serial I/O
+==============================
+  Available when REPL is on USB (default).
+  UART = LPUART6 on /dev/ttyUSB0 via FTDI.
+
+  open(baud=38400)      Open UART for serial I/O
+                        Supported: 9600..921600
+  close()               Close UART serial, restore 115200
+  write(data)           Send bytes/str over UART -> int
+  read(max=256, timeout_ms=1000)
+                        Read from UART -> bytes
+  available()           Bytes waiting in RX buffer
+
+[console]
+sentai.console - REPL target control
+=====================================
+  sentai.console()        Return current target: 'usb' or 'uart'
+  sentai.console('usb')   Move REPL to USB CDC ACM (/dev/ttyACM0)
+  sentai.console('uart')  Move REPL to UART (/dev/ttyUSB0)
+
+  Default: USB. Auto-switches to UART when USB drive is mounted.
+  The non-REPL peripheral is available for serial I/O.
+
+[mesh]
+sentai.mesh - Meshtastic mesh radio bridge
+==========================================
+  Communicates with a Meshtastic device (e.g. WisMesh Pocket/Tap)
+  over UART using the Meshtastic serial protobuf protocol.
+  Requires REPL on USB (default) — UART is used for the radio link.
+
+  init(baud=38400)      Open UART, start RX task, connect to radio
+  stop()                Stop RX task, close UART
+  node()                Our node number (set after init/config)
+  config()              Request config/NodeDB from radio
+
+  --- Text messages ---
+  send(text, dest=0xFFFFFFFF, ch=0, ack=0)
+                        Send text to mesh (broadcast by default)
+  available()           Number of received text messages queued
+  receive(timeout=0)    Get next text msg -> dict or None
+                        timeout: 0=poll, -1=block, >0=ms
+    Returns: {from, to, text, id, rssi, snr, channel, hop_limit}
+    snr is integer x100 (e.g. 650 = 6.50 dB)
+
+  --- Vision messages (PRIVATE_APP portnum 256) ---
+  send_detection(sensor_id, track_id, alarm_type, timestamp, seq,
+                 x, y, w, h, conf, class_id, embedding, crc8,
+                 [dest=0xFFFFFFFF, ch=0, ack=0])
+  send_update(sensor_id, track_id, alarm_type, timestamp, seq,
+              x, y, w, h, conf, age,
+              [dest=0xFFFFFFFF, ch=0, ack=0])
+  vision_available()    Number of received VisionMessages queued
+  receive_vision(timeout=0)  Get next vision msg -> dict or None
+    Returns: {from, to, id, rssi, snr, channel, sensor_id,
+              track_id, alarm_type, timestamp, seq, type,
+              x, y, w, h, conf, ...}
+    type: 'new' (+ class_id, embedding, crc8)
+          'update' (+ age)
+
+  Protocol details (Meshtastic serial):
+    Header: 0x94 0xC3 <len_msb> <len_lsb>
+    Payload: protobuf-encoded ToRadio (host->radio)
+             or FromRadio (radio->host)
+    Max payload: 512 bytes
+
+  Startup sequence (done automatically by init):
+    1. Open UART at baud rate (default 38400)
+    2. Start FreeRTOS RX task (reads frames, decodes protobuf)
+    3. Call config() to request NodeDB (want_config_id=1)
+    4. Radio replies with MyNodeInfo, Config, ..., ConfigCompleteId
+    5. my_node_num is stored; radio is ready
+
+  Example:
+    sentai.mesh.init()                  # connect to radio
+    sentai.mesh.send('hello world')     # broadcast text
+    sentai.mesh.send('hi', 0x12345678)  # send to specific node
+    while True:
+        msg = sentai.mesh.receive(5000) # wait 5s for text
+        if msg:
+            print(msg['from'], msg['text'])
+
+[serial]
+sentai.uart / sentai.usb - Raw serial I/O (no Meshtastic)
+=========================================================
+  Use these when you want plain serial read/write without
+  any Meshtastic framing or protobuf. Choose UART or USB
+  depending on which one is NOT used for the REPL.
+
+  --- UART serial (when REPL is on USB, which is the default) ---
+    sentai.uart.open(38400)              # open UART @ baudrate
+    sentai.uart.write(b'AT\r\n')         # send raw bytes
+    resp = sentai.uart.read(256, 1000)   # read up to 256 bytes, 1s timeout
+    n = sentai.uart.available()           # bytes waiting
+    sentai.uart.close()
+
+  --- USB serial (when REPL is on UART) ---
+    sentai.console('uart')               # move REPL to UART first
+    sentai.usb.open()                    # open USB CDC ACM
+    sentai.usb.write(b'hello')           # send to USB host
+    data = sentai.usb.read(256, 1000)
+    sentai.usb.close()
+
+  --- UART vs Mesh: what's the difference? ---
+    sentai.uart  = raw bytes in, raw bytes out. No framing.
+                   You send/receive exactly what you write/read.
+    sentai.mesh  = Meshtastic protocol. Wraps your data in
+                   protobuf (ToRadio/FromRadio), adds 4-byte
+                   header. The radio handles routing, encryption,
+                   and LoRa transmission over the mesh network.
+
+  To talk to a Meshtastic radio: use sentai.mesh
+  To talk to a GPS, sensor, or any other UART device: use sentai.uart
+  To exchange data with a PC over USB: use sentai.usb
+
+[link]
+sentai.link - MAVLink v2 telemetry bridge
+=========================================
+  Communicates with a MAVLink autopilot / GCS over UART using
+  the official MAVLink v2 protocol (c_library_v2).
+  Requires REPL on USB (default) — UART is used for the MAVLink link.
+  Cannot run simultaneously with sentai.mesh (same UART).
+
+  init(baud=57600, sysid=1, compid=191)
+                        Open UART, start RX task (MAVLink parser)
+                        compid 191 = MAV_COMP_ID_ONBOARD_COMPUTER
+  stop()                Stop RX task, close UART
+
+  --- Receiving ---
+  available()           Number of received MAVLink messages queued
+  receive(timeout=0)    Get next msg -> dict or None
+                        timeout: 0=poll, -1=block, >0=ms
+    Returns: {msgid, sysid, compid, seq, len, ...}
+    msgid: MAVLink message ID (0=HEARTBEAT, 1=SYS_STATUS,
+           24=GPS_RAW_INT, 30=ATTITUDE, 32=LOCAL_POSITION_NED,
+           33=GLOBAL_POSITION_INT, 253=STATUSTEXT, etc.)
+
+    Decoded messages (extra fields added automatically):
+
+    msgid 32 — LOCAL_POSITION_NED:
+      time  (uint32, ms since boot)
+      x, y, z       (int32, mm — float*1000)
+      vx, vy, vz    (int32, mm/s — float*1000)
+
+    msgid 33 — GLOBAL_POSITION_INT:
+      time      (uint32, ms since boot)
+      lat, lon  (int32, degrees * 1e7)
+      alt       (int32, mm above MSL)
+      rel_alt   (int32, mm above home)
+      vx,vy,vz  (int16, cm/s)
+      hdg       (uint16, heading in cdeg, 0..35999)
+
+  --- Sending ---
+  heartbeat(type=18)    Send HEARTBEAT (18=onboard controller)
+  send(text, sev=6)     Send STATUSTEXT (sev: 0-7, 6=INFO)
+  command(tsys, tcomp, cmd, [conf, p1..p7])
+                        Send COMMAND_LONG (params are int x1000)
+
+  --- Vision over MAVLink (base64 STATUSTEXT chunks) ---
+  send_detection(sensor_id, track_id, alarm_type, timestamp, seq,
+                 x, y, w, h, conf, class_id,
+                 [embedding, crc8, severity=6])
+  send_update(sensor_id, track_id, alarm_type, timestamp, seq,
+              x, y, w, h, conf, age, [severity=6])
+
+  VisionMessage is nanopb-encoded, base64-encoded, then split into
+  50-char STATUSTEXT chunks with id + chunk_seq for reassembly.
+
+  Example:
+    sentai.link.init(57600)          # connect to autopilot
+    sentai.link.heartbeat()          # send heartbeat
+    sentai.link.send('Hello GCS')    # send status text
+    while True:
+        msg = sentai.link.receive(5000)
+        if msg:
+            if msg['msgid'] == 33:   # GLOBAL_POSITION_INT
+                print('lat:', msg['lat'], 'lon:', msg['lon'])
+            elif msg['msgid'] == 32: # LOCAL_POSITION_NED
+                print('x:', msg['x'], 'y:', msg['y'], 'z:', msg['z'])
+            else:
+                print(msg['msgid'], msg['sysid'])
