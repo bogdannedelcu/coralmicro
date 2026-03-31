@@ -32,6 +32,7 @@ typedef struct _visionmesh_VisionMessage {
     uint32_t alarm_type;
     uint32_t timestamp_utc;
     uint32_t seq;
+    uint32_t node_id;
     pb_size_t which_body;
     union {
         visionmesh_NewDetection new_detection;
@@ -45,10 +46,10 @@ extern "C" {
 #endif
 
 /* Initializer values for message structs */
-#define visionmesh_VisionMessage_init_default    {0, 0, 0, 0, 0, 0, 0, {visionmesh_NewDetection_init_default}}
+#define visionmesh_VisionMessage_init_default    {0, 0, 0, 0, 0, 0, 0, 0, {visionmesh_NewDetection_init_default}}
 #define visionmesh_NewDetection_init_default     {0, 0, 0, {0, {0}}, 0}
 #define visionmesh_UpdateDetection_init_default  {0, 0, 0}
-#define visionmesh_VisionMessage_init_zero       {0, 0, 0, 0, 0, 0, 0, {visionmesh_NewDetection_init_zero}}
+#define visionmesh_VisionMessage_init_zero       {0, 0, 0, 0, 0, 0, 0, 0, {visionmesh_NewDetection_init_zero}}
 #define visionmesh_NewDetection_init_zero        {0, 0, 0, {0, {0}}, 0}
 #define visionmesh_UpdateDetection_init_zero     {0, 0, 0}
 
@@ -67,6 +68,7 @@ extern "C" {
 #define visionmesh_VisionMessage_alarm_type_tag  4
 #define visionmesh_VisionMessage_timestamp_utc_tag 5
 #define visionmesh_VisionMessage_seq_tag         6
+#define visionmesh_VisionMessage_node_id_tag     7
 #define visionmesh_VisionMessage_new_detection_tag 10
 #define visionmesh_VisionMessage_update_detection_tag 11
 
@@ -78,6 +80,7 @@ X(a, STATIC,   SINGULAR, UINT32,   track_id,          3) \
 X(a, STATIC,   SINGULAR, UINT32,   alarm_type,        4) \
 X(a, STATIC,   SINGULAR, UINT32,   timestamp_utc,     5) \
 X(a, STATIC,   SINGULAR, UINT32,   seq,               6) \
+X(a, STATIC,   SINGULAR, UINT32,   node_id,           7) \
 X(a, STATIC,   ONEOF,    MESSAGE,  (body,new_detection,body.new_detection),  10) \
 X(a, STATIC,   ONEOF,    MESSAGE,  (body,update_detection,body.update_detection),  11)
 #define visionmesh_VisionMessage_CALLBACK NULL
@@ -114,7 +117,7 @@ extern const pb_msgdesc_t visionmesh_UpdateDetection_msg;
 #define VISIONMESH_VISIONMESH_PB_H_MAX_SIZE      visionmesh_VisionMessage_size
 #define visionmesh_NewDetection_size             89
 #define visionmesh_UpdateDetection_size          17
-#define visionmesh_VisionMessage_size            127
+#define visionmesh_VisionMessage_size            133
 
 #ifdef __cplusplus
 } /* extern "C" */

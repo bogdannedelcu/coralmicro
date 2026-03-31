@@ -1199,6 +1199,7 @@ static mp_obj_t mod_sentai_mesh_receive_vision(size_t n_args, const mp_obj_t *ar
     // VisionMessage common fields
     const visionmesh_VisionMessage* v = &msg.vision;
     mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_sensor_id), mp_obj_new_int_from_uint(v->sensor_id));
+    mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_node_id), mp_obj_new_int_from_uint(v->node_id));
     mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_track_id), mp_obj_new_int_from_uint(v->track_id));
     mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_alarm_type), mp_obj_new_int_from_uint(v->alarm_type));
     mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_timestamp), mp_obj_new_int_from_uint(v->timestamp_utc));

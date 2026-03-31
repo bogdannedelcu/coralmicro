@@ -31,6 +31,7 @@ extern int  sentai_uart_serial_read(uint8_t* buf, int max_size, int timeout_ms);
 extern int  sentai_uart_serial_available(void);
 extern void sentai_uart_set_baudrate(uint32_t baudrate);
 extern void sentai_uart_restore_baudrate(void);
+extern uint32_t sentai_mesh_my_node_num(void);
 }
 
 // ===================== Module state =====================
@@ -310,6 +311,7 @@ extern "C" int sentai_link_send_vision(
     visionmesh_VisionMessage vision = visionmesh_VisionMessage_init_zero;
     vision.app_version = 1;
     vision.sensor_id = sensor_id;
+    vision.node_id = sentai_mesh_my_node_num();
     vision.track_id = track_id;
     vision.alarm_type = alarm_type;
     vision.timestamp_utc = timestamp_utc;
@@ -354,6 +356,7 @@ extern "C" int sentai_link_send_vision_update(
     visionmesh_VisionMessage vision = visionmesh_VisionMessage_init_zero;
     vision.app_version = 1;
     vision.sensor_id = sensor_id;
+    vision.node_id = sentai_mesh_my_node_num();
     vision.track_id = track_id;
     vision.alarm_type = alarm_type;
     vision.timestamp_utc = timestamp_utc;
