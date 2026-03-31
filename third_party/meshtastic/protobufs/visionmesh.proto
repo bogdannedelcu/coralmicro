@@ -11,19 +11,9 @@ message VisionMessage {
   uint32 seq           = 6;
   uint32 node_id       = 7;
 
-  // Camera GPS position (WGS84)
-  sint32 latitude_i    = 8;   // lat * 1e7 (deg)
-  sint32 longitude_i   = 9;   // lon * 1e7 (deg)
-  sint32 altitude_mm   = 10;  // altitude in millimeters (MSL)
-
-  // Camera orientation (centidegrees, 0..36000 for heading, ±18000 for pitch/roll)
-  uint32 heading_cd    = 13;  // yaw 0..36000 (0=North, 9000=East)
-  sint32 pitch_cd      = 14;  // pitch ±18000
-  sint32 roll_cd       = 15;  // roll  ±18000
-
   oneof body {
-    NewDetection    new_detection    = 20;
-    UpdateDetection update_detection = 21;
+    NewDetection    new_detection    = 10;
+    UpdateDetection update_detection = 11;
   }
 }
 

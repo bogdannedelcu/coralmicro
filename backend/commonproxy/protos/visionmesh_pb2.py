@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x10visionmesh.proto\x12\nvisionmesh\"\xfb\x02\n\rVisionMessage\x12\x13\n\x0b\x61pp_version\x18\x01 \x01(\r\x12\x11\n\tsensor_id\x18\x02 \x01(\r\x12\x10\n\x08track_id\x18\x03 \x01(\r\x12\x12\n\nalarm_type\x18\x04 \x01(\r\x12\x15\n\rtimestamp_utc\x18\x05 \x01(\r\x12\x0b\n\x03seq\x18\x06 \x01(\r\x12\x0f\n\x07node_id\x18\x07 \x01(\r\x12\x12\n\nlatitude_i\x18\x08 \x01(\x11\x12\x13\n\x0blongitude_i\x18\t \x01(\x11\x12\x13\n\x0b\x61ltitude_mm\x18\n \x01(\x11\x12\x12\n\nheading_cd\x18\r \x01(\r\x12\x10\n\x08pitch_cd\x18\x0e \x01(\x11\x12\x0f\n\x07roll_cd\x18\x0f \x01(\x11\x12\x31\n\rnew_detection\x18\x14 \x01(\x0b\x32\x18.visionmesh.NewDetectionH\x00\x12\x37\n\x10update_detection\x18\x15 \x01(\x0b\x32\x1b.visionmesh.UpdateDetectionH\x00\x42\x06\n\x04\x62ody\"j\n\x0cNewDetection\x12\x13\n\x0bxywh_packed\x18\x01 \x01(\x07\x12\x0c\n\x04\x63onf\x18\x02 \x01(\r\x12\x10\n\x08\x63lass_id\x18\x03 \x01(\r\x12\x11\n\tembedding\x18\x04 \x01(\x0c\x12\x12\n\nembed_crc8\x18\x05 \x01(\r\"A\n\x0fUpdateDetection\x12\x13\n\x0bxywh_packed\x18\x01 \x01(\x07\x12\x0c\n\x04\x63onf\x18\x02 \x01(\r\x12\x0b\n\x03\x61ge\x18\x03 \x01(\rb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x10visionmesh.proto\x12\nvisionmesh\"\x86\x02\n\rVisionMessage\x12\x13\n\x0b\x61pp_version\x18\x01 \x01(\r\x12\x11\n\tsensor_id\x18\x02 \x01(\r\x12\x10\n\x08track_id\x18\x03 \x01(\r\x12\x12\n\nalarm_type\x18\x04 \x01(\r\x12\x15\n\rtimestamp_utc\x18\x05 \x01(\r\x12\x0b\n\x03seq\x18\x06 \x01(\r\x12\x0f\n\x07node_id\x18\x07 \x01(\r\x12\x31\n\rnew_detection\x18\n \x01(\x0b\x32\x18.visionmesh.NewDetectionH\x00\x12\x37\n\x10update_detection\x18\x0b \x01(\x0b\x32\x1b.visionmesh.UpdateDetectionH\x00\x42\x06\n\x04\x62ody\"j\n\x0cNewDetection\x12\x13\n\x0bxywh_packed\x18\x01 \x01(\x07\x12\x0c\n\x04\x63onf\x18\x02 \x01(\r\x12\x10\n\x08\x63lass_id\x18\x03 \x01(\r\x12\x11\n\tembedding\x18\x04 \x01(\x0c\x12\x12\n\nembed_crc8\x18\x05 \x01(\r\"A\n\x0fUpdateDetection\x12\x13\n\x0bxywh_packed\x18\x01 \x01(\x07\x12\x0c\n\x04\x63onf\x18\x02 \x01(\r\x12\x0b\n\x03\x61ge\x18\x03 \x01(\rb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -32,9 +32,9 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'visionmesh_pb2', _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
   DESCRIPTOR._loaded_options = None
   _globals['_VISIONMESSAGE']._serialized_start=33
-  _globals['_VISIONMESSAGE']._serialized_end=412
-  _globals['_NEWDETECTION']._serialized_start=414
-  _globals['_NEWDETECTION']._serialized_end=520
-  _globals['_UPDATEDETECTION']._serialized_start=522
-  _globals['_UPDATEDETECTION']._serialized_end=587
+  _globals['_VISIONMESSAGE']._serialized_end=295
+  _globals['_NEWDETECTION']._serialized_start=297
+  _globals['_NEWDETECTION']._serialized_end=403
+  _globals['_UPDATEDETECTION']._serialized_start=405
+  _globals['_UPDATEDETECTION']._serialized_end=470
 # @@protoc_insertion_point(module_scope)
