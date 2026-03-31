@@ -6,8 +6,10 @@ from typing import Dict, Optional
 from google.protobuf.json_format import MessageToDict
 from google.protobuf.message import DecodeError
 
+from commonproxy import utc_now
+
 from . import config
-from .common import mark_rx, utc_now
+from .common import recent_rx
 
 try:
     from meshtastic import mesh_pb2
@@ -156,7 +158,7 @@ def maybe_extract_vision_message(from_radio) -> Optional[Dict]:
 def handle_frame(mqtt_pub, payload: bytes) -> None:
     from_radio = decode_from_radio(payload)
     if from_radio is not None:
-        mark_rx()
+        recent_rx.mark()
         vision_msg = maybe_extract_vision_message(from_radio)
         if vision_msg is not None:
             mqtt_pub.publish_json(config.MQTT_VISION_TOPIC, vision_msg)

@@ -7,8 +7,10 @@ from typing import Dict, Optional, Tuple
 from google.protobuf.json_format import MessageToDict
 from google.protobuf.message import DecodeError
 
+from commonproxy import utc_now
+
 from . import config
-from .common import mark_rx, utc_now
+from .common import recent_rx
 
 try:
     from meshtastic import mesh_pb2
@@ -146,7 +148,7 @@ def run_selftest() -> int:
 
 
 def handle_message(mqtt_pub, assembler: StatusTextAssembler, msg) -> None:
-    mark_rx()
+    recent_rx.mark()
     if msg.get_type() == 'STATUSTEXT':
         handle_statustext(mqtt_pub, assembler, msg)
     elif config.FORWARD_RAW_BASE64:
