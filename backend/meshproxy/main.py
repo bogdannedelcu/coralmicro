@@ -8,7 +8,7 @@ from commonproxy import utc_now
 from meshproxy import config
 from meshproxy.common import spool
 from meshproxy.mqtt_client import MqttPublisher
-from meshproxy.protocol import MeshSdkReceiver, mesh_pb2
+from meshproxy.protocol import MeshSdkReceiver, visionmesh_pb2
 from meshproxy.telemetry import maybe_publish_telemetry
 
 
@@ -25,7 +25,7 @@ def main() -> int:
             'state': 'starting',
             'serial_port': config.SERIAL_PORT,
             'serial_baud': 115200,
-            'protobuf_enabled': mesh_pb2 is not None,
+            'protobuf_enabled': visionmesh_pb2 is not None,
             'transport': 'meshtastic-python-sdk',
         },
     )
