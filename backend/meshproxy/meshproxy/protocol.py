@@ -12,9 +12,9 @@ from . import config
 from .common import recent_rx
 
 try:
-    from meshtastic import mesh_pb2
+    from commonproxy.protos import visionmesh_pb2
 except ImportError:
-    mesh_pb2 = None
+    visionmesh_pb2 = None
 
 
 class MeshSdkReceiver:
@@ -68,6 +68,8 @@ class MeshSdkReceiver:
                     'payload_b64': base64.b64encode(raw_payload).decode('ascii'),
                     **vision,
                 }
+                if not msg.get('node_id'):
+                    msg['node_id'] = packet.get('from', 0)
                 self.mqtt_pub.publish_json(config.MQTT_VISION_TOPIC, msg)
                 logging.info('[mesh:vision] from=%s track=%s type=%s', msg.get('from'), msg.get('track_id'), msg.get('type'))
                 return
@@ -103,10 +105,10 @@ def sanitize_packet(packet: dict) -> dict:
 
 
 def decode_vision_message(raw_payload: bytes) -> Optional[Dict]:
-    if mesh_pb2 is None:
+    if visionmesh_pb2 is None:
         return None
     try:
-        vision = mesh_pb2.VisionMessage()
+        vision = visionmesh_pb2.VisionMessage()
         vision.ParseFromString(raw_payload)
     except DecodeError:
         return None

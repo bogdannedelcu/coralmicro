@@ -13,9 +13,9 @@ from . import config
 from .common import recent_rx
 
 try:
-    from meshtastic import mesh_pb2
+    from commonproxy.protos import visionmesh_pb2
 except ImportError:
-    mesh_pb2 = None
+    visionmesh_pb2 = None
 
 
 class StatusTextAssembler:
@@ -63,11 +63,11 @@ class StatusTextAssembler:
 
 
 def decode_vision_message_from_b64(b64_text: str) -> Optional[Dict]:
-    if mesh_pb2 is None:
+    if visionmesh_pb2 is None:
         return None
     try:
         raw = base64.b64decode(b64_text)
-        vision = mesh_pb2.VisionMessage()
+        vision = visionmesh_pb2.VisionMessage()
         vision.ParseFromString(raw)
     except (DecodeError, ValueError, base64.binascii.Error):
         return None
@@ -107,12 +107,13 @@ def handle_statustext(mqtt_pub, assembler: StatusTextAssembler, msg) -> None:
 
 
 def run_selftest() -> int:
-    if mesh_pb2 is None:
-        print('SELFTEST: meshtastic package unavailable')
+    if visionmesh_pb2 is None:
+        print('SELFTEST: vision protobuf unavailable')
         return 1
-    vision = mesh_pb2.VisionMessage()
+    vision = visionmesh_pb2.VisionMessage()
     vision.app_version = 1
     vision.sensor_id = 123
+    vision.node_id = 789
     vision.track_id = 456
     vision.alarm_type = 2
     vision.timestamp_utc = 1774955000

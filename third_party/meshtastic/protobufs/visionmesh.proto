@@ -9,6 +9,7 @@ message VisionMessage {
   uint32 alarm_type    = 4;
   uint32 timestamp_utc = 5;
   uint32 seq           = 6;
+  uint32 node_id       = 7;
 
   oneof body {
     NewDetection    new_detection    = 10;
