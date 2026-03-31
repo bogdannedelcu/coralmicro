@@ -38,9 +38,10 @@ class MeshSdkReceiver:
                 text = bytes(payload).decode('utf-8', errors='ignore').strip()
             except Exception:
                 text = ''
-        self.mqtt_pub.publish_json(config.MQTT_TEXT_TOPIC, {
+        node_id = packet.get('from', 0)
+        self.mqtt_pub.publish_json(config.topic_for(node_id, 'text'), {
             'ts': utc_now(),
-            'from': packet.get('from', 0),
+            'from': node_id,
             'to': packet.get('to', 0),
             'id': packet.get('id', 0),
             'channel': packet.get('channel', 0),
@@ -70,12 +71,13 @@ class MeshSdkReceiver:
                 }
                 if not msg.get('node_id'):
                     msg['node_id'] = packet.get('from', 0)
-                self.mqtt_pub.publish_json(config.MQTT_VISION_TOPIC, msg)
+                self.mqtt_pub.publish_json(config.topic_for(msg.get('node_id', msg.get('from', 0)), 'vision'), msg)
                 logging.info('[mesh:vision] from=%s track=%s type=%s', msg.get('from'), msg.get('track_id'), msg.get('type'))
                 return
 
         if config.FORWARD_RAW_BASE64:
-            self.mqtt_pub.publish_json(config.MQTT_RAW_TOPIC, {
+            node_id = packet.get('from', 0)
+            self.mqtt_pub.publish_json(config.topic_for(node_id, 'raw'), {
                 'ts': utc_now(),
                 'kind': 'from-radio',
                 'packet': sanitize_packet(packet),

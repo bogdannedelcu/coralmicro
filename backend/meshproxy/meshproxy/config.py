@@ -10,11 +10,14 @@ SERIAL_BAUD = int(os.getenv("SERIAL_BAUD", "38400"))
 MQTT_URL = os.getenv("MQTT_URL", "mqtt://localhost:1883")
 MQTT_USERNAME = os.getenv("MQTT_USERNAME", "")
 MQTT_PASSWORD = os.getenv("MQTT_PASSWORD", "")
-MQTT_VISION_TOPIC = os.getenv("MQTT_VISION_TOPIC", "sentai/vision")
-MQTT_TEXT_TOPIC = os.getenv("MQTT_TEXT_TOPIC", "sentai/text")
-MQTT_RAW_TOPIC = os.getenv("MQTT_RAW_TOPIC", "sentai/raw")
+MQTT_TOPIC_PREFIX = os.getenv("MQTT_TOPIC_PREFIX", "sentai")
 MQTT_STATUS_TOPIC = os.getenv("MQTT_STATUS_TOPIC", "sentai/status")
 MQTT_AVAILABILITY_TOPIC = os.getenv("MQTT_AVAILABILITY_TOPIC", "sentai/availability")
+
+
+def topic_for(node_id: int, suffix: str) -> str:
+    """Build per-node topic: sentai/{node_hex}/vision, sentai/{node_hex}/text, etc."""
+    return f"{MQTT_TOPIC_PREFIX}/{node_id:08x}/{suffix}"
 FORWARD_RAW_BASE64 = str(os.getenv("FORWARD_RAW_BASE64", "true")).lower() in {"1", "true", "yes", "on"}
 SPOOL_ROOT = Path(os.getenv("SPOOL_ROOT", str(Path(__file__).resolve().parent.parent / "spool")))
 PENDING_DIR = SPOOL_ROOT / "pending"
