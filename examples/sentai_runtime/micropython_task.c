@@ -343,6 +343,13 @@ static void micropython_repl_task(void* param) {
         }
     }
 
+    // Stop boot logging - REPL is about to start
+    {
+        extern void sentai_boot_log_stop(void);
+        sentai_boot_log_stop();
+        printf("[MicroPython] Boot log saved to /log/boot.log\r\n");
+    }
+
     repl_puts("\r\n");
     {
         char banner[128];

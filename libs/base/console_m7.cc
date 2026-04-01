@@ -32,7 +32,7 @@
 using namespace std::placeholders;
 
 extern "C" int DbgConsole_SendDataReliable(uint8_t*, size_t);
-extern "C" int _write(int handle, char* buffer, int size) {
+extern "C" __attribute__((weak)) int _write(int handle, char* buffer, int size) {
   if ((handle != STDOUT_FILENO) && (handle != STDERR_FILENO)) {
     return -1;
   }

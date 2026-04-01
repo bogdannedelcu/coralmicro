@@ -56,20 +56,24 @@ coralmicro::MscUms g_msc_ums;
 // Low-power feature toggles. Set to 1 to enable the corresponding init.
 // Dissable network, temp and USB and get 0.1570 Amps on M7
 #ifndef ENABLE_NETWORK_STACK
-#define ENABLE_NETWORK_STACK 1
+#define ENABLE_NETWORK_STACK 0
 #endif
 #ifndef ENABLE_USB_EEM
-#define ENABLE_USB_EEM 1
+#define ENABLE_USB_EEM 0
 #endif
 #ifndef ENABLE_TEMP_SENSOR
-#define ENABLE_TEMP_SENSOR 1
+#define ENABLE_TEMP_SENSOR 0
 #endif
 #ifndef ENABLE_EDGETPU_DFU
-#define ENABLE_EDGETPU_DFU 1
+#define ENABLE_EDGETPU_DFU 0
 #endif
 
 #ifndef ENABLE_USB_UMS
 #define ENABLE_USB_UMS 1
+#endif
+
+#ifndef ENABLE_RANDOM
+#define ENABLE_RANDOM 0
 #endif
 
 void InitializeCDCEEM() {
@@ -137,7 +141,9 @@ extern "C" int real_main(int argc, char** argv, bool init_console_tx,
   coralmicro::TimerInit();
   coralmicro::GpioInit();
   coralmicro::IpcM7::GetSingleton()->Init();
-  coralmicro::RandomInit();
+  #if ENABLE_RANDOM
+    coralmicro::RandomInit();
+  #endif
   coralmicro::ConsoleM7::GetSingleton()->Init(init_console_tx, init_console_rx);
 
   CHECK(coralmicro::LfsInit());

@@ -1,6 +1,7 @@
 // Custom MicroPython C module: 'sentai'
 // Provides LED control, sleep, and EdgeTPU inference bridge
 
+#include "build_version.h"
 #include "py/runtime.h"
 #include "py/obj.h"
 #include "py/gc.h"
@@ -889,6 +890,108 @@ static mp_obj_t mod_sentai_cpu(void) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_cpu_obj, mod_sentai_cpu);
 
+// ===================== Task suspend/resume =====================
+
+// Protected task names that should never be suspended
+static const char* protected_tasks[] = {
+    "mp_repl", "IDLE", "Tmr Svc", "ctrlc", "console", "usb_dev", NULL
+};
+
+static int is_protected_task(const char* name) {
+    for (int i = 0; protected_tasks[i] != NULL; i++) {
+        if (strstr(name, protected_tasks[i]) != NULL) return 1;
+    }
+    return 0;
+}
+
+// sentai.rtos.suspend(name) -> 1 if suspended, 0 if not found or protected
+static mp_obj_t mod_sentai_task_suspend(mp_obj_t name_obj) {
+    const char* name = mp_obj_str_get_str(name_obj);
+    
+    if (is_protected_task(name)) {
+        mp_printf(&mp_plat_print, "Cannot suspend protected task: %s\r\n", name);
+        return mp_obj_new_int(0);
+    }
+    
+    #define MAX_TASKS 24
+    TaskStatus_t task_buf[MAX_TASKS];
+    UBaseType_t n = uxTaskGetSystemState(task_buf, MAX_TASKS, NULL);
+    
+    for (UBaseType_t i = 0; i < n; i++) {
+        if (strcmp(task_buf[i].pcTaskName, name) == 0) {
+            vTaskSuspend(task_buf[i].xHandle);
+            mp_printf(&mp_plat_print, "Suspended: %s\r\n", name);
+            return mp_obj_new_int(1);
+        }
+    }
+    #undef MAX_TASKS
+    mp_printf(&mp_plat_print, "Task not found: %s\r\n", name);
+    return mp_obj_new_int(0);
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_task_suspend_obj, mod_sentai_task_suspend);
+
+// sentai.rtos.resume(name) -> 1 if resumed, 0 if not found
+static mp_obj_t mod_sentai_task_resume(mp_obj_t name_obj) {
+    const char* name = mp_obj_str_get_str(name_obj);
+    
+    #define MAX_TASKS 24
+    TaskStatus_t task_buf[MAX_TASKS];
+    UBaseType_t n = uxTaskGetSystemState(task_buf, MAX_TASKS, NULL);
+    
+    for (UBaseType_t i = 0; i < n; i++) {
+        if (strcmp(task_buf[i].pcTaskName, name) == 0) {
+            vTaskResume(task_buf[i].xHandle);
+            mp_printf(&mp_plat_print, "Resumed: %s\r\n", name);
+            return mp_obj_new_int(1);
+        }
+    }
+    #undef MAX_TASKS
+    mp_printf(&mp_plat_print, "Task not found: %s\r\n", name);
+    return mp_obj_new_int(0);
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_task_resume_obj, mod_sentai_task_resume);
+
+// sentai.rtos.suspend_all() -> count of suspended tasks
+// Suspends all tasks except REPL, IDLE, and other protected tasks
+static mp_obj_t mod_sentai_task_suspend_all(void) {
+    #define MAX_TASKS 24
+    TaskStatus_t task_buf[MAX_TASKS];
+    UBaseType_t n = uxTaskGetSystemState(task_buf, MAX_TASKS, NULL);
+    int count = 0;
+    
+    for (UBaseType_t i = 0; i < n; i++) {
+        if (!is_protected_task(task_buf[i].pcTaskName)) {
+            vTaskSuspend(task_buf[i].xHandle);
+            mp_printf(&mp_plat_print, "Suspended: %s\r\n", task_buf[i].pcTaskName);
+            count++;
+        }
+    }
+    #undef MAX_TASKS
+    mp_printf(&mp_plat_print, "Total suspended: %d\r\n", count);
+    return mp_obj_new_int(count);
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_task_suspend_all_obj, mod_sentai_task_suspend_all);
+
+// sentai.rtos.resume_all() -> count of resumed tasks
+static mp_obj_t mod_sentai_task_resume_all(void) {
+    #define MAX_TASKS 24
+    TaskStatus_t task_buf[MAX_TASKS];
+    UBaseType_t n = uxTaskGetSystemState(task_buf, MAX_TASKS, NULL);
+    int count = 0;
+    
+    for (UBaseType_t i = 0; i < n; i++) {
+        if (task_buf[i].eCurrentState == eSuspended) {
+            vTaskResume(task_buf[i].xHandle);
+            mp_printf(&mp_plat_print, "Resumed: %s\r\n", task_buf[i].pcTaskName);
+            count++;
+        }
+    }
+    #undef MAX_TASKS
+    mp_printf(&mp_plat_print, "Total resumed: %d\r\n", count);
+    return mp_obj_new_int(count);
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_task_resume_all_obj, mod_sentai_task_resume_all);
+
 // ===================== System info: uptime =====================
 
 // sentai.uptime() -> int (seconds since boot)
@@ -1357,6 +1460,27 @@ static mp_obj_t mod_sentai_mic_level(void) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_mic_level_obj, mod_sentai_mic_level);
 
+// ===================== Sleep functions =====================
+
+// sentai.sleep.idle(threshold_db=70, timeout_ms=0, enable_tap=1) -> int
+// Light sleep waiting for mic sound, double-tap, or timeout.
+// threshold_db: 60, 65, 70, 75, 80, 85, 90, 95 dB (lower = more sensitive)
+// timeout_ms: max wait time in ms (0 = wait forever)
+// enable_tap: 1 = enable double-tap wakeup (default), 0 = mic only
+// Returns: 0 = timeout, 1 = mic wakeup, 2 = double-tap wakeup, -1 = error
+extern int sentai_sleep_idle(int threshold_db, int timeout_ms, int enable_tap);
+static mp_obj_t mod_sentai_sleep_idle(size_t n_args, const mp_obj_t *args) {
+    int threshold_db = (n_args > 0) ? mp_obj_get_int(args[0]) : 70;
+    int timeout_ms = (n_args > 1) ? mp_obj_get_int(args[1]) : 0;
+    int enable_tap = (n_args > 2) ? mp_obj_get_int(args[2]) : 1;  // enabled by default
+    int ret = sentai_sleep_idle(threshold_db, timeout_ms, enable_tap);
+    if (ret < 0) {
+        mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("Failed to enter idle mode"));
+    }
+    return mp_obj_new_int(ret);
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_sleep_idle_obj, 0, 3, mod_sentai_sleep_idle);
+
 // ===================== MAVLink link functions =====================
 
 // sentai.link.init(baudrate=57600, sysid=1, compid=191) -> int
@@ -1555,13 +1679,17 @@ static const mp_obj_module_t sentai_io_module = {
 
 // ============== sentai.rtos — FreeRTOS system ==============
 static const mp_rom_map_elem_t sentai_rtos_globals_table[] = {
-    { MP_ROM_QSTR(MP_QSTR___name__),  MP_ROM_QSTR(MP_QSTR_rtos) },
-    { MP_ROM_QSTR(MP_QSTR_sleep_ms),  MP_ROM_PTR(&mod_sentai_sleep_ms_obj) },
-    { MP_ROM_QSTR(MP_QSTR_ticks_ms),  MP_ROM_PTR(&mod_sentai_ticks_ms_obj) },
-    { MP_ROM_QSTR(MP_QSTR_tasks),     MP_ROM_PTR(&mod_sentai_tasks_obj) },
-    { MP_ROM_QSTR(MP_QSTR_heap),      MP_ROM_PTR(&mod_sentai_heap_obj) },
-    { MP_ROM_QSTR(MP_QSTR_cpu),       MP_ROM_PTR(&mod_sentai_cpu_obj) },
-    { MP_ROM_QSTR(MP_QSTR_uptime),    MP_ROM_PTR(&mod_sentai_uptime_obj) },
+    { MP_ROM_QSTR(MP_QSTR___name__),     MP_ROM_QSTR(MP_QSTR_rtos) },
+    { MP_ROM_QSTR(MP_QSTR_sleep_ms),     MP_ROM_PTR(&mod_sentai_sleep_ms_obj) },
+    { MP_ROM_QSTR(MP_QSTR_ticks_ms),     MP_ROM_PTR(&mod_sentai_ticks_ms_obj) },
+    { MP_ROM_QSTR(MP_QSTR_tasks),        MP_ROM_PTR(&mod_sentai_tasks_obj) },
+    { MP_ROM_QSTR(MP_QSTR_heap),         MP_ROM_PTR(&mod_sentai_heap_obj) },
+    { MP_ROM_QSTR(MP_QSTR_cpu),          MP_ROM_PTR(&mod_sentai_cpu_obj) },
+    { MP_ROM_QSTR(MP_QSTR_uptime),       MP_ROM_PTR(&mod_sentai_uptime_obj) },
+    { MP_ROM_QSTR(MP_QSTR_suspend),      MP_ROM_PTR(&mod_sentai_task_suspend_obj) },
+    { MP_ROM_QSTR(MP_QSTR_resume),       MP_ROM_PTR(&mod_sentai_task_resume_obj) },
+    { MP_ROM_QSTR(MP_QSTR_suspend_all),  MP_ROM_PTR(&mod_sentai_task_suspend_all_obj) },
+    { MP_ROM_QSTR(MP_QSTR_resume_all),   MP_ROM_PTR(&mod_sentai_task_resume_all_obj) },
 };
 static MP_DEFINE_CONST_DICT(sentai_rtos_globals, sentai_rtos_globals_table);
 static const mp_obj_module_t sentai_rtos_module = {
@@ -1732,6 +1860,20 @@ static const mp_obj_module_t sentai_mic_module = {
 };
 
 // =====================================================================
+// Sub-module: sentai.sleep
+// =====================================================================
+// Light sleep / idle functions with AAD mic wakeup
+static const mp_rom_map_elem_t sentai_sleep_globals_table[] = {
+    { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_sleep) },
+    { MP_ROM_QSTR(MP_QSTR_idle),      MP_ROM_PTR(&mod_sentai_sleep_idle_obj) },
+};
+static MP_DEFINE_CONST_DICT(sentai_sleep_globals, sentai_sleep_globals_table);
+static const mp_obj_module_t sentai_sleep_module = {
+    .base = { &mp_type_module },
+    .globals = (mp_obj_dict_t *)&sentai_sleep_globals,
+};
+
+// =====================================================================
 // Top-level module: import sentai
 // =====================================================================
 // Usage:
@@ -1744,8 +1886,20 @@ static const mp_obj_module_t sentai_mic_module = {
 //   sentai.rtos.uptime()
 //   sentai.usb.drive(1)
 
+// Version string macro
+#define STRINGIFY2(x) #x
+#define STRINGIFY(x) STRINGIFY2(x)
+#define SENTAI_VERSION_STR "SentAI v1.0 build " STRINGIFY(BUILD_VERSION) " (" BUILD_TIMESTAMP ")"
+
+// sentai.version() -> str
+static mp_obj_t mod_sentai_version(void) {
+    return mp_obj_new_str(SENTAI_VERSION_STR, strlen(SENTAI_VERSION_STR));
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_version_obj, mod_sentai_version);
+
 static const mp_rom_map_elem_t sentai_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_sentai) },
+    { MP_ROM_QSTR(MP_QSTR_version),  MP_ROM_PTR(&mod_sentai_version_obj) },
     // Help, console control & script execution
     { MP_ROM_QSTR(MP_QSTR_help),      MP_ROM_PTR(&mod_sentai_help_obj) },
     { MP_ROM_QSTR(MP_QSTR_debug),      MP_ROM_PTR(&mod_sentai_debug_obj) },
@@ -1763,6 +1917,7 @@ static const mp_rom_map_elem_t sentai_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_link),      MP_ROM_PTR(&sentai_link_module) },
     { MP_ROM_QSTR(MP_QSTR_imu),       MP_ROM_PTR(&sentai_imu_module) },
     { MP_ROM_QSTR(MP_QSTR_mic),       MP_ROM_PTR(&sentai_mic_module) },
+    { MP_ROM_QSTR(MP_QSTR_sleep),     MP_ROM_PTR(&sentai_sleep_module) },
 };
 static MP_DEFINE_CONST_DICT(sentai_module_globals, sentai_module_globals_table);
 

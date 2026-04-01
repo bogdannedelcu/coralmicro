@@ -132,10 +132,18 @@ add_executable_m7(sentai_runtime
     help.txt
 )
 
+# Disable networking stack (DHCP, TCP/IP, Ethernet over USB) to save power
+target_compile_definitions(sentai_runtime PRIVATE
+    ENABLE_NETWORK_STACK=0
+    ENABLE_USB_EEM=0
+    ENABLE_RANDOM=0
+)
+
 target_link_libraries(sentai_runtime
     libs_base-m7_freertos
     libs_jpeg_m7
     libs_lis2du12_freertos
+    libs_t5838_freertos
     libs_audio_freertos
     shine
     libmicropython

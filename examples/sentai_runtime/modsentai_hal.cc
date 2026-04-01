@@ -4,7 +4,9 @@
 #include "libs/base/console_m7.h"
 #include "libs/base/filesystem.h"
 #include "libs/base/led.h"
+#include "libs/base/gpio.h"
 #include "libs/lis2du12/lis2du12.h"
+#include "libs/t5838/t5838.h"
 #include "libs/base/main_freertos_m7.h"
 #include "libs/audio/audio_driver.h"
 #include "libs/audio/audio_service.h"
@@ -557,6 +559,178 @@ int sentai_mic_save_l3(char* out_name, int name_size) {
     printf("[mic] Saved %s (%u bytes MP3, %u samples)\r\n",
            path, (unsigned)mp3_pos, (unsigned)n);
     return (int)mp3_pos;
+}
+
+// ===================== Light Sleep with AAD wakeup =====================
+// Uses T5838 AAD (Audio Activity Detection) to wake from light sleep.
+// Unlike deep sleep, this keeps the system powered but in low-power idle.
+// The T5838 AAD generates a GPIO interrupt when sound exceeds threshold.
+// Also supports LIS2DU12 double-tap wakeup via INT2.
+// Returns: 0 = timeout, 1 = mic wakeup, 2 = double-tap wakeup, -1 = error
+
+static volatile bool g_idle_mic_triggered = false;
+static volatile bool g_idle_tap_triggered = false;
+static TaskHandle_t g_idle_task_handle = nullptr;
+
+// ISR callback for MIC_CLK_FEEDBACK (AAD output)
+static void idle_mic_isr_callback() {
+    g_idle_mic_triggered = true;
+    if (g_idle_task_handle) {
+        BaseType_t woken = pdFALSE;
+        vTaskNotifyGiveFromISR(g_idle_task_handle, &woken);
+        portYIELD_FROM_ISR(woken);
+    }
+}
+
+// ISR callback for accelerometer INT2 (double-tap)
+static void idle_tap_isr_callback() {
+    g_idle_tap_triggered = true;
+    if (g_idle_task_handle) {
+        BaseType_t woken = pdFALSE;
+        vTaskNotifyGiveFromISR(g_idle_task_handle, &woken);
+        portYIELD_FROM_ISR(woken);
+    }
+}
+
+// Map dB threshold to T5838 AAD enum.
+static coralmicro::T5838AadAThr DbToAadThr(int db) {
+    using namespace coralmicro;
+    if (db <= 60) return kT5838AadAThr60dB;
+    if (db <= 65) return kT5838AadAThr65dB;
+    if (db <= 70) return kT5838AadAThr70dB;
+    if (db <= 75) return kT5838AadAThr75dB;
+    if (db <= 80) return kT5838AadAThr80dB;
+    if (db <= 85) return kT5838AadAThr85dB;
+    if (db <= 90) return kT5838AadAThr90dB;
+    return kT5838AadAThr95dB;
+}
+
+// Polling task for double-tap detection (INT2 not wired to GPIO)
+static volatile bool g_tap_poll_running = false;
+static void tap_poll_task(void* param) {
+    (void)param;
+    extern coralmicro::Lis2du12 g_imu;
+    extern bool g_imu_initialized;
+    
+    while (g_tap_poll_running && !g_idle_tap_triggered) {
+        if (g_imu_initialized) {
+            lis2du12_all_sources_t sources{};
+            if (lis2du12_all_sources_get(g_imu.GetDevCtx(), &sources) == 0) {
+                if (sources.double_tap) {
+                    printf("[tap_poll] Double-tap detected!\r\n");
+                    g_idle_tap_triggered = true;
+                    if (g_idle_task_handle) {
+                        xTaskNotifyGive(g_idle_task_handle);
+                    }
+                    break;
+                }
+            }
+        }
+        vTaskDelay(pdMS_TO_TICKS(20));  // Poll every 20ms
+    }
+    vTaskDelete(nullptr);
+}
+
+// Light sleep: wait for mic sound, double-tap, or timeout.
+// threshold_db: 60, 65, 70, 75, 80, 85, 90, 95 (lower = more sensitive)
+// timeout_ms: max wait time in milliseconds (0 = wait forever)
+// enable_tap: if true, also wake on double-tap
+// Returns: 0 = timeout, 1 = mic wakeup, 2 = double-tap wakeup, -1 = error
+int sentai_sleep_idle(int threshold_db, int timeout_ms, int enable_tap) {
+    using namespace coralmicro;
+    extern Lis2du12 g_imu;
+    extern bool g_imu_initialized;
+
+    printf("[idle] Starting light sleep: threshold=%d dB, timeout=%d ms, tap=%d\r\n",
+           threshold_db, timeout_ms, enable_tap);
+
+    // Stop AudioService if running (releases PDM clock for AAD config).
+    if (g_mic_svc_ptr) {
+        g_mic_recording = false;
+        g_mic_monitor = false;
+        mic_stop_service();
+        printf("[idle] Audio service stopped\r\n");
+    }
+
+    // Configure T5838 AAD
+    T5838Aad mic_aad;
+    if (!mic_aad.Init()) {
+        printf("[idle] ERROR: T5838 init failed\r\n");
+        return -1;
+    }
+
+    T5838AadAConf conf = {kT5838AadALpf4_4kHz, DbToAadThr(threshold_db)};
+    if (!mic_aad.AadAModeSet(conf)) {
+        printf("[idle] ERROR: Failed to configure AAD\r\n");
+        return -1;
+    }
+    mic_aad.RestorePdmClk();
+    printf("[idle] AAD configured: LPF=4.4kHz, threshold=%d dB\r\n", threshold_db);
+
+    // Setup double-tap if enabled and IMU initialized
+    TaskHandle_t tap_task_handle = nullptr;
+    if (enable_tap) {
+        if (!g_imu_initialized) {
+            printf("[idle] WARNING: IMU not initialized, skipping double-tap\r\n");
+        } else {
+            // Configure double-tap on INT2 (internal to chip, polled via register)
+            if (!g_imu.SetInt2DoubleTap()) {
+                printf("[idle] WARNING: SetInt2DoubleTap failed\r\n");
+            } else {
+                printf("[idle] Double-tap detection enabled\r\n");
+                g_tap_poll_running = true;
+                g_idle_tap_triggered = false;
+                xTaskCreate(tap_poll_task, "tap_poll", 512, nullptr, 2, &tap_task_handle);
+            }
+        }
+    }
+
+    // Setup state for ISR
+    g_idle_mic_triggered = false;
+    g_idle_task_handle = xTaskGetCurrentTaskHandle();
+
+    // Register GPIO interrupt on MIC_CLK_FEEDBACK (rising edge = AAD triggered)
+    GpioConfigureInterrupt(
+        Gpio::kMicClkFeedback,
+        GpioInterruptMode::kIntModeRising,
+        idle_mic_isr_callback);
+
+    printf("[idle] Waiting for sound%s...\r\n", enable_tap ? " or double-tap" : "");
+
+    // Wait for notification (from ISR or tap poll task) or timeout
+    TickType_t wait_ticks = (timeout_ms > 0) ? pdMS_TO_TICKS(timeout_ms) : portMAX_DELAY;
+    uint32_t notified = ulTaskNotifyTake(pdTRUE, wait_ticks);
+
+    // Stop tap polling task
+    g_tap_poll_running = false;
+    if (tap_task_handle) {
+        vTaskDelay(pdMS_TO_TICKS(30));  // Let it exit
+    }
+
+    // Cleanup
+    g_idle_task_handle = nullptr;
+
+    // Determine wakeup cause
+    int result;
+    if (g_idle_mic_triggered) {
+        printf("[idle] Woke up: MIC sound detected!\r\n");
+        result = 1;
+    } else if (g_idle_tap_triggered) {
+        printf("[idle] Woke up: Double-tap detected!\r\n");
+        result = 2;
+    } else if (notified == 0) {
+        printf("[idle] Woke up: timeout\r\n");
+        result = 0;
+    } else {
+        printf("[idle] Woke up: unknown cause\r\n");
+        result = 0;
+    }
+
+    // Disable AAD mode to allow normal mic use
+    mic_aad.AadModeDisable();
+    mic_aad.RestorePdmClk();
+
+    return result;
 }
 
 }  // extern "C"

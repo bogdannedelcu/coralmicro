@@ -16,6 +16,7 @@
 #include <cstdio>
 #include <cstring>
 #include <vector>
+#include <unistd.h>
 #include "build_version.h"
 
 extern "C" {
@@ -23,6 +24,7 @@ extern "C" {
 }
 #undef FAR  // jpeglib defines FAR as empty, conflicts with NXP SDK struct field
 
+#include "libs/base/console_m7.h"
 #include "libs/base/filesystem.h"
 #include "libs/base/gpio.h"
 #include "libs/base/led.h"
@@ -56,6 +58,161 @@ extern "C" {
 //    python3 scripts/flashtool.py -e detect_image
 
 // [start-sphinx-snippet:detect-image]
+
+// =============================================================================
+// Boot Logging System
+// =============================================================================
+// Captures ALL printf/driver output to /log/boot.log until REPL starts.
+// On boot: /log/boot.log → /log/boot_old.log, then fresh boot.log created.
+// Uses a RAM buffer that's flushed periodically and at REPL start.
+
+namespace {
+
+// Boot log state
+static constexpr size_t kBootLogBufSize = 16 * 1024;  // 16 KB buffer
+static char g_boot_log_buf[kBootLogBufSize] __attribute__((section(".sdram_bss")));
+static volatile size_t g_boot_log_pos = 0;
+static volatile bool g_boot_log_active = false;
+static volatile bool g_boot_log_fs_ready = false;
+static lfs_file_t g_boot_log_file;
+static bool g_boot_log_file_open = false;
+
+// Forward declare - flush buffer to file
+static void boot_log_flush_to_file();
+
+// Initialize boot logging - rename old log, create new one
+static void boot_log_init() {
+    g_boot_log_pos = 0;
+    g_boot_log_active = true;
+    g_boot_log_fs_ready = false;
+    g_boot_log_file_open = false;
+}
+
+// Called after LFS is ready to set up file
+static void boot_log_fs_init() {
+    if (!g_boot_log_active) return;
+    
+    lfs_t* lfs = coralmicro::LfsUser();
+    if (!lfs) return;
+
+    // Create /log directory if it doesn't exist
+    lfs_mkdir(lfs, "/log");
+
+    // Check if boot.log exists
+    lfs_info info;
+    if (lfs_stat(lfs, "/log/boot.log", &info) == LFS_ERR_OK) {
+        // Remove old boot_old.log if exists
+        lfs_remove(lfs, "/log/boot_old.log");
+        // Rename boot.log to boot_old.log
+        lfs_rename(lfs, "/log/boot.log", "/log/boot_old.log");
+    }
+
+    // Open new boot.log for writing
+    if (lfs_file_open(lfs, &g_boot_log_file, "/log/boot.log",
+                      LFS_O_WRONLY | LFS_O_CREAT | LFS_O_TRUNC) == LFS_ERR_OK) {
+        g_boot_log_file_open = true;
+        g_boot_log_fs_ready = true;
+        
+        // Flush any buffered data
+        boot_log_flush_to_file();
+    }
+}
+
+// Flush RAM buffer to file
+static void boot_log_flush_to_file() {
+    if (!g_boot_log_file_open || g_boot_log_pos == 0) return;
+    
+    lfs_t* lfs = coralmicro::LfsUser();
+    if (!lfs) return;
+
+    lfs_file_write(lfs, &g_boot_log_file, g_boot_log_buf, g_boot_log_pos);
+    lfs_file_sync(lfs, &g_boot_log_file);
+    g_boot_log_pos = 0;
+}
+
+// Add data to boot log (from _write override)
+static void boot_log_write(const char* data, size_t len) {
+    if (!g_boot_log_active) return;
+
+    // Add to RAM buffer
+    size_t space = kBootLogBufSize - g_boot_log_pos;
+    size_t to_copy = (len < space) ? len : space;
+    if (to_copy > 0) {
+        memcpy(g_boot_log_buf + g_boot_log_pos, data, to_copy);
+        g_boot_log_pos += to_copy;
+    }
+
+    // If buffer is getting full and FS ready, flush
+    if (g_boot_log_fs_ready && g_boot_log_pos > kBootLogBufSize - 512) {
+        boot_log_flush_to_file();
+    }
+}
+
+// Stop boot logging (called when REPL starts)
+void boot_log_stop() {
+    if (!g_boot_log_active) return;
+    
+    g_boot_log_active = false;
+
+    // Final flush
+    if (g_boot_log_file_open) {
+        boot_log_flush_to_file();
+        lfs_t* lfs = coralmicro::LfsUser();
+        if (lfs) {
+            lfs_file_close(lfs, &g_boot_log_file);
+        }
+        g_boot_log_file_open = false;
+    }
+}
+
+}  // anonymous namespace
+
+// Override _write to capture all printf output
+// This replaces the version in libs/base/console_m7.cc
+extern "C" int _write(int handle, char* buffer, int size) {
+    if ((handle != STDOUT_FILENO) && (handle != STDERR_FILENO)) {
+        return -1;
+    }
+
+    // Convert bare \n to \r\n for USB/UART terminals.
+    char stack_buf[512];
+    char* out = buffer;
+    int out_len = size;
+
+    bool needs_patch = false;
+    for (int i = 0; i < size; ++i) {
+        if (buffer[i] == '\n' && (i == 0 || buffer[i - 1] != '\r')) {
+            needs_patch = true;
+            break;
+        }
+    }
+    if (needs_patch) {
+        int j = 0;
+        int cap = (int)sizeof(stack_buf);
+        for (int i = 0; i < size && j < cap - 1; ++i) {
+            if (buffer[i] == '\n' && (i == 0 || buffer[i - 1] != '\r')) {
+                stack_buf[j++] = '\r';
+            }
+            if (j < cap) stack_buf[j++] = buffer[i];
+        }
+        out = stack_buf;
+        out_len = j;
+    }
+
+    // Write to console
+    coralmicro::ConsoleM7::GetSingleton()->Write(out, out_len);
+
+    // Also capture to boot log if active
+    boot_log_write(out, out_len);
+
+    return size;
+}
+
+// Export for micropython_task.c to call when REPL starts
+extern "C" void sentai_boot_log_stop(void) {
+    boot_log_stop();
+}
+
 namespace coralmicro {
 namespace {
 
@@ -106,9 +263,17 @@ void Main() {
 
 extern "C" void app_main(void* param) {
   (void)param;
+  
+  // Initialize boot logging FIRST (before any printf)
+  boot_log_init();
+  
   coralmicro::app_start_tick = xTaskGetTickCount();
   coralmicro::logf("\r\nSentAI build #%d (%s)\r\n", BUILD_VERSION, BUILD_TIMESTAMP);
-  // vTaskDelay(pdMS_TO_TICKS(1000));  // Wait for console to be ready
+  
+  // Initialize LFS and boot log file
+  // LFS should be initialized by main_freertos before app_main
+  boot_log_fs_init();
+  coralmicro::logf("Boot logging to /log/boot.log\r\n");
 
   // User button task: waits for notification from ISR, then safely
   // calls sentai_usb_drive_set(0) from task context (not ISR).
