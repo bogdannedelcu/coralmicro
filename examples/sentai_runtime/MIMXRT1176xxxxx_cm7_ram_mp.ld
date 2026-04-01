@@ -208,6 +208,59 @@ SECTIONS
      . = ALIGN(4);
   } > m_ocram
 
+  .audio :
+  {
+     . = ALIGN(4);
+     __audio_start = .;
+     *liblibs_audio_freertos.a:*(.text .text*)
+     *liblibs_audio_freertos.a:*(.data .data*)
+     *liblibs_audio_freertos.a:*(.rodata .rodata*)
+     __audio_end = .;
+     . = ALIGN(4);
+  } > m_ocram
+
+  .shine :
+  {
+     . = ALIGN(4);
+     __shine_start = .;
+     *libshine.a:*(.text .text*)
+     *libshine.a:*(.data .data*)
+     *libshine.a:*(.rodata .rodata*)
+     __shine_end = .;
+     . = ALIGN(4);
+  } > m_ocram
+
+  .sentai_slow :
+  {
+     . = ALIGN(4);
+     __sentai_slow_start = .;
+     *sentai_link.cc.obj(.text .text*)
+     *sentai_link.cc.obj(.data .data*)
+     *sentai_link.cc.obj(.rodata .rodata*)
+     *sentai_mesh.cc.obj(.text .text*)
+     *sentai_mesh.cc.obj(.data .data*)
+     *sentai_mesh.cc.obj(.rodata .rodata*)
+     *libmeshtastic_pb.a:*(.text .text*)
+     *libmeshtastic_pb.a:*(.data .data*)
+     *libmeshtastic_pb.a:*(.rodata .rodata*)
+     *libnanopb.a:*(.text .text*)
+     *libnanopb.a:*(.data .data*)
+     *libnanopb.a:*(.rodata .rodata*)
+     __sentai_slow_end = .;
+     . = ALIGN(4);
+  } > m_ocram
+
+  .camera :
+  {
+     . = ALIGN(4);
+     __camera_start = .;
+     *liblibs_camera_freertos.a:*(.text .text*)
+     *liblibs_camera_freertos.a:*(.data .data*)
+     *liblibs_camera_freertos.a:*(.rodata .rodata*)
+     __camera_end = .;
+     . = ALIGN(4);
+  } > m_ocram
+
   .edgefast_bluetooth_text :
   {
     . = ALIGN(4);
@@ -440,6 +493,8 @@ SECTIONS
     *(.sdram_bss*)
     /* micropython_bss */
     *liblibmicropython.a:*(.bss .bss*)
+    /* audio_bss — AudioDriver/Service internals are not DMA-critical */
+    *liblibs_audio_freertos.a:*(.bss .bss*)
     /* edgefast_bluetooth_bss */
     *lib_crypto_m7.a:*(.bss .bss*)
     *libedgefast_bluetooth_internal.a:*(.bss .bss*)

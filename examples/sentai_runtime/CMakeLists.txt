@@ -79,6 +79,26 @@ target_compile_options(nanopb PRIVATE -w
     -fno-common -ffunction-sections -fdata-sections -ffreestanding -fno-builtin
 )
 
+# Shine fixed-point MP3 encoder (for sentai.mic.save_l3)
+add_library(shine STATIC
+    ${PROJECT_SOURCE_DIR}/third_party/shine/src/lib/bitstream.c
+    ${PROJECT_SOURCE_DIR}/third_party/shine/src/lib/huffman.c
+    ${PROJECT_SOURCE_DIR}/third_party/shine/src/lib/l3bitstream.c
+    ${PROJECT_SOURCE_DIR}/third_party/shine/src/lib/l3loop.c
+    ${PROJECT_SOURCE_DIR}/third_party/shine/src/lib/l3mdct.c
+    ${PROJECT_SOURCE_DIR}/third_party/shine/src/lib/l3subband.c
+    ${PROJECT_SOURCE_DIR}/third_party/shine/src/lib/layer3.c
+    ${PROJECT_SOURCE_DIR}/third_party/shine/src/lib/reservoir.c
+    ${PROJECT_SOURCE_DIR}/third_party/shine/src/lib/tables.c
+)
+target_include_directories(shine PUBLIC
+    ${PROJECT_SOURCE_DIR}/third_party/shine/src/lib
+)
+target_compile_options(shine PRIVATE -w
+    -mcpu=cortex-m7 -mfloat-abi=hard -mfpu=fpv5-d16 -mthumb
+    -fno-common -ffunction-sections -fdata-sections -ffreestanding -fno-builtin
+)
+
 # Generated nanopb protobuf sources (meshtastic + visionmesh)
 add_library(meshtastic_pb STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/generated/meshtastic/mesh.pb.c
@@ -116,6 +136,8 @@ target_link_libraries(sentai_runtime
     libs_base-m7_freertos
     libs_jpeg_m7
     libs_lis2du12_freertos
+    libs_audio_freertos
+    shine
     libmicropython
     nanopb
     meshtastic_pb

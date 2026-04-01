@@ -55,6 +55,13 @@ sentai
 ├── imu                     # LIS2DU12 accelerometer
 │   ├── init()
 │   └── read()
+├── mic                     # PDM microphone recording (ring buffer)
+│   ├── start(seconds=10)
+│   ├── stop()
+│   ├── busy()
+│   ├── samples()
+│   ├── level()
+│   └── save_l3()
 └── usb                    # USB mass storage
     └── drive(on)
 ```
@@ -552,6 +559,108 @@ while True:
             sentai.rtos.sleep_ms(200)
             sentai.io.led_off()
     prev = cur
+```
+
+---
+
+## sentai.mic — PDM Microphone Recording
+
+On-board PDM microphone. Records 16-bit mono PCM at 16 kHz using DMA.
+A background FreeRTOS task records continuously into a **ring buffer** that
+keeps the last N seconds of audio (max 10 seconds = 160 000 samples = 320 KB).
+Recording never stops automatically — it wraps around, always retaining the
+most recent audio. Call `save_l3()` at any time to grab what's in the ring.
+
+All buffers are statically allocated in SDRAM (no heap usage for audio data).
+
+### `sentai.mic.start(seconds=10)` → int
+Start continuous ring-buffer recording. Duration sets ring size (1–10 seconds, default 10).
+Recording wraps around — always keeps the last N seconds.
+Returns: `0` = OK, `-2` = already recording, `-3` = audio driver error.
+
+```python
+>>> sentai.mic.start()     # 10-second ring (default)
+0
+>>> sentai.mic.start(5)    # 5-second ring
+0
+```
+
+### `sentai.mic.stop()` → int
+Stop mic and power off. Returns number of samples available in ring.
+
+```python
+>>> sentai.mic.stop()
+80000
+```
+
+### `sentai.mic.busy()` → bool
+Check if mic is running (recording into ring).
+
+```python
+>>> sentai.mic.busy()
+True
+```
+
+### `sentai.mic.samples()` → int
+Number of samples available in ring buffer.
+If ring has wrapped, returns full ring size. Otherwise returns samples recorded so far.
+
+```python
+>>> sentai.mic.samples()
+160000
+```
+
+### `sentai.mic.level()` → int
+Current RMS level in centi-dB (e.g. 4500 = 45.00 dB).
+Updated every 50 ms DMA block. Useful for voice activity detection.
+**Auto-starts mic in monitor mode** if not already running — no need to call `start()` first.
+
+```python
+>>> sentai.mic.level()    # auto-starts mic
+4500
+>>> sentai.mic.level()
+3200
+```
+
+### `sentai.mic.save_l3()` → str or None
+Save ring buffer contents as an MP3 file on flash using the **shine** fixed-point
+MPEG Layer III encoder (64 kbps, mono). Files auto-increment: `rec000.mp3`, `rec001.mp3`, ...
+
+**Can be called while recording** — pauses briefly during encoding, then resumes
+with a fresh ring. No need to call `stop()` first.
+
+Returns the filename string, or `None` on error.
+
+```python
+>>> sentai.mic.save_l3()
+'/audio/rec000.mp3'
+>>> sentai.mic.save_l3()    # save again (ring has new audio)
+'/audio/rec001.mp3'
+```
+
+### Example: Continuous monitoring with periodic saves
+
+```python
+sentai.mic.start()                 # 10-second ring
+for i in range(5):
+    sentai.rtos.sleep_ms(10000)    # wait 10 seconds
+    f = sentai.mic.save_l3()       # save last 10s as MP3
+    print('saved:', f)             # recording continues!
+sentai.mic.stop()
+```
+
+### Example: Voice-activated save
+
+```python
+# level() auto-starts mic in monitor mode
+while True:
+    lev = sentai.mic.level()
+    if lev > 4000:                     # voice detected (40 dB)
+        sentai.mic.start(5)            # start 5s ring recording
+        sentai.rtos.sleep_ms(5000)     # record for 5 seconds
+        f = sentai.mic.save_l3()       # save as MP3
+        print('saved:', f)
+    sentai.rtos.sleep_ms(100)
 ```
 
 ---

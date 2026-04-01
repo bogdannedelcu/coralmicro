@@ -92,6 +92,15 @@ extern int sentai_uart_serial_available(void);
 // IMU (LIS2DU12 accelerometer) - implemented in modsentai_hal.cc
 extern int sentai_imu_init(void);
 extern int sentai_imu_read_accel(float* x_mg, float* y_mg, float* z_mg, float* temp_c);
+
+// Microphone (PDM → MP3 ring buffer) - implemented in modsentai_hal.cc
+extern int sentai_mic_start(int max_seconds);
+extern int sentai_mic_stop(void);
+extern int sentai_mic_busy(void);
+extern int sentai_mic_samples(void);
+extern int sentai_mic_save_l3(char* out_name, int name_size);
+extern int sentai_mic_level(void);
+
 extern void sentai_uart_set_baudrate(uint32_t baudrate);
 extern void sentai_uart_restore_baudrate(void);
 
@@ -966,7 +975,7 @@ static mp_obj_t mod_sentai_help(size_t n_args, const mp_obj_t *args) {
             help_print(start, end - start);
         } else {
             mp_print_str(MP_PYTHON_PRINTER,
-                "Unknown topic. Available: io, rtos, tpu, fs, camera, imu, usb, uart, console, mesh, link, serial, all\r\n");
+                "Unknown topic. Available: io, rtos, tpu, fs, camera, imu, mic, usb, uart, console, mesh, link, serial, all\r\n");
         }
     }
 
@@ -995,6 +1004,21 @@ static mp_obj_t mod_sentai_console(size_t n_args, const mp_obj_t *args) {
     return mp_obj_new_str(t == 0 ? "usb" : "uart", t == 0 ? 3 : 4);
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_console_obj, 0, 1, mod_sentai_console);
+
+// ===================== Global debug =====================
+
+// sentai.debug(level) -> None
+// Sets debug verbosity globally: 0=off (default), 1=verbose.
+// Controls: audio subsystem, link/MAVLink logging.
+extern int g_audio_debug;
+extern void sentai_link_set_debug(int level);
+static mp_obj_t mod_sentai_debug(mp_obj_t level_obj) {
+    int level = mp_obj_get_int(level_obj);
+    g_audio_debug = level;
+    sentai_link_set_debug(level);
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_debug_obj, mod_sentai_debug);
 
 // ===================== UART Serial functions =====================
 
@@ -1290,6 +1314,48 @@ static mp_obj_t mod_sentai_imu_read(void) {
     return MP_OBJ_FROM_PTR(d);
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_imu_read_obj, mod_sentai_imu_read);
+
+// ===================== Microphone functions =====================
+
+// sentai.mic.start(seconds=5) -> int
+static mp_obj_t mod_sentai_mic_start(size_t n_args, const mp_obj_t *args) {
+    int seconds = (n_args > 0) ? mp_obj_get_int(args[0]) : 5;
+    return mp_obj_new_int(sentai_mic_start(seconds));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_mic_start_obj, 0, 1, mod_sentai_mic_start);
+
+// sentai.mic.stop() -> int
+static mp_obj_t mod_sentai_mic_stop(void) {
+    return mp_obj_new_int(sentai_mic_stop());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_mic_stop_obj, mod_sentai_mic_stop);
+
+// sentai.mic.busy() -> bool
+static mp_obj_t mod_sentai_mic_busy(void) {
+    return mp_obj_new_bool(sentai_mic_busy() == 1);
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_mic_busy_obj, mod_sentai_mic_busy);
+
+// sentai.mic.samples() -> int
+static mp_obj_t mod_sentai_mic_samples(void) {
+    return mp_obj_new_int(sentai_mic_samples());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_mic_samples_obj, mod_sentai_mic_samples);
+
+// sentai.mic.save_l3() -> str or None (MP3 encoding)
+static mp_obj_t mod_sentai_mic_save_l3(void) {
+    char name[48];
+    int ret = sentai_mic_save_l3(name, sizeof(name));
+    if (ret < 0) return mp_const_none;
+    return mp_obj_new_str(name, strlen(name));
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_mic_save_l3_obj, mod_sentai_mic_save_l3);
+
+// sentai.mic.level() -> int
+static mp_obj_t mod_sentai_mic_level(void) {
+    return mp_obj_new_int(sentai_mic_level());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_mic_level_obj, mod_sentai_mic_level);
 
 // ===================== MAVLink link functions =====================
 
@@ -1649,6 +1715,22 @@ static const mp_obj_module_t sentai_imu_module = {
     .globals = (mp_obj_dict_t *)&sentai_imu_globals,
 };
 
+// ============== sentai.mic — Microphone recording ==============
+static const mp_rom_map_elem_t sentai_mic_globals_table[] = {
+    { MP_ROM_QSTR(MP_QSTR___name__),   MP_ROM_QSTR(MP_QSTR_mic) },
+    { MP_ROM_QSTR(MP_QSTR_start),      MP_ROM_PTR(&mod_sentai_mic_start_obj) },
+    { MP_ROM_QSTR(MP_QSTR_stop),       MP_ROM_PTR(&mod_sentai_mic_stop_obj) },
+    { MP_ROM_QSTR(MP_QSTR_busy),       MP_ROM_PTR(&mod_sentai_mic_busy_obj) },
+    { MP_ROM_QSTR(MP_QSTR_samples),    MP_ROM_PTR(&mod_sentai_mic_samples_obj) },
+    { MP_ROM_QSTR(MP_QSTR_save_l3),    MP_ROM_PTR(&mod_sentai_mic_save_l3_obj) },
+    { MP_ROM_QSTR(MP_QSTR_level),      MP_ROM_PTR(&mod_sentai_mic_level_obj) },
+};
+static MP_DEFINE_CONST_DICT(sentai_mic_globals, sentai_mic_globals_table);
+static const mp_obj_module_t sentai_mic_module = {
+    .base = { &mp_type_module },
+    .globals = (mp_obj_dict_t *)&sentai_mic_globals,
+};
+
 // =====================================================================
 // Top-level module: import sentai
 // =====================================================================
@@ -1666,6 +1748,7 @@ static const mp_rom_map_elem_t sentai_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_sentai) },
     // Help, console control & script execution
     { MP_ROM_QSTR(MP_QSTR_help),      MP_ROM_PTR(&mod_sentai_help_obj) },
+    { MP_ROM_QSTR(MP_QSTR_debug),      MP_ROM_PTR(&mod_sentai_debug_obj) },
     { MP_ROM_QSTR(MP_QSTR_console),   MP_ROM_PTR(&mod_sentai_console_obj) },
     { MP_ROM_QSTR(MP_QSTR_run),       MP_ROM_PTR(&mod_sentai_run_obj) },
     // Sub-modules
@@ -1679,6 +1762,7 @@ static const mp_rom_map_elem_t sentai_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_mesh),      MP_ROM_PTR(&sentai_mesh_module) },
     { MP_ROM_QSTR(MP_QSTR_link),      MP_ROM_PTR(&sentai_link_module) },
     { MP_ROM_QSTR(MP_QSTR_imu),       MP_ROM_PTR(&sentai_imu_module) },
+    { MP_ROM_QSTR(MP_QSTR_mic),       MP_ROM_PTR(&sentai_mic_module) },
 };
 static MP_DEFINE_CONST_DICT(sentai_module_globals, sentai_module_globals_table);
 

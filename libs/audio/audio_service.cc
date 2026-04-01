@@ -21,6 +21,13 @@
 
 #include "libs/base/check.h"
 
+// Debug flag — set from sentai.debug(1) or similar.
+// 0 = silent (default), 1 = print audio diagnostics.
+extern "C" int g_audio_debug;
+int g_audio_debug = 0;
+
+#define ADBG(...) do { if (g_audio_debug) printf(__VA_ARGS__); } while(0)
+
 namespace coralmicro {
 namespace {
 enum class MessageType : uint8_t {
@@ -61,27 +68,28 @@ bool EraseCallbackById(std::vector<Cb>& callbacks, int id) {
 
 AudioReader::AudioReader(AudioDriver* driver, const AudioDriverConfig& config)
     : driver_(driver), dma_buffer_size_ms_(config.dma_buffer_size_ms) {
-  printf("[AudioReader] Creating: dma_buffer_ms=%d\r\n",
-         config.dma_buffer_size_ms);
+  ADBG("[AudioReader] Creating: dma_buffer_ms=%d\r\n",
+       config.dma_buffer_size_ms);
   const auto dma_buffer_size_samples = config.dma_buffer_size_samples();
   buffer_.resize(dma_buffer_size_samples);
-  printf("[AudioReader] Buffer size: %zu samples\r\n", dma_buffer_size_samples);
+  ADBG("[AudioReader] Buffer size: %lu samples\r\n",
+       static_cast<unsigned long>(dma_buffer_size_samples));
 
-  printf("[AudioReader] Creating ring buffer: size=%zu, trigger=%zu\r\n",
-         dma_buffer_size_samples * config.num_dma_buffers,
-         dma_buffer_size_samples);
+  ADBG("[AudioReader] Creating ring buffer: size=%lu, trigger=%lu\r\n",
+       static_cast<unsigned long>(dma_buffer_size_samples * config.num_dma_buffers),
+       static_cast<unsigned long>(dma_buffer_size_samples));
   ring_buffer_.Create(
       /*xBufferSize=*/dma_buffer_size_samples * config.num_dma_buffers,
       /*xTriggerLevel=*/dma_buffer_size_samples);
   CHECK(ring_buffer_.Ok());
 
-  printf("[AudioReader] Enabling audio driver\r\n");
+  ADBG("[AudioReader] Enabling audio driver\r\n");
   driver->Enable(config, this, Callback);
-  printf("[AudioReader] Created successfully\r\n");
+  ADBG("[AudioReader] Created successfully\r\n");
 }
 
 AudioReader::~AudioReader() {
-  printf("[AudioReader] Destroying, disabling driver\r\n");
+  ADBG("[AudioReader] Destroying, disabling driver\r\n");
   driver_->Disable();
 }
 
@@ -90,9 +98,10 @@ size_t AudioReader::FillBuffer() {
       buffer_.data(), buffer_.size(), pdMS_TO_TICKS(2 * dma_buffer_size_ms_));
   if (received_size != buffer_.size()) {
     ++underflow_count_;
-    printf("[AudioReader] FillBuffer underflow #%lu: got %zu/%zu\r\n",
-           static_cast<unsigned long>(underflow_count_), received_size,
-           buffer_.size());
+    ADBG("[AudioReader] FillBuffer underflow #%lu: got %lu/%lu\r\n",
+         static_cast<unsigned long>(underflow_count_),
+         static_cast<unsigned long>(received_size),
+         static_cast<unsigned long>(buffer_.size()));
   }
   return received_size;
 }
@@ -115,16 +124,16 @@ AudioService::AudioService(AudioDriver* driver, const AudioDriverConfig& config,
       drop_first_samples_(
           MsToSamples(config.sample_rate, drop_first_samples_ms)),
       queue_(xQueueCreate(5, sizeof(Message))) {
-  printf("[AudioService] Creating: priority=%d, drop_first_ms=%d\r\n",
-         task_priority, drop_first_samples_ms);
+  ADBG("[AudioService] Creating: priority=%d, drop_first_ms=%d\r\n",
+       task_priority, drop_first_samples_ms);
   CHECK(queue_);
   CHECK(xTaskCreate(StaticRun, "audio_service", configMINIMAL_STACK_SIZE * 30,
                     this, task_priority, &task_) == pdPASS);
-  printf("[AudioService] Task created successfully\r\n");
+  ADBG("[AudioService] Task created successfully\r\n");
 }
 
 AudioService::~AudioService() {
-  printf("[AudioService] Destroying, sending stop message\r\n");
+  ADBG("[AudioService] Destroying, sending stop message\r\n");
   Message msg{};
   msg.type = MessageType::kStop;
   CHECK(xQueueSendToBack(queue_, &msg, portMAX_DELAY) == pdTRUE);
@@ -133,11 +142,11 @@ AudioService::~AudioService() {
   vTaskDelete(task_);
 
   vQueueDelete(queue_);
-  printf("[AudioService] Destroyed\r\n");
+  ADBG("[AudioService] Destroyed\r\n");
 }
 
 int AudioService::AddCallback(void* ctx, AudioService::Callback fn) {
-  printf("[AudioService] AddCallback: ctx=%p\r\n", ctx);
+  ADBG("[AudioService] AddCallback: ctx=%p\r\n", ctx);
   Message msg{};
   msg.type = MessageType::kAddCallback;
   msg.queue = xQueueCreate(1, sizeof(int));
@@ -149,12 +158,12 @@ int AudioService::AddCallback(void* ctx, AudioService::Callback fn) {
   int id;
   CHECK(xQueueReceive(msg.queue, &id, portMAX_DELAY) == pdTRUE);
   vQueueDelete(msg.queue);
-  printf("[AudioService] AddCallback: assigned id=%d\r\n", id);
+  ADBG("[AudioService] AddCallback: assigned id=%d\r\n", id);
   return id;
 }
 
 bool AudioService::RemoveCallback(int id) {
-  printf("[AudioService] RemoveCallback: id=%d\r\n", id);
+  ADBG("[AudioService] RemoveCallback: id=%d\r\n", id);
   Message msg{};
   msg.type = MessageType::kRemoveCallback;
   msg.queue = xQueueCreate(1, sizeof(int));
@@ -165,7 +174,7 @@ bool AudioService::RemoveCallback(int id) {
   int found;
   CHECK(xQueueReceive(msg.queue, &found, portMAX_DELAY) == pdTRUE);
   vQueueDelete(msg.queue);
-  printf("[AudioService] RemoveCallback: id=%d, found=%d\r\n", id, found);
+  ADBG("[AudioService] RemoveCallback: id=%d, found=%d\r\n", id, found);
   return found;
 }
 
@@ -175,7 +184,7 @@ void AudioService::StaticRun(void* param) {
 }
 
 void AudioService::Run() const {
-  printf("[AudioService] Run: task started\r\n");
+  ADBG("[AudioService] Run: task started\r\n");
   std::vector<Cb> callbacks;
   callbacks.reserve(3);
 
@@ -193,20 +202,20 @@ void AudioService::Run() const {
       switch (msg.type) {
         case MessageType::kAddCallback: {
           int id = id_counter++;
-          printf("[AudioService] Run: adding callback id=%d (total=%zu)\r\n",
-                 id, callbacks.size() + 1);
+          ADBG("[AudioService] Run: adding callback id=%d (total=%lu)\r\n",
+               id, static_cast<unsigned long>(callbacks.size() + 1));
           callbacks.push_back({id, msg.add.ctx, msg.add.fn});
           CHECK(xQueueSendToBack(msg.queue, &id, portMAX_DELAY) == pdTRUE);
         } break;
 
         case MessageType::kRemoveCallback: {
-          printf("[AudioService] Run: removing callback id=%d\r\n",
-                 msg.remove.id);
+          ADBG("[AudioService] Run: removing callback id=%d\r\n",
+               msg.remove.id);
           int found = EraseCallbackById(callbacks, msg.remove.id);
           CHECK(xQueueSendToBack(msg.queue, &found, portMAX_DELAY) == pdTRUE);
         } break;
         case MessageType::kStop:
-          printf("[AudioService] Run: stop received\r\n");
+          ADBG("[AudioService] Run: stop received\r\n");
           return;
       }
       continue;
@@ -214,18 +223,19 @@ void AudioService::Run() const {
 
     if (callbacks.empty()) {
       if (reader) {
-        printf("[AudioService] Run: no callbacks, destroying reader\r\n");
+        ADBG("[AudioService] Run: no callbacks, destroying reader\r\n");
         reader.reset();
       }
       continue;
     }
 
     if (!reader) {
-      printf("[AudioService] Run: creating AudioReader, "
-             "drop_first=%zu samples\r\n", drop_first_samples_);
+      ADBG("[AudioService] Run: creating AudioReader, "
+           "drop_first=%lu samples\r\n",
+           static_cast<unsigned long>(drop_first_samples_));
       reader = std::make_unique<AudioReader>(driver_, config_);
       reader->Drop(drop_first_samples_);
-      printf("[AudioService] Run: AudioReader ready\r\n");
+      ADBG("[AudioService] Run: AudioReader ready\r\n");
     }
 
     // Blocks until buffer is full or timeout.
@@ -237,12 +247,12 @@ void AudioService::Run() const {
         callbacks_to_remove.push_back(cb.id);
 
     for (int id : callbacks_to_remove) {
-      printf("[AudioService] Run: callback id=%d requested removal\r\n", id);
+      ADBG("[AudioService] Run: callback id=%d requested removal\r\n", id);
       EraseCallbackById(callbacks, id);
     }
 
     if (callbacks.empty()) {
-      printf("[AudioService] Run: all callbacks removed, destroying reader\r\n");
+      ADBG("[AudioService] Run: all callbacks removed, destroying reader\r\n");
       reader.reset();
     }
   }
@@ -250,12 +260,13 @@ void AudioService::Run() const {
 
 LatestSamples::LatestSamples(size_t num_samples)
     : mutex_(xSemaphoreCreateMutex()), samples_(num_samples) {
-  printf("[LatestSamples] Creating: num_samples=%zu\r\n", num_samples);
+  ADBG("[LatestSamples] Creating: num_samples=%lu\r\n",
+       static_cast<unsigned long>(num_samples));
   CHECK(mutex_);
 }
 
 LatestSamples::~LatestSamples() {
-  printf("[LatestSamples] Destroying\r\n");
+  ADBG("[LatestSamples] Destroying\r\n");
   vSemaphoreDelete(mutex_);
 }
 

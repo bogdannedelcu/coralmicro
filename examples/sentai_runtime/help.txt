@@ -15,6 +15,7 @@ Sub-modules:
   sentai.fs       Filesystem (LittleFS)
   sentai.camera   Camera capture
   sentai.imu      LIS2DU12 accelerometer
+  sentai.mic      PDM microphone recording
   sentai.usb      USB mass-storage & serial
   sentai.uart     UART serial I/O
   sentai.mesh     Meshtastic mesh radio bridge
@@ -101,6 +102,34 @@ sentai.imu - LIS2DU12 accelerometer
     if d:
         print('x:', d['x'], 'y:', d['y'], 'z:', d['z'])
         print('temp:', d['temp'], 'mC')
+
+[mic]
+sentai.mic - PDM microphone recording
+=======================================
+  On-board PDM microphone. Records 16-bit mono PCM at 16 kHz.
+  Background FreeRTOS task records into a ring buffer (last N seconds).
+  Max ring size: 10 seconds (160 000 samples, 320 KB).
+  Recording never stops — always keeps the last N seconds of audio.
+  Files saved to /audio/recNNN.mp3 with auto-incrementing counter.
+
+  start(seconds=10) Start ring recording (1-10s ring). Returns 0=ok.
+  stop()            Stop mic entirely. Returns number of samples in ring.
+  busy()            True if mic is running.
+  samples()         Number of samples available in ring.
+  level()           Current RMS level in centi-dB (e.g. 4500 = 45.00 dB).
+                    Auto-starts mic in monitor mode if not running.
+  save_l3()         Save ring buffer as MP3 (64 kbps, shine encoder).
+                    Can be called while recording — pauses briefly, resumes.
+                    Returns filename str or None.
+
+  Example:
+    sentai.mic.start()              # start ring recording (10s)
+    sentai.rtos.sleep_ms(5000)      # let it record for a while
+    f = sentai.mic.save_l3()        # save last 5s as MP3
+    print('saved:', f)              # recording continues!
+    sentai.rtos.sleep_ms(10000)     # record more
+    f = sentai.mic.save_l3()        # save last 10s as MP3
+    sentai.mic.stop()               # done
 
 [usb]
 sentai.usb - USB mass-storage & serial
