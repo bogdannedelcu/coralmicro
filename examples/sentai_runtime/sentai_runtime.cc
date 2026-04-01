@@ -244,15 +244,14 @@ static std::shared_ptr<coralmicro::EdgeTpuContext> g_tpu_context;
 void Main() {
   logf("SentAI MicroPython Runtime\r\n");
 
-  // Open EdgeTPU once at boot
+  // Open EdgeTPU on this task (not app_main) to avoid interfering with USB init
   coralmicro::PerformanceMode tpu_mode = coralmicro::PerformanceMode::kMax;
   g_tpu_context = EdgeTpuManager::GetSingleton()->OpenDevice(tpu_mode);
   if (!g_tpu_context) {
     logf("ERROR: Failed to get EdgeTpu context\r\n");
-    return;
+  } else {
+    logf("Edge TPU opened (mode %d)\r\n", static_cast<int>(tpu_mode));
   }
-  logf("Edge TPU device opened successfully in mode %d\r\n", static_cast<int>(tpu_mode));
-  logf("Use sentai.tpu.load('/models/xxx.tflite') from Python REPL\r\n");
 
   // Park this task forever - model loading happens from Python
   vTaskSuspend(NULL);
@@ -331,9 +330,20 @@ extern "C" int sentai_load_model(const char* path) {
     delete coralmicro::g_model_data;
     coralmicro::g_model_data = nullptr;
   }
+  // EdgeTPU init runs on Main() task — wait up to 15s for it
   if (!coralmicro::g_tpu_context) {
-    printf("ERROR: EdgeTPU not initialized\r\n");
-    return -1;
+    printf("Waiting for EdgeTPU init");
+    for (int i = 0; i < 150 && !coralmicro::g_tpu_context; i++) {
+      vTaskDelay(pdMS_TO_TICKS(100));
+      if (i % 10 == 9) printf(".");  // dot every second
+    }
+    printf("\r\n");
+    if (!coralmicro::g_tpu_context) {
+      printf("ERROR: EdgeTPU not initialized after 15s\r\n");
+      printf("  Check: is EdgeTPU connected? Try power-cycling the board.\r\n");
+      return -1;
+    }
+    printf("EdgeTPU ready!\r\n");
   }
 
   // Load model from user LFS
@@ -347,12 +357,18 @@ extern "C" int sentai_load_model(const char* path) {
   printf("Model loaded: %lu bytes\r\n",
          (unsigned long)coralmicro::g_model_data->size());
 
-  // Create resolver with EdgeTPU custom op
+  // Create resolver with EdgeTPU custom op + CPU ops for YOLO post-processing
   static tflite::MicroErrorReporter error_reporter;
-  static tflite::MicroMutableOpResolver<1> resolver;
+  static tflite::MicroMutableOpResolver<7> resolver;
   static bool resolver_init = false;
   if (!resolver_init) {
     resolver.AddCustom(coralmicro::kCustomOp, coralmicro::RegisterCustomOp());
+    resolver.AddTranspose();
+    resolver.AddReshape();
+    resolver.AddConcatenation();
+    resolver.AddLogistic();
+    resolver.AddQuantize();
+    resolver.AddDequantize();
     resolver_init = true;
   }
 

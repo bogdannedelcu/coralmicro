@@ -101,6 +101,13 @@ extern int sentai_mic_samples(void);
 extern int sentai_mic_save_l3(char* out_name, int name_size);
 extern int sentai_mic_level(void);
 
+// Deep sleep / low power - implemented in modsentai_hal.cc
+extern void sentai_sleep_timeout(int secs);
+extern void sentai_sleep_wakeup_mic(int threshold_db);
+extern void sentai_sleep_taptap(void);
+extern int sentai_sleep_start(void);
+extern void sentai_sleep_reset(void);
+
 extern void sentai_uart_set_baudrate(uint32_t baudrate);
 extern void sentai_uart_restore_baudrate(void);
 
@@ -1317,9 +1324,9 @@ static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_imu_read_obj, mod_sentai_imu_read);
 
 // ===================== Microphone functions =====================
 
-// sentai.mic.start(seconds=5) -> int
+// sentai.mic.start(seconds=10) -> int
 static mp_obj_t mod_sentai_mic_start(size_t n_args, const mp_obj_t *args) {
-    int seconds = (n_args > 0) ? mp_obj_get_int(args[0]) : 5;
+    int seconds = (n_args > 0) ? mp_obj_get_int(args[0]) : 10;
     return mp_obj_new_int(sentai_mic_start(seconds));
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_mic_start_obj, 0, 1, mod_sentai_mic_start);
@@ -1356,6 +1363,52 @@ static mp_obj_t mod_sentai_mic_level(void) {
     return mp_obj_new_int(sentai_mic_level());
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_mic_level_obj, mod_sentai_mic_level);
+
+// ===================== Deep Sleep functions =====================
+
+// sentai.sleep.timeout(secs) -> None
+// Set wakeup timeout in seconds (0 = disabled, only wake on other sources).
+static mp_obj_t mod_sentai_sleep_timeout(mp_obj_t secs_obj) {
+    sentai_sleep_timeout(mp_obj_get_int(secs_obj));
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_sleep_timeout_obj, mod_sentai_sleep_timeout);
+
+// sentai.sleep.wakeup(threshold_db) -> None
+// Enable AAD (Audio Activity Detection) wakeup from microphone.
+// threshold_db: 60, 65, 70, 75, 80, 85, 90, 95 dB (lower = more sensitive).
+static mp_obj_t mod_sentai_sleep_wakeup(mp_obj_t threshold_obj) {
+    sentai_sleep_wakeup_mic(mp_obj_get_int(threshold_obj));
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_sleep_wakeup_obj, mod_sentai_sleep_wakeup);
+
+// sentai.sleep.taptap() -> None
+// Enable double-tap wakeup from accelerometer.
+static mp_obj_t mod_sentai_sleep_taptap(void) {
+    sentai_sleep_taptap();
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_sleep_taptap_obj, mod_sentai_sleep_taptap);
+
+// sentai.sleep.start() -> None
+// Enter deep power-down mode. Wakes on configured sources or user button.
+static mp_obj_t mod_sentai_sleep_start(void) {
+    int ret = sentai_sleep_start();
+    if (ret < 0) {
+        mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("Failed to enter deep sleep"));
+    }
+    return mp_const_none;  // Never reached if successful.
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_sleep_start_obj, mod_sentai_sleep_start);
+
+// sentai.sleep.reset() -> None
+// Reset sleep configuration (disable all wakeup sources).
+static mp_obj_t mod_sentai_sleep_reset(void) {
+    sentai_sleep_reset();
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_sleep_reset_obj, mod_sentai_sleep_reset);
 
 // ===================== MAVLink link functions =====================
 
@@ -1731,6 +1784,21 @@ static const mp_obj_module_t sentai_mic_module = {
     .globals = (mp_obj_dict_t *)&sentai_mic_globals,
 };
 
+// ============== sentai.sleep — Deep sleep / low power ==============
+static const mp_rom_map_elem_t sentai_sleep_globals_table[] = {
+    { MP_ROM_QSTR(MP_QSTR___name__),   MP_ROM_QSTR(MP_QSTR_sleep) },
+    { MP_ROM_QSTR(MP_QSTR_start),      MP_ROM_PTR(&mod_sentai_sleep_start_obj) },
+    { MP_ROM_QSTR(MP_QSTR_wakeup),     MP_ROM_PTR(&mod_sentai_sleep_wakeup_obj) },
+    { MP_ROM_QSTR(MP_QSTR_taptap),     MP_ROM_PTR(&mod_sentai_sleep_taptap_obj) },
+    { MP_ROM_QSTR(MP_QSTR_timeout),    MP_ROM_PTR(&mod_sentai_sleep_timeout_obj) },
+    { MP_ROM_QSTR(MP_QSTR_reset),      MP_ROM_PTR(&mod_sentai_sleep_reset_obj) },
+};
+static MP_DEFINE_CONST_DICT(sentai_sleep_globals, sentai_sleep_globals_table);
+static const mp_obj_module_t sentai_sleep_module = {
+    .base = { &mp_type_module },
+    .globals = (mp_obj_dict_t *)&sentai_sleep_globals,
+};
+
 // =====================================================================
 // Top-level module: import sentai
 // =====================================================================
@@ -1763,6 +1831,7 @@ static const mp_rom_map_elem_t sentai_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_link),      MP_ROM_PTR(&sentai_link_module) },
     { MP_ROM_QSTR(MP_QSTR_imu),       MP_ROM_PTR(&sentai_imu_module) },
     { MP_ROM_QSTR(MP_QSTR_mic),       MP_ROM_PTR(&sentai_mic_module) },
+    { MP_ROM_QSTR(MP_QSTR_sleep),     MP_ROM_PTR(&sentai_sleep_module) },
 };
 static MP_DEFINE_CONST_DICT(sentai_module_globals, sentai_module_globals_table);
 

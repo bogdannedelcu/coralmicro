@@ -65,7 +65,7 @@ coralmicro::MscUms g_msc_ums;
 #define ENABLE_TEMP_SENSOR 0
 #endif
 #ifndef ENABLE_EDGETPU_DFU
-#define ENABLE_EDGETPU_DFU 0
+#define ENABLE_EDGETPU_DFU 1
 #endif
 
 #ifndef ENABLE_USB_UMS
