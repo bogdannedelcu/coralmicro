@@ -58,3 +58,6 @@
 [submodule "third_party/micropython"]
         path = third_party/micropython
         url = https://github.com/micropython/micropython.git
+[submodule "third_party/shine"]
+	path = third_party/shine
+	url = https://github.com/toots/shine.git
