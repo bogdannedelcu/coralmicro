@@ -391,12 +391,40 @@ extern "C" int sentai_load_model(const char* path) {
     return -4;
   }
 
+  // Helper to print type name
+  auto type_name = [](TfLiteType t) -> const char* {
+    switch (t) {
+      case kTfLiteFloat32: return "float32";
+      case kTfLiteInt32:   return "int32";
+      case kTfLiteUInt8:   return "uint8";
+      case kTfLiteInt8:    return "int8";
+      case kTfLiteInt16:   return "int16";
+      case kTfLiteFloat16: return "float16";
+      default:             return "unknown";
+    }
+  };
+
+  // Print input tensor info
   auto* input = coralmicro::g_interpreter->input_tensor(0);
-  printf("Input: %ld bytes, dims=[%ld",
-         (long)input->bytes, (long)input->dims->data[0]);
-  for (int i = 1; i < input->dims->size; i++)
-    printf(",%ld", (long)input->dims->data[i]);
-  printf("], type=%d\r\n", (int)input->type);
+  printf("Input:  %s[", type_name(input->type));
+  for (int i = 0; i < input->dims->size; i++)
+    printf("%s%ld", i ? "," : "", (long)input->dims->data[i]);
+  printf("] (%ld bytes)\r\n", (long)input->bytes);
+  printf("  quant: scale=%.8f  zero_point=%d\r\n",
+         (double)input->params.scale, (int)input->params.zero_point);
+
+  // Print output tensor info
+  int num_out = (int)coralmicro::g_interpreter->outputs().size();
+  printf("Outputs: %d\r\n", num_out);
+  for (int oi = 0; oi < num_out; oi++) {
+    auto* t = coralmicro::g_interpreter->output_tensor(oi);
+    printf("  [%d] %s[", oi, type_name(t->type));
+    for (int i = 0; i < t->dims->size; i++)
+      printf("%s%ld", i ? "," : "", (long)t->dims->data[i]);
+    printf("] (%ld bytes)\r\n", (long)t->bytes);
+    printf("      quant: scale=%.8f  zero_point=%d\r\n",
+           (double)t->params.scale, (int)t->params.zero_point);
+  }
 
   printf("Arena used: %lu / %d KB\r\n",
          (unsigned long)(coralmicro::g_interpreter->arena_used_bytes() / 1024),
@@ -496,6 +524,29 @@ extern "C" int sentai_load_image(const char* path) {
     }
   }
 
+  // If model expects int8 input, apply quantization offset.
+  // Image pixels are uint8 [0..255]. For int8 models:
+  //   q = clamp(pixel + zero_point, -128, 127)
+  // Common case: zero_point=-128 → q = pixel - 128
+  if (input->type == kTfLiteInt8) {
+    int zp = input->params.zero_point;
+    int8_t* dst = reinterpret_cast<int8_t*>(tensor_buf);
+    if (zp == -128) {
+      uint32_t* p32 = reinterpret_cast<uint32_t*>(dst);
+      int n32 = tensor_bytes / 4;
+      for (int i = 0; i < n32; i++) p32[i] ^= 0x80808080u;
+      for (int i = n32 * 4; i < tensor_bytes; i++)
+        dst[i] = (int8_t)((uint8_t)dst[i] ^ 0x80u);
+    } else {
+      for (int i = 0; i < tensor_bytes; i++) {
+        int v = (int)tensor_buf[i] + zp;
+        if (v < -128) v = -128;
+        if (v > 127) v = 127;
+        dst[i] = (int8_t)v;
+      }
+    }
+  }
+
   return 0;
 }
 
@@ -545,6 +596,441 @@ extern "C" int sentai_tpu_get_output_type(int idx) {
   if (!coralmicro::g_tpu_ready || !coralmicro::g_interpreter) return -1;
   if (idx < 0 || idx >= (int)coralmicro::g_interpreter->outputs().size()) return -1;
   return (int)coralmicro::g_interpreter->output_tensor(idx)->type;
+}
+
+// Get input tensor quantization: scale (float) and zero_point.
+// Returns 0 on success, -1 if not ready.
+extern "C" int sentai_tpu_input_quant(float* scale, int32_t* zero_point) {
+  if (!coralmicro::g_tpu_ready || !coralmicro::g_interpreter) return -1;
+  auto* input = coralmicro::g_interpreter->input_tensor(0);
+  if (!input) return -1;
+  *scale = input->params.scale;
+  *zero_point = input->params.zero_point;
+  return 0;
+}
+
+// Get output tensor quantization: scale (float) and zero_point.
+// Returns 0 on success, -1 if not ready/invalid idx.
+extern "C" int sentai_tpu_output_quant(int idx, float* scale, int32_t* zero_point) {
+  if (!coralmicro::g_tpu_ready || !coralmicro::g_interpreter) return -1;
+  if (idx < 0 || idx >= (int)coralmicro::g_interpreter->outputs().size()) return -1;
+  auto* t = coralmicro::g_interpreter->output_tensor(idx);
+  if (!t) return -1;
+  *scale = t->params.scale;
+  *zero_point = t->params.zero_point;
+  return 0;
+}
+
+// Get input tensor type (TfLiteType enum: 9=int8, 3=uint8, 1=float32)
+extern "C" int sentai_tpu_input_type(void) {
+  if (!coralmicro::g_tpu_ready || !coralmicro::g_interpreter) return -1;
+  auto* input = coralmicro::g_interpreter->input_tensor(0);
+  if (!input) return -1;
+  return (int)input->type;
+}
+
+// ---------------------------------------------------------------------------
+// YOLO NMS post-processing
+// Output tensor expected shape [1, C, N] where C = 4 + num_classes, N = candidates
+// bbox format: cx, cy, w, h (normalized 0-1 or pixel coords, auto-detected)
+// Returns 0 on success.  out_count receives number of detections written.
+// Each detection in out_buf: [x1, y1, x2, y2, conf_permil, class_id] (6 × int16)
+// Coordinates are in model input pixel space (0 .. input_w/h).
+// ---------------------------------------------------------------------------
+
+namespace {
+struct YoloCandidate {
+  float x1, y1, x2, y2;
+  float score;
+  int16_t class_id;
+};
+static constexpr int kMaxNmsCandidates = 512;
+static YoloCandidate g_nms_cand[kMaxNmsCandidates]
+    __attribute__((section(".sdram_bss")));
+static bool g_nms_sup[kMaxNmsCandidates];
+
+// ---------------------------------------------------------------------------
+// Draw buffer — stores last to_tensor RGB frame (before int8 quant)
+// Max 640×640×3 = 1.2 MB in SDRAM
+// ---------------------------------------------------------------------------
+static constexpr int kMaxDrawPixels = 640 * 640 * 3;
+static uint8_t g_draw_rgb[kMaxDrawPixels]
+    __attribute__((section(".sdram_bss")));
+static int g_draw_w = 0, g_draw_h = 0;
+
+// COCO 80 class names
+static const char* const kCocoNames[80] = {
+  "person","bicycle","car","motorcycle","airplane","bus","train","truck","boat",
+  "traffic light","fire hydrant","stop sign","parking meter","bench","bird","cat",
+  "dog","horse","sheep","cow","elephant","bear","zebra","giraffe","backpack",
+  "umbrella","handbag","tie","suitcase","frisbee","skis","snowboard","sports ball",
+  "kite","baseball bat","baseball glove","skateboard","surfboard","tennis racket",
+  "bottle","wine glass","cup","fork","knife","spoon","bowl","banana","apple",
+  "sandwich","orange","broccoli","carrot","hot dog","pizza","donut","cake","chair",
+  "couch","potted plant","bed","dining table","toilet","tv","laptop","mouse",
+  "remote","keyboard","cell phone","microwave","oven","toaster","sink",
+  "refrigerator","book","clock","vase","scissors","teddy bear","hair drier",
+  "toothbrush"
+};
+
+// 10 distinct box colors (R, G, B)
+static const uint8_t kBoxColors[10][3] = {
+  {255,  56,  56}, { 56, 255,  56}, { 56,  56, 255},
+  {255, 255,  56}, {255,  56, 255}, { 56, 255, 255},
+  {255, 128,   0}, {  0, 128, 255}, {255,   0, 128},
+  {128, 255,   0}
+};
+
+// 5×7 bitmap font — printable ASCII 32..126 (95 glyphs)
+// Each glyph = 5 bytes (columns). Each byte: bit0 = top row, bit6 = bottom.
+static const uint8_t kFont5x7[95][5] = {
+  {0x00,0x00,0x00,0x00,0x00}, // 32 ' '
+  {0x00,0x00,0x5F,0x00,0x00}, // 33 !
+  {0x00,0x07,0x00,0x07,0x00}, // 34 "
+  {0x14,0x7F,0x14,0x7F,0x14}, // 35 #
+  {0x24,0x2A,0x7F,0x2A,0x12}, // 36 $
+  {0x23,0x13,0x08,0x64,0x62}, // 37 %
+  {0x36,0x49,0x55,0x22,0x50}, // 38 &
+  {0x00,0x05,0x03,0x00,0x00}, // 39 '
+  {0x00,0x1C,0x22,0x41,0x00}, // 40 (
+  {0x00,0x41,0x22,0x1C,0x00}, // 41 )
+  {0x08,0x2A,0x1C,0x2A,0x08}, // 42 *
+  {0x08,0x08,0x3E,0x08,0x08}, // 43 +
+  {0x00,0x50,0x30,0x00,0x00}, // 44 ,
+  {0x08,0x08,0x08,0x08,0x08}, // 45 -
+  {0x00,0x60,0x60,0x00,0x00}, // 46 .
+  {0x20,0x10,0x08,0x04,0x02}, // 47 /
+  {0x3E,0x51,0x49,0x45,0x3E}, // 48 0
+  {0x00,0x42,0x7F,0x40,0x00}, // 49 1
+  {0x42,0x61,0x51,0x49,0x46}, // 50 2
+  {0x21,0x41,0x45,0x4B,0x31}, // 51 3
+  {0x18,0x14,0x12,0x7F,0x10}, // 52 4
+  {0x27,0x45,0x45,0x45,0x39}, // 53 5
+  {0x3C,0x4A,0x49,0x49,0x30}, // 54 6
+  {0x01,0x71,0x09,0x05,0x03}, // 55 7
+  {0x36,0x49,0x49,0x49,0x36}, // 56 8
+  {0x06,0x49,0x49,0x29,0x1E}, // 57 9
+  {0x00,0x36,0x36,0x00,0x00}, // 58 :
+  {0x00,0x56,0x36,0x00,0x00}, // 59 ;
+  {0x00,0x08,0x14,0x22,0x41}, // 60 <
+  {0x14,0x14,0x14,0x14,0x14}, // 61 =
+  {0x41,0x22,0x14,0x08,0x00}, // 62 >
+  {0x02,0x01,0x51,0x09,0x06}, // 63 ?
+  {0x32,0x49,0x79,0x41,0x3E}, // 64 @
+  {0x7E,0x11,0x11,0x11,0x7E}, // 65 A
+  {0x7F,0x49,0x49,0x49,0x36}, // 66 B
+  {0x3E,0x41,0x41,0x41,0x22}, // 67 C
+  {0x7F,0x41,0x41,0x22,0x1C}, // 68 D
+  {0x7F,0x49,0x49,0x49,0x41}, // 69 E
+  {0x7F,0x09,0x09,0x01,0x01}, // 70 F
+  {0x3E,0x41,0x41,0x51,0x32}, // 71 G
+  {0x7F,0x08,0x08,0x08,0x7F}, // 72 H
+  {0x00,0x41,0x7F,0x41,0x00}, // 73 I
+  {0x20,0x40,0x41,0x3F,0x01}, // 74 J
+  {0x7F,0x08,0x14,0x22,0x41}, // 75 K
+  {0x7F,0x40,0x40,0x40,0x40}, // 76 L
+  {0x7F,0x02,0x04,0x02,0x7F}, // 77 M
+  {0x7F,0x04,0x08,0x10,0x7F}, // 78 N
+  {0x3E,0x41,0x41,0x41,0x3E}, // 79 O
+  {0x7F,0x09,0x09,0x09,0x06}, // 80 P
+  {0x3E,0x41,0x51,0x21,0x5E}, // 81 Q
+  {0x7F,0x09,0x19,0x29,0x46}, // 82 R
+  {0x46,0x49,0x49,0x49,0x31}, // 83 S
+  {0x01,0x01,0x7F,0x01,0x01}, // 84 T
+  {0x3F,0x40,0x40,0x40,0x3F}, // 85 U
+  {0x1F,0x20,0x40,0x20,0x1F}, // 86 V
+  {0x7F,0x20,0x18,0x20,0x7F}, // 87 W
+  {0x63,0x14,0x08,0x14,0x63}, // 88 X
+  {0x03,0x04,0x78,0x04,0x03}, // 89 Y
+  {0x61,0x51,0x49,0x45,0x43}, // 90 Z
+  {0x00,0x00,0x7F,0x41,0x41}, // 91 [
+  {0x02,0x04,0x08,0x10,0x20}, // 92 backslash
+  {0x41,0x41,0x7F,0x00,0x00}, // 93 ]
+  {0x04,0x02,0x01,0x02,0x04}, // 94 ^
+  {0x40,0x40,0x40,0x40,0x40}, // 95 _
+  {0x00,0x01,0x02,0x04,0x00}, // 96 `
+  {0x20,0x54,0x54,0x54,0x78}, // 97 a
+  {0x7F,0x48,0x44,0x44,0x38}, // 98 b
+  {0x38,0x44,0x44,0x44,0x20}, // 99 c
+  {0x38,0x44,0x44,0x48,0x7F}, //100 d
+  {0x38,0x54,0x54,0x54,0x18}, //101 e
+  {0x08,0x7E,0x09,0x01,0x02}, //102 f
+  {0x08,0x14,0x54,0x54,0x3C}, //103 g
+  {0x7F,0x08,0x04,0x04,0x78}, //104 h
+  {0x00,0x44,0x7D,0x40,0x00}, //105 i
+  {0x20,0x40,0x44,0x3D,0x00}, //106 j
+  {0x00,0x7F,0x10,0x28,0x44}, //107 k
+  {0x00,0x41,0x7F,0x40,0x00}, //108 l
+  {0x7C,0x04,0x18,0x04,0x78}, //109 m
+  {0x7C,0x08,0x04,0x04,0x78}, //110 n
+  {0x38,0x44,0x44,0x44,0x38}, //111 o
+  {0x7C,0x14,0x14,0x14,0x08}, //112 p
+  {0x08,0x14,0x14,0x18,0x7C}, //113 q
+  {0x7C,0x08,0x04,0x04,0x08}, //114 r
+  {0x48,0x54,0x54,0x54,0x20}, //115 s
+  {0x04,0x3F,0x44,0x40,0x20}, //116 t
+  {0x3C,0x40,0x40,0x20,0x7C}, //117 u
+  {0x1C,0x20,0x40,0x20,0x1C}, //118 v
+  {0x3C,0x40,0x30,0x40,0x3C}, //119 w
+  {0x44,0x28,0x10,0x28,0x44}, //120 x
+  {0x0C,0x50,0x50,0x50,0x3C}, //121 y
+  {0x44,0x64,0x54,0x4C,0x44}, //122 z
+  {0x00,0x08,0x36,0x41,0x00}, //123 {
+  {0x00,0x00,0x7F,0x00,0x00}, //124 |
+  {0x00,0x41,0x36,0x08,0x00}, //125 }
+  {0x10,0x08,0x08,0x10,0x08}, //126 ~
+};
+
+// Drawing helpers (operate on RGB888 buffer)
+static inline void draw_pixel(uint8_t* buf, int bw, int bh,
+                               int x, int y, uint8_t r, uint8_t g, uint8_t b) {
+  if (x >= 0 && x < bw && y >= 0 && y < bh) {
+    int off = (y * bw + x) * 3;
+    buf[off] = r; buf[off+1] = g; buf[off+2] = b;
+  }
+}
+
+static void draw_rect(uint8_t* buf, int bw, int bh,
+                       int x1, int y1, int x2, int y2, int thick,
+                       uint8_t r, uint8_t g, uint8_t b) {
+  for (int t = 0; t < thick; t++) {
+    for (int x = x1 - t; x <= x2 + t; x++) {
+      draw_pixel(buf, bw, bh, x, y1 - t, r, g, b);
+      draw_pixel(buf, bw, bh, x, y2 + t, r, g, b);
+    }
+    for (int y = y1 - t + 1; y < y2 + t; y++) {
+      draw_pixel(buf, bw, bh, x1 - t, y, r, g, b);
+      draw_pixel(buf, bw, bh, x2 + t, y, r, g, b);
+    }
+  }
+}
+
+static void draw_filled_rect(uint8_t* buf, int bw, int bh,
+                               int x1, int y1, int x2, int y2,
+                               uint8_t r, uint8_t g, uint8_t b) {
+  for (int y = (y1 < 0 ? 0 : y1); y <= y2 && y < bh; y++)
+    for (int x = (x1 < 0 ? 0 : x1); x <= x2 && x < bw; x++) {
+      int off = (y * bw + x) * 3;
+      buf[off] = r; buf[off+1] = g; buf[off+2] = b;
+    }
+}
+
+static void draw_char(uint8_t* buf, int bw, int bh, int cx, int cy, char ch,
+                       uint8_t r, uint8_t g, uint8_t b) {
+  int idx = (int)ch - 32;
+  if (idx < 0 || idx >= 95) idx = '?' - 32;
+  const uint8_t* glyph = kFont5x7[idx];
+  for (int col = 0; col < 5; col++) {
+    uint8_t bits = glyph[col];
+    for (int row = 0; row < 7; row++) {
+      if (bits & (1 << row))
+        draw_pixel(buf, bw, bh, cx + col, cy + row, r, g, b);
+    }
+  }
+}
+
+static void draw_string(uint8_t* buf, int bw, int bh, int sx, int sy,
+                          const char* str, uint8_t r, uint8_t g, uint8_t b) {
+  for (int i = 0; str[i]; i++)
+    draw_char(buf, bw, bh, sx + i * 6, sy, str[i], r, g, b);
+}
+
+}  // namespace
+
+extern "C" int sentai_tpu_detect(int conf_permil, int iou_permil,
+                                 int max_dets,
+                                 int16_t* out_buf, int* out_count) {
+  using namespace coralmicro;
+  *out_count = 0;
+  if (!g_tpu_ready || !g_interpreter) return -1;
+
+  auto* output = g_interpreter->output_tensor(0);
+  if (!output || output->dims->size != 3) return -2;
+
+  int C = output->dims->data[1];   // e.g. 84 = 4 bbox + 80 classes
+  int N = output->dims->data[2];   // e.g. 2100 candidate anchors
+  int num_classes = C - 4;
+  if (num_classes <= 0) return -3;
+
+  auto* input = g_interpreter->input_tensor(0);
+  int in_h = input->dims->data[1];
+  int in_w = input->dims->data[2];
+
+  float scale = output->params.scale;
+  int zp = output->params.zero_point;
+  const int8_t* data = reinterpret_cast<const int8_t*>(output->data.data);
+
+  float conf_thr = conf_permil / 1000.0f;
+  float iou_thr  = iou_permil  / 1000.0f;
+
+  // Phase 1: confidence filter — keep only candidates with max class score > threshold
+  int num_cand = 0;
+  float max_coord = 0.0f;
+
+  for (int j = 0; j < N && num_cand < kMaxNmsCandidates; j++) {
+    // Find best class score for candidate j
+    float best_score = -1e9f;
+    int best_cls = 0;
+    for (int c = 4; c < C; c++) {
+      float s = scale * ((int)data[c * N + j] - zp);
+      if (s > best_score) { best_score = s; best_cls = c - 4; }
+    }
+    if (best_score < conf_thr) continue;
+
+    // Dequantize bbox: cx, cy, w, h
+    float cx = scale * ((int)data[0 * N + j] - zp);
+    float cy = scale * ((int)data[1 * N + j] - zp);
+    float bw = scale * ((int)data[2 * N + j] - zp);
+    float bh = scale * ((int)data[3 * N + j] - zp);
+
+    float x1 = cx - bw * 0.5f;
+    float y1 = cy - bh * 0.5f;
+    float x2 = cx + bw * 0.5f;
+    float y2 = cy + bh * 0.5f;
+
+    if (x2 > max_coord) max_coord = x2;
+    if (y2 > max_coord) max_coord = y2;
+
+    g_nms_cand[num_cand++] = {x1, y1, x2, y2, best_score, (int16_t)best_cls};
+  }
+
+  if (num_cand == 0) return 0;
+
+  // Auto-detect normalized (0-1) vs pixel-space coords
+  // If the largest coordinate < 2.0 then values are normalized → scale to input dims
+  float coord_sx = (max_coord < 2.0f) ? (float)in_w : 1.0f;
+  float coord_sy = (max_coord < 2.0f) ? (float)in_h : 1.0f;
+
+  // Phase 2: insertion sort by score descending (small N, stack-friendly)
+  for (int i = 1; i < num_cand; i++) {
+    YoloCandidate key = g_nms_cand[i];
+    int j = i - 1;
+    while (j >= 0 && g_nms_cand[j].score < key.score) {
+      g_nms_cand[j + 1] = g_nms_cand[j]; j--;
+    }
+    g_nms_cand[j + 1] = key;
+  }
+
+  // Phase 3: greedy NMS (class-aware)
+  memset(g_nms_sup, 0, sizeof(bool) * num_cand);
+  int count = 0;
+
+  for (int i = 0; i < num_cand && count < max_dets; i++) {
+    if (g_nms_sup[i]) continue;
+    auto& d = g_nms_cand[i];
+
+    // Scale & clamp to model input pixel space
+    float sx1 = d.x1 * coord_sx; if (sx1 < 0) sx1 = 0;
+    float sy1 = d.y1 * coord_sy; if (sy1 < 0) sy1 = 0;
+    float sx2 = d.x2 * coord_sx; if (sx2 > in_w) sx2 = (float)in_w;
+    float sy2 = d.y2 * coord_sy; if (sy2 > in_h) sy2 = (float)in_h;
+
+    out_buf[count * 6 + 0] = (int16_t)(sx1 + 0.5f);
+    out_buf[count * 6 + 1] = (int16_t)(sy1 + 0.5f);
+    out_buf[count * 6 + 2] = (int16_t)(sx2 + 0.5f);
+    out_buf[count * 6 + 3] = (int16_t)(sy2 + 0.5f);
+    out_buf[count * 6 + 4] = (int16_t)(d.score * 1000.0f + 0.5f);
+    out_buf[count * 6 + 5] = d.class_id;
+    count++;
+
+    // Suppress overlapping detections of the same class
+    float area_i = (sx2 - sx1) * (sy2 - sy1);
+    for (int j = i + 1; j < num_cand; j++) {
+      if (g_nms_sup[j]) continue;
+      if (g_nms_cand[j].class_id != d.class_id) continue;
+
+      float jx1 = g_nms_cand[j].x1 * coord_sx;
+      float jy1 = g_nms_cand[j].y1 * coord_sy;
+      float jx2 = g_nms_cand[j].x2 * coord_sx;
+      float jy2 = g_nms_cand[j].y2 * coord_sy;
+
+      float xx1 = (sx1 > jx1) ? sx1 : jx1;
+      float yy1 = (sy1 > jy1) ? sy1 : jy1;
+      float xx2 = (sx2 < jx2) ? sx2 : jx2;
+      float yy2 = (sy2 < jy2) ? sy2 : jy2;
+      float iw  = (xx2 > xx1) ? (xx2 - xx1) : 0;
+      float ih  = (yy2 > yy1) ? (yy2 - yy1) : 0;
+      float inter = iw * ih;
+      float area_j = (jx2 - jx1) * (jy2 - jy1);
+      float iou = inter / (area_i + area_j - inter + 1e-6f);
+      if (iou > iou_thr) g_nms_sup[j] = true;
+    }
+  }
+
+  *out_count = count;
+  printf("NMS: %d/%d candidates, %d detections (conf>%d%% iou>%d%%)\r\n",
+         num_cand, N, count, conf_permil / 10, iou_permil / 10);
+  return 0;
+}
+
+// ---------------------------------------------------------------------------
+// Draw bounding boxes + labels on the last to_tensor() RGB frame, save JPEG.
+// dets: flat array of n_dets × 6 int16: [x1,y1,x2,y2,conf_permil,class_id]
+// ---------------------------------------------------------------------------
+extern "C" int sentai_tpu_draw(const char* path,
+                                const int16_t* dets, int n_dets,
+                                int quality) {
+  if (g_draw_w == 0 || g_draw_h == 0) return -1;  // no frame saved
+  int sz = g_draw_w * g_draw_h * 3;
+
+  // Work on a copy so original is preserved for multiple draw() calls
+  uint8_t* rgb = (uint8_t*)malloc(sz);
+  if (!rgb) return -2;
+  memcpy(rgb, g_draw_rgb, sz);
+
+  for (int i = 0; i < n_dets; i++) {
+    int x1   = dets[i*6 + 0];
+    int y1   = dets[i*6 + 1];
+    int x2   = dets[i*6 + 2];
+    int y2   = dets[i*6 + 3];
+    int conf = dets[i*6 + 4];
+    int cls  = dets[i*6 + 5];
+
+    int ci = cls % 10;
+    uint8_t cr = kBoxColors[ci][0];
+    uint8_t cg = kBoxColors[ci][1];
+    uint8_t cb = kBoxColors[ci][2];
+
+    // Draw bounding box (2px thick)
+    draw_rect(rgb, g_draw_w, g_draw_h, x1, y1, x2, y2, 2, cr, cg, cb);
+
+    // Build label: "class_name NN%"
+    char label[40];
+    const char* name = (cls >= 0 && cls < 80) ? kCocoNames[cls] : "?";
+    snprintf(label, sizeof(label), "%s %d%%", name, conf / 10);
+
+    int lw = (int)strlen(label) * 6 + 3;
+    int lh = 10;
+    int ly = (y1 - lh - 1 >= 0) ? y1 - lh - 1 : y1;  // above box, or inside
+
+    // Colored background for label
+    draw_filled_rect(rgb, g_draw_w, g_draw_h, x1, ly, x1 + lw, ly + lh,
+                     cr, cg, cb);
+    // Black text on colored background
+    draw_string(rgb, g_draw_w, g_draw_h, x1 + 2, ly + 2, label, 0, 0, 0);
+  }
+
+  // JPEG compress and save
+  int jpeg_buf_size = sz;
+  if (jpeg_buf_size < 64 * 1024) jpeg_buf_size = 64 * 1024;
+  uint8_t* jpeg_buf = (uint8_t*)malloc(jpeg_buf_size);
+  int rc = -3;
+  if (jpeg_buf) {
+    unsigned long jpeg_size = coralmicro::JpegCompressRgb(
+        rgb, g_draw_w, g_draw_h, quality,
+        jpeg_buf, (unsigned long)jpeg_buf_size);
+    if (jpeg_size > 0) {
+      std::string data((const char*)jpeg_buf, jpeg_size);
+      if (coralmicro::LfsUserWriteFile(path, data)) {
+        printf("Draw: %dx%d saved %s (%lu bytes, %d dets)\r\n",
+               g_draw_w, g_draw_h, path, jpeg_size, n_dets);
+        rc = 0;
+      }
+    }
+    free(jpeg_buf);
+  }
+  free(rgb);
+  return rc;
 }
 
 // Save all output tensors to a CSV file on the filesystem.
@@ -809,13 +1295,16 @@ extern "C" int sentai_cam_capture_jpeg(uint8_t* jpeg_buf, int jpeg_buf_size,
 }
 
 // Capture RGB via PXP and feed directly into TPU input tensor.
-extern "C" int sentai_cam_to_tensor(void) {
+// If save_path is non-NULL, save a JPEG of the scaled frame before int8 quant.
+extern "C" int sentai_cam_to_tensor_ex(const char* save_path, int quality) {
   if (!g_cam_initialized) return -1;
   if (!coralmicro::g_tpu_ready || !coralmicro::g_interpreter) return -3;
   auto* input = coralmicro::g_interpreter->input_tensor(0);
   if (!input || input->dims->size < 4) return -4;
   int h = input->dims->data[1];
   int w = input->dims->data[2];
+  int ch = input->dims->data[3];
+  int total_pixels = h * w * ch;
   uint8_t* tensor_buf = tflite::GetTensorData<uint8_t>(input);
 
   uint8_t* raw = nullptr;
@@ -825,7 +1314,60 @@ extern "C" int sentai_cam_to_tensor(void) {
   int rc = pxp_scale_xrgb_to_rgb(raw, DEMO_CAMERA_WIDTH, DEMO_CAMERA_HEIGHT,
                                   tensor_buf, w, h);
   cam->ReturnRawFrame(idx);
-  return rc;
+  if (rc != 0) return rc;
+
+  // Save RGB frame for draw() before int8 quantization
+  if (total_pixels <= kMaxDrawPixels) {
+    memcpy(g_draw_rgb, tensor_buf, total_pixels);
+    g_draw_w = w;
+    g_draw_h = h;
+  }
+
+  // Optionally save JPEG of the scaled RGB frame (before int8 quantization)
+  if (save_path && save_path[0]) {
+    int jpeg_buf_size = w * h * ch;  // worst-case size
+    if (jpeg_buf_size < 64 * 1024) jpeg_buf_size = 64 * 1024;
+    uint8_t* jpeg_buf = (uint8_t*)malloc(jpeg_buf_size);
+    if (jpeg_buf) {
+      unsigned long jpeg_size = coralmicro::JpegCompressRgb(
+          tensor_buf, w, h, quality,
+          jpeg_buf, (unsigned long)jpeg_buf_size);
+      if (jpeg_size > 0) {
+        std::string jpeg_data((const char*)jpeg_buf, jpeg_size);
+        if (coralmicro::LfsUserWriteFile(save_path, jpeg_data)) {
+          printf("Saved %dx%d JPEG to %s (%lu bytes)\r\n", w, h, save_path, jpeg_size);
+        } else {
+          printf("JPEG save failed: %s\r\n", save_path);
+        }
+      }
+      free(jpeg_buf);
+    }
+  }
+
+  // If model expects int8 input, apply quantization offset.
+  if (input->type == kTfLiteInt8) {
+    int8_t* dst = reinterpret_cast<int8_t*>(tensor_buf);
+    int zp = input->params.zero_point;
+    if (zp == -128) {
+      uint32_t* p32 = reinterpret_cast<uint32_t*>(dst);
+      int n32 = total_pixels / 4;
+      for (int i = 0; i < n32; i++) p32[i] ^= 0x80808080u;
+      for (int i = n32 * 4; i < total_pixels; i++)
+        dst[i] = (int8_t)((uint8_t)dst[i] ^ 0x80u);
+    } else {
+      for (int i = 0; i < total_pixels; i++) {
+        int v = (int)tensor_buf[i] + zp;
+        if (v < -128) v = -128;
+        if (v > 127) v = 127;
+        dst[i] = (int8_t)v;
+      }
+    }
+  }
+  return 0;
+}
+
+extern "C" int sentai_cam_to_tensor(void) {
+  return sentai_cam_to_tensor_ex(NULL, 75);
 }
 
 // Switch between front and back cameras. id: 0=front, 1=back.

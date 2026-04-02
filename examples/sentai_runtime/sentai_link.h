@@ -93,12 +93,12 @@ int sentai_link_send_vision_update(
     uint8_t severity);
 
 // Send raw COMMAND_LONG message.
-// param1..7 are integer x 1000 (will be divided by 1000.0f to get float on wire).
+// param1..7 are native float values (sent directly on wire).
 int sentai_link_send_command_long(
     uint8_t target_sys, uint8_t target_comp,
     uint16_t command, uint8_t confirmation,
-    int32_t param1, int32_t param2, int32_t param3, int32_t param4,
-    int32_t param5, int32_t param6, int32_t param7);
+    float param1, float param2, float param3, float param4,
+    float param5, float param6, float param7);
 
 #ifdef __cplusplus
 }

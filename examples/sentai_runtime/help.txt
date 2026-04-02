@@ -52,6 +52,31 @@ sentai.tpu - EdgeTPU inference
   row(idx, r)           Tuple of values at row r
   val(idx, flat_i)      Single value at flat index
   save_output(path)     Save all outputs to CSV file
+  input_quant()         Input quantization -> (scale, zero_point)
+  output_quant(idx)     Output quantization -> (scale, zero_point)
+  input_type()          Input TfLiteType (9=int8, 3=uint8, 1=float)
+
+  --- YOLO detection post-processing ---
+  detect(conf=0.25, iou=0.45, max=50)
+                        Run NMS on last invoke() output.
+                        conf/iou are float 0.0-1.0 (0.25 = 25%).
+                        Returns list of (x1,y1,x2,y2,conf,class_id).
+                        conf is float 0.0-1.0. Coords in model pixels.
+  draw(path, [dets], [quality=75])
+                        Draw bounding boxes + class labels on the last
+                        to_tensor() frame and save as JPEG.
+                        If dets omitted, runs detect() automatically.
+                        Returns number of detections drawn.
+
+  Example (YOLO detection pipeline):
+    sentai.tpu.load('/models/yolov8n.tflite')
+    sentai.camera.init()
+    sentai.camera.to_tensor()
+    sentai.tpu.invoke()
+    dets = sentai.tpu.detect(0.25)
+    for d in dets:
+        print(d)                    # (x1,y1,x2,y2,0.87,0)
+    sentai.tpu.draw('/det.jpg', dets)
 
 [fs]
 sentai.fs - Filesystem (LittleFS)
@@ -85,15 +110,15 @@ sentai.camera - Camera
 sentai.imu - LIS2DU12 accelerometer
 ======================================
   On-board 3-axis accelerometer (I2C5, addr 0x19).
-  Returns integer values (float x 1000, no FPU in MicroPython).
+  Returns native float values.
 
   init()      Initialize sensor. Returns 0=ok, -1=fail.
               Safe to call multiple times (no-op if already init).
   read()      Read acceleration + temperature -> dict or None
               Returns: {x, y, z, temp}
-                x,y,z  = micro-g (mg x 1000)
-                         At rest z-up: x~0, y~0, z~981000
-                temp   = milli-degC (25300 = 25.3 C)
+                x,y,z  = milli-g (float, mg)
+                         At rest z-up: x~0.0, y~0.0, z~981.0
+                temp   = degrees C (float, e.g. 25.3)
               Returns None if data not ready.
 
   Example:
@@ -288,8 +313,8 @@ sentai.link - MAVLink v2 telemetry bridge
 
     msgid 32 — LOCAL_POSITION_NED:
       time  (uint32, ms since boot)
-      x, y, z       (int32, mm — float*1000)
-      vx, vy, vz    (int32, mm/s — float*1000)
+      x, y, z       (float, metres)
+      vx, vy, vz    (float, m/s)
 
     msgid 33 — GLOBAL_POSITION_INT:
       time      (uint32, ms since boot)
@@ -303,7 +328,7 @@ sentai.link - MAVLink v2 telemetry bridge
   heartbeat(type=18)    Send HEARTBEAT (18=onboard controller)
   send(text, sev=6)     Send STATUSTEXT (sev: 0-7, 6=INFO)
   command(tsys, tcomp, cmd, [conf, p1..p7])
-                        Send COMMAND_LONG (params are int x1000)
+                        Send COMMAND_LONG (params are float)
 
   --- Vision over MAVLink (base64 STATUSTEXT chunks) ---
   send_detection(sensor_id, track_id, alarm_type, timestamp, seq,

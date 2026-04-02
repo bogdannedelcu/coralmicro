@@ -497,7 +497,7 @@ Capture frame and load directly into TPU input tensor (PXP hardware scaled to mo
 ## sentai.imu — LIS2DU12 Accelerometer
 
 On-board STMicroelectronics LIS2DU12 3-axis accelerometer connected via I2C5 (address 0x19).  
-Returns acceleration in micro-g (µg) and temperature in milli-°C as integers (MicroPython has no float support).
+Returns acceleration in milli-g (mg) and temperature in °C as native floats.
 
 ### `sentai.imu.init()` → int
 Initialize the LIS2DU12 accelerometer. Must be called once before `read()`.  
@@ -510,17 +510,17 @@ Returns 0 on success, -1 on failure (I2C error or sensor not found).
 
 ### `sentai.imu.read()` → dict or None
 Read current acceleration and temperature.  
-Returns a dict with keys `x`, `y`, `z` (µg) and `temp` (milli-°C), or `None` if data not ready.
+Returns a dict with keys `x`, `y`, `z` (milli-g) and `temp` (°C) as floats, or `None` if data not ready.
 
-Values are **integers** (float × 1000):
-- `x`, `y`, `z`: acceleration in µg (micro-g). At rest with z pointing up: x≈0, y≈0, z≈981000 (≈1g).
-- `temp`: temperature in milli-°C. Room temperature: ~25000 (= 25.000°C).
+Values are **native floats**:
+- `x`, `y`, `z`: acceleration in milli-g (mg). At rest with z pointing up: x≈0.0, y≈0.0, z≈981.0 (≈1g).
+- `temp`: temperature in °C. Room temperature: ~25.3.
 
 ```python
 >>> sentai.imu.init()
 0
 >>> sentai.imu.read()
-{'x': -12500, 'y': 3200, 'z': 981000, 'temp': 25300}
+{'x': -12.5, 'y': 3.2, 'z': 981.0, 'temp': 25.3}
 >>> # -12.5 mg, 3.2 mg, 981.0 mg (≈1g gravity), 25.3°C
 ```
 
@@ -541,7 +541,7 @@ for i in range(10):
 import sentai
 
 sentai.imu.init()
-threshold = 100000  # 100 mg in µg
+threshold = 100.0  # 100 mg
 
 prev = sentai.imu.read()
 while True:

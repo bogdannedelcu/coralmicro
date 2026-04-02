@@ -383,8 +383,8 @@ extern "C" int sentai_link_send_vision_update(
 extern "C" int sentai_link_send_command_long(
     uint8_t target_sys, uint8_t target_comp,
     uint16_t command, uint8_t confirmation,
-    int32_t param1, int32_t param2, int32_t param3, int32_t param4,
-    int32_t param5, int32_t param6, int32_t param7)
+    float param1, float param2, float param3, float param4,
+    float param5, float param6, float param7)
 {
     if (!g_link_running) return -1;
 
@@ -393,13 +393,7 @@ extern "C" int sentai_link_send_command_long(
         g_link_sysid, g_link_compid, &msg,
         target_sys, target_comp,
         command, confirmation,
-        (float)param1 / 1000.0f,
-        (float)param2 / 1000.0f,
-        (float)param3 / 1000.0f,
-        (float)param4 / 1000.0f,
-        (float)param5 / 1000.0f,
-        (float)param6 / 1000.0f,
-        (float)param7 / 1000.0f
+        param1, param2, param3, param4, param5, param6, param7
     );
     return link_send_msg(&msg);
 }
@@ -434,22 +428,22 @@ extern "C" uint8_t sentai_link_rx_len(const link_rx_msg_t* m) {
 }
 
 // ===================== Decode: LOCAL_POSITION_NED (msgid 32) =====================
-// Floats are returned as int32 × 1000 (millimetres, mm/s) since MicroPython has no float.
+// Returns native float values: position in metres, velocity in m/s.
 extern "C" void sentai_link_rx_local_pos(
     const link_rx_msg_t* m,
     uint32_t* time_boot_ms,
-    int32_t* x_mm, int32_t* y_mm, int32_t* z_mm,
-    int32_t* vx_mms, int32_t* vy_mms, int32_t* vz_mms)
+    float* x, float* y, float* z,
+    float* vx, float* vy, float* vz)
 {
     mavlink_local_position_ned_t pos;
     mavlink_msg_local_position_ned_decode(&m->msg, &pos);
     *time_boot_ms = pos.time_boot_ms;
-    *x_mm   = (int32_t)(pos.x  * 1000.0f);
-    *y_mm   = (int32_t)(pos.y  * 1000.0f);
-    *z_mm   = (int32_t)(pos.z  * 1000.0f);
-    *vx_mms = (int32_t)(pos.vx * 1000.0f);
-    *vy_mms = (int32_t)(pos.vy * 1000.0f);
-    *vz_mms = (int32_t)(pos.vz * 1000.0f);
+    *x  = pos.x;
+    *y  = pos.y;
+    *z  = pos.z;
+    *vx = pos.vx;
+    *vy = pos.vy;
+    *vz = pos.vz;
 }
 
 // ===================== Decode: GLOBAL_POSITION_INT (msgid 33) =====================

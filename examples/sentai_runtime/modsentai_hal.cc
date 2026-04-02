@@ -269,8 +269,8 @@ static volatile size_t g_mic_ring_size = 0;     // ring buffer size in samples
 static volatile bool   g_mic_rec_wrapped = false; // true after first wrap
 static volatile bool   g_mic_recording = false;
 
-// RMS level — updated every DMA callback (~50 ms).  Stored as dB × 100 so
-// MicroPython (no float) gets integer centibels.  Silence ≈ 0, loud ≈ 9000.
+// RMS level — updated every DMA callback (~50 ms).  Stored as centi-dB (dB × 100)
+// so the level is an integer for efficiency.  Silence ≈ 0, loud ≈ 9000.
 static volatile int g_mic_level_cdb = 0;
 
 // Static AudioDriver (the object itself is tiny; DMA buffers are separate).
