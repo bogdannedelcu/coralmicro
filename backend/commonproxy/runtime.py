@@ -204,8 +204,12 @@ class MqttPublisher:
 
     def _publish_direct(self, topic: str, payload: dict) -> bool:
         info = self.client.publish(topic, json.dumps(payload, ensure_ascii=False), qos=1, retain=False)
-        info.wait_for_publish(timeout=5)
-        return info.rc == mqtt.MQTT_ERR_SUCCESS and info.is_published()
+        if info.rc != mqtt.MQTT_ERR_SUCCESS:
+            return False
+        # Don't call wait_for_publish() — it deadlocks when called from
+        # paho's network-loop thread (e.g. inside on_connect → flush).
+        # QoS 1 guarantees redelivery; paho handles ACKs internally.
+        return True
 
     def publish_json(self, topic: str, payload: dict) -> None:
         if not self.connected:
