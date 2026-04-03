@@ -1,0 +1,153 @@
+================================================================================
+MESHPROXY — Architecture & Functional Specification
+================================================================================
+Project:  coralmicro / backend / meshproxy
+Repo:     github.com/bogdannedelcu/coralmicro (branch: feature/backend-proxies)
+Date:     2026-04-03
+================================================================================
+
+1. PURPOSE
+----------
+meshproxy is a Python service that bridges a Meshtastic mesh radio network to
+MQTT. It connects to a RAKwireless WisCore RAK4631 board over USB serial,
+receives all mesh packets via the Meshtastic Python SDK, decodes vision
+detection payloads (protobuf), and publishes structured JSON to per-node MQTT
+topics.
+
+2. HIGH-LEVEL ARCHITECTURE
+--------------------------
+
+  +-----------+     USB/Serial     +------------+     MQTT      +--------+
+  | RAK4631   | -----------------> | meshproxy  | -----------> | Mosquitto|
+  | (Mesh     |   /dev/ttyACM0    | (Python)   |  QoS 1       | Broker  |
+  |  Radio)   |   115200 baud     |            |              |         |
+  +-----------+                    +------------+              +--------+
+       ^                                |                          |
+       |                                v                          v
+  Meshtastic                      spool/pending/           MQTT subscribers
+  mesh network                    spool/Sent/              (dashboards, etc.)
+
+3. FILE STRUCTURE
+-----------------
+  backend/meshproxy/
+  ├── main.py                  # Entry point — init, connect, event loop
+  ├── meshproxy/
+  │   ├── __init__.py
+  │   ├── config.py            # Configuration (env vars, topic helpers)
+  │   ├── common.py            # Spool instance, RecentFlag
+  │   ├── protocol.py          # MeshSdkReceiver — packet decoding
+  │   ├── mqtt_client.py       # MqttPublisher (extends commonproxy)
+  │   └── telemetry.py         # Periodic availability telemetry
+  ├── .env                     # Local config (gitignored)
+  └── .venv/                   # Python virtual environment
+
+  backend/commonproxy/          # Shared library (used by meshproxy + linkproxy)
+  ├── __init__.py               # Re-exports
+  ├── runtime.py                # MqttPublisher base, Spool, TelemetryTicker,
+  │                             #   RecentFlag, system metrics, utc_now()
+  └── protos/
+      └── visionmesh_pb2.py    # Generated Python protobuf (VisionMessage)
+
+4. CONFIGURATION (.env)
+-----------------------
+  SERIAL_PORT=/dev/ttyACM0      # Meshtastic radio serial device
+  SERIAL_BAUD=38400             # (SDK manages actual baud internally)
+  MQTT_URL=mqtt://192.168.88.149:1883
+  MQTT_USERNAME=                # Optional MQTT auth
+  MQTT_PASSWORD=
+  MQTT_TOPIC_PREFIX=sentai      # Root of all topics
+  PROXY_ID=proxy01              # Identifies this proxy instance
+  FORWARD_RAW_BASE64=true       # Forward non-vision packets as raw
+  SPOOL_ROOT=./spool            # Disk spool for unsent messages
+
+5. MQTT TOPIC HIERARCHY
+------------------------
+  Per-node topics (node_hex = 8-char lowercase hex of node_id):
+
+    sentai/{proxy_id}/{node_hex}/vision   — decoded VisionMessage detections
+    sentai/{proxy_id}/{node_hex}/text     — text messages from mesh
+    sentai/{proxy_id}/{node_hex}/raw      — raw/unrecognized packets
+
+  Proxy-level topics:
+
+    sentai/{proxy_id}/status              — lifecycle events (starting, connected, error)
+    sentai/{proxy_id}/availability        — periodic telemetry (every 60s)
+
+  Example:
+    sentai/proxy01/62e3e08b/vision        — vision from node 0x62e3e08b
+    sentai/proxy01/status                 — proxy01 status
+
+6. FUNCTIONAL FLOW
+------------------
+  a) Startup (main.py):
+     1. Load .env, init spool dirs, cleanup old Sent/ files
+     2. Create MqttPublisher, connect async to broker
+     3. Publish "starting" status to sentai/{proxy_id}/status
+     4. Open serial via Meshtastic SDK (SerialInterface)
+     5. Wait for mesh config, publish "serial-open" status
+     6. Create MeshSdkReceiver, subscribe to SDK events
+     7. Enter main loop: flush pending spool, publish telemetry every 60s
+
+  b) Packet Reception (protocol.py — MeshSdkReceiver):
+     - Subscribes to meshtastic.receive.data.* SDK events
+     - On each packet:
+       1. Mark recent_rx flag (for telemetry)
+       2. Extract decoded.portnum and payload bytes
+       3. If portnum == PRIVATE_APP:
+          - Attempt protobuf decode (VisionMessage)
+          - If successful: build JSON with all fields, use node_id from
+            protobuf (fallback: packet 'from'), publish to .../vision topic
+       4. If portnum == TEXT_MESSAGE_APP:
+          - Publish text message to .../text topic with from/to/channel
+       5. Otherwise (if FORWARD_RAW_BASE64):
+          - Publish raw packet to .../raw topic
+
+  c) Vision Protobuf (VisionMessage):
+     Fields: app_version, sensor_id, track_id, alarm_type, timestamp_utc,
+             seq, node_id
+     Oneof body:
+       - NewDetection: xywh_packed, conf, class_id, embedding (64B), embed_crc8
+       - UpdateDetection: xywh_packed, conf, age
+
+  d) MQTT Publishing (commonproxy/runtime.py — MqttPublisher):
+     - Uses paho-mqtt v2.1 with connect_async + loop_start (background thread)
+     - QoS 1 for all publishes (broker-acknowledged delivery)
+     - If not connected: spool message to disk (spool/pending/*.json)
+     - On connect: flush all pending spool messages
+     - No wait_for_publish() — fire-and-forget to avoid paho loop deadlock
+     - Spool cleanup: Sent/ files older than 7 days are pruned
+
+  e) Telemetry (telemetry.py):
+     Every 60s publishes to sentai/{proxy_id}/availability:
+     - Timestamp, configured serial port, baud
+     - List of detected serial ports (device, description, hwid)
+     - mesh_message_received_last_10m flag
+     - System metrics: hostname, IPs, OS, Python version, CPU count,
+       load average, memory, disk, uptime
+
+7. DEPENDENCIES
+---------------
+  - meshtastic (Python SDK) — serial connection + packet parsing
+  - paho-mqtt 2.1 — MQTT client
+  - protobuf — VisionMessage decoding
+  - python-dotenv — .env loading
+  - pyserial — serial port enumeration for telemetry
+
+8. RUNNING
+----------
+  cd backend/meshproxy
+  PYTHONPATH=../.. .venv/bin/python main.py
+
+  Or as background service:
+  PYTHONPATH=/home/bogdan/work/coralmicro/backend \
+    nohup .venv/bin/python main.py >> meshproxy.log 2>&1 &
+
+9. KNOWN ISSUES / NOTES
+------------------------
+  - Serial device /dev/ttyACM0 requires dialout group or manual chmod
+  - MQTT wait_for_publish deadlock was fixed (commit aae60f31) — do not
+    reintroduce blocking wait_for_publish inside paho callbacks
+  - node_id from VisionMessage protobuf is the primary source for per-node
+    topic routing; packet 'from' is fallback only
+
+================================================================================
