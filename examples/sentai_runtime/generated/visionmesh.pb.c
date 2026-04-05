@@ -6,6 +6,9 @@
 #error Regenerate this file with the current version of nanopb generator.
 #endif
 
+PB_BIND(visionmesh_SensorPose, visionmesh_SensorPose, AUTO)
+
+
 PB_BIND(visionmesh_VisionMessage, visionmesh_VisionMessage, AUTO)
 
 

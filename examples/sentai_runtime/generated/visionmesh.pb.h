@@ -10,6 +10,14 @@
 #endif
 
 /* Struct definitions */
+/* Camera orientation & position at detection time */
+typedef struct _visionmesh_SensorPose {
+    int32_t pitch_deg; /* tilt forward/back from horizon (-90..+90) */
+    int32_t roll_deg; /* tilt left/right (-180..+180) */
+    uint32_t altitude_cm; /* camera height above ground, cm */
+    uint32_t heading_deg; /* compass heading (0..359, 0=N 90=E 180=S 270=W) */
+} visionmesh_SensorPose;
+
 typedef PB_BYTES_ARRAY_T(64) visionmesh_NewDetection_embedding_t;
 typedef struct _visionmesh_NewDetection {
     uint32_t xywh_packed; /* x,y,w,h each 1 byte packed */
@@ -38,6 +46,8 @@ typedef struct _visionmesh_VisionMessage {
         visionmesh_NewDetection new_detection;
         visionmesh_UpdateDetection update_detection;
     } body;
+    bool has_pose;
+    visionmesh_SensorPose pose; /* camera pose at detection time */
 } visionmesh_VisionMessage;
 
 
@@ -46,14 +56,20 @@ extern "C" {
 #endif
 
 /* Initializer values for message structs */
-#define visionmesh_VisionMessage_init_default    {0, 0, 0, 0, 0, 0, 0, 0, {visionmesh_NewDetection_init_default}}
+#define visionmesh_SensorPose_init_default       {0, 0, 0, 0}
+#define visionmesh_VisionMessage_init_default    {0, 0, 0, 0, 0, 0, 0, 0, {visionmesh_NewDetection_init_default}, false, visionmesh_SensorPose_init_default}
 #define visionmesh_NewDetection_init_default     {0, 0, 0, {0, {0}}, 0}
 #define visionmesh_UpdateDetection_init_default  {0, 0, 0}
-#define visionmesh_VisionMessage_init_zero       {0, 0, 0, 0, 0, 0, 0, 0, {visionmesh_NewDetection_init_zero}}
+#define visionmesh_SensorPose_init_zero          {0, 0, 0, 0}
+#define visionmesh_VisionMessage_init_zero       {0, 0, 0, 0, 0, 0, 0, 0, {visionmesh_NewDetection_init_zero}, false, visionmesh_SensorPose_init_zero}
 #define visionmesh_NewDetection_init_zero        {0, 0, 0, {0, {0}}, 0}
 #define visionmesh_UpdateDetection_init_zero     {0, 0, 0}
 
 /* Field tags (for use in manual encoding/decoding) */
+#define visionmesh_SensorPose_pitch_deg_tag      1
+#define visionmesh_SensorPose_roll_deg_tag       2
+#define visionmesh_SensorPose_altitude_cm_tag    3
+#define visionmesh_SensorPose_heading_deg_tag    4
 #define visionmesh_NewDetection_xywh_packed_tag  1
 #define visionmesh_NewDetection_conf_tag         2
 #define visionmesh_NewDetection_class_id_tag     3
@@ -71,8 +87,17 @@ extern "C" {
 #define visionmesh_VisionMessage_node_id_tag     7
 #define visionmesh_VisionMessage_new_detection_tag 10
 #define visionmesh_VisionMessage_update_detection_tag 11
+#define visionmesh_VisionMessage_pose_tag        20
 
 /* Struct field encoding specification for nanopb */
+#define visionmesh_SensorPose_FIELDLIST(X, a) \
+X(a, STATIC,   SINGULAR, SINT32,   pitch_deg,         1) \
+X(a, STATIC,   SINGULAR, SINT32,   roll_deg,          2) \
+X(a, STATIC,   SINGULAR, UINT32,   altitude_cm,       3) \
+X(a, STATIC,   SINGULAR, UINT32,   heading_deg,       4)
+#define visionmesh_SensorPose_CALLBACK NULL
+#define visionmesh_SensorPose_DEFAULT NULL
+
 #define visionmesh_VisionMessage_FIELDLIST(X, a) \
 X(a, STATIC,   SINGULAR, UINT32,   app_version,       1) \
 X(a, STATIC,   SINGULAR, UINT32,   sensor_id,         2) \
@@ -82,11 +107,13 @@ X(a, STATIC,   SINGULAR, UINT32,   timestamp_utc,     5) \
 X(a, STATIC,   SINGULAR, UINT32,   seq,               6) \
 X(a, STATIC,   SINGULAR, UINT32,   node_id,           7) \
 X(a, STATIC,   ONEOF,    MESSAGE,  (body,new_detection,body.new_detection),  10) \
-X(a, STATIC,   ONEOF,    MESSAGE,  (body,update_detection,body.update_detection),  11)
+X(a, STATIC,   ONEOF,    MESSAGE,  (body,update_detection,body.update_detection),  11) \
+X(a, STATIC,   OPTIONAL, MESSAGE,  pose,             20)
 #define visionmesh_VisionMessage_CALLBACK NULL
 #define visionmesh_VisionMessage_DEFAULT NULL
 #define visionmesh_VisionMessage_body_new_detection_MSGTYPE visionmesh_NewDetection
 #define visionmesh_VisionMessage_body_update_detection_MSGTYPE visionmesh_UpdateDetection
+#define visionmesh_VisionMessage_pose_MSGTYPE visionmesh_SensorPose
 
 #define visionmesh_NewDetection_FIELDLIST(X, a) \
 X(a, STATIC,   SINGULAR, FIXED32,  xywh_packed,       1) \
@@ -104,11 +131,13 @@ X(a, STATIC,   SINGULAR, UINT32,   age,               3)
 #define visionmesh_UpdateDetection_CALLBACK NULL
 #define visionmesh_UpdateDetection_DEFAULT NULL
 
+extern const pb_msgdesc_t visionmesh_SensorPose_msg;
 extern const pb_msgdesc_t visionmesh_VisionMessage_msg;
 extern const pb_msgdesc_t visionmesh_NewDetection_msg;
 extern const pb_msgdesc_t visionmesh_UpdateDetection_msg;
 
 /* Defines for backwards compatibility with code written before nanopb-0.4.0 */
+#define visionmesh_SensorPose_fields &visionmesh_SensorPose_msg
 #define visionmesh_VisionMessage_fields &visionmesh_VisionMessage_msg
 #define visionmesh_NewDetection_fields &visionmesh_NewDetection_msg
 #define visionmesh_UpdateDetection_fields &visionmesh_UpdateDetection_msg
@@ -116,8 +145,9 @@ extern const pb_msgdesc_t visionmesh_UpdateDetection_msg;
 /* Maximum encoded size of messages (where known) */
 #define VISIONMESH_VISIONMESH_PB_H_MAX_SIZE      visionmesh_VisionMessage_size
 #define visionmesh_NewDetection_size             89
+#define visionmesh_SensorPose_size               24
 #define visionmesh_UpdateDetection_size          17
-#define visionmesh_VisionMessage_size            133
+#define visionmesh_VisionMessage_size            160
 
 #ifdef __cplusplus
 } /* extern "C" */

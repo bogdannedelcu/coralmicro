@@ -24,6 +24,14 @@ static mp_obj_t mod_sentai_usb_drive(mp_obj_t on_obj) {
         vTaskDelay(pdMS_TO_TICKS(100));
         // Auto-switch REPL to UART when mounting USB drive
         sentai_console_set_target(1);  // 1 = UART
+    } else {
+        // Disable drive first, then switch REPL back to USB
+        int rc = sentai_usb_drive_set(0);
+        // Small delay for USB CDC ACM to re-enumerate after mass storage release
+        vTaskDelay(pdMS_TO_TICKS(200));
+        sentai_console_set_target(0);  // 0 = USB
+        printf("\r\n*****\r\nUSB drive off — REPL back on USB\r\n*****\r\n>>> ");
+        return mp_obj_new_int(rc);
     }
     return mp_obj_new_int(sentai_usb_drive_set(on));
 }

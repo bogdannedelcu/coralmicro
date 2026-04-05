@@ -288,7 +288,7 @@ void BOARD_InitCamera(void)
 
     BOARD_InitCameraResource();
 
-    /* CSI input data bus is 24-bit, and save as XRGB8888.. */
+    /* CSI input data bus is 24-bit, stored as XRGB8888 (32-bit per pixel in RAM). */
     cameraConfig.pixelFormat                = kVIDEO_PixelFormatXRGB8888;
     cameraConfig.bytesPerPixel              = DEMO_CAMERA_BUFFER_BPP;
     cameraConfig.resolution                 = FSL_VIDEO_RESOLUTION(DEMO_CAMERA_WIDTH, DEMO_CAMERA_HEIGHT);

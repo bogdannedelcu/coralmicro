@@ -23,6 +23,7 @@
 #include "py/parse.h"
 #include "py/compile.h"
 #include <string.h>
+#include <math.h>
 #include "sentai_mesh.h"
 #include <stdlib.h>
 
@@ -157,6 +158,8 @@ extern int sentai_mesh_receive_vision_wait(mesh_rx_vision_t* msg, int timeout_ms
 extern int sentai_mesh_request_config(uint32_t config_id);
 extern int sentai_mesh_is_running(void);
 extern uint32_t sentai_mesh_my_node_num(void);
+extern void sentai_mesh_set_pose(int32_t pitch_deg, int32_t roll_deg,
+                                 uint32_t altitude_cm, uint32_t heading_deg);
 
 // MAVLink link bridge — sentai_link.cc
 typedef struct { uint8_t _opaque[296]; } link_rx_msg_t;

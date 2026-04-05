@@ -54,7 +54,9 @@ sentai
 │   └── switch(id)
 ├── imu                     # LIS2DU12 accelerometer
 │   ├── init()
-│   └── read()
+│   ├── read()
+│   ├── degrees()
+│   └── radians()
 ├── mic                     # PDM microphone recording (ring buffer)
 │   ├── start(seconds=10)
 │   ├── stop()
@@ -536,6 +538,41 @@ for i in range(10):
     sentai.rtos.sleep_ms(100)
 ```
 
+### `sentai.imu.degrees()` → dict or None
+Read current tilt angles computed from acceleration.
+Returns a dict with `pitch`, `roll` (degrees, float) and `temp` (°C), or `None` if data not ready.
+
+- **pitch**: tilt forward/back from horizon, range ±90°. Computed as `atan2(x, √(y²+z²))`.
+- **roll**: tilt left/right, range ±90°. Computed as `atan2(y, √(x²+z²))`.
+- At rest with z pointing up: pitch≈0°, roll≈0°.
+
+```python
+>>> sentai.imu.init()
+0
+>>> sentai.imu.degrees()
+{'pitch': -43.9, 'roll': -5.0, 'temp': 25.3}
+```
+
+### `sentai.imu.radians()` → dict or None
+Same as `degrees()` but pitch and roll are in **radians**.
+
+```python
+>>> sentai.imu.radians()
+{'pitch': -0.766, 'roll': -0.087, 'temp': 25.3}
+```
+
+#### Tilt monitoring example
+```python
+import sentai
+
+sentai.imu.init()
+for i in range(10):
+    d = sentai.imu.degrees()
+    if d:
+        print(f"pitch={d['pitch']:.1f}° roll={d['roll']:.1f}° T={d['temp']:.1f}")
+    sentai.rtos.sleep_ms(100)
+```
+
 #### Motion detection
 ```python
 import sentai
@@ -686,6 +723,76 @@ OSError: flash busy: call sentai.usb.drive(0) first
 0
 >>> sentai.fs.ls("/")         # works — sees host's changes
 [('a.txt', 1, 5), ('b.txt', 1, 7)]
+```
+
+---
+
+## sentai.mesh — Meshtastic Mesh Radio (partial)
+
+> Full mesh API documentation TBD. Key additions below.
+
+### `sentai.mesh.set_pose(pitch_deg, roll_deg, altitude_cm=100, heading_deg=90)` → None
+Set the sensor pose that is **automatically attached** to all subsequent `send_detection()` and `send_update()` calls as a `SensorPose` sub-message in the protobuf.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `pitch_deg` | int | Camera tilt forward/back from horizon (−90..+90°). From `imu.degrees()['pitch']` |
+| `roll_deg` | int | Camera tilt left/right (−180..+180°). From `imu.degrees()['roll']` |
+| `altitude_cm` | int | Camera height above ground in cm. Default: 100 (1 m) |
+| `heading_deg` | int | Compass heading (0=N, 90=E, 180=S, 270=W). Default: 90 (East) |
+
+```python
+>>> import sentai
+>>> sentai.imu.init()
+0
+>>> d = sentai.imu.degrees()
+>>> sentai.mesh.set_pose(int(d['pitch']), int(d['roll']), 100, 90)
+```
+
+#### VisionMessage protobuf structure
+```protobuf
+message SensorPose {
+  sint32 pitch_deg   = 1;
+  sint32 roll_deg    = 2;
+  uint32 altitude_cm = 3;
+  uint32 heading_deg = 4;
+}
+
+message VisionMessage {
+  // ... existing fields ...
+  SensorPose pose = 20;  // auto-attached when set_pose() was called
+}
+```
+
+#### `receive_vision()` now includes pose
+When receiving a vision message that includes pose, the returned dict contains extra keys:
+`pitch_deg`, `roll_deg`, `altitude_cm`, `heading_deg`.
+
+```python
+>>> msg = sentai.mesh.receive_vision(5000)
+>>> msg['pitch_deg']   # -44
+>>> msg['altitude_cm'] # 100
+>>> msg['heading_deg'] # 90
+```
+
+#### Typical detection loop with pose
+```python
+import sentai
+
+sentai.imu.init()
+sentai.camera.init()
+sentai.camera.set_res(320, 320)
+sentai.mesh.init()
+
+for i in range(100):
+    # Update pose from IMU (altitude & heading are constants for now)
+    d = sentai.imu.degrees()
+    if d:
+        sentai.mesh.set_pose(int(d['pitch']), int(d['roll']), 100, 90)
+    
+    sentai.camera.to_tensor()
+    ms = sentai.tpu.invoke()
+    # ... process detections and call send_detection() ...
 ```
 
 ---

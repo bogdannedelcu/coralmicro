@@ -122,6 +122,11 @@ int sentai_mesh_is_running(void);
 // Get the node number of the connected radio (populated after config request).
 uint32_t sentai_mesh_my_node_num(void);
 
+// Set sensor pose (attached automatically to all subsequent vision messages).
+// pitch_deg/roll_deg: from IMU, altitude_cm: camera height, heading_deg: compass.
+void sentai_mesh_set_pose(int32_t pitch_deg, int32_t roll_deg,
+                         uint32_t altitude_cm, uint32_t heading_deg);
+
 #ifdef __cplusplus
 }
 #endif

@@ -50,6 +50,20 @@ extern "C" {
 #include "micropython_task.h"
 }
 
+// ===================== Camera pipeline optimizations ========================
+// Set to 1 to enable, 0 to disable (safe revert).  Build #197+
+//
+// SENTAI_OPT_FAST_POLL   — reduce GetRawFrame poll from 50ms to 5ms (~22ms less latency)
+// SENTAI_OPT_LAZY_DRAW   — skip memcpy to g_draw_rgb on every to_tensor;
+//                          copy only when draw() is actually called
+// SENTAI_OPT_SKIP_CLEAN  — skip DCACHE_CleanByRange before PXP (dst is always fresh)
+// SENTAI_DBG_COLOR_ORDER — print first 4 pixels after PXP (once) to verify R/G/B order
+// ============================================================================
+#define SENTAI_OPT_FAST_POLL    1
+#define SENTAI_OPT_LAZY_DRAW    1
+#define SENTAI_OPT_SKIP_CLEAN   1
+#define SENTAI_DBG_COLOR_ORDER  0   // verified — R channel is ch0
+
 // Performs object detection with SSD MobileNet, running on the Edge TPU,
 // using a local bitmap file as input.
 //
@@ -657,6 +671,11 @@ static constexpr int kMaxDrawPixels = 640 * 640 * 3;
 static uint8_t g_draw_rgb[kMaxDrawPixels]
     __attribute__((section(".sdram_bss")));
 static int g_draw_w = 0, g_draw_h = 0;
+#if SENTAI_OPT_LAZY_DRAW
+static bool g_draw_stale = true;  // true = g_draw_rgb needs refresh from tensor
+static uint8_t* g_draw_tensor_src = nullptr;  // pointer to last tensor_buf (valid until next to_tensor)
+static int g_draw_total = 0;  // total_pixels of last frame
+#endif
 
 // COCO 80 class names
 static const char* const kCocoNames[80] = {
@@ -971,6 +990,15 @@ extern "C" int sentai_tpu_draw(const char* path,
                                 const int16_t* dets, int n_dets,
                                 int quality) {
   if (g_draw_w == 0 || g_draw_h == 0) return -1;  // no frame saved
+
+#if SENTAI_OPT_LAZY_DRAW
+  // Lazy flush: copy tensor data → g_draw_rgb only when draw() is called
+  if (g_draw_stale && g_draw_tensor_src && g_draw_total > 0) {
+    memcpy(g_draw_rgb, g_draw_tensor_src, g_draw_total);
+    g_draw_stale = false;
+  }
+#endif
+
   int sz = g_draw_w * g_draw_h * 3;
 
   // Work on a copy so original is preserved for multiple draw() calls
@@ -1162,7 +1190,9 @@ static int pxp_scale_xrgb_to_rgb(const uint8_t* src, int src_w, int src_h,
 
   // Clean dst cache so PXP DMA doesn't collide with dirty cache lines
 #if (__CORTEX_M == 7)
+#if !SENTAI_OPT_SKIP_CLEAN
   DCACHE_CleanByRange((uint32_t)dst, dst_size);
+#endif
 #endif
 
   PXP_SetProcessSurfaceBufferConfig(DEMO_PXP, &ps_cfg);
@@ -1183,6 +1213,20 @@ static int pxp_scale_xrgb_to_rgb(const uint8_t* src, int src_w, int src_h,
   // Invalidate cache so CPU sees PXP DMA output
 #if (__CORTEX_M == 7)
   DCACHE_InvalidateByRange((uint32_t)dst, dst_size);
+#endif
+
+#if SENTAI_DBG_COLOR_ORDER
+  // Print first 4 pixels every 100th frame to verify channel order.
+  {
+    static uint32_t s_color_cnt = 0;
+    if ((s_color_cnt++ % 100) == 0) {
+      printf("[COLOR_DBG] frame#%lu  first 4 px (ch0,ch1,ch2):", s_color_cnt - 1);
+      for (int p = 0; p < 4 && p * 3 + 2 < (int)dst_size; p++) {
+        printf("  (%u,%u,%u)", dst[p*3+0], dst[p*3+1], dst[p*3+2]);
+      }
+      printf("\r\n");
+    }
+  }
 #endif
   return 0;
 }
@@ -1219,31 +1263,26 @@ extern "C" int sentai_cam_stop(void) {
   return 0;
 }
 
-// Try to get a raw frame with timeout and camera-toggle recovery.
-// Returns framebuffer index (>=0) on success, writes raw pointer to *raw_out.
-// On failure returns -2.
+// Try to get a raw frame with recovery.
+// NOTE: TryGetRawFrame is NOT truly non-blocking — inside the camera task,
+// HandleFrameRequest polls GetFullBuffer up to 40×100ms = 4 seconds.
+// So each call either succeeds quickly (~1ms) or blocks up to 4s.
+// We try ONCE per attempt, then do recovery if it fails.
 static int sentai_cam_get_raw_with_recovery(uint8_t** raw_out) {
   auto* cam = coralmicro::CameraTask::GetSingleton();
-  const int kTimeoutMs = 1000;    // 1 second timeout per attempt
-  const int kPollMs    = 50;      // poll interval
-  const int kMaxRecoveries = 2;   // how many toggle-recovery attempts
+  const int kMaxRecoveries = 2;
 
   for (int recovery = 0; recovery <= kMaxRecoveries; ++recovery) {
-    uint32_t t0 = xTaskGetTickCount();
-    int idx = -1;
-    while ((int)(xTaskGetTickCount() - t0) < kTimeoutMs) {
-      *raw_out = nullptr;
-      idx = cam->TryGetRawFrame(raw_out);
-      if (idx >= 0 && *raw_out) {
-        return idx;
-      }
-      vTaskDelay(pdMS_TO_TICKS(kPollMs));
+    *raw_out = nullptr;
+    int idx = cam->TryGetRawFrame(raw_out);
+    if (idx >= 0 && *raw_out) {
+      return idx;
     }
 
-    // Timed out — try toggling camera to kick CSI/MIPI
+    // Failed — try toggling camera to kick CSI/MIPI
     if (recovery < kMaxRecoveries) {
       int other = (g_cam_current_id == 0) ? 1 : 0;
-      printf("[CAM] GetRawFrame timeout, toggling %d->%d->%d to recover...\r\n",
+      printf("[CAM] GetRawFrame failed, toggling %d->%d->%d to recover...\r\n",
              g_cam_current_id, other, g_cam_current_id);
       cam->SwitchCamera(other == 0 ? coralmicro::SwitchCameraId::kCameraFront
                                    : coralmicro::SwitchCameraId::kCameraBack);
@@ -1263,33 +1302,29 @@ static int sentai_cam_get_raw_with_recovery(uint8_t** raw_out) {
 extern "C" int sentai_cam_capture_rgb(uint8_t* buf, int width, int height) {
   if (!g_cam_initialized) return -1;
   uint8_t* raw = nullptr;
-  uint32_t t0 = xTaskGetTickCount();
-  printf("[DBG] @%lu capture_rgb: calling GetRawFrame...\r\n", (unsigned long)t0);
   int idx = sentai_cam_get_raw_with_recovery(&raw);
-  uint32_t t1 = xTaskGetTickCount();
-  printf("[DBG] @%lu capture_rgb: GetRawFrame returned idx=%d raw=%p (+%lums)\r\n", (unsigned long)t1, idx, raw, (unsigned long)(t1-t0));
   if (idx < 0 || !raw) return -2;
 
   auto* cam = coralmicro::CameraTask::GetSingleton();
   int rc = pxp_scale_xrgb_to_rgb(raw, DEMO_CAMERA_WIDTH, DEMO_CAMERA_HEIGHT,
                                   buf, width, height);
-  uint32_t t2 = xTaskGetTickCount();
-  printf("[DBG] @%lu capture_rgb: PXP done rc=%d (+%lums), ReturnRawFrame(%d)\r\n", (unsigned long)t2, rc, (unsigned long)(t2-t1), idx);
   cam->ReturnRawFrame(idx);
-  printf("[DBG] @%lu capture_rgb: done (total %lums)\r\n", (unsigned long)xTaskGetTickCount(), (unsigned long)(xTaskGetTickCount()-t0));
   return rc;
 }
+
+// Persistent RGB buffer in SDRAM — avoids allocating 2.7MB on every call
+static uint8_t s_jpeg_rgb_buf[DEMO_CAMERA_WIDTH * DEMO_CAMERA_HEIGHT * 3]
+    __attribute__((section(".sdram_bss")));
 
 // Capture + JPEG compress. Returns JPEG size or negative error.
 extern "C" int sentai_cam_capture_jpeg(uint8_t* jpeg_buf, int jpeg_buf_size,
                                       int width, int height, int quality) {
   if (!g_cam_initialized) return -1;
-  int rgb_size = width * height * 3;
-  std::vector<uint8_t> rgb(rgb_size);
-  int rc = sentai_cam_capture_rgb(rgb.data(), width, height);
+  if (width > DEMO_CAMERA_WIDTH || height > DEMO_CAMERA_HEIGHT) return -5;
+  int rc = sentai_cam_capture_rgb(s_jpeg_rgb_buf, width, height);
   if (rc != 0) return rc;
   unsigned long used = coralmicro::JpegCompressRgb(
-      rgb.data(), width, height, quality,
+      s_jpeg_rgb_buf, width, height, quality,
       (unsigned char*)jpeg_buf, (unsigned long)jpeg_buf_size);
   return (int)used;
 }
@@ -1317,11 +1352,22 @@ extern "C" int sentai_cam_to_tensor_ex(const char* save_path, int quality) {
   if (rc != 0) return rc;
 
   // Save RGB frame for draw() before int8 quantization
+#if SENTAI_OPT_LAZY_DRAW
+  // Defer memcpy — only copy if draw() is actually called
+  if (total_pixels <= kMaxDrawPixels) {
+    g_draw_tensor_src = tensor_buf;
+    g_draw_total = total_pixels;
+    g_draw_w = w;
+    g_draw_h = h;
+    g_draw_stale = true;
+  }
+#else
   if (total_pixels <= kMaxDrawPixels) {
     memcpy(g_draw_rgb, tensor_buf, total_pixels);
     g_draw_w = w;
     g_draw_h = h;
   }
+#endif
 
   // Optionally save JPEG of the scaled RGB frame (before int8 quantization)
   if (save_path && save_path[0]) {

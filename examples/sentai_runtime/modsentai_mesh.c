@@ -148,6 +148,13 @@ static mp_obj_t mod_sentai_mesh_receive_vision(size_t n_args, const mp_obj_t *ar
     mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_alarm_type), mp_obj_new_int_from_uint(v->alarm_type));
     mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_timestamp), mp_obj_new_int_from_uint(v->timestamp_utc));
     mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_seq), mp_obj_new_int_from_uint(v->seq));
+    // Decode sensor pose if present
+    if (v->has_pose) {
+        mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_pitch_deg), mp_obj_new_int(v->pose.pitch_deg));
+        mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_roll_deg), mp_obj_new_int(v->pose.roll_deg));
+        mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_altitude_cm), mp_obj_new_int_from_uint(v->pose.altitude_cm));
+        mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_heading_deg), mp_obj_new_int_from_uint(v->pose.heading_deg));
+    }
     if (v->which_body == visionmesh_VisionMessage_new_detection_tag) {
         mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_type),
                           mp_obj_new_str("new", 3));
@@ -179,6 +186,18 @@ static mp_obj_t mod_sentai_mesh_receive_vision(size_t n_args, const mp_obj_t *ar
     return MP_OBJ_FROM_PTR(d);
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_mesh_receive_vision_obj, 0, 1, mod_sentai_mesh_receive_vision);
+
+// sentai.mesh.set_pose(pitch_deg, roll_deg, altitude_cm=100, heading_deg=90) -> None
+// Set sensor pose — auto-attached to all subsequent vision messages.
+static mp_obj_t mod_sentai_mesh_set_pose(size_t n_args, const mp_obj_t *args) {
+    int32_t pitch = mp_obj_get_int(args[0]);
+    int32_t roll  = mp_obj_get_int(args[1]);
+    uint32_t alt  = (n_args > 2) ? (uint32_t)mp_obj_get_int(args[2]) : 100;
+    uint32_t hdg  = (n_args > 3) ? (uint32_t)mp_obj_get_int(args[3]) : 90;
+    sentai_mesh_set_pose(pitch, roll, alt, hdg);
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_mesh_set_pose_obj, 2, 4, mod_sentai_mesh_set_pose);
 
 // sentai.mesh.available() -> int  (text messages)
 static mp_obj_t mod_sentai_mesh_available(void) {
@@ -213,6 +232,7 @@ static const mp_rom_map_elem_t sentai_mesh_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_send),              MP_ROM_PTR(&mod_sentai_mesh_send_obj) },
     { MP_ROM_QSTR(MP_QSTR_send_detection),    MP_ROM_PTR(&mod_sentai_mesh_send_detection_obj) },
     { MP_ROM_QSTR(MP_QSTR_send_update),       MP_ROM_PTR(&mod_sentai_mesh_send_update_obj) },
+    { MP_ROM_QSTR(MP_QSTR_set_pose),          MP_ROM_PTR(&mod_sentai_mesh_set_pose_obj) },
     { MP_ROM_QSTR(MP_QSTR_receive),           MP_ROM_PTR(&mod_sentai_mesh_receive_obj) },
     { MP_ROM_QSTR(MP_QSTR_receive_vision),    MP_ROM_PTR(&mod_sentai_mesh_receive_vision_obj) },
     { MP_ROM_QSTR(MP_QSTR_available),         MP_ROM_PTR(&mod_sentai_mesh_available_obj) },

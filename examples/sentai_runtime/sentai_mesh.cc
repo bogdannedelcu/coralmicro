@@ -48,6 +48,19 @@ static uint32_t      g_mesh_packet_id = 1;
 
 #define APP_VERSION 1
 
+// ===================== Sensor pose (auto-attached to vision msgs) =====
+static visionmesh_SensorPose g_mesh_pose = visionmesh_SensorPose_init_zero;
+static bool g_mesh_pose_valid = false;
+
+extern "C" void sentai_mesh_set_pose(int32_t pitch_deg, int32_t roll_deg,
+                                     uint32_t altitude_cm, uint32_t heading_deg) {
+    g_mesh_pose.pitch_deg   = pitch_deg;
+    g_mesh_pose.roll_deg    = roll_deg;
+    g_mesh_pose.altitude_cm = altitude_cm;
+    g_mesh_pose.heading_deg = heading_deg;
+    g_mesh_pose_valid = true;
+}
+
 // ===================== Frame send (with mutex) =====================
 
 // Send a framed Meshtastic serial packet: [0x94, 0xC3, len_msb, len_lsb, payload...]
@@ -324,6 +337,12 @@ extern "C" int sentai_mesh_send_detection(
     vision.seq = seq;
     vision.which_body = visionmesh_VisionMessage_new_detection_tag;
 
+    // Attach sensor pose if set
+    if (g_mesh_pose_valid) {
+        vision.has_pose = true;
+        vision.pose = g_mesh_pose;
+    }
+
     visionmesh_NewDetection* det = &vision.body.new_detection;
     det->xywh_packed = ((uint32_t)x) | ((uint32_t)y << 8) |
                        ((uint32_t)w << 16) | ((uint32_t)h << 24);
@@ -372,6 +391,12 @@ extern "C" int sentai_mesh_send_update(
     vision.timestamp_utc = timestamp_utc;
     vision.seq = seq;
     vision.which_body = visionmesh_VisionMessage_update_detection_tag;
+
+    // Attach sensor pose if set
+    if (g_mesh_pose_valid) {
+        vision.has_pose = true;
+        vision.pose = g_mesh_pose;
+    }
 
     visionmesh_UpdateDetection* upd = &vision.body.update_detection;
     upd->xywh_packed = ((uint32_t)x) | ((uint32_t)y << 8) |

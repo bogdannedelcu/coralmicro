@@ -108,7 +108,12 @@ void ConsoleM7::Write(char* buffer, int size) {
   msg.semaphore = xSemaphoreCreateBinaryStatic(&msg.semaphore_storage);
 #endif
   memcpy(msg.str, buffer, size);
-  xQueueSend(console_queue_, &msg, portMAX_DELAY);
+  // Bounded timeout: drop message if queue stays full for 200ms.
+  // Prevents infinite hang when USB CDC is non-responsive (e.g. re-enumeration).
+  if (xQueueSend(console_queue_, &msg, pdMS_TO_TICKS(200)) != pdTRUE) {
+    delete[] msg.str;  // queue full — drop to prevent hang
+    return;
+  }
 #ifdef BLOCKING_PRINTF
   xSemaphoreTake(msg.semaphore, portMAX_DELAY);
   vSemaphoreDelete(msg.semaphore);
