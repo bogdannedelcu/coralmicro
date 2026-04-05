@@ -1264,6 +1264,7 @@ extern "C" int sentai_cam_stop(void) {
 }
 
 // Try to get a raw frame with recovery.
+// Drains stale buffered frames first so the caller always gets the LATEST frame.
 // NOTE: TryGetRawFrame is NOT truly non-blocking — inside the camera task,
 // HandleFrameRequest polls GetFullBuffer up to 40×100ms = 4 seconds.
 // So each call either succeeds quickly (~1ms) or blocks up to 4s.
@@ -1271,15 +1272,54 @@ extern "C" int sentai_cam_stop(void) {
 static int sentai_cam_get_raw_with_recovery(uint8_t** raw_out) {
   auto* cam = coralmicro::CameraTask::GetSingleton();
   const int kMaxRecoveries = 2;
+  TickType_t t_start = xTaskGetTickCount();
 
   for (int recovery = 0; recovery <= kMaxRecoveries; ++recovery) {
-    *raw_out = nullptr;
-    int idx = cam->TryGetRawFrame(raw_out);
-    if (idx >= 0 && *raw_out) {
-      return idx;
+    // Strategy: drain the FIFO queue, keep only the LAST (most recent) buffer.
+    // With N DMA buffers, at most N-1 can be queued (1 is being written by DMA).
+    // The last one out of the queue is the most recently completed frame.
+    // We never wait for a NEW frame — just grab what's already available.
+    // Only fall back to blocking GetRawFrame if queue was completely empty.
+    {
+      uint8_t* kept_frame = nullptr;
+      int kept_idx = -1;
+      int drained = 0;
+      for (int i = 0; i < DEMO_CAMERA_BUFFER_COUNT - 1; ++i) {
+        uint8_t* tmp = nullptr;
+        int idx = cam->TryGetRawFrame(&tmp);
+        if (idx < 0 || !tmp) break;  // queue empty
+        // Return the previous frame, keep this (newer) one
+        if (kept_idx >= 0) {
+          cam->ReturnRawFrame(kept_idx);
+        }
+        kept_idx = idx;
+        kept_frame = tmp;
+        drained++;
+      }
+
+      if (kept_idx >= 0) {
+        // Got the most recent completed frame — no waiting needed
+        TickType_t total = xTaskGetTickCount() - t_start;
+        printf("  [frame] drained %d, kept buf#%d (%ldms)\r\n",
+               drained, kept_idx, (long)total);
+        *raw_out = kept_frame;
+        return kept_idx;
+      }
+
+      // Queue was empty — camera may be slow or just started.
+      // Fall back to blocking wait for the next frame.
+      uint8_t* frame = nullptr;
+      int idx = cam->GetRawFrame(&frame);
+      if (idx >= 0 && frame) {
+        TickType_t total = xTaskGetTickCount() - t_start;
+        printf("  [frame] queue empty, waited for buf#%d (%ldms)\r\n",
+               idx, (long)total);
+        *raw_out = frame;
+        return idx;
+      }
     }
 
-    // Failed — try toggling camera to kick CSI/MIPI
+    // No frames at all — try toggling camera to kick CSI/MIPI
     if (recovery < kMaxRecoveries) {
       int other = (g_cam_current_id == 0) ? 1 : 0;
       printf("[CAM] GetRawFrame failed, toggling %d->%d->%d to recover...\r\n",
@@ -1302,13 +1342,18 @@ static int sentai_cam_get_raw_with_recovery(uint8_t** raw_out) {
 extern "C" int sentai_cam_capture_rgb(uint8_t* buf, int width, int height) {
   if (!g_cam_initialized) return -1;
   uint8_t* raw = nullptr;
+  TickType_t t0 = xTaskGetTickCount();
   int idx = sentai_cam_get_raw_with_recovery(&raw);
+  TickType_t t1 = xTaskGetTickCount();
   if (idx < 0 || !raw) return -2;
 
   auto* cam = coralmicro::CameraTask::GetSingleton();
   int rc = pxp_scale_xrgb_to_rgb(raw, DEMO_CAMERA_WIDTH, DEMO_CAMERA_HEIGHT,
                                   buf, width, height);
+  TickType_t t2 = xTaskGetTickCount();
   cam->ReturnRawFrame(idx);
+  printf("  [capture_rgb] drain=%ldms pxp=%ldms\r\n",
+         (long)(t1 - t0), (long)(t2 - t1));
   return rc;
 }
 
@@ -1316,16 +1361,141 @@ extern "C" int sentai_cam_capture_rgb(uint8_t* buf, int width, int height) {
 static uint8_t s_jpeg_rgb_buf[DEMO_CAMERA_WIDTH * DEMO_CAMERA_HEIGHT * 3]
     __attribute__((section(".sdram_bss")));
 
+// ---- libjpeg buffer-destination manager (same logic as jpeg.cc) -----------
+struct sentai_buf_dest_mgr {
+  struct jpeg_destination_mgr pub;
+  unsigned long capacity;
+  unsigned long* out_size;
+};
+
+static void sentai_init_dest(j_compress_ptr) {}
+static boolean sentai_empty_buf(j_compress_ptr) { return FALSE; }
+static void sentai_term_dest(j_compress_ptr cinfo) {
+  auto* d = reinterpret_cast<sentai_buf_dest_mgr*>(cinfo->dest);
+  *d->out_size = d->capacity - d->pub.free_in_buffer;
+}
+
+static void sentai_jpeg_buf_dest(j_compress_ptr cinfo, unsigned char* buf,
+                                 unsigned long size, unsigned long* out_size) {
+  if (!cinfo->dest)
+    cinfo->dest = (struct jpeg_destination_mgr*)(*cinfo->mem->alloc_small)(
+        (j_common_ptr)cinfo, JPOOL_PERMANENT, sizeof(sentai_buf_dest_mgr));
+  auto* d = reinterpret_cast<sentai_buf_dest_mgr*>(cinfo->dest);
+  d->pub.init_destination    = sentai_init_dest;
+  d->pub.empty_output_buffer = sentai_empty_buf;
+  d->pub.term_destination    = sentai_term_dest;
+  d->pub.next_output_byte    = buf;
+  d->pub.free_in_buffer      = size;
+  d->capacity = size;
+  d->out_size = out_size;
+}
+
+// Direct JPEG compression from raw XRGB8888 camera buffer — bypasses PXP.
+// Camera stores pixels as [B, G, R, X] in memory (little-endian XRGB8888).
+// Converts one row at a time to [R, G, B] for libjpeg.
+// Uses JDCT_IFAST for ~30-40% faster DCT on Cortex-M7.
+// Only works at full camera resolution (no scaling).
+static unsigned long jpeg_compress_xrgb_direct(
+    const uint8_t* xrgb, int width, int height, int pitch_bytes,
+    int quality, uint8_t* jpeg_buf, unsigned long jpeg_buf_size) {
+
+  struct jpeg_compress_struct cinfo;
+  struct jpeg_error_mgr jerr;
+  cinfo.err = jpeg_std_error(&jerr);
+  jpeg_create_compress(&cinfo);
+
+  unsigned long out_size = 0;
+  sentai_jpeg_buf_dest(&cinfo, jpeg_buf, jpeg_buf_size, &out_size);
+
+  cinfo.image_width      = width;
+  cinfo.image_height     = height;
+  cinfo.input_components = 3;
+  cinfo.in_color_space   = JCS_RGB;
+
+  jpeg_set_defaults(&cinfo);
+  jpeg_set_quality(&cinfo, quality, TRUE);
+  cinfo.dct_method = JDCT_IFAST;  // ~30-40% faster than JDCT_ISLOW
+  jpeg_start_compress(&cinfo, TRUE);
+
+  // Row conversion buffer — 1280*3 = 3840 bytes, fine on stack
+  uint8_t row_rgb[DEMO_CAMERA_WIDTH * 3];
+
+  while (cinfo.next_scanline < cinfo.image_height) {
+    const uint8_t* src_row = xrgb + cinfo.next_scanline * pitch_bytes;
+    // Optimized RGBX→RGB using 32-bit reads from non-cacheable OCRAM.
+    // One uint32 load per pixel instead of 3 separate byte loads.
+    // Memory layout: [R, G, B, X] per pixel.
+    // LE uint32 = R | (G<<8) | (B<<16) | (X<<24)
+    const uint32_t* src32 = (const uint32_t*)src_row;
+    int x = 0;
+    // Unrolled 4x for pipeline efficiency
+    for (; x + 3 < width; x += 4) {
+      uint32_t p0 = src32[x + 0];
+      uint32_t p1 = src32[x + 1];
+      uint32_t p2 = src32[x + 2];
+      uint32_t p3 = src32[x + 3];
+      uint8_t* d = &row_rgb[x * 3];
+      d[0]  = (uint8_t)p0;          d[1]  = (uint8_t)(p0 >> 8); d[2]  = (uint8_t)(p0 >> 16);
+      d[3]  = (uint8_t)p1;          d[4]  = (uint8_t)(p1 >> 8); d[5]  = (uint8_t)(p1 >> 16);
+      d[6]  = (uint8_t)p2;          d[7]  = (uint8_t)(p2 >> 8); d[8]  = (uint8_t)(p2 >> 16);
+      d[9]  = (uint8_t)p3;          d[10] = (uint8_t)(p3 >> 8); d[11] = (uint8_t)(p3 >> 16);
+    }
+    // Tail: handle remaining pixels (width not multiple of 4)
+    for (; x < width; ++x) {
+      row_rgb[x * 3 + 0] = src_row[x * 4 + 0];  // R
+      row_rgb[x * 3 + 1] = src_row[x * 4 + 1];  // G
+      row_rgb[x * 3 + 2] = src_row[x * 4 + 2];  // B
+    }
+    JSAMPROW rp = row_rgb;
+    jpeg_write_scanlines(&cinfo, &rp, 1);
+  }
+
+  jpeg_finish_compress(&cinfo);
+  jpeg_destroy_compress(&cinfo);
+  return out_size;
+}
+
 // Capture + JPEG compress. Returns JPEG size or negative error.
+// At full resolution, bypasses PXP entirely (direct XRGB→JPEG row-by-row).
+// At scaled resolution, uses PXP hardware scaler + JpegCompressRgb.
 extern "C" int sentai_cam_capture_jpeg(uint8_t* jpeg_buf, int jpeg_buf_size,
                                       int width, int height, int quality) {
   if (!g_cam_initialized) return -1;
   if (width > DEMO_CAMERA_WIDTH || height > DEMO_CAMERA_HEIGHT) return -5;
+
+  // Full resolution — bypass PXP, encode directly from camera buffer
+  if (width == DEMO_CAMERA_WIDTH && height == DEMO_CAMERA_HEIGHT) {
+    uint8_t* raw = nullptr;
+    TickType_t t0 = xTaskGetTickCount();
+    int idx = sentai_cam_get_raw_with_recovery(&raw);
+    TickType_t t1 = xTaskGetTickCount();
+    if (idx < 0 || !raw) return -2;
+
+    int pitch = (DEMO_CAMERA_WIDTH + LINE_PADDING) * DEMO_CAMERA_BUFFER_BPP;
+    unsigned long used = jpeg_compress_xrgb_direct(
+        raw, width, height, pitch, quality,
+        (unsigned char*)jpeg_buf, (unsigned long)jpeg_buf_size);
+
+    TickType_t t2 = xTaskGetTickCount();
+    auto* cam = coralmicro::CameraTask::GetSingleton();
+    cam->ReturnRawFrame(idx);
+
+    printf("  [capture_jpeg] drain=%ldms xrgb_jpeg=%ldms total=%ldms (direct)\r\n",
+           (long)(t1 - t0), (long)(t2 - t1), (long)(t2 - t0));
+    return (int)used;
+  }
+
+  // Scaled resolution — need PXP for hardware scaling
+  TickType_t t0 = xTaskGetTickCount();
   int rc = sentai_cam_capture_rgb(s_jpeg_rgb_buf, width, height);
+  TickType_t t1 = xTaskGetTickCount();
   if (rc != 0) return rc;
   unsigned long used = coralmicro::JpegCompressRgb(
       s_jpeg_rgb_buf, width, height, quality,
       (unsigned char*)jpeg_buf, (unsigned long)jpeg_buf_size);
+  TickType_t t2 = xTaskGetTickCount();
+  printf("  [capture_jpeg] rgb=%ldms jpeg_encode=%ldms total=%ldms (pxp+scale)\r\n",
+         (long)(t1 - t0), (long)(t2 - t1), (long)(t2 - t0));
   return (int)used;
 }
 

@@ -589,19 +589,29 @@ def OpenHidDevice(vid, pid, serial_number):
   h = hid.device()
   # First few tries to open the HID device can fail,
   # if Python is faster than the device. So retry a bit.
-  print('OpenHidDevice vid={:x} pid={:x} ...'.format(vid, pid))
+  # Try both the primary VID and the legacy VID (board may report either).
+  vids_to_try = [vid]
+  if vid == ELFLOADER_VID and ELFLOADER_LEGACY_VID not in vids_to_try:
+    vids_to_try.append(ELFLOADER_LEGACY_VID)
+  elif vid == ELFLOADER_LEGACY_VID and ELFLOADER_VID not in vids_to_try:
+    vids_to_try.append(ELFLOADER_VID)
+
+  print('OpenHidDevice vid={} pid={:x} ...'.format(
+      [hex(v) for v in vids_to_try], pid))
   for _ in range(round(OPEN_HID_RETRY_TIME_S / OPEN_HID_RETRY_INTERVAL_S)):
-    try:
-      h.open(vid, pid, serial_number=serial_number)
-      print('OpenHidDevice vid={:x} pid={:x} opened'.format(
-          vid, pid, serial_number))
+    for try_vid in vids_to_try:
       try:
-        yield h
-      finally:
-        h.close()
-      return
-    except:
-      time.sleep(OPEN_HID_RETRY_INTERVAL_S)
+        h.open(try_vid, pid, serial_number=serial_number)
+        print('OpenHidDevice vid={:x} pid={:x} opened'.format(
+            try_vid, pid))
+        try:
+          yield h
+        finally:
+          h.close()
+        return
+      except:
+        pass
+    time.sleep(OPEN_HID_RETRY_INTERVAL_S)
 
   raise Exception('Failed to open Dev Board Micro HID device')
 

@@ -8,6 +8,7 @@
 
 #include "third_party/freertos_kernel/include/FreeRTOS.h"
 #include "third_party/freertos_kernel/include/task.h"
+#include "third_party/freertos_kernel/include/timers.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -87,6 +88,98 @@ static void ctrlc_monitor_stop(void) {
     // Give the monitor task time to exit
     vTaskDelay(pdMS_TO_TICKS(50));
     ctrlc_monitor_handle = NULL;
+}
+
+// ===================== Safe boot: crash counter =====================
+// Protects against boot loops caused by bad main.py.
+// Before running main.py, writes a "pending" counter to /log/.boot_pending.
+// If main.py completes (even with Python exception), the file is removed.
+// If main.py causes a hard crash (C-level fault -> reboot), the file persists.
+// After SAFE_MODE_MAX_ATTEMPTS consecutive hard crashes, main.py is skipped.
+
+#define SAFE_MODE_MAX_ATTEMPTS 3
+#define MAINPY_TIMEOUT_MS      30000  // 30s timeout for main.py
+
+// Forward declarations for FS functions
+extern int sentai_fs_file_exists(const char* path);
+extern int sentai_fs_size(const char* path);
+extern int sentai_fs_read(const char* path, uint8_t* buf, int max_size);
+extern int sentai_fs_write(const char* path, const uint8_t* buf, int size);
+extern int sentai_fs_remove(const char* path);
+extern int sentai_fs_makedirs(const char* path);
+extern int sentai_usb_drive_get(void);
+
+// Returns: 0 = run main.py, 1 = skip (safe mode)
+// Side effect: increments and writes boot_pending counter
+static int safe_boot_check(void) {
+    int attempts = 0;
+
+    if (sentai_fs_file_exists("/log/.boot_pending")) {
+        int sz = sentai_fs_size("/log/.boot_pending");
+        if (sz > 0 && sz <= 4) {
+            uint8_t buf[4] = {0};
+            sentai_fs_read("/log/.boot_pending", buf, sz);
+            attempts = buf[0];
+        }
+        attempts++;
+    }
+
+    if (attempts >= SAFE_MODE_MAX_ATTEMPTS) {
+        return 1;  // safe mode - skip main.py
+    }
+
+    // Write incremented counter
+    sentai_fs_makedirs("/log");
+    uint8_t counter = (uint8_t)attempts;
+    sentai_fs_write("/log/.boot_pending", &counter, 1);
+
+    return 0;
+}
+
+static void safe_boot_clear(void) {
+    sentai_fs_remove("/log/.boot_pending");
+}
+
+// ===================== Timeout timer for main.py =====================
+static TimerHandle_t mainpy_timeout_timer = NULL;
+
+static void mainpy_timeout_callback(TimerHandle_t timer) {
+    (void)timer;
+    printf("\r\n[main.py] TIMEOUT after %d seconds - interrupting\r\n",
+           MAINPY_TIMEOUT_MS / 1000);
+    mp_sched_keyboard_interrupt();
+}
+
+// Execute main.py with Ctrl+C monitor AND timeout.
+// Returns: 0 = success, -1 = exception/timeout/error
+static int mp_exec_mainpy(const char* src, int timeout_ms) {
+    // Start Ctrl+C monitor
+    ctrlc_monitor_start();
+
+    // Start one-shot timeout timer
+    if (timeout_ms > 0) {
+        mainpy_timeout_timer = xTimerCreate(
+            "mainpy_to", pdMS_TO_TICKS(timeout_ms),
+            pdFALSE, NULL, mainpy_timeout_callback);
+        if (mainpy_timeout_timer) {
+            xTimerStart(mainpy_timeout_timer, portMAX_DELAY);
+        }
+    }
+
+    // Execute with safe error handling (returns -1 on exception)
+    int rc = mp_embed_exec_str_safe(src);
+
+    // Stop timeout timer
+    if (mainpy_timeout_timer) {
+        xTimerStop(mainpy_timeout_timer, portMAX_DELAY);
+        xTimerDelete(mainpy_timeout_timer, portMAX_DELAY);
+        mainpy_timeout_timer = NULL;
+    }
+
+    // Stop Ctrl+C monitor
+    ctrlc_monitor_stop();
+
+    return rc;
 }
 
 // Wrapper: execute a script string with Ctrl+C monitoring active
@@ -319,26 +412,44 @@ static void micropython_repl_task(void* param) {
     mp_embed_exec_str("import sentai");
 
     // Auto-run /main.py if it exists on the user partition
+    // Protected by safe boot counter + timeout to prevent boot loops.
     // (skip if USB drive is active — LFS is unmounted)
     {
-        extern int sentai_fs_file_exists(const char* path);
-        extern int sentai_fs_size(const char* path);
-        extern int sentai_fs_read(const char* path, uint8_t* buf, int max_size);
-        extern int sentai_usb_drive_get(void);
-
         if (!sentai_usb_drive_get() && sentai_fs_file_exists("/main.py")) {
-            int size = sentai_fs_size("/main.py");
-            if (size > 0) {
-                uint8_t* buf = (uint8_t*)m_new(byte, size + 1);
-                int n = sentai_fs_read("/main.py", buf, size);
+            int skip = safe_boot_check();
 
-                if (n > 0) {
-                    buf[n] = '\0';
-                    repl_puts("\r\n[main.py] Running...\r\n");
-                    mp_exec_str_with_ctrlc((const char*)buf);
-                    repl_puts("[main.py] Finished.\r\n");
+            if (skip) {
+                printf("\r\n");
+                printf("*********************************************\r\n");
+                printf("*  SAFE MODE - main.py skipped              *\r\n");
+                printf("*  %d consecutive boot failures detected     *\r\n",
+                       SAFE_MODE_MAX_ATTEMPTS);
+                printf("*  Fix main.py, then run:                   *\r\n");
+                printf("*    sentai.fs.remove('/log/.boot_pending')  *\r\n");
+                printf("*  Or delete main.py:                       *\r\n");
+                printf("*    sentai.fs.remove('/main.py')            *\r\n");
+                printf("*********************************************\r\n");
+            } else {
+                int size = sentai_fs_size("/main.py");
+                if (size > 0) {
+                    uint8_t* buf = (uint8_t*)m_new(byte, size + 1);
+                    int n = sentai_fs_read("/main.py", buf, size);
+
+                    if (n > 0) {
+                        buf[n] = '\0';
+                        printf("\r\n[main.py] Running (%d bytes, timeout %ds)...\r\n",
+                               n, MAINPY_TIMEOUT_MS / 1000);
+                        int rc = mp_exec_mainpy((const char*)buf, MAINPY_TIMEOUT_MS);
+                        if (rc == 0) {
+                            printf("[main.py] Finished OK.\r\n");
+                        } else {
+                            printf("[main.py] FAILED (errors above, also in /log/boot.log)\r\n");
+                        }
+                        // We survived (no hard crash) - clear boot counter
+                        safe_boot_clear();
+                    }
+                    m_del(byte, buf, size + 1);
                 }
-                m_del(byte, buf, size + 1);
             }
         }
     }

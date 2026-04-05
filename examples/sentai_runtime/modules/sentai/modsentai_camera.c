@@ -68,16 +68,28 @@ static mp_obj_t mod_sentai_cam_save_jpeg(size_t n_args, const mp_obj_t *args) {
     if (!buf) {
         mp_raise_msg(&mp_type_MemoryError, MP_ERROR_TEXT("jpeg buf alloc"));
     }
+
+    uint32_t t0 = sentai_ticks_ms();
     int jpeg_size = sentai_cam_capture_jpeg(buf, max_jpeg, w, h, quality);
+    uint32_t t1 = sentai_ticks_ms();
+
     if (jpeg_size <= 0) {
         free(buf);
         mp_raise_msg(&mp_type_RuntimeError, MP_ERROR_TEXT("cam capture fail"));
     }
+
     int ok = sentai_fs_write(path, buf, jpeg_size);
+    uint32_t t2 = sentai_ticks_ms();
+
     free(buf);
     if (!ok) {
         mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("write fail"));
     }
+
+    printf("[save_jpeg] %s: capture=%lums save=%lums total=%lums (%d bytes, q=%d)\r\n",
+           path, (unsigned long)(t1 - t0), (unsigned long)(t2 - t1),
+           (unsigned long)(t2 - t0), jpeg_size, quality);
+
     return mp_obj_new_int(jpeg_size);
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_cam_save_jpeg_obj, 1, 2, mod_sentai_cam_save_jpeg);

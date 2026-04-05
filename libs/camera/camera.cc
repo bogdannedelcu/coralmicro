@@ -819,9 +819,21 @@ void CameraTask::HandleSwitchCameraRequest(const SwitchCameraId cameraId) {
   // CSI keeps running — do NOT stop it. Stopping CSI kills the MIPI bridge
   // sync and CSI_TransferStart alone cannot recover it.
   //
-  // Strategy: switch MUX, wait for MIPI re-lock + new frames, drain stale buffers.
+  // Strategy: drain immediately, switch MUX, short wait for MIPI re-lock,
+  // drain again to flush any mixed/transitional frames.
 
-  // 1. Switch MUX GPIO (CSI still running — at most one frame will be mixed)
+  // 1. Drain ALL currently-full buffers BEFORE switching (old camera frames)
+  {
+    uint32_t buf;
+    int drained = 0;
+    while (CAMERA_RECEIVER_GetFullBuffer(&cameraReceiver, &buf) == kStatus_Success) {
+      CAMERA_RECEIVER_SubmitEmptyBuffer(&cameraReceiver, buf);
+      drained++;
+    }
+    DBG_OUTPUT("[DBG] SwitchCamera: pre-drain %d old buffers\r\n", drained);
+  }
+
+  // 2. Switch MUX GPIO
   switch(cameraId) {
     case coralmicro::SwitchCameraId::kCameraBack:
         coralmicro::GpioSet((coralmicro::Gpio) Gpio::kCamMux, MUX_BACK_CAMERA);
@@ -838,11 +850,11 @@ void CameraTask::HandleSwitchCameraRequest(const SwitchCameraId cameraId) {
         return;
   }
 
-  // 2. Wait for MIPI CSI-2 bridge to re-lock + CSI to fill buffers.
-  //    200ms ≈ 6 frames at 30fps — enough for bridge re-lock + buffer fill.
-  vTaskDelay(pdMS_TO_TICKS(200));
+  // 3. Short wait for MIPI CSI-2 bridge to re-lock on new camera input.
+  //    ~50ms ≈ 1-2 frames at 30fps — enough for bridge re-lock.
+  vTaskDelay(pdMS_TO_TICKS(50));
 
-  // 3. Drain ALL stale full buffers (old camera + mixed + early new camera frames)
+  // 4. Drain any mixed/transitional frames that arrived during the switch.
   {
     uint32_t buf;
     int drained = 0;
@@ -850,11 +862,8 @@ void CameraTask::HandleSwitchCameraRequest(const SwitchCameraId cameraId) {
       CAMERA_RECEIVER_SubmitEmptyBuffer(&cameraReceiver, buf);
       drained++;
     }
-    printf("[DBG] SwitchCamera: drained %d stale buffers\r\n", drained);
+    DBG_OUTPUT("[DBG] SwitchCamera: post-drain %d transitional buffers\r\n", drained);
   }
-
-  // 4. Wait one frame period for fresh frame from new camera.
-  vTaskDelay(pdMS_TO_TICKS(50));
 }
 
 
@@ -1018,7 +1027,9 @@ camera::FrameResponse CameraTask::HandleFrameRequest(
 
   if (frame.index == -1) {  // GET
     // get new frame buffer
-    int n = 40;
+    // Poll every 5ms (was 100ms — too coarse for 15fps / 67ms frames).
+    // Total timeout: 800 × 5ms = 4 seconds.
+    int n = 800;
     bool state = true;
 
     DBG_OUTPUT ("CAMERA_RECEIVER_GetFullBuffer:waiting...\r\n");
@@ -1031,7 +1042,7 @@ camera::FrameResponse CameraTask::HandleFrameRequest(
         break;
       }
 
-      vTaskDelay(100);
+      vTaskDelay(pdMS_TO_TICKS(5));
 
       if (kCameraUseStatusLed) {
         coralmicro::GpioSet((coralmicro::Gpio) coralmicro::Gpio::kStatusLed, state);
