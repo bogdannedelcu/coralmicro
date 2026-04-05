@@ -34,8 +34,6 @@ void mp_embed_deinit(void);
 
 // Only available if MICROPY_ENABLE_COMPILER is enabled.
 void mp_embed_exec_str(const char *src);
-// Like mp_embed_exec_str but returns 0 on success, -1 on exception.
-int mp_embed_exec_str_safe(const char *src);
 
 // Only available if MICROPY_PERSISTENT_CODE_LOAD is enabled.
 void mp_embed_exec_mpy(const uint8_t *mpy, size_t len);

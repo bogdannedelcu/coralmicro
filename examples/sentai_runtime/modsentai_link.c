@@ -50,6 +50,12 @@ static mp_obj_t mod_sentai_link_send(size_t n_args, const mp_obj_t *args) {
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_link_send_obj, 1, 2, mod_sentai_link_send);
 
 // sentai.link.send_detection(...) -> int
+// Args: sensor_id, track_id, alarm_type, timestamp, seq,
+//       x, y, w, h, conf, class_id,
+//       embedding=None, embed_crc8=0,
+//       gx_cm=0, gy_cm=0, dist_cm=0, width_cm=0,
+//       target_lat=0.0, target_lon=0.0,
+//       severity=6
 static mp_obj_t mod_sentai_link_send_detection(size_t n_args, const mp_obj_t *args) {
     uint32_t sensor_id = (uint32_t)mp_obj_get_int(args[0]);
     uint32_t track_id  = (uint32_t)mp_obj_get_int(args[1]);
@@ -65,6 +71,11 @@ static mp_obj_t mod_sentai_link_send_detection(size_t n_args, const mp_obj_t *ar
     const uint8_t* emb = NULL;
     uint32_t emb_len = 0;
     uint32_t emb_crc = 0;
+    int32_t gx_cm = 0;
+    int32_t gy_cm = 0;
+    uint32_t dist_cm = 0;
+    int16_t width_cm = 0;
+    float target_lat = 0.0f, target_lon = 0.0f;
     uint8_t severity = 6;
     if (n_args > 11 && args[11] != mp_const_none) {
         mp_buffer_info_t bufinfo;
@@ -73,15 +84,28 @@ static mp_obj_t mod_sentai_link_send_detection(size_t n_args, const mp_obj_t *ar
         emb_len = bufinfo.len;
     }
     if (n_args > 12) emb_crc = (uint32_t)mp_obj_get_int(args[12]);
-    if (n_args > 13) severity = (uint8_t)mp_obj_get_int(args[13]);
+    if (n_args > 13) gx_cm = (int32_t)mp_obj_get_int(args[13]);
+    if (n_args > 14) gy_cm = (int32_t)mp_obj_get_int(args[14]);
+    if (n_args > 15) dist_cm = (uint32_t)mp_obj_get_int(args[15]);
+    if (n_args > 16) width_cm = (int16_t)mp_obj_get_int(args[16]);
+    if (n_args > 17) target_lat = mp_obj_get_float(args[17]);
+    if (n_args > 18) target_lon = mp_obj_get_float(args[18]);
+    if (n_args > 19) severity = (uint8_t)mp_obj_get_int(args[19]);
     return mp_obj_new_int(sentai_link_send_vision(
         sensor_id, track_id, alarm_type, timestamp, seq,
         x, y, w, h, conf, class_id,
-        emb, emb_len, emb_crc, severity));
+        emb, emb_len, emb_crc,
+        gx_cm, gy_cm, dist_cm, width_cm,
+        target_lat, target_lon, severity));
 }
-static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_link_send_detection_obj, 11, 14, mod_sentai_link_send_detection);
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_link_send_detection_obj, 11, 20, mod_sentai_link_send_detection);
 
 // sentai.link.send_update(...) -> int
+// Args: sensor_id, track_id, alarm_type, timestamp, seq,
+//       x, y, w, h, conf, age,
+//       gx_cm=0, gy_cm=0, dist_cm=0,
+//       target_lat=0.0, target_lon=0.0,
+//       severity=6
 static mp_obj_t mod_sentai_link_send_update(size_t n_args, const mp_obj_t *args) {
     uint32_t sensor_id = (uint32_t)mp_obj_get_int(args[0]);
     uint32_t track_id  = (uint32_t)mp_obj_get_int(args[1]);
@@ -94,12 +118,46 @@ static mp_obj_t mod_sentai_link_send_update(size_t n_args, const mp_obj_t *args)
     uint8_t h = (uint8_t)mp_obj_get_int(args[8]);
     uint32_t conf = (uint32_t)mp_obj_get_int(args[9]);
     uint32_t age  = (uint32_t)mp_obj_get_int(args[10]);
-    uint8_t severity = (n_args > 11) ? (uint8_t)mp_obj_get_int(args[11]) : 6;
+    int32_t gx_cm = (n_args > 11) ? (int32_t)mp_obj_get_int(args[11]) : 0;
+    int32_t gy_cm = (n_args > 12) ? (int32_t)mp_obj_get_int(args[12]) : 0;
+    uint32_t dist_cm = (n_args > 13) ? (uint32_t)mp_obj_get_int(args[13]) : 0;
+    float target_lat = (n_args > 14) ? mp_obj_get_float(args[14]) : 0.0f;
+    float target_lon = (n_args > 15) ? mp_obj_get_float(args[15]) : 0.0f;
+    uint8_t severity = (n_args > 16) ? (uint8_t)mp_obj_get_int(args[16]) : 6;
     return mp_obj_new_int(sentai_link_send_vision_update(
         sensor_id, track_id, alarm_type, timestamp, seq,
-        x, y, w, h, conf, age, severity));
+        x, y, w, h, conf, age,
+        gx_cm, gy_cm, dist_cm,
+        target_lat, target_lon, severity));
 }
-static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_link_send_update_obj, 11, 12, mod_sentai_link_send_update);
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_link_send_update_obj, 11, 17, mod_sentai_link_send_update);
+
+// sentai.link.send_delete(...) -> int
+// Args: sensor_id, track_id, alarm_type, timestamp, seq,
+//       reason, age, total_hits,
+//       last_lat=0.0, last_lon=0.0,
+//       last_gx_cm=0, last_gy_cm=0,
+//       severity=6
+static mp_obj_t mod_sentai_link_send_delete(size_t n_args, const mp_obj_t *args) {
+    uint32_t sensor_id = (uint32_t)mp_obj_get_int(args[0]);
+    uint32_t track_id  = (uint32_t)mp_obj_get_int(args[1]);
+    uint32_t alarm_type = (uint32_t)mp_obj_get_int(args[2]);
+    uint32_t timestamp = (uint32_t)mp_obj_get_int(args[3]);
+    uint32_t seq       = (uint32_t)mp_obj_get_int(args[4]);
+    uint32_t reason    = (uint32_t)mp_obj_get_int(args[5]);
+    uint32_t age       = (uint32_t)mp_obj_get_int(args[6]);
+    uint32_t total_hits = (uint32_t)mp_obj_get_int(args[7]);
+    float last_lat = (n_args > 8) ? mp_obj_get_float(args[8]) : 0.0f;
+    float last_lon = (n_args > 9) ? mp_obj_get_float(args[9]) : 0.0f;
+    int32_t last_gx = (n_args > 10) ? (int32_t)mp_obj_get_int(args[10]) : 0;
+    int32_t last_gy = (n_args > 11) ? (int32_t)mp_obj_get_int(args[11]) : 0;
+    uint8_t severity = (n_args > 12) ? (uint8_t)mp_obj_get_int(args[12]) : 6;
+    return mp_obj_new_int(sentai_link_send_vision_delete(
+        sensor_id, track_id, alarm_type, timestamp, seq,
+        reason, age, total_hits,
+        last_lat, last_lon, last_gx, last_gy, severity));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_link_send_delete_obj, 8, 13, mod_sentai_link_send_delete);
 
 // sentai.link.command(target_sys, target_comp, cmd, conf, p1..p7) -> int
 // params are native floats
@@ -187,6 +245,7 @@ static const mp_rom_map_elem_t sentai_link_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_send),              MP_ROM_PTR(&mod_sentai_link_send_obj) },
     { MP_ROM_QSTR(MP_QSTR_send_detection),    MP_ROM_PTR(&mod_sentai_link_send_detection_obj) },
     { MP_ROM_QSTR(MP_QSTR_send_update),       MP_ROM_PTR(&mod_sentai_link_send_update_obj) },
+    { MP_ROM_QSTR(MP_QSTR_send_delete),       MP_ROM_PTR(&mod_sentai_link_send_delete_obj) },
     { MP_ROM_QSTR(MP_QSTR_command),           MP_ROM_PTR(&mod_sentai_link_command_obj) },
     { MP_ROM_QSTR(MP_QSTR_available),         MP_ROM_PTR(&mod_sentai_link_available_obj) },
     { MP_ROM_QSTR(MP_QSTR_receive),           MP_ROM_PTR(&mod_sentai_link_receive_obj) },

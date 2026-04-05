@@ -10,44 +10,104 @@
 #endif
 
 /* Struct definitions */
-/* Camera orientation & position at detection time */
+/* GPS coordinate pair (degrees × 1e7 for integer precision) */
+typedef struct _visionmesh_GpsCoord {
+    int32_t lat_e7; /* latitude  × 1e7  (e.g. 44.4268° → 444268000) */
+    int32_t lon_e7; /* longitude × 1e7  (e.g. 26.1025° → 261025000) */
+} visionmesh_GpsCoord;
+
+/* Camera geometry at detection time */
 typedef struct _visionmesh_SensorPose {
-    int32_t pitch_deg; /* tilt forward/back from horizon (-90..+90) */
-    int32_t roll_deg; /* tilt left/right (-180..+180) */
+    /* IMU orientation */
+    int32_t pitch_deg; /* board pitch from level (-90..+90) */
+    int32_t roll_deg; /* board roll  (-180..+180) */
     uint32_t altitude_cm; /* camera height above ground, cm */
-    uint32_t heading_deg; /* compass heading (0..359, 0=N 90=E 180=S 270=W) */
+    uint32_t heading_deg; /* compass heading (0..359, 0=N 90=E) */
+    /* Camera GPS position */
+    bool has_camera_gps;
+    visionmesh_GpsCoord camera_gps; /* camera lat/lon (0 = no GPS) */
+    /* Camera footprint on ground (4 corners of the image projection)
+ Order: top-left, top-right, bottom-right, bottom-left
+ Only valid when altitude > 0 and GPS set.
+ At 0° pitch (straight down) this is a rectangle.
+ At non-zero pitch this is a trapezoid (far edge wider). */
+    bool has_corner_tl;
+    visionmesh_GpsCoord corner_tl;
+    bool has_corner_tr;
+    visionmesh_GpsCoord corner_tr;
+    bool has_corner_br;
+    visionmesh_GpsCoord corner_br;
+    bool has_corner_bl;
+    visionmesh_GpsCoord corner_bl;
+    /* Active camera config at capture time */
+    uint32_t camera_id; /* which camera (0 or 1) */
+    uint32_t fov_h_e1; /* horizontal FOV × 10 (e.g. 708 = 70.8°) */
+    uint32_t fov_v_e1; /* vertical FOV × 10 (e.g. 434 = 43.4°) */
+    int32_t mount_pitch_e1; /* mount pitch × 10 (0 = down, 250 = 25.0°) */
+    int32_t mount_roll_e1; /* mount roll × 10 (0 = landscape) */
+    int32_t mount_yaw_e1; /* mount yaw × 10 (0 = forward) */
 } visionmesh_SensorPose;
 
 typedef PB_BYTES_ARRAY_T(64) visionmesh_NewDetection_embedding_t;
+/* First detection of a new confirmed track */
 typedef struct _visionmesh_NewDetection {
-    uint32_t xywh_packed; /* x,y,w,h each 1 byte packed */
-    uint32_t conf; /* 0..255 */
-    uint32_t class_id;
-    visionmesh_NewDetection_embedding_t embedding; /* 64 bytes */
-    uint32_t embed_crc8; /* 0..255 */
+    uint32_t xywh_packed; /* bbox in model pixels: x,y,w,h each 1 byte */
+    uint32_t conf; /* confidence 0..255 (maps to 0.0..1.0) */
+    uint32_t class_id; /* detection class */
+    visionmesh_NewDetection_embedding_t embedding; /* appearance embedding (up to 64 bytes) */
+    uint32_t embed_crc8; /* CRC8 of embedding (for quick comparison) */
+    /* Ground-plane position of target (only valid when pose.altitude > 0) */
+    bool has_target_gps;
+    visionmesh_GpsCoord target_gps; /* target absolute GPS position */
+    int32_t gx_cm; /* target ground X (East +, cm from camera) */
+    int32_t gy_cm; /* target ground Y (North +, cm from camera) */
+    uint32_t dist_cm; /* distance from camera nadir, cm */
+    uint32_t width_cm; /* estimated target width on ground, cm */
 } visionmesh_NewDetection;
 
+/* Periodic update for an existing confirmed track */
 typedef struct _visionmesh_UpdateDetection {
-    uint32_t xywh_packed; /* x,y,w,h each 1 byte packed */
-    uint32_t conf;
-    uint32_t age;
+    uint32_t xywh_packed; /* bbox in model pixels */
+    uint32_t conf; /* confidence 0..255 */
+    uint32_t age; /* frames since track creation */
+    /* Ground-plane position of target */
+    bool has_target_gps;
+    visionmesh_GpsCoord target_gps; /* target absolute GPS position */
+    int32_t gx_cm; /* target ground X (East +, cm from camera) */
+    int32_t gy_cm; /* target ground Y (North +, cm from camera) */
+    uint32_t dist_cm; /* distance from camera nadir, cm */
 } visionmesh_UpdateDetection;
+
+/* Track removed — target lost or left the frame
+ Sent when tracker emits TRACK_EVT_LOST or TRACK_EVT_REMOVED.
+ Receivers should remove this track_id from their display/map. */
+typedef struct _visionmesh_DeleteDetection {
+    uint32_t reason; /* 3 = lost (coasting timeout), 4 = removed (max misses) */
+    uint32_t age; /* total frames this track lived */
+    uint32_t total_hits; /* total successful detections over lifetime */
+    /* Last known ground position */
+    bool has_last_gps;
+    visionmesh_GpsCoord last_gps; /* last known GPS (0 = unknown) */
+    int32_t last_gx_cm; /* last ground X */
+    int32_t last_gy_cm; /* last ground Y */
+} visionmesh_DeleteDetection;
 
 typedef struct _visionmesh_VisionMessage {
     uint32_t app_version;
-    uint32_t sensor_id;
-    uint32_t track_id;
-    uint32_t alarm_type;
-    uint32_t timestamp_utc;
-    uint32_t seq;
-    uint32_t node_id;
+    uint32_t sensor_id; /* physical sensor ID (unique per device) */
+    uint32_t track_id; /* tracker-assigned ID (unique per sensor) */
+    uint32_t alarm_type; /* application-defined alarm category */
+    uint32_t timestamp_utc; /* Unix timestamp (seconds since epoch) */
+    uint32_t seq; /* monotonic sequence number per sensor */
+    uint32_t node_id; /* Meshtastic node number (filled by sender) */
     pb_size_t which_body;
     union {
         visionmesh_NewDetection new_detection;
         visionmesh_UpdateDetection update_detection;
+        visionmesh_DeleteDetection delete_detection;
     } body;
     bool has_pose;
-    visionmesh_SensorPose pose; /* camera pose at detection time */
+    visionmesh_SensorPose pose; /* camera pose + footprint at detection time */
 } visionmesh_VisionMessage;
 
 
@@ -56,28 +116,60 @@ extern "C" {
 #endif
 
 /* Initializer values for message structs */
-#define visionmesh_SensorPose_init_default       {0, 0, 0, 0}
+#define visionmesh_GpsCoord_init_default         {0, 0}
+#define visionmesh_SensorPose_init_default       {0, 0, 0, 0, false, visionmesh_GpsCoord_init_default, false, visionmesh_GpsCoord_init_default, false, visionmesh_GpsCoord_init_default, false, visionmesh_GpsCoord_init_default, false, visionmesh_GpsCoord_init_default, 0, 0, 0, 0, 0, 0}
 #define visionmesh_VisionMessage_init_default    {0, 0, 0, 0, 0, 0, 0, 0, {visionmesh_NewDetection_init_default}, false, visionmesh_SensorPose_init_default}
-#define visionmesh_NewDetection_init_default     {0, 0, 0, {0, {0}}, 0}
-#define visionmesh_UpdateDetection_init_default  {0, 0, 0}
-#define visionmesh_SensorPose_init_zero          {0, 0, 0, 0}
+#define visionmesh_NewDetection_init_default     {0, 0, 0, {0, {0}}, 0, false, visionmesh_GpsCoord_init_default, 0, 0, 0, 0}
+#define visionmesh_UpdateDetection_init_default  {0, 0, 0, false, visionmesh_GpsCoord_init_default, 0, 0, 0}
+#define visionmesh_DeleteDetection_init_default  {0, 0, 0, false, visionmesh_GpsCoord_init_default, 0, 0}
+#define visionmesh_GpsCoord_init_zero            {0, 0}
+#define visionmesh_SensorPose_init_zero          {0, 0, 0, 0, false, visionmesh_GpsCoord_init_zero, false, visionmesh_GpsCoord_init_zero, false, visionmesh_GpsCoord_init_zero, false, visionmesh_GpsCoord_init_zero, false, visionmesh_GpsCoord_init_zero, 0, 0, 0, 0, 0, 0}
 #define visionmesh_VisionMessage_init_zero       {0, 0, 0, 0, 0, 0, 0, 0, {visionmesh_NewDetection_init_zero}, false, visionmesh_SensorPose_init_zero}
-#define visionmesh_NewDetection_init_zero        {0, 0, 0, {0, {0}}, 0}
-#define visionmesh_UpdateDetection_init_zero     {0, 0, 0}
+#define visionmesh_NewDetection_init_zero        {0, 0, 0, {0, {0}}, 0, false, visionmesh_GpsCoord_init_zero, 0, 0, 0, 0}
+#define visionmesh_UpdateDetection_init_zero     {0, 0, 0, false, visionmesh_GpsCoord_init_zero, 0, 0, 0}
+#define visionmesh_DeleteDetection_init_zero     {0, 0, 0, false, visionmesh_GpsCoord_init_zero, 0, 0}
 
 /* Field tags (for use in manual encoding/decoding) */
+#define visionmesh_GpsCoord_lat_e7_tag           1
+#define visionmesh_GpsCoord_lon_e7_tag           2
 #define visionmesh_SensorPose_pitch_deg_tag      1
 #define visionmesh_SensorPose_roll_deg_tag       2
 #define visionmesh_SensorPose_altitude_cm_tag    3
 #define visionmesh_SensorPose_heading_deg_tag    4
+#define visionmesh_SensorPose_camera_gps_tag     5
+#define visionmesh_SensorPose_corner_tl_tag      6
+#define visionmesh_SensorPose_corner_tr_tag      7
+#define visionmesh_SensorPose_corner_br_tag      8
+#define visionmesh_SensorPose_corner_bl_tag      9
+#define visionmesh_SensorPose_camera_id_tag      10
+#define visionmesh_SensorPose_fov_h_e1_tag       11
+#define visionmesh_SensorPose_fov_v_e1_tag       12
+#define visionmesh_SensorPose_mount_pitch_e1_tag 13
+#define visionmesh_SensorPose_mount_roll_e1_tag  14
+#define visionmesh_SensorPose_mount_yaw_e1_tag   15
 #define visionmesh_NewDetection_xywh_packed_tag  1
 #define visionmesh_NewDetection_conf_tag         2
 #define visionmesh_NewDetection_class_id_tag     3
 #define visionmesh_NewDetection_embedding_tag    4
 #define visionmesh_NewDetection_embed_crc8_tag   5
+#define visionmesh_NewDetection_target_gps_tag   6
+#define visionmesh_NewDetection_gx_cm_tag        7
+#define visionmesh_NewDetection_gy_cm_tag        8
+#define visionmesh_NewDetection_dist_cm_tag      9
+#define visionmesh_NewDetection_width_cm_tag     10
 #define visionmesh_UpdateDetection_xywh_packed_tag 1
 #define visionmesh_UpdateDetection_conf_tag      2
 #define visionmesh_UpdateDetection_age_tag       3
+#define visionmesh_UpdateDetection_target_gps_tag 6
+#define visionmesh_UpdateDetection_gx_cm_tag     7
+#define visionmesh_UpdateDetection_gy_cm_tag     8
+#define visionmesh_UpdateDetection_dist_cm_tag   9
+#define visionmesh_DeleteDetection_reason_tag    1
+#define visionmesh_DeleteDetection_age_tag       2
+#define visionmesh_DeleteDetection_total_hits_tag 3
+#define visionmesh_DeleteDetection_last_gps_tag  4
+#define visionmesh_DeleteDetection_last_gx_cm_tag 5
+#define visionmesh_DeleteDetection_last_gy_cm_tag 6
 #define visionmesh_VisionMessage_app_version_tag 1
 #define visionmesh_VisionMessage_sensor_id_tag   2
 #define visionmesh_VisionMessage_track_id_tag    3
@@ -87,16 +179,39 @@ extern "C" {
 #define visionmesh_VisionMessage_node_id_tag     7
 #define visionmesh_VisionMessage_new_detection_tag 10
 #define visionmesh_VisionMessage_update_detection_tag 11
+#define visionmesh_VisionMessage_delete_detection_tag 12
 #define visionmesh_VisionMessage_pose_tag        20
 
 /* Struct field encoding specification for nanopb */
+#define visionmesh_GpsCoord_FIELDLIST(X, a) \
+X(a, STATIC,   SINGULAR, SFIXED32, lat_e7,            1) \
+X(a, STATIC,   SINGULAR, SFIXED32, lon_e7,            2)
+#define visionmesh_GpsCoord_CALLBACK NULL
+#define visionmesh_GpsCoord_DEFAULT NULL
+
 #define visionmesh_SensorPose_FIELDLIST(X, a) \
 X(a, STATIC,   SINGULAR, SINT32,   pitch_deg,         1) \
 X(a, STATIC,   SINGULAR, SINT32,   roll_deg,          2) \
 X(a, STATIC,   SINGULAR, UINT32,   altitude_cm,       3) \
-X(a, STATIC,   SINGULAR, UINT32,   heading_deg,       4)
+X(a, STATIC,   SINGULAR, UINT32,   heading_deg,       4) \
+X(a, STATIC,   OPTIONAL, MESSAGE,  camera_gps,        5) \
+X(a, STATIC,   OPTIONAL, MESSAGE,  corner_tl,         6) \
+X(a, STATIC,   OPTIONAL, MESSAGE,  corner_tr,         7) \
+X(a, STATIC,   OPTIONAL, MESSAGE,  corner_br,         8) \
+X(a, STATIC,   OPTIONAL, MESSAGE,  corner_bl,         9) \
+X(a, STATIC,   SINGULAR, UINT32,   camera_id,        10) \
+X(a, STATIC,   SINGULAR, UINT32,   fov_h_e1,         11) \
+X(a, STATIC,   SINGULAR, UINT32,   fov_v_e1,         12) \
+X(a, STATIC,   SINGULAR, SINT32,   mount_pitch_e1,   13) \
+X(a, STATIC,   SINGULAR, SINT32,   mount_roll_e1,    14) \
+X(a, STATIC,   SINGULAR, SINT32,   mount_yaw_e1,     15)
 #define visionmesh_SensorPose_CALLBACK NULL
 #define visionmesh_SensorPose_DEFAULT NULL
+#define visionmesh_SensorPose_camera_gps_MSGTYPE visionmesh_GpsCoord
+#define visionmesh_SensorPose_corner_tl_MSGTYPE visionmesh_GpsCoord
+#define visionmesh_SensorPose_corner_tr_MSGTYPE visionmesh_GpsCoord
+#define visionmesh_SensorPose_corner_br_MSGTYPE visionmesh_GpsCoord
+#define visionmesh_SensorPose_corner_bl_MSGTYPE visionmesh_GpsCoord
 
 #define visionmesh_VisionMessage_FIELDLIST(X, a) \
 X(a, STATIC,   SINGULAR, UINT32,   app_version,       1) \
@@ -108,11 +223,13 @@ X(a, STATIC,   SINGULAR, UINT32,   seq,               6) \
 X(a, STATIC,   SINGULAR, UINT32,   node_id,           7) \
 X(a, STATIC,   ONEOF,    MESSAGE,  (body,new_detection,body.new_detection),  10) \
 X(a, STATIC,   ONEOF,    MESSAGE,  (body,update_detection,body.update_detection),  11) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (body,delete_detection,body.delete_detection),  12) \
 X(a, STATIC,   OPTIONAL, MESSAGE,  pose,             20)
 #define visionmesh_VisionMessage_CALLBACK NULL
 #define visionmesh_VisionMessage_DEFAULT NULL
 #define visionmesh_VisionMessage_body_new_detection_MSGTYPE visionmesh_NewDetection
 #define visionmesh_VisionMessage_body_update_detection_MSGTYPE visionmesh_UpdateDetection
+#define visionmesh_VisionMessage_body_delete_detection_MSGTYPE visionmesh_DeleteDetection
 #define visionmesh_VisionMessage_pose_MSGTYPE visionmesh_SensorPose
 
 #define visionmesh_NewDetection_FIELDLIST(X, a) \
@@ -120,34 +237,62 @@ X(a, STATIC,   SINGULAR, FIXED32,  xywh_packed,       1) \
 X(a, STATIC,   SINGULAR, UINT32,   conf,              2) \
 X(a, STATIC,   SINGULAR, UINT32,   class_id,          3) \
 X(a, STATIC,   SINGULAR, BYTES,    embedding,         4) \
-X(a, STATIC,   SINGULAR, UINT32,   embed_crc8,        5)
+X(a, STATIC,   SINGULAR, UINT32,   embed_crc8,        5) \
+X(a, STATIC,   OPTIONAL, MESSAGE,  target_gps,        6) \
+X(a, STATIC,   SINGULAR, SINT32,   gx_cm,             7) \
+X(a, STATIC,   SINGULAR, SINT32,   gy_cm,             8) \
+X(a, STATIC,   SINGULAR, UINT32,   dist_cm,           9) \
+X(a, STATIC,   SINGULAR, UINT32,   width_cm,         10)
 #define visionmesh_NewDetection_CALLBACK NULL
 #define visionmesh_NewDetection_DEFAULT NULL
+#define visionmesh_NewDetection_target_gps_MSGTYPE visionmesh_GpsCoord
 
 #define visionmesh_UpdateDetection_FIELDLIST(X, a) \
 X(a, STATIC,   SINGULAR, FIXED32,  xywh_packed,       1) \
 X(a, STATIC,   SINGULAR, UINT32,   conf,              2) \
-X(a, STATIC,   SINGULAR, UINT32,   age,               3)
+X(a, STATIC,   SINGULAR, UINT32,   age,               3) \
+X(a, STATIC,   OPTIONAL, MESSAGE,  target_gps,        6) \
+X(a, STATIC,   SINGULAR, SINT32,   gx_cm,             7) \
+X(a, STATIC,   SINGULAR, SINT32,   gy_cm,             8) \
+X(a, STATIC,   SINGULAR, UINT32,   dist_cm,           9)
 #define visionmesh_UpdateDetection_CALLBACK NULL
 #define visionmesh_UpdateDetection_DEFAULT NULL
+#define visionmesh_UpdateDetection_target_gps_MSGTYPE visionmesh_GpsCoord
 
+#define visionmesh_DeleteDetection_FIELDLIST(X, a) \
+X(a, STATIC,   SINGULAR, UINT32,   reason,            1) \
+X(a, STATIC,   SINGULAR, UINT32,   age,               2) \
+X(a, STATIC,   SINGULAR, UINT32,   total_hits,        3) \
+X(a, STATIC,   OPTIONAL, MESSAGE,  last_gps,          4) \
+X(a, STATIC,   SINGULAR, SINT32,   last_gx_cm,        5) \
+X(a, STATIC,   SINGULAR, SINT32,   last_gy_cm,        6)
+#define visionmesh_DeleteDetection_CALLBACK NULL
+#define visionmesh_DeleteDetection_DEFAULT NULL
+#define visionmesh_DeleteDetection_last_gps_MSGTYPE visionmesh_GpsCoord
+
+extern const pb_msgdesc_t visionmesh_GpsCoord_msg;
 extern const pb_msgdesc_t visionmesh_SensorPose_msg;
 extern const pb_msgdesc_t visionmesh_VisionMessage_msg;
 extern const pb_msgdesc_t visionmesh_NewDetection_msg;
 extern const pb_msgdesc_t visionmesh_UpdateDetection_msg;
+extern const pb_msgdesc_t visionmesh_DeleteDetection_msg;
 
 /* Defines for backwards compatibility with code written before nanopb-0.4.0 */
+#define visionmesh_GpsCoord_fields &visionmesh_GpsCoord_msg
 #define visionmesh_SensorPose_fields &visionmesh_SensorPose_msg
 #define visionmesh_VisionMessage_fields &visionmesh_VisionMessage_msg
 #define visionmesh_NewDetection_fields &visionmesh_NewDetection_msg
 #define visionmesh_UpdateDetection_fields &visionmesh_UpdateDetection_msg
+#define visionmesh_DeleteDetection_fields &visionmesh_DeleteDetection_msg
 
 /* Maximum encoded size of messages (where known) */
 #define VISIONMESH_VISIONMESH_PB_H_MAX_SIZE      visionmesh_VisionMessage_size
-#define visionmesh_NewDetection_size             89
-#define visionmesh_SensorPose_size               24
-#define visionmesh_UpdateDetection_size          17
-#define visionmesh_VisionMessage_size            160
+#define visionmesh_DeleteDetection_size          42
+#define visionmesh_GpsCoord_size                 10
+#define visionmesh_NewDetection_size             125
+#define visionmesh_SensorPose_size               120
+#define visionmesh_UpdateDetection_size          47
+#define visionmesh_VisionMessage_size            292
 
 #ifdef __cplusplus
 } /* extern "C" */

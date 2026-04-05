@@ -48,20 +48,17 @@ extern "C" {
 
 extern "C" {
 #include "micropython_task.h"
+#include "detection_task.h"
+#include "sentai_tracker.h"
 }
 
 // ===================== Camera pipeline optimizations ========================
 // Set to 1 to enable, 0 to disable (safe revert).  Build #197+
 //
 // SENTAI_OPT_FAST_POLL   — reduce GetRawFrame poll from 50ms to 5ms (~22ms less latency)
-// SENTAI_OPT_LAZY_DRAW   — skip memcpy to g_draw_rgb on every to_tensor;
-//                          copy only when draw() is actually called
-// SENTAI_OPT_SKIP_CLEAN  — skip DCACHE_CleanByRange before PXP (dst is always fresh)
 // SENTAI_DBG_COLOR_ORDER — print first 4 pixels after PXP (once) to verify R/G/B order
 // ============================================================================
 #define SENTAI_OPT_FAST_POLL    1
-#define SENTAI_OPT_LAZY_DRAW    1
-#define SENTAI_OPT_SKIP_CLEAN   1
 #define SENTAI_DBG_COLOR_ORDER  0   // verified — R channel is ch0
 
 // Performs object detection with SSD MobileNet, running on the Edge TPU,
@@ -145,8 +142,12 @@ static void boot_log_flush_to_file() {
 }
 
 // Add data to boot log (from _write override)
+// Called from any context (task, ISR) via printf -> _write.
+// Uses critical section to protect shared buffer from concurrent access.
 static void boot_log_write(const char* data, size_t len) {
     if (!g_boot_log_active) return;
+
+    UBaseType_t saved = taskENTER_CRITICAL_FROM_ISR();
 
     // Add to RAM buffer
     size_t space = kBootLogBufSize - g_boot_log_pos;
@@ -156,8 +157,14 @@ static void boot_log_write(const char* data, size_t len) {
         g_boot_log_pos += to_copy;
     }
 
-    // If buffer is getting full and FS ready, flush
-    if (g_boot_log_fs_ready && g_boot_log_pos > kBootLogBufSize - 512) {
+    // If buffer is getting full and FS ready, flush.
+    // NOTE: flush does LFS I/O which is slow — only in non-ISR context.
+    bool need_flush = g_boot_log_fs_ready &&
+                      g_boot_log_pos > kBootLogBufSize - 512;
+
+    taskEXIT_CRITICAL_FROM_ISR(saved);
+
+    if (need_flush && xPortIsInsideInterrupt() == pdFALSE) {
         boot_log_flush_to_file();
     }
 }
@@ -330,9 +337,17 @@ extern "C" void app_main(void* param) {
 // ===================== C bridge for MicroPython =====================
 // Called from modsentai.c (C code) - need extern "C" linkage
 
+// Forward declaration (defined after sentai_tpu_invoke).
+extern "C" void sentai_quant_uint8_to_int8(uint8_t* buf, int count, int zp);
+
 // Load a TFLite model from flash and create interpreter.
 // Returns 0 on success, negative on error.
 extern "C" int sentai_load_model(const char* path) {
+  // Refuse if detection pipeline is active (it owns the interpreter)
+  if (sentai_detection_is_running()) {
+    printf("ERROR: stop detection pipeline before loading a new model\r\n");
+    return -10;
+  }
   // If there's an existing interpreter, tear it down
   if (coralmicro::g_interpreter) {
     coralmicro::g_tpu_ready = false;
@@ -539,37 +554,61 @@ extern "C" int sentai_load_image(const char* path) {
   }
 
   // If model expects int8 input, apply quantization offset.
-  // Image pixels are uint8 [0..255]. For int8 models:
-  //   q = clamp(pixel + zero_point, -128, 127)
-  // Common case: zero_point=-128 → q = pixel - 128
   if (input->type == kTfLiteInt8) {
-    int zp = input->params.zero_point;
-    int8_t* dst = reinterpret_cast<int8_t*>(tensor_buf);
-    if (zp == -128) {
-      uint32_t* p32 = reinterpret_cast<uint32_t*>(dst);
-      int n32 = tensor_bytes / 4;
-      for (int i = 0; i < n32; i++) p32[i] ^= 0x80808080u;
-      for (int i = n32 * 4; i < tensor_bytes; i++)
-        dst[i] = (int8_t)((uint8_t)dst[i] ^ 0x80u);
-    } else {
-      for (int i = 0; i < tensor_bytes; i++) {
-        int v = (int)tensor_buf[i] + zp;
-        if (v < -128) v = -128;
-        if (v > 127) v = 127;
-        dst[i] = (int8_t)v;
-      }
-    }
+    sentai_quant_uint8_to_int8(tensor_buf, tensor_bytes,
+                               input->params.zero_point);
   }
 
   return 0;
 }
 
-extern "C" int sentai_tpu_invoke(void) {
+// Internal invoke — no pipeline guard.  Called by detection_task.cc.
+extern "C" int sentai_tpu_invoke_internal(void) {
   if (!coralmicro::g_tpu_ready || !coralmicro::g_interpreter) return -1;
   TickType_t t0 = xTaskGetTickCount();
   if (coralmicro::g_interpreter->Invoke() != kTfLiteOk) return -2;
   TickType_t t1 = xTaskGetTickCount();
   return (int)((t1 - t0) * portTICK_PERIOD_MS);
+}
+
+// Public invoke — blocks while detection pipeline owns the TPU.
+extern "C" int sentai_tpu_invoke(void) {
+  if (sentai_detection_is_running()) return -10;  // pipeline owns TPU
+  return sentai_tpu_invoke_internal();
+}
+
+// Shared uint8→int8 quantization (in-place).
+// Fast path zp==-128: XOR 0x80, 8× unrolled with prefetch.
+// General path: clamp(pixel + zp, -128, 127).
+extern "C" void sentai_quant_uint8_to_int8(uint8_t* buf, int count, int zp) {
+  if (zp == -128) {
+    uint32_t* p32 = reinterpret_cast<uint32_t*>(buf);
+    int n32 = count / 4;
+    constexpr int kPre = 64;  // prefetch 256 bytes ahead
+    for (int i = 0; i < n32; i += 8) {
+      if (i + kPre < n32)
+        __builtin_prefetch(&p32[i + kPre], 1, 0);
+      p32[i]   ^= 0x80808080u;
+      p32[i+1] ^= 0x80808080u;
+      p32[i+2] ^= 0x80808080u;
+      p32[i+3] ^= 0x80808080u;
+      p32[i+4] ^= 0x80808080u;
+      p32[i+5] ^= 0x80808080u;
+      p32[i+6] ^= 0x80808080u;
+      p32[i+7] ^= 0x80808080u;
+    }
+    for (int i = (n32 & ~7) * 4; i < count; i++)
+      reinterpret_cast<int8_t*>(buf)[i] =
+          static_cast<int8_t>(buf[i] ^ 0x80u);
+  } else {
+    int8_t* dst = reinterpret_cast<int8_t*>(buf);
+    for (int i = 0; i < count; i++) {
+      int v = static_cast<int>(buf[i]) + zp;
+      if (v < -128) v = -128;
+      if (v >  127) v =  127;
+      dst[i] = static_cast<int8_t>(v);
+    }
+  }
 }
 
 extern "C" int sentai_tpu_is_ready(void) {
@@ -666,16 +705,14 @@ static bool g_nms_sup[kMaxNmsCandidates];
 // ---------------------------------------------------------------------------
 // Draw buffer — stores last to_tensor RGB frame (before int8 quant)
 // Max 640×640×3 = 1.2 MB in SDRAM
+// Only populated when g_draw_capture_pending is set (by draw() call).
+// This avoids a ~2-3ms memcpy on every frame in the critical inference path.
 // ---------------------------------------------------------------------------
 static constexpr int kMaxDrawPixels = 640 * 640 * 3;
 static uint8_t g_draw_rgb[kMaxDrawPixels]
     __attribute__((section(".sdram_bss")));
 static int g_draw_w = 0, g_draw_h = 0;
-#if SENTAI_OPT_LAZY_DRAW
-static bool g_draw_stale = true;  // true = g_draw_rgb needs refresh from tensor
-static uint8_t* g_draw_tensor_src = nullptr;  // pointer to last tensor_buf (valid until next to_tensor)
-static int g_draw_total = 0;  // total_pixels of last frame
-#endif
+static volatile bool g_draw_capture_pending = false;
 
 // COCO 80 class names
 static const char* const kCocoNames[80] = {
@@ -989,15 +1026,9 @@ extern "C" int sentai_tpu_detect(int conf_permil, int iou_permil,
 extern "C" int sentai_tpu_draw(const char* path,
                                 const int16_t* dets, int n_dets,
                                 int quality) {
-  if (g_draw_w == 0 || g_draw_h == 0) return -1;  // no frame saved
-
-#if SENTAI_OPT_LAZY_DRAW
-  // Lazy flush: copy tensor data → g_draw_rgb only when draw() is called
-  if (g_draw_stale && g_draw_tensor_src && g_draw_total > 0) {
-    memcpy(g_draw_rgb, g_draw_tensor_src, g_draw_total);
-    g_draw_stale = false;
-  }
-#endif
+  // Always request capture for the next cam_to_tensor frame.
+  g_draw_capture_pending = true;
+  if (g_draw_w == 0 || g_draw_h == 0) return -1;  // no frame saved yet
 
   int sz = g_draw_w * g_draw_h * 3;
 
@@ -1153,12 +1184,55 @@ extern "C" int sentai_save_output(const char* path) {
   return 0;
 }
 
+// ===================== Detection pipeline wrappers ========================
+// Thin C bridges so detection_task.cc can access internal functions.
+
+// Forward declarations (defined later in this file).
+static int pxp_scale_xrgb_to_rgb(const uint8_t* src, int src_w, int src_h,
+                                  uint8_t* dst, int dst_w, int dst_h);
+static int sentai_cam_get_raw_with_recovery(uint8_t** raw_out);
+
+extern "C" int sentai_pxp_scale(const uint8_t* src, int sw, int sh,
+                                 uint8_t* dst, int dw, int dh) {
+  return pxp_scale_xrgb_to_rgb(src, sw, sh, dst, dw, dh);
+}
+
+extern "C" int sentai_get_tensor_info(int* w, int* h, int* ch,
+                                       uint8_t** buf, int* type, int* zp) {
+  if (!coralmicro::g_tpu_ready || !coralmicro::g_interpreter) return -1;
+  auto* input = coralmicro::g_interpreter->input_tensor(0);
+  if (!input || input->dims->size < 4) return -2;
+  *h  = input->dims->data[1];
+  *w  = input->dims->data[2];
+  *ch = input->dims->data[3];
+  *buf = tflite::GetTensorData<uint8_t>(input);
+  *type = static_cast<int>(input->type);
+  *zp   = input->params.zero_point;
+  return 0;
+}
+
+extern "C" int sentai_cam_is_initialized(void);
+
+extern "C" int sentai_cam_grab_latest(uint8_t** raw) {
+  return sentai_cam_get_raw_with_recovery(raw);
+}
+
+extern "C" void sentai_cam_return_raw(int idx) {
+  coralmicro::CameraTask::GetSingleton()->ReturnRawFrame(idx);
+}
+
 // ===================== Camera bridge for MicroPython =====================
 
 static volatile bool g_cam_initialized = false;
 static int g_cam_width = DEMO_CAMERA_WIDTH;
 static int g_cam_height = DEMO_CAMERA_HEIGHT;
 static int g_cam_current_id = 0;  // 0=front, 1=back
+static volatile uint32_t g_cam_switch_seq = 0;  // g_camera_frame_seq snapshot at MUX switch time
+static volatile bool g_cam_switch_pending = false;  // set by cam_switch, cleared by first capture
+
+extern "C" int sentai_cam_is_initialized(void) {
+  return g_cam_initialized ? 1 : 0;
+}
 
 // PXP hardware scale+convert: XRGB8888 (native cam) -> RGB888 (scaled output).
 // src must be in non-cacheable memory (camera framebuffer).
@@ -1166,6 +1240,15 @@ static int g_cam_current_id = 0;  // 0=front, 1=back
 // Returns 0 on success.
 static int pxp_scale_xrgb_to_rgb(const uint8_t* src, int src_w, int src_h,
                                   uint8_t* dst, int dst_w, int dst_h) {
+  // Warn once if dst not 32-byte aligned (cache ops may touch adjacent data).
+  {
+    static bool s_align_warned = false;
+    if (!s_align_warned && ((uintptr_t)dst & 31u)) {
+      printf("WARN: tensor_buf %p not 32-byte aligned (cache line boundary risk)\r\n", dst);
+      s_align_warned = true;
+    }
+  }
+
   pxp_ps_buffer_config_t ps_cfg;
   memset(&ps_cfg, 0, sizeof(ps_cfg));
   // kPXP_PsPixelFormatRGB888 = 0x4 = "32-bit pixels without alpha" = XRGB8888
@@ -1188,11 +1271,16 @@ static int pxp_scale_xrgb_to_rgb(const uint8_t* src, int src_w, int src_h,
 
   const uint32_t dst_size = dst_w * dst_h * 3;
 
-  // Clean dst cache so PXP DMA doesn't collide with dirty cache lines
+  // Evict dirty cache lines from previous int8 quantization (XOR) BEFORE PXP
+  // DMA writes.  A dirty line evicted after PXP writes would clobber DMA data.
+  // CleanInvalidate (writeback then discard) is used instead of plain Invalidate
+  // because TFLite arena alignment is 16 bytes, not 32 (the cache line size).
+  // If tensor_buf isn't 32-byte aligned, the first/last cache line may contain
+  // data from adjacent TFLite tensors — plain Invalidate would silently lose
+  // any dirty data in those shared boundary lines.
+  // Cost: ~0.1ms more than plain Invalidate (only boundary lines write back).
 #if (__CORTEX_M == 7)
-#if !SENTAI_OPT_SKIP_CLEAN
-  DCACHE_CleanByRange((uint32_t)dst, dst_size);
-#endif
+  DCACHE_CleanInvalidateByRange((uint32_t)dst, dst_size);
 #endif
 
   PXP_SetProcessSurfaceBufferConfig(DEMO_PXP, &ps_cfg);
@@ -1210,7 +1298,16 @@ static int pxp_scale_xrgb_to_rgb(const uint8_t* src, int src_w, int src_h,
   }
   PXP_ClearStatusFlags(DEMO_PXP, kPXP_CompleteFlag);
 
-  // Invalidate cache so CPU sees PXP DMA output
+  // Invalidate cache so CPU sees PXP DMA output.
+  // Plain Invalidate (without writeback) is safe here because:
+  //   (a) CleanInvalidate above left all tensor lines INVALID — no dirty data.
+  //   (b) Between CleanInvalidate and here, NO CPU writes touch the tensor or
+  //       its boundary cache lines. (PXP setup writes go to peripheral regs,
+  //       taskYIELD runs other tasks but none access the TFLite arena.)
+  //   (c) Speculative prefetch may reload CLEAN lines — Invalidate discards
+  //       these correctly so the next read fetches fresh PXP data from SDRAM.
+  // NOTE: CleanInvalidate here would be WRONG if a boundary line were dirtied
+  // during PXP — it would write back stale tensor bytes over PXP output.
 #if (__CORTEX_M == 7)
   DCACHE_InvalidateByRange((uint32_t)dst, dst_size);
 #endif
@@ -1273,6 +1370,57 @@ static int sentai_cam_get_raw_with_recovery(uint8_t** raw_out) {
   auto* cam = coralmicro::CameraTask::GetSingleton();
   const int kMaxRecoveries = 2;
   TickType_t t_start = xTaskGetTickCount();
+
+  // After a camera switch, we need >= 2 fresh ISR frames from the new
+  // camera before the image is guaranteed clean (the first frame after MUX
+  // flip may be mixed, the second is fully captured by the new sensor).
+  // g_cam_switch_seq was snapshot BEFORE the MUX flip, so
+  // (g_camera_frame_seq - g_cam_switch_seq >= 2) means 2+ new frames.
+  if (g_cam_switch_pending) {
+    g_cam_switch_pending = false;
+    uint32_t seq_at_switch = g_cam_switch_seq;  // snapshot (usually 0)
+    uint32_t seq_now = g_camera_frame_seq;
+    uint32_t elapsed = seq_now - seq_at_switch;
+
+    if (elapsed >= 2) {
+      // Fast path: enough ISR frames have already arrived since MUX flip.
+      // Just drain stale queued buffers and keep the latest — no blocking.
+      printf("  [frame] post-switch FAST: %lu ISR frames elapsed\r\n",
+             (unsigned long)elapsed);
+      // fall through to normal drain-and-keep-last below
+    } else {
+      // Slow path: switch was very recent, not enough frames yet.
+      // Drain whatever is queued (stale/mixed), then block for fresh.
+      int drained = 0;
+      for (int i = 0; i < DEMO_CAMERA_BUFFER_COUNT; ++i) {
+        uint8_t* tmp = nullptr;
+        int idx = cam->TryGetRawFrame(&tmp);
+        if (idx < 0 || !tmp) break;
+        cam->ReturnRawFrame(idx);
+        drained++;
+      }
+      // Wait until ISR counter shows >= 2 frames from new camera.
+      // At 15 fps each frame takes ~67ms, so max wait ≈ 134ms.
+      int wait_iters = 0;
+      while ((g_camera_frame_seq - seq_at_switch) < 2 && wait_iters < 300) {
+        vTaskDelay(pdMS_TO_TICKS(1));
+        wait_iters++;
+      }
+      // Now grab one fresh frame (blocking)
+      uint8_t* frame = nullptr;
+      int idx = cam->GetRawFrame(&frame);
+      if (idx >= 0 && frame) {
+        TickType_t total = xTaskGetTickCount() - t_start;
+        printf("  [frame] post-switch SLOW: drained %d, waited %dms, "
+               "seq=%lu, buf#%d (%ldms)\r\n",
+               drained, wait_iters,
+               (unsigned long)g_camera_frame_seq, idx, (long)total);
+        *raw_out = frame;
+        return idx;
+      }
+      // Fresh frame failed — fall through to normal recovery path
+    }
+  }
 
   for (int recovery = 0; recovery <= kMaxRecoveries; ++recovery) {
     // Strategy: drain the FIFO queue, keep only the LAST (most recent) buffer.
@@ -1340,6 +1488,7 @@ static int sentai_cam_get_raw_with_recovery(uint8_t** raw_out) {
 
 // Capture RGB frame via PXP hardware scaler. Returns 0 on success.
 extern "C" int sentai_cam_capture_rgb(uint8_t* buf, int width, int height) {
+  if (sentai_detection_is_running()) return -10;  // pipeline owns PXP
   if (!g_cam_initialized) return -1;
   uint8_t* raw = nullptr;
   TickType_t t0 = xTaskGetTickCount();
@@ -1361,147 +1510,45 @@ extern "C" int sentai_cam_capture_rgb(uint8_t* buf, int width, int height) {
 static uint8_t s_jpeg_rgb_buf[DEMO_CAMERA_WIDTH * DEMO_CAMERA_HEIGHT * 3]
     __attribute__((section(".sdram_bss")));
 
-// ---- libjpeg buffer-destination manager (same logic as jpeg.cc) -----------
-struct sentai_buf_dest_mgr {
-  struct jpeg_destination_mgr pub;
-  unsigned long capacity;
-  unsigned long* out_size;
-};
-
-static void sentai_init_dest(j_compress_ptr) {}
-static boolean sentai_empty_buf(j_compress_ptr) { return FALSE; }
-static void sentai_term_dest(j_compress_ptr cinfo) {
-  auto* d = reinterpret_cast<sentai_buf_dest_mgr*>(cinfo->dest);
-  *d->out_size = d->capacity - d->pub.free_in_buffer;
-}
-
-static void sentai_jpeg_buf_dest(j_compress_ptr cinfo, unsigned char* buf,
-                                 unsigned long size, unsigned long* out_size) {
-  if (!cinfo->dest)
-    cinfo->dest = (struct jpeg_destination_mgr*)(*cinfo->mem->alloc_small)(
-        (j_common_ptr)cinfo, JPOOL_PERMANENT, sizeof(sentai_buf_dest_mgr));
-  auto* d = reinterpret_cast<sentai_buf_dest_mgr*>(cinfo->dest);
-  d->pub.init_destination    = sentai_init_dest;
-  d->pub.empty_output_buffer = sentai_empty_buf;
-  d->pub.term_destination    = sentai_term_dest;
-  d->pub.next_output_byte    = buf;
-  d->pub.free_in_buffer      = size;
-  d->capacity = size;
-  d->out_size = out_size;
-}
-
-// Direct JPEG compression from raw XRGB8888 camera buffer — bypasses PXP.
-// Camera stores pixels as [B, G, R, X] in memory (little-endian XRGB8888).
-// Converts one row at a time to [R, G, B] for libjpeg.
-// Uses JDCT_IFAST for ~30-40% faster DCT on Cortex-M7.
-// Only works at full camera resolution (no scaling).
-static unsigned long jpeg_compress_xrgb_direct(
-    const uint8_t* xrgb, int width, int height, int pitch_bytes,
-    int quality, uint8_t* jpeg_buf, unsigned long jpeg_buf_size) {
-
-  struct jpeg_compress_struct cinfo;
-  struct jpeg_error_mgr jerr;
-  cinfo.err = jpeg_std_error(&jerr);
-  jpeg_create_compress(&cinfo);
-
-  unsigned long out_size = 0;
-  sentai_jpeg_buf_dest(&cinfo, jpeg_buf, jpeg_buf_size, &out_size);
-
-  cinfo.image_width      = width;
-  cinfo.image_height     = height;
-  cinfo.input_components = 3;
-  cinfo.in_color_space   = JCS_RGB;
-
-  jpeg_set_defaults(&cinfo);
-  jpeg_set_quality(&cinfo, quality, TRUE);
-  cinfo.dct_method = JDCT_IFAST;  // ~30-40% faster than JDCT_ISLOW
-  jpeg_start_compress(&cinfo, TRUE);
-
-  // Row conversion buffer — 1280*3 = 3840 bytes, fine on stack
-  uint8_t row_rgb[DEMO_CAMERA_WIDTH * 3];
-
-  while (cinfo.next_scanline < cinfo.image_height) {
-    const uint8_t* src_row = xrgb + cinfo.next_scanline * pitch_bytes;
-    // Optimized RGBX→RGB using 32-bit reads from non-cacheable OCRAM.
-    // One uint32 load per pixel instead of 3 separate byte loads.
-    // Memory layout: [R, G, B, X] per pixel.
-    // LE uint32 = R | (G<<8) | (B<<16) | (X<<24)
-    const uint32_t* src32 = (const uint32_t*)src_row;
-    int x = 0;
-    // Unrolled 4x for pipeline efficiency
-    for (; x + 3 < width; x += 4) {
-      uint32_t p0 = src32[x + 0];
-      uint32_t p1 = src32[x + 1];
-      uint32_t p2 = src32[x + 2];
-      uint32_t p3 = src32[x + 3];
-      uint8_t* d = &row_rgb[x * 3];
-      d[0]  = (uint8_t)p0;          d[1]  = (uint8_t)(p0 >> 8); d[2]  = (uint8_t)(p0 >> 16);
-      d[3]  = (uint8_t)p1;          d[4]  = (uint8_t)(p1 >> 8); d[5]  = (uint8_t)(p1 >> 16);
-      d[6]  = (uint8_t)p2;          d[7]  = (uint8_t)(p2 >> 8); d[8]  = (uint8_t)(p2 >> 16);
-      d[9]  = (uint8_t)p3;          d[10] = (uint8_t)(p3 >> 8); d[11] = (uint8_t)(p3 >> 16);
-    }
-    // Tail: handle remaining pixels (width not multiple of 4)
-    for (; x < width; ++x) {
-      row_rgb[x * 3 + 0] = src_row[x * 4 + 0];  // R
-      row_rgb[x * 3 + 1] = src_row[x * 4 + 1];  // G
-      row_rgb[x * 3 + 2] = src_row[x * 4 + 2];  // B
-    }
-    JSAMPROW rp = row_rgb;
-    jpeg_write_scanlines(&cinfo, &rp, 1);
-  }
-
-  jpeg_finish_compress(&cinfo);
-  jpeg_destroy_compress(&cinfo);
-  return out_size;
-}
-
 // Capture + JPEG compress. Returns JPEG size or negative error.
-// At full resolution, bypasses PXP entirely (direct XRGB→JPEG row-by-row).
-// At scaled resolution, uses PXP hardware scaler + JpegCompressRgb.
+// Uses PXP hardware for XRGB8888→RGB888 conversion (+ optional scaling),
+// then JpegCompressRgb for JPEG encoding.
 extern "C" int sentai_cam_capture_jpeg(uint8_t* jpeg_buf, int jpeg_buf_size,
                                       int width, int height, int quality) {
+  if (sentai_detection_is_running()) return -10;  // pipeline owns PXP
   if (!g_cam_initialized) return -1;
   if (width > DEMO_CAMERA_WIDTH || height > DEMO_CAMERA_HEIGHT) return -5;
 
-  // Full resolution — bypass PXP, encode directly from camera buffer
-  if (width == DEMO_CAMERA_WIDTH && height == DEMO_CAMERA_HEIGHT) {
-    uint8_t* raw = nullptr;
-    TickType_t t0 = xTaskGetTickCount();
-    int idx = sentai_cam_get_raw_with_recovery(&raw);
-    TickType_t t1 = xTaskGetTickCount();
-    if (idx < 0 || !raw) return -2;
-
-    int pitch = (DEMO_CAMERA_WIDTH + LINE_PADDING) * DEMO_CAMERA_BUFFER_BPP;
-    unsigned long used = jpeg_compress_xrgb_direct(
-        raw, width, height, pitch, quality,
-        (unsigned char*)jpeg_buf, (unsigned long)jpeg_buf_size);
-
-    TickType_t t2 = xTaskGetTickCount();
-    auto* cam = coralmicro::CameraTask::GetSingleton();
-    cam->ReturnRawFrame(idx);
-
-    printf("  [capture_jpeg] drain=%ldms xrgb_jpeg=%ldms total=%ldms (direct)\r\n",
-           (long)(t1 - t0), (long)(t2 - t1), (long)(t2 - t0));
-    return (int)used;
-  }
-
-  // Scaled resolution — need PXP for hardware scaling
+  uint8_t* raw = nullptr;
   TickType_t t0 = xTaskGetTickCount();
-  int rc = sentai_cam_capture_rgb(s_jpeg_rgb_buf, width, height);
+  int idx = sentai_cam_get_raw_with_recovery(&raw);
   TickType_t t1 = xTaskGetTickCount();
+  if (idx < 0 || !raw) return -2;
+
+  // PXP hardware: XRGB8888 → packed RGB888 (with optional scaling)
+  int rc = pxp_scale_xrgb_to_rgb(raw, DEMO_CAMERA_WIDTH, DEMO_CAMERA_HEIGHT,
+                                  s_jpeg_rgb_buf, width, height);
+  TickType_t t2 = xTaskGetTickCount();
+  auto* cam = coralmicro::CameraTask::GetSingleton();
+  cam->ReturnRawFrame(idx);
   if (rc != 0) return rc;
+
+  // JPEG encode the RGB888 buffer
   unsigned long used = coralmicro::JpegCompressRgb(
       s_jpeg_rgb_buf, width, height, quality,
       (unsigned char*)jpeg_buf, (unsigned long)jpeg_buf_size);
-  TickType_t t2 = xTaskGetTickCount();
-  printf("  [capture_jpeg] rgb=%ldms jpeg_encode=%ldms total=%ldms (pxp+scale)\r\n",
-         (long)(t1 - t0), (long)(t2 - t1), (long)(t2 - t0));
+  TickType_t t3 = xTaskGetTickCount();
+
+  printf("  [capture_jpeg] drain=%ldms pxp=%ldms jpeg=%ldms total=%ldms (%dx%d)\r\n",
+         (long)(t1 - t0), (long)(t2 - t1), (long)(t3 - t2), (long)(t3 - t0),
+         width, height);
   return (int)used;
 }
 
 // Capture RGB via PXP and feed directly into TPU input tensor.
 // If save_path is non-NULL, save a JPEG of the scaled frame before int8 quant.
 extern "C" int sentai_cam_to_tensor_ex(const char* save_path, int quality) {
+  if (sentai_detection_is_running()) return -10;  // pipeline owns PXP+tensor
   if (!g_cam_initialized) return -1;
   if (!coralmicro::g_tpu_ready || !coralmicro::g_interpreter) return -3;
   auto* input = coralmicro::g_interpreter->input_tensor(0);
@@ -1512,32 +1559,27 @@ extern "C" int sentai_cam_to_tensor_ex(const char* save_path, int quality) {
   int total_pixels = h * w * ch;
   uint8_t* tensor_buf = tflite::GetTensorData<uint8_t>(input);
 
+  TickType_t t_start = xTaskGetTickCount();
   uint8_t* raw = nullptr;
   int idx = sentai_cam_get_raw_with_recovery(&raw);
+  TickType_t t_frame = xTaskGetTickCount();
   if (idx < 0 || !raw) return -2;
   auto* cam = coralmicro::CameraTask::GetSingleton();
   int rc = pxp_scale_xrgb_to_rgb(raw, DEMO_CAMERA_WIDTH, DEMO_CAMERA_HEIGHT,
                                   tensor_buf, w, h);
   cam->ReturnRawFrame(idx);
+  TickType_t t_pxp = xTaskGetTickCount();
   if (rc != 0) return rc;
 
-  // Save RGB frame for draw() before int8 quantization
-#if SENTAI_OPT_LAZY_DRAW
-  // Defer memcpy — only copy if draw() is actually called
-  if (total_pixels <= kMaxDrawPixels) {
-    g_draw_tensor_src = tensor_buf;
-    g_draw_total = total_pixels;
-    g_draw_w = w;
-    g_draw_h = h;
-    g_draw_stale = true;
-  }
-#else
-  if (total_pixels <= kMaxDrawPixels) {
+  // Save RGB frame for draw() BEFORE int8 quantization destroys the data.
+  // Only copy when draw() has been called (sets g_draw_capture_pending).
+  // Skipping this saves ~2-3ms per frame on the critical inference path.
+  if (g_draw_capture_pending && total_pixels <= kMaxDrawPixels) {
     memcpy(g_draw_rgb, tensor_buf, total_pixels);
     g_draw_w = w;
     g_draw_h = h;
+    g_draw_capture_pending = false;
   }
-#endif
 
   // Optionally save JPEG of the scaled RGB frame (before int8 quantization)
   if (save_path && save_path[0]) {
@@ -1561,24 +1603,15 @@ extern "C" int sentai_cam_to_tensor_ex(const char* save_path, int quality) {
   }
 
   // If model expects int8 input, apply quantization offset.
+  TickType_t t_quant_start = xTaskGetTickCount();
   if (input->type == kTfLiteInt8) {
-    int8_t* dst = reinterpret_cast<int8_t*>(tensor_buf);
-    int zp = input->params.zero_point;
-    if (zp == -128) {
-      uint32_t* p32 = reinterpret_cast<uint32_t*>(dst);
-      int n32 = total_pixels / 4;
-      for (int i = 0; i < n32; i++) p32[i] ^= 0x80808080u;
-      for (int i = n32 * 4; i < total_pixels; i++)
-        dst[i] = (int8_t)((uint8_t)dst[i] ^ 0x80u);
-    } else {
-      for (int i = 0; i < total_pixels; i++) {
-        int v = (int)tensor_buf[i] + zp;
-        if (v < -128) v = -128;
-        if (v > 127) v = 127;
-        dst[i] = (int8_t)v;
-      }
-    }
+    sentai_quant_uint8_to_int8(tensor_buf, total_pixels,
+                               input->params.zero_point);
   }
+  TickType_t t_end = xTaskGetTickCount();
+  printf("[to_tensor] frame=%ldms pxp=%ldms quant=%ldms total=%ldms (%dx%d)\r\n",
+         (long)(t_frame - t_start), (long)(t_pxp - t_frame),
+         (long)(t_end - t_quant_start), (long)(t_end - t_start), w, h);
   return 0;
 }
 
@@ -1589,9 +1622,13 @@ extern "C" int sentai_cam_to_tensor(void) {
 // Switch between front and back cameras. id: 0=front, 1=back.
 extern "C" int sentai_cam_switch(int id) {
   if (!g_cam_initialized) return -1;
+  if (id == g_cam_current_id) return 0;  // already on this camera
   auto* cam = coralmicro::CameraTask::GetSingleton();
-  uint32_t ts0 = xTaskGetTickCount();
-  printf("[DBG] @%lu cam_switch: id=%d, calling SwitchCamera...\r\n", (unsigned long)ts0, id);
+  TickType_t ts0 = xTaskGetTickCount();
+  // Snapshot the monotonic ISR counter BEFORE the MUX flip.
+  // After the switch, (g_camera_frame_seq - g_cam_switch_seq >= 2) means
+  // at least 2 full frames have been captured by the NEW camera.
+  g_cam_switch_seq = g_camera_frame_seq;
   if (id == 0) {
     cam->SwitchCamera(coralmicro::SwitchCameraId::kCameraFront);
     g_cam_current_id = 0;
@@ -1601,8 +1638,11 @@ extern "C" int sentai_cam_switch(int id) {
   } else {
     return -2;
   }
-  uint32_t ts1 = xTaskGetTickCount();
-  printf("[DBG] @%lu cam_switch: done (+%lums)\r\n", (unsigned long)ts1, (unsigned long)(ts1-ts0));
+  g_cam_switch_pending = true;
+  sentai_tracker_set_active_camera(id);
+  TickType_t ts1 = xTaskGetTickCount();
+  printf("[cam_switch] -> cam%d (%ldms, seq=%lu, cleanup deferred)\r\n",
+         id, (long)(ts1 - ts0), (unsigned long)g_cam_switch_seq);
   return 0;
 }
 
@@ -1620,6 +1660,10 @@ extern "C" int sentai_cam_get_width(void) {
 
 extern "C" int sentai_cam_get_height(void) {
   return g_cam_height;
+}
+
+extern "C" uint32_t sentai_cam_get_frame_seq(void) {
+  return g_camera_frame_seq;
 }
 
 extern "C" int sentai_cam_get_native_width(void) {

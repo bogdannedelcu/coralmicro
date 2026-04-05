@@ -2,41 +2,96 @@ syntax = "proto3";
 
 package visionmesh;
 
-// Camera orientation & position at detection time
+// GPS coordinate pair (degrees × 1e7 for integer precision)
+message GpsCoord {
+  sfixed32 lat_e7 = 1;  // latitude  × 1e7  (e.g. 44.4268° → 444268000)
+  sfixed32 lon_e7 = 2;  // longitude × 1e7  (e.g. 26.1025° → 261025000)
+}
+
+// Camera geometry at detection time
 message SensorPose {
-  sint32 pitch_deg   = 1;  // tilt forward/back from horizon (-90..+90)
-  sint32 roll_deg    = 2;  // tilt left/right (-180..+180)
-  uint32 altitude_cm = 3;  // camera height above ground, cm
-  uint32 heading_deg = 4;  // compass heading (0..359, 0=N 90=E 180=S 270=W)
+  // IMU orientation
+  sint32 pitch_deg    = 1;  // board pitch from level (-90..+90)
+  sint32 roll_deg     = 2;  // board roll  (-180..+180)
+  uint32 altitude_cm  = 3;  // camera height above ground, cm
+  uint32 heading_deg  = 4;  // compass heading (0..359, 0=N 90=E)
+
+  // Camera GPS position
+  GpsCoord camera_gps = 5;  // camera lat/lon (0 = no GPS)
+
+  // Camera footprint on ground (4 corners of the image projection)
+  // Order: top-left, top-right, bottom-right, bottom-left
+  // Only valid when altitude > 0 and GPS set.
+  // At 0° pitch (straight down) this is a rectangle.
+  // At non-zero pitch this is a trapezoid (far edge wider).
+  GpsCoord corner_tl  = 6;
+  GpsCoord corner_tr  = 7;
+  GpsCoord corner_br  = 8;
+  GpsCoord corner_bl  = 9;
+
+  // Active camera config at capture time
+  uint32 camera_id    = 10; // which camera (0 or 1)
+  uint32 fov_h_e1     = 11; // horizontal FOV × 10 (e.g. 708 = 70.8°)
+  uint32 fov_v_e1     = 12; // vertical FOV × 10 (e.g. 434 = 43.4°)
+  sint32 mount_pitch_e1 = 13; // mount pitch × 10 (0 = down, 250 = 25.0°)
+  sint32 mount_roll_e1  = 14; // mount roll × 10 (0 = landscape)
+  sint32 mount_yaw_e1   = 15; // mount yaw × 10 (0 = forward)
 }
 
 message VisionMessage {
   uint32 app_version   = 1;
-  uint32 sensor_id     = 2;
-  uint32 track_id      = 3;
-  uint32 alarm_type    = 4;
-  uint32 timestamp_utc = 5;
-  uint32 seq           = 6;
-  uint32 node_id       = 7;
+  uint32 sensor_id     = 2;  // physical sensor ID (unique per device)
+  uint32 track_id      = 3;  // tracker-assigned ID (unique per sensor)
+  uint32 alarm_type    = 4;  // application-defined alarm category
+  uint32 timestamp_utc = 5;  // Unix timestamp (seconds since epoch)
+  uint32 seq           = 6;  // monotonic sequence number per sensor
+  uint32 node_id       = 7;  // Meshtastic node number (filled by sender)
 
-  SensorPose pose      = 20;  // camera pose at detection time
+  SensorPose pose      = 20; // camera pose + footprint at detection time
 
   oneof body {
     NewDetection    new_detection    = 10;
     UpdateDetection update_detection = 11;
+    DeleteDetection delete_detection = 12;
   }
 }
 
+// First detection of a new confirmed track
 message NewDetection {
-  fixed32 xywh_packed = 1;  // x,y,w,h each 1 byte packed
-  uint32 conf         = 2;  // 0..255
-  uint32 class_id     = 3;
-  bytes embedding     = 4;  // 64 bytes
-  uint32 embed_crc8   = 5;  // 0..255
+  fixed32 xywh_packed = 1;  // bbox in model pixels: x,y,w,h each 1 byte
+  uint32 conf         = 2;  // confidence 0..255 (maps to 0.0..1.0)
+  uint32 class_id     = 3;  // detection class
+  bytes embedding     = 4;  // appearance embedding (up to 64 bytes)
+  uint32 embed_crc8   = 5;  // CRC8 of embedding (for quick comparison)
+  // Ground-plane position of target (only valid when pose.altitude > 0)
+  GpsCoord target_gps = 6;  // target absolute GPS position
+  sint32 gx_cm        = 7;  // target ground X (East +, cm from camera)
+  sint32 gy_cm        = 8;  // target ground Y (North +, cm from camera)
+  uint32 dist_cm      = 9;  // distance from camera nadir, cm
+  uint32 width_cm     = 10; // estimated target width on ground, cm
 }
 
+// Periodic update for an existing confirmed track
 message UpdateDetection {
-  fixed32 xywh_packed = 1;  // x,y,w,h each 1 byte packed
-  uint32 conf         = 2;
-  uint32 age          = 3;
+  fixed32 xywh_packed = 1;  // bbox in model pixels
+  uint32 conf         = 2;  // confidence 0..255
+  uint32 age          = 3;  // frames since track creation
+  // Ground-plane position of target
+  GpsCoord target_gps = 6;  // target absolute GPS position
+  sint32 gx_cm        = 7;  // target ground X (East +, cm from camera)
+  sint32 gy_cm        = 8;  // target ground Y (North +, cm from camera)
+  uint32 dist_cm      = 9;  // distance from camera nadir, cm
+}
+
+// Track removed — target lost or left the frame
+// Sent when tracker emits TRACK_EVT_LOST or TRACK_EVT_REMOVED.
+// Receivers should remove this track_id from their display/map.
+message DeleteDetection {
+  uint32 reason       = 1;  // 3 = lost (coasting timeout), 4 = removed (max misses)
+  uint32 age          = 2;  // total frames this track lived
+  uint32 total_hits   = 3;  // total successful detections over lifetime
+  // Last known ground position
+  GpsCoord last_gps   = 4;  // last known GPS (0 = unknown)
+  sint32 last_gx_cm   = 5;  // last ground X
+  sint32 last_gy_cm   = 6;  // last ground Y
 }

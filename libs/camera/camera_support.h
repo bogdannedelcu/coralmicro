@@ -52,6 +52,9 @@
 extern camera_device_handle_t cameraDevice;
 extern camera_receiver_handle_t cameraReceiver;
 
+/* Monotonic frame counter (incremented in CSI ISR, never reset). */
+extern volatile uint32_t g_camera_frame_seq;
+
 /*******************************************************************************
  * API
  ******************************************************************************/

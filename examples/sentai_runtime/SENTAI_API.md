@@ -51,7 +51,8 @@ sentai
 │   ├── res()
 │   ├── set_res(w, h)
 │   ├── native_res()
-│   └── switch(id)
+│   ├── switch(id)
+│   └── frame_seq()
 ├── imu                     # LIS2DU12 accelerometer
 │   ├── init()
 │   ├── read()
@@ -440,6 +441,29 @@ Switch between cameras. `0`=front, `1`=back. Returns 0 on success.
 0
 >>> sentai.camera.switch(1)   # back camera
 0
+```
+
+### `sentai.camera.frame_seq()` → int
+Return the hardware frame sequence counter. This is a `uint32_t` incremented by the
+CSI DMA interrupt handler (ISR) on every completed frame — it counts at the native
+sensor frame rate (15 fps) regardless of Python activity.
+
+- **Monotonic** — never resets, even across camera switches. Use the delta
+  between two readings to count elapsed frames.
+- Internally, `switch()` snapshots the counter before the MUX flip. The capture
+  logic waits until `frame_seq() - snapshot >= 2` to guarantee a clean image.
+- Wraps at 2³² (≈9 years of continuous operation at 15 fps) — unsigned arithmetic
+  is safe across wrap-around.
+
+```python
+>>> sentai.camera.init()
+0
+>>> before = sentai.camera.frame_seq()
+>>> sentai.camera.switch(1)
+0
+>>> sentai.rtos.sleep_ms(200)   # wait ~3 frames
+>>> sentai.camera.frame_seq() - before
+3
 ```
 
 ### `sentai.camera.res()` → tuple
@@ -1165,7 +1189,7 @@ cd /home/bogdan/work/coralmicro/examples/sentai_runtime
 rm -rf build-embed
 
 # 2. Run the MicroPython embed Makefile to regenerate all headers
-#    This scans modsentai.c (via USER_C_MODULES) and all MP core sources,
+#    This scans modsentai.c (via USER_C_MODULES and modules/sentai/micropython.mk),
 #    extracts Q(...) / MP_QSTR_xxx / MP_REGISTER_MODULE macros,
 #    generates qstrdefs.generated.h (sorted QDEF1 pool), moduledefs.h, etc.,
 #    and copies them into micropython_embed/genhdr/
@@ -1179,14 +1203,15 @@ rm -rf ../../build/examples/sentai_runtime/CMakeFiles/libmicropython.dir/
 rm -f  ../../build/examples/sentai_runtime/liblibmicropython.a
 
 # 4. Rebuild
-cd ../../build
-cmake ..
-make -j$(nproc) sentai_runtime
+cd ../.. && cmake --build build -t sentai_runtime -j$(nproc)
 
 # 5. Flash
-cd ..
 python3 scripts/flashtool.py -e sentai_runtime
 ```
+
+> **Note:** Step 2 overwrites `micropython_embed/port/` files from upstream, but this
+> is harmless — our custom `mp_embed_exec_str_safe()` lives in its own file
+> (`mp_embed_safe.c`) outside the embed port directory, so it survives regeneration.
 
 #### Why This Is Needed
 
@@ -1205,10 +1230,15 @@ python3 scripts/flashtool.py -e sentai_runtime
 
 | File | Purpose |
 |------|---------|
-| `modules/sentai/modsentai.c` | Source scanned by embed build for QSTR extraction |
+| `modules/sentai/micropython.mk` | **CRITICAL** — tells `embed.mk` to scan `modsentai.c` for QSTRs. Without this file, only core MicroPython QSTRs are generated (~41 entries) and `import sentai` fails. |
+| `modsentai.c` | Main C source scanned by embed build for QSTR extraction |
+| `modsentai_camera.c` | Camera sub-module (included by `modsentai.c`, not scanned directly) |
+| `mp_embed_safe.c` / `mp_embed_safe.h` | `mp_embed_exec_str_safe()` — safe exec wrapper (lives outside upstream, survives QSTR regen) |
 | `build-embed/genhdr/` | Intermediate generated headers (cache — delete when stale) |
-| `micropython_embed/genhdr/qstrdefs.generated.h` | Final QSTR pool (QDEF0 + sorted QDEF1) |
+| `micropython_embed/genhdr/qstrdefs.generated.h` | Final QSTR pool (QDEF0 + sorted QDEF1, ~228 entries) |
 | `micropython_embed/genhdr/moduledefs.h` | Module registration (`MICROPY_REGISTERED_MODULES`) |
+| `micropython_embed/port/embed_util.c` | MicroPython embed runtime (overwritten by QSTR regen — no custom code here) |
+| `micropython_embed/port/micropython_embed.h` | Embed public header (overwritten by QSTR regen — no custom code here) |
 | `micropython_embed/py/qstr.c` | Includes the generated header; compiled into `libmicropython.a` |
 
 #### Serial Console

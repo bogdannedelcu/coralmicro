@@ -128,6 +128,14 @@ static mp_obj_t mod_sentai_cam_switch(mp_obj_t id_obj) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_cam_switch_obj, mod_sentai_cam_switch);
 
+// sentai.camera.frame_seq() -> int
+// Monotonic ISR-level frame counter. Never resets.
+// Use delta (frame_seq_after - frame_seq_before) to count DMA frames.
+static mp_obj_t mod_sentai_cam_frame_seq(void) {
+    return mp_obj_new_int(sentai_cam_get_frame_seq());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_cam_frame_seq_obj, mod_sentai_cam_frame_seq);
+
 // sentai.camera.rotate(cam_id, degrees) -> int (0=ok)
 // cam_id: 0=front, 1=back.  degrees: 0, 90, 180, 270.
 static mp_obj_t mod_sentai_cam_rotate(mp_obj_t cam_obj, mp_obj_t deg_obj) {
@@ -149,6 +157,7 @@ static const mp_rom_map_elem_t sentai_camera_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_set_res),    MP_ROM_PTR(&mod_sentai_cam_set_res_obj) },
     { MP_ROM_QSTR(MP_QSTR_native_res), MP_ROM_PTR(&mod_sentai_cam_native_res_obj) },
     { MP_ROM_QSTR(MP_QSTR_switch),     MP_ROM_PTR(&mod_sentai_cam_switch_obj) },
+    { MP_ROM_QSTR(MP_QSTR_frame_seq),  MP_ROM_PTR(&mod_sentai_cam_frame_seq_obj) },
     { MP_ROM_QSTR(MP_QSTR_rotate),     MP_ROM_PTR(&mod_sentai_cam_rotate_obj) },
 };
 static MP_DEFINE_CONST_DICT(sentai_camera_globals, sentai_camera_globals_table);

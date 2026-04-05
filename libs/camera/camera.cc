@@ -28,6 +28,7 @@
 #include "fsl_csi.h"
 #include "fsl_mipi_csi2rx.h"
 #include "fsl_camera.h"
+#include "camera_support.h"
 #include "fsl_camera_receiver.h"
 #include "fsl_camera_device.h"
 #include "fsl_csi_camera_adapter.h"
@@ -816,53 +817,28 @@ bool CameraTask::VideoConvert(uint32_t in)
 
 void CameraTask::HandleSwitchCameraRequest(const SwitchCameraId cameraId) {
 
-  // CSI keeps running — do NOT stop it. Stopping CSI kills the MIPI bridge
-  // sync and CSI_TransferStart alone cannot recover it.
-  //
-  // Strategy: drain immediately, switch MUX, short wait for MIPI re-lock,
-  // drain again to flush any mixed/transitional frames.
+  // Minimal switch: just flip the MUX GPIO.
+  // CSI/MIPI keeps running — do NOT stop it.
+  // g_camera_frame_seq is NOT reset here — it stays monotonic.
+  // The caller (sentai_cam_switch) snapshots the seq before calling us,
+  // then checks (seq_now - seq_at_switch >= 2) to know when fresh frames
+  // from the new camera have arrived.  Monotonic avoids an ISR vs task
+  // race condition that would exist if we reset to 0 here.
 
-  // 1. Drain ALL currently-full buffers BEFORE switching (old camera frames)
-  {
-    uint32_t buf;
-    int drained = 0;
-    while (CAMERA_RECEIVER_GetFullBuffer(&cameraReceiver, &buf) == kStatus_Success) {
-      CAMERA_RECEIVER_SubmitEmptyBuffer(&cameraReceiver, buf);
-      drained++;
-    }
-    DBG_OUTPUT("[DBG] SwitchCamera: pre-drain %d old buffers\r\n", drained);
-  }
-
-  // 2. Switch MUX GPIO
   switch(cameraId) {
     case coralmicro::SwitchCameraId::kCameraBack:
         coralmicro::GpioSet((coralmicro::Gpio) Gpio::kCamMux, MUX_BACK_CAMERA);
-        printf("BACK camera selected\n");
+        DBG_OUTPUT("BACK camera selected\n");
         break;
 
     case coralmicro::SwitchCameraId::kCameraFront:
         coralmicro::GpioSet((coralmicro::Gpio) Gpio::kCamMux, MUX_FRONT_CAMERA);
-        printf("FRONT camera selected\n");
+        DBG_OUTPUT("FRONT camera selected\n");
         break;
 
     default:
         printf("Invalid switchCameraId: %d\n", cameraId);
         return;
-  }
-
-  // 3. Short wait for MIPI CSI-2 bridge to re-lock on new camera input.
-  //    ~50ms ≈ 1-2 frames at 30fps — enough for bridge re-lock.
-  vTaskDelay(pdMS_TO_TICKS(50));
-
-  // 4. Drain any mixed/transitional frames that arrived during the switch.
-  {
-    uint32_t buf;
-    int drained = 0;
-    while (CAMERA_RECEIVER_GetFullBuffer(&cameraReceiver, &buf) == kStatus_Success) {
-      CAMERA_RECEIVER_SubmitEmptyBuffer(&cameraReceiver, buf);
-      drained++;
-    }
-    DBG_OUTPUT("[DBG] SwitchCamera: post-drain %d transitional buffers\r\n", drained);
   }
 }
 

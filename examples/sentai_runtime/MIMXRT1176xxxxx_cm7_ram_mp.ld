@@ -208,6 +208,17 @@ SECTIONS
      . = ALIGN(4);
   } > m_ocram
 
+  /* libm math functions used by MicroPython's math module.
+   * Placed in OCRAM alongside MicroPython itself (no ITCM perf benefit). */
+  .libm :
+  {
+     . = ALIGN(4);
+     *libm.a:*(.text .text*)
+     *libm.a:*(.data .data*)
+     *libm.a:*(.rodata .rodata*)
+     . = ALIGN(4);
+  } > m_ocram
+
   .audio :
   {
      . = ALIGN(4);

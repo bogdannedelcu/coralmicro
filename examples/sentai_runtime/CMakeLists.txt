@@ -34,6 +34,7 @@ add_library(libmicropython STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/modsentai.c
     ${CMAKE_CURRENT_SOURCE_DIR}/micropython_task.c
     ${CMAKE_CURRENT_SOURCE_DIR}/mp_port_import.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/mp_embed_safe.c
 )
 
 target_include_directories(libmicropython PUBLIC
@@ -125,6 +126,8 @@ target_compile_options(meshtastic_pb PRIVATE -w
 add_executable_m7(sentai_runtime
     LINKER_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/MIMXRT1176xxxxx_cm7_ram_mp.ld
     sentai_runtime.cc
+    detection_task.cc
+    sentai_tracker.cc
     modsentai_hal.cc
     sentai_mesh.cc
     sentai_link.cc

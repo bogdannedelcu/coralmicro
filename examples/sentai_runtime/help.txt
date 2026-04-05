@@ -20,6 +20,7 @@ Sub-modules:
   sentai.uart     UART serial I/O
   sentai.mesh     Meshtastic mesh radio bridge
   sentai.link     MAVLink telemetry bridge
+  sentai.pipeline Detection pipeline + SentAI-SORT tracker
 
 [io]
 sentai.io - LED / GPIO
@@ -105,6 +106,13 @@ sentai.camera - Camera
   set_res(w, h)         Set capture resolution
   native_res()          Sensor native resolution -> (w, h)
   switch(id)            Switch camera (0=front, 1=back)
+                        Also sets active camera for tracker ground
+                        projection (sentai_tracker_set_active_camera).
+  frame_seq()           Monotonic ISR frame counter (uint32)
+                        Incremented by HW on each DMA frame (15fps).
+                        Use delta between readings to count frames.
+                        Example: before=frame_seq(); switch(1);
+                          sleep_ms(200); print(frame_seq()-before)
 
 [imu]
 sentai.imu - LIS2DU12 accelerometer
@@ -353,3 +361,110 @@ sentai.link - MAVLink v2 telemetry bridge
                 print('x:', msg['x'], 'y:', msg['y'], 'z:', msg['z'])
             else:
                 print(msg['msgid'], msg['sysid'])
+
+[pipeline]
+sentai.pipeline - Continuous detection pipeline + SentAI-SORT tracker
+=====================================================================
+  Runs YOLO detection continuously in a background FreeRTOS task.
+  Optionally enables SentAI-SORT multi-object tracking with:
+    - 8-state Kalman filter (constant-velocity, block-diagonal P)
+    - ByteTrack two-stage greedy association (high + low confidence)
+    - HSV color histogram (4x4 grid, 8 bins = 128D, Bhattacharyya)
+    - IMU camera motion compensation (pitch/roll delta → pixel shift)
+    - Ground-plane projection (4-corner ray-cast, trapezoid-aware)
+    - GPS coordinate output (flat-earth approximation)
+  All state is static — zero heap allocation. ~14 KB SDRAM.
+
+  --- Pipeline control ---
+  start([conf, iou, max, track])
+                        Start detection pipeline.
+                        conf/iou: float 0.0-1.0 (default 0.5/0.45)
+                        max: int max detections (default 50)
+                        track: bool enable tracker (default False)
+                        Returns 0 on success.
+  stop()                Stop pipeline and disable tracker.
+  running()             True if pipeline is running.
+  get([timeout_ms])     Get detection frame -> list of tuples or None
+                        Each tuple: (x1,y1,x2,y2,conf,class_id)
+                        timeout default 1000ms.
+  stats()               Pipeline stats -> (processed, dropped, fps)
+
+  --- Tracker output ---
+  tracks()              Snapshot of active tracks -> list of tuples
+                        (id, x1,y1,x2,y2, conf, class_id, state,
+                         hits, age, gx_cm, gy_cm, dist_cm, width_cm,
+                         lat, lon)
+                        state: 1=confirmed, 2=lost
+                        gx_cm/gy_cm: ground position (East/North cm)
+                        dist_cm: distance from nadir
+                        lat/lon: GPS coords (0.0 if no GPS set)
+  event([timeout_ms])   Next track event -> tuple or None
+                        (type, id, x1,y1,x2,y2, conf, class_id,
+                         frame_seq, gx_cm, gy_cm, dist_cm, lat, lon)
+                        type: 1=new, 2=update, 3=lost, 4=removed
+
+  --- Tracker configuration ---
+  track_config([min_hits, max_misses, iou, hist, high, low])
+                        Get/set tracker params. Returns current config.
+                        min_hits: frames to confirm (default 3)
+                        max_misses: frames to remove (default 5)
+                        iou: min IoU threshold 0.0-1.0 (default 0.3)
+                        hist: histogram weight 0.0-1.0 (default 0.3)
+                        high: high-conf threshold (default 0.5)
+                        low: low-conf threshold (default 0.1)
+
+  --- Sensor pose (ground projection) ---
+  set_pose(altitude_cm [, heading_deg [, lat, lon]])
+                        Set camera pose for ground projection.
+                        altitude_cm: height above ground (0=disable)
+                        heading_deg: compass 0=N,90=E,-1=no compass
+                        lat/lon: camera GPS in degrees (0.0=no GPS)
+
+  --- Per-camera geometry ---
+  camera_config(cam_id [, fov_h, fov_v, mount_pitch, mount_roll, mount_yaw])
+                        Get/set camera mount configuration.
+                        cam_id: 0 or 1 (matches camera.switch id)
+                        fov_h/fov_v: field of view degrees (70.8/43.4)
+                        mount_pitch: tilt from vertical in degrees
+                          0 = straight down (perpendicular to ground)
+                          25 = tilted 25 deg from vertical (forward)
+                          90 = looking at horizon
+                        mount_roll: sensor rotation
+                          0 = landscape, 90 = portrait CW
+                        mount_yaw: heading offset from board forward
+                          0 = forward, 180 = backward
+                        Returns (fov_h, fov_v, pitch, roll, yaw).
+
+                        Ground projection uses 4-corner ray-cast:
+                        each bbox corner is projected as a 3D ray
+                        through the pinhole camera model, rotated by
+                        mount angles + IMU, and intersected with the
+                        ground plane. At non-zero pitch the image
+                        footprint is a trapezoid (far edge wider).
+
+  NOTE: Cross-camera track handoff is NOT currently supported.
+  When camera.switch() is called, existing tracks will time out
+  and new tracks will be created from the new camera's detections.
+  Matching is done in pixel space (IoU + histogram), not ground
+  coordinates, so a target visible in both cameras gets separate
+  track IDs. Future: ground-to-pixel re-projection at switch time.
+
+  Example (tracking with ground projection):
+    sentai.camera.init()
+    # Camera 0: straight down
+    sentai.pipeline.camera_config(0, 70.8, 43.4, 0, 0, 0)
+    # Camera 1: 25 deg tilt, facing backward
+    sentai.pipeline.camera_config(1, 70.8, 43.4, 25, 0, 180)
+    # Set altitude and heading
+    sentai.pipeline.set_pose(1000, 0, 44.4268, 26.1025)
+    # Start with tracking
+    sentai.pipeline.start(0.3, 0.45, 50, True)
+    while True:
+        evt = sentai.pipeline.event(2000)
+        if evt:
+            typ, tid = evt[0], evt[1]
+            lat, lon = evt[12], evt[13]
+            if typ == 1:
+                print('NEW track', tid, 'at', lat, lon)
+            elif typ == 3:
+                print('LOST track', tid)

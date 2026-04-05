@@ -68,6 +68,12 @@ uint8_t
         [(DEMO_CAMERA_HEIGHT) * (DEMO_CAMERA_WIDTH + LINE_PADDING) * DEMO_CAMERA_BUFFER_BPP];
 #endif
 
+/* Monotonic frame counter — incremented by CSI ISR on each DMA frame
+ * completion.  Never reset (stays monotonic across camera switches).
+ * Read freely from any context (aligned uint32_t read is atomic on
+ * Cortex-M7).  Wraps at 2^32 (~9 years at 15fps). */
+volatile uint32_t g_camera_frame_seq = 0;
+
 /*******************************************************************************
  * Code
  ******************************************************************************/
@@ -77,6 +83,7 @@ void CSI_IRQHandler(void)
 {
     CSI_DriverIRQHandler();
     __DSB();
+    g_camera_frame_seq++;   /* one DMA frame completed */
 }
 
 void BOARD_EarlyInitCamera(void)

@@ -4,6 +4,7 @@
 
 #include "micropython_task.h"
 #include "port/micropython_embed.h"
+#include "mp_embed_safe.h"
 #include "py/runtime.h"
 
 #include "third_party/freertos_kernel/include/FreeRTOS.h"

@@ -7,6 +7,7 @@
 // VisionMessage TX: nanopb-encode → base64 → chunked STATUSTEXT (id + chunk_seq).
 
 #include "sentai_link.h"
+#include "sentai_tracker.h"
 
 #include <cstdio>
 #include <cstring>
@@ -296,6 +297,54 @@ static int link_send_base64_chunks(const uint8_t* data, int data_len, uint8_t se
     return 0;
 }
 
+// Build SensorPose from current tracker state (altitude, heading, GPS, camera config, footprint).
+// Returns true if a valid pose was built, false if no altitude set.
+static bool link_build_pose(visionmesh_SensorPose* pose) {
+    *pose = visionmesh_SensorPose_init_zero;
+    int alt = 0, hdg = -1;
+    float lat = 0, lon = 0, pitch = 0, roll = 0;
+    sentai_tracker_get_pose(&alt, &hdg, &lat, &lon, &pitch, &roll);
+    if (alt <= 0) return false;
+
+    pose->pitch_deg = (int32_t)pitch;
+    pose->roll_deg  = (int32_t)roll;
+    pose->altitude_cm = (uint32_t)alt;
+    pose->heading_deg = (uint32_t)(hdg >= 0 ? hdg : 0);
+
+    // Camera GPS
+    if (lat != 0.0f || lon != 0.0f) {
+        pose->has_camera_gps = true;
+        pose->camera_gps.lat_e7 = (int32_t)(lat * 1e7f);
+        pose->camera_gps.lon_e7 = (int32_t)(lon * 1e7f);
+    }
+
+    // Active camera config
+    int cam_id = sentai_tracker_get_active_camera();
+    CameraConfig ccfg;
+    sentai_tracker_get_camera(cam_id, &ccfg);
+    pose->camera_id = (uint32_t)cam_id;
+    pose->fov_h_e1 = (uint32_t)(ccfg.fov_h_deg * 10.0f + 0.5f);
+    pose->fov_v_e1 = (uint32_t)(ccfg.fov_v_deg * 10.0f + 0.5f);
+    pose->mount_pitch_e1 = (int32_t)(ccfg.mount_pitch_deg * 10.0f);
+    pose->mount_roll_e1  = (int32_t)(ccfg.mount_roll_deg * 10.0f);
+    pose->mount_yaw_e1   = (int32_t)(ccfg.mount_yaw_deg * 10.0f);
+
+    // Footprint (4 corners as GPS)
+    float fp_lat[4], fp_lon[4];
+    int fp_hits = sentai_tracker_get_footprint(fp_lat, fp_lon);
+    if (fp_hits >= 2) {
+        auto to_gps = [](visionmesh_GpsCoord* g, float la, float lo) {
+            g->lat_e7 = (int32_t)(la * 1e7f);
+            g->lon_e7 = (int32_t)(lo * 1e7f);
+        };
+        pose->has_corner_tl = true; to_gps(&pose->corner_tl, fp_lat[0], fp_lon[0]);
+        pose->has_corner_tr = true; to_gps(&pose->corner_tr, fp_lat[1], fp_lon[1]);
+        pose->has_corner_br = true; to_gps(&pose->corner_br, fp_lat[2], fp_lon[2]);
+        pose->has_corner_bl = true; to_gps(&pose->corner_bl, fp_lat[3], fp_lon[3]);
+    }
+    return true;
+}
+
 // ===================== TX: VisionMessage (NewDetection) as base64 chunks =====================
 extern "C" int sentai_link_send_vision(
     uint32_t sensor_id, uint32_t track_id, uint32_t alarm_type,
@@ -303,6 +352,8 @@ extern "C" int sentai_link_send_vision(
     uint8_t x, uint8_t y, uint8_t w, uint8_t h,
     uint32_t conf, uint32_t class_id,
     const uint8_t* embedding, uint32_t embed_len, uint32_t embed_crc8,
+    int32_t gx_cm, int32_t gy_cm, uint32_t dist_cm, int16_t width_cm,
+    float target_lat, float target_lon,
     uint8_t severity)
 {
     if (!g_link_running) return -1;
@@ -318,6 +369,10 @@ extern "C" int sentai_link_send_vision(
     vision.seq = seq;
     vision.which_body = visionmesh_VisionMessage_new_detection_tag;
 
+    // Attach sensor pose + extended fields
+    if (link_build_pose(&vision.pose))
+        vision.has_pose = true;
+
     visionmesh_NewDetection* det = &vision.body.new_detection;
     det->xywh_packed = ((uint32_t)x) | ((uint32_t)y << 8) |
                        ((uint32_t)w << 16) | ((uint32_t)h << 24);
@@ -330,6 +385,17 @@ extern "C" int sentai_link_send_vision(
         memcpy(det->embedding.bytes, embedding, embed_len);
     } else {
         det->embedding.size = 0;
+    }
+
+    // Ground projection fields
+    det->gx_cm = gx_cm;
+    det->gy_cm = gy_cm;
+    det->dist_cm = dist_cm;
+    det->width_cm = (uint32_t)(width_cm > 0 ? width_cm : 0);
+    if (target_lat != 0.0f || target_lon != 0.0f) {
+        det->has_target_gps = true;
+        det->target_gps.lat_e7 = (int32_t)(target_lat * 1e7f);
+        det->target_gps.lon_e7 = (int32_t)(target_lon * 1e7f);
     }
 
     // nanopb encode
@@ -349,6 +415,8 @@ extern "C" int sentai_link_send_vision_update(
     uint32_t timestamp_utc, uint32_t seq,
     uint8_t x, uint8_t y, uint8_t w, uint8_t h,
     uint32_t conf, uint32_t age,
+    int32_t gx_cm, int32_t gy_cm, uint32_t dist_cm,
+    float target_lat, float target_lon,
     uint8_t severity)
 {
     if (!g_link_running) return -1;
@@ -363,11 +431,71 @@ extern "C" int sentai_link_send_vision_update(
     vision.seq = seq;
     vision.which_body = visionmesh_VisionMessage_update_detection_tag;
 
+    // Attach sensor pose + extended fields
+    if (link_build_pose(&vision.pose))
+        vision.has_pose = true;
+
     visionmesh_UpdateDetection* upd = &vision.body.update_detection;
     upd->xywh_packed = ((uint32_t)x) | ((uint32_t)y << 8) |
                        ((uint32_t)w << 16) | ((uint32_t)h << 24);
     upd->conf = conf;
     upd->age = age;
+
+    // Ground projection fields
+    upd->gx_cm = gx_cm;
+    upd->gy_cm = gy_cm;
+    upd->dist_cm = dist_cm;
+    if (target_lat != 0.0f || target_lon != 0.0f) {
+        upd->has_target_gps = true;
+        upd->target_gps.lat_e7 = (int32_t)(target_lat * 1e7f);
+        upd->target_gps.lon_e7 = (int32_t)(target_lon * 1e7f);
+    }
+
+    uint8_t pb_buf[visionmesh_VisionMessage_size];
+    pb_ostream_t stream = pb_ostream_from_buffer(pb_buf, sizeof(pb_buf));
+    if (!pb_encode(&stream, visionmesh_VisionMessage_fields, &vision)) {
+        printf("[link] pb_encode VisionMessage failed: %s\r\n", PB_GET_ERROR(&stream));
+        return -2;
+    }
+
+    return link_send_base64_chunks(pb_buf, (int)stream.bytes_written, severity);
+}
+
+// ===================== TX: VisionMessage (DeleteDetection) as base64 chunks =====================
+extern "C" int sentai_link_send_vision_delete(
+    uint32_t sensor_id, uint32_t track_id, uint32_t alarm_type,
+    uint32_t timestamp_utc, uint32_t seq,
+    uint32_t reason, uint32_t age, uint32_t total_hits,
+    float last_lat, float last_lon,
+    int32_t last_gx_cm, int32_t last_gy_cm,
+    uint8_t severity)
+{
+    if (!g_link_running) return -1;
+
+    visionmesh_VisionMessage vision = visionmesh_VisionMessage_init_zero;
+    vision.app_version = 1;
+    vision.sensor_id = sensor_id;
+    vision.node_id = sentai_mesh_my_node_num();
+    vision.track_id = track_id;
+    vision.alarm_type = alarm_type;
+    vision.timestamp_utc = timestamp_utc;
+    vision.seq = seq;
+    vision.which_body = visionmesh_VisionMessage_delete_detection_tag;
+
+    if (link_build_pose(&vision.pose))
+        vision.has_pose = true;
+
+    visionmesh_DeleteDetection* del = &vision.body.delete_detection;
+    del->reason = reason;
+    del->age = age;
+    del->total_hits = total_hits;
+    del->last_gx_cm = last_gx_cm;
+    del->last_gy_cm = last_gy_cm;
+    if (last_lat != 0.0f || last_lon != 0.0f) {
+        del->has_last_gps = true;
+        del->last_gps.lat_e7 = (int32_t)(last_lat * 1e7f);
+        del->last_gps.lon_e7 = (int32_t)(last_lon * 1e7f);
+    }
 
     uint8_t pb_buf[visionmesh_VisionMessage_size];
     pb_ostream_t stream = pb_ostream_from_buffer(pb_buf, sizeof(pb_buf));

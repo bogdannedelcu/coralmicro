@@ -26,6 +26,8 @@
 #include <math.h>
 #include "sentai_mesh.h"
 #include <stdlib.h>
+#include "detection_task.h"
+#include "sentai_tracker.h"
 
 // FreeRTOS - for sentai.tasks(), sentai.heap() (guarded for QSTR generation pass)
 #ifndef NO_QSTR
@@ -87,6 +89,7 @@ extern int sentai_cam_get_native_width(void);
 extern int sentai_cam_get_native_height(void);
 extern int sentai_cam_switch(int id);
 extern int sentai_cam_rotate(int cam_id, int degrees);
+extern uint32_t sentai_cam_get_frame_seq(void);
 
 // Model/image loading — sentai_runtime.cc
 extern int sentai_load_model(const char* path);
@@ -142,19 +145,27 @@ extern int sentai_mesh_send_detection(
     uint8_t x, uint8_t y, uint8_t w, uint8_t h,
     uint32_t conf, uint32_t class_id,
     const uint8_t* embedding, uint32_t embed_len, uint32_t embed_crc8,
+    int32_t gx_cm, int32_t gy_cm, uint32_t dist_cm, int16_t width_cm,
+    float target_lat, float target_lon,
     uint32_t dest, uint8_t channel, int want_ack);
 extern int sentai_mesh_send_update(
     uint32_t sensor_id, uint32_t track_id, uint32_t alarm_type,
     uint32_t timestamp_utc, uint32_t seq,
     uint8_t x, uint8_t y, uint8_t w, uint8_t h,
     uint32_t conf, uint32_t age,
+    int32_t gx_cm, int32_t gy_cm, uint32_t dist_cm,
+    float target_lat, float target_lon,
+    uint32_t dest, uint8_t channel, int want_ack);
+extern int sentai_mesh_send_delete(
+    uint32_t sensor_id, uint32_t track_id, uint32_t alarm_type,
+    uint32_t timestamp_utc, uint32_t seq,
+    uint32_t reason, uint32_t age, uint32_t total_hits,
+    float last_lat, float last_lon,
+    int32_t last_gx_cm, int32_t last_gy_cm,
     uint32_t dest, uint8_t channel, int want_ack);
 extern int sentai_mesh_text_available(void);
-extern int sentai_mesh_vision_available(void);
 extern int sentai_mesh_receive_text(mesh_rx_msg_t* msg);
 extern int sentai_mesh_receive_text_wait(mesh_rx_msg_t* msg, int timeout_ms);
-extern int sentai_mesh_receive_vision(mesh_rx_vision_t* msg);
-extern int sentai_mesh_receive_vision_wait(mesh_rx_vision_t* msg, int timeout_ms);
 extern int sentai_mesh_request_config(uint32_t config_id);
 extern int sentai_mesh_is_running(void);
 extern uint32_t sentai_mesh_my_node_num(void);
@@ -177,12 +188,23 @@ extern int sentai_link_send_vision(
     uint8_t x, uint8_t y, uint8_t w, uint8_t h,
     uint32_t conf, uint32_t class_id,
     const uint8_t* embedding, uint32_t embed_len, uint32_t embed_crc8,
+    int32_t gx_cm, int32_t gy_cm, uint32_t dist_cm, int16_t width_cm,
+    float target_lat, float target_lon,
     uint8_t severity);
 extern int sentai_link_send_vision_update(
     uint32_t sensor_id, uint32_t track_id, uint32_t alarm_type,
     uint32_t timestamp_utc, uint32_t seq,
     uint8_t x, uint8_t y, uint8_t w, uint8_t h,
     uint32_t conf, uint32_t age,
+    int32_t gx_cm, int32_t gy_cm, uint32_t dist_cm,
+    float target_lat, float target_lon,
+    uint8_t severity);
+extern int sentai_link_send_vision_delete(
+    uint32_t sensor_id, uint32_t track_id, uint32_t alarm_type,
+    uint32_t timestamp_utc, uint32_t seq,
+    uint32_t reason, uint32_t age, uint32_t total_hits,
+    float last_lat, float last_lon,
+    int32_t last_gx_cm, int32_t last_gy_cm,
     uint8_t severity);
 extern int sentai_link_send_command_long(
     uint8_t target_sys, uint8_t target_comp,
@@ -240,6 +262,7 @@ static void _fs_check_usb(void) {
 #include "modsentai_imu.c"
 #include "modsentai_mic.c"
 #include "modsentai_sleep_ns.c"
+#include "modsentai_pipeline.c"
 
 // =====================================================================
 // Top-level module functions (sentai.help, sentai.console, etc.)
@@ -425,6 +448,7 @@ static const mp_rom_map_elem_t sentai_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_imu),       MP_ROM_PTR(&sentai_imu_module) },
     { MP_ROM_QSTR(MP_QSTR_mic),       MP_ROM_PTR(&sentai_mic_module) },
     { MP_ROM_QSTR(MP_QSTR_sleep),     MP_ROM_PTR(&sentai_sleep_module) },
+    { MP_ROM_QSTR(MP_QSTR_pipeline),  MP_ROM_PTR(&sentai_pipeline_module) },
 };
 static MP_DEFINE_CONST_DICT(sentai_module_globals, sentai_module_globals_table);
 
