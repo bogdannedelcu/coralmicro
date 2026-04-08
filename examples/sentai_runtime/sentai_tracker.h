@@ -100,12 +100,18 @@ typedef struct {
 //   mount_roll  = 90 → portrait, sensor rotated 90° CW
 //   mount_yaw   = 0  → camera forward = board forward
 //   mount_yaw   = 180→ camera facing backward
+//
+// ground_ref controls which bbox anchor is projected to ground:
+//   0 = CENTROID  — average of all 4 projected corners (default, best for overhead/drone)
+//   1 = BOTTOM    — midpoint of bottom edge only (best for pole-mounted angled cameras,
+//                   where the bottom of the bbox approximates ground contact)
 typedef struct {
     float   fov_h_deg;       // horizontal FOV in degrees (default 70.8, OV5640 stock)
     float   fov_v_deg;       // vertical FOV in degrees (default 43.4)
     float   mount_pitch_deg; // tilt from vertical: 0=down, 90=horizon (default 0)
     float   mount_roll_deg;  // sensor roll: 0=landscape, 90=portrait CW (default 0)
     float   mount_yaw_deg;   // yaw offset from board forward (default 0)
+    int     ground_ref;      // 0=centroid (drone), 1=bottom-center (pole mount)
 } CameraConfig;
 
 // ---- Public API ----

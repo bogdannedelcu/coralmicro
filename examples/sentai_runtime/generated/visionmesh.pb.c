@@ -9,10 +9,13 @@
 PB_BIND(visionmesh_GpsCoord, visionmesh_GpsCoord, AUTO)
 
 
+PB_BIND(visionmesh_SensorConfig, visionmesh_SensorConfig, AUTO)
+
+
 PB_BIND(visionmesh_SensorPose, visionmesh_SensorPose, AUTO)
 
 
-PB_BIND(visionmesh_VisionMessage, visionmesh_VisionMessage, 2)
+PB_BIND(visionmesh_VisionMessage, visionmesh_VisionMessage, AUTO)
 
 
 PB_BIND(visionmesh_NewDetection, visionmesh_NewDetection, AUTO)

@@ -76,27 +76,23 @@ int sentai_link_send_statustext(uint8_t severity, const char* text);
 // The VisionMessage is nanopb-encoded, base64-encoded, then split into
 // multiple STATUSTEXT messages using id + chunk_seq for reassembly.
 // severity: MAV_SEVERITY for the STATUSTEXT wrapper.
-// Ground coords: gx_cm/gy_cm (East/North from camera), dist_cm, width_cm.
-// target_lat/target_lon: absolute GPS (0.0 = no GPS).
+// Ground coords: gx_cm/gy_cm (East/North from camera), width_cm.
 int sentai_link_send_vision(
     uint32_t sensor_id, uint32_t track_id, uint32_t alarm_type,
     uint32_t timestamp_utc, uint32_t seq,
     uint8_t x, uint8_t y, uint8_t w, uint8_t h,
     uint32_t conf, uint32_t class_id,
-    const uint8_t* embedding, uint32_t embed_len, uint32_t embed_crc8,
-    int32_t gx_cm, int32_t gy_cm, uint32_t dist_cm, int16_t width_cm,
-    float target_lat, float target_lon,
+    int32_t gx_cm, int32_t gy_cm, int16_t width_cm,
     uint8_t severity);
 
 // Send a VisionMessage (UpdateDetection) as base64 STATUSTEXT chunks.
-// Ground coords: gx_cm/gy_cm, dist_cm. target_lat/target_lon: GPS.
+// Ground coords: gx_cm/gy_cm.
 int sentai_link_send_vision_update(
     uint32_t sensor_id, uint32_t track_id, uint32_t alarm_type,
     uint32_t timestamp_utc, uint32_t seq,
     uint8_t x, uint8_t y, uint8_t w, uint8_t h,
     uint32_t conf, uint32_t age,
-    int32_t gx_cm, int32_t gy_cm, uint32_t dist_cm,
-    float target_lat, float target_lon,
+    int32_t gx_cm, int32_t gy_cm,
     uint8_t severity);
 
 // Send a VisionMessage (DeleteDetection) as base64 STATUSTEXT chunks.
@@ -105,7 +101,6 @@ int sentai_link_send_vision_delete(
     uint32_t sensor_id, uint32_t track_id, uint32_t alarm_type,
     uint32_t timestamp_utc, uint32_t seq,
     uint32_t reason, uint32_t age, uint32_t total_hits,
-    float last_lat, float last_lon,
     int32_t last_gx_cm, int32_t last_gy_cm,
     uint8_t severity);
 

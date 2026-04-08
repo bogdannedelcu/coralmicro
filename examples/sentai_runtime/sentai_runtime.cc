@@ -52,6 +52,8 @@ extern "C" {
 #include "sentai_tracker.h"
 }
 
+#include "sentai_vision_common.h"
+
 // ===================== Camera pipeline optimizations ========================
 // Set to 1 to enable, 0 to disable (safe revert).  Build #197+
 //
@@ -460,6 +462,11 @@ extern "C" int sentai_load_model(const char* path) {
          coralmicro::kTensorArenaSize / 1024);
 
   coralmicro::g_tpu_ready = true;
+
+  // Extract model name from path and mark dirty for TX
+  vision_set_model_name(path);
+  printf("Model name: %s\r\n", vision_get_model_name());
+
   return 0;
 }
 

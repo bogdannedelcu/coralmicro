@@ -5,6 +5,7 @@
 
 #include "sentai_mesh.h"
 #include "sentai_tracker.h"
+#include "sentai_vision_common.h"
 
 #include <cstdio>
 #include <cstring>
@@ -46,63 +47,16 @@ static SemaphoreHandle_t g_mesh_tx_mutex = nullptr;
 static uint32_t      g_mesh_my_node_num = 0;
 static uint32_t      g_mesh_packet_id = 1;
 
-#define APP_VERSION 1
-
-// ===================== Sensor pose (auto-attached to vision msgs) =====
-static visionmesh_SensorPose g_mesh_pose = visionmesh_SensorPose_init_zero;
-static bool g_mesh_pose_valid = false;
+// Per-transport pose/config tracking state (shared logic in sentai_vision_common.h)
+static VisionTxState g_mesh_tx_state = VISION_TX_STATE_INIT;
 
 extern "C" void sentai_mesh_set_pose(int32_t pitch_deg, int32_t roll_deg,
                                      uint32_t altitude_cm, uint32_t heading_deg) {
-    g_mesh_pose = visionmesh_SensorPose_init_zero;
-    g_mesh_pose.pitch_deg   = pitch_deg;
-    g_mesh_pose.roll_deg    = roll_deg;
-    g_mesh_pose.altitude_cm = altitude_cm;
-    g_mesh_pose.heading_deg = heading_deg;
-    g_mesh_pose_valid = true;
-}
-
-// Populate the extended SensorPose fields just before sending.
-// Reads current tracker state for GPS, footprint, camera config.
-static void populate_pose_extended(visionmesh_SensorPose* pose) {
-    // Camera GPS + pose from tracker
-    float cam_lat = 0, cam_lon = 0;
-    sentai_tracker_get_pose(NULL, NULL, &cam_lat, &cam_lon, NULL, NULL);
-    if (cam_lat != 0.0f || cam_lon != 0.0f) {
-        pose->has_camera_gps = true;
-        pose->camera_gps.lat_e7 = (int32_t)(cam_lat * 1e7f);
-        pose->camera_gps.lon_e7 = (int32_t)(cam_lon * 1e7f);
-    }
-
-    // Active camera config
-    int cam_id = sentai_tracker_get_active_camera();
-    CameraConfig ccfg;
-    sentai_tracker_get_camera(cam_id, &ccfg);
-
-    pose->camera_id = (uint32_t)cam_id;
-    pose->fov_h_e1 = (uint32_t)(ccfg.fov_h_deg * 10.0f + 0.5f);
-    pose->fov_v_e1 = (uint32_t)(ccfg.fov_v_deg * 10.0f + 0.5f);
-    pose->mount_pitch_e1 = (int32_t)(ccfg.mount_pitch_deg * 10.0f);
-    pose->mount_roll_e1  = (int32_t)(ccfg.mount_roll_deg * 10.0f);
-    pose->mount_yaw_e1   = (int32_t)(ccfg.mount_yaw_deg * 10.0f);
-
-    // Footprint (4 corners as GPS)
-    float fp_lat[4], fp_lon[4];
-    int fp_hits = sentai_tracker_get_footprint(fp_lat, fp_lon);
-    if (fp_hits >= 2) {
-        auto to_gps = [](visionmesh_GpsCoord* g, float lat, float lon) {
-            g->lat_e7 = (int32_t)(lat * 1e7f);
-            g->lon_e7 = (int32_t)(lon * 1e7f);
-        };
-        pose->has_corner_tl = true;
-        to_gps(&pose->corner_tl, fp_lat[0], fp_lon[0]);
-        pose->has_corner_tr = true;
-        to_gps(&pose->corner_tr, fp_lat[1], fp_lon[1]);
-        pose->has_corner_br = true;
-        to_gps(&pose->corner_br, fp_lat[2], fp_lon[2]);
-        pose->has_corner_bl = true;
-        to_gps(&pose->corner_bl, fp_lat[3], fp_lon[3]);
-    }
+    // Proxy to tracker — vision_build_pose() reads from tracker at send time.
+    sentai_tracker_set_imu((float)pitch_deg, (float)roll_deg);
+    float lat = 0, lon = 0;
+    sentai_tracker_get_pose(NULL, NULL, &lat, &lon, NULL, NULL);
+    sentai_tracker_set_pose((int)altitude_cm, (int)heading_deg, lat, lon);
 }
 
 // ===================== Frame send (with mutex) =====================
@@ -151,6 +105,24 @@ static int mesh_send_toradio_packet(meshtastic_Data* data,
     }
 
     return mesh_send_frame(buf, (int)stream.bytes_written);
+}
+
+// Encode VisionMessage and send as PRIVATE_APP Meshtastic packet.
+static int mesh_encode_and_send(const visionmesh_VisionMessage* vision,
+                                uint32_t dest, uint8_t channel, int want_ack) {
+    uint8_t vision_buf[visionmesh_VisionMessage_size];
+    pb_ostream_t vstream = pb_ostream_from_buffer(vision_buf, sizeof(vision_buf));
+    if (!pb_encode(&vstream, visionmesh_VisionMessage_fields, vision)) {
+        printf("[mesh] encode VisionMessage failed: %s\r\n", PB_GET_ERROR(&vstream));
+        return -2;
+    }
+
+    meshtastic_Data data = meshtastic_Data_init_default;
+    data.portnum = meshtastic_PortNum_PRIVATE_APP;
+    data.payload.size = (pb_size_t)vstream.bytes_written;
+    memcpy(data.payload.bytes, vision_buf, vstream.bytes_written);
+
+    return mesh_send_toradio_packet(&data, dest, channel, want_ack != 0);
 }
 
 // ===================== RX task: read frames, decode FromRadio =====================
@@ -345,70 +317,18 @@ extern "C" int sentai_mesh_send_detection(
     uint32_t timestamp_utc, uint32_t seq,
     uint8_t x, uint8_t y, uint8_t w, uint8_t h,
     uint32_t conf, uint32_t class_id,
-    const uint8_t* embedding, uint32_t embed_len, uint32_t embed_crc8,
-    int32_t gx_cm, int32_t gy_cm, uint32_t dist_cm, int16_t width_cm,
-    float target_lat, float target_lon,
+    int32_t gx_cm, int32_t gy_cm, int16_t width_cm,
     uint32_t dest, uint8_t channel, int want_ack)
 {
     if (!g_mesh_running) return -1;
 
-    // Build VisionMessage with NewDetection
     visionmesh_VisionMessage vision = visionmesh_VisionMessage_init_zero;
-    vision.app_version = APP_VERSION;
-    vision.sensor_id = sensor_id;
-    vision.node_id = g_mesh_my_node_num;
-    vision.track_id = track_id;
-    vision.alarm_type = alarm_type;
-    vision.timestamp_utc = timestamp_utc;
-    vision.seq = seq;
-    vision.which_body = visionmesh_VisionMessage_new_detection_tag;
+    vision_fill_header(&vision, sensor_id, track_id, alarm_type, timestamp_utc, seq);
+    vision_attach_metadata(&vision, &g_mesh_tx_state);
+    vision_fill_new_detection(&vision, x, y, w, h, conf, class_id,
+                              gx_cm, gy_cm, width_cm);
 
-    // Attach sensor pose + extended fields (camera GPS, footprint, FOV)
-    if (g_mesh_pose_valid) {
-        vision.has_pose = true;
-        vision.pose = g_mesh_pose;
-        populate_pose_extended(&vision.pose);
-    }
-
-    visionmesh_NewDetection* det = &vision.body.new_detection;
-    det->xywh_packed = ((uint32_t)x) | ((uint32_t)y << 8) |
-                       ((uint32_t)w << 16) | ((uint32_t)h << 24);
-    det->conf = conf;
-    det->class_id = class_id;
-    det->embed_crc8 = embed_crc8;
-    if (embedding && embed_len > 0) {
-        if (embed_len > 64) embed_len = 64;
-        det->embedding.size = embed_len;
-        memcpy(det->embedding.bytes, embedding, embed_len);
-    } else {
-        det->embedding.size = 0;
-    }
-
-    // Ground projection fields
-    det->gx_cm = gx_cm;
-    det->gy_cm = gy_cm;
-    det->dist_cm = dist_cm;
-    det->width_cm = (uint32_t)(width_cm > 0 ? width_cm : 0);
-    if (target_lat != 0.0f || target_lon != 0.0f) {
-        det->has_target_gps = true;
-        det->target_gps.lat_e7 = (int32_t)(target_lat * 1e7f);
-        det->target_gps.lon_e7 = (int32_t)(target_lon * 1e7f);
-    }
-
-    // Encode VisionMessage into Data.payload
-    uint8_t vision_buf[visionmesh_VisionMessage_size];
-    pb_ostream_t vstream = pb_ostream_from_buffer(vision_buf, sizeof(vision_buf));
-    if (!pb_encode(&vstream, visionmesh_VisionMessage_fields, &vision)) {
-        printf("[mesh] encode VisionMessage failed: %s\r\n", PB_GET_ERROR(&vstream));
-        return -2;
-    }
-
-    meshtastic_Data data = meshtastic_Data_init_default;
-    data.portnum = meshtastic_PortNum_PRIVATE_APP;
-    data.payload.size = (pb_size_t)vstream.bytes_written;
-    memcpy(data.payload.bytes, vision_buf, vstream.bytes_written);
-
-    return mesh_send_toradio_packet(&data, dest, channel, want_ack != 0);
+    return mesh_encode_and_send(&vision, dest, channel, want_ack);
 }
 
 extern "C" int sentai_mesh_send_update(
@@ -416,112 +336,34 @@ extern "C" int sentai_mesh_send_update(
     uint32_t timestamp_utc, uint32_t seq,
     uint8_t x, uint8_t y, uint8_t w, uint8_t h,
     uint32_t conf, uint32_t age,
-    int32_t gx_cm, int32_t gy_cm, uint32_t dist_cm,
-    float target_lat, float target_lon,
+    int32_t gx_cm, int32_t gy_cm,
     uint32_t dest, uint8_t channel, int want_ack)
 {
     if (!g_mesh_running) return -1;
 
     visionmesh_VisionMessage vision = visionmesh_VisionMessage_init_zero;
-    vision.app_version = APP_VERSION;
-    vision.sensor_id = sensor_id;
-    vision.node_id = g_mesh_my_node_num;
-    vision.track_id = track_id;
-    vision.alarm_type = alarm_type;
-    vision.timestamp_utc = timestamp_utc;
-    vision.seq = seq;
-    vision.which_body = visionmesh_VisionMessage_update_detection_tag;
+    vision_fill_header(&vision, sensor_id, track_id, alarm_type, timestamp_utc, seq);
+    vision_attach_metadata(&vision, &g_mesh_tx_state);
+    vision_fill_update(&vision, x, y, w, h, conf, age, gx_cm, gy_cm);
 
-    // Attach sensor pose + extended fields
-    if (g_mesh_pose_valid) {
-        vision.has_pose = true;
-        vision.pose = g_mesh_pose;
-        populate_pose_extended(&vision.pose);
-    }
-
-    visionmesh_UpdateDetection* upd = &vision.body.update_detection;
-    upd->xywh_packed = ((uint32_t)x) | ((uint32_t)y << 8) |
-                       ((uint32_t)w << 16) | ((uint32_t)h << 24);
-    upd->conf = conf;
-    upd->age = age;
-
-    // Ground projection fields
-    upd->gx_cm = gx_cm;
-    upd->gy_cm = gy_cm;
-    upd->dist_cm = dist_cm;
-    if (target_lat != 0.0f || target_lon != 0.0f) {
-        upd->has_target_gps = true;
-        upd->target_gps.lat_e7 = (int32_t)(target_lat * 1e7f);
-        upd->target_gps.lon_e7 = (int32_t)(target_lon * 1e7f);
-    }
-
-    uint8_t vision_buf[visionmesh_VisionMessage_size];
-    pb_ostream_t vstream = pb_ostream_from_buffer(vision_buf, sizeof(vision_buf));
-    if (!pb_encode(&vstream, visionmesh_VisionMessage_fields, &vision)) {
-        printf("[mesh] encode VisionMessage failed: %s\r\n", PB_GET_ERROR(&vstream));
-        return -2;
-    }
-
-    meshtastic_Data data = meshtastic_Data_init_default;
-    data.portnum = meshtastic_PortNum_PRIVATE_APP;
-    data.payload.size = (pb_size_t)vstream.bytes_written;
-    memcpy(data.payload.bytes, vision_buf, vstream.bytes_written);
-
-    return mesh_send_toradio_packet(&data, dest, channel, want_ack != 0);
+    return mesh_encode_and_send(&vision, dest, channel, want_ack);
 }
 
 extern "C" int sentai_mesh_send_delete(
     uint32_t sensor_id, uint32_t track_id, uint32_t alarm_type,
     uint32_t timestamp_utc, uint32_t seq,
     uint32_t reason, uint32_t age, uint32_t total_hits,
-    float last_lat, float last_lon,
     int32_t last_gx_cm, int32_t last_gy_cm,
     uint32_t dest, uint8_t channel, int want_ack)
 {
     if (!g_mesh_running) return -1;
 
     visionmesh_VisionMessage vision = visionmesh_VisionMessage_init_zero;
-    vision.app_version = APP_VERSION;
-    vision.sensor_id = sensor_id;
-    vision.node_id = g_mesh_my_node_num;
-    vision.track_id = track_id;
-    vision.alarm_type = alarm_type;
-    vision.timestamp_utc = timestamp_utc;
-    vision.seq = seq;
-    vision.which_body = visionmesh_VisionMessage_delete_detection_tag;
+    vision_fill_header(&vision, sensor_id, track_id, alarm_type, timestamp_utc, seq);
+    vision_attach_metadata(&vision, &g_mesh_tx_state);
+    vision_fill_delete(&vision, reason, age, total_hits, last_gx_cm, last_gy_cm);
 
-    // Attach sensor pose + extended fields
-    if (g_mesh_pose_valid) {
-        vision.has_pose = true;
-        vision.pose = g_mesh_pose;
-        populate_pose_extended(&vision.pose);
-    }
-
-    visionmesh_DeleteDetection* del = &vision.body.delete_detection;
-    del->reason = reason;
-    del->age = age;
-    del->total_hits = total_hits;
-    del->last_gx_cm = last_gx_cm;
-    del->last_gy_cm = last_gy_cm;
-    if (last_lat != 0.0f || last_lon != 0.0f) {
-        del->has_last_gps = true;
-        del->last_gps.lat_e7 = (int32_t)(last_lat * 1e7f);
-        del->last_gps.lon_e7 = (int32_t)(last_lon * 1e7f);
-    }
-
-    uint8_t vision_buf[visionmesh_VisionMessage_size];
-    pb_ostream_t vstream = pb_ostream_from_buffer(vision_buf, sizeof(vision_buf));
-    if (!pb_encode(&vstream, visionmesh_VisionMessage_fields, &vision)) {
-        printf("[mesh] encode VisionMessage failed: %s\r\n", PB_GET_ERROR(&vstream));
-        return -2;
-    }
-
-    meshtastic_Data data = meshtastic_Data_init_default;
-    data.portnum = meshtastic_PortNum_PRIVATE_APP;
-    data.payload.size = (pb_size_t)vstream.bytes_written;
-    memcpy(data.payload.bytes, vision_buf, vstream.bytes_written);
-
-    return mesh_send_toradio_packet(&data, dest, channel, want_ack != 0);
+    return mesh_encode_and_send(&vision, dest, channel, want_ack);
 }
 
 extern "C" int sentai_mesh_text_available(void) {

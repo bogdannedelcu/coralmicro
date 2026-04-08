@@ -30,9 +30,7 @@ static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_mesh_send_obj, 1, 4, mod_s
 
 // sentai.mesh.send_detection(sensor_id, track_id, alarm_type, timestamp, seq,
 //                            x, y, w, h, conf, class_id,
-//                            embedding=None, embed_crc8=0,
-//                            gx_cm=0, gy_cm=0, dist_cm=0, width_cm=0,
-//                            target_lat=0.0, target_lon=0.0,
+//                            gx_cm=0, gy_cm=0, width_cm=0,
 //                            dest=0xFFFFFFFF, channel=0, ack=1) -> int
 static mp_obj_t mod_sentai_mesh_send_detection(size_t n_args, const mp_obj_t *args) {
     uint32_t sensor_id = (uint32_t)mp_obj_get_int(args[0]);
@@ -47,47 +45,29 @@ static mp_obj_t mod_sentai_mesh_send_detection(size_t n_args, const mp_obj_t *ar
     uint32_t conf = (uint32_t)mp_obj_get_int(args[9]);
     uint32_t class_id = (uint32_t)mp_obj_get_int(args[10]);
     // Optional params
-    const uint8_t* emb = NULL;
-    uint32_t emb_len = 0;
-    uint32_t emb_crc = 0;
     int32_t gx_cm = 0;
     int32_t gy_cm = 0;
-    uint32_t dist_cm = 0;
     int16_t width_cm = 0;
-    float target_lat = 0.0f, target_lon = 0.0f;
     uint32_t dest = 0xFFFFFFFF;
     uint8_t channel = 0;
     int want_ack = 1;
-    if (n_args > 11 && args[11] != mp_const_none) {
-        mp_buffer_info_t bufinfo;
-        mp_get_buffer_raise(args[11], &bufinfo, MP_BUFFER_READ);
-        emb = (const uint8_t*)bufinfo.buf;
-        emb_len = bufinfo.len;
-    }
-    if (n_args > 12) emb_crc = (uint32_t)mp_obj_get_int(args[12]);
-    if (n_args > 13) gx_cm = (int32_t)mp_obj_get_int(args[13]);
-    if (n_args > 14) gy_cm = (int32_t)mp_obj_get_int(args[14]);
-    if (n_args > 15) dist_cm = (uint32_t)mp_obj_get_int(args[15]);
-    if (n_args > 16) width_cm = (int16_t)mp_obj_get_int(args[16]);
-    if (n_args > 17) target_lat = mp_obj_get_float(args[17]);
-    if (n_args > 18) target_lon = mp_obj_get_float(args[18]);
-    if (n_args > 19) dest = (uint32_t)mp_obj_get_int(args[19]);
-    if (n_args > 20) channel = (uint8_t)mp_obj_get_int(args[20]);
-    if (n_args > 21) want_ack = mp_obj_get_int(args[21]);
+    if (n_args > 11) gx_cm = (int32_t)mp_obj_get_int(args[11]);
+    if (n_args > 12) gy_cm = (int32_t)mp_obj_get_int(args[12]);
+    if (n_args > 13) width_cm = (int16_t)mp_obj_get_int(args[13]);
+    if (n_args > 14) dest = (uint32_t)mp_obj_get_int(args[14]);
+    if (n_args > 15) channel = (uint8_t)mp_obj_get_int(args[15]);
+    if (n_args > 16) want_ack = mp_obj_get_int(args[16]);
     return mp_obj_new_int(sentai_mesh_send_detection(
         sensor_id, track_id, alarm_type, timestamp, seq,
         x, y, w, h, conf, class_id,
-        emb, emb_len, emb_crc,
-        gx_cm, gy_cm, dist_cm, width_cm,
-        target_lat, target_lon,
+        gx_cm, gy_cm, width_cm,
         dest, channel, want_ack));
 }
-static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_mesh_send_detection_obj, 11, 22, mod_sentai_mesh_send_detection);
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_mesh_send_detection_obj, 11, 17, mod_sentai_mesh_send_detection);
 
 // sentai.mesh.send_update(sensor_id, track_id, alarm_type, timestamp, seq,
 //                         x, y, w, h, conf, age,
-//                         gx_cm=0, gy_cm=0, dist_cm=0,
-//                         target_lat=0.0, target_lon=0.0,
+//                         gx_cm=0, gy_cm=0,
 //                         dest=0xFFFFFFFF, channel=0, ack=1) -> int
 static mp_obj_t mod_sentai_mesh_send_update(size_t n_args, const mp_obj_t *args) {
     uint32_t sensor_id = (uint32_t)mp_obj_get_int(args[0]);
@@ -103,24 +83,19 @@ static mp_obj_t mod_sentai_mesh_send_update(size_t n_args, const mp_obj_t *args)
     uint32_t age  = (uint32_t)mp_obj_get_int(args[10]);
     int32_t gx_cm = (n_args > 11) ? (int32_t)mp_obj_get_int(args[11]) : 0;
     int32_t gy_cm = (n_args > 12) ? (int32_t)mp_obj_get_int(args[12]) : 0;
-    uint32_t dist_cm = (n_args > 13) ? (uint32_t)mp_obj_get_int(args[13]) : 0;
-    float target_lat = (n_args > 14) ? mp_obj_get_float(args[14]) : 0.0f;
-    float target_lon = (n_args > 15) ? mp_obj_get_float(args[15]) : 0.0f;
-    uint32_t dest = (n_args > 16) ? (uint32_t)mp_obj_get_int(args[16]) : 0xFFFFFFFF;
-    uint8_t channel = (n_args > 17) ? (uint8_t)mp_obj_get_int(args[17]) : 0;
-    int want_ack = (n_args > 18) ? mp_obj_get_int(args[18]) : 1;
+    uint32_t dest = (n_args > 13) ? (uint32_t)mp_obj_get_int(args[13]) : 0xFFFFFFFF;
+    uint8_t channel = (n_args > 14) ? (uint8_t)mp_obj_get_int(args[14]) : 0;
+    int want_ack = (n_args > 15) ? mp_obj_get_int(args[15]) : 1;
     return mp_obj_new_int(sentai_mesh_send_update(
         sensor_id, track_id, alarm_type, timestamp, seq,
         x, y, w, h, conf, age,
-        gx_cm, gy_cm, dist_cm,
-        target_lat, target_lon,
+        gx_cm, gy_cm,
         dest, channel, want_ack));
 }
-static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_mesh_send_update_obj, 11, 19, mod_sentai_mesh_send_update);
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_mesh_send_update_obj, 11, 16, mod_sentai_mesh_send_update);
 
 // sentai.mesh.send_delete(sensor_id, track_id, alarm_type, timestamp, seq,
 //                         reason, age, total_hits,
-//                         last_lat=0.0, last_lon=0.0,
 //                         last_gx_cm=0, last_gy_cm=0,
 //                         dest=0xFFFFFFFF, channel=0, ack=1) -> int
 static mp_obj_t mod_sentai_mesh_send_delete(size_t n_args, const mp_obj_t *args) {
@@ -132,20 +107,18 @@ static mp_obj_t mod_sentai_mesh_send_delete(size_t n_args, const mp_obj_t *args)
     uint32_t reason    = (uint32_t)mp_obj_get_int(args[5]);
     uint32_t age       = (uint32_t)mp_obj_get_int(args[6]);
     uint32_t total_hits = (uint32_t)mp_obj_get_int(args[7]);
-    float last_lat = (n_args > 8) ? mp_obj_get_float(args[8]) : 0.0f;
-    float last_lon = (n_args > 9) ? mp_obj_get_float(args[9]) : 0.0f;
-    int32_t last_gx = (n_args > 10) ? (int32_t)mp_obj_get_int(args[10]) : 0;
-    int32_t last_gy = (n_args > 11) ? (int32_t)mp_obj_get_int(args[11]) : 0;
-    uint32_t dest = (n_args > 12) ? (uint32_t)mp_obj_get_int(args[12]) : 0xFFFFFFFF;
-    uint8_t channel = (n_args > 13) ? (uint8_t)mp_obj_get_int(args[13]) : 0;
-    int want_ack = (n_args > 14) ? mp_obj_get_int(args[14]) : 1;
+    int32_t last_gx = (n_args > 8) ? (int32_t)mp_obj_get_int(args[8]) : 0;
+    int32_t last_gy = (n_args > 9) ? (int32_t)mp_obj_get_int(args[9]) : 0;
+    uint32_t dest = (n_args > 10) ? (uint32_t)mp_obj_get_int(args[10]) : 0xFFFFFFFF;
+    uint8_t channel = (n_args > 11) ? (uint8_t)mp_obj_get_int(args[11]) : 0;
+    int want_ack = (n_args > 12) ? mp_obj_get_int(args[12]) : 1;
     return mp_obj_new_int(sentai_mesh_send_delete(
         sensor_id, track_id, alarm_type, timestamp, seq,
         reason, age, total_hits,
-        last_lat, last_lon, last_gx, last_gy,
+        last_gx, last_gy,
         dest, channel, want_ack));
 }
-static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_mesh_send_delete_obj, 8, 15, mod_sentai_mesh_send_delete);
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_mesh_send_delete_obj, 8, 13, mod_sentai_mesh_send_delete);
 
 // sentai.mesh.receive(timeout_ms=0) -> dict or None
 // Returns dict with: from, to, text, id, rssi, snr, channel, hop_limit

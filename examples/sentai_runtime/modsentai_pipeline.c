@@ -202,12 +202,13 @@ static mp_obj_t mod_sentai_pipeline_set_pose(size_t n_args, const mp_obj_t *args
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_pipeline_set_pose_obj,
                                             1, 4, mod_sentai_pipeline_set_pose);
 
-// sentai.pipeline.camera_config(cam_id[, fov_h, fov_v, mount_pitch, mount_roll, mount_yaw]) -> tuple
+// sentai.pipeline.camera_config(cam_id[, fov_h, fov_v, mount_pitch, mount_roll, mount_yaw, ground_ref]) -> tuple
 // Get/set per-camera geometry. cam_id: 0 or 1.
 // fov_h/fov_v: degrees. mount_pitch: 0=down, 25=tilted 25° from vertical.
 // mount_roll: 0=landscape, 90=portrait. mount_yaw: 0=forward, 180=backward.
+// ground_ref: 0=centroid (drone/overhead), 1=bottom-center (pole mount).
 // With only cam_id: returns current config. With extra args: sets and returns.
-// Returns (fov_h, fov_v, mount_pitch, mount_roll, mount_yaw).
+// Returns (fov_h, fov_v, mount_pitch, mount_roll, mount_yaw, ground_ref).
 static mp_obj_t mod_sentai_pipeline_camera_config(size_t n_args, const mp_obj_t *args) {
     int cam_id = mp_obj_get_int(args[0]);
     if (cam_id < 0 || cam_id >= TRACKER_MAX_CAMERAS) {
@@ -220,18 +221,20 @@ static mp_obj_t mod_sentai_pipeline_camera_config(size_t n_args, const mp_obj_t 
     if (n_args >= 4) cfg.mount_pitch_deg = mp_obj_get_float(args[3]);
     if (n_args >= 5) cfg.mount_roll_deg  = mp_obj_get_float(args[4]);
     if (n_args >= 6) cfg.mount_yaw_deg   = mp_obj_get_float(args[5]);
+    if (n_args >= 7) cfg.ground_ref      = mp_obj_get_int(args[6]);
     if (n_args >= 2) sentai_tracker_set_camera(cam_id, &cfg);
-    mp_obj_t items[5] = {
+    mp_obj_t items[6] = {
         mp_obj_new_float(cfg.fov_h_deg),
         mp_obj_new_float(cfg.fov_v_deg),
         mp_obj_new_float(cfg.mount_pitch_deg),
         mp_obj_new_float(cfg.mount_roll_deg),
         mp_obj_new_float(cfg.mount_yaw_deg),
+        mp_obj_new_int(cfg.ground_ref),
     };
-    return mp_obj_new_tuple(5, items);
+    return mp_obj_new_tuple(6, items);
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_pipeline_camera_config_obj,
-                                            1, 6, mod_sentai_pipeline_camera_config);
+                                            1, 7, mod_sentai_pipeline_camera_config);
 
 // ---- module table ----
 static const mp_rom_map_elem_t sentai_pipeline_globals_table[] = {

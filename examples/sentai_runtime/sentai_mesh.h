@@ -61,43 +61,37 @@ int sentai_mesh_send_text(const char* text, uint32_t dest, uint8_t channel, int 
 
 // Send a VisionMessage (NewDetection) to the mesh.
 // Uses PRIVATE_APP portnum (256).
-// Ground coords: gx_cm/gy_cm (East/North from camera), dist_cm, width_cm.
-// target_lat/target_lon: absolute GPS (0.0 = no GPS).
+// Ground coords: gx_cm/gy_cm (East/North from camera), width_cm.
+// Pose/config auto-attached (pose when changed, config every N msgs).
 // Returns 0 on success, negative on error.
 int sentai_mesh_send_detection(
     uint32_t sensor_id, uint32_t track_id, uint32_t alarm_type,
     uint32_t timestamp_utc, uint32_t seq,
     uint8_t x, uint8_t y, uint8_t w, uint8_t h,
     uint32_t conf, uint32_t class_id,
-    const uint8_t* embedding, uint32_t embed_len, uint32_t embed_crc8,
-    int32_t gx_cm, int32_t gy_cm, uint32_t dist_cm, int16_t width_cm,
-    float target_lat, float target_lon,
+    int32_t gx_cm, int32_t gy_cm, int16_t width_cm,
     uint32_t dest, uint8_t channel, int want_ack);
 
 // Send a VisionMessage (UpdateDetection) to the mesh.
 // Uses PRIVATE_APP portnum (256).
-// Ground coords: gx_cm/gy_cm (East/North from camera), dist_cm.
-// target_lat/target_lon: absolute GPS (0.0 = no GPS).
+// Ground coords: gx_cm/gy_cm (East/North from camera).
 // Returns 0 on success, negative on error.
 int sentai_mesh_send_update(
     uint32_t sensor_id, uint32_t track_id, uint32_t alarm_type,
     uint32_t timestamp_utc, uint32_t seq,
     uint8_t x, uint8_t y, uint8_t w, uint8_t h,
     uint32_t conf, uint32_t age,
-    int32_t gx_cm, int32_t gy_cm, uint32_t dist_cm,
-    float target_lat, float target_lon,
+    int32_t gx_cm, int32_t gy_cm,
     uint32_t dest, uint8_t channel, int want_ack);
 
 // Send a VisionMessage (DeleteDetection) to the mesh.
 // Notifies receivers to remove this track_id.
 // reason: TRACK_EVT_LOST (3) or TRACK_EVT_REMOVED (4).
-// last_lat/last_lon: last known GPS (0.0 = unknown).
 // Returns 0 on success, negative on error.
 int sentai_mesh_send_delete(
     uint32_t sensor_id, uint32_t track_id, uint32_t alarm_type,
     uint32_t timestamp_utc, uint32_t seq,
     uint32_t reason, uint32_t age, uint32_t total_hits,
-    float last_lat, float last_lon,
     int32_t last_gx_cm, int32_t last_gy_cm,
     uint32_t dest, uint8_t channel, int want_ack);
 
@@ -122,7 +116,8 @@ int sentai_mesh_is_running(void);
 // Get the node number of the connected radio (populated after config request).
 uint32_t sentai_mesh_my_node_num(void);
 
-// Set sensor pose (attached automatically to all subsequent vision messages).
+// Set sensor pose via tracker (convenience proxy for sentai_tracker_set_imu + set_pose).
+// Values are read back from tracker at send time by vision_build_pose().
 // pitch_deg/roll_deg: from IMU, altitude_cm: camera height, heading_deg: compass.
 void sentai_mesh_set_pose(int32_t pitch_deg, int32_t roll_deg,
                          uint32_t altitude_cm, uint32_t heading_deg);

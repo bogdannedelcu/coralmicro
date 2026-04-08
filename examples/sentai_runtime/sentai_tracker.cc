@@ -113,8 +113,8 @@ static volatile int s_enabled = 0;
 
 // Per-camera configuration (2 cameras max)
 static CameraConfig s_cam_cfg[TRACKER_MAX_CAMERAS] = {
-    { 70.8f, 43.4f, 0.0f, 0.0f, 0.0f },   // cam 0: stock OV5640, straight down
-    { 70.8f, 43.4f, 0.0f, 0.0f, 0.0f },   // cam 1: stock OV5640, straight down
+    { 70.8f, 43.4f, 0.0f, 0.0f, 0.0f, 0 },   // cam 0: stock OV5640, straight down, centroid
+    { 70.8f, 43.4f, 0.0f, 0.0f, 0.0f, 0 },   // cam 1: stock OV5640, straight down, centroid
 };
 static int s_active_cam = 0;
 
@@ -522,30 +522,44 @@ static void project_bbox_to_ground(int16_t bx1, int16_t by1, int16_t bx2, int16_
 
     // Cast all 4 corners of the bbox
     float gx[4], gy[4];
+    int   hit[4] = {0, 0, 0, 0};
     float corners_x[4] = { (float)bx1, (float)bx2, (float)bx2, (float)bx1 };
     float corners_y[4] = { (float)by1, (float)by1, (float)by2, (float)by2 };
-    // TL, TR, BR, BL
+    // TL=0, TR=1, BR=2, BL=3
 
-    int hits = 0;
-    float sum_gx = 0, sum_gy = 0;
+    int total_hits = 0;
     for (int i = 0; i < 4; i++) {
         if (ray_to_ground(corners_x[i], corners_y[i], tw, th,
                           (float)altitude_cm, tan_hh, tan_vh,
                           cp, sp, cr, sr, cy_r, sy_r,
                           &gx[i], &gy[i])) {
-            sum_gx += gx[i];
-            sum_gy += gy[i];
-            hits++;
+            hit[i] = 1;
+            total_hits++;
         } else {
             gx[i] = gy[i] = 0;
         }
     }
 
-    if (hits < 2) return;  // not enough corners hit ground
+    if (total_hits < 2) return;  // not enough corners hit ground
 
-    // Center = average of hit corners
-    float center_gx = sum_gx / (float)hits;
-    float center_gy = sum_gy / (float)hits;
+    // ground_ref selects which corners contribute to the center point:
+    //   0 (CENTROID): all 4 hit corners → trapezoid centroid (overhead/drone)
+    //   1 (BOTTOM):   only bottom 2 (BR=2, BL=3) → ground contact midpoint (pole)
+    int ref_hits = 0;
+    float sum_gx = 0, sum_gy = 0;
+    int i_start = (cc->ground_ref == 1) ? 2 : 0;
+    for (int i = i_start; i < 4; i++) {
+        if (hit[i]) {
+            sum_gx += gx[i];
+            sum_gy += gy[i];
+            ref_hits++;
+        }
+    }
+    if (ref_hits == 0) return;
+
+    // Center = average of selected hit corners
+    float center_gx = sum_gx / (float)ref_hits;
+    float center_gy = sum_gy / (float)ref_hits;
     float dist = sqrtf(center_gx * center_gx + center_gy * center_gy);
 
     *out_right = (int32_t)center_gx;
