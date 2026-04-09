@@ -131,6 +131,7 @@ add_executable_m7(sentai_runtime
     modsentai_hal.cc
     sentai_mesh.cc
     sentai_link.cc
+    sentai_crazy.cc
     DATA
     help.txt
 )

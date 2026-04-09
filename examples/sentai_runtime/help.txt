@@ -20,6 +20,7 @@ Sub-modules:
   sentai.uart     UART serial I/O
   sentai.mesh     Meshtastic mesh radio bridge
   sentai.link     MAVLink telemetry bridge
+  sentai.crazy    CrazyFlie autopilot bridge (CPX/CRTP)
   sentai.pipeline Detection pipeline + SentAI-SORT tracker
 
 [io]
@@ -361,6 +362,89 @@ sentai.link - MAVLink v2 telemetry bridge
                 print('x:', msg['x'], 'y:', msg['y'], 'z:', msg['z'])
             else:
                 print(msg['msgid'], msg['sysid'])
+
+[crazy]
+sentai.crazy - CrazyFlie autopilot bridge (CRTP over CPX over UART)
+=================================================================
+  Sends CRTP commands to a CrazyFlie drone through the CPX
+  protocol over UART. Uses High-Level Commander for autonomous
+  manoeuvres and Generic Setpoint for velocity-based hover.
+  Requires REPL on USB — UART is used for the CPX link.
+  Cannot run simultaneously with sentai.mesh or sentai.link.
+
+  init(baud=576000)     Open UART, start CPX RX task
+  stop()                Stop RX task, close UART
+  debug(level)          0=off, 1=summary, 2=+hex dump
+  arm()                 Arm the drone (required before motors spin!)
+                        CF 2023+ firmware requires explicit arming.
+                        Without arm(), supervisor stays idle.
+  disarm()              Disarm (motors won't spin until re-armed)
+  ping(timeout=1000)    CRTP echo ping -> round-trip ms (>0)
+                        Returns -1=not running, -2=send fail,
+                        -3=timeout (drone not responding).
+                        Use to verify the link is alive.
+
+  --- High-Level Commander (needs position estimator / flow deck!) ---
+  takeoff(h=0.5, dur=2.0, yaw=0, use_yaw=1, group=0)
+                        Take off to h metres over dur seconds
+  land(h=0.0, dur=2.0, yaw=0, use_yaw=1, group=0)
+                        Land to h metres over dur seconds
+  stop_motors(group=0)  Emergency stop — all motors off
+  go_to(x, y, z, yaw=0, dur=3.0, rel=1, lin=0, group=0)
+                        Go to position (metres). rel=1 relative.
+
+  --- Velocity hover (needs position estimator / flow deck!) ---
+  hover(vx=0, vy=0, yr=0, z=0.5)
+                        vx,vy: m/s  yr: deg/s  z: metres
+                        MUST be called in a loop! Safety watchdog
+                        cuts motors if hover stops for ~1 second.
+
+  --- Motor test (motorPowerSet params, like cflib) ---
+  test_fly(power=6553, dur_ms=2000)
+                        Direct motor test via CRTP param system.
+                        Sets motorPowerSet.m1-m4 to power, enable=1,
+                        waits dur_ms, then stops. Bypasses Commander,
+                        arming, and position estimator entirely.
+                        power: 0-65535 (10%=6553, 20%=13107).
+                        First call scans param TOC (~1-2s).
+                        Returns 0=ok, -1=not running, -2=TOC fail.
+
+  --- Raw CRTP ---
+  send_crtp(port, ch, data)
+                        Send arbitrary CRTP packet (max 30 bytes)
+
+  Example (simple flight):
+    sentai.crazy.init(576000)
+    sentai.crazy.takeoff(0.5, 2.0)
+    sentai.rtos.sleep_ms(3000)             # wait at 0.5m
+    sentai.crazy.go_to(0.5, 0, 0, 0, 2.0) # forward 0.5m
+    sentai.rtos.sleep_ms(3000)
+    sentai.crazy.land(0.0, 2.0)
+    sentai.crazy.stop()
+
+  Example (velocity hover loop):
+    sentai.crazy.init(576000)
+    sentai.crazy.takeoff(0.5, 2.0)
+    sentai.rtos.sleep_ms(3000)
+    for i in range(100):                   # hover 10s at 10Hz
+        sentai.crazy.hover(0, 0, 0, 0.5)
+        sentai.rtos.sleep_ms(100)
+    sentai.crazy.land(0.0, 2.0)
+    sentai.crazy.stop()
+
+  Example (check if drone is alive):
+    sentai.crazy.init()
+    ms = sentai.crazy.ping()
+    if ms > 0:
+        print('Drone OK, RTT:', ms, 'ms')
+    else:
+        print('No response from drone')
+
+  Example (motor test — start low!):
+    sentai.crazy.init()
+    sentai.crazy.debug(1)
+    sentai.crazy.test_fly(6553, 1000)      # 10% power, 1s
+    sentai.crazy.stop()
 
 [pipeline]
 sentai.pipeline - Continuous detection pipeline + SentAI-SORT tracker

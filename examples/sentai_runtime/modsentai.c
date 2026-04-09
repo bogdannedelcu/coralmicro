@@ -11,6 +11,7 @@
 //   modsentai_uart.c     — sentai.uart    (UART serial)
 //   modsentai_mesh.c     — sentai.mesh    (Meshtastic mesh radio)
 //   modsentai_link.c     — sentai.link    (MAVLink telemetry bridge)
+//   modsentai_crazy.c    — sentai.crazy   (CrazyFlie autopilot bridge)
 //   modsentai_imu.c      — sentai.imu     (LIS2DU12 accelerometer)
 //   modsentai_mic.c      — sentai.mic     (Microphone / MP3)
 //   modsentai_sleep_ns.c — sentai.sleep   (Light sleep / idle)
@@ -220,6 +221,26 @@ extern void sentai_link_rx_global_pos(
     int16_t* vx, int16_t* vy, int16_t* vz, uint16_t* hdg);
 extern void sentai_link_set_debug(int level);
 
+// CrazyFlie autopilot bridge — sentai_crazy.cc
+extern int sentai_crazy_init(uint32_t baudrate);
+extern int sentai_crazy_stop(void);
+extern int sentai_crazy_is_running(void);
+extern void sentai_crazy_set_debug(int level);
+extern int sentai_crazy_arm(void);
+extern int sentai_crazy_disarm(void);
+extern int sentai_crazy_takeoff(float height, float duration,
+                                float yaw, int use_current_yaw, uint8_t group_mask);
+extern int sentai_crazy_land(float height, float duration,
+                             float yaw, int use_current_yaw, uint8_t group_mask);
+extern int sentai_crazy_stop_motors(uint8_t group_mask);
+extern int sentai_crazy_go_to(float x, float y, float z, float yaw, float duration,
+                              int relative, int linear, uint8_t group_mask);
+extern int sentai_crazy_hover(float vx, float vy, float yaw_rate, float z_distance);
+extern int sentai_crazy_send_crtp(uint8_t port, uint8_t channel,
+                                  const uint8_t* data, int len);
+extern int sentai_crazy_ping(int timeout_ms);
+extern int sentai_crazy_test_fly(uint16_t power, int duration_ms);
+
 // Help file reading from system flash partition
 extern int sentai_help_read(char* buf, int max_size);
 
@@ -251,6 +272,7 @@ static void _fs_check_usb(void) {
 #include "modsentai_uart.c"
 #include "modsentai_mesh.c"
 #include "modsentai_link.c"
+#include "modsentai_crazy.c"
 #include "modsentai_imu.c"
 #include "modsentai_mic.c"
 #include "modsentai_sleep_ns.c"
@@ -308,7 +330,7 @@ static void help_print(const char *text, int len) {
 static mp_obj_t mod_sentai_help(size_t n_args, const mp_obj_t *args) {
     const char* topic = (n_args > 0) ? mp_obj_str_get_str(args[0]) : NULL;
 
-    #define HELP_BUF_SIZE 12288
+    #define HELP_BUF_SIZE 24576
     char* hbuf = (char*)malloc(HELP_BUF_SIZE);
     if (!hbuf) {
         mp_raise_msg(&mp_type_MemoryError, MP_ERROR_TEXT("help buf alloc"));
@@ -334,7 +356,7 @@ static mp_obj_t mod_sentai_help(size_t n_args, const mp_obj_t *args) {
             help_print(start, end - start);
         } else {
             mp_print_str(MP_PYTHON_PRINTER,
-                "Unknown topic. Available: io, rtos, tpu, fs, camera, imu, mic, usb, uart, console, mesh, link, serial, all\r\n");
+                "Unknown topic. Available: io, rtos, tpu, fs, camera, imu, mic, usb, uart, console, mesh, link, crazy, pipeline, serial, all\r\n");
         }
     }
 
@@ -437,6 +459,7 @@ static const mp_rom_map_elem_t sentai_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_uart),      MP_ROM_PTR(&sentai_uart_module) },
     { MP_ROM_QSTR(MP_QSTR_mesh),      MP_ROM_PTR(&sentai_mesh_module) },
     { MP_ROM_QSTR(MP_QSTR_link),      MP_ROM_PTR(&sentai_link_module) },
+    { MP_ROM_QSTR(MP_QSTR_crazy),     MP_ROM_PTR(&sentai_crazy_module) },
     { MP_ROM_QSTR(MP_QSTR_imu),       MP_ROM_PTR(&sentai_imu_module) },
     { MP_ROM_QSTR(MP_QSTR_mic),       MP_ROM_PTR(&sentai_mic_module) },
     { MP_ROM_QSTR(MP_QSTR_sleep),     MP_ROM_PTR(&sentai_sleep_module) },
