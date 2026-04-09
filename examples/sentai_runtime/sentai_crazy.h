@@ -2,29 +2,29 @@
 // CRTP commands tunneled through CPX over UART.
 //
 // Protocol stack:
-//   Application (takeoff/land/hover/goto) → CRTP → CPX → UART
+//   Application (fly/attitude/takeoff/land/hover) → CRTP → CPX → UART
 //
 // Architecture:
-//   - Dedicated FreeRTOS RX task parses CPX frames, handles flow control
+//   - FreeRTOS RX task: parses CPX frames, handles CTS flow control
+//   - FreeRTOS CMD task: sends Commander setpoints at 20 Hz (for attitude())
 //   - TX is synchronous: build CRTP packet, wrap in CPX, send over UART
 //   - Uses existing sentai_uart_serial_* bridge (LPUART6 via ConsoleM7)
 //   - UART cannot be shared with sentai.mesh or sentai.link — only one at a time
 //
 // CrazyFlie CRTP ports used:
-//   0x08 — High-Level Commander (takeoff, land, stop, goto)
-//   0x07 — Generic Setpoint (hover velocity setpoint)
+//   0x03 — Commander (roll/pitch/yawrate/thrust at 50Hz, IMU-stabilized)
+//   0x08 — High-Level Commander (takeoff, land, stop, goto — uses baro+Kalman)
+//   0x07 — Generic Setpoint (hover velocity setpoint — needs flow deck)
+//   0x09 — Supervisor (arm/disarm)
+//   0x02 — Parameter system (TOC scan, motorPowerSet)
 //
 // CPX framing (UART):
 //   Frame:  [0xFF] [LEN(1B)] [CPX_HDR(2B) + DATA...] [CRC]
 //   CTS:    [0xFF] [0x00]    (2 bytes — Clear-To-Send, no CRC)
-//   LEN:    payload size (CPX_HDR + DATA), without CRC
-//   CRC:    XOR of ALL bytes including 0xFF and LEN
-//   MTU:    100 bytes max payload per frame
-//   CPX_HDR byte 0: [destination:4][source:4]
-//   CPX_HDR byte 1: [function:8]
-//
-// Targets: STM32=0x01, ESP32=0x02, HOST=0x03
-// Functions: SYSTEM=0x00, CONSOLE=0x01, CRTP=0x02
+//   CPX_HDR byte 0: [reserved:1][lastPacket:1][source:3][destination:3]
+//   CPX_HDR byte 1: [version:2][function:6]
+//   Targets (3-bit): STM32=1, ESP32=2, HOST=3
+//   Functions (6-bit): SYSTEM=1, CONSOLE=2, CRTP=3
 //
 // Init sequence: CTS sync → enable CRTP bridge → client connected
 
@@ -115,6 +115,40 @@ int sentai_crazy_ping(int timeout_ms);
 // First call scans param TOC (takes ~1-2s), subsequent calls are instant.
 // Returns 0 on success, -1=not running, -2=param discovery failed.
 int sentai_crazy_test_fly(uint16_t power, int duration_ms);
+
+// ===================== Attitude-Stabilized Flight =====================
+// Uses CRTP Commander (port 3, ch 0) with a FreeRTOS task at 50 Hz.
+// CF onboard PID stabilizes roll/pitch using IMU (gyro + accel).
+// Works without flow deck — no altitude hold, but drone stays level.
+
+// Blocking HL Commander flight: arm → takeoff → hold → land → disarm.
+// Uses Kalman estimator + barometer for altitude hold.
+// HL Commander generates setpoints internally (no 20Hz loop needed).
+// height_m: altitude in metres (0.5 = 50cm above takeoff point)
+// hold_ms: time to hold at altitude (ms)
+// takeoff_ms: takeoff duration (ms)
+// land_ms: landing duration (ms)
+// Returns 0=ok, -1=not running, -2=busy, -3=arm fail,
+//         -4=takeoff fail, -5=aborted by fly_stop().
+int sentai_crazy_fly(float height_m, int hold_ms,
+                     int takeoff_ms, int land_ms);
+
+// Non-blocking manual setpoint. CMD task sends it at 50 Hz.
+// Auto-arms on first call. Use fly_stop() to land and disarm.
+// roll/pitch: degrees, yawrate: deg/s, thrust: 0-65535 raw.
+// Returns 0=ok, -1=not running, -2=auto fly in progress.
+int sentai_crazy_attitude(float roll, float pitch,
+                          float yawrate, uint16_t thrust);
+
+// Stop flying and disarm. Non-blocking, safe from any state.
+// Returns 0=ok, -1=not running.
+int sentai_crazy_fly_stop(void);
+
+// Get altitude from CF Kalman estimator (stateEstimate.z).
+// On first call: discovers log var + starts streaming (~2-5s).
+// Subsequent calls return the latest cached value (10 Hz updates).
+// Returns altitude in metres, or -999.0 on error.
+float sentai_crazy_get_altitude(void);
 
 #ifdef __cplusplus
 }

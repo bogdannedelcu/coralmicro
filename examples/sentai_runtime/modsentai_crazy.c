@@ -156,6 +156,47 @@ static mp_obj_t mod_sentai_crazy_test_fly(size_t n_args, const mp_obj_t *args) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_crazy_test_fly_obj, 0, 2, mod_sentai_crazy_test_fly);
 
+// sentai.crazy.fly(height=0.5, hold_ms=2000, takeoff_ms=3000, land_ms=3000) -> int
+// Blocking HL Commander flight: arm → takeoff → hold → land → disarm.
+// Uses Kalman estimator + barometer for altitude hold.
+// height: altitude in metres (0.5 = 50cm above takeoff point).
+static mp_obj_t mod_sentai_crazy_fly(size_t n_args, const mp_obj_t *args) {
+    float height_m   = (n_args > 0) ? mp_obj_get_float(args[0]) : 0.5f;
+    int   hold_ms    = (n_args > 1) ? mp_obj_get_int(args[1])   : 2000;
+    int   takeoff_ms = (n_args > 2) ? mp_obj_get_int(args[2])   : 3000;
+    int   land_ms    = (n_args > 3) ? mp_obj_get_int(args[3])   : 3000;
+    return mp_obj_new_int(sentai_crazy_fly(height_m, hold_ms, takeoff_ms, land_ms));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_crazy_fly_obj, 0, 4, mod_sentai_crazy_fly);
+
+// sentai.crazy.attitude(roll=0, pitch=0, yaw_rate=0, thrust=0) -> int
+// Non-blocking: set Commander setpoint. CMD task sends at 50 Hz.
+// Auto-arms on first call. Use fly_stop() to land.
+static mp_obj_t mod_sentai_crazy_attitude(size_t n_args, const mp_obj_t *args) {
+    float    roll    = (n_args > 0) ? mp_obj_get_float(args[0]) : 0.0f;
+    float    pitch   = (n_args > 1) ? mp_obj_get_float(args[1]) : 0.0f;
+    float    yawrate = (n_args > 2) ? mp_obj_get_float(args[2]) : 0.0f;
+    uint16_t thrust  = (n_args > 3) ? (uint16_t)mp_obj_get_int(args[3]) : 0;
+    return mp_obj_new_int(sentai_crazy_attitude(roll, pitch, yawrate, thrust));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_crazy_attitude_obj, 0, 4, mod_sentai_crazy_attitude);
+
+// sentai.crazy.fly_stop() -> int
+// Stop flying and disarm. Non-blocking, safe from any state.
+static mp_obj_t mod_sentai_crazy_fly_stop(void) {
+    return mp_obj_new_int(sentai_crazy_fly_stop());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_crazy_fly_stop_obj, mod_sentai_crazy_fly_stop);
+
+// sentai.crazy.altitude() -> float
+// Read altitude from CF Kalman estimator (stateEstimate.z).
+// First call scans log TOC + starts streaming (~2-5s), then instant.
+// Returns altitude in metres, or -999.0 if not available.
+static mp_obj_t mod_sentai_crazy_altitude(void) {
+    return mp_obj_new_float(sentai_crazy_get_altitude());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_crazy_altitude_obj, mod_sentai_crazy_altitude);
+
 // ---- module table ----
 static const mp_rom_map_elem_t sentai_crazy_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__),      MP_ROM_QSTR(MP_QSTR_crazy) },
@@ -172,6 +213,10 @@ static const mp_rom_map_elem_t sentai_crazy_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_send_crtp),     MP_ROM_PTR(&mod_sentai_crazy_send_crtp_obj) },
     { MP_ROM_QSTR(MP_QSTR_ping),          MP_ROM_PTR(&mod_sentai_crazy_ping_obj) },
     { MP_ROM_QSTR(MP_QSTR_test_fly),      MP_ROM_PTR(&mod_sentai_crazy_test_fly_obj) },
+    { MP_ROM_QSTR(MP_QSTR_fly),           MP_ROM_PTR(&mod_sentai_crazy_fly_obj) },
+    { MP_ROM_QSTR(MP_QSTR_attitude),      MP_ROM_PTR(&mod_sentai_crazy_attitude_obj) },
+    { MP_ROM_QSTR(MP_QSTR_fly_stop),      MP_ROM_PTR(&mod_sentai_crazy_fly_stop_obj) },
+    { MP_ROM_QSTR(MP_QSTR_altitude),       MP_ROM_PTR(&mod_sentai_crazy_altitude_obj) },
 };
 static MP_DEFINE_CONST_DICT(sentai_crazy_globals, sentai_crazy_globals_table);
 static const mp_obj_module_t sentai_crazy_module = {

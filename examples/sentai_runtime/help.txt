@@ -367,24 +367,51 @@ sentai.link - MAVLink v2 telemetry bridge
 sentai.crazy - CrazyFlie autopilot bridge (CRTP over CPX over UART)
 =================================================================
   Sends CRTP commands to a CrazyFlie drone through the CPX
-  protocol over UART. Uses High-Level Commander for autonomous
-  manoeuvres and Generic Setpoint for velocity-based hover.
+  protocol over UART. A dedicated FreeRTOS task sends Commander
+  setpoints at 50 Hz for attitude-stabilized flight.
   Requires REPL on USB — UART is used for the CPX link.
   Cannot run simultaneously with sentai.mesh or sentai.link.
 
-  init(baud=576000)     Open UART, start CPX RX task
-  stop()                Stop RX task, close UART
+  init(baud=576000)     Open UART, start CPX RX + CMD tasks
+  stop()                Stop all tasks, close UART
   debug(level)          0=off, 1=summary, 2=+hex dump
-  arm()                 Arm the drone (required before motors spin!)
-                        CF 2023+ firmware requires explicit arming.
-                        Without arm(), supervisor stays idle.
-  disarm()              Disarm (motors won't spin until re-armed)
+  arm()                 Arm the drone (manual — fly/attitude auto-arm)
+  disarm()              Disarm (manual — fly/fly_stop auto-disarm)
   ping(timeout=1000)    CRTP echo ping -> round-trip ms (>0)
                         Returns -1=not running, -2=send fail,
                         -3=timeout (drone not responding).
-                        Use to verify the link is alive.
 
-  --- High-Level Commander (needs position estimator / flow deck!) ---
+  --- Attitude-stabilized flight (IMU only, no flow deck!) ---
+  A FreeRTOS CMD task sends CRTP Commander at 50 Hz for attitude().
+  fly() uses HL Commander with Kalman estimator + barometer for
+  altitude hold — no continuous sending needed.
+  Watchdog: CF cuts motors if no setpoint for 500ms (warning)
+  or 2s (lock+reboot). HL Commander feeds it internally.
+
+  fly(height=0.5, hold_ms=2000, takeoff_ms=3000, land_ms=3000)
+                        Blocking HL Commander flight cycle:
+                        arm → takeoff → hold → land → disarm.
+                        Uses barometer for altitude hold.
+                        height: metres above takeoff point.
+                        hold_ms: time to hold at altitude (ms).
+                        takeoff_ms/land_ms: ramp duration (ms).
+                        Returns 0=ok, -2=busy, -3=arm fail,
+                        -4=takeoff fail, -5=aborted.
+
+  attitude(roll=0, pitch=0, yaw_rate=0, thrust=0)
+                        Non-blocking: set Commander setpoint.
+                        CMD task sends it at 50 Hz automatically.
+                        Auto-arms on first call.
+                        roll/pitch: degrees, yaw_rate: deg/s.
+                        thrust: 0-65535 raw.
+                        Use fly_stop() to land and disarm.
+                        Returns 0=ok, -2=auto fly in progress.
+
+  fly_stop()            Stop flying and disarm. Non-blocking.
+                        Sends zero thrust, then disarms.
+                        Safe to call from any state.
+
+  --- High-Level Commander (uses Kalman estimator + barometer) ---
   takeoff(h=0.5, dur=2.0, yaw=0, use_yaw=1, group=0)
                         Take off to h metres over dur seconds
   land(h=0.0, dur=2.0, yaw=0, use_yaw=1, group=0)
@@ -393,7 +420,7 @@ sentai.crazy - CrazyFlie autopilot bridge (CRTP over CPX over UART)
   go_to(x, y, z, yaw=0, dur=3.0, rel=1, lin=0, group=0)
                         Go to position (metres). rel=1 relative.
 
-  --- Velocity hover (needs position estimator / flow deck!) ---
+  --- Velocity hover (uses Kalman estimator + barometer) ---
   hover(vx=0, vy=0, yr=0, z=0.5)
                         vx,vy: m/s  yr: deg/s  z: metres
                         MUST be called in a loop! Safety watchdog
@@ -413,23 +440,21 @@ sentai.crazy - CrazyFlie autopilot bridge (CRTP over CPX over UART)
   send_crtp(port, ch, data)
                         Send arbitrary CRTP packet (max 30 bytes)
 
-  Example (simple flight):
-    sentai.crazy.init(576000)
-    sentai.crazy.takeoff(0.5, 2.0)
-    sentai.rtos.sleep_ms(3000)             # wait at 0.5m
-    sentai.crazy.go_to(0.5, 0, 0, 0, 2.0) # forward 0.5m
-    sentai.rtos.sleep_ms(3000)
-    sentai.crazy.land(0.0, 2.0)
+  Example (HL Commander altitude-hold flight):
+    sentai.crazy.init()
+    sentai.crazy.debug(1)
+    sentai.crazy.fly()                     # 50cm, hold 2s (defaults)
+    sentai.crazy.fly(0.3, 3000)            # 30cm, hold 3s
+    sentai.crazy.fly(1.0, 5000, 3000, 3000)# 1m, hold 5s, slow ramp
     sentai.crazy.stop()
 
-  Example (velocity hover loop):
-    sentai.crazy.init(576000)
-    sentai.crazy.takeoff(0.5, 2.0)
-    sentai.rtos.sleep_ms(3000)
-    for i in range(100):                   # hover 10s at 10Hz
-        sentai.crazy.hover(0, 0, 0, 0.5)
-        sentai.rtos.sleep_ms(100)
-    sentai.crazy.land(0.0, 2.0)
+  Example (manual attitude control from Python):
+    sentai.crazy.init()
+    sentai.crazy.attitude(0, 0, 0, 35000)  # auto-arms, starts 50Hz
+    sentai.rtos.sleep_ms(2000)             # fly level for 2s
+    sentai.crazy.attitude(5, 0, 0, 35000)  # tilt 5° right
+    sentai.rtos.sleep_ms(1000)
+    sentai.crazy.fly_stop()                # ramp down + disarm
     sentai.crazy.stop()
 
   Example (check if drone is alive):
@@ -440,10 +465,18 @@ sentai.crazy - CrazyFlie autopilot bridge (CRTP over CPX over UART)
     else:
         print('No response from drone')
 
-  Example (motor test — start low!):
+  Example (motor test — raw, no stabilization):
     sentai.crazy.init()
     sentai.crazy.debug(1)
     sentai.crazy.test_fly(6553, 1000)      # 10% power, 1s
+    sentai.crazy.stop()
+
+  Example (HL commander — needs flow deck!):
+    sentai.crazy.init(576000)
+    sentai.crazy.arm()
+    sentai.crazy.takeoff(0.5, 2.0)
+    sentai.rtos.sleep_ms(3000)
+    sentai.crazy.land(0.0, 2.0)
     sentai.crazy.stop()
 
 [pipeline]

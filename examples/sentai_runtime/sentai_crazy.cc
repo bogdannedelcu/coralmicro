@@ -2,17 +2,16 @@
 //
 // TX: Build CRTP command → wrap in CPX routing → frame with CRC → UART write.
 // RX: FreeRTOS task reads UART, parses CPX frames, handles CTS flow control.
+// CMD: FreeRTOS task sends Commander setpoints at 50 Hz (attitude-stabilized).
 //
 // CPX UART frame:  [0xFF][LEN(1B)][CPX_HDR(2B) + payload...][CRC]
 // CTS (ready):     [0xFF][0x00]   — 2 bytes, no CRC
-// LEN:             payload size (CPX_HDR + DATA), without CRC
 // CRC:             XOR of ALL bytes including 0xFF and LEN
 //
-// CPX_HDR byte 0: [destination:4][source:4]
-// CPX_HDR byte 1: [function:8]
-//
-// CRTP-in-CPX:     routing dst=STM32(0x01), src=HOST(0x03), fn=CRTP(0x02)
-//                  then [CRTP_header(1B)][CRTP_payload...]
+// CPX_HDR byte 0: [reserved:1][lastPacket:1][source:3][destination:3]
+// CPX_HDR byte 1: [version:2][function:6]
+// Targets (3-bit): STM32=1, ESP32=2, HOST=3
+// Functions (6-bit): SYSTEM=1, CONSOLE=2, CRTP=3
 
 #include "sentai_crazy.h"
 
@@ -57,7 +56,8 @@ extern void sentai_uart_restore_baudrate(void);
 #define CRTP_PORT_COMMANDER      0x03   // Commander (roll/pitch/yaw/thrust)
 #define CRTP_PORT_SETPOINT_HL    0x08   // High-Level Commander
 #define CRTP_PORT_SETPOINT_GEN   0x07   // Generic Setpoint
-#define CRTP_PORT_PLATFORM       0x0D   // Platform service (arm, version, etc.)
+#define CRTP_PORT_SUPERVISOR     0x09   // Supervisor (arm/disarm, preflight)
+#define CRTP_PORT_PLATFORM       0x0D   // Platform service (version, etc.)
 #define CRTP_MAX_PAYLOAD         30
 
 // CRTP param channel IDs
@@ -68,8 +68,9 @@ extern void sentai_uart_restore_baudrate(void);
 #define PARAM_TOC_GET_ITEM_V2    2
 #define PARAM_TOC_GET_INFO_V2    3
 
-// Platform service sub-commands (port 0x0D, channel 0)
-#define PLATFORM_CMD_ARM_SYSTEM  1      // data[1]: 0=disarm, 1=arm
+// Supervisor commands (port 0x09, channel 1)
+#define SUPERVISOR_CH_COMMAND    1
+#define SUPERVISOR_CMD_ARM       1      // data[1]: 0=disarm, 1=arm
 
 // High-Level Commander command IDs
 #define HL_CMD_STOP        3
@@ -79,6 +80,24 @@ extern void sentai_uart_restore_baudrate(void);
 
 // Generic Setpoint type IDs
 #define SETPOINT_TYPE_HOVER  5
+
+// ===================== CRTP LOG Constants =====================
+#define CRTP_PORT_LOG            0x05
+#define LOG_TOC_CH               0      // TOC access (GET_ITEM, GET_INFO)
+#define LOG_CONTROL_CH           1      // Block control (create/start/stop/delete)
+#define LOG_DATA_CH              2      // Streaming data
+
+#define LOG_TOC_GET_ITEM_V2      2
+#define LOG_TOC_GET_INFO_V2      3
+#define LOG_CTRL_CREATE_BLOCK_V2 6
+#define LOG_CTRL_START_BLOCK     3
+#define LOG_CTRL_STOP_BLOCK      4
+#define LOG_CTRL_DELETE_BLOCK    2
+#define LOG_CTRL_RESET           5
+
+#define LOG_TYPE_FLOAT           7
+#define LOG_ALTITUDE_BLOCK_ID    1      // our block ID for altitude streaming
+#define LOG_ALTITUDE_PERIOD     10      // 10 × 10ms = 100ms → 10 Hz
 
 // ===================== Module State =====================
 static volatile int      g_crazy_running = 0;
@@ -99,6 +118,46 @@ static int16_t g_param_motor_m2     = -1;
 static int16_t g_param_motor_m3     = -1;
 static int16_t g_param_motor_m4     = -1;
 static int16_t g_param_motor_enable = -1;
+
+// ===================== Commander Task State =====================
+// FreeRTOS task that sends CRTP Commander setpoints at 50 Hz.
+// Python sets the target (fly/attitude), the task handles timing.
+enum CmdState {
+    CMD_IDLE = 0,       // not flying — task sleeps
+    CMD_STARTING,       // arming + thrust unlock
+    CMD_FLYING,         // sending setpoints at 50 Hz
+    CMD_STOPPING,       // ramp down + disarm
+};
+
+static volatile int      g_cmd_state = CMD_IDLE;
+static volatile float    g_cmd_roll = 0;
+static volatile float    g_cmd_pitch = 0;
+static volatile float    g_cmd_yawrate = 0;
+static volatile uint16_t g_cmd_thrust = 0;
+
+static TaskHandle_t      g_cmd_task = nullptr;
+static SemaphoreHandle_t g_cmd_done_sem = nullptr;
+static volatile int      g_cmd_cts_fails = 0;  // consecutive CTS failures
+
+// HL Commander fly() state (separate from CMD task)
+static volatile bool     g_hl_busy = false;   // HL fly() in progress
+static volatile bool     g_hl_abort = false;  // abort signal from fly_stop()
+
+// LOG system state
+static uint8_t  g_log_resp_buf[CRTP_MAX_PAYLOAD];
+static volatile int g_log_resp_len = 0;
+static SemaphoreHandle_t g_log_resp_sem = nullptr;
+static SemaphoreHandle_t g_log_data_sem = nullptr;
+static volatile float g_log_altitude = 0.0f;
+static volatile bool  g_log_altitude_valid = false;
+static volatile bool  g_log_block_running = false;
+static int16_t g_log_state_z_id = -1;   // cached log TOC ID for stateEstimate.z
+
+#define CMD_RATE_HZ       20
+#define CMD_PERIOD_MS    (1000 / CMD_RATE_HZ)   // 50 ms (watchdog=500ms, plenty of margin)
+#define CMD_UNLOCK_PKTS   10   // send 10x thrust=0 to unlock RPYT
+#define CMD_STOP_PKTS      5   // send 5x thrust=0 before disarm
+#define CMD_CTS_FAIL_MAX   3   // abort after N consecutive CTS timeouts
 
 // ===================== CPX Routing Header =====================
 // Pack 2-byte CPX routing header (packed bitfields, ARM LE):
@@ -137,9 +196,19 @@ static int cpx_send_frame(const uint8_t* cpx_data, int cpx_len) {
     if (cpx_len < 2 || cpx_len > CPX_MTU) return -1;
 
     // Wait for CTS from CrazyFlie (it's ready to receive)
-    if (xSemaphoreTake(g_crazy_cts, pdMS_TO_TICKS(1000)) != pdTRUE) {
-        if (g_crazy_debug >= 1) printf("[crazy] TX: CTS timeout\r\n");
-        return -3;
+    if (xSemaphoreTake(g_crazy_cts, pdMS_TO_TICKS(200)) != pdTRUE) {
+        // CTS timeout — try to resync: send CTS to unblock CF TX, then retry
+        if (g_crazy_debug >= 1) printf("[crazy] TX: CTS timeout, resync...\r\n");
+        uint8_t cts_pkt[2] = {CPX_START_BYTE, 0x00};
+        xSemaphoreTake(g_crazy_tx_mutex, portMAX_DELAY);
+        sentai_uart_serial_write(cts_pkt, 2);
+        xSemaphoreGive(g_crazy_tx_mutex);
+        vTaskDelay(pdMS_TO_TICKS(50));
+        if (xSemaphoreTake(g_crazy_cts, pdMS_TO_TICKS(300)) != pdTRUE) {
+            if (g_crazy_debug >= 1) printf("[crazy] TX: CTS timeout (resync failed)\r\n");
+            return -3;
+        }
+        if (g_crazy_debug >= 1) printf("[crazy] TX: CTS resync OK\r\n");
     }
 
     // Build UART frame: [0xFF][LEN][data...][CRC]
@@ -202,6 +271,23 @@ static int crtp_send(uint8_t port, uint8_t channel,
     return cpx_send_frame(buf, idx);
 }
 
+// ===================== Commander Setpoint (RPYT) =====================
+// CRTP port 0x03, channel 0.
+// Payload: [roll:f32][pitch:f32][yawrate:f32][thrust:u16] = 14 bytes.
+// roll/pitch: degrees (attitude angle, stabilized by onboard PID + IMU).
+// yawrate: deg/s. thrust: 0-65535 raw (no altitude hold without flow deck).
+static int commander_send_setpoint(float roll, float pitch,
+                                   float yaw_rate, uint16_t thrust) {
+    uint8_t data[14];
+    int idx = 0;
+    memcpy(&data[idx], &roll, 4);      idx += 4;
+    memcpy(&data[idx], &pitch, 4);     idx += 4;
+    memcpy(&data[idx], &yaw_rate, 4);  idx += 4;
+    data[idx++] = thrust & 0xFF;
+    data[idx++] = (thrust >> 8) & 0xFF;
+    return crtp_send(CRTP_PORT_COMMANDER, 0, data, idx);
+}
+
 // ===================== CPX RX: State Machine =====================
 enum CpxRxState {
     CPX_RX_WAIT_START = 0,
@@ -254,6 +340,39 @@ static void cpx_process_rx(const uint8_t* data, uint16_t len) {
                 g_param_resp_len = plen;
             }
             xSemaphoreGive(g_param_resp_sem);
+        }
+
+        // Log response (TOC, control, or streaming data)
+        if (rport == CRTP_PORT_LOG) {
+            if (rch == LOG_DATA_CH) {
+                // Data packet: [block_id(1), timestamp(3), data...]
+                int plen = (int)len - 3;
+                if (plen >= 8) {
+                    uint8_t block_id = data[3];
+                    if (block_id == LOG_ALTITUDE_BLOCK_ID) {
+                        float z;
+                        memcpy(&z, &data[7], 4);
+                        g_log_altitude = z;
+                        g_log_altitude_valid = true;
+                        if (g_log_data_sem) xSemaphoreGive(g_log_data_sem);
+                        if (g_crazy_debug >= 2)
+                            printf("[crazy] LOG alt=%.3f\r\n", (double)z);
+                    }
+                }
+            } else if (g_log_resp_sem) {
+                int plen = (int)len - 3;
+                if (g_crazy_debug >= 2) {
+                    printf("[crazy] RX LOG ch=%u plen=%d", rch, plen);
+                    for (int k = 0; k < plen && k < 12; k++)
+                        printf(" %02X", data[3 + k]);
+                    printf("\r\n");
+                }
+                if (plen > 0 && plen <= CRTP_MAX_PAYLOAD) {
+                    memcpy(g_log_resp_buf, &data[3], plen);
+                    g_log_resp_len = plen;
+                }
+                xSemaphoreGive(g_log_resp_sem);
+            }
         }
 
         if (g_crazy_debug >= 2) {
@@ -340,6 +459,259 @@ static void crazy_rx_task(void* param) {
     vTaskDelete(nullptr);
 }
 
+// ===================== Commander Task (20 Hz setpoint sender) =====================
+// Used ONLY by attitude() for manual RPYT flight.
+// State machine: IDLE → STARTING → FLYING → STOPPING → IDLE
+//
+// STARTING: arms the drone, sends thrust=0 to unlock RPYT commander.
+// FLYING:   sends current setpoint at 20 Hz (attitude sets values).
+// STOPPING: sends thrust=0 a few times, disarms, → IDLE.
+static void crazy_cmd_task(void* param) {
+    (void)param;
+    TickType_t last_wake = xTaskGetTickCount();
+
+    printf("[crazy] CMD task started\r\n");
+
+    while (g_crazy_running) {
+        switch (g_cmd_state) {
+        case CMD_IDLE:
+            ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(100));
+            last_wake = xTaskGetTickCount();
+            break;
+
+        case CMD_STARTING: {
+            if (g_crazy_debug >= 1)
+                printf("[crazy] CMD: arming...\r\n");
+
+            // Arm the drone (port 0x09, ch 1)
+            uint8_t arm_data[2] = {SUPERVISOR_CMD_ARM, 0x01};
+            int rc = crtp_send(CRTP_PORT_SUPERVISOR, SUPERVISOR_CH_COMMAND,
+                               arm_data, 2);
+            if (rc != 0) {
+                printf("[crazy] CMD: arm send failed (%d), aborting\r\n", rc);
+                g_cmd_state = CMD_IDLE;
+                break;
+            }
+            vTaskDelay(pdMS_TO_TICKS(200));
+
+            // Unlock RPYT: send thrust=0 packets
+            int unlock_ok = 0;
+            for (int i = 0; i < CMD_UNLOCK_PKTS; i++) {
+                if (commander_send_setpoint(0, 0, 0, 0) == 0) unlock_ok++;
+                vTaskDelay(pdMS_TO_TICKS(CMD_PERIOD_MS));
+            }
+            if (unlock_ok == 0) {
+                printf("[crazy] CMD: unlock failed (0/%d ok), aborting\r\n",
+                       CMD_UNLOCK_PKTS);
+                // Try to disarm
+                uint8_t disarm[2] = {SUPERVISOR_CMD_ARM, 0x00};
+                crtp_send(CRTP_PORT_SUPERVISOR, SUPERVISOR_CH_COMMAND,
+                          disarm, 2);
+                g_cmd_state = CMD_IDLE;
+                break;
+            }
+
+            g_cmd_cts_fails = 0;
+            g_cmd_state = CMD_FLYING;
+            last_wake = xTaskGetTickCount();
+
+            if (g_crazy_debug >= 1)
+                printf("[crazy] CMD: armed + unlocked (%d/%d ok), flying\r\n",
+                       unlock_ok, CMD_UNLOCK_PKTS);
+            break;
+        }
+
+        case CMD_FLYING: {
+            float roll = g_cmd_roll;
+            float pitch = g_cmd_pitch;
+            float yawrate = g_cmd_yawrate;
+            uint16_t thrust = g_cmd_thrust;
+
+            int rc = commander_send_setpoint(roll, pitch, yawrate, thrust);
+            if (rc != 0) {
+                g_cmd_cts_fails++;
+                if (g_cmd_cts_fails >= CMD_CTS_FAIL_MAX) {
+                    printf("[crazy] CMD: %d consecutive CTS failures, "
+                           "aborting flight\r\n", g_cmd_cts_fails);
+                    g_cmd_state = CMD_STOPPING;
+                    break;
+                }
+            } else {
+                g_cmd_cts_fails = 0;
+            }
+            vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(CMD_PERIOD_MS));
+            break;
+        }
+
+        case CMD_STOPPING:
+            if (g_crazy_debug >= 1)
+                printf("[crazy] CMD: stopping...\r\n");
+
+            // Send zero thrust — bail on first CTS failure
+            for (int i = 0; i < CMD_STOP_PKTS; i++) {
+                if (commander_send_setpoint(0, 0, 0, 0) != 0) break;
+                vTaskDelay(pdMS_TO_TICKS(CMD_PERIOD_MS));
+            }
+
+            // Disarm (one attempt, ok if it fails)
+            {
+                uint8_t disarm_data[2] = {SUPERVISOR_CMD_ARM, 0x00};
+                crtp_send(CRTP_PORT_SUPERVISOR, SUPERVISOR_CH_COMMAND,
+                          disarm_data, 2);
+            }
+
+            g_cmd_thrust = 0;
+            g_cmd_roll = g_cmd_pitch = g_cmd_yawrate = 0;
+            g_cmd_cts_fails = 0;
+            g_cmd_state = CMD_IDLE;
+
+            if (g_cmd_done_sem) xSemaphoreGive(g_cmd_done_sem);
+
+            if (g_crazy_debug >= 1)
+                printf("[crazy] CMD: stopped + disarmed\r\n");
+            break;
+        }
+    }
+
+    printf("[crazy] CMD task stopped\r\n");
+    vTaskDelete(nullptr);
+}
+
+// ===================== CRTP Log Helpers =====================
+// Send a CRTP LOG packet and wait for response (TOC or control channel).
+static int log_send_and_wait(uint8_t ch, const uint8_t* data, int len,
+                             uint8_t* resp, int* resp_len, int timeout_ms) {
+    xSemaphoreTake(g_log_resp_sem, 0);  // drain stale
+    g_log_resp_len = 0;
+
+    int rc = crtp_send(CRTP_PORT_LOG, ch, data, len);
+    if (rc != 0) return -1;
+
+    if (xSemaphoreTake(g_log_resp_sem, pdMS_TO_TICKS(timeout_ms)) == pdTRUE) {
+        if (resp && resp_len) {
+            memcpy(resp, g_log_resp_buf, g_log_resp_len);
+            *resp_len = g_log_resp_len;
+        }
+        return 0;
+    }
+    return -2;
+}
+
+// Discover stateEstimate.z in the CF log TOC.  Caches the ID in g_log_state_z_id.
+static int log_discover_altitude(void) {
+    if (g_log_state_z_id >= 0) return 0;  // already found
+
+    uint8_t cmd = LOG_TOC_GET_INFO_V2;
+    uint8_t resp[32];
+    int rlen = 0;
+
+    int rc = log_send_and_wait(LOG_TOC_CH, &cmd, 1, resp, &rlen, 1000);
+    if (rc != 0) {
+        printf("[crazy] log TOC info failed (%d)\r\n", rc);
+        return -1;
+    }
+    if (rlen < 3 || resp[0] != LOG_TOC_GET_INFO_V2) return -2;
+
+    uint16_t count = resp[1] | (resp[2] << 8);
+    printf("[crazy] log TOC: %u vars, scanning for stateEstimate.z...\r\n", count);
+
+    for (uint16_t id = 0; id < count; id++) {
+        uint8_t req[3] = {LOG_TOC_GET_ITEM_V2,
+                          (uint8_t)(id & 0xFF), (uint8_t)(id >> 8)};
+        rlen = 0;
+        if (log_send_and_wait(LOG_TOC_CH, req, 3, resp, &rlen, 500) != 0)
+            continue;
+
+        // Response: [cmd, id_lo, id_hi, type, group\0name\0]
+        if (rlen < 6) continue;
+
+        const char* group = (const char*)&resp[4];
+        int glen = (int)strlen(group);
+        if (4 + glen + 1 >= rlen) continue;
+        const char* name = group + glen + 1;
+
+        if (strcmp(group, "stateEstimate") == 0 && strcmp(name, "z") == 0) {
+            g_log_state_z_id = (int16_t)id;
+            printf("[crazy] stateEstimate.z -> id=%u type=%u\r\n", id, resp[3]);
+            return 0;
+        }
+    }
+
+    printf("[crazy] stateEstimate.z NOT found in log TOC (%u entries)\r\n", count);
+    return -3;
+}
+
+// Start streaming altitude log block.
+static int log_start_altitude(void) {
+    if (g_log_block_running) return 0;
+    if (g_log_state_z_id < 0) return -1;
+
+    uint8_t resp[16];
+    int rlen = 0;
+
+    // Reset all log blocks first (clean state)
+    uint8_t reset_cmd = LOG_CTRL_RESET;
+    log_send_and_wait(LOG_CONTROL_CH, &reset_cmd, 1, resp, &rlen, 500);
+
+    // Create block: [cmd, block_id, type, id_lo, id_hi]
+    uint8_t create[5] = {
+        LOG_CTRL_CREATE_BLOCK_V2,
+        LOG_ALTITUDE_BLOCK_ID,
+        LOG_TYPE_FLOAT,
+        (uint8_t)(g_log_state_z_id & 0xFF),
+        (uint8_t)(g_log_state_z_id >> 8),
+    };
+    rlen = 0;
+    int rc = log_send_and_wait(LOG_CONTROL_CH, create, 5, resp, &rlen, 500);
+    if (rc != 0) {
+        printf("[crazy] log create block failed (%d)\r\n", rc);
+        return -2;
+    }
+    if (rlen >= 3 && resp[2] != 0) {
+        printf("[crazy] log create block error=%u\r\n", resp[2]);
+        return -3;
+    }
+
+    // Start block: [cmd, block_id, period]
+    uint8_t start[3] = {
+        LOG_CTRL_START_BLOCK,
+        LOG_ALTITUDE_BLOCK_ID,
+        LOG_ALTITUDE_PERIOD,
+    };
+    rlen = 0;
+    rc = log_send_and_wait(LOG_CONTROL_CH, start, 3, resp, &rlen, 500);
+    if (rc != 0) {
+        printf("[crazy] log start block failed (%d)\r\n", rc);
+        return -4;
+    }
+    if (rlen >= 3 && resp[2] != 0) {
+        printf("[crazy] log start block error=%u\r\n", resp[2]);
+        return -5;
+    }
+
+    g_log_block_running = true;
+    printf("[crazy] altitude log started (10 Hz)\r\n");
+    return 0;
+}
+
+// Stop altitude log block.
+static void log_stop_altitude(void) {
+    if (!g_log_block_running) return;
+
+    uint8_t resp[16];
+    int rlen = 0;
+
+    uint8_t stop_cmd[2] = {LOG_CTRL_STOP_BLOCK, LOG_ALTITUDE_BLOCK_ID};
+    log_send_and_wait(LOG_CONTROL_CH, stop_cmd, 2, resp, &rlen, 300);
+
+    uint8_t del_cmd[2] = {LOG_CTRL_DELETE_BLOCK, LOG_ALTITUDE_BLOCK_ID};
+    log_send_and_wait(LOG_CONTROL_CH, del_cmd, 2, resp, &rlen, 300);
+
+    g_log_block_running = false;
+    g_log_altitude_valid = false;
+    if (g_crazy_debug >= 1) printf("[crazy] altitude log stopped\r\n");
+}
+
 // ===================== CPX System Command =====================
 // Send a CPX SYSTEM command to STM32 (e.g. enable bridge, set client).
 // Returns 0 on success, negative on error.
@@ -354,7 +726,12 @@ static int cpx_send_system(uint8_t subcmd, uint8_t value) {
 // ===================== Public API: Init / Stop =====================
 
 extern "C" int sentai_crazy_init(uint32_t baudrate) {
-    if (g_crazy_running) return 0;  // already running
+    // If already running, do a full stop+reinit (resync UART)
+    if (g_crazy_running) {
+        printf("[crazy] re-init: stopping first...\r\n");
+        sentai_crazy_stop();
+        vTaskDelay(pdMS_TO_TICKS(200));
+    }
 
     // Set baudrate (576000 is typical for CF deck UART)
     if (baudrate != 115200 && baudrate > 0) {
@@ -372,8 +749,13 @@ extern "C" int sentai_crazy_init(uint32_t baudrate) {
     g_crazy_cts      = xSemaphoreCreateBinary();
     g_crazy_ping_sem = xSemaphoreCreateBinary();
     g_param_resp_sem = xSemaphoreCreateBinary();
+    g_cmd_done_sem   = xSemaphoreCreateBinary();
+    g_log_resp_sem   = xSemaphoreCreateBinary();
+    g_log_data_sem   = xSemaphoreCreateBinary();
 
-    if (!g_crazy_tx_mutex || !g_crazy_cts || !g_crazy_ping_sem || !g_param_resp_sem) {
+    if (!g_crazy_tx_mutex || !g_crazy_cts || !g_crazy_ping_sem ||
+        !g_param_resp_sem || !g_cmd_done_sem ||
+        !g_log_resp_sem || !g_log_data_sem) {
         printf("[crazy] semaphore create failed\r\n");
         sentai_uart_serial_close();
         return -2;
@@ -389,6 +771,20 @@ extern "C" int sentai_crazy_init(uint32_t baudrate) {
     if (rc != pdPASS) {
         printf("[crazy] task create failed\r\n");
         g_crazy_running = 0;
+        sentai_uart_serial_close();
+        return -3;
+    }
+
+    // Start CMD task (sends Commander setpoints at 50 Hz)
+    g_cmd_state = CMD_IDLE;
+    rc = xTaskCreate(crazy_cmd_task, "crazy_cmd",
+                     2048 / sizeof(StackType_t),
+                     nullptr, tskIDLE_PRIORITY + 2,
+                     &g_cmd_task);
+    if (rc != pdPASS) {
+        printf("[crazy] cmd task create failed\r\n");
+        g_crazy_running = 0;
+        vTaskDelay(pdMS_TO_TICKS(200));
         sentai_uart_serial_close();
         return -3;
     }
@@ -448,7 +844,30 @@ extern "C" int sentai_crazy_init(uint32_t baudrate) {
 extern "C" int sentai_crazy_stop(void) {
     if (!g_crazy_running) return 0;
 
+    // Abort HL fly() if active
+    if (g_hl_busy) {
+        g_hl_abort = true;
+        sentai_crazy_stop_motors(0);
+        // fly() will see abort and clean up
+    }
+
+    // Stop commander task if flying
+    if (g_cmd_state != CMD_IDLE) {
+        g_cmd_state = CMD_STOPPING;
+        // Unblock CMD task if stuck waiting for CTS
+        if (g_crazy_cts) xSemaphoreGive(g_crazy_cts);
+        // Wait for it to finish (generous timeout)
+        xSemaphoreTake(g_cmd_done_sem, pdMS_TO_TICKS(3000));
+    }
+
     // Clean disconnect: disable bridge + client disconnected
+    // Stop log block first (while CRTP bridge is still active)
+    if (g_log_block_running) {
+        // Give CTS in case TX is blocked
+        if (g_crazy_cts) xSemaphoreGive(g_crazy_cts);
+        log_stop_altitude();
+    }
+
     // Give CTS in case TX is blocked
     if (g_crazy_cts) xSemaphoreGive(g_crazy_cts);
     cpx_send_system(CPX_SYS_SET_BRIDGE, 0x00);
@@ -464,10 +883,21 @@ extern "C" int sentai_crazy_stop(void) {
     if (g_crazy_cts)      { vSemaphoreDelete(g_crazy_cts);      g_crazy_cts = nullptr; }
     if (g_crazy_ping_sem) { vSemaphoreDelete(g_crazy_ping_sem); g_crazy_ping_sem = nullptr; }
     if (g_param_resp_sem) { vSemaphoreDelete(g_param_resp_sem); g_param_resp_sem = nullptr; }
+    if (g_cmd_done_sem)   { vSemaphoreDelete(g_cmd_done_sem);   g_cmd_done_sem = nullptr; }
+    if (g_log_resp_sem)   { vSemaphoreDelete(g_log_resp_sem);   g_log_resp_sem = nullptr; }
+    if (g_log_data_sem)   { vSemaphoreDelete(g_log_data_sem);   g_log_data_sem = nullptr; }
+    g_cmd_task = nullptr;
+    g_cmd_state = CMD_IDLE;
 
     // Reset cached param IDs (will re-discover on next init)
     g_param_motor_m1 = g_param_motor_m2 = g_param_motor_m3 = g_param_motor_m4 = -1;
     g_param_motor_enable = -1;
+
+    // Reset log state
+    g_log_state_z_id = -1;
+    g_log_block_running = false;
+    g_log_altitude_valid = false;
+    g_log_altitude = 0.0f;
 
     sentai_uart_restore_baudrate();
     sentai_uart_serial_close();
@@ -487,14 +917,15 @@ extern "C" void sentai_crazy_set_debug(int level) {
 
 // ===================== Platform: Arm / Disarm =====================
 // CrazyFlie firmware 2023+ requires explicit arming before motor output.
-// Uses CRTP Platform service (port 0x0D, ch 0, sub-cmd armSystem).
+// Uses CRTP Supervisor (port 0x09, ch 1, armSystem command).
 // Without arming, the supervisor stays in 'idle' and ignores all thrust.
+// NOTE: fly() and attitude() handle arming automatically.
 
 extern "C" int sentai_crazy_arm(void) {
     if (!g_crazy_running) return -1;
 
-    uint8_t data[2] = {PLATFORM_CMD_ARM_SYSTEM, 0x01};
-    int rc = crtp_send(CRTP_PORT_PLATFORM, 0, data, 2);
+    uint8_t data[2] = {SUPERVISOR_CMD_ARM, 0x01};
+    int rc = crtp_send(CRTP_PORT_SUPERVISOR, SUPERVISOR_CH_COMMAND, data, 2);
 
     if (g_crazy_debug >= 1)
         printf("[crazy] ARM %s\r\n", rc == 0 ? "sent" : "FAILED");
@@ -504,8 +935,8 @@ extern "C" int sentai_crazy_arm(void) {
 extern "C" int sentai_crazy_disarm(void) {
     if (!g_crazy_running) return -1;
 
-    uint8_t data[2] = {PLATFORM_CMD_ARM_SYSTEM, 0x00};
-    int rc = crtp_send(CRTP_PORT_PLATFORM, 0, data, 2);
+    uint8_t data[2] = {SUPERVISOR_CMD_ARM, 0x00};
+    int rc = crtp_send(CRTP_PORT_SUPERVISOR, SUPERVISOR_CH_COMMAND, data, 2);
 
     if (g_crazy_debug >= 1)
         printf("[crazy] DISARM %s\r\n", rc == 0 ? "sent" : "FAILED");
@@ -812,5 +1243,188 @@ extern "C" int sentai_crazy_test_fly(uint16_t power, int duration_ms) {
     param_write_u16((uint16_t)g_param_motor_m4, 0);
 
     if (g_crazy_debug >= 1) printf("[crazy] motors OFF\r\n");
+    return 0;
+}
+
+// ===================== Attitude-Stabilized Flight (Commander Task) =====================
+
+// fly(height_m, hold_ms, takeoff_ms, land_ms) — blocking HL Commander flight.
+// Uses Kalman estimator + barometer for altitude hold.
+// Sequence: ARM → takeoff → hold → land → DISARM.
+// HL Commander generates setpoints internally (no 20Hz loop needed).
+// height_m: altitude in metres (0.5 = 50cm above takeoff point)
+// Returns 0=ok, -1=not running, -2=busy, -3=arm fail, -4=takeoff fail, -5=aborted.
+extern "C" int sentai_crazy_fly(float height_m, int hold_ms,
+                                int takeoff_ms, int land_ms) {
+    if (!g_crazy_running) return -1;
+    if (g_cmd_state != CMD_IDLE || g_hl_busy) return -2;
+
+    g_hl_abort = false;
+    g_hl_busy = true;
+
+    float takeoff_dur = takeoff_ms / 1000.0f;
+    float land_dur    = land_ms / 1000.0f;
+
+    if (g_crazy_debug >= 1)
+        printf("[crazy] FLY: h=%.2f hold=%d takeoff=%d land=%d\r\n",
+               (double)height_m, hold_ms, takeoff_ms, land_ms);
+
+    // 1. ARM
+    int rc = sentai_crazy_arm();
+    if (rc != 0) {
+        printf("[crazy] FLY: arm failed (%d)\r\n", rc);
+        g_hl_busy = false;
+        return -3;
+    }
+    // Wait for supervisor + Kalman estimator to converge
+    vTaskDelay(pdMS_TO_TICKS(1500));
+
+    if (g_crazy_debug >= 1 && g_log_altitude_valid)
+        printf("[crazy] FLY: ground alt=%.3f m\r\n", (double)g_log_altitude);
+
+    if (g_hl_abort) goto abort;
+
+    // 2. TAKEOFF
+    rc = sentai_crazy_takeoff(height_m, takeoff_dur, 0, 1, 0);
+    if (rc != 0) {
+        printf("[crazy] FLY: takeoff send failed (%d)\r\n", rc);
+        sentai_crazy_disarm();
+        g_hl_busy = false;
+        return -4;
+    }
+
+    // 3. Wait for takeoff + hold (check abort every 100ms)
+    {
+        int wait_ms = takeoff_ms + hold_ms;
+        int alt_print_ms = 0;
+        while (wait_ms > 0 && !g_hl_abort) {
+            int chunk = (wait_ms > 100) ? 100 : wait_ms;
+            vTaskDelay(pdMS_TO_TICKS(chunk));
+            wait_ms -= chunk;
+            alt_print_ms += chunk;
+            if (g_crazy_debug >= 1 && g_log_altitude_valid && alt_print_ms >= 1000) {
+                printf("[crazy] FLY: alt=%.3f m (hold %dms left)\r\n",
+                       (double)g_log_altitude, wait_ms);
+                alt_print_ms = 0;
+            }
+        }
+        if (g_hl_abort) goto abort;
+    }
+
+    // 4. LAND
+    rc = sentai_crazy_land(0.0f, land_dur, 0, 1, 0);
+    if (rc != 0)
+        printf("[crazy] FLY: land send failed (%d)\r\n", rc);
+
+    // 5. Wait for landing + 1s safety margin
+    {
+        int wait_ms = land_ms + 1000;
+        while (wait_ms > 0 && !g_hl_abort) {
+            int chunk = (wait_ms > 100) ? 100 : wait_ms;
+            vTaskDelay(pdMS_TO_TICKS(chunk));
+            wait_ms -= chunk;
+        }
+    }
+
+    // 6. DISARM
+    sentai_crazy_disarm();
+    g_hl_busy = false;
+
+    if (g_crazy_debug >= 1) {
+        if (g_log_altitude_valid)
+            printf("[crazy] FLY: final alt=%.3f m\r\n", (double)g_log_altitude);
+        printf("[crazy] FLY: complete\r\n");
+    }
+    return 0;
+
+abort:
+    if (g_crazy_debug >= 1)
+        printf("[crazy] FLY: aborted by fly_stop()\r\n");
+    sentai_crazy_stop_motors(0);
+    vTaskDelay(pdMS_TO_TICKS(100));
+    sentai_crazy_disarm();
+    g_hl_busy = false;
+    return -5;
+}
+
+// attitude(roll, pitch, yawrate, thrust) — non-blocking manual setpoint.
+// Sets the current Commander setpoint. The CMD task sends it at 50 Hz.
+// Auto-arms on first call. Use fly_stop() to land and disarm.
+// roll/pitch: degrees, yawrate: deg/s, thrust: 0-65535 raw.
+// Returns 0 on success, -1=not running, -2=auto fly in progress.
+extern "C" int sentai_crazy_attitude(float roll, float pitch,
+                                     float yawrate, uint16_t thrust) {
+    if (!g_crazy_running) return -1;
+
+    // Cannot override HL fly
+    if (g_hl_busy) return -2;
+
+    if (g_cmd_state == CMD_IDLE) {
+        // Auto-start: arm + unlock, then send manual setpoints
+        g_cmd_roll = roll;
+        g_cmd_pitch = pitch;
+        g_cmd_yawrate = yawrate;
+        g_cmd_thrust = thrust;
+        g_cmd_state = CMD_STARTING;
+        xTaskNotifyGive(g_cmd_task);
+
+        if (g_crazy_debug >= 1)
+            printf("[crazy] ATTITUDE: auto-starting\r\n");
+        return 0;
+    }
+
+    // Update setpoint — task picks it up next cycle
+    g_cmd_roll = roll;
+    g_cmd_pitch = pitch;
+    g_cmd_yawrate = yawrate;
+    g_cmd_thrust = thrust;
+    return 0;
+}
+
+// ===================== Altitude Reading (Log System) =====================
+// Get altitude from CF Kalman estimator (stateEstimate.z).
+// On first call: discovers log var ID + starts streaming block (~2-5s).
+// Subsequent calls return the latest cached value (updated by RX task at 10 Hz).
+// Returns altitude in metres, or -999.0 on error.
+extern "C" float sentai_crazy_get_altitude(void) {
+    if (!g_crazy_running) return -999.0f;
+
+    // Auto-start: discover + create log block on first call
+    if (!g_log_block_running) {
+        if (log_discover_altitude() != 0) return -999.0f;
+        if (log_start_altitude() != 0) return -999.0f;
+
+        // Wait for first data (up to 500ms)
+        xSemaphoreTake(g_log_data_sem, 0);  // drain stale
+        if (xSemaphoreTake(g_log_data_sem, pdMS_TO_TICKS(500)) != pdTRUE) {
+            printf("[crazy] altitude: no data received\r\n");
+            return -999.0f;
+        }
+    }
+
+    return g_log_altitude;
+}
+
+// fly_stop() — stop flying and disarm (non-blocking).
+// Safe to call from any state. Sends zero thrust then disarms.
+// Returns 0 on success, -1=not running.
+extern "C" int sentai_crazy_fly_stop(void) {
+    if (!g_crazy_running) return -1;
+    if (g_cmd_state == CMD_IDLE && !g_hl_busy) return 0;  // already stopped
+
+    if (g_crazy_debug >= 1)
+        printf("[crazy] FLY_STOP requested\r\n");
+
+    // Abort HL Commander fly() if active
+    if (g_hl_busy) {
+        g_hl_abort = true;
+        sentai_crazy_stop_motors(0);  // immediate motor cutoff
+    }
+
+    // Stop CMD task (attitude mode)
+    if (g_cmd_state != CMD_IDLE) {
+        g_cmd_state = CMD_STOPPING;
+        if (g_crazy_cts) xSemaphoreGive(g_crazy_cts);
+    }
     return 0;
 }

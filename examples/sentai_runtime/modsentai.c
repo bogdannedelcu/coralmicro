@@ -240,6 +240,12 @@ extern int sentai_crazy_send_crtp(uint8_t port, uint8_t channel,
                                   const uint8_t* data, int len);
 extern int sentai_crazy_ping(int timeout_ms);
 extern int sentai_crazy_test_fly(uint16_t power, int duration_ms);
+extern int sentai_crazy_fly(float height_m, int hold_ms,
+                            int takeoff_ms, int land_ms);
+extern int sentai_crazy_attitude(float roll, float pitch,
+                                 float yawrate, uint16_t thrust);
+extern int sentai_crazy_fly_stop(void);
+extern float sentai_crazy_get_altitude(void);
 
 // Help file reading from system flash partition
 extern int sentai_help_read(char* buf, int max_size);
