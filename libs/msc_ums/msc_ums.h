@@ -40,11 +40,17 @@ class MscUms {
   size_t descriptor_data_size() { return sizeof(descriptor_); }
   void SetClassHandle(class_handle_t class_handle);
   bool HandleEvent(uint32_t event, void *param);
-  void SetUnitReady(bool ready) { unit_ready_ = ready; }
+  void SetUnitReady(bool ready) {
+    if (ready && !unit_ready_) {
+      media_changed_ = true;  // trigger UNIT ATTENTION on next TEST UNIT READY
+    }
+    unit_ready_ = ready;
+  }
   bool IsUnitReady() const { return unit_ready_; }
 
  private:
   bool unit_ready_ = false;
+  bool media_changed_ = false;
   static usb_status_t Handler(class_handle_t class_handle, uint32_t event,
                               void *param);
   usb_status_t Handler(uint32_t event, void *param);

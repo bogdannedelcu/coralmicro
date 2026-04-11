@@ -132,9 +132,23 @@ add_executable_m7(sentai_runtime
     sentai_mesh.cc
     sentai_link.cc
     sentai_crazy.cc
+    sentai_httpd.cc
     DATA
     help.txt
 )
+
+# Embed browser.html as a C byte array (avoids LFS system partition dependency)
+set(BROWSER_HTML_SRC "${CMAKE_CURRENT_SOURCE_DIR}/web/browser.html")
+set(BROWSER_HTML_HDR "${CMAKE_CURRENT_BINARY_DIR}/browser_html_data.h")
+add_custom_command(
+    OUTPUT "${BROWSER_HTML_HDR}"
+    COMMAND python3 "${CMAKE_CURRENT_SOURCE_DIR}/web/gen_embed.py"
+            "${BROWSER_HTML_SRC}" "${BROWSER_HTML_HDR}" "browser_html_data"
+    DEPENDS "${BROWSER_HTML_SRC}" "${CMAKE_CURRENT_SOURCE_DIR}/web/gen_embed.py"
+    COMMENT "Embedding browser.html as C array"
+)
+add_custom_target(sentai_browser_html DEPENDS "${BROWSER_HTML_HDR}")
+add_dependencies(sentai_runtime sentai_browser_html)
 
 # Disable networking stack (DHCP, TCP/IP, Ethernet over USB) to save power
 target_compile_definitions(sentai_runtime PRIVATE
@@ -145,6 +159,7 @@ target_compile_definitions(sentai_runtime PRIVATE
 
 target_link_libraries(sentai_runtime
     libs_base-m7_freertos
+    libs_base-m7_http_server
     libs_jpeg_m7
     libs_lis2du12_freertos
     libs_t5838_freertos
@@ -158,6 +173,7 @@ target_link_libraries(sentai_runtime
 # Include dirs for MicroPython headers in main sources
 target_include_directories(sentai_runtime PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}                # mpconfigport.h, micropython_task.h
+    ${CMAKE_CURRENT_BINARY_DIR}                # browser_html_data.h (generated)
     ${MP_EMBED_DIR}                            # py/*.h, genhdr/
     ${CMAKE_CURRENT_SOURCE_DIR}/micropython_embed  # for #include "port/..."
     ${PROJECT_SOURCE_DIR}/third_party/nanopb   # pb.h, pb_encode.h, pb_decode.h

@@ -106,6 +106,11 @@ usb_status_t UsbDeviceTask::Handler(usb_device_handle device_handle,
           ToUsbStringDescriptor(serial_number_.c_str(), string_desc);
           ret = kStatus_USB_Success;
           break;
+        case 4:
+          // CDC-NCM MAC address string (12 hex chars, uppercase)
+          ToUsbStringDescriptor("001A11BADFAD", string_desc);
+          ret = kStatus_USB_Success;
+          break;
         default:
           printf("Unhandled string request: %d\r\n", string_desc->stringIndex);
           ret = kStatus_USB_InvalidRequest;

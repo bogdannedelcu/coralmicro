@@ -132,6 +132,42 @@ struct CdcEemClassDescriptor {
   EndpointDescriptor out_ep;
 } __attribute__((packed));
 
+struct CdcEthernetFunctionalDescriptor {
+  uint8_t function_length;
+  uint8_t descriptor_type;    // 0x24 (CS_INTERFACE)
+  uint8_t descriptor_subtype; // 0x0F (Ethernet Networking)
+  uint8_t mac_address;        // Index of string descriptor with MAC
+  uint32_t ethernet_statistics;
+  uint16_t max_segment_size;
+  uint16_t number_mc_filters;
+  uint8_t number_power_filters;
+} __attribute__((packed));
+
+struct CdcNcmFunctionalDescriptor {
+  uint8_t function_length;
+  uint8_t descriptor_type;    // 0x24 (CS_INTERFACE)
+  uint8_t descriptor_subtype; // 0x1A (NCM)
+  uint16_t bcd_ncm;           // NCM version (0x0100)
+  uint8_t network_capabilities;
+} __attribute__((packed));
+
+struct CdcNcmClassDescriptor {
+  InterfaceAssociationDescriptor iad0;
+  // Communication interface
+  InterfaceDescriptor cmd_iface;
+  CdcHeaderFunctionalDescriptor cmd_hdr_fd;
+  CdcUnionFunctionalDescriptor cmd_union_fd;
+  CdcEthernetFunctionalDescriptor cmd_enet_fd;
+  CdcNcmFunctionalDescriptor cmd_ncm_fd;
+  EndpointDescriptor cmd_ep;
+  // Data interface — alt setting 0 (no endpoints)
+  InterfaceDescriptor data_iface_alt0;
+  // Data interface — alt setting 1 (with endpoints)
+  InterfaceDescriptor data_iface_alt1;
+  EndpointDescriptor in_ep;
+  EndpointDescriptor out_ep;
+} __attribute__((packed));
+
 struct MscUmsClassDescriptor {
   InterfaceDescriptor iface;
   EndpointDescriptor in_ep;

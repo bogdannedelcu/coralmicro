@@ -79,7 +79,7 @@ set(libs_nxp_rt1176-sdk_SOURCES
     ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/host/usb_host_ehci.c
     ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/host/usb_host_framework.c
     ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/host/usb_host_hci.c
-    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/output/source/device/class/usb_device_cdc_acm.c
+    ${PROJECT_SOURCE_DIR}/third_party/modified/nxp/rt1176-sdk/usb_device_cdc_acm.c
     ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/output/source/device/class/usb_device_hid.c
     ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/output/source/device/usb_device_ch9.c
     ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/phy/usb_phy.c

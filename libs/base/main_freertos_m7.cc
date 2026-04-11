@@ -31,6 +31,7 @@
 #include "libs/base/timer.h"
 #include "libs/camera/camera.h"
 #include "libs/cdc_eem/cdc_eem.h"
+#include "libs/cdc_ncm/cdc_ncm.h"
 #include "libs/msc_ums/msc_ums.h"
 #include "libs/nxp/rt1176-sdk/board_hardware.h"
 #include "libs/pmic/pmic.h"
@@ -52,6 +53,15 @@ lpi2c_rtos_handle_t g_i2c5_handle;
 lpi2c_rtos_handle_t g_i2c6_handle;
 coralmicro::CdcEem g_cdc_eem;
 coralmicro::MscUms g_msc_ums;
+
+#ifndef ENABLE_USB_NCM
+#define ENABLE_USB_NCM 1
+#endif
+
+#if ENABLE_USB_NCM
+coralmicro::CdcNcm g_cdc_ncm;
+static volatile bool g_ncm_initialized = false;
+#endif
 
 // Low-power feature toggles. Set to 1 to enable the corresponding init.
 // Dissable network, temp and USB and get 0.1570 Amps on M7
@@ -101,15 +111,41 @@ void InitializeUMS() {
       std::bind(&coralmicro::MscUms::HandleEvent, &g_msc_ums, _1, _2),
       g_msc_ums.descriptor_data(), g_msc_ums.descriptor_data_size());
 }
+
+#if ENABLE_USB_NCM
+void InitializeCDCNCM() {
+  using namespace std::placeholders;
+  auto *usb_task = coralmicro::UsbDeviceTask::GetSingleton();
+  uint8_t interrupt_ep = usb_task->next_descriptor_value();
+  uint8_t bulk_in_ep = usb_task->next_descriptor_value();
+  uint8_t bulk_out_ep = usb_task->next_descriptor_value();
+  uint8_t comm_iface = usb_task->next_interface_value();
+  uint8_t data_iface = usb_task->next_interface_value();
+  g_cdc_ncm.Init(interrupt_ep, bulk_in_ep, bulk_out_ep, comm_iface,
+                 data_iface);
+  usb_task->AddDevice(
+      g_cdc_ncm.config_data(),
+      std::bind(&coralmicro::CdcNcm::SetClassHandle, &g_cdc_ncm, _1),
+      std::bind(&coralmicro::CdcNcm::HandleEvent, &g_cdc_ncm, _1, _2),
+      g_cdc_ncm.descriptor_data(), g_cdc_ncm.descriptor_data_size());
+  g_ncm_initialized = true;
+}
+#endif
 }  // namespace
 
 extern "C" int sentai_usb_drive_set(int on) {
+  auto handle = coralmicro::UsbDeviceTask::GetSingleton()->device_handle();
   if (on) {
     // Unmount user LFS before enabling USB MSC so host has exclusive
     // NAND access and there are no stale LFS cache conflicts.
     lfs_unmount(coralmicro::LfsUser());
   }
   g_msc_ums.SetUnitReady(on != 0);
+  // Force USB bus reset so host re-enumerates and discovers
+  // the MSC state change (medium inserted / removed).
+  USB_DeviceStop(handle);
+  vTaskDelay(pdMS_TO_TICKS(200));
+  USB_DeviceRun(handle);
   if (!on) {
     // Remount user LFS after disabling USB MSC to pick up any changes
     // the host made (new/modified/deleted files).
@@ -123,6 +159,23 @@ extern "C" int sentai_usb_drive_set(int on) {
 extern "C" int sentai_usb_drive_get(void) {
   return g_msc_ums.IsUnitReady() ? 1 : 0;
 }
+
+#if ENABLE_USB_NCM
+extern "C" int sentai_usb_ip_set(int on) {
+  if (!g_ncm_initialized) return -1;
+  // NCM is always initialized at boot; this is a no-op toggle for API symmetry.
+  // The network stack is active as long as USB is connected.
+  (void)on;
+  return g_ncm_initialized ? 1 : 0;
+}
+
+extern "C" int sentai_usb_ip_get(void) {
+  return g_ncm_initialized ? 1 : 0;
+}
+#else
+extern "C" int sentai_usb_ip_set(int on) { (void)on; return -1; }
+extern "C" int sentai_usb_ip_get(void) { return 0; }
+#endif
 
 extern "C" lpi2c_rtos_handle_t* I2C5Handle() { return &g_i2c5_handle; }
 
@@ -149,12 +202,17 @@ extern "C" int real_main(int argc, char** argv, bool init_console_tx,
   CHECK(coralmicro::LfsInit());
   CHECK(coralmicro::LfsUserInit());
   // Make sure this happens before EEM or WICED are initialized.
-  #if ENABLE_NETWORK_STACK
+  #if ENABLE_NETWORK_STACK || ENABLE_USB_NCM
     tcpip_init(nullptr, nullptr);
+  #endif
+  #if ENABLE_NETWORK_STACK
     coralmicro::DnsInit();
   #endif
   #if ENABLE_USB_EEM
     InitializeCDCEEM();
+  #endif
+  #if ENABLE_USB_NCM
+    InitializeCDCNCM();
   #endif
   #if ENABLE_USB_UMS
     InitializeUMS();

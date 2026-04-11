@@ -3,37 +3,16 @@
 
 // sentai.usb.drive(on) -> int (1=enabled, 0=disabled)
 // Enable/disable USB mass storage. 1=drive visible to host, 0=ejected.
-// Auto-switches REPL to UART when mounting drive.
 static mp_obj_t mod_sentai_usb_drive(mp_obj_t on_obj) {
     int on = mp_obj_get_int(on_obj);
     if (on) {
-        // Print mount command hint before switching console away from USB
-        printf("\r\n*****\r\n"
-               "sudo littlefs-fuse "
-               "  --block_size=131072 "
-               "  --read_size=2048 "
-               "  --prog_size=2048 "
-               "  --block_count=448 "
-               "  --cache_size=2048 "
-               "  --lookahead_size=2048 "
-               "  -o allow_other "
-               "  /dev/sda /mnt/coral\r\n"
-               "*****\r\n"
-               "Switch to Linux\r\n");
-        // Let the TX task flush the message to USB before switching away
-        vTaskDelay(pdMS_TO_TICKS(100));
-        // Auto-switch REPL to UART when mounting USB drive
-        sentai_console_set_target(1);  // 1 = UART
-    } else {
-        // Disable drive first, then switch REPL back to USB
-        int rc = sentai_usb_drive_set(0);
-        // Small delay for USB CDC ACM to re-enumerate after mass storage release
-        vTaskDelay(pdMS_TO_TICKS(200));
-        sentai_console_set_target(0);  // 0 = USB
-        printf("\r\n*****\r\nUSB drive off — REPL back on USB\r\n*****\r\n>>> ");
-        return mp_obj_new_int(rc);
+        printf("\r\nUSB drive on — LFS unmounted, host can mount now\r\n");
     }
-    return mp_obj_new_int(sentai_usb_drive_set(on));
+    int rc = sentai_usb_drive_set(on);
+    if (!on) {
+        printf("\r\nUSB drive off — LFS remounted\r\n>>> ");
+    }
+    return mp_obj_new_int(rc);
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_usb_drive_obj, mod_sentai_usb_drive);
 
@@ -104,10 +83,36 @@ static mp_obj_t mod_sentai_usb_serial_available(void) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_usb_serial_available_obj, mod_sentai_usb_serial_available);
 
+// ===================== USB IP (CDC-NCM Ethernet) =====================
+
+// sentai.usb.ip(on) -> int (1=active, 0=inactive, -1=not available)
+// Query or report status of USB Ethernet (CDC-NCM).
+// NCM is always active when USB is connected; this returns the status.
+// Pass 1 to confirm network is enabled, 0 is a no-op (NCM stays active).
+static mp_obj_t mod_sentai_usb_ip(mp_obj_t on_obj) {
+    extern int sentai_usb_ip_set(int on);
+    extern int sentai_usb_ip_get(void);
+    int on = mp_obj_get_int(on_obj);
+    if (on) {
+        int rc = sentai_usb_ip_set(1);
+        if (rc < 0) {
+            mp_raise_msg(&mp_type_OSError,
+                MP_ERROR_TEXT("USB IP (CDC-NCM) not available"));
+        }
+        extern void sentai_httpd_start(void);
+        sentai_httpd_start();
+        printf("USB Ethernet (CDC-NCM) active at 10.0.0.1 — http://10.0.0.1/\r\n");
+        return mp_obj_new_int(rc);
+    }
+    return mp_obj_new_int(sentai_usb_ip_get());
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_usb_ip_obj, mod_sentai_usb_ip);
+
 // ---- module table ----
 static const mp_rom_map_elem_t sentai_usb_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__),          MP_ROM_QSTR(MP_QSTR_usb) },
     { MP_ROM_QSTR(MP_QSTR_drive),             MP_ROM_PTR(&mod_sentai_usb_drive_obj) },
+    { MP_ROM_QSTR(MP_QSTR_ip),                MP_ROM_PTR(&mod_sentai_usb_ip_obj) },
     { MP_ROM_QSTR(MP_QSTR_open),              MP_ROM_PTR(&mod_sentai_usb_serial_open_obj) },
     { MP_ROM_QSTR(MP_QSTR_close),             MP_ROM_PTR(&mod_sentai_usb_serial_close_obj) },
     { MP_ROM_QSTR(MP_QSTR_write),             MP_ROM_PTR(&mod_sentai_usb_serial_write_obj) },

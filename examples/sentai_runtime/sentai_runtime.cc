@@ -305,12 +305,9 @@ extern "C" void app_main(void* param) {
       ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
       extern int sentai_usb_drive_get(void);
       extern int sentai_usb_drive_set(int on);
-      extern int sentai_console_set_target(int target);
       if (sentai_usb_drive_get()) {
         sentai_usb_drive_set(0);
-        // Switch REPL back to USB (was moved to UART when drive was enabled)
-        sentai_console_set_target(0);  // 0 = USB
-        printf("\r\n*****\r\nBack from host\r\n*****\r\n>>> ");
+        printf("\r\n*****\r\nUSB drive off\r\n*****\r\n>>> ");
       }
     }
   }, "btn_usb", configMINIMAL_STACK_SIZE * 4, nullptr,

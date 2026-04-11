@@ -1,0 +1,114 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>SentAI</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font:12px/1.4 monospace;background:#111;color:#ccc;height:100vh;display:flex;flex-direction:column}
+#bar{background:#222;padding:4px 8px;display:flex;gap:4px;align-items:center}
+#bar span{color:#0aa;flex:1;cursor:pointer}
+#bar span b{cursor:pointer}#bar span b:hover{text-decoration:underline}
+button{background:#333;color:#ccc;border:1px solid #555;padding:2px 8px;cursor:pointer;font:inherit}
+button:hover{background:#0aa;color:#111}
+#wrap{display:flex;flex:1;overflow:hidden}
+#left{width:240px;overflow-y:auto;border-right:1px solid #333}
+.f{padding:3px 6px;cursor:pointer;display:flex;gap:4px}
+.f:hover{background:#222}.f.sel{background:#222;border-left:2px solid #0aa}
+.f i{width:12px;font-style:normal;text-align:center}
+.f b{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:normal}
+.f s{color:#555;font-size:10px;text-decoration:none}
+#right{flex:1;display:flex;flex-direction:column;overflow:hidden}
+#rbar{background:#222;padding:3px 6px;display:flex;gap:4px;align-items:center;display:none}
+#rbar span{flex:1;color:#0aa;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+#view{flex:1;overflow:auto}
+textarea{width:100%;height:100%;background:#111;color:#ccc;border:0;padding:6px;font:13px/1.4 monospace;resize:none;outline:0;tab-size:4}
+img.p{max-width:100%;max-height:100%;display:block;margin:16px auto}
+#st{background:#222;color:#0aa;padding:2px 6px;font-size:10px}
+</style></head><body>
+<div id="bar"><span id="bc">/</span>
+<button onclick="doUpload()">Upload</button>
+<button onclick="doMkdir()">Mkdir</button>
+<button onclick="go(cwd)">Refresh</button></div>
+<div id="wrap"><div id="left"></div>
+<div id="right"><div id="rbar"><span id="rp"></span>
+<button id="bsv" onclick="doSave()" style="display:none">Save</button>
+<button onclick="doDel()">Del</button>
+<a id="bdl" href="#" download style="display:none"><button>DL</button></a></div>
+<div id="view"></div></div></div>
+<div id="st">Ready</div>
+<input type="file" id="fi" style="display:none" multiple onchange="upFiles(this.files)">
+<script>
+var cwd='/',sel=null,ed=false,dirty=false;
+var $=function(i){return document.getElementById(i)};
+function st(m){$('st').textContent=m}
+function sz(b){return b<1024?b+'B':b<1048576?(b/1024).toFixed(1)+'K':(b/1048576).toFixed(1)+'M'}
+function pj(d,n){return d=='/'?'/'+n:d+'/'+n}
+function up(p){if(p=='/')return'/';var i=p.lastIndexOf('/');return i<=0?'/':p.substring(0,i)}
+function ext(n){var i=n.lastIndexOf('.');return i>=0?n.substring(i+1).toLowerCase():''}
+function isTxt(n){return'py txt json csv md log cfg ini html js xml yaml sh c h cc cpp conf lua rb go rs toml cmake'.split(' ').indexOf(ext(n))>=0}
+function isImg(n){return'jpg jpeg png gif bmp webp svg'.split(' ').indexOf(ext(n))>=0}
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+
+function bc(path){
+  var el=$('bc');el.innerHTML='';
+  var parts=path.split('/').filter(Boolean),acc='';
+  var r=document.createElement('b');r.textContent='/';r.onclick=function(){go('/')};el.appendChild(r);
+  parts.forEach(function(p){acc+='/'+p;var s=document.createElement('b');s.textContent=' '+p+' /';var t=acc;s.onclick=function(){go(t)};el.appendChild(s)});
+}
+
+function go(path){
+  if(dirty&&!confirm('Discard changes?'))return;
+  sel=null;ed=false;dirty=false;$('rbar').style.display='none';
+  $('view').innerHTML='';cwd=path;bc(path);
+  st('Loading...');
+  var u=path=='/'?'/api/ls':'/api/ls'+path;
+  fetch(u).then(function(r){return r.json()}).then(function(files){
+    files=files.filter(function(f){return f.name[0]!='.'});
+    files.sort(function(a,b){return a.type!=b.type?(a.type=='dir'?-1:1):a.name.localeCompare(b.name)});
+    var L=$('left');L.innerHTML='';
+    if(path!='/'){var d=document.createElement('div');d.className='f';d.innerHTML='<i>^</i><b>..</b>';d.onclick=function(){go(up(path))};L.appendChild(d)}
+    files.forEach(function(f){
+      var d=document.createElement('div');d.className='f';
+      var ic=f.type=='dir'?'D':(isImg(f.name)?'I':'F');
+      d.innerHTML='<i>'+ic+'</i><b>'+esc(f.name)+(f.type=='dir'?'/':'')+'</b>'+(f.type!='dir'?'<s>'+sz(f.size)+'</s>':'');
+      d.onclick=function(){
+        if(f.type=='dir'){go(pj(path,f.name))}
+        else{L.querySelectorAll('.f').forEach(function(e){e.classList.remove('sel')});d.classList.add('sel');open(pj(path,f.name),f)}
+      };L.appendChild(d)});
+    st(files.length+' items');
+  }).catch(function(e){st('Error: '+e.message)});
+}
+
+function open(path,info){
+  if(dirty&&!confirm('Discard changes?'))return;
+  sel=path;dirty=false;
+  $('rbar').style.display='flex';$('rp').textContent=path;
+  var dl=$('bdl');dl.href='/api/raw'+path;dl.download=path.split('/').pop();dl.style.display='inline';
+  var name=path.split('/').pop(),V=$('view'),S=$('bsv');
+  if(isTxt(name)){
+    st('Loading...');S.style.display='inline';ed=true;
+    fetch('/api/raw'+path).then(function(r){return r.text()}).then(function(t){
+      V.innerHTML='<textarea id="ed"></textarea>';var e=$('ed');e.value=t;
+      e.oninput=function(){dirty=true};
+      e.onkeydown=function(ev){if(ev.key=='Tab'){ev.preventDefault();var s=e.selectionStart;e.value=e.value.substring(0,s)+'    '+e.value.substring(e.selectionEnd);e.selectionStart=e.selectionEnd=s+4;dirty=true}};
+      st('Editing '+name);
+    });
+  } else if(isImg(name)){
+    V.innerHTML='<img class="p" src="/api/raw'+path+'">';S.style.display='none';ed=false;st(name);
+  } else {
+    V.innerHTML='<div style="padding:20px;color:#888;text-align:center"><p>'+esc(name)+'</p><p>'+sz(info.size)+'</p></div>';
+    S.style.display='none';ed=false;st(name+' '+sz(info.size));
+  }
+}
+
+function doSave(){if(!sel||!ed)return;var c=$('ed').value;st('Saving...');var b=$('bsv');
+  fetch('/api/write'+sel,{method:'POST',body:c}).then(function(r){return r.text()}).then(function(t){var j=JSON.parse(t);if(j.ok){st('Saved OK ('+sz(j.size||c.length)+')');dirty=false;b.style.background='#0a0';b.textContent='OK';setTimeout(function(){b.style.background='';b.textContent='Save'},1500)}else st('Err: '+j.error)})}
+function doDel(){if(!sel||!confirm('Delete '+sel+'?'))return;st('Deleting...');
+  fetch('/api/rm'+sel,{method:'POST'}).then(function(r){return r.text()}).then(function(t){var j=JSON.parse(t);if(j.ok){st('Deleted');sel=null;ed=false;dirty=false;$('rbar').style.display='none';$('view').innerHTML='';go(cwd)}else st('Err: '+j.error)})}
+function doUpload(){$('fi').click()}
+function upFiles(files){var i=0;function nx(){if(i>=files.length){$('fi').value='';go(cwd);return}var f=files[i++];st('Upload '+f.name+'...');
+  f.arrayBuffer().then(function(b){return fetch('/api/write'+pj(cwd,f.name),{method:'POST',body:b})}).then(function(r){return r.text()}).then(function(){nx()})}nx()}
+function doMkdir(){var n=prompt('Name:');if(!n)return;st('Creating...');
+  fetch('/api/mkdir'+pj(cwd,n.trim()),{method:'POST'}).then(function(r){return r.text()}).then(function(t){var j=JSON.parse(t);if(j.ok)go(cwd);else st('Err: '+j.error)})}
+document.onkeydown=function(e){if((e.ctrlKey||e.metaKey)&&e.key=='s'){e.preventDefault();doSave()}};
+go('/');
+</script>
+</body>
+</html>

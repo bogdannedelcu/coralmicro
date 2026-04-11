@@ -140,6 +140,9 @@ SECTIONS
      *liblibs_nxp_rt1176-sdk_lwip_mdns.a:*(.text .text*)
      *liblibs_nxp_rt1176-sdk_lwip_mdns.a:*(.data .data*)
      *liblibs_nxp_rt1176-sdk_lwip_mdns.a:*(.rodata .rodata*)
+     *liblibs_base-m7_http_server.a:*(.text .text*)
+     *liblibs_base-m7_http_server.a:*(.data .data*)
+     *liblibs_base-m7_http_server.a:*(.rodata .rodata*)
      __lwip_end = .;
      . = ALIGN(4);
   } > m_ocram
@@ -257,7 +260,21 @@ SECTIONS
      *libnanopb.a:*(.text .text*)
      *libnanopb.a:*(.data .data*)
      *libnanopb.a:*(.rodata .rodata*)
+     *sentai_httpd.cc.obj(.text .text*)
+     *sentai_httpd.cc.obj(.data .data*)
+     *sentai_httpd.cc.obj(.rodata .rodata*)
      __sentai_slow_end = .;
+     . = ALIGN(4);
+  } > m_ocram
+
+  .cdc_ncm :
+  {
+     . = ALIGN(4);
+     __cdc_ncm_start = .;
+     *liblibs_cdc_ncm_freertos.a:*(.text .text*)
+     *liblibs_cdc_ncm_freertos.a:*(.data .data*)
+     *liblibs_cdc_ncm_freertos.a:*(.rodata .rodata*)
+     __cdc_ncm_end = .;
      . = ALIGN(4);
   } > m_ocram
 
@@ -486,8 +503,32 @@ SECTIONS
     __START_BSS = .;
     __bss_start__ = .;
     *(m_usb_dma_noninit_data)
-    *(.bss)
-    *(.bss*)
+    *(EXCLUDE_FILE(
+        *liblibmicropython.a
+        *liblibs_audio_freertos.a
+        *liblibs_nxp_rt1176-sdk_lwip_httpd.a
+        *liblibs_base-m7_http_server.a
+        *sentai_httpd.cc.obj
+        *lib_crypto_m7.a
+        *libedgefast_bluetooth_internal.a
+        *libethermind_ble_protocol.a
+        *libethermind_ble_gatt.a
+        *libethermind_ble_core.a
+        *libethermind_ble_util.a
+    ) .bss)
+    *(EXCLUDE_FILE(
+        *liblibmicropython.a
+        *liblibs_audio_freertos.a
+        *liblibs_nxp_rt1176-sdk_lwip_httpd.a
+        *liblibs_base-m7_http_server.a
+        *sentai_httpd.cc.obj
+        *lib_crypto_m7.a
+        *libedgefast_bluetooth_internal.a
+        *libethermind_ble_protocol.a
+        *libethermind_ble_gatt.a
+        *libethermind_ble_core.a
+        *libethermind_ble_util.a
+    ) .bss*)
     *(COMMON)
     . = ALIGN(4);
     __bss_end__ = .;
@@ -506,6 +547,10 @@ SECTIONS
     *liblibmicropython.a:*(.bss .bss*)
     /* audio_bss — AudioDriver/Service internals are not DMA-critical */
     *liblibs_audio_freertos.a:*(.bss .bss*)
+    /* httpd_bss — HTTP server state (no DMA) */
+    *liblibs_nxp_rt1176-sdk_lwip_httpd.a:*(.bss .bss*)
+    *liblibs_base-m7_http_server.a:*(.bss .bss*)
+    *sentai_httpd.cc.obj(.bss .bss*)
     /* edgefast_bluetooth_bss */
     *lib_crypto_m7.a:*(.bss .bss*)
     *libedgefast_bluetooth_internal.a:*(.bss .bss*)

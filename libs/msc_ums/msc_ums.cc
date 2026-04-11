@@ -220,6 +220,12 @@ usb_status_t MscUms::Handler(uint32_t event, void *param) {
         ufi->requestSense->additionalSenseCode = 0x3A;  // MEDIUM NOT PRESENT
         ufi->requestSense->additionalSenseQualifer = 0x00;
         error = kStatus_USB_Error;
+      } else if (media_changed_) {
+        media_changed_ = false;
+        ufi->requestSense->senseKey = 0x06;  // UNIT ATTENTION
+        ufi->requestSense->additionalSenseCode = 0x28;  // NOT READY TO READY CHANGE
+        ufi->requestSense->additionalSenseQualifer = 0x00;
+        error = kStatus_USB_Error;  // first TUR after insert fails with UA
       }
       break;
     case kUSB_DeviceMscEventInquiry:

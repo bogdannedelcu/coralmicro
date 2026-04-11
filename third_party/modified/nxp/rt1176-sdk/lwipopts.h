@@ -17,6 +17,11 @@
 extern "C" {
 #endif
 
+/* ---------- HTTPD performance ---------- */
+#define HTTPD_LIMIT_SENDING_TO_2MSS   0
+#define LWIP_HTTPD_SUPPORT_11_KEEPALIVE 1
+#define HTTPD_POLL_INTERVAL           1
+
 /**
  * MEMP_NUM_TCPIP_MSG_API: the number of struct tcpip_msg, which are used
  * for callback/timeout API communication.
@@ -113,7 +118,7 @@ void sys_mark_tcpip_thread(void);
 /* MEMP_NUM_TCP_SEG: the number of simultaneously queued TCP
    segments. */
 #ifndef MEMP_NUM_TCP_SEG
-#define MEMP_NUM_TCP_SEG 22
+#define MEMP_NUM_TCP_SEG 64
 #endif
 /* MEMP_NUM_SYS_TIMEOUT: the number of simulateously active
    timeouts. */
@@ -158,7 +163,7 @@ void sys_mark_tcpip_thread(void);
 
 /* TCP sender buffer space (bytes). */
 #ifndef TCP_SND_BUF
-#define TCP_SND_BUF (6 * TCP_MSS) // 2
+#define TCP_SND_BUF (16 * TCP_MSS)
 #endif
 
 /* TCP sender buffer space (pbufs). This must be at least = 2 *

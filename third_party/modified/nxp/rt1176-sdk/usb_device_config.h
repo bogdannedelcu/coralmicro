@@ -49,7 +49,9 @@
 #define USB_DEVICE_CONFIG_HID (1U)
 
 /*! @brief CDC ACM instance count */
-#define USB_DEVICE_CONFIG_CDC_ACM (1U)
+#ifndef USB_DEVICE_CONFIG_CDC_ACM
+#define USB_DEVICE_CONFIG_CDC_ACM (2U)
+#endif
 
 /*! @brief CDC EEM instance count */
 #define USB_DEVICE_CONFIG_CDC_EEM (1U)
