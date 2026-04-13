@@ -126,13 +126,15 @@ class CdcNcm {
   void TaskFunction(void *param);
 
   err_t TransmitFrame(void *buffer, uint32_t length);
+  err_t TransmitNtb(void *buffers[], uint16_t lengths[], uint32_t count);
   void ProcessRxNtb(uint8_t *buffer, uint32_t length);
 
-  // NTB sizes — tuned to fit in DTCM (m_data).
-  // Single datagram per NTB: NTH16(12) + frame(<=1514) + pad(<=3) + NDP16(16) = ~1545
-  static constexpr uint32_t kNtbMaxSize = 1600;
+  // NTB size: 16 KB allows ~10 aggregated Ethernet frames per USB transfer.
+  static constexpr uint32_t kNtbMaxSize = 16384;
   // Max Ethernet frame
   static constexpr size_t kMaxFrameSize = 1514;
+  // Max datagrams aggregated into one NTB
+  static constexpr uint32_t kMaxDatagramsPerNtb = 10;
 
   class_handle_t class_handle_ = nullptr;
   volatile bool attached_ = false;

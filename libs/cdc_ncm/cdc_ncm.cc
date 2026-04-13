@@ -94,11 +94,39 @@ void CdcNcm::Init(uint8_t interrupt_ep, uint8_t bulk_in_ep,
 
 void CdcNcm::TaskFunction(void *param) {
   while (true) {
-    std::vector<uint8_t> *packet;
-    if (xQueueReceive(tx_queue_, &packet, portMAX_DELAY) == pdTRUE) {
-      TransmitFrame(packet->data(), packet->size());
-      delete packet;
+    std::vector<uint8_t> *first;
+    if (xQueueReceive(tx_queue_, &first, portMAX_DELAY) != pdTRUE) continue;
+
+    // Aggregate queued packets into one NTB
+    std::vector<uint8_t> *pkts[kMaxDatagramsPerNtb];
+    void *bufs[kMaxDatagramsPerNtb];
+    uint16_t lens[kMaxDatagramsPerNtb];
+    uint32_t n = 0;
+    pkts[n] = first;
+    bufs[n] = first->data();
+    lens[n] = first->size();
+    uint32_t payload_sum = lens[n];
+    n++;
+
+    while (n < kMaxDatagramsPerNtb) {
+      // Estimate total NTB size with one more max-size frame
+      uint32_t ndp_size = sizeof(NcmNdp16Header) +
+                          (n + 2) * sizeof(NcmNdp16Datagram);
+      uint32_t est = sizeof(NcmNth16) + payload_sum + n * 3 +
+                     kMaxFrameSize + 3 + ndp_size;
+      if (est > kNtbMaxSize) break;
+
+      std::vector<uint8_t> *pkt;
+      if (xQueueReceive(tx_queue_, &pkt, 0) != pdTRUE) break;
+      pkts[n] = pkt;
+      bufs[n] = pkt->data();
+      lens[n] = pkt->size();
+      payload_sum += lens[n];
+      n++;
     }
+
+    TransmitNtb(bufs, lens, n);
+    for (uint32_t i = 0; i < n; i++) delete pkts[i];
   }
 }
 
@@ -191,6 +219,84 @@ err_t CdcNcm::TransmitFrame(void *buffer, uint32_t length) {
   }
 
   // Send ZLP if needed
+  if (status == kStatus_USB_Success &&
+      (total_len % cdc_acm_data_endpoints_[DATA_IN].maxPacketSize) == 0) {
+    static uint8_t zlp = 0;
+    USB_DeviceCdcAcmSend(class_handle_, bulk_in_ep_, &zlp, 0);
+  }
+
+  if (status != kStatus_USB_Success) {
+    return ERR_IF;
+  }
+  return ERR_OK;
+}
+
+err_t CdcNcm::TransmitNtb(void *buffers[], uint16_t lengths[],
+                          uint32_t count) {
+  if (!attached_ || count == 0) return ERR_IF;
+
+  memset(tx_buffer_, 0, sizeof(NcmNth16));  // Only clear header
+
+  // Pack datagrams after NTH16
+  uint16_t offset = sizeof(NcmNth16);
+  struct { uint16_t off; uint16_t len; } dg[kMaxDatagramsPerNtb];
+  uint32_t actual = 0;
+
+  for (uint32_t i = 0; i < count; i++) {
+    uint16_t len = lengths[i];
+    if (len > kMaxFrameSize) len = kMaxFrameSize;
+    // Ensure room for datagram + NDP
+    uint32_t ndp_size = sizeof(NcmNdp16Header) +
+                        (actual + 2) * sizeof(NcmNdp16Datagram);
+    if (offset + len + 3 + ndp_size > kNtbMaxSize) break;
+
+    dg[actual].off = offset;
+    dg[actual].len = len;
+    memcpy(tx_buffer_ + offset, buffers[i], len);
+    offset = (offset + len + 3) & ~3U;  // align to 4
+    actual++;
+  }
+
+  if (actual == 0) return ERR_BUF;
+
+  // NDP16 after all datagrams, aligned to 4
+  uint16_t ndp_offset = (offset + 3) & ~3U;
+  NcmNdp16Header *ndp =
+      reinterpret_cast<NcmNdp16Header *>(tx_buffer_ + ndp_offset);
+  ndp->signature = NDP16_SIGNATURE;
+  ndp->length = sizeof(NcmNdp16Header) +
+                (actual + 1) * sizeof(NcmNdp16Datagram);
+  ndp->next_ndp_index = 0;
+
+  NcmNdp16Datagram *entries = reinterpret_cast<NcmNdp16Datagram *>(
+      tx_buffer_ + ndp_offset + sizeof(NcmNdp16Header));
+  for (uint32_t i = 0; i < actual; i++) {
+    entries[i].datagram_index = dg[i].off;
+    entries[i].datagram_length = dg[i].len;
+  }
+  entries[actual].datagram_index = 0;
+  entries[actual].datagram_length = 0;
+
+  uint16_t total_len = ndp_offset + ndp->length;
+
+  NcmNth16 *nth = reinterpret_cast<NcmNth16 *>(tx_buffer_);
+  nth->signature = NTH16_SIGNATURE;
+  nth->header_length = sizeof(NcmNth16);
+  nth->sequence = tx_sequence_++;
+  nth->block_length = total_len;
+  nth->ndp_index = ndp_offset;
+
+  usb_status_t status;
+  while (true) {
+    status = USB_DeviceCdcAcmSend(class_handle_, bulk_in_ep_, tx_buffer_,
+                                  total_len);
+    if (status == kStatus_USB_Busy) {
+      taskYIELD();
+    } else {
+      break;
+    }
+  }
+
   if (status == kStatus_USB_Success &&
       (total_len % cdc_acm_data_endpoints_[DATA_IN].maxPacketSize) == 0) {
     static uint8_t zlp = 0;
