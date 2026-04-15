@@ -151,6 +151,167 @@ static mp_obj_t mod_sentai_link_command(size_t n_args, const mp_obj_t *args) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_link_command_obj, 3, 11, mod_sentai_link_command);
 
+// sentai.link.obstacle_distance(distances72,
+//                               increment_deg=5, min_cm=20, max_cm=800,
+//                               increment_f_deg=0.0, angle_offset_deg=0.0,
+//                               sensor_type=0, frame=12) -> int
+static mp_obj_t mod_sentai_link_obstacle_distance(size_t n_args, const mp_obj_t *args) {
+    mp_uint_t n = 0;
+    mp_obj_t *items = NULL;
+    mp_obj_get_array(args[0], &n, &items);
+    if (n != 72) {
+        mp_raise_ValueError(MP_ERROR_TEXT("distances must have 72 elements"));
+    }
+
+    uint16_t distances[72];
+    for (mp_uint_t i = 0; i < 72; ++i) {
+        int v = mp_obj_get_int(items[i]);
+        if (v < 0) v = 0;
+        if (v > 65535) v = 65535;
+        distances[i] = (uint16_t)v;
+    }
+
+    uint8_t increment_deg = (n_args > 1) ? (uint8_t)mp_obj_get_int(args[1]) : 5;
+    uint16_t min_cm = (n_args > 2) ? (uint16_t)mp_obj_get_int(args[2]) : 20;
+    uint16_t max_cm = (n_args > 3) ? (uint16_t)mp_obj_get_int(args[3]) : 800;
+    float increment_f_deg = (n_args > 4) ? mp_obj_get_float(args[4]) : 0.0f;
+    float angle_offset_deg = (n_args > 5) ? mp_obj_get_float(args[5]) : 0.0f;
+    uint8_t sensor_type = (n_args > 6) ? (uint8_t)mp_obj_get_int(args[6]) : 0;
+    uint8_t frame = (n_args > 7) ? (uint8_t)mp_obj_get_int(args[7]) : 12;
+
+    return mp_obj_new_int(sentai_link_send_obstacle_distance(
+        distances,
+        increment_deg,
+        min_cm,
+        max_cm,
+        increment_f_deg,
+        angle_offset_deg,
+        sensor_type,
+        frame));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_link_obstacle_distance_obj, 1, 8,
+                                           mod_sentai_link_obstacle_distance);
+
+// sentai.link.obstacles_from_tracker(max_cm=800, min_cm=20,
+//                                    h_fov_deg=360.0, increment_deg=5,
+//                                    include_lost=0, angle_offset_deg=0.0,
+//                                    sensor_type=0, frame=12) -> int
+static mp_obj_t mod_sentai_link_obstacles_from_tracker(size_t n_args, const mp_obj_t *args) {
+    uint16_t max_cm = (n_args > 0) ? (uint16_t)mp_obj_get_int(args[0]) : 800;
+    uint16_t min_cm = (n_args > 1) ? (uint16_t)mp_obj_get_int(args[1]) : 20;
+    float h_fov_deg = (n_args > 2) ? mp_obj_get_float(args[2]) : 360.0f;
+    uint8_t increment_deg = (n_args > 3) ? (uint8_t)mp_obj_get_int(args[3]) : 5;
+    uint8_t include_lost = (n_args > 4) ? (uint8_t)mp_obj_get_int(args[4]) : 0;
+    float angle_offset_deg = (n_args > 5) ? mp_obj_get_float(args[5]) : 0.0f;
+    uint8_t sensor_type = (n_args > 6) ? (uint8_t)mp_obj_get_int(args[6]) : 0;
+    uint8_t frame = (n_args > 7) ? (uint8_t)mp_obj_get_int(args[7]) : 12;
+
+    return mp_obj_new_int(sentai_link_send_obstacles_from_tracker(
+        max_cm,
+        min_cm,
+        h_fov_deg,
+        increment_deg,
+        include_lost,
+        angle_offset_deg,
+        sensor_type,
+        frame));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_link_obstacles_from_tracker_obj, 0, 8,
+                                           mod_sentai_link_obstacles_from_tracker);
+
+// sentai.link.obstacles_from_points(points,
+//                                   radii=None,
+//                                   max_cm=800, min_cm=20,
+//                                   increment_deg=5, angle_offset_deg=0.0,
+//                                   sensor_type=0, frame=12) -> int
+// points can be [(x,y), ...] or flat [x0,y0,x1,y1,...]
+static mp_obj_t mod_sentai_link_obstacles_from_points(size_t n_args, const mp_obj_t *args) {
+    mp_uint_t p_len = 0;
+    mp_obj_t *p_items = NULL;
+    mp_obj_get_array(args[0], &p_len, &p_items);
+
+    int count = 0;
+    int nested_points = 0;
+    if (p_len > 0 && (mp_obj_is_type(p_items[0], &mp_type_tuple) ||
+                      mp_obj_is_type(p_items[0], &mp_type_list))) {
+        nested_points = 1;
+        count = (int)p_len;
+    } else {
+        if ((p_len % 2) != 0) {
+            mp_raise_ValueError(MP_ERROR_TEXT("flat points length must be even"));
+        }
+        count = (int)(p_len / 2);
+    }
+
+    int32_t *points_xy = NULL;
+    uint16_t *radii = NULL;
+    if (count > 0) {
+        points_xy = m_new(int32_t, count * 2);
+        if (nested_points) {
+            for (int i = 0; i < count; ++i) {
+                mp_uint_t tlen = 0;
+                mp_obj_t *titems = NULL;
+                mp_obj_get_array(p_items[i], &tlen, &titems);
+                if (tlen < 2) {
+                    m_del(int32_t, points_xy, count * 2);
+                    mp_raise_ValueError(MP_ERROR_TEXT("each point must have at least 2 elements"));
+                }
+                points_xy[i * 2 + 0] = (int32_t)mp_obj_get_int(titems[0]);
+                points_xy[i * 2 + 1] = (int32_t)mp_obj_get_int(titems[1]);
+            }
+        } else {
+            for (int i = 0; i < count; ++i) {
+                points_xy[i * 2 + 0] = (int32_t)mp_obj_get_int(p_items[i * 2 + 0]);
+                points_xy[i * 2 + 1] = (int32_t)mp_obj_get_int(p_items[i * 2 + 1]);
+            }
+        }
+    }
+
+    if (n_args > 1 && args[1] != mp_const_none) {
+        mp_uint_t r_len = 0;
+        mp_obj_t *r_items = NULL;
+        mp_obj_get_array(args[1], &r_len, &r_items);
+        if ((int)r_len != count) {
+            if (points_xy) m_del(int32_t, points_xy, count * 2);
+            mp_raise_ValueError(MP_ERROR_TEXT("radii length must match points count"));
+        }
+        if (count > 0) {
+            radii = m_new(uint16_t, count);
+            for (int i = 0; i < count; ++i) {
+                int v = mp_obj_get_int(r_items[i]);
+                if (v < 0) v = 0;
+                if (v > 65535) v = 65535;
+                radii[i] = (uint16_t)v;
+            }
+        }
+    }
+
+    uint16_t max_cm = (n_args > 2) ? (uint16_t)mp_obj_get_int(args[2]) : 800;
+    uint16_t min_cm = (n_args > 3) ? (uint16_t)mp_obj_get_int(args[3]) : 20;
+    uint8_t increment_deg = (n_args > 4) ? (uint8_t)mp_obj_get_int(args[4]) : 5;
+    float angle_offset_deg = (n_args > 5) ? mp_obj_get_float(args[5]) : 0.0f;
+    uint8_t sensor_type = (n_args > 6) ? (uint8_t)mp_obj_get_int(args[6]) : 0;
+    uint8_t frame = (n_args > 7) ? (uint8_t)mp_obj_get_int(args[7]) : 12;
+
+    int32_t empty_points[2] = {0, 0};
+    int rc = sentai_link_send_obstacles_from_points(
+        (count > 0) ? points_xy : empty_points,
+        radii,
+        count,
+        max_cm,
+        min_cm,
+        increment_deg,
+        angle_offset_deg,
+        sensor_type,
+        frame);
+
+    if (radii) m_del(uint16_t, radii, count);
+    if (points_xy) m_del(int32_t, points_xy, count * 2);
+    return mp_obj_new_int(rc);
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_link_obstacles_from_points_obj, 1, 8,
+                                           mod_sentai_link_obstacles_from_points);
+
 // sentai.link.available() -> int
 static mp_obj_t mod_sentai_link_available(void) {
     return mp_obj_new_int(sentai_link_available());
@@ -220,6 +381,9 @@ static const mp_rom_map_elem_t sentai_link_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_send_update),       MP_ROM_PTR(&mod_sentai_link_send_update_obj) },
     { MP_ROM_QSTR(MP_QSTR_send_delete),       MP_ROM_PTR(&mod_sentai_link_send_delete_obj) },
     { MP_ROM_QSTR(MP_QSTR_command),           MP_ROM_PTR(&mod_sentai_link_command_obj) },
+    { MP_ROM_QSTR(MP_QSTR_obstacle_distance), MP_ROM_PTR(&mod_sentai_link_obstacle_distance_obj) },
+    { MP_ROM_QSTR(MP_QSTR_obstacles_from_tracker), MP_ROM_PTR(&mod_sentai_link_obstacles_from_tracker_obj) },
+    { MP_ROM_QSTR(MP_QSTR_obstacles_from_points), MP_ROM_PTR(&mod_sentai_link_obstacles_from_points_obj) },
     { MP_ROM_QSTR(MP_QSTR_available),         MP_ROM_PTR(&mod_sentai_link_available_obj) },
     { MP_ROM_QSTR(MP_QSTR_receive),           MP_ROM_PTR(&mod_sentai_link_receive_obj) },
 };

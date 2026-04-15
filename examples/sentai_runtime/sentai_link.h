@@ -112,6 +112,45 @@ int sentai_link_send_command_long(
     float param1, float param2, float param3, float param4,
     float param5, float param6, float param7);
 
+// Send MAVLink OBSTACLE_DISTANCE (msgid 330).
+// distances_cm must have exactly 72 entries (cm units).
+int sentai_link_send_obstacle_distance(
+    const uint16_t* distances_cm,
+    uint8_t increment_deg,
+    uint16_t min_distance_cm,
+    uint16_t max_distance_cm,
+    float increment_f_deg,
+    float angle_offset_deg,
+    uint8_t sensor_type,
+    uint8_t frame);
+
+// Build and send OBSTACLE_DISTANCE from current tracker tracks.
+// Uses tracker ground coordinates (gx_cm/gy_cm/dist_cm/width_cm), taking
+// camera mount orientation from tracker camera_config()/set_pose().
+int sentai_link_send_obstacles_from_tracker(
+    uint16_t max_distance_cm,
+    uint16_t min_distance_cm,
+    float horizontal_fov_deg,
+    uint8_t increment_deg,
+    uint8_t include_lost,
+    float angle_offset_deg,
+    uint8_t sensor_type,
+    uint8_t frame);
+
+// Build and send OBSTACLE_DISTANCE from arbitrary 2D obstacle points.
+// points_xy_cm: flat array [x_cm0, y_cm0, x_cm1, y_cm1, ...]
+// radii_cm: optional radius per point (may be NULL).
+int sentai_link_send_obstacles_from_points(
+    const int32_t* points_xy_cm,
+    const uint16_t* radii_cm,
+    int count,
+    uint16_t max_distance_cm,
+    uint16_t min_distance_cm,
+    uint8_t increment_deg,
+    float angle_offset_deg,
+    uint8_t sensor_type,
+    uint8_t frame);
+
 #ifdef __cplusplus
 }
 #endif

@@ -388,6 +388,182 @@ extern "C" int sentai_link_send_command_long(
     return link_send_msg(&msg);
 }
 
+// ===================== TX: OBSTACLE_DISTANCE =====================
+static constexpr int kObstacleBins = 72;
+static constexpr float kRadToDeg = 57.2957795f;
+
+static float wrap_deg_360(float a) {
+    while (a < 0.0f) a += 360.0f;
+    while (a >= 360.0f) a -= 360.0f;
+    return a;
+}
+
+static float wrap_deg_180(float a) {
+    while (a <= -180.0f) a += 360.0f;
+    while (a > 180.0f) a -= 360.0f;
+    return a;
+}
+
+static uint16_t obstacle_no_obstacle_value(uint16_t max_distance_cm) {
+    return (max_distance_cm < 65534u)
+        ? (uint16_t)(max_distance_cm + 1u)
+        : (uint16_t)UINT16_MAX;
+}
+
+static void obstacle_bins_reset(uint16_t* bins, uint16_t max_distance_cm) {
+    const uint16_t no_obstacle = obstacle_no_obstacle_value(max_distance_cm);
+    for (int i = 0; i < kObstacleBins; ++i) bins[i] = no_obstacle;
+}
+
+static void obstacle_add_point(uint16_t* bins,
+                               int32_t x_cm,
+                               int32_t y_cm,
+                               uint16_t radius_cm,
+                               uint16_t min_distance_cm,
+                               uint16_t max_distance_cm,
+                               float increment_deg,
+                               float angle_offset_deg) {
+    if (!bins || increment_deg <= 0.0f || max_distance_cm < min_distance_cm) return;
+
+    const float fx = (float)x_cm;
+    const float fy = (float)y_cm;
+    const float dist_center = sqrtf(fx * fx + fy * fy);
+    float dist_edge = dist_center - (float)radius_cm;
+    if (dist_edge < 0.0f) dist_edge = 0.0f;
+    if (dist_edge > (float)max_distance_cm) return;
+    if (dist_edge < (float)min_distance_cm) dist_edge = (float)min_distance_cm;
+
+    // Tracker/projected coords convention: +x right, +y forward.
+    // OBSTACLE_DISTANCE angle 0 is forward and positive is clockwise.
+    const float angle_deg = atan2f(fx, fy) * kRadToDeg;
+    const float rel_deg = wrap_deg_360(angle_deg - angle_offset_deg);
+    int bin = (int)floorf(rel_deg / increment_deg);
+    if (bin < 0) bin = 0;
+    if (bin >= kObstacleBins) bin = kObstacleBins - 1;
+
+    const uint16_t d_cm = (uint16_t)(dist_edge + 0.5f);
+    if (d_cm < bins[bin]) bins[bin] = d_cm;
+}
+
+extern "C" int sentai_link_send_obstacle_distance(
+    const uint16_t* distances_cm,
+    uint8_t increment_deg,
+    uint16_t min_distance_cm,
+    uint16_t max_distance_cm,
+    float increment_f_deg,
+    float angle_offset_deg,
+    uint8_t sensor_type,
+    uint8_t frame)
+{
+    if (!g_link_running) return -1;
+    if (!distances_cm) return -2;
+    if (max_distance_cm < min_distance_cm) return -3;
+
+    if (increment_deg == 0 && increment_f_deg == 0.0f) increment_deg = 5;
+    if (increment_f_deg == 0.0f) increment_f_deg = (float)increment_deg;
+
+    mavlink_message_t msg;
+    const uint64_t now_usec = (uint64_t)xTaskGetTickCount() * 1000ULL;
+    mavlink_msg_obstacle_distance_pack(
+        g_link_sysid, g_link_compid, &msg,
+        now_usec,
+        sensor_type,
+        distances_cm,
+        increment_deg,
+        min_distance_cm,
+        max_distance_cm,
+        increment_f_deg,
+        angle_offset_deg,
+        frame);
+    return link_send_msg(&msg);
+}
+
+extern "C" int sentai_link_send_obstacles_from_tracker(
+    uint16_t max_distance_cm,
+    uint16_t min_distance_cm,
+    float horizontal_fov_deg,
+    uint8_t increment_deg,
+    uint8_t include_lost,
+    float angle_offset_deg,
+    uint8_t sensor_type,
+    uint8_t frame)
+{
+    if (max_distance_cm < min_distance_cm) return -2;
+
+    uint16_t bins[kObstacleBins];
+    obstacle_bins_reset(bins, max_distance_cm);
+
+    TrackedObject tracks[TRACKER_MAX_TRACKS];
+    const int n = sentai_tracker_get_tracks(tracks, TRACKER_MAX_TRACKS);
+    float increment = (increment_deg > 0) ? (float)increment_deg : 5.0f;
+    const int use_fov = (horizontal_fov_deg > 0.0f && horizontal_fov_deg < 360.0f);
+    const float half_fov = horizontal_fov_deg * 0.5f;
+
+    for (int i = 0; i < n; ++i) {
+        const TrackedObject* t = &tracks[i];
+        if (!include_lost && t->state == TRACK_LOST) continue;
+
+        // No pose/projection configured: skip invalid origin placeholder.
+        if (t->gx_cm == 0 && t->gy_cm == 0 && t->dist_cm == 0 && t->width_cm == 0) continue;
+
+        const float angle_deg = atan2f((float)t->gx_cm, (float)t->gy_cm) * kRadToDeg;
+        if (use_fov && fabsf(wrap_deg_180(angle_deg)) > half_fov) continue;
+
+        const uint16_t radius_cm = (t->width_cm > 0) ? (uint16_t)(t->width_cm / 2) : 0;
+        obstacle_add_point(bins, t->gx_cm, t->gy_cm, radius_cm,
+                           min_distance_cm, max_distance_cm,
+                           increment, angle_offset_deg);
+    }
+
+    return sentai_link_send_obstacle_distance(
+        bins,
+        increment_deg,
+        min_distance_cm,
+        max_distance_cm,
+        increment,
+        angle_offset_deg,
+        sensor_type,
+        frame);
+}
+
+extern "C" int sentai_link_send_obstacles_from_points(
+    const int32_t* points_xy_cm,
+    const uint16_t* radii_cm,
+    int count,
+    uint16_t max_distance_cm,
+    uint16_t min_distance_cm,
+    uint8_t increment_deg,
+    float angle_offset_deg,
+    uint8_t sensor_type,
+    uint8_t frame)
+{
+    if (!points_xy_cm || count < 0) return -2;
+    if (max_distance_cm < min_distance_cm) return -3;
+
+    uint16_t bins[kObstacleBins];
+    obstacle_bins_reset(bins, max_distance_cm);
+    float increment = (increment_deg > 0) ? (float)increment_deg : 5.0f;
+
+    for (int i = 0; i < count; ++i) {
+        const int32_t x_cm = points_xy_cm[i * 2 + 0];
+        const int32_t y_cm = points_xy_cm[i * 2 + 1];
+        const uint16_t radius_cm = radii_cm ? radii_cm[i] : 0;
+        obstacle_add_point(bins, x_cm, y_cm, radius_cm,
+                           min_distance_cm, max_distance_cm,
+                           increment, angle_offset_deg);
+    }
+
+    return sentai_link_send_obstacle_distance(
+        bins,
+        increment_deg,
+        min_distance_cm,
+        max_distance_cm,
+        increment,
+        angle_offset_deg,
+        sensor_type,
+        frame);
+}
+
 // ===================== Debug level =====================
 extern "C" void sentai_link_set_debug(int level) {
     g_link_debug = level;

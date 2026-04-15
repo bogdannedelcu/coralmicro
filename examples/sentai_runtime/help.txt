@@ -438,26 +438,76 @@ sentai.link - MAVLink v2 telemetry bridge
   --- Vision over MAVLink (base64 STATUSTEXT chunks) ---
   send_detection(sensor_id, track_id, alarm_type, timestamp, seq,
                  x, y, w, h, conf, class_id,
-                 [embedding, crc8, severity=6])
+                 [gx_cm, gy_cm, width_cm, severity=6])
   send_update(sensor_id, track_id, alarm_type, timestamp, seq,
-              x, y, w, h, conf, age, [severity=6])
+              x, y, w, h, conf, age, [gx_cm, gy_cm, severity=6])
+  send_delete(sensor_id, track_id, alarm_type, timestamp, seq,
+              reason, age, total_hits, [gx_cm, gy_cm, severity=6])
 
   VisionMessage is nanopb-encoded, base64-encoded, then split into
   50-char STATUSTEXT chunks with id + chunk_seq for reassembly.
 
-  Example:
-    sentai.link.init(57600)          # connect to autopilot
-    sentai.link.heartbeat()          # send heartbeat
-    sentai.link.send('Hello GCS')    # send status text
+  --- PX4 Collision Prevention (MAVLink OBSTACLE_DISTANCE, msgid 330) ---
+  Sends a 72-bin radial obstacle map to PX4 collision prevention.
+  All distances in cm. Angle 0 = vehicle forward, clockwise positive.
+  Coordinates are BODY-relative (no compass required).
+  Obstacle data comes from the tracker ground projection — requires
+  sentai.pipeline.set_pose(altitude_cm, ...) to be configured first.
+
+  obstacles_from_tracker([max_cm=800, min_cm=20,
+                          h_fov_deg=360.0, increment_deg=5,
+                          include_lost=0, angle_offset_deg=0.0,
+                          sensor_type=0, frame=12])
+                        Build obstacle map from current tracker tracks
+                        and send OBSTACLE_DISTANCE to PX4.
+                        Uses gx_cm/gy_cm/dist_cm/width_cm from tracks.
+                        frame=12 = MAV_FRAME_BODY_FRD (vehicle-relative).
+                        Returns 0 on success, negative on error.
+
+  obstacle_distance(distances72, [increment_deg=5, min_cm=20,
+                    max_cm=800, increment_f_deg=0.0,
+                    angle_offset_deg=0.0, sensor_type=0, frame=12])
+                        Send raw 72-element list as OBSTACLE_DISTANCE.
+                        distances72: list of 72 ints (cm); use
+                        max_cm+1 for "no obstacle", UINT16_MAX for unknown.
+
+  obstacles_from_points(points, [radii=None, max_cm=800, min_cm=20,
+                        increment_deg=5, angle_offset_deg=0.0,
+                        sensor_type=0, frame=12])
+                        Build obstacle map from arbitrary XY point list.
+                        points: [(x_cm, y_cm), ...] or flat [x0,y0,x1,y1,...]
+                        radii: optional list of int radii (cm) per point.
+                        Useful with sentai.slam.landmarks().
+
+  PX4 Collision Prevention example (tracker-based, drone with downward camera):
+    import sentai
+    sentai.pipeline.init()
+    sentai.pipeline.set_pose(120, -1, 0.0, 0.0)  # 120cm alt, no compass
+    sentai.link.init(57600)
+    sentai.link.heartbeat()
     while True:
-        msg = sentai.link.receive(5000)
-        if msg:
-            if msg['msgid'] == 33:   # GLOBAL_POSITION_INT
-                print('lat:', msg['lat'], 'lon:', msg['lon'])
-            elif msg['msgid'] == 32: # LOCAL_POSITION_NED
-                print('x:', msg['x'], 'y:', msg['y'], 'z:', msg['z'])
-            else:
-                print(msg['msgid'], msg['sysid'])
+        # send obstacle map from active tracker tracks
+        sentai.link.obstacles_from_tracker(800, 20)
+        sentai.link.heartbeat()
+        sentai.rtos.sleep_ms(100)   # ~10 Hz, PX4 needs >2 Hz
+
+  SLAM-based obstacles example:
+    import sentai
+    sentai.link.init(57600)
+    sentai.slam.init()
+    while True:
+        lms = sentai.slam.landmarks()
+        # landmarks: list of (id, class_id, x_cm, y_cm, seen)
+        pts = [(lm[2], lm[3]) for lm in lms if lm[4]]
+        sentai.link.obstacles_from_points(pts, max_cm=800)
+        sentai.rtos.sleep_ms(200)
+
+  Example with raw 72-bin array:
+    no_obs = 801  # max_cm + 1 = no obstacle
+    d = [no_obs] * 72
+    d[0] = 150    # 1.5m obstacle dead ahead
+    d[1] = 200
+    sentai.link.obstacle_distance(d, increment_deg=5, max_cm=800)
 
 [crazy]
 sentai.crazy - CrazyFlie autopilot bridge (CRTP over CPX over UART)
