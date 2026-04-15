@@ -396,6 +396,7 @@ static int hmm_load(const char* path) {
 
     int32_t* header = (int32_t*)buf;
     int N = header[0], M = header[1];
+    if (N < 1 || N > HMM_MAX_STATES || M < 1 || M > HMM_MAX_OBS) { free(buf); return -4; }
 
     size_t expected = 8 + N * 4 + N * N * 4 + N * M * 4;
     if (size != (int)expected) { free(buf); return -4; }
@@ -455,14 +456,16 @@ static MP_DEFINE_CONST_FUN_OBJ_2(mod_hmm_set_prior_obj, mod_hmm_set_prior);
 // sentai.hmm.add_seq(obs_list) -> int
 static mp_obj_t mod_hmm_add_seq(mp_obj_t seq_obj) {
     if (!g_hmm_initialized) return mp_obj_new_int(-1);
-    mp_obj_list_t* list = MP_OBJ_TO_PTR(seq_obj);
-    int len = list->len;
+    size_t arr_len;
+    mp_obj_t *arr_items;
+    mp_obj_get_array(seq_obj, &arr_len, &arr_items);
+    int len = (int)arr_len;
     if (len < 1 || len > HMM_MAX_SEQ_LEN) return mp_obj_new_int(-3);
 
     int* obs = (int*)malloc(len * sizeof(int));
     if (!obs) return mp_obj_new_int(-5);
     for (int i = 0; i < len; i++)
-        obs[i] = mp_obj_get_int(list->items[i]);
+        obs[i] = mp_obj_get_int(arr_items[i]);
 
     int rc = hmm_add_seq(obs, len);
     free(obs);
@@ -480,8 +483,10 @@ static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_hmm_train_obj, 0, 1, mod_hmm_trai
 // sentai.hmm.viterbi(obs_list) -> list (most likely state path)
 static mp_obj_t mod_hmm_viterbi(mp_obj_t seq_obj) {
     if (!g_hmm_initialized) return mp_const_none;
-    mp_obj_list_t* list = MP_OBJ_TO_PTR(seq_obj);
-    int T = list->len;
+    size_t arr_len;
+    mp_obj_t *arr_items;
+    mp_obj_get_array(seq_obj, &arr_len, &arr_items);
+    int T = (int)arr_len;
     if (T < 1 || T > HMM_MAX_SEQ_LEN) return mp_const_none;
 
     int* obs = (int*)malloc(T * sizeof(int));
@@ -492,7 +497,7 @@ static mp_obj_t mod_hmm_viterbi(mp_obj_t seq_obj) {
         return mp_const_none;
     }
 
-    for (int i = 0; i < T; i++) obs[i] = mp_obj_get_int(list->items[i]);
+    for (int i = 0; i < T; i++) obs[i] = mp_obj_get_int(arr_items[i]);
 
     hmm_viterbi(obs, T, path);
 
@@ -514,13 +519,15 @@ static MP_DEFINE_CONST_FUN_OBJ_1(mod_hmm_predict_obj, mod_hmm_predict);
 // sentai.hmm.log_likelihood(obs_list) -> float
 static mp_obj_t mod_hmm_log_likelihood(mp_obj_t seq_obj) {
     if (!g_hmm_initialized) return mp_obj_new_float(HMM_LOG_ZERO);
-    mp_obj_list_t* list = MP_OBJ_TO_PTR(seq_obj);
-    int T = list->len;
+    size_t arr_len;
+    mp_obj_t *arr_items;
+    mp_obj_get_array(seq_obj, &arr_len, &arr_items);
+    int T = (int)arr_len;
     if (T < 1 || T > HMM_MAX_SEQ_LEN) return mp_obj_new_float(HMM_LOG_ZERO);
 
     int* obs = (int*)malloc(T * sizeof(int));
     if (!obs) return mp_obj_new_float(HMM_LOG_ZERO);
-    for (int i = 0; i < T; i++) obs[i] = mp_obj_get_int(list->items[i]);
+    for (int i = 0; i < T; i++) obs[i] = mp_obj_get_int(arr_items[i]);
 
     float ll = hmm_forward(obs, T);
     free(obs);

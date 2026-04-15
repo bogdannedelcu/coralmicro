@@ -329,10 +329,12 @@ static MP_DEFINE_CONST_FUN_OBJ_1(mod_dtw_record_start_obj, mod_dtw_record_start)
 // sentai.dtw.record_add(frame) -> int
 static mp_obj_t mod_dtw_record_add(mp_obj_t frame_obj) {
     if (!g_dtw_recording) return mp_obj_new_int(-1);
-    mp_obj_list_t* list = MP_OBJ_TO_PTR(frame_obj);
-    if (list->len != (size_t)g_dtw_dim) return mp_obj_new_int(-4);
-    for (size_t i = 0; i < list->len; i++)
-        g_dtw_temp[i] = mp_obj_get_float(list->items[i]);
+    size_t len;
+    mp_obj_t *items;
+    mp_obj_get_array(frame_obj, &len, &items);
+    if (len != (size_t)g_dtw_dim) return mp_obj_new_int(-4);
+    for (size_t i = 0; i < len; i++)
+        g_dtw_temp[i] = mp_obj_get_float(items[i]);
     return mp_obj_new_int(dtw_record_add(g_dtw_temp));
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(mod_dtw_record_add_obj, mod_dtw_record_add);
@@ -380,18 +382,21 @@ static mp_obj_t mod_dtw_match(size_t n_args, const mp_obj_t *args) {
     if (!g_dtw_initialized || g_dtw_n_templates == 0) return mp_const_none;
 
     // Parse sequence: list of lists
-    mp_obj_list_t* seq_list = MP_OBJ_TO_PTR(args[0]);
-    int seq_len = seq_list->len;
-    if (seq_len < 2 || seq_len > g_dtw_max_len) return mp_const_none;
+    size_t seq_len;
+    mp_obj_t *seq_items;
+    mp_obj_get_array(args[0], &seq_len, &seq_items);
+    if (seq_len < 2 || seq_len > (size_t)g_dtw_max_len) return mp_const_none;
 
     float* seq = (float*)malloc(seq_len * g_dtw_dim * sizeof(float));
     if (!seq) return mp_const_none;
 
-    for (int i = 0; i < seq_len; i++) {
-        mp_obj_list_t* frame = MP_OBJ_TO_PTR(seq_list->items[i]);
-        if (frame->len != (size_t)g_dtw_dim) { free(seq); return mp_const_none; }
+    for (size_t i = 0; i < seq_len; i++) {
+        size_t frame_len;
+        mp_obj_t *frame_items;
+        mp_obj_get_array(seq_items[i], &frame_len, &frame_items);
+        if (frame_len != (size_t)g_dtw_dim) { free(seq); return mp_const_none; }
         for (int d = 0; d < g_dtw_dim; d++)
-            seq[i * g_dtw_dim + d] = mp_obj_get_float(frame->items[d]);
+            seq[i * g_dtw_dim + d] = mp_obj_get_float(frame_items[d]);
     }
 
     float threshold = 1e30f;
@@ -416,6 +421,7 @@ static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_dtw_match_obj, 1, 2, mod_dtw_matc
 // Capture n_frames from IMU and match against templates
 static mp_obj_t mod_dtw_match_imu(size_t n_args, const mp_obj_t *args) {
     if (!g_dtw_initialized || g_dtw_n_templates == 0) return mp_const_none;
+    if (g_dtw_recording) return mp_const_none;  // don't clobber recording buffer
     if (g_dtw_dim < 3) return mp_const_none;
 
     int n_frames = mp_obj_get_int(args[0]);
@@ -454,6 +460,7 @@ static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_dtw_match_imu_obj, 1, 3, mod_dtw_
 // sentai.dtw.match_mic(n_frames, threshold=inf, delay_ms=20) -> tuple or None
 static mp_obj_t mod_dtw_match_mic(size_t n_args, const mp_obj_t *args) {
     if (!g_dtw_initialized || g_dtw_n_templates == 0) return mp_const_none;
+    if (g_dtw_recording) return mp_const_none;  // don't clobber recording buffer
 
     int n_frames = mp_obj_get_int(args[0]);
     if (n_frames < 2 || n_frames > g_dtw_max_len) return mp_const_none;

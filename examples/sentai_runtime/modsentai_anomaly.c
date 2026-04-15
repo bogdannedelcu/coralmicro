@@ -322,10 +322,12 @@ static MP_DEFINE_CONST_FUN_OBJ_1(mod_anom_init_obj, mod_anom_init);
 // sentai.anomaly.observe(vector) -> int
 static mp_obj_t mod_anom_observe(mp_obj_t vec_obj) {
     if (!g_anom_initialized) return mp_obj_new_int(-1);
-    mp_obj_list_t* list = MP_OBJ_TO_PTR(vec_obj);
-    if (list->len != (size_t)g_anom_dim) return mp_obj_new_int(-4);
-    for (size_t i = 0; i < list->len; i++)
-        g_anom_temp[i] = mp_obj_get_float(list->items[i]);
+    size_t len;
+    mp_obj_t *items;
+    mp_obj_get_array(vec_obj, &len, &items);
+    if (len != (size_t)g_anom_dim) return mp_obj_new_int(-4);
+    for (size_t i = 0; i < len; i++)
+        g_anom_temp[i] = mp_obj_get_float(items[i]);
     return mp_obj_new_int(anom_observe(g_anom_temp));
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(mod_anom_observe_obj, mod_anom_observe);
@@ -342,10 +344,12 @@ static MP_DEFINE_CONST_FUN_OBJ_1(mod_anom_observe_tpu_obj, mod_anom_observe_tpu)
 // sentai.anomaly.score(vector) -> float
 static mp_obj_t mod_anom_score(mp_obj_t vec_obj) {
     if (!g_anom_initialized) return mp_obj_new_float(-1.0f);
-    mp_obj_list_t* list = MP_OBJ_TO_PTR(vec_obj);
-    if (list->len != (size_t)g_anom_dim) return mp_obj_new_float(-1.0f);
-    for (size_t i = 0; i < list->len; i++)
-        g_anom_temp[i] = mp_obj_get_float(list->items[i]);
+    size_t len;
+    mp_obj_t *items;
+    mp_obj_get_array(vec_obj, &len, &items);
+    if (len != (size_t)g_anom_dim) return mp_obj_new_float(-1.0f);
+    for (size_t i = 0; i < len; i++)
+        g_anom_temp[i] = mp_obj_get_float(items[i]);
     return mp_obj_new_float(anom_score(g_anom_temp));
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(mod_anom_score_obj, mod_anom_score);
@@ -369,10 +373,12 @@ static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_anom_threshold_obj, 0, 1, mod_ano
 // sentai.anomaly.is_anomaly(vector) -> bool
 static mp_obj_t mod_anom_is_anomaly(mp_obj_t vec_obj) {
     if (!g_anom_initialized) return mp_const_false;
-    mp_obj_list_t* list = MP_OBJ_TO_PTR(vec_obj);
-    if (list->len != (size_t)g_anom_dim) return mp_const_false;
-    for (size_t i = 0; i < list->len; i++)
-        g_anom_temp[i] = mp_obj_get_float(list->items[i]);
+    size_t len;
+    mp_obj_t *items;
+    mp_obj_get_array(vec_obj, &len, &items);
+    if (len != (size_t)g_anom_dim) return mp_const_false;
+    for (size_t i = 0; i < len; i++)
+        g_anom_temp[i] = mp_obj_get_float(items[i]);
     float s = anom_score(g_anom_temp);
     return mp_obj_new_bool(s > g_anom_threshold);
 }
@@ -404,13 +410,16 @@ static mp_obj_t mod_anom_cusum_init(mp_obj_t thresh_obj, mp_obj_t drift_obj) {
 static MP_DEFINE_CONST_FUN_OBJ_2(mod_anom_cusum_init_obj, mod_anom_cusum_init);
 
 // sentai.anomaly.cusum_observe(value) -> int (0 = normal, 1 = change detected)
+#define CUSUM_CALIBRATION 50
 static mp_obj_t mod_anom_cusum_observe(mp_obj_t val_obj) {
     if (!g_cusum_initialized) return mp_obj_new_int(-1);
     float x = mp_obj_get_float(val_obj);
 
-    // Update running mean (reference level)
+    // Update running mean only during calibration phase (first 50 samples)
     g_cusum_n++;
-    g_cusum_mean += (x - g_cusum_mean) / (float)g_cusum_n;
+    if (g_cusum_n <= CUSUM_CALIBRATION) {
+        g_cusum_mean += (x - g_cusum_mean) / (float)g_cusum_n;
+    }
 
     // CUSUM update
     float z = x - g_cusum_mean;

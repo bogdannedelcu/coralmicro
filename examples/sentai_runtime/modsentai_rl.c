@@ -504,6 +504,12 @@ static mp_obj_t mod_rl_q_load(mp_obj_t path_obj) {
     if (!buf) return mp_obj_new_int(-2);
     if (sentai_fs_read(path, buf, size) != size) { free(buf); return mp_obj_new_int(-3); }
     int32_t* header = (int32_t*)buf;
+    if (header[0] < 1 || header[0] > RL_MAX_STATES || header[1] < 1 || header[1] > RL_MAX_ACTIONS) {
+        free(buf); return mp_obj_new_int(-4);
+    }
+    if (size != (int)(8 + header[0] * header[1] * sizeof(float))) {
+        free(buf); return mp_obj_new_int(-4);
+    }
     int rc = q_init(header[0], header[1]);
     if (rc < 0) { free(buf); return mp_obj_new_int(rc); }
     memcpy(g_q_table, &buf[8], header[0] * header[1] * sizeof(float));
@@ -584,21 +590,23 @@ static mp_obj_t mod_rl_dqn_observe(size_t n_args, const mp_obj_t *args) {
     if (!g_dqn_initialized) return mp_obj_new_int(-1);
     int D = g_dqn_state_dim;
 
-    mp_obj_list_t* s_list = MP_OBJ_TO_PTR(args[0]);
+    size_t s_len, sn_len;
+    mp_obj_t *s_items, *sn_items;
+    mp_obj_get_array(args[0], &s_len, &s_items);
     int action = mp_obj_get_int(args[1]);
     float reward = mp_obj_get_float(args[2]);
-    mp_obj_list_t* sn_list = MP_OBJ_TO_PTR(args[3]);
+    mp_obj_get_array(args[3], &sn_len, &sn_items);
     int done = mp_obj_is_true(args[4]) ? 1 : 0;
 
-    if (s_list->len != (size_t)D || sn_list->len != (size_t)D) return mp_obj_new_int(-4);
+    if (s_len != (size_t)D || sn_len != (size_t)D) return mp_obj_new_int(-4);
 
     float* s = (float*)malloc(D * sizeof(float));
     float* sn = (float*)malloc(D * sizeof(float));
     if (!s || !sn) { if (s) free(s); if (sn) free(sn); return mp_obj_new_int(-5); }
 
     for (int i = 0; i < D; i++) {
-        s[i] = mp_obj_get_float(s_list->items[i]);
-        sn[i] = mp_obj_get_float(sn_list->items[i]);
+        s[i] = mp_obj_get_float(s_items[i]);
+        sn[i] = mp_obj_get_float(sn_items[i]);
     }
 
     int rc = dqn_observe(s, action, reward, sn, done);
@@ -613,13 +621,15 @@ static mp_obj_t mod_rl_dqn_action(size_t n_args, const mp_obj_t *args) {
     if (!g_dqn_initialized) return mp_obj_new_int(-1);
     int D = g_dqn_state_dim;
 
-    mp_obj_list_t* s_list = MP_OBJ_TO_PTR(args[0]);
-    if (s_list->len != (size_t)D) return mp_obj_new_int(-4);
+    size_t s_len;
+    mp_obj_t *s_items;
+    mp_obj_get_array(args[0], &s_len, &s_items);
+    if (s_len != (size_t)D) return mp_obj_new_int(-4);
 
     float eps = (n_args >= 2) ? mp_obj_get_float(args[1]) : 0.1f;
     float* s = (float*)malloc(D * sizeof(float));
     if (!s) return mp_obj_new_int(-5);
-    for (int i = 0; i < D; i++) s[i] = mp_obj_get_float(s_list->items[i]);
+    for (int i = 0; i < D; i++) s[i] = mp_obj_get_float(s_items[i]);
 
     int a = dqn_action(s, eps);
     free(s);
@@ -666,9 +676,11 @@ static mp_obj_t mod_rl_dqn_load(mp_obj_t path_obj) {
     if (!buf) return mp_obj_new_int(-2);
     if (sentai_fs_read(path, buf, size) != size) { free(buf); return mp_obj_new_int(-3); }
     int32_t* header = (int32_t*)buf;
-    int rc = dqn_init(header[0], header[1], header[2]);
-    if (rc < 0) { free(buf); return mp_obj_new_int(rc); }
     int D = header[0], A = header[1], H = header[2];
+    size_t expected = 12 + ((size_t)D * H + H + (size_t)H * A + A) * sizeof(float);
+    if (size != (int)expected) { free(buf); return mp_obj_new_int(-4); }
+    int rc = dqn_init(D, A, H);
+    if (rc < 0) { free(buf); return mp_obj_new_int(rc); }
     size_t off = 12;
     memcpy(g_dqn_W1, &buf[off], D * H * sizeof(float)); off += D * H * 4;
     memcpy(g_dqn_b1, &buf[off], H * sizeof(float)); off += H * 4;

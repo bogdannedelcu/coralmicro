@@ -348,10 +348,12 @@ static MP_DEFINE_CONST_FUN_OBJ_2(mod_pca_init_obj, mod_pca_init);
 // sentai.pca.add(vector) -> int
 static mp_obj_t mod_pca_add(mp_obj_t vec_obj) {
     if (!g_pca_initialized) return mp_obj_new_int(-1);
-    mp_obj_list_t* list = MP_OBJ_TO_PTR(vec_obj);
-    if (list->len != (size_t)g_pca_in_dim) return mp_obj_new_int(-4);
-    for (size_t i = 0; i < list->len; i++)
-        g_pca_temp[i] = mp_obj_get_float(list->items[i]);
+    size_t len;
+    mp_obj_t *items;
+    mp_obj_get_array(vec_obj, &len, &items);
+    if (len != (size_t)g_pca_in_dim) return mp_obj_new_int(-4);
+    for (size_t i = 0; i < len; i++)
+        g_pca_temp[i] = mp_obj_get_float(items[i]);
     return mp_obj_new_int(pca_add(g_pca_temp));
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(mod_pca_add_obj, mod_pca_add);
@@ -374,10 +376,12 @@ static MP_DEFINE_CONST_FUN_OBJ_0(mod_pca_fit_obj, mod_pca_fit);
 // sentai.pca.transform(vector) -> list
 static mp_obj_t mod_pca_transform(mp_obj_t vec_obj) {
     if (!g_pca_fitted) return mp_const_none;
-    mp_obj_list_t* list = MP_OBJ_TO_PTR(vec_obj);
-    if (list->len != (size_t)g_pca_in_dim) return mp_const_none;
-    for (size_t i = 0; i < list->len; i++)
-        g_pca_temp[i] = mp_obj_get_float(list->items[i]);
+    size_t len;
+    mp_obj_t *items;
+    mp_obj_get_array(vec_obj, &len, &items);
+    if (len != (size_t)g_pca_in_dim) return mp_const_none;
+    for (size_t i = 0; i < len; i++)
+        g_pca_temp[i] = mp_obj_get_float(items[i]);
 
     float* out = (float*)malloc(g_pca_out_dim * sizeof(float));
     if (!out) return mp_const_none;
@@ -412,8 +416,10 @@ static MP_DEFINE_CONST_FUN_OBJ_1(mod_pca_transform_tpu_obj, mod_pca_transform_tp
 // sentai.pca.inverse(reduced) -> list
 static mp_obj_t mod_pca_inverse(mp_obj_t vec_obj) {
     if (!g_pca_fitted) return mp_const_none;
-    mp_obj_list_t* list = MP_OBJ_TO_PTR(vec_obj);
-    if (list->len != (size_t)g_pca_out_dim) return mp_const_none;
+    size_t len;
+    mp_obj_t *items;
+    mp_obj_get_array(vec_obj, &len, &items);
+    if (len != (size_t)g_pca_out_dim) return mp_const_none;
 
     float* reduced = (float*)malloc(g_pca_out_dim * sizeof(float));
     float* recon = (float*)malloc(g_pca_in_dim * sizeof(float));
@@ -423,8 +429,8 @@ static mp_obj_t mod_pca_inverse(mp_obj_t vec_obj) {
         return mp_const_none;
     }
 
-    for (size_t i = 0; i < list->len; i++)
-        reduced[i] = mp_obj_get_float(list->items[i]);
+    for (size_t i = 0; i < len; i++)
+        reduced[i] = mp_obj_get_float(items[i]);
     pca_inverse(reduced, recon);
 
     mp_obj_list_t* result = MP_OBJ_TO_PTR(mp_obj_new_list(g_pca_in_dim, NULL));
