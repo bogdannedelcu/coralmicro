@@ -164,6 +164,65 @@ static mp_obj_t mod_sentai_output_quant(mp_obj_t idx_obj) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_output_quant_obj, mod_sentai_output_quant);
 
+// sentai.tpu.output_floats(idx) -> list of floats (dequantized)
+// Returns output tensor idx as a list of float values.
+// Automatically dequantizes int8/uint8 using scale and zero_point.
+// For float32 tensors, returns values directly.
+// Useful for feeding TPU features to AIfES for transfer learning.
+static mp_obj_t mod_sentai_output_floats(mp_obj_t idx_obj) {
+    int idx = mp_obj_get_int(idx_obj);
+    int size = sentai_tpu_get_output_size(idx);
+    int type = sentai_tpu_get_output_type(idx);
+    const void* data = sentai_tpu_get_output_data(idx);
+    
+    if (!data || size <= 0) {
+        mp_raise_msg(&mp_type_RuntimeError, MP_ERROR_TEXT("no output"));
+    }
+    
+    float scale = 1.0f;
+    int32_t zero_point = 0;
+    int n_elements = 0;
+    
+    if (type == 1) {
+        // float32 - no dequantization needed
+        n_elements = size / 4;
+    } else if (type == 9 || type == 3) {
+        // int8 or uint8 - get quantization params
+        sentai_tpu_output_quant(idx, &scale, &zero_point);
+        n_elements = size;
+    } else {
+        mp_raise_msg(&mp_type_ValueError, MP_ERROR_TEXT("unsupported type"));
+    }
+    
+    // Allocate list
+    mp_obj_list_t *list = MP_OBJ_TO_PTR(mp_obj_new_list(n_elements, NULL));
+    
+    if (type == 1) {
+        // float32
+        const float* fdata = (const float*)data;
+        for (int i = 0; i < n_elements; i++) {
+            list->items[i] = mp_obj_new_float(fdata[i]);
+        }
+    } else if (type == 9) {
+        // int8 - dequantize: real = scale * (q - zero_point)
+        const int8_t* idata = (const int8_t*)data;
+        for (int i = 0; i < n_elements; i++) {
+            float val = scale * ((float)idata[i] - (float)zero_point);
+            list->items[i] = mp_obj_new_float(val);
+        }
+    } else {
+        // uint8 - dequantize
+        const uint8_t* udata = (const uint8_t*)data;
+        for (int i = 0; i < n_elements; i++) {
+            float val = scale * ((float)udata[i] - (float)zero_point);
+            list->items[i] = mp_obj_new_float(val);
+        }
+    }
+    
+    return MP_OBJ_FROM_PTR(list);
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_output_floats_obj, mod_sentai_output_floats);
+
 // sentai.tpu.input_type() -> int (TfLiteType: 9=int8, 3=uint8, 1=float32)
 static mp_obj_t mod_sentai_input_type(void) {
     return mp_obj_new_int(sentai_tpu_input_type());
@@ -315,6 +374,7 @@ static const mp_rom_map_elem_t sentai_tpu_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_save_output), MP_ROM_PTR(&mod_sentai_save_output_obj) },
     { MP_ROM_QSTR(MP_QSTR_input_quant), MP_ROM_PTR(&mod_sentai_input_quant_obj) },
     { MP_ROM_QSTR(MP_QSTR_output_quant),MP_ROM_PTR(&mod_sentai_output_quant_obj) },
+    { MP_ROM_QSTR(MP_QSTR_output_floats),MP_ROM_PTR(&mod_sentai_output_floats_obj) },
     { MP_ROM_QSTR(MP_QSTR_input_type),  MP_ROM_PTR(&mod_sentai_input_type_obj) },
     { MP_ROM_QSTR(MP_QSTR_detect),      MP_ROM_PTR(&mod_sentai_detect_obj) },
     { MP_ROM_QSTR(MP_QSTR_draw),        MP_ROM_PTR(&mod_sentai_draw_obj) },

@@ -244,6 +244,20 @@ SECTIONS
      . = ALIGN(4);
   } > m_ocram
 
+  .aifes :
+  {
+     . = ALIGN(4);
+     __aifes_start = .;
+     *liblibs_aifes_m7.a:*(.text .text*)
+     *liblibs_aifes_m7.a:*(.data .data*)
+     *liblibs_aifes_m7.a:*(.rodata .rodata*)
+     *liblibs_aifes_task_m7.a:*(.text .text*)
+     *liblibs_aifes_task_m7.a:*(.data .data*)
+     *liblibs_aifes_task_m7.a:*(.rodata .rodata*)
+     __aifes_end = .;
+     . = ALIGN(4);
+  } > m_ocram
+
   .sentai_slow :
   {
      . = ALIGN(4);

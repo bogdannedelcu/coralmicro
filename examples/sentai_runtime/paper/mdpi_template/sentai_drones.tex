@@ -1,0 +1,111 @@
+\documentclass[drones,article,submit,pdftex,moreauthors]{Definitions/mdpi}
+
+\firstpage{1}
+\makeatletter
+\setcounter{page}{\@firstpage}
+\makeatother
+\pubvolume{1}
+\issuenum{1}
+\articlenumber{0}
+\pubyear{2026}
+\copyrightyear{2026}
+\datereceived{}
+\daterevised{}
+\dateaccepted{}
+\datepublished{}
+
+\setlength{\headheight}{18.5pt}
+\providecommand{\tightlist}{%
+	\setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+
+\Title{SentAI: An Open-Source Dual-Camera Edge AI Runtime for Vision-Guided Drone Autonomy on Coral Micro}
+
+\Author{Author Name $^{1,}$*}
+\AuthorNames{Author Name}
+
+\address{$^{1}$ \quad Affiliation, City, Country; email@example.com}
+
+\corres{Correspondence: email@example.com}
+
+\abstract{This paper presents SentAI, an open-source MicroPython environment for high-level autonomous flight control on a minimalist embedded AI board that integrates an EdgeTPU accelerator and extends it with two 5 Mpx cameras and an onboard IMU. The platform is designed as a compact sensing and decision layer for micro-aerial vehicles, combining scriptable mission logic, dynamic TensorFlow Lite model loading, continuous onboard inference, and real-time communication in a resource-constrained MCU system. The work explicitly targets two complementary UAV workflows: Bitcraze Crazyflie for agile indoor experimentation and PX4/MAVLink-oriented autopilot integration for more transferable field deployment. At the perception level, SentAI provides a dual-camera, multi-model runtime with camera switching, per-camera geometry, lightweight tracking, motion compensation, and ground-aware spatial reasoning. A central contribution is the systems-level engineering of the complete visual path from sensor capture to EdgeTPU input, including DMA-backed acquisition, hardware-assisted image preparation, memory placement across internal RAM and SDRAM, and pipelined FreeRTOS scheduling that overlaps capture, preprocessing, and inference. The implementation therefore treats throughput, buffer ownership, and accelerator feeding as first-class design constraints rather than secondary optimization details. Beyond the runtime itself, the work is framed by an open synthetic dataset and a custom YOLO model intended for low-altitude drone navigation in inhabited environments. The result is an embedded autonomy stack that moves an open-source prototype platform toward a more industrialized, production-oriented runtime for lightweight drone research and deployment.}
+
+\keyword{embedded AI; EdgeTPU; MicroPython; drone autonomy; Coral Micro; MAVLink; Crazyflie; dual camera; FreeRTOS}
+
+\addhighlights{yes}
+\renewcommand{\addhighlights}{%
+\noindent\textbf{What are the main findings?}
+\begin{itemize}[labelsep=2.5mm,topsep=2pt]
+\item SentAI turns Coral Micro into a dual-camera embedded autonomy runtime for drones with MicroPython control and onboard EdgeTPU inference.
+\item The implementation shows that throughput on a compact MCU-plus-accelerator platform depends critically on RTOS scheduling, memory placement, and hardware-assisted image preparation.
+\end{itemize}
+\textbf{What are the implications of the main findings?}
+\begin{itemize}[labelsep=2.5mm,topsep=2pt]
+\item Lightweight UAV platforms can support richer onboard perception when sensing, memory, and accelerator feeding are co-designed rather than treated as separate problems.
+\item An open-source board can be pushed from proof-of-concept status toward a more production-oriented embedded AI stack suitable for repeatable autonomy experiments.
+\end{itemize}
+}
+
+\begin{document}
+
+\section{Introduction}
+\input{paper_mdpi_intro.tex}
+
+\section{Related Work}
+\input{paper_mdpi_related.tex}
+
+\section{Materials and Methods}
+\subsection{System Architecture and Design Rationale}
+Figure~\ref{fig:impl01} summarizes the layered view of the platform, from sensing hardware and RTOS orchestration to EdgeTPU inference and the MicroPython experimentation surface.
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.94\textwidth]{figures/implementation_01_system_architecture.pdf}
+\caption{Block-level view of the SentAI system architecture, highlighting the split between sensing hardware, MCU orchestration, EdgeTPU inference, and the script-oriented MicroPython layer.\label{fig:impl01}}
+\end{figure}
+\input{paper_mdpi_impl01.tex}
+
+\subsection{RTOS Integration, Memory Layout, and Accelerator Feeding}
+Figure~\ref{fig:impl02} shows the runtime pipeline used to keep the accelerator fed, with explicit staging, task handoff, and memory placement.
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.98\textwidth]{figures/implementation_02_runtime_and_memory.pdf}
+\caption{Block diagram of the RTOS and memory pipeline, showing aligned capture buffers, PrepTask, SDRAM staging, InferTask, and the EdgeTPU tensor path.\label{fig:impl02}}
+\end{figure}
+\input{paper_mdpi_impl02.tex}
+
+\subsection{Dual-Camera Vision Pipeline and Perception Stack}
+Figure~\ref{fig:impl03} illustrates how the two cameras, preprocessing path, detector, tracker, and geometry-aware projection stages interact inside the perception stack.
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.98\textwidth]{figures/implementation_03_vision_pipeline.pdf}
+\caption{Dual-camera perception pipeline with camera switching, PXP preprocessing, EdgeTPU detection, tracking, and ground-aware projection.\label{fig:impl03}}
+\end{figure}
+\input{paper_mdpi_impl03.tex}
+
+\subsection{Flight Control, Telemetry, and External Integration}
+Figure~\ref{fig:impl04} summarizes the dual-target control model, in which one runtime connects local perception to both Crazyflie and PX4/MAVLink-centered workflows.
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.94\textwidth]{figures/implementation_04_flight_and_telemetry.pdf}
+\caption{Control and telemetry architecture spanning Crazyflie experimentation, MAVLink interoperability, and external backend dissemination.\label{fig:impl04}}
+\end{figure}
+\input{paper_mdpi_impl04.tex}
+
+\subsection{Programming Model and User-Facing Runtime Surface}
+Figure~\ref{fig:impl05} provides a compact view of the user-facing runtime model, including the three USB access paths and the main groups of the \texttt{sentai} namespace.
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.98\textwidth]{figures/implementation_05_programming_model.pdf}
+\caption{Programming model view showing REPL-centered access, USB service modes, boot artifacts, and the main runtime modules exposed through the \texttt{sentai} namespace.\label{fig:impl05}}
+\end{figure}
+\input{paper_mdpi_impl05.tex}
+
+\section{Discussion}
+\input{paper_mdpi_impl_overview.tex}
+
+\section{Conclusions}
+\input{paper_mdpi_conclusion.tex}
+
+\subsection{Future Work}
+\input{paper_mdpi_future.tex}
+
+\end{document}

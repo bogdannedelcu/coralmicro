@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760">
+  <defs>
+    <style>
+      .title { font: 700 26px 'DejaVu Sans', sans-serif; fill: #17324d; }
+      .label { font: 600 18px 'DejaVu Sans', sans-serif; fill: #17324d; }
+      .small { font: 400 15px 'DejaVu Sans', sans-serif; fill: #35516b; }
+      .box { fill: #f6fbff; stroke: #2d5f87; stroke-width: 2.5; rx: 18; ry: 18; }
+      .box2 { fill: #eef6ed; stroke: #4a7d4f; stroke-width: 2.5; rx: 18; ry: 18; }
+      .box3 { fill: #fff5eb; stroke: #b86d1f; stroke-width: 2.5; rx: 18; ry: 18; }
+      .arrow { stroke: #4a6278; stroke-width: 3; fill: none; marker-end: url(#arrow); }
+      .dash { stroke-dasharray: 8 7; }
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#4a6278"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="760" fill="#ffffff"/>
+  <text x="60" y="55" class="title">System Architecture and Design Rationale</text>
+
+  <rect x="110" y="110" width="980" height="110" class="box"/>
+  <text x="600" y="150" text-anchor="middle" class="label">MicroPython Mission Layer</text>
+  <text x="600" y="182" text-anchor="middle" class="small">REPL scripts, mission logic, model orchestration, telemetry logic, rapid experimentation</text>
+
+  <rect x="150" y="280" width="470" height="180" class="box2"/>
+  <text x="385" y="320" text-anchor="middle" class="label">MCU + FreeRTOS Orchestration</text>
+  <text x="385" y="356" text-anchor="middle" class="small">camera bring-up</text>
+  <text x="385" y="384" text-anchor="middle" class="small">task scheduling and buffer ownership</text>
+  <text x="385" y="412" text-anchor="middle" class="small">image preparation, communication, filesystem</text>
+
+  <rect x="690" y="280" width="360" height="180" class="box3"/>
+  <text x="870" y="320" text-anchor="middle" class="label">EdgeTPU Inference Engine</text>
+  <text x="870" y="356" text-anchor="middle" class="small">dense tensor compute</text>
+  <text x="870" y="384" text-anchor="middle" class="small">detector execution</text>
+  <text x="870" y="412" text-anchor="middle" class="small">low-power specialized acceleration</text>
+
+  <rect x="90" y="540" width="220" height="120" class="box"/>
+  <text x="200" y="585" text-anchor="middle" class="label">Dual 5 Mpx Cameras</text>
+  <text x="200" y="615" text-anchor="middle" class="small">forward / nadir</text>
+
+  <rect x="360" y="540" width="220" height="120" class="box"/>
+  <text x="470" y="585" text-anchor="middle" class="label">Onboard IMU</text>
+  <text x="470" y="615" text-anchor="middle" class="small">attitude and motion context</text>
+
+  <rect x="630" y="540" width="220" height="120" class="box"/>
+  <text x="740" y="585" text-anchor="middle" class="label">Flight Links</text>
+  <text x="740" y="615" text-anchor="middle" class="small">Crazyflie / PX4 / MAVLink</text>
+
+  <rect x="900" y="540" width="220" height="120" class="box"/>
+  <text x="1010" y="585" text-anchor="middle" class="label">Storage + USB</text>
+  <text x="1010" y="615" text-anchor="middle" class="small">LittleFS, logs, web, drive</text>
+
+  <line x1="600" y1="220" x2="600" y2="260" class="arrow"/>
+  <line x1="620" y1="370" x2="690" y2="370" class="arrow"/>
+
+  <line x1="200" y1="540" x2="290" y2="460" class="arrow"/>
+  <line x1="470" y1="540" x2="430" y2="460" class="arrow"/>
+  <line x1="740" y1="540" x2="770" y2="460" class="arrow"/>
+  <line x1="1010" y1="540" x2="940" y2="460" class="arrow"/>
+
+  <path d="M 600 170 C 700 190, 820 220, 900 270" class="arrow dash"/>
+  <text x="825" y="220" class="small">high-level control</text>
+
+  <text x="600" y="715" text-anchor="middle" class="small">Layered view: sensing hardware - RTOS host orchestration - EdgeTPU inference - MicroPython experimentation surface</text>
+</svg>

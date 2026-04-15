@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="760" viewBox="0 0 1280 760">
+  <defs>
+    <style>
+      .title { font: 700 26px 'DejaVu Sans', sans-serif; fill: #17324d; }
+      .label { font: 600 18px 'DejaVu Sans', sans-serif; fill: #17324d; }
+      .small { font: 400 14px 'DejaVu Sans', sans-serif; fill: #35516b; }
+      .box { fill: #f6fbff; stroke: #2d5f87; stroke-width: 2.5; rx: 18; ry: 18; }
+      .mem { fill: #eef6ed; stroke: #4a7d4f; stroke-width: 2.5; rx: 18; ry: 18; }
+      .acc { fill: #fff5eb; stroke: #b86d1f; stroke-width: 2.5; rx: 18; ry: 18; }
+      .arrow { stroke: #4a6278; stroke-width: 3; fill: none; marker-end: url(#arrow); }
+      .dashed { stroke-dasharray: 8 6; }
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#4a6278"/>
+    </marker>
+  </defs>
+
+  <rect width="1280" height="760" fill="#ffffff"/>
+  <text x="55" y="55" class="title">RTOS Integration, Memory Layout, and Accelerator Feeding</text>
+
+  <rect x="70" y="150" width="200" height="110" class="box"/>
+  <text x="170" y="190" text-anchor="middle" class="label">Camera Framebuffer</text>
+  <text x="170" y="220" text-anchor="middle" class="small">1280x720 aligned host surface</text>
+
+  <rect x="340" y="120" width="250" height="170" class="box"/>
+  <text x="465" y="160" text-anchor="middle" class="label">PrepTask</text>
+  <text x="465" y="192" text-anchor="middle" class="small">grab latest frame</text>
+  <text x="465" y="218" text-anchor="middle" class="small">PXP scale + convert</text>
+  <text x="465" y="244" text-anchor="middle" class="small">int8 quantization</text>
+
+  <rect x="670" y="120" width="250" height="170" class="mem"/>
+  <text x="795" y="160" text-anchor="middle" class="label">Staging Buffer in SDRAM</text>
+  <text x="795" y="192" text-anchor="middle" class="small">64-byte aligned</text>
+  <text x="795" y="218" text-anchor="middle" class="small">single producer / single consumer</text>
+  <text x="795" y="244" text-anchor="middle" class="small">cache-safe handoff</text>
+
+  <rect x="1000" y="120" width="220" height="170" class="box"/>
+  <text x="1110" y="160" text-anchor="middle" class="label">InferTask</text>
+  <text x="1110" y="192" text-anchor="middle" class="small">copy staging to tensor</text>
+  <text x="1110" y="218" text-anchor="middle" class="small">invoke TPU</text>
+  <text x="1110" y="244" text-anchor="middle" class="small">NMS + queue result</text>
+
+  <rect x="995" y="360" width="230" height="120" class="acc"/>
+  <text x="1110" y="402" text-anchor="middle" class="label">EdgeTPU Tensor</text>
+  <text x="1110" y="432" text-anchor="middle" class="small">detector input and inference</text>
+
+  <rect x="125" y="520" width="220" height="120" class="mem"/>
+  <text x="235" y="560" text-anchor="middle" class="label">OCRAM</text>
+  <text x="235" y="590" text-anchor="middle" class="small">MicroPython runtime</text>
+
+  <rect x="420" y="520" width="220" height="120" class="mem"/>
+  <text x="530" y="560" text-anchor="middle" class="label">SDRAM</text>
+  <text x="530" y="590" text-anchor="middle" class="small">staging, tracker, large buffers</text>
+
+  <rect x="715" y="520" width="220" height="120" class="mem"/>
+  <text x="825" y="560" text-anchor="middle" class="label">Internal RAM</text>
+  <text x="825" y="590" text-anchor="middle" class="small">latency-sensitive runtime state</text>
+
+  <rect x="1010" y="520" width="220" height="120" class="mem"/>
+  <text x="1120" y="560" text-anchor="middle" class="label">Linker Layout</text>
+  <text x="1120" y="590" text-anchor="middle" class="small">explicit section placement</text>
+
+  <line x1="270" y1="205" x2="340" y2="205" class="arrow"/>
+  <line x1="590" y1="205" x2="670" y2="205" class="arrow"/>
+  <line x1="920" y1="205" x2="1000" y2="205" class="arrow"/>
+  <line x1="1110" y1="290" x2="1110" y2="360" class="arrow"/>
+
+  <path d="M 1000 255 C 930 305, 860 315, 790 290" class="arrow dashed"/>
+  <text x="870" y="320" class="small">release staging early</text>
+
+  <path d="M 670 255 C 620 315, 520 340, 430 300" class="arrow dashed"/>
+  <text x="520" y="345" class="small">semaphore handoff</text>
+
+  <line x1="530" y1="520" x2="760" y2="290" class="arrow dashed"/>
+  <line x1="1120" y1="520" x2="1110" y2="480" class="arrow dashed"/>
+
+  <text x="640" y="700" text-anchor="middle" class="small">Pipeline view: aligned capture - PrepTask - SDRAM staging - InferTask - EdgeTPU, with explicit memory placement and cache discipline</text>
+</svg>

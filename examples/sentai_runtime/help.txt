@@ -22,6 +22,7 @@ Sub-modules:
   sentai.link     MAVLink telemetry bridge
   sentai.crazy    CrazyFlie autopilot bridge (CPX/CRTP)
   sentai.pipeline Detection pipeline + SentAI-SORT tracker
+  sentai.aifes    On-device neural network training (AIfES)
 
 [io]
 sentai.io - LED / GPIO
@@ -56,6 +57,10 @@ sentai.tpu - EdgeTPU inference
   save_output(path)     Save all outputs to CSV file
   input_quant()         Input quantization -> (scale, zero_point)
   output_quant(idx)     Output quantization -> (scale, zero_point)
+  output_floats(idx)    Output tensor as list of floats (dequantized).
+                        Auto-dequantizes int8/uint8 using scale/zero_point.
+                        For float32 tensors, returns values directly.
+                        Useful for feeding TPU features to AIfES.
   input_type()          Input TfLiteType (9=int8, 3=uint8, 1=float)
 
   --- YOLO detection post-processing ---
@@ -585,3 +590,294 @@ sentai.pipeline - Continuous detection pipeline + SentAI-SORT tracker
                 print('NEW track', tid, 'at', lat, lon)
             elif typ == 3:
                 print('LOST track', tid)
+
+[aifes]
+sentai.aifes - On-device Neural Network Training (AIfES)
+========================================================
+  Train and run feedforward neural networks directly on the MCU.
+  Uses AIfES library from Fraunhofer IMS (AGPL-3.0 license).
+  Supports fully-connected layers with various activations.
+
+  --- Model loading ---
+  load(path) -> bool    Load model architecture from YAML file.
+                        Returns True on success.
+  load_weights(path) -> bool
+                        Load pre-trained weights from binary file.
+  save_weights(path) -> bool
+                        Save trained weights (best validation model).
+  unload()              Unload model and free memory.
+  ready() -> bool       Check if model is loaded and ready.
+
+  --- Training ---
+  train(x_data, y_data, epochs=100, batch=4, lr=0.01,
+        optimizer=ADAM, loss=MSE, val_split=0.1, log_path=None,
+        sigreg=0.0)
+                        Train model on provided data.
+                        x_data: list of input samples [[f,f,...],...]
+                        y_data: list of target samples [[f,f,...],...]
+                        epochs: training iterations (default 100)
+                        batch: mini-batch size (default 4)
+                        lr: learning rate (default 0.01)
+                        optimizer: ADAM (0) or SGD (1)
+                        loss: MSE (0) or CROSSENTROPY (1)
+                        val_split: validation fraction 0-1 (default 0.1)
+                        log_path: save training log to file (optional)
+                        sigreg: Weak-SIGReg covariance regularization lambda.
+                               0 = disabled (default), 0.001-0.1 typical.
+                               Based on arXiv:2603.05924
+                               Decorrelates hidden layer activations for
+                               stable training and better generalization.
+                               Which layers get SIGReg is configured per-layer
+                               in the YAML model file (see below).
+                        Returns final loss, or -1 on error.
+
+  --- Inference (new TPU-style API) ---
+  set_input(data) -> int
+                        Set input data from list of floats.
+                        Returns 0 on success, negative on error.
+  from_tpu(idx) -> int  Set input from TPU output tensor idx.
+                        Auto-dequantizes int8/uint8 to float.
+                        Returns 0 on success, negative on error.
+  from_camera(w, h, gray=False) -> int
+                        Capture camera, resize to w×h, normalize [0,1].
+                        gray=False: RGB, w*h*3 floats. gray=True: w*h floats.
+                        Camera must be initialized first.
+                        Returns 0 on success, negative on error.
+  from_mic(samples) -> int
+                        Capture mic samples, normalize [-1,1].
+                        Microphone must be initialized with mic_init().
+                        Returns 0 on success, negative on error.
+  invoke() -> int       Run inference using previously set input.
+                        Returns inference time in ms, or negative on error.
+  output() -> list      Get output from last inference as list of floats.
+
+  --- Microphone control ---
+  mic_init() -> int     Initialize microphone at 16kHz. Returns 0 on success.
+  mic_stop() -> int     Stop microphone. Returns 0 on success.
+
+  predict(input) -> list
+                        (Legacy) Run inference on single input sample.
+                        Equivalent to: set_input(input); invoke(); output()
+
+  --- Model info ---
+  info() -> dict        Get model information:
+                        {'name': str, 'layers': int, 'input_size': int,
+                         'output_size': int, 'params': int, 'best_epoch': int}
+
+  --- Constants ---
+  ADAM = 0              Adam optimizer (adaptive learning rate)
+  SGD = 1               Stochastic Gradient Descent
+  MSE = 0               Mean Squared Error loss
+  CROSSENTROPY = 1      Cross-entropy loss (for classification)
+
+  --- YAML model format ---
+  Model architectures are defined in YAML files:
+    model:
+      name: xor_net
+    backbone:
+      - [input, 2]
+      - [dense, 4, relu]
+    head:
+      - [dense, 1, sigmoid]
+    train:
+      epochs: 100
+      lr: 0.01
+      sigreg: 0.01           # Global SIGReg lambda (optional)
+
+  SIGReg per-layer configuration:
+    backbone:
+      - [input, 128]
+      - [dense, 64, relu, sigreg]    # SIGReg ON for this layer
+      - [dense, 32, relu]            # SIGReg OFF (default)
+      - [dense, 10, softmax]
+    
+    Priority:
+    1. YAML per-layer "sigreg" flag (highest)
+    2. train.sigreg_layers array from YAML or Python
+    3. If no YAML flags set, applies to all hidden layers
+
+  Supported layers: dense
+  Supported activations: relu, sigmoid, tanh, softmax, leaky_relu,
+                         elu, softsign, linear
+
+  Example (XOR problem):
+    x = [[0,0], [0,1], [1,0], [1,1]]
+    y = [[0], [1], [1], [0]]
+    
+    sentai.aifes.load('/models/xor.yaml')
+    loss = sentai.aifes.train(x, y, epochs=500, lr=0.1)
+    
+    # Inference (new style)
+    sentai.aifes.set_input([0, 1])
+    sentai.aifes.invoke()
+    print(sentai.aifes.output())  # [0.98]
+    
+    sentai.aifes.save_weights('/models/xor_weights.bin')
+
+  Example (transfer learning: TPU backbone + AIfES head):
+    # Use MobileNet as frozen feature extractor
+    sentai.tpu.load('/models/mobilenet_features.tflite')
+    sentai.aifes.load('/models/classifier_head.yaml')
+    sentai.camera.init()
+    
+    # Collect training samples (3 classes, 5 samples each)
+    x_train, y_train = [], []
+    for label in range(3):
+        print(f'Show class {label}, collect 5 samples')
+        for _ in range(5):
+            input('Press Enter...')
+            sentai.camera.to_tensor()
+            sentai.tpu.invoke()
+            x_train.append(sentai.tpu.output_floats(0))  # features
+            y_train.append([1 if i==label else 0 for i in range(3)])
+    
+    # Train classifier head on device
+    loss = sentai.aifes.train(x_train, y_train, epochs=200, lr=0.01)
+    sentai.aifes.save_weights('/models/my_classifier.bin')
+    
+    # Inference loop (new API)
+    while True:
+        sentai.camera.to_tensor()
+        sentai.tpu.invoke()
+        sentai.aifes.from_tpu(0)    # set input from TPU output
+        sentai.aifes.invoke()       # run AIfES inference
+        probs = sentai.aifes.output()
+        cls = probs.index(max(probs))
+        print(f'Class {cls}: {probs[cls]:.2f}')
+
+  Example (simple image classifier with from_camera):
+    # Train a small grayscale classifier (28x28 MNIST-style)
+    sentai.aifes.load('/models/mnist_mlp.yaml')  # input=784, output=10
+    sentai.camera.init()
+    
+    # Real-time inference
+    while True:
+        sentai.aifes.from_camera(28, 28, True)  # 28x28 grayscale -> 784 floats
+        sentai.aifes.invoke()
+        probs = sentai.aifes.output()
+        digit = probs.index(max(probs))
+        print(f'Digit: {digit}')
+
+  Example (simple audio classification with from_mic):
+    # Train a sound classifier (1024 samples @ 16kHz = 64ms window)
+    sentai.aifes.load('/models/sound_mlp.yaml')  # input=1024, output=3
+    sentai.aifes.mic_init()  # Start microphone
+    
+    # Real-time inference
+    while True:
+        sentai.aifes.from_mic(1024)  # 1024 samples -> 1024 floats [-1,1]
+        sentai.aifes.invoke()
+        probs = sentai.aifes.output()
+        cls = ['quiet', 'speech', 'music'][probs.index(max(probs))]
+        print(f'Sound: {cls}')
+
+[kmeans]
+sentai.kmeans — K-Means Clustering for Embeddings
+=================================================
+
+Simple k-means clustering for classifying embedding vectors.
+Ideal for few-shot learning: collect embeddings from TPU, 
+cluster them, then classify new embeddings by nearest centroid.
+
+No training required — just collect labeled samples and compute centroids.
+
+  --- Setup ---
+  init(k, dim) -> int   Initialize with k clusters and vector dimension.
+                        Returns 0 on success.
+                        k: 1-64, dim: 1-2048
+
+  --- Manual Labeling (supervised) ---
+  add(cluster_idx, vector) -> int
+                        Add a vector (list of floats) to a specific cluster.
+                        Use this for labeled training data.
+
+  add_from_tpu(cluster_idx, tpu_idx) -> int
+                        Add TPU output tensor directly to a cluster.
+                        Auto-dequantizes int8/uint8 to float.
+
+  compute() -> int      Compute centroids from added vectors.
+                        Call after adding all training samples.
+
+  --- Automatic Clustering (unsupervised) ---
+  fit(max_iter=100) -> int
+                        Run Lloyd's k-means algorithm on stored vectors.
+                        Returns number of iterations.
+                        Note: Use this AFTER adding vectors with add().
+
+  --- Inference ---
+  predict(vector) -> int
+                        Predict cluster index (0 to k-1) for a vector.
+
+  from_tpu(tpu_idx) -> int
+                        Predict cluster using TPU output tensor.
+                        The main entry point for inference.
+
+  distances(vector) -> list
+                        Get Euclidean distance to each centroid.
+
+  --- Persistence ---
+  save(path) -> int     Save centroids to file.
+  load(path) -> int     Load centroids from file.
+                        Automatically sets k and dim from file.
+
+  --- Info ---
+  centroid(idx) -> list Get centroid vector as list of floats.
+  info() -> dict        Returns {k, dim, vectors, initialized, counts}
+  clear() -> None       Clear training vectors (keep centroids).
+
+  Example (few-shot image classifier with TPU backbone):
+    # Use MobileNet as feature extractor (outputs 1280-dim embeddings)
+    sentai.tpu.load('/models/mobilenet_v2_1.0_224_feature_vector_quant_edgetpu.tflite')
+    sentai.camera.init()
+    
+    # Initialize k-means: 3 classes, 1280-dim embeddings
+    sentai.kmeans.init(3, 1280)
+    
+    # Collect training samples (3 classes, 5 samples each)
+    for label in range(3):
+        print(f'Show class {label}, press Enter for each sample')
+        for _ in range(5):
+            input('Ready...')
+            sentai.camera.to_tensor()
+            sentai.tpu.invoke()
+            sentai.kmeans.add_from_tpu(label, 0)  # Add embedding to cluster
+    
+    # Compute centroids
+    sentai.kmeans.compute()
+    sentai.kmeans.save('/models/my_classifier.kmeans')
+    print(sentai.kmeans.info())  # {'k': 3, 'dim': 1280, 'vectors': 15, ...}
+    
+    # Inference loop
+    while True:
+        sentai.camera.to_tensor()
+        sentai.tpu.invoke()
+        cls = sentai.kmeans.from_tpu(0)
+        dists = sentai.kmeans.distances(sentai.tpu.output_floats(0))
+        confidence = 1.0 / (1.0 + dists[cls])  # Simple confidence metric
+        print(f'Class {cls}: conf={confidence:.2f}')
+
+  Example (unsupervised clustering of embeddings):
+    # Collect unlabeled embeddings
+    sentai.kmeans.init(5, 1280)  # 5 clusters, 1280-dim
+    
+    for i in range(100):
+        sentai.camera.to_tensor()
+        sentai.tpu.invoke()
+        sentai.kmeans.add(0, sentai.tpu.output_floats(0))  # cluster 0 = placeholder
+    
+    # Run k-means to find clusters
+    iters = sentai.kmeans.fit(50)  # max 50 iterations
+    print(f'Converged in {iters} iterations')
+    print(sentai.kmeans.info()['counts'])  # Samples per cluster
+    sentai.kmeans.save('/models/clusters.kmeans')
+
+  Key advantages over AIfES:
+  - No training required (just centroid computation)
+  - Works with any embedding dimension
+  - Instant inference (single distance computation)
+  - Perfect for few-shot scenarios (1-10 samples per class)
+
+  Memory usage:
+  - Centroids: k × dim × 4 bytes
+  - Training vectors: up to 1000 × dim × 4 bytes (cleared after compute)
+  - Example: 5 clusters × 1280 dim = 25.6 KB for centroids

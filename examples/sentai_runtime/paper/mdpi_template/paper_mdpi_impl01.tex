@@ -1,0 +1,103 @@
+The implementation of SentAI starts from a strong architectural
+hypothesis: for lightweight autonomous drones, the most useful computing
+arrangement is not a large companion computer with a small flight
+controller attached to it, but a tightly coupled MCU-plus-accelerator
+system in which the accelerator performs the dense tensor computation
+and the MCU orchestrates everything else. This view is consistent with
+broader trends in domain-specific architectures for neural networks,
+especially the systolic-array lineage popularized by TPU-style
+accelerators, where high arithmetic density and low energy per operation
+make specialized inference hardware much more attractive than
+general-purpose processing for continuously running perception tasks.
+
+In this work, the EdgeTPU is treated as the primary neural execution
+engine and the MCU as the real-time systems controller that makes this
+engine usable in practice. The MCU is responsible for sensor bring-up,
+camera switching, image scaling and quantization setup, task scheduling
+under FreeRTOS, telemetry transport, filesystem access, and the
+high-level control hooks exposed to the drone. The choice of a real-time
+operating system, rather than a Linux-based software stack, is
+deliberate. For this class of airborne system, FreeRTOS offers lower
+software overhead, tighter control over scheduling and memory, faster
+boot behavior, simpler timing analysis, and a substantially smaller
+energy and storage footprint than a full operating-system distribution.
+This division of responsibility is central to the implementation
+strategy. It avoids the weight and current draw associated with larger
+embedded AI platforms while still enabling onboard deep-learning
+inference for navigation and scene understanding.
+
+This design choice is particularly important in the drone context.
+Platforms such as Coral Dev Board or Jetson-class systems are powerful,
+but their mass, thermal requirements, battery burden, and system
+complexity make them difficult to justify for small indoor drones or for
+compact airframes where endurance and safety matter. Their software
+model is also usually tied to a Linux-class environment, which is
+convenient for development but less attractive when deterministic
+timing, reduced boot latency, and strict power discipline are required
+onboard a lightweight UAV. By contrast, a minimalist EdgeTPU-enabled
+board can remain lightweight and power-conscious, yet still sustain
+meaningful onboard perception if the software stack is built around the
+accelerator and an RTOS-controlled MCU rather than around the comfort
+assumptions of a desktop-like host. The implementation therefore argues
+that the EdgeTPU is not merely a convenient inference add-on, but a
+sufficiently strong low-power compute primitive to be integrated beside
+virtually any capable MCU, provided that memory and data movement are
+engineered with care.
+
+The concrete system extends the minimal board profile with two 5 Mpx
+cameras and an onboard IMU. This is a deliberate departure from
+lower-resolution single-camera operating modes commonly found in
+embedded vision examples. The intent is to preserve more visual detail
+at the sensing stage, even when the final detector input is smaller,
+because high-resolution acquisition creates more room for strategic
+cropping, scaling, model switching, and camera-role specialization. In
+practical terms, this matters for YOLO-class detectors, which are
+sensitive to input detail and often benefit from larger or
+better-preserved spatial structure before quantization.
+
+The two-camera design also reflects a broader systems argument. A single
+fixed camera is often enough for a benchmark, but not always enough for
+a drone mission. Indoor navigation, target localization, regulatory
+awareness, and scene understanding may require forward-looking and
+nadir-looking views, or rapid switching between complementary
+perspectives. The implementation supports this by treating the
+dual-camera subsystem as part of the platform architecture, not as an
+optional accessory. Camera identity, mount geometry, and active-view
+selection are propagated all the way to the tracking and projection
+layers.
+
+At the software level, the architecture is also shaped by
+programmability. Rather than exposing the platform only through C++
+firmware entry points, the system embeds a full MicroPython runtime and
+binds the major capabilities of the board into a structured
+\texttt{sentai} module. This follows the intuition that autonomous
+flight research evolves too quickly for every experimental change to
+require a full firmware rewrite. High-level mission logic, model
+orchestration, telemetry handling, and flight behaviors are therefore
+scripted, while the timing-critical path remains implemented in compiled
+code.
+
+This leads to a deliberate split between two programming models. At the
+lower level, the firmware is task-oriented in C++: camera acquisition,
+preprocessing, communication, tracking, and control services are
+organized as explicit FreeRTOS tasks, queues, semaphores, and singleton
+runtime components with well-defined ownership over buffers and
+peripherals. At the upper level, the platform becomes script-oriented in
+MicroPython: the user composes these services through short scripts,
+REPL commands, and boot-time logic without needing to manage the
+underlying task graph directly. The purpose of this split is not only
+convenience, but architectural clarity. C++ remains responsible for
+determinism, concurrency, and performance-critical resource control,
+while MicroPython remains responsible for orchestration,
+experimentation, and rapid reconfiguration of behavior.
+
+In this way, the implementation combines the rapid iteration benefits
+associated with embedded scripting with the deterministic execution
+required by real-time perception.
+
+The resulting system should thus be understood as a co-designed stack
+with four tightly linked layers: hardware sensing and capture, real-time
+host orchestration on the MCU, neural inference on the EdgeTPU, and a
+high-level control and experimentation surface in MicroPython. This
+layered organization is what makes the platform useful as a research
+artifact rather than merely as a single-purpose demo.

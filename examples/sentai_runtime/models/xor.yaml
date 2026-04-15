@@ -1,0 +1,33 @@
+# XOR Example Model for AIfES on-device training
+# Ultralytics YOLO-style YAML format
+#
+# Example usage:
+#   import sentai
+#   sentai.aifes.load("/models/xor.yaml")
+#   x = [[0,0], [0,1], [1,0], [1,1]]
+#   y = [[0], [1], [1], [0]]
+#   loss = sentai.aifes.train(x, y, epochs=500)
+#   print(sentai.aifes.predict([1, 0]))  # -> [~1.0]
+
+model:
+  name: xor_mlp
+  dtype: f32
+
+# Network architecture (input -> hidden layers)
+backbone:
+  - [input, 2]
+  - [dense, 4, sigmoid]
+
+# Output head
+head:
+  - [dense, 1, sigmoid]
+
+# Training defaults (can be overridden in train() call)
+train:
+  epochs: 500
+  batch_size: 4
+  learning_rate: 0.5
+  optimizer: adam
+  loss: mse
+  val_split: 0.0
+  early_stopping: false

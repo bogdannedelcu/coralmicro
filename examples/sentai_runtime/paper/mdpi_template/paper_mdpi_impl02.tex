@@ -1,0 +1,121 @@
+One of the main implementation claims of this work is that achieving
+strong onboard vision performance on a compact MCU-plus-EdgeTPU platform
+depends less on raw inference speed alone and more on how efficiently
+the host prepares, places, and transfers data. This is particularly
+visible in the code added relative to the initial fork, where the
+runtime evolves from a board example into a carefully staged real-time
+system.
+
+The core execution environment is FreeRTOS. Rather than running
+perception as a single sequential loop, the implementation decomposes
+the workload into cooperating tasks with explicit ownership boundaries.
+The most relevant example is the continuous detection pipeline, where
+the code in \texttt{detection\_task.cc} organizes the system around a
+preparation task and an inference task. The preparation task acquires
+the latest frame, scales and converts it through the hardware pixel
+pipeline, applies quantization when needed, and writes the result into a
+staging buffer. The inference task copies the prepared staging contents
+into the EdgeTPU input tensor, releases the staging buffer immediately,
+and then executes inference and post-processing while preparation for
+the next frame can already proceed. This design is not simply an
+optimization; it is the mechanism through which the implementation turns
+limited memory and compute resources into sustained throughput.
+
+An important low-level detail is that the runtime does not feed the
+detector directly from the raw camera bus format. The active camera
+configuration captures native 1280x720 frames into 64-byte-aligned
+framebuffers with a 4-byte-per-pixel host representation. In practice,
+the software treats these buffers as XRGB8888-like surfaces because this
+layout is easier to move through CSI DMA, cache maintenance, and the
+RT1176 pixel pipeline than a tightly packed 3-byte RGB tensor. This is
+precisely where the PXP block becomes essential rather than optional: it
+converts the aligned capture surface into RGB888 output at the detector
+input size, eliminating expensive per-pixel software shuffles on the
+Cortex-M7.
+
+This organization also clarifies the broader software split introduced
+in the architecture chapter. The lower implementation layer is
+task-oriented in C++, meaning that concurrency is expressed directly
+through FreeRTOS tasks, semaphores, queues, and explicit buffer handoff
+between producer and consumer stages. By contrast, the upper user layer
+remains script-oriented in MicroPython, where these same services are
+invoked as high-level operations without exposing the user to the
+internal synchronization structure. The runtime and memory subsystem is
+precisely where this separation becomes most meaningful: scripts can
+request model loading, camera capture, or continuous detection, but the
+correctness and performance of those operations depend on the
+task-oriented C++ layer maintaining deterministic ownership over memory,
+timing, and accelerator access.
+
+The use of double-buffered staging is especially important because it
+enforces a clean ownership discipline between producer and consumer
+stages. The staging buffer is written by the preparation side and read
+by the inference side under semaphore-controlled handoff, while the TPU
+tensor is written only when the staging contents are ready. This
+minimizes race conditions, reduces needless synchronization complexity,
+and preserves the ability to overlap work. In a larger system with
+abundant memory, one could compensate for poor orchestration by brute
+force. In the present implementation, orchestration is the only
+realistic way to maintain high frame rate while preserving the low-power
+character of the platform.
+
+The same section of code also shows why byte alignment becomes a
+first-order systems concern. The staging area in SDRAM is explicitly
+aligned to cache boundaries, while the PXP conversion path performs
+cache clean-and-invalidate operations before DMA writes and invalidation
+after completion so that stale boundary lines do not overwrite fresh
+image data. This is needed because the TFLite arena is not naturally
+aligned to the same cache-line granularity as the DMA engine. Without
+that discipline, a seemingly minor mismatch between 16-byte tensor
+allocation and 32-byte cache-line behavior would produce intermittent
+corruption exactly at the stage where the detector input is assembled.
+
+The memory layout reflects the same philosophy. The linker script
+introduces a deliberate partitioning across internal memory, OCRAM,
+heap, SDRAM, and a dedicated region for camera-related traffic.
+MicroPython is placed explicitly in OCRAM rather than in the most
+latency-sensitive memory regions, while large buffers, tracker state,
+and staging areas are pushed into SDRAM where capacity matters more than
+absolute access latency. This is visible both in the custom linker
+script and in the pervasive use of explicit section placement such as
+\texttt{.sdram\_bss}. The implementation thus accepts that not all
+memory is equal and uses the linker as part of the optimization strategy
+rather than as a passive build artifact.
+
+This memory strategy also explains a design choice that would otherwise
+look surprising from a purely model-centric viewpoint: the system first
+tolerates a larger, alignment-friendly framebuffer representation and
+only later collapses it into the compact RGB tensor expected by the
+model. In other words, the runtime pays for structure before it pays for
+compactness. That tradeoff is justified because aligned DMA and
+deterministic hardware conversion are cheaper on this platform than
+repeatedly manipulating tightly packed pixels in software.
+
+This issue becomes more acute once YOLO-class detectors are considered.
+Larger detector inputs significantly increase the pressure on staging
+buffers, copied tensors, post-processing data, and runtime metadata. In
+a conventional desktop pipeline this is almost invisible. On an MCU
+platform it becomes decisive. The code therefore embodies a
+memory-rearrangement strategy aimed at fitting the MicroPython runtime,
+the real-time tasks, the tracker structures, and the camera-to-TPU
+pipeline into a workable whole while minimizing inefficient copies. This
+is one of the places where the implementation differs most strongly from
+a conceptual prototype: the problem is no longer simply to run a model,
+but to run it without collapsing the rest of the system.
+
+The same logic informs the build system. The custom CMake configuration
+aggregates a full embedded MicroPython build, nanopb-generated protocol
+code, additional audio and communication components, and the custom
+runtime sources into a single executable with a purpose-built linker
+script. This makes the firmware itself part of the experimental method.
+The implementation is not a loose collection of demos, but a
+custom-built runtime whose compilation model, memory map, and
+dependencies are aligned with the targeted deployment conditions.
+
+From a research perspective, this subsection supports a broader claim:
+on compact embedded AI platforms, the practical efficiency of a
+specialized accelerator depends on the host system's ability to keep the
+accelerator supplied with valid input at the right pace. The
+implementation therefore treats memory organization and RTOS scheduling
+as intrinsic parts of accelerator utilization rather than as secondary
+engineering details.

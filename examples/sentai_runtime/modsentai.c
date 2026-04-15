@@ -283,6 +283,8 @@ static void _fs_check_usb(void) {
 #include "modsentai_mic.c"
 #include "modsentai_sleep_ns.c"
 #include "modsentai_pipeline.c"
+#include "modsentai_aifes.c"
+#include "modsentai_kmeans.c"
 
 // =====================================================================
 // Top-level module functions (sentai.help, sentai.console, etc.)
@@ -470,6 +472,8 @@ static const mp_rom_map_elem_t sentai_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_mic),       MP_ROM_PTR(&sentai_mic_module) },
     { MP_ROM_QSTR(MP_QSTR_sleep),     MP_ROM_PTR(&sentai_sleep_module) },
     { MP_ROM_QSTR(MP_QSTR_pipeline),  MP_ROM_PTR(&sentai_pipeline_module) },
+    { MP_ROM_QSTR(MP_QSTR_aifes),     MP_ROM_PTR(&sentai_aifes_module) },
+    { MP_ROM_QSTR(MP_QSTR_kmeans),   MP_ROM_PTR(&sentai_kmeans_module) },
 };
 static MP_DEFINE_CONST_DICT(sentai_module_globals, sentai_module_globals_table);
 

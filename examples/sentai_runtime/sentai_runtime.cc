@@ -1234,6 +1234,9 @@ static int g_cam_current_id = 0;  // 0=front, 1=back
 static volatile uint32_t g_cam_switch_seq = 0;  // g_camera_frame_seq snapshot at MUX switch time
 static volatile bool g_cam_switch_pending = false;  // set by cam_switch, cleared by first capture
 
+// ===================== Audio externs for AIfES =====================
+// Uses the existing mic implementation in modsentai_hal.cc
+
 extern "C" int sentai_cam_is_initialized(void) {
   return g_cam_initialized ? 1 : 0;
 }
@@ -1676,5 +1679,48 @@ extern "C" int sentai_cam_get_native_width(void) {
 
 extern "C" int sentai_cam_get_native_height(void) {
   return coralmicro::CameraTask::kHeight;
+}
+
+// ===================== AIfES sensor capture functions =====================
+
+// Capture camera frame for AIfES, resize to w×h, output as RGB or grayscale
+// Returns: bytes written, or negative on error
+extern "C" int sentai_aifes_capture_camera(uint8_t* out, int w, int h, int grayscale) {
+  if (!g_cam_initialized) return -1;
+  if (!out || w <= 0 || h <= 0) return -3;
+  if (w > DEMO_CAMERA_WIDTH || h > DEMO_CAMERA_HEIGHT) return -5;
+  
+  // Capture raw frame
+  uint8_t* raw = nullptr;
+  int idx = sentai_cam_get_raw_with_recovery(&raw);
+  if (idx < 0 || !raw) return -2;
+  
+  auto* cam = coralmicro::CameraTask::GetSingleton();
+  
+  if (grayscale) {
+    // For grayscale: capture RGB, then convert
+    // Use temporary RGB buffer
+    std::vector<uint8_t> rgb_buf(w * h * 3);
+    int rc = pxp_scale_xrgb_to_rgb(raw, DEMO_CAMERA_WIDTH, DEMO_CAMERA_HEIGHT,
+                                    rgb_buf.data(), w, h);
+    cam->ReturnRawFrame(idx);
+    if (rc != 0) return rc;
+    
+    // Convert RGB to grayscale: Y = 0.299R + 0.587G + 0.114B
+    for (int i = 0; i < w * h; i++) {
+      int r = rgb_buf[i * 3];
+      int g = rgb_buf[i * 3 + 1];
+      int b = rgb_buf[i * 3 + 2];
+      out[i] = (uint8_t)((r * 77 + g * 150 + b * 29) >> 8);
+    }
+    return w * h;
+  } else {
+    // RGB: direct PXP output
+    int rc = pxp_scale_xrgb_to_rgb(raw, DEMO_CAMERA_WIDTH, DEMO_CAMERA_HEIGHT,
+                                    out, w, h);
+    cam->ReturnRawFrame(idx);
+    if (rc != 0) return rc;
+    return w * h * 3;
+  }
 }
 // [end-sphinx-snippet:detect-image]

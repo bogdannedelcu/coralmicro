@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="780" viewBox="0 0 1280 780">
+  <defs>
+    <style>
+      .title { font: 700 26px 'DejaVu Sans', sans-serif; fill: #17324d; }
+      .label { font: 600 18px 'DejaVu Sans', sans-serif; fill: #17324d; }
+      .small { font: 400 14px 'DejaVu Sans', sans-serif; fill: #35516b; }
+      .box { fill: #f6fbff; stroke: #2d5f87; stroke-width: 2.5; rx: 18; ry: 18; }
+      .svc { fill: #eef6ed; stroke: #4a7d4f; stroke-width: 2.5; rx: 18; ry: 18; }
+      .net { fill: #fff5eb; stroke: #b86d1f; stroke-width: 2.5; rx: 18; ry: 18; }
+      .arrow { stroke: #4a6278; stroke-width: 3; fill: none; marker-end: url(#arrow); }
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#4a6278"/>
+    </marker>
+  </defs>
+
+  <rect width="1280" height="780" fill="#ffffff"/>
+  <text x="50" y="55" class="title">Programming Model and User-Facing Runtime Surface</text>
+
+  <rect x="450" y="120" width="380" height="150" class="box"/>
+  <text x="640" y="165" text-anchor="middle" class="label">SentAI Runtime Surface</text>
+  <text x="640" y="198" text-anchor="middle" class="small">MicroPython REPL + built-in help</text>
+  <text x="640" y="226" text-anchor="middle" class="small">boot via /main.py, logs in /log/boot.log</text>
+
+  <rect x="80" y="120" width="250" height="120" class="net"/>
+  <text x="205" y="162" text-anchor="middle" class="label">Serial REPL</text>
+  <text x="205" y="192" text-anchor="middle" class="small">interactive commands and debugging</text>
+
+  <rect x="950" y="120" width="250" height="120" class="net"/>
+  <text x="1075" y="162" text-anchor="middle" class="label">USB IP + Web</text>
+  <text x="1075" y="192" text-anchor="middle" class="small">browser and file access</text>
+
+  <rect x="950" y="300" width="250" height="120" class="net"/>
+  <text x="1075" y="342" text-anchor="middle" class="label">USB Mass Storage</text>
+  <text x="1075" y="372" text-anchor="middle" class="small">LittleFS mounted drive</text>
+
+  <rect x="125" y="520" width="180" height="110" class="svc"/>
+  <text x="215" y="560" text-anchor="middle" class="label">rtos</text>
+  <text x="215" y="590" text-anchor="middle" class="small">tasks, CPU, heap</text>
+
+  <rect x="340" y="520" width="180" height="110" class="svc"/>
+  <text x="430" y="560" text-anchor="middle" class="label">camera / imu</text>
+  <text x="430" y="590" text-anchor="middle" class="small">capture, switch, pose</text>
+
+  <rect x="555" y="520" width="180" height="110" class="svc"/>
+  <text x="645" y="560" text-anchor="middle" class="label">tpu / pipeline</text>
+  <text x="645" y="590" text-anchor="middle" class="small">detect, track, project</text>
+
+  <rect x="770" y="520" width="180" height="110" class="svc"/>
+  <text x="860" y="560" text-anchor="middle" class="label">link / crazy</text>
+  <text x="860" y="590" text-anchor="middle" class="small">MAVLink and Crazyflie</text>
+
+  <rect x="985" y="520" width="180" height="110" class="svc"/>
+  <text x="1075" y="560" text-anchor="middle" class="label">fs / usb / io</text>
+  <text x="1075" y="590" text-anchor="middle" class="small">files, logs, transfer</text>
+
+  <line x1="330" y1="180" x2="450" y2="180" class="arrow"/>
+  <line x1="830" y1="180" x2="950" y2="180" class="arrow"/>
+  <line x1="830" y1="245" x2="950" y2="330" class="arrow"/>
+
+  <line x1="640" y1="270" x2="215" y2="520" class="arrow"/>
+  <line x1="640" y1="270" x2="430" y2="520" class="arrow"/>
+  <line x1="640" y1="270" x2="645" y2="520" class="arrow"/>
+  <line x1="640" y1="270" x2="860" y2="520" class="arrow"/>
+  <line x1="640" y1="270" x2="1075" y2="520" class="arrow"/>
+
+  <text x="640" y="705" text-anchor="middle" class="small">User-facing view: three access modes on USB, one coherent sentai namespace, and script-driven control over sensing, inference, communication, and logs</text>
+</svg>

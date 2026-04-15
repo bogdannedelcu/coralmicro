@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="780" viewBox="0 0 1280 780">
+  <defs>
+    <style>
+      .title { font: 700 26px 'DejaVu Sans', sans-serif; fill: #17324d; }
+      .label { font: 600 18px 'DejaVu Sans', sans-serif; fill: #17324d; }
+      .small { font: 400 14px 'DejaVu Sans', sans-serif; fill: #35516b; }
+      .box { fill: #f6fbff; stroke: #2d5f87; stroke-width: 2.5; rx: 18; ry: 18; }
+      .sensor { fill: #eef6ed; stroke: #4a7d4f; stroke-width: 2.5; rx: 18; ry: 18; }
+      .acc { fill: #fff5eb; stroke: #b86d1f; stroke-width: 2.5; rx: 18; ry: 18; }
+      .arrow { stroke: #4a6278; stroke-width: 3; fill: none; marker-end: url(#arrow); }
+      .dash { stroke-dasharray: 8 6; }
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#4a6278"/>
+    </marker>
+  </defs>
+
+  <rect width="1280" height="780" fill="#ffffff"/>
+  <text x="50" y="55" class="title">Dual-Camera Vision Pipeline and Perception Stack</text>
+
+  <rect x="70" y="140" width="220" height="120" class="sensor"/>
+  <text x="180" y="182" text-anchor="middle" class="label">Camera 0</text>
+  <text x="180" y="212" text-anchor="middle" class="small">front / nadir role</text>
+
+  <rect x="70" y="320" width="220" height="120" class="sensor"/>
+  <text x="180" y="362" text-anchor="middle" class="label">Camera 1</text>
+  <text x="180" y="392" text-anchor="middle" class="small">alternate viewpoint</text>
+
+  <rect x="370" y="230" width="220" height="120" class="box"/>
+  <text x="480" y="270" text-anchor="middle" class="label">MUX + CSI / MIPI</text>
+  <text x="480" y="300" text-anchor="middle" class="small">clean switch after fresh frames</text>
+
+  <rect x="670" y="230" width="220" height="120" class="acc"/>
+  <text x="780" y="270" text-anchor="middle" class="label">PXP Conversion</text>
+  <text x="780" y="300" text-anchor="middle" class="small">scale + XRGB to RGB</text>
+
+  <rect x="970" y="230" width="220" height="120" class="acc"/>
+  <text x="1080" y="270" text-anchor="middle" class="label">Detector</text>
+  <text x="1080" y="300" text-anchor="middle" class="small">YOLO-class model on EdgeTPU</text>
+
+  <rect x="260" y="560" width="240" height="120" class="box"/>
+  <text x="380" y="600" text-anchor="middle" class="label">Per-Camera Geometry</text>
+  <text x="380" y="630" text-anchor="middle" class="small">FOV, pitch, roll, yaw, reference mode</text>
+
+  <rect x="560" y="560" width="240" height="120" class="box"/>
+  <text x="680" y="600" text-anchor="middle" class="label">SentAI-SORT Tracker</text>
+  <text x="680" y="630" text-anchor="middle" class="small">Kalman + ByteTrack + HSV + IMU</text>
+
+  <rect x="860" y="560" width="260" height="120" class="box"/>
+  <text x="990" y="600" text-anchor="middle" class="label">Ground Projection</text>
+  <text x="990" y="630" text-anchor="middle" class="small">spatial localization and GPS-ready output</text>
+
+  <line x1="290" y1="200" x2="370" y2="260" class="arrow"/>
+  <line x1="290" y1="380" x2="370" y2="320" class="arrow"/>
+  <line x1="590" y1="290" x2="670" y2="290" class="arrow"/>
+  <line x1="890" y1="290" x2="970" y2="290" class="arrow"/>
+  <line x1="1080" y1="350" x2="1080" y2="500" class="arrow"/>
+  <line x1="1080" y1="500" x2="800" y2="600" class="arrow"/>
+  <line x1="1080" y1="500" x2="1120" y2="560" class="arrow"/>
+  <line x1="500" y1="620" x2="560" y2="620" class="arrow"/>
+  <line x1="800" y1="620" x2="860" y2="620" class="arrow"/>
+
+  <path d="M 480 350 C 470 430, 430 500, 395 560" class="arrow dash"/>
+  <text x="280" y="500" class="small">geometry follows active camera</text>
+
+  <path d="M 720 560 C 720 510, 760 450, 940 380" class="arrow dash"/>
+  <text x="785" y="470" class="small">detections + motion context</text>
+
+  <text x="640" y="735" text-anchor="middle" class="small">Perception view: dual sensors - clean camera switching - PXP preprocessing - EdgeTPU detection - tracking - geometry-aware projection</text>
+</svg>

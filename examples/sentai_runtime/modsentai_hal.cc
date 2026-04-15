@@ -437,6 +437,40 @@ int sentai_mic_samples(void) {
     return (int)g_mic_rec_pos;
 }
 
+// sentai_mic_is_initialized() — check if mic service is running.
+int sentai_mic_is_initialized(void) {
+    return g_mic_svc_ptr != nullptr ? 1 : 0;
+}
+
+// sentai_aifes_capture_mic() — copy latest N samples to output buffer.
+// Used by AIfES from_mic() function.
+// Returns: samples copied, or negative on error.
+int sentai_aifes_capture_mic(int16_t* out, int samples) {
+    if (!g_mic_svc_ptr) return -1;  // Mic not running
+    if (!out || samples <= 0) return -3;
+    if ((size_t)samples > g_mic_ring_size) return -5;  // Too many samples
+    
+    // Get the number of available samples
+    size_t available = g_mic_rec_wrapped ? g_mic_ring_size : g_mic_rec_pos;
+    if ((size_t)samples > available) {
+        // Not enough samples yet, use what we have
+        samples = (int)available;
+        if (samples == 0) return -7;  // No samples available
+    }
+    
+    // Calculate start position for latest N samples
+    size_t pos = g_mic_rec_pos;
+    size_t ring = g_mic_ring_size;
+    size_t start = (pos + ring - samples) % ring;
+    
+    // Copy samples (already int16 in g_mic_rec_buf)
+    for (int i = 0; i < samples; i++) {
+        out[i] = g_mic_rec_buf[(start + i) % ring];
+    }
+    
+    return samples;
+}
+
 // sentai_mic_level() — current RMS level in centi-dB (0 = silence, ~9000 = loud).
 // Auto-starts mic in monitor mode if not already running.
 int sentai_mic_level(void) {

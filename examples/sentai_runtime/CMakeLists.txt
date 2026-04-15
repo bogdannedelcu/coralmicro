@@ -166,6 +166,7 @@ target_link_libraries(sentai_runtime
     libs_audio_freertos
     shine
     libmicropython
+    libs_aifes_task_m7
     nanopb
     meshtastic_pb
 )
@@ -181,7 +182,7 @@ target_include_directories(sentai_runtime PRIVATE
     ${PROJECT_SOURCE_DIR}/third_party/mavlink    # MAVLink c_library_v2 headers
 )
 
-target_compile_options(sentai_runtime PRIVATE -O2)
+target_compile_options(sentai_runtime PRIVATE -Os)
 
 # Ensure version header is generated before compiling
 add_dependencies(libmicropython increment_build_version)

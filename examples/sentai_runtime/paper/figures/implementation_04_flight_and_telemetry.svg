@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760">
+  <defs>
+    <style>
+      .title { font: 700 26px 'DejaVu Sans', sans-serif; fill: #17324d; }
+      .label { font: 600 18px 'DejaVu Sans', sans-serif; fill: #17324d; }
+      .small { font: 400 14px 'DejaVu Sans', sans-serif; fill: #35516b; }
+      .box { fill: #f6fbff; stroke: #2d5f87; stroke-width: 2.5; rx: 18; ry: 18; }
+      .target { fill: #eef6ed; stroke: #4a7d4f; stroke-width: 2.5; rx: 18; ry: 18; }
+      .net { fill: #fff5eb; stroke: #b86d1f; stroke-width: 2.5; rx: 18; ry: 18; }
+      .arrow { stroke: #4a6278; stroke-width: 3; fill: none; marker-end: url(#arrow); }
+      .bi { stroke: #4a6278; stroke-width: 3; fill: none; marker-start: url(#arrow); marker-end: url(#arrow); }
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#4a6278"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="760" fill="#ffffff"/>
+  <text x="55" y="55" class="title">Flight Control, Telemetry, and External Integration</text>
+
+  <rect x="390" y="220" width="420" height="180" class="box"/>
+  <text x="600" y="265" text-anchor="middle" class="label">SentAI Runtime</text>
+  <text x="600" y="300" text-anchor="middle" class="small">high-level commands, perception outputs, message routing</text>
+  <text x="600" y="328" text-anchor="middle" class="small">Crazyflie control + MAVLink bridge + scriptable APIs</text>
+
+  <rect x="80" y="240" width="220" height="140" class="target"/>
+  <text x="190" y="285" text-anchor="middle" class="label">Bitcraze Crazyflie</text>
+  <text x="190" y="315" text-anchor="middle" class="small">indoor experiments</text>
+  <text x="190" y="343" text-anchor="middle" class="small">arm, takeoff, move, land</text>
+
+  <rect x="900" y="220" width="230" height="180" class="target"/>
+  <text x="1015" y="265" text-anchor="middle" class="label">PX4 / MAVLink Vehicle</text>
+  <text x="1015" y="295" text-anchor="middle" class="small">telemetry ingestion</text>
+  <text x="1015" y="323" text-anchor="middle" class="small">vision message publishing</text>
+  <text x="1015" y="351" text-anchor="middle" class="small">professional autopilot workflow</text>
+
+  <rect x="140" y="530" width="250" height="120" class="net"/>
+  <text x="265" y="572" text-anchor="middle" class="label">Perception Outputs</text>
+  <text x="265" y="602" text-anchor="middle" class="small">detections, tracks, projected targets</text>
+
+  <rect x="475" y="530" width="250" height="120" class="net"/>
+  <text x="600" y="572" text-anchor="middle" class="label">Telemetry Exchange</text>
+  <text x="600" y="602" text-anchor="middle" class="small">receive status, send chunked payloads</text>
+
+  <rect x="810" y="530" width="250" height="120" class="net"/>
+  <text x="935" y="572" text-anchor="middle" class="label">Mesh / Backend Proxies</text>
+  <text x="935" y="602" text-anchor="middle" class="small">relay, aggregate, MQTT-facing services</text>
+
+  <line x1="300" y1="310" x2="390" y2="310" class="arrow"/>
+  <line x1="810" y1="310" x2="900" y2="310" class="bi"/>
+  <line x1="265" y1="530" x2="470" y2="400" class="arrow"/>
+  <line x1="600" y1="530" x2="600" y2="400" class="arrow"/>
+  <line x1="935" y1="530" x2="730" y2="400" class="arrow"/>
+
+  <text x="640" y="705" text-anchor="middle" class="small">Control view: one runtime, two flight targets, bidirectional telemetry, and external dissemination of vision-aware state</text>
+</svg>

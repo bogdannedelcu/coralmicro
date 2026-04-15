@@ -1,0 +1,185 @@
+\subsection{Autonomous visual navigation for
+nano-UAVs}\label{autonomous-visual-navigation-for-nano-uavs}
+
+An important reference point for this work is the line of research that
+demonstrates fully onboard visual autonomy on extremely small flying
+robots. A particularly relevant example is \emph{An Open Source and Open
+Hardware Deep Learning-powered Visual Navigation Engine for Autonomous
+Nano-UAVs}, which shows that a nano-UAV can execute a closed-loop visual
+navigation pipeline onboard under severe power and mass constraints.
+That work is important not only because it proves feasibility, but
+because it frames the design problem correctly: perception, inference,
+control, and hardware architecture cannot be treated independently when
+the air vehicle is very small. SentAI inherits this systems-level
+viewpoint, but shifts the focus from a custom navigation engine toward a
+more general-purpose embedded AI runtime that combines high-level
+scripting, object detection, multi-view sensing, and compatibility with
+both experimental and professional drone-control ecosystems.
+
+The broader nano-UAV literature also distinguishes between systems that
+are truly autonomous onboard and systems that depend on offboard
+computing, external localization infrastructure, or heavy companion
+computers. This distinction remains essential. For indoor research,
+offboard support is useful during development, but it does not solve the
+core embedded autonomy problem. SentAI therefore positions itself within
+the class of systems that aim to keep perception and high-level decision
+making onboard, even when this requires substantial engineering effort
+in memory organization, RTOS scheduling, and sensor integration.
+
+\subsection{Embedded AI accelerators and systolic-array
+inference}\label{embedded-ai-accelerators-and-systolic-array-inference}
+
+The use of an EdgeTPU-class accelerator places this work within the
+wider context of edge inference on specialized matrix-processing
+hardware. Systolic-array accelerators changed the practical landscape of
+embedded AI because they made it possible to execute neural inference at
+high throughput and low energy relative to CPU-only or even general
+GPU-centric approaches. In this broader context, the TPU family
+established a strong reference model for efficient tensor computation
+through structured dataflow and regular multiply-accumulate pipelines.
+SentAI is not a study of accelerator microarchitecture by itself, but it
+depends critically on the availability of this kind of accelerator model
+and on the practical challenge of feeding it efficiently from a
+constrained MCU environment.
+
+This distinction matters. On larger boards, accelerator throughput is
+often discussed independently from sensor transfer and host memory
+layout, because the host has enough resources to hide inefficiencies. On
+small MCU-based systems, however, the effective performance of the
+accelerator is inseparable from the cost of moving images from the
+camera to RAM, rearranging tensors, and scheduling inference without
+starving the rest of the application. In that sense, this work
+contributes to the embedded AI literature by focusing on the host-side
+industrialization problem around the accelerator, not only on the
+accelerator itself.
+
+\subsection{YOLO-family object detectors and compact detection
+models}\label{yolo-family-object-detectors-and-compact-detection-models}
+
+The object detection component of this work is aligned with the large
+body of literature around single-stage detectors and especially the YOLO
+family. YOLO-style architectures are attractive in airborne robotics
+because they offer a practical balance between accuracy, latency, and
+deployment simplicity. They are also natural candidates for quantized
+execution and edge deployment. At the same time, deploying YOLO-class
+models on resource-constrained embedded platforms introduces a very
+different set of concerns from those seen on desktop GPUs: input
+resolution becomes a memory-placement problem, post-processing cost
+becomes part of the frame budget, and intermediate copies become
+unacceptable at scale.
+
+Within this design space, compact variants such as YOLO26-style models
+are especially relevant because they seek to preserve detection
+usefulness while reducing computational and memory pressure. This makes
+them well matched to embedded AI pipelines in which the native camera
+imagery may be relatively large, but the runtime still needs to fit
+within tight SRAM and SDRAM limits. SentAI positions itself precisely at
+this interface between compact model design and deployment-aware systems
+engineering. Rather than treating the detector as an isolated black box,
+it studies how detector choice interacts with camera resolution,
+quantization, memory layout, and real-time scheduling.
+
+\subsection{MicroPython and high-level programmability on embedded
+systems}\label{micropython-and-high-level-programmability-on-embedded-systems}
+
+MicroPython has long been valued in embedded systems for shortening the
+iteration cycle between algorithm design, hardware interaction, and
+system testing. In robotics, this is particularly attractive because
+state machines, mission logic, communication rules, and experimental
+procedures change quickly, often faster than low-level firmware can be
+safely recompiled and reflashed. However, the majority of MicroPython
+deployments emphasize convenience over hard real-time performance and
+are usually not coupled to a high-throughput edge-AI pipeline.
+
+SentAI uses MicroPython differently: not as a replacement for the
+real-time system, but as a high-level orchestration layer placed above
+it. Time-critical operations such as frame capture, scaling,
+quantization, inference, and buffering remain implemented in compiled
+code under the RTOS, while Python exposes them as programmable mission
+primitives. This approach is relevant to previous work on embedded
+scripting because it shows how an interpreted environment can be
+integrated into an accelerator-centric, real-time drone application
+without turning the interpreter into the performance bottleneck.
+
+\subsection{Vision pipelines for drone perception and viewpoint-aware
+sensing}\label{vision-pipelines-for-drone-perception-and-viewpoint-aware-sensing}
+
+Most embedded drone-vision pipelines still assume a single active camera
+and a relatively static geometry. This is reasonable in many systems,
+but it limits mission flexibility. Drone operation frequently benefits
+from multiple sensing attitudes: forward views for obstacle awareness
+and navigation, nadir views for inspection and target localization, and
+oblique views that balance situational context with ground visibility.
+SentAI extends this discussion by treating dual-camera operation and
+runtime camera switching as core design elements. The system therefore
+aligns with research on viewpoint-aware aerial perception, but
+approaches the problem from the perspective of deployment on a compact
+embedded AI stack rather than from the perspective of large-scale
+perception benchmarks alone.
+
+This also connects with work on projection-aware tracking and sensor
+fusion. Once IMU measurements, camera geometry, and ground-plane
+assumptions are available, detections can be represented not only in
+image coordinates but also in more operationally meaningful spatial
+coordinates. SentAI builds on this idea by combining tracking, IMU-aware
+motion compensation, per-camera geometry, and projection to the ground
+plane so that perception can be consumed more directly by flight logic
+and telemetry systems.
+
+\subsection{Open datasets, synthetic data, and regulation-aware
+navigation}\label{open-datasets-synthetic-data-and-regulation-aware-navigation}
+
+Synthetic data has become increasingly important in aerial robotics
+because collecting and annotating large real-world datasets from drones
+is expensive, repetitive, and often constrained by safety or regulation.
+For applications involving inhabited spaces, this difficulty is even
+greater: the scenes are operationally sensitive, the failure modes are
+costly, and the data should ideally cover multiple viewing angles and
+flight contexts. An open synthetic dataset that explicitly contains
+nadir and oblique perspectives is therefore consistent with current
+trends in simulation-assisted pre-training and domain adaptation.
+
+The relevance of this direction becomes stronger when drone navigation
+is discussed not only as a perception problem, but also as a compliance
+problem. European operation categories such as A0-A3 and A2 motivate
+systems that are more conservative, more aware of surrounding objects
+and persons, and easier to validate under explicit operational
+constraints. While regulation-aware autonomy is still an emerging topic,
+it provides an important framing device for this work: the detector and
+dataset are not meant only to improve benchmark accuracy, but to support
+future high-level navigation policies that must operate under stricter
+safety and legal constraints.
+
+\subsection{Positioning of this work}\label{positioning-of-this-work}
+
+Relative to prior work, SentAI occupies a middle ground that is not
+addressed well by any single existing direction. It is lighter and more
+power-conscious than larger embedded AI computers, more programmable
+than fixed-function onboard vision stacks, more perception-rich than
+minimal MCU-only controllers, and more deployment-oriented than many
+standalone model papers. Its contribution is therefore not a new
+detector alone, not a new autopilot alone, and not a new board alone,
+but the integration of these concerns into a coherent embedded autonomy
+platform for small drones.
+
+Indicative references to include in the final bibliography are the
+following:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \emph{An Open Source and Open Hardware Deep Learning-powered Visual
+  Navigation Engine for Autonomous Nano-UAVs}.
+\item
+  Core YOLO-family papers and the compact YOLO26 line relevant to
+  efficient embedded detection.
+\item
+  Foundational work on TPU and systolic-array-based neural accelerators.
+\item
+  MicroPython project and related work on embedded scripting for
+  robotics.
+\item
+  Prior work on aerial perception, synthetic datasets for UAV vision,
+  and regulation-aware autonomous flight.
+\end{enumerate}
