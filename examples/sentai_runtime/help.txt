@@ -12,6 +12,7 @@ Sub-modules:
   sentai.io       LED / GPIO control
   sentai.rtos     FreeRTOS system info
   sentai.tpu      EdgeTPU inference
+  sentai.tfl      TFLite Micro CPU inference (no EdgeTPU)
   sentai.fs       Filesystem (LittleFS)
   sentai.camera   Camera capture
   sentai.imu      LIS2DU12 accelerometer
@@ -29,6 +30,7 @@ Sub-modules:
   sentai.dtw      Dynamic Time Warping (gesture/audio matching)
   sentai.hmm      Hidden Markov Model (Baum-Welch + Viterbi)
   sentai.rl       Reinforcement learning (Q-table, MAB, DQN)
+  sentai.slam     Detection-based EKF-SLAM (2D mapping)
 
 [io]
 sentai.io - LED / GPIO
@@ -90,6 +92,89 @@ sentai.tpu - EdgeTPU inference
     for d in dets:
         print(d)                    # (x1,y1,x2,y2,0.87,0)
     sentai.tpu.draw('/det.jpg', dets)
+
+[tfl]
+sentai.tfl - TFLite Micro (CPU-only inference)
+===============================================
+  Runs TFLite models on the Cortex-M7 CPU without EdgeTPU.
+  Use for non-EdgeTPU-compiled models (float32 or quantized int8/uint8).
+  Can coexist with sentai.tpu — both interpreters can be loaded at once.
+
+  --- Lifecycle ---
+  load(path, arena_kb=1024)
+                        Load .tflite model from flash.
+                        arena_kb sets the tensor arena size in KB.
+                        Default 1024 (1 MB). Increase for larger models.
+                        Returns 0=ok, -2=file not found, -3=arena too small,
+                        -4=multi-input model, -5=malloc failed.
+  unload()              Free interpreter and arena memory.
+  invoke()              Run inference -> ms elapsed (-1=not ready, -2=fail).
+  ready()               True if model loaded and ready.
+  info()                Print model details (arena, tensor shapes).
+
+  --- Input ---
+  set_input(data)       Write bytes into input tensor.
+                        data must be bytes/bytearray of exact input_size().
+                        For float32 inputs, use struct.pack('<Nf', ...).
+  load_image(path)      Load JPEG or raw RGB file into input tensor.
+                        Auto-detects JPEG by 0xFF 0xD8 header.
+                        Image is cropped/padded to fit tensor dims.
+  input_size()          Input tensor size in bytes.
+  input_dims()          Input shape tuple, e.g. (1, 96, 96, 1).
+  input_type()          Input TfLiteType (1=float32, 3=uint8, 9=int8).
+  input_quant()         Input quantization -> (scale, zero_point).
+
+  --- Output ---
+  num_outputs()         Number of output tensors.
+  output_size(idx)      Byte size of output tensor idx.
+  output(idx)           Raw bytes of output tensor idx.
+  output_dims(idx)      Shape tuple, e.g. (1, 10).
+  output_type(idx)      TfLiteType (1=float32, 3=uint8, 9=int8, 2=int32).
+  output_quant(idx)     Output quantization -> (scale, zero_point).
+  output_floats(idx)    Output as list of floats (auto-dequantized).
+  row(idx, r)           Tuple of ints/floats at row r.
+  val(idx, flat_i)      Single value at flat index.
+  save_output(path)     Save all outputs to CSV file.
+
+  Example (keyword detection — CPU model):
+    sentai.tfl.load('/models/keyword_detect.tflite', 256)
+    sentai.tfl.info()
+    # record audio, convert to features, then:
+    sentai.tfl.set_input(feature_bytes)
+    ms = sentai.tfl.invoke()
+    probs = sentai.tfl.output_floats(0)
+    print('inference:', ms, 'ms')
+    print('classes:', probs)
+
+  Example (image classification — CPU model):
+    sentai.tfl.load('/models/mobilenet_v1_quant.tflite', 4096)
+    sentai.tfl.load_image('/test/cat.jpg')
+    ms = sentai.tfl.invoke()
+    print('inference:', ms, 'ms')
+    probs = sentai.tfl.output_floats(0)
+    best = max(range(len(probs)), key=lambda i: probs[i])
+    print('class:', best, 'prob:', probs[best])
+
+  Example (sine wave — hello world TFLite):
+    import struct
+    sentai.tfl.load('/models/hello_world.tflite', 16)
+    x = 1.57  # pi/2
+    sentai.tfl.set_input(struct.pack('<f', x))
+    sentai.tfl.invoke()
+    y = sentai.tfl.val(0, 0)  # float output
+    print('sin(', x, ') =', y)
+
+  TfLiteType constants:
+    1 = float32    3 = uint8    9 = int8    2 = int32
+
+  Memory notes:
+    Arena is dynamically allocated (malloc). Free with unload().
+    Typical arena sizes:
+      hello_world:     16 KB
+      keyword_detect: 128 KB
+      person_detect:  256 KB
+      mobilenet_v1:  4096 KB
+    Use info() after load() to see actual arena usage.
 
 [fs]
 sentai.fs - Filesystem (LittleFS)
@@ -1350,3 +1435,128 @@ sentai.rl — Reinforcement Learning (Q-Table, MAB, DQN)
   - DQN: (state_dim × hidden + hidden × n_actions) × 4 bytes (weights)
          + 1000 × (2 × state_dim + 3) × 4 bytes (replay buffer)
   - Example: DQN 64→128→16 = ~36 KB weights + ~520 KB replay
+
+[slam]
+sentai.slam - Detection-Based EKF-SLAM
+======================================
+  Object-Level SLAM using bounding-box detections (e.g., YOLO) as
+  landmarks.  Estimates 2D robot pose (x, y, theta) and builds a
+  map of detected objects on the ground plane.
+
+  DECOUPLED from TPU: pass detection results from ANY source.
+  Works with tpu.detect() output or manual observations.
+
+  Setup:
+    init(fov_h_deg, img_w, img_h [,max_lm=64] [,baseline_m=0])
+      Initialize SLAM.
+      fov_h_deg:   Camera horizontal field of view in degrees
+      img_w/img_h: Detection image size (model input resolution)
+      max_lm:      Max landmarks in map (1..64, default 64)
+      baseline_m:  Stereo baseline in meters (0 = monocular)
+      Returns 0 on success, negative on error.
+
+  Detection-based update:
+    update(detections) -> int
+      Process a list of detections and update pose + map.
+      detections: list of (x1, y1, x2, y2, conf, class_id)
+        — Same format as sentai.tpu.detect() output
+        — Or any list of 6-element tuples/lists
+      Returns number of landmarks updated/created.
+
+    update_stereo(dets_left, dets_right) -> int
+      Stereo update: matches same-class detections between left
+      and right cameras to estimate depth via disparity.
+      Requires baseline_m > 0 at init().
+
+  Manual observation:
+    observe(class_id, bearing_rad, range_m) -> int
+      Add a manual landmark observation (from any sensor).
+      class_id:    Integer landmark class
+      bearing_rad: Bearing angle in radians (0 = forward)
+      range_m:     Estimated range in meters (0 = use default 2m)
+      Returns landmark index.
+
+  Motion:
+    predict(dx, dy, dtheta) -> None
+      Explicit motion prediction (e.g., from odometry/commands).
+      dx, dy: translation in robot frame (meters)
+      dtheta: rotation (radians)
+      Note: update() auto-estimates dtheta from detection shift.
+
+  Query:
+    pose() -> (x, y, theta)
+      Current estimated position and heading.
+
+    landmarks() -> list of dicts
+      Active landmarks: {id, class_id, x, y, seen}
+
+  Configuration:
+    noise([sigma_v, sigma_w, sigma_b, sigma_r]) -> tuple or None
+      Get or set noise parameters:
+        sigma_v: translational noise (m/step, default 0.05)
+        sigma_w: rotational noise (rad/step, default 0.02)
+        sigma_b: bearing measurement noise (rad, default 0.03)
+        sigma_r: range measurement noise (m, default 0.30)
+
+    imu_correct(pitch_deg, roll_deg) -> None
+      Adjust bearing noise based on camera tilt from IMU.
+      Larger pitch = more bearing uncertainty.
+
+  Lifecycle:
+    reset() -> None      Reset pose to origin, clear all landmarks
+    save(path) -> int    Save map + pose to flash
+    load(path) -> int    Load map + pose from flash
+    info() -> dict       Stats: landmarks, frame, fov, focal, etc.
+
+  Example — monocular SLAM with YOLO:
+    sentai.slam.init(66.0, 320, 320)
+    sentai.tpu.load('yolov8n_320.tflite')
+
+    while True:
+        sentai.camera.to_tensor()
+        sentai.tpu.invoke()
+        dets = sentai.tpu.detect(0.3, 0.45, 50)
+        n = sentai.slam.update(dets)
+        x, y, th = sentai.slam.pose()
+        print(f'Pose: ({x:.2f}, {y:.2f}) heading {th:.1f} rad, {n} landmarks')
+        sentai.rtos.sleep_ms(100)
+
+  Example — stereo SLAM with 2 cameras:
+    sentai.slam.init(66.0, 320, 320, baseline_m=0.06)
+    sentai.tpu.load('yolov8n_320.tflite')
+
+    while True:
+        sentai.camera.switch(0)
+        sentai.camera.to_tensor()
+        sentai.tpu.invoke()
+        dets_left = sentai.tpu.detect(0.3, 0.45, 50)
+
+        sentai.camera.switch(1)
+        sentai.rtos.sleep_ms(200)
+        sentai.camera.to_tensor()
+        sentai.tpu.invoke()
+        dets_right = sentai.tpu.detect(0.3, 0.45, 50)
+
+        n = sentai.slam.update_stereo(dets_left, dets_right)
+        x, y, th = sentai.slam.pose()
+        lms = sentai.slam.landmarks()
+        print(f'Pose: ({x:.2f}, {y:.2f}), {len(lms)} landmarks')
+
+  Example — manual observation (non-TPU source):
+    sentai.slam.init(66.0, 320, 320)
+    sentai.slam.observe(0, 0.3, 1.5)   # class 0, bearing 0.3 rad, range 1.5m
+    sentai.slam.observe(1, -0.2, 2.0)  # class 1, bearing -0.2 rad, range 2.0m
+    print(sentai.slam.pose())
+
+  Example — IMU tilt correction:
+    imu = sentai.imu.degrees()
+    sentai.slam.imu_correct(imu['pitch'], imu['roll'])
+    # Then proceed with update()/observe() as usual
+
+  Memory usage:
+  - State vector: (3 + 2*N) floats, N = landmarks
+  - Covariance P: (3+2*N)² × 4 bytes
+  - Example: 64 landmarks → 131² × 4 = ~68 KB
+  - Work buffers: ~5 KB
+  - Total: ~75 KB for 64 landmarks
+  - Landmark metadata: N × 20 bytes

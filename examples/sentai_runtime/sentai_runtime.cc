@@ -237,11 +237,17 @@ extern "C" void sentai_boot_log_stop(void) {
 }
 
 namespace coralmicro {
+
+// External-linkage state — accessed by sentai_slow_bridge.cc (OCRAM)
+uint8_t tensor_arena[8 * 1024 * 1024]
+    __attribute__((aligned(16)))
+    __attribute__((section(".sdram_bss,\"aw\",%nobits @")));
+tflite::MicroInterpreter* g_interpreter = nullptr;
+volatile bool g_tpu_ready = false;
+std::vector<uint8_t>* g_model_data = nullptr;
+std::shared_ptr<EdgeTpuContext> g_tpu_context;
+
 namespace {
-
-constexpr int kTensorArenaSize = 8 * 1024 * 1024;
-
-STATIC_TENSOR_ARENA_IN_SDRAM(tensor_arena, kTensorArenaSize);
 
 static TickType_t app_start_tick = 0;
 
@@ -257,12 +263,6 @@ void logf(const char* fmt, ...) {
   vprintf(fmt, args);
   va_end(args);
 }
-
-// Global state - interpreter, model data, TPU context
-static tflite::MicroInterpreter* g_interpreter = nullptr;
-static volatile bool g_tpu_ready = false;
-static std::vector<uint8_t>* g_model_data = nullptr;
-static std::shared_ptr<coralmicro::EdgeTpuContext> g_tpu_context;
 
 void Main() {
   logf("SentAI MicroPython Runtime\r\n");
@@ -339,232 +339,7 @@ extern "C" void app_main(void* param) {
 // Forward declaration (defined after sentai_tpu_invoke).
 extern "C" void sentai_quant_uint8_to_int8(uint8_t* buf, int count, int zp);
 
-// Load a TFLite model from flash and create interpreter.
-// Returns 0 on success, negative on error.
-extern "C" int sentai_load_model(const char* path) {
-  // Refuse if detection pipeline is active (it owns the interpreter)
-  if (sentai_detection_is_running()) {
-    printf("ERROR: stop detection pipeline before loading a new model\r\n");
-    return -10;
-  }
-  // If there's an existing interpreter, tear it down
-  if (coralmicro::g_interpreter) {
-    coralmicro::g_tpu_ready = false;
-    delete coralmicro::g_interpreter;
-    coralmicro::g_interpreter = nullptr;
-  }
-  // Free previous model data
-  if (coralmicro::g_model_data) {
-    delete coralmicro::g_model_data;
-    coralmicro::g_model_data = nullptr;
-  }
-  // EdgeTPU init runs on Main() task — wait up to 15s for it
-  if (!coralmicro::g_tpu_context) {
-    printf("Waiting for EdgeTPU init");
-    for (int i = 0; i < 150 && !coralmicro::g_tpu_context; i++) {
-      vTaskDelay(pdMS_TO_TICKS(100));
-      if (i % 10 == 9) printf(".");  // dot every second
-    }
-    printf("\r\n");
-    if (!coralmicro::g_tpu_context) {
-      printf("ERROR: EdgeTPU not initialized after 15s\r\n");
-      printf("  Check: is EdgeTPU connected? Try power-cycling the board.\r\n");
-      return -1;
-    }
-    printf("EdgeTPU ready!\r\n");
-  }
-
-  // Load model from user LFS
-  coralmicro::g_model_data = new std::vector<uint8_t>();
-  if (!coralmicro::LfsUserReadFile(path, coralmicro::g_model_data)) {
-    printf("ERROR: Failed to load %s\r\n", path);
-    delete coralmicro::g_model_data;
-    coralmicro::g_model_data = nullptr;
-    return -2;
-  }
-  printf("Model loaded: %lu bytes\r\n",
-         (unsigned long)coralmicro::g_model_data->size());
-
-  // Create resolver with EdgeTPU custom op + CPU ops for YOLO post-processing
-  static tflite::MicroErrorReporter error_reporter;
-  static tflite::MicroMutableOpResolver<7> resolver;
-  static bool resolver_init = false;
-  if (!resolver_init) {
-    resolver.AddCustom(coralmicro::kCustomOp, coralmicro::RegisterCustomOp());
-    resolver.AddTranspose();
-    resolver.AddReshape();
-    resolver.AddConcatenation();
-    resolver.AddLogistic();
-    resolver.AddQuantize();
-    resolver.AddDequantize();
-    resolver_init = true;
-  }
-
-  // Create interpreter (heap-allocated so it persists)
-  coralmicro::g_interpreter = new tflite::MicroInterpreter(
-      tflite::GetModel(coralmicro::g_model_data->data()), resolver,
-      coralmicro::tensor_arena, coralmicro::kTensorArenaSize, &error_reporter);
-
-  if (coralmicro::g_interpreter->AllocateTensors() != kTfLiteOk) {
-    printf("ERROR: AllocateTensors() failed\r\n");
-    delete coralmicro::g_interpreter;
-    coralmicro::g_interpreter = nullptr;
-    return -3;
-  }
-
-  if (coralmicro::g_interpreter->inputs().size() != 1) {
-    printf("ERROR: Model must have exactly one input tensor\r\n");
-    delete coralmicro::g_interpreter;
-    coralmicro::g_interpreter = nullptr;
-    return -4;
-  }
-
-  // Helper to print type name
-  auto type_name = [](TfLiteType t) -> const char* {
-    switch (t) {
-      case kTfLiteFloat32: return "float32";
-      case kTfLiteInt32:   return "int32";
-      case kTfLiteUInt8:   return "uint8";
-      case kTfLiteInt8:    return "int8";
-      case kTfLiteInt16:   return "int16";
-      case kTfLiteFloat16: return "float16";
-      default:             return "unknown";
-    }
-  };
-
-  // Print input tensor info
-  auto* input = coralmicro::g_interpreter->input_tensor(0);
-  printf("Input:  %s[", type_name(input->type));
-  for (int i = 0; i < input->dims->size; i++)
-    printf("%s%ld", i ? "," : "", (long)input->dims->data[i]);
-  printf("] (%ld bytes)\r\n", (long)input->bytes);
-  printf("  quant: scale=%.8f  zero_point=%d\r\n",
-         (double)input->params.scale, (int)input->params.zero_point);
-
-  // Print output tensor info
-  int num_out = (int)coralmicro::g_interpreter->outputs().size();
-  printf("Outputs: %d\r\n", num_out);
-  for (int oi = 0; oi < num_out; oi++) {
-    auto* t = coralmicro::g_interpreter->output_tensor(oi);
-    printf("  [%d] %s[", oi, type_name(t->type));
-    for (int i = 0; i < t->dims->size; i++)
-      printf("%s%ld", i ? "," : "", (long)t->dims->data[i]);
-    printf("] (%ld bytes)\r\n", (long)t->bytes);
-    printf("      quant: scale=%.8f  zero_point=%d\r\n",
-           (double)t->params.scale, (int)t->params.zero_point);
-  }
-
-  printf("Arena used: %lu / %d KB\r\n",
-         (unsigned long)(coralmicro::g_interpreter->arena_used_bytes() / 1024),
-         coralmicro::kTensorArenaSize / 1024);
-
-  coralmicro::g_tpu_ready = true;
-
-  // Extract model name from path and mark dirty for TX
-  vision_set_model_name(path);
-  printf("Model name: %s\r\n", vision_get_model_name());
-
-  return 0;
-}
-
-// Load an image file from flash into the input tensor.
-// Supports raw RGB and JPEG (auto-detected by file header).
-// If image is larger than tensor, it is cropped from top-left.
-// Returns 0 on success, negative on error.
-extern "C" int sentai_load_image(const char* path) {
-  if (!coralmicro::g_tpu_ready || !coralmicro::g_interpreter) return -1;
-
-  auto* input = coralmicro::g_interpreter->input_tensor(0);
-  if (!input || input->dims->size < 4) return -2;
-
-  int tensor_h = input->dims->data[1];
-  int tensor_w = input->dims->data[2];
-  int tensor_c = input->dims->data[3];
-  int tensor_bytes = tensor_h * tensor_w * tensor_c;
-  uint8_t* tensor_buf = tflite::GetTensorData<uint8_t>(input);
-
-  // Read file from user LFS
-  std::vector<uint8_t> file_data;
-  if (!coralmicro::LfsUserReadFile(path, &file_data)) {
-    printf("ERROR: Failed to read %s\r\n", path);
-    return -3;
-  }
-
-  // Detect JPEG by magic bytes (FF D8 FF)
-  bool is_jpeg = (file_data.size() >= 3 &&
-                  file_data[0] == 0xFF &&
-                  file_data[1] == 0xD8 &&
-                  file_data[2] == 0xFF);
-
-  if (is_jpeg) {
-    // JPEG decompress to RGB using libjpeg
-    struct jpeg_decompress_struct cinfo;
-    struct jpeg_error_mgr jerr;
-    cinfo.err = jpeg_std_error(&jerr);
-    jpeg_create_decompress(&cinfo);
-    jpeg_mem_src(&cinfo, file_data.data(), file_data.size());
-
-    if (jpeg_read_header(&cinfo, TRUE) != JPEG_HEADER_OK) {
-      jpeg_destroy_decompress(&cinfo);
-      printf("ERROR: Invalid JPEG header\r\n");
-      return -4;
-    }
-
-    cinfo.out_color_space = JCS_RGB;
-    jpeg_start_decompress(&cinfo);
-
-    int img_w = cinfo.output_width;
-    int img_h = cinfo.output_height;
-    int img_c = cinfo.output_components;  // 3 for RGB
-    int row_stride = img_w * img_c;
-
-    printf("JPEG: %dx%d ch=%d -> tensor %dx%dx%d\r\n",
-           img_w, img_h, img_c, tensor_w, tensor_h, tensor_c);
-
-    // Read scanlines directly into tensor (crop if image > tensor)
-    int copy_w = (img_w < tensor_w) ? img_w : tensor_w;
-    int copy_c = (img_c < tensor_c) ? img_c : tensor_c;
-    int copy_bytes = copy_w * copy_c;
-
-    // Clear tensor first (in case image is smaller)
-    memset(tensor_buf, 0, tensor_bytes);
-
-    // Temp buffer for one scanline if we need to crop width
-    std::vector<uint8_t> scanline_buf(row_stride);
-    JSAMPROW row_ptr = scanline_buf.data();
-
-    int row = 0;
-    while (cinfo.output_scanline < cinfo.output_height) {
-      jpeg_read_scanlines(&cinfo, &row_ptr, 1);
-      if (row < tensor_h) {
-        memcpy(tensor_buf + row * tensor_w * tensor_c, row_ptr, copy_bytes);
-        row++;
-      }
-    }
-
-    jpeg_finish_decompress(&cinfo);
-    jpeg_destroy_decompress(&cinfo);
-  } else {
-    // Raw RGB - copy directly into tensor, crop/pad as needed
-    int raw_size = (int)file_data.size();
-    printf("Raw image: %d bytes -> tensor %d bytes\r\n", raw_size, tensor_bytes);
-
-    if (raw_size >= tensor_bytes) {
-      memcpy(tensor_buf, file_data.data(), tensor_bytes);
-    } else {
-      memset(tensor_buf, 0, tensor_bytes);
-      memcpy(tensor_buf, file_data.data(), raw_size);
-    }
-  }
-
-  // If model expects int8 input, apply quantization offset.
-  if (input->type == kTfLiteInt8) {
-    sentai_quant_uint8_to_int8(tensor_buf, tensor_bytes,
-                               input->params.zero_point);
-  }
-
-  return 0;
-}
+// sentai_load_model, sentai_load_image → moved to sentai_slow_bridge.cc (OCRAM)
 
 // Internal invoke — no pipeline guard.  Called by detection_task.cc.
 extern "C" int sentai_tpu_invoke_internal(void) {
@@ -1096,97 +871,11 @@ extern "C" int sentai_tpu_draw(const char* path,
   return rc;
 }
 
-// Save all output tensors to a CSV file on the filesystem.
-// Format: one section per tensor, header line with dims, then rows of values.
-// Returns 0 on success, negative on error.
-extern "C" int sentai_save_output(const char* path) {
-  if (!coralmicro::g_tpu_ready || !coralmicro::g_interpreter) return -1;
+// sentai_save_output → moved to sentai_slow_bridge.cc (OCRAM)
 
-  int num_out = (int)coralmicro::g_interpreter->outputs().size();
-  if (num_out == 0) return -2;
-
-  std::string csv;
-  char tmp[32];
-
-  for (int oi = 0; oi < num_out; oi++) {
-    auto* t = coralmicro::g_interpreter->output_tensor(oi);
-    if (!t) continue;
-
-    // Header: output_index,type,dim0,dim1,...
-    snprintf(tmp, sizeof(tmp), "# output %d, type=%d, dims=", oi, (int)t->type);
-    csv += tmp;
-    for (int d = 0; d < t->dims->size; d++) {
-      if (d > 0) csv += 'x';
-      snprintf(tmp, sizeof(tmp), "%d", t->dims->data[d]);
-      csv += tmp;
-    }
-    csv += '\n';
-
-    // Compute total elements
-    int total = 1;
-    for (int d = 0; d < t->dims->size; d++)
-      total *= t->dims->data[d];
-
-    // Number of columns = last dimension (or total if 1D)
-    int cols = (t->dims->size >= 2) ? t->dims->data[t->dims->size - 1] : total;
-    int rows = total / cols;
-
-    for (int r = 0; r < rows; r++) {
-      for (int c = 0; c < cols; c++) {
-        int flat = r * cols + c;
-        if (c > 0) csv += ',';
-
-        switch (t->type) {
-          case kTfLiteFloat32: {
-            float v = ((const float*)t->data.data)[flat];
-            snprintf(tmp, sizeof(tmp), "%.6f", v);
-            csv += tmp;
-            break;
-          }
-          case kTfLiteInt8: {
-            int8_t v = ((const int8_t*)t->data.data)[flat];
-            snprintf(tmp, sizeof(tmp), "%d", (int)v);
-            csv += tmp;
-            break;
-          }
-          case kTfLiteUInt8: {
-            uint8_t v = ((const uint8_t*)t->data.data)[flat];
-            snprintf(tmp, sizeof(tmp), "%u", (unsigned)v);
-            csv += tmp;
-            break;
-          }
-          case kTfLiteInt32: {
-            int32_t v = ((const int32_t*)t->data.data)[flat];
-            snprintf(tmp, sizeof(tmp), "%ld", (long)v);
-            csv += tmp;
-            break;
-          }
-          case kTfLiteInt16: {
-            int16_t v = ((const int16_t*)t->data.data)[flat];
-            snprintf(tmp, sizeof(tmp), "%d", (int)v);
-            csv += tmp;
-            break;
-          }
-          default: {
-            uint8_t v = ((const uint8_t*)t->data.data)[flat];
-            snprintf(tmp, sizeof(tmp), "%u", (unsigned)v);
-            csv += tmp;
-            break;
-          }
-        }
-      }
-      csv += '\n';
-    }
-  }
-
-  if (!coralmicro::LfsUserWriteFile(path, csv)) {
-    printf("ERROR: Failed to write %s\r\n", path);
-    return -3;
-  }
-  printf("Saved %d outputs to %s (%lu bytes)\r\n", num_out, path,
-         (unsigned long)csv.size());
-  return 0;
-}
+// ===================== TFL bridge moved to sentai_tfl_bridge.cc =============
+// All TFL extern "C" functions are in sentai_tfl_bridge.cc, which the linker
+// script places in OCRAM (.sentai_slow) to keep ITCM (.text) within budget.
 
 // ===================== Detection pipeline wrappers ========================
 // Thin C bridges so detection_task.cc can access internal functions.

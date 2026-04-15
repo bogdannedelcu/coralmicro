@@ -126,6 +126,8 @@ target_compile_options(meshtastic_pb PRIVATE -w
 add_executable_m7(sentai_runtime
     LINKER_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/MIMXRT1176xxxxx_cm7_ram_mp.ld
     sentai_runtime.cc
+    sentai_tfl_bridge.cc
+    sentai_slow_bridge.cc
     detection_task.cc
     sentai_tracker.cc
     modsentai_hal.cc

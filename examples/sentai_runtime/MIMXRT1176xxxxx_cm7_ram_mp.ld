@@ -170,7 +170,7 @@ SECTIONS
      *liblibs_kissfft-m7.a*:*(.rodata .rodata*)
      __tensorflow_end = .;
      . = ALIGN(4);
-  } > m_ocram
+  } > m_sdram
 
   .arduino :
   {
@@ -277,6 +277,15 @@ SECTIONS
      *sentai_httpd.cc.obj(.text .text*)
      *sentai_httpd.cc.obj(.data .data*)
      *sentai_httpd.cc.obj(.rodata .rodata*)
+     *sentai_tfl_bridge.cc.obj(.text .text*)
+     *sentai_tfl_bridge.cc.obj(.data .data*)
+     *sentai_tfl_bridge.cc.obj(.rodata .rodata*)
+     *sentai_slow_bridge.cc.obj(.text .text*)
+     *sentai_slow_bridge.cc.obj(.data .data*)
+     *sentai_slow_bridge.cc.obj(.rodata .rodata*)
+     *sentai_crazy.cc.obj(.text .text*)
+     *sentai_crazy.cc.obj(.data .data*)
+     *sentai_crazy.cc.obj(.rodata .rodata*)
      __sentai_slow_end = .;
      . = ALIGN(4);
   } > m_ocram

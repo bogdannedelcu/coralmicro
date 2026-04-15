@@ -97,6 +97,29 @@ extern int sentai_load_model(const char* path);
 extern int sentai_load_image(const char* path);
 extern int sentai_save_output(const char* path);
 
+// TFL (CPU-only TFLite Micro) bridge — sentai_runtime.cc
+extern int sentai_tfl_load(const char* path, int arena_kb);
+extern void sentai_tfl_unload(void);
+extern int sentai_tfl_invoke(void);
+extern int sentai_tfl_is_ready(void);
+extern int sentai_tfl_num_outputs(void);
+extern int sentai_tfl_get_output_size(int idx);
+extern const void* sentai_tfl_get_output_data(int idx);
+extern int sentai_tfl_get_output_num_dims(int idx);
+extern int sentai_tfl_get_output_dim(int idx, int dim);
+extern int sentai_tfl_get_output_type(int idx);
+extern int sentai_tfl_input_quant(float* scale, int32_t* zero_point);
+extern int sentai_tfl_output_quant(int idx, float* scale, int32_t* zero_point);
+extern int sentai_tfl_input_type(void);
+extern int sentai_tfl_input_size(void);
+extern int sentai_tfl_input_num_dims(void);
+extern int sentai_tfl_input_dim(int dim);
+extern int sentai_tfl_set_input(const uint8_t* data, int size);
+extern void* sentai_tfl_get_input_data(void);
+extern int sentai_tfl_load_image(const char* path);
+extern int sentai_tfl_save_output(const char* path);
+extern int sentai_tfl_info(void);
+
 // USB drive bridge — main_freertos_m7.cc
 extern int sentai_usb_drive_set(int on);
 extern int sentai_usb_drive_get(void);
@@ -290,6 +313,8 @@ static void _fs_check_usb(void) {
 #include "modsentai_dtw.c"
 #include "modsentai_hmm.c"
 #include "modsentai_rl.c"
+#include "modsentai_slam.c"
+#include "modsentai_tfl.c"
 
 // =====================================================================
 // Top-level module functions (sentai.help, sentai.console, etc.)
@@ -484,6 +509,8 @@ static const mp_rom_map_elem_t sentai_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_dtw),       MP_ROM_PTR(&sentai_dtw_module) },
     { MP_ROM_QSTR(MP_QSTR_hmm),       MP_ROM_PTR(&sentai_hmm_module) },
     { MP_ROM_QSTR(MP_QSTR_rl),        MP_ROM_PTR(&sentai_rl_module) },
+    { MP_ROM_QSTR(MP_QSTR_slam),      MP_ROM_PTR(&sentai_slam_module) },
+    { MP_ROM_QSTR(MP_QSTR_tfl),       MP_ROM_PTR(&sentai_tfl_module) },
 };
 static MP_DEFINE_CONST_DICT(sentai_module_globals, sentai_module_globals_table);
 
