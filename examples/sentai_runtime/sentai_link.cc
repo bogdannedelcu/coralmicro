@@ -393,19 +393,13 @@ static constexpr int kObstacleBins = 72;
 static constexpr float kRadToDeg = 57.2957795f;
 
 static float wrap_deg_360(float a) {
-    while (a < 0.0f) a += 360.0f;
-    while (a >= 360.0f) a -= 360.0f;
-    return a;
-}
-
-static float wrap_deg_180(float a) {
-    while (a <= -180.0f) a += 360.0f;
-    while (a > 180.0f) a -= 360.0f;
+    a = fmodf(a, 360.0f);
+    if (a < 0.0f) a += 360.0f;
     return a;
 }
 
 static uint16_t obstacle_no_obstacle_value(uint16_t max_distance_cm) {
-    return (max_distance_cm < 65534u)
+    return (max_distance_cm < (uint16_t)(UINT16_MAX - 1u))
         ? (uint16_t)(max_distance_cm + 1u)
         : (uint16_t)UINT16_MAX;
 }
@@ -435,14 +429,26 @@ static void obstacle_add_point(uint16_t* bins,
 
     // Tracker/projected coords convention: +x right, +y forward.
     // OBSTACLE_DISTANCE angle 0 is forward and positive is clockwise.
-    const float angle_deg = atan2f(fx, fy) * kRadToDeg;
-    const float rel_deg = wrap_deg_360(angle_deg - angle_offset_deg);
-    int bin = (int)floorf(rel_deg / increment_deg);
-    if (bin < 0) bin = 0;
-    if (bin >= kObstacleBins) bin = kObstacleBins - 1;
-
+    const float angle_center_deg = atan2f(fx, fy) * kRadToDeg;
+    const float rel_center_deg = wrap_deg_360(angle_center_deg - angle_offset_deg);
     const uint16_t d_cm = (uint16_t)(dist_edge + 0.5f);
-    if (d_cm < bins[bin]) bins[bin] = d_cm;
+
+    // Compute angular half-span: asin(r/d) so the full circle footprint is covered.
+    float half_span_deg = 0.0f;
+    if (radius_cm > 0 && dist_center > 0.0f) {
+        const float sin_span = (float)radius_cm / dist_center;
+        half_span_deg = (sin_span >= 1.0f) ? 90.0f : (asinf(sin_span) * kRadToDeg);
+    }
+
+    // Paint every bin within [rel_center - half_span, rel_center + half_span].
+    const int n_bins = (int)ceilf((2.0f * half_span_deg) / increment_deg) + 1;
+    for (int k = 0; k < n_bins; ++k) {
+        const float deg = wrap_deg_360((rel_center_deg - half_span_deg) + k * increment_deg);
+        int bin = (int)floorf(deg / increment_deg);
+        if (bin < 0) bin = 0;
+        if (bin >= kObstacleBins) continue;
+        if (d_cm < bins[bin]) bins[bin] = d_cm;
+    }
 }
 
 extern "C" int sentai_link_send_obstacle_distance(
@@ -488,6 +494,7 @@ extern "C" int sentai_link_send_obstacles_from_tracker(
     uint8_t sensor_type,
     uint8_t frame)
 {
+    if (!g_link_running) return -1;
     if (max_distance_cm < min_distance_cm) return -2;
 
     uint16_t bins[kObstacleBins];
@@ -507,7 +514,8 @@ extern "C" int sentai_link_send_obstacles_from_tracker(
         if (t->gx_cm == 0 && t->gy_cm == 0 && t->dist_cm == 0 && t->width_cm == 0) continue;
 
         const float angle_deg = atan2f((float)t->gx_cm, (float)t->gy_cm) * kRadToDeg;
-        if (use_fov && fabsf(wrap_deg_180(angle_deg)) > half_fov) continue;
+        // angle_deg is already in [-180,180] from atan2f; no wrap needed for FOV check.
+        if (use_fov && fabsf(angle_deg) > half_fov) continue;
 
         const uint16_t radius_cm = (t->width_cm > 0) ? (uint16_t)(t->width_cm / 2) : 0;
         obstacle_add_point(bins, t->gx_cm, t->gy_cm, radius_cm,
@@ -537,6 +545,7 @@ extern "C" int sentai_link_send_obstacles_from_points(
     uint8_t sensor_type,
     uint8_t frame)
 {
+    if (!g_link_running) return -1;
     if (!points_xy_cm || count < 0) return -2;
     if (max_distance_cm < min_distance_cm) return -3;
 
