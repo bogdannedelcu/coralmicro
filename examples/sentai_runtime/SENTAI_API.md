@@ -15,8 +15,8 @@ sentai
 │   ├── sleep_ms(ms)
 │   ├── ticks_ms()
 │   ├── tasks()
-│   ├── heap()
-│   ├── cpu()
+│   ├── heap_info()
+│   ├── cpu_usage()
 │   └── uptime()
 ├── tpu                    # EdgeTPU inference
 │   ├── load(path)
@@ -29,7 +29,7 @@ sentai
 │   ├── output_dims(idx)
 │   ├── output_type(idx)
 │   ├── row(oidx, row)
-│   ├── val(oidx, fi)
+│   ├── value(oidx, fi)
 │   └── save_output(path)
 ├── fs                     # Filesystem (LittleFS)
 │   ├── read(path)
@@ -48,11 +48,11 @@ sentai
 │   ├── jpeg(quality=75)
 │   ├── to_tensor()
 │   ├── save_jpeg(path, q=75)
-│   ├── res()
-│   ├── set_res(w, h)
+│   ├── resolution()
+│   ├── set_resolution(w, h)
 │   ├── native_res()
-│   ├── switch(id)
-│   └── frame_seq()
+│   ├── select(id)
+│   └── frame_count()
 ├── imu                     # LIS2DU12 accelerometer
 │   ├── init()
 │   ├── read()
@@ -61,10 +61,10 @@ sentai
 ├── mic                     # PDM microphone recording (ring buffer)
 │   ├── start(seconds=10)
 │   ├── stop()
-│   ├── busy()
+│   ├── recording()
 │   ├── samples()
 │   ├── level()
-│   └── save_l3()
+│   └── save_mp3()
 └── usb                    # USB mass storage
     └── drive(on)
 ```
@@ -177,10 +177,10 @@ IDLE             ready      pri=0 hwm=118
 usb              blocked    pri=5 hwm=340
 ```
 
-### `sentai.rtos.heap()` → dict
+### `sentai.rtos.heap_info()` → dict
 Return memory usage information for both the FreeRTOS system heap (newlib malloc) and MicroPython's GC heap.
 ```python
->>> sentai.rtos.heap()
+>>> sentai.rtos.heap_info()
 {'rtos_free': 1234567, 'gc_total': 65536, 'gc_used': 2048, 'gc_free': 63488,
  'gc_max_free': 63232, 'gc_max_block': 63232, 'gc_num_1block': 12}
 ```
@@ -194,14 +194,14 @@ Return memory usage information for both the FreeRTOS system heap (newlib malloc
 | `gc_max_block` | Maximum block size that can be allocated |
 | `gc_num_1block` | Number of 1-block allocations |
 
-### `sentai.rtos.cpu()` → list
+### `sentai.rtos.cpu_usage()` → list
 Return CPU usage per FreeRTOS task as a list of `(name, percent)` tuples.  
 Uses FreeRTOS runtime stats (`configGENERATE_RUN_TIME_STATS=1`).  
 Percent is integer 0-100, measured since boot.
 ```python
->>> sentai.rtos.cpu()
+>>> sentai.rtos.cpu_usage()
 [('IDLE', 97), ('mp_repl', 2), ('usb', 0), ('edgetpu', 0), ...]
->>> for name, pct in sentai.rtos.cpu():
+>>> for name, pct in sentai.rtos.cpu_usage():
 ...     if pct > 0:
 ...         print(f"{name:16s} {pct}%")
 IDLE             97%
@@ -309,10 +309,10 @@ Get a row from a 2D/3D output tensor. Returns tuple of ints (handles int8 sign e
 (-12, 45, -3, 100)
 ```
 
-### `sentai.tpu.val(output_idx, flat_index)` → int
+### `sentai.tpu.value(output_idx, flat_index)` → int
 Get a single value by flat index from output tensor. Handles int8 sign correctly.
 ```python
->>> sentai.tpu.val(0, 5)
+>>> sentai.tpu.value(0, 5)
 -23
 ```
 
@@ -434,51 +434,51 @@ Stop camera and power off.
 0
 ```
 
-### `sentai.camera.switch(id)` → int
-Switch between cameras. `0`=front, `1`=back. Returns 0 on success.
+### `sentai.camera.select(id)` → int
+Select camera. `0`=front, `1`=back. Returns 0 on success.
 ```python
->>> sentai.camera.switch(0)   # front camera
+>>> sentai.camera.select(0)   # front camera
 0
->>> sentai.camera.switch(1)   # back camera
+>>> sentai.camera.select(1)   # back camera
 0
 ```
 
-### `sentai.camera.frame_seq()` → int
+### `sentai.camera.frame_count()` → int
 Return the hardware frame sequence counter. This is a `uint32_t` incremented by the
 CSI DMA interrupt handler (ISR) on every completed frame — it counts at the native
 sensor frame rate (15 fps) regardless of Python activity.
 
 - **Monotonic** — never resets, even across camera switches. Use the delta
   between two readings to count elapsed frames.
-- Internally, `switch()` snapshots the counter before the MUX flip. The capture
-  logic waits until `frame_seq() - snapshot >= 2` to guarantee a clean image.
+- Internally, `select()` snapshots the counter before the MUX flip. The capture
+  logic waits until `frame_count() - snapshot >= 2` to guarantee a clean image.
 - Wraps at 2³² (≈9 years of continuous operation at 15 fps) — unsigned arithmetic
   is safe across wrap-around.
 
 ```python
 >>> sentai.camera.init()
 0
->>> before = sentai.camera.frame_seq()
->>> sentai.camera.switch(1)
+>>> before = sentai.camera.frame_count()
+>>> sentai.camera.select(1)
 0
 >>> sentai.rtos.sleep_ms(200)   # wait ~3 frames
->>> sentai.camera.frame_seq() - before
+>>> sentai.camera.frame_count() - before
 3
 ```
 
-### `sentai.camera.res()` → tuple
+### `sentai.camera.resolution()` → tuple
 Current capture output resolution `(width, height)`.
 ```python
->>> sentai.camera.res()
+>>> sentai.camera.resolution()
 (320, 240)
 ```
 
-### `sentai.camera.set_res(w, h)` → int
+### `sentai.camera.set_resolution(w, h)` → int
 Set capture output resolution (PXP hardware scaler). Max = native sensor resolution. Returns 0 on success.
 ```python
->>> sentai.camera.set_res(320, 240)
+>>> sentai.camera.set_resolution(320, 240)
 0
->>> sentai.camera.set_res(640, 480)
+>>> sentai.camera.set_resolution(640, 480)
 0
 ```
 
@@ -630,7 +630,7 @@ On-board PDM microphone. Records 16-bit mono PCM at 16 kHz using DMA.
 A background FreeRTOS task records continuously into a **ring buffer** that
 keeps the last N seconds of audio (max 10 seconds = 160 000 samples = 320 KB).
 Recording never stops automatically — it wraps around, always retaining the
-most recent audio. Call `save_l3()` at any time to grab what's in the ring.
+most recent audio. Call `save_mp3()` at any time to grab what's in the ring.
 
 All buffers are statically allocated in SDRAM (no heap usage for audio data).
 
@@ -654,11 +654,11 @@ Stop mic and power off. Returns number of samples available in ring.
 80000
 ```
 
-### `sentai.mic.busy()` → bool
+### `sentai.mic.recording()` → bool
 Check if mic is running (recording into ring).
 
 ```python
->>> sentai.mic.busy()
+>>> sentai.mic.recording()
 True
 ```
 
@@ -683,7 +683,7 @@ Updated every 50 ms DMA block. Useful for voice activity detection.
 3200
 ```
 
-### `sentai.mic.save_l3()` → str or None
+### `sentai.mic.save_mp3()` → str or None
 Save ring buffer contents as an MP3 file on flash using the **shine** fixed-point
 MPEG Layer III encoder (64 kbps, mono). Files auto-increment: `rec000.mp3`, `rec001.mp3`, ...
 
@@ -693,9 +693,9 @@ with a fresh ring. No need to call `stop()` first.
 Returns the filename string, or `None` on error.
 
 ```python
->>> sentai.mic.save_l3()
+>>> sentai.mic.save_mp3()
 '/audio/rec000.mp3'
->>> sentai.mic.save_l3()    # save again (ring has new audio)
+>>> sentai.mic.save_mp3()    # save again (ring has new audio)
 '/audio/rec001.mp3'
 ```
 
@@ -705,7 +705,7 @@ Returns the filename string, or `None` on error.
 sentai.mic.start()                 # 10-second ring
 for i in range(5):
     sentai.rtos.sleep_ms(10000)    # wait 10 seconds
-    f = sentai.mic.save_l3()       # save last 10s as MP3
+    f = sentai.mic.save_mp3()       # save last 10s as MP3
     print('saved:', f)             # recording continues!
 sentai.mic.stop()
 ```
@@ -719,7 +719,7 @@ while True:
     if lev > 4000:                     # voice detected (40 dB)
         sentai.mic.start(5)            # start 5s ring recording
         sentai.rtos.sleep_ms(5000)     # record for 5 seconds
-        f = sentai.mic.save_l3()       # save as MP3
+        f = sentai.mic.save_mp3()       # save as MP3
         print('saved:', f)
     sentai.rtos.sleep_ms(100)
 ```
@@ -805,7 +805,7 @@ import sentai
 
 sentai.imu.init()
 sentai.camera.init()
-sentai.camera.set_res(320, 320)
+sentai.camera.set_resolution(320, 320)
 sentai.mesh.init()
 
 for i in range(100):
@@ -828,16 +828,16 @@ for i in range(100):
 import sentai
 
 sentai.camera.init()
-sentai.camera.set_res(320, 320)
+sentai.camera.set_resolution(320, 320)
 
 for i in range(10):
     sentai.camera.to_tensor()
     ms = sentai.tpu.invoke()
-    n = sentai.tpu.val(3, 0)  # number of detections
+    n = sentai.tpu.value(3, 0)  # number of detections
     print(f"Frame {i}: {ms}ms, {n} objects")
     for j in range(n):
-        score = sentai.tpu.val(2, j)
-        cls   = sentai.tpu.val(1, j)
+        score = sentai.tpu.value(2, j)
+        cls   = sentai.tpu.value(1, j)
         print(f"  obj{j}: class={cls} score={score}")
 
 sentai.camera.stop()
@@ -848,7 +848,7 @@ sentai.camera.stop()
 import sentai
 
 sentai.camera.init()
-sentai.camera.set_res(640, 480)
+sentai.camera.set_resolution(640, 480)
 sentai.camera.save_jpeg("/photos/capture.jpg", 85)
 sentai.camera.stop()
 
@@ -861,9 +861,9 @@ sentai.fs.read_base64("/photos/capture.jpg")
 import sentai
 
 sentai.camera.init()
-sentai.camera.switch(0)            # front camera
+sentai.camera.select(0)            # front camera
 sentai.camera.save_jpeg("/front.jpg")
-sentai.camera.switch(1)            # back camera
+sentai.camera.select(1)            # back camera
 sentai.camera.save_jpeg("/back.jpg")
 sentai.camera.stop()
 ```
@@ -877,10 +877,10 @@ sentai.tpu.load("/models/ssd_mobilenet_v2.tflite")
 sentai.tpu.load_image("/images/test.jpg")   # JPEG auto-decompressed
 ms = sentai.tpu.invoke()
 print(f"Inference: {ms} ms")
-n = sentai.tpu.val(3, 0)
+n = sentai.tpu.value(3, 0)
 for j in range(n):
-    score = sentai.tpu.val(2, j)
-    cls   = sentai.tpu.val(1, j)
+    score = sentai.tpu.value(2, j)
+    cls   = sentai.tpu.value(1, j)
     print(f"  obj{j}: class={cls} score={score}")
 ```
 
@@ -889,7 +889,7 @@ for j in range(n):
 import sentai
 
 sentai.camera.init()
-sentai.camera.set_res(640, 480)
+sentai.camera.set_resolution(640, 480)
 for i in range(5):
     sentai.camera.save_jpeg(f"/photos/img{i}.jpg", 85)
 sentai.camera.stop()
@@ -911,11 +911,11 @@ import sentai
 
 def detect(n_frames=10):
     sentai.camera.init()
-    sentai.camera.set_res(320, 320)
+    sentai.camera.set_resolution(320, 320)
     for i in range(n_frames):
         sentai.camera.to_tensor()
         ms = sentai.tpu.invoke()
-        count = sentai.tpu.val(3, 0)
+        count = sentai.tpu.value(3, 0)
         print(f"Frame {i}: {ms}ms, {count} objects")
     sentai.camera.stop()
 """)
@@ -933,12 +933,12 @@ sentai.run("/lib/detector.py")
 import sentai
 
 # Check memory
-mem = sentai.rtos.heap()
+mem = sentai.rtos.heap_info()
 print(f"RTOS free: {mem['rtos_free']} bytes")
 print(f"GC free: {mem['gc_free']}/{mem['gc_total']} bytes")
 
 # Check CPU usage
-for name, pct in sentai.rtos.cpu():
+for name, pct in sentai.rtos.cpu_usage():
     if pct > 0:
         print(f"{name:16s} {pct}%")
 
@@ -978,8 +978,8 @@ print("Ready!")
 | `coral.sleep_ms(ms)`         | `sentai.rtos.sleep_ms(ms)`        |
 | `coral.ticks_ms()`           | `sentai.rtos.ticks_ms()`          |
 | `coral.tasks()`              | `sentai.rtos.tasks()`             |
-| `coral.heap()`               | `sentai.rtos.heap()`              |
-| `coral.cpu()`                | `sentai.rtos.cpu()`               |
+| `coral.heap()`               | `sentai.rtos.heap_info()`         |
+| `coral.cpu()`                | `sentai.rtos.cpu_usage()`         |
 | `coral.uptime()`             | `sentai.rtos.uptime()`            |
 | `coral.load_model(path)`     | `sentai.tpu.load(path)`           |
 | `coral.load_image(path)`     | `sentai.tpu.load_image(path)`     |
@@ -991,7 +991,7 @@ print("Ready!")
 | `coral.output_dims(idx)`     | `sentai.tpu.output_dims(idx)`     |
 | `coral.output_type(idx)`     | `sentai.tpu.output_type(idx)`     |
 | `coral.get_row(o, r)`        | `sentai.tpu.row(o, r)`            |
-| `coral.get_val(o, i)`        | `sentai.tpu.val(o, i)`            |
+| `coral.get_val(o, i)`        | `sentai.tpu.value(o, i)`          |
 | `coral.save_output(path)`    | `sentai.tpu.save_output(path)`    |
 | `coral.fs_read(path)`        | `sentai.fs.read(path)`            |
 | `coral.fs_read_str(path)`    | `sentai.fs.read_str(path)`        |
@@ -1008,10 +1008,10 @@ print("Ready!")
 | `coral.cam_jpeg(q)`          | `sentai.camera.jpeg(q)`           |
 | `coral.cam_to_tensor()`      | `sentai.camera.to_tensor()`       |
 | `coral.cam_save_jpeg(p, q)`  | `sentai.camera.save_jpeg(p, q)`   |
-| `coral.cam_res()`            | `sentai.camera.res()`             |
-| `coral.cam_set_res(w, h)`    | `sentai.camera.set_res(w, h)`     |
+| `coral.cam_res()`            | `sentai.camera.resolution()`      |
+| `coral.cam_set_res(w, h)`    | `sentai.camera.set_resolution(w, h)` |
 | `coral.cam_native_res()`     | `sentai.camera.native_res()`      |
-| `coral.cam_switch(id)`       | `sentai.camera.switch(id)`        |
+| `coral.cam_switch(id)`       | `sentai.camera.select(id)`        |
 | `coral.usb_drive(on)`        | `sentai.usb.drive(on)`            |
 | `coral.run(path)`            | `sentai.run(path)`                |
 

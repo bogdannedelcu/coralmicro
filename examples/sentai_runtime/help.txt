@@ -44,8 +44,8 @@ sentai.rtos - FreeRTOS system
   sleep_ms(ms)    Sleep for ms milliseconds
   ticks_ms()      Monotonic ms counter (wraps at 2^32)
   tasks()         List tasks: [(name, state, prio, stack_hwm)]
-  heap()          Heap stats dict {rtos_free, gc_total, gc_used, ...}
-  cpu()           CPU usage: [(name, percent)]
+  heap_info()       Heap stats dict {rtos_free, gc_total, gc_used, ...}
+  cpu_usage()       CPU usage: [(name, percent)]
   uptime()        Seconds since boot
 
 [tpu]
@@ -61,7 +61,7 @@ sentai.tpu - EdgeTPU inference
   output_dims(idx)      Shape tuple, e.g. (1, 1344, 5)
   output_type(idx)      TfLiteType (3=uint8, 9=int8, 2=int32)
   row(idx, r)           Tuple of values at row r
-  val(idx, flat_i)      Single value at flat index
+  value(idx, flat_i)    Single value at flat index
   save_output(path)     Save all outputs to CSV file
   input_quant()         Input quantization -> (scale, zero_point)
   output_quant(idx)     Output quantization -> (scale, zero_point)
@@ -133,7 +133,7 @@ sentai.tfl - TFLite Micro (CPU-only inference)
   output_quant(idx)     Output quantization -> (scale, zero_point).
   output_floats(idx)    Output as list of floats (auto-dequantized).
   row(idx, r)           Tuple of ints/floats at row r.
-  val(idx, flat_i)      Single value at flat index.
+  value(idx, flat_i)    Single value at flat index.
   save_output(path)     Save all outputs to CSV file.
 
   Example (keyword detection — CPU model):
@@ -161,7 +161,7 @@ sentai.tfl - TFLite Micro (CPU-only inference)
     x = 1.57  # pi/2
     sentai.tfl.set_input(struct.pack('<f', x))
     sentai.tfl.invoke()
-    y = sentai.tfl.val(0, 0)  # float output
+    y = sentai.tfl.value(0, 0)  # float output
     print('sin(', x, ') =', y)
 
   TfLiteType constants:
@@ -199,17 +199,17 @@ sentai.camera - Camera
   jpeg(quality=75)      Capture -> JPEG bytes
   save_jpeg(path, q=75) Capture + save JPEG to flash
   to_tensor()           Capture frame -> TPU input tensor
-  res()                 Current resolution -> (w, h)
-  set_res(w, h)         Set capture resolution
+  resolution()          Current resolution -> (w, h)
+  set_resolution(w, h)  Set capture resolution
   native_res()          Sensor native resolution -> (w, h)
-  switch(id)            Switch camera (0=front, 1=back)
+  select(id)            Select camera (0=front, 1=back)
                         Also sets active camera for tracker ground
                         projection (sentai_tracker_set_active_camera).
-  frame_seq()           Monotonic ISR frame counter (uint32)
+  frame_count()         Monotonic ISR frame counter (uint32)
                         Incremented by HW on each DMA frame (15fps).
                         Use delta between readings to count frames.
-                        Example: before=frame_seq(); switch(1);
-                          sleep_ms(200); print(frame_seq()-before)
+                        Example: before=frame_count(); select(1);
+                          sleep_ms(200); print(frame_count()-before)
 
 [imu]
 sentai.imu - LIS2DU12 accelerometer
@@ -244,21 +244,21 @@ sentai.mic - PDM microphone recording
 
   start(seconds=10) Start ring recording (1-10s ring). Returns 0=ok.
   stop()            Stop mic entirely. Returns number of samples in ring.
-  busy()            True if mic is running.
+  recording()       True if mic is running.
   samples()         Number of samples available in ring.
   level()           Current RMS level in centi-dB (e.g. 4500 = 45.00 dB).
                     Auto-starts mic in monitor mode if not running.
-  save_l3()         Save ring buffer as MP3 (64 kbps, shine encoder).
+  save_mp3()        Save ring buffer as MP3 (64 kbps, shine encoder).
                     Can be called while recording — pauses briefly, resumes.
                     Returns filename str or None.
 
   Example:
     sentai.mic.start()              # start ring recording (10s)
     sentai.rtos.sleep_ms(5000)      # let it record for a while
-    f = sentai.mic.save_l3()        # save last 5s as MP3
+    f = sentai.mic.save_mp3()       # save last 5s as MP3
     print('saved:', f)              # recording continues!
     sentai.rtos.sleep_ms(10000)     # record more
-    f = sentai.mic.save_l3()        # save last 10s as MP3
+    f = sentai.mic.save_mp3()       # save last 10s as MP3
     sentai.mic.stop()               # done
 
 [usb]
@@ -991,7 +991,7 @@ sentai.pca — Principal Component Analysis
   --- Data collection ---
   add(vector) -> int    Add a training vector (list of floats).
                         Up to 1000 vectors. Returns 0 on success.
-  add_from_tpu(idx) -> int
+  from_tpu(idx) -> int
                         Add TPU output tensor directly.
                         Auto-dequantizes int8/uint8 to float.
 
@@ -1026,7 +1026,7 @@ sentai.pca — Principal Component Analysis
     for i in range(100):
         sentai.camera.to_tensor()
         sentai.tpu.invoke()
-        sentai.pca.add_from_tpu(0)
+        sentai.pca.from_tpu(0)
     
     sentai.pca.fit()
     sentai.pca.save('/models/my_pca.bin')
@@ -1503,7 +1503,7 @@ sentai.slam - Detection-Based EKF-SLAM
       Larger pitch = more bearing uncertainty.
 
   Lifecycle:
-    reset() -> None      Reset pose to origin, clear all landmarks
+    clear() -> None     Reset pose to origin, clear all landmarks
     save(path) -> int    Save map + pose to flash
     load(path) -> int    Load map + pose from flash
     info() -> dict       Stats: landmarks, frame, fov, focal, etc.

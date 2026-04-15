@@ -14,11 +14,11 @@ static mp_obj_t mod_sentai_mic_stop(void) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_mic_stop_obj, mod_sentai_mic_stop);
 
-// sentai.mic.busy() -> bool
-static mp_obj_t mod_sentai_mic_busy(void) {
+// sentai.mic.recording() -> bool
+static mp_obj_t mod_sentai_mic_recording(void) {
     return mp_obj_new_bool(sentai_mic_busy() == 1);
 }
-static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_mic_busy_obj, mod_sentai_mic_busy);
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_mic_recording_obj, mod_sentai_mic_recording);
 
 // sentai.mic.samples() -> int
 static mp_obj_t mod_sentai_mic_samples(void) {
@@ -26,14 +26,14 @@ static mp_obj_t mod_sentai_mic_samples(void) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_mic_samples_obj, mod_sentai_mic_samples);
 
-// sentai.mic.save_l3() -> str or None (MP3 encoding)
-static mp_obj_t mod_sentai_mic_save_l3(void) {
+// sentai.mic.save_mp3() -> str or None (MP3 encoding)
+static mp_obj_t mod_sentai_mic_save_mp3(void) {
     char name[48];
     int ret = sentai_mic_save_l3(name, sizeof(name));
     if (ret < 0) return mp_const_none;
     return mp_obj_new_str(name, strlen(name));
 }
-static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_mic_save_l3_obj, mod_sentai_mic_save_l3);
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_mic_save_mp3_obj, mod_sentai_mic_save_mp3);
 
 // sentai.mic.level() -> int
 static mp_obj_t mod_sentai_mic_level(void) {
@@ -46,9 +46,9 @@ static const mp_rom_map_elem_t sentai_mic_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__),   MP_ROM_QSTR(MP_QSTR_mic) },
     { MP_ROM_QSTR(MP_QSTR_start),      MP_ROM_PTR(&mod_sentai_mic_start_obj) },
     { MP_ROM_QSTR(MP_QSTR_stop),       MP_ROM_PTR(&mod_sentai_mic_stop_obj) },
-    { MP_ROM_QSTR(MP_QSTR_busy),       MP_ROM_PTR(&mod_sentai_mic_busy_obj) },
+    { MP_ROM_QSTR(MP_QSTR_recording),  MP_ROM_PTR(&mod_sentai_mic_recording_obj) },
     { MP_ROM_QSTR(MP_QSTR_samples),    MP_ROM_PTR(&mod_sentai_mic_samples_obj) },
-    { MP_ROM_QSTR(MP_QSTR_save_l3),    MP_ROM_PTR(&mod_sentai_mic_save_l3_obj) },
+    { MP_ROM_QSTR(MP_QSTR_save_mp3),   MP_ROM_PTR(&mod_sentai_mic_save_mp3_obj) },
     { MP_ROM_QSTR(MP_QSTR_level),      MP_ROM_PTR(&mod_sentai_mic_level_obj) },
 };
 static MP_DEFINE_CONST_DICT(sentai_mic_globals, sentai_mic_globals_table);

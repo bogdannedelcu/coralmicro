@@ -992,8 +992,8 @@ static mp_obj_t mod_slam_imu_correct(mp_obj_t pitch_obj, mp_obj_t roll_obj) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_2(mod_slam_imu_correct_obj, mod_slam_imu_correct);
 
-// sentai.slam.reset() -> None
-static mp_obj_t mod_slam_reset(void) {
+// sentai.slam.clear() -> None
+static mp_obj_t mod_slam_clear(void) {
     if (!g_slam_initialized) return mp_const_none;
     int sdim = SLAM_STATE_DIM;
     memset(g_slam_state, 0, sdim * sizeof(float));
@@ -1007,7 +1007,7 @@ static mp_obj_t mod_slam_reset(void) {
     g_slam_n_prev = 0;
     return mp_const_none;
 }
-static MP_DEFINE_CONST_FUN_OBJ_0(mod_slam_reset_obj, mod_slam_reset);
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_slam_clear_obj, mod_slam_clear);
 
 // sentai.slam.save(path) -> int
 static mp_obj_t mod_slam_save(mp_obj_t path_obj) {
@@ -1061,7 +1061,7 @@ static const mp_rom_map_elem_t sentai_slam_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_noise), MP_ROM_PTR(&mod_slam_noise_obj) },
     { MP_ROM_QSTR(MP_QSTR_imu_correct), MP_ROM_PTR(&mod_slam_imu_correct_obj) },
     // Lifecycle
-    { MP_ROM_QSTR(MP_QSTR_reset), MP_ROM_PTR(&mod_slam_reset_obj) },
+    { MP_ROM_QSTR(MP_QSTR_clear), MP_ROM_PTR(&mod_slam_clear_obj) },
     // Persistence
     { MP_ROM_QSTR(MP_QSTR_save), MP_ROM_PTR(&mod_slam_save_obj) },
     { MP_ROM_QSTR(MP_QSTR_load), MP_ROM_PTR(&mod_slam_load_obj) },

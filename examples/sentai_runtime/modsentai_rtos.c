@@ -53,8 +53,8 @@ static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_tasks_obj, mod_sentai_tasks);
 
 // ===================== System info: heap =====================
 
-// sentai.rtos.heap() -> dict with FreeRTOS heap stats + MicroPython GC stats
-static mp_obj_t mod_sentai_heap(void) {
+// sentai.rtos.heap_info() -> dict with FreeRTOS heap stats + MicroPython GC stats
+static mp_obj_t mod_sentai_heap_info(void) {
     // MicroPython GC info
     gc_info_t gc;
     gc_info(&gc);
@@ -88,13 +88,13 @@ static mp_obj_t mod_sentai_heap(void) {
 
     return MP_OBJ_FROM_PTR(d);
 }
-static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_heap_obj, mod_sentai_heap);
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_heap_info_obj, mod_sentai_heap_info);
 
 // ===================== System info: CPU usage =====================
 
-// sentai.rtos.cpu() -> list of (name, cpu_percent) tuples, sorted by CPU% descending
+// sentai.rtos.cpu_usage() -> list of (name, cpu_percent) tuples, sorted by CPU% descending
 // Uses FreeRTOS runtime stats (configGENERATE_RUN_TIME_STATS=1)
-static mp_obj_t mod_sentai_cpu(void) {
+static mp_obj_t mod_sentai_cpu_usage(void) {
     #define MAX_TASKS 24
     TaskStatus_t task_buf[MAX_TASKS];
     uint32_t total_runtime;
@@ -115,7 +115,7 @@ static mp_obj_t mod_sentai_cpu(void) {
     #undef MAX_TASKS
     return MP_OBJ_FROM_PTR(result);
 }
-static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_cpu_obj, mod_sentai_cpu);
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_cpu_usage_obj, mod_sentai_cpu_usage);
 
 // ===================== Task suspend/resume =====================
 
@@ -233,8 +233,8 @@ static const mp_rom_map_elem_t sentai_rtos_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_sleep_ms),     MP_ROM_PTR(&mod_sentai_sleep_ms_obj) },
     { MP_ROM_QSTR(MP_QSTR_ticks_ms),     MP_ROM_PTR(&mod_sentai_ticks_ms_obj) },
     { MP_ROM_QSTR(MP_QSTR_tasks),        MP_ROM_PTR(&mod_sentai_tasks_obj) },
-    { MP_ROM_QSTR(MP_QSTR_heap),         MP_ROM_PTR(&mod_sentai_heap_obj) },
-    { MP_ROM_QSTR(MP_QSTR_cpu),          MP_ROM_PTR(&mod_sentai_cpu_obj) },
+    { MP_ROM_QSTR(MP_QSTR_heap_info),    MP_ROM_PTR(&mod_sentai_heap_info_obj) },
+    { MP_ROM_QSTR(MP_QSTR_cpu_usage),    MP_ROM_PTR(&mod_sentai_cpu_usage_obj) },
     { MP_ROM_QSTR(MP_QSTR_uptime),       MP_ROM_PTR(&mod_sentai_uptime_obj) },
     { MP_ROM_QSTR(MP_QSTR_suspend),      MP_ROM_PTR(&mod_sentai_task_suspend_obj) },
     { MP_ROM_QSTR(MP_QSTR_resume),       MP_ROM_PTR(&mod_sentai_task_resume_obj) },

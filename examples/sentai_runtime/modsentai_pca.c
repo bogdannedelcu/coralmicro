@@ -358,14 +358,14 @@ static mp_obj_t mod_pca_add(mp_obj_t vec_obj) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(mod_pca_add_obj, mod_pca_add);
 
-// sentai.pca.add_from_tpu(idx) -> int
-static mp_obj_t mod_pca_add_from_tpu(mp_obj_t idx_obj) {
+// sentai.pca.from_tpu(idx) -> int
+static mp_obj_t mod_pca_from_tpu(mp_obj_t idx_obj) {
     if (!g_pca_initialized) return mp_obj_new_int(-1);
     int rc = pca_read_tpu(mp_obj_get_int(idx_obj));
     if (rc < 0) return mp_obj_new_int(rc);
     return mp_obj_new_int(pca_add(g_pca_temp));
 }
-static MP_DEFINE_CONST_FUN_OBJ_1(mod_pca_add_from_tpu_obj, mod_pca_add_from_tpu);
+static MP_DEFINE_CONST_FUN_OBJ_1(mod_pca_from_tpu_obj, mod_pca_from_tpu);
 
 // sentai.pca.fit() -> int
 static mp_obj_t mod_pca_fit(void) {
@@ -489,7 +489,7 @@ static const mp_rom_map_elem_t sentai_pca_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_pca) },
     { MP_ROM_QSTR(MP_QSTR_init), MP_ROM_PTR(&mod_pca_init_obj) },
     { MP_ROM_QSTR(MP_QSTR_add), MP_ROM_PTR(&mod_pca_add_obj) },
-    { MP_ROM_QSTR(MP_QSTR_add_from_tpu), MP_ROM_PTR(&mod_pca_add_from_tpu_obj) },
+    { MP_ROM_QSTR(MP_QSTR_from_tpu), MP_ROM_PTR(&mod_pca_from_tpu_obj) },
     { MP_ROM_QSTR(MP_QSTR_fit), MP_ROM_PTR(&mod_pca_fit_obj) },
     { MP_ROM_QSTR(MP_QSTR_transform), MP_ROM_PTR(&mod_pca_transform_obj) },
     { MP_ROM_QSTR(MP_QSTR_transform_tpu), MP_ROM_PTR(&mod_pca_transform_tpu_obj) },

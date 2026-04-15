@@ -126,8 +126,8 @@ static mp_obj_t mod_tfl_row(mp_obj_t oidx_obj, mp_obj_t row_obj) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_2(mod_tfl_row_obj, mod_tfl_row);
 
-// sentai.tfl.val(output_idx, flat_index) -> int or float
-static mp_obj_t mod_tfl_val(mp_obj_t oidx_obj, mp_obj_t fi_obj) {
+// sentai.tfl.value(output_idx, flat_index) -> int or float
+static mp_obj_t mod_tfl_value(mp_obj_t oidx_obj, mp_obj_t fi_obj) {
     int oidx = mp_obj_get_int(oidx_obj);
     int fi = mp_obj_get_int(fi_obj);
     int type = sentai_tfl_get_output_type(oidx);
@@ -150,7 +150,7 @@ static mp_obj_t mod_tfl_val(mp_obj_t oidx_obj, mp_obj_t fi_obj) {
         return mp_obj_new_int(data[fi]);
     }
 }
-static MP_DEFINE_CONST_FUN_OBJ_2(mod_tfl_val_obj, mod_tfl_val);
+static MP_DEFINE_CONST_FUN_OBJ_2(mod_tfl_value_obj, mod_tfl_value);
 
 // sentai.tfl.input_quant() -> (scale, zero_point)
 static mp_obj_t mod_tfl_input_quant(void) {
@@ -330,7 +330,7 @@ static const mp_rom_map_elem_t sentai_tfl_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_output_quant),  MP_ROM_PTR(&mod_tfl_output_quant_obj) },
     { MP_ROM_QSTR(MP_QSTR_output_floats), MP_ROM_PTR(&mod_tfl_output_floats_obj) },
     { MP_ROM_QSTR(MP_QSTR_row),           MP_ROM_PTR(&mod_tfl_row_obj) },
-    { MP_ROM_QSTR(MP_QSTR_val),           MP_ROM_PTR(&mod_tfl_val_obj) },
+    { MP_ROM_QSTR(MP_QSTR_value),          MP_ROM_PTR(&mod_tfl_value_obj) },
     // Persistence
     { MP_ROM_QSTR(MP_QSTR_save_output),   MP_ROM_PTR(&mod_tfl_save_output_obj) },
     // Info
