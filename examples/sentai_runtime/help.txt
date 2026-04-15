@@ -23,6 +23,12 @@ Sub-modules:
   sentai.crazy    CrazyFlie autopilot bridge (CPX/CRTP)
   sentai.pipeline Detection pipeline + SentAI-SORT tracker
   sentai.aifes    On-device neural network training (AIfES)
+  sentai.kmeans   K-Means clustering for embeddings
+  sentai.pca      Principal Component Analysis
+  sentai.anomaly  Anomaly detection (Mahalanobis + CUSUM)
+  sentai.dtw      Dynamic Time Warping (gesture/audio matching)
+  sentai.hmm      Hidden Markov Model (Baum-Welch + Viterbi)
+  sentai.rl       Reinforcement learning (Q-table, MAB, DQN)
 
 [io]
 sentai.io - LED / GPIO
@@ -881,3 +887,466 @@ No training required — just collect labeled samples and compute centroids.
   - Centroids: k × dim × 4 bytes
   - Training vectors: up to 1000 × dim × 4 bytes (cleared after compute)
   - Example: 5 clusters × 1280 dim = 25.6 KB for centroids
+
+[pca]
+sentai.pca — Principal Component Analysis
+==========================================
+  Dimensionality reduction for high-dimensional embeddings.
+  Uses power iteration to compute top-k eigenvectors from
+  the covariance matrix. Ideal for reducing TPU output
+  embeddings before feeding to AIfES or k-means.
+
+  --- Setup ---
+  init(in_dim, out_dim) -> int
+                        Initialize PCA. in_dim: input dimension,
+                        out_dim: number of components to keep.
+                        in_dim: 1-2048, out_dim: 1-128.
+                        Returns 0 on success.
+
+  --- Data collection ---
+  add(vector) -> int    Add a training vector (list of floats).
+                        Up to 1000 vectors. Returns 0 on success.
+  add_from_tpu(idx) -> int
+                        Add TPU output tensor directly.
+                        Auto-dequantizes int8/uint8 to float.
+
+  --- Fitting ---
+  fit() -> int          Compute principal components from added vectors.
+                        Uses power iteration (100 iterations per component).
+                        Returns 0 on success. Requires >= 2 vectors.
+
+  --- Transform ---
+  transform(vector) -> list
+                        Project vector to out_dim dimensions.
+                        Returns list of out_dim floats.
+  transform_tpu(idx) -> list
+                        Transform TPU output tensor directly.
+  inverse(reduced) -> list
+                        Reconstruct approximate original from reduced vector.
+
+  --- Info ---
+  explained_variance() -> list
+                        Eigenvalue for each component (descending).
+  save(path) -> int     Save fitted PCA to file.
+  load(path) -> int     Load PCA from file (sets in_dim, out_dim).
+  info() -> dict        {in_dim, out_dim, vectors, fitted, initialized}
+  clear() -> None       Clear training vectors (keep fitted model).
+
+  Example (reduce MobileNet embeddings from 1280-D to 32-D):
+    sentai.tpu.load('/models/mobilenet_features.tflite')
+    sentai.camera.init()
+    sentai.pca.init(1280, 32)
+    
+    # Collect training data
+    for i in range(100):
+        sentai.camera.to_tensor()
+        sentai.tpu.invoke()
+        sentai.pca.add_from_tpu(0)
+    
+    sentai.pca.fit()
+    sentai.pca.save('/models/my_pca.bin')
+    
+    # Use in inference
+    sentai.camera.to_tensor()
+    sentai.tpu.invoke()
+    reduced = sentai.pca.transform_tpu(0)  # 32 floats
+    print(len(reduced), reduced[:5])
+
+  Memory usage:
+  - Components: in_dim × out_dim × 4 bytes
+  - Training vectors: up to 1000 × in_dim × 4 bytes
+  - Example: 1280→32 = 163 KB components + 5 MB training (cleared after fit)
+
+[anomaly]
+sentai.anomaly — Anomaly Detection (Mahalanobis + CUSUM)
+========================================================
+  Online anomaly detection using Welford's algorithm for
+  incremental mean/covariance estimation and Mahalanobis
+  distance for scoring. Includes CUSUM change-point detection.
+
+  --- Setup ---
+  init(dim) -> int      Initialize with vector dimension (1-256).
+                        Returns 0 on success.
+
+  --- Learning (online) ---
+  observe(vector) -> int
+                        Add a "normal" observation. Updates mean and
+                        covariance incrementally (Welford's algorithm).
+                        No batch training needed — call as data arrives.
+  observe_tpu(idx) -> int
+                        Observe from TPU output tensor directly.
+
+  --- Scoring ---
+  score(vector) -> float
+                        Mahalanobis distance from the learned distribution.
+                        Higher = more anomalous. Requires >= 2 observations.
+  score_tpu(idx) -> float
+                        Score TPU output tensor directly.
+  threshold(val=None) -> float
+                        Get or set the anomaly threshold (default 3.0).
+  is_anomaly(vector) -> bool
+                        True if score(vector) > threshold.
+  is_anomaly_tpu(idx) -> bool
+                        True if score_tpu(idx) > threshold.
+
+  --- CUSUM change-point detection ---
+  cusum_init(threshold, drift) -> None
+                        Initialize CUSUM detector for 1-D signal.
+                        threshold: alarm threshold (e.g. 5.0)
+                        drift: allowance/slack parameter (e.g. 0.5)
+  cusum_observe(value) -> int
+                        Feed a scalar value. Returns 1 if alarm, 0 if normal.
+  cusum_score() -> tuple
+                        Current (s_pos, s_neg) cumulative sums.
+  cusum_reset() -> None Reset CUSUM accumulators.
+
+  --- Persistence ---
+  save(path) -> int     Save model (mean, covariance, threshold).
+  load(path) -> int     Load model from file.
+
+  --- Info ---
+  stats() -> dict       {dim, samples, threshold, initialized, mean}
+  info() -> dict        Alias for stats().
+  clear() -> None       Reset all statistics.
+
+  Example (detect anomalous TPU embeddings):
+    sentai.tpu.load('/models/mobilenet_features.tflite')
+    sentai.camera.init()
+    sentai.anomaly.init(1280)
+    
+    # Learn "normal" distribution (30 samples)
+    for i in range(30):
+        sentai.camera.to_tensor()
+        sentai.tpu.invoke()
+        sentai.anomaly.observe_tpu(0)
+    
+    sentai.anomaly.threshold(4.0)
+    sentai.anomaly.save('/models/normal_dist.bin')
+    
+    # Detection loop
+    while True:
+        sentai.camera.to_tensor()
+        sentai.tpu.invoke()
+        if sentai.anomaly.is_anomaly_tpu(0):
+            s = sentai.anomaly.score_tpu(0)
+            print(f'ANOMALY! score={s:.2f}')
+
+  Example (CUSUM for sensor drift detection):
+    sentai.anomaly.init(1)  # 1-D not used for CUSUM, but needed
+    sentai.anomaly.cusum_init(5.0, 0.5)
+    
+    while True:
+        d = sentai.imu.read()
+        if d:
+            alarm = sentai.anomaly.cusum_observe(d['z'])
+            if alarm:
+                print('Change detected!', sentai.anomaly.cusum_score())
+                sentai.anomaly.cusum_reset()
+
+[dtw]
+sentai.dtw — Dynamic Time Warping (Gesture/Audio Matching)
+==========================================================
+  Template-based pattern matching using DTW distance.
+  Record gesture or audio templates, then match new sequences
+  against them in real time. Uses Sakoe-Chiba band for speed.
+
+  --- Setup ---
+  init(dim, max_len) -> int
+                        Initialize DTW engine.
+                        dim: feature dimension per frame (1-32).
+                        max_len: max sequence length (1-200).
+                        Returns 0 on success.
+
+  --- Recording templates ---
+  record_start(label) -> int
+                        Start recording a new template.
+                        label: string name (max 15 chars).
+  record_add(frame) -> int
+                        Add a frame (list of dim floats) to recording.
+  record_add_imu() -> int
+                        Add current IMU reading (x,y,z) as frame.
+                        Requires sentai.imu.init() first.
+  record_add_mic() -> int
+                        Add current mic RMS level as 1-D frame.
+                        Requires sentai.mic.start() first.
+  record_end() -> int   Finish recording. Returns template slot index.
+                        Up to 16 templates total.
+
+  --- Matching ---
+  match(sequence, threshold=inf) -> tuple or None
+                        Match a sequence (list of lists) against all
+                        templates. Returns (label, distance) of best
+                        match, or None if distance > threshold.
+  match_imu(n_frames, threshold=inf, delay_ms=20) -> tuple or None
+                        Capture n_frames from IMU and match.
+                        delay_ms: time between frames.
+  match_mic(n_frames, threshold=inf, delay_ms=20) -> tuple or None
+                        Capture n_frames from mic and match.
+
+  --- Template management ---
+  templates() -> list   List of {label, len, slot} dicts.
+  remove(label) -> int  Remove template by label.
+  save(path) -> int     Save all templates to file.
+  load(path) -> int     Load templates from file.
+  info() -> dict        {dim, max_len, templates, recording, initialized}
+  clear() -> None       Remove all templates.
+
+  Example (IMU gesture recognition):
+    sentai.imu.init()
+    sentai.dtw.init(3, 100)  # 3-D (x,y,z), max 100 frames
+    
+    # Record "wave" gesture
+    sentai.dtw.record_start('wave')
+    for i in range(50):
+        sentai.dtw.record_add_imu()
+        sentai.rtos.sleep_ms(20)
+    sentai.dtw.record_end()
+    
+    # Record "shake" gesture
+    sentai.dtw.record_start('shake')
+    for i in range(50):
+        sentai.dtw.record_add_imu()
+        sentai.rtos.sleep_ms(20)
+    sentai.dtw.record_end()
+    
+    sentai.dtw.save('/models/gestures.dtw')
+    
+    # Recognition loop
+    while True:
+        result = sentai.dtw.match_imu(50, threshold=500.0)
+        if result:
+            print(f'Gesture: {result[0]}, dist={result[1]:.1f}')
+
+  Example (audio keyword matching):
+    sentai.mic.start()
+    sentai.dtw.init(1, 200)  # 1-D (RMS level), max 200 frames
+    
+    # Record keyword template
+    print('Say keyword now...')
+    sentai.dtw.record_start('hello')
+    for i in range(100):
+        sentai.dtw.record_add_mic()
+        sentai.rtos.sleep_ms(10)
+    sentai.dtw.record_end()
+    
+    # Match loop
+    while True:
+        result = sentai.dtw.match_mic(100, threshold=200.0, delay_ms=10)
+        if result:
+            print(f'Heard: {result[0]}')
+
+  Memory usage:
+  - Per template: max_len × dim × 4 bytes
+  - DTW cost matrix: max_len × max_len × 4 bytes (temporary)
+  - Example: 16 templates × 200 × 32 × 4 = 400 KB
+
+[hmm]
+sentai.hmm — Hidden Markov Model (Baum-Welch + Viterbi)
+========================================================
+  Discrete HMM for sequence modeling and classification.
+  Train with Baum-Welch EM, decode with Viterbi algorithm.
+  All computations in log-space for numerical stability.
+
+  --- Setup ---
+  init(n_states, n_obs) -> int
+                        Initialize HMM.
+                        n_states: hidden states (1-32).
+                        n_obs: observation alphabet size (1-64).
+                        Returns 0 on success.
+
+  --- Model parameters ---
+  set_transition(i, j, prob) -> None
+                        Set transition probability P(j|i).
+  set_emission(state, obs, prob) -> None
+                        Set emission probability P(obs|state).
+  set_prior(state, prob) -> None
+                        Set initial state probability.
+
+  --- Training ---
+  add_seq(obs_list) -> int
+                        Add training sequence (list of ints, 0 to n_obs-1).
+                        Up to 100 sequences, max 500 observations each.
+  train(max_iter=20) -> float
+                        Run Baum-Welch EM. Returns total log-likelihood.
+                        Converges when ΔLL < 1e-4.
+
+  --- Inference ---
+  viterbi(obs_list) -> list
+                        Decode most likely state sequence (list of ints).
+  predict(obs) -> int   Predict next most likely state given observation.
+  log_likelihood(obs_list) -> float
+                        Log-probability of observation sequence.
+
+  --- Sensor helpers ---
+  from_tpu(idx, n_bins) -> int
+                        Discretize TPU output to observation index.
+                        Takes argmax of output, then modulo n_bins.
+  from_imu(n_bins) -> int
+                        Discretize IMU acceleration magnitude into
+                        n_bins equal-width bins. Returns observation index.
+
+  --- Persistence ---
+  save(path) -> int     Save HMM parameters to file.
+  load(path) -> int     Load HMM from file (sets states, obs).
+  info() -> dict        {states, observations, sequences, initialized}
+  clear() -> None       Reset all parameters and sequences.
+
+  Example (activity recognition from IMU):
+    sentai.imu.init()
+    sentai.hmm.init(3, 8)  # 3 states (sit/walk/run), 8 accel bins
+    
+    # Collect training sequences
+    for activity in range(3):
+        print(f'Perform activity {activity}, press Enter when done')
+        input()
+        sentai.hmm.add_seq([sentai.hmm.from_imu(8) for _ in range(100)])
+    
+    # Train
+    ll = sentai.hmm.train(50)
+    print(f'Log-likelihood: {ll:.2f}')
+    sentai.hmm.save('/models/activity.hmm')
+    
+    # Online inference
+    while True:
+        obs = sentai.hmm.from_imu(8)
+        state = sentai.hmm.predict(obs)
+        print(['sit', 'walk', 'run'][state])
+        sentai.rtos.sleep_ms(50)
+
+  Example (sequence classification with TPU):
+    sentai.tpu.load('/models/audio_features.tflite')
+    sentai.hmm.init(4, 16)  # 4 hidden states, 16 discrete obs
+    
+    # Collect and train
+    for i in range(50):
+        sentai.camera.to_tensor()
+        sentai.tpu.invoke()
+        obs = sentai.hmm.from_tpu(0, 16)
+        seq.append(obs)
+    sentai.hmm.add_seq(seq)
+    sentai.hmm.train()
+    
+    # Score new sequences
+    test_seq = [sentai.hmm.from_tpu(0, 16) for _ in range(20)]
+    ll = sentai.hmm.log_likelihood(test_seq)
+    print(f'Log-likelihood: {ll:.2f}')
+
+  Memory usage:
+  - Transition matrix: states × states × 4 bytes
+  - Emission matrix: states × obs × 4 bytes
+  - Training sequences: up to 100 × 500 × 4 bytes
+  - Example: 32 states × 64 obs = 12 KB model
+
+[rl]
+sentai.rl — Reinforcement Learning (Q-Table, MAB, DQN)
+=======================================================
+  Three RL algorithms for adaptive on-device behavior:
+  Q-learning for discrete state/action spaces, Multi-Armed
+  Bandit for action selection, and DQN for continuous states.
+
+  ═══════ Q-Learning (tabular) ═══════
+
+  q_init(n_states, n_actions) -> int
+                        Initialize Q-table.
+                        n_states: 1-256, n_actions: 1-16.
+  q_update(s, a, r, s_next, alpha=0.1, gamma=0.99) -> int
+                        Update Q(s,a) with Bellman equation.
+                        s: state, a: action, r: reward,
+                        s_next: next state.
+                        alpha: learning rate, gamma: discount.
+  q_action(s, epsilon=0.1) -> int
+                        Select action (ε-greedy policy).
+  q_value(s, a) -> float
+                        Get Q-value for state-action pair.
+  q_save(path) -> int   Save Q-table to file.
+  q_load(path) -> int   Load Q-table from file.
+  q_clear() -> None     Reset Q-table.
+
+  ═══════ Multi-Armed Bandit ═══════
+
+  mab_init(n_arms) -> int
+                        Initialize bandit. n_arms: 1-32.
+  mab_pull(arm, reward) -> int
+                        Report reward for pulled arm.
+  mab_select(strategy=1) -> int
+                        Select next arm to pull.
+                        0: ε-greedy (ε=0.1)
+                        1: UCB1 (confidence bounds)
+                        2: Thompson sampling (Gaussian approx)
+  mab_stats() -> list   [{arm, pulls, mean}, ...] for each arm.
+  mab_clear() -> None   Reset bandit statistics.
+
+  ═══════ DQN (Deep Q-Network) ═══════
+
+  dqn_init(state_dim, n_actions, hidden=64) -> int
+                        Initialize DQN (2-layer MLP).
+                        state_dim: 1-64, n_actions: 1-16.
+                        hidden: hidden layer size (max 128).
+  dqn_observe(state, action, reward, next_state, done) -> int
+                        Store experience in replay buffer (size 1000).
+                        state/next_state: list of floats.
+                        done: bool (episode ended).
+  dqn_action(state, epsilon=0.1) -> int
+                        Select action (ε-greedy with MLP forward pass).
+  dqn_train(batch_size=32) -> float
+                        Train on random batch from replay buffer.
+                        Returns average loss.
+  dqn_save(path) -> int Save DQN weights to file.
+  dqn_load(path) -> int Load DQN weights from file.
+  dqn_clear() -> None   Reset DQN weights and replay buffer.
+
+  info() -> dict        Status of all three algorithms.
+
+  Example (Q-learning for sensor threshold tuning):
+    sentai.rl.q_init(10, 3)  # 10 states, 3 actions (lower/keep/raise)
+    
+    threshold = 50
+    while True:
+        d = sentai.imu.read()
+        if d:
+            state = min(int(abs(d['z']) / 100), 9)
+            action = sentai.rl.q_action(state, 0.2)
+            
+            # Execute action
+            if action == 0: threshold -= 5
+            elif action == 2: threshold += 5
+            
+            # Compute reward (e.g. detection accuracy)
+            reward = 1.0 if good_detection else -1.0
+            
+            next_state = min(int(abs(d['z']) / 100), 9)
+            sentai.rl.q_update(state, action, reward, next_state)
+
+  Example (MAB for camera parameter selection):
+    sentai.rl.mab_init(4)  # 4 exposure settings
+    
+    for i in range(100):
+        arm = sentai.rl.mab_select(1)  # UCB1
+        # Apply setting, measure image quality...
+        reward = image_quality_score
+        sentai.rl.mab_pull(arm, reward)
+    
+    print(sentai.rl.mab_stats())  # See which setting is best
+
+  Example (DQN for adaptive detection confidence):
+    sentai.rl.dqn_init(4, 3, hidden=32)  # 4-D state, 3 actions
+    
+    while True:
+        state = [fps, n_detections, avg_conf, light_level]
+        action = sentai.rl.dqn_action(state, 0.1)
+        
+        # Apply action (adjust confidence threshold)
+        conf_levels = [0.2, 0.4, 0.6]
+        # ... run detection with conf_levels[action] ...
+        
+        reward = compute_reward(detections, false_positives)
+        next_state = [fps, new_n_det, new_avg_conf, light]
+        sentai.rl.dqn_observe(state, action, reward, next_state, False)
+        sentai.rl.dqn_train(16)
+
+  Memory usage:
+  - Q-table: n_states × n_actions × 4 bytes (max 16 KB)
+  - MAB: n_arms × 12 bytes (negligible)
+  - DQN: (state_dim × hidden + hidden × n_actions) × 4 bytes (weights)
+         + 1000 × (2 × state_dim + 3) × 4 bytes (replay buffer)
+  - Example: DQN 64→128→16 = ~36 KB weights + ~520 KB replay

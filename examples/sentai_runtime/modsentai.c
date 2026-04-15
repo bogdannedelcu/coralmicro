@@ -285,6 +285,11 @@ static void _fs_check_usb(void) {
 #include "modsentai_pipeline.c"
 #include "modsentai_aifes.c"
 #include "modsentai_kmeans.c"
+#include "modsentai_pca.c"
+#include "modsentai_anomaly.c"
+#include "modsentai_dtw.c"
+#include "modsentai_hmm.c"
+#include "modsentai_rl.c"
 
 // =====================================================================
 // Top-level module functions (sentai.help, sentai.console, etc.)
@@ -473,7 +478,12 @@ static const mp_rom_map_elem_t sentai_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_sleep),     MP_ROM_PTR(&sentai_sleep_module) },
     { MP_ROM_QSTR(MP_QSTR_pipeline),  MP_ROM_PTR(&sentai_pipeline_module) },
     { MP_ROM_QSTR(MP_QSTR_aifes),     MP_ROM_PTR(&sentai_aifes_module) },
-    { MP_ROM_QSTR(MP_QSTR_kmeans),   MP_ROM_PTR(&sentai_kmeans_module) },
+    { MP_ROM_QSTR(MP_QSTR_kmeans),    MP_ROM_PTR(&sentai_kmeans_module) },
+    { MP_ROM_QSTR(MP_QSTR_pca),       MP_ROM_PTR(&sentai_pca_module) },
+    { MP_ROM_QSTR(MP_QSTR_anomaly),   MP_ROM_PTR(&sentai_anomaly_module) },
+    { MP_ROM_QSTR(MP_QSTR_dtw),       MP_ROM_PTR(&sentai_dtw_module) },
+    { MP_ROM_QSTR(MP_QSTR_hmm),       MP_ROM_PTR(&sentai_hmm_module) },
+    { MP_ROM_QSTR(MP_QSTR_rl),        MP_ROM_PTR(&sentai_rl_module) },
 };
 static MP_DEFINE_CONST_DICT(sentai_module_globals, sentai_module_globals_table);
 
