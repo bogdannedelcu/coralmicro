@@ -1,0 +1,106 @@
+\begin{thebibliography}{999}
+
+\bibitem[Jain(2010)]{Jain2010}
+Jain, A.K.
+\newblock Data Clustering: 50 Years beyond K-Means.
+\newblock {\em Pattern Recognition Letters} {\bf 2010}, {\em 31},~651--666.
+\newblock {\url{https://doi.org/10.1016/j.patrec.2009.09.011}}.
+
+\bibitem[Jolliffe and Cadima(2016)]{Jolliffe2016}
+Jolliffe, I.T.; Cadima, J.
+\newblock Principal Component Analysis: A Review and Recent Developments.
+\newblock {\em Philosophical Transactions of the Royal Society A} {\bf 2016},
+  {\em 374},~20150202.
+\newblock {\url{https://doi.org/10.1098/rsta.2015.0202}}.
+
+\bibitem[Chandola et~al.(2009)Chandola, Banerjee, and Kumar]{Chandola2009}
+Chandola, V.; Banerjee, A.; Kumar, V.
+\newblock Anomaly Detection: A Survey.
+\newblock {\em ACM Computing Surveys} {\bf 2009}, {\em 41},~1--58.
+\newblock {\url{https://doi.org/10.1145/1541880.1541882}}.
+
+\bibitem[Pimentel et~al.(2014)Pimentel, Clifton, Clifton, and
+  Tarassenko]{Pimentel2014}
+Pimentel, M.A.F.; Clifton, D.A.; Clifton, L.; Tarassenko, L.
+\newblock A Review of Novelty Detection.
+\newblock {\em Signal Processing} {\bf 2014}, {\em 99},~215--249.
+\newblock {\url{https://doi.org/10.1016/j.sigpro.2013.12.026}}.
+
+\bibitem[Salvador and Chan(2007)]{Salvador2007}
+Salvador, S.; Chan, P.
+\newblock Toward Accurate Dynamic Time Warping in Linear Time and Space.
+\newblock {\em Intelligent Data Analysis} {\bf 2007}, {\em 11},~561--580.
+\newblock {\url{https://doi.org/10.3233/IDA-2007-11508}}.
+
+\bibitem[Bilmes(1998)]{Bilmes1998}
+Bilmes, J.A.
+\newblock A Gentle Tutorial of the EM Algorithm and its Application to
+  Parameter Estimation for Gaussian Mixture and Hidden Markov Models.
+\newblock Technical Report ICSI-TR-97-021, International Computer Science
+  Institute,  1998.
+
+\bibitem[Watkins and Dayan(1992)]{Watkins1992}
+Watkins, C.J.C.H.; Dayan, P.
+\newblock Q-Learning.
+\newblock {\em Machine Learning} {\bf 1992}, {\em 8},~279--292.
+\newblock {\url{https://doi.org/10.1007/BF00992698}}.
+
+\bibitem[Auer et~al.(2002)Auer, Cesa-Bianchi, and Fischer]{Auer2002}
+Auer, P.; Cesa-Bianchi, N.; Fischer, P.
+\newblock Finite-Time Analysis of the Multiarmed Bandit Problem.
+\newblock {\em Machine Learning} {\bf 2002}, {\em 47},~235--256.
+\newblock {\url{https://doi.org/10.1023/A:1013689704352}}.
+
+\bibitem[Russo et~al.(2018)Russo, Roy, Kazerouni, Osband, and Wen]{Russo2018}
+Russo, D.; Roy, B.V.; Kazerouni, A.; Osband, I.; Wen, Z.
+\newblock A Tutorial on Thompson Sampling.
+\newblock {\em Foundations and Trends in Machine Learning} {\bf 2018}, {\em
+  11},~1--96.
+\newblock {\url{https://doi.org/10.1561/2200000070}}.
+
+\bibitem[Mnih et~al.(2015)Mnih, Kavukcuoglu, Silver, Rusu, Veness, Bellemare,
+  Graves, Riedmiller, Fidjeland, Ostrovski, Petersen, Beattie, Sadik,
+  Antonoglou, King, Kumaran, Wierstra, Legg, and Hassabis]{Mnih2015}
+Mnih, V.; Kavukcuoglu, K.; Silver, D.; Rusu, A.A.; Veness, J.; Bellemare, M.G.;
+  Graves, A.; Riedmiller, M.; Fidjeland, A.K.; Ostrovski, G.;  et~al.
+\newblock Human-Level Control through Deep Reinforcement Learning.
+\newblock {\em Nature} {\bf 2015}, {\em 518},~529--533.
+\newblock {\url{https://doi.org/10.1038/nature14236}}.
+
+\bibitem[Durrant-Whyte and Bailey(2006)]{DurrantWhyte2006}
+Durrant-Whyte, H.; Bailey, T.
+\newblock Simultaneous Localization and Mapping: Part I.
+\newblock {\em IEEE Robotics \& Automation Magazine} {\bf 2006}, {\em
+  13},~99--110.
+\newblock {\url{https://doi.org/10.1109/MRA.2006.1638022}}.
+
+\bibitem[Cadena et~al.(2016)Cadena, Carlone, Carrillo, Latif, Scaramuzza,
+  Neira, Reid, and Leonard]{Cadena2016}
+Cadena, C.; Carlone, L.; Carrillo, H.; Latif, Y.; Scaramuzza, D.; Neira, J.;
+  Reid, I.; Leonard, J.J.
+\newblock Past, Present, and Future of Simultaneous Localization and Mapping:
+  Toward the Robust-Perception Age.
+\newblock {\em IEEE Transactions on Robotics} {\bf 2016}, {\em 32},~1309--1332.
+\newblock {\url{https://doi.org/10.1109/TRO.2016.2624754}}.
+
+\bibitem[Bewley et~al.(2016)Bewley, Ge, Ott, Ramos, and Upcroft]{Bewley2016}
+Bewley, A.; Ge, Z.; Ott, L.; Ramos, F.; Upcroft, B.
+\newblock Simple Online and Realtime Tracking.
+\newblock In Proceedings of the 2016 IEEE International Conference on Image
+  Processing (ICIP),  2016, pp. 3464--3468.
+\newblock {\url{https://doi.org/10.1109/ICIP.2016.7533003}}.
+
+\bibitem[Zhang et~al.(2022)Zhang, Sun, Jiang, Yu, Weng, Yuan, Luo, Liu, and
+  Wang]{Zhang2022}
+Zhang, Y.; Sun, P.; Jiang, Y.; Yu, D.; Weng, F.; Yuan, Z.; Luo, P.; Liu, W.;
+  Wang, X.
+\newblock ByteTrack: Multi-object Tracking by Associating Every Detection Box.
+  In {\em Computer Vision -- ECCV 2022}; Springer: Cham,  2022; pp. 1--21.
+\newblock {\url{https://doi.org/10.1007/978-3-031-20047-2_1}}.
+
+\bibitem[{Fraunhofer IMS and AIfES Contributors}(2024)]{AIfES2024}
+{Fraunhofer IMS and AIfES Contributors}.
+\newblock AIfES: Artificial Intelligence for Embedded Systems,  2024.
+\newblock Accessed 2026-04-15.
+
+\end{thebibliography}

@@ -1,14 +1,14 @@
-The implementation of SentAI starts from a strong architectural
-hypothesis: for lightweight autonomous drones, the most useful computing
-arrangement is not a large companion computer with a small flight
-controller attached to it, but a tightly coupled MCU-plus-accelerator
-system in which the accelerator performs the dense tensor computation
-and the MCU orchestrates everything else. This view is consistent with
-broader trends in domain-specific architectures for neural networks,
-especially the systolic-array lineage popularized by TPU-style
-accelerators, where high arithmetic density and low energy per operation
-make specialized inference hardware much more attractive than
-general-purpose processing for continuously running perception tasks.
+The implementation starts from a strong architectural hypothesis: for
+lightweight autonomous drones, the most useful computing arrangement is
+not a large companion computer with a small flight controller attached
+to it, but a tightly coupled MCU-plus-accelerator system in which the
+accelerator performs the dense tensor computation and the MCU
+orchestrates everything else. This view is consistent with broader
+trends in domain-specific architectures for neural networks, especially
+the systolic-array lineage popularized by TPU-style accelerators, where
+high arithmetic density and low energy per operation make specialized
+inference hardware much more attractive than general-purpose processing
+for continuously running perception tasks.
 
 In this work, the EdgeTPU is treated as the primary neural execution
 engine and the MCU as the real-time systems controller that makes this

@@ -5,6 +5,8 @@ cd "$(dirname "$0")"
 
 mkdir -p docx_assets
 
+APPENDIX_FILES=(appendices/*.md)
+
 for svg in figures/*.svg; do
   base="$(basename "$svg" .svg)"
   rsvg-convert -f png -w 1600 -o "docx_assets/${base}.png" "$svg"
@@ -12,7 +14,7 @@ done
 
 cat > paper_docx.md <<'EOF'
 ---
-title: "SentAI: An Open-Source Dual-Camera Edge AI Runtime for Vision-Guided Drone Autonomy on Coral Micro"
+title: "An Open-Source Dual-Camera Edge AI Runtime for Vision-Guided Drone Autonomy on an MCU-EdgeTPU Platform"
 subtitle: "MDPI Drones DOCX Draft"
 bibliography: references.bib
 link-citations: true
@@ -38,11 +40,18 @@ cat implementation_04_flight_and_telemetry.md >> paper_docx.md
 printf '\n\n![Flight control and telemetry diagram](docx_assets/implementation_04_flight_and_telemetry.png)\n\n' >> paper_docx.md
 cat implementation_05_programming_model.md >> paper_docx.md
 printf '\n\n![Programming model diagram](docx_assets/implementation_05_programming_model.png)\n\n' >> paper_docx.md
+cat discussion.md >> paper_docx.md
+printf '\n\n' >> paper_docx.md
 cat conclusion.md >> paper_docx.md
 printf '\n\n' >> paper_docx.md
 cat future_work.md >> paper_docx.md
 printf '\n\n' >> paper_docx.md
 cat section_sources.md >> paper_docx.md
+printf '\n\n# References\n\n::: {#refs}\n:::\n\n' >> paper_docx.md
+for appendix in "${APPENDIX_FILES[@]}"; do
+  cat "$appendix" >> paper_docx.md
+  printf '\n\n' >> paper_docx.md
+done
 
 pandoc \
   --from=gfm \

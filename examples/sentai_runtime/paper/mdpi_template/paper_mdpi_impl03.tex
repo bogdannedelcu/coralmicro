@@ -74,6 +74,40 @@ derived from camera motion. This substitution is not only
 computationally cheaper, but also better aligned with the sensing
 resources already present on the platform.
 
+It is useful to state explicitly how this tracker differs from
+established baselines. Relative to the original SORT formulation
+\citep{Bewley2016}, the implementation is less minimalist in
+association: it does not rely only on predicted box overlap, but
+recovers lower-confidence detections through a second association stage
+in the spirit of ByteTrack \citep{Zhang2022}, and it adds a lightweight
+appearance cue through a compact HSV-grid histogram. Relative to
+ByteTrack itself, however, the goal here is not leaderboard-oriented MOT
+performance on a workstation-class host. The implementation removes
+assumptions that are natural in desktop tracking pipelines but costly on
+an MCU, such as dependence on richer appearance embeddings, larger
+temporary buffers, or host-side post-processing flexibility. In
+practice, SentAI-SORT is best understood as a bounded embedded tracker
+that keeps the constant-velocity Kalman core and the useful
+low-confidence recovery logic, but compresses the rest of the design to
+fit a static-memory, real-time inference loop.
+
+This redesign was necessary for systems reasons rather than for novelty
+in tracking alone. On this platform, the tracker executes synchronously
+after detector output, with all state kept in statically allocated
+memory and with a total footprint small enough to coexist with camera
+buffers, tensor staging, MicroPython, and the rest of the runtime. The
+appearance term is therefore reduced to a small histogram representation
+instead of a learned re-identification branch, and camera motion
+compensation is driven by the onboard IMU rather than by feature
+extraction and image-to-image homography estimation. These choices trade
+some generality for a much tighter computational envelope, but they also
+exploit information that is naturally available on an airborne embedded
+system. Just as importantly, the tracker is not an isolated MOT module:
+it is integrated with per-camera geometry, ground-plane projection, and
+event export, so that tracked objects can be consumed directly by flight
+logic, telemetry, or higher-level navigation code rather than remaining
+only image-space trajectories.
+
 The tracker is further extended with ground-plane projection and
 optional GPS-referenced localization. Once altitude, heading, IMU
 attitude, and camera geometry are known, detections can be mapped beyond

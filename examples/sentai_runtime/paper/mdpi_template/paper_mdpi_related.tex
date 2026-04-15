@@ -10,21 +10,22 @@ navigation pipeline onboard under severe power and mass constraints.
 That work is important not only because it proves feasibility, but
 because it frames the design problem correctly: perception, inference,
 control, and hardware architecture cannot be treated independently when
-the air vehicle is very small. SentAI inherits this systems-level
-viewpoint, but shifts the focus from a custom navigation engine toward a
-more general-purpose embedded AI runtime that combines high-level
-scripting, object detection, multi-view sensing, and compatibility with
-both experimental and professional drone-control ecosystems.
+the air vehicle is very small. The platform developed here follows this
+systems-level viewpoint, but shifts the focus from a custom navigation
+engine toward a more general-purpose embedded AI runtime that combines
+high-level scripting, object detection, multi-view sensing, and
+compatibility with both experimental and professional drone-control
+ecosystems.
 
 The broader nano-UAV literature also distinguishes between systems that
 are truly autonomous onboard and systems that depend on offboard
 computing, external localization infrastructure, or heavy companion
 computers. This distinction remains essential. For indoor research,
 offboard support is useful during development, but it does not solve the
-core embedded autonomy problem. SentAI therefore positions itself within
-the class of systems that aim to keep perception and high-level decision
-making onboard, even when this requires substantial engineering effort
-in memory organization, RTOS scheduling, and sensor integration.
+core embedded autonomy problem. Our MCU-EdgeTPU board therefore sits
+within the class of systems that aim to keep perception and high-level
+decision making onboard, even when this requires substantial engineering
+effort in memory organization, RTOS scheduling, and sensor integration.
 
 \subsection{Embedded AI accelerators and systolic-array
 inference}\label{embedded-ai-accelerators-and-systolic-array-inference}
@@ -37,9 +38,9 @@ high throughput and low energy relative to CPU-only or even general
 GPU-centric approaches. In this broader context, the TPU family
 established a strong reference model for efficient tensor computation
 through structured dataflow and regular multiply-accumulate pipelines.
-SentAI is not a study of accelerator microarchitecture by itself, but it
-depends critically on the availability of this kind of accelerator model
-and on the practical challenge of feeding it efficiently from a
+This work is not a study of accelerator microarchitecture by itself, but
+it depends critically on the availability of this kind of accelerator
+model and on the practical challenge of feeding it efficiently from a
 constrained MCU environment.
 
 This distinction matters. On larger boards, accelerator throughput is
@@ -73,8 +74,8 @@ are especially relevant because they seek to preserve detection
 usefulness while reducing computational and memory pressure. This makes
 them well matched to embedded AI pipelines in which the native camera
 imagery may be relatively large, but the runtime still needs to fit
-within tight SRAM and SDRAM limits. SentAI positions itself precisely at
-this interface between compact model design and deployment-aware systems
+within tight SRAM and SDRAM limits. Our platform sits precisely at this
+interface between compact model design and deployment-aware systems
 engineering. Rather than treating the detector as an isolated black box,
 it studies how detector choice interacts with camera resolution,
 quantization, memory layout, and real-time scheduling.
@@ -91,15 +92,44 @@ safely recompiled and reflashed. However, the majority of MicroPython
 deployments emphasize convenience over hard real-time performance and
 are usually not coupled to a high-throughput edge-AI pipeline.
 
-SentAI uses MicroPython differently: not as a replacement for the
-real-time system, but as a high-level orchestration layer placed above
-it. Time-critical operations such as frame capture, scaling,
+The present platform uses MicroPython differently: not as a replacement
+for the real-time system, but as a high-level orchestration layer placed
+above it. Time-critical operations such as frame capture, scaling,
 quantization, inference, and buffering remain implemented in compiled
 code under the RTOS, while Python exposes them as programmable mission
 primitives. This approach is relevant to previous work on embedded
 scripting because it shows how an interpreted environment can be
 integrated into an accelerator-centric, real-time drone application
 without turning the interpreter into the performance bottleneck.
+
+\subsection{Lightweight embedded learning, sequence modeling, and SLAM
+primitives}\label{lightweight-embedded-learning-sequence-modeling-and-slam-primitives}
+
+The newer \texttt{sentai} namespaces also connect the platform to a
+broader line of work in statistical learning and robotics. The
+\texttt{kmeans} and \texttt{pca} modules draw on widely used clustering
+and dimensionality-reduction methods that remain attractive on
+microcontroller-class systems because they are compact, interpretable,
+and easy to integrate into larger pipelines
+\citep{Jain2010, Jolliffe2016}. The \texttt{anomaly} module fits the
+same pattern: it relies on lightweight statistical monitoring techniques
+that are practical when memory and compute budgets do not permit heavier
+end-to-end methods \citep{Chandola2009, Pimentel2014}.
+
+The sequence-oriented modules map just as cleanly onto established
+post-1990 literature. Dynamic time warping remains a practical baseline
+for elastic matching of short temporal patterns \citep{Salvador2007},
+while hidden Markov models provide a compact probabilistic framework for
+temporal-state inference \citep{Bilmes1998}. The reinforcement-learning
+surface draws from tabular Q-learning, bandit strategies such as UCB and
+Thompson sampling, and later neural approximations exemplified by DQN
+\citep{Watkins1992, Auer2002, Russo2018, Mnih2015}. The \texttt{slam}
+namespace likewise sits within the modern SLAM literature on
+probabilistic mapping and localization
+\citep{DurrantWhyte2006, Cadena2016}. The contribution here is not
+novelty in these algorithms themselves, but their exposure as compact
+components inside the same embedded runtime that already handles
+sensing, inference, and flight interoperability.
 
 \subsection{Vision pipelines for drone perception and viewpoint-aware
 sensing}\label{vision-pipelines-for-drone-perception-and-viewpoint-aware-sensing}
@@ -110,7 +140,7 @@ but it limits mission flexibility. Drone operation frequently benefits
 from multiple sensing attitudes: forward views for obstacle awareness
 and navigation, nadir views for inspection and target localization, and
 oblique views that balance situational context with ground visibility.
-SentAI extends this discussion by treating dual-camera operation and
+This work extends that discussion by treating dual-camera operation and
 runtime camera switching as core design elements. The system therefore
 aligns with research on viewpoint-aware aerial perception, but
 approaches the problem from the perspective of deployment on a compact
@@ -121,10 +151,16 @@ This also connects with work on projection-aware tracking and sensor
 fusion. Once IMU measurements, camera geometry, and ground-plane
 assumptions are available, detections can be represented not only in
 image coordinates but also in more operationally meaningful spatial
-coordinates. SentAI builds on this idea by combining tracking, IMU-aware
-motion compensation, per-camera geometry, and projection to the ground
-plane so that perception can be consumed more directly by flight logic
-and telemetry systems.
+coordinates. The implementation builds on this idea by combining
+tracking, IMU-aware motion compensation, per-camera geometry, and
+projection to the ground plane so that perception can be consumed more
+directly by flight logic and telemetry systems. In tracking terms, the
+design sits between classical SORT \citep{Bewley2016} and later
+ByteTrack-style association \citep{Zhang2022}: it preserves a simple
+Kalman-based online core and the recovery of lower-confidence
+detections, but replaces heavier desktop-oriented assumptions with
+MCU-suitable mechanisms such as static memory, compact histogram cues,
+and IMU-based motion compensation.
 
 \subsection{Open datasets, synthetic data, and regulation-aware
 navigation}\label{open-datasets-synthetic-data-and-regulation-aware-navigation}
@@ -152,15 +188,15 @@ safety and legal constraints.
 
 \subsection{Positioning of this work}\label{positioning-of-this-work}
 
-Relative to prior work, SentAI occupies a middle ground that is not
-addressed well by any single existing direction. It is lighter and more
-power-conscious than larger embedded AI computers, more programmable
-than fixed-function onboard vision stacks, more perception-rich than
-minimal MCU-only controllers, and more deployment-oriented than many
-standalone model papers. Its contribution is therefore not a new
-detector alone, not a new autopilot alone, and not a new board alone,
-but the integration of these concerns into a coherent embedded autonomy
-platform for small drones.
+Relative to prior work, our MCU-EdgeTPU board occupies a middle ground
+that is not addressed well by any single existing direction. It is
+lighter and more power-conscious than larger embedded AI computers, more
+programmable than fixed-function onboard vision stacks, more
+perception-rich than minimal MCU-only controllers, and more
+systems-oriented than many standalone model papers. Its contribution is
+therefore not a new detector alone, not a new autopilot alone, and not a
+new board alone, but the integration of these concerns into an embedded
+autonomy platform for small drones.
 
 Indicative references to include in the final bibliography are the
 following:

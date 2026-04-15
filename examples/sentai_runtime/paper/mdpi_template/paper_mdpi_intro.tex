@@ -11,15 +11,12 @@ they also bring higher current consumption, larger batteries, more
 weight, and a form factor that is difficult to justify for lightweight
 micro-UAV missions.
 
-This work starts from an open-source platform with clear latent
-potential, namely Coral Micro, and treats it not as a finished product
-but as a promising technical base that can be pushed toward a much
-higher level of systems maturity. The research direction is therefore
-not limited to adding isolated features. Instead, it aims to move an
-accessible open hardware and open software project toward an
-industrialized embedded-AI stack with production-oriented performance
-characteristics, stronger runtime guarantees, richer sensing, and a more
-coherent control and telemetry model.
+This work starts from the original Coral Micro board from which the
+design started and treats it not as a fixed product, but as a compact
+open platform that can be extended through systems engineering. The goal
+is not to add isolated features, but to assemble our MCU-EdgeTPU board
+as an embedded-AI stack with improved sensing, more predictable runtime
+behavior, and a clearer control and telemetry model.
 
 The starting point of this work was the need for a platform that remains
 physically lightweight and energy-efficient, while still exploiting as
@@ -36,19 +33,19 @@ detectors, which benefit from larger spatial inputs and from a sensor
 pipeline capable of preserving more detail before resizing and
 quantization.
 
-The objective of SentAI is therefore to define a new point in the design
+The objective is therefore to define a different point in the design
 space: a board-level and software-level architecture that preserves the
-low-weight, low-power philosophy of minimalist embedded AI hardware, but
-extends it toward practical autonomous drone operation. The platform
-couples an MCU and an EdgeTPU with two 5 Mpx cameras and an onboard IMU,
-and exposes the whole sensing, inference, communication, and control
-stack through a MicroPython environment. This makes it possible to write
-high-level mission logic in Python while keeping timing-critical
-operations in the underlying real-time operating system and accelerator
-path. The result is not only a development framework, but also a systems
-study of how far one can push a compact embedded AI board toward real
-airborne autonomy and toward a level of robustness closer to
-production-grade embedded deployment.
+low-weight, low-power character of minimalist embedded AI hardware, but
+extends it toward an open inference platform for autonomous-drone
+operation. The platform couples an MCU and an EdgeTPU with two 5 Mpx
+cameras and an onboard IMU, and exposes sensing, inference,
+communication, and control through MicroPython. High-level mission logic
+remains scriptable, while timing-critical operations stay in the RTOS
+and accelerator path. The runtime is also no longer limited to a single
+inference route: it includes both EdgeTPU-backed execution for quantized
+models compiled for accelerator execution and CPU-side TensorFlow Lite
+Micro execution, together with a growing family of embedded-ML utilities
+intended to be used directly from scripts.
 
 The work explicitly targets two flight platforms. The first is Bitcraze
 Crazyflie, used as an indoor experimental platform because it is agile,
@@ -59,7 +56,11 @@ more professional and transferable deployment model. The intention is to
 provide a common high-level autonomy layer across both targets, so that
 mission scripts, perception logic, and communication flows can be
 developed once and adapted across indoor research flights and more
-operational MAVLink-centered scenarios.
+operational MAVLink-centered scenarios. This broader PX4-facing
+integration matters because the runtime is designed not only to emit
+textual or backend-oriented telemetry, but also to provide structured
+obstacle information that can be consumed directly by autopilot-side
+collision-prevention logic.
 
 From a vision-systems perspective, the work is driven by the observation
 that model accuracy alone is not enough. Once YOLO-class detectors are
@@ -78,7 +79,7 @@ copies.
 
 An important architectural extension is the addition of a dual-camera
 subsystem. Instead of treating perception as a single fixed viewpoint
-problem, SentAI supports two 5 Mpx sensors that may be mounted in
+problem, the platform supports two 5 Mpx sensors that may be mounted in
 parallel or perpendicular configurations. This enables distinct
 operational modes: forward-looking navigation together with nadir
 inspection, redundant views for indoor localization, or viewpoint
@@ -99,24 +100,20 @@ degrees, and is intended as a reusable pre-training or adaptation
 resource for future systems that must obey stricter navigation and
 avoidance logic in populated environments, including scenarios informed
 by European drone categories such as A0-A3 and A2. This
-dataset-and-model layer complements the embedded runtime by providing a
-path from open training assets to open onboard deployment.
+dataset-and-model layer complements the runtime by providing a path from
+open training assets to experimentally reproducible, EdgeTPU-oriented
+inference models.
 
-In this sense, the present work should be read as an industrialization
-effort. Many of the underlying techniques are known in isolation:
-embedded Python, edge inference, object detection, MAVLink
-communication, or visual tracking. The novelty lies in bringing them
-together on a highly constrained airborne computing platform and
-resolving the practical bottlenecks that appear only during
-implementation. These include memory fragmentation, RAM placement
-between internal memory and external SDRAM, large tensor staging,
-synchronization between RTOS tasks, camera switching latency, and the
-challenge of sustaining high throughput without losing the low-power
-character of the platform. The broader contribution is thus to
-demonstrate how an open-source prototype platform can be evolved into a
-system with much stronger production-oriented behavior, where
-throughput, determinism, integration discipline, and operational
-usability become design targets in their own right.
+The present work should therefore be read as an integration effort.
+Embedded Python, edge inference, object detection, MAVLink
+communication, visual tracking, and lightweight learning primitives are
+all known in isolation. The difficulty is making them coexist on a
+highly constrained airborne platform without losing throughput,
+determinism, or usability. The practical bottlenecks addressed here
+include RAM placement across internal memory and SDRAM, large tensor
+staging, RTOS synchronization, camera-switching latency, conversion of
+tracked detections into obstacle maps, and the need to sustain high
+throughput without giving up the low-power character of the platform.
 
 The main contributions of the work can be summarized as follows:
 
@@ -125,7 +122,8 @@ The main contributions of the work can be summarized as follows:
 \tightlist
 \item
   An open-source MicroPython runtime for a lightweight EdgeTPU-enabled
-  MCU platform intended for high-level autonomous drone control.
+  MCU platform intended for high-level autonomous drone control, with
+  both EdgeTPU and CPU-side TensorFlow Lite Micro inference paths.
 \item
   A dual-target flight-control concept spanning Bitcraze Crazyflie for
   indoor experimentation and PX4/MAVLink for professional autopilot
@@ -144,8 +142,14 @@ The main contributions of the work can be summarized as follows:
   larger vision models on an MCU-constrained platform.
 \item
   A multi-model workflow with dynamic model loading, context-dependent
-  switching, tracking, projection to the ground plane, and telemetry
-  integration.
+  switching, tracking, projection to the ground plane, obstacle
+  reporting to MAVLink autopilots, and telemetry integration.
+\item
+  An extended embedded-ML runtime surface that includes on-device
+  learning, clustering, anomaly detection, sequence modeling,
+  reinforcement learning, and lightweight mapping primitives as
+  integrated MicroPython-accessible components alongside the vision
+  stack.
 \item
   An open synthetic aerial dataset and a custom YOLO model intended as a
   starting point for regulation-aware drone navigation in inhabited

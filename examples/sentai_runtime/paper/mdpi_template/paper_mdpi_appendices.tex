@@ -1,0 +1,1315 @@
+\section{Appendix: sentai.io}\label{appendix-sentai.io}
+
+The \texttt{sentai.io} namespace groups the simplest board-local control
+primitives. In the current runtime it is intentionally small and is used
+mainly for visual status indication, quick feedback during debugging,
+and minimal interaction from scripts that do not require a richer GPIO
+abstraction.
+
+\subsection{Functions}\label{functions}
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{sentai.io.led\_on()}: Turns the user LED on.
+\item
+  \texttt{sentai.io.led\_off()}: Turns the user LED off.
+\end{itemize}
+
+\subsection{Example}\label{example}
+
+\begin{verbatim}
+import sentai
+
+for _ in range(3):
+    sentai.io.led_on()
+    sentai.rtos.sleep_ms(200)
+    sentai.io.led_off()
+    sentai.rtos.sleep_ms(200)
+\end{verbatim}
+
+\section{Appendix: sentai.rtos}\label{appendix-sentai.rtos}
+
+The \texttt{sentai.rtos} namespace exposes runtime observability and
+timing services from the FreeRTOS layer. It is useful both for
+interactive diagnosis and for scripts that need coarse scheduling,
+uptime measurement, or visibility into task and memory behavior during
+long-running onboard experiments.
+
+\subsection{Functions}\label{functions-1}
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{sentai.rtos.sleep\_ms(ms)}: Suspends the current script for a
+  specified number of milliseconds.
+\item
+  \texttt{sentai.rtos.ticks\_ms()}: Returns a monotonic millisecond
+  counter.
+\item
+  \texttt{sentai.rtos.tasks()}: Returns the current task list with
+  state, priority, and stack high-water mark.
+\item
+  \texttt{sentai.rtos.heap\_info()}: Returns memory statistics for the
+  RTOS heap and MicroPython GC heap.
+\item
+  \texttt{sentai.rtos.cpu\_usage()}: Returns per-task CPU-usage
+  estimates.
+\item
+  \texttt{sentai.rtos.uptime()}: Returns system uptime in seconds.
+\end{itemize}
+
+\subsection{Example}\label{example-1}
+
+\begin{verbatim}
+import sentai
+
+print('uptime:', sentai.rtos.uptime())
+print('heap:', sentai.rtos.heap_info())
+for name, state, prio, hwm in sentai.rtos.tasks():
+    print(name, state, prio, hwm)
+\end{verbatim}
+
+\section{Appendix: sentai.tpu}\label{appendix-sentai.tpu}
+
+The \texttt{sentai.tpu} namespace is the main interface to
+EdgeTPU-backed inference. It covers model loading, input preparation,
+execution, tensor inspection, quantization helpers, and
+detector-oriented post-processing. In practice it is the default path
+for compact vision models compiled for the accelerator.
+
+\subsection{Functions}\label{functions-2}
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{sentai.tpu.load(path)}: Loads a \texttt{.tflite} model from
+  flash and creates the EdgeTPU interpreter.
+\item
+  \texttt{sentai.tpu.load\_image(path)}: Loads a JPEG or raw RGB image
+  into the input tensor.
+\item
+  \texttt{sentai.tpu.invoke()}: Runs inference and returns elapsed time
+  in milliseconds.
+\item
+  \texttt{sentai.tpu.ready()}: Reports whether the model and interpreter
+  are ready.
+\item
+  \texttt{sentai.tpu.num\_outputs()}: Returns the number of output
+  tensors.
+\item
+  \texttt{sentai.tpu.output\_size(idx)}: Returns the byte size of an
+  output tensor.
+\item
+  \texttt{sentai.tpu.output(idx)}: Returns raw output bytes.
+\item
+  \texttt{sentai.tpu.output\_dims(idx)}: Returns the output tensor
+  shape.
+\item
+  \texttt{sentai.tpu.output\_type(idx)}: Returns the tensor type.
+\item
+  \texttt{sentai.tpu.row(idx,\ r)}: Returns a selected tensor row.
+\item
+  \texttt{sentai.tpu.value(idx,\ flat\_i)}: Returns a single flattened
+  value.
+\item
+  \texttt{sentai.tpu.save\_output(path)}: Saves all outputs to CSV.
+\item
+  \texttt{sentai.tpu.input\_quant()}: Returns input quantization
+  parameters.
+\item
+  \texttt{sentai.tpu.output\_quant(idx)}: Returns output quantization
+  parameters.
+\item
+  \texttt{sentai.tpu.output\_floats(idx)}: Returns dequantized outputs
+  as Python floats.
+\item
+  \texttt{sentai.tpu.input\_type()}: Returns the input tensor type.
+\item
+  \texttt{sentai.tpu.detect(conf,\ iou,\ max)}: Runs YOLO-style
+  non-maximum suppression on the last inference output.
+\item
+  \texttt{sentai.tpu.draw(path,\ dets,\ quality)}: Draws detections on
+  the last captured frame and saves a JPEG.
+\end{itemize}
+
+\subsection{Example}\label{example-2}
+
+\begin{verbatim}
+import sentai
+
+sentai.tpu.load('/models/yolov8n.tflite')
+sentai.camera.init()
+sentai.camera.to_tensor()
+ms = sentai.tpu.invoke()
+dets = sentai.tpu.detect(0.25, 0.45, 50)
+print('ms:', ms, 'detections:', len(dets))
+sentai.tpu.draw('/det.jpg', dets)
+\end{verbatim}
+
+\section{Appendix: sentai.tfl}\label{appendix-sentai.tfl}
+
+The \texttt{sentai.tfl} namespace provides CPU-side TensorFlow Lite
+Micro inference on the Cortex-M7. It complements \texttt{sentai.tpu} for
+models that are not compiled for the EdgeTPU, for smaller auxiliary
+models, or for experiments that require direct MCU execution with
+explicit tensor-arena sizing.
+
+\subsection{Functions}\label{functions-3}
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{sentai.tfl.load(path,\ arena\_kb)}: Loads a \texttt{.tflite}
+  model and allocates the tensor arena.
+\item
+  \texttt{sentai.tfl.unload()}: Frees the interpreter and tensor arena.
+\item
+  \texttt{sentai.tfl.invoke()}: Runs inference and returns elapsed time
+  in milliseconds.
+\item
+  \texttt{sentai.tfl.ready()}: Reports whether the interpreter is ready.
+\item
+  \texttt{sentai.tfl.info()}: Prints model and arena information.
+\item
+  \texttt{sentai.tfl.set\_input(data)}: Writes bytes into the input
+  tensor.
+\item
+  \texttt{sentai.tfl.load\_image(path)}: Loads a JPEG or raw RGB image
+  into the input tensor.
+\item
+  \texttt{sentai.tfl.input\_size()}: Returns the input tensor size in
+  bytes.
+\item
+  \texttt{sentai.tfl.input\_dims()}: Returns the input tensor shape.
+\item
+  \texttt{sentai.tfl.input\_type()}: Returns the input tensor type.
+\item
+  \texttt{sentai.tfl.input\_quant()}: Returns input quantization
+  parameters.
+\item
+  \texttt{sentai.tfl.num\_outputs()}: Returns the number of output
+  tensors.
+\item
+  \texttt{sentai.tfl.output\_size(idx)}: Returns output tensor size.
+\item
+  \texttt{sentai.tfl.output(idx)}: Returns raw output bytes.
+\item
+  \texttt{sentai.tfl.output\_dims(idx)}: Returns the output tensor
+  shape.
+\item
+  \texttt{sentai.tfl.output\_type(idx)}: Returns the output tensor type.
+\item
+  \texttt{sentai.tfl.output\_quant(idx)}: Returns output quantization
+  parameters.
+\item
+  \texttt{sentai.tfl.output\_floats(idx)}: Returns dequantized output
+  values.
+\item
+  \texttt{sentai.tfl.row(idx,\ r)}: Returns one tensor row.
+\item
+  \texttt{sentai.tfl.value(idx,\ flat\_i)}: Returns one output value.
+\item
+  \texttt{sentai.tfl.save\_output(path)}: Saves all outputs to CSV.
+\end{itemize}
+
+\subsection{Example}\label{example-3}
+
+\begin{verbatim}
+import sentai
+
+sentai.tfl.load('/models/keyword_detect.tflite', 256)
+sentai.tfl.set_input(feature_bytes)
+ms = sentai.tfl.invoke()
+probs = sentai.tfl.output_floats(0)
+print('inference:', ms, 'ms', probs)
+\end{verbatim}
+
+\section{Appendix: sentai.fs}\label{appendix-sentai.fs}
+
+The \texttt{sentai.fs} namespace provides script-level access to the
+LittleFS user partition. It is used to move models, scripts, logs,
+images, and outputs between the runtime and persistent flash, and it is
+a central part of the interactive workflow because both model deployment
+and experiment logging depend on it.
+
+\subsection{Functions}\label{functions-4}
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{sentai.fs.read(path)}: Reads an entire file as bytes.
+\item
+  \texttt{sentai.fs.read\_str(path)}: Reads an entire file as text.
+\item
+  \texttt{sentai.fs.read\_base64(path)}: Reads and prints a file as
+  base64 text.
+\item
+  \texttt{sentai.fs.write(path,\ data)}: Writes bytes or text to flash.
+\item
+  \texttt{sentai.fs.size(path)}: Returns the file size.
+\item
+  \texttt{sentai.fs.exists(path)}: Checks whether a file or directory
+  exists.
+\item
+  \texttt{sentai.fs.remove(path)}: Deletes a file or empty directory.
+\item
+  \texttt{sentai.fs.mkdir(path)}: Creates directories recursively.
+\item
+  \texttt{sentai.fs.ls(path)}: Lists directory contents.
+\item
+  \texttt{sentai.fs.format()}: Reformats the user partition and erases
+  user data.
+\end{itemize}
+
+\subsection{Example}\label{example-4}
+
+\begin{verbatim}
+import sentai
+
+sentai.fs.mkdir('/logs')
+sentai.fs.write('/logs/run.txt', 'experiment started\n')
+print(sentai.fs.read_str('/logs/run.txt'))
+print(sentai.fs.ls('/logs'))
+\end{verbatim}
+
+\section{Appendix: sentai.camera}\label{appendix-sentai.camera}
+
+The \texttt{sentai.camera} namespace controls image capture and basic
+camera-side preprocessing. It provides the main bridge between the
+sensing layer and the inference pipeline, including frame capture, JPEG
+export, tensor feeding, camera selection, and frame-sequence inspection
+for dual-camera operation.
+
+\subsection{Functions}\label{functions-5}
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{sentai.camera.init(streaming)}: Starts the camera in
+  continuous or trigger mode.
+\item
+  \texttt{sentai.camera.stop()}: Stops camera capture.
+\item
+  \texttt{sentai.camera.jpeg(quality)}: Captures a frame and returns
+  JPEG bytes.
+\item
+  \texttt{sentai.camera.save\_jpeg(path,\ q)}: Captures and saves a JPEG
+  file.
+\item
+  \texttt{sentai.camera.to\_tensor()}: Captures a frame and writes it
+  into the TPU input tensor.
+\item
+  \texttt{sentai.camera.resolution()}: Returns the current output
+  resolution.
+\item
+  \texttt{sentai.camera.set\_resolution(w,\ h)}: Changes the capture
+  resolution.
+\item
+  \texttt{sentai.camera.native\_res()}: Returns the sensor native
+  resolution.
+\item
+  \texttt{sentai.camera.select(id)}: Selects the active camera.
+\item
+  \texttt{sentai.camera.frame\_count()}: Returns the monotonic hardware
+  frame counter.
+\end{itemize}
+
+\subsection{Example}\label{example-5}
+
+\begin{verbatim}
+import sentai
+
+sentai.camera.init()
+sentai.camera.set_resolution(320, 320)
+sentai.camera.select(0)
+sentai.camera.save_jpeg('/front.jpg', 85)
+sentai.camera.select(1)
+sentai.camera.save_jpeg('/back.jpg', 85)
+sentai.camera.stop()
+\end{verbatim}
+
+\section{Appendix: sentai.imu}\label{appendix-sentai.imu}
+
+The \texttt{sentai.imu} namespace exposes the onboard LIS2DU12
+accelerometer. It provides direct access to acceleration and derived
+tilt estimates and is commonly used for motion monitoring, camera-pose
+estimation, and simple event detection in scripts that combine
+perception with inertial context.
+
+\subsection{Functions}\label{functions-6}
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{sentai.imu.init()}: Initializes the accelerometer.
+\item
+  \texttt{sentai.imu.read()}: Returns acceleration and temperature
+  measurements.
+\item
+  \texttt{sentai.imu.degrees()}: Returns pitch and roll in degrees.
+\item
+  \texttt{sentai.imu.radians()}: Returns pitch and roll in radians.
+\end{itemize}
+
+\subsection{Example}\label{example-6}
+
+\begin{verbatim}
+import sentai
+
+sentai.imu.init()
+for _ in range(10):
+    d = sentai.imu.degrees()
+    if d:
+        print('pitch:', d['pitch'], 'roll:', d['roll'])
+    sentai.rtos.sleep_ms(100)
+\end{verbatim}
+
+\section{Appendix: sentai.mic}\label{appendix-sentai.mic}
+
+The \texttt{sentai.mic} namespace manages the onboard PDM microphone
+through a ring-buffer recording model. It is designed for low-overhead
+acquisition, sound-level monitoring, and asynchronous MP3 export,
+allowing audio-triggered experiments without forcing the user to manage
+raw DMA buffers directly.
+
+\subsection{Functions}\label{functions-7}
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{sentai.mic.start(seconds)}: Starts ring-buffer recording for
+  the specified window length.
+\item
+  \texttt{sentai.mic.stop()}: Stops the microphone and returns the
+  number of buffered samples.
+\item
+  \texttt{sentai.mic.recording()}: Reports whether the microphone is
+  active.
+\item
+  \texttt{sentai.mic.samples()}: Returns the number of samples currently
+  available.
+\item
+  \texttt{sentai.mic.level()}: Returns the current RMS level in
+  centi-decibels.
+\item
+  \texttt{sentai.mic.save\_mp3()}: Saves buffered audio as an MP3 file
+  and returns the filename.
+\end{itemize}
+
+\subsection{Example}\label{example-7}
+
+\begin{verbatim}
+import sentai
+
+sentai.mic.start(5)
+sentai.rtos.sleep_ms(5000)
+name = sentai.mic.save_mp3()
+print('saved:', name)
+sentai.mic.stop()
+\end{verbatim}
+
+\section{Appendix: sentai.usb}\label{appendix-sentai.usb}
+
+The \texttt{sentai.usb} namespace provides two distinct services:
+mass-storage export of the user partition and raw USB CDC serial I/O
+when the REPL has been moved away from USB. It is therefore both a
+deployment path for files and a host-device communication channel, with
+explicit coordination required to avoid conflicts with filesystem
+access.
+
+\subsection{Functions}\label{functions-8}
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{sentai.usb.drive(on)}: Enables or disables USB mass-storage
+  export.
+\item
+  \texttt{sentai.usb.open()}: Opens USB CDC ACM for raw serial I/O.
+\item
+  \texttt{sentai.usb.close()}: Closes the raw USB CDC channel.
+\item
+  \texttt{sentai.usb.write(data)}: Writes bytes or text to the USB host.
+\item
+  \texttt{sentai.usb.read(max,\ timeout\_ms)}: Reads bytes from the USB
+  host.
+\item
+  \texttt{sentai.usb.available()}: Returns the number of pending
+  received bytes.
+\end{itemize}
+
+\subsection{Example}\label{example-8}
+
+\begin{verbatim}
+import sentai
+
+sentai.usb.drive(1)
+# host copies files here
+sentai.usb.drive(0)
+print(sentai.fs.ls('/'))
+\end{verbatim}
+
+\section{Appendix: sentai.uart}\label{appendix-sentai.uart}
+
+The \texttt{sentai.uart} namespace exposes raw UART serial I/O on the
+board-side serial port when that port is not reserved for the REPL or
+another protocol bridge. It is intended for direct communication with
+external serial devices such as radios, sensors, GPS modules, or custom
+peripherals.
+
+\subsection{Functions}\label{functions-9}
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{sentai.uart.open(baud)}: Opens the UART port at the requested
+  baud rate.
+\item
+  \texttt{sentai.uart.close()}: Closes the UART port and restores the
+  default configuration.
+\item
+  \texttt{sentai.uart.write(data)}: Sends bytes or text.
+\item
+  \texttt{sentai.uart.read(max,\ timeout\_ms)}: Reads bytes with
+  polling, timeout, or blocking behavior.
+\item
+  \texttt{sentai.uart.available()}: Returns the number of waiting bytes.
+\end{itemize}
+
+\subsection{Example}\label{example-9}
+
+\begin{verbatim}
+import sentai
+
+sentai.uart.open(38400)
+sentai.uart.write(b'AT\r\n')
+resp = sentai.uart.read(256, 1000)
+print(resp)
+sentai.uart.close()
+\end{verbatim}
+
+\section{Appendix: sentai.console}\label{appendix-sentai.console}
+
+The \texttt{sentai.console} interface controls where the interactive
+MicroPython REPL is exposed. Although small, it is operationally
+important because several communication namespaces reuse the non-REPL
+interface, so moving the console between USB and UART determines which
+transport remains available for scripting.
+
+\subsection{Functions}\label{functions-10}
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{sentai.console()}: Returns the current REPL target, either
+  \texttt{usb} or \texttt{uart}.
+\item
+  \texttt{sentai.console(\textquotesingle{}usb\textquotesingle{})}:
+  Moves the REPL to USB CDC ACM.
+\item
+  \texttt{sentai.console(\textquotesingle{}uart\textquotesingle{})}:
+  Moves the REPL to the UART console.
+\end{itemize}
+
+\subsection{Example}\label{example-10}
+
+\begin{verbatim}
+import sentai
+
+print(sentai.console())
+sentai.console('uart')
+sentai.usb.open()
+sentai.usb.write(b'host channel ready\n')
+sentai.usb.close()
+\end{verbatim}
+
+\section{Appendix: sentai.mesh}\label{appendix-sentai.mesh}
+
+The \texttt{sentai.mesh} namespace bridges the runtime to
+Meshtastic-compatible radios over UART. It supports both simple text
+exchange and structured vision-message transport, making it suitable for
+distributed sensing, low-bandwidth telemetry, and multi-node experiments
+in which detections or updates must be serialized and disseminated over
+a mesh network.
+
+\subsection{Functions}\label{functions-11}
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{sentai.mesh.init(baud)}: Opens the UART link and starts the
+  mesh receive task.
+\item
+  \texttt{sentai.mesh.stop()}: Stops the receive task and closes the
+  link.
+\item
+  \texttt{sentai.mesh.node()}: Returns the local node number.
+\item
+  \texttt{sentai.mesh.config()}: Requests configuration and NodeDB
+  information from the radio.
+\item
+  \texttt{sentai.mesh.send(text,\ dest,\ ch,\ ack)}: Sends a text
+  message.
+\item
+  \texttt{sentai.mesh.available()}: Returns the number of queued text
+  messages.
+\item
+  \texttt{sentai.mesh.receive(timeout)}: Receives the next text message.
+\item
+  \texttt{sentai.mesh.send\_detection(...)}: Sends a structured
+  new-detection message.
+\item
+  \texttt{sentai.mesh.send\_update(...)}: Sends a structured
+  track-update message.
+\item
+  \texttt{sentai.mesh.vision\_available()}: Returns the number of queued
+  vision messages.
+\item
+  \texttt{sentai.mesh.receive\_vision(timeout)}: Receives the next
+  structured vision message.
+\item
+  \texttt{sentai.mesh.set\_pose(pitch\_deg,\ roll\_deg,\ altitude\_cm,\ heading\_deg)}:
+  Attaches camera pose metadata to outgoing vision messages.
+\end{itemize}
+
+\subsection{Example}\label{example-11}
+
+\begin{verbatim}
+import sentai
+
+sentai.mesh.init()
+sentai.mesh.send('hello world')
+msg = sentai.mesh.receive(5000)
+if msg:
+    print(msg['from'], msg['text'])
+\end{verbatim}
+
+\section{Appendix: sentai.link}\label{appendix-sentai.link}
+
+The \texttt{sentai.link} namespace exposes a MAVLink v2 bridge over
+UART. It supports message reception, heartbeat and status transmission,
+command dispatch, structured vision reporting, and obstacle-map
+generation for PX4 collision prevention. It is the primary interface for
+integrating the runtime with a conventional autopilot stack.
+
+\subsection{Functions}\label{functions-12}
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{sentai.link.init(baud,\ sysid,\ compid)}: Opens the MAVLink
+  link and starts the receive task.
+\item
+  \texttt{sentai.link.stop()}: Stops the link and closes the UART
+  channel.
+\item
+  \texttt{sentai.link.available()}: Returns the number of queued MAVLink
+  messages.
+\item
+  \texttt{sentai.link.receive(timeout)}: Returns the next decoded
+  MAVLink message.
+\item
+  \texttt{sentai.link.heartbeat(type)}: Sends a heartbeat.
+\item
+  \texttt{sentai.link.send(text,\ sev)}: Sends a \texttt{STATUSTEXT}
+  message.
+\item
+  \texttt{sentai.link.command(tsys,\ tcomp,\ cmd,\ conf,\ p1..p7)}:
+  Sends a \texttt{COMMAND\_LONG} message.
+\item
+  \texttt{sentai.link.send\_detection(...)}: Sends a structured vision
+  detection.
+\item
+  \texttt{sentai.link.send\_update(...)}: Sends a structured vision
+  update.
+\item
+  \texttt{sentai.link.send\_delete(...)}: Sends a structured vision
+  deletion event.
+\item
+  \texttt{sentai.link.obstacles\_from\_tracker(...)}: Builds and sends a
+  72-bin obstacle map from active tracks.
+\item
+  \texttt{sentai.link.obstacle\_distance(distances72,\ ...)}: Sends a
+  raw \texttt{OBSTACLE\_DISTANCE} message.
+\item
+  \texttt{sentai.link.obstacles\_from\_points(points,\ ...)}: Builds an
+  obstacle map from arbitrary XY points.
+\end{itemize}
+
+\subsection{Example}\label{example-12}
+
+\begin{verbatim}
+import sentai
+
+sentai.pipeline.init()
+sentai.pipeline.set_pose(120, -1, 0.0, 0.0)
+sentai.link.init(57600)
+while True:
+    sentai.link.obstacles_from_tracker(800, 20)
+    sentai.link.heartbeat()
+    sentai.rtos.sleep_ms(100)
+\end{verbatim}
+
+\section{Appendix: sentai.crazy}\label{appendix-sentai.crazy}
+
+The \texttt{sentai.crazy} namespace connects the runtime to a Crazyflie
+platform over CPX/CRTP. It exposes both higher-level flight procedures
+and lower-level control interfaces, allowing scripted indoor flight
+experiments without moving mission logic outside the main MicroPython
+environment.
+
+\subsection{Functions}\label{functions-13}
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{sentai.crazy.init(baud)}: Starts the Crazyflie communication
+  tasks.
+\item
+  \texttt{sentai.crazy.stop()}: Stops the bridge and closes the link.
+\item
+  \texttt{sentai.crazy.debug(level)}: Changes debug verbosity.
+\item
+  \texttt{sentai.crazy.arm()}: Arms the drone.
+\item
+  \texttt{sentai.crazy.disarm()}: Disarms the drone.
+\item
+  \texttt{sentai.crazy.ping(timeout)}: Measures round-trip time to the
+  drone.
+\item
+  \texttt{sentai.crazy.fly(height,\ hold\_ms,\ takeoff\_ms,\ land\_ms)}:
+  Executes a blocking high-level flight cycle.
+\item
+  \texttt{sentai.crazy.attitude(roll,\ pitch,\ yaw\_rate,\ thrust)}:
+  Sends non-blocking attitude setpoints.
+\item
+  \texttt{sentai.crazy.fly\_stop()}: Stops attitude-controlled flight
+  and disarms.
+\item
+  \texttt{sentai.crazy.takeoff(h,\ dur,\ yaw,\ use\_yaw,\ group)}: Sends
+  a high-level takeoff command.
+\item
+  \texttt{sentai.crazy.land(h,\ dur,\ yaw,\ use\_yaw,\ group)}: Sends a
+  high-level landing command.
+\item
+  \texttt{sentai.crazy.stop\_motors(group)}: Performs an emergency motor
+  stop.
+\item
+  \texttt{sentai.crazy.go\_to(x,\ y,\ z,\ yaw,\ dur,\ rel,\ lin,\ group)}:
+  Sends a waypoint-style movement command.
+\item
+  \texttt{sentai.crazy.hover(vx,\ vy,\ yr,\ z)}: Sends hover-mode
+  velocity commands.
+\item
+  \texttt{sentai.crazy.test\_fly(power,\ dur\_ms)}: Runs a raw motor
+  test.
+\item
+  \texttt{sentai.crazy.send\_crtp(port,\ ch,\ data)}: Sends an arbitrary
+  CRTP packet.
+\end{itemize}
+
+\subsection{Example}\label{example-13}
+
+\begin{verbatim}
+import sentai
+
+sentai.crazy.init()
+sentai.crazy.arm()
+sentai.crazy.takeoff(0.5, 2.0)
+sentai.rtos.sleep_ms(3000)
+sentai.crazy.land(0.0, 2.0)
+sentai.crazy.stop()
+\end{verbatim}
+
+\section{Appendix: sentai.pipeline}\label{appendix-sentai.pipeline}
+
+The \texttt{sentai.pipeline} namespace exposes the background detection
+pipeline and the SentAI-SORT tracker. It is the main high-level
+perception service in the runtime and packages detector scheduling,
+tracking, event reporting, camera geometry, and ground-plane projection
+into a single script-facing interface.
+
+\subsection{Functions}\label{functions-14}
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{sentai.pipeline.start(conf,\ iou,\ max,\ track)}: Starts
+  continuous detection and optionally tracking.
+\item
+  \texttt{sentai.pipeline.stop()}: Stops the pipeline.
+\item
+  \texttt{sentai.pipeline.running()}: Reports whether the pipeline is
+  active.
+\item
+  \texttt{sentai.pipeline.get(timeout\_ms)}: Returns the next detection
+  frame.
+\item
+  \texttt{sentai.pipeline.stats()}: Returns processed, dropped, and FPS
+  statistics.
+\item
+  \texttt{sentai.pipeline.tracks()}: Returns the current active-track
+  snapshot.
+\item
+  \texttt{sentai.pipeline.event(timeout\_ms)}: Returns the next tracker
+  event.
+\item
+  \texttt{sentai.pipeline.track\_config(...)}: Gets or sets tracker
+  parameters.
+\item
+  \texttt{sentai.pipeline.set\_pose(altitude\_cm,\ heading\_deg,\ lat,\ lon)}:
+  Sets camera pose for ground projection.
+\item
+  \texttt{sentai.pipeline.camera\_config(cam\_id,\ fov\_h,\ fov\_v,\ mount\_pitch,\ mount\_roll,\ mount\_yaw)}:
+  Gets or sets per-camera geometry.
+\end{itemize}
+
+\subsection{Example}\label{example-14}
+
+\begin{verbatim}
+import sentai
+
+sentai.camera.init()
+sentai.pipeline.camera_config(0, 70.8, 43.4, 0, 0, 0)
+sentai.pipeline.set_pose(1000, 0, 44.4268, 26.1025)
+sentai.pipeline.start(0.3, 0.45, 50, True)
+while True:
+    evt = sentai.pipeline.event(2000)
+    if evt:
+        print(evt)
+\end{verbatim}
+
+\section{Appendix: sentai.aifes}\label{appendix-sentai.aifes}
+
+The \texttt{sentai.aifes} namespace integrates the AIfES library for
+on-device neural-network training and inference. It is intended for
+small multilayer perceptrons and compact transfer-learning workflows in
+which features extracted by the TPU or camera are fed into a trainable
+MCU-side head.
+
+\subsection{Functions}\label{functions-15}
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{sentai.aifes.load(path)}: Loads a model architecture from
+  YAML.
+\item
+  \texttt{sentai.aifes.load\_weights(path)}: Loads pre-trained weights.
+\item
+  \texttt{sentai.aifes.save\_weights(path)}: Saves trained weights.
+\item
+  \texttt{sentai.aifes.unload()}: Frees the loaded model.
+\item
+  \texttt{sentai.aifes.ready()}: Reports whether the model is ready.
+\item
+  \texttt{sentai.aifes.train(x\_data,\ y\_data,\ ...)}: Trains the model
+  on supplied samples.
+\item
+  \texttt{sentai.aifes.set\_input(data)}: Sets the input vector from
+  floats.
+\item
+  \texttt{sentai.aifes.from\_tpu(idx)}: Uses a TPU output tensor as
+  AIfES input.
+\item
+  \texttt{sentai.aifes.from\_camera(w,\ h,\ gray)}: Uses a camera frame
+  as normalized input.
+\item
+  \texttt{sentai.aifes.from\_mic(samples)}: Uses microphone samples as
+  input.
+\item
+  \texttt{sentai.aifes.invoke()}: Runs inference.
+\item
+  \texttt{sentai.aifes.output()}: Returns the latest output vector.
+\item
+  \texttt{sentai.aifes.mic\_init()}: Initializes microphone capture for
+  audio models.
+\item
+  \texttt{sentai.aifes.mic\_stop()}: Stops microphone capture.
+\item
+  \texttt{sentai.aifes.predict(input)}: Legacy single-call inference
+  helper.
+\item
+  \texttt{sentai.aifes.info()}: Returns model metadata.
+\end{itemize}
+
+\subsection{Example}\label{example-15}
+
+\begin{verbatim}
+import sentai
+
+sentai.tpu.load('/models/mobilenet_features.tflite')
+sentai.aifes.load('/models/classifier_head.yaml')
+sentai.camera.init()
+
+sentai.camera.to_tensor()
+sentai.tpu.invoke()
+sentai.aifes.from_tpu(0)
+sentai.aifes.invoke()
+print(sentai.aifes.output())
+\end{verbatim}
+
+\section{Appendix: sentai.kmeans}\label{appendix-sentai.kmeans}
+
+The \texttt{sentai.kmeans} namespace implements compact k-means
+clustering for embedding vectors. It is mainly useful for few-shot or
+unsupervised classification workflows in which a TPU feature extractor
+produces dense embeddings and the runtime clusters them directly on
+device.
+
+\subsection{Functions}\label{functions-16}
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{sentai.kmeans.init(k,\ dim)}: Initializes the clustering
+  state.
+\item
+  \texttt{sentai.kmeans.add(cluster\_idx,\ vector)}: Adds a labeled
+  vector to a cluster.
+\item
+  \texttt{sentai.kmeans.add\_from\_tpu(cluster\_idx,\ tpu\_idx)}: Adds a
+  TPU output directly.
+\item
+  \texttt{sentai.kmeans.compute()}: Computes centroids from labeled
+  samples.
+\item
+  \texttt{sentai.kmeans.fit(max\_iter)}: Runs unsupervised Lloyd
+  iterations.
+\item
+  \texttt{sentai.kmeans.predict(vector)}: Predicts the closest centroid.
+\item
+  \texttt{sentai.kmeans.from\_tpu(tpu\_idx)}: Predicts from a TPU output
+  tensor.
+\item
+  \texttt{sentai.kmeans.distances(vector)}: Returns distances to all
+  centroids.
+\item
+  \texttt{sentai.kmeans.save(path)}: Saves centroids to flash.
+\item
+  \texttt{sentai.kmeans.load(path)}: Loads centroids from flash.
+\item
+  \texttt{sentai.kmeans.centroid(idx)}: Returns one centroid vector.
+\item
+  \texttt{sentai.kmeans.info()}: Returns configuration and sample-count
+  metadata.
+\item
+  \texttt{sentai.kmeans.clear()}: Clears training vectors while keeping
+  centroids.
+\end{itemize}
+
+\subsection{Example}\label{example-16}
+
+\begin{verbatim}
+import sentai
+
+sentai.tpu.load('/models/mobilenet_features.tflite')
+sentai.camera.init()
+sentai.kmeans.init(3, 1280)
+
+sentai.camera.to_tensor()
+sentai.tpu.invoke()
+sentai.kmeans.add_from_tpu(0, 0)
+sentai.kmeans.compute()
+print(sentai.kmeans.info())
+\end{verbatim}
+
+\section{Appendix: sentai.pca}\label{appendix-sentai.pca}
+
+The \texttt{sentai.pca} namespace provides principal-component analysis
+for high-dimensional embeddings. Its role is to reduce vector dimension
+before downstream use in classifiers, clustering methods, or lightweight
+anomaly detectors, especially when raw feature vectors are too large for
+repeated on-device processing.
+
+\subsection{Functions}\label{functions-17}
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{sentai.pca.init(in\_dim,\ out\_dim)}: Initializes the PCA
+  model.
+\item
+  \texttt{sentai.pca.add(vector)}: Adds a training vector.
+\item
+  \texttt{sentai.pca.from\_tpu(idx)}: Adds a TPU output tensor as
+  training data.
+\item
+  \texttt{sentai.pca.fit()}: Computes the principal components.
+\item
+  \texttt{sentai.pca.transform(vector)}: Projects a vector into the
+  reduced space.
+\item
+  \texttt{sentai.pca.transform\_tpu(idx)}: Projects a TPU output tensor
+  directly.
+\item
+  \texttt{sentai.pca.inverse(reduced)}: Reconstructs an approximate
+  original vector.
+\item
+  \texttt{sentai.pca.explained\_variance()}: Returns component
+  variances.
+\item
+  \texttt{sentai.pca.save(path)}: Saves the fitted PCA model.
+\item
+  \texttt{sentai.pca.load(path)}: Loads a PCA model.
+\item
+  \texttt{sentai.pca.info()}: Returns model metadata.
+\item
+  \texttt{sentai.pca.clear()}: Clears stored training vectors.
+\end{itemize}
+
+\subsection{Example}\label{example-17}
+
+\begin{verbatim}
+import sentai
+
+sentai.tpu.load('/models/mobilenet_features.tflite')
+sentai.camera.init()
+sentai.pca.init(1280, 32)
+sentai.camera.to_tensor()
+sentai.tpu.invoke()
+sentai.pca.from_tpu(0)
+sentai.pca.fit()
+print(sentai.pca.transform_tpu(0)[:5])
+\end{verbatim}
+
+\section{Appendix: sentai.anomaly}\label{appendix-sentai.anomaly}
+
+The \texttt{sentai.anomaly} namespace implements online anomaly
+detection based on incremental covariance estimation and Mahalanobis
+distance, together with a simple CUSUM change detector. It is suitable
+for learning a baseline normal distribution and then scoring embeddings
+or scalar signals during deployment.
+
+\subsection{Functions}\label{functions-18}
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{sentai.anomaly.init(dim)}: Initializes the anomaly model.
+\item
+  \texttt{sentai.anomaly.observe(vector)}: Updates the normal model with
+  one observation.
+\item
+  \texttt{sentai.anomaly.observe\_tpu(idx)}: Updates the model from a
+  TPU output tensor.
+\item
+  \texttt{sentai.anomaly.score(vector)}: Returns the anomaly score for a
+  vector.
+\item
+  \texttt{sentai.anomaly.score\_tpu(idx)}: Scores a TPU output tensor.
+\item
+  \texttt{sentai.anomaly.threshold(val)}: Gets or sets the anomaly
+  threshold.
+\item
+  \texttt{sentai.anomaly.is\_anomaly(vector)}: Tests whether a vector
+  exceeds the threshold.
+\item
+  \texttt{sentai.anomaly.is\_anomaly\_tpu(idx)}: Tests a TPU output
+  tensor.
+\item
+  \texttt{sentai.anomaly.cusum\_init(threshold,\ drift)}: Initializes
+  the CUSUM detector.
+\item
+  \texttt{sentai.anomaly.cusum\_observe(value)}: Feeds one scalar sample
+  into CUSUM.
+\item
+  \texttt{sentai.anomaly.cusum\_score()}: Returns current positive and
+  negative cumulative sums.
+\item
+  \texttt{sentai.anomaly.cusum\_reset()}: Clears CUSUM accumulators.
+\item
+  \texttt{sentai.anomaly.save(path)}: Saves the learned model.
+\item
+  \texttt{sentai.anomaly.load(path)}: Loads a saved model.
+\item
+  \texttt{sentai.anomaly.stats()}: Returns model statistics.
+\item
+  \texttt{sentai.anomaly.info()}: Alias for \texttt{stats()}.
+\item
+  \texttt{sentai.anomaly.clear()}: Clears all statistics.
+\end{itemize}
+
+\subsection{Example}\label{example-18}
+
+\begin{verbatim}
+import sentai
+
+sentai.tpu.load('/models/mobilenet_features.tflite')
+sentai.camera.init()
+sentai.anomaly.init(1280)
+
+for _ in range(30):
+    sentai.camera.to_tensor()
+    sentai.tpu.invoke()
+    sentai.anomaly.observe_tpu(0)
+
+sentai.camera.to_tensor()
+sentai.tpu.invoke()
+print(sentai.anomaly.score_tpu(0))
+\end{verbatim}
+
+\section{Appendix: sentai.dtw}\label{appendix-sentai.dtw}
+
+The \texttt{sentai.dtw} namespace exposes dynamic time warping for
+template-based sequence matching. It is intended for short gesture or
+audio patterns where full trainable sequence models are unnecessary and
+a small number of stored templates is sufficient for online recognition.
+
+\subsection{Functions}\label{functions-19}
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{sentai.dtw.init(dim,\ max\_len)}: Initializes the DTW engine.
+\item
+  \texttt{sentai.dtw.record\_start(label)}: Starts recording a named
+  template.
+\item
+  \texttt{sentai.dtw.record\_add(frame)}: Adds one feature frame.
+\item
+  \texttt{sentai.dtw.record\_add\_imu()}: Adds the current IMU sample as
+  a frame.
+\item
+  \texttt{sentai.dtw.record\_add\_mic()}: Adds the current microphone
+  level as a frame.
+\item
+  \texttt{sentai.dtw.record\_end()}: Finalizes and stores the template.
+\item
+  \texttt{sentai.dtw.match(sequence,\ threshold)}: Matches a supplied
+  sequence against stored templates.
+\item
+  \texttt{sentai.dtw.match\_imu(n\_frames,\ threshold,\ delay\_ms)}:
+  Captures IMU frames and matches them.
+\item
+  \texttt{sentai.dtw.match\_mic(n\_frames,\ threshold,\ delay\_ms)}:
+  Captures microphone frames and matches them.
+\item
+  \texttt{sentai.dtw.templates()}: Lists stored templates.
+\item
+  \texttt{sentai.dtw.remove(label)}: Removes a template.
+\item
+  \texttt{sentai.dtw.save(path)}: Saves all templates.
+\item
+  \texttt{sentai.dtw.load(path)}: Loads saved templates.
+\item
+  \texttt{sentai.dtw.info()}: Returns engine metadata.
+\item
+  \texttt{sentai.dtw.clear()}: Clears all templates.
+\end{itemize}
+
+\subsection{Example}\label{example-19}
+
+\begin{verbatim}
+import sentai
+
+sentai.imu.init()
+sentai.dtw.init(3, 100)
+sentai.dtw.record_start('wave')
+for _ in range(50):
+    sentai.dtw.record_add_imu()
+    sentai.rtos.sleep_ms(20)
+sentai.dtw.record_end()
+print(sentai.dtw.match_imu(50, 500.0))
+\end{verbatim}
+
+\section{Appendix: sentai.hmm}\label{appendix-sentai.hmm}
+
+The \texttt{sentai.hmm} namespace implements a discrete hidden Markov
+model with Baum-Welch training and Viterbi decoding. It is suitable for
+compact sequence-classification tasks in which observations can be
+discretized, such as simple activity recognition or discretized feature
+streams extracted from sensors.
+
+\subsection{Functions}\label{functions-20}
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{sentai.hmm.init(n\_states,\ n\_obs)}: Initializes the HMM.
+\item
+  \texttt{sentai.hmm.set\_transition(i,\ j,\ prob)}: Sets a transition
+  probability.
+\item
+  \texttt{sentai.hmm.set\_emission(state,\ obs,\ prob)}: Sets an
+  emission probability.
+\item
+  \texttt{sentai.hmm.set\_prior(state,\ prob)}: Sets an initial-state
+  probability.
+\item
+  \texttt{sentai.hmm.add\_seq(obs\_list)}: Adds a training sequence.
+\item
+  \texttt{sentai.hmm.train(max\_iter)}: Runs Baum-Welch training.
+\item
+  \texttt{sentai.hmm.viterbi(obs\_list)}: Decodes the most likely state
+  sequence.
+\item
+  \texttt{sentai.hmm.predict(obs)}: Predicts the most likely next state.
+\item
+  \texttt{sentai.hmm.log\_likelihood(obs\_list)}: Scores a sequence.
+\item
+  \texttt{sentai.hmm.from\_tpu(idx,\ n\_bins)}: Discretizes a TPU output
+  tensor.
+\item
+  \texttt{sentai.hmm.from\_imu(n\_bins)}: Discretizes IMU magnitude.
+\item
+  \texttt{sentai.hmm.save(path)}: Saves the HMM model.
+\item
+  \texttt{sentai.hmm.load(path)}: Loads a saved model.
+\item
+  \texttt{sentai.hmm.info()}: Returns model metadata.
+\item
+  \texttt{sentai.hmm.clear()}: Clears parameters and sequences.
+\end{itemize}
+
+\subsection{Example}\label{example-20}
+
+\begin{verbatim}
+import sentai
+
+sentai.imu.init()
+sentai.hmm.init(3, 8)
+seq = [sentai.hmm.from_imu(8) for _ in range(100)]
+sentai.hmm.add_seq(seq)
+sentai.hmm.train(20)
+print(sentai.hmm.predict(sentai.hmm.from_imu(8)))
+\end{verbatim}
+
+\section{Appendix: sentai.rl}\label{appendix-sentai.rl}
+
+The \texttt{sentai.rl} namespace collects three reinforcement-learning
+mechanisms with different complexity levels: tabular Q-learning,
+multi-armed bandits, and a compact DQN. It is intended for online
+adaptation of thresholds, policies, or configuration choices in small
+embedded experiments.
+
+\subsection{Functions}\label{functions-21}
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{sentai.rl.q\_init(n\_states,\ n\_actions)}: Initializes a
+  tabular Q-table.
+\item
+  \texttt{sentai.rl.q\_update(s,\ a,\ r,\ s\_next,\ alpha,\ gamma)}:
+  Updates one Q-value.
+\item
+  \texttt{sentai.rl.q\_action(s,\ epsilon)}: Selects an action with an
+  epsilon-greedy policy.
+\item
+  \texttt{sentai.rl.q\_value(s,\ a)}: Returns one Q-value.
+\item
+  \texttt{sentai.rl.q\_save(path)}: Saves the Q-table.
+\item
+  \texttt{sentai.rl.q\_load(path)}: Loads the Q-table.
+\item
+  \texttt{sentai.rl.q\_clear()}: Clears the Q-table.
+\item
+  \texttt{sentai.rl.mab\_init(n\_arms)}: Initializes a multi-armed
+  bandit.
+\item
+  \texttt{sentai.rl.mab\_pull(arm,\ reward)}: Reports the reward of a
+  selected arm.
+\item
+  \texttt{sentai.rl.mab\_select(strategy)}: Selects the next arm.
+\item
+  \texttt{sentai.rl.mab\_stats()}: Returns per-arm statistics.
+\item
+  \texttt{sentai.rl.mab\_clear()}: Clears bandit statistics.
+\item
+  \texttt{sentai.rl.dqn\_init(state\_dim,\ n\_actions,\ hidden)}:
+  Initializes the DQN.
+\item
+  \texttt{sentai.rl.dqn\_observe(state,\ action,\ reward,\ next\_state,\ done)}:
+  Adds one replay transition.
+\item
+  \texttt{sentai.rl.dqn\_action(state,\ epsilon)}: Selects an action
+  from the DQN.
+\item
+  \texttt{sentai.rl.dqn\_train(batch\_size)}: Trains on a replay batch.
+\item
+  \texttt{sentai.rl.dqn\_save(path)}: Saves DQN weights.
+\item
+  \texttt{sentai.rl.dqn\_load(path)}: Loads DQN weights.
+\item
+  \texttt{sentai.rl.dqn\_clear()}: Clears DQN state.
+\item
+  \texttt{sentai.rl.info()}: Returns a summary of all three subsystems.
+\end{itemize}
+
+\subsection{Example}\label{example-21}
+
+\begin{verbatim}
+import sentai
+
+sentai.rl.mab_init(4)
+for _ in range(20):
+    arm = sentai.rl.mab_select(1)
+    reward = 1.0 if arm == 0 else 0.2
+    sentai.rl.mab_pull(arm, reward)
+print(sentai.rl.mab_stats())
+\end{verbatim}
+
+\section{Appendix: sentai.slam}\label{appendix-sentai.slam}
+
+The \texttt{sentai.slam} namespace implements a compact detection-based
+EKF-SLAM system. It estimates a planar robot pose and maintains a
+landmark map using object detections or manually supplied observations.
+The interface is decoupled from the TPU, so it can consume detections
+from any compatible source.
+
+\subsection{Functions}\label{functions-22}
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{sentai.slam.init(fov\_h\_deg,\ img\_w,\ img\_h,\ max\_lm,\ baseline\_m)}:
+  Initializes the SLAM model.
+\item
+  \texttt{sentai.slam.update(detections)}: Updates pose and landmarks
+  from monocular detections.
+\item
+  \texttt{sentai.slam.update\_stereo(dets\_left,\ dets\_right)}: Updates
+  from stereo detections.
+\item
+  \texttt{sentai.slam.observe(class\_id,\ bearing\_rad,\ range\_m)}:
+  Adds a manual landmark observation.
+\item
+  \texttt{sentai.slam.predict(dx,\ dy,\ dtheta)}: Applies an explicit
+  motion prediction.
+\item
+  \texttt{sentai.slam.pose()}: Returns the current estimated pose.
+\item
+  \texttt{sentai.slam.landmarks()}: Returns the active landmark set.
+\item
+  \texttt{sentai.slam.noise(sigma\_v,\ sigma\_w,\ sigma\_b,\ sigma\_r)}:
+  Gets or sets noise parameters.
+\item
+  \texttt{sentai.slam.imu\_correct(pitch\_deg,\ roll\_deg)}: Adjusts
+  bearing noise using IMU tilt.
+\item
+  \texttt{sentai.slam.clear()}: Resets pose and landmarks.
+\item
+  \texttt{sentai.slam.save(path)}: Saves the map and pose.
+\item
+  \texttt{sentai.slam.load(path)}: Loads the map and pose.
+\item
+  \texttt{sentai.slam.info()}: Returns SLAM metadata and statistics.
+\end{itemize}
+
+\subsection{Example}\label{example-22}
+
+\begin{verbatim}
+import sentai
+
+sentai.slam.init(66.0, 320, 320)
+sentai.tpu.load('/models/yolov8n_320.tflite')
+sentai.camera.init()
+
+sentai.camera.to_tensor()
+sentai.tpu.invoke()
+dets = sentai.tpu.detect(0.3, 0.45, 50)
+sentai.slam.update(dets)
+print(sentai.slam.pose(), sentai.slam.landmarks())
+\end{verbatim}

@@ -3,12 +3,12 @@ to make perception actionable in flight-relevant terms, and this is why
 the runtime introduces two distinct but complementary control paths: one
 centered on Bitcraze Crazyflie for indoor experimentation and one
 centered on PX4-compatible communication through MAVLink for a more
-standard professional autopilot ecosystem.
+conventional autopilot ecosystem.
 
 The Crazyflie path is valuable because it gives the research platform an
-immediately usable indoor drone target that is lightweight, inexpensive,
-and safe to iterate on in constrained spaces. In implementation terms,
-the runtime exposes high-level flight functions for arming, takeoff,
+accessible indoor drone target that is lightweight, inexpensive, and
+safe to iterate on in constrained spaces. In implementation terms, the
+runtime exposes high-level flight functions for arming, takeoff,
 landing, attitude control, hover-like motion, waypoint movement, and
 basic link validation. The significance of this layer is less in the
 underlying protocol details and more in the abstraction boundary it
@@ -24,17 +24,35 @@ bridge is built around the official message library and a dedicated
 receive task, with queue-based delivery of decoded telemetry into the
 runtime. This allows the platform to consume motion, position, and
 status telemetry while also publishing onboard detections and system
-messages back to the wider vehicle ecosystem. The result is a credible
-bridge between a compact onboard perception unit and a more conventional
-autopilot stack.
+messages back to the wider vehicle ecosystem. The result is a direct
+technical bridge between a compact onboard perception unit and a more
+conventional autopilot stack.
 
 This bridge is not limited to a single control primitive. The runtime
 exposes both transmission and reception semantics at the scripting
-layer, including reception of autopilot telemetry and chunked
-transmission of vision payloads that would not fit cleanly into a single
-small embedded message. That detail matters because it shows the design
-is meant for sustained exchange between perception and flight software
-rather than for one-shot demo messages.
+layer, including reception of autopilot telemetry, chunked transmission
+of structured vision payloads that would not fit cleanly into a single
+small embedded message, and direct generation of PX4-compatible
+\texttt{OBSTACLE\_DISTANCE} messages for collision-prevention workflows.
+In practical terms, this means the same runtime can send high-level
+detection events through compact serialized vision messages, or it can
+transform tracker-ground projections and explicit point sets into the
+radial obstacle maps expected by a professional autopilot. That detail
+matters because it shows the design is meant for sustained exchange
+between perception and flight software rather than for one-shot demo
+messages.
+
+The obstacle-reporting path is particularly important because it closes
+the loop between onboard perception and flight-safety behavior. Instead
+of treating detections only as information for logging or remote
+display, the runtime can reinterpret tracked objects as navigational
+constraints in the vehicle frame and publish them through MAVLink as a
+dense angular distance map. This is a more operational use of the
+perception stack than simple text telemetry: the embedded vision system
+becomes capable of feeding an autopilot-side collision-prevention
+mechanism with geometry derived from its own tracker or from
+higher-level mapping outputs such as SLAM landmarks
+\citep{DurrantWhyte2006, Cadena2016}.
 
 This dual-target approach is important conceptually. Many embedded AI
 demonstrators either remain tied to a single experimental robot or aim
@@ -56,10 +74,11 @@ isolated board demo. Detections are not merely computed; they are
 structured, transported, and made available to external systems.
 
 In implementation terms, the control and communication layers provide
-the missing operational dimension of embedded perception. A detector
-running locally is useful only to a point. A detector that can feed a
-Crazyflie experiment, inform a MAVLink autopilot context, publish
-compact messages to external services, and remain scriptable from a
-high-level runtime becomes much more valuable as a research instrument.
-This is the level at which the runtime begins to resemble a true onboard
-autonomy substrate rather than a perception benchmark harness.
+the operational dimension of embedded perception. A detector running
+locally is useful only to a point. A detector that can feed a Crazyflie
+experiment, inform a MAVLink autopilot context, emit
+autopilot-consumable obstacle maps, publish compact messages to external
+services, and remain scriptable from a high-level runtime is more
+appropriate for systems research than a detector evaluated only in
+isolation. This is the level at which the runtime begins to resemble an
+onboard autonomy substrate rather than a perception benchmark harness.

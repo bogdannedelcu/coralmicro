@@ -1,5 +1,5 @@
-This chapter describes the implementation of SentAI as a research
-platform positioned at the intersection of embedded AI acceleration,
+This chapter describes the implementation of the platform as a research
+system positioned at the intersection of embedded AI acceleration,
 real-time systems, and autonomous drone control. The central thesis of
 the implementation is that an EdgeTPU-class accelerator is
 simultaneously low-power and computationally powerful enough to justify
@@ -12,15 +12,14 @@ while the EdgeTPU is driven as the main execution substrate for neural
 inference.
 
 An equally important framing point is that the implementation starts
-from an open-source platform with significant unrealized potential and
+from the original Coral Micro board from which the design started and
 deliberately pushes it toward industrialization. In other words, the
-work is not only about extending Coral Micro with additional
-capabilities, but about transforming an accessible open-source base into
-a system that exhibits more production-oriented behavior: higher
-sustained throughput, better control of memory and latency, richer
-sensor integration, clearer runtime abstractions, and a software
-structure that can support repeated deployment rather than isolated
-demonstrations.
+work is not only about extending that open-source base with additional
+capabilities, but about transforming it into our MCU-EdgeTPU board, a
+system that exhibits more production-oriented behavior: higher sustained
+throughput, better control of memory and latency, richer sensor
+integration, clearer runtime abstractions, and a software structure that
+can support repeated deployment rather than isolated demonstrations.
 
 The implementation presented in this work differs substantially from the
 initial fork baseline by transforming a board-oriented demo environment

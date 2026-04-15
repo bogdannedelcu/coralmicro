@@ -5,9 +5,9 @@ platforms, where debugging is often more difficult than on Linux-class
 systems because the developer has less runtime introspection, fewer
 interactive tools, and a much narrower margin for trial-and-error when
 something goes wrong during boot or during a real-time task interaction.
-For this reason, SentAI does not expose a single debugging path, but a
-small set of complementary connection modes over USB that make the board
-significantly easier to inspect and operate in practice.
+For this reason, the platform does not expose a single debugging path,
+but a small set of complementary connection modes over USB that make the
+board significantly easier to inspect and operate in practice.
 
 The first mode is an interactive MicroPython REPL available over the
 serial interface, which allows a researcher or operator to connect
@@ -55,18 +55,23 @@ system allows the user to inspect the outcome of FreeRTOS bring-up,
 early peripheral initialization, and startup script execution even after
 the board has already moved past the failing point.
 
-The \texttt{sentai} namespace organizes the platform into functional
-modules such as \texttt{io}, \texttt{rtos}, \texttt{tpu}, \texttt{fs},
-\texttt{camera}, \texttt{imu}, \texttt{usb}, \texttt{link},
-\texttt{crazy}, and \texttt{pipeline}, alongside several other utility
-interfaces. This structure is significant because it reveals the
+The \texttt{sentai} namespace now organizes the platform into a broader
+set of functional modules than the original runtime surface, including
+\texttt{io}, \texttt{rtos}, \texttt{tpu}, \texttt{tfl}, \texttt{fs},
+\texttt{camera}, \texttt{imu}, \texttt{mic}, \texttt{usb},
+\texttt{uart}, \texttt{mesh}, \texttt{link}, \texttt{crazy},
+\texttt{sleep}, \texttt{pipeline}, \texttt{aifes}, \texttt{kmeans},
+\texttt{pca}, \texttt{anomaly}, \texttt{dtw}, \texttt{hmm}, \texttt{rl},
+and \texttt{slam}. This structure is significant because it reveals the
 intended user abstraction: the operator is not expected to manipulate a
 collection of unrelated firmware endpoints, but to work with a coherent
 runtime in which device functions are grouped by task and by
 experimental purpose. The platform can query RTOS state, inspect heap
-usage, load models, capture or switch cameras, read inertial
-measurements, start a continuous detector, track objects, communicate
-over MAVLink, or command a drone, all through a single embedded language
+usage, load EdgeTPU or CPU-side TensorFlow Lite models, capture or
+switch cameras, read inertial measurements, record audio, enter
+low-power idle states, exchange data over USB, UART, Meshtastic, or
+MAVLink, start a continuous detector, track objects, build simple online
+models, or command a drone, all through a single embedded language
 environment.
 
 This helps explain why MicroPython is a central implementation choice
@@ -74,27 +79,60 @@ rather than a peripheral convenience. The interpreter does not replace
 the lower-level real-time system; instead, it defines a stable
 experimentation layer above it. The help text demonstrates this duality
 clearly. On one hand, users access simple operations such as
-\texttt{sentai.camera.to\_tensor()} or \texttt{sentai.tpu.invoke()}. On
-the other hand, the same interface reaches into advanced platform
-features such as tracking events, per-camera geometry, ground-plane
-projection, and MAVLink message exchange. The implementation thereby
-condenses a complex firmware system into a form that is operable from
-concise Python scripts.
+\texttt{sentai.camera.to\_tensor()}, \texttt{sentai.tpu.invoke()}, or
+\texttt{sentai.tfl.invoke()} depending on whether inference is mapped to
+the EdgeTPU or kept on the MCU. On the other hand, the same interface
+reaches into advanced platform features such as tracking events,
+per-camera geometry, ground-plane projection, obstacle reporting, and
+MAVLink message exchange. The implementation thereby condenses a complex
+firmware system into a form that is operable from concise Python
+scripts.
 
 Several modules are especially important for understanding the research
 value of the platform. The \texttt{rtos} module exposes runtime
 observability primitives such as task inspection, CPU statistics, and
 heap information, which are essential when the system is tuned for
 sustained real-time throughput. The \texttt{tpu} module provides the
-basic inference control plane: model loading, tensor access, invocation,
-quantization metadata, and detector-oriented post-processing. The
-\texttt{camera} module complements it by managing capture, JPEG export,
-transfer to the tensor path, runtime camera switching, and frame
-sequencing. The \texttt{imu} module supplies the inertial measurements
-needed by viewpoint-aware tracking and projection. The \texttt{fs} and
-\texttt{usb} modules support a practical workflow in which models,
-scripts, captured outputs, and debugging artifacts can be transferred to
-and from the device without rebuilding the firmware for every iteration.
+basic EdgeTPU inference control plane: model loading, tensor access,
+invocation, quantization metadata, and detector-oriented
+post-processing. The newer \texttt{tfl} module extends this surface with
+CPU-side TensorFlow Lite Micro inference for models that are not
+compiled for the EdgeTPU, which means the runtime can now host both
+accelerator-backed and pure-MCU inference paths under a common scripting
+model. The \texttt{camera} module complements these inference interfaces
+by managing capture, JPEG export, transfer to the tensor path, runtime
+camera switching, and frame sequencing. The \texttt{imu} and
+\texttt{mic} modules supply the inertial and audio measurements needed
+by viewpoint-aware tracking, sound-triggered wake-up, and non-visual
+experiments. The \texttt{fs}, \texttt{usb}, and \texttt{uart} modules
+support a practical workflow in which models, scripts, captured outputs,
+and debugging artifacts can be transferred to and from the device
+without rebuilding the firmware for every iteration.
+
+The additional machine-learning namespaces are also relevant because
+they extend the runtime beyond a detector-and-flight stack into a
+broader embedded inference and experimentation environment. The
+\texttt{aifes} module exposes on-device neural-network training and
+inference through the AIfES library \citep{AIfES2024}. The
+\texttt{kmeans}, \texttt{pca}, and \texttt{anomaly} modules add compact
+methods for clustering, dimensionality reduction, and anomaly scoring
+that are well suited to MCU-class deployment because they impose limited
+model overheads
+\citep{Jain2010, Jolliffe2016, Chandola2009, Pimentel2014}. The
+\texttt{dtw} and \texttt{hmm} modules extend the runtime toward sequence
+modeling for gesture, audio, and other short temporal patterns
+\citep{Salvador2007, Bilmes1998}, while the \texttt{rl} module adds
+adaptive control mechanisms spanning tabular Q-learning, bandits, and a
+compact DQN-style multilayer perceptron
+\citep{Watkins1992, Auer2002, Russo2018, Mnih2015}. Finally, the
+\texttt{slam} module exposes a detection-driven EKF-SLAM interface in
+which object detections can be promoted from transient image
+measurements into a persistent two-dimensional map
+\citep{DurrantWhyte2006, Cadena2016}. Together, these additions extend
+the role of the runtime: it is not only a way to load and invoke models
+compiled for the accelerator, but also a compact collection of
+integrated ML primitives that can be composed directly from MicroPython
+for perception, adaptation, and state-estimation experiments.
 
 The help surface also shows that these capabilities were designed to be
 exercised directly from the target rather than only through host-side
@@ -102,48 +140,47 @@ tooling. Typical examples include immediate tensor feeding from the
 camera, live detector startup, autopilot connection, or direct Crazyflie
 flight commands, for example:
 
-\begin{Shaded}
-\begin{Highlighting}[]
-\NormalTok{sentai.camera.to\_tensor()}
-\NormalTok{sentai.tpu.invoke()}
-\BuiltInTok{print}\NormalTok{(sentai.tpu.detect())}
-\end{Highlighting}
-\end{Shaded}
+\begin{verbatim}
+sentai.camera.to_tensor()
+sentai.tpu.invoke()
+print(sentai.tpu.detect())
+\end{verbatim}
 
-\begin{Shaded}
-\begin{Highlighting}[]
-\NormalTok{sentai.link.init(}\DecValTok{57600}\NormalTok{)}
-\NormalTok{sentai.pipeline.start(}\FloatTok{0.3}\NormalTok{, }\FloatTok{0.45}\NormalTok{, }\DecValTok{50}\NormalTok{, }\VariableTok{True}\NormalTok{)}
-\ControlFlowTok{while} \VariableTok{True}\NormalTok{:}
-\NormalTok{    msg }\OperatorTok{=}\NormalTok{ sentai.link.receive()}
-    \ControlFlowTok{if}\NormalTok{ msg:}
-        \BuiltInTok{print}\NormalTok{(msg)}
-\end{Highlighting}
-\end{Shaded}
+\begin{verbatim}
+sentai.link.init(57600)
+sentai.pipeline.start(0.3, 0.45, 50, True)
+while True:
+    msg = sentai.link.receive()
+    if msg:
+        print(msg)
+\end{verbatim}
 
-\begin{Shaded}
-\begin{Highlighting}[]
-\NormalTok{sentai.crazy.init()}
-\NormalTok{sentai.crazy.arm()}
-\NormalTok{sentai.crazy.fly(}\FloatTok{0.3}\NormalTok{, }\DecValTok{3000}\NormalTok{)}
-\NormalTok{sentai.crazy.fly\_stop()}
-\end{Highlighting}
-\end{Shaded}
+\begin{verbatim}
+sentai.crazy.init()
+sentai.crazy.arm()
+sentai.crazy.fly(0.3, 3000)
+sentai.crazy.fly_stop()
+\end{verbatim}
 
-At the control and autonomy layer, \texttt{link}, \texttt{crazy}, and
-\texttt{pipeline} form the most distinctive part of the namespace. The
-\texttt{link} module exposes MAVLink communication as a first-class
-runtime capability, allowing the board to exchange telemetry and
-structured messages with an autopilot or a ground-control system. The
-\texttt{crazy} module does the same for the indoor Crazyflie target,
-exposing high-level flight functions directly to Python. The
+At the control and autonomy layer, \texttt{mesh}, \texttt{link},
+\texttt{crazy}, \texttt{sleep}, and \texttt{pipeline} form the most
+distinctive part of the namespace. The \texttt{mesh} module exposes
+Meshtastic-compatible communication as a first-class runtime capability
+for low-bandwidth distributed sensing and message dissemination. The
+\texttt{link} module does the same for MAVLink communication, allowing
+the board to exchange telemetry and structured messages with an
+autopilot or a ground-control system. The \texttt{crazy} module provides
+an analogous control surface for the indoor Crazyflie target, exposing
+high-level flight functions directly to Python. The \texttt{sleep}
+module complements these interfaces with an explicit low-power idle
+entry point that can wake on microphone energy or tap events, which is
+important for battery-constrained edge deployments. The
 \texttt{pipeline} module unifies the continuous detector, tracker, event
 stream, per-camera geometry, and pose-aware projection logic into a
-single interface. Together, these modules reveal the real ambition of
-the implementation: the embedded AI platform is not only an inference
-endpoint, but a scriptable autonomy substrate in which perception,
-communication, and high-level flight behavior can be composed
-interactively.
+single interface. Together, these modules show that the platform is
+meant to be used as a scriptable inference-and-autonomy layer, where
+models, sensors, telemetry, and embedded ML primitives can be combined
+interactively from MicroPython.
 
 The \texttt{pipeline} module is especially illustrative. According to
 the documented runtime surface, it exposes continuous detection,
@@ -169,16 +206,21 @@ thresholds, and communication strategies change frequently.
 The built-in help surface also provides indirect evidence of
 implementation maturity. A platform that documents precise operational
 behaviors, module boundaries, argument conventions, and example
-workflows has generally progressed beyond proof-of-concept code. In
-SentAI, the fact that these capabilities can be explored directly from
-the serial REPL supports the claim that the implementation has been
+workflows has generally progressed beyond proof-of-concept code. Here,
+the fact that these capabilities can be explored directly from the
+serial REPL supports the claim that the implementation has been
 organized as a reusable experimental environment rather than as a
 collection of hidden firmware entry points.
 
 The programming model therefore completes the overall argument of the
-chapter. The EdgeTPU provides the inference power, the MCU and RTOS
-provide the orchestration, the cameras and IMU provide the sensing
-context, and MicroPython makes the whole system operable as a research
-platform. The implementation succeeds not only when it runs efficiently,
-but when it turns that efficiency into a usable and extensible interface
-for autonomous drone experimentation.
+chapter. The EdgeTPU provides the main accelerator-backed inference
+path, the MCU and RTOS provide the orchestration, the cameras, IMU, and
+microphone provide the sensing context, and MicroPython makes the whole
+system operable as a research platform. Just as importantly, the
+expanded \texttt{sentai} namespace shows that the implementation now
+spans not only perception and flight control, but also communication,
+adaptive learning, sequence modeling, anomaly detection, and lightweight
+mapping. The value of the implementation lies not only in runtime
+efficiency, but also in exposing that functionality through an interface
+that remains inspectable and extensible during autonomous-drone
+experiments.

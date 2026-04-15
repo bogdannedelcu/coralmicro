@@ -14,11 +14,11 @@
 \dateaccepted{}
 \datepublished{}
 
-\setlength{\headheight}{18.5pt}
+\setlength{\headheight}{22pt}
 \providecommand{\tightlist}{%
 	\setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
 
-\Title{SentAI: An Open-Source Dual-Camera Edge AI Runtime for Vision-Guided Drone Autonomy on Coral Micro}
+\Title{An Open-Source Dual-Camera Edge AI Runtime for Vision-Guided Drone Autonomy on an MCU-EdgeTPU Platform}
 
 \Author{Author Name $^{1,}$*}
 \AuthorNames{Author Name}
@@ -27,21 +27,21 @@
 
 \corres{Correspondence: email@example.com}
 
-\abstract{This paper presents SentAI, an open-source MicroPython environment for high-level autonomous flight control on a minimalist embedded AI board that integrates an EdgeTPU accelerator and extends it with two 5 Mpx cameras and an onboard IMU. The platform is designed as a compact sensing and decision layer for micro-aerial vehicles, combining scriptable mission logic, dynamic TensorFlow Lite model loading, continuous onboard inference, and real-time communication in a resource-constrained MCU system. The work explicitly targets two complementary UAV workflows: Bitcraze Crazyflie for agile indoor experimentation and PX4/MAVLink-oriented autopilot integration for more transferable field deployment. At the perception level, SentAI provides a dual-camera, multi-model runtime with camera switching, per-camera geometry, lightweight tracking, motion compensation, and ground-aware spatial reasoning. A central contribution is the systems-level engineering of the complete visual path from sensor capture to EdgeTPU input, including DMA-backed acquisition, hardware-assisted image preparation, memory placement across internal RAM and SDRAM, and pipelined FreeRTOS scheduling that overlaps capture, preprocessing, and inference. The implementation therefore treats throughput, buffer ownership, and accelerator feeding as first-class design constraints rather than secondary optimization details. Beyond the runtime itself, the work is framed by an open synthetic dataset and a custom YOLO model intended for low-altitude drone navigation in inhabited environments. The result is an embedded autonomy stack that moves an open-source prototype platform toward a more industrialized, production-oriented runtime for lightweight drone research and deployment.}
+\abstract{This paper presents our MCU-EdgeTPU board, an open-source inference platform derived from the original Coral Micro board from which the design started and extended with two 5 Mpx cameras, an onboard IMU, and a single MicroPython runtime. The platform is intended to make onboard inference accessible from scripts, not only by exposing accelerator access, but by integrating sensing, model execution, communication, and runtime utilities into a single embedded environment. The runtime supports both EdgeTPU-backed execution for quantized models compiled for accelerator use and CPU-side TensorFlow Lite Micro execution for auxiliary workloads that remain on the MCU. The platform targets two complementary UAV workflows: Bitcraze Crazyflie for agile indoor experimentation and PX4/MAVLink-oriented autopilot integration for more transferable field deployment. At the perception level, the runtime provides a dual-camera, multi-model execution path with camera switching, per-camera geometry, lightweight tracking, motion compensation, and ground-aware spatial reasoning. A central contribution is the systems-level engineering of the visual path from sensor capture to EdgeTPU input, including DMA-backed acquisition, hardware-assisted image preparation, memory placement across internal RAM and SDRAM, and pipelined FreeRTOS scheduling that overlaps capture, preprocessing, and inference. The implementation therefore treats throughput, buffer ownership, and accelerator feeding as first-class design constraints rather than secondary optimization details. Beyond the runtime itself, the work is accompanied by an open synthetic dataset and a custom YOLO model intended for low-altitude drone navigation in inhabited environments. Taken together, these elements define an open embedded platform for onboard inference experiments on a compact airborne system: integrated sensing, accelerator-backed and MCU-side inference paths, and a substantial set of embedded-ML functions available directly from MicroPython. Together with the accompanying synthetic aerial dataset and custom YOLO model, the work extends the original Coral Micro board from which the design started into a more complete environment for onboard inference, adaptive embedded ML, and lightweight autonomous-drone research.}
 
-\keyword{embedded AI; EdgeTPU; MicroPython; drone autonomy; Coral Micro; MAVLink; Crazyflie; dual camera; FreeRTOS}
+\keyword{embedded AI; EdgeTPU; MicroPython; drone autonomy; MAVLink; Crazyflie; dual camera; FreeRTOS; embedded inference platform}
 
 \addhighlights{yes}
 \renewcommand{\addhighlights}{%
 \noindent\textbf{What are the main findings?}
 \begin{itemize}[labelsep=2.5mm,topsep=2pt]
-\item SentAI turns Coral Micro into a dual-camera embedded autonomy runtime for drones with MicroPython control and onboard EdgeTPU inference.
-\item The implementation shows that throughput on a compact MCU-plus-accelerator platform depends critically on RTOS scheduling, memory placement, and hardware-assisted image preparation.
+\item Our MCU-EdgeTPU board extends the original Coral Micro board from which the design started with dual-camera sensing, onboard IMU support, MicroPython control, and both EdgeTPU-backed and MCU-side inference paths for compact autonomous-drone experiments.
+\item The implementation indicates that sustained onboard perception on this class of hardware depends strongly on RTOS scheduling, memory placement, and hardware-assisted image preparation rather than on accelerator execution alone.
 \end{itemize}
 \textbf{What are the implications of the main findings?}
 \begin{itemize}[labelsep=2.5mm,topsep=2pt]
-\item Lightweight UAV platforms can support richer onboard perception when sensing, memory, and accelerator feeding are co-designed rather than treated as separate problems.
-\item An open-source board can be pushed from proof-of-concept status toward a more production-oriented embedded AI stack suitable for repeatable autonomy experiments.
+\item Lightweight UAV platforms can support richer onboard perception when sensing, memory movement, inference placement, and telemetry are co-designed as one embedded system.
+\item A compact open-source platform can serve as a reproducible testbed for studying onboard inference, runtime adaptation, and bounded high-level tool use in drone applications.
 \end{itemize}
 }
 
@@ -54,12 +54,14 @@
 \input{paper_mdpi_related.tex}
 
 \section{Materials and Methods}
+\input{paper_mdpi_impl_overview.tex}
+
 \subsection{System Architecture and Design Rationale}
 Figure~\ref{fig:impl01} summarizes the layered view of the platform, from sensing hardware and RTOS orchestration to EdgeTPU inference and the MicroPython experimentation surface.
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.94\textwidth]{figures/implementation_01_system_architecture.pdf}
-\caption{Block-level view of the SentAI system architecture, highlighting the split between sensing hardware, MCU orchestration, EdgeTPU inference, and the script-oriented MicroPython layer.\label{fig:impl01}}
+\caption{Block-level view of the platform architecture, highlighting the split between sensing hardware, MCU orchestration, EdgeTPU inference, and the script-oriented MicroPython layer.\label{fig:impl01}}
 \end{figure}
 \input{paper_mdpi_impl01.tex}
 
@@ -100,12 +102,20 @@ Figure~\ref{fig:impl05} provides a compact view of the user-facing runtime model
 \input{paper_mdpi_impl05.tex}
 
 \section{Discussion}
-\input{paper_mdpi_impl_overview.tex}
+\input{paper_mdpi_discussion.tex}
 
 \section{Conclusions}
 \input{paper_mdpi_conclusion.tex}
 
 \subsection{Future Work}
 \input{paper_mdpi_future.tex}
+
+\bibliography{references}
+
+\clearpage
+\appendix
+\setcounter{section}{0}
+\setcounter{subsection}{0}
+\input{paper_mdpi_appendices.tex}
 
 \end{document}

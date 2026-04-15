@@ -34,6 +34,14 @@ This appendix maps each chapter and implementation subchapter to source material
 
 - Embedded scripting for rapid iteration over resource-constrained systems: [@MicroPythonDocs2024; @FreeRTOS2024].
 
+#### Lightweight embedded learning, sequence modeling, and SLAM primitives
+
+- Clustering and dimensionality-reduction methods used by `sentai.kmeans` and `sentai.pca`: [@Jain2010; @Jolliffe2016].
+- Statistical monitoring and novelty-detection concepts used by `sentai.anomaly`: [@Chandola2009; @Pimentel2014].
+- Sequence matching and probabilistic temporal decoding used by `sentai.dtw` and `sentai.hmm`: [@Salvador2007; @Bilmes1998].
+- Reinforcement-learning primitives exposed by `sentai.rl`: [@Watkins1992; @Auer2002; @Russo2018; @Mnih2015].
+- SLAM literature underlying `sentai.slam`: [@DurrantWhyte2006; @Cadena2016].
+
 #### Vision pipelines for drone perception and viewpoint-aware sensing
 
 - Camera interface and embedded image-path concepts: [@MIPI2024; @NXPIMXRT1170RM2024].
@@ -77,6 +85,7 @@ This appendix maps each chapter and implementation subchapter to source material
 - Interactive embedded scripting and REPL-oriented workflows: [@MicroPythonDocs2024].
 - RTOS observability and runtime diagnostics on embedded targets: [@FreeRTOS2024].
 - Filesystem-backed deployment and data persistence on MCU devices: [@LittleFS2024].
+- AIfES-backed on-device learning and compact embedded-ML building blocks: [@AIfES2024; @Jain2010; @Jolliffe2016; @Chandola2009; @Pimentel2014; @Salvador2007; @Bilmes1998; @Watkins1992; @Auer2002; @Russo2018; @Mnih2015; @DurrantWhyte2006; @Cadena2016].
 
 ### Conclusion
 
