@@ -122,6 +122,9 @@ int HttpServer::FsReadCustom(struct fs_file* file, char* buffer, int count) {
 
   if (tag == kTagVector) {
     auto* v = Pointer<std::vector<uint8_t>>(file->pextension);
+    int remaining = static_cast<int>(v->size()) - file->index;
+    if (remaining <= 0) return FS_READ_EOF;
+    if (count > remaining) count = remaining;
     std::memcpy(buffer, v->data() + file->index, count);
     file->index += count;
     return count;

@@ -4,11 +4,12 @@
 # Prerequisites: sentai.usb.ip(1) must be active (USB-ETH CDC-NCM).
 #
 # Usage:
-#   python3 upload_diag.py                    # assumes device at 10.0.0.1
-#   python3 upload_diag.py --ip 10.0.0.2
+#   python3 upload_diag.py                    # assumes device at 10.10.10.1
+#   python3 upload_diag.py --ip 10.10.10.1
 #   python3 upload_diag.py --enable-usb       # auto-enable via REPL first
 #   python3 upload_diag.py --port /dev/ttyACM1 --enable-usb
 #   python3 upload_diag.py --file e_tpu.py    # upload only one file
+#   python3 upload_diag.py --browser          # push browser.html to /.sys/
 
 import os
 import sys
@@ -20,8 +21,10 @@ import urllib.error
 import json
 
 DIAG_DIR = pathlib.Path(__file__).parent / "diag"
+BROWSER_SRC = pathlib.Path(__file__).parent / "web" / "browser.html"
 DEFAULT_IP = "10.10.10.1"
 REMOTE_BASE = "/lib/diag"
+BROWSER_REMOTE = "/.sys/browser.html"
 
 
 def http_post(ip, remote_path, data, timeout=15):
@@ -99,7 +102,31 @@ def main():
                         help="Upload only this filename (e.g. e_tpu.py)")
     parser.add_argument("--no-wait",    action="store_true",
                         help="Skip device reachability check")
+    parser.add_argument("--browser",    action="store_true",
+                        help="Push browser.html to /.sys/browser.html on device")
     args = parser.parse_args()
+
+    if args.browser:
+        if not BROWSER_SRC.exists():
+            print("ERROR: %s does not exist" % BROWSER_SRC)
+            sys.exit(1)
+        if not args.no_wait:
+            if not wait_for_device(args.ip):
+                print("\nERROR: device not reachable at http://%s/" % args.ip)
+                sys.exit(1)
+            print()
+        data = BROWSER_SRC.read_bytes()
+        try:
+            result = http_post(args.ip, BROWSER_REMOTE, data)
+            if result.get("ok"):
+                print("OK  browser.html → %s  (%d bytes)" % (BROWSER_REMOTE, len(data)))
+            else:
+                print("FAIL: %s" % result.get("error", "?"))
+                sys.exit(1)
+        except Exception as e:
+            print("ERR: %s" % e)
+            sys.exit(1)
+        return
 
     if not DIAG_DIR.is_dir():
         print("ERROR: %s does not exist" % DIAG_DIR)

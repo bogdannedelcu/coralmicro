@@ -2,7 +2,7 @@
 
 import sentai
 from diag._util import stats, time_call, save_csv, snapshot_meta, _print_stats
-from diag._session import _save_path, _record
+from diag._session import _save_path, _record, _save_desc
 
 
 def e8_imu(repetitions=100, save=True):
@@ -38,9 +38,18 @@ def e8_imu(repetitions=100, save=True):
 
     if save:
         path = _save_path("e8_imu")
-        save_csv(path, ["run", "read_ms", "degrees_ms", "radians_ms"],
+        save_csv(path, ["run_index", "imu_raw_read_ms", "imu_degrees_ms", "imu_radians_ms"],
                  [(i, read_times[i], deg_times[i], rad_times[i])
                   for i in range(repetitions)])
+        _save_desc(path,
+            "E8 — IMU read latency.\n"
+            "Measures how long each IMU API call takes over I2C.\n"
+            "\nColumns:\n"
+            "  run_index        : repetition number (0-based)\n"
+            "  imu_raw_read_ms  : time for sentai.imu.read() — raw I2C register burst\n"
+            "  imu_degrees_ms   : time for sentai.imu.degrees() — read + convert to degrees\n"
+            "  imu_radians_ms   : time for sentai.imu.radians() — read + convert to radians",
+            params={"repetitions": repetitions})
         _record("e8_imu", path,
                 "read=%.1f deg=%.1f rad=%.1f ms" % (
                     st_read["mean"], st_deg["mean"], st_rad["mean"]))
@@ -97,9 +106,19 @@ def e9_mic(seconds=2, repetitions=5, save=True):
 
     if save:
         path = _save_path("e9_mic_%ds" % seconds)
-        save_csv(path, ["run", "start_ms", "level_ms", "save_ms", "mp3_bytes"],
+        save_csv(path, ["run_index", "mic_record_start_ms", "mic_level_read_ms", "mic_save_mp3_ms", "mp3_file_bytes"],
                  [(i, start_times[i], level_times[i], save_times[i], mp3_sizes[i])
                   for i in range(repetitions)])
+        _save_desc(path,
+            "E9 — Microphone recording latency.\n"
+            "Measures the cost of starting a recording, reading level, and saving to MP3.\n"
+            "\nColumns:\n"
+            "  run_index            : repetition number (0-based)\n"
+            "  mic_record_start_ms  : time for sentai.mic.start(seconds) to arm the recorder\n"
+            "  mic_level_read_ms    : time for sentai.mic.level() after recording completes\n"
+            "  mic_save_mp3_ms      : time for sentai.mic.save_mp3() to encode + write file\n"
+            "  mp3_file_bytes       : size of the resulting MP3 file in bytes",
+            params={"record_seconds": seconds, "repetitions": repetitions})
         _record("e9_mic", path,
                 "%ds start=%.1f save=%.1f ms" % (
                     seconds, st_start["mean"], st_save["mean"]))

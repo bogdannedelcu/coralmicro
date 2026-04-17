@@ -2,7 +2,7 @@
 # Provides: Session, begin, end, status, _save_path, _record
 
 import sentai
-from diag._util import ensure_dir, snapshot_heap
+from diag._util import ensure_dir, save_csv, snapshot_heap
 
 
 _session = None  # active session state
@@ -132,3 +132,31 @@ def _record(experiment, csv_path, summary_line=""):
     """Record experiment in session log if active."""
     if _session:
         _session.record(experiment, csv_path, summary_line)
+
+
+def _save_desc(csv_path, description, params=None):
+    """Write a human-readable description file next to the CSV.
+    File is named <csv_basename>.txt and contains what was measured,
+    column explanations, and the parameters used.
+    """
+    if not csv_path:
+        return
+    txt_path = csv_path[:-4] + ".txt" if csv_path.endswith(".csv") else csv_path + ".txt"
+    lines = [description.strip()]
+    if params:
+        lines.append("")
+        lines.append("Parameters:")
+        for k, v in params.items():
+            lines.append("  %s = %s" % (k, v))
+    sentai.fs.write(txt_path, "\n".join(lines) + "\n")
+
+
+def _photos_dir(experiment):
+    """Return directory path for saving photo frames inside the active session.
+    Called AFTER _save_path() so _session.seq is already incremented.
+    Returns None if no session is active (caller should use temp + delete).
+    """
+    if _session:
+        d = "%s/%03d_%s_frames" % (_session.dir, _session.seq, experiment)
+        return d
+    return None

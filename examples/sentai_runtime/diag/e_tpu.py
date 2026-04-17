@@ -3,7 +3,7 @@
 import sentai
 from diag._util import (stats, time_call, save_csv, snapshot_meta,
                          snapshot_heap, _print_stats, _print_heap)
-from diag._session import _save_path, _record
+from diag._session import _save_path, _record, _save_desc
 
 
 def e1_tpu_invoke(model_path, image_path=None, use_camera=False,
@@ -46,7 +46,16 @@ def e1_tpu_invoke(model_path, image_path=None, use_camera=False,
 
     if save:
         path = _save_path("e1_tpu_invoke")
-        save_csv(path, ["run", "invoke_ms"], [(i, s) for i, s in enumerate(samples)])
+        save_csv(path, ["run_index", "edgetpu_invoke_ms"], [(i, s) for i, s in enumerate(samples)])
+        _save_desc(path,
+            "E1 — EdgeTPU invoke latency.\n"
+            "Measures how long sentai.tpu.invoke() takes to run one forward pass on the EdgeTPU.\n"
+            "\nColumns:\n"
+            "  run_index          : repetition number (0-based)\n"
+            "  edgetpu_invoke_ms  : wall time of tpu.invoke() in milliseconds\n"
+            "\nNote: first run is warm-up and excluded. Subsequent runs use the same loaded model.",
+            params={"model_path": model_path, "repetitions": repetitions,
+                    "use_camera": use_camera, "image_path": image_path})
         _record("e1_tpu_invoke", path, "mean=%.1f p95=%.1f ms" % (st["mean"], st["p95"]))
         print("  Saved: %s" % path)
 
@@ -80,7 +89,15 @@ def e2_tpu_load(model_path, repetitions=10, save=True):
 
     if save:
         path = _save_path("e2_tpu_load")
-        save_csv(path, ["run", "load_ms"], [(i, s) for i, s in enumerate(samples)])
+        save_csv(path, ["run_index", "model_load_ms"], [(i, s) for i, s in enumerate(samples)])
+        _save_desc(path,
+            "E2 — EdgeTPU model load latency.\n"
+            "Measures how long sentai.tpu.load() takes to load a .tflite model into EdgeTPU SRAM.\n"
+            "\nColumns:\n"
+            "  run_index      : repetition number (0-based)\n"
+            "  model_load_ms  : wall time of tpu.load() in milliseconds\n"
+            "\nNote: heap snapshots before/after are in the result dict but not in the CSV.",
+            params={"model_path": model_path, "repetitions": repetitions})
         _record("e2_tpu_load", path, "mean=%.1f ms" % st["mean"])
         print("  Saved: %s" % path)
 

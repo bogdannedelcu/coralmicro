@@ -3,7 +3,7 @@
 import sentai
 from diag._util import (stats, time_call, save_csv, snapshot_meta,
                          _ticks, _print_stats)
-from diag._session import _save_path, _record
+from diag._session import _save_path, _record, _photos_dir, _save_desc
 
 
 def e3_camera_tensor(camera_id=0, width=1280, height=720,
@@ -94,9 +94,19 @@ def e3_camera_tensor(camera_id=0, width=1280, height=720,
 
     if save:
         path = _save_path("e3_cam%d_%dx%d" % (camera_id, width, height))
-        save_csv(path, ["run", "pipe_ms", "tensor_ms"],
+        save_csv(path, ["run_index", "frame_wait_plus_tensor_ms", "tensor_only_pxp_ms"],
                  [(i, pipe_times[i], tensor_times[i])
                   for i in range(len(pipe_times))])
+        _save_desc(path,
+            "E3 — Camera frame rate and to_tensor() cost.\n"
+            "Measures the full pipeline from waiting for a new sensor frame until the tensor is ready in EdgeTPU SRAM.\n"
+            "\nColumns:\n"
+            "  run_index                  : repetition number (0-based)\n"
+            "  frame_wait_plus_tensor_ms  : total time = wait for new frame + PXP resize + quantize + copy to TPU\n"
+            "  tensor_only_pxp_ms         : only the PXP+quantize+copy part (the camera was already ready)\n"
+            "\nNote: frame_wait dominates (~185 ms at 5 FPS). tensor_only is ~9-23 ms.",
+            params={"camera_id": camera_id, "width": width, "height": height,
+                    "repetitions": repetitions})
         _record("e3_camera_tensor", path,
                 "cam%d %dx%d bulk=%.2fms sensor=%.0ffps pipe=%.0ffps" % (
                     camera_id, width, height, bulk_per_call,
@@ -120,15 +130,37 @@ def e4_jpeg(camera_id=0, width=1280, height=720, quality=75,
     jpeg_times = []
     jpeg_sizes = []
     save_times = []
+    saved_frames = []
+
+    # Determine where frames will go — decide before the loop
+    # _save_path() increments seq, so call it first, then _photos_dir() reads same seq.
+    csv_path = _save_path("e4_jpeg_cam%d_q%d" % (camera_id, quality)) if save else None
+    photos = _photos_dir("e4_jpeg") if save else None
+
+    if photos:
+        sentai.fs.mkdir(photos)
 
     for i in range(repetitions):
         elapsed, data = time_call(sentai.camera.jpeg, quality)
         jpeg_times.append(elapsed)
         jpeg_sizes.append(len(data))
 
-        elapsed2, sz = time_call(sentai.camera.save_jpeg,
-                                 "/diags/_e4_tmp.jpg", quality)
+        if photos:
+            # Save frame to session photos dir
+            frame_path = "%s/frame_%03d.jpg" % (photos, i)
+            elapsed2, _ = time_call(sentai.camera.save_jpeg, frame_path, quality)
+            saved_frames.append(frame_path)
+        else:
+            # No session — measure save latency to temp, then clean up
+            tmp = "/diags/_e4_tmp.jpg"
+            elapsed2, _ = time_call(sentai.camera.save_jpeg, tmp, quality)
         save_times.append(elapsed2)
+
+    if not photos:
+        try:
+            sentai.fs.remove("/diags/_e4_tmp.jpg")
+        except Exception:
+            pass
 
     st_jpeg = stats(jpeg_times)
     st_save = stats(save_times)
@@ -142,6 +174,8 @@ def e4_jpeg(camera_id=0, width=1280, height=720, quality=75,
     _print_stats("save_jpeg()", st_save)
     print("  sizes: mean=%.0f min=%d max=%d bytes" % (
         st_size["mean"], st_size["min"], st_size["max"]))
+    if saved_frames:
+        print("  Frames saved: %d → %s/" % (len(saved_frames), photos))
 
     result = {"experiment": "E4_jpeg", "meta": meta,
               "params": {"camera_id": camera_id, "width": width,
@@ -149,19 +183,30 @@ def e4_jpeg(camera_id=0, width=1280, height=720, quality=75,
                          "repetitions": repetitions},
               "samples": {"jpeg_ms": jpeg_times, "save_ms": save_times,
                           "jpeg_bytes": jpeg_sizes},
-              "summary": {"jpeg": st_jpeg, "save": st_save, "sizes": st_size}}
+              "summary": {"jpeg": st_jpeg, "save": st_save, "sizes": st_size},
+              "photos_dir": photos}
 
-    if save:
-        path = _save_path("e4_jpeg_cam%d_q%d" % (camera_id, quality))
-        save_csv(path, ["run", "jpeg_ms", "save_ms", "jpeg_bytes"],
+    if save and csv_path:
+        save_csv(csv_path, ["run_index", "jpeg_encode_ms", "jpeg_save_to_flash_ms", "jpeg_file_bytes"],
                  [(i, jpeg_times[i], save_times[i], jpeg_sizes[i])
                   for i in range(repetitions)])
-        _record("e4_jpeg", path,
-                "cam%d q=%d jpeg=%.1f save=%.1f ms" % (
-                    camera_id, quality, st_jpeg["mean"], st_save["mean"]))
-        print("  Saved: %s" % path)
+        _save_desc(csv_path,
+            "E4 — JPEG capture latency and file size.\n"
+            "Measures how long it takes to encode a frame to JPEG in memory and save it to flash.\n"
+            "\nColumns:\n"
+            "  run_index              : repetition number (0-based)\n"
+            "  jpeg_encode_ms         : time for sentai.camera.jpeg() — encode to RAM only\n"
+            "  jpeg_save_to_flash_ms  : time for sentai.camera.save_jpeg() — encode + write to LittleFS\n"
+            "  jpeg_file_bytes        : size of the resulting JPEG file in bytes\n"
+            "\nNote: jpeg_save includes flash write overhead on top of encoding.",
+            params={"camera_id": camera_id, "width": width, "height": height,
+                    "quality": quality, "repetitions": repetitions})
+        _record("e4_jpeg", csv_path,
+                "cam%d q=%d jpeg=%.1f save=%.1f ms frames=%d" % (
+                    camera_id, quality, st_jpeg["mean"], st_save["mean"],
+                    len(saved_frames)))
+        print("  Saved: %s" % csv_path)
 
-    sentai.fs.remove("/diags/_e4_tmp.jpg")
     return result
 
 
@@ -224,9 +269,19 @@ def e5_camera_switch(from_cam=0, to_cam=1, repetitions=20, save=True):
 
     if save:
         path = _save_path("e5_switch_%dto%d" % (from_cam, to_cam))
-        save_csv(path, ["run", "switch_ms", "wait_tensor_ms", "roundtrip_ms"],
+        save_csv(path, ["run_index", "camera_select_ms", "wait_new_frame_plus_tensor_ms", "total_roundtrip_ms"],
                  [(i, switch_times[i], first_fresh_times[i], roundtrip_times[i])
                   for i in range(repetitions)])
+        _save_desc(path,
+            "E5 — Camera switch round-trip latency.\n"
+            "Measures the cost of switching from one physical camera to another and getting the first fresh frame.\n"
+            "\nColumns:\n"
+            "  run_index                       : repetition number (0-based)\n"
+            "  camera_select_ms                : time for sentai.camera.select() call only\n"
+            "  wait_new_frame_plus_tensor_ms   : time to wait for a new frame from the new sensor + to_tensor()\n"
+            "  total_roundtrip_ms              : select + wait + tensor combined\n"
+            "\nNote: wait_new_frame dominates because the sensor needs to flush its pipeline.",
+            params={"from_cam": from_cam, "to_cam": to_cam, "repetitions": repetitions})
         _record("e5_camera_switch", path,
                 "%d->%d switch=%.1f roundtrip=%.1f ms" % (
                     from_cam, to_cam, st_switch["mean"], st_rt["mean"]))
@@ -305,11 +360,26 @@ def e5b_alternating(model_path, cam_nadir=0, cam_forward=1,
     if save:
         path = _save_path("e5b_alt_1to1")
         save_csv(path,
-                 ["cycle", "nadir_sw", "nadir_tens", "nadir_inv",
-                  "fwd_sw", "fwd_tens", "fwd_inv", "cycle_ms"],
+                 ["cycle_index", "nadir_select_ms", "nadir_to_tensor_ms", "nadir_invoke_ms",
+                  "fwd_select_ms", "fwd_to_tensor_ms", "fwd_invoke_ms", "total_cycle_ms"],
                  [(i, nadir_switch[i], nadir_tensor[i], nadir_invoke[i],
                    fwd_switch[i], fwd_tensor[i], fwd_invoke[i], cycle_times[i])
                   for i in range(cycles)])
+        _save_desc(path,
+            "E5b — Alternating 1:1 nadir/forward camera at full frame rate.\n"
+            "Each cycle: nadir select → tensor → invoke → forward select → tensor → invoke.\n"
+            "\nColumns:\n"
+            "  cycle_index        : cycle number (0-based)\n"
+            "  nadir_select_ms    : time to switch to nadir camera\n"
+            "  nadir_to_tensor_ms : PXP+quantize+copy on nadir frame\n"
+            "  nadir_invoke_ms    : EdgeTPU inference on nadir tensor\n"
+            "  fwd_select_ms      : time to switch to forward camera\n"
+            "  fwd_to_tensor_ms   : PXP+quantize+copy on forward frame\n"
+            "  fwd_invoke_ms      : EdgeTPU inference on forward tensor\n"
+            "  total_cycle_ms     : sum of all 6 steps for this cycle",
+            params={"cam_nadir": cam_nadir, "cam_forward": cam_forward,
+                    "width": width, "height": height, "cycles": cycles,
+                    "model_path": model_path})
         _record("e5b_alternating", path,
                 "1:1 cycle=%.1f ms fps=%.1f" % (st_cycle["mean"], fps))
         print("  Saved: %s" % path)
@@ -453,9 +523,26 @@ def e5c_asymmetric(model_path, cam_nadir=0, cam_forward=1,
                              nadir_tensor_ms[i], nadir_invoke_ms[i],
                              "", "", "", "", ""))
         save_csv(path,
-                 ["frame", "type", "total_ms", "nadir_tens", "nadir_inv",
-                  "fwd_sw_to", "fwd_tens", "fwd_inv", "fwd_sw_back", "fwd_rt"],
+                 ["frame_index", "frame_type", "total_frame_ms", "nadir_to_tensor_ms", "nadir_invoke_ms",
+                  "fwd_select_to_ms", "fwd_to_tensor_ms", "fwd_invoke_ms", "fwd_select_back_ms", "fwd_roundtrip_ms"],
                  rows)
+        _save_desc(path,
+            "E5c — Asymmetric nadir/forward camera scheduling.\n"
+            "Nadir camera runs continuously. Forward camera is interleaved every N nadir frames.\n"
+            "\nColumns:\n"
+            "  frame_index        : frame number (0-based, counts nadir frames)\n"
+            "  frame_type         : 'nadir' = nadir only, 'fwd_round' = nadir + forward round-trip this frame\n"
+            "  total_frame_ms     : total time for this frame (nadir + optional forward round-trip)\n"
+            "  nadir_to_tensor_ms : PXP+quantize+copy on nadir frame\n"
+            "  nadir_invoke_ms    : EdgeTPU inference on nadir tensor\n"
+            "  fwd_select_to_ms   : time to switch TO forward camera (only on fwd_round frames)\n"
+            "  fwd_to_tensor_ms   : PXP+quantize+copy on forward frame (only on fwd_round frames)\n"
+            "  fwd_invoke_ms      : EdgeTPU inference on forward tensor (only on fwd_round frames)\n"
+            "  fwd_select_back_ms : time to switch BACK to nadir camera (only on fwd_round frames)\n"
+            "  fwd_roundtrip_ms   : total fwd overhead = select_to + tensor + invoke + select_back",
+            params={"cam_nadir": cam_nadir, "cam_forward": cam_forward,
+                    "fwd_every_n": fwd_every_n, "total_nadir_frames": total_nadir_frames,
+                    "width": width, "height": height, "model_path": model_path})
         _record("e5c_asymmetric", path,
                 "1:%d nadir_fps=%.1f eff_fps=%.1f penalty=%.1f%%" % (
                     fwd_every_n, nadir_fps, effective_fps, pen))

@@ -2,7 +2,7 @@
 
 import sentai
 from diag._util import stats, time_call, save_csv, snapshot_meta, _print_stats
-from diag._session import _save_path, _record
+from diag._session import _save_path, _record, _save_desc
 
 
 def e6_fs_read(path, repetitions=20, save=True):
@@ -35,8 +35,16 @@ def e6_fs_read(path, repetitions=20, save=True):
 
     if save:
         csv_path = _save_path("e6_fs_read")
-        save_csv(csv_path, ["run", "read_ms"],
+        save_csv(csv_path, ["run_index", "file_read_ms"],
                  [(i, s) for i, s in enumerate(samples)])
+        _save_desc(csv_path,
+            "E6 — Filesystem read latency and throughput.\n"
+            "Measures how long sentai.fs.read() takes to read a file fully from LittleFS (QSPI flash).\n"
+            "\nColumns:\n"
+            "  run_index    : repetition number (0-based)\n"
+            "  file_read_ms : wall time of one fs.read() call in milliseconds\n"
+            "\nThroughput in KB/s is computed as file_size / mean_read_ms.",
+            params={"path": path, "file_size_bytes": file_size, "repetitions": repetitions})
         _record("e6_fs_read", csv_path,
                 "%.1f KB/s mean=%.1f ms" % (throughput_kbs, st["mean"]))
         print("  Saved: %s" % csv_path)
@@ -72,8 +80,16 @@ def e7_fs_write(size=4096, repetitions=20, save=True):
 
     if save:
         csv_path = _save_path("e7_fs_write_%db" % size)
-        save_csv(csv_path, ["run", "write_ms"],
+        save_csv(csv_path, ["run_index", "file_write_ms"],
                  [(i, s) for i, s in enumerate(samples)])
+        _save_desc(csv_path,
+            "E7 — Filesystem write latency and throughput.\n"
+            "Measures how long sentai.fs.write() takes to write a fixed-size block to LittleFS (QSPI flash).\n"
+            "\nColumns:\n"
+            "  run_index     : repetition number (0-based)\n"
+            "  file_write_ms : wall time of one fs.write() call in milliseconds\n"
+            "\nThroughput in KB/s is computed as write_size / mean_write_ms.",
+            params={"write_size_bytes": size, "repetitions": repetitions})
         _record("e7_fs_write", csv_path,
                 "%dB %.1f KB/s mean=%.1f ms" % (size, throughput_kbs, st["mean"]))
         print("  Saved: %s" % csv_path)

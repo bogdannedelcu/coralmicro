@@ -3,7 +3,7 @@
 import sentai
 from diag._util import (stats, save_csv, snapshot_meta, snapshot_heap,
                          snapshot_cpu, snapshot_tasks, _ticks, _print_stats)
-from diag._session import _save_path, _record
+from diag._session import _save_path, _record, _save_desc
 
 
 def e10_memory(scenario="idle", save=True):
@@ -26,10 +26,21 @@ def e10_memory(scenario="idle", save=True):
     if save:
         path = _save_path("e10_mem_%s" % scenario)
         save_csv(path,
-                 ["scenario", "rtos_free", "gc_total", "gc_used",
-                  "gc_free", "gc_max_free"],
+                 ["scenario_name", "rtos_free_heap_bytes", "gc_total_bytes", "gc_used_bytes",
+                  "gc_free_bytes", "gc_largest_free_block_bytes"],
                  [[scenario, heap["rtos_free"], heap["gc_total"],
                    heap["gc_used"], heap["gc_free"], heap["gc_max_free"]]])
+        _save_desc(path,
+            "E10 — Memory snapshot.\n"
+            "One-row snapshot of RAM state under a labeled scenario.\n"
+            "\nColumns:\n"
+            "  scenario_name                 : user label for when the snapshot was taken\n"
+            "  rtos_free_heap_bytes          : FreeRTOS heap free (available for C malloc/tasks)\n"
+            "  gc_total_bytes                : total MicroPython GC heap size\n"
+            "  gc_used_bytes                 : GC heap currently allocated by Python objects\n"
+            "  gc_free_bytes                 : GC heap free (available for new Python allocations)\n"
+            "  gc_largest_free_block_bytes   : largest contiguous free block in GC heap",
+            params={"scenario": scenario})
         _record("e10_memory", path,
                 "%s rtos_free=%d" % (scenario, heap["rtos_free"]))
         print("  Saved: %s" % path)
@@ -65,9 +76,19 @@ def e11_cpu(scenario="idle", duration_ms=2000, save=True):
     if save:
         path = _save_path("e11_cpu_%s" % scenario)
         cpu_map = {n: p for n, p in cpu_after}
-        save_csv(path, ["task", "state", "priority", "stack_hwm", "cpu_pct"],
+        save_csv(path, ["task_name", "rtos_state", "rtos_priority", "stack_hwm_bytes", "cpu_usage_pct"],
                  [[name, state, prio, hwm, cpu_map.get(name, 0)]
                   for name, state, prio, hwm in tasks_snap])
+        _save_desc(path,
+            "E11 — CPU usage and RTOS task state.\n"
+            "One row per FreeRTOS task, snapshot taken over a measurement window.\n"
+            "\nColumns:\n"
+            "  task_name        : FreeRTOS task name\n"
+            "  rtos_state       : task state: Running/Ready/Blocked/Suspended/Deleted\n"
+            "  rtos_priority    : FreeRTOS task priority (higher = more urgent)\n"
+            "  stack_hwm_bytes  : stack high-water mark = smallest free stack seen (low = risk of overflow)\n"
+            "  cpu_usage_pct    : CPU usage % measured over the %d ms window" % duration_ms,
+            params={"scenario": scenario, "measurement_window_ms": duration_ms})
         _record("e11_cpu", path,
                 "%s %d tasks" % (scenario, len(tasks_snap)))
         print("  Saved: %s" % path)
@@ -130,9 +151,20 @@ def e12_live_loop(model_path, camera_id=0, width=320, height=320,
 
     if save:
         path = _save_path("e12_loop_cam%d_%dx%d" % (camera_id, width, height))
-        save_csv(path, ["run", "tensor_ms", "invoke_ms", "loop_ms"],
+        save_csv(path, ["run_index", "camera_to_tensor_ms", "edgetpu_invoke_ms", "total_loop_ms"],
                  [(i, tensor_times[i], invoke_times[i], loop_times[i])
                   for i in range(repetitions)])
+        _save_desc(path,
+            "E12 — Full perception loop latency.\n"
+            "Measures the complete pipeline per frame: camera to_tensor + EdgeTPU invoke + output read.\n"
+            "\nColumns:\n"
+            "  run_index              : repetition number (0-based)\n"
+            "  camera_to_tensor_ms    : time for camera.to_tensor() — PXP resize + quantize + DMA to TPU\n"
+            "  edgetpu_invoke_ms      : time for tpu.invoke() — neural network forward pass on EdgeTPU\n"
+            "  total_loop_ms          : total = to_tensor + invoke + tpu.output(0) read\n"
+            "\nEffective FPS = 1000 / mean(total_loop_ms). Does NOT include sensor frame-wait time.",
+            params={"camera_id": camera_id, "width": width, "height": height,
+                    "model_path": model_path, "repetitions": repetitions})
         _record("e12_live_loop", path,
                 "cam%d %dx%d loop=%.1f ms fps=%.1f" % (
                     camera_id, width, height, st_loop["mean"], fps))
