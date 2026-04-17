@@ -136,7 +136,6 @@ add_executable_m7(sentai_runtime
     sentai_crazy.cc
     sentai_httpd.cc
     DATA
-    help.txt
 )
 
 # Embed browser.html as a C byte array (avoids LFS system partition dependency)
@@ -151,6 +150,18 @@ add_custom_command(
 )
 add_custom_target(sentai_browser_html DEPENDS "${BROWSER_HTML_HDR}")
 add_dependencies(sentai_runtime sentai_browser_html)
+
+# Embed help.txt directly in the SDRAM .help_data section (VMA=LMA, no ITCM overflow).
+set(HELP_TXT_SRC "${CMAKE_CURRENT_SOURCE_DIR}/help.txt")
+set(HELP_TXT_CC  "${CMAKE_CURRENT_BINARY_DIR}/help_txt_data.cc")
+add_custom_command(
+    OUTPUT "${HELP_TXT_CC}"
+    COMMAND python3 "${CMAKE_CURRENT_SOURCE_DIR}/gen_help_embed.py"
+            "${HELP_TXT_SRC}" "${HELP_TXT_CC}"
+    DEPENDS "${HELP_TXT_SRC}" "${CMAKE_CURRENT_SOURCE_DIR}/gen_help_embed.py"
+    COMMENT "Embedding help.txt in .help_data SDRAM section"
+)
+target_sources(sentai_runtime PRIVATE "${HELP_TXT_CC}")
 
 # Disable networking stack (DHCP, TCP/IP, Ethernet over USB) to save power
 target_compile_definitions(sentai_runtime PRIVATE

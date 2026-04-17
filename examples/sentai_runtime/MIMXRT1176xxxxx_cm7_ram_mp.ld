@@ -518,6 +518,14 @@ SECTIONS
     __sdram_data_end__ = .;
   } > m_sdram
 
+  /* Help text embedded directly in SDRAM (VMA=LMA, written by elfloader). */
+  .help_data :
+  {
+    . = ALIGN(4);
+    KEEP(*(.help_data*))
+    . = ALIGN(4);
+  } > m_sdram
+
   /* Uninitialized data section */
   .bss :
   {

@@ -63,6 +63,7 @@ class CdcAcm {
 
  private:
   bool can_transmit_ = false;
+  volatile bool tx_in_flight_ = false;
   void SetConfiguration();
   usb_status_t SetControlLineState(
       usb_device_cdc_acm_request_param_struct_t *acm_param);

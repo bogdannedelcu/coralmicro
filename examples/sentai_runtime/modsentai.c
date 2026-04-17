@@ -396,7 +396,7 @@ static void help_print(const char *text, int len) {
 static mp_obj_t mod_sentai_help(size_t n_args, const mp_obj_t *args) {
     const char* topic = (n_args > 0) ? mp_obj_str_get_str(args[0]) : NULL;
 
-    #define HELP_BUF_SIZE 24576
+    #define HELP_BUF_SIZE 73728
     char* hbuf = (char*)malloc(HELP_BUF_SIZE);
     if (!hbuf) {
         mp_raise_msg(&mp_type_MemoryError, MP_ERROR_TEXT("help buf alloc"));

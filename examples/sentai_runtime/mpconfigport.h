@@ -57,7 +57,9 @@
 
 // ── Disabled (not needed / risky on embedded) ──────────────────────────
 #define MICROPY_PY_BUILTINS_COMPLEX     (0)
-#define MICROPY_PY_BUILTINS_HELP        (0)   // we have sentai.help()
+#define MICROPY_PY_BUILTINS_HELP        (1)
+#define MICROPY_PY_BUILTINS_HELP_TEXT   sentai_help_builtin_text
+#define MICROPY_PY_BUILTINS_HELP_MODULES (0)
 #define MICROPY_PY_CMATH                (0)
 #define MICROPY_PY_ALL_SPECIAL_METHODS  (0)
 #define MICROPY_PY_REVERSE_SPECIAL_METHODS (0)

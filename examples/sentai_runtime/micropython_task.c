@@ -15,8 +15,8 @@
 #include <string.h>
 #include "build_version.h"
 
-// GC heap size for MicroPython (64 KB for import support + scripts)
-#define MP_GC_HEAP_SIZE (64 * 1024)
+// GC heap size for MicroPython (256 KB — needed for large scripts, help, diag)
+#define MP_GC_HEAP_SIZE (256 * 1024)
 
 // REPL line buffer size
 #define REPL_LINE_MAX 256
@@ -358,7 +358,7 @@ static void micropython_task(void* param) {
 
     printf("[MicroPython] Task started\r\n");
 
-    static char gc_heap[MP_GC_HEAP_SIZE];
+    static char gc_heap[MP_GC_HEAP_SIZE] __attribute__((section(".sdram_bss")));
     int stack_top;
     mp_embed_init(&gc_heap[0], sizeof(gc_heap), &stack_top);
 
@@ -398,7 +398,7 @@ void micropython_start_task(const char* script, unsigned int stack_size,
 static void micropython_repl_task(void* param) {
     (void)param;
 
-    static char gc_heap[MP_GC_HEAP_SIZE];
+    static char gc_heap[MP_GC_HEAP_SIZE] __attribute__((section(".sdram_bss")));
     int stack_top;
 
     printf("[MicroPython] REPL task started\r\n");

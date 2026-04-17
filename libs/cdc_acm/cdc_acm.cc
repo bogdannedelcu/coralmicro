@@ -118,6 +118,11 @@ bool CdcAcm::Transmit(const uint8_t* buffer, const size_t length) {
     return false;
   }
 
+  // Previous send still in DMA — don't overwrite tx_buffer_.
+  if (tx_in_flight_) {
+    return false;
+  }
+
   usb_status_t status;
   if (length > 512) {
     DbgConsole_Printf("%s data larger than tx_buffer_\r\n",
@@ -126,14 +131,19 @@ bool CdcAcm::Transmit(const uint8_t* buffer, const size_t length) {
   }
 
   std::memcpy(tx_buffer_, buffer, length);
+  tx_in_flight_ = true;
   status = USB_DeviceCdcAcmSend(class_handle_, bulk_in_ep_, tx_buffer_, length);
 
   if (status != kStatus_USB_Success) {
+    tx_in_flight_ = false;
     return false;
   }
   if (xSemaphoreTake(tx_semaphore_, pdMS_TO_TICKS(200)) == pdTRUE) {
+    tx_in_flight_ = false;
     return true;
   } else {
+    // Timeout — DMA may still be in progress; leave tx_in_flight_ set.
+    // It will be cleared when the SendResponse callback fires.
     return false;
   }
 }
@@ -169,7 +179,8 @@ usb_status_t CdcAcm::Handler(uint32_t event, void* param) {
         ret = USB_DeviceCdcAcmSend(class_handle_, bulk_in_ep_, nullptr, 0);
       } else {
         if (ep_cb->buffer || (!ep_cb->buffer && ep_cb->length == 0)) {
-          CHECK(xSemaphoreGive(tx_semaphore_) == pdTRUE);
+          tx_in_flight_ = false;
+          xSemaphoreGive(tx_semaphore_);
           ret = USB_DeviceCdcAcmRecv(
               class_handle_, bulk_out_ep_, rx_buffer_,
               cdc_acm_data_endpoints_[DATA_OUT].maxPacketSize);

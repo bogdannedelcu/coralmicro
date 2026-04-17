@@ -8,6 +8,19 @@
 #include "libs/lis2du12/lis2du12.h"
 #include "libs/t5838/t5838.h"
 #include "libs/base/main_freertos_m7.h"
+
+// Built-in help() text (referenced by MICROPY_PY_BUILTINS_HELP_TEXT)
+extern "C" const char sentai_help_builtin_text[] =
+    "Welcome to SentAI MicroPython on Coral Dev Board Micro!\n"
+    "\n"
+    "Quick reference:\n"
+    "  sentai.help()          -- full SentAI API help (from flash)\n"
+    "  sentai.help('tpu')     -- help for a specific module\n"
+    "  sentai.help('all')     -- show all documentation\n"
+    "  sentai.status()        -- system status\n"
+    "  dir(sentai)            -- list all sentai attributes\n"
+    "\n"
+    "For detailed help on any object: help(obj)\n";
 #include "libs/audio/audio_driver.h"
 #include "libs/audio/audio_service.h"
 #include "third_party/freertos_kernel/include/FreeRTOS.h"
@@ -46,8 +59,19 @@ void sentai_console_write(const char* buf, int size) {
 }
 
 // ===================== Filesystem bridge =====================
-// All filesystem operations use the USER LFS partition.
-// The system partition (with default.elf) is not accessible from Python.
+// Convention: paths starting with "$/" access the SYSTEM partition (read-only).
+// All other paths use the USER partition.
+// Example: sentai.fs.ls("$/") lists the system partition root.
+
+// Helper: check if path targets system partition, return stripped path.
+static inline bool is_sys_path(const char* path, const char** real) {
+    if (path[0] == '$' && path[1] == '/') {
+        *real = path + 1;  // keep the leading '/' for LFS
+        return true;
+    }
+    *real = path;
+    return false;
+}
 
 // Force-format the user LFS partition. Returns 1 on success, 0 on failure.
 int sentai_fs_format(void) {
@@ -56,23 +80,43 @@ int sentai_fs_format(void) {
 
 // Read file into caller-provided buffer. Returns bytes read, or -1 on error.
 int sentai_fs_read(const char* path, uint8_t* buf, int max_size) {
-    size_t n = coralmicro::LfsUserReadFile(path, buf, (size_t)max_size);
-    return (int)n;
+    const char* real;
+    if (is_sys_path(path, &real)) {
+        return (int)coralmicro::LfsReadFile(real, buf, (size_t)max_size);
+    }
+    return (int)coralmicro::LfsUserReadFile(path, buf, (size_t)max_size);
 }
 
 // Get file size. Returns -1 if not found.
 int sentai_fs_size(const char* path) {
-    ssize_t s = coralmicro::LfsUserSize(path);
-    return (int)s;
+    const char* real;
+    if (is_sys_path(path, &real)) {
+        lfs_file_t f;
+        if (lfs_file_open(coralmicro::Lfs(), &f, real, LFS_O_RDONLY) < 0) return -1;
+        int sz = (int)lfs_file_size(coralmicro::Lfs(), &f);
+        lfs_file_close(coralmicro::Lfs(), &f);
+        return sz;
+    }
+    return (int)coralmicro::LfsUserSize(path);
 }
 
 // Check if file exists.
 int sentai_fs_file_exists(const char* path) {
+    const char* real;
+    if (is_sys_path(path, &real)) {
+        return coralmicro::LfsFileExists(real) ? 1 : 0;
+    }
     return coralmicro::LfsUserFileExists(path) ? 1 : 0;
 }
 
 // Check if directory exists.
 int sentai_fs_dir_exists(const char* path) {
+    const char* real;
+    if (is_sys_path(path, &real)) {
+        struct lfs_info info;
+        return (lfs_stat(coralmicro::Lfs(), real, &info) >= 0 &&
+                info.type == LFS_TYPE_DIR) ? 1 : 0;
+    }
     return coralmicro::LfsUserDirExists(path) ? 1 : 0;
 }
 
@@ -94,16 +138,21 @@ int sentai_fs_makedirs(const char* path) {
 // List directory entries. Calls callback for each entry.
 // callback(name, type, size, user_data) - type: 1=file, 2=dir
 // Returns number of entries, or -1 on error.
+// Paths starting with $/ use the system partition.
 int sentai_fs_listdir(const char* path,
                      void (*callback)(const char* name, int type, int size, void* ud),
                      void* user_data) {
+    const char* real;
+    bool sys = is_sys_path(path, &real);
+    lfs_t* lfs = sys ? coralmicro::Lfs() : coralmicro::LfsUser();
+
     lfs_dir_t dir;
-    int err = lfs_dir_open(coralmicro::LfsUser(), &dir, path);
+    int err = lfs_dir_open(lfs, &dir, real);
     if (err < 0) return -1;
 
     struct lfs_info info;
     int count = 0;
-    while (lfs_dir_read(coralmicro::LfsUser(), &dir, &info) > 0) {
+    while (lfs_dir_read(lfs, &dir, &info) > 0) {
         // Skip . and ..
         if (info.name[0] == '.' &&
             (info.name[1] == '\0' || (info.name[1] == '.' && info.name[2] == '\0')))
@@ -112,7 +161,7 @@ int sentai_fs_listdir(const char* path,
         callback(info.name, t, (int)info.size, user_data);
         count++;
     }
-    lfs_dir_close(coralmicro::LfsUser(), &dir);
+    lfs_dir_close(lfs, &dir);
     return count;
 }
 
@@ -199,17 +248,18 @@ void sentai_uart_restore_baudrate(void) {
     LPUART_SetBaudRate(LPUART6, 115200U, LPUART6_CLOCK_FREQ);
 }
 
-// ===================== Help file (system partition) =====================
+// ===================== Help file (embedded in .help_data SDRAM section) =====================
+// Written directly to SDRAM by elfloader (VMA=LMA). SDRAM content preserved across
+// sentai_runtime startup (SEMC re-init does not erase DRAM cells).
+extern "C" const unsigned char help_txt_data[];
+extern "C" const unsigned int help_txt_data_len;
 
 int sentai_help_read(char* buf, int max_size) {
-    size_t n = coralmicro::LfsReadFile(
-        "examples/sentai_runtime/help.txt",
-        reinterpret_cast<uint8_t*>(buf), (size_t)(max_size - 1));
-    if (n > 0) {
-        buf[n] = '\0';
-        return (int)n;
-    }
-    return -1;
+    int to_copy = ((int)help_txt_data_len < max_size - 1)
+                  ? (int)help_txt_data_len : (max_size - 1);
+    memcpy(buf, help_txt_data, to_copy);
+    buf[to_copy] = '\0';
+    return to_copy;
 }
 
 // ===================== IMU (LIS2DU12 accelerometer) =====================
