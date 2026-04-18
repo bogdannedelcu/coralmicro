@@ -10,7 +10,7 @@
 #include "sentai_tracker.h"
 #include "sentai_vision_common.h"
 #include "sentai_error.h"
-// #include "sentai_health.h"  // DISABLED: causing issues
+#include "sentai_health.h"
 
 #include <cstdio>
 #include <cstring>
@@ -107,11 +107,11 @@ static int link_send_msg(mavlink_message_t* msg) {
 
             if (n == (int)len) {
                 g_link_tx_ok++;
-                // sentai_health_success(SUBSYS_LINK);  DISABLED
+                sentai_health_success(SUBSYS_LINK);
                 return 0;
             } else {
                 g_link_tx_fail++;
-                // sentai_health_fail(SUBSYS_LINK);  DISABLED
+                sentai_health_fail(SUBSYS_LINK);
                 SERR_LOG(SERR_LINK_TX_FAIL, n);
                 return -2;
             }
@@ -120,7 +120,7 @@ static int link_send_msg(mavlink_message_t* msg) {
 
     // All retries exhausted
     g_link_tx_timeout++;
-    // sentai_health_timeout(SUBSYS_LINK);  DISABLED
+    sentai_health_timeout(SUBSYS_LINK);
     SERR_LOG(SERR_LINK_TX_TIMEOUT, g_link_tx_timeout);
     return -3;
 }
@@ -151,10 +151,10 @@ static void link_rx_task(void* param) {
                 // P2 FIX: Check queue send result
                 if (xQueueSend(g_link_rx_queue, &item, 0) == pdTRUE) {
                     g_link_rx_ok++;
-                    // sentai_health_success(SUBSYS_LINK);  DISABLED
+                    sentai_health_success(SUBSYS_LINK);
                 } else {
                     g_link_rx_dropped++;
-                    // sentai_health_fail(SUBSYS_LINK);  DISABLED
+                    sentai_health_fail(SUBSYS_LINK);
                 }
             }
         }

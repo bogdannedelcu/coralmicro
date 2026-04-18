@@ -135,18 +135,28 @@ extern "C" void sentai_fault_c(uint32_t *frame, uint16_t fault_code) {
            (unsigned long)frame[0], (unsigned long)frame[1],
            (unsigned long)frame[2], (unsigned long)frame[3]);
 
-    // Decode common CFSR bits for immediate diagnosis
-    if (cfsr & 0x00000002UL) printf("  IBUS: instruction bus error\r\n");
-    if (cfsr & 0x00001000UL) printf("  PRECISERR: data bus error @ BFAR\r\n");
-    if (cfsr & 0x00002000UL) printf("  STKER: bus fault on exception entry\r\n");
-    if (cfsr & 0x00000400UL) printf("  UNSTKER: bus fault on exception return\r\n");
-    if (cfsr & 0x00000001UL) printf("  IACCVIOL: instruction access violation\r\n");
-    if (cfsr & 0x00000002UL) printf("  DACCVIOL: data access violation\r\n");
-    if (cfsr & 0x00000200UL) printf("  INVSTATE: invalid CPU state (bad EPSR.T)\r\n");
-    if (cfsr & 0x00000400UL) printf("  INVPC: invalid exception return\r\n");
-    if (cfsr & 0x00020000UL) printf("  DIVBYZERO: integer divide by zero\r\n");
-    if (cfsr & 0x00010000UL) printf("  UNALIGNED: unaligned memory access\r\n");
-    if (cfsr & 0x40000000UL) printf("  VECTTBL: vector table read fault\r\n");
+    // Decode CFSR bits (ARM DDI0403D): MMFSR[7:0] | BFSR[15:8] | UFSR[31:16]
+    // MMFSR — MemManage Fault Status
+    if (cfsr & 0x00000001UL) printf("  IACCVIOL: MPU instruction access violation\r\n");
+    if (cfsr & 0x00000002UL) printf("  DACCVIOL: MPU data access violation\r\n");
+    if (cfsr & 0x00000008UL) printf("  MUNSTKERR: MPU fault on exception return\r\n");
+    if (cfsr & 0x00000010UL) printf("  MSTKERR: MPU fault on exception entry\r\n");
+    // BFSR — Bus Fault Status
+    if (cfsr & 0x00000100UL) printf("  IBUSERR: instruction bus error\r\n");
+    if (cfsr & 0x00000200UL) printf("  PRECISERR: precise data bus error @ BFAR\r\n");
+    if (cfsr & 0x00000400UL) printf("  IMPRECISERR: imprecise data bus error\r\n");
+    if (cfsr & 0x00000800UL) printf("  BUNSTKERR: bus fault on exception return\r\n");
+    if (cfsr & 0x00001000UL) printf("  BSTKERR: bus fault on exception entry\r\n");
+    // UFSR — UsageFault Status
+    if (cfsr & 0x00010000UL) printf("  UNDEFINSTR: undefined instruction\r\n");
+    if (cfsr & 0x00020000UL) printf("  INVSTATE: invalid CPU state (bad EPSR.T)\r\n");
+    if (cfsr & 0x00040000UL) printf("  INVPC: invalid exception return value\r\n");
+    if (cfsr & 0x00080000UL) printf("  NOCP: coprocessor access (FPU disabled?)\r\n");
+    if (cfsr & 0x01000000UL) printf("  UNALIGNED: unaligned memory access\r\n");
+    if (cfsr & 0x02000000UL) printf("  DIVBYZERO: integer divide by zero\r\n");
+    // HFSR
+    if (hfsr & 0x00000002UL) printf("  VECTTBL: vector table read fault\r\n");
+    if (hfsr & 0x40000000UL) printf("  FORCED: hard fault escalated from lower fault\r\n");
 
     // Scan stack above exception frame for potential return addresses (stack hint)
     // Code lives in ITCM (0x00000000-0x001FFFFF). Thumb addresses have bit 0 set.

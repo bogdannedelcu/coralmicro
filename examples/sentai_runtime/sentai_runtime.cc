@@ -60,6 +60,7 @@ extern "C" {
 #include "sentai_error.h"
 #include "sentai_fault.h"
 #include "sentai_health.h"
+#include "sentai_lfs_task.h"
 
 // ===================== Camera pipeline optimizations ========================
 // Set to 1 to enable, 0 to disable (safe revert).  Build #197+
@@ -151,13 +152,20 @@ static void boot_log_flush_to_file() {
     // Acquire flush lock — non-blocking (return if another flush is in progress)
     if (__sync_lock_test_and_set(&g_boot_log_flush_busy, 1u) != 0u) return;
 
+    // Acquire LFS mutex with short timeout. If busy (lfs_task or MP holds it),
+    // skip this flush — data stays in the RAM buffer for the next opportunity.
+    if (!sentai_lfs_lock()) {
+        __sync_lock_release(&g_boot_log_flush_busy);
+        return;
+    }
+
     lfs_t* lfs = coralmicro::LfsUser();
     if (lfs) {
         // Snapshot the current byte count inside a critical section so we
         // don't race with boot_log_write() appending new bytes.
-        UBaseType_t saved = taskENTER_CRITICAL_FROM_ISR();
+        taskENTER_CRITICAL();
         size_t count = g_boot_log_pos;
-        taskEXIT_CRITICAL_FROM_ISR(saved);
+        taskEXIT_CRITICAL();
 
         if (count > 0) {
             lfs_file_write(lfs, &g_boot_log_file, g_boot_log_buf, count);
@@ -165,7 +173,7 @@ static void boot_log_flush_to_file() {
 
             // Reset only the bytes we already wrote; bytes appended during the
             // write remain at the front of the buffer for the next flush.
-            saved = taskENTER_CRITICAL_FROM_ISR();
+            taskENTER_CRITICAL();
             if (g_boot_log_pos >= count) {
                 size_t remaining = g_boot_log_pos - count;
                 if (remaining > 0)
@@ -174,10 +182,11 @@ static void boot_log_flush_to_file() {
             } else {
                 g_boot_log_pos = 0;
             }
-            taskEXIT_CRITICAL_FROM_ISR(saved);
+            taskEXIT_CRITICAL();
         }
     }
 
+    sentai_lfs_unlock();
     __sync_lock_release(&g_boot_log_flush_busy);
 }
 
@@ -215,12 +224,15 @@ void boot_log_stop() {
     
     g_boot_log_active = false;
 
-    // Final flush
+    // Final flush + close (protected by LFS mutex).
     if (g_boot_log_file_open) {
-        boot_log_flush_to_file();
-        lfs_t* lfs = coralmicro::LfsUser();
-        if (lfs) {
-            lfs_file_close(lfs, &g_boot_log_file);
+        boot_log_flush_to_file();  // acquires/releases mutex internally
+        if (sentai_lfs_lock()) {
+            lfs_t* lfs = coralmicro::LfsUser();
+            if (lfs) {
+                lfs_file_close(lfs, &g_boot_log_file);
+            }
+            sentai_lfs_unlock();
         }
         g_boot_log_file_open = false;
     }
@@ -275,7 +287,7 @@ static void crash_log_init(lfs_t* lfs) {
         // Look for crash_NNN.log pattern
         if (info.type == LFS_TYPE_REG && 
             strncmp(info.name, "crash_", 6) == 0 &&
-            strlen(info.name) == 14) {  // crash_NNN.log = 14 chars
+            strlen(info.name) == 13) {  // crash_NNN.log = 13 chars
             int num = atoi(info.name + 6);
             if (num > max_num) max_num = num;
         }
@@ -310,11 +322,17 @@ static void crash_log_get_path(lfs_t* lfs, char* path, size_t path_len) {
     }
 }
 
+// sentai_lfs_lock/unlock are defined in sentai_lfs_task.cc (included via header).
+
 // Write crash entry to /log/crash_NNN.log
 static void crash_log_write(const char* event, const char* details) {
     lfs_t* lfs = coralmicro::LfsUser();
     if (!lfs) return;
-    
+
+    // Serialize LFS access with HTTP server reads to prevent data races.
+    // Skip (don't block) if mutex isn't available — crash logs are non-critical.
+    if (!sentai_lfs_lock()) return;
+
     // Create /log directory if it doesn't exist
     lfs_mkdir(lfs, "/log");
     
@@ -355,6 +373,8 @@ static void crash_log_write(const char* event, const char* details) {
         lfs_file_write(lfs, &file, entry, len);
         lfs_file_close(lfs, &file);
     }
+
+    sentai_lfs_unlock();
 }
 
 // Called from HTTP handler on each request
@@ -391,20 +411,26 @@ extern "C" void sentai_get_last_crash_log_path(char* out, size_t out_len) {
     lfs_t* lfs = coralmicro::LfsUser();
     if (!lfs) return;
 
+    if (!sentai_lfs_lock()) return;
+
     lfs_dir_t dir;
-    if (lfs_dir_open(lfs, &dir, "/log") != LFS_ERR_OK) return;
+    if (lfs_dir_open(lfs, &dir, "/log") != LFS_ERR_OK) {
+        sentai_lfs_unlock();
+        return;
+    }
 
     int max_num = -1;
     lfs_info info;
     while (lfs_dir_read(lfs, &dir, &info) > 0) {
         if (info.type == LFS_TYPE_REG &&
             strncmp(info.name, "crash_", 6) == 0 &&
-            strlen(info.name) == 14) {  // crash_NNN.log
+            strlen(info.name) == 13) {  // crash_NNN.log = 13 chars
             int num = atoi(info.name + 6);
             if (num > max_num) max_num = num;
         }
     }
     lfs_dir_close(lfs, &dir);
+    sentai_lfs_unlock();
 
     if (max_num >= 0) {
         snprintf(out, out_len, "/log/crash_%03d.log", max_num);
@@ -455,9 +481,9 @@ static void CombinedWatchdogTask(void* param) {
     // Timeout = 30 seconds, kick every 5 seconds
     // WDOG1 runs on 32kHz clock, independent of CPU
     constexpr uint32_t kWdogTimeoutSec = 30;
-    constexpr uint32_t kKickIntervalMs = 5000;   // Kick every 5 seconds
-    constexpr uint32_t kDeadThresholdMs = 25000; // 25 seconds without activity = stop kicking
-    constexpr uint32_t kWarningThresholdMs = 15000; // 15 seconds = warning
+    constexpr uint32_t kKickIntervalMs = 5000;    // Kick every 5 seconds
+    constexpr uint32_t kWarningThresholdMs = 60000; // 60 seconds = start warning (still kicks)
+    constexpr uint32_t kDeadThresholdMs = 120000;   // 120 seconds = stop kicking → WDOG1 fires
     
     // Initialize WDOG1 directly (not using coralmicro API which uses timers)
     wdog_config_t wdog_config;
@@ -532,22 +558,41 @@ static void CombinedWatchdogTask(void* param) {
             continue;
         }
         
-        // === DEAD ZONE: Both HTTP and REPL dead for > 25 seconds ===
-        // DO NOT KICK WDOG! It will reset in ~5-30 seconds.
+        // === DEAD ZONE: both HTTP and REPL idle > kDeadThresholdMs ===
+        // Log once, then stop kicking. WDOG1 fires 30s later.
+        // Belt-and-suspenders: also call NVIC_SystemReset after 35s in case
+        // WDOG1 doesn't fire (e.g. debugger attached with enableDebug=false override).
         g_network_healthy = false;
-        
-        char buf[48];
-        snprintf(buf, sizeof(buf), "DEAD idle=%lu H=%lu R=%lu",
-            min_idle / 1000, http_idle / 1000, repl_idle / 1000);
-        crash_log_write("WDG_DEAD", buf);
-        SERR_LOG(SERR_WDG_DEAD, min_idle / 1000);
-        
-        // Don't kick - WDOG1 will reset the CPU when it expires
-        // Log once more then wait for reset
-        vTaskDelay(pdMS_TO_TICKS(1000));
-        
-        // If we're still here, WDOG should reset soon
-        // Keep looping without kicking - reset is imminent
+        {
+            char buf[64];
+            snprintf(buf, sizeof(buf), "idle=%lu H=%lu R=%lu",
+                min_idle / 1000, http_idle / 1000, repl_idle / 1000);
+            crash_log_write("WDG_DEAD", buf);
+            SERR_LOG(SERR_WDG_DEAD, min_idle / 1000);
+        }
+        // Stop kicking. Give WDOG1 its 30s to fire, then force-reset.
+        for (int dead_wait = 0; dead_wait < 7; dead_wait++) {
+            vTaskDelay(pdMS_TO_TICKS(5000));  // 7 × 5s = 35s total wait
+            // Recovery check: if someone just used HTTP or REPL, cancel the dead state.
+            uint32_t t = xTaskGetTickCount() * portTICK_PERIOD_MS;
+            if ((t - g_http_last_activity) < kDeadThresholdMs ||
+                (t - g_repl_last_activity) < kDeadThresholdMs) {
+                // Interface came back — return to normal kicking
+                g_network_healthy = true;
+                consecutive_kicks = 0;
+                break;
+            }
+        }
+        // If still dead after 35s: WDOG1 should have fired. Force-reset as fallback.
+        {
+            uint32_t t = xTaskGetTickCount() * portTICK_PERIOD_MS;
+            if ((t - g_http_last_activity) >= kDeadThresholdMs &&
+                (t - g_repl_last_activity) >= kDeadThresholdMs) {
+                crash_log_write("WDG_RESET", "Force reset after sustained dead state");
+                vTaskDelay(pdMS_TO_TICKS(50));  // let crash log flush
+                NVIC_SystemReset();
+            }
+        }
         consecutive_kicks = 0;
     }
 }

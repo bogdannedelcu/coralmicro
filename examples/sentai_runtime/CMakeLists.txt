@@ -136,6 +136,7 @@ add_executable_m7(sentai_runtime
     sentai_link.cc
     sentai_crazy.cc
     sentai_httpd.cc
+    sentai_lfs_task.cc
     sentai_health.cc
     DATA
 )

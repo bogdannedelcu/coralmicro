@@ -45,6 +45,16 @@ __attribute__((weak)) void vApplicationMallocFailedHook(void) {
   }
 }
 
+// Weak fallback for stack overflow — overridden by vApplicationStackOverflowHook
+// in sentai_runtime.cc which saves a crash breadcrumb via SRC GPR and resets.
+__attribute__((weak)) void vApplicationStackOverflowHook(
+    TaskHandle_t xTask, char *pcTaskName) {
+  (void)xTask;
+  (void)pcTaskName;
+  while (1) {
+  }
+}
+
 // Weak no-op — configASSERT calls sentai_assert_fail() before resetting.
 // sentai_fault.cc provides the strong version that saves the GPR breadcrumb.
 // This fallback lets non-sentai firmware builds link without sentai_fault.cc.
