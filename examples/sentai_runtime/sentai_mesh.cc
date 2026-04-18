@@ -6,6 +6,8 @@
 #include "sentai_mesh.h"
 #include "sentai_tracker.h"
 #include "sentai_vision_common.h"
+#include "sentai_error.h"
+// #include "sentai_health.h"  // DISABLED: causing issues
 
 #include <cstdio>
 #include <cstring>
@@ -47,6 +49,17 @@ static SemaphoreHandle_t g_mesh_tx_mutex = nullptr;
 static uint32_t      g_mesh_my_node_num = 0;
 static uint32_t      g_mesh_packet_id = 1;
 
+// ===================== Health counters (P0 robustness) =====================
+static volatile uint32_t g_mesh_tx_ok = 0;       // successful TX
+static volatile uint32_t g_mesh_tx_fail = 0;     // TX errors (UART)
+static volatile uint32_t g_mesh_tx_timeout = 0;  // mutex timeout (critical!)
+static volatile uint32_t g_mesh_rx_ok = 0;       // messages received
+static volatile uint32_t g_mesh_rx_dropped = 0;  // queue full drops
+
+// Timeout for TX mutex (ms)
+static const TickType_t kMeshTxMutexTimeout = pdMS_TO_TICKS(100);
+static const int        kMeshTxRetries = 3;
+
 // Per-transport pose/config tracking state (shared logic in sentai_vision_common.h)
 static VisionTxState g_mesh_tx_state = VISION_TX_STATE_INIT;
 
@@ -62,6 +75,7 @@ extern "C" void sentai_mesh_set_pose(int32_t pitch_deg, int32_t roll_deg,
 // ===================== Frame send (with mutex) =====================
 
 // Send a framed Meshtastic serial packet: [0x94, 0xC3, len_msb, len_lsb, payload...]
+// Returns: 0=OK, -1=invalid len, -2=UART fail, -3=mutex timeout
 static int mesh_send_frame(const uint8_t* payload, int len) {
     if (len <= 0 || len > MESH_MAX_PAYLOAD) return -1;
 
@@ -71,12 +85,29 @@ static int mesh_send_frame(const uint8_t* payload, int len) {
     header[2] = (uint8_t)((len >> 8) & 0xFF);
     header[3] = (uint8_t)(len & 0xFF);
 
-    xSemaphoreTake(g_mesh_tx_mutex, portMAX_DELAY);
-    int n1 = sentai_uart_serial_write(header, 4);
-    int n2 = sentai_uart_serial_write(payload, len);
-    xSemaphoreGive(g_mesh_tx_mutex);
+    // P0 FIX: Timeout-based mutex acquire with retry (was portMAX_DELAY)
+    for (int retry = 0; retry < kMeshTxRetries; retry++) {
+        if (xSemaphoreTake(g_mesh_tx_mutex, kMeshTxMutexTimeout) == pdTRUE) {
+            int n1 = sentai_uart_serial_write(header, 4);
+            int n2 = sentai_uart_serial_write(payload, len);
+            xSemaphoreGive(g_mesh_tx_mutex);
 
-    return (n1 == 4 && n2 == len) ? 0 : -2;
+            if (n1 == 4 && n2 == len) {
+                g_mesh_tx_ok++;
+                // sentai_health_success(SUBSYS_MESH);  DISABLED
+                return 0;
+            } else {
+                g_mesh_tx_fail++;
+                // sentai_health_fail(SUBSYS_MESH);  DISABLED
+                return -2;
+            }
+        }
+    }
+
+    // All retries exhausted
+    g_mesh_tx_timeout++;
+    // sentai_health_timeout(SUBSYS_MESH);  DISABLED
+    return -3;
 }
 
 // ===================== ToRadio encode + send helpers =====================
@@ -161,7 +192,17 @@ static void mesh_handle_packet(const meshtastic_MeshPacket* pkt) {
             rx.text_len = (uint16_t)data->payload.size;
             memcpy(rx.text, data->payload.bytes, data->payload.size);
             rx.text[data->payload.size] = '\0';
-            xQueueSend(g_mesh_text_queue, &rx, 0);
+            // P2 FIX: Check queue send result
+            if (xQueueSend(g_mesh_text_queue, &rx, 0) == pdTRUE) {
+                g_mesh_rx_ok++;
+                // sentai_health_success(SUBSYS_MESH);  DISABLED
+            } else {
+                g_mesh_rx_dropped++;
+                // sentai_health_fail(SUBSYS_MESH);  DISABLED
+                if ((g_mesh_rx_dropped % 10) == 1) {  // rate-limit logs
+                    SERR_LOG(SERR_MESH_RX_DROP, g_mesh_rx_dropped);
+                }
+            }
         }
     }
 }

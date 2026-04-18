@@ -18,6 +18,9 @@
 #include <vector>
 #include <unistd.h>
 #include "build_version.h"
+#include "libs/base/watchdog.h"
+#include "third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_soc_src.h"
+#include "third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_wdog.h"
 
 extern "C" {
 #include "third_party/nxp/rt1176-sdk/middleware/libjpeg/inc/jpeglib.h"
@@ -28,6 +31,7 @@ extern "C" {
 #include "libs/base/filesystem.h"
 #include "libs/base/gpio.h"
 #include "libs/base/led.h"
+#include "libs/base/reset.h"
 #include "libs/camera/camera.h"
 #include "libs/libjpeg/jpeg.h"
 #include "libs/camera/camera_support.h"
@@ -53,6 +57,9 @@ extern "C" {
 }
 
 #include "sentai_vision_common.h"
+#include "sentai_error.h"
+#include "sentai_fault.h"
+#include "sentai_health.h"
 
 // ===================== Camera pipeline optimizations ========================
 // Set to 1 to enable, 0 to disable (safe revert).  Build #197+
@@ -89,6 +96,9 @@ static volatile bool g_boot_log_active = false;
 static volatile bool g_boot_log_fs_ready = false;
 static lfs_file_t g_boot_log_file;
 static bool g_boot_log_file_open = false;
+// Guards boot_log_flush_to_file() against concurrent flush from multiple tasks.
+// Uses GCC atomic test-and-set (lock-free, no RTOS dependency).
+static volatile uint32_t g_boot_log_flush_busy = 0;
 
 // Forward declare - flush buffer to file
 static void boot_log_flush_to_file();
@@ -131,16 +141,44 @@ static void boot_log_fs_init() {
     }
 }
 
-// Flush RAM buffer to file
+// Flush RAM buffer to file.
+// Re-entrant-safe: if another task/call is already flushing, returns immediately
+// (data is still in the RAM buffer and will be picked up on the next flush).
+// Must only be called from task context (not ISR) — enforced by callers.
 static void boot_log_flush_to_file() {
     if (!g_boot_log_file_open || g_boot_log_pos == 0) return;
-    
-    lfs_t* lfs = coralmicro::LfsUser();
-    if (!lfs) return;
 
-    lfs_file_write(lfs, &g_boot_log_file, g_boot_log_buf, g_boot_log_pos);
-    lfs_file_sync(lfs, &g_boot_log_file);
-    g_boot_log_pos = 0;
+    // Acquire flush lock — non-blocking (return if another flush is in progress)
+    if (__sync_lock_test_and_set(&g_boot_log_flush_busy, 1u) != 0u) return;
+
+    lfs_t* lfs = coralmicro::LfsUser();
+    if (lfs) {
+        // Snapshot the current byte count inside a critical section so we
+        // don't race with boot_log_write() appending new bytes.
+        UBaseType_t saved = taskENTER_CRITICAL_FROM_ISR();
+        size_t count = g_boot_log_pos;
+        taskEXIT_CRITICAL_FROM_ISR(saved);
+
+        if (count > 0) {
+            lfs_file_write(lfs, &g_boot_log_file, g_boot_log_buf, count);
+            lfs_file_sync(lfs, &g_boot_log_file);
+
+            // Reset only the bytes we already wrote; bytes appended during the
+            // write remain at the front of the buffer for the next flush.
+            saved = taskENTER_CRITICAL_FROM_ISR();
+            if (g_boot_log_pos >= count) {
+                size_t remaining = g_boot_log_pos - count;
+                if (remaining > 0)
+                    memmove(g_boot_log_buf, g_boot_log_buf + count, remaining);
+                g_boot_log_pos = remaining;
+            } else {
+                g_boot_log_pos = 0;
+            }
+            taskEXIT_CRITICAL_FROM_ISR(saved);
+        }
+    }
+
+    __sync_lock_release(&g_boot_log_flush_busy);
 }
 
 // Add data to boot log (from _write override)
@@ -186,6 +224,362 @@ void boot_log_stop() {
         }
         g_boot_log_file_open = false;
     }
+}
+
+// =============================================================================
+// Crash/Hang Logging System + Hardware Watchdog
+// =============================================================================
+// Saves crash/hang info to /log/crash_NNN.log for post-mortem analysis.
+// Keeps multiple crash logs (kCrashLogMaxFiles) with automatic rotation.
+// Hardware watchdog auto-resets board if BOTH HTTP AND REPL are dead for 120s.
+// This ensures the board can always be recovered remotely.
+
+static constexpr size_t kCrashLogMaxSize = 8 * 1024;   // Max size per crash log file
+static constexpr int kCrashLogMaxFiles = 10;           // Keep last N crash logs
+
+// Activity tracking - HTTP and REPL
+static volatile uint32_t g_http_last_activity = 0;    // Last HTTP activity tick
+static volatile uint32_t g_http_request_count = 0;    // Total HTTP requests
+static volatile uint32_t g_http_hang_count = 0;       // Detected hangs
+static volatile bool g_network_healthy = true;        // Network health flag
+
+static volatile uint32_t g_repl_last_activity = 0;    // Last REPL activity tick
+static volatile uint32_t g_repl_input_count = 0;      // Total REPL inputs
+
+// Hardware watchdog control
+static volatile bool g_hw_watchdog_enabled = false;
+static volatile bool g_force_reset_pending = false;
+
+// Handle for the normal-mode watchdog task (saved so it can be monitored).
+static TaskHandle_t s_wdog_task_handle = nullptr;
+
+// Anti-brick recovery mode flag (set when boot_attempts >= 3)
+static volatile bool s_in_recovery_mode = false;
+
+// Current crash log number (persisted across rotations)
+static int g_crash_log_num = -1;  // -1 = not initialized
+
+// Find highest existing crash log number and set g_crash_log_num
+static void crash_log_init(lfs_t* lfs) {
+    if (g_crash_log_num >= 0) return;  // Already initialized
+    
+    lfs_dir_t dir;
+    if (lfs_dir_open(lfs, &dir, "/log") != LFS_ERR_OK) {
+        g_crash_log_num = 0;
+        return;
+    }
+    
+    int max_num = -1;
+    lfs_info info;
+    while (lfs_dir_read(lfs, &dir, &info) > 0) {
+        // Look for crash_NNN.log pattern
+        if (info.type == LFS_TYPE_REG && 
+            strncmp(info.name, "crash_", 6) == 0 &&
+            strlen(info.name) == 14) {  // crash_NNN.log = 14 chars
+            int num = atoi(info.name + 6);
+            if (num > max_num) max_num = num;
+        }
+    }
+    lfs_dir_close(lfs, &dir);
+    
+    g_crash_log_num = (max_num >= 0) ? max_num : 0;
+}
+
+// Get current crash log path, rotate if needed
+static void crash_log_get_path(lfs_t* lfs, char* path, size_t path_len) {
+    crash_log_init(lfs);
+    
+    // Check if current file is too big
+    snprintf(path, path_len, "/log/crash_%03d.log", g_crash_log_num);
+    
+    lfs_info info;
+    if (lfs_stat(lfs, path, &info) == LFS_ERR_OK) {
+        if (info.size > kCrashLogMaxSize - 640) {
+            // Rotate to next file
+            g_crash_log_num++;
+            snprintf(path, path_len, "/log/crash_%03d.log", g_crash_log_num);
+            
+            // Delete oldest if we have too many
+            if (g_crash_log_num >= kCrashLogMaxFiles) {
+                char old_path[32];
+                snprintf(old_path, sizeof(old_path), "/log/crash_%03d.log", 
+                         g_crash_log_num - kCrashLogMaxFiles);
+                lfs_remove(lfs, old_path);
+            }
+        }
+    }
+}
+
+// Write crash entry to /log/crash_NNN.log
+static void crash_log_write(const char* event, const char* details) {
+    lfs_t* lfs = coralmicro::LfsUser();
+    if (!lfs) return;
+    
+    // Create /log directory if it doesn't exist
+    lfs_mkdir(lfs, "/log");
+    
+    // Build timestamp (uptime in ms)
+    uint32_t uptime_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
+    uint32_t secs = uptime_ms / 1000;
+    uint32_t mins = secs / 60;
+    uint32_t hours = mins / 60;
+    
+    uint32_t http_idle = uptime_ms - g_http_last_activity;
+    uint32_t repl_idle = uptime_ms - g_repl_last_activity;
+    
+    // Format entry with both HTTP and REPL status
+    char entry[640];
+    int len = snprintf(entry, sizeof(entry),
+        "[%02lu:%02lu:%02lu.%03lu] %s: %s\r\n"
+        "  HTTP: reqs=%lu hangs=%lu idle=%lums\r\n"
+        "  REPL: inputs=%lu idle=%lums\r\n"
+        "  Network=%d FreeHeap=%lu\r\n\r\n",
+        hours, mins % 60, secs % 60, uptime_ms % 1000,
+        event, details ? details : "",
+        (unsigned long)g_http_request_count,
+        (unsigned long)g_http_hang_count,
+        (unsigned long)http_idle,
+        (unsigned long)g_repl_input_count,
+        (unsigned long)repl_idle,
+        g_network_healthy ? 1 : 0,
+        (unsigned long)xPortGetFreeHeapSize());
+    
+    // Get current log path (may rotate)
+    char path[32];
+    crash_log_get_path(lfs, path, sizeof(path));
+    
+    // Append to crash log
+    lfs_file_t file;
+    if (lfs_file_open(lfs, &file, path,
+                      LFS_O_WRONLY | LFS_O_CREAT | LFS_O_APPEND) == LFS_ERR_OK) {
+        lfs_file_write(lfs, &file, entry, len);
+        lfs_file_close(lfs, &file);
+    }
+}
+
+// Called from HTTP handler on each request
+extern "C" void sentai_http_activity(void) {
+    g_http_last_activity = xTaskGetTickCount() * portTICK_PERIOD_MS;
+    g_http_request_count++;
+    g_network_healthy = true;
+}
+
+// Called from REPL when user types input
+extern "C" void sentai_repl_activity(void) {
+    g_repl_last_activity = xTaskGetTickCount() * portTICK_PERIOD_MS;
+    g_repl_input_count++;
+}
+
+// Called when HTTP hang is detected
+extern "C" void sentai_http_hang_detected(const char* details) {
+    g_http_hang_count++;
+    g_network_healthy = false;
+    crash_log_write("HTTP_HANG", details);
+}
+
+// Called on any crash/error condition
+extern "C" void sentai_crash_log(const char* event, const char* details) {
+    crash_log_write(event, details);
+}
+
+// Returns the path of the most recent crash log file, or "" if none.
+// Safe to call from any task context.
+extern "C" void sentai_get_last_crash_log_path(char* out, size_t out_len) {
+    if (!out || out_len == 0) return;
+    out[0] = '\0';
+
+    lfs_t* lfs = coralmicro::LfsUser();
+    if (!lfs) return;
+
+    lfs_dir_t dir;
+    if (lfs_dir_open(lfs, &dir, "/log") != LFS_ERR_OK) return;
+
+    int max_num = -1;
+    lfs_info info;
+    while (lfs_dir_read(lfs, &dir, &info) > 0) {
+        if (info.type == LFS_TYPE_REG &&
+            strncmp(info.name, "crash_", 6) == 0 &&
+            strlen(info.name) == 14) {  // crash_NNN.log
+            int num = atoi(info.name + 6);
+            if (num > max_num) max_num = num;
+        }
+    }
+    lfs_dir_close(lfs, &dir);
+
+    if (max_num >= 0) {
+        snprintf(out, out_len, "/log/crash_%03d.log", max_num);
+    }
+}
+
+// ===================== Anti-Brick C-API (called from modsentai_sys.c) =====================
+
+extern "C" bool sentai_is_recovery_mode(void) {
+    return s_in_recovery_mode;
+}
+
+extern "C" uint32_t sentai_get_boot_attempts(void) {
+    return SRC_GetGeneralPurposeRegister(SRC, kSRC_GeneralPurposeRegister1);
+}
+
+extern "C" void sentai_sys_do_reset(void) {
+    crash_log_write("SYS_RESET", "User-requested software reset from REPL");
+    vTaskDelay(pdMS_TO_TICKS(50));
+    NVIC_SystemReset();
+}
+
+// Getter functions for REPL access
+extern "C" uint32_t sentai_get_http_requests(void) {
+    return g_http_request_count;
+}
+extern "C" uint32_t sentai_get_http_hangs(void) {
+    return g_http_hang_count;
+}
+extern "C" int sentai_get_network_healthy(void) {
+    return g_network_healthy ? 1 : 0;
+}
+extern "C" uint32_t sentai_get_repl_inputs(void) {
+    return g_repl_input_count;
+}
+
+// Combined watchdog task - monitors BOTH HTTP and REPL activity
+// Uses HARDWARE WATCHDOG (WDOG1) which resets CPU even if scheduler is blocked!
+// Strategy:
+// - WDOG1 timeout = 30s (hardware, independent of CPU)
+// - Task kicks WDOG1 every 5s IF system is healthy
+// - If task doesn't run (CPU blocked) -> WDOG1 resets automatically
+// - If system hangs (no activity) -> we don't kick -> WDOG1 resets
+static void CombinedWatchdogTask(void* param) {
+    (void)param;
+    
+    // === Hardware Watchdog Configuration ===
+    // Timeout = 30 seconds, kick every 5 seconds
+    // WDOG1 runs on 32kHz clock, independent of CPU
+    constexpr uint32_t kWdogTimeoutSec = 30;
+    constexpr uint32_t kKickIntervalMs = 5000;   // Kick every 5 seconds
+    constexpr uint32_t kDeadThresholdMs = 25000; // 25 seconds without activity = stop kicking
+    constexpr uint32_t kWarningThresholdMs = 15000; // 15 seconds = warning
+    
+    // Initialize WDOG1 directly (not using coralmicro API which uses timers)
+    wdog_config_t wdog_config;
+    WDOG_GetDefaultConfig(&wdog_config);
+    wdog_config.timeoutValue = (kWdogTimeoutSec * 2) - 1;  // Register value = (timeout_s * 2) - 1
+    wdog_config.enableWdog = true;
+    wdog_config.workMode.enableWait = true;
+    wdog_config.workMode.enableStop = false;
+    wdog_config.workMode.enableDebug = false;  // IMPORTANT: Don't stop in debugger
+    wdog_config.enableInterrupt = false;       // No interrupt, just reset
+    
+    // Brief settling delay — USB CDC is already up after main_freertos init,
+    // and most subsystems are fully started well within 3 s.  The old 10 s
+    // delay left a window where a runaway task could hang the board without
+    // any hardware watchdog active.
+    vTaskDelay(pdMS_TO_TICKS(3000));
+    
+    // Initialize activity timestamps to now
+    uint32_t boot_time = xTaskGetTickCount() * portTICK_PERIOD_MS;
+    g_http_last_activity = boot_time;
+    g_repl_last_activity = boot_time;
+    
+    // Enable hardware watchdog
+    WDOG_Init(WDOG1, &wdog_config);
+    g_hw_watchdog_enabled = true;
+    
+    // WDG initialized: timeout, kick interval, dead threshold
+    SERR_LOG(SERR_WDG_KICK, kWdogTimeoutSec);
+    
+    uint32_t last_warning_time = 0;
+    uint32_t consecutive_kicks = 0;
+    
+    for (;;) {
+        vTaskDelay(pdMS_TO_TICKS(kKickIntervalMs));
+        
+        uint32_t now = xTaskGetTickCount() * portTICK_PERIOD_MS;
+        sentai_fault_set_uptime(now);  // update crash timestamp hint for fault handler
+        uint32_t http_idle = now - g_http_last_activity;
+        uint32_t repl_idle = now - g_repl_last_activity;
+        
+        // Find the most recent activity (either HTTP or REPL)
+        uint32_t min_idle = (http_idle < repl_idle) ? http_idle : repl_idle;
+        
+        // === HEALTHY: At least one interface active recently ===
+        if (min_idle < kWarningThresholdMs) {
+            // All good - kick the watchdog
+            WDOG_Refresh(WDOG1);
+            g_network_healthy = true;
+            consecutive_kicks++;
+            
+            // Log periodic status (every 60 kicks = ~5 minutes)
+            if (consecutive_kicks % 60 == 0) {
+                SERR_LOG(SERR_WDG_KICK, now / 1000);
+            }
+            continue;
+        }
+        
+        // === WARNING ZONE: 15-25s without activity ===
+        if (min_idle >= kWarningThresholdMs && min_idle < kDeadThresholdMs) {
+            // Still kick, but log warning (once per warning period)
+            WDOG_Refresh(WDOG1);
+            
+            if (now - last_warning_time > 10000) {  // Log every 10s max
+                last_warning_time = now;
+                char buf[64];
+                snprintf(buf, sizeof(buf), "idle=%lu H=%lu R=%lu",
+                    min_idle / 1000, http_idle / 1000, repl_idle / 1000);
+                crash_log_write("WDG_WARN", buf);
+                SERR_LOG(SERR_WDG_WARN, min_idle / 1000);
+            }
+            consecutive_kicks = 0;
+            continue;
+        }
+        
+        // === DEAD ZONE: Both HTTP and REPL dead for > 25 seconds ===
+        // DO NOT KICK WDOG! It will reset in ~5-30 seconds.
+        g_network_healthy = false;
+        
+        char buf[48];
+        snprintf(buf, sizeof(buf), "DEAD idle=%lu H=%lu R=%lu",
+            min_idle / 1000, http_idle / 1000, repl_idle / 1000);
+        crash_log_write("WDG_DEAD", buf);
+        SERR_LOG(SERR_WDG_DEAD, min_idle / 1000);
+        
+        // Don't kick - WDOG1 will reset the CPU when it expires
+        // Log once more then wait for reset
+        vTaskDelay(pdMS_TO_TICKS(1000));
+        
+        // If we're still here, WDOG should reset soon
+        // Keep looping without kicking - reset is imminent
+        consecutive_kicks = 0;
+    }
+}
+
+// ===================== Recovery Mode (Anti-Brick) =====================
+
+// Watchdog task for recovery mode: always kicks WDOG1.
+// Recovery mode is minimal and stable — no risk of crashes.
+static void RecoveryWatchdogTask(void* param) {
+    (void)param;
+    wdog_config_t wdog_config;
+    WDOG_GetDefaultConfig(&wdog_config);
+    wdog_config.timeoutValue  = (30 * 2) - 1; // 30-second timeout
+    wdog_config.enableWdog    = true;
+    wdog_config.workMode.enableWait  = true;
+    wdog_config.workMode.enableStop  = false;
+    wdog_config.workMode.enableDebug = false;
+    wdog_config.enableInterrupt      = false;
+    WDOG_Init(WDOG1, &wdog_config);
+    g_hw_watchdog_enabled = true;
+    for (;;) {
+        WDOG_Refresh(WDOG1);
+        vTaskDelay(pdMS_TO_TICKS(5000));
+    }
+}
+
+// Start the hardware watchdog task at HIGH PRIORITY
+// Priority should be just below ISRs (configMAX_PRIORITIES - 2)
+// This ensures the task runs even if other tasks are starved
+static void start_network_watchdog(void) {
+    xTaskCreate(CombinedWatchdogTask, "hw_wdog", 2048, nullptr, 
+                configMAX_PRIORITIES - 2, &s_wdog_task_handle);
 }
 
 }  // anonymous namespace
@@ -283,8 +677,109 @@ void Main() {
 }  // namespace
 }  // namespace coralmicro
 
+// Enter RECOVERY MODE: minimal USB + REPL only, no application code.
+// Called when boot_attempts >= 3 (consecutive crash/hang loop detected).
+// USB CDC is already up (initialized by main_freertos before app_main),
+// so the board is ALWAYS reflashable without button press.
+// NEVER returns — parks in coralmicro::Main().
+[[noreturn]] static void enter_recovery_mode(uint32_t attempts) {
+    s_in_recovery_mode = true;
+
+    // Minimal subsystem init — only what REPL needs
+    sentai_health_init();
+    boot_log_init();
+    coralmicro::app_start_tick = xTaskGetTickCount();
+
+    // Log to UART and boot log RAM buffer
+    SERR_LOG(SERR_SYS_RECOVERY_MODE, attempts);
+    coralmicro::logf("\r\n*** RECOVERY MODE *** boot loop after %lu attempts\r\n",
+                     (unsigned long)attempts);
+    coralmicro::logf("Reflash: python3 scripts/flashtool.py -e sentai_runtime\r\n");
+
+    // Mount LFS + open /log/boot.log (LFS already mounted by main_freertos)
+    boot_log_fs_init();
+
+    // Write recovery event to crash log for post-mortem analysis
+    crash_log_write("RECOVERY_MODE", "Boot loop: 3+ consecutive crashes");
+
+    // Start MicroPython REPL — user can inspect files, check status, reflash
+    micropython_start_repl_task(16384, tskIDLE_PRIORITY + 1);
+
+    // Start recovery watchdog (unconditionally kicks — recovery mode never crashes)
+    xTaskCreate(RecoveryWatchdogTask, "rcv_wdog", 512, nullptr,
+                configMAX_PRIORITIES - 2, nullptr);
+
+    // Mark boot complete:
+    //   - Clears SRC_GPR boot counter → next boot (after reflash) starts fresh
+    //   - Marks REPL as healthy for diag API
+    sentai_health_boot_complete();
+
+    // Override system mode to RECOVERY so sentai.diag.sys_mode() returns "RECOVERY"
+    sentai_health_set_recovery_mode();
+
+    coralmicro::logf("Recovery: REPL active, boot counter cleared.\r\n");
+
+    // Park here — REPL task handles all user interaction
+    coralmicro::Main();
+    for (;;) {}  // unreachable — silences [[noreturn]] warning
+}
+
+// FreeRTOS hook: Called when stack overflow is detected
+extern "C" void vApplicationStackOverflowHook(TaskHandle_t xTask,
+                                              char* pcTaskName) {
+    (void)xTask;
+    // Pack first 4 chars of task name into a uint32 for the breadcrumb
+    uint32_t name_hash = 0;
+    for (int i = 0; i < 4 && pcTaskName[i]; i++) {
+        name_hash = (name_hash << 8) | (uint8_t)pcTaskName[i];
+    }
+    // Save crash breadcrumb: fault_addr = task name hash, lr = return addr
+    sentai_fault_save(SERR_SYS_STACK_OVF,
+                      /*pc=*/0,
+                      /*lr=*/(uint32_t)__builtin_return_address(0),
+                      /*cfsr=*/0,
+                      /*fault_addr=*/name_hash,
+                      /*uptime_ms=*/g_sentai_uptime_ms,
+                      /*r0=*/0);
+    printf("\r\n*** STACK OVERFLOW in task '%.16s' — resetting\r\n", pcTaskName);
+    SERR_LOG(SERR_SYS_STACK_OVF, name_hash);
+    // Reset immediately — watchdog/boot counter will handle repeated failures
+    (*(volatile uint32_t*)0xE000ED0CUL) = (0x5FAUL << 16U) | (1UL << 2U);
+    for (;;) {}
+}
+
 extern "C" void app_main(void* param) {
   (void)param;
+
+  // === PHASE 8: BOOT LOOP DETECTION — MUST BE FIRST ===
+  // SRC_GPR[kSRC_GeneralPurposeRegister1] survives warm reset (WDOG / SW reset)
+  // but is cleared on cold boot (power cycle). Provides automatic anti-brick:
+  //   - Increment counter on every boot attempt
+  //   - If >= 3 consecutive failed boots → automatic RECOVERY MODE (no user action)
+  //   - Counter cleared by sentai_health_boot_complete() after healthy boot
+  // USB CDC is already up (init'd in main_freertos before vTaskStartScheduler),
+  // so NXP USB ID is visible even in recovery mode — board can ALWAYS be reflashed.
+  //
+  // Also reads and immediately clears any crash breadcrumb left in GPR2-8 by a
+  // previous fault handler (HardFault, stack overflow, malloc fail, assert).
+  // The record is written to /log/crash.log below, after LFS mounts.
+
+  // Read crash record from previous boot BEFORE clearing GPRs.
+  sentai_crash_record_t s_prev_crash;
+  bool s_has_prev_crash = sentai_fault_read(&s_prev_crash);
+  sentai_fault_clear();  // clear immediately so fresh crashes get their own slot
+
+  {
+    uint32_t boot_attempts = SRC_GetGeneralPurposeRegister(SRC, kSRC_GeneralPurposeRegister1);
+    SRC_SetGeneralPurposeRegister(SRC, kSRC_GeneralPurposeRegister1, boot_attempts + 1);
+    SERR_LOG(SERR_SYS_BOOT_ATTEMPT, boot_attempts + 1);
+    if (boot_attempts >= 3) {
+      enter_recovery_mode(boot_attempts);  // [[noreturn]]
+    }
+  }
+
+  // Initialize health monitoring FIRST
+  sentai_health_init();
   
   // Initialize boot logging FIRST (before any printf)
   boot_log_init();
@@ -292,10 +787,71 @@ extern "C" void app_main(void* param) {
   coralmicro::app_start_tick = xTaskGetTickCount();
   coralmicro::logf("\r\nSentAI build #%d (%s)\r\n", BUILD_VERSION, BUILD_TIMESTAMP);
   
+  // Check and log previous reset reason
+  coralmicro::ResetStats stats = coralmicro::ResetGetStats();
+  if (stats.reset_reason != 0) {
+    coralmicro::logf("Reset reason: 0x%08lX ", (unsigned long)stats.reset_reason);
+    if (stats.reset_reason & kSRC_M7CoreWdogResetFlag) {
+      coralmicro::logf("[WATCHDOG#%lu] ", (unsigned long)stats.watchdog_resets);
+      // Log watchdog reset to crash log
+      sentai_crash_log("BOOT_AFTER_WATCHDOG", "Previous reset was watchdog timeout");
+    }
+    if (stats.reset_reason & kSRC_M7CoreM7LockUpResetFlag) {
+      coralmicro::logf("[LOCKUP#%lu] ", (unsigned long)stats.lockup_resets);
+      sentai_crash_log("BOOT_AFTER_LOCKUP", "Previous reset was CPU lockup");
+    }
+    coralmicro::logf("\r\n");
+  }
+  
   // Initialize LFS and boot log file
   // LFS should be initialized by main_freertos before app_main
   boot_log_fs_init();
   coralmicro::logf("Boot logging to /log/boot.log\r\n");
+
+  // Write crash breadcrumb from previous boot to /log/crash.log (LFS now ready)
+  if (s_has_prev_crash) {
+    // Map error code to a short name
+    const char* fault_name;
+    switch (s_prev_crash.code) {
+      case SERR_SYS_HARDFAULT:   fault_name = "HARDFAULT";   break;
+      case SERR_SYS_STACK_OVF:   fault_name = "STACK_OVF";   break;
+      case SERR_SYS_MALLOC_FAIL: fault_name = "MALLOC_FAIL"; break;
+      case SERR_SYS_ASSERT:      fault_name = "ASSERT";       break;
+      case SERR_SYS_BUS_FAULT:   fault_name = "BUS_FAULT";   break;
+      case SERR_SYS_USAGE_FAULT: fault_name = "USAGE_FAULT"; break;
+      case SERR_SYS_MEMMANAGE:   fault_name = "MEMMANAGE";   break;
+      default:                   fault_name = "UNKNOWN_FAULT"; break;
+    }
+    // Decode CFSR into a short readable flag string
+    char cfsr_flags[64] = "";
+    uint32_t cf = s_prev_crash.cfsr;
+    if (cf & 0x00000001UL) strncat(cfsr_flags, "IACCVIOL ",  sizeof(cfsr_flags)-strlen(cfsr_flags)-1);
+    if (cf & 0x00000002UL) strncat(cfsr_flags, "DACCVIOL ",  sizeof(cfsr_flags)-strlen(cfsr_flags)-1);
+    if (cf & 0x00000200UL) strncat(cfsr_flags, "INVSTATE ",  sizeof(cfsr_flags)-strlen(cfsr_flags)-1);
+    if (cf & 0x00000400UL) strncat(cfsr_flags, "INVPC ",     sizeof(cfsr_flags)-strlen(cfsr_flags)-1);
+    if (cf & 0x00001000UL) strncat(cfsr_flags, "PRECISERR ", sizeof(cfsr_flags)-strlen(cfsr_flags)-1);
+    if (cf & 0x00002000UL) strncat(cfsr_flags, "STKER ",     sizeof(cfsr_flags)-strlen(cfsr_flags)-1);
+    if (cf & 0x00004000UL) strncat(cfsr_flags, "LSPER ",     sizeof(cfsr_flags)-strlen(cfsr_flags)-1);
+    if (cf & 0x00010000UL) strncat(cfsr_flags, "UNALIGNED ", sizeof(cfsr_flags)-strlen(cfsr_flags)-1);
+    if (cf & 0x00020000UL) strncat(cfsr_flags, "DIVBYZERO ", sizeof(cfsr_flags)-strlen(cfsr_flags)-1);
+    if (cf & 0x40000000UL) strncat(cfsr_flags, "VECTTBL ",   sizeof(cfsr_flags)-strlen(cfsr_flags)-1);
+    if (cfsr_flags[0] == '\0') strncat(cfsr_flags, "-", sizeof(cfsr_flags)-1);
+
+    char details[220];
+    snprintf(details, sizeof(details),
+             "code=0x%04X PC=0x%08lX LR=0x%08lX "
+             "CFSR=0x%08lX[%s] BFAR=0x%08lX up=%lums r0=0x%08lX",
+             (unsigned)s_prev_crash.code,
+             (unsigned long)s_prev_crash.pc,
+             (unsigned long)s_prev_crash.lr,
+             (unsigned long)s_prev_crash.cfsr,
+             cfsr_flags,
+             (unsigned long)s_prev_crash.fault_addr,
+             (unsigned long)s_prev_crash.uptime_ms,
+             (unsigned long)s_prev_crash.r0);
+    sentai_crash_log(fault_name, details);
+    coralmicro::logf("Prev crash recovered: %s %s\r\n", fault_name, details);
+  }
 
   // User button task: waits for notification from ISR, then safely
   // calls sentai_usb_drive_set(0) from task context (not ISR).
@@ -328,6 +884,17 @@ extern "C" void app_main(void* param) {
   // Launch MicroPython REPL task (interactive Python over serial)
   coralmicro::logf("Starting MicroPython REPL task...\r\n");
   micropython_start_repl_task(16384, tskIDLE_PRIORITY + 1);
+
+  // Start combined watchdog (monitors HTTP + REPL, auto-resets if both dead)
+  start_network_watchdog();
+  coralmicro::logf("Watchdog started (auto-reset if HTTP+REPL dead for 2min)\r\n");
+
+  // Mark boot complete — transitions from BOOTING to NORMAL (if healthy)
+  sentai_health_boot_complete();
+  coralmicro::logf("Boot complete, system mode: %s\r\n",
+      sentai_health_system_mode() == SYS_MODE_NORMAL ? "NORMAL" :
+      sentai_health_system_mode() == SYS_MODE_DEGRADED ? "DEGRADED" :
+      sentai_health_system_mode() == SYS_MODE_SAFE ? "SAFE" : "?");
 
   coralmicro::Main();
   // Main() parks itself with vTaskSuspend - never returns

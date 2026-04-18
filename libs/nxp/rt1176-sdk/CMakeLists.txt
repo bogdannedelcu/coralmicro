@@ -184,7 +184,11 @@ set(libs_nxp_rt1176-sdk-mcmgr_SOURCES
 )
 
 set(libs_nxp_rt1176-sdk-mcmgr_COMPILE_DEFINITIONS
-    MCMGR_HANDLE_EXCEPTIONS=1
+    # Disable MCMgr's built-in fault handlers (HardFault_Handler, DefaultISR, etc.)
+    # so that application-level handlers can be provided without linker conflicts.
+    # MCMgr's handlers loop forever without resetting — application handlers that
+    # save diagnostic breadcrumbs and reset are strictly better for all builds.
+    MCMGR_HANDLE_EXCEPTIONS=0
 )
 
 add_library_m7(libs_nxp_rt1176-sdk-mcmgr_m7 OBJECT
@@ -429,6 +433,31 @@ target_compile_definitions(libs_nxp_rt1176-sdk_lwip_httpd PUBLIC
 
 target_link_libraries(libs_nxp_rt1176-sdk_lwip_httpd
     libs_nxp_rt1176-sdk_lwip
+)
+
+# NXP httpsrv - socket-based HTTP server (more stable than lwIP httpd)
+add_library_m7(libs_nxp_rt1176-sdk_lwip_httpsrv
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/lwip/src/apps/httpsrv/httpsrv.c
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/lwip/src/apps/httpsrv/httpsrv_base64.c
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/lwip/src/apps/httpsrv/httpsrv_fs.c
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/lwip/src/apps/httpsrv/httpsrv_script.c
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/lwip/src/apps/httpsrv/httpsrv_supp.c
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/lwip/src/apps/httpsrv/httpsrv_task.c
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/lwip/src/apps/httpsrv/httpsrv_utf8.c
+)
+
+target_compile_definitions(libs_nxp_rt1176-sdk_lwip_httpsrv PUBLIC
+    HTTPSRV_CFG_WEBSOCKET_ENABLED=0
+    HTTPSRV_CFG_DEFAULT_SES_CNT=2
+    HTTPSRV_CFG_SES_BUFFER_SIZE=1360
+    HTTPSRV_CFG_DEFAULT_URL_LEN=128
+    HTTPSRV_CFG_KEEPALIVE_ENABLED=0
+    HTTPSRV_CFG_SES_TIMEOUT=20000
+)
+
+target_link_libraries(libs_nxp_rt1176-sdk_lwip_httpsrv
+    libs_nxp_rt1176-sdk_lwip
+    libs_nxp_rt1176-sdk_freertos
 )
 
 add_library_m7(libs_nxp_rt1176-sdk_lwip_mdns

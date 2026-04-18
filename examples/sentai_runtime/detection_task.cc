@@ -19,6 +19,8 @@
 
 #include "detection_task.h"
 #include "sentai_tracker.h"
+#include "sentai_error.h"
+#include "sentai_health.h"
 
 #include <cmath>
 #include <cstdio>
@@ -85,12 +87,23 @@ static TaskHandle_t s_infer_task = nullptr;
 // Control
 static volatile bool s_running = false;
 
-// Statistics
-static volatile uint32_t s_frames_processed = 0;
-static volatile uint32_t s_frames_dropped   = 0;
-static TickType_t        s_start_tick        = 0;
+// Statistics (P3 FIX: use atomic operations for thread safety)
+static uint32_t s_frames_processed = 0;  // accessed via __atomic
+static uint32_t s_frames_dropped   = 0;  // accessed via __atomic
+static TickType_t s_start_tick      = 0;
+
+// Per-task liveness timestamps — tick when each stage last completed a frame.
+// PrepTask updates after xSemaphoreGive(s_sem_prep_done).
+// InferTask updates after sentai_health_success().
+// Zero means the stage has not yet completed a single frame since start.
+// Allows external callers to detect which pipeline stage is stuck.
+static volatile TickType_t s_last_prep_frame_tick  = 0;
+static volatile TickType_t s_last_infer_frame_tick = 0;
 
 // Staging metadata (written by PrepTask, read by InferTask after semaphore)
+// The semaphore handoff pattern ensures correct ordering:
+//   PrepTask: write metadata → give(prep_done)
+//   InferTask: take(prep_done) → read metadata
 static int      s_stg_w  = 0;
 static int      s_stg_h  = 0;
 static int      s_stg_ch = 0;
@@ -101,12 +114,16 @@ static uint32_t s_stg_frame_seq = 0;
 // PrepTask: Camera → PXP → int8 quant → staging buffer
 // ---------------------------------------------------------------------------
 static void prep_task_fn(void* /*param*/) {
-    printf("[DetPipe] PrepTask started\r\n");
+    // PrepTask started
+
+    // Rate-limit camera-miss health reports: report every 10th consecutive miss.
+    // Normal transient misses (camera busy) do not pollute the health record.
+    int cam_miss_streak = 0;
 
     while (s_running) {
         // Wait until staging buffer is free
         if (xSemaphoreTake(s_sem_staging_free, pdMS_TO_TICKS(100)) != pdTRUE) {
-            continue;  // timeout — recheck s_running
+            continue;  // timeout — recheck s_running (normal when pipeline just started)
         }
         if (!s_running) break;
 
@@ -114,6 +131,7 @@ static void prep_task_fn(void* /*param*/) {
         int w = 0, h = 0, ch = 0, type = 0, zp = 0;
         uint8_t* tensor_buf = nullptr;
         if (sentai_get_tensor_info(&w, &h, &ch, &tensor_buf, &type, &zp) != 0) {
+            sentai_health_fail(SUBSYS_DETECT);
             xSemaphoreGive(s_sem_staging_free);
             vTaskDelay(pdMS_TO_TICKS(100));
             continue;
@@ -121,8 +139,8 @@ static void prep_task_fn(void* /*param*/) {
 
         int total = w * h * ch;
         if (total > kMaxStagingSize) {
-            printf("[DetPipe] ERROR: tensor %dx%dx%d = %d > staging %d\r\n",
-                   w, h, ch, total, kMaxStagingSize);
+            SERR_LOG(SERR_DET_TENSOR_SIZE, total);
+            sentai_health_fail(SUBSYS_DETECT);
             xSemaphoreGive(s_sem_staging_free);
             vTaskDelay(pdMS_TO_TICKS(1000));
             continue;
@@ -132,10 +150,18 @@ static void prep_task_fn(void* /*param*/) {
         uint8_t* raw = nullptr;
         int idx = sentai_cam_grab_latest(&raw);
         if (idx < 0 || !raw) {
+            // Rate-limit: only report to health after 10 consecutive camera misses.
+            // A single miss is normal (no frame available yet); sustained misses
+            // indicate a camera hardware or driver failure.
+            if (++cam_miss_streak >= 10) {
+                sentai_health_fail(SUBSYS_DETECT);
+                cam_miss_streak = 0;
+            }
             xSemaphoreGive(s_sem_staging_free);
             vTaskDelay(pdMS_TO_TICKS(10));
             continue;
         }
+        cam_miss_streak = 0;  // reset on successful frame grab
 
         // PXP hardware: XRGB8888 → RGB888P, scaled to model input size
         // Writes to staging buffer (NOT the TFLite tensor).
@@ -144,6 +170,9 @@ static void prep_task_fn(void* /*param*/) {
         sentai_cam_return_raw(idx);
 
         if (rc != 0) {
+            // PXP failure is always reportable — hardware error, not a transient miss.
+            SERR_LOG(SERR_DET_INVOKE_FAIL, (uint32_t)rc);  // reuse invoke-fail code for PXP
+            sentai_health_fail(SUBSYS_DETECT);
             xSemaphoreGive(s_sem_staging_free);
             continue;
         }
@@ -160,11 +189,14 @@ static void prep_task_fn(void* /*param*/) {
         s_stg_total = total;
         s_stg_frame_seq = sentai_cam_get_frame_seq();
 
-        // Signal InferTask: staging buffer has a new prepared frame
+        // Signal InferTask: staging buffer has a new prepared frame.
+        // Record liveness timestamp *before* signalling so InferTask's pick-up
+        // can never race with an uninitialized tick.
+        s_last_prep_frame_tick = xTaskGetTickCount();
         xSemaphoreGive(s_sem_prep_done);
     }
 
-    printf("[DetPipe] PrepTask exiting\r\n");
+    // PrepTask exiting
     s_prep_task = nullptr;
     vTaskDelete(nullptr);
 }
@@ -173,7 +205,7 @@ static void prep_task_fn(void* /*param*/) {
 // InferTask: memcpy staging→tensor → Invoke → NMS → queue
 // ---------------------------------------------------------------------------
 static void infer_task_fn(void* /*param*/) {
-    printf("[DetPipe] InferTask started\r\n");
+    // InferTask started
 
     while (s_running) {
         // Wait for PrepTask to deliver a new frame
@@ -207,7 +239,8 @@ static void infer_task_fn(void* /*param*/) {
         // TPU inference (~20-50ms, blocks on USB → PrepTask gets CPU)
         int invoke_ms = sentai_tpu_invoke_internal();
         if (invoke_ms < 0) {
-            printf("[DetPipe] Invoke failed: %d\r\n", invoke_ms);
+            SERR_LOG(SERR_DET_INVOKE_FAIL, (uint32_t)(-invoke_ms));
+            sentai_health_fail(SUBSYS_DETECT);
             continue;
         }
 
@@ -251,30 +284,26 @@ static void infer_task_fn(void* /*param*/) {
         // Push to consumer queue (overwrite oldest if full)
         if (xQueueSend(s_det_queue, &result, 0) != pdTRUE) {
             DetectionFrame discard;
-            xQueueReceive(s_det_queue, &discard, 0);
-            xQueueSend(s_det_queue, &result, 0);
-            s_frames_dropped++;
+            if (xQueueReceive(s_det_queue, &discard, 0) == pdTRUE) {
+                if (xQueueSend(s_det_queue, &result, 0) != pdTRUE) {
+                    SERR_LOG(SERR_DET_QUEUE_FULL, s_frames_dropped);
+                }
+            } else {
+                SERR_LOG(SERR_DET_QUEUE_CORRUPT, s_frames_processed);
+            }
+            __atomic_fetch_add(&s_frames_dropped, 1, __ATOMIC_RELAXED);
         }
 
-        s_frames_processed++;
+        __atomic_fetch_add(&s_frames_processed, 1, __ATOMIC_RELAXED);
+        sentai_health_success(SUBSYS_DETECT);
+        // Record liveness timestamp: when InferTask last completed a full inference.
+        s_last_infer_frame_tick = xTaskGetTickCount();
 
-        // Periodic stats (every 30 frames ≈ once per second at ~30fps)
-        if ((s_frames_processed % 30) == 0) {
-            uint32_t elapsed_ms = (t_end - s_start_tick) * portTICK_PERIOD_MS;
-            uint32_t fps_x10 = 0;
-            if (elapsed_ms > 0)
-                fps_x10 = static_cast<uint32_t>(
-                    static_cast<uint64_t>(s_frames_processed) * 10000 / elapsed_ms);
-            printf("[DetPipe] #%lu  %d dets  invoke=%dms  total=%lums  "
-                   "%lu.%lu fps  (dropped %lu)\r\n",
-                   (unsigned long)s_frames_processed, det_count, invoke_ms,
-                   (unsigned long)result.total_ms,
-                   (unsigned long)(fps_x10 / 10), (unsigned long)(fps_x10 % 10),
-                   (unsigned long)s_frames_dropped);
-        }
+        // Periodic stats logged every 30 frames
+        // Note: stats available via sentai.det.stats() - no verbose print
     }
 
-    printf("[DetPipe] InferTask exiting\r\n");
+    // InferTask exiting
     s_infer_task = nullptr;
     vTaskDelete(nullptr);
 }
@@ -287,15 +316,15 @@ static void infer_task_fn(void* /*param*/) {
 
 extern "C" int sentai_detection_start(int conf_permil, int iou_permil, int max_dets) {
     if (s_running) {
-        printf("[DetPipe] Already running — stop first\r\n");
+        SERR_LOG(SERR_DET_ALREADY_RUN, 0);
         return -1;
     }
     if (!sentai_tpu_is_ready()) {
-        printf("[DetPipe] ERROR: model not loaded\r\n");
+        SERR_LOG(SERR_DET_MODEL_NONE, 0);
         return -2;
     }
     if (!sentai_cam_is_initialized()) {
-        printf("[DetPipe] ERROR: camera not initialized\r\n");
+        SERR_LOG(SERR_DET_CAM_NONE, 0);
         return -5;
     }
 
@@ -304,11 +333,11 @@ extern "C" int sentai_detection_start(int conf_permil, int iou_permil, int max_d
         int w, h, ch, type, zp;
         uint8_t* buf;
         if (sentai_get_tensor_info(&w, &h, &ch, &buf, &type, &zp) != 0) {
-            printf("[DetPipe] ERROR: cannot read tensor info\r\n");
+            SERR_LOG(SERR_DET_TENSOR_INFO, 0);
             return -3;
         }
         if (w * h * ch > kMaxStagingSize) {
-            printf("[DetPipe] ERROR: tensor %dx%dx%d too large\r\n", w, h, ch);
+            SERR_LOG(SERR_DET_TENSOR_SIZE, w * h * ch);
             return -4;
         }
     }
@@ -328,7 +357,7 @@ extern "C" int sentai_detection_start(int conf_permil, int iou_permil, int max_d
         s_det_queue = xQueueCreate(4, sizeof(DetectionFrame));
 
     if (!s_sem_staging_free || !s_sem_prep_done || !s_det_queue) {
-        printf("[DetPipe] ERROR: failed to create sync primitives\r\n");
+        SERR_LOG(SERR_DET_SYNC_FAIL, 0);
         return -6;
     }
 
@@ -359,8 +388,7 @@ extern "C" int sentai_detection_start(int conf_permil, int iou_permil, int max_d
     }
 
     if (r1 != pdPASS || r2 != pdPASS) {
-        printf("[DetPipe] ERROR: task creation failed (r1=%d r2=%d)\r\n",
-               (int)r1, (int)r2);
+        SERR_LOG(SERR_DET_TASK_FAIL, (r1 << 8) | r2);
         s_running = false;
         // If PrepTask was created but InferTask failed, stop it cleanly
         if (r1 == pdPASS && s_prep_task) {
@@ -371,17 +399,13 @@ extern "C" int sentai_detection_start(int conf_permil, int iou_permil, int max_d
         return -7;
     }
 
-    printf("[DetPipe] Started  conf>%d.%d%%  iou>%d.%d%%  max=%d\r\n",
-           conf_permil / 10, conf_permil % 10,
-           iou_permil / 10, iou_permil % 10,
-           s_max_dets);
+    SERR_LOG(SERR_DET_STARTED, conf_permil);
     return 0;
 }
 
 extern "C" int sentai_detection_stop(void) {
     if (!s_running) return 0;
 
-    printf("[DetPipe] Stopping...\r\n");
     s_running = false;
 
     // Unblock tasks that may be waiting on semaphores
@@ -394,18 +418,10 @@ extern "C" int sentai_detection_stop(void) {
     }
 
     if (s_prep_task || s_infer_task) {
-        printf("[DetPipe] WARNING: tasks did not exit cleanly\r\n");
+        SERR_LOG(SERR_DET_EXIT_DIRTY, 0);
     }
 
-    uint32_t elapsed_ms = (xTaskGetTickCount() - s_start_tick) * portTICK_PERIOD_MS;
-    uint32_t fps_x10 = 0;
-    if (elapsed_ms > 0 && s_frames_processed > 0)
-        fps_x10 = static_cast<uint32_t>(
-            static_cast<uint64_t>(s_frames_processed) * 10000 / elapsed_ms);
-
-    printf("[DetPipe] Stopped  %lu frames  %lu dropped  %lu.%lu fps avg\r\n",
-           (unsigned long)s_frames_processed, (unsigned long)s_frames_dropped,
-           (unsigned long)(fps_x10 / 10), (unsigned long)(fps_x10 % 10));
+    SERR_LOG(SERR_DET_STOPPED, s_frames_processed);
     return 0;
 }
 
@@ -424,16 +440,42 @@ extern "C" int sentai_detection_is_running(void) {
     return s_running ? 1 : 0;
 }
 
+extern "C" void sentai_detection_task_stall_ms(uint32_t* prep_stall_ms,
+                                               uint32_t* infer_stall_ms) {
+    // Return elapsed ms since PrepTask / InferTask last completed a frame.
+    // Returns 0xFFFFFFFFUL when not running or before the first frame.
+    if (!s_running) {
+        if (prep_stall_ms)  *prep_stall_ms  = 0xFFFFFFFFUL;
+        if (infer_stall_ms) *infer_stall_ms = 0xFFFFFFFFUL;
+        return;
+    }
+    TickType_t now = xTaskGetTickCount();
+    if (prep_stall_ms) {
+        TickType_t last = s_last_prep_frame_tick;
+        *prep_stall_ms = last ? (uint32_t)((now - last) * portTICK_PERIOD_MS)
+                              : 0xFFFFFFFFUL;
+    }
+    if (infer_stall_ms) {
+        TickType_t last = s_last_infer_frame_tick;
+        *infer_stall_ms = last ? (uint32_t)((now - last) * portTICK_PERIOD_MS)
+                               : 0xFFFFFFFFUL;
+    }
+}
+
 extern "C" void sentai_detection_stats(uint32_t* frames_processed,
                                        uint32_t* frames_dropped,
                                        uint32_t* avg_fps_x10) {
-    if (frames_processed) *frames_processed = s_frames_processed;
-    if (frames_dropped)   *frames_dropped   = s_frames_dropped;
+    // P3 FIX: Use atomic loads for thread-safe reads
+    uint32_t processed = __atomic_load_n(&s_frames_processed, __ATOMIC_RELAXED);
+    uint32_t dropped   = __atomic_load_n(&s_frames_dropped, __ATOMIC_RELAXED);
+    
+    if (frames_processed) *frames_processed = processed;
+    if (frames_dropped)   *frames_dropped   = dropped;
     if (avg_fps_x10) {
         uint32_t elapsed_ms = (xTaskGetTickCount() - s_start_tick) * portTICK_PERIOD_MS;
-        if (elapsed_ms > 0 && s_frames_processed > 0)
+        if (elapsed_ms > 0 && processed > 0)
             *avg_fps_x10 = static_cast<uint32_t>(
-                static_cast<uint64_t>(s_frames_processed) * 10000 / elapsed_ms);
+                static_cast<uint64_t>(processed) * 10000 / elapsed_ms);
         else
             *avg_fps_x10 = 0;
     }

@@ -726,13 +726,19 @@ static void match_track(InternalTrack* t, const Detection* det, uint32_t seq,
 // Main update — ByteTrack two-stage greedy association
 // =====================================================================
 
+// Tracker mutex timeout - 100ms should be plenty for internal operations
+static constexpr TickType_t kTrackerMutexTimeout = pdMS_TO_TICKS(100);
+
 extern "C"
 int sentai_tracker_update(const Detection* dets, int n_dets,
                           const uint8_t* tensor_buf, int tw, int th, int tch, int zp,
                           uint32_t frame_seq) {
     sentai_tracker_init();  // lazy init
 
-    if (s_mutex) xSemaphoreTake(s_mutex, portMAX_DELAY);
+    if (s_mutex && xSemaphoreTake(s_mutex, kTrackerMutexTimeout) != pdTRUE) {
+        // Mutex timeout - tracker busy, skip this frame
+        return -1;
+    }
 
     // Cache model input dimensions for ground projection
     s_model_w = tw;
@@ -905,7 +911,9 @@ void sentai_tracker_init(void) {
 extern "C"
 void sentai_tracker_reset(void) {
     sentai_tracker_init();
-    if (s_mutex) xSemaphoreTake(s_mutex, portMAX_DELAY);
+    if (s_mutex && xSemaphoreTake(s_mutex, kTrackerMutexTimeout) != pdTRUE) {
+        return;  // Mutex timeout, can't reset now
+    }
     s_num_tracks   = 0;
     s_next_id      = 1;
     s_imu_has_prev = 0;
@@ -916,7 +924,9 @@ void sentai_tracker_reset(void) {
 extern "C"
 int sentai_tracker_get_tracks(TrackedObject* out, int max) {
     if (!s_inited) return 0;
-    if (s_mutex) xSemaphoreTake(s_mutex, portMAX_DELAY);
+    if (s_mutex && xSemaphoreTake(s_mutex, kTrackerMutexTimeout) != pdTRUE) {
+        return 0;  // Mutex timeout
+    }
     int n = 0;
     for (int i = 0; i < s_num_tracks && n < max; i++) {
         const InternalTrack* t = &s_tracks[i];

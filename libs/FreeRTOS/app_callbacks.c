@@ -37,8 +37,17 @@ void vApplicationGetTimerTaskMemory(StaticTask_t **ppxTimerTaskTCBBuffer,
   *pulTimerTaskStackSize = configTIMER_TASK_STACK_DEPTH;
 }
 
-void vApplicationMallocFailedHook(void) {
+// Weak fallback — overridden by the strong definition in sentai_fault.cc
+// which saves a crash breadcrumb to SRC GPR registers before resetting.
+__attribute__((weak)) void vApplicationMallocFailedHook(void) {
   DbgConsole_Printf("malloc failed, spin...\r\n");
   while (1) {
   }
+}
+
+// Weak no-op — configASSERT calls sentai_assert_fail() before resetting.
+// sentai_fault.cc provides the strong version that saves the GPR breadcrumb.
+// This fallback lets non-sentai firmware builds link without sentai_fault.cc.
+__attribute__((weak)) void sentai_assert_fail(unsigned int lr) {
+  (void)lr;
 }

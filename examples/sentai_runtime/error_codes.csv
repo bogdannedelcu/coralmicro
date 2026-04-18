@@ -1,0 +1,75 @@
+# SentAI Error Code Registry
+# Format: CODE,MODULE,NAME,DESCRIPTION,VERSION_ADDED,STATUS
+# 
+# RULES:
+# - New codes: Add at the end of their module section
+# - Old codes: NEVER DELETE - mark as DEPRECATED with VERSION_DEPRECATED
+# - Status: ACTIVE, DEPRECATED, RESERVED
+#
+# Code format: 0xMMEE where MM=module, EE=error
+# Log format: E:MMEE:value[@timestamp]
+#
+# Example log: "E:0101:3" = Link TX timeout, retry count 3
+#
+CODE,MODULE,NAME,DESCRIPTION,VERSION_ADDED,STATUS
+# === Module 0x01: Link (MAVLink) ===
+0x0101,LINK,TX_TIMEOUT,TX mutex timeout,v1.0,ACTIVE
+0x0102,LINK,TX_FAIL,UART write failed,v1.0,ACTIVE
+0x0110,LINK,RX_DROP,RX queue full - message dropped,v1.0,ACTIVE
+0x0130,LINK,RX_PARSE,MAVLink parse error,v1.0,ACTIVE
+# === Module 0x02: Mesh (Meshtastic) ===
+0x0201,MESH,TX_TIMEOUT,TX mutex timeout,v1.0,ACTIVE
+0x0202,MESH,TX_FAIL,UART write failed,v1.0,ACTIVE
+0x0210,MESH,RX_DROP,RX queue full - message dropped,v1.0,ACTIVE
+0x0230,MESH,RX_PARSE,Protobuf decode failed,v1.0,ACTIVE
+# === Module 0x03: Crazy (Crazyflie) ===
+0x0301,CRAZY,TX_TIMEOUT,TX mutex timeout,v1.0,ACTIVE
+0x0302,CRAZY,TX_FAIL,UART write failed,v1.0,ACTIVE
+0x0303,CRAZY,CTS_TIMEOUT,CTS flow control timeout,v1.0,ACTIVE
+0x0304,CRAZY,PING_TIMEOUT,Crazyflie ping timeout,v1.0,ACTIVE
+0x0310,CRAZY,RX_DROP,RX queue full,v1.0,ACTIVE
+0x0330,CRAZY,ARM_FAIL,Arm command send failed (val=rc),v1.0,ACTIVE
+0x0331,CRAZY,UNLOCK_FAIL,RPYT unlock failed (val=total_pkts),v1.0,ACTIVE
+0x0332,CRAZY,CTS_ABORT,Too many CTS failures - flight aborted (val=fail_count),v1.0,ACTIVE
+0x0333,CRAZY,LOG_TOC,Log TOC info request failed (val=rc),v1.0,ACTIVE
+0x0334,CRAZY,LOG_CREATE,Log create block failed (val=rc or 0x1xx=CF error),v1.0,ACTIVE
+0x0335,CRAZY,LOG_START,Log start block failed (val=rc or 0x1xx=CF error),v1.0,ACTIVE
+# === Module 0x04: Detection Pipeline ===
+0x0410,DET,QUEUE_FULL,Detection result queue full (val=dropped_count),v1.0,ACTIVE
+0x0411,DET,QUEUE_CORRUPT,Queue receive failed after send (val=frame_count),v1.0,ACTIVE
+0x0420,DET,INVOKE_FAIL,TPU Invoke() returned error (val=abs(rc)),v1.0,ACTIVE
+0x0440,DET,TENSOR_SIZE,Tensor too large for staging buffer (val=total_bytes),v1.0,ACTIVE
+0x0441,DET,TENSOR_INFO,Cannot read tensor info,v1.0,ACTIVE
+0x0442,DET,MODEL_NONE,Model not loaded,v1.0,ACTIVE
+0x0443,DET,CAM_NONE,Camera not initialized,v1.0,ACTIVE
+0x0444,DET,SYNC_FAIL,Failed to create semaphores/queue,v1.0,ACTIVE
+0x0445,DET,TASK_FAIL,Task creation failed (val=r1<<8|r2),v1.0,ACTIVE
+0x0446,DET,ALREADY_RUN,Detection already running,v1.0,ACTIVE
+0x0447,DET,EXIT_DIRTY,Tasks did not exit cleanly,v1.0,ACTIVE
+0x0480,DET,STARTED,Detection started (val=conf_permil),v1.0,ACTIVE
+0x0481,DET,STOPPED,Detection stopped (val=frames_processed),v1.0,ACTIVE
+# === Module 0x05: Watchdog ===
+0x0500,WDG,KICK,Watchdog kicked OK (val=uptime_sec on init or periodic),v1.0,ACTIVE
+0x0501,WDG,WARN,Warning: idle > 15s (val=idle_sec),v1.0,ACTIVE
+0x05F0,WDG,DEAD,Fatal: both interfaces dead > 25s (val=idle_sec),v1.0,ACTIVE
+0x05F1,WDG,RESET,Software reset triggered,v1.0,ACTIVE
+# === Module 0x06: HTTP Server ===
+0x0640,HTTP,ALLOC,Memory allocation failed,v1.0,ACTIVE
+0x0601,HTTP,TIMEOUT,Request timeout,v1.0,ACTIVE
+# === Module 0x07: Filesystem ===
+0x0701,FS,MUTEX_TIMEOUT,LFS mutex timeout,v1.0,ACTIVE
+0x0720,FS,READ_FAIL,File read error,v1.0,ACTIVE
+0x0721,FS,WRITE_FAIL,File write error,v1.0,ACTIVE
+# === Module 0x08: MicroPython ===
+# (reserved for future use)
+# === Module 0x09: Audio ===
+# (reserved for future use)
+# === Module 0x0A: Camera ===
+# (reserved for future use)
+# === Module 0x0B: TPU ===
+# (reserved for future use)
+# === Module 0x0F: System ===
+0x0FF1,SYS,STACK_OVF,Stack overflow detected,v1.0,ACTIVE
+0x0FF2,SYS,MALLOC_FAIL,pvPortMalloc returned NULL,v1.0,ACTIVE
+0x0FF3,SYS,ASSERT,configASSERT fired,v1.0,ACTIVE
+0x0FFF,SYS,HARDFAULT,Hard fault handler,v1.0,ACTIVE

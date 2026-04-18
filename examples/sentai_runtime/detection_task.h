@@ -57,6 +57,11 @@ int sentai_detection_get(DetectionFrame* frame, int timeout_ms);
 // 1 if pipeline is running, 0 otherwise.
 int sentai_detection_is_running(void);
 
+// Per-task liveness: elapsed ms since PrepTask / InferTask last completed a frame.
+// Returns 0xFFFFFFFF when pipeline not running or before the first frame completes.
+// Use to distinguish a stuck PrepTask (camera/PXP hang) from a stuck InferTask (TPU hang).
+void sentai_detection_task_stall_ms(uint32_t* prep_stall_ms, uint32_t* infer_stall_ms);
+
 // Pipeline statistics since last start.
 void sentai_detection_stats(uint32_t* frames_processed,
                             uint32_t* frames_dropped,

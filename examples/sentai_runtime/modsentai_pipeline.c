@@ -9,6 +9,8 @@ extern int sentai_detection_is_running(void);
 extern void sentai_detection_stats(uint32_t* frames_processed,
                                    uint32_t* frames_dropped,
                                    uint32_t* avg_fps_x10);
+extern void sentai_detection_task_stall_ms(uint32_t* prep_stall_ms,
+                                           uint32_t* infer_stall_ms);
 
 // sentai.pipeline.start([conf[, iou[, max[, track]]]]) -> int
 // Start continuous detection pipeline.
@@ -236,6 +238,22 @@ static mp_obj_t mod_sentai_pipeline_camera_config(size_t n_args, const mp_obj_t 
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_pipeline_camera_config_obj,
                                             1, 7, mod_sentai_pipeline_camera_config);
 
+// sentai.pipeline.task_health() -> (prep_stall_ms, infer_stall_ms)
+// Milliseconds since PrepTask / InferTask last completed a frame.
+// A large value (>5000) while running indicates a stuck pipeline stage.
+// Returns (0xFFFFFFFF, 0xFFFFFFFF) when pipeline is not running.
+static mp_obj_t mod_sentai_pipeline_task_health(void) {
+    uint32_t prep = 0, infer = 0;
+    sentai_detection_task_stall_ms(&prep, &infer);
+    mp_obj_t items[2] = {
+        mp_obj_new_int_from_uint(prep),
+        mp_obj_new_int_from_uint(infer),
+    };
+    return mp_obj_new_tuple(2, items);
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_pipeline_task_health_obj,
+                                  mod_sentai_pipeline_task_health);
+
 // ---- module table ----
 static const mp_rom_map_elem_t sentai_pipeline_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__),      MP_ROM_QSTR(MP_QSTR_pipeline) },
@@ -249,6 +267,7 @@ static const mp_rom_map_elem_t sentai_pipeline_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_track_config),  MP_ROM_PTR(&mod_sentai_pipeline_track_config_obj) },
     { MP_ROM_QSTR(MP_QSTR_set_pose),       MP_ROM_PTR(&mod_sentai_pipeline_set_pose_obj) },
     { MP_ROM_QSTR(MP_QSTR_camera_config),  MP_ROM_PTR(&mod_sentai_pipeline_camera_config_obj) },
+    { MP_ROM_QSTR(MP_QSTR_task_health),    MP_ROM_PTR(&mod_sentai_pipeline_task_health_obj) },
 };
 static MP_DEFINE_CONST_DICT(sentai_pipeline_globals, sentai_pipeline_globals_table);
 static const mp_obj_module_t sentai_pipeline_module = {

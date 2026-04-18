@@ -79,7 +79,7 @@
 /* Hook function related definitions. */
 #define configUSE_IDLE_HOOK                     0
 #define configUSE_TICK_HOOK                     0
-#define configCHECK_FOR_STACK_OVERFLOW          0
+#define configCHECK_FOR_STACK_OVERFLOW          2  /* Full stack checking */
 #define configUSE_MALLOC_FAILED_HOOK            1
 #define configUSE_DAEMON_TASK_STARTUP_HOOK      0
 
@@ -102,9 +102,25 @@
 #define configTIMER_QUEUE_LENGTH                10
 #define configTIMER_TASK_STACK_DEPTH            (configMINIMAL_STACK_SIZE * 2)
 
-/* Define to trap errors during development. */
+/* Define to trap errors during development.
+ * On assert failure: save a crash breadcrumb to SRC GPR registers via the
+ * sentai_assert_fail() hook (weak default: no-op; strong: sentai_fault.cc),
+ * print the failing expression, then immediately trigger a system reset via
+ * SCB->AIRCR (SYSRESETREQ).  This integrates with the anti-brick boot counter
+ * in app_main(): repeated assert crashes increment boot_attempts and
+ * eventually enter recovery mode automatically.
+ * The crash breadcrumb is written to /log/crash.log on the next boot. */
 #include <stdio.h>
-#define configASSERT(x) if(( x) == 0) {taskDISABLE_INTERRUPTS(); printf("configASSERT %s\r\n", #x); for (;;) vTaskDelay(pdMS_TO_TICKS(500));}
+#define configASSERT(x) \
+    if (( x) == 0) { \
+        taskDISABLE_INTERRUPTS(); \
+        printf("configASSERT: " #x "\r\n"); \
+        { void sentai_assert_fail(unsigned int lr); \
+          sentai_assert_fail((unsigned int)__builtin_return_address(0)); } \
+        /* SCB->AIRCR = VECTKEY | SYSRESETREQ — no CMSIS header needed */ \
+        (*(volatile unsigned int*)0xE000ED0CUL) = (0x5FAUL << 16U) | (1UL << 2U); \
+        for (;;); \
+    }
 
 /* Optional functions - most linkers will remove unused functions anyway. */
 #define INCLUDE_vTaskPrioritySet                1
@@ -115,7 +131,7 @@
 #define INCLUDE_vTaskDelay                      1
 #define INCLUDE_xTaskGetSchedulerState          1
 #define INCLUDE_xTaskGetCurrentTaskHandle       1
-#define INCLUDE_uxTaskGetStackHighWaterMark     0
+#define INCLUDE_uxTaskGetStackHighWaterMark     1  /* Enable stack watermarking */
 #define INCLUDE_xTaskGetIdleTaskHandle          0
 #define INCLUDE_eTaskGetState                   0
 #define INCLUDE_xTimerPendFunctionCall          1

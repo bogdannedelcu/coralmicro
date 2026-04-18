@@ -33,8 +33,9 @@ img.p{max-width:100%;max-height:100%;display:block;margin:16px auto}
 <div id="right"><div id="rbar"><span id="rp"></span>
 <button id="bsv" onclick="doSave()" style="display:none">Save</button>
 <button onclick="doDel()">Del</button>
-<a id="bdl" href="#" download style="display:none"><button>DL</button></a></div>
+<button id="bdl" onclick="doDl(sel)" style="display:none">DL</button></div>
 <div id="view"></div></div></div>
+<div id="pgbar" style="display:none;position:fixed;bottom:32px;left:50%;transform:translateX(-50%);background:#222;color:#eee;padding:10px 20px;border-radius:7px;font-size:13px;z-index:999;min-width:200px;text-align:center"><div id="pgbtxt"></div><div style="height:5px;background:#444;margin-top:7px"><div id="pgbfill" style="height:100%;background:#4af;width:0%"></div></div></div>
 <div id="st">Ready</div>
 <input type="file" id="fi" style="display:none" multiple onchange="upFiles(this.files)">
 <script>
@@ -83,8 +84,9 @@ function open(path,info){
   if(dirty&&!confirm('Discard changes?'))return;
   sel=path;dirty=false;
   $('rbar').style.display='flex';$('rp').textContent=path;
-  var dl=$('bdl');dl.href='/api/raw'+path;dl.download=path.split('/').pop();dl.style.display='inline';
+  $('bdl').style.display='inline';
   var name=path.split('/').pop(),V=$('view'),S=$('bsv');
+  if(info.size>51200){V.innerHTML='<div style="padding:40px;text-align:center">'+sz(info.size)+'<br>Use DL</div>';S.style.display='none';ed=false;st(name);return}
   if(isTxt(name)){
     st('Loading...');S.style.display='inline';ed=true;
     fetch('/api/raw'+path).then(function(r){return r.text()}).then(function(t){
@@ -94,7 +96,30 @@ function open(path,info){
       st('Editing '+name);
     });
   } else if(isImg(name)){
-    V.innerHTML='<img class="p" src="/api/raw'+path+'">';S.style.display='none';ed=false;st(name);
+    st('Loading '+name+'...');
+    V.innerHTML='<div style="padding:40px;text-align:center;color:#aaa;font-size:15px">Loading...</div>';
+    S.style.display='none';ed=false;
+    var pg=$('pgbar'),fill=$('pgbfill'),txt=$('pgbtxt');
+    pg.style.display='block';fill.style.width='0%';txt.textContent='Loading '+name+'...';
+    fetch('/api/raw'+path).then(function(r){
+      var total=parseInt(r.headers.get('Content-Length')||'0'),recv=0,chunks=[];
+      var reader=r.body.getReader();
+      function rd(){return reader.read().then(function(d){
+        if(d.done){
+          pg.style.display='none';
+          var blob=new Blob(chunks),url=URL.createObjectURL(blob);
+          var im=new Image();im.className='p';
+          im.onload=function(){V.innerHTML='';V.appendChild(im);URL.revokeObjectURL(url);st(name+' ('+sz(recv)+')')};
+          im.onerror=function(){V.innerHTML='<div style="padding:20px;color:#c44">Image decode error ('+sz(recv)+')</div>';URL.revokeObjectURL(url);st('Error')};
+          im.src=url;return;
+        }
+        chunks.push(d.value);recv+=d.value.length;
+        if(total>0){var p=Math.round(recv/total*100);fill.style.width=p+'%';txt.textContent=name+' — '+sz(recv)+' / '+sz(total)+' ('+p+'%)'}
+        else{txt.textContent=name+' — '+sz(recv)+' received'};
+        return rd();
+      })}
+      return rd();
+    }).catch(function(e){pg.style.display='none';V.innerHTML='<div style="padding:20px;color:#c44">Error: '+esc(e.message)+'</div>';st('Error')});
   } else {
     V.innerHTML='<div style="padding:20px;color:#888;text-align:center"><p>'+esc(name)+'</p><p>'+sz(info.size)+'</p></div>';
     S.style.display='none';ed=false;st(name+' '+sz(info.size));
@@ -105,6 +130,11 @@ function doSave(){if(!sel||!ed)return;var c=$('ed').value;st('Saving...');var b=
   fetch('/api/write'+sel,{method:'POST',body:c}).then(function(r){return r.text()}).then(function(t){var j=JSON.parse(t);if(j.ok){st('Saved OK ('+sz(j.size||c.length)+')');dirty=false;b.style.background='#0a0';b.textContent='OK';setTimeout(function(){b.style.background='';b.textContent='Save'},1500)}else st('Err: '+j.error)})}
 function doDel(){if(!sel||!confirm('Delete '+sel+'?'))return;st('Deleting...');
   fetch('/api/rm'+sel,{method:'POST'}).then(function(r){return r.text()}).then(function(t){var j=JSON.parse(t);if(j.ok){st('Deleted');sel=null;ed=false;dirty=false;$('rbar').style.display='none';$('view').innerHTML='';go(cwd)}else st('Err: '+j.error)})}
+function doDl(path){if(!path)return;var name=path.split('/').pop(),pg=$('pgbar'),fill=$('pgbfill'),txt=$('pgbtxt');pg.style.display='block';fill.style.width='0%';txt.textContent='Connecting...';
+fetch('/api/raw'+path).then(function(r){var total=parseInt(r.headers.get('Content-Length')||'0'),recv=0,chunks=[];
+var reader=r.body.getReader();
+function rd(){return reader.read().then(function(d){if(d.done){var blob=new Blob(chunks),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(function(){URL.revokeObjectURL(url)},2000);pg.style.display='none';st('Downloaded '+name+' ('+sz(recv)+')');return}chunks.push(d.value);recv+=d.value.length;if(total>0){var p=Math.round(recv/total*100);fill.style.width=p+'%';txt.textContent=name+' — '+sz(recv)+' / '+sz(total)+' ('+p+'%)'}else{txt.textContent=name+' — '+sz(recv)+' received'};return rd()})}
+return rd()}).catch(function(e){pg.style.display='none';st('DL error: '+e.message)})}
 function doUpload(){$('fi').click()}
 function upFiles(files){var i=0;function nx(){if(i>=files.length){$('fi').value='';go(cwd);return}var f=files[i++];st('Upload '+f.name+'...');
   f.arrayBuffer().then(function(b){return fetch('/api/write'+pj(cwd,f.name),{method:'POST',body:b})}).then(function(r){return r.text()}).then(function(){nx()})}nx()}

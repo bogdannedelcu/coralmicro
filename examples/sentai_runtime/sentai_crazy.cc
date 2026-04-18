@@ -14,6 +14,8 @@
 // Functions (6-bit): SYSTEM=1, CONSOLE=2, CRTP=3
 
 #include "sentai_crazy.h"
+#include "sentai_error.h"
+#include "sentai_health.h"
 
 #include <cstdio>
 #include <cstring>
@@ -107,6 +109,16 @@ static SemaphoreHandle_t g_crazy_tx_mutex = nullptr;  // serializes UART writes
 static SemaphoreHandle_t g_crazy_cts = nullptr;        // CTS flow control
 static SemaphoreHandle_t g_crazy_ping_sem = nullptr;   // echo response signal
 
+// ===================== Health counters (P0 robustness) =====================
+static volatile uint32_t g_crazy_tx_ok = 0;       // successful TX
+static volatile uint32_t g_crazy_tx_fail = 0;     // TX errors (mutex/UART)
+static volatile uint32_t g_crazy_tx_timeout = 0;  // mutex timeout (critical!)
+static volatile uint32_t g_crazy_cts_timeout = 0; // CTS timeout
+
+// Timeout for TX mutex (ms) - 50ms is enough for CPX frame
+static const TickType_t kCrazyTxMutexTimeout = pdMS_TO_TICKS(50);
+static const int        kCrazyTxRetries = 3;
+
 // CRTP param response slot (single response at a time)
 static uint8_t  g_param_resp_buf[CRTP_MAX_PAYLOAD];
 static volatile int g_param_resp_len = 0;
@@ -179,11 +191,19 @@ static inline uint8_t cpx_crc(const uint8_t* frame, int len) {
 
 // ===================== CPX UART TX: CTS =====================
 // Send a CTS (Clear-To-Send): [0xFF][0x00] — 2 bytes, no CRC.
-static void cpx_send_cts(void) {
+// Returns: 0=OK, -3=mutex timeout
+static int cpx_send_cts(void) {
     uint8_t cts[2] = {CPX_START_BYTE, 0x00};
-    xSemaphoreTake(g_crazy_tx_mutex, portMAX_DELAY);
-    sentai_uart_serial_write(cts, 2);
-    xSemaphoreGive(g_crazy_tx_mutex);
+    // P0 FIX: Timeout-based mutex (was portMAX_DELAY)
+    for (int retry = 0; retry < kCrazyTxRetries; retry++) {
+        if (xSemaphoreTake(g_crazy_tx_mutex, kCrazyTxMutexTimeout) == pdTRUE) {
+            sentai_uart_serial_write(cts, 2);
+            xSemaphoreGive(g_crazy_tx_mutex);
+            return 0;
+        }
+    }
+    g_crazy_tx_timeout++;
+    return -3;
 }
 
 // ===================== CPX UART TX: Data Frame =====================
@@ -192,23 +212,26 @@ static void cpx_send_cts(void) {
 // cpx_len:  total data length (2..MTU)
 // Frame on wire: [0xFF][LEN(1B)][cpx_data...][CRC]
 // CRC = XOR of all bytes including 0xFF and LEN.
+// Returns: 0=OK, -1=invalid len, -2=UART fail, -3=CTS/mutex timeout
 static int cpx_send_frame(const uint8_t* cpx_data, int cpx_len) {
     if (cpx_len < 2 || cpx_len > CPX_MTU) return -1;
 
     // Wait for CTS from CrazyFlie (it's ready to receive)
     if (xSemaphoreTake(g_crazy_cts, pdMS_TO_TICKS(200)) != pdTRUE) {
-        // CTS timeout — try to resync: send CTS to unblock CF TX, then retry
-        if (g_crazy_debug >= 1) printf("[crazy] TX: CTS timeout, resync...\r\n");
+        // CTS timeout — try to resync
+        g_crazy_cts_timeout++;
         uint8_t cts_pkt[2] = {CPX_START_BYTE, 0x00};
-        xSemaphoreTake(g_crazy_tx_mutex, portMAX_DELAY);
+        // P0 FIX: Timeout-based mutex (was portMAX_DELAY)
+        if (xSemaphoreTake(g_crazy_tx_mutex, kCrazyTxMutexTimeout) != pdTRUE) {
+            g_crazy_tx_timeout++;
+            return -3;
+        }
         sentai_uart_serial_write(cts_pkt, 2);
         xSemaphoreGive(g_crazy_tx_mutex);
         vTaskDelay(pdMS_TO_TICKS(50));
         if (xSemaphoreTake(g_crazy_cts, pdMS_TO_TICKS(300)) != pdTRUE) {
-            if (g_crazy_debug >= 1) printf("[crazy] TX: CTS timeout (resync failed)\r\n");
             return -3;
         }
-        if (g_crazy_debug >= 1) printf("[crazy] TX: CTS resync OK\r\n");
     }
 
     // Build UART frame: [0xFF][LEN][data...][CRC]
@@ -229,17 +252,27 @@ static int cpx_send_frame(const uint8_t* cpx_data, int cpx_len) {
         printf("\r\n");
     }
 
-    xSemaphoreTake(g_crazy_tx_mutex, portMAX_DELAY);
-    int n = sentai_uart_serial_write(frame, idx);
-    xSemaphoreGive(g_crazy_tx_mutex);
+    // P0 FIX: Timeout-based mutex with retry (was portMAX_DELAY)
+    for (int retry = 0; retry < kCrazyTxRetries; retry++) {
+        if (xSemaphoreTake(g_crazy_tx_mutex, kCrazyTxMutexTimeout) == pdTRUE) {
+            int n = sentai_uart_serial_write(frame, idx);
+            xSemaphoreGive(g_crazy_tx_mutex);
 
-    if (n != idx) {
-        if (g_crazy_debug >= 1)
-            printf("[crazy] TX FAIL: wrote %d/%d\r\n", n, idx);
-        return -2;
+            if (n == idx) {
+                g_crazy_tx_ok++;
+                sentai_health_success(SUBSYS_CRAZY);
+                return 0;
+            } else {
+                g_crazy_tx_fail++;
+                sentai_health_fail(SUBSYS_CRAZY);
+                return -2;
+            }
+        }
     }
 
-    return 0;
+    g_crazy_tx_timeout++;
+    sentai_health_timeout(SUBSYS_CRAZY);
+    return -3;
 }
 
 // ===================== CRTP-over-CPX Send =====================
@@ -488,7 +521,7 @@ static void crazy_cmd_task(void* param) {
             int rc = crtp_send(CRTP_PORT_SUPERVISOR, SUPERVISOR_CH_COMMAND,
                                arm_data, 2);
             if (rc != 0) {
-                printf("[crazy] CMD: arm send failed (%d), aborting\r\n", rc);
+                SERR_LOG(SERR_CRAZY_ARM_FAIL, rc);
                 g_cmd_state = CMD_IDLE;
                 break;
             }
@@ -501,8 +534,7 @@ static void crazy_cmd_task(void* param) {
                 vTaskDelay(pdMS_TO_TICKS(CMD_PERIOD_MS));
             }
             if (unlock_ok == 0) {
-                printf("[crazy] CMD: unlock failed (0/%d ok), aborting\r\n",
-                       CMD_UNLOCK_PKTS);
+                SERR_LOG(SERR_CRAZY_UNLOCK_FAIL, CMD_UNLOCK_PKTS);
                 // Try to disarm
                 uint8_t disarm[2] = {SUPERVISOR_CMD_ARM, 0x00};
                 crtp_send(CRTP_PORT_SUPERVISOR, SUPERVISOR_CH_COMMAND,
@@ -531,8 +563,7 @@ static void crazy_cmd_task(void* param) {
             if (rc != 0) {
                 g_cmd_cts_fails++;
                 if (g_cmd_cts_fails >= CMD_CTS_FAIL_MAX) {
-                    printf("[crazy] CMD: %d consecutive CTS failures, "
-                           "aborting flight\r\n", g_cmd_cts_fails);
+                    SERR_LOG(SERR_CRAZY_CTS_ABORT, g_cmd_cts_fails);
                     g_cmd_state = CMD_STOPPING;
                     break;
                 }
@@ -607,7 +638,7 @@ static int log_discover_altitude(void) {
 
     int rc = log_send_and_wait(LOG_TOC_CH, &cmd, 1, resp, &rlen, 1000);
     if (rc != 0) {
-        printf("[crazy] log TOC info failed (%d)\r\n", rc);
+        SERR_LOG(SERR_CRAZY_LOG_TOC, rc);
         return -1;
     }
     if (rlen < 3 || resp[0] != LOG_TOC_GET_INFO_V2) return -2;
@@ -664,11 +695,11 @@ static int log_start_altitude(void) {
     rlen = 0;
     int rc = log_send_and_wait(LOG_CONTROL_CH, create, 5, resp, &rlen, 500);
     if (rc != 0) {
-        printf("[crazy] log create block failed (%d)\r\n", rc);
+        SERR_LOG(SERR_CRAZY_LOG_CREATE, rc);
         return -2;
     }
     if (rlen >= 3 && resp[2] != 0) {
-        printf("[crazy] log create block error=%u\r\n", resp[2]);
+        SERR_LOG(SERR_CRAZY_LOG_CREATE, 0x100 | resp[2]);
         return -3;
     }
 
@@ -681,11 +712,11 @@ static int log_start_altitude(void) {
     rlen = 0;
     rc = log_send_and_wait(LOG_CONTROL_CH, start, 3, resp, &rlen, 500);
     if (rc != 0) {
-        printf("[crazy] log start block failed (%d)\r\n", rc);
+        SERR_LOG(SERR_CRAZY_LOG_START, rc);
         return -4;
     }
     if (rlen >= 3 && resp[2] != 0) {
-        printf("[crazy] log start block error=%u\r\n", resp[2]);
+        SERR_LOG(SERR_CRAZY_LOG_START, 0x100 | resp[2]);
         return -5;
     }
 

@@ -15,6 +15,9 @@
 #include <string.h>
 #include "build_version.h"
 
+// REPL activity tracking for watchdog (defined in sentai_runtime.cc)
+extern void sentai_repl_activity(void);
+
 // GC heap size for MicroPython (256 KB — needed for large scripts, help, diag)
 #define MP_GC_HEAP_SIZE (256 * 1024)
 
@@ -324,6 +327,8 @@ static int repl_readline(char* buf, int max_len) {
         }
     }
     buf[pos] = '\0';
+    // Notify watchdog that REPL received input
+    sentai_repl_activity();
     return pos;
 }
 

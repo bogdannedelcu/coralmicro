@@ -917,7 +917,7 @@ def main():
 
   network_group = parser.add_argument_group('Board network settings')
   network_group.add_argument(
-      '--usb_ip_address', type=str, required=False, default='10.10.10.1',
+      '--usb_ip_address', type=str, required=False, default='10.0.0.1',
       help='The board IP address for Ethernet-over-USB connections.')
   network_group.add_argument(
       '--dns_server', type=str, required=False, default=None,

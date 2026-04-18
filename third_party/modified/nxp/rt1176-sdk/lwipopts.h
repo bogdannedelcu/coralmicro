@@ -116,7 +116,7 @@ void sys_mark_tcpip_thread(void);
 #define MEMP_NUM_TCP_PCB_LISTEN 6
 #endif
 /* MEMP_NUM_TCP_SEG: the number of simultaneously queued TCP
-   segments. */
+   segments. Must be >= TCP_SND_QUEUELEN = (3 * TCP_SND_BUF) / TCP_MSS = 48. */
 #ifndef MEMP_NUM_TCP_SEG
 #define MEMP_NUM_TCP_SEG 64
 #endif
@@ -127,9 +127,11 @@ void sys_mark_tcpip_thread(void);
 #endif
 
 /* ---------- Pbuf options ---------- */
-/* PBUF_POOL_SIZE: the number of buffers in the pbuf pool. */
+/* PBUF_POOL_SIZE: the number of buffers in the pbuf pool.
+   Must be > TCP_WND/TCP_MSS to avoid pbuf starvation.
+   TCP_WND=8*MSS needs 9 pbufs; keep 16 free for ICMP+new conns. */
 #ifndef PBUF_POOL_SIZE
-#define PBUF_POOL_SIZE 35
+#define PBUF_POOL_SIZE 24
 #endif
 
 /* PBUF_POOL_BUFSIZE: the size of each pbuf in the pbuf pool. */
@@ -169,12 +171,13 @@ void sys_mark_tcpip_thread(void);
 /* TCP sender buffer space (pbufs). This must be at least = 2 *
    TCP_SND_BUF/TCP_MSS for things to work. */
 #ifndef TCP_SND_QUEUELEN
-#define TCP_SND_QUEUELEN (3 * TCP_SND_BUF) / TCP_MSS // 6
+#define TCP_SND_QUEUELEN (3 * TCP_SND_BUF) / TCP_MSS
 #endif
 
-/* TCP receive window. */
+/* TCP receive window. Must be < PBUF_POOL_SIZE * TCP_MSS to avoid
+   pbuf starvation. 8*MSS=11680b leaves 16 pbufs free. */
 #ifndef TCP_WND
-#define TCP_WND (35 * TCP_MSS)
+#define TCP_WND (8 * TCP_MSS)
 #endif
 
 /* Enable backlog*/

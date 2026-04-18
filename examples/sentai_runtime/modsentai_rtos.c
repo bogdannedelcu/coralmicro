@@ -21,10 +21,16 @@ static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_ticks_ms_obj, mod_sentai_ticks_ms);
 // state: "running", "ready", "blocked", "suspended", "deleted"
 // stack_hwm: minimum free stack (words) since task creation (high water mark)
 static mp_obj_t mod_sentai_tasks(void) {
-    #define MAX_TASKS 24
+    #define MAX_TASKS 32
     TaskStatus_t task_buf[MAX_TASKS];
     uint32_t total_runtime;
     UBaseType_t n = uxTaskGetSystemState(task_buf, MAX_TASKS, &total_runtime);
+
+    // Warn if the system has more tasks than our buffer can hold
+    if (n == MAX_TASKS) {
+        // Buffer may be full (actual count unknown — FreeRTOS returns at most MAX_TASKS)
+        printf("[sentai.rtos] WARNING: task list truncated at %d entries\r\n", MAX_TASKS);
+    }
 
     mp_obj_list_t* result = MP_OBJ_TO_PTR(mp_obj_new_list(0, NULL));
 
@@ -226,6 +232,24 @@ static mp_obj_t mod_sentai_uptime(void) {
     return mp_obj_new_int(xTaskGetTickCount() / configTICK_RATE_HZ);
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_uptime_obj, mod_sentai_uptime);
+
+// ===================== Crash/Hang stats =====================
+// Get network/HTTP health stats for debugging hangs
+
+extern uint32_t sentai_get_http_requests(void);
+extern uint32_t sentai_get_http_hangs(void);
+extern int sentai_get_network_healthy(void);
+
+// sentai.rtos.http_stats() -> (requests, hangs, healthy)
+static mp_obj_t mod_sentai_http_stats(void) {
+    mp_obj_t items[3] = {
+        mp_obj_new_int(sentai_get_http_requests()),
+        mp_obj_new_int(sentai_get_http_hangs()),
+        sentai_get_network_healthy() ? mp_const_true : mp_const_false,
+    };
+    return mp_obj_new_tuple(3, items);
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_http_stats_obj, mod_sentai_http_stats);
 
 // ---- module table ----
 static const mp_rom_map_elem_t sentai_rtos_globals_table[] = {

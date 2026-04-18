@@ -4,8 +4,8 @@
 # Prerequisites: sentai.usb.ip(1) must be active (USB-ETH CDC-NCM).
 #
 # Usage:
-#   python3 upload_diag.py                    # assumes device at 10.10.10.1
-#   python3 upload_diag.py --ip 10.10.10.1
+#   python3 upload_diag.py                    # assumes device at 10.0.0.1
+#   python3 upload_diag.py --ip 10.0.0.1
 #   python3 upload_diag.py --enable-usb       # auto-enable via REPL first
 #   python3 upload_diag.py --port /dev/ttyACM1 --enable-usb
 #   python3 upload_diag.py --file e_tpu.py    # upload only one file
@@ -22,7 +22,7 @@ import json
 
 DIAG_DIR = pathlib.Path(__file__).parent / "diag"
 BROWSER_SRC = pathlib.Path(__file__).parent / "web" / "browser.html"
-DEFAULT_IP = "10.10.10.1"
+DEFAULT_IP = "10.0.0.1"
 REMOTE_BASE = "/lib/diag"
 BROWSER_REMOTE = "/.sys/browser.html"
 

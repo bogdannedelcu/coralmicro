@@ -172,22 +172,38 @@ SECTIONS
      . = ALIGN(4);
   } > m_sdram
 
-  .arduino :
+  /* USB Host placed in SDRAM - not performance critical */
+  .usb_host :
   {
      . = ALIGN(4);
-     __arduino_start = .;
-     *liblibs_arduino_coral_micro_bundled.a:*(.text .text*)
-     *liblibs_arduino_coral_micro_bundled.a:*(.data .data*)
-     *liblibs_arduino_coral_micro_bundled.a:*(.rodata .rodata*)
-     *liblibs_arduino_coral_micro_poe_bundled.a:*(.text .text*)
-     *liblibs_arduino_coral_micro_poe_bundled.a:*(.data .data*)
-     *liblibs_arduino_coral_micro_poe_bundled.a:*(.rodata .rodata*)
-     *liblibs_arduino_coral_micro_wifi_bundled.a:*(.text .text*)
-     *liblibs_arduino_coral_micro_wifi_bundled.a:*(.data .data*)
-     *liblibs_arduino_coral_micro_wifi_bundled.a:*(.rodata .rodata*)
-     __arduino_end = .;
+     __usb_host_start = .;
+     *usb_host_ehci.c.obj(.text .text*)
+     *usb_host_ehci.c.obj(.data .data*)
+     *usb_host_ehci.c.obj(.rodata .rodata*)
+     *usb_host_devices.c.obj(.text .text*)
+     *usb_host_devices.c.obj(.data .data*)
+     *usb_host_devices.c.obj(.rodata .rodata*)
+     *usb_host_hub.c.obj(.text .text*)
+     *usb_host_hub.c.obj(.data .data*)
+     *usb_host_hub.c.obj(.rodata .rodata*)
+     *usb_host_hub_app.c.obj(.text .text*)
+     *usb_host_hub_app.c.obj(.data .data*)
+     *usb_host_hub_app.c.obj(.rodata .rodata*)
+     __usb_host_end = .;
      . = ALIGN(4);
-  } > m_ocram
+  } > m_sdram
+
+  /* NXP httpsrv - placed in SDRAM for space savings */
+  .httpsrv :
+  {
+     . = ALIGN(4);
+     __httpsrv_start = .;
+     *liblibs_nxp_rt1176-sdk_lwip_httpsrv.a:*(.text .text*)
+     *liblibs_nxp_rt1176-sdk_lwip_httpsrv.a:*(.data .data*)
+     *liblibs_nxp_rt1176-sdk_lwip_httpsrv.a:*(.rodata .rodata*)
+     __httpsrv_end = .;
+     . = ALIGN(4);
+  } > m_sdram
 
   .libjpeg :
   {
@@ -262,6 +278,9 @@ SECTIONS
   {
      . = ALIGN(4);
      __sentai_slow_start = .;
+     *sentai_tracker.cc.obj(.text .text*)
+     *sentai_tracker.cc.obj(.data .data*)
+     *sentai_tracker.cc.obj(.rodata .rodata*)
      *sentai_link.cc.obj(.text .text*)
      *sentai_link.cc.obj(.data .data*)
      *sentai_link.cc.obj(.rodata .rodata*)
@@ -580,6 +599,7 @@ SECTIONS
     *liblibs_audio_freertos.a:*(.bss .bss*)
     /* httpd_bss — HTTP server state (no DMA) */
     *liblibs_nxp_rt1176-sdk_lwip_httpd.a:*(.bss .bss*)
+    *liblibs_nxp_rt1176-sdk_lwip_httpsrv.a:*(.bss .bss*)
     *liblibs_base-m7_http_server.a:*(.bss .bss*)
     *sentai_httpd.cc.obj(.bss .bss*)
     /* edgefast_bluetooth_bss */

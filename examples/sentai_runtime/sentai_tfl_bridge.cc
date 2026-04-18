@@ -6,6 +6,7 @@
 #include <cstring>
 #include <vector>
 
+#include "sentai_error.h"
 #include "libs/base/filesystem.h"
 #include "third_party/freertos_kernel/include/FreeRTOS.h"
 #include "third_party/freertos_kernel/include/task.h"
@@ -54,7 +55,7 @@ static int tfl_load_impl(const char* path, int arena_kb) {
   // Allocate arena with 16-byte alignment
   coralmicro::g_tfl_arena_raw = (uint8_t*)malloc(arena_bytes + 16);
   if (!coralmicro::g_tfl_arena_raw) {
-    printf("ERROR: Failed to allocate %d KB for TFL arena\r\n", arena_kb);
+    SERR_LOG(SERR_TPU_ARENA_ALLOC, arena_kb);
     return -5;
   }
   coralmicro::g_tfl_arena = (uint8_t*)(
@@ -64,7 +65,7 @@ static int tfl_load_impl(const char* path, int arena_kb) {
   // Load model from user LFS
   coralmicro::g_tfl_model_data = new std::vector<uint8_t>();
   if (!coralmicro::LfsUserReadFile(path, coralmicro::g_tfl_model_data)) {
-    printf("ERROR: Failed to load %s\r\n", path);
+    SERR_LOG(SERR_TPU_MODEL_LOAD, 0);
     tfl_cleanup();
     return -2;
   }
@@ -101,14 +102,13 @@ static int tfl_load_impl(const char* path, int arena_kb) {
       &tfl_error_reporter);
 
   if (coralmicro::g_tfl_interpreter->AllocateTensors() != kTfLiteOk) {
-    printf("ERROR: TFL AllocateTensors() failed (arena %d KB too small?)\r\n",
-           arena_kb);
+    SERR_LOG(SERR_TPU_ALLOC_TENSORS, arena_kb);
     tfl_cleanup();
     return -3;
   }
 
   if (coralmicro::g_tfl_interpreter->inputs().size() != 1) {
-    printf("ERROR: TFL model must have exactly one input tensor\r\n");
+    SERR_LOG(SERR_TPU_INPUT_COUNT, coralmicro::g_tfl_interpreter->inputs().size());
     tfl_cleanup();
     return -4;
   }

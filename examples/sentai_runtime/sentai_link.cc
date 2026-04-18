@@ -9,6 +9,8 @@
 #include "sentai_link.h"
 #include "sentai_tracker.h"
 #include "sentai_vision_common.h"
+#include "sentai_error.h"
+// #include "sentai_health.h"  // DISABLED: causing issues
 
 #include <cstdio>
 #include <cstring>
@@ -46,6 +48,17 @@ static uint8_t           g_link_sysid = 1;
 static uint8_t           g_link_compid = 191;  // MAV_COMP_ID_ONBOARD_COMPUTER
 static uint16_t          g_link_vision_msg_id = 1; // auto-increment for STATUSTEXT chunking
 
+// ===================== Health counters (P0 robustness) =====================
+static volatile uint32_t g_link_tx_ok = 0;       // successful TX
+static volatile uint32_t g_link_tx_fail = 0;     // TX errors (UART)
+static volatile uint32_t g_link_tx_timeout = 0;  // mutex timeout (critical!)
+static volatile uint32_t g_link_rx_ok = 0;       // messages received
+static volatile uint32_t g_link_rx_dropped = 0;  // queue full drops
+
+// Timeout for TX mutex (ms) - enough for UART write, not infinite
+static const TickType_t kLinkTxMutexTimeout = pdMS_TO_TICKS(100);
+static const int        kLinkTxRetries = 3;
+
 // ===================== Base64 encoder =====================
 static const char b64_table[] =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -67,6 +80,7 @@ static int base64_encode(const uint8_t* src, int src_len, char* dst, int dst_max
 }
 
 // ===================== TX helper: serialize + UART write =====================
+// Returns: 0=OK, -1=serialize fail, -2=UART fail, -3=mutex timeout
 static int link_send_msg(mavlink_message_t* msg) {
     uint8_t buf[MAVLINK_MAX_PACKET_LEN];
     uint16_t len = mavlink_msg_to_send_buffer(buf, msg);
@@ -85,15 +99,30 @@ static int link_send_msg(mavlink_message_t* msg) {
         printf("\r\n");
     }
 
-    xSemaphoreTake(g_link_tx_mutex, portMAX_DELAY);
-    int n = sentai_uart_serial_write(buf, (int)len);
-    xSemaphoreGive(g_link_tx_mutex);
+    // P0 FIX: Timeout-based mutex acquire with retry (was portMAX_DELAY)
+    for (int retry = 0; retry < kLinkTxRetries; retry++) {
+        if (xSemaphoreTake(g_link_tx_mutex, kLinkTxMutexTimeout) == pdTRUE) {
+            int n = sentai_uart_serial_write(buf, (int)len);
+            xSemaphoreGive(g_link_tx_mutex);
 
-    if (g_link_debug >= 1 && n != (int)len) {
-        printf("[link] TX FAIL: wrote %d/%u\r\n", n, len);
+            if (n == (int)len) {
+                g_link_tx_ok++;
+                // sentai_health_success(SUBSYS_LINK);  DISABLED
+                return 0;
+            } else {
+                g_link_tx_fail++;
+                // sentai_health_fail(SUBSYS_LINK);  DISABLED
+                SERR_LOG(SERR_LINK_TX_FAIL, n);
+                return -2;
+            }
+        }
     }
 
-    return (n == (int)len) ? 0 : -2;
+    // All retries exhausted
+    g_link_tx_timeout++;
+    // sentai_health_timeout(SUBSYS_LINK);  DISABLED
+    SERR_LOG(SERR_LINK_TX_TIMEOUT, g_link_tx_timeout);
+    return -3;
 }
 
 // ===================== RX task =====================
@@ -119,7 +148,14 @@ static void link_rx_task(void* param) {
                 }
                 link_rx_msg_t item;
                 memcpy(&item.msg, &rx_msg, sizeof(mavlink_message_t));
-                xQueueSend(g_link_rx_queue, &item, 0);
+                // P2 FIX: Check queue send result
+                if (xQueueSend(g_link_rx_queue, &item, 0) == pdTRUE) {
+                    g_link_rx_ok++;
+                    // sentai_health_success(SUBSYS_LINK);  DISABLED
+                } else {
+                    g_link_rx_dropped++;
+                    // sentai_health_fail(SUBSYS_LINK);  DISABLED
+                }
             }
         }
     }
