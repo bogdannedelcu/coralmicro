@@ -46,7 +46,7 @@ from diag.e_sensors import e8_imu, e9_mic
 from diag.e_system import e10_memory, e11_cpu, e12_live_loop
 
 # ── experiments: full pipeline (per-stage timing) ─────────────────────────────
-from diag.e_pipeline import e13_pipeline_full, e14_pipeline_parallel
+from diag.e_pipeline import e13_pipeline_full, e14_pipeline_parallel, e15_pipeline_parallel_512
 
 # ── batch runners ─────────────────────────────────────────────────────────────
 from diag.batch import (

@@ -187,6 +187,30 @@ def e13_pipeline_full(model_path, camera_id=0, width=320, height=320,
     return result
 
 
+def e15_pipeline_parallel_512(model_path="/yolo_1_class_512_1_upsample_512_inloc_de_1024_la_P5_32.tflite",
+                               camera_id=0, repetitions=10, save=True):
+    """E15 — parallel pipeline with the 1-class 512x512 yolo edge-only model.
+
+    Differences vs E14:
+      - 512x512 uint8 input (no int8 quant step in firmware path — slightly faster
+        per frame on PrepTask side).
+      - Output shape is [1, 5376, 6] which is the post-NMS 1-class yolo format.
+        The existing firmware NMS (`sentai.tpu.detect`) assumes COCO-style
+        [1, 4+classes, N] and will return garbage *counts* for this model —
+        so `dets_total` is not meaningful here.  The important numbers are
+        frame_interval, invoke/infer latency, and dropped/timeout counters.
+
+    The purpose of E15 is to measure whether a lighter model (smaller arena,
+    smaller output tensor) actually shortens the InferTask critical path —
+    Invoke + memcpy + NMS — and therefore the end-to-end pipeline FPS.
+    """
+    return e14_pipeline_parallel(model_path,
+                                  camera_id=camera_id,
+                                  width=512, height=512,
+                                  conf=0.25, iou=0.45, max_det=50,
+                                  repetitions=repetitions, save=save)
+
+
 def e14_pipeline_parallel(model_path, camera_id=0, width=320, height=320,
                           conf=0.25, iou=0.45, max_det=50,
                           repetitions=30, save=True,
