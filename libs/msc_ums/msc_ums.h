@@ -40,17 +40,26 @@ class MscUms {
   size_t descriptor_data_size() { return sizeof(descriptor_); }
   void SetClassHandle(class_handle_t class_handle);
   bool HandleEvent(uint32_t event, void *param);
-  void SetUnitReady(bool ready) {
-    if (ready && !unit_ready_) {
-      media_changed_ = true;  // trigger UNIT ATTENTION on next TEST UNIT READY
-    }
-    unit_ready_ = ready;
-  }
+  // Set medium-present flag.  Does NOT auto-arm UNIT_ATTENTION:
+  // the SCSI rule that requires UA on the first not-ready→ready transition
+  // triggers a bulk-IN STALL inside the NXP MSC class layer (translated
+  // from kStatus_USB_Error returned by our TUR handler) which causes
+  // usb-storage to do BOT-Reset → port reset → bus reset cascade.
+  // Without auto-UA, the first TUR returns GOOD and Linux binds the SCSI
+  // target on the first try.
+  void SetUnitReady(bool ready) { unit_ready_ = ready; }
   bool IsUnitReady() const { return unit_ready_; }
+
+  // Write protection: when true, MODE SENSE returns the WP bit and WRITE(10)
+  // is rejected with InvalidRequest.  Toggling does NOT require a USB bus
+  // reset — host re-reads MODE SENSE on its next poll.
+  void SetWriteProtect(bool wp) { write_protected_ = wp; }
+  bool IsWriteProtected() const { return write_protected_; }
 
  private:
   bool unit_ready_ = false;
   bool media_changed_ = false;
+  bool write_protected_ = true;  // read-only by default; drive(1) clears this
   static usb_status_t Handler(class_handle_t class_handle, uint32_t event,
                               void *param);
   usb_status_t Handler(uint32_t event, void *param);

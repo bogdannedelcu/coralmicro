@@ -36,11 +36,21 @@ The NXP i.MX RT1176 has a dedicated **Watchdog Timer (WDOG1)** that:
 ### Configuration Parameters
 
 ```c
-constexpr uint32_t kWdogTimeoutSec    = 30;     // Hardware timeout
-constexpr uint32_t kKickIntervalMs    = 5000;   // Task wakes every 5s
-constexpr uint32_t kDeadThresholdMs   = 25000;  // Stop kicking after 25s of inactivity
-constexpr uint32_t kWarningThresholdMs = 15000; // Log warning after 15s
+constexpr uint32_t kWdogTimeoutSec     = 30;      // Hardware WDOG1 timeout
+constexpr uint32_t kKickIntervalMs     = 5000;    // Task wakes every 5s
+constexpr uint32_t kWarningThresholdMs = 60000;   // Log warning at 60s idle
+constexpr uint32_t kDeadThresholdMs    = 120000;  // Stop kicking at 120s idle
 ```
+
+Actualizate în build #587.  Pragurile sunt mai generoase decât cele din
+primele builds (15s/25s) pentru că o sesiune interactivă Python poate lua
+natural pauze lungi între comenzi.  Logica completă de escaladare:
+
+-   `0…60s` idle → HEALTHY, kick la fiecare 5s.
+-   `60…120s` idle → WARNING, încă kick, log `E:0501 idle=<sec>`.
+-   `>120s` idle → DEAD, oprește kick-ul.  WDOG1 fizic firește după ~30s.
+-   Fallback soft-reset la 35s dacă WDOG1 nu e încă prins (ex. debugger):
+    ciclu de 7 × `vTaskDelay(5000ms)` apoi `NVIC_SystemReset()`.
 
 ### Initialization
 
@@ -54,8 +64,8 @@ wdog_config.workMode.enableStop = false;    // Don't run in STOP mode
 wdog_config.workMode.enableDebug = false;   // Don't pause for debugger!
 wdog_config.enableInterrupt = false;        // No interrupt, just reset
 
-// Wait for boot to complete
-vTaskDelay(pdMS_TO_TICKS(10000));  // 10 seconds
+// Brief settling delay — USB CDC is already up after main_freertos init.
+vTaskDelay(pdMS_TO_TICKS(3000));
 
 // Enable hardware watchdog
 WDOG_Init(WDOG1, &wdog_config);
@@ -77,32 +87,33 @@ If **either** interface is active, the system is considered healthy.
                      │                                     │
      Activity        │                                     ▼
   ◄──────────────────┤              HEALTHY               │
-     (< 15 sec)      │         WDOG_Refresh()             │
+     (< 60 sec)      │         WDOG_Refresh()             │
                      │       Log status every 5min        │
                      │                                     │
                      └─────────────────────────────────────┘
                                       │
-                                      │ No activity for 15s
+                                      │ No activity for 60s
                                       ▼
                      ┌─────────────────────────────────────┐
                      │                                     │
                      │              WARNING                │
                      │         WDOG_Refresh()             │
-                     │         Log crash warning          │
+                     │   Log E:0501 (SERR_WDG_WARN)        │
                      │                                     │
                      └─────────────────────────────────────┘
                                       │
-                                      │ No activity for 25s
+                                      │ No activity for 120s
                                       ▼
                      ┌─────────────────────────────────────┐
                      │                                     │
                      │            DEAD ZONE                │
                      │         NO WDOG_Refresh()          │
-                     │         Log "WATCHDOG_TIMEOUT"     │
+                     │   Log E:05F0 (SERR_WDG_DEAD)        │
                      │                                     │
                      └─────────────────────────────────────┘
                                       │
-                                      │ ~5-30 seconds (WDOG expires)
+                                      │ ~30s (WDOG1 expires)
+                                      │ or 35s (NVIC fallback)
                                       ▼
                      ┌─────────────────────────────────────┐
                      │                                     │
@@ -111,6 +122,43 @@ If **either** interface is active, the system is considered healthy.
                      │                                     │
                      └─────────────────────────────────────┘
 ```
+
+### Storage-mode bypass
+
+În storage mode (`sentai.usb.drive(1)`) atât REPL-ul cât și
+CDC-NCM/HTTP-ul sunt oprite **deliberat** — board-ul expune NAND-ul
+ca disc USB host-ului.  În această stare nimic nu mai actualizează
+`g_http_last_activity` / `g_repl_last_activity`, deci logica obișnuită
+de idle devine patologică: la 120s idle declară DEAD și la ~150s
+resetează board-ul în mijlocul sesiunii USB a utilizatorului.
+
+Pentru a evita acest reset parazit, `CombinedWatchdogTask` verifică la
+fiecare tick dacă e storage mode și, dacă da, **face doar kick la WDOG1
+(păstrând protecția împotriva CPU-lockup) și sare peste logica
+dead/warn**:
+
+```c
+for (;;) {
+    vTaskDelay(pdMS_TO_TICKS(kKickIntervalMs));
+    uint32_t now = xTaskGetTickCount() * portTICK_PERIOD_MS;
+    sentai_fault_set_uptime(now);
+
+    // In storage mode, REPL/HTTP are intentionally off — skip dead logic.
+    if (sentai_storage_mode_active()) {
+        WDOG_Refresh(WDOG1);
+        g_network_healthy = true;
+        consecutive_kicks = 0;
+        continue;
+    }
+    /* normal HEALTHY/WARN/DEAD logic ... */
+}
+```
+
+Fix aplicat în build #587.  Verificat cu o sesiune susținută de 4m1s
+în storage mode fără reset (înainte, resetul era fiabil la 150±5 s).
+Ieșirea din storage mode se face doar voluntar — `drive(0)`, byte pe
+`/dev/ttyACM0`, buton User, buton RESET.  În default mode se revine
+automat la logica completă de activity monitoring.
 
 ### Task Priority
 
@@ -208,19 +256,23 @@ Reset reason: 0x08010003   ← Includes WDOG reset flag
 To adjust watchdog behavior, modify these constants in `sentai_runtime.cc`:
 
 ```c
-constexpr uint32_t kWdogTimeoutSec    = 30;     // WDOG1 timeout (5-128s)
-constexpr uint32_t kKickIntervalMs    = 5000;   // How often task runs
-constexpr uint32_t kDeadThresholdMs   = 25000;  // When to stop kicking
-constexpr uint32_t kWarningThresholdMs = 15000; // When to start warning
+constexpr uint32_t kWdogTimeoutSec     = 30;      // WDOG1 timeout (5-128s)
+constexpr uint32_t kKickIntervalMs     = 5000;    // How often task runs
+constexpr uint32_t kWarningThresholdMs = 60000;   // Start logging warnings
+constexpr uint32_t kDeadThresholdMs    = 120000;  // Stop kicking
 ```
 
-**Rule of thumb**: `kDeadThresholdMs` should be at least `kWdogTimeoutSec - kKickIntervalMs` to ensure WDOG has time to expire after we stop kicking.
+**Rule of thumb**: `kDeadThresholdMs` trebuie să fie suficient de generos
+încât un user interactiv în REPL să nu fie resetat din greșeală între
+comenzi (ex. citește un log lung).  `kWdogTimeoutSec` trebuie să fie
+`≥ 2 × kKickIntervalMs` ca să acopere un singur kick ratat la jitter de
+scheduler.
 
 ## Limitations
 
 1. **Debug Mode**: WDOG1 does not pause during JTAG debugging (by design). Set `enableDebug = true` if you need this.
 2. **Sleep Modes**: WDOG1 continues in WAIT mode but not in STOP mode.
-3. **Minimum Activity**: The system requires at least one HTTP request or REPL keystroke every 25 seconds to avoid reset.
+3. **Minimum Activity**: The system requires at least one HTTP request or REPL keystroke every 120 seconds to avoid reset — *except în storage mode*, unde logica de idle este complet bypassed.
 4. **No Disable**: Once WDOG1 is enabled, it cannot be disabled until the next reset.
 
 ## Summary

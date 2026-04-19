@@ -54,6 +54,16 @@ extern "C" {
 #include "micropython_task.h"
 #include "detection_task.h"
 #include "sentai_tracker.h"
+
+// Boot diagnostic getters defined in libs/base/main_freertos_m7.cc.
+uint32_t sentai_boot_prev_progress(void);
+uint32_t sentai_boot_storage_attempts(void);
+uint32_t sentai_boot_sram_magic(void);
+uint32_t sentai_boot_sram_check(void);
+uint32_t sentai_boot_gpr_snap(int);
+void     sentai_boot_progress_mark(uint32_t);
+void     sentai_storage_boot_succeeded(void);
+int      sentai_storage_mode_active(void);
 }
 
 #include "sentai_vision_common.h"
@@ -518,15 +528,28 @@ static void CombinedWatchdogTask(void* param) {
     
     for (;;) {
         vTaskDelay(pdMS_TO_TICKS(kKickIntervalMs));
-        
+
         uint32_t now = xTaskGetTickCount() * portTICK_PERIOD_MS;
         sentai_fault_set_uptime(now);  // update crash timestamp hint for fault handler
+
+        // === STORAGE MODE: REPL/HTTP are intentionally off, no activity
+        // signal is possible.  Keep the hardware watchdog alive (protects
+        // against CPU lockup) but skip the dead/warn logic entirely — the
+        // user is working with the board as a USB disk and expects no
+        // auto-reset until they exit storage mode themselves.
+        if (sentai_storage_mode_active()) {
+            WDOG_Refresh(WDOG1);
+            g_network_healthy = true;
+            consecutive_kicks = 0;
+            continue;
+        }
+
         uint32_t http_idle = now - g_http_last_activity;
         uint32_t repl_idle = now - g_repl_last_activity;
-        
+
         // Find the most recent activity (either HTTP or REPL)
         uint32_t min_idle = (http_idle < repl_idle) ? http_idle : repl_idle;
-        
+
         // === HEALTHY: At least one interface active recently ===
         if (min_idle < kWarningThresholdMs) {
             // All good - kick the watchdog
@@ -675,6 +698,21 @@ extern "C" void sentai_boot_log_stop(void) {
     boot_log_stop();
 }
 
+// Strong override of the weak default in libs/usb/usb_device_task.cc.
+// The string is published as the USB Product descriptor so that
+// `lsusb -v -d 1fc9:c0a1` (or just `lsusb`) shows the running build
+// number — quick visual confirmation that flashtool succeeded.
+extern "C" const char *sentai_build_version_string(void) {
+    static char s[64];
+    static bool init = false;
+    if (!init) {
+        snprintf(s, sizeof(s),
+                 "autonomous.ro SentAI build #%d", BUILD_VERSION);
+        init = true;
+    }
+    return s;
+}
+
 namespace coralmicro {
 
 // External-linkage state — accessed by sentai_slow_bridge.cc (OCRAM)
@@ -739,6 +777,10 @@ void Main() {
     SERR_LOG(SERR_SYS_RECOVERY_MODE, attempts);
     coralmicro::logf("\r\n*** RECOVERY MODE *** boot loop after %lu attempts\r\n",
                      (unsigned long)attempts);
+    coralmicro::logf("[recovery] last_progress=0x%02lX storage_attempts=%lu sram_magic=%08lX\r\n",
+                     (unsigned long)::sentai_boot_prev_progress(),
+                     (unsigned long)::sentai_boot_storage_attempts(),
+                     (unsigned long)::sentai_boot_sram_magic());
     coralmicro::logf("Reflash: python3 scripts/flashtool.py -e sentai_runtime\r\n");
 
     // Mount LFS + open /log/boot.log (LFS already mounted by main_freertos)
@@ -796,6 +838,9 @@ extern "C" void vApplicationStackOverflowHook(TaskHandle_t xTask,
 extern "C" void app_main(void* param) {
   (void)param;
 
+  // Diagnostic checkpoint: app_main reached.
+  sentai_boot_progress_mark(0x10);
+
   // === PHASE 8: BOOT LOOP DETECTION — MUST BE FIRST ===
   // SRC_GPR[kSRC_GeneralPurposeRegister1] survives warm reset (WDOG / SW reset)
   // but is cleared on cold boot (power cycle). Provides automatic anti-brick:
@@ -828,6 +873,7 @@ extern "C" void app_main(void* param) {
   
   // Initialize boot logging FIRST (before any printf)
   boot_log_init();
+  sentai_boot_progress_mark(0x11);
   
   coralmicro::app_start_tick = xTaskGetTickCount();
   coralmicro::logf("\r\nSentAI build #%d (%s)\r\n", BUILD_VERSION, BUILD_TIMESTAMP);
@@ -851,7 +897,28 @@ extern "C" void app_main(void* param) {
   // Initialize LFS and boot log file
   // LFS should be initialized by main_freertos before app_main
   boot_log_fs_init();
+  sentai_boot_progress_mark(0x12);
   coralmicro::logf("Boot logging to /log/boot.log\r\n");
+
+  // Log the boot-mode flag so we can diagnose if drive(1) actually wrote
+  // the magic and survived the warm reset.  We log ALL persistence signals
+  // (DTC-RAM struct + GPR9/10/11/12/15/16) to learn empirically which ones
+  // survive NVIC_SystemReset on this silicon.  SRAM is authoritative.
+  // (declarations now at file scope inside extern "C" block above)
+  coralmicro::logf("[boot-mode] storage=%d attempts=%lu prev_progress=0x%02lX "
+                   "sram=%08lX/%08lX GPR9=%08lX GPR10=%08lX GPR11=%08lX "
+                   "GPR12=%08lX GPR15=%08lX GPR16=%08lX\r\n",
+                   sentai_storage_mode_active(),
+                   (unsigned long)sentai_boot_storage_attempts(),
+                   (unsigned long)sentai_boot_prev_progress(),
+                   (unsigned long)sentai_boot_sram_magic(),
+                   (unsigned long)sentai_boot_sram_check(),
+                   (unsigned long)sentai_boot_gpr_snap(0),
+                   (unsigned long)sentai_boot_gpr_snap(1),
+                   (unsigned long)sentai_boot_gpr_snap(2),
+                   (unsigned long)sentai_boot_gpr_snap(3),
+                   (unsigned long)sentai_boot_gpr_snap(4),
+                   (unsigned long)sentai_boot_gpr_snap(5));
 
   // Write crash breadcrumb from previous boot to /log/crash.log (LFS now ready)
   if (s_has_prev_crash) {
@@ -898,18 +965,19 @@ extern "C" void app_main(void* param) {
     coralmicro::logf("Prev crash recovered: %s %s\r\n", fault_name, details);
   }
 
-  // User button task: waits for notification from ISR, then safely
-  // calls sentai_usb_drive_set(0) from task context (not ISR).
+  // User button task: waits for notification from ISR, then enters
+  // storage mode by calling sentai_usb_drive_set(1).  That writes the
+  // SRC_GPR15 magic and warm-resets the CPU; on the next boot the
+  // composite descriptor exposes only ACM + MSC and /dev/sda comes up.
+  // Pressing the physical RESET button (HW POR) clears SRC_GPR15 and
+  // returns the board to default REPL+IP mode.
   static TaskHandle_t s_btn_task = nullptr;
   xTaskCreate([](void*) {
     for (;;) {
       ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-      extern int sentai_usb_drive_get(void);
       extern int sentai_usb_drive_set(int on);
-      if (sentai_usb_drive_get()) {
-        sentai_usb_drive_set(0);
-        printf("\r\n*****\r\nUSB drive off\r\n*****\r\n>>> ");
-      }
+      printf("\r\n[btn] User button -> storage mode\r\n");
+      sentai_usb_drive_set(1);  // never returns (warm reset)
     }
   }, "btn_usb", configMINIMAL_STACK_SIZE * 4, nullptr,
      tskIDLE_PRIORITY + 1, &s_btn_task);
@@ -924,7 +992,45 @@ extern "C" void app_main(void* param) {
         portYIELD_FROM_ISR(woken);
       },
       /*debounce_interval_us=*/200 * 1000);
-  coralmicro::logf("User button -> usb.drive(0)\r\n");
+  coralmicro::logf("User button -> sentai.usb.drive(1)  [enter STORAGE mode]\r\n");
+
+  // ---- STORAGE mode short-circuit ----
+  // In storage mode the firmware is a quiet host for /dev/sda only.
+  // No REPL, no LFS task, no HTTP, no detection pipeline — the host has
+  // exclusive NAND ownership and our app code must not touch it.
+  // Watchdog is still started (so a hang in MSC handler still recovers)
+  // and the user button does its usual thing (would re-enter storage,
+  // which is harmless: same magic, same reset).
+  if (sentai_storage_mode_active()) {
+    sentai_boot_progress_mark(0x13);
+    coralmicro::logf(
+        "** STORAGE MODE active — REPL/IP disabled, /dev/sda is writable.\r\n"
+        "** Press the RESET button OR send any input on /dev/ttyACM0\r\n"
+        "** to return to default REPL+IP mode.\r\n");
+    start_network_watchdog();
+    sentai_health_boot_complete();
+    // Reaching here means storage-mode boot survived all early init (USB
+    // descriptor registration, MSC class init, FreeRTOS scheduler).  Clear
+    // the crash-loop counter so the next drive(1) gets a fresh budget.
+    sentai_storage_boot_succeeded();
+
+    // In-band exit: poll the USB CDC-ACM RX buffer for ANY input byte and
+    // call drive(0) when one arrives.  Lets host scripts return to default
+    // mode without physical reset.  Polling cadence is 200 ms — instant
+    // enough for a human-typed 'q' but doesn't churn the bus.
+    extern int sentai_usb_drive_set(int on);
+    char dummy[16];
+    for (;;) {
+      int n = coralmicro::ConsoleM7::GetSingleton()->Read(dummy, sizeof(dummy));
+      if (n > 0) {
+        coralmicro::logf("[storage] input received (%d byte%s) — exiting to default REPL+IP\r\n",
+                         n, n == 1 ? "" : "s");
+        vTaskDelay(pdMS_TO_TICKS(80));  // drain printf to host
+        sentai_usb_drive_set(0);  // never returns (warm reset)
+      }
+      vTaskDelay(pdMS_TO_TICKS(200));
+    }
+  }
 
   // Launch MicroPython REPL task (interactive Python over serial)
   coralmicro::logf("Starting MicroPython REPL task...\r\n");

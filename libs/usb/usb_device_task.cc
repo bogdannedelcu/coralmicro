@@ -28,6 +28,13 @@ extern "C" void USB_OTG1_IRQHandler(void) {
       coralmicro::UsbDeviceTask::GetSingleton()->device_handle());
 }
 
+// Default Product string — applications can override this by providing a
+// strong definition of sentai_build_version_string().  Kept inside libs/
+// so libs/usb/ has no dependency on examples/sentai_runtime/.
+extern "C" __attribute__((weak)) const char *sentai_build_version_string(void) {
+  return "- autonomous.ro SentAI board v1.0";
+}
+
 namespace coralmicro {
 namespace {
 constexpr int kUSBControllerId = kUSB_ControllerEhci0;
@@ -98,10 +105,16 @@ usb_status_t UsbDeviceTask::Handler(usb_device_handle device_handle,
           ToUsbStringDescriptor("autonomous.ro", string_desc);
           ret = kStatus_USB_Success;
           break;
-        case 2:
-          ToUsbStringDescriptor("- autonomous.ro SentAI board v1.0", string_desc);
+        case 2: {
+          // Embed the build version into the USB Product string so we can
+          // verify from the host with `lsusb` that the latest binary is
+          // actually running.  ::sentai_build_version_string() lives in
+          // the global namespace (extern "C", weak default below + strong
+          // override in sentai_runtime.cc).
+          ToUsbStringDescriptor(::sentai_build_version_string(), string_desc);
           ret = kStatus_USB_Success;
           break;
+        }
         case 3:
           ToUsbStringDescriptor(serial_number_.c_str(), string_desc);
           ret = kStatus_USB_Success;

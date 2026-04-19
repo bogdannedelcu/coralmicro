@@ -545,6 +545,18 @@ SECTIONS
     . = ALIGN(4);
   } > m_sdram
 
+  /* Persistent boot-mode flag — survives NVIC_SystemReset / WDOG reset
+   * because DTC-RAM contents are preserved by warm reset on RT1176.
+   * Cleared only by hardware POR (reset button / power cycle).
+   * Placed BEFORE .bss so the startup BSS-zero loop skips it. */
+  .noinit_boot_persist (NOLOAD) : ALIGN(4)
+  {
+    __BOOT_PERSIST_START__ = .;
+    *(.noinit.$boot_persist*)
+    . = ALIGN(4);
+    __BOOT_PERSIST_END__ = .;
+  } > m_data
+
   /* Uninitialized data section */
   .bss :
   {

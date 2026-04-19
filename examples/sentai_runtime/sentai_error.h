@@ -111,6 +111,14 @@ extern "C" {
 #define SERR_FS_READ_FAIL       (SERR_MOD_FS | 0x20)    // Read error
 #define SERR_FS_WRITE_FAIL      (SERR_MOD_FS | 0x21)    // Write error
 
+// ===================== USB Errors (0x0Cxx) =====================
+#define SERR_MOD_USB     0x0C00
+#define SERR_USB_NCM_TX_DROP    (SERR_MOD_USB | 0x01)  // NCM TX dropped (not attached)
+#define SERR_USB_NCM_RX_DROP    (SERR_MOD_USB | 0x02)  // NCM RX dropped (endpoint busy)
+#define SERR_USB_MSC_READ_FAIL  (SERR_MOD_USB | 0x10)  // NAND read fail (val=page)
+#define SERR_USB_MSC_WRITE_FAIL (SERR_MOD_USB | 0x11)  // NAND write fail (val=page)
+#define SERR_USB_MSC_ERASE_FAIL (SERR_MOD_USB | 0x12)  // NAND erase fail (val=block)
+
 // ===================== System Errors (0x0Fxx) =====================
 #define SERR_SYS_BOOT_ATTEMPT   (SERR_MOD_SYS | 0x01)   // Boot attempt N (val=attempt_count)
 #define SERR_SYS_RECOVERY_MODE  (SERR_MOD_SYS | 0xF0)   // Recovery mode entered (val=attempts)

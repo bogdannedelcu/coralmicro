@@ -185,48 +185,69 @@ static void LfsTaskFn(void* /*arg*/) {
 // Public API — called from sentai_httpd.cc (tcpip_thread context)
 // ---------------------------------------------------------------------------
 
+static size_t EnqueueLfsRequest(sentai_lfs_req_type_t type, const char* path) {
+    LfsRequest req;
+    req.type = type;
+    strncpy(req.path, path, sizeof(req.path) - 1);
+    req.path[sizeof(req.path) - 1] = '\0';
+    s_slot_type = type;
+    strncpy(s_slot_path, path, sizeof(s_slot_path) - 1);
+    s_slot_path[sizeof(s_slot_path) - 1] = '\0';
+    if (xQueueSend(s_req_queue, &req, 0) == pdTRUE) {
+        s_slot_state = SLOT_PENDING;
+    }
+    return 0;
+}
+
 size_t sentai_lfs_try_serve(sentai_lfs_req_type_t type, const char* path) {
     if (!s_req_queue) return 0;
 
-    SlotState state = s_slot_state;
-
-    switch (state) {
-    case SLOT_IDLE: {
-        // Queue new request. xQueueSend with 0 timeout: never blocks tcpip_thread.
-        LfsRequest req;
-        req.type = type;
-        strncpy(req.path, path, sizeof(req.path) - 1);
-        req.path[sizeof(req.path) - 1] = '\0';
-        s_slot_type = type;
-        strncpy(s_slot_path, path, sizeof(s_slot_path) - 1);
-        s_slot_path[sizeof(s_slot_path) - 1] = '\0';
-        if (xQueueSend(s_req_queue, &req, 0) == pdTRUE) {
-            s_slot_state = SLOT_PENDING;
-        }
-        return 0;
-    }
-
-    case SLOT_PENDING:
-        return 0;
-
-    case SLOT_READY: {
+    // Step 1 — if the slot already holds the result for THIS exact request
+    // (either from an earlier async attempt or a concurrent burst), serve it.
+    if (s_slot_state == SLOT_READY) {
         if (s_slot_type == type && strcmp(s_slot_path, path) == 0) {
             size_t len = s_slot_len;
-            s_slot_state = SLOT_IDLE;  // reset before returning either way
-            if (len > 0) {
-                s_slot_state = SLOT_SERVING;
-                return len;
-            }
-            // len == 0: file not found or empty — signal 404 to caller.
-            return (size_t)-1;
+            s_slot_state = SLOT_IDLE;
+            if (len > 0) { s_slot_state = SLOT_SERVING; return len; }
+            return (size_t)-1;  // 404 / empty
         }
-        // Stale/mismatched result — discard and request fresh data.
+        // Stale result for a different path — discard it.
         s_slot_state = SLOT_IDLE;
-        return 0;
     }
 
-    case SLOT_SERVING:
-        return 0;
+    // Step 2 — a previous response is still being streamed from g_resp_buf.
+    // Reusing the buffer now would corrupt it; tell the client to retry.
+    if (s_slot_state == SLOT_SERVING) return 0;
+
+    // Step 3 — FAST PATH.  Take the LFS mutex and service the request inline
+    // from tcpip_thread so a single GET resolves in one HTTP round-trip.
+    //
+    // The short wait (FAST_PATH_WAIT_MS) catches the common case where MP
+    // is partway through a brief flash op — by the time we'd be about to
+    // send lfs_busy, the mutex is usually free.  The wait is an order of
+    // magnitude below the USB NCM transmit-timeout so tcpip_thread's brief
+    // stall here is invisible to the host.
+    //
+    // The mutex is the app-level gate used by MP, boot_log_flush, crash_log,
+    // and lfs_task itself.  Once we own it, none of those is inside lfs_*
+    // and LFS's internal mutex is free — so the lfs_* calls below will not
+    // stall on top of our own wait.
+    constexpr TickType_t FAST_PATH_WAIT_MS = 500;
+    if (s_lfs_mutex &&
+        xSemaphoreTake(s_lfs_mutex, pdMS_TO_TICKS(FAST_PATH_WAIT_MS)) == pdTRUE) {
+        size_t len = (type == LFS_REQ_LS) ? DoLs(path) : DoRaw(path);
+        xSemaphoreGive(s_lfs_mutex);
+        if (len > 0) { s_slot_state = SLOT_SERVING; return len; }
+        return (size_t)-1;  // 404 / empty
+    }
+
+    // Step 4 — SLOW PATH.  Mutex contended (MP mid-write, lfs_task busy,
+    // boot_log_flush in progress…).  Hand the request to lfs_task so we
+    // don't block tcpip_thread, and tell the client to retry.  By the next
+    // retry the fast path will usually succeed, or the queued result will
+    // be waiting in SLOT_READY.
+    if (s_slot_state == SLOT_IDLE) {
+        EnqueueLfsRequest(type, path);
     }
     return 0;
 }

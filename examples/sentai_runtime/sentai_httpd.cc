@@ -143,6 +143,26 @@ class SentaiHttpServer : public coralmicro::HttpServer {
       if (strncmp(name, "/api/ls", 7) == 0) {
         req_type = LFS_REQ_LS;
         path = name + 7;
+        // lwIP's httpd rewrites trailing-slash URIs by appending one of its
+        // default index filenames (index.shtml/ssi/shtm/html/htm), so a GET
+        // for "/api/ls/" arrives here as "/api/ls/index.shtml".  Strip that
+        // artefact so the caller's intent (list the parent dir) is honoured.
+        static char ls_path_buf[256];
+        size_t plen = strlen(path);
+        static const char* const kIndexSuffixes[] = {
+            "/index.shtml", "/index.ssi", "/index.shtm",
+            "/index.html", "/index.htm"};
+        for (size_t i = 0; i < sizeof(kIndexSuffixes)/sizeof(kIndexSuffixes[0]); ++i) {
+          size_t slen = strlen(kIndexSuffixes[i]);
+          if (plen >= slen && strcmp(path + plen - slen, kIndexSuffixes[i]) == 0) {
+            size_t keep = plen - slen;
+            if (keep >= sizeof(ls_path_buf)) keep = sizeof(ls_path_buf) - 1;
+            memcpy(ls_path_buf, path, keep);
+            ls_path_buf[keep] = '\0';
+            path = ls_path_buf;
+            break;
+          }
+        }
         if (*path == '\0' || strcmp(path, "/") == 0) path = "/";
         else if (!ValidPath(path)) path = "/";
       } else {

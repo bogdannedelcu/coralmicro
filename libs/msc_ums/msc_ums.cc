@@ -120,6 +120,10 @@ usb_status_t MscUms::Handler(uint32_t event, void *param) {
       break;
     case kUSB_DeviceMscEventWriteResponse:
       lba = (usb_device_lba_app_struct_t *)param;
+      if (write_protected_) {
+        error = kStatus_USB_InvalidRequest;  // CHECK CONDITION: write protected
+        break;
+      }
       if (lba->offset == 0 && std::memcmp(lba->buffer, &kInvalidDataPattern,
                                           sizeof(kInvalidDataPattern)) == 0) {
         uint32_t block = __ntohl(*reinterpret_cast<uint32_t *>(
@@ -235,16 +239,25 @@ usb_status_t MscUms::Handler(uint32_t event, void *param) {
       break;
     case kUSB_DeviceMscEventModeSense:
       ufi = (usb_device_ufi_app_struct_t *)param;
+      // Update WP bit (byte 2, bit 7 = write-protect) dynamically so the host
+      // sees current write-protect state on every MODE SENSE poll.
+      g_ModeParametersHeader.wpDpfua = write_protected_ ? 0x80 : 0x00;
       ufi->size = sizeof(usb_device_mode_parameters_header_struct_t);
       ufi->buffer = (uint8_t *)&g_ModeParametersHeader;
       break;
     case kUSB_DeviceMscEventModeSelectResponse:
       ufi = (usb_device_ufi_app_struct_t *)param;
       break;
+    case kUSB_DeviceMscEventRequestSense:
+      // Return success: NXP MSC class layer sends the stored sense data
+      // (set by previous TUR/READ that failed with UNIT_ATTENTION etc.).
+      // Returning InvalidRequest here stalls the bulk-IN endpoint, causing
+      // usb-storage to do BOT-Reset → port reset → bus reset cascade.
+      error = kStatus_USB_Success;
+      break;
     case kUSB_DeviceMscEventModeSelect:
     case kUSB_DeviceMscEventFormatComplete:
     case kUSB_DeviceMscEventRemovalRequest:
-    case kUSB_DeviceMscEventRequestSense:
       error = kStatus_USB_InvalidRequest;
       break;
     case kUSB_DeviceMscEventReadCapacity:

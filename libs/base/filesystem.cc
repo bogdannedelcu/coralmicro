@@ -365,9 +365,19 @@ int LfsUserUnlock(const struct lfs_config* c) {
 }
 }  // namespace
 
-lfs_t* LfsUser() { return &g_lfs_user; }
+// Set true once LfsUserInit successfully mounts the user partition.  Storage
+// mode skips LfsUserInit so the host has exclusive NAND access; in that case
+// LfsUser() returns nullptr and all callers (boot_log_fs_init, crash_log_*,
+// httpd /api/*, sentai_runtime) gracefully no-op instead of touching an
+// uninitialized lfs_t and locking up the M7.
+static bool g_lfs_user_initialized = false;
+
+lfs_t* LfsUser() {
+  return g_lfs_user_initialized ? &g_lfs_user : nullptr;
+}
 
 bool LfsUserInit(bool force_format) {
+  g_lfs_user_initialized = false;
   if (g_lfs_user_mutex) vSemaphoreDelete(g_lfs_user_mutex);
   g_lfs_user_mutex = xSemaphoreCreateMutex();
   if (!g_lfs_user_mutex) return false;
@@ -400,6 +410,7 @@ bool LfsUserInit(bool force_format) {
     ret = lfs_mount(&g_lfs_user, &g_lfs_user_config);
     if (ret < 0) return false;
   }
+  g_lfs_user_initialized = true;
   return true;
 }
 
@@ -423,8 +434,10 @@ bool LfsUserRemount() {
   int ret = lfs_mount(&g_lfs_user, &g_lfs_user_config);
   if (ret < 0) {
     printf("LfsUserRemount: mount failed (%d) — run coral.fs_format()\r\n", ret);
+    g_lfs_user_initialized = false;
     return false;
   }
+  g_lfs_user_initialized = true;
   return true;
 }
 

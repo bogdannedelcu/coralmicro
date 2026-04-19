@@ -67,9 +67,24 @@ CODE,MODULE,NAME,DESCRIPTION,VERSION_ADDED,STATUS
 # === Module 0x0A: Camera ===
 # (reserved for future use)
 # === Module 0x0B: TPU ===
-# (reserved for future use)
+0x0B40,TPU,ARENA_ALLOC,Tensor arena allocation failed,v1.0,ACTIVE
+0x0B41,TPU,MODEL_LOAD,Model load from flash failed,v1.0,ACTIVE
+0x0B42,TPU,ALLOC_TENSORS,AllocateTensors() failed,v1.0,ACTIVE
+0x0B43,TPU,INPUT_COUNT,Model must have exactly 1 input tensor,v1.0,ACTIVE
+0x0B44,TPU,NOT_READY,EdgeTPU not initialized,v1.0,ACTIVE
+# === Module 0x0C: USB ===
+0x0C01,USB,NCM_TX_DROP,NCM TX dropped - not attached (alt=0),v1.1,ACTIVE
+0x0C02,USB,NCM_RX_DROP,NCM RX dropped - endpoint busy,v1.1,ACTIVE
+0x0C10,USB,MSC_READ_FAIL,NAND read failed during MSC bulk transfer (val=page),v1.1,ACTIVE
+0x0C11,USB,MSC_WRITE_FAIL,NAND write failed during MSC bulk transfer (val=page),v1.1,ACTIVE
+0x0C12,USB,MSC_ERASE_FAIL,NAND erase failed during MSC command (val=block),v1.1,ACTIVE
 # === Module 0x0F: System ===
+0x0F01,SYS,BOOT_ATTEMPT,Boot attempt N - counter from SRC_GPR1 (val=attempt_number),v1.0,ACTIVE
+0x0FF0,SYS,RECOVERY_MODE,Recovery mode entered after boot loop (val=attempt_count),v1.0,ACTIVE
 0x0FF1,SYS,STACK_OVF,Stack overflow detected,v1.0,ACTIVE
 0x0FF2,SYS,MALLOC_FAIL,pvPortMalloc returned NULL,v1.0,ACTIVE
 0x0FF3,SYS,ASSERT,configASSERT fired,v1.0,ACTIVE
+0x0FF4,SYS,BUS_FAULT,ARMv7-M BusFault handler (val=CFSR),v1.0,ACTIVE
+0x0FF5,SYS,USAGE_FAULT,ARMv7-M UsageFault handler (val=CFSR),v1.0,ACTIVE
+0x0FF6,SYS,MEMMANAGE,ARMv7-M MemManage/MPU fault (val=CFSR),v1.0,ACTIVE
 0x0FFF,SYS,HARDFAULT,Hard fault handler,v1.0,ACTIVE
