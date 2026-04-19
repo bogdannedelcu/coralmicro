@@ -83,6 +83,46 @@ static mp_obj_t mod_sentai_diag_boot_log(void) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_diag_boot_log_obj, mod_sentai_diag_boot_log);
 
+// ===================== In-RAM dmesg reader =====================
+// sentai.diag.dmesg([max_bytes]) -> str
+// Returns the in-RAM ring buffer contents (oldest-first). The ring is
+// populated via sentai_dmesg() calls throughout the firmware and survives
+// REPL resets, USB reconnects and command failures — cleared only by reboot.
+// Default cap 16 KB; pass a smaller value to tail just the recent entries.
+#include "sentai_dmesg.h"
+static mp_obj_t mod_sentai_diag_dmesg(size_t n_args, const mp_obj_t *args) {
+    int max_bytes = (n_args >= 1) ? mp_obj_get_int(args[0]) : 16384;
+    if (max_bytes < 64)    max_bytes = 64;
+    if (max_bytes > 65536) max_bytes = 65536;
+
+    char* buf = m_new(char, max_bytes);
+    size_t n = sentai_dmesg_read(buf, (size_t)max_bytes);
+    mp_obj_t result = mp_obj_new_str(buf, n);
+    m_del(char, buf, max_bytes);
+    return result;
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_diag_dmesg_obj,
+                                            0, 1, mod_sentai_diag_dmesg);
+
+// sentai.diag.dmesg_clear() -> None
+static mp_obj_t mod_sentai_diag_dmesg_clear(void) {
+    sentai_dmesg_clear();
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_diag_dmesg_clear_obj,
+                                  mod_sentai_diag_dmesg_clear);
+
+// sentai.diag.dmesg_stats() -> (bytes_used, bytes_dropped)
+static mp_obj_t mod_sentai_diag_dmesg_stats(void) {
+    mp_obj_t items[2] = {
+        mp_obj_new_int_from_uint((uint32_t)sentai_dmesg_used()),
+        mp_obj_new_int_from_uint(sentai_dmesg_dropped()),
+    };
+    return mp_obj_new_tuple(2, items);
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_diag_dmesg_stats_obj,
+                                  mod_sentai_diag_dmesg_stats);
+
 // ---- module table ----
 static const mp_rom_map_elem_t sentai_diag_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__),   MP_ROM_QSTR(MP_QSTR_diag) },
@@ -90,6 +130,9 @@ static const mp_rom_map_elem_t sentai_diag_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_sys_mode),   MP_ROM_PTR(&mod_sentai_diag_sys_mode_obj) },
     { MP_ROM_QSTR(MP_QSTR_crash_log),  MP_ROM_PTR(&mod_sentai_diag_crash_log_obj) },
     { MP_ROM_QSTR(MP_QSTR_boot_log),   MP_ROM_PTR(&mod_sentai_diag_boot_log_obj) },
+    { MP_ROM_QSTR(MP_QSTR_dmesg),      MP_ROM_PTR(&mod_sentai_diag_dmesg_obj) },
+    { MP_ROM_QSTR(MP_QSTR_dmesg_clear), MP_ROM_PTR(&mod_sentai_diag_dmesg_clear_obj) },
+    { MP_ROM_QSTR(MP_QSTR_dmesg_stats), MP_ROM_PTR(&mod_sentai_diag_dmesg_stats_obj) },
 };
 static MP_DEFINE_CONST_DICT(sentai_diag_globals, sentai_diag_globals_table);
 static const mp_obj_module_t sentai_diag_module = {

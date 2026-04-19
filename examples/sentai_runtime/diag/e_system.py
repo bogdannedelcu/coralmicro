@@ -99,6 +99,7 @@ def e11_cpu(scenario="idle", duration_ms=2000, save=True):
 def e12_live_loop(model_path, camera_id=0, width=320, height=320,
                   repetitions=50, save=True):
     """Measure full perception loop: to_tensor + invoke + output read."""
+    import gc
     print("[E12] Live loop — cam%d %dx%d, model=%s, %d reps" % (
         camera_id, width, height, model_path, repetitions))
 
@@ -109,6 +110,7 @@ def e12_live_loop(model_path, camera_id=0, width=320, height=320,
 
     sentai.camera.to_tensor()
     sentai.tpu.invoke()
+    gc.collect()
 
     tensor_times = []
     invoke_times = []
@@ -119,7 +121,10 @@ def e12_live_loop(model_path, camera_id=0, width=320, height=320,
 
         t0 = _ticks(); sentai.camera.to_tensor(); tensor_times.append(_ticks() - t0)
         invoke_times.append(sentai.tpu.invoke())
+        # tpu.output(0) returns a ~176 KB bytes object; without explicit GC the
+        # micropython heap fragments and the next call raises MemoryError.
         sentai.tpu.output(0)
+        gc.collect()
         loop_times.append(_ticks() - t_loop)
 
         if (i + 1) % 25 == 0:

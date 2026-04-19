@@ -825,3 +825,7 @@ While refactoring, explicitly review the code for:
 * weak fault containment
 * weak diagnostics
 * hard-to-analyze concurrency
+
+
+We do not upload files on the board via HTTP, it just doesn't work well. We use USB or REPL fs.write in chunks.
+

@@ -509,9 +509,31 @@ static mp_obj_t mod_sentai_version(void) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_version_obj, mod_sentai_version);
 
+// sentai.verbose([flag]) -> int
+//   With no args: returns current verbose flag (1 = prints on, 0 = silent).
+//   With an arg : sets the flag and returns the new value.
+// When verbose=0, every printf in firmware is dropped at the _write() hook
+// (nothing reaches ConsoleM7::Write, so the CDC-ACM bulk-IN endpoint cannot
+// saturate even under heavy pipeline activity).  The MicroPython REPL keeps
+// running normally — only output to the USB console is suppressed.
+extern int  sentai_verbose_get(void);
+extern void sentai_verbose_set(int v);
+static mp_obj_t mod_sentai_verbose(size_t n_args, const mp_obj_t *args) {
+    // Always return the PREVIOUS value so callers can save-and-restore:
+    //   prev = sentai.verbose(0); ...; sentai.verbose(prev)
+    int prev = sentai_verbose_get();
+    if (n_args >= 1) {
+        sentai_verbose_set(mp_obj_is_true(args[0]) ? 1 : 0);
+    }
+    return mp_obj_new_int(prev);
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_verbose_obj,
+                                            0, 1, mod_sentai_verbose);
+
 static const mp_rom_map_elem_t sentai_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_sentai) },
     { MP_ROM_QSTR(MP_QSTR_version),  MP_ROM_PTR(&mod_sentai_version_obj) },
+    { MP_ROM_QSTR(MP_QSTR_verbose),  MP_ROM_PTR(&mod_sentai_verbose_obj) },
     // Help, console control & script execution
     { MP_ROM_QSTR(MP_QSTR_help),      MP_ROM_PTR(&mod_sentai_help_obj) },
     { MP_ROM_QSTR(MP_QSTR_debug),     MP_ROM_PTR(&mod_sentai_debug_obj) },

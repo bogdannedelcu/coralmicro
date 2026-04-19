@@ -259,6 +259,17 @@ void boot_log_stop() {
 static constexpr size_t kCrashLogMaxSize = 8 * 1024;   // Max size per crash log file
 static constexpr int kCrashLogMaxFiles = 10;           // Keep last N crash logs
 
+// Verbose per-frame console prints (frame-grab, PXP/quant timing, NMS summary,
+// cam_switch info).  Default 1 for interactive debugging; disable while the
+// background detection pipeline is running so the ~200 lines/sec of per-frame
+// output cannot saturate the CDC-ACM TX endpoint and stall printf.
+static volatile int g_sentai_frame_verbose = 1;
+
+extern "C" int sentai_verbose_get(void) { return g_sentai_frame_verbose; }
+extern "C" void sentai_verbose_set(int v) {
+    g_sentai_frame_verbose = v ? 1 : 0;
+}
+
 // Activity tracking - HTTP and REPL
 static volatile uint32_t g_http_last_activity = 0;    // Last HTTP activity tick
 static volatile uint32_t g_http_request_count = 0;    // Total HTTP requests
@@ -333,6 +344,50 @@ static void crash_log_get_path(lfs_t* lfs, char* path, size_t path_len) {
 }
 
 // sentai_lfs_lock/unlock are defined in sentai_lfs_task.cc (included via header).
+
+// Append a compact FreeRTOS task dump to the current crash log.
+// Useful on watchdog warnings to see which task is blocked and on what.
+// Format: one line per task: name | state | prio | hwm(bytes)
+static void crash_log_task_dump(const char* why) {
+    lfs_t* lfs = coralmicro::LfsUser();
+    if (!lfs) return;
+    if (!sentai_lfs_lock()) return;
+
+    lfs_mkdir(lfs, "/log");
+
+    constexpr UBaseType_t kMaxTasks = 32;
+    TaskStatus_t tasks[kMaxTasks];
+    UBaseType_t n = uxTaskGetSystemState(tasks, kMaxTasks, nullptr);
+
+    uint32_t up = xTaskGetTickCount() * portTICK_PERIOD_MS;
+    char hdr[160];
+    int hl = snprintf(hdr, sizeof(hdr),
+        "  TASK_DUMP (%s, t=%lums, n=%u):\r\n",
+        why ? why : "?", (unsigned long)up, (unsigned)n);
+
+    char path[32];
+    crash_log_get_path(lfs, path, sizeof(path));
+
+    lfs_file_t file;
+    if (lfs_file_open(lfs, &file, path,
+                      LFS_O_WRONLY | LFS_O_CREAT | LFS_O_APPEND) == LFS_ERR_OK) {
+        if (hl > 0) lfs_file_write(lfs, &file, hdr, hl);
+        static const char* state_names[] = {"Run","Rdy","Blk","Sus","Del","Inv"};
+        for (UBaseType_t i = 0; i < n; i++) {
+            const char* sn = (tasks[i].eCurrentState < 6)
+                ? state_names[tasks[i].eCurrentState] : "?";
+            char line[128];
+            int ll = snprintf(line, sizeof(line),
+                "    %-18s %s prio=%lu hwm=%lu\r\n",
+                tasks[i].pcTaskName, sn,
+                (unsigned long)tasks[i].uxCurrentPriority,
+                (unsigned long)(tasks[i].usStackHighWaterMark * sizeof(StackType_t)));
+            if (ll > 0) lfs_file_write(lfs, &file, line, ll);
+        }
+        lfs_file_close(lfs, &file);
+    }
+    sentai_lfs_unlock();
+}
 
 // Write crash entry to /log/crash_NNN.log
 static void crash_log_write(const char* event, const char* details) {
@@ -576,6 +631,8 @@ static void CombinedWatchdogTask(void* param) {
                     min_idle / 1000, http_idle / 1000, repl_idle / 1000);
                 crash_log_write("WDG_WARN", buf);
                 SERR_LOG(SERR_WDG_WARN, min_idle / 1000);
+                // Snapshot task states so we can see which one is blocked.
+                crash_log_task_dump("WDG_WARN");
             }
             consecutive_kicks = 0;
             continue;
@@ -592,6 +649,8 @@ static void CombinedWatchdogTask(void* param) {
                 min_idle / 1000, http_idle / 1000, repl_idle / 1000);
             crash_log_write("WDG_DEAD", buf);
             SERR_LOG(SERR_WDG_DEAD, min_idle / 1000);
+            // Final task snapshot before WDOG1 fires — useful on next boot.
+            crash_log_task_dump("WDG_DEAD");
         }
         // Stop kicking. Give WDOG1 its 30s to fire, then force-reset.
         for (int dead_wait = 0; dead_wait < 7; dead_wait++) {
@@ -658,6 +717,14 @@ extern "C" int _write(int handle, char* buffer, int size) {
     if ((handle != STDOUT_FILENO) && (handle != STDERR_FILENO)) {
         return -1;
     }
+
+    // Silent kill-switch: when verbose=0 (e.g. while the detection pipeline
+    // is running), drop every printf at the earliest point.  Nothing reaches
+    // ConsoleM7::Write — this prevents ~200 lines/s of per-frame output from
+    // saturating the CDC-ACM bulk-IN endpoint and stalling tx_task (which in
+    // turn would block mp_repl's own prints → REPL appears dead).
+    // Return size so printf's caller still thinks the write succeeded.
+    if (!g_sentai_frame_verbose) return size;
 
     // Convert bare \n to \r\n for USB/UART terminals.
     char stack_buf[512];
@@ -1511,8 +1578,10 @@ extern "C" int sentai_tpu_detect(int conf_permil, int iou_permil,
   }
 
   *out_count = count;
-  printf("NMS: %d/%d candidates, %d detections (conf>%d%% iou>%d%%)\r\n",
-         num_cand, N, count, conf_permil / 10, iou_permil / 10);
+  if (g_sentai_frame_verbose) {
+    printf("NMS: %d/%d candidates, %d detections (conf>%d%% iou>%d%%)\r\n",
+           num_cand, N, count, conf_permil / 10, iou_permil / 10);
+  }
   return 0;
 }
 

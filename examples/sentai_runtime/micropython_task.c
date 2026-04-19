@@ -18,8 +18,11 @@
 // REPL activity tracking for watchdog (defined in sentai_runtime.cc)
 extern void sentai_repl_activity(void);
 
-// GC heap size for MicroPython (256 KB — needed for large scripts, help, diag)
-#define MP_GC_HEAP_SIZE (256 * 1024)
+// GC heap size for MicroPython. Lives in .sdram_bss (16 MB+ free), so growing
+// it is cheap. Must be comfortably larger than the largest single allocation
+// plus working set — e.g. yolo26n tpu.output(0) returns ~176 KB bytes, so
+// 256 KB fragments quickly. 1 MB gives headroom for tensors + diag batches.
+#define MP_GC_HEAP_SIZE (512 * 1024)
 
 // REPL line buffer size
 #define REPL_LINE_MAX 256
@@ -66,6 +69,7 @@ static TaskHandle_t ctrlc_monitor_handle = NULL;
 static void ctrlc_monitor_task(void* param) {
     (void)param;
     char ch;
+    TickType_t last_heartbeat = xTaskGetTickCount();
     while (ctrlc_monitor_running) {
         int n = sentai_console_read(&ch, 1);
         if (n == 1 && ch == 0x03) {
@@ -74,6 +78,14 @@ static void ctrlc_monitor_task(void* param) {
             vTaskDelay(pdMS_TO_TICKS(200));
         } else {
             vTaskDelay(pdMS_TO_TICKS(20));
+        }
+        // Heartbeat: a long-running Python script is legitimate REPL
+        // activity. Bumping sentai_repl_activity() every ~5 s keeps the
+        // combined watchdog from killing the board mid-script.
+        TickType_t now = xTaskGetTickCount();
+        if ((now - last_heartbeat) >= pdMS_TO_TICKS(5000)) {
+            sentai_repl_activity();
+            last_heartbeat = now;
         }
     }
     vTaskDelete(NULL);
