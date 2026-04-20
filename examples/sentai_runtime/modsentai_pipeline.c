@@ -77,6 +77,50 @@ static mp_obj_t mod_sentai_pipeline_get(size_t n_args, const mp_obj_t *args) {
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_pipeline_get_obj,
                                             0, 1, mod_sentai_pipeline_get);
 
+// sentai.pipeline.get_ex([timeout_ms]) -> (dets, inference_ms, total_ms, frame_seq) or None
+// Same as get() but also returns the firmware-measured InferTask timing:
+//   inference_ms  — time spent inside tpu.invoke()
+//   total_ms      — wall time of the full InferTask loop iteration
+//                   (memcpy staging->tensor + invoke + NMS + queue send)
+//   frame_seq     — monotonic camera frame sequence number of the captured frame
+// Use this to diagnose where time is spent between Python's pipeline.get() calls:
+//   if total_ms ≈ frame_interval → InferTask is the bottleneck
+//   if total_ms << frame_interval → Python/IPC overhead dominates
+static mp_obj_t mod_sentai_pipeline_get_ex(size_t n_args, const mp_obj_t *args) {
+    int timeout = (n_args >= 1) ? mp_obj_get_int(args[0]) : 1000;
+    DetectionFrame frame;
+    int rc = sentai_detection_get(&frame, timeout);
+    if (rc < 0) return mp_const_none;
+
+    mp_obj_list_t *list = MP_OBJ_TO_PTR(mp_obj_new_list(frame.count, NULL));
+    for (int i = 0; i < frame.count; i++) {
+        mp_obj_t items[6] = {
+            mp_obj_new_int(frame.dets[i].x1),
+            mp_obj_new_int(frame.dets[i].y1),
+            mp_obj_new_int(frame.dets[i].x2),
+            mp_obj_new_int(frame.dets[i].y2),
+            mp_obj_new_float(frame.dets[i].conf_permil / 1000.0f),
+            mp_obj_new_int(frame.dets[i].class_id),
+        };
+        list->items[i] = mp_obj_new_tuple(6, items);
+    }
+
+    // Tuple: (dets, invoke_ms, total_ms, frame_seq, memcpy_ms, nms_ms)
+    // Extra fields expose the InferTask sub-stage timings so experiments can
+    // distinguish TPU bus time, SDRAM memcpy time and NMS time individually.
+    mp_obj_t tup[6] = {
+        MP_OBJ_FROM_PTR(list),
+        mp_obj_new_int_from_uint(frame.inference_ms),
+        mp_obj_new_int_from_uint(frame.total_ms),
+        mp_obj_new_int_from_uint(frame.frame_seq),
+        mp_obj_new_int_from_uint(frame.memcpy_ms),
+        mp_obj_new_int_from_uint(frame.nms_ms),
+    };
+    return mp_obj_new_tuple(6, tup);
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_pipeline_get_ex_obj,
+                                            0, 1, mod_sentai_pipeline_get_ex);
+
 // sentai.pipeline.running() -> bool
 static mp_obj_t mod_sentai_pipeline_running(void) {
     return mp_obj_new_bool(sentai_detection_is_running());
@@ -260,6 +304,7 @@ static const mp_rom_map_elem_t sentai_pipeline_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_start),         MP_ROM_PTR(&mod_sentai_pipeline_start_obj) },
     { MP_ROM_QSTR(MP_QSTR_stop),          MP_ROM_PTR(&mod_sentai_pipeline_stop_obj) },
     { MP_ROM_QSTR(MP_QSTR_get),           MP_ROM_PTR(&mod_sentai_pipeline_get_obj) },
+    { MP_ROM_QSTR(MP_QSTR_get_ex),        MP_ROM_PTR(&mod_sentai_pipeline_get_ex_obj) },
     { MP_ROM_QSTR(MP_QSTR_running),       MP_ROM_PTR(&mod_sentai_pipeline_running_obj) },
     { MP_ROM_QSTR(MP_QSTR_stats),         MP_ROM_PTR(&mod_sentai_pipeline_stats_obj) },
     { MP_ROM_QSTR(MP_QSTR_tracks),        MP_ROM_PTR(&mod_sentai_pipeline_tracks_obj) },

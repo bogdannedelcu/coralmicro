@@ -1906,48 +1906,52 @@ static int sentai_cam_get_raw_with_recovery(uint8_t** raw_out) {
   }
 
   for (int recovery = 0; recovery <= kMaxRecoveries; ++recovery) {
-    // Strategy: drain the FIFO queue, keep only the LAST (most recent) buffer.
-    // With N DMA buffers, at most N-1 can be queued (1 is being written by DMA).
-    // The last one out of the queue is the most recently completed frame.
-    // We never wait for a NEW frame — just grab what's already available.
-    // Only fall back to blocking GetRawFrame if queue was completely empty.
-    {
-      uint8_t* kept_frame = nullptr;
-      int kept_idx = -1;
-      int drained = 0;
-      for (int i = 0; i < DEMO_CAMERA_BUFFER_COUNT - 1; ++i) {
-        uint8_t* tmp = nullptr;
-        int idx = cam->TryGetRawFrame(&tmp);
-        if (idx < 0 || !tmp) break;  // queue empty
-        // Return the previous frame, keep this (newer) one
-        if (kept_idx >= 0) {
-          cam->ReturnRawFrame(kept_idx);
-        }
-        kept_idx = idx;
-        kept_frame = tmp;
-        drained++;
-      }
+    // Drain the FIFO queue non-blockingly and keep only the most recent frame.
+    // TryGetRawFrame is now truly non-blocking (single GetFullBuffer probe, no
+    // 4-second poll), so the drain loop takes microseconds.  With N DMA
+    // buffers the loop tops out at N-1 iterations.  We never wait here — the
+    // caller decides whether to bounded-wait for a fresh frame below.
+    uint8_t* kept_frame = nullptr;
+    int kept_idx = -1;
+    int drained = 0;
+    for (int i = 0; i < DEMO_CAMERA_BUFFER_COUNT - 1; ++i) {
+      uint8_t* tmp = nullptr;
+      int idx = cam->TryGetRawFrame(&tmp);
+      if (idx < 0 || !tmp) break;  // queue empty — stop draining
+      if (kept_idx >= 0) cam->ReturnRawFrame(kept_idx);
+      kept_idx = idx;
+      kept_frame = tmp;
+      drained++;
+    }
 
-      if (kept_idx >= 0) {
-        // Got the most recent completed frame — no waiting needed
-        TickType_t total = xTaskGetTickCount() - t_start;
+    if (kept_idx >= 0) {
+      // Only log when something interesting happened (drained > 1 = we
+      // skipped stale frames, or the call took over 20 ms = contention).
+      TickType_t total = xTaskGetTickCount() - t_start;
+      if (drained > 1 || total > 20) {
         printf("  [frame] drained %d, kept buf#%d (%ldms)\r\n",
                drained, kept_idx, (long)total);
-        *raw_out = kept_frame;
-        return kept_idx;
       }
+      *raw_out = kept_frame;
+      return kept_idx;
+    }
 
-      // Queue was empty — camera may be slow or just started.
-      // Fall back to blocking wait for the next frame.
-      uint8_t* frame = nullptr;
-      int idx = cam->GetRawFrame(&frame);
-      if (idx >= 0 && frame) {
-        TickType_t total = xTaskGetTickCount() - t_start;
+    // Queue is empty right now.  The user's intent: "take the next frame I
+    // haven't taken yet, never wait for a fresh one".  We fall back to a
+    // BOUNDED blocking grab so PrepTask can make forward progress — at 15 FPS
+    // the next frame arrives in ≤ 67 ms, well within the 4-second internal
+    // poll ceiling.  If even that fails (camera driver stuck), we log and try
+    // the toggle-to-recover path below.
+    uint8_t* frame = nullptr;
+    int idx = cam->GetRawFrame(&frame);
+    if (idx >= 0 && frame) {
+      TickType_t total = xTaskGetTickCount() - t_start;
+      if (total > 20) {
         printf("  [frame] queue empty, waited for buf#%d (%ldms)\r\n",
                idx, (long)total);
-        *raw_out = frame;
-        return idx;
       }
+      *raw_out = frame;
+      return idx;
     }
 
     // No frames at all — try toggling camera to kick CSI/MIPI

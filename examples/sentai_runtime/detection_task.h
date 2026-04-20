@@ -29,7 +29,9 @@ typedef struct DetectionFrame {
     int       count;             // valid detections (0..DETECTION_MAX_DETS)
     uint32_t  frame_seq;         // monotonic camera frame sequence number
     uint32_t  inference_ms;      // TPU invoke duration (ms)
-    uint32_t  total_ms;          // full pipeline: cam + PXP + memcpy + invoke + NMS
+    uint32_t  total_ms;          // full InferTask loop: memcpy + invoke + NMS + bookkeeping
+    uint32_t  memcpy_ms;         // staging -> TFLite tensor copy (~786 KB SDRAM->SDRAM)
+    uint32_t  nms_ms;            // sentai_tpu_detect() post-processing
 } DetectionFrame;
 
 // ---------------------------------------------------------------------------

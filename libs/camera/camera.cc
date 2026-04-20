@@ -663,6 +663,10 @@ int CameraTask::GetFrame(uint8_t** buffer, bool block) {
   camera::Request req;
   req.type = camera::RequestType::kFrame;
   req.request.frame.index = -1;
+  // Non-blocking callers (TryGetRawFrame) must NOT stall inside the camera
+  // task's 4-second polling loop.  Blocking callers keep the original
+  // re-request behaviour until a buffer becomes available.
+  req.request.frame.try_only = !block;
   camera::Response resp;
 
   do {
@@ -676,6 +680,7 @@ void CameraTask::ReturnFrame(int index) {
   camera::Request req;
   req.type = camera::RequestType::kFrame;
   req.request.frame.index = index;
+  req.request.frame.try_only = false;  // RETURN path — flag unused, explicit
   SendRequest(req);
 }
 
@@ -1002,27 +1007,32 @@ camera::FrameResponse CameraTask::HandleFrameRequest(
   }
 
   if (frame.index == -1) {  // GET
-    // get new frame buffer
-    // Poll every 5ms (was 100ms — too coarse for 15fps / 67ms frames).
-    // Total timeout: 800 × 5ms = 4 seconds.
-    int n = 800;
-    bool state = true;
-
-    DBG_OUTPUT ("CAMERA_RECEIVER_GetFullBuffer:waiting...\r\n");
-
-    while(n--)
-    {
+    if (frame.try_only) {
+      // Non-blocking path: one DMA probe, return immediately if not ready.
+      // Used by TryGetRawFrame() so the pipeline PrepTask can drain the queue
+      // without stalling inside the camera task's 4-second polling loop.
       status = CAMERA_RECEIVER_GetFullBuffer(&cameraReceiver, &buffer);
-      if (status == kStatus_Success)
-      {
-        break;
+      if (status != kStatus_Success) {
+        resp.index = -1;
+        return resp;
       }
+    } else {
+      // Blocking path: poll every 5ms (was 100ms — too coarse for 15fps /
+      // 67ms frames). Total timeout: 800 × 5ms = 4 seconds.  Used by
+      // GetRawFrame() when the caller accepts a bounded wait.
+      int n = 800;
+      bool state = true;
 
-      vTaskDelay(pdMS_TO_TICKS(5));
+      DBG_OUTPUT ("CAMERA_RECEIVER_GetFullBuffer:waiting...\r\n");
 
-      if (kCameraUseStatusLed) {
-        coralmicro::GpioSet((coralmicro::Gpio) coralmicro::Gpio::kStatusLed, state);
-        state = !state;
+      while (n--) {
+        status = CAMERA_RECEIVER_GetFullBuffer(&cameraReceiver, &buffer);
+        if (status == kStatus_Success) break;
+        vTaskDelay(pdMS_TO_TICKS(5));
+        if (kCameraUseStatusLed) {
+          coralmicro::GpioSet((coralmicro::Gpio)coralmicro::Gpio::kStatusLed, state);
+          state = !state;
+        }
       }
     }
 

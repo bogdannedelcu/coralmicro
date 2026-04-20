@@ -228,8 +228,12 @@ static void infer_task_fn(void* /*param*/) {
             continue;
         }
 
-        // Copy staging → TFLite input tensor (~0.5ms for 1.2MB)
+        // Copy staging → TFLite input tensor.  Both buffers live in SDRAM, so
+        // this transfer shares bandwidth with the TPU USB input upload that
+        // follows.  We time it explicitly for the pipeline profile.
+        TickType_t t_memcpy_start = xTaskGetTickCount();
         memcpy(tensor_buf, s_staging_buf, total);
+        TickType_t t_memcpy_end = xTaskGetTickCount();
 
         // FREE staging immediately — PrepTask can start next frame NOW
         xSemaphoreGive(s_sem_staging_free);
@@ -245,10 +249,12 @@ static void infer_task_fn(void* /*param*/) {
         }
 
         // NMS post-processing on output tensors
+        TickType_t t_nms_start = xTaskGetTickCount();
         int16_t det_buf[DETECTION_MAX_DETS * 6];
         int det_count = 0;
         sentai_tpu_detect(s_conf_permil, s_iou_permil, s_max_dets,
                           det_buf, &det_count);
+        TickType_t t_nms_end = xTaskGetTickCount();
 
         TickType_t t_end = xTaskGetTickCount();
 
@@ -258,6 +264,8 @@ static void infer_task_fn(void* /*param*/) {
         result.frame_seq    = frame_seq;
         result.inference_ms = static_cast<uint32_t>(invoke_ms);
         result.total_ms     = static_cast<uint32_t>((t_end - t0) * portTICK_PERIOD_MS);
+        result.memcpy_ms    = static_cast<uint32_t>((t_memcpy_end - t_memcpy_start) * portTICK_PERIOD_MS);
+        result.nms_ms       = static_cast<uint32_t>((t_nms_end - t_nms_start) * portTICK_PERIOD_MS);
 
         for (int i = 0; i < det_count && i < DETECTION_MAX_DETS; i++) {
             result.dets[i].x1          = det_buf[i * 6 + 0];

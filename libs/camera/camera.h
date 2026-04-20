@@ -114,6 +114,12 @@ enum class RequestType : uint8_t {
 
 struct FrameRequest {
   int index;
+  // When true, HandleFrameRequest performs a single non-blocking check for a
+  // ready buffer and returns index=-1 immediately if none is available.
+  // Used by TryGetRawFrame — avoids the 4-second polling loop inside the
+  // camera task, which otherwise turns a "non-blocking" drain into a multi-
+  // hundred-millisecond stall when the DMA hasn't produced a fresh frame yet.
+  bool try_only;
 };
 
 struct FrameResponse {
