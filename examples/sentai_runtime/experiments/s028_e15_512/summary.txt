@@ -1,0 +1,7 @@
+session: s028_e15_512
+experiments: 0
+duration_ms: 3
+heap_start_rtos_free: 10566384
+heap_end_rtos_free: 10564916
+heap_start_gc_used: 116064
+heap_end_gc_used: 122368

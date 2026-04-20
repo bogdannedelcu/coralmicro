@@ -1,0 +1,2 @@
+seq,experiment,file,summary
+1,e17_switch_drain,/diags/s039_e17_drain_ab/001_e17_switch_drain_t1.csv,thr=1 reps=16 mean=201.4ms

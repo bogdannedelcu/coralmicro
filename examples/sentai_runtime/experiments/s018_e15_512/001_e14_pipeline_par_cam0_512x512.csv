@@ -1,0 +1,4 @@
+run_index,frame_interval_ms,prep_stall_ms,infer_stall_ms,num_detections
+0,64,1,42,0
+1,63,0,41,0
+2,63,0,41,0

@@ -1,0 +1,3 @@
+seq,experiment,file,summary
+1,e17_switch_drain,/diags/s038_e17_drain_ab/001_e17_switch_drain_t2.csv,thr=2 reps=16 mean=237.6ms
+2,e17_switch_drain,/diags/s038_e17_drain_ab/002_e17_switch_drain_t1.csv,thr=1 reps=16 mean=173.0ms

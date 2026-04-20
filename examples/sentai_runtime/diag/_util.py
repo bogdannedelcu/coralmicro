@@ -9,6 +9,25 @@ def _ticks():
     return sentai.rtos.ticks_ms()
 
 
+# Path-keyed guard for sentai.tpu.load().  Reloading the same model
+# twice in a row bloats the EdgeTpuManager package cache (empirically
+# drops FPS from 15 to 6 on the 20-run loop) — see paper/memcpy.md.
+# Keep a single module-level cache of "last path loaded"; skip the
+# reload if the caller is asking for the same file.  Calling with a
+# different path (or after a tpu.reset()) forces a fresh load.
+_last_tpu_model_path = None
+
+def _ensure_model_loaded(model_path):
+    """Idempotent sentai.tpu.load — loads only if the path changed
+    since the last call.  Returns True if a load actually happened."""
+    global _last_tpu_model_path
+    if _last_tpu_model_path == model_path:
+        return False
+    sentai.tpu.load(model_path)
+    _last_tpu_model_path = model_path
+    return True
+
+
 def percentile(samples, p):
     """Compute p-th percentile (0-100) from sorted copy."""
     s = sorted(samples)

@@ -1,0 +1,18 @@
+E17 - Alternating camera JPEG capture at runtime-set
+switch_drain threshold.  Hot loop keeps JPEGs in RAM;
+LFS writes happen after timing measurement completes.
+
+Columns:
+  run_index    : frame index (0-based)
+  cam_id       : cam_a on even, cam_b on odd
+  elapsed_ms   : select + jpeg encode total (wall)
+  jpeg_bytes   : size of encoded JPEG in bytes
+
+Parameters:
+  switch_drain = 2
+  hot_wall_ms = 3801
+  cam_a = 0
+  repetitions = 16
+  jpeg_dir = /diags/s038_e17_drain_ab/e17_t2_frames
+  cam_b = 1
+  quality = 70

@@ -22,7 +22,8 @@
 
 import gc
 import sentai
-from diag._util import stats, save_csv, snapshot_meta, _ticks, _print_stats
+from diag._util import (stats, save_csv, snapshot_meta, _ticks,
+                        _print_stats, _ensure_model_loaded)
 from diag._session import _save_path, _record, _save_desc
 
 
@@ -245,8 +246,15 @@ def e15_pipeline_parallel_512(model_path="/yolo_1_class_512_1_upsample_512_inloc
 
 def e16_camera_switch_512(
         model_path="/yolo_1_class_512_1_upsample_512_inloc_de_1024_la_P5_32.tflite",
-        cam_a=0, cam_b=1, repetitions=40, save=True):
-    """E16 — alternating cam_a/cam_b per frame, sequential pipeline, 512x512.
+        cam_a=0, cam_b=1, repetitions=40, save=True,
+        resolution=(512, 512)):
+    """E16 — alternating cam_a/cam_b per frame, sequential pipeline.
+
+    `resolution=(w,h)` picks the native sensor output size — default
+    512×512 for the TPU model.  Pass (640,480) for VGA or (320,240) for
+    QVGA to quantify how sensor resolution trades against per-frame PXP/
+    JPEG cost.  Both cameras get the same resolution (the CSI-2 receiver
+    is shared).
 
     Measures the latency cost of a camera MUX switch on the SentAI board.
     Each iteration:
@@ -286,13 +294,11 @@ def e16_camera_switch_512(
         sentai.pipeline.stop()
 
     # Setup: both cameras powered, model loaded, streaming running.
-    sentai.camera.set_resolution(512, 512)
+    w, h = resolution
+    sentai.camera.set_resolution(w, h)
     if sentai.camera.frame_count() == 0:
         sentai.camera.init(1)
-    _last = globals().get("_e14_last_model_path", None)
-    if _last != model_path:
-        sentai.tpu.load(model_path)
-        globals()["_e14_last_model_path"] = model_path
+    _ensure_model_loaded(model_path)
 
     # One full warmup on each camera so the first measured frame isn't a
     # cold-start outlier — we want the steady-state switch cost, not the
@@ -431,8 +437,14 @@ def e16_camera_switch_512(
 
 def e18_camera_switch_headtail(
         model_path="/yolo_1_class_512_1_upsample_512_inloc_de_1024_la_P5_32.tflite",
-        cam_a=0, cam_b=1, repetitions=40, save=True):
+        cam_a=0, cam_b=1, repetitions=40, save=True,
+        resolution=(512, 512)):
     """E18 — Head-to-tail camera-switch benchmark, sequential pipeline.
+
+    `resolution=(w,h)` sets the native sensor size for both cameras
+    (shared CSI-2 receiver — see paper/cam_switch.md §"Per-camera
+    resolution").  Default 512×512 matches the TPU model; pass (640,480)
+    or (320,240) to compare PXP/JPEG cost scaling.
 
     Runs THREE back-to-back sub-sweeps at the current switch_drain and
     ratio settings (all three use the same model, resolution, scene,
@@ -470,14 +482,12 @@ def e18_camera_switch_headtail(
         sentai.pipeline.stop()
 
     try:
-        sentai.camera.set_resolution(512, 512)
+        w, h = resolution
+        sentai.camera.set_resolution(w, h)
         if sentai.camera.frame_count() == 0:
             sentai.camera.init(1)
 
-        _last = globals().get("_e14_last_model_path", None)
-        if _last != model_path:
-            sentai.tpu.load(model_path)
-            globals()["_e14_last_model_path"] = model_path
+        _ensure_model_loaded(model_path)
 
         # One full warm cycle on each camera so the first measurement
         # sample is already in steady state (drain path has run at least
@@ -630,8 +640,13 @@ def e18_camera_switch_headtail(
 
 
 def e17_switch_drain_visual(cam_a=0, cam_b=1, repetitions=16,
-                            quality=70, save=True):
+                            quality=70, save=True,
+                            resolution=(512, 512)):
     """E17 — alternating camera JPEG capture at current switch_drain threshold.
+
+    `resolution=(w,h)` sets native sensor size (default 512×512).  JPEGs
+    are encoded at that size, so smaller resolutions produce smaller
+    files and faster encode.
 
     Purpose: visually inspect whether post-switch frames contain artifacts
     (mixed pixels, AEC/AGC glitches, rolling-shutter tears) depending on
@@ -674,7 +689,8 @@ def e17_switch_drain_visual(cam_a=0, cam_b=1, repetitions=16,
         sentai.pipeline.stop()
 
     try:
-        sentai.camera.set_resolution(512, 512)
+        w, h = resolution
+        sentai.camera.set_resolution(w, h)
         if sentai.camera.frame_count() == 0:
             sentai.camera.init(1)
 
@@ -845,10 +861,7 @@ def e14_pipeline_parallel(model_path, camera_id=0, width=320, height=320,
     #     pointer accumulates an entry per load; reloading the same model
     #     20 times burns heap until SDRAM pressure slows the pipeline from
     #     15 FPS down to 6 FPS (observed).
-    _last = globals().get("_e14_last_model_path", None)
-    if _last != model_path:
-        sentai.tpu.load(model_path)
-        globals()["_e14_last_model_path"] = model_path
+    _ensure_model_loaded(model_path)
 
     # Warm camera pipeline so first frame isn't a cold-start outlier.
     # Has to run *before* the BEFORE snapshot — otherwise snapshot_scene

@@ -1,0 +1,2 @@
+seq,experiment,file,summary
+1,e16_camera_switch,/diags/s042_e16_eof_30fps_x40/001_e16_camswitch_cam0_cam1.csv,cam0<->cam1 fps=7.0 sel=17.3 ten=94.5 inv=31.2

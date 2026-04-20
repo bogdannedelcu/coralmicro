@@ -70,8 +70,11 @@ uint8_t pxp_buffer[1];
 
 // Camera MUX
 // TODO: Interchange these values when the enclosure details are clear
-#define MUX_BACK_CAMERA 0
-#define MUX_FRONT_CAMERA 1
+#include "cam_mux.h"
+/* Local aliases kept only for the existing call sites below; all new
+ * code should use the CAM_MUX_LEVEL_* names from cam_mux.h directly. */
+#define MUX_BACK_CAMERA  CAM_MUX_LEVEL_BACK
+#define MUX_FRONT_CAMERA CAM_MUX_LEVEL_FRONT
 
 #include <cstring>
 #include <memory>

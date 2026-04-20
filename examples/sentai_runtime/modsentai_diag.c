@@ -123,6 +123,43 @@ static mp_obj_t mod_sentai_diag_dmesg_stats(void) {
 static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_diag_dmesg_stats_obj,
                                   mod_sentai_diag_dmesg_stats);
 
+// sentai.diag.cam_stats() -> dict of camera-switch fault counters.
+//
+// Persistent breadcrumbs accumulated by sentai_cam_switch and
+// sentai_cam_get_raw_with_recovery since boot.  An operator can poll
+// this to see whether a degraded path is being exercised silently
+// (e.g. fallback count > 0 means EOF ISR occasionally does not
+// consume the arm; drain_timeout > 0 means post-switch wait hit the
+// 300 ms ceiling).  All counters cleared on reboot; no runtime clear
+// API on purpose — field-diagnostic semantics require monotonic
+// counters so a late connection still sees the cumulative history.
+//
+// See sentai_error.h, section "Camera Errors (0x0Axx)" for the error
+// codes emitted via SERR_LOG at each event.
+extern void sentai_cam_stats_get(uint32_t* ok_eof, uint32_t* fallback,
+                                 uint32_t* drain_timeout,
+                                 uint32_t* grab_retry, uint32_t* grab_fatal);
+static mp_obj_t mod_sentai_diag_cam_stats(void) {
+    uint32_t ok_eof = 0, fallback = 0, drain_timeout = 0,
+             grab_retry = 0, grab_fatal = 0;
+    sentai_cam_stats_get(&ok_eof, &fallback, &drain_timeout,
+                         &grab_retry, &grab_fatal);
+    mp_obj_t d = mp_obj_new_dict(5);
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_switch_ok_eof),
+                      mp_obj_new_int_from_uint(ok_eof));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_switch_fallback),
+                      mp_obj_new_int_from_uint(fallback));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_drain_timeout),
+                      mp_obj_new_int_from_uint(drain_timeout));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_grab_retry),
+                      mp_obj_new_int_from_uint(grab_retry));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_grab_fatal),
+                      mp_obj_new_int_from_uint(grab_fatal));
+    return d;
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_diag_cam_stats_obj,
+                                  mod_sentai_diag_cam_stats);
+
 // ---- module table ----
 static const mp_rom_map_elem_t sentai_diag_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__),   MP_ROM_QSTR(MP_QSTR_diag) },
@@ -133,6 +170,7 @@ static const mp_rom_map_elem_t sentai_diag_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_dmesg),      MP_ROM_PTR(&mod_sentai_diag_dmesg_obj) },
     { MP_ROM_QSTR(MP_QSTR_dmesg_clear), MP_ROM_PTR(&mod_sentai_diag_dmesg_clear_obj) },
     { MP_ROM_QSTR(MP_QSTR_dmesg_stats), MP_ROM_PTR(&mod_sentai_diag_dmesg_stats_obj) },
+    { MP_ROM_QSTR(MP_QSTR_cam_stats),  MP_ROM_PTR(&mod_sentai_diag_cam_stats_obj) },
 };
 static MP_DEFINE_CONST_DICT(sentai_diag_globals, sentai_diag_globals_table);
 static const mp_obj_module_t sentai_diag_module = {

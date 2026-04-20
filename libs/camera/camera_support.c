@@ -99,18 +99,17 @@ extern volatile int      g_cam_pending_mux_id;
 extern volatile uint32_t g_cam_switch_seq;
 extern volatile bool     g_cam_switch_pending;
 extern volatile int      g_cam_current_id;
-/* Stateless ratio-alternate scheduler.  See sentai_runtime.cc. */
-extern volatile uint32_t g_cam_ratio_a;  /* frames to stay on cam0 */
-extern volatile uint32_t g_cam_ratio_b;  /* frames to stay on cam1 */
+/* Stateless ratio-alternate scheduler.  Single packed 32-bit word so
+ * the ISR gets an atomic snapshot of (a, b) — see sentai_runtime.cc.
+ * Layout: high 16 bits = a (cam0 quota), low 16 = b (cam1 quota). */
+extern volatile uint32_t g_cam_ratio_packed;
 
 /* Dedicated ISR-safe MUX-flip helper provided by libs/base/gpio.cc —
  * uses atomic DR_SET / DR_CLEAR registers instead of taking g_mutex.
- * The level encoding below mirrors the MUX_FRONT_CAMERA / MUX_BACK_CAMERA
- * constants in libs/camera/camera.cc — kept numeric here because this is
- * a C file and cannot include the C++ enum. */
+ * MUX polarity shared with camera.cc via cam_mux.h (single source of
+ * truth — flipping that header flips both call sites consistently). */
+#include "cam_mux.h"
 extern void SentaiCamMuxSetFromIsr(bool enable);
-#define CAM_MUX_FRONT_LEVEL   1      /* MUX_FRONT_CAMERA in camera.cc */
-#define CAM_MUX_BACK_LEVEL    0      /* MUX_BACK_CAMERA  in camera.cc */
 
 /*******************************************************************************
  * Code
@@ -127,12 +126,13 @@ void CSI_IRQHandler(void)
      * When both quotas are non-zero, use a modulo over the monotonic
      * frame counter to decide which camera should own frame N.  No
      * counter state in ISR context — the policy is a pure function of
-     * (seq, ratio_a, ratio_b).  If the desired target differs from the
-     * current MUX setting we arm a flip for the consume branch below.
-     * O(1): one read, one modulo (UDIV ≤ 12 cycles on Cortex-M7), two
-     * compares, one conditional store. */
-    uint32_t ra = g_cam_ratio_a;
-    uint32_t rb = g_cam_ratio_b;
+     * (seq, ratio_a, ratio_b).  The quotas are read as ONE atomic
+     * 32-bit word so task-side updates can never leave the ISR with a
+     * half-updated pair.  O(1): one read, one modulo (UDIV ≤ 12 cycles
+     * on Cortex-M7), two compares, one conditional store. */
+    uint32_t packed = g_cam_ratio_packed;
+    uint32_t ra = (packed >> 16) & 0xFFFFu;
+    uint32_t rb = packed & 0xFFFFu;
     uint32_t total = ra + rb;
     if (total > 0u && g_cam_pending_mux_id < 0) {
         uint32_t pos = g_camera_frame_seq % total;
@@ -147,8 +147,7 @@ void CSI_IRQHandler(void)
      * four global stores.  No loops, no mutex, no task wakeup. */
     int pending = g_cam_pending_mux_id;
     if (pending >= 0) {
-        bool level = (pending == 0) ? (CAM_MUX_FRONT_LEVEL != 0)
-                                    : (CAM_MUX_BACK_LEVEL  != 0);
+        bool level = (CAM_MUX_LEVEL_FOR_ID(pending) != 0);
         SentaiCamMuxSetFromIsr(level);
         g_cam_switch_seq     = g_camera_frame_seq;
         g_cam_switch_pending = true;

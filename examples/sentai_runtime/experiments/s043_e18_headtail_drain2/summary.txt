@@ -1,0 +1,7 @@
+session: s043_e18_headtail_drain2
+experiments: 3
+duration_ms: 18
+heap_start_rtos_free: 16686652
+heap_end_rtos_free: 11078200
+heap_start_gc_used: 351856
+heap_end_gc_used: 201968

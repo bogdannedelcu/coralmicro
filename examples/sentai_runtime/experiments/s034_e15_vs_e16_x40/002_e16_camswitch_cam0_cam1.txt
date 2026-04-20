@@ -1,0 +1,24 @@
+E16 - Alternating camera switch, sequential pipeline, 512x512.
+Each frame flips the MUX to the other camera before capturing,
+so every measurement pays the post-switch drain + first-fresh-
+frame wait cost.  Compare against E13/E15 on a fixed camera to
+read the per-switch overhead.
+
+Columns:
+  run_index        : frame index (0-based)
+  cam_id           : which camera produced this frame (cam_a/cam_b)
+  select_ms        : time to change MUX to the target camera
+  to_tensor_ms     : grab raw + PXP + quant + copy into TPU input
+                     (includes drain + fresh-frame wait on switch)
+  invoke_ms        : EdgeTPU inference time
+  detect_ms        : YOLO NMS post-processing
+  num_detections   : surviving detections after NMS
+  total_frame_ms   : sum of the four stages (full cycle time)
+
+Parameters:
+  cam_a = 0
+  repetitions = 40
+  dets_total = 0
+  cam_b = 1
+  resolution = 512x512
+  model_path = /yolo_1_class_512_1_upsample_512_inloc_de_1024_la_P5_32.tflite

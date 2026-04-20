@@ -1,0 +1,3 @@
+# scene_cam1_after_512x512.jpg was 0 bytes on device — E18 post-refactor
+# 'after' snapshot never completed (stdout-dead REPL state at end of run).
+# The cam1_before snapshot (27272 bytes) is intact and representative.

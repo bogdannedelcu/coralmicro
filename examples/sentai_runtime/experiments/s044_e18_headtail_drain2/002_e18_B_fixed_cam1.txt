@@ -1,0 +1,13 @@
+E18 sub-sweep B_fixed_cam1.
+
+Columns:
+  run_index, cam_id, select_ms, to_tensor_ms,
+  invoke_ms, detect_ms, num_detections, total_frame_ms
+
+Parameters:
+  cam_a = 0
+  switch_drain = 2
+  ratio = (0, 0)
+  cam_b = 1
+  mean_total_ms = 62.051
+  fps = 16.12

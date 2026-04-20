@@ -1,0 +1,4 @@
+seq,experiment,file,summary
+1,e18_A_fixed_cam0,/diags/s043_e18_headtail_drain2/001_e18_A_fixed_cam0.csv,total=62.7ms fps=15.94
+2,e18_B_fixed_cam1,/diags/s043_e18_headtail_drain2/002_e18_B_fixed_cam1.csv,total=62.5ms fps=16.00
+3,e18_C_alt_cam0_cam1,/diags/s043_e18_headtail_drain2/003_e18_C_alt_cam0_cam1.csv,total=145.3ms fps=6.88

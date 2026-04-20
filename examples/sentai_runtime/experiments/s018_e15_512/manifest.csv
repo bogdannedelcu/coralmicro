@@ -1,0 +1,2 @@
+seq,experiment,file,summary
+1,e14_pipeline_parallel,/diags/s018_e15_512/001_e14_pipeline_par_cam0_512x512.csv,cam0 512x512 fps_wall=15.8 fw_fps=9.3 dropped=0 dets=0

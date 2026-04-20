@@ -65,7 +65,11 @@ CODE,MODULE,NAME,DESCRIPTION,VERSION_ADDED,STATUS
 # === Module 0x09: Audio ===
 # (reserved for future use)
 # === Module 0x0A: Camera ===
-# (reserved for future use)
+0x0A00,CAM,SWITCH_EOF,Switch flipped via CSI EOF ISR in VBLANK (val=cam_id),v1.2,ACTIVE
+0x0A01,CAM,SWITCH_FALLBACK,ISR did not consume MUX arm within 150ms - sync fallback (val=cam_id),v1.2,ACTIVE
+0x0A02,CAM,DRAIN_TIMEOUT,Post-switch drain wait hit 300ms ceiling (val=wait_ms),v1.2,ACTIVE
+0x0A03,CAM,GRAB_RETRY,GetRawFrame failed - toggling MUX to recover (val=recovery_attempt),v1.2,ACTIVE
+0x0AF0,CAM,GRAB_FAIL,Fatal: GetRawFrame failed after all recoveries (val=cam_id),v1.2,ACTIVE
 # === Module 0x0B: TPU ===
 0x0B40,TPU,ARENA_ALLOC,Tensor arena allocation failed,v1.0,ACTIVE
 0x0B41,TPU,MODEL_LOAD,Model load from flash failed,v1.0,ACTIVE

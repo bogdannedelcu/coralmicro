@@ -1,0 +1,7 @@
+session: s041_e17_eof_check
+experiments: 2
+duration_ms: 15
+heap_start_rtos_free: 16686656
+heap_end_rtos_free: 16686656
+heap_start_gc_used: 142288
+heap_end_gc_used: 305136

@@ -99,6 +99,13 @@ extern "C" {
 #define SERR_HTTP_ALLOC         (SERR_MOD_HTTP | 0x40)  // Allocation failed
 #define SERR_HTTP_TIMEOUT       (SERR_MOD_HTTP | 0x01)  // Request timeout
 
+// ===================== Camera Errors (0x0Axx) =====================
+#define SERR_CAM_SWITCH_EOF       (SERR_MOD_CAM | 0x00)  // Info: switch via EOF ISR (val=cam_id)
+#define SERR_CAM_SWITCH_FALLBACK  (SERR_MOD_CAM | 0x01)  // Sync fallback: ISR did not consume arm (val=cam_id)
+#define SERR_CAM_DRAIN_TIMEOUT    (SERR_MOD_CAM | 0x02)  // Post-switch drain wait hit 300ms ceiling (val=wait_ms)
+#define SERR_CAM_GRAB_RETRY       (SERR_MOD_CAM | 0x03)  // GetRawFrame failed, toggling to recover (val=recovery_attempt)
+#define SERR_CAM_GRAB_FAIL        (SERR_MOD_CAM | 0xF0)  // Fatal: GetRawFrame failed after all recoveries (val=cam_id)
+
 // ===================== TPU Errors (0x0Bxx) =====================
 #define SERR_TPU_ARENA_ALLOC    (SERR_MOD_TPU | 0x40)   // Arena allocation failed
 #define SERR_TPU_MODEL_LOAD     (SERR_MOD_TPU | 0x41)   // Model load failed
