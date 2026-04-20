@@ -36,6 +36,7 @@
 #include "third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/cm7/fsl_cache.h"
 #endif
 #include "fsl_pxp.h"
+#include "third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_edma.h"
 
 // ---------------------------------------------------------------------------
 // External C functions from sentai_runtime.cc (thin wrappers)
@@ -202,6 +203,107 @@ static void prep_task_fn(void* /*param*/) {
 }
 
 // ---------------------------------------------------------------------------
+// eDMA-accelerated memcpy (SDRAM → SDRAM)
+// ---------------------------------------------------------------------------
+// The CPU memcpy for staging_buf → TFLite input tensor takes ~24 ms for
+// 786 KB because every 32-byte line read+write goes through the SEMC bus
+// and the D-cache's write-allocate policy double-traffics the destination.
+// The RT1176 eDMA can stream the same buffer at back-to-back SDRAM bursts
+// while the CPU is free to run NMS or yield to PrepTask.  Expected ~3-5 ms.
+//
+// Channel choice: DMA0 ch31 (audio uses ch0; camera/other drivers don't
+// use eDMA).  Polled completion — no ISR, no FreeRTOS semaphore needed —
+// so the helper is usable from any task without scheduler coupling.
+static constexpr uint32_t kSentaiDmaChannel = 31;
+static edma_handle_t s_dma_memcpy_handle;
+static bool          s_dma_memcpy_inited = false;
+
+// Runtime toggle so benchmarks can A/B the same firmware image.  Default ON
+// (optimised path).  Exposed to Python as sentai.pipeline.dma_memcpy([flag]).
+static volatile int s_dma_memcpy_enabled = 1;
+extern "C" int  sentai_dma_memcpy_get(void) { return s_dma_memcpy_enabled; }
+extern "C" void sentai_dma_memcpy_set(int v) { s_dma_memcpy_enabled = v ? 1 : 0; }
+
+static void sentai_dma_init_once() {
+    if (s_dma_memcpy_inited) return;
+    edma_config_t cfg;
+    EDMA_GetDefaultConfig(&cfg);
+    // Don't re-init DMA0 if audio already did; EDMA_Init only touches global
+    // control regs which are idempotent, but create handle after.
+    EDMA_Init(DMA0, &cfg);
+    EDMA_CreateHandle(&s_dma_memcpy_handle, DMA0, kSentaiDmaChannel);
+    s_dma_memcpy_inited = true;
+}
+
+// Bounded, polled DMA memcpy. Returns true on success.
+// Both pointers must be 4-byte aligned and `size` must be a multiple of 4.
+// Cache management: clean src (flush any pending CPU writes) before DMA read;
+// invalidate dst after DMA write (so subsequent CPU reads see DMA output).
+static bool sentai_dma_memcpy(void* dst, const void* src, uint32_t size) {
+    if (!s_dma_memcpy_inited) sentai_dma_init_once();
+
+    // Cache strategy: staging_buf and the TFLite input tensor are both written
+    // exclusively by DMA masters (PXP writes staging_buf; this eDMA writes the
+    // tensor) — neither buffer has *dirty* cache lines from CPU writes, so a
+    // CleanInvalidate before the transfer is unnecessary and expensive (~20 ms
+    // for 786 KB due to SDRAM writeback traffic).  We only invalidate the dst
+    // *after* the transfer so subsequent CPU reads don't return stale data.
+
+    edma_transfer_config_t tcfg;
+    // Use 32-byte transfer width so each eDMA request becomes an 8-beat
+    // AXI burst to SEMC (SDRAM's efficient access size per AN12437).
+    // Falls back to 4-byte width if buffers aren't 32-byte aligned or size
+    // isn't a multiple of 32.  Word-by-word transfers defeat the burst logic
+    // and deliver only ~10 MB/s — we need ~200 MB/s.
+    uint32_t width = 4;
+    if ((((uintptr_t)src | (uintptr_t)dst | size) & 0x1Fu) == 0u) {
+        width = 32;
+    } else if ((((uintptr_t)src | (uintptr_t)dst | size) & 0x7u) == 0u) {
+        width = 8;
+    }
+    EDMA_PrepareTransfer(&tcfg,
+                         const_cast<void*>(src), width,
+                         dst,                    width,
+                         /*bytesEachRequest=*/size,
+                         /*transferBytes=*/size,
+                         kEDMA_MemoryToMemory);
+
+    if (EDMA_SubmitTransfer(&s_dma_memcpy_handle, &tcfg) != kStatus_Success) {
+        return false;
+    }
+    EDMA_StartTransfer(&s_dma_memcpy_handle);
+    // Mem-to-mem transfers have no peripheral request line to trigger the
+    // minor loop — EDMA_StartTransfer only sets SERQ (the request-enable
+    // bit).  We must also software-fire the first (and only) minor loop
+    // via SSRT, otherwise the channel sits armed but idle and we time out.
+    EDMA_TriggerChannelStart(DMA0, kSentaiDmaChannel);
+
+    // Poll for completion — bounded: 786 KB / 200 MB/s ~= 4 ms, cap at 50 ms.
+    // We intentionally poll rather than sleep; the only other task that
+    // could run is PrepTask (prio 2) and its forward progress is gated on
+    // the staging_free semaphore we haven't given yet, so yielding would
+    // waste time and add scheduling jitter.
+    // Poll the channel DONE flag — interrupts aren't enabled on this channel.
+    // kEDMA_DoneFlag is set when the major loop (1 iteration for our config)
+    // completes.  Bounded to 50 ms — 786 KB at 32-byte SDRAM bursts is ~15 ms
+    // in steady state, so 50 ms leaves large headroom for SEMC contention.
+    const TickType_t deadline = xTaskGetTickCount() + pdMS_TO_TICKS(50);
+    while ((EDMA_GetChannelStatusFlags(DMA0, kSentaiDmaChannel)
+            & kEDMA_DoneFlag) == 0) {
+        if (xTaskGetTickCount() > deadline) {
+            return false;  // timeout — caller falls back to CPU memcpy
+        }
+    }
+    EDMA_ClearChannelStatusFlags(DMA0, kSentaiDmaChannel,
+                                 kEDMA_InterruptFlag | kEDMA_DoneFlag);
+
+#if (__CORTEX_M == 7)
+    DCACHE_InvalidateByRange((uint32_t)dst, size);
+#endif
+    return true;
+}
+
+// ---------------------------------------------------------------------------
 // InferTask: memcpy staging→tensor → Invoke → NMS → queue
 // ---------------------------------------------------------------------------
 static void infer_task_fn(void* /*param*/) {
@@ -230,9 +332,21 @@ static void infer_task_fn(void* /*param*/) {
 
         // Copy staging → TFLite input tensor.  Both buffers live in SDRAM, so
         // this transfer shares bandwidth with the TPU USB input upload that
-        // follows.  We time it explicitly for the pipeline profile.
+        // follows.  When the runtime flag is ON we use eDMA (back-to-back
+        // SDRAM bursts, ~5× faster than CPU memcpy due to SEMC write-allocate
+        // overhead).  When OFF, or if DMA submission fails, we fall back to
+        // plain memcpy — lets us A/B the optimisation against baseline in
+        // a single firmware build by toggling sentai.pipeline.dma_memcpy(0/1).
         TickType_t t_memcpy_start = xTaskGetTickCount();
-        memcpy(tensor_buf, s_staging_buf, total);
+        bool dma_ok = false;
+        if (s_dma_memcpy_enabled
+            && ((((uintptr_t)tensor_buf | (uintptr_t)s_staging_buf
+                  | (uint32_t)total) & 0x3u) == 0u)) {
+            dma_ok = sentai_dma_memcpy(tensor_buf, s_staging_buf, total);
+        }
+        if (!dma_ok) {
+            memcpy(tensor_buf, s_staging_buf, total);
+        }
         TickType_t t_memcpy_end = xTaskGetTickCount();
 
         // FREE staging immediately — PrepTask can start next frame NOW

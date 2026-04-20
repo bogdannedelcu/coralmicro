@@ -1467,10 +1467,16 @@ extern "C" int sentai_tpu_detect(int conf_permil, int iou_permil,
   auto* output = g_interpreter->output_tensor(0);
   if (!output || output->dims->size != 3) return -2;
 
-  int C = output->dims->data[1];   // e.g. 84 = 4 bbox + 80 classes
-  int N = output->dims->data[2];   // e.g. 2100 candidate anchors
-  int num_classes = C - 4;
-  if (num_classes <= 0) return -3;
+  // Two supported output layouts:
+  //   Legacy (COCO yolo v5/v8 pre-NMS):  [1, C=4+num_classes, N_anchors]
+  //       e.g. [1, 84, 2100].  Bbox rows first, class rows after.
+  //   yolo26 (1-class, pre-NMS):         [1, N_anchors, 6]
+  //       e.g. [1, 1344, 6].  Row = [cx, cy, w, h, obj_conf, class_conf].
+  //
+  // We distinguish by the last dimension: 6 means yolo26 (only makes sense
+  // for 1-class models), anything else means the legacy layout.
+  int d1 = output->dims->data[1];
+  int d2 = output->dims->data[2];
 
   auto* input = g_interpreter->input_tensor(0);
   int in_h = input->dims->data[1];
@@ -1478,41 +1484,73 @@ extern "C" int sentai_tpu_detect(int conf_permil, int iou_permil,
 
   float scale = output->params.scale;
   int zp = output->params.zero_point;
-  const int8_t* data = reinterpret_cast<const int8_t*>(output->data.data);
 
   float conf_thr = conf_permil / 1000.0f;
   float iou_thr  = iou_permil  / 1000.0f;
 
-  // Phase 1: confidence filter — keep only candidates with max class score > threshold
   int num_cand = 0;
   float max_coord = 0.0f;
 
-  for (int j = 0; j < N && num_cand < kMaxNmsCandidates; j++) {
-    // Find best class score for candidate j
-    float best_score = -1e9f;
-    int best_cls = 0;
-    for (int c = 4; c < C; c++) {
-      float s = scale * ((int)data[c * N + j] - zp);
-      if (s > best_score) { best_score = s; best_cls = c - 4; }
+  // ---- yolo26 path:  [1, N, 6] with row = {cx,cy,w,h,obj,cls_conf} -------
+  if (d2 == 6) {
+    int N26 = d1;
+    // TPU output on this model is uint8 quantised (zp=0, scale≈1/255).
+    const uint8_t* udata = reinterpret_cast<const uint8_t*>(output->data.data);
+    for (int j = 0; j < N26 && num_cand < kMaxNmsCandidates; j++) {
+      const uint8_t* row = udata + (size_t)j * 6u;
+      float obj = scale * ((int)row[4] - zp);
+      float cls = scale * ((int)row[5] - zp);
+      float cf  = obj * cls;
+      if (cf < conf_thr) continue;
+
+      float cx = scale * ((int)row[0] - zp);
+      float cy = scale * ((int)row[1] - zp);
+      float bw = scale * ((int)row[2] - zp);
+      float bh = scale * ((int)row[3] - zp);
+
+      float x1 = cx - bw * 0.5f;
+      float y1 = cy - bh * 0.5f;
+      float x2 = cx + bw * 0.5f;
+      float y2 = cy + bh * 0.5f;
+
+      if (x2 > max_coord) max_coord = x2;
+      if (y2 > max_coord) max_coord = y2;
+      g_nms_cand[num_cand++] = {x1, y1, x2, y2, cf, (int16_t)0};
     }
-    if (best_score < conf_thr) continue;
+  } else {
+    // ---- Legacy COCO layout [1, C=4+classes, N_anchors] ------------------
+    int C = d1;
+    int N = d2;
+    int num_classes = C - 4;
+    if (num_classes <= 0) return -3;
+    const int8_t* data = reinterpret_cast<const int8_t*>(output->data.data);
+    for (int j = 0; j < N && num_cand < kMaxNmsCandidates; j++) {
+      float best_score = -1e9f;
+      int best_cls = 0;
+      for (int c = 4; c < C; c++) {
+        float s = scale * ((int)data[c * N + j] - zp);
+        if (s > best_score) { best_score = s; best_cls = c - 4; }
+      }
+      if (best_score < conf_thr) continue;
 
-    // Dequantize bbox: cx, cy, w, h
-    float cx = scale * ((int)data[0 * N + j] - zp);
-    float cy = scale * ((int)data[1 * N + j] - zp);
-    float bw = scale * ((int)data[2 * N + j] - zp);
-    float bh = scale * ((int)data[3 * N + j] - zp);
+      float cx = scale * ((int)data[0 * N + j] - zp);
+      float cy = scale * ((int)data[1 * N + j] - zp);
+      float bw = scale * ((int)data[2 * N + j] - zp);
+      float bh = scale * ((int)data[3 * N + j] - zp);
 
-    float x1 = cx - bw * 0.5f;
-    float y1 = cy - bh * 0.5f;
-    float x2 = cx + bw * 0.5f;
-    float y2 = cy + bh * 0.5f;
+      float x1 = cx - bw * 0.5f;
+      float y1 = cy - bh * 0.5f;
+      float x2 = cx + bw * 0.5f;
+      float y2 = cy + bh * 0.5f;
 
-    if (x2 > max_coord) max_coord = x2;
-    if (y2 > max_coord) max_coord = y2;
+      if (x2 > max_coord) max_coord = x2;
+      if (y2 > max_coord) max_coord = y2;
 
-    g_nms_cand[num_cand++] = {x1, y1, x2, y2, best_score, (int16_t)best_cls};
+      g_nms_cand[num_cand++] = {x1, y1, x2, y2, best_score, (int16_t)best_cls};
+    }
   }
+
+  int N = (d2 == 6) ? d1 : d2;  // used for the debug log at the end
 
   if (num_cand == 0) return 0;
 

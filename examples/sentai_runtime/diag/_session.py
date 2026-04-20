@@ -151,6 +151,49 @@ def _save_desc(csv_path, description, params=None):
     sentai.fs.write(txt_path, "\n".join(lines) + "\n")
 
 
+def snapshot_scene(when="before", name="scene", quality=75):
+    """Save one JPEG of the currently-active camera frame into the session dir.
+
+    Meant to be called twice per experiment — once *before* the measurement
+    loop (tag `before`) and once *after* it (tag `after`).  The scene is
+    usually static; the two snapshots together document the exact pixels
+    the TPU saw across the run and let an operator diff them offline if
+    something moved.
+
+    Silent no-op if:
+      - no session is active (snapshot_scene is a per-session artefact)
+      - the camera isn't streaming yet (`frame_count == 0`)
+      - `sentai.pipeline.running()` owns the camera (to_tensor would return
+        -10 and fail); the pipeline's own tensor path already wrote the
+        model input — this snapshot doesn't apply during the run
+
+    Uses `sentai.camera.to_tensor(path, quality)` so the saved JPEG reflects
+    exactly the PXP-scaled pixels the TPU will see (post-resize, pre-quant).
+    Returns the saved path, or None on skip.
+    """
+    if _session is None:
+        return None
+    try:
+        if sentai.camera.frame_count() == 0:
+            return None
+        if sentai.pipeline.running():
+            return None
+    except Exception:
+        return None
+    try:
+        res = sentai.camera.resolution()
+        w, h = int(res[0]), int(res[1])
+    except Exception:
+        w, h = 0, 0
+    path = "%s/%s_%s_%dx%d.jpg" % (_session.dir, name, when, w, h)
+    try:
+        sentai.camera.to_tensor(path, quality)
+    except Exception as e:
+        print("  [snapshot-%s] failed: %s" % (when, e))
+        return None
+    return path
+
+
 def _photos_dir(experiment):
     """Return directory path for saving photo frames inside the active session.
     Called AFTER _save_path() so _session.seq is already incremented.

@@ -191,24 +191,39 @@ def e15_pipeline_parallel_512(model_path="/yolo_1_class_512_1_upsample_512_inloc
                                camera_id=0, repetitions=10, save=True):
     """E15 — parallel pipeline with the 1-class 512x512 yolo edge-only model.
 
+    Always leaves a trace on LittleFS under /diags/<session>/ — if no session
+    is active when called, E15 opens a dedicated one (``e15_512``) so the
+    per-frame CSV + .txt description are persisted.  This matches the
+    convention used by every other e_*() experiment.
+
     Differences vs E14:
       - 512x512 uint8 input (no int8 quant step in firmware path — slightly faster
         per frame on PrepTask side).
-      - Output shape is [1, 5376, 6] which is the post-NMS 1-class yolo format.
-        The existing firmware NMS (`sentai.tpu.detect`) assumes COCO-style
-        [1, 4+classes, N] and will return garbage *counts* for this model —
-        so `dets_total` is not meaningful here.  The important numbers are
-        frame_interval, invoke/infer latency, and dropped/timeout counters.
+      - Output shape [1, 1344, 6] is yolo26 anchor-style pre-NMS (6 = cx, cy,
+        w, h, obj_conf, class_conf for the single class).  The firmware
+        auto-detects this layout and runs the matching NMS path — see
+        `sentai_tpu_detect` in sentai_runtime.cc.
 
     The purpose of E15 is to measure whether a lighter model (smaller arena,
     smaller output tensor) actually shortens the InferTask critical path —
     Invoke + memcpy + NMS — and therefore the end-to-end pipeline FPS.
     """
-    return e14_pipeline_parallel(model_path,
-                                  camera_id=camera_id,
-                                  width=512, height=512,
-                                  conf=0.25, iou=0.45, max_det=50,
-                                  repetitions=repetitions, save=save)
+    # Auto-open a session if the caller hasn't already started one, so E15
+    # always leaves per-frame CSV + manifest under /diags/sNNN_e15_512/.
+    # Imported locally to avoid a hard dependency at module-import time.
+    from diag._session import _session, begin, end
+    owned_session = (_session is None)
+    if owned_session:
+        begin("e15_512")
+    try:
+        return e14_pipeline_parallel(model_path,
+                                     camera_id=camera_id,
+                                     width=512, height=512,
+                                     conf=0.25, iou=0.45, max_det=50,
+                                     repetitions=repetitions, save=save)
+    finally:
+        if owned_session:
+            end()
 
 
 def e14_pipeline_parallel(model_path, camera_id=0, width=320, height=320,
@@ -276,6 +291,13 @@ def e14_pipeline_parallel(model_path, camera_id=0, width=320, height=320,
     if need_load:
         sentai.tpu.load(model_path)
 
+    # Scene snapshot (BEFORE the measurement loop).  Camera is assumed static
+    # across the run, so we capture the exact PXP-scaled pixels the TPU will
+    # see — useful when `dets_total == 0` to offline-verify scene content.
+    from diag._session import snapshot_scene
+    if save:
+        snapshot_scene("before", name="scene_cam%d" % camera_id)
+
     # Warm camera pipeline so first frame isn't a cold-start outlier.
     sentai.camera.to_tensor()
     gc.collect()
@@ -339,6 +361,11 @@ def e14_pipeline_parallel(model_path, camera_id=0, width=320, height=320,
         # eventually blocking mp_repl on a stalled USB bulk endpoint.
         if sentai.pipeline.running():
             sentai.pipeline.stop()
+        # Scene snapshot (AFTER the measurement loop).  Camera is still
+        # initialised and streaming; pipeline is stopped so to_tensor() is
+        # free to grab a frame.  Pairs with the BEFORE snapshot for diff.
+        if save:
+            snapshot_scene("after", name="scene_cam%d" % camera_id)
         sentai.verbose(prev_verbose)
 
     if not intervals_ms:

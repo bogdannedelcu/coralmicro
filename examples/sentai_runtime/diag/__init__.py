@@ -21,7 +21,7 @@ from diag._util import (
 )
 
 # ── session management ────────────────────────────────────────────────────────
-from diag._session import Session, begin, end, status
+from diag._session import Session, begin, end, status, snapshot_scene
 
 # ── experiments: TPU ─────────────────────────────────────────────────────────
 from diag.e_tpu import e1_tpu_invoke, e2_tpu_load

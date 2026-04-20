@@ -12,6 +12,24 @@ extern void sentai_detection_stats(uint32_t* frames_processed,
 extern void sentai_detection_task_stall_ms(uint32_t* prep_stall_ms,
                                            uint32_t* infer_stall_ms);
 
+// sentai.pipeline.dma_memcpy([flag]) -> int (previous value)
+// Toggle the eDMA-accelerated staging->tensor memcpy in InferTask on/off at
+// runtime.  No args: return current state.  1: use eDMA (fast, ~14 ms on a
+// 786 KB copy).  0: use plain CPU memcpy (~24 ms).  Intended for A/B
+// benchmarking in a single firmware image — documented in paper/memcpy.md.
+extern int  sentai_dma_memcpy_get(void);
+extern void sentai_dma_memcpy_set(int v);
+static mp_obj_t mod_sentai_pipeline_dma_memcpy(size_t n_args,
+                                               const mp_obj_t *args) {
+    int prev = sentai_dma_memcpy_get();
+    if (n_args >= 1) {
+        sentai_dma_memcpy_set(mp_obj_is_true(args[0]) ? 1 : 0);
+    }
+    return mp_obj_new_int(prev);
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_pipeline_dma_memcpy_obj,
+                                            0, 1, mod_sentai_pipeline_dma_memcpy);
+
 // sentai.pipeline.start([conf[, iou[, max[, track]]]]) -> int
 // Start continuous detection pipeline.
 // conf/iou: float 0.0-1.0 (default 0.5 / 0.45).  max: int (default 50).
@@ -305,6 +323,7 @@ static const mp_rom_map_elem_t sentai_pipeline_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_stop),          MP_ROM_PTR(&mod_sentai_pipeline_stop_obj) },
     { MP_ROM_QSTR(MP_QSTR_get),           MP_ROM_PTR(&mod_sentai_pipeline_get_obj) },
     { MP_ROM_QSTR(MP_QSTR_get_ex),        MP_ROM_PTR(&mod_sentai_pipeline_get_ex_obj) },
+    { MP_ROM_QSTR(MP_QSTR_dma_memcpy),    MP_ROM_PTR(&mod_sentai_pipeline_dma_memcpy_obj) },
     { MP_ROM_QSTR(MP_QSTR_running),       MP_ROM_PTR(&mod_sentai_pipeline_running_obj) },
     { MP_ROM_QSTR(MP_QSTR_stats),         MP_ROM_PTR(&mod_sentai_pipeline_stats_obj) },
     { MP_ROM_QSTR(MP_QSTR_tracks),        MP_ROM_PTR(&mod_sentai_pipeline_tracks_obj) },
