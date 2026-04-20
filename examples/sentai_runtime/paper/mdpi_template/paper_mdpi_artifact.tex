@@ -1,0 +1,421 @@
+An MDPI-structured research article must state where its data and code
+live and how a reader can reproduce the reported results. This chapter
+provides that statement plus the mapping from each numeric claim in the
+paper to the raw per-iteration CSV that supports it.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\section{1. Data availability
+statement}\label{data-availability-statement}
+
+All data presented in this study are openly archived alongside the
+source code of the measurement framework in this repository. The raw
+per-iteration CSVs for every experiment are under
+\href{../experiments/}{\texttt{../experiments/}}, mirrored byte-for-byte
+from the device's LittleFS \texttt{/diags/} tree at the time of capture.
+Statistical summaries in the paper tables are derived offline by the
+generator script
+\href{../experiments/_build_appendix.py}{\texttt{../experiments/\_build\_appendix.py}},
+which operates solely on the checked-in CSVs and reproduces every
+appendix number without access to the hardware.
+
+No proprietary, subject-private, or licence-restricted data is involved.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\section{2. Repository layout}\label{repository-layout}
+
+At repository root, the subtrees that together constitute the reported
+artifact are:
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.5000}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.5000}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Path
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Purpose
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\texttt{examples/sentai\_runtime/} & Firmware application source
+(\texttt{sentai\_runtime.cc}, \texttt{modsentai\_*.c},
+\texttt{detection\_task.cc}, \texttt{sentai\_httpd.cc},
+\texttt{sentai\_lfs\_task.cc}, \ldots) \\
+\texttt{examples/sentai\_runtime/diag/} & MicroPython diagnostic package
+--- experiments E1-E18 \\
+\texttt{examples/sentai\_runtime/diag/\_host\_upload\_repl.py} &
+Host-side REPL uploader used to push \texttt{diag/*.py} to the board \\
+\texttt{examples/sentai\_runtime/diag/drivers/} & Host-side REPL drivers
+(\texttt{\_e18\_post\_refactor.py}, \ldots) that invoke experiments
+end-to-end \\
+\texttt{examples/sentai\_runtime/experiments/} & The archived session
+data presented in this paper \\
+\texttt{examples/sentai\_runtime/paper/} & Paper source (this file and
+siblings) \\
+\texttt{examples/sentai\_runtime/agent/} & Operating documentation
+(embeded.md discipline rules, agent.md handoff guide) \\
+\texttt{libs/base/gpio.cc}, \texttt{libs/camera/},
+\texttt{libs/base/filesystem.cc}, \ldots{} & SentAI platform libraries
+modified as part of this work \\
+\texttt{third\_party/nxp/rt1176-sdk/…} & Vendor SDK, used as-is except
+for documented table entries \\
+\texttt{third\_party/micropython/} & MicroPython embed port, used
+as-is \\
+\texttt{scripts/flashtool.py} & NXP flashing tool used to program the
+board \\
+\end{longtable}
+}
+
+A reader who wishes to reproduce the measurements in this paper needs
+the three subtrees \texttt{examples/sentai\_runtime/*} plus the
+cross-cutting library changes in \texttt{libs/camera/cam\_mux.h} and
+\texttt{libs/base/gpio.cc}, all of which are under the repository's
+open-source licence.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\section{3. Firmware build
+identification}\label{firmware-build-identification}
+
+The firmware image presented as the ``Fix B post-review'' configuration
+--- responsible for every numeric claim in Tables 3, 4, 6 and 7 of
+\url{evaluation.md} --- is:
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.5000}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.5000}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Field
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Value
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Build number & 640 \\
+Build timestamp & stored in \texttt{build\_version.h} and echoed at
+every boot: \texttt{SentAI\ build\ \#640\ (2026-04-20\ …)} \\
+Git branch & \texttt{feature/ov5640-camera-support} \\
+Full toolchain & CMake 3.x + Ninja, \texttt{arm-none-eabi-gcc} 10.3.x,
+NXP MCUXpresso SDK vendored under
+\texttt{third\_party/nxp/rt1176-sdk/} \\
+Reconstruction &
+\texttt{cmake\ -S\ .\ -B\ build\ \&\&\ cmake\ -\/-build\ build\ -\/-target\ sentai\_runtime} \\
+Flash & \texttt{python3\ scripts/flashtool.py\ -e\ sentai\_runtime}
+(persistent; omit \texttt{-\/-ram}) \\
+\end{longtable}
+}
+
+Earlier builds (\#622 for the first eDMA measurement; \#632 for Fix A;
+\#635 for Fix B pre-refactor) are reachable by checking out earlier
+commits of the same branch and rebuilding. The cross-session
+reproducibility table (Table 4 of \url{evaluation.md}) documents the
+three builds that together demonstrate the refactor is
+performance-neutral.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\section{4. Hardware requirements}\label{hardware-requirements}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.5000}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.5000}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Requirement
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Minimum
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+MCU board & Coral Dev Board Micro with SentAI daughter-board v1.0 \\
+USB cable + host & one USB-C cable to a Linux host (CDC-ACM + CDC-NCM
+required; most host USB stacks supply these out of the box) \\
+Scene & static scene with either no target class or a fixed target
+count; the paper reports a zero-target scene --- see
+\url{experimental_setup.md} §5 \\
+Bench time & ≈ 5 s per experiment sweep; ≈ 30 s per session including
+begin/end/snapshots; the entire reported E18 benchmark is ≈ 15 s
+on-device \\
+\end{longtable}
+}
+
+No special test equipment (oscilloscope, logic analyser, thermal
+chamber) is required to reproduce any number in this paper. That is
+intentional: the measurement framework captures every stage it needs
+internally and emits CSVs.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\section{5. Reproducing a single session from
+scratch}\label{reproducing-a-single-session-from-scratch}
+
+Assuming the repository is checked out at the branch and the board is
+connected:
+
+\begin{verbatim}
+# 1. Build + flash
+cd /path/to/coralmicro
+cmake -S . -B build
+cmake --build build --target sentai_runtime
+python3 scripts/flashtool.py -e sentai_runtime
+
+# 2. Wait for the board to boot (up to ~15 s first time after flash)
+for i in $(seq 1 20); do
+  curl -s -m 2 -o /dev/null http://10.0.0.1/ && break
+  sleep 1
+done
+
+# 3. Push the latest diag/ package
+cd examples/sentai_runtime
+python3 diag/_host_upload_repl.py \
+    --file e_pipeline.py --file _util.py \
+    --file _session.py --file __init__.py
+
+# 4. Execute the reported head-to-tail benchmark
+python3 diag/drivers/_e18_post_refactor.py
+
+# 5. Fetch the session folder (session id is the next free sNNN on
+#    this board's counter; inspect /api/ls/diags/ to find it)
+curl -s http://10.0.0.1/api/ls/diags/ | python3 -m json.tool | less
+
+# 6. Pull the three CSVs
+for f in 001_e18_A_fixed_cam0.csv 002_e18_B_fixed_cam1.csv \
+         003_e18_C_alt_cam0_cam1.csv; do
+    curl -s http://10.0.0.1/api/raw/diags/sNNN_e18_post_refactor/$f > $f
+done
+\end{verbatim}
+
+The numbers from step 6 should agree with Table 3 of \url{evaluation.md}
+within the ≤ 1 ms cross-session noise documented in Table 4.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\section{6. Claim-to-file map (the ``which CSV supports which table''
+reference)}\label{claim-to-file-map-the-which-csv-supports-which-table-reference}
+
+The table below is the single authoritative map from every numeric claim
+in this paper to its on-disk evidence. Rows are ordered by where the
+claim appears in the paper.
+
+\textbf{Table 1.} Paper-level claim-to-evidence index.
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Claim
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Where it appears
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Evidence (folder + file)
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Generator
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+CPU memcpy ≈ 24 ms baseline & \url{memcpy.md} §``Baseline'',
+\url{evaluation.md} Table 2 & \href{memcpy.md}{memcpy.md CSV block}
+(10-run table is reproduced inline); raw per-iteration CSVs captured by
+\href{../_e15_ab.py}{\texttt{../\_e15\_ab.py}} during an A/B session,
+archived inline in the paper chapter & inline \\
+eDMA memcpy ≈ 14.6 ms & \url{memcpy.md} §``Optimised'',
+\url{evaluation.md} Table 2 & same A/B session as above & inline \\
+15.47 FPS post-eDMA sustained, 512×512 & \url{memcpy.md} §``Per-run
+results'' optimised block; \url{evaluation.md} Table 1 &
+\href{../experiments/s032_e15_x20/}{\texttt{../experiments/s032\_e15\_x20/}}
+(20 × 20 frames, post-eDMA) &
+\href{../experiments/_build_appendix.py}{\texttt{\_build\_appendix.py}}
+§Appendix C \\
+13.39 FPS pre-eDMA & \url{memcpy.md} §``Baseline'' & same A/B session,
+baseline block & inline \\
+E14 baseline 6.4 FPS (80-class model) & \url{evaluation.md} §8 ``Each
+optimisation exposes the next''; Appendix B &
+\href{../experiments/s021_e14_x20/}{\texttt{../experiments/s021\_e14\_x20/}},
+\href{../experiments/s022_e14_x20/}{s022},
+\href{../experiments/s023_e14_x20/}{s023},
+\href{../experiments/s025_e14_x20/}{s025},
+\href{../experiments/s031_e14_x20/}{s031} &
+\href{../experiments/_build_appendix.py}{\texttt{\_build\_appendix.py}}
+§Appendix B \\
+Pre-Fix A alternating FPS 4.7, asymmetry +64 ms & \url{cam_switch.md}
+§``E15 vs E16 --- head-to-head''; \url{evaluation.md} Table 7 &
+\href{../experiments/s034_e15_vs_e16_x40/002_e16_camswitch_cam0_cam1.csv}{\texttt{../experiments/s034\_e15\_vs\_e16\_x40/002\_e16\_camswitch\_cam0\_cam1.csv}}
+&
+\href{../experiments/_build_appendix.py}{\texttt{\_build\_appendix.py}}
+§Appendix D \\
+Fix A null result (asymmetry unchanged) & \url{cam_switch.md} §``Fix
+A''; \url{evaluation.md} Table 7 &
+\href{../experiments/s035_e15_vs_e16_x40/002_e16_camswitch_cam0_cam1.csv}{\texttt{../experiments/s035\_e15\_vs\_e16\_x40/002\_e16\_camswitch\_cam0\_cam1.csv}}
+&
+\href{../experiments/_build_appendix.py}{\texttt{\_build\_appendix.py}}
+§Appendix D \\
+Fix B alternating FPS 6.87, asymmetry ≤ 1 ms (E16 alone) &
+\url{cam_switch.md} §``Fix B --- flip-on-EOF'' &
+\href{../experiments/s042_e16_eof_30fps_x40/001_e16_camswitch_cam0_cam1.csv}{\texttt{../experiments/s042\_e16\_eof\_30fps\_x40/001\_e16\_camswitch\_cam0\_cam1.csv}}
+&
+\href{../experiments/_build_appendix.py}{\texttt{\_build\_appendix.py}}
+§Appendix E \\
+E18 head-to-tail, pre-refactor (s043) & \url{cam_switch.md}
+§``Head-to-tail benchmark'' &
+\href{../experiments/s043_e18_headtail_drain2/}{\texttt{../experiments/s043\_e18\_headtail\_drain2/\{001,002,003\}\_e18\_*.csv}}
+&
+\href{../experiments/_build_appendix.py}{\texttt{\_build\_appendix.py}}
+§Appendix G \\
+E18 head-to-tail, post-refactor (s045) & \url{cam_switch.md} §``Session
+\texttt{s045…}''; \url{evaluation.md} Table 3 &
+\href{../experiments/s045_e18_post_refactor/}{\texttt{../experiments/s045\_e18\_post\_refactor/\{001,002,003\}\_e18\_*.csv}}
+&
+\href{../experiments/_build_appendix.py}{\texttt{\_build\_appendix.py}}
+§Appendix G \\
+Cross-session reproducibility ≤ 1 ms & \url{evaluation.md} Table 4 &
+\href{../experiments/s043_e18_headtail_drain2/}{\texttt{../experiments/s043\_e18\_headtail\_drain2/}},
+\href{../experiments/s044_e18_headtail_drain2/}{\texttt{s044}},
+\href{../experiments/s045_e18_post_refactor/}{\texttt{s045}} &
+derivation in \url{statistical_notes.md} \\
+Pre-fix mid-buffer seam (visual) & \url{cam_switch.md} §``Visual
+evidence''; \url{evaluation.md} Table 5 &
+\href{../experiments/s038_e17_drain_ab/e17_t1_frames/}{\texttt{../experiments/s038\_e17\_drain\_ab/e17\_t1\_frames/\{002\_cam0\_133ms,003\_cam1\_202ms\}.jpg}}
+& visual inspection \\
+Post-fix seam-free at drain=2 (visual) & \url{cam_switch.md} §``Visual
+evidence''; \url{evaluation.md} Table 5 &
+\href{../experiments/s041_e17_eof_check/e17_t2_frames/}{\texttt{../experiments/s041\_e17\_eof\_check/e17\_t2\_frames/}}
+& visual inspection \\
+drain=1 residual artefacts & \url{cam_switch.md} §``Known limitations'';
+\url{threats_to_validity.md} §2.5 &
+\href{../experiments/s041_e17_eof_check/e17_t1_frames/}{\texttt{../experiments/s041\_e17\_eof\_check/e17\_t1\_frames/}}
+& visual inspection \\
+Fault counters zero on nominal run & \url{evaluation.md} Table 6;
+\url{cam_switch.md} §``Shipping runtime surface'' &
+\texttt{sentai.diag.cam\_stats()} output at end of sessions
+\texttt{s043}, \texttt{s044}, \texttt{s045} &
+\href{../modsentai_diag.c}{modsentai\_diag.c:mod\_sentai\_diag\_cam\_stats} \\
+\end{longtable}
+}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\section{7. Data integrity check}\label{data-integrity-check}
+
+A reviewer can verify the integrity of the archived CSVs against paper
+tables with three commands:
+
+\begin{verbatim}
+# 1. All appendix tables re-derived from raw CSVs (no board access)
+cd examples/sentai_runtime
+python3 experiments/_build_appendix.py  # overwrites experiments/_appendix section of README
+
+# 2. The specific E18 head-to-tail claim
+python3 - <<'EOF'
+import csv, statistics
+def mean(csvpath, col):
+    rows = list(csv.DictReader(open(csvpath).readlines()))[1:]  # drop warmup
+    return statistics.mean(int(r[col]) for r in rows)
+for sess in ('s043_e18_headtail_drain2', 's044_e18_headtail_drain2', 's045_e18_post_refactor'):
+    for (label, f) in (('A', '001_e18_A_fixed_cam0.csv'),
+                       ('B', '002_e18_B_fixed_cam1.csv'),
+                       ('C', '003_e18_C_alt_cam0_cam1.csv')):
+        m = mean('experiments/%s/%s' % (sess, f), 'total_frame_ms')
+        print('%s %s mean=%.1f fps=%.2f' % (sess, label, m, 1000/m))
+EOF
+
+# 3. Visual evidence: open the two representative frames and compare
+xdg-open experiments/s038_e17_drain_ab/e17_t1_frames/002_cam0_133ms.jpg
+xdg-open experiments/s041_e17_eof_check/e17_t1_frames/003_cam1_201ms.jpg
+\end{verbatim}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\section{8. Author contributions, funding, conflicts (MDPI
+boilerplate)}\label{author-contributions-funding-conflicts-mdpi-boilerplate}
+
+\emph{(Placeholders. These will be filled by the authors at submission.
+Included here so the paper source already has the MDPI-required
+declarations in a canonical location, rather than being scattered across
+templates.)}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Author Contributions}: Conceptualization, \emph{TBD};
+  methodology, \emph{TBD}; software, \emph{TBD}; validation, \emph{TBD};
+  formal analysis, \emph{TBD}; investigation, \emph{TBD}; resources,
+  \emph{TBD}; data curation, \emph{TBD}; writing --- original draft
+  preparation, \emph{TBD}; writing --- review and editing, \emph{TBD};
+  visualization, \emph{TBD}; supervision, \emph{TBD}; project
+  administration, \emph{TBD}; funding acquisition, \emph{TBD}. All
+  authors have read and agreed to the published version of the
+  manuscript.
+\item
+  \textbf{Funding}: \emph{This research received no external funding.}
+  (or list the specific grant).
+\item
+  \textbf{Institutional Review Board Statement}: \emph{Not applicable.}
+  (This study involves no human subjects, no animal subjects, and no
+  identifying data --- it is an embedded-systems measurement study on a
+  development board.)
+\item
+  \textbf{Informed Consent Statement}: \emph{Not applicable.}
+\item
+  \textbf{Data Availability Statement}: All data presented in this study
+  are available in the repository accompanying this paper under
+  \texttt{examples/sentai\_runtime/experiments/}, along with the
+  generator script that reproduces every summary statistic from the raw
+  per-iteration CSVs. See §1 above for details.
+\item
+  \textbf{Acknowledgments}: \emph{TBD} --- list any non-funding support
+  (infrastructure, advice, early reviewers).
+\item
+  \textbf{Conflicts of Interest}: \emph{The authors declare no conflicts
+  of interest.} (or as applicable).
+\end{itemize}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\section{9. Supplementary materials}\label{supplementary-materials}
+
+Following MDPI's supplementary-materials convention, these artefacts
+accompany the main paper but are not required to read the narrative:
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{experiments/README.md} --- per-session narrative index +
+  appendices A--G with per-experiment tables derived from every CSV in
+  this archive.
+\item
+  \texttt{experiments/methodology.md} --- full measurement protocol
+  (warm-up, drop-first-sample convention, reproducibility rules, noise
+  budget).
+\item
+  \texttt{experiments/\_build\_appendix.py} --- offline appendix
+  generator; runs on the CSVs in this archive, produces the appendix
+  markdown with no board access.
+\item
+  \texttt{agent/agent.md} --- operational handoff guide (how to pick up
+  this project, how to drive the REPL, how to regenerate QSTRs, how to
+  warm-reset a stuck REPL).
+\item
+  \texttt{agent/embeded.md} --- NASA/JPL-style coding-discipline rules
+  used during the firmware refactor phase.
+\end{itemize}
+
+All of the above are in-repository, tracked by git, and version- aligned
+with the firmware that produced the reported measurements.

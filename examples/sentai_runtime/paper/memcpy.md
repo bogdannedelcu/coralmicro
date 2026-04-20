@@ -1,5 +1,14 @@
 # SDRAM memcpy optimisation — from 32 MB/s CPU copy to 54 MB/s eDMA bursts
 
+*See also:* [experimental_setup.md](experimental_setup.md) for the
+canonical hardware and firmware stack (this chapter's "Test
+conditions" section reproduces the subset relevant to the memcpy
+result), [evaluation.md](evaluation.md) for the cross-cutting results
+summary where this chapter's findings appear as RQ2,
+[artifact.md](artifact.md) for the claim-to-CSV map, and
+[statistical_notes.md](statistical_notes.md) for the statistical
+conventions applied to the per-run tables below.
+
 ## Abstract
 
 The end-to-end vision pipeline on the SentAI board (Coral Dev Board Micro,

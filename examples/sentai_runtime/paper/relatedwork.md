@@ -1,5 +1,11 @@
 ## Related Work
 
+The narrow related-work discussion for the **dual-sensor switching and
+MCU camera pipelines** contribution of this paper is in
+[related_embedded_inference.md](related_embedded_inference.md).  The
+sections below position the broader platform and its components in
+the wider nano-UAV, edge-AI, YOLO, MicroPython and SLAM literatures.
+
 ### Autonomous visual navigation for nano-UAVs
 
 An important reference point for this work is the line of research that demonstrates fully onboard visual autonomy on extremely small flying robots. A particularly relevant example is *An Open Source and Open Hardware Deep Learning-powered Visual Navigation Engine for Autonomous Nano-UAVs*, which shows that a nano-UAV can execute a closed-loop visual navigation pipeline onboard under severe power and mass constraints. That work is important not only because it proves feasibility, but because it frames the design problem correctly: perception, inference, control, and hardware architecture cannot be treated independently when the air vehicle is very small. The platform developed here follows this systems-level viewpoint, but shifts the focus from a custom navigation engine toward a more general-purpose embedded AI runtime that combines high-level scripting, object detection, multi-view sensing, and compatibility with both experimental and professional drone-control ecosystems.

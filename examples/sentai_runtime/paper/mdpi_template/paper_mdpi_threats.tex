@@ -1,0 +1,313 @@
+Honest caveats, aggregated from the implementation chapters so a
+reviewer can see them in one place. Each threat below lists its source
+(how we noticed it), its likely impact on the reported results, and the
+mitigation we did or did not apply. The structure follows the MDPI
+methodology-article convention of explicit construct / internal /
+external / conclusion validity threats, adapted to an embedded-systems
+measurement context.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\section{1. Construct validity --- are we measuring what we
+claim?}\label{construct-validity-are-we-measuring-what-we-claim}
+
+\subsection{1.1 ``FPS'' is always a derived statistic, not an observed
+one}\label{fps-is-always-a-derived-statistic-not-an-observed-one}
+
+Every reported frame-per-second number in this paper is computed as
+\texttt{1000\ /\ mean\_total\_ms} from a raw CSV of per-iteration
+wall-clock measurements. We never sample frame counts over a long
+window. The two forms are mathematically equivalent only if the
+distribution of iteration times is well-behaved (low skew, bounded
+tail). In practice the distribution is slightly right-skewed at both 15
+fps and 30 fps sensor rates (typical \texttt{σ} of 1.5--3 ms on a
+60--150 ms mean); the derived FPS is therefore within 0.1 \% of a
+hypothetical window-count measurement. See \url{statistical_notes.md}
+§``FPS derivation''.
+
+\textbf{Mitigation}: report both \texttt{total\_ms} mean and derived FPS
+in every result table; a reviewer can re-derive the other.
+
+\subsection{1.2 Per-stage timings add Python dispatch overhead that
+varies}\label{per-stage-timings-add-python-dispatch-overhead-that-varies}
+
+\texttt{select\_ms}, \texttt{to\_tensor\_ms}, \texttt{detect\_ms} are
+measured with \texttt{ticks\_ms()} snapshots around the MicroPython
+dispatch. Each snapshot adds \textasciitilde100 µs of Python interpreter
+overhead to the measured stage. At the 1 ms tick resolution of the
+counter this is below the noise floor and does not affect the reported
+numbers, but it is worth flagging for a reviewer who adds their own
+instrumentation: we never claim sub-millisecond precision on any
+host-side stage timer.
+
+The one stage whose duration is reported from the firmware itself
+(\texttt{invoke\_ms} --- returned by \texttt{sentai.tpu.invoke()}) has
+no Python overhead in its measurement. That is why \texttt{invoke\_ms}
+has the tightest reproducibility in the cross-session table (Table 4 of
+\url{evaluation.md}).
+
+\subsection{1.3 The alternating sweep measures a worst-case scheduling
+policy}\label{the-alternating-sweep-measures-a-worst-case-scheduling-policy}
+
+Experiment E16 / E18 sweep C flips the MUX on \emph{every} iteration.
+Nothing in the shipping firmware requires the application layer to
+alternate this aggressively. The 6.86 FPS ``alternating'' number is
+therefore a \textbf{lower bound} on application throughput, not an
+expected operating point. Users adopting the
+\texttt{sentai.camera.ratio(a,\ b)} scheduler for asymmetric capture
+will see effective FPS interpolate between the fixed (\textasciitilde16
+FPS) and the alternating (\textasciitilde6.9 FPS) extremes as a function
+of the switch density.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\section{2. Internal validity --- could something else explain the
+results?}\label{internal-validity-could-something-else-explain-the-results}
+
+\subsection{2.1 Single-board
+measurements}\label{single-board-measurements}
+
+Every result in this paper was measured on one physical SentAI v1.0
+board. We did not swap OV5640 camera modules, did not change the host
+USB cable or port between sessions, and did not run on a different
+instance of the same hardware revision.
+
+Consequences: - A between-sample-board deviation (e.g.~sensor silicon
+variation causing different AEC/AGC convergence) would not be visible in
+our measurements. - The 2 ms residual cam1 − cam0 asymmetry reported
+post-Fix B may or may not reproduce on a different unit --- we cannot
+tell.
+
+\textbf{Mitigation}: the measurement framework is fully open and
+reproducible (see \url{artifact.md}); a follow-up study on a second
+board would directly test this.
+
+\subsection{2.2 Static-scene confound}\label{static-scene-confound}
+
+All measurements were captured against a static scene documented by the
+before/after JPEGs in every session folder (see
+\url{experimental_setup.md} §5). The scene happens to contain zero
+instances of the model's target class, which means: -
+\texttt{num\_detections} is 0 on every frame, so NMS takes a consistent
+(and fast) path. - We do not observe the tail behaviour of the
+post-processing pipeline when detection counts spike.
+
+\textbf{Mitigation}: the per-iteration CSVs record
+\texttt{num\_detections} so a future measurement against a busy scene
+can compare directly. The scene JPEGs are checked into
+\href{../experiments/}{\texttt{../experiments/}} so a reviewer can
+confirm the scene visually.
+
+\subsection{2.3 Thermal state across
+sessions}\label{thermal-state-across-sessions}
+
+Each of our sessions takes 3--10 seconds of wall time. The RT1176 does
+not thermal-throttle in that window, and we did not observe any drift in
+the per-iteration times within a session. But the paper's cross-session
+comparison (Table 4 of \url{evaluation.md}) compares sessions that may
+have been taken with different ``warm-up'' exposure of the host
+environment --- e.g.~the host USB subsystem's buffering state can
+differ.
+
+The ≤ 1 ms cross-session agreement observed in Table 4 is evidence
+against any material thermal or host-state confound at the sub- second
+measurement granularity we use. We do not claim robustness for
+multi-minute sustained-stress measurements.
+
+\subsection{2.4 Firmware build drift across a reported
+comparison}\label{firmware-build-drift-across-a-reported-comparison}
+
+The cross-session comparison in Table 4 of \url{evaluation.md} spans
+three firmware builds (pre- refactor, post-refactor confirmation,
+post-NASA-JPL-review). Each build was flashed with
+\texttt{scripts/flashtool.py\ -e\ sentai\_runtime} (no \texttt{-\/-ram};
+true persistent flash) and rebooted cleanly before the measurement. The
+\texttt{build\_version.h} number in each session's \texttt{summary.txt}
+documents which build produced the data.
+
+The intent of the comparison is \emph{verifying performance neutrality}
+of the review refactor, not isolating a specific change. We do not claim
+that any single NASA-JPL fix in isolation is responsible for the 0.3 ms
+shift in cam0 total between \texttt{s043} and \texttt{s045}; within
+noise, it is not.
+
+\subsection{\texorpdfstring{2.5 The \texttt{drain=1} knob is retained
+but not
+recommended}{2.5 The drain=1 knob is retained but not recommended}}\label{the-drain1-knob-is-retained-but-not-recommended}
+
+The shipping default is \texttt{switch\_drain(2)}. Moving to
+\texttt{switch\_drain(1)} was empirically (see \url{cam_switch.md}
+§``Known limitations''):
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Not a timing win}: the \texttt{cam-\textgreater{}GetRawFrame}
+  call after the drain loop blocks long enough to absorb the one-frame
+  saving. Observed: 201 ms per iteration at both \texttt{drain=1} and
+  \texttt{drain=2} in
+  \href{../experiments/s041_e17_eof_check/}{\texttt{s041\_e17\_eof\_check}}.
+\item
+  \textbf{Not visually clean}: residual sensor-side artefacts (AEC/AGC
+  convergence on the newly selected OV5640) remain even after the
+  mid-buffer seam is eliminated by the flip-on-EOF fix. Not every frame
+  is affected; a thumbnail-level review misses it.
+\end{itemize}
+
+Retaining the knob as an experimentation hook has a small cost (the
+\texttt{switch\_drain\_set/\_get} accessors in the MicroPython module);
+the value of being able to reproduce the limitation is greater than the
+cost of carrying the code. No production configuration should use
+\texttt{switch\_drain(1)} on this hardware.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\section{3. External validity --- where do the results
+generalise?}\label{external-validity-where-do-the-results-generalise}
+
+\subsection{3.1 Model-dependent numbers}\label{model-dependent-numbers}
+
+Every reported invoke time (30 ± 3 ms in E18) and every per-stage total
+is specific to the YOLOv5-enhanced single-class model documented in
+\url{experimental_setup.md} §4. A heavier backbone, a larger head, or
+more classes would change \texttt{invoke\_ms} without changing the
+per-switch tax (which is camera- topology bound). A lighter model would
+do the opposite --- making the switch tax a larger fraction of the
+total.
+
+When a reader adapts these results to a new model, the rule is: - Switch
+tax per flip (\textasciitilde83 ms) is \textbf{stable} against model
+choice. - TPU invoke time scales \textbf{\textasciitilde linearly} with
+input-tensor pixel count and roughly with FLOPs on EdgeTPU. - PXP resize
++ quant scales with the output size (fixed at 512×512 in our
+measurements) and is \textbf{not} a strong function of sensor native
+resolution.
+
+See \url{cam_switch.md} §``What E18 tells us about application design''
+for the predictive arithmetic linking these knobs to effective FPS.
+
+\subsection{3.2 Sensor-topology-dependent
+numbers}\label{sensor-topology-dependent-numbers}
+
+The 83 ms per-switch tax is specific to the single-MIPI-lane +
+analogue-MUX topology of the SentAI board. Platforms with two
+independent MIPI-CSI2 receivers (or an MIPI-bridge chip with virtual
+channel support --- see \url{related_embedded_inference.md}) would not
+pay this tax at all. The \emph{method} --- flip-on-EOF timing, ratio
+scheduler, fault counters --- generalises; the \emph{numbers} do not.
+
+\subsection{3.3 Resolution-dependent
+expectations}\label{resolution-dependent-expectations}
+
+All \texttt{evaluation.md} numbers are at 512×512 logical resolution.
+Experiments also ran at VGA (640×480) and QVGA (320×240) and are
+documented inline in \url{cam_switch.md} §``Per-camera resolution''.
+Summary: - Fixed-camera FPS is \textbf{sensor-rate-bound} above
+\textasciitilde16 FPS; changing resolution does not raise the ceiling
+meaningfully. - Alternating FPS improves noticeably at QVGA
+(\textasciitilde10 FPS) because PXP + JPEG costs scale with pixel count.
+- VGA is \textbf{slightly worse} than 512×512 for JPEG encoding because
+it has more pixels (307 k vs 262 k).
+
+\subsection{3.4 Hardware revision scope}\label{hardware-revision-scope}
+
+Every result applies to \textbf{SentAI board v1.0 only}. A future board
+revision that rewires the MUX, adds a second CSI receiver, or changes
+the sensor modules would invalidate the constants in this paper but
+should preserve the \emph{framework} (session-based measurement,
+flip-on-EOF as a safe MUX-transition primitive, fault counters as a
+measurement-integrity check).
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\section{4. Conclusion validity --- are the statistics
+defensible?}\label{conclusion-validity-are-the-statistics-defensible}
+
+\subsection{4.1 Sample size}\label{sample-size}
+
+\texttt{n\ =\ 20} (E15) and \texttt{n\ =\ 40} (E16, E18) with the first
+sample dropped. With \texttt{σ\ ≈\ 2\ ms} on a \textasciitilde60 ms mean
+this gives a 95 \% confidence interval of \texttt{±0.9\ ms}, well below
+the effect sizes we report (+9.5 ms from eDMA, +83 ms switch tax, −64 ms
+asymmetry collapse). See \url{statistical_notes.md} for the derivation.
+
+\subsection{4.2 No formal hypothesis
+testing}\label{no-formal-hypothesis-testing}
+
+We do not compute p-values. All of our ``effects'' are at least an order
+of magnitude larger than the measurement noise; a t-test against a null
+of ``no change'' would produce \texttt{p\ \textless{}\ 10⁻¹⁰} and not
+add information. Where we report a null result (Fix A having no
+measurable effect), we say so explicitly and show the raw numbers so a
+reviewer can confirm.
+
+\subsection{4.3 Cross-session comparisons rely on held-constant
+covariates}\label{cross-session-comparisons-rely-on-held-constant-covariates}
+
+Every cross-session table in this paper holds model, scene, resolution
+and sensor configuration constant, varying only the firmware build or an
+A/B runtime flag. If any of those covariates had drifted, it would show
+up as a shift in the fixed-camera baseline --- which empirically
+remained at 62.6 ± 0.4 ms across
+\href{../experiments/s043_e18_headtail_drain2/}{\texttt{s043}},
+\href{../experiments/s044_e18_headtail_drain2/}{\texttt{s044}}, and
+\href{../experiments/s045_e18_post_refactor/}{\texttt{s045}} (see Table
+4 of \url{evaluation.md}). That agreement is the strongest available
+evidence that the comparisons isolate the variable under test.
+
+\subsection{4.4 Single-run sessions excluded from
+statistics}\label{single-run-sessions-excluded-from-statistics}
+
+Sessions \texttt{s016}--\texttt{s020} and \texttt{s027}--\texttt{s030}
+contain a single data point each (n = 1) and are not used for any mean
+comparison in this paper. They are retained in the archive (Appendix C
+of \href{../experiments/README.md}{experiments/README.md}) because they
+document the progression of single-shot pre/post-eDMA checks before the
+x20 repetition protocol stabilised; they do not contribute statistical
+weight to the headline results.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\section{5. What we did not do, and why it is not a
+threat}\label{what-we-did-not-do-and-why-it-is-not-a-threat}
+
+For transparency, the following were considered and explicitly declined
+in this iteration:
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Not done
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Why not
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+When it would matter
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Cross-device measurement & single prototype hardware & production
+deployment across N units \\
+Thermal stress over minutes & 3-s measurement windows don't throttle &
+always-on field deployment \\
+Power / current measurement & no instrumentation on the test rig &
+battery-bounded mission profile \\
+FSIN master/slave sensor sync & hardware rework required, ≤ 2 ms
+residual asymmetry not worth the silicon change & if directional
+asymmetry became the dominant error source \\
+60 fps 720p mode & NXP driver binning-mode init missing; CSI-2 did not
+lock on our probe & a use case forced by a model whose per-frame cost
+fits a 17 ms budget \\
+Virtual-channel-based parallel capture & requires a MIPI-bridge chip not
+on the board & a dual-sensor application that cannot tolerate any switch
+tax \\
+\end{longtable}
+}
+
+Each of these is a future-work item (\url{future_work.md}) rather than a
+concealed threat to the results as reported.

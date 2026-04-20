@@ -33,45 +33,774 @@
 \@writefile{toc}{\contentsline {subsection}{\numberline {2.6}Vision pipelines for drone perception and viewpoint-aware sensing}{6}{subsection.2.6}\protected@file@percent }
 \newlabel{vision-pipelines-for-drone-perception-and-viewpoint-aware-sensing}{{2.6}{6}{Vision pipelines for drone perception and viewpoint-aware sensing}{subsection.2.6}{}}
 \newlabel{vision-pipelines-for-drone-perception-and-viewpoint-aware-sensing@cref}{{[subsection][6][2]2.6}{[1][6][]6}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {2.7}Open datasets, synthetic data, and regulation-aware navigation}{6}{subsection.2.7}\protected@file@percent }
-\newlabel{open-datasets-synthetic-data-and-regulation-aware-navigation}{{2.7}{6}{Open datasets, synthetic data, and regulation-aware navigation}{subsection.2.7}{}}
-\newlabel{open-datasets-synthetic-data-and-regulation-aware-navigation@cref}{{[subsection][7][2]2.7}{[1][6][]6}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.7}Open datasets, synthetic data, and regulation-aware navigation}{7}{subsection.2.7}\protected@file@percent }
+\newlabel{open-datasets-synthetic-data-and-regulation-aware-navigation}{{2.7}{7}{Open datasets, synthetic data, and regulation-aware navigation}{subsection.2.7}{}}
+\newlabel{open-datasets-synthetic-data-and-regulation-aware-navigation@cref}{{[subsection][7][2]2.7}{[1][7][]7}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {2.8}Positioning of this work}{7}{subsection.2.8}\protected@file@percent }
 \newlabel{positioning-of-this-work}{{2.8}{7}{Positioning of this work}{subsection.2.8}{}}
 \newlabel{positioning-of-this-work@cref}{{[subsection][8][2]2.8}{[1][7][]7}}
-\@writefile{toc}{\contentsline {section}{\numberline {3}Materials and Methods}{7}{section.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.1}System Architecture and Design Rationale}{8}{subsection.3.1}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Block-level view of the platform architecture, highlighting the split between sensing hardware, MCU orchestration, EdgeTPU inference, and the script-oriented MicroPython layer.}}{9}{figure.caption.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.9}Dual-Sensor Switching and MCU Camera Pipelines}{7}{subsection.2.9}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {3}1. Hardware multiplexing of multiple cameras onto one CSI receiver}{8}{section.3}\protected@file@percent }
+\newlabel{hardware-multiplexing-of-multiple-cameras-onto-one-csi-receiver}{{3}{8}{1. Hardware multiplexing of multiple cameras onto one CSI receiver}{section.3}{}}
+\newlabel{hardware-multiplexing-of-multiple-cameras-onto-one-csi-receiver@cref}{{[section][3][]3}{[1][7][]8}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.1}1.1 Analogue-switch MUX (our topology)}{8}{subsection.3.1}\protected@file@percent }
+\newlabel{analogue-switch-mux-our-topology}{{3.1}{8}{1.1 Analogue-switch MUX (our topology)}{subsection.3.1}{}}
+\newlabel{analogue-switch-mux-our-topology@cref}{{[subsection][1][3]3.1}{[1][7][]8}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.2}1.2 Virtual-channel-separated dual-stream receivers}{8}{subsection.3.2}\protected@file@percent }
+\newlabel{virtual-channel-separated-dual-stream-receivers}{{3.2}{8}{1.2 Virtual-channel-separated dual-stream receivers}{subsection.3.2}{}}
+\newlabel{virtual-channel-separated-dual-stream-receivers@cref}{{[subsection][2][3]3.2}{[1][8][]8}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.3}1.3 Dual CSI controllers}{8}{subsection.3.3}\protected@file@percent }
+\newlabel{dual-csi-controllers}{{3.3}{8}{1.3 Dual CSI controllers}{subsection.3.3}{}}
+\newlabel{dual-csi-controllers@cref}{{[subsection][3][3]3.3}{[1][8][]8}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.4}1.4 Summary of topology options}{8}{subsection.3.4}\protected@file@percent }
+\newlabel{summary-of-topology-options}{{3.4}{8}{1.4 Summary of topology options}{subsection.3.4}{}}
+\newlabel{summary-of-topology-options@cref}{{[subsection][4][3]3.4}{[1][8][]8}}
+\gdef \LT@i {\LT@entry 
+    {1}{95.5888pt}\LT@entry 
+    {1}{101.5888pt}\LT@entry 
+    {1}{101.5888pt}\LT@entry 
+    {1}{95.5888pt}}
+\@writefile{toc}{\contentsline {section}{\numberline {4}2. VSYNC-synchronised switching and frame-boundary techniques}{9}{section.4}\protected@file@percent }
+\newlabel{vsync-synchronised-switching-and-frame-boundary-techniques}{{4}{9}{2. VSYNC-synchronised switching and frame-boundary techniques}{section.4}{}}
+\newlabel{vsync-synchronised-switching-and-frame-boundary-techniques@cref}{{[section][4][]4}{[1][9][]9}}
+\@writefile{toc}{\contentsline {section}{\numberline {5}3. Sensor-side effects after a switch}{9}{section.5}\protected@file@percent }
+\newlabel{sensor-side-effects-after-a-switch}{{5}{9}{3. Sensor-side effects after a switch}{section.5}{}}
+\newlabel{sensor-side-effects-after-a-switch@cref}{{[section][5][]5}{[1][9][]9}}
+\@writefile{toc}{\contentsline {section}{\numberline {6}4. ISR-context GPIO and NASA/JPL-style real-time discipline}{10}{section.6}\protected@file@percent }
+\newlabel{isr-context-gpio-and-nasajpl-style-real-time-discipline}{{6}{10}{4. ISR-context GPIO and NASA/JPL-style real-time discipline}{section.6}{}}
+\newlabel{isr-context-gpio-and-nasajpl-style-real-time-discipline@cref}{{[section][6][]6}{[1][10][]10}}
+\@writefile{toc}{\contentsline {section}{\numberline {7}5. Cross-platform framing}{10}{section.7}\protected@file@percent }
+\newlabel{cross-platform-framing}{{7}{10}{5. Cross-platform framing}{section.7}{}}
+\newlabel{cross-platform-framing@cref}{{[section][7][]7}{[1][10][]10}}
+\gdef \LT@ii {\LT@entry 
+    {1}{197.17761pt}\LT@entry 
+    {1}{197.17761pt}}
+\@writefile{toc}{\contentsline {section}{\numberline {8}6. References to gather for the bibliography}{11}{section.8}\protected@file@percent }
+\newlabel{references-to-gather-for-the-bibliography}{{8}{11}{6. References to gather for the bibliography}{section.8}{}}
+\newlabel{references-to-gather-for-the-bibliography@cref}{{[section][8][]8}{[1][10][]11}}
+\@writefile{toc}{\contentsline {section}{\numberline {9}Experimental Setup}{11}{section.9}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {10}1. Hardware platform}{11}{section.10}\protected@file@percent }
+\newlabel{hardware-platform}{{10}{11}{1. Hardware platform}{section.10}{}}
+\newlabel{hardware-platform@cref}{{[section][10][]10}{[1][11][]11}}
+\gdef \LT@iii {\LT@entry 
+    {1}{129.43855pt}\LT@entry 
+    {1}{135.43855pt}\LT@entry 
+    {1}{129.43855pt}}
+\gdef \LT@iv {\LT@entry 
+    {1}{197.17761pt}\LT@entry 
+    {1}{197.17761pt}}
+\@writefile{toc}{\contentsline {section}{\numberline {11}2. Firmware stack}{12}{section.11}\protected@file@percent }
+\newlabel{firmware-stack}{{11}{12}{2. Firmware stack}{section.11}{}}
+\newlabel{firmware-stack@cref}{{[section][11][]11}{[1][12][]12}}
+\gdef \LT@v {\LT@entry 
+    {1}{129.43855pt}\LT@entry 
+    {1}{135.43855pt}\LT@entry 
+    {1}{129.43855pt}}
+\@writefile{toc}{\contentsline {section}{\numberline {12}3. Sensor configuration}{13}{section.12}\protected@file@percent }
+\newlabel{sensor-configuration}{{12}{13}{3. Sensor configuration}{section.12}{}}
+\newlabel{sensor-configuration@cref}{{[section][12][]12}{[1][13][]13}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {12.1}3.1 Native mode}{13}{subsection.12.1}\protected@file@percent }
+\newlabel{native-mode}{{12.1}{13}{3.1 Native mode}{subsection.12.1}{}}
+\newlabel{native-mode@cref}{{[subsection][1][12]12.1}{[1][13][]13}}
+\gdef \LT@vi {\LT@entry 
+    {1}{197.17761pt}\LT@entry 
+    {1}{197.17761pt}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {12.2}3.2 Logical resolution}{14}{subsection.12.2}\protected@file@percent }
+\newlabel{logical-resolution}{{12.2}{14}{3.2 Logical resolution}{subsection.12.2}{}}
+\newlabel{logical-resolution@cref}{{[subsection][2][12]12.2}{[1][14][]14}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {12.3}3.3 Rotation}{14}{subsection.12.3}\protected@file@percent }
+\newlabel{rotation}{{12.3}{14}{3.3 Rotation}{subsection.12.3}{}}
+\newlabel{rotation@cref}{{[subsection][3][12]12.3}{[1][14][]14}}
+\@writefile{toc}{\contentsline {section}{\numberline {13}4. Vision model under test}{14}{section.13}\protected@file@percent }
+\newlabel{vision-model-under-test}{{13}{14}{4. Vision model under test}{section.13}{}}
+\newlabel{vision-model-under-test@cref}{{[section][13][]13}{[1][14][]14}}
+\@writefile{toc}{\contentsline {section}{\numberline {14}5. Scene}{15}{section.14}\protected@file@percent }
+\newlabel{scene}{{14}{15}{5. Scene}{section.14}{}}
+\newlabel{scene@cref}{{[section][14][]14}{[1][15][]15}}
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces cam0 (front, rotated 180°)}}{16}{figure.caption.1}\protected@file@percent }
 \providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
-\newlabel{fig:impl01}{{1}{9}{Block-level view of the platform architecture, highlighting the split between sensing hardware, MCU orchestration, EdgeTPU inference, and the script-oriented MicroPython layer}{figure.caption.1}{}}
-\newlabel{fig:impl01@cref}{{[figure][1][]1}{[1][8][]9}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.2}RTOS Integration, Memory Layout, and Accelerator Feeding}{10}{subsection.3.2}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Block diagram of the RTOS and memory pipeline, showing aligned capture buffers, PrepTask, SDRAM staging, InferTask, and the EdgeTPU tensor path.}}{11}{figure.caption.2}\protected@file@percent }
-\newlabel{fig:impl02}{{2}{11}{Block diagram of the RTOS and memory pipeline, showing aligned capture buffers, PrepTask, SDRAM staging, InferTask, and the EdgeTPU tensor path}{figure.caption.2}{}}
-\newlabel{fig:impl02@cref}{{[figure][2][]2}{[1][10][]11}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.3}Dual-Camera Vision Pipeline and Perception Stack}{13}{subsection.3.3}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Dual-camera perception pipeline with camera switching, PXP preprocessing, EdgeTPU detection, tracking, and ground-aware projection.}}{13}{figure.caption.3}\protected@file@percent }
-\newlabel{fig:impl03}{{3}{13}{Dual-camera perception pipeline with camera switching, PXP preprocessing, EdgeTPU detection, tracking, and ground-aware projection}{figure.caption.3}{}}
-\newlabel{fig:impl03@cref}{{[figure][3][]3}{[1][13][]13}}
+\newlabel{fig:scene:cam0}{{1}{16}{cam0 (front, rotated 180°)}{figure.caption.1}{}}
+\newlabel{fig:scene:cam0@cref}{{[figure][1][]1}{[1][15][]16}}
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces cam1 (back, unrotated)}}{16}{figure.caption.1}\protected@file@percent }
+\newlabel{fig:scene:cam1}{{2}{16}{cam1 (back, unrotated)}{figure.caption.1}{}}
+\newlabel{fig:scene:cam1@cref}{{[figure][2][]2}{[1][15][]16}}
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Canonical scene used throughout every E15–E18 measurement. Two lilac arrangements against a pale wall, with a teal ceramic mug in the upper right of cam0's field of view. Both images are 512×512 JPEG quality-75 captured by the on-board PXP pipeline at the start of session \texttt  {s045\_e18\_post\_refactor} / \texttt  {s044\_e18\_headtail\_drain2}. The scene contains no instances of the model's target class, so every measured frame has \texttt  {num\_detections == 0} — an explicit design choice that isolates timing from detection-count variance.}}{16}{figure.caption.1}\protected@file@percent }
+\newlabel{fig:scene}{{3}{16}{Canonical scene used throughout every E15–E18 measurement. Two lilac arrangements against a pale wall, with a teal ceramic mug in the upper right of cam0's field of view. Both images are 512×512 JPEG quality-75 captured by the on-board PXP pipeline at the start of session \texttt {s045\_e18\_post\_refactor} / \texttt {s044\_e18\_headtail\_drain2}. The scene contains no instances of the model's target class, so every measured frame has \texttt {num\_detections == 0} — an explicit design choice that isolates timing from detection-count variance}{figure.caption.1}{}}
+\newlabel{fig:scene@cref}{{[figure][3][]3}{[1][15][]16}}
+\gdef \LT@vii {\LT@entry 
+    {1}{129.43855pt}\LT@entry 
+    {1}{135.43855pt}\LT@entry 
+    {1}{129.43855pt}}
+\@writefile{toc}{\contentsline {section}{\numberline {15}6. Measurement tooling}{17}{section.15}\protected@file@percent }
+\newlabel{measurement-tooling}{{15}{17}{6. Measurement tooling}{section.15}{}}
+\newlabel{measurement-tooling@cref}{{[section][15][]15}{[1][17][]17}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {15.1}6.1 On-device: the \texttt  {diag} package}{17}{subsection.15.1}\protected@file@percent }
+\newlabel{on-device-the-diag-package}{{15.1}{17}{\texorpdfstring {6.1 On-device: the \texttt {diag} package}{6.1 On-device: the diag package}}{subsection.15.1}{}}
+\newlabel{on-device-the-diag-package@cref}{{[subsection][1][15]15.1}{[1][17][]17}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {15.2}6.2 Time source}{17}{subsection.15.2}\protected@file@percent }
+\newlabel{time-source}{{15.2}{17}{6.2 Time source}{subsection.15.2}{}}
+\newlabel{time-source@cref}{{[subsection][2][15]15.2}{[1][17][]17}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {15.3}6.3 Statistical tools}{17}{subsection.15.3}\protected@file@percent }
+\newlabel{statistical-tools}{{15.3}{17}{6.3 Statistical tools}{subsection.15.3}{}}
+\newlabel{statistical-tools@cref}{{[subsection][3][15]15.3}{[1][17][]17}}
+\gdef \LT@viii {\LT@entry 
+    {1}{197.17761pt}\LT@entry 
+    {1}{197.17761pt}}
+\@writefile{toc}{\contentsline {section}{\numberline {16}7. Host environment}{18}{section.16}\protected@file@percent }
+\newlabel{host-environment}{{16}{18}{7. Host environment}{section.16}{}}
+\newlabel{host-environment@cref}{{[section][16][]16}{[1][18][]18}}
+\@writefile{toc}{\contentsline {section}{\numberline {17}8. Summary of what changes between experiments, and what does not}{18}{section.17}\protected@file@percent }
+\newlabel{summary-of-what-changes-between-experiments-and-what-does-not}{{17}{18}{8. Summary of what changes between experiments, and what does not}{section.17}{}}
+\newlabel{summary-of-what-changes-between-experiments-and-what-does-not@cref}{{[section][17][]17}{[1][18][]18}}
+\@writefile{toc}{\contentsline {section}{\numberline {18}Materials and Methods}{19}{section.18}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {18.1}System Architecture and Design Rationale}{20}{subsection.18.1}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces Block-level view of the platform architecture, highlighting the split between sensing hardware, MCU orchestration, EdgeTPU inference, and the script-oriented MicroPython layer.}}{20}{figure.caption.2}\protected@file@percent }
+\newlabel{fig:impl01}{{4}{20}{Block-level view of the platform architecture, highlighting the split between sensing hardware, MCU orchestration, EdgeTPU inference, and the script-oriented MicroPython layer}{figure.caption.2}{}}
+\newlabel{fig:impl01@cref}{{[figure][4][]4}{[1][20][]20}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {18.2}RTOS Integration, Memory Layout, and Accelerator Feeding}{22}{subsection.18.2}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces Block diagram of the RTOS and memory pipeline, showing aligned capture buffers, PrepTask, SDRAM staging, InferTask, and the EdgeTPU tensor path.}}{22}{figure.caption.3}\protected@file@percent }
+\newlabel{fig:impl02}{{5}{22}{Block diagram of the RTOS and memory pipeline, showing aligned capture buffers, PrepTask, SDRAM staging, InferTask, and the EdgeTPU tensor path}{figure.caption.3}{}}
+\newlabel{fig:impl02@cref}{{[figure][5][]5}{[1][22][]22}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {18.3}Dual-Camera Vision Pipeline and Perception Stack}{24}{subsection.18.3}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces Dual-camera perception pipeline with camera switching, PXP preprocessing, EdgeTPU detection, tracking, and ground-aware projection.}}{24}{figure.caption.4}\protected@file@percent }
+\newlabel{fig:impl03}{{6}{24}{Dual-camera perception pipeline with camera switching, PXP preprocessing, EdgeTPU detection, tracking, and ground-aware projection}{figure.caption.4}{}}
+\newlabel{fig:impl03@cref}{{[figure][6][]6}{[1][24][]24}}
 \citation{Bewley2016}
 \citation{Zhang2022}
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.4}Flight Control, Telemetry, and External Integration}{15}{subsection.3.4}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces Control and telemetry architecture spanning Crazyflie experimentation, MAVLink interoperability, and external backend dissemination.}}{16}{figure.caption.4}\protected@file@percent }
-\newlabel{fig:impl04}{{4}{16}{Control and telemetry architecture spanning Crazyflie experimentation, MAVLink interoperability, and external backend dissemination}{figure.caption.4}{}}
-\newlabel{fig:impl04@cref}{{[figure][4][]4}{[1][15][]16}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {18.4}Flight Control, Telemetry, and External Integration}{26}{subsection.18.4}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {7}{\ignorespaces Control and telemetry architecture spanning Crazyflie experimentation, MAVLink interoperability, and external backend dissemination.}}{27}{figure.caption.5}\protected@file@percent }
+\newlabel{fig:impl04}{{7}{27}{Control and telemetry architecture spanning Crazyflie experimentation, MAVLink interoperability, and external backend dissemination}{figure.caption.5}{}}
+\newlabel{fig:impl04@cref}{{[figure][7][]7}{[1][26][]27}}
 \citation{DurrantWhyte2006,Cadena2016}
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.5}Programming Model and User-Facing Runtime Surface}{17}{subsection.3.5}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces Programming model view showing REPL-centered access, USB service modes, boot artifacts, and the main runtime modules exposed through the \texttt  {sentai} namespace.}}{18}{figure.caption.5}\protected@file@percent }
-\newlabel{fig:impl05}{{5}{18}{Programming model view showing REPL-centered access, USB service modes, boot artifacts, and the main runtime modules exposed through the \texttt {sentai} namespace}{figure.caption.5}{}}
-\newlabel{fig:impl05@cref}{{[figure][5][]5}{[1][17][]18}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {18.5}Programming Model and User-Facing Runtime Surface}{28}{subsection.18.5}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {8}{\ignorespaces Programming model view showing REPL-centered access, USB service modes, boot artifacts, and the main runtime modules exposed through the \texttt  {sentai} namespace.}}{29}{figure.caption.6}\protected@file@percent }
+\newlabel{fig:impl05}{{8}{29}{Programming model view showing REPL-centered access, USB service modes, boot artifacts, and the main runtime modules exposed through the \texttt {sentai} namespace}{figure.caption.6}{}}
+\newlabel{fig:impl05@cref}{{[figure][8][]8}{[1][28][]29}}
 \citation{AIfES2024}
 \citation{Jain2010,Jolliffe2016,Chandola2009,Pimentel2014}
 \citation{Salvador2007,Bilmes1998}
 \citation{Watkins1992,Auer2002,Russo2018,Mnih2015}
 \citation{DurrantWhyte2006,Cadena2016}
-\@writefile{toc}{\contentsline {section}{\numberline {4}Discussion}{21}{section.4}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {5}Conclusions}{22}{section.5}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {5.1}Future Work}{23}{subsection.5.1}\protected@file@percent }
+\gdef \LT@ix {\LT@entry 
+    {1}{129.43855pt}\LT@entry 
+    {1}{135.43855pt}\LT@entry 
+    {1}{129.43855pt}}
+\@writefile{toc}{\contentsline {section}{\numberline {19}Results and Performance Evaluation}{32}{section.19}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {20}1. Research questions}{32}{section.20}\protected@file@percent }
+\newlabel{research-questions}{{20}{32}{1. Research questions}{section.20}{}}
+\newlabel{research-questions@cref}{{[section][20][]20}{[1][32][]32}}
+\@writefile{toc}{\contentsline {section}{\numberline {21}2. RQ1 --- Parallel-pipeline steady-state throughput}{33}{section.21}\protected@file@percent }
+\newlabel{rq1-parallel-pipeline-steady-state-throughput}{{21}{33}{2. RQ1 --- Parallel-pipeline steady-state throughput}{section.21}{}}
+\newlabel{rq1-parallel-pipeline-steady-state-throughput@cref}{{[section][21][]21}{[1][33][]33}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {21.1}2.1 Setup}{33}{subsection.21.1}\protected@file@percent }
+\newlabel{setup}{{21.1}{33}{2.1 Setup}{subsection.21.1}{}}
+\newlabel{setup@cref}{{[subsection][1][21]21.1}{[1][33][]33}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {21.2}2.2 Headline result (Table 1)}{33}{subsection.21.2}\protected@file@percent }
+\newlabel{headline-result-table-1}{{21.2}{33}{2.2 Headline result (Table 1)}{subsection.21.2}{}}
+\newlabel{headline-result-table-1@cref}{{[subsection][2][21]21.2}{[1][33][]33}}
+\gdef \LT@x {\LT@entry 
+    {3}{95.22821pt}\LT@entry 
+    {3}{63.05994pt}\LT@entry 
+    {1}{53.6096pt}}
+\gdef \LT@xi {\LT@entry 
+    {1}{52.06409pt}\LT@entry 
+    {1}{58.06409pt}\LT@entry 
+    {1}{58.06409pt}\LT@entry 
+    {1}{58.06409pt}\LT@entry 
+    {1}{58.06409pt}\LT@entry 
+    {1}{58.06409pt}\LT@entry 
+    {1}{52.06409pt}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {21.3}2.3 Interpretation}{34}{subsection.21.3}\protected@file@percent }
+\newlabel{interpretation}{{21.3}{34}{2.3 Interpretation}{subsection.21.3}{}}
+\newlabel{interpretation@cref}{{[subsection][3][21]21.3}{[1][34][]34}}
+\@writefile{toc}{\contentsline {section}{\numberline {22}3. RQ2 --- eDMA acceleration of the staging-to-tensor copy}{34}{section.22}\protected@file@percent }
+\newlabel{rq2-edma-acceleration-of-the-staging-to-tensor-copy}{{22}{34}{3. RQ2 --- eDMA acceleration of the staging-to-tensor copy}{section.22}{}}
+\newlabel{rq2-edma-acceleration-of-the-staging-to-tensor-copy@cref}{{[section][22][]22}{[1][34][]34}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {22.1}3.1 Setup}{34}{subsection.22.1}\protected@file@percent }
+\newlabel{setup-1}{{22.1}{34}{3.1 Setup}{subsection.22.1}{}}
+\newlabel{setup-1@cref}{{[subsection][1][22]22.1}{[1][34][]34}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {22.2}3.2 Headline result (Table 2)}{34}{subsection.22.2}\protected@file@percent }
+\newlabel{headline-result-table-2}{{22.2}{34}{3.2 Headline result (Table 2)}{subsection.22.2}{}}
+\newlabel{headline-result-table-2@cref}{{[subsection][2][22]22.2}{[1][34][]34}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {22.3}3.3 Interpretation}{34}{subsection.22.3}\protected@file@percent }
+\newlabel{interpretation-1}{{22.3}{34}{3.3 Interpretation}{subsection.22.3}{}}
+\newlabel{interpretation-1@cref}{{[subsection][3][22]22.3}{[1][34][]34}}
+\gdef \LT@xii {\LT@entry 
+    {1}{41.81342pt}\LT@entry 
+    {1}{59.74138pt}\LT@entry 
+    {1}{59.74138pt}\LT@entry 
+    {1}{59.74138pt}\LT@entry 
+    {1}{59.74138pt}\LT@entry 
+    {1}{59.74138pt}\LT@entry 
+    {1}{53.74138pt}}
+\gdef \LT@xiii {\LT@entry 
+    {1}{169.87901pt}\LT@entry 
+    {1}{224.4762pt}}
+\@writefile{toc}{\contentsline {section}{\numberline {23}4. RQ3 --- Per-switch cost on the shared-MIPI, MUX-gated dual sensor}{35}{section.23}\protected@file@percent }
+\newlabel{rq3-per-switch-cost-on-the-shared-mipi-mux-gated-dual-sensor}{{23}{35}{4. RQ3 --- Per-switch cost on the shared-MIPI, MUX-gated dual sensor}{section.23}{}}
+\newlabel{rq3-per-switch-cost-on-the-shared-mipi-mux-gated-dual-sensor@cref}{{[section][23][]23}{[1][34][]35}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {23.1}4.1 Setup}{35}{subsection.23.1}\protected@file@percent }
+\newlabel{setup-2}{{23.1}{35}{4.1 Setup}{subsection.23.1}{}}
+\newlabel{setup-2@cref}{{[subsection][1][23]23.1}{[1][35][]35}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {23.2}4.2 Headline result (Table 3)}{35}{subsection.23.2}\protected@file@percent }
+\newlabel{headline-result-table-3}{{23.2}{35}{4.2 Headline result (Table 3)}{subsection.23.2}{}}
+\newlabel{headline-result-table-3@cref}{{[subsection][2][23]23.2}{[1][35][]35}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {23.3}4.3 Budget decomposition}{35}{subsection.23.3}\protected@file@percent }
+\newlabel{budget-decomposition}{{23.3}{35}{4.3 Budget decomposition}{subsection.23.3}{}}
+\newlabel{budget-decomposition@cref}{{[subsection][3][23]23.3}{[1][35][]35}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {23.4}4.4 Cross-session agreement}{35}{subsection.23.4}\protected@file@percent }
+\newlabel{cross-session-agreement}{{23.4}{35}{4.4 Cross-session agreement}{subsection.23.4}{}}
+\newlabel{cross-session-agreement@cref}{{[subsection][4][23]23.4}{[1][35][]35}}
+\gdef \LT@xiv {\LT@entry 
+    {1}{60.68877pt}\LT@entry 
+    {1}{84.90604pt}\LT@entry 
+    {1}{84.90604pt}\LT@entry 
+    {1}{84.90604pt}\LT@entry 
+    {1}{78.90604pt}}
+\gdef \LT@xv {\LT@entry 
+    {1}{95.5888pt}\LT@entry 
+    {1}{101.5888pt}\LT@entry 
+    {1}{101.5888pt}\LT@entry 
+    {1}{95.5888pt}}
+\@writefile{toc}{\contentsline {section}{\numberline {24}5. RQ4 --- Glitch-free MUX transitions}{36}{section.24}\protected@file@percent }
+\newlabel{rq4-glitch-free-mux-transitions}{{24}{36}{5. RQ4 --- Glitch-free MUX transitions}{section.24}{}}
+\newlabel{rq4-glitch-free-mux-transitions@cref}{{[section][24][]24}{[1][36][]36}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {24.1}5.1 Setup}{36}{subsection.24.1}\protected@file@percent }
+\newlabel{setup-3}{{24.1}{36}{5.1 Setup}{subsection.24.1}{}}
+\newlabel{setup-3@cref}{{[subsection][1][24]24.1}{[1][36][]36}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {24.2}5.2 Headline result --- visual inspection}{36}{subsection.24.2}\protected@file@percent }
+\newlabel{headline-result-visual-inspection}{{24.2}{36}{5.2 Headline result --- visual inspection}{subsection.24.2}{}}
+\newlabel{headline-result-visual-inspection@cref}{{[subsection][2][24]24.2}{[1][36][]36}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {24.3}5.3 Interpretation}{36}{subsection.24.3}\protected@file@percent }
+\newlabel{interpretation-2}{{24.3}{36}{5.3 Interpretation}{subsection.24.3}{}}
+\newlabel{interpretation-2@cref}{{[subsection][3][24]24.3}{[1][36][]36}}
+\gdef \LT@xvi {\LT@entry 
+    {1}{49.60045pt}\LT@entry 
+    {1}{70.14584pt}\LT@entry 
+    {1}{70.14584pt}\LT@entry 
+    {1}{70.14584pt}\LT@entry 
+    {1}{70.14584pt}\LT@entry 
+    {1}{64.14584pt}}
+\gdef \LT@xvii {\LT@entry 
+    {1}{53.77887pt}\LT@entry 
+    {1}{59.77887pt}\LT@entry 
+    {1}{75.69666pt}\LT@entry 
+    {1}{75.69666pt}\LT@entry 
+    {1}{75.69666pt}\LT@entry 
+    {1}{53.77887pt}}
+\@writefile{toc}{\contentsline {section}{\numberline {25}6. RQ5 --- Fault observability}{37}{section.25}\protected@file@percent }
+\newlabel{rq5-fault-observability}{{25}{37}{6. RQ5 --- Fault observability}{section.25}{}}
+\newlabel{rq5-fault-observability@cref}{{[section][25][]25}{[1][37][]37}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {25.1}6.1 Setup}{37}{subsection.25.1}\protected@file@percent }
+\newlabel{setup-4}{{25.1}{37}{6.1 Setup}{subsection.25.1}{}}
+\newlabel{setup-4@cref}{{[subsection][1][25]25.1}{[1][37][]37}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {25.2}6.2 Headline result}{37}{subsection.25.2}\protected@file@percent }
+\newlabel{headline-result}{{25.2}{37}{6.2 Headline result}{subsection.25.2}{}}
+\newlabel{headline-result@cref}{{[subsection][2][25]25.2}{[1][37][]37}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {25.3}6.3 Interpretation}{37}{subsection.25.3}\protected@file@percent }
+\newlabel{interpretation-3}{{25.3}{37}{6.3 Interpretation}{subsection.25.3}{}}
+\newlabel{interpretation-3@cref}{{[subsection][3][25]25.3}{[1][37][]37}}
+\@writefile{toc}{\contentsline {section}{\numberline {26}7. Summary table (Research-question × metric)}{37}{section.26}\protected@file@percent }
+\newlabel{summary-table-research-question-metric}{{26}{37}{7. Summary table (Research-question × metric)}{section.26}{}}
+\newlabel{summary-table-research-question-metric@cref}{{[section][26][]26}{[1][37][]37}}
+\@writefile{toc}{\contentsline {section}{\numberline {27}8. Discussion (of results only; full discussion in \url  {discussion.md})}{38}{section.27}\protected@file@percent }
+\newlabel{discussion-of-results-only-full-discussion-in-discussion.md}{{27}{38}{\texorpdfstring {8. Discussion (of results only; full discussion in \url {discussion.md})}{8. Discussion (of results only; full discussion in discussion.md)}}{section.27}{}}
+\newlabel{discussion-of-results-only-full-discussion-in-discussion.md@cref}{{[section][27][]27}{[1][38][]38}}
+\gdef \LT@xviii {\LT@entry 
+    {1}{239.65698pt}\LT@entry 
+    {1}{154.69823pt}}
+\@writefile{toc}{\contentsline {section}{\numberline {28}Data availability statement}{39}{section.28}\protected@file@percent }
+\newlabel{data-availability-statement}{{28}{39}{Data availability statement}{section.28}{}}
+\newlabel{data-availability-statement@cref}{{[section][28][]28}{[1][39][]39}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {28.1}SDRAM-to-Tensor Memcpy Optimisation}{39}{subsection.28.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {29}Abstract}{39}{section.29}\protected@file@percent }
+\newlabel{abstract}{{29}{39}{Abstract}{section.29}{}}
+\newlabel{abstract@cref}{{[section][29][]29}{[1][39][]39}}
+\@writefile{toc}{\contentsline {section}{\numberline {30}Test conditions}{39}{section.30}\protected@file@percent }
+\newlabel{test-conditions}{{30}{39}{Test conditions}{section.30}{}}
+\newlabel{test-conditions@cref}{{[section][30][]30}{[1][39][]39}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {30.1}Hardware}{39}{subsection.30.1}\protected@file@percent }
+\newlabel{hardware}{{30.1}{39}{Hardware}{subsection.30.1}{}}
+\newlabel{hardware@cref}{{[subsection][1][30]30.1}{[1][39][]39}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {30.2}Firmware}{39}{subsection.30.2}\protected@file@percent }
+\newlabel{firmware}{{30.2}{39}{Firmware}{subsection.30.2}{}}
+\newlabel{firmware@cref}{{[subsection][2][30]30.2}{[1][39][]39}}
+\gdef \LT@xix {\LT@entry 
+    {1}{239.65698pt}\LT@entry 
+    {1}{154.69823pt}}
+\gdef \LT@xx {\LT@entry 
+    {1}{239.65698pt}\LT@entry 
+    {1}{154.69823pt}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {30.3}Model under test}{40}{subsection.30.3}\protected@file@percent }
+\newlabel{model-under-test}{{30.3}{40}{Model under test}{subsection.30.3}{}}
+\newlabel{model-under-test@cref}{{[subsection][3][30]30.3}{[1][40][]40}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {30.4}Scene}{40}{subsection.30.4}\protected@file@percent }
+\newlabel{scene}{{30.4}{40}{Scene}{subsection.30.4}{}}
+\newlabel{scene@cref}{{[subsection][4][30]30.4}{[1][40][]40}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {30.5}Methodology}{40}{subsection.30.5}\protected@file@percent }
+\newlabel{methodology}{{30.5}{40}{Methodology}{subsection.30.5}{}}
+\newlabel{methodology@cref}{{[subsection][5][30]30.5}{[1][40][]40}}
+\gdef \LT@xxi {\LT@entry 
+    {1}{42.62009pt}\LT@entry 
+    {1}{48.62009pt}\LT@entry 
+    {1}{55.9687pt}\LT@entry 
+    {1}{55.9687pt}\LT@entry 
+    {1}{48.62009pt}\LT@entry 
+    {1}{99.9079pt}\LT@entry 
+    {1}{42.62009pt}}
+\@writefile{toc}{\contentsline {section}{\numberline {31}Baseline --- CPU \texttt  {memcpy} (SDRAM → cache → SDRAM)}{41}{section.31}\protected@file@percent }
+\newlabel{baseline-cpu-memcpy-sdram-cache-sdram}{{31}{41}{\texorpdfstring {Baseline --- CPU \texttt {memcpy} (SDRAM → cache → SDRAM)}{Baseline --- CPU memcpy (SDRAM → cache → SDRAM)}}{section.31}{}}
+\newlabel{baseline-cpu-memcpy-sdram-cache-sdram@cref}{{[section][31][]31}{[1][41][]41}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {31.1}Per-run results (10 × 20 frames, same firmware as optimised)}{41}{subsection.31.1}\protected@file@percent }
+\newlabel{per-run-results-10-20-frames-same-firmware-as-optimised}{{31.1}{41}{Per-run results (10 × 20 frames, same firmware as optimised)}{subsection.31.1}{}}
+\newlabel{per-run-results-10-20-frames-same-firmware-as-optimised@cref}{{[subsection][1][31]31.1}{[1][41][]41}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {31.2}Interpretation}{41}{subsection.31.2}\protected@file@percent }
+\newlabel{interpretation}{{31.2}{41}{Interpretation}{subsection.31.2}{}}
+\newlabel{interpretation@cref}{{[subsection][2][31]31.2}{[1][41][]41}}
+\@writefile{toc}{\contentsline {section}{\numberline {32}Optimised --- eDMA memcpy with 32-byte AXI bursts}{42}{section.32}\protected@file@percent }
+\newlabel{optimised-edma-memcpy-with-32-byte-axi-bursts}{{32}{42}{Optimised --- eDMA memcpy with 32-byte AXI bursts}{section.32}{}}
+\newlabel{optimised-edma-memcpy-with-32-byte-axi-bursts@cref}{{[section][32][]32}{[1][42][]42}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {32.1}Cache strategy}{42}{subsection.32.1}\protected@file@percent }
+\newlabel{cache-strategy}{{32.1}{42}{Cache strategy}{subsection.32.1}{}}
+\newlabel{cache-strategy@cref}{{[subsection][1][32]32.1}{[1][42][]42}}
+\gdef \LT@xxii {\LT@entry 
+    {1}{42.62009pt}\LT@entry 
+    {1}{48.62009pt}\LT@entry 
+    {1}{55.9687pt}\LT@entry 
+    {1}{55.9687pt}\LT@entry 
+    {1}{48.62009pt}\LT@entry 
+    {1}{99.9079pt}\LT@entry 
+    {1}{42.62009pt}}
+\gdef \LT@xxiii {\LT@entry 
+    {1}{77.66994pt}\LT@entry 
+    {1}{107.57086pt}\LT@entry 
+    {1}{107.57086pt}\LT@entry 
+    {1}{101.57086pt}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {32.2}Per-run results (10 × 20 frames, same firmware, dma\_memcpy=1)}{43}{subsection.32.2}\protected@file@percent }
+\newlabel{per-run-results-10-20-frames-same-firmware-dma_memcpy1}{{32.2}{43}{Per-run results (10 × 20 frames, same firmware, dma\_memcpy=1)}{subsection.32.2}{}}
+\newlabel{per-run-results-10-20-frames-same-firmware-dma_memcpy1@cref}{{[subsection][2][32]32.2}{[1][43][]43}}
+\@writefile{toc}{\contentsline {section}{\numberline {33}Comparison and discussion}{43}{section.33}\protected@file@percent }
+\newlabel{comparison-and-discussion}{{33}{43}{Comparison and discussion}{section.33}{}}
+\newlabel{comparison-and-discussion@cref}{{[section][33][]33}{[1][43][]43}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {33.1}Per-stage cost (paired A/B on same firmware, 200 frames each)}{43}{subsection.33.1}\protected@file@percent }
+\newlabel{per-stage-cost-paired-ab-on-same-firmware-200-frames-each}{{33.1}{43}{Per-stage cost (paired A/B on same firmware, 200 frames each)}{subsection.33.1}{}}
+\newlabel{per-stage-cost-paired-ab-on-same-firmware-200-frames-each@cref}{{[subsection][1][33]33.1}{[1][43][]43}}
+\gdef \LT@xxiv {\LT@entry 
+    {1}{60.68877pt}\LT@entry 
+    {1}{84.90604pt}\LT@entry 
+    {1}{84.90604pt}\LT@entry 
+    {1}{84.90604pt}\LT@entry 
+    {1}{78.90604pt}}
+\gdef \LT@xxv {\LT@entry 
+    {1}{117.1077pt}\LT@entry 
+    {1}{160.13982pt}\LT@entry 
+    {1}{117.1077pt}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {33.2}Throughput headline}{44}{subsection.33.2}\protected@file@percent }
+\newlabel{throughput-headline}{{33.2}{44}{Throughput headline}{subsection.33.2}{}}
+\newlabel{throughput-headline@cref}{{[subsection][2][33]33.2}{[1][44][]44}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {33.3}Variance}{44}{subsection.33.3}\protected@file@percent }
+\newlabel{variance}{{33.3}{44}{Variance}{subsection.33.3}{}}
+\newlabel{variance@cref}{{[subsection][3][33]33.3}{[1][44][]44}}
+\@writefile{toc}{\contentsline {section}{\numberline {34}Why we chose eDMA over alternatives}{44}{section.34}\protected@file@percent }
+\newlabel{why-we-chose-edma-over-alternatives}{{34}{44}{Why we chose eDMA over alternatives}{section.34}{}}
+\newlabel{why-we-chose-edma-over-alternatives@cref}{{[section][34][]34}{[1][44][]44}}
+\gdef \LT@xxvi {\LT@entry 
+    {1}{129.43855pt}\LT@entry 
+    {1}{135.43855pt}\LT@entry 
+    {1}{129.43855pt}}
+\@writefile{toc}{\contentsline {section}{\numberline {35}Failure modes}{45}{section.35}\protected@file@percent }
+\newlabel{failure-modes}{{35}{45}{Failure modes}{section.35}{}}
+\newlabel{failure-modes@cref}{{[section][35][]35}{[1][45][]45}}
+\@writefile{toc}{\contentsline {section}{\numberline {36}Reproducing these results}{45}{section.36}\protected@file@percent }
+\newlabel{reproducing-these-results}{{36}{45}{Reproducing these results}{section.36}{}}
+\newlabel{reproducing-these-results@cref}{{[section][36][]36}{[1][45][]45}}
+\gdef \LT@xxvii {\LT@entry 
+    {1}{129.43855pt}\LT@entry 
+    {1}{135.43855pt}\LT@entry 
+    {1}{129.43855pt}}
+\@writefile{toc}{\contentsline {section}{\numberline {37}Cross-model comparison --- E14 (COCO 80-class) vs E15 (1-class)}{46}{section.37}\protected@file@percent }
+\newlabel{cross-model-comparison-e14-coco-80-class-vs-e15-1-class}{{37}{46}{Cross-model comparison --- E14 (COCO 80-class) vs E15 (1-class)}{section.37}{}}
+\newlabel{cross-model-comparison-e14-coco-80-class-vs-e15-1-class@cref}{{[section][37][]37}{[1][46][]46}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {37.1}Aggregated results (20 runs × 20 frames each, verbose=0)}{46}{subsection.37.1}\protected@file@percent }
+\newlabel{aggregated-results-20-runs-20-frames-each-verbose0}{{37.1}{46}{Aggregated results (20 runs × 20 frames each, verbose=0)}{subsection.37.1}{}}
+\newlabel{aggregated-results-20-runs-20-frames-each-verbose0@cref}{{[subsection][1][37]37.1}{[1][46][]46}}
+\gdef \LT@xxviii {\LT@entry 
+    {3}{93.41898pt}\LT@entry 
+    {1}{55.0498pt}\LT@entry 
+    {3}{62.0pt}\LT@entry 
+    {1}{55.0498pt}\LT@entry 
+    {3}{56.0pt}}
+\gdef \LT@xxix {\LT@entry 
+    {3}{213.3487pt}\LT@entry 
+    {3}{110.97437pt}}
+\gdef \LT@xxx {\LT@entry 
+    {1}{104.95561pt}\LT@entry 
+    {1}{91.17928pt}\LT@entry 
+    {1}{71.36597pt}\LT@entry 
+    {1}{61.49365pt}\LT@entry 
+    {1}{65.36597pt}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {37.2}Detection of yolo layout \& class count}{47}{subsection.37.2}\protected@file@percent }
+\newlabel{detection-of-yolo-layout-class-count}{{37.2}{47}{Detection of yolo layout \& class count}{subsection.37.2}{}}
+\newlabel{detection-of-yolo-layout-class-count@cref}{{[subsection][2][37]37.2}{[1][47][]47}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {37.3}Artefacts saved for offline inspection}{47}{subsection.37.3}\protected@file@percent }
+\newlabel{artefacts-saved-for-offline-inspection}{{37.3}{47}{Artefacts saved for offline inspection}{subsection.37.3}{}}
+\newlabel{artefacts-saved-for-offline-inspection@cref}{{[subsection][3][37]37.3}{[1][47][]47}}
+\@writefile{toc}{\contentsline {section}{\numberline {38}Progression across the pipeline optimisation effort}{47}{section.38}\protected@file@percent }
+\newlabel{progression-across-the-pipeline-optimisation-effort}{{38}{47}{Progression across the pipeline optimisation effort}{section.38}{}}
+\newlabel{progression-across-the-pipeline-optimisation-effort@cref}{{[section][38][]38}{[1][47][]47}}
+\@writefile{toc}{\contentsline {section}{\numberline {39}What's next}{48}{section.39}\protected@file@percent }
+\newlabel{whats-next}{{39}{48}{What's next}{section.39}{}}
+\newlabel{whats-next@cref}{{[section][39][]39}{[1][48][]48}}
+\@writefile{toc}{\contentsline {section}{\numberline {40}Sources}{48}{section.40}\protected@file@percent }
+\newlabel{sources}{{40}{48}{Sources}{section.40}{}}
+\newlabel{sources@cref}{{[section][40][]40}{[1][48][]48}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {40.1}Glitch-Free Dual-Camera Switching}{48}{subsection.40.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {41}Abstract}{48}{section.41}\protected@file@percent }
+\newlabel{abstract}{{41}{48}{Abstract}{section.41}{}}
+\newlabel{abstract@cref}{{[section][41][]41}{[1][48][]48}}
+\gdef \LT@xxxi {\LT@entry 
+    {1}{239.65698pt}\LT@entry 
+    {1}{154.69823pt}}
+\gdef \LT@xxxii {\LT@entry 
+    {1}{239.65698pt}\LT@entry 
+    {1}{154.69823pt}}
+\gdef \LT@xxxiii {\LT@entry 
+    {1}{239.65698pt}\LT@entry 
+    {1}{154.69823pt}}
+\@writefile{toc}{\contentsline {section}{\numberline {42}Test conditions}{49}{section.42}\protected@file@percent }
+\newlabel{test-conditions}{{42}{49}{Test conditions}{section.42}{}}
+\newlabel{test-conditions@cref}{{[section][42][]42}{[1][48][]49}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {42.1}Hardware}{49}{subsection.42.1}\protected@file@percent }
+\newlabel{hardware}{{42.1}{49}{Hardware}{subsection.42.1}{}}
+\newlabel{hardware@cref}{{[subsection][1][42]42.1}{[1][49][]49}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {42.2}Firmware}{49}{subsection.42.2}\protected@file@percent }
+\newlabel{firmware}{{42.2}{49}{Firmware}{subsection.42.2}{}}
+\newlabel{firmware@cref}{{[subsection][2][42]42.2}{[1][49][]49}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {42.3}Model under test}{49}{subsection.42.3}\protected@file@percent }
+\newlabel{model-under-test}{{42.3}{49}{Model under test}{subsection.42.3}{}}
+\newlabel{model-under-test@cref}{{[subsection][3][42]42.3}{[1][49][]49}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {42.4}Scene}{49}{subsection.42.4}\protected@file@percent }
+\newlabel{scene}{{42.4}{49}{Scene}{subsection.42.4}{}}
+\newlabel{scene@cref}{{[subsection][4][42]42.4}{[1][49][]49}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {42.5}Methodology}{50}{subsection.42.5}\protected@file@percent }
+\newlabel{methodology}{{42.5}{50}{Methodology}{subsection.42.5}{}}
+\newlabel{methodology@cref}{{[subsection][5][42]42.5}{[1][50][]50}}
+\@writefile{toc}{\contentsline {section}{\numberline {43}Experiment E15 --- fixed camera, parallel pipeline (baseline)}{50}{section.43}\protected@file@percent }
+\newlabel{experiment-e15-fixed-camera-parallel-pipeline-baseline}{{43}{50}{Experiment E15 --- fixed camera, parallel pipeline (baseline)}{section.43}{}}
+\newlabel{experiment-e15-fixed-camera-parallel-pipeline-baseline@cref}{{[section][43][]43}{[1][50][]50}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {43.1}Per-frame intervals (40 samples, first two dropped)}{50}{subsection.43.1}\protected@file@percent }
+\newlabel{per-frame-intervals-40-samples-first-two-dropped}{{43.1}{50}{Per-frame intervals (40 samples, first two dropped)}{subsection.43.1}{}}
+\newlabel{per-frame-intervals-40-samples-first-two-dropped@cref}{{[subsection][1][43]43.1}{[1][50][]50}}
+\@writefile{toc}{\contentsline {section}{\numberline {44}Experiment E16 --- alternating \texttt  {cam0\ ↔\ cam1}, sequential pipeline}{50}{section.44}\protected@file@percent }
+\newlabel{experiment-e16-alternating-cam0-cam1-sequential-pipeline}{{44}{50}{\texorpdfstring {Experiment E16 --- alternating \texttt {cam0\ ↔\ cam1}, sequential pipeline}{Experiment E16 --- alternating cam0 ↔ cam1, sequential pipeline}}{section.44}{}}
+\newlabel{experiment-e16-alternating-cam0-cam1-sequential-pipeline@cref}{{[section][44][]44}{[1][50][]50}}
+\gdef \LT@xxxiv {\LT@entry 
+    {1}{41.81342pt}\LT@entry 
+    {1}{59.74138pt}\LT@entry 
+    {1}{59.74138pt}\LT@entry 
+    {1}{59.74138pt}\LT@entry 
+    {1}{59.74138pt}\LT@entry 
+    {1}{59.74138pt}\LT@entry 
+    {1}{53.74138pt}}
+\gdef \LT@xxxv {\LT@entry 
+    {1}{77.66994pt}\LT@entry 
+    {1}{107.57086pt}\LT@entry 
+    {1}{107.57086pt}\LT@entry 
+    {1}{101.57086pt}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {44.1}Aggregate results (40 samples, first one dropped)}{51}{subsection.44.1}\protected@file@percent }
+\newlabel{aggregate-results-40-samples-first-one-dropped}{{44.1}{51}{Aggregate results (40 samples, first one dropped)}{subsection.44.1}{}}
+\newlabel{aggregate-results-40-samples-first-one-dropped@cref}{{[subsection][1][44]44.1}{[1][51][]51}}
+\@writefile{toc}{\contentsline {section}{\numberline {45}E15 vs E16 --- head-to-head}{51}{section.45}\protected@file@percent }
+\newlabel{e15-vs-e16-head-to-head}{{45}{51}{E15 vs E16 --- head-to-head}{section.45}{}}
+\newlabel{e15-vs-e16-head-to-head@cref}{{[section][45][]45}{[1][51][]51}}
+\@writefile{toc}{\contentsline {section}{\numberline {46}Interpretation}{52}{section.46}\protected@file@percent }
+\newlabel{interpretation}{{46}{52}{Interpretation}{section.46}{}}
+\newlabel{interpretation@cref}{{[section][46][]46}{[1][52][]52}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {46.1}The MUX flip itself is effectively free}{52}{subsection.46.1}\protected@file@percent }
+\newlabel{the-mux-flip-itself-is-effectively-free}{{46.1}{52}{The MUX flip itself is effectively free}{subsection.46.1}{}}
+\newlabel{the-mux-flip-itself-is-effectively-free@cref}{{[subsection][1][46]46.1}{[1][52][]52}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {46.2}All overhead is absorbed by \texttt  {to\_tensor()}}{52}{subsection.46.2}\protected@file@percent }
+\newlabel{all-overhead-is-absorbed-by-to_tensor}{{46.2}{52}{\texorpdfstring {All overhead is absorbed by \texttt {to\_tensor()}}{All overhead is absorbed by to\_tensor()}}{subsection.46.2}{}}
+\newlabel{all-overhead-is-absorbed-by-to_tensor@cref}{{[subsection][2][46]46.2}{[1][52][]52}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {46.3}The 65 ms asymmetry is structural, not noise}{52}{subsection.46.3}\protected@file@percent }
+\newlabel{the-65-ms-asymmetry-is-structural-not-noise}{{46.3}{52}{The 65 ms asymmetry is structural, not noise}{subsection.46.3}{}}
+\newlabel{the-65-ms-asymmetry-is-structural-not-noise@cref}{{[subsection][3][46]46.3}{[1][52][]52}}
+\gdef \LT@xxxvi {\LT@entry 
+    {3}{116.71921pt}\LT@entry 
+    {1}{81.77936pt}\LT@entry 
+    {3}{78.62987pt}\LT@entry 
+    {3}{40.12987pt}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {46.4}Why E15 wall time is comparable to E16's per-stage invoke alone}{53}{subsection.46.4}\protected@file@percent }
+\newlabel{why-e15-wall-time-is-comparable-to-e16s-per-stage-invoke-alone}{{46.4}{53}{Why E15 wall time is comparable to E16's per-stage invoke alone}{subsection.46.4}{}}
+\newlabel{why-e15-wall-time-is-comparable-to-e16s-per-stage-invoke-alone@cref}{{[subsection][4][46]46.4}{[1][53][]53}}
+\@writefile{toc}{\contentsline {section}{\numberline {47}Fix A --- race-free snapshot (landed, null timing result)}{53}{section.47}\protected@file@percent }
+\newlabel{fix-a-race-free-snapshot-landed-null-timing-result}{{47}{53}{Fix A --- race-free snapshot (landed, null timing result)}{section.47}{}}
+\newlabel{fix-a-race-free-snapshot-landed-null-timing-result@cref}{{[section][47][]47}{[1][53][]53}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {47.1}Measured impact}{53}{subsection.47.1}\protected@file@percent }
+\newlabel{measured-impact}{{47.1}{53}{Measured impact}{subsection.47.1}{}}
+\newlabel{measured-impact@cref}{{[subsection][1][47]47.1}{[1][53][]53}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {47.2}What we conclude from the null result}{53}{subsection.47.2}\protected@file@percent }
+\newlabel{what-we-conclude-from-the-null-result}{{47.2}{53}{What we conclude from the null result}{subsection.47.2}{}}
+\newlabel{what-we-conclude-from-the-null-result@cref}{{[subsection][2][47]47.2}{[1][53][]53}}
+\@writefile{toc}{\contentsline {section}{\numberline {48}Fix B --- flip-on-EOF + 30 fps + stateless ratio scheduler (landed)}{54}{section.48}\protected@file@percent }
+\newlabel{fix-b-flip-on-eof-30-fps-stateless-ratio-scheduler-landed}{{48}{54}{Fix B --- flip-on-EOF + 30 fps + stateless ratio scheduler (landed)}{section.48}{}}
+\newlabel{fix-b-flip-on-eof-30-fps-stateless-ratio-scheduler-landed@cref}{{[section][48][]48}{[1][54][]54}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {48.1}Change 1 --- 30 fps sensor mode (\texttt  {DEMO\_CAMERA\_FRAME\_RATE} = 30)}{54}{subsection.48.1}\protected@file@percent }
+\newlabel{change-1-30-fps-sensor-mode-demo_camera_frame_rate-30}{{48.1}{54}{\texorpdfstring {Change 1 --- 30 fps sensor mode (\texttt {DEMO\_CAMERA\_FRAME\_RATE} = 30)}{Change 1 --- 30 fps sensor mode (DEMO\_CAMERA\_FRAME\_RATE = 30)}}{subsection.48.1}{}}
+\newlabel{change-1-30-fps-sensor-mode-demo_camera_frame_rate-30@cref}{{[subsection][1][48]48.1}{[1][54][]54}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {48.2}Change 2 --- flip-on-EOF in the CSI ISR (the actual tearing fix)}{54}{subsection.48.2}\protected@file@percent }
+\newlabel{change-2-flip-on-eof-in-the-csi-isr-the-actual-tearing-fix}{{48.2}{54}{Change 2 --- flip-on-EOF in the CSI ISR (the actual tearing fix)}{subsection.48.2}{}}
+\newlabel{change-2-flip-on-eof-in-the-csi-isr-the-actual-tearing-fix@cref}{{[subsection][2][48]48.2}{[1][54][]54}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {48.3}Change 3 --- stateless \texttt  {ratio(a,\ b)} scheduler in the same ISR}{54}{subsection.48.3}\protected@file@percent }
+\newlabel{change-3-stateless-ratioa-b-scheduler-in-the-same-isr}{{48.3}{54}{\texorpdfstring {Change 3 --- stateless \texttt {ratio(a,\ b)} scheduler in the same ISR}{Change 3 --- stateless ratio(a, b) scheduler in the same ISR}}{subsection.48.3}{}}
+\newlabel{change-3-stateless-ratioa-b-scheduler-in-the-same-isr@cref}{{[subsection][3][48]48.3}{[1][54][]54}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {48.4}Measured / verified impact}{55}{subsection.48.4}\protected@file@percent }
+\newlabel{measured-verified-impact}{{48.4}{55}{Measured / verified impact}{subsection.48.4}{}}
+\newlabel{measured-verified-impact@cref}{{[subsection][4][48]48.4}{[1][55][]55}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {48.5}Visual evidence --- seam before the fix (pre-flip-on-EOF)}{55}{subsection.48.5}\protected@file@percent }
+\newlabel{visual-evidence-seam-before-the-fix-pre-flip-on-eof}{{48.5}{55}{Visual evidence --- seam before the fix (pre-flip-on-EOF)}{subsection.48.5}{}}
+\newlabel{visual-evidence-seam-before-the-fix-pre-flip-on-eof@cref}{{[subsection][5][48]48.5}{[1][55][]55}}
+\@writefile{lof}{\contentsline {figure}{\numberline {9}{\ignorespaces Iteration 4, flip toward cam0. Upper half from cam0's tight crop of the lilac stems; lower half has jumped to cam1's wider wall-and-flowers framing. Seam at $\approx 40\,\%$ image height.}}{56}{figure.caption.7}\protected@file@percent }
+\newlabel{fig:seam:a}{{9}{56}{Iteration 4, flip toward cam0. Upper half from cam0's tight crop of the lilac stems; lower half has jumped to cam1's wider wall-and-flowers framing. Seam at $\approx 40\,\%$ image height}{figure.caption.7}{}}
+\newlabel{fig:seam:a@cref}{{[figure][9][]9}{[1][55][]56}}
+\@writefile{lof}{\contentsline {figure}{\numberline {10}{\ignorespaces Iteration 13, flip toward cam1. Opposite direction of the same failure: upper half is cam1's composition, lower half is cam0's crop. Seam at a similar phase of the DMA cycle.}}{56}{figure.caption.7}\protected@file@percent }
+\newlabel{fig:seam:b}{{10}{56}{Iteration 13, flip toward cam1. Opposite direction of the same failure: upper half is cam1's composition, lower half is cam0's crop. Seam at a similar phase of the DMA cycle}{figure.caption.7}{}}
+\newlabel{fig:seam:b@cref}{{[figure][10][]10}{[1][55][]56}}
+\@writefile{lof}{\contentsline {figure}{\numberline {11}{\ignorespaces Iteration 8, flip toward cam0 again. Identical signature to (a), confirming the failure is systematic, not a random glitch — the MUX flip lands at the same phase of every buffer fill on this firmware.}}{56}{figure.caption.7}\protected@file@percent }
+\newlabel{fig:seam:c}{{11}{56}{Iteration 8, flip toward cam0 again. Identical signature to (a), confirming the failure is systematic, not a random glitch — the MUX flip lands at the same phase of every buffer fill on this firmware}{figure.caption.7}{}}
+\newlabel{fig:seam:c@cref}{{[figure][11][]11}{[1][55][]56}}
+\@writefile{lof}{\contentsline {figure}{\numberline {12}{\ignorespaces Mid-buffer seam produced by flipping the analogue MUX in task context on pre-Fix-B firmware at \texttt  {switch\_drain=1}. Three representative frames out of the 16 captured in session \texttt  {s038\_e17\_drain\_ab/e17\_t1\_frames/}: \textbf  {every} frame in that folder exhibits the same tear (mean top/bottom brightness diff $= 71\pm 7$ across all 16 frames). Source files: \texttt  {004\_cam0\_134ms.jpg}, \texttt  {013\_cam1\_200ms.jpg}, \texttt  {008\_cam0\_134ms.jpg}.}}{56}{figure.caption.7}\protected@file@percent }
+\newlabel{fig:seam}{{12}{56}{Mid-buffer seam produced by flipping the analogue MUX in task context on pre-Fix-B firmware at \texttt {switch\_drain=1}. Three representative frames out of the 16 captured in session \texttt {s038\_e17\_drain\_ab/e17\_t1\_frames/}: \textbf {every} frame in that folder exhibits the same tear (mean top/bottom brightness diff $= 71\pm 7$ across all 16 frames). Source files: \texttt {004\_cam0\_134ms.jpg}, \texttt {013\_cam1\_200ms.jpg}, \texttt {008\_cam0\_134ms.jpg}}{figure.caption.7}{}}
+\newlabel{fig:seam@cref}{{[figure][12][]12}{[1][55][]56}}
+\@writefile{lof}{\contentsline {figure}{\numberline {13}{\ignorespaces Post-fix cam0 frame, same \texttt  {switch\_drain=1} setting. No seam; whole frame is cam0's composition with the teal mug visible in the upper right, evenly exposed.}}{58}{figure.caption.8}\protected@file@percent }
+\newlabel{fig:postfix:cam0}{{13}{58}{Post-fix cam0 frame, same \texttt {switch\_drain=1} setting. No seam; whole frame is cam0's composition with the teal mug visible in the upper right, evenly exposed}{figure.caption.8}{}}
+\newlabel{fig:postfix:cam0@cref}{{[figure][13][]13}{[1][57][]58}}
+\@writefile{lof}{\contentsline {figure}{\numberline {14}{\ignorespaces Post-fix cam1 frame. No seam; whole frame is cam1's wider view. Contrast this against any cam1 panel in Figure~\ref {fig:seam}: same sensor, same scene, same \texttt  {drain} threshold, different firmware build.}}{58}{figure.caption.8}\protected@file@percent }
+\newlabel{fig:postfix:cam1}{{14}{58}{Post-fix cam1 frame. No seam; whole frame is cam1's wider view. Contrast this against any cam1 panel in Figure~\ref {fig:seam}: same sensor, same scene, same \texttt {drain} threshold, different firmware build}{figure.caption.8}{}}
+\newlabel{fig:postfix:cam1@cref}{{[figure][14][]14}{[1][57][]58}}
+\@writefile{lof}{\contentsline {figure}{\numberline {15}{\ignorespaces Post-Fix-B \texttt  {switch\_drain=1} frames. The mid-buffer seam characterised in Figure~\ref {fig:seam} is removed at the pixel level. Source: \texttt  {experiments/s041\_e17\_eof\_check/e17\_t1\_frames/\{002\_cam0\_201ms, 003\_cam1\_201ms\}.jpg}. A statistical check (top/bottom half brightness difference) over all 8 frames in that folder shows \emph  {no} frame with a half-vs-half brightness jump exceeding the normal cam-specific contrast ratio — the seam is gone as a distribution, not only for the two samples displayed.}}{58}{figure.caption.8}\protected@file@percent }
+\newlabel{fig:postfix}{{15}{58}{Post-Fix-B \texttt {switch\_drain=1} frames. The mid-buffer seam characterised in Figure~\ref {fig:seam} is removed at the pixel level. Source: \texttt {experiments/s041\_e17\_eof\_check/e17\_t1\_frames/\{002\_cam0\_201ms, 003\_cam1\_201ms\}.jpg}. A statistical check (top/bottom half brightness difference) over all 8 frames in that folder shows \emph {no} frame with a half-vs-half brightness jump exceeding the normal cam-specific contrast ratio — the seam is gone as a distribution, not only for the two samples displayed}{figure.caption.8}{}}
+\newlabel{fig:postfix@cref}{{[figure][15][]15}{[1][57][]58}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {48.6}Known limitations}{59}{subsection.48.6}\protected@file@percent }
+\newlabel{known-limitations}{{48.6}{59}{Known limitations}{subsection.48.6}{}}
+\newlabel{known-limitations@cref}{{[subsection][6][48]48.6}{[1][59][]59}}
+\gdef \LT@xxxvii {\LT@entry 
+    {1}{77.66994pt}\LT@entry 
+    {1}{107.57086pt}\LT@entry 
+    {1}{107.57086pt}\LT@entry 
+    {1}{101.57086pt}}
+\gdef \LT@xxxviii {\LT@entry 
+    {3}{116.71921pt}\LT@entry 
+    {3}{73.62987pt}\LT@entry 
+    {3}{53.05994pt}\LT@entry 
+    {1}{47.23944pt}}
+\gdef \LT@xxxix {\LT@entry 
+    {1}{63.73819pt}\LT@entry 
+    {1}{88.9596pt}\LT@entry 
+    {1}{88.9596pt}\LT@entry 
+    {1}{88.9596pt}\LT@entry 
+    {1}{63.73819pt}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {48.7}Head-to-tail timing on Fix B (session \href  {../experiments/s042_e16_eof_30fps_x40/}{\texttt  {s042\_e16\_eof\_30fps\_x40}})}{60}{subsection.48.7}\protected@file@percent }
+\newlabel{head-to-tail-timing-on-fix-b-session-s042_e16_eof_30fps_x40}{{48.7}{60}{\texorpdfstring {Head-to-tail timing on Fix B (session \href {../experiments/s042_e16_eof_30fps_x40/}{\texttt {s042\_e16\_eof\_30fps\_x40}})}{Head-to-tail timing on Fix B (session s042\_e16\_eof\_30fps\_x40)}}{subsection.48.7}{}}
+\newlabel{head-to-tail-timing-on-fix-b-session-s042_e16_eof_30fps_x40@cref}{{[subsection][7][48]48.7}{[1][59][]60}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {48.8}Cross-session comparison --- all three fixes}{60}{subsection.48.8}\protected@file@percent }
+\newlabel{cross-session-comparison-all-three-fixes}{{48.8}{60}{Cross-session comparison --- all three fixes}{subsection.48.8}{}}
+\newlabel{cross-session-comparison-all-three-fixes@cref}{{[subsection][8][48]48.8}{[1][60][]60}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {48.9}What is still open}{61}{subsection.48.9}\protected@file@percent }
+\newlabel{what-is-still-open}{{48.9}{61}{What is still open}{subsection.48.9}{}}
+\newlabel{what-is-still-open@cref}{{[subsection][9][48]48.9}{[1][61][]61}}
+\@writefile{toc}{\contentsline {section}{\numberline {49}Head-to-tail benchmark --- Experiment E18}{61}{section.49}\protected@file@percent }
+\newlabel{head-to-tail-benchmark-experiment-e18}{{49}{61}{Head-to-tail benchmark --- Experiment E18}{section.49}{}}
+\newlabel{head-to-tail-benchmark-experiment-e18@cref}{{[section][49][]49}{[1][61][]61}}
+\gdef \LT@xl {\LT@entry 
+    {1}{41.81342pt}\LT@entry 
+    {1}{59.74138pt}\LT@entry 
+    {1}{59.74138pt}\LT@entry 
+    {1}{59.74138pt}\LT@entry 
+    {1}{59.74138pt}\LT@entry 
+    {1}{59.74138pt}\LT@entry 
+    {1}{53.74138pt}}
+\gdef \LT@xli {\LT@entry 
+    {3}{117.37903pt}\LT@entry 
+    {3}{22.0pt}\LT@entry 
+    {1}{77.55928pt}}
+\gdef \LT@xlii {\LT@entry 
+    {3}{117.1077pt}\LT@entry 
+    {1}{160.13982pt}\LT@entry 
+    {1}{117.1077pt}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {49.1}Session \href  {../experiments/s045_e18_post_refactor/}{\texttt  {s045\_e18\_post\_refactor}} --- final run, post-refactor, 30 fps, flip-on-EOF, drain=2, 40 reps per sweep}{62}{subsection.49.1}\protected@file@percent }
+\newlabel{session-s045_e18_post_refactor-final-run-post-refactor-30-fps-flip-on-eof-drain2-40-reps-per-sweep}{{49.1}{62}{\texorpdfstring {Session \href {../experiments/s045_e18_post_refactor/}{\texttt {s045\_e18\_post\_refactor}} --- final run, post-refactor, 30 fps, flip-on-EOF, drain=2, 40 reps per sweep}{Session s045\_e18\_post\_refactor --- final run, post-refactor, 30 fps, flip-on-EOF, drain=2, 40 reps per sweep}}{subsection.49.1}{}}
+\newlabel{session-s045_e18_post_refactor-final-run-post-refactor-30-fps-flip-on-eof-drain2-40-reps-per-sweep@cref}{{[subsection][1][49]49.1}{[1][62][]62}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {49.2}Budget decomposition of the 83 ms per-switch overhead}{62}{subsection.49.2}\protected@file@percent }
+\newlabel{budget-decomposition-of-the-83-ms-per-switch-overhead}{{49.2}{62}{Budget decomposition of the 83 ms per-switch overhead}{subsection.49.2}{}}
+\newlabel{budget-decomposition-of-the-83-ms-per-switch-overhead@cref}{{[subsection][2][49]49.2}{[1][62][]62}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {49.3}What E18 tells us about application design}{63}{subsection.49.3}\protected@file@percent }
+\newlabel{what-e18-tells-us-about-application-design}{{49.3}{63}{What E18 tells us about application design}{subsection.49.3}{}}
+\newlabel{what-e18-tells-us-about-application-design@cref}{{[subsection][3][49]49.3}{[1][63][]63}}
+\@writefile{toc}{\contentsline {section}{\numberline {50}Conclusions}{63}{section.50}\protected@file@percent }
+\newlabel{conclusions}{{50}{63}{Conclusions}{section.50}{}}
+\newlabel{conclusions@cref}{{[section][50][]50}{[1][63][]63}}
+\@writefile{toc}{\contentsline {section}{\numberline {51}Reproducing the measurement}{63}{section.51}\protected@file@percent }
+\newlabel{reproducing-the-measurement}{{51}{63}{Reproducing the measurement}{section.51}{}}
+\newlabel{reproducing-the-measurement@cref}{{[section][51][]51}{[1][63][]63}}
+\gdef \LT@xliii {\LT@entry 
+    {1}{75.26997pt}\LT@entry 
+    {1}{81.26997pt}\LT@entry 
+    {1}{81.26997pt}\LT@entry 
+    {1}{81.26997pt}\LT@entry 
+    {1}{75.26997pt}}
+\@writefile{toc}{\contentsline {section}{\numberline {52}Architecture improvements since the E15 baseline}{64}{section.52}\protected@file@percent }
+\newlabel{architecture-improvements-since-the-e15-baseline}{{52}{64}{Architecture improvements since the E15 baseline}{section.52}{}}
+\newlabel{architecture-improvements-since-the-e15-baseline@cref}{{[section][52][]52}{[1][64][]64}}
+\gdef \LT@xliv {\LT@entry 
+    {1}{197.17761pt}\LT@entry 
+    {1}{197.17761pt}}
+\@writefile{toc}{\contentsline {section}{\numberline {53}Final summary}{69}{section.53}\protected@file@percent }
+\newlabel{final-summary}{{53}{69}{Final summary}{section.53}{}}
+\newlabel{final-summary@cref}{{[section][53][]53}{[1][69][]69}}
+\@writefile{toc}{\contentsline {section}{\numberline {54}Discussion}{70}{section.54}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {55}Threats to Validity}{71}{section.55}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {56}1. Construct validity --- are we measuring what we claim?}{71}{section.56}\protected@file@percent }
+\newlabel{construct-validity-are-we-measuring-what-we-claim}{{56}{71}{1. Construct validity --- are we measuring what we claim?}{section.56}{}}
+\newlabel{construct-validity-are-we-measuring-what-we-claim@cref}{{[section][56][]56}{[1][71][]71}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {56.1}1.1 ``FPS'' is always a derived statistic, not an observed one}{71}{subsection.56.1}\protected@file@percent }
+\newlabel{fps-is-always-a-derived-statistic-not-an-observed-one}{{56.1}{71}{1.1 ``FPS'' is always a derived statistic, not an observed one}{subsection.56.1}{}}
+\newlabel{fps-is-always-a-derived-statistic-not-an-observed-one@cref}{{[subsection][1][56]56.1}{[1][71][]71}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {56.2}1.2 Per-stage timings add Python dispatch overhead that varies}{72}{subsection.56.2}\protected@file@percent }
+\newlabel{per-stage-timings-add-python-dispatch-overhead-that-varies}{{56.2}{72}{1.2 Per-stage timings add Python dispatch overhead that varies}{subsection.56.2}{}}
+\newlabel{per-stage-timings-add-python-dispatch-overhead-that-varies@cref}{{[subsection][2][56]56.2}{[1][72][]72}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {56.3}1.3 The alternating sweep measures a worst-case scheduling policy}{72}{subsection.56.3}\protected@file@percent }
+\newlabel{the-alternating-sweep-measures-a-worst-case-scheduling-policy}{{56.3}{72}{1.3 The alternating sweep measures a worst-case scheduling policy}{subsection.56.3}{}}
+\newlabel{the-alternating-sweep-measures-a-worst-case-scheduling-policy@cref}{{[subsection][3][56]56.3}{[1][72][]72}}
+\@writefile{toc}{\contentsline {section}{\numberline {57}2. Internal validity --- could something else explain the results?}{72}{section.57}\protected@file@percent }
+\newlabel{internal-validity-could-something-else-explain-the-results}{{57}{72}{2. Internal validity --- could something else explain the results?}{section.57}{}}
+\newlabel{internal-validity-could-something-else-explain-the-results@cref}{{[section][57][]57}{[1][72][]72}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {57.1}2.1 Single-board measurements}{72}{subsection.57.1}\protected@file@percent }
+\newlabel{single-board-measurements}{{57.1}{72}{2.1 Single-board measurements}{subsection.57.1}{}}
+\newlabel{single-board-measurements@cref}{{[subsection][1][57]57.1}{[1][72][]72}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {57.2}2.2 Static-scene confound}{72}{subsection.57.2}\protected@file@percent }
+\newlabel{static-scene-confound}{{57.2}{72}{2.2 Static-scene confound}{subsection.57.2}{}}
+\newlabel{static-scene-confound@cref}{{[subsection][2][57]57.2}{[1][72][]72}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {57.3}2.3 Thermal state across sessions}{73}{subsection.57.3}\protected@file@percent }
+\newlabel{thermal-state-across-sessions}{{57.3}{73}{2.3 Thermal state across sessions}{subsection.57.3}{}}
+\newlabel{thermal-state-across-sessions@cref}{{[subsection][3][57]57.3}{[1][72][]73}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {57.4}2.4 Firmware build drift across a reported comparison}{73}{subsection.57.4}\protected@file@percent }
+\newlabel{firmware-build-drift-across-a-reported-comparison}{{57.4}{73}{2.4 Firmware build drift across a reported comparison}{subsection.57.4}{}}
+\newlabel{firmware-build-drift-across-a-reported-comparison@cref}{{[subsection][4][57]57.4}{[1][73][]73}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {57.5}2.5 The \texttt  {drain=1} knob is retained but not recommended}{73}{subsection.57.5}\protected@file@percent }
+\newlabel{the-drain1-knob-is-retained-but-not-recommended}{{57.5}{73}{\texorpdfstring {2.5 The \texttt {drain=1} knob is retained but not recommended}{2.5 The drain=1 knob is retained but not recommended}}{subsection.57.5}{}}
+\newlabel{the-drain1-knob-is-retained-but-not-recommended@cref}{{[subsection][5][57]57.5}{[1][73][]73}}
+\@writefile{toc}{\contentsline {section}{\numberline {58}3. External validity --- where do the results generalise?}{73}{section.58}\protected@file@percent }
+\newlabel{external-validity-where-do-the-results-generalise}{{58}{73}{3. External validity --- where do the results generalise?}{section.58}{}}
+\newlabel{external-validity-where-do-the-results-generalise@cref}{{[section][58][]58}{[1][73][]73}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {58.1}3.1 Model-dependent numbers}{73}{subsection.58.1}\protected@file@percent }
+\newlabel{model-dependent-numbers}{{58.1}{73}{3.1 Model-dependent numbers}{subsection.58.1}{}}
+\newlabel{model-dependent-numbers@cref}{{[subsection][1][58]58.1}{[1][73][]73}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {58.2}3.2 Sensor-topology-dependent numbers}{74}{subsection.58.2}\protected@file@percent }
+\newlabel{sensor-topology-dependent-numbers}{{58.2}{74}{3.2 Sensor-topology-dependent numbers}{subsection.58.2}{}}
+\newlabel{sensor-topology-dependent-numbers@cref}{{[subsection][2][58]58.2}{[1][74][]74}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {58.3}3.3 Resolution-dependent expectations}{74}{subsection.58.3}\protected@file@percent }
+\newlabel{resolution-dependent-expectations}{{58.3}{74}{3.3 Resolution-dependent expectations}{subsection.58.3}{}}
+\newlabel{resolution-dependent-expectations@cref}{{[subsection][3][58]58.3}{[1][74][]74}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {58.4}3.4 Hardware revision scope}{74}{subsection.58.4}\protected@file@percent }
+\newlabel{hardware-revision-scope}{{58.4}{74}{3.4 Hardware revision scope}{subsection.58.4}{}}
+\newlabel{hardware-revision-scope@cref}{{[subsection][4][58]58.4}{[1][74][]74}}
+\@writefile{toc}{\contentsline {section}{\numberline {59}4. Conclusion validity --- are the statistics defensible?}{74}{section.59}\protected@file@percent }
+\newlabel{conclusion-validity-are-the-statistics-defensible}{{59}{74}{4. Conclusion validity --- are the statistics defensible?}{section.59}{}}
+\newlabel{conclusion-validity-are-the-statistics-defensible@cref}{{[section][59][]59}{[1][74][]74}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {59.1}4.1 Sample size}{74}{subsection.59.1}\protected@file@percent }
+\newlabel{sample-size}{{59.1}{74}{4.1 Sample size}{subsection.59.1}{}}
+\newlabel{sample-size@cref}{{[subsection][1][59]59.1}{[1][74][]74}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {59.2}4.2 No formal hypothesis testing}{74}{subsection.59.2}\protected@file@percent }
+\newlabel{no-formal-hypothesis-testing}{{59.2}{74}{4.2 No formal hypothesis testing}{subsection.59.2}{}}
+\newlabel{no-formal-hypothesis-testing@cref}{{[subsection][2][59]59.2}{[1][74][]74}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {59.3}4.3 Cross-session comparisons rely on held-constant covariates}{74}{subsection.59.3}\protected@file@percent }
+\newlabel{cross-session-comparisons-rely-on-held-constant-covariates}{{59.3}{74}{4.3 Cross-session comparisons rely on held-constant covariates}{subsection.59.3}{}}
+\newlabel{cross-session-comparisons-rely-on-held-constant-covariates@cref}{{[subsection][3][59]59.3}{[1][74][]74}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {59.4}4.4 Single-run sessions excluded from statistics}{74}{subsection.59.4}\protected@file@percent }
+\newlabel{single-run-sessions-excluded-from-statistics}{{59.4}{74}{4.4 Single-run sessions excluded from statistics}{subsection.59.4}{}}
+\newlabel{single-run-sessions-excluded-from-statistics@cref}{{[subsection][4][59]59.4}{[1][74][]74}}
+\gdef \LT@xlv {\LT@entry 
+    {1}{129.43855pt}\LT@entry 
+    {1}{135.43855pt}\LT@entry 
+    {1}{129.43855pt}}
+\gdef \LT@xlvi {\LT@entry 
+    {1}{77.66994pt}\LT@entry 
+    {1}{107.57086pt}\LT@entry 
+    {1}{107.57086pt}\LT@entry 
+    {1}{101.57086pt}}
+\@writefile{toc}{\contentsline {section}{\numberline {60}5. What we did not do, and why it is not a threat}{75}{section.60}\protected@file@percent }
+\newlabel{what-we-did-not-do-and-why-it-is-not-a-threat}{{60}{75}{5. What we did not do, and why it is not a threat}{section.60}{}}
+\newlabel{what-we-did-not-do-and-why-it-is-not-a-threat@cref}{{[section][60][]60}{[1][75][]75}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {60.1}Statistical Notes}{75}{subsection.60.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {61}1. Why n = 20 (E14/E15) and n = 40 (E16/E18)?}{75}{section.61}\protected@file@percent }
+\newlabel{why-n-20-e14e15-and-n-40-e16e18}{{61}{75}{1. Why n = 20 (E14/E15) and n = 40 (E16/E18)?}{section.61}{}}
+\newlabel{why-n-20-e14e15-and-n-40-e16e18@cref}{{[section][61][]61}{[1][75][]75}}
+\@writefile{toc}{\contentsline {section}{\numberline {62}2. Why the first sample is dropped}{76}{section.62}\protected@file@percent }
+\newlabel{why-the-first-sample-is-dropped}{{62}{76}{2. Why the first sample is dropped}{section.62}{}}
+\newlabel{why-the-first-sample-is-dropped@cref}{{[section][62][]62}{[1][76][]76}}
+\@writefile{toc}{\contentsline {section}{\numberline {63}3. Bessel-corrected σ, not population σ}{77}{section.63}\protected@file@percent }
+\newlabel{bessel-corrected-ux3c3-not-population-ux3c3}{{63}{77}{3. Bessel-corrected σ, not population σ}{section.63}{}}
+\newlabel{bessel-corrected-ux3c3-not-population-ux3c3@cref}{{[section][63][]63}{[1][77][]77}}
+\@writefile{toc}{\contentsline {section}{\numberline {64}4. Mean vs median}{77}{section.64}\protected@file@percent }
+\newlabel{mean-vs-median}{{64}{77}{4. Mean vs median}{section.64}{}}
+\newlabel{mean-vs-median@cref}{{[section][64][]64}{[1][77][]77}}
+\@writefile{toc}{\contentsline {section}{\numberline {65}5. No p-values, no confidence intervals on derived statistics}{77}{section.65}\protected@file@percent }
+\newlabel{no-p-values-no-confidence-intervals-on-derived-statistics}{{65}{77}{5. No p-values, no confidence intervals on derived statistics}{section.65}{}}
+\newlabel{no-p-values-no-confidence-intervals-on-derived-statistics@cref}{{[section][65][]65}{[1][77][]77}}
+\@writefile{toc}{\contentsline {section}{\numberline {66}6. FPS derivation --- why \texttt  {1000\ /\ mean(total\_ms)} instead of direct FPS}{78}{section.66}\protected@file@percent }
+\newlabel{fps-derivation-why-1000-meantotal_ms-instead-of-direct-fps}{{66}{78}{\texorpdfstring {6. FPS derivation --- why \texttt {1000\ /\ mean(total\_ms)} instead of direct FPS}{6. FPS derivation --- why 1000 / mean(total\_ms) instead of direct FPS}}{section.66}{}}
+\newlabel{fps-derivation-why-1000-meantotal_ms-instead-of-direct-fps@cref}{{[section][66][]66}{[1][77][]78}}
+\@writefile{toc}{\contentsline {section}{\numberline {67}7. Handling of sessions with n \textless {} 20}{78}{section.67}\protected@file@percent }
+\newlabel{handling-of-sessions-with-n-20}{{67}{78}{7. Handling of sessions with n \textless {} 20}{section.67}{}}
+\newlabel{handling-of-sessions-with-n-20@cref}{{[section][67][]67}{[1][78][]78}}
+\@writefile{toc}{\contentsline {section}{\numberline {68}8. What the reader should check}{78}{section.68}\protected@file@percent }
+\newlabel{what-the-reader-should-check}{{68}{78}{8. What the reader should check}{section.68}{}}
+\newlabel{what-the-reader-should-check@cref}{{[section][68][]68}{[1][78][]78}}
+\@writefile{toc}{\contentsline {section}{\numberline {69}Artifact and Data Availability}{78}{section.69}\protected@file@percent }
+\gdef \LT@xlvii {\LT@entry 
+    {1}{197.17761pt}\LT@entry 
+    {1}{197.17761pt}}
+\@writefile{toc}{\contentsline {section}{\numberline {70}1. Data availability statement}{79}{section.70}\protected@file@percent }
+\newlabel{data-availability-statement}{{70}{79}{1. Data availability statement}{section.70}{}}
+\newlabel{data-availability-statement@cref}{{[section][70][]70}{[1][79][]79}}
+\@writefile{toc}{\contentsline {section}{\numberline {71}2. Repository layout}{79}{section.71}\protected@file@percent }
+\newlabel{repository-layout}{{71}{79}{2. Repository layout}{section.71}{}}
+\newlabel{repository-layout@cref}{{[section][71][]71}{[1][79][]79}}
+\@writefile{toc}{\contentsline {section}{\numberline {72}3. Firmware build identification}{79}{section.72}\protected@file@percent }
+\newlabel{firmware-build-identification}{{72}{79}{3. Firmware build identification}{section.72}{}}
+\newlabel{firmware-build-identification@cref}{{[section][72][]72}{[1][79][]79}}
+\gdef \LT@xlviii {\LT@entry 
+    {1}{197.17761pt}\LT@entry 
+    {1}{197.17761pt}}
+\gdef \LT@xlix {\LT@entry 
+    {1}{197.17761pt}\LT@entry 
+    {1}{197.17761pt}}
+\@writefile{toc}{\contentsline {section}{\numberline {73}4. Hardware requirements}{80}{section.73}\protected@file@percent }
+\newlabel{hardware-requirements}{{73}{80}{4. Hardware requirements}{section.73}{}}
+\newlabel{hardware-requirements@cref}{{[section][73][]73}{[1][80][]80}}
+\@writefile{toc}{\contentsline {section}{\numberline {74}5. Reproducing a single session from scratch}{80}{section.74}\protected@file@percent }
+\newlabel{reproducing-a-single-session-from-scratch}{{74}{80}{5. Reproducing a single session from scratch}{section.74}{}}
+\newlabel{reproducing-a-single-session-from-scratch@cref}{{[section][74][]74}{[1][80][]80}}
+\@writefile{toc}{\contentsline {section}{\numberline {75}6. Claim-to-file map (the ``which CSV supports which table'' reference)}{81}{section.75}\protected@file@percent }
+\newlabel{claim-to-file-map-the-which-csv-supports-which-table-reference}{{75}{81}{6. Claim-to-file map (the ``which CSV supports which table'' reference)}{section.75}{}}
+\newlabel{claim-to-file-map-the-which-csv-supports-which-table-reference@cref}{{[section][75][]75}{[1][81][]81}}
+\gdef \LT@l {\LT@entry 
+    {1}{95.5888pt}\LT@entry 
+    {1}{101.5888pt}\LT@entry 
+    {1}{101.5888pt}\LT@entry 
+    {1}{95.5888pt}}
+\@writefile{toc}{\contentsline {section}{\numberline {76}7. Data integrity check}{83}{section.76}\protected@file@percent }
+\newlabel{data-integrity-check}{{76}{83}{7. Data integrity check}{section.76}{}}
+\newlabel{data-integrity-check@cref}{{[section][76][]76}{[1][83][]83}}
+\@writefile{toc}{\contentsline {section}{\numberline {77}8. Author contributions, funding, conflicts (MDPI boilerplate)}{84}{section.77}\protected@file@percent }
+\newlabel{author-contributions-funding-conflicts-mdpi-boilerplate}{{77}{84}{8. Author contributions, funding, conflicts (MDPI boilerplate)}{section.77}{}}
+\newlabel{author-contributions-funding-conflicts-mdpi-boilerplate@cref}{{[section][77][]77}{[1][83][]84}}
+\@writefile{toc}{\contentsline {section}{\numberline {78}9. Supplementary materials}{84}{section.78}\protected@file@percent }
+\newlabel{supplementary-materials}{{78}{84}{9. Supplementary materials}{section.78}{}}
+\newlabel{supplementary-materials@cref}{{[section][78][]78}{[1][84][]84}}
+\@writefile{toc}{\contentsline {section}{\numberline {79}Conclusions}{84}{section.79}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {79.1}Future Work}{85}{subsection.79.1}\protected@file@percent }
 \bibdata{references}
 \bibcite{Jain2010}{{1}{2010}{{Jain}}{{}}}
 \bibcite{Jolliffe2016}{{2}{2016}{{Jolliffe and Cadima}}{{}}}
@@ -87,216 +816,259 @@
 \bibcite{Cadena2016}{{12}{2016}{{Cadena et~al.}}{{Cadena, Carlone, Carrillo, Latif, Scaramuzza, Neira, Reid, and Leonard}}}
 \bibcite{Bewley2016}{{13}{2016}{{Bewley et~al.}}{{Bewley, Ge, Ott, Ramos, and Upcroft}}}
 \bibcite{Zhang2022}{{14}{2022}{{Zhang et~al.}}{{Zhang, Sun, Jiang, Yu, Weng, Yuan, Luo, Liu, and Wang}}}
-\@writefile{toc}{\contentsline {section}{\numberline {6}}{24}{section.6}\protected@file@percent }
 \bibcite{AIfES2024}{{15}{2024}{{Fraunhofer IMS and AIfES Contributors}}{{}}}
-\@writefile{toc}{\contentsline {section}{\numberline {A}Appendix: sentai.io}{26}{appendix.A}\protected@file@percent }
-\newlabel{appendix-sentai.io}{{A}{26}{Appendix: sentai.io}{appendix.A}{}}
-\newlabel{appendix-sentai.io@cref}{{[appendix][1][2147483647]A}{[1][26][]26}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {A.1}Functions}{26}{subsection.A.1}\protected@file@percent }
-\newlabel{functions}{{A.1}{26}{Functions}{subsection.A.1}{}}
-\newlabel{functions@cref}{{[subappendix][1][2147483647,1]A.1}{[1][26][]26}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {A.2}Example}{26}{subsection.A.2}\protected@file@percent }
-\newlabel{example}{{A.2}{26}{Example}{subsection.A.2}{}}
-\newlabel{example@cref}{{[subappendix][2][2147483647,1]A.2}{[1][26][]26}}
-\@writefile{toc}{\contentsline {section}{\numberline {B}Appendix: sentai.rtos}{26}{appendix.B}\protected@file@percent }
-\newlabel{appendix-sentai.rtos}{{B}{26}{Appendix: sentai.rtos}{appendix.B}{}}
-\newlabel{appendix-sentai.rtos@cref}{{[appendix][2][2147483647]B}{[1][26][]26}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {B.1}Functions}{26}{subsection.B.1}\protected@file@percent }
-\newlabel{functions-1}{{B.1}{26}{Functions}{subsection.B.1}{}}
-\newlabel{functions-1@cref}{{[subappendix][1][2147483647,2]B.1}{[1][26][]26}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {B.2}Example}{26}{subsection.B.2}\protected@file@percent }
-\newlabel{example-1}{{B.2}{26}{Example}{subsection.B.2}{}}
-\newlabel{example-1@cref}{{[subappendix][2][2147483647,2]B.2}{[1][26][]26}}
-\@writefile{toc}{\contentsline {section}{\numberline {C}Appendix: sentai.tpu}{26}{appendix.C}\protected@file@percent }
-\newlabel{appendix-sentai.tpu}{{C}{26}{Appendix: sentai.tpu}{appendix.C}{}}
-\newlabel{appendix-sentai.tpu@cref}{{[appendix][3][2147483647]C}{[1][26][]26}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {C.1}Functions}{27}{subsection.C.1}\protected@file@percent }
-\newlabel{functions-2}{{C.1}{27}{Functions}{subsection.C.1}{}}
-\newlabel{functions-2@cref}{{[subappendix][1][2147483647,3]C.1}{[1][27][]27}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {C.2}Example}{27}{subsection.C.2}\protected@file@percent }
-\newlabel{example-2}{{C.2}{27}{Example}{subsection.C.2}{}}
-\newlabel{example-2@cref}{{[subappendix][2][2147483647,3]C.2}{[1][27][]27}}
-\@writefile{toc}{\contentsline {section}{\numberline {D}Appendix: sentai.tfl}{27}{appendix.D}\protected@file@percent }
-\newlabel{appendix-sentai.tfl}{{D}{27}{Appendix: sentai.tfl}{appendix.D}{}}
-\newlabel{appendix-sentai.tfl@cref}{{[appendix][4][2147483647]D}{[1][27][]27}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {D.1}Functions}{27}{subsection.D.1}\protected@file@percent }
-\newlabel{functions-3}{{D.1}{27}{Functions}{subsection.D.1}{}}
-\newlabel{functions-3@cref}{{[subappendix][1][2147483647,4]D.1}{[1][27][]27}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {D.2}Example}{28}{subsection.D.2}\protected@file@percent }
-\newlabel{example-3}{{D.2}{28}{Example}{subsection.D.2}{}}
-\newlabel{example-3@cref}{{[subappendix][2][2147483647,4]D.2}{[1][28][]28}}
-\@writefile{toc}{\contentsline {section}{\numberline {E}Appendix: sentai.fs}{28}{appendix.E}\protected@file@percent }
-\newlabel{appendix-sentai.fs}{{E}{28}{Appendix: sentai.fs}{appendix.E}{}}
-\newlabel{appendix-sentai.fs@cref}{{[appendix][5][2147483647]E}{[1][28][]28}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {E.1}Functions}{28}{subsection.E.1}\protected@file@percent }
-\newlabel{functions-4}{{E.1}{28}{Functions}{subsection.E.1}{}}
-\newlabel{functions-4@cref}{{[subappendix][1][2147483647,5]E.1}{[1][28][]28}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {E.2}Example}{28}{subsection.E.2}\protected@file@percent }
-\newlabel{example-4}{{E.2}{28}{Example}{subsection.E.2}{}}
-\newlabel{example-4@cref}{{[subappendix][2][2147483647,5]E.2}{[1][28][]28}}
-\@writefile{toc}{\contentsline {section}{\numberline {F}Appendix: sentai.camera}{29}{appendix.F}\protected@file@percent }
-\newlabel{appendix-sentai.camera}{{F}{29}{Appendix: sentai.camera}{appendix.F}{}}
-\newlabel{appendix-sentai.camera@cref}{{[appendix][6][2147483647]F}{[1][29][]29}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {F.1}Functions}{29}{subsection.F.1}\protected@file@percent }
-\newlabel{functions-5}{{F.1}{29}{Functions}{subsection.F.1}{}}
-\newlabel{functions-5@cref}{{[subappendix][1][2147483647,6]F.1}{[1][29][]29}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {F.2}Example}{29}{subsection.F.2}\protected@file@percent }
-\newlabel{example-5}{{F.2}{29}{Example}{subsection.F.2}{}}
-\newlabel{example-5@cref}{{[subappendix][2][2147483647,6]F.2}{[1][29][]29}}
-\@writefile{toc}{\contentsline {section}{\numberline {G}Appendix: sentai.imu}{29}{appendix.G}\protected@file@percent }
-\newlabel{appendix-sentai.imu}{{G}{29}{Appendix: sentai.imu}{appendix.G}{}}
-\newlabel{appendix-sentai.imu@cref}{{[appendix][7][2147483647]G}{[1][29][]29}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {G.1}Functions}{29}{subsection.G.1}\protected@file@percent }
-\newlabel{functions-6}{{G.1}{29}{Functions}{subsection.G.1}{}}
-\newlabel{functions-6@cref}{{[subappendix][1][2147483647,7]G.1}{[1][29][]29}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {G.2}Example}{29}{subsection.G.2}\protected@file@percent }
-\newlabel{example-6}{{G.2}{29}{Example}{subsection.G.2}{}}
-\newlabel{example-6@cref}{{[subappendix][2][2147483647,7]G.2}{[1][29][]29}}
-\@writefile{toc}{\contentsline {section}{\numberline {H}Appendix: sentai.mic}{30}{appendix.H}\protected@file@percent }
-\newlabel{appendix-sentai.mic}{{H}{30}{Appendix: sentai.mic}{appendix.H}{}}
-\newlabel{appendix-sentai.mic@cref}{{[appendix][8][2147483647]H}{[1][30][]30}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {H.1}Functions}{30}{subsection.H.1}\protected@file@percent }
-\newlabel{functions-7}{{H.1}{30}{Functions}{subsection.H.1}{}}
-\newlabel{functions-7@cref}{{[subappendix][1][2147483647,8]H.1}{[1][30][]30}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {H.2}Example}{30}{subsection.H.2}\protected@file@percent }
-\newlabel{example-7}{{H.2}{30}{Example}{subsection.H.2}{}}
-\newlabel{example-7@cref}{{[subappendix][2][2147483647,8]H.2}{[1][30][]30}}
-\@writefile{toc}{\contentsline {section}{\numberline {I}Appendix: sentai.usb}{30}{appendix.I}\protected@file@percent }
-\newlabel{appendix-sentai.usb}{{I}{30}{Appendix: sentai.usb}{appendix.I}{}}
-\newlabel{appendix-sentai.usb@cref}{{[appendix][9][2147483647]I}{[1][30][]30}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {I.1}Functions}{30}{subsection.I.1}\protected@file@percent }
-\newlabel{functions-8}{{I.1}{30}{Functions}{subsection.I.1}{}}
-\newlabel{functions-8@cref}{{[subappendix][1][2147483647,9]I.1}{[1][30][]30}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {I.2}Example}{30}{subsection.I.2}\protected@file@percent }
-\newlabel{example-8}{{I.2}{30}{Example}{subsection.I.2}{}}
-\newlabel{example-8@cref}{{[subappendix][2][2147483647,9]I.2}{[1][30][]30}}
-\@writefile{toc}{\contentsline {section}{\numberline {J}Appendix: sentai.uart}{31}{appendix.J}\protected@file@percent }
-\newlabel{appendix-sentai.uart}{{J}{31}{Appendix: sentai.uart}{appendix.J}{}}
-\newlabel{appendix-sentai.uart@cref}{{[appendix][10][2147483647]J}{[1][31][]31}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {J.1}Functions}{31}{subsection.J.1}\protected@file@percent }
-\newlabel{functions-9}{{J.1}{31}{Functions}{subsection.J.1}{}}
-\newlabel{functions-9@cref}{{[subappendix][1][2147483647,10]J.1}{[1][31][]31}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {J.2}Example}{31}{subsection.J.2}\protected@file@percent }
-\newlabel{example-9}{{J.2}{31}{Example}{subsection.J.2}{}}
-\newlabel{example-9@cref}{{[subappendix][2][2147483647,10]J.2}{[1][31][]31}}
-\@writefile{toc}{\contentsline {section}{\numberline {K}Appendix: sentai.console}{31}{appendix.K}\protected@file@percent }
-\newlabel{appendix-sentai.console}{{K}{31}{Appendix: sentai.console}{appendix.K}{}}
-\newlabel{appendix-sentai.console@cref}{{[appendix][11][2147483647]K}{[1][31][]31}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {K.1}Functions}{31}{subsection.K.1}\protected@file@percent }
-\newlabel{functions-10}{{K.1}{31}{Functions}{subsection.K.1}{}}
-\newlabel{functions-10@cref}{{[subappendix][1][2147483647,11]K.1}{[1][31][]31}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {K.2}Example}{31}{subsection.K.2}\protected@file@percent }
-\newlabel{example-10}{{K.2}{31}{Example}{subsection.K.2}{}}
-\newlabel{example-10@cref}{{[subappendix][2][2147483647,11]K.2}{[1][31][]31}}
-\@writefile{toc}{\contentsline {section}{\numberline {L}Appendix: sentai.mesh}{31}{appendix.L}\protected@file@percent }
-\newlabel{appendix-sentai.mesh}{{L}{31}{Appendix: sentai.mesh}{appendix.L}{}}
-\newlabel{appendix-sentai.mesh@cref}{{[appendix][12][2147483647]L}{[1][31][]31}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {L.1}Functions}{32}{subsection.L.1}\protected@file@percent }
-\newlabel{functions-11}{{L.1}{32}{Functions}{subsection.L.1}{}}
-\newlabel{functions-11@cref}{{[subappendix][1][2147483647,12]L.1}{[1][32][]32}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {L.2}Example}{32}{subsection.L.2}\protected@file@percent }
-\newlabel{example-11}{{L.2}{32}{Example}{subsection.L.2}{}}
-\newlabel{example-11@cref}{{[subappendix][2][2147483647,12]L.2}{[1][32][]32}}
-\@writefile{toc}{\contentsline {section}{\numberline {M}Appendix: sentai.link}{32}{appendix.M}\protected@file@percent }
-\newlabel{appendix-sentai.link}{{M}{32}{Appendix: sentai.link}{appendix.M}{}}
-\newlabel{appendix-sentai.link@cref}{{[appendix][13][2147483647]M}{[1][32][]32}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {M.1}Functions}{32}{subsection.M.1}\protected@file@percent }
-\newlabel{functions-12}{{M.1}{32}{Functions}{subsection.M.1}{}}
-\newlabel{functions-12@cref}{{[subappendix][1][2147483647,13]M.1}{[1][32][]32}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {M.2}Example}{33}{subsection.M.2}\protected@file@percent }
-\newlabel{example-12}{{M.2}{33}{Example}{subsection.M.2}{}}
-\newlabel{example-12@cref}{{[subappendix][2][2147483647,13]M.2}{[1][33][]33}}
-\@writefile{toc}{\contentsline {section}{\numberline {N}Appendix: sentai.crazy}{33}{appendix.N}\protected@file@percent }
-\newlabel{appendix-sentai.crazy}{{N}{33}{Appendix: sentai.crazy}{appendix.N}{}}
-\newlabel{appendix-sentai.crazy@cref}{{[appendix][14][2147483647]N}{[1][33][]33}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {N.1}Functions}{33}{subsection.N.1}\protected@file@percent }
-\newlabel{functions-13}{{N.1}{33}{Functions}{subsection.N.1}{}}
-\newlabel{functions-13@cref}{{[subappendix][1][2147483647,14]N.1}{[1][33][]33}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {N.2}Example}{33}{subsection.N.2}\protected@file@percent }
-\newlabel{example-13}{{N.2}{33}{Example}{subsection.N.2}{}}
-\newlabel{example-13@cref}{{[subappendix][2][2147483647,14]N.2}{[1][33][]33}}
-\@writefile{toc}{\contentsline {section}{\numberline {O}Appendix: sentai.pipeline}{34}{appendix.O}\protected@file@percent }
-\newlabel{appendix-sentai.pipeline}{{O}{34}{Appendix: sentai.pipeline}{appendix.O}{}}
-\newlabel{appendix-sentai.pipeline@cref}{{[appendix][15][2147483647]O}{[1][34][]34}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {O.1}Functions}{34}{subsection.O.1}\protected@file@percent }
-\newlabel{functions-14}{{O.1}{34}{Functions}{subsection.O.1}{}}
-\newlabel{functions-14@cref}{{[subappendix][1][2147483647,15]O.1}{[1][34][]34}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {O.2}Example}{34}{subsection.O.2}\protected@file@percent }
-\newlabel{example-14}{{O.2}{34}{Example}{subsection.O.2}{}}
-\newlabel{example-14@cref}{{[subappendix][2][2147483647,15]O.2}{[1][34][]34}}
-\@writefile{toc}{\contentsline {section}{\numberline {P}Appendix: sentai.aifes}{34}{appendix.P}\protected@file@percent }
-\newlabel{appendix-sentai.aifes}{{P}{34}{Appendix: sentai.aifes}{appendix.P}{}}
-\newlabel{appendix-sentai.aifes@cref}{{[appendix][16][2147483647]P}{[1][34][]34}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {P.1}Functions}{34}{subsection.P.1}\protected@file@percent }
-\newlabel{functions-15}{{P.1}{34}{Functions}{subsection.P.1}{}}
-\newlabel{functions-15@cref}{{[subappendix][1][2147483647,16]P.1}{[1][34][]34}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {P.2}Example}{35}{subsection.P.2}\protected@file@percent }
-\newlabel{example-15}{{P.2}{35}{Example}{subsection.P.2}{}}
-\newlabel{example-15@cref}{{[subappendix][2][2147483647,16]P.2}{[1][35][]35}}
-\@writefile{toc}{\contentsline {section}{\numberline {Q}Appendix: sentai.kmeans}{35}{appendix.Q}\protected@file@percent }
-\newlabel{appendix-sentai.kmeans}{{Q}{35}{Appendix: sentai.kmeans}{appendix.Q}{}}
-\newlabel{appendix-sentai.kmeans@cref}{{[appendix][17][2147483647]Q}{[1][35][]35}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {Q.1}Functions}{35}{subsection.Q.1}\protected@file@percent }
-\newlabel{functions-16}{{Q.1}{35}{Functions}{subsection.Q.1}{}}
-\newlabel{functions-16@cref}{{[subappendix][1][2147483647,17]Q.1}{[1][35][]35}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {Q.2}Example}{36}{subsection.Q.2}\protected@file@percent }
-\newlabel{example-16}{{Q.2}{36}{Example}{subsection.Q.2}{}}
-\newlabel{example-16@cref}{{[subappendix][2][2147483647,17]Q.2}{[1][35][]36}}
-\@writefile{toc}{\contentsline {section}{\numberline {R}Appendix: sentai.pca}{36}{appendix.R}\protected@file@percent }
-\newlabel{appendix-sentai.pca}{{R}{36}{Appendix: sentai.pca}{appendix.R}{}}
-\newlabel{appendix-sentai.pca@cref}{{[appendix][18][2147483647]R}{[1][36][]36}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {R.1}Functions}{36}{subsection.R.1}\protected@file@percent }
-\newlabel{functions-17}{{R.1}{36}{Functions}{subsection.R.1}{}}
-\newlabel{functions-17@cref}{{[subappendix][1][2147483647,18]R.1}{[1][36][]36}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {R.2}Example}{36}{subsection.R.2}\protected@file@percent }
-\newlabel{example-17}{{R.2}{36}{Example}{subsection.R.2}{}}
-\newlabel{example-17@cref}{{[subappendix][2][2147483647,18]R.2}{[1][36][]36}}
-\@writefile{toc}{\contentsline {section}{\numberline {S}Appendix: sentai.anomaly}{36}{appendix.S}\protected@file@percent }
-\newlabel{appendix-sentai.anomaly}{{S}{36}{Appendix: sentai.anomaly}{appendix.S}{}}
-\newlabel{appendix-sentai.anomaly@cref}{{[appendix][19][2147483647]S}{[1][36][]36}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {S.1}Functions}{37}{subsection.S.1}\protected@file@percent }
-\newlabel{functions-18}{{S.1}{37}{Functions}{subsection.S.1}{}}
-\newlabel{functions-18@cref}{{[subappendix][1][2147483647,19]S.1}{[1][37][]37}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {S.2}Example}{37}{subsection.S.2}\protected@file@percent }
-\newlabel{example-18}{{S.2}{37}{Example}{subsection.S.2}{}}
-\newlabel{example-18@cref}{{[subappendix][2][2147483647,19]S.2}{[1][37][]37}}
-\@writefile{toc}{\contentsline {section}{\numberline {T}Appendix: sentai.dtw}{37}{appendix.T}\protected@file@percent }
-\newlabel{appendix-sentai.dtw}{{T}{37}{Appendix: sentai.dtw}{appendix.T}{}}
-\newlabel{appendix-sentai.dtw@cref}{{[appendix][20][2147483647]T}{[1][37][]37}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {T.1}Functions}{37}{subsection.T.1}\protected@file@percent }
-\newlabel{functions-19}{{T.1}{37}{Functions}{subsection.T.1}{}}
-\newlabel{functions-19@cref}{{[subappendix][1][2147483647,20]T.1}{[1][37][]37}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {T.2}Example}{38}{subsection.T.2}\protected@file@percent }
-\newlabel{example-19}{{T.2}{38}{Example}{subsection.T.2}{}}
-\newlabel{example-19@cref}{{[subappendix][2][2147483647,20]T.2}{[1][38][]38}}
-\@writefile{toc}{\contentsline {section}{\numberline {U}Appendix: sentai.hmm}{38}{appendix.U}\protected@file@percent }
-\newlabel{appendix-sentai.hmm}{{U}{38}{Appendix: sentai.hmm}{appendix.U}{}}
-\newlabel{appendix-sentai.hmm@cref}{{[appendix][21][2147483647]U}{[1][38][]38}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {U.1}Functions}{38}{subsection.U.1}\protected@file@percent }
-\newlabel{functions-20}{{U.1}{38}{Functions}{subsection.U.1}{}}
-\newlabel{functions-20@cref}{{[subappendix][1][2147483647,21]U.1}{[1][38][]38}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {U.2}Example}{38}{subsection.U.2}\protected@file@percent }
-\newlabel{example-20}{{U.2}{38}{Example}{subsection.U.2}{}}
-\newlabel{example-20@cref}{{[subappendix][2][2147483647,21]U.2}{[1][38][]38}}
-\@writefile{toc}{\contentsline {section}{\numberline {V}Appendix: sentai.rl}{39}{appendix.V}\protected@file@percent }
-\newlabel{appendix-sentai.rl}{{V}{39}{Appendix: sentai.rl}{appendix.V}{}}
-\newlabel{appendix-sentai.rl@cref}{{[appendix][22][2147483647]V}{[1][39][]39}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {V.1}Functions}{39}{subsection.V.1}\protected@file@percent }
-\newlabel{functions-21}{{V.1}{39}{Functions}{subsection.V.1}{}}
-\newlabel{functions-21@cref}{{[subappendix][1][2147483647,22]V.1}{[1][39][]39}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {V.2}Example}{39}{subsection.V.2}\protected@file@percent }
-\newlabel{example-21}{{V.2}{39}{Example}{subsection.V.2}{}}
-\newlabel{example-21@cref}{{[subappendix][2][2147483647,22]V.2}{[1][39][]39}}
-\@writefile{toc}{\contentsline {section}{\numberline {W}Appendix: sentai.slam}{39}{appendix.W}\protected@file@percent }
-\newlabel{appendix-sentai.slam}{{W}{39}{Appendix: sentai.slam}{appendix.W}{}}
-\newlabel{appendix-sentai.slam@cref}{{[appendix][23][2147483647]W}{[1][39][]39}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {W.1}Functions}{40}{subsection.W.1}\protected@file@percent }
-\newlabel{functions-22}{{W.1}{40}{Functions}{subsection.W.1}{}}
-\newlabel{functions-22@cref}{{[subappendix][1][2147483647,23]W.1}{[1][40][]40}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {W.2}Example}{40}{subsection.W.2}\protected@file@percent }
-\newlabel{example-22}{{W.2}{40}{Example}{subsection.W.2}{}}
-\newlabel{example-22@cref}{{[subappendix][2][2147483647,23]W.2}{[1][40][]40}}
-\newlabel{LastPage}{{W.2}{40}{Example}{page.40}{}}
-\gdef\lastpage@lastpage{40}
-\gdef\lastpage@lastpageHy{40}
-\gdef \@abspage@last{40}
+\@writefile{toc}{\contentsline {section}{\numberline {80}}{87}{section.80}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {A}Appendix: sentai.io}{88}{appendix.A}\protected@file@percent }
+\newlabel{appendix-sentai.io}{{A}{88}{Appendix: sentai.io}{appendix.A}{}}
+\newlabel{appendix-sentai.io@cref}{{[appendix][1][2147483647]A}{[1][88][]88}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {A.1}Functions}{88}{subsection.A.1}\protected@file@percent }
+\newlabel{functions}{{A.1}{88}{Functions}{subsection.A.1}{}}
+\newlabel{functions@cref}{{[subappendix][1][2147483647,1]A.1}{[1][88][]88}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {A.2}Example}{88}{subsection.A.2}\protected@file@percent }
+\newlabel{example}{{A.2}{88}{Example}{subsection.A.2}{}}
+\newlabel{example@cref}{{[subappendix][2][2147483647,1]A.2}{[1][88][]88}}
+\@writefile{toc}{\contentsline {section}{\numberline {B}Appendix: sentai.rtos}{88}{appendix.B}\protected@file@percent }
+\newlabel{appendix-sentai.rtos}{{B}{88}{Appendix: sentai.rtos}{appendix.B}{}}
+\newlabel{appendix-sentai.rtos@cref}{{[appendix][2][2147483647]B}{[1][88][]88}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {B.1}Functions}{88}{subsection.B.1}\protected@file@percent }
+\newlabel{functions-1}{{B.1}{88}{Functions}{subsection.B.1}{}}
+\newlabel{functions-1@cref}{{[subappendix][1][2147483647,2]B.1}{[1][88][]88}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {B.2}Example}{88}{subsection.B.2}\protected@file@percent }
+\newlabel{example-1}{{B.2}{88}{Example}{subsection.B.2}{}}
+\newlabel{example-1@cref}{{[subappendix][2][2147483647,2]B.2}{[1][88][]88}}
+\@writefile{toc}{\contentsline {section}{\numberline {C}Appendix: sentai.tpu}{88}{appendix.C}\protected@file@percent }
+\newlabel{appendix-sentai.tpu}{{C}{88}{Appendix: sentai.tpu}{appendix.C}{}}
+\newlabel{appendix-sentai.tpu@cref}{{[appendix][3][2147483647]C}{[1][88][]88}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {C.1}Functions}{89}{subsection.C.1}\protected@file@percent }
+\newlabel{functions-2}{{C.1}{89}{Functions}{subsection.C.1}{}}
+\newlabel{functions-2@cref}{{[subappendix][1][2147483647,3]C.1}{[1][89][]89}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {C.2}Example}{89}{subsection.C.2}\protected@file@percent }
+\newlabel{example-2}{{C.2}{89}{Example}{subsection.C.2}{}}
+\newlabel{example-2@cref}{{[subappendix][2][2147483647,3]C.2}{[1][89][]89}}
+\@writefile{toc}{\contentsline {section}{\numberline {D}Appendix: sentai.tfl}{89}{appendix.D}\protected@file@percent }
+\newlabel{appendix-sentai.tfl}{{D}{89}{Appendix: sentai.tfl}{appendix.D}{}}
+\newlabel{appendix-sentai.tfl@cref}{{[appendix][4][2147483647]D}{[1][89][]89}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {D.1}Functions}{89}{subsection.D.1}\protected@file@percent }
+\newlabel{functions-3}{{D.1}{89}{Functions}{subsection.D.1}{}}
+\newlabel{functions-3@cref}{{[subappendix][1][2147483647,4]D.1}{[1][89][]89}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {D.2}Example}{90}{subsection.D.2}\protected@file@percent }
+\newlabel{example-3}{{D.2}{90}{Example}{subsection.D.2}{}}
+\newlabel{example-3@cref}{{[subappendix][2][2147483647,4]D.2}{[1][90][]90}}
+\@writefile{toc}{\contentsline {section}{\numberline {E}Appendix: sentai.fs}{90}{appendix.E}\protected@file@percent }
+\newlabel{appendix-sentai.fs}{{E}{90}{Appendix: sentai.fs}{appendix.E}{}}
+\newlabel{appendix-sentai.fs@cref}{{[appendix][5][2147483647]E}{[1][90][]90}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {E.1}Functions}{90}{subsection.E.1}\protected@file@percent }
+\newlabel{functions-4}{{E.1}{90}{Functions}{subsection.E.1}{}}
+\newlabel{functions-4@cref}{{[subappendix][1][2147483647,5]E.1}{[1][90][]90}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {E.2}Example}{90}{subsection.E.2}\protected@file@percent }
+\newlabel{example-4}{{E.2}{90}{Example}{subsection.E.2}{}}
+\newlabel{example-4@cref}{{[subappendix][2][2147483647,5]E.2}{[1][90][]90}}
+\@writefile{toc}{\contentsline {section}{\numberline {F}Appendix: sentai.camera}{91}{appendix.F}\protected@file@percent }
+\newlabel{appendix-sentai.camera}{{F}{91}{Appendix: sentai.camera}{appendix.F}{}}
+\newlabel{appendix-sentai.camera@cref}{{[appendix][6][2147483647]F}{[1][91][]91}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {F.1}Functions}{91}{subsection.F.1}\protected@file@percent }
+\newlabel{functions-5}{{F.1}{91}{Functions}{subsection.F.1}{}}
+\newlabel{functions-5@cref}{{[subappendix][1][2147483647,6]F.1}{[1][91][]91}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {F.2}Example}{91}{subsection.F.2}\protected@file@percent }
+\newlabel{example-5}{{F.2}{91}{Example}{subsection.F.2}{}}
+\newlabel{example-5@cref}{{[subappendix][2][2147483647,6]F.2}{[1][91][]91}}
+\@writefile{toc}{\contentsline {section}{\numberline {G}Appendix: sentai.imu}{91}{appendix.G}\protected@file@percent }
+\newlabel{appendix-sentai.imu}{{G}{91}{Appendix: sentai.imu}{appendix.G}{}}
+\newlabel{appendix-sentai.imu@cref}{{[appendix][7][2147483647]G}{[1][91][]91}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {G.1}Functions}{91}{subsection.G.1}\protected@file@percent }
+\newlabel{functions-6}{{G.1}{91}{Functions}{subsection.G.1}{}}
+\newlabel{functions-6@cref}{{[subappendix][1][2147483647,7]G.1}{[1][91][]91}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {G.2}Example}{91}{subsection.G.2}\protected@file@percent }
+\newlabel{example-6}{{G.2}{91}{Example}{subsection.G.2}{}}
+\newlabel{example-6@cref}{{[subappendix][2][2147483647,7]G.2}{[1][91][]91}}
+\@writefile{toc}{\contentsline {section}{\numberline {H}Appendix: sentai.mic}{92}{appendix.H}\protected@file@percent }
+\newlabel{appendix-sentai.mic}{{H}{92}{Appendix: sentai.mic}{appendix.H}{}}
+\newlabel{appendix-sentai.mic@cref}{{[appendix][8][2147483647]H}{[1][92][]92}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {H.1}Functions}{92}{subsection.H.1}\protected@file@percent }
+\newlabel{functions-7}{{H.1}{92}{Functions}{subsection.H.1}{}}
+\newlabel{functions-7@cref}{{[subappendix][1][2147483647,8]H.1}{[1][92][]92}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {H.2}Example}{92}{subsection.H.2}\protected@file@percent }
+\newlabel{example-7}{{H.2}{92}{Example}{subsection.H.2}{}}
+\newlabel{example-7@cref}{{[subappendix][2][2147483647,8]H.2}{[1][92][]92}}
+\@writefile{toc}{\contentsline {section}{\numberline {I}Appendix: sentai.usb}{92}{appendix.I}\protected@file@percent }
+\newlabel{appendix-sentai.usb}{{I}{92}{Appendix: sentai.usb}{appendix.I}{}}
+\newlabel{appendix-sentai.usb@cref}{{[appendix][9][2147483647]I}{[1][92][]92}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {I.1}Functions}{92}{subsection.I.1}\protected@file@percent }
+\newlabel{functions-8}{{I.1}{92}{Functions}{subsection.I.1}{}}
+\newlabel{functions-8@cref}{{[subappendix][1][2147483647,9]I.1}{[1][92][]92}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {I.2}Example}{92}{subsection.I.2}\protected@file@percent }
+\newlabel{example-8}{{I.2}{92}{Example}{subsection.I.2}{}}
+\newlabel{example-8@cref}{{[subappendix][2][2147483647,9]I.2}{[1][92][]92}}
+\@writefile{toc}{\contentsline {section}{\numberline {J}Appendix: sentai.uart}{93}{appendix.J}\protected@file@percent }
+\newlabel{appendix-sentai.uart}{{J}{93}{Appendix: sentai.uart}{appendix.J}{}}
+\newlabel{appendix-sentai.uart@cref}{{[appendix][10][2147483647]J}{[1][93][]93}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {J.1}Functions}{93}{subsection.J.1}\protected@file@percent }
+\newlabel{functions-9}{{J.1}{93}{Functions}{subsection.J.1}{}}
+\newlabel{functions-9@cref}{{[subappendix][1][2147483647,10]J.1}{[1][93][]93}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {J.2}Example}{93}{subsection.J.2}\protected@file@percent }
+\newlabel{example-9}{{J.2}{93}{Example}{subsection.J.2}{}}
+\newlabel{example-9@cref}{{[subappendix][2][2147483647,10]J.2}{[1][93][]93}}
+\@writefile{toc}{\contentsline {section}{\numberline {K}Appendix: sentai.console}{93}{appendix.K}\protected@file@percent }
+\newlabel{appendix-sentai.console}{{K}{93}{Appendix: sentai.console}{appendix.K}{}}
+\newlabel{appendix-sentai.console@cref}{{[appendix][11][2147483647]K}{[1][93][]93}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {K.1}Functions}{93}{subsection.K.1}\protected@file@percent }
+\newlabel{functions-10}{{K.1}{93}{Functions}{subsection.K.1}{}}
+\newlabel{functions-10@cref}{{[subappendix][1][2147483647,11]K.1}{[1][93][]93}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {K.2}Example}{93}{subsection.K.2}\protected@file@percent }
+\newlabel{example-10}{{K.2}{93}{Example}{subsection.K.2}{}}
+\newlabel{example-10@cref}{{[subappendix][2][2147483647,11]K.2}{[1][93][]93}}
+\@writefile{toc}{\contentsline {section}{\numberline {L}Appendix: sentai.mesh}{93}{appendix.L}\protected@file@percent }
+\newlabel{appendix-sentai.mesh}{{L}{93}{Appendix: sentai.mesh}{appendix.L}{}}
+\newlabel{appendix-sentai.mesh@cref}{{[appendix][12][2147483647]L}{[1][93][]93}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {L.1}Functions}{94}{subsection.L.1}\protected@file@percent }
+\newlabel{functions-11}{{L.1}{94}{Functions}{subsection.L.1}{}}
+\newlabel{functions-11@cref}{{[subappendix][1][2147483647,12]L.1}{[1][94][]94}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {L.2}Example}{94}{subsection.L.2}\protected@file@percent }
+\newlabel{example-11}{{L.2}{94}{Example}{subsection.L.2}{}}
+\newlabel{example-11@cref}{{[subappendix][2][2147483647,12]L.2}{[1][94][]94}}
+\@writefile{toc}{\contentsline {section}{\numberline {M}Appendix: sentai.link}{94}{appendix.M}\protected@file@percent }
+\newlabel{appendix-sentai.link}{{M}{94}{Appendix: sentai.link}{appendix.M}{}}
+\newlabel{appendix-sentai.link@cref}{{[appendix][13][2147483647]M}{[1][94][]94}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {M.1}Functions}{94}{subsection.M.1}\protected@file@percent }
+\newlabel{functions-12}{{M.1}{94}{Functions}{subsection.M.1}{}}
+\newlabel{functions-12@cref}{{[subappendix][1][2147483647,13]M.1}{[1][94][]94}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {M.2}Example}{95}{subsection.M.2}\protected@file@percent }
+\newlabel{example-12}{{M.2}{95}{Example}{subsection.M.2}{}}
+\newlabel{example-12@cref}{{[subappendix][2][2147483647,13]M.2}{[1][95][]95}}
+\@writefile{toc}{\contentsline {section}{\numberline {N}Appendix: sentai.crazy}{95}{appendix.N}\protected@file@percent }
+\newlabel{appendix-sentai.crazy}{{N}{95}{Appendix: sentai.crazy}{appendix.N}{}}
+\newlabel{appendix-sentai.crazy@cref}{{[appendix][14][2147483647]N}{[1][95][]95}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {N.1}Functions}{95}{subsection.N.1}\protected@file@percent }
+\newlabel{functions-13}{{N.1}{95}{Functions}{subsection.N.1}{}}
+\newlabel{functions-13@cref}{{[subappendix][1][2147483647,14]N.1}{[1][95][]95}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {N.2}Example}{95}{subsection.N.2}\protected@file@percent }
+\newlabel{example-13}{{N.2}{95}{Example}{subsection.N.2}{}}
+\newlabel{example-13@cref}{{[subappendix][2][2147483647,14]N.2}{[1][95][]95}}
+\@writefile{toc}{\contentsline {section}{\numberline {O}Appendix: sentai.pipeline}{96}{appendix.O}\protected@file@percent }
+\newlabel{appendix-sentai.pipeline}{{O}{96}{Appendix: sentai.pipeline}{appendix.O}{}}
+\newlabel{appendix-sentai.pipeline@cref}{{[appendix][15][2147483647]O}{[1][96][]96}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {O.1}Functions}{96}{subsection.O.1}\protected@file@percent }
+\newlabel{functions-14}{{O.1}{96}{Functions}{subsection.O.1}{}}
+\newlabel{functions-14@cref}{{[subappendix][1][2147483647,15]O.1}{[1][96][]96}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {O.2}Example}{96}{subsection.O.2}\protected@file@percent }
+\newlabel{example-14}{{O.2}{96}{Example}{subsection.O.2}{}}
+\newlabel{example-14@cref}{{[subappendix][2][2147483647,15]O.2}{[1][96][]96}}
+\@writefile{toc}{\contentsline {section}{\numberline {P}Appendix: sentai.aifes}{96}{appendix.P}\protected@file@percent }
+\newlabel{appendix-sentai.aifes}{{P}{96}{Appendix: sentai.aifes}{appendix.P}{}}
+\newlabel{appendix-sentai.aifes@cref}{{[appendix][16][2147483647]P}{[1][96][]96}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {P.1}Functions}{96}{subsection.P.1}\protected@file@percent }
+\newlabel{functions-15}{{P.1}{96}{Functions}{subsection.P.1}{}}
+\newlabel{functions-15@cref}{{[subappendix][1][2147483647,16]P.1}{[1][96][]96}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {P.2}Example}{97}{subsection.P.2}\protected@file@percent }
+\newlabel{example-15}{{P.2}{97}{Example}{subsection.P.2}{}}
+\newlabel{example-15@cref}{{[subappendix][2][2147483647,16]P.2}{[1][97][]97}}
+\@writefile{toc}{\contentsline {section}{\numberline {Q}Appendix: sentai.kmeans}{97}{appendix.Q}\protected@file@percent }
+\newlabel{appendix-sentai.kmeans}{{Q}{97}{Appendix: sentai.kmeans}{appendix.Q}{}}
+\newlabel{appendix-sentai.kmeans@cref}{{[appendix][17][2147483647]Q}{[1][97][]97}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {Q.1}Functions}{97}{subsection.Q.1}\protected@file@percent }
+\newlabel{functions-16}{{Q.1}{97}{Functions}{subsection.Q.1}{}}
+\newlabel{functions-16@cref}{{[subappendix][1][2147483647,17]Q.1}{[1][97][]97}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {Q.2}Example}{98}{subsection.Q.2}\protected@file@percent }
+\newlabel{example-16}{{Q.2}{98}{Example}{subsection.Q.2}{}}
+\newlabel{example-16@cref}{{[subappendix][2][2147483647,17]Q.2}{[1][97][]98}}
+\@writefile{toc}{\contentsline {section}{\numberline {R}Appendix: sentai.pca}{98}{appendix.R}\protected@file@percent }
+\newlabel{appendix-sentai.pca}{{R}{98}{Appendix: sentai.pca}{appendix.R}{}}
+\newlabel{appendix-sentai.pca@cref}{{[appendix][18][2147483647]R}{[1][98][]98}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {R.1}Functions}{98}{subsection.R.1}\protected@file@percent }
+\newlabel{functions-17}{{R.1}{98}{Functions}{subsection.R.1}{}}
+\newlabel{functions-17@cref}{{[subappendix][1][2147483647,18]R.1}{[1][98][]98}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {R.2}Example}{98}{subsection.R.2}\protected@file@percent }
+\newlabel{example-17}{{R.2}{98}{Example}{subsection.R.2}{}}
+\newlabel{example-17@cref}{{[subappendix][2][2147483647,18]R.2}{[1][98][]98}}
+\@writefile{toc}{\contentsline {section}{\numberline {S}Appendix: sentai.anomaly}{98}{appendix.S}\protected@file@percent }
+\newlabel{appendix-sentai.anomaly}{{S}{98}{Appendix: sentai.anomaly}{appendix.S}{}}
+\newlabel{appendix-sentai.anomaly@cref}{{[appendix][19][2147483647]S}{[1][98][]98}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {S.1}Functions}{99}{subsection.S.1}\protected@file@percent }
+\newlabel{functions-18}{{S.1}{99}{Functions}{subsection.S.1}{}}
+\newlabel{functions-18@cref}{{[subappendix][1][2147483647,19]S.1}{[1][99][]99}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {S.2}Example}{99}{subsection.S.2}\protected@file@percent }
+\newlabel{example-18}{{S.2}{99}{Example}{subsection.S.2}{}}
+\newlabel{example-18@cref}{{[subappendix][2][2147483647,19]S.2}{[1][99][]99}}
+\@writefile{toc}{\contentsline {section}{\numberline {T}Appendix: sentai.dtw}{99}{appendix.T}\protected@file@percent }
+\newlabel{appendix-sentai.dtw}{{T}{99}{Appendix: sentai.dtw}{appendix.T}{}}
+\newlabel{appendix-sentai.dtw@cref}{{[appendix][20][2147483647]T}{[1][99][]99}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {T.1}Functions}{99}{subsection.T.1}\protected@file@percent }
+\newlabel{functions-19}{{T.1}{99}{Functions}{subsection.T.1}{}}
+\newlabel{functions-19@cref}{{[subappendix][1][2147483647,20]T.1}{[1][99][]99}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {T.2}Example}{100}{subsection.T.2}\protected@file@percent }
+\newlabel{example-19}{{T.2}{100}{Example}{subsection.T.2}{}}
+\newlabel{example-19@cref}{{[subappendix][2][2147483647,20]T.2}{[1][100][]100}}
+\@writefile{toc}{\contentsline {section}{\numberline {U}Appendix: sentai.hmm}{100}{appendix.U}\protected@file@percent }
+\newlabel{appendix-sentai.hmm}{{U}{100}{Appendix: sentai.hmm}{appendix.U}{}}
+\newlabel{appendix-sentai.hmm@cref}{{[appendix][21][2147483647]U}{[1][100][]100}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {U.1}Functions}{100}{subsection.U.1}\protected@file@percent }
+\newlabel{functions-20}{{U.1}{100}{Functions}{subsection.U.1}{}}
+\newlabel{functions-20@cref}{{[subappendix][1][2147483647,21]U.1}{[1][100][]100}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {U.2}Example}{100}{subsection.U.2}\protected@file@percent }
+\newlabel{example-20}{{U.2}{100}{Example}{subsection.U.2}{}}
+\newlabel{example-20@cref}{{[subappendix][2][2147483647,21]U.2}{[1][100][]100}}
+\@writefile{toc}{\contentsline {section}{\numberline {V}Appendix: sentai.rl}{101}{appendix.V}\protected@file@percent }
+\newlabel{appendix-sentai.rl}{{V}{101}{Appendix: sentai.rl}{appendix.V}{}}
+\newlabel{appendix-sentai.rl@cref}{{[appendix][22][2147483647]V}{[1][101][]101}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {V.1}Functions}{101}{subsection.V.1}\protected@file@percent }
+\newlabel{functions-21}{{V.1}{101}{Functions}{subsection.V.1}{}}
+\newlabel{functions-21@cref}{{[subappendix][1][2147483647,22]V.1}{[1][101][]101}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {V.2}Example}{101}{subsection.V.2}\protected@file@percent }
+\newlabel{example-21}{{V.2}{101}{Example}{subsection.V.2}{}}
+\newlabel{example-21@cref}{{[subappendix][2][2147483647,22]V.2}{[1][101][]101}}
+\@writefile{toc}{\contentsline {section}{\numberline {W}Appendix: sentai.slam}{101}{appendix.W}\protected@file@percent }
+\newlabel{appendix-sentai.slam}{{W}{101}{Appendix: sentai.slam}{appendix.W}{}}
+\newlabel{appendix-sentai.slam@cref}{{[appendix][23][2147483647]W}{[1][101][]101}}
+\gdef \LT@li {\LT@entry 
+    {1}{197.17761pt}\LT@entry 
+    {1}{197.17761pt}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {W.1}Functions}{102}{subsection.W.1}\protected@file@percent }
+\newlabel{functions-22}{{W.1}{102}{Functions}{subsection.W.1}{}}
+\newlabel{functions-22@cref}{{[subappendix][1][2147483647,23]W.1}{[1][102][]102}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {W.2}Example}{102}{subsection.W.2}\protected@file@percent }
+\newlabel{example-22}{{W.2}{102}{Example}{subsection.W.2}{}}
+\newlabel{example-22@cref}{{[subappendix][2][2147483647,23]W.2}{[1][102][]102}}
+\@writefile{toc}{\contentsline {section}{\numberline {X}Glossary}{102}{appendix.X}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {X.1}Embedded-systems / RTOS}{102}{subsection.X.1}\protected@file@percent }
+\newlabel{embedded-systems-rtos}{{X.1}{102}{Embedded-systems / RTOS}{subsection.X.1}{}}
+\newlabel{embedded-systems-rtos@cref}{{[subappendix][1][2147483647,24]X.1}{[1][102][]102}}
+\gdef \LT@lii {\LT@entry 
+    {1}{197.17761pt}\LT@entry 
+    {1}{197.17761pt}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {X.2}Camera / imaging}{103}{subsection.X.2}\protected@file@percent }
+\newlabel{camera-imaging}{{X.2}{103}{Camera / imaging}{subsection.X.2}{}}
+\newlabel{camera-imaging@cref}{{[subappendix][2][2147483647,24]X.2}{[1][103][]103}}
+\gdef \LT@liii {\LT@entry 
+    {1}{197.17761pt}\LT@entry 
+    {1}{197.17761pt}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {X.3}AI inference}{104}{subsection.X.3}\protected@file@percent }
+\newlabel{ai-inference}{{X.3}{104}{AI inference}{subsection.X.3}{}}
+\newlabel{ai-inference@cref}{{[subappendix][3][2147483647,24]X.3}{[1][104][]104}}
+\gdef \LT@liv {\LT@entry 
+    {1}{197.17761pt}\LT@entry 
+    {1}{197.17761pt}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {X.4}Firmware platform (SentAI-specific)}{105}{subsection.X.4}\protected@file@percent }
+\newlabel{firmware-platform-sentai-specific}{{X.4}{105}{Firmware platform (SentAI-specific)}{subsection.X.4}{}}
+\newlabel{firmware-platform-sentai-specific@cref}{{[subappendix][4][2147483647,24]X.4}{[1][105][]105}}
+\gdef \LT@lv {\LT@entry 
+    {1}{197.17761pt}\LT@entry 
+    {1}{197.17761pt}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {X.5}Storage / USB}{106}{subsection.X.5}\protected@file@percent }
+\newlabel{storage-usb}{{X.5}{106}{Storage / USB}{subsection.X.5}{}}
+\newlabel{storage-usb@cref}{{[subappendix][5][2147483647,24]X.5}{[1][106][]106}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {X.6}Measurement methodology}{106}{subsection.X.6}\protected@file@percent }
+\newlabel{measurement-methodology}{{X.6}{106}{Measurement methodology}{subsection.X.6}{}}
+\newlabel{measurement-methodology@cref}{{[subappendix][6][2147483647,24]X.6}{[1][106][]106}}
+\gdef \LT@lvi {\LT@entry 
+    {1}{197.17761pt}\LT@entry 
+    {1}{197.17761pt}}
+\gdef \LT@lvii {\LT@entry 
+    {1}{197.17761pt}\LT@entry 
+    {1}{197.17761pt}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {X.7}Build / tooling}{107}{subsection.X.7}\protected@file@percent }
+\newlabel{build-tooling}{{X.7}{107}{Build / tooling}{subsection.X.7}{}}
+\newlabel{build-tooling@cref}{{[subappendix][7][2147483647,24]X.7}{[1][107][]107}}
+\newlabel{LastPage}{{X.7}{108}{Build / tooling}{page.108}{}}
+\gdef\lastpage@lastpage{108}
+\gdef\lastpage@lastpageHy{108}
+\gdef \@abspage@last{108}

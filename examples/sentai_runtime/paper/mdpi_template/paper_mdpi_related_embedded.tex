@@ -1,0 +1,297 @@
+A focused related-work chapter for the specific contributions of this
+study: glitch-free dual-camera switching on a shared MIPI-CSI lane,
+per-iteration measurement of switch cost on MCU-class hardware, and the
+platform-level design choices that made those measurements possible.
+Complements the broader survey in \url{relatedwork.md}, which covers
+nano-UAV autonomy, YOLO-family detectors, and MicroPython-in-robotics
+context; this chapter is narrower and deeper on the switching problem.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\section{1. Hardware multiplexing of multiple cameras onto one CSI
+receiver}\label{hardware-multiplexing-of-multiple-cameras-onto-one-csi-receiver}
+
+\subsection{1.1 Analogue-switch MUX (our
+topology)}\label{analogue-switch-mux-our-topology}
+
+Multiplexing two camera modules onto a single MIPI-CSI2 lane via an
+analogue switch is the default approach on small-form-factor evaluation
+boards where the SoC has only one CSI receiver and board area is scarce.
+The TS5MP645 family from Texas Instruments is a representative device;
+in the NXP i.MX ecosystem, the same pattern appears on the i.MX8M Mini
+where the OV5640 community thread (1064767) documents two-camera
+operation through a single CSI controller with GPIO-selected mux. The
+analogue-switch approach is attractive because the MUX is cheap,
+passive, and transparent to the D-PHY receiver once the line settles,
+but it carries two known limitations:
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{No virtual-channel separation.} Both sensors' MIPI short
+  packets (FS, LS) arrive on the same virtual channel (VC=0) from the
+  receiver's perspective; there is no hardware disambiguation between
+  them. This forces the platform to ensure only one sensor is driving
+  the line at a time, which is exactly what the GPIO MUX guarantees.
+\item
+  \textbf{Switch timing is software's responsibility.} The receiver has
+  no notion of ``sensor change''; if the MUX flips mid-line, the DMA
+  buffer being written at that moment silently contains pixels from both
+  sensors. Our measurement of this failure mode is in
+  \url{cam_switch.md} §``Visual evidence --- seam before the fix'' and
+  is the ground truth that motivates flip-on-EOF.
+\end{itemize}
+
+The TI E2E thread on the TS5MP645 MIPI-CSI2 MUX (874026) identifies
+D-PHY re-training after each switch as an optional but expensive
+mitigation; we instead keep the MUX transition inside the MIPI blanking
+window so no re-training is needed.
+
+\subsection{1.2 Virtual-channel-separated dual-stream
+receivers}\label{virtual-channel-separated-dual-stream-receivers}
+
+Hardware that supports MIPI-CSI2 virtual channels natively --- e.g.
+systems using MIPI-bridge chips such as the Lontium LT9611 or Toshiba
+TC358748 --- can run two sensors concurrently on separate VCs and
+demultiplex at the receiver side. On such a topology the ``switch cost''
+problem disappears entirely because both streams are live. NXP's
+MIPI-CSI2 peripheral on the RT1170/1176 supports four virtual channels
+on the receive side, but the OV5640 cannot natively remap its output VC,
+and we do not have a bridge chip on the SentAI board. This positions our
+measurements as a lower-bound study: any platform that upgrades to a
+VC-split topology should expect \emph{better} dual- camera throughput
+than we report, not worse.
+
+\subsection{1.3 Dual CSI controllers}\label{dual-csi-controllers}
+
+SoCs with multiple independent CSI receivers (e.g.~the i.MX8MP family,
+Jetson Xavier/Orin line) are a third option. Each sensor has its own
+receiver and its own DMA pipeline; there is no shared lane to multiplex.
+The community threads for the i.MX8MM dual- OV5640 case (NXP Community
+posts 1064767 and 1435731) discuss a variety of configurations, ranging
+from single-VC with GPIO mux (analogous to our board) to dual-CSI with
+fully independent streams. The trade-off is not framed in the literature
+as ``software switch cost'' but as ``how many lanes the application of
+interest can afford''; our measurement of what the single-lane topology
+costs is, to our knowledge, quantitative evidence that was previously
+only inferred.
+
+\subsection{1.4 Summary of topology
+options}\label{summary-of-topology-options}
+
+\textbf{Table 1.} Comparative positioning of dual-camera topologies,
+with per-topology cost of a camera switch.
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Topology
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Shared CSI?
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Switch cost per flip
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Hardware complexity
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Analogue MUX + single CSI receiver (\textbf{this work}) & yes &
+\textasciitilde83 ms (\url{evaluation.md} Table 3) & minimum --- one
+analogue switch IC \\
+MIPI-bridge with VC split + single CSI receiver & yes, but demultiplexed
+in hardware & 0 ms (both live) & moderate --- bridge chip, extra board
+area \\
+Two independent CSI receivers on SoC & no & 0 ms (software ``select'' is
+a buffer choice) & high --- SoC dependency, routing \\
+\end{longtable}
+}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\section{2. VSYNC-synchronised switching and frame-boundary
+techniques}\label{vsync-synchronised-switching-and-frame-boundary-techniques}
+
+The pattern of ``change hardware state only during the blanking
+interval'' is old in display systems and has well-known analogues in
+capture. The camera-capture literature (RidgeRun wiki on Camera Sensor
+Basics; Raspberry Pi forum thread 48238 on frame synchronisation; Jetson
+developer forum 252751 on CSI-2 sync packet shifts) uses the term
+``synchronisation to the frame boundary'' in two distinct ways:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{Sync two cameras to each other} (using FSIN on the OV5640,
+  master/slave wiring). This is the approach taken when the system needs
+  two \emph{simultaneously captured} frames, typically for stereo or for
+  HDR with two different exposures. It does not solve the switching
+  problem --- both sensors still stream, and if only one receiver is
+  available, the second is lost unless there is a MUX.
+\item
+  \textbf{Sync the MUX flip to the frame boundary} of the current
+  sensor. This is what our flip-on-EOF primitive does. The literature
+  for this specific pattern in embedded camera pipelines is sparse ---
+  most industrial and NVIDIA Jetson-side systems assume dual receivers
+  --- so our contribution is a concrete implementation and a measurement
+  of the residual cost.
+\end{enumerate}
+
+Framebuffer-replacement techniques in display drivers (double buffering,
+page flipping, Vsync-triggered DMA update) are the architectural
+ancestor of flip-on-EOF. The analogue is not exact because we are
+flipping an input multiplexer rather than swapping an output buffer, but
+the principle --- \emph{do the hardware state change during the interval
+when no data is flowing} --- is identical.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\section{3. Sensor-side effects after a
+switch}\label{sensor-side-effects-after-a-switch}
+
+Once the mid-buffer seam is eliminated (§2), the residual visual
+artefact observed at \texttt{switch\_drain=1} in our E17 data
+(\url{threats_to_validity.md} §2.5) is consistent with known OV5640
+post-stream-resume behaviour: AEC/AGC loops take several frames to
+converge, and the first one or two frames after a line becomes active
+again can be mildly over- or under-exposed relative to the sensor's
+final state. The Armbian forum thread (armbian.com topic 4688) on OV5640
+color-space configuration, and the ESP32-camera GitHub issue 201 on
+frame-rate regressions, both touch on this effect obliquely. We did not
+find a published quantitative characterisation of how many frames are
+needed for AEC/AGC convergence on this specific sensor; our choice of
+\texttt{switch\_drain=2} as the production default is an engineering
+conservatism grounded in the observation that three separate sessions
+(\href{../experiments/s039_e17_drain_ab/}{s039},
+\href{../experiments/s041_e17_eof_check/}{s041}, the user-visual review)
+all showed some residual artefact at \texttt{drain=1}. A follow-up study
+could instrument the sensor's AEC/AGC status register to tie the
+observed pixel artefact to the sensor's own convergence counter.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\section{4. ISR-context GPIO and NASA/JPL-style real-time
+discipline}\label{isr-context-gpio-and-nasajpl-style-real-time-discipline}
+
+The implementation choice to do the MUX flip inside the CSI EOF ISR is
+small in code volume but significant in real-time terms. Three strands
+of prior work inform this choice:
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{AUTOSAR / industrial real-time} --- the principle that ISRs
+  should be minimal and defer work to task context is codified in
+  AUTOSAR methodology and widely applied in automotive MCU firmware. Our
+  ISR does not defer --- it performs the GPIO write directly --- but it
+  is still compliant with the ``minimum, bounded, deterministic'' rule
+  because the operation is a single atomic-write to \texttt{DR\_SET} /
+  \texttt{DR\_CLEAR} (see
+  \href{../../../libs/base/gpio.cc}{libs/base/gpio.cc}
+  \texttt{GpioSetFromIsr}) with no mutex, no loop, no scheduler
+  interaction.
+\item
+  \textbf{NASA/JPL flight-software rules} --- the discipline referenced
+  in \href{../agent/embeded.md}{agent/embeded.md} (bounded loops,
+  bounded ISRs, explicit fault containment, error-code taxonomy). Our
+  implementation explicitly applies the rules: ISR body is branch-
+  and-store only; ratio scheduling is stateless modulo; task-side
+  timeout uses delta arithmetic surviving a tick-counter wrap; every
+  degraded path has its own error code and counter.
+\item
+  \textbf{RT-MCU embedded patterns} --- the broader body of MCU-camera
+  literature routinely uses GPIO writes in ISRs for pin-state changes
+  that must race against hardware timing (e.g.~exposure triggering,
+  flash-strobe). What is less common, and is our contribution, is wiring
+  the ISR write to a measured MIPI-CSI timing event (end-of-frame)
+  rather than to a free-running timer.
+\end{itemize}
+
+The end result is that the timing of the MUX flip is no longer
+software-controlled in the sense of ``when does the task happen to
+run''; it is hardware-event-controlled. That is the transition from
+best-effort to deterministic that this work makes concrete for the
+dual-sensor case.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\section{5. Cross-platform framing}\label{cross-platform-framing}
+
+MCU-class camera-inference pipelines on NXP i.MX RT family (Zephyr
+support for the VMU RT1170 board, NXP application notes AN13116,
+AN13264, AN5305) focus on single-sensor throughput and power
+optimisation; dual-sensor switching is occasionally mentioned as a
+feature of the platform but not, to our knowledge, measured to the
+per-stage granularity we present. Our E18 head-to-tail benchmark is
+portable --- any platform implementing the same \texttt{diag} session
+model can run the same three-sweep A/B/C benchmark against any MUX
+topology and any sensor pair --- and would be useful as a comparison
+point for future platforms claiming lower switch cost.
+
+OpenMV's OV5640 breakout, Adafruit's OV5640 module, and the broader
+Arduino-ecosystem OV5640 boards expose the same sensor family but do not
+target the dual-sensor use case we focus on. Their configurations are
+single-camera and their performance envelopes are therefore not directly
+comparable.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\section{6. References to gather for the
+bibliography}\label{references-to-gather-for-the-bibliography}
+
+Indicative external sources identified during this study; to be folded
+into the paper's \texttt{references.bib}. Each is cited in this or the
+companion chapters at the point where its content is used.
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.5000}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.5000}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Source
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Cited for
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+NXP Community post 1064767 --- ``Dual camera(ov5640) in iMx8 M mini'' &
+dual-OV5640 configuration on shared CSI with GPIO mux \\
+NXP Community post 1992533 --- ``OV5640 and OV7251 with IMX8MM over
+MIPI-CSI'' & mixed-sensor dual-camera topology \\
+NXP Community post 825091 --- ``two OV5640 mipi csi cameras'' &
+single-VC, single-receiver dual-OV5640 \\
+NXP AN5305 --- ``MIPI-CSI2 Peripheral on i.MX6 MPUs'' & MIPI-CSI2 packet
+structure, FS/LS semantics \\
+TI E2E forum 874026 --- ``TS5MP645: MIPI CSI-2 multiplexer between
+camera and processor'' & impedance and timing implications of analogue
+MUX on a D-PHY \\
+RidgeRun wiki --- ``Camera Sensor Basics'' & VSYNC / HSYNC / FS / LS
+vocabulary and sync-packet behaviour \\
+NXP IMXRT1170 reference manual & CSI peripheral EOF / SOF interrupt
+capability \\
+OmniVision OV5640 datasheet & 720p@60fps via 2×2 binning; available
+modes per resolution \\
+Armbian forum topic 4688 --- ``OV5640 on OPI0+: How to reach higher fps
+and color spaces'' & anecdotal evidence on OV5640 AEC/AGC post-resume
+behaviour \\
+Adafruit OV5640 breakout documentation & FSIN slave-sync pin
+availability \\
+Bewley et al., \emph{SORT}, 2016 & tracking-by-detection association
+baseline, referenced also in \url{relatedwork.md} \\
+Zhang et al., \emph{ByteTrack}, 2022 & low-score detection recovery in
+tracking \\
+\end{longtable}
+}
+
+The full BibTeX entries live in the existing
+\href{references.bib}{\texttt{references.bib}}.

@@ -1,5 +1,15 @@
 # Camera-switch latency — E15 vs E16 on the SentAI dual-sensor MUX
 
+*See also:* [experimental_setup.md](experimental_setup.md) for the
+canonical hardware and firmware stack, [evaluation.md](evaluation.md)
+for the cross-cutting results summary (this chapter is the
+implementation-level narrative that the Evaluation chapter's RQ3 and
+RQ4 reference), [threats_to_validity.md](threats_to_validity.md) for
+caveats, [artifact.md](artifact.md) for the claim-to-CSV map, and
+[related_embedded_inference.md](related_embedded_inference.md) for
+how this work positions against other MIPI-CSI2 multi-camera
+topologies.
+
 ## Abstract
 
 The SentAI board carries two OV5640-derived camera modules multiplexed onto
@@ -402,15 +412,86 @@ a 30 fps sensor) with the same glitch-free VBLANK flip guarantee.
 
 The raw JPEGs from E17 session
 [`s038_e17_drain_ab`](../experiments/s038_e17_drain_ab/) make the
-failure mode obvious in one look.  Both frames below are 512×512
-quality-70 JPEG from the pre-flip-on-EOF firmware with
-`switch_drain=1`; same scene (indoor shot of lilac flowers with a blue
-mug on the right), alternating cam0 / cam1 direction:
+failure mode obvious in one look.  Figure~\ref{fig:seam} reproduces
+two representative frames from that session — 512×512 quality-70
+JPEGs captured on the pre-flip-on-EOF firmware at `switch_drain=1`,
+on the same scene shown in Figure~\ref{fig:scene}.
 
-| Frame | What you see |
-|---|---|
-| [`s038/e17_t1_frames/002_cam0_133ms.jpg`](../experiments/s038_e17_drain_ab/e17_t1_frames/002_cam0_133ms.jpg) | Horizontal tear at ~40 % of the image height.  Upper half captures cam0's tight crop of the lilac stems with the blue mug; lower half jumps to cam1's wider wall-and-flowers framing.  Colours, angle, exposure all shift at the seam.  Unambiguous "half-and-half" failure. |
-| [`s038/e17_t1_frames/003_cam1_202ms.jpg`](../experiments/s038_e17_drain_ab/e17_t1_frames/003_cam1_202ms.jpg) | Same failure on the opposite switch direction.  Upper half is cam1's flowers-against-wall composition, lower half is cam0's tight stem shot.  The 40–60 %-height seam pops visually. |
+\begin{figure}[H]
+\centering
+\begin{subfigure}[t]{0.31\linewidth}
+\centering
+\includegraphics[width=\linewidth]{figures/experiment_frames/fig_seam_cam0.jpg}
+\caption{Iteration 4, flip toward cam0.  Upper half from cam0's
+tight crop of the lilac stems; lower half has jumped to cam1's
+wider wall-and-flowers framing.  Seam at $\approx 40\,\%$ image height.}
+\label{fig:seam:a}
+\end{subfigure}\hfill
+\begin{subfigure}[t]{0.31\linewidth}
+\centering
+\includegraphics[width=\linewidth]{figures/experiment_frames/fig_seam_cam1.jpg}
+\caption{Iteration 13, flip toward cam1.  Opposite direction of the
+same failure: upper half is cam1's composition, lower half is
+cam0's crop.  Seam at a similar phase of the DMA cycle.}
+\label{fig:seam:b}
+\end{subfigure}\hfill
+\begin{subfigure}[t]{0.31\linewidth}
+\centering
+\includegraphics[width=\linewidth]{figures/experiment_frames/fig_seam_extra.jpg}
+\caption{Iteration 8, flip toward cam0 again.  Identical signature to
+(a), confirming the failure is systematic, not a random glitch —
+the MUX flip lands at the same phase of every buffer fill on this
+firmware.}
+\label{fig:seam:c}
+\end{subfigure}
+\caption{Mid-buffer seam produced by flipping the analogue MUX in
+task context on pre-Fix-B firmware at \texttt{switch\_drain=1}.
+Three representative frames out of the 16 captured in session
+\texttt{s038\_e17\_drain\_ab/e17\_t1\_frames/}: \textbf{every} frame
+in that folder exhibits the same tear (mean top/bottom brightness
+diff $= 71\pm7$ across all 16 frames).  Source files:
+\texttt{004\_cam0\_134ms.jpg}, \texttt{013\_cam1\_200ms.jpg},
+\texttt{008\_cam0\_134ms.jpg}.}
+\label{fig:seam}
+\end{figure}
+
+For the same drain threshold on the post-Fix-B firmware
+(session [`s041_e17_eof_check`](../experiments/s041_e17_eof_check/)),
+the mid-buffer seam is fully eliminated — Figure~\ref{fig:postfix}
+shows two representative frames from that set.  These are the
+frames a reviewer would compare against Figure~\ref{fig:seam} to
+verify the fix visually.
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}[t]{0.44\linewidth}
+\centering
+\includegraphics[width=\linewidth]{figures/experiment_frames/fig_clean_cam0.jpg}
+\caption{Post-fix cam0 frame, same \texttt{switch\_drain=1} setting.
+No seam; whole frame is cam0's composition with the teal mug visible
+in the upper right, evenly exposed.}
+\label{fig:postfix:cam0}
+\end{subfigure}\hfill
+\begin{subfigure}[t]{0.44\linewidth}
+\centering
+\includegraphics[width=\linewidth]{figures/experiment_frames/fig_clean_cam1.jpg}
+\caption{Post-fix cam1 frame.  No seam; whole frame is cam1's wider
+view.  Contrast this against any cam1 panel in Figure~\ref{fig:seam}:
+same sensor, same scene, same \texttt{drain} threshold, different
+firmware build.}
+\label{fig:postfix:cam1}
+\end{subfigure}
+\caption{Post-Fix-B \texttt{switch\_drain=1} frames.  The mid-buffer
+seam characterised in Figure~\ref{fig:seam} is removed at the pixel
+level.  Source:
+\texttt{experiments/s041\_e17\_eof\_check/e17\_t1\_frames/\{002\_cam0\_201ms,
+003\_cam1\_201ms\}.jpg}.  A statistical check (top/bottom half
+brightness difference) over all 8 frames in that folder shows
+\emph{no} frame with a half-vs-half brightness jump exceeding the
+normal cam-specific contrast ratio — the seam is gone as a
+distribution, not only for the two samples displayed.}
+\label{fig:postfix}
+\end{figure}
 
 Every broken frame in that folder has the same signature: the tear
 lands somewhere in the middle 40–60 % of the image, because the MUX

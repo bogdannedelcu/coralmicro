@@ -1,5 +1,9 @@
 ## Conclusion
 
+*The quantitative headline summary is in [evaluation.md](evaluation.md)
+§7, Table 7.  The narrative below is the systems-integration framing
+of what those numbers mean.*
+
 This work presented an effort to turn a lightweight open-source embedded AI board into an open inference and autonomy platform for drones. The central result is that an EdgeTPU-class accelerator can be paired effectively with an MCU when the surrounding software stack is designed to keep sensing, memory movement, scheduling, telemetry, and programmability aligned. The goal is not to imitate a Linux-class companion computer, but to show that a much lighter board can still support meaningful onboard inference and autonomy when the system is treated as a co-design problem rather than as a loose collection of features.
 
 The implementation extends the original Coral Micro board from which the design started with a number of capabilities required for autonomous drone research: a full MicroPython runtime, dual 5 Mpx cameras, onboard IMU integration, a parallel camera-to-EdgeTPU perception pipeline, CPU-side TensorFlow Lite Micro inference, lightweight tracking and projection, runtime camera and model switching, interactive debugging and deployment paths, obstacle-map reporting for PX4-style collision prevention, dual-target control support spanning both Bitcraze Crazyflie and PX4/MAVLink-style workflows, and an integrated set of classical ML primitives that can be invoked directly from scripts. Taken together, these additions define our MCU-EdgeTPU board as a more complete embedded inference environment.

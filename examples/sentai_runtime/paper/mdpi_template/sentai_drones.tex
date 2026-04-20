@@ -18,6 +18,23 @@
 \providecommand{\tightlist}{%
 	\setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
 
+% ----- Packages required by pandoc 3.x longtable output -----
+% MDPI class loads booktabs + array, but pandoc emits longtable
+% environments with column specs that use \real{...} and the
+% (\linewidth - ...\tabcolsep) * \real{0.xxxx} construction.
+% Without longtable and calc, the column spec renders as literal
+% text in the PDF and every table comes out scrambled.
+\usepackage{longtable}
+\usepackage{multirow}
+\usepackage{subcaption}  % side-by-side subfigures in Figures 1-3 of §4
+% calc is already loaded by mdpi.cls
+% Compat shim: pandoc sometimes emits \real{0.1234}; calc provides
+% it, but some older installs ship calc without \real.  Provide a
+% fallback that just returns the argument (dimensionless) so the
+% column-spec arithmetic degrades to a regular multiplication.
+\providecommand{\real}[1]{#1}
+% ------------------------------------------------------------
+
 \Title{An Open-Source Dual-Camera Edge AI Runtime for Vision-Guided Drone Autonomy on an MCU-EdgeTPU Platform}
 
 \Author{Author Name $^{1,}$*}
@@ -52,6 +69,12 @@
 
 \section{Related Work}
 \input{paper_mdpi_related.tex}
+
+\subsection{Dual-Sensor Switching and MCU Camera Pipelines}
+\input{paper_mdpi_related_embedded.tex}
+
+\section{Experimental Setup}
+\input{paper_mdpi_expsetup.tex}
 
 \section{Materials and Methods}
 \input{paper_mdpi_impl_overview.tex}
@@ -101,8 +124,26 @@ Figure~\ref{fig:impl05} provides a compact view of the user-facing runtime model
 \end{figure}
 \input{paper_mdpi_impl05.tex}
 
+\section{Results and Performance Evaluation}
+\input{paper_mdpi_evaluation.tex}
+
+\subsection{SDRAM-to-Tensor Memcpy Optimisation}
+\input{paper_mdpi_memcpy.tex}
+
+\subsection{Glitch-Free Dual-Camera Switching}
+\input{paper_mdpi_camswitch.tex}
+
 \section{Discussion}
 \input{paper_mdpi_discussion.tex}
+
+\section{Threats to Validity}
+\input{paper_mdpi_threats.tex}
+
+\subsection{Statistical Notes}
+\input{paper_mdpi_statnotes.tex}
+
+\section{Artifact and Data Availability}
+\input{paper_mdpi_artifact.tex}
 
 \section{Conclusions}
 \input{paper_mdpi_conclusion.tex}
@@ -117,5 +158,8 @@ Figure~\ref{fig:impl05} provides a compact view of the user-facing runtime model
 \setcounter{section}{0}
 \setcounter{subsection}{0}
 \input{paper_mdpi_appendices.tex}
+
+\section{Glossary}
+\input{paper_mdpi_glossary.tex}
 
 \end{document}

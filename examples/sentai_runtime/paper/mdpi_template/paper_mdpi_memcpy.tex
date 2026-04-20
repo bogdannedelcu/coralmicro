@@ -1,0 +1,842 @@
+\emph{See also:} \url{experimental_setup.md} for the canonical hardware
+and firmware stack (this chapter's ``Test conditions'' section
+reproduces the subset relevant to the memcpy result),
+\url{evaluation.md} for the cross-cutting results summary where this
+chapter's findings appear as RQ2, \url{artifact.md} for the claim-to-CSV
+map, and \url{statistical_notes.md} for the statistical conventions
+applied to the per-run tables below.
+
+\section{Abstract}\label{abstract}
+
+The end-to-end vision pipeline on the SentAI board (Coral Dev Board
+Micro, NXP i.MX RT1176) was stuck at \textasciitilde13 FPS even though
+the camera delivers 15 FPS and the EdgeTPU invoke on our lightest model
+only costs \textasciitilde50 ms. Instrumenting the pipeline's InferTask
+exposed a single dominant cost: a 786 KB
+\texttt{memcpy(tensor\_buf,\ staging\_buf,\ total)} from SDRAM to SDRAM
+that consumed \textbf{24 ms per frame} due to CPU-driven cache-line
+traffic through the SEMC controller. Replacing that one \texttt{memcpy}
+with an eDMA memory-to-memory transfer configured for 32-byte AXI bursts
+took the copy down to \textbf{14.6 ms} and raised sustained pipeline
+throughput from \textbf{13.41 FPS} to \textbf{15.47 FPS} --- enough to
+match the sensor rate.
+
+\section{Test conditions}\label{test-conditions}
+
+\subsection{Hardware}\label{hardware}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.6111}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.3889}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Component
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Value
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+MCU & NXP i.MX RT1176 (Cortex-M7 @ 800 MHz + Cortex-M4) \\
+On-chip EdgeTPU & Coral/Google TPU, internal USB2 bus \\
+External RAM & 16 MB SDR-SDRAM on SEMC (166 MHz) \\
+OCRAM / DTCM / ITCM & 1.25 MB / 256 KB / 256 KB \\
+Camera & OV5640-based coralmicro module, 1280×720 native, 15 FPS
+streaming \\
+USB to host & CDC-ACM (REPL) + CDC-NCM (IP 10.0.0.1) \\
+Board & Coral Dev Board Micro dev kit, powered via USB-C \\
+\end{longtable}
+}
+
+\subsection{Firmware}\label{firmware}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.6111}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.3889}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Parameter
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Value
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Build & \texttt{sentai\_runtime} build \#622+ (linker script
+\texttt{MIMXRT1176xxxxx\_cm7\_ram\_mp.ld}) \\
+RTOS & FreeRTOS (CMSIS M7 build, 1 ms tick) \\
+MicroPython GC heap & 512 KB, in \texttt{.sdram\_bss} \\
+Pipeline tasks & \texttt{det\_prep} prio 2 · \texttt{det\_infer} prio
+3 \\
+Camera task & \texttt{camera\_task} prio
+\texttt{configMAX\_PRIORITIES\ -\ 1} \\
+\end{longtable}
+}
+
+\subsection{Model under test}\label{model-under-test}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.6111}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.3889}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Parameter
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Value
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+File &
+\texttt{/yolo\_1\_class\_512\_1\_upsample\_512\_inloc\_de\_1024\_la\_P5\_32.tflite} \\
+On-flash size & 5 591 680 B (5.33 MB) \\
+Input & \texttt{uint8{[}1,\ 512,\ 512,\ 3{]}} --- \textbf{786 432 B}
+(this is the buffer we memcpy) \\
+Input quantisation & scale = 1/255, zero\_point = 0 \\
+Output & \texttt{uint8{[}1,\ 1344,\ 6{]}} --- 8 064 B ---
+YOLOv5-enhanced anchor format \\
+Architecture & YOLOv5 enhanced (single upsample at P5/32, 1-class
+head) \\
+Output quantisation & scale = 1/255, zero\_point = 0 \\
+Output row semantics &
+\texttt{{[}cx,\ cy,\ w,\ h,\ obj\_conf,\ class\_conf{]}} (normalised
+0..1) \\
+TFLite arena & 799 KB used / 8 192 KB available \\
+EdgeTPU opened in & mode 3 (\texttt{kMax}) \\
+\end{longtable}
+}
+
+\subsection{Scene}\label{scene}
+
+\begin{itemize}
+\tightlist
+\item
+  Static scene (camera does not move during measurement).
+\item
+  Before/after scene snapshots are saved by every experiment that
+  touches the camera --- see
+  \texttt{diag.snapshot\_scene("before"\textbar{}"after")} in
+  \href{../diag/_session.py}{diag/\_session.py}. Stored at
+  \texttt{/diags/\textless{}session\textgreater{}/scene\_cam\textless{}N\textgreater{}\_(before\textbar{}after)\_\textless{}W\textgreater{}x\textless{}H\textgreater{}.jpg}.
+\item
+  For the runs reported here the scene contained no target class
+  instances, so \texttt{num\_detections\ ==\ 0} every frame --- the NMS
+  execution path is still run in full (candidate scan over all 1344
+  anchors), only the sort and IoU stages exit early.
+\end{itemize}
+
+\subsection{Methodology}\label{methodology}
+
+\begin{itemize}
+\tightlist
+\item
+  Each run = 20 measurement frames after 1 warm-up frame.
+\item
+  10 back-to-back runs per configuration to capture variance.
+\item
+  \textbf{Both configurations measured from the same firmware image}
+  using the runtime A/B flag
+  \texttt{sentai.pipeline.dma\_memcpy(0\textbar{}1)}. Switching between
+  CPU memcpy and eDMA is one volatile store; no reflash, no reboot, no
+  camera restart between the two blocks. This removes every confound
+  that could come from firmware drift, thermal state, or camera
+  calibration variance.
+\item
+  Timing collected via \texttt{sentai.pipeline.get\_ex()} which returns
+  the firmware-measured \texttt{inference\_ms} (pure TPU
+  \texttt{Invoke}), \texttt{memcpy\_ms} (staging → tensor copy),
+  \texttt{nms\_ms} (post-processing), and \texttt{total\_ms} (full
+  InferTask iteration). All reported in milliseconds.
+\item
+  Host (Python) wall-clock interval is the delta between consecutive
+  \texttt{pipeline.get\_ex()} returns; the gap between
+  \texttt{wall\_interval} and \texttt{infer\_total} measures everything
+  outside InferTask (queue IPC, MicroPython overhead, mp\_repl wake-up).
+\item
+  \texttt{verbose(0)} for the whole loop body --- no \texttt{printf}
+  traffic on CDC-ACM, so USB never saturates and host reads don't stall.
+\item
+  Benchmark driver: \href{../_e15_ab.py}{\_e15\_ab.py}.
+\end{itemize}
+
+\section{\texorpdfstring{Baseline --- CPU \texttt{memcpy} (SDRAM → cache
+→
+SDRAM)}{Baseline --- CPU memcpy (SDRAM → cache → SDRAM)}}\label{baseline-cpu-memcpy-sdram-cache-sdram}
+
+Flag set by \texttt{sentai.pipeline.dma\_memcpy(0)}. The InferTask uses
+a plain \texttt{memcpy()} to move the prepared frame into the TFLite
+input tensor. This matches the state right after the camera-drain fix
+(non-blocking \texttt{TryGetRawFrame}, documented separately in
+\url{usb.md} and \url{camera.md}).
+
+\subsection{Per-run results (10 × 20 frames, same firmware as
+optimised)}\label{per-run-results-10-20-frames-same-firmware-as-optimised}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1136}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1136}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1364}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1364}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1136}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.2727}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1136}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedleft
+Run
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+wall
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+invoke
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+memcpy
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+nms
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+infer\_total
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+FPS
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+1 & 75.9 & 50.8 & 24.0 & 0.3 & 75.1 & 13.2 \\
+2 & 74.8 & 49.9 & 24.4 & 0.4 & 74.6 & 13.4 \\
+3 & 74.6 & 50.1 & 24.3 & 0.3 & 74.6 & 13.4 \\
+4 & 74.7 & 50.3 & 24.0 & 0.4 & 74.6 & 13.4 \\
+5 & 74.6 & 50.0 & 24.3 & 0.2 & 74.4 & 13.4 \\
+6 & 74.2 & 50.0 & 24.1 & 0.1 & 74.3 & 13.5 \\
+7 & 74.6 & 50.3 & 24.1 & 0.2 & 74.6 & 13.4 \\
+8 & 74.9 & 50.3 & 24.1 & 0.2 & 74.7 & 13.4 \\
+9 & 74.2 & 50.1 & 24.0 & 0.1 & 74.2 & 13.5 \\
+10 & 74.4 & 50.3 & 24.0 & 0.2 & 74.4 & 13.4 \\
+\textbf{mean} & \textbf{74.7} & \textbf{50.2} & \textbf{24.1} &
+\textbf{0.2} & \textbf{74.5} & \textbf{13.39} \\
+\end{longtable}
+}
+
+\textbf{FPS stats: mean 13.39, min 13.18, max 13.49, σ ≈ 0.10.}
+
+\subsection{Interpretation}\label{interpretation}
+
+The pipeline loop is fully dominated by InferTask:
+\texttt{gap\ =\ wall\ −\ total\ ≈\ 0.2\ ms}, which is the cost of the
+FreeRTOS \texttt{xQueueSend}, CDC-NCM wake-up and MicroPython tuple
+allocation. Everything else is inside the firmware, and of that
+\texttt{memcpy} alone is \textbf{32 \% of the critical path} (24.1 /
+74.4).
+
+Throughput during the copy = 786 432 B / 24 ms ≈ \textbf{32.8 MB/s}.
+That is far below SDRAM's theoretical 400 MB/s peak. The CPU is
+single-word- copying through the D-cache, which forces:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  Each 32-byte cache line of \textbf{source} is fetched from SDRAM (24
+  576 fills for 786 KB).
+\item
+  Each 32-byte cache line of \textbf{destination} is \emph{also} fetched
+  from SDRAM, because the Cortex-M7 D-cache is write-allocate.
+\item
+  The cache line is modified in place.
+\item
+  The dirty destination line is later written back to SDRAM.
+\end{enumerate}
+
+So the SEMC bus sees \textasciitilde2.4× the payload size
+(\textasciitilde1.9 MB) and all of it as isolated single-beat AXI
+accesses --- the bus cannot coalesce consecutive CPU stores into
+back-to-back bursts. Application note AN12437 explicitly calls this out:
+\emph{``SDRAM can reach high throughput when accessed by LCD and PXP, as
+these two masters support back-to-back access, with better performance
+compared to other master access, but dropping when accessed by CPU
+core.''}
+
+\section{Optimised --- eDMA memcpy with 32-byte AXI
+bursts}\label{optimised-edma-memcpy-with-32-byte-axi-bursts}
+
+The replacement helper lives in
+\href{../detection_task.cc}{detection\_task.cc}:
+
+\begin{verbatim}
+// DMA0 channel 31 (audio driver uses ch 0).  One-time init.
+static constexpr uint32_t kSentaiDmaChannel = 31;
+static edma_handle_t s_dma_memcpy_handle;
+
+// Pick the widest transfer width the addresses and size allow.
+// 32-byte → one 8-beat AXI burst per request, exactly the pattern SEMC
+// is optimised for.
+uint32_t width = 4;
+if ((((uintptr_t)src | (uintptr_t)dst | size) & 0x1Fu) == 0u)      width = 32;
+else if ((((uintptr_t)src | (uintptr_t)dst | size) & 0x07u) == 0u) width = 8;
+
+edma_transfer_config_t tcfg;
+EDMA_PrepareTransfer(&tcfg, src, width, dst, width,
+                     /*bytesEachRequest=*/size,
+                     /*transferBytes=*/size,
+                     kEDMA_MemoryToMemory);
+EDMA_SubmitTransfer(&s_dma_memcpy_handle, &tcfg);
+EDMA_StartTransfer(&s_dma_memcpy_handle);          // arm (SERQ)
+EDMA_TriggerChannelStart(DMA0, kSentaiDmaChannel); // fire first minor loop
+
+// Bounded polled wait — no ISR, no semaphore, no scheduler coupling.
+const TickType_t deadline = xTaskGetTickCount() + pdMS_TO_TICKS(50);
+while ((EDMA_GetChannelStatusFlags(DMA0, kSentaiDmaChannel)
+        & kEDMA_DoneFlag) == 0) {
+    if (xTaskGetTickCount() > deadline) return false;  // fallback to CPU memcpy
+}
+EDMA_ClearChannelStatusFlags(DMA0, kSentaiDmaChannel,
+                             kEDMA_InterruptFlag | kEDMA_DoneFlag);
+DCACHE_InvalidateByRange((uint32_t)dst, size);
+\end{verbatim}
+
+Two non-obvious details that cost measurable debug time:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{\texttt{EDMA\_StartTransfer} only sets SERQ} (the
+  request-enable bit). Memory-to-memory transfers have no peripheral
+  request line, so the minor loop never fires until we explicitly
+  software-trigger via \texttt{EDMA\_TriggerChannelStart} (SSRT
+  register). Without that call the channel sits armed forever and the 50
+  ms bounded wait expires.
+\item
+  \textbf{Poll \texttt{kEDMA\_DoneFlag}, not
+  \texttt{kEDMA\_InterruptFlag}}. Interrupts are not enabled on this
+  channel (no IRQ handler installed), so the interrupt flag would never
+  set.
+\end{enumerate}
+
+No ISR is installed; the wait is a bounded polled loop. A 786 KB
+transfer completes in \textasciitilde15 ms of wall time with a 35 ms
+safety margin, so the CPU can't livelock. On polled-loop timeout (DMA
+hardware stuck or mis-configured) the code falls back to plain
+\texttt{memcpy} --- the pipeline degrades, doesn't brick.
+
+\subsection{Cache strategy}\label{cache-strategy}
+
+Both buffers are written exclusively by DMA masters in steady state
+(\texttt{s\_staging\_buf} by PXP after camera capture; the TFLite input
+tensor by our new eDMA). DMA writes bypass the D-cache, so neither
+buffer holds dirty cache lines under normal operation. Our first attempt
+called \texttt{DCACHE\_CleanInvalidateByRange} on both source and
+destination before the DMA, for safety. That added
+\textbf{\textasciitilde20 ms} per frame --- cache ops walk all address
+ranges and on SDRAM the walk itself serialises with SEMC bus writebacks
+of whatever cache lines happen to be dirty. We measured an end-to-end
+memcpy of 78 ms with the defensive cache flush, worse than the original
+CPU \texttt{memcpy}.
+
+Removing the pre-DMA \texttt{CleanInvalidate} --- while keeping a
+mandatory \texttt{DCACHE\_InvalidateByRange(dst,\ size)} \textbf{after}
+the DMA so subsequent CPU reads see fresh bytes --- was what actually
+delivered the win.
+
+\subsection{Per-run results (10 × 20 frames, same firmware,
+dma\_memcpy=1)}\label{per-run-results-10-20-frames-same-firmware-dma_memcpy1}
+
+Flag set by \texttt{sentai.pipeline.dma\_memcpy(1)}. Measured
+immediately after the baseline block --- same camera, same scene, same
+model, same Python loop body, same TPU state. Only the runtime flag
+changed.
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1136}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1136}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1364}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1364}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1136}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.2727}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1136}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedleft
+Run
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+wall
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+invoke
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+memcpy
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+nms
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+infer\_total
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+FPS
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+1 & 64.3 & 49.5 & 14.6 & 0.2 & 64.3 & 15.6 \\
+2 & 66.3 & 50.2 & 14.6 & 0.3 & 65.1 & 15.1 \\
+3 & 64.6 & 49.7 & 14.6 & 0.2 & 64.4 & 15.5 \\
+4 & 65.9 & 49.8 & 14.6 & 0.2 & 64.7 & 15.2 \\
+5 & 64.3 & 49.5 & 14.6 & 0.2 & 64.2 & 15.6 \\
+6 & 66.1 & 50.1 & 14.4 & 0.2 & 64.7 & 15.1 \\
+7 & 64.7 & 49.7 & 14.6 & 0.2 & 64.5 & 15.5 \\
+8 & 66.1 & 50.0 & 14.6 & 0.3 & 64.8 & 15.1 \\
+9 & 64.6 & 49.7 & 14.5 & 0.2 & 64.4 & 15.5 \\
+10 & 66.1 & 49.9 & 14.7 & 0.2 & 64.8 & 15.1 \\
+\textbf{mean} & \textbf{65.3} & \textbf{49.8} & \textbf{14.6} &
+\textbf{0.2} & \textbf{64.6} & \textbf{15.32} \\
+\end{longtable}
+}
+
+\textbf{FPS stats: mean 15.32, min 15.07, max 15.56, σ ≈ 0.22.}
+
+Throughput during the copy = 786 432 B / 14.6 ms ≈ \textbf{53.9 MB/s}
+--- a \textbf{1.65× improvement} for the same buffer size and addresses.
+
+The observed pipeline FPS sits right at the camera sensor rate,
+confirming that with the DMA optimisation engaged the sensor --- not the
+compute path --- is the rate-limiting step.
+
+\section{Comparison and discussion}\label{comparison-and-discussion}
+
+\subsection{Per-stage cost (paired A/B on same firmware, 200 frames
+each)}\label{per-stage-cost-paired-ab-on-same-firmware-200-frames-each}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2000}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2667}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2667}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2667}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Stage
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+CPU memcpy
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+eDMA 32-B bursts
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Δ
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Invoke (TPU) & 50.2 ms & 49.8 ms & −0.4 ms (noise) \\
+staging → tensor copy & \textbf{24.1 ms} & \textbf{14.6 ms} &
+\textbf{−9.5 ms (−39 \%)} \\
+NMS (1-class × 1344 anchors, YOLOv5 layout) & 0.2 ms & 0.2 ms & --- \\
+InferTask total & 74.5 ms & 64.6 ms & \textbf{−9.9 ms} \\
+wall interval & 74.7 ms & 65.3 ms & −9.4 ms \\
+\end{longtable}
+}
+
+The saving is entirely explained by the copy; invoke, NMS and the
+Python/IPC gap are unchanged within noise. Importantly, \texttt{invoke}
+did \textbf{not} get slower even though the eDMA now competes with the
+TPU's internal USB bus for SEMC bandwidth --- the transfer is short
+enough (15 ms, before invoke starts) that it finishes before invoke's
+input upload begins.
+
+\subsection{Throughput headline}\label{throughput-headline}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.1579}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.2105}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.2105}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.2105}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.2105}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Config
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+FPS mean
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+FPS min
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+FPS max
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Δ vs baseline
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+CPU memcpy (\texttt{dma\_memcpy(0)}) & 13.39 & 13.18 & 13.49 & --- \\
+eDMA 32-B bursts (\texttt{dma\_memcpy(1)}) & \textbf{15.32} &
+\textbf{15.07} & \textbf{15.56} & \textbf{+14.4 \%} \\
+Camera sensor rate (hard ceiling) & 15.00 & --- & --- & --- \\
+\end{longtable}
+}
+
+The optimised configuration operates right at the camera sensor rate (15
+FPS ≈ 66.7 ms/frame); individual measurements slightly exceed this when
+the pipeline drains a small in-flight queue over one cycle and catches
+up on the next. Sustained over a longer window the effective rate is
+bounded by the camera. The 1.92 FPS absolute gain corresponds to a
+\textbf{14.4 \% relative throughput improvement} measured under
+controlled A/B conditions in the same firmware image.
+
+\subsection{Variance}\label{variance}
+
+σ grows from 0.09 to 0.20 FPS --- not material for the use case but
+worth noting. The extra variance comes from the 50 ms DMA polling path
+occasionally getting preempted by the camera task or the watchdog task;
+this would disappear if we re-armed the polling using a
+task-notification wake-up driven by the eDMA completion IRQ, at the cost
+of additional ISR state. We judged the trade-off not worth it while we
+are comfortably above the sensor rate.
+
+\section{Why we chose eDMA over
+alternatives}\label{why-we-chose-edma-over-alternatives}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3000}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.4000}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3000}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Option
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Expected time
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Why we didn't pick it
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Keep CPU \texttt{memcpy} + \texttt{\_\_builtin\_prefetch} hints &
+\textasciitilde18 ms & Only \textasciitilde25 \% saving, still CPU-bound
+on SEMC \\
+Move tensor to OCRAM & N/A & TFLite arena is 8 MB, exceeds 1.25 MB
+OCRAM \\
+Move staging to OCRAM & mixed & Halves read-side cost but write-side
+still on SEMC; net \textasciitilde10 ms, small gain for a large
+refactor \\
+PXP with PS→output 1:1 & \textasciitilde3-5 ms & PXP is already used by
+PrepTask; serialising PXP across PrepTask+InferTask would defeat
+pipeline parallelism \\
+\textbf{eDMA mem-to-mem} & \textbf{\textasciitilde14-15 ms} &
+\textbf{Independent engine, back-to-back SEMC bursts, no conflict with
+PXP, isolated to a single helper function} \\
+\end{longtable}
+}
+
+PXP would in principle be even faster than eDMA (AN12437 lists PXP as
+best-in-class for SDRAM throughput), but PXP is the camera-side resize
+engine and scheduling it twice per frame pulls PrepTask and InferTask
+into a shared-resource dance that kills parallelism. eDMA channel 31 is
+independent of every other user in the firmware, so the change stays
+local and analysable.
+
+\section{Failure modes}\label{failure-modes}
+
+Per \href{../agent/embeded.md}{agent/embeded.md}: every optimisation
+must have a defined failure path.
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Failure
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Detection
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Action
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Addresses not 4-byte aligned, or \texttt{size\ \%\ 4\ !=\ 0} &
+compile-time alignment check fails & \texttt{dma\_ok\ =\ false} → falls
+back to CPU \texttt{memcpy} \\
+eDMA submit returns non-success & Return value of
+\texttt{EDMA\_SubmitTransfer} & Return \texttt{false} → CPU
+\texttt{memcpy} \\
+Channel stuck (DONE flag never sets) & 50 ms bounded polled wait expires
+& Return \texttt{false} → CPU \texttt{memcpy} \\
+Some other task takes DMA0 ch31 & Not detected; documented single-owner
+assumption & ch31 is dedicated to this helper --- audio uses ch0; camera
+doesn't use eDMA \\
+\end{longtable}
+}
+
+No silent corruption: the DMA writes to an empty buffer the TFLite
+tensor alone will read; \texttt{DCACHE\_InvalidateByRange(dst)} after
+the DMA guarantees the next invoker reads fresh bytes regardless of
+cache state.
+
+\section{Reproducing these results}\label{reproducing-these-results}
+
+\begin{verbatim}
+# On the device REPL, after flashing build #622+.
+# One-shot E15 run — creates /diags/sNNN_e15_512/ with CSV + scene_{before,after}.jpg
+import diag
+diag.e15_pipeline_parallel_512(repetitions=5)
+
+# 10x benchmark table (dma_memcpy stays at whatever the flag is set to)
+import sentai
+exec(sentai.fs.read_str('/_e15_table.py'))
+
+# *** Paired A/B benchmark (this document's tables come from here) ***
+# Runs 10x20 frames with DMA off, then 10x20 frames with DMA on,
+# prints a side-by-side summary + FPS improvement.
+exec(sentai.fs.read_str('/_e15_ab.py'))
+
+# Manual toggle at any time:
+sentai.pipeline.dma_memcpy(0)   # CPU memcpy (baseline)
+sentai.pipeline.dma_memcpy(1)   # eDMA 32-B bursts (optimised)
+sentai.pipeline.dma_memcpy()    # read current setting
+\end{verbatim}
+
+Every run writes:
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{/diags/sNNN\_e15\_512/manifest.csv} --- experiment log
+\item
+  \texttt{/diags/sNNN\_e15\_512/001\_e14\_pipeline\_par\_cam0\_512x512.csv}
+  --- per-frame timing
+\item
+  \texttt{/diags/sNNN\_e15\_512/001\_e14\_pipeline\_par\_cam0\_512x512.txt}
+  --- column key + params
+\item
+  \texttt{/diags/sNNN\_e15\_512/scene\_cam0\_before\_512x512.jpg} ---
+  scene at experiment start
+\item
+  \texttt{/diags/sNNN\_e15\_512/scene\_cam0\_after\_512x512.jpg} ---
+  scene at experiment end
+\item
+  \texttt{/diags/sNNN\_e15\_512/summary.txt} --- heap + duration summary
+\end{itemize}
+
+The pair of scene snapshots lets an operator confirm offline that the
+camera was pointing at the expected target and that nothing moved during
+the run. This matters when \texttt{num\_detections\ ==\ 0} --- it
+distinguishes \emph{``scene had no target''} from \emph{``detector
+missed''}.
+
+\section{Cross-model comparison --- E14 (COCO 80-class) vs E15
+(1-class)}\label{cross-model-comparison-e14-coco-80-class-vs-e15-1-class}
+
+To put the memcpy optimisation in context we ran the pipeline 20 times
+per experiment (20 frames each, 400 frames total per configuration),
+each pair of runs writing CSVs + scene snapshots under its own
+\texttt{/diags/sNNN\_...} session for later offline analysis.
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Property
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+E14 (Ultralytics YOLOv8 COCO)
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+E15 (custom YOLOv5-enhanced, 1-class)
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Model file & \texttt{/yolo26n.edgetpu\_1.tflite} &
+\texttt{/yolo\_1\_class\_512\_1\_upsample\_...\_P5\_32.tflite} \\
+File size & 4.41 MB & 5.33 MB \\
+Architecture family & YOLOv8 nano (Ultralytics) & YOLOv5 enhanced
+(single upsample at P5/32) \\
+Output layout & \texttt{{[}1,\ 84,\ 2100{]}} (v8 transposed) &
+\texttt{{[}1,\ 1344,\ 6{]}} (v5-style:
+\texttt{{[}cx,cy,w,h,obj,cls{]}}) \\
+Num. classes & 80 (COCO) & 1 \\
+Input shape & int8 \texttt{{[}1,\ 320,\ 320,\ 3{]}} --- 307 200 B &
+uint8 \texttt{{[}1,\ 512,\ 512,\ 3{]}} --- 786 432 B \\
+Output shape & int8 \texttt{{[}1,\ 84,\ 2100{]}} --- 176 400 B & uint8
+\texttt{{[}1,\ 1344,\ 6{]}} --- 8 064 B \\
+NMS inner cost & \textbf{80 classes × 2100 anchors = 168 000
+dequant+compares/frame} & 1 class × 1344 anchors = 1 344
+compares/frame \\
+DMA memcpy & on (small 307 KB payload, marginal win) & on (decisive 786
+KB payload) \\
+Session & \texttt{s031\_e14\_x20/} & \texttt{s032\_e15\_x20/} \\
+\end{longtable}
+}
+
+\subsection{Aggregated results (20 runs × 20 frames each,
+verbose=0)}\label{aggregated-results-20-runs-20-frames-each-verbose0}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}lrcrc@{}}
+\toprule\noalign{}
+Metric & E14 mean & E14 range & E15 mean & E15 range \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+frame\_interval (ms) & 156.9 & 156.1--157.8 & 69.4 & 64.3--70.9 \\
+pipeline FPS (wall) & 6.37 & 6.34--6.41 & 14.40 & 14.10--15.53 \\
+firmware avg\_fps & 6.19 & 6.00--6.20 & 14.08 & 13.40--14.30 \\
+detections (sum) & 2 & --- & 0 & --- \\
+\end{longtable}
+}
+
+The \textbf{E14 experiment is NMS-bound} on this dataset: the 80-class
+yolo iteration pays \textasciitilde168 000 dequant + argmax operations
+per frame, which on Cortex-M7 FPU at 800 MHz is visibly slow compared to
+the 1-class hot path. E15's NMS sees only 1 344 single-class comparisons
+per frame and runs in \textless{} 1 ms. Together with the much heavier
+786 KB tensor copy that E15 would have to do if we hadn't switched to
+eDMA, this is why the bigger model can still run more than 2× faster
+than the smaller one.
+
+\subsection{Detection of yolo layout \& class
+count}\label{detection-of-yolo-layout-class-count}
+
+To automate experiment setup across models with different class budgets,
+the firmware now exposes \texttt{sentai.tpu.yolo\_info()} which returns
+\texttt{(layout\_str,\ num\_classes,\ num\_anchors)} inferred purely
+from the loaded model's output tensor shape (the edgetpu compiler strips
+most metadata buffers from the .tflite binary, so shape is the only
+reliable signal). Verified on both experiments:
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}ll@{}}
+\toprule\noalign{}
+Model file & \texttt{yolo\_info()} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+yolo26n.edgetpu\_1.tflite (E14) &
+\texttt{(\textquotesingle{}v8\textquotesingle{},\ 80,\ 2100)} \\
+yolo\_1\_class\_512\_1\_upsample\_\ldots\_P5\_32 (E15) &
+\texttt{(\textquotesingle{}v5\_like\textquotesingle{},\ 1,\ 1344)} \\
+\end{longtable}
+}
+
+Source: \href{../sentai_runtime.cc}{\texttt{yolo\_infer\_info()} in
+sentai\_runtime.cc}.
+
+\subsection{Artefacts saved for offline
+inspection}\label{artefacts-saved-for-offline-inspection}
+
+Each run in a session writes:
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{NNN\_\textless{}tag\textgreater{}\_pipeline\_par\_cam0\_\textless{}W\textgreater{}x\textless{}H\textgreater{}.csv}
+  --- per-frame wall\_interval, prep\_stall, infer\_stall,
+  num\_detections
+\item
+  \texttt{NNN\_\textless{}tag\textgreater{}\_pipeline\_par\_cam0\_\textless{}W\textgreater{}x\textless{}H\textgreater{}.txt}
+  --- column key + parameters (conf, iou, repetitions, frames\_received,
+  fw\_processed, fw\_dropped)
+\item
+  \texttt{scene\_cam0\_before\_\textless{}W\textgreater{}x\textless{}H\textgreater{}.jpg}
+  --- scene the operator pointed at, at session start. Lets offline
+  inspection confirm what the model saw.
+\item
+  \texttt{scene\_cam0\_after\_\textless{}W\textgreater{}x\textless{}H\textgreater{}.jpg}
+  --- same scene, session end. Paired with BEFORE for drift / movement
+  verification.
+\item
+  \texttt{manifest.csv} + \texttt{summary.txt} --- per-session roll-up.
+\end{itemize}
+
+\section{Progression across the pipeline optimisation
+effort}\label{progression-across-the-pipeline-optimisation-effort}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.2857}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.2286}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.1714}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.1429}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.1714}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Revision
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+memcpy
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+wall
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+FPS
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Note
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Baseline (camera drain polls 4 s) & 24 ms & \textasciitilde200 ms & 5.0
+& \texttt{TryGetRawFrame} not truly non-blocking \\
+Non-blocking camera drain & 24 ms & 75 ms & 13.4 & Fix \#1 --- see
+usb.md / camera.md \\
+\textbf{+ eDMA memcpy} & \textbf{14.6 ms} & \textbf{64.7 ms} &
+\textbf{15.5} & \textbf{Fix \#2 --- this document} \\
+\end{longtable}
+}
+
+End-to-end, \textbf{3.1× speedup over the initial firmware}, reaching
+the camera sensor rate.
+
+\section{What's next}\label{whats-next}
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{invoke} at 49.6 ms now dominates the loop. The remaining
+  headroom is inside \texttt{Invoke()} itself --- 28 ms cold when
+  measured outside the pipeline, 49 ms steady-state while PrepTask runs
+  concurrently, suggesting SEMC/USB bus contention with the TPU's
+  internal DMA. Pushing beyond 15 FPS would require either a lighter
+  model (smaller input → less TPU bus), or double-buffering the TFLite
+  tensor so NMS/Invoke overlap more aggressively.
+\item
+  The \texttt{sentai\_dma\_memcpy} helper is local to
+  \texttt{detection\_task.cc}. Three other places in the firmware copy
+  large SDRAM buffers (\texttt{sentai\_cam\_capture\_rgb},
+  \texttt{sentai\_cam\_capture\_jpeg},
+  \texttt{sentai\_cam\_to\_tensor\_ex}). Once lifted into
+  \texttt{libs/base/dma\_memcpy.*} the same win applies there.
+\item
+  Switch to completion-interrupt + FreeRTOS notification once any
+  concurrent user contests channel 31; the current polled loop is only
+  safe because no other task uses this channel.
+\end{itemize}
+
+\section{Sources}\label{sources}
+
+\begin{itemize}
+\tightlist
+\item
+  NXP \emph{AN12437 --- i.MX RT Series Performance Optimization} (SDRAM
+  access patterns per master; PXP/LCD/eDMA back-to-back bursts).
+\item
+  NXP \emph{i.MX RT1170 Reference Manual} (\texttt{IMXRT1170RM}), eDMA
+  and SEMC chapters (TCD layout, SSRT/SERQ semantics, AXI burst
+  configuration).
+\item
+  Local code: \href{../detection_task.cc}{detection\_task.cc},
+  \href{../modsentai_pipeline.c}{modsentai\_pipeline.c},
+  \href{../diag/e_pipeline.py}{diag/e\_pipeline.py},
+  \href{../diag/_session.py}{diag/\_session.py}.
+\end{itemize}
