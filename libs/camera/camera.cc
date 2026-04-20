@@ -820,23 +820,42 @@ bool CameraTask::VideoConvert(uint32_t in)
   PXP_ClearStatusFlags(DEMO_PXP, kPXP_CompleteFlag);
 }
 
+// Owned by sentai_runtime.cc.  We write it here, atomically with the
+// GpioSet() that flips the analogue MUX, so the frame-sequence snapshot
+// used by the post-switch drain logic cannot count frames that completed
+// while the switch request was still in-flight through CameraTask's
+// queue.  See sentai_runtime.cc:sentai_cam_switch and
+// paper/cam_switch.md for the rationale.
+extern "C" volatile uint32_t g_cam_switch_seq;
+
 void CameraTask::HandleSwitchCameraRequest(const SwitchCameraId cameraId) {
 
   // Minimal switch: just flip the MUX GPIO.
   // CSI/MIPI keeps running — do NOT stop it.
   // g_camera_frame_seq is NOT reset here — it stays monotonic.
-  // The caller (sentai_cam_switch) snapshots the seq before calling us,
-  // then checks (seq_now - seq_at_switch >= 2) to know when fresh frames
-  // from the new camera have arrived.  Monotonic avoids an ISR vs task
-  // race condition that would exist if we reset to 0 here.
+  // The drain logic in sentai_cam_get_raw_with_recovery checks
+  // (g_camera_frame_seq - g_cam_switch_seq >= 2) to know when two fresh
+  // frames from the new camera have arrived.  Monotonic avoids an
+  // ISR-vs-task race that a reset to 0 would introduce.
+  //
+  // The snapshot (g_cam_switch_seq = g_camera_frame_seq) is taken here,
+  // immediately before GpioSet, in the same task context.  The only race
+  // left is between the two statements — a 1-2 instruction window during
+  // which the CSI ISR could increment g_camera_frame_seq.  That is
+  // ~10 ns at 800 MHz; the resulting single-frame miscount is bounded
+  // (at worst we return one frame earlier than intended, still from the
+  // new camera because GpioSet had already run for the second statement
+  // of the pair in that scenario).
 
   switch(cameraId) {
     case coralmicro::SwitchCameraId::kCameraBack:
+        g_cam_switch_seq = g_camera_frame_seq;
         coralmicro::GpioSet((coralmicro::Gpio) Gpio::kCamMux, MUX_BACK_CAMERA);
         DBG_OUTPUT("BACK camera selected\n");
         break;
 
     case coralmicro::SwitchCameraId::kCameraFront:
+        g_cam_switch_seq = g_camera_frame_seq;
         coralmicro::GpioSet((coralmicro::Gpio) Gpio::kCamMux, MUX_FRONT_CAMERA);
         DBG_OUTPUT("FRONT camera selected\n");
         break;

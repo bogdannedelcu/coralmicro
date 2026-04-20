@@ -194,6 +194,25 @@ interacționează cu alte GET-uri diferite.
 -   Build #585: designul async inițial obliga mereu **≥2 HTTP round-trips**
     per GET (primul răspundea `lfs_busy` prin construcție).  Fast path-ul
     elimină acest overhead artificial pentru cazul uzual (LFS idle).
+-   Build #633 (2026-04-20): fast path-ul e restrâns la **doar `GET
+    /api/raw`**; `GET /api/ls` merge întotdeauna prin `lfs_task` (slow
+    path).  Motivul: empiric, `DoLs("/")` pe un filesystem vechi cu ~25
+    intrări în rădăcină (inclusiv ~22 MB de modele `.tflite`) depășea
+    frecvent 30 s de `lfs_dir_*` în `tcpip_thread`; asta ținea HTTP
+    activitatea "idle" din punctul de vedere al watchdog-ului de rețea
+    și placa ajungea în reset-loop la pragul de 2 min.  Per
+    [embeded.md](../agent/embeded.md) §B *"Real-time and supervision
+    rules"*, orice cod rulat în `tcpip_thread` trebuie să fie strict
+    bounded — worst-case-ul LittleFS pe dir walk nu e.  RAW reads rămân
+    pe fast path: citirile secvențiale de fișier au cost predictibil,
+    mărginit de `kRespBufSize = 256 KB`.  Costul pentru LS: fiecare
+    listing necesită ≥2 round-trip-uri (primul răspunde `lfs_busy`,
+    al doilea servește din cache SLOT_READY după ce `lfs_task` a rulat
+    `DoLs`).  La 600 ms retry în browser, latența totală vizibilă user
+    e ~700 ms în loc de ~300 ms — compromis acceptabil față de riscul
+    unui reset al plăcii.  Vezi
+    [`sentai_lfs_task.cc:sentai_lfs_try_serve`](../sentai_lfs_task.cc)
+    pentru detalii.
 
 ### 4.3 HTTP POST (`/api/write`, `/api/mkdir`, `/api/rm`)
 

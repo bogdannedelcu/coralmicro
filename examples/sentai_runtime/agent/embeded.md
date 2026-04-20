@@ -828,5 +828,6 @@ While refactoring, explicitly review the code for:
 
 
 We do not upload files on the board via HTTP, it just doesn't work well. We use USB or REPL fs.write in chunks.
+A script for uploading files on the board can be found here diag/_host_upload_repl.py, this should run on the linux host.
 
 All experiments for the board are saved in lib/diag, all of them use a session and save output in folder /diags/ in a separate session wach identifing experiment name ans session id or something. We look trhoughout other experiments to follow the same writing style.

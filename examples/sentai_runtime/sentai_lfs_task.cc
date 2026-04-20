@@ -219,33 +219,38 @@ size_t sentai_lfs_try_serve(sentai_lfs_req_type_t type, const char* path) {
     // Reusing the buffer now would corrupt it; tell the client to retry.
     if (s_slot_state == SLOT_SERVING) return 0;
 
-    // Step 3 — FAST PATH.  Take the LFS mutex and service the request inline
-    // from tcpip_thread so a single GET resolves in one HTTP round-trip.
+    // Step 3 — FAST PATH (RAW only).  Take the LFS mutex and service the
+    // request inline from tcpip_thread so a single GET resolves in one HTTP
+    // round-trip.  RAW reads are bounded by kRespBufSize (256 KB) and have a
+    // predictable cost on LittleFS (sequential block reads from NAND); safe
+    // for tcpip_thread context.
     //
-    // The short wait (FAST_PATH_WAIT_MS) catches the common case where MP
-    // is partway through a brief flash op — by the time we'd be about to
-    // send lfs_busy, the mutex is usually free.  The wait is an order of
-    // magnitude below the USB NCM transmit-timeout so tcpip_thread's brief
-    // stall here is invisible to the host.
-    //
-    // The mutex is the app-level gate used by MP, boot_log_flush, crash_log,
-    // and lfs_task itself.  Once we own it, none of those is inside lfs_*
-    // and LFS's internal mutex is free — so the lfs_* calls below will not
-    // stall on top of our own wait.
-    constexpr TickType_t FAST_PATH_WAIT_MS = 500;
-    if (s_lfs_mutex &&
-        xSemaphoreTake(s_lfs_mutex, pdMS_TO_TICKS(FAST_PATH_WAIT_MS)) == pdTRUE) {
-        size_t len = (type == LFS_REQ_LS) ? DoLs(path) : DoRaw(path);
-        xSemaphoreGive(s_lfs_mutex);
-        if (len > 0) { s_slot_state = SLOT_SERVING; return len; }
-        return (size_t)-1;  // 404 / empty
+    // LS requests are INTENTIONALLY excluded from the fast path: dir walks
+    // on LittleFS have pathological worst cases that were seen to block
+    // tcpip_thread well past the USB NCM transmit timeout (observed: root
+    // ls hanging > 30 s on an aged filesystem, causing the network
+    // watchdog to fire at the 2-min idle threshold → hard reset loop).
+    // The "1 round-trip" saving on ls is not worth risking a whole-device
+    // reset — per embeded.md, every tcpip_thread-executed path must be
+    // strictly bounded.  LS therefore ALWAYS goes through lfs_task (slow
+    // path) below; the browser retries on `lfs_busy` after 600 ms and the
+    // subsequent request hits the SLOT_READY cache.
+    if (type == LFS_REQ_RAW) {
+        constexpr TickType_t FAST_PATH_WAIT_MS = 500;
+        if (s_lfs_mutex &&
+            xSemaphoreTake(s_lfs_mutex, pdMS_TO_TICKS(FAST_PATH_WAIT_MS)) == pdTRUE) {
+            size_t len = DoRaw(path);
+            xSemaphoreGive(s_lfs_mutex);
+            if (len > 0) { s_slot_state = SLOT_SERVING; return len; }
+            return (size_t)-1;  // 404 / empty
+        }
     }
 
-    // Step 4 — SLOW PATH.  Mutex contended (MP mid-write, lfs_task busy,
-    // boot_log_flush in progress…).  Hand the request to lfs_task so we
-    // don't block tcpip_thread, and tell the client to retry.  By the next
-    // retry the fast path will usually succeed, or the queued result will
-    // be waiting in SLOT_READY.
+    // Step 4 — SLOW PATH.  Either this is a LS request (always deferred) or
+    // the fast-path mutex was contended.  Hand the request to lfs_task so
+    // we don't block tcpip_thread, and tell the client to retry.  By the
+    // next retry, lfs_task has populated SLOT_READY (Step 1 above serves it
+    // directly) or the fast path succeeds.
     if (s_slot_state == SLOT_IDLE) {
         EnqueueLfsRequest(type, path);
     }

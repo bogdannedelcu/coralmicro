@@ -150,7 +150,10 @@ def main():
             print("ERROR: %s not found in %s" % (args.file, DIAG_DIR))
             sys.exit(1)
     else:
-        files = sorted(DIAG_DIR.glob("*.py"))
+        # Skip host-only tooling (e.g. `_host_upload_repl.py`) that sits
+        # in diag/ for discoverability but runs on Linux, not on the board.
+        files = sorted(f for f in DIAG_DIR.glob("*.py")
+                       if not f.name.startswith("_host_"))
 
     if not files:
         print("ERROR: no .py files found in %s" % DIAG_DIR)

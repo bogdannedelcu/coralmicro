@@ -21,7 +21,7 @@ from diag._util import (
 )
 
 # ── session management ────────────────────────────────────────────────────────
-from diag._session import Session, begin, end, status, snapshot_scene
+from diag._session import Session, begin, end, status, snapshot_scene, snapshot_both_cameras
 
 # ── experiments: TPU ─────────────────────────────────────────────────────────
 from diag.e_tpu import e1_tpu_invoke, e2_tpu_load
@@ -46,7 +46,13 @@ from diag.e_sensors import e8_imu, e9_mic
 from diag.e_system import e10_memory, e11_cpu, e12_live_loop
 
 # ── experiments: full pipeline (per-stage timing) ─────────────────────────────
-from diag.e_pipeline import e13_pipeline_full, e14_pipeline_parallel, e15_pipeline_parallel_512
+from diag.e_pipeline import (
+    e13_pipeline_full,
+    e14_pipeline_parallel,
+    e15_pipeline_parallel_512,
+    e16_camera_switch_512,
+    e17_switch_drain_visual,
+)
 
 # ── batch runners ─────────────────────────────────────────────────────────────
 from diag.batch import (

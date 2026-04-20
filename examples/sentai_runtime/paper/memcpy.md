@@ -45,7 +45,8 @@ copy down to **14.6 ms** and raised sustained pipeline throughput from
 | On-flash size | 5 591 680 B (5.33 MB) |
 | Input | `uint8[1, 512, 512, 3]` — **786 432 B** (this is the buffer we memcpy) |
 | Input quantisation | scale = 1/255, zero_point = 0 |
-| Output | `uint8[1, 1344, 6]` — 8 064 B — yolo26 anchor format |
+| Output | `uint8[1, 1344, 6]` — 8 064 B — YOLOv5-enhanced anchor format |
+| Architecture | YOLOv5 enhanced (single upsample at P5/32, 1-class head) |
 | Output quantisation | scale = 1/255, zero_point = 0 |
 | Output row semantics | `[cx, cy, w, h, obj_conf, class_conf]` (normalised 0..1) |
 | TFLite arena | 799 KB used / 8 192 KB available |
@@ -246,7 +247,7 @@ compute path — is the rate-limiting step.
 |---|---:|---:|---:|
 | Invoke (TPU) | 50.2 ms | 49.8 ms | −0.4 ms (noise) |
 | staging → tensor copy | **24.1 ms** | **14.6 ms** | **−9.5 ms (−39 %)** |
-| NMS (yolo26 1344 anchors) | 0.2 ms | 0.2 ms | — |
+| NMS (1-class × 1344 anchors, YOLOv5 layout) | 0.2 ms | 0.2 ms | — |
 | InferTask total | 74.5 ms | 64.6 ms | **−9.9 ms** |
 | wall interval | 74.7 ms | 65.3 ms | −9.4 ms |
 
@@ -353,6 +354,73 @@ The pair of scene snapshots lets an operator confirm offline that the
 camera was pointing at the expected target and that nothing moved
 during the run.  This matters when `num_detections == 0` — it
 distinguishes *"scene had no target"* from *"detector missed"*.
+
+## Cross-model comparison — E14 (COCO 80-class) vs E15 (1-class)
+
+To put the memcpy optimisation in context we ran the pipeline 20 times per
+experiment (20 frames each, 400 frames total per configuration), each pair
+of runs writing CSVs + scene snapshots under its own `/diags/sNNN_...`
+session for later offline analysis.
+
+| Property | E14 (Ultralytics YOLOv8 COCO) | E15 (custom YOLOv5-enhanced, 1-class) |
+|---|---|---|
+| Model file | `/yolo26n.edgetpu_1.tflite` | `/yolo_1_class_512_1_upsample_..._P5_32.tflite` |
+| File size | 4.41 MB | 5.33 MB |
+| Architecture family | YOLOv8 nano (Ultralytics) | YOLOv5 enhanced (single upsample at P5/32) |
+| Output layout | `[1, 84, 2100]` (v8 transposed) | `[1, 1344, 6]` (v5-style: `[cx,cy,w,h,obj,cls]`) |
+| Num. classes | 80 (COCO) | 1 |
+| Input shape | int8 `[1, 320, 320, 3]` — 307 200 B | uint8 `[1, 512, 512, 3]` — 786 432 B |
+| Output shape | int8 `[1, 84, 2100]` — 176 400 B | uint8 `[1, 1344, 6]` — 8 064 B |
+| NMS inner cost | **80 classes × 2100 anchors = 168 000 dequant+compares/frame** | 1 class × 1344 anchors = 1 344 compares/frame |
+| DMA memcpy | on (small 307 KB payload, marginal win) | on (decisive 786 KB payload) |
+| Session | `s031_e14_x20/` | `s032_e15_x20/` |
+
+### Aggregated results (20 runs × 20 frames each, verbose=0)
+
+| Metric | E14 mean | E14 range | E15 mean | E15 range |
+|---|---:|:---:|---:|:---:|
+| frame_interval (ms) | 156.9 | 156.1–157.8 | 69.4 | 64.3–70.9 |
+| pipeline FPS (wall) | 6.37 | 6.34–6.41 | 14.40 | 14.10–15.53 |
+| firmware avg_fps | 6.19 | 6.00–6.20 | 14.08 | 13.40–14.30 |
+| detections (sum) | 2 | — | 0 | — |
+
+The **E14 experiment is NMS-bound** on this dataset: the 80-class yolo
+iteration pays ~168 000 dequant + argmax operations per frame, which on
+Cortex-M7 FPU at 800 MHz is visibly slow compared to the 1-class hot
+path.  E15's NMS sees only 1 344 single-class comparisons per frame and
+runs in < 1 ms.  Together with the much heavier 786 KB tensor copy that
+E15 would have to do if we hadn't switched to eDMA, this is why the
+bigger model can still run more than 2× faster than the smaller one.
+
+### Detection of yolo layout & class count
+
+To automate experiment setup across models with different class budgets,
+the firmware now exposes `sentai.tpu.yolo_info()` which returns
+`(layout_str, num_classes, num_anchors)` inferred purely from the
+loaded model's output tensor shape (the edgetpu compiler strips most
+metadata buffers from the .tflite binary, so shape is the only reliable
+signal).  Verified on both experiments:
+
+| Model file | `yolo_info()` |
+|---|---|
+| yolo26n.edgetpu_1.tflite (E14) | `('v8', 80, 2100)` |
+| yolo_1_class_512_1_upsample_..._P5_32 (E15) | `('v5_like', 1, 1344)` |
+
+Source: [`yolo_infer_info()` in sentai_runtime.cc](../sentai_runtime.cc).
+
+### Artefacts saved for offline inspection
+
+Each run in a session writes:
+
+- `NNN_<tag>_pipeline_par_cam0_<W>x<H>.csv` — per-frame wall_interval,
+  prep_stall, infer_stall, num_detections
+- `NNN_<tag>_pipeline_par_cam0_<W>x<H>.txt` — column key + parameters
+  (conf, iou, repetitions, frames_received, fw_processed, fw_dropped)
+- `scene_cam0_before_<W>x<H>.jpg` — scene the operator pointed at, at
+  session start.  Lets offline inspection confirm what the model saw.
+- `scene_cam0_after_<W>x<H>.jpg` — same scene, session end.  Paired
+  with BEFORE for drift / movement verification.
+- `manifest.csv` + `summary.txt` — per-session roll-up.
 
 ## Progression across the pipeline optimisation effort
 

@@ -45,6 +45,14 @@ def e13_pipeline_full(model_path, camera_id=0, width=320, height=320,
     sentai.tpu.detect(conf, iou, max_det)
     gc.collect()
 
+    # BEFORE snapshots — both cameras.  Sequential experiment, so nothing
+    # else owns the MUX and we are free to flip it.  Restores `camera_id`.
+    from diag._session import snapshot_both_cameras
+    if save:
+        snapshot_both_cameras("before")
+        sentai.camera.select(camera_id)
+        sentai.camera.to_tensor()  # drain stale frames from the restore switch
+
     frame_ms_s  = []
     tensor_ms_s = []
     invoke_ms_s = []
@@ -97,6 +105,14 @@ def e13_pipeline_full(model_path, camera_id=0, width=320, height=320,
             print("  ... %d/%d  frame=%d tensor=%d invoke=%d out=%d det=%d tot=%d dets=%d" % (
                 i + 1, repetitions,
                 frame_ms, tensor_ms, inv_ms, out_ms, det_ms, total_ms, n_det))
+
+    # AFTER snapshots — both cameras.  Pairs with BEFORE for offline diff.
+    if save:
+        snapshot_both_cameras("after")
+        try:
+            sentai.camera.select(camera_id)
+        except Exception:
+            pass
 
     st_frame  = stats(frame_ms_s)
     st_tensor = stats(tensor_ms_s)
@@ -199,10 +215,10 @@ def e15_pipeline_parallel_512(model_path="/yolo_1_class_512_1_upsample_512_inloc
     Differences vs E14:
       - 512x512 uint8 input (no int8 quant step in firmware path — slightly faster
         per frame on PrepTask side).
-      - Output shape [1, 1344, 6] is yolo26 anchor-style pre-NMS (6 = cx, cy,
-        w, h, obj_conf, class_conf for the single class).  The firmware
-        auto-detects this layout and runs the matching NMS path — see
-        `sentai_tpu_detect` in sentai_runtime.cc.
+      - Output shape [1, 1344, 6] is YOLOv5-enhanced pre-NMS anchor format
+        (6 = cx, cy, w, h, obj_conf, class_conf for the single class).  The
+        firmware auto-detects this layout and runs the matching NMS path —
+        see `sentai_tpu_detect` in sentai_runtime.cc.
 
     The purpose of E15 is to measure whether a lighter model (smaller arena,
     smaller output tensor) actually shortens the InferTask critical path —
@@ -220,8 +236,354 @@ def e15_pipeline_parallel_512(model_path="/yolo_1_class_512_1_upsample_512_inloc
                                      camera_id=camera_id,
                                      width=512, height=512,
                                      conf=0.25, iou=0.45, max_det=50,
-                                     repetitions=repetitions, save=save)
+                                     repetitions=repetitions, save=save,
+                                     _experiment_tag="E15")
     finally:
+        if owned_session:
+            end()
+
+
+def e16_camera_switch_512(
+        model_path="/yolo_1_class_512_1_upsample_512_inloc_de_1024_la_P5_32.tflite",
+        cam_a=0, cam_b=1, repetitions=40, save=True):
+    """E16 — alternating cam_a/cam_b per frame, sequential pipeline, 512x512.
+
+    Measures the latency cost of a camera MUX switch on the SentAI board.
+    Each iteration:
+      1. `sentai.camera.select(cam)`  — MUX flip + g_cam_switch_pending
+      2. `sentai.camera.to_tensor()`  — grab raw + PXP + quant into TPU input
+      3. `sentai.tpu.invoke()`        — EdgeTPU inference
+      4. `sentai.tpu.detect(conf,iou)` — YOLO NMS (auto-detects v5_like layout)
+
+    Camera is toggled between `cam_a` and `cam_b` on EACH call, so every
+    frame pays the post-switch overhead (`sentai_cam_get_raw_with_recovery`
+    hits the slow path: drain stale queued frames then wait for ≥ 2 fresh
+    ISR frames from the new sensor).  Compare against E13 (fixed camera,
+    sequential) or E15 (fixed camera, pipeline) to read off the per-switch
+    cost.
+
+    Sequential (no `sentai.pipeline.start`) because the pipeline owns the
+    camera MUX during a run — mid-pipeline `camera.select` would race with
+    PrepTask's `cam_grab_latest` and blow up determinism.
+
+    Always leaves a trace under /diags/<session>/ with per-frame CSV that
+    includes the camera id so the operator can align timing spikes with
+    the switch direction (cam_a→cam_b vs cam_b→cam_a) offline.
+    """
+    from diag._session import _session, begin, end, snapshot_both_cameras
+
+    owned_session = (_session is None)
+    if owned_session:
+        begin("e16_camswitch_512")
+
+    # Keep the noisy firmware per-frame prints off — see memcpy.md for why
+    # verbose=1 during a measurement loop saturates CDC-ACM and masks host.
+    prev_verbose = sentai.verbose(0)
+
+    # Defensive: if a prior E14/E15 left PrepTask running, mid-loop
+    # camera.select would race with cam_grab_latest.  Stop it first.
+    if sentai.pipeline.running():
+        sentai.pipeline.stop()
+
+    # Setup: both cameras powered, model loaded, streaming running.
+    sentai.camera.set_resolution(512, 512)
+    if sentai.camera.frame_count() == 0:
+        sentai.camera.init(1)
+    _last = globals().get("_e14_last_model_path", None)
+    if _last != model_path:
+        sentai.tpu.load(model_path)
+        globals()["_e14_last_model_path"] = model_path
+
+    # One full warmup on each camera so the first measured frame isn't a
+    # cold-start outlier — we want the steady-state switch cost, not the
+    # first-ever-switch cost.
+    for c in (cam_a, cam_b):
+        sentai.camera.select(c)
+        sentai.camera.to_tensor()
+        sentai.tpu.invoke()
+
+    # BEFORE snapshot — shoot both cameras so the session dir documents
+    # exactly what each sensor saw just before the switch loop began.
+    if save:
+        snapshot_both_cameras("before")
+    # End on cam_a so the loop starts cleanly on a known sensor.
+    sentai.camera.select(cam_a)
+    sentai.camera.to_tensor()  # drain stale frames from the restore switch
+
+    cam_ids = []
+    sel_ms  = []
+    ten_ms  = []
+    inv_ms  = []
+    det_ms  = []
+    ndet_s  = []
+    tot_ms  = []
+
+    try:
+        for i in range(repetitions):
+            cam = cam_a if (i % 2 == 0) else cam_b
+            t_start = _ticks()
+
+            t0 = _ticks(); sentai.camera.select(cam);   sel  = _ticks() - t0
+            t0 = _ticks(); sentai.camera.to_tensor();   tens = _ticks() - t0
+            inv = sentai.tpu.invoke()                   # returns ms or <0 on err
+            t0 = _ticks(); dets = sentai.tpu.detect(0.25, 0.45, 50); det = _ticks() - t0
+
+            tot = _ticks() - t_start
+
+            cam_ids.append(cam)
+            sel_ms.append(sel)
+            ten_ms.append(tens)
+            inv_ms.append(inv if inv >= 0 else 0)
+            det_ms.append(det)
+            ndet_s.append(len(dets) if dets else 0)
+            tot_ms.append(tot)
+    finally:
+        # AFTER snapshot — both cameras.  Pairs with BEFORE for offline diff.
+        if save:
+            snapshot_both_cameras("after")
+        sentai.verbose(prev_verbose)
+
+    # ---- aggregate ---------------------------------------------------
+    st_sel  = stats(sel_ms)
+    st_ten  = stats(ten_ms)
+    st_inv  = stats(inv_ms)
+    st_det  = stats(det_ms)
+    st_tot  = stats(tot_ms)
+    fps     = 1000.0 / st_tot["mean"] if st_tot["mean"] > 0 else 0
+    dets_total = sum(ndet_s)
+
+    # Split by camera for asymmetric scenes (one camera covered, etc.)
+    a_idx = [i for i, c in enumerate(cam_ids) if c == cam_a]
+    b_idx = [i for i, c in enumerate(cam_ids) if c == cam_b]
+    def pick(xs, idx): return [xs[i] for i in idx]
+    st_tot_a = stats(pick(tot_ms, a_idx)) if a_idx else None
+    st_tot_b = stats(pick(tot_ms, b_idx)) if b_idx else None
+
+    meta = snapshot_meta("E16_camera_switch",
+                         cam_a=cam_a, cam_b=cam_b,
+                         resolution="512x512",
+                         model_path=model_path,
+                         repetitions=repetitions)
+
+    print("[E16] Done. cam%d<->cam%d, %d frames" % (cam_a, cam_b, repetitions))
+    _print_stats("select",    st_sel)
+    _print_stats("to_tensor", st_ten)
+    _print_stats("invoke",    st_inv)
+    _print_stats("detect",    st_det)
+    _print_stats("total",     st_tot)
+    if st_tot_a: _print_stats("  cam%d total" % cam_a, st_tot_a)
+    if st_tot_b: _print_stats("  cam%d total" % cam_b, st_tot_b)
+    print("  effective FPS (w/ switch every frame): %.1f" % fps)
+    print("  dets total across %d frames: %d" % (repetitions, dets_total))
+
+    result = {
+        "experiment": "E16_camera_switch", "meta": meta,
+        "params": {"cam_a": cam_a, "cam_b": cam_b,
+                   "width": 512, "height": 512,
+                   "model_path": model_path, "repetitions": repetitions},
+        "samples": {"cam_id": cam_ids, "select_ms": sel_ms,
+                    "tensor_ms": ten_ms, "invoke_ms": inv_ms,
+                    "detect_ms": det_ms, "total_ms": tot_ms, "ndet": ndet_s},
+        "summary": {"select": st_sel, "tensor": st_ten, "invoke": st_inv,
+                    "detect": st_det, "total": st_tot, "fps": round(fps, 1),
+                    "dets_total": dets_total,
+                    "total_cam_a": st_tot_a, "total_cam_b": st_tot_b},
+    }
+
+    if save:
+        path = _save_path("e16_camswitch_cam%d_cam%d" % (cam_a, cam_b))
+        save_csv(path,
+            ["run_index", "cam_id",
+             "select_ms", "to_tensor_ms", "invoke_ms", "detect_ms",
+             "num_detections", "total_frame_ms"],
+            [(i, cam_ids[i], sel_ms[i], ten_ms[i], inv_ms[i],
+              det_ms[i], ndet_s[i], tot_ms[i]) for i in range(repetitions)])
+        _save_desc(path,
+            "E16 - Alternating camera switch, sequential pipeline, 512x512.\n"
+            "Each frame flips the MUX to the other camera before capturing,\n"
+            "so every measurement pays the post-switch drain + first-fresh-\n"
+            "frame wait cost.  Compare against E13/E15 on a fixed camera to\n"
+            "read the per-switch overhead.\n"
+            "\nColumns:\n"
+            "  run_index        : frame index (0-based)\n"
+            "  cam_id           : which camera produced this frame (cam_a/cam_b)\n"
+            "  select_ms        : time to change MUX to the target camera\n"
+            "  to_tensor_ms     : grab raw + PXP + quant + copy into TPU input\n"
+            "                     (includes drain + fresh-frame wait on switch)\n"
+            "  invoke_ms        : EdgeTPU inference time\n"
+            "  detect_ms        : YOLO NMS post-processing\n"
+            "  num_detections   : surviving detections after NMS\n"
+            "  total_frame_ms   : sum of the four stages (full cycle time)",
+            params={"cam_a": cam_a, "cam_b": cam_b,
+                    "resolution": "512x512",
+                    "model_path": model_path, "repetitions": repetitions,
+                    "dets_total": dets_total})
+        _record("e16_camera_switch", path,
+                "cam%d<->cam%d fps=%.1f sel=%.1f ten=%.1f inv=%.1f" % (
+                    cam_a, cam_b, fps, st_sel["mean"],
+                    st_ten["mean"], st_inv["mean"]))
+        print("  Saved: %s" % path)
+
+    if owned_session:
+        end()
+    return result
+
+
+def e17_switch_drain_visual(cam_a=0, cam_b=1, repetitions=16,
+                            quality=70, save=True):
+    """E17 — alternating camera JPEG capture at current switch_drain threshold.
+
+    Purpose: visually inspect whether post-switch frames contain artifacts
+    (mixed pixels, AEC/AGC glitches, rolling-shutter tears) depending on
+    the threshold set via `sentai.camera.switch_drain(n)`.  At n=2 the
+    drain path waits for two fresh ISR frames after each MUX flip; at n=1
+    it returns after one fresh frame (saves ~67 ms but may capture a
+    not-yet-stable frame).
+
+    The hot measurement loop does NOT touch LFS — every JPEG is kept in
+    MicroPython heap as `bytes` and all are written to
+    `<session>/e17_t<N>_frames/NNN_camX_YYYms.jpg` after the loop ends.
+    This keeps the per-iteration timing representative of pure
+    select + capture cost, undistorted by NAND write latency.
+
+    Memory budget: at 512x512 quality=70 a JPEG is ~25–40 KB.  Default
+    reps=16 -> ~500 KB on the MP heap (total heap 512 KB per
+    sentai_runtime.cc:MP_GC_HEAP_SIZE).  Raising reps or quality may OOM
+    — bail out cleanly rather than crashing the REPL.
+
+    Usage (from REPL):
+        import diag
+        diag.begin("e17_probe")
+        sentai.camera.switch_drain(2)        # baseline
+        r2 = diag.e17_switch_drain_visual(repetitions=16)
+        sentai.camera.switch_drain(1)        # fast path
+        r1 = diag.e17_switch_drain_visual(repetitions=16)
+        diag.end()
+    """
+    from diag._session import _session, begin, end
+
+    owned_session = (_session is None)
+    if owned_session:
+        begin("e17_switch_drain")
+
+    prev_verbose = sentai.verbose(0)
+
+    # Defensive: if a prior pipeline run left PrepTask running, an in-loop
+    # camera.select would race with cam_grab_latest.  Stop it first.
+    if sentai.pipeline.running():
+        sentai.pipeline.stop()
+
+    try:
+        sentai.camera.set_resolution(512, 512)
+        if sentai.camera.frame_count() == 0:
+            sentai.camera.init(1)
+
+        # Warm-up both cameras so the first measured iteration is not a
+        # cold-start outlier — we want steady-state post-switch cost.
+        for c in (cam_a, cam_b):
+            sentai.camera.select(c)
+            sentai.camera.to_tensor()
+
+        thresh = sentai.camera.switch_drain()
+        print("[E17] switch_drain=%d  reps=%d  quality=%d  512x512" % (
+            thresh, repetitions, quality))
+
+        # Hot loop: flip MUX, encode JPEG to RAM, time.  NO disk I/O.
+        # `sentai.camera.jpeg(q)` returns bytes from the MCU JPEG encoder;
+        # it internally calls the same get_raw_with_recovery drain path
+        # that to_tensor uses, so the measured `dt` here reflects the real
+        # switch cost at the current threshold.
+        captures = []  # (index, cam_id, elapsed_ms, jpeg_bytes)
+        t_run_start = _ticks()
+        for i in range(repetitions):
+            cam = cam_a if (i % 2 == 0) else cam_b
+            t0 = _ticks()
+            sentai.camera.select(cam)
+            jpg = sentai.camera.jpeg(quality)
+            dt = _ticks() - t0
+            captures.append((i, cam, dt, jpg))
+        t_run_wall = _ticks() - t_run_start
+
+        # Cold phase: write all buffered JPEGs to LFS.  Timing-sensitive
+        # numbers have already been captured — the LFS write cost does
+        # not leak into the per-frame statistics.
+        saved_dir = None
+        if save:
+            base = _session.dir if _session else "/diags"
+            saved_dir = "%s/e17_t%d_frames" % (base, thresh)
+            try:
+                sentai.fs.mkdir(saved_dir)
+            except Exception:
+                pass  # already exists — fine
+            for (i, cam, dt, jpg) in captures:
+                path = "%s/%03d_cam%d_%dms.jpg" % (saved_dir, i, cam, dt)
+                try:
+                    sentai.fs.write(path, jpg)
+                except Exception as e:
+                    print("  WARN failed to save %s: %s" % (path, e))
+
+        # Aggregate + report.  Skip the very first sample per camera so
+        # the reported stats reflect steady-state alternation, not the
+        # artificial head of the run.
+        times_all = [dt for (_i, _c, dt, _j) in captures]
+        cam0_t = [dt for (_i, c, dt, _j) in captures
+                  if c == cam_a][1:]
+        cam1_t = [dt for (_i, c, dt, _j) in captures
+                  if c == cam_b][1:]
+        sizes = [len(j) for (_i, _c, _dt, j) in captures]
+
+        st_all = stats(times_all)
+        print("[E17] hot-loop total wall: %d ms (%d reps)" % (
+            t_run_wall, repetitions))
+        _print_stats("per-frame", st_all)
+        if cam0_t:
+            _print_stats("  cam%d" % cam_a, stats(cam0_t))
+        if cam1_t:
+            _print_stats("  cam%d" % cam_b, stats(cam1_t))
+        print("  jpeg size: min=%d max=%d mean=%d bytes" % (
+            min(sizes), max(sizes), sum(sizes) // len(sizes)))
+        if saved_dir:
+            print("  saved %d JPEGs to %s" % (len(captures), saved_dir))
+
+        # Summary CSV so the session has a machine-readable record of the
+        # timing even when the visual JPEGs are the primary artefact.
+        if save:
+            csv_path = _save_path("e17_switch_drain_t%d" % thresh)
+            save_csv(csv_path,
+                ["run_index", "cam_id", "elapsed_ms", "jpeg_bytes"],
+                [(c[0], c[1], c[2], len(c[3])) for c in captures])
+            _save_desc(csv_path,
+                "E17 - Alternating camera JPEG capture at runtime-set\n"
+                "switch_drain threshold.  Hot loop keeps JPEGs in RAM;\n"
+                "LFS writes happen after timing measurement completes.\n"
+                "\nColumns:\n"
+                "  run_index    : frame index (0-based)\n"
+                "  cam_id       : cam_a on even, cam_b on odd\n"
+                "  elapsed_ms   : select + jpeg encode total (wall)\n"
+                "  jpeg_bytes   : size of encoded JPEG in bytes\n",
+                params={"cam_a": cam_a, "cam_b": cam_b,
+                        "repetitions": repetitions, "quality": quality,
+                        "switch_drain": thresh,
+                        "hot_wall_ms": t_run_wall,
+                        "jpeg_dir": saved_dir})
+            _record("e17_switch_drain", csv_path,
+                    "thr=%d reps=%d mean=%.1fms" % (
+                        thresh, repetitions, st_all["mean"]))
+
+        return {"experiment": "E17_switch_drain_visual",
+                "params": {"cam_a": cam_a, "cam_b": cam_b,
+                           "repetitions": repetitions, "quality": quality,
+                           "switch_drain": thresh},
+                "samples": {"elapsed_ms": times_all,
+                            "cam_id": [c[1] for c in captures],
+                            "jpeg_bytes": sizes},
+                "summary": {"per_frame": st_all,
+                            "cam_a_after_skip": stats(cam0_t) if cam0_t else None,
+                            "cam_b_after_skip": stats(cam1_t) if cam1_t else None,
+                            "hot_wall_ms": t_run_wall,
+                            "jpeg_dir": saved_dir}}
+    finally:
+        sentai.verbose(prev_verbose)
         if owned_session:
             end()
 
@@ -229,7 +591,8 @@ def e15_pipeline_parallel_512(model_path="/yolo_1_class_512_1_upsample_512_inloc
 def e14_pipeline_parallel(model_path, camera_id=0, width=320, height=320,
                           conf=0.25, iou=0.45, max_det=50,
                           repetitions=30, save=True,
-                          compare_sequential=False):
+                          compare_sequential=False,
+                          _experiment_tag="E14"):
     """Parallel pipeline: firmware PrepTask || InferTask, measured sustained FPS.
 
     Uses sentai.pipeline.start/get/stop. PrepTask does camera grab + PXP resize
@@ -242,8 +605,10 @@ def e14_pipeline_parallel(model_path, camera_id=0, width=320, height=320,
       - final frames_processed / frames_dropped from sentai.pipeline.stats()
       - prep_stall / infer_stall via sentai.pipeline.task_health()
     """
-    print("[E14] Pipeline parallel — cam%d %dx%d model=%s %d reps (conf=%.2f iou=%.2f)" % (
-        camera_id, width, height, model_path, repetitions, conf, iou))
+    tag = _experiment_tag                      # e.g. "E14" or "E15"
+    tag_lo = tag.lower()                       # used in file-name prefix
+    print("[%s] Pipeline parallel — cam%d %dx%d model=%s %d reps (conf=%.2f iou=%.2f)" % (
+        tag, camera_id, width, height, model_path, repetitions, conf, iou))
 
     # Silence *everything* for the entire experiment. Camera init + warmup
     # to_tensor() each emit a flurry of printf lines that together can
@@ -271,36 +636,39 @@ def e14_pipeline_parallel(model_path, camera_id=0, width=320, height=320,
     if sentai.camera.frame_count() == 0:
         sentai.camera.init(1)
 
-    # Load the model only if a different one is in place.  `tpu.ready()` is
-    # true after a successful load; we compare the last-loaded name implicitly
-    # via the tensor dims (512x512 means the 512 model is loaded).
-    need_load = True
-    if sentai.tpu.ready():
-        # Cheap heuristic: if input is 512x512, assume the right model is loaded.
-        # set_input_size is part of tpu API to check dims; here we just reload
-        # if we can't prove it cheaply.  Skip reload on subsequent E15 calls.
-        try:
-            # If tpu has the expected model and the input tensor already matches,
-            # reload is unnecessary.  We detect this by trying a no-op: if the
-            # previous run used the same model, the pipeline.start below will
-            # accept the tensor.  Simplest: skip reload unconditionally after
-            # first call — the caller can force reload by rebooting.
-            need_load = False
-        except Exception:
-            need_load = True
-    if need_load:
+    # Path-keyed reload: only call tpu.load() when the requested model differs
+    # from whatever is currently resident.  Two reasons:
+    #  1. Correctness — skipping the load purely on `tpu.ready()` silently
+    #     ran the previous experiment's model with the new experiment's
+    #     tensor layout, which took weeks of debugging off someone's life.
+    #  2. Memory — the EdgeTpuManager package cache keyed by model-data
+    #     pointer accumulates an entry per load; reloading the same model
+    #     20 times burns heap until SDRAM pressure slows the pipeline from
+    #     15 FPS down to 6 FPS (observed).
+    _last = globals().get("_e14_last_model_path", None)
+    if _last != model_path:
         sentai.tpu.load(model_path)
+        globals()["_e14_last_model_path"] = model_path
+
+    # Warm camera pipeline so first frame isn't a cold-start outlier.
+    # Has to run *before* the BEFORE snapshot — otherwise snapshot_scene
+    # sees frame_count==0 (camera streaming hasn't produced a frame yet)
+    # and silently skips, leaving the session without a BEFORE image.
+    sentai.camera.to_tensor()
+    gc.collect()
 
     # Scene snapshot (BEFORE the measurement loop).  Camera is assumed static
     # across the run, so we capture the exact PXP-scaled pixels the TPU will
     # see — useful when `dets_total == 0` to offline-verify scene content.
-    from diag._session import snapshot_scene
+    # We snapshot BOTH cameras (cam0 + cam1) so the session dir documents
+    # what each sensor saw even when only one is exercised here — cheap
+    # (~100–500 ms for two MUX flips) and pays off when diffing offline.
+    from diag._session import snapshot_both_cameras
     if save:
-        snapshot_scene("before", name="scene_cam%d" % camera_id)
-
-    # Warm camera pipeline so first frame isn't a cold-start outlier.
-    sentai.camera.to_tensor()
-    gc.collect()
+        snapshot_both_cameras("before")
+        # snapshot_both_cameras leaves cam1 selected — restore experiment cam.
+        sentai.camera.select(camera_id)
+        sentai.camera.to_tensor()  # drain stale frames from the switch
 
     # verbose already 0 from above — kept suppressed through pipeline body.
 
@@ -361,15 +729,21 @@ def e14_pipeline_parallel(model_path, camera_id=0, width=320, height=320,
         # eventually blocking mp_repl on a stalled USB bulk endpoint.
         if sentai.pipeline.running():
             sentai.pipeline.stop()
-        # Scene snapshot (AFTER the measurement loop).  Camera is still
-        # initialised and streaming; pipeline is stopped so to_tensor() is
-        # free to grab a frame.  Pairs with the BEFORE snapshot for diff.
+        # Scene snapshots (AFTER the measurement loop).  Pipeline is stopped
+        # so camera.select + to_tensor() are free to grab frames.  Shoot both
+        # cameras to pair with the BEFORE pair — diff offline if the scene
+        # drifted or an LED blinked mid-run.
         if save:
-            snapshot_scene("after", name="scene_cam%d" % camera_id)
+            snapshot_both_cameras("after")
+            # Leave experiment camera selected on exit.
+            try:
+                sentai.camera.select(camera_id)
+            except Exception:
+                pass
         sentai.verbose(prev_verbose)
 
     if not intervals_ms:
-        print("[E14] No frames received — pipeline stalled.")
+        print("[%s] No frames received — pipeline stalled." % tag)
         return None
 
     st_interval = stats(intervals_ms)
@@ -380,13 +754,14 @@ def e14_pipeline_parallel(model_path, camera_id=0, width=320, height=320,
     run_ms = t_run_end - t_run_start
     dets_total = sum(ndet_s)
 
-    meta = snapshot_meta("E14_pipeline_parallel",
+    meta = snapshot_meta("%s_pipeline_parallel" % tag,
                          camera_id=camera_id,
                          resolution="%dx%d" % (width, height),
                          model_path=model_path,
-                         conf=conf, iou=iou)
+                         conf=conf, iou=iou,
+                         repetitions=repetitions)
 
-    print("[E14] Done.")
+    print("[%s] Done." % tag)
     _print_stats("frame_interval", st_interval)
     _print_stats("prep_stall",     st_prep)
     _print_stats("infer_stall",    st_infer)
@@ -398,7 +773,7 @@ def e14_pipeline_parallel(model_path, camera_id=0, width=320, height=320,
     print("  total wall time for %d received frames = %d ms (%.2f s)" % (
         got, run_ms, run_ms / 1000.0))
 
-    result = {"experiment": "E14_pipeline_parallel", "meta": meta,
+    result = {"experiment": "%s_pipeline_parallel" % tag, "meta": meta,
               "params": {"camera_id": camera_id, "width": width, "height": height,
                          "model_path": model_path, "repetitions": repetitions,
                          "conf": conf, "iou": iou, "max_det": max_det},
@@ -417,7 +792,8 @@ def e14_pipeline_parallel(model_path, camera_id=0, width=320, height=320,
                           "dets_total": dets_total}}
 
     if save:
-        path = _save_path("e14_pipeline_par_cam%d_%dx%d" % (camera_id, width, height))
+        path = _save_path("%s_pipeline_par_cam%d_%dx%d" % (
+            tag_lo, camera_id, width, height))
         save_csv(path,
             ["run_index",
              "frame_interval_ms",
@@ -427,7 +803,7 @@ def e14_pipeline_parallel(model_path, camera_id=0, width=320, height=320,
             [(i, intervals_ms[i], prep_stall_s[i], infer_stall_s[i], ndet_s[i])
              for i in range(len(intervals_ms))])
         _save_desc(path,
-            "E14 - Parallel inference pipeline, measured sustained FPS.\n"
+            "%s - Parallel inference pipeline, measured sustained FPS.\n"
             "Uses firmware PrepTask (PXP+quant into staging) || InferTask\n"
             "(memcpy staging->tensor, Invoke, NMS).  Staging buffer released\n"
             "before Invoke runs, so frame N+1 prep overlaps with frame N invoke.\n"
@@ -438,12 +814,15 @@ def e14_pipeline_parallel(model_path, camera_id=0, width=320, height=320,
             "  prep_stall_ms      : time since PrepTask last completed a frame (ms)\n"
             "  infer_stall_ms     : time since InferTask last completed a frame (ms)\n"
             "  num_detections     : detections returned for this frame\n"
-            "\nSustained FPS = 1000 / mean(frame_interval_ms).\n"
-            "Compare with E13's total_loop_ms to measure pipeline speedup.",
+            "\nSustained FPS = 1000 / mean(frame_interval_ms)." % tag,
             params={"camera_id": camera_id, "width": width, "height": height,
                     "model_path": model_path, "repetitions": repetitions,
-                    "conf": conf, "iou": iou, "max_det": max_det})
-        _record("e14_pipeline_parallel", path,
+                    "conf": conf, "iou": iou, "max_det": max_det,
+                    "frames_received": got,
+                    "frames_timeouts": timeouts,
+                    "fw_processed": processed_fw,
+                    "fw_dropped": dropped_fw})
+        _record("%s_pipeline_parallel" % tag_lo, path,
                 "cam%d %dx%d fps_wall=%.1f fw_fps=%.1f dropped=%d dets=%d" % (
                     camera_id, width, height, fps_wall, avg_fps_fw,
                     dropped_fw, dets_total))
@@ -451,7 +830,7 @@ def e14_pipeline_parallel(model_path, camera_id=0, width=320, height=320,
 
     # Optional inline comparison against sequential E13 on the same config.
     if compare_sequential:
-        print("\n[E14] Running E13 on the same config for comparison...")
+        print("\n[%s] Running E13 on the same config for comparison..." % tag)
         seq = e13_pipeline_full(model_path, camera_id=camera_id,
                                 width=width, height=height,
                                 conf=conf, iou=iou, max_det=max_det,
@@ -461,7 +840,7 @@ def e14_pipeline_parallel(model_path, camera_id=0, width=320, height=320,
             seq_fps   = seq["summary"]["fps"]
             speedup   = fps_wall / seq_fps if seq_fps > 0 else 0
             saved_ms  = seq_total - st_interval["mean"]
-            print("\n[E14] Comparison E14(parallel) vs E13(sequential):")
+            print("\n[%s] Comparison %s(parallel) vs E13(sequential):" % (tag, tag))
             print("  sequential: %.1f ms/frame  %.1f FPS" % (seq_total, seq_fps))
             print("  parallel:   %.1f ms/frame  %.1f FPS" % (st_interval["mean"], fps_wall))
             print("  speedup:    %.2fx  saved %.1f ms/frame" % (speedup, saved_ms))

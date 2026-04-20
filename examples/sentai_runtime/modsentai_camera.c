@@ -145,6 +145,28 @@ static mp_obj_t mod_sentai_cam_rotate(mp_obj_t cam_obj, mp_obj_t deg_obj) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_2(mod_sentai_cam_rotate_obj, mod_sentai_cam_rotate);
 
+// sentai.camera.switch_drain([n]) -> int (previous value)
+//
+// Read/write the post-switch drain threshold: number of fresh ISR frames
+// required after a MUX flip before get_raw_with_recovery returns a frame.
+// Default 2 (one possibly-mixed frame + one fully-new frame).  Accepts
+// n in [1,10]; raises ValueError otherwise.  A/B runtime toggle used by
+// experiment E17 to inspect post-switch image artifacts at threshold=1.
+extern uint32_t sentai_cam_switch_drain_get(void);
+extern int      sentai_cam_switch_drain_set(uint32_t n);
+static mp_obj_t mod_sentai_cam_switch_drain(size_t n_args, const mp_obj_t *args) {
+    int prev = (int) sentai_cam_switch_drain_get();
+    if (n_args >= 1) {
+        int v = mp_obj_get_int(args[0]);
+        if (sentai_cam_switch_drain_set((uint32_t) v) != 0) {
+            mp_raise_ValueError(MP_ERROR_TEXT("switch_drain must be 1..10"));
+        }
+    }
+    return mp_obj_new_int(prev);
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_cam_switch_drain_obj,
+                                            0, 1, mod_sentai_cam_switch_drain);
+
 // ---- module table ----
 static const mp_rom_map_elem_t sentai_camera_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__),   MP_ROM_QSTR(MP_QSTR_camera) },
@@ -159,6 +181,7 @@ static const mp_rom_map_elem_t sentai_camera_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_select),     MP_ROM_PTR(&mod_sentai_cam_select_obj) },
     { MP_ROM_QSTR(MP_QSTR_frame_count),  MP_ROM_PTR(&mod_sentai_cam_frame_count_obj) },
     { MP_ROM_QSTR(MP_QSTR_rotate),     MP_ROM_PTR(&mod_sentai_cam_rotate_obj) },
+    { MP_ROM_QSTR(MP_QSTR_switch_drain), MP_ROM_PTR(&mod_sentai_cam_switch_drain_obj) },
 };
 static MP_DEFINE_CONST_DICT(sentai_camera_globals, sentai_camera_globals_table);
 static const mp_obj_module_t sentai_camera_module = {

@@ -1457,6 +1457,89 @@ static void draw_string(uint8_t* buf, int bw, int bh, int sx, int sy,
 
 }  // namespace
 
+// ---------------------------------------------------------------------------
+// YOLO output layout auto-detection
+// ---------------------------------------------------------------------------
+// Infers (layout, num_classes, num_anchors) from the output tensor's shape
+// dims alone.  Two pre-NMS layouts seen in practice:
+//
+//   YOLO_V5_LIKE    [1, N, 5+C]   row = [cx, cy, w, h, obj, cls_0..cls_C-1]
+//                                 Covers classic YOLOv5 and YOLOv5-enhanced
+//                                 variants.  Single-class is the C=1
+//                                 degenerate: shape [1, N, 6] with the last
+//                                 column being the single class confidence.
+//
+//   YOLO_V8         [1, 4+C, N]   Ultralytics YOLOv8 family (incl. yolo26n).
+//                                 Transposed: bbox rows first, class rows
+//                                 after.  No separate objectness column.
+//                                 COCO yolo26n.edgetpu_1: C=80, [1, 84, 2100].
+//
+//   UNKNOWN                       shape doesn't match either pattern
+//
+// Heuristic: the "anchors" dimension is always far larger than 4+C (hundreds
+// to thousands), so whichever of dims[1]/dims[2] is larger is N; the smaller
+// one is either 5+C (v5-like) or 4+C (v8).  v5-like has anchors in dims[1]
+// (anchors-first), v8 has anchors in dims[2] (anchors-last).
+
+enum class YoloLayout : uint8_t {
+    kUnknown   = 0,
+    kV5Like    = 1,  // [1, N, 5+C]   — YOLOv5 / YOLOv5-enhanced (our 1-class model)
+    kV8        = 2,  // [1, 4+C, N]   — YOLOv8 family (yolo26n COCO)
+};
+
+struct YoloInfo {
+    YoloLayout layout;
+    int num_classes;
+    int num_anchors;
+};
+
+static YoloInfo yolo_infer_info(const TfLiteTensor* output) {
+    YoloInfo o = {YoloLayout::kUnknown, 0, 0};
+    if (!output || output->dims->size != 3 || output->dims->data[0] != 1) return o;
+    int d1 = output->dims->data[1];
+    int d2 = output->dims->data[2];
+    // The anchor dimension is the LARGER one in every real yolo export —
+    // typical anchor counts range from ~500 to ~25 000, while 4+C or 5+C
+    // is at most ~100 (COCO's 80 classes).  So:
+    //   v5-like [1, N, 5+C]: dims[1] = N (large), dims[2] = 5+C (small)
+    //     → d1 > d2
+    //   v8      [1, 4+C, N]: dims[1] = 4+C (small), dims[2] = N (large)
+    //     → d2 > d1
+    if (d1 > d2 && d2 > 4) {
+        // v5-like.  rows = 5+C (includes a separate objectness column).
+        int C = d2 - 5;
+        if (C >= 1) {
+            o.layout      = YoloLayout::kV5Like;
+            o.num_classes = C;
+            o.num_anchors = d1;
+        }
+    } else if (d2 > d1 && d1 > 4) {
+        // v8.  rows = 4+C (no objectness column, class conf directly).
+        int C = d1 - 4;
+        if (C >= 1) {
+            o.layout      = YoloLayout::kV8;
+            o.num_classes = C;
+            o.num_anchors = d2;
+        }
+    }
+    return o;
+}
+
+// Public C bridge — lets MicroPython introspect the loaded model without
+// touching tensor internals.  Returns 0 on success with values filled in;
+// negative error otherwise.  Callers may pass nullptr for any out param.
+extern "C" int sentai_tpu_output_yolo_info(int* layout_out,
+                                           int* num_classes_out,
+                                           int* num_anchors_out) {
+    if (!coralmicro::g_tpu_ready || !coralmicro::g_interpreter) return -1;
+    const TfLiteTensor* out = coralmicro::g_interpreter->output_tensor(0);
+    YoloInfo info = yolo_infer_info(out);
+    if (layout_out)      *layout_out      = (int)info.layout;
+    if (num_classes_out) *num_classes_out = info.num_classes;
+    if (num_anchors_out) *num_anchors_out = info.num_anchors;
+    return (info.layout == YoloLayout::kUnknown) ? -2 : 0;
+}
+
 extern "C" int sentai_tpu_detect(int conf_permil, int iou_permil,
                                  int max_dets,
                                  int16_t* out_buf, int* out_count) {
@@ -1467,16 +1550,8 @@ extern "C" int sentai_tpu_detect(int conf_permil, int iou_permil,
   auto* output = g_interpreter->output_tensor(0);
   if (!output || output->dims->size != 3) return -2;
 
-  // Two supported output layouts:
-  //   Legacy (COCO yolo v5/v8 pre-NMS):  [1, C=4+num_classes, N_anchors]
-  //       e.g. [1, 84, 2100].  Bbox rows first, class rows after.
-  //   yolo26 (1-class, pre-NMS):         [1, N_anchors, 6]
-  //       e.g. [1, 1344, 6].  Row = [cx, cy, w, h, obj_conf, class_conf].
-  //
-  // We distinguish by the last dimension: 6 means yolo26 (only makes sense
-  // for 1-class models), anything else means the legacy layout.
-  int d1 = output->dims->data[1];
-  int d2 = output->dims->data[2];
+  YoloInfo info = yolo_infer_info(output);
+  if (info.layout == YoloLayout::kUnknown) return -3;
 
   auto* input = g_interpreter->input_tensor(0);
   int in_h = input->dims->data[1];
@@ -1491,45 +1566,52 @@ extern "C" int sentai_tpu_detect(int conf_permil, int iou_permil,
   int num_cand = 0;
   float max_coord = 0.0f;
 
-  // ---- yolo26 path:  [1, N, 6] with row = {cx,cy,w,h,obj,cls_conf} -------
-  if (d2 == 6) {
-    int N26 = d1;
-    // TPU output on this model is uint8 quantised (zp=0, scale≈1/255).
-    const uint8_t* udata = reinterpret_cast<const uint8_t*>(output->data.data);
-    for (int j = 0; j < N26 && num_cand < kMaxNmsCandidates; j++) {
-      const uint8_t* row = udata + (size_t)j * 6u;
-      float obj = scale * ((int)row[4] - zp);
-      float cls = scale * ((int)row[5] - zp);
-      float cf  = obj * cls;
+  const int N = info.num_anchors;
+  const int C = info.num_classes;
+
+  if (info.layout == YoloLayout::kV5Like) {
+    // [1, N, 5+C] — rows contiguous in memory.  Row layout:
+    //   bytes 0..3   = cx, cy, w, h
+    //   byte 4       = objectness
+    //   bytes 5..4+C = per-class conf (take argmax)
+    // Read as uint8 when the tensor is uint8-quantised, int8 otherwise.
+    const int row_bytes = 5 + C;
+    const bool is_u8 = (output->type == kTfLiteUInt8);
+    const uint8_t* u = reinterpret_cast<const uint8_t*>(output->data.data);
+    const int8_t*  s = reinterpret_cast<const int8_t *>(output->data.data);
+    for (int j = 0; j < N && num_cand < kMaxNmsCandidates; j++) {
+      int base = j * row_bytes;
+      auto q = [&](int k) -> float {
+          int raw = is_u8 ? (int)u[base + k] : (int)s[base + k];
+          return scale * (raw - zp);
+      };
+      float obj = q(4);
+      float best_cls_conf = -1e9f;
+      int   best_cls_id   = 0;
+      for (int c = 0; c < C; c++) {
+          float v = q(5 + c);
+          if (v > best_cls_conf) { best_cls_conf = v; best_cls_id = c; }
+      }
+      float cf = obj * best_cls_conf;
       if (cf < conf_thr) continue;
 
-      float cx = scale * ((int)row[0] - zp);
-      float cy = scale * ((int)row[1] - zp);
-      float bw = scale * ((int)row[2] - zp);
-      float bh = scale * ((int)row[3] - zp);
-
-      float x1 = cx - bw * 0.5f;
-      float y1 = cy - bh * 0.5f;
-      float x2 = cx + bw * 0.5f;
-      float y2 = cy + bh * 0.5f;
-
+      float cx = q(0), cy = q(1), bw = q(2), bh = q(3);
+      float x1 = cx - bw * 0.5f, y1 = cy - bh * 0.5f;
+      float x2 = cx + bw * 0.5f, y2 = cy + bh * 0.5f;
       if (x2 > max_coord) max_coord = x2;
       if (y2 > max_coord) max_coord = y2;
-      g_nms_cand[num_cand++] = {x1, y1, x2, y2, cf, (int16_t)0};
+      g_nms_cand[num_cand++] = {x1, y1, x2, y2, cf, (int16_t)best_cls_id};
     }
   } else {
-    // ---- Legacy COCO layout [1, C=4+classes, N_anchors] ------------------
-    int C = d1;
-    int N = d2;
-    int num_classes = C - 4;
-    if (num_classes <= 0) return -3;
+    // kV8: [1, 4+C, N] — column j is one anchor; row c across all j.
     const int8_t* data = reinterpret_cast<const int8_t*>(output->data.data);
+    const int CC = 4 + C;  // rows
     for (int j = 0; j < N && num_cand < kMaxNmsCandidates; j++) {
       float best_score = -1e9f;
       int best_cls = 0;
-      for (int c = 4; c < C; c++) {
-        float s = scale * ((int)data[c * N + j] - zp);
-        if (s > best_score) { best_score = s; best_cls = c - 4; }
+      for (int c = 4; c < CC; c++) {
+        float v = scale * ((int)data[c * N + j] - zp);
+        if (v > best_score) { best_score = v; best_cls = c - 4; }
       }
       if (best_score < conf_thr) continue;
 
@@ -1537,20 +1619,13 @@ extern "C" int sentai_tpu_detect(int conf_permil, int iou_permil,
       float cy = scale * ((int)data[1 * N + j] - zp);
       float bw = scale * ((int)data[2 * N + j] - zp);
       float bh = scale * ((int)data[3 * N + j] - zp);
-
-      float x1 = cx - bw * 0.5f;
-      float y1 = cy - bh * 0.5f;
-      float x2 = cx + bw * 0.5f;
-      float y2 = cy + bh * 0.5f;
-
+      float x1 = cx - bw * 0.5f, y1 = cy - bh * 0.5f;
+      float x2 = cx + bw * 0.5f, y2 = cy + bh * 0.5f;
       if (x2 > max_coord) max_coord = x2;
       if (y2 > max_coord) max_coord = y2;
-
       g_nms_cand[num_cand++] = {x1, y1, x2, y2, best_score, (int16_t)best_cls};
     }
   }
-
-  int N = (d2 == 6) ? d1 : d2;  // used for the debug log at the end
 
   if (num_cand == 0) return 0;
 
@@ -1745,8 +1820,34 @@ static volatile bool g_cam_initialized = false;
 static int g_cam_width = DEMO_CAMERA_WIDTH;
 static int g_cam_height = DEMO_CAMERA_HEIGHT;
 static int g_cam_current_id = 0;  // 0=front, 1=back
-static volatile uint32_t g_cam_switch_seq = 0;  // g_camera_frame_seq snapshot at MUX switch time
+// g_camera_frame_seq snapshot at MUX switch time.  Extern-visible so that
+// CameraTask::HandleSwitchCameraRequest can write it atomically together
+// with the GpioSet() that flips the mux — eliminates the queue-latency
+// race where a frame whose DMA completed between snapshot-in-wrapper and
+// actual-flip-in-handler used to count as "fresh" (it was still from the
+// old camera).  See paper/cam_switch.md §"The 65 ms asymmetry is
+// structural".
+volatile uint32_t g_cam_switch_seq = 0;
 static volatile bool g_cam_switch_pending = false;  // set by cam_switch, cleared by first capture
+
+// Post-switch drain threshold (number of fresh ISR frames required after a
+// MUX flip before a frame is considered clean).  Default 2 (one mixed
+// post-flip frame + one fully-new frame).  Runtime-settable via
+// `sentai.camera.switch_drain(n)` for A/B measurement — see E17
+// experiment.  Bounded to [1, 10] at the setter to preserve
+// analyzability: threshold=0 would return a pre-flip frame, threshold
+// beyond 10 is not a sensible operating point on this 15 FPS pipeline.
+static volatile uint32_t g_cam_switch_drain_threshold = 2;
+
+extern "C" uint32_t sentai_cam_switch_drain_get(void) {
+  return g_cam_switch_drain_threshold;
+}
+
+extern "C" int sentai_cam_switch_drain_set(uint32_t n) {
+  if (n < 1 || n > 10) return -1;
+  g_cam_switch_drain_threshold = n;
+  return 0;
+}
 
 // ===================== Audio externs for AIfES =====================
 // Uses the existing mic implementation in modsentai_hal.cc
@@ -1895,19 +1996,32 @@ static int sentai_cam_get_raw_with_recovery(uint8_t** raw_out) {
   // After a camera switch, we need >= 2 fresh ISR frames from the new
   // camera before the image is guaranteed clean (the first frame after MUX
   // flip may be mixed, the second is fully captured by the new sensor).
-  // g_cam_switch_seq was snapshot BEFORE the MUX flip, so
-  // (g_camera_frame_seq - g_cam_switch_seq >= 2) means 2+ new frames.
+  // g_cam_switch_seq is written by HandleSwitchCameraRequest in camera.cc
+  // atomically with the GpioSet() that flips the mux, so
+  // (g_camera_frame_seq - g_cam_switch_seq >= 2) reliably counts only
+  // post-flip frames.  Previously the snapshot lived in this file, taken
+  // *before* the MUX-flip request was dispatched through the CameraTask
+  // queue — a 1–10 ms window during which ISR ticks were counted as
+  // post-flip.  That race produced the 65 ms cam1-vs-cam0 asymmetry
+  // documented in paper/cam_switch.md before this fix.
   if (g_cam_switch_pending) {
     g_cam_switch_pending = false;
     uint32_t seq_at_switch = g_cam_switch_seq;  // snapshot (usually 0)
     uint32_t seq_now = g_camera_frame_seq;
     uint32_t elapsed = seq_now - seq_at_switch;
 
-    if (elapsed >= 2) {
+    // Snapshot the runtime threshold ONCE per entry: the caller might
+    // legitimately change it mid-run (A/B experiments), but each
+    // decision in this function must use a single consistent value.
+    uint32_t threshold = g_cam_switch_drain_threshold;
+    if (threshold < 1) threshold = 1;
+    if (threshold > 10) threshold = 10;
+
+    if (elapsed >= threshold) {
       // Fast path: enough ISR frames have already arrived since MUX flip.
       // Just drain stale queued buffers and keep the latest — no blocking.
-      printf("  [frame] post-switch FAST: %lu ISR frames elapsed\r\n",
-             (unsigned long)elapsed);
+      printf("  [frame] post-switch FAST: %lu ISR frames elapsed (thr=%lu)\r\n",
+             (unsigned long)elapsed, (unsigned long)threshold);
       // fall through to normal drain-and-keep-last below
     } else {
       // Slow path: switch was very recent, not enough frames yet.
@@ -1920,10 +2034,14 @@ static int sentai_cam_get_raw_with_recovery(uint8_t** raw_out) {
         cam->ReturnRawFrame(idx);
         drained++;
       }
-      // Wait until ISR counter shows >= 2 frames from new camera.
-      // At 15 fps each frame takes ~67ms, so max wait ≈ 134ms.
+      // Wait until ISR counter shows >= threshold frames from new camera.
+      // At 15 fps each frame takes ~67ms, so max wait ≈ threshold × 67ms.
+      // Hard ceiling of 300 iterations × 1ms keeps this bounded even if
+      // the ISR stops firing (camera driver fault → falls through to
+      // recovery path below with g_cam_switch_pending already cleared).
       int wait_iters = 0;
-      while ((g_camera_frame_seq - seq_at_switch) < 2 && wait_iters < 300) {
+      while ((g_camera_frame_seq - seq_at_switch) < threshold
+             && wait_iters < 300) {
         vTaskDelay(pdMS_TO_TICKS(1));
         wait_iters++;
       }
@@ -1933,8 +2051,8 @@ static int sentai_cam_get_raw_with_recovery(uint8_t** raw_out) {
       if (idx >= 0 && frame) {
         TickType_t total = xTaskGetTickCount() - t_start;
         printf("  [frame] post-switch SLOW: drained %d, waited %dms, "
-               "seq=%lu, buf#%d (%ldms)\r\n",
-               drained, wait_iters,
+               "thr=%lu, seq=%lu, buf#%d (%ldms)\r\n",
+               drained, wait_iters, (unsigned long)threshold,
                (unsigned long)g_camera_frame_seq, idx, (long)total);
         *raw_out = frame;
         return idx;
@@ -2145,15 +2263,21 @@ extern "C" int sentai_cam_to_tensor(void) {
 }
 
 // Switch between front and back cameras. id: 0=front, 1=back.
+//
+// The `g_cam_switch_seq` snapshot is taken inside
+// CameraTask::HandleSwitchCameraRequest (camera.cc) in the same task
+// context and same instruction stream as the GpioSet() that flips the
+// MUX.  `cam->SwitchCamera(...)` below uses the blocking SendRequest
+// path (libs/base/queue_task.h), so by the time it returns the handler
+// has finished, the GPIO is flipped, and g_cam_switch_seq holds the
+// pre-flip sequence number.  Only then do we raise g_cam_switch_pending,
+// so any reader that observes pending=true is guaranteed to see a
+// consistent (seq, mux) pair.
 extern "C" int sentai_cam_switch(int id) {
   if (!g_cam_initialized) return -1;
   if (id == g_cam_current_id) return 0;  // already on this camera
   auto* cam = coralmicro::CameraTask::GetSingleton();
   TickType_t ts0 = xTaskGetTickCount();
-  // Snapshot the monotonic ISR counter BEFORE the MUX flip.
-  // After the switch, (g_camera_frame_seq - g_cam_switch_seq >= 2) means
-  // at least 2 full frames have been captured by the NEW camera.
-  g_cam_switch_seq = g_camera_frame_seq;
   if (id == 0) {
     cam->SwitchCamera(coralmicro::SwitchCameraId::kCameraFront);
     g_cam_current_id = 0;

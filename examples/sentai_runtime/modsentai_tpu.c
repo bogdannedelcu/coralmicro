@@ -357,6 +357,41 @@ static mp_obj_t mod_sentai_draw(size_t n_args, const mp_obj_t *args) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_draw_obj, 1, 3, mod_sentai_draw);
 
+// sentai.tpu.yolo_info() -> (layout_str, num_classes, num_anchors) or None
+//
+// Auto-detects the loaded model's YOLO output layout and class count from the
+// output tensor shape alone — no metadata required, so it works on edgetpu-
+// compiled .tflite files (the compiler strips most metadata buffers).
+//
+// Supported layouts:
+//   "v5_like"  [1, N, 5+C]   — rows = cx,cy,w,h,obj,cls_0..cls_{C-1}
+//                              (YOLOv5-enhanced 1-class is the C=1 degenerate:
+//                               [1, N, 6] with last col = class_conf)
+//   "v8"       [1, 4+C, N]   — transposed: bbox rows first, then class rows
+//   "unknown"                — shape doesn't match any known pattern
+//
+// Returns None if no model is loaded.
+extern int sentai_tpu_output_yolo_info(int* layout, int* num_classes,
+                                       int* num_anchors);
+static mp_obj_t mod_sentai_yolo_info(void) {
+    int lay = 0, nc = 0, na = 0;
+    int rc = sentai_tpu_output_yolo_info(&lay, &nc, &na);
+    if (rc == -1) return mp_const_none;  // no model loaded
+    const char* name;
+    switch (lay) {
+        case 1:  name = "v5_like"; break;
+        case 2:  name = "v8";      break;
+        default: name = "unknown"; break;
+    }
+    mp_obj_t items[3] = {
+        mp_obj_new_str(name, strlen(name)),
+        mp_obj_new_int(nc),
+        mp_obj_new_int(na),
+    };
+    return mp_obj_new_tuple(3, items);
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_yolo_info_obj, mod_sentai_yolo_info);
+
 // ---- module table ----
 static const mp_rom_map_elem_t sentai_tpu_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__),    MP_ROM_QSTR(MP_QSTR_tpu) },
@@ -377,6 +412,7 @@ static const mp_rom_map_elem_t sentai_tpu_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_output_floats),MP_ROM_PTR(&mod_sentai_output_floats_obj) },
     { MP_ROM_QSTR(MP_QSTR_input_type),  MP_ROM_PTR(&mod_sentai_input_type_obj) },
     { MP_ROM_QSTR(MP_QSTR_detect),      MP_ROM_PTR(&mod_sentai_detect_obj) },
+    { MP_ROM_QSTR(MP_QSTR_yolo_info),   MP_ROM_PTR(&mod_sentai_yolo_info_obj) },
     { MP_ROM_QSTR(MP_QSTR_draw),        MP_ROM_PTR(&mod_sentai_draw_obj) },
 };
 static MP_DEFINE_CONST_DICT(sentai_tpu_globals, sentai_tpu_globals_table);

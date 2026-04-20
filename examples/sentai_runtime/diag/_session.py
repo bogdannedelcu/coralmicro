@@ -194,6 +194,59 @@ def snapshot_scene(when="before", name="scene", quality=75):
     return path
 
 
+def snapshot_both_cameras(when="before", cameras=(0, 1), quality=75):
+    """Save scene JPEGs from BOTH cameras (cam0 + cam1 by default) into
+    the active session dir.
+
+    Convention: every pipeline experiment should call this twice — once
+    *before* the measurement loop (tag `before`) and once *after* (tag
+    `after`).  Two shots per camera document exactly what each sensor
+    saw across the run so the operator can diff offline if the scene
+    drifted or an LED blinked mid-run.
+
+    For each camera id in `cameras`:
+      1. `sentai.camera.select(cid)` — flip MUX
+      2. throwaway `to_tensor()` to drain stale frames from the old sensor
+      3. `snapshot_scene(when, name="scene_cam<cid>")` saves the JPEG
+
+    Silent no-op (returns []) if no session is active or the pipeline is
+    running (mid-loop camera.select would race with PrepTask's
+    cam_grab_latest).  Does NOT restore the originally-selected camera —
+    the caller owns final camera selection before starting the
+    measurement loop.
+
+    Returns list of saved paths.
+    """
+    if _session is None:
+        return []
+    try:
+        if sentai.pipeline.running():
+            return []
+    except Exception:
+        return []
+    try:
+        if sentai.camera.frame_count() == 0:
+            sentai.camera.init(1)
+    except Exception:
+        return []
+    saved = []
+    for cid in cameras:
+        try:
+            sentai.camera.select(cid)
+        except Exception as e:
+            print("  [snapshot-%s] select cam%d failed: %s" % (when, cid, e))
+            continue
+        # Throwaway: flush stale frames queued from the previous sensor.
+        try:
+            sentai.camera.to_tensor()
+        except Exception:
+            pass
+        p = snapshot_scene(when, name="scene_cam%d" % cid, quality=quality)
+        if p:
+            saved.append(p)
+    return saved
+
+
 def _photos_dir(experiment):
     """Return directory path for saving photo frames inside the active session.
     Called AFTER _save_path() so _session.seq is already incremented.
