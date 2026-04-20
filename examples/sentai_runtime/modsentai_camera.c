@@ -145,6 +145,36 @@ static mp_obj_t mod_sentai_cam_rotate(mp_obj_t cam_obj, mp_obj_t deg_obj) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_2(mod_sentai_cam_rotate_obj, mod_sentai_cam_rotate);
 
+// sentai.camera.ratio([a, b]) -> (a, b)
+//
+// Read/write the stateless auto-alternate schedule.  When both `a` and
+// `b` are > 0, the CSI ISR flips the MUX so that cam0 owns `a` frames
+// per (a+b)-frame cycle and cam1 owns the other `b` frames — all with
+// the glitch-free EOF-VBLANK timing.  Either zero disables the
+// scheduler; manual `sentai.camera.select()` continues to work and
+// always wins.  Values are clamped to [0, 1000]; out-of-range raises
+// ValueError.
+extern int  sentai_cam_ratio_set(uint32_t a, uint32_t b);
+extern void sentai_cam_ratio_get(uint32_t* a, uint32_t* b);
+static mp_obj_t mod_sentai_cam_ratio(size_t n_args, const mp_obj_t *args) {
+    uint32_t a = 0, b = 0;
+    sentai_cam_ratio_get(&a, &b);
+    mp_obj_t prev[2] = { mp_obj_new_int(a), mp_obj_new_int(b) };
+    if (n_args == 2) {
+        int na = mp_obj_get_int(args[0]);
+        int nb = mp_obj_get_int(args[1]);
+        if (na < 0 || nb < 0 ||
+            sentai_cam_ratio_set((uint32_t)na, (uint32_t)nb) != 0) {
+            mp_raise_ValueError(MP_ERROR_TEXT("ratio requires 0..1000 each"));
+        }
+    } else if (n_args != 0) {
+        mp_raise_ValueError(MP_ERROR_TEXT("ratio() takes 0 or 2 args"));
+    }
+    return mp_obj_new_tuple(2, prev);
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_cam_ratio_obj,
+                                            0, 2, mod_sentai_cam_ratio);
+
 // sentai.camera.switch_drain([n]) -> int (previous value)
 //
 // Read/write the post-switch drain threshold: number of fresh ISR frames
@@ -182,6 +212,7 @@ static const mp_rom_map_elem_t sentai_camera_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_frame_count),  MP_ROM_PTR(&mod_sentai_cam_frame_count_obj) },
     { MP_ROM_QSTR(MP_QSTR_rotate),     MP_ROM_PTR(&mod_sentai_cam_rotate_obj) },
     { MP_ROM_QSTR(MP_QSTR_switch_drain), MP_ROM_PTR(&mod_sentai_cam_switch_drain_obj) },
+    { MP_ROM_QSTR(MP_QSTR_ratio),      MP_ROM_PTR(&mod_sentai_cam_ratio_obj) },
 };
 static MP_DEFINE_CONST_DICT(sentai_camera_globals, sentai_camera_globals_table);
 static const mp_obj_module_t sentai_camera_module = {

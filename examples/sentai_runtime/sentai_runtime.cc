@@ -1819,16 +1819,45 @@ extern "C" void sentai_cam_return_raw(int idx) {
 static volatile bool g_cam_initialized = false;
 static int g_cam_width = DEMO_CAMERA_WIDTH;
 static int g_cam_height = DEMO_CAMERA_HEIGHT;
-static int g_cam_current_id = 0;  // 0=front, 1=back
-// g_camera_frame_seq snapshot at MUX switch time.  Extern-visible so that
-// CameraTask::HandleSwitchCameraRequest can write it atomically together
-// with the GpioSet() that flips the mux — eliminates the queue-latency
-// race where a frame whose DMA completed between snapshot-in-wrapper and
-// actual-flip-in-handler used to count as "fresh" (it was still from the
-// old camera).  See paper/cam_switch.md §"The 65 ms asymmetry is
-// structural".
+// Logical camera id — 0=front, 1=back.  Written by sentai_cam_switch
+// (task context) when arming a switch, and by the CSI ISR when the
+// auto-alternate scheduler (future) triggers a flip.  Single 32-bit
+// aligned write → atomic on Cortex-M7; no lock needed.
+volatile int g_cam_current_id = 0;
+// g_camera_frame_seq snapshot at MUX switch time.  Now written by the CSI
+// ISR in libs/camera/camera_support.c immediately after the atomic GPIO
+// flip that selects the new sensor.  Because the ISR fires when a DMA
+// buffer has just completed (we are in VBLANK — the MIPI lane is idle
+// until the next SOF), the flip lands in a dead window and the next
+// DMA buffer is guaranteed to contain pixels from the new sensor only.
+// This is the glitch-free path that removes the mid-buffer seam seen
+// visually in E17 threshold=1 frames (paper/cam_switch.md).
 volatile uint32_t g_cam_switch_seq = 0;
-static volatile bool g_cam_switch_pending = false;  // set by cam_switch, cleared by first capture
+// Set by the CSI ISR when it consumes a pending MUX flip, cleared by
+// the first subsequent get-raw call in sentai_cam_get_raw_with_recovery
+// after the drain threshold is reached.
+volatile bool g_cam_switch_pending = false;
+// Armed by sentai_cam_switch (task context, 0 or 1) and consumed by the
+// CSI ISR on the next EOF.  -1 means "no switch armed".  Sentinel is the
+// ONLY valid idle value; any 0/1 observed is a request to flip.  Atomic
+// 32-bit write.  A bounded timeout in sentai_cam_switch falls back to
+// the legacy synchronous flip path if the ISR does not consume the arm
+// within ~3 frame intervals (CSI stuck, no EOF firing).
+volatile int g_cam_pending_mux_id = -1;
+
+// Stateless ratio-alternate scheduler.  When both quotas are > 0, the
+// CSI ISR decides which camera should own frame N via a pure modulo of
+// the monotonic frame counter (seq % (ratio_a + ratio_b)) < ratio_a →
+// cam0, else cam1.  No mutable counter state in ISR context; the policy
+// is a function of (seq, ratio_a, ratio_b) only.  Useful for asymmetric
+// rates: e.g. (3, 1) gives cam0 at 22.5 fps, cam1 at 7.5 fps at a 30 fps
+// sensor, with glitch-free flips (the flip happens in the EOF ISR's
+// VBLANK window).  Either field zero disables auto-alternation; manual
+// `sentai.camera.select()` always wins because it writes
+// g_cam_pending_mux_id and the ISR checks that slot before the
+// scheduler arms anything.
+volatile uint32_t g_cam_ratio_a = 0;  // frames to stay on cam0
+volatile uint32_t g_cam_ratio_b = 0;  // frames to stay on cam1
 
 // Post-switch drain threshold (number of fresh ISR frames required after a
 // MUX flip before a frame is considered clean).  Default 2 (one mixed
@@ -1847,6 +1876,22 @@ extern "C" int sentai_cam_switch_drain_set(uint32_t n) {
   if (n < 1 || n > 10) return -1;
   g_cam_switch_drain_threshold = n;
   return 0;
+}
+
+// Set the auto-alternate ratio.  Both zero disables auto-alternation.
+// Bounds [0, 1000] — max practical quota is well under 1000 frames; we
+// reject larger values to avoid surprise wraparound semantics when
+// (a+b) is used as a modulus against a 32-bit frame counter.
+extern "C" int sentai_cam_ratio_set(uint32_t a, uint32_t b) {
+  if (a > 1000u || b > 1000u) return -1;
+  g_cam_ratio_a = a;
+  g_cam_ratio_b = b;
+  return 0;
+}
+
+extern "C" void sentai_cam_ratio_get(uint32_t* a, uint32_t* b) {
+  if (a) *a = g_cam_ratio_a;
+  if (b) *b = g_cam_ratio_b;
 }
 
 // ===================== Audio externs for AIfES =====================
@@ -2264,33 +2309,77 @@ extern "C" int sentai_cam_to_tensor(void) {
 
 // Switch between front and back cameras. id: 0=front, 1=back.
 //
-// The `g_cam_switch_seq` snapshot is taken inside
-// CameraTask::HandleSwitchCameraRequest (camera.cc) in the same task
-// context and same instruction stream as the GpioSet() that flips the
-// MUX.  `cam->SwitchCamera(...)` below uses the blocking SendRequest
-// path (libs/base/queue_task.h), so by the time it returns the handler
-// has finished, the GPIO is flipped, and g_cam_switch_seq holds the
-// pre-flip sequence number.  Only then do we raise g_cam_switch_pending,
-// so any reader that observes pending=true is guaranteed to see a
-// consistent (seq, mux) pair.
+// Glitch-free switching is implemented by arming `g_cam_pending_mux_id`
+// and letting the CSI EOF ISR (libs/camera/camera_support.c) perform the
+// actual GPIO flip the next time a DMA buffer completes.  That window is
+// the MIPI VBLANK interval — both sensors are between frame transmissions
+// — so the switch never lands mid-buffer and the following frame is
+// guaranteed to be 100% from the new sensor.
+//
+// Bounded behaviour (embeded.md §B):
+//   - Arm is non-blocking from the caller's perspective.
+//   - We then poll for ISR consumption up to `kArmTimeoutMs` (3 frame
+//     intervals at 30 fps).  During the wait other tasks run freely.
+//   - If the arm has not been consumed by then, the CSI is either not
+//     firing EOF (driver stuck) or we missed a frame cycle — we fall
+//     back to the legacy synchronous path (`cam->SwitchCamera`) which
+//     flips the GPIO in task context using the NXP driver mutex.  The
+//     synchronous path yields the old mid-buffer seam behaviour but at
+//     least the switch completes and the operator sees the degraded
+//     path through the `[cam_switch] fallback` log line.
 extern "C" int sentai_cam_switch(int id) {
   if (!g_cam_initialized) return -1;
-  if (id == g_cam_current_id) return 0;  // already on this camera
-  auto* cam = coralmicro::CameraTask::GetSingleton();
+  if (id != 0 && id != 1) return -2;
+  if (id == g_cam_current_id && !g_cam_switch_pending) return 0;
+
   TickType_t ts0 = xTaskGetTickCount();
-  if (id == 0) {
-    cam->SwitchCamera(coralmicro::SwitchCameraId::kCameraFront);
-    g_cam_current_id = 0;
-  } else if (id == 1) {
-    cam->SwitchCamera(coralmicro::SwitchCameraId::kCameraBack);
-    g_cam_current_id = 1;
-  } else {
-    return -2;
-  }
-  g_cam_switch_pending = true;
+
+  // Arm the ISR.  Write the pending-id LAST: if a stale pending flag
+  // happens to be observed here, the ISR's own consumer logic clears
+  // it (pending_mux_id is written -1 after flip).
+  g_cam_pending_mux_id = id;
   sentai_tracker_set_active_camera(id);
+
+  // Bounded wait for ISR consumption.  At 30 fps, one frame = 33 ms.
+  // Three frames gives comfortable margin for jitter but caps the
+  // worst case well below any user-visible "stuck switch" pathology.
+  const TickType_t kArmTimeoutTicks = pdMS_TO_TICKS(150);
+  TickType_t deadline = ts0 + kArmTimeoutTicks;
+  while (g_cam_pending_mux_id >= 0 && xTaskGetTickCount() < deadline) {
+    vTaskDelay(pdMS_TO_TICKS(1));
+  }
+
+  if (g_cam_pending_mux_id >= 0) {
+    // ISR did not fire — CSI likely stuck or frame rate zero.  Disarm
+    // the ISR path and flip synchronously via the legacy route.  This
+    // path re-introduces the mid-buffer seam, but keeps the system
+    // responsive (the alternative is blocking forever).
+    g_cam_pending_mux_id = -1;
+    auto* cam = coralmicro::CameraTask::GetSingleton();
+    if (id == 0) {
+      cam->SwitchCamera(coralmicro::SwitchCameraId::kCameraFront);
+    } else {
+      cam->SwitchCamera(coralmicro::SwitchCameraId::kCameraBack);
+    }
+    // Mark the drain path as pending.  The snapshot lives in
+    // HandleSwitchCameraRequest (libs/camera/camera.cc) which ran
+    // inside cam->SwitchCamera above, so g_cam_switch_seq is already
+    // set.
+    g_cam_switch_pending = true;
+    g_cam_current_id = id;
+    TickType_t ts1 = xTaskGetTickCount();
+    printf("[cam_switch] fallback sync -> cam%d (%ldms, seq=%lu)\r\n",
+           id, (long)(ts1 - ts0), (unsigned long)g_cam_switch_seq);
+    return 0;
+  }
+
+  // Nominal path: ISR consumed the arm, flipped the GPIO in VBLANK,
+  // set g_cam_switch_{seq,pending}.  Update the logical id AFTER the
+  // ISR has done its work so any observer that sees
+  // g_cam_current_id == id also sees a consistent switch state.
+  g_cam_current_id = id;
   TickType_t ts1 = xTaskGetTickCount();
-  printf("[cam_switch] -> cam%d (%ldms, seq=%lu, cleanup deferred)\r\n",
+  printf("[cam_switch] -> cam%d (%ldms, seq=%lu, via EOF ISR)\r\n",
          id, (long)(ts1 - ts0), (unsigned long)g_cam_switch_seq);
   return 0;
 }

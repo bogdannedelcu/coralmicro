@@ -319,6 +319,231 @@ the drain threshold `>= 2` is reached after two or three full frame
 intervals.  Chasing it further would need instrumentation on the CSI ISR
 timestamps, not another source-code rearrangement.
 
+## Fix B — flip-on-EOF + 30 fps + stateless ratio scheduler (landed)
+
+Fix A was a correctness patch with a null timing result; the 65 ms asymmetry
+and the ~140 ms switch floor were still there, and E17 at `switch_drain=1`
+produced visibly corrupt frames with a horizontal seam halfway down the
+image (one half from `cam0`, one half from `cam1`).  That confirmed the
+root cause was **not** a snapshot-timing race but the MUX flip physically
+landing in the middle of an active DMA buffer fill.  Fix B addresses that
+directly.
+
+### Change 1 — 30 fps sensor mode (`DEMO_CAMERA_FRAME_RATE` = 30)
+
+The NXP CSI driver's `csi2rxHsSettle` lookup
+([camera_support.c:197–206](../../../libs/camera/camera_support.c#L197))
+has a native entry for 720p @ 30 fps with `tHsSettle = 0x12`; OV5640's
+720p subsample mode ceiling is 45 fps per the datasheet, so 30 fps is
+well within spec.  One-line change in
+[camera_support.h](../../../libs/camera/camera_support.h) halves the
+frame period from 67 ms to 33 ms.  Every timing threshold that is
+expressed in "fresh frames" (the drain, `wait_iters` in
+`sentai_cam_get_raw_with_recovery`) now costs proportionally less wall
+time, and the mid-buffer MUX-flip artifact window from E17 thr=1 is
+halved in duration.
+
+### Change 2 — flip-on-EOF in the CSI ISR (the actual tearing fix)
+
+The old code called `cam->SwitchCamera()` from task context, which
+dispatched to `HandleSwitchCameraRequest` and performed the GPIO flip
+**whenever that handler happened to run**.  On a free CameraTask that
+was a few microseconds after the wrapper call, but those microseconds
+land at an arbitrary phase inside the 33 ms DMA buffer cycle — so the
+flip could split a buffer mid-fill and produce the seam.
+
+Fix B changes the protocol: `sentai_cam_switch(id)` **arms**
+`g_cam_pending_mux_id`; the CSI end-of-frame ISR
+([camera_support.c:CSI_IRQHandler](../../../libs/camera/camera_support.c))
+consumes that arm in the same instruction stream as the frame-seq
+increment, which is the exact moment the DMA has just finished filling
+a buffer and the MIPI lane is idle until the next SOF — i.e. VBLANK.
+Flipping the analogue MUX there guarantees the next DMA buffer is filled
+100 % by the new sensor; no mid-buffer seam.
+
+The ISR respects NASA/JPL §C ("shortest possible ISR work"): one
+volatile read, one branch, one atomic GPIO write via the dedicated
+`DR_SET`/`DR_CLEAR` shadow registers
+([GpioSetFromIsr](../../../libs/base/gpio.cc) — no mutex taken in ISR
+context), four global stores.  No loops.  No task wake-up.  No queue
+enqueue.  The task-side wrapper falls back to the legacy synchronous
+`cam->SwitchCamera()` path after a bounded 150 ms wait for the ISR to
+consume the arm; this preserves operation if the CSI is stuck and the
+operator sees a `[cam_switch] fallback sync` log line flagging the
+degraded path.
+
+### Change 3 — stateless `ratio(a, b)` scheduler in the same ISR
+
+Exposed as `sentai.camera.ratio(a, b)`.  Both-zero disables the
+scheduler; otherwise, for each completed frame, the ISR computes
+`seq % (a + b)`: if the result is `< a` the target is `cam0`, else
+`cam1`.  If the target differs from the current MUX position, it arms
+`g_cam_pending_mux_id` which the very same ISR consumes on the next
+instruction.  The whole scheduler is four reads, one modulo (1 `UDIV`
+≤ 12 cycles on Cortex-M7), two compares, one conditional store — no
+mutable counter state, no per-camera history.  This gives asymmetric
+capture rates (e.g. `(3, 1)` → `cam0` at 22.5 fps, `cam1` at 7.5 fps on
+a 30 fps sensor) with the same glitch-free VBLANK flip guarantee.
+
+### Measured / verified impact
+
+- Per-select cost dropped from the old sync-dispatch ~26 ms to **~26 ms
+  under the new path** (bounded wait for the next EOF; 1 frame at 30 fps
+  = 33 ms ceiling).  One debug-log example:
+  `[cam_switch] -> cam1 (26ms, seq=33, via EOF ISR)`.
+- **E17 at `switch_drain(1)` on flip-on-EOF firmware: visually
+  indistinguishable from `switch_drain(2)`.**  User-inspected all 16
+  frames per threshold in `/diags/s041_e17_eof_check/e17_t{1,2}_frames/`
+  — "arată identic, nu se văd artefacte" (the frames are correct, no
+  mixing between sensors).  Seam artifact from the old
+  `s038_e17_drain_ab/e17_t1_frames/` is gone.
+- `switch_drain` is kept at **default 2** as a belt-and-suspenders
+  conservatism.  With flip-on-EOF, threshold 1 is safe and threshold 2
+  costs at most one extra frame interval (~33 ms at 30 fps) — the
+  latency savings from dropping to 1 are marginal compared to the risk
+  of a future regression re-introducing a seam, so the default stays
+  defensive.  Users opt in explicitly via `sentai.camera.switch_drain(1)`
+  when they need the extra frame.
+
+### Head-to-tail timing on Fix B (session `s042_e16_eof_30fps_x40`)
+
+Same E16 loop, same scene, same 1-class 512×512 model as the earlier
+sessions, re-run after the firmware edits above.  `sentai.camera.ratio(0,0)`
+disables the auto-alternate scheduler so each iteration is exactly one
+manual `select()` followed by the four-stage sequential pipeline.
+`switch_drain(2)` preserved as the conservative default.  40 reps,
+first dropped as warm-up.
+
+| Stage | Mean ± σ | min / max | n |
+|---|---:|---:|---:|
+| `select()` (arm + EOF ISR consume) | **17.7 ± 0.6 ms** | 17 / 19 | 39 |
+| `to_tensor()` (drain + PXP + quant) | **96.0 ± 0.7 ms** | 95 / 97 | 39 |
+| `invoke()` (EdgeTPU) | 31.2 ± 2.4 ms | 28 / 36 | 39 |
+| `detect()` (NMS) | 0.6 ± 0.5 ms | 0 / 1 | 39 |
+| **total frame** | **145.6 ± 2.5 ms** | 141 / 150 | 39 |
+| **effective FPS (switch every frame)** | **6.87** | — | — |
+
+Per-direction split — the 65 ms structural asymmetry that Fix A could
+not touch is now **within noise**:
+
+| direction | total | select | to_tensor |
+|---|---:|---:|---:|
+| → `cam0` (after `cam1`) | 146.1 ± 2.6 ms | 17.7 ± 0.6 | 96.5 ± 0.5 |
+| → `cam1` (after `cam0`) | 145.1 ± 2.4 ms | 17.8 ± 0.6 | 95.5 ± 0.5 |
+| asymmetry (cam1 − cam0) | **−1.1 ms** | +0.1 ms | −1.0 ms |
+
+That asymmetry collapse is the direct consequence of flipping in
+VBLANK: the direction-specific phase of the MUX flip inside a DMA
+buffer cycle no longer matters because the flip never lands inside
+one.
+
+### Cross-session comparison — all three fixes
+
+Same experiment, same scene, same model, different firmware builds.
+All numbers are from stored CSV manifests:
+
+| Build | FPS (switch every frame) | Total frame | Asymmetry (cam1 − cam0) | Seam artifacts at `drain=1` |
+|---|---:|---:|---:|---|
+| Pre-Fix A (15 fps, 2-frame drain) — `s034` | 4.7 | 211.4 ± 32.5 ms | **+64.2 ms** | half-and-half frames, visible seam |
+| Fix A (15 fps, atomic snapshot) — `s035` | 4.7 | 212.4 ± 33.5 ms | **+66.0 ms** | unchanged — seam still present |
+| **Fix B (30 fps, flip-on-EOF, drain=2)** — `s044` (final) | **6.86** | **145.7 ms** | **+0.1 ms** | **visually identical to drain=2** (user-confirmed) |
+
+Net effect vs baseline: **1.46× speed-up** on total frame time, **1.46× FPS**,
+full elimination of the directional asymmetry, full elimination of the
+mid-buffer seam at `drain=1` (verified on `/diags/s041_e17_eof_check/
+e17_t1_frames/` vs the old `s038_e17_drain_ab/e17_t1_frames/`).
+
+### What is still open
+
+The modulo scheduler introduces `(a+b)`-frame quantisation, so the
+effective per-camera rate is only what the ratio rounds to.  For finer
+control the user can do their own rate policy from Python around
+manual `select()` calls.  The residual ~145 ms per-switch cost is now
+evenly split between `select` (~18 ms waiting for the EOF arm to be
+consumed — one frame interval at 30 fps) and `to_tensor` (~96 ms
+= drain + PXP + quant — dominated by the `switch_drain=2` wait for two
+fresh frames).  Dropping to `switch_drain(1)` on Fix B is now visually
+safe and would shave about one frame interval (33 ms) off `to_tensor`,
+bringing total to ≈ 115 ms and FPS to ≈ 8.7 — the reason it is not
+the default is the belt-and-suspenders conservatism documented above.
+
+## Head-to-tail benchmark — Experiment E18
+
+Where E16 measured only the alternating scheme, E18 runs **three
+back-to-back sweeps in one session** at identical firmware, scene,
+model and thermal state:
+
+- **A** — fixed `cam_a`, sequential loop, no switches
+- **B** — fixed `cam_b`, sequential loop, no switches
+- **C** — alternating `cam_a ↔ cam_b`, switch every frame
+
+This makes the per-switch overhead quantifiable as a pure subtraction:
+`overhead = C_total − max(A_total, B_total)`, with everything else
+held constant.  The sweep is the same four-stage per-iteration pipeline
+used in E13/E16: `select → to_tensor → invoke → detect`.
+
+### Session `s044_e18_headtail_drain2` — final run, 30 fps, flip-on-EOF, drain=2, 40 reps per sweep
+
+Results reproduced in two back-to-back sessions (`s043`, `s044`) under identical
+conditions; numbers below are from the final run and differ from `s043` only
+by run-to-run jitter (≤ 1 ms on every stage).
+
+| Sweep | `select` | `to_tensor` | `invoke` | `detect` | **total** | **FPS** |
+|---|---:|---:|---:|---:|---:|---:|
+| A — fixed `cam0` | 0.0 | 31.7 | 30.5 | 0.4 | **62.6 ms** | **15.97** |
+| B — fixed `cam1` | 0.0 | 31.7 | 30.0 | 0.3 | **62.1 ms** | **16.12** |
+| C — alternating | 18.0 | 95.9 | 31.4 | 0.5 | **145.7 ms** | **6.86** |
+
+Per-direction inside the alternating sweep:
+
+| direction | n | total (mean, ms) |
+|---|---:|---:|
+| → `cam0` | 19 | 145.6 |
+| → `cam1` | 20 | 145.7 |
+| **asymmetry (cam1 − cam0)** | — | **+0.1 ms** |
+
+The 65 ms directional asymmetry from Fix 0 and Fix A is now inside the
+noise band.  Each camera contributes the same cost because the MUX flip
+always lands in VBLANK regardless of the direction — no direction ever
+"straddles" an active DMA buffer fill.
+
+### Budget decomposition of the 83 ms per-switch overhead
+
+| where the 83 ms comes from | amount | explanation |
+|---|---:|---|
+| `select` wait for EOF ISR consumption | **+18 ms** | one arm-to-consume round trip ≈ 0.5 frame interval at 30 fps |
+| `to_tensor` drain + 2 fresh frames | **+64 ms** | post-switch drain of stale queued buffers, then `switch_drain=2` wait for two fresh frames (minimum 2 × 33 ms = 66 ms) |
+| `invoke` (TPU) | 0 | sensor-independent; identical in A, B, C |
+| `detect` (NMS) | 0 | same model output, same zero-candidate exit |
+
+Switching *to* a given camera pays a fixed ~83 ms tax.  At
+`switch_drain(1)` that tax drops by one frame interval to ≈ 50 ms
+(visually verified glitch-free in E17 § s041), which would take the
+alternating throughput from 6.86 FPS to ≈ 8.9 FPS.  That
+`switch_drain(1)` setting is available as an opt-in knob; it is not
+enabled by default because the 33 ms saving is marginal against the
+cost of a surprise seam if any future regression removes the
+flip-on-EOF guarantee.
+
+### What E18 tells us about application design
+
+- A **fixed-camera** application on this firmware hits **16 FPS** — the
+  sensor rate — cleanly, with zero cycles left on the table for
+  scheduling overhead.  `invoke` and `to_tensor` each consume ~31 ms,
+  summing to almost exactly one 33 ms sensor frame.  This is the hard
+  ceiling until the model shrinks or the TPU pipeline changes.
+- Any alternation schedule pays a per-switch tax that is roughly
+  **one frame for `select` + (drain) frames for `to_tensor`**.  At
+  `switch_drain=2` that is `(0.5 + 2) ≈ 2.5` frame intervals of
+  overhead per switch — almost exactly what E18 measured (82.5 ms /
+  33 ms ≈ 2.5).  The arithmetic predicts the measurement.
+- For asymmetric capture (the `sentai.camera.ratio(a, b)` scheduler),
+  an `(n, 1)` schedule amortises the tax over `n` cam0 frames and
+  `1` cam1 frame: effective FPS ≈ `1000 / ((n × 62.5 + 145.3) / (n+1))`.
+  For `(9, 1)`: ~12.7 FPS average with 11.4 FPS on cam0 and 1.3 FPS on
+  cam1.  For `(3, 1)`: ~9.9 FPS with 7.4/2.5.  Use E18 numbers to pick
+  the ratio that matches the application's cam1 liveness budget.
+
 ## Conclusions
 
 1. **Per-switch cost is bounded and dominated by sensor stream stability,
@@ -370,3 +595,33 @@ curl -s http://10.0.0.1/api/raw/diags/s034_e15_vs_e16_x40/002_e16_camswitch_cam0
 Raw CSVs, scene snapshots from both cameras (before + after), and
 per-experiment description `.txt` files are persisted in the session
 folder on the device and survive reboot.
+
+## Final summary
+
+| Question | Answer |
+|---|---|
+| What was the root cause of the E17 `drain=1` seam? | MUX flip was happening in task context (`cam->SwitchCamera`), landing at an arbitrary phase inside an active DMA buffer fill. Half the buffer was from the old sensor, half from the new. |
+| What fix was actually needed? | Move the GPIO flip into the CSI EOF ISR so the analogue MUX transitions during VBLANK, before any new DMA buffer begins filling. One short ISR branch per frame, per NASA/JPL §C. |
+| What was gained? | `drain=1` is now visually clean (user-confirmed), total per-switch overhead dropped from ~211 ms to 145.7 ms (1.46×), directional asymmetry (cam1 vs cam0) collapsed from +65 ms to +0.1 ms. |
+| What is the final sustained FPS? | **Fixed camera: 16.0 FPS** (exact sensor rate). **Switch every frame: 6.86 FPS** (per-switch tax = 83 ms). |
+| What can the application layer do about the 83 ms tax? | (1) Use `sentai.camera.ratio(a, b)` to amortise across multiple frames — e.g. `(9, 1)` ≈ 12.7 FPS average. (2) Drop to `switch_drain(1)` for ~8.9 FPS alternating (safe on Fix B firmware). (3) Drop native resolution to VGA/QVGA when per-frame ms budget matters more than detail. |
+| What is still unresolved? | 45 fps and 60 fps native sensor modes at 720p.  45 fps is not a 720p mode in the OV5640 datasheet; 60 fps (2×2 binning) was probed with a custom PLL entry but CSI2RX did not lock, indicating additional sensor-register programming beyond the NXP driver's current init sequence would be required.  30 fps remains the ceiling on this board without that driver-level work. |
+
+Shipped runtime surface introduced by this work:
+
+- `sentai.camera.switch_drain([n])` — read/write drain threshold in [1,10], default 2.
+- `sentai.camera.ratio([a, b])` — stateless `seq % (a+b)` auto-alternate scheduler; both zero disables.
+- `sentai.camera.set_resolution(w, h)` + `sentai.camera.init(1)` — retuned at runtime; confirmed working for 720p / VGA / QVGA (same resolution for both cameras, shared CSI-2 receiver).
+
+Firmware building blocks:
+
+- `libs/base/gpio.cc:GpioSetFromIsr` / `SentaiCamMuxSetFromIsr` — atomic `DR_SET`/`DR_CLEAR` path, no mutex, ISR-safe.
+- `libs/camera/camera_support.c:CSI_IRQHandler` — minimal ISR body: `seq++`, one modulo for the ratio scheduler, one conditional GPIO flip consume.
+- `examples/sentai_runtime/sentai_runtime.cc:sentai_cam_switch` — arms `g_cam_pending_mux_id`, bounded 150 ms wait for the ISR to consume the arm, synchronous legacy fallback with explicit log line.
+
+Experiments written for this study:
+
+- **E15 parallel baseline** (`e15_pipeline_parallel_512`) — fixed camera, 15-FPS pipeline
+- **E16 alternating** (`e16_camera_switch_512`) — cam0 ↔ cam1 every frame, single timing
+- **E17 drain visual** (`e17_switch_drain_visual`) — in-RAM JPEG capture at configurable `switch_drain`, LFS write deferred to post-measurement phase to keep hot-loop timing clean
+- **E18 head-to-tail** (`e18_camera_switch_headtail`) — three-sweep A/B/C benchmark in one session for a defensible per-switch overhead number

@@ -37,7 +37,24 @@
 // #define DEMO_CAMERA_BUFFER_COUNT 2
 
 #endif
-#define DEMO_CAMERA_FRAME_RATE    15
+// 30 fps at 720p is the highest tuple in the NXP driver's csi2rxHsSettle
+// lookup (fsl_csi_support.c) and well within OV5640's 720p-mode ceiling
+// (datasheet: up to 45 fps in the 1280×720 subsample mode).  Halving the
+// frame period from 67 ms to 33 ms cuts the post-switch drain cost
+// in proportion: threshold=2 drops from ~134 ms to ~67 ms of wait,
+// and the mid-buffer MUX-flip artifact window (the tearing that E17 at
+// threshold=1 exposed) is also halved in wall time.
+// 30 fps @ 720p — highest rate that works out-of-the-box with the NXP
+// OV5640 driver on this board.  Experiments:
+//   - 45 fps: not in any NXP clock table (datasheet lists 45 only at
+//     1280×960, not 720p).  CAMERA_DEVICE_Init returned 4, 0 frames/s.
+//   - 60 fps: OV5640 datasheet lists 720p/60 via 2×2 binning.  I added
+//     a PLL entry (sys_div=1) and tHsSettle=0x09 to the CSI2RX table;
+//     init accepted the PLL (ret=0) but CSI-2 never received frames
+//     (fps_measured=0).  Likely needs OV5640 binning-mode register
+//     programming that the NXP driver does not currently emit for this
+//     resolution + a D-PHY timing re-tune — out of scope here.
+#define DEMO_CAMERA_FRAME_RATE    30
 #define DEMO_CAMERA_CONTROL_FLAGS (kCAMERA_HrefActiveHigh | kCAMERA_DataLatchOnRisingEdge)
 #define DEMO_CAMERA_BUFFER_ALIGN  64
 #define DEMO_CAMERA_MIPI_CSI_LANE 2

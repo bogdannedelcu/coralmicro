@@ -52,6 +52,7 @@ from diag.e_pipeline import (
     e15_pipeline_parallel_512,
     e16_camera_switch_512,
     e17_switch_drain_visual,
+    e18_camera_switch_headtail,
 )
 
 # ── batch runners ─────────────────────────────────────────────────────────────

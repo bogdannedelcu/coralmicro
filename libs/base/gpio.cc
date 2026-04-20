@@ -660,6 +660,34 @@ void GpioSet(Gpio gpio, bool enable) {
   GPIO_PinWrite(PinNameToModule[gpio], PinNameToPin[gpio], enable);
 }
 
+// ISR-safe variant of GpioSet.  Writes the data register via atomic
+// DR_SET / DR_CLEAR, which are dedicated shadow registers — no
+// read-modify-write, no mutex required.  Use only for pins whose mode
+// has already been configured in task context; calling this to drive a
+// pin that has not been set to output is undefined.
+//
+// Rationale: the camera-MUX flip for glitch-free cam0/cam1 switching has
+// to happen on the CSI end-of-frame ISR so it lands in VBLANK, not
+// mid-DMA buffer.  Taking `g_mutex` in that context would violate
+// FreeRTOS rules and could deadlock against a task holding the same
+// mutex.
+void GpioSetFromIsr(Gpio gpio, bool enable) {
+  auto* module = PinNameToModule[gpio];
+  uint32_t mask = 1U << PinNameToPin[gpio];
+  if (enable) {
+    module->DR_SET = mask;
+  } else {
+    module->DR_CLEAR = mask;
+  }
+}
+
+// C-callable wrapper so the CSI EOF ISR in libs/camera/camera_support.c
+// can flip the camera MUX without knowing about Gpio:: enum values or
+// C++ name mangling.  Constant-time, single atomic DR write.
+extern "C" void SentaiCamMuxSetFromIsr(bool enable) {
+  GpioSetFromIsr(Gpio::kCamMux, enable);
+}
+
 bool GpioGet(Gpio gpio) {
   MutexLock lock(g_mutex);
   return GPIO_PinRead(PinNameToModule[gpio], PinNameToPin[gpio]);

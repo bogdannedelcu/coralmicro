@@ -1,5 +1,6 @@
 import diag, gc
 sentai.verbose(0)
+sentai.camera.ratio(0, 0)  # disable auto-alternate so manual select() is the only source of switches
 diag.begin("e17_drain_ab")
 gc.collect()
 sentai.camera.switch_drain(2)

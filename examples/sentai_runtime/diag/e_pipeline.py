@@ -429,6 +429,206 @@ def e16_camera_switch_512(
     return result
 
 
+def e18_camera_switch_headtail(
+        model_path="/yolo_1_class_512_1_upsample_512_inloc_de_1024_la_P5_32.tflite",
+        cam_a=0, cam_b=1, repetitions=40, save=True):
+    """E18 — Head-to-tail camera-switch benchmark, sequential pipeline.
+
+    Runs THREE back-to-back sub-sweeps at the current switch_drain and
+    ratio settings (all three use the same model, resolution, scene,
+    thermal state — only the camera-selection pattern changes):
+
+        A) fixed cam_a:   no switches, same 4-stage loop, baseline
+        B) fixed cam_b:   no switches, baseline for the other sensor
+        C) alternating:   cam_a↔cam_b every frame, the actual switch test
+
+    Reports per-stage means for each sweep (select, to_tensor, invoke,
+    detect, total) and the derived per-switch overhead as
+    `C_total − max(A_total, B_total)`.  The three CSVs are saved into
+    the active session so later analysis can re-compute deltas offline.
+
+    Why three sweeps, not just one?  E16 gives only the alternating
+    number; without a fixed-camera baseline measured under identical
+    conditions it is impossible to separate the "switch cost" from the
+    "grab-one-frame cost" in a defensible way.  E18 pays two extra
+    baseline sweeps (~3 s each at 30 fps) to make that separation clean.
+
+    Warm-up: pipeline is stopped if running; both cameras are powered
+    and warmed with a single `to_tensor` before any measurement starts.
+    Scene snapshots are taken before/after across both cameras via
+    `snapshot_both_cameras()` just like the other E1x experiments.
+    """
+    from diag._session import _session, begin, end, snapshot_both_cameras
+
+    owned_session = (_session is None)
+    if owned_session:
+        begin("e18_cam_switch_headtail")
+
+    prev_verbose = sentai.verbose(0)
+
+    if sentai.pipeline.running():
+        sentai.pipeline.stop()
+
+    try:
+        sentai.camera.set_resolution(512, 512)
+        if sentai.camera.frame_count() == 0:
+            sentai.camera.init(1)
+
+        _last = globals().get("_e14_last_model_path", None)
+        if _last != model_path:
+            sentai.tpu.load(model_path)
+            globals()["_e14_last_model_path"] = model_path
+
+        # One full warm cycle on each camera so the first measurement
+        # sample is already in steady state (drain path has run at least
+        # once for both sensors).
+        for c in (cam_a, cam_b):
+            sentai.camera.select(c)
+            sentai.camera.to_tensor()
+            sentai.tpu.invoke()
+
+        if save:
+            snapshot_both_cameras("before")
+            sentai.camera.select(cam_a)
+            sentai.camera.to_tensor()
+
+        drain = sentai.camera.switch_drain()
+        ra, rb = sentai.camera.ratio()
+        print("[E18] 512x512, reps=%d per sweep, drain=%d, ratio=(%d,%d)" % (
+            repetitions, drain, ra, rb))
+
+        # ------------------------------------------------------------
+        # One sub-sweep.  Returns a dict of per-stage lists + summary.
+        # Defined inline rather than at module scope because it closes
+        # over `repetitions` and the measurement helpers, and is only
+        # meaningful inside this experiment.
+        # ------------------------------------------------------------
+        def _sweep(label, cam_pattern):
+            sel_ms = []; ten_ms = []; inv_ms = []; det_ms = []
+            tot_ms = []; ndet_s = []; cam_ids = []
+            for i in range(repetitions):
+                cam = cam_pattern(i)
+                t_start = _ticks()
+                t0 = _ticks(); sentai.camera.select(cam);   sel  = _ticks() - t0
+                t0 = _ticks(); sentai.camera.to_tensor();   tens = _ticks() - t0
+                inv = sentai.tpu.invoke()
+                t0 = _ticks(); dets = sentai.tpu.detect(0.25, 0.45, 50); det = _ticks() - t0
+                tot = _ticks() - t_start
+                cam_ids.append(cam); sel_ms.append(sel); ten_ms.append(tens)
+                inv_ms.append(inv if inv >= 0 else 0)
+                det_ms.append(det); ndet_s.append(len(dets) if dets else 0)
+                tot_ms.append(tot)
+            # Drop first sample as final warm-up guard — the prior sweep
+            # may have left a switch pending.
+            samples = (sel_ms[1:], ten_ms[1:], inv_ms[1:], det_ms[1:],
+                       tot_ms[1:], ndet_s[1:], cam_ids[1:])
+            s_sel, s_ten, s_inv, s_det, s_tot, _, _ = samples
+            summary = {"select": stats(s_sel),
+                       "to_tensor": stats(s_ten),
+                       "invoke": stats(s_inv),
+                       "detect": stats(s_det),
+                       "total": stats(s_tot)}
+            fps = 1000.0 / summary["total"]["mean"] if summary["total"]["mean"] > 0 else 0
+            summary["fps"] = round(fps, 2)
+            print("[E18:%s] total=%.1fms fps=%.2f  (sel=%.1f ten=%.1f inv=%.1f det=%.1f)" % (
+                label, summary["total"]["mean"], fps,
+                summary["select"]["mean"], summary["to_tensor"]["mean"],
+                summary["invoke"]["mean"], summary["detect"]["mean"]))
+            return {"label": label,
+                    "samples": {"cam_id": cam_ids, "select_ms": sel_ms,
+                                "to_tensor_ms": ten_ms, "invoke_ms": inv_ms,
+                                "detect_ms": det_ms, "total_frame_ms": tot_ms,
+                                "num_detections": ndet_s},
+                    "summary": summary}
+
+        # --- Sweep A: fixed cam_a ---
+        sentai.camera.select(cam_a)
+        sentai.camera.to_tensor()  # post-switch drain before timing
+        a = _sweep("A_fixed_cam%d" % cam_a, lambda i: cam_a)
+
+        # --- Sweep B: fixed cam_b ---
+        sentai.camera.select(cam_b)
+        sentai.camera.to_tensor()
+        b = _sweep("B_fixed_cam%d" % cam_b, lambda i: cam_b)
+
+        # --- Sweep C: alternating ---
+        sentai.camera.select(cam_a)
+        sentai.camera.to_tensor()
+        c = _sweep("C_alt_cam%d_cam%d" % (cam_a, cam_b),
+                   lambda i: cam_a if (i % 2 == 0) else cam_b)
+
+        # --- Head-to-tail summary ---
+        a_tot = a["summary"]["total"]["mean"]
+        b_tot = b["summary"]["total"]["mean"]
+        c_tot = c["summary"]["total"]["mean"]
+        base = a_tot if a_tot > b_tot else b_tot   # slower baseline
+        overhead = c_tot - base
+        print("[E18] HEAD-TO-TAIL SUMMARY")
+        print("  A fixed cam%d: %.1f ms/frame, %.2f fps"
+              % (cam_a, a_tot, a["summary"]["fps"]))
+        print("  B fixed cam%d: %.1f ms/frame, %.2f fps"
+              % (cam_b, b_tot, b["summary"]["fps"]))
+        print("  C alternating:  %.1f ms/frame, %.2f fps"
+              % (c_tot, c["summary"]["fps"]))
+        print("  => per-switch overhead = %.1f ms (C - max(A,B))" % overhead)
+        print("  => overhead as fraction of a single frame budget: %.1f%%"
+              % (100.0 * overhead / base if base > 0 else 0))
+
+        result = {
+            "experiment": "E18_camera_switch_headtail",
+            "meta": snapshot_meta("E18_cam_switch_headtail",
+                                  cam_a=cam_a, cam_b=cam_b,
+                                  resolution="512x512",
+                                  model_path=model_path,
+                                  repetitions=repetitions,
+                                  switch_drain=drain,
+                                  ratio=(ra, rb)),
+            "sweeps": {"A": a, "B": b, "C": c},
+            "summary": {
+                "A_fixed_cam_a": a["summary"],
+                "B_fixed_cam_b": b["summary"],
+                "C_alternating": c["summary"],
+                "per_switch_overhead_ms": round(overhead, 2),
+                "overhead_pct_of_baseline": round(100.0 * overhead / base, 1)
+                    if base > 0 else 0,
+            },
+        }
+
+        if save:
+            for sweep in (a, b, c):
+                path = _save_path("e18_%s" % sweep["label"])
+                s = sweep["samples"]
+                save_csv(path,
+                    ["run_index", "cam_id", "select_ms", "to_tensor_ms",
+                     "invoke_ms", "detect_ms", "num_detections", "total_frame_ms"],
+                    [(i, s["cam_id"][i], s["select_ms"][i], s["to_tensor_ms"][i],
+                      s["invoke_ms"][i], s["detect_ms"][i],
+                      s["num_detections"][i], s["total_frame_ms"][i])
+                     for i in range(repetitions)])
+                _save_desc(path,
+                    "E18 sub-sweep %s.\n"
+                    "\nColumns:\n"
+                    "  run_index, cam_id, select_ms, to_tensor_ms,\n"
+                    "  invoke_ms, detect_ms, num_detections, total_frame_ms\n"
+                    % sweep["label"],
+                    params={"cam_a": cam_a, "cam_b": cam_b,
+                            "switch_drain": drain, "ratio": (ra, rb),
+                            "mean_total_ms": sweep["summary"]["total"]["mean"],
+                            "fps": sweep["summary"]["fps"]})
+                _record("e18_%s" % sweep["label"], path,
+                        "total=%.1fms fps=%.2f" % (
+                            sweep["summary"]["total"]["mean"],
+                            sweep["summary"]["fps"]))
+            snapshot_both_cameras("after")
+            sentai.camera.select(cam_a)
+
+        return result
+    finally:
+        sentai.verbose(prev_verbose)
+        if owned_session:
+            end()
+
+
 def e17_switch_drain_visual(cam_a=0, cam_b=1, repetitions=16,
                             quality=70, save=True):
     """E17 — alternating camera JPEG capture at current switch_drain threshold.

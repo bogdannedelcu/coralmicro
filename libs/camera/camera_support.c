@@ -74,6 +74,44 @@ uint8_t
  * Cortex-M7).  Wraps at 2^32 (~9 years at 15fps). */
 volatile uint32_t g_camera_frame_seq = 0;
 
+/* ---------------------------------------------------------------------------
+ * Glitch-free dual-camera switching — "flip on EOF"
+ *
+ * Armed from sentai_cam_switch() (task context) as an int in {-1, 0, 1}.
+ * The CSI ISR below consumes it immediately after g_camera_frame_seq++,
+ * which is the exact moment a DMA buffer has just finished filling and
+ * the MIPI lane is idle until the next SOF — i.e. we are in VBLANK.
+ * Flipping the analogue MUX here guarantees the next DMA buffer is
+ * filled 100% by the new sensor; no mid-buffer seam.
+ *
+ * - g_cam_pending_mux_id : -1 when no switch pending, 0/1 = target cam
+ * - g_cam_switch_seq     : written here right after the flip; used by
+ *                          sentai_cam_get_raw_with_recovery to detect
+ *                          fresh frames from the new sensor
+ * - g_cam_switch_pending : set here; cleared by the recovery path after
+ *                          the drain completes
+ *
+ * Owned by sentai_runtime.cc (extern below) — ISR is writer, task-side
+ * cam_switch is reader/arm-er.  All three are aligned volatile and
+ * single-word, so updates are atomic on Cortex-M7; no lock needed.
+ * --------------------------------------------------------------------------- */
+extern volatile int      g_cam_pending_mux_id;
+extern volatile uint32_t g_cam_switch_seq;
+extern volatile bool     g_cam_switch_pending;
+extern volatile int      g_cam_current_id;
+/* Stateless ratio-alternate scheduler.  See sentai_runtime.cc. */
+extern volatile uint32_t g_cam_ratio_a;  /* frames to stay on cam0 */
+extern volatile uint32_t g_cam_ratio_b;  /* frames to stay on cam1 */
+
+/* Dedicated ISR-safe MUX-flip helper provided by libs/base/gpio.cc —
+ * uses atomic DR_SET / DR_CLEAR registers instead of taking g_mutex.
+ * The level encoding below mirrors the MUX_FRONT_CAMERA / MUX_BACK_CAMERA
+ * constants in libs/camera/camera.cc — kept numeric here because this is
+ * a C file and cannot include the C++ enum. */
+extern void SentaiCamMuxSetFromIsr(bool enable);
+#define CAM_MUX_FRONT_LEVEL   1      /* MUX_FRONT_CAMERA in camera.cc */
+#define CAM_MUX_BACK_LEVEL    0      /* MUX_BACK_CAMERA  in camera.cc */
+
 /*******************************************************************************
  * Code
  ******************************************************************************/
@@ -84,6 +122,39 @@ void CSI_IRQHandler(void)
     CSI_DriverIRQHandler();
     __DSB();
     g_camera_frame_seq++;   /* one DMA frame completed */
+
+    /* ---- Stateless ratio-alternate scheduler ----
+     * When both quotas are non-zero, use a modulo over the monotonic
+     * frame counter to decide which camera should own frame N.  No
+     * counter state in ISR context — the policy is a pure function of
+     * (seq, ratio_a, ratio_b).  If the desired target differs from the
+     * current MUX setting we arm a flip for the consume branch below.
+     * O(1): one read, one modulo (UDIV ≤ 12 cycles on Cortex-M7), two
+     * compares, one conditional store. */
+    uint32_t ra = g_cam_ratio_a;
+    uint32_t rb = g_cam_ratio_b;
+    uint32_t total = ra + rb;
+    if (total > 0u && g_cam_pending_mux_id < 0) {
+        uint32_t pos = g_camera_frame_seq % total;
+        int target = (pos < ra) ? 0 : 1;
+        if (target != g_cam_current_id) {
+            g_cam_pending_mux_id = target;
+        }
+    }
+
+    /* ---- Consume pending MUX flip (manual OR scheduler) in VBLANK ----
+     * Per NASA-JPL §C: one read, one branch, one atomic GPIO write,
+     * four global stores.  No loops, no mutex, no task wakeup. */
+    int pending = g_cam_pending_mux_id;
+    if (pending >= 0) {
+        bool level = (pending == 0) ? (CAM_MUX_FRONT_LEVEL != 0)
+                                    : (CAM_MUX_BACK_LEVEL  != 0);
+        SentaiCamMuxSetFromIsr(level);
+        g_cam_switch_seq     = g_camera_frame_seq;
+        g_cam_switch_pending = true;
+        g_cam_current_id     = pending;
+        g_cam_pending_mux_id = -1;
+    }
 }
 
 void BOARD_EarlyInitCamera(void)
