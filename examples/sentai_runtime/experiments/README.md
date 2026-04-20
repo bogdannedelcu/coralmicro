@@ -16,6 +16,14 @@ Every session is self-contained:
 Total size ~4.6 MB across 45 sessions.  Each session's `manifest.csv` is
 the authoritative record of what ran inside it.
 
+**Methodology** — how these sessions are produced, downloaded, and
+statistically summarised is documented in
+[`methodology.md`](methodology.md).  That file describes the warm-up
+protocol, the warm-up-sample drop convention, noise budget, scene
+snapshot discipline, the REPL-chunked upload path, and the
+reproducibility criteria.  Read it before interpreting any of the
+appendix numbers.
+
 ## Pre-camera-switch sessions (E1-E14 — groundwork)
 
 These are the early single-subsystem probes and the build-up to the
