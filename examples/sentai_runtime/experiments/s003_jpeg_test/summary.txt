@@ -1,0 +1,7 @@
+session: s003_jpeg_test
+experiments: 1
+duration_ms: 26
+heap_start_rtos_free: 12084836
+heap_end_rtos_free: 12084980
+heap_start_gc_used: 110832
+heap_end_gc_used: 205856

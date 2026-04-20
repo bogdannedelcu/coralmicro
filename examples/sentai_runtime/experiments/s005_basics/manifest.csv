@@ -1,0 +1,5 @@
+seq,experiment,file,summary
+1,e10_memory,/diags/s005_basics/001_e10_mem_idle.csv,idle rtos_free=16686656
+3,e7_fs_write,/diags/s005_basics/003_e7_fs_write_4096b.csv,4096B 55.7 KB/s mean=71.8 ms
+4,e6_fs_read,/diags/s005_basics/004_e6_fs_read.csv,0.2 KB/s mean=157.4 ms
+5,e8_imu,/diags/s005_basics/005_e8_imu.csv,read=0.0 deg=0.1 rad=0.1 ms

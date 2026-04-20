@@ -1,0 +1,2 @@
+seq,experiment,file,summary
+1,e4_jpeg,/diags/s003_jpeg_test/001_e4_jpeg_cam0_q75.csv,cam0 q=75 jpeg=156.8 save=244.8 ms frames=5

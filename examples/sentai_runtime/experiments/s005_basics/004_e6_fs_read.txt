@@ -1,0 +1,13 @@
+E6 — Filesystem read latency and throughput.
+Measures how long sentai.fs.read() takes to read a file fully from LittleFS (QSPI flash).
+
+Columns:
+  run_index    : repetition number (0-based)
+  file_read_ms : wall time of one fs.read() call in milliseconds
+
+Throughput in KB/s is computed as file_size / mean_read_ms.
+
+Parameters:
+  path = /main.py
+  repetitions = 5
+  file_size_bytes = 35

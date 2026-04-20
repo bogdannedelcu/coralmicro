@@ -1,0 +1,3 @@
+seq,experiment,file,summary
+1,e4_jpeg,/diags/s006_cam_basic/001_e4_jpeg_cam0_q75.csv,cam0 q=75 jpeg=106.6 save=360.2 ms frames=5
+2,e5_camera_switch,/diags/s006_cam_basic/002_e5_switch_0to1.csv,0->1 switch=0.0 roundtrip=348.7 ms

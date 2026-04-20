@@ -1,0 +1,11 @@
+E8 — IMU read latency.
+Measures how long each IMU API call takes over I2C.
+
+Columns:
+  run_index        : repetition number (0-based)
+  imu_raw_read_ms  : time for sentai.imu.read() — raw I2C register burst
+  imu_degrees_ms   : time for sentai.imu.degrees() — read + convert to degrees
+  imu_radians_ms   : time for sentai.imu.radians() — read + convert to radians
+
+Parameters:
+  repetitions = 30

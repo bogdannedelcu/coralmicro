@@ -1,0 +1,13 @@
+E10 — Memory snapshot.
+One-row snapshot of RAM state under a labeled scenario.
+
+Columns:
+  scenario_name                 : user label for when the snapshot was taken
+  rtos_free_heap_bytes          : FreeRTOS heap free (available for C malloc/tasks)
+  gc_total_bytes                : total MicroPython GC heap size
+  gc_used_bytes                 : GC heap currently allocated by Python objects
+  gc_free_bytes                 : GC heap free (available for new Python allocations)
+  gc_largest_free_block_bytes   : largest contiguous free block in GC heap
+
+Parameters:
+  scenario = startup

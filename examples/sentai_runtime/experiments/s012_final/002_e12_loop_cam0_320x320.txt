@@ -1,0 +1,17 @@
+E12 — Full perception loop latency.
+Measures the complete pipeline per frame: camera to_tensor + EdgeTPU invoke + output read.
+
+Columns:
+  run_index              : repetition number (0-based)
+  camera_to_tensor_ms    : time for camera.to_tensor() — PXP resize + quantize + DMA to TPU
+  edgetpu_invoke_ms      : time for tpu.invoke() — neural network forward pass on EdgeTPU
+  total_loop_ms          : total = to_tensor + invoke + tpu.output(0) read
+
+Effective FPS = 1000 / mean(total_loop_ms). Does NOT include sensor frame-wait time.
+
+Parameters:
+  repetitions = 30
+  height = 320
+  width = 320
+  model_path = /yolo26n.edgetpu_1.tflite
+  camera_id = 0

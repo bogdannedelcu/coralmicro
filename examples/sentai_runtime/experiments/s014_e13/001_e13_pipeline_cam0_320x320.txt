@@ -1,0 +1,25 @@
+E13 — Full inference pipeline per-stage timing.
+One row per frame captures every Python-visible stage of the vision loop.
+
+Columns:
+  run_index             : repetition number (0-based)
+  frame_wait_ms         : poll time waiting for a new sensor frame (1/FPS bound)
+  camera_to_tensor_ms   : to_tensor() — PXP resize + int8 quantize + copy into TPU SRAM
+                          (firmware logs frame/pxp/quant sub-breakdown to console)
+  edgetpu_invoke_ms     : tpu.invoke() — neural network forward pass on EdgeTPU
+  output_read_ms        : tpu.output(0) — copy raw output tensor into MicroPython bytes
+  detect_nms_ms         : tpu.detect(conf,iou) — YOLO NMS + class selection
+  num_detections        : surviving detections after NMS
+  total_loop_ms         : sum of the five stage timings (no host-side overhead)
+
+Effective FPS = 1000 / mean(total_loop_ms).
+
+Parameters:
+  model_path = /yolo26n.edgetpu_1.tflite
+  conf = 0.25
+  height = 320
+  width = 320
+  max_det = 50
+  repetitions = 30
+  camera_id = 0
+  iou = 0.45

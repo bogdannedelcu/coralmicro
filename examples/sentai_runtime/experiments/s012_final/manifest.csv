@@ -1,0 +1,4 @@
+seq,experiment,file,summary
+1,e10_memory,/diags/s012_final/001_e10_mem_startup.csv,startup rtos_free=16686656
+2,e12_live_loop,/diags/s012_final/002_e12_loop_cam0_320x320.csv,cam0 320x320 loop=167.1 ms fps=6.0
+3,e10_memory,/diags/s012_final/003_e10_mem_after_loop.csv,after_loop rtos_free=12093612

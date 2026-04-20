@@ -1,0 +1,9 @@
+seq,experiment,file,summary
+1,e14_pipeline_parallel,/diags/s021_e14_x20/001_e14_pipeline_par_cam0_320x320.csv,cam0 320x320 fps_wall=6.4 fw_fps=6.2 dropped=0 dets=0
+2,e14_pipeline_parallel,/diags/s021_e14_x20/002_e14_pipeline_par_cam0_320x320.csv,cam0 320x320 fps_wall=6.4 fw_fps=6.2 dropped=0 dets=0
+3,e14_pipeline_parallel,/diags/s021_e14_x20/003_e14_pipeline_par_cam0_320x320.csv,cam0 320x320 fps_wall=6.4 fw_fps=6.2 dropped=0 dets=0
+4,e14_pipeline_parallel,/diags/s021_e14_x20/004_e14_pipeline_par_cam0_320x320.csv,cam0 320x320 fps_wall=6.4 fw_fps=6.2 dropped=0 dets=1
+5,e14_pipeline_parallel,/diags/s021_e14_x20/005_e14_pipeline_par_cam0_320x320.csv,cam0 320x320 fps_wall=6.4 fw_fps=6.1 dropped=0 dets=1
+6,e14_pipeline_parallel,/diags/s021_e14_x20/006_e14_pipeline_par_cam0_320x320.csv,cam0 320x320 fps_wall=6.4 fw_fps=6.2 dropped=0 dets=0
+7,e14_pipeline_parallel,/diags/s021_e14_x20/007_e14_pipeline_par_cam0_320x320.csv,cam0 320x320 fps_wall=6.4 fw_fps=6.2 dropped=0 dets=2
+8,e14_pipeline_parallel,/diags/s021_e14_x20/008_e14_pipeline_par_cam0_320x320.csv,cam0 320x320 fps_wall=6.4 fw_fps=6.1 dropped=0 dets=0

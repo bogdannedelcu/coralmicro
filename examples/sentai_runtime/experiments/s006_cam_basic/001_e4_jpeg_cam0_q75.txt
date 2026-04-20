@@ -1,0 +1,17 @@
+E4 — JPEG capture latency and file size.
+Measures how long it takes to encode a frame to JPEG in memory and save it to flash.
+
+Columns:
+  run_index              : repetition number (0-based)
+  jpeg_encode_ms         : time for sentai.camera.jpeg() — encode to RAM only
+  jpeg_save_to_flash_ms  : time for sentai.camera.save_jpeg() — encode + write to LittleFS
+  jpeg_file_bytes        : size of the resulting JPEG file in bytes
+
+Note: jpeg_save includes flash write overhead on top of encoding.
+
+Parameters:
+  repetitions = 5
+  height = 480
+  width = 640
+  quality = 75
+  camera_id = 0

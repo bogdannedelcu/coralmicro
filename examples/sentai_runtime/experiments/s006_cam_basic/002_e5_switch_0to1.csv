@@ -1,0 +1,4 @@
+run_index,camera_select_ms,wait_new_frame_plus_tensor_ms,total_roundtrip_ms
+0,0,349,349
+1,0,349,349
+2,0,348,348

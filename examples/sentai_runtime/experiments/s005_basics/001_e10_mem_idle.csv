@@ -1,0 +1,2 @@
+scenario_name,rtos_free_heap_bytes,gc_total_bytes,gc_used_bytes,gc_free_bytes,gc_largest_free_block_bytes
+idle,16686656,258048,59648,198400,10729

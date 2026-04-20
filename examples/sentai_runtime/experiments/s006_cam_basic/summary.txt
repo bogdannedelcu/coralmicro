@@ -1,0 +1,7 @@
+session: s006_cam_basic
+experiments: 2
+duration_ms: 9
+heap_start_rtos_free: 16686656
+heap_end_rtos_free: 12093612
+heap_start_gc_used: 126416
+heap_end_gc_used: 251360

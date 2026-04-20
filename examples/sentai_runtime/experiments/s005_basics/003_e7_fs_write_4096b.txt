@@ -1,0 +1,12 @@
+E7 — Filesystem write latency and throughput.
+Measures how long sentai.fs.write() takes to write a fixed-size block to LittleFS (QSPI flash).
+
+Columns:
+  run_index     : repetition number (0-based)
+  file_write_ms : wall time of one fs.write() call in milliseconds
+
+Throughput in KB/s is computed as write_size / mean_write_ms.
+
+Parameters:
+  write_size_bytes = 4096
+  repetitions = 5

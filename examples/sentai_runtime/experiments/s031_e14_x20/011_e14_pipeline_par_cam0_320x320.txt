@@ -1,0 +1,28 @@
+E14 - Parallel inference pipeline, measured sustained FPS.
+Uses firmware PrepTask (PXP+quant into staging) || InferTask
+(memcpy staging->tensor, Invoke, NMS).  Staging buffer released
+before Invoke runs, so frame N+1 prep overlaps with frame N invoke.
+
+Columns:
+  run_index          : frame index (0-based)
+  frame_interval_ms  : wall-clock delta between consecutive pipeline.get()
+                       = sustained loop time (lower is better)
+  prep_stall_ms      : time since PrepTask last completed a frame (ms)
+  infer_stall_ms     : time since InferTask last completed a frame (ms)
+  num_detections     : detections returned for this frame
+
+Sustained FPS = 1000 / mean(frame_interval_ms).
+
+Parameters:
+  height = 320
+  conf = 0.25
+  iou = 0.45
+  max_det = 50
+  model_path = /yolo26n.edgetpu_1.tflite
+  frames_received = 20
+  frames_timeouts = 0
+  fw_processed = 21
+  fw_dropped = 0
+  repetitions = 20
+  camera_id = 0
+  width = 320

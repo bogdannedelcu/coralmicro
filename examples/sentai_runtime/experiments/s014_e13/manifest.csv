@@ -1,0 +1,2 @@
+seq,experiment,file,summary
+1,e13_pipeline_full,/diags/s014_e13/001_e13_pipeline_cam0_320x320.csv,cam0 320x320 fps=5.0 frame=5 tensor=54 inv=128 out=9 det=6 ms  dets=20

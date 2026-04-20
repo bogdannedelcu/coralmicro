@@ -1,0 +1,7 @@
+session: s021_e14_x20
+experiments: 8
+duration_ms: 103
+heap_start_rtos_free: 11893908
+heap_end_rtos_free: 11882004
+heap_start_gc_used: 70736
+heap_end_gc_used: 68144

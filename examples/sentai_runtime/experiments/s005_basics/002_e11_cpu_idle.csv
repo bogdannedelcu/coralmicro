@@ -1,0 +1,20 @@
+task_name,rtos_state,rtos_priority,stack_hwm_bytes,cpu_usage_pct
+mp_repl,running,1,3267,4
+IDLE,ready,0,53,15
+DHCP thread,blocked,3,139,0
+hw_wdog,blocked,3,1566,0
+ctrlc,blocked,2,103,0
+tcpip_thread,blocked,4,666,0
+edgetpu_dfu_task,blocked,3,189,0
+lfs_task,blocked,2,409,0
+edgetpu_task,blocked,3,155,0
+app_main,suspended,3,2143,2
+cdc_ncm_task,blocked,4,804,0
+pmic_task,blocked,4,861,0
+Tmr Svc,blocked,4,142,0
+UsbHostTask,blocked,4,786,0
+usb_device_task,blocked,4,738,0
+m7_console_task_tx,blocked,3,846,0
+m7_console_task_rx,blocked,3,851,0
+camera_task,blocked,4,642,0
+btn_usb,suspended,1,333,0

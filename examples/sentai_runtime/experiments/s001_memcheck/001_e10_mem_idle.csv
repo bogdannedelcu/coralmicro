@@ -1,0 +1,2 @@
+scenario,rtos_free,gc_total,gc_used,gc_free,gc_max_free
+idle,16678652,258048,57520,200528,10528

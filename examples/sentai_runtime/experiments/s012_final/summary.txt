@@ -1,0 +1,7 @@
+session: s012_final
+experiments: 3
+duration_ms: 12
+heap_start_rtos_free: 16686656
+heap_end_rtos_free: 12093612
+heap_start_gc_used: 49552
+heap_end_gc_used: 70832

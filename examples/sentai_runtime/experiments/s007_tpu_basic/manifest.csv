@@ -1,0 +1,4 @@
+seq,experiment,file,summary
+1,e2_tpu_load,/diags/s007_tpu_basic/001_e2_tpu_load.csv,mean=1480.0 ms
+2,e1_tpu_invoke,/diags/s007_tpu_basic/002_e1_tpu_invoke.csv,mean=122.7 p95=130.0 ms
+3,e1_tpu_invoke,/diags/s007_tpu_basic/003_e1_tpu_invoke.csv,mean=123.8 p95=131.6 ms
