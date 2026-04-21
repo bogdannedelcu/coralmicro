@@ -30,6 +30,96 @@ static mp_obj_t mod_sentai_pipeline_dma_memcpy(size_t n_args,
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_pipeline_dma_memcpy_obj,
                                             0, 1, mod_sentai_pipeline_dma_memcpy);
 
+// sentai.pipeline.direct_tensor([flag]) -> int (previous value)
+// Step 4 ping-pong path: PrepTask PXP writes directly into one of two
+// aligned tensor-sized buffers; InferTask swaps the TFLite input tensor's
+// data pointer to that buffer before each Invoke, eliminating the 16-17 ms
+// staging->tensor memcpy.  Cannot be toggled while the pipeline is running
+// (setter returns -1 -> ValueError here, per embeded.md §C).
+extern int  sentai_pipeline_direct_tensor_get(void);
+extern int  sentai_pipeline_direct_tensor_set(int v);
+extern void sentai_pipeline_direct_tensor_stats(uint32_t* frames,
+                                                uint32_t* prep_to,
+                                                uint32_t* infer_to,
+                                                uint32_t* swap_fail);
+static mp_obj_t mod_sentai_pipeline_direct_tensor(size_t n_args,
+                                                   const mp_obj_t *args) {
+    int prev = sentai_pipeline_direct_tensor_get();
+    if (n_args >= 1) {
+        int v = mp_obj_is_true(args[0]) ? 1 : 0;
+        if (sentai_pipeline_direct_tensor_set(v) != 0) {
+            mp_raise_ValueError(MP_ERROR_TEXT("stop pipeline before toggling direct_tensor"));
+        }
+    }
+    return mp_obj_new_int(prev);
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_pipeline_direct_tensor_obj,
+                                            0, 1, mod_sentai_pipeline_direct_tensor);
+
+// sentai.pipeline.direct_stats() -> dict of supervision counters for the
+// direct-tensor path.  Zeros when feature has never been enabled since boot.
+static mp_obj_t mod_sentai_pipeline_direct_stats(void) {
+    uint32_t f=0, pto=0, ito=0, sf=0;
+    sentai_pipeline_direct_tensor_stats(&f, &pto, &ito, &sf);
+    mp_obj_t d = mp_obj_new_dict(0);
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_frames),
+                      mp_obj_new_int_from_uint(f));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_prep_buf_timeout),
+                      mp_obj_new_int_from_uint(pto));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_infer_wait_timeout),
+                      mp_obj_new_int_from_uint(ito));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_swap_fail),
+                      mp_obj_new_int_from_uint(sf));
+    return d;
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_pipeline_direct_stats_obj,
+                                  mod_sentai_pipeline_direct_stats);
+
+// sentai.pipeline.desc_cache([flag]) -> int (previous value)
+// Enable host-side caching of parameters + instructions in the EdgeTPU
+// descriptor hint loop (edgetpu_executable.cc).  Matches a model's
+// parameter_caching_token so a change of model or a reload automatically
+// invalidates the cache (sentai_tpu_desc_cache_invalidate in
+// sentai_load_model).  Safe to toggle at any time — first Invoke after
+// enabling does a full upload and primes the cache, subsequent ones
+// skip the 30+ MB of static wire traffic per frame.
+extern volatile int      g_sentai_tpu_desc_cache_enabled;
+extern volatile uint32_t g_sentai_tpu_desc_cache_sent_params;
+extern volatile uint32_t g_sentai_tpu_desc_cache_sent_ins;
+extern volatile uint32_t g_sentai_tpu_desc_cache_skip_params;
+extern volatile uint32_t g_sentai_tpu_desc_cache_skip_ins;
+extern void sentai_tpu_desc_cache_invalidate(void);
+static mp_obj_t mod_sentai_pipeline_desc_cache(size_t n_args,
+                                                const mp_obj_t *args) {
+    int prev = g_sentai_tpu_desc_cache_enabled;
+    if (n_args >= 1) {
+        g_sentai_tpu_desc_cache_enabled = mp_obj_is_true(args[0]) ? 1 : 0;
+        // Always invalidate on state change so a flip-flop test starts
+        // from a clean cache and the first Invoke in the new mode does a
+        // predictable full upload.
+        sentai_tpu_desc_cache_invalidate();
+    }
+    return mp_obj_new_int(prev);
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_pipeline_desc_cache_obj,
+                                            0, 1, mod_sentai_pipeline_desc_cache);
+
+// sentai.pipeline.desc_cache_stats() -> dict with sent/skip counters.
+static mp_obj_t mod_sentai_pipeline_desc_cache_stats(void) {
+    mp_obj_t d = mp_obj_new_dict(0);
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_sent_params),
+                      mp_obj_new_int_from_uint(g_sentai_tpu_desc_cache_sent_params));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_sent_ins),
+                      mp_obj_new_int_from_uint(g_sentai_tpu_desc_cache_sent_ins));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_skip_params),
+                      mp_obj_new_int_from_uint(g_sentai_tpu_desc_cache_skip_params));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_skip_ins),
+                      mp_obj_new_int_from_uint(g_sentai_tpu_desc_cache_skip_ins));
+    return d;
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_pipeline_desc_cache_stats_obj,
+                                  mod_sentai_pipeline_desc_cache_stats);
+
 // sentai.pipeline.start([conf[, iou[, max[, track]]]]) -> int
 // Start continuous detection pipeline.
 // conf/iou: float 0.0-1.0 (default 0.5 / 0.45).  max: int (default 50).
@@ -324,6 +414,10 @@ static const mp_rom_map_elem_t sentai_pipeline_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_get),           MP_ROM_PTR(&mod_sentai_pipeline_get_obj) },
     { MP_ROM_QSTR(MP_QSTR_get_ex),        MP_ROM_PTR(&mod_sentai_pipeline_get_ex_obj) },
     { MP_ROM_QSTR(MP_QSTR_dma_memcpy),    MP_ROM_PTR(&mod_sentai_pipeline_dma_memcpy_obj) },
+    { MP_ROM_QSTR(MP_QSTR_direct_tensor), MP_ROM_PTR(&mod_sentai_pipeline_direct_tensor_obj) },
+    { MP_ROM_QSTR(MP_QSTR_direct_stats),  MP_ROM_PTR(&mod_sentai_pipeline_direct_stats_obj) },
+    { MP_ROM_QSTR(MP_QSTR_desc_cache),    MP_ROM_PTR(&mod_sentai_pipeline_desc_cache_obj) },
+    { MP_ROM_QSTR(MP_QSTR_desc_cache_stats), MP_ROM_PTR(&mod_sentai_pipeline_desc_cache_stats_obj) },
     { MP_ROM_QSTR(MP_QSTR_running),       MP_ROM_PTR(&mod_sentai_pipeline_running_obj) },
     { MP_ROM_QSTR(MP_QSTR_stats),         MP_ROM_PTR(&mod_sentai_pipeline_stats_obj) },
     { MP_ROM_QSTR(MP_QSTR_tracks),        MP_ROM_PTR(&mod_sentai_pipeline_tracks_obj) },

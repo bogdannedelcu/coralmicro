@@ -18,6 +18,45 @@
 
 #include "tensorflow/lite/micro/kernels/kernel_util.h"
 
+// ---------------------------------------------------------------------------
+// sentai: host-side descriptor cache for the EdgeTPU.
+// ---------------------------------------------------------------------------
+// The compiled `Executable` carries a `parameter_caching_token()` (see
+// edgetpu_executable.h:91).  Upstream libedgetpu (desktop) uses this
+// token to decide whether it may skip re-uploading the model's parameters
+// and instruction bitstreams — once they are in the TPU's on-chip memory,
+// they survive subsequent Invokes for the same (package, token) pair.
+// The coralmicro port ignores the token and re-uploads them every Invoke,
+// which costs ~35–40 ms of USB wire time per frame on a 512×512 YOLO.
+//
+// We implement that same cache behind a runtime flag.  Default OFF until
+// empirically validated on the single_ep firmware variant — single_ep is
+// simpler than multi_ep and may not persist on-chip state across Invokes.
+// If the first on-run Invoke returns good detections while skipping the
+// non-input DMA hints, the flag can be set default ON.
+//
+// Cache invariants:
+//   g_sentai_tpu_desc_cache_enabled : task-context flag, read on hot path.
+//   g_sentai_tpu_desc_cache_token   : the caching token of the last package
+//                                     that was fully uploaded.
+//   g_sentai_tpu_desc_cache_exe     : the Executable* of that last package.
+//                                     Paired with the token so a different
+//                                     package always triggers a full
+//                                     upload even if tokens collide.
+// Counters (embeded.md §I) exposed via sentai.pipeline.desc_cache_stats().
+// ---------------------------------------------------------------------------
+extern "C" volatile int g_sentai_tpu_desc_cache_enabled = 0;   // default OFF
+extern "C" volatile uint32_t g_sentai_tpu_desc_cache_sent_params = 0;
+extern "C" volatile uint32_t g_sentai_tpu_desc_cache_sent_ins    = 0;
+extern "C" volatile uint32_t g_sentai_tpu_desc_cache_skip_params = 0;
+extern "C" volatile uint32_t g_sentai_tpu_desc_cache_skip_ins    = 0;
+static uint64_t g_sentai_tpu_desc_cache_token = 0;
+static const void* g_sentai_tpu_desc_cache_exe = nullptr;
+extern "C" void sentai_tpu_desc_cache_invalidate(void) {
+    g_sentai_tpu_desc_cache_token = 0;
+    g_sentai_tpu_desc_cache_exe   = nullptr;
+}
+
 namespace {
 int TensorDataTypeSize(platforms::darwinn::DataType data_type) {
   switch (data_type) {
@@ -78,6 +117,18 @@ TfLiteStatus EdgeTpuExecutable::Invoke(const TpuDriver& tpu_driver,
     return kTfLiteError;
   }
 
+  // sentai: descriptor cache hit check.  The TPU's on-chip memory retains
+  // parameters + instructions from the previous Invoke as long as the
+  // executable and its parameter_caching_token are unchanged — we only
+  // need to re-upload the INPUT activation (camera frame) every call.
+  // Mismatch (different model, or first call after a reset) falls through
+  // to the full upload path and refreshes the cache key below.
+  const uint64_t this_token = executable_->parameter_caching_token();
+  const bool cache_hit = (g_sentai_tpu_desc_cache_enabled != 0) &&
+                         (g_sentai_tpu_desc_cache_exe == this) &&
+                         (g_sentai_tpu_desc_cache_token == this_token) &&
+                         (this_token != 0ULL);
+
   const platforms::darwinn::DmaDescriptorHint* dma_hint;
   const char* name;
   uint8_t* output;
@@ -90,6 +141,11 @@ TfLiteStatus EdgeTpuExecutable::Invoke(const TpuDriver& tpu_driver,
         dma_hint = hint->any_hint_as_DmaDescriptorHint();
         switch (dma_hint->meta()->desc()) {
           case platforms::darwinn::Description_BASE_ADDRESS_PARAMETER:
+            if (cache_hit) {
+              g_sentai_tpu_desc_cache_skip_params++;
+              break;
+            }
+            g_sentai_tpu_desc_cache_sent_params++;
             RETURN_IF_ERROR(tpu_driver.SendParameters(
                 executable_->parameters()->data() + dma_hint->offset_in_bytes(),
                 dma_hint->size_in_bytes()));
@@ -128,10 +184,15 @@ TfLiteStatus EdgeTpuExecutable::Invoke(const TpuDriver& tpu_driver,
         }
         break;
       case platforms::darwinn::AnyHint_InstructionHint:
+        if (cache_hit) {
+          g_sentai_tpu_desc_cache_skip_ins++;
+          break;
+        }
         ins_idx =
             hint->any_hint_as_InstructionHint()->instruction_chunk_index();
         bitstream =
             executable_->instruction_bitstreams()->Get(ins_idx)->bitstream();
+        g_sentai_tpu_desc_cache_sent_ins++;
         RETURN_IF_ERROR(
             tpu_driver.SendInstructions(bitstream->data(), bitstream->size()));
         break;
@@ -141,6 +202,15 @@ TfLiteStatus EdgeTpuExecutable::Invoke(const TpuDriver& tpu_driver,
   }
 
   tpu_driver.ReadEvent();
+
+  // sentai: refresh cache key AFTER a successful full upload (cache miss
+  // that completed without a RETURN_IF_ERROR).  When cache_hit was true we
+  // did not touch the TPU side, so the stored key is still valid and does
+  // not need refreshing.
+  if (!cache_hit && g_sentai_tpu_desc_cache_enabled != 0 && this_token != 0ULL) {
+    g_sentai_tpu_desc_cache_exe   = this;
+    g_sentai_tpu_desc_cache_token = this_token;
+  }
 
   if (!output_layers_.empty()) {
     for (int i = 0; i < node->outputs->size; ++i) {

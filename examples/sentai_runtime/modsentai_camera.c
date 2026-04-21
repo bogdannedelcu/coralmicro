@@ -197,6 +197,23 @@ static mp_obj_t mod_sentai_cam_switch_drain(size_t n_args, const mp_obj_t *args)
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_cam_switch_drain_obj,
                                             0, 1, mod_sentai_cam_switch_drain);
 
+// E19 — ISR-driven fast-wake path toggle.  switch_sync(0) reverts the
+// drain slow-path to the legacy 1-ms polling loop; switch_sync(1)
+// (default) uses an xSemaphoreTake that the CSI ISR signals the moment
+// the post-switch countdown reaches 0.  Returns the previous value.
+extern uint8_t sentai_cam_switch_sync_get(void);
+extern int     sentai_cam_switch_sync_set(uint8_t enable);
+static mp_obj_t mod_sentai_cam_switch_sync(size_t n_args, const mp_obj_t *args) {
+    int prev = (int) sentai_cam_switch_sync_get();
+    if (n_args >= 1) {
+        int v = mp_obj_get_int(args[0]);
+        sentai_cam_switch_sync_set((uint8_t)(v ? 1 : 0));
+    }
+    return mp_obj_new_int(prev);
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_cam_switch_sync_obj,
+                                            0, 1, mod_sentai_cam_switch_sync);
+
 // ---- module table ----
 static const mp_rom_map_elem_t sentai_camera_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__),   MP_ROM_QSTR(MP_QSTR_camera) },
@@ -212,6 +229,7 @@ static const mp_rom_map_elem_t sentai_camera_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_frame_count),  MP_ROM_PTR(&mod_sentai_cam_frame_count_obj) },
     { MP_ROM_QSTR(MP_QSTR_rotate),     MP_ROM_PTR(&mod_sentai_cam_rotate_obj) },
     { MP_ROM_QSTR(MP_QSTR_switch_drain), MP_ROM_PTR(&mod_sentai_cam_switch_drain_obj) },
+    { MP_ROM_QSTR(MP_QSTR_switch_sync),  MP_ROM_PTR(&mod_sentai_cam_switch_sync_obj) },
     { MP_ROM_QSTR(MP_QSTR_ratio),      MP_ROM_PTR(&mod_sentai_cam_ratio_obj) },
 };
 static MP_DEFINE_CONST_DICT(sentai_camera_globals, sentai_camera_globals_table);

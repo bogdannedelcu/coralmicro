@@ -29,6 +29,11 @@
 #define USB_EDGETPU_BULK_IN_ENDPOINT_NUM 2
 #define USB_EDGETPU_INTERRUPT_IN_ENDPOINT_NUM 1
 #define USB_EDGETPU_BULK_OUT_PACKET_SIZE 512
+/* 256 B matches the EdgeTPU device-advertised wMaxPacketSize for the
+ * bulk-IN endpoint (verified empirically: configuring 512 here yields
+ * identical wire behaviour and identical E15 FPS — the wire is always
+ * 256-byte packets because the device enforces it via its descriptor).
+ * Kept at 256 for consistency with the device spec. */
 #define USB_EDGETPU_BULK_IN_PACKET_SIZE 256
 #define USB_EDGETPU_INTERRRUPT_ENDPOINT_INDEX 5
 

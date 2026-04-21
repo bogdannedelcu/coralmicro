@@ -65,6 +65,14 @@ These are load-bearing.  Violating them has cost whole days of debug.
    RAW** — `/api/ls/` goes to `lfs_task` even on an idle FS
    (see [lfs.md](../paper/lfs.md) build #633 entry for why).
 
+7. **Experiment run cadence — verbose-first, then quiet multi-run** — the
+   very first call of a NEW or firmware-touched experiment MUST be a
+   single trial with `sentai.verbose(1)`.  Only after that single trial
+   finishes cleanly (summary printed, no WDOG reset, no hang) do you wrap
+   multiple trials with `sentai.verbose(0)`.  Going straight to verbose=0
+   + multi-trial hides early failures and wastes a whole run on a bug you
+   could have seen in the first per-frame trace.
+
 ---
 
 ## 3. Operating tools (all host-side, on Linux)

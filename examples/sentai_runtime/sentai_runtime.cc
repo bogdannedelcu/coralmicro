@@ -46,6 +46,7 @@ extern "C" {
 #include "libs/tpu/edgetpu_task.h"
 #include "third_party/freertos_kernel/include/FreeRTOS.h"
 #include "third_party/freertos_kernel/include/task.h"
+#include "third_party/freertos_kernel/include/semphr.h"
 #include "third_party/tflite-micro/tensorflow/lite/micro/micro_error_reporter.h"
 #include "third_party/tflite-micro/tensorflow/lite/micro/micro_interpreter.h"
 #include "third_party/tflite-micro/tensorflow/lite/micro/micro_mutable_op_resolver.h"
@@ -783,8 +784,15 @@ extern "C" const char *sentai_build_version_string(void) {
 namespace coralmicro {
 
 // External-linkage state — accessed by sentai_slow_bridge.cc (OCRAM)
+// Aligned to 32 bytes so the TFLite input tensor (which inherits the arena's
+// base alignment) lands on an eDMA 32-byte burst boundary.  TFLite Micro's
+// per-tensor allocator then rounds tensor offsets to its own 16-byte stride,
+// but as long as the arena itself is 32-aligned the odds of hitting a 32-byte
+// boundary for the input tensor are high for typical sizes.  See
+// detection_task.cc:sentai_dma_memcpy — 32-byte width path yields ~300 MB/s
+// vs 50 MB/s for the 8-byte fallback on SEMC SDRAM.
 uint8_t tensor_arena[8 * 1024 * 1024]
-    __attribute__((aligned(16)))
+    __attribute__((aligned(32)))
     __attribute__((section(".sdram_bss,\"aw\",%nobits @")));
 tflite::MicroInterpreter* g_interpreter = nullptr;
 volatile bool g_tpu_ready = false;
@@ -1132,6 +1140,36 @@ extern "C" int sentai_tpu_invoke_internal(void) {
   TickType_t t0 = xTaskGetTickCount();
   if (coralmicro::g_interpreter->Invoke() != kTfLiteOk) return -2;
   TickType_t t1 = xTaskGetTickCount();
+  return (int)((t1 - t0) * portTICK_PERIOD_MS);
+}
+
+// Direct-input invoke: swap the TFLite input tensor's data pointer to
+// `input_buf` for the duration of this Invoke, then restore the original
+// arena-backed pointer before returning.  This lets PrepTask write the
+// per-frame bytes directly into its own 32-byte aligned ping-pong buffer
+// and have InferTask point TFLite at that buffer — eliminating the
+// staging→tensor memcpy entirely.
+//
+// Safety (embeded.md §C/§F):
+//   - Both saves and the Invoke happen on the InferTask thread; no
+//     concurrent mutator touches input->data.uint8 while we own it.
+//   - The restore runs on EVERY exit path (success, Invoke failure, bad
+//     input tensor) so a subsequent legacy-path call or external caller
+//     of `sentai_get_tensor_info` observes the arena pointer.
+//   - `input_buf` is trusted — the caller owns the buffer's lifetime
+//     and must keep it valid until this function returns.
+extern "C" int sentai_tpu_invoke_with_input(uint8_t* input_buf) {
+  if (!coralmicro::g_tpu_ready || !coralmicro::g_interpreter) return -1;
+  if (input_buf == nullptr) return -3;
+  auto* input = coralmicro::g_interpreter->input_tensor(0);
+  if (!input) return -4;
+  uint8_t* const saved = input->data.uint8;
+  input->data.uint8 = input_buf;
+  TickType_t t0 = xTaskGetTickCount();
+  TfLiteStatus rc = coralmicro::g_interpreter->Invoke();
+  TickType_t t1 = xTaskGetTickCount();
+  input->data.uint8 = saved;   // restore on ALL paths (no early return between)
+  if (rc != kTfLiteOk) return -2;
   return (int)((t1 - t0) * portTICK_PERIOD_MS);
 }
 
@@ -1895,7 +1933,9 @@ volatile uint32_t g_cam_ratio_packed = 0;
 // experiment.  Bounded to [1, 10] at the setter to preserve
 // analyzability: threshold=0 would return a pre-flip frame, threshold
 // beyond 10 is not a sensible operating point on this 15 FPS pipeline.
-static volatile uint32_t g_cam_switch_drain_threshold = 2;
+// Non-static: the CSI ISR (libs/camera/camera_support.c) reads this when
+// arming the post-switch countdown.
+volatile uint32_t g_cam_switch_drain_threshold = 2;
 
 extern "C" uint32_t sentai_cam_switch_drain_get(void) {
   return g_cam_switch_drain_threshold;
@@ -1904,6 +1944,30 @@ extern "C" uint32_t sentai_cam_switch_drain_get(void) {
 extern "C" int sentai_cam_switch_drain_set(uint32_t n) {
   if (n < 1 || n > 10) return -1;
   g_cam_switch_drain_threshold = n;
+  return 0;
+}
+
+// ---------------------------------------------------------------------
+// switch_sync toggle — API surface only, currently a no-op stub.
+//
+// The real implementation (ISR-driven semaphore wake) was backed out
+// because the initial prototype caused a multi-minute hang during
+// continuous alternation; per embeded.md §M (ANTI-BRICK) and §C (ISR
+// discipline) the change was reverted until the ISR path can be
+// validated with per-call bounded timing and supervision counters.
+//
+// For now `switch_sync(0)` and `switch_sync(1)` both run the legacy
+// poll drain.  The flag is preserved so future work can re-enable
+// an ISR fast-wake path without breaking the MicroPython surface.
+// --------------------------------------------------------------------- */
+volatile uint8_t g_cam_switch_sync_enabled = 0;   // reserved; no-op for now
+
+extern "C" uint8_t sentai_cam_switch_sync_get(void) {
+  return g_cam_switch_sync_enabled;
+}
+
+extern "C" int sentai_cam_switch_sync_set(uint8_t enable) {
+  g_cam_switch_sync_enabled = enable ? 1 : 0;
   return 0;
 }
 

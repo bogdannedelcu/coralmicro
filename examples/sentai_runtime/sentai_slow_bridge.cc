@@ -48,6 +48,11 @@ extern "C" void sentai_quant_uint8_to_int8(uint8_t* buf, int count, int zp);
 
 // ---- sentai_load_model ----
 
+// Forward decl: invalidate the descriptor cache in edgetpu_executable.cc
+// whenever a new model is loaded — a new package has a new (this, token)
+// identity and must upload its parameters + instructions afresh.
+extern "C" void sentai_tpu_desc_cache_invalidate(void);
+
 extern "C" int sentai_load_model(const char* path) {
   if (sentai_detection_is_running()) {
     printf("ERROR: stop detection pipeline before loading a new model\r\n");
@@ -58,6 +63,7 @@ extern "C" int sentai_load_model(const char* path) {
     delete coralmicro::g_interpreter;
     coralmicro::g_interpreter = nullptr;
   }
+  sentai_tpu_desc_cache_invalidate();  // always invalidate on (re)load
   if (coralmicro::g_model_data) {
     delete coralmicro::g_model_data;
     coralmicro::g_model_data = nullptr;
