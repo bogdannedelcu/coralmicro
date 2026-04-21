@@ -1947,30 +1947,6 @@ extern "C" int sentai_cam_switch_drain_set(uint32_t n) {
   return 0;
 }
 
-// ---------------------------------------------------------------------
-// switch_sync toggle — API surface only, currently a no-op stub.
-//
-// The real implementation (ISR-driven semaphore wake) was backed out
-// because the initial prototype caused a multi-minute hang during
-// continuous alternation; per embeded.md §M (ANTI-BRICK) and §C (ISR
-// discipline) the change was reverted until the ISR path can be
-// validated with per-call bounded timing and supervision counters.
-//
-// For now `switch_sync(0)` and `switch_sync(1)` both run the legacy
-// poll drain.  The flag is preserved so future work can re-enable
-// an ISR fast-wake path without breaking the MicroPython surface.
-// --------------------------------------------------------------------- */
-volatile uint8_t g_cam_switch_sync_enabled = 0;   // reserved; no-op for now
-
-extern "C" uint8_t sentai_cam_switch_sync_get(void) {
-  return g_cam_switch_sync_enabled;
-}
-
-extern "C" int sentai_cam_switch_sync_set(uint8_t enable) {
-  g_cam_switch_sync_enabled = enable ? 1 : 0;
-  return 0;
-}
-
 // Set the auto-alternate ratio.  Both zero disables auto-alternation.
 // Bounds [0, 1000] — max practical quota is well under 1000 frames; we
 // reject larger values to avoid surprise wraparound semantics when

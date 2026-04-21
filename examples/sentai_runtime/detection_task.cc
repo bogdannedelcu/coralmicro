@@ -82,6 +82,12 @@ namespace {
 static constexpr int kMaxStagingSize = 640 * 480 * 3;
 static uint8_t s_tpu_input_buf[2][kMaxStagingSize]
     __attribute__((aligned(64), section(".sdram_bss")));
+// Tripwire: if a future edit bumps kMaxStagingSize past this cap, the build
+// fails here instead of silently stealing SDRAM from other .sdram_bss
+// subsystems (USB host, httpsrv, ncache heap).  Raise deliberately after
+// auditing the linker map.
+static_assert(sizeof(s_tpu_input_buf) <= 2 * 1024 * 1024,
+              "ping-pong input buffers exceed 2 MB SDRAM budget");
 // s_staging_buf kept as an alias of s_tpu_input_buf[0] for legacy code
 // paths that pre-date the ping-pong refactor (they write here and then
 // memcpy → tensor_buf).  No memory cost — same bytes.

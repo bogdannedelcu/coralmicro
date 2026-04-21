@@ -1,8 +1,8 @@
 diff --git a/components/video/camera/device/ov5640/fsl_ov5640.c b/components/video/camera/device/ov5640/fsl_ov5640.c
-index b8d401e6..70667b02 100644
+index b8d401e6..bea58ef5 100644
 --- a/components/video/camera/device/ov5640/fsl_ov5640.c
 +++ b/components/video/camera/device/ov5640/fsl_ov5640.c
-@@ -492,13 +492,60 @@ static const ov5640_clock_config_t s_ov5640MipiClockConfigs[] = {
+@@ -492,13 +492,41 @@ static const ov5640_clock_config_t s_ov5640MipiClockConfigs[] = {
          .pclkPeriod  = 0x0a,
      },
      {
@@ -42,25 +42,6 @@ index b8d401e6..70667b02 100644
 +        .vfifoCtrl0C = 0x22,
 +        .pclkDiv     = 0x02,
 +        .pclkPeriod  = 0x0D,
-+    },
-+    {
-+        /* sentai VGA @ 60 fps — EMPIRICALLY HUNG.  Linux ov5640.c marks
-+         * VGA max_fps = 60 but its driver uses dynamic PLL calculation
-+         * with num_lanes/bpp-dependent divider math that the static
-+         * NXP table can't replicate with these 6 fields alone.
-+         * Attempted (pllCtrl2=0x70, pclkPeriod=0x0A, tHsSettle=0x12):
-+         * camera.jpeg() hung on first call, board recovered via warm
-+         * reset.  Likely needs companion change to 0x3037 (PLL pre-div)
-+         * or 0x3108 (SCLK/PCLK root divider) not exposed by this table.
-+         * Kept as DATA for future experiments — DO NOT SELECT via
-+         * DEMO_CAMERA_FRAME_RATE=60 without further PLL analysis. */
-+        .resolution  = (uint32_t)kVIDEO_ResolutionVGA,
-+        .framePerSec = 60,
-+        .pllCtrl1    = 0x14,
-+        .pllCtrl2    = 0x70,
-+        .vfifoCtrl0C = 0x22,
-+        .pclkDiv     = 0x02,
-+        .pclkPeriod  = 0x0A,
      },
      {
          .resolution  = (uint32_t)kVIDEO_ResolutionQVGA,

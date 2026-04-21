@@ -406,6 +406,50 @@ cam0 și cam1, vs ~4 fps/cam cu switching secvențial Python.  Rata
 efectivă a senzorilor este **74 fps combinat** (37/cam) — limita reală
 devine pipeline-ul de inferență, nu driverul de cameră.
 
+### Derivarea valorilor PLL în `s_ov5640MipiClockConfigs`
+
+Cele 6 câmpuri din tabel sunt registrele OV5640 `0x3034..0x3037`,
+`0x3108` și `0x4837`.  Formula efectivă (derivată din driverul upstream
+Linux `ov5640.c::ov5640_set_mipi_pclk`):
+
+```
+PLL_output    = 24 MHz / prediv × mult
+                (prediv fixat 3 prin PLL_CTRL3 în pipeline-ul NXP)
+sysdiv        = (pllCtrl1 >> 4)   ≥ 1   (ilegal 0!)
+mipi_div      = (pllCtrl1 & 0x0F)
+mult          = pllCtrl2          (8-bit, 4..252; 84 → decimal tipic)
+pclk          = PLL_output / (sysdiv × mipi_div × pclkDiv)
+pclkPeriod    = ceil(1 / lane_bit_rate_UI)  →  scalează invers cu mult
+```
+
+Constrângeri cheie (datasheet OV5640 §2.9):
+- `sysdiv ≥ 1` — valoarea 0 e invalidă și blochează driverul
+- `PLL_output` trebuie să stea în 500–1000 MHz
+- La 2 lane MIPI, `tHsSettle` (din `csi2rxHsSettle`) scade când
+  `lane_bit_rate` crește (uzual `0x12` la 672 MHz vs `0x1F` la 448 MHz)
+
+Tabel derivare pentru intrările folosite de sentai:
+
+| Rez × fps | pllCtrl1 | mult (pllCtrl2) | PLL_out | pclkPeriod | Status |
+|---|---|---|---|---|---|
+| VGA × 15 | 0x14 (sysdiv=1,mdiv=4) | 0x38 = 56 | 448 MHz | 0x0A | OK (stock NXP) |
+| VGA × 30 | 0x14 | 0x38 = 56 | 448 MHz | **0x14** | Fix — era 0x0A greșit |
+| VGA × 45 | 0x14 | **0x54 = 84** | **672 MHz** | **0x0D** | Nou — PLL mult ×1.5 |
+| 720p × 30 | 0x21 (sysdiv=2,mdiv=1) | 0x69 = 105 | 840 MHz | 0x0A | OK (stock NXP) |
+| VGA × 60 | 0x14 | 0x70 = 112 | 896 MHz | 0x0A | **HUNG** — vezi mai jos |
+
+**De ce a eșuat VGA × 60**: valoarea `mult=112` dă PLL_output=896 MHz,
+valid în spec, și `tHsSettle` a fost setat pentru 896 MHz.  Dar
+driverul Linux aplică în paralel modificări la `0x3037` (PLL pre-div)
+și `0x3108` (SCLK divider) care nu sunt exprimabile prin aceste 6
+câmpuri din structura statică NXP.  Fără acele register companions,
+lane-sync-ul CSI-2 eșuează silent.  Pentru a activa VGA × 60 ar
+trebui fie:
+- extensia tabelului static cu 2 câmpuri extra, SAU
+- un hook post-`CAMERA_DEVICE_Init` care emite SCCB writes manuale.
+
+Ambele sunt out-of-scope pentru sprint-ul curent.
+
 ### E23 — Verificare vizuală (no cross-contamination)
 
 La 21 fps alternat cu flip MUX pe fiecare EOF, întrebarea critică

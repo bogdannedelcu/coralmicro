@@ -75,72 +75,17 @@ static mp_obj_t mod_sentai_pipeline_direct_stats(void) {
 static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_pipeline_direct_stats_obj,
                                   mod_sentai_pipeline_direct_stats);
 
-// sentai.pipeline.desc_cache([flag]) -> int (previous value)
-// Enable host-side caching of parameters + instructions in the EdgeTPU
-// descriptor hint loop (edgetpu_executable.cc).  Matches a model's
-// parameter_caching_token so a change of model or a reload automatically
-// invalidates the cache (sentai_tpu_desc_cache_invalidate in
-// sentai_load_model).  Safe to toggle at any time — first Invoke after
-// enabling does a full upload and primes the cache, subsequent ones
-// skip the 30+ MB of static wire traffic per frame.
-extern volatile int      g_sentai_tpu_desc_cache_enabled;
-extern volatile uint32_t g_sentai_tpu_desc_cache_sent_params;
-extern volatile uint32_t g_sentai_tpu_desc_cache_sent_ins;
-extern volatile uint32_t g_sentai_tpu_desc_cache_skip_params;
-extern volatile uint32_t g_sentai_tpu_desc_cache_skip_ins;
-extern void sentai_tpu_desc_cache_invalidate(void);
-static mp_obj_t mod_sentai_pipeline_desc_cache(size_t n_args,
-                                                const mp_obj_t *args) {
-    int prev = g_sentai_tpu_desc_cache_enabled;
-    if (n_args >= 1) {
-        g_sentai_tpu_desc_cache_enabled = mp_obj_is_true(args[0]) ? 1 : 0;
-        // Always invalidate on state change so a flip-flop test starts
-        // from a clean cache and the first Invoke in the new mode does a
-        // predictable full upload.
-        sentai_tpu_desc_cache_invalidate();
-    }
-    return mp_obj_new_int(prev);
-}
-static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_pipeline_desc_cache_obj,
-                                            0, 1, mod_sentai_pipeline_desc_cache);
-
-// sentai.pipeline.desc_cache_stats() -> dict with sent/skip counters.
-static mp_obj_t mod_sentai_pipeline_desc_cache_stats(void) {
-    mp_obj_t d = mp_obj_new_dict(0);
-    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_sent_params),
-                      mp_obj_new_int_from_uint(g_sentai_tpu_desc_cache_sent_params));
-    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_sent_ins),
-                      mp_obj_new_int_from_uint(g_sentai_tpu_desc_cache_sent_ins));
-    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_skip_params),
-                      mp_obj_new_int_from_uint(g_sentai_tpu_desc_cache_skip_params));
-    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_skip_ins),
-                      mp_obj_new_int_from_uint(g_sentai_tpu_desc_cache_skip_ins));
-    return d;
-}
-static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_pipeline_desc_cache_stats_obj,
-                                  mod_sentai_pipeline_desc_cache_stats);
-
-// sentai.pipeline.multi_ep_routing([flag]) -> int (previous value)
-// When enabled, TPU bulk OUT traffic is routed per DescriptorTag across
-// three endpoints (instructions→EP1, inputs→EP2, parameters→EP3) and the
-// multi_bo_ep CSR is latched to 1 lazily on the next SendData.  Provides
-// the precondition for later URB pipelining; by itself may already give
-// a small throughput gain if the TPU firmware parallelises per-queue
-// DMA.  Safe to toggle at any time — the CSR latch handles dynamic
-// enablement; disabling just stops routing and keeps multi_bo_ep=1 (no
-// harm, since traffic reverts to EP1 only).  Default OFF.
-extern int  sentai_tpu_multi_ep_routing_get(void);
-extern void sentai_tpu_multi_ep_routing_set(int v);
-static mp_obj_t mod_sentai_pipeline_multi_ep_routing(size_t n_args,
-                                                     const mp_obj_t *args) {
-    int prev = sentai_tpu_multi_ep_routing_get();
-    if (n_args >= 1) {
-        sentai_tpu_multi_ep_routing_set(mp_obj_is_true(args[0]) ? 1 : 0);
-    }
-    return mp_obj_new_int(prev);
-}
-static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_pipeline_multi_ep_routing_obj,
-                                            0, 1, mod_sentai_pipeline_multi_ep_routing);
+// desc_cache / multi_ep_routing Python bindings removed 2026-04-21.
+// The underlying C infrastructure (g_sentai_tpu_desc_cache_enabled,
+// g_sentai_tpu_multi_ep_routing, and the hot-path branches in
+// edgetpu_driver.cc / edgetpu_executable.cc) remains in place but is
+// permanently OFF — exposing it via MicroPython created a foot-gun
+// where a user could enable un-validated optimisations on live TPU
+// traffic.  Either fully validate and enable the path by default, or
+// rip out the C branches too; do NOT re-expose the toggle as-is.
+// TODO(tpu-dead-code-cleanup): remove g_sentai_tpu_{desc_cache,multi_ep_*}
+// variables and their hot-path branches after the validation test plan
+// for EP-routing is in place.  Tracked in the next sprint.
 
 // sentai.pipeline.prep_stats() -> dict with per-stage averages of PrepTask.
 // Each field is the CUMULATIVE ms spent in that stage divided by the
@@ -475,9 +420,6 @@ static const mp_rom_map_elem_t sentai_pipeline_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_dma_memcpy),    MP_ROM_PTR(&mod_sentai_pipeline_dma_memcpy_obj) },
     { MP_ROM_QSTR(MP_QSTR_direct_tensor), MP_ROM_PTR(&mod_sentai_pipeline_direct_tensor_obj) },
     { MP_ROM_QSTR(MP_QSTR_direct_stats),  MP_ROM_PTR(&mod_sentai_pipeline_direct_stats_obj) },
-    { MP_ROM_QSTR(MP_QSTR_desc_cache),    MP_ROM_PTR(&mod_sentai_pipeline_desc_cache_obj) },
-    { MP_ROM_QSTR(MP_QSTR_desc_cache_stats), MP_ROM_PTR(&mod_sentai_pipeline_desc_cache_stats_obj) },
-    { MP_ROM_QSTR(MP_QSTR_multi_ep_routing), MP_ROM_PTR(&mod_sentai_pipeline_multi_ep_routing_obj) },
     { MP_ROM_QSTR(MP_QSTR_prep_stats),    MP_ROM_PTR(&mod_sentai_pipeline_prep_stats_obj) },
     { MP_ROM_QSTR(MP_QSTR_prep_reset),    MP_ROM_PTR(&mod_sentai_pipeline_prep_reset_obj) },
     { MP_ROM_QSTR(MP_QSTR_running),       MP_ROM_PTR(&mod_sentai_pipeline_running_obj) },
