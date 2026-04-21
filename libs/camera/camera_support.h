@@ -23,10 +23,28 @@
 #define DEMO_CAMERA_BUFFER_COUNT  2
 #else
 
-// Choose here your resolution and number of FBs
-#define DEMO_CAMERA_HEIGHT  720
-#define DEMO_CAMERA_WIDTH   1280
+// Choose here your resolution and number of FBs.
+//
+// sentai VGA @ 30 fps (default, 2026-04-21):
+//   Pairs with the pclkPeriod=0x14 fix in fsl_ov5640.c's MIPI VGA @ 30
+//   config (was 0x0a, cloned from the 15-fps row — caused MIPI DPHY
+//   mis-sampling on the 2nd+ frame after RECEIVER_Start).  With that fix
+//   applied, VGA streams cleanly through the pipeline:
+//     E15 = 24.3 fps (vs 17 at 720p, +43%); PXP = 12 ms (vs 28 ms);
+//     0 drops over repeated trials.  The smaller camera buffer (4.9 MB
+//     vs 14.7 MB) also eases SEMC contention — Invoke drops from 58 ms
+//     to 40 ms when PrepTask's PXP runs in parallel.
+// Fallback to 720p only for workloads that need the larger sensor
+// field (e.g. distant-object detection that can't tolerate VGA's
+// 3:1 subsampling).
+#define DEMO_CAMERA_HEIGHT  480
+#define DEMO_CAMERA_WIDTH   640
 #define DEMO_CAMERA_BUFFER_COUNT 4
+
+// Legacy 720p:
+// #define DEMO_CAMERA_HEIGHT  720
+// #define DEMO_CAMERA_WIDTH   1280
+// #define DEMO_CAMERA_BUFFER_COUNT 4
 
 //#define DEMO_CAMERA_HEIGHT  240
 //#define DEMO_CAMERA_WIDTH   320
@@ -54,7 +72,17 @@
 //     (fps_measured=0).  Likely needs OV5640 binning-mode register
 //     programming that the NXP driver does not currently emit for this
 //     resolution + a D-PHY timing re-tune — out of scope here.
-#define DEMO_CAMERA_FRAME_RATE    30
+// sentai VGA @ 45 fps — validated.  Retries:
+//   Attempt 1 (pllCtrl1=0x0C, pclkPeriod=0x0D): hung — sysdiv=0 invalid
+//   Attempt 2 (pllCtrl1=0x14, pllCtrl2=0x54 PLL mult ×1.5): WORKS.
+//     E15 pipeline = 24 fps (same as VGA/30, invoke-bound); camera
+//     frame_seq delta jumps 1.9 → 3.1 so camera runs faster → shorter
+//     drain after cam switch.  JPEG frames visually clean.
+// VGA @ 60 fps was also tested (pllCtrl2=0x70, pclkPeriod=0x0A) — hung
+// on first jpeg().  Likely needs 0x3037 / 0x3108 companion changes that
+// the NXP static clock-config struct cannot express.  Kept as commented
+// table entry for future with-scope debug.
+#define DEMO_CAMERA_FRAME_RATE    45
 #define DEMO_CAMERA_CONTROL_FLAGS (kCAMERA_HrefActiveHigh | kCAMERA_DataLatchOnRisingEdge)
 #define DEMO_CAMERA_BUFFER_ALIGN  64
 #define DEMO_CAMERA_MIPI_CSI_LANE 2

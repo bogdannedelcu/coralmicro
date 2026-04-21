@@ -1,0 +1,7 @@
+session: s054_e23_vga45_alt
+experiments: 1
+duration_ms: 12
+heap_start_rtos_free: 11077924
+heap_end_rtos_free: 11074988
+heap_start_gc_used: 75168
+heap_end_gc_used: 116560

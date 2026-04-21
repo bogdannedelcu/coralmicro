@@ -24,7 +24,23 @@
 
 #define USB_HOST_EDGETPU_CLASS_CODE (0xFF)
 #define USB_HOST_EDGETPU_SUBCLASS_CODE (0xFF)
-#define USB_EDGETPU_ENDPOINT_NUM 6
+/* Upper bound of pipe slots.  The single_ep firmware enumerates exactly 6
+ * endpoints (1 IRQ IN + 1 bulk IN + 1 bulk OUT = 3 endpoints, reported via
+ * a configuration where `epCount == 6`).  The multi_ep firmware variant
+ * exposes more bulk IN/OUT pairs and reports a larger epCount.  Sizing the
+ * pipe array to 16 lets either variant enumerate without overrunning the
+ * on-stack/task-scope instance state.  RAM cost: ~10 extra pipe structs
+ * ≈ 40 bytes, irrelevant on this target.  Host code only USES pipes with
+ * endpoint addresses matching the BULK_OUT / BULK_IN / INTERRUPT_IN
+ * numbers below, so extra endpoints are opened but idle — no extra USB
+ * traffic. */
+#define USB_EDGETPU_ENDPOINT_NUM 16
+/* Minimum epCount required to call the EdgeTPU "functional" — we need at
+ * least one bulk IN, one bulk OUT, and the interrupt IN = 3 endpoints.
+ * The strict equality check (epCount == 6) that used to live in
+ * USB_HostEdgeTpuOpenDataInterface has been relaxed to >= this bound so
+ * the multi_ep variant (typically 8–10 endpoints) also enumerates. */
+#define USB_EDGETPU_MIN_ENDPOINTS 3
 #define USB_EDGETPU_BULK_OUT_ENDPOINT_NUM 3
 #define USB_EDGETPU_BULK_IN_ENDPOINT_NUM 2
 #define USB_EDGETPU_INTERRUPT_IN_ENDPOINT_NUM 1

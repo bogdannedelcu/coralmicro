@@ -234,6 +234,9 @@ Project_IS_TOP_LEVEL:STATIC=ON
 //Value Computed by CMake
 Project_SOURCE_DIR:STATIC=/home/bogdan/work/coralmicro/examples/sentai_runtime
 
+//No help, variable specified on the command line.
+SENTAI_TPU_MULTI_EP:UNINITIALIZED=ON
+
 //Dependencies for the target
 meshtastic_pb_LIB_DEPENDS:STATIC=general;nanopb;
 

@@ -27,8 +27,11 @@
 #include "third_party/nxp/rt1176-sdk/middleware/usb/host/usb_host_hci.h"
 #include "third_party/nxp/rt1176-sdk/middleware/usb/include/usb.h"
 
-extern unsigned char apex_latest_single_ep_bin[];
-extern unsigned int apex_latest_single_ep_bin_len;
+// sentai: swap between single_ep and multi_ep firmware blobs via CMake flag
+// SENTAI_TPU_MULTI_EP.  The indirection macros apex_firmware_bin /
+// apex_firmware_bin_len resolve to whichever C file is present in the
+// build so no code below needs to know which variant is active.
+#include "libs/tpu/apex_firmware.h"
 
 namespace coralmicro {
 
@@ -159,7 +162,7 @@ class EdgeTpuDfuTask
   usb_host_class_handle class_handle_;
   usb_host_dfu_status_t status_;
   size_t bytes_transferred_ = 0;
-  size_t bytes_to_transfer_ = apex_latest_single_ep_bin_len;
+  size_t bytes_to_transfer_ = apex_firmware_bin_len;
   size_t current_block_number_ = 0;
   uint8_t *read_back_data_ = nullptr;
 };

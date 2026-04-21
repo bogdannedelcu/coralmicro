@@ -120,6 +120,65 @@ static mp_obj_t mod_sentai_pipeline_desc_cache_stats(void) {
 static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_pipeline_desc_cache_stats_obj,
                                   mod_sentai_pipeline_desc_cache_stats);
 
+// sentai.pipeline.multi_ep_routing([flag]) -> int (previous value)
+// When enabled, TPU bulk OUT traffic is routed per DescriptorTag across
+// three endpoints (instructions→EP1, inputs→EP2, parameters→EP3) and the
+// multi_bo_ep CSR is latched to 1 lazily on the next SendData.  Provides
+// the precondition for later URB pipelining; by itself may already give
+// a small throughput gain if the TPU firmware parallelises per-queue
+// DMA.  Safe to toggle at any time — the CSR latch handles dynamic
+// enablement; disabling just stops routing and keeps multi_bo_ep=1 (no
+// harm, since traffic reverts to EP1 only).  Default OFF.
+extern int  sentai_tpu_multi_ep_routing_get(void);
+extern void sentai_tpu_multi_ep_routing_set(int v);
+static mp_obj_t mod_sentai_pipeline_multi_ep_routing(size_t n_args,
+                                                     const mp_obj_t *args) {
+    int prev = sentai_tpu_multi_ep_routing_get();
+    if (n_args >= 1) {
+        sentai_tpu_multi_ep_routing_set(mp_obj_is_true(args[0]) ? 1 : 0);
+    }
+    return mp_obj_new_int(prev);
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_pipeline_multi_ep_routing_obj,
+                                            0, 1, mod_sentai_pipeline_multi_ep_routing);
+
+// sentai.pipeline.prep_stats() -> dict with per-stage averages of PrepTask.
+// Each field is the CUMULATIVE ms spent in that stage divided by the
+// number of completed PrepTask iterations.  Useful for root-causing where
+// the pipeline spends its ~58 ms per frame (cam grab? PXP? semaphore
+// wait?).  Reset via sentai.pipeline.prep_reset().
+extern void sentai_prep_stage_stats(uint32_t* frames, uint32_t* sem_wait,
+                                    uint32_t* cam_grab, uint32_t* pxp,
+                                    uint32_t* quant, uint32_t* total);
+extern void sentai_prep_stage_reset(void);
+static mp_obj_t mod_sentai_pipeline_prep_stats(void) {
+    uint32_t frames=0, sw=0, cg=0, pxp=0, qt=0, tot=0;
+    sentai_prep_stage_stats(&frames, &sw, &cg, &pxp, &qt, &tot);
+    mp_obj_t d = mp_obj_new_dict(0);
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_frames),
+                      mp_obj_new_int_from_uint(frames));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_sem_wait_ms_sum),
+                      mp_obj_new_int_from_uint(sw));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_cam_grab_ms_sum),
+                      mp_obj_new_int_from_uint(cg));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_pxp_ms_sum),
+                      mp_obj_new_int_from_uint(pxp));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_quant_ms_sum),
+                      mp_obj_new_int_from_uint(qt));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_total_ms_sum),
+                      mp_obj_new_int_from_uint(tot));
+    return d;
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_pipeline_prep_stats_obj,
+                                  mod_sentai_pipeline_prep_stats);
+
+static mp_obj_t mod_sentai_pipeline_prep_reset(void) {
+    sentai_prep_stage_reset();
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_pipeline_prep_reset_obj,
+                                  mod_sentai_pipeline_prep_reset);
+
 // sentai.pipeline.start([conf[, iou[, max[, track]]]]) -> int
 // Start continuous detection pipeline.
 // conf/iou: float 0.0-1.0 (default 0.5 / 0.45).  max: int (default 50).
@@ -418,6 +477,9 @@ static const mp_rom_map_elem_t sentai_pipeline_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_direct_stats),  MP_ROM_PTR(&mod_sentai_pipeline_direct_stats_obj) },
     { MP_ROM_QSTR(MP_QSTR_desc_cache),    MP_ROM_PTR(&mod_sentai_pipeline_desc_cache_obj) },
     { MP_ROM_QSTR(MP_QSTR_desc_cache_stats), MP_ROM_PTR(&mod_sentai_pipeline_desc_cache_stats_obj) },
+    { MP_ROM_QSTR(MP_QSTR_multi_ep_routing), MP_ROM_PTR(&mod_sentai_pipeline_multi_ep_routing_obj) },
+    { MP_ROM_QSTR(MP_QSTR_prep_stats),    MP_ROM_PTR(&mod_sentai_pipeline_prep_stats_obj) },
+    { MP_ROM_QSTR(MP_QSTR_prep_reset),    MP_ROM_PTR(&mod_sentai_pipeline_prep_reset_obj) },
     { MP_ROM_QSTR(MP_QSTR_running),       MP_ROM_PTR(&mod_sentai_pipeline_running_obj) },
     { MP_ROM_QSTR(MP_QSTR_stats),         MP_ROM_PTR(&mod_sentai_pipeline_stats_obj) },
     { MP_ROM_QSTR(MP_QSTR_tracks),        MP_ROM_PTR(&mod_sentai_pipeline_tracks_obj) },

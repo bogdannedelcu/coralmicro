@@ -1,0 +1,2 @@
+seq,experiment,file,summary
+1,e23_vga45_alt,/diags/s054_e23_vga45_alt/001_e23_vga45_alt.csv,alt_par_fps=20.9 captures=20 mean=165.3ms

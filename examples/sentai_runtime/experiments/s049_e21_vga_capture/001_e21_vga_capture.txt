@@ -1,0 +1,15 @@
+E21 - VGA 640x480 visual capture (post pclkPeriod=0x14 fix).
+Purpose: confirm pixels are sane at the new native VGA mode,
+not just that throughput metrics improved.
+
+Columns:
+  run_index   : 0..N-1
+  elapsed_ms  : per-call sentai.camera.jpeg wall time
+  jpeg_bytes  : size of the encoded JPEG
+
+Parameters:
+  native_res = 640x480
+  reps = 10
+  quality = 70
+  mean_frame_ms = 102.3
+  jpeg_dir = /diags/s049_e21_vga_capture/001_e21_vga_frames

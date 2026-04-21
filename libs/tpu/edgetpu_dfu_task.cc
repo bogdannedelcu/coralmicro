@@ -178,8 +178,8 @@ void EdgeTpuDfuTask::GetStatusReadCallback(void *param, uint8_t *data,
   if (task->bytes_transferred() < task->bytes_to_transfer()) {
     task->SetNextState(DfuState::kReadBack);
   } else {
-    if (memcmp(apex_latest_single_ep_bin, task->read_back_data(),
-               apex_latest_single_ep_bin_len) != 0) {
+    if (memcmp(apex_firmware_bin, task->read_back_data(),
+               apex_firmware_bin_len) != 0) {
       printf("Read back firmware does not match!\r\n");
       task->SetNextState(DfuState::kError);
     } else {
@@ -255,9 +255,9 @@ void EdgeTpuDfuTask::HandleNextState(NextStateRequest &req) {
     case DfuState::kTransfer:
       transfer_length =
           std::min(256U /* get from descriptor */,
-                   apex_latest_single_ep_bin_len - bytes_transferred());
+                   apex_firmware_bin_len - bytes_transferred());
       ret = USB_HostDfuDnload(class_handle(), current_block_number(),
-                              apex_latest_single_ep_bin + bytes_transferred(),
+                              apex_firmware_bin + bytes_transferred(),
                               transfer_length, EdgeTpuDfuTask::TransferCallback,
                               this);
       if (ret != kStatus_USB_Success) {
@@ -275,11 +275,11 @@ void EdgeTpuDfuTask::HandleNextState(NextStateRequest &req) {
     case DfuState::kReadBack:
       if (!read_back_data()) {
         SetReadBackData(
-            static_cast<uint8_t *>(malloc(apex_latest_single_ep_bin_len)));
+            static_cast<uint8_t *>(malloc(apex_firmware_bin_len)));
       }
       transfer_length =
           std::min(256U /* get from descriptor */,
-                   apex_latest_single_ep_bin_len - bytes_transferred());
+                   apex_firmware_bin_len - bytes_transferred());
       ret = USB_HostDfuUpload(class_handle(), current_block_number(),
                               read_back_data() + bytes_transferred(),
                               transfer_length, EdgeTpuDfuTask::ReadBackCallback,

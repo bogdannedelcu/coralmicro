@@ -16,6 +16,11 @@
 
 #include "libs/tpu/edgetpu_task.h"
 
+// sentai: C-linkage helper from sentai_edgetpu_ep_log.c — extern "C" at
+// file scope (not inside a C++ function body) so the linker resolves to
+// the plain-C symbol.  Called from HandleNextState(kConnected).
+extern "C" void sentai_usb_edgetpu_dump_eps(void);
+
 #include <cstdio>
 #include <functional>
 
@@ -186,6 +191,11 @@ void EdgeTpuTask::HandleNextState(NextStateRequest &req) {
       }
       break;
     case EdgeTpuState::kConnected:
+      // sentai: dump the endpoint table observed during enumeration once we
+      // reach the stable kConnected state.  This runs in EdgeTpuTask task
+      // context (queue handler) so printf is safe — calling printf inside
+      // the USB enumeration callback caused LOCKUP#17 (agent.md §2.7).
+      sentai_usb_edgetpu_dump_eps();
       break;
     case EdgeTpuState::kEnumerationFailed:
     case EdgeTpuState::kError:

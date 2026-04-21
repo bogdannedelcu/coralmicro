@@ -117,6 +117,35 @@ static volatile uint32_t s_dt_frames            = 0;  // direct-path frames comp
 static volatile uint32_t s_dt_prep_buf_timeout  = 0;  // PrepTask take bufs_free timeout
 static volatile uint32_t s_dt_infer_wait_timeout= 0;  // InferTask take prep_done timeout
 static volatile uint32_t s_dt_pointer_swap_fail = 0;  // input_tensor(0) returned null
+
+// PrepTask per-stage cumulative timings (ms).  Divide by s_prep_stage_frames
+// for average.  Populated on every iteration with xTaskGetTickCount deltas
+// (1 ms resolution) so the hot path overhead is just four uint32 adds.
+static volatile uint32_t s_prep_stage_frames       = 0;
+static volatile uint32_t s_prep_stage_sem_wait_ms  = 0;  // block on sem_input_free
+static volatile uint32_t s_prep_stage_cam_grab_ms  = 0;  // sentai_cam_grab_latest
+static volatile uint32_t s_prep_stage_pxp_ms       = 0;  // sentai_pxp_scale
+static volatile uint32_t s_prep_stage_quant_ms     = 0;  // in-place int8 quant
+static volatile uint32_t s_prep_stage_total_ms     = 0;  // full iter wall time
+extern "C" void sentai_prep_stage_stats(uint32_t* frames,
+                                        uint32_t* sem_wait, uint32_t* cam_grab,
+                                        uint32_t* pxp, uint32_t* quant,
+                                        uint32_t* total) {
+    if (frames)    *frames    = s_prep_stage_frames;
+    if (sem_wait)  *sem_wait  = s_prep_stage_sem_wait_ms;
+    if (cam_grab)  *cam_grab  = s_prep_stage_cam_grab_ms;
+    if (pxp)       *pxp       = s_prep_stage_pxp_ms;
+    if (quant)     *quant     = s_prep_stage_quant_ms;
+    if (total)     *total     = s_prep_stage_total_ms;
+}
+extern "C" void sentai_prep_stage_reset(void) {
+    s_prep_stage_frames      = 0;
+    s_prep_stage_sem_wait_ms = 0;
+    s_prep_stage_cam_grab_ms = 0;
+    s_prep_stage_pxp_ms      = 0;
+    s_prep_stage_quant_ms    = 0;
+    s_prep_stage_total_ms    = 0;
+}
 extern "C" int  sentai_pipeline_direct_tensor_get(void) { return s_direct_tensor_enabled; }
 extern "C" int  sentai_pipeline_direct_tensor_set(int v) {
     // Only allow toggling when the pipeline is STOPPED — switching modes
@@ -204,10 +233,13 @@ static void prep_task_fn(void* /*param*/) {
             direct ? s_sem_bufs_free : s_sem_staging_free;
         if (!sem_input_free) { vTaskDelay(pdMS_TO_TICKS(10)); continue; }
 
+        TickType_t t_iter_start = xTaskGetTickCount();
+        TickType_t t_sem_start  = t_iter_start;
         if (xSemaphoreTake(sem_input_free, pdMS_TO_TICKS(100)) != pdTRUE) {
             if (direct) s_dt_prep_buf_timeout++;
             continue;  // timeout — recheck s_running (normal when pipeline just started)
         }
+        TickType_t t_sem_end = xTaskGetTickCount();
         if (!s_running) break;
 
         uint8_t* dst_buf = direct
@@ -234,8 +266,10 @@ static void prep_task_fn(void* /*param*/) {
         }
 
         // Get latest camera frame (drains stale ones)
+        TickType_t t_cam_start = xTaskGetTickCount();
         uint8_t* raw = nullptr;
         int idx = sentai_cam_grab_latest(&raw);
+        TickType_t t_cam_end = xTaskGetTickCount();
         if (idx < 0 || !raw) {
             // Rate-limit: only report to health after 10 consecutive camera misses.
             // A single miss is normal (no frame available yet); sustained misses
@@ -253,8 +287,10 @@ static void prep_task_fn(void* /*param*/) {
         // PXP hardware: XRGB8888 → RGB888P, scaled to model input size
         // In direct mode, dst_buf IS one of the tensor ping-pong buffers so
         // InferTask can read directly with a pointer swap (no memcpy).
+        TickType_t t_pxp_start = xTaskGetTickCount();
         int rc = sentai_pxp_scale(raw, DEMO_CAMERA_WIDTH, DEMO_CAMERA_HEIGHT,
                                   dst_buf, w, h);
+        TickType_t t_pxp_end = xTaskGetTickCount();
         sentai_cam_return_raw(idx);
 
         if (rc != 0) {
@@ -266,9 +302,20 @@ static void prep_task_fn(void* /*param*/) {
         }
 
         // Int8 quantization in-place on the same buffer we just wrote.
+        TickType_t t_quant_start = xTaskGetTickCount();
         if (type == 9 /* kTfLiteInt8 */) {
             sentai_quant_uint8_to_int8(dst_buf, total, zp);
         }
+        TickType_t t_quant_end = xTaskGetTickCount();
+
+        // Accumulate per-stage timings.  Ticks are portTICK_PERIOD_MS = 1 ms on
+        // this target so subtraction == milliseconds directly.
+        s_prep_stage_frames++;
+        s_prep_stage_sem_wait_ms += (uint32_t)(t_sem_end   - t_sem_start);
+        s_prep_stage_cam_grab_ms += (uint32_t)(t_cam_end   - t_cam_start);
+        s_prep_stage_pxp_ms      += (uint32_t)(t_pxp_end   - t_pxp_start);
+        s_prep_stage_quant_ms    += (uint32_t)(t_quant_end - t_quant_start);
+        s_prep_stage_total_ms    += (uint32_t)(t_quant_end - t_iter_start);
 
         // Publish metadata (safe: InferTask won't read until we signal)
         s_stg_w  = w;

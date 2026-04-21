@@ -1,0 +1,35 @@
+diff --git a/middleware/usb/output/npw/host_config/ehci/usb_host_config.h b/middleware/usb/output/npw/host_config/ehci/usb_host_config.h
+index 72a08151..c92d32e9 100644
+--- a/middleware/usb/output/npw/host_config/ehci/usb_host_config.h
++++ b/middleware/usb/output/npw/host_config/ehci/usb_host_config.h
+@@ -130,13 +130,28 @@
+ 
+ /*!
+  * @brief ehci QH max count.
++ *
++ * Raised from 8 to 16 (sentai: EdgeTPU throughput sprint).  With QH=8
++ * the USB host can have at most 8 outstanding queue heads for all
++ * devices on the EHCI controller combined; for a 512x512 YOLO inference
++ * we submit ~38 bulk-out chunks (1.2 MB / 32 KB) plus the bulk-in
++ * reply, which forces the driver to serialise them.  Doubling the
++ * pool lets the driver coalesce more, at a cost of ~48 B of QH state
++ * per slot (384 B extra SRAM, negligible).  Each QH has its own QTD
++ * chain so QTD pool is scaled in the same ratio.  Rollback: set back
++ * to 8U if a regression shows up.
+  */
+-#define USB_HOST_CONFIG_EHCI_MAX_QH (8U)
++#define USB_HOST_CONFIG_EHCI_MAX_QH (16U)
+ 
+ /*!
+  * @brief ehci QTD max count.
++ *
++ * Raised from 8 to 16 together with MAX_QH above.  QTDs hold the
++ * transfer descriptors that the EHCI scheduler walks; one active
++ * bulk transfer typically consumes 1 QTD but chunked large transfers
++ * may consume several.  Extra cost: ~32 B per QTD (256 B extra SRAM).
+  */
+-#define USB_HOST_CONFIG_EHCI_MAX_QTD (8U)
++#define USB_HOST_CONFIG_EHCI_MAX_QTD (16U)
+ 
+ /*!
+  * @brief ehci ITD max count.

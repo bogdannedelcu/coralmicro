@@ -1,0 +1,12 @@
+E23 - VGA@45 alternating JPEG capture (after pipeline/ratio run).
+Phase 1: parallel pipeline ratio(1,1) fps recorded
+Phase 2: 10 pairs of (cam0, cam1) JPEGs saved for visual check
+
+Parameters:
+  mean_capture_ms = 165.3
+  jpeg_dir = /diags/s054_e23_vga45_alt/001_e23_alt_frames
+  pipeline_alt_fps = 20.93145
+  native_res = 640x480
+  pairs = 10
+  quality = 70
+  switch_drain = 1

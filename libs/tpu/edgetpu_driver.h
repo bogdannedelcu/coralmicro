@@ -65,7 +65,8 @@ class TpuDriver {
     kRegSize64,
   };
 
-  bool BulkOutTransfer(const uint8_t* data, uint32_t data_length) const;
+  bool BulkOutTransfer(uint8_t endpoint, const uint8_t* data,
+                       uint32_t data_length) const;
   ssize_t BulkOutTransferInternal(uint8_t endpoint, const uint8_t* data,
                                   uint32_t data_length) const;
   bool BulkInTransfer(uint8_t* data, uint32_t data_length) const;
@@ -73,7 +74,8 @@ class TpuDriver {
                                  uint32_t data_length) const;
 
   bool SendData(DescriptorTag tag, const uint8_t* data, uint32_t length) const;
-  bool WriteHeader(DescriptorTag tag, uint32_t length) const;
+  bool WriteHeader(DescriptorTag tag, uint32_t length,
+                   uint8_t endpoint) const;
   std::vector<uint8_t> PrepareHeader(DescriptorTag tag, uint32_t length) const;
 
   bool CSRTransfer(uint64_t reg, void* data, bool read, RegisterSize reg_size);

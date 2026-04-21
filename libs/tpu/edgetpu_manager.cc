@@ -156,6 +156,23 @@ EdgeTpuPackage* EdgeTpuManager::RegisterPackage(const char* package_content,
     return nullptr;
   }
 
+  // sentai diagnostic: print whether this package has the separate
+  // PARAMETER_CACHING executable (compiled with edgetpu_compiler's
+  // parameter-caching option) or only a STAND_ALONE / EXECUTION_ONLY
+  // executable.  Only the two-executable form lets EdgeTpuManager::Invoke
+  // skip re-uploading parameters on subsequent frames — otherwise the
+  // TPU reuploads model parameters+instructions per Invoke, dominating
+  // USB wire time for large models.
+  {
+    uint64_t tok = inference_exe->parameter_caching_token();
+    printf("[EdgeTPU pkg] inference_exe type=%d  parameter_caching_exe=%s  "
+           "token=0x%08lx%08lx\r\n",
+           (int)inference_exe->type(),
+           parameter_caching_exe ? "present" : "none",
+           (unsigned long)(tok >> 32),
+           (unsigned long)(tok & 0xFFFFFFFFu));
+  }
+
   auto* edgetpu_package =
       new EdgeTpuPackage(inference_exe, parameter_caching_exe);
   packages_[package_ptr] = edgetpu_package;

@@ -280,6 +280,25 @@ void BOARD_InitMipiCsi(void)
             0x1F,
         },
         {
+            /* sentai VGA @ 45 fps (2nd attempt) — paired with the
+             * VGA/45 row in fsl_ov5640.c (pllCtrl2=0x54 PLL mult 84,
+             * 1.5× VGA/30's mult 56).  T-HSSETTLE shorter because
+             * lane rate scales with PLL; 0x18 = 3/4 of VGA/30's
+             * 0x1F. Tune down to 0x15 / 0x12 if lane-sync is robust. */
+            kVIDEO_ResolutionVGA,
+            45,
+            0x18,
+        },
+        {
+            /* sentai VGA @ 60 fps — lane rate 2× VGA/30; T-HSSETTLE
+             * interpolated downward: 0x1F × 1/2 ≈ 0x10.  Start at 0x12
+             * (same as 720p/30 which worked).  Paired with VGA/60 row
+             * in fsl_ov5640.c. */
+            kVIDEO_ResolutionVGA,
+            60,
+            0x12,
+        },
+        {
             kVIDEO_ResolutionVGA,
             15,
             0x24,

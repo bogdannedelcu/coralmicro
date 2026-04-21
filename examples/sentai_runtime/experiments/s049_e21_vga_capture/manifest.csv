@@ -1,0 +1,2 @@
+seq,experiment,file,summary
+1,e21_vga_capture,/diags/s049_e21_vga_capture/001_e21_vga_capture.csv,640x480 reps=10 mean=102.3ms

@@ -14,6 +14,7 @@
 
 add_library_m7(libs_usb_host_edgetpu_bm STATIC
     usb_host_edgetpu.c
+    sentai_edgetpu_ep_log.c
 )
 target_link_libraries(libs_usb_host_edgetpu_bm
     libs_nxp_rt1176-sdk_bm
@@ -21,13 +22,25 @@ target_link_libraries(libs_usb_host_edgetpu_bm
 
 add_library_m7(libs_usb_host_edgetpu_freertos STATIC
     usb_host_edgetpu.c
+    sentai_edgetpu_ep_log.c
 )
 target_link_libraries(libs_usb_host_edgetpu_freertos
     libs_nxp_rt1176-sdk_freertos
 )
 
+# sentai: SENTAI_TPU_MULTI_EP is declared at top-level CMakeLists.txt so it
+# is visible to every target that includes libs/tpu/apex_firmware.h (not
+# just this subtree).  Here we only pick which C file compiles the blob
+# bytes into the DFU task library.
+if(SENTAI_TPU_MULTI_EP)
+    set(_SENTAI_TPU_APEX_BIN_C apex_latest_multi_ep_bin.c)
+    message(STATUS "sentai: EdgeTPU firmware = multi_ep (experimental)")
+else()
+    set(_SENTAI_TPU_APEX_BIN_C apex_latest_single_ep_bin.c)
+    message(STATUS "sentai: EdgeTPU firmware = single_ep (default)")
+endif()
 add_library_m7(libs_tpu_dfu_task_freertos STATIC
-    apex_latest_single_ep_bin.c
+    ${_SENTAI_TPU_APEX_BIN_C}
     edgetpu_dfu_task.cc
 )
 target_link_libraries(libs_tpu_dfu_task_freertos

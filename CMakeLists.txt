@@ -39,6 +39,42 @@ if (NOT DEFINED WIFI_PSK)
 endif()
 add_definitions(-DWIFI_PSK="${WIFI_PSK}")
 
+# sentai: apply local patches to the coralmicro-rt1176-sdk submodule
+# at configure time.  The patches live under patches/coralmicro-rt1176-sdk/
+# and are applied by scripts/apply_sdk_patches.sh (idempotent: reruns
+# are no-ops if a patch is already present).  This ensures the OV5640
+# VGA/30 pclkPeriod fix + EHCI queue-depth bump are present in any
+# build even after a `git submodule update` pulls upstream HEAD.
+# Set SENTAI_SKIP_SDK_PATCHES=ON to bypass (for CI that wants a
+# known-pristine SDK).
+option(SENTAI_SKIP_SDK_PATCHES "Skip auto-applying patches in patches/coralmicro-rt1176-sdk/" OFF)
+if(NOT SENTAI_SKIP_SDK_PATCHES)
+    execute_process(
+        COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/scripts/apply_sdk_patches.sh
+        RESULT_VARIABLE _sentai_patch_rc
+        OUTPUT_VARIABLE _sentai_patch_out
+        ERROR_VARIABLE  _sentai_patch_out
+    )
+    message(STATUS "sentai sdk-patches:\n${_sentai_patch_out}")
+    if(NOT _sentai_patch_rc EQUAL 0)
+        message(FATAL_ERROR
+            "sentai: apply_sdk_patches.sh failed (rc=${_sentai_patch_rc}). "
+            "Inspect output above or rerun manually: "
+            "bash scripts/apply_sdk_patches.sh")
+    endif()
+endif()
+
+# sentai: EdgeTPU firmware blob selector.  Top-level so every target that
+# includes libs/tpu/apex_firmware.h (including main_freertos_m7.cc which
+# pulls it via edgetpu_dfu_task.h) sees the same SENTAI_TPU_MULTI_EP
+# value.  Default 0 (single_ep); set to 1 at configure time with
+# `cmake -DSENTAI_TPU_MULTI_EP=ON -S . -B build` to select the
+# experimental multi-endpoint blob.
+option(SENTAI_TPU_MULTI_EP "Use libedgetpu multi_ep EdgeTPU firmware blob (experimental)" OFF)
+if(SENTAI_TPU_MULTI_EP)
+    add_compile_definitions(SENTAI_TPU_MULTI_EP=1)
+endif()
+
 if (NOT DEFINED CORAL_MICRO_ARDUINO)
     set(CORAL_MICRO_ARDUINO 0)
 endif()

@@ -392,6 +392,18 @@ static mp_obj_t mod_sentai_yolo_info(void) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_yolo_info_obj, mod_sentai_yolo_info);
 
+// sentai.tpu.dump_eps() — print the USB endpoint descriptor table that
+// was observed during EdgeTPU enumeration.  Safe from Python because the
+// underlying printer is just printf in task context.  Useful when testing
+// multi_ep firmware: lets us see how many bulk endpoints the TPU
+// advertised and what their numbers/directions are.
+extern void sentai_usb_edgetpu_dump_eps(void);
+static mp_obj_t mod_sentai_tpu_dump_eps(void) {
+    sentai_usb_edgetpu_dump_eps();
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_tpu_dump_eps_obj, mod_sentai_tpu_dump_eps);
+
 // ---- module table ----
 static const mp_rom_map_elem_t sentai_tpu_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__),    MP_ROM_QSTR(MP_QSTR_tpu) },
@@ -413,6 +425,7 @@ static const mp_rom_map_elem_t sentai_tpu_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_input_type),  MP_ROM_PTR(&mod_sentai_input_type_obj) },
     { MP_ROM_QSTR(MP_QSTR_detect),      MP_ROM_PTR(&mod_sentai_detect_obj) },
     { MP_ROM_QSTR(MP_QSTR_yolo_info),   MP_ROM_PTR(&mod_sentai_yolo_info_obj) },
+    { MP_ROM_QSTR(MP_QSTR_dump_eps),    MP_ROM_PTR(&mod_sentai_tpu_dump_eps_obj) },
     { MP_ROM_QSTR(MP_QSTR_draw),        MP_ROM_PTR(&mod_sentai_draw_obj) },
 };
 static MP_DEFINE_CONST_DICT(sentai_tpu_globals, sentai_tpu_globals_table);

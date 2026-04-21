@@ -223,9 +223,30 @@ static usb_status_t USB_HostEdgeTpuOpenDataInterface(usb_host_edgetpu_instance_t
     /* open interface pipes */
     interfaceHandle = (usb_host_interface_t *)tpuInstance->interfaceHandle;
 
-    if ((interfaceHandle->epCount) != USB_EDGETPU_ENDPOINT_NUM) {
-        /* Numbder of bulk endpoints is expected */
+    /* sentai: relaxed from `!= 6` to `< 3 || > ENDPOINT_NUM` so the
+     * multi_ep variant (more endpoints) still enumerates while keeping a
+     * defensive upper bound so the `pipes[]` array cannot be overrun. */
+    if ((interfaceHandle->epCount) < USB_EDGETPU_MIN_ENDPOINTS ||
+        (interfaceHandle->epCount) > USB_EDGETPU_ENDPOINT_NUM) {
         return kStatus_USB_Error;
+    }
+
+    /* sentai: snapshot the endpoint descriptor list into a task-readable
+     * global so user code (or a post-boot diagnostic) can see exactly what
+     * the firmware variant exposed.  This is especially important for the
+     * multi_ep variant, which advertises more bulk endpoints than the
+     * 6-endpoint single_ep default.  Recorded BEFORE we touch the pipes
+     * array so the snapshot reflects device reality, not host allocation. */
+    extern void sentai_usb_edgetpu_record_ep(uint8_t addr, uint8_t attrs,
+                                             uint16_t maxp, uint8_t interval);
+    extern void sentai_usb_edgetpu_begin_enum(uint8_t total);
+    sentai_usb_edgetpu_begin_enum(interfaceHandle->epCount);
+    for (int probe = 0; probe < interfaceHandle->epCount; ++probe) {
+        usb_descriptor_endpoint_t *d = interfaceHandle->epList[probe].epDesc;
+        sentai_usb_edgetpu_record_ep(
+            d->bEndpointAddress, d->bmAttributes,
+            USB_SHORT_FROM_LITTLE_ENDIAN_ADDRESS(d->wMaxPacketSize),
+            d->bInterval);
     }
 
     for (ep_index = 0; ep_index < interfaceHandle->epCount; ++ep_index)

@@ -29,11 +29,60 @@
 
 namespace coralmicro {
 namespace {
+// EdgeTPU USB endpoint layout (observed identically on both single_ep and
+// multi_ep firmware variants, per sentai_usb_edgetpu_dump_eps):
+//   OUT 1, 2, 3 — bulk OUT, 512-byte packets
+//   IN  1, 2    — bulk IN , 512-byte packets
+//   IN  3       — interrupt, 64-byte packets
+// The default driver path sends ALL bulk OUT traffic (params, instructions,
+// inputs) on a single endpoint and reads outputs + events on EP 2.  When
+// per-tag routing is enabled (g_sentai_tpu_multi_ep_routing=1) we spread
+// the OUT queues across EP 1..3 and let the TPU's multi_bo_ep=1 CSR route
+// each to its matching on-chip FIFO — this is the precondition for later
+// concurrent URB submission.
 constexpr uint8_t kSingleBulkOutEndpoint = 1;
 constexpr uint8_t kEventInEndpoint = 2;
+constexpr uint8_t kOutEpInstructions     = 1;
+constexpr uint8_t kOutEpInputActivations = 2;
+constexpr uint8_t kOutEpParameters       = 3;
+
+// Runtime toggle + one-shot apply latch.  The latch ensures the
+// multi_bo_ep CSR is written exactly once per boot the first time routing
+// is enabled, without racing with TpuDriver::Initialize (which runs
+// before the flag can be set by the user).
+extern "C" volatile int g_sentai_tpu_multi_ep_routing = 0;
+static volatile int     s_sentai_multi_bo_ep_applied  = 0;
+extern "C" int  sentai_tpu_multi_ep_routing_get(void) { return g_sentai_tpu_multi_ep_routing; }
+extern "C" void sentai_tpu_multi_ep_routing_set(int v) { g_sentai_tpu_multi_ep_routing = v ? 1 : 0; }
+
+static uint8_t endpoint_for_tag(DescriptorTag tag) {
+    if (g_sentai_tpu_multi_ep_routing == 0) return kSingleBulkOutEndpoint;
+    switch (tag) {
+        case DescriptorTag::kInstructions:
+            return kOutEpInstructions;
+        case DescriptorTag::kInputActivations:
+            return kOutEpInputActivations;
+        case DescriptorTag::kParameters:
+            return kOutEpParameters;
+        default:
+            return kSingleBulkOutEndpoint;
+    }
+}
 constexpr uint8_t kInterruptInEndpoint = 3;
 constexpr uint32_t kMaxBulkBufferSize = 32 * 1024;
-uint8_t BulkTransferBuffer[kMaxBulkBufferSize];
+// sentai: move the USB bulk staging buffer out of default (SDRAM via
+// SEMC) and into the on-chip 512 KB m_ocram region.  Rationale: during
+// Invoke, the BulkOutTransfer loop memcpys the input tensor into this
+// buffer, then the EHCI host DMA reads it out to the USB wire.  With
+// SDRAM placement both accesses compete on SEMC with PrepTask's
+// concurrent PXP scale (camera SDRAM buffer → tensor SDRAM buffer).
+// Moving this 32 KB buffer to OCRAM removes the USB-side traffic from
+// SEMC entirely, freeing bandwidth for PXP and cutting SEMC contention
+// during overlapped Invoke.  32 KB easily fits in OCRAM alongside the
+// existing MicroPython / audio / aifes sections (~300 KB headroom).
+uint8_t BulkTransferBuffer[kMaxBulkBufferSize]
+    __attribute__((section(".ocram_bss,\"aw\",%nobits @")))
+    __attribute__((aligned(32)));
 
 struct UsbTransferMetadata {
   SemaphoreHandle_t sema;
@@ -174,6 +223,11 @@ bool TpuDriver::Initialize(usb_host_edgetpu_instance_t *usb_instance,
 
   CHECK(Write64(chip_config_.GetUsbCsrOffsets().descr_ep, 0xF0));
   CHECK(Write64(chip_config_.GetUsbCsrOffsets().multi_bo_ep, 0));
+  // NB: 0x20 (256 B) is required on NXP RT1176 EHCI — empirically tested
+  // 0x80 (1 KB) which broke bulk-in reads entirely (0 frames through
+  // pipeline).  libedgetpu (driver/usb/usb_driver.cc:349-374) documents
+  // this as a b/73181174 "short packet" workaround; our host controller
+  // evidently needs it.  Keeping 0x20 matches the shipped behaviour.
   CHECK(Write64(chip_config_.GetUsbCsrOffsets().outfeed_chunk_length, 0x20));
 
   uint32_t omc0_d0_reg, omc0_d8_reg, omc0_dc_reg;
@@ -261,12 +315,38 @@ exit:
 
 bool TpuDriver::SendData(DescriptorTag tag, const uint8_t *data,
                          uint32_t length) const {
-  if (!WriteHeader(tag, length)) {
-    printf("WriteHeader failed\r\n");
-    return false;
+  // sentai: when per-queue routing is enabled, the multi_bo_ep CSR must
+  // be 1 (the default initialisation at TpuDriver::Initialize sets it to
+  // 0).  Apply once, lazily, so enabling the flag from Python after boot
+  // takes effect on the next SendData without requiring a fresh
+  // OpenDevice.  Failure to write the CSR just skips the latch and we
+  // stay on the single-endpoint path — safe degradation.
+  if (g_sentai_tpu_multi_ep_routing && !s_sentai_multi_bo_ep_applied) {
+    s_sentai_multi_bo_ep_applied = 1;  // latch before attempt to avoid retry storms
+    if (!const_cast<TpuDriver*>(this)->Write64(
+            chip_config_.GetUsbCsrOffsets().multi_bo_ep, 1)) {
+      printf("[multi_ep] failed to write multi_bo_ep=1, staying on single EP\r\n");
+      g_sentai_tpu_multi_ep_routing = 0;
+    } else {
+      printf("[multi_ep] routing enabled: multi_bo_ep=1\r\n");
+    }
   }
 
-  if (!BulkOutTransfer(data, length)) {
+  const uint8_t out_ep = endpoint_for_tag(tag);
+  // In multi-endpoint mode the TPU routes by endpoint number alone — the
+  // 8-byte [length|tag] header must be OMITTED (libedgetpu/driver/usb/
+  // usb_driver.cc lines 696-732 vs 780-838: header is only ever sent on
+  // kSingleBulkOutEndpoint in single-EP mode).  Sending a header on EP 2/3
+  // in multi-EP mode poisons the DMA descriptor parse and hangs the TPU
+  // (confirmed empirically before this fix was discovered).
+  if (g_sentai_tpu_multi_ep_routing == 0) {
+    if (!WriteHeader(tag, length, out_ep)) {
+      printf("WriteHeader failed\r\n");
+      return false;
+    }
+  }
+
+  if (!BulkOutTransfer(out_ep, data, length)) {
     printf("BulkOutTransfer failed\r\n");
     return false;
   }
@@ -342,7 +422,8 @@ exit:
   }
 }
 
-bool TpuDriver::BulkOutTransfer(const uint8_t *data,
+bool TpuDriver::BulkOutTransfer(uint8_t endpoint,
+                                const uint8_t *data,
                                 uint32_t data_length) const {
   uint8_t *current_chunk = const_cast<uint8_t *>(data);
   uint32_t bytes_left = data_length;
@@ -351,7 +432,7 @@ bool TpuDriver::BulkOutTransfer(const uint8_t *data,
     uint32_t chunk_size = std::min(kMaxBulkBufferSize, bytes_left);
     memcpy(BulkTransferBuffer, current_chunk, chunk_size);
     ssize_t bytes_sent = BulkOutTransferInternal(
-        kSingleBulkOutEndpoint, BulkTransferBuffer, chunk_size);
+        endpoint, BulkTransferBuffer, chunk_size);
     if (bytes_sent > 0) {
       current_chunk += bytes_sent;
       bytes_left -= bytes_sent;
@@ -433,9 +514,10 @@ std::vector<uint8_t> TpuDriver::PrepareHeader(DescriptorTag tag,
   return header_packet;
 }
 
-bool TpuDriver::WriteHeader(DescriptorTag tag, uint32_t length) const {
+bool TpuDriver::WriteHeader(DescriptorTag tag, uint32_t length,
+                            uint8_t endpoint) const {
   std::vector<uint8_t> header_packet = PrepareHeader(tag, length);
-  return BulkOutTransfer(header_packet.data(), header_packet.size());
+  return BulkOutTransfer(endpoint, header_packet.data(), header_packet.size());
 }
 
 bool TpuDriver::ReadEvent() const {
