@@ -41,14 +41,24 @@ NCACHE_SIZE = 0x8000;
  */
 
 /* Specify the memory areas */
+/* 2026-04-22 OCRAM layout: merged OCRAM1 (0x20240000) + OCRAM2 into a
+   single 1 MB contiguous region so a 786 KB yolo_1 tensor ping-pong
+   buffer can live here instead of SDRAM.  RPMSG shared window moved
+   to the END of OCRAM2 (0x2033E000) to free the middle.
+
+   Why OCRAM and not DTCM: tensor buffers are read by USB EHCI DMA
+   master, not CPU; OCRAM has its own bus path to the USB/EDMA
+   crossbar that does NOT go through SEMC (the SDRAM contention
+   bottleneck identified in the 2026-04-22 staged isolation).  DTCM
+   is M7-private tightly-coupled memory — EHCI DMA can't reach it. */
 MEMORY
 {
   m_interrupts          (RX)  : ORIGIN = 0x00000800, LENGTH = 0x00000400
   m_text                (RX)  : ORIGIN = 0x00000c00, LENGTH = 0x0003F400
   m_ncache              (RW)  : ORIGIN = 0x20000000, LENGTH = NCACHE_SIZE
   m_data                (RW)  : ORIGIN = 0x20000000 + NCACHE_SIZE, LENGTH = 0x00040000 - NCACHE_SIZE
-  m_ocram               (RX)  : ORIGIN = 0x20240000, LENGTH = 0x00080000
-  rpmsg_sh_mem          (RW)  : ORIGIN = 0x202C0000, LENGTH = RPMSG_SHMEM_SIZE
+  m_ocram               (RX)  : ORIGIN = 0x20240000, LENGTH = 0x00100000 - RPMSG_SHMEM_SIZE
+  rpmsg_sh_mem          (RW)  : ORIGIN = 0x20340000 - RPMSG_SHMEM_SIZE, LENGTH = RPMSG_SHMEM_SIZE
   m_heap                (RW)  : ORIGIN = 0x80000000, LENGTH = HEAP_SIZE
   m_sdram               (RX)  : ORIGIN = 0x80000000 + HEAP_SIZE, LENGTH = 0x02000000 - HEAP_SIZE
   m_ncamera             (RW)  : ORIGIN = 0x82000000, LENGTH = 0x01000000
@@ -172,7 +182,18 @@ SECTIONS
      . = ALIGN(4);
   } > m_sdram
 
-  /* USB Host placed in SDRAM - not performance critical */
+  /* USB Host placed in OCRAM (was SDRAM, 2026-04-22 TPU pipeline
+   * sprint).  Rationale: under camera pipeline load, PXP DMA writes
+   * SDRAM at ~40 MB/s.  When USB_OTG2 IOC fires, the M7 must fetch
+   * the ISR + host-task code to process the completion.  If that
+   * code lives in SDRAM, the fetch stalls behind PXP bus traffic
+   * → IOC handling delayed → our 50 ms sema timeout fires for
+   * ~39% of URBs during pipeline (measured via
+   * sentai.diag.async_stats()).  Moving to OCRAM (on-chip SRAM,
+   * not behind SEMC) eliminates SDRAM contention for USB code
+   * fetch.  Cost: ~15 KB extra OCRAM (usb_host_ehci.c 6.4 KB text
+   * + usb_host_hci.c 1.4 KB + hub + devices + small BSS).  Free
+   * after moving libjpeg to SDRAM earlier this sprint. */
   .usb_host :
   {
      . = ALIGN(4);
@@ -180,6 +201,9 @@ SECTIONS
      *usb_host_ehci.c.obj(.text .text*)
      *usb_host_ehci.c.obj(.data .data*)
      *usb_host_ehci.c.obj(.rodata .rodata*)
+     *usb_host_hci.c.obj(.text .text*)
+     *usb_host_hci.c.obj(.data .data*)
+     *usb_host_hci.c.obj(.rodata .rodata*)
      *usb_host_devices.c.obj(.text .text*)
      *usb_host_devices.c.obj(.data .data*)
      *usb_host_devices.c.obj(.rodata .rodata*)
@@ -191,7 +215,7 @@ SECTIONS
      *usb_host_hub_app.c.obj(.rodata .rodata*)
      __usb_host_end = .;
      . = ALIGN(4);
-  } > m_sdram
+  } > m_ocram
 
   /* NXP httpsrv - placed in SDRAM for space savings */
   .httpsrv :
@@ -205,6 +229,10 @@ SECTIONS
      . = ALIGN(4);
   } > m_sdram
 
+  /* .libjpeg: moved OCRAM → SDRAM 2026-04-22 (TPU pipeline sprint).
+     Frees ~103 KB OCRAM for future tensor ping-pong relocation.
+     JPEG encode/decode is a non-hot path (camera snapshot, web UI)
+     — SDRAM bus latency does not affect TPU/camera cadence. */
   .libjpeg :
   {
      . = ALIGN(4);
@@ -214,8 +242,12 @@ SECTIONS
      *liblibs_libjpeg.a:*(.rodata .rodata*)
      __libjpeg_end = .;
      . = ALIGN(4);
-  } > m_ocram
+  } > m_sdram
 
+  /* .micropython: moved OCRAM → SDRAM 2026-04-22 (TPU pipeline sprint).
+     MicroPython interpreter hot loop doesn't dominate frame-time
+     budget; the large size (~208 KB) was the biggest OCRAM consumer.
+     Freeing it lets tensor ping-pong buffers live in OCRAM. */
   .micropython :
   {
      . = ALIGN(4);
@@ -225,7 +257,7 @@ SECTIONS
      *liblibmicropython.a:*(.rodata .rodata*)
      __micropython_end = .;
      . = ALIGN(4);
-  } > m_ocram
+  } > m_sdram
 
   /* libm math functions used by MicroPython's math module.
    * Placed in OCRAM alongside MicroPython itself (no ITCM perf benefit). */
@@ -238,6 +270,9 @@ SECTIONS
      . = ALIGN(4);
   } > m_ocram
 
+  /* .audio + .shine: moved OCRAM → SDRAM 2026-04-22 (TPU pipeline
+     sprint).  Not in the TPU hot path; freed ~10 KB OCRAM to hold
+     the relocated NXP USB host code that MUST run fast. */
   .audio :
   {
      . = ALIGN(4);
@@ -247,7 +282,7 @@ SECTIONS
      *liblibs_audio_freertos.a:*(.rodata .rodata*)
      __audio_end = .;
      . = ALIGN(4);
-  } > m_ocram
+  } > m_sdram
 
   .shine :
   {
@@ -258,7 +293,7 @@ SECTIONS
      *libshine.a:*(.rodata .rodata*)
      __shine_end = .;
      . = ALIGN(4);
-  } > m_ocram
+  } > m_sdram
 
   .aifes :
   {
@@ -274,6 +309,9 @@ SECTIONS
      . = ALIGN(4);
   } > m_ocram
 
+  /* .sentai_slow: moved OCRAM → SDRAM 2026-04-22 (TPU pipeline sprint).
+     Contains tracker/link/mesh/httpd/tfl_bridge — none are on the
+     per-invoke hot path.  Frees ~63 KB OCRAM for relocations. */
   .sentai_slow :
   {
      . = ALIGN(4);
@@ -307,7 +345,7 @@ SECTIONS
      *sentai_crazy.cc.obj(.rodata .rodata*)
      __sentai_slow_end = .;
      . = ALIGN(4);
-  } > m_ocram
+  } > m_sdram
 
   .cdc_ncm :
   {
@@ -649,6 +687,21 @@ SECTIONS
     . = ALIGN(64);
     __noncachecameradata_end__ = .;
   } > m_ncamera
+
+  /* .tpu_input: OCRAM-backed tensor ping-pong buffers.  Accessed by
+     the USB EHCI DMA master for bulk-OUT transfers to the TPU.  Kept
+     out of SDRAM to avoid SEMC bus contention with CSI camera DMA
+     (the documented pipeline agressor per prior session).  NOLOAD
+     because the content is written at runtime by PrepTask — no
+     initial values to copy from flash. */
+  .tpu_input (NOLOAD) :
+  {
+    . = ALIGN(64);
+    __tpu_input_start__ = .;
+    *(.tpu_input)
+    . = ALIGN(64);
+    __tpu_input_end__ = .;
+  } > m_ocram
 
   /* Initializes stack on the end of block */
   __StackTop   = ORIGIN(m_data) + LENGTH(m_data);

@@ -124,6 +124,17 @@ usb_status_t USB_HostEdgeTpuBulkInRecv(usb_host_edgetpu_instance_t *tpuInstance,
                                        transfer_callback_t callbackFn,
                                        void *callbackParam);
 
+/* NASA/JPL fault-tolerance: cancel any in-flight transfer on the
+ * named endpoint + direction.  Idempotent (no-op if nothing is
+ * in flight).  Used by TpuDriver on sema timeout to avoid the
+ * orphan-transfer cascade described in
+ * examples/sentai_runtime/agent/experiment.md §V19.
+ * Caller MUST wait on its sema again after this returns so the
+ * cancel callback can land on valid memory. */
+usb_status_t USB_HostEdgeTpuCancelInFlight(
+    usb_host_edgetpu_instance_t *tpuInstance, uint8_t endPoint,
+    uint8_t direction);
+
 /* Async variants — unlock multiple in-flight transfers per pipe.
  * See usb_host_edgetpu.c for the per-transfer callback pool. */
 usb_status_t USB_HostEdgeTpuBulkOutSendAsync(

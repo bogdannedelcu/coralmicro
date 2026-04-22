@@ -435,10 +435,20 @@ static int8_t USB_HostEdgeTpuGetPipeIndexFromEndpoint(usb_host_edgetpu_instance_
 }
 
 
+extern volatile uint32_t g_edgetpu_legacy_cb_entered;
+extern volatile uint32_t g_edgetpu_legacy_cb_found_pipe;
+extern volatile uint32_t g_edgetpu_legacy_cb_called_user;
+extern volatile uint32_t g_edgetpu_legacy_cb_no_pipe;
+volatile uint32_t g_edgetpu_legacy_cb_entered    = 0;
+volatile uint32_t g_edgetpu_legacy_cb_found_pipe = 0;
+volatile uint32_t g_edgetpu_legacy_cb_called_user= 0;
+volatile uint32_t g_edgetpu_legacy_cb_no_pipe    = 0;
+
 static void USB_HostEdgeTpuPipeCallback(void *param,
                                            usb_host_transfer_t *transfer,
                                            usb_status_t status)
 {
+    g_edgetpu_legacy_cb_entered++;
     usb_host_edgetpu_instance_t *tpuInstance = (usb_host_edgetpu_instance_t *)param;
     int8_t index = -1;
     for (int i = 0; i < USB_EDGETPU_ENDPOINT_NUM; i++)
@@ -449,16 +459,31 @@ static void USB_HostEdgeTpuPipeCallback(void *param,
         }
     }
     if (!(index < 0)) {
+        g_edgetpu_legacy_cb_found_pipe++;
         usb_host_edgetpu_pipe_t *edgeTpuPipe = &tpuInstance->pipes[index];
         if (edgeTpuPipe->callbackFn != NULL) {
+            g_edgetpu_legacy_cb_called_user++;
             edgeTpuPipe->callbackFn(edgeTpuPipe->callbackParam, transfer->transferBuffer, transfer->transferSofar, status);
         }
         edgeTpuPipe->activeTransfer = NULL;
         edgeTpuPipe->transferStatus = USB_EDGETPU_TRANSFER_READY;
+    } else {
+        g_edgetpu_legacy_cb_no_pipe++;
     }
     USB_HostFreeTransfer(tpuInstance->hostHandle, transfer);
 }
 
+
+extern volatile uint32_t g_edgetpu_bo_fail_pipe_idx;
+extern volatile uint32_t g_edgetpu_bo_fail_not_bulk;
+extern volatile uint32_t g_edgetpu_bo_fail_malloc;
+extern volatile uint32_t g_edgetpu_bo_fail_send;
+extern volatile uint32_t g_edgetpu_bo_ok;
+volatile uint32_t g_edgetpu_bo_fail_pipe_idx = 0;
+volatile uint32_t g_edgetpu_bo_fail_not_bulk = 0;
+volatile uint32_t g_edgetpu_bo_fail_malloc   = 0;
+volatile uint32_t g_edgetpu_bo_fail_send     = 0;
+volatile uint32_t g_edgetpu_bo_ok            = 0;
 
 usb_status_t USB_HostEdgeTpuBulkOutSend(usb_host_edgetpu_instance_t *tpuInstance,
                                             uint8_t endPoint,
@@ -473,6 +498,7 @@ usb_status_t USB_HostEdgeTpuBulkOutSend(usb_host_edgetpu_instance_t *tpuInstance
     int8_t index = USB_HostEdgeTpuGetPipeIndexFromEndpoint(tpuInstance, endPoint, USB_OUT);
     if (index < 0)
     {
+        g_edgetpu_bo_fail_pipe_idx++;
         return kStatus_USB_InvalidParameter;
     }
     usb_host_edgetpu_pipe_t *pipe = &tpuInstance->pipes[index];
@@ -480,11 +506,13 @@ usb_status_t USB_HostEdgeTpuBulkOutSend(usb_host_edgetpu_instance_t *tpuInstance
     // Check endpoint is BULK
     if (pipe->pipeType != USB_ENDPOINT_BULK)
     {
+        g_edgetpu_bo_fail_not_bulk++;
         return kStatus_USB_InvalidParameter;
     }
 
     if (USB_HostMallocTransfer(tpuInstance->hostHandle, &transfer) != kStatus_USB_Success)
     {
+        g_edgetpu_bo_fail_malloc++;
         return kStatus_USB_Error;
     }
 
@@ -500,14 +528,49 @@ usb_status_t USB_HostEdgeTpuBulkOutSend(usb_host_edgetpu_instance_t *tpuInstance
 
     if (USB_HostSend(tpuInstance->hostHandle, pipe->pipeHandle, transfer) != kStatus_USB_Success)
     {
+        g_edgetpu_bo_fail_send++;
         pipe->transferStatus = USB_EDGETPU_TRANSFER_READY;
         pipe->activeTransfer = NULL;
         USB_HostFreeTransfer(tpuInstance->hostHandle, transfer);
         return kStatus_USB_Error;
     }
+    g_edgetpu_bo_ok++;
     return kStatus_USB_Success;
 }
 
+
+/* NASA/JPL: On sema timeout in the TPU driver we need to unhook the
+ * in-flight transfer from the EHCI async schedule — otherwise a
+ * subsequent submit overwrites pipe->activeTransfer and the orphan
+ * callback, when it finally fires, can't match a pipe (cb_nopipe)
+ * and is routed to cleanup only, never signaling the waiting sema.
+ * That cascades every subsequent invoke into 2 s timeouts.
+ *
+ * USB_HostCancelTransfer is async: it queues a cancel and returns
+ * Success.  The EHCI driver eventually calls transfer->callbackFn
+ * with kStatus_USB_TransferCancel, which flows through our
+ * USB_HostEdgeTpuPipeCallback -> user lambda.  The caller is
+ * expected to wait on their sema again after calling this helper
+ * so the stack-allocated UsbTransferMetadata remains alive until
+ * the cancel callback lands (otherwise the lambda dereferences a
+ * dead stack frame).
+ *
+ * Returns kStatus_USB_Success if a cancel was issued or no
+ * transfer was in-flight (idempotent).  Errors only on invalid
+ * endpoint or pipe not open.
+ */
+usb_status_t USB_HostEdgeTpuCancelInFlight(usb_host_edgetpu_instance_t *tpuInstance,
+                                             uint8_t endPoint,
+                                             uint8_t direction)
+{
+    int8_t index = USB_HostEdgeTpuGetPipeIndexFromEndpoint(tpuInstance, endPoint, direction);
+    if (index < 0) return kStatus_USB_InvalidParameter;
+    usb_host_edgetpu_pipe_t *pipe = &tpuInstance->pipes[index];
+    if (pipe->pipeHandle == NULL) return kStatus_USB_InvalidHandle;
+    usb_host_transfer_t *xfer = pipe->activeTransfer;
+    if (xfer == NULL) return kStatus_USB_Success;   // nothing to cancel
+    return USB_HostCancelTransfer(tpuInstance->hostHandle, pipe->pipeHandle, xfer);
+}
 
 usb_status_t USB_HostEdgeTpuBulkOutSendAsync(usb_host_edgetpu_instance_t *tpuInstance,
                                              uint8_t endPoint,

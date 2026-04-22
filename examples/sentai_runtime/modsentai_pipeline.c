@@ -75,6 +75,34 @@ static mp_obj_t mod_sentai_pipeline_direct_stats(void) {
 static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_pipeline_direct_stats_obj,
                                   mod_sentai_pipeline_direct_stats);
 
+// sentai.pipeline.target_fps([n]) -> int
+// Caps the InferTask loop at `n` frames/sec.  0 disables (run flat
+// out, ~75 FPS on our YOLO 512).  Default 45 to match camera and
+// avoid sustained peak-current draw that may be destabilising the
+// TPU silicon.  Clamp [0, 120].
+extern int  sentai_pipeline_target_fps_get(void);
+extern void sentai_pipeline_target_fps_set(int v);
+static mp_obj_t mod_sentai_pipeline_target_fps(size_t n_args, const mp_obj_t *args) {
+    if (n_args >= 1) sentai_pipeline_target_fps_set(mp_obj_get_int(args[0]));
+    return mp_obj_new_int(sentai_pipeline_target_fps_get());
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_pipeline_target_fps_obj,
+                                            0, 1, mod_sentai_pipeline_target_fps);
+
+// sentai.pipeline.prep_fps([n]) -> int
+// Caps PrepTask (cam_grab + PXP + quant) at `n` frames/sec.  0 = free
+// run.  Convention (2026-04-22): pair with target_fps at 1:2 ratio
+// (e.g. prep=30, tpu=60) so the tasks don't over-subscribe SDRAM bus
+// bandwidth simultaneously.  Clamp [0, 120].
+extern int  sentai_pipeline_prep_fps_get(void);
+extern void sentai_pipeline_prep_fps_set(int v);
+static mp_obj_t mod_sentai_pipeline_prep_fps(size_t n_args, const mp_obj_t *args) {
+    if (n_args >= 1) sentai_pipeline_prep_fps_set(mp_obj_get_int(args[0]));
+    return mp_obj_new_int(sentai_pipeline_prep_fps_get());
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_pipeline_prep_fps_obj,
+                                            0, 1, mod_sentai_pipeline_prep_fps);
+
 // desc_cache / multi_ep_routing Python bindings removed 2026-04-21.
 // The underlying C infrastructure (g_sentai_tpu_desc_cache_enabled,
 // g_sentai_tpu_multi_ep_routing, and the hot-path branches in
@@ -410,6 +438,70 @@ static mp_obj_t mod_sentai_pipeline_task_health(void) {
 static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_pipeline_task_health_obj,
                                   mod_sentai_pipeline_task_health);
 
+// ---- Incremental-isolation diagnostics (2026-04-22) ----
+// Sets PrepTask stage: 0=full, 1=mock (no HW), 2=cam only, 3=cam+PXP,
+// 4=full.  Use to find which piece of PrepTask wedges the TPU.
+extern int  sentai_pipeline_debug_prep_mode_get(void);
+extern void sentai_pipeline_debug_prep_mode_set(int v);
+static mp_obj_t mod_sentai_pipeline_debug_prep_mode(size_t n_args,
+                                                    const mp_obj_t *args) {
+    if (n_args >= 1) {
+        sentai_pipeline_debug_prep_mode_set(mp_obj_get_int(args[0]));
+    }
+    return mp_obj_new_int(sentai_pipeline_debug_prep_mode_get());
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
+    mod_sentai_pipeline_debug_prep_mode_obj, 0, 1,
+    mod_sentai_pipeline_debug_prep_mode);
+
+// Toggles whether InferTask calls tpu_invoke at all.  When 1, InferTask
+// does memcpy + gives sem_free but skips the TPU transfer, letting us
+// test whether PrepTask activity alone wedges the TPU silicon.
+extern int  sentai_pipeline_debug_no_invoke_get(void);
+extern void sentai_pipeline_debug_no_invoke_set(int v);
+static mp_obj_t mod_sentai_pipeline_debug_no_invoke(size_t n_args,
+                                                    const mp_obj_t *args) {
+    if (n_args >= 1) {
+        sentai_pipeline_debug_no_invoke_set(mp_obj_is_true(args[0]));
+    }
+    return mp_obj_new_int(sentai_pipeline_debug_no_invoke_get());
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
+    mod_sentai_pipeline_debug_no_invoke_obj, 0, 1,
+    mod_sentai_pipeline_debug_no_invoke);
+
+// Returns per-InferTask-iteration counters: ok, fail, ms_sum, last_rc.
+// Observable live during a sustained pipeline run so we can see WHEN
+// InferTask starts failing (vs having to wait for pipeline.stop).
+extern void sentai_pipeline_infer_stats(uint32_t* ok, uint32_t* fail,
+                                        uint32_t* ms_sum,
+                                        int32_t*  last_rc);
+extern void sentai_pipeline_infer_reset(void);
+static mp_obj_t mod_sentai_pipeline_infer_stats(void) {
+    uint32_t ok=0, fail=0, ms=0;
+    int32_t  last_rc=0;
+    sentai_pipeline_infer_stats(&ok, &fail, &ms, &last_rc);
+    mp_obj_t d = mp_obj_new_dict(0);
+    mp_obj_dict_store(d, mp_obj_new_str("ok", 2),
+                      mp_obj_new_int_from_uint(ok));
+    mp_obj_dict_store(d, mp_obj_new_str("fail", 4),
+                      mp_obj_new_int_from_uint(fail));
+    mp_obj_dict_store(d, mp_obj_new_str("ms_sum", 6),
+                      mp_obj_new_int_from_uint(ms));
+    mp_obj_dict_store(d, mp_obj_new_str("last_rc", 7),
+                      mp_obj_new_int(last_rc));
+    return d;
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_pipeline_infer_stats_obj,
+                                  mod_sentai_pipeline_infer_stats);
+static mp_obj_t mod_sentai_pipeline_infer_reset(void) {
+    sentai_pipeline_infer_reset();
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_pipeline_infer_reset_obj,
+                                  mod_sentai_pipeline_infer_reset);
+
+
 // ---- module table ----
 static const mp_rom_map_elem_t sentai_pipeline_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__),      MP_ROM_QSTR(MP_QSTR_pipeline) },
@@ -420,6 +512,8 @@ static const mp_rom_map_elem_t sentai_pipeline_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_dma_memcpy),    MP_ROM_PTR(&mod_sentai_pipeline_dma_memcpy_obj) },
     { MP_ROM_QSTR(MP_QSTR_direct_tensor), MP_ROM_PTR(&mod_sentai_pipeline_direct_tensor_obj) },
     { MP_ROM_QSTR(MP_QSTR_direct_stats),  MP_ROM_PTR(&mod_sentai_pipeline_direct_stats_obj) },
+    { MP_ROM_QSTR(MP_QSTR_target_fps),    MP_ROM_PTR(&mod_sentai_pipeline_target_fps_obj) },
+    { MP_ROM_QSTR(MP_QSTR_prep_fps),      MP_ROM_PTR(&mod_sentai_pipeline_prep_fps_obj) },
     { MP_ROM_QSTR(MP_QSTR_prep_stats),    MP_ROM_PTR(&mod_sentai_pipeline_prep_stats_obj) },
     { MP_ROM_QSTR(MP_QSTR_prep_reset),    MP_ROM_PTR(&mod_sentai_pipeline_prep_reset_obj) },
     { MP_ROM_QSTR(MP_QSTR_running),       MP_ROM_PTR(&mod_sentai_pipeline_running_obj) },
@@ -430,6 +524,10 @@ static const mp_rom_map_elem_t sentai_pipeline_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_set_pose),       MP_ROM_PTR(&mod_sentai_pipeline_set_pose_obj) },
     { MP_ROM_QSTR(MP_QSTR_camera_config),  MP_ROM_PTR(&mod_sentai_pipeline_camera_config_obj) },
     { MP_ROM_QSTR(MP_QSTR_task_health),    MP_ROM_PTR(&mod_sentai_pipeline_task_health_obj) },
+    { MP_ROM_QSTR(MP_QSTR_debug_prep_mode), MP_ROM_PTR(&mod_sentai_pipeline_debug_prep_mode_obj) },
+    { MP_ROM_QSTR(MP_QSTR_debug_no_invoke), MP_ROM_PTR(&mod_sentai_pipeline_debug_no_invoke_obj) },
+    { MP_ROM_QSTR(MP_QSTR_infer_stats),     MP_ROM_PTR(&mod_sentai_pipeline_infer_stats_obj) },
+    { MP_ROM_QSTR(MP_QSTR_infer_reset),     MP_ROM_PTR(&mod_sentai_pipeline_infer_reset_obj) },
 };
 static MP_DEFINE_CONST_DICT(sentai_pipeline_globals, sentai_pipeline_globals_table);
 static const mp_obj_module_t sentai_pipeline_module = {

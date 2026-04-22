@@ -77,6 +77,11 @@ class TpuDriver {
   bool WriteHeader(DescriptorTag tag, uint32_t length,
                    uint8_t endpoint) const;
   std::vector<uint8_t> PrepareHeader(DescriptorTag tag, uint32_t length) const;
+  // No-heap variant: writes 8 bytes into caller-supplied buffer.
+  // Used on hot paths (WriteHeader, SendInputs) to avoid per-invoke
+  // std::vector alloc/free churn.  Static helper — no instance state.
+  static void PrepareHeaderInto(DescriptorTag tag, uint32_t length,
+                                uint8_t out[8]);
 
   bool CSRTransfer(uint64_t reg, void* data, bool read, RegisterSize reg_size);
   bool Read32(uint64_t reg, uint32_t* val);

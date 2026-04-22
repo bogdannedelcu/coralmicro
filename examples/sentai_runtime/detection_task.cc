@@ -86,9 +86,27 @@ namespace {
 // Raise this only if a larger model is introduced; note the SDRAM region
 // has ~400 KB of slack beyond this layout, so any further growth needs a
 // linker-script check.
-static constexpr int kMaxStagingSize = 640 * 480 * 3;
-static uint8_t s_tpu_input_buf[2][kMaxStagingSize]
-    __attribute__((aligned(64), section(".sdram_bss")));
+// 2026-04-22: collapsed ping-pong → single OCRAM tensor buffer.
+// Rationale: 2 × 786 KB didn't fit in OCRAM (1 MB total).  A single
+// OCRAM buffer (786 KB fits with ~230 KB headroom) means PrepTask
+// and InferTask CAN'T overlap at the tensor level (write vs EHCI
+// read race on same buffer) — they serialize naturally via the
+// sem_bufs_free / sem_prep_done_c handshake, which now pairs as a
+// strict 1:1 gate.  Theoretical max: prep(15ms) + invoke(13ms) =
+// 28 ms/frame = 35 FPS end-to-end.  Trade: lose parallelism, gain
+// OCRAM-backed USB DMA (no SEMC bus contention with CSI).  Worth
+// it given the current parallel pipeline sits at 1.8 FPS due to
+// SDRAM bus wedging the TPU silicon.
+// Kept as a 2-element array of identical pointer so existing
+// `s_tpu_input_buf[i & 1]` call sites don't need touching — the
+// counting-semaphore still swings between "slot 0" and "slot 1"
+// each iteration but both resolve to the same physical buffer.
+static constexpr int kMaxStagingSize = 512 * 512 * 3;  // yolo_1 786 432 B
+static uint8_t s_tpu_input_buf_single[kMaxStagingSize]
+    __attribute__((aligned(64), section(".tpu_input")));
+static uint8_t* const s_tpu_input_buf[2] = {
+    s_tpu_input_buf_single, s_tpu_input_buf_single
+};
 // Tripwire: if a future edit bumps kMaxStagingSize past this cap, the build
 // fails here instead of silently stealing SDRAM from other .sdram_bss
 // subsystems (USB host, httpsrv, ncache heap).  Raise deliberately after
@@ -184,6 +202,87 @@ static int s_conf_permil = 500;
 static int s_iou_permil  = 450;
 static int s_max_dets    = DETECTION_MAX_DETS;
 
+// FPS throttle for InferTask.  0 = unthrottled (run as fast as TPU
+// can); >0 = cap at this rate.  Default 45 to match camera, so the
+// TPU doesn't outrun the frame source and doesn't sustain peak
+// current draw (user theory: 75 FPS unthrottled = brown-out).
+// Runtime-tunable via sentai.pipeline.target_fps(n).
+static volatile int s_target_fps = 45;
+
+extern "C" int  sentai_pipeline_target_fps_get(void) { return s_target_fps; }
+extern "C" void sentai_pipeline_target_fps_set(int v) {
+    if (v < 0) v = 0;
+    if (v > 120) v = 120;
+    s_target_fps = v;
+}
+
+// Throttle PrepTask (cam_grab + PXP + quant).  0 = unthrottled.
+// User convention (2026-04-22): set prep_fps and target_fps in a
+// rational ratio (e.g. prep=15, tpu=30) so the two tasks don't
+// over-subscribe SDRAM bus bandwidth simultaneously.  Camera is
+// capped at 45 fps by the sensor — anything over that is clipped.
+static volatile int s_prep_target_fps = 0;
+extern "C" int  sentai_pipeline_prep_fps_get(void) { return s_prep_target_fps; }
+extern "C" void sentai_pipeline_prep_fps_set(int v) {
+    if (v < 0) v = 0;
+    if (v > 120) v = 120;
+    s_prep_target_fps = v;
+}
+
+// Incremental-isolation diagnostics (2026-04-22 session).
+// When s_debug_no_invoke == 1, InferTask skips sentai_tpu_invoke_* and
+// pretends success.  This isolates whether PrepTask's cam_grab + PXP +
+// quant + InferTask's memcpy (but no TPU USB traffic) is enough to
+// wedge the TPU.  Toggle via sentai.pipeline.debug_no_invoke(1).
+static volatile int      s_debug_no_invoke = 0;
+
+
+// PrepTask staged mock — builds up the pipeline piece by piece to
+// find which SDRAM/bus activity wedges the TPU.  Runtime-tunable via
+// sentai.pipeline.debug_prep_mode(n):
+//   0 = FULL  (default — cam_grab + PXP + quant)
+//   1 = MOCK  (vTaskDelay only, no HW activity)
+//   2 = CAM   (cam_grab + return; no PXP, no quant; zero dst)
+//   3 = PXP   (cam_grab + PXP; no quant)
+//   4 = FULL  (same as 0)
+static volatile int      s_debug_prep_mode = 0;
+extern "C" int  sentai_pipeline_debug_prep_mode_get(void) {
+    return s_debug_prep_mode;
+}
+extern "C" void sentai_pipeline_debug_prep_mode_set(int v) {
+    if (v < 0) v = 0;
+    if (v > 4) v = 4;
+    s_debug_prep_mode = v;
+}
+// Per-invoke outcome counters observable from REPL while the pipeline
+// runs.  sentai.pipeline.infer_stats() returns a dict with these +
+// cumulative invoke_ms_sum + last_invoke_rc for diagnosing WHEN
+// InferTask starts failing during a sustained run.
+static volatile uint32_t s_infer_ok_count    = 0;
+static volatile uint32_t s_infer_fail_count  = 0;
+static volatile uint32_t s_infer_ms_sum      = 0;
+static volatile int32_t  s_infer_last_rc     = 0;
+extern "C" int  sentai_pipeline_debug_no_invoke_get(void) {
+    return s_debug_no_invoke;
+}
+extern "C" void sentai_pipeline_debug_no_invoke_set(int v) {
+    s_debug_no_invoke = v ? 1 : 0;
+}
+extern "C" void sentai_pipeline_infer_stats(uint32_t* ok, uint32_t* fail,
+                                            uint32_t* ms_sum,
+                                            int32_t*  last_rc) {
+    if (ok)      *ok      = s_infer_ok_count;
+    if (fail)    *fail    = s_infer_fail_count;
+    if (ms_sum)  *ms_sum  = s_infer_ms_sum;
+    if (last_rc) *last_rc = s_infer_last_rc;
+}
+extern "C" void sentai_pipeline_infer_reset(void) {
+    s_infer_ok_count   = 0;
+    s_infer_fail_count = 0;
+    s_infer_ms_sum     = 0;
+    s_infer_last_rc    = 0;
+}
+
 // Synchronization
 static SemaphoreHandle_t s_sem_staging_free = nullptr;  // staging available for PrepTask
 static SemaphoreHandle_t s_sem_prep_done    = nullptr;  // staging has new prepped frame
@@ -192,6 +291,23 @@ static QueueHandle_t     s_det_queue        = nullptr;  // detection results →
 // Task handles
 static TaskHandle_t s_prep_task  = nullptr;
 static TaskHandle_t s_infer_task = nullptr;
+
+// sentai: preallocated TCB + stack for PrepTask and InferTask.
+// User hypothesis 2026-04-22: xTaskCreate (dynamic heap allocation
+// from FreeRTOS heap) may fragment a region that is subsequently
+// touched by USB.  Static allocation eliminates heap churn at
+// pipeline.start and puts task structures in predictable memory.
+// Task stacks live in SDRAM (.sdram_bss) to keep DTCM free for
+// the USB staging buffer and other hot-path DMA targets.  TCBs are
+// small (~100 bytes) and can live in default BSS (DTCM).
+static StaticTask_t s_prep_tcb;
+static StaticTask_t s_infer_tcb;
+static constexpr unsigned kPrepStackWords  = configMINIMAL_STACK_SIZE * 8;
+static constexpr unsigned kInferStackWords = configMINIMAL_STACK_SIZE * 12;
+static StackType_t s_prep_stack [kPrepStackWords]
+    __attribute__((aligned(8), section(".sdram_bss")));
+static StackType_t s_infer_stack[kInferStackWords]
+    __attribute__((aligned(8), section(".sdram_bss")));
 
 // Control
 static volatile bool s_running = false;
@@ -259,6 +375,33 @@ static void prep_task_fn(void* /*param*/) {
             ? s_tpu_input_buf[s_prep_count_dt & 1u]
             : s_staging_buf;
 
+        // MOCK mode — simulate prep cadence with zero bus traffic.
+        // Sleep ~20 ms (approx full-pipeline iteration), fill metadata,
+        // signal InferTask.  Lets us test InferTask in isolation with
+        // no camera/PXP/quant load on SDRAM.
+        const int prep_mode = s_debug_prep_mode;
+        if (prep_mode == 1) {
+            int mw, mh, mch, mtype, mzp;
+            uint8_t* mtbuf;
+            if (sentai_get_tensor_info(&mw, &mh, &mch, &mtbuf, &mtype, &mzp) != 0) {
+                xSemaphoreGive(sem_input_free);
+                vTaskDelay(pdMS_TO_TICKS(20));
+                continue;
+            }
+            int mtotal = mw * mh * mch;
+            memset(dst_buf, 0, mtotal);
+            vTaskDelay(pdMS_TO_TICKS(20));
+            s_prep_stage_frames++;
+            s_prep_stage_total_ms += 20;
+            s_stg_w = mw; s_stg_h = mh; s_stg_ch = mch;
+            s_stg_total = mtotal;
+            s_stg_frame_seq++;
+            s_last_prep_frame_tick = xTaskGetTickCount();
+            if (direct) { s_prep_count_dt++; xSemaphoreGive(s_sem_prep_done_c); }
+            else        { xSemaphoreGive(s_sem_prep_done); }
+            continue;
+        }
+
         // Get model tensor dimensions (for PXP target size)
         int w = 0, h = 0, ch = 0, type = 0, zp = 0;
         uint8_t* tensor_buf = nullptr;
@@ -297,6 +440,27 @@ static void prep_task_fn(void* /*param*/) {
         }
         cam_miss_streak = 0;  // reset on successful frame grab
 
+        // MODE 2 (CAM): skip PXP + quant.  Return raw buffer immediately
+        // and zero the tensor destination.  Tests if camera traffic alone
+        // (CSI DMA into SDRAM) wedges the TPU.
+        if (prep_mode == 2) {
+            sentai_flow_m4_publish_frame(raw, DEMO_CAMERA_WIDTH,
+                                         DEMO_CAMERA_HEIGHT,
+                                         sentai_cam_current_id());
+            sentai_cam_return_raw(idx);
+            memset(dst_buf, 0, total);
+            s_prep_stage_frames++;
+            s_prep_stage_cam_grab_ms += (uint32_t)(t_cam_end - t_cam_start);
+            s_prep_stage_total_ms    += (uint32_t)(xTaskGetTickCount() - t_iter_start);
+            s_stg_w = w; s_stg_h = h; s_stg_ch = ch;
+            s_stg_total = total;
+            s_stg_frame_seq = sentai_cam_get_frame_seq();
+            s_last_prep_frame_tick = xTaskGetTickCount();
+            if (direct) { s_prep_count_dt++; xSemaphoreGive(s_sem_prep_done_c); }
+            else        { xSemaphoreGive(s_sem_prep_done); }
+            continue;
+        }
+
         // PXP hardware: XRGB8888 → RGB888P, scaled to model input size
         // In direct mode, dst_buf IS one of the tensor ping-pong buffers so
         // InferTask can read directly with a pointer swap (no memcpy).
@@ -321,8 +485,9 @@ static void prep_task_fn(void* /*param*/) {
         }
 
         // Int8 quantization in-place on the same buffer we just wrote.
+        // Skipped in MODE 3 (PXP-only isolation).
         TickType_t t_quant_start = xTaskGetTickCount();
-        if (type == 9 /* kTfLiteInt8 */) {
+        if (prep_mode != 3 && type == 9 /* kTfLiteInt8 */) {
             sentai_quant_uint8_to_int8(dst_buf, total, zp);
         }
         TickType_t t_quant_end = xTaskGetTickCount();
@@ -354,6 +519,18 @@ static void prep_task_fn(void* /*param*/) {
             xSemaphoreGive(s_sem_prep_done_c);
         } else {
             xSemaphoreGive(s_sem_prep_done);
+        }
+
+        // PrepTask FPS throttle — match user-set cadence.  Runs after
+        // the give() so the next iteration's sem_free take starts
+        // counting from the throttle boundary, not from cam_grab.
+        if (s_prep_target_fps > 0) {
+            const TickType_t min_period =
+                pdMS_TO_TICKS(1000 / s_prep_target_fps);
+            TickType_t elapsed = xTaskGetTickCount() - t_iter_start;
+            if (elapsed < min_period) {
+                vTaskDelay(min_period - elapsed);
+            }
         }
     }
 
@@ -507,16 +684,6 @@ static void infer_task_fn(void* /*param*/) {
         int invoke_ms;
 
         if (direct) {
-            // --- Direct path: NO memcpy.  PrepTask already wrote PXP
-            // output + quantisation straight into one of the two ping-pong
-            // tensor buffers.  We pass that buffer into the custom
-            // "invoke with input swap" helper which flips the TFLite
-            // input tensor's data pointer for the duration of Invoke(),
-            // then restores the arena pointer.  Because each Give of
-            // sem_prep_done_c pairs 1:1 with a Take here, and both tasks
-            // increment a monotonic counter on their half of the
-            // exchange, `s_infer_count_dt & 1` is guaranteed to be the
-            // buffer index that matches the Give we just consumed.
             uint8_t* buf = s_tpu_input_buf[s_infer_count_dt & 1u];
             s_infer_count_dt++;
             // Free the buffer slot FIRST so PrepTask can already start
@@ -525,11 +692,8 @@ static void infer_task_fn(void* /*param*/) {
             // overlaps with invoke N.
             xSemaphoreGive(sem_free);
             t_memcpy_end = t_memcpy_start;  // zero memcpy cost — not in path
-            invoke_ms = sentai_tpu_invoke_with_input(buf);
+            invoke_ms = s_debug_no_invoke ? 0 : sentai_tpu_invoke_with_input(buf);
         } else {
-            // --- Legacy path: memcpy staging → tensor, then free staging
-            // for PrepTask, then Invoke.  Kept verbatim so the feature
-            // flag gives a byte-for-byte rollback when toggled OFF.
             bool dma_ok = false;
             if (s_dma_memcpy_enabled
                 && ((((uintptr_t)tensor_buf | (uintptr_t)s_staging_buf
@@ -541,11 +705,29 @@ static void infer_task_fn(void* /*param*/) {
             }
             t_memcpy_end = xTaskGetTickCount();
             xSemaphoreGive(sem_free);
-            invoke_ms = sentai_tpu_invoke_internal();
+            invoke_ms = s_debug_no_invoke ? 0 : sentai_tpu_invoke_internal();
+        }
+        s_infer_last_rc = invoke_ms;
+        if (invoke_ms >= 0) {
+            s_infer_ok_count++;
+            s_infer_ms_sum += (uint32_t)invoke_ms;
+        } else {
+            s_infer_fail_count++;
         }
 
         if (invoke_ms < 0) {
-            SERR_LOG(SERR_DET_INVOKE_FAIL, (uint32_t)(-invoke_ms));
+            // Rate-limited SERR: log first failure, then every 100th.
+            // Each SERR_LOG is a printf → USB CDC-ACM → competes with
+            // USB host task for CPU.  Under sustained failure that
+            // printf cascade amplifies the underlying timeout (user-
+            // identified feedback loop 2026-04-22).  `s_frames_dropped`
+            // is the authoritative counter; async_stats exposes full
+            // per-URB telemetry for root-cause work.
+            static uint32_t s_fail_seen = 0;
+            if ((s_fail_seen % 100) == 0) {
+                SERR_LOG(SERR_DET_INVOKE_FAIL, (uint32_t)(-invoke_ms));
+            }
+            s_fail_seen++;
             sentai_health_fail(SUBSYS_DETECT);
             continue;
         }
@@ -610,8 +792,21 @@ static void infer_task_fn(void* /*param*/) {
         // Record liveness timestamp: when InferTask last completed a full inference.
         s_last_infer_frame_tick = xTaskGetTickCount();
 
-        // Periodic stats logged every 30 frames
-        // Note: stats available via sentai.det.stats() - no verbose print
+        // FPS throttle — run TPU no faster than `s_target_fps` frames
+        // per second.  User theory: unthrottled 75 FPS draws too much
+        // current → TPU brown-outs during sustained pipeline runs,
+        // corrupting its USB state machine.  Camera is capped at
+        // 45 fps anyway, so pacing TPU to match avoids wasted work
+        // and lowers peak power draw.  Runtime-tunable via
+        // sentai.pipeline.target_fps(n); 0 disables (run flat out).
+        if (s_target_fps > 0) {
+            const TickType_t min_period_ticks =
+                pdMS_TO_TICKS(1000 / s_target_fps);
+            TickType_t elapsed = xTaskGetTickCount() - t0;
+            if (elapsed < min_period_ticks) {
+                vTaskDelay(min_period_ticks - elapsed);
+            }
+        }
     }
 
     // InferTask exiting
@@ -664,14 +859,15 @@ extern "C" int sentai_detection_start(int conf_permil, int iou_permil, int max_d
         s_sem_staging_free = xSemaphoreCreateBinary();
     if (!s_sem_prep_done)
         s_sem_prep_done = xSemaphoreCreateBinary();
-    // Step 4 counting semaphores for the ping-pong direct path.  Created
-    // unconditionally so the flag can be toggled without re-entering start.
-    //   s_sem_bufs_free   : counting, max 2, init 2 — two buffers free
-    //   s_sem_prep_done_c : counting, max 2, init 0 — no frames ready yet
+    // 2026-04-22: collapsed ping-pong to a SINGLE OCRAM tensor buffer.
+    // Sem max dropped 2→1 so PrepTask waits for InferTask's USB bulk
+    // to drain the buffer before overwriting it.  True serial handoff.
+    //   s_sem_bufs_free   : counting, max 1, init 1 — buffer is free
+    //   s_sem_prep_done_c : counting, max 1, init 0 — no frame ready yet
     if (!s_sem_bufs_free)
-        s_sem_bufs_free   = xSemaphoreCreateCounting(2, 2);
+        s_sem_bufs_free   = xSemaphoreCreateCounting(1, 1);
     if (!s_sem_prep_done_c)
-        s_sem_prep_done_c = xSemaphoreCreateCounting(2, 0);
+        s_sem_prep_done_c = xSemaphoreCreateCounting(1, 0);
     if (!s_det_queue)
         s_det_queue = xQueueCreate(4, sizeof(DetectionFrame));
 
@@ -690,14 +886,11 @@ extern "C" int sentai_detection_start(int conf_permil, int iou_permil, int max_d
     xSemaphoreGive(s_sem_staging_free);  // staging starts as "free"
     // s_sem_prep_done starts empty (not given) → InferTask waits for first frame
 
-    // Drain + re-prime the Step-4 counting sems so a second start() has the
-    // same initial-state invariant as the first (bufs_free=2, prep_done_c=0).
-    // Counting sems have no "reset" primitive — drain by taking with zero
-    // timeout until empty, then give the required number of permits.
+    // Drain + re-prime the counting sems so a second start() has the
+    // same initial-state invariant (bufs_free=1, prep_done_c=0).
     while (xSemaphoreTake(s_sem_bufs_free,   0) == pdTRUE) { }
     while (xSemaphoreTake(s_sem_prep_done_c, 0) == pdTRUE) { }
-    xSemaphoreGive(s_sem_bufs_free);
-    xSemaphoreGive(s_sem_bufs_free);
+    xSemaphoreGive(s_sem_bufs_free);  // single slot = free
     s_prep_count_dt  = 0;
     s_infer_count_dt = 0;
 
@@ -706,24 +899,32 @@ extern "C" int sentai_detection_start(int conf_permil, int iou_permil, int max_d
     s_start_tick       = xTaskGetTickCount();
     s_running          = true;
 
-    // Create tasks
-    //   PrepTask  prio 2: above mp_repl (1), below InferTask (3)
-    //   InferTask prio 3: same as app_main — when it blocks on USB, PrepTask runs
-    BaseType_t r1 = xTaskCreate(prep_task_fn, "det_prep",
-                                configMINIMAL_STACK_SIZE * 8,
-                                nullptr, tskIDLE_PRIORITY + 2, &s_prep_task);
-    BaseType_t r2 = pdFAIL;
-    if (r1 == pdPASS) {
-        r2 = xTaskCreate(infer_task_fn, "det_infer",
-                         configMINIMAL_STACK_SIZE * 12,
-                         nullptr, tskIDLE_PRIORITY + 3, &s_infer_task);
+    // Create tasks using STATIC allocation.  Both at prio 2 —
+    // above REPL (1) so they run when REPL blocks, but equal to
+    // each other so InferTask can't preempt PrepTask.  User
+    // hypothesis 2026-04-22: original InferTask prio 3 preempting
+    // PrepTask prio 2 was disturbing something in the USB/TPU path.
+    // (configUSE_TIME_SLICING=0, so equal prio means they yield
+    // only via explicit blocks — both tasks block naturally on
+    // sems, so this is deadlock-free.)
+    s_prep_task = xTaskCreateStatic(prep_task_fn, "det_prep",
+                                    kPrepStackWords, nullptr,
+                                    tskIDLE_PRIORITY + 2,
+                                    s_prep_stack, &s_prep_tcb);
+    s_infer_task = nullptr;
+    if (s_prep_task != nullptr) {
+        s_infer_task = xTaskCreateStatic(infer_task_fn, "det_infer",
+                                         kInferStackWords, nullptr,
+                                         tskIDLE_PRIORITY + 2,  // was +3
+                                         s_infer_stack, &s_infer_tcb);
     }
 
-    if (r1 != pdPASS || r2 != pdPASS) {
-        SERR_LOG(SERR_DET_TASK_FAIL, (r1 << 8) | r2);
+    if (s_prep_task == nullptr || s_infer_task == nullptr) {
+        SERR_LOG(SERR_DET_TASK_FAIL,
+                 ((s_prep_task ? 1u : 0u) << 8) | (s_infer_task ? 1u : 0u));
         s_running = false;
         // If PrepTask was created but InferTask failed, stop it cleanly
-        if (r1 == pdPASS && s_prep_task) {
+        if (s_prep_task) {
             xSemaphoreGive(s_sem_staging_free);  // unblock prep
             for (int i = 0; i < 50 && s_prep_task; i++)
                 vTaskDelay(pdMS_TO_TICKS(20));

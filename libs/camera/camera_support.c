@@ -118,9 +118,35 @@ extern void CSI_DriverIRQHandler(void);
 
 void CSI_IRQHandler(void)
 {
+    /* 2026-04-22: gate the counter on the FB2-done flag only.
+     *
+     * NXP's CSI in BASEADDR_SWITCH mode alternates whole sensor
+     * frames between FB1 and FB2 (fsl_csi.c:692-702).  Each IRQ
+     * carries one flag.  But under active buffer drain the re-arm
+     * path (fsl_csi.c:910-917) causes IRQs to fire about twice per
+     * sensor period — we measured 87 Hz with the sensor at 45 Hz.
+     *
+     * Since FB1-done and FB2-done alternate 1:1 with true sensor
+     * frames, gating the counter on either ONE of them gives a
+     * stable "one tick per 2 sensor frames" rhythm if we pick FB2,
+     * or we match sensor rate exactly if both flags always pair up.
+     *
+     * Concrete consumers of g_camera_frame_seq:
+     *   - post-MUX-switch drain loop  (wants 2 fresh sensor frames)
+     *   - ratio-alternate scheduler   (wants uniform cadence)
+     *   - PrepTask label s_stg_frame_seq (wants monotonic label)
+     *   - flow_task.cc frame_seq stamp (dedup motion samples)
+     * None care about raw IRQ count — they all want "per sensor
+     * frame" cadence.  Gating solves the drain-threshold off-by-2
+     * bug latent in the old code. */
+    uint32_t sr_at_entry = CSI_REG_SR(CSI);
+    bool fb2_done = (0U != (sr_at_entry & CSI_SR_DMA_TSF_DONE_FB2_MASK));
+
     CSI_DriverIRQHandler();
     __DSB();
-    g_camera_frame_seq++;   /* one DMA frame completed */
+    if (fb2_done) {
+        g_camera_frame_seq++;
+    }
 
     /* ---- Stateless ratio-alternate scheduler ----
      * When both quotas are non-zero, use a modulo over the monotonic
@@ -395,6 +421,18 @@ void BOARD_InitCamera(void)
 
     status = CAMERA_RECEIVER_Init(&cameraReceiver, &cameraConfig, NULL, NULL);
     printf("CAMERA_RECEIVER_Init = %ld\r\n", status);
+
+    /* sentai TPU-pipeline fix (2026-04-22): CSI_IRQHandler runs at
+     * the ARM NVIC default priority = 0 = HIGHER than USB_OTG2
+     * (which is at configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY = 2).
+     * At 45 fps + a few µs of ISR work, CSI steadily preempts
+     * USB_OTG2 completion handling, causing ~43% of bulk URBs to
+     * miss their 50 ms sema timeout under pipeline load.  The CSI
+     * handler does NOT call FreeRTOS APIs (only GPIO + atomic
+     * counter increments), so it is safe to move BELOW the FreeRTOS
+     * syscall priority boundary.  Priority 5 puts CSI below USB
+     * (2) so USB IOC handling is never preempted by the camera. */
+    NVIC_SetPriority(CSI_IRQn, 5);
 
     BOARD_InitMipiCsi();
 

@@ -129,8 +129,9 @@ static mp_obj_t mod_sentai_cam_select(mp_obj_t id_obj) {
 static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_cam_select_obj, mod_sentai_cam_select);
 
 // sentai.camera.frame_count() -> int
-// Monotonic ISR-level frame counter. Never resets.
-// Use delta (frame_count_after - frame_count_before) to count DMA frames.
+// Monotonic sensor-frame counter (gated on CSI DMA_DONE flag, not raw
+// ISR entries — see camera_support.c:CSI_IRQHandler for the filter).
+// One tick = one actual sensor frame captured.
 static mp_obj_t mod_sentai_cam_frame_count(void) {
     return mp_obj_new_int(sentai_cam_get_frame_seq());
 }

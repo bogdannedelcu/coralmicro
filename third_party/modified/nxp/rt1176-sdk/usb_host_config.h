@@ -129,25 +129,16 @@
 /*!
  * @brief ehci QH max count.
  *
- * sentai: raised 8 -> 16 (2026-04-22, TPU throughput sprint).
- * Each QH is ~80 B.  With 16 pipes advertised by multi_ep TPU variant
- * plus CDC-ACM, NCM and occasional control transfers we can exceed 8
- * QHs at steady state.  Headroom prevents async-scheduler evictions
- * under load.
+ * NOTE: bumped 8→16 on 2026-04-22 during the TPU throughput sprint,
+ * then REVERTED 2026-04-22 (same day) when pipeline integration
+ * regressed.  Kept at 8 (NXP default) pending next-session bisect.
  */
-#define USB_HOST_CONFIG_EHCI_MAX_QH (16U)
+#define USB_HOST_CONFIG_EHCI_MAX_QH (8U)
 
 /*!
  * @brief ehci QTD max count.
- *
- * sentai: raised 8 -> 16 (2026-04-22).  NXP's QTD stores 4 buffer
- * pointers × 4 KB page = 16 KB max data per QTD.  A 64 KB bulk URB
- * consumes 4 QTDs; a 128 KB URB consumes 8.  With MAX_QTD=8 (old)
- * a single 128 KB URB exhausted the pool and serialized URBs on the
- * same pipe.  16 QTDs lets us queue 2×64 KB or 1×128 KB + 1×64 KB
- * concurrently on the EHCI async schedule.
  */
-#define USB_HOST_CONFIG_EHCI_MAX_QTD (16U)
+#define USB_HOST_CONFIG_EHCI_MAX_QTD (8U)
 
 /*!
  * @brief ehci ITD max count.

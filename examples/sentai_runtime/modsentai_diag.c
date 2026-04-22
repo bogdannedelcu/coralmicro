@@ -263,9 +263,25 @@ extern volatile uint32_t g_edgetpu_async_submit_fail;
 extern volatile uint32_t g_edgetpu_async_cb_fired;
 extern volatile uint32_t g_edgetpu_async_cb_ok;
 extern volatile uint32_t g_edgetpu_async_cb_fail;
+extern volatile uint32_t g_edgetpu_bo_fail_pipe_idx;
+extern volatile uint32_t g_edgetpu_bo_fail_not_bulk;
+extern volatile uint32_t g_edgetpu_bo_fail_malloc;
+extern volatile uint32_t g_edgetpu_bo_fail_send;
+extern volatile uint32_t g_edgetpu_bo_ok;
+extern volatile uint32_t g_edgetpu_legacy_cb_entered;
+extern volatile uint32_t g_edgetpu_legacy_cb_found_pipe;
+extern volatile uint32_t g_edgetpu_legacy_cb_called_user;
+extern volatile uint32_t g_edgetpu_legacy_cb_no_pipe;
+extern volatile uint32_t g_sentai_tpu_lambda_entered;
+extern volatile uint32_t g_sentai_tpu_lambda_gave;
+extern volatile uint32_t g_sentai_tpu_lambda_null_sema;
+extern volatile uint32_t g_sentai_tpu_take_failed;
+extern volatile uint32_t g_sentai_tpu_take_succeeded;
+extern volatile uint32_t g_sentai_tpu_urb_cancelled;
+extern volatile uint32_t g_sentai_tpu_urb_cancel_no_cb;
 
 static mp_obj_t mod_sentai_diag_async_stats(void) {
-    mp_obj_t d = mp_obj_new_dict(5);
+    mp_obj_t d = mp_obj_new_dict(14);
     mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_submit_ok),
                       mp_obj_new_int_from_uint(g_edgetpu_async_submit_ok));
     mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_submit_fail),
@@ -276,6 +292,39 @@ static mp_obj_t mod_sentai_diag_async_stats(void) {
                       mp_obj_new_int_from_uint(g_edgetpu_async_cb_ok));
     mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_cb_fail),
                       mp_obj_new_int_from_uint(g_edgetpu_async_cb_fail));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_bo_ok),
+                      mp_obj_new_int_from_uint(g_edgetpu_bo_ok));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_bo_pipe),
+                      mp_obj_new_int_from_uint(g_edgetpu_bo_fail_pipe_idx));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_bo_bulk),
+                      mp_obj_new_int_from_uint(g_edgetpu_bo_fail_not_bulk));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_bo_malloc),
+                      mp_obj_new_int_from_uint(g_edgetpu_bo_fail_malloc));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_bo_send),
+                      mp_obj_new_int_from_uint(g_edgetpu_bo_fail_send));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_cb_entered),
+                      mp_obj_new_int_from_uint(g_edgetpu_legacy_cb_entered));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_cb_found),
+                      mp_obj_new_int_from_uint(g_edgetpu_legacy_cb_found_pipe));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_cb_user),
+                      mp_obj_new_int_from_uint(g_edgetpu_legacy_cb_called_user));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_cb_nopipe),
+                      mp_obj_new_int_from_uint(g_edgetpu_legacy_cb_no_pipe));
+    // Dynamic-key entries (no QSTR regen needed for new counters)
+    mp_obj_dict_store(d, mp_obj_new_str("lambda_entered", 14),
+                      mp_obj_new_int_from_uint(g_sentai_tpu_lambda_entered));
+    mp_obj_dict_store(d, mp_obj_new_str("lambda_gave", 11),
+                      mp_obj_new_int_from_uint(g_sentai_tpu_lambda_gave));
+    mp_obj_dict_store(d, mp_obj_new_str("lambda_null_sema", 16),
+                      mp_obj_new_int_from_uint(g_sentai_tpu_lambda_null_sema));
+    mp_obj_dict_store(d, mp_obj_new_str("take_ok", 7),
+                      mp_obj_new_int_from_uint(g_sentai_tpu_take_succeeded));
+    mp_obj_dict_store(d, mp_obj_new_str("take_timeout", 12),
+                      mp_obj_new_int_from_uint(g_sentai_tpu_take_failed));
+    mp_obj_dict_store(d, mp_obj_new_str("urb_cancelled", 13),
+                      mp_obj_new_int_from_uint(g_sentai_tpu_urb_cancelled));
+    mp_obj_dict_store(d, mp_obj_new_str("urb_cancel_no_cb", 16),
+                      mp_obj_new_int_from_uint(g_sentai_tpu_urb_cancel_no_cb));
     return d;
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_diag_async_stats_obj,
@@ -353,6 +402,38 @@ static mp_obj_t mod_sentai_diag_tpu_chunk_size(size_t n_args,
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_diag_tpu_chunk_size_obj,
                                             0, 1, mod_sentai_diag_tpu_chunk_size);
 
+
+// sentai.diag.tpu_zero_copy([enable]) — toggle zero-copy for INPUT
+// phase of TPU invoke.  Default ON (fastest, standalone-safe).
+// Turn OFF when running the camera pipeline (direct_tensor mode)
+// if you observe `E:0420:2` TPU invoke failures — staged DTCM
+// path sidesteps cache races with concurrent PXP/quant writers.
+extern int  sentai_tpu_zero_copy_input_get(void);
+extern void sentai_tpu_zero_copy_input_set(int v);
+static mp_obj_t mod_sentai_diag_tpu_zero_copy(size_t n_args,
+                                               const mp_obj_t *args) {
+    if (n_args >= 1) {
+        sentai_tpu_zero_copy_input_set(mp_obj_is_true(args[0]) ? 1 : 0);
+    }
+    return mp_obj_new_int(sentai_tpu_zero_copy_input_get());
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_diag_tpu_zero_copy_obj,
+                                            0, 1, mod_sentai_diag_tpu_zero_copy);
+
+// sentai.diag.tpu_urb_timeout([ms]) — per-URB wait ceiling.  Default
+// 50 ms.  Below 5 ms is rejected to avoid spurious timeouts under
+// normal load; above 5000 ms capped to preserve fault-tolerance.
+// When a URB exceeds this cap, the driver cancels it + returns
+// -1 so InferTask can skip the frame and continue.
+extern uint32_t sentai_tpu_urb_timeout_ms_get(void);
+extern void     sentai_tpu_urb_timeout_ms_set(uint32_t n);
+static mp_obj_t mod_sentai_diag_tpu_urb_timeout(size_t n_args, const mp_obj_t *args) {
+    if (n_args >= 1) sentai_tpu_urb_timeout_ms_set((uint32_t)mp_obj_get_int(args[0]));
+    return mp_obj_new_int_from_uint(sentai_tpu_urb_timeout_ms_get());
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_diag_tpu_urb_timeout_obj,
+                                            0, 1, mod_sentai_diag_tpu_urb_timeout);
+
 // sentai.diag.tpu_multi_ep([enable]) — arm per-tag EP routing.  Only
 // meaningful when the firmware was built with SENTAI_TPU_MULTI_EP=ON
 // (see libs/tpu/CMakeLists.txt:36) AND the TPU was DFU'd with
@@ -391,6 +472,8 @@ static const mp_rom_map_elem_t sentai_diag_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_tpu_async_input), MP_ROM_PTR(&mod_sentai_diag_tpu_async_input_obj) },
     { MP_ROM_QSTR(MP_QSTR_tpu_desc_cache),  MP_ROM_PTR(&mod_sentai_diag_tpu_desc_cache_obj) },
     { MP_ROM_QSTR(MP_QSTR_tpu_chunk_size),  MP_ROM_PTR(&mod_sentai_diag_tpu_chunk_size_obj) },
+    { MP_ROM_QSTR(MP_QSTR_tpu_zero_copy),   MP_ROM_PTR(&mod_sentai_diag_tpu_zero_copy_obj) },
+    { MP_ROM_QSTR(MP_QSTR_tpu_urb_timeout), MP_ROM_PTR(&mod_sentai_diag_tpu_urb_timeout_obj) },
 };
 static MP_DEFINE_CONST_DICT(sentai_diag_globals, sentai_diag_globals_table);
 static const mp_obj_module_t sentai_diag_module = {
