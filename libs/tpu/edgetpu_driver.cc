@@ -433,7 +433,12 @@ static uint8_t s_bulk_staging[32 * 1024] __attribute__((aligned(32)));
 // stall the USB while the FIFO drains.  33 KB (33792 B) was the
 // specific minimum in the sweep — see agent/experiment.md for the
 // full table.
-extern "C" volatile uint32_t g_sentai_tpu_chunk_size = 33 * 1024;
+// 2026-04-22 re-sweep with OCRAM tensor: 36 KB (36864 B) slightly
+// beats the old 33 KB sweet spot — 76 FPS vs 73 FPS on yolo_1.
+// Cliff still at 36→40 KB (drops to ~27 FPS), confirming the TPU
+// bulk-OUT FIFO is ~36 KB.  36 KB is the largest URB that still
+// fits the FIFO without back-pressure.
+extern "C" volatile uint32_t g_sentai_tpu_chunk_size = 36 * 1024;
 extern "C" uint32_t sentai_tpu_chunk_size_get(void) { return g_sentai_tpu_chunk_size; }
 extern "C" void     sentai_tpu_chunk_size_set(uint32_t n) {
     if (n < 4096) n = 4096;

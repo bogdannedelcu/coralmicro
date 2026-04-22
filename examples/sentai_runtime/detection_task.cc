@@ -86,33 +86,16 @@ namespace {
 // Raise this only if a larger model is introduced; note the SDRAM region
 // has ~400 KB of slack beyond this layout, so any further growth needs a
 // linker-script check.
-// 2026-04-22: collapsed ping-pong → single OCRAM tensor buffer.
-// Rationale: 2 × 786 KB didn't fit in OCRAM (1 MB total).  A single
-// OCRAM buffer (786 KB fits with ~230 KB headroom) means PrepTask
-// and InferTask CAN'T overlap at the tensor level (write vs EHCI
-// read race on same buffer) — they serialize naturally via the
-// sem_bufs_free / sem_prep_done_c handshake, which now pairs as a
-// strict 1:1 gate.  Theoretical max: prep(15ms) + invoke(13ms) =
-// 28 ms/frame = 35 FPS end-to-end.  Trade: lose parallelism, gain
-// OCRAM-backed USB DMA (no SEMC bus contention with CSI).  Worth
-// it given the current parallel pipeline sits at 1.8 FPS due to
-// SDRAM bus wedging the TPU silicon.
-// Kept as a 2-element array of identical pointer so existing
-// `s_tpu_input_buf[i & 1]` call sites don't need touching — the
-// counting-semaphore still swings between "slot 0" and "slot 1"
-// each iteration but both resolve to the same physical buffer.
+// Single OCRAM buffer.  Attempted asymmetric double-buffer (slot 0
+// OCRAM + slot 1 SDRAM) 2026-04-22: every other invoke read from
+// SDRAM wedged the TPU (SEMC bus contention with CSI) — 0 ok / 175
+// fail in 5 s.  Hard lesson: partial SDRAM involvement = full wedge.
 static constexpr int kMaxStagingSize = 512 * 512 * 3;  // yolo_1 786 432 B
 static uint8_t s_tpu_input_buf_single[kMaxStagingSize]
     __attribute__((aligned(64), section(".tpu_input")));
 static uint8_t* const s_tpu_input_buf[2] = {
     s_tpu_input_buf_single, s_tpu_input_buf_single
 };
-// Tripwire: if a future edit bumps kMaxStagingSize past this cap, the build
-// fails here instead of silently stealing SDRAM from other .sdram_bss
-// subsystems (USB host, httpsrv, ncache heap).  Raise deliberately after
-// auditing the linker map.
-static_assert(sizeof(s_tpu_input_buf) <= 2 * 1024 * 1024,
-              "ping-pong input buffers exceed 2 MB SDRAM budget");
 // s_staging_buf kept as an alias of s_tpu_input_buf[0] for legacy code
 // paths that pre-date the ping-pong refactor (they write here and then
 // memcpy → tensor_buf).  No memory cost — same bytes.
@@ -235,6 +218,19 @@ extern "C" void sentai_pipeline_prep_fps_set(int v) {
 // quant + InferTask's memcpy (but no TPU USB traffic) is enough to
 // wedge the TPU.  Toggle via sentai.pipeline.debug_no_invoke(1).
 static volatile int      s_debug_no_invoke = 0;
+
+// Simulate "multi-patch per frame" workloads: run N TPU invokes per
+// PrepTask iteration, all on the same input buffer.  User-facing:
+// sentai.pipeline.invokes_per_frame(n).  Default 1 = baseline.
+static volatile int      s_debug_invokes_per_frame = 1;
+extern "C" int  sentai_pipeline_invokes_per_frame_get(void) {
+    return s_debug_invokes_per_frame;
+}
+extern "C" void sentai_pipeline_invokes_per_frame_set(int v) {
+    if (v < 1) v = 1;
+    if (v > 8) v = 8;
+    s_debug_invokes_per_frame = v;
+}
 
 
 // PrepTask staged mock — builds up the pipeline piece by piece to
@@ -686,13 +682,25 @@ static void infer_task_fn(void* /*param*/) {
         if (direct) {
             uint8_t* buf = s_tpu_input_buf[s_infer_count_dt & 1u];
             s_infer_count_dt++;
-            // Free the buffer slot FIRST so PrepTask can already start
-            // filling the other ping-pong slot while we block on USB.
-            // This is the whole point of the double-buffer: prep N+1
-            // overlaps with invoke N.
             xSemaphoreGive(sem_free);
-            t_memcpy_end = t_memcpy_start;  // zero memcpy cost — not in path
+            t_memcpy_end = t_memcpy_start;
+            // invokes_per_frame: run tpu_invoke_with_input N times on
+            // the SAME input buffer per PrepTask frame — simulates
+            // "process K patches per camera frame" workload at low
+            // camera FPS.  First call reports its own invoke_ms; the
+            // extra calls accumulate into s_infer_ms_sum below so the
+            // avg-ms metric stays representative.
+            const int n_calls = (s_debug_invokes_per_frame > 0)
+                                ? s_debug_invokes_per_frame : 1;
             invoke_ms = s_debug_no_invoke ? 0 : sentai_tpu_invoke_with_input(buf);
+            for (int k = 1; k < n_calls && invoke_ms >= 0; k++) {
+                int extra_ms = sentai_tpu_invoke_with_input(buf);
+                if (extra_ms < 0) { invoke_ms = extra_ms; break; }
+                // bookkeeping: count each extra invoke as its own OK
+                // so infer_stats.ok reflects per-invoke not per-frame.
+                s_infer_ok_count++;
+                s_infer_ms_sum += (uint32_t)extra_ms;
+            }
         } else {
             bool dma_ok = false;
             if (s_dma_memcpy_enabled
@@ -859,9 +867,7 @@ extern "C" int sentai_detection_start(int conf_permil, int iou_permil, int max_d
         s_sem_staging_free = xSemaphoreCreateBinary();
     if (!s_sem_prep_done)
         s_sem_prep_done = xSemaphoreCreateBinary();
-    // 2026-04-22: collapsed ping-pong to a SINGLE OCRAM tensor buffer.
-    // Sem max dropped 2→1 so PrepTask waits for InferTask's USB bulk
-    // to drain the buffer before overwriting it.  True serial handoff.
+    // Single OCRAM tensor → counting sem max=1 for strict serial.
     //   s_sem_bufs_free   : counting, max 1, init 1 — buffer is free
     //   s_sem_prep_done_c : counting, max 1, init 0 — no frame ready yet
     if (!s_sem_bufs_free)

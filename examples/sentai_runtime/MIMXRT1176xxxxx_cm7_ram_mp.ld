@@ -137,6 +137,9 @@ SECTIONS
      . = ALIGN(4);
   } > m_ocram
 
+  /* .lwip — moved OCRAM → SDRAM 2026-04-22 to free space for the
+     TPU tensor arena (1 MB OCRAM).  Network stack is not on the
+     per-invoke hot path. */
   .lwip :
   {
      . = ALIGN(4);
@@ -155,7 +158,7 @@ SECTIONS
      *liblibs_base-m7_http_server.a:*(.rodata .rodata*)
      __lwip_end = .;
      . = ALIGN(4);
-  } > m_ocram
+  } > m_sdram
 
   .wiced :
   {
@@ -259,8 +262,8 @@ SECTIONS
      . = ALIGN(4);
   } > m_sdram
 
-  /* libm math functions used by MicroPython's math module.
-   * Placed in OCRAM alongside MicroPython itself (no ITCM perf benefit). */
+  /* libm math functions — moved OCRAM → SDRAM 2026-04-22 to free
+     space for the TPU output tensor relocation. */
   .libm :
   {
      . = ALIGN(4);
@@ -268,7 +271,7 @@ SECTIONS
      *libm.a:*(.data .data*)
      *libm.a:*(.rodata .rodata*)
      . = ALIGN(4);
-  } > m_ocram
+  } > m_sdram
 
   /* .audio + .shine: moved OCRAM → SDRAM 2026-04-22 (TPU pipeline
      sprint).  Not in the TPU hot path; freed ~10 KB OCRAM to hold
@@ -295,6 +298,8 @@ SECTIONS
      . = ALIGN(4);
   } > m_sdram
 
+  /* .aifes — moved OCRAM → SDRAM 2026-04-22 to free space for the
+     TPU output tensor relocation.  Not on the per-invoke hot path. */
   .aifes :
   {
      . = ALIGN(4);
@@ -307,7 +312,7 @@ SECTIONS
      *liblibs_aifes_task_m7.a:*(.rodata .rodata*)
      __aifes_end = .;
      . = ALIGN(4);
-  } > m_ocram
+  } > m_sdram
 
   /* .sentai_slow: moved OCRAM → SDRAM 2026-04-22 (TPU pipeline sprint).
      Contains tracker/link/mesh/httpd/tfl_bridge — none are on the
@@ -347,6 +352,8 @@ SECTIONS
      . = ALIGN(4);
   } > m_sdram
 
+  /* .cdc_ncm + .camera — moved OCRAM → SDRAM 2026-04-22 (small
+     sections, tolerable SDRAM latency since not per-invoke hot). */
   .cdc_ncm :
   {
      . = ALIGN(4);
@@ -356,7 +363,7 @@ SECTIONS
      *liblibs_cdc_ncm_freertos.a:*(.rodata .rodata*)
      __cdc_ncm_end = .;
      . = ALIGN(4);
-  } > m_ocram
+  } > m_sdram
 
   .camera :
   {
@@ -367,7 +374,7 @@ SECTIONS
      *liblibs_camera_freertos.a:*(.rodata .rodata*)
      __camera_end = .;
      . = ALIGN(4);
-  } > m_ocram
+  } > m_sdram
 
   .edgefast_bluetooth_text :
   {
@@ -688,12 +695,6 @@ SECTIONS
     __noncachecameradata_end__ = .;
   } > m_ncamera
 
-  /* .tpu_input: OCRAM-backed tensor ping-pong buffers.  Accessed by
-     the USB EHCI DMA master for bulk-OUT transfers to the TPU.  Kept
-     out of SDRAM to avoid SEMC bus contention with CSI camera DMA
-     (the documented pipeline agressor per prior session).  NOLOAD
-     because the content is written at runtime by PrepTask — no
-     initial values to copy from flash. */
   .tpu_input (NOLOAD) :
   {
     . = ALIGN(64);
@@ -702,6 +703,8 @@ SECTIONS
     . = ALIGN(64);
     __tpu_input_end__ = .;
   } > m_ocram
+  ASSERT(__tpu_input_end__ <= ORIGIN(m_ocram) + LENGTH(m_ocram),
+         "ERROR: .tpu_input overflows m_ocram into rpmsg_sh_mem")
 
   /* Initializes stack on the end of block */
   __StackTop   = ORIGIN(m_data) + LENGTH(m_data);

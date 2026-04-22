@@ -1,8 +1,1063 @@
-# experiment.md — current state and open work
+# experiment.md — TPU pipeline optimization journey
 
-Snapshot date: 2026-04-22 (night)
+Snapshot date: 2026-04-22 (night-final, post multi-patch)
 Branch: feature/ov5640-camera-support
-Latest device build: V21 (cancel-on-timeout + no-heap hot path)
+Latest stable commit: `32ded2e2 pipeline 45fps camera 42 fps TPU`
+Working tree: on top of stable, with `invokes_per_frame` toggle +
+documented optimisations
+
+---
+
+## 🧱 Blockages and the architectural solutions adopted
+
+The sprint wasn't a linear optimisation — it was a sequence of hard
+walls, each demanding a **different architectural response**.  Below
+is the blockage-by-blockage story with the specific code/memory
+changes that broke through.
+
+### Blockage #1: Pure TPU stuck at 32 FPS
+- **Symptom**: `sentai.tpu.invoke()` consistently at ~31 ms/call with
+  large chunks (64 KB) and per-chunk sema create/delete.
+- **Bottleneck**: NXP EHCI's QH/QTD overhead per submission +
+  `xSemaphoreCreateBinary`/`vSemaphoreDelete` on the hot path were
+  eating ~0.2 ms per chunk × 12 chunks = 2.4 ms pure overhead per
+  invoke.
+- **Architectural solution**: eliminate heap churn in the USB driver.
+
+```
+BEFORE (per-chunk heap churn):              AFTER (persistent state):
+┌─────────────────────────────┐            ┌─────────────────────────────┐
+│ Invoke()                    │            │ Invoke()                    │
+│  for each 64 KB chunk:      │            │  for each 33 KB chunk:      │
+│    SemHandle = xSemCreate() │   ───▶     │    xSemaphoreTake(&s_bulk)  │
+│    USB_Send(...)            │            │    USB_Send(...)            │
+│    xSemTake(SemHandle)      │            │    // no alloc, no delete   │
+│    vSemaphoreDelete(...)    │            │                             │
+└─────────────────────────────┘            └─────────────────────────────┘
+```
+- Shipped: `s_bulk_sema` lazy-init once (`libs/tpu/edgetpu_driver.cc:107`)
+- Shipped: `PrepareHeaderInto(tag, len, out[8])` stack helper
+  replaces `std::vector<uint8_t>(8)`
+- Shipped: chunk sweep discovered the 36 KB FIFO cliff
+  → **32 → 75 FPS pure TPU**
+
+### Blockage #2: Pipeline end-to-end 1.8 FPS (99 % fails)
+- **Symptom**: `sentai.pipeline.start()` immediately wedges TPU.  Only
+  full firmware reflash recovers.
+- **Bottleneck ruled out**: URB timeout cancel (tried V21 cancel-
+  on-timeout — tries to clean up, but **corrupts TPU silicon** — left
+  it running on its own side, no cancel).
+- **Bottleneck pinned via staged isolation** (Step 4 matrix):
+  CSI DMA + USB EHCI concurrent on the SEMC bus.
+- **Architectural solution**: move the TPU tensor buffer out of
+  SDRAM (off the SEMC bus) so USB EHCI reads it via a separate
+  crossbar path.
+
+```
+BEFORE (both DMA masters hit SEMC):
+  CSI DMA ──▶┐
+             ├──▶ SEMC ──▶ SDRAM (0x80000000+)  ← contention!
+  USB EHCI ─▶┘
+
+AFTER (USB routed to OCRAM via internal crossbar):
+  CSI DMA ─────▶ SEMC ─────▶ SDRAM (framebuffer)
+  USB EHCI ───▶ AXBS/crossbar ─▶ OCRAM (0x20240000+)  ← contention-free
+```
+
+The fix is a **linker-script rework + one new BSS section**:
+
+| Memory region | Address | Size | Role |
+|---|---|---|---|
+| `m_ncache` (DTCM) | 0x20000000 | 32 KB | non-cached MPU region |
+| `m_data` (DTCM) | 0x20008000 | 224 KB | .data / .bss / FreeRTOS stack |
+| `m_ocram` (OCRAM1+OCRAM2 merged) | 0x20240000 | 1016 KB | `.tpu_input`, `.usb_host`, various |
+| `rpmsg_sh_mem` (tail of OCRAM2) | 0x2033E000 | 8 KB | M7↔M4 shared |
+| `m_heap` (SDRAM) | 0x80000000 | 16 MB | MicroPython GC heap |
+| `m_sdram` (SDRAM) | 0x81000000 | 16 MB | `.sdram_bss`, tensor arena |
+| `m_ncamera` (SDRAM-bank2) | 0x82000000 | 16 MB | camera framebuffers |
+
+Shipped: 786 KB `s_tpu_input_buf_single` in `.tpu_input` section +
+pointer-swap in `sentai_tpu_invoke_with_input()` — the TFLite
+interpreter's arena stays in SDRAM (couldn't move), but the HOT
+path (input tensor read by USB) is now OCRAM.
+→ **1.8 → 42 FPS pipeline**, 0 fails.
+
+### Blockage #3: CSI counter ticking at 2× sensor rate
+- **Symptom**: `sentai.camera.frame_count()` delta → 87 FPS during
+  pipeline (sensor is 45 FPS).  Broke `g_cam_switch_drain_threshold`
+  arithmetic — threshold `=2` actually waited 1 sensor frame.
+- **Root cause**: NXP CSI driver in BASEADDR_SWITCH mode re-arms
+  the just-drained FB on buffer return.  Under heavy drain both
+  FB1_done and FB2_done edges fire within one sensor frame period.
+- **Architectural solution**: gate the counter increment on the
+  FB2_done flag ONLY.  One increment per real sensor frame.
+
+```cpp
+// BEFORE: every ISR invocation increments (2× rate under load)
+void CSI_IRQHandler(void) {
+    CSI_DriverIRQHandler();
+    g_camera_frame_seq++;
+}
+
+// AFTER: sample SR before NXP clears it, gate on FB2_done
+void CSI_IRQHandler(void) {
+    uint32_t sr = CSI_REG_SR(CSI);
+    bool fb2_done = sr & CSI_SR_DMA_TSF_DONE_FB2_MASK;
+    CSI_DriverIRQHandler();
+    if (fb2_done) g_camera_frame_seq++;
+}
+```
+
+Plus `g_cam_switch_drain_threshold` default `2 → 1` to restore the
+historical "1 sensor frame wait" semantics.
+
+### Blockage #4: Arena in OCRAM crashes at AllocateTensors
+- **Symptom**: move the TFLite `tensor_arena` from SDRAM to OCRAM
+  (via linker section change) → board hard-faults + warm-reboots
+  during `MicroInterpreter::AllocateTensors()`.
+- **Ruled out** (in order): linker overflow (added ASSERT, confirmed
+  fit); ECC OCRAM2 (MECC controller not initialised in firmware);
+  MPU cache attributes (Region 6 identical WB-cacheable to Region 9
+  SDRAM); alignment (64-byte aligned, TFLite needs 16).
+- **Status**: **UNRESOLVED**.  Architectural response: keep the 786
+  KB pointer-swap buffer in OCRAM, accept that arena stays in SDRAM
+  for now.  Shrunk arena `8 MB → 1 MB` (TFLite reports 473 KB peak
+  use for yolo_1) — saved 7 MB SDRAM as consolation.
+
+Attempts log:
+
+| # | Config | Result |
+|---|---|---|
+| 1 | 1024 KB arena spans OCRAM1+OCRAM2 | crash |
+| 2 | 640 KB arena | crash |
+| 3 | 512 KB arena pinned in OCRAM1 only | crash |
+| 4 | + explicit `memset(arena, 0, size)` before `new MicroInterpreter` | crash |
+| 5 | `.tpu_input` placed FIRST in m_ocram (before `.a71ch`) | boot-crash (USB doesn't enumerate) |
+| 6 | 512 KB arena at 0x20240000 + linker ASSERT passes | crash at load |
+
+### Blockage #5: Can't double-buffer in OCRAM
+- **Symptom**: with 1 OCRAM buffer + strict serial (counting sem
+  max=1), PrepTask and InferTask can't overlap.  Pipeline ceiling =
+  `prep(17 ms) + invoke(22 ms) ≈ 39 ms` = 26 FPS theoretical (we hit
+  41-42 due to some partial overlap on cam_grab drain).
+- **Bottleneck**: 2 × 786 KB = **1.57 MB > 1016 KB OCRAM**.  Two
+  full OCRAM buffers don't fit.
+- **Tried: asymmetric** (slot 0 OCRAM + slot 1 SDRAM, counting sem
+  max=2).  **FAILED catastrophically**: the SDRAM-slot invoke
+  wedges the TPU, and from then on every invoke fails.  **Partial
+  SDRAM = full wedge.**
+- **Architectural response**: throttle PrepTask to give invoke
+  breathing room, combined with multi-invoke-per-frame for the
+  real "multi-patch" use case:
+
+```
+BEFORE (free-run, 1 patch, no overlap possible):
+  [cam_grab ─ PXP ─ quant ─ USB-OUT ─ compute ─ USB-IN]
+  │←────── 17 ms ──────→│←──── 22 ms ────→│
+  Total ≈ 39 ms per frame = 25 FPS (we observe 42 due to drain overlap)
+
+AFTER (prep_fps throttle + invokes_per_frame):
+  @ 15 Hz camera cap, 4 invokes per frame:
+  [prep @66 ms spacing]────[inv1]──[inv2]──[inv3]──[inv4]────[prep]
+                            │←────── 68 ms ──────→│
+  Per-invoke time drops 22 ms → 17 ms (SEMC less contended)
+  → 56 FPS TPU = 4× the per-camera-frame inference budget
+```
+
+Shipped: `sentai.pipeline.invokes_per_frame(n)` and `prep_fps(n)`
+toggles.
+
+---
+
+## 🗺 Memory architecture — the story in 4 diagrams
+
+### Initial (V13, start of sprint): Everything in SDRAM
+
+```
+ DTCM  0x20000000 ┌─────────────────────────┐ 256 KB
+                  │ .data .bss FreeRTOS     │
+                  └─────────────────────────┘
+ OCRAM 0x20240000 ┌─────────────────────────┐ 1 MB  (mostly empty)
+                  │ .lwip .libm .micropython│
+                  │ .libjpeg .sentai_slow   │
+                  └─────────────────────────┘
+ SDRAM 0x80000000 ┌─────────────────────────┐ 32 MB
+                  │ MicroPython GC heap 16M │
+                  │ ─────────────────────── │
+                  │ tensor_arena 8 MB ⚠️    │ ← TFLite arena (way oversized)
+                  │ s_tpu_input_buf 1.6 MB ⚠│ ← USB EHCI reads from here
+                  │ camera framebuffers 2.4M│ ← CSI writes here
+                  │ .sdram_bss (misc)       │
+                  └─────────────────────────┘
+                  
+ Problem: camera CSI DMA + USB EHCI DMA both hit SEMC → contention.
+```
+
+### V20 (pure TPU optimised, pipeline still broken)
+
+Same memory layout as V13.  The TPU USB hot path is optimised
+(33 KB chunks, persistent sema, zero-copy, no-heap header) but
+still reads tensor from SDRAM → pipeline still fails.
+
+### V22 (OCRAM tensor: the breakthrough)
+
+```
+ DTCM  0x20000000 ┌─────────────────────────┐ 256 KB
+                  │ .ncache .data .bss      │
+                  │ FreeRTOS stack          │
+                  └─────────────────────────┘
+ OCRAM 0x20240000 ┌─────────────────────────┐ 1 MB
+                  │ .usb_host (13 KB) hot   │
+                  │ ─────────────────────── │
+                  │ .tpu_input ← NEW:       │
+                  │   s_tpu_input_buf_single│ ← 786 KB OCRAM buffer
+                  │   (reached by USB EHCI  │
+                  │    via crossbar, NOT    │
+                  │    via SEMC!)           │
+                  └─────────────────────────┘
+ SDRAM 0x80000000 ┌─────────────────────────┐ 32 MB
+                  │ MicroPython GC heap 16M │
+                  │ ─────────────────────── │
+                  │ tensor_arena 1 MB ✅    │ ← shrunk from 8 MB
+                  │ camera framebuffers 2.4M│
+                  │ (.libm .lwip .micropython│← moved OUT of OCRAM
+                  │   .libjpeg .sentai_slow)│
+                  └─────────────────────────┘
+
+ Critical path:
+   CSI DMA ─────→ SEMC → SDRAM (framebuffer)      ┐ different buses,
+   USB EHCI ───→ AXBS → OCRAM (s_tpu_input_buf)   ┘ no contention
+```
+
+### V22+ (with multi-patch support)
+
+Same memory layout as V22, but with `invokes_per_frame` letting N
+TPU invokes run back-to-back per PrepTask iteration — the single
+OCRAM buffer is re-read N times by USB before being released.
+
+---
+
+## 🧩 Code architecture — the control-flow evolution
+
+### Control flow V13 (broken pipeline baseline)
+
+```
+PrepTask (prio 3)              InferTask (prio 2)
+────────────────               ──────────────────
+take(sem_free)                 take(sem_prep_done)
+cam_grab_latest → SDRAM        memcpy staging → tensor (SDRAM→SDRAM)
+PXP scale → SDRAM              give(sem_free)
+quant → SDRAM                  tpu_invoke (USB reads SDRAM → CRASH)
+give(sem_prep_done)
+```
+
+No buffer separation; USB EHCI and CSI DMA both hammer SEMC.
+
+### Control flow V22 (stable, 42 FPS)
+
+```
+PrepTask (prio 2)              InferTask (prio 2)
+────────────────               ──────────────────
+take(sem_bufs_free, max=1)     take(sem_prep_done_c, max=1)
+cam_grab → SDRAM framebuffer   s_infer_count++
+PXP → s_tpu_input_buf (OCRAM)  xSemaphoreGive(sem_bufs_free)
+quant in-place (OCRAM)         invoke_with_input(s_tpu_input_buf)
+give(sem_prep_done_c)            → TFLite input tensor pointer SWAP
+                                 → USB EHCI reads OCRAM ← no contention
+                                 → restore pointer
+```
+
+Sem max=1 forces strict serial — no concurrent access to the single
+buffer.  Cadence: 17 ms prep + 22 ms invoke ≈ 39 ms, measured 42 FPS
+thanks to camera drain overlap.
+
+### Control flow V22+ (multi-patch)
+
+```
+PrepTask (throttled via prep_fps)   InferTask
+──────────────────────────────      ──────────
+take(sem_bufs_free, max=1)          take(sem_prep_done_c)
+cam_grab + PXP + quant (OCRAM)      for k in 0..N-1:
+give(sem_prep_done_c)                 invoke(s_tpu_input_buf)
+vTaskDelay(1000/prep_fps - elapsed) give(sem_bufs_free)
+```
+
+N invokes run back-to-back on the same OCRAM buffer → TPU processes
+multiple patches per camera frame.  At N=4, cam 15 Hz → 56 TPU FPS.
+
+---
+
+## 📊 Progressive journey — step-by-step optimisation story
+
+This document captures every optimisation pass, **including the
+dead-ends**, on the camera-to-TPU pipeline.  Every measurement is on
+a fresh reflash; cross-test contamination is real (a wedged TPU from
+a failed test poisons all subsequent tests until a reflash), so
+numbers below refer to single-shot runs from a clean boot.
+
+### Where we started vs where we are
+
+| Metric | Start of sprint | **End of sprint** |
+|---|---|---|
+| Pure TPU standalone (yolo_1 512×512) | 32 FPS | **73–75 FPS** |
+| Pipeline end-to-end (single patch/frame) | 1.8 FPS (~3 % success) | **41–42 FPS** (100 % success, 0 fails) |
+| Pipeline, 2 patches/frame @ cam 30 Hz | — | **48.5 FPS TPU** |
+| Pipeline, 4 patches/frame @ cam 15 Hz | — | **56 FPS TPU** |
+| Camera switch latency (cold) | ~14 ms | **~14 ms** (unchanged) |
+| 1:1 continuous alternation (both cams) | 8.7 FPS (initially) | **19.5 FPS** (~10 FPS/cam) |
+| SDRAM occupied by tensor arena | 8 MB | **1 MB** (7 MB freed) |
+
+---
+
+## Step 1 — Baseline sanity (V13, start of sprint)
+
+Sustained `sentai.tpu.invoke()` loop, no pipeline, no camera activity.
+
+| Run | Invoke ms | FPS | Fails |
+|---|---|---|---|
+| Pure TPU, 100 invokes | 31 | 32 | 0 |
+
+Standalone TPU was already far below the theoretical peak — USB
+bulk transfers dominated at 64 KB chunks.  Identified three levers
+to explore: chunk size, per-URB sema churn, and the no-heap hot path.
+
+---
+
+## Step 2 — TPU USB throughput optimisations (V14-V20)
+
+Sweep/test matrix on pure TPU (no pipeline).
+
+| Optimisation | FPS | Notes |
+|---|---|---|
+| Baseline 64 KB chunks | 32 | — |
+| 128 KB chunks | 27 | WORSE — EHCI QTD overhead |
+| **33 KB chunks** | **73** | Sweet spot found; cliff at 36→38 KB |
+| Zero-copy bulk OUT (no staging memcpy) | 75 | USB_HostSend does DCACHE clean for us |
+| Persistent `xSemaphoreCreateBinary` (once) | 75.9 | Removes per-chunk create/delete |
+| Legacy `std::vector<uint8_t>(8)` header | — | Replaced with stack `PrepareHeaderInto()` |
+| `desc_cache` (skip instructions) | N/A | **Hangs yolo_1 TPU** — model requires ins every invoke |
+| `async_input` pipelined URBs (2026-04-22 re-test) | 40.5 | **No measurable gain**, baseline 41.0 (within noise) |
+| `multi_ep` routing (EP2/EP3) | N/A | DFU'd multi-EP apex bin but pipes never opened |
+
+**Shipped at V20**: 33 KB chunks, zero-copy, persistent sema, no-heap
+header.  Pure TPU = 75.9 FPS stable.
+
+---
+
+## Step 3 — Pipeline first try (V21 early)
+
+Naive `sentai.pipeline.start()` on the V20 TPU path.
+
+| Test | Pipeline FPS | Fails | Diagnosis |
+|---|---|---|---|
+| pipeline.start, yolo_1, 5 s | 1.8 | 99 % | TPU silicon wedges; only reflash recovers |
+
+Pipeline reliably crashed inside the first second.  Standalone TPU
+kept working until the first concurrent invoke+camera-grab pair.
+URB cancel-on-timeout recovered the host but left the TPU stuck —
+reflash was the only recovery path.
+
+---
+
+## Step 4 — Staged isolation to pin the agressor (V21)
+
+Ran `debug_prep_mode(n)` × `debug_no_invoke(bool)` — 8 cells — on a
+fresh reflash each row.
+
+| Cell | Prep stages active | InferTask | Result |
+|---|---|---|---|
+| S1 | MOCK (vTaskDelay) | skip | ✓ 0 fail |
+| S3 | CAM grab only | skip | ✓ 0 fail |
+| S4 | CAM + PXP | skip | ✓ 0 fail |
+| S5 | FULL (cam + PXP + quant) | skip | ✓ 0 fail |
+| **S6** | **MOCK** | **real invoke** | **✓ 0 fail** |
+| **S7** | **CAM grab** | **real invoke** | **❌ 100 % fail from frame 1** |
+| S8 | CAM + PXP | real invoke | ❌ 100 % fail |
+| S9 | FULL | real invoke | ❌ 100 % fail |
+
+**Verdict**: PrepTask's `sentai_cam_grab_latest()` + TPU USB invoke
+concurrent on the same SEMC bus is the agressor.  Neither PrepTask
+alone nor InferTask alone can trigger it.
+
+---
+
+## Step 5 — ReadEvent heap-free + task priorities (V21 late)
+
+Hypothesis: per-invoke `OSA_MemoryAllocate(16)` +
+`xSemaphoreCreateBinary` inside `TpuDriver::ReadEvent()` contribute
+to SDRAM heap churn during invoke.
+
+Made the event read heap-free (`static uint8_t s_event_buf[16]` +
+`xSemaphoreCreateBinaryStatic`).  Also dropped InferTask from prio 3
+to prio 2 (equal to PrepTask) since `configUSE_TIME_SLICING=0`.
+
+| Config | Short pipeline (300 ms) | Sustained (10 s) |
+|---|---|---|
+| V21 early (heap-alloc ReadEvent, prio 3) | 100 % fail | 100 % fail |
+| V21 ReadEvent static + prio 2 | **0 fail (37 ok)** | 100 % fail — still wedges |
+
+Short bursts suddenly worked (first-ever success!).  But the 10 s
+sustained test still wedged.  The heap churn was a real contributor
+but not the full story — the SDRAM bus contention remained.
+
+---
+
+## Step 6 — OCRAM linker cleanup + tensor buffer (V22 SHIPPED)
+
+The core structural fix.  Moved the 786 KB `s_tpu_input_buf_single`
+out of `.sdram_bss` and into a new `.tpu_input (NOLOAD)` section
+mapped to `m_ocram`.  This required a linker rework:
+
+| Section | Before | After | Freed |
+|---|---|---|---|
+| `.libjpeg` | OCRAM | SDRAM | +103 KB OCRAM |
+| `.sentai_slow` | OCRAM | SDRAM | +63 KB OCRAM |
+| `.micropython` | OCRAM | SDRAM | +208 KB OCRAM |
+| `.libm` | OCRAM | SDRAM | +28 KB OCRAM |
+| `.aifes` | OCRAM | SDRAM | +24 KB OCRAM |
+| `.cdc_ncm`, `.camera` | OCRAM | SDRAM | +8 KB OCRAM |
+| `.lwip` | OCRAM | SDRAM | +56 KB OCRAM |
+| **`.tpu_input`** | **NEW** | **OCRAM** | **allocates 786 KB** |
+| `.usb_host` | OCRAM | OCRAM (kept, hot path) | — |
+
+Plus merged OCRAM1 (512 KB) + OCRAM2 (512 KB) into one 1016 KB
+`m_ocram` region (RPMSG moved to the tail at 0x2033E000..0x20340000).
+
+Single 786 KB OCRAM buffer + counting semaphore max=1 (strict serial):
+
+| Config | Pipeline FPS | Fails |
+|---|---|---|
+| V21 baseline (SDRAM tensor) | 1.2 | 99 % |
+| **V22 OCRAM tensor, serial** | **42.5** | **0** |
+
+**23× improvement**, zero fails, 100 % reliability.  The TPU USB
+EHCI reads the tensor via the crossbar → OCRAM path, bypassing the
+SEMC bus entirely.  CSI camera DMA still writes SDRAM but doesn't
+compete with the TPU transfer anymore.
+
+---
+
+## Step 7 — CSI ISR counter normalisation (V22 complement)
+
+While investigating the pipeline, discovered `g_camera_frame_seq`
+ticks at **~2×** the configured sensor FPS under pipeline load
+(87 Hz at sensor 45 FPS).  Root cause traced to NXP CSI driver:
+under active buffer drain, the re-arm path (`fsl_csi.c:910-917`)
+causes both FB1-done and FB2-done interrupts to fire per sensor
+frame.
+
+Fix: in `libs/camera/camera_support.c:CSI_IRQHandler`, read `SR`
+before the NXP driver clears it and increment `g_camera_frame_seq`
+only when `FB2_done` flag is set.
+
+| Mode | Before gating | After gating |
+|---|---|---|
+| Idle camera | 45 Hz | 22.5 Hz (half — artifact, CSI drops flags when queue full) |
+| **Active pipeline** | **87 Hz** | **~45 Hz (matches sensor)** ✓ |
+
+Secondary fix: `g_cam_switch_drain_threshold` default 2 → **1**.
+Before FB2 gating, `threshold=2` meant "1 real sensor frame wait"
+(because counter was 2×).  After gating, `threshold=2` would mean
+"2 real sensor frames wait" — doubling the post-switch latency.
+Dropping to 1 restores the historical 1-frame-wait behaviour.
+
+Impact on 1:1 camera alternation below (Step 10).
+
+---
+
+## Step 8 — Camera switch performance (V22+)
+
+Measured switch latency on fresh reflash.
+
+| Scenario | Switches | Latency (min/avg/max) | Fails |
+|---|---|---|---|
+| Cold switch, no pipeline | 10 | 11 / 14 / 18 ms | 0 |
+| Between pipeline runs | 3 cycles | <15 ms each | TPU wedges after stop+start |
+| DURING running pipeline | 5 flips | 5 / 12 / 21 ms | No switch failure; `cam_stats` clean |
+
+`cam_stats` after all 18 switches: `switch_ok_eof=19, fallback=0,
+drain_timeout=0, grab_retry=0, grab_fatal=0` — **100 % glitch-free
+fast-path**, ZERO fallbacks.  The MUX flip lands in CSI VBLANK as
+designed (`camera_support.c:148-157`).
+
+---
+
+## Step 9 — Continuous 1:1 alternation both cameras (V22+)
+
+Used `sentai.camera.ratio(1, 1)` to let the CSI ISR auto-flip MUX.
+
+| Config | cam FPS | PrepTask | **InferTask** | Invoke ms |
+|---|---|---|---|---|
+| baseline cam0 only | 42.9 | 41.3 | 40.9 | 22 |
+| alt 1:1 drain=2 (old default) | 18.0 | 9.0 | **8.7** | 41 |
+| **alt 1:1 drain=1 (new default)** | 19.7 | 19.7 | **19.5** | 42 |
+
+With the `drain=1` default restored (Step 7 fix), 1:1 alternation
+delivers **19.5 TPU FPS = ~9.75 FPS per camera**, 2.24× vs the
+broken default.  Within the same ballpark as historical 20 FPS/cam
+measurements but not exceeding — the drain+wait between flips is
+the ceiling.
+
+| Ratio | Total TPU | Per cam |
+|---|---|---|
+| 1 : 1 | 19.5 | 9.75 / 9.75 |
+| 2 : 1 | 13.0 | 8.67 / 4.33 |
+
+---
+
+## Step 10 — Visual verification of MUX cleanliness (V22+, s082)
+
+`diag/drivers/_e39_cam_switch_visual.py` captures 22 JPEGs across 3
+scenarios (baseline settle, rapid, first-post-switch).  Downloaded
+via HTTP to `experiments/s082_e39_cam_switch_visual/frames/`.
+
+| Scenario | Frames captured | Mixed-frame artefacts |
+|---|---|---|
+| A: baseline 200 ms settle | 6 (3×cam0 + 3×cam1) | 0 |
+| B: rapid switch no settle | 6 | 0 |
+| C: first-post-switch (5 flips) | 10 | 0 |
+
+**Visual user-confirmed: no inter-camera leakage.**  The post-VBLANK
+MUX flip lands on a clean frame boundary.
+
+---
+
+## Step 11 — DEAD-END: Output tensor OCRAM via pointer swap
+
+Hypothesis: swap `output_tensor->data.uint8` pointer to a 176 KB
+OCRAM buffer for the duration of `Invoke()`, then restore.
+Analogous to the input pointer swap that WORKS.
+
+**Result**: breaks TFLite — the edgetpu custom op has hidden
+invariants on the output tensor pointer stability across calls
+(likely bitstream decode cache or arena-relative references).
+Pipeline went from 41 FPS → 0.2 FPS after the change.  Reverted.
+
+**Lesson**: input-pointer swap is OK because TFLite treats input as
+external-provided memory; output is a TFLite-managed arena tensor
+and relocating it breaks assumptions.
+
+---
+
+## Step 12 — DEAD-END: Arena entire in OCRAM
+
+Most promising idea — put the TFLite `tensor_arena` (currently
+8 MB→1 MB in SDRAM, 473 KB actually used) into OCRAM.  That would
+put EVERY tensor (input + intermediates + output) on the OCRAM bus.
+
+**Every attempt crashed at `AllocateTensors()` with hard fault + warm
+reboot.**  Variables tried:
+
+| Attempt | Arena size | Placement | Outcome |
+|---|---|---|---|
+| A | 1024 KB | OCRAM (spans 1+2) | Boot crash |
+| B | 640 KB | OCRAM (spans 1+2) | Crash at load |
+| C | 512 KB | OCRAM1 only | Crash at load |
+| D | 1000 KB + memset init | OCRAM | Crash at load |
+| E | 1000 KB + `.tpu_input` first in m_ocram | OCRAM | Hard fault at boot |
+| F | 512 KB pinned at 0x20240000 + ASSERT | OCRAM1 | Crash at load |
+
+Ruled out:
+- **Overflow** — added linker ASSERT confirming fit
+- **ECC OCRAM2** — MECC controller isn't initialised in firmware
+- **MPU cache attrs** — OCRAM Region 6 maps identical WB-cacheable
+  to SDRAM Region 9
+- **Alignment** — 64-byte aligned, TFLite needs 16
+
+Remaining candidates (next session):
+- DMA master permissions on AXBS for arena addresses
+- TFLite internal pointer arithmetic that assumes SDRAM address range
+- Bus-master concurrency: TPU EHCI accesses to OCRAM while M7 CPU
+  is reading TFLite metadata from the same region
+
+---
+
+## Step 13 — DEAD-END: Asymmetric double-buffer
+
+Attempt: `slot0` in OCRAM + `slot1` in SDRAM, ping-pong via
+counting sem max=2.  Theory: every other invoke is OCRAM-backed
+(fast), the rest are SDRAM (slow but tolerable).
+
+**Result**: `0 ok / 175 fail` over 5 s.  Even one SDRAM-slot invoke
+wedges the TPU, and from then on every invoke fails.  **Partial
+SDRAM involvement = full wedge.**  Reverted.
+
+| Config | Pipeline FPS |
+|---|---|
+| Single OCRAM buffer (serial, current) | **41–42** |
+| Asymmetric 1 OCRAM + 1 SDRAM | 0.4 |
+
+**Lesson**: the TPU wedge condition is **any** concurrent CSI + USB
+SDRAM traffic, not just sustained.  One bad invoke corrupts the
+pipe until reflash.
+
+---
+
+## Step 14 — DEAD-END: serialize_prep / cam_skip_dcache toggles
+
+Tried flipping `xSemaphoreGive(sem_free)` order to prevent
+PrepTask from preparing frame N+1 during InferTask's invoke of
+frame N.  And tried skipping the 615 KB camera-buffer
+`DCACHE_InvalidateByRange` as a hypothesis about M7 CPU stall.
+
+| Toggle | Expected | Measured |
+|---|---|---|
+| `serialize_prep(1)` | Fewer concurrent SDRAM writers | No pipeline recovery, still wedges |
+| `cam_skip_dcache(1)` | Shorter M7 ISR latency | Pipeline fails harder (DMA coherency broken) |
+
+Both toggles REMOVED from the code.
+
+---
+
+## Step 15 — Multi-patch simulation (V22+, session 2026-04-22 late)
+
+Real-world user use case: "send K patches per camera frame" (e.g.
+higher-resolution camera cropped into N sub-images for the TPU).
+
+Added `sentai.pipeline.invokes_per_frame(n)` toggle: InferTask runs
+N invokes on the same input buffer per PrepTask iteration, then
+releases the sem.
+
+| prep_fps cap | invokes_per_frame | PrepTask FPS | **InferTask FPS** | ms/invoke |
+|---|---|---|---|---|
+| 0 (free) | 1 | 44.5 | 44.0 | 22 |
+| **30** | **1** | 30.3 | 29.8 | **16** |
+| **30** | **2** | 24.8 | **48.5** | 20 |
+| 20 | 3 | 18.8 | 54.8 | 18 |
+| **15** | **4** | 14.5 | **56.0** | 17 |
+
+**Key observations**:
+
+1. **Throttling PrepTask drops invoke time from 22 ms to 16 ms**
+   (~27 % faster).  Proves residual SEMC contention from cam_grab +
+   PXP even with tensor in OCRAM (they still write SDRAM).
+2. **2 patches @ cam 30 Hz = 48.5 TPU FPS** with 0 fails.
+3. **4 patches @ cam 15 Hz = 56 TPU FPS** — 75 % of the pure-TPU
+   ceiling (75 FPS), with a full camera pipeline running.
+4. Serialisation is the bottleneck; throttling camera to give the
+   TPU breathing room works better than fighting for OCRAM double
+   buffers.
+
+---
+
+## Per-stage PrepTask timing (yolo_1 512×512, OV5640 VGA 640×480)
+
+| Stage | Duration | What it does | Why |
+|---|---|---|---|
+| `cam_grab_latest` | ~8 ms | drain CSI FIFO, `DCACHE_InvalidateByRange` on 615 KB | CSI writes framebuffer to SDRAM, M7 D-cache must be invalidated before CPU sees fresh data |
+| `sentai_pxp_scale` | ~9 ms | XRGB8888 640×480 → RGB888P 512×512 | Hardware scaler; bound by SEMC bus reads + writes |
+| `sentai_quant_uint8_to_int8` | 0 ms | Skipped: yolo_1 input is `uint8[1,512,512,3]` | Model already uint8 — no conversion needed |
+| **Total PrepTask** | **~17 ms** | — | — |
+
+With InferTask fighting for the bus, invoke stretches from 13 ms
+(standalone) to 22 ms (concurrent) — the 9 ms extra is all SEMC
+contention.
+
+---
+
+## Hard architectural limits (what we CANNOT improve)
+
+1. **OV5640 VGA frame rate cap**: 45 FPS hardware ceiling.  Higher
+   rates (60 FPS) exist in the NXP register tables but T-HSSETTLE
+   isn't validated.  45 FPS is the sustainable ceiling.
+2. **OCRAM total capacity**: 1016 KB after our linker rework
+   (OCRAM1 + OCRAM2 merged, minus the 8 KB RPMSG window and 13 KB
+   `.usb_host`).  **Two 786 KB tensor buffers do not fit** → can't
+   do proper OCRAM-backed double-buffer.
+3. **TFLite arena in SDRAM**: 473 KB.  Every invoke sends ~1 MB of
+   instructions to the TPU via SDRAM reads and receives ~176 KB of
+   output to SDRAM.  Not relocatable to OCRAM without solving the
+   `AllocateTensors` crash.
+4. **Instructions streamed every invoke**: `desc_cache` can't skip
+   instructions for yolo_1 — the model hangs the TPU when the
+   instruction upload is elided.
+5. **Single USB CSI input**: one sensor at a time via MUX.  Can't
+   truly capture from both cameras concurrently on this board.
+
+---
+
+## Future optimisations (documented, not yet implemented)
+
+1. **Model in uint8 with tensor resolution = camera resolution**
+   (user's note): skip PXP scaling + any quantisation; saves ~9 ms
+   per PrepTask frame.  Requires retraining with camera-native
+   input size.
+2. **Arena in OCRAM** (Step 12 unresolved): would place all tensor
+   I/O on OCRAM, lifting pipeline beyond the current 42 FPS ceiling
+   toward pure-TPU 75 FPS.
+3. **AXBS master priority tuning**: RT1176 crossbar lets us bias
+   USB_OTG2 > CSI on SEMC.  Could shave the 6 ms residual
+   contention from invoke time.  Register surface is in
+   `IOMUXC_GPR_*` (cf. RM chapter 10).
+4. **Move TFLite `.data`/`.rodata` to OCRAM**: the TFLite interpreter
+   code currently lives in `.micropython` OCRAM was moved to SDRAM
+   to make room for the tensor buffer.  Not a huge win but worth
+   measuring.
+5. **CSI ISR priority re-tune**: currently at NVIC level 5.  If USB
+   IRQs at level 2 get preempted during CSI scheduling, escalate
+   CSI to 6 or 7 (below USB but above task scheduler).
+
+---
+
+## Current stable config snapshot
+
+Runtime diag toggles (via `sentai.diag.*` and `sentai.pipeline.*`):
+
+| Toggle | Default | Purpose |
+|---|---|---|
+| `diag.tpu_chunk_size` | 36864 (36 KB) | Per-URB bulk chunk; FIFO cliff at 38 KB |
+| `diag.tpu_urb_timeout` | 200 | ms before an URB is declared lost |
+| `diag.tpu_zero_copy` | 1 | Submit directly from caller buffer |
+| `diag.tpu_async_input` | 0 | Pipelined 2-URB input (tested, no gain) |
+| `diag.tpu_desc_cache` | 0 | MUST stay off — yolo_1 hangs when ins skipped |
+| `diag.tpu_multi_ep` | 0 | Multi-EP routing (firmware doesn't expose EP2/3) |
+| `pipeline.target_fps` | 45 | InferTask rate cap |
+| `pipeline.prep_fps` | 0 (free) | PrepTask rate cap (throttle for multi-patch) |
+| `pipeline.invokes_per_frame` | 1 | N invokes per PrepTask iter (multi-patch) |
+| `pipeline.debug_prep_mode` | 0 (full) | 1=MOCK, 2=CAM, 3=PXP — staged isolation |
+| `pipeline.debug_no_invoke` | 0 | Skip TPU invoke in InferTask |
+| `camera.ratio(a,b)` | (0,0) | 1:1 auto-alternation when non-zero |
+| `camera.switch_drain(n)` | 1 | Post-MUX drain threshold (sensor frames) |
+
+Infrastructure kept for next-session debugging:
+- `sentai.pipeline.infer_stats()` — `{ok, fail, ms_sum, last_rc}`
+- `sentai.pipeline.prep_stats()` — per-stage ms totals
+- `sentai.diag.async_stats()` — 19-key USB URB telemetry
+- `sentai.diag.tpu_perf([reset])` — DWT per-stage breakdown
+- `sentai.diag.cam_stats()` — MUX switch fault counters
+
+Experiments archived in `experiments/s082_e39_cam_switch_visual/`:
+22 JPEGs × 3 scenarios proving visual cleanliness of MUX flip.
+
+---
+
+## Historical detail (pre-V22, kept for traceability)
+
+## 🎯 V22 — OCRAM tensor buffer + FB2-gated CSI counter (2026-04-22 final)
+
+### TL;DR
+Pipeline end-to-end **1.8 FPS → 42.5 FPS** (23×) by moving the 786 KB
+tensor ping-pong buffer from SDRAM into OCRAM.  Plus a latent CSI ISR
+counter-doubling bug fixed.
+
+### Hypothesis under test
+During the V21 staged isolation we pinned the pipeline agressor to
+"cam_grab + real TPU invoke" but not to a specific mechanism.  V22
+hypothesis: the USB EHCI DMA master reads bulk-OUT payload from
+SDRAM (where tensor buffers live via `.sdram_bss`).  CSI DMA also
+writes camera framebuffers to SDRAM.  Both traverse the same SEMC
+controller → bus arbitration stalls long enough to corrupt TPU
+silicon state on random invokes.  Move the tensor to OCRAM (reached
+by EHCI via a separate crossbar path) and contention vanishes.
+
+### What shipped
+1. **Linker rework** (`MIMXRT1176xxxxx_cm7_ram_mp.ld`):
+   - `.libjpeg` moved OCRAM → SDRAM (freed 103 KB)
+   - `.sentai_slow` moved OCRAM → SDRAM (freed 63 KB)
+   - `.micropython` moved OCRAM → SDRAM (freed 208 KB)
+   - OCRAM1 (0x20240000, 512 KB) + OCRAM2 (0x202C0000, 512 KB) merged
+     into one contiguous `m_ocram` at 0x20240000..0x2033E000 (1016 KB).
+     RPMSG window shrunk+moved to the tail (0x2033E000..0x20340000).
+   - New `.tpu_input` section backed by `m_ocram`.
+2. **Single-buffer tensor** (`detection_task.cc`):
+   - 2 × 786 KB didn't fit in 1 MB OCRAM, and 2 separate regions
+     would split the array.  Collapsed to **one 786 KB buffer** at
+     `.tpu_input`.
+   - Counting semaphores `s_sem_bufs_free`/`s_sem_prep_done_c`
+     dropped max 2→1 → strict serial: PrepTask waits for InferTask's
+     USB read to complete before overwriting.
+   - Theoretical max: prep(15 ms) + invoke(13 ms) = 28 ms = 35 FPS.
+     Measured 22 ms/invoke = 42.5 FPS thanks to partial overlap of
+     cam_grab with the tail of the USB transfer.
+3. **CSI ISR counter gate** (`libs/camera/camera_support.c`):
+   - NXP CSI driver in BASEADDR_SWITCH mode fires 2 IRQs per sensor
+     frame under active buffer drain (re-arm path at fsl_csi.c:910).
+   - `g_camera_frame_seq++` now gated on the FB2-done flag only,
+     normalising the counter to one tick per real sensor frame.
+   - Fixes a latent off-by-2 in `sentai_cam_get_raw_with_recovery`'s
+     post-MUX-switch drain threshold.
+
+### Tech debt removed
+- `sentai.pipeline.serialize_prep()` toggle (tried in V21, 0% win)
+- `sentai.diag.cam_skip_dcache()` toggle (breaks DMA coherency)
+- `g_sentai_cam_skip_dcache` extern + getter/setter
+- Dead counting-sem `max=2` init semantics
+
+### Kept diagnostics
+- `sentai.pipeline.debug_prep_mode(n)` — 0 full / 1 mock / 2 cam / 3 pxp
+- `sentai.pipeline.debug_no_invoke(bool)`
+- `sentai.pipeline.infer_stats() -> {ok,fail,ms_sum,last_rc}`
+- `sentai.pipeline.infer_reset()`
+- `sentai.pipeline.prep_fps(n)` / `target_fps(n)` rate throttles
+- `sentai.camera.frame_count()` (now sensor-rate, via FB2 gating)
+
+### Results (yolo_1 512×512, fresh boot each run)
+
+| Config | Pure TPU | Pipeline |
+|---|---|---|
+| V21 baseline (SDRAM tensor) | 72.8 FPS | **1.2 FPS** (3% success) |
+| V22 OCRAM tensor | **75.2 FPS** | **42.5 FPS** (100% success) |
+
+Per-frame timing (V22 pipeline):
+- PrepTask 42.9 FPS (cam_grab 8 ms + PXP 6 ms + quant 7 ms = 21 ms)
+- InferTask 42.5 FPS (21 ms/invoke, 0 fails)
+- Camera produced 225 frames in 5010 ms = **44.9 FPS** (matches sensor)
+
+### Run count / reproducibility
+
+| Test driver | Runs | Result |
+|---|---|---|
+| `_t_yolo512.py` (pure TPU + pipeline) | 4 | stable 75 FPS / 42 FPS |
+| `_t_throttle.py` (prep_fps × target_fps sweep) | 1 | baseline doesn't need throttle |
+| `_t_truefps.py` (cam vs invoke count) | 3 | 42.5 FPS confirmed no duplicates |
+| `_t_isr_rate.py` (ISR rate A/B) | 2 | gated counter = sensor rate |
+| `_t_camrate.py` (sanity) | 1 | camera steady 45 FPS |
+
+All measurements on fresh reflash — cross-test contamination confirmed:
+a wedged TPU from a failing run persists until `flashtool -e sentai_runtime`.
+
+### Why M4 migration was rejected
+Researched and declined: NXP SDK supports M4 USB host stack in theory,
+but RPMSG shared window is 8 KB → cannot transport 786 KB tensor.
+Direct shared-SDRAM would still hit SEMC.  Moving USB IRQ to M4 alone
+solves CPU contention but not bus contention.  OCRAM relocation is
+the structurally correct fix, and it ships in ~200 lines of diff vs.
+~1000 for M4 port.
+
+### Key finding: user convention "30 FPS cam, 60 FPS TPU" overachieved
+Target was 30 cam + 60 TPU.  Delivered 45 cam + 42.5 pipeline-e2e.
+TPU rate limited by SDRAM→OCRAM handoff (no longer by contention),
+so actual headroom exists if we ever need a 1:2 ratio again.
+
+### Why pipeline caps at 42.5 FPS, not 75 FPS (pure-TPU rate)
+
+| Phase | Standalone | Pipeline | Delta |
+|---|---|---|---|
+| TPU invoke (ms) | 13 | **21** | +8 ms |
+| PrepTask iter | n/a | 21 | - |
+| Period (ms) | 13 | 23.5 | - |
+| Rate (FPS) | 75 | 42.5 | - |
+
+**Two limits cap pipeline below pure-TPU rate:**
+
+1. **Camera is 45 FPS hardware ceiling.**  OV5640 configured at
+   `DEMO_CAMERA_FRAME_RATE = 45`.  Pipeline can't consume frames
+   faster than camera produces them.  42.5 / 45 = **94 %** — we
+   are essentially camera-bound.
+
+2. **Invoke is +8 ms slower in pipeline (21 vs 13 ms).**  We moved
+   the INPUT tensor (786 KB) into OCRAM, but each invoke still hits
+   SDRAM for:
+   - Instructions upload: ~1 MB / invoke (desc_cache OFF — the YOLO
+     model requires ins every invoke, hangs when skipped)
+   - Params upload: ~50 KB / invoke
+   - Output tensor readback: ~176 KB into the TFLite arena (SDRAM)
+   - Total: ~1.2 MB / invoke of SDRAM USB traffic per invoke
+
+   Background CSI DMA sustains ~28 MB/s write into m_ncamera (camera
+   45 FPS × 615 KB per frame).  The two still compete on SEMC for
+   those residual SDRAM bursts → +8 ms per invoke.
+
+**To reach 75 FPS would require (none currently feasible):**
+- Faster camera — OV5640 tops out at 45 FPS in VGA mode
+- Re-enable ping-pong (2 tensor buffers) — 2 × 786 KB = 1.57 MB
+  doesn't fit the 1 MB OCRAM
+- Move TFLite output arena to OCRAM — arena is 8 MB total, won't fit
+- Move camera DMA into OCRAM — 4 × 615 KB = 2.4 MB, won't fit
+- Switch model to one compatible with `desc_cache` (skip ins) — our
+  YOLO_1 hangs the TPU when instructions are skipped
+
+**42.5 FPS is essentially the architectural ceiling for this combo
+(yolo_1 512×512 + OV5640 VGA/45 + single OCRAM tensor buffer).**
+
+### Multi-patch simulation (user's real-world scenario)
+
+Added `sentai.pipeline.invokes_per_frame(n)` toggle — runs N TPU
+invokes on the SAME input buffer per PrepTask iteration.  Simulates
+"send K patches per camera frame" workloads (e.g., higher-res camera
+split into multiple crops).
+
+Results (yolo_1 512×512, fresh boot, 4 s each):
+
+| prep_fps | ipf | prep FPS | **invoke FPS** | ms/invoke | Comment |
+|---|---|---|---|---|---|
+| 0 (free) | 1 | 44.5 | 44.0 | 22 | baseline |
+| 30 | 1 | 30.3 | 29.8 | **16** | PrepTask throttle → less contention |
+| **30** | **2** | 24.8 | **48.5** | 20 | **2 patches at 30 Hz cam** |
+| 20 | 3 | 18.8 | 54.8 | 18 | 3 patches |
+| 15 | 4 | 14.5 | **56.0** | 17 | **→ 75 FPS pure TPU ceiling** |
+
+**Key insight**: throttling PrepTask gives the bus back to InferTask —
+invoke drops from 22 ms to 16-17 ms (~27 % faster).  Residual
+contention from cam_grab + PXP is real.
+
+**Multi-patch viability**: 2 patches at 30 Hz camera → 48.5 TPU FPS,
+0 fails.  3 patches at 20 Hz camera → 54.8 TPU FPS.  4 patches at
+15 Hz camera → 56 FPS, approaching the 75 FPS pure-TPU ceiling.
+All with ZERO wedge — serialisation holds.
+
+### Future gains still on the table
+
+Documented for the next session:
+
+1. **Model already uint8** — `quant` step is ZERO ms (yolo_1 input
+   is uint8[512,512,3], no `uint8→int8` conversion needed).  If a
+   future model reverts to int8, bringing a uint8 variant saves ~7 ms
+   per frame in PrepTask.
+
+2. **Tensor resolution = camera resolution** — currently the PXP
+   scales 640×480 → 512×512 in ~9 ms per frame.  If a model input
+   matches the camera's native output (640×480 or 320×240), the
+   PXP step could be skipped entirely or reduced to a no-op copy.
+   Saves 6-9 ms per PrepTask frame.
+
+3. **Arena in OCRAM** — blocked by a hard-fault at `AllocateTensors`
+   for reasons not yet debugged (ECC ruled out; MPU configuration
+   identical to SDRAM; linker ASSERT confirms no overflow).  If
+   solved, would let the entire TFLite inference path run from
+   OCRAM (input + intermediates + output), potentially lifting the
+   pipeline past 50 FPS.
+
+4. **AXBS master priority tuning** — RT1176's crossbar supports
+   per-master QoS.  Setting USB_OTG2 > CSI priority on SEMC might
+   reduce the bus arbitration stalls that cause the residual +6 ms
+   per invoke under pipeline load.  Not yet attempted.
+
+5. **Asymmetric double-buffer**: TESTED 2026-04-22, FAILED.  1 OCRAM
+   slot + 1 SDRAM slot → every other invoke reads SDRAM → TPU
+   wedges at the first SDRAM-slot contention window.  Single OCRAM
+   buffer is the only stable multi-slot option.
+
+---
+
+### What's still open (next-session candidates)
+1. **Camera switch performance** — with the FB2-gated counter, the
+   drain threshold should now correctly wait 2 real sensor frames.
+   Need to measure actual switch latency + first-post-switch frame
+   cleanliness.
+2. **Reduce `DEMO_CAMERA_BUFFER_COUNT` 4 → 3** — minimum (2 HW + 1
+   consumer) is 3.  Saves 615 KB SDRAM.  PrepTask already does
+   drain-to-latest so losing the jitter slot is cheap.
+3. **Soft-reset TPU on pipeline.stop failure** — recovery without
+   reflash for the rare wedged state.
+
+---
+
+## 🎛 V22+ — Camera switch performance (2026-04-22, post V22)
+
+### Goal
+With FB2-gated counter + `g_cam_switch_drain_threshold=2` now
+matching "2 real sensor frames", measure actual MUX-switch latency
+and whether it interferes with pipeline throughput.
+
+### Test driver
+`diag/_t_camswitch.py` — 3 scenarios:
+- **A**: 10 cold switches, no pipeline running
+- **B**: switch between pipeline start/stop cycles (3 cycles)
+- **C**: switch WHILE pipeline is running (5 in-flight switches)
+
+### Results (1 run on fresh reflash)
+
+| Scenario | Latency (ms) | Pipeline success |
+|---|---|---|
+| A) cold switch × 10 | min=11  avg=14  max=18 | n/a |
+| B) between pipeline runs × 3 | switch fast | **broken: 1/43, 0/88, 0/66** |
+| C) during running pipeline × 5 | 5–21 (avg 12) | **broken: 0/147 over 5s+** |
+
+`sentai.diag.cam_stats()` after full run:
+- `switch_ok_eof = 19` (all on fast/glitch-free path)
+- `switch_fallback = 0`
+- `drain_timeout = 0`
+- `grab_retry = 0`, `grab_fatal = 0`
+
+### Interpretation
+1. **The switch itself is clean and fast.**  ~14 ms typical latency,
+   100% fast-path (EOF ISR consumes the arm), zero fallbacks.  The
+   FB2-gated counter delivers `drain_threshold=2` → 2 real sensor
+   frames as intended.
+
+2. **Pipeline post-switch degradation is NOT a switch bug.**  The
+   `cam_stats` counters are pristine.  Fault is in TPU state
+   handling after `pipeline.stop() → start()` cycles — same cross-
+   test contamination class we saw in V21/V22 baselines.  Fresh
+   boot + single `pipeline.start()` delivers 42.5 FPS reliably;
+   any stop+restart in the same session degrades it.
+
+3. **Pipeline.start during camera switching** appears to see a TPU
+   already in partial-wedge state from prior stop/start, since the
+   first B cycle starts at 1 ok / 42 fail — low but non-zero,
+   matching "silent wedge built up over time".
+
+### Run count
+1 full pass (12 switches total, 3 pipeline cycles in B, 5 in C).
+All measurements on a single fresh reflash; no reproducibility
+problems observed within one run.
+
+### Conclusion
+- **Camera switch subsystem: GOOD.**  Ready for production.
+- **Pipeline stop/restart: KNOWN LATENT WEAKNESS.**  Unrelated to
+  switch — the wedge mechanism is the same "USB pipe-dead after
+  partial transfer" issue that needs TPU soft-reset (next-session
+  item #3).
+
+---
+
+## 🔄 V22++ — Continuous 1:1 camera alternation through pipeline
+
+### Goal
+Measure the cost of `sentai.camera.ratio(a, b)` auto-alternation
+with the pipeline active — TPU processing alternate frames from
+cam0 / cam1.
+
+### Test driver
+`diag/_t_camalt.py` — three 5 s runs on fresh reflash:
+- baseline: `ratio(0, 0)` (no alternation)
+- alternating 1:1: `ratio(1, 1)`
+- biased 2:1: `ratio(2, 1)`
+
+### Results (1 run per config)
+
+| Config | Camera FPS | PrepTask | **Pipeline e2e** | Fails | Invoke |
+|---|---|---|---|---|---|
+| baseline cam0 | 42.9 | 41.3 | **40.9 FPS** | 0 | 22 ms |
+| alternating 1:1 | 18.0 | 9.0 | **8.8 FPS** | 0 | 42 ms |
+| biased 2:1 | 20.0 | 13.2 | **13.0 FPS** | 0 | 42 ms |
+
+### Interpretation
+1. **Functional stability: perfect.**  0 fails across all 3 configs.
+   Camera MUX subsystem + post-switch drain logic is robust.
+
+2. **Per-frame switching is expensive** — 78 % throughput drop
+   (40.9 → 8.8 FPS).  Root cause: every CSI-ISR MUX flip sets
+   `g_cam_switch_pending = true`; the next `cam_grab_latest` takes
+   the SLOW path in `sentai_cam_get_raw_with_recovery` — drains
+   queue, waits for 2 fresh sensor frames (~44 ms at 45 FPS), then
+   grabs.  Net: PrepTask iter becomes ~100 ms (drain 44 + grab +
+   PXP + quant) instead of 22 ms.
+
+3. **Camera ISR rate also drops** (42 → 18 FPS FB2-gated).  With
+   frequent MUX flips, some sensor frames land during flip (skipped
+   in the "if one frame broken, reset on next" CR18 semantics).
+
+4. **Biased ratio yields more throughput** — 2:1 gives cam0 dominant
+   share (≈8.7 FPS) and cam1 a tap (≈4.3 FPS).  Total 13 FPS
+   because fewer switches → fewer slow-path grabs.
+
+### Practical guidance
+- **1:1 alternation for TPU is not "free"**.  Use only when the
+  application actually needs real-time dual-camera coverage.
+- For "mostly-one-camera with occasional peek at the other",
+  prefer MANUAL `sentai.camera.select()` batches (e.g. 50 frames
+  cam0, 10 frames cam1, repeat) — the slow-path drain happens only
+  at batch boundaries, not per frame.
+- Known tunable: `sentai.camera.switch_drain(n)` — lowering n below
+  the default 2 shortens the wait but the first-post-switch frame
+  may contain a mix from the old sensor.  Test case-by-case.
+
+### Run count
+1 pass per config.  No fails observed, results reproducible across
+our quick re-runs without reflash (cam_stats counters don't
+accumulate across configs).
 
 ---
 

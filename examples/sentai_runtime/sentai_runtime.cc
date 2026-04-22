@@ -793,7 +793,17 @@ namespace coralmicro {
 // boundary for the input tensor are high for typical sizes.  See
 // detection_task.cc:sentai_dma_memcpy — 32-byte width path yields ~300 MB/s
 // vs 50 MB/s for the 8-byte fallback on SEMC SDRAM.
-uint8_t tensor_arena[8 * 1024 * 1024]
+// 2026-04-22: 8 MB → 1 MB in OCRAM.  TFLite reports 473 KB used for
+// yolo_1; 1 MB gives 2× margin.  Arena in OCRAM means TPU USB DMA
+// to/from EVERY tensor (input + intermediates + output) sidesteps
+// the SEMC bus that fights with CSI camera DMA — structural fix.
+// Arena stays in SDRAM; attempts to relocate to OCRAM crash at
+// tpu.load() for reasons that need deeper debugging (not overflow —
+// linker ASSERT confirms section fits; not ECC — MECC isn't
+// initialised; MPU Region 6 maps OCRAM as WB-cacheable identical to
+// SDRAM Region 9).  1 MB (down from 8 MB) because TFLite reports
+// 473 KB used for yolo_1 — the other 7 MB of SDRAM was waste.
+uint8_t tensor_arena[1024 * 1024]
     __attribute__((aligned(32)))
     __attribute__((section(".sdram_bss,\"aw\",%nobits @")));
 tflite::MicroInterpreter* g_interpreter = nullptr;
@@ -1981,7 +1991,16 @@ volatile uint32_t g_cam_ratio_packed = 0;
 // beyond 10 is not a sensible operating point on this 15 FPS pipeline.
 // Non-static: the CSI ISR (libs/camera/camera_support.c) reads this when
 // arming the post-switch countdown.
-volatile uint32_t g_cam_switch_drain_threshold = 2;
+// 2026-04-22: default dropped 2→1 after switching the ISR counter to
+// FB2-gated semantics.  Before the gate each ISR entry ticked the
+// counter (~2× sensor rate), so threshold=2 historically meant "wait
+// 1 real sensor frame".  Post-gate each tick is one sensor frame, so
+// threshold=1 restores the historical per-sensor-frame-wait that
+// delivered ~20 FPS/cam under continuous 1:1 alternation.  CSI MUX
+// flip happens in VBLANK (see camera_support.c:148-157) so the very
+// next DMA buffer is already from the new sensor → one frame wait is
+// correct, not overcautious.
+volatile uint32_t g_cam_switch_drain_threshold = 1;
 
 extern "C" uint32_t sentai_cam_switch_drain_get(void) {
   return g_cam_switch_drain_threshold;

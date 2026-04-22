@@ -501,6 +501,21 @@ static mp_obj_t mod_sentai_pipeline_infer_reset(void) {
 static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_pipeline_infer_reset_obj,
                                   mod_sentai_pipeline_infer_reset);
 
+// sentai.pipeline.invokes_per_frame([n]) — simulate multi-patch
+// workloads.  Default 1.  Each PrepTask frame triggers n TPU invokes
+// (same input buffer) so you can measure whether the MCU sustains
+// "K patches per camera frame" at a given camera FPS.
+extern int  sentai_pipeline_invokes_per_frame_get(void);
+extern void sentai_pipeline_invokes_per_frame_set(int v);
+static mp_obj_t mod_sentai_pipeline_invokes_per_frame(size_t n_args,
+                                                     const mp_obj_t *args) {
+    if (n_args >= 1) sentai_pipeline_invokes_per_frame_set(mp_obj_get_int(args[0]));
+    return mp_obj_new_int(sentai_pipeline_invokes_per_frame_get());
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
+    mod_sentai_pipeline_invokes_per_frame_obj, 0, 1,
+    mod_sentai_pipeline_invokes_per_frame);
+
 
 // ---- module table ----
 static const mp_rom_map_elem_t sentai_pipeline_globals_table[] = {
@@ -528,6 +543,7 @@ static const mp_rom_map_elem_t sentai_pipeline_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_debug_no_invoke), MP_ROM_PTR(&mod_sentai_pipeline_debug_no_invoke_obj) },
     { MP_ROM_QSTR(MP_QSTR_infer_stats),     MP_ROM_PTR(&mod_sentai_pipeline_infer_stats_obj) },
     { MP_ROM_QSTR(MP_QSTR_infer_reset),     MP_ROM_PTR(&mod_sentai_pipeline_infer_reset_obj) },
+    { MP_ROM_QSTR(MP_QSTR_invokes_per_frame), MP_ROM_PTR(&mod_sentai_pipeline_invokes_per_frame_obj) },
 };
 static MP_DEFINE_CONST_DICT(sentai_pipeline_globals, sentai_pipeline_globals_table);
 static const mp_obj_module_t sentai_pipeline_module = {
