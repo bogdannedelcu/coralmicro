@@ -45,17 +45,13 @@ def main():
 
     deadline = time.monotonic() + args.timeout
     idle_since = time.monotonic()
-    last_bytes = 0
     try:
         while time.monotonic() < deadline:
             chunk = ser.read(1024)
             if chunk:
                 sys.stdout.write(chunk.decode(errors="replace"))
                 sys.stdout.flush()
-                last_bytes = len(chunk)
                 idle_since = time.monotonic()
-                # Stop when we see a prompt ">>> " that stays put for
-                # at least 1s (experiment finished).
                 if chunk.rstrip().endswith(b">>>"):
                     time.sleep(1.0)
                     tail = ser.read(ser.in_waiting or 1)
@@ -64,7 +60,6 @@ def main():
                     sys.stdout.write(tail.decode(errors="replace"))
                     sys.stdout.flush()
             else:
-                # Idle more than 10s without any output => probably hung
                 if time.monotonic() - idle_since > 30.0:
                     print("\n[host] no output for 30s — aborting")
                     break

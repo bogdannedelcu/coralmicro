@@ -126,7 +126,7 @@ timed out" și placa pare moartă.  Designul trebuie să **nu blocheze
 niciodată** `tcpip_thread` pe o scriere de flash lungă.
 
 Implementarea curentă în [`sentai_lfs_task.cc`](../sentai_lfs_task.cc) are
-trei căi, cascadate:
+patru căi, cascadate, numerotate în ordinea în care le încearcă `try_serve`:
 
 ```text
 GET /api/ls/foo
@@ -134,18 +134,24 @@ GET /api/ls/foo
   ▼
 sentai_lfs_try_serve()
   │
-  ├─ Step 1: slot SLOT_READY & path match?   → serve din cache  (rare hit)
+  ├─ Step 1: slot SLOT_READY & path match?       → serve din cache (rar)
   │
-  ├─ Step 2: FAST PATH (uzual)
-  │     xSemaphoreTake(s_lfs_mutex, 500ms)
-  │     ├─ succes → DoLs/DoRaw inline în tcpip_thread → serve imediat
-  │     │         (1 GET = 1 response)
-  │     └─ timeout → cade la slow path
+  ├─ Step 2: state == SLOT_SERVING?              → 0 (busy_serving_prev++)
+  │         răspuns anterior încă se streamează; client retry
   │
-  └─ Step 3: SLOW PATH (fallback când fast path nu poate)
+  ├─ Step 3: FAST PATH (doar RAW)
+  │         xSemaphoreTake(s_lfs_mutex, 500ms)
+  │         ├─ succes → DoRaw inline în tcpip_thread → serve (1 RT)
+  │         └─ timeout → busy_fast_raw_mutex++, cade la Step 4
+  │
+  └─ Step 4: SLOW PATH cu BOUNDED WAIT
         EnqueueLfsRequest() → lfs_task (prio 2) procesează asincron
-        răspuns imediat: {"error":"lfs_busy"}
-        browser.html retry 600ms → slot devine READY → serve
+        poll s_slot_state timp de până la 500ms (vTaskDelay(5) în loop)
+        │
+        ├─ state devine SLOT_READY în < 500ms → serve în același GET (1 RT)
+        │                                       (served_after_wait++)
+        ├─ state rămâne SLOT_PENDING 500ms    → 0 (busy_slow_timeout++)
+        └─ state drift-uiește altundeva       → 0 (busy_slow_state_drift++)
 ```
 
 **De ce 500ms e safe ca timeout pe `tcpip_thread`:**
@@ -185,6 +191,52 @@ Câmpurile `s_slot_type` și `s_slot_path` (strncpy-ite de
 `EnqueueLfsRequest`) disambiguează rezultatele stale când retry-urile
 interacționează cu alte GET-uri diferite.
 
+**Diagnostic `lfs_busy`** — cum depanezi răspunsuri busy pe GET-uri:
+
+Fiecare ramură de `return 0` din `sentai_lfs_try_serve` incrementează
+**exact un contor dedicat**.  După un GET care s-a întors cu body
+`{"error":"lfs_busy"}`, interogezi starea prin
+`sentai.diag.lfs_stats()` pe REPL și vezi care contor a crescut
+— asta-ți spune exact prin ce arm al mașinii de stări s-a ieșit:
+
+| Contor incrementat | Cauza | Remediu probabil |
+|---|---|---|
+| `busy_not_inited` | `s_req_queue == NULL` (lfs_task nu a făcut init) | Board nu a trecut de boot; verifică `sentai.diag.boot_log()` |
+| `busy_serving_prev` | state era `SLOT_SERVING` — un răspuns anterior se streamează încă pe altă conexiune | Retry — e condiție tranzitorie, normal la GET-uri concurente |
+| `busy_fast_raw_mutex` | RAW a încercat fast-path dar `s_lfs_mutex` era ținut >500ms de un writer | Caută ce ține mutex-ul: în general un POST `/api/write` sau `sentai.fs.write` din MP |
+| `busy_slow_timeout` | LS a enqueue-uit, dar `lfs_task` nu a terminat în 500ms (e.g. dir mare, NAND GC) | Retry; sau mărește timeout-ul în `try_serve` dacă dir-urile depășesc constant |
+| `busy_slow_state_drift` | state a trecut PENDING → altceva decât READY (path mismatch din cerere concurentă, sau crash lfs_task) | Investigare — **nu e condiție normală**, verifică `sentai.diag.dmesg()` |
+| `busy_path_mismatch` | state era READY dar pentru alt path — altcineva a interceptat cache-ul | Retry, dar frecvent = race cu GET concurent; verifică dacă există clienți simultan |
+| `enqueue_fail` | `xQueueSend` a respins — queue de depth=1 era plină | Slow-path e saturat; verifică de ce lfs_task procesează încet (posibil mutex contention) |
+
+**Procedură scurtă de triaj** dacă apare `lfs_busy` pe un GET:
+
+```bash
+# 1. Reproduce + captează body-ul
+curl -s http://10.0.0.1/api/ls/diags
+# => {"error":"lfs_busy"}
+
+# 2. Citește statisticile DE IMEDIAT din REPL (nu aștepta, contoarele
+#    sunt monotonice — dar vrei un delta mic ca să izolezi cauza)
+python3 -c "
+import serial, time
+s = serial.Serial('/dev/ttyACM0', 115200, timeout=2)
+s.write(b'\x03\r\nimport sentai; print(sentai.diag.lfs_stats())\r\n')
+time.sleep(0.8); print(s.read(4096).decode())"
+# => {'busy_slow_timeout': 3, 'served_after_wait': 0, ...}
+#    busy_slow_timeout=3 ⇒ LS durează >500ms; caută writer activ
+```
+
+**Verifică dacă un writer ține mutex-ul**:
+- `sentai.diag.dmesg()` — vezi logurile recente, eventual POST-uri în curs
+- Dacă văzut `enqueue_fail++` crescând rapid, lfs_task e blocat — șefii
+  uzuali sunt: MP scrie un fișier lung, NAND face GC (~700ms pe
+  `lfs_file_close`), sau un HardFault blocant.
+
+**Pe un board idle**, toate contoarele `busy_*` trebuie să rămână 0 și
+doar `served_after_wait` și `served_fast_raw` (pentru RAW) să crească.
+Orice altceva e anomalie care merită investigată.
+
 **Bug-fix-uri notabile** în history:
 -   Build #584: lwIP rescrie URI-urile cu `/` terminal adăugând unul din
     [`httpd_default_filenames`](../../../third_party/nxp/rt1176-sdk/middleware/lwip/src/apps/http/httpd.c)
@@ -194,6 +246,19 @@ interacționează cu alte GET-uri diferite.
 -   Build #585: designul async inițial obliga mereu **≥2 HTTP round-trips**
     per GET (primul răspundea `lfs_busy` prin construcție).  Fast path-ul
     elimină acest overhead artificial pentru cazul uzual (LFS idle).
+-   Build #730 (2026-04-21): **două fix-uri critice + diagnostic**:
+    (a) bug de invariant în `EnqueueLfsRequest` — `s_slot_path`/`_type`
+    erau publicate ÎNAINTE de `xQueueSend`; dacă send-ul eșua (queue
+    plin), slot-ul rămânea în IDLE cu path nou, iar retries re-încercau
+    la infinit → `lfs_busy` permanent.  Fix: pune path/type/state
+    **doar după** succes la enqueue (NASA/JPL §E — atomic publish).
+    (b) Step 4 (slow path) nu mai returnează instant 0 după enqueue —
+    face acum `vTaskDelay(5ms)` în loop până la `SLOT_READY` sau până
+    la 500ms timeout.  Rezultat: GET `/api/ls` se întoarce cu **date
+    în PRIMUL round-trip** în ~100ms, nu după browser-retry de 600ms.
+    (c) Counteri diagnostici per ramură (vezi tabelul de mai sus) exposați
+    prin `sentai.diag.lfs_stats()`.  Testul pe idle: 5/5 GET-uri OK la
+    ~100ms fiecare, `served_after_wait=5`, toate `busy_*=0`.
 -   Build #633 (2026-04-20): fast path-ul e restrâns la **doar `GET
     /api/raw`**; `GET /api/ls` merge întotdeauna prin `lfs_task` (slow
     path).  Motivul: empiric, `DoLs("/")` pe un filesystem vechi cu ~25

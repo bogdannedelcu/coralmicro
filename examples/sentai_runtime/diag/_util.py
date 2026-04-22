@@ -77,13 +77,28 @@ def ensure_dir(path="/diags"):
 
 
 def save_csv(path, header, rows):
-    """Save rows (list of lists/tuples) to CSV."""
+    """Save rows (list of lists/tuples) to CSV.
+
+    Long experiments can produce thousands of rows — the naive
+    ``"\\n".join(...)`` builds a single string the size of the whole
+    file, which has tripped MemoryError on the MicroPython heap
+    (see E30 @ build #716, 461 rows × 9 cols = ~13 KB join that
+    fragmentation refused to satisfy).  We build the payload via a
+    bytearray grown one row at a time — only one growable buffer,
+    minimal GC churn — and gc.collect() upfront to maximise the
+    largest-contiguous-free block before we start accumulating.
+    """
+    import gc
+    gc.collect()
     parent = path.rsplit("/", 1)[0] if "/" in path else "/diags"
     ensure_dir(parent)
-    lines = [",".join(str(c) for c in header)]
+    buf = bytearray()
+    buf.extend(b",".join(str(c).encode() for c in header))
+    buf.extend(b"\n")
     for row in rows:
-        lines.append(",".join(str(c) for c in row))
-    sentai.fs.write(path, "\n".join(lines) + "\n")
+        buf.extend(b",".join(str(c).encode() for c in row))
+        buf.extend(b"\n")
+    sentai.fs.write(path, bytes(buf))
 
 
 def snapshot_meta(experiment, **extra):

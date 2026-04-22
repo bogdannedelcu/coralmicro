@@ -55,6 +55,13 @@ extern "C" {
     int  sentai_get_tensor_info(int* w, int* h, int* ch,
                                 uint8_t** buf, int* type, int* zp);
     int  sentai_cam_grab_latest(uint8_t** raw);
+    // Flow-offload hook (flow_task.cc).  Early-returns cheaply when the
+    // M4 publish flag is off; otherwise CPU-decimates a 80×60 gray frame
+    // into shared OCRAM for the M4 to consume.
+    void sentai_flow_m4_publish_frame(const uint8_t* raw,
+                                      int raw_w, int raw_h,
+                                      int cam_id);
+    int  sentai_cam_current_id(void);
     void sentai_cam_return_raw(int idx);
     uint32_t sentai_cam_get_frame_seq(void);
     int  sentai_cam_is_initialized(void);
@@ -297,6 +304,12 @@ static void prep_task_fn(void* /*param*/) {
         int rc = sentai_pxp_scale(raw, DEMO_CAMERA_WIDTH, DEMO_CAMERA_HEIGHT,
                                   dst_buf, w, h);
         TickType_t t_pxp_end = xTaskGetTickCount();
+        // Publish a downsampled frame to the M4 flow task (no-op when
+        // sentai_flow.m4_start() hasn't been called).  Must happen
+        // BEFORE sentai_cam_return_raw — `raw` goes invalid after.
+        sentai_flow_m4_publish_frame(raw, DEMO_CAMERA_WIDTH,
+                                     DEMO_CAMERA_HEIGHT,
+                                     sentai_cam_current_id());
         sentai_cam_return_raw(idx);
 
         if (rc != 0) {

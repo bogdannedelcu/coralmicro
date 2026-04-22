@@ -18,11 +18,25 @@
 // REPL activity tracking for watchdog (defined in sentai_runtime.cc)
 extern void sentai_repl_activity(void);
 
-// GC heap size for MicroPython. Lives in .sdram_bss (16 MB+ free), so growing
-// it is cheap. Must be comfortably larger than the largest single allocation
-// plus working set — e.g. yolo26n tpu.output(0) returns ~176 KB bytes, so
-// 256 KB fragments quickly. 1 MB gives headroom for tensors + diag batches.
-#define MP_GC_HEAP_SIZE (512 * 1024)
+// GC heap size for MicroPython.  Lives in .sdram_bss inside the
+// 16 MB m_sdram region (0x81000000–0x81FFFFFF).  Build #730 map
+// audit:
+//   __sdram_bss_end__ = 0x81F31D14     ← top of used .sdram_bss
+//   m_sdram top       = 0x82000000
+//   slack             = 0x82000000 − 0x81F31D14 ≈ 846 KB
+//
+// This heap already accounts for 1 MB of .sdram_bss.  Bumping past
+// **1.5 MB** overflows into the m_ncamera region — the linker will
+// catch it at build time but it's worth documenting the ceiling.
+// The 1 MB setting leaves ~846 KB of slack above sdram_bss end for
+// future static buffers; reduce heap OR audit buffer growth before
+// bumping further.
+//
+// History: 2026-04-21 increased 512 KB → 1 MB after E30 flow-trace
+// hit MemoryError on a 13 KB "\\n".join() in save_csv; the heap
+// was fragmented by pipeline + TPU + flow buffers + 461 sample
+// strings, leaving no single block large enough for the CSV payload.
+#define MP_GC_HEAP_SIZE (1024 * 1024)
 
 // REPL line buffer size
 #define REPL_LINE_MAX 256

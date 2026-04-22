@@ -69,10 +69,21 @@ extern "C" int sentai_load_model(const char* path) {
     coralmicro::g_model_data = nullptr;
   }
   if (!coralmicro::g_tpu_context) {
+    // If the context was lost (EdgeTPU USB re-enumerated, brownout,
+    // etc.), Main()'s one-shot OpenDevice() won't run again because
+    // that task is parked.  Retry from here: try OpenDevice() every
+    // second for up to 15 s so a transient USB blip doesn't brick
+    // model loading.  The coralmicro::EdgeTpuManager singleton
+    // internally debounces repeat opens — calling it on an already-
+    // live device is a no-op returning the existing context.
     printf("Waiting for EdgeTPU init");
-    for (int i = 0; i < 150 && !coralmicro::g_tpu_context; i++) {
-      vTaskDelay(pdMS_TO_TICKS(100));
-      if (i % 10 == 9) printf(".");
+    for (int i = 0; i < 15 && !coralmicro::g_tpu_context; i++) {
+      coralmicro::g_tpu_context =
+          coralmicro::EdgeTpuManager::GetSingleton()->OpenDevice(
+              coralmicro::PerformanceMode::kMax);
+      if (coralmicro::g_tpu_context) break;
+      printf(".");
+      vTaskDelay(pdMS_TO_TICKS(1000));
     }
     printf("\r\n");
     if (!coralmicro::g_tpu_context) {

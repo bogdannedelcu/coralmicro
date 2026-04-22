@@ -1,0 +1,10 @@
+E30 - M4 optical-flow 2D trajectory trace.
+Cam0 body-frame convention per paper/flow_body_frame.md:
+  body_fw   = -dx    body_left = +dy
+pos_* are cumulative sums intended for 2D plot on host.
+
+Parameters:
+  samples = 458
+  m4_frames_processed = 537
+  duration_ms = 20000
+  poll_ms = 20

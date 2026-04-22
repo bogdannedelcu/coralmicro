@@ -30,7 +30,9 @@ extern "C" {
 #include "libs/base/console_m7.h"
 #include "libs/base/filesystem.h"
 #include "libs/base/gpio.h"
+#include "libs/base/ipc_m7.h"
 #include "libs/base/led.h"
+#include "examples/sentai_runtime/flow_shared.h"
 #include "libs/base/reset.h"
 #include "libs/camera/camera.h"
 #include "libs/libjpeg/jpeg.h"
@@ -1122,8 +1124,51 @@ extern "C" void app_main(void* param) {
       sentai_health_system_mode() == SYS_MODE_DEGRADED ? "DEGRADED" :
       sentai_health_system_mode() == SYS_MODE_SAFE ? "SAFE" : "?");
 
+  // Phase 1: M4-core offload is OPT-IN via sentai.flow.m4_enable().
+  // Empirically, calling IpcM7::StartM4() unconditionally at boot
+  // wedged the M7 MicroPython task on this build — probably an I2C5
+  // / PmicTask collision with the M4's own PmicTask init.  Keep the
+  // M7 runtime safe by default; the user can flip the flag at runtime
+  // once the root cause is fixed, and we observe the NXP-ID USB
+  // invariant either way.  (agent/embeded.md §M ANTI-BRICK.)
+  coralmicro::logf("M4 offload: disabled at boot (opt-in via MP).\r\n");
+
   coralmicro::Main();
   // Main() parks itself with vTaskSuspend - never returns
+}
+
+// Runtime opt-in for the M4 core.  Called by MicroPython via
+// sentai.flow.m4_enable().  Once started, the M4 cannot be stopped
+// without a full system reset.
+//
+// Liveness is determined via the shared-memory magic the M4 writes
+// in flow_task_m4.cc::app_main — the RPMsg-based `M4IsAlive()` path
+// is not wired up on our build (we skip IpcM4::Init on purpose to
+// avoid re-initialising the M7-owned pins/clocks), so it always
+// times out even though the M4 is perfectly healthy.
+//
+// Return codes:
+//    0  : already running, or just started successfully
+//   -1  : no M4 image linked into this firmware
+//   -3  : M4 did not publish its magic within 2 s of StartM4 — fatal
+//         for the flow feature but does NOT touch M7 operation.
+extern "C" int sentai_flow_m4_enable(void) {
+  volatile flow_shared_t* sh = (volatile flow_shared_t*)FLOW_SHARED_ADDR;
+  if (sh->magic == FLOW_SHARED_MAGIC) return 0;   // already alive
+  if (!coralmicro::IpcM7::HasM4Application()) return -1;
+
+  coralmicro::IpcM7::GetSingleton()->StartM4();
+
+  // Poll the magic for up to 2 s with a 50 ms grain — bounded by
+  // the wall clock, not by the unreliable M4IsAlive RPMsg probe.
+  // 50 ms is long enough to let the M4 finish BOARD_ConfigMPU +
+  // MCMGR_Init + task-create + first app_main store; well under
+  // the watchdog + WDT ceiling.
+  for (int i = 0; i < 40; ++i) {
+    if (sh->magic == FLOW_SHARED_MAGIC) return 0;
+    vTaskDelay(pdMS_TO_TICKS(50));
+  }
+  return -3;
 }
 
 // ===================== C bridge for MicroPython =====================
@@ -1862,6 +1907,7 @@ static int g_cam_height = DEMO_CAMERA_HEIGHT;
 // auto-alternate scheduler (future) triggers a flip.  Single 32-bit
 // aligned write → atomic on Cortex-M7; no lock needed.
 volatile int g_cam_current_id = 0;
+extern "C" int sentai_cam_current_id(void) { return g_cam_current_id; }
 // g_camera_frame_seq snapshot at MUX switch time.  Now written by the CSI
 // ISR in libs/camera/camera_support.c immediately after the atomic GPIO
 // flip that selects the new sensor.  Because the ISR fires when a DMA
@@ -2469,6 +2515,190 @@ extern "C" int sentai_cam_switch(int id) {
     SERR_LOG(SERR_CAM_SWITCH_EOF, (uint32_t)id);
   }
   return 0;
+}
+
+// Tune the OV5640 auto-exposure target luminance.
+// Writes the "stable range" + "fast zone" AEC regs for the chosen
+// camera.  Higher `high` → brighter target image.  Typical ranges:
+//   NXP default  : high=0x30 low=0x28  (≈ 18% target — dark indoors)
+//   OmniVision AN: high=0x78 low=0x68  (≈ 45% target — general)
+// Returns 0 on success, negative on error.
+extern "C" int sentai_cam_aec_set(int cam_id, int high, int low) {
+  if (!g_cam_initialized) return -1;
+  if (cam_id != 0 && cam_id != 1) return -2;
+  if (high < 0x10 || high > 0xF0) return -3;
+  if (low  < 0x10 || low  > high) return -4;
+  auto* cam = coralmicro::CameraTask::GetSingleton();
+  bool ok = true;
+  ok &= cam->WriteToCam(cam_id, 0x3A0F, (uint8_t)high);
+  ok &= cam->WriteToCam(cam_id, 0x3A10, (uint8_t)low);
+  ok &= cam->WriteToCam(cam_id, 0x3A1B, (uint8_t)high);
+  ok &= cam->WriteToCam(cam_id, 0x3A1E, (uint8_t)low);
+  // Fast zone widened proportionally so the AEC acts quickly when
+  // the scene changes.  Typical AN ratio: fast_high = ~1.1× stable.
+  ok &= cam->WriteToCam(cam_id, 0x3A11, (uint8_t)(high + 0x40 > 0xFF
+                                                   ? 0xFF : high + 0x40));
+  ok &= cam->WriteToCam(cam_id, 0x3A1F, (uint8_t)(low  > 0x20
+                                                   ? (low - 0x20) : 0));
+  return ok ? 0 : -5;
+}
+
+// Tune the OV5640 auto-gain ceiling.  The AEC uses gain to reach
+// the target luminance when exposure time alone can't do it (dark
+// scenes).  NXP default is 0x007C (15.5× max gain) — too low for
+// dimly-lit indoor shots.  OmniVision AN suggests 0x00F8 (31×)
+// for low-light scenes; the trade-off is more noise.
+//
+// Register layout: 0x3A18[1:0] = high 2 bits, 0x3A19[7:0] = low 8 bits
+// → 10-bit value in units of 1/16 gain.  Pass `ceiling` as the
+// full 10-bit integer (0..1023).
+extern "C" int sentai_cam_gain_ceiling_set(int cam_id, int ceiling) {
+  if (!g_cam_initialized) return -1;
+  if (cam_id != 0 && cam_id != 1) return -2;
+  if (ceiling < 0x010 || ceiling > 0x3FF) return -3;
+  auto* cam = coralmicro::CameraTask::GetSingleton();
+  bool ok = true;
+  ok &= cam->WriteToCam(cam_id, 0x3A18, (uint8_t)((ceiling >> 8) & 0x03));
+  ok &= cam->WriteToCam(cam_id, 0x3A19, (uint8_t)(ceiling & 0xFF));
+  return ok ? 0 : -4;
+}
+
+// ISP preset bundle — writes a coordinated set of OV5640 ISP
+// registers in one call.  Presets are designed to be drop-in
+// replacements for NXP's stock init for specific scene types.
+//
+// Each preset sets:
+//   • gamma LUT (0x5480-0x548F)  — tone-curve reshape
+//   • SDE ctrl   (0x5580)        — enable brightness/contrast block
+//   • SDE bright (0x5585)        — Y offset (0..255 = -128..+127 signed)
+//   • SDE contr  (0x5586)        — Y gain   (0x20=unity, higher=boost)
+//   • AEC target (0x3A0F..0x3A1F)— auto-exposure luminance target
+//   • gain ceil  (0x3A18/0x3A19) — max AGC gain (0x007C=15.5×, 0x1F0=31×)
+//
+// Presets:
+//   "nxp_stock"    : restore NXP defaults (S-curve gamma, tame AEC)
+//   "bright_indoor": mild boost (sRGB gamma, +10% contrast, AEC 0x60)
+//   "daylight"     : outdoor / well-lit (sRGB gamma, AEC 0x78, std gain)
+//   "low_light"    : dim indoor (strong gamma, +30% contrast, max gain)
+extern "C" int sentai_cam_isp_preset(int cam_id, const char* name) {
+  if (!g_cam_initialized) return -1;
+  if (cam_id != 0 && cam_id != 1) return -2;
+  if (!name) return -3;
+  auto* cam = coralmicro::CameraTask::GetSingleton();
+
+  // Gamma LUTs indexed by preset.  Values are Y outputs at OV5640
+  // internal x-points (8, 16, 32, 64, 96, 128, 160, 192, 208, 224,
+  // 240, 248, 252, 254) plus the slope byte at 0x548F.
+  // NXP stock is an S-curve (contrast-leaning); sRGB γ=2.2 is a
+  // convex shadow-lift curve; "strong" is γ≈2.8 for very dim scenes.
+  static const uint8_t k_gamma_nxp[15] = {
+    0x08, 0x14, 0x28, 0x51, 0x65, 0x71, 0x7d, 0x87,
+    0x91, 0x9a, 0xaa, 0xb8, 0xcd, 0xdd, 0xea };
+  static const uint8_t k_gamma_srgb[15] = {
+    0x35, 0x49, 0x63, 0x88, 0xa4, 0xba, 0xce, 0xe0,
+    0xe8, 0xf0, 0xf8, 0xfc, 0xfe, 0xfe, 0xfe };
+  static const uint8_t k_gamma_strong[15] = {
+    0x50, 0x6a, 0x85, 0xa5, 0xbb, 0xcc, 0xda, 0xe6,
+    0xec, 0xf2, 0xf8, 0xfc, 0xfe, 0xfe, 0xfe };
+
+  const uint8_t* gamma = k_gamma_nxp;
+  uint8_t sde_ctrl  = 0x02;     // NXP default (only base SDE enable)
+  uint8_t sde_bright = 0x00;    // no bias
+  uint8_t sde_contr  = 0x20;    // unity gain
+  uint8_t aec_high  = 0x30, aec_low = 0x28;   // NXP stock
+  uint16_t gain_ceiling = 0x007C;              // 15.5×
+
+  if (strcmp(name, "nxp_stock") == 0) {
+    // leave defaults
+  } else if (strcmp(name, "bright_indoor") == 0) {
+    gamma = k_gamma_srgb;
+    sde_ctrl  = 0x06;    // enable brightness + contrast blocks
+    sde_bright = 0x08;
+    sde_contr  = 0x26;   // +20%
+    aec_high = 0x60; aec_low = 0x50;
+    gain_ceiling = 0x00F8;   // 31×
+  } else if (strcmp(name, "daylight") == 0) {
+    gamma = k_gamma_srgb;
+    sde_ctrl  = 0x06;
+    sde_bright = 0x00;
+    sde_contr  = 0x24;
+    aec_high = 0x78; aec_low = 0x68;
+    gain_ceiling = 0x00F8;
+  } else if (strcmp(name, "low_light") == 0) {
+    gamma = k_gamma_strong;
+    sde_ctrl  = 0x06;
+    sde_bright = 0x10;
+    sde_contr  = 0x2A;   // +30%
+    aec_high = 0x60; aec_low = 0x50;   // AEC same as bright_indoor;
+                                       // the work is done by gain+gamma
+    gain_ceiling = 0x01F0;   // 62.9×
+  } else {
+    return -4;  // unknown preset
+  }
+
+  bool ok = true;
+
+  // Group-write sequence per OV5640 Application Notes: all register
+  // writes between "start group" and "end group" are buffered in an
+  // internal staging area and applied atomically at the next VSYNC
+  // by the "launch" command.  Without this, individual writes take
+  // effect on different VSYNC boundaries and the image may show a
+  // partial preset for one or more frames (which is what was
+  // observed in E38: barely-visible preset differences because AEC
+  // was already compensating mid-apply).  Protocol:
+  //   0x3212 = 0x03 → enter group 3 (start buffering)
+  //   <all register writes>
+  //   0x3212 = 0x13 → exit group 3 (stop buffering)
+  //   0x3212 = 0xA3 → launch group 3 at next VSYNC
+  ok &= cam->WriteToCam(cam_id, 0x3212, 0x03);
+
+  // Gamma curve — 15 bytes from 0x5481 to 0x548F.
+  for (int i = 0; i < 15; ++i) {
+    ok &= cam->WriteToCam(cam_id, 0x5481 + i, gamma[i]);
+  }
+  // SDE
+  ok &= cam->WriteToCam(cam_id, 0x5580, sde_ctrl);
+  ok &= cam->WriteToCam(cam_id, 0x5585, sde_bright);
+  ok &= cam->WriteToCam(cam_id, 0x5586, sde_contr);
+  // AEC target + fast zone (match the shape sentai_cam_aec_set uses)
+  ok &= cam->WriteToCam(cam_id, 0x3A0F, aec_high);
+  ok &= cam->WriteToCam(cam_id, 0x3A10, aec_low);
+  ok &= cam->WriteToCam(cam_id, 0x3A1B, aec_high);
+  ok &= cam->WriteToCam(cam_id, 0x3A1E, aec_low);
+  ok &= cam->WriteToCam(cam_id, 0x3A11, (uint8_t)(aec_high + 0x40 > 0xFF
+                                                  ? 0xFF : aec_high + 0x40));
+  ok &= cam->WriteToCam(cam_id, 0x3A1F, (uint8_t)(aec_low > 0x20
+                                                  ? aec_low - 0x20 : 0));
+  // Gain ceiling — 10-bit across two regs
+  ok &= cam->WriteToCam(cam_id, 0x3A18, (uint8_t)((gain_ceiling >> 8) & 0x03));
+  ok &= cam->WriteToCam(cam_id, 0x3A19, (uint8_t)(gain_ceiling & 0xFF));
+
+  // Close the group and launch it atomically.
+  ok &= cam->WriteToCam(cam_id, 0x3212, 0x13);
+  ok &= cam->WriteToCam(cam_id, 0x3212, 0xA3);
+  return ok ? 0 : -5;
+}
+
+// Raw SCCB register read/write — exposed for runtime debug so we
+// can verify that writes stuck after applying a preset.  Returns
+// register value (0..255) on read success, -1 on bus failure.
+extern "C" int sentai_cam_reg_read(int cam_id, int reg) {
+  if (!g_cam_initialized) return -1;
+  if (cam_id != 0 && cam_id != 1) return -1;
+  if (reg < 0 || reg > 0xFFFF) return -1;
+  uint8_t v = 0;
+  auto* cam = coralmicro::CameraTask::GetSingleton();
+  if (!cam->ReadFromCam(cam_id, (uint16_t)reg, &v)) return -1;
+  return (int)v;
+}
+
+extern "C" int sentai_cam_reg_write(int cam_id, int reg, int val) {
+  if (!g_cam_initialized) return -1;
+  if (cam_id != 0 && cam_id != 1) return -2;
+  if (reg < 0 || reg > 0xFFFF) return -3;
+  if (val < 0 || val > 0xFF)   return -4;
+  auto* cam = coralmicro::CameraTask::GetSingleton();
+  return cam->WriteToCam(cam_id, (uint16_t)reg, (uint8_t)val) ? 0 : -5;
 }
 
 // Rotate camera image. cam_id: 0=front, 1=back. degrees: 0, 90, 180, 270.

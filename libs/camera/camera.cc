@@ -889,26 +889,22 @@ camera::EnableResponse CameraTask::HandleEnableRequest(const CameraMode& mode) {
 
   BOARD_PxpConfig();
 
-  // Default orientation:
-  //   cam0 (front) is physically upside-down → 180° rotation (mirror + vflip)
-  //   cam1 (back) is physically upright → 0° (no rotation)
-  SetCameraRotation(0, 180);
-  SetCameraRotation(1, 0);
+  // Leave 0x3820 / 0x3821 at whatever the NXP OV5640 init driver
+  // programmed:  reg20=0x41, reg21=0x07 (H-mirror bits set).
+  // Empirically (E29), the H-mirror is REQUIRED for text to read
+  // correctly.  The 90° sensor rotation is a hardware mount choice
+  // (not reversible via OV5640 registers); callers that need a
+  // "natural" orientation must apply a PXP 90° rotation.
 
-  // Both cameras show horizontally flipped by default, so toggle mirror
-  // OV5640 reg 0x3821 bits[2:1] = ISP mirror + sensor mirror
-  {
-    uint8_t reg21;
-    ReadFromCam(0, 0x3821, &reg21);
-    reg21 ^= 0x06;  // toggle mirror bits
-    WriteToCam(0, 0x3821, reg21);
-    printf("[CAM0] hmirror toggle: reg21=0x%02X\r\n", reg21);
-
-    ReadFromCam(1, 0x3821, &reg21);
-    reg21 ^= 0x06;  // toggle mirror bits
-    WriteToCam(1, 0x3821, reg21);
-    printf("[CAM1] hmirror toggle: reg21=0x%02X\r\n", reg21);
-  }
+  // AEC target tune is NOT hardcoded here — it's exposed at runtime
+  // via sentai.camera.aec_set(target, ...) so we can empirically
+  // pick the right value for each deployment lighting.  The NXP
+  // init table in third_party/nxp/rt1176-sdk/.../fsl_ov5640.c sets
+  // 0x3A0F/0x3A10 = 0x30/0x28 (≈ 18% target luminance) which on
+  // indoor floor shots is visibly under-exposed; 0x78/0x68 (≈ 45%)
+  // is the OmniVision AN default for general-purpose scenes.
+  // Experiment E36 sweeps this range so the operator can judge by
+  // eye what suits the use case.
 
   if (kCameraUseUserLed) {
     coralmicro::GpioSet((coralmicro::Gpio) coralmicro::Gpio::kUserLed, 1);

@@ -130,6 +130,7 @@ add_executable_m7(sentai_runtime
     sentai_tfl_bridge.cc
     sentai_slow_bridge.cc
     detection_task.cc
+    flow_task.cc
     sentai_tracker.cc
     modsentai_hal.cc
     sentai_mesh.cc
@@ -139,7 +140,21 @@ add_executable_m7(sentai_runtime
     sentai_lfs_task.cc
     sentai_health.cc
     sentai_dmesg.cc
+    M4_EXECUTABLE
+    sentai_flow_m4
     DATA
+)
+
+# Phase 1: tiny M4 app that writes a heartbeat counter into the
+# RPMsg shared-memory window.  M7 starts it via IpcM7::StartM4()
+# after boot_complete (USB CDC already up; no brick risk per
+# agent/embeded.md §M).  Flow-compute work lands here in later
+# phases; for Phase 1 we only validate that the M4 core boots.
+add_executable_m4(sentai_flow_m4
+    flow_task_m4.cc
+)
+target_link_libraries(sentai_flow_m4
+    libs_base-m4_freertos
 )
 
 # Embed browser.html as a C byte array (avoids LFS system partition dependency)

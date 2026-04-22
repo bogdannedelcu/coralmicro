@@ -80,6 +80,27 @@ static volatile size_t             s_slot_len   = 0;
 static char                        s_slot_path[256] = {};
 static sentai_lfs_req_type_t       s_slot_type  = LFS_REQ_LS;
 
+// Diagnostic counters — tell us EXACTLY why `lfs_busy` was returned on
+// each failing request.  Exposed via sentai.diag.lfs_stats() so a host
+// script can do (GET /api/ls → lfs_busy → REPL lfs_stats) to know which
+// branch of the state machine stalled.  NASA/JPL §I — every failure
+// mode must be observable.
+typedef struct {
+    volatile uint32_t served_ready_cached;   // Step 1: cached READY + path match
+    volatile uint32_t served_fast_raw;       // Step 3: RAW fast path via mutex
+    volatile uint32_t served_after_wait;     // Step 4: PENDING → READY within wait
+    volatile uint32_t busy_serving_prev;     // Step 2: previous response still streaming
+    volatile uint32_t busy_fast_raw_mutex;   // Step 3: mutex contended, RAW fallback to slow
+    volatile uint32_t busy_slow_timeout;     // Step 4: wait timed out (lfs_task still working)
+    volatile uint32_t busy_slow_state_drift; // Step 4: state left PENDING (queue full? task died?)
+    volatile uint32_t busy_path_mismatch;    // Step 4: READY for a DIFFERENT path than ours
+    volatile uint32_t busy_not_inited;       // no queue yet (pre-boot)
+    volatile uint32_t enqueue_ok;            // xQueueSend succeeded
+    volatile uint32_t enqueue_fail;          // xQueueSend failed (queue full)
+} lfs_stats_t;
+
+static lfs_stats_t s_lfs_stats = {};
+
 // ---------------------------------------------------------------------------
 // JSON helpers — used only by DoLs (lfs_task context)
 // ---------------------------------------------------------------------------
@@ -190,17 +211,28 @@ static size_t EnqueueLfsRequest(sentai_lfs_req_type_t type, const char* path) {
     req.type = type;
     strncpy(req.path, path, sizeof(req.path) - 1);
     req.path[sizeof(req.path) - 1] = '\0';
+
+    // Only publish the slot's path/type + state **after** xQueueSend
+    // accepts the request.  Pre-publishing on a failed send used to
+    // leave the invariant broken (path pointed to the new URI, state
+    // still IDLE), and every retry re-entered this path, failed to
+    // enqueue (queue already full with a prior in-flight request),
+    // and returned lfs_busy forever.  NASA/JPL §E — atomic publish-on-
+    // success.
+    if (xQueueSend(s_req_queue, &req, 0) != pdTRUE) {
+        s_lfs_stats.enqueue_fail++;
+        return 0;
+    }
     s_slot_type = type;
     strncpy(s_slot_path, path, sizeof(s_slot_path) - 1);
     s_slot_path[sizeof(s_slot_path) - 1] = '\0';
-    if (xQueueSend(s_req_queue, &req, 0) == pdTRUE) {
-        s_slot_state = SLOT_PENDING;
-    }
+    s_slot_state = SLOT_PENDING;
+    s_lfs_stats.enqueue_ok++;
     return 0;
 }
 
 size_t sentai_lfs_try_serve(sentai_lfs_req_type_t type, const char* path) {
-    if (!s_req_queue) return 0;
+    if (!s_req_queue) { s_lfs_stats.busy_not_inited++; return 0; }
 
     // Step 1 — if the slot already holds the result for THIS exact request
     // (either from an earlier async attempt or a concurrent burst), serve it.
@@ -208,7 +240,11 @@ size_t sentai_lfs_try_serve(sentai_lfs_req_type_t type, const char* path) {
         if (s_slot_type == type && strcmp(s_slot_path, path) == 0) {
             size_t len = s_slot_len;
             s_slot_state = SLOT_IDLE;
-            if (len > 0) { s_slot_state = SLOT_SERVING; return len; }
+            if (len > 0) {
+                s_slot_state = SLOT_SERVING;
+                s_lfs_stats.served_ready_cached++;
+                return len;
+            }
             return (size_t)-1;  // 404 / empty
         }
         // Stale result for a different path — discard it.
@@ -217,7 +253,10 @@ size_t sentai_lfs_try_serve(sentai_lfs_req_type_t type, const char* path) {
 
     // Step 2 — a previous response is still being streamed from g_resp_buf.
     // Reusing the buffer now would corrupt it; tell the client to retry.
-    if (s_slot_state == SLOT_SERVING) return 0;
+    if (s_slot_state == SLOT_SERVING) {
+        s_lfs_stats.busy_serving_prev++;
+        return 0;
+    }
 
     // Step 3 — FAST PATH (RAW only).  Take the LFS mutex and service the
     // request inline from tcpip_thread so a single GET resolves in one HTTP
@@ -241,20 +280,83 @@ size_t sentai_lfs_try_serve(sentai_lfs_req_type_t type, const char* path) {
             xSemaphoreTake(s_lfs_mutex, pdMS_TO_TICKS(FAST_PATH_WAIT_MS)) == pdTRUE) {
             size_t len = DoRaw(path);
             xSemaphoreGive(s_lfs_mutex);
-            if (len > 0) { s_slot_state = SLOT_SERVING; return len; }
+            if (len > 0) {
+                s_slot_state = SLOT_SERVING;
+                s_lfs_stats.served_fast_raw++;
+                return len;
+            }
             return (size_t)-1;  // 404 / empty
         }
+        s_lfs_stats.busy_fast_raw_mutex++;
     }
 
-    // Step 4 — SLOW PATH.  Either this is a LS request (always deferred) or
-    // the fast-path mutex was contended.  Hand the request to lfs_task so
-    // we don't block tcpip_thread, and tell the client to retry.  By the
-    // next retry, lfs_task has populated SLOT_READY (Step 1 above serves it
-    // directly) or the fast path succeeds.
+    // Step 4 — SLOW PATH.  Either this is an LS request (always deferred)
+    // or the fast-path mutex was contended.  Hand the request to lfs_task,
+    // then block tcpip_thread for up to kSlowPathWaitMs waiting for the
+    // task to publish SLOT_READY.  Historically this path returned 0
+    // immediately (→ `{"error":"lfs_busy"}` body) and relied on the
+    // browser to re-issue the GET after 600 ms — which was fine for the
+    // interactive file-browser but terrible for curl and host automation
+    // that don't retry.  The bounded wait collapses the two-round-trip
+    // dance into one: the lfs_task finishes a typical LS in a few ms,
+    // so the common case serves the result on the first request.
+    //
+    // NASA/JPL §B: the wait is explicitly bounded below the USB-NCM
+    // watchdog ceiling (2 min) with plenty of margin; if a pathological
+    // LS truly exceeds the budget we still return lfs_busy so the
+    // caller can retry rather than hang tcpip_thread.
+    constexpr TickType_t kSlowPathWaitMs = 500;
     if (s_slot_state == SLOT_IDLE) {
         EnqueueLfsRequest(type, path);
     }
+    const TickType_t deadline =
+        xTaskGetTickCount() + pdMS_TO_TICKS(kSlowPathWaitMs);
+    while (s_slot_state == SLOT_PENDING &&
+           (int32_t)(deadline - xTaskGetTickCount()) > 0) {
+        vTaskDelay(pdMS_TO_TICKS(5));
+    }
+    if (s_slot_state == SLOT_READY) {
+        if (s_slot_type == type && strcmp(s_slot_path, path) == 0) {
+            size_t len = s_slot_len;
+            s_slot_state = SLOT_IDLE;
+            if (len > 0) {
+                s_slot_state = SLOT_SERVING;
+                s_lfs_stats.served_after_wait++;
+                return len;
+            }
+            return (size_t)-1;  // 404 / empty
+        }
+        s_lfs_stats.busy_path_mismatch++;
+        return 0;
+    }
+    // Still PENDING after the bounded wait — lfs_task is slow or stuck.
+    if (s_slot_state == SLOT_PENDING) {
+        s_lfs_stats.busy_slow_timeout++;
+    } else {
+        s_lfs_stats.busy_slow_state_drift++;
+    }
     return 0;
+}
+
+// ------------------------------------------------------------------
+// Diagnostic snapshot — exposed to MicroPython via sentai.diag.lfs_stats().
+// Every "lfs_busy" response increments exactly one of the busy_* counters,
+// so after a failing GET the host can query this struct to learn which
+// arm of the state machine returned early.
+// ------------------------------------------------------------------
+extern "C" void sentai_lfs_stats_get(uint32_t* out, int max_fields) {
+    if (max_fields < 11 || !out) return;
+    out[0]  = s_lfs_stats.served_ready_cached;
+    out[1]  = s_lfs_stats.served_fast_raw;
+    out[2]  = s_lfs_stats.served_after_wait;
+    out[3]  = s_lfs_stats.busy_serving_prev;
+    out[4]  = s_lfs_stats.busy_fast_raw_mutex;
+    out[5]  = s_lfs_stats.busy_slow_timeout;
+    out[6]  = s_lfs_stats.busy_slow_state_drift;
+    out[7]  = s_lfs_stats.busy_path_mismatch;
+    out[8]  = s_lfs_stats.busy_not_inited;
+    out[9]  = s_lfs_stats.enqueue_ok;
+    out[10] = s_lfs_stats.enqueue_fail;
 }
 
 uint8_t* sentai_lfs_resp_buf(void) { return g_resp_buf; }

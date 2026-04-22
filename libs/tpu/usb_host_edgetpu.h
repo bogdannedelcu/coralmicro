@@ -111,15 +111,27 @@ usb_status_t USB_HostEdgeTpuSetInterface(
     usb_host_interface_handle interfaceHandle, uint8_t alternateSetting,
     transfer_callback_t callbackFn, void *callbackParam);
 
+/* length widened from uint16_t (65 535 B cap) to uint32_t so the TPU
+ * driver can push a whole parameter / instruction / input batch in
+ * a single URB.  Fewer URBs → fewer submit/sem/callback round-trips. */
 usb_status_t USB_HostEdgeTpuBulkOutSend(
     usb_host_edgetpu_instance_t *tpuInstance, uint8_t endPoint, uint8_t *buffer,
-    uint16_t length, transfer_callback_t callbackFn, void *callbackParam);
+    uint32_t length, transfer_callback_t callbackFn, void *callbackParam);
 
 usb_status_t USB_HostEdgeTpuBulkInRecv(usb_host_edgetpu_instance_t *tpuInstance,
                                        uint8_t endPoint, uint8_t *buffer,
                                        uint32_t bufferLength,
                                        transfer_callback_t callbackFn,
                                        void *callbackParam);
+
+/* Async variants — unlock multiple in-flight transfers per pipe.
+ * See usb_host_edgetpu.c for the per-transfer callback pool. */
+usb_status_t USB_HostEdgeTpuBulkOutSendAsync(
+    usb_host_edgetpu_instance_t *tpuInstance, uint8_t endPoint, uint8_t *buffer,
+    uint32_t length, transfer_callback_t callbackFn, void *callbackParam);
+usb_status_t USB_HostEdgeTpuBulkInRecvAsync(
+    usb_host_edgetpu_instance_t *tpuInstance, uint8_t endPoint, uint8_t *buffer,
+    uint32_t length, transfer_callback_t callbackFn, void *callbackParam);
 
 usb_status_t USB_HostEdgeTpuControl(usb_host_edgetpu_instance_t *tpuInstance,
                                     usb_setup_struct_t *setupPacket,

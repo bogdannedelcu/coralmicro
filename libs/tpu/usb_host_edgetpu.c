@@ -21,6 +21,82 @@
 static usb_status_t USB_HostEdgeTpuOpenInterface(usb_host_edgetpu_instance_t *tpuInstance);
 static usb_status_t USB_HostEdgeTpuOpenDataInterface(usb_host_edgetpu_instance_t *tpuInstance);
 
+/* ============================================================
+ * Per-transfer async callback plumbing.
+ *
+ * The legacy USB_HostEdgeTpuBulkOutSend/BulkInRecv APIs stash the
+ * user's {callbackFn, callbackParam} on the *pipe* struct.  That
+ * allows exactly one in-flight URB per pipe — a second submission
+ * before completion overwrites the first's routing and the earlier
+ * callback's `data`/`status` end up delivered to the later caller.
+ *
+ * The Async variants below put the user callback + param onto the
+ * *transfer* itself via a small fixed-size pool of contexts.  Each
+ * outstanding URB has its own slot, so we can queue multiple
+ * transfers on the same EHCI pipe and let the schedule run them
+ * back-to-back without host-side arbitration between IOCs.
+ *
+ * Pool sized to 8 matches USB_HOST_CONFIG_EHCI_MAX_QTD; in practice
+ * we never want more than 2–3 outstanding on the bulk pipe.
+ * ============================================================ */
+#define USB_EDGETPU_ASYNC_CTX_POOL_SIZE 8
+
+typedef struct {
+    transfer_callback_t  user_cb;
+    void                *user_param;
+    usb_host_handle      hostHandle;
+    volatile int         in_use;
+} edgetpu_async_ctx_t;
+
+static edgetpu_async_ctx_t s_async_ctx_pool[USB_EDGETPU_ASYNC_CTX_POOL_SIZE];
+
+static edgetpu_async_ctx_t *EdgeTpuAllocAsyncCtx(void)
+{
+    for (int i = 0; i < USB_EDGETPU_ASYNC_CTX_POOL_SIZE; i++) {
+        if (__sync_bool_compare_and_swap(&s_async_ctx_pool[i].in_use, 0, 1)) {
+            return &s_async_ctx_pool[i];
+        }
+    }
+    return NULL;
+}
+
+static void EdgeTpuFreeAsyncCtx(edgetpu_async_ctx_t *ctx)
+{
+    __atomic_store_n(&ctx->in_use, 0, __ATOMIC_RELEASE);
+}
+
+/* Per-transfer async debug counters — measure async path health. */
+extern volatile uint32_t g_edgetpu_async_submit_ok;
+extern volatile uint32_t g_edgetpu_async_submit_fail;
+extern volatile uint32_t g_edgetpu_async_cb_fired;
+extern volatile uint32_t g_edgetpu_async_cb_ok;
+extern volatile uint32_t g_edgetpu_async_cb_fail;
+volatile uint32_t g_edgetpu_async_submit_ok   = 0;
+volatile uint32_t g_edgetpu_async_submit_fail = 0;
+volatile uint32_t g_edgetpu_async_cb_fired    = 0;
+volatile uint32_t g_edgetpu_async_cb_ok       = 0;
+volatile uint32_t g_edgetpu_async_cb_fail     = 0;
+
+/* NXP-stack-signature completion callback.  Pulls {user_cb,
+ * user_param} off the transfer's private ctx, fires the user call,
+ * then releases both the USB transfer and the ctx.  Runs in USB
+ * host task context like every other transfer->callbackFn. */
+static void EdgeTpuPerXferDispatch(void *param,
+                                   usb_host_transfer_t *transfer,
+                                   usb_status_t status)
+{
+    g_edgetpu_async_cb_fired++;
+    if (status == kStatus_USB_Success) g_edgetpu_async_cb_ok++;
+    else                               g_edgetpu_async_cb_fail++;
+    edgetpu_async_ctx_t *ctx = (edgetpu_async_ctx_t *)param;
+    if (ctx && ctx->user_cb) {
+        ctx->user_cb(ctx->user_param, transfer->transferBuffer,
+                     transfer->transferSofar, status);
+    }
+    USB_HostFreeTransfer(ctx ? ctx->hostHandle : NULL, transfer);
+    if (ctx) EdgeTpuFreeAsyncCtx(ctx);
+}
+
 
 void USB_HostEdgeTpuSetInterfaceCallback(void *param, usb_host_transfer_t *transfer, usb_status_t status)
 {
@@ -387,7 +463,7 @@ static void USB_HostEdgeTpuPipeCallback(void *param,
 usb_status_t USB_HostEdgeTpuBulkOutSend(usb_host_edgetpu_instance_t *tpuInstance,
                                             uint8_t endPoint,
                                             uint8_t* buffer,
-                                            uint16_t length,
+                                            uint32_t length,
                                             transfer_callback_t callbackFn,
                                             void *callbackParam)
 {
@@ -432,6 +508,82 @@ usb_status_t USB_HostEdgeTpuBulkOutSend(usb_host_edgetpu_instance_t *tpuInstance
     return kStatus_USB_Success;
 }
 
+
+usb_status_t USB_HostEdgeTpuBulkOutSendAsync(usb_host_edgetpu_instance_t *tpuInstance,
+                                             uint8_t endPoint,
+                                             uint8_t* buffer,
+                                             uint32_t length,
+                                             transfer_callback_t callbackFn,
+                                             void *callbackParam)
+{
+    usb_host_transfer_t *transfer;
+    int8_t index = USB_HostEdgeTpuGetPipeIndexFromEndpoint(tpuInstance, endPoint, USB_OUT);
+    if (index < 0) return kStatus_USB_InvalidParameter;
+    usb_host_edgetpu_pipe_t *pipe = &tpuInstance->pipes[index];
+    if (pipe->pipeType != USB_ENDPOINT_BULK) return kStatus_USB_InvalidParameter;
+
+    edgetpu_async_ctx_t *ctx = EdgeTpuAllocAsyncCtx();
+    if (!ctx) return kStatus_USB_Error;
+    ctx->user_cb    = callbackFn;
+    ctx->user_param = callbackParam;
+    ctx->hostHandle = tpuInstance->hostHandle;
+
+    if (USB_HostMallocTransfer(tpuInstance->hostHandle, &transfer) != kStatus_USB_Success) {
+        EdgeTpuFreeAsyncCtx(ctx);
+        return kStatus_USB_Error;
+    }
+    transfer->transferBuffer = buffer;
+    transfer->transferLength = length;
+    transfer->callbackFn     = EdgeTpuPerXferDispatch;
+    transfer->callbackParam  = ctx;
+    transfer->direction      = USB_OUT;
+
+    if (USB_HostSend(tpuInstance->hostHandle, pipe->pipeHandle, transfer) != kStatus_USB_Success) {
+        g_edgetpu_async_submit_fail++;
+        USB_HostFreeTransfer(tpuInstance->hostHandle, transfer);
+        EdgeTpuFreeAsyncCtx(ctx);
+        return kStatus_USB_Error;
+    }
+    g_edgetpu_async_submit_ok++;
+    return kStatus_USB_Success;
+}
+
+usb_status_t USB_HostEdgeTpuBulkInRecvAsync(usb_host_edgetpu_instance_t *tpuInstance,
+                                            uint8_t endPoint,
+                                            uint8_t *buffer,
+                                            uint32_t length,
+                                            transfer_callback_t callbackFn,
+                                            void *callbackParam)
+{
+    usb_host_transfer_t *transfer;
+    int8_t index = USB_HostEdgeTpuGetPipeIndexFromEndpoint(tpuInstance, endPoint, USB_IN);
+    if (index < 0) return kStatus_USB_InvalidParameter;
+    usb_host_edgetpu_pipe_t *pipe = &tpuInstance->pipes[index];
+    if (pipe->pipeType != USB_ENDPOINT_BULK) return kStatus_USB_InvalidParameter;
+
+    edgetpu_async_ctx_t *ctx = EdgeTpuAllocAsyncCtx();
+    if (!ctx) return kStatus_USB_Error;
+    ctx->user_cb    = callbackFn;
+    ctx->user_param = callbackParam;
+    ctx->hostHandle = tpuInstance->hostHandle;
+
+    if (USB_HostMallocTransfer(tpuInstance->hostHandle, &transfer) != kStatus_USB_Success) {
+        EdgeTpuFreeAsyncCtx(ctx);
+        return kStatus_USB_Error;
+    }
+    transfer->transferBuffer = buffer;
+    transfer->transferLength = length;
+    transfer->callbackFn     = EdgeTpuPerXferDispatch;
+    transfer->callbackParam  = ctx;
+    transfer->direction      = USB_IN;
+
+    if (USB_HostRecv(tpuInstance->hostHandle, pipe->pipeHandle, transfer) != kStatus_USB_Success) {
+        USB_HostFreeTransfer(tpuInstance->hostHandle, transfer);
+        EdgeTpuFreeAsyncCtx(ctx);
+        return kStatus_USB_Error;
+    }
+    return kStatus_USB_Success;
+}
 
 usb_status_t USB_HostEdgeTpuBulkInRecv(usb_host_edgetpu_instance_t *tpuInstance,
                                  uint8_t endPoint,

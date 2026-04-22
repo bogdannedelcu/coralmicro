@@ -31,12 +31,73 @@
 // subsequent frames for the same token — the 58 ms / Invoke we measure
 // is already on the cached path.  The stubs below stay as no-ops so any
 // old Python code calling pipeline.desc_cache*() keeps working.
-extern "C" volatile int g_sentai_tpu_desc_cache_enabled = 0;
+// Host-side descriptor cache.  RESTORED 2026-04-22 — previously
+// removed on the theory that `parameter_caching_exe` already covers
+// the param side, but that analysis ignored that this cache ALSO
+// skips the instruction-upload path on subsequent invokes of the
+// same Executable instance with the same ParameterCachingToken.
+// Instructions on our YOLO 512 model are ~371 KB / invoke × 2 sends
+// = ~4.6 ms of USB time per invoke.  Skipping them on cache-hit is
+// a straight win — the TPU instruction FIFO holds the last uploaded
+// stream until explicitly invalidated (e.g. on model load).
+//
+// Enable via `sentai.diag.tpu_desc_cache(True)` (OFF by default so
+// the behaviour is opt-in and easy to A/B).  sentai_tpu_desc_cache_
+// invalidate() is called from sentai_load_model (sentai_slow_bridge.cc)
+// to clear the cache key when a new model is loaded — a new
+// (this, token) identity forces a full fresh upload.
+extern "C" volatile int g_sentai_tpu_desc_cache_enabled = 0;   // default OFF
 extern "C" volatile uint32_t g_sentai_tpu_desc_cache_sent_params = 0;
 extern "C" volatile uint32_t g_sentai_tpu_desc_cache_sent_ins    = 0;
 extern "C" volatile uint32_t g_sentai_tpu_desc_cache_skip_params = 0;
 extern "C" volatile uint32_t g_sentai_tpu_desc_cache_skip_ins    = 0;
-extern "C" void sentai_tpu_desc_cache_invalidate(void) {}
+static uint64_t    g_sentai_tpu_desc_cache_token = 0;
+static const void* g_sentai_tpu_desc_cache_exe   = nullptr;
+extern "C" void sentai_tpu_desc_cache_invalidate(void) {
+    g_sentai_tpu_desc_cache_token = 0;
+    g_sentai_tpu_desc_cache_exe   = nullptr;
+}
+
+// ---------------------------------------------------------------------------
+// Per-Invoke split-time counters (DWT cycles).  Exposed via
+// sentai.tpu.perf_stats() so we can see *exactly* how the 30-ish ms
+// per-invoke budget breaks down across {parameter upload, instruction
+// upload, input upload, output read, event wait}.  Without this the
+// only measurable unit is total invoke() time, which hides which USB
+// leg is dominant and obscures where to optimize.
+//
+// cycles are cumulative-since-boot (or since *_reset); the Python
+// wrapper prints a single-invoke delta by taking two snapshots.
+extern "C" volatile uint32_t g_sentai_tpu_cyc_params = 0;
+extern "C" volatile uint32_t g_sentai_tpu_cyc_ins    = 0;
+extern "C" volatile uint32_t g_sentai_tpu_cyc_input  = 0;
+extern "C" volatile uint32_t g_sentai_tpu_cyc_output = 0;
+extern "C" volatile uint32_t g_sentai_tpu_cyc_event  = 0;
+extern "C" volatile uint32_t g_sentai_tpu_n_params   = 0;
+extern "C" volatile uint32_t g_sentai_tpu_n_ins      = 0;
+extern "C" volatile uint32_t g_sentai_tpu_n_input    = 0;
+extern "C" volatile uint32_t g_sentai_tpu_n_output   = 0;
+extern "C" volatile uint32_t g_sentai_tpu_n_event    = 0;
+extern "C" volatile uint32_t g_sentai_tpu_by_params  = 0;  // bytes accumulator
+extern "C" volatile uint32_t g_sentai_tpu_by_ins     = 0;
+extern "C" volatile uint32_t g_sentai_tpu_by_input   = 0;
+extern "C" volatile uint32_t g_sentai_tpu_by_output  = 0;
+
+extern "C" void sentai_tpu_perf_reset(void) {
+  g_sentai_tpu_cyc_params = g_sentai_tpu_cyc_ins = 0;
+  g_sentai_tpu_cyc_input  = g_sentai_tpu_cyc_output = g_sentai_tpu_cyc_event = 0;
+  g_sentai_tpu_n_params   = g_sentai_tpu_n_ins = 0;
+  g_sentai_tpu_n_input    = g_sentai_tpu_n_output = g_sentai_tpu_n_event = 0;
+  g_sentai_tpu_by_params  = g_sentai_tpu_by_ins = 0;
+  g_sentai_tpu_by_input   = g_sentai_tpu_by_output = 0;
+}
+
+// DWT cycle counter is already enabled elsewhere (flow_task_m4); fall
+// back to 0 if not available.  Reading DWT->CYCCNT is 1-2 cycles.
+#include "fsl_common.h"
+static inline uint32_t tpu_cyc(void) {
+    return DWT->CYCCNT;
+}
 
 namespace {
 int TensorDataTypeSize(platforms::darwinn::DataType data_type) {
@@ -98,6 +159,19 @@ TfLiteStatus EdgeTpuExecutable::Invoke(const TpuDriver& tpu_driver,
     return kTfLiteError;
   }
 
+  // Descriptor-cache hit detection.  A hit means: the caller is
+  // invoking the SAME EdgeTpuExecutable instance it invoked last
+  // time, and the executable's parameter_caching_token matches what
+  // we already pushed to the TPU.  In that state the TPU's instruction
+  // FIFO and its on-chip parameters are both still valid from the
+  // previous invoke — we can skip BASE_ADDRESS_PARAMETER and
+  // InstructionHint uploads entirely and just send the fresh input.
+  const uint64_t this_token = executable_->parameter_caching_token();
+  const bool cache_hit = (g_sentai_tpu_desc_cache_enabled != 0) &&
+                         (g_sentai_tpu_desc_cache_exe == this) &&
+                         (g_sentai_tpu_desc_cache_token == this_token) &&
+                         (this_token != 0ULL);
+
   const platforms::darwinn::DmaDescriptorHint* dma_hint;
   const char* name;
   uint8_t* output;
@@ -106,14 +180,24 @@ TfLiteStatus EdgeTpuExecutable::Invoke(const TpuDriver& tpu_driver,
 
   for (const auto* hint : *(executable_->dma_hints()->hints())) {
     switch (hint->any_hint_type()) {
-      case platforms::darwinn::AnyHint_DmaDescriptorHint:
+      case platforms::darwinn::AnyHint_DmaDescriptorHint: {
         dma_hint = hint->any_hint_as_DmaDescriptorHint();
         switch (dma_hint->meta()->desc()) {
-          case platforms::darwinn::Description_BASE_ADDRESS_PARAMETER:
+          case platforms::darwinn::Description_BASE_ADDRESS_PARAMETER: {
+            if (cache_hit) {
+              g_sentai_tpu_desc_cache_skip_params++;
+              break;
+            }
+            g_sentai_tpu_desc_cache_sent_params++;
+            uint32_t t0 = tpu_cyc();
             RETURN_IF_ERROR(tpu_driver.SendParameters(
                 executable_->parameters()->data() + dma_hint->offset_in_bytes(),
                 dma_hint->size_in_bytes()));
+            g_sentai_tpu_cyc_params += (tpu_cyc() - t0);
+            g_sentai_tpu_n_params   += 1;
+            g_sentai_tpu_by_params  += dma_hint->size_in_bytes();
             break;
+          }
           case platforms::darwinn::Description_BASE_ADDRESS_INPUT_ACTIVATION:
             name = dma_hint->meta()->name()->c_str();
             if (executable_->input_layers()) {
@@ -129,38 +213,75 @@ TfLiteStatus EdgeTpuExecutable::Invoke(const TpuDriver& tpu_driver,
                 }
               }
             }
-            RETURN_IF_ERROR(tpu_driver.SendInputs(
-                input_tensor->data.uint8 + dma_hint->offset_in_bytes(),
-                dma_hint->size_in_bytes()));
+            {
+              uint32_t t0 = tpu_cyc();
+              RETURN_IF_ERROR(tpu_driver.SendInputs(
+                  input_tensor->data.uint8 + dma_hint->offset_in_bytes(),
+                  dma_hint->size_in_bytes()));
+              g_sentai_tpu_cyc_input += (tpu_cyc() - t0);
+              g_sentai_tpu_n_input   += 1;
+              g_sentai_tpu_by_input  += dma_hint->size_in_bytes();
+            }
             break;
-          case platforms::darwinn::Description_BASE_ADDRESS_OUTPUT_ACTIVATION:
+          case platforms::darwinn::Description_BASE_ADDRESS_OUTPUT_ACTIVATION: {
             name = dma_hint->meta()->name()->c_str();
             if (output_layers_.find(name) == output_layers_.end()) {
               printf("Executable does not have output layer %s\r\n", name);
               break;
             }
             output = output_layers_.at(name)->output_buffer();
+            uint32_t t0 = tpu_cyc();
             RETURN_IF_ERROR(
                 tpu_driver.GetOutputs(output, dma_hint->size_in_bytes()));
+            g_sentai_tpu_cyc_output += (tpu_cyc() - t0);
+            g_sentai_tpu_n_output   += 1;
+            g_sentai_tpu_by_output  += dma_hint->size_in_bytes();
             break;
+          }
           default:
             break;
         }
         break;
-      case platforms::darwinn::AnyHint_InstructionHint:
+      }
+      case platforms::darwinn::AnyHint_InstructionHint: {
+        if (cache_hit) {
+          g_sentai_tpu_desc_cache_skip_ins++;
+          break;
+        }
+        g_sentai_tpu_desc_cache_sent_ins++;
         ins_idx =
             hint->any_hint_as_InstructionHint()->instruction_chunk_index();
         bitstream =
             executable_->instruction_bitstreams()->Get(ins_idx)->bitstream();
+        uint32_t t0 = tpu_cyc();
         RETURN_IF_ERROR(
             tpu_driver.SendInstructions(bitstream->data(), bitstream->size()));
+        g_sentai_tpu_cyc_ins += (tpu_cyc() - t0);
+        g_sentai_tpu_n_ins   += 1;
+        g_sentai_tpu_by_ins  += bitstream->size();
         break;
+      }
       default:
         break;
     }
   }
 
-  tpu_driver.ReadEvent();
+  {
+    uint32_t t0 = tpu_cyc();
+    tpu_driver.ReadEvent();
+    g_sentai_tpu_cyc_event += (tpu_cyc() - t0);
+    g_sentai_tpu_n_event   += 1;
+  }
+
+  // Refresh cache key AFTER a successful full upload.  On a cache-hit
+  // we skipped params + instructions, so the stored key was never
+  // invalidated and still matches.  On a cache-miss (first invoke, or
+  // different exe, or token mismatch) we just pushed fresh state to
+  // the TPU — remember that state for the next invoke.
+  if (!cache_hit && g_sentai_tpu_desc_cache_enabled != 0 && this_token != 0ULL) {
+      g_sentai_tpu_desc_cache_exe   = this;
+      g_sentai_tpu_desc_cache_token = this_token;
+  }
 
   if (!output_layers_.empty()) {
     for (int i = 0; i < node->outputs->size; ++i) {

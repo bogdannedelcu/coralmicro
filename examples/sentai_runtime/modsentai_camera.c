@@ -145,6 +145,70 @@ static mp_obj_t mod_sentai_cam_rotate(mp_obj_t cam_obj, mp_obj_t deg_obj) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_2(mod_sentai_cam_rotate_obj, mod_sentai_cam_rotate);
 
+// sentai.camera.aec_set(cam_id, high, low) -> int
+//
+// Tune the OV5640 auto-exposure target luminance range:
+//   high: stable-range target high (0x10..0xF0; ≈target/255)
+//   low:  stable-range target low  (0x10..high)
+// Fast-zone thresholds scaled around the same target.
+//
+// Reference points (write with either preset for A/B testing):
+//   NXP default  : high=0x30 low=0x28  → ≈18% target (dim indoors)
+//   OmniVision AN: high=0x78 low=0x68  → ≈45% target (general)
+//   Bright room  : high=0x60 low=0x50  → ≈35% target (mid)
+extern int sentai_cam_aec_set(int cam_id, int high, int low);
+static mp_obj_t mod_sentai_cam_aec_set(mp_obj_t cam_o, mp_obj_t hi_o, mp_obj_t lo_o) {
+    return mp_obj_new_int(sentai_cam_aec_set(
+        mp_obj_get_int(cam_o), mp_obj_get_int(hi_o), mp_obj_get_int(lo_o)));
+}
+static MP_DEFINE_CONST_FUN_OBJ_3(mod_sentai_cam_aec_set_obj, mod_sentai_cam_aec_set);
+
+// sentai.camera.gain_ceiling_set(cam_id, ceiling_u10)
+// 10-bit cap for AGC (0x010..0x3FF, units of 1/16× gain).
+//   0x07C = NXP default ≈ 7.75× (too low for dim indoor)
+//   0x0F8 = 15.5×
+//   0x1F0 = 31× (recommended for low-light; noisier)
+//   0x3FF = max (62.9×)
+extern int sentai_cam_gain_ceiling_set(int cam_id, int ceiling);
+static mp_obj_t mod_sentai_cam_gain_ceiling_set(mp_obj_t cam_o, mp_obj_t c_o) {
+    return mp_obj_new_int(sentai_cam_gain_ceiling_set(
+        mp_obj_get_int(cam_o), mp_obj_get_int(c_o)));
+}
+static MP_DEFINE_CONST_FUN_OBJ_2(mod_sentai_cam_gain_ceiling_set_obj,
+                                 mod_sentai_cam_gain_ceiling_set);
+
+// sentai.camera.isp_preset(cam_id, name) — apply a bundled set of
+// OV5640 ISP registers tuned for a specific scene type.
+// name: "nxp_stock" | "bright_indoor" | "daylight" | "low_light"
+extern int sentai_cam_isp_preset(int cam_id, const char* name);
+static mp_obj_t mod_sentai_cam_isp_preset(mp_obj_t cam_o, mp_obj_t name_o) {
+    const char* name = mp_obj_str_get_str(name_o);
+    return mp_obj_new_int(sentai_cam_isp_preset(mp_obj_get_int(cam_o), name));
+}
+static MP_DEFINE_CONST_FUN_OBJ_2(mod_sentai_cam_isp_preset_obj,
+                                 mod_sentai_cam_isp_preset);
+
+// sentai.camera.reg_read(cam_id, reg) -> int value (0..255) or -1 on fail
+// sentai.camera.reg_write(cam_id, reg, val) -> 0 ok, neg on fail
+// Raw SCCB access for debugging the ISP — verify that writes stick,
+// read current exposure/gain values, etc.
+extern int sentai_cam_reg_read(int cam_id, int reg);
+extern int sentai_cam_reg_write(int cam_id, int reg, int val);
+static mp_obj_t mod_sentai_cam_reg_read(mp_obj_t cam_o, mp_obj_t reg_o) {
+    return mp_obj_new_int(sentai_cam_reg_read(mp_obj_get_int(cam_o),
+                                              mp_obj_get_int(reg_o)));
+}
+static MP_DEFINE_CONST_FUN_OBJ_2(mod_sentai_cam_reg_read_obj,
+                                 mod_sentai_cam_reg_read);
+static mp_obj_t mod_sentai_cam_reg_write(mp_obj_t cam_o, mp_obj_t reg_o,
+                                          mp_obj_t val_o) {
+    return mp_obj_new_int(sentai_cam_reg_write(mp_obj_get_int(cam_o),
+                                               mp_obj_get_int(reg_o),
+                                               mp_obj_get_int(val_o)));
+}
+static MP_DEFINE_CONST_FUN_OBJ_3(mod_sentai_cam_reg_write_obj,
+                                 mod_sentai_cam_reg_write);
+
 // sentai.camera.ratio([a, b]) -> (a, b)
 //
 // Read/write the stateless auto-alternate schedule.  When both `a` and
@@ -211,6 +275,11 @@ static const mp_rom_map_elem_t sentai_camera_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_select),     MP_ROM_PTR(&mod_sentai_cam_select_obj) },
     { MP_ROM_QSTR(MP_QSTR_frame_count),  MP_ROM_PTR(&mod_sentai_cam_frame_count_obj) },
     { MP_ROM_QSTR(MP_QSTR_rotate),     MP_ROM_PTR(&mod_sentai_cam_rotate_obj) },
+    { MP_ROM_QSTR(MP_QSTR_aec_set),    MP_ROM_PTR(&mod_sentai_cam_aec_set_obj) },
+    { MP_ROM_QSTR(MP_QSTR_gain_ceiling_set), MP_ROM_PTR(&mod_sentai_cam_gain_ceiling_set_obj) },
+    { MP_ROM_QSTR(MP_QSTR_isp_preset), MP_ROM_PTR(&mod_sentai_cam_isp_preset_obj) },
+    { MP_ROM_QSTR(MP_QSTR_reg_read),   MP_ROM_PTR(&mod_sentai_cam_reg_read_obj) },
+    { MP_ROM_QSTR(MP_QSTR_reg_write),  MP_ROM_PTR(&mod_sentai_cam_reg_write_obj) },
     { MP_ROM_QSTR(MP_QSTR_switch_drain), MP_ROM_PTR(&mod_sentai_cam_switch_drain_obj) },
     { MP_ROM_QSTR(MP_QSTR_ratio),      MP_ROM_PTR(&mod_sentai_cam_ratio_obj) },
 };
