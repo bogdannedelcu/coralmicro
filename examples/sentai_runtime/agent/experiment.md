@@ -640,6 +640,214 @@ releases the sem.
 
 ---
 
+## ⏱️ Detailed timing breakdown — down to the smallest measurable artifact
+
+Measured with DWT cycle counter (`sentai.diag.tpu_perf()` for USB
+per-stage) + `sentai.pipeline.prep_stats()` (1 ms-resolution tick
+counter, `portTICK_PERIOD_MS = 1`).  Fresh reflash between pure-TPU
+and pipeline measurements.
+
+### Pure TPU invoke — 5 runs × 30 invokes each (yolo_1 512×512)
+
+DWT counters running at 800 MHz (1 cycle = 1.25 ns).  All values
+are per-invoke averages.
+
+| Run | Total ms | input ms | params ms | instructions ms | output ms | event ms |
+|---|---|---|---|---|---|---|
+| 0 | 14.30 | 3.62 | 0.09 | 3.90 | 0.52 | 0.020 |
+| 1 | 13.33 | 4.17 | 0.09 | 2.16 | 0.56 | 0.023 |
+| 2 | 14.50 | 4.87 | 0.09 | 2.85 | 0.61 | 0.022 |
+| 3 | 14.83 | 5.20 | 0.09 | 3.17 | 0.44 | 0.021 |
+| 4 | 13.97 | 4.14 | 0.09 | 2.43 | 0.61 | 0.022 |
+| **avg** | **14.19** | **4.40** | **0.09** | **2.90** | **0.55** | **0.022** |
+| **σ**  |  ±0.59 | ±0.60 | 0.00 | ±0.65 | ±0.08 | ±0.001 |
+| **±%** | 4.2 % | 13.6 % | — | 22.4 % | 14.5 % | — |
+
+Bytes per invoke (invariant across runs, measured once):
+
+| Phase | Bytes per invoke | Phase purpose |
+|---|---|---|
+| input | 811 008 | 786 KB tensor + per-chunk headers (8 B each, 22 chunks) |
+| params | ~54 000 (small) | Token-matched; skipped when cache hit — 0.09 ms overhead |
+| instructions | 371 664 | bitstream uploaded every invoke (desc_cache OFF) |
+| output | 10 752 | model output tensor + headers |
+| event | 16 | USB event readback |
+
+Sum of USB-phase DWT time: 4.40 + 0.09 + 2.90 + 0.55 + 0.02 = **7.96 ms**.
+Invoke total: **14.19 ms**.  Residual = **6.23 ms** = TPU silicon
+compute time (between last bulk-OUT byte sent and first bulk-IN byte
+received; not directly visible to the host).
+
+```
+ ms:  0      2      4      6      8     10     12     14
+      │      │      │      │      │      │      │      │
+input ████ (4.4 ms, 786 KB bulk-OUT from OCRAM)
+params ▎ (0.09 ms cached params header)
+ins   ██▊ (2.9 ms, 372 KB bulk-OUT instructions)
+      ← USB phase done, TPU computing →
+compute                   ██████▏ (~6.2 ms silicon time)
+                                   ▌ (0.55 ms output bulk-IN)
+                                     ▏(event readback)
+                                     ─ ⇢ invoke returns at 14.2 ms
+```
+
+**Variance observations**: instructions phase has the highest
+variance (±22%) because bitstream USB transfer competes with
+background tasks for bus time; input phase (±13%) is mostly
+bandwidth-limited.  Params phase is effectively constant (cache
+hit) once the TPU has seen the model once.
+
+### Pipeline end-to-end — 5 runs × 5 s each, fresh boot, yolo_1
+
+| Run | prep FPS | infer FPS | fails | cam_grab ms | pxp ms | quant ms | sem_wait ms | total_prep ms | invoke ms |
+|---|---|---|---|---|---|---|---|---|---|
+| 0 | 41.2 | 40.8 | 0 | 1.37 | 9.43 | 0.00 | 13.20 | 24.20 | 23.13 |
+| 1 | 40.8 | 40.4 | 0 | 1.20 | 9.32 | 0.00 | 13.63 | 24.38 | 23.36 |
+| 2 | 41.3 | 40.9 | 0 | 1.14 | 9.45 | 0.00 | 13.31 | 24.10 | 23.00 |
+| 3 | 41.1 | 40.7 | 0 | 1.28 | 9.24 | 0.00 | 13.48 | 24.23 | 23.02 |
+| 4 | 41.3 | 40.9 | 0 | 1.13 | 9.68 | 0.00 | 13.01 | 24.06 | 22.78 |
+| **avg** | **41.14** | **40.74** | 0 | **1.22** | **9.42** | 0 | **13.33** | **24.19** | **23.06** |
+| **σ** | ±0.21 | ±0.21 | 0 | ±0.11 | ±0.17 | 0 | ±0.23 | ±0.13 | ±0.21 |
+| **±%** | 0.5 % | 0.5 % | — | 8.6 % | 1.8 % | — | 1.7 % | 0.5 % | 0.9 % |
+
+Exceptional stability: end-to-end FPS varies 0.5 %, per-phase
+timing under 2 % (except `cam_grab` which is noise-dominated at
+~1 ms).
+
+### Where does the time go per pipeline frame?
+
+**CRITICAL: `total_prep` and `invoke` run in PARALLEL, they do NOT
+add.**  The two tasks (PrepTask + InferTask) execute concurrently.
+Strict-serial `sem_bufs_free max=1` only gates **who owns the tensor
+buffer** at any moment — not CPU time.
+
+Timeline of one frame (24.2 ms wall-clock period):
+
+```
+ ms:  0      4      8     12     16     20     24    28
+      │      │      │      │      │      │      │     │
+ ┌─────────────────── PrepTask iteration (24 ms) ───────────────┐
+ │ take(sem_bufs_free) ↓                                         │
+ │ cam_grab ▎ (1.2 ms)                                           │
+ │ PXP      ████▋ (9.4 ms)                                       │
+ │ give(sem_prep_done) ↓                                         │
+ │                     ├─── sem_wait (13 ms) ───┤                │
+ │                                              ↑ take next iter │
+ └───────────────────────────────────────────────────────────────┘
+                       │                        │
+                       ↓ (simultaneously)       │
+ ┌─────── InferTask iteration (23 ms) ─────────┐│
+ │ take(sem_prep_done) ↓                       ││
+ │ tpu_invoke  ████████████████ (23.1 ms)      ││
+ │ give(sem_bufs_free) ↓                       ↓│
+ └──────────────────────────────────────────────┘
+
+ Period = max(prep_work, invoke) + handoff
+        = max(10.6, 23.1) + ~1ms ≈ 24 ms → 41.7 FPS
+```
+
+Key observations:
+
+1. **PrepTask iteration = 24.2 ms** = `cam_grab (1.2) + PXP (9.4) +
+   give sem + wait_for_InferTask (13.3) + take_next_sem (< 1)`.
+   The 13.3 ms `sem_wait` is **overlapping with InferTask's invoke**.
+2. **InferTask iteration = 23.1 ms** = pure invoke time (contention
+   included).  This is the dominant cost.
+3. **`total_prep ≈ invoke`** because PrepTask auto-aligns to
+   InferTask's pace — PrepTask does its ~10 ms of work "for free"
+   underneath the 23 ms invoke, then spends the remaining 13 ms
+   blocked on sem waiting for InferTask to finish.
+4. **Invoke is +9 ms slower in pipeline vs pure TPU** (23 vs 14 ms)
+   from SEMC contention: PXP target (OCRAM) is fine, but PXP
+   source reads (SDRAM camera buffer) compete with USB EHCI's
+   instruction/output bulk transfers (still SDRAM).
+5. **The 9 ms contention is the biggest remaining win**: if we
+   could move arena (where TPU writes output + reads instructions)
+   to OCRAM, invoke would drop to 14 ms → period 15 ms → **65-67
+   FPS end-to-end**.
+
+### Variance tightness across this session's measurements
+
+| Metric | Runs | Mean | σ (abs) | σ (%) |
+|---|---|---|---|---|
+| Pipeline FPS (end-to-end) | 5 | 40.74 | 0.21 | 0.5 % |
+| Pure TPU FPS | 5 | 70.5 | 1.5 | 2.1 % |
+| Pure TPU invoke ms | 5 | 14.19 | 0.59 | 4.2 % |
+| Pipeline invoke ms | 5 | 23.06 | 0.21 | 0.9 % |
+| cam_grab ms | 5 | 1.22 | 0.11 | 8.6 % |
+| PXP ms | 5 | 9.42 | 0.17 | 1.8 % |
+
+Pipeline is **tighter in variance than pure TPU** (0.9% vs 4.2%
+invoke variance) — counter-intuitive but explained: in the pipeline
+the strict-serial handshake forces an implicit "settle" between
+invokes (PrepTask is doing 10+ ms of SDRAM work in between), giving
+the USB pipe a consistent state.
+
+### CSI / camera side — timing from ISR to PrepTask
+
+| Event | Latency | Notes |
+|---|---|---|
+| CSI buffer full → ISR entry | <1 µs | CR1 DMA_DONE_FBx flag |
+| ISR body (g_camera_frame_seq + scheduler + MUX flip check) | ~1 µs | minimal, NXP discipline |
+| ISR → FreeRTOS scheduler wake of PrepTask | ~2 µs | sem_give in camera task |
+| PrepTask `sentai_cam_grab_latest()` | 1.1-1.4 ms | drain queue + DCACHE_InvalidateByRange(615 KB) + current buffer pointer |
+| PXP transfer (hardware, XRGB8888 → RGB888P scale) | 9.2-9.7 ms | SEMC bus for src reads, OCRAM for dst writes |
+| `sentai_quant_uint8_to_int8` | 0 ms | Skipped — yolo_1 is uint8 native |
+| sem_give sem_prep_done_c | <5 µs | FreeRTOS context-switch trigger |
+| InferTask take sem | <5 µs | |
+| Pointer-swap + `TfLiteInterpreter::Invoke()` | 23.1 ms | USB orchestration inside TFLite → edgetpu op → USB driver |
+| `sentai_tpu_detect()` NMS + result build | not measured directly | included in infer "total_ms" field of DetectionFrame |
+| Queue push to detection queue | <10 µs | `xQueueSend` non-blocking, drop-oldest fallback |
+
+### Optimization headroom (per-phase analysis)
+
+| Phase | Current | Floor | Headroom |
+|---|---|---|---|
+| cam_grab | 1.2 ms | ~0.5 ms (skip DCACHE on non-cached cam region) | 0.7 ms |
+| PXP | 9.4 ms | ~5 ms (hardware min for 640×480→512×512) | 4 ms |
+| quant | 0 ms | 0 ms | none (already optimal) |
+| invoke (pipeline) | 23.1 ms | 14.2 ms (= pure TPU) if contention eliminated | **9 ms (biggest win)** |
+| sem_wait | 13.3 ms | 0 ms if double-buffer possible | 13 ms (blocked by OCRAM capacity) |
+| total_prep | 24.2 ms | ~14 ms pure-TPU-limited (if we win above) | 10 ms |
+
+**The biggest remaining win is the 9 ms of invoke contention** —
+that's where PXP (SDRAM master) competes with TPU USB (OCRAM
+master).  Eliminating this closes 80 % of the pure-TPU-to-pipeline
+gap.
+
+---
+
+## 🛡 NASA/JPL safety fixes applied this session
+
+Post-measurement review produced a risk list (see session transcript).
+The following **Priority-1 items** were addressed without performance
+regression:
+
+| Finding | File | Fix | Verified |
+|---|---|---|---|
+| C2-C3: unbounded `do/while` on TPU register polls (4 sites) | `libs/tpu/edgetpu_driver.cc:169-245, 1006-1015` | Wrapped in `for iter < kMaxPollIter (10000)`; returns `false` with `printf` on overflow | Pure TPU 70.2 FPS, pipeline 40.6 FPS, 0 fails |
+| M5: hot-path `printf` in `CSRTransfer()` creates USB-CDC feedback loop | `libs/tpu/edgetpu_driver.cc:330-339` | Removed `printf`; callers already track via counters | Same performance, cleaner fault isolation |
+
+**Deferred to next session** (higher risk or higher effort):
+- **C1**: stack-allocated `UsbTransferMetadata` reused across transfers
+  — requires static meta pool; behavior-preserving change needs care
+- **M1**: `g_cam_*` ISR/task shared state multi-field race — needs
+  atomic packing into single `uint32_t`
+- **M3/M4**: decompose 500-line `prep_task_fn` / `infer_task_fn`
+- Various medium-severity items in the session review
+
+**Acceptance test after safety fixes** (verified fresh boot, yolo_1):
+```
+PURE-TPU: 14.2 ms/invoke = 70.2 FPS (fails=0)
+PIPELINE: 203 ok / 0 fail in 5 s = 40.6 FPS, avg invoke 23.3 ms
+```
+
+Numerically identical to pre-fix state — the bounded polls never
+trip in nominal operation; they only activate in pathological
+scenarios (wedged TPU state) where previously we'd spin forever.
+
+---
+
 ## Per-stage PrepTask timing (yolo_1 512×512, OV5640 VGA 640×480)
 
 | Stage | Duration | What it does | Why |

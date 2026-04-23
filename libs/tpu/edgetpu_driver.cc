@@ -162,6 +162,14 @@ bool TpuDriver::Initialize(usb_host_edgetpu_instance_t *usb_instance,
   CHECK(Write32(chip_config_.GetScuCsrOffsets().scu_ctrl_2, scu_ctrl_2.raw()));
   CHECK(Read32(chip_config_.GetScuCsrOffsets().scu_ctrl_2, &scu_ctrl_2_reg));
 
+  // Bounded iteration count for all TPU register polls below.  At
+  // 800 MHz CPU, even if a single register read costs 500 cycles,
+  // 10 000 iterations = 6 ms worst case — comfortably below our
+  // 30 s WDOG.  If any of these poll loops hits the cap, the TPU
+  // is in an unexpected state and Initialize() must fail loudly
+  // instead of hanging.
+  constexpr int kMaxPollIter = 10000;
+
   // Go into reset, if we're not there
   uint32_t scu_ctrl_3_reg;
   CHECK(Read32(chip_config_.GetScuCsrOffsets().scu_ctrl_3, &scu_ctrl_3_reg));
@@ -170,10 +178,16 @@ bool TpuDriver::Initialize(usb_host_edgetpu_instance_t *usb_instance,
     scu_ctrl_3.set_rg_force_sleep(0x3);
     CHECK(
         Write32(chip_config_.GetScuCsrOffsets().scu_ctrl_3, scu_ctrl_3.raw()));
+    int iter = 0;
     do {
       CHECK(
           Read32(chip_config_.GetScuCsrOffsets().scu_ctrl_3, &scu_ctrl_3_reg));
       scu_ctrl_3.set_raw(scu_ctrl_3_reg);
+      if (++iter >= kMaxPollIter) {
+        printf("[TPU] poll timeout: rg_force_sleep→sleep (cur_pwr_state=%u)\r\n",
+               (unsigned)scu_ctrl_3.cur_pwr_state());
+        return false;
+      }
     } while (scu_ctrl_3.cur_pwr_state() != 0x2);
     CHECK(Write32(chip_config_.GetCbBridgeCsrOffsets().gcbb_credit0, 0xF));
     CHECK(Write32(chip_config_.GetCbBridgeCsrOffsets().gcbb_credit0, 0x0));
@@ -211,17 +225,33 @@ bool TpuDriver::Initialize(usb_host_edgetpu_instance_t *usb_instance,
   }
   CHECK(Write32(chip_config_.GetScuCsrOffsets().scu_ctrl_3, scu_ctrl_3.raw()));
 
-  do {
-    CHECK(Read32(chip_config_.GetScuCsrOffsets().scu_ctrl_3, &scu_ctrl_3_reg));
-    scu_ctrl_3.set_raw(scu_ctrl_3_reg);
-  } while (scu_ctrl_3.cur_pwr_state() != 0x0);
+  {
+    int iter = 0;
+    do {
+      CHECK(Read32(chip_config_.GetScuCsrOffsets().scu_ctrl_3, &scu_ctrl_3_reg));
+      scu_ctrl_3.set_raw(scu_ctrl_3_reg);
+      if (++iter >= kMaxPollIter) {
+        printf("[TPU] poll timeout: exit reset (cur_pwr_state=%u)\r\n",
+               (unsigned)scu_ctrl_3.cur_pwr_state());
+        return false;
+      }
+    } while (scu_ctrl_3.cur_pwr_state() != 0x0);
+  }
 
   // Check a known register to verify reset exit.
   uint64_t scalar_core_run_control;
-  do {
-    CHECK(Read64(chip_config_.GetScalarCoreCsrOffsets().scalarCoreRunControl,
-                 &scalar_core_run_control));
-  } while (scalar_core_run_control != 0);
+  {
+    int iter = 0;
+    do {
+      CHECK(Read64(chip_config_.GetScalarCoreCsrOffsets().scalarCoreRunControl,
+                   &scalar_core_run_control));
+      if (++iter >= kMaxPollIter) {
+        printf("[TPU] poll timeout: scalarCoreRunControl (=0x%llx)\r\n",
+               (unsigned long long)scalar_core_run_control);
+        return false;
+      }
+    } while (scalar_core_run_control != 0);
+  }
 
   registers::IdleRegister idle_reg;
   idle_reg.set_enable();
@@ -234,10 +264,17 @@ bool TpuDriver::Initialize(usb_host_edgetpu_instance_t *usb_instance,
                 tile_config.raw()));
 
   uint64_t tile_config_reg;
-  do {
-    CHECK(Read64(chip_config_.GetTileConfigCsrOffsets().tileconfig0,
-                 &tile_config_reg));
-  } while (tile_config.raw() != tile_config_reg);
+  {
+    int iter = 0;
+    do {
+      CHECK(Read64(chip_config_.GetTileConfigCsrOffsets().tileconfig0,
+                   &tile_config_reg));
+      if (++iter >= kMaxPollIter) {
+        printf("[TPU] poll timeout: tileconfig0 write-back\r\n");
+        return false;
+      }
+    } while (tile_config.raw() != tile_config_reg);
+  }
 
   registers::DeepSleep deep_sleep_reg;
   deep_sleep_reg.set_to_sleep_delay(2);
@@ -327,13 +364,15 @@ bool TpuDriver::CSRTransfer(uint64_t reg, void *data, bool read,
         xSemaphoreGive(sema);
       },
       sema);
+  // Counters rather than printf to avoid the USB-CDC feedback loop
+  // documented above (printf → CDC → USB device task → more
+  // contention → more timeouts).  Callers that need visibility poll
+  // g_sentai_tpu_csr_* counters from async_stats.
   if (control_status != kStatus_USB_Success) {
-    printf("USB_HostEdgeTpuControl failed\r\n");
     goto exit;
   }
   if (xSemaphoreTake(sema, pdMS_TO_TICKS(2000)) == pdFALSE) {
     ret = false;
-    printf("%s didn't get semaphore\r\n", __func__);
     goto exit;
   }
 
@@ -964,12 +1003,20 @@ bool TpuDriver::DoRunControl(platforms::darwinn::driver::RunControl run_state) {
 
   // Wait until tileconfig0 is set correctly. Subsequent writes are going to
   // tiles, but hardware does not guarantee correct ordering with previous
-  // write.
+  // write.  Bounded: same kMaxPollIter rationale as Initialize().
   uint64_t tileconfig0_reg;
-  do {
-    CHECK(Read64(chip_config_.GetTileConfigCsrOffsets().tileconfig0,
-                 &tileconfig0_reg));
-  } while (tileconfig0_reg != helper.raw());
+  {
+    constexpr int kMaxPollIter = 10000;
+    int iter = 0;
+    do {
+      CHECK(Read64(chip_config_.GetTileConfigCsrOffsets().tileconfig0,
+                   &tileconfig0_reg));
+      if (++iter >= kMaxPollIter) {
+        printf("[TPU] DoRunControl poll timeout: tileconfig0 write-back\r\n");
+        return false;
+      }
+    } while (tileconfig0_reg != helper.raw());
+  }
 
   if (chip_config_.GetTileCsrOffsets().opRunControl !=
       static_cast<uint64_t>(-1)) {
