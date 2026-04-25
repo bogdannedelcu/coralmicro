@@ -1,8 +1,29 @@
 diff --git a/components/video/camera/device/ov5640/fsl_ov5640.c b/components/video/camera/device/ov5640/fsl_ov5640.c
-index b8d401e6..bea58ef5 100644
+index b8d401e6..7ed1dc38 100644
 --- a/components/video/camera/device/ov5640/fsl_ov5640.c
 +++ b/components/video/camera/device/ov5640/fsl_ov5640.c
-@@ -492,13 +492,41 @@ static const ov5640_clock_config_t s_ov5640MipiClockConfigs[] = {
+@@ -368,6 +368,20 @@ static const ov5640_reg_val_t ov5640InitParam[] = {
+ };
+ 
+ static const ov5640_resolution_param_t resolutionParam[] = {
++    {
++        /* sentai 2026-04-24: SXGA 1280x960, 2x2 binned from QSXGA.
++         * Same bin-mode register values as VGA but output sized
++         * 1280x960.  Provides 4x pixel count vs VGA at ~2x bandwidth
++         * (binning keeps the read budget comparable).  Reg map:
++         *   0x3800/01 startX=0; 0x3802/03 startY=0
++         *   0x3804/05 endX=0x0a3f; 0x3806/07 endY=0x079b  (full sensor)
++         *   0x3808/09 outW=0x0500 (1280); 0x380a/0b outH=0x03c0 (960)
++         *   0x380c/0d HTS=0x0768 (1896); 0x380e/0f VTS=0x03d8 (984)
++         *   0x3810/11/12/13 offsets; 0x3814/15 2x2-bin incr=0x31 */
++        .resolution = FSL_VIDEO_RESOLUTION(1280, 960),
++        .param      = {0x00, 0x00, 0x00, 0x00, 0x0a, 0x3f, 0x07, 0x9b, 0x05, 0x00, 0x03,
++                  0xc0, 0x07, 0x68, 0x03, 0xd8, 0x00, 0x10, 0x00, 0x06, 0x31, 0x31},
++    },
+     {
+         .resolution = (uint32_t)kVIDEO_ResolutionVGA,
+         .param      = {0x00, 0x00, 0x00, 0x04, 0x0a, 0x3f, 0x07, 0x9b, 0x02, 0x80, 0x01,
+@@ -492,13 +506,41 @@ static const ov5640_clock_config_t s_ov5640MipiClockConfigs[] = {
          .pclkPeriod  = 0x0a,
      },
      {
@@ -45,3 +66,33 @@ index b8d401e6..bea58ef5 100644
      },
      {
          .resolution  = (uint32_t)kVIDEO_ResolutionQVGA,
+@@ -554,6 +596,29 @@ static const ov5640_clock_config_t s_ov5640MipiClockConfigs[] = {
+         .pclkDiv     = 0x04,
+         .pclkPeriod  = 0x0a,
+     },
++    /* sentai 2026-04-24: SXGA 1280x960 clock configs.
++     * Pixel rate: SXGA@15 = 18.4 MP/s, SXGA@30 = 36.9 MP/s.
++     * Cloned from 720P row (close bandwidth) with pllCtrl2 bumped to
++     * 0x54 (bigger PLL multiplier, 84×) to ensure headroom.  15/30
++     * both exposed; 30 is aggressive — use 15 if 30 fails to lock. */
++    {
++        .resolution  = FSL_VIDEO_RESOLUTION(1280, 960),
++        .framePerSec = 15,
++        .pllCtrl1    = 0x41,
++        .pllCtrl2    = 0x54,
++        .vfifoCtrl0C = 0x20,
++        .pclkDiv     = 0x04,
++        .pclkPeriod  = 0x0a,
++    },
++    {
++        .resolution  = FSL_VIDEO_RESOLUTION(1280, 960),
++        .framePerSec = 30,
++        .pllCtrl1    = 0x21,
++        .pllCtrl2    = 0x54,
++        .vfifoCtrl0C = 0x20,
++        .pclkDiv     = 0x04,
++        .pclkPeriod  = 0x0a,
++    },
+ };
+ 
+ static const ov5640_light_mode_config_t s_ov5640LightModeConfigs[] = {
