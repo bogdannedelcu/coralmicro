@@ -26,6 +26,10 @@
 #include "third_party/freertos_kernel/include/semphr.h"
 #include "third_party/nxp/rt1176-sdk/components/osa/fsl_os_abstraction.h"
 #include "third_party/nxp/rt1176-sdk/middleware/usb/include/usb_spec.h"
+#include "third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_edma.h"
+#if (__CORTEX_M == 7)
+#include "third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/cm7/fsl_cache.h"
+#endif
 
 namespace coralmicro {
 namespace {
@@ -658,26 +662,40 @@ static bool BulkOutTransferStaged(usb_host_edgetpu_instance_t *usb,
   return true;
 }
 
+// Fine-grained pipeline sync (2026-04-25): SendInputs signals this
+// semaphore at the very end of a successful input bulk-OUT phase.
+// InferTask in detection_task.cc sets the pointer to s_sem_bufs_free
+// before invoke and clears it after, so PrepTask can start writing the
+// NEXT frame's .tpu_input the instant USB is done reading the current
+// frame -- instead of having to wait for the full invoke (compute +
+// output) to finish.  Eliminates the PrepTask-writes-while-InferTask-
+// reads race on .tpu_input OCRAM without reducing parallelism.
+// Null-safe: when no pipeline owns it, SendInputs gives nothing.
+extern "C" volatile SemaphoreHandle_t g_sentai_tpu_input_done_sema = nullptr;
+extern "C" volatile uint32_t          g_sentai_tpu_input_done_count = 0;
+
 bool TpuDriver::SendInputs(const uint8_t *data, uint32_t length) const {
-  // When zero-copy is disabled (e.g. running the full camera
-  // pipeline), route input through the staged path.  Params and
-  // instructions still go through the regular (fast) zero-copy
-  // BulkOutTransfer since they're static flatbuffer data with no
-  // concurrent writer.
+  // `.tpu_input` lives in OCRAM (V22 baseline), so SendInputs reads via
+  // AXBS — not SEMC — and zero-copy is the production path.  When
+  // zero-copy is disabled (diagnostic A/B), route input through the
+  // staged DTCM path so we keep cache coherency with concurrent writers.
+  // Parameters and instructions always zero-copy: static flatbuffer
+  // data, no concurrent writer.
+  bool ok;
   if (!g_sentai_tpu_zero_copy_input) {
       if (g_sentai_tpu_multi_ep_routing == 0) {
           uint8_t header[8];
           PrepareHeaderInto(DescriptorTag::kInputActivations, length, header);
           if (!BulkOutTransfer(kSingleBulkOutEndpoint, header, 8)) return false;
-          return BulkOutTransferStaged(usb_instance_,
-                                        kSingleBulkOutEndpoint,
-                                        data, length);
+          ok = BulkOutTransferStaged(usb_instance_,
+                                     kSingleBulkOutEndpoint,
+                                     data, length);
+      } else {
+          ok = BulkOutTransferStaged(usb_instance_,
+                                     kOutEpInputActivations,
+                                     data, length);
       }
-      return BulkOutTransferStaged(usb_instance_,
-                                    kOutEpInputActivations,
-                                    data, length);
-  }
-  if (g_sentai_tpu_async_input_enabled) {
+  } else if (g_sentai_tpu_async_input_enabled) {
       // Multi-EP header is OMITTED in multi-EP mode; in single-EP
       // mode the legacy SendData path writes a header then uses
       // BulkOutTransfer.  Here we mirror the single-EP path but
@@ -686,14 +704,50 @@ bool TpuDriver::SendInputs(const uint8_t *data, uint32_t length) const {
           uint8_t header[8];
           PrepareHeaderInto(DescriptorTag::kInputActivations, length, header);
           if (!BulkOutTransfer(kSingleBulkOutEndpoint, header, 8)) return false;
-          return BulkOutTransferPipelined(
+          ok = BulkOutTransferPipelined(
               usb_instance_, kSingleBulkOutEndpoint, data, length);
+      } else {
+          // Multi-EP path — dedicated input endpoint, no header.
+          ok = BulkOutTransferPipelined(
+              usb_instance_, kOutEpInputActivations, data, length);
       }
-      // Multi-EP path — dedicated input endpoint, no header.
-      return BulkOutTransferPipelined(
-          usb_instance_, kOutEpInputActivations, data, length);
+  } else {
+      ok = SendData(DescriptorTag::kInputActivations, data, length);
   }
-  return SendData(DescriptorTag::kInputActivations, data, length);
+
+  // Fine-grained pipeline sync: signal that USB no longer needs the
+  // .tpu_input OCRAM buffer so PrepTask can start writing the NEXT
+  // frame's bytes while InferTask continues with compute + output.
+  // ONE-SHOT semantic: we consume the pointer (atomically swap to null)
+  // and give exactly once per arm.  TFLite's invoke() calls SendInputs
+  // twice per invoke for models with parameter_caching_exe (the caching
+  // path + the inference path each feed input); without the one-shot
+  // consume we'd give sem_bufs_free twice, letting PrepTask over-run
+  // and burn SDRAM bandwidth on throwaway frames (measured: 2:1 prep
+  // to infer ratio).  InferTask rearms before each invoke.  Bare REPL
+  // tpu.invoke() never arms the sema, so this is a no-op there.
+  // Failure path leaves the pointer intact so InferTask's post-invoke
+  // cleanup can decide whether to give manually.
+  if (ok) {
+      SemaphoreHandle_t s = reinterpret_cast<SemaphoreHandle_t>(
+          __atomic_exchange_n(
+              reinterpret_cast<void* volatile*>(&g_sentai_tpu_input_done_sema),
+              static_cast<void*>(nullptr),
+              __ATOMIC_ACQ_REL));
+      if (s) {
+          xSemaphoreGive(s);
+          g_sentai_tpu_input_done_count++;
+      }
+  }
+  return ok;
+}
+
+// External hook for detection_task.cc (or any consumer) to register /
+// clear the per-pipeline sema signaled at the end of SendInputs.  Safe
+// to call from task context; atomic release-store so the next
+// SendInputs either sees the full new value or null.
+extern "C" void sentai_tpu_set_input_done_sema(SemaphoreHandle_t sema) {
+    __atomic_store_n(&g_sentai_tpu_input_done_sema, sema, __ATOMIC_RELEASE);
 }
 
 bool TpuDriver::SendInstructions(const uint8_t *data, uint32_t length) const {

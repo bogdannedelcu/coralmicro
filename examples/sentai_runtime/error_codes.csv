@@ -76,6 +76,11 @@ CODE,MODULE,NAME,DESCRIPTION,VERSION_ADDED,STATUS
 0x0B42,TPU,ALLOC_TENSORS,AllocateTensors() failed,v1.0,ACTIVE
 0x0B43,TPU,INPUT_COUNT,Model must have exactly 1 input tensor,v1.0,ACTIVE
 0x0B44,TPU,NOT_READY,EdgeTPU not initialized,v1.0,ACTIVE
+0x0B50,TPU,RING_LOOP_BOUND,Ring transfer loop exceeded bounded iterations (val=iters),v1.3,RETIRED
+0x0B51,TPU,RING_SLOT_TIMEOUT,Ring slot USB-done wait timed out (val=slot_idx),v1.3,RETIRED
+0x0B52,TPU,RING_DMA_FAIL,eDMA SDRAM->OCRAM producer copy failed (val=bytes),v1.3,RETIRED
+0x0B53,TPU,RING_USB_SUBMIT,USB_HostEdgeTpuBulkOutSendAsync returned non-success (val=usb_status),v1.3,RETIRED
+0x0B54,TPU,RING_DRAIN_TO,Drain wait for final ring slots timed out (val=slot_idx),v1.3,RETIRED
 # === Module 0x0C: USB ===
 0x0C01,USB,NCM_TX_DROP,NCM TX dropped - not attached (alt=0),v1.1,ACTIVE
 0x0C02,USB,NCM_RX_DROP,NCM RX dropped - endpoint busy,v1.1,ACTIVE

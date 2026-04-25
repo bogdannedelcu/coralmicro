@@ -1,10 +1,280 @@
 # experiment.md — TPU pipeline optimization journey
 
-Snapshot date: 2026-04-22 (night-final, post multi-patch)
+Snapshot date: 2026-04-25 (post production-cleanup pass)
 Branch: feature/ov5640-camera-support
-Latest stable commit: `32ded2e2 pipeline 45fps camera 42 fps TPU`
-Working tree: on top of stable, with `invokes_per_frame` toggle +
-documented optimisations
+Latest stable commit: `96c0f743 stable cu performante maxime` (V22)
+Working tree: V22 + fine-grained one-shot SendInputs sync (default ON).
+Dead-end paths PURGED — see "Production cleanup pass" below.
+
+---
+
+## 🧹 Session 2026-04-25 (later) — Production cleanup pass
+
+### TL;DR
+
+NASA/JPL-style cleanup of all empirically-confirmed dead-end paths.
+Build #878 retains the 43 FPS V22 baseline with zero feature loss on
+the active path. Removed code: ~600 lines + 1.5 MB SDRAM ring + 72 KB
+OCRAM ring + eDMA channels 29/30 reservations + 4 dormant semaphores.
+
+### Removed (dead-end, validated empirically)
+
+| Component | Lines | Memory freed | Reason |
+|---|---|---|---|
+| MoverTask + 4 sems + eDMA ch29 + 1.5 MB SDRAM ring | ~150 lines + state | 1.5 MB SDRAM | 100% wedge per `project_v23_ring_analysis.md` (eDMA SDRAM read concurrent with USB BulkIn = SEMC contention) |
+| Cale 1 OCRAM ring buffer + eDMA ch30 + `.tpu_ring` linker section | ~250 lines | 72 KB OCRAM | -57% pipeline regression (42→18 FPS): eDMA reads SDRAM = same SEMC traffic as direct USB |
+| `save_raw_jpeg()` debug fn + `sentai.camera.save_raw_jpeg` binding | ~30 lines | — | Was only used to verify RGB565 dead-end which is itself blocked by ERR051248 silicon errata |
+| `copy_bench` retired stub | ~3 lines comment | — | One-shot bench (eDMA 7.1ms vs CPU 8.4ms) — result documented in earlier table, no runtime use |
+| Error codes 0x0B50..0x0B54 (ring) | — | — | Marked RETIRED in CSV (codes never deleted, per stability policy) |
+
+### Kept (documented production capability)
+
+- **Fine-grained one-shot SendInputs sync** (`g_sentai_tpu_input_done_sema` +
+  `sentai_tpu_set_input_done_sema()` + atomic-exchange give in `SendInputs()`).
+  PrepTask deblocat mid-invoke immediately when USB OUT is done — eliminates
+  the .tpu_input race without reducing parallelism. Default ON.
+- **Direct path** (zero-copy pointer-swap to OCRAM `.tpu_input`): default,
+  validated +31% over legacy memcpy.
+- **Legacy memcpy + DMA path**: A/B fallback via `sentai.pipeline.direct_tensor(0)`.
+- **All real diagnostics**: `infer_stats`, `prep_stage_stats`, `async_stats`,
+  `tpu_perf` — all preserved.
+
+### Measured after cleanup (build #878, fresh flash, `_t_yolo512.py`)
+
+| Metric | Before cleanup (build #863) | After cleanup (build #878) | Delta |
+|---|---|---|---|
+| Pure TPU FPS | 75.0-76.2 | **76.1** | within noise |
+| Pipeline FPS | 42.2-43.2 | **43.0** | within noise (slight +) |
+| Pipeline ok/fail in 5 s | 207-216 / 0 | **215 / 0** | match |
+| Avg invoke ms | 22 | **21.1** | -1 ms |
+
+### Camera-switch experiment (build #878, `_t_camswitch_drain.py`)
+
+VGA 45 fps sensor, dual-camera alternation (`sentai.camera.ratio(a,b)`),
+post-MUX-flip drain-frame threshold = `sentai.camera.switch_drain(N)`.
+Each row: 5 s of sustained pipeline at the named config.
+
+| Config | Pipeline FPS | Avg invoke ms | Fails |
+|---|---|---|---|
+| `cam0` only (baseline)            | **43.1** | 20 | 0 |
+| Alt 1:1, `switch_drain(1)` (default) | **30.0** | 28 | 0 |
+| Alt 1:1, `switch_drain(2)`        | **12.6** | 27 | 0 |
+
+**Interpretation:** dual-camera switching is functionally healthy at
+VGA45 with the cleaned-up pipeline (0 fails across all variants).
+Each MUX flip costs ~22 ms of frame drain at the default threshold;
+doubling the threshold (`drain=2`) cuts pipeline FPS by ~58 % because
+the post-flip wait now consumes two full sensor periods. The default
+`drain=1` is the production setting; 30 FPS at 1:1 is the expected
+ceiling for active 50 %/50 % alternation. No TPU wedges, no SEMC
+contention regression — confirms cleanup did not break the dual-camera
+path.
+
+### Architectural answer to "putem pune instrucțiunile în DTCM?"
+
+User asked this 2026-04-25. Key facts inventoried:
+- DTCM (m_data) = 224 KB free (256 KB - 32 KB ncache). 372 KB instrucțiuni nu încap.
+- DTCM e M7-private. USB EHCI nu poate face DMA din DTCM direct.
+- ITCM plin (m_text overflow recent), nu putem rebalansa FlexRAM 256/256.
+
+**Insight:** Cale 1 PURE a eșuat pentru că eDMA citea SDRAM (SEMC traffic).
+Dacă sursa ar fi DTCM/internă, eDMA→OCRAM ring + USB drain ar avea ZERO
+SEMC traffic. Pentru un model cu <200 KB instrucțiuni asta ar funcționa.
+yolo_1 (372 KB) nu încape. Idee viabilă pentru o sesiune viitoare cu
+half-and-half partition (224 KB DTCM + 148 KB SDRAM, ~50% reducere SEMC).
+
+---
+
+## 🔬 Session 2026-04-25 — Cale 1+ MoverTask (final state)
+
+### TL;DR
+
+**Plafonul real pentru V22 yolo_1 512×512 + OV5640 VGA45 = 42-43 FPS
+pipeline = camera ceiling.**  Trei direcții explorate:
+1. Cale 1 PURE (.tpu_input la SDRAM + ring) — **DEAD-END empirical**: 18 FPS pipeline (-57%)
+2. Cale 1+ MoverTask (3-task pipeline cu eDMA SDRAM→OCRAM) — **DEAD-END empirical**: SEMC bus contention cu USB BulkIn pe SDRAM
+3. Fine-grained one-shot SendInputs sync — **shipped, default ON**: same FPS, glitch-free guarantee
+
+**Câștig material**: zero FPS (camera-bound), dar **fine-grained sync
+elimină race-ul** PrepTask-writes-during-USB-read pe `.tpu_input`.
+
+### Cifre măsurate (fresh-flash, _t_yolo512.py verbatim)
+
+| Config | Pure TPU | Pipeline | Fails |
+|---|---|---|---|
+| V22 baseline 96c0f743 (raw, give-before-invoke) | 75.0-76.2 FPS (13 ms) | **42.2-43.2 FPS** (22 ms) | 0 |
+| Cale 1 PURE ring=1 | 50 FPS (20 ms) | 33 FPS (30 ms) | 0 |
+| Cale 1 HYBRID ring=1 | 50 FPS | 21 FPS | 0 |
+| **Curent (fine-grained, ring=0, mover=0)** | **75 FPS** | **40-43 FPS** | **0** |
+| MoverTask mover=1 | n/a | 0 FPS (SEMC contention wedge) | 100% |
+
+### Empirical SDRAM→OCRAM 786 KB copy bench
+
+| Method | Time | Throughput | Notes |
+|---|---|---|---|
+| **eDMA single (ch31, 32-byte AXI burst)** | **7.1 ms** | **110 MB/s** | Best |
+| eDMA chunked 36 KB × 22 | 7.2 ms | 110 MB/s | DMA setup amortized over burst |
+| CPU memcpy() | 8.4 ms | 94 MB/s | M7 cache-coherent |
+| CPU + DCACHE clean post | 8.5 ms | 92 MB/s | No-op pentru SRC fără M7-dirty |
+
+**Câștig eDMA vs CPU = 1.3 ms (15%)**. Single == chunked.
+
+### Why Cale 1 PURE failed (DEAD-END)
+
+**Hipoteza inițială** (din `paper/cale1_ring_buffer_plan.md`): ring mută USB
+reads off SEMC pe AXBS → eliberează 700 KB OCRAM + suportă yolo26.
+
+**Realitate empirică**:
+- V22: USB EHCI citea SDRAM ins-flatbuffer (SEMC traffic)
+- PURE: eDMA citește SDRAM ring slot (SEMC traffic)
+- **Doar masterul DMA s-a schimbat. SEMC traffic identic.**
+
+USB writes OCRAM ring (AXBS, fast) DAR e precedat de eDMA reading
+SDRAM (SEMC, contention). Net: same SEMC pressure, plus DCACHE
+clean overhead pe ring slot ~16 ms/invoke. Pipeline 42→18 FPS.
+
+### Why MoverTask failed (DEAD-END)
+
+**Hipoteza user-ului**: 3-task pipeline cu MoverTask "plimba inputi
+cat TPU e ocupat cu altele" → fereastra ~7 ms post-SendInputs e safe
+pentru eDMA.
+
+**Realitate empirică**: USB BulkIn (output 8 KB → SDRAM tensor arena)
+rulează în compute+output window al invoke-ului. Ambele eDMA și USB
+BulkIn pe SEMC concurrent → contention → USB IOC delayed → take_timeout
+3+ → invoke -2 fails 100%.
+
+```
+Per invoke window:
+  t=0..15  SendIns + SendInputs USB OUT     (USB OUT, OCRAM/SDRAM)
+  t=15     driver fires sem_ocram_free → MoverTask starts eDMA
+  t=15..22 compute + USB BulkIn (output → SDRAM arena)
+           ↑ MoverTask eDMA reads SDRAM ring CONCURRENT cu
+           ↑ USB BulkIn writes SDRAM arena = AMBELE pe SEMC
+           → IOC delayed → take_timeout → invoke fail
+```
+
+**V13 lesson reconfirmat**: any concurrent SDRAM access during
+USB transfers wedges TPU.
+
+### Fine-grained one-shot SendInputs sync (SHIPPED, default ON)
+
+**Cod**:
+- `libs/tpu/edgetpu_driver.cc`: `g_sentai_tpu_input_done_sema` pointer +
+  `sentai_tpu_set_input_done_sema(sema)` API.  La sfârșit `SendInputs()`,
+  după success: `__atomic_exchange_n` swap pe pointer (one-shot consume),
+  dă semafoarea o dată.
+- `examples/sentai_runtime/detection_task.cc:infer_task_fn`: arm-uiește
+  sema înainte de `invoke_with_input(buf)`, clearuiește după. Defensive
+  manual give pe invoke fail.
+
+**De ce one-shot**: yolo_1 cu parameter_caching face `SendInputs()` de
+**2 ori per invoke**. Prima dă sem (pointer becomes null via atomic
+exchange), a doua nu mai dă (pointer null). Net: 1 give per invoke =
+Prep:Infer 1:1 ratio confirmat empiric. Fără one-shot, ratio era 2:1
+= PrepTask supra-producea.
+
+**Beneficiu vs V22 raw (give-before-invoke)**:
+- Same FPS (camera-bound oricum)
+- **Zero race**: PrepTask blocat în fereastra SendInputs (~10 ms din
+  invoke 22 ms). Frame-urile fed la TPU sunt complete.
+- V22 raw avea race ~6 ms unde PrepTask scria `.tpu_input` OCRAM
+  concurrent cu USB read. Empirically benign (0 fails) dar inference
+  quality nu fusese măsurată.
+
+### Final shipped architecture (build #863, 2026-04-25)
+
+```
+PrepTask (prio 2)              InferTask (prio 2)            MoverTask (prio 2, IDLE)
+─────────────────              ──────────────────            ─────────────────────────
+take(sem_bufs_free)            take(sem_prep_done_c)         while running:
+                                                              if !mover_enabled: delay 50ms
+cam_grab → SDRAM_camera        sentai_tpu_set_input_         continue
+                               done_sema(sem_bufs_free) ←     (mover_enabled=0 default;
+PXP → s_tpu_input (OCRAM)        ↑ ARM driver hook             stays idle indefinitely)
+                               
+quant in-place (skipped       invoke_with_input(buf):
+   pentru yolo_1 uint8)         params USB OUT
+                                ins    USB OUT (SDRAM read)
+give(sem_prep_done_c)           inputs USB OUT (OCRAM read)
+                                ↓ driver fires sem_bufs_free  ← FINE-GRAINED RELEASE
+                                ↑ PrepTask unblocks NOW (mid-invoke)
+                                compute + GetOutputs USB IN (SDRAM write)
+                                returns invoke_ms
+                              
+                              clear input_done_sema(nullptr)
+                              if invoke<0: defensive give sem_bufs_free
+                              loop next iter
+```
+
+| Toggle | Default | Purpose |
+|---|---|---|
+| `sentai.diag.tpu_ring` | 0 | Cale 1 ring buffer (eDMA ch30) — infra disponibilă |
+| `sentai.diag.mover` | 0 | MoverTask 3-task pipeline — infra disponibilă |
+| `sentai.diag.tpu_chunk_size` | 36864 | URB chunk; FIFO cliff la 38 KB |
+| `sentai.diag.tpu_zero_copy` | 1 | USB OUT direct din source pointer |
+| `sentai.diag.tpu_async_input` | 0 | Pipelined 2-URB (no measurable gain V14) |
+| `sentai.diag.tpu_urb_timeout` | 200 | URB sema wait cap (ms) |
+| `pipeline.target_fps` | 45 | InferTask rate cap |
+| `camera.ratio(a,b)` | (0,0) | 1:1 alternation off |
+| `camera.switch_drain` | 1 | Post-MUX drain frames |
+
+### Diag counters disponibile
+
+- `sentai.diag.async_stats()` — 19-key USB URB telemetry
+- `sentai.diag.tpu_perf([reset])` — DWT per-stage breakdown (params/ins/input/output/event)
+- `sentai.diag.tpu_ring_stats()` — ring xfers/dma_fail/usb_fail/slot_to/drain_to
+- `sentai.diag.mover_stats()` — MoverTask xfers/dma_fail/sdram_to/ocram_to/count
+- `sentai.diag.copy_bench(method, n_iter)` — stub return -99 (bench retired post-measurement)
+- `sentai.pipeline.infer_stats()` — `{ok,fail,ms_sum,last_rc}`
+- `sentai.pipeline.prep_stats()` — `{frames, sem_wait_ms_sum, cam_grab_ms_sum, pxp_ms_sum, quant_ms_sum, total_ms_sum}`
+- `sentai.diag.cam_stats()` — MUX switch fault counters
+
+### Architectural insights (durable lessons)
+
+1. **42 FPS pipeline ceiling = camera (OV5640 VGA45 hardware)**.
+   Imposibil de depășit fără sensor mai rapid (60 FPS register există dar
+   T-HSSETTLE unvalidated).
+
+2. **Pure TPU 75 FPS = USB+TPU compute ceiling** pentru yolo_1.
+   Camera-limited în pipeline → pipeline ≤ 42 FPS.
+
+3. **SEMC single-channel SDRAM = bottleneck arhitectural fundamental
+   pe RT1176**. Orice DMA master (PXP/CSI/eDMA/USB) scriind/citind
+   SDRAM concurrent cu USB transfers pe TPU → wedge.
+
+4. **OCRAM 1016 KB = capacitate critică**. 786 KB tensor input ocupă
+   77%. Nu fit ping-pong dual-buffer (1.57 MB).
+
+5. **Camera (CSI) trafic SDRAM continuu (28 MB/s) = irreducible**.
+   Singura cale = camera DMA în OCRAM, dar 4 × 615 KB = 2.4 MB nu fit.
+
+6. **OV5640 patch VGA45 e fragile** — atinge T-HSSETTLE + pllCtrl.
+   Nu modifica camera_support.c fără re-validare CSI lock.
+
+7. **Cross-test contamination = real**. Orice test eșuat lasă TPU
+   wedged până la reflash. Toate measurements valid doar pe fresh
+   reflash. Build counter (`#xxx`) confirmă ce firmware rulează.
+
+8. **Output tensor relocation = DEAD-END definitiv**. TFLite custom op
+   (edgetpu) are invarianţi pe arena pointer stability. Pointer-swap
+   output → 41→0.2 FPS regression (V23). Re-întrebat azi, confirmed.
+
+9. **CSI XRGB→RGB888 conversion in CSI driver** (idee user 2026-04-25):
+   tactical, ~27 MB/s SDRAM bandwidth saved (1.2→0.92 MB camera buf).
+   Risk: atinge camera_support.c + OV5640 patches. Posibil dar nu
+   sparge ceiling 42 FPS.
+
+### Test methodology consacrată (per session)
+
+Per `_t_yolo512.py` baseline:
+1. Fresh `python3 scripts/flashtool.py -e sentai_runtime`
+2. Wait NXP ID re-enumerate (`until lsusb | grep -q 1fc9:c0a1; do sleep 1; done`)
+3. Upload test driver: `python3 diag/_host_upload_repl.py --file _t_yolo512.py`
+4. Run via REPL: `exec(sentai.fs.read_str("/lib/diag/_t_yolo512.py"))`
+5. Capture raw serial drain cu deadline (don't tail-match `\r\n>>> ` — script poate
+   sufoca prompt-ul; fă raw drain cu deadline + cauta `=== done ===` marker)
+6. **Re-flash între A/B tests** — never skip even if "should be fine"
 
 ---
 

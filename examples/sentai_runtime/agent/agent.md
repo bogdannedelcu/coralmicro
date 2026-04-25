@@ -1,9 +1,9 @@
 # SentAI Runtime — Agent Handoff Guide
 
-Written 2026-04-20 during the camera-switch optimisation sprint.  Purpose:
-a fresh agent (or future me without memory) should be able to pick up this
-project without re-discovering every trap from scratch.  Read this top to
-bottom before touching the codebase.
+Written 2026-04-20, last updated 2026-04-25 (post Cale 1+ MoverTask sprint).
+Purpose: a fresh agent (or future me without memory) should be able to pick
+up this project without re-discovering every trap from scratch.  Read this
+top to bottom before touching the codebase.
 
 ---
 
@@ -72,6 +72,24 @@ These are load-bearing.  Violating them has cost whole days of debug.
    multiple trials with `sentai.verbose(0)`.  Going straight to verbose=0
    + multi-trial hides early failures and wastes a whole run on a bug you
    could have seen in the first per-frame trace.
+
+8. **`verbose(0)` SILENCES Python prints too** — not just firmware printf.
+   Confirmed bug: `sentai.verbose(0)` then `print(...)` produces no output
+   on REPL.  Always set `sentai.verbose(1)` before reading state via
+   REPL print.  Documented in `memory/feedback_experiment_run_cadence.md`.
+
+9. **Cross-test contamination is real and load-bearing** — a wedged TPU
+   from a failed test poisons all subsequent tests until full reflash.
+   "I'll just re-run with a different toggle" is wrong: each A/B test
+   needs a fresh `flashtool.py -e sentai_runtime`, then upload the test
+   driver, then run.  Numbers measured back-to-back without reflash
+   between are unreliable (we lost a day in 2026-04-25 chasing a
+   "regression" that turned out to be carry-over state).
+
+10. **Build counter (`#xxx`) confirms what's actually flashed** — pyserial
+    `sentai.version()` returns `SentAI v1.0 build NNN (date time)`.  After
+    flashtool, verify build # incremented vs expected.  Mismatch = stale
+    firmware, your code changes aren't live.
 
 ---
 
@@ -157,6 +175,40 @@ a list comprehension that stays on one physical line.
 **`repl_run.py` is deprecated for long commands** — it has a stale-prompt
 bug where a previous iteration's `>>> ` is still in the pyserial buffer
 when the next command is sent.
+
+### 5.1 Long-running script idiom (added 2026-04-25)
+
+For diag drivers like `_t_yolo512.py` that take 5-30 s and print a lot of
+output, the `\r\n>>> ` tail-match terminates EARLY on intermediate
+prompts.  Use a **raw-drain loop** with a sentinel string instead:
+
+```python
+def run_driver(s, path, deadline_s=30):
+    s.write(f'exec(sentai.fs.read_str("{path}"))\r\n'.encode())
+    deadline = time.time() + deadline_s
+    while time.time() < deadline:
+        c = s.read(8192)
+        if c:
+            sys.stdout.write(c.decode(errors='replace'))
+            sys.stdout.flush()
+            if b'=== done ===' in c:  # script's end-of-test marker
+                break
+```
+
+Drivers are required to print `=== done ===` last so this works.  See
+`_t_yolo512.py`, `_t_warm_ab.py` for examples.
+
+### 5.2 Wait for board after flash / WDOG reset
+
+After `flashtool.py` or a wedge that triggers WDOG, wait for NXP ID:
+
+```bash
+until lsusb | grep -q "1fc9:c0a1"; do sleep 1; done
+sleep 2  # extra settle for USB CDC + REPL ready
+```
+
+Don't use chained `sleep 5; sleep 5;` — the harness blocks repeated
+sleeps.  Use `until` with a real condition.
 
 ---
 
@@ -272,7 +324,7 @@ Both paths read MUX polarity from the same `libs/camera/cam_mux.h` header
 
 ## 10. Error code registry
 
-Camera-switch codes added during this sprint (module `0x0A`):
+Camera-switch codes (module `0x0A`):
 
 | Code | Name | Meaning |
 |---|---|---|
@@ -281,6 +333,21 @@ Camera-switch codes added during this sprint (module `0x0A`):
 | `0x0A02` | `CAM_DRAIN_TIMEOUT` | Post-switch drain wait hit 300 ms ceiling |
 | `0x0A03` | `CAM_GRAB_RETRY` | `GetRawFrame` failed, toggling MUX to recover |
 | `0x0AF0` | `CAM_GRAB_FAIL` | Fatal: all recovery attempts exhausted |
+
+TPU codes (module `0x0B`):
+
+| Code | Name | Meaning |
+|---|---|---|
+| `0x0B40` | `TPU_ARENA_ALLOC` | Tensor arena alloc failed |
+| `0x0B41` | `TPU_MODEL_LOAD` | Model load from flash failed |
+| `0x0B42` | `TPU_ALLOC_TENSORS` | AllocateTensors failed |
+| `0x0B43` | `TPU_INPUT_COUNT` | Must have exactly 1 input tensor |
+| `0x0B44` | `TPU_NOT_READY` | EdgeTPU not initialized |
+| `0x0B50` | `TPU_RING_LOOP_BOUND` | Cale 1 ring transfer loop exceeded bounded iters (val=iters) |
+| `0x0B51` | `TPU_RING_SLOT_TIMEOUT` | Ring slot USB-done wait timed out (val=slot_idx) |
+| `0x0B52` | `TPU_RING_DMA_FAIL` | eDMA SDRAM->OCRAM producer copy failed (val=bytes) |
+| `0x0B53` | `TPU_RING_USB_SUBMIT` | `USB_HostEdgeTpuBulkOutSendAsync` returned non-success (val=usb_status) |
+| `0x0B54` | `TPU_RING_DRAIN_TO` | Drain wait for final ring slots timed out (val=slot_idx) |
 
 Rule: to add a new code, (1) pick the next free number in the module's
 range, (2) append a row to `examples/sentai_runtime/error_codes.csv`,
@@ -298,15 +365,75 @@ code** — old builds' logs would reinterpret the number.
 - **Fix A**: `g_cam_switch_seq` snapshot is taken inside
   `HandleSwitchCameraRequest` (`libs/camera/camera.cc`) atomically with
   the `GpioSet()` — not in the task wrapper.  See paper §"Fix A".
-- **Fix B (this sprint)**: MUX flip now happens in CSI EOF ISR during
-  VBLANK.  See paper §"Fix B" and §"Head-to-tail benchmark".
+- **Fix B**: MUX flip now happens in CSI EOF ISR during VBLANK.
+  See paper §"Fix B" and §"Head-to-tail benchmark".
 - **DMA memcpy**: `detection_task.cc:sentai_dma_memcpy` uses eDMA channel
   31 with 32-byte AXI bursts.  Pre-DMA cache clean is NOT done (both
   buffers are DMA-written).  See [memcpy.md](../paper/memcpy.md).
-- **Camera frame rate**: `DEMO_CAMERA_FRAME_RATE = 30` (in
-  `libs/camera/camera_support.h`).  Attempts to bump to 45 (no driver
-  entry) or 60 (PLL accepted, CSI-2 didn't lock) were reverted — comment
-  block documents the probe results.
+- **Camera frame rate**: `DEMO_CAMERA_FRAME_RATE = 45` (in
+  `libs/camera/camera_support.h`, validated via OV5640 patch
+  `0001-ov5640-vga-30fps-pclkperiod.patch`).  60 FPS register exists but
+  T-HSSETTLE not validated.  Don't touch without re-validating CSI lock.
+
+### V22 OCRAM tensor (load-bearing for 42 FPS pipeline)
+
+- `s_tpu_input_buf_single` 786 KB in `.tpu_input` (NOLOAD) → m_ocram.
+  USB EHCI reads OCRAM via AXBS, NOT SEMC — eliminates contention with
+  CSI camera DMA.  Moving back to SDRAM = pipeline 42→1.8 FPS (V13).
+- Counting semaphore `s_sem_bufs_free` max=1 enforces strict serial:
+  PrepTask cannot overwrite while InferTask USB-reads.
+
+### Cale 1 ring buffer (2026-04-25, default OFF)
+
+- `.tpu_ring` 72 KB OCRAM at 0x20303400, 2x36 KB ping-pong slots.
+- eDMA channel **30** (distinct from ch31 detection memcpy, ch29 mover).
+- Toggle `sentai.diag.tpu_ring(1)` to route SendInstructions /
+  SendParameters / SendInputs through ring.
+- Empirical: ring overhead = -10 FPS pipeline (no gain), kept as infra
+  for future architectural experiments.
+
+### MoverTask 3-task pipeline (2026-04-25, default OFF)
+
+- `s_prep_sdram_ring[2][786 KB]` in `.sdram_bss` (1.5 MB SDRAM).
+- eDMA channel **29** (distinct).  4 sema (`sdram_free`, `sdram_ready`,
+  `ocram_free`, `ocram_ready`).
+- Toggle `sentai.diag.mover(1)` to enable.  CURRENTLY WEDGES PIPELINE
+  due to SEMC contention with USB BulkIn (output 8 KB → SDRAM arena
+  during compute+output, concurrent with eDMA SDRAM read).
+- Documented dead-end; infrastructure preserved for future bus-mgmt
+  experiments (e.g. CSI XRGB→RGB conversion to free SDRAM bandwidth).
+
+### Fine-grained one-shot SendInputs sync (2026-04-25, default ON)
+
+- Driver `g_sentai_tpu_input_done_sema` pointer + atomic-exchange
+  one-shot consume in `SendInputs()` end.
+- InferTask arms via `sentai_tpu_set_input_done_sema(sem_bufs_free)`
+  before invoke, clears after.  PrepTask unblocks at SendInputs end
+  (mid-invoke), parallel with compute+output.
+- One-shot needed because yolo_1 with parameter_caching calls
+  `SendInputs()` 2× per invoke; without one-shot, sem given 2× per
+  invoke → PrepTask 2:1 over-production.
+- **Glitch-free**: PrepTask cannot write `.tpu_input` OCRAM during
+  USB read.  V22 raw had this race (benign empirically but inference
+  quality unmeasured).
+
+### Output tensor in OCRAM = DEAD-END
+
+- Tested V23 (`project_v23_ring_analysis.md`): TFLite custom op
+  invariants on arena pointer stability.  Pointer-swap output → 41→0.2 FPS.
+- Re-asked 2026-04-25: confirmed dead-end, no path to relocation
+  without TFLite source modification.
+
+### Linker dead sections cleanup (2026-04-25)
+
+Removed sections that were 0 bytes in V22 build (libs not link-listed):
+- `.curl`, `.a71ch`, `.mbedtls`, `.wiced`, `.httpsrv`
+- `.edgefast_bluetooth_text/data/rodata`
+- `._settings_handler_static`, `._bt_gatt_service_static`,
+  `._bt_l2cap_fixed_chan`
+
+Cosmetic only — no bytes saved.  Re-add from `libs/nxp/rt1176-sdk/MIMXRT1176xxxxx_cm7_ram.ld`
+template if those libs ever get link-listed in CMakeLists.txt.
 
 ---
 
@@ -333,12 +460,94 @@ When picking up the project fresh:
 ## 13. Where to look for context when this doc is out of date
 
 1. `paper/` — narrative-style lab notes for each optimisation (memcpy,
-   cam_switch, lfs, usb, boot, watchdog).  These are the canonical record.
+   cam_switch, lfs, usb, boot, watchdog, cale1_ring_buffer_plan).
+   These are the canonical record.
 2. `agent/embeded.md` — NASA/JPL discipline rules that govern the
    codebase.  Start here for "why is this coded this way?".
-3. `agent/plan.md` — the long-horizon roadmap.
-4. `/home/bogdan/.claude/projects/-home-bogdan-work-coralmicro/memory/*.md`
+3. `agent/experiment.md` — chronological session log with all
+   measurements, dead-ends, shipped configs.  Each session adds at top.
+4. `agent/plan.md` — the long-horizon roadmap.
+5. `/home/bogdan/.claude/projects/-home-bogdan-work-coralmicro/memory/*.md`
    — persistent user/project memories.  Check `MEMORY.md` index first.
-5. `error_codes.csv` — the growing ledger of every logged fault.
-6. `SENTAI_API.md` — runtime Python surface, always kept in sync with the
+6. `error_codes.csv` — the growing ledger of every logged fault.
+7. `SENTAI_API.md` — runtime Python surface, always kept in sync with the
    C bindings.
+
+---
+
+## 14. Lessons learned (2026-04-25 sprint)
+
+These are durable observations from the Cale 1+ MoverTask sprint —
+prepend to your mental model when picking up TPU/pipeline work.
+
+### A. The SEMC bus is the single bottleneck
+
+RT1176 has ONE SDRAM controller (SEMC, 32-bit single-channel).  Any
+DMA master writing/reading SDRAM concurrently with USB EHCI transfers
+on TPU = wedge.  Confirmed repeatedly:
+- V13: USB EHCI reads SDRAM tensor + CSI writes camera buf → wedge
+- V23 async ring: PrepTask PXP writes SDRAM during USB instructions read → wedge
+- 2026-04-25 MoverTask: eDMA reads SDRAM ring during USB BulkIn writes SDRAM arena → wedge
+
+**No amount of priority tuning, QoS knobs, or AXBS master ID
+manipulation has fixed this**.  SDRAM bandwidth is finite (~200 MB/s
+peak, less under contention).
+
+### B. OCRAM is the only safe DMA target during invoke
+
+USB EHCI reads OCRAM via AXBS crossbar — independent path from SEMC.
+That's why V22 ships .tpu_input in OCRAM.  But OCRAM is 1016 KB:
+a single 786 KB tensor consumes 77%, leaving no room for ping-pong.
+
+### C. eDMA is FAST but pulls SDRAM into bus contention
+
+7.1 ms for 786 KB SDRAM→OCRAM via eDMA ch31 (32-byte AXI burst,
+~110 MB/s).  But during pipeline, eDMA's SDRAM reads compete with
+USB BulkIn's SDRAM writes for output → 100% invoke fail.
+
+### D. yolo_1 with parameter_caching calls `SendInputs()` twice per invoke
+
+Don't assume 1:1 between sema gives and invokes.  The fine-grained
+one-shot sync uses atomic-exchange to consume the sema-pointer once,
+preventing PrepTask 2:1 over-production.
+
+### E. Cross-test contamination wastes hours
+
+Always reflash between A/B tests.  Build counter `#xxx` confirms what
+actually got loaded.  The "regression mystery" of 2026-04-25 (42→24 FPS
+on same commit) was 100% cross-test contamination — verified by
+running V22 driver verbatim on fresh-flashed V22 firmware = 42 FPS.
+
+### F. `verbose(0)` silences ALL prints, not just firmware
+
+Multiple times confused test results.  Always `sentai.verbose(1)`
+before reading state via REPL.
+
+### G. NASA/JPL discipline is enforced by `embeded.md`
+
+Every new task / sema / DMA channel needs:
+- Bounded loop (explicit max_iter)
+- Bounded waits (no `portMAX_DELAY`)
+- Static allocation (no heap in steady state)
+- Error code (not printf string) on failure paths
+- Counter in diag stats
+- Default OFF for new infrastructure
+
+The ring buffer (Cale 1) and MoverTask infrastructure shipped in
+2026-04-25 follow this discipline — both default OFF, both have
+counters, both have bounded loops with error codes.
+
+### H. Ring buffer / MoverTask are dead-ends but the infra is durable
+
+Don't delete — leave the toggles available.  Future work might find
+a way to use them (e.g. with smaller models that fit OCRAM ping-pong,
+or with CSI XRGB→RGB conversion that frees SDRAM bandwidth).
+
+### I. Camera framerate is the ceiling
+
+OV5640 VGA45 = 22.2 ms/frame = 45 FPS hardware ceiling.  Pipeline
+end-to-end can never exceed this.  V22 at 42 FPS = 94% of camera
+ceiling.  Further gains require:
+- Different camera (no available)
+- Different model size (smaller = faster)
+- Different architecture entirely (not RT1176)

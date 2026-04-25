@@ -104,38 +104,15 @@ SECTIONS
     . = ALIGN(4);
   } > m_interrupts
 
-  .a71ch :
-  {
-     . = ALIGN(4);
-     __a71ch_start = .;
-     *liblibs_a71ch.a:*(.text .text*)
-     *liblibs_a71ch.a:*(.data .data*)
-     *liblibs_a71ch.a:*(.rodata .rodata*)
-     __a71ch_end = .;
-     . = ALIGN(4);
-  } > m_ocram
-
-  .curl :
-  {
-     . = ALIGN(4);
-     __curl_start = .;
-     *liblibs_curl.a:*(.text .text*)
-     *liblibs_curl.a:*(.data .data*)
-     *liblibs_curl.a:*(.rodata .rodata*)
-     __curl_end = .;
-     . = ALIGN(4);
-  } > m_ocram
-
-  .mbedtls :
-  {
-     . = ALIGN(4);
-     __mbedtls_start = .;
-     *liblibs_nxp_rt1176-sdk-mbedtls.a:*(.text .text*)
-     *liblibs_nxp_rt1176-sdk-mbedtls.a:*(.data .data*)
-     *liblibs_nxp_rt1176-sdk-mbedtls.a:*(.rodata .rodata*)
-     __mbedtls_end = .;
-     . = ALIGN(4);
-  } > m_ocram
+  /* .a71ch / .curl / .mbedtls / .wiced / .httpsrv / .edgefast_bluetooth_*
+   * sections were declared in the original Coral linker template but
+   * those static libs are NOT link-listed in target_link_libraries for
+   * sentai_runtime (see CMakeLists.txt).  arm-none-eabi-size confirmed
+   * each section was 0 bytes in the final ELF.  Removed 2026-04-25 to
+   * keep the linker minimal and reflect the actual build composition.
+   * If you re-enable bluetooth / TLS / HTTPS server in the future,
+   * restore the corresponding section blocks from the upstream Coral
+   * linker (libs/nxp/rt1176-sdk/MIMXRT1176xxxxx_cm7_ram.ld). */
 
   /* .lwip — moved OCRAM → SDRAM 2026-04-22 to free space for the
      TPU tensor arena (1 MB OCRAM).  Network stack is not on the
@@ -159,17 +136,6 @@ SECTIONS
      __lwip_end = .;
      . = ALIGN(4);
   } > m_sdram
-
-  .wiced :
-  {
-     . = ALIGN(4);
-     __wiced_start = .;
-     *liblibs_nxp_rt1176-sdk_wiced.a:*(.text .text*)
-     *liblibs_nxp_rt1176-sdk_wiced.a:*(.data .data*)
-     *liblibs_nxp_rt1176-sdk_wiced.a:*(.rodata .rodata*)
-     __wiced_end = .;
-     . = ALIGN(4);
-  } > m_ocram
 
   .tensorflow :
   {
@@ -219,18 +185,6 @@ SECTIONS
      __usb_host_end = .;
      . = ALIGN(4);
   } > m_ocram
-
-  /* NXP httpsrv - placed in SDRAM for space savings */
-  .httpsrv :
-  {
-     . = ALIGN(4);
-     __httpsrv_start = .;
-     *liblibs_nxp_rt1176-sdk_lwip_httpsrv.a:*(.text .text*)
-     *liblibs_nxp_rt1176-sdk_lwip_httpsrv.a:*(.data .data*)
-     *liblibs_nxp_rt1176-sdk_lwip_httpsrv.a:*(.rodata .rodata*)
-     __httpsrv_end = .;
-     . = ALIGN(4);
-  } > m_sdram
 
   /* .libjpeg: moved OCRAM → SDRAM 2026-04-22 (TPU pipeline sprint).
      Frees ~103 KB OCRAM for future tensor ping-pong relocation.
@@ -376,47 +330,8 @@ SECTIONS
      . = ALIGN(4);
   } > m_sdram
 
-  .edgefast_bluetooth_text :
-  {
-    . = ALIGN(4);
-    __edgefast_bluetooth_text_start__ = .;
-    *libedgefast_bluetooth_internal.a:*(.text .text*)
-    *lib_crypto_m7.a:*(.text .text*)
-    *libethermind_ble_protocol.a:*(.text .text*)
-    *libethermind_ble_gatt.a:*(.text .text*)
-    *libethermind_ble_core.a:*(.text .text*)
-    *libethermind_ble_util.a:*(.text .text*)
-    __edgefast_bluetooth_text_end__ = .;
-    . = ALIGN(4);
-  } > m_sdram
-
-  .edgefast_bluetooth_data :
-  {
-    . = ALIGN(4);
-    __edgefast_bluetooth_data_start__ = .;
-    *libedgefast_bluetooth_internal.a:*(.data .data*)
-    *lib_crypto_m7.a:*(.data .data*)
-    *libethermind_ble_protocol.a:*(.data .data*)
-    *libethermind_ble_gatt.a:*(.data .data*)
-    *libethermind_ble_core.a:*(.data .data*)
-    *libethermind_ble_util.a:*(.data .data*)
-    __edgefast_bluetooth_data_end__ = .;
-    . = ALIGN(4);
-  } > m_sdram
-
-  .edgefast_bluetooth_rodata :
-  {
-    . = ALIGN(4);
-    __edgefast_bluetooth_rodata_start__ = .;
-    *libedgefast_bluetooth_internal.a:*(.rodata .rodata*)
-    *lib_crypto_m7.a:*(.rodata .rodata*)
-    *libethermind_ble_protocol.a:*(.rodata .rodata*)
-    *libethermind_ble_gatt.a:*(.rodata .rodata*)
-    *libethermind_ble_core.a:*(.rodata .rodata*)
-    *libethermind_ble_util.a:*(.rodata .rodata*)
-    __edgefast_bluetooth_rodata_end__ = .;
-    . = ALIGN(4);
-  } > m_sdram
+  /* edgefast_bluetooth + ethermind libraries removed 2026-04-25 (not
+   * link-listed for sentai_runtime, all sections were 0 bytes). */
 
   /* The program code and other data goes into internal RAM */
   .text :
@@ -435,32 +350,7 @@ SECTIONS
     . = ALIGN(4);
   } > m_text
 
-  ._settings_handler_static :
-  {
-    . = ALIGN(4);
-    _settings_handler_static_list_start = .;
-    KEEP(*(SORT(._settings_handler_static.static.*)))
-    _settings_handler_static_list_end = .;
-    . = ALIGN(4);
-  } > m_text
-
-  ._bt_gatt_service_static :
-  {
-    . = ALIGN(4);
-    _bt_gatt_service_static_list_start = .;
-    KEEP(*(SORT(._bt_gatt_service_static.static.*)))
-    _bt_gatt_service_static_list_end = .;
-    . = ALIGN(4);
-  } > m_text
-
-  ._bt_l2cap_fixed_chan :
-  {
-    . = ALIGN(4);
-    _bt_l2cap_fixed_chan_list_start = .;
-    KEEP(*(SORT(._bt_l2cap_fixed_chan.static.*)))
-    _bt_l2cap_fixed_chan_list_end = .;
-    . = ALIGN(4);
-  } > m_text
+  /* Bluetooth KEEP tables removed 2026-04-25 (no bluetooth libs linked). */
 
   .ARM.extab :
   {
@@ -610,18 +500,17 @@ SECTIONS
     __START_BSS = .;
     __bss_start__ = .;
     *(m_usb_dma_noninit_data)
+    /* Exclude libraries whose .bss is intentionally placed in SDRAM
+     * (sdram_bss section below) to keep the M7 DTCM .bss small.  The
+     * crypto / edgefast_bluetooth / ethermind libs are NOT linked for
+     * sentai_runtime — kept here as harmless no-ops in case they are
+     * re-enabled in the future. */
     *(EXCLUDE_FILE(
         *liblibmicropython.a
         *liblibs_audio_freertos.a
         *liblibs_nxp_rt1176-sdk_lwip_httpd.a
         *liblibs_base-m7_http_server.a
         *sentai_httpd.cc.obj
-        *lib_crypto_m7.a
-        *libedgefast_bluetooth_internal.a
-        *libethermind_ble_protocol.a
-        *libethermind_ble_gatt.a
-        *libethermind_ble_core.a
-        *libethermind_ble_util.a
     ) .bss)
     *(EXCLUDE_FILE(
         *liblibmicropython.a
@@ -629,12 +518,6 @@ SECTIONS
         *liblibs_nxp_rt1176-sdk_lwip_httpd.a
         *liblibs_base-m7_http_server.a
         *sentai_httpd.cc.obj
-        *lib_crypto_m7.a
-        *libedgefast_bluetooth_internal.a
-        *libethermind_ble_protocol.a
-        *libethermind_ble_gatt.a
-        *libethermind_ble_core.a
-        *libethermind_ble_util.a
     ) .bss*)
     *(COMMON)
     . = ALIGN(4);
@@ -656,16 +539,10 @@ SECTIONS
     *liblibs_audio_freertos.a:*(.bss .bss*)
     /* httpd_bss — HTTP server state (no DMA) */
     *liblibs_nxp_rt1176-sdk_lwip_httpd.a:*(.bss .bss*)
-    *liblibs_nxp_rt1176-sdk_lwip_httpsrv.a:*(.bss .bss*)
     *liblibs_base-m7_http_server.a:*(.bss .bss*)
     *sentai_httpd.cc.obj(.bss .bss*)
-    /* edgefast_bluetooth_bss */
-    *lib_crypto_m7.a:*(.bss .bss*)
-    *libedgefast_bluetooth_internal.a:*(.bss .bss*)
-    *libethermind_ble_protocol.a:*(.bss .bss*)
-    *libethermind_ble_gatt.a:*(.bss .bss*)
-    *libethermind_ble_core.a:*(.bss .bss*)
-    *libethermind_ble_util.a:*(.bss .bss*)
+    /* edgefast_bluetooth + ethermind + httpsrv .bss removed 2026-04-25
+     * (libs not link-listed for sentai_runtime). */
     . = ALIGN(4);
     __sdram_bss_end__ = .;
   } > m_sdram
@@ -695,6 +572,9 @@ SECTIONS
     __noncachecameradata_end__ = .;
   } > m_ncamera
 
+  /* V22 .tpu_input — 786 KB tensor input buffer in OCRAM so USB EHCI
+     SendInputs reads via AXBS (no SEMC contention with CSI DMA).
+     Critical for the 42 FPS pipeline ceiling. */
   .tpu_input (NOLOAD) :
   {
     . = ALIGN(64);

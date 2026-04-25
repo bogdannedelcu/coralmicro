@@ -86,6 +86,18 @@
 #define DEMO_CAMERA_CONTROL_FLAGS (kCAMERA_HrefActiveHigh | kCAMERA_DataLatchOnRisingEdge)
 #define DEMO_CAMERA_BUFFER_ALIGN  64
 #define DEMO_CAMERA_MIPI_CSI_LANE 2
+// 2026-04-25 RGB565 receiver attempt REVERTED (DEAD-END).  Root cause:
+// fsl_csi.c CSI_Init() requires bytesPerPixel=4 to enable
+// CR18.PARALLEL24_EN_MASK (24-bit parallel data path from MIPI CSI2RX).
+// With BPP=2 the CSI hardware reads in 16-bit mode but MIPI keeps
+// delivering 24-bit pixels => mismatch => image stored as 2x2-tile
+// garbage (verified empirically on a fresh JPEG capture).  TPU pipeline
+// "44 FPS" measured during the attempt was illusory: model ran on
+// corrupt data without erroring (TPU does not validate pixel content).
+// Stay on XRGB8888 (4 BPP) — same 1.2 MB/frame as V22 baseline.  Path
+// to actual SDRAM bandwidth reduction would require also reconfiguring
+// MIPI CSI2RX dataType (RGB565=0x22 vs RGB888=0x24 per MIPI spec) +
+// the parallel-bus interconnect — out of scope for now.
 #define DEMO_CAMERA_BUFFER_BPP 4
 
 #define LINE_PADDING              0

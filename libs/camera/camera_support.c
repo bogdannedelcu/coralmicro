@@ -410,7 +410,12 @@ void BOARD_InitCamera(void)
 
     BOARD_InitCameraResource();
 
-    /* CSI input data bus is 24-bit, stored as XRGB8888 (32-bit per pixel in RAM). */
+    /* CSI receiver stores XRGB8888 (32-bit per pixel).  Required for
+     * fsl_csi.c CSI_Init() to enable CR18.PARALLEL24_EN — the 24-bit
+     * parallel data path that matches MIPI CSI2RX's default RGB888
+     * output (after sensor RGB565 -> upconversion in MIPI pipeline).
+     * RGB565 receiver attempted 2026-04-25 but produced 2x2-tile
+     * garbage; see header comment for details. */
     cameraConfig.pixelFormat                = kVIDEO_PixelFormatXRGB8888;
     cameraConfig.bytesPerPixel              = DEMO_CAMERA_BUFFER_BPP;
     cameraConfig.resolution                 = FSL_VIDEO_RESOLUTION(DEMO_CAMERA_WIDTH, DEMO_CAMERA_HEIGHT);

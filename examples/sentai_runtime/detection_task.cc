@@ -45,6 +45,12 @@ extern "C" {
     int sentai_tpu_is_ready(void);
     int sentai_tpu_invoke_internal(void);  // no pipeline guard
     int sentai_tpu_invoke_with_input(uint8_t* input_buf);  // Step 4 direct path
+    // Cale 1 HYBRID fine-grained sync (2026-04-25): arms SendInputs to
+    // xSemaphoreGive(sema) at the END of its USB bulk-OUT phase, which
+    // lets PrepTask start writing the next .tpu_input the instant USB
+    // is done reading the current one -- not after the full invoke
+    // (compute + output) finishes.  Pass nullptr to disarm.
+    void sentai_tpu_set_input_done_sema(SemaphoreHandle_t sema);
     int sentai_detection_is_running(void);  // used by direct_tensor_set guard
     int sentai_tpu_detect(int conf_permil, int iou_permil, int max_dets,
                           int16_t* out_buf, int* out_count);
@@ -504,16 +510,17 @@ static void prep_task_fn(void* /*param*/) {
         s_stg_total = total;
         s_stg_frame_seq = sentai_cam_get_frame_seq();
 
-        // Signal InferTask: a buffer has a new prepared frame.  In direct
-        // mode we increment our side of the ping-pong counter BEFORE giving
-        // the permit so the consumer can derive `buf_idx = infer_count & 1`
-        // once it has taken the matching permit (counts stay in lockstep
-        // because each Give pairs with exactly one Take).
+        // Signal next stage: a buffer has a new prepared frame.
+        //   direct → frame is in OCRAM .tpu_input directly; InferTask invokes
+        //   legacy → frame is in staging; InferTask memcpys to arena
         s_last_prep_frame_tick = xTaskGetTickCount();
+        s_prep_count_dt++;
         if (direct) {
-            s_prep_count_dt++;
             xSemaphoreGive(s_sem_prep_done_c);
         } else {
+            // Legacy path doesn't increment s_prep_count_dt; revert to keep
+            // direct/legacy bookkeeping unchanged.
+            s_prep_count_dt--;
             xSemaphoreGive(s_sem_prep_done);
         }
 
@@ -680,10 +687,20 @@ static void infer_task_fn(void* /*param*/) {
         int invoke_ms;
 
         if (direct) {
+            // Direct mode: PrepTask wrote into s_tpu_input_buf[index] in
+            // OCRAM; InferTask hands the same pointer to invoke.  Zero-copy.
             uint8_t* buf = s_tpu_input_buf[s_infer_count_dt & 1u];
             s_infer_count_dt++;
-            xSemaphoreGive(sem_free);
             t_memcpy_end = t_memcpy_start;
+            // Fine-grained pipeline sync (2026-04-25): instead of
+            // giving sem_free BEFORE invoke (which lets PrepTask
+            // overwrite .tpu_input concurrent with USB read), we arm
+            // the driver to give sem_free at the END of SendInputs --
+            // i.e. the exact moment USB no longer needs the buffer.
+            // PrepTask gets unblocked at that point and can write the
+            // NEXT frame while InferTask continues with compute +
+            // output (which don't touch .tpu_input).
+            sentai_tpu_set_input_done_sema(sem_free);
             // invokes_per_frame: run tpu_invoke_with_input N times on
             // the SAME input buffer per PrepTask frame — simulates
             // "process K patches per camera frame" workload at low
@@ -700,6 +717,17 @@ static void infer_task_fn(void* /*param*/) {
                 // so infer_stats.ok reflects per-invoke not per-frame.
                 s_infer_ok_count++;
                 s_infer_ms_sum += (uint32_t)extra_ms;
+            }
+            // One-shot consume: if SendInputs fired, driver already
+            // cleared the pointer and gave sem_free.  If invoke failed
+            // BEFORE SendInputs completed, the pointer is still live --
+            // force clear + give sem_free manually so PrepTask doesn't
+            // stall.  xSemaphoreGive on a max-1 counting sem caps, so
+            // the "double give" risk when the driver also succeeded
+            // doesn't corrupt the count.
+            sentai_tpu_set_input_done_sema(nullptr);
+            if (invoke_ms < 0) {
+                xSemaphoreGive(sem_free);
             }
         } else {
             bool dma_ok = false;
@@ -817,7 +845,10 @@ static void infer_task_fn(void* /*param*/) {
         }
     }
 
-    // InferTask exiting
+    // InferTask exiting -- clear the fine-grained sync hook so stray
+    // SendInputs calls from REPL tpu.invoke() don't touch a stale
+    // semaphore that will no longer be attended to.
+    sentai_tpu_set_input_done_sema(nullptr);
     s_infer_task = nullptr;
     vTaskDelete(nullptr);
 }
@@ -927,12 +958,18 @@ extern "C" int sentai_detection_start(int conf_permil, int iou_permil, int max_d
 
     if (s_prep_task == nullptr || s_infer_task == nullptr) {
         SERR_LOG(SERR_DET_TASK_FAIL,
-                 ((s_prep_task ? 1u : 0u) << 8) | (s_infer_task ? 1u : 0u));
+                 ((s_prep_task  ? 1u : 0u) << 16) |
+                 ((s_infer_task ? 1u : 0u) <<  8));
         s_running = false;
         // If PrepTask was created but InferTask failed, stop it cleanly
         if (s_prep_task) {
             xSemaphoreGive(s_sem_staging_free);  // unblock prep
             for (int i = 0; i < 50 && s_prep_task; i++)
+                vTaskDelay(pdMS_TO_TICKS(20));
+        }
+        if (s_infer_task) {
+            xSemaphoreGive(s_sem_prep_done);
+            for (int i = 0; i < 50 && s_infer_task; i++)
                 vTaskDelay(pdMS_TO_TICKS(20));
         }
         return -7;
@@ -954,7 +991,8 @@ extern "C" int sentai_detection_stop(void) {
     if (s_sem_prep_done_c)  xSemaphoreGive(s_sem_prep_done_c);
 
     // Wait for both tasks to self-delete (up to 2 seconds)
-    for (int i = 0; i < 100 && (s_prep_task || s_infer_task); i++) {
+    for (int i = 0; i < 100 &&
+         (s_prep_task || s_infer_task); i++) {
         vTaskDelay(pdMS_TO_TICKS(20));
     }
 

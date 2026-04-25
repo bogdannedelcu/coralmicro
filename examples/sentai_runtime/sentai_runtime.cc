@@ -793,17 +793,14 @@ namespace coralmicro {
 // boundary for the input tensor are high for typical sizes.  See
 // detection_task.cc:sentai_dma_memcpy — 32-byte width path yields ~300 MB/s
 // vs 50 MB/s for the 8-byte fallback on SEMC SDRAM.
-// 2026-04-22: 8 MB → 1 MB in OCRAM.  TFLite reports 473 KB used for
-// yolo_1; 1 MB gives 2× margin.  Arena in OCRAM means TPU USB DMA
-// to/from EVERY tensor (input + intermediates + output) sidesteps
-// the SEMC bus that fights with CSI camera DMA — structural fix.
-// Arena stays in SDRAM; attempts to relocate to OCRAM crash at
-// tpu.load() for reasons that need deeper debugging (not overflow —
-// linker ASSERT confirms section fits; not ECC — MECC isn't
-// initialised; MPU Region 6 maps OCRAM as WB-cacheable identical to
-// SDRAM Region 9).  1 MB (down from 8 MB) because TFLite reports
-// 473 KB used for yolo_1 — the other 7 MB of SDRAM was waste.
-uint8_t tensor_arena[1024 * 1024]
+// 2026-04-24: 1 MB → 2 MB.  yolo26 768×512 reports 1162 KB used —
+// the previous 1 MB array overflowed by 138 KB into adjacent
+// .sdram_bss (micropython/http/audio/BLE BSS) because
+// sentai_slow_bridge.cc was still passing 8 MB as the arena size
+// to MicroInterpreter.  2 MB matches the updated kTensorArenaSize
+// in the slow bridge and gives ~1.8× headroom for this model.
+// Arena stays in SDRAM; OCRAM relocation is a separate follow-up.
+uint8_t tensor_arena[2 * 1024 * 1024]
     __attribute__((aligned(32)))
     __attribute__((section(".sdram_bss,\"aw\",%nobits @")));
 tflite::MicroInterpreter* g_interpreter = nullptr;
@@ -2056,7 +2053,9 @@ static int pxp_scale_xrgb_to_rgb(const uint8_t* src, int src_w, int src_h,
 
   pxp_ps_buffer_config_t ps_cfg;
   memset(&ps_cfg, 0, sizeof(ps_cfg));
-  // kPXP_PsPixelFormatRGB888 = 0x4 = "32-bit pixels without alpha" = XRGB8888
+  // kPXP_PsPixelFormatRGB888 = 0x4 = "32-bit pixels without alpha" = XRGB8888.
+  // Matches CSI's BPP=4 receiver setup (required for CR18.PARALLEL24_EN).
+  // RGB565 attempt reverted 2026-04-25 — see camera_support.h comment.
   ps_cfg.pixelFormat = kPXP_PsPixelFormatRGB888;
   ps_cfg.swapByte    = false;
   ps_cfg.bufferAddr  = (uint32_t)src;

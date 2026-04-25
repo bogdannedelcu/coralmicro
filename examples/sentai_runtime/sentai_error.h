@@ -112,6 +112,12 @@ extern "C" {
 #define SERR_TPU_ALLOC_TENSORS  (SERR_MOD_TPU | 0x42)   // AllocateTensors failed
 #define SERR_TPU_INPUT_COUNT    (SERR_MOD_TPU | 0x43)   // Must have 1 input tensor
 #define SERR_TPU_NOT_READY      (SERR_MOD_TPU | 0x44)   // EdgeTPU not initialized
+// Cale 1 ring-buffer USB transfer path (v1.3)
+#define SERR_TPU_RING_LOOP_BOUND   (SERR_MOD_TPU | 0x50) // Ring transfer loop exceeded bounded iters (val=iters)
+#define SERR_TPU_RING_SLOT_TIMEOUT (SERR_MOD_TPU | 0x51) // Waiting for slot USB-done took too long (val=slot_idx)
+#define SERR_TPU_RING_DMA_FAIL     (SERR_MOD_TPU | 0x52) // eDMA SDRAM->OCRAM producer copy failed (val=bytes)
+#define SERR_TPU_RING_USB_SUBMIT   (SERR_MOD_TPU | 0x53) // USB_HostEdgeTpuBulkOutSendAsync returned non-success (val=usb_status)
+#define SERR_TPU_RING_DRAIN_TO     (SERR_MOD_TPU | 0x54) // Drain wait for final slots timed out (val=slot_idx)
 
 // ===================== Filesystem Errors (0x07xx) =====================
 #define SERR_FS_MUTEX_TIMEOUT   (SERR_MOD_FS | 0x01)    // LFS mutex timeout
