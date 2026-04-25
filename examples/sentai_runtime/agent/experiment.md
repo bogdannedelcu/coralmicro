@@ -62,13 +62,37 @@ Each row: 5 s of sustained pipeline at the named config.
 
 **Interpretation:** dual-camera switching is functionally healthy at
 VGA45 with the cleaned-up pipeline (0 fails across all variants).
-Each MUX flip costs ~22 ms of frame drain at the default threshold;
-doubling the threshold (`drain=2`) cuts pipeline FPS by ~58 % because
-the post-flip wait now consumes two full sensor periods. The default
-`drain=1` is the production setting; 30 FPS at 1:1 is the expected
-ceiling for active 50 %/50 % alternation. No TPU wedges, no SEMC
-contention regression — confirms cleanup did not break the dual-camera
-path.
+
+**Important distinction (clarified 2026-04-25 review):** The MUX flip
+itself is **glitch-free** — `camera_support.c:78-85` performs the
+analogue MUX flip in the CSI ISR right after FB2-done (EOF, in
+VBLANK), so the next DMA buffer is filled 100 % by the new sensor
+with no mid-buffer seam. The drain is NOT protecting against flip
+artifacts; it is protecting against **queue staleness**:
+`sentai_runtime.cc:2189` — when PrepTask calls `cam_grab_latest()`
+immediately after a flip, the CSI ring already contains 1-2 frames
+captured *before* the flip (clean pixels, but from the *old* camera).
+`drain=1` ensures at least one post-flip sensor frame has been
+captured before the "latest" is grabbed, so the returned frame is
+guaranteed to come from the new camera.
+
+Per-flip cost is therefore ~22 ms of waiting (one sensor period at
+VGA45), not a tearing-avoidance window. At 1:1 alternation, every
+frame is a flip → every grab hits the slow-path wait → pipeline halves
+to 30 FPS. `drain=2` doubles the wait and roughly halves again.
+
+Future levers (none implemented; logged for later):
+* freshness via buffer-index post-flip (skip wait if DMA already
+  closed a fresh buffer)
+* per-buffer `cam_id_at_capture` tag so PrepTask filters on ID
+  instead of waiting on a counter
+* pre-flush the CSI queue in-ISR on flip so `cam_grab_latest`
+  blocks only on the first new-camera frame, eliminating the
+  explicit drain phase
+
+Default `drain=1` remains the production setting; the cleanup did not
+regress dual-camera behaviour and the 30 FPS at 1:1 is queue-staleness-
+bound, not contention-bound.
 
 ### Architectural answer to "putem pune instrucțiunile în DTCM?"
 
