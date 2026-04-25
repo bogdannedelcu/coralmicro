@@ -26,10 +26,6 @@
 #include "third_party/freertos_kernel/include/semphr.h"
 #include "third_party/nxp/rt1176-sdk/components/osa/fsl_os_abstraction.h"
 #include "third_party/nxp/rt1176-sdk/middleware/usb/include/usb_spec.h"
-#include "third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_edma.h"
-#if (__CORTEX_M == 7)
-#include "third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/cm7/fsl_cache.h"
-#endif
 
 namespace coralmicro {
 namespace {
