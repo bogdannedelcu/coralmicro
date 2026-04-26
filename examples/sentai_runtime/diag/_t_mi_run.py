@@ -1,0 +1,32 @@
+# Run a single config: invokes_per_frame, multi_invoke_mode, ratio, drain.
+# Reads 4 ints from sentai.fs (cfg.txt: "n mode ra rb drain dur_ms").
+import sentai
+sentai.verbose(0)
+cfg = sentai.fs.read_str("/cfg.txt").strip().split()
+n = int(cfg[0]); mode = int(cfg[1]); ra = int(cfg[2]); rb = int(cfg[3]); drain = int(cfg[4]); dur = int(cfg[5])
+print("=== run n=%d mode=%d ratio=(%d,%d) drain=%d dur=%dms ===" % (n, mode, ra, rb, drain, dur))
+sentai.pipeline.invokes_per_frame(n)
+sentai.pipeline.multi_invoke_mode(mode)
+sentai.camera.switch_drain(drain)
+sentai.camera.ratio(ra, rb)
+sentai.camera.select(0)
+sentai.rtos.sleep_ms(300)
+sentai.pipeline.prep_reset(); sentai.pipeline.infer_reset()
+fc0 = sentai.camera.frame_count()
+t0 = sentai.rtos.ticks_ms()
+rc = sentai.pipeline.start(0.25, 0.45, 50)
+print("start rc=%s" % rc)
+sentai.rtos.sleep_ms(dur)
+fc1 = sentai.camera.frame_count()
+t1 = sentai.rtos.ticks_ms()
+istats = sentai.pipeline.infer_stats()
+pstats = sentai.pipeline.prep_stats()
+sentai.pipeline.stop()
+dt = t1 - t0
+print("dur=%dms cam=%d prep=%d infer_ok=%d fail=%d rc=%d" %
+      (dt, fc1-fc0, pstats['frames'], istats['ok'], istats['fail'], istats['last_rc']))
+print("infer/s=%.1f prep/s=%.1f" % (1000.0*istats['ok']/dt, 1000.0*pstats['frames']/dt))
+if istats['ok']: print("avg_ms=%d" % (istats['ms_sum']//istats['ok']))
+sentai.camera.ratio(0,0); sentai.camera.select(0); sentai.camera.switch_drain(1)
+sentai.pipeline.invokes_per_frame(1); sentai.pipeline.multi_invoke_mode(0)
+print("=== done ===")

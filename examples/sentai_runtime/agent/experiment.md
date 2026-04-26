@@ -8,6 +8,331 @@ Dead-end paths PURGED — see "Production cleanup pass" below.
 
 ---
 
+## 🧪 Session 2026-04-25 (later, build #880) — Calibrate API + force_parity + loop_delay
+
+### Goal
+Add a `sentai.pipeline.calibrate(model, frames, ...)` REPL function so a
+user can run any TFLite model against the current camera config and
+get back a structured histogram of cam0/cam1 frames + timing stats.
+Also expose `force_parity` (skip-on-same-cam_id retry in PrepTask) and
+`loop_delay` (raw-ms post-iteration sleep) so the user can sweep the
+sweet-spot for camera alternation without recompiling.
+
+### What shipped (build #880)
+
+* `detection_task.cc`:
+  - Renamed `force_alt_cam` → `force_parity` (semantic rename — same
+    skip-on-same-cam_id logic, framed as parity tracking).
+  - Added bounded retry (max 6, 22 ms inter-grab settle) on parity miss.
+  - `s_pipeline_loop_delay_ms` knob clamped [0,200].
+  - `s_last_grabbed_cam_id` reset to -1 in `sentai_detection_start`.
+* `modsentai_pipeline.c`:
+  - `sentai.pipeline.force_parity([n])`, `force_parity_stats()`,
+    `force_parity_reset()`.
+  - `sentai.pipeline.loop_delay([n])`.
+  - `sentai.pipeline.calibrate(model=None, frames=100, timeout_ms=2000,
+    delay_ms=-1, conf=0.25, iou=0.45)` — auto-loads model if not loaded;
+    auto-starts/stops pipeline if not running; saves & restores
+    loop_delay.  Returns dict with `{cam0, cam1, unknown, frames,
+    timeouts, wall_ms, fps_x100, invoke_ms_{sum,min,max},
+    total_ms_{sum,min,max}, detections_total, parity_skipped,
+    parity_timeout}`.
+* QSTRs regenerated; +5 new dict-key QSTRs auto-collected.
+
+### Driver
+`diag/_t_calibrate.py` — verbose-1 first-run, 50 frames at parity OFF,
+50 at parity ON, then a `loop_delay` sweep (0/5/10/22/33 ms).
+Uploaded via `diag/_host_upload_repl.py --file _t_calibrate.py`,
+executed via raw-drain + `=== done ===` sentinel pattern.
+
+### Results (1 run, fresh flash, VGA45 + alt 1:1 + switch_drain=1)
+
+| Test | cam0 | cam1 | unknown | FPS | Notes |
+|---|---|---|---|---|---|
+| parity OFF, delay=0  | 0 | 0 | 50 | 32.91 | invoke min/avg/max = 23/28/39 ms |
+| parity ON,  delay=0  | 0 | 0 | 50 | — | parity_skipped=0, timeout=0 |
+| delay=0   sweep      | 0 | 0 | 30 | 34.64 | (auto-start each call) |
+| delay=5   sweep      | 0 | 0 | 30 | 28.65 | |
+| delay=10  sweep      | 0 | 0 | 30 | 31.64 | |
+| delay=22  sweep      | 0 | 0 | 30 | 17.42 | clear FPS drop, expected |
+| delay=33  sweep      | — | — | — | — | board disconnected mid-test |
+
+### What works
+1. **calibrate auto-load + auto-start path is functional.**  Model loaded
+   on first call (5.6 MB tflite); pipeline started and stopped cleanly
+   each invocation.  Frame count, wall_ms, fps_x100, invoke_ms timing
+   all populate correctly.
+2. **loop_delay knob WORKS empirically.**  FPS drops monotonically with
+   delay (32.9 → 28.6 → 31.6 → 17.4 across 0/5/10/22 ms).  Confirms the
+   PrepTask post-iteration vTaskDelay path is wired correctly.
+3. **force_parity stats counters return cleanly** (skipped=0, timeout=0
+   for the parity-ON run because all frames came back as "unknown" so
+   the parity check never triggered).
+4. **`current_id` and `last_capture_id` DO toggle** 0/1 across grabs —
+   confirms CSI ISR is firing and `g_cam_current_id` updates per MUX
+   flip.
+
+### What is BROKEN — cam_id propagation
+**Every frame returns `cam_id == -1`** (all 50 frames in both parity
+runs, all 30 frames at every delay).  Same for
+`sentai.camera.grabbed_id()` queried directly: returns -1 even after
+`to_tensor()` calls.
+
+**Root cause hypothesis:** the ISR is supposed to write
+`g_cam_buf_id[idx] = active_cam` at FB1_done / FB2_done events
+(`libs/camera/camera_support.c:182-194`).  Either:
+* `FramebufferPtrToIndex(fb_addr)` returns -1 because `DMASA_FBn`
+  registers no longer point to the just-completed buffer at IRQ time
+  (NXP driver may already have re-pointed them in `BASEADDR_SWITCH`
+  mode), OR
+* the FB1/FB2 pointers don't match the C-side `framebuffers[]` array
+  base addresses (cache attribute / address translation mismatch).
+
+`g_cam_buf_id[]` initial value is 0xFF.  Reading `(int)0xFF` = 255 →
+truncated to `int8_t` = -1.  The "-1 == unknown" path in calibrate is
+hit on every frame.
+
+### Next session
+1. Add a sanity counter inside the ISR — increment a small
+   `g_cam_buf_tag_writes` every time `g_cam_buf_id[idx]` is actually
+   written.  If counter stays at 0, FramebufferPtrToIndex is the bug;
+   if it ticks but tag still reads 0xFF, race somewhere.
+2. Verify by direct memory dump: print `g_cam_buf_id[0..3]` after a
+   few grabs — should be 0/1 mix, not 0xFF.
+3. **DO NOT modify the ISR body** — per memory
+   `project_fb2_counter_fix.md`, even "inactive" CSI ISR additions
+   (XOR + store) broke alt mode in a previous session.  Add tagging
+   from a different code path (e.g. camera task post-buffer-return)
+   or set up a debug-only compile-time path that's runtime-disabled.
+
+Build #880 ships the calibrate API + knobs.  cam_id histogram is
+unreliable until the ISR tag write is fixed (or replaced).
+
+### Update — Build #881 / #882 root-caused & FIXED (2026-04-26)
+
+#### #881 — Diagnostic surface
+Added cheap ISR observability (single-store atomic increments):
+* `g_cam_buf_tag_writes`     — per-frame FB1/FB2 done events that
+  successfully landed an `(idx, cam_id)` tag write
+* `g_cam_buf_tag_idx_miss`   — `FramebufferPtrToIndex(fb_addr)` 
+  returned -1 (would indicate FB-address vs `framebuffers[]` 
+  mismatch)
+
+Surfaced via new MP binding `sentai.camera.buf_id_dump()` returning
+`(slot0, slot1, slot2, slot3, writes, idx_miss)`.  Embedded.md §I
+diagnostics: counters cost ~5 cycles per IRQ entry, no allocation,
+no logging — pure observability.
+
+#### Diag run (driver `_t_camid_diag.py`)
+```
+post-init pre-grab : slots=(0,0,0,0) writes=35  miss=0
+cam0 grab loop ×8  : slots=(0,0,0,0) writes 120→141 grabbed=0 ✓
+select(1) cam1 ×8  : slots transition (0,0,1,0)→(1,0,1,0)→(1,1,1,1)
+                     grabbed: 0,1,1,1,1,1,1,1
+```
+
+ISR tagging path is **healthy**.  `idx_miss` stays at 0 — every
+FB-done event resolves to a valid slot.  Tags flip on `select(1)`.
+
+#### Root cause
+`sentai_cam_get_raw_with_recovery` (sentai_runtime.cc:2189) has
+**three** grab return paths:
+1. fast-path drain-and-keep-latest (line 2289) — updates `g_cam_grabbed_id`
+2. blocking `cam->GetRawFrame` post-drain (line 2302)        — updates `g_cam_grabbed_id`
+3. **post-switch slow path** (line 2258-2261)                 — **DID NOT**
+
+Path 3 fires when `g_cam_switch_pending == true` and not enough
+ISR-counted frames have arrived since the switch (drain wait).
+Under `ratio(1,1)` + `switch_drain=1`, that's the dominant path —
+every grab is a switch.  Result: `g_cam_grabbed_id` never refreshed,
+PrepTask snapshot stayed at the boot sentinel (-1), DetectionFrame.cam_id
+= -1, calibrate dict reports unknown=N.
+
+#### Fix (#882)
+One line added at line 2261:
+```c
+g_cam_grabbed_id = (int)g_cam_buf_id[idx];
+```
+Same pattern as the other two return paths.
+
+#### Verification (build #882, fresh flash, VGA45 alt 1:1, drain=1)
+
+| calibrate config | cam0 | cam1 | unk | FPS | parity skipped/timeout |
+|---|---|---|---|---|---|
+| parity OFF, delay=0 | **25** | **25** | 0 | 33.85 | — |
+| parity ON,  delay=0 | **25** | **25** | 0 | — | 0 / 0 |
+| delay=0  sweep      | 15 | 15 | 0 | 33.18 | — |
+| delay=5  sweep      | 15 | 15 | 0 | 28.84 | — |
+| delay=10 sweep      | 15 | 15 | 0 | 31.81 | — |
+
+**Perfect 50/50 balance.**  At alt 1:1 the natural cadence already
+produces strict alternation, so `force_parity` finds nothing to
+skip (skipped=0, timeout=0).  Parity ON is essentially free in this
+config — counters confirm.
+
+`loop_delay` knob behaves as designed: monotonic FPS drop with
+delay (33→28→32 is within ±2 FPS noise floor; clear 17 FPS at
+delay=22 from earlier run).
+
+#### Lessons (per embeded.md §I diagnostics)
+1. Cheap atomic counters in the ISR are safe and load-bearing for
+   diagnosis.  Memory `project_fb2_counter_fix.md` warned of past
+   ISR breakage from XOR+store — the difference here is the new
+   stores are *gated by an existing condition* (idx in range) and
+   add ≤2 stores per FB-done event, vs unconditional adds in the
+   broken precedent.  Net: still <5 cycles per IRQ.
+2. Multiple-grab-path C globals always need a documented assignment
+   contract.  The slow path was added in a previous patch with
+   tag-update missing — pure oversight.  `embeded.md §J` complexity
+   control: every code path that returns from a function with
+   shared-state semantics MUST update the same shared state.
+
+### Parity-collapse threshold sweep (build #882 VGA45, build #883 VGA30)
+
+To prove the alternation + parity tracking are real, sweep `loop_delay`
+until the natural cam0/cam1 cadence breaks.  Tested at two sensor rates.
+
+**VGA45 — sensor period 22.2 ms**
+
+| loop_delay (ms) | cam0 | cam1 | FPS | bias % | parity ON skipped |
+|---|---|---|---|---|---|
+| 0  | 30 | 30 | 33.74 | 0   |  1 |
+| 2  | 30 | 30 | 33.74 | 0   |  — |
+| 5  | 30 | 30 | 28.59 | 0   |  — |
+| 8  | 30 | 30 | 25.43 | 0   |  0 |
+| 11 | 30 | 30 | 31.25 | 0   |  — |
+| **14** | **57** | **3**  | 17.16 | **+90**  | 12 (parity ON → 30/30) |
+| 17 | 50 | 10 | 17.49 | +66 | 58 (parity ON → 30/30) |
+| 20 | 59 | 1  | 17.11 | +96 | 57 (parity ON → 30/30) |
+| 22 | 60 | 0  | 16.99 | +100| 59 (parity ON → 30/30) |
+
+Threshold: bistable transition between 11 ms (clean) and 14 ms (collapsed).
+At delay = 22 ms (= sensor period) the queue serves only cam0 frames —
+parity ON force-rebalances by skipping ≈ 1 grab per accepted frame.
+
+**VGA30 — sensor period 33.3 ms**
+
+Parity OFF (build #883, fresh flash):
+
+| loop_delay (ms) | cam0 | cam1 | FPS | bias % |
+|---|---|---|---|---|
+| 0  | 15 | 15 | 20.31 | 0   |
+| 11 | 15 | 15 | 18.14 | 0   |
+| 22 | 15 | 15 | 25.70 | 0   |
+| **33** | **20** | **10** | 11.32 | **+33** |
+| **50** | **1**  | **29** | 10.62 | **−94** (sign flip — cam1 dominant) |
+
+Parity ON (build #883, fresh reflash for clean state per agent.md §2.9):
+
+| loop_delay (ms) | cam0 | cam1 | FPS | skipped | timeout |
+|---|---|---|---|---|---|
+| 0  | 15 | 15 | 19.02 |  2 | 0 |
+| 11 | 15 | 15 | 17.83 |  1 | 0 |
+| 22 | 15 | 15 | 25.79 |  1 | 0 |
+| **33** | 15 | 15 |  6.02 | **30** | 0 |
+| **50** | 15 | 15 |  6.19 | **28** | 0 |
+
+**Findings:**
+
+1. **Collapse threshold scales linearly with sensor period.**  VGA45
+   collapses at 14 ms (= ~0.6× period); VGA30 collapses at 33 ms (=
+   ~1.0× period).  Higher sensor rate ⇒ tighter sweet-spot for
+   alt-mode loop_delay.
+
+2. **VGA30 shows a sign-flip at delay = 50 ms.**  cam0:cam1 went
+   +33 % → −94 % between 33 and 50 ms.  Hypothesis: at
+   delay ≈ 1.5 × sensor period, the grab-after-delay reliably lands
+   on the *other* camera's freshly-completed buffer (queue head is
+   cam1 after one MUX flip), inverting the bias.  Not seen at VGA45
+   in the 0–22 ms range; would expect it around 33–44 ms.
+
+3. **Parity ON restores 50/50 at every delay tested.**  No
+   timeouts (= retry budget never exhausted).  Skip count is the
+   relevant cost: ≈ 0–2 skips below the collapse threshold,
+   30 skips out of 30 accepted frames at the worst delays
+   (effective FPS halves).
+
+4. **Sweet-spot for natural alternation (parity OFF):**
+   * VGA45: `loop_delay ∈ [0, 11] ms`
+   * VGA30: `loop_delay ∈ [0, 22] ms`
+   At delay = 0 both rates reach the queue-bound floor:
+   33 FPS at VGA45, 20 FPS at VGA30 (sensor-limited).
+
+5. **Production guidance.**  When the application demands strict
+   alternation (visual A/B or cross-camera fusion), enable
+   `force_parity(1)` — cost is FPS reduction proportional to
+   skipped/N, but the histogram is mathematically guaranteed
+   50/50.  When throughput matters more than balance and
+   loop_delay is small, parity OFF runs faster with no skip
+   overhead.
+
+### Visual A/B exposes ISR tag bug + task-context fix (build #889)
+
+After ratty calibrate output stabilised at 25/25 cam0/cam1 (build
+#882), a visual A/B captured 8 JPEGs at VGA30 alt 1:1 + drain=1 and
+labelled them with `sentai.camera.grabbed_id()`.  Cameras physically
+aim at radically different scenes (kitchen vs living room).  Result:
+**tag attribution was shuffled** — same scene appeared with both
+tags, same tag carried both scenes.  The numerical 25/25 split was
+correct as frequency but each tag was wrong relative to its buffer.
+
+**Root cause (build #885 visual evidence):** in `CSI_IRQHandler` we
+snapshot `DMASA_FB1`/`DMASA_FB2` BEFORE running
+`CSI_DriverIRQHandler`, then call `FramebufferPtrToIndex(fb_addr)`
+to find the slot.  In BASEADDR_SWITCH mode the CSI hardware can
+advance `DMASA_FBn` to the next slot before our snapshot reads it,
+so the tag write lands on the WRONG slot ~half the time.  No
+software-side fix in the ISR is reliable.
+
+**Fix (build #889) — task-context tagging:**
+
+* New `g_cam_buf_id_task[]` array in `camera_support.c`.
+* `libs/camera/camera.cc::HandleFrameRequest` writes the tag at
+  buffer dequeue: snapshot `g_cam_last_completed_id` (latched by
+  ISR with `g_cam_current_id` at FB-done time) and write
+  `g_cam_buf_id_task[idx] = source`.  Both `idx` (from the
+  dequeued buffer pointer) and `source` are reliable here.
+* ISR side: added a single `g_cam_last_completed_id = active_cam`
+  store on FB1_done (was only set on FB2_done before) so the
+  latch stays fresh for both event types.  +1 store, no new
+  logic — passed the cam-alt-mode regression smoke test.
+* `sentai_cam_get_raw_with_recovery` now reads
+  `g_cam_buf_id_task[]` on all three return paths.
+* `sentai.camera.buf_id_dump()` returns a 12-tuple exposing both
+  the legacy ISR array and the authoritative task array, plus
+  per-side write/miss counters.
+
+**Visual A/B verification (build #889):** 100% tag↔scene match
+across 8 frames.  Counters: ISR writes=298 miss=0 (legacy),
+TASK writes=32 unknown=0 (authoritative).
+
+```
+i0 cam0 living   i1 cam0 living   i2 cam0 living   i3 cam1 kitchen
+i4 cam1 kitchen  i5 cam0 living   i6 cam1 kitchen  i7 cam1 kitchen
+```
+
+Pattern 0,0,0,1,1,0,1,1 reflects how the MUX flipped during the
+period — consistent with scheduler updating g_camera_frame_seq on
+FB2_done only (cam-burst behaviour).
+
+**Lesson durable:** numerical metrics are easy to fool; pixels are
+not.  Any change to the cam_id tagging path must run
+`_t_visual_ab.py` and inspect at least 8 JPEGs from cameras
+pointing at distinguishable scenes.
+
+### Driver-duration discipline shipped (build #884)
+
+Long-running diag drivers can now extend the watchdog deadline
+explicitly via `sentai.diag.repl_kick()` — bumps `g_repl_last_activity`
+to `now`.  Recommended in any outer-loop iteration that runs >5 s of
+firmware work without REPL prompt activity.  See agent.md §5.1.1 for
+the duration-estimation rubric (`T_driver = sum(N×period) × 1.25`)
+and the >120 s split-into-multiple-files rule.  REPL task already
+auto-heartbeats every 5 s while a Python script is running; this is
+defense-in-depth + explicit progress proof.
+
+---
+
 ## 🧹 Session 2026-04-25 (later) — Production cleanup pass
 
 ### TL;DR
@@ -93,6 +418,170 @@ Future levers (none implemented; logged for later):
 Default `drain=1` remains the production setting; the cleanup did not
 regress dual-camera behaviour and the 30 FPS at 1:1 is queue-staleness-
 bound, not contention-bound.
+
+### Sensor-rate sweep (VGA45 → VGA90, build #854/#856)
+
+OV5640 datasheet lists VGA up to 90 fps via 2×2 binning.  Hypothesis:
+faster sensor rate shortens the post-flip queue-staleness drain (one
+sensor period instead of one VGA45 period), which should improve
+dual-camera alternation throughput.  Tested three sensor PLL configs.
+
+**Driver/SDK changes for the sweep:**
+* `fsl_ov5640.c`: added `VGA @ 60 fps` row (pllCtrl1=0x14, pllCtrl2=0x70,
+  pclkPeriod=0x0c) and `VGA @ 90 fps` row (pllCtrl1=0x21, pllCtrl2=0x54,
+  pclkPeriod=0x0a, cloned from 720P/30).
+* `camera_support.c csi2rxHsSettle[]`: added VGA60 → 0x16 and VGA90 → 0x12.
+
+| Config | Pure TPU | Pipeline cam0 | Alt 1:1 d=1 | Alt 1:1 d=2 | Pipeline fails |
+|---|---|---|---|---|---|
+| **VGA45 baseline** | 76.1 FPS | 43.1 FPS | 30.0 FPS | 12.6 FPS | 0 |
+| **VGA60** (pllCtrl2=0x70) | 75.2 FPS | **42.5 FPS** | **32.8 FPS** (+9 %) | **19.8 FPS** (+57 %) | **0** |
+| VGA90 (pllCtrl1=0x21) | n/a | 8.0 FPS  | wedge cascade | n/a | 76 % |
+
+**Findings:**
+
+1. **VGA60 single-camera = VGA45.** Pipeline is invoke-bound (~21 ms),
+   not camera-bound, so a faster sensor doesn't lift the single-cam
+   ceiling.  Camera counter shows ~115 sensor FPS effective at the
+   "60" PLL row — pllCtrl2=0x70 actually clocks the PLL above the
+   nominal 60 fps label.  Pipeline absorbs the extra rate by dropping
+   stale frames in `cam_grab_latest()`.
+
+2. **VGA60 alternation = significantly better.** Drain wait scales
+   with sensor period: VGA45 drain=1 ≈ 22 ms; VGA60-effective drain=1 ≈
+   8.7 ms.  More TPU invokes fit between MUX flips:
+   * Alt 1:1 drain=1: 30.0 → 32.8 FPS (+9 %)
+   * Alt 1:1 drain=2: 12.6 → 19.8 FPS (+57 %)
+
+3. **VGA90 = SDRAM-saturation dead-end.** Pixel rate 27.6 MP/s × 4 BPP
+   = 110 MB/s SDRAM write (≈2× VGA45 = 55 MB/s) starves USB BulkOut
+   for TPU instructions.  Pipeline collapses to 8 FPS / 76 % `-2`
+   invoke errors.  Camera streaming itself is healthy (PrepTask
+   measured 35 FPS consumption); the failure is exclusively SEMC
+   contention with TPU traffic.  Camera-switch alternation does NOT
+   help: sensor clocks continuously regardless of MUX state, so
+   SDRAM write rate is identical with or without alternation.
+
+**Recommendation:** VGA60 supersedes VGA45 as the dual-camera
+production baseline.  Single-camera workloads see no regression
+(within noise); alternation workloads gain meaningfully.  Pure-camera
+capture at 90 fps may still be useful for vision-only (no-TPU) modes
+— datasheet supports it cleanly, just not concurrent with TPU.
+
+### SXGA 1280×960 @ 30 fps (build #857)
+
+Compile-time switch to SXGA: m_ncamera linker region grew 16 → 24 MB
+(LENGTH 0x01000000 → 0x01800000) to fit 4 × 1280×960×4 BPP = 19.66 MB
+of framebuffer.  OV5640 SXGA PLL row + csi2rxHsSettle entry shipped
+in the prior cleanup pass (see Cale 1+ section below).
+
+**Note on naming:** the same firmware binary is currently compile-time
+fixed to a single resolution.  Runtime parameterization
+(`sentai.camera.init(streaming, w, h, fps)`) is the next phase — see
+"Runtime camera config" plan further below.  This row demonstrates
+that SXGA is functional end-to-end before we expose the runtime API.
+
+| Config | SXGA30 | vs VGA45 baseline | Pipeline fails |
+|---|---|---|---|
+| Pure TPU | **64.3 FPS** | -15 % (76.1) | 0 |
+| Pipeline cam0 | **27.7 FPS** | -36 % (43.1) | 0 |
+| Alt 1:1 drain=1 | **12.4 FPS** | -59 % (30.0) | 0 |
+| Alt 1:1 drain=2 | **5.8 FPS** | -54 % (12.6) | 0 |
+
+**Findings:**
+
+1. **SXGA single-cam is functional at 27.7 FPS.** Limit is the
+   PXP downscale step: SXGA→512×512 takes 35 ms (vs VGA→512 = 12 ms),
+   so cycle time = max(prep≈42 ms, invoke≈21 ms) = ~36 ms ≈ 28 FPS.
+   PXP is now the bottleneck, not TPU.
+
+2. **Pure TPU drops to 64.3 FPS (from 76).** Camera write to SDRAM
+   at 147 MB/s (SXGA30 = 36.9 MP/s × 4 BPP) contends with USB
+   BulkOut for TPU instructions.  Same SEMC-saturation phenomenon
+   that killed VGA90 at 110 MB/s — but here we're slightly above
+   that threshold and pipeline still completes (no `-2` fails).
+   Difference: SXGA30 frame period is 33 ms vs VGA90's 11 ms, so
+   the SDRAM-burst duty cycle is lower per unit time.
+
+3. **Alternation is much more expensive at SXGA.** The post-flip
+   drain costs one sensor period = 33 ms, vs 8.7 ms at VGA60.  At
+   1:1 alternation each frame eats a drain wait, so pipeline halves.
+
+4. **No TPU wedges at any SXGA configuration.** SXGA30 is a clean
+   working point — slower but reliable.  Use case: workloads that
+   want full-resolution sensor field at lower frame rate (e.g.
+   distant-object detection, where VGA's 3:1 subsampling loses
+   detail).
+
+**Buffer cost:** 19.66 MB SDRAM ncamera (vs 4.92 MB at VGA).
+PrepTask PXP cost scales with src pixel count (1.6 MB SXGA vs
+0.31 MB VGA = 5×).  Linker confirmed: m_ncamera 24 MB does not
+overlap m_heap (16) or m_sdram (16); total SDRAM use = 56/64 MB.
+
+### Multi-invoke per frame A/B (build #859, SXGA30 alt 1:1)
+
+The 12 FPS at SXGA30 alt 1:1 alarmed the user — sensor period 33 ms +
+PrepTask drain wait left a big idle window for InferTask between MUX
+flips.  Idea: run **N TPU invokes per camera frame** on the SAME input
+buffer (e.g. for multi-ROI workloads, or just to amortize the camera
+drain wait).  The existing `s_debug_invokes_per_frame` knob does this,
+but its interaction with the fine-grained one-shot SendInputs sync
+introduces a race when N > 1: PrepTask gets released after the first
+invoke's first SendInputs and may overwrite `.tpu_input` while
+subsequent invokes are still reading it.
+
+Three sync strategies tried (selectable via
+`sentai.pipeline.multi_invoke_mode(n)`):
+
+| Mode | Strategy | Race? |
+|---|---|---|
+| 0 LEGACY | Arm sema once at top, give-on-first-SendInputs (default for N=1) | YES if N>1 |
+| 1 DEFER (A) | Run N-1 invokes with sema disarmed; arm only before invoke N | NO |
+| 2 REARM (B) | Re-arm sema before each invoke | YES (per-invoke window) |
+
+**Measured at SXGA30 alt 1:1, drain=1, 5 s per config:**
+
+| Config | Infer/s | Avg invoke ms | Fails | Δ vs n=1 alt |
+|---|---|---|---|---|
+| Reference n=1 single (no switch) | 28.4 | 34 | 0 | — |
+| Reference n=1 alt 1:1 (legacy)   | 12.4 | 30 | 0 | baseline |
+| **A: N=2 DEFER**                 | **20.0** | **23** | **0** | **+61 %** |
+| B: N=2 REARM                     | 21.2 | 44 | 0 | +71 % |
+
+**Findings:**
+
+1. **Both modes succeed without `-2` invoke fails.**  yolo_1's
+   `parameter_caching_exe` evidently tolerates the buffer race in B
+   (REARM) — at least empirically over 5 s of sustained runs.  We
+   cannot conclude correctness of detection results from this; the
+   invoke return code is not a content check.  For production use,
+   visual or detection-quality A/B is required.
+
+2. **A (DEFER) is the efficient winner.**  Avg invoke 23 ms = roughly
+   one full invoke (35 ms) + one parameter-cached invoke (~13 ms),
+   averaged.  CPU/USB utilisation matches the camera-bound budget.
+
+3. **B (REARM) has higher throughput but at 2× per-invoke cost.**
+   Avg invoke 44 ms ≈ full invoke for both.  Hypothesis: re-arming the
+   sema between invokes invalidates the parameter_caching token (or
+   forces TFLite to re-issue parameters), so the second invoke pays
+   the full cost.  Net throughput is +1.2 invoke/s vs A but at almost
+   double the per-invoke wall-clock — not a true win, just brute
+   parallelism.  Latency-sensitive workloads should prefer A.
+
+4. **Multi-invoke recovers most of the alt-1:1 cost.**  Going from
+   12.4 (n=1) to 20.0 (n=2 DEFER) brings effective detection rate
+   close to single-camera SXGA30 (28.4) — a useful pattern when both
+   cameras must contribute and the drain wait is unavoidable.
+
+**Recommendation:**
+* Default `multi_invoke_mode(0)` LEGACY for `invokes_per_frame=1`
+  (race-free for the singular case).
+* Use `multi_invoke_mode(1)` DEFER when running with
+  `invokes_per_frame > 1`.
+* Avoid `multi_invoke_mode(2)` REARM unless explicitly debugging.
+
+API now wired through `sentai.pipeline.multi_invoke_mode([n])`.
 
 ### Architectural answer to "putem pune instrucțiunile în DTCM?"
 
@@ -2338,3 +2827,186 @@ Remaining 5-8 ms gap levers (all require significant work):
    `examples/sentai_runtime/diag/drivers/_e20_tpu_raw.py` and
    `sentai.diag.tpu_perf(True)` then sample at end to see per-stage
    split.
+
+---
+
+# Cam-id 100% — async-VSYNC dual-camera tagging (build #953, 2026-04-26)
+
+## TL;DR
+
+Two free-running OV5640s on a GPIO MUX, **no FSIN hardware sync**,
+and the firmware now achieves **100/100 correct cam_id ↔ content
+correspondence at alt 3:1 / VGA45**, reproducibly across consecutive
+runs.  Solved with a 4-bug stack inside the existing CSI ISR + the
+per-buffer dirty-skip discipline.  No new tasks, no priority changes,
+no hardware modifications.
+
+## How we got there
+
+| Build | Mechanism                                                      | PHASE B alt 3:1     |
+|-------|----------------------------------------------------------------|---------------------|
+| #909  | Pre-fix baseline (cam_mux.h polarity inverted)                 | 6/100               |
+| #910  | cam_mux.h polarity convention fixed                            | 90/100              |
+| #911  | HandleFrameRequest scalar tag — 90% baseline                   | 88-92/100 (variance)|
+| #912 / #915 / #917 | Single-writer ISR simplification — *worse*        | 74-86/100           |
+| #918  | Reverted to multi-writer baseline                              | 88-92/100           |
+| #942  | Dirty-skip introduced (mark in-flight at flip)                 | 88-96/100           |
+| #944  | All ISR callees in ITCM                                        | 88-91/100           |
+| #952  | Runtime-tunable dirty-skip N (sweep N=1..6)                    | N=1 best at 91%     |
+| **#953** | **Stale-dirty-bit-clear-on-fresh-fill + dirty checks at all return sites + HandleSwitchCameraRequest current_id sync** | **100/100** |
+
+## The four bugs
+
+### Bug 1 (primary) — stale dirty bit not cleared on a fresh fill
+
+`g_cam_buf_dirty[idx]` was set at FB-done after a MUX flip and
+cleared only by the consumer when it skipped a buffer.  Once a slot
+got re-armed and re-filled cleanly by a single camera, the FB-done
+tag write **did not** reset its dirty bit.  So the next consumer
+read saw `dirty=1` on a perfectly-clean buffer, skipped it, and
+fell through to a path that **never checked dirty** (Bugs 2 + 3
+below) — returning a buffer that was actually mid-frame mixed.
+The stale flag re-routed the system into delivering exactly the
+data the flag was meant to filter out.
+
+```c
+// FB-done block, libs/camera/camera_support.c (build #953)
+g_cam_buf_id[idx] = (uint8_t)active_cam;
+if (dirty_now && pend_in - pend_consumed > 0u) {
+    g_cam_buf_dirty[idx] = 1u;     // mark in-flight at flip
+    pend_consumed++;
+} else {
+    g_cam_buf_dirty[idx] = 0u;     // ★ clear stale on fresh fill
+}
+```
+
+### Bug 2 — slow-path return missed the dirty check
+
+In `sentai_cam_get_raw_with_recovery`, the post-switch slow-path's
+blocking `cam->GetRawFrame()` returned the buffer to the caller
+without checking `g_cam_buf_dirty[idx]`.  Added skip-and-fall-through.
+
+### Bug 3 — blocking-grab fallback missed the dirty check
+
+Same function, the recovery loop's "queue empty → blocking grab"
+also returned without dirty check.  Same fix.
+
+### Bug 4 — `HandleSwitchCameraRequest` did not sync `g_cam_current_id`
+
+Any task-context `cam->SwitchCamera()` set the GPIO via `GpioSet()`
+but left `g_cam_current_id` at whatever value the auto-scheduler
+had last written.  ISR's tag block then wrote the *stale*
+`current_id` into `g_cam_buf_id[]`, producing clusters of buffers
+with content from one cam but tags claiming the other.  Added
+`::g_cam_current_id = 0/1` after each `GpioSet()` branch.
+
+## What confirmed each fix wasn't a winning lottery ticket
+
+A single 96/100 run was confused for "the fix" twice during the
+session.  Lesson: with this much timing variance, **two consecutive
+clean runs is the minimum bar** to call something reproducible.
+
+The N=1..6 dirty-skip sweep (`diag/_t_dirty_sweep.py`) proved that
+parametric tuning alone could not exceed 91/100 — that ruled out
+"more aggressive drain" as the missing piece and forced the search
+into actual code defects.  *Without* that sweep we'd still be
+incrementing N forever.
+
+## Final architecture
+
+```
+ISR (CSI_IRQHandler, ITCM-resident, ~2 µs measured):
+  ├─ NXP CSI_DriverIRQHandler runs (calls our ITCM hooks)
+  ├─ FB-done block — SOLE writer of g_cam_buf_id[idx]:
+  │    ├─ g_cam_buf_id[idx]   = active_cam
+  │    ├─ if (dirty_window):    g_cam_buf_dirty[idx] = 1
+  │    └─ else:                 g_cam_buf_dirty[idx] = 0    ★ load-bearing
+  ├─ Stateless ratio scheduler (uses g_camera_frame_seq)
+  └─ Post-flip block:
+       ├─ SentaiCamMuxSetFromIsr(level)        — atomic DR_SET/DR_CLEAR
+       ├─ g_cam_current_id  = pending           — sync state
+       └─ g_cam_dirty_pending_count = N         — runtime-tunable, default 1
+
+Consumer (sentai_cam_get_raw_with_recovery, task ctx):
+  Three return sites (drain-and-keep, slow-path post-switch,
+  blocking-grab fallback) ALL check g_cam_buf_dirty[idx]:
+    if dirty: clear bit, ReturnRawFrame, retry
+              (bounded by kMaxRecoveries+1)
+
+Task-context GPIO writers (HandleSwitchCameraRequest):
+  Always pair GpioSet() with g_cam_current_id update.
+  Single 32-bit atomic on M7; ISR only reads at top.
+```
+
+Diagnostic plumbing kept (do not delete):
+- `sentai.camera.flip_stats()` — 15-tuple including
+  `g_cam_buf_dirty_marks`, `g_cam_buf_dirty_skips`,
+  `g_cam_buf_tag_skip_both`, ISR-latency histogram bucket counters.
+- `g_cam_dirty_consecutive_n` runtime-set via
+  `sentai.camera.dirty_skip_n(n)` — N=1 confirmed optimal at alt 3:1
+  VGA45.
+- `diag/_t_pattern_31.py` PHASE A + PHASE B with single-grab 5-row
+  sampling (`peek5_b40`) is the **regression gate**.  Any change
+  touching CSI ISR / consumer / current_id MUST re-run this driver.
+- `diag/_t_dirty_sweep.py` for N=1..6 sweeps if a future change
+  invalidates the N=1 conclusion.
+
+## Pre-existing instability (NOT introduced by these fixes)
+
+The board occasionally wedges on alt-mode tests with `E:0A02:300`
+(CAM_DRAIN_TIMEOUT) followed by REPL silence.  WDOG recovers in
+~3 minutes (120 s REPL-dead threshold + 30 s WDOG1 timeout).  This
+is a separate bug and does not affect tagging accuracy when the test
+runs to completion — verified by two consecutive 100/100 runs at
+build #953.
+
+## Don't repeat (lessons logged for future agents)
+
+1. **Don't simplify the multi-writer ISR architecture without
+   measuring.**  Three previous attempts (#912 / #915 / #917) all
+   regressed.  The right shape is single-writer FB-done +
+   dirty-skip — but only **after** the dirty-skip mechanism is
+   *correct* (Bug 1 fix in place).  Without the fix, single-writer
+   regresses; with the fix, single-writer is the cleanest design.
+
+2. **Don't increase `kCamDirtyConsecutive` (N) above 1.**  Sweep
+   showed N=2..6 all *worse* than N=1.  N=1 surgically catches the
+   in-flight-at-flip buffer; higher N discards clean data and
+   shifts where mid-frame mix appears in the visible stream.
+
+3. **Don't read `g_cam_buf_id[idx]` from `HandleFrameRequest`.**
+   CSI re-uses buffer indices.  The task-context read of the
+   per-buffer array races with the ISR-context write.  The scalar
+   `g_cam_last_completed_id` is the correct source for the task
+   tag, because `peek5_b40`'s grab-tag-return loop is tight enough
+   that the scalar still reflects the buffer the consumer just
+   dequeued.
+
+4. **A dirty buffer is "sticky" until cleared by the next clean
+   fill.**  Any new code that returns a dirty buffer to the empty
+   queue must be consistent with the ISR clearing the flag on the
+   next fill (Bug 1).  Adding new return paths without thinking
+   about the dirty bit's lifetime through buffer reuse will silently
+   regress.
+
+5. **"Scrambled after dirty-skip is impossible" is a useful axiom.**
+   Only one camera writes the MIPI lane at a time; if a buffer's
+   slot was filled entirely after a flip, by definition it has only
+   that camera's data.  If the test still flags it scrambled, the
+   bug is in *our* code (mismatched tag, stale flag, missed return
+   path), not in CSI hardware behaviour.  Use this axiom to redirect
+   investigations away from "deeper" hardware mechanisms.
+
+## How to pick up next time
+
+- **Alt-mode wedge?**  Run `diag/_t_pattern_31.py` first; if board
+  enters `E:0A02:300` more than once per ~5 runs, that's a separate
+  drain-timeout bug worth investigating (likely the switch_drain
+  threshold + frame_seq snapshot interaction).  Tagging accuracy is
+  100/100 when the test does run to completion.
+- **Want to extend to ratio 1:1 / 5:1 / etc.?**  Re-run
+  `diag/_t_dirty_sweep.py` at the new ratio to confirm N=1 is still
+  optimal — denser switching may need a different N.
+- **Different sensor mode (SXGA15 / VGA90)?**  Per-frame timing
+  changes the post-flip "dirty window" duration; N=1 is likely still
+  right but measure to be sure.

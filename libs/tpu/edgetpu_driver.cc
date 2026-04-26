@@ -425,7 +425,45 @@ bool TpuDriver::SendData(DescriptorTag tag, const uint8_t *data,
   return true;
 }
 
+// Raw call counters — each Send* increments these once per call,
+// regardless of any cache/skip path beneath.  Visible from REPL via
+// sentai.diag.tpu_call_stats().  Used to verify how many Send* calls
+// the TFLite/Apex stack actually issues per Invoke().
+extern "C" volatile uint32_t g_sentai_tpu_send_params_calls   = 0;
+extern "C" volatile uint32_t g_sentai_tpu_send_params_bytes   = 0;
+extern "C" volatile uint32_t g_sentai_tpu_send_ins_calls      = 0;
+extern "C" volatile uint32_t g_sentai_tpu_send_ins_bytes      = 0;
+extern "C" volatile uint32_t g_sentai_tpu_send_inputs_calls   = 0;
+extern "C" volatile uint32_t g_sentai_tpu_send_inputs_bytes   = 0;
+// Forward decl — actual definition appears with the fine-grained sync
+// block ~200 lines below; we need it here for sentai_tpu_call_stats.
+extern "C" volatile uint32_t g_sentai_tpu_input_done_count;
+
+extern "C" void sentai_tpu_call_stats(uint32_t* p_calls, uint32_t* p_bytes,
+                                       uint32_t* i_calls, uint32_t* i_bytes,
+                                       uint32_t* in_calls, uint32_t* in_bytes,
+                                       uint32_t* in_done) {
+    if (p_calls)  *p_calls  = g_sentai_tpu_send_params_calls;
+    if (p_bytes)  *p_bytes  = g_sentai_tpu_send_params_bytes;
+    if (i_calls)  *i_calls  = g_sentai_tpu_send_ins_calls;
+    if (i_bytes)  *i_bytes  = g_sentai_tpu_send_ins_bytes;
+    if (in_calls) *in_calls = g_sentai_tpu_send_inputs_calls;
+    if (in_bytes) *in_bytes = g_sentai_tpu_send_inputs_bytes;
+    if (in_done)  *in_done  = g_sentai_tpu_input_done_count;
+}
+extern "C" void sentai_tpu_call_reset(void) {
+    g_sentai_tpu_send_params_calls = 0;
+    g_sentai_tpu_send_params_bytes = 0;
+    g_sentai_tpu_send_ins_calls    = 0;
+    g_sentai_tpu_send_ins_bytes    = 0;
+    g_sentai_tpu_send_inputs_calls = 0;
+    g_sentai_tpu_send_inputs_bytes = 0;
+    g_sentai_tpu_input_done_count  = 0;
+}
+
 bool TpuDriver::SendParameters(const uint8_t *data, uint32_t length) const {
+  g_sentai_tpu_send_params_calls++;
+  g_sentai_tpu_send_params_bytes += length;
   return SendData(DescriptorTag::kParameters, data, length);
 }
 
@@ -671,6 +709,8 @@ extern "C" volatile SemaphoreHandle_t g_sentai_tpu_input_done_sema = nullptr;
 extern "C" volatile uint32_t          g_sentai_tpu_input_done_count = 0;
 
 bool TpuDriver::SendInputs(const uint8_t *data, uint32_t length) const {
+  g_sentai_tpu_send_inputs_calls++;
+  g_sentai_tpu_send_inputs_bytes += length;
   // `.tpu_input` lives in OCRAM (V22 baseline), so SendInputs reads via
   // AXBS — not SEMC — and zero-copy is the production path.  When
   // zero-copy is disabled (diagnostic A/B), route input through the
@@ -747,6 +787,8 @@ extern "C" void sentai_tpu_set_input_done_sema(SemaphoreHandle_t sema) {
 }
 
 bool TpuDriver::SendInstructions(const uint8_t *data, uint32_t length) const {
+  g_sentai_tpu_send_ins_calls++;
+  g_sentai_tpu_send_ins_bytes += length;
   return SendData(DescriptorTag::kInstructions, data, length);
 }
 

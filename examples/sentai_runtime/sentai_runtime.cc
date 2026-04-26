@@ -1900,6 +1900,65 @@ extern "C" int sentai_cam_grab_latest(uint8_t** raw) {
   return sentai_cam_get_raw_with_recovery(raw);
 }
 
+// Peek the first `len` bytes of the most-recent camera framebuffer.
+// Used by visual-A/B / embedded-data probes to inspect raw XRGB8888
+// pixels (and any sensor-injected metadata in the first lines).
+// `dst` must be sized >= len (caller-supplied).  Returns bytes copied
+// or negative on failure.
+extern "C" int sentai_cam_peek_first_row(uint8_t* dst, int len) {
+  if (!dst || len <= 0) return -1;
+  uint8_t* raw = nullptr;
+  int idx = sentai_cam_get_raw_with_recovery(&raw);
+  if (idx < 0 || !raw) return -2;
+  // Buffer is XRGB8888 row layout: pitch =
+  // (DEMO_CAMERA_WIDTH + LINE_PADDING) * DEMO_CAMERA_BUFFER_BPP.
+  // We just copy len bytes starting at byte 0 — that's the first
+  // pixels of line 0, which is where OV5640 puts embedded data when
+  // 0x501F bit 7 is set.
+  if (len > 4096) len = 4096;  // sanity cap
+  memcpy(dst, raw, (size_t)len);
+  auto* cam = coralmicro::CameraTask::GetSingleton();
+  cam->ReturnRawFrame(idx);
+  return len;
+}
+
+// Build #935 — single-grab 5-row B-channel sample @ col 40.
+// Returns the B byte at col 40 from rows {0, H/4, H/2, 3H/4, H-1}
+// of the SAME framebuffer (single dequeue/return).  This is the
+// scramble-detection primitive for diag/_t_pattern_31.py PHASE B:
+// 5 different rows of ONE buffer, so any inconsistency means the
+// MUX flip landed during sensor active rows (true mid-frame mix),
+// not "5 different buffers from 5 different cameras".
+//
+// Also returns the cam_id of the buffer it sampled (via the existing
+// per-buffer task tag), so the caller can stitch (frame_idx, cam_tag,
+// 5 b40 samples) into one record per dequeue without re-grabbing.
+//
+// dst5: 5 bytes (caller-allocated) for the B-channel samples.
+// Returns: cam_tag (0/1/-1 unknown) on success, negative on error.
+extern volatile int g_cam_grabbed_id;
+extern "C" int sentai_cam_peek5_b40(uint8_t* dst5) {
+  if (!dst5) return -1;
+  uint8_t* raw = nullptr;
+  int idx = sentai_cam_get_raw_with_recovery(&raw);
+  if (idx < 0 || !raw) return -2;
+  const size_t pitch = (size_t)(DEMO_CAMERA_WIDTH + LINE_PADDING)
+                       * (size_t)DEMO_CAMERA_BUFFER_BPP;
+  static const int kRows[5] = {
+      0,
+      DEMO_CAMERA_HEIGHT / 4,
+      DEMO_CAMERA_HEIGHT / 2,
+      (3 * DEMO_CAMERA_HEIGHT) / 4,
+      DEMO_CAMERA_HEIGHT - 1};
+  for (int i = 0; i < 5; ++i) {
+    dst5[i] = raw[(size_t)kRows[i] * pitch + (size_t)40 * 4];
+  }
+  int tag = g_cam_grabbed_id;
+  auto* cam = coralmicro::CameraTask::GetSingleton();
+  cam->ReturnRawFrame(idx);
+  return tag;
+}
+
 extern "C" void sentai_cam_return_raw(int idx) {
   coralmicro::CameraTask::GetSingleton()->ReturnRawFrame(idx);
 }
@@ -1915,6 +1974,22 @@ static int g_cam_height = DEMO_CAMERA_HEIGHT;
 // aligned write → atomic on Cortex-M7; no lock needed.
 volatile int g_cam_current_id = 0;
 extern "C" int sentai_cam_current_id(void) { return g_cam_current_id; }
+
+/* Source camera that wrote the most recently COMPLETED buffer (NOT the
+ * current MUX state).  Set by CSI ISR at FB2-done before the MUX flip.
+ * Use this to label captures correctly during alt-mode switching. */
+extern volatile int g_cam_last_completed_id;
+extern "C" int sentai_cam_last_capture_id(void) { return g_cam_last_completed_id; }
+
+/* Tag of the most recently GRABBED buffer — set by
+ * sentai_cam_get_raw_with_recovery from the per-buffer tag array
+ * g_cam_buf_id[idx].  This is the SOURCE camera that actually wrote
+ * the buffer, regardless of MUX state at grab time. */
+extern volatile int g_cam_grabbed_id;
+extern volatile uint8_t g_cam_buf_id[];
+extern volatile uint8_t g_cam_buf_id_task[];  // build #886 attempt
+extern volatile uint8_t g_cam_buf_id_csi[];   // build #893 NXP-driver-hook (authoritative)
+extern "C" int sentai_cam_grabbed_id(void) { return g_cam_grabbed_id; }
 // g_camera_frame_seq snapshot at MUX switch time.  Now written by the CSI
 // ISR in libs/camera/camera_support.c immediately after the atomic GPIO
 // flip that selects the new sensor.  Because the ISR fires when a DMA
@@ -2004,7 +2079,9 @@ extern "C" uint32_t sentai_cam_switch_drain_get(void) {
 }
 
 extern "C" int sentai_cam_switch_drain_set(uint32_t n) {
-  if (n < 1 || n > 10) return -1;
+  // 2026-04-25: lower bound relaxed 1→0 for the "no drain wait" A/B.
+  // threshold=0 = always fast path (take whatever's in queue).
+  if (n > 10) return -1;
   g_cam_switch_drain_threshold = n;
   return 0;
 }
@@ -2196,7 +2273,7 @@ static int sentai_cam_get_raw_with_recovery(uint8_t** raw_out) {
     // legitimately change it mid-run (A/B experiments), but each
     // decision in this function must use a single consistent value.
     uint32_t threshold = g_cam_switch_drain_threshold;
-    if (threshold < 1) threshold = 1;
+    // 2026-04-25: threshold==0 now allowed → always fast path
     if (threshold > 10) threshold = 10;
 
     if (elapsed >= threshold) {
@@ -2241,10 +2318,24 @@ static int sentai_cam_get_raw_with_recovery(uint8_t** raw_out) {
       uint8_t* frame = nullptr;
       int idx = cam->GetRawFrame(&frame);
       if (idx >= 0 && frame) {
-        *raw_out = frame;
-        return idx;
+        // Build #953 — slow-path dirty check.  Was missing before:
+        // a buffer dequeued via the slow blocking grab could carry
+        // a mid-frame-mix from a recent flip, get returned to the
+        // caller without skipping.  Now we drop and fall through.
+        extern volatile uint8_t g_cam_buf_dirty[];
+        extern volatile uint32_t g_cam_buf_dirty_skips;
+        if (g_cam_buf_dirty[idx]) {
+          g_cam_buf_dirty[idx] = 0u;
+          g_cam_buf_dirty_skips++;
+          cam->ReturnRawFrame(idx);
+          // Fall through to recovery loop below.
+        } else {
+          g_cam_grabbed_id = (int)g_cam_buf_id_task[idx];
+          *raw_out = frame;
+          return idx;
+        }
       }
-      // Fresh frame failed — fall through to normal recovery path.
+      // Fresh frame failed (or was dirty) — fall through to recovery.
     }
   }
 
@@ -2268,6 +2359,35 @@ static int sentai_cam_get_raw_with_recovery(uint8_t** raw_out) {
     }
 
     if (kept_idx >= 0) {
+      // Snapshot the AUTHORITATIVE task-context tag (build #886+).
+      // CameraTask::HandleFrameRequest tagged g_cam_buf_id_task[kept_idx]
+      // when it dequeued this buffer — guaranteed (idx, source) pair.
+      // The legacy ISR-side g_cam_buf_id[] is shuffled by multiple
+      // FB-done IRQs per sensor frame (re-arm path generates extras,
+      // active_cam stale by one IRQ).
+      //
+      // Build #911 fix: actually consult g_cam_buf_id_task[] — earlier
+      // builds had this comment but still read g_cam_buf_id[], which
+      // gave ~90% pattern↔tag match at alt 3:1.  Single replacement
+      // here lifts that to ~100% (verified by diag/_t_pattern_31.py
+      // PHASE B).
+      // Build #942 — skip dirty buffers (mid-frame mix from MUX
+      // flip).  Bit is set by CSI ISR at FB-done after the flip;
+      // we consume-and-clear via a single store; ReturnRawFrame
+      // recycles the buffer and the for(recovery) loop iterates
+      // (bounded by kMaxRecoveries+1).  NASA §1: explicit FSM-style
+      // skip; §11: single-writer (ISR) / single-clearer (here).
+      {
+        extern volatile uint8_t g_cam_buf_dirty[];
+        extern volatile uint32_t g_cam_buf_dirty_skips;
+        if (g_cam_buf_dirty[kept_idx]) {
+          g_cam_buf_dirty[kept_idx] = 0u;
+          g_cam_buf_dirty_skips++;
+          cam->ReturnRawFrame(kept_idx);
+          continue;
+        }
+      }
+      g_cam_grabbed_id = (int)g_cam_buf_id_task[kept_idx];  // build #911 baseline
       *raw_out = kept_frame;
       return kept_idx;
     }
@@ -2280,6 +2400,16 @@ static int sentai_cam_get_raw_with_recovery(uint8_t** raw_out) {
     uint8_t* frame = nullptr;
     int idx = cam->GetRawFrame(&frame);
     if (idx >= 0 && frame) {
+      // Build #953 — blocking-path dirty check (was missing).
+      extern volatile uint8_t g_cam_buf_dirty[];
+      extern volatile uint32_t g_cam_buf_dirty_skips;
+      if (g_cam_buf_dirty[idx]) {
+        g_cam_buf_dirty[idx] = 0u;
+        g_cam_buf_dirty_skips++;
+        cam->ReturnRawFrame(idx);
+        continue;
+      }
+      g_cam_grabbed_id = (int)g_cam_buf_id_task[idx];  // build #911 baseline
       *raw_out = frame;
       return idx;
     }
@@ -2579,6 +2709,59 @@ extern "C" int sentai_cam_gain_ceiling_set(int cam_id, int ceiling) {
   ok &= cam->WriteToCam(cam_id, 0x3A18, (uint8_t)((ceiling >> 8) & 0x03));
   ok &= cam->WriteToCam(cam_id, 0x3A19, (uint8_t)(ceiling & 0xFF));
   return ok ? 0 : -4;
+}
+
+// ===== Synthetic test pattern (used during sentai.pipeline.calibrate)
+//
+// Activates OV5640 hardware test pattern via reg 0x503D.  The
+// sensor injects DETERMINISTIC pixels into the data stream BEFORE
+// the ISP pipeline (AWB / CMX / Gamma) which then scales them.
+// Absolute byte values are therefore NOT predictable, but the
+// SPATIAL STRUCTURE of each pattern is unique and ISP-scaling-
+// invariant.  Discriminator is structural, not value-based.
+//
+// reg 0x503D layout (per OV5640 datasheet table 4-3):
+//   bit 7    = enable test pattern (1 = synthetic, 0 = real scene)
+//   bit[3:2] = pattern style:
+//              00 = standard 8 vertical color bars
+//                   (WHITE, YELLOW, CYAN, GREEN, MAGENTA, RED,
+//                    BLUE, BLACK; tranzitii brute la fiecare W/8)
+//              01 = gradual change at vertical mode 1
+//              10 = gradual change at horizontal
+//                   (each row = uniform color; gradient down)
+//              11 = gradual change at vertical mode 2
+//
+// mode:
+//   0 = OFF      (0x503D = 0x00) real scene, ISP auto
+//   1 = BARS     (0x503D = 0x80) vertical bars — row 0 has 7-8
+//                 abrupt B-channel transitions across width
+//   2 = HBAND    (0x503D = 0x88) horizontal bands — row 0 is
+//                 NEAR-UNIFORM (gradient is row-to-row only)
+//
+// These two are mutually exclusive in spatial signature:
+//   BARS:  count_transitions(row0) ≈ 7  (uniform-uniform-... 7 jumps)
+//   HBAND: count_transitions(row0) ≈ 0  (no jumps within a row)
+//
+// Returns 0 ok, negative on error.
+extern "C" int sentai_cam_test_pattern(int cam_id, int mode) {
+  if (!g_cam_initialized) return -1;
+  if (cam_id != 0 && cam_id != 1) return -2;
+  auto* cam = coralmicro::CameraTask::GetSingleton();
+  bool ok = true;
+  uint8_t v = 0x00;
+  if      (mode == 0) v = 0x00;  // disable
+  else if (mode == 1) v = 0x80;  // bit 7 enable, bit[3:2]=00 → BARS
+  else if (mode == 2) v = 0x88;  // bit 7 enable, bit[3:2]=10 → HBAND
+  else return -4;
+  ok &= cam->WriteToCam(cam_id, 0x503D, v);
+  // Make sure manual AEC/AGC isn't sticky from prior experiments
+  // — the test pattern is injected BEFORE AEC, but ISP downstream
+  // still reads AEC settings; resetting them to auto avoids
+  // unrelated brightness drift between runs.
+  if (mode == 0) {
+    ok &= cam->WriteToCam(cam_id, 0x3503, 0x00);
+  }
+  return ok ? 0 : -5;
 }
 
 // ISP preset bundle — writes a coordinated set of OV5640 ISP

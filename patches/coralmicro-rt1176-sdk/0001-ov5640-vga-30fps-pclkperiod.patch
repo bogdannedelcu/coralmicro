@@ -1,5 +1,5 @@
 diff --git a/components/video/camera/device/ov5640/fsl_ov5640.c b/components/video/camera/device/ov5640/fsl_ov5640.c
-index b8d401e6..7ed1dc38 100644
+index b8d401e6..d875caf8 100644
 --- a/components/video/camera/device/ov5640/fsl_ov5640.c
 +++ b/components/video/camera/device/ov5640/fsl_ov5640.c
 @@ -368,6 +368,20 @@ static const ov5640_reg_val_t ov5640InitParam[] = {
@@ -23,7 +23,7 @@ index b8d401e6..7ed1dc38 100644
      {
          .resolution = (uint32_t)kVIDEO_ResolutionVGA,
          .param      = {0x00, 0x00, 0x00, 0x04, 0x0a, 0x3f, 0x07, 0x9b, 0x02, 0x80, 0x01,
-@@ -492,13 +506,41 @@ static const ov5640_clock_config_t s_ov5640MipiClockConfigs[] = {
+@@ -492,14 +506,76 @@ static const ov5640_clock_config_t s_ov5640MipiClockConfigs[] = {
          .pclkPeriod  = 0x0a,
      },
      {
@@ -40,7 +40,6 @@ index b8d401e6..7ed1dc38 100644
          .pllCtrl2    = 0x38,
          .vfifoCtrl0C = 0x22,
          .pclkDiv     = 0x02,
--        .pclkPeriod  = 0x0a,
 +        .pclkPeriod  = 0x14,
 +    },
 +    {
@@ -63,10 +62,45 @@ index b8d401e6..7ed1dc38 100644
 +        .vfifoCtrl0C = 0x22,
 +        .pclkDiv     = 0x02,
 +        .pclkPeriod  = 0x0D,
++    },
++    {
++        /* sentai 2026-04-25: VGA @ 90 fps, datasheet-supported max for
++         * 640x480.  Pixel rate 27.6 MP/s = identical to 720P/30, which
++         * in this driver uses pllCtrl1=0x21 / pllCtrl2=0x54.  Clone
++         * those values + pclkPeriod 0x0a (datasheet-typical for the
++         * 720P/30 lane rate).  T-HSSETTLE 0x12 (matches 720P/30 entry
++         * in csi2rxHsSettle table).  Sensor streams cleanly but TPU
++         * pipeline DEAD-END (110 MB/s SDRAM saturates SEMC). */
++        .resolution  = (uint32_t)kVIDEO_ResolutionVGA,
++        .framePerSec = 90,
++        .pllCtrl1    = 0x21,
++        .pllCtrl2    = 0x54,
++        .vfifoCtrl0C = 0x22,
++        .pclkDiv     = 0x02,
+         .pclkPeriod  = 0x0a,
      },
++    {
++        /* sentai 2026-04-25: VGA @ 60 fps experiment.  Pixel rate
++         * 18.4 MP/s = 4/3 of VGA45 (13.8) and 2/3 of VGA90 (27.6).
++         * Strategy: keep VGA45 sysdiv (pllCtrl1=0x14) + bump pllCtrl2
++         * mult from 84 (0x54) to 112 (0x70) for ~4/3 lane rate.
++         * NOTE: 0x70 was tried in an earlier session and hung —
++         * blamed on missing 0x3037/0x3108 companion regs.  Re-trying
++         * here because we now have the VGA90 path validated (sensor
++         * streams cleanly at 27.6 MP/s with pllCtrl2=0x54).  pclkPeriod
++         * 0x0c chosen mid-way between VGA45's 0x0D and VGA90's 0x0a. */
++        .resolution  = (uint32_t)kVIDEO_ResolutionVGA,
++        .framePerSec = 60,
++        .pllCtrl1    = 0x14,
++        .pllCtrl2    = 0x70,
++        .vfifoCtrl0C = 0x22,
++        .pclkDiv     = 0x02,
++        .pclkPeriod  = 0x0c,
++    },
      {
          .resolution  = (uint32_t)kVIDEO_ResolutionQVGA,
-@@ -554,6 +596,29 @@ static const ov5640_clock_config_t s_ov5640MipiClockConfigs[] = {
+         .framePerSec = 15,
+@@ -554,6 +630,29 @@ static const ov5640_clock_config_t s_ov5640MipiClockConfigs[] = {
          .pclkDiv     = 0x04,
          .pclkPeriod  = 0x0a,
      },

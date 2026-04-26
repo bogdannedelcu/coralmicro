@@ -245,18 +245,19 @@ static mp_obj_t mod_sentai_pipeline_get_ex(size_t n_args, const mp_obj_t *args) 
         list->items[i] = mp_obj_new_tuple(6, items);
     }
 
-    // Tuple: (dets, invoke_ms, total_ms, frame_seq, memcpy_ms, nms_ms)
-    // Extra fields expose the InferTask sub-stage timings so experiments can
-    // distinguish TPU bus time, SDRAM memcpy time and NMS time individually.
-    mp_obj_t tup[6] = {
+    // Tuple: (dets, invoke_ms, total_ms, frame_seq, memcpy_ms, nms_ms, cam_id)
+    // cam_id (added 2026-04-25) is the source camera tag from per-buffer
+    // ISR tagging — 0/1 for cam0/cam1, or -1 if unknown.
+    mp_obj_t tup[7] = {
         MP_OBJ_FROM_PTR(list),
         mp_obj_new_int_from_uint(frame.inference_ms),
         mp_obj_new_int_from_uint(frame.total_ms),
         mp_obj_new_int_from_uint(frame.frame_seq),
         mp_obj_new_int_from_uint(frame.memcpy_ms),
         mp_obj_new_int_from_uint(frame.nms_ms),
+        mp_obj_new_int(frame.cam_id),
     };
-    return mp_obj_new_tuple(6, tup);
+    return mp_obj_new_tuple(7, tup);
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_pipeline_get_ex_obj,
                                             0, 1, mod_sentai_pipeline_get_ex);
@@ -516,6 +517,304 @@ static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
     mod_sentai_pipeline_invokes_per_frame_obj, 0, 1,
     mod_sentai_pipeline_invokes_per_frame);
 
+// sentai.pipeline.multi_invoke_mode([n]) — sync strategy when
+// invokes_per_frame > 1.  0 = LEGACY (race), 1 = DEFER (safe),
+// 2 = REARM (race-window).  Has no effect for invokes_per_frame == 1.
+extern int  sentai_pipeline_multi_invoke_mode_get(void);
+extern void sentai_pipeline_multi_invoke_mode_set(int v);
+static mp_obj_t mod_sentai_pipeline_multi_invoke_mode(size_t n_args,
+                                                     const mp_obj_t *args) {
+    if (n_args >= 1) sentai_pipeline_multi_invoke_mode_set(mp_obj_get_int(args[0]));
+    return mp_obj_new_int(sentai_pipeline_multi_invoke_mode_get());
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
+    mod_sentai_pipeline_multi_invoke_mode_obj, 0, 1,
+    mod_sentai_pipeline_multi_invoke_mode);
+
+// sentai.pipeline.force_parity([flag]) -> int (previous value)
+// When 1, PrepTask discards a freshly-grabbed buffer if its per-buffer
+// cam_id tag matches the LAST accepted frame, retrying up to a bounded
+// number of times so the InferTask sees strict cam0/cam1 alternation.
+// On retry exhaustion the buffer is accepted anyway (counter bumped) so
+// the pipeline keeps making progress.
+extern int  sentai_pipeline_force_parity_get(void);
+extern void sentai_pipeline_force_parity_set(int v);
+static mp_obj_t mod_sentai_pipeline_force_parity(size_t n_args,
+                                                 const mp_obj_t *args) {
+    int prev = sentai_pipeline_force_parity_get();
+    if (n_args >= 1) {
+        sentai_pipeline_force_parity_set(mp_obj_is_true(args[0]) ? 1 : 0);
+    }
+    return mp_obj_new_int(prev);
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_pipeline_force_parity_obj,
+                                            0, 1, mod_sentai_pipeline_force_parity);
+
+// sentai.pipeline.force_parity_stats() -> dict {skipped, timeout}
+//   skipped : total buffers discarded because cam_id matched previous
+//   timeout : retries that ran out -> accepted-anyway frames
+extern void sentai_pipeline_force_parity_stats(uint32_t* skipped, uint32_t* timeout);
+extern void sentai_pipeline_force_parity_reset(void);
+static mp_obj_t mod_sentai_pipeline_force_parity_stats(void) {
+    uint32_t sk = 0, to = 0;
+    sentai_pipeline_force_parity_stats(&sk, &to);
+    mp_obj_t d = mp_obj_new_dict(0);
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_skipped),
+                      mp_obj_new_int_from_uint(sk));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_timeout),
+                      mp_obj_new_int_from_uint(to));
+    return d;
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_pipeline_force_parity_stats_obj,
+                                  mod_sentai_pipeline_force_parity_stats);
+
+static mp_obj_t mod_sentai_pipeline_force_parity_reset(void) {
+    sentai_pipeline_force_parity_reset();
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_pipeline_force_parity_reset_obj,
+                                  mod_sentai_pipeline_force_parity_reset);
+
+
+// sentai.pipeline.calibrate(model=None, frames=100, timeout_ms=2000,
+//                           delay_ms=-1, conf=0.25, iou=0.45) -> dict
+//
+// One-shot "how does this model behave on the current camera config":
+//   - If `model` (str path) is given AND no model is currently loaded,
+//     calibrate loads it via sentai.tpu.load(model).  If a model is
+//     already loaded, the caller is trusted (no reload).
+//   - If the pipeline is not running, calibrate starts it with the
+//     given conf/iou/max=50 and STOPS it before returning.  If the
+//     pipeline was already running, calibrate leaves it running.
+//   - delay_ms (>=0) installs a per-iteration sleep in PrepTask for
+//     the duration of the run; on exit the previous loop_delay is
+//     restored.  Use to sweep the camera-alternation sweet-spot
+//     (1..30 ms at VGA45 alt 1:1 is the typical exploration range).
+//     Pass -1 (default) to leave loop_delay untouched.
+//
+// Caller is responsible for camera setup (init + ratio + switch_drain
+// + select) before calling.  Returned dict reports cam0/cam1/unknown
+// counts and timing statistics.
+//
+// Returned dict (all ints unless noted):
+//   frames           : frames actually received (frames - timeouts)
+//   timeouts         : get_ex calls that returned None
+//   cam0, cam1       : per-camera frame counts (from per-buffer ISR tag)
+//   unknown          : frames with cam_id < 0 (no tag)
+//   invoke_ms_sum    : sum of TPU invoke times
+//   invoke_ms_min    : 0 if no frames
+//   invoke_ms_max    : 0 if no frames
+//   total_ms_sum     : sum of full InferTask iteration time
+//   total_ms_min     : ditto
+//   total_ms_max     : ditto
+//   wall_ms          : wall clock from first frame to last frame
+//   fps_x100         : (frames * 100000) / wall_ms  -- two decimals
+//   detections_total : sum of detection counts across all frames
+//   parity_skipped   : sentai.pipeline.force_parity_stats().skipped delta
+//   parity_timeout   : ditto for timeout
+//
+// Reads force_parity stats deltas around the loop so the same pipeline
+// can be calibrated repeatedly without manual reset.
+extern uint32_t sentai_ticks_ms(void);
+extern void     sentai_sleep_ms(uint32_t ms);
+extern int      sentai_pipeline_loop_delay_get(void);
+extern void     sentai_pipeline_loop_delay_set(int v);
+extern int      sentai_load_model(const char* path);
+extern int      sentai_cam_is_initialized(void);
+extern int      sentai_cam_test_pattern(int cam_id, int mode);
+static mp_obj_t mod_sentai_pipeline_calibrate(size_t n_args,
+                                              const mp_obj_t *args) {
+    const char* model_path = NULL;
+    if (n_args >= 1 && args[0] != mp_const_none) {
+        model_path = mp_obj_str_get_str(args[0]);
+    }
+    int n_frames    = (n_args >= 2) ? mp_obj_get_int(args[1]) : 100;
+    int timeout_ms  = (n_args >= 3) ? mp_obj_get_int(args[2]) : 2000;
+    int delay_ms    = (n_args >= 4) ? mp_obj_get_int(args[3]) : -1;
+    int conf_permil = (n_args >= 5) ? (int)(mp_obj_get_float(args[4]) * 1000.0f)
+                                    : 250;
+    int iou_permil  = (n_args >= 6) ? (int)(mp_obj_get_float(args[5]) * 1000.0f)
+                                    : 450;
+    int synthetic   = (n_args >= 7) ? mp_obj_is_true(args[6]) : 0;
+    if (n_frames < 1)    n_frames   = 1;
+    if (n_frames > 5000) n_frames   = 5000;
+    if (timeout_ms < 50) timeout_ms = 50;
+    if (delay_ms > 200)  delay_ms   = 200;
+
+    // Auto-load model if asked AND none currently loaded.
+    if (model_path != NULL && !sentai_tpu_is_ready()) {
+        int rc = sentai_load_model(model_path);
+        if (rc != 0) {
+            mp_raise_msg_varg(&mp_type_RuntimeError,
+                MP_ERROR_TEXT("calibrate: load model failed (%d)"), rc);
+        }
+    }
+    if (!sentai_tpu_is_ready()) {
+        mp_raise_msg(&mp_type_RuntimeError,
+            MP_ERROR_TEXT("calibrate: no model loaded"));
+    }
+    if (!sentai_cam_is_initialized()) {
+        mp_raise_msg(&mp_type_RuntimeError,
+            MP_ERROR_TEXT("calibrate: camera not initialized"));
+    }
+
+    // Auto-start pipeline if not running.  Track whether WE started it
+    // so we can stop on the way out (caller-started pipelines are
+    // left running, matching their lifecycle expectation).
+    int started_here = 0;
+    if (!sentai_detection_is_running()) {
+        int rc = sentai_detection_start(conf_permil, iou_permil, 50);
+        if (rc != 0) {
+            mp_raise_msg_varg(&mp_type_RuntimeError,
+                MP_ERROR_TEXT("calibrate: pipeline start failed (%d)"), rc);
+        }
+        started_here = 1;
+        // Brief settle so the first PrepTask iteration completes
+        // before we start consuming.
+        sentai_sleep_ms(80);
+    }
+
+    // Apply requested loop delay (save & restore around the run).
+    int prev_loop_delay = sentai_pipeline_loop_delay_get();
+    int restore_loop_delay = 0;
+    if (delay_ms >= 0) {
+        sentai_pipeline_loop_delay_set(delay_ms);
+        restore_loop_delay = 1;
+    }
+
+    // Synthetic test pattern: cam0 → BLACK, cam1 → WHITE.  Used by
+    // calibrate to validate per-buffer cam_id tagging end-to-end.
+    // Pixel content of each captured frame becomes deterministic
+    // (near-zero or near-saturated) regardless of physical scene,
+    // so the consumer can compare cam_id tag vs. expected pixel
+    // value to detect mis-attribution unambiguously.  Restored at
+    // exit even if calibrate raises mid-loop.
+    if (synthetic) {
+        sentai_cam_test_pattern(0, 1);  // cam0 BLACK
+        sentai_cam_test_pattern(1, 2);  // cam1 WHITE
+        sentai_sleep_ms(150);           // let AEC manual settle
+    }
+
+    // Drain any stale frames that landed in the queue BEFORE the user
+    // settled the camera state (select / ratio / switch_drain).  Without
+    // this, the cam0 count gets polluted by frames captured during
+    // pipeline warm-up, which biases the histogram.
+    {
+        DetectionFrame discard;
+        while (sentai_detection_get(&discard, 0) >= 0) { /* drop */ }
+    }
+
+    uint32_t pf_sk0 = 0, pf_to0 = 0;
+    sentai_pipeline_force_parity_stats(&pf_sk0, &pf_to0);
+
+    uint32_t cam0 = 0, cam1 = 0, unk = 0, timeouts = 0;
+    uint32_t inv_sum = 0, inv_min = 0xFFFFFFFFUL, inv_max = 0;
+    uint32_t tot_sum = 0, tot_min = 0xFFFFFFFFUL, tot_max = 0;
+    uint32_t det_total = 0;
+    uint32_t t_first = 0, t_last = 0;
+    uint32_t got = 0;
+
+    // Bounded outer deadline (embeded.md §B): even if every get() takes
+    // exactly timeout_ms (worst case = wedged pipeline before our auto-
+    // started detect-task notices), we exit before the WDOG dead-
+    // threshold (120 s).  +5 s slack covers per-iteration housekeeping.
+    const uint32_t t_call_start = sentai_ticks_ms();
+    const uint32_t kCalibrateMaxWallMs = 110000U;
+    DetectionFrame frame;
+    for (int i = 0; i < n_frames; i++) {
+        if ((sentai_ticks_ms() - t_call_start) > kCalibrateMaxWallMs) {
+            timeouts += (uint32_t)(n_frames - i);
+            break;
+        }
+        int rc = sentai_detection_get(&frame, timeout_ms);
+        if (rc < 0) { timeouts++; continue; }
+        if (got == 0) t_first = sentai_ticks_ms();
+        t_last = sentai_ticks_ms();
+        got++;
+        if      (frame.cam_id == 0) cam0++;
+        else if (frame.cam_id == 1) cam1++;
+        else                         unk++;
+        det_total += (uint32_t)frame.count;
+        inv_sum   += frame.inference_ms;
+        if (frame.inference_ms < inv_min) inv_min = frame.inference_ms;
+        if (frame.inference_ms > inv_max) inv_max = frame.inference_ms;
+        tot_sum   += frame.total_ms;
+        if (frame.total_ms < tot_min) tot_min = frame.total_ms;
+        if (frame.total_ms > tot_max) tot_max = frame.total_ms;
+    }
+
+    if (got == 0) { inv_min = 0; tot_min = 0; }
+
+    uint32_t pf_sk1 = 0, pf_to1 = 0;
+    sentai_pipeline_force_parity_stats(&pf_sk1, &pf_to1);
+
+    // Restore loop_delay before any blocking, in case the user used
+    // calibrate to *probe* a delay and the delay was hurtful enough
+    // that they want it gone immediately on return.
+    if (restore_loop_delay) {
+        sentai_pipeline_loop_delay_set(prev_loop_delay);
+    }
+
+    // Restore real-scene capture (clear OV5640 test pattern reg).
+    if (synthetic) {
+        sentai_cam_test_pattern(0, 0);
+        sentai_cam_test_pattern(1, 0);
+    }
+
+    // If we started the pipeline ourselves, stop it on the way out.
+    if (started_here) {
+        sentai_detection_stop();
+    }
+
+    uint32_t wall_ms = (got > 1) ? (t_last - t_first) : 0;
+    uint32_t fps_x100 = (wall_ms > 0)
+        ? (uint32_t)((uint64_t)got * 100000ULL / wall_ms)
+        : 0;
+
+    mp_obj_t d = mp_obj_new_dict(0);
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_frames),       mp_obj_new_int_from_uint(got));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_timeouts),     mp_obj_new_int_from_uint(timeouts));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_cam0),         mp_obj_new_int_from_uint(cam0));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_cam1),         mp_obj_new_int_from_uint(cam1));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_unknown),      mp_obj_new_int_from_uint(unk));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_invoke_ms_sum),mp_obj_new_int_from_uint(inv_sum));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_invoke_ms_min),mp_obj_new_int_from_uint(inv_min));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_invoke_ms_max),mp_obj_new_int_from_uint(inv_max));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_total_ms_sum), mp_obj_new_int_from_uint(tot_sum));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_total_ms_min), mp_obj_new_int_from_uint(tot_min));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_total_ms_max), mp_obj_new_int_from_uint(tot_max));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_wall_ms),      mp_obj_new_int_from_uint(wall_ms));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_fps_x100),     mp_obj_new_int_from_uint(fps_x100));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_detections_total), mp_obj_new_int_from_uint(det_total));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_parity_skipped),
+                      mp_obj_new_int_from_uint(pf_sk1 - pf_sk0));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_parity_timeout),
+                      mp_obj_new_int_from_uint(pf_to1 - pf_to0));
+    return d;
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_pipeline_calibrate_obj,
+                                            0, 7, mod_sentai_pipeline_calibrate);
+
+// sentai.pipeline.loop_delay([n]) -> int (previous value)
+//
+// Per-iteration sleep (ms) injected at the END of PrepTask, in addition
+// to any prep_fps throttle.  Use to find the camera-alternation
+// sweet-spot — small values (1..30 ms at VGA45 alt 1:1) let the CSI
+// ISR cycle catch up before PrepTask grabs again.  Clamped [0, 200].
+//
+// Same knob is used internally by sentai.pipeline.calibrate(delay_ms=N)
+// during the run; calibrate restores it on exit.
+static mp_obj_t mod_sentai_pipeline_loop_delay(size_t n_args,
+                                              const mp_obj_t *args) {
+    int prev = sentai_pipeline_loop_delay_get();
+    if (n_args >= 1) {
+        sentai_pipeline_loop_delay_set(mp_obj_get_int(args[0]));
+    }
+    return mp_obj_new_int(prev);
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_pipeline_loop_delay_obj,
+                                            0, 1, mod_sentai_pipeline_loop_delay);
+
 
 // ---- module table ----
 static const mp_rom_map_elem_t sentai_pipeline_globals_table[] = {
@@ -544,6 +843,12 @@ static const mp_rom_map_elem_t sentai_pipeline_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_infer_stats),     MP_ROM_PTR(&mod_sentai_pipeline_infer_stats_obj) },
     { MP_ROM_QSTR(MP_QSTR_infer_reset),     MP_ROM_PTR(&mod_sentai_pipeline_infer_reset_obj) },
     { MP_ROM_QSTR(MP_QSTR_invokes_per_frame), MP_ROM_PTR(&mod_sentai_pipeline_invokes_per_frame_obj) },
+    { MP_ROM_QSTR(MP_QSTR_multi_invoke_mode), MP_ROM_PTR(&mod_sentai_pipeline_multi_invoke_mode_obj) },
+    { MP_ROM_QSTR(MP_QSTR_force_parity),       MP_ROM_PTR(&mod_sentai_pipeline_force_parity_obj) },
+    { MP_ROM_QSTR(MP_QSTR_force_parity_stats), MP_ROM_PTR(&mod_sentai_pipeline_force_parity_stats_obj) },
+    { MP_ROM_QSTR(MP_QSTR_force_parity_reset), MP_ROM_PTR(&mod_sentai_pipeline_force_parity_reset_obj) },
+    { MP_ROM_QSTR(MP_QSTR_calibrate),          MP_ROM_PTR(&mod_sentai_pipeline_calibrate_obj) },
+    { MP_ROM_QSTR(MP_QSTR_loop_delay),         MP_ROM_PTR(&mod_sentai_pipeline_loop_delay_obj) },
 };
 static MP_DEFINE_CONST_DICT(sentai_pipeline_globals, sentai_pipeline_globals_table);
 static const mp_obj_module_t sentai_pipeline_module = {

@@ -385,6 +385,34 @@ static mp_obj_t mod_sentai_diag_tpu_desc_cache(size_t n_args,
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_diag_tpu_desc_cache_obj,
                                             0, 1, mod_sentai_diag_tpu_desc_cache);
 
+// sentai.diag.tpu_call_stats([reset]) — raw call counters for
+// SendParameters/SendInstructions/SendInputs.  Each Send* method
+// increments these once per call (regardless of cache/skip
+// behaviour).  Lets us diff "how many calls did config X make per
+// invoke" between A/B/C runs without speculation.
+extern void sentai_tpu_call_stats(uint32_t* p_calls, uint32_t* p_bytes,
+                                   uint32_t* i_calls, uint32_t* i_bytes,
+                                   uint32_t* in_calls, uint32_t* in_bytes,
+                                   uint32_t* in_done);
+extern void sentai_tpu_call_reset(void);
+static mp_obj_t mod_sentai_diag_tpu_call_stats(size_t n_args,
+                                                const mp_obj_t *args) {
+    if (n_args >= 1 && mp_obj_is_true(args[0])) sentai_tpu_call_reset();
+    uint32_t pc=0, pb=0, ic=0, ib=0, inc=0, inb=0, ind=0;
+    sentai_tpu_call_stats(&pc, &pb, &ic, &ib, &inc, &inb, &ind);
+    mp_obj_t d = mp_obj_new_dict(7);
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_p_calls),  mp_obj_new_int_from_uint(pc));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_p_bytes),  mp_obj_new_int_from_uint(pb));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_i_calls),  mp_obj_new_int_from_uint(ic));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_i_bytes),  mp_obj_new_int_from_uint(ib));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_in_calls), mp_obj_new_int_from_uint(inc));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_in_bytes), mp_obj_new_int_from_uint(inb));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_in_done),  mp_obj_new_int_from_uint(ind));
+    return d;
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_diag_tpu_call_stats_obj,
+                                            0, 1, mod_sentai_diag_tpu_call_stats);
+
 // sentai.diag.tpu_chunk_size([n]) — runtime-tunable bulk chunk size.
 // Clamped to [4096, 160*1024].  Default 64 KB; empirical sweet spot
 // on our EHCI host + YOLO 512 workload.  Bigger chunks amortize URB
@@ -454,6 +482,27 @@ static mp_obj_t mod_sentai_diag_tpu_multi_ep(size_t n_args, const mp_obj_t *args
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_diag_tpu_multi_ep_obj,
                                             0, 1, mod_sentai_diag_tpu_multi_ep);
 
+// sentai.diag.repl_kick() -> None
+//
+// Bumps the REPL-activity timestamp explicitly.  The combined watchdog
+// task counts >120 s of REPL silence as "dead" and stops kicking
+// WDOG1 -- which then resets the board ~30 s later.  A long-running
+// driver that legitimately holds the REPL for several minutes must
+// call this from inside its outer loop to extend the deadline.
+//
+// (The REPL task already auto-bumps the timestamp every 5 s while a
+// Python script is running -- see micropython_task.c.  This binding
+// is a defense-in-depth: if a driver disables the auto-heartbeat
+// path or runs in a context where it doesn't fire, an explicit
+// keep-alive every <60 s prevents the dead-threshold from tripping.)
+extern void sentai_repl_activity(void);
+static mp_obj_t mod_sentai_diag_repl_kick(void) {
+    sentai_repl_activity();
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_diag_repl_kick_obj,
+                                  mod_sentai_diag_repl_kick);
+
 // ---- module table ----
 static const mp_rom_map_elem_t sentai_diag_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__),   MP_ROM_QSTR(MP_QSTR_diag) },
@@ -471,9 +520,11 @@ static const mp_rom_map_elem_t sentai_diag_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_async_stats), MP_ROM_PTR(&mod_sentai_diag_async_stats_obj) },
     { MP_ROM_QSTR(MP_QSTR_tpu_async_input), MP_ROM_PTR(&mod_sentai_diag_tpu_async_input_obj) },
     { MP_ROM_QSTR(MP_QSTR_tpu_desc_cache),  MP_ROM_PTR(&mod_sentai_diag_tpu_desc_cache_obj) },
+    { MP_ROM_QSTR(MP_QSTR_tpu_call_stats),  MP_ROM_PTR(&mod_sentai_diag_tpu_call_stats_obj) },
     { MP_ROM_QSTR(MP_QSTR_tpu_chunk_size),  MP_ROM_PTR(&mod_sentai_diag_tpu_chunk_size_obj) },
     { MP_ROM_QSTR(MP_QSTR_tpu_zero_copy),   MP_ROM_PTR(&mod_sentai_diag_tpu_zero_copy_obj) },
     { MP_ROM_QSTR(MP_QSTR_tpu_urb_timeout), MP_ROM_PTR(&mod_sentai_diag_tpu_urb_timeout_obj) },
+    { MP_ROM_QSTR(MP_QSTR_repl_kick),       MP_ROM_PTR(&mod_sentai_diag_repl_kick_obj) },
 };
 static MP_DEFINE_CONST_DICT(sentai_diag_globals, sentai_diag_globals_table);
 static const mp_obj_module_t sentai_diag_module = {

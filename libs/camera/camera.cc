@@ -33,6 +33,18 @@
 #include "fsl_camera_device.h"
 #include "fsl_csi_camera_adapter.h"
 #include "fsl_ov5640.h"
+
+// C-linkage globals owned by camera_support.c — referenced from
+// HandleFrameRequest below.  Declared at file scope (outside the
+// coralmicro namespace) so the linker matches them in C linkage.
+extern "C" {
+    extern volatile uint8_t  g_cam_buf_id[];        // ISR-side per-buffer tag
+    extern volatile uint8_t  g_cam_buf_id_task[];
+    extern volatile int      g_cam_last_completed_id;
+    extern volatile uint32_t g_cam_buf_task_writes;
+    extern volatile uint32_t g_cam_buf_task_unknown;
+    extern volatile int      g_cam_current_id;       // build #946 — sync from task ctx
+}
 #include "fsl_pxp.h"
 
 /*******************************************************************************
@@ -850,16 +862,27 @@ void CameraTask::HandleSwitchCameraRequest(const SwitchCameraId cameraId) {
   // new camera because GpioSet had already run for the second statement
   // of the pair in that scenario).
 
+  /* Build #946 — keep g_cam_current_id in sync with the GPIO.
+   * Without this, any cam->SwitchCamera() from task context (init,
+   * recovery toggle, manual select fallback) would flip the analog
+   * MUX while leaving the firmware-level current_id stale.  The CSI
+   * ISR's tag block then writes the *stale* current_id into
+   * g_cam_buf_id[], producing clusters of buffers with content from
+   * one cam but tags claiming the other.  Single-store atomic on
+   * Cortex-M7; the CSI ISR only ever reads this value at IRQ entry,
+   * never writes during a task-context update window. */
   switch(cameraId) {
     case coralmicro::SwitchCameraId::kCameraBack:
         g_cam_switch_seq = g_camera_frame_seq;
         coralmicro::GpioSet((coralmicro::Gpio) Gpio::kCamMux, MUX_BACK_CAMERA);
+        ::g_cam_current_id = 1;
         DBG_OUTPUT("BACK camera selected\n");
         break;
 
     case coralmicro::SwitchCameraId::kCameraFront:
         g_cam_switch_seq = g_camera_frame_seq;
         coralmicro::GpioSet((coralmicro::Gpio) Gpio::kCamMux, MUX_FRONT_CAMERA);
+        ::g_cam_current_id = 0;
         DBG_OUTPUT("FRONT camera selected\n");
         break;
 
@@ -1079,6 +1102,24 @@ camera::FrameResponse CameraTask::HandleFrameRequest(
       }
 
       resp.index = FramebufferPtrToIndex(reinterpret_cast<uint8_t*>(buffer));
+
+      // Build #947 — back to the scalar g_cam_last_completed_id.
+      // Per-buffer g_cam_buf_id[idx] read (#946) made it WORSE
+      // because CSI re-uses indices: a returned dirty buffer's
+      // slot gets re-armed and re-tagged on its next fill, racing
+      // with the consumer's read.  The scalar is updated atomically
+      // at every FB-done in CSI ISR, so it reflects the just-tagged
+      // buffer the consumer is dequeuing within the µs-window of
+      // peek5_b40's tight grab → tag → return loop.
+      if (resp.index >= 0 && resp.index < (int)DEMO_CAMERA_BUFFER_COUNT) {
+        int src = ::g_cam_last_completed_id;
+        if (src == 0 || src == 1) {
+          ::g_cam_buf_id_task[resp.index] = (uint8_t)src;
+          ::g_cam_buf_task_writes++;
+        } else {
+          ::g_cam_buf_task_unknown++;
+        }
+      }
     }
     else {
       //printf ("CAMERA_RECEIVER_GetFullBuffer:status = %ld\n", status);

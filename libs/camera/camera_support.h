@@ -37,14 +37,32 @@
 // Fallback to 720p only for workloads that need the larger sensor
 // field (e.g. distant-object detection that can't tolerate VGA's
 // 3:1 subsampling).
+// Color verify: temporarily back to VGA45 to confirm SXGA-specific issue.
 #define DEMO_CAMERA_HEIGHT  480
 #define DEMO_CAMERA_WIDTH   640
 #define DEMO_CAMERA_BUFFER_COUNT 4
+// SXGA: HEIGHT 960 WIDTH 1280
 
-// Legacy 720p:
-// #define DEMO_CAMERA_HEIGHT  720
-// #define DEMO_CAMERA_WIDTH   1280
-// #define DEMO_CAMERA_BUFFER_COUNT 4
+// Compile-time MAX resolution — buffers are statically sized for this
+// upper bound so the runtime can switch to anything up to and including
+// SXGA without re-allocation.  4 × 1280×960×4 BPP = 19.66 MB
+// (fits in m_ncamera 24 MB).
+#define CAM_MAX_WIDTH       1280
+#define CAM_MAX_HEIGHT      960
+#define CAM_MAX_BUFFER_BPP  4
+
+// Compile-time MAX resolution — buffers are statically sized for this
+// upper bound so the runtime can switch to anything up to and including
+// SXGA without re-allocation.  4 buffers x 1280x960x4 BPP = 19.66 MB
+// (fits in 24 MB m_ncamera).
+#define CAM_MAX_WIDTH       1280
+#define CAM_MAX_HEIGHT      960
+#define CAM_MAX_BUFFER_BPP  4
+
+// Legacy alternates (commented for reference; pick at runtime now):
+// 720p :  HEIGHT 720  WIDTH 1280  BUFFER_COUNT 4
+// QVGA :  HEIGHT 240  WIDTH 320   BUFFER_COUNT 3
+// 1080p:  HEIGHT 1080 WIDTH 1920  BUFFER_COUNT 2 (exceeds CAM_MAX, not supported)
 
 //#define DEMO_CAMERA_HEIGHT  240
 //#define DEMO_CAMERA_WIDTH   320
@@ -82,7 +100,11 @@
 // on first jpeg().  Likely needs 0x3037 / 0x3108 companion changes that
 // the NXP static clock-config struct cannot express.  Kept as commented
 // table entry for future with-scope debug.
-#define DEMO_CAMERA_FRAME_RATE    45
+// VGA45 — validated good colors in past sessions.
+// VGA30 sweep experiment 2026-04-26 (build #883+): switch to 30 fps to
+// compare parity-collapse threshold vs VGA45 (sensor period 33 ms vs
+// 22 ms — expect collapse threshold to shift to ~22 ms loop_delay).
+#define DEMO_CAMERA_FRAME_RATE    30
 #define DEMO_CAMERA_CONTROL_FLAGS (kCAMERA_HrefActiveHigh | kCAMERA_DataLatchOnRisingEdge)
 #define DEMO_CAMERA_BUFFER_ALIGN  64
 #define DEMO_CAMERA_MIPI_CSI_LANE 2

@@ -61,7 +61,7 @@ MEMORY
   rpmsg_sh_mem          (RW)  : ORIGIN = 0x20340000 - RPMSG_SHMEM_SIZE, LENGTH = RPMSG_SHMEM_SIZE
   m_heap                (RW)  : ORIGIN = 0x80000000, LENGTH = HEAP_SIZE
   m_sdram               (RX)  : ORIGIN = 0x80000000 + HEAP_SIZE, LENGTH = 0x02000000 - HEAP_SIZE
-  m_ncamera             (RW)  : ORIGIN = 0x82000000, LENGTH = 0x01000000
+  m_ncamera             (RW)  : ORIGIN = 0x82000000, LENGTH = 0x01800000
 }
 
 /* Define output sections */
@@ -305,6 +305,26 @@ SECTIONS
      __sentai_slow_end = .;
      . = ALIGN(4);
   } > m_sdram
+
+  /* .ramfunc — TIME-CRITICAL functions placed in ITCM for
+     single-cycle instruction fetch.  Captures functions tagged
+     __attribute__((section(".ramfunc"))) from any archive,
+     including liblibs_camera_freertos.a (which is otherwise
+     placed in .camera SDRAM section below).  Must come BEFORE
+     .camera so the wildcard match here wins.
+     Build #905+: CSI_IRQHandler is the first .ramfunc client —
+     placement matters because the ISR fires at sensor rate AND
+     contains the early-VBLANK MUX flip.  Single-cycle ITCM fetch
+     vs. ~200 ns SDRAM fetch saves time critical for landing the
+     flip in the brief sensor VBLANK window. */
+  .ramfunc :
+  {
+     . = ALIGN(4);
+     __ramfunc_start = .;
+     *(.ramfunc .ramfunc.*)
+     __ramfunc_end = .;
+     . = ALIGN(4);
+  } > m_text
 
   /* .cdc_ncm + .camera — moved OCRAM → SDRAM 2026-04-22 (small
      sections, tolerable SDRAM latency since not per-invoke hot). */

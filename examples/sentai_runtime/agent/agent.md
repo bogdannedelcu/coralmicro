@@ -45,6 +45,37 @@ These are load-bearing.  Violating them has cost whole days of debug.
    camera ISR at `libs/camera/camera_support.c:CSI_IRQHandler` is the
    reference example.
 
+   **Memory placement: ISR code AND its hot-path callees MUST live in
+   ITCM** (m_text region, addresses 0x0000_0c00..0x0003_F400).  Tag
+   them with `__attribute__((section(".ramfunc")))` and ensure
+   `examples/sentai_runtime/MIMXRT1176xxxxx_cm7_ram_mp.ld` has a
+   `.ramfunc { *(.ramfunc .ramfunc.*) } > m_text` rule placed BEFORE
+   any archive-specific section like `.camera` so the wildcard
+   match wins.
+
+   **Why this matters:** SDRAM-resident ISR code via SEMC bus adds
+   ~200 ns latency per branch + competes with the very same DMA
+   masters the ISR services (CSI, USB, eDMA).  Empirical bug 2026-04-26
+   build #904: CSI ISR in SDRAM caused MUX-flip GPIO write to land
+   mid-frame instead of in VBLANK, producing visible top-of-frame
+   contamination from the previous camera (frame i6 in visual A/B
+   showed green tint band on a cam0-tagged LIVING capture).  Moving
+   the ISR to ITCM via `.ramfunc` (build #905+) eliminated that
+   class of bug.
+
+   **Verify the placement** with `arm-none-eabi-objdump -h
+   build/examples/sentai_runtime/sentai_runtime | grep ramfunc` —
+   section LMA must be in the m_text address range.  If the section
+   shows up at SDRAM addresses (0x8…), the linker rule is missing
+   or shadowed by a more-specific rule above it.
+
+   **Apply this to:** every IRQ handler we OWN (`CSI_IRQHandler`,
+   future SOF/EOF handlers, USB ISR overrides), and any function
+   called from inside an ISR that runs on the hot path (single-IRQ
+   tag write helpers, GPIO toggles like `SentaiCamMuxSetFromIsr`).
+   Lower-frequency ISRs (e.g. button debouncer, audio DMA) may stay
+   in SDRAM until measured to be a bottleneck.
+
 3. **Every timing-sensitive path must be bounded** — no `portMAX_DELAY`
    waits without a separate watchdog; no unbounded polling.  Deadlines
    computed as delta (`now - ts0`), not as absolute targets, because
@@ -198,6 +229,160 @@ def run_driver(s, path, deadline_s=30):
 Drivers are required to print `=== done ===` last so this works.  See
 `_t_yolo512.py`, `_t_warm_ab.py` for examples.
 
+### 5.1.1 Estimate driver duration + extend the watchdog (added 2026-04-26)
+
+The combined watchdog task in `sentai_runtime.cc:CombinedWatchdogTask`
+treats >120 s of REPL silence as **dead** and stops kicking WDOG1,
+which then resets the board ~30 s later.  Long-running drivers must
+plan for this BEFORE starting:
+
+**Step 1 — compute expected duration.**  Sum the wall time of every
+inner loop and add 25 % margin:
+
+```
+T_driver  =  sum(N_frames_i × period_i)  ×  1.25
+```
+
+For example, a parity sweep with 5 delay points × 30 frames at
+estimated 50 ms / frame:  `5 × 30 × 0.05 × 1.25 ≈ 9.4 s` (well under
+the 120 s ceiling).  But the same sweep at delay = 50 ms × 16 points
+× 60 frames =  `16 × 60 × 0.10 × 1.25 ≈ 120 s` — touching the edge.
+
+**Step 2 — choose the deadline strategy:**
+
+| Driver wall time | Action |
+|---|---|
+| < 60 s  | nothing — REPL task auto-heartbeats every 5 s |
+| 60-120 s | call `sentai.diag.repl_kick()` once per outer-loop iteration as defense-in-depth |
+| > 120 s | **split the driver** into ≤ 5 measurement points per file, reflash between halves (cross-test contamination per §2.9 anyway) |
+
+**Step 3 — host-side timeout.**  The raw-drain loop in §5.1 must use
+`deadline_s = T_driver + 30 s` so the host doesn't tear down the
+session while the firmware is still printing.
+
+**Why `repl_kick()` instead of just bumping the global threshold?**
+Bumping the dead-threshold globally would weaken the protection
+against actual hangs (the whole point of the 120 s ceiling is to
+detect a wedged REPL).  `repl_kick()` is a per-iteration heartbeat
+that proves the script IS making forward progress — same trust model
+as the auto-heartbeat in `micropython_task.c`, just explicit.
+
+**API:** `sentai.diag.repl_kick()` — bumps `g_repl_last_activity` to
+`now`.  No-op if called more often than every ~5 s; cheap regardless.
+
+**Don't disable the watchdog.**  The board self-healing contract in
+`embeded.md §M` requires WDOG1 to stay armed at all times.  No public
+API exists to extend the hardware timeout — that is intentional.
+
+### 5.1.2 Experiment output discipline — self-contained drivers (added 2026-04-26)
+
+**Doctrine: every diag driver is SELF-CONTAINED.**  No imports from
+other `diag/*.py` files.  No reliance on `__init__.py` re-exports.
+The only external dependency is `sentai` (the firmware-provided
+namespace).  This eliminates the desync class entirely: when you
+upload a driver via `_host_upload_repl.py --file _t_foo.py`, that ONE
+file is everything the driver needs.
+
+**Why:** `diag/__init__.py` aggregates many imports.  When ANY of
+those sub-modules is out of date on the board (or `__init__.py`
+itself), `import diag` silently fails to populate exports — symptom
+on the board is `AttributeError: 'module' object has no attribute
+'begin'` while the host-side static check sees nothing wrong.  The
+old session helper at `diag/_session.py` was a real shared module,
+but the per-experiment value it provides (folder + counter) is ~15
+lines of code.  Inline it.
+
+**Standard inlined session helper** — copy this verbatim into every
+new diag driver that writes files to LFS:
+
+```python
+def _session_dir(name):
+    """Allocate /diags/sNNN_<name>/ and return the path."""
+    try: sentai.fs.mkdir("/diags")
+    except Exception: pass
+    counter = "/diags/.counter"
+    sid = 1
+    try:
+        sid = int(sentai.fs.read_str(counter).strip()) + 1
+    except Exception:
+        sid = 1
+    try:
+        sentai.fs.write(counter, str(sid))
+    except Exception:
+        pass
+    d = "/diags/s%03d_%s" % (sid, name)
+    try: sentai.fs.mkdir(d)
+    except Exception: pass
+    return d
+```
+
+LFS is **persistent across reflashes** — a JPEG written by build
+#885 will still be on the FS when build #889 boots, and `curl
+/api/raw/...` will happily serve it.  An hour of confusion was lost
+on visual A/B because `i1_cam0.jpg` from a buggy run got mistaken
+for new ground truth.  The session pattern (auto-incremented sNNN
+folder) eliminates that class of bug — each run gets its own dir.
+
+**Mandatory rules for every diag driver that writes files to LFS:**
+
+LFS is **persistent across reflashes** — a JPEG written by build #885
+will still be on the FS when build #889 boots, and `curl
+/api/raw/...` will happily serve it.  This caused an hour of
+confusion during the visual A/B sessions (`i1_cam0.jpg` from a buggy
+run got mistaken for new ground truth in the next run).
+
+**THE ONE TRUE PATTERN — use `diag/_session.py`:**
+
+```python
+import sentai
+from diag._session import begin, end
+
+sess = begin("visual_ab")        # auto-allocates /diags/sNNN_visual_ab/
+print("session dir:", sess.dir)
+
+# ... run the experiment, writing all artefacts under sess.dir ...
+fname = "%s/i%d_cam%d.jpg" % (sess.dir, i, cam)
+
+end()  # flushes manifest.csv, summary.txt; closes the session
+```
+
+`begin(name)` reads `/diags/.counter`, increments it, and creates
+`/diags/sNNN_<name>/` — every run gets a fresh folder.  No clobber,
+no leftover, no wipe-then-rewrite race.  E13–E18 drivers in
+`diag/e_pipeline.py` are reference implementations; copy from them.
+
+**Mandatory rules for every diag driver that writes files to LFS:**
+
+1. **Inline `_session_dir(name)`** as the first function in the
+   driver.  Call it once at the top of `main()` to get a unique
+   `sess_dir` path.  All artefacts go under that path.  No imports
+   from sibling diag modules.
+2. **Filenames embed the build_id** as additional safety against
+   leftover-pollution if a manual `cp` lands in the wrong folder:
+   `build_id = sentai.version().split("build")[1].split()[0]`
+   then `f"{sess_dir}/b{build_id}_i{i}_cam{cam}.jpg"`.
+3. **Host download path mirrors `sess_dir`.**  Pull
+   `http://10.0.0.1/api/raw/diags/sNNN_<exp>/<file>` and store
+   under `/tmp/<exp>_sNNN/`.  `curl /api/ls/diags` returns the
+   available sessions.
+4. **Header comment names the session pattern** so future maintainers
+   know each run lives in its own auto-numbered folder.
+
+Canonical example: [`diag/_t_visual_ab.py`](diag/_t_visual_ab.py) —
+inlines `_session_dir`, embeds `build_id` per filename, no diag/
+imports beyond `sentai`.
+
+**If you find yourself writing `try: fs.remove(...)` in a loop at the
+start of a driver, STOP.**  That's the anti-pattern.  Use sessions.
+
+**Legacy note: `diag/__init__.py` exists** and re-exports many
+helpers (E13–E18 still depend on it).  DO NOT add new dependencies
+on `__init__.py` from new drivers — the on-board copy desyncs from
+git silently and causes `AttributeError` cascades on the next run.
+If you must touch existing E13–E18 code, run `python3 upload_diag.py`
+from `sentai_runtime/` to push the WHOLE diag/ package atomically
+before testing.
+
 ### 5.2 Wait for board after flash / WDOG reset
 
 After `flashtool.py` or a wedge that triggers WDOG, wait for NXP ID:
@@ -319,6 +504,192 @@ MUX GPIO flip has two paths:
 
 Both paths read MUX polarity from the same `libs/camera/cam_mux.h` header
 — single source of truth, per embeded.md §J.
+
+### 9.1 cam_id ↔ I²C bus ↔ MUX polarity convention (2026-04-26)
+
+The number `cam_id ∈ {0, 1}` is one logical handle that maps 1:1 to BOTH
+the sensor's I²C bus AND the analog-MUX GPIO level on this board:
+
+| `cam_id` | I²C bus (`CameraTask::*`) | `Gpio::kCamMux` level | macro (cam_mux.h) |
+|---|---|---|---|
+| 0 | `i2c_handle_`  (LPI2C1) | 0 (LOW)  | `CAM_MUX_LEVEL_FOR_CAM0` |
+| 1 | `i2c_handle2_` (LPI2C2) | 1 (HIGH) | `CAM_MUX_LEVEL_FOR_CAM1` |
+
+The GPIO level numerically *equals* `cam_id`.  Two implications you can
+rely on without re-checking:
+
+1. After `WriteToCam(N, reg, val)`, calling `select(N)` will route CSI
+   from the *same physical sensor* you just wrote to.  In particular
+   `sentai.camera.test_pattern(N, mode)` injects a pattern on the cam
+   that `select(N)` will then display.
+2. The per-buffer cam_id tag exposed via `sentai.camera.grabbed_id()`
+   uses the same numbering, so `grabbed_id()` agreeing with the most
+   recent `select()` is correct, not a coincidence.
+
+**Why this paragraph exists.**  The original drop of `cam_mux.h` had
+the polarity inverted (`LEVEL_FRONT=1`, `LEVEL_BACK=0`).  That made
+`test_pattern(0, BARS)` write the BARS pattern to physical sensor X
+while `select(0)` routed CSI from sensor (1−X) — a silent routing
+inversion that the visual A/B test couldn't quite pin down because the
+*tag → content* mapping was internally consistent (it just happened to
+disagree with the I²C side).  Caught by `diag/_t_pattern_31.py` PHASE A
+on 2026-04-26 (build #909): `select(0)` showed sensor-1's pattern and
+vice versa, in 10/10 frames per side — purely static, no MUX-flip
+involved.  Fix shipped by flipping the two macros in `cam_mux.h`; the
+header now also defines preferred names `CAM_MUX_LEVEL_FOR_CAM0` /
+`_CAM1` to make the convention impossible to misread.
+
+**Hardware-spin guidance.**  If a future board revision re-routes the
+analog MUX inputs to swap which physical lens sits on which I²C bus,
+the FIX IS NOT to touch `cam_mux.h`.  The schematic-level wiring is
+authoritative; this header just expresses the convention "GPIO level
+matches `cam_id` matches I²C bus index".  If a re-spin breaks the
+convention, run `diag/_t_pattern_31.py` PHASE A first to see *which*
+side ended up flipped, then patch the schematic, not the firmware.
+
+### 9.2.1 Dirty-bit "sticky-until-cleared" rule (build #953 lesson)
+
+For any per-slot bit that's SET in an ISR and READ by a consumer
+across buffer reuse cycles (`g_cam_buf_dirty[]` is the canonical
+example), the ISR must **clear** the bit on every fresh fill that
+is not in the marking window.  Without that clear, the bit becomes
+sticky: a stale 1 from an earlier event survives into a new fill,
+the consumer skips a clean buffer, and the system delivers the
+"bad" buffer the bit was meant to filter — defeating the
+mechanism's entire purpose.
+
+Pattern (single-writer per side, no lock):
+
+```c
+// In the ISR FB-done block:
+g_cam_buf_id[idx] = (uint8_t)active_cam;
+if (in_marking_window) {
+    g_cam_buf_dirty[idx] = 1u;     // mark
+} else {
+    g_cam_buf_dirty[idx] = 0u;     // ★ clear stale on fresh fill
+}
+
+// In the consumer (every return site that hands a buffer back):
+if (g_cam_buf_dirty[idx]) {
+    g_cam_buf_dirty[idx] = 0u;     // consume the marker
+    cam->ReturnRawFrame(idx);
+    continue;                       // bounded retry
+}
+return idx;                         // clean buffer
+```
+
+**Two derived rules:**
+
+- **Every return path that hands a buffer to the caller must check
+  the dirty bit.**  In `sentai_cam_get_raw_with_recovery` we have
+  three (drain-and-keep, slow-path post-switch grab, blocking-grab
+  fallback).  All three need the check; missing one creates a
+  fall-through path that silently delivers dirty data.
+- **Adding a new return path?  Audit dirty-bit handling first.**
+  This is now §2 of the load-bearing rules.
+
+### 9.2.2 GPIO + state-mirror always travel together
+
+Any task-context code that flips a GPIO whose state has a
+firmware-side mirror (`Gpio::kCamMux` ↔ `g_cam_current_id`) MUST
+update both atomically — same function, no early return between
+them.  Without that pairing, the ISR's tag block reads a stale
+mirror and writes the wrong cam_id into the per-buffer tag for
+multi-frame stretches.  See `HandleSwitchCameraRequest` in
+`libs/camera/camera.cc:866-880` for the canonical pattern.
+
+### 9.2 cam_id per-buffer tagging — 100% shipped (build #953)
+
+**Current state (post-#953, 2026-04-26): TWO consecutive 100/100
+runs at alt 3:1 / VGA45.**  Detailed history and the 4-bug stack
+that took us from 91% to 100% is in `experiment.md` under the
+"Cam-id 100%" section.  Summary:
+
+- PHASE A (single-camera): 20/20 = 100 %
+- PHASE B (alt 3:1, MUX flipping every 4 frames):
+  cam0 BARS=50/50 + cam1 HBAND=50/50, scrambled=0, wrong-tag=0.
+- Architecture: single-writer FB-done tag in CSI ISR + dirty-skip
+  with N=1 + dirty checks at all consumer return sites.
+
+The historical narrative below (preserved so future readers
+understand the dead-ends) was the picture as of #918, before the
+4 bugs were diagnosed.
+
+---
+
+State of the art (build #918 baseline, 2026-04-26):
+
+- **PHASE A (single-camera, no MUX flip): 100 %**
+  `select(N) → grabbed_id() == N → content matches test_pattern(N)`
+  in 20/20 frames per camera.  Solid.
+- **PHASE B (alt 3:1, MUX flipping every 4 frames): ≈ 90 %**
+  Tag distribution roughly 75/25 as expected, but ~10 frames per
+  100 carry the wrong (cam_id, content) pair.  Reproducible across
+  consecutive runs (87, 90, 91 in three trials).
+
+**Why ≈ 90 % and not 100 %.**  The tag-write architecture has
+THREE writers touching `g_cam_buf_id[]`:
+
+1. NXP `coralmicro_csi_on_buffer_arm` hook
+   (`libs/camera/camera_support.c`) — writes
+   `g_cam_buf_id[slot] = g_cam_current_id` at the moment the empty
+   buffer is submitted to CSI hw (predictive).
+2. CSI `CSI_IRQHandler` FB-done block
+   (lines around 305 / 317) — writes `g_cam_buf_id[idx] =
+   active_cam` for the just-completed buffer (retrospective).
+3. CSI `CSI_IRQHandler` post-flip re-tag (after MUX flip in
+   VBLANK) — writes `g_cam_buf_id[OTHER_slot] = pending` to
+   pre-tag the buffer the new camera will fill next.
+
+Last-writer-wins — and at alt switching the order is racy enough
+that ~10 % of buffers end up tagged with the *wrong* camera.
+`HandleFrameRequest` then snapshots the (already-wrong) tag into
+`g_cam_buf_id_task[]`, and `sentai_cam_get_raw_with_recovery`
+publishes that into `g_cam_grabbed_id`.
+
+**What we tried that did NOT help (each made it worse, not better):**
+
+| Build | Change | Result |
+|---|---|---|
+| #912 | Drop on_buffer_arm + post-flip re-tag, FB-done sole writer | 86 % |
+| #915 | Same as #912 + reread the per-buffer ISR slot in HandleFrameRequest | 86 %, cam1_tag dropped to 50/50 |
+| #916 | Restore everything, read g_cam_buf_id[idx] in HandleFrameRequest | 78 %, cam1_tag dropped further |
+| #917 | Make on_frame_complete the SOLE writer of g_cam_buf_id[] | 74 %, cam1_tag down to 1/14 |
+
+The collapse on cam1_tag in particular when only one writer remains
+strongly suggests a **mid-frame-mix** mechanism (the MUX flip
+sometimes lands AFTER the next frame's fill has already started),
+not just a tagging race — when row 0 of a buffer was filled by
+camA but the rest by camB, the buffer carries camB's tag (correctly)
+yet `peek_row(row=0)` reads camA's content.  This explains why the
+multi-writer path (which over-writes the post-flip slot with the
+new camera) compensates better than any single-writer simplification.
+
+**The real fix — VBLANK-confirmed flip gate (deferred).**
+
+What's needed to break 90 %:
+- Read `CSI_REG_SR & CSI_SR_VSYNC_INT_STATUS` (or use an explicit
+  `kCSI_StartOfFrameInterrupt` ISR on the side) to *prove* we are
+  inside the sensor's VBLANK before committing the MUX flip.
+- If we are not, defer `g_cam_pending_mux_id` to the next IRQ.
+- With the flip provably in VBLANK, the next FB has zero rows of
+  the old camera, the post-flip re-tag becomes redundant, and
+  `g_cam_buf_id[idx] = active_cam` at FB-done is the sole writer
+  that's correct by construction.
+
+This is real surgery (touches the CSI ISR, needs SOF-IRQ
+instrumentation + bench timing measurements at multiple sensor
+modes — VGA45 / VGA30 / SXGA15) and was deferred 2026-04-26.  Until
+then, the 90 % cap is intentional — see the `Build #911 baseline`
+note in `libs/camera/camera_support.c:CSI_IRQHandler` and the same
+comment in `libs/camera/camera.cc:HandleFrameRequest`.
+
+**Diagnostic tool:** `diag/_t_pattern_31.py` (PHASE A static,
+PHASE B alt 3:1 dynamic) is the load-bearing test for this work.
+A single run writes `/diags/sNNN_pattern_31/log.csv` with per-frame
+`(i, cam_tag, seen_pattern, b40_byte)`.  Any change to ISR-side
+tagging or MUX scheduling MUST re-run this driver and confirm
+PHASE A stays 100 % and PHASE B does not regress below 90 %.
 
 ---
 

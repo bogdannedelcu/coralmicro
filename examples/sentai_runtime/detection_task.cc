@@ -68,6 +68,7 @@ extern "C" {
                                       int raw_w, int raw_h,
                                       int cam_id);
     int  sentai_cam_current_id(void);
+    int  sentai_cam_grabbed_id(void);  // tag of the most recently grabbed buffer
     void sentai_cam_return_raw(int idx);
     uint32_t sentai_cam_get_frame_seq(void);
     int  sentai_cam_is_initialized(void);
@@ -205,6 +206,19 @@ extern "C" void sentai_pipeline_target_fps_set(int v) {
     s_target_fps = v;
 }
 
+// Per-iteration sleep injected at the END of PrepTask.  Conceptually
+// sibling to `prep_target_fps` but expressed as raw milliseconds so
+// the user can sweep the alternation sweet-spot in fine 1-ms steps
+// (via calibrate(delay_ms=N) or the standalone runtime knob).  0 =
+// no extra sleep.  Clamped [0, 200].
+static volatile int s_pipeline_loop_delay_ms = 0;
+extern "C" int  sentai_pipeline_loop_delay_get(void) { return s_pipeline_loop_delay_ms; }
+extern "C" void sentai_pipeline_loop_delay_set(int v) {
+    if (v < 0)   v = 0;
+    if (v > 200) v = 200;
+    s_pipeline_loop_delay_ms = v;
+}
+
 // Throttle PrepTask (cam_grab + PXP + quant).  0 = unthrottled.
 // User convention (2026-04-22): set prep_fps and target_fps in a
 // rational ratio (e.g. prep=15, tpu=30) so the two tasks don't
@@ -236,6 +250,43 @@ extern "C" void sentai_pipeline_invokes_per_frame_set(int v) {
     if (v < 1) v = 1;
     if (v > 8) v = 8;
     s_debug_invokes_per_frame = v;
+}
+
+// Multi-invoke fine-grained sync strategy (matters only when
+// invokes_per_frame > 1).  Choose how InferTask coordinates with
+// PrepTask across the N invoke calls on the SAME .tpu_input buffer:
+//
+//   0 = LEGACY (default, race-prone for N>1):
+//       arm sema once at top.  First SendInputs of invoke #1 atomic-
+//       exchanges + gives sem_free → PrepTask starts writing the next
+//       frame.  Invokes 2..N race against PrepTask's overwrite.
+//       Identical to N=1 behaviour; for N=1 there is NO race because
+//       only one invoke happens.
+//
+//   1 = DEFER  (variant A, safe-no-race):
+//       Run invokes 1..N-1 with sema = nullptr (PrepTask stays
+//       blocked).  Arm sema right before invoke N.  Invoke N's first
+//       SendInputs releases PrepTask, but no further reads of
+//       .tpu_input happen.  PrepTask gets the buffer back exactly
+//       when it would have under N=1.  Cost: PrepTask waits the full
+//       multi-invoke duration.
+//
+//   2 = REARM  (variant B, race-window-per-invoke):
+//       Re-arm sema before each invoke.  PrepTask wakes up at the
+//       end of each invoke's first SendInputs, may start writing the
+//       next frame, but the very next invoke immediately re-reads
+//       .tpu_input and races.  Empirically interesting only as a
+//       race-tolerance bound: how often does corruption manifest?
+//
+// Toggle via sentai.diag.multi_invoke_mode([n]).
+static volatile int s_multi_invoke_sync_mode = 0;
+extern "C" int  sentai_pipeline_multi_invoke_mode_get(void) {
+    return s_multi_invoke_sync_mode;
+}
+extern "C" void sentai_pipeline_multi_invoke_mode_set(int v) {
+    if (v < 0) v = 0;
+    if (v > 2) v = 2;
+    s_multi_invoke_sync_mode = v;
 }
 
 
@@ -331,6 +382,36 @@ static volatile TickType_t s_last_infer_frame_tick = 0;
 // The semaphore handoff pattern ensures correct ordering:
 //   PrepTask: write metadata → give(prep_done)
 //   InferTask: take(prep_done) → read metadata
+static int      s_stg_cam_id = -1;
+
+// Force-parity flag.  When ON (default 0), PrepTask enforces strict
+// alternation of the per-buffer cam_id tag: if the freshly-grabbed
+// buffer carries the SAME cam_id as the previous accepted frame, the
+// buffer is returned and a new grab is attempted (bounded retries).
+// The "parity" is whatever cam_id was first observed -- subsequent
+// frames are required to flip on every accepted handoff to InferTask.
+// Useful for the calibrate path where the user wants strict 50/50
+// distribution and any duplicated camera frame is a propagation bug.
+//
+// Skip is best-effort: if no fresh frame with the expected parity
+// arrives within the retry budget, we accept whatever we have and
+// bump s_force_parity_timeout (the pipeline keeps making progress).
+static volatile int s_force_parity = 0;
+static int          s_last_grabbed_cam_id = -1;
+extern "C" int  sentai_pipeline_force_parity_get(void) { return s_force_parity; }
+extern "C" void sentai_pipeline_force_parity_set(int v) { s_force_parity = v ? 1 : 0; }
+static volatile uint32_t s_force_parity_skipped = 0;
+static volatile uint32_t s_force_parity_timeout = 0;
+extern "C" void sentai_pipeline_force_parity_stats(uint32_t* skipped, uint32_t* timeout) {
+    if (skipped) *skipped = s_force_parity_skipped;
+    if (timeout) *timeout = s_force_parity_timeout;
+}
+extern "C" void sentai_pipeline_force_parity_reset(void) {
+    s_force_parity_skipped = 0;
+    s_force_parity_timeout = 0;
+    s_last_grabbed_cam_id = -1;
+}
+
 static int      s_stg_w  = 0;
 static int      s_stg_h  = 0;
 static int      s_stg_ch = 0;
@@ -398,6 +479,7 @@ static void prep_task_fn(void* /*param*/) {
             s_stg_w = mw; s_stg_h = mh; s_stg_ch = mch;
             s_stg_total = mtotal;
             s_stg_frame_seq++;
+            s_stg_cam_id = -1;  // mock mode: no real camera
             s_last_prep_frame_tick = xTaskGetTickCount();
             if (direct) { s_prep_count_dt++; xSemaphoreGive(s_sem_prep_done_c); }
             else        { xSemaphoreGive(s_sem_prep_done); }
@@ -427,6 +509,44 @@ static void prep_task_fn(void* /*param*/) {
         TickType_t t_cam_start = xTaskGetTickCount();
         uint8_t* raw = nullptr;
         int idx = sentai_cam_grab_latest(&raw);
+        // Snapshot the per-buffer cam_id tag set by CSI ISR.  Reflects
+        // which physical camera filled the buffer that grab returned.
+        int prep_cam_id = sentai_cam_grabbed_id();
+
+        // force_parity: if this buffer matches the last accepted cam_id,
+        // discard and retry (bounded).  Best-effort -- on timeout we
+        // accept whatever we have so the pipeline keeps making progress.
+        if (s_force_parity && idx >= 0 && raw &&
+            prep_cam_id == s_last_grabbed_cam_id && prep_cam_id >= 0) {
+            // Hard wall-clock cap so a wedged camera at force_parity
+            // ON cannot stretch a single PrepTask iteration past 200 ms
+            // (embeded.md §B, §F).  Same effect as kMaxParityRetries
+            // but enforced in time domain — defends against the case
+            // where vTaskDelay returns immediately due to scheduler
+            // anomalies and the loop iterates faster than expected.
+            const TickType_t t_par_start = xTaskGetTickCount();
+            const TickType_t kMaxParityWallMs = pdMS_TO_TICKS(200);
+            const int kMaxParityRetries = 6;
+            int retries = 0;
+            while (retries < kMaxParityRetries &&
+                   prep_cam_id == s_last_grabbed_cam_id &&
+                   (xTaskGetTickCount() - t_par_start) < kMaxParityWallMs) {
+                sentai_cam_return_raw(idx);
+                s_force_parity_skipped++;
+                // Tick-aligned to ~1 sensor frame at VGA45 (22 ms) so the
+                // CSI ISR has had a chance to fill a fresh slot with the
+                // OTHER camera's data before we re-grab.
+                vTaskDelay(pdMS_TO_TICKS(22));
+                idx = sentai_cam_grab_latest(&raw);
+                if (idx < 0 || !raw) break;
+                prep_cam_id = sentai_cam_grabbed_id();
+                retries++;
+            }
+            if (idx >= 0 && raw &&
+                prep_cam_id == s_last_grabbed_cam_id) {
+                s_force_parity_timeout++;
+            }
+        }
         TickType_t t_cam_end = xTaskGetTickCount();
         if (idx < 0 || !raw) {
             // Rate-limit: only report to health after 10 consecutive camera misses.
@@ -457,6 +577,8 @@ static void prep_task_fn(void* /*param*/) {
             s_stg_w = w; s_stg_h = h; s_stg_ch = ch;
             s_stg_total = total;
             s_stg_frame_seq = sentai_cam_get_frame_seq();
+            s_stg_cam_id = prep_cam_id;  // CAM mode: source from per-buffer tag
+            s_last_grabbed_cam_id = prep_cam_id;  // for force_parity tracking
             s_last_prep_frame_tick = xTaskGetTickCount();
             if (direct) { s_prep_count_dt++; xSemaphoreGive(s_sem_prep_done_c); }
             else        { xSemaphoreGive(s_sem_prep_done); }
@@ -509,6 +631,9 @@ static void prep_task_fn(void* /*param*/) {
         s_stg_ch = ch;
         s_stg_total = total;
         s_stg_frame_seq = sentai_cam_get_frame_seq();
+        // Propagate per-buffer camera tag (full FULL/PXP path).
+        s_stg_cam_id = prep_cam_id;
+        s_last_grabbed_cam_id = prep_cam_id;  // for force_parity tracking
 
         // Signal next stage: a buffer has a new prepared frame.
         //   direct → frame is in OCRAM .tpu_input directly; InferTask invokes
@@ -534,6 +659,11 @@ static void prep_task_fn(void* /*param*/) {
             if (elapsed < min_period) {
                 vTaskDelay(min_period - elapsed);
             }
+        }
+        // Raw post-iteration sleep (sweet-spot exploration).  Applied
+        // ON TOP of any prep_fps throttle.
+        if (s_pipeline_loop_delay_ms > 0) {
+            vTaskDelay(pdMS_TO_TICKS(s_pipeline_loop_delay_ms));
         }
     }
 
@@ -671,6 +801,7 @@ static void infer_task_fn(void* /*param*/) {
         // Read staging metadata
         int total = s_stg_total;
         uint32_t frame_seq = s_stg_frame_seq;
+        int frame_cam_id = s_stg_cam_id;  // source camera tag (-1 if unknown)
 
         // Get tensor buffer pointer (legacy path memcpy target; direct path
         // only uses it for dimension validation).
@@ -700,23 +831,60 @@ static void infer_task_fn(void* /*param*/) {
             // PrepTask gets unblocked at that point and can write the
             // NEXT frame while InferTask continues with compute +
             // output (which don't touch .tpu_input).
-            sentai_tpu_set_input_done_sema(sem_free);
             // invokes_per_frame: run tpu_invoke_with_input N times on
-            // the SAME input buffer per PrepTask frame — simulates
-            // "process K patches per camera frame" workload at low
-            // camera FPS.  First call reports its own invoke_ms; the
-            // extra calls accumulate into s_infer_ms_sum below so the
-            // avg-ms metric stays representative.
+            // the SAME input buffer per PrepTask frame.  Sync strategy
+            // selected by s_multi_invoke_sync_mode (see decl).
             const int n_calls = (s_debug_invokes_per_frame > 0)
                                 ? s_debug_invokes_per_frame : 1;
-            invoke_ms = s_debug_no_invoke ? 0 : sentai_tpu_invoke_with_input(buf);
-            for (int k = 1; k < n_calls && invoke_ms >= 0; k++) {
-                int extra_ms = sentai_tpu_invoke_with_input(buf);
-                if (extra_ms < 0) { invoke_ms = extra_ms; break; }
-                // bookkeeping: count each extra invoke as its own OK
-                // so infer_stats.ok reflects per-invoke not per-frame.
-                s_infer_ok_count++;
-                s_infer_ms_sum += (uint32_t)extra_ms;
+            const int sync_mode = s_multi_invoke_sync_mode;
+
+            if (n_calls == 1 || sync_mode == 0) {
+                // Legacy / single-invoke: arm once at the top; first
+                // SendInputs releases PrepTask.  For n=1 this is the
+                // race-free fast path.
+                sentai_tpu_set_input_done_sema(sem_free);
+                invoke_ms = s_debug_no_invoke ? 0 : sentai_tpu_invoke_with_input(buf);
+                for (int k = 1; k < n_calls && invoke_ms >= 0; k++) {
+                    int extra_ms = sentai_tpu_invoke_with_input(buf);
+                    if (extra_ms < 0) { invoke_ms = extra_ms; break; }
+                    s_infer_ok_count++;
+                    s_infer_ms_sum += (uint32_t)extra_ms;
+                }
+            } else if (sync_mode == 1) {
+                // DEFER: invokes 1..N-1 run with sema disarmed
+                // (PrepTask stays blocked, no buffer overwrite).
+                // Arm before invoke N so PrepTask is released exactly
+                // at the same point as in the N=1 case.
+                invoke_ms = s_debug_no_invoke ? 0 : sentai_tpu_invoke_with_input(buf);
+                for (int k = 1; k < n_calls - 1 && invoke_ms >= 0; k++) {
+                    int extra_ms = sentai_tpu_invoke_with_input(buf);
+                    if (extra_ms < 0) { invoke_ms = extra_ms; break; }
+                    s_infer_ok_count++;
+                    s_infer_ms_sum += (uint32_t)extra_ms;
+                }
+                if (invoke_ms >= 0 && n_calls > 1) {
+                    sentai_tpu_set_input_done_sema(sem_free);
+                    int last_ms = sentai_tpu_invoke_with_input(buf);
+                    if (last_ms < 0) {
+                        invoke_ms = last_ms;
+                    } else {
+                        s_infer_ok_count++;
+                        s_infer_ms_sum += (uint32_t)last_ms;
+                    }
+                }
+            } else {
+                // REARM (sync_mode==2): arm before each invoke.
+                // PrepTask wakes after each invoke's first SendInputs,
+                // races with the next invoke's reread of .tpu_input.
+                sentai_tpu_set_input_done_sema(sem_free);
+                invoke_ms = s_debug_no_invoke ? 0 : sentai_tpu_invoke_with_input(buf);
+                for (int k = 1; k < n_calls && invoke_ms >= 0; k++) {
+                    sentai_tpu_set_input_done_sema(sem_free);
+                    int extra_ms = sentai_tpu_invoke_with_input(buf);
+                    if (extra_ms < 0) { invoke_ms = extra_ms; break; }
+                    s_infer_ok_count++;
+                    s_infer_ms_sum += (uint32_t)extra_ms;
+                }
             }
             // One-shot consume: if SendInputs fired, driver already
             // cleared the pointer and gave sem_free.  If invoke failed
@@ -783,6 +951,7 @@ static void infer_task_fn(void* /*param*/) {
         DetectionFrame result;
         result.count        = det_count;
         result.frame_seq    = frame_seq;
+        result.cam_id       = (int8_t)frame_cam_id;
         result.inference_ms = static_cast<uint32_t>(invoke_ms);
         result.total_ms     = static_cast<uint32_t>((t_end - t0) * portTICK_PERIOD_MS);
         result.memcpy_ms    = static_cast<uint32_t>((t_memcpy_end - t_memcpy_start) * portTICK_PERIOD_MS);
@@ -934,6 +1103,10 @@ extern "C" int sentai_detection_start(int conf_permil, int iou_permil, int max_d
     s_frames_processed = 0;
     s_frames_dropped   = 0;
     s_start_tick       = xTaskGetTickCount();
+    // force_parity bookkeeping: clear "last accepted cam_id" so the first
+    // grab of the new run can never trigger a same-id skip.  Counters are
+    // left intact (REPL can call force_parity_reset to clear them).
+    s_last_grabbed_cam_id = -1;
     s_running          = true;
 
     // Create tasks using STATIC allocation.  Both at prio 2 —

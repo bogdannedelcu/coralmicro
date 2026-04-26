@@ -32,6 +32,9 @@ typedef struct DetectionFrame {
     uint32_t  total_ms;          // full InferTask loop: memcpy + invoke + NMS + bookkeeping
     uint32_t  memcpy_ms;         // staging -> TFLite tensor copy (~786 KB SDRAM->SDRAM)
     uint32_t  nms_ms;            // sentai_tpu_detect() post-processing
+    int8_t    cam_id;            // 0/1 = source camera that wrote the frame.
+                                 // Propagated from per-buffer ISR tag through PrepTask.
+                                 // -1 if not available (no tag or non-pipeline path).
 } DetectionFrame;
 
 // ---------------------------------------------------------------------------
