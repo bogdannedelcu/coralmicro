@@ -59,10 +59,12 @@ DIAG_DIR = pathlib.Path(__file__).parent
 REMOTE_BASE = "/lib/diag"
 DEFAULT_PORT = "/dev/ttyACM0"
 BAUD = 115200
-CHUNK = 48  # raw bytes per append line.  Worst-case `repr(bytes)` escapes a
-            # non-printable byte to \xNN (4 chars).  With 48 raw bytes the
-            # encoded line tops out at 48*4 + 15 prefix = 207 chars — safely
-            # below REPL_LINE_MAX=256 (micropython_task.c:28).
+CHUNK = 192  # raw bytes per append line.  Worst-case `repr(bytes)` is 4
+             # chars/byte (\xNN); with 192 raw bytes the encoded line tops
+             # out at 192*4 + ~50 chars overhead ≈ 818 chars — fits the
+             # current REPL_LINE_MAX=1024 (see micropython_task.c).
+             # Larger chunks = fewer REPL round-trips = lower risk of CDC
+             # RX backpressure stalling the prompt mid-upload.
 
 
 def _is_host_only(path: pathlib.Path) -> bool:
@@ -134,47 +136,76 @@ def _open_repl(port):
 
 
 def _upload_one(ser, local: pathlib.Path, remote: str):
+    """Upload via per-chunk `sentai.fs.append`.
+
+    Why not the older `_d = _d + chunk; sentai.fs.write(_d)` protocol:
+    each `_d = _d + ...` reallocates the bytes accumulator, and after
+    ~50–100 chunks the heap fragments and the GC pause between lines is
+    long enough that the USB CDC RX buffer overflows mid-stream — pyserial
+    sees a phantom disconnect ("device reports readiness to read but
+    returned no data").  `append` writes each chunk straight to LFS, so
+    there is no growing in-memory buffer and no per-line GC blow-up.
+
+    Protocol:
+        sentai.fs.remove("/lib/diag/x.py")   # ignore failure (might not exist)
+        sentai.fs.append("/lib/diag/x.py", b"<chunk1>")
+        sentai.fs.append("/lib/diag/x.py", b"<chunk2>")
+        ...
+        print("OK:x.py:<size>")
+    """
     data = local.read_bytes()
     n = len(data)
     print("  %s → %s  (%d bytes)" % (local.name, remote, n))
-    _send_line(ser, "_d = b''")
-    # Verify _d starts empty — otherwise a prior session left state and our
-    # size check will look fine but the content will be garbage.
-    resp = _send_line(ser, "print('LEN:%d' % len(_d))", timeout=3.0).decode(
-        "utf-8", errors="replace"
-    )
-    if "LEN:0" not in resp:
-        raise RuntimeError("_d did not reset: %r" % resp[-200:])
+    # Truncate first: we want a fresh file even if it already exists.
+    # sentai.fs.remove returns False when the path is absent — that is
+    # fine, we're after the side-effect, not the return code.  Avoid
+    # multi-line try/except over the REPL: the SentAI REPL is line-at-a-
+    # time and a stray `...` continuation prompt silently consumes the
+    # next chunk.  Single-line discard via `_ = sentai.fs.remove(...)`
+    # is enough; the False return is harmless.
+    _send_line(ser, "_ = sentai.fs.remove(%r)" % remote, timeout=3.0)
     t0 = time.time()
     for i in range(0, n, CHUNK):
         piece = data[i : i + CHUNK]
-        # repr(bytes) gives a MicroPython-parseable literal like b'\x00\x01foo'
-        resp = _send_line(ser, "_d = _d + " + repr(piece), timeout=3.0).decode(
-            "utf-8", errors="replace"
-        )
-        # Every ~5 chunks, re-check the running total to catch truncation
-        # early rather than at the end.
+        # Per-chunk REPL strictness: REQUIRE the boolean return ("True")
+        # in the response.  Without this check, a CDC-RX-dropped line
+        # would still produce `\r\n>>> ` (the next prompt), and the
+        # uploader would silently lose data — exact failure seen
+        # 2026-04-26 build #98x where 5/10 lines were dropped without
+        # any `False` and the uploader believed it had finished.
+        # We could ask for an explicit `print(sentai.fs.append(...))`,
+        # but the REPL already auto-prints the bool return of an
+        # expression statement at the top level.
+        resp = _send_line(
+            ser,
+            "sentai.fs.append(%r, %s)" % (remote, repr(piece)),
+            timeout=15.0,
+        ).decode("utf-8", errors="replace")
+        if "True" not in resp:
+            raise RuntimeError(
+                "append at offset %d did not return True; resp=%r"
+                % (i, resp[-300:])
+            )
+        # Drift check every 5 chunks (≈ every 1 KB at CHUNK=192).
+        # Tighter than the previous every-10 cadence — earlier
+        # detection means less retry cost when CDC backpressure
+        # starts dropping lines, and the ~960-byte gap from the
+        # previous bug now triggers at the next checkpoint.
         if (i // CHUNK) % 5 == 4:
             chk = _send_line(
-                ser, "print('LEN:%d' % len(_d))", timeout=3.0
+                ser, "print('LEN:%%d' %% sentai.fs.size(%r))" % remote, timeout=3.0
             ).decode("utf-8", errors="replace")
             expected = min(i + CHUNK, n)
             if ("LEN:%d" % expected) not in chk:
                 raise RuntimeError(
-                    "chunk drift after %d bytes; REPL says: %s"
+                    "size drift after %d bytes; REPL says: %s"
                     % (expected, chk[-300:])
                 )
             print("    … %d/%d bytes OK" % (expected, n))
-    # NOTE: we assume /lib/diag exists (this firmware ships it at boot and
-    # previous uploads have created it).  Multi-line try/except over the
-    # line-at-a-time REPL is fragile — a stray `...` continuation prompt
-    # silently consumes the next chunk as part of the block.
-    # Write the file and verify size.
     resp = _send_line(
         ser,
-        "sentai.fs.write('%s', _d); print('OK:%s:%%d' %% len(_d))"
-        % (remote, local.name),
-        timeout=15.0,
+        "print('OK:%s:%%d' %% sentai.fs.size(%r))" % (local.name, remote),
+        timeout=5.0,
     ).decode("utf-8", errors="replace")
     marker = "OK:%s:%d" % (local.name, n)
     dt = time.time() - t0

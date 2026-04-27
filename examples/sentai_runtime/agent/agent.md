@@ -129,7 +129,8 @@ These are load-bearing.  Violating them has cost whole days of debug.
 | Tool | Runs on | What it does |
 |---|---|---|
 | `python3 scripts/flashtool.py -e sentai_runtime` | host | persistent flash (`--ram` for RAM-only) |
-| `python3 diag/_host_upload_repl.py --file <name>` | host | REPL-chunked upload to `/lib/diag/` on board (CHUNK=48 bytes because REPL line buffer is 256 — see [memory:project_upload_diag_repl.md](/home/bogdan/.claude/projects/-home-bogdan-work-coralmicro/memory/project_upload_diag_repl.md)) |
+| `python3 diag/_host_upload_repl.py --file <name>` | host | REPL-chunked upload to `/lib/diag/` on board (uses `sentai.fs.append`, CHUNK=192 — see §3.1) |
+| `python3 diag/_host_run_with_var.py --file <remote> --set K=V --timeout T` | host | exec a driver from LFS after seeding REPL globals (e.g. `_target_fps=30`); streams until `=== done ===` |
 | `python3 repl_run.py --line "..."` | host | sends a REPL line and waits for next `>>> ` — has a stale-prompt bug on long commands (minutes), prefer rolling your own driver based on `_host_upload_repl.py`'s `_send_line` pattern |
 | `python3 monserial.py` | host | passive serial log to `sentai_serial.log` |
 | `cat /dev/ttyACM0` | host | raw serial — needs `stty -F /dev/ttyACM0 115200 raw -echo -icanon` first |
@@ -140,6 +141,100 @@ The REPL-uploader prefix rule: files starting with `_host_` (and, by
 package convention, the `diag/drivers/` subdir) are HOST-ONLY and never
 pushed to the board.
 
+### 3.1 REPL-chunked upload protocol (revised 2026-04-26 build #986)
+
+`diag/_host_upload_repl.py` pushes a local `.py` file into `/lib/diag/`
+on the board using a sequence of independent REPL calls — no growing
+in-memory accumulator on the firmware side:
+
+```
+sentai.fs.remove("/lib/diag/x.py")               # truncate
+sentai.fs.append("/lib/diag/x.py", b"<chunk1>")  # 192 raw bytes/line
+sentai.fs.append("/lib/diag/x.py", b"<chunk2>")
+... (every ~10 chunks) print('LEN:%d' % sentai.fs.size(...))   # drift check
+print('OK:x.py:<size>')                          # marker
+```
+
+**Why `sentai.fs.append` and NOT the older `_d = _d + b'...'` accumulator
++ single `sentai.fs.write(_d)`:**
+
+- The accumulator pattern allocates a fresh bytes object on every line
+  (`_d = _d + chunk`).  Past ~50 chunks the MicroPython heap fragments,
+  GC pauses between lines stretch into hundreds of ms, and the USB CDC
+  RX FIFO overflows.  Pyserial sees this as a phantom disconnect:
+  `device reports readiness to read but returned no data`.
+- The MP interpreter is now in `.micropython` (SDRAM) instead of ITCM
+  (build #98x, ITCM space reclaimed for camera/TPU hot paths). SDRAM
+  instruction fetch is ~3× slower under SEMC contention — the
+  accumulator pattern was on the edge before, and the relocation
+  pushed it past the cliff.
+- `sentai.fs.append(path, data)` opens the file in `O_APPEND|O_CREAT`,
+  writes the chunk, closes — each call is independent, no growing
+  buffer, no per-line GC blow-up.  Implemented in
+  [`modsentai_fs.c:mod_sentai_fs_append`](../modsentai_fs.c) →
+  [`LfsUserAppendFile`](../../../libs/base/filesystem.cc).
+
+**Tuning knobs (MUST stay paired):**
+
+- `REPL_LINE_MAX` in [`micropython_task.c`](../micropython_task.c) —
+  upper bound on a single REPL line, currently 1024.  Worst-case
+  `repr(bytes)` is 4 chars per byte, so 1024 chars hosts ~240 raw
+  bytes of payload after `sentai.fs.append('/lib/diag/X', b'...')`
+  overhead.
+- `CHUNK` in [`_host_upload_repl.py`](../diag/_host_upload_repl.py) —
+  raw bytes per append line, currently 192.  Smaller = more
+  round-trips = more risk of CDC stall; larger = exceeds line buffer.
+  If you raise CHUNK, raise `REPL_LINE_MAX` first and rebuild.
+
+**Performance:** ~3.5 KB driver in ~11 s (LFS open/close per chunk
+dominates).  Acceptable for the diag-driver use case.  Do NOT use
+this for large blobs (models, JPEG dumps) — those go via USB MSC
+(`sentai.usb.drive(1)`) or HTTP `/api/raw/...`.
+
+**Idiomatic call from a host script:**
+
+```bash
+cd examples/sentai_runtime
+python3 diag/_host_upload_repl.py --file _t_my_driver.py
+```
+
+The remote path is always `/lib/diag/<basename>` — the uploader does
+not honour absolute remote paths.
+
+### 3.2 Reading "fs.append returned False" / "lfs.c:560 No more free space"
+
+LFS user partition is **not infinite**.  Three large yolo `.tflite`
+models + accumulated `/diags/sNNN_*` session dirs can exhaust it.
+The append uploader will surface this as `False` after a few chunks
+plus a firmware-side `lfs.c:560:error: No more free space` log line.
+
+**Recipe (added 2026-04-27):**
+
+```python
+# Drop unused models first — each is 4-5 MB.  Inspect with:
+print(sentai.fs.ls("/"))
+# Keep only what tests need (e.g. the canonical
+# yolo_1_class_512_1_upsample model used by _t_fps_pipeline.py).
+sentai.fs.remove("/yolo_1_class_512_half_size_edge_only.tflite")
+sentai.fs.remove("/yolo26n.edgetpu_1.tflite")
+```
+
+After freeing space, the FIRST upload can still hit a watchdog log
+(`E:0500:NNN`) because LFS is doing block-level GC of the freed
+extents — retry once, the second attempt completes in normal time.
+
+### 3.3 Uploader strict-True check (added 2026-04-27)
+
+The chunked uploader REQUIRES `True` in the response of every
+`sentai.fs.append(...)` line, not just absence of `False`.  Reason:
+when CDC RX backpressure drops a single line, the firmware emits
+the next `\r\n>>> ` prompt anyway, and a check that only watches
+for `False` will silently lose that chunk.  We saw this 2026-04-26:
+5 of 10 lines dropped, no `False`, the host believed the upload
+finished.  `_send_line` consumers (any new test driver) MUST
+validate the expression's printed return value, not just the
+prompt-came-back signal.
+
 ---
 
 ## 4. How-to: survive a stuck REPL
@@ -147,6 +242,34 @@ pushed to the board.
 Symptom: `print("anything")` produces no output on `/dev/ttyACM0`, but the
 prompt `>>>` still appears after each command.  Root cause is usually an
 experiment that left `sentai.verbose(0)` set or captured stdout.
+
+**For a fully-wedged board (REPL silent, probes return nothing) — fastest
+recipe (added 2026-04-26):**
+
+```bash
+python3 scripts/flashtool.py -e sentai_runtime --ram
+```
+
+`--ram` re-loads the existing ELF into RAM and reboots — board is back in
+seconds.  The persistent flash isn't touched, so this is the cheapest
+"kick" available.  Reserve **full persistent flash** (same command without
+`--ram`) for when you actually need a new firmware to survive a power
+cycle.  Don't sit through 120 s of REPL-silence + 30 s WDOG for an unwedge
+when one `--ram` flash would have unblocked everything.
+
+**CRITICAL: `sys.reset()` invalidates `--ram` firmware** (added 2026-04-27).
+`sentai.sys.reset()` triggers `NVIC_SystemReset` which returns control
+to the ROM bootloader.  The ROM bootloader runs whatever is in
+**persistent flash**, NOT the ELF that `--ram` loaded into RAM.  Symptom
+when you forget this: `init(1, 45)` returns 0 → script calls `sys.reset()`
+→ board re-enumerates → next `init(1, 45)` returns the OLD binding's
+error like `TypeError: function expected at most 1 arguments, got 2`
+because the persistently-flashed firmware predates the new MP binding.
+
+**Rule:** any test driver that calls `sys.reset()` (the self-correcting
+`-11 → reset` idiom for runtime fps switching, mode switching, etc.)
+REQUIRES `python3 scripts/flashtool.py -e sentai_runtime` (no `--ram`).
+Use `--ram` ONLY for tests that stay within a single boot cycle.
 
 **Warm-reset recipe** (preserves LFS, does not reflash):
 
@@ -383,6 +506,56 @@ If you must touch existing E13–E18 code, run `python3 upload_diag.py`
 from `sentai_runtime/` to push the WHOLE diag/ package atomically
 before testing.
 
+### 5.1.3 Avoid background poll-loops on /dev/ttyACM0 (added 2026-04-27)
+
+If a previous shell command opened a `until python3 -c "...serial..."`
+poll-loop on `/dev/ttyACM0` and was not properly torn down, it will
+hammer the port with `\x03\x03\r\n` every iteration.  Symptom:
+endless `KeyboardInterrupt\r\n>>>` cascading on every test run, no
+useful output.
+
+Diagnose:
+
+```bash
+lsof /dev/ttyACM0          # who has the port?
+ps -ef | grep -E "until.*serial"   # background poll-loops
+```
+
+Then `kill -9 <PID>` the offender BEFORE any `flashtool` or test run.
+A test driver that inherits this Ctrl-C cascade will print a misleading
+`KeyboardInterrupt: ... line N ...` with N pointing to a benign line
+in the driver, sending you on a wild goose chase.
+
+### 5.1.4 Self-correcting `init(1, fps)` -> `sys.reset()` idiom (added 2026-04-27)
+
+For runtime fps switching (or any first-init parameter that the
+firmware can detect mismatched on the next call), use the
+self-correcting REPL idiom:
+
+```python
+rc = sentai.camera.init(1, _target_fps)
+if rc == -11:                         # camera up at a different fps
+    sentai.rtos.sleep_ms(200)
+    sentai.sys.reset()                # never returns
+elif rc != 0:
+    print("FAIL init=%d" % rc)
+    print("=== done ===")
+else:
+    # ... bench body ...
+```
+
+The host runner must:
+
+1. Tolerate the `SerialException` thrown when CDC drops during
+   `sys.reset()`.
+2. Wait for `lsusb | grep -q "1fc9:c0a1"` re-enumeration before
+   re-issuing the same command.
+3. Use **persistent flash** (no `--ram` — see §4 above).
+
+Reference implementation: `diag/_host_run_with_var.py` + the
+`_target_fps`-driven `_t_fps_bench.py` / `_t_fps_pipeline.py`
+canonical drivers.
+
 ### 5.2 Wait for board after flash / WDOG reset
 
 After `flashtool.py` or a wedge that triggers WDOG, wait for NXP ID:
@@ -587,6 +760,37 @@ return idx;                         // clean buffer
   fall-through path that silently delivers dirty data.
 - **Adding a new return path?  Audit dirty-bit handling first.**
   This is now §2 of the load-bearing rules.
+
+### 9.2.3 Sensor framerate is a compile-time constant
+
+`DEMO_CAMERA_FRAME_RATE` in `libs/camera/camera_support.h:107` is
+the **only** knob for OV5640 frame rate at boot.  It's a `#define`,
+which means changing the runtime fps requires a full rebuild + flash.
+
+The OV5640 driver table in
+`third_party/nxp/rt1176-sdk/components/video/camera/device/ov5640/fsl_ov5640.c`
+has VGA entries at 15, 30, 45, 60, and 90 fps (confirmed by grepping
+`framePerSec` against `kVIDEO_ResolutionVGA`).  Pick one of those,
+not an arbitrary number — others fall through to a default that may
+or may not produce stable frames.
+
+A `sentai.camera.set_hw(w, h, fps)` binding is referenced in older
+diag drivers (`alt_fps_matrix.py`) but **does not exist on this
+branch**.  Any new diag driver that calls `set_hw` will fail with
+`AttributeError`.  If you need runtime fps switching, add the binding
+properly — don't paper over with a `try/except` that masks the
+failure.
+
+**Higher-fps init caveat (open issue, 2026-04-26):**  Building with
+`DEMO_CAMERA_FRAME_RATE = 45` (or 60) currently produces a firmware
+that wedges during the warm-up `select()` calls of new diag drivers.
+`E:0A01` (`CAM_SWITCH_FALLBACK`) followed by `E:0A02:300`
+(drain timeout) within seconds of boot.  Only WDOG recovery (~3 min)
+restores the REPL.  The cam_id correctness work (build #953) is
+unaffected — it was validated at VGA30 and is fps-independent in
+mechanism — but the VGA{45,60} sensor modes need a separate
+init-time investigation before the bench tables in
+`experiment.md` can be filled in for those rows.
 
 ### 9.2.2 GPIO + state-mirror always travel together
 

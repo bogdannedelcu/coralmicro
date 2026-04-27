@@ -38,10 +38,15 @@ extern void sentai_repl_activity(void);
 // strings, leaving no single block large enough for the CSV payload.
 #define MP_GC_HEAP_SIZE (1024 * 1024)
 
-// REPL line buffer size
-#define REPL_LINE_MAX 256
+// REPL line buffer size.
+// 1024 chosen so the chunked uploader can pack ~192 raw bytes per
+// `sentai.fs.append(path, b'...')` line: worst-case repr(bytes) = 4
+// chars/byte → 192*4 + ~50 chars cmd overhead ≈ 818 chars.  Earlier
+// 256-char limit forced 48-byte chunks and ~75 round-trips per file,
+// which timed out the REPL prompt under USB CDC backpressure.
+#define REPL_LINE_MAX 1024
 // Multi-line block buffer size
-#define REPL_BLOCK_MAX 2048
+#define REPL_BLOCK_MAX 4096
 
 // Command history
 #define HISTORY_SIZE 20

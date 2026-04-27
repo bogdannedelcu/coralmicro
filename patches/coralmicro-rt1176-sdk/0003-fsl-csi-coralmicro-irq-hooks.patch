@@ -1,0 +1,45 @@
+diff --git a/devices/MIMXRT1176/drivers/fsl_csi.c b/devices/MIMXRT1176/drivers/fsl_csi.c
+index bb6d120b..cd9f458e 100644
+--- a/devices/MIMXRT1176/drivers/fsl_csi.c
++++ b/devices/MIMXRT1176/drivers/fsl_csi.c
+@@ -888,6 +888,16 @@ void CSI_TransferHandleIRQ(CSI_Type *base, csi_handle_t *handle)
+                 frameBuffer                             = CSI_GetRxBufferAddr(base, dmaDoneBufferIdx);
+                 handle->frameBufferQueue[queueWriteIdx] = frameBuffer;
+ 
++                /* sentai 2026-04-26: authoritative per-buffer source-camera
++                 * tagging hook.  Called HERE — the only point where the
++                 * NXP driver itself confirms a real (non-spurious) frame
++                 * is now in the user-visible queue.  The user implements
++                 * coralmicro_csi_on_frame_complete to record the cam_id
++                 * of the camera that filled this buffer.  Weak default
++                 * keeps the SDK build clean when no user hook is linked. */
++                extern void coralmicro_csi_on_frame_complete(uint32_t bufferAddr);
++                coralmicro_csi_on_frame_complete(frameBuffer);
++
+                 handle->queueWriteIdx = CSI_TransferIncreaseQueueIdx(queueWriteIdx);
+ 
+                 handle->activeBufferNum--;
+@@ -912,8 +922,22 @@ void CSI_TransferHandleIRQ(CSI_Type *base, csi_handle_t *handle)
+             if (CSI_TransferGetEmptyBufferCount(handle) > 0U)
+             {
+                 /* Get the empty frameBuffer, and submit to CSI device. */
+-                CSI_SetRxBufferAddr(base, dmaDoneBufferIdx, CSI_TransferGetEmptyBuffer(handle));
++                uint32_t emptyBuf = CSI_TransferGetEmptyBuffer(handle);
++                CSI_SetRxBufferAddr(base, dmaDoneBufferIdx, emptyBuf);
+                 handle->activeBufferNum++;
++
++                /* sentai 2026-04-26: per-buffer cam_id tagging hook.
++                 * Called HERE — the empty buffer is freshly submitted
++                 * to CSI hw and will be the next slot filled.  At
++                 * this exact moment, g_cam_current_id reflects the
++                 * camera that will fill it (assuming no MUX flip
++                 * before fill-start).  Hook writes that cam_id to
++                 * g_cam_buf_id[slot] in camera_support.c, providing
++                 * a synthetic per-buffer fingerprint independent of
++                 * scene content.  Weak default keeps SDK clean for
++                 * non-coralmicro builds. */
++                extern void coralmicro_csi_on_buffer_arm(uint32_t addr);
++                coralmicro_csi_on_buffer_arm(emptyBuf);
+             }
+             else
+             {

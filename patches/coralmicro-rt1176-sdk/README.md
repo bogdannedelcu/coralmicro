@@ -43,6 +43,39 @@ lets more URBs be in flight concurrently so the TPU's DMA side doesn't
 block on the host's URB descriptor shortage.  Extra RAM cost: ≈640 B in
 SRAM, negligible on this target.
 
+### `0003-fsl-csi-coralmicro-irq-hooks.patch`
+
+Two coralmicro-side hook calls injected into `CSI_TransferHandleIRQ`
+(`devices/MIMXRT1176/drivers/fsl_csi.c`):
+
+1. `coralmicro_csi_on_frame_complete(bufferAddr)` — called at the
+   exact point the NXP driver moves a freshly-filled DMA buffer into
+   the user-visible queue.  This is the only place where a
+   non-spurious frame is confirmed to have landed; the coralmicro
+   side records the active `cam_id` per buffer slot here so the
+   downstream consumer can validate which sensor produced the
+   frame (used by the camera-id correctness work, build #953+).
+2. `coralmicro_csi_on_buffer_arm(bufferAddr)` — called when an
+   empty buffer is freshly submitted to CSI hardware, i.e. the slot
+   that will be filled NEXT.  At this exact moment
+   `g_cam_current_id` reflects the camera that will fill it (no
+   MUX flip racing in between since CSI ISR runs in VBLANK).
+   The hook writes that cam_id into a per-slot tag array, providing
+   a synthetic per-buffer fingerprint independent of scene content.
+
+Both hooks have weak default no-op implementations defined on the
+SDK side (so non-coralmicro consumers of this submodule still build),
+and strong overrides in [`libs/camera/camera_support.c`](../../libs/camera/camera_support.c)
+that drive the dual-camera tagging machinery.
+
+The patch is INTENTIONALLY narrow — only adds two `extern` calls
+plus the `uint32_t emptyBuf` local needed to pass the address to
+the second hook (the upstream driver passes
+`CSI_TransferGetEmptyBuffer(handle)` directly to
+`CSI_SetRxBufferAddr`; we hoist it to a local so we can also pass
+it to the hook).  No control-flow changes, no new error paths, no
+new branching — minimal surface for upstream merges to drift over.
+
 ## Adding a new patch
 
 1. Edit the submodule tree under `third_party/nxp/rt1176-sdk/` directly.

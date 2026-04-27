@@ -105,6 +105,17 @@
 // compare parity-collapse threshold vs VGA45 (sensor period 33 ms vs
 // 22 ms — expect collapse threshold to shift to ~22 ms loop_delay).
 #define DEMO_CAMERA_FRAME_RATE    30
+/* Build #958 — runtime-settable fps.  Defaults to DEMO_CAMERA_FRAME_RATE
+ * at boot.  Modified ONLY by sentai_cam_set_fps() in task context.
+ * Read by BOARD_InitCamera() each time it runs (first init + every
+ * subsequent re-enable). */
+#ifdef __cplusplus
+extern "C" {
+#endif
+extern volatile uint32_t g_runtime_fps;
+#ifdef __cplusplus
+}
+#endif
 #define DEMO_CAMERA_CONTROL_FLAGS (kCAMERA_HrefActiveHigh | kCAMERA_DataLatchOnRisingEdge)
 #define DEMO_CAMERA_BUFFER_ALIGN  64
 #define DEMO_CAMERA_MIPI_CSI_LANE 2

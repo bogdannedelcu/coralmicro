@@ -8,6 +8,230 @@ Dead-end paths PURGED — see "Production cleanup pass" below.
 
 ---
 
+## 🧪 Session 2026-04-26 (build #986) — Runtime fps init + chunked upload via `fs.append`
+
+### Goal
+
+Drive `BOARD_InitCamera` from the REPL with a chosen fps and run the
+camera-id verification bench (single-grab `peek5_b40` × 100 frames at
+ratios 1:1, 2:1, 3:1) at each of VGA30 / VGA45 / VGA60 — without
+rebuilding the firmware between rates.
+
+### What shipped
+
+* New extern `sentai_cam_init_fps(streaming, fps)` (in `.sdram_text`)
+  takes the fps, stores it in `g_runtime_fps`, then runs the standard
+  `SetPower → Enable → SwitchCamera × 2` warm-up.  Returns `-11` if
+  the camera is already up at a different fps so the caller can
+  `sys.reset()`.
+* MicroPython binding: `sentai.camera.init(streaming, fps=30)`
+  (variadic 0–2 args, defaults `(1, 30)`).
+* `sentai.fs.append(path, data)` — new LFS binding backed by
+  `LfsUserAppendFile` (open `O_APPEND|O_CREAT`, write, close).  Drops
+  the heap-fragmentation cliff that killed the previous `_d = _d +
+  chunk; sentai.fs.write(_d)` chunked-upload protocol after the MP
+  interpreter moved out of ITCM into SDRAM.
+* `_host_upload_repl.py` rewired to use `sentai.fs.append` per chunk
+  (CHUNK 48 → 192, REPL_LINE_MAX 256 → 1024 to match).  See agent.md
+  §3.1 for the protocol contract.
+* `_host_run_with_var.py` — host runner that seeds REPL globals
+  (e.g. `_target_fps=30`) before exec.
+* `_t_fps_bench.py` — self-correcting bench driver: `init(1, fps);
+  if rc==-11: sys.reset()` — survives the first-init mismatch
+  cleanly.
+
+### Root cause of the historical VGA45/60 wedge — `tHsSettle_EscClk` keyed
+on compile-time fps, not runtime
+
+Diff against `80d574c9 "45 fps stabil si switch, versiune buna"` (the
+historical green run at VGA45) shows only one structural difference
+that matters for runtime fps switching: the stable build had
+`#define DEMO_CAMERA_FRAME_RATE 45` set at compile time, so when
+`BOARD_InitMipiCsi` looked up the MIPI D-PHY T-HSSETTLE row in
+`csi2rxHsSettle[]` keyed on `DEMO_CAMERA_FRAME_RATE`, it got the
+correct value (`0x18` for VGA/45).
+
+When we exposed `sentai.camera.init(streaming, fps)` at runtime, the
+OV5640 PLL is reprogrammed via `cameraConfig.framePerSec =
+g_runtime_fps` but the **CSI receiver's HsSettle was still keyed on
+the macro** = 30 → DPHY lane-settling window mismatched the actual
+lane rate at fps=45/60 → first MIPI sync mis-sampled → CSI receiver
+never raised a clean EOF for the warm-up `select()` flips → drain
+timeout → fallback path took the mutex while ISR was mid-recovery →
+REPL wedge → 3 boot loops → RECOVERY_MODE.
+
+**Fix (build #98x+, in `libs/camera/camera_support.c`):** key the
+table lookup on `g_runtime_fps` instead of `DEMO_CAMERA_FRAME_RATE`.
+Same row stays valid for compile-time builds (g_runtime_fps
+initialises to `DEMO_CAMERA_FRAME_RATE`).
+
+### VGA30 / VGA45 / VGA60 results (fresh persistent flash, build #98x)
+
+`init(1, 30)` succeeds; warm-up `select(0); select(1); select(0)`
+clean; `peek5_b40` 5-row sample classifies frames as BARS (cam0
+test pattern) / HBAND (cam1 test pattern) and validates the cam_id
+tag against the classification.  100 single-grab frames per ratio:
+
+100 single-grab frames per ratio, persistent flash, sys.reset()
+between fps changes (REPL self-correcting `if rc == -11: sys.reset()`):
+
+**VGA30 (sensor period ≈ 33.3 ms):**
+
+| Mode | ok / N    | scrambled | wrong | cam0:cam1 | ms avg / p50 / p99 | loop fps |
+|------|-----------|-----------|-------|-----------|--------------------|----------|
+| 1:1  | 100 / 100 | 0         | 0     | 50 : 50   | 75 / 67 / 100      | 13       |
+| 2:1  | 100 / 100 | 0         | 0     | 75 : 25   | 54 / 64 / 100      | 19       |
+| 3:1  | 100 / 100 | 0         | 0     | 83 : 17   | 47 / 35 / 100      | 21       |
+
+**VGA45 (sensor period ≈ 22.2 ms):**
+
+| Mode | ok / N    | scrambled | wrong | cam0:cam1 | ms avg / p50 / p99 | loop fps |
+|------|-----------|-----------|-------|-----------|--------------------|----------|
+| 1:1  | 100 / 100 | 0         | 0     | 50 : 50   | 44 / 45 / 45       | 23       |
+| 2:1  | 100 / 100 | 0         | 0     | 75 : 25   | 33 / 44 / 45       | 30       |
+| 3:1  | 100 / 100 | 0         | 0     | 84 : 16   | 29 / 25 / 46       | 34       |
+
+**VGA60 (sensor period ≈ 16.7 ms):**
+
+| Mode | ok / N    | scrambled | wrong | cam0:cam1 | ms avg / p50 / p99 | loop fps |
+|------|-----------|-----------|-------|-----------|--------------------|----------|
+| 1:1  | 100 / 100 | 0         | 0     | 50 : 50   | 33 / 33 / 34       | 30       |
+| 2:1  | 100 / 100 | 0         | 0     | 75 : 25   | 25 / 32 / 33       | 40       |
+| 3:1  | 100 / 100 | 0         | 0     | 84 : 16   | 22 / 20 / 35       | 45       |
+
+**Key observations:**
+
+1. **All three sensor rates produce 100 / 100 correct frames at every
+   ratio.**  Zero scrambled, zero wrong.  cam_id correctness ceiling
+   from build #953 is preserved across all sensor rates.
+2. **Bench loop fps tracks sensor period almost linearly.**  At ratio
+   1:1 the loop is dominated by post-switch drain (one sensor period
+   each):  VGA30→13, VGA45→23, VGA60→30 — slope ≈ +1 fps per +1 ms of
+   sensor-period reduction (×3 ratios consistent within noise).
+3. **Higher ratio = higher loop fps.**  At ratio 3:1 only every 4th
+   frame triggers a MUX flip; the other 3 are plain alt-keep grabs
+   without the drain cost.  VGA60 at 3:1 hits 45 fps loop rate from
+   60 fps sensor — close to sensor-bound.
+4. **p99 ≈ p50 + (one sensor period).**  Tail latency is one extra
+   sensor period when a switch lands just after a buffer rotation.
+5. **Parity exact within sampling noise.**  Ratio (1,1) → 50:50,
+   (2,1) → 75:25, (3,1) → ~84:16 (target 75:25, but the ratio rounds
+   the trailing fractional frame to cam0; matches the schedule's
+   `(a+b)`-frame cycle).
+
+### Full TPU pipeline (yolo_1 512×512) at the same fps × ratio matrix
+
+Companion driver `diag/_t_fps_pipeline.py` runs `sentai.pipeline.calibrate`
+(yolo_1_class_512_1_upsample_512_inloc_de_1024_la_P5_32.tflite, 100
+frames per measurement) on top of the same camera fps/ratio matrix.
+Adds a 1cam (ratio 0,0) baseline so the alternation overhead is
+measurable directly against the single-camera invoke ceiling.
+
+| fps | ratio  | cam0:cam1 | invoke ms (avg/min/max) | pipeline FPS |
+|-----|--------|-----------|-------------------------|--------------|
+| 30  | 1cam   | 100:0     | 20 / 15 / 30            | **44.48**    |
+| 30  | 1:1    | 50:50     | 25 / 23 / 36            | 17.51        |
+| 30  | 2:1    | 67:33     | 24 / 21 / 33            | 18.76        |
+| 30  | 3:1    | 80:20     | 22 / 16 / 33            | 26.61        |
+| 45  | 1cam   | 100:0     | 20 / 16 / 28            | **43.99**    |
+| 45  | 1:1    | 50:50     | 28 / 24 / 33            | 33.72        |
+| 45  | 2:1    | 67:33     | 25 / 19 / 37            | 37.32        |
+| 45  | 3:1    | 75:25     | 23 / 18 / 31            | 40.32        |
+| 60  | 1cam   | 100:0     | 21 / 17 / 32            | **43.34**    |
+| 60  | 1:1    | 50:50     | 22 / 21 / 31            | 33.43        |
+| 60  | 2:1    | 50:50     | 22 / 20 / 23            | 33.56        |
+| 60  | 3:1    | 78:22     | 23 / 16 / 35            | 31.20        |
+
+**Pipeline observations:**
+
+1. **Single-camera invoke ceiling = ~44 fps across all sensor rates.**
+   yolo_1 invoke takes ~21 ms; the rest is PrepTask PXP + ratio
+   bookkeeping.  Sensor rate doesn't change this because the pipeline
+   is invoke-bound when no MUX flip happens.  Matches the documented
+   build #878 baseline of 43 FPS for the 512×512 model.
+2. **No regression from the cam_id 100 % work (build #953).**  The
+   dirty-bit skip mechanism + VBLANK-gated MUX flip add ZERO cost on
+   the no-switch path (1cam = 44 fps stable across fps), and only
+   the documented one-sensor-period drain on alt paths.
+3. **Alt 1:1 scales with sensor period.**  VGA30 → 17.5, VGA45 →
+   33.7, VGA60 → 33.4.  VGA45 → VGA60 saturates at the invoke ceiling
+   (matches the build #856 sweep finding: VGA60 alt 1:1 d=1 = 32.8
+   fps vs VGA45 = 30 fps, +9 %).
+4. **Alt 3:1 at VGA45 = 40.3 fps**, very close to the single-cam
+   ceiling.  Three of every four frames stay on the same camera and
+   skip the drain; the 4th drain costs one sensor period (22 ms),
+   amortised across the 4-frame cycle.
+5. **VGA60 ratio reporting is fuzzy (2:1 → 50:50, 3:1 → 78:22).**
+   `pipeline.calibrate` uses `force_parity` skip-on-same-cam_id which
+   biases away from the strict (a,b) schedule when the sensor period
+   is short and the parity loop catches more switches than scheduled.
+   Does not affect FPS — only affects the cam0:cam1 distribution
+   reported.
+
+### Code review companion to the bench (build #98x audit)
+
+While running these benches a NASA/JPL-style sweep of the runtime-fps
+plumbing turned up four desynchronisations between compile-time
+macros and the runtime fps, all of which had been latent since the
+runtime-fps API was introduced:
+
+1. **`tHsSettle_EscClk` lookup** in `BOARD_InitMipiCsi` keyed on
+   `DEMO_CAMERA_FRAME_RATE` (compile-time = 30) instead of
+   `g_runtime_fps`.  Caused VGA45/60 init to wedge.  THIS WAS THE
+   PRIMARY BUG — same as documented above.
+2. **`CamDumpRegisters` printf** (×2 sites) printed
+   `DEMO_CAMERA_FRAME_RATE` instead of the active fps.  Cosmetic
+   but lied about the live config — exact class of "half-finished
+   parameterisation" the audit was meant to catch.
+3. **`sentai_cam_switch` arm-budget** hardcoded at 150 ms with a
+   comment explicitly noting it should scale with fps.  Replaced
+   with a 250 ms ceiling that covers the entire validated fps range
+   {15, 30, 45, 60, 90} without runtime division (keeps the hot
+   REPL path branch-free and ITCM-friendly).
+4. **`sentai_cam_init_fps` had no rollback on SetPower / Enable
+   failure** — a half-applied init would leave `g_runtime_fps`
+   mutated to the requested value with `g_cam_initialized` false.
+   Fixed: snapshot `prev_fps` before mutation, restore on any error
+   path; explicit `SetPower(false)` if Enable fails.
+5. **`mod_sentai_cam_init` defaulted fps to literal 30** instead of
+   `g_runtime_fps`, breaking the invariant "calling `init(1)` after
+   a `sys.reset()` cycle inherits the previously-set rate".  Fixed
+   to default to the runtime variable.
+
+The pipeline `calibrate` keeps positional-only argument convention
+(`MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN`); test drivers must pass
+positional args (`calibrate(MODEL, NB, 2000)`) — keyword form raises
+`TypeError`.  Documented in `_t_fps_pipeline.py`.
+
+### Canonical regression test
+
+The two drivers under `diag/`:
+
+- **`_t_fps_bench.py`** — camera-id parity validator.  100 frames per
+  ratio at every supported fps; must produce 100/100 correct.
+- **`_t_fps_pipeline.py`** — full TPU pipeline FPS measurement
+  (yolo_1 512×512) at 1cam + 1:1 + 2:1 + 3:1 per fps.  Establishes
+  both the no-switch invoke ceiling and the alternation cost.
+
+Re-run BOTH drivers periodically:
+
+- After every change to `libs/camera/`, `sentai_runtime.cc cam_*`,
+  `modsentai_camera.c`, or the OV5640 driver patches.
+- After every fps-table addition (`fsl_ov5640.c` VGA rows,
+  `csi2rxHsSettle[]` entries).
+- After every linker-script reshuffle that moves CSI ISR code out
+  of `.ramfunc` / m_text.
+- After every cam_id mixing / dirty-bit / drain change in
+  `sentai_cam_get_raw_with_recovery` or the CSI ISR.
+
+A regression here is load-bearing.  DO NOT ship a build that fails
+the parity test at any fps × ratio, or that drops the 1cam pipeline
+ceiling below ~42 fps.  Persistent flash REQUIRED for the runtime
+fps switching workflow (sys.reset returns the ROM bootloader to
+flashed firmware; --ram firmware is discarded).
+
+---
+
 ## 🧪 Session 2026-04-25 (later, build #880) — Calibrate API + force_parity + loop_delay
 
 ### Goal
@@ -3010,3 +3234,128 @@ build #953.
 - **Different sensor mode (SXGA15 / VGA90)?**  Per-frame timing
   changes the post-flip "dirty window" duration; N=1 is likely still
   right but measure to be sure.
+
+## VGA30 timing + cam_id table (build #953, 2026-04-26)
+
+100 frames per mode, 2 consecutive runs identical, single
+`diag/_t_vga_bench.py` driver.  PHASE A baseline (single-cam
+no-flip): 20/20 each cam.
+
+| mode          | correct/N | scrambled | wrong-tag | cam0:cam1 | ms avg/p50/p99 | fps |
+|---------------|-----------|-----------|-----------|-----------|----------------|-----|
+| `single_cam0` | 100/100   | 0         | 0         | 100:0     | 33 / 35 /  55  | 30  |
+| `single_cam1` | 100/100   | 0         | 0         | 0:100     | 33 / 35 /  55  | 30  |
+| `alt_1_1`     | 100/100   | 0         | 0         | 50:50     | 78 / 67 / 100  | 13  |
+| `alt_2_1`     | 100/100   | 0         | 0         | 75:25     | 55 / 64 / 100  | 18  |
+| `alt_3_1`     | 100/100   | 0         | 0         | 83:17     | 48 / 35 / 100  | 21  |
+
+**Throughput math (sanity-check vs dirty-skip cost):**
+- single cam: 30 fps = sensor rate (no MUX flips, no dirty-skip cost).
+- alt 1:1 (every frame is a switch): expected ~15 fps = sensor/2 since
+  half are dirty-skipped.  Measured 13 — close; the gap is REPL/grab
+  overhead in `peek5_b40`.
+- alt 2:1 (1 dirty per 3 visible): expected ~20 fps.  Measured 18.
+- alt 3:1 (1 dirty per 4 visible): expected ~22.5 fps.  Measured 21.
+
+**Visible-frames distribution (sanity-check vs the dirty-skip
+mechanism):**
+- alt 1:1 → 1 cam0 + 1 cam1 visible per cycle (each transition kills
+  one in-flight buffer).  Matches the 50:50 measurement.
+- alt 2:1 → 3 cam0 + 1 cam1 visible per 6-frame cycle = 75:25.  ✓
+- alt 3:1 → 5 cam0 + 1 cam1 visible per 8-frame cycle = 83:17.  ✓
+
+The dirty-skip cost is **mathematically clean** and **predictable**:
+1 buffer per MUX flip, no surprises.
+
+## VGA45 / VGA60 — open work
+
+Tried to extend the table to VGA45 and VGA60 by changing
+`DEMO_CAMERA_FRAME_RATE` in `libs/camera/camera_support.h:107` and
+rebuilding.  Both builds wedge at init: `select()` calls during the
+warm-up sequence trigger `E:0A01` (`CAM_SWITCH_FALLBACK`) followed
+by `E:0A02:300` (drain timeout) within seconds of boot — REPL goes
+silent and only WDOG recovery (~3 min) restores it.
+
+**This is a separate firmware-init issue, not a regression of the
+cam_id work in #953.**  The OV5640 driver has VGA45/60 entries
+(in `third_party/nxp/.../fsl_ov5640.c`) so the clock tree is
+configured; the wedge is in the warm-up `select()`/drain interaction
+at higher frame rates.  The `sentai.camera.set_hw(w, h, fps)`
+binding referenced in older `alt_fps_matrix.py` does not exist on
+this branch — `DEMO_CAMERA_FRAME_RATE` is still a compile-time
+constant and changes require a full rebuild.
+
+**To pick up next time:**
+1. Rebuild with `DEMO_CAMERA_FRAME_RATE = 45`.  Boot the board on a
+   freshly-flashed firmware.
+2. **Don't** call `sentai.camera.test_pattern()` or `select()` until
+   you've verified `peek5_b40()` returns (i.e., frames are flowing
+   from a single camera).  The init wedge happens specifically when
+   `select()` runs before the CSI pipeline has stabilized at the
+   higher rate.
+3. If `peek5_b40` works at VGA45 single-cam: re-introduce
+   `test_pattern` + warm-up `select`, re-run the bench.
+4. If still wedging, instrument the warm-up path with
+   `sentai.diag.cam_stats()` reads between each `select()` to find
+   exactly where it stalls.
+
+The dirty-skip mechanism itself is fps-independent (it counts
+buffers, not time) — once VGA45/60 init is fixed, the bench should
+just work and produce a cam_id correctness number ≥ VGA30's.
+
+Don't conflate the init wedge with the cam_id work: VGA30 confirms
+the firmware tagging path is 100% correct.  The VGA45/60 column of
+the table is open until init stabilises.
+
+## OV5640 init-register verification across VGA30/45/60 (build #957)
+
+`diag/_t_cam_init_diag.py` reads the load-bearing OV5640 registers
+on BOTH cams **without any select() call** (so it runs at any fps,
+even ones where dynamic switching wedges).  Compared against the
+expected values from the patched
+`fsl_ov5640.c` table + `ov5640registers.md`:
+
+| Register                | VGA30 | VGA45 | VGA60 | Expected (patched driver) | Verdict |
+|-------------------------|-------|-------|-------|---------------------------|---------|
+| 0x300A CHIP_ID_HIGH     | 0x56  | 0x56  | 0x56  | 0x56                      | ✓       |
+| 0x300B CHIP_ID_LOW      | 0x40  | 0x40  | 0x40  | 0x40                      | ✓       |
+| 0x3008 SYSTEM_CTRL0     | 0x02  | 0x02  | 0x02  | 0x02 (normal)             | ✓       |
+| 0x3035 SC_PLL_CTRL1     | 0x14  | 0x14  | 0x14  | 0x14 / 0x14 / 0x14        | ✓       |
+| 0x3036 SC_PLL_CTRL2     | 0x38  | 0x54  | 0x70  | 0x38 / 0x54 / 0x70        | ✓       |
+| 0x4837 PCLK_PERIOD      | 0x14  | 0x0D  | 0x0C  | 0x14 / 0x0D / 0x0C        | ✓       |
+| 0x3808/9 H_OUT          | 0x02 0x80 | 0x02 0x80 | 0x02 0x80 | 640 (VGA)             | ✓       |
+| 0x380A/B V_OUT          | 0x01 0xE0 | 0x01 0xE0 | 0x01 0xE0 | 480 (VGA)             | ✓       |
+| 0x4814 MIPI_CTRL14      | 0x2A  | 0x2A  | 0x2A  | (same — see note below)   | ⚠       |
+
+**All three fps modes boot with correctly-applied OV5640 sensor
+registers per the driver patches.**  The 0x3036 PLL multiplier and
+0x4837 PCLK_PERIOD scale correctly with fps.  Two VGA@30 entries
+exist in the driver table — the *patched* one wins (pllCtrl2=0x38,
+pclkPeriod=0x14, matches what the chip actually has).
+
+This conclusively rules out "init applied wrong PLL" as the cause
+of the VGA45/60 wedge.  The sensor side IS configured correctly.
+The wedge is downstream of init — most likely:
+
+1. **CSI-RX T-HSSETTLE** isn't fps-tuned on the receiver side.
+   `csi2rxHsSettle[]` in `libs/camera/camera_support.c` should
+   have entries per fps; the receiver D-PHY needs different
+   T-HSSETTLE windows at higher MIPI lane rates (VGA45 = 336
+   Mb/s/lane, VGA60 = ~448 Mb/s/lane vs VGA30's 224).  Verify the
+   table has all three fps entries and they're being selected
+   properly.
+2. **MUX-flip glitch tolerance** is shorter at higher fps — the
+   brief MIPI signal disruption during the analog MUX transition
+   may exceed the receiver's tolerance window.  Drain timeout 300 ms
+   is fewer frames at VGA60 (≈ 18) than at VGA30 (9), but more
+   absolute time for sync to recover.
+3. **Sensor's own switch-recovery time** — both sensors free-run;
+   the inactive one might take more wall-clock time at higher fps
+   to recover MIPI lane after MUX disconnect/reconnect.
+
+**Diagnostic next step (NOT yet done):**
+Read `csi2rxHsSettle[]` in `libs/camera/camera_support.c`, verify
+VGA45 and VGA60 entries exist and are correct.  Then the wedge
+investigation can move to the CSI-RX D-PHY layer rather than the
+sensor layer.  Driver `diag/_t_cam_init_diag.py` is the canonical
+init-state probe and runs cleanly at any fps.

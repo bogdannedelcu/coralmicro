@@ -326,6 +326,23 @@ SECTIONS
      . = ALIGN(4);
   } > m_text
 
+  /* Build #958 audit: modsentai_*.c are #include'd into modsentai.c
+     which compiles to ONE .obj inside liblibmicropython.a; that
+     library is already routed to SDRAM via the .micropython
+     section above.  Same for micropython_embed sources.  No
+     additional section needed for MP bindings.  Cold-path code
+     in sentai_runtime.cc that should leave ITCM is tagged
+     individually via __attribute__((section(".sdram_text"))) and
+     collected here. */
+  .sdram_text :
+  {
+     . = ALIGN(4);
+     __sdram_text_start = .;
+     *(.sdram_text .sdram_text.*)
+     __sdram_text_end = .;
+     . = ALIGN(4);
+  } > m_sdram
+
   /* .cdc_ncm + .camera — moved OCRAM → SDRAM 2026-04-22 (small
      sections, tolerable SDRAM latency since not per-invoke hot). */
   .cdc_ncm :

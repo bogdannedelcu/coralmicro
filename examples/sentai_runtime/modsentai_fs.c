@@ -125,6 +125,26 @@ static mp_obj_t mod_sentai_fs_write(mp_obj_t path_obj, mp_obj_t data_obj) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_2(mod_sentai_fs_write_obj, mod_sentai_fs_write);
 
+// sentai.fs.append(path, data) -> bool
+// Chunked-friendly write: opens with O_APPEND|O_CREAT and appends `data`.
+// Used by the REPL uploader to push files larger than what a single REPL
+// line buffer (or the heap accumulator `_d = _d + ...`) can stage. Each
+// call is independent: no growing _d, no GC pressure between chunks.
+extern int sentai_fs_append(const char* path, const uint8_t* buf, int size);
+static mp_obj_t mod_sentai_fs_append(mp_obj_t path_obj, mp_obj_t data_obj) {
+    _fs_check_usb();
+    const char* path = mp_obj_str_get_str(path_obj);
+    mp_buffer_info_t bufinfo;
+    mp_get_buffer_raise(data_obj, &bufinfo, MP_BUFFER_READ);
+    if (!sentai_lfs_lock()) {
+        mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("lfs busy"));
+    }
+    int ok = sentai_fs_append(path, (const uint8_t*)bufinfo.buf, bufinfo.len);
+    sentai_lfs_unlock();
+    return mp_obj_new_bool(ok);
+}
+static MP_DEFINE_CONST_FUN_OBJ_2(mod_sentai_fs_append_obj, mod_sentai_fs_append);
+
 // sentai.fs.size(path) -> int (-1 if not found)
 static mp_obj_t mod_sentai_fs_size(mp_obj_t path_obj) {
     _fs_check_usb();
@@ -229,6 +249,7 @@ static const mp_rom_map_elem_t sentai_fs_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_read_str),    MP_ROM_PTR(&mod_sentai_fs_read_str_obj) },
     { MP_ROM_QSTR(MP_QSTR_read_base64), MP_ROM_PTR(&mod_sentai_fs_read_base64_obj) },
     { MP_ROM_QSTR(MP_QSTR_write),       MP_ROM_PTR(&mod_sentai_fs_write_obj) },
+    { MP_ROM_QSTR(MP_QSTR_append),      MP_ROM_PTR(&mod_sentai_fs_append_obj) },
     { MP_ROM_QSTR(MP_QSTR_size),        MP_ROM_PTR(&mod_sentai_fs_size_obj) },
     { MP_ROM_QSTR(MP_QSTR_exists),      MP_ROM_PTR(&mod_sentai_fs_exists_obj) },
     { MP_ROM_QSTR(MP_QSTR_format),      MP_ROM_PTR(&mod_sentai_fs_format_obj) },

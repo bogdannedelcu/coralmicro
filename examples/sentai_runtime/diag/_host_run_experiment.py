@@ -43,26 +43,43 @@ def main():
     ser.write(cmd.encode())
     ser.flush()
 
+    # Per agent.md §5.1: use `=== done ===` sentinel to mark the
+    # actual end of the test.  Tail-matching on `>>>` is fragile
+    # because MicroPython prints `>>>` in exception output too,
+    # and our test driver may legitimately surface a `>>>` prompt
+    # mid-run (e.g. while sentai.camera.reg_read returns rapidly).
+    # Drivers MUST print `=== done ===` last.
     deadline = time.monotonic() + args.timeout
     idle_since = time.monotonic()
+    saw_done = False
+    accumulated = b""
     try:
         while time.monotonic() < deadline:
             chunk = ser.read(1024)
             if chunk:
                 sys.stdout.write(chunk.decode(errors="replace"))
                 sys.stdout.flush()
+                accumulated += chunk
                 idle_since = time.monotonic()
-                if chunk.rstrip().endswith(b">>>"):
-                    time.sleep(1.0)
-                    tail = ser.read(ser.in_waiting or 1)
-                    if not tail:
-                        break
-                    sys.stdout.write(tail.decode(errors="replace"))
-                    sys.stdout.flush()
+                if b"=== done ===" in accumulated:
+                    saw_done = True
+                    # Drain trailing prompt + any debug prints.
+                    drain_until = time.monotonic() + 1.0
+                    while time.monotonic() < drain_until:
+                        tail = ser.read(ser.in_waiting or 1)
+                        if not tail:
+                            time.sleep(0.05)
+                            continue
+                        sys.stdout.write(tail.decode(errors="replace"))
+                        sys.stdout.flush()
+                        drain_until = time.monotonic() + 0.3
+                    break
             else:
                 if time.monotonic() - idle_since > 30.0:
                     print("\n[host] no output for 30s — aborting")
                     break
+        if not saw_done:
+            print("\n[host] timeout without `=== done ===` sentinel")
     finally:
         ser.close()
 

@@ -2216,21 +2216,65 @@ extern "C" int sentai_cam_set_res(int w, int h) {
   return 0;
 }
 
-extern "C" int sentai_cam_init(int streaming) {
+/* Build #980 — accept fps as the second arg to sentai.camera.init().
+ * Backward-compatible: callers passing only `streaming` get the
+ * previous behaviour (g_runtime_fps stays at its boot default = 30).
+ * BOARD_InitCamera reads g_runtime_fps inside HandleEnableRequest,
+ * so as long as we set it BEFORE cam->Enable() the OV5640 driver
+ * picks up the new clock-config table entry on first init.
+ *
+ * Limitation (per memory/project_runtime_fps_switch_blocked.md):
+ * a SECOND call with a different fps will wedge — CAMERA_RECEIVER_Init
+ * is not re-entrant in this NXP HAL.  For a clean fps switch the
+ * caller must reboot (sentai.sys.reset()) and call init() again
+ * with the new fps.  This is still a strict win over rebuild +
+ * reflash. */
+extern "C" __attribute__((section(".sdram_text"))) int sentai_cam_init_fps(int streaming, int fps) {
+  /* Validate fps against the patched fsl_ov5640.c VGA table. */
+  if (fps != 15 && fps != 30 && fps != 45 && fps != 60 && fps != 90) {
+    return -10;
+  }
+  if (g_cam_initialized) {
+    /* Refuse second init at a different fps — it would wedge.
+     * Caller must sentai.sys.reset() first. */
+    if ((uint32_t)fps != g_runtime_fps) return -11;
+    return 0;  /* already initialized at the same fps */
+  }
+  /* NASA/JPL fault containment: snapshot the previous runtime fps so
+   * we can roll it back on a SetPower / Enable failure.  Without this
+   * a failed init would leave g_runtime_fps mutated to the requested
+   * value while g_cam_initialized stayed false — the next caller would
+   * inherit a half-applied state with no recourse but reboot. */
+  const uint32_t prev_fps = g_runtime_fps;
+  g_runtime_fps = (uint32_t)fps;
   auto* cam = coralmicro::CameraTask::GetSingleton();
-  if (!cam->SetPower(true)) return -1;
+  if (!cam->SetPower(true)) {
+    g_runtime_fps = prev_fps;
+    return -1;
+  }
   auto mode = streaming ? coralmicro::CameraMode::kStreaming
                         : coralmicro::CameraMode::kTrigger;
-  if (!cam->Enable(mode)) return -2;
+  if (!cam->Enable(mode)) {
+    /* Power was raised but Enable failed — bring power back down so
+     * the OV5640 isn't left in an indeterminate streaming state, then
+     * roll back the runtime fps. */
+    (void)cam->SetPower(false);
+    g_runtime_fps = prev_fps;
+    return -2;
+  }
   g_cam_initialized = true;
-
-  // Cycle through both cameras to ensure CSI/MIPI is fully initialized.
   cam->SwitchCamera(coralmicro::SwitchCameraId::kCameraBack);
   g_cam_current_id = 1;
   cam->SwitchCamera(coralmicro::SwitchCameraId::kCameraFront);
   g_cam_current_id = 0;
-
   return 0;
+}
+
+/* Existing entry point — preserved for any caller that doesn't
+ * want to pick fps explicitly.  Uses the runtime default (30 unless
+ * overridden by a prior init_fps call before stop). */
+extern "C" int sentai_cam_init(int streaming) {
+  return sentai_cam_init_fps(streaming, (int)g_runtime_fps);
 }
 
 extern "C" int sentai_cam_stop(void) {
@@ -2240,6 +2284,18 @@ extern "C" int sentai_cam_stop(void) {
   g_cam_initialized = false;
   return 0;
 }
+
+/* Build #958 — runtime fps switch.  Drops camera, updates the
+ * runtime fps variable, brings camera back so the OV5640 driver
+ * re-runs the clock-config table with the new framePerSec.
+ * Valid: 15/30/45/60/90 (per fsl_ov5640.c VGA table).
+ *
+ * Placed in .sdram_text — this is a one-shot config call invoked
+ * from REPL, NOT on the per-frame ISR / pipeline hot path. */
+/* Build #980: sentai_cam_set_fps removed — runtime fps switch is
+ * blocked by the CSI receiver re-init wedge documented in
+ * memory/project_runtime_fps_switch_blocked.md.  Use
+ * sentai_cam_init_fps(streaming, fps) at FIRST init instead. */
 
 // Try to get a raw frame with recovery.
 // Drains stale buffered frames first so the caller always gets the LATEST frame.
@@ -2611,10 +2667,15 @@ extern "C" int sentai_cam_switch(int id) {
 
   const TickType_t ts0 = xTaskGetTickCount();
 
-  // kArmTimeoutTicks = 3 × frame_interval @ 30 fps + 50 ms jitter margin
-  // = 150 ms.  Scales linearly with frame rate — if DEMO_CAMERA_FRAME_RATE
-  // ever drops to 15 fps, this budget must double.
-  const TickType_t kArmTimeoutTicks = pdMS_TO_TICKS(150);
+  /* Arm-budget covers worst-case sensor-period × 3 + 50 ms jitter.
+   * 250 ms is safe across the entire validated runtime fps range
+   * {15, 30, 45, 60, 90} — VGA15 worst case is 200 ms (3 × 66.7),
+   * VGA60 fits comfortably (100 ms).  Was 150 ms literal keyed on
+   * the unwritten DEMO_CAMERA_FRAME_RATE == 30 assumption — fixed
+   * during the build #98x runtime-fps audit.  A constant ceiling
+   * is preferred over runtime division to keep this hot REPL path
+   * branch-free and ITCM-friendly. */
+  const TickType_t kArmTimeoutTicks = pdMS_TO_TICKS(250);
 
   // Arm the ISR.
   g_cam_pending_mux_id = id;

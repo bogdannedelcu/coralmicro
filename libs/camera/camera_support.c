@@ -121,6 +121,11 @@ volatile uint8_t g_cam_buf_id_task[DEMO_CAMERA_BUFFER_COUNT] = {
  * sentai_cam_get_raw_with_recovery when it returns. */
 volatile int g_cam_grabbed_id = -1;
 
+/* Build #958 — runtime fps.  Replaces compile-time
+ * DEMO_CAMERA_FRAME_RATE in BOARD_InitCamera so sentai_cam_set_fps
+ * can re-init at a different rate without rebuild + reflash. */
+volatile uint32_t g_runtime_fps = DEMO_CAMERA_FRAME_RATE;
+
 /* Build #942 — IN-FLIGHT-AT-FLIP dirty-buffer marker.
  *
  * When the CSI ISR flips the MUX, the buffer currently being filled
@@ -671,10 +676,23 @@ void BOARD_InitMipiCsi(void)
     csi2rxConfig.laneNum          = DEMO_CAMERA_MIPI_CSI_LANE;
     csi2rxConfig.tHsSettle_EscClk = 0x12;
 
+    /* Lookup keyed on the RUNTIME fps (g_runtime_fps), not the
+     * compile-time DEMO_CAMERA_FRAME_RATE.  When sentai_cam_init_fps()
+     * boots the camera at a non-default rate (e.g. 45 fps), the MIPI
+     * D-PHY lane rate scales with the OV5640 PLL and the receiver
+     * needs the matching T-HSSETTLE — otherwise the first MIPI sync
+     * lands outside the lane-settling window, the receiver mis-samples,
+     * and the warm-up `select(); select(); select()` sequence dead-
+     * locks (CSI ISR never sees a clean EOF, drain timeout fires,
+     * fallback path takes the mutex while ISR is mid-recovery →
+     * REPL wedge).  Caught 2026-04-26 build #986 retro by diffing
+     * `80d574c9 "45 fps stabil si switch"` against current tree:
+     * stable build paired the table row with the macro by setting
+     * DEMO_CAMERA_FRAME_RATE=45 at compile time. */
     for (uint8_t i = 0; i < ARRAY_SIZE(csi2rxHsSettle); i++)
     {
         if ((FSL_VIDEO_RESOLUTION(DEMO_CAMERA_WIDTH, DEMO_CAMERA_HEIGHT) == csi2rxHsSettle[i][0]) &&
-            (csi2rxHsSettle[i][1] == DEMO_CAMERA_FRAME_RATE))
+            (csi2rxHsSettle[i][1] == g_runtime_fps))
         {
             csi2rxConfig.tHsSettle_EscClk = csi2rxHsSettle[i][2];
             break;
@@ -749,7 +767,7 @@ void BOARD_InitCamera(void)
     cameraConfig.frameBufferLinePitch_Bytes = DEMO_CAMERA_WIDTH * DEMO_CAMERA_BUFFER_BPP;
     cameraConfig.interface                  = kCAMERA_InterfaceGatedClock;
     cameraConfig.controlFlags               = DEMO_CAMERA_CONTROL_FLAGS;
-    cameraConfig.framePerSec                = DEMO_CAMERA_FRAME_RATE;
+    cameraConfig.framePerSec                = g_runtime_fps;
 
     status = CAMERA_RECEIVER_Init(&cameraReceiver, &cameraConfig, NULL, NULL);
     printf("CAMERA_RECEIVER_Init = %ld\r\n", status);
@@ -773,7 +791,7 @@ void BOARD_InitCamera(void)
     cameraConfig.resolution    = FSL_VIDEO_RESOLUTION(DEMO_CAMERA_WIDTH, DEMO_CAMERA_HEIGHT);
     cameraConfig.interface     = kCAMERA_InterfaceMIPI;
     cameraConfig.controlFlags  = DEMO_CAMERA_CONTROL_FLAGS;
-    cameraConfig.framePerSec   = DEMO_CAMERA_FRAME_RATE;
+    cameraConfig.framePerSec   = g_runtime_fps;
     cameraConfig.csiLanes      = DEMO_CAMERA_MIPI_CSI_LANE;
 
     status = CAMERA_DEVICE_Init(&cameraDevice, &cameraConfig);
@@ -867,7 +885,7 @@ void CamDumpRegistersOnly(void)
     };
 
     printf("Camera %dx%d@%d %d bits per pixel\n",
-    DEMO_CAMERA_WIDTH, DEMO_CAMERA_HEIGHT, DEMO_CAMERA_FRAME_RATE, DEMO_CAMERA_BUFFER_BPP * 8);
+    DEMO_CAMERA_WIDTH, DEMO_CAMERA_HEIGHT, (int)g_runtime_fps, DEMO_CAMERA_BUFFER_BPP * 8);
 
     for (int n=0; n<sizeof(ov5640_regs)/sizeof(ov5640_regs[0]); n++)
     {
@@ -887,7 +905,7 @@ void CamDumpRegisters(void)
     uint8_t val;
 
     printf("Camera %dx%d@%d %d bits per pixel\n",
-    DEMO_CAMERA_WIDTH, DEMO_CAMERA_HEIGHT, DEMO_CAMERA_FRAME_RATE, DEMO_CAMERA_BUFFER_BPP * 8);
+    DEMO_CAMERA_WIDTH, DEMO_CAMERA_HEIGHT, (int)g_runtime_fps, DEMO_CAMERA_BUFFER_BPP * 8);
 
     for (int n=0; n<sizeof(ov5640_regs)/sizeof(ov5640_regs[0]); n++)
     {

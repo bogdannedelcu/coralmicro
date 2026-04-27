@@ -130,6 +130,11 @@ bool LfsUserWriteFile(const char* path, const uint8_t* buf, size_t size);
 
 bool LfsUserWriteFile(const char* path, const std::string& str);
 
+// Appends `buf` to file at `path`. Creates the file if it does not exist.
+// Used by the chunked REPL uploader to push files larger than the REPL line
+// buffer can stage in RAM as a single bytes object.
+bool LfsUserAppendFile(const char* path, const uint8_t* buf, size_t size);
+
 int LfsUserRemove(const char* path);
 
 }  // namespace coralmicro

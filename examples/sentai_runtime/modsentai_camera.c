@@ -1,13 +1,27 @@
 // ============== sentai.camera — Camera ==============
 // This file is #include'd from modsentai.c — do NOT compile separately.
 
-// sentai.camera.init(streaming=1) -> int (0=ok, <0=error)
+// sentai.camera.init(streaming=1, fps=<current g_runtime_fps>) -> int
 // streaming=1: continuous mode, streaming=0: trigger mode
+// fps: 15/30/45/60/90 (per fsl_ov5640.c VGA table).  When omitted,
+// keeps the current g_runtime_fps (defaults to DEMO_CAMERA_FRAME_RATE
+// at boot, but survives a sys.reset() that re-enters with a previously
+// chosen rate persisted in firmware state).
+// Build #980: fps argument added so the user can pick the sensor
+// rate at REPL boot time without rebuilding firmware.  Calling
+// init() a second time with a different fps returns -11 — the
+// CSI receiver re-init path isn't re-entrant on this HAL.  To
+// switch fps after a successful init, sentai.sys.reset() the
+// board and call init(streaming, new_fps) again.
+extern int sentai_cam_init_fps(int streaming, int fps);
+extern volatile uint32_t g_runtime_fps;
 static mp_obj_t mod_sentai_cam_init(size_t n_args, const mp_obj_t *args) {
     int streaming = (n_args > 0) ? mp_obj_get_int(args[0]) : 1;
-    return mp_obj_new_int(sentai_cam_init(streaming));
+    int fps       = (n_args > 1) ? mp_obj_get_int(args[1])
+                                  : (int)g_runtime_fps;
+    return mp_obj_new_int(sentai_cam_init_fps(streaming, fps));
 }
-static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_cam_init_obj, 0, 1, mod_sentai_cam_init);
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_cam_init_obj, 0, 2, mod_sentai_cam_init);
 
 // sentai.camera.stop() -> int
 static mp_obj_t mod_sentai_cam_stop(void) {
@@ -145,6 +159,22 @@ static mp_obj_t mod_sentai_cam_last_capture_id(void) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_cam_last_capture_id_obj, mod_sentai_cam_last_capture_id);
 
+// Build #980: sentai.camera.set_fps() removed — runtime fps switch
+// is blocked by the second-init wedge in CAMERA_RECEIVER_Init.
+// Use sentai.camera.init(streaming, fps) at first init instead.
+// To switch fps after that, sentai.sys.reset() then init(s, new_fps).
+
+// sentai.camera.fps() -> int (current sensor framerate).
+// Reads g_runtime_fps which BOARD_InitCamera honoured at the most
+// recent init.  Returns the boot default (30) if init has not yet
+// run.  Cheap one-line getter; useful for the REPL idiom:
+//   if sentai.camera.fps() != target: sentai.sys.reset()
+extern volatile uint32_t g_runtime_fps;
+static mp_obj_t mod_sentai_cam_fps(void) {
+    return mp_obj_new_int_from_uint(g_runtime_fps);
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_cam_fps_obj, mod_sentai_cam_fps);
+
 // sentai.camera.peek5_b40() -> (cam_tag, b0, b1, b2, b3, b4)
 // Build #935 — single dequeue, 5 B-channel samples at col 40 from
 // rows {0, H/4, H/2, 3H/4, H-1} of the SAME buffer, plus the
@@ -260,39 +290,10 @@ static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_cam_dirty_skip_n_obj,
 // 10 % residual mistag rate is bound by ISR latency (gate would
 // help) or by tag-write race (gate is irrelevant — see
 // agent.md §9.2).
-extern volatile uint32_t g_cam_vblank_flips;
-extern volatile uint32_t g_cam_flips_deferred;
-extern volatile uint32_t g_cam_flips_deferred_streak;
-extern volatile uint32_t g_cam_flips_forced;
-extern volatile uint32_t g_csi_isr_count;
-extern volatile uint32_t g_csi_isr_dur_us_last;
-extern volatile uint32_t g_csi_isr_dur_us_max;
-extern volatile uint32_t g_csi_isr_dur_us_sum;
-extern volatile uint32_t g_csi_isr_hist[6];
-extern volatile uint32_t g_cam_buf_tag_skip_both;  /* both FB1+FB2 done at IRQ entry — IRQ delivery jitter */
-static mp_obj_t mod_sentai_cam_flip_stats(void) {
-    uint32_t cnt = g_csi_isr_count;
-    uint32_t avg = (cnt > 0u) ? (g_csi_isr_dur_us_sum / cnt) : 0u;
-    mp_obj_t items[15] = {
-        mp_obj_new_int_from_uint(g_cam_vblank_flips),
-        mp_obj_new_int_from_uint(g_cam_flips_deferred),
-        mp_obj_new_int_from_uint(g_cam_flips_deferred_streak),
-        mp_obj_new_int_from_uint(g_cam_flips_forced),
-        mp_obj_new_int_from_uint(cnt),
-        mp_obj_new_int_from_uint(g_csi_isr_dur_us_last),
-        mp_obj_new_int_from_uint(g_csi_isr_dur_us_max),
-        mp_obj_new_int_from_uint(avg),
-        mp_obj_new_int_from_uint(g_csi_isr_hist[0]),
-        mp_obj_new_int_from_uint(g_csi_isr_hist[1]),
-        mp_obj_new_int_from_uint(g_csi_isr_hist[2]),
-        mp_obj_new_int_from_uint(g_csi_isr_hist[3]),
-        mp_obj_new_int_from_uint(g_csi_isr_hist[4]),
-        mp_obj_new_int_from_uint(g_csi_isr_hist[5]),
-        mp_obj_new_int_from_uint(g_cam_buf_tag_skip_both),
-    };
-    return mp_obj_new_tuple(15, items);
-}
-static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_cam_flip_stats_obj, mod_sentai_cam_flip_stats);
+/* Build #958: flip_stats() removed to free m_text for the new
+ * sentai_cam_set_fps path.  The diagnostic counters
+ * (g_cam_vblank_flips, g_cam_buf_dirty_marks, etc.) remain in DTCM
+ * and can be exposed again later if needed. */
 
 // sentai.camera.grabbed_id() -> 0/1 / -1 if not yet set.
 // Per-buffer tagged source of the buffer returned by the most recent
@@ -469,10 +470,10 @@ static const mp_rom_map_elem_t sentai_camera_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_last_capture_id), MP_ROM_PTR(&mod_sentai_cam_last_capture_id_obj) },
     { MP_ROM_QSTR(MP_QSTR_grabbed_id),      MP_ROM_PTR(&mod_sentai_cam_grabbed_id_obj) },
     { MP_ROM_QSTR(MP_QSTR_buf_id_dump),     MP_ROM_PTR(&mod_sentai_cam_buf_id_dump_obj) },
-    { MP_ROM_QSTR(MP_QSTR_flip_stats),      MP_ROM_PTR(&mod_sentai_cam_flip_stats_obj) },
     { MP_ROM_QSTR(MP_QSTR_dirty_skip_n),    MP_ROM_PTR(&mod_sentai_cam_dirty_skip_n_obj) },
     { MP_ROM_QSTR(MP_QSTR_peek_row),        MP_ROM_PTR(&mod_sentai_cam_peek_row_obj) },
     { MP_ROM_QSTR(MP_QSTR_peek5_b40),       MP_ROM_PTR(&mod_sentai_cam_peek5_b40_obj) },
+    { MP_ROM_QSTR(MP_QSTR_fps),             MP_ROM_PTR(&mod_sentai_cam_fps_obj) },
     { MP_ROM_QSTR(MP_QSTR_frame_count),  MP_ROM_PTR(&mod_sentai_cam_frame_count_obj) },
     { MP_ROM_QSTR(MP_QSTR_rotate),     MP_ROM_PTR(&mod_sentai_cam_rotate_obj) },
     { MP_ROM_QSTR(MP_QSTR_aec_set),    MP_ROM_PTR(&mod_sentai_cam_aec_set_obj) },

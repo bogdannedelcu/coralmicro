@@ -532,6 +532,16 @@ bool LfsUserWriteFile(const char* path, const std::string& str) {
                           str.size());
 }
 
+bool LfsUserAppendFile(const char* path, const uint8_t* buf, size_t size) {
+  lfs_file_t file;
+  if (lfs_file_open(&g_lfs_user, &file, path,
+                    LFS_O_WRONLY | LFS_O_CREAT | LFS_O_APPEND) < 0)
+    return false;
+  AutoCloseUser close{&file};
+  auto n = lfs_file_write(&g_lfs_user, &file, buf, size);
+  return n >= 0 && static_cast<size_t>(n) == size;
+}
+
 int LfsUserRemove(const char* path) {
   return lfs_remove(&g_lfs_user, path);
 }

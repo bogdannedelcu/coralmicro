@@ -125,6 +125,11 @@ int sentai_fs_write(const char* path, const uint8_t* buf, int size) {
     return coralmicro::LfsUserWriteFile(path, buf, (size_t)size) ? 1 : 0;
 }
 
+// Append buffer to file (creating it if absent). Returns 1 on success.
+int sentai_fs_append(const char* path, const uint8_t* buf, int size) {
+    return coralmicro::LfsUserAppendFile(path, buf, (size_t)size) ? 1 : 0;
+}
+
 // Remove file or empty directory. Returns 0 on success.
 int sentai_fs_remove(const char* path) {
     return coralmicro::LfsUserRemove(path);

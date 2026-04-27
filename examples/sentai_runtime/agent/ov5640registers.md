@@ -216,6 +216,121 @@ sentai.camera.test_pattern(cam_id, 0)  # restore auto
 
 ---
 
+## Programming order, timing, and duration (learned 2026-04-26)
+
+### Software reset sequence
+
+Per datasheet + empirical from sentai 2026-04-26 fps-switch attempts:
+
+```python
+sentai.camera.reg_write(cam_id, 0x3103, 0x11)  # SCCB program enable
+sentai.camera.reg_write(cam_id, 0x3008, 0x82)  # software reset
+sentai.rtos.sleep_ms(5)                          # reset settle (~5 ms)
+# sensor is now at hardware defaults; full init sequence must follow
+# OR write 0x3008=0x02 to leave standby + run sensor with defaults
+```
+
+**Important:** `0x3103` must be written BEFORE `0x3008=0x82`.  Reverse
+order (write 0x3008 first) sometimes leaves the sensor in a state
+where SCCB transactions silently drop until the next power cycle.
+The NXP `OV5640_Init` driver does the pair atomically.
+
+After reset, the OV5640 needs the **full register init sequence**
+(~150 register writes covering AWB, CMX, gamma, ISP, etc.) before
+producing usable frames.  Don't expect a software-reset path to
+work as a clean fps swap by itself — the sensor reverts to defaults
+that don't necessarily match the patched VGA/SXGA modes we want.
+
+### Standby and resume
+
+| 0x3008 | Behavior | Wake time |
+|--------|----------|-----------|
+| 0x02   | Normal operation, MIPI clock streaming | — |
+| 0x42   | Standby: MIPI clock idle, I²C still alive | 0x02 → ~5-10 ms PLL re-lock |
+| 0x82   | Software reset | full init required after wakeup |
+
+**Empirical caveat:** even a brief 0x42 → 0x02 cycle is enough to
+disrupt the RT1176 CSI2RX D-PHY's lane sync.  The receiver enters a
+fault state that cannot be cleared without re-running
+`CAMERA_RECEIVER_Init` — and that NXP HAL function is NOT
+re-entrant on this firmware drop.  See
+`memory/project_runtime_fps_switch_blocked.md` for the four
+implementations of `set_fps()` that all wedged because of this.
+
+### PLL re-tune (clock-config registers)
+
+Live PLL retune via I²C **does** work on the OV5640 itself:
+
+```python
+# VGA30 → VGA60 PLL retune (sensor side)
+sentai.camera.reg_write(cam_id, 0x3035, 0x14)  # PLL_CTRL1 (clock div)
+sentai.camera.reg_write(cam_id, 0x3036, 0x70)  # PLL_CTRL2 (multiplier)
+sentai.camera.reg_write(cam_id, 0x4837, 0x0C)  # PCLK_PERIOD (MIPI period)
+sentai.rtos.sleep_ms(20)                        # PLL re-lock window
+```
+
+**But:** the new MIPI lane rate (336 Mb/s for VGA45, 448 Mb/s for
+VGA60) requires a matching `T-HSSETTLE` on the CSI2RX D-PHY — and
+that's set ONCE at boot from the `csi2rxHsSettle[]` table in
+`libs/camera/camera_support.c`.  Without re-configuring the
+receiver's HSSETTLE, lane sync fails and the system wedges.
+
+So **PLL retune via I²C is a necessary but not sufficient** step for
+runtime fps switching.  The receiver D-PHY config is the missing
+piece, and it currently lives inside `BOARD_InitCamera` which can
+only run once cleanly.
+
+### Per-fps PLL register table (VGA, sentai-patched)
+
+Distilled from `fsl_ov5640.c` + register dumps at boot
+(`diag/_t_cam_init_diag.py`, build #957):
+
+| fps | 0x3035 (PLL_CTRL1) | 0x3036 (PLL_CTRL2) | 0x4837 (PCLK_PERIOD) | MIPI lane rate |
+|-----|-------------------|--------------------|----------------------|-----------------|
+| 30  | 0x14              | 0x38               | 0x14                 | ~224 Mb/s/lane |
+| 45  | 0x14              | 0x54               | 0x0D                 | ~336 Mb/s/lane |
+| 60  | 0x14              | 0x70               | 0x0C                 | ~448 Mb/s/lane |
+
+PLL output frequency = 24 MHz / (3 prediv) × `0x3036`.  At VGA60
+that's 24/3 × 112 = 896 MHz → MIPI lane rate ~448 Mb/s/lane.
+PCLK_PERIOD scales inversely (faster lanes = shorter MIPI period).
+
+### Init-time register verification (regression gate)
+
+Driver `diag/_t_cam_init_diag.py` reads these registers from BOTH
+cameras at boot WITHOUT calling `select()` (so it runs at any fps,
+even ones where dynamic switching wedges).  Run after every change
+to `DEMO_CAMERA_FRAME_RATE` to confirm the patched values applied:
+
+```bash
+python3 diag/_host_upload_repl.py --file _t_cam_init_diag.py
+python3 diag/_host_run_experiment.py --file /lib/diag/_t_cam_init_diag.py
+```
+
+Sanity checks (cam0 + cam1):
+- `0x300A = 0x56`, `0x300B = 0x40` (chip ID)
+- `0x3008 = 0x02` (normal operation, NOT standby/reset)
+- `0x3036` and `0x4837` match the per-fps table above
+
+### Pitfalls to avoid
+
+1. **Don't toggle 0x3008 standby/normal at runtime while CSI is
+   streaming.**  Even though the sensor handles it cleanly, the
+   RT1176 receiver's D-PHY does not.
+2. **Don't write 0x3035/0x3036/0x4837 without also re-configuring
+   the receiver HSSETTLE.**  PLL retune alone changes lane rate;
+   D-PHY assumes the boot-time rate.  Lane sync drops.
+3. **Don't expect `cam->Disable() + cam->Enable()` to switch fps.**
+   `HandleEnableRequest → BOARD_InitCamera` re-runs
+   `CAMERA_RECEIVER_Init` which is not re-entrant on this NXP HAL.
+   Documented in `project_runtime_camera_hw.md` /
+   `project_runtime_fps_switch_blocked.md`.
+4. **Do change fps via `DEMO_CAMERA_FRAME_RATE` + rebuild + `--ram`
+   flash.**  This is the only reliable path until BOARD_InitCamera
+   is split into one-time + per-fps reconfigure phases.
+
+---
+
 ## References
 
 - OV5640 Camera Module Hardware Application Note (Omnivision public)
