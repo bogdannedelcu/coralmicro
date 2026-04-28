@@ -61,3 +61,9 @@
 [submodule "third_party/shine"]
 	path = third_party/shine
 	url = https://github.com/toots/shine.git
+[submodule "third_party/eclipse-threadx/filex"]
+	path = third_party/eclipse-threadx/filex
+	url = https://github.com/eclipse-threadx/filex.git
+[submodule "third_party/eclipse-threadx/levelx"]
+	path = third_party/eclipse-threadx/levelx
+	url = https://github.com/eclipse-threadx/levelx.git
