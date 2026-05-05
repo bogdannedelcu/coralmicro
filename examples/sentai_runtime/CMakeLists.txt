@@ -131,6 +131,7 @@ add_executable_m7(sentai_runtime
     sentai_slow_bridge.cc
     detection_task.cc
     flow_task.cc
+    flow_phase_corr.cc
     sentai_tracker.cc
     modsentai_hal.cc
     sentai_mesh.cc
@@ -190,6 +191,7 @@ target_link_libraries(sentai_runtime
     shine
     libmicropython
     libs_aifes_task_m7
+    libs_CMSIS-m7              # CMSIS-DSP arm_cfft_f32 (flow_phase_corr.cc)
     nanopb
     meshtastic_pb
 )

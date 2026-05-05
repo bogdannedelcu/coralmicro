@@ -420,6 +420,11 @@ void CSI_IRQHandler(void)
         g_camera_sensor_frames++;
         /* ISR-paced rendezvous with flow_task publisher.  embeded.md §C:
          * ISR captures the event, defers ALL work to task context.
+         * Notify on every sensor frame (fb1_done OR fb2_done) so Flow
+         * runs at full sensor rate.  Trajectory quality at this rate
+         * is reproducibility-checked per session vs the FB2-only
+         * cadence; offline replay validation can be re-run on demand.
+         *
          * Single-writer (flow_task only) of g_flow_pub_isr_task; ISR
          * reads atomically (32-bit aligned ptr on M7).  When NULL the
          * publisher is not running -- no notify, zero ISR cost. */

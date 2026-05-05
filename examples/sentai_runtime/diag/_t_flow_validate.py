@@ -35,7 +35,7 @@ SCENE_JPEG_QUAL   = 70
 SCENE_CAPTURE     = 1
 SCENE_SNAP_COUNT  = 0     # 0 = no mid-run snaps (timing-clean)
 ENABLE_HTTP       = 1
-BULK_GRAY_CAPTURE = 1     # bulk-capture mode for offline replay
+BULK_GRAY_CAPTURE = 0     # CSV mode (bulk crashed phase-corr build #1133)
 
 
 def _session_dir(name):

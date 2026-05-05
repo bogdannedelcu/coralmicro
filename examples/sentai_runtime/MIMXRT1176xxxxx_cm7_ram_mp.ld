@@ -151,6 +151,34 @@ SECTIONS
      . = ALIGN(4);
   } > m_sdram
 
+  /* CMSIS-DSP TransformFunctions + CommonTables -- ~30 KB of FFT
+   * code/tables added 2026-05-05 for flow_phase_corr.cc.  Routed to
+   * SDRAM to avoid m_text overflow.  FFT runs at ~30 fps from a
+   * FreeRTOS task (NOT in ISR), so SDRAM instruction-fetch latency
+   * is acceptable -- single arm_cfft_f32 dominated by twiddle data
+   * accesses, not branch jitter.
+   *
+   * Match by SECTION NAME (function-sections puts each function in
+   * its own .text.<symbol> subsection).  Filename-based match doesn't
+   * work because GNU ld treats the archive member name as the full
+   * stored path including CMakeFiles/.../obj prefix, not basename. */
+  .cmsis_dsp :
+  {
+     . = ALIGN(4);
+     __cmsis_dsp_start = .;
+     *(.text.arm_cfft_f32 .text.arm_cfft_init_f32 .text.arm_cfft_q*)
+     *(.text.arm_cfft_radix*_f32 .text.arm_cfft_radix*_butterfly_f32)
+     *(.text.arm_cfft_radix8by*_f32)
+     *(.text.arm_bitreversal2 .text.arm_bitreversal_32 .text.arm_bitreversal*_f32)
+     *(.text.arm_radix8_butterfly_f32)
+     *(.rodata.armBitRevIndexTable_64 .rodata.armBitRevIndexTable*)
+     *(.rodata.twiddleCoef_64 .rodata.twiddleCoef_*)
+     *(.rodata.arm_cfft_sR_f32_len*)
+     *(.rodata.arm_cfft_sR_q*)
+     __cmsis_dsp_end = .;
+     . = ALIGN(4);
+  } > m_sdram
+
   /* USB Host placed in OCRAM (was SDRAM, 2026-04-22 TPU pipeline
    * sprint).  Rationale: under camera pipeline load, PXP DMA writes
    * SDRAM at ~40 MB/s.  When USB_OTG2 IOC fires, the M7 must fetch
@@ -600,6 +628,19 @@ SECTIONS
     *(.sdram_boot_log .sdram_boot_log.*)
     . = ALIGN(8);
     __SDRAM_BOOT_LOG_END__ = .;
+  } > m_sdram
+
+  /* Phase-correlation breadcrumb ring (added 2026-05-05).  ~256 bytes
+   * NOLOAD so its content survives NVIC_SystemReset / WDOG reset.
+   * Inspected at app_main boot via sentai_flow_phase_corr_dump_bc()
+   * to isolate where flow_phase_corr_compute() crashed in the
+   * previous run.  Cleared only by hardware POR. */
+  .sdram_phase_corr_bc (NOLOAD) : ALIGN(8)
+  {
+    __SDRAM_PHASE_CORR_BC_START__ = .;
+    *(.sdram_phase_corr_bc .sdram_phase_corr_bc.*)
+    . = ALIGN(8);
+    __SDRAM_PHASE_CORR_BC_END__ = .;
   } > m_sdram
 
   /* Uninitialized data section */

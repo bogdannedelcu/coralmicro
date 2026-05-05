@@ -1070,7 +1070,13 @@ extern "C" void app_main(void* param) {
     }
     coralmicro::logf("\r\n");
   }
-  
+
+  // Dump phase-corr breadcrumbs from previous run if any.  Survives
+  // CPU reset / WDOG via .sdram_bss persistence.  Ring is
+  // self-clearing on first use, so nominal boot prints "no prior".
+  extern void sentai_flow_phase_corr_dump_bc(void);
+  sentai_flow_phase_corr_dump_bc();
+
   // Initialize LFS and boot log file
   // LFS should be initialized by main_freertos before app_main
   boot_log_fs_init();

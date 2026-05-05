@@ -1,0 +1,1 @@
+build=1139 sid=3 cam=0 sides=4 move_ms=2500 hold_ms=1500 hz=50 gray_stretch=0 use_imu=1 scene_capture=1 bulk=0

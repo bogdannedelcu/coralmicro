@@ -69,6 +69,13 @@ extern "C" {
     int      sentai_detection_is_running(void);
     int      sentai_pxp_scale(const uint8_t* src, int sw, int sh,
                               uint8_t* dst, int dw, int dh);
+    // FFT phase-correlation matcher (flow_phase_corr.cc).  Caches its
+    // own prev FFT internally; reset at flow.start.
+    void     sentai_flow_phase_corr_compute(const uint8_t* gray80x60,
+                                              int* dx_q1000,
+                                              int* dy_q1000,
+                                              uint8_t* conf);
+    void     sentai_flow_phase_corr_reset(void);
 }
 
 // =====================================================================
@@ -97,7 +104,39 @@ constexpr int kBlockH       = 32;
 constexpr int kSearchRange  = 12;
 constexpr int kSurfDim      = 2 * kSearchRange + 1;
 constexpr uint8_t kConfFloor = 150;
-constexpr int kDeadbandQ1000 = 50;       // 0.05 grid-px
+
+// Rate-aware deadband (embeded.md §J: policy in physical units).
+//
+// Previous design: kDeadbandQ1000 = 50 milli-grid-px / FRAME — magic
+// number tuned at 15 fps.  When sensor rate doubled to 30 fps the
+// per-frame motion at constant scene velocity halved, so a fixed
+// per-frame threshold ate slow motion at the end of each side and
+// trajectory closure regressed (74 → 350 raw-px in s001 vs s002).
+//
+// New design: deadband expressed as a VELOCITY in physical units
+// (milli-grid-px per second).  Per-frame threshold is recomputed from
+// the measured sensor period, so the same physical motion-rejection
+// policy applies whether the camera runs at 15 / 30 / 45 / 60 / 90 fps.
+//   per-frame_mgp = velocity_mgp_per_s * period_ms / 1000
+//
+// Calibration: 1500 mgp/s = 1.5 grid-px/s = 12 raw-px/s.  Anchor: at
+// 30 fps (current production rate, ISR notifying every sensor frame)
+// this resolves to 50 mgp/frame -- the historical hardcoded value.
+// Same physical threshold then auto-resolves to ~100 mgp at 15 fps,
+// ~33 mgp at 45 fps, ~25 mgp at 60 fps.
+constexpr uint32_t kDeadbandVelocityMgpPerSec = 1500;
+// Bounded sanity caps -- if sensor rate collapses or surges, clamp
+// the resulting per-frame deadband.  Bounded behaviour, embeded.md §B.
+constexpr uint32_t kDeadbandMgpMin =  10;   // never below noise floor
+constexpr uint32_t kDeadbandMgpMax = 500;   // never reject normal motion
+// Cached per-frame deadband (mgp).  Recomputed in publisher_task on
+// the cadence below using period derived from g_camera_sensor_frames.
+// Single-writer (publisher), single-reader (sad_match via flow_publish).
+// Bootstrap = 30 fps production value (50 mgp). Auto-rescales after
+// first window completes.
+volatile uint32_t s_deadband_mgp  = 50;
+volatile uint32_t s_period_ms_x10 = 333;     // 33.3 ms = 30 fps bootstrap
+constexpr uint32_t kDeadbandRecalcEveryN = 16;  // every ~0.5 s @ 30 fps
 
 // Auto-level (histogram min-max stretch) on the 80x60 gray buffer.
 // Off by default.  See OV5640 AEC notes in agent.md.
@@ -292,8 +331,11 @@ static void sad_match(const uint8_t* curr, const uint8_t* prev,
 
     const uint8_t conf = sad_to_confidence(best);
     if (conf < kConfFloor) { raw_dx = 0; raw_dy = 0; }
-    if (raw_dx > -kDeadbandQ1000 && raw_dx < kDeadbandQ1000 &&
-        raw_dy > -kDeadbandQ1000 && raw_dy < kDeadbandQ1000) {
+    // Snapshot the deadband ONCE per call so dx and dy axes use the
+    // same threshold (publisher_task may recompute mid-frame).
+    const int db = (int)s_deadband_mgp;
+    if (raw_dx > -db && raw_dx < db &&
+        raw_dy > -db && raw_dy < db) {
         raw_dx = 0; raw_dy = 0;
     }
 
@@ -355,12 +397,14 @@ extern "C" void sentai_flow_publish_frame(const uint8_t* raw,
     int    dx_q = 0, dy_q = 0;
     uint32_t sad = 0;
     uint8_t  conf = 0;
-    if (s_have_prev) {
-        sad_match(s_gray[curr_slot], s_gray[s_prev_slot],
-                  &dx_q, &dy_q, &sad);
-        conf = sad_to_confidence(sad);
-    } else {
-        s_have_prev = 1;
+    // Phase-correlation matcher (flow_phase_corr.cc) re-wired with
+    // breadcrumbs for JTAG-aided crash isolation.
+    sentai_flow_phase_corr_compute(s_gray[curr_slot], &dx_q, &dy_q, &conf);
+    s_have_prev = 1;
+    if (conf < kConfFloor) { dx_q = 0; dy_q = 0; }
+    const int db = (int)s_deadband_mgp;
+    if (dx_q > -db && dx_q < db && dy_q > -db && dy_q < db) {
+        dx_q = 0; dy_q = 0;
     }
     const uint32_t t_after_sad = dwt_now();
     s_t_sad_cyc = t_after_sad - t_after_stretch;
@@ -461,6 +505,13 @@ static void publisher_task_fn(void* /*arg*/) {
     dwt_enable_once();
     s_pub_last_take_ms = (uint32_t)xTaskGetTickCount();
 
+    // Rate-aware deadband state: track sensor-frame count + wall time
+    // over a fixed window, derive period_ms, recompute deadband_mgp.
+    // embeded.md §A: explicit policy in physical units (mgp/s).
+    uint32_t db_window_t0    = (uint32_t)xTaskGetTickCount();
+    uint32_t db_window_seq0  = sentai_cam_get_sensor_frames();
+    uint32_t db_window_iters = 0;
+
     // Drain any stale notifications left from a previous run.
     (void)ulTaskNotifyTake(pdTRUE, 0);
 
@@ -519,6 +570,36 @@ static void publisher_task_fn(void* /*arg*/) {
         s_pub_frames++;
         s_t_loop_cyc = dwt_now() - loop_t0;
         sentai_cam_return_raw(idx);
+
+        // Rate-aware deadband recompute.  Bounded period derivation
+        // (NASA §2): every kDeadbandRecalcEveryN frames sample
+        // (sensor_frames, ticks) and update s_deadband_mgp.  All
+        // bounded math, no division by zero (frames_seen >= 1
+        // guaranteed by the increment below, and we only divide when
+        // frames_seen > 0).  Saturating clamps protect against
+        // pathological rates.
+        if (++db_window_iters >= kDeadbandRecalcEveryN) {
+            uint32_t now_ms     = (uint32_t)xTaskGetTickCount();
+            uint32_t seq_now    = sentai_cam_get_sensor_frames();
+            uint32_t frames_seen = seq_now - db_window_seq0;
+            uint32_t elapsed_ms = now_ms - db_window_t0;
+            if (frames_seen > 0u && elapsed_ms > 0u) {
+                // period_ms_x10 = elapsed_ms * 10 / frames_seen
+                uint32_t per_x10 = (elapsed_ms * 10u) / frames_seen;
+                s_period_ms_x10  = per_x10;
+                // deadband_mgp = velocity_mgp_per_s * period_ms / 1000
+                //              = velocity * per_x10 / 10000
+                uint32_t mgp = (kDeadbandVelocityMgpPerSec * per_x10)
+                               / 10000u;
+                if (mgp < kDeadbandMgpMin) mgp = kDeadbandMgpMin;
+                if (mgp > kDeadbandMgpMax) mgp = kDeadbandMgpMax;
+                s_deadband_mgp = mgp;
+            }
+            // Slide the window forward.
+            db_window_t0    = now_ms;
+            db_window_seq0  = seq_now;
+            db_window_iters = 0;
+        }
     }
 
     // Single-writer detach: ISR will see NULL on its next entry and
@@ -544,6 +625,18 @@ extern "C" void sentai_flow_pub_health(uint32_t* notify_timeouts,
     if (notify_timeouts) *notify_timeouts = s_pub_notify_timeouts;
     if (notify_overruns) *notify_overruns = s_pub_notify_overruns;
     if (last_take_ms)    *last_take_ms    = s_pub_last_take_ms;
+}
+
+// Rate-aware deadband live state.  Lets host probes verify policy
+// is in physical units and tracks sensor rate (embeded.md §I).
+//   period_ms_x10 = current sensor period × 10 (so 30 fps -> 333)
+//   deadband_mgp  = current per-frame deadband in milli-grid-px
+extern "C" void sentai_flow_deadband_state(uint32_t* period_ms_x10,
+                                             uint32_t* deadband_mgp,
+                                             uint32_t* velocity_mgp_per_s) {
+    if (period_ms_x10)      *period_ms_x10      = s_period_ms_x10;
+    if (deadband_mgp)       *deadband_mgp       = s_deadband_mgp;
+    if (velocity_mgp_per_s) *velocity_mgp_per_s = kDeadbandVelocityMgpPerSec;
 }
 
 // DWT cycle stats from the most recent publish_frame + publisher
@@ -599,11 +692,23 @@ extern "C" int sentai_flow_start(int cam_id) {
     s_pub_grab_fail_total  = 0;
     s_pub_grab_fail_streak = 0;
     s_pub_frames           = 0;
+    // Drop any stale prev FFT so the first frame after start doesn't
+    // produce bogus motion against an unrelated previous run.
+    sentai_flow_phase_corr_reset();
+    s_have_prev = 0;
 
     if (!s_pub_running && !sentai_detection_is_running()) {
         s_pub_running = true;
+        // Stack 1.5 KB (* 3) was sized for SAD path which has flat
+        // call tree (sad_match -> USAD8 inner loops, no nested fns).
+        // Phase-corr replacement adds CMSIS arm_cfft_f32 + radix4 +
+        // radix8 + bitreversal2 nesting plus 32 KB memcpy with locals.
+        // 2026-05-05 reproducible crash at frame 73 with STACK_OVF
+        // (code 0x0FF1, BFAR=0x666C6F77 "flow"); bumped to 4 KB
+        // (* 8) with measured headroom; add uxTaskGetStackHighWaterMark
+        // probe via flow.pub_health() to track in steady state.
         BaseType_t r = xTaskCreate(publisher_task_fn, "flow_pub",
-                                   configMINIMAL_STACK_SIZE * 3,
+                                   configMINIMAL_STACK_SIZE * 8,
                                    nullptr, tskIDLE_PRIORITY + 2,
                                    &s_pub_task);
         if (r != pdPASS) {

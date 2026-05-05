@@ -1,0 +1,1 @@
+build=1139 sid=3 rows=479 csv_bytes=25091 csv_dropped=0 sides=4 total_ms=16000 target_hz=50 effective_hz=29.94
