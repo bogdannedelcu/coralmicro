@@ -5522,3 +5522,212 @@ VGA45 and VGA60 entries exist and are correct.  Then the wedge
 investigation can move to the CSI-RX D-PHY layer rather than the
 sensor layer.  Driver `diag/_t_cam_init_diag.py` is the canonical
 init-state probe and runs cleanly at any fps.
+
+
+## Session 2026-05-05 (continued) — Phase correlation on M7 (build #1139)
+
+After the flow rate-aware deadband + notify-from-ISR work landed, SAD
+trajectory at full sensor rate (30 fps) regressed badly: closure 350
+raw-px and worse vs the validated 15-fps baseline (74 px).  Root
+cause: **block-matching SAD has flat sub-pixel SNR at small per-frame
+motion**.  At 15 fps a 150 raw-px/sec hand motion produces ~10 raw-px
+per frame ⇒ sharp SAD-surface minimum, clean parabolic fit.  Doubling
+to 30 fps halves per-frame motion to ~5 raw-px ⇒ flat surface,
+parabolic fit dominated by quantization noise.  Not a bug — a hard
+limit of block-matching at sub-pixel scales.
+
+### What we tried that DID NOT work
+
+| Attempt | Idea | Outcome |
+|---|---|---|
+| #1124 | Rate-aware deadband (1500 mgp/s velocity ⇒ 50 mgp/frame at 30) | Closure 650 px (worst) |
+| #1125 | Roll back to FB2-only ISR notify (effective 15 fps via cadence) | Closure 55 px (good) but throws away 30 fps |
+| #1126 | Restore #1123 binary | Closure 138 px — variability between runs ~5× |
+
+The deadband sweep didn't fix it because the **noise itself was at the
+SAD layer**, not the deadband filter.
+
+### Phase correlation prototyped on Linux
+
+Built `experiments/s083_flow_m7_validate/replay_phase_corr.py` that
+reads the existing 15-fps `bulk_gray.bin` (240 frames, bit-perfect SAD
+validation) and runs FFT-based phase correlation:
+
+1.  Tukey window α=0.25 (vs Hann; preserves more mid-frame content
+    so larger motions don't get squashed)
+2.  2D FFT (numpy fft2) → cross-power spectrum normalized → IFFT2
+3.  Foroosh-Zerubia sub-pixel formula for the peak (closed form,
+    not parabolic — matches phase-corr peak shape)
+4.  Per-frame mean removal kills DC drift from AEC
+5.  Bias-detection: parabolic_q1000 with SAD's convexity check
+    rejected 100% of phase-corr peaks → only integer pixel output
+    visible as straight stair-step trajectory.  **Foroosh formula
+    fixed it** — 0% integer-only after the swap.
+
+Result on the Linux replay (240 frame pairs at 15 fps):
+
+| Method | Closure (raw-px) | Sub-pixel ratio |
+|---|---|---|
+| Firmware SAD (#1116) | 208 | 98.7% |
+| Phase corr Hann window | 144 (32% better) | 100% |
+| Phase corr Tukey + Foroosh | 177 | 100% |
+
+5 frames of 239 had phase-corr disagree with SAD by >5 grid-px on
+side 1.  Side 1 motion was ~1 grid-px/frame typical with 1 outlier at
+6.1 grid-px in a single frame — SAD likely false-best on repetitive
+wood-texture pattern (sees similar patch 6 px away → reports motion).
+Phase correlation is global, immune to local pattern-repetition.
+
+### On-board port (build #1133 → #1138 → #1139)
+
+1. **CMSIS-DSP arm_cfft_f32** added to `libs_CMSIS-m7` build.  Used
+   length-64 (crop 80x60 → center 64x60 → zero-pad to 64x64).  Common
+   tables trimmed via `ARM_DSP_CONFIG_TABLES + ARM_TABLE_TWIDDLECOEF_F32_64
+   + ARM_TABLE_BITREVIDX_FLT_64` defines (default ARM_FFT_ALLOW_TABLES
+   would pull in 919 KB of twiddle data; trimmed obj is 624 bytes).
+
+2. **Linker route to SDRAM**.  Added `.cmsis_dsp` section in
+   `MIMXRT1176xxxxx_cm7_ram_mp.ld` matching by SECTION NAME
+   (`.text.arm_cfft_*`, `.text.arm_bitreversal_*`, etc.) -- filename
+   matching against archive members doesn't work because GNU ld stores
+   full `CMakeFiles/.../foo.c.obj` path.  Routed to `m_sdram` because
+   `m_text` ITCM was nearly full.
+
+3. **flow_phase_corr.cc** -- 2D FFT separable (row FFT, transpose, col
+   FFT, transpose), Tukey window, mean removal, cross-power, IFFT,
+   Foroosh sub-pixel.  All buffers `.sdram_bss` (~100 KB total: window
+   + cached prev FFT + curr FFT scratch + cross/IFFT scratch).
+
+4. **flow_task.cc** swap.  Replaced `sad_match` call with
+   `sentai_flow_phase_corr_compute`.  Conf-floor + rate-aware deadband
+   moved to call site (was inside `sad_match`).
+
+5. **Crash hunt**: validator path crashed at frame 73 with USB
+   disconnect.  Speed-probe (3 s no-LED-no-JPEG) ran clean at 30 fps.
+
+### Crash isolation via SDRAM NOLOAD breadcrumb ring
+
+Diagnostic recipe per embeded.md F + I (failure containment +
+diagnosability).  Pattern that's now reusable for any M7 task crash:
+
+1.  Define a struct in a NOLOAD section so SDRAM content survives
+    NVIC_SystemReset / WDOG (only hardware POR clears it).
+2.  Sprinkle `bc_log(stage_id, value)` at every meaningful step.
+3.  Add a NOLOAD section in the linker script (`.sdram_*_bc (NOLOAD)`).
+4.  Dump in `app_main` after the reset-reason print.
+
+What the breadcrumbs revealed:
+
+```
+[flowpc] bc: last_stage=0x70 fault_count=0 idx=1001
+  bc[ 9] stage=0x71 seq=72   ...     <- prev frame OK
+  bc[ 8] stage=0x70 seq=72   ...     <- crashed mid-frame at stage 0x70
+[00:03:279] Prev crash recovered: STACK_OVF code=0x0FF1
+            BFAR=0x666C6F77 up=88916ms     <- "flow" in ASCII
+```
+
+Root cause: **publisher_task stack 1.5 KB sized for SAD's flat call
+tree** was insufficient for `arm_cfft_f32 → radix4 → radix8 →
+bitreversal2` nested calls plus 32 KB memcpy locals.  Frame 73 was
+the first one where stack growth touched the watermark.  Bumped to
+`configMINIMAL_STACK_SIZE * 8` (4 KB) with the crash dump as evidence
+(per embeded.md "measure-then-justify, don't reflexively bump").
+
+### Result
+
+`experiments/s084_flow_phase_corr_30fps/`:
+
+| Metric | Value |
+|---|---|
+| Build | #1139 (persistent) |
+| Effective rate | 29.97 fps |
+| Frame pairs | 479 over 16 s |
+| MOVE conf | 213.6 / stuck<0.05 = 13.7% |
+| HOLD conf | 233.9 / stuck<0.05 = **11.7%** (vs SAD ~62%) |
+| **Closure** | **51 raw-px** |
+
+**Best result across all algorithm × fps combinations.**  Phase corr
+at 30 fps beats SAD at 15 fps (74 px) and beats SAD at 30 fps (138 px
+best, 650 px worst).  HOLD stuck<0.05 dropped from SAD's typical 27%
+to phase corr's 11.7% -- phase corr is much less prone to integrating
+SAD's pattern-repetition false positives during stationary holds.
+
+### Compute budget at 30 fps
+
+```
+PXP downscale 640x480 -> 80x60 RGB   1.14 ms
+RGB -> Y conversion + dual write     0.49 ms
+2D FFT (forward, in flow_phase_corr) ~6.88 ms (incl. cross-power + IFFT)
+total compute                        ~8.51 ms
+loop                                ~33.2 ms (sensor-bound)
+```
+
+Plenty of headroom; loop time = sensor period at 30 fps.
+
+### Default camera (cam0 = FRONT)
+
+`sentai.flow.start()` defaults to `cam_id=0` = FRONT camera (I2C bus
+1, MUX low; see `cam_mux.h`).  Override with `start(1)` for the BACK
+camera.  Selection is captured at start; mid-run switch requires
+`stop()` → `start(N)`, or `sentai.camera.select(N)` with the 1.5 s
+buffer-queue settle (s085 lesson).
+
+
+## Session 2026-05-05 — Camera identification snapshots (s085)
+
+`experiments/s085_cam_snapshot/` -- one VGA JPEG per camera so future
+agents can visually verify which physical sensor is `cam0` vs `cam1`
+(both are OV5640, identical silicon; only mounting and MUX wiring
+differ).
+
+### Files
+
+- `cam0_front.jpg` -- camera 0, I2C bus 1, MUX low ("front" mounting).
+- `cam1_back.jpg`  -- camera 1, I2C bus 2, MUX high ("back" mounting).
+
+### The recipe that works
+
+```python
+sentai.camera.init(1)
+sentai.camera.select(0)
+sentai.rtos.sleep_ms(1500)             # critical: see below
+sentai.camera.save_jpeg("cam0_FRONT.jpg", 80)
+sentai.camera.select(1)
+sentai.rtos.sleep_ms(1500)
+sentai.camera.save_jpeg("cam1_BACK.jpg", 80)
+```
+
+### Why naive drain produced two identical JPEGs
+
+First attempt used a "smart" drain: 4 frame_count() ticks plus an
+explicit `to_tensor()` purge loop with 5 ms gaps.  Both saved JPEGs
+came back identical.  Diagnosis:
+
+1.  `frame_count()` is FB2-gated (CSI ISR increments only on FB2_done
+    flag — half the actual sensor rate).  4 ticks is ~133 ms of real
+    time at 30 fps, not enough for the 3-4 buffer pool to fully
+    rotate from cam0-filled to cam1-filled.
+2.  `to_tensor()` returns the most-recently-dequeued buffer.  With
+    only 5 ms between calls, no fresh frame lands per iteration; the
+    "purge" loop is a no-op rotation.
+
+The blunt `sleep_ms(1500)` recipe works because at 30 fps the sensor
+produces ~45 fresh frames in that window — far more than the 3-4
+buffer pool — so any subsequent dequeue is guaranteed post-flip.
+
+### `grabbed_id()` after select is misleading
+
+Even after `select(1) + sleep_ms(1500)`, an immediate `to_tensor() +
+grabbed_id()` may return `0` (the previous camera's tag).  This is
+because `grabbed_id` reports the tag of the *task-context's* most
+recent buffer dequeue, which can be a buffer that was queued before
+the MUX flip but only consumed now.  Don't gate the JPEG save on
+`grabbed_id()`.  The save's own dequeue path (`save_jpeg` →
+`sentai_cam_get_raw_with_recovery`) drains stale and returns latest,
+so it's always post-flip after the 1500 ms settle.
+
+### Driver
+
+`diag/_t_cam_snapshot.py` -- on-board capture driver (uses the simple
+sleep recipe).  Push via `_host_upload_repl.py`, exec via REPL, pull
+JPEGs from `/diags/sNNN_cam_snap/` via HTTP.

@@ -1666,7 +1666,11 @@ flow publisher_task @ tskIDLE_PRIORITY+2
 
 API (no `m4_` prefix anymore):
 - `sentai.flow.enable()` -- stamp shared-mem magic (no-op on M7-only)
-- `sentai.flow.start(cam_id)` / `stop()` -- spawn/kill publisher_task
+- `sentai.flow.start([cam_id=0])` / `stop()` -- spawn/kill publisher_task.
+  **Default cam_id = 0 = FRONT** (I2C bus 1, MUX low; see `cam_mux.h`).
+  Pass `cam_id=1` to use the BACK camera.  Selection is captured once
+  at `start`; to switch cameras mid-run call `stop()` then `start(N)`,
+  or use `sentai.camera.select(N)` with the 1.5 s settle (see s085).
 - `sentai.flow.read()` -> dict {dx, dy, sad, conf, frame_seq, ...}
 - `sentai.flow.body_read()` -> dict with body-frame conversion per cam
 - `sentai.flow.gray_snap()` -> bytes (4800 B; allocates MP heap)
@@ -1804,3 +1808,116 @@ trajectory rendering.  See its README for the headline numbers
 (bit-perfect firmware vs offline) and the trajectory PNGs
 (`trajectory_clean.png`, `trajectory_on_gray.png`,
 `trajectory_per_side.png`) for visual sanity check.
+
+### Phase correlation upgrade (2026-05-05, build #1139+)
+
+SAD block-matching in flow_task.cc was replaced with **FFT-based phase
+correlation** (`flow_phase_corr.cc`) because SAD trajectory degraded
+sharply when sensor rate doubled to 30 fps -- per-frame motion drops
+below 1 pixel, SAD's parabolic-fit sub-pixel becomes noise-dominated.
+Phase correlation is sub-pixel native (Foroosh-Zerubia closed form),
+fps-invariant, and global (immune to local pattern-repetition false
+positives that trip up block-matching).
+
+**Compute budget at 30 fps**: PXP 1.14 ms + RGB2Y 0.49 ms + 2D-FFT 6.88
+ms + IFFT + cross-power = ~8.5 ms total.  Loop bound by sensor period
+(~33 ms) so plenty of headroom.
+
+**Validated**: `experiments/s084_flow_phase_corr_30fps/` -- closure 51
+raw-px on a handheld square at 30 fps (vs SAD #1116 = 74 px @ 15 fps;
+vs SAD @ 30 fps = 350 px degraded).
+
+**Files**: `flow_phase_corr.cc` is the on-board implementation;
+`experiments/s083_flow_m7_validate/replay_phase_corr.py` is the Linux
+reference for bit-perfect comparison.
+
+### Best practices (FFT / CMSIS-DSP integration)
+
+These are learned from the 2026-05-05 phase-correlation port; apply
+when integrating any large CMSIS-DSP module on this RT1176 layout.
+
+1.  **Trim CMSIS-DSP common tables.**  `arm_common_tables.c` ships
+    twiddle factors for ALL FFT lengths × all numeric types ⇒ ~919
+    KB obj.  Compile with `ARM_DSP_CONFIG_TABLES` defined plus only
+    the specific length-and-type macros you reference (e.g.
+    `ARM_TABLE_TWIDDLECOEF_F32_64 + ARM_TABLE_BITREVIDX_FLT_64` for
+    a 64-point f32 cfft).  The trimmed obj becomes ~600 bytes.
+
+2.  **Route FFT code to SDRAM, not ITCM.**  CMSIS-DSP transform
+    functions (radix4, radix8, bitreversal2) total ~5 KB but
+    `m_text` (ITCM) is already tight.  Add a `.cmsis_dsp` linker
+    section that matches by `.text.arm_cfft_*` etc. (function-section
+    naming) and routes to `m_sdram`.  FFT runs from a 30 Hz task,
+    not an ISR, so SDRAM instruction-fetch latency is fine.  Match
+    by SECTION NAME, not archive-member -- GNU ld stores full
+    `CMakeFiles/.../foo.c.obj` paths, not basenames.
+
+3.  **Stack-size for FFT-using tasks.**  CMSIS arm_cfft_f32 calls
+    radix4/radix8/bitreversal2 nested with a few hundred bytes of
+    locals each.  A task that previously ran SAD (flat call tree,
+    ~1.5 KB stack OK) needs ~4 KB once you swap in cfft.  We crashed
+    reproducibly at frame 73 with `STACK_OVF` (BFAR=0x666C6F77 ASCII
+    "flow") before bumping; **measure-then-justify**, don't reflexively
+    bump.
+
+4.  **Use `.sdram_*` NOLOAD breadcrumbs for crash isolation.**  Add
+    a small ring (~16 entries × 16 bytes) of `(stage_id, frame_seq,
+    dwt_now, value)` tuples written at every meaningful step inside
+    the suspected function.  Place in a NOLOAD section
+    (`.sdram_phase_corr_bc` style) so the content survives WDOG /
+    NVIC_SystemReset (only a hardware POR clears SDRAM).  Dump in
+    `app_main` after the reset-reason print.  Pattern:
+    ```c
+    static volatile struct { uint32_t magic, idx, last_stage, fault_count;
+                              Breadcrumb ring[16]; } s_bc
+        __attribute__((section(".sdram_phase_corr_bc")));
+    static inline void bc_log(uint32_t stage, uint32_t value) {
+        if (s_bc.magic != 0xFCBC1234u) { /* zero ring + set magic */ }
+        ...write next slot...
+    }
+    ```
+    Linker:
+    ```
+    .sdram_phase_corr_bc (NOLOAD) : ALIGN(8) {
+        *(.sdram_phase_corr_bc .sdram_phase_corr_bc.*)
+    } > m_sdram
+    ```
+
+5.  **NaN/Inf guards in cross-power normalization.**  The phase-corr
+    cross-power is `R = X·conj(Y) / |X·conj(Y)|`; if numerical noise
+    pushes the magnitude near zero, you get NaN/Inf which propagates
+    and trashes the IFFT.  Per embeded.md F (failure containment),
+    test `if (!(x == x))` after the divide and substitute zero with a
+    fault-counter bump → degraded mode (return zeros + cache curr FFT
+    so next frame retries).  Don't let bad output reach consumers.
+
+### Camera switch wisdom (2026-05-05, s085 lesson)
+
+`sentai.camera.select(N)` arms a glitch-free MUX flip on the next CSI
+EOF.  After the flip, the buffer queue (3-4 buffers in CameraTask)
+still holds frames captured under the *previous* MUX state.  If you
+call `sentai.camera.save_jpeg()` immediately, it scaffolds via
+`sentai_cam_get_raw_with_recovery()` which DOES drain stale buffers
+*on a switch boundary*, BUT only with bounded effort -- under
+contention, you can still get a stale JPEG.
+
+**Reliable recipe**:
+```python
+sentai.camera.select(N)
+sentai.rtos.sleep_ms(1500)        # 30 fps × 1.5 s = ~45 fresh frames
+sentai.camera.save_jpeg(path, q)  # picks the latest, post-flip buffer
+```
+
+**What does NOT work** (s085 first-attempt regression):
+- `frame_count()`-based drain of N ticks: counter is FB2-gated (half
+  sensor rate); 4 ticks is only ~133 ms, queue not fully rotated.
+- `to_tensor()` purge loop with 5 ms gaps: each call returns the same
+  buffer if no fresh frame landed in those 5 ms; loop becomes a no-op.
+
+**`grabbed_id()` post-select is misleading**: it reports the tag of
+the *task's last grab*, which can pre-date the MUX flip.  Don't gate
+the save on it; it's diagnostic-only.  The save's own dequeue pulls a
+fresh buffer.
+
+Reference experiment: `experiments/s085_cam_snapshot/` -- one JPEG per
+camera with the simple sleep-1500ms recipe + lessons learned.

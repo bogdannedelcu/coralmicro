@@ -33,8 +33,14 @@ static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_flow_enable_obj,
                                   mod_sentai_flow_enable);
 
 // sentai.flow.start([cam_id=0]) -> int
+//
+// Default cam_id=0 (FRONT camera per cam_mux.h convention: I2C bus 1,
+// MUX low).  Override at init by passing cam_id=1 (back camera).  The
+// camera selection is captured ONCE at start; switching cameras
+// mid-run requires stop+start (or sentai.camera.select() with the
+// 1.5 s settle the visual snapshot path uses).
 static mp_obj_t mod_sentai_flow_start(size_t n_args, const mp_obj_t *args) {
-    int cam_id = 0;
+    int cam_id = 0;  // FRONT (cam0) by default
     if (n_args >= 1) cam_id = mp_obj_get_int(args[0]);
     int rc = sentai_flow_start(cam_id);
     if (rc != 0) {

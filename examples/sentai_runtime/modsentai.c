@@ -150,6 +150,9 @@ extern void sentai_uart_restore_baudrate(void);
 // IMU (LIS2DU12 accelerometer) — modsentai_hal.cc
 extern int sentai_imu_init(void);
 extern int sentai_imu_read_accel(float* x_mg, float* y_mg, float* z_mg, float* temp_c);
+extern int sentai_imu_tap_start(void);
+extern int sentai_imu_tap_stop(void);
+extern int sentai_imu_tap_poll(int timeout_ms, uint32_t* ev_out);
 
 // Microphone (PDM → MP3 ring buffer) — modsentai_hal.cc
 extern int sentai_mic_start(int max_seconds);

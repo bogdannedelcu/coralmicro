@@ -233,6 +233,29 @@ sentai.imu - LIS2DU12 accelerometer
         print('x:', d['x'], 'y:', d['y'], 'z:', d['z'])
         print('temp:', d['temp'], 'mC')
 
+  --- Hardware double-tap event queue (Pattern B) ---
+  Background FreeRTOS task configures LIS2DU12 hardware double-tap on
+  INT2 and polls TAP_SRC at 50 Hz. Detected events are queued (depth 16,
+  drop-oldest on overflow). REPL drains the queue with poll_event().
+
+  tap_start()           Configure HW double-tap + start event task.
+                        Returns 0=ok or already running, <0=error.
+  tap_stop()            Stop the event task (idempotent).
+  poll_event(timeout_ms=100)
+                        Block up to timeout_ms for an event.
+                        Returns 'double_tap' or None on timeout.
+                        timeout_ms<0 = wait forever (Ctrl-C to break).
+
+  Example (REPL-driven double-tap → action):
+    sentai.imu.tap_start()
+    while True:
+        e = sentai.imu.poll_event(500)
+        if e == 'double_tap':
+            sentai.io.led_on()
+            sentai.rtos.sleep_ms(300)
+            sentai.io.led_off()
+            # sentai.crazy.test_fly(6553, 1500)  # spin motors here
+
 [mic]
 sentai.mic - PDM microphone recording
 =======================================

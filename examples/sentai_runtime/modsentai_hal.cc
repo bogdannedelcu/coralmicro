@@ -26,6 +26,7 @@ extern "C" const char sentai_help_builtin_text[] =
 #include "libs/audio/audio_service.h"
 #include "third_party/freertos_kernel/include/FreeRTOS.h"
 #include "third_party/freertos_kernel/include/task.h"
+#include "third_party/freertos_kernel/include/queue.h"
 #include "third_party/nxp/rt1176-sdk/middleware/littlefs/lfs.h"
 #include "third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_lpuart.h"
 
@@ -316,6 +317,154 @@ int sentai_imu_read_accel(float* x_mg, float* y_mg, float* z_mg, float* temp_c) 
     *y_mg = data.y_mg;
     *z_mg = data.z_mg;
     *temp_c = data.temp_deg_c;
+    return 0;
+}
+
+// ===================== IMU Event Queue (Pattern B: REPL polls events) =====================
+// Background FreeRTOS task configures LIS2DU12 hardware double-tap and polls
+// TAP_SRC at 50 Hz. Detected events are pushed into a FreeRTOS queue.
+// REPL drains the queue with sentai_imu_tap_poll() — see modsentai_imu.c bindings.
+//
+// Coexists with sentai_sleep_idle()'s tap_poll_task: that task is one-shot
+// (started/stopped per sleep call); ours is persistent. SetInt2DoubleTap is
+// idempotent on the chip side, so calling it from either path is safe.
+
+#define SENTAI_IMU_EV_NONE        0u
+#define SENTAI_IMU_EV_DOUBLE_TAP  1u
+#define SENTAI_IMU_EVQ_DEPTH      16
+
+static QueueHandle_t s_imu_evq      = nullptr;
+static TaskHandle_t  s_imu_ev_task  = nullptr;
+static volatile bool s_imu_ev_run   = false;
+
+// Software double-tap clustering parameters (applied on top of HW SINGLE):
+// two singles within DTAP_WINDOW_MS, separated by at least DTAP_REFRACTORY_MS,
+// produce one DOUBLE_TAP event. Values per ST AN5453 §4 conventions for
+// human gestures at 100 Hz ODR.
+#define DTAP_WINDOW_MS       600
+#define DTAP_REFRACTORY_MS    80
+
+static void sentai_imu_event_task(void* p) {
+    (void)p;
+    TickType_t t_first_single = 0;  // ms tick of the first single in the window
+    bool       have_first     = false;
+    TickType_t t_last_single  = 0;
+    while (s_imu_ev_run) {
+        if (g_imu_initialized) {
+            lis2du12_all_sources_t sources{};
+            if (lis2du12_all_sources_get(g_imu.GetDevCtx(), &sources) == 0
+                && sources.single_tap) {
+                TickType_t now_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
+                if (now_ms - t_last_single >= DTAP_REFRACTORY_MS) {
+                    t_last_single = now_ms;
+                    if (!have_first || (now_ms - t_first_single) > DTAP_WINDOW_MS) {
+                        // First single (or window expired without a second) →
+                        // arm for a potential double.
+                        t_first_single = now_ms;
+                        have_first     = true;
+                    } else {
+                        // Second single within window → emit DOUBLE +
+                        // chip-side LED pulse (immediate visual feedback,
+                        // independent of whether REPL polls the queue).
+                        have_first = false;
+                        uint32_t ev = SENTAI_IMU_EV_DOUBLE_TAP;
+                        if (uxQueueSpacesAvailable(s_imu_evq) == 0) {
+                            uint32_t dump;
+                            xQueueReceive(s_imu_evq, &dump, 0);
+                        }
+                        xQueueSend(s_imu_evq, &ev, 0);
+                        coralmicro::LedSet(coralmicro::Led::kUser, true);
+                        vTaskDelay(pdMS_TO_TICKS(1000));
+                        coralmicro::LedSet(coralmicro::Led::kUser, false);
+                    }
+                }
+            }
+        }
+        vTaskDelay(pdMS_TO_TICKS(20));  // 50 Hz poll
+    }
+    s_imu_ev_task = nullptr;
+    vTaskDelete(nullptr);
+}
+
+int sentai_imu_tap_start(void) {
+    if (!g_imu_initialized) {
+        if (sentai_imu_init() != 0) return -1;
+    }
+    if (s_imu_ev_task) return 0;  // already running
+    // Replicate camera_streaming_http AccelTask init order exactly: first
+    // SetInt2WakeUpThreshold (which ALSO inits the wake-up pipeline + sets
+    // interrupts_enable=1 globally), THEN SetInt2DoubleTap on top. This is
+    // the only working configuration we have empirical proof of.
+    // We use a high wake-up threshold + axes-disabled so wake_up never
+    // actually fires — only the pipeline init side-effect matters.
+    if (!g_imu.SetInt2WakeUpThreshold(255, false, false, false)) return -5;
+    if (!g_imu.SetInt2DoubleTap()) return -2;
+    // HW SINGLE-tap detection works reliably via polling, but the chip's
+    // DOUBLE-tap state machine is fragile when ALL_INT_SRC is polled
+    // (clearing SINGLE_TAP_IA before the chip can latch the second tap).
+    // Empirical: every individual tap is reported as single, never double.
+    //
+    // Final design: enable only SINGLE-tap on the chip (precise HW threshold
+    // detection, no software magnitude calc), then cluster two singles into
+    // a "double" event in the polling task. Best of both worlds: HW noise
+    // immunity + software event policy. ST AN5453 §4 also lists this as
+    // an acceptable consumer-side pattern when INT pin is not wired.
+    //
+    // Single-axis Z, threshold 2 LSB (~125 mg) — board lies flat so taps
+    // arrive from above. Disable tap_double.en so SINGLE_TAP_IA fires
+    // independently for each tap.
+    lis2du12_tap_md_t tap{};
+    lis2du12_tap_mode_get(g_imu.GetDevCtx(), &tap);
+    tap.x_en = 0; tap.y_en = 0; tap.z_en = 1;
+    tap.threshold.x = 0; tap.threshold.y = 0; tap.threshold.z = 2;
+    tap.priority = LIS2DU12_ZYX;
+    tap.tap_double.en = 0;  // SINGLE only; we cluster in software
+    if (lis2du12_tap_mode_set(g_imu.GetDevCtx(), &tap) != 0) return -8;
+    if (!s_imu_evq) {
+        s_imu_evq = xQueueCreate(SENTAI_IMU_EVQ_DEPTH, sizeof(uint32_t));
+        if (!s_imu_evq) return -3;
+    }
+    xQueueReset(s_imu_evq);
+    s_imu_ev_run = true;
+    BaseType_t rc = xTaskCreate(sentai_imu_event_task, "imu_ev", 768,
+                                nullptr, 3, &s_imu_ev_task);
+    if (rc != pdPASS) {
+        s_imu_ev_run = false;
+        return -4;
+    }
+    return 0;
+}
+
+int sentai_imu_tap_stop(void) {
+    if (s_imu_ev_task) {
+        s_imu_ev_run = false;
+        // Wait up to 200 ms for task to exit cooperatively.
+        for (int i = 0; i < 20 && s_imu_ev_task; ++i) {
+            vTaskDelay(pdMS_TO_TICKS(10));
+        }
+    }
+    // Best-effort: clear chip-side latched state so a subsequent RAM-flash
+    // does not boot into a still-armed wake_up/tap pipeline that prevents
+    // Init() from soft-resetting the chip cleanly.
+    if (g_imu_initialized) {
+        lis2du12_int_mode_t off{};   // enable=0, all defaults
+        lis2du12_interrupt_mode_set(g_imu.GetDevCtx(), &off);
+        lis2du12_pin_int_route_t route{};  // all routes off
+        lis2du12_pin_int2_route_set(g_imu.GetDevCtx(), &route);
+        lis2du12_all_sources_t dump;  // read-clear latched flags
+        lis2du12_all_sources_get(g_imu.GetDevCtx(), &dump);
+    }
+    return 0;
+}
+
+int sentai_imu_tap_poll(int timeout_ms, uint32_t* ev_out) {
+    if (!s_imu_evq) return -1;
+    TickType_t wait = (timeout_ms < 0) ? portMAX_DELAY : pdMS_TO_TICKS(timeout_ms);
+    uint32_t ev = SENTAI_IMU_EV_NONE;
+    if (xQueueReceive(s_imu_evq, &ev, wait) == pdTRUE) {
+        if (ev_out) *ev_out = ev;
+        return 1;
+    }
     return 0;
 }
 
