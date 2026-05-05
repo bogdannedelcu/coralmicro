@@ -1,0 +1,16 @@
+Edge TPU Compiler version 16.0.384591198
+Input: runs/tf_native/iarna_p3p4_GELAN_1ep/export_uint8_480x640/iarna_p3p4_GELAN_1ep_uint8_480x640_int8.tflite
+Output: runs/tf_native/iarna_p3p4_GELAN_1ep/export_uint8_480x640/iarna_p3p4_GELAN_1ep_uint8_480x640_int8_edgetpu.tflite
+
+Operator                       Count      Status
+
+CONCATENATION                  8          Mapped to Edge TPU
+PAD                            5          Mapped to Edge TPU
+LOGISTIC                       50         Mapped to Edge TPU
+RESIZE_NEAREST_NEIGHBOR        1          Mapped to Edge TPU
+CONV_2D                        52         Mapped to Edge TPU
+QUANTIZE                       4          Mapped to Edge TPU
+MUL                            50         Mapped to Edge TPU
+SPLIT                          5          Mapped to Edge TPU
+MAX_POOL_2D                    3          Mapped to Edge TPU
+ADD                            12         Mapped to Edge TPU

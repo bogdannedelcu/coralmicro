@@ -1,6 +1,7 @@
 # SentAI Runtime — Agent Handoff Guide
 
-Written 2026-04-20, last updated 2026-04-25 (post Cale 1+ MoverTask sprint).
+Written 2026-04-20, last updated 2026-04-28 (post FileX/LevelX migration
++ Phase 3 perf tuning).
 Purpose: a fresh agent (or future me without memory) should be able to pick
 up this project without re-discovering every trap from scratch.  Read this
 top to bottom before touching the codebase.
@@ -200,6 +201,58 @@ python3 diag/_host_upload_repl.py --file _t_my_driver.py
 
 The remote path is always `/lib/diag/<basename>` — the uploader does
 not honour absolute remote paths.
+
+### 3.1.1 Large files (models, JPEG dumps): USB MSC ONLY (added 2026-04-28)
+
+**Rule: anything > ~10 KB MUST be uploaded via USB MSC, not REPL.**
+
+The chunked-append uploader is throughput-bounded by the per-line
+LFS open/close pair (~30–60 ms/chunk × 192 bytes/chunk ≈ 1–2 KB/s
+sustained).  At that rate a 270 KB MSBlock model takes ~3 minutes,
+a 5 MB yolo_1 model takes ~50 minutes, and a 7 MB model takes
+~85 minutes — long enough to bump into watchdog warnings (60 s
+silence) and CDC backpressure events that drop lines.  Both make
+the upload look like it succeeds while silently leaving the file
+truncated or zero-length on the board.
+
+**Required workflow for any blob ≥ 10 KB:**
+
+```bash
+# 1. Switch board to USB MSC mode.  This unmounts the REPL/HTTP
+#    surface, exposes the user partition as /dev/sda (FAT16).
+python3 -c "
+import serial, time
+s = serial.Serial('/dev/ttyACM0', 115200, timeout=0.3)
+s.write(b'\x03\r\n'); time.sleep(0.3); s.read(4096)
+s.write(b'sentai.usb.drive(1)\r\n'); time.sleep(1)"
+for i in $(seq 1 15); do [ -b /dev/sda ] && break; sleep 1; done
+
+# 2. Mount and copy.
+sudo mkdir -p /mnt/sentai && sudo mount /dev/sda /mnt/sentai
+sudo cp models/iarna_p3p4_*_edgetpu.tflite /mnt/sentai/models/
+sync && sudo umount /mnt/sentai
+
+# 3. Exit MSC mode — warm-resets back to default REPL+HTTP boot.
+printf 'q\r\n' > /dev/ttyACM0
+for i in $(seq 1 20); do
+    lsusb | grep -q "1fc9:c0a1" && break
+    sleep 1
+done
+```
+
+This is the documented path on this firmware (FileX Phase 2.1
+shipped MSC mount via real NAND OOB at 2048-byte LBA — Linux mounts
+the volume as native FAT16, no special tooling required).  The HTTP
+`/api/write` endpoint exists but is known broken (rule #5 — "HTTP
+uploads do not work").  REPL `fs.append` is for small driver files
+ONLY (the on-board `_host_upload_repl.py`'s 192-byte CHUNK is sized
+for sub-KB driver source, not multi-MB binaries).
+
+**When this rule has been violated** (2026-04-28): an attempted
+REPL upload of a 271 KB model triggered watchdog timeouts mid-stream;
+the partial write left the file at 0 bytes on FileX and the
+follow-up `tpu.load(...)` failed with rc=-2.  The forensic detail
+is in `experiment.md` "Phase 1 multi-slot firmware" session.
 
 ### 3.2 Reading "fs.append returned False" / "lfs.c:560 No more free space"
 
@@ -556,6 +609,65 @@ Reference implementation: `diag/_host_run_with_var.py` + the
 `_target_fps`-driven `_t_fps_bench.py` / `_t_fps_pipeline.py`
 canonical drivers.
 
+### 5.1.5 No host-side parameter passing — drivers own their sweeps (added 2026-04-28)
+
+**Doctrine: the on-board driver owns the entire experiment.**  The host
+script is a thin pipe: push driver, exec ONCE, wait for `=== done ===`,
+download the CSV.  Nothing else.
+
+**Forbidden host-side patterns:**
+
+- `send_line(s, "_target_model = '/models/...'")` — seeding REPL globals
+  per iteration before exec'ing the driver.  This is brittle: the
+  first-boot prompt handshake races with the seed lines and the driver
+  starts with `NameError: '_target_model' isn't defined`.  Even when it
+  works, the experiment logic is split between two files in two
+  languages and the user can't read the on-board file alone to know
+  what's being measured.
+- Host orchestrators that loop over models / ratios / fps levels and
+  reflash + exec + parse output between iterations.  The branching
+  logic belongs INSIDE the driver, not on the host.
+- Passing parameters via `os.environ` or stdin to a host wrapper that
+  then injects them into the REPL session.
+
+**Required pattern: parameters live as module-level constants at the
+top of the on-board driver.**
+
+```python
+# _t_iarna_p3p4_pipeline.py
+MODELS = [
+    ("MSBlock", "/models/iarna_p3p4_MSBlock_..._edgetpu.tflite"),
+    ("C2f",     "/models/iarna_p3p4_C2f_..._edgetpu.tflite"),
+    ("GELAN",   "/models/iarna_p3p4_GELAN_..._edgetpu.tflite"),
+]
+FPS = 45
+
+# ... bench loop iterates MODELS itself, writes one CSV row per
+#     (model, ratio) pair, and persists progress in /diags/.<exp>_state
+#     so it can resume after sys.reset() between iterations.
+```
+
+**If the experiment legitimately needs a between-iteration `sys.reset()`**
+(TPU contamination, fps re-init, etc.), persist progress in a state file
+under `/diags/.<exp>_state` and resume on next boot.  The host's only
+job in that case is: detect re-enum, re-exec the same driver, repeat
+until the driver prints `=== done ===`.  The host code is identical
+across experiments — only the on-board file changes.
+
+**Why:** The user's mental model of an experiment is a SINGLE artefact
+they can read, push, and re-run.  Splitting the loop between host and
+board means (a) you can't replay the experiment without the host
+script, (b) the on-board file alone doesn't tell you what was measured,
+(c) prompt-handshake races eat seed-globals on first boot.  The whole
+point of the §5.1.2 self-contained-driver doctrine is that one file is
+the experiment.
+
+**Reference:** `diag/_t_iarna_p3p4_pipeline.py` — embeds 3-model list,
+loops internally, writes one CSV across reboots via state-file resume.
+Compare to the rejected pattern in early `/tmp/run_iarna_p3p4_pipeline.py`
+(reflash + send_line seed-globals per iteration) which broke on first
+boot with `NameError`.
+
 ### 5.2 Wait for board after flash / WDOG reset
 
 After `flashtool.py` or a wedge that triggers WDOG, wait for NXP ID:
@@ -654,6 +766,33 @@ Camera-switch-related knobs, all introduced during this sprint:
 | `sentai.camera.ratio(a, b)` | Stateless auto-alternate: over any (a+b)-frame cycle, cam0 gets `a` frames and cam1 gets `b`.  Both zero disables.  Packed 32-bit atomic update. |
 | `sentai.diag.cam_stats()` | Returns dict of persistent fault counters: `{switch_ok_eof, switch_fallback, drain_timeout, grab_retry, grab_fatal}`. |
 | `sentai.verbose(0\|1)` | Gate per-frame firmware prints + the `[cam_switch]` log line.  Default 1; set 0 inside measurement loops. |
+
+**Multi-slot TPU surface (Phase 1 + 2a + 2b raw introspection, build #1098+):**
+
+| Call | Effect |
+|---|---|
+| `sentai.tpu.slot_count()` | 3 (compile-time `kNumTpuSlots`). |
+| `sentai.tpu.load_slot(N, path)` | Load model into slot N.  Slot 0 routes through legacy `sentai_load_model(path)`; slots 1+ heap-allocate a 2 MB arena lazily. |
+| `sentai.tpu.invoke_slot(N)` | Invoke slot N's interpreter.  Returns elapsed ms or negative error. |
+| `sentai.tpu.slot_ready(N)` | bool. |
+| `sentai.tpu.set_input_slot(N, bytes)` | **Caveat**: MP heap can't hold tensors ≥ ~256 KB.  Use the camera/PrepTask path for real workloads — this is for tiny REPL tests only. |
+| `sentai.tpu.output_slot(N, idx)` | Raw output bytes (length = `output_size_slot`). |
+| `sentai.tpu.num_outputs_slot(N)` | int |
+| `sentai.tpu.output_size_slot(N, idx)` | bytes |
+| `sentai.tpu.output_dims_slot(N, idx)` | tuple (e.g. `(1, 30, 40, 6)`) |
+| `sentai.tpu.output_type_slot(N, idx)` | TfLiteType int (3=uint8, 9=int8, 1=float32, ...) |
+| `sentai.tpu.output_quant_slot(N, idx)` | `(scale, zero_point)` |
+| `sentai.tpu.output_hash(N)` | FNV-1a 32-bit over all output bytes — handy for verifying that slot N produced its expected result. |
+| `sentai.pipeline.set_slot_for_cam(cam_id, slot)` | Route per-camera frames to a specific slot (Phase 2a).  Default `{0:0, 1:0}` = legacy single-slot. |
+| `sentai.pipeline.slot_stats()` | `(s0, s1, s2)` per-slot invoke counters incremented in InferTask. |
+
+**REPL post-processing**: detect/draw/yolo_info bindings were
+intentionally retired in build #1100.  REPL exposes raw output bytes
++ shape/dtype only; structured post-processing (NMS, classification,
+keypoints, ...) will return as typed C++ helpers when a real consumer
+needs them.  Don't rebuild a Python NMS in MP — heap is too small,
+arithmetic on `bytes` is too slow, and the user-side path was always
+intended to be C++.
 
 See also `sentai.diag.dmesg()`, `sentai.diag.boot_log()`,
 `sentai.diag.crash_log()` for post-mortem breadcrumbs.
@@ -934,9 +1073,10 @@ code** — old builds' logs would reinterpret the number.
 
 ## 11. Recent invariants (things to not re-break)
 
-- **Build #633**: `sentai_lfs_task.cc:sentai_lfs_try_serve` restricts the
-  fast path to `LFS_REQ_RAW` only.  LS always queues.  Flipping this back
-  re-introduces the 30 s root-ls hang + 2 min watchdog reset loop.
+- **Build #633**: `sentai_fs_task.cc:sentai_fs_try_serve` (renamed from
+  `sentai_lfs_*` in #1070) restricts the fast path to `FS_REQ_RAW` only.
+  LS always queues.  Flipping this back re-introduces the 30 s root-ls
+  hang + 2 min watchdog reset loop.
 - **Fix A**: `g_cam_switch_seq` snapshot is taken inside
   `HandleSwitchCameraRequest` (`libs/camera/camera.cc`) atomically with
   the `GpioSet()` — not in the task wrapper.  See paper §"Fix A".
@@ -1010,9 +1150,161 @@ Removed sections that were 0 bytes in V22 build (libs not link-listed):
 Cosmetic only — no bytes saved.  Re-add from `libs/nxp/rt1176-sdk/MIMXRT1176xxxxx_cm7_ram.ld`
 template if those libs ever get link-listed in CMakeLists.txt.
 
+### Filesystem layout (2026-04-28+, build #1062+)
+
+The board has TWO filesystem partitions on NAND:
+
+| Partition | Range | Backend | Where |
+|---|---|---|---|
+| System  | blocks 12..75 (8 MB)   | **LittleFS** | `default.elf`, MicroPython runtime — read-mostly |
+| User    | blocks 76..523 (56 MB) | **FileX FAT16 / LevelX** | everything user-visible: `/log/`, `/diags/`, `/.sys/`, models, JPEGs, configs |
+
+**Constraint**: the two filesystems are MUTUALLY EXCLUSIVE on the user range.
+Don't write LittleFS code paths against blocks 76..523 — you'll corrupt
+the FileX volume on next boot.
+
 ---
 
-## 12. First-contact checklist
+## 12. How to interact with the user partition (FileX)
+
+### From MicroPython REPL — `sentai.fs.*`
+
+```python
+sentai.fs.write("/path/file.bin", b"...")    # truncating write
+sentai.fs.append("/path/file.bin", b"...")   # append-only (REPL uploader)
+sentai.fs.read("/path/file.bin")             # full file -> bytes
+sentai.fs.size("/path/file.bin")             # int, -1 if missing
+sentai.fs.exists("/path/file.bin")           # bool
+sentai.fs.ls("/dir")                         # list of (name, type, size)
+sentai.fs.mkdir("/a/b/c")                    # mkdir -p
+sentai.fs.remove("/path/file.bin")           # 0 ok, <0 errno
+```
+
+System partition is reachable via `$/`-prefixed paths (read-mostly).
+
+### From C++ — `LfsUser*` helpers (compat) or `FxUser*` (typed)
+
+`libs/base/filesystem.h` exposes the long-standing `LfsUser*()` helper
+API — these are now THIN SHIMS over FileX, kept so existing call sites
+keep compiling.  New code should prefer the typed C API in
+[libs/base/fx_user_fs.h](../../../libs/base/fx_user_fs.h)
+(`FxUserReadFile`, `FxUserWriteFile`, `FxUserAppendFile`, `FxUserListDir`,
+`FxUserStat`, `FxUserMakeDirs`, `FxUserRemove`, `FxUserSync`).
+
+**`LfsUser()` (raw `lfs_t*` accessor) returns `nullptr`** — Phase 2
+ripped out the ~30 raw `lfs_*(LfsUser(), ...)` consumers.  Don't add
+new ones; they will null-deref at runtime.
+
+### From the host
+
+```bash
+# HTTP browser at http://10.0.0.1/  (after sentai.usb.ip(1))
+curl http://10.0.0.1/api/ls/         # list dir, JSON
+curl http://10.0.0.1/api/raw/path    # read file, bytes
+curl -X POST --data-binary @local /api/write/path   # upload
+curl -X POST /api/mkdir/path         # mkdir -p
+curl -X POST /api/rm/path            # delete
+# CDC-ACM REPL chunked uploader
+python3 diag/_host_upload_repl.py --file <name>     # to /lib/diag/
+# USB MSC (hot-plug FAT volume)
+sentai.usb.drive(1)   # in REPL → enter storage mode → /dev/sda
+mount /dev/sda /mnt   # Linux auto-mounts; bidirectional file ops
+# Send 'q' to /dev/ttyACM0 → warm reset back to default mode.
+```
+
+### Constraints — things to know before you write code
+
+1. **Root directory cap = 256 entries.**  FileX format uses FAT16 with
+   a fixed-size root.  Hitting the cap returns `FX_NO_MORE_SPACE` from
+   `fx_file_create` (opaque from REPL).  Subdirectories are
+   unlimited.  Diag drivers MUST put outputs under
+   `/diags/sNNN_<exp>/`, NEVER in root — same rule as §5.1.2 still
+   applies.
+2. **Sector size = 2048 bytes** (FAT data area = full NAND page).  Min
+   storage cost per file = one cluster = 2048 bytes (since cluster=1
+   sector).  Don't write thousands of tiny files; batch them.
+3. **MSC and FileX are mutually exclusive at runtime.**  In storage
+   mode FileX is unmounted; in default mode MSC is not exposed.
+   Mode-switch goes via `sentai.usb.drive(1)` → warm reset.  Files
+   written from the host in storage mode are visible from REPL after
+   exit, and vice versa.
+4. **Power-fail durability is per-file-close, not per-write.**
+   `fx_file_close` flushes the file's FAT chain.  `FxUserSync()`
+   forces a full FAT-table flush — call it before a planned
+   `sys.reset()` if you must guarantee earlier writes are on disk.
+   Phase 3.2 dropped per-write `fx_media_flush` — DON'T re-add it
+   "just in case" (small-file writes regress 40× if you do).
+5. **No `lfs_setattr` / `lfs_getattr` substitutes.**  FAT has no
+   arbitrary user attributes; old LFS code that stored write-time as
+   an attr is silently a no-op.  Use file mtime via `FxUserStat` if
+   you need timestamps, or write metadata to a sidecar file.
+6. **`/api/ls` may return `{"error":"lfs_busy"}`** under heavy
+   concurrent load.  Phase 3.4 dropped the rate from 54% to 0.2% but
+   it's not zero.  Browser retries on 600 ms.  Host scripts should
+   too.  The JSON tag string is preserved (browser.html depends on
+   it) even though the file is now `sentai_fs_task.cc`.
+7. **HTTP uploads CAN now work** (small-medium files via
+   `/api/write/...`).  Throughput on `/api/raw` is ~16 KB/s with the
+   lwip Nagle-off patch.  For >100 KB transfers, USB MSC is faster.
+
+### Write performance — what to expect
+
+Numbers from build #1074, freshly-formatted volume:
+
+| Op | Time | Throughput |
+|---|---|---|
+| Write 256 B | 67 ms | 4 KB/s (FAT/dir overhead dominates) |
+| Write 4 KB | 20 ms | 200 KB/s |
+| Write 64 KB | 2.1 s | 30 KB/s |
+| Write 256 KB | 1.7 s | 150 KB/s |
+| Read 64 KB | 24 ms | 2.6 MB/s |
+| Read 256 KB | 96 ms | 2.7 MB/s |
+| `/api/ls` latency | 24 ms | — |
+| `/api/raw` 64 KB | ~4 s | ~16 KB/s (Nagle-off) |
+
+Caveats:
+- Writes degrade as the volume fills and the FAT/dir chains grow.
+  Reformat (`sentai.diag.fx_format(0xDEADBEEF)`) before perf runs to
+  get comparable numbers.
+- The append uploader (`diag/_host_upload_repl.py` with
+  `sentai.fs.append`) is dominated by REPL line round-trip latency,
+  not FAT cost.
+
+### Recommendations
+
+- Put diag outputs in `/diags/sNNN_<name>/` (auto-numbered).  Inline
+  the `_session_dir` helper per §5.1.2 — never depend on
+  `diag/__init__.py`.
+- For large datasets (models, video dumps), upload via USB MSC
+  (`sentai.usb.drive(1)` → drag-drop → `q` to exit).  REPL chunked
+  uploader is for small driver scripts (~few KB).
+- Before a planned `sys.reset()` after writing important data, call
+  `FxUserSync()` (or `sentai.fs.sync()` if exposed).  Without it the
+  last writes may not have hit FAT yet.
+- If you need to debug while in storage mode (REPL is gone), write
+  to the SDRAM debug log — `sentai_storage_log("...")` from C side,
+  read back via `sentai.diag.storage_log()` after exiting storage.
+- For any new C++ consumer, use `FxUser*()` (typed, returns
+  bool/ssize_t).  Don't add new `LfsUser*()` callers — that surface
+  is frozen as a compat shim.
+
+### What NOT to do (sharp edges with audit trail)
+
+- Don't carve LevelX spare from the data area to get sub-2048 sector
+  size.  See experiment.md "FileX OOB discovery" — the chip has real
+  64-byte OOB and the NXP driver exposes it via `length` parameter.
+- Don't bump `sectors_per_cluster` without also bumping
+  `FX_MAX_SECTOR_CACHE` and `g_fx_media_memory`.  Phase 3.1 tried
+  `sectors_per_cluster=4` and regressed 64 KB+ writes ~2×.
+- Don't re-enable Nagle in lwip httpd (SDK patch
+  `0004-lwip-httpd-empty-body-post.patch` disables it).  Re-enabling
+  drops `/api/raw` from 16 KB/s back to 3 KB/s.
+- Don't shrink `sentai_fs_task` queue depth back to 1.  See §11
+  invariants.
+
+---
+
+## 13. First-contact checklist
 
 When picking up the project fresh:
 
@@ -1022,7 +1314,13 @@ When picking up the project fresh:
 3. `curl -s http://10.0.0.1/api/raw/log/boot.log | head -3` — should print
    the current build number.
 4. `curl -s http://10.0.0.1/api/ls/diags | python3 -m json.tool | head` —
-   first call returns `{"error":"lfs_busy"}` (expected; retry after 600 ms).
+   on a quiet board, returns the listing within ~25 ms.  Under heavy
+   concurrent writes you may see `{"error":"lfs_busy"}` (rare since
+   Phase 3.4 — was 54% before, now 0.2%); retry after 600 ms.
+5. `mount /dev/sda /mnt` — entering storage mode (`sentai.usb.drive(1)`)
+   should expose a Linux-mountable FAT volume.  If `dmesg` says
+   `Unsupported sector size` something regressed in fx_nand geometry
+   (must be 2048-byte LBAs, see §11 FileX/LevelX section).
 5. Open a REPL probe with the `send()` snippet from §5 and try
    `print("alive")`.  If no output after 2 s, do the warm-reset recipe
    in §4.
@@ -1032,7 +1330,7 @@ When picking up the project fresh:
 
 ---
 
-## 13. Where to look for context when this doc is out of date
+## 14. Where to look for context when this doc is out of date
 
 1. `paper/` — narrative-style lab notes for each optimisation (memcpy,
    cam_switch, lfs, usb, boot, watchdog, cale1_ring_buffer_plan).
@@ -1050,7 +1348,7 @@ When picking up the project fresh:
 
 ---
 
-## 14. Lessons learned (2026-04-25 sprint)
+## 15. Lessons learned (2026-04-25 sprint)
 
 These are durable observations from the Cale 1+ MoverTask sprint —
 prepend to your mental model when picking up TPU/pipeline work.
@@ -1126,3 +1424,161 @@ ceiling.  Further gains require:
 - Different camera (no available)
 - Different model size (smaller = faster)
 - Different architecture entirely (not RT1176)
+
+For the LittleFS→FileX/LevelX migration and Phase 3 perf-tuning
+narrative (4 builds + dead-ends + benchmarks), see the
+"FileX/LevelX migration" section in [experiment.md](experiment.md).
+
+---
+
+## 16. Boot path stability review (2026-04-29, build #1102)
+
+Audit pass over `libs/base/main_freertos_m7.cc::real_main()` and
+`examples/sentai_runtime/sentai_runtime.cc::app_main()` per
+embeded.md principles.  Findings worth knowing for future work.
+
+### What's strong
+
+- **DTC-RAM `BootPersist` struct with magic + ~magic check** survives
+  warm reset, cleared by POR — correct semantics for storage-mode
+  toggle.
+- **`kMaxStorageAttempts = 3`** crash-loop guard for storage-mode
+  boots — board falls back to default REPL+IP if storage init keeps
+  crashing.  Anti-brick rule §M satisfied.
+- **`sentai_boot_progress_mark(code)` checkpoints** stamped through
+  the entire boot flow (0x01..0x14) into DTC-RAM `progress` field.
+  Next boot reads `prev_progress` to diagnose where the previous
+  boot crashed — exactly the breadcrumb pattern embeded.md §I asks for.
+- **`vApplicationStackOverflowHook`** strong override saves
+  `SERR_SYS_STACK_OVF` + task-name hash before resetting.
+- **`vApplicationMallocFailedHook`** strong override in `sentai_fault.cc`
+  saves `SERR_SYS_MALLOC_FAIL` + caller LR before resetting.
+- **HardFault / MemManage / BusFault / UsageFault** all have armv7-m
+  naked handlers in `sentai_fault.cc` that capture the exception
+  frame and persist it to DTC-RAM before reset.
+
+### Open concerns (logged for future work, NOT fixed in this pass)
+
+1. **`CHECK(...)` is a no-op pre-scheduler.**  `libs/base/check.h`
+   defines `CHECK(a)` as `if (!(a)) { EmergencyWrite(...);
+   vTaskSuspendAll(); }`.  `vTaskSuspendAll()` only halts when the
+   scheduler is RUNNING; called before `vTaskStartScheduler()` it
+   sets a flag and returns.  Code execution continues with the failed
+   precondition.  In `real_main` this affects:
+   - `CHECK(coralmicro::LfsInit())` — if LFS init fails, `LfsUserInit()`
+     runs on a dead `lfs_t*`.
+   - `CHECK(coralmicro::LfsUserInit())` — if FileX mount fails,
+     downstream code accesses null `g_fx_media`.
+   - `CHECK(xTaskCreate(app_main, ...))` — if task create OOMs,
+     `vTaskStartScheduler()` runs with no app_main scheduled.
+
+   In all three cases the WDOG (configured in app_main, NOT
+   pre-scheduler) eventually fires — but only after USB CDC has
+   gone up via `UsbDeviceTask::Init()` (line 444), so the recovery
+   path is alive.  **Net assessment**: pre-scheduler CHECK fail is
+   detectable post-mortem (boot_log + crash log) but should be
+   strengthened.
+
+   **Proposed fix (future)**: replace pre-scheduler CHECK body with
+   a busy-loop that kicks WDOG1 every 5 s while logging the failure.
+   Lets the host reflash after the firmware self-reports that it's
+   stuck.  Requires WDOG1 init to move BEFORE the first CHECK.
+
+2. **WDOG1 is configured AFTER USB CDC** (in `app_main` /
+   `sentai_health_init`) — anti-brick rule §M is satisfied because
+   USB CDC comes up first (in `UsbDeviceTask::Init` at line 444 of
+   `real_main`), but the gap between USB-up and WDOG-armed is
+   ~tens of milliseconds where a hard crash would not auto-recover.
+   Acceptable risk on this build.
+
+3. **Slot 0 detect/draw still in flash** — `sentai_tpu_detect`
+   (~150 lines) and `sentai_tpu_draw` (~250 lines) are NOT exposed
+   from REPL anymore (build #1100), but `detection_task.cc` still
+   uses `sentai_tpu_detect` for NMS post-processing, so the symbol
+   stays.  The MicroPython wrappers (`mod_sentai_detect`,
+   `mod_sentai_draw`, `mod_sentai_yolo_info`) WERE removed in
+   build #1102 (~80 lines reclaimed from ITCM).
+
+### Crash-survivable boot.log (build #1110, 2026-04-29)
+
+Boot log buffer moved from `.sdram_bss` (zeroed at startup) to a new
+NOLOAD section `.sdram_boot_log` placed in `m_sdram` so it survives
+warm reset / WDOG / hard fault on this silicon.
+
+Layout: 16 KB total, 16-byte header + 16368 bytes payload.
+
+```c
+struct BootLogPersist {
+    volatile uint32_t magic;   // kBootLogMagic = 0xB00710B0
+    volatile uint32_t check;   // ~kBootLogMagic — both must match
+    volatile uint32_t len;     // payload length, 0..kBootLogBufSize
+    volatile uint32_t _rsvd;
+    char              buf[16368];
+};
+```
+
+Lifecycle:
+1. `boot_log_init()` (early in app_main) reads pre-existing
+   `magic+check+len` from SDRAM.  If valid, snapshots
+   `g_prev_boot_log_len` for later rescue.  Then re-arms header for
+   THIS boot's writes.
+2. `boot_log_write()` → `_write` printf hook → bytes accumulate in
+   the persistent buffer with `len` updated atomically.
+3. `boot_log_fs_init()` (after `FxUserInit` succeeds): if
+   `g_prev_boot_log_len > 0`, write the rescued bytes to
+   `/log/boot_prev.log` (truncating).  Then start normal
+   `boot.log → boot_old.log` rotation for this boot.
+4. `boot_log_stop()` (when REPL starts): final flush + `FxUserSync()`
+   + clear magic.  This boot reached REPL successfully → no rescue
+   needed on next boot.  Without this clear, a clean reset would
+   re-flush an already-written trace.
+
+Failure-mode coverage:
+- **Crash mid-boot before FxUser mount**: SDRAM buffer + magic survive,
+  next boot rescues to `/log/boot_prev.log`. ✓
+- **WDOG reset after REPL up**: magic invalidated by `boot_log_stop`,
+  no false rescue.  Active trace already in `boot.log`. ✓
+- **Power cycle (POR)**: SDRAM zero-initialized at cold start, magic
+  invalid, no rescue (intentional — no useful data anyway). ✓
+
+Validated on build #1110:
+- Clean `sentai.sys.reset()` → next boot has NO `/log/boot_prev.log` ✓
+- boot.log header rotates correctly: `#1110` current, `#prev` in `boot_old.log` ✓
+
+### Boot path Option B (refactor real_main + post-scheduler init task) — DEFERRED
+
+Original concern (agent.md §16 above): `CHECK(...)` macro is no-op
+pre-scheduler.  Refactoring `real_main` to defer LfsInit / LfsUserInit /
+class registrations into a `boot_init_task` running post-scheduler
+would let `CHECK` actually halt cleanly.
+
+**Reason for deferring**: with the crash-survivable boot log shipped
+(above), pre-scheduler CHECK fails are now FULLY DIAGNOSABLE
+post-mortem — bytes printed before the failure persist in SDRAM
+NOLOAD, get rescued to `/log/boot_prev.log` on the next boot.  WDOG
+still eventually resets the board.  The Option B refactor would
+provide cleaner code structure but no additional operational safety
+benefit.  Not worth the boot-path refactor risk for negligible win.
+
+If `CHECK` semantics ever need to actually halt pre-scheduler (e.g.
+for safety certification work), then Option B becomes the right
+answer.  Until then, the current diagnostics+WDOG combination is
+sufficient.
+
+### Multi-slot stack hardening shipped (build #1102)
+
+| Issue | Severity | Fix |
+|---|---|---|
+| `new` without null-check (slot 0 + slot 1+ paths) | CRITICAL | `new(std::nothrow) T()` + null-check + SERR log |
+| `printf("ERROR")` instead of SERR_LOG | MAJOR | All slot error paths log `SERR_TPU_SLOT_*` codes (0x0B70-0x0B74) |
+| `set_slot_for_cam` accepts unloaded slot | MAJOR | `slot != 0 && !slot_ready` rejected with `SERR_TPU_SLOT_NOT_READY` (0x0B74) |
+| `mod_sentai_detect/draw/yolo_info` dead bindings | minor | Removed from MicroPython surface (table + wrapper bodies) |
+| `sync_slot0_to_legacy` / `sync_legacy_to_slot0` unused helpers | minor | Removed (sync done inline in `sentai_load_model_slot`) |
+
+Smoke-tested on persistent build #1102:
+- `set_slot_for_cam(1, 1)` with slot 1 unloaded → returns -3, logs `E:0B74:17`
+- `load_slot(0, MSBlock)` legacy path: rc=0
+- `load_slot(2, GELAN)` heap path: rc=0
+- `output_dims_slot(2, 0)` returns `(1, 30, 40, 6)`
+- `hasattr(sentai.tpu, "detect")` → `False` (retired)
+- `hasattr(sentai.tpu, "draw")` → `False` (retired)

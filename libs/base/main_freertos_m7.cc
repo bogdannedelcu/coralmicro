@@ -21,6 +21,7 @@
 #include "libs/base/check.h"
 #include "libs/base/console_m7.h"
 #include "libs/base/filesystem.h"
+#include "libs/base/fx_user_fs.h"
 #include "libs/base/gpio.h"
 #include "libs/base/ipc_m7.h"
 #include "libs/base/network.h"
@@ -386,6 +387,14 @@ extern "C" int real_main(int argc, char** argv, bool init_console_tx,
     // does not probe and the cdc_ncm cascade we used to see at T+1 s is
     // gone entirely.
     CHECK(coralmicro::LfsUserInit());
+    /* If a previous storage-mode session left a debug log in SDRAM,
+     * flush it to /log/storage_debug.log now that the FileX volume is
+     * remounted. */
+    int storage_log_bytes = sentai_storage_log_flush_to_fs();
+    if (storage_log_bytes > 0) {
+      printf("[storage] flushed %d bytes of debug log to /log/storage_debug.log\r\n",
+             storage_log_bytes);
+    }
     #if ENABLE_NETWORK_STACK || ENABLE_USB_NCM
       tcpip_init(nullptr, nullptr);
     #endif
@@ -393,11 +402,24 @@ extern "C" int real_main(int argc, char** argv, bool init_console_tx,
       coralmicro::DnsInit();
     #endif
   }
-  // Storage mode: skip LfsUserInit so the host has exclusive access to
-  // the NAND blocks backing the user partition; skip lwIP entirely
-  // (no NCM interface either).  /dev/sda comes up clean because the
-  // descriptor exposes only ConsoleM7's CDC-ACM (anti-brick anchor) and
-  // MSC.
+  // Storage mode: open the LevelX flash so MSC reads/writes are
+  // routed through the same wear-leveling layer FileX uses.  This
+  // means /dev/sda exposes a real FAT volume that the host can
+  // mount directly (`mount /dev/sda /mnt`).  We still skip the FileX
+  // media open — only LevelX needs to be live for MSC sector ops.
+  if (g_sentai_storage_mode) {
+    if (!FxUserOpenLxOnly()) {
+      printf("[storage] FxUserOpenLxOnly FAILED — MSC will return I/O errors\r\n");
+    }
+    /* Reset the SDRAM-backed debug log ring; MSC handler appends events
+     * here while we're disconnected from the REPL.  Flushed to
+     * /log/storage_debug.log on next default-mode boot. */
+    sentai_storage_log_init();
+    sentai_storage_log("storage-mode boot ok");
+  }
+  // Skip lwIP entirely in storage mode (no NCM interface either).
+  // /dev/sda comes up clean because the descriptor exposes only
+  // ConsoleM7's CDC-ACM (anti-brick anchor) and MSC.
   #if ENABLE_USB_EEM
     InitializeCDCEEM();
   #endif

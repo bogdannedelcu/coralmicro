@@ -13,8 +13,9 @@
 
 #include "browser_html_data.h"
 #include "libs/base/filesystem.h"
+#include "libs/base/fx_user_fs.h"
 #include "libs/base/http_server.h"
-#include "sentai_lfs_task.h"
+#include "sentai_fs_task.h"
 #include "third_party/freertos_kernel/include/FreeRTOS.h"
 #include "third_party/freertos_kernel/include/task.h"
 #include "third_party/freertos_kernel/include/semphr.h"
@@ -44,7 +45,7 @@ static char g_post_result[256] = "{\"ok\":false}";
 // ─── pextension sentinel ─────────────────────────────────────────────────
 
 // Identifies responses that came from the lfs_task SDRAM buffer (g_resp_buf).
-// FsCloseCustom calls sentai_lfs_resp_done() only for these.
+// FsCloseCustom calls sentai_fs_resp_done() only for these.
 static const uint8_t g_resp_tag = 0;
 
 // ─── Browser HTML helpers ─────────────────────────────────────────────────
@@ -66,32 +67,22 @@ static bool ValidPath(const char* p) {
 
 static void LoadBrowserHtmlCache() {
   g_browser_html_cache_len = 0;
-  struct lfs_info info;
-  if (lfs_stat(coralmicro::LfsUser(), "/.sys/browser.html", &info) >= 0 &&
-      info.type == LFS_TYPE_REG && info.size > 0 &&
-      info.size <= kBrowserHtmlCacheMax) {
-    lfs_file_t f;
-    if (lfs_file_open(coralmicro::LfsUser(), &f, "/.sys/browser.html",
-                      LFS_O_RDONLY) >= 0) {
-      lfs_ssize_t n =
-          lfs_file_read(coralmicro::LfsUser(), &f,
-                        g_browser_html_cache_buf, info.size);
-      lfs_file_close(coralmicro::LfsUser(), &f);
-      if (n == static_cast<lfs_ssize_t>(info.size)) {
-        g_browser_html_cache_len = static_cast<size_t>(n);
-        printf("[httpd] browser.html cached from LfsUser (%u bytes)\r\n",
-               (unsigned)n);
-        return;
-      }
+  FxStat st;
+  if (FxUserStat("/.sys/browser.html", &st) && st.exists && !st.is_dir &&
+      st.size > 0 && st.size <= kBrowserHtmlCacheMax) {
+    size_t n = FxUserReadFile("/.sys/browser.html",
+                              g_browser_html_cache_buf, st.size);
+    if (n == st.size) {
+      g_browser_html_cache_len = n;
+      printf("[httpd] browser.html cached from user FS (%u bytes)\r\n",
+             (unsigned)n);
+      return;
     }
   }
-  lfs_mkdir(coralmicro::LfsUser(), "/.sys");
-  lfs_file_t f;
-  if (lfs_file_open(coralmicro::LfsUser(), &f, "/.sys/browser.html",
-                    LFS_O_WRONLY | LFS_O_CREAT | LFS_O_TRUNC) >= 0) {
-    lfs_file_write(coralmicro::LfsUser(), &f,
-                   browser_html_data, browser_html_data_len);
-    lfs_file_close(coralmicro::LfsUser(), &f);
+  FxUserMakeDir("/.sys");
+  if (FxUserWriteFile("/.sys/browser.html",
+                      reinterpret_cast<const uint8_t*>(browser_html_data),
+                      browser_html_data_len)) {
     printf("[httpd] Deployed embedded browser.html (%u bytes)\r\n",
            (unsigned)browser_html_data_len);
   }
@@ -137,11 +128,11 @@ class SentaiHttpServer : public coralmicro::HttpServer {
 
     // ── GET /api/ls and /api/raw — served via lfs_task (non-blocking) ──
     if (strncmp(name, "/api/ls", 7) == 0 || strncmp(name, "/api/raw", 8) == 0) {
-      sentai_lfs_req_type_t req_type;
+      sentai_fs_req_type_t req_type;
       const char* path;
 
       if (strncmp(name, "/api/ls", 7) == 0) {
-        req_type = LFS_REQ_LS;
+        req_type = FS_REQ_LS;
         path = name + 7;
         // lwIP's httpd rewrites trailing-slash URIs by appending one of its
         // default index filenames (index.shtml/ssi/shtm/html/htm), so a GET
@@ -166,14 +157,14 @@ class SentaiHttpServer : public coralmicro::HttpServer {
         if (*path == '\0' || strcmp(path, "/") == 0) path = "/";
         else if (!ValidPath(path)) path = "/";
       } else {
-        req_type = LFS_REQ_RAW;
+        req_type = FS_REQ_RAW;
         path = name + 8;
         if (!ValidPath(path)) {
           return 0;  // 404
         }
       }
 
-      size_t len = sentai_lfs_try_serve(req_type, path);
+      size_t len = sentai_fs_try_serve(req_type, path);
       if (len == (size_t)-1) {
         return 0;  // 404: file not found or empty
       }
@@ -187,11 +178,11 @@ class SentaiHttpServer : public coralmicro::HttpServer {
       }
 
       // Data ready — stream from lfs_task SDRAM buffer.
-      file->data  = reinterpret_cast<const char*>(sentai_lfs_resp_buf());
+      file->data  = reinterpret_cast<const char*>(sentai_fs_resp_buf());
       file->len   = static_cast<int>(len);
       file->index = 0;
       file->flags = FS_FILE_FLAGS_HEADER_PERSISTENT;
-      // g_resp_tag tells FsCloseCustom to call sentai_lfs_resp_done().
+      // g_resp_tag tells FsCloseCustom to call sentai_fs_resp_done().
       file->pextension = const_cast<uint8_t*>(&g_resp_tag);
       return 1;
     }
@@ -206,7 +197,7 @@ class SentaiHttpServer : public coralmicro::HttpServer {
 
   void FsCloseCustom(struct fs_file* file) override {
     if (file->pextension == &g_resp_tag) {
-      sentai_lfs_resp_done();
+      sentai_fs_resp_done();
     }
     // No heap to free — all buffers are static.
   }
@@ -271,25 +262,11 @@ class SentaiHttpServer : public coralmicro::HttpServer {
                "{\"ok\":false,\"error\":\"invalid path\"}");
       return;
     }
-    char p[256];
-    snprintf(p, sizeof(p), "%s", path);
-    for (size_t i = 1; p[i]; ++i) {
-      if (p[i] == '/') {
-        p[i] = '\0'; lfs_mkdir(coralmicro::LfsUser(), p); p[i] = '/';
-      }
-    }
-    lfs_file_t f;
-    int rc = lfs_file_open(coralmicro::LfsUser(), &f, path,
-                           LFS_O_WRONLY | LFS_O_CREAT | LFS_O_TRUNC);
-    if (rc < 0) {
-      snprintf(g_post_result, sizeof(g_post_result),
-               "{\"ok\":false,\"error\":\"open failed (%d)\"}", rc);
-      return;
-    }
-    lfs_ssize_t written =
-        lfs_file_write(coralmicro::LfsUser(), &f, g_post_buf, g_post_buf_len);
-    lfs_file_close(coralmicro::LfsUser(), &f);
-    if (written == static_cast<lfs_ssize_t>(g_post_buf_len)) {
+    /* FxUserWriteFile creates leading directories internally. */
+    int ok = FxUserWriteFile(path,
+                             reinterpret_cast<const uint8_t*>(g_post_buf),
+                             g_post_buf_len);
+    if (ok) {
       if (strcmp(path, "/.sys/browser.html") == 0 &&
           g_post_buf_len <= kBrowserHtmlCacheMax) {
         memcpy(g_browser_html_cache_buf, g_post_buf, g_post_buf_len);
@@ -298,10 +275,10 @@ class SentaiHttpServer : public coralmicro::HttpServer {
                (unsigned)g_post_buf_len);
       }
       snprintf(g_post_result, sizeof(g_post_result),
-               "{\"ok\":true,\"size\":%ld}", (long)written);
+               "{\"ok\":true,\"size\":%lu}", (unsigned long)g_post_buf_len);
     } else {
       snprintf(g_post_result, sizeof(g_post_result),
-               "{\"ok\":false,\"error\":\"write incomplete\"}");
+               "{\"ok\":false,\"error\":\"write failed\"}");
     }
   }
 
@@ -311,19 +288,12 @@ class SentaiHttpServer : public coralmicro::HttpServer {
                "{\"ok\":false,\"error\":\"invalid path\"}");
       return;
     }
-    char p[256];
-    snprintf(p, sizeof(p), "%s", path);
-    for (size_t i = 1; p[i]; ++i) {
-      if (p[i] == '/') {
-        p[i] = '\0'; lfs_mkdir(coralmicro::LfsUser(), p); p[i] = '/';
-      }
-    }
-    int rc = lfs_mkdir(coralmicro::LfsUser(), p);
-    if (rc >= 0 || rc == LFS_ERR_EXIST) {
+    int ok = FxUserMakeDirs(path);
+    if (ok) {
       snprintf(g_post_result, sizeof(g_post_result), "{\"ok\":true}");
     } else {
       snprintf(g_post_result, sizeof(g_post_result),
-               "{\"ok\":false,\"error\":\"mkdir failed (%d)\"}", rc);
+               "{\"ok\":false,\"error\":\"mkdir failed\"}");
     }
   }
 
@@ -333,8 +303,8 @@ class SentaiHttpServer : public coralmicro::HttpServer {
                "{\"ok\":false,\"error\":\"invalid path\"}");
       return;
     }
-    int rc = lfs_remove(coralmicro::LfsUser(), path);
-    if (rc >= 0) {
+    int rc = FxUserRemove(path);
+    if (rc == 0) {
       snprintf(g_post_result, sizeof(g_post_result), "{\"ok\":true}");
     } else {
       snprintf(g_post_result, sizeof(g_post_result),
@@ -352,7 +322,7 @@ extern "C" void sentai_httpd_start(void) {
   started = true;
 
   // LFS task must be started before we can serve GET requests.
-  sentai_lfs_task_start();
+  sentai_fs_task_start();
 
   LoadBrowserHtmlCache();
 

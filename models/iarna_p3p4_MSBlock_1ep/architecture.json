@@ -1,0 +1,23 @@
+{
+  "cfg": "/home/bogdan/work/yolo/yolov5/models/yolov5n_iarna_p3p4_msblock.yaml",
+  "imgsz_hw": [
+    640,
+    640
+  ],
+  "nc": 1,
+  "act": "silu",
+  "strides": [
+    8.0,
+    16.0
+  ],
+  "anchors": [
+    [
+      16.0,
+      16.0
+    ],
+    [
+      32.0,
+      32.0
+    ]
+  ]
+}

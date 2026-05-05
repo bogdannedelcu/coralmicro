@@ -32,6 +32,8 @@ add_library_m7(libs_base-m7_freertos STATIC
     analog.cc
     console_m7.cc
     filesystem.cc
+    fx_nand_driver.cc
+    fx_user_fs.cc
     gpio.cc
     i2c.cc
     ipc.cc
@@ -56,6 +58,8 @@ set(libs_base-m7_freertos_LINK_LIBRARIES_REVISION
     libs_camera_freertos
     libs_pmic_freertos
     libs_littlefs
+    libs_levelx
+    libs_filex
     libs_nxp_rt1176-sdk_lwip
     libs_nxp_rt1176-sdk_lwip_httpd
 )

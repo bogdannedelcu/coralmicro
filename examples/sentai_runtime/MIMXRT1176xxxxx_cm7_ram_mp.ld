@@ -370,6 +370,50 @@ SECTIONS
   /* edgefast_bluetooth + ethermind libraries removed 2026-04-25 (not
    * link-listed for sentai_runtime, all sections were 0 bytes). */
 
+  /* .filex / .levelx — FileX FAT filesystem + LevelX NAND wear
+     leveling (Eclipse ThreadX, MIT).  Phase 1 of LFS->FileX user-
+     partition migration.  Both libs are cold-path: only invoked
+     during sentai.diag.fx_smoke() runs and (eventually) the
+     LfsUser-replacement helpers.  SDRAM placement keeps ITCM/OCRAM
+     reserved for the TPU+camera hot path. */
+  .filex :
+  {
+     . = ALIGN(4);
+     __filex_start = .;
+     *liblibs_filex.a:*(.text .text*)
+     *liblibs_filex.a:*(.data .data*)
+     *liblibs_filex.a:*(.rodata .rodata*)
+     __filex_end = .;
+     . = ALIGN(4);
+  } > m_sdram
+
+  .levelx :
+  {
+     . = ALIGN(4);
+     __levelx_start = .;
+     *liblibs_levelx.a:*(.text .text*)
+     *liblibs_levelx.a:*(.data .data*)
+     *liblibs_levelx.a:*(.rodata .rodata*)
+     __levelx_end = .;
+     . = ALIGN(4);
+  } > m_sdram
+
+  /* fx_nand_driver.cc + fx_user_fs.cc are also cold-path; route them
+     to SDRAM rather than spending precious ITCM on smoke-only code. */
+  .fx_glue :
+  {
+     . = ALIGN(4);
+     __fx_glue_start = .;
+     *fx_nand_driver.cc.obj(.text .text*)
+     *fx_nand_driver.cc.obj(.data .data*)
+     *fx_nand_driver.cc.obj(.rodata .rodata*)
+     *fx_user_fs.cc.obj(.text .text*)
+     *fx_user_fs.cc.obj(.data .data*)
+     *fx_user_fs.cc.obj(.rodata .rodata*)
+     __fx_glue_end = .;
+     . = ALIGN(4);
+  } > m_sdram
+
   /* The program code and other data goes into internal RAM */
   .text :
   {
@@ -528,6 +572,35 @@ SECTIONS
     . = ALIGN(4);
     __BOOT_PERSIST_END__ = .;
   } > m_data
+
+  /* Storage-mode debug log buffer — 16 KB in SDRAM, NOLOAD so the
+   * startup BSS-zero loop does not clear it across warm reset.  The
+   * MSC handler appends events here while the FileX volume is unmounted
+   * (storage mode); on next default-mode boot the buffer is flushed to
+   * /log/storage_debug.log.  See sentai_storage_log() in
+   * libs/base/fx_user_fs.cc. */
+  .sdram_storage_log (NOLOAD) : ALIGN(8)
+  {
+    __SDRAM_STORAGE_LOG_START__ = .;
+    *(.sdram_storage_log .sdram_storage_log.*)
+    . = ALIGN(8);
+    __SDRAM_STORAGE_LOG_END__ = .;
+  } > m_sdram
+
+  /* Crash-survivable boot log buffer (2026-04-29).  16 KB in SDRAM
+   * NOLOAD — preserved across NVIC_SystemReset / WDOG reset on this
+   * silicon, so a firmware that crashes BEFORE the FileX user volume
+   * mounts does not lose its boot trace.  Header carries magic +
+   * check + length so the next boot can detect a valid pre-crash
+   * buffer and flush it to /log/boot_prev.log.  Cleared by hardware
+   * POR (button / power cycle) like the rest of SDRAM. */
+  .sdram_boot_log (NOLOAD) : ALIGN(8)
+  {
+    __SDRAM_BOOT_LOG_START__ = .;
+    *(.sdram_boot_log .sdram_boot_log.*)
+    . = ALIGN(8);
+    __SDRAM_BOOT_LOG_END__ = .;
+  } > m_sdram
 
   /* Uninitialized data section */
   .bss :

@@ -20,29 +20,32 @@
 
 #include "fsl_cache.h"
 #include "libs/base/check.h"
+#include "libs/base/fx_user_fs.h"
 #include "third_party/freertos_kernel/include/FreeRTOS.h"
 #include "third_party/freertos_kernel/include/task.h"
-#include "third_party/nxp/rt1176-sdk/components/flash/nand/fsl_nand_flash.h"
 
-extern "C" nand_handle_t *BOARD_GetNANDHandle(void);
+extern "C" void sentai_storage_log(const char* fmt, ...) __attribute__((format(printf, 1, 2)));
 
 #define DATA_IN (0)
 #define DATA_OUT (1)
-#define USB_DEVICE_MSC_WRITE_BUFF_SIZE (512 * 32U)
-#define USB_DEVICE_MSC_READ_BUFF_SIZE (512 * 32U)
 #define LOGICAL_UNIT_SUPPORTED (1)
 
 namespace coralmicro {
 namespace {
-constexpr int kPagesPerBlock = 64;
-constexpr int kUserBaseBlock = 76;   // Must match filesystem.cc kUserBaseBlock
-constexpr int kUserBlockCount = 448; // Must match filesystem.cc kUserBlockCount
-constexpr size_t kPageSize = 2048;
-constexpr uint32_t kInvalidDataPattern = __htonl(0xdeadbeef);
+/* MSC LBA geometry — matches the FileX/LevelX volume so the host sees a
+ * real FAT mountable directly via `mount /dev/sda /mnt`. */
+constexpr size_t kLbaSize  = FX_USER_LBA_SIZE;   /* 2016 */
+constexpr int    kLbaCount = FX_USER_LBA_COUNT;  /* 28160 */
+
+/* USB bulk URB buffer: hold an integral number of LBAs.  Four LBAs at
+ * 2016 = 8064 bytes — fits one default URB. */
+constexpr size_t kLbasPerUrb = 4u;
+constexpr size_t kBulkBufBytes = kLbasPerUrb * kLbaSize;       /* 8064 */
 }  // namespace
 
-uint32_t g_mscReadRequestBuffer[kPageSize];
-uint32_t g_mscWriteRequestBuffer[kPageSize];
+/* Word-aligned for USB DMA. */
+uint32_t g_mscReadRequestBuffer[(kBulkBufBytes + 3u) / 4u];
+uint32_t g_mscWriteRequestBuffer[(kBulkBufBytes + 3u) / 4u];
 
 usb_device_inquiry_data_fromat_struct_t g_InquiryInfo = {
     (USB_DEVICE_MSC_UFI_PERIPHERAL_QUALIFIER
@@ -106,114 +109,95 @@ bool MscUms::HandleEvent(uint32_t event, void *param) {
 
 usb_status_t MscUms::Handler(uint32_t event, void *param) {
   usb_status_t error = kStatus_USB_Success;
-  status_t errorCode = kStatus_Success;
-  nand_handle_t *nand = BOARD_GetNANDHandle();
   usb_device_lba_information_struct_t *lbaInformation;
   usb_device_lba_app_struct_t *lba;
   usb_device_ufi_app_struct_t *ufi;
   usb_device_capacity_information_struct_t *capacityInformation;
-  CHECK(nand);
 
   switch (event) {
     case kUSB_DeviceMscEventReadResponse:
       lba = (usb_device_lba_app_struct_t *)param;
       break;
-    case kUSB_DeviceMscEventWriteResponse:
+    case kUSB_DeviceMscEventWriteResponse: {
       lba = (usb_device_lba_app_struct_t *)param;
       if (write_protected_) {
         error = kStatus_USB_InvalidRequest;  // CHECK CONDITION: write protected
         break;
       }
-      if (lba->offset == 0 && std::memcmp(lba->buffer, &kInvalidDataPattern,
-                                          sizeof(kInvalidDataPattern)) == 0) {
-        uint32_t block = __ntohl(*reinterpret_cast<uint32_t *>(
-            lba->buffer + sizeof(kInvalidDataPattern)));
-        uint32_t erase_block = kUserBaseBlock + block;
-        errorCode = Nand_Flash_Erase_Block(nand, erase_block);
-        if (errorCode != kStatus_Success) {
-          printf("Nand_Flash_Erase_Block(%lu) failed (%ld), block %lu\r\n",
-                 erase_block, errorCode, block);
+      /* The USB controller DMA-wrote into lba->buffer; invalidate cache so
+       * M7 reads the fresh physical bytes when LX memcpy's into its scratch. */
+      DCACHE_InvalidateByRange(reinterpret_cast<uint32_t>(lba->buffer),
+                               lba->size);
+      size_t size = lba->size;
+      const uint8_t *buf = lba->buffer;
+      uint32_t lba_idx = lba->offset;
+      uint32_t lba_count = (uint32_t)(size / kLbaSize);
+      sentai_storage_log("MSC W lba=%u cnt=%u", (unsigned)lba_idx,
+                         (unsigned)lba_count);
+      bool ok = true;
+      while (size >= kLbaSize) {
+        if (!FxUserMscWrite(lba_idx, buf)) {
+          sentai_storage_log("MSC W FAIL lba=%u", (unsigned)lba_idx);
+          ok = false;
+          break;
         }
-      } else {
-        size_t size = lba->size;
-        uint8_t *buf = lba->buffer;
-        uint32_t page_index = lba->offset;
-        while (size != 0) {
-          auto write_size = std::min(kPageSize, size);
-          auto write_index = kUserBaseBlock * kPagesPerBlock + page_index;
-          DCACHE_CleanInvalidateByRange(reinterpret_cast<uint32_t>(buf),
-                                        write_size);
-          errorCode =
-              Nand_Flash_Page_Program(nand, write_index, buf, write_size);
-          if (errorCode != kStatus_Success) {
-            printf(
-                "Nand_Flash_Page_Program(%lu, %u) failed (%ld), page %lu\r\n",
-                write_index, write_size, errorCode, page_index);
-            break;
-          }
-          ++page_index;
-          buf += write_size;
-          size -= write_size;
-        }
+        ++lba_idx;
+        buf += kLbaSize;
+        size -= kLbaSize;
       }
-      if (errorCode != kStatus_Success) {
-        error = kStatus_USB_InvalidRequest;
-      }
+      if (!ok) error = kStatus_USB_InvalidRequest;
       break;
+    }
     case kUSB_DeviceMscEventWriteRequest:
       lba = (usb_device_lba_app_struct_t *)param;
-      /*get a buffer to store the data from host*/
       lba->buffer = (uint8_t *)&g_mscWriteRequestBuffer[0];
       break;
-    case kUSB_DeviceMscEventReadRequest:
+    case kUSB_DeviceMscEventReadRequest: {
       lba = (usb_device_lba_app_struct_t *)param;
       lba->buffer = (uint8_t *)&g_mscReadRequestBuffer[0];
-      {
-        size_t size = lba->size;
-        uint8_t *buf = lba->buffer;
-        uint32_t page_index = lba->offset;
-        while (size != 0) {
-          auto read_size = std::min(kPageSize, size);
-          auto read_index = kUserBaseBlock * kPagesPerBlock + page_index;
-          errorCode = kStatus_Fail;
-          for (int retry = 0; retry < 3; ++retry) {
-            errorCode = Nand_Flash_Read_Page(nand, read_index, buf, read_size);
-            if (errorCode == kStatus_Success) break;
-            printf("MSC_Read: NAND page %lu retry %d (err %ld)\r\n",
-                   read_index, retry, errorCode);
-          }
-          if (errorCode != kStatus_Success) {
-            printf("MSC_Read: NAND page %lu FAILED after retries\r\n",
-                   read_index);
-            break;
-          }
-          ++page_index;
-          buf += read_size;
-          size -= read_size;
+      size_t size = lba->size;
+      uint8_t *buf = lba->buffer;
+      uint32_t lba_idx = lba->offset;
+      uint32_t lba_count = (uint32_t)(size / kLbaSize);
+      sentai_storage_log("MSC R lba=%u cnt=%u", (unsigned)lba_idx,
+                         (unsigned)lba_count);
+      bool ok = true;
+      while (size >= kLbaSize) {
+        if (!FxUserMscRead(lba_idx, buf)) {
+          sentai_storage_log("MSC R FAIL lba=%u", (unsigned)lba_idx);
+          ok = false;
+          break;
         }
-        DCACHE_InvalidateByRange(reinterpret_cast<uint32_t>(lba->buffer),
-                                 lba->size);
+        ++lba_idx;
+        buf += kLbaSize;
+        size -= kLbaSize;
       }
-      if (errorCode != kStatus_Success) {
-        for (size_t i = 0;
-             i < sizeof(g_mscReadRequestBuffer) / sizeof(kInvalidDataPattern);
-             ++i) {
-          memcpy(&g_mscReadRequestBuffer[i * sizeof(kInvalidDataPattern)],
-                 &kInvalidDataPattern, sizeof(kInvalidDataPattern));
-        }
+      if (ok) {
+        /* M7 stores hit cache; flush so USB DMA reads fresh physical. */
+        DCACHE_CleanByRange(reinterpret_cast<uint32_t>(lba->buffer),
+                            lba->size);
+      } else {
+        /* Zero-fill the buffer so the host gets a clean error path
+         * rather than stale cache contents. */
+        std::memset(lba->buffer, 0, lba->size);
+        DCACHE_CleanByRange(reinterpret_cast<uint32_t>(lba->buffer),
+                            lba->size);
         error = kStatus_USB_InvalidRequest;
       }
       break;
+    }
     case kUSB_DeviceMscEventGetLbaInformation:
       lbaInformation = (usb_device_lba_information_struct_t *)param;
       lbaInformation->logicalUnitNumberSupported = LOGICAL_UNIT_SUPPORTED;
-      lbaInformation->logicalUnitInformations[0].lengthOfEachLba = kPageSize;
+      lbaInformation->logicalUnitInformations[0].lengthOfEachLba = kLbaSize;
       lbaInformation->logicalUnitInformations[0].totalLbaNumberSupports =
-          kUserBlockCount * kPagesPerBlock;
+          kLbaCount;
       lbaInformation->logicalUnitInformations[0].bulkInBufferSize =
-          sizeof(g_mscReadRequestBuffer);
+          kBulkBufBytes;
       lbaInformation->logicalUnitInformations[0].bulkOutBufferSize =
-          sizeof(g_mscWriteRequestBuffer);
+          kBulkBufBytes;
+      sentai_storage_log("MSC GetLbaInfo lba_size=%u total=%u",
+                         (unsigned)kLbaSize, (unsigned)kLbaCount);
       break;
     case kUSB_DeviceMscEventTestUnitReady:
       /*change the test unit ready command's sense data if need, be careful to
@@ -262,15 +246,17 @@ usb_status_t MscUms::Handler(uint32_t event, void *param) {
       break;
     case kUSB_DeviceMscEventReadCapacity:
       capacityInformation = (usb_device_capacity_information_struct_t *)param;
-      capacityInformation->lengthOfEachLba = kPageSize;
-      capacityInformation->totalLbaNumberSupports =
-          kUserBlockCount * kPagesPerBlock;
+      capacityInformation->lengthOfEachLba = kLbaSize;
+      capacityInformation->totalLbaNumberSupports = kLbaCount;
+      sentai_storage_log("MSC ReadCapacity lba=%u tot=%u",
+                         (unsigned)kLbaSize, (unsigned)kLbaCount);
       break;
     case kUSB_DeviceMscEventReadFormatCapacity:
       capacityInformation = (usb_device_capacity_information_struct_t *)param;
-      capacityInformation->lengthOfEachLba = kPageSize;
-      capacityInformation->totalLbaNumberSupports =
-          kUserBlockCount * kPagesPerBlock;
+      capacityInformation->lengthOfEachLba = kLbaSize;
+      capacityInformation->totalLbaNumberSupports = kLbaCount;
+      sentai_storage_log("MSC ReadFormatCap lba=%u tot=%u",
+                         (unsigned)kLbaSize, (unsigned)kLbaCount);
       break;
     default:
       error = kStatus_USB_InvalidRequest;

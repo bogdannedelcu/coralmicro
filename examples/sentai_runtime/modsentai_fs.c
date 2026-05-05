@@ -1,33 +1,33 @@
 // ============== sentai.fs — Filesystem (LittleFS) ==============
 // This file is #include'd from modsentai.c — do NOT compile separately.
 //
-// All public functions acquire sentai_lfs_lock (2000ms timeout) to serialise
+// All public functions acquire sentai_fs_lock (2000ms timeout) to serialise
 // MP filesystem access against the lfs_task (HTTP GET) and crash_log_write.
 // If the lock times out, OSError("lfs busy") is raised.
 
-extern int  sentai_lfs_lock(void);
-extern void sentai_lfs_unlock(void);
+extern int  sentai_fs_lock(void);
+extern void sentai_fs_unlock(void);
 
 // sentai.fs.read(path) -> bytes
 static mp_obj_t mod_sentai_fs_read(mp_obj_t path_obj) {
     _fs_check_usb();
     const char* path = mp_obj_str_get_str(path_obj);
-    if (!sentai_lfs_lock()) {
+    if (!sentai_fs_lock()) {
         mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("lfs busy"));
     }
     int size = sentai_fs_size(path);
     if (size < 0) {
-        sentai_lfs_unlock();
+        sentai_fs_unlock();
         mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("file not found"));
     }
     mp_obj_t result;
     if (size == 0) {
-        sentai_lfs_unlock();
+        sentai_fs_unlock();
         result = mp_obj_new_bytes((const uint8_t*)"", 0);
     } else {
         uint8_t* buf = m_new(uint8_t, size);
         int n = sentai_fs_read(path, buf, size);
-        sentai_lfs_unlock();
+        sentai_fs_unlock();
         result = mp_obj_new_bytes(buf, n > 0 ? n : 0);
         m_del(uint8_t, buf, size);
     }
@@ -39,22 +39,22 @@ static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_fs_read_obj, mod_sentai_fs_read);
 static mp_obj_t mod_sentai_fs_read_str(mp_obj_t path_obj) {
     _fs_check_usb();
     const char* path = mp_obj_str_get_str(path_obj);
-    if (!sentai_lfs_lock()) {
+    if (!sentai_fs_lock()) {
         mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("lfs busy"));
     }
     int size = sentai_fs_size(path);
     if (size < 0) {
-        sentai_lfs_unlock();
+        sentai_fs_unlock();
         mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("file not found"));
     }
     mp_obj_t result;
     if (size == 0) {
-        sentai_lfs_unlock();
+        sentai_fs_unlock();
         result = mp_obj_new_str("", 0);
     } else {
         uint8_t* buf = m_new(uint8_t, size);
         int n = sentai_fs_read(path, buf, size);
-        sentai_lfs_unlock();
+        sentai_fs_unlock();
         result = mp_obj_new_str((const char*)buf, n > 0 ? n : 0);
         m_del(uint8_t, buf, size);
     }
@@ -69,17 +69,17 @@ static const char b64_table[] =
 static mp_obj_t mod_sentai_fs_read_base64(mp_obj_t path_obj) {
     _fs_check_usb();
     const char* path = mp_obj_str_get_str(path_obj);
-    if (!sentai_lfs_lock()) {
+    if (!sentai_fs_lock()) {
         mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("lfs busy"));
     }
     int size = sentai_fs_size(path);
     if (size < 0) {
-        sentai_lfs_unlock();
+        sentai_fs_unlock();
         mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("file not found"));
     }
     uint8_t* buf = m_new(uint8_t, size > 0 ? size : 1);
     int n = sentai_fs_read(path, buf, size);
-    sentai_lfs_unlock();
+    sentai_fs_unlock();
     if (n <= 0) {
         m_del(uint8_t, buf, size > 0 ? size : 1);
         mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("read error"));
@@ -116,11 +116,11 @@ static mp_obj_t mod_sentai_fs_write(mp_obj_t path_obj, mp_obj_t data_obj) {
     const char* path = mp_obj_str_get_str(path_obj);
     mp_buffer_info_t bufinfo;
     mp_get_buffer_raise(data_obj, &bufinfo, MP_BUFFER_READ);
-    if (!sentai_lfs_lock()) {
+    if (!sentai_fs_lock()) {
         mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("lfs busy"));
     }
     int ok = sentai_fs_write(path, (const uint8_t*)bufinfo.buf, bufinfo.len);
-    sentai_lfs_unlock();
+    sentai_fs_unlock();
     return mp_obj_new_bool(ok);
 }
 static MP_DEFINE_CONST_FUN_OBJ_2(mod_sentai_fs_write_obj, mod_sentai_fs_write);
@@ -136,11 +136,11 @@ static mp_obj_t mod_sentai_fs_append(mp_obj_t path_obj, mp_obj_t data_obj) {
     const char* path = mp_obj_str_get_str(path_obj);
     mp_buffer_info_t bufinfo;
     mp_get_buffer_raise(data_obj, &bufinfo, MP_BUFFER_READ);
-    if (!sentai_lfs_lock()) {
+    if (!sentai_fs_lock()) {
         mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("lfs busy"));
     }
     int ok = sentai_fs_append(path, (const uint8_t*)bufinfo.buf, bufinfo.len);
-    sentai_lfs_unlock();
+    sentai_fs_unlock();
     return mp_obj_new_bool(ok);
 }
 static MP_DEFINE_CONST_FUN_OBJ_2(mod_sentai_fs_append_obj, mod_sentai_fs_append);
@@ -149,11 +149,11 @@ static MP_DEFINE_CONST_FUN_OBJ_2(mod_sentai_fs_append_obj, mod_sentai_fs_append)
 static mp_obj_t mod_sentai_fs_size(mp_obj_t path_obj) {
     _fs_check_usb();
     const char* path = mp_obj_str_get_str(path_obj);
-    if (!sentai_lfs_lock()) {
+    if (!sentai_fs_lock()) {
         return mp_obj_new_int(-1);
     }
     int result = sentai_fs_size(path);
-    sentai_lfs_unlock();
+    sentai_fs_unlock();
     return mp_obj_new_int(result);
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_fs_size_obj, mod_sentai_fs_size);
@@ -162,11 +162,11 @@ static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_fs_size_obj, mod_sentai_fs_size);
 static mp_obj_t mod_sentai_fs_exists(mp_obj_t path_obj) {
     _fs_check_usb();
     const char* path = mp_obj_str_get_str(path_obj);
-    if (!sentai_lfs_lock()) {
+    if (!sentai_fs_lock()) {
         return mp_obj_new_bool(0);
     }
     int exists = sentai_fs_file_exists(path) || sentai_fs_dir_exists(path);
-    sentai_lfs_unlock();
+    sentai_fs_unlock();
     return mp_obj_new_bool(exists);
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_fs_exists_obj, mod_sentai_fs_exists);
@@ -175,11 +175,11 @@ static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_fs_exists_obj, mod_sentai_fs_exists)
 extern int sentai_fs_format(void);
 static mp_obj_t mod_sentai_fs_format(void) {
     if (sentai_usb_drive_get()) sentai_usb_drive_set(0);
-    if (!sentai_lfs_lock()) {
+    if (!sentai_fs_lock()) {
         return mp_obj_new_bool(0);
     }
     int rc = sentai_fs_format();
-    sentai_lfs_unlock();
+    sentai_fs_unlock();
     return mp_obj_new_bool(rc);
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_fs_format_obj, mod_sentai_fs_format);
@@ -188,11 +188,11 @@ static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_fs_format_obj, mod_sentai_fs_format)
 static mp_obj_t mod_sentai_fs_remove(mp_obj_t path_obj) {
     _fs_check_usb();
     const char* path = mp_obj_str_get_str(path_obj);
-    if (!sentai_lfs_lock()) {
+    if (!sentai_fs_lock()) {
         mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("lfs busy"));
     }
     int rc = sentai_fs_remove(path);
-    sentai_lfs_unlock();
+    sentai_fs_unlock();
     return mp_obj_new_bool(rc == 0);
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_fs_remove_obj, mod_sentai_fs_remove);
@@ -201,11 +201,11 @@ static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_fs_remove_obj, mod_sentai_fs_remove)
 static mp_obj_t mod_sentai_fs_mkdir(mp_obj_t path_obj) {
     _fs_check_usb();
     const char* path = mp_obj_str_get_str(path_obj);
-    if (!sentai_lfs_lock()) {
+    if (!sentai_fs_lock()) {
         mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("lfs busy"));
     }
     int rc = sentai_fs_makedirs(path);
-    sentai_lfs_unlock();
+    sentai_fs_unlock();
     return mp_obj_new_bool(rc);
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_fs_mkdir_obj, mod_sentai_fs_mkdir);
@@ -230,11 +230,11 @@ static mp_obj_t mod_sentai_ls(mp_obj_t path_obj) {
     const char* path = mp_obj_str_get_str(path_obj);
     mp_obj_list_t* result = MP_OBJ_TO_PTR(mp_obj_new_list(0, NULL));
     listdir_ctx_t ctx = { .list = result };
-    if (!sentai_lfs_lock()) {
+    if (!sentai_fs_lock()) {
         mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("lfs busy"));
     }
     int n = sentai_fs_listdir(path, listdir_cb, &ctx);
-    sentai_lfs_unlock();
+    sentai_fs_unlock();
     if (n < 0) {
         mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("dir not found"));
     }

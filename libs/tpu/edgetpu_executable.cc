@@ -149,9 +149,48 @@ EdgeTpuExecutable::~EdgeTpuExecutable() {
     }                         \
   } while (0);
 
+/* Diagnostic stage tag set on each USB-failure return.  Codes registered
+ * in examples/sentai_runtime/error_codes.csv (0x0B60..0x0B63).  Cleared
+ * to 0 on every Invoke entry so a stale tag from a prior failed invoke
+ * never confuses a later report.
+ *
+ * Stage tag is checked + logged in CustomOpInvoke after the outer
+ * Invoke returns kTfLiteError; placed there (in edgetpu_op.cc text) so
+ * the format-string + printf code lives outside hot path entirely. */
+extern "C" volatile uint16_t g_sentai_tpu_invoke_fail_code = 0;
+
+/* Per-stage trace knob.  Off by default — when on, prints the dma_hints
+ * order + each USB-in chunk outcome to dmesg.  Toggled from MicroPython
+ * via sentai.diag.tpu_trace(0|1).  Trace helper lives in .sdram_text so
+ * the diagnostic noise doesn't bloat ITCM. */
+extern "C" volatile uint8_t g_sentai_tpu_trace = 0;
+__attribute__((noinline, cold, section(".sdram_text")))
+static void trace_hint(char tag, const char* name, uint32_t bytes,
+                       uint32_t offset) {
+  printf("[tpu] %c name=%s bytes=%lu off=%lu\r\n", tag,
+         name ? name : "(null)", (unsigned long)bytes, (unsigned long)offset);
+}
+__attribute__((noinline, cold, section(".sdram_text")))
+static void trace_event(char tag, int32_t v1, int32_t v2) {
+  printf("[tpu] %c v1=%ld v2=%ld\r\n", tag, (long)v1, (long)v2);
+}
+#define RETURN_IF_ERROR_S(expr, CODE) \
+  do {                                \
+    if (!(expr)) {                    \
+      g_sentai_tpu_invoke_fail_code = (CODE); \
+      return kTfLiteError;            \
+    }                                 \
+  } while (0);
+
+/* Invoke is hot path but the SEMC fetch overhead (~few hundred ns once
+ * the prefetch primes) is negligible against the 50-ms-class invoke
+ * cycle.  Moving it to .sdram_text frees ~3 KB of m_text (ITCM) which
+ * was at the 4-byte limit, blocking any diagnostic additions. */
+__attribute__((section(".sdram_text")))
 TfLiteStatus EdgeTpuExecutable::Invoke(const TpuDriver& tpu_driver,
                                        TfLiteContext* context,
                                        TfLiteNode* node) {
+  g_sentai_tpu_invoke_fail_code = 0;
   const TfLiteEvalTensor* input_tensor =
       tflite::micro::GetEvalInput(context, node, 0);
   const int input_size = tflite::micro::GetTensorShape(input_tensor).FlatSize();
@@ -189,10 +228,14 @@ TfLiteStatus EdgeTpuExecutable::Invoke(const TpuDriver& tpu_driver,
               break;
             }
             g_sentai_tpu_desc_cache_sent_params++;
+            if (g_sentai_tpu_trace)
+              trace_hint('P',
+                         dma_hint->meta()->name() ? dma_hint->meta()->name()->c_str() : nullptr,
+                         dma_hint->size_in_bytes(), dma_hint->offset_in_bytes());
             uint32_t t0 = tpu_cyc();
-            RETURN_IF_ERROR(tpu_driver.SendParameters(
+            RETURN_IF_ERROR_S(tpu_driver.SendParameters(
                 executable_->parameters()->data() + dma_hint->offset_in_bytes(),
-                dma_hint->size_in_bytes()));
+                dma_hint->size_in_bytes()), 0x0B60);
             g_sentai_tpu_cyc_params += (tpu_cyc() - t0);
             g_sentai_tpu_n_params   += 1;
             g_sentai_tpu_by_params  += dma_hint->size_in_bytes();
@@ -214,10 +257,12 @@ TfLiteStatus EdgeTpuExecutable::Invoke(const TpuDriver& tpu_driver,
               }
             }
             {
+              if (g_sentai_tpu_trace) trace_hint('I', name,
+                  dma_hint->size_in_bytes(), dma_hint->offset_in_bytes());
               uint32_t t0 = tpu_cyc();
-              RETURN_IF_ERROR(tpu_driver.SendInputs(
+              RETURN_IF_ERROR_S(tpu_driver.SendInputs(
                   input_tensor->data.uint8 + dma_hint->offset_in_bytes(),
-                  dma_hint->size_in_bytes()));
+                  dma_hint->size_in_bytes()), 0x0B61);
               g_sentai_tpu_cyc_input += (tpu_cyc() - t0);
               g_sentai_tpu_n_input   += 1;
               g_sentai_tpu_by_input  += dma_hint->size_in_bytes();
@@ -230,9 +275,12 @@ TfLiteStatus EdgeTpuExecutable::Invoke(const TpuDriver& tpu_driver,
               break;
             }
             output = output_layers_.at(name)->output_buffer();
+            if (g_sentai_tpu_trace) trace_hint('O', name,
+                dma_hint->size_in_bytes(), dma_hint->offset_in_bytes());
             uint32_t t0 = tpu_cyc();
-            RETURN_IF_ERROR(
-                tpu_driver.GetOutputs(output, dma_hint->size_in_bytes()));
+            RETURN_IF_ERROR_S(
+                tpu_driver.GetOutputs(output, dma_hint->size_in_bytes()),
+                0x0B63);
             g_sentai_tpu_cyc_output += (tpu_cyc() - t0);
             g_sentai_tpu_n_output   += 1;
             g_sentai_tpu_by_output  += dma_hint->size_in_bytes();
@@ -253,9 +301,12 @@ TfLiteStatus EdgeTpuExecutable::Invoke(const TpuDriver& tpu_driver,
             hint->any_hint_as_InstructionHint()->instruction_chunk_index();
         bitstream =
             executable_->instruction_bitstreams()->Get(ins_idx)->bitstream();
+        if (g_sentai_tpu_trace)
+          trace_event('N', ins_idx, (int32_t)bitstream->size());
         uint32_t t0 = tpu_cyc();
-        RETURN_IF_ERROR(
-            tpu_driver.SendInstructions(bitstream->data(), bitstream->size()));
+        RETURN_IF_ERROR_S(
+            tpu_driver.SendInstructions(bitstream->data(), bitstream->size()),
+            0x0B62);
         g_sentai_tpu_cyc_ins += (tpu_cyc() - t0);
         g_sentai_tpu_n_ins   += 1;
         g_sentai_tpu_by_ins  += bitstream->size();

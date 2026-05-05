@@ -953,6 +953,13 @@ bool TpuDriver::BulkOutTransfer(uint8_t endpoint,
   return true;
 }
 
+extern "C" volatile uint8_t g_sentai_tpu_trace;
+__attribute__((noinline, cold, section(".sdram_text")))
+static void trace_bulkin(char where, uint32_t v1, uint32_t v2) {
+  printf("[bulkin] %c v1=%lu v2=%lu\r\n", where,
+         (unsigned long)v1, (unsigned long)v2);
+}
+
 ssize_t TpuDriver::BulkInTransferInternal(uint8_t endpoint, uint8_t *data,
                                           uint32_t data_length) const {
   InitBulkSema();
@@ -960,6 +967,8 @@ ssize_t TpuDriver::BulkInTransferInternal(uint8_t endpoint, uint8_t *data,
   meta.sema   = s_bulk_sema;
   meta.status = kStatus_USB_Error;
   (void)xSemaphoreTake(s_bulk_sema, 0);
+
+  if (g_sentai_tpu_trace) trace_bulkin('S', endpoint, data_length);
 
   usb_status_t bulk_status = USB_HostEdgeTpuBulkInRecv(
       usb_instance_, endpoint, data, data_length,
@@ -973,6 +982,7 @@ ssize_t TpuDriver::BulkInTransferInternal(uint8_t endpoint, uint8_t *data,
       &meta);
 
   if (bulk_status != kStatus_USB_Success) {
+    if (g_sentai_tpu_trace) trace_bulkin('e', (uint32_t)bulk_status, 0);
     printf("USB_HostEdgeTpuBulkInRecv failed\r\n");
     return -(ssize_t)bulk_status;
   }
@@ -980,16 +990,36 @@ ssize_t TpuDriver::BulkInTransferInternal(uint8_t endpoint, uint8_t *data,
   if (xSemaphoreTake(meta.sema, pdMS_TO_TICKS(g_sentai_tpu_urb_timeout_ms))
         == pdFALSE) {
     g_sentai_tpu_take_failed++;
+    if (g_sentai_tpu_trace)
+      trace_bulkin('T', g_sentai_tpu_urb_timeout_ms, data_length);
     // Skip without cancel — see BulkOutTransferInternal for
     // rationale.  Cancel was corrupting TPU state.
     return -1;
   }
 
+  if (g_sentai_tpu_trace)
+    trace_bulkin('D', meta.bytes_transferred, (uint32_t)meta.status);
   if (meta.status == kStatus_USB_Success) {
     return meta.bytes_transferred;
-  } else {
-    return -meta.status;
   }
+  /* USB Bulk-IN short transfer: NXP's EHCI host stack reports a
+   * legitimate short-packet termination (device done, < requested
+   * bytes) as kStatus_USB_TransferFailed (= 11) with bytes_transferred
+   * set to whatever the device sent.  yolo_1 outputs are exact 64-byte
+   * multiples so this case never fires there; iarna's 3rd output
+   * (declared 7200 B, dma_hint requests 9600 B padded) terminates at
+   * 9472 B + status=Failed → the call loop bailed out as error and
+   * the whole invoke was rejected.  Treat short-but-nonzero as
+   * success and return the actual bytes; the outer BulkInTransfer
+   * loop interprets a short return as end-of-data and exits cleanly. */
+  if (meta.status == kStatus_USB_TransferFailed &&
+      meta.bytes_transferred > 0 &&
+      meta.bytes_transferred < data_length) {
+    if (g_sentai_tpu_trace)
+      trace_bulkin('s', meta.bytes_transferred, data_length);
+    return meta.bytes_transferred;
+  }
+  return -meta.status;
 }
 
 // Zero-copy bulk IN.  Old code received into DTCM staging, memcpy'd
@@ -1012,6 +1042,12 @@ bool TpuDriver::BulkInTransfer(uint8_t *data, uint32_t data_length) const {
     if (bytes_received > 0) {
       current_chunk += bytes_received;
       bytes_left    -= (uint32_t)bytes_received;
+      /* Short transfer = device terminated stream.  Don't issue
+       * another URB; remaining buffer stays as caller initialised
+       * (zero from arena init or prior content).  Output activations
+       * smaller than the dma_hint padded size are valid; OutputLayer
+       * Relayout extracts only the real tensor bytes. */
+      if ((uint32_t)bytes_received < chunk_size) break;
     } else {
       return false;  // printf removed: CDC-ACM feedback loop
     }

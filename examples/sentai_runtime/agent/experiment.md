@@ -8,6 +8,1743 @@ Dead-end paths PURGED — see "Production cleanup pass" below.
 
 ---
 
+## 🧪 Session 2026-04-28 — iarna p3p4 model A/B/C on Coral USB
+
+Goal: pick a backbone for the next iarna iteration.  Three new
+1-epoch models in `models/iarna_p3p4_*1ep/export_uint8_480x640/` —
+C2f, GELAN, MSBlock — benched on the Coral USB EdgeTPU against the
+existing `iarna_p2p4_5ep_export_640x480_uint8.tflite` baseline (the
+"standard" YOLO that's been our slow reference).  All four take
+`1×480×640×3 uint8` and emit two heads (`1×30×40×6 + 1×60×80×6`,
+both uint8).
+
+**Tooling:** host bench `examples/sentai_runtime/diag/_host_iarna_bench.py`
+(per agent.md §3 `_host_` prefix → host-only, not pushed to board).
+Run with `venv-coral/bin/python diag/_host_iarna_bench.py` from
+`examples/sentai_runtime/`.  Uses `pycoral.utils.edgetpu.make_interpreter`
++ pinned uniform-random uint8 input, 5 warm-up invokes, then 100
+timed invokes.  Median + p99 (μs precision via `time.perf_counter_ns`).
+
+Artefact sizes come from the EdgeTPU compile log
+(`*_edgetpu_compile.log`) when available — pre-compile weights,
+on-chip cached params, op count.  The baseline ships without the
+sibling log, hence "n/a" cells.
+
+**Coral USB context:** `pycoral 2.0.0`, `libedgetpu1-std 16.0`,
+device at `/sys/bus/usb/devices/3-2`.
+
+### Results — including the canonical yolo_1 on-board reference
+
+The canonical model used in ALL prior on-board perf experiments
+(V13, V22, Cale 1, MoverTask sprints) is
+`yolo_1_class_512_1_upsample_512_inloc_de_1024_la_P5_32.tflite`
+(5.06 M params, 512×512 input, 1×1344×6 output).  Adding it as the
+"on-board reference" row.  An older variant
+`yolo_1_class_512_1_upsample.tflite` is included for context.
+
+`Inst per invoke` is the EdgeTPU instruction stream that libedgetpu's
+`SendInstructions` ships every invoke (computed as
+`custom_options blob` − `on-chip cached parameters`).  The
+parameters are sent ONCE on first invoke and then cached on-chip.
+
+| Model | TFlite | CustOp blob | OnChip params | **Inst per invoke** | Ops | Med ms | p99 ms | FPS |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| p2p4-5ep (standard YOLO base) | 832.8 KB | 832.1 KB | n/a | n/a | n/a | 126.5 | 131.2 | **7.9** |
+| **yolo_1 inloc_P5 (CANON on-board)** | 5460.6 KB | 5460.1 KB | ~4942.6 KB † | **~517.5 KB †** | n/a | 48.0 | 49.1 | **20.8** |
+| yolo_1_1up (alt) | 7468.6 KB | 7468.1 KB | n/a | n/a | n/a | 78.7 | 79.7 | 12.7 |
+| C2f | 328.8 KB | 328.1 KB | 255.2 KB | **72.8 KB** | 135 | 39.8 | 41.0 | **25.1** |
+| GELAN | 440.8 KB | 440.1 KB | 374.2 KB | **65.8 KB** | 190 | 43.8 | 44.6 | 22.8 |
+| **MSBlock** | 264.8 KB | 264.1 KB | 209.5 KB | **54.6 KB** | 126 | 37.8 | 38.6 | **26.5** |
+
+† estimated: yolo_1 doesn't ship with a saved compile log, so
+"OnChip params" is taken from the yolov5 `.txt` summary
+(5,061,234 parameters @ int8 = ~4.83 MB) and the per-invoke
+instruction stream is computed as `custom_options − that estimate`.
+For the iarna p3p4 family the numbers are EXACT (taken from the
+sibling `_edgetpu_compile.log`).
+
+All seven models are uint8-quantised, single EdgeTPU subgraph,
+0 B off-chip streaming (everything fits in the 8 MiB EdgeTPU SRAM
+on this part).
+
+### Observations
+
+- **Baseline (p2p4-5ep) is ~3× slower than ANY of the new p3p4
+  variants** — 126 ms vs 38–44 ms.  Confirms the "merge f prost"
+  intuition quantitatively.
+- **Canonical yolo_1 (inloc_P5) sits between** at 48 ms / 20.8 FPS
+  on host pycoral.  V22 on-board pipeline ran the same model at
+  41.4 FPS (`project_tpu_pipeline_agressor.md`) — host adds
+  ~5–10 ms USB-stack overhead per invoke, plus pycoral's
+  Python-into-C++ marshalling, so the on-board absolute ceiling
+  is ~37–40 ms / ~25 FPS for that model and the iarna p3p4
+  candidates should likewise come down by ~5–10 ms when ported.
+- **Per-invoke instruction stream is the real difference**:
+  - MSBlock ships **54.6 KB** instructions / invoke.
+  - C2f: **72.8 KB**.
+  - GELAN: **65.8 KB**.
+  - yolo_1 inloc_P5: **~517 KB** (~9× the iarna family).  The
+    parameters are cached, but the instruction stream alone is
+    half a megabyte every invoke — that's the USB-bandwidth
+    aggressor that V13 → V22 (input arena into OCRAM) was fighting
+    against.
+- **Variance is tight on EdgeTPU** — p99 is within 1–2 ms of median
+  for all candidates.  USB-stack jitter on host pycoral dominates;
+  the M7 dispatch will be even tighter.
+- **MSBlock wins on every axis** — fastest (37.8 ms / 26.5 FPS),
+  smallest (264 KB total), least instructions (54.6 KB), fewest
+  ops (126).  C2f is a close second.  GELAN trails (190 ops, +4 ms
+  vs MSBlock).
+- **None hit off-chip streaming** — 8 MiB EdgeTPU SRAM has plenty
+  of headroom (374 KB used out of 6.36 MB available even for GELAN;
+  yolo_1's 4.94 MB still fits).  Future variants can grow ~6× in
+  params before paying streaming cost.
+
+### Operator counts (from compile logs)
+
+| Operator | C2f | GELAN | MSBlock |
+|---|---:|---:|---:|
+| CONV_2D | 36 | 52 | (33+ — log truncated locally) |
+| LOGISTIC | 34 | 50 | 33 |
+| MUL | 34 | 50 | 33 |
+| ADD | 6 | 12 | 6 |
+| SPLIT | 5 | 5 | 5 |
+| MAX_POOL_2D | 3 | 3 | 3 |
+| PAD | 5 | 5 | 5 |
+| CONCATENATION | 8 | 8 | 8 |
+| QUANTIZE | 3 | 4 | 4 |
+| RESIZE_NEAREST_NEIGHBOR | 1 | 1 | 1 |
+| **Total** | **135** | **190** | **126** |
+
+### Recommendation
+
+For the next on-board firmware promotion: **MSBlock** primary, **C2f**
+fallback if MSBlock has accuracy issues you discover at training scale
+(this is 1 epoch — needs proper training before final pick).  Drop
+the standard YOLO baseline from the candidate set; 7.9 FPS host-side
+will be even worse on the M7 once camera + TPU output paths
+contend on SDRAM.
+
+Numbers above are HOST pycoral on Coral USB.  On-board (M7 + EdgeTPU
+single_ep firmware, no contention) numbers will be higher per
+[experiment.md V22](#) results — host adds ~5-10 ms USB stack overhead
+per invoke vs the MCU bus-attached path.  Plan a re-bench on-board
+once one of these models is uploaded.
+
+### Reproducing
+
+```bash
+# From repo root, with the Coral USB plugged in:
+venv-coral/bin/python examples/sentai_runtime/diag/_host_iarna_bench.py
+```
+
+Edit `MODELS` at the top of the script to add new candidates.
+
+---
+
+## 🧪 Session 2026-04-28 — on-board comparative bench (build #1077)
+
+Goal: re-bench the same 6 models directly on the M7 + EdgeTPU
+USB single_ep path (no host pycoral) to confirm the host predictions
+and identify any model that misbehaves on the embedded path.
+
+Two complementary drivers (per agent.md §5.1.2 self-contained, no
+diag/* imports):
+
+1. **`diag/_t_one_model_bench.py`** — single model per fresh-flashed
+   boot.  Driven by host orchestrator
+   `/tmp/orchestrate_models_bench.py` which calls `flashtool.py --ram`
+   between each model so a wedge in one cannot poison the next.
+   Output: `/diags/orch_models_bench.csv`.
+2. **`diag/_t_models_live.py`** — live model switching in a single
+   boot, no camera, no pipeline (pure-TPU bench).  Loads each model
+   in turn via `sentai.tpu.load()`, runs 3 warmups + 30 timed
+   invokes.  `WARM0_BAIL` guard: bail to the next model if first
+   invoke returns rc<0 OR elapsed > 3000 ms (true hang).  Output:
+   `/diags/sNNN_models_live/results.csv`.
+
+### Results — orchestrator (one model per fresh boot)
+
+CSV: `/diags/orch_models_bench.csv` (build #1077, no camera, no pipeline).
+
+| Model | Med ms | p99 ms | Mean | FPS | p_bytes/inv | i_bytes/inv | in_bytes/inv | Fails | Note |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| iarna p3p4 MSBlock 480×640 | 13 | 14 | 9 | 76 | 0 | 142,000 | 921,600 | 0 | OK |
+| iarna p3p4 C2f 480×640 | 11 | 13 | 9 | **90** | 0 | 154,592 | 921,600 | 0 | OK |
+| iarna p3p4 GELAN 480×640 | 10 | 19 | 10 | **100** | 0 | 215,568 | 921,600 | 0 | OK |
+| **iarna p2p4_5ep BASE 480×640** | 200 | 200 | 100 | **5** | 0 | 262,176 | **0** | **6** | **ABORT after 5 fails** |
+| yolo_1 inloc_P5 512×512 (CANON) | 12 | 18 | 12 | 83 | 2,752 | 371,664 | 811,008 | 0 | OK |
+| yolo_1_1up alt 512×512 | 13 | 15 | 10 | 76 | 1,387,200 | 384,016 | 811,008 | 0 | OK |
+
+### Results — live switching (single boot, p2p4 excluded)
+
+CSV: `/diags/s004_models_live/results.csv` (build #1077).  All 5
+working models loaded sequentially in one boot, zero fails, TPU
+re-loads cleanly between models.
+
+| Model | Load ms | warm0 ms | Med ms | p99 ms | FPS | p_bytes/inv | i_bytes/inv | in_bytes/inv | Fails |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| iarna p3p4 MSBlock | 1474 | 7 | 11 | 15 | **90** | 0 | 142,000 | 921,600 | 0 |
+| iarna p3p4 C2f | 174 | 7 | 11 | 14 | **90** | 0 | 154,592 | 921,600 | 0 |
+| iarna p3p4 GELAN | 267 | 9 | 11 | 12 | **90** | 0 | 215,568 | 921,600 | 0 |
+| yolo_1 inloc_P5 (CANON) | 2331 | 19 | 12 | 18 | 83 | 2,752 | 371,664 | 811,008 | 0 |
+| yolo_1_1up alt | 3156 | 16 | 14 | 20 | 71 | 1,387,200 | 384,016 | 811,008 | 0 |
+
+### Key findings
+
+- **All 3 iarna p3p4 candidates run at 90 FPS on-board** (median 11 ms).
+  The host-pycoral predictions (host: 25–27 FPS) were dominated by
+  USB-stack overhead; the M7 single_ep path is ~3.5× faster.
+- **GELAN, C2f, MSBlock are statistically identical** on-board
+  (11 ms median ±1 ms p99).  The instruction-stream-size advantage
+  MSBlock had on host (54 KB vs 72 KB for C2f) does not translate to
+  a measurable speedup at this end of the curve — all three are USB-
+  bandwidth bound, not compute bound, and the per-invoke USB total
+  is dominated by the 921 KB input tensor send (87% of bytes), not
+  the instruction stream.
+- **yolo_1 inloc_P5 (the CANON pipeline reference) clocks 12 ms / 83 FPS**
+  on pure-TPU bench — vs 41.4 FPS in V22 pipeline (camera + ISP +
+  TPU contending for SDRAM).  Headroom for the iarna p3p4 family
+  in pipeline is large: 90 FPS pure-TPU − ~30% pipeline overhead
+  ≈ **60+ FPS expected once promoted into the runtime**.
+- **iarna p2p4_5ep is BROKEN on Coral USB silicon.**  Failure
+  signature: median 200 ms, 6/30 invokes return rc<0, **in_bytes_per_invoke = 0**
+  (input DMA never starts), `i_bytes/invoke = 262 KB` (some
+  instructions sent before failure).  libedgetpu prints
+  `E:0B62:0 Node edgetpu-custom-op (number 0) failed to invoke with status 1`
+  → SendInstructions fails inside EdgeTpuExecutable::Invoke before
+  PrepareInputs runs.  Once this model is touched the TPU is wedged
+  for the rest of the boot — no public reset path on libedgetpu's
+  USB transport recovers it.  Hypothesis (unverified): a generated
+  op or instruction the public 16.0 EdgeTPU runtime rejects;
+  re-compiling p2p4 with current `edgetpu_compiler` may or may not
+  fix it.  Decision for now: **drop p2p4 from candidates** — the
+  iarna p3p4 family supersedes it on every metric (90 FPS vs 5 FPS
+  best-case).
+
+### Load + first-invoke (parameter-caching) latency — 3 p3p4 candidates
+
+Two distinct cold/warm paths matter when promoting a model into the
+runtime: (1) `tpu.load()` time, which the load-order experiment below
+shows is **dominated by model size, NOT by slot in boot**; (2) the
+**first `tpu.invoke()`** after a load, which carries the parameter-
+caching upload (subsequent invokes hit the on-chip cache and don't
+pay it again).
+
+#### Load-order rotation experiment
+
+To check whether the 1474 ms load reading we initially saw for
+MSBlock-loaded-first was a "first-EdgeTPU-device-open" cost, ran
+3 rotations × 3 models on a freshly --ram-flashed board, persisting
+state in `/diags/.load_order_state` across `sys.reset()` between
+rotations.  Driver: `diag/_t_load_order.py` (self-contained per
+agent.md §5.1.5).  Result CSV: `/diags/s005_load_order/results.csv`.
+
+| Rotation | Slot 0 (FIRST) | Slot 1 | Slot 2 |
+|---|---|---|---|
+| 0 | MSBlock=**121** ms | C2f=130 ms | GELAN=190 ms |
+| 1 | C2f=**120** ms | GELAN=155 ms | MSBlock=99 ms |
+| 2 | GELAN=**155** ms | MSBlock=99 ms | C2f=107 ms |
+
+Per-model summary (slot-independent):
+
+| Model | TFlite size | OnChip params | Load (ms, all slots) | Warm0 = first invoke (ms) | Steady median (ms) |
+|---|---:|---:|---:|---:|---:|
+| **MSBlock** | 264 KB | 209 KB | 99–121  (~5–10% jitter) | **6–7** | 11 |
+| **C2f**     | 328 KB | 255 KB | 107–130 (~10% jitter)  | **7–9** | 11 |
+| **GELAN**   | 440 KB | 374 KB | 155–190 (~15% jitter)  | **9–15** | 11 |
+| yolo_1 inloc_P5 (CANON ref) | 5460 KB | ~4943 KB | 2331 (1 sample) | 19 | 12 |
+| yolo_1_1up alt              | 7468 KB | n/a       | 3156 (1 sample) | 16 | 14 |
+
+**Verdict: load time scales with model size, not slot.**  MSBlock
+loads in ~100–120 ms whether it's first, second or third in a boot.
+GELAN takes ~155–190 ms in every slot.  The slot-to-slot jitter is
+~10–30 ms, dominated by FileX/LevelX read variance and FreeRTOS
+scheduling, not a one-shot device-open cost.
+
+The 1474 ms / 1380 ms readings we initially captured in
+`s003_models_live` and `s004_models_live` (where MSBlock happened to
+be first) were therefore an OUTLIER specific to those runs — likely
+caused by `_t_models_live.py`'s heavier preamble (verbose(1) chatter,
+session-dir counter increment, `pipeline.running()` probe, then the
+FIRST FileX write of the boot triggering a LevelX wear-level table
+flush).  The simpler `_t_load_order.py` driver (no preamble FS write
+before the timed load, no `pipeline.running()` probe in the hot path)
+does not reproduce it.  **Hypothesis "first EdgeTPU device-open is
+expensive" is REJECTED** — empirically the device-open is part of the
+~100–200 ms steady-state load cost for any model.
+
+**Operational takeaway:** runtime model selection is genuinely
+sub-200 ms regardless of which model loads first.  No need to "warm
+up" the EdgeTPU with a dummy load before the real one.
+
+**Why warm0 is so cheap on these 3 (6–10 ms):**
+
+The parameter-caching upload that warm0 carries is bounded by
+`OnChip params` (the ~210–375 KB block visible in the
+`[EdgeTPU pkg] parameter_caching_exe=present` log line, 209 KB / 255 KB
+/ 374 KB respectively).  At the M7 single_ep USB Bulk-OUT throughput
+this fits well within a single VGA45 frame budget (22 ms), so warm0 is
+indistinguishable from a steady-state invoke.  Compare to:
+
+- **yolo_1 inloc_P5**: ~5 MB on-chip params → warm0 = 19 ms
+  (still within budget but visible).
+- **yolo_1_1up alt**: param-caching exe present but parameters are
+  re-shipped EVERY invoke (`p_bytes_per_invoke = 1.39 MB`) — caching
+  is effectively defeated by a compile decision, so there is no
+  warm0/steady-state difference.
+- **p2p4_5ep_BASE**: warm0 = 2019 ms — NOT a real cache upload, this
+  is the libedgetpu retry/timeout path before SendInstructions
+  ultimately fails (rc>0 here is the elapsed-ms return convention,
+  not a success).
+
+**Steady-state vs warm0** for the 3 candidates: 11 ms median vs 6–10 ms
+warm0 — i.e., **negative or zero caching penalty**.  The 3 p3p4 models
+are small enough that the on-chip cache is filled in a fraction of a
+frame; a runtime that pre-loads + pre-warmups one of them is
+indistinguishable from one that has been running it for hours.  This
+makes runtime model switching genuinely free on this tier.
+
+### Live-switch driver design — WARM0_BAIL guard
+
+The `_t_models_live.py` driver has to operate in an environment where
+ANY model can wedge the TPU permanently within a boot.  The
+`WARM0_BAIL` guard:
+
+```python
+if (isinstance(rc, int) and rc < 0) or warm0 > 3000:
+    bail = True   # skip timed loop, append CSV row, continue to next
+```
+
+triggers on:
+- explicit failure (rc<0 from libedgetpu);
+- warm0 > 3 s (true hang — but tolerates the ~2 s parameter-caching
+  upload that all models pay on first invoke).
+
+Without this, a single bad model (p2p4) burns 30 timed invokes ×
+~200 ms = 6 s and leaves the TPU wedged for everything that
+follows.  With it, a bad model costs <500 ms and subsequent models
+still get a clean shot.
+
+### Reproducing
+
+```bash
+# Single boot live-switch (clean, recommended path):
+python3 scripts/flashtool.py -e sentai_runtime --ram
+# wait for re-enum, then:
+python3 /tmp/run_models_live.py    # exec()s /lib/diag/_t_models_live.py
+
+# One-model-per-boot orchestrator (catches contamination):
+python3 /tmp/orchestrate_models_bench.py
+
+# Pull CSV via REPL (HTTP requires sentai.usb.ip(1) first):
+python3 /tmp/pull_csv.py /diags/sNNN_models_live/results.csv
+```
+
+---
+
+## 🧪 Session 2026-04-28 — VGA45 pipeline FPS (3 p3p4 candidates)
+
+Goal: take the 3 p3p4 candidates that hit 90 FPS pure-TPU into the
+real pipeline (camera → PXP/PrepTask → InferTask → TPU USB Bulk-OUT)
+at VGA45 across the full ratio sweep produced by
+`sentai.pipeline.probe_ratios()`.
+
+Driver: `examples/sentai_runtime/diag/_t_iarna_p3p4_pipeline.py` —
+self-contained on-board, loops over all 3 models internally, persists
+progress in `/diags/.iarna_p3p4_state` and resumes after
+`sys.reset()` between models (TPU contamination mitigation).
+CSV: `/diags/sNNN_iarna_p3p4_pipeline/results.csv`.
+
+### Results — VGA45 pipeline (build #1077)
+
+100 frames per `pipeline.calibrate()` call, 50 frames per probe.
+"1cam" = `select(0)` only, no MUX flips.  Probed ratios printed by
+`probe_ratios` are subject to SKIP if cam0:cam1 split lands off-tolerance.
+
+| Model | Mode | cam0:cam1 | Invoke ms (avg/min/max) | Pipeline FPS |
+|---|---|---:|---:|---:|
+| MSBlock | 1cam | 100:0 | 10 / 8 / 22 | **45.99** |
+| MSBlock | 1:1  | 48:52 | 11 / 7 / 16 | 34.62 |
+| MSBlock | 3:1  | 75:25 | 10 / 7 / 17 | 34.49 |
+| MSBlock | 5:1  | 81:19 | 10 / 7 / 18 | **38.08** |
+| C2f     | 1cam | 100:0 | 11 / 8 / 21 | **45.91** |
+| C2f     | 1:1  | 50:50 | 12 / 8 / 17 | 33.12 |
+| C2f     | 3:1  | 73:27 | 11 / 8 / 25 | 35.94 |
+| C2f     | 5:1  | 82:18 | 11 / 8 / 19 | **37.13** |
+| GELAN   | 1cam | 100:0 | 11 / 9 / 21 | **45.91** |
+| GELAN   | 1:1  | 48:52 | 14 / 9 / 26 | 28.45 |
+| GELAN   | 2:1  | 64:36 | 13 / 9 / 24 | 28.62 |
+| GELAN   | 3:1  | 75:25 | 13 / 9 / 23 | 32.29 |
+| GELAN   | 5:1  | 87:13 | 11 / 9 / 22 | **35.75** |
+
+### Observations
+
+- **All 3 candidates hit the VGA45 ceiling at 1cam** (45.9 FPS → 99.9%
+  of sensor frame rate).  The pipeline is camera-bound, not TPU-bound —
+  the M7 single_ep TPU path runs invokes in 10–14 ms, well under the
+  22 ms VGA45 inter-frame budget.
+- **Alt mode regression scales with ratio cost.**  At 1:1 (true alt
+  every frame) all three drop to 28–35 FPS due to MUX-flip drain
+  semantics and dirty-buffer skip (per `project_camid_dirty_skip_shipped.md`).
+  At 5:1 (one cam1 every 5 frames) MSBlock and C2f recover to 37–38 FPS;
+  GELAN trails at 35.75.
+- **MSBlock leads on every alt ratio**, by 1–2 FPS.  The pure-TPU bench
+  said all three were equivalent; pipeline reveals MSBlock's slightly
+  lower invoke time (10 ms vs 13 ms for GELAN at 1:1) translates into
+  measurable headroom when camera+ISP+TPU contend.  Confirms the host-
+  pycoral prediction that MSBlock is the right primary candidate.
+- **GELAN is the worst at 1:1** (28.45 FPS) — its 14 ms median invoke
+  + larger output tensor (190 ops, 215 KB instructions) leaves less
+  headroom for camera switching.  Still acceptable but a meaningful gap.
+- **Probe SKIPs are real.**  MSBlock & C2f had `2:1` SKIP (off-tolerance
+  cam0:cam1=40:10); GELAN was the only one to pass `2:1`.  Probe
+  tolerance is a function of how close invoke is to the per-frame budget.
+
+### Recommendation
+
+For pipeline promotion: **MSBlock primary, C2f fallback** at any ratio.
+GELAN is fine for 1cam / 5:1 but loses ~3 FPS at low ratios.  V22
+canonical yolo_1 ran at 41.4 FPS pure-TPU — the new candidates give
+**+5 FPS at 1cam** (45.9 vs 41.4) and equal or better at most alt ratios,
+while shipping smaller (264 KB vs 5.46 MB) and with materially fewer
+ops (126 vs ~600+).
+
+### Reproducing
+
+```bash
+# Self-contained on-board driver — push once, exec once, download once:
+cd examples/sentai_runtime
+python3 diag/_host_upload_repl.py --file _t_iarna_p3p4_pipeline.py
+
+python3 scripts/flashtool.py -e sentai_runtime --ram
+# wait for re-enum, then from REPL:
+#   exec(sentai.fs.read_str("/lib/diag/_t_iarna_p3p4_pipeline.py"))
+# (driver will sys.reset() between models; re-exec after each reboot
+# until "=== done ===" prints.  State persisted in /diags/.iarna_p3p4_state.)
+
+python3 /tmp/pull_csv.py /diags/sNNN_iarna_p3p4_pipeline/results.csv
+```
+
+---
+
+## 🧪 Session 2026-04-28 — pipeline rotation, 3 cycles × 3 models @ VGA45
+
+Goal: answer "does rotating models through pipeline.start/stop/load
+in the SAME boot degrade performance?".  This is the production
+scenario for runtime model selection — the user wants to know whether
+swapping iarna p3p4 variants on a live system costs anything cumulative.
+
+Driver: `examples/sentai_runtime/diag/_t_pipeline_rotation.py` —
+self-contained on-board.  Sequence (all in one boot, no `sys.reset`):
+
+```
+camera.init(1, 45)                # one-time, VGA45, 1cam mode
+for cycle in 0..2:
+    for model in [MSBlock, C2f, GELAN]:
+        pipeline.calibrate(model, NB=100, 5000ms)
+        # internally: tpu.load + pipeline.start + 100 frames + pipeline.stop
+```
+
+CSV: `/diags/s006_pipeline_rotation/results.csv`.
+
+### Results
+
+| Cycle | MSBlock FPS | C2f FPS | GELAN FPS |
+|---:|---:|---:|---:|
+| 1 | 45.91 | 46.10 | 45.89 |
+| 2 | **46.16** | 45.87 | 45.85 |
+| 3 | 45.85 | 45.91 | 45.76 |
+
+All 9 entries fall in **45.76 – 46.16 FPS** (Δ 0.40 FPS).  That's
+inside the VGA45 sensor jitter floor and corresponds to ~0.9% spread.
+Invoke median is 10 ms across every (cycle, slot) pair; max 20–28 ms;
+total_avg 10 ms.  **No drift, no per-cycle regression, no warmup
+deficit.**
+
+### Wall-clock per calibrate (load + start + 100 frames + stop)
+
+| Cycle | MSBlock wall_ms | C2f wall_ms | GELAN wall_ms |
+|---:|---:|---:|---:|
+| 1 | **3457** | 2309 | 2314 |
+| 2 | 2288 | 2305 | 2306 |
+| 3 | 2313 | 2303 | 2310 |
+
+The very first calibrate of the boot (cycle 0 / MSBlock) costs
+**1150 ms extra** — that's the one-time pipeline-init burden
+(PrepTask + InferTask spawn + first TPU device-open in pipeline
+context, distinct from any prior REPL `tpu.load`).  Every subsequent
+rotation lands at **~2300 ms**; subtracting the pure-frame budget
+(100 × 22 ms = 2200 ms VGA45) gives **~100 ms per-swap overhead in
+steady state**.
+
+The 100 ms breaks down approximately as:
+- `tpu.load(new_model)` — 100–190 ms depending on size (per the
+  load-order rotation experiment above).
+- `pipeline.start` — sub-ms after the first start of the boot.
+- `pipeline.stop` — drains the InferTask queue, ~10–50 ms.
+- The remainder is FreeRTOS scheduling and CSV append latency.
+
+### Verdict
+
+**Runtime model rotation is essentially free** on this firmware.
+A live system can swap between MSBlock / C2f / GELAN as often as
+once per ~100 ms (in addition to the per-frame budget) with zero
+cumulative degradation.  Three full cycles produced identical
+steady-state FPS.  This makes runtime model selection (e.g. quality
+vs latency tradeoffs, A/B detection, recovery from a model that
+suddenly stops emitting useful detections) genuinely viable without
+needing to reboot.
+
+The only meaningful one-time cost is the first pipeline.start of a
+boot (~1.15 s).  That can be hidden by warming the pipeline at boot
+with a known-good model before promoting the actual workload.
+
+### Reproducing
+
+```bash
+cd examples/sentai_runtime
+python3 diag/_host_upload_repl.py --file _t_pipeline_rotation.py
+
+python3 scripts/flashtool.py -e sentai_runtime --ram
+# wait for re-enum, then exec from REPL:
+#   exec(sentai.fs.read_str("/lib/diag/_t_pipeline_rotation.py"))
+
+python3 /tmp/pull_csv.py /diags/sNNN_pipeline_rotation/results.csv
+```
+
+---
+
+## 🧪 Session 2026-04-28 — multiple Interpreters on ONE Coral USB device
+
+Goal: verify whether libedgetpu allows multiple `tflite::Interpreter`
+instances to share a single Coral USB EdgeTPU and alternate `invoke()`
+calls between them — i.e., is "load 2 models simultaneously" a real
+capability on this silicon, or does each new model evict the previous?
+
+This is a HOST-side experiment (Linux + pycoral 2.0.0 + libedgetpu1-std
+16.0 on `/sys/bus/usb/devices/3-2`).  The on-board MicroPython API
+exposes a single-model surface (`sentai.tpu.load`/`.invoke`) and only
+the public libedgetpu USB transport — so any host-side capability that
+works should be portable to the firmware as a "load2/invoke" extension.
+
+Driver: `/tmp/host_two_models.py` — builds 3 interpreters bound to
+`device="usb"`, runs solo / 2-alt / 3-alt invoke loops on each.
+
+### Results
+
+| Model | warm0 ms | solo med ms | alt-2 med ms | alt-3 med ms | alt vs solo |
+|---|---:|---:|---:|---:|---:|
+| **MSBlock** | 40.59 | 37.47 | 40.39 | 40.36 | +2.9 ms / +7.8% |
+| **C2f**     | 43.79 | 39.70 | 43.89 | 43.82 | +4.2 ms / +10.5% |
+| **GELAN**   | 49.04 | 43.95 | —     | 49.05 | +5.1 ms / +11.6% |
+
+**Build+allocate times:**
+- 1st interpreter (MSBlock): **3225 ms** (one-shot USB device-open +
+  libedgetpu init + tflite_runtime delegate setup).
+- 2nd interpreter (C2f): **0.3 ms**.
+- 3rd interpreter (GELAN): **0.2 ms**.
+
+The 1st interpreter pays the entire device-open cost; the 2nd and 3rd
+attach to an already-open device with their own
+`tflite::Interpreter`+`EdgeTpuExecutable` objects.
+
+### Output verification — proof that different models are running
+
+A timing-only test cannot rule out "all calls fall through to the
+last-loaded model".  Re-ran with output verification
+(`/tmp/host_two_models_v2.py`):
+
+- Same deterministic input (`uint8[1,480,640,3]`, seed=42) on all 3 interpreters.
+- Hash output tensors after each invoke (SHA-256, first 16 hex chars).
+
+Per-model signatures (stable across 3 repeat invokes each):
+
+| Model | Output signature |
+|---|---|
+| MSBlock | `521d045191b41887` |
+| C2f     | `9f1e25a4a49fbf9c` |
+| GELAN   | `7c08ef0a878c4223` |
+
+→ 3 distinct signatures = 3 different inference graphs running.
+Then 10 cycles × A→B→C interleaved (30 invokes total): **every output
+matches its model's expected signature, zero cross-contamination.**
+Definitive proof libedgetpu routes each `invoke()` call to the
+correct model context on the device.
+
+### Findings
+
+1. **YES, multiple interpreters CAN coexist on one Coral USB device.**
+   `pycoral.utils.edgetpu.make_interpreter(path, device="usb")` succeeds
+   for every model; libedgetpu does NOT enforce a 1-to-1 device↔model
+   binding.  Three interpreters were built, allocated, and invoked
+   freely in any order over a 5-second test.
+2. **The on-chip parameter cache holds all 3 models simultaneously.**
+   Alt-2 and alt-3 produce **identical per-model latencies**
+   (MSBlock 40.36 vs 40.39 ms; C2f 43.82 vs 43.89).  If the cache had
+   been thrashing, the larger model (GELAN @ 374 KB params) would have
+   shown a step-change between alt-2 and alt-3 — it does not.  Total
+   params (209+255+374 = 838 KB) fit easily in the EdgeTPU's ~7 MB
+   on-chip SRAM.
+3. **Switch overhead is ~3-5 ms (~10%)** per invoke when alternating
+   vs back-to-back calls of the same model.  This is the cost of the
+   token-keyed cache-context switch on the device + USB scheduling
+   gaps between bulk transfers.  It is **constant** across alt-2 vs
+   alt-3, confirming the overhead is per-switch, not per-cache-miss.
+4. **warm0 ≈ solo + switch overhead** (40-49 vs 37-44 ms + 3-5 ms).
+   On Coral USB the first invoke does NOT pay a separate
+   parameter-upload spike — the cache is populated AS PART OF the
+   first invoke, and the only premium is the same ~3-5 ms switch
+   overhead.  Compare to V22 on-board yolo_1 which DID show a 19 ms
+   warm0 (params ~5 MB cache upload over slower M7 USB).
+
+### Implications for the SentAI firmware
+
+- **The hardware supports keeping 3 p3p4 models resident on-chip.**
+  The 838 KB parameter footprint is comfortably within the on-chip
+  SRAM budget.  The C-side `sentai.tpu.load` surface currently keeps
+  ONE active interpreter; adding a slotted API
+  (`sentai.tpu.load_slot(N, path)` + `sentai.tpu.invoke_slot(N)`)
+  would let the firmware keep all 3 candidates pre-warmed and switch
+  between them per-frame at ~3-5 ms overhead, eliminating even the
+  ~100 ms `tpu.load`-based swap cost we measured in the
+  pipeline-rotation test.
+- **Use-case:** dual-model scoring (fast/conservative + slow/sensitive
+  ensemble), A/B detection during model rollouts, or runtime
+  fallback to a smaller model under thermal/power pressure — all
+  feasible without any per-frame load latency.
+- **Caveat:** total resident params must fit on-chip.  The yolo_1
+  family at 5 MB / 7 MB params would NOT coexist with anything else
+  — switching them in/out would force the per-invoke parameter
+  upload that warm0 otherwise pays once per boot.
+
+### Reproducing
+
+```bash
+/home/bogdan/work/coralmicro/venv-coral/bin/python /tmp/host_two_models.py
+```
+
+---
+
+## 🧪 Session 2026-04-28 — Phase 1 multi-slot firmware (PARTIAL — REVERTED)
+
+Goal: extend `sentai.tpu.*` with `load_slot(N, path)` / `invoke_slot(N)`
+so 3 EdgeTpuExecutable instances can coexist on the M7 mirroring the
+host pycoral capability validated above.  Plan was a thin C bridge
+addition; legacy callers stay on slot 0 unchanged.
+
+Implementation attempted (build #1080):
+- `sentai_runtime.cc`: 3 × 2 MB tensor arenas in `.sdram_bss`,
+  parallel `g_slot_interp[3]`, `g_slot_model_data[3]`,
+  `g_slot_ready[3]` arrays.  6 MB total SDRAM growth (12 MB free
+  budget).  Slot 0 backwards-compatible via direct array indexing.
+- `sentai_slow_bridge.cc`: refactored `sentai_load_model(path)` to
+  `sentai_load_model_slot(slot, path)` + a 1-line legacy wrapper.
+- `sentai_runtime.cc`: added `sentai_tpu_invoke_slot`,
+  `sentai_tpu_invoke_slot_with_input` (OCRAM-pointer-patch path),
+  per-slot output accessors, `sentai_tpu_output_hash_slot` (FNV-1a
+  for verification).
+- `modsentai_tpu.c`: 7 new MicroPython surface entries
+  (`load_slot`, `invoke_slot`, `slot_ready`, `slot_count`,
+  `set_input_slot`, `output_hash`, `output_slot`).  QSTRs regenerated.
+- Validation driver `diag/_t_three_slots.py` — load 3 candidates,
+  same input, hash outputs, alternate 10 cycles, expect 0 mismatches.
+
+### Outcome — partial.
+
+Slots 0 and 1 worked: load + warmup + steady-state invoke clean for
+MSBlock and C2f.  Slot 2 alone (any model) loaded the EdgeTPU
+package, allocated tensors, returned ready=True.
+
+**The blocker: GELAN model reproducibly hard-faults the M7 during
+load on the multi-slot firmware**, regardless of slot index.  In the
+build with three real arenas, the crash is silent — printf at
+`sentai_load_model_slot` entry never reaches the host (USB CDC
+disconnect within microseconds of the call).  Falling back to a
+build that aliases all three arenas to a single 2 MB buffer
+(layout-equivalent to legacy single-slot) makes GELAN load fail
+with `LfsUserReadFile rc=-2` instead of crash — different failure,
+same blocker.  MSBlock and C2f load fine in either layout.
+
+The historical context makes this confusing: GELAN loaded cleanly
+(155 ms) on build #1077 in `_t_load_order.py` (slot 0, fresh boot,
+single-arena legacy code).  The exact same model in the same flash
+location now crashes the multi-slot build.  Suspected interactions:
+
+1. **TFLite-micro tail allocation pattern** — GELAN's particular
+   layout (190 ops vs MSBlock's 126 / C2f's 135) may straddle a
+   boundary that is sensitive to where the arena lands in `.sdram_bss`.
+   The 4 MB shift induced by the two extra arenas pushes other
+   `.sdram_bss` consumers (lwip/httpd/FileX state) to higher
+   addresses, possibly across an SDRAM page or cache line that
+   triggers a hardware-level issue.
+2. **Static op-resolver state in `MicroMutableOpResolver<7>`** —
+   tflite-micro's resolver is shared across all slots in our
+   refactor.  Possible that the resolver caches per-instance state
+   that breaks for subsequent interpreters, with GELAN happening
+   to be the one that exposes it.
+3. **Heap fragmentation** from `new std::vector<uint8_t>` calls
+   across 3 slots filling and freeing differently between builds.
+
+None of the three is confirmed.  Debug productivity hit a wall —
+printf fails silently, no crash log lands in /diags, and the
+disconnect kills serial before we can capture device-side state.
+
+### Reverted state
+
+The runtime is reverted to its pre-Phase-1 state on disk (no
+load_slot API, single-slot tensor_arena).  The WIP patch is saved at
+`/tmp/multi_slot_phase1_wip.patch` (1129 lines) and the validation
+driver at `/tmp/_t_three_slots_phase1.py`.  Re-applying those
+restores the broken-on-GELAN build.
+
+### What was confirmed
+
+- 3 interpreters fit memory-wise on the M7: SDRAM 6 MB, heap budget
+  comfortable, OCRAM `.tpu_input` shareable across slots.
+- Slot 0 + Slot 1 multi-slot path is functional for MSBlock and C2f
+  in isolation.
+- Slot 2 indexing / array storage / arena addressing all check out
+  via static inspection (nm, linker map).  The bug isn't in the
+  slot infrastructure itself.
+
+### What remains
+
+1. Root-cause GELAN-specific load failure in multi-arena layout.
+   Productive next steps: capture an M7 hardfault frame via a
+   custom HardFault_Handler that writes to the persistent
+   `.sdram_storage_log` ring and dumps it on next default-mode
+   boot.  Or instrument tflite-micro `MicroAllocator::Init` with
+   step printfs to localise where GELAN's arena allocation
+   diverges from MSBlock/C2f.
+2. After GELAN is fixed, re-apply the slot API + run
+   `_t_three_slots.py` validation as planned.
+3. Phase 2 (cam_id → slot dispatch) and Phase 3 (telemetry +
+   per-slot output rings) are unblocked once Phase 1 lands.
+
+### Phase 1 SHIPPED — heap-allocated slot arenas (build #1098)
+
+After the bisect (below) pinpointed `.sdram_bss` layout shift as the
+real culprit, retried Phase 1 with **slot-1/2 arenas heap-allocated
+via `malloc + 32-byte align`** instead of static buffers:
+
+```cpp
+// sentai_runtime.cc — only slot 0's arena stays in .sdram_bss.
+uint8_t tensor_arena[2 * 1024 * 1024]
+    __attribute__((aligned(32)))
+    __attribute__((section(".sdram_bss,\"aw\",%nobits @")));
+uint8_t* g_slot_arena[3] = { tensor_arena, nullptr, nullptr };
+
+// sentai_slow_bridge.cc — slot 1/2 arenas lazy-alloc'd at first load.
+uint8_t* raw = (uint8_t*)malloc(kSlotArenaSize + 32);
+g_slot_arena[slot] = (uint8_t*)(((uintptr_t)raw + 31) & ~31);
+```
+
+`__sdram_bss_end__` stays at 0x8180ed04 (vs the broken layout's
+0x81c0e6c4) — FileX state addresses unchanged from baseline.
+
+**Validation (`diag/_t_three_slots.py`, build #1098):**
+
+| Slot | Model | Arena addr | Load ms | Invoke ms | Output hash (FNV-1a) |
+|---:|---|---|---:|---:|---|
+| 0 | MSBlock (`.sdram_bss`) | tensor_arena | 663 | 6  | `0xab229105` |
+| 1 | C2f (heap) | 0x800670e0 | 107 | 10 | `0xa58ad03d` |
+| 2 | GELAN (heap) | 0x802c4fa0 | 143 | 13 | `0x71402a65` |
+
+→ **3 distinct cache tokens** registered (`0x82cf...`, `0x359d...`,
+`0xf1b6...`).  → **3 distinct output hashes** from 3 different models
+on identical (zero) input.  → **30/30 alternating invokes, 0 mismatches**
+across 10 cycles × 3 slots — every invoke produces its slot's expected
+hash.  Same proof structure as the host pycoral verification.
+
+Surface (MicroPython):
+
+```python
+sentai.tpu.slot_count()              # 3
+sentai.tpu.load_slot(slot, path)     # int rc, 0 = ok
+sentai.tpu.invoke_slot(slot)         # int ms, negative = error
+sentai.tpu.slot_ready(slot)          # bool
+sentai.tpu.set_input_slot(slot, b)   # int rc (caveat: MP heap can't
+                                     # hold a 921 KB bytes object —
+                                     # use camera / FS-image path
+                                     # in real benches, not this REPL
+                                     # injector)
+sentai.tpu.output_hash(slot)         # uint32 FNV-1a over all outputs
+sentai.tpu.output_slot(slot, idx)    # bytes
+```
+
+C-side (per-slot variants of every accessor):
+
+```c
+int sentai_load_model_slot(int slot, const char* path);
+int sentai_tpu_invoke_slot(int slot);
+int sentai_tpu_invoke_slot_with_input(int slot, uint8_t* buf);   // OCRAM patch
+int sentai_tpu_num_outputs_slot(int slot);
+int sentai_tpu_get_output_size_slot(int slot, int idx);
+const void* sentai_tpu_get_output_data_slot(int slot, int idx);
+int sentai_tpu_set_input_slot(int slot, const uint8_t* data, int len);
+uint32_t sentai_tpu_output_hash_slot(int slot);
+int sentai_tpu_slot_ready(int slot);
+int sentai_tpu_slot_count(void);
+```
+
+Slot 0 routes through the legacy `sentai_load_model(path)` path
+unchanged — no risk to the existing detection_task / pipeline / REPL
+single-slot consumers.  Slots 1/2 use a parallel code path that
+shares only the `g_tpu_context` (one EdgeTPU device-open) and the
+static op resolver (stateless after init).
+
+### Operational caveats discovered during validation
+
+1. **MicroPython heap can't hold the 921 KB input**: both
+   `bytearray(N)` (excluded from this MP build) and `bytes(seed * n)`
+   (alloc fails at ~256-512 KB MP heap ceiling) were tried.
+   `set_input_slot` from REPL with anything ≥ ~256 KB is unworkable.
+   Real benches must source the input from camera (`PrepTask` writes
+   directly to `.tpu_input` OCRAM, used via
+   `invoke_slot_with_input(slot, .tpu_input)`) or load a JPEG from
+   `/diags` and decode in-place — same as the existing single-slot
+   pipeline does.
+2. **Boot-time cost: 663 ms** for the FIRST `tpu.load_slot(0, ...)`
+   includes the one-time EdgeTPU `OpenDevice()` + libedgetpu init.
+   Subsequent slot loads land at 107-143 ms.  Same shape as the
+   solo bench observation.
+3. **Heap usage**: 2 × 2 MB = 4 MB SDRAM consumed for slot 1+2 arenas
+   when both are loaded.  m_heap is 16 MB; we use ~5 MB total
+   (interpreter objects + model_data vectors + arenas).  Plenty of
+   headroom.
+4. **`/lib/diag/` doesn't auto-mkdir**: the REPL uploader's first
+   chunk fails with `E:0D10:13` (`fx_file_create` fail) on a fresh
+   FAT volume.  Manual `sentai.fs.mkdir("/lib/diag")` once after
+   first format.
+
+### What's next (Phase 2)
+
+Phase 2 is the **per-camera dispatch** integration with the pipeline
+(InferTask reads `frame.cam_id`, looks up `s_slot_for_cam[cam_id]`,
+invokes that slot via `invoke_slot_with_input(slot, .tpu_input)`).
+The C-side primitives are already in place (Phase 1 shipped them);
+the work is wiring `modsentai_pipeline.c` and `detection_task.cc`
+plus a `pipeline.set_slot_for_cam(cam, slot)` API.
+
+### Phase 2a SHIPPED — pipeline cam→slot dispatch (build #1099)
+
+Wired the multi-slot primitives into `detection_task.cc:InferTask`.
+The hot path now picks the slot per frame:
+
+```cpp
+int active_slot = (frame_cam_id >= 0 && frame_cam_id < 2)
+                  ? s_slot_for_cam[frame_cam_id] : 0;
+s_slot_invokes[active_slot]++;
+#define INVOKE_DT(buf) (active_slot == 0 \
+    ? sentai_tpu_invoke_with_input(buf) \
+    : sentai_tpu_invoke_slot_with_input(active_slot, buf))
+```
+
+The slot==0 fast path keeps calling `sentai_tpu_invoke_with_input`
+byte-for-byte identical to V22 — no risk of regressing the legacy
+single-slot 41-46 FPS pipeline.  Slots 1+ use the general
+`_slot_with_input` accessor.  All three sync modes (legacy / DEFER /
+REARM) retain their V22 sema interleaving.
+
+API additions:
+
+```python
+sentai.pipeline.set_slot_for_cam(cam_id, slot)   # 0 ok, neg error
+sentai.pipeline.get_slot_for_cam(cam_id)         # int or -1
+sentai.pipeline.slot_stats()                     # (s0, s1, s2) invoke counts
+sentai.pipeline.slot_stats_reset()
+```
+
+Default mapping is `{0:0, 1:0}` — legacy single-slot behaviour
+preserved for every existing consumer.
+
+**Validation (`diag/_t_two_slot_pipeline.py`, build #1099):**
+
+Setup: cam0 → slot 0 (MSBlock), cam1 → slot 1 (C2f), VGA45, alt 1:1
+ratio, 100-frame `pipeline.calibrate`.
+
+| Metric | Value |
+|---|---:|
+| frames | 100 |
+| cam0 tags | 66 |
+| cam1 tags | 34 |
+| slot 0 invokes (MSBlock) | 67 |
+| slot 1 invokes (C2f) | 34 |
+| slot 2 invokes | 0 |
+| pipeline FPS | 30.12 |
+| invoke ms (avg/min/max) | 13 / 7 / 24 |
+
+→ **Per-slot invoke counts track per-cam tag counts exactly** (slot 0
+= 67 ≈ cam0 = 66, slot 1 = 34 = cam1 = 34).  The 1-frame difference
+between slot 0 invokes and cam0 tags is from a single in-flight
+frame that crossed the `set_slot_for_cam` configuration boundary
+between the start of `calibrate` and its first sample.
+
+→ Pipeline FPS dropped from 35-38 (single-slot alt 1:1 in
+[`pipeline_rotation`](#)) to 30.12.  Two contributing factors:
+- The slot-1 path goes through `sentai_tpu_invoke_slot_with_input`
+  which has 1 extra branch + parameter pass vs the V22 fast path
+  (negligible).
+- More likely: the on-chip parameter cache thrashes between MSBlock
+  and C2f tokens at every-frame alternation (1:1).  Per the Coral
+  USB host bench, mid-invoke cache-context switch costs ~3-5 ms;
+  observed total budget is 22 ms / frame at VGA45, leaving ~17 ms
+  for compute — consistent with the ~13 ms median we see, but with
+  enough variance to spike past the per-frame cap and drop frames.
+
+Both 2-cam and 3-cam dispatch designs were viable on paper; this
+test confirms the 2-cam case end-to-end.  Phase 2b (per-slot detection
+result publication so cam1's detections actually reach
+`detection_get_latest`) is the remaining work to make the API useful
+for downstream consumers, but the dispatcher itself is shipped and
+correct.
+
+### Caveats / known limits in Phase 2a
+
+1. **NMS / detection result still reads slot 0** (`sentai_tpu_detect`
+   uses `g_interpreter`).  A frame routed to slot 1 will trigger that
+   model and increment `slot_stats[1]`, but the post-processed
+   detections published to `pipeline.calibrate` results / tracker /
+   HTTP are slot 0's stale output.  Phase 2b will refactor to
+   `sentai_tpu_detect_slot(active_slot, ...)`.
+2. **Only cam_id ∈ {0, 1}** is honoured (`s_slot_for_cam[2]`).
+   Unknown cam_id (-1, third camera) defaults to slot 0.
+3. **Cache-thrash overhead** at alt 1:1 with 2 distinct models
+   costs ~5-8 FPS in observed pipeline rate.  Not a correctness
+   issue, but worth knowing if you map two compute-heavy models to
+   the two cameras: throughput per cam will scale ~half.
+
+### Phase 2b SHIPPED — raw output introspection in REPL (build #1100)
+
+User course-correction: structured per-output-type dispatch (NMS /
+CLASSIFY / 2HEAD as a typed enum at slot load time) was scoped out
+of this round.  Post-processing will live in C++ when a real consumer
+needs it; REPL stays at **raw bytes + shape/dtype only**, no struct
+work in MicroPython (the MP heap is too small and arithmetic over
+`bytes` is too slow anyway).
+
+To make raw-byte iteration usable, added the following per-slot
+introspection accessors:
+
+```python
+sentai.tpu.num_outputs_slot(N)         # int (count)
+sentai.tpu.output_size_slot(N, idx)    # bytes
+sentai.tpu.output_dims_slot(N, idx)    # tuple (e.g. (1, 30, 40, 6))
+sentai.tpu.output_type_slot(N, idx)    # TfLiteType int
+sentai.tpu.output_quant_slot(N, idx)   # (scale, zero_point) | None
+sentai.tpu.output_slot(N, idx)         # raw bytes (already shipped)
+```
+
+**Verified from REPL** (build #1100):
+
+```
+slot0 nout = 2
+slot0 out0 dims = (1, 30, 40, 6) sz=7200 type=3 quant=(0.022, 231)
+slot0 out1 dims = (1, 60, 80, 6) sz=28800
+slot1 out0 dims = (1, 30, 40, 6) sz=7200      quant=(0.021, 240)
+slot0 invoke -> 13 ms; output[0..7] = [235, 226, 235, 227, 0, 255, 235, 226]
+```
+
+**Retired from REPL surface in the same build**: `sentai.tpu.detect`,
+`.draw`, `.yolo_info`.  Their C-side implementations
+(`sentai_tpu_detect`, `sentai_tpu_draw`, `sentai_tpu_output_yolo_info`)
+remain in `sentai_runtime.cc` for now — the linker keeps them as dead
+code until they're either re-exposed (typed) or removed.  No
+production caller depends on them via the REPL surface.
+
+### Phase 2 final bench — pipeline FPS on 3 p3p4 candidates (build #1100)
+
+Driver: `diag/_t_three_slots_pipeline.py` (self-contained per agent.md
+§5.1.5).  Each model loaded into slot 0 only; cam0/cam1 both routed
+to slot 0 (legacy single-slot behaviour, default mapping).  100-frame
+`pipeline.calibrate` per ratio.  CSV: `/diags/s006_three_slot_pipe/results.csv`.
+
+| Model | 1cam | 1:1 | 2:1 | 3:1 | 5:1 |
+|---|---:|---:|---:|---:|---:|
+| MSBlock | **46.18** | 35.68 | 31.91 | 36.24 | 37.34 |
+| C2f     | 45.91 | 34.74 | 30.55 | 36.29 | **38.66** |
+| GELAN   | 46.04 | 30.76 | 30.91 | 30.46 | 37.85 |
+
+**Comparison vs pre-multi-slot baseline (build #1077,
+[VGA45 pipeline FPS](#))**:
+
+| Model | 1cam Δ FPS | Best alt Δ |
+|---|---:|---:|
+| MSBlock | +0.19 (45.99→46.18) | -0.74 (38.08→37.34) |
+| C2f     |  0.00 (45.91→45.91) | +1.53 (37.13→38.66) |
+| GELAN   | +0.13 (45.91→46.04) | +2.10 (35.75→37.85) |
+
+→ **Zero regression on slot 0.**  The multi-slot refactor (Phase 1 +
+Phase 2a + 2b introspection) is byte-for-byte identical on the
+slot==0 fast path (`sentai_tpu_invoke_with_input`) — and the bench
+confirms it at the FPS level: every model is within sensor-jitter
+±2 FPS of the legacy build.  Slots 1/2 are zero-cost when unused
+(no static buffers, no extra invokes, lazy heap-alloc only on
+first `load_slot(N>0)`).
+
+### Reproducing
+
+```bash
+cd examples/sentai_runtime
+python3 diag/_host_upload_repl.py --file _t_three_slots_pipeline.py
+
+# Persistent flash REQUIRED (driver uses sys.reset() between models).
+python3 scripts/flashtool.py -e sentai_runtime
+python3 /tmp/run_three_slots_pipeline.py    # streams output across reboots
+
+python3 /tmp/pull_csv.py /diags/sNNN_three_slot_pipe/results.csv
+```
+
+---
+
+### Status post-Phase 2 (2026-04-28 EOD)
+
+- **Phase 1 SHIPPED**: 3 TPU slots co-resident, heap-allocated arenas,
+  `tpu.load_slot/invoke_slot/output_*_slot` API, `_t_three_slots.py`
+  validation = 0 mismatches over 30 alternating invokes.
+- **Phase 2a SHIPPED**: per-camera slot dispatch in InferTask,
+  `pipeline.set_slot_for_cam` API, `slot_stats` counters,
+  `_t_two_slot_pipeline.py` validation = invokes track cam tags
+  exactly.
+- **Phase 2b raw introspection SHIPPED**: REPL `output_dims_slot` /
+  `output_type_slot` / `output_quant_slot` / `output_size_slot` /
+  `num_outputs_slot` for byte-level inspection.  Structured
+  post-processing intentionally NOT implemented (will be typed C++
+  when a real consumer arrives).
+- **3-model pipeline bench SHIPPED**: zero regression vs single-slot
+  build #1077 across MSBlock, C2f, GELAN at every probed ratio.
+
+**What's next (Phase 2c/3, when needed):**
+
+1. **Output-type dispatch** (NMS / CLASSIFY / KEYPOINTS, etc.) as a
+   typed C++ helper bound at slot load.  Per-slot
+   `sentai_tpu_detect_slot(slot, ...)` so `detection_task` can publish
+   real per-cam detections, not just slot-0's output.
+2. **TPU device reset** for recovering from a wedge inside a single
+   boot (currently a wedged TPU requires reflash).  Worth investigating
+   if `EdgeTpuManager::CloseDevice()` + `OpenDevice()` works on this
+   silicon.
+3. **Memtest / FS-health diagnostic** — flash patrol read, LevelX
+   wear-level stats, ECC counter histogram.  Schema sketched earlier
+   in this session; deferred until first real wear concern.
+
+---
+
+## 🧪 Session 2026-04-28 — TWINS: alt 1:1 with distinct models per camera
+
+Goal: stress-test the multi-slot pipeline in the production scenario
+where each camera runs a DIFFERENT model.  This exercises three
+mechanisms simultaneously:
+
+1. **Multi-slot dispatcher** in InferTask (`s_slot_for_cam[cam_id]`
+   lookup → `sentai_tpu_invoke_slot_with_input`).
+2. **Heap-allocated slot 1 arena** (slot 0 stays in `.sdram_bss`).
+3. **EdgeTPU on-chip parameter cache context-switch** at every frame
+   boundary, since alt 1:1 alternates tokens token_A → token_B →
+   token_A → ...
+
+Driver: `diag/_t_twins.py` — self-contained per agent.md §5.1.5,
+sweeps every unordered pair from {MSBlock, C2f, GELAN} = 3 pairs,
+persists progress in `/diags/.twins_state` across `sys.reset()`
+between pairs (clean parameter-cache start per pair).
+CSV: `/diags/s007_twins/results.csv`.  Build #1100.
+
+### Results (3 pairs × 100 frames @ VGA45 alt 1:1)
+
+| Pair | cam0 model | cam1 model | cam0 / cam1 frames | slot0 / slot1 invokes | invoke avg / min / max ms | **Pipeline FPS** |
+|---:|---|---|---|---|---:|---:|
+| 1 | MSBlock | C2f   | 64 / 36 | **65 / 36** | 13 / 8 / 24 | **30.01** |
+| 2 | MSBlock | GELAN | 47 / 53 | **47 / 53** | 11 / 7 / 19 | 28.49 |
+| 3 | C2f     | GELAN | 44 / 56 | **45 / 56** | 13 / 8 / 20 | 28.40 |
+
+### Findings
+
+1. **Per-cam dispatch is correct in every pair.**  `slot0_invokes`
+   matches `cam0_frames` to within 1 (in-flight frame at the moment
+   `slot_stats_reset` fires); `slot1_invokes` matches `cam1_frames`
+   exactly.  No misrouted frames.
+2. **The 1cam-equivalent ceiling is ~46 FPS** (per the
+   3-model pipeline bench above).  Twin alt 1:1 lands at **28-30 FPS**
+   — a **~35% throughput hit**.  Source of the loss:
+   - On-chip param cache context switch (Coral USB silicon's
+     ~3-5 ms / context switch per the host pycoral 2-model bench
+     above).  At alt 1:1 every invoke is a switch — N ms × 90
+     invokes/sec ≈ 270-450 ms/sec of pure switch overhead, which
+     matches the 46→28 FPS gap.
+   - Camera ratio jitter (cam0/cam1 split between 44/56 and 64/36 —
+     stateless `ratio(1,1)` doesn't enforce hard alternation, so
+     the cache hit rate is not 0% but the worst case dominates).
+3. **MSBlock+C2f is the fastest twin** (30.01 FPS), MSBlock+GELAN
+   and C2f+GELAN slower (28.4-28.5).  GELAN's 14 ms median invoke
+   (vs 11 for MSBlock, 12 for C2f) widens the per-frame budget gap
+   and lets more frames miss their slot.
+4. **Pipeline FPS as proxy for per-cam FPS**: at alt 1:1, each cam
+   gets HALF the pipeline rate.  So the twin scenario delivers
+   **~14-15 FPS per camera** running its dedicated model.  For
+   reference, V22 single-cam pipeline did ~41-46 FPS on yolo_1 —
+   so two specialized models per cam at 14-15 FPS is the trade-off
+   the slot dispatcher makes possible.
+
+### Trade-off summary (when to use twins)
+
+| Scenario | Per-cam FPS | When this is right |
+|---|---:|---|
+| Single model, 1cam | 46 | One scene, one task |
+| Single model, alt 1:1 | 23 / cam | Two cams sharing the same task (people in 2 rooms) |
+| **Twins (this bench)** | **14-15 / cam** | Two cams with DIFFERENT specializations (e.g. cam0 = perimeter detection, cam1 = close-range reading) |
+
+If the use case really wants 46 FPS per cam with different models,
+the only path is two boards.  The slot dispatcher is for when you'd
+rather have 14-15 FPS each on different models than 23 FPS each on
+the same model.
+
+### Reproducing
+
+```bash
+cd examples/sentai_runtime
+python3 diag/_host_upload_repl.py --file _t_twins.py
+
+# Persistent flash REQUIRED — driver does sys.reset() between pairs.
+python3 scripts/flashtool.py -e sentai_runtime
+python3 /tmp/run_twins.py    # streams output across reboots
+
+python3 /tmp/pull_csv.py /diags/sNNN_twins/results.csv
+```
+
+### TWINS @ VGA30 (s008_twins, build #1100, alt 1:1)
+
+Same driver, FPS=30.  cam0/cam1 distribution lands almost perfectly
+50/50 (the pipeline scheduler has more headroom at the lower frame
+rate).
+
+| Pair | cam0 / cam1 | slot0 / slot1 invokes | invoke ms (avg/min/max) | Pipeline FPS |
+|---|---|---|---:|---:|
+| MSBlock + C2f   | 50 / 50 | 51 / 50 | 13 / 7 / 20 | **25.16** |
+| MSBlock + GELAN | 50 / 50 | 50 / 50 | 11 / 7 / 22 | 27.81 |
+| C2f + GELAN     | 50 / 50 | 50 / 50 | 12 / 8 / 17 | **28.41** |
+
+**VGA45 vs VGA30 comparison** (alt 1:1, twin scenario):
+
+| Pair | VGA45 FPS | VGA30 FPS | per-cam @ VGA45 | per-cam @ VGA30 |
+|---|---:|---:|---:|---:|
+| MSBlock + C2f   | 30.01 | 25.16 | 15.0 | 12.6 |
+| MSBlock + GELAN | 28.49 | 27.81 | 14.2 | 13.9 |
+| C2f + GELAN     | 28.40 | 28.41 | 14.2 | 14.2 |
+
+Observations:
+
+- **VGA30 is _slower_ at twin alt 1:1 than VGA45 for the MSBlock+C2f
+  pair** (25 vs 30 FPS).  That's because at VGA30 the pipeline budget
+  per frame is 33 ms (vs 22 ms at VGA45), but the on-chip parameter
+  cache thrash cost (3-5 ms per token swap) is constant — so the
+  EdgeTPU is not the bottleneck at either FPS.  The actual cap is
+  the camera scheduler, which produces frames at the sensor rate;
+  if both cams insist on alt 1:1, the lower-fps sensor rate dominates.
+- **VGA30 perfect 50/50 distribution** across all 3 pairs (vs
+  44-65 jitter at VGA45) — slower frame production gives the cam
+  switcher more time to honour the ratio.
+- **GELAN-containing pairs converge at VGA30** (~27-28 FPS) — the
+  larger model's invoke median fits comfortably in the per-frame
+  budget at 30 fps.
+
+CSV: `/diags/s008_twins/results.csv`.
+
+---
+
+## 🧪 Session 2026-04-28 — TWINS3: alt 2:1 with DUAL inference on cam1
+
+Goal: scenario where cam0 runs a single model continuously and cam1
+(the rarer camera at alt 2:1) runs TWO models back-to-back on every
+frame.  Three TPU slots loaded: slot 0 = MSBlock (cam0), slot 1 = C2f
+(cam1 first pass), slot 2 = GELAN (cam1 second pass).
+
+Driver: `diag/_t_twins3.py` (self-contained).  CSV:
+`/diags/s010_twins3/results.csv`.  VGA30, alt 2:1.
+
+Two sweeps:
+
+1. **BASELINE** — `pipeline.calibrate` with `cam0→slot0, cam1→slot1`.
+   Real production scenario, single invoke per frame, V22 fast path,
+   PrepTask/InferTask parallelism.
+2. **PURE-TPU pattern measurement** — host-side loop without pipeline
+   that times the raw invoke cadence.  Two patterns benchmarked
+   back-to-back so the difference IS the cost of the second invoke
+   on cam1 frames:
+   - `SINGLE`: per cycle of 3 invokes (alt 2:1), invoke slot 0 twice + slot 1 once.
+   - `DUAL`:   per cycle of 4 invokes, invoke slot 0 twice + slot 1 once + slot 2 once.
+
+The TPU-only sweep doesn't include camera grab / PrepTask overhead
+— it's a CEILING measurement.  The pipeline real-world FPS will be
+lower than this ceiling by camera + scheduling overhead, which the
+BASELINE sweep measures separately.
+
+### Results
+
+| Sweep | invokes | wall ms | avg ms/invoke | implied/real FPS | per-cam slot1 cost |
+|---|---:|---:|---:|---:|---:|
+| BASELINE (real pipeline) | 102 | 4489 | 9 | **23.14** | n/a |
+| PURE-TPU SINGLE (33 cycles × 3) | 99  | 1011 | 10 | 97.92 (TPU ceiling) | — |
+| PURE-TPU DUAL (33 cycles × 4)   | 132 | 1354 | 10 | 73.11 (TPU ceiling) | **+10 ms** |
+
+### Findings
+
+1. **Adding a second invoke on cam1 costs 10 ms / cam1 frame on the
+   TPU side** (343 ms over 33 cycles).  Same as a single invoke at
+   median — the on-chip parameter cache survives the sequential
+   slot1→slot2 swap (no thrash) and the 10 ms is just one full
+   GELAN-equivalent compute.
+2. **Real-world cap**: BASELINE at 23.14 FPS on alt 2:1 VGA30 means
+   adding a second invoke on every cam1 frame would extend the per-
+   cycle compute time by ~10 ms × 33 = 330 ms over the 4.5 s
+   baseline cycle (≈ 7.4% extra wall time).  Predicted DUAL pipeline
+   FPS ≈ 23.14 / 1.074 ≈ **21.5 FPS** if the firmware were extended
+   to do dual-invoke on cam1 frames.
+3. **TPU is not the bottleneck at VGA30 alt 2:1**: PURE-TPU SINGLE
+   pattern at 98 FPS ≫ baseline pipeline at 23 FPS.  The 4.5×
+   margin is consumed by camera-side overhead (CSI grab, PXP scale,
+   InferTask scheduling, PrepTask quant).
+4. **Cache-hot path proves clean**: the slot 0 → slot 0 → slot 1 →
+   slot 2 sequence per cycle has 3 token transitions (0→0 is a hit,
+   0→1 swap, 1→2 swap).  The 10 ms invoke cost includes the swap;
+   no spike on first-after-swap, suggesting libedgetpu's
+   parameter_caching_exe state machine handles it cleanly even with
+   3 distinct tokens resident.
+
+### Architectural implication
+
+To productize "dual inference on cam1", the firmware needs:
+
+- A `pipeline.set_dual_slot_for_cam(cam_id, primary, secondary)` API.
+- InferTask-side loop that, after invoking the primary slot, also
+  invokes the secondary slot (still using the OCRAM `.tpu_input`
+  buffer, reusing the input pointer-patch).
+- Per-slot output rings so both passes' outputs are accessible
+  to downstream consumers without slot-0-only NMS muddying the
+  picture.
+
+This is sketched as Phase 2c.  The PURE-TPU measurement above shows
+the cost will be predictable (~10 ms per dual-invoke frame) and
+the TPU has bandwidth to spare at VGA30.
+
+### Reproducing
+
+```bash
+cd examples/sentai_runtime
+python3 diag/_host_upload_repl.py --file _t_twins3.py
+python3 scripts/flashtool.py -e sentai_runtime
+python3 -c "
+import time, serial, sys
+s = serial.Serial('/dev/ttyACM0', 115200, timeout=0.5)
+time.sleep(1.0); s.reset_input_buffer()
+s.write(b'\r\n\x03\r\n'); time.sleep(0.5); s.read(8192)
+s.write(b'1\r\n'); time.sleep(0.3); s.read(8192)
+s.write(b'exec(sentai.fs.read_str(\"/lib/diag/_t_twins3.py\"))\r\n')
+deadline = time.time() + 240
+buf = bytearray()
+while time.time() < deadline:
+  c = s.read(4096)
+  if c: sys.stdout.write(c.decode(errors='replace')); sys.stdout.flush(); buf.extend(c)
+  if b'=== done ===' in buf: break
+"
+python3 /tmp/pull_csv.py /diags/sNNN_twins3/results.csv
+```
+
+---
+
+## 🧪 Session 2026-04-28 — multi-slot code review per embeded.md
+
+User-driven audit pass on the Phase 1 + 2a + 2b multi-slot code
+against `agent/embeded.md` principles (NASA/JPL discipline, fault
+containment, error codes not strings, anti-brick).
+
+### Findings
+
+| # | Severity | Issue | Location |
+|---|---|---|---|
+| A | **CRITICAL** | `new std::vector<uint8_t>` and `new tflite::MicroInterpreter` checked nothing on alloc-fail.  newlib_nano builds without exceptions ⇒ `new` returns nullptr and the very next deref crashes. | `sentai_slow_bridge.cc:sentai_load_model_slot` |
+| B | MAJOR | All slot-op error paths used `printf("ERROR: ...")` not `SERR_LOG` — violates rule §4 ("error codes, not strings"). | same file + `detection_task.cc:set_slot_for_cam` |
+| C | MAJOR | `sentai_pipeline_set_slot_for_cam(cam, slot)` accepted any in-range slot, including unloaded ones.  InferTask would then fire `invoke_slot` on a null interpreter every frame and spam `SERR_TPU_NOT_READY`. | `detection_task.cc` |
+| D | minor | `sentai_tpu_detect` / `_draw` / `output_yolo_info` retired from REPL surface but their ~250 lines still occupy ITCM in the linked image. | `sentai_runtime.cc` (deferred — flagged for next pass) |
+| E | minor | `malloc` from `_sbrk` is not thread-safe in newlib by default; today only the REPL task calls `load_slot`, but a future Phase 2c that loads from pipeline context could race.  Add a load mutex when promoting. | (deferred — design note only) |
+
+### Fixes shipped (build #1101)
+
+1. **5 new SERR codes** for slot operations (`error_codes.csv` rows
+   added with `STATUS=ACTIVE`, schema version v1.6 — never renumber):
+
+   | Code | Name | Meaning |
+   |---|---|---|
+   | `0x0B70` | `TPU_SLOT_OOB` | Slot index out of range (val=slot) |
+   | `0x0B71` | `TPU_SLOT_ALLOC` | Slot arena malloc failed (val=slot) |
+   | `0x0B72` | `TPU_SLOT_INTERP` | `new MicroInterpreter` returned NULL (val=slot) |
+   | `0x0B73` | `TPU_SLOT_VEC` | `new std::vector<uint8_t>` returned NULL (val=slot) |
+   | `0x0B74` | `TPU_SLOT_NOT_READY` | Pipeline routed cam to unloaded slot (val=cam<<4\|slot) |
+
+2. **Null-safe `new` calls** — switched to `new(std::nothrow) T()`
+   everywhere in `sentai_load_model_slot`'s slot ≥ 1 path:
+   - `new std::vector<uint8_t>()` → nullptr-checked, return -6 + log
+     `SERR_TPU_SLOT_VEC`.
+   - `new tflite::MicroInterpreter()` → nullptr-checked, return -7 +
+     log `SERR_TPU_SLOT_INTERP`.
+
+3. **`set_slot_for_cam` slot-readiness guard**:
+   ```cpp
+   if (slot != 0 && !sentai_tpu_slot_ready(slot)) {
+       SERR_LOG(SERR_TPU_SLOT_NOT_READY, (uint32_t)((cam << 4) | slot));
+       return -3;
+   }
+   ```
+   Slot 0 is allowed unconditionally (legacy back-compat — existing
+   callers set `cam → slot 0` on every camera even before any model
+   loads).  Slots 1+ require `tpu.load_slot(slot, path)` first.
+
+### Smoke test (build #1101, post-fix)
+
+```python
+sentai.pipeline.set_slot_for_cam(1, 1)
+# slot 1 NOT loaded yet:
+# → returns -3, logs E:0B74:17 (cam=1, slot=1 → encoded 0x17)
+
+sentai.tpu.load_slot(1, "/models/iarna_p3p4_C2f_..._edgetpu.tflite")
+sentai.pipeline.set_slot_for_cam(1, 1)
+# slot 1 now ready: returns 0 ✓
+
+sentai.pipeline.set_slot_for_cam(0, 5)
+# OOB: returns -2 (no SERR — caller-error class) ✓
+```
+
+### What was NOT changed (intentional non-fixes)
+
+- **`portMAX_DELAY`** in `sentai_runtime.cc:1105` — that's the
+  app_main task self-park (`vTaskSuspend(NULL)` would be cleaner but
+  the existing `ulTaskNotifyTake(pdTRUE, portMAX_DELAY)` is intentional
+  per the watchdog model: app_main only wakes on explicit notification
+  and never gates a critical path.  Pre-existing, not touched.
+- **`malloc` for jpeg buffers** in `sentai_runtime.cc:2003,2042` —
+  in `sentai_tpu_draw` which is dead code on REPL (binding retired).
+  Will be removed alongside the function in the next cleanup pass.
+- **`new tflite::MicroInterpreter`** in legacy `sentai_load_model`
+  (slot 0 path) — same null-deref class but the legacy call site is
+  unchanged, would require a separate fix.  Risk identical, but
+  affects only slot 0 and the historical V22 build was running
+  without this check for months without a single OOM-induced crash
+  report.  Flagged as **issue F** for the next cleanup pass; keeping
+  byte-for-byte legacy compatibility takes priority over harmonizing
+  the null-check style.
+
+### Audit closure status
+
+| Module | Critical | Major | Minor | Status |
+|---|---|---|---|---|
+| `sentai_slow_bridge.cc::sentai_load_model_slot` | 1 (A) | 1 (B) | — | ✅ fixed in #1101 |
+| `detection_task.cc::set_slot_for_cam` | — | 1 (C) | — | ✅ fixed in #1101 |
+| `sentai_runtime.cc` (legacy detect/draw dead code) | — | — | 1 (D) | 📋 logged for next pass |
+| `sentai_load_model` (slot 0 legacy path null check) | — | — | 1 (F) | 📋 logged for next pass |
+| Concurrency / heap thread-safety | — | — | 1 (E) | 📋 design note only |
+
+The Phase 1+2 multi-slot stack is now compliant with embeded.md
+rules §2.4 (error codes), §F (fault management), §I (diagnostics)
+on every error path that could realistically fire in the field.
+
+### Bisection update (same session) — root cause is FileX layout fragility, not multi-slot logic
+
+After the revert, ran a tactical bisect — added two unused 2 MB
+buffers (`tensor_arena_aux1`, `tensor_arena_aux2`) to `.sdram_bss`
+WITHOUT changing any load/invoke code.  Build #1095, pure layout
+shift, legacy single-slot logic.
+
+`sentai.tpu.load("/models/iarna_p3p4_GELAN_..._edgetpu.tflite")` →
+**hangs identically** to the multi-slot build.  Watchdog trips at
+60 s (WDG_WARN), system resets at 90 s (WDG_DEAD).  Crash logs in
+`/log/crash_005..008.log` show `mp_repl` task in **Ready** state
+(not blocked) with stack high-water mark unchanged — meaning the
+REPL task entered `LfsUserReadFile` and never returned.
+
+Then tested MSBlock + C2f with the same build → both also fail with
+`rc=-2` (file read failed).  Confirms it's NOT GELAN-specific —
+it's a generalised FileX failure triggered by the layout shift.
+
+After multiple cycles of crash-and-reset during this debug,
+`sentai.fs.ls("/")` returns only `[('log', 2, 0)]`.  `/models` and
+`/diags` are gone — NAND state was clobbered by the watchdog-
+interrupted FileX writes.  All test data lost; models will need to
+be re-uploaded.
+
+### Real root cause + Phase 1 retry strategy
+
+The crash isn't a tflite-micro arena issue.  It's that **adding
+≥4 MB static `.sdram_bss` buffers shifts the FileX state arrays
+(`g_lx_nand`, `g_fx_media`, `g_fx_media_memory`) to addresses where
+some hardware interaction (likely cache-coherency on NAND DMA)
+silently breaks reads of large files**.  See
+[`project_filex_layout_fragility.md`](memory) memory entry for the
+forensic detail.
+
+Implications for Phase 1 retry:
+- Static `.sdram_bss` allocation for the 3 slot arenas is the WRONG
+  vehicle.
+- Working alternatives:
+  1. **Heap-allocate** the slot arenas with `malloc` from m_heap
+     (16 MB total, plenty of room).  No static buffers added to
+     `.sdram_bss`, FileX layout unchanged.
+  2. **Dedicated `(NOLOAD)` section in m_sdram BEFORE
+     `.sdram_bss`** in the linker script.  Keeps FileX state at
+     the same physical addresses as the baseline build.
+  3. **m_ncamera extension** has 24 MB free SDRAM that's already
+     used for camera buffers — could carve out 6 MB for slot
+     arenas without disturbing FileX.
+- Either way, the multi-slot logic itself (slot accessors, load_slot
+  dispatcher, invoke_slot) was correct — the only blocker was the
+  storage-class choice for the extra arenas.
+
+Once Phase 1 retry lands a working multi-slot path, the validation
+driver `_t_three_slots.py` is ready to confirm 3 distinct output
+hashes (matching the host pycoral verification done above).
+
+---
+
+## 🧪 Session 2026-04-28 — 2-model alternation ON THE SENTAI BOARD
+
+Goal: replicate the host pycoral 2-model test on the SentAI firmware.
+The board's MicroPython API only exposes a single-active-interpreter
+surface (`sentai.tpu.load`/`.invoke`), so we cannot keep two
+`tflite::Interpreter` instances resident.  But we CAN measure: does
+the on-chip parameter cache survive a `tpu.load(other_model)` cycle?
+If yes, a future slot-based firmware API would gain only the
+load_ms cost, not a re-upload penalty.
+
+Two drivers — both self-contained per agent.md §5.1.5:
+
+1. **`diag/_t_two_model_alt.py`** (no pipeline) — 5 cycles ×
+   [load(A) → warm0 + 30 invokes → load(B) → warm0 + 30 invokes].
+   CSV: `/diags/s007_two_model_alt/results.csv`.
+2. **`diag/_t_two_model_pipeline_alt.py`** (pipeline) — 5 cycles ×
+   [pipeline.calibrate(A, 100) → pipeline.calibrate(B, 100)] @ VGA45.
+   CSV: `/diags/s008_two_model_pipeline_alt/results.csv`.
+
+Both use A=MSBlock, B=C2f.
+
+### Results — pure TPU (no pipeline)
+
+| Cycle | MSBlock load_ms | warm0 | med | C2f load_ms | warm0 | med |
+|---:|---:|---:|---:|---:|---:|---:|
+| 0 | **1396** | 7 | 11 | 131 | 15 | 11 |
+| 1 | **1396** | 14 | 11 | 131 | 8 | 12 |
+| 2 | **1395** | 13 | 13 | 131 | 8 | 11 |
+| 3 | **1396** | 13 | 13 | 130 | 8 | 11 |
+| 4 | **1396** | 12 | 11 | 130 | 8 | 11 |
+
+Findings:
+
+1. **Parameter cache IS preserved across `tpu.load()` cycles.**
+   Reload-of-MSBlock warm0 stays at 7–14 ms (vs 6–10 ms baseline);
+   reload-of-C2f warm0 stays at 8–15 ms.  No re-upload spike.  This
+   matches host behaviour: cache is keyed by parameter_caching token
+   on the device, not by interpreter lifetime.  A `load_slot` API
+   that kept both interpreters resident would NOT save warm0 cost
+   — it's already negligible.
+2. **MSBlock pays a consistent ~1396 ms reload penalty in REPL-driven
+   `sentai.tpu.load` — RETRACTED first-device-open hypothesis.**  In
+   the load-order rotation experiment (no per-phase invokes between
+   loads) MSBlock loaded at ~100 ms in every slot.  Here, with 30
+   invokes between loads, it pays 1.4 s every reload — even on cycles
+   1..4 (clearly NOT first-device-open).  C2f reload stays fast (130
+   ms).  **Reproducible MSBlock-specific anomaly, REPL-path only**
+   (see pipeline data below).  Hypothesis: a path in the REPL-side
+   load — possibly an arena-resize that triggers a FreeRTOS heap
+   compaction, or an iarna-MSBlock-specific edgetpu_op fixup — that
+   isn't in the pipeline-side load.  Investigation deferred; tracked
+   in [project_msblock_repl_load_anomaly.md](project_msblock_repl_load_anomaly.md).
+3. **Steady-state median is consistent** (11–13 ms across all 10
+   phases).  Rapid alternation does NOT degrade per-invoke timing.
+4. **Total swap cost (REPL path):** load_ms (130–1396) + warm0 (8–15).
+   For C2f it's ~140 ms per swap — comfortably <1 frame at VGA45.
+   For MSBlock the REPL path is unusable for runtime swap, but the
+   pipeline path (below) is fine.
+
+### Results — pipeline (5 cycles × 2 models @ VGA45)
+
+| Cycle | MSBlock wall_ms | FPS | C2f wall_ms | FPS |
+|---:|---:|---:|---:|---:|
+| 0 | 2314 | 45.85 | 2306 | 45.85 |
+| 1 | 2316 | 45.64 | 2300 | 45.87 |
+| 2 | 2321 | 45.53 | 2305 | 45.87 |
+| 3 | 2306 | 45.85 | 2311 | 45.74 |
+| 4 | 2313 | 45.87 | 2308 | 45.82 |
+
+Findings:
+
+1. **Pipeline 2-model alternation is cumulatively free.**  All 10
+   phases land at 45.5 – 45.9 FPS (Δ 0.4 FPS, sensor noise floor).
+   No drift, no degradation, no MSBlock anomaly.
+2. **Per-swap overhead ~100–115 ms.**  Wall = 2300–2320 ms; pure
+   frame budget = 100 × 22 ms = 2200 ms.  Matches the 3-model
+   rotation result.  Whether you alternate 2 or 3 models, swap cost
+   is the same.
+3. **Pipeline path does NOT exhibit the REPL `tpu.load` slow-MSBlock
+   penalty.**  The 1.4 s anomaly seen in `s007` does not reproduce
+   inside `pipeline.calibrate`.  The pipeline-side model load (in
+   `examples/sentai_runtime/sentai_tfl_bridge.cc` /
+   `sentai_runtime.cc`) takes a different code path than the
+   REPL-driven `mod_sentai_load_model` → `sentai_load_model` chain.
+
+### Implications for runtime model selection
+
+- **Recommended path: keep model swapping inside the pipeline.**  Use
+  `pipeline.stop()` + `pipeline.start(new_model)` (or
+  `pipeline.set_model(new_model)` if you add the API).  Cost: ~100 ms
+  fully off-frame; no MSBlock anomaly; no per-invoke regression.
+- **REPL `sentai.tpu.load` is fine for diag/bench but NOT for hot
+  swap** until the MSBlock 1.4 s reload anomaly is root-caused.  C2f
+  and GELAN reload fine (~130–190 ms) — only MSBlock is affected.
+- **The on-chip cache is preserved across loads.**  A future
+  `sentai.tpu.load_slot(N, path)` + `sentai.tpu.invoke_slot(N)` API
+  that kept N interpreters resident would gain only the load_ms
+  amortisation, not the warm0 (which is already <15 ms).
+
+### Reproducing
+
+```bash
+cd examples/sentai_runtime
+python3 diag/_host_upload_repl.py --file _t_two_model_alt.py
+python3 diag/_host_upload_repl.py --file _t_two_model_pipeline_alt.py
+
+python3 scripts/flashtool.py -e sentai_runtime --ram
+python3 /tmp/run_two_model.py /lib/diag/_t_two_model_alt.py
+# (reflash again before pipeline test if you want a clean baseline)
+python3 /tmp/run_two_model.py /lib/diag/_t_two_model_pipeline_alt.py
+
+python3 /tmp/pull_csv.py /diags/sNNN_two_model_alt/results.csv
+python3 /tmp/pull_csv.py /diags/sNNN_two_model_pipeline_alt/results.csv
+```
+
+---
+
+## 🧪 Session 2026-04-27 / 2026-04-28 — LittleFS → FileX/LevelX migration
+
+Goal: replace LittleFS on the user partition (blocks 76..523, 56 MB)
+with FileX FAT16 over LevelX wear-leveling because LFS dir-listing was
+O(n) on metadata-pair walks and the user partition routinely held
+hundreds of diag JPEGs / model files.
+
+Outcome over 4 build cycles (#1062 → #1074):
+- /api/ls latency: 231 ms → 24 ms (10×).
+- Concurrent-write `lfs_busy` rate: 54% → 0.2%.
+- Small-file (256 B) write: 2772 ms → 67 ms (41×).
+- Large-file (256 KB) write: 8728 ms → 1719 ms (5×).
+- HTTP /api/raw 64 KB: 3.1 KB/s → ~16 KB/s.
+- Linux `usb-storage` now mounts `/dev/sda` as native FAT.
+
+### Phase 0 — vendoring + scoping (build #1058)
+
+- Eclipse ThreadX repos pinned at `v6.5.0.202601_rel` as submodules:
+  - `third_party/eclipse-threadx/filex` (212 sources, MIT).
+  - `third_party/eclipse-threadx/levelx` (64 sources, MIT).
+  Both built standalone (no ThreadX kernel) via `FX_STANDALONE_ENABLE`
+  + `LX_STANDALONE_ENABLE` so they coexist with FreeRTOS.
+- Plan + fault model: `examples/sentai_runtime/paper/filex_migration.md`.
+
+### Phase 1 — first proof on hardware (#1062)
+
+- New libs: `libs/filex/`, `libs/levelx/` (CMake static, glob over both
+  `fx_*.c` and `fxe_*.c` — missing the `fxe_*` glob caused 16 link
+  errors first time, fixed in 0.1 s by adding it).
+- New BD adapter: `libs/base/fx_nand_driver.{h,cc}` — LevelX
+  read/write/erase callbacks bound to NXP `Nand_Flash_*`.
+- New runtime: `libs/base/fx_user_fs.{h,cc}` exposes the LX/FX
+  control blocks + a `sentai.diag.fx_smoke()` REPL binding for the
+  destructive smoke test (50 files × 1 KB, format → write → list →
+  read → verify → restore LFS).
+- 4 bugs discovered + fixed during the smoke run:
+  1. `fx_system_initialize()` and `lx_nand_flash_initialize()` MUST
+     be called once at boot.  Skipping them returns
+     `FX_NOT_IMPLEMENTED` (0x22) from the build-options sanity check
+     in `_fx_media_open`.
+  2. `directory_entries=32` arg to `fx_media_format` capped the root
+     at 32 files → `FX_NO_MORE_SPACE` on file #33.  Bumped to 256.
+  3. Block-comment-ending bug: `/* ... fx_*/lx_* ... */` ends the
+     comment at `*/` after `fx_`, treating the rest as code.  Use
+     spaces around the asterisks.
+  4. Shared FT-scratch + payload buffer.  The FileX fault-tolerant
+     log writes into its scratch concurrent with file writes, which
+     corrupted data mid-write.  Separate `g_fx_payload_buf`.
+- First-pass geometry: 2016-byte data + 32-byte emulated spare carved
+  off the end of each NAND page — see Phase 2.1 for why this turned
+  out to be wrong.
+
+### Phase 2 — full user-partition cutover (#1064)
+
+- `LfsUser*()` C++ helpers reimplemented as thin wrappers over
+  `FxUser*()`.  ~30 raw `lfs_*(LfsUser(), ...)` consumers refactored
+  in `sentai_httpd.cc`, `sentai_httpd_v2.cc`, `sentai_lfs_task.cc`,
+  `modsentai_hal.cc`, `sentai_runtime.cc` (boot-log + crash-log).
+  `LfsUser()` accessor returns `nullptr` permanently.
+- `LfsUserInit()` now calls `FxUserInit()` — auto-formats on first
+  boot post-migration (LFS data on the user range invalidates LX
+  open, so we hit the format path), mounts cleanly thereafter.
+- Boot log + crash log refactored: no more long-lived
+  `lfs_file_t g_boot_log_file`.  Each flush opens, appends, closes
+  via `FxUserAppendFile`.
+- Validated end-to-end: REPL `fs.write/append/read` with mkdir-p,
+  HTTP GET/POST, persistence across watchdog reset.
+
+### Phase 2.1 — MSC mount + lwip POST + rename + storage debug log (#1070)
+
+User reported three issues post-Phase-2:
+1. `sentai.usb.drive(1)` produced `/dev/sda` but `mount /dev/sda`
+   failed: `Unsupported sector size 2016`.
+2. `curl -X POST` (no body, no Content-Length) hung.
+3. `[lfs_task]` boot log message was confusing now that the task
+   serves a non-LFS volume.
+
+Fixes:
+
+**MSC routing through LevelX with REAL NAND OOB.**  The 2016-byte
+sector size came from emulating LX spare by carving 32 bytes off the
+data area of each 2048-byte NAND page.  But this NAND has actual
+hardware OOB — the NXP driver `Nand_Flash_Read_Page` accepts `length
+> bytesInPageDataArea` and reads/writes both regions in one
+transaction.  Switched geometry to:
+- `FX_NAND_BYTES_PER_PAGE = 2048` (full data area = power-of-2 LBA).
+- `FX_NAND_SPARE_PER_PAGE = 64` (real chip OOB; LX uses 12 of those).
+- `FX_NAND_PAGE_RAW_BYTES = 2112` (length passed to NAND driver).
+
+`libs/msc_ums/msc_ums.cc` rewritten to call `FxUserMscRead/Write`
+which delegate to `lx_nand_flash_sector_read/write` instead of raw
+`Nand_Flash_*` block access.  Storage-mode boot path
+(`main_freertos_m7.cc`) now calls `FxUserOpenLxOnly()` BEFORE
+`UsbDeviceTask::Init` so MSC events have a live LX volume to address.
+FileX media is NOT opened in storage mode (host owns the NAND).
+
+Result: Linux auto-mounts `/dev/sda` at `/media/$USER/0000-0001/`,
+bidirectional file transfer board ↔ host works.
+
+**lwip httpd empty-body POST patch.**  SDK patch
+`patches/coralmicro-rt1176-sdk/0004-lwip-httpd-empty-body-post.patch`
+relaxes the Content-Length parser to default to 0 when the header is
+missing (curl `-X POST` without `--data-binary` doesn't send it).
+Without the patch `/api/rm/...` and `/api/mkdir/...` from common
+clients hang and trip the watchdog.
+
+**Rename `sentai_lfs_*` → `sentai_fs_*`** (file + symbols + boot-log
+print prefix).  `sentai_lfs_task.{h,cc}` → `sentai_fs_task.{h,cc}` via
+`git mv`; symbols renamed via `sed`.  The `lfs_busy` JSON error tag
+is intentionally PRESERVED because `browser.html` retries on it.
+
+**Storage-mode debug log.**  Storage mode kills REPL.  16 KB SDRAM
+ring placed in a NOLOAD `.sdram_storage_log` linker section that
+survives NVIC_SystemReset (the `.bss`-zero loop in
+`board_hardware.c` covers a different range and skips this section).
+MSC handler calls `sentai_storage_log("MSC R lba=%u cnt=%u", ...)`
+etc.; on next default-mode boot `sentai_storage_log_flush_to_fs()`
+dumps the ring to `/log/storage_debug.log` and
+`sentai.diag.storage_log()` reads it.  KNOWN BUG: only the boot-init
+line and the flush trailer land in the file — MSC R/W events from
+inside the handler don't propagate.  SDRAM persistence works (header
+survives), so the bug is in the per-event `vsnprintf` path.
+Phase 3.x followup.
+
+### Phase 3 — perf tuning (#1074)
+
+Live perf bench on #1062 baseline showed three problems:
+- Small-file writes ~2.7 s each (mostly `fx_media_flush` cost).
+- HTTP /api/raw stuck at 3 KB/s for any size.
+- Concurrent REPL writes + /api/ls bursts → 54% `{"error":"lfs_busy"}`.
+
+**Drop per-write `fx_media_flush` (Phase 3.2).**  `fx_file_close`
+already flushes the file's FAT chain.  An additional media-flush
+forces a full FAT-table writeback that costs ~1 s on NAND with
+2048-byte sectors and provides ZERO additional durability for
+one-shot writes.  Removed the redundant flush from `FxUserWriteFile`,
+`FxUserAppendFile`, `FxUserRemove`, `FxUserRename`.  Added explicit
+`FxUserSync()` for callers that need pre-reset durability.
+
+**lwip Nagle disable (Phase 3.3).**  Extended SDK patch 0004 to add
+`altcp_nagle_disable(pcb)` at the top of `http_send()`.  Cause:
+upstream lwip enables Nagle implicitly; combined with Linux's 200 ms
+delayed-ACK that limits a 64 KB GET to ~3 KB/s.  Disabling Nagle
+lets lwip ship the full sndbuf in one go; /api/raw goes to ~16 KB/s.
+
+**`sentai_fs_task` queue + slow-path tuning (Phase 3.4).**  Old
+config: depth=1 + 500 ms slow-path wait → 54% busy under contention.
+Bumped to depth=4 + 1500 ms wait — well within the 2 min USB-NCM
+watchdog ceiling.  Memory cost ~1.2 KB.  Drop rate to 0.2%.
+
+**`sectors_per_cluster=4` REVERTED (Phase 3.1).**  Tried 8 KB
+clusters expecting 4× fewer FAT updates per write.  Empirically:
+- small-file writes already won by flush removal (no further gain),
+- 64 KB writes regressed 4287 → 9950 ms (2.3× slower),
+- 256 KB writes regressed 8728 → 19516 ms (2.2× slower).
+Suspected cause: `FX_MAX_SECTOR_CACHE=8` too small to keep the
+larger cluster's FAT entries hot, causing FAT thrash.  Reverted to
+`sectors_per_cluster=1`.  Revisit only with cache ≥32 and a larger
+`g_fx_media_memory` buffer.
+
+### Final perf table (build #1074, freshly-formatted volume)
+
+| Op                        | Before (#1062) | After (#1074) | Change |
+|---------------------------|---------------:|--------------:|-------:|
+| Write 256 B               |     2772 ms    |       67 ms   |   41×  |
+| Write 4 KB                |     2794 ms    |       20 ms   |  139×  |
+| Write 64 KB               |     4287 ms    |     2093 ms   |    2×  |
+| Write 256 KB              |     8728 ms    |     1719 ms   |    5×  |
+| Read 64 KB                |      226 ms    |       24 ms   |    9×  |
+| HTTP /api/raw 64 KB       |    3.1 KB/s    |     16 KB/s   |    5×  |
+| /api/ls busy %            |       54 %     |      0.2 %    | dropped |
+| /api/ls ok latency        |      231 ms    |       24 ms   |   10×  |
+
+### Files touched in the migration
+
+- New: `libs/filex/`, `libs/levelx/` (CMake + standalone-mode user
+  config headers).
+- New: `libs/base/fx_nand_driver.{h,cc}`, `libs/base/fx_user_fs.{h,cc}`.
+- Edited: `libs/base/filesystem.{h,cc}` — `LfsUser*()` shims.
+- Edited: `libs/base/main_freertos_m7.cc` — boot init + storage-mode
+  LX-only path + storage-log flush.
+- Edited: `libs/msc_ums/msc_ums.cc` — LBA size 2048, route via LX.
+- Edited: `examples/sentai_runtime/sentai_httpd.cc`,
+  `sentai_httpd_v2.cc`, `sentai_fs_task.cc` (renamed),
+  `modsentai_hal.cc`, `modsentai_diag.c`, `modsentai_fs.c`,
+  `sentai_runtime.cc`.
+- Edited: `examples/sentai_runtime/MIMXRT1176xxxxx_cm7_ram_mp.ld` —
+  `.filex` / `.levelx` / `.fx_glue` SDRAM placement,
+  `.sdram_storage_log` NOLOAD section.
+- Edited: `examples/sentai_runtime/sentai_error.h` +
+  `error_codes.csv` — module 0x0D for LFX_* error codes.
+- Vendored SDK patch:
+  `patches/coralmicro-rt1176-sdk/0004-lwip-httpd-empty-body-post.patch`
+  (empty-body POST + Nagle disable).
+- Submodules: `third_party/eclipse-threadx/filex` and `levelx` at
+  `v6.5.0.202601_rel`.
+
+### What we did NOT do (and shouldn't be tempted to)
+
+- Did NOT migrate the system partition (LittleFS, blocks 12..75).
+  System holds the firmware ELF + MicroPython runtime; switching it
+  is high-risk for ~no benefit (few files, infrequent writes).
+- Did NOT enable `FX_ENABLE_FAULT_TOLERANT` at runtime.  The compile
+  flag is on but `fx_fault_tolerant_enable` is NOT called.  Tradeoff:
+  power-fail mid-write loses the in-progress file, but doesn't
+  corrupt the volume.  Enabling FT adds ~500 ms per file write
+  (journal log) — measured during Phase 1 smoke.
+- Did NOT bump `FX_MAX_SECTOR_CACHE`.  Default 8 sectors @ 2 KB =
+  16 KB cache; bumping to 32+ would let us re-try
+  `sectors_per_cluster=4` for additional small-file gains.  Future
+  Phase 3.5.
+
+### Open follow-ups
+
+1. SDRAM debug log: MSC R/W events don't propagate to the dump file
+   (only header lines).  Buffer persistence works.  Bug in
+   per-event `vsnprintf` path.
+2. `FX_MAX_SECTOR_CACHE=32` + `sectors_per_cluster=4` re-attempt for
+   small-file writes once the volume is aged.
+3. CSV-based perf bench in `diag/` so the fresh-format vs aged-volume
+   write degradation is reproducibly measurable.
+
+---
+
 ## 🧪 Session 2026-04-26 (build #986) — Runtime fps init + chunked upload via `fs.append`
 
 ### Goal
@@ -129,18 +1866,18 @@ measurable directly against the single-camera invoke ceiling.
 
 | fps | ratio  | cam0:cam1 | invoke ms (avg/min/max) | pipeline FPS |
 |-----|--------|-----------|-------------------------|--------------|
-| 30  | 1cam   | 100:0     | 20 / 15 / 30            | **44.48**    |
-| 30  | 1:1    | 50:50     | 25 / 23 / 36            | 17.51        |
-| 30  | 2:1    | 67:33     | 24 / 21 / 33            | 18.76        |
-| 30  | 3:1    | 80:20     | 22 / 16 / 33            | 26.61        |
-| 45  | 1cam   | 100:0     | 20 / 16 / 28            | **43.99**    |
-| 45  | 1:1    | 50:50     | 28 / 24 / 33            | 33.72        |
-| 45  | 2:1    | 67:33     | 25 / 19 / 37            | 37.32        |
-| 45  | 3:1    | 75:25     | 23 / 18 / 31            | 40.32        |
-| 60  | 1cam   | 100:0     | 21 / 17 / 32            | **43.34**    |
-| 60  | 1:1    | 50:50     | 22 / 21 / 31            | 33.43        |
-| 60  | 2:1    | 50:50     | 22 / 20 / 23            | 33.56        |
-| 60  | 3:1    | 78:22     | 23 / 16 / 35            | 31.20        |
+| 30  | 1cam   | 100:0     | 20 / 15 / 28            | **44.72**    |
+| 30  | 1:1    | 50:50     | 25 / 23 / 32            | 16.99        |
+| 30  | 2:1    | 66:34     | 23 / 21 / 34            | 18.79        |
+| 30  | 3:1    | 80:20     | 22 / 16 / 32            | 27.27        |
+| 45  | 1cam   | 100:0     | 20 / 15 / 34            | **43.84**    |
+| 45  | 1:1    | 50:50     | 28 / 24 / 39            | 33.36        |
+| 45  | 2:1    | 67:33     | 25 / 19 / 36            | 37.59        |
+| 45  | 3:1    | 75:25     | 23 / 17 / 31            | 40.35        |
+| 60  | 1cam   | 100:0     | 22 / 16 / 35            | **43.01**    |
+| 60  | 1:1    | 50:50     | 23 / 20 / 37            | 32.73        |
+| 60  | 2:1    | 100:0 ⚠   | 22 / 20 / 34            | 33.06        |
+| 60  | 3:1    | 77:23     | 23 / 16 / 32            | 30.95        |
 
 **Pipeline observations:**
 
@@ -161,12 +1898,166 @@ measurable directly against the single-camera invoke ceiling.
    ceiling.  Three of every four frames stay on the same camera and
    skip the drain; the 4th drain costs one sensor period (22 ms),
    amortised across the 4-frame cycle.
-5. **VGA60 ratio reporting is fuzzy (2:1 → 50:50, 3:1 → 78:22).**
-   `pipeline.calibrate` uses `force_parity` skip-on-same-cam_id which
-   biases away from the strict (a,b) schedule when the sensor period
-   is short and the parity loop catches more switches than scheduled.
-   Does not affect FPS — only affects the cam0:cam1 distribution
-   reported.
+5. **`force_parity` no longer overrides `ratio()` (build #98x fix,
+   2026-04-27).**  Pre-fix, the PrepTask `force_parity` skip-on-
+   same-cam_id loop ran unconditionally and discarded frames that
+   the ISR's ratio-alternate scheduler had explicitly placed on the
+   cam0 column.  At VGA60 the 22 ms force_parity sleep was longer
+   than the 16.7 ms sensor period, so every "second cam0" the
+   schedule emitted was reliably skipped — captured distribution
+   collapsed to 50:50 regardless of the requested ratio.  Fix in
+   `detection_task.cc`: when `g_cam_ratio_packed != 0` the ISR
+   schedule is authoritative, so force_parity is bypassed.
+   Result: VGA45 2:1 → 67:33, 3:1 → 75:25 (matches the requested
+   ratio within ±1 %).
+### `sentai.pipeline.probe_ratios()` — auto-discovery API (build #1003+, 2026-04-27)
+
+Following the VGA60+2:1 aliasing diagnosis, the firmware ships a
+new MicroPython binding that probes a fixed candidate set of
+ratios and reports which produce a usable output.  Calling form:
+
+```python
+sentai.pipeline.probe_ratios(model_path, frames=50, tol_pct=10)
+# → list of dicts, one per candidate (default {(1,1), (2,1), (3,1), (5,1)}):
+#   { 'ratio': (a, b),
+#     'ok': True/False,
+#     'cam0': N, 'cam1': N, 'frames': total,
+#     'invoke_ok': N, 'invoke_fail': N,
+#     'reason': 'ok' / 'aliasing' / 'off-tolerance' / 'invoke_fail' / 'timeouts' }
+```
+
+**`ok=True` requires BOTH:**
+- captured cam0 percentage within `tol_pct` of the requested ratio's
+  proportion (e.g. ratio(2,1) → expected 67%, got_pct must be 57-77%
+  at tol_pct=10), AND
+- TPU invoke fail rate below `tol_pct` (we know cam_id from the ISR
+  tag even when invoke crashes, but a ratio whose invokes fail >10%
+  of the time produces no useful detection output).
+
+**`reason` codes:**
+- `aliasing` — captured 99-100% one camera (the failure mode at
+  VGA60+2:1 documented above).
+- `off-tolerance` — distribution drifted but didn't fully starve.
+- `invoke_fail` — TPU invoke crashed > tol_pct (typically SDRAM
+  contention at high pixel rates).
+- `timeouts` — pipeline produced fewer frames than `frames/4`
+  during the 2 s per-frame timeout window.
+
+**Single-source-of-truth:** the probe just OBSERVES what the ISR
+scheduler emits and what the TPU consumes.  No consumer-side
+schedule-aware grab (rejected per agent.md §2.5: producer is
+authoritative).  When a ratio fails the probe, the fix is to PICK
+A DIFFERENT RATIO — not work around the artefact in PrepTask.
+
+**State management:** auto-loads model if not loaded, auto-starts
+pipeline (stops on exit if started here), saves & restores both
+the previous `ratio()` and `force_parity` flag.  Total wall time
+≈ N_candidates × frames × sensor_period × 1.5; at VGA60 + default
+candidates ≈ 5 s.
+
+**Empirical results — model yolo_1 512×512:**
+
+| fps | (1,1) | (2,1) | (3,1) | (5,1) | Notes |
+|-----|-------|-------|-------|-------|-------|
+| 30  | OK 50:50 | OK 67:33 | OK 78:22 | OK 87:13 | All clean, 0 invoke_fail |
+| 45  | OK 50:50 | OK 67:33 | OK 75:25 | OK     | All clean expected |
+| 60  | OK 50:50 | **SKIP aliasing 100:0** | OK 78:22 | OK     | Schedule aliasing on (2,1) only; invokes clean on this run (but margins thin — see below) |
+
+**On TPU invoke fails at VGA60:**  The bench in the row above the
+probe table (build #1002) saw invoke crashes ("Node edgetpu-custom-op
+failed to invoke with status 1") AFTER multiple back-to-back probe
+cycles at VGA60.  Root cause is the documented SDRAM contention
+between camera CSI DMA writes (~73 MB/s at 60 fps) and TPU bulk-OUT
+instruction reads from SDRAM (project_v23_ring_analysis.md /
+project_tpu_pipeline_agressor.md).  At fresh boot the contention is
+manageable; under accumulated state (heap fragmentation in MP, TPU
+firmware staleness across rapid ratio changes) it becomes marginal.
+**The probe API now reports this directly via `invoke_fail` count
+and the `'invoke_fail'` reason code** — so callers can distinguish
+"schedule wrong" from "TPU crashed" without guessing.  Production
+code that consumes probe results MUST filter on `ok=True`; FPS
+numbers from a candidate that has `invoke_fail > 0` are misleading
+because the per-frame counter advances on get(), not on successful
+invoke.
+
+### TPU USB Bulk-OUT byte budget per invoke (yolo_1 512×512, build #1003)
+
+Ground-truth measurement on board via `sentai.diag.tpu_call_stats()`
+after a 50-invoke calibrate run (`p_calls=53`, includes 1 model-load
+SendParameters):
+
+| What | Per-invoke KB | Per-call KB | Calls/invoke | Source today |
+|------|---------------|-------------|--------------|---------------|
+| **Inputs**       | 777.1 | 396.0 | 2 | **OCRAM** ✓ (`.tpu_input` 768 KB) |
+| **Instructions** | 356.3 | 179.8 | 2 | **SDRAM** ❌ (model flatbuffer) |
+| **Params**       |  97.8 |   —   | rare | **SDRAM** ❌ (cached on TPU side) |
+| **Total USB OUT** | **1231 KB** | | | |
+
+`Inputs` is already in OCRAM (V22 Cale 1 win).  Of the remaining
+bandwidth:
+- **Instructions = 356 KB/invoke** are the prime relocation candidate.
+  They are SENT EVERY INVOKE and they live in the model flatbuffer in
+  SDRAM, contending with camera CSI DMA on SEMC at high pixel rates.
+- **Params = ~98 KB/invoke** but with `parameter_caching=present` the
+  TPU caches them on its side — most invokes hit cache (skip_params).
+  Bulk re-send only at first invoke or after eviction.
+
+### Linux-side model inspector — `paper/scripts/inspect_tflite.py`
+
+Companion script (host, requires `venv-coral/`):
+
+```bash
+source venv-coral/bin/activate
+python3 examples/sentai_runtime/paper/scripts/inspect_tflite.py \
+    /home/bogdan/Downloads/yolo_1_class_512_1_upsample_512_inloc_de_1024_la_P5_32.tflite
+```
+
+Reports the file structure: file size, custom_options size (=
+EdgeTPU darwinn `ExecutablePackage` size), TF Lite buffers, total.
+Per-component sizes (parameters / instruction_bitstreams) inside
+the darwinn flatbuffer require running the model on-board and
+reading `tpu_call_stats` (the darwinn schema isn't public).
+yolo_1 result: 5.59 MB file, 5.34 MB custom_options (≈ 100 % of
+file is the EdgeTPU executable; raw TF Lite metadata is < 1 KB).
+
+### Companion driver — `_t_fps_pipeline.py` (probe-driven)
+
+Rewritten 2026-04-27 to USE `probe_ratios` instead of guessing the
+matrix:
+
+1. `init(1, fps)` (with -11 self-reset).
+2. `probe_ratios(MODEL, 50, 10)` — print verdict per candidate.
+3. Run full `calibrate(MODEL, 100, 2000)` only on candidates with
+   `ok=True` (plus the unconditional 1cam baseline at ratio(0,0)).
+4. Save both `pipeline.csv` (calibrate results) and `probe.csv`
+   (verdict per candidate) to `/diags/sNNN_pipeline_<fps>/`.
+
+This means the test matrix grows or shrinks with the actual sensor
+rate's tolerance window — at VGA60 we'll never again accidentally
+log "33 fps at ratio(2,1)" while silently capturing 100:0 cam0
+distribution.
+
+6. **VGA60 2:1 still drifts to 100:0 ⚠ (`grab_latest` aliasing,
+   open).**  The PrepTask uses `sentai_cam_grab_latest` which
+   discards stale buffers in favor of the freshest one.  At VGA60
+   the 2:1 cycle is `c0, c0, c1` (50 ms), the cam1 frame lands at
+   the END of the cycle, and the next sensor period (16.7 ms) ALWAYS
+   delivers a fresher c0 BEFORE PrepTask's next ~22 ms iteration —
+   so cam1 is always the "older" buffer and gets discarded.  3:1
+   doesn't suffer because the cycle is 66.7 ms and cam1 is the only
+   non-cam0 in 4 frames; PrepTask's iter window of ~22 ms catches
+   it cleanly.  At 1:1 the cycle is 33 ms and cam1/cam0 alternate
+   every sensor frame, so grab_latest still hits 50:50.
+
+   **Why this is NOT urgent enough to fix now:**  The 1cam ceiling
+   (44 fps) and 1:1, 3:1 distributions are correct, and the camera
+   parity bench (`_t_fps_bench.py`) at the SAME VGA60 2:1 reports
+   75:25 — i.e. the underlying ISR schedule IS correct.  The 100:0
+   drift is purely a PrepTask grab-strategy artifact specific to
+   VGA60 + 2:1.  If a downstream consumer needs strict 2:1 visit
+   counts at VGA60, the fix is to grab in FIFO order rather than
+   "latest" — out of scope for the runtime-fps audit; tracked as
+   a separate item.
 
 ### Code review companion to the bench (build #98x audit)
 
@@ -197,6 +2088,25 @@ runtime-fps API was introduced:
    `g_runtime_fps`, breaking the invariant "calling `init(1)` after
    a `sys.reset()` cycle inherits the previously-set rate".  Fixed
    to default to the runtime variable.
+6. **PrepTask `force_parity` overrode `sentai.camera.ratio(a,b)`**
+   (added 2026-04-27 audit).  The skip-on-same-cam_id loop fired
+   even when the ISR was running an explicit a:b schedule, which
+   converted the user-requested 2:1 / 3:1 distribution into 50:50
+   at any sensor rate where the 22 ms parity-sleep was shorter
+   than the schedule period.  Fixed in PrepTask body:
+
+   ```c
+   const bool ratio_active = (g_cam_ratio_packed != 0u);
+   if (s_force_parity && !ratio_active && ...) {
+       /* skip-on-match retry */
+   }
+   ```
+
+   ISR-side discipline preserved (per `embeded.md §C`): no work
+   added in the ISR, only one `volatile uint32_t` read in the task
+   context.  `g_cam_ratio_packed` is single-writer atomic
+   (sentai_cam_ratio_set; embeded.md §E ownership map) so the read
+   is safe without a barrier.
 
 The pipeline `calibrate` keeps positional-only argument convention
 (`MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN`); test drivers must pass

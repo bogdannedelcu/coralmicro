@@ -531,6 +531,60 @@ static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
     mod_sentai_pipeline_multi_invoke_mode_obj, 0, 1,
     mod_sentai_pipeline_multi_invoke_mode);
 
+// ===== Phase 2: per-camera TPU slot dispatch =====
+extern int sentai_pipeline_set_slot_for_cam(int cam_id, int slot);
+extern int sentai_pipeline_get_slot_for_cam(int cam_id);
+extern void sentai_pipeline_slot_stats(uint32_t* per_slot, int n);
+extern void sentai_pipeline_slot_stats_reset(void);
+
+// sentai.pipeline.set_slot_for_cam(cam_id, slot) -> int (0 ok, neg error)
+//   Route frames tagged with `cam_id` into TPU `slot`.  Default mapping
+//   is {0:0, 1:0} so existing single-slot behaviour is unchanged.
+//   Phase 2a: NMS / detection_task output access stays on slot 0;
+//   slots != 0 fire their model and bump per-slot invoke counters
+//   visible via slot_stats() but their detections are not yet routed
+//   into the standard detection result publication.
+static mp_obj_t mod_sentai_pipeline_set_slot_for_cam(mp_obj_t cam_obj,
+                                                     mp_obj_t slot_obj) {
+    int rc = sentai_pipeline_set_slot_for_cam(mp_obj_get_int(cam_obj),
+                                              mp_obj_get_int(slot_obj));
+    return mp_obj_new_int(rc);
+}
+static MP_DEFINE_CONST_FUN_OBJ_2(mod_sentai_pipeline_set_slot_for_cam_obj,
+                                 mod_sentai_pipeline_set_slot_for_cam);
+
+// sentai.pipeline.get_slot_for_cam(cam_id) -> int (slot or -1 on bad cam_id)
+static mp_obj_t mod_sentai_pipeline_get_slot_for_cam(mp_obj_t cam_obj) {
+    return mp_obj_new_int(sentai_pipeline_get_slot_for_cam(
+                              mp_obj_get_int(cam_obj)));
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_pipeline_get_slot_for_cam_obj,
+                                 mod_sentai_pipeline_get_slot_for_cam);
+
+// sentai.pipeline.slot_stats() -> tuple (slot0_invokes, slot1, slot2)
+//   Per-slot invoke counters incremented in InferTask.  Useful to
+//   confirm that frames are routed where expected.  Reset between
+//   calibrate runs via slot_stats_reset().
+static mp_obj_t mod_sentai_pipeline_slot_stats(void) {
+    uint32_t per[3] = { 0, 0, 0 };
+    sentai_pipeline_slot_stats(per, 3);
+    mp_obj_t items[3] = {
+        mp_obj_new_int_from_uint(per[0]),
+        mp_obj_new_int_from_uint(per[1]),
+        mp_obj_new_int_from_uint(per[2]),
+    };
+    return mp_obj_new_tuple(3, items);
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_pipeline_slot_stats_obj,
+                                 mod_sentai_pipeline_slot_stats);
+
+static mp_obj_t mod_sentai_pipeline_slot_stats_reset(void) {
+    sentai_pipeline_slot_stats_reset();
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_pipeline_slot_stats_reset_obj,
+                                 mod_sentai_pipeline_slot_stats_reset);
+
 // sentai.pipeline.force_parity([flag]) -> int (previous value)
 // When 1, PrepTask discards a freshly-grabbed buffer if its per-buffer
 // cam_id tag matches the LAST accepted frame, retrying up to a bounded
@@ -795,6 +849,219 @@ static mp_obj_t mod_sentai_pipeline_calibrate(size_t n_args,
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_pipeline_calibrate_obj,
                                             0, 7, mod_sentai_pipeline_calibrate);
 
+// sentai.pipeline.probe_ratios(model=None, frames=50, tol_pct=10) -> list
+//
+// Sweep a fixed candidate set of ratio(a,b) configurations and report
+// which produce a captured cam0:cam1 distribution within `tol_pct`
+// percentage points of the requested ratio's mathematical proportion.
+// Used to pick a non-aliasing ratio for the current (model, fps,
+// resolution) tuple — the alternative to compile-time guesswork after
+// the VGA60+2:1 aliasing was diagnosed (agent/experiment.md).
+//
+// Defaults to candidates [(1,1), (2,1), (3,1), (5,1)].
+//
+// Single-source-of-truth contract: this probe just OBSERVES what the
+// ISR scheduler emits.  No consumer-side filtering, no schedule-aware
+// grab.  When a ratio reports `ok=False`, the actual fix is to PICK
+// A DIFFERENT RATIO, not paper over the artefact in the consumer.
+//
+// State management:
+//   - Auto-loads `model` if given AND no model is currently loaded.
+//   - Auto-starts the pipeline if not running, stops on exit.
+//   - Saves & restores: previous sentai.camera.ratio(a,b),
+//     sentai.pipeline.force_parity flag.  force_parity is forced OFF
+//     during the probe (it would distort the measurement; the whole
+//     point is to see the ISR's RAW emission).
+//
+// Per-ratio result dict:
+//   ratio   : (a, b) tuple of the candidate
+//   ok      : True if |got_cam0_pct - expected_cam0_pct| <= tol_pct
+//   cam0    : cam0 frames captured (out of `frames` requested)
+//   cam1    : cam1 frames captured
+//   frames  : total frames captured (cam0 + cam1; <= requested)
+//   reason  : "ok" / "aliasing" / "off-tolerance" / "timeouts"
+//
+// Total wall-clock budget: ~ N_candidates * frames * sensor_period * 1.5.
+// At VGA60 + 4 candidates × 50 frames ≈ 5 s.  Stays under the 60 s
+// REPL-silence WDOG ceiling per agent.md §5.1.1.
+extern int  sentai_pipeline_force_parity_get(void);
+extern int  sentai_cam_ratio_set(uint32_t a, uint32_t b);
+extern void sentai_cam_ratio_get(uint32_t* a, uint32_t* b);
+extern void sentai_repl_activity(void);  /* heartbeat = "repl_kick" */
+/* infer_stats: ok / fail deltas around the probe so we can rule out
+ * an aliased ratio that is also losing TPU invokes (different cause,
+ * but both make the result useless to the caller). */
+extern void sentai_pipeline_infer_stats(uint32_t* ok, uint32_t* fail,
+                                        uint32_t* ms_sum, int32_t* last_rc);
+static mp_obj_t mod_sentai_pipeline_probe_ratios(size_t n_args,
+                                                 const mp_obj_t* args) {
+    const char* model_path = NULL;
+    if (n_args >= 1 && args[0] != mp_const_none) {
+        model_path = mp_obj_str_get_str(args[0]);
+    }
+    int frames  = (n_args >= 2) ? mp_obj_get_int(args[1]) : 50;
+    int tol_pct = (n_args >= 3) ? mp_obj_get_int(args[2]) : 10;
+    if (frames < 10)   frames = 10;
+    if (frames > 500)  frames = 500;
+    if (tol_pct < 1)   tol_pct = 1;
+    if (tol_pct > 50)  tol_pct = 50;
+
+    /* Fixed candidate set (NASA/JPL §3 — no dynamic allocation):
+     * intercalation goes from minimal block (1:1) to longer cam0
+     * dominance.  Enough range that the caller can pick a working
+     * non-aliasing combo for any reasonable fps. */
+    static const struct { uint16_t a, b; } cands[] = {
+        {1, 1}, {2, 1}, {3, 1}, {5, 1}
+    };
+    const size_t kNumCands = sizeof(cands) / sizeof(cands[0]);
+
+    /* Auto-load model if asked and none currently loaded. */
+    if (model_path != NULL && !sentai_tpu_is_ready()) {
+        int rc = sentai_load_model(model_path);
+        if (rc != 0) {
+            mp_raise_msg_varg(&mp_type_RuntimeError,
+                MP_ERROR_TEXT("probe_ratios: load model failed (%d)"), rc);
+        }
+    }
+    if (!sentai_tpu_is_ready()) {
+        mp_raise_msg(&mp_type_RuntimeError,
+            MP_ERROR_TEXT("probe_ratios: no model loaded"));
+    }
+    if (!sentai_cam_is_initialized()) {
+        mp_raise_msg(&mp_type_RuntimeError,
+            MP_ERROR_TEXT("probe_ratios: camera not initialized"));
+    }
+
+    /* Snapshot mutable state we will restore on exit. */
+    uint32_t saved_a = 0, saved_b = 0;
+    sentai_cam_ratio_get(&saved_a, &saved_b);
+    int saved_force_parity = sentai_pipeline_force_parity_get();
+    /* force_parity OFF during probe — it would skew the measurement
+     * by discarding ISR-scheduled frames.  The whole point of probe
+     * is to observe RAW ISR emission. */
+    sentai_pipeline_force_parity_set(0);
+
+    int started_here = 0;
+    if (!sentai_detection_is_running()) {
+        int rc = sentai_detection_start(250, 450, 50);
+        if (rc != 0) {
+            sentai_pipeline_force_parity_set(saved_force_parity);
+            sentai_cam_ratio_set(saved_a, saved_b);
+            mp_raise_msg_varg(&mp_type_RuntimeError,
+                MP_ERROR_TEXT("probe_ratios: pipeline start failed (%d)"),
+                rc);
+        }
+        started_here = 1;
+        sentai_sleep_ms(80);  /* settle */
+    }
+
+    mp_obj_t result_list = mp_obj_new_list(0, NULL);
+
+    for (size_t k = 0; k < kNumCands; ++k) {
+        const uint32_t a = cands[k].a;
+        const uint32_t b = cands[k].b;
+        sentai_cam_ratio_set(a, b);
+        sentai_sleep_ms(150);  /* settle ratio + drain stale */
+
+        /* Drain the detection pipeline's accumulated frames so the
+         * histogram only counts post-ratio-set captures. */
+        DetectionFrame discard;
+        int drain_max = 16;  /* bounded — never poll forever */
+        while (drain_max-- > 0 && sentai_detection_get(&discard, 0) >= 0) {
+        }
+
+        /* Snapshot infer_stats deltas around this candidate's window.
+         * frame.cam_id is set BEFORE invoke is attempted, so cam0/cam1
+         * histograms reflect the schedule even when invoke fails — but
+         * a ratio whose invokes consistently fail is useless to the
+         * caller regardless of schedule correctness.  Both must hold:
+         * (a) distribution within tol_pct AND (b) invoke-fail rate
+         * below the threshold. */
+        uint32_t inv_ok0 = 0, inv_fail0 = 0, inv_ms0 = 0;
+        int32_t  inv_rc0 = 0;
+        sentai_pipeline_infer_stats(&inv_ok0, &inv_fail0, &inv_ms0, &inv_rc0);
+
+        uint32_t cam0 = 0, cam1 = 0, got = 0, timeouts = 0;
+        DetectionFrame frame;
+        for (int i = 0; i < frames; ++i) {
+            int rc = sentai_detection_get(&frame, 2000);
+            if (rc < 0) { timeouts++; continue; }
+            got++;
+            if      (frame.cam_id == 0) cam0++;
+            else if (frame.cam_id == 1) cam1++;
+        }
+        sentai_repl_activity();  /* long sweep, keep WDOG quiet */
+
+        uint32_t inv_ok1 = 0, inv_fail1 = 0, inv_ms1 = 0;
+        int32_t  inv_rc1 = 0;
+        sentai_pipeline_infer_stats(&inv_ok1, &inv_fail1, &inv_ms1, &inv_rc1);
+        const uint32_t inv_ok   = inv_ok1   - inv_ok0;
+        const uint32_t inv_fail = inv_fail1 - inv_fail0;
+        const uint32_t inv_total = inv_ok + inv_fail;
+        const int inv_fail_pct = (inv_total > 0u)
+            ? (int)((inv_fail * 100u + inv_total / 2u) / inv_total) : 0;
+
+        /* Classify.  ok=True requires BOTH parity-within-tolerance AND
+         * invoke-fail-rate below tol_pct (same threshold; treat invoke
+         * losses on equal footing with parity drift). */
+        const uint32_t total = a + b;
+        const int exp_cam0_pct = (int)((a * 100u + total / 2u) / total);
+        int ok = 0;
+        const char* reason = "ok";
+        if (got < (uint32_t)(frames / 4)) {
+            reason = "timeouts";
+        } else if (inv_fail_pct > tol_pct) {
+            reason = "invoke_fail";
+        } else {
+            const int got_cam0_pct =
+                (got > 0u) ? (int)((cam0 * 100u + got / 2u) / got) : 0;
+            int err = got_cam0_pct - exp_cam0_pct;
+            if (err < 0) err = -err;
+            if (err <= tol_pct) {
+                ok = 1;
+            } else if (got_cam0_pct >= 99 || got_cam0_pct <= 1) {
+                reason = "aliasing";
+            } else {
+                reason = "off-tolerance";
+            }
+        }
+
+        mp_obj_t d = mp_obj_new_dict(0);
+        mp_obj_t ab_tuple[2] = {
+            mp_obj_new_int_from_uint(a),
+            mp_obj_new_int_from_uint(b)
+        };
+        mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_ratio),
+                          mp_obj_new_tuple(2, ab_tuple));
+        mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_ok),
+                          mp_obj_new_bool(ok));
+        mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_cam0),
+                          mp_obj_new_int_from_uint(cam0));
+        mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_cam1),
+                          mp_obj_new_int_from_uint(cam1));
+        mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_frames),
+                          mp_obj_new_int_from_uint(got));
+        mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_reason),
+                          mp_obj_new_str(reason, strlen(reason)));
+        mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_invoke_ok),
+                          mp_obj_new_int_from_uint(inv_ok));
+        mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_invoke_fail),
+                          mp_obj_new_int_from_uint(inv_fail));
+        mp_obj_list_append(result_list, d);
+    }
+
+    /* Restore: ratio, force_parity, pipeline lifecycle. */
+    sentai_cam_ratio_set(saved_a, saved_b);
+    sentai_pipeline_force_parity_set(saved_force_parity);
+    if (started_here) {
+        sentai_detection_stop();
+    }
+
+    return result_list;
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_pipeline_probe_ratios_obj,
+                                            0, 3, mod_sentai_pipeline_probe_ratios);
+
 // sentai.pipeline.loop_delay([n]) -> int (previous value)
 //
 // Per-iteration sleep (ms) injected at the END of PrepTask, in addition
@@ -848,7 +1115,13 @@ static const mp_rom_map_elem_t sentai_pipeline_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_force_parity_stats), MP_ROM_PTR(&mod_sentai_pipeline_force_parity_stats_obj) },
     { MP_ROM_QSTR(MP_QSTR_force_parity_reset), MP_ROM_PTR(&mod_sentai_pipeline_force_parity_reset_obj) },
     { MP_ROM_QSTR(MP_QSTR_calibrate),          MP_ROM_PTR(&mod_sentai_pipeline_calibrate_obj) },
+    { MP_ROM_QSTR(MP_QSTR_probe_ratios),       MP_ROM_PTR(&mod_sentai_pipeline_probe_ratios_obj) },
     { MP_ROM_QSTR(MP_QSTR_loop_delay),         MP_ROM_PTR(&mod_sentai_pipeline_loop_delay_obj) },
+    // Phase 2: per-camera TPU slot dispatch.
+    { MP_ROM_QSTR(MP_QSTR_set_slot_for_cam),   MP_ROM_PTR(&mod_sentai_pipeline_set_slot_for_cam_obj) },
+    { MP_ROM_QSTR(MP_QSTR_get_slot_for_cam),   MP_ROM_PTR(&mod_sentai_pipeline_get_slot_for_cam_obj) },
+    { MP_ROM_QSTR(MP_QSTR_slot_stats),         MP_ROM_PTR(&mod_sentai_pipeline_slot_stats_obj) },
+    { MP_ROM_QSTR(MP_QSTR_slot_stats_reset),   MP_ROM_PTR(&mod_sentai_pipeline_slot_stats_reset_obj) },
 };
 static MP_DEFINE_CONST_DICT(sentai_pipeline_globals, sentai_pipeline_globals_table);
 static const mp_obj_module_t sentai_pipeline_module = {

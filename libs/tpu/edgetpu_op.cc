@@ -32,9 +32,19 @@ TfLiteStatus CustomOpPrepare(TfLiteContext* context, TfLiteNode* node) {
   return kTfLiteOk;
 }
 
+/* Stage tag set by EdgeTpuExecutable::Invoke when one of the USB
+ * transfers (params/inputs/instructions/outputs) fails.  We log it
+ * via the firmware error-stream after Invoke returns kTfLiteError so
+ * the failing stage is visible alongside other E:CCCC:V codes. */
+extern "C" volatile uint16_t g_sentai_tpu_invoke_fail_code;
 TfLiteStatus CustomOpInvoke(TfLiteContext* context, TfLiteNode* node) {
   EdgeTpuPackage* package = static_cast<EdgeTpuPackage*>(node->user_data);
-  return EdgeTpuManager::GetSingleton()->Invoke(package, context, node);
+  TfLiteStatus rc = EdgeTpuManager::GetSingleton()->Invoke(package, context, node);
+  if (rc != kTfLiteOk) {
+    uint16_t code = g_sentai_tpu_invoke_fail_code;
+    if (code != 0) printf("E:%04X:0\r\n", (unsigned)code);
+  }
+  return rc;
 }
 }  // namespace
 

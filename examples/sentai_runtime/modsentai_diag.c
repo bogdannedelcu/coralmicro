@@ -7,6 +7,38 @@
 
 #include "sentai_health.h"
 
+/* Forward declarations for the FileX/LevelX user-FS diagnostics.
+ * Mirrors libs/base/fx_user_fs.h; kept local so the QSTR-regen
+ * mini-gcc (which runs with a narrower include path) can preprocess
+ * this TU.  The destructive smoke runner from Phase 1 is gone — the
+ * FS is now persistent, so we only expose non-destructive bench +
+ * stats here. */
+typedef struct {
+    int      ok;
+    uint32_t entries;
+    uint32_t time_list_ms;
+    uint32_t time_size_ms;
+} fx_bench_result_t;
+typedef struct {
+    uint32_t mounted;
+    uint32_t free_clusters;
+    uint32_t total_clusters;
+    uint32_t bytes_per_sector;
+    uint32_t sectors_per_cluster;
+    uint32_t mount_failures;
+    uint32_t format_count;
+} fx_user_stats_t;
+extern int  FxUserBenchRoot(fx_bench_result_t* out);
+extern void FxUserGetStats(fx_user_stats_t* out);
+extern int  FxUserIsMounted(void);
+extern int  FxUserInit(int force_format);
+extern void fx_nand_driver_get_stats(uint32_t* reads, uint32_t* writes,
+                                      uint32_t* erases,
+                                      uint32_t* read_errors,
+                                      uint32_t* write_errors,
+                                      uint32_t* erase_errors,
+                                      uint32_t* bad_blocks);
+
 // ===================== Health summary =====================
 
 // sentai.diag.health() -> multi-line health summary string (compact)
@@ -163,10 +195,10 @@ static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_diag_cam_stats_obj,
 // sentai.diag.lfs_stats() — HTTP ↔ lfs_task state-machine counters.
 // Every `lfs_busy` response increments exactly one `busy_*` field;
 // check them after a failing GET to learn which branch fired and why.
-extern void sentai_lfs_stats_get(uint32_t* out, int max_fields);
+extern void sentai_fs_stats_get(uint32_t* out, int max_fields);
 static mp_obj_t mod_sentai_diag_lfs_stats(void) {
     uint32_t s[11] = {0};
-    sentai_lfs_stats_get(s, 11);
+    sentai_fs_stats_get(s, 11);
     mp_obj_t d = mp_obj_new_dict(11);
     mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_served_ready_cached),
                       mp_obj_new_int_from_uint(s[0]));
@@ -462,6 +494,19 @@ static mp_obj_t mod_sentai_diag_tpu_urb_timeout(size_t n_args, const mp_obj_t *a
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_diag_tpu_urb_timeout_obj,
                                             0, 1, mod_sentai_diag_tpu_urb_timeout);
 
+// sentai.diag.tpu_trace([0|1]) — toggle per-stage USB trace prints
+// inside EdgeTpuExecutable::Invoke + BulkInTransferInternal.  Used
+// when adding a new model to inspect the dma_hints order, per-chunk
+// USB-IN sizes, and URB completion status.  Costs ~1 printf per
+// hint + per chunk when enabled.
+extern volatile uint8_t g_sentai_tpu_trace;
+static mp_obj_t mod_sentai_diag_tpu_trace(size_t n_args, const mp_obj_t *args) {
+    if (n_args >= 1) g_sentai_tpu_trace = (uint8_t)(mp_obj_get_int(args[0]) ? 1 : 0);
+    return mp_obj_new_int_from_uint(g_sentai_tpu_trace);
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_diag_tpu_trace_obj,
+                                            0, 1, mod_sentai_diag_tpu_trace);
+
 // sentai.diag.tpu_multi_ep([enable]) — arm per-tag EP routing.  Only
 // meaningful when the firmware was built with SENTAI_TPU_MULTI_EP=ON
 // (see libs/tpu/CMakeLists.txt:36) AND the TPU was DFU'd with
@@ -503,6 +548,230 @@ static mp_obj_t mod_sentai_diag_repl_kick(void) {
 static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_diag_repl_kick_obj,
                                   mod_sentai_diag_repl_kick);
 
+// ===================== FlexRAM partition probe =====================
+//
+// Returns the LIVE FlexRAM bank configuration as a dict.  The RT1176
+// FlexRAM is 16 banks × 32 KB = 512 KB; each bank can be ITCM, DTCM,
+// or OCRAM (encoded 2 bits per bank in GPR17/GPR18, source selected
+// by GPR16.FLEXRAM_BANK_CFG_SEL: 0=eFuse, 1=GPR17/18).
+//
+// Per RT1170RM Table 38-2 (FLEXRAM_BANK_CFG):
+//   00 = bank not used (reserved)
+//   01 = OCRAM
+//   10 = DTCM
+//   11 = ITCM
+//
+// We expose:
+//   src       : 'efuse' (GPR16.SEL=0) or 'gpr17_18' (SEL=1)
+//   itcm_kb   : count of ITCM banks × 32 KB
+//   dtcm_kb   : count of DTCM banks × 32 KB
+//   ocram_kb  : count of OCRAM banks × 32 KB (FlexRAM share only;
+//               OCRAM1+OCRAM2 dedicated 1 MB are NOT counted here)
+//   gpr17     : raw 32-bit value at IOMUXC_GPR.GPR17 (low 16 banks)
+//   gpr18     : raw 32-bit value at IOMUXC_GPR.GPR18 (high 16 banks)
+//   gpr16_sel : 1 if GPR17/18 active, 0 if eFuse active
+/* Direct MMIO access — IOMUXC_GPR base @ 0x400E_4000 (RT1170RM
+ * Table 11-7).  Avoids pulling fsl_iomuxc.h into the QSTR-scanner
+ * preprocess path (the scanner doesn't have the SDK include dirs).
+ *   GPR16 @ +0x40
+ *   GPR17 @ +0x44
+ *   GPR18 @ +0x48
+ *   GPR16.FLEXRAM_BANK_CFG_SEL = bit 2 (0x4). */
+static mp_obj_t mod_sentai_diag_flexram_info(void) {
+    volatile uint32_t* gpr16_p = (volatile uint32_t*)0x400E4040u;
+    volatile uint32_t* gpr17_p = (volatile uint32_t*)0x400E4044u;
+    volatile uint32_t* gpr18_p = (volatile uint32_t*)0x400E4048u;
+    const uint32_t gpr16 = *gpr16_p;
+    const uint32_t gpr17 = *gpr17_p;
+    const uint32_t gpr18 = *gpr18_p;
+    const uint32_t sel   = (gpr16 & 0x4u) ? 1u : 0u;
+
+    /* Decode the bank assignment.  When SEL=0, GPR17/18 are not
+     * authoritative — the eFuse-driven config governs the actual
+     * FlexRAM partitioning.  We still report the GPR17/18 raw bits
+     * so the caller sees what they would BECOME if SEL flips. */
+    const uint32_t cfg_low  = gpr17 & 0xFFFFu;  /* banks  0-7 */
+    const uint32_t cfg_high = gpr18 & 0xFFFFu;  /* banks  8-15 */
+
+    /* RT1170 fsl_flexram_allocate.h encoding (Table 38-2):
+     *   00 = NotUsed    01 = OCRAM    10 = DTCM    11 = ITCM */
+    uint32_t itcm = 0, dtcm = 0, ocram = 0, unused = 0;
+    for (int b = 0; b < 16; ++b) {
+        const uint32_t code = (b < 8)
+            ? ((cfg_low  >> (b * 2)) & 0x3u)
+            : ((cfg_high >> ((b - 8) * 2)) & 0x3u);
+        if      (code == 0x3u) itcm++;
+        else if (code == 0x2u) dtcm++;
+        else if (code == 0x1u) ocram++;
+        else                   unused++;
+    }
+
+    /* Address-fault probe: confirm the linker-stated regions are
+     * actually live by reading the first word of each region.  A
+     * fault here would reset the board (BusFault -> WDOG), so only
+     * probe addresses we KNOW are mapped per the linker script.
+     * If the eFuse delivered a different partition than the linker
+     * expects, the first probe to .text or .bss would have already
+     * crashed at startup — by the time we reach this MP function,
+     * ITCM and DTCM are guaranteed live. */
+    volatile uint32_t* itcm_probe  = (volatile uint32_t*)0x00000c00u;
+    volatile uint32_t* dtcm_probe  = (volatile uint32_t*)0x20000000u;
+    volatile uint32_t* ocram_probe = (volatile uint32_t*)0x20240000u;
+    /* Reads are throwaway; the act of reading proves the region is
+     * mapped (mis-config would BusFault at the load instruction). */
+    (void)*itcm_probe;
+    (void)*dtcm_probe;
+    (void)*ocram_probe;
+
+    mp_obj_t d = mp_obj_new_dict(0);
+    /* When SEL=0, GPR17/18 are NOT authoritative — the eFuse default
+     * (typically 256 KB ITCM + 256 KB DTCM + 0 OCRAM for RT1176) is
+     * the live config.  The decoded itcm_kb/dtcm_kb/ocram_kb_flexram
+     * fields in this dict reflect ONLY the GPR17/18 contents, so when
+     * SEL=0 they all read 0.  Use the linker-stated regions plus the
+     * effective_* fields below for the truth. */
+    const uint32_t eff_itcm = sel ? (itcm * 32u)  : 256u;
+    const uint32_t eff_dtcm = sel ? (dtcm * 32u)  : 256u;
+    const uint32_t eff_flx_ocram = sel ? (ocram * 32u) : 0u;
+    const char* src_name = sel ? "gpr17_18" : "efuse";
+    mp_obj_dict_store(d, mp_obj_new_str("src", 3),
+                      mp_obj_new_str(src_name, strlen(src_name)));
+    mp_obj_dict_store(d, mp_obj_new_str("gpr16_sel", 9),
+                      mp_obj_new_int_from_uint(sel));
+    mp_obj_dict_store(d, mp_obj_new_str("gpr17", 5),
+                      mp_obj_new_int_from_uint(gpr17));
+    mp_obj_dict_store(d, mp_obj_new_str("gpr18", 5),
+                      mp_obj_new_int_from_uint(gpr18));
+    mp_obj_dict_store(d, mp_obj_new_str("itcm_kb", 7),
+                      mp_obj_new_int_from_uint(itcm * 32u));
+    mp_obj_dict_store(d, mp_obj_new_str("dtcm_kb", 7),
+                      mp_obj_new_int_from_uint(dtcm * 32u));
+    mp_obj_dict_store(d, mp_obj_new_str("ocram_kb_flexram", 16),
+                      mp_obj_new_int_from_uint(ocram * 32u));
+    mp_obj_dict_store(d, mp_obj_new_str("unused_banks", 12),
+                      mp_obj_new_int_from_uint(unused));
+    /* Effective active config — TRUSTED: respects SEL and falls back
+     * to the silicon eFuse default (256/256/0) when SEL=0. */
+    mp_obj_dict_store(d, mp_obj_new_str("effective_itcm_kb", 17),
+                      mp_obj_new_int_from_uint(eff_itcm));
+    mp_obj_dict_store(d, mp_obj_new_str("effective_dtcm_kb", 17),
+                      mp_obj_new_int_from_uint(eff_dtcm));
+    mp_obj_dict_store(d, mp_obj_new_str("effective_flx_ocram_kb", 22),
+                      mp_obj_new_int_from_uint(eff_flx_ocram));
+    /* Total OCRAM = FlexRAM share + dedicated OCRAM1+OCRAM2 (1 MB).
+     * Doc-stated 1.25 MB requires effective_flx_ocram_kb == 256. */
+    mp_obj_dict_store(d, mp_obj_new_str("effective_ocram_kb_total", 24),
+                      mp_obj_new_int_from_uint(eff_flx_ocram + 1024u));
+    return d;
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_diag_flexram_info_obj,
+                                  mod_sentai_diag_flexram_info);
+
+// =====================================================================
+// sentai.diag.fx_bench()  — non-destructive root listing latency probe.
+//   Returns dict with entries-count + time_list_ms.
+//   Usage: r = sentai.diag.fx_bench(); print(r["entries"], r["time_list_ms"])
+//
+// sentai.diag.fx_stats() — combined media + NAND BD adapter counters.
+//
+// sentai.diag.fx_format(magic) — DESTRUCTIVE force-reformat of the user
+//   partition.  Caller MUST pass 0xDEADBEEF; otherwise no-op.
+// =====================================================================
+static mp_obj_t mod_sentai_diag_fx_bench(void) {
+    fx_bench_result_t r;
+    int rc = FxUserBenchRoot(&r);
+    (void)rc;
+    mp_obj_t d = mp_obj_new_dict(0);
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_ok), mp_obj_new_bool(r.ok));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_entries),
+                      mp_obj_new_int_from_uint(r.entries));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_time_list_ms),
+                      mp_obj_new_int_from_uint(r.time_list_ms));
+    return d;
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_diag_fx_bench_obj,
+                                  mod_sentai_diag_fx_bench);
+
+static mp_obj_t mod_sentai_diag_fx_stats(void) {
+    uint32_t reads, writes, erases;
+    uint32_t read_errors, write_errors, erase_errors, bad_blocks;
+    fx_nand_driver_get_stats(&reads, &writes, &erases,
+                             &read_errors, &write_errors,
+                             &erase_errors, &bad_blocks);
+    fx_user_stats_t st = {0};
+    FxUserGetStats(&st);
+    mp_obj_t d = mp_obj_new_dict(0);
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_mounted),
+                      mp_obj_new_bool(st.mounted));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_free_clusters),
+                      mp_obj_new_int_from_uint(st.free_clusters));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_total_clusters),
+                      mp_obj_new_int_from_uint(st.total_clusters));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_bytes_per_sector),
+                      mp_obj_new_int_from_uint(st.bytes_per_sector));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_sectors_per_cluster),
+                      mp_obj_new_int_from_uint(st.sectors_per_cluster));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_mount_failures),
+                      mp_obj_new_int_from_uint(st.mount_failures));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_format_count),
+                      mp_obj_new_int_from_uint(st.format_count));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_reads),
+                      mp_obj_new_int_from_uint(reads));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_writes),
+                      mp_obj_new_int_from_uint(writes));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_erases),
+                      mp_obj_new_int_from_uint(erases));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_read_errors),
+                      mp_obj_new_int_from_uint(read_errors));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_write_errors),
+                      mp_obj_new_int_from_uint(write_errors));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_erase_errors),
+                      mp_obj_new_int_from_uint(erase_errors));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_bad_blocks),
+                      mp_obj_new_int_from_uint(bad_blocks));
+    return d;
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_diag_fx_stats_obj,
+                                  mod_sentai_diag_fx_stats);
+
+/* sentai.diag.storage_log() — read the /log/storage_debug.log content
+ * captured during the previous storage-mode session (when REPL was
+ * disconnected because USB MSC took over).  Capped at 16 KB. */
+extern int sentai_fs_size_path(const char* path);  /* see modsentai_hal */
+extern int sentai_fs_read_path(const char* path, uint8_t* buf, int max_size);
+static mp_obj_t mod_sentai_diag_storage_log(void) {
+    /* Use the existing modsentai_hal helpers via sentai.fs.* C API. */
+    extern int sentai_fs_size(const char* path);
+    extern int sentai_fs_read(const char* path, uint8_t* buf, int max_size);
+    const char* path = "/log/storage_debug.log";
+    int size = sentai_fs_size(path);
+    if (size <= 0) return mp_obj_new_str("", 0);
+    if (size > 16384) size = 16384;
+    vstr_t vstr;
+    vstr_init_len(&vstr, (size_t)size);
+    int n = sentai_fs_read(path, (uint8_t*)vstr.buf, size);
+    if (n <= 0) {
+        vstr_clear(&vstr);
+        return mp_obj_new_str("", 0);
+    }
+    vstr.len = (size_t)n;
+    return mp_obj_new_str_from_vstr(&vstr);
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_diag_storage_log_obj,
+                                  mod_sentai_diag_storage_log);
+
+/* See FX_DESTRUCTIVE_CONFIRM_MAGIC in libs/base/fx_user_fs.h — single source. */
+static mp_obj_t mod_sentai_diag_fx_format(mp_obj_t magic_obj) {
+    uint32_t magic = (uint32_t)mp_obj_get_int_truncated(magic_obj);
+    if (magic != 0xDEADBEEFu) {  /* must match FX_DESTRUCTIVE_CONFIRM_MAGIC */
+        return mp_obj_new_int(-22);  /* -EINVAL */
+    }
+    int ok = FxUserInit(/*force_format=*/1);
+    return mp_obj_new_int(ok ? 0 : -5);
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_diag_fx_format_obj,
+                                  mod_sentai_diag_fx_format);
+
 // ---- module table ----
 static const mp_rom_map_elem_t sentai_diag_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__),   MP_ROM_QSTR(MP_QSTR_diag) },
@@ -524,7 +793,13 @@ static const mp_rom_map_elem_t sentai_diag_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_tpu_chunk_size),  MP_ROM_PTR(&mod_sentai_diag_tpu_chunk_size_obj) },
     { MP_ROM_QSTR(MP_QSTR_tpu_zero_copy),   MP_ROM_PTR(&mod_sentai_diag_tpu_zero_copy_obj) },
     { MP_ROM_QSTR(MP_QSTR_tpu_urb_timeout), MP_ROM_PTR(&mod_sentai_diag_tpu_urb_timeout_obj) },
+    { MP_ROM_QSTR(MP_QSTR_tpu_trace),       MP_ROM_PTR(&mod_sentai_diag_tpu_trace_obj) },
     { MP_ROM_QSTR(MP_QSTR_repl_kick),       MP_ROM_PTR(&mod_sentai_diag_repl_kick_obj) },
+    { MP_ROM_QSTR(MP_QSTR_flexram_info),    MP_ROM_PTR(&mod_sentai_diag_flexram_info_obj) },
+    { MP_ROM_QSTR(MP_QSTR_fx_bench),        MP_ROM_PTR(&mod_sentai_diag_fx_bench_obj) },
+    { MP_ROM_QSTR(MP_QSTR_fx_stats),        MP_ROM_PTR(&mod_sentai_diag_fx_stats_obj) },
+    { MP_ROM_QSTR(MP_QSTR_fx_format),       MP_ROM_PTR(&mod_sentai_diag_fx_format_obj) },
+    { MP_ROM_QSTR(MP_QSTR_storage_log),     MP_ROM_PTR(&mod_sentai_diag_storage_log_obj) },
 };
 static MP_DEFINE_CONST_DICT(sentai_diag_globals, sentai_diag_globals_table);
 static const mp_obj_module_t sentai_diag_module = {

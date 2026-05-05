@@ -1,28 +1,21 @@
-# _t_fps_pipeline.py — full TPU pipeline benchmark per fps × ratio.
+# _t_fps_pipeline.py - probe-driven TPU pipeline benchmark per fps.
 #
-# Companion to _t_fps_bench.py.  After camera parity is validated by
-# _t_fps_bench (cam_id correctness ceiling 100/100), this driver
-# measures the END-TO-END pipeline FPS — PrepTask (PXP scale + cam
-# alternation) + InferTask (TPU yolo_1 512×512) — at the same
-# fps × ratio matrix.  Output goes alongside the camera-parity
-# numbers so the user sees how much TPU subtracts from the raw
-# sensor + drain ceiling.
+# Uses sentai.pipeline.probe_ratios() to auto-discover which (a,b)
+# ratios produce a captured cam0:cam1 distribution within tolerance
+# for the current (model, fps, sensor period) tuple, then runs a
+# full calibrate() on each working ratio plus the 1cam (no-switch)
+# baseline.  Aliased ratios (e.g. VGA60+2:1) are reported as
+# excluded with reason — no consumer-side workaround.
 #
-# Self-correcting init: if the firmware booted at a different fps,
-# init(1, _target_fps) returns -11 → script calls sys.reset(); the
-# host runner re-issues the same command after re-enumeration.
-#
-# Persistent flash REQUIRED (sys.reset workflow).
-#
-# How to drive:
-#   python3 diag/_host_run_with_var.py \
-#       --file /lib/diag/_t_fps_pipeline.py \
-#       --set _target_fps=30 --timeout 240
+# Self-correcting init via the same -11 -> sys.reset() idiom as
+# _t_fps_bench.py.  Persistent flash REQUIRED.
 import sentai
 sentai.verbose(1)
 
 MODEL = "/yolo_1_class_512_1_upsample_512_inloc_de_1024_la_P5_32.tflite"
-NB = 100  # frames per ratio
+NB    = 100  # frames per calibrate
+PROBE_FRAMES = 50
+TOL_PCT      = 10
 
 
 def _sd(name):
@@ -45,12 +38,8 @@ def _calibrate_at(label, ra, rb):
     sentai.camera.switch_drain(1)
     sentai.camera.select(0)
     sentai.rtos.sleep_ms(300)
-    # calibrate auto-loads the model + auto-starts the pipeline.
-    # calibrate is a positional-only MP binding: (model, frames,
-    # timeout_ms, delay_ms, conf, iou).  Keyword form raises
-    # TypeError on this firmware.
     res = sentai.pipeline.calibrate(MODEL, NB, 2000)
-    sentai.diag.repl_kick()
+    sentai.rtos.sleep_ms(50)
     return res
 
 
@@ -70,24 +59,33 @@ elif rc != 0:
     print("=== done ===")
 else:
     sentai.rtos.sleep_ms(800)
-    # No test patterns this time — pipeline runs on whatever the
-    # cameras see (synthetic scene, lab bench, etc.).  cam_id
-    # correctness is already validated by _t_fps_bench, so this
-    # driver focuses purely on throughput.
     sentai.camera.select(0); sentai.rtos.sleep_ms(300)
 
+    # ------ Probe ratios first, pick only the working ones ------
+    print("--- probing ratios @ fps=%d ---" % _fps)
+    probe = sentai.pipeline.probe_ratios(MODEL, PROBE_FRAMES, TOL_PCT)
+    for p in probe:
+        a, b = p["ratio"]
+        flag = "OK" if p["ok"] else "SKIP"
+        print("  %d:%d %4s cam0:cam1=%d:%d (%d frames) reason=%s" %
+              (a, b, flag, p["cam0"], p["cam1"], p["frames"], p["reason"]))
+
+    # ------ Run full pipeline calibrate on 1cam + working ratios ------
     res = []
-    print("--- pipeline 1cam ---"); res.append(("1cam", _calibrate_at("1cam", 0, 0)))
-    print("--- pipeline 1:1 ---");  res.append(("1:1",  _calibrate_at("1:1",  1, 1)))
-    print("--- pipeline 2:1 ---");  res.append(("2:1",  _calibrate_at("2:1",  2, 1)))
-    print("--- pipeline 3:1 ---");  res.append(("3:1",  _calibrate_at("3:1",  3, 1)))
+    print("--- pipeline 1cam ---"); res.append(("1cam", 0, 0, _calibrate_at("1cam", 0, 0)))
+    for p in probe:
+        if not p["ok"]: continue
+        a, b = p["ratio"]
+        label = "%d:%d" % (a, b)
+        print("--- pipeline %s ---" % label)
+        res.append((label, a, b, _calibrate_at(label, a, b)))
 
     sentai.pipeline.stop()
     sentai.camera.ratio(0, 0)
 
     print("--- summary fps=%d ---" % _fps)
     print("  mode | frames | cam0:cam1 | invoke ms (avg/min/max) | total ms (avg) | pipeline fps")
-    for label, r in res:
+    for label, _a, _b, r in res:
         n   = r.get("frames", 0) or 1
         c0  = r.get("cam0", 0)
         c1  = r.get("cam1", 0)
@@ -100,16 +98,24 @@ else:
               (label, n, c0, c1, ia, imn, imx, ta, f100 // 100, f100 % 100))
 
     sd = _sd("pipeline_%d" % _fps)
-    L = ["fps,mode,frames,cam0,cam1,invoke_avg,invoke_min,invoke_max,total_avg,fps_x100\n"]
-    for label, r in res:
+    L = ["fps,mode,a,b,frames,cam0,cam1,invoke_avg,invoke_min,invoke_max,total_avg,fps_x100\n"]
+    for label, a, b, r in res:
         n = r.get("frames", 0) or 1
-        L.append("%d,%s,%d,%d,%d,%d,%d,%d,%d,%d\n" %
-                 (_fps, label, n, r.get("cam0", 0), r.get("cam1", 0),
+        L.append("%d,%s,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n" %
+                 (_fps, label, a, b, n, r.get("cam0", 0), r.get("cam1", 0),
                   r.get("invoke_ms_sum", 0) // n,
                   r.get("invoke_ms_min", 0),
                   r.get("invoke_ms_max", 0),
                   r.get("total_ms_sum", 0) // n,
                   r.get("fps_x100", 0)))
+    # also save the probe report
+    P = ["fps,a,b,ok,cam0,cam1,frames,reason\n"]
+    for p in probe:
+        a, b = p["ratio"]
+        P.append("%d,%d,%d,%d,%d,%d,%d,%s\n" %
+                 (_fps, a, b, 1 if p["ok"] else 0,
+                  p["cam0"], p["cam1"], p["frames"], p["reason"]))
     sentai.fs.write(sd + "/pipeline.csv", "".join(L))
+    sentai.fs.write(sd + "/probe.csv", "".join(P))
     print("log:", sd + "/pipeline.csv")
     print("=== done ===")

@@ -1,0 +1,30 @@
+Edge TPU Compiler version 16.0.384591198
+Started a compilation timeout timer of 180 seconds.
+
+Model compiled successfully in 470 ms.
+
+Input model: runs/tf_native/iarna_p3p4_GELAN_1ep/export_uint8_480x640/iarna_p3p4_GELAN_1ep_uint8_480x640_int8.tflite
+Input size: 274.39KiB
+Output model: runs/tf_native/iarna_p3p4_GELAN_1ep/export_uint8_480x640/iarna_p3p4_GELAN_1ep_uint8_480x640_int8_edgetpu.tflite
+Output size: 440.75KiB
+On-chip memory used for caching model parameters: 374.25KiB
+On-chip memory remaining for caching model parameters: 6.36MiB
+Off-chip memory used for streaming uncached model parameters: 0.00B
+Number of Edge TPU subgraphs: 1
+Total number of operations: 190
+Operation log: runs/tf_native/iarna_p3p4_GELAN_1ep/export_uint8_480x640/iarna_p3p4_GELAN_1ep_uint8_480x640_int8_edgetpu.log
+
+Operator                       Count      Status
+
+CONCATENATION                  8          Mapped to Edge TPU
+PAD                            5          Mapped to Edge TPU
+LOGISTIC                       50         Mapped to Edge TPU
+RESIZE_NEAREST_NEIGHBOR        1          Mapped to Edge TPU
+CONV_2D                        52         Mapped to Edge TPU
+QUANTIZE                       4          Mapped to Edge TPU
+MUL                            50         Mapped to Edge TPU
+SPLIT                          5          Mapped to Edge TPU
+MAX_POOL_2D                    3          Mapped to Edge TPU
+ADD                            12         Mapped to Edge TPU
+Compilation child process completed within timeout period.
+Compilation succeeded! 

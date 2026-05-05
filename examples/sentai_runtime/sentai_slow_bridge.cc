@@ -10,6 +10,7 @@
 
 #include <cstdio>
 #include <cstring>
+#include <new>     // std::nothrow for safe `new` on newlib_nano (no exceptions)
 #include <string>
 #include <vector>
 
@@ -27,6 +28,7 @@ extern "C" {
 #include "third_party/tflite-micro/tensorflow/lite/micro/micro_interpreter.h"
 #include "third_party/tflite-micro/tensorflow/lite/micro/micro_mutable_op_resolver.h"
 
+#include "sentai_error.h"
 #include "sentai_vision_common.h"
 
 extern "C" {
@@ -35,10 +37,16 @@ extern "C" {
 
 // ---- External state defined in sentai_runtime.cc ----
 namespace coralmicro {
+constexpr int kNumTpuSlots = 3;
+constexpr int kSlotArenaSize = 2 * 1024 * 1024;
 extern uint8_t tensor_arena[];
 extern tflite::MicroInterpreter* g_interpreter;
 extern volatile bool g_tpu_ready;
 extern std::vector<uint8_t>* g_model_data;
+extern uint8_t* g_slot_arena[kNumTpuSlots];
+extern tflite::MicroInterpreter* g_slot_interp[kNumTpuSlots];
+extern std::vector<uint8_t>* g_slot_model_data[kNumTpuSlots];
+extern volatile bool g_slot_ready[kNumTpuSlots];
 extern std::shared_ptr<EdgeTpuContext> g_tpu_context;
 }  // namespace coralmicro
 
@@ -94,8 +102,14 @@ extern "C" int sentai_load_model(const char* path) {
     printf("EdgeTPU ready!\r\n");
   }
 
-  coralmicro::g_model_data = new std::vector<uint8_t>();
+  // Null-safe `new` (newlib_nano builds without exceptions).
+  coralmicro::g_model_data = new(std::nothrow) std::vector<uint8_t>();
+  if (!coralmicro::g_model_data) {
+    SERR_LOG(SERR_TPU_SLOT_VEC, 0u);
+    return -6;
+  }
   if (!coralmicro::LfsUserReadFile(path, coralmicro::g_model_data)) {
+    SERR_LOG(SERR_TPU_MODEL_LOAD, 0u);
     printf("ERROR: Failed to load %s\r\n", path);
     delete coralmicro::g_model_data;
     coralmicro::g_model_data = nullptr;
@@ -118,11 +132,18 @@ extern "C" int sentai_load_model(const char* path) {
     resolver_init = true;
   }
 
-  coralmicro::g_interpreter = new tflite::MicroInterpreter(
+  coralmicro::g_interpreter = new(std::nothrow) tflite::MicroInterpreter(
       tflite::GetModel(coralmicro::g_model_data->data()), resolver,
       coralmicro::tensor_arena, kTensorArenaSize, &error_reporter);
+  if (!coralmicro::g_interpreter) {
+    SERR_LOG(SERR_TPU_SLOT_INTERP, 0u);
+    delete coralmicro::g_model_data;
+    coralmicro::g_model_data = nullptr;
+    return -7;
+  }
 
   if (coralmicro::g_interpreter->AllocateTensors() != kTfLiteOk) {
+    SERR_LOG(SERR_TPU_ALLOC_TENSORS, 0u);
     printf("ERROR: AllocateTensors() failed\r\n");
     delete coralmicro::g_interpreter;
     coralmicro::g_interpreter = nullptr;
@@ -354,5 +375,162 @@ extern "C" int sentai_save_output(const char* path) {
   }
   printf("Saved %d outputs to %s (%lu bytes)\r\n", num_out, path,
          (unsigned long)csv.size());
+  return 0;
+}
+
+// ============================================================================
+// Multi-slot extension (Phase 1, 2026-04-28).
+// Slot 0 is the legacy single-slot path — sentai_load_model(path) above.
+// Slots 1..N-1 use heap-allocated arenas to avoid disturbing the
+// .sdram_bss layout that FileX/LevelX state depends on.
+// ============================================================================
+
+extern "C" int sentai_load_model_slot(int slot, const char* path) {
+  if (slot < 0 || slot >= coralmicro::kNumTpuSlots) {
+    SERR_LOG(SERR_TPU_SLOT_OOB, (uint32_t)slot);
+    return -11;
+  }
+
+  // Pipeline guard for ALL slots (Phase 2a hardening, 2026-04-29).
+  // Once `pipeline.set_slot_for_cam(cam, slot)` binds a slot to a
+  // camera, InferTask invokes that slot every frame.  A concurrent
+  // load_slot would race against the InferTask hot path: between
+  // `delete g_slot_interp[slot]` and the InferTask's
+  // `g_slot_interp[slot]->Invoke()` is a use-after-free window even
+  // with the slot_ready guard, because InferTask snapshots the
+  // pointer locally before deref.  Force the caller to stop the
+  // pipeline before any load.
+  if (sentai_detection_is_running()) {
+    printf("ERROR: stop detection pipeline before loading slot %d\r\n", slot);
+    return -10;
+  }
+
+  // Slot 0 routes through the legacy load function so its code path
+  // is unchanged byte-for-byte from the single-slot build.  Then
+  // mirror state into g_slot_interp[0] / g_slot_model_data[0] /
+  // g_slot_ready[0] so the unified slot accessors work.
+  if (slot == 0) {
+    int rc = sentai_load_model(path);
+    if (rc == 0) {
+      coralmicro::g_slot_interp[0]     = coralmicro::g_interpreter;
+      coralmicro::g_slot_model_data[0] = coralmicro::g_model_data;
+      coralmicro::g_slot_ready[0]      = coralmicro::g_tpu_ready;
+    }
+    return rc;
+  }
+
+  // Slot N (N >= 1): heap-allocate the arena on first use, then run a
+  // fresh load that uses g_slot_* state instead of the legacy globals.
+  // Tear-down order matters: clear ready FIRST, then null the
+  // pointer with a memory barrier, then delete.  Any reader between
+  // the steps sees either ready=false (rejects via slot_ready check)
+  // or interp=nullptr (rejects via second leg of the && check) — but
+  // never a dangling/freed pointer.
+  if (coralmicro::g_slot_interp[slot]) {
+    coralmicro::g_slot_ready[slot] = false;
+    auto* old_interp = coralmicro::g_slot_interp[slot];
+    coralmicro::g_slot_interp[slot] = nullptr;
+    __sync_synchronize();   // ensure both stores visible before delete
+    delete old_interp;
+  }
+  if (coralmicro::g_slot_model_data[slot]) {
+    auto* old_data = coralmicro::g_slot_model_data[slot];
+    coralmicro::g_slot_model_data[slot] = nullptr;
+    __sync_synchronize();
+    delete old_data;
+  }
+  if (!coralmicro::g_slot_arena[slot]) {
+    // Lazy alloc, 32-byte aligned via malloc + manual round-up
+    // (newlib_nano lacks aligned_alloc/posix_memalign).  The 32-byte
+    // alignment matches the legacy static buffer so the input tensor
+    // lands on an eDMA burst boundary.  We don't track the raw
+    // pointer because slot arenas are kept for the lifetime of the
+    // boot — never freed.
+    uint8_t* raw = (uint8_t*)malloc(coralmicro::kSlotArenaSize + 32);
+    if (!raw) {
+      SERR_LOG(SERR_TPU_SLOT_ALLOC, (uint32_t)slot);
+      printf("ERROR: slot %d arena malloc failed\r\n", slot);
+      return -5;
+    }
+    uint8_t* aligned = (uint8_t*)(((uintptr_t)raw + 31) & ~(uintptr_t)31);
+    coralmicro::g_slot_arena[slot] = aligned;
+    printf("Slot %d arena heap-allocated at %p (raw=%p, %d KB)\r\n",
+           slot, aligned, raw, coralmicro::kSlotArenaSize / 1024);
+  }
+
+  if (!coralmicro::g_tpu_context) {
+    printf("ERROR: EdgeTPU not ready (load slot 0 first to open the device)\r\n");
+    return -1;
+  }
+
+  // newlib_nano builds without exceptions: `new` returns nullptr on
+  // OOM rather than throwing.  Check before any deref to avoid the
+  // null-deref class of bug.
+  coralmicro::g_slot_model_data[slot] = new(std::nothrow) std::vector<uint8_t>();
+  if (!coralmicro::g_slot_model_data[slot]) {
+    SERR_LOG(SERR_TPU_SLOT_VEC, (uint32_t)slot);
+    return -6;
+  }
+  if (!coralmicro::LfsUserReadFile(path,
+                                    coralmicro::g_slot_model_data[slot])) {
+    SERR_LOG(SERR_TPU_MODEL_LOAD, (uint32_t)slot);
+    printf("ERROR: slot %d failed to load %s\r\n", slot, path);
+    delete coralmicro::g_slot_model_data[slot];
+    coralmicro::g_slot_model_data[slot] = nullptr;
+    return -2;
+  }
+  printf("Slot %d model loaded: %lu bytes\r\n", slot,
+         (unsigned long)coralmicro::g_slot_model_data[slot]->size());
+
+  // Re-use the same MicroErrorReporter + resolver as the legacy path
+  // (file-scope statics).  Both are stateless after init, so sharing
+  // is safe across slots.  Resolver init is guarded by a static bool.
+  static tflite::MicroErrorReporter slot_error_reporter;
+  static tflite::MicroMutableOpResolver<7> slot_resolver;
+  static bool slot_resolver_init = false;
+  if (!slot_resolver_init) {
+    slot_resolver.AddCustom(coralmicro::kCustomOp,
+                            coralmicro::RegisterCustomOp());
+    slot_resolver.AddTranspose();
+    slot_resolver.AddReshape();
+    slot_resolver.AddConcatenation();
+    slot_resolver.AddLogistic();
+    slot_resolver.AddQuantize();
+    slot_resolver.AddDequantize();
+    slot_resolver_init = true;
+  }
+
+  coralmicro::g_slot_interp[slot] = new(std::nothrow) tflite::MicroInterpreter(
+      tflite::GetModel(coralmicro::g_slot_model_data[slot]->data()),
+      slot_resolver, coralmicro::g_slot_arena[slot],
+      coralmicro::kSlotArenaSize, &slot_error_reporter);
+  if (!coralmicro::g_slot_interp[slot]) {
+    SERR_LOG(SERR_TPU_SLOT_INTERP, (uint32_t)slot);
+    delete coralmicro::g_slot_model_data[slot];
+    coralmicro::g_slot_model_data[slot] = nullptr;
+    return -7;
+  }
+
+  if (coralmicro::g_slot_interp[slot]->AllocateTensors() != kTfLiteOk) {
+    SERR_LOG(SERR_TPU_ALLOC_TENSORS, (uint32_t)slot);
+    printf("ERROR: slot %d AllocateTensors() failed\r\n", slot);
+    delete coralmicro::g_slot_interp[slot];
+    coralmicro::g_slot_interp[slot] = nullptr;
+    return -3;
+  }
+
+  if (coralmicro::g_slot_interp[slot]->inputs().size() != 1) {
+    printf("ERROR: slot %d model must have exactly one input tensor\r\n", slot);
+    delete coralmicro::g_slot_interp[slot];
+    coralmicro::g_slot_interp[slot] = nullptr;
+    return -4;
+  }
+
+  printf("Slot %d arena used: %lu / %d KB\r\n", slot,
+         (unsigned long)(coralmicro::g_slot_interp[slot]->arena_used_bytes()
+                         / 1024),
+         coralmicro::kSlotArenaSize / 1024);
+
+  coralmicro::g_slot_ready[slot] = true;
   return 0;
 }

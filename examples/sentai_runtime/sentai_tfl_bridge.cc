@@ -4,6 +4,7 @@
 
 #include <cstdio>
 #include <cstring>
+#include <new>     // std::nothrow for safe `new` on newlib_nano (no exceptions)
 #include <vector>
 
 #include "sentai_error.h"
@@ -62,8 +63,13 @@ static int tfl_load_impl(const char* path, int arena_kb) {
       ((uintptr_t)coralmicro::g_tfl_arena_raw + 15) & ~(uintptr_t)15);
   coralmicro::g_tfl_arena_size = arena_bytes;
 
-  // Load model from user LFS
-  coralmicro::g_tfl_model_data = new std::vector<uint8_t>();
+  // Load model from user LFS — null-safe `new` (newlib_nano without exceptions).
+  coralmicro::g_tfl_model_data = new(std::nothrow) std::vector<uint8_t>();
+  if (!coralmicro::g_tfl_model_data) {
+    SERR_LOG(SERR_TPU_SLOT_VEC, 0u);
+    tfl_cleanup();
+    return -6;
+  }
   if (!coralmicro::LfsUserReadFile(path, coralmicro::g_tfl_model_data)) {
     SERR_LOG(SERR_TPU_MODEL_LOAD, 0);
     tfl_cleanup();
@@ -96,10 +102,15 @@ static int tfl_load_impl(const char* path, int arena_kb) {
     tfl_resolver_init = true;
   }
 
-  coralmicro::g_tfl_interpreter = new tflite::MicroInterpreter(
+  coralmicro::g_tfl_interpreter = new(std::nothrow) tflite::MicroInterpreter(
       tflite::GetModel(coralmicro::g_tfl_model_data->data()), tfl_resolver,
       coralmicro::g_tfl_arena, coralmicro::g_tfl_arena_size,
       &tfl_error_reporter);
+  if (!coralmicro::g_tfl_interpreter) {
+    SERR_LOG(SERR_TPU_SLOT_INTERP, 0u);
+    tfl_cleanup();
+    return -7;
+  }
 
   if (coralmicro::g_tfl_interpreter->AllocateTensors() != kTfLiteOk) {
     SERR_LOG(SERR_TPU_ALLOC_TENSORS, arena_kb);

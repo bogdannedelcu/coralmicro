@@ -1,4 +1,7 @@
-// sentai_lfs_task.cc — Dedicated LFS task for thread-safe filesystem GET access.
+// sentai_fs_task.cc — Dedicated FS task for thread-safe filesystem GET access.
+// (Phase 2: user partition is FileX/LevelX.  Helpers were renamed from
+//  sentai_lfs_* to sentai_fs_* to remove "LFS" confusion.  System partition
+//  is still LittleFS but is not served by this task.)
 //
 // Root cause of random board hangs (pre-fix):
 //   tcpip_thread (priority 4, highest) called lfs_dir_open() / lfs_file_read()
@@ -16,9 +19,10 @@
 //   lfs_file_close stall (~700ms) is within the USB NCM watchdog tolerance (~5s)
 //   and POST is user-initiated / infrequent.
 
-#include "sentai_lfs_task.h"
+#include "sentai_fs_task.h"
 
 #include "libs/base/filesystem.h"
+#include "libs/base/fx_user_fs.h"
 #include "third_party/freertos_kernel/include/FreeRTOS.h"
 #include "third_party/freertos_kernel/include/task.h"
 #include "third_party/freertos_kernel/include/queue.h"
@@ -33,9 +37,12 @@
 #define LFS_TASK_PRIORITY  2    // above mp_repl(1), below hw_wdog(3)
 #define LFS_TASK_STACK     512  // words = 2KB
 
-// Queue depth 1: only one GET request in flight at a time.
-// Browser retries until data is ready, so depth > 1 just wastes memory.
-#define LFS_QUEUE_DEPTH    1
+// Queue depth 4 (Phase 3.4): under concurrent REPL writes + HTTP /api/ls
+// burst, depth=1 saturates immediately and causes ~50% lfs_busy responses.
+// The lfs_task drains in FIFO order; each entry is small (~300 B) so 4
+// pending requests cost ~1.2 KB queue memory.  Beyond 4 the wait becomes
+// long enough that the browser-side 600 ms retry kicks in anyway.
+#define LFS_QUEUE_DEPTH    4
 
 // ---------------------------------------------------------------------------
 // Response buffer (SDRAM, 256 KB)
@@ -53,7 +60,7 @@ static SemaphoreHandle_t s_lfs_mutex = nullptr;
 // Request type and queue
 // ---------------------------------------------------------------------------
 typedef struct {
-    sentai_lfs_req_type_t type;
+    sentai_fs_req_type_t type;
     char path[256];
 } LfsRequest;
 
@@ -62,8 +69,8 @@ static QueueHandle_t s_req_queue = nullptr;
 // ---------------------------------------------------------------------------
 // Slot state — tracks where the current GET request is in the pipeline.
 //
-// Written by tcpip_thread (FsOpenCustom/FsCloseCustom via sentai_lfs_try_serve
-// and sentai_lfs_resp_done) and by lfs_task (when result is ready).
+// Written by tcpip_thread (FsOpenCustom/FsCloseCustom via sentai_fs_try_serve
+// and sentai_fs_resp_done) and by lfs_task (when result is ready).
 //
 // On single-core Cortex-M7, 32-bit aligned enum stores are atomic. We use
 // __DMB() before SLOT_READY to ensure s_slot_len is visible to all observers.
@@ -78,7 +85,7 @@ typedef enum {
 static volatile SlotState          s_slot_state = SLOT_IDLE;
 static volatile size_t             s_slot_len   = 0;
 static char                        s_slot_path[256] = {};
-static sentai_lfs_req_type_t       s_slot_type  = LFS_REQ_LS;
+static sentai_fs_req_type_t       s_slot_type  = FS_REQ_LS;
 
 // Diagnostic counters — tell us EXACTLY why `lfs_busy` was returned on
 // each failing request.  Exposed via sentai.diag.lfs_stats() so a host
@@ -123,52 +130,47 @@ static void BufAppendJsonStr(size_t* pos, const char* s) {
 }
 
 // ---------------------------------------------------------------------------
-// DoLs / DoRaw — called ONLY from lfs_task (safe to block on lfs_*)
+// DoLs / DoRaw — called ONLY from lfs_task (safe to block on FS ops)
 // ---------------------------------------------------------------------------
+struct LsCallbackCtx {
+    size_t pos;
+    bool first;
+};
+
+static int ls_dir_cb(const FxDirEntry* e, void* user) {
+    LsCallbackCtx* ctx = static_cast<LsCallbackCtx*>(user);
+    if (!ctx->first && ctx->pos < kRespBufSize) g_resp_buf[ctx->pos++] = ',';
+    ctx->first = false;
+    if (ctx->pos < kRespBufSize) g_resp_buf[ctx->pos++] = '{';
+    BufAppend(&ctx->pos, "\"name\":");
+    BufAppendJsonStr(&ctx->pos, e->name);
+    char tmp[64];
+    snprintf(tmp, sizeof(tmp), ",\"type\":\"%s\",\"size\":%lu",
+             e->is_dir ? "dir" : "file",
+             (unsigned long)e->size);
+    BufAppend(&ctx->pos, tmp);
+    if (ctx->pos < kRespBufSize) g_resp_buf[ctx->pos++] = '}';
+    return 0;
+}
+
 static size_t DoLs(const char* path) {
-    lfs_t* lfs = coralmicro::LfsUser();
-    if (!lfs) { g_resp_buf[0] = '['; g_resp_buf[1] = ']'; return 2; }
-    lfs_dir_t dir;
-    if (lfs_dir_open(lfs, &dir, path) < 0) {
+    if (!FxUserIsMounted()) { g_resp_buf[0] = '['; g_resp_buf[1] = ']'; return 2; }
+    LsCallbackCtx ctx = { 0, true };
+    g_resp_buf[ctx.pos++] = '[';
+    int rc = FxUserListDir(path, ls_dir_cb, &ctx);
+    if (rc < 0) {
         g_resp_buf[0] = '['; g_resp_buf[1] = ']'; return 2;
     }
-    size_t pos = 0;
-    g_resp_buf[pos++] = '[';
-    lfs_info info;
-    bool first = true;
-    while (lfs_dir_read(lfs, &dir, &info) > 0) {
-        if (info.name[0] == '.' &&
-            (info.name[1] == '\0' ||
-             (info.name[1] == '.' && info.name[2] == '\0'))) continue;
-        if (!first && pos < kRespBufSize) g_resp_buf[pos++] = ',';
-        first = false;
-        if (pos < kRespBufSize) g_resp_buf[pos++] = '{';
-        BufAppend(&pos, "\"name\":");
-        BufAppendJsonStr(&pos, info.name);
-        char tmp[64];
-        snprintf(tmp, sizeof(tmp), ",\"type\":\"%s\",\"size\":%lu",
-                 info.type == LFS_TYPE_DIR ? "dir" : "file",
-                 (unsigned long)info.size);
-        BufAppend(&pos, tmp);
-        if (pos < kRespBufSize) g_resp_buf[pos++] = '}';
-    }
-    lfs_dir_close(lfs, &dir);
-    if (pos < kRespBufSize) g_resp_buf[pos++] = ']';
-    return pos;
+    if (ctx.pos < kRespBufSize) g_resp_buf[ctx.pos++] = ']';
+    return ctx.pos;
 }
 
 static size_t DoRaw(const char* path) {
-    lfs_t* lfs = coralmicro::LfsUser();
-    if (!lfs) return 0;
-    lfs_info info;
-    if (lfs_stat(lfs, path, &info) < 0 ||
-        info.type != LFS_TYPE_REG || info.size == 0) return 0;
-    size_t to_read = (info.size < kRespBufSize) ? info.size : kRespBufSize;
-    lfs_file_t f;
-    if (lfs_file_open(lfs, &f, path, LFS_O_RDONLY) < 0) return 0;
-    lfs_ssize_t n = lfs_file_read(lfs, &f, g_resp_buf, to_read);
-    lfs_file_close(lfs, &f);
-    return (n > 0) ? (size_t)n : 0;
+    if (!FxUserIsMounted()) return 0;
+    ssize_t sz = FxUserSize(path);
+    if (sz <= 0) return 0;
+    size_t to_read = ((size_t)sz < kRespBufSize) ? (size_t)sz : kRespBufSize;
+    return FxUserReadFile(path, g_resp_buf, to_read);
 }
 
 // ---------------------------------------------------------------------------
@@ -187,9 +189,9 @@ static void LfsTaskFn(void* /*arg*/) {
         if (s_lfs_mutex) xSemaphoreTake(s_lfs_mutex, portMAX_DELAY);
 
         size_t len = 0;
-        if (req.type == LFS_REQ_LS) {
+        if (req.type == FS_REQ_LS) {
             len = DoLs(req.path);
-        } else if (req.type == LFS_REQ_RAW) {
+        } else if (req.type == FS_REQ_RAW) {
             len = DoRaw(req.path);
         }
 
@@ -206,7 +208,7 @@ static void LfsTaskFn(void* /*arg*/) {
 // Public API — called from sentai_httpd.cc (tcpip_thread context)
 // ---------------------------------------------------------------------------
 
-static size_t EnqueueLfsRequest(sentai_lfs_req_type_t type, const char* path) {
+static size_t EnqueueLfsRequest(sentai_fs_req_type_t type, const char* path) {
     LfsRequest req;
     req.type = type;
     strncpy(req.path, path, sizeof(req.path) - 1);
@@ -231,7 +233,7 @@ static size_t EnqueueLfsRequest(sentai_lfs_req_type_t type, const char* path) {
     return 0;
 }
 
-size_t sentai_lfs_try_serve(sentai_lfs_req_type_t type, const char* path) {
+size_t sentai_fs_try_serve(sentai_fs_req_type_t type, const char* path) {
     if (!s_req_queue) { s_lfs_stats.busy_not_inited++; return 0; }
 
     // Step 1 — if the slot already holds the result for THIS exact request
@@ -274,7 +276,7 @@ size_t sentai_lfs_try_serve(sentai_lfs_req_type_t type, const char* path) {
     // strictly bounded.  LS therefore ALWAYS goes through lfs_task (slow
     // path) below; the browser retries on `lfs_busy` after 600 ms and the
     // subsequent request hits the SLOT_READY cache.
-    if (type == LFS_REQ_RAW) {
+    if (type == FS_REQ_RAW) {
         constexpr TickType_t FAST_PATH_WAIT_MS = 500;
         if (s_lfs_mutex &&
             xSemaphoreTake(s_lfs_mutex, pdMS_TO_TICKS(FAST_PATH_WAIT_MS)) == pdTRUE) {
@@ -305,7 +307,12 @@ size_t sentai_lfs_try_serve(sentai_lfs_req_type_t type, const char* path) {
     // watchdog ceiling (2 min) with plenty of margin; if a pathological
     // LS truly exceeds the budget we still return lfs_busy so the
     // caller can retry rather than hang tcpip_thread.
-    constexpr TickType_t kSlowPathWaitMs = 500;
+    /* Phase 3.4: longer slow-path wait reduces lfs_busy responses by
+     * giving the dedicated FS task more time to publish SLOT_READY
+     * before tcpip_thread gives up.  Old value 500 ms (matched the
+     * browser retry budget) caused ~50% busy under contention; 1500 ms
+     * stays well within the USB-NCM 2 min watchdog. */
+    constexpr TickType_t kSlowPathWaitMs = 1500;
     if (s_slot_state == SLOT_IDLE) {
         EnqueueLfsRequest(type, path);
     }
@@ -344,7 +351,7 @@ size_t sentai_lfs_try_serve(sentai_lfs_req_type_t type, const char* path) {
 // so after a failing GET the host can query this struct to learn which
 // arm of the state machine returned early.
 // ------------------------------------------------------------------
-extern "C" void sentai_lfs_stats_get(uint32_t* out, int max_fields) {
+extern "C" void sentai_fs_stats_get(uint32_t* out, int max_fields) {
     if (max_fields < 11 || !out) return;
     out[0]  = s_lfs_stats.served_ready_cached;
     out[1]  = s_lfs_stats.served_fast_raw;
@@ -359,14 +366,14 @@ extern "C" void sentai_lfs_stats_get(uint32_t* out, int max_fields) {
     out[10] = s_lfs_stats.enqueue_fail;
 }
 
-uint8_t* sentai_lfs_resp_buf(void) { return g_resp_buf; }
+uint8_t* sentai_fs_resp_buf(void) { return g_resp_buf; }
 
-void sentai_lfs_resp_done(void) {
+void sentai_fs_resp_done(void) {
     s_slot_state = SLOT_IDLE;
 }
 
 // ---------------------------------------------------------------------------
-// sentai_lfs_lock / sentai_lfs_unlock
+// sentai_fs_lock / sentai_fs_unlock
 //
 // Used by: crash_log_write, boot_log_flush, sentai_get_last_crash_log_path,
 //          modsentai_fs (MP fs ops), lfs_task (already holds mutex).
@@ -377,19 +384,19 @@ void sentai_lfs_resp_done(void) {
 // NOT for tcpip_thread POST operations — those call lfs_* directly and rely on
 // the internal g_lfs_user_mutex for per-call serialization.
 // ---------------------------------------------------------------------------
-extern "C" int sentai_lfs_lock(void) {
+extern "C" int sentai_fs_lock(void) {
     if (!s_lfs_mutex) return 1;  // Pre-init: single-threaded boot, allow.
     return xSemaphoreTake(s_lfs_mutex, pdMS_TO_TICKS(2000)) == pdTRUE ? 1 : 0;
 }
 
-extern "C" void sentai_lfs_unlock(void) {
+extern "C" void sentai_fs_unlock(void) {
     if (s_lfs_mutex) xSemaphoreGive(s_lfs_mutex);
 }
 
 // ---------------------------------------------------------------------------
-// sentai_lfs_task_start — call once from sentai_runtime before sentai_httpd_start
+// sentai_fs_task_start — call once from sentai_runtime before sentai_httpd_start
 // ---------------------------------------------------------------------------
-extern "C" void sentai_lfs_task_start(void) {
+extern "C" void sentai_fs_task_start(void) {
     static bool started = false;
     if (started) return;
     started = true;
@@ -400,6 +407,6 @@ extern "C" void sentai_lfs_task_start(void) {
     xTaskCreate(LfsTaskFn, "lfs_task", LFS_TASK_STACK, nullptr,
                 LFS_TASK_PRIORITY, nullptr);
 
-    printf("[lfs_task] started (priority=%d buf=%uKB)\r\n",
+    printf("[fs_task] started (priority=%d buf=%uKB)\r\n",
            LFS_TASK_PRIORITY, (unsigned)(kRespBufSize / 1024));
 }

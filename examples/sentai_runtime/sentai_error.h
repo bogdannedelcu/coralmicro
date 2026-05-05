@@ -47,6 +47,7 @@ extern "C" {
 #define SERR_MOD_AUDIO   0x0900
 #define SERR_MOD_CAM     0x0A00
 #define SERR_MOD_TPU     0x0B00
+#define SERR_MOD_LFX     0x0D00  /* FileX/LevelX migration (0x0Dxx) */
 #define SERR_MOD_SYS     0x0F00
 
 // ===================== Link Errors (0x01xx) =====================
@@ -118,11 +119,46 @@ extern "C" {
 #define SERR_TPU_RING_DMA_FAIL     (SERR_MOD_TPU | 0x52) // eDMA SDRAM->OCRAM producer copy failed (val=bytes)
 #define SERR_TPU_RING_USB_SUBMIT   (SERR_MOD_TPU | 0x53) // USB_HostEdgeTpuBulkOutSendAsync returned non-success (val=usb_status)
 #define SERR_TPU_RING_DRAIN_TO     (SERR_MOD_TPU | 0x54) // Drain wait for final slots timed out (val=slot_idx)
+// Per-invoke USB stage failures (EdgeTpuExecutable::Invoke).  val=bytes pending when failure occurred.
+#define SERR_TPU_INV_PARAMS        (SERR_MOD_TPU | 0x60) // SendParameters failed
+#define SERR_TPU_INV_INPUTS        (SERR_MOD_TPU | 0x61) // SendInputs failed
+#define SERR_TPU_INV_INSTR         (SERR_MOD_TPU | 0x62) // SendInstructions failed
+#define SERR_TPU_INV_OUTPUT        (SERR_MOD_TPU | 0x63) // GetOutputs failed
+// Multi-slot extension (Phase 1+2, 2026-04-28).
+#define SERR_TPU_SLOT_OOB          (SERR_MOD_TPU | 0x70) // Slot index out of range (val=slot)
+#define SERR_TPU_SLOT_ALLOC        (SERR_MOD_TPU | 0x71) // Slot arena malloc failed (val=slot)
+#define SERR_TPU_SLOT_INTERP       (SERR_MOD_TPU | 0x72) // new MicroInterpreter returned NULL (val=slot)
+#define SERR_TPU_SLOT_VEC          (SERR_MOD_TPU | 0x73) // new std::vector returned NULL (val=slot)
+#define SERR_TPU_SLOT_NOT_READY    (SERR_MOD_TPU | 0x74) // Pipeline routed cam to unloaded slot (val=cam<<4|slot)
 
 // ===================== Filesystem Errors (0x07xx) =====================
 #define SERR_FS_MUTEX_TIMEOUT   (SERR_MOD_FS | 0x01)    // LFS mutex timeout
 #define SERR_FS_READ_FAIL       (SERR_MOD_FS | 0x20)    // Read error
 #define SERR_FS_WRITE_FAIL      (SERR_MOD_FS | 0x21)    // Write error
+
+// ===================== FileX/LevelX Errors (0x0Dxx) =====================
+// Stage codes returned by libs/base/fx_user_fs.cc::fx_smoke_run().
+// Phase 1 of LFS->FileX migration; codes 0x0D00..0x0D2F reserved.
+#define SERR_LFX_CONFIRM        (SERR_MOD_LFX | 0x00)  // Caller passed wrong magic confirm
+#define SERR_LFX_LX_FORMAT      (SERR_MOD_LFX | 0x01)  // lx_nand_flash_format failed (val=lx_status)
+#define SERR_LFX_LX_OPEN        (SERR_MOD_LFX | 0x02)  // lx_nand_flash_open failed (val=lx_status)
+#define SERR_LFX_FX_FORMAT      (SERR_MOD_LFX | 0x03)  // fx_media_format failed (val=fx_status)
+#define SERR_LFX_FX_OPEN        (SERR_MOD_LFX | 0x04)  // fx_media_open failed (val=fx_status)
+#define SERR_LFX_FT             (SERR_MOD_LFX | 0x05)  // fx_fault_tolerant_enable failed (non-fatal)
+#define SERR_LFX_FILE_CREATE    (SERR_MOD_LFX | 0x10)  // fx_file_create failed (val=fx_status)
+#define SERR_LFX_FILE_OPEN      (SERR_MOD_LFX | 0x11)  // fx_file_open failed (val=fx_status)
+#define SERR_LFX_FILE_WRITE     (SERR_MOD_LFX | 0x12)  // fx_file_write failed (val=fx_status)
+#define SERR_LFX_FILE_READ      (SERR_MOD_LFX | 0x13)  // fx_file_read failed or short read
+#define SERR_LFX_VERIFY         (SERR_MOD_LFX | 0x14)  // Readback content mismatch
+#define SERR_LFX_CLOSE          (SERR_MOD_LFX | 0x20)  // fx_media_close failed (val=fx_status)
+// NAND BD-adapter faults (Phase 3.5 audit, 2026-04-28)
+#define SERR_LFX_NAND_READ      (SERR_MOD_LFX | 0x21)  // Nand_Flash_Read_Page failed after retries (val=phys_page)
+#define SERR_LFX_NAND_PROG      (SERR_MOD_LFX | 0x22)  // Nand_Flash_Page_Program failed (val=phys_page)
+#define SERR_LFX_NAND_ERASE     (SERR_MOD_LFX | 0x23)  // Nand_Flash_Erase_Block failed (val=phys_block)
+#define SERR_LFX_LBA_RANGE      (SERR_MOD_LFX | 0x24)  // MSC LBA out of range (val=lba)
+#define SERR_LFX_LOCK_TIMEOUT   (SERR_MOD_LFX | 0x25)  // FxUser mutex acquisition timed out (val=ms)
+#define SERR_LFX_NOT_MOUNTED    (SERR_MOD_LFX | 0x26)  // FxUser* called on unmounted volume (val=op_id)
+#define SERR_LFX_RESTORE_LFS    (SERR_MOD_LFX | 0xF0)  // LfsUserInit re-format failed after smoke
 
 // ===================== USB Errors (0x0Cxx) =====================
 #define SERR_MOD_USB     0x0C00

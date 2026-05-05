@@ -45,6 +45,11 @@ extern "C" {
     int sentai_tpu_is_ready(void);
     int sentai_tpu_invoke_internal(void);  // no pipeline guard
     int sentai_tpu_invoke_with_input(uint8_t* input_buf);  // Step 4 direct path
+    int sentai_tpu_invoke_slot_with_input(int slot, uint8_t* buf);  // Phase 2 multi-slot
+    /* Stateless ratio-alternate scheduler word, OWNED by sentai_runtime.cc.
+     * Hi 16 = a (cam0 quota), lo 16 = b (cam1 quota); zero = inactive.
+     * Read here as the override key for force_parity (see PrepTask body). */
+    extern volatile uint32_t g_cam_ratio_packed;
     // Cale 1 HYBRID fine-grained sync (2026-04-25): arms SendInputs to
     // xSemaphoreGive(sema) at the END of its USB bulk-OUT phase, which
     // lets PrepTask start writing the next .tpu_input the instant USB
@@ -97,7 +102,7 @@ namespace {
 // OCRAM + slot 1 SDRAM) 2026-04-22: every other invoke read from
 // SDRAM wedged the TPU (SEMC bus contention with CSI) — 0 ok / 175
 // fail in 5 s.  Hard lesson: partial SDRAM involvement = full wedge.
-static constexpr int kMaxStagingSize = 512 * 512 * 3;  // yolo_1 786 432 B
+static constexpr int kMaxStagingSize = 640 * 480 * 3;  // 921 600 B (iarna 640x480) — also fits 512x512
 static uint8_t s_tpu_input_buf_single[kMaxStagingSize]
     __attribute__((aligned(64), section(".tpu_input")));
 static uint8_t* const s_tpu_input_buf[2] = {
@@ -400,6 +405,49 @@ static volatile int s_force_parity = 0;
 static int          s_last_grabbed_cam_id = -1;
 extern "C" int  sentai_pipeline_force_parity_get(void) { return s_force_parity; }
 extern "C" void sentai_pipeline_force_parity_set(int v) { s_force_parity = v ? 1 : 0; }
+
+// ---- Phase 2: per-camera slot dispatch ----
+//
+// `s_slot_for_cam[cam_id]` tells InferTask which TPU slot to invoke for
+// a frame tagged with that camera.  Default {0, 0} = both cameras
+// invoke slot 0 (legacy single-slot behaviour).  REPL API:
+//   sentai.pipeline.set_slot_for_cam(cam_id, slot)
+//
+// NMS / detection_task output handling stays on slot 0 in Phase 2a —
+// per-slot detection result publication is Phase 2b.  Until then, a
+// camera mapped to slot != 0 will still TRIGGER its model (visible in
+// per-slot invoke counters), but its detections won't surface in the
+// normal `pipeline.calibrate` / `detection_get_latest` flow.
+static volatile int8_t s_slot_for_cam[2] = { 0, 0 };
+static volatile uint32_t s_slot_invokes[3] = { 0, 0, 0 };
+extern "C" int  sentai_pipeline_get_slot_for_cam(int cam_id) {
+    if (cam_id < 0 || cam_id >= 2) return -1;
+    return (int)s_slot_for_cam[cam_id];
+}
+extern "C" int sentai_tpu_slot_ready(int slot);
+extern "C" int  sentai_pipeline_set_slot_for_cam(int cam_id, int slot) {
+    if (cam_id < 0 || cam_id >= 2) return -1;
+    if (slot < 0 || slot >= 3) return -2;
+    // Reject routing to an unloaded slot — InferTask would otherwise
+    // fire `invoke_slot` repeatedly on a null interpreter and spam
+    // SERR_TPU_NOT_READY for every frame.  Caller must call
+    // `tpu.load_slot(slot, path)` BEFORE binding it to a camera.
+    // Slot 0 is allowed unconditionally (legacy back-compat path,
+    // many callers set cam→slot 0 before any model is loaded).
+    if (slot != 0 && !sentai_tpu_slot_ready(slot)) {
+        SERR_LOG(SERR_TPU_SLOT_NOT_READY,
+                 (uint32_t)((cam_id << 4) | slot));
+        return -3;
+    }
+    s_slot_for_cam[cam_id] = (int8_t)slot;
+    return 0;
+}
+extern "C" void sentai_pipeline_slot_stats(uint32_t* per_slot, int n) {
+    for (int i = 0; i < n && i < 3; i++) per_slot[i] = s_slot_invokes[i];
+}
+extern "C" void sentai_pipeline_slot_stats_reset(void) {
+    s_slot_invokes[0] = s_slot_invokes[1] = s_slot_invokes[2] = 0;
+}
 static volatile uint32_t s_force_parity_skipped = 0;
 static volatile uint32_t s_force_parity_timeout = 0;
 extern "C" void sentai_pipeline_force_parity_stats(uint32_t* skipped, uint32_t* timeout) {
@@ -411,6 +459,23 @@ extern "C" void sentai_pipeline_force_parity_reset(void) {
     s_force_parity_timeout = 0;
     s_last_grabbed_cam_id = -1;
 }
+
+/* Schedule-aware grab considered (2026-04-27) and DROPPED.
+ *
+ * The VGA60+2:1 aliasing (cam1 always discarded by grab_latest because
+ * its cycle is exactly the pipeline-iteration period) is a real
+ * artefact, but the consumer-side workarounds (schedule-tracking grab,
+ * FIFO grab) either duplicate the producer's schedule into a second
+ * source of truth or trade significant latency.  Decision: keep the
+ * single-source-of-truth (ISR scheduler is authoritative) and avoid
+ * ratio cycles that alias with the pipeline iteration period.
+ * Practical guidance for the diag drivers:
+ *   - 1:1 always works (cycle = 2 sensor periods).
+ *   - 3:1 always works (cycle = 4 sensor periods, cam1 distinct).
+ *   - 2:1 at VGA60 aliases (cycle 50 ms ≈ 2× pipeline iter 22 ms);
+ *     skip it from the test matrix and use 3:1 instead.
+ * Documented in agent/experiment.md.  No code added.
+ */
 
 static int      s_stg_w  = 0;
 static int      s_stg_h  = 0;
@@ -505,7 +570,7 @@ static void prep_task_fn(void* /*param*/) {
             continue;
         }
 
-        // Get latest camera frame (drains stale ones)
+        // Get latest camera frame (drains stale ones).
         TickType_t t_cam_start = xTaskGetTickCount();
         uint8_t* raw = nullptr;
         int idx = sentai_cam_grab_latest(&raw);
@@ -516,7 +581,20 @@ static void prep_task_fn(void* /*param*/) {
         // force_parity: if this buffer matches the last accepted cam_id,
         // discard and retry (bounded).  Best-effort -- on timeout we
         // accept whatever we have so the pipeline keeps making progress.
-        if (s_force_parity && idx >= 0 && raw &&
+        //
+        // RATIO OVERRIDE (build #98x, 2026-04-27): when sentai.camera.ratio(a,b)
+        // is active (g_cam_ratio_packed != 0) the CSI ISR is already
+        // running an authoritative auto-alternate schedule.  force_parity
+        // would then DISCARD frames the ISR scheduled on purpose — at
+        // VGA60 with ratio(2,1) the 22 ms force_parity sleep is longer
+        // than the 16.7 ms sensor period, so every "second cam0" the
+        // schedule emits gets thrown away → captured distribution
+        // collapses to 50:50 and the user-requested 2:1 parity is lost.
+        // The ratio is the source of truth; force_parity is meaningful
+        // ONLY when the ISR is NOT alternating.  Bypass when ratio is
+        // packed-active.  Symbol declared at file scope above (extern "C").
+        const bool ratio_active = (g_cam_ratio_packed != 0u);
+        if (s_force_parity && !ratio_active && idx >= 0 && raw &&
             prep_cam_id == s_last_grabbed_cam_id && prep_cam_id >= 0) {
             // Hard wall-clock cap so a wedged camera at force_parity
             // ON cannot stretch a single PrepTask iteration past 200 ms
@@ -838,14 +916,29 @@ static void infer_task_fn(void* /*param*/) {
                                 ? s_debug_invokes_per_frame : 1;
             const int sync_mode = s_multi_invoke_sync_mode;
 
+            // Phase 2: pick TPU slot from cam_id mapping.  Slot 0 is
+            // the legacy interpreter (`g_interpreter`) so the slot==0
+            // fast path uses `_with_input` directly to keep the V22
+            // OCRAM pointer-patch optimization byte-for-byte
+            // identical.  Slots 1+ go through the general `_slot_with_input`.
+            int active_slot = 0;
+            if (frame_cam_id >= 0 && frame_cam_id < 2) {
+                active_slot = (int)s_slot_for_cam[frame_cam_id];
+            }
+            if (active_slot < 0 || active_slot >= 3) active_slot = 0;
+            s_slot_invokes[active_slot]++;
+            #define INVOKE_DT(buf_ptr) ((active_slot == 0) \
+                ? sentai_tpu_invoke_with_input(buf_ptr) \
+                : sentai_tpu_invoke_slot_with_input(active_slot, buf_ptr))
+
             if (n_calls == 1 || sync_mode == 0) {
                 // Legacy / single-invoke: arm once at the top; first
                 // SendInputs releases PrepTask.  For n=1 this is the
                 // race-free fast path.
                 sentai_tpu_set_input_done_sema(sem_free);
-                invoke_ms = s_debug_no_invoke ? 0 : sentai_tpu_invoke_with_input(buf);
+                invoke_ms = s_debug_no_invoke ? 0 : INVOKE_DT(buf);
                 for (int k = 1; k < n_calls && invoke_ms >= 0; k++) {
-                    int extra_ms = sentai_tpu_invoke_with_input(buf);
+                    int extra_ms = INVOKE_DT(buf);
                     if (extra_ms < 0) { invoke_ms = extra_ms; break; }
                     s_infer_ok_count++;
                     s_infer_ms_sum += (uint32_t)extra_ms;
@@ -855,16 +948,16 @@ static void infer_task_fn(void* /*param*/) {
                 // (PrepTask stays blocked, no buffer overwrite).
                 // Arm before invoke N so PrepTask is released exactly
                 // at the same point as in the N=1 case.
-                invoke_ms = s_debug_no_invoke ? 0 : sentai_tpu_invoke_with_input(buf);
+                invoke_ms = s_debug_no_invoke ? 0 : INVOKE_DT(buf);
                 for (int k = 1; k < n_calls - 1 && invoke_ms >= 0; k++) {
-                    int extra_ms = sentai_tpu_invoke_with_input(buf);
+                    int extra_ms = INVOKE_DT(buf);
                     if (extra_ms < 0) { invoke_ms = extra_ms; break; }
                     s_infer_ok_count++;
                     s_infer_ms_sum += (uint32_t)extra_ms;
                 }
                 if (invoke_ms >= 0 && n_calls > 1) {
                     sentai_tpu_set_input_done_sema(sem_free);
-                    int last_ms = sentai_tpu_invoke_with_input(buf);
+                    int last_ms = INVOKE_DT(buf);
                     if (last_ms < 0) {
                         invoke_ms = last_ms;
                     } else {
@@ -877,10 +970,10 @@ static void infer_task_fn(void* /*param*/) {
                 // PrepTask wakes after each invoke's first SendInputs,
                 // races with the next invoke's reread of .tpu_input.
                 sentai_tpu_set_input_done_sema(sem_free);
-                invoke_ms = s_debug_no_invoke ? 0 : sentai_tpu_invoke_with_input(buf);
+                invoke_ms = s_debug_no_invoke ? 0 : INVOKE_DT(buf);
                 for (int k = 1; k < n_calls && invoke_ms >= 0; k++) {
                     sentai_tpu_set_input_done_sema(sem_free);
-                    int extra_ms = sentai_tpu_invoke_with_input(buf);
+                    int extra_ms = INVOKE_DT(buf);
                     if (extra_ms < 0) { invoke_ms = extra_ms; break; }
                     s_infer_ok_count++;
                     s_infer_ms_sum += (uint32_t)extra_ms;
@@ -897,6 +990,7 @@ static void infer_task_fn(void* /*param*/) {
             if (invoke_ms < 0) {
                 xSemaphoreGive(sem_free);
             }
+            #undef INVOKE_DT
         } else {
             bool dma_ok = false;
             if (s_dma_memcpy_enabled

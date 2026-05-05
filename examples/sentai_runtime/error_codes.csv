@@ -81,12 +81,41 @@ CODE,MODULE,NAME,DESCRIPTION,VERSION_ADDED,STATUS
 0x0B52,TPU,RING_DMA_FAIL,eDMA SDRAM->OCRAM producer copy failed (val=bytes),v1.3,RETIRED
 0x0B53,TPU,RING_USB_SUBMIT,USB_HostEdgeTpuBulkOutSendAsync returned non-success (val=usb_status),v1.3,RETIRED
 0x0B54,TPU,RING_DRAIN_TO,Drain wait for final ring slots timed out (val=slot_idx),v1.3,RETIRED
+0x0B60,TPU,INV_PARAMS,SendParameters failed during EdgeTpuExecutable::Invoke (val=bytes),v1.4,ACTIVE
+0x0B61,TPU,INV_INPUTS,SendInputs failed during EdgeTpuExecutable::Invoke (val=bytes),v1.4,ACTIVE
+0x0B62,TPU,INV_INSTR,SendInstructions failed during EdgeTpuExecutable::Invoke (val=bytes),v1.4,ACTIVE
+0x0B63,TPU,INV_OUTPUT,GetOutputs failed during EdgeTpuExecutable::Invoke (val=bytes),v1.4,ACTIVE
+0x0B70,TPU,SLOT_OOB,Slot index out of range (val=slot),v1.6,ACTIVE
+0x0B71,TPU,SLOT_ALLOC,Slot arena malloc failed (val=slot),v1.6,ACTIVE
+0x0B72,TPU,SLOT_INTERP,new MicroInterpreter returned NULL (val=slot),v1.6,ACTIVE
+0x0B73,TPU,SLOT_VEC,new std::vector<uint8_t> returned NULL (val=slot),v1.6,ACTIVE
+0x0B74,TPU,SLOT_NOT_READY,Pipeline routed cam to unloaded slot (val=cam<<4|slot),v1.6,ACTIVE
 # === Module 0x0C: USB ===
 0x0C01,USB,NCM_TX_DROP,NCM TX dropped - not attached (alt=0),v1.1,ACTIVE
 0x0C02,USB,NCM_RX_DROP,NCM RX dropped - endpoint busy,v1.1,ACTIVE
 0x0C10,USB,MSC_READ_FAIL,NAND read failed during MSC bulk transfer (val=page),v1.1,ACTIVE
 0x0C11,USB,MSC_WRITE_FAIL,NAND write failed during MSC bulk transfer (val=page),v1.1,ACTIVE
 0x0C12,USB,MSC_ERASE_FAIL,NAND erase failed during MSC command (val=block),v1.1,ACTIVE
+# === Module 0x0D: FileX/LevelX migration ===
+0x0D00,LFX,CONFIRM,Caller passed wrong magic confirm to fx_smoke_run,v1.5,ACTIVE
+0x0D01,LFX,LX_FORMAT,lx_nand_flash_format failed (val=lx_status),v1.5,ACTIVE
+0x0D02,LFX,LX_OPEN,lx_nand_flash_open failed (val=lx_status),v1.5,ACTIVE
+0x0D03,LFX,FX_FORMAT,fx_media_format failed (val=fx_status),v1.5,ACTIVE
+0x0D04,LFX,FX_OPEN,fx_media_open failed (val=fx_status),v1.5,ACTIVE
+0x0D05,LFX,FT,fx_fault_tolerant_enable failed (non-fatal),v1.5,ACTIVE
+0x0D10,LFX,FILE_CREATE,fx_file_create failed during smoke (val=fx_status),v1.5,ACTIVE
+0x0D11,LFX,FILE_OPEN,fx_file_open failed during smoke (val=fx_status),v1.5,ACTIVE
+0x0D12,LFX,FILE_WRITE,fx_file_write failed during smoke (val=fx_status),v1.5,ACTIVE
+0x0D13,LFX,FILE_READ,fx_file_read failed or short read during smoke,v1.5,ACTIVE
+0x0D14,LFX,VERIFY,Readback content mismatch during smoke,v1.5,ACTIVE
+0x0D20,LFX,CLOSE,fx_media_close failed (val=fx_status),v1.5,ACTIVE
+0x0D21,LFX,NAND_READ,Nand_Flash_Read_Page failed after 3 retries (val=phys_page),v1.6,ACTIVE
+0x0D22,LFX,NAND_PROG,Nand_Flash_Page_Program failed (val=phys_page),v1.6,ACTIVE
+0x0D23,LFX,NAND_ERASE,Nand_Flash_Erase_Block failed (val=phys_block),v1.6,ACTIVE
+0x0D24,LFX,LBA_RANGE,MSC LBA out of range (val=lba),v1.6,ACTIVE
+0x0D25,LFX,LOCK_TIMEOUT,FxUser mutex acquisition timed out (val=ms_waited),v1.6,ACTIVE
+0x0D26,LFX,NOT_MOUNTED,FxUser API called on unmounted volume (val=op_id),v1.6,ACTIVE
+0x0DF0,LFX,RESTORE_LFS,LfsUserInit re-format failed after smoke - user partition unusable until reflash,v1.5,ACTIVE
 # === Module 0x0F: System ===
 0x0F01,SYS,BOOT_ATTEMPT,Boot attempt N - counter from SRC_GPR1 (val=attempt_number),v1.0,ACTIVE
 0x0FF0,SYS,RECOVERY_MODE,Recovery mode entered after boot loop (val=attempt_count),v1.0,ACTIVE

@@ -256,141 +256,122 @@ static mp_obj_t mod_sentai_save_output(mp_obj_t path_obj) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_save_output_obj, mod_sentai_save_output);
 
-// sentai.tpu.detect([conf[, iou[, max]]]) -> list of (x1,y1,x2,y2,conf,class_id)
-// YOLO NMS post-processing.  conf/iou are float 0.0-1.0 (e.g. 0.25 = 25%).
-// Coordinates are in model input pixel space.  conf is float 0.0-1.0.
-static mp_obj_t mod_sentai_detect(size_t n_args, const mp_obj_t *args) {
-    int conf = (n_args >= 1) ? (int)(mp_obj_get_float(args[0]) * 1000.0f) : 250;
-    int iou  = (n_args >= 2) ? (int)(mp_obj_get_float(args[1]) * 1000.0f) : 450;
-    int maxd = (n_args >= 3) ? mp_obj_get_int(args[2]) : 50;
-    if (maxd > 200) maxd = 200;
-    if (maxd < 1)   maxd = 1;
+// detect / draw / yolo_info MicroPython wrappers were retired in build
+// #1100 (REPL exposes raw output bytes only; structured post-processing
+// stays in C++).  The C-side functions `sentai_tpu_detect` /
+// `sentai_tpu_draw` / `sentai_tpu_output_yolo_info` are still used by
+// detection_task.cc internally — keeping them.  Removing the MP wrappers
+// reclaims ~4 KB of ITCM/text and ~80 lines of dead Python-side glue.
 
-    int16_t* buf = m_new(int16_t, maxd * 6);
-    int count = 0;
-    int rc = sentai_tpu_detect(conf, iou, maxd, buf, &count);
+// ============== sentai.tpu multi-slot API (Phase 1, 2026-04-28) ==============
+extern int sentai_load_model_slot(int slot, const char* path);
+extern int sentai_tpu_invoke_slot(int slot);
+extern int sentai_tpu_invoke_slot_with_input(int slot, uint8_t* buf);
+extern int sentai_tpu_slot_ready(int slot);
+extern int sentai_tpu_slot_count(void);
+extern int sentai_tpu_num_outputs_slot(int slot);
+extern int sentai_tpu_get_output_size_slot(int slot, int idx);
+extern const void* sentai_tpu_get_output_data_slot(int slot, int idx);
+extern int sentai_tpu_set_input_slot(int slot, const uint8_t* data, int len);
+extern uint32_t sentai_tpu_output_hash_slot(int slot);
+extern int sentai_tpu_get_output_num_dims_slot(int slot, int idx);
+extern int sentai_tpu_get_output_dim_slot(int slot, int idx, int dim);
+extern int sentai_tpu_get_output_type_slot(int slot, int idx);
+extern int sentai_tpu_output_quant_slot(int slot, int idx, float* scale, int32_t* zp);
 
-    if (rc != 0) {
-        m_del(int16_t, buf, maxd * 6);
-        mp_raise_msg_varg(&mp_type_RuntimeError,
-            MP_ERROR_TEXT("detect failed (%d)"), rc);
-    }
-
-    mp_obj_list_t *list = MP_OBJ_TO_PTR(mp_obj_new_list(count, NULL));
-    for (int i = 0; i < count; i++) {
-        mp_obj_t items[6] = {
-            mp_obj_new_int(buf[i * 6 + 0]),  // x1
-            mp_obj_new_int(buf[i * 6 + 1]),  // y1
-            mp_obj_new_int(buf[i * 6 + 2]),  // x2
-            mp_obj_new_int(buf[i * 6 + 3]),  // y2
-            mp_obj_new_float(buf[i * 6 + 4] / 1000.0f),  // conf (0.0-1.0)
-            mp_obj_new_int(buf[i * 6 + 5]),  // class_id
-        };
-        list->items[i] = mp_obj_new_tuple(6, items);
-    }
-
-    m_del(int16_t, buf, maxd * 6);
-    return MP_OBJ_FROM_PTR(list);
-}
-static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_detect_obj, 0, 3, mod_sentai_detect);
-
-// sentai.tpu.draw(path, [dets], [quality]) -> int
-// Draw bounding boxes + class labels on the last to_tensor() frame and save JPEG.
-// If dets is omitted, runs detect() automatically with default thresholds.
-// dets: list of (x1,y1,x2,y2,conf,class_id) tuples from detect().
-static mp_obj_t mod_sentai_draw(size_t n_args, const mp_obj_t *args) {
+static mp_obj_t mod_sentai_load_model_slot(mp_obj_t slot_obj, mp_obj_t path_obj) {
     _fs_check_usb();
-    const char* path = mp_obj_str_get_str(args[0]);
-
-    mp_obj_t list_obj;
-    int quality = 75;
-
-    if (n_args >= 2 && mp_obj_is_type(args[1], &mp_type_list)) {
-        // draw(path, dets, [quality])
-        list_obj = args[1];
-        if (n_args >= 3) quality = mp_obj_get_int(args[2]);
-    } else {
-        // draw(path) or draw(path, quality) — auto-detect
-        if (n_args >= 2) quality = mp_obj_get_int(args[1]);
-        int16_t* abuf = m_new(int16_t, 50 * 6);
-        int acount = 0;
-        int arc = sentai_tpu_detect(250, 450, 50, abuf, &acount);
-        if (arc != 0) { m_del(int16_t, abuf, 50 * 6); mp_raise_msg(&mp_type_RuntimeError, MP_ERROR_TEXT("detect failed")); }
-        int rc = sentai_tpu_draw(path, abuf, acount, quality);
-        m_del(int16_t, abuf, 50 * 6);
-        if (rc != 0) mp_raise_msg_varg(&mp_type_RuntimeError, MP_ERROR_TEXT("draw failed (%d)"), rc);
-        return mp_obj_new_int(acount);
-    }
-
-    // Parse list of detection tuples
-    size_t n_dets;
-    mp_obj_t *items;
-    mp_obj_list_get(list_obj, &n_dets, &items);
-
-    // Pack into flat int16 array (conf: float 0-1 → permil int16)
-    int16_t* buf = m_new(int16_t, n_dets * 6);
-    for (size_t i = 0; i < n_dets; i++) {
-        size_t tlen;
-        mp_obj_t *titems;
-        mp_obj_tuple_get(items[i], &tlen, &titems);
-        if (tlen != 6) {
-            m_del(int16_t, buf, n_dets * 6);
-            mp_raise_ValueError(MP_ERROR_TEXT("each det must be (x1,y1,x2,y2,conf,cls)"));
-        }
-        buf[i * 6 + 0] = (int16_t)mp_obj_get_int(titems[0]);  // x1
-        buf[i * 6 + 1] = (int16_t)mp_obj_get_int(titems[1]);  // y1
-        buf[i * 6 + 2] = (int16_t)mp_obj_get_int(titems[2]);  // x2
-        buf[i * 6 + 3] = (int16_t)mp_obj_get_int(titems[3]);  // y2
-        // conf is float 0.0-1.0 → convert to permil int16 for C++
-        buf[i * 6 + 4] = (int16_t)(mp_obj_get_float(titems[4]) * 1000.0f + 0.5f);
-        buf[i * 6 + 5] = (int16_t)mp_obj_get_int(titems[5]);  // class_id
-    }
-
-    int rc = sentai_tpu_draw(path, buf, (int)n_dets, quality);
-    m_del(int16_t, buf, n_dets * 6);
-
-    if (rc != 0) {
-        mp_raise_msg_varg(&mp_type_RuntimeError,
-            MP_ERROR_TEXT("draw failed (%d)"), rc);
-    }
-    return mp_obj_new_int((int)n_dets);
+    int slot = mp_obj_get_int(slot_obj);
+    const char* path = mp_obj_str_get_str(path_obj);
+    return mp_obj_new_int(sentai_load_model_slot(slot, path));
 }
-static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_draw_obj, 1, 3, mod_sentai_draw);
+static MP_DEFINE_CONST_FUN_OBJ_2(mod_sentai_load_model_slot_obj, mod_sentai_load_model_slot);
 
-// sentai.tpu.yolo_info() -> (layout_str, num_classes, num_anchors) or None
-//
-// Auto-detects the loaded model's YOLO output layout and class count from the
-// output tensor shape alone — no metadata required, so it works on edgetpu-
-// compiled .tflite files (the compiler strips most metadata buffers).
-//
-// Supported layouts:
-//   "v5_like"  [1, N, 5+C]   — rows = cx,cy,w,h,obj,cls_0..cls_{C-1}
-//                              (YOLOv5-enhanced 1-class is the C=1 degenerate:
-//                               [1, N, 6] with last col = class_conf)
-//   "v8"       [1, 4+C, N]   — transposed: bbox rows first, then class rows
-//   "unknown"                — shape doesn't match any known pattern
-//
-// Returns None if no model is loaded.
-extern int sentai_tpu_output_yolo_info(int* layout, int* num_classes,
-                                       int* num_anchors);
-static mp_obj_t mod_sentai_yolo_info(void) {
-    int lay = 0, nc = 0, na = 0;
-    int rc = sentai_tpu_output_yolo_info(&lay, &nc, &na);
-    if (rc == -1) return mp_const_none;  // no model loaded
-    const char* name;
-    switch (lay) {
-        case 1:  name = "v5_like"; break;
-        case 2:  name = "v8";      break;
-        default: name = "unknown"; break;
-    }
-    mp_obj_t items[3] = {
-        mp_obj_new_str(name, strlen(name)),
-        mp_obj_new_int(nc),
-        mp_obj_new_int(na),
-    };
-    return mp_obj_new_tuple(3, items);
+static mp_obj_t mod_sentai_invoke_slot(mp_obj_t slot_obj) {
+    return mp_obj_new_int(sentai_tpu_invoke_slot(mp_obj_get_int(slot_obj)));
 }
-static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_yolo_info_obj, mod_sentai_yolo_info);
+static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_invoke_slot_obj, mod_sentai_invoke_slot);
+
+static mp_obj_t mod_sentai_slot_ready(mp_obj_t slot_obj) {
+    return mp_obj_new_bool(sentai_tpu_slot_ready(mp_obj_get_int(slot_obj)));
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_slot_ready_obj, mod_sentai_slot_ready);
+
+static mp_obj_t mod_sentai_slot_count(void) {
+    return mp_obj_new_int(sentai_tpu_slot_count());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_slot_count_obj, mod_sentai_slot_count);
+
+static mp_obj_t mod_sentai_set_input_slot(mp_obj_t slot_obj, mp_obj_t bytes_obj) {
+    int slot = mp_obj_get_int(slot_obj);
+    mp_buffer_info_t buf;
+    mp_get_buffer_raise(bytes_obj, &buf, MP_BUFFER_READ);
+    return mp_obj_new_int(sentai_tpu_set_input_slot(slot, (const uint8_t*)buf.buf, (int)buf.len));
+}
+static MP_DEFINE_CONST_FUN_OBJ_2(mod_sentai_set_input_slot_obj, mod_sentai_set_input_slot);
+
+static mp_obj_t mod_sentai_output_hash(mp_obj_t slot_obj) {
+    uint32_t h = sentai_tpu_output_hash_slot(mp_obj_get_int(slot_obj));
+    return mp_obj_new_int_from_uint(h);
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_output_hash_obj, mod_sentai_output_hash);
+
+static mp_obj_t mod_sentai_output_slot(mp_obj_t slot_obj, mp_obj_t idx_obj) {
+    int slot = mp_obj_get_int(slot_obj);
+    int idx  = mp_obj_get_int(idx_obj);
+    int size = sentai_tpu_get_output_size_slot(slot, idx);
+    if (size <= 0) return mp_const_none;
+    const void* data = sentai_tpu_get_output_data_slot(slot, idx);
+    if (!data) return mp_const_none;
+    return mp_obj_new_bytes((const byte*)data, size);
+}
+static MP_DEFINE_CONST_FUN_OBJ_2(mod_sentai_output_slot_obj, mod_sentai_output_slot);
+
+// Phase 2b raw introspection: per-slot output shape/type/quant.
+// Lets a REPL caller iterate raw bytes without doing post-processing
+// in MicroPython.  Real post-processing (NMS / classify / etc.)
+// will live in C++ when needed.
+static mp_obj_t mod_sentai_output_size_slot(mp_obj_t slot_obj, mp_obj_t idx_obj) {
+    return mp_obj_new_int(sentai_tpu_get_output_size_slot(
+        mp_obj_get_int(slot_obj), mp_obj_get_int(idx_obj)));
+}
+static MP_DEFINE_CONST_FUN_OBJ_2(mod_sentai_output_size_slot_obj, mod_sentai_output_size_slot);
+
+static mp_obj_t mod_sentai_output_dims_slot(mp_obj_t slot_obj, mp_obj_t idx_obj) {
+    int slot = mp_obj_get_int(slot_obj);
+    int idx  = mp_obj_get_int(idx_obj);
+    int n = sentai_tpu_get_output_num_dims_slot(slot, idx);
+    if (n <= 0) return mp_obj_new_tuple(0, NULL);
+    if (n > 8) n = 8;
+    mp_obj_t items[8];
+    for (int i = 0; i < n; i++) {
+        items[i] = mp_obj_new_int(sentai_tpu_get_output_dim_slot(slot, idx, i));
+    }
+    return mp_obj_new_tuple(n, items);
+}
+static MP_DEFINE_CONST_FUN_OBJ_2(mod_sentai_output_dims_slot_obj, mod_sentai_output_dims_slot);
+
+static mp_obj_t mod_sentai_output_type_slot(mp_obj_t slot_obj, mp_obj_t idx_obj) {
+    return mp_obj_new_int(sentai_tpu_get_output_type_slot(
+        mp_obj_get_int(slot_obj), mp_obj_get_int(idx_obj)));
+}
+static MP_DEFINE_CONST_FUN_OBJ_2(mod_sentai_output_type_slot_obj, mod_sentai_output_type_slot);
+
+static mp_obj_t mod_sentai_output_quant_slot(mp_obj_t slot_obj, mp_obj_t idx_obj) {
+    float scale = 0;
+    int32_t zp = 0;
+    int rc = sentai_tpu_output_quant_slot(
+        mp_obj_get_int(slot_obj), mp_obj_get_int(idx_obj), &scale, &zp);
+    if (rc != 0) return mp_const_none;
+    mp_obj_t items[2] = { mp_obj_new_float(scale), mp_obj_new_int(zp) };
+    return mp_obj_new_tuple(2, items);
+}
+static MP_DEFINE_CONST_FUN_OBJ_2(mod_sentai_output_quant_slot_obj, mod_sentai_output_quant_slot);
+
+static mp_obj_t mod_sentai_num_outputs_slot(mp_obj_t slot_obj) {
+    return mp_obj_new_int(sentai_tpu_num_outputs_slot(mp_obj_get_int(slot_obj)));
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_num_outputs_slot_obj, mod_sentai_num_outputs_slot);
 
 // sentai.tpu.dump_eps() — print the USB endpoint descriptor table that
 // was observed during EdgeTPU enumeration.  Safe from Python because the
@@ -423,10 +404,24 @@ static const mp_rom_map_elem_t sentai_tpu_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_output_quant),MP_ROM_PTR(&mod_sentai_output_quant_obj) },
     { MP_ROM_QSTR(MP_QSTR_output_floats),MP_ROM_PTR(&mod_sentai_output_floats_obj) },
     { MP_ROM_QSTR(MP_QSTR_input_type),  MP_ROM_PTR(&mod_sentai_input_type_obj) },
-    { MP_ROM_QSTR(MP_QSTR_detect),      MP_ROM_PTR(&mod_sentai_detect_obj) },
-    { MP_ROM_QSTR(MP_QSTR_yolo_info),   MP_ROM_PTR(&mod_sentai_yolo_info_obj) },
+    // detect / yolo_info / draw retired from REPL surface 2026-04-28.
+    // Post-processing (NMS, classify, etc.) will move to typed C++
+    // helpers when needed — REPL only exposes raw output bytes + shape.
     { MP_ROM_QSTR(MP_QSTR_dump_eps),    MP_ROM_PTR(&mod_sentai_tpu_dump_eps_obj) },
-    { MP_ROM_QSTR(MP_QSTR_draw),        MP_ROM_PTR(&mod_sentai_draw_obj) },
+    // Multi-slot extension (Phase 1).
+    { MP_ROM_QSTR(MP_QSTR_load_slot),    MP_ROM_PTR(&mod_sentai_load_model_slot_obj) },
+    { MP_ROM_QSTR(MP_QSTR_invoke_slot),  MP_ROM_PTR(&mod_sentai_invoke_slot_obj) },
+    { MP_ROM_QSTR(MP_QSTR_slot_ready),   MP_ROM_PTR(&mod_sentai_slot_ready_obj) },
+    { MP_ROM_QSTR(MP_QSTR_slot_count),   MP_ROM_PTR(&mod_sentai_slot_count_obj) },
+    { MP_ROM_QSTR(MP_QSTR_set_input_slot), MP_ROM_PTR(&mod_sentai_set_input_slot_obj) },
+    { MP_ROM_QSTR(MP_QSTR_output_hash),  MP_ROM_PTR(&mod_sentai_output_hash_obj) },
+    { MP_ROM_QSTR(MP_QSTR_output_slot),  MP_ROM_PTR(&mod_sentai_output_slot_obj) },
+    // Phase 2b raw introspection (no post-proc in MP).
+    { MP_ROM_QSTR(MP_QSTR_num_outputs_slot), MP_ROM_PTR(&mod_sentai_num_outputs_slot_obj) },
+    { MP_ROM_QSTR(MP_QSTR_output_size_slot), MP_ROM_PTR(&mod_sentai_output_size_slot_obj) },
+    { MP_ROM_QSTR(MP_QSTR_output_dims_slot), MP_ROM_PTR(&mod_sentai_output_dims_slot_obj) },
+    { MP_ROM_QSTR(MP_QSTR_output_type_slot), MP_ROM_PTR(&mod_sentai_output_type_slot_obj) },
+    { MP_ROM_QSTR(MP_QSTR_output_quant_slot),MP_ROM_PTR(&mod_sentai_output_quant_slot_obj) },
 };
 static MP_DEFINE_CONST_DICT(sentai_tpu_globals, sentai_tpu_globals_table);
 static const mp_obj_module_t sentai_tpu_module = {

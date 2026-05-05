@@ -29,6 +29,7 @@ extern "C" {
 
 #include "libs/base/console_m7.h"
 #include "libs/base/filesystem.h"
+#include "libs/base/fx_user_fs.h"
 #include "libs/base/gpio.h"
 #include "libs/base/ipc_m7.h"
 #include "libs/base/led.h"
@@ -73,7 +74,7 @@ int      sentai_storage_mode_active(void);
 #include "sentai_error.h"
 #include "sentai_fault.h"
 #include "sentai_health.h"
-#include "sentai_lfs_task.h"
+#include "sentai_fs_task.h"
 
 // ===================== Camera pipeline optimizations ========================
 // Set to 1 to enable, 0 to disable (safe revert).  Build #197+
@@ -102,14 +103,41 @@ int      sentai_storage_mode_active(void);
 
 namespace {
 
-// Boot log state
-static constexpr size_t kBootLogBufSize = 16 * 1024;  // 16 KB buffer
-static char g_boot_log_buf[kBootLogBufSize] __attribute__((section(".sdram_bss")));
-static volatile size_t g_boot_log_pos = 0;
+// Boot log state.  Refactored 2026-04-29:
+//   1. raw lfs_file_open/write/close → FxUserAppendFile (FileX migration
+//      had broken the path because LfsUser() returns nullptr).
+//   2. SDRAM .sdram_bss → SDRAM .sdram_boot_log NOLOAD.  The buffer is
+//      now preserved across warm-reset / WDOG / hard-fault.  A header
+//      carries magic + ~magic + length so the NEXT boot can detect
+//      a valid pre-crash trace and flush it to /log/boot_prev.log
+//      before starting a fresh trace.  Cleared only by POR.
+//
+// Layout of g_boot_log_persist (in .sdram_boot_log NOLOAD):
+//   [magic:u32][check:u32][len:u32][reserved:u32][bytes:16K-16]
+//
+// magic == kBootLogMagic AND check == ~magic ⇒ buffer holds a valid
+// pre-crash trace of `len` bytes that we should rescue on this boot.
+static constexpr uint32_t kBootLogMagic = 0xB00710B0UL;     /* 'BOOT LOG' marker */
+static constexpr size_t   kBootLogTotalSize = 16 * 1024;
+static constexpr size_t   kBootLogHdrSize   = 16;
+static constexpr size_t   kBootLogBufSize   = kBootLogTotalSize - kBootLogHdrSize;
+struct BootLogPersist {
+    volatile uint32_t magic;
+    volatile uint32_t check;
+    volatile uint32_t len;
+    volatile uint32_t _rsvd;
+    char              buf[kBootLogBufSize];
+};
+__attribute__((section(".sdram_boot_log"))) __attribute__((used))
+static volatile BootLogPersist g_boot_log_persist;
+// Captured at real_main entry — IF the previous boot crashed mid-log,
+// these hold the magic + payload length we observed before zeroing
+// the header for the current boot's writes.  flushed to
+// /log/boot_prev.log by boot_log_fs_init when the FileX volume mounts.
+static uint32_t g_prev_boot_log_magic_at_entry = 0;
+static uint32_t g_prev_boot_log_len = 0;
 static volatile bool g_boot_log_active = false;
 static volatile bool g_boot_log_fs_ready = false;
-static lfs_file_t g_boot_log_file;
-static bool g_boot_log_file_open = false;
 // Guards boot_log_flush_to_file() against concurrent flush from multiple tasks.
 // Uses GCC atomic test-and-set (lock-free, no RTOS dependency).
 static volatile uint32_t g_boot_log_flush_busy = 0;
@@ -117,42 +145,88 @@ static volatile uint32_t g_boot_log_flush_busy = 0;
 // Forward declare - flush buffer to file
 static void boot_log_flush_to_file();
 
-// Initialize boot logging - rename old log, create new one
+// Initialize boot logging.  Called EARLY in app_main, BEFORE FileX is
+// mounted.  Snapshots the pre-existing SDRAM header (which may carry a
+// valid trace from a previous boot that crashed) so boot_log_fs_init
+// can rescue it later, then resets the live buffer for this boot.
 static void boot_log_init() {
-    g_boot_log_pos = 0;
+    // Snapshot the previous boot's residual header BEFORE we clobber it.
+    g_prev_boot_log_magic_at_entry = g_boot_log_persist.magic;
+    uint32_t prev_check = g_boot_log_persist.check;
+    uint32_t prev_len   = g_boot_log_persist.len;
+    if (g_prev_boot_log_magic_at_entry == kBootLogMagic &&
+        prev_check == ~kBootLogMagic &&
+        prev_len > 0 && prev_len <= kBootLogBufSize) {
+        g_prev_boot_log_len = prev_len;
+    } else {
+        g_prev_boot_log_len = 0;
+    }
+
+    // Reset header for THIS boot's trace.  Magic remains valid only
+    // while we're actively logging — boot_log_stop() also keeps it set
+    // so a crash AFTER REPL came up still surfaces the boot.log on the
+    // next boot.
+    g_boot_log_persist.magic = kBootLogMagic;
+    g_boot_log_persist.check = ~kBootLogMagic;
+    g_boot_log_persist.len   = 0;
+    g_boot_log_persist._rsvd = 0;
     g_boot_log_active = true;
     g_boot_log_fs_ready = false;
-    g_boot_log_file_open = false;
 }
 
-// Called after LFS is ready to set up file
+// Called after FileX user volume is mounted to set up the boot.log
+// rotation (boot.log -> boot_old.log) and stream subsequent printf bytes
+// to FAT via FxUserAppendFile in boot_log_flush_to_file.
+//
+// Phase 2 of crash-survivable logging (2026-04-29): if the SDRAM
+// .sdram_boot_log header indicated a valid pre-crash trace (`g_prev_boot_log_len`
+// captured at boot_log_init time), rescue it to /log/boot_prev.log
+// here BEFORE starting any normal rotation.  This recovers boot
+// traces from firmware that crashed before reaching FxUserInit.
 static void boot_log_fs_init() {
     if (!g_boot_log_active) return;
-    
-    lfs_t* lfs = coralmicro::LfsUser();
-    if (!lfs) return;
+    if (!FxUserIsMounted()) return;
 
     // Create /log directory if it doesn't exist
-    lfs_mkdir(lfs, "/log");
+    FxUserMakeDirs("/log");
 
-    // Check if boot.log exists
-    lfs_info info;
-    if (lfs_stat(lfs, "/log/boot.log", &info) == LFS_ERR_OK) {
-        // Remove old boot_old.log if exists
-        lfs_remove(lfs, "/log/boot_old.log");
-        // Rename boot.log to boot_old.log
-        lfs_rename(lfs, "/log/boot.log", "/log/boot_old.log");
+    // Rescue any pre-crash trace from the previous boot's SDRAM
+    // buffer.  The header was snapshotted in boot_log_init BEFORE we
+    // clobbered it for this boot, so the data is still readable from
+    // the (now-overlapping) buffer at offset kBootLogHdrSize.  Flush
+    // it to /log/boot_prev.log; on success the trace is durable, on
+    // failure we just lose this one (the buffer is gone anyway after
+    // we start writing this boot).
+    if (g_prev_boot_log_len > 0 &&
+        g_prev_boot_log_len <= kBootLogBufSize) {
+        FxUserRemove("/log/boot_prev.log");   // best-effort discard older
+        // Direct write: header was already overwritten by boot_log_init
+        // for the current boot, but the data bytes after offset 16
+        // were NOT touched yet (this boot has only printf'd a few
+        // hundred bytes by now, all sitting in the live buffer).
+        // Use FxUserWriteFile (truncating) so the file is exactly the
+        // pre-crash trace size.
+        FxUserWriteFile("/log/boot_prev.log",
+                        (const uint8_t*)g_boot_log_persist.buf,
+                        g_prev_boot_log_len);
     }
 
-    // Open new boot.log for writing
-    if (lfs_file_open(lfs, &g_boot_log_file, "/log/boot.log",
-                      LFS_O_WRONLY | LFS_O_CREAT | LFS_O_TRUNC) == LFS_ERR_OK) {
-        g_boot_log_file_open = true;
-        g_boot_log_fs_ready = true;
-        
-        // Flush any buffered data
-        boot_log_flush_to_file();
+    // Rotate boot.log -> boot_old.log if a previous boot left one behind.
+    if (FxUserFileExists("/log/boot.log")) {
+        // Best-effort: ignore errors on the rename target (might not exist).
+        FxUserRemove("/log/boot_old.log");
+        FxUserRename("/log/boot.log", "/log/boot_old.log");
     }
+
+    // Truncate any pre-existing /log/boot.log so this boot starts at offset 0.
+    // FxUserAppendFile auto-creates the file on first append, so we just
+    // remove a stale one if present.
+    if (FxUserFileExists("/log/boot.log")) {
+        FxUserRemove("/log/boot.log");
+    }
+
+    g_boot_log_fs_ready = true;
+    boot_log_flush_to_file();   // drain whatever's accumulated pre-FS-up
 }
 
 // Flush RAM buffer to file.
@@ -160,46 +234,45 @@ static void boot_log_fs_init() {
 // (data is still in the RAM buffer and will be picked up on the next flush).
 // Must only be called from task context (not ISR) — enforced by callers.
 static void boot_log_flush_to_file() {
-    if (!g_boot_log_file_open || g_boot_log_pos == 0) return;
+    if (!g_boot_log_fs_ready) return;
+    if (g_boot_log_persist.len == 0) return;
 
     // Acquire flush lock — non-blocking (return if another flush is in progress)
     if (__sync_lock_test_and_set(&g_boot_log_flush_busy, 1u) != 0u) return;
 
-    // Acquire LFS mutex with short timeout. If busy (lfs_task or MP holds it),
-    // skip this flush — data stays in the RAM buffer for the next opportunity.
-    if (!sentai_lfs_lock()) {
-        __sync_lock_release(&g_boot_log_flush_busy);
-        return;
-    }
+    // Snapshot the current byte count inside a critical section so we
+    // don't race with boot_log_write() appending new bytes.
+    taskENTER_CRITICAL();
+    size_t count = g_boot_log_persist.len;
+    taskEXIT_CRITICAL();
 
-    lfs_t* lfs = coralmicro::LfsUser();
-    if (lfs) {
-        // Snapshot the current byte count inside a critical section so we
-        // don't race with boot_log_write() appending new bytes.
+    if (count > 0) {
+        // FxUserAppendFile is internally serialized via the FileX mutex;
+        // no need to hold sentai_fs_lock() too.  Failure (NAND error,
+        // OOM) returns 0 — we drop the chunk and keep going.  Cast
+        // away `volatile` to feed FxUserAppendFile's plain pointer;
+        // the buffer doesn't change during the call because we hold
+        // the flush lock and ENTER_CRITICAL'd around the count read.
+        FxUserAppendFile("/log/boot.log",
+                         (const uint8_t*)(const char*)g_boot_log_persist.buf,
+                         count);
+
+        // Reset only the bytes we already wrote; bytes appended during the
+        // write remain at the front of the buffer for the next flush.
         taskENTER_CRITICAL();
-        size_t count = g_boot_log_pos;
-        taskEXIT_CRITICAL();
-
-        if (count > 0) {
-            lfs_file_write(lfs, &g_boot_log_file, g_boot_log_buf, count);
-            lfs_file_sync(lfs, &g_boot_log_file);
-
-            // Reset only the bytes we already wrote; bytes appended during the
-            // write remain at the front of the buffer for the next flush.
-            taskENTER_CRITICAL();
-            if (g_boot_log_pos >= count) {
-                size_t remaining = g_boot_log_pos - count;
-                if (remaining > 0)
-                    memmove(g_boot_log_buf, g_boot_log_buf + count, remaining);
-                g_boot_log_pos = remaining;
-            } else {
-                g_boot_log_pos = 0;
-            }
-            taskEXIT_CRITICAL();
+        if (g_boot_log_persist.len >= count) {
+            size_t remaining = g_boot_log_persist.len - count;
+            if (remaining > 0)
+                memmove((void*)g_boot_log_persist.buf,
+                        (const void*)(g_boot_log_persist.buf + count),
+                        remaining);
+            g_boot_log_persist.len = remaining;
+        } else {
+            g_boot_log_persist.len = 0;
         }
+        taskEXIT_CRITICAL();
     }
 
-    sentai_lfs_unlock();
     __sync_lock_release(&g_boot_log_flush_busy);
 }
 
@@ -211,18 +284,19 @@ static void boot_log_write(const char* data, size_t len) {
 
     UBaseType_t saved = taskENTER_CRITICAL_FROM_ISR();
 
-    // Add to RAM buffer
-    size_t space = kBootLogBufSize - g_boot_log_pos;
+    // Add to SDRAM persistent buffer (.sdram_boot_log NOLOAD).
+    size_t pos = g_boot_log_persist.len;
+    size_t space = (pos < kBootLogBufSize) ? (kBootLogBufSize - pos) : 0;
     size_t to_copy = (len < space) ? len : space;
     if (to_copy > 0) {
-        memcpy(g_boot_log_buf + g_boot_log_pos, data, to_copy);
-        g_boot_log_pos += to_copy;
+        memcpy((void*)(g_boot_log_persist.buf + pos), data, to_copy);
+        g_boot_log_persist.len = pos + to_copy;
     }
 
     // If buffer is getting full and FS ready, flush.
     // NOTE: flush does LFS I/O which is slow — only in non-ISR context.
     bool need_flush = g_boot_log_fs_ready &&
-                      g_boot_log_pos > kBootLogBufSize - 512;
+                      g_boot_log_persist.len > kBootLogBufSize - 512;
 
     taskEXIT_CRITICAL_FROM_ISR(saved);
 
@@ -234,21 +308,30 @@ static void boot_log_write(const char* data, size_t len) {
 // Stop boot logging (called when REPL starts)
 void boot_log_stop() {
     if (!g_boot_log_active) return;
-    
+
     g_boot_log_active = false;
 
-    // Final flush + close (protected by LFS mutex).
-    if (g_boot_log_file_open) {
-        boot_log_flush_to_file();  // acquires/releases mutex internally
-        if (sentai_lfs_lock()) {
-            lfs_t* lfs = coralmicro::LfsUser();
-            if (lfs) {
-                lfs_file_close(lfs, &g_boot_log_file);
-            }
-            sentai_lfs_unlock();
-        }
-        g_boot_log_file_open = false;
+    // Final flush — append-based, no file handle to close.  Refactored
+    // 2026-04-29 to use FxUserAppendFile (was lfs_file_close on
+    // LfsUser() which returns nullptr post-FileX migration).  After
+    // the final append, force a FAT sync so the boot.log row is
+    // durable on NAND — Phase 3.2 dropped the per-call sync from
+    // FxUserAppendFile for steady-state perf, so callers at
+    // checkpoints (REPL-up, planned reset) MUST explicitly sync.
+    if (g_boot_log_fs_ready) {
+        boot_log_flush_to_file();
+        FxUserSync();
     }
+
+    // Invalidate the SDRAM crash-survivable header now that the boot
+    // trace is durable on /log/boot.log.  A subsequent crash that
+    // happens AFTER REPL-up no longer needs to be rescued from SDRAM
+    // — boot.log already has its bytes — and we don't want a stale
+    // (now-empty) buffer to be re-flushed as boot_prev.log on the
+    // next boot.
+    g_boot_log_persist.magic = 0;
+    g_boot_log_persist.check = 0;
+    g_boot_log_persist.len   = 0;
 }
 
 // =============================================================================
@@ -295,68 +378,68 @@ static volatile bool s_in_recovery_mode = false;
 // Current crash log number (persisted across rotations)
 static int g_crash_log_num = -1;  // -1 = not initialized
 
-// Find highest existing crash log number and set g_crash_log_num
-static void crash_log_init(lfs_t* lfs) {
-    if (g_crash_log_num >= 0) return;  // Already initialized
-    
-    lfs_dir_t dir;
-    if (lfs_dir_open(lfs, &dir, "/log") != LFS_ERR_OK) {
-        g_crash_log_num = 0;
-        return;
+// Helper for FxUserListDir: track max NNN in crash_NNN.log filenames.
+struct CrashLogScan {
+    int max_num;
+};
+static int crash_log_scan_cb(const FxDirEntry* e, void* user) {
+    CrashLogScan* s = (CrashLogScan*)user;
+    // Look for crash_NNN.log (13 chars: crash_NNN.log).  e->is_dir==0 = file.
+    if (!e->is_dir && strncmp(e->name, "crash_", 6) == 0 &&
+        strlen(e->name) == 13) {
+        int num = atoi(e->name + 6);
+        if (num > s->max_num) s->max_num = num;
     }
-    
-    int max_num = -1;
-    lfs_info info;
-    while (lfs_dir_read(lfs, &dir, &info) > 0) {
-        // Look for crash_NNN.log pattern
-        if (info.type == LFS_TYPE_REG && 
-            strncmp(info.name, "crash_", 6) == 0 &&
-            strlen(info.name) == 13) {  // crash_NNN.log = 13 chars
-            int num = atoi(info.name + 6);
-            if (num > max_num) max_num = num;
-        }
-    }
-    lfs_dir_close(lfs, &dir);
-    
-    g_crash_log_num = (max_num >= 0) ? max_num : 0;
+    return 0;  // continue
 }
 
-// Get current crash log path, rotate if needed
-static void crash_log_get_path(lfs_t* lfs, char* path, size_t path_len) {
-    crash_log_init(lfs);
-    
-    // Check if current file is too big
+// Find highest existing crash log number and set g_crash_log_num.
+// Refactored 2026-04-29 from raw lfs_dir_open/read/close to FxUserListDir.
+static void crash_log_init(void) {
+    if (g_crash_log_num >= 0) return;  // Already initialized
+    if (!FxUserIsMounted()) { g_crash_log_num = 0; return; }
+
+    CrashLogScan s = { -1 };
+    int n = FxUserListDir("/log", crash_log_scan_cb, &s);
+    if (n < 0) { g_crash_log_num = 0; return; }
+    g_crash_log_num = (s.max_num >= 0) ? s.max_num : 0;
+}
+
+// Get current crash log path, rotate if needed.
+static void crash_log_get_path(char* path, size_t path_len) {
+    crash_log_init();
+
     snprintf(path, path_len, "/log/crash_%03d.log", g_crash_log_num);
-    
-    lfs_info info;
-    if (lfs_stat(lfs, path, &info) == LFS_ERR_OK) {
-        if (info.size > kCrashLogMaxSize - 640) {
+
+    FxStat st;
+    if (FxUserStat(path, &st) == 1 && st.exists && !st.is_dir) {
+        if (st.size > kCrashLogMaxSize - 640) {
             // Rotate to next file
             g_crash_log_num++;
             snprintf(path, path_len, "/log/crash_%03d.log", g_crash_log_num);
-            
+
             // Delete oldest if we have too many
             if (g_crash_log_num >= kCrashLogMaxFiles) {
                 char old_path[32];
-                snprintf(old_path, sizeof(old_path), "/log/crash_%03d.log", 
+                snprintf(old_path, sizeof(old_path), "/log/crash_%03d.log",
                          g_crash_log_num - kCrashLogMaxFiles);
-                lfs_remove(lfs, old_path);
+                FxUserRemove(old_path);
             }
         }
     }
 }
 
-// sentai_lfs_lock/unlock are defined in sentai_lfs_task.cc (included via header).
+// sentai_fs_lock/unlock are defined in sentai_fs_task.cc — kept for callers
+// outside crash-log path.  FxUserAppendFile is internally serialized so
+// we no longer need the explicit lock here.
 
 // Append a compact FreeRTOS task dump to the current crash log.
 // Useful on watchdog warnings to see which task is blocked and on what.
 // Format: one line per task: name | state | prio | hwm(bytes)
 static void crash_log_task_dump(const char* why) {
-    lfs_t* lfs = coralmicro::LfsUser();
-    if (!lfs) return;
-    if (!sentai_lfs_lock()) return;
+    if (!FxUserIsMounted()) return;
 
-    lfs_mkdir(lfs, "/log");
+    FxUserMakeDirs("/log");
 
     constexpr UBaseType_t kMaxTasks = 32;
     TaskStatus_t tasks[kMaxTasks];
@@ -369,50 +452,42 @@ static void crash_log_task_dump(const char* why) {
         why ? why : "?", (unsigned long)up, (unsigned)n);
 
     char path[32];
-    crash_log_get_path(lfs, path, sizeof(path));
+    crash_log_get_path(path, sizeof(path));
 
-    lfs_file_t file;
-    if (lfs_file_open(lfs, &file, path,
-                      LFS_O_WRONLY | LFS_O_CREAT | LFS_O_APPEND) == LFS_ERR_OK) {
-        if (hl > 0) lfs_file_write(lfs, &file, hdr, hl);
-        static const char* state_names[] = {"Run","Rdy","Blk","Sus","Del","Inv"};
-        for (UBaseType_t i = 0; i < n; i++) {
-            const char* sn = (tasks[i].eCurrentState < 6)
-                ? state_names[tasks[i].eCurrentState] : "?";
-            char line[128];
-            int ll = snprintf(line, sizeof(line),
-                "    %-18s %s prio=%lu hwm=%lu\r\n",
-                tasks[i].pcTaskName, sn,
-                (unsigned long)tasks[i].uxCurrentPriority,
-                (unsigned long)(tasks[i].usStackHighWaterMark * sizeof(StackType_t)));
-            if (ll > 0) lfs_file_write(lfs, &file, line, ll);
-        }
-        lfs_file_close(lfs, &file);
+    if (hl > 0) {
+        FxUserAppendFile(path, (const uint8_t*)hdr, (size_t)hl);
     }
-    sentai_lfs_unlock();
+    static const char* state_names[] = {"Run","Rdy","Blk","Sus","Del","Inv"};
+    for (UBaseType_t i = 0; i < n; i++) {
+        const char* sn = (tasks[i].eCurrentState < 6)
+            ? state_names[tasks[i].eCurrentState] : "?";
+        char line[128];
+        int ll = snprintf(line, sizeof(line),
+            "    %-18s %s prio=%lu hwm=%lu\r\n",
+            tasks[i].pcTaskName, sn,
+            (unsigned long)tasks[i].uxCurrentPriority,
+            (unsigned long)(tasks[i].usStackHighWaterMark * sizeof(StackType_t)));
+        if (ll > 0) {
+            FxUserAppendFile(path, (const uint8_t*)line, (size_t)ll);
+        }
+    }
 }
 
 // Write crash entry to /log/crash_NNN.log
 static void crash_log_write(const char* event, const char* details) {
-    lfs_t* lfs = coralmicro::LfsUser();
-    if (!lfs) return;
+    if (!FxUserIsMounted()) return;
 
-    // Serialize LFS access with HTTP server reads to prevent data races.
-    // Skip (don't block) if mutex isn't available — crash logs are non-critical.
-    if (!sentai_lfs_lock()) return;
+    FxUserMakeDirs("/log");
 
-    // Create /log directory if it doesn't exist
-    lfs_mkdir(lfs, "/log");
-    
     // Build timestamp (uptime in ms)
     uint32_t uptime_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
     uint32_t secs = uptime_ms / 1000;
     uint32_t mins = secs / 60;
     uint32_t hours = mins / 60;
-    
+
     uint32_t http_idle = uptime_ms - g_http_last_activity;
     uint32_t repl_idle = uptime_ms - g_repl_last_activity;
-    
+
     // Format entry with both HTTP and REPL status
     char entry[640];
     int len = snprintf(entry, sizeof(entry),
@@ -429,20 +504,13 @@ static void crash_log_write(const char* event, const char* details) {
         (unsigned long)repl_idle,
         g_network_healthy ? 1 : 0,
         (unsigned long)xPortGetFreeHeapSize());
-    
-    // Get current log path (may rotate)
-    char path[32];
-    crash_log_get_path(lfs, path, sizeof(path));
-    
-    // Append to crash log
-    lfs_file_t file;
-    if (lfs_file_open(lfs, &file, path,
-                      LFS_O_WRONLY | LFS_O_CREAT | LFS_O_APPEND) == LFS_ERR_OK) {
-        lfs_file_write(lfs, &file, entry, len);
-        lfs_file_close(lfs, &file);
-    }
 
-    sentai_lfs_unlock();
+    char path[32];
+    crash_log_get_path(path, sizeof(path));
+
+    if (len > 0) {
+        FxUserAppendFile(path, (const uint8_t*)entry, (size_t)len);
+    }
 }
 
 // Called from HTTP handler on each request
@@ -471,37 +539,18 @@ extern "C" void sentai_crash_log(const char* event, const char* details) {
 }
 
 // Returns the path of the most recent crash log file, or "" if none.
-// Safe to call from any task context.
+// Safe to call from any task context.  Refactored 2026-04-29 from raw
+// lfs_dir_open/read/close to FxUserListDir.
 extern "C" void sentai_get_last_crash_log_path(char* out, size_t out_len) {
     if (!out || out_len == 0) return;
     out[0] = '\0';
+    if (!FxUserIsMounted()) return;
 
-    lfs_t* lfs = coralmicro::LfsUser();
-    if (!lfs) return;
-
-    if (!sentai_lfs_lock()) return;
-
-    lfs_dir_t dir;
-    if (lfs_dir_open(lfs, &dir, "/log") != LFS_ERR_OK) {
-        sentai_lfs_unlock();
-        return;
-    }
-
-    int max_num = -1;
-    lfs_info info;
-    while (lfs_dir_read(lfs, &dir, &info) > 0) {
-        if (info.type == LFS_TYPE_REG &&
-            strncmp(info.name, "crash_", 6) == 0 &&
-            strlen(info.name) == 13) {  // crash_NNN.log = 13 chars
-            int num = atoi(info.name + 6);
-            if (num > max_num) max_num = num;
-        }
-    }
-    lfs_dir_close(lfs, &dir);
-    sentai_lfs_unlock();
-
-    if (max_num >= 0) {
-        snprintf(out, out_len, "/log/crash_%03d.log", max_num);
+    CrashLogScan s = { -1 };
+    int n = FxUserListDir("/log", crash_log_scan_cb, &s);
+    if (n < 0) return;
+    if (s.max_num >= 0) {
+        snprintf(out, out_len, "/log/crash_%03d.log", s.max_num);
     }
 }
 
@@ -517,6 +566,12 @@ extern "C" uint32_t sentai_get_boot_attempts(void) {
 
 extern "C" void sentai_sys_do_reset(void) {
     crash_log_write("SYS_RESET", "User-requested software reset from REPL");
+    // FxUserAppendFile does NOT auto-flush (Phase 3.2 perf trade-off);
+    // we MUST FxUserSync() before reset or the FAT table never lands on
+    // NAND and the crash log row is lost.  Same applies to boot_log
+    // entries written this boot.
+    if (g_boot_log_fs_ready) boot_log_flush_to_file();
+    FxUserSync();
     vTaskDelay(pdMS_TO_TICKS(50));
     NVIC_SystemReset();
 }
@@ -803,10 +858,48 @@ namespace coralmicro {
 uint8_t tensor_arena[2 * 1024 * 1024]
     __attribute__((aligned(32)))
     __attribute__((section(".sdram_bss,\"aw\",%nobits @")));
+
+// Multi-slot extension (Phase 1 retry, 2026-04-28).  Slots 1 and 2
+// arenas are HEAP-allocated, NOT placed in .sdram_bss — adding more
+// static buffers there shifts the FileX/LevelX state and silently
+// breaks NAND I/O (see project_filex_layout_fragility.md).  malloc
+// from m_heap (16 MB free) is fine; we lazily allocate on first
+// load_slot(N>0) call so unused slots cost zero memory.
+constexpr int kNumTpuSlots = 3;
+constexpr int kSlotArenaSize = 2 * 1024 * 1024;
+uint8_t* g_slot_arena[kNumTpuSlots] = {
+    tensor_arena, nullptr, nullptr,   // slot 0 fixed; slots 1/2 lazy-alloc
+};
+tflite::MicroInterpreter* g_slot_interp[kNumTpuSlots] = {
+    nullptr, nullptr, nullptr,
+};
+std::vector<uint8_t>* g_slot_model_data[kNumTpuSlots] = {
+    nullptr, nullptr, nullptr,
+};
+volatile bool g_slot_ready[kNumTpuSlots] = { false, false, false };
+
+// Phase 2b note (2026-04-28): per-slot output-type dispatch (NMS /
+// CLASSIFY / 2HEAD post-processing) was scoped out for now.  Output
+// stays RAW per slot — REPL reads bytes via `sentai.tpu.output_slot(N, idx)`,
+// host-side does whatever post-processing it wants.  When a real
+// consumer needs typed output, revisit per the design sketch in
+// experiment.md "Phase 2b output type design".
+
+// Slot 0 keeps its legacy variable names — they're aliases for the
+// slot-array entries.  Other TUs (sentai_slow_bridge.cc) use the
+// legacy names; we keep them as separate-but-mirrored storage to
+// avoid the cross-TU C++ reference linkage corner cases that bit us
+// in the first attempt.
 tflite::MicroInterpreter* g_interpreter = nullptr;
 volatile bool g_tpu_ready = false;
 std::vector<uint8_t>* g_model_data = nullptr;
 std::shared_ptr<EdgeTpuContext> g_tpu_context;
+
+// Slot 0 ↔ legacy global sync is done INLINE in
+// sentai_load_model_slot() (sentai_slow_bridge.cc) — both stores
+// happen back-to-back when slot==0.  Earlier `sync_slot0_to_legacy` /
+// `sync_legacy_to_slot0` helpers were removed (build #1102) as
+// unused dead code.
 
 namespace {
 
@@ -1229,6 +1322,160 @@ extern "C" int sentai_tpu_invoke_with_input(uint8_t* input_buf) {
 extern "C" int sentai_tpu_invoke(void) {
   if (sentai_detection_is_running()) return -10;  // pipeline owns TPU
   return sentai_tpu_invoke_internal();
+}
+
+// ---- Multi-slot invoke / accessors (Phase 1 retry, 2026-04-28) ----
+
+extern "C" int sentai_tpu_slot_count(void) { return coralmicro::kNumTpuSlots; }
+
+extern "C" int sentai_tpu_slot_ready(int slot) {
+  if (slot < 0 || slot >= coralmicro::kNumTpuSlots) return 0;
+  return (coralmicro::g_slot_ready[slot]
+          && coralmicro::g_slot_interp[slot]) ? 1 : 0;
+}
+
+extern "C" int sentai_tpu_invoke_slot(int slot) {
+  if (slot < 0 || slot >= coralmicro::kNumTpuSlots) return -3;
+  if (slot == 0 && sentai_detection_is_running()) return -10;
+  if (!coralmicro::g_slot_ready[slot] || !coralmicro::g_slot_interp[slot])
+    return -1;
+  auto* interp = coralmicro::g_slot_interp[slot];
+  TickType_t t0 = xTaskGetTickCount();
+  if (interp->Invoke() != kTfLiteOk) return -2;
+  TickType_t t1 = xTaskGetTickCount();
+  return (int)((t1 - t0) * portTICK_PERIOD_MS);
+}
+
+// Same pointer-patch trick as sentai_tpu_invoke_with_input for slot N.
+// Caller passes a buffer (typically OCRAM .tpu_input shared across
+// slots for the future per-cam pipeline dispatcher).
+extern "C" int sentai_tpu_invoke_slot_with_input(int slot, uint8_t* buf) {
+  if (slot < 0 || slot >= coralmicro::kNumTpuSlots) return -3;
+  if (slot == 0 && sentai_detection_is_running()) return -10;
+  if (!coralmicro::g_slot_ready[slot] || !coralmicro::g_slot_interp[slot])
+    return -1;
+  if (buf == nullptr) return -3;
+  auto* interp = coralmicro::g_slot_interp[slot];
+  auto* input = interp->input_tensor(0);
+  if (!input) return -4;
+  uint8_t* const saved = input->data.uint8;
+  input->data.uint8 = buf;
+  TickType_t t0 = xTaskGetTickCount();
+  TfLiteStatus rc = interp->Invoke();
+  TickType_t t1 = xTaskGetTickCount();
+  input->data.uint8 = saved;
+  if (rc != kTfLiteOk) return -2;
+  return (int)((t1 - t0) * portTICK_PERIOD_MS);
+}
+
+extern "C" int sentai_tpu_num_outputs_slot(int slot) {
+  if (slot < 0 || slot >= coralmicro::kNumTpuSlots) return 0;
+  if (!coralmicro::g_slot_ready[slot] || !coralmicro::g_slot_interp[slot])
+    return 0;
+  return (int)coralmicro::g_slot_interp[slot]->outputs().size();
+}
+
+extern "C" int sentai_tpu_get_output_size_slot(int slot, int idx) {
+  if (slot < 0 || slot >= coralmicro::kNumTpuSlots) return 0;
+  if (!coralmicro::g_slot_ready[slot] || !coralmicro::g_slot_interp[slot])
+    return 0;
+  auto* interp = coralmicro::g_slot_interp[slot];
+  if (idx < 0 || idx >= (int)interp->outputs().size()) return 0;
+  return (int)interp->output_tensor(idx)->bytes;
+}
+
+extern "C" const void* sentai_tpu_get_output_data_slot(int slot, int idx) {
+  if (slot < 0 || slot >= coralmicro::kNumTpuSlots) return NULL;
+  if (!coralmicro::g_slot_ready[slot] || !coralmicro::g_slot_interp[slot])
+    return NULL;
+  auto* interp = coralmicro::g_slot_interp[slot];
+  if (idx < 0 || idx >= (int)interp->outputs().size()) return NULL;
+  return interp->output_tensor(idx)->data.data;
+}
+
+// Phase 2b raw introspection: shape / type / element-count of a slot's
+// output tensor.  Lets a REPL caller iterate the bytes meaningfully
+// without doing post-processing in MicroPython (which is too slow / heap
+// constrained anyway — the structured post-proc will live in C++).
+extern "C" int sentai_tpu_get_output_num_dims_slot(int slot, int idx) {
+  if (slot < 0 || slot >= coralmicro::kNumTpuSlots) return 0;
+  if (!coralmicro::g_slot_ready[slot] || !coralmicro::g_slot_interp[slot])
+    return 0;
+  auto* interp = coralmicro::g_slot_interp[slot];
+  if (idx < 0 || idx >= (int)interp->outputs().size()) return 0;
+  return interp->output_tensor(idx)->dims->size;
+}
+
+extern "C" int sentai_tpu_get_output_dim_slot(int slot, int idx, int dim) {
+  if (slot < 0 || slot >= coralmicro::kNumTpuSlots) return 0;
+  if (!coralmicro::g_slot_ready[slot] || !coralmicro::g_slot_interp[slot])
+    return 0;
+  auto* interp = coralmicro::g_slot_interp[slot];
+  if (idx < 0 || idx >= (int)interp->outputs().size()) return 0;
+  auto* t = interp->output_tensor(idx);
+  if (!t || dim < 0 || dim >= t->dims->size) return 0;
+  return t->dims->data[dim];
+}
+
+extern "C" int sentai_tpu_get_output_type_slot(int slot, int idx) {
+  if (slot < 0 || slot >= coralmicro::kNumTpuSlots) return -1;
+  if (!coralmicro::g_slot_ready[slot] || !coralmicro::g_slot_interp[slot])
+    return -1;
+  auto* interp = coralmicro::g_slot_interp[slot];
+  if (idx < 0 || idx >= (int)interp->outputs().size()) return -1;
+  return (int)interp->output_tensor(idx)->type;
+}
+
+extern "C" int sentai_tpu_output_quant_slot(int slot, int idx,
+                                             float* scale, int32_t* zp) {
+  if (slot < 0 || slot >= coralmicro::kNumTpuSlots) return -1;
+  if (!coralmicro::g_slot_ready[slot] || !coralmicro::g_slot_interp[slot])
+    return -1;
+  auto* interp = coralmicro::g_slot_interp[slot];
+  if (idx < 0 || idx >= (int)interp->outputs().size()) return -1;
+  auto* t = interp->output_tensor(idx);
+  if (!t) return -1;
+  *scale = t->params.scale;
+  *zp = t->params.zero_point;
+  return 0;
+}
+
+// Set the input tensor of slot N from a host-supplied buffer.  Used by
+// the validation driver to inject a deterministic input across slots
+// and confirm 3 distinct output hashes.
+extern "C" int sentai_tpu_set_input_slot(int slot,
+                                          const uint8_t* data, int len) {
+  if (slot < 0 || slot >= coralmicro::kNumTpuSlots) return -3;
+  if (!coralmicro::g_slot_ready[slot] || !coralmicro::g_slot_interp[slot])
+    return -1;
+  auto* input = coralmicro::g_slot_interp[slot]->input_tensor(0);
+  if (!input) return -4;
+  if (len != (int)input->bytes) return -5;
+  memcpy(input->data.uint8, data, len);
+  return 0;
+}
+
+// FNV-1a 32-bit hash over the concatenated output tensors of slot N.
+// Used to verify multi-slot independence — 3 distinct hashes from 3
+// slots running on the same input prove 3 different models execute.
+extern "C" uint32_t sentai_tpu_output_hash_slot(int slot) {
+  if (slot < 0 || slot >= coralmicro::kNumTpuSlots) return 0;
+  if (!coralmicro::g_slot_ready[slot] || !coralmicro::g_slot_interp[slot])
+    return 0;
+  auto* interp = coralmicro::g_slot_interp[slot];
+  uint32_t h = 0x811C9DC5u;
+  int n = (int)interp->outputs().size();
+  for (int oi = 0; oi < n; oi++) {
+    auto* t = interp->output_tensor(oi);
+    if (!t || !t->data.data) continue;
+    const uint8_t* p = (const uint8_t*)t->data.data;
+    int len = (int)t->bytes;
+    for (int i = 0; i < len; i++) {
+      h ^= p[i];
+      h *= 0x01000193u;
+    }
+  }
+  return h;
 }
 
 // Shared uint8→int8 quantization (in-place).

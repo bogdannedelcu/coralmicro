@@ -3,6 +3,7 @@
 
 #include "libs/base/console_m7.h"
 #include "libs/base/filesystem.h"
+#include "libs/base/fx_user_fs.h"
 #include "libs/base/led.h"
 #include "libs/base/gpio.h"
 #include "libs/lis2du12/lis2du12.h"
@@ -143,24 +144,39 @@ int sentai_fs_makedirs(const char* path) {
 // List directory entries. Calls callback for each entry.
 // callback(name, type, size, user_data) - type: 1=file, 2=dir
 // Returns number of entries, or -1 on error.
-// Paths starting with $/ use the system partition.
+// Paths starting with $/ use the system partition (still LittleFS).
+struct ListDirCtx {
+    void (*cb)(const char* name, int type, int size, void* ud);
+    void* user_data;
+};
+static int listdir_cb_user(const FxDirEntry* e, void* user) {
+    ListDirCtx* ctx = static_cast<ListDirCtx*>(user);
+    int t = e->is_dir ? 2 : 1;
+    ctx->cb(e->name, t, (int)e->size, ctx->user_data);
+    return 0;
+}
+
 int sentai_fs_listdir(const char* path,
                      void (*callback)(const char* name, int type, int size, void* ud),
                      void* user_data) {
     const char* real;
     bool sys = is_sys_path(path, &real);
-    lfs_t* lfs = sys ? coralmicro::Lfs() : coralmicro::LfsUser();
-
+    if (!sys) {
+        /* User partition: FileX. */
+        ListDirCtx ctx = { callback, user_data };
+        return FxUserListDir(real, listdir_cb_user, &ctx);
+    }
+    /* System partition: LittleFS (kept). */
+    lfs_t* lfs = coralmicro::Lfs();
     lfs_dir_t dir;
     int err = lfs_dir_open(lfs, &dir, real);
     if (err < 0) return -1;
-
     struct lfs_info info;
     int count = 0;
     while (lfs_dir_read(lfs, &dir, &info) > 0) {
-        // Skip . and ..
         if (info.name[0] == '.' &&
-            (info.name[1] == '\0' || (info.name[1] == '.' && info.name[2] == '\0')))
+            (info.name[1] == '\0' ||
+             (info.name[1] == '.' && info.name[2] == '\0')))
             continue;
         int t = (info.type == LFS_TYPE_DIR) ? 2 : 1;
         callback(info.name, t, (int)info.size, user_data);
