@@ -1740,6 +1740,43 @@ Apply when writing other tight integer-loop code on M7.
     only ~5% from ITCM placement) but free safety margin against
     SDRAM bus contention.
 
+### CRITICAL: NXP SDK patches must be applied (auto via CMake)
+
+The submodule at `third_party/nxp/rt1176-sdk` is **upstream-clean +
+4 SentAI patches applied at build time** by
+`scripts/apply_sdk_patches.sh` (invoked from the top-level
+`CMakeLists.txt` configure step).  Patches live in
+`patches/coralmicro-rt1176-sdk/` and are required for correct
+behaviour:
+
+| Patch | What it fixes | Symptom if missing |
+|---|---|---|
+| `0001-ov5640-vga-30fps-pclkperiod.patch` | OV5640 VGA@30fps `pclkPeriod` 0x0a → 0x14 | D-PHY loses sync after frame 1; CSI timeouts |
+| `0002-ehci-queue-depth-16.patch` | USB EHCI QH/QTD pool 8 → 16 | TPU USB transfer stalls under high pipeline load |
+| `0003-fsl-csi-coralmicro-irq-hooks.patch` | CSI ISR hooks for camera_support | flow / pipeline can't tag per-buffer cam_id |
+| `0004-lwip-httpd-empty-body-post.patch` | Accept empty-body HTTP POST | `/api/write` HTTP returns 500 on empty body |
+
+**`git status` ALWAYS shows the submodule as dirty** (` m third_party/nxp/rt1176-sdk`)
+because patches are applied in-place but never committed.  This is
+INTENTIONAL -- the SDK is read-only upstream.  The dirty state
+means patches are LIVE.
+
+**Verify patches applied:**
+```bash
+bash scripts/apply_sdk_patches.sh   # idempotent; "skip already applied" = OK
+```
+
+**If you re-init or update the submodule** (e.g. `git submodule
+update --init --recursive`), patches are wiped.  Re-run the script
+or just run a fresh `cmake -S . -B build` (CMake invokes it at
+configure time).
+
+**Symptom of missing OV5640 patch (0001):** camera VGA30 init
+returns 0 but `sentai.camera.frame_count()` shows ~half the
+expected ISR rate (CSI receiver loses sync after first frame and
+times out the rest).  Verify before chasing fps regressions in
+flow/pipeline code.
+
 ### M4 retirement breadcrumbs (2026-05-05, build #1130)
 
 Why M4 went away:
