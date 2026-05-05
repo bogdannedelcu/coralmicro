@@ -344,6 +344,63 @@ for i in $(seq 1 20); do curl -s -m 2 -o /dev/null http://10.0.0.1/ 2>/dev/null 
 If that doesn't work, `python3 scripts/flashtool.py -e sentai_runtime`
 reflashes the firmware and reboots — slower but cleaner.
 
+### 4.1 JTAG / SWD via Segger J-Link (last-resort + debug)
+
+The dev board exposes the SWD pins of the M7; a **Segger J-Link PLUS**
+is wired in (`lsusb` shows `1366:0101`).  Use it when:
+
+- USB CDC is dead (no `/dev/ttyACM0`, no NXP enum on `1fc9:c0a1`) and
+  the board is not in SDP either (`1fc9:013d`) — power cycle + button
+  doesn't help, JTAG SYSRESETREQ is the next step.
+- You need to step through a HardFault / WDOG-reset path that the
+  crash log + `boot_prev.log` can't pinpoint (e.g. ISR-side hangs,
+  pre-scheduler `CHECK` failures).
+- You want to inspect live state (CSI/PXP regs, OCRAM contents,
+  `flow_shared_t` cross-core) without involving REPL.
+
+**Quick reset via J-Link (no GDB):**
+
+```bash
+JLinkExe -device MIMXRT1176xxxA_M7 -if SWD -speed 4000 -autoconnect 1 \
+  -CommandFile <(printf 'r\nh\nrx 100\ng\nq\n')
+```
+
+`r` = reset (SYSRESETREQ via DAP), `h` = halt, `rx 100` = wait 100 ms,
+`g` = go, `q` = quit.  Faster than reflashing when you just need to
+kick a wedged board and the firmware in flash is fine.
+
+**Live debug session (GDB + JLinkGDBServer):**
+
+```bash
+# Terminal A — start the GDB server:
+JLinkGDBServerCLExe -device MIMXRT1176xxxA_M7 -if SWD -speed 4000 -port 2331
+
+# Terminal B — attach GDB to the running ELF:
+arm-none-eabi-gdb build/examples/sentai_runtime/sentai_runtime \
+    -ex "target remote :2331" \
+    -ex "monitor reset" -ex "monitor halt"
+```
+
+From there: `bt`, `info reg`, `x/16xw 0x202C1000` (flow_shared),
+`x/16xw 0x20240000` (DTC-RAM BootPersist), etc.
+
+**Rules of engagement:**
+
+- **Don't `monitor flash` from GDB** — use `flashtool.py` for actual
+  reprogramming.  J-Link's flash loader exists for this part but our
+  build artefact is a packaged image (sb file + LevelX header) that
+  `flashtool.py` knows how to assemble; raw ELF flash via J-Link will
+  brick the FileX volume.
+- **JTAG ≠ free pass to skip the anti-brick rule (§2.1).**  If the
+  firmware bricks the USB CDC, JTAG can recover it but every other
+  developer on the project sees a brick.  Treat JTAG as recovery and
+  debug, not as a license to ship code that crashes USB bring-up.
+- **M4 attach**: same J-Link, swap `-device MIMXRT1176xxxA_M7` for
+  `MIMXRT1176xxxA_M4`.  Useful for the flow-task M4 work (DWT, SAD
+  loop step-through).  Note: the M4 has no `BOARD_InitBootClocks`
+  in our build (intentional, see flow.md §3.2), so PLL state seen
+  via JTAG is the M7-configured state.
+
 ---
 
 ## 5. How-to: drive the REPL from host scripts
@@ -1582,3 +1639,131 @@ Smoke-tested on persistent build #1102:
 - `output_dims_slot(2, 0)` returns `(1, 30, 40, 6)`
 - `hasattr(sentai.tpu, "detect")` → `False` (retired)
 - `hasattr(sentai.tpu, "draw")` → `False` (retired)
+
+---
+
+## 17. Flow architecture (2026-05-05, build #1139+) — `sentai.flow`
+
+The optical-flow stack lives entirely on **M7** (was on M4 in
+builds 720..1129; M4 path retired and `sentai_flow_m4` no longer
+built — see `experiment.md` 2026-05-05 session for the why).
+Pipeline (single-task on M7):
+
+```
+flow publisher_task @ tskIDLE_PRIORITY+2
+  while running:
+    sentai_cam_grab_latest()               -- waits for next camera frame
+    if frame_seq advanced:
+      sentai_flow_publish_frame():
+        PXP scale 640x480 -> 80x60 RGB888  ~1.15 ms (hardware DMA)
+        RGB -> Y conversion + dual write    ~0.22 ms
+        SAD 25x25 search × 32x32 block      ~0.94 ms (USAD8 SIMD)
+        parabolic sub-pixel fit, conf-floor 150, deadband 50 milli-gp
+        publish (dx, dy, sad, conf, frame_seq) into FLOW_SHARED()
+    sentai_cam_return_raw()
+    taskYIELD()
+```
+
+API (no `m4_` prefix anymore):
+- `sentai.flow.enable()` -- stamp shared-mem magic (no-op on M7-only)
+- `sentai.flow.start(cam_id)` / `stop()` -- spawn/kill publisher_task
+- `sentai.flow.read()` -> dict {dx, dy, sad, conf, frame_seq, ...}
+- `sentai.flow.body_read()` -> dict with body-frame conversion per cam
+- `sentai.flow.gray_snap()` -> bytes (4800 B; allocates MP heap)
+- `sentai.flow.gray_to_cache()` -> int (zero-alloc; writes to `sentai.diag.cache_*` for bulk capture)
+- `sentai.flow.detail_score()` -> int (gradient energy x100)
+- `sentai.flow.gray_stretch([on])` -> dict
+- `sentai.flow.pub_stats()` -> dict {frames, grab_fail_total/streak, running}
+- `sentai.flow.perf()` -> dict {pxp_cyc, rgb2y_cyc, sad_cyc, total_cyc, grab_cyc, loop_cyc}
+   (DWT cycle counts; 800 cyc = 1 us)
+
+Output convention: `dx, dy` in **milli-grid-pixel units (1000 = 1 grid-px,
+1 grid-px = 8 raw-px after the PXP step-8 downscale)**.  Integer in
+shared mem, host divides by 1000 for fractional values.
+
+### Best practices (Cortex-M7 SIMD, integration discipline)
+
+These were learned the hard way during the 2026-05-05 flow rework.
+Apply when writing other tight integer-loop code on M7.
+
+1.  **Use `__USADA8` for sum-of-absolute-differences.**  Cortex-M7
+    DSP-extension intrinsic from `<arm_acle.h>` does 4 abs-diffs
+    + accumulate in 1 cycle.  Replaces ~16 cycles of scalar
+    sub/abs/add ops.  Drop-in for any byte-wise diff loop.
+
+2.  **NEVER use `memcpy(&u32, p, 4)` to load an unaligned word.**
+    GCC compiles it as a *function call* to libc memcpy unless
+    alignment is statically provable.  ~30 cycles overhead per
+    call; in a SAD inner loop 320,000 calls per frame turns the
+    loop from 1 ms to 13 ms.  Use the packed-struct trick:
+    ```c
+    typedef struct { uint32_t v; }
+        __attribute__((packed, aligned(1))) u32_unaligned;
+    #define LD32U(p) (((const u32_unaligned*)(p))->v)
+    ```
+    Generates a single `LDR` (Cortex-M7 supports unaligned LDR
+    in hardware at ~1 extra cycle).
+
+3.  **Verify the assembly.**  After any inner-loop change, run
+    `arm-none-eabi-objdump -d <obj>` and confirm the expected
+    instruction is emitted.  Counter-example: my first USAD8 attempt
+    DID emit USADA8 but ALSO emitted 8 `bl 0 <memcpy>` calls per
+    iteration -- net SLOWER, despite the SIMD intrinsic.  Without
+    the disasm I would have shipped a regression.
+
+4.  **EMA smoothing breaks integration.**  An IIR/EMA at the source
+    reports a real motion event N times (with decaying weight) ->
+    the cumulative sum integrates ~Σ alpha^k ≈ 2x the real motion.
+    Use deadband + per-frame conf-floor + parabolic-fit shallow-
+    surface rejection instead.  EMA only at the consumer level
+    (display smoothing), never at the source of integration.
+
+5.  **For bit-perfect on-board / offline replay, capture the EXACT
+    input the algorithm consumed**, not the latest published.  M7-
+    only SAD + bulk capture format `(text-header)\n(4800 raw bytes)`
+    -- offline numpy replay produces results within 1 milli-gp of
+    firmware (rounding only).
+
+6.  **Driver loops MUST dedupe by frame_seq.**  If you sample the
+    algorithm output at >camera fps, you'll record each result
+    multiple times and the cumsum on the trace will be inflated
+    proportionally.  Pattern in `_t_flow_validate.py`:
+    ```python
+    if d["frame_seq"] == last_logged_seq[0]:
+        continue
+    last_logged_seq[0] = d["frame_seq"]
+    ```
+
+7.  **Hot-path code goes in ITCM (`__attribute__((section(".ramfunc")))`).**
+    Same trick the CSI ISR uses (agent.md sec 2).  Marginal in
+    practice when D-cache is well-warmed (SAD inner loop benefitted
+    only ~5% from ITCM placement) but free safety margin against
+    SDRAM bus contention.
+
+### M4 retirement breadcrumbs (2026-05-05, build #1130)
+
+Why M4 went away:
+- `BOARD_InitBootClocks` skipped on M4 (would reset M7-owned camera /
+  I2C pins) → SysTick ran ~360x faster than `configCPU_CLOCK_HZ`
+  expected → `vTaskDelay(1)` slept ~3 us instead of 1 ms.
+- M4 task froze after ~5 s of activity (no HardFault forwarded back
+  to M7; loss was silent).
+- Empirical throughput: ~1 fps under bulk-capture load (wanted ~25).
+
+`flow_task_m4.cc` is kept on disk as historical reference but no
+longer in the build (see `examples/sentai_runtime/CMakeLists.txt`).
+Don't re-enable without first fixing:
+  (a) calibrating M4 SysTick post-StartM4 (read M4_CLK_ROOT)
+  (b) M4 HardFault handler that publishes into shared OCRAM so M7
+      can detect and SERR_LOG the crash
+  (c) M4 watchdog (separate or M7-supervised via heartbeat-stall
+      monitor)
+
+### Real-life validation experiment
+
+`examples/sentai_runtime/experiments/s083_flow_m7_validate/` --
+end-to-end run with bulk capture, host-side numpy replay, and
+trajectory rendering.  See its README for the headline numbers
+(bit-perfect firmware vs offline) and the trajectory PNGs
+(`trajectory_clean.png`, `trajectory_on_gray.png`,
+`trajectory_per_side.png`) for visual sanity check.

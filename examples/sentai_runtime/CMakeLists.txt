@@ -140,22 +140,13 @@ add_executable_m7(sentai_runtime
     sentai_fs_task.cc
     sentai_health.cc
     sentai_dmesg.cc
-    M4_EXECUTABLE
-    sentai_flow_m4
-    DATA
+    sentai_fs_cache.cc
 )
 
-# Phase 1: tiny M4 app that writes a heartbeat counter into the
-# RPMsg shared-memory window.  M7 starts it via IpcM7::StartM4()
-# after boot_complete (USB CDC already up; no brick risk per
-# agent/embeded.md §M).  Flow-compute work lands here in later
-# phases; for Phase 1 we only validate that the M4 core boots.
-add_executable_m4(sentai_flow_m4
-    flow_task_m4.cc
-)
-target_link_libraries(sentai_flow_m4
-    libs_base-m4_freertos
-)
+# M4 build target removed 2026-05-05 (build #1130+).  Flow SAD now
+# runs on M7 in flow_task.cc (M4 had unreliable SysTick + freeze
+# under load).  flow_task_m4.cc is kept on disk as historical
+# reference but no longer compiled.
 
 # Embed browser.html as a C byte array (avoids LFS system partition dependency)
 set(BROWSER_HTML_SRC "${CMAKE_CURRENT_SOURCE_DIR}/web/browser.html")

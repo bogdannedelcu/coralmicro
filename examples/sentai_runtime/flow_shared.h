@@ -23,7 +23,14 @@
 #include <stdint.h>
 
 #define FLOW_SHARED_MAGIC    0x53464C57u  // 'SFLW'
-#define FLOW_SHARED_VERSION  2u           // bumped when layout changes
+#define FLOW_SHARED_VERSION  4u           // v4: + m4_curr_gray (the
+                                          //     EXACT gray frame M4 used
+                                          //     for its last SAD; lets
+                                          //     host replay match
+                                          //     firmware bit-for-bit).
+                                          // v3: dx/dy carry milli-grid-px
+                                          //     after parabolic sub-pixel
+                                          //     fit (1000 = 1 grid-px).
 
 // 80×60 gray is the "PX4FLOW-class" resolution for optical flow —
 // 4× more spatial detail than our earlier 40×30, 4800-byte frame
@@ -57,7 +64,12 @@ typedef struct {
     volatile uint32_t m4_state;         // FLOW_STATE_*
 
     // ── M4 → M7: last block-match result ────────────────────────  0x18
-    volatile int32_t  last_dx;          // pixels in the 80×60 grid
+    // dx/dy in milli-grid-pixel units (1000 = 1 grid-px).  Sub-pixel
+    // refinement uses parabolic-fit on the SAD surface around the
+    // integer minimum (Honegger ICRA 2013).  Range typically:
+    //   integer  : -12000 .. +12000 (search bound x 1000)
+    //   fraction : within +/- 500 of the nearest 1000-multiple.
+    volatile int32_t  last_dx;
     volatile int32_t  last_dy;
     volatile uint32_t last_sad;
     volatile uint32_t last_frame_seq;   // M7 frame_seq this result came from
@@ -85,6 +97,17 @@ typedef struct {
 
     // ── M7 → M4: 80×60 gray frame (4800 bytes) ───────────────────  0x60
     volatile uint8_t  gray[FLOW_GRAY_PIXELS];
+
+    // ── M4 → M7: the EXACT gray M4 used as 'curr' in its last
+    //              sad_match (4800 bytes).  M4 copies its local
+    //              s_gray[curr_slot] here AFTER sad completes,
+    //              before clearing frame_valid for the next round.
+    //              Host's bulk capture should grab this (NOT the
+    //              shared-publish gray) so offline replay sees the
+    //              same input bytes M4 saw and produces bit-identical
+    //              SAD results.  Useful for algorithm validation;
+    //              ignore in production builds that don't bulk-cap.
+    volatile uint8_t  m4_curr_gray[FLOW_GRAY_PIXELS];
 } flow_shared_t;
 
 // Physical address.  Inside the 16 KB rpmsg_sh_mem window (2026-04-21
@@ -100,14 +123,21 @@ typedef struct {
 
 // Sanity: the layout must fit into the 12 KB that the RPMsg window
 // gives us past offset 0x1000 (16 KB total − 4 KB queue head-room).
-// With 80×60 gray, header + frame = 0x60 + 4800 ≈ 4.8 KB; leaves
-// ~7 KB for future phases without touching linker.
+// With 80×60 gray, header + frame = 0x60 + 4800 ≈ 4.8 KB; with
+// the v4 m4_curr_gray addition, total ~9.7 KB; leaves ~2 KB margin
+// before we have to widen the rpmsg_sh_mem region in the linker
+// scripts again.  Keep this assert tight so a future field add
+// fails loudly at compile time, not at runtime cross-core corruption.
 #ifdef __cplusplus
 static_assert(sizeof(flow_shared_t) <= 0x3000,
               "flow_shared_t exceeds the 12 KB allocation past FLOW_SHARED_ADDR");
+static_assert((FLOW_SHARED_ADDR & 0x3) == 0,
+              "FLOW_SHARED_ADDR must be 4-byte aligned for atomic 32-bit volatile fields");
 #else
 _Static_assert(sizeof(flow_shared_t) <= 0x3000,
                "flow_shared_t exceeds the 12 KB allocation past FLOW_SHARED_ADDR");
+_Static_assert((FLOW_SHARED_ADDR & 0x3) == 0,
+               "FLOW_SHARED_ADDR must be 4-byte aligned for atomic 32-bit volatile fields");
 #endif
 
 #endif  // FLOW_SHARED_H_

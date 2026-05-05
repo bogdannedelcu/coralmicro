@@ -582,13 +582,21 @@ extern "C" int FxUserMakeDirs(const char* path) {
     LockGuard guard;
     if (!guard.held) return 0;
 
-    /* Iterate "/a/b/c" -> create "/a", "/a/b", "/a/b/c". */
+    /* Iterate "/a/b/c" -> create "/a", "/a/b", "/a/b/c".  Treat
+     * FX_ALREADY_CREATED as success (idempotent mkdir -p), but
+     * surface other errors so the Python `sentai.fs.mkdir` return
+     * value tells the truth.  Old behaviour ignored ALL fx codes
+     * which silently masked NAND read errors and made callers
+     * believe the directory existed when it did not. */
     for (size_t i = 1; i <= plen; ++i) {
         if (i == plen || buf[i] == '/') {
             char saved = buf[i];
             buf[i] = '\0';
             UINT fx = fx_directory_create(&g_fx_media, buf);
-            (void)fx;  /* FX_ALREADY_CREATED is fine, ignored */
+            if (fx != FX_SUCCESS && fx != FX_ALREADY_CREATED) {
+                buf[i] = saved;
+                return 0;
+            }
             buf[i] = saved;
         }
     }

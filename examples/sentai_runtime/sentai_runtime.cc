@@ -1224,14 +1224,12 @@ extern "C" void app_main(void* param) {
       sentai_health_system_mode() == SYS_MODE_DEGRADED ? "DEGRADED" :
       sentai_health_system_mode() == SYS_MODE_SAFE ? "SAFE" : "?");
 
-  // Phase 1: M4-core offload is OPT-IN via sentai.flow.m4_enable().
-  // Empirically, calling IpcM7::StartM4() unconditionally at boot
-  // wedged the M7 MicroPython task on this build — probably an I2C5
-  // / PmicTask collision with the M4's own PmicTask init.  Keep the
-  // M7 runtime safe by default; the user can flip the flag at runtime
-  // once the root cause is fixed, and we observe the NXP-ID USB
-  // invariant either way.  (agent/embeded.md §M ANTI-BRICK.)
-  coralmicro::logf("M4 offload: disabled at boot (opt-in via MP).\r\n");
+  // M4 offload DISABLED 2026-05-05 (build #1130+): SAD moved to M7
+  // entirely (see flow_task.cc header).  M4 had unreliable SysTick
+  // calibration without BOARD_InitBootClocks (would have reset M7's
+  // camera/I2C if called).  M7 has cycles to spare and avoids the
+  // cross-core sync + watchdog complications.
+  coralmicro::logf("M4 offload: disabled (flow runs on M7).\r\n");
 
   coralmicro::Main();
   // Main() parks itself with vTaskSuspend - never returns
@@ -1252,24 +1250,8 @@ extern "C" void app_main(void* param) {
 //   -1  : no M4 image linked into this firmware
 //   -3  : M4 did not publish its magic within 2 s of StartM4 — fatal
 //         for the flow feature but does NOT touch M7 operation.
-extern "C" int sentai_flow_m4_enable(void) {
-  volatile flow_shared_t* sh = (volatile flow_shared_t*)FLOW_SHARED_ADDR;
-  if (sh->magic == FLOW_SHARED_MAGIC) return 0;   // already alive
-  if (!coralmicro::IpcM7::HasM4Application()) return -1;
-
-  coralmicro::IpcM7::GetSingleton()->StartM4();
-
-  // Poll the magic for up to 2 s with a 50 ms grain — bounded by
-  // the wall clock, not by the unreliable M4IsAlive RPMsg probe.
-  // 50 ms is long enough to let the M4 finish BOARD_ConfigMPU +
-  // MCMGR_Init + task-create + first app_main store; well under
-  // the watchdog + WDT ceiling.
-  for (int i = 0; i < 40; ++i) {
-    if (sh->magic == FLOW_SHARED_MAGIC) return 0;
-    vTaskDelay(pdMS_TO_TICKS(50));
-  }
-  return -3;
-}
+// (sentai_flow_m4_enable / sentai_flow_enable now defined in
+// flow_task.cc -- M4 stack retired 2026-05-05.)
 
 // ===================== C bridge for MicroPython =====================
 // Called from modsentai.c (C code) - need extern "C" linkage

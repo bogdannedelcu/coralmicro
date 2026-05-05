@@ -126,3 +126,10 @@ CODE,MODULE,NAME,DESCRIPTION,VERSION_ADDED,STATUS
 0x0FF5,SYS,USAGE_FAULT,ARMv7-M UsageFault handler (val=CFSR),v1.0,ACTIVE
 0x0FF6,SYS,MEMMANAGE,ARMv7-M MemManage/MPU fault (val=CFSR),v1.0,ACTIVE
 0x0FFF,SYS,HARDFAULT,Hard fault handler,v1.0,ACTIVE
+# === Module 0x0E: sentai.flow optical-flow stack ===
+0x0E01,FLOW,M4_NOT_ALIVE,M4 magic timeout at flow.m4_enable() (val=ms_waited),v1.7,ACTIVE
+0x0E02,FLOW,PUB_GRAB,publisher_task: cam_grab_latest failed (val=consecutive count),v1.7,ACTIVE
+0x0E03,FLOW,PUB_TASK_CREATE,xTaskCreate(flow_m4_pub) returned non-pdPASS (val=BaseType_t),v1.7,ACTIVE
+0x0E10,FLOW,M4_HEARTBEAT_STALL,M4 heartbeat counter has not advanced for >Tmax_ms (val=ms_since_last),v1.7,ACTIVE
+0x0E11,FLOW,M4_FRAME_DROPPED,M4 frames_dropped counter advanced (val=delta),v1.7,ACTIVE
+0x0E20,FLOW,BAD_CAM_ID,flow.m4_start called with cam_id != 0/1 (val=cam_id),v1.7,ACTIVE

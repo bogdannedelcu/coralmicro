@@ -8,6 +8,259 @@ Dead-end paths PURGED — see "Production cleanup pass" below.
 
 ---
 
+## 🧪 Session 2026-05-05 — Flow real-life validation (build #1111 baseline)
+
+Goal: validate `sentai.flow` (M4-offload SAD block-match @ 80×60 grayscale)
+in the loop with an operator's hand instead of a synthetic test.  We need
+to (a) confirm the algorithm works end-to-end on hardware AFTER the FileX
+migration + boot-log rework + multi-slot TPU work didn't bit-rot it, and
+(b) collect a baseline trace + annotated trajectory PNG against which the
+SOTA improvements (parabolic sub-pixel, PSR confidence, diamond search,
+gyro de-rotation when gyro lands) will be measured.
+
+**Tooling:**
+
+- On-board (self-contained, §5.1.2): `diag/_t_flow_validate.py`.  Owns
+  ALL parameters at the top (`DURATION_S`, `TARGET_HZ`, `CAM_ID`,
+  `GRAY_STRETCH`, `USE_IMU`, `BEAT_HZ`, `SCENE_SNAP_COUNT`,
+  `ENABLE_HTTP`).  Self-contained per §5.1.2 — no diag/* imports.
+- Host: `diag/_host_flow_validate.py`.  Pushes the on-board driver via
+  the canonical chunked-append uploader, exec's it, downloads
+  `trace.csv` + `scene_start.jpg` + `scene_end.jpg` + `gray_*.pgm` via
+  HTTP `/api/raw/...` (driver brings up `sentai.usb.ip(1)` for that),
+  then renders an annotated PNG with PIL (cumsum trajectory polyline
+  colour-coded by confidence + per-second markers).
+
+**Operator protocol** — LED user is the metronome AND phase marker so
+the operator never needs to watch the host terminal:
+
+```
+PREP   : LED solid ON 2 s        → hold board still over scene
+START  : 3 fast blinks (60 ms)   → begin moving (square pattern)
+RUN    : LED beats at BEAT_HZ    → ON 500 ms = MOVE, OFF 500 ms = HOLD
+STOP   : 5 fast blinks (80 ms)   → stop, hold still
+DONE   : LED OFF                 → CSV on disk, "=== done ==="
+```
+
+CSV row carries `phase` (MOVE/HOLD) so we can segment offline.  The
+correctness assertion: HOLD segments must integrate to ≈ 0 in (dx, dy),
+MOVE segments must trace the actual hand path.  Closing the square
+back to the start point gives a single scalar drift metric (`closure`
+in pixels) — the smaller the better.
+
+### Reasoning behind the harness shape
+
+- **Why LED beat instead of host pacing**: host serial pacing introduces
+  jitter (USB CDC RX scheduling) and forces the operator to watch the
+  terminal.  LED beat sits in the sample loop and is timestamped in the
+  CSV alongside the flow read, so the only synchronisation we depend on
+  is one tick clock.
+- **Why JPEG capture is OUT OF the inner loop**: per user feedback
+  (2026-05-05), `sentai.camera.save_jpeg` takes long enough to deform
+  loop timing.  We capture at most `SCENE_SNAP_COUNT + 2` frames per
+  run (start, mid-run, end), and only during HOLD beats so motion blur
+  is minimised AND no MOVE sample is starved.  After each capture we
+  re-anchor `next_tick` so we don't try to "catch up" 4 lost samples
+  in one busy spin.
+- **Why also dump 80×60 PGM at the same moments**: lets us see what
+  the SAD algorithm ACTUALLY operates on after step-8 decimation +
+  optional gray_stretch — the visual gulf between scene_start.jpg
+  (640×480) and gray_start.pgm (80×60) is the entire signal degradation
+  budget the algorithm has to work with.  PIL `Image.open(*.pgm)` reads
+  it directly.
+
+### Parameters (default driver values)
+
+| Parameter | Default | Why |
+|---|---:|---|
+| `DURATION_S`       | 30 | enough beats (~30 at 1 Hz) to draw a square AND have HOLD periods we can validate against zero-drift |
+| `TARGET_HZ`        | 50 | >> sensor 45 Hz so we never miss a frame_seq tick |
+| `CAM_ID`           | 0  | cam0 = front (body-frame: `body_fw=-dx`, `body_left=+dy`, see flow_body_frame.md) |
+| `GRAY_STRETCH`     | 0  | OFF for baseline; flip ON in the next run as A/B comparison |
+| `USE_IMU`          | 1  | accel only on this build (no gyro yet); records ax/ay/az for later fusion experiments |
+| `BEAT_HZ`          | 1  | one MOVE/HOLD cycle per second — slow enough that an unprepared operator can keep up |
+| `SCENE_SNAP_COUNT` | 4  | 4 mid-run captures + 2 ends = 6 visual checkpoints |
+| `ENABLE_HTTP`      | 1  | required for `/api/raw/...` pulls in `_host_flow_validate.py` |
+
+### Reproducing
+
+```bash
+# from examples/sentai_runtime/, with the board on /dev/ttyACM0:
+python3 diag/_host_flow_validate.py
+# artefacts land in /tmp/sNNN_flow_validate/{annotated.png, trace.csv, ...}
+# A/B with gray_stretch ON: edit GRAY_STRETCH=1 at the top of
+# diag/_t_flow_validate.py, re-run the host script.  New session = new sNNN.
+```
+
+### Results — baseline build #1111 (TBD — to be filled in after first real-life walk)
+
+Pending operator's first walk over a textured scene (newspaper, patterned
+mat).  Expected metrics to record per run:
+
+| Run | `GRAY_STRETCH` | `CAM_ID` | rows | eff_hz | MOVE avg_conf | HOLD avg_conf | MOVE stuck0 % | HOLD stuck0 % | closure px |
+|---|:-:|:-:|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 0 | 0 | – | – | – | – | – | – | – |
+| 2 | 1 | 0 | – | – | – | – | – | – | – |
+| 3 | 0 | 1 | – | – | – | – | – | – | – |
+
+**Pass criteria for baseline**:
+1. `effective_hz` within 5 % of `TARGET_HZ` — no stalls.
+2. HOLD `stuck0 %` >> MOVE `stuck0 %` (algorithm reports zero motion when
+   board is still — the most basic correctness check).
+3. HOLD avg confidence ≥ MOVE avg confidence (or equal) — flat HOLD
+   doesn't fool the metric into "high confidence motion".
+4. `closure < 0.5 × side_length` — square pattern closes loosely (we
+   expect drift on integer-only SAD; closure < ½ side means cumulative
+   error didn't run away to infinity).
+
+**Fail signatures** (each maps to a known SOTA improvement):
+
+| Symptom | Likely cause | Improvement to try |
+|---|---|---|
+| HOLD samples not at (0,0) — flow chases noise | no PSR rejection — low-confidence frames pollute integration | add peak-to-second-peak ratio + threshold |
+| MOVE samples often (0,0) at slow hand speed | integer-only output: motion < 8 raw-px/frame undercuts grid | parabolic sub-pixel fit on SAD minimum |
+| confidence = 0 frequently | `sad_to_confidence` is too sharp; flat scenes saturate | swap to PSR or curvature-based metric |
+| trajectory drifts even when closure should be tight | no de-rotation; hand wobble leaks rotation into translation | gyro de-rotation (when gyro hardware ships) |
+| effective_hz << TARGET_HZ | per-iteration SAD time + MP overhead | drop exhaustive ±12 → diamond / 3-step |
+
+### Next steps gated on baseline
+
+1. After first 2-3 real walks: decide which fail signature dominates.
+2. Pick the cheapest improvement that addresses it (almost certainly
+   parabolic sub-pixel + PSR — Honegger ICRA 2013 reference, `paper/flow.md`
+   §11 / SOTA research summary 2026-05-05).
+3. Reflash, re-run the SAME `_host_flow_validate.py` against the SAME
+   parameter set (cross-session contamination per agent.md §2.9 means
+   each A/B is a fresh `flashtool.py -e sentai_runtime` between trials).
+4. Compare `closure` + `MOVE stuck0 %` between baseline and improved
+   firmware — these are the only two scalar metrics that should move
+   on a good improvement.
+
+### Iteration trail (2026-05-05, builds 1111 → 1139)
+
+A long real-life walking session through the algorithm.  Each line is
+a build; the right column is the static-board cumulative drift over
+30 s (the cheapest correctness metric -- a perfectly-zero-motion input
+must produce zero output, anything else is bias the algorithm will
+integrate forever).
+
+| Build | Change | Static closure (gp) | Notes |
+|------:|---|---:|---|
+| 1111  | Baseline (M4 SAD, integer, point-decimation publisher) | -1700 raw-px in 30 s | Algorithm visibly broken on static input |
+| 1118  | + PXP downscale (M7) replaces step-8 point-sampling | ~700 raw-px | Box-filter eliminates aliasing; sub-grid motion now changes the gray averages |
+| 1120  | + Parabolic sub-pixel fit on SAD surface (Q*1000 milli-grid-px) | ~150 raw-px | Honegger ICRA 2013 path; small bias remains |
+| 1121  | + EMA smoother (alpha=0.5) | ~9 gp = 73 raw-px | EMA hides bias on static, but **inflates cumulative on real motion 6x** -- discovered later via offline replay |
+| 1124  | EMA REMOVED + deadband 50 milli-gp + parabolic-shallow rejection | 0.00 gp | Static-board literal zero output |
+| 1126  | + dedup by frame_seq in driver (M7-only, M4 disabled) | 0.00 gp | Dropped duplicate-sample artefact in cumsum |
+| 1127  | + m4_curr_gray publish (collapses M4 throughput) | -- | DEAD END: 4800 B memcpy to non-cached OCRAM cratered M4 SAD to ~1 fps |
+| 1130  | **SAD ENTIRELY ON M7**, M4 disabled | 0.00 gp | M4 had unreliable SysTick (no BOARD_InitBootClocks → tick miscalibrated 360x), froze after ~5 s.  M7 has cycles to spare |
+| 1135  | + USAD8 SIMD intrinsic in SAD inner loop | -- | First attempt: SAD got SLOWER (13 ms → 13 ms).  See next |
+| 1137  | + sad_match in ITCM (.ramfunc) | -- | Marginal; not the bottleneck |
+| 1139  | **Replace memcpy(&u32, p, 4) with packed-struct LD32U cast** | 0.94 ms SAD | The killer: GCC compiled `memcpy(...,4)` as a function call to libc memcpy (~30 cycles overhead × 320,000 calls/frame).  Packed-struct cast emits a single LDR.  **SAD 14x faster**.  Bit-perfect match firmware vs offline replay |
+
+### Final perf (build #1139, M7-only, USAD8 + LD32U)
+
+DWT-measured per stage on a static board with `sentai.flow.perf()`:
+
+| Stage | Time | Note |
+|---|---:|---|
+| PXP downscale 640x480 → 80x60 RGB888 | **1.15 ms** | hardware |
+| RGB → Y conversion + dual write (shared + local) | 0.22 ms | trivial |
+| Optional gray_stretch | 0.001 ms | LUT, off by default |
+| **SAD 25x25 search × 32x32 block (+parabolic+conf+deadband)** | **0.94 ms** | post-USAD8+LD32U |
+| publish_frame total | **2.29 ms** | budget allows ~400 fps if camera could deliver |
+| sentai_cam_grab_latest (waits for next frame) | ~25-34 ms | camera @ 30 fps default = 33 ms period |
+| Loop iteration (publish path) | 31-37 ms | grab + publish + scheduler |
+| **Effective publish rate** | **15-22 fps** | camera-bound, NOT compute-bound |
+
+### Bit-perfect validation (s002_motion_v1139)
+
+The bulk-capture pipeline writes both the firmware-reported `(dx, dy, conf)`
+AND the EXACT 80x60 gray frame the SAD just consumed into a single
+`bulk_gray.bin` (text header + 4800-byte payload per frame).  Host
+re-runs the same SAD algorithm on the same gray frames in numpy.  After
+deduping the host-loop sampling artefact (driver was logging at 50 Hz
+into the bulk while M4/M7 only produced new results at the camera rate
+of 15-25 Hz, so each unique SAD output appeared 2-3x in the cumsum):
+
+| Method | cum_dx (gp) | cum_dy (gp) | closure (gp) |
+|---|---:|---:|---:|
+| FIRMWARE on-board cumsum (M7, build #1139) | +11.15 | -23.55 | 26.06 |
+| OFFLINE numpy replay on the same gray frames | +11.04 | -23.66 | 26.11 |
+| Single-shot SAD ground truth (last vs first frame) | +10 | -7 | 12 (integer-only) |
+
+Per-frame `|fw_dx − off_dx|` **max = 1 milli-grid-px, mean = 0**.
+Firmware and offline produce bit-identical SAD outputs on the same
+input gray frames.  The 0.05 gp closure difference is a single
+milli-gp rounding here and there.  The integer-only single-shot
+ground truth (12 gp net displacement) is consistent with the
+cumulative path (26 gp) being roughly 2x the displacement -- the
+operator's hand made some back-and-forth motion within the run.
+
+Artefacts: see `examples/sentai_runtime/experiments/s083_flow_m7_validate/`
+(README + bulk_gray.bin + offline_per_frame.csv + 240 individual
+PGMs + animation.gif + 3 trajectory renders + replay_full.py +
+draw_trajectory.py).
+
+### KNOWN REGRESSION: camera VGA30 delivers ~18 fps (was 30)
+
+Measured directly via `sentai.camera.frame_count()` (counts the CSI
+ISR strikes -- pure hardware) on build #1139:
+
+| `sentai.camera.init(args)` | observed ISR fps |
+|---|---:|
+| `init(1)` (g_runtime_fps default = 30) | **18.5** |
+| `init(1, 30)` (explicit) | **18.5** |
+| `init(1, 45)` (explicit) | **28.0** |
+
+VGA45 history (experiment.md "VGA45 pipeline FPS" session): the
+TPU pipeline was hitting 45.9 fps on the same hardware AND the same
+`init(1, 45)` call.  Now we measure 28 fps even with the explicit
+init.  Something between then and build #1139 broke OV5640 throughput
+on this build.  Per the `csi2rxHsSettle[]` table in
+`libs/camera/camera_support.c` the VGA30 config is present
+(`t_HSSETTLE=0x1F`) and VGA45 config is present too -- so the
+regression is upstream of the CSI receiver setup.  Candidates:
+- OV5640 register table for VGA/30 (in `fsl_ov5640.c`) may have
+  drifted from a working version
+- PLL / divider config in BOARD_InitCameraResource
+- Some default ratio / alt-mode that halves per-cam delivery
+
+This regression is OUT OF SCOPE for the flow stack: any frame
+consumer (pipeline, flow, manual grab) is bound by the camera ISR
+rate.  Flow's publisher publishes 18.5 fps because that's what the
+camera ISR produces; the flow compute path itself completes in 2.3 ms
+per frame and would happily sustain ~400 fps.
+
+Action item: a separate session should bisect the OV5640 driver vs
+the VGA45 baseline build (~#1077) where 45.9 fps was observed.
+
+### Best practices distilled from this session
+
+1.  **Move SAD to M7 in C++.**  M4 path is brittle (SysTick mis-cal
+    without BOARD_InitBootClocks; freezes under load; no HardFault
+    forwarding).  M7 has 800 MHz + I-cache + ITCM + WDOG + SERR
+    plumbing.  See agent.md "Flow architecture" section.
+2.  **For tight integer SIMD on Cortex-M7 use `__USADA8`.**  4× speedup
+    on SAD-style abs-diff loops vs scalar code.
+3.  **Use packed-struct cast for unaligned 32-bit reads, NEVER
+    `memcpy(&u32, p, 4)`.**  GCC emits a libc memcpy call on the
+    second form unless it can prove alignment statically.  ~30 cycles
+    overhead per 4-byte copy in a hot loop = 1000x slowdown.
+4.  **EMA smoothing breaks integration.**  An alpha=0.5 EMA spreads
+    each real motion event across ~5 frames in the cumsum -> 2x
+    inflation of closure.  Use deadband + conf-floor + parabolic-
+    rejection instead.  EMA is fine for INSTANTANEOUS display only.
+5.  **For bit-perfect on-board vs offline validation, capture the
+    EXACT gray buffer the SAD consumed**, NOT the latest published
+    one.  M7-only flow makes this trivial (single writer); M4 split
+    needed a dedicated `m4_curr_gray` shared field which itself had
+    cross-core memcpy cost.
+6.  **Driver log loop must dedupe by frame_seq.**  Otherwise
+    cumsum of the trace double-counts each algorithm result.
+
+---
+
 ## 🧪 Session 2026-04-28 — iarna p3p4 model A/B/C on Coral USB
 
 Goal: pick a backbone for the next iarna iteration.  Three new

@@ -48,7 +48,16 @@ extern "C" {
 #define SERR_MOD_CAM     0x0A00
 #define SERR_MOD_TPU     0x0B00
 #define SERR_MOD_LFX     0x0D00  /* FileX/LevelX migration (0x0Dxx) */
+#define SERR_MOD_FLOW    0x0E00  /* sentai.flow stack (0x0Exx) */
 #define SERR_MOD_SYS     0x0F00
+
+// ===================== Flow Errors (0x0Exx) =====================
+#define SERR_FLOW_M4_NOT_ALIVE       (SERR_MOD_FLOW | 0x01) // magic timeout at enable
+#define SERR_FLOW_PUB_GRAB           (SERR_MOD_FLOW | 0x02) // publisher cam_grab_latest fail
+#define SERR_FLOW_PUB_TASK_CREATE    (SERR_MOD_FLOW | 0x03) // publisher task create fail
+#define SERR_FLOW_M4_HEARTBEAT_STALL (SERR_MOD_FLOW | 0x10) // M4 heartbeat not advancing
+#define SERR_FLOW_M4_FRAME_DROPPED   (SERR_MOD_FLOW | 0x11) // M4 dropped frames (publisher faster than M4)
+#define SERR_FLOW_BAD_CAM_ID         (SERR_MOD_FLOW | 0x20) // cmd_start with bad cam_id
 
 // ===================== Link Errors (0x01xx) =====================
 #define SERR_LINK_TX_TIMEOUT    (SERR_MOD_LINK | 0x01)  // TX mutex timeout

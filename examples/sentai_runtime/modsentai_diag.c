@@ -760,6 +760,68 @@ static mp_obj_t mod_sentai_diag_storage_log(void) {
 static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_diag_storage_log_obj,
                                   mod_sentai_diag_storage_log);
 
+/* ===== Generic write-cache for the user FS (sentai_fs_cache.cc) =====
+ * 256 KB SDRAM buffer, ONE active session at a time.  Lets diag
+ * drivers append arbitrary bytes (CSV rows, raw frames, dumps) at
+ * high rate without paying per-call FileX open/write/close cost.
+ * Driver flushes ('save') to disk at the end of the run -- or
+ * mid-run when cache_len() grows past a threshold the driver
+ * defines.  See agent.md "Write-cache pattern" section for usage
+ * rules and sentai_fs_cache.cc for the rationale.
+ */
+extern int sentai_fs_cache_open(const char* path);
+extern int sentai_fs_cache_write(const uint8_t* data, int size);
+extern int sentai_fs_cache_save(void);
+extern int sentai_fs_cache_len(void);
+extern int sentai_fs_cache_dropped(void);
+extern int sentai_fs_cache_close(void);
+
+static mp_obj_t mod_sentai_diag_cache_open(mp_obj_t path_obj) {
+    const char* path = mp_obj_str_get_str(path_obj);
+    return mp_obj_new_int(sentai_fs_cache_open(path));
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_diag_cache_open_obj,
+                                  mod_sentai_diag_cache_open);
+
+/* Accepts str OR bytes / bytearray / memoryview -- mp_get_buffer
+ * gives us a uniform read-only view either way.  No newline magic;
+ * the caller adds '\n' to its rows if it wants line-oriented CSV. */
+static mp_obj_t mod_sentai_diag_cache_write(mp_obj_t obj) {
+    mp_buffer_info_t bufinfo;
+    if (!mp_get_buffer(obj, &bufinfo, MP_BUFFER_READ)) {
+        mp_raise_TypeError(MP_ERROR_TEXT(
+            "cache_write: expected str/bytes/bytearray"));
+    }
+    return mp_obj_new_int(sentai_fs_cache_write(
+        (const uint8_t*)bufinfo.buf, (int)bufinfo.len));
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_diag_cache_write_obj,
+                                  mod_sentai_diag_cache_write);
+
+static mp_obj_t mod_sentai_diag_cache_save(void) {
+    return mp_obj_new_int(sentai_fs_cache_save());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_diag_cache_save_obj,
+                                  mod_sentai_diag_cache_save);
+
+static mp_obj_t mod_sentai_diag_cache_len(void) {
+    return mp_obj_new_int(sentai_fs_cache_len());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_diag_cache_len_obj,
+                                  mod_sentai_diag_cache_len);
+
+static mp_obj_t mod_sentai_diag_cache_dropped(void) {
+    return mp_obj_new_int(sentai_fs_cache_dropped());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_diag_cache_dropped_obj,
+                                  mod_sentai_diag_cache_dropped);
+
+static mp_obj_t mod_sentai_diag_cache_close(void) {
+    return mp_obj_new_int(sentai_fs_cache_close());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_diag_cache_close_obj,
+                                  mod_sentai_diag_cache_close);
+
 /* See FX_DESTRUCTIVE_CONFIRM_MAGIC in libs/base/fx_user_fs.h — single source. */
 static mp_obj_t mod_sentai_diag_fx_format(mp_obj_t magic_obj) {
     uint32_t magic = (uint32_t)mp_obj_get_int_truncated(magic_obj);
@@ -800,6 +862,12 @@ static const mp_rom_map_elem_t sentai_diag_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_fx_stats),        MP_ROM_PTR(&mod_sentai_diag_fx_stats_obj) },
     { MP_ROM_QSTR(MP_QSTR_fx_format),       MP_ROM_PTR(&mod_sentai_diag_fx_format_obj) },
     { MP_ROM_QSTR(MP_QSTR_storage_log),     MP_ROM_PTR(&mod_sentai_diag_storage_log_obj) },
+    { MP_ROM_QSTR(MP_QSTR_cache_open),      MP_ROM_PTR(&mod_sentai_diag_cache_open_obj) },
+    { MP_ROM_QSTR(MP_QSTR_cache_write),     MP_ROM_PTR(&mod_sentai_diag_cache_write_obj) },
+    { MP_ROM_QSTR(MP_QSTR_cache_save),      MP_ROM_PTR(&mod_sentai_diag_cache_save_obj) },
+    { MP_ROM_QSTR(MP_QSTR_cache_len),       MP_ROM_PTR(&mod_sentai_diag_cache_len_obj) },
+    { MP_ROM_QSTR(MP_QSTR_cache_dropped),   MP_ROM_PTR(&mod_sentai_diag_cache_dropped_obj) },
+    { MP_ROM_QSTR(MP_QSTR_cache_close),     MP_ROM_PTR(&mod_sentai_diag_cache_close_obj) },
 };
 static MP_DEFINE_CONST_DICT(sentai_diag_globals, sentai_diag_globals_table);
 static const mp_obj_module_t sentai_diag_module = {
