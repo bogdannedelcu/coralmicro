@@ -938,6 +938,17 @@ camera::EnableResponse CameraTask::HandleEnableRequest(const CameraMode& mode) {
 
   resp.success = (status == kStatus_Success);
 
+  if (status == kStatus_Success) {
+    /* Self-measure true sensor fps over 1 s — grounded on
+     * g_camera_sensor_frames (fb1_done OR fb2_done in CSI ISR).
+     * Lets us catch silent fps regressions without REPL probing. */
+    uint32_t s0 = g_camera_sensor_frames;
+    vTaskDelay(pdMS_TO_TICKS(1000));
+    uint32_t s1 = g_camera_sensor_frames;
+    printf("[CAM] sensor_fps=%lu (1 s sample, target=%d)\r\n",
+           (unsigned long)(s1 - s0), DEMO_CAMERA_FRAME_RATE);
+  }
+
   return resp;
 }
 

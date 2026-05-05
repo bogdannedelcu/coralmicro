@@ -64,6 +64,7 @@ extern "C" {
     int      sentai_cam_grab_latest(uint8_t** raw);
     void     sentai_cam_return_raw(int idx);
     uint32_t sentai_cam_get_frame_seq(void);
+    uint32_t sentai_cam_get_sensor_frames(void);
     int      sentai_cam_is_initialized(void);
     int      sentai_detection_is_running(void);
     int      sentai_pxp_scale(const uint8_t* src, int sw, int sh,
@@ -410,21 +411,92 @@ extern "C" int sentai_flow_m4_publish_set(int enable) {
 static volatile bool s_pub_running = false;
 static TaskHandle_t  s_pub_task    = nullptr;
 
-constexpr uint32_t kPubMaxIter         = 24u * 60u * 60u * 1000u;  // 24h cap
-constexpr uint32_t kPubGrabFailEscalate = 25;
+// ISR-side rendezvous handle.  CSI_IRQHandler reads this atomically;
+// when non-NULL it calls vTaskNotifyGiveFromISR exactly once per
+// sensor frame (fb1_done OR fb2_done).  Single writer (this file,
+// outside ISR) -- the ISR is read-only.  Aligned 32-bit pointer is
+// atomic on Cortex-M7.
+extern "C" volatile TaskHandle_t g_flow_pub_isr_task = nullptr;
 
-// Mirrors detection_task::PrepTask's frame-acquisition loop:
-// continuous grab + dedupe by g_camera_frame_seq, no per-iter
-// vTaskDelay (taskYIELD inside cam_grab and the FreeRTOS preemption
-// at the SysTick boundary handle scheduling fairness on their own).
-// This was changed 2026-05-05 from `vTaskDelay(1)` to `taskYIELD()`
-// because the 1ms sleep was making us miss every other camera frame
-// at 30 fps (camera period 33 ms, our loop 37 ms, lost the slot).
+// Diag counters owned by the publisher task.  All writes from task
+// context only (read freely from REPL / SERR_LOG).
+static volatile uint32_t s_pub_notify_timeouts = 0;  // bumped per take=0
+static volatile uint32_t s_pub_notify_overruns = 0;  // ISR notified while we were still computing previous frame
+static volatile uint32_t s_pub_last_take_ms    = 0;
+
+constexpr uint32_t kPubMaxIter            = 24u * 60u * 60u * 1000u;  // 24h cap
+constexpr uint32_t kPubGrabFailEscalate   = 25;
+// Bounded notification wait (NASA §2): 100 ms = 3 sensor frames at 30 fps.
+// If no notify arrives in that window, sensor or CSI ISR is stalled --
+// log and re-enter the wait so REPL/HTTP stay supervisable.  The
+// publisher itself never blocks "forever".
+constexpr TickType_t kPubNotifyWaitTicks  = pdMS_TO_TICKS(100);
+constexpr uint32_t   kPubNotifyTimeoutEscalate = 5;  // ~500 ms silence -> SERR
+
+// ISR-paced publisher (notify-from-ISR pattern).
+//
+// Why notify, not poll:
+//   * embeded.md §C: ISR captures event, defers work to task.  Polling
+//     loop with taskYIELD burns CPU, jitters latency, and dedups via a
+//     read of a counter the ISR just bumped — fragile.
+//   * NASA §1: explicit deterministic flow.  ulTaskNotifyTake is a
+//     counted semaphore: every ISR notify increments, every take
+//     decrements.  No lost or duplicated frames.
+//   * NASA §2: bounded wait (kPubNotifyWaitTicks).  If sensor stalls,
+//     we time out, log SERR_FLOW_NOTIFY_TIMEOUT, and re-enter the wait.
+//
+// Failure semantics:
+//   take=0 (timeout)                  -> bump s_pub_notify_timeouts;
+//                                         escalate to SERR after a streak
+//   take >1 (overrun)                 -> ISR fired while task was busy;
+//                                         we still process the latest
+//                                         frame, but log the overrun
+//   grab fail                         -> existing PUB_GRAB escalation
+//
+// Single writer of g_flow_pub_isr_task: this function (set/clear at
+// start/stop).  ISR is read-only.  No lock needed.
 static void publisher_task_fn(void* /*arg*/) {
-    uint32_t prev_seq = 0;
-    uint32_t iters = 0;
+    uint32_t iters       = 0;
+    uint32_t timeout_streak = 0;
     dwt_enable_once();
+    s_pub_last_take_ms = (uint32_t)xTaskGetTickCount();
+
+    // Drain any stale notifications left from a previous run.
+    (void)ulTaskNotifyTake(pdTRUE, 0);
+
+    // Publish handle for the ISR.  Done AFTER the drain so the ISR
+    // never observes a stale-pending count for this run.
+    g_flow_pub_isr_task = xTaskGetCurrentTaskHandle();
+
     while (s_pub_running && iters++ < kPubMaxIter) {
+        // Wait for the next sensor-frame notification.  pdTRUE clears
+        // the counter on take, so n>1 indicates a missed-deadline event.
+        uint32_t pending = ulTaskNotifyTake(pdTRUE, kPubNotifyWaitTicks);
+        if (pending == 0) {
+            s_pub_notify_timeouts++;
+            timeout_streak++;
+            if (timeout_streak == kPubNotifyTimeoutEscalate) {
+                uint32_t now_ms = (uint32_t)xTaskGetTickCount();
+                SERR_LOG(SERR_FLOW_NOTIFY_TIMEOUT,
+                         now_ms - s_pub_last_take_ms);
+            }
+            continue;  // re-enter wait; bounded loop owns liveness
+        }
+        timeout_streak = 0;
+        s_pub_last_take_ms = (uint32_t)xTaskGetTickCount();
+        if (pending > 1) {
+            // ISR fired while we were still processing the previous
+            // frame.  Diagnostic only: we always grab the LATEST below,
+            // so consumers still see a fresh frame; we just dropped
+            // (pending-1) intermediate frames.
+            s_pub_notify_overruns += (pending - 1);
+            // Escalate at first overrun -- if compute is overrunning the
+            // sensor period, downstream cadence is broken.
+            if (s_pub_notify_overruns == (pending - 1)) {
+                SERR_LOG(SERR_FLOW_NOTIFY_OVERRUN, pending);
+            }
+        }
+
         const uint32_t loop_t0 = dwt_now();
         uint8_t* raw = nullptr;
         const uint32_t grab_t0 = dwt_now();
@@ -436,24 +508,22 @@ static void publisher_task_fn(void* /*arg*/) {
             if (streak == kPubGrabFailEscalate) {
                 SERR_LOG(SERR_FLOW_PUB_GRAB, streak);
             }
-            vTaskDelay(pdMS_TO_TICKS(5));
+            // No vTaskDelay -- next notify will pace us.  If notifies
+            // also stop, kPubNotifyWaitTicks bounds the recovery wait.
             continue;
         }
         s_pub_grab_fail_streak = 0;
-        const uint32_t fseq = sentai_cam_get_frame_seq();
-        if (fseq != prev_seq) {
-            sentai_flow_publish_frame(raw, DEMO_CAMERA_WIDTH,
-                                      DEMO_CAMERA_HEIGHT, s_cam_id);
-            prev_seq = fseq;
-            s_pub_frames++;
-            s_t_loop_cyc = dwt_now() - loop_t0;
-        }
+
+        sentai_flow_publish_frame(raw, DEMO_CAMERA_WIDTH,
+                                  DEMO_CAMERA_HEIGHT, s_cam_id);
+        s_pub_frames++;
+        s_t_loop_cyc = dwt_now() - loop_t0;
         sentai_cam_return_raw(idx);
-        // No vTaskDelay -- yield to scheduler instead.  Lets higher-
-        // priority tasks (REPL, USB) preempt without artificially
-        // throttling our cam-grab cadence.
-        taskYIELD();
     }
+
+    // Single-writer detach: ISR will see NULL on its next entry and
+    // skip the notify call -- no spurious wake of a deleted task.
+    g_flow_pub_isr_task = nullptr;
     s_pub_task = nullptr;
     vTaskDelete(nullptr);
 }
@@ -466,6 +536,14 @@ extern "C" void sentai_flow_pub_stats(uint32_t* frames_published,
     if (grab_fail_total)  *grab_fail_total  = s_pub_grab_fail_total;
     if (grab_fail_streak) *grab_fail_streak = s_pub_grab_fail_streak;
     if (running)          *running          = s_pub_running ? 1 : 0;
+}
+
+extern "C" void sentai_flow_pub_health(uint32_t* notify_timeouts,
+                                        uint32_t* notify_overruns,
+                                        uint32_t* last_take_ms) {
+    if (notify_timeouts) *notify_timeouts = s_pub_notify_timeouts;
+    if (notify_overruns) *notify_overruns = s_pub_notify_overruns;
+    if (last_take_ms)    *last_take_ms    = s_pub_last_take_ms;
 }
 
 // DWT cycle stats from the most recent publish_frame + publisher

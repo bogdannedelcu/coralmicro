@@ -3212,6 +3212,10 @@ extern "C" uint32_t sentai_cam_get_frame_seq(void) {
   return g_camera_frame_seq;
 }
 
+extern "C" uint32_t sentai_cam_get_sensor_frames(void) {
+  return g_camera_sensor_frames;
+}
+
 extern "C" int sentai_cam_get_native_width(void) {
   return coralmicro::CameraTask::kWidth;
 }

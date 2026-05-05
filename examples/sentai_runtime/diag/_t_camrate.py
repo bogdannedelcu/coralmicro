@@ -1,4 +1,4 @@
-# Camera rate probe — rule out g_camera_frame_seq anomalies
+# Camera rate probe -- rule out g_camera_frame_seq anomalies
 import sentai
 sentai.verbose(1)
 

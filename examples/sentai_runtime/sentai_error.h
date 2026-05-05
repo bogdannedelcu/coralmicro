@@ -58,6 +58,8 @@ extern "C" {
 #define SERR_FLOW_M4_HEARTBEAT_STALL (SERR_MOD_FLOW | 0x10) // M4 heartbeat not advancing
 #define SERR_FLOW_M4_FRAME_DROPPED   (SERR_MOD_FLOW | 0x11) // M4 dropped frames (publisher faster than M4)
 #define SERR_FLOW_BAD_CAM_ID         (SERR_MOD_FLOW | 0x20) // cmd_start with bad cam_id
+#define SERR_FLOW_NOTIFY_TIMEOUT     (SERR_MOD_FLOW | 0x30) // ISR notify not received within deadline (sensor stalled?)
+#define SERR_FLOW_NOTIFY_OVERRUN     (SERR_MOD_FLOW | 0x31) // ISR notifies arriving faster than task can drain (compute overrun)
 
 // ===================== Link Errors (0x01xx) =====================
 #define SERR_LINK_TX_TIMEOUT    (SERR_MOD_LINK | 0x01)  // TX mutex timeout

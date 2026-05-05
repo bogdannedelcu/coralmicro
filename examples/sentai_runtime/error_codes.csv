@@ -133,3 +133,5 @@ CODE,MODULE,NAME,DESCRIPTION,VERSION_ADDED,STATUS
 0x0E10,FLOW,M4_HEARTBEAT_STALL,M4 heartbeat counter has not advanced for >Tmax_ms (val=ms_since_last),v1.7,ACTIVE
 0x0E11,FLOW,M4_FRAME_DROPPED,M4 frames_dropped counter advanced (val=delta),v1.7,ACTIVE
 0x0E20,FLOW,BAD_CAM_ID,flow.m4_start called with cam_id != 0/1 (val=cam_id),v1.7,ACTIVE
+0x0E30,FLOW,NOTIFY_TIMEOUT,ISR notify not received within deadline; sensor stalled or CSI ISR silenced (val=ms_since_last),v1.8,ACTIVE
+0x0E31,FLOW,NOTIFY_OVERRUN,ISR notifies arriving faster than task can drain; compute deadline missed (val=pending),v1.8,ACTIVE

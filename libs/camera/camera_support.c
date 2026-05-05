@@ -80,6 +80,14 @@ uint8_t
  * Cortex-M7).  Wraps at 2^32 (~9 years at 15fps). */
 volatile uint32_t g_camera_frame_seq = 0;
 
+/* True sensor frame counter — increments on (fb1_done || fb2_done) in
+ * CSI ISR, i.e. once per actual sensor frame (whichever buffer it
+ * completed into).  Use this for fps measurements; g_camera_frame_seq
+ * above gates on FB2 only and ticks at half the sensor rate (intentional
+ * for downstream consumers that want "one tick per 2 sensor frames"
+ * cadence — drain logic, ratio scheduler).  Atomic 32-bit read. */
+volatile uint32_t g_camera_sensor_frames = 0;
+
 /* sentai 2026-04-25 source tagging: snapshot of g_cam_current_id at the
  * moment the most recent buffer COMPLETED filling.  Captured BEFORE the
  * MUX flip in CSI ISR, so it reflects the camera that actually wrote
@@ -313,6 +321,12 @@ extern volatile uint32_t g_cam_ratio_packed;
 #include "cam_mux.h"
 extern void SentaiCamMuxSetFromIsr(bool enable);
 
+/* FreeRTOS notify-from-ISR for flow_task publisher.  Single writer
+ * (flow_task.cc) of the handle pointer; ISR reads atomically. */
+#include "FreeRTOS.h"
+#include "task.h"
+extern volatile TaskHandle_t g_flow_pub_isr_task;
+
 /*******************************************************************************
  * Code
  ******************************************************************************/
@@ -402,6 +416,20 @@ void CSI_IRQHandler(void)
     bool dirty_now = (pend_in > 0u);
     int active_cam = g_cam_current_id;
     if (fb2_done) g_camera_frame_seq++;
+    if (fb1_done || fb2_done) {
+        g_camera_sensor_frames++;
+        /* ISR-paced rendezvous with flow_task publisher.  embeded.md §C:
+         * ISR captures the event, defers ALL work to task context.
+         * Single-writer (flow_task only) of g_flow_pub_isr_task; ISR
+         * reads atomically (32-bit aligned ptr on M7).  When NULL the
+         * publisher is not running -- no notify, zero ISR cost. */
+        TaskHandle_t pub = (TaskHandle_t)g_flow_pub_isr_task;
+        if (pub != NULL) {
+            BaseType_t hpw = pdFALSE;
+            vTaskNotifyGiveFromISR(pub, &hpw);
+            portYIELD_FROM_ISR(hpw);
+        }
+    }
     /* Bounded 2-iteration loop (NASA §1, §2). */
     uint32_t pend_consumed = 0u;
     for (int k = 0; k < 2; ++k) {

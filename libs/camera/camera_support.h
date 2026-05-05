@@ -145,6 +145,12 @@ extern camera_receiver_handle_t cameraReceiver;
 /* Monotonic frame counter (incremented in CSI ISR, never reset). */
 extern volatile uint32_t g_camera_frame_seq;
 
+/* True sensor-frame counter — increments once per actual sensor frame
+ * (fb1_done OR fb2_done in CSI ISR).  Use this for fps measurements;
+ * g_camera_frame_seq above is FB2-gated and ticks at half sensor rate
+ * for downstream cadence consumers. */
+extern volatile uint32_t g_camera_sensor_frames;
+
 /*******************************************************************************
  * API
  ******************************************************************************/
