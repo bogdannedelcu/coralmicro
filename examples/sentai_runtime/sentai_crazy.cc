@@ -130,12 +130,27 @@ static volatile int g_param_resp_len = 0;
 static SemaphoreHandle_t g_param_resp_sem = nullptr;
 
 // CH_TELEM response slot (channel 2). Drone replies with [cmd][float32].
-// Single-writer (rx task), single-reader (whatever calls
+// Single-writer (rx task), single-reader (whoever calls
 // sentai_crazy_query_telemetry). The signal is a binary semaphore
 // drained before each query so stale responses can't satisfy the
 // next call.
+//
+// The value is held as a uint32_t bit-pattern, accessed via a union
+// for the float interpretation. Earlier `volatile float` + `memcpy
+// (void*)&...` discarded the volatile qualifier; this is cleaner and
+// makes the wire-LE assumption explicit (memcpy from wire bytes maps
+// directly into the same uint32_t backing the float).
+typedef union {
+    uint32_t u;
+    float    f;
+} crazy_telem_word_t;
+_Static_assert(sizeof(crazy_telem_word_t) == 4,
+               "telem word must be exactly 32 bits");
+_Static_assert(__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__,
+               "telem float wire format assumes Cortex-M little-endian");
+
 static volatile uint8_t  g_telem_resp_cmd = 0;
-static volatile float    g_telem_resp_val = 0.0f;
+static volatile uint32_t g_telem_resp_word = 0;
 static SemaphoreHandle_t g_telem_resp_sem = nullptr;
 
 // motorPowerSet param IDs (discovered from CF param TOC)
@@ -389,6 +404,10 @@ static struct CrazyDispatchSlot g_dispatch_q[CRAZY_DISPATCH_DEPTH];
 static volatile uint8_t  g_dispatch_head = 0;
 static volatile uint8_t  g_dispatch_tail = 0;
 static volatile uint32_t g_dispatch_dropped = 0;
+/* Diagnostic: dispatch_push len > CRAZY_DISPATCH_MAX_LEN clamped. Visible
+ * via sentai_crazy_dispatch_truncated() so callers can detect silent
+ * payload loss instead of seeing a confusing "short message". */
+static volatile uint32_t g_dispatch_truncated = 0;
 
 // Provided by modsentai_crazy.c (lives in MP-API land).
 extern "C" void sentai_crazy_request_drain(void);
@@ -419,10 +438,20 @@ extern "C" uint32_t sentai_crazy_dispatch_drops(void) {
     return g_dispatch_dropped;
 }
 
+extern "C" uint32_t sentai_crazy_dispatch_truncated(void) {
+    return g_dispatch_truncated;
+}
+
 static int dispatch_push(uint8_t kind, uint8_t channel,
                          const uint8_t* data, int len) {
     if (len < 0) len = 0;
-    if (len > (int)CRAZY_DISPATCH_MAX_LEN) len = (int)CRAZY_DISPATCH_MAX_LEN;
+    if (len > (int)CRAZY_DISPATCH_MAX_LEN) {
+        g_dispatch_truncated++;
+        if (g_crazy_debug >= 1)
+            printf("[crazy] dispatch TRUNC (len=%d -> %u)\r\n",
+                   len, (unsigned)CRAZY_DISPATCH_MAX_LEN);
+        len = (int)CRAZY_DISPATCH_MAX_LEN;
+    }
     uint8_t tail = g_dispatch_tail;
     uint8_t next = (tail + 1u) & CRAZY_DISPATCH_MASK;
     if (next == g_dispatch_head) {
@@ -452,17 +481,19 @@ static int dispatch_push(uint8_t kind, uint8_t channel,
 
 /* ---- Visual heartbeat: 1-second user-LED flash on every inbound. ----
  *
- * Lazy-created one-shot software timer. The rx task starts/restarts it
- * on every accepted radio frame; the timer callback (run from the
- * FreeRTOS Timer task) clears the LED when the 1-second window expires.
+ * One-shot FreeRTOS software timer, created up-front in
+ * sentai_crazy_init() so the heap allocation is bounded to one-time
+ * init (NASA/JPL §rule-3 — no dynamic allocation in steady-state).
+ * The rx task starts/restarts the timer on every accepted radio
+ * frame; the timer callback (run from the FreeRTOS Timer task)
+ * clears the LED when the 1-second window expires.
  *
  * Why a one-shot timer (not a counter / scheduled job): zero CPU
  * between events, deterministic deadline, and re-triggering an active
  * timer just extends the visible flash — exactly the right UX when
  * frames arrive in bursts.
  *
- * Resource: 1 TimerHandle_t. Created lazily on first use so we don't
- * pay it when the radio bridge is never started. */
+ * Resource: 1 TimerHandle_t (~64 B FreeRTOS bookkeeping). */
 static TimerHandle_t g_led_blink_timer = nullptr;
 
 static void led_blink_timer_cb(TimerHandle_t /*xTimer*/) {
@@ -470,17 +501,15 @@ static void led_blink_timer_cb(TimerHandle_t /*xTimer*/) {
 }
 
 static void led_blink_kick_1s(void) {
-    if (g_led_blink_timer == nullptr) {
-        g_led_blink_timer = xTimerCreate(
-            "crzLed", pdMS_TO_TICKS(1000),
-            pdFALSE,                          /* one-shot */
-            nullptr, led_blink_timer_cb);
-        if (g_led_blink_timer == nullptr) return;   /* OOM — skip flash */
-    }
+    /* Init-time create may have failed (heap OOM at boot) — skip
+     * heartbeat silently rather than retry on every frame. */
+    if (g_led_blink_timer == nullptr) return;
     sentai_led_set(1);
-    /* Restart resets the deadline to now+1s — bursts coalesce visually. */
-    xTimerChangePeriod(g_led_blink_timer, pdMS_TO_TICKS(1000), 0);
-    xTimerReset(g_led_blink_timer, 0);
+    /* Non-blocking restart (timeout=0): if the timer-command queue is
+     * full we drop this kick, which is fine — LED is non-critical UX,
+     * not control telemetry. Return values intentionally discarded. */
+    (void)xTimerChangePeriod(g_led_blink_timer, pdMS_TO_TICKS(1000), 0);
+    (void)xTimerReset(g_led_blink_timer, 0);
 }
 
 // Process a complete, CRC-valid received CPX frame.
@@ -693,15 +722,18 @@ static void crazy_rx_task(void* param) {
                             dispatch_push(CRAZY_KIND_USER, 0, body, data_len);
                         }
                     } else if (channel == 2u && data_len >= 5) {
-                        /* CH_TELEM reply: [cmd:1][float32:4]. Stash in
-                         * the response slot and signal the waiter. The
-                         * float is little-endian on the wire, same as
-                         * Cortex-M memory order — direct memcpy. The
-                         * rx task runs in normal task context (not an
-                         * ISR), so use xSemaphoreGive — the FromISR
-                         * variant is undefined behavior outside ISRs. */
-                        g_telem_resp_cmd = body[0];
-                        memcpy((void*)&g_telem_resp_val, &body[1], 4);
+                        /* CH_TELEM reply: [cmd:1][float32 LE:4]. Stash
+                         * in the response slot and signal the waiter.
+                         * Wire format is documented LE; the union/word
+                         * makes the bit-pattern copy explicit and
+                         * doesn't lie about volatile-vs-memcpy.
+                         * Single-writer here, no atomic-section needed.
+                         * Use xSemaphoreGive (not FromISR) — rx task
+                         * runs in normal task context. */
+                        crazy_telem_word_t w;
+                        memcpy(&w.u, &body[1], 4);
+                        g_telem_resp_cmd  = body[0];
+                        g_telem_resp_word = w.u;
                         if (g_telem_resp_sem) xSemaphoreGive(g_telem_resp_sem);
                     } else {
                         /* Non-REPL channel: deliver raw body to handler. */
@@ -1078,6 +1110,16 @@ extern "C" int sentai_crazy_init(uint32_t baudrate) {
     g_log_resp_sem   = xSemaphoreCreateBinary();
     g_log_data_sem   = xSemaphoreCreateBinary();
     g_telem_resp_sem = xSemaphoreCreateBinary();
+
+    /* Visual heartbeat timer — allocated once at init, reused for
+     * every accepted radio frame. See led_blink_kick_1s comments. */
+    if (g_led_blink_timer == nullptr) {
+        g_led_blink_timer = xTimerCreate(
+            "crzLed", pdMS_TO_TICKS(1000), pdFALSE, nullptr,
+            led_blink_timer_cb);
+        /* If allocation fails the LED simply won't flash; no fault
+         * path — heartbeat is diagnostic, not mission-critical. */
+    }
 
     if (!g_crazy_tx_mutex || !g_crazy_cts || !g_crazy_ping_sem ||
         !g_param_resp_sem || !g_cmd_done_sem ||
@@ -1871,6 +1913,14 @@ extern "C" int sentai_crazy_link_send(int channel, const uint8_t* data, int len)
 // Drone-side cmd codes are echoed in sentai_crazy.h (TELEM_*). NaN is
 // returned for unknown cmd or unresolved drone log var.
 //
+// CONCURRENCY CONTRACT (READ THIS):
+//   This API has a SINGLE response slot. It MUST be called from the
+//   MicroPython VM context only (single-threaded by construction).
+//   Calling concurrently from multiple FreeRTOS tasks is undefined —
+//   the cmd-echo verification (-5) catches the most obvious race but
+//   is best-effort. If we ever need multi-caller, switch the slot
+//   to a per-cmd indexed array + per-slot semaphore.
+//
 // Returns 0 on success (out_value populated), -1=not running,
 // -2=invalid args, -3=UART tx fail, -4=timeout, -5=cmd-mismatch
 // (reply was for a different cmd — likely from a stale earlier query
@@ -1898,13 +1948,14 @@ extern "C" int sentai_crazy_query_telemetry(uint8_t cmd,
         return -4;
     }
 
-    /* Reject mismatched cmd echo — it'd mean we've raced with another
-     * caller. Today this API is not concurrent-safe (single response
-     * slot), but the check is cheap and catches the "stale reply"
-     * edge case where a previous timed-out query lands between our
-     * drain above and our send. */
+    /* Reject mismatched cmd echo — best-effort defense against the
+     * stale-reply race documented in the concurrency contract above. */
     if (g_telem_resp_cmd != cmd) return -5;
 
-    *out_value = g_telem_resp_val;
+    /* Decode the LE bit-pattern into a float via the union. The
+     * static_asserts on crazy_telem_word_t guarantee size + endian. */
+    crazy_telem_word_t w;
+    w.u = g_telem_resp_word;
+    *out_value = w.f;
     return 0;
 }

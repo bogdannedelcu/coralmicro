@@ -320,7 +320,12 @@ MP_REGISTER_ROOT_POINTER(mp_obj_t crazy_msg_handler);
 #define CRAZY_KIND_USER   2u
 #define CRAZY_DRAIN_BUF   256
 
-static volatile uint8_t g_crazy_drain_pending = 0;
+/* Note: an earlier "g_crazy_drain_pending" dedup flag was removed
+ * after we found that a single lost trampoline call could leave it
+ * stuck at 1 forever (no consumer to clear it), silently blocking
+ * all further schedules. The cost of always-schedule is at most a
+ * few "drain empty" trampoline invocations per burst — each exits
+ * immediately on FIFO empty. Worth it for the safety. */
 
 int sentai_crazy_handler_is_set(void) {
     /* Read of an aligned pointer is atomic on 32-bit; the rx task only
@@ -336,9 +341,17 @@ int sentai_crazy_handler_is_set(void) {
  * and prevents runaway repr() output from monopolizing the radio link. */
 #define CRAZY_REPLY_BUF   200
 
+/* Silent-truncation counter for reply payloads. Visible via
+ * sentai.crazy.diag() (TODO) — callers can detect when their REPL
+ * output is being clipped instead of suspecting a network bug. */
+static volatile uint32_t g_crazy_reply_truncated = 0;
+
 static void crazy_send_reply(const uint8_t* data, int len) {
     if (len < 0) len = 0;
-    if (len > CRAZY_REPLY_BUF) len = CRAZY_REPLY_BUF;
+    if (len > CRAZY_REPLY_BUF) {
+        g_crazy_reply_truncated++;
+        len = CRAZY_REPLY_BUF;
+    }
     sentai_crazy_link_send(0, data, len);
 }
 
@@ -451,7 +464,6 @@ static void crazy_run_user(uint8_t channel, const uint8_t* data, int len) {
 
 static mp_obj_t crazy_dispatch_drain(mp_obj_t arg) {
     (void)arg;
-    g_crazy_drain_pending = 0;
     for (;;) {
         uint8_t kind = 0, channel = 0;
         uint8_t buf[CRAZY_DRAIN_BUF];
@@ -469,18 +481,15 @@ static mp_obj_t crazy_dispatch_drain(mp_obj_t arg) {
 static MP_DEFINE_CONST_FUN_OBJ_1(crazy_dispatch_drain_obj, crazy_dispatch_drain);
 
 void sentai_crazy_request_drain(void) {
-    /* Always attempt to schedule. The earlier dedup-via-pending-flag
-     * design got stuck if a scheduled trampoline was somehow lost
-     * (no MP bytecode running between schedule and drain → flag stays
-     * at 1 forever, all future requests skip). The cost of removing
-     * dedup is at most a few "empty drain" trampoline calls per burst,
-     * which exit immediately on FIFO empty. */
-    g_crazy_drain_pending = 1;
-    if (!mp_sched_schedule(MP_OBJ_FROM_PTR(&crazy_dispatch_drain_obj),
-                           mp_const_none)) {
-        /* Scheduler queue full — let next push retry. */
-        g_crazy_drain_pending = 0;
-    }
+    /* Always attempt to schedule (no dedup) — see comment near the
+     * removed g_crazy_drain_pending. If the MP scheduler queue is
+     * full, mp_sched_schedule returns false and the next push retries
+     * naturally. Discarding the return value is safe because:
+     *   - the FIFO already has the message stashed
+     *   - any subsequent push will re-attempt the schedule
+     *   - if the trampoline is already in-flight it will drain us anyway */
+    (void)mp_sched_schedule(MP_OBJ_FROM_PTR(&crazy_dispatch_drain_obj),
+                            mp_const_none);
 }
 
 // sentai.crazy.on_message(callback) -> None
