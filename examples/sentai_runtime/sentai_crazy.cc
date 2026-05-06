@@ -23,6 +23,7 @@
 #include "third_party/freertos_kernel/include/FreeRTOS.h"
 #include "third_party/freertos_kernel/include/task.h"
 #include "third_party/freertos_kernel/include/semphr.h"
+#include "third_party/freertos_kernel/include/queue.h"
 
 // Existing UART bridge functions (from modsentai_hal.cc)
 extern "C" {
@@ -48,6 +49,8 @@ extern void sentai_uart_restore_baudrate(void);
 #define CPX_F_SYSTEM     1
 #define CPX_F_CONSOLE    2
 #define CPX_F_CRTP       3
+#define CPX_F_WIFI_CTRL  4
+#define CPX_F_APP        5      // generic app-layer payload (REPL bridge)
 
 // CPX SYSTEM sub-commands
 #define CPX_SYS_SET_CLIENT   0x20   // data: 0x01=connected, 0x00=disconnected
@@ -327,7 +330,19 @@ enum CpxRxState {
     CPX_RX_LEN,
     CPX_RX_DATA,
     CPX_RX_CRC,
+    /* SENTAI deck-driver wire format: [0xAA][LEN][CH][DATA…][CRC]
+     * Sent by drone-side sentai_deck.c on every CRTP packet that lands
+     * on LINK_PORT (0x0E). Parsed in parallel with the CPX 0xFF state
+     * machine so we can keep ping/test_fly working over CPX while the
+     * radio bridge moves to the deck-driver path. */
+    SENTAI_RX_LEN,
+    SENTAI_RX_CH,
+    SENTAI_RX_DATA,
+    SENTAI_RX_CRC,
 };
+
+#define SENTAI_START_BYTE  0xAAu
+#define SENTAI_RX_MAX_LEN   32u  /* LEN field is CH(1) + DATA(≤30) + headroom */
 
 // Process a complete, CRC-valid received CPX frame.
 static void cpx_process_rx(const uint8_t* data, uint16_t len) {
@@ -348,6 +363,11 @@ static void cpx_process_rx(const uint8_t* data, uint16_t len) {
         printf("[crazy] CF: %.*s", txt_len, (const char*)&data[2]);
     }
 
+    // (No CPX_F_APP handling here — the deck-driver path uses the
+    // separate 0xAA wire format parsed elsewhere in the RX state
+    // machine. CPX traffic on UART2 is reserved for ping/test_fly/etc.
+    // which use CPX_F_CRTP below.)
+
     // CRTP response
     if (fn == CPX_F_CRTP && len > 2) {
         uint8_t hdr = data[2];
@@ -358,6 +378,11 @@ static void cpx_process_rx(const uint8_t* data, uint16_t len) {
         if (rport == 0x0F && rch == 0 && g_crazy_ping_sem) {
             xSemaphoreGive(g_crazy_ping_sem);
         }
+
+        // (Legacy hook removed: standard Crazyflie firmware does NOT forward
+        // radio CRTP_PORT_PLATFORM/APP_CHANNEL traffic to the deck UART.
+        // The drone-side bridge app (sentai_bridge) instead republishes
+        // host packets as CPX_F_APP — caught in the dedicated branch below.)
 
         // Param response → copy to response slot
         if (rport == CRTP_PORT_PARAM && g_param_resp_sem) {
@@ -436,14 +461,75 @@ static void crazy_rx_task(void* param) {
             switch (state) {
             case CPX_RX_WAIT_START:
                 if (b == CPX_START_BYTE) state = CPX_RX_LEN;
+                else if (b == SENTAI_START_BYTE) state = SENTAI_RX_LEN;
                 break;
+
+            /* --- SENTAI deck-driver frame parser --- */
+            case SENTAI_RX_LEN:
+                frame_len = b;
+                if (frame_len == 0 || frame_len > SENTAI_RX_MAX_LEN) {
+                    if (g_crazy_debug >= 1)
+                        printf("[crazy] SENTAI bad len %u, resync\r\n", frame_len);
+                    state = CPX_RX_WAIT_START;
+                } else {
+                    frame_idx = 0;
+                    state = SENTAI_RX_CH;
+                }
+                break;
+
+            case SENTAI_RX_CH:
+                /* Channel byte goes into frame_buf[0] so the CRC math
+                 * is uniform with DATA. We don't act on the channel here;
+                 * the consumer (process_message) sees raw payload only. */
+                frame_buf[0] = b;
+                frame_idx = 1;
+                if (frame_idx >= frame_len) state = SENTAI_RX_CRC;
+                else state = SENTAI_RX_DATA;
+                break;
+
+            case SENTAI_RX_DATA:
+                if (frame_idx < SENTAI_RX_MAX_LEN) {
+                    frame_buf[frame_idx] = b;
+                }
+                frame_idx++;
+                if (frame_idx >= frame_len) state = SENTAI_RX_CRC;
+                break;
+
+            case SENTAI_RX_CRC: {
+                uint8_t expected = (uint8_t)(SENTAI_START_BYTE ^ frame_len);
+                for (uint16_t j = 0; j < frame_len; j++) expected ^= frame_buf[j];
+                if (b != expected) {
+                    if (g_crazy_debug >= 1)
+                        printf("[crazy] SENTAI CRC err: got %02X exp %02X\r\n",
+                               b, expected);
+                } else {
+                    /* frame_buf[0] = CH, frame_buf[1..frame_len-1] = DATA.
+                     * Push only DATA into the existing app event queue so
+                     * the REPL listener (_t_radio_repl.py) can drain via
+                     * sentai.crazy.poll_event(). */
+                    if (frame_len > 1) {
+                        extern void crazy_app_evq_push(const uint8_t*, int);
+                        crazy_app_evq_push(&frame_buf[1], (int)frame_len - 1);
+                    }
+                }
+                state = CPX_RX_WAIT_START;
+                break;
+            }
 
             case CPX_RX_LEN:
                 frame_len = b;
                 if (frame_len == 0) {
-                    // CTS from CrazyFlie — it's ready to receive
+                    // CTR (Clear-To-Receive) from CrazyFlie — it's ready
+                    // to receive a frame from us. Bitcraze CPX UART flow
+                    // control is alternating: each CTR from the peer must
+                    // be answered with a CTS from us, otherwise the peer's
+                    // TX task blocks in `do { wait CTS } while (! CTS)`
+                    // when it has an outbound message (e.g. our HELLO ACK).
+                    // Without this echo the drone hangs after the first
+                    // unsolicited frame it tries to send.
                     xSemaphoreGive(g_crazy_cts);
-                    if (g_crazy_debug >= 2) printf("[crazy] RX CTS\r\n");
+                    if (g_crazy_debug >= 2) printf("[crazy] RX CTR -> echo CTS\r\n");
+                    cpx_send_cts();
                     state = CPX_RX_WAIT_START;
                 } else if (frame_len > CPX_MTU) {
                     // Invalid length — resync
@@ -505,6 +591,15 @@ static void crazy_cmd_task(void* param) {
 
     printf("[crazy] CMD task started\r\n");
 
+    /* Bitcraze CPX UART docs say each packet must be ACK'd with 0xFF 0x00.
+     * We do that in the RX state machine (CPX_RX_CRC handler chems
+     * cpx_send_cts after each completed frame). NO periodic heartbeat —
+     * empirical: even 5 Hz heartbeat starves the drone scheduler enough
+     * that the radio TOC handshake at host open_link times out and
+     * SYS_LED (LED_RED_R) goes dark. The drone TX task with our
+     * patched bounded timeout (20×50ms in cpx_uart_transport.c) will
+     * drop unsolicited frames after 1s rather than hang, which is the
+     * correct trade for safety. */
     while (g_crazy_running) {
         switch (g_cmd_state) {
         case CMD_IDLE:
@@ -783,6 +878,8 @@ extern "C" int sentai_crazy_init(uint32_t baudrate) {
     g_cmd_done_sem   = xSemaphoreCreateBinary();
     g_log_resp_sem   = xSemaphoreCreateBinary();
     g_log_data_sem   = xSemaphoreCreateBinary();
+    extern int sentai_crazy_app_evq_init(void);
+    sentai_crazy_app_evq_init();  // event queue for the radio bridge
 
     if (!g_crazy_tx_mutex || !g_crazy_cts || !g_crazy_ping_sem ||
         !g_param_resp_sem || !g_cmd_done_sem ||
@@ -1458,4 +1555,95 @@ extern "C" int sentai_crazy_fly_stop(void) {
         if (g_crazy_cts) xSemaphoreGive(g_crazy_cts);
     }
     return 0;
+}
+
+// ===================== APP-layer event queue (Pattern B) =====================
+// CPX function=APP packets received from the radio (host PC) are pushed here
+// as length-prefixed byte buffers. REPL drains via sentai.crazy.poll_event().
+// Drop-oldest on overflow so latest commands are always delivered.
+
+#define CRAZY_APP_EVQ_DEPTH    8
+#define CRAZY_APP_EV_MAX_LEN   96   // CPX MTU 100 - hdr(2) - small headroom
+
+struct CrazyAppEvent {
+    uint8_t len;
+    uint8_t data[CRAZY_APP_EV_MAX_LEN];
+};
+
+QueueHandle_t g_crazy_app_evq = nullptr;
+
+void crazy_app_evq_push(const uint8_t* data, int len) {
+    if (!g_crazy_app_evq) return;
+    if (len <= 0) return;
+    if (len > CRAZY_APP_EV_MAX_LEN) len = CRAZY_APP_EV_MAX_LEN;
+    CrazyAppEvent ev;
+    ev.len = (uint8_t)len;
+    memcpy(ev.data, data, len);
+    if (uxQueueSpacesAvailable(g_crazy_app_evq) == 0) {
+        CrazyAppEvent dump;
+        xQueueReceive(g_crazy_app_evq, &dump, 0);
+    }
+    xQueueSend(g_crazy_app_evq, &ev, 0);
+}
+
+extern "C" int sentai_crazy_app_evq_init(void) {
+    if (g_crazy_app_evq) return 0;
+    g_crazy_app_evq = xQueueCreate(CRAZY_APP_EVQ_DEPTH, sizeof(CrazyAppEvent));
+    return g_crazy_app_evq ? 0 : -1;
+}
+
+extern "C" int sentai_crazy_app_poll(int timeout_ms, uint8_t* out_buf,
+                                     int out_max, int* out_len) {
+    if (!g_crazy_app_evq) return -1;
+    CrazyAppEvent ev;
+    TickType_t wait = (timeout_ms < 0) ? portMAX_DELAY : pdMS_TO_TICKS(timeout_ms);
+    if (xQueueReceive(g_crazy_app_evq, &ev, wait) != pdTRUE) return 0;
+    int n = ev.len;
+    if (n > out_max) n = out_max;
+    memcpy(out_buf, ev.data, n);
+    if (out_len) *out_len = n;
+    return 1;
+}
+
+// Send a payload over UART2 to the drone-side sentai deck using the
+// 0xAA wire format. The drone deck driver (sentai_bridge.c) parses the
+// frame, wraps it in a CRTPPacket on port LINK_PORT (0x0E), and ships
+// it back to the host PC over radio.
+//
+// Wire format: [0xAA][LEN=1+len][CH][data…][CRC]   (LEN ≤ 31)
+//
+// Returns 0=ok, -1=not running, -2=invalid length, -3=UART tx fail.
+#define SENTAI_LINK_START      0xAAu
+#define SENTAI_LINK_MAX_DATA   30   /* CRTP MAX_PAYLOAD on the radio side */
+
+extern "C" int sentai_crazy_link_send(int channel, const uint8_t* data, int len) {
+    if (!g_crazy_running) return -1;
+    if (len < 0 || len > SENTAI_LINK_MAX_DATA) return -2;
+    if ((channel & ~0x03) != 0) return -2;
+
+    // Frame on stack — total 1 + 1 + 1 + len + 1 = 4 + len bytes.
+    uint8_t frame[1 + 1 + 1 + SENTAI_LINK_MAX_DATA + 1];
+    int idx = 0;
+    frame[idx++] = SENTAI_LINK_START;
+    frame[idx++] = (uint8_t)(1 + len);              // CH + DATA
+    frame[idx++] = (uint8_t)(channel & 0x03);
+    if (len > 0) {
+        memcpy(&frame[idx], data, len);
+        idx += len;
+    }
+    uint8_t crc = 0;
+    for (int i = 0; i < idx; ++i) crc ^= frame[i];
+    frame[idx++] = crc;
+
+    // Bounded mutex + UART write — no blocking semaphore wait, no CPX
+    // CTS/CTR handshake. The deck driver UART RX task on the drone side
+    // parses 0xAA frames continuously; nothing to ack.
+    for (int retry = 0; retry < kCrazyTxRetries; retry++) {
+        if (xSemaphoreTake(g_crazy_tx_mutex, kCrazyTxMutexTimeout) == pdTRUE) {
+            int n = sentai_uart_serial_write(frame, idx);
+            xSemaphoreGive(g_crazy_tx_mutex);
+            return (n == idx) ? 0 : -3;
+        }
+    }
+    return -3;
 }

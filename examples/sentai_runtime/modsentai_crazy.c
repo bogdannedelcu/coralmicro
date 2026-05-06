@@ -197,6 +197,39 @@ static mp_obj_t mod_sentai_crazy_altitude(void) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_crazy_altitude_obj, mod_sentai_crazy_altitude);
 
+// sentai.crazy.poll_event(timeout_ms=100) -> bytes or None
+// Drain one CPX APP-layer message from the radio bridge queue.
+// timeout_ms < 0 = wait forever (Ctrl-C to break).
+extern int sentai_crazy_app_poll(int timeout_ms, uint8_t* out_buf,
+                                 int out_max, int* out_len);
+static mp_obj_t mod_sentai_crazy_poll_event(size_t n_args, const mp_obj_t* args) {
+    int timeout_ms = (n_args >= 1) ? mp_obj_get_int(args[0]) : 100;
+    uint8_t buf[96];
+    int got = 0;
+    int rc = sentai_crazy_app_poll(timeout_ms, buf, sizeof(buf), &got);
+    if (rc <= 0) return mp_const_none;
+    return mp_obj_new_bytes(buf, got);
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_crazy_poll_event_obj, 0, 1, mod_sentai_crazy_poll_event);
+
+// sentai.crazy.link_send(channel, data) -> int
+// Send a payload to the drone-side "sentai" deck driver over UART2,
+// using channel multiplexing on the 0xAA wire format:
+//   channel=0  REPL / text reply    (drone forwards over radio CRTP port 0x0E)
+//   channel=1  optical-flow data    (drone injects into EKF via estimatorEnqueueFlow)
+//   channel=2  reserved
+//   channel=3  reserved
+// Returns 0=ok, -1=crazy not initialized, -2=invalid args, -3=UART tx fail.
+extern int sentai_crazy_link_send(int channel, const uint8_t* data, int len);
+static mp_obj_t mod_sentai_crazy_link_send(mp_obj_t channel_obj, mp_obj_t data_obj) {
+    int channel = mp_obj_get_int(channel_obj);
+    mp_buffer_info_t bi;
+    mp_get_buffer_raise(data_obj, &bi, MP_BUFFER_READ);
+    return mp_obj_new_int(sentai_crazy_link_send(
+        channel, (const uint8_t*)bi.buf, (int)bi.len));
+}
+static MP_DEFINE_CONST_FUN_OBJ_2(mod_sentai_crazy_link_send_obj, mod_sentai_crazy_link_send);
+
 // ---- module table ----
 static const mp_rom_map_elem_t sentai_crazy_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__),      MP_ROM_QSTR(MP_QSTR_crazy) },
@@ -217,6 +250,8 @@ static const mp_rom_map_elem_t sentai_crazy_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_attitude),      MP_ROM_PTR(&mod_sentai_crazy_attitude_obj) },
     { MP_ROM_QSTR(MP_QSTR_fly_stop),      MP_ROM_PTR(&mod_sentai_crazy_fly_stop_obj) },
     { MP_ROM_QSTR(MP_QSTR_altitude),       MP_ROM_PTR(&mod_sentai_crazy_altitude_obj) },
+    { MP_ROM_QSTR(MP_QSTR_poll_event),     MP_ROM_PTR(&mod_sentai_crazy_poll_event_obj) },
+    { MP_ROM_QSTR(MP_QSTR_link_send),      MP_ROM_PTR(&mod_sentai_crazy_link_send_obj) },
 };
 static MP_DEFINE_CONST_DICT(sentai_crazy_globals, sentai_crazy_globals_table);
 static const mp_obj_module_t sentai_crazy_module = {

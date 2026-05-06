@@ -115,6 +115,7 @@ CODE,MODULE,NAME,DESCRIPTION,VERSION_ADDED,STATUS
 0x0D24,LFX,LBA_RANGE,MSC LBA out of range (val=lba),v1.6,ACTIVE
 0x0D25,LFX,LOCK_TIMEOUT,FxUser mutex acquisition timed out (val=ms_waited),v1.6,ACTIVE
 0x0D26,LFX,NOT_MOUNTED,FxUser API called on unmounted volume (val=op_id),v1.6,ACTIVE
+0x0D27,LFX,BBT_PERSIST,/system/.nand_bbt write failed (BBT lost on reboot),v1.7,ACTIVE
 0x0DF0,LFX,RESTORE_LFS,LfsUserInit re-format failed after smoke - user partition unusable until reflash,v1.5,ACTIVE
 # === Module 0x0F: System ===
 0x0F01,SYS,BOOT_ATTEMPT,Boot attempt N - counter from SRC_GPR1 (val=attempt_number),v1.0,ACTIVE

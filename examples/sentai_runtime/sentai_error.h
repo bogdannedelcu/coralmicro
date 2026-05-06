@@ -169,6 +169,7 @@ extern "C" {
 #define SERR_LFX_LBA_RANGE      (SERR_MOD_LFX | 0x24)  // MSC LBA out of range (val=lba)
 #define SERR_LFX_LOCK_TIMEOUT   (SERR_MOD_LFX | 0x25)  // FxUser mutex acquisition timed out (val=ms)
 #define SERR_LFX_NOT_MOUNTED    (SERR_MOD_LFX | 0x26)  // FxUser* called on unmounted volume (val=op_id)
+#define SERR_LFX_BBT_PERSIST    (SERR_MOD_LFX | 0x27)  // /system/.nand_bbt write failed
 #define SERR_LFX_RESTORE_LFS    (SERR_MOD_LFX | 0xF0)  // LfsUserInit re-format failed after smoke
 
 // ===================== USB Errors (0x0Cxx) =====================

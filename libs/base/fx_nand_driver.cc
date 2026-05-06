@@ -25,6 +25,7 @@
 #include <cstring>
 
 #include "examples/sentai_runtime/sentai_error.h"
+#include "libs/base/filesystem.h"
 #include "third_party/nxp/rt1176-sdk/components/flash/nand/fsl_nand_flash.h"
 
 extern "C" nand_handle_t* BOARD_GetNANDHandle(void);
@@ -35,10 +36,61 @@ namespace {
  * cheap but we cache to keep the hot path tight). */
 nand_handle_t* g_nand_handle = nullptr;
 
-/* RAM-only block-status table.  LevelX re-discovers bad blocks at every
- * mount via erase failures, so the absence of persistence is acceptable
- * for a first migration.  448 bytes total. */
+/* RAM block-status table.  Loaded from /system/.nand_bbt at mount and
+ * persisted on every change. 448 bytes total. */
 UCHAR g_block_status[FX_NAND_USER_BLOCK_COUNT];
+
+/* Per-block consecutive read-failure counter for auto-bad-block detection.
+ * After kAutoBadAfterReadFails failures on the SAME logical block we mark
+ * it bad ourselves. Reset on every successful read of that block. */
+constexpr int kAutoBadAfterReadFails = 3;
+uint8_t g_block_read_fails[FX_NAND_USER_BLOCK_COUNT];
+
+constexpr const char* kBbtPath = "/.nand_bbt";  // /system/ is implicit in Lfs
+
+/* "Dirty" flag — set whenever g_block_status changes. The actual LFS write
+ * is performed by bbt_flush_if_dirty() which callers MUST invoke from a
+ * safe context (NOT inside the NAND read/write fault path, where issuing
+ * an LFS write could re-enter the FX user mutex or stall a critical I/O
+ * for hundreds of milliseconds). bbt_persist_request() never blocks. */
+static volatile bool g_bbt_dirty = false;
+
+static void bbt_persist_request() { g_bbt_dirty = true; }
+
+extern "C" void fx_nand_driver_bbt_flush_if_dirty(void) {
+    if (!g_bbt_dirty) return;
+    /* Snapshot under volatile barrier; concurrent further updates set the
+     * flag again and we'll catch them in the next flush. */
+    g_bbt_dirty = false;
+    if (!coralmicro::LfsWriteFile(kBbtPath, g_block_status,
+                                  sizeof(g_block_status))) {
+        SERR_LOG(SERR_LFX_BBT_PERSIST, 0u);
+        /* Re-raise dirty so a future flush retries. */
+        g_bbt_dirty = true;
+    }
+}
+
+static void bbt_load() {
+    std::memset(g_block_status, 0, sizeof(g_block_status));
+    std::memset(g_block_read_fails, 0, sizeof(g_block_read_fails));
+    if (!coralmicro::LfsFileExists(kBbtPath)) {
+        printf("[bbt] no persisted BBT, starting clean\r\n");
+        return;
+    }
+    size_t n = coralmicro::LfsReadFile(kBbtPath, g_block_status,
+                                       sizeof(g_block_status));
+    if (n != sizeof(g_block_status)) {
+        printf("[bbt] WARN size mismatch read=%zu expected=%zu — re-init\r\n",
+               n, sizeof(g_block_status));
+        std::memset(g_block_status, 0, sizeof(g_block_status));
+        return;
+    }
+    int n_bad = 0;
+    for (size_t i = 0; i < sizeof(g_block_status); ++i) {
+        if (g_block_status[i]) n_bad++;
+    }
+    if (n_bad) printf("[bbt] loaded %d bad block(s) from BBT\r\n", n_bad);
+}
 
 /* Diagnostic counters.  Exposed to MicroPython via sentai.diag.fx_stats(). */
 struct FxNandStats {
@@ -101,11 +153,34 @@ static bool nand_read_page_raw(uint32_t phys_block, ULONG page) {
         st = Nand_Flash_Read_Page(h, page_index, g_page_scratch,
                                   FX_NAND_PAGE_RAW_BYTES);
         if (st == kStatus_Success) {
+            // Reset the consecutive-fail counter on success.
+            const uint32_t logical = phys_block - FX_NAND_USER_BASE_BLOCK;
+            if (logical < FX_NAND_USER_BLOCK_COUNT) {
+                g_block_read_fails[logical] = 0;
+            }
             return true;
         }
     }
     g_stats.read_errors++;
     SERR_LOG(SERR_LFX_NAND_READ, page_index);
+    printf("[nand] READ FAIL page=%u (block=%u sub=%u) st=0x%lX\r\n",
+           (unsigned)page_index, (unsigned)phys_block, (unsigned)page,
+           (unsigned long)st);
+    // Auto-bad-block: after kAutoBadAfterReadFails consecutive read failures
+    // on the same logical block, persist it as bad so future formats avoid it.
+    const uint32_t logical = phys_block - FX_NAND_USER_BASE_BLOCK;
+    if (logical < FX_NAND_USER_BLOCK_COUNT) {
+        if (g_block_read_fails[logical] < 255) g_block_read_fails[logical]++;
+        if (g_block_read_fails[logical] >= kAutoBadAfterReadFails &&
+            g_block_status[logical] == 0u) {
+            g_block_status[logical] = 1u;
+            g_stats.bad_blocks++;
+            printf("[bbt] AUTO-MARK BAD logical=%u phys=%u (after %d fails)\r\n",
+                   (unsigned)logical, (unsigned)phys_block,
+                   g_block_read_fails[logical]);
+            bbt_persist_request();
+        }
+    }
     return false;
 }
 
@@ -340,14 +415,20 @@ fx_nand_driver_block_status_set(ULONG block, UCHAR bad_block_flag) {
     if (block >= FX_NAND_USER_BLOCK_COUNT) {
         return LX_ERROR;
     }
+    bool changed = false;
     if (bad_block_flag == LX_NAND_BAD_BLOCK) {
         if (g_block_status[block] == 0u) {
             g_block_status[block] = 1u;
             g_stats.bad_blocks++;
+            changed = true;
         }
     } else {
-        g_block_status[block] = 0u;
+        if (g_block_status[block] != 0u) {
+            g_block_status[block] = 0u;
+            changed = true;
+        }
     }
+    if (changed) bbt_persist_request();
     return LX_SUCCESS;
 }
 
@@ -424,8 +505,9 @@ extern "C" UINT fx_nand_driver_initialize(LX_NAND_FLASH* nand_flash) {
     nand_flash->lx_nand_flash_spare_data2_length  = 8;
     nand_flash->lx_nand_flash_spare_total_length  = FX_NAND_SPARE_PER_PAGE;
 
-    /* Reset the static block-status table on every (re-)mount. */
-    std::memset(g_block_status, 0, sizeof(g_block_status));
+    /* Load persisted bad-block table from /system/.nand_bbt (LFS, separate
+     * from the user FX partition so it survives sentai.fs.format()). */
+    bbt_load();
 
     return LX_SUCCESS;
 }

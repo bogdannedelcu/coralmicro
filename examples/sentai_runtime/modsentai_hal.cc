@@ -341,47 +341,92 @@ static volatile bool s_imu_ev_run   = false;
 // two singles within DTAP_WINDOW_MS, separated by at least DTAP_REFRACTORY_MS,
 // produce one DOUBLE_TAP event. Values per ST AN5453 §4 conventions for
 // human gestures at 100 Hz ODR.
-#define DTAP_WINDOW_MS       600
-#define DTAP_REFRACTORY_MS    80
+#define DTAP_WINDOW_MS         600u
+#define DTAP_REFRACTORY_MS      80u
+#define IMU_LED_PULSE_MS      1000u
+#define IMU_POLL_PERIOD_MS      20u   // 50 Hz
+#define IMU_I2C_ERR_DEGRADED    20u   // ~400 ms straight failure → degraded
+#define IMU_I2C_ERR_FAIL       100u   // ~2 s straight failure → exit task
+
+// Health/diagnostic counters. Read by future sentai.diag.imu_health() — for
+// now consumed only by SERR_LOG so post-mortem can attribute degradation.
+static volatile uint32_t s_imu_i2c_errors_total = 0;
+
+// Bounded busy-wait counter for tap_stop join. We never sleep > IMU_STOP_*.
+#define IMU_STOP_POLL_MS        10u
+#define IMU_STOP_MAX_POLLS      20u   // 200 ms total bounded wait
 
 static void sentai_imu_event_task(void* p) {
     (void)p;
-    TickType_t t_first_single = 0;  // ms tick of the first single in the window
+    TickType_t t_first_single = 0;
     bool       have_first     = false;
     TickType_t t_last_single  = 0;
+    TickType_t t_led_off      = 0;          // 0 = LED is off
+    uint32_t   i2c_err_streak = 0;          // consecutive I2C failures
+
     while (s_imu_ev_run) {
-        if (g_imu_initialized) {
-            lis2du12_all_sources_t sources{};
-            if (lis2du12_all_sources_get(g_imu.GetDevCtx(), &sources) == 0
-                && sources.single_tap) {
-                TickType_t now_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
-                if (now_ms - t_last_single >= DTAP_REFRACTORY_MS) {
-                    t_last_single = now_ms;
-                    if (!have_first || (now_ms - t_first_single) > DTAP_WINDOW_MS) {
-                        // First single (or window expired without a second) →
-                        // arm for a potential double.
-                        t_first_single = now_ms;
-                        have_first     = true;
-                    } else {
-                        // Second single within window → emit DOUBLE +
-                        // chip-side LED pulse (immediate visual feedback,
-                        // independent of whether REPL polls the queue).
-                        have_first = false;
-                        uint32_t ev = SENTAI_IMU_EV_DOUBLE_TAP;
-                        if (uxQueueSpacesAvailable(s_imu_evq) == 0) {
-                            uint32_t dump;
-                            xQueueReceive(s_imu_evq, &dump, 0);
-                        }
-                        xQueueSend(s_imu_evq, &ev, 0);
-                        coralmicro::LedSet(coralmicro::Led::kUser, true);
-                        vTaskDelay(pdMS_TO_TICKS(1000));
-                        coralmicro::LedSet(coralmicro::Led::kUser, false);
-                    }
+        const TickType_t now_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
+
+        // Non-blocking LED off: deadline-checked each loop iteration so we
+        // do NOT lose tap events while a previous flash is "on".
+        if (t_led_off != 0 && now_ms >= t_led_off) {
+            coralmicro::LedSet(coralmicro::Led::kUser, false);
+            t_led_off = 0;
+        }
+
+        if (!g_imu_initialized) {
+            vTaskDelay(pdMS_TO_TICKS(IMU_POLL_PERIOD_MS));
+            continue;
+        }
+
+        lis2du12_all_sources_t sources{};
+        const int rc = lis2du12_all_sources_get(g_imu.GetDevCtx(), &sources);
+        if (rc != 0) {
+            s_imu_i2c_errors_total++;
+            if (++i2c_err_streak == IMU_I2C_ERR_DEGRADED) {
+                // Soft degraded notification: log once per streak entry.
+                printf("[imu_ev] DEGRADED: I2C errors=%u streak\r\n",
+                       (unsigned)i2c_err_streak);
+            }
+            if (i2c_err_streak >= IMU_I2C_ERR_FAIL) {
+                // Bus is stuck. Bail out so the next tap_start() can attempt
+                // a clean re-init rather than spin here forever.
+                printf("[imu_ev] I2C dead %u polls, exiting\r\n",
+                       (unsigned)i2c_err_streak);
+                break;
+            }
+            vTaskDelay(pdMS_TO_TICKS(IMU_POLL_PERIOD_MS));
+            continue;
+        }
+        i2c_err_streak = 0;
+
+        if (sources.single_tap
+            && (now_ms - t_last_single) >= DTAP_REFRACTORY_MS) {
+            t_last_single = now_ms;
+            if (!have_first || (now_ms - t_first_single) > DTAP_WINDOW_MS) {
+                // First single (or window expired) → arm for a potential
+                // double.
+                t_first_single = now_ms;
+                have_first     = true;
+            } else {
+                // Second single within window → emit DOUBLE + non-blocking
+                // LED pulse. Do NOT sleep here, the loop continues to drain
+                // further taps and to age the LED-off deadline.
+                have_first = false;
+                uint32_t ev = SENTAI_IMU_EV_DOUBLE_TAP;
+                if (uxQueueSpacesAvailable(s_imu_evq) == 0) {
+                    uint32_t dump;
+                    (void)xQueueReceive(s_imu_evq, &dump, 0);
                 }
+                (void)xQueueSend(s_imu_evq, &ev, 0);
+                coralmicro::LedSet(coralmicro::Led::kUser, true);
+                t_led_off = now_ms + IMU_LED_PULSE_MS;
             }
         }
-        vTaskDelay(pdMS_TO_TICKS(20));  // 50 Hz poll
+        vTaskDelay(pdMS_TO_TICKS(IMU_POLL_PERIOD_MS));
     }
+    // Cooperative exit path. LED guaranteed off so we don't leave it lit.
+    coralmicro::LedSet(coralmicro::Led::kUser, false);
     s_imu_ev_task = nullptr;
     vTaskDelete(nullptr);
 }
@@ -436,11 +481,21 @@ int sentai_imu_tap_start(void) {
 }
 
 int sentai_imu_tap_stop(void) {
-    if (s_imu_ev_task) {
+    TaskHandle_t handle = s_imu_ev_task;
+    if (handle) {
         s_imu_ev_run = false;
-        // Wait up to 200 ms for task to exit cooperatively.
-        for (int i = 0; i < 20 && s_imu_ev_task; ++i) {
-            vTaskDelay(pdMS_TO_TICKS(10));
+        // Bounded cooperative wait. After IMU_STOP_MAX_POLLS * IMU_STOP_POLL_MS
+        // we force-delete the task — this prevents tap_stop() from silently
+        // becoming a no-op if the event task is wedged in I2C.
+        unsigned waited = 0;
+        for (; waited < IMU_STOP_MAX_POLLS && s_imu_ev_task; ++waited) {
+            vTaskDelay(pdMS_TO_TICKS(IMU_STOP_POLL_MS));
+        }
+        if (s_imu_ev_task) {
+            printf("[imu_ev] cooperative stop timed out, force delete\r\n");
+            vTaskDelete(handle);
+            s_imu_ev_task = nullptr;
+            coralmicro::LedSet(coralmicro::Led::kUser, false);
         }
     }
     // Best-effort: clear chip-side latched state so a subsequent RAM-flash
