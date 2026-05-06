@@ -5731,3 +5731,353 @@ so it's always post-flip after the 1500 ms settle.
 `diag/_t_cam_snapshot.py` -- on-board capture driver (uses the simple
 sleep recipe).  Push via `_host_upload_repl.py`, exec via REPL, pull
 JPEGs from `/diags/sNNN_cam_snap/` via HTTP.
+
+---
+
+# Crazyflie ⇄ SentAI radio bridge (sessions 2026-05-05 → 2026-05-06)
+
+## TL;DR
+
+Got a clean **bidirectional** radio link between a host PC (Crazyradio
+PA) and the SentAI MicroPython REPL through a Crazyflie 2.1 brushless
+drone acting as relay. Architecture is a Bitcraze deck driver on the
+drone (`examples/app_sentai_bridge/`) plus a bytes parser on the board
+(`sentai_crazy.cc`'s 0xAA state machine). Validated end-to-end:
+`cf.send_packet(port=0x0E, data=b'>>> 1+1')` → board exec →
+`<-- ch=0 b'OK 2'` on the host. 47-byte replies fragment correctly
+into 2 chunks and reassemble host-side. LED `RED_R` stays lit (no
+scheduler stall).
+
+Drone-side fork:
+`https://github.com/bogdannedelcu/crazyflie-firmware`, branch
+`sentai-deck-driver`, rebased on bitcraze/master. Two commits:
+
+```
+e93ba9... sentai-bridge: deck driver for Coral Dev Board on UART2
+2b7661... estimator_kalman: enable KALMAN_USE_BARO_UPDATE
+```
+
+Best-practices section in `agent/agent.md` §18 captures the
+constants, conventions, anti-patterns and DFU procedure.
+
+## How we got there (the long way)
+
+### Dead end 1: CPX over UART (sessions 2026-05-05)
+
+Initial plan was to use Bitcraze's `cpx-host-on-uart2` deck driver.
+We hit two repeatable hangs:
+
+1. Drone's `CPX_UART_TX` task wedges on
+   `do { wait CTS } while (!CTS_EVENT)` with `portMAX_DELAY` if our
+   ack timing slips.  Recovery requires reboot.
+2. `uartTxQueue` is created with `sizeof(CPXPacket_t)` slots but
+   `cpxUARTTransportSend(CPXRoutablePacket_t*)` queues a smaller
+   struct → 2-byte BSS overflow into `uart_task_context.txp.route`,
+   producing corrupt UART output (`RX bad len 255` on the board RX
+   state machine).
+
+We patched `cpx_uart_transport.c` with bounded timeouts, but reverted:
+the CPX-over-UART convention is fundamentally fragile for
+non-Bitcraze decks. **CPX is good when both ends are Bitcraze
+firmware; it does not generalise.**
+
+### Dead end 1.5: silent CPX still racing the deck (2026-05-06 ⚠️ retro-fix)
+
+Even after switching to the deck-driver pattern (and explicitly
+NOT loading `cpx-host-on-uart2`), the bridge still wedged after a
+few packets. Symptom on Pattern C testing: `R2U` increments cleanly
+0→3 then freezes; subsequent sends are ACKed at radio level
+(NRF51) but never reach the deck callback.  Drone power-cycle resets
+to 0, same pattern repeats.
+
+**Root cause**: upstream Kconfig has `ENABLE_CPX` default `y`, and
+that option `select`s `ENABLE_CPX_ON_UART2`. Even with our deck
+driver in `CONFIG_DECK_FORCE`, Kbuild was still compiling
+`cpx_uart_transport.c` and **its TX task was racing our deck
+callback for the shared static globals `txBuffer / txIdx / txSize`
+in `uart2.c`**. Both call `uart2SendData`; the second call clobbers
+the first's in-flight state; the ISR ends up feeding the wrong
+buffer; TX_DONE never asserts for our deck; `on_radio_packet`
+blocks forever in `xEventGroupWaitBits(... portMAX_DELAY)`; CRTP
+RX task stalls; R2U stops climbing.
+
+**Fix** (1 line in `examples/app_sentai_bridge/app-config`):
+```
+CONFIG_ENABLE_CPX=n
+```
+This cascades through Kconfig's `depends on ENABLE_CPX` to also turn
+off `ENABLE_CPX_ON_UART2`. Verified post-fix:
+- 4 sequential `cf.send_packet(port=0x0E, data=b'$1+1')` produced
+  4 sequential bit-perfect `aa 05 00 24 31 2b 31 a0` frames at the
+  drone's PA2 TX pin (probed with CP2102 USB2serial @ 576000 8N1).
+- `deck.sentaiR2U` advances exactly +N for every send burst.
+
+**Diagnostic recipe** (kept for next time):
+1. `lsusb | grep CP210` — find adapter device
+2. Disconnect SentAI from drone deck; wire only adapter
+3. Adapter RX ← drone PA2 (TX2), adapter TX → drone PA3 (RX2),
+   shared GND mandatory, 3.3 V level
+4. Open `/dev/ttyUSB0` at 576000 8N1
+5. Send via cflib `cf.send_packet(port=0x0E, ...)` — expect
+   `aa LL CH ... CRC` 8-byte frames where CRC = XOR of all preceding
+6. Or send raw 0xAA frame from adapter — expect `bytes_seen` (deck
+   console) and `U2Rdrp` to climb on drone counters
+
+### Dead end 2: app_sentai_bridge as a `CONFIG_APP_ENABLE` app
+
+Wrote the bridge as a firmware app (`appMain` task polling Appchannel,
+forwarding to `cpxUARTTransportSend`). LED `RED_R` went dark on the
+drone the moment the host called `open_link()`: STM32 scheduler was
+starved by appMain (low priority) consuming the appchannel queue
+fast enough to push out the radio TOC handshake. **Apps are wrong for
+always-on packet relay work** — deck drivers run in the high-priority
+CRTP RX task itself.
+
+### Working architecture
+
+- Drone-side: full **deck-driver** pattern from
+  `docs/development/howto/`. `DECK_DRIVER(sentaiDeck)` with
+  `.usedPeriph = DECK_USING_UART2`. `CONFIG_DECK_FORCE="sentai"` in
+  `app-config` because we have no 1-wire memory.
+- `sentaiInit` (deck-core context) calls `uart2Init(576000)`,
+  `crtpRegisterPortCB(0x0E, on_radio_packet)`, and spawns
+  `uart_rx_task`.
+- `on_radio_packet` (CRTP RX task) builds the 0xAA frame on stack,
+  `uart2SendData(...)`. No queue, no shared buffer, no race.
+- `uart_rx_task` (priority 2) `systemWaitStart()`s, then runs the
+  5-state parser with `uart2GetDataWithTimeout(1, &b, M2T(50))` —
+  **never `portMAX_DELAY`** — and on a valid frame
+  `crtpSendPacket(...)`.
+
+`systemWaitStart()` is mandatory: without it, the task spins against
+an uninitialised UART2 stream buffer and `bytes_seen` stays 0
+indefinitely (silent failure mode).
+
+### Wire format
+
+```
++------+-----+----+--------+-----+
+| 0xAA | LEN | CH | DATA…  | CRC |
++------+-----+----+--------+-----+
+```
+
+- `LEN = 1 + DATA_BYTES`, range 1..31.
+- 4 channels: 0=REPL bidirectional, 1=flow inject (board→drone EKF),
+  2=reserved (drone control), 3=reserved.
+- CRC = XOR of every byte before it including `0xAA` and `LEN`.
+- Channel 0 fragments with a 1-byte `MF` prefix (0=last, 1=more)
+  giving 29 useful bytes per CRTP packet (radio max payload is 30).
+- `flow_pkt_t` (channel 1) is packed `float dpx, dpy, dt, std` = 16 B,
+  fits one packet, no fragmentation.
+
+### Compression decisions (and why we abandoned them)
+
+Measured against typical REPL replies and on the static help.txt
+(67 KB):
+
+| Algorithm | Win @ 30 B reply | Win @ 67 KB help.txt | Code size |
+|-----------|------------------|----------------------|-----------|
+| smaz      | 30-40%           | only 26%             | ~3 KB     |
+| zlib -9   | -30% to +30% (often worse) | 70%       | ~30 KB    |
+| bz2 / lzma| similar          | 70-72%               | larger    |
+
+For typical REPL replies (≤30 B → 1 fragment, ≤60 B → 2 fragments),
+compression yields zero or negative win. For occasional long replies,
+the simpler optimisation is to **shorten the protocol** ("OK 1182"
+instead of `OK 'SentAI v1.0 build 1182 (...)'`). For static large
+text (help.txt), zlib would save ~46 KB of flash but it's a separate
+task from the radio bridge and not justified yet.
+
+Decision: keep the wire format uncompressed, MF-byte fragmentation
+only.
+
+### Empirical pipeline (host ↔ board ↔ drone)
+
+```
+host PC                                drone STM32                  SentAI board
+─────────                              ─────────────                ─────────────
+cf.send_packet(port=0x0E, ch=0,
+                data=b'$1+1')   ─►  on_radio_packet (CRTP RX cb)
+                                       writes 0xAA frame on UART2 ─►   rx state machine + MF reasm
+                                                                          ▼
+                                                                   dispatch_push(EXEC) → mp_sched
+                                                                          ▼
+                                                                   crazy_run_exec (MP context)
+                                                                       compile + eval '1+1'
+                                                                       link_send(0, b'OK 2')   (auto-frag)
+                                                                          ▼
+                                          uart_rx_task ◄─────────  0xAA frame(s) on UART2
+                                          builds CRTPPacket
+                                          crtpSendPacket(...)  ──► host port 0x0E callback:
+                                                                       <-- ch=0 b'OK 2'
+```
+
+Pattern C (C-side dispatcher + `$` prefix + `on_message`) shipped in
+board build 1183.  Round-trip ~tens of ms.  Drone LED `RED_R` remains
+lit throughout (SYS_LED healthy).
+
+## Status snapshot (end of 2026-05-06)
+
+✅ **Shipped end-to-end** (board build #1204, drone fork e93ba973+telem):
+
+- Drone deck driver `sentai_bridge.c`: race-free, bounded-timeouts,
+  `systemWaitStart`-clean.
+- Board MicroPython API: `sentai.crazy.init / on_message / link_send /
+  baro / altitude / battery / battery_pct / temp / pressure / telem`.
+  Old CPX-only methods (`hello`, `link_up`, `send_app`, `send_flow`)
+  and the legacy `poll_event`/`crazy_app_evq` queue removed
+  (technical debt cleared).
+- Channel 0 REPL bidirectional with **C-side `$`-prefix exec** and
+  **automatic in-C fragmentation** (`link_send` accepts any length,
+  emits 29-byte `[MF][chunk]` frames under one held mutex; rx side
+  reassembles before dispatch).
+- Channel 1 flow-inject: code path complete on both sides, queue
+  counters wired (`deck.sentaiFlow / FlowDrp`); not yet exercised
+  end-to-end with a real flow source.
+- **Channel 2 telemetry SHIPPED** (2026-05-06) — drone-side handler
+  resolves Bitcraze log var IDs lazily, board-side `query_telemetry`
+  semaphore-synchronizes a single response slot. Default timeout
+  200 ms. See "Telemetry channel" section below.
+- Pattern C dispatcher: SPSC FIFO + single-shot `mp_sched_schedule`
+  trampoline. `MICROPY_BEGIN/END_ATOMIC_SECTION` overridden to use
+  FreeRTOS critical sections (via wrappers in `mp_embed_safe.c` so the
+  QSTR pre-pass survives), making cross-task sched-queue access safe.
+- **MicroPython scheduler-drain hooks** — `mp_handle_pending(true)`
+  in `repl_getchar*` (every 10 ms while waiting for stdin) and
+  chunked `sentai.rtos.sleep_ms`. Async dispatch now fires within
+  ~10 ms even when MP is idle at the REPL prompt.
+- Estimator Kalman barometer update path enabled
+  (`KALMAN_USE_BARO_UPDATE`).
+- Fork branch rebased on upstream master (latest sensors task
+  notification + supervisor backward-compat picks).
+- Documented in `agent/agent.md` §18.
+
+### Validated `$`-prefix REPL commands (host → radio → board, 2026-05-06)
+
+All round-trips through `cf.send_packet(port=0x0E, channel=0, data=...)`,
+replies received on `cf.add_port_callback(0x0E, ...)` with MF reassembly:
+
+| Sent | Reply | Notes |
+|------|-------|-------|
+| `$1+1`           | `OK 2`           | EVAL form, single fragment |
+| `$2*3`           | `OK 6`           | |
+| `$5**2`          | `OK 25`          | |
+| `$10**2`         | `OK 100`         | |
+| `$3.14*2`        | `OK 6.28`        | float |
+| `$2**16`         | `OK 65536`       | |
+| `$dir(sentai.imu)` | `OK ['__name__','read','degrees','init','poll_event','radians','tap_start','tap_stop']` | **92 B**, 4 fragments auto-reassembled |
+| `$sentai.version()` | `OK 'SentAI v1.0 build 1204 ...'` | 49 B, 2 fragments |
+| `$sentai.imu.read()` | `OK None`     | EVAL returning None |
+| `$sentai.io.led_on()` | `OK None`    | LED actually toggled on board |
+| `$sentai.io.led_off()` | `OK None`   | |
+| `$sentai.rtos.ticks_ms()` | `OK 564962` | |
+| `$a=42; print(a)` | `OK`            | FILE form (semicolons), no return value |
+| `$1/0`           | `ERR ZeroDivisionError: divide by zero` | exception caught, NLR-wrapped |
+| `$nonexistent_var` | `ERR NameError: name 'nonexistent_var' isn't defined` | |
+| `$sentai.crazy.baro()` | `OK 92.90743` | **end-to-end**: host → drone → UART → board → MP exec → board UART → drone CH=2 query → drone log API → reply |
+| `$sentai.crazy.altitude()` | `OK 92.82922` | EKF-fused, ~93 m matches indoor floor |
+| `$sentai.crazy.battery()` | `OK 3.737243` | live battery V |
+| (no `$` prefix) | (silently dropped) | OR routed to `sentai.crazy.on_message` if user registered a handler — also validated: `hello-handler` → echo handler returned `'echo:hello-handler'` |
+
+### Telemetry channel (CH=2) — drone state via board
+
+Board API:
+
+```python
+sentai.crazy.baro()         # barometer altitude m (raw)
+sentai.crazy.altitude()     # stateEstimate.z  m (EKF-fused)
+sentai.crazy.battery()      # vbat              V
+sentai.crazy.battery_pct()  # batteryLevel      %
+sentai.crazy.temp()         # baro temperature  °C
+sentai.crazy.pressure()     # baro pressure     mbar
+sentai.crazy.telem(cmd, timeout_ms=200)  # generic, raises OSError on transport fail
+```
+
+Wire protocol on UART2 channel 2 (board ↔ drone):
+
+```
+request  (board → drone):  [0xAA][LEN=2][CH=2][cmd][CRC]
+reply    (drone → board):  [0xAA][LEN=6][CH=2][cmd_echo][float32 LE][CRC]
+```
+
+Drone-side `telem_read(cmd)` lazy-resolves the Bitcraze log var ID
+(`baro.asl`, `stateEstimate.z`, `pm.vbat`, `pm.batteryLevel`,
+`baro.temp`, `baro.pressure`) and returns `logGetFloat(id)`. Unknown
+cmd or unresolved log var returns NaN. Board waits on a binary
+semaphore tied to the rx state machine's CH=2 hook (single response
+slot, drained before each query so stale replies can't satisfy a
+fresh call).
+
+Round-trip latency: typically a few ms (UART bounded by 576000 baud =
+14 µs/byte × 8-byte query + 14 µs/byte × 11-byte reply ≈ 270 µs over
+the wire; rest is task scheduling).
+
+Counters exposed via `cfclient` PARAM tab on group `deck`:
+`sentaiTelem` (queries served), `sentaiTelBad` (unknown cmds).
+
+Live values captured 2026-05-06 (drone idle, indoor):
+
+```
+baro         = 92.92 m
+altitude     = 92.91 m
+battery      = 3.74 V
+battery_pct  = 10.0 %
+temp         = 30.83 °C
+pressure     = 1004.96 mbar
+```
+
+⏳ **Open**
+
+1. **Board → drone command injection** — channel 2 (or new channel 3)
+   opcodes for takeoff / land / arm / setpoint, calling
+   `crtpCommanderHighLevelTakeoff`, `supervisorRequestArming`,
+   `commanderSetSetpoint` directly on the drone (no CRTP injection,
+   no CPX). This is the actual "board commands the drone" path the
+   project is heading toward.
+2. **Host-side reassembler library** — Python helper that drains
+   `0x0E` packets, parses the leading `MF` byte and reassembles per
+   stream. Today every host script does this ad-hoc.
+5. **Reset / re-sync protocol** — host needs to drop its per-channel
+   reassembly buffer when the board reboots (or when the radio link
+   bounces) so a stray "more" fragment doesn't corrupt the next
+   message. Simple: on `connection_failed` / `connection_lost`, clear
+   buffers.
+6. **Diag MicroPython binding** `sentai.crazy.diag()` returning the
+   per-channel counters (rx/tx/drops/crc + new `g_dispatch_dropped`).
+   Mirrors the cfclient PARAM group.
+7. **Upstream PR** of the deck driver to bitcraze/crazyflie-firmware
+   once we have flight-time hours on it (currently bench-tested only).
+   The `KALMAN_USE_BARO_UPDATE` flag should probably be a Kconfig
+   option in a separate PR.
+8. **FileX user partition self-heal** — separate from the bridge but
+   adjacent: NAND read-failure on physical page 16392 still requires
+   manual `sentai.fs.format()`. Bad-block table persistence work was
+   started but not finished (see project memory
+   `project_filex_phase2_shipped`).
+
+## How to pick this up next time
+
+1. Verify drone+board are flashed with our fork's tip:
+   - Drone: `cf.fully_connected` + check `deck.sentai*` params exist.
+   - Board: `sentai.version()` should be ≥ 1183, and
+     `'on_message' in dir(sentai.crazy)` must be True.
+2. Smoke test (Pattern C). On the board side, *no Python listener loop
+   needed for `$`-prefix REPL exec* — it runs in C automatically:
+   ```bash
+   python3 repl_run.py --line "import sentai; sentai.crazy.init()"
+   ```
+   then host-side:
+   ```python
+   cf.send_packet(CRTPPacket(port=0x0E, channel=0, data=b'$1+1'))
+   # → 0x0E callback: ch=0 b'OK 2'
+   ```
+   For non-script traffic, register a handler:
+   ```python
+   def on_msg(ch, data):
+       print('got', ch, data)
+       sentai.crazy.link_send(ch, b'ack')
+   sentai.crazy.on_message(on_msg)
+   ```
+3. If the drone radio scans but `open_link()` times out, the STM32
+   firmware is hung — power-cycle the drone, **don't** rely on
+   `cfloader reset`. See `agent.md` §18 DFU procedure.

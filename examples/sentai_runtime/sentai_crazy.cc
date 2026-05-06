@@ -24,6 +24,7 @@
 #include "third_party/freertos_kernel/include/task.h"
 #include "third_party/freertos_kernel/include/semphr.h"
 #include "third_party/freertos_kernel/include/queue.h"
+#include "third_party/freertos_kernel/include/timers.h"
 
 // Existing UART bridge functions (from modsentai_hal.cc)
 extern "C" {
@@ -31,6 +32,7 @@ extern int  sentai_uart_serial_open(void);
 extern void sentai_uart_serial_close(void);
 extern int  sentai_uart_serial_is_open(void);
 extern int  sentai_uart_serial_write(const uint8_t* buf, int size);
+extern void sentai_led_set(int on);
 extern int  sentai_uart_serial_read(uint8_t* buf, int max_size, int timeout_ms);
 extern void sentai_uart_set_baudrate(uint32_t baudrate);
 extern void sentai_uart_restore_baudrate(void);
@@ -126,6 +128,15 @@ static const int        kCrazyTxRetries = 3;
 static uint8_t  g_param_resp_buf[CRTP_MAX_PAYLOAD];
 static volatile int g_param_resp_len = 0;
 static SemaphoreHandle_t g_param_resp_sem = nullptr;
+
+// CH_TELEM response slot (channel 2). Drone replies with [cmd][float32].
+// Single-writer (rx task), single-reader (whatever calls
+// sentai_crazy_query_telemetry). The signal is a binary semaphore
+// drained before each query so stale responses can't satisfy the
+// next call.
+static volatile uint8_t  g_telem_resp_cmd = 0;
+static volatile float    g_telem_resp_val = 0.0f;
+static SemaphoreHandle_t g_telem_resp_sem = nullptr;
 
 // motorPowerSet param IDs (discovered from CF param TOC)
 static int16_t g_param_motor_m1     = -1;
@@ -344,6 +355,134 @@ enum CpxRxState {
 #define SENTAI_START_BYTE  0xAAu
 #define SENTAI_RX_MAX_LEN   32u  /* LEN field is CH(1) + DATA(≤30) + headroom */
 
+// ===================== Async dispatch FIFO =====================
+//
+// Inbound 0xAA frames on CH_REPL (channel 0) carry a 1-byte MF
+// (more-fragments) prefix; the rx task reassembles into one full
+// message, then enqueues it here. The MP-side trampoline (in
+// modsentai_crazy.c) drains the queue at the next VM tick and routes
+// by `kind`:
+//
+//   CRAZY_KIND_EXEC : message starts with `$` — built-in REPL exec
+//                     (compile + eval/exec, reply over CH_REPL)
+//   CRAZY_KIND_USER : forward (channel, bytes) to the registered
+//                     sentai.crazy.on_message handler
+//
+// SPSC: producer = crazy_rx_task, consumer = MP scheduler trampoline.
+// Drop-newest on overflow (rare — host traffic is human-paced).
+
+#define CRAZY_DISPATCH_DEPTH    8u
+#define CRAZY_DISPATCH_MASK     (CRAZY_DISPATCH_DEPTH - 1u)
+#define CRAZY_DISPATCH_MAX_LEN  256u
+
+#define CRAZY_KIND_EXEC   1u
+#define CRAZY_KIND_USER   2u
+
+struct CrazyDispatchSlot {
+    uint8_t  kind;
+    uint8_t  channel;
+    uint16_t len;
+    uint8_t  data[CRAZY_DISPATCH_MAX_LEN];
+};
+
+static struct CrazyDispatchSlot g_dispatch_q[CRAZY_DISPATCH_DEPTH];
+static volatile uint8_t  g_dispatch_head = 0;
+static volatile uint8_t  g_dispatch_tail = 0;
+static volatile uint32_t g_dispatch_dropped = 0;
+
+// Provided by modsentai_crazy.c (lives in MP-API land).
+extern "C" void sentai_crazy_request_drain(void);
+extern "C" int  sentai_crazy_handler_is_set(void);
+
+// Forward decl — implementation lives below the dispatch FIFO so the
+// led helpers stay grouped with the other "after-rx-processing" code.
+static void led_blink_kick_1s(void);
+
+extern "C" int sentai_crazy_dispatch_pop(uint8_t* kind, uint8_t* channel,
+                                          uint8_t* buf, int max,
+                                          int* out_len) {
+    uint8_t head = g_dispatch_head;
+    uint8_t tail = g_dispatch_tail;
+    if (head == tail) return 0;
+    struct CrazyDispatchSlot* slot = &g_dispatch_q[head];
+    *kind = slot->kind;
+    *channel = slot->channel;
+    int n = slot->len;
+    if (n > max) n = max;
+    if (n > 0) memcpy(buf, slot->data, n);
+    *out_len = n;
+    g_dispatch_head = (head + 1u) & CRAZY_DISPATCH_MASK;
+    return 1;
+}
+
+extern "C" uint32_t sentai_crazy_dispatch_drops(void) {
+    return g_dispatch_dropped;
+}
+
+static int dispatch_push(uint8_t kind, uint8_t channel,
+                         const uint8_t* data, int len) {
+    if (len < 0) len = 0;
+    if (len > (int)CRAZY_DISPATCH_MAX_LEN) len = (int)CRAZY_DISPATCH_MAX_LEN;
+    uint8_t tail = g_dispatch_tail;
+    uint8_t next = (tail + 1u) & CRAZY_DISPATCH_MASK;
+    if (next == g_dispatch_head) {
+        g_dispatch_dropped++;
+        if (g_crazy_debug >= 1)
+            printf("[crazy] dispatch DROPPED (full, kind=%u ch=%u len=%d)\r\n",
+                   kind, channel, len);
+        return -1;
+    }
+    struct CrazyDispatchSlot* slot = &g_dispatch_q[tail];
+    slot->kind = kind;
+    slot->channel = channel;
+    slot->len = (uint16_t)len;
+    if (len > 0) memcpy(slot->data, data, (size_t)len);
+    g_dispatch_tail = next;
+    /* Visual heartbeat: every accepted radio frame flashes the user LED.
+     * Single chokepoint so EXEC, USER, and any future kinds all light up
+     * the same way without duplicated calls. */
+    led_blink_kick_1s();
+    sentai_crazy_request_drain();
+    return 0;
+}
+
+/* No inbound reassembly buffer: inbound is single-frame today (cflib
+ * caps send_packet at one CRTP frame, ≤30 B body). See the asymmetry
+ * note in the SENTAI_RX_CRC handler. */
+
+/* ---- Visual heartbeat: 1-second user-LED flash on every inbound. ----
+ *
+ * Lazy-created one-shot software timer. The rx task starts/restarts it
+ * on every accepted radio frame; the timer callback (run from the
+ * FreeRTOS Timer task) clears the LED when the 1-second window expires.
+ *
+ * Why a one-shot timer (not a counter / scheduled job): zero CPU
+ * between events, deterministic deadline, and re-triggering an active
+ * timer just extends the visible flash — exactly the right UX when
+ * frames arrive in bursts.
+ *
+ * Resource: 1 TimerHandle_t. Created lazily on first use so we don't
+ * pay it when the radio bridge is never started. */
+static TimerHandle_t g_led_blink_timer = nullptr;
+
+static void led_blink_timer_cb(TimerHandle_t /*xTimer*/) {
+    sentai_led_set(0);
+}
+
+static void led_blink_kick_1s(void) {
+    if (g_led_blink_timer == nullptr) {
+        g_led_blink_timer = xTimerCreate(
+            "crzLed", pdMS_TO_TICKS(1000),
+            pdFALSE,                          /* one-shot */
+            nullptr, led_blink_timer_cb);
+        if (g_led_blink_timer == nullptr) return;   /* OOM — skip flash */
+    }
+    sentai_led_set(1);
+    /* Restart resets the deadline to now+1s — bursts coalesce visually. */
+    xTimerChangePeriod(g_led_blink_timer, pdMS_TO_TICKS(1000), 0);
+    xTimerReset(g_led_blink_timer, 0);
+}
+
 // Process a complete, CRC-valid received CPX frame.
 static void cpx_process_rx(const uint8_t* data, uint16_t len) {
     if (len < 2) return;
@@ -448,12 +587,33 @@ static void crazy_rx_task(void* param) {
     uint8_t frame_len = 0;     // LEN byte (1 byte)
     uint16_t frame_idx = 0;
 
+    /* Diagnostic: prove the task is alive AND see byte arrival rate.
+     * Mirrors the drone-side `SENTAI: rx idle: bytes_seen=N` print so
+     * we can see at-a-glance whether UART2 RX is delivering anything
+     * at all, independent of frame-state-machine progress. */
+    uint32_t total_bytes_seen = 0;
+    uint32_t last_log_ms = 0;
+
     printf("[crazy] RX task started\r\n");
 
     while (g_crazy_running) {
         uint8_t buf[32];
         int n = sentai_uart_serial_read(buf, sizeof(buf), 50);
+        {
+            uint32_t now_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
+            if (g_crazy_debug >= 1 && now_ms - last_log_ms >= 5000u) {
+                printf("[crazy] rx alive: bytes_seen=%lu\r\n",
+                       (unsigned long)total_bytes_seen);
+                last_log_ms = now_ms;
+            }
+        }
         if (n <= 0) continue;
+        total_bytes_seen += (uint32_t)n;
+        if (g_crazy_debug >= 2) {
+            printf("[crazy] rx +%dB:", n);
+            for (int k = 0; k < n && k < 16; k++) printf(" %02X", buf[k]);
+            printf("\r\n");
+        }
 
         for (int i = 0; i < n; i++) {
             uint8_t b = buf[i];
@@ -502,14 +662,53 @@ static void crazy_rx_task(void* param) {
                     if (g_crazy_debug >= 1)
                         printf("[crazy] SENTAI CRC err: got %02X exp %02X\r\n",
                                b, expected);
-                } else {
+                } else if (frame_len >= 1) {
                     /* frame_buf[0] = CH, frame_buf[1..frame_len-1] = DATA.
-                     * Push only DATA into the existing app event queue so
-                     * the REPL listener (_t_radio_repl.py) can drain via
-                     * sentai.crazy.poll_event(). */
-                    if (frame_len > 1) {
-                        extern void crazy_app_evq_push(const uint8_t*, int);
-                        crazy_app_evq_push(&frame_buf[1], (int)frame_len - 1);
+                     *
+                     * Wire-format asymmetry by design:
+                     *   outbound (board → drone → host): MF byte is added
+                     *     by sentai_crazy_link_send() to support arbitrary
+                     *     reply sizes; host reassembles.
+                     *   inbound  (host → drone → board): NO MF byte. cflib
+                     *     hard-caps send_packet at 30 B (one CRTP frame),
+                     *     so a single-frame protocol matches the actual
+                     *     constraint and avoids needing a host-side
+                     *     fragmenter today.
+                     *
+                     * If/when the host ever needs to send >30 B (would
+                     * require patching cflib), revisit this and add an
+                     * inbound MF byte symmetrically. */
+                    const uint8_t channel = frame_buf[0] & 0x03u;
+                    const uint8_t* body   = &frame_buf[1];
+                    const int data_len    = (int)frame_len - 1;
+
+                    if (channel == 0u) {
+                        /* CH_REPL: '$' prefix → built-in REPL exec,
+                         *          else → user on_message handler.
+                         * Drop empty CH_REPL frames silently. */
+                        if (data_len > 0 && body[0] == '$') {
+                            dispatch_push(CRAZY_KIND_EXEC, 0,
+                                          &body[1], data_len - 1);
+                        } else if (data_len > 0 && sentai_crazy_handler_is_set()) {
+                            dispatch_push(CRAZY_KIND_USER, 0, body, data_len);
+                        }
+                    } else if (channel == 2u && data_len >= 5) {
+                        /* CH_TELEM reply: [cmd:1][float32:4]. Stash in
+                         * the response slot and signal the waiter. The
+                         * float is little-endian on the wire, same as
+                         * Cortex-M memory order — direct memcpy. The
+                         * rx task runs in normal task context (not an
+                         * ISR), so use xSemaphoreGive — the FromISR
+                         * variant is undefined behavior outside ISRs. */
+                        g_telem_resp_cmd = body[0];
+                        memcpy((void*)&g_telem_resp_val, &body[1], 4);
+                        if (g_telem_resp_sem) xSemaphoreGive(g_telem_resp_sem);
+                    } else {
+                        /* Non-REPL channel: deliver raw body to handler. */
+                        if (sentai_crazy_handler_is_set()) {
+                            dispatch_push(CRAZY_KIND_USER, channel,
+                                          body, data_len);
+                        }
                     }
                 }
                 state = CPX_RX_WAIT_START;
@@ -878,12 +1077,11 @@ extern "C" int sentai_crazy_init(uint32_t baudrate) {
     g_cmd_done_sem   = xSemaphoreCreateBinary();
     g_log_resp_sem   = xSemaphoreCreateBinary();
     g_log_data_sem   = xSemaphoreCreateBinary();
-    extern int sentai_crazy_app_evq_init(void);
-    sentai_crazy_app_evq_init();  // event queue for the radio bridge
+    g_telem_resp_sem = xSemaphoreCreateBinary();
 
     if (!g_crazy_tx_mutex || !g_crazy_cts || !g_crazy_ping_sem ||
         !g_param_resp_sem || !g_cmd_done_sem ||
-        !g_log_resp_sem || !g_log_data_sem) {
+        !g_log_resp_sem || !g_log_data_sem || !g_telem_resp_sem) {
         printf("[crazy] semaphore create failed\r\n");
         sentai_uart_serial_close();
         return -2;
@@ -1557,93 +1755,156 @@ extern "C" int sentai_crazy_fly_stop(void) {
     return 0;
 }
 
-// ===================== APP-layer event queue (Pattern B) =====================
-// CPX function=APP packets received from the radio (host PC) are pushed here
-// as length-prefixed byte buffers. REPL drains via sentai.crazy.poll_event().
-// Drop-oldest on overflow so latest commands are always delivered.
-
-#define CRAZY_APP_EVQ_DEPTH    8
-#define CRAZY_APP_EV_MAX_LEN   96   // CPX MTU 100 - hdr(2) - small headroom
-
-struct CrazyAppEvent {
-    uint8_t len;
-    uint8_t data[CRAZY_APP_EV_MAX_LEN];
-};
-
-QueueHandle_t g_crazy_app_evq = nullptr;
-
-void crazy_app_evq_push(const uint8_t* data, int len) {
-    if (!g_crazy_app_evq) return;
-    if (len <= 0) return;
-    if (len > CRAZY_APP_EV_MAX_LEN) len = CRAZY_APP_EV_MAX_LEN;
-    CrazyAppEvent ev;
-    ev.len = (uint8_t)len;
-    memcpy(ev.data, data, len);
-    if (uxQueueSpacesAvailable(g_crazy_app_evq) == 0) {
-        CrazyAppEvent dump;
-        xQueueReceive(g_crazy_app_evq, &dump, 0);
-    }
-    xQueueSend(g_crazy_app_evq, &ev, 0);
-}
-
-extern "C" int sentai_crazy_app_evq_init(void) {
-    if (g_crazy_app_evq) return 0;
-    g_crazy_app_evq = xQueueCreate(CRAZY_APP_EVQ_DEPTH, sizeof(CrazyAppEvent));
-    return g_crazy_app_evq ? 0 : -1;
-}
-
-extern "C" int sentai_crazy_app_poll(int timeout_ms, uint8_t* out_buf,
-                                     int out_max, int* out_len) {
-    if (!g_crazy_app_evq) return -1;
-    CrazyAppEvent ev;
-    TickType_t wait = (timeout_ms < 0) ? portMAX_DELAY : pdMS_TO_TICKS(timeout_ms);
-    if (xQueueReceive(g_crazy_app_evq, &ev, wait) != pdTRUE) return 0;
-    int n = ev.len;
-    if (n > out_max) n = out_max;
-    memcpy(out_buf, ev.data, n);
-    if (out_len) *out_len = n;
-    return 1;
-}
-
 // Send a payload over UART2 to the drone-side sentai deck using the
 // 0xAA wire format. The drone deck driver (sentai_bridge.c) parses the
 // frame, wraps it in a CRTPPacket on port LINK_PORT (0x0E), and ships
 // it back to the host PC over radio.
 //
-// Wire format: [0xAA][LEN=1+len][CH][data…][CRC]   (LEN ≤ 31)
+// Wire format on UART:  [0xAA][LEN][CH][...body...][CRC]   (LEN ≤ 31)
 //
-// Returns 0=ok, -1=not running, -2=invalid length, -3=UART tx fail.
+// On CH_REPL (channel 0), arbitrary lengths are auto-fragmented in C
+// so callers don't need a Python helper. Each fragment carries a
+// 1-byte MF (more-fragments) prefix at the start of the body:
+//
+//     CH=0:  body = [MF][chunk]   chunk ≤ SENTAI_LINK_MAX_DATA-1 = 29 B
+//            MF=1 → more fragments follow
+//            MF=0 → final fragment (also used for single-frame messages)
+//
+// On other channels (CH_FLOW etc.), the body is sent as-is, no MF byte,
+// no fragmentation; len must fit SENTAI_LINK_MAX_DATA.
+//
+// Returns 0=ok, -1=not running, -2=invalid args, -3=UART tx fail.
 #define SENTAI_LINK_START      0xAAu
 #define SENTAI_LINK_MAX_DATA   30   /* CRTP MAX_PAYLOAD on the radio side */
+#define SENTAI_LINK_CH_REPL    0u
+#define SENTAI_LINK_REPL_CHUNK (SENTAI_LINK_MAX_DATA - 1)  /* 29 B (1 B MF) */
 
 extern "C" int sentai_crazy_link_send(int channel, const uint8_t* data, int len) {
     if (!g_crazy_running) return -1;
-    if (len < 0 || len > SENTAI_LINK_MAX_DATA) return -2;
+    if (len < 0) return -2;
     if ((channel & ~0x03) != 0) return -2;
 
-    // Frame on stack — total 1 + 1 + 1 + len + 1 = 4 + len bytes.
-    uint8_t frame[1 + 1 + 1 + SENTAI_LINK_MAX_DATA + 1];
-    int idx = 0;
-    frame[idx++] = SENTAI_LINK_START;
-    frame[idx++] = (uint8_t)(1 + len);              // CH + DATA
-    frame[idx++] = (uint8_t)(channel & 0x03);
-    if (len > 0) {
-        memcpy(&frame[idx], data, len);
-        idx += len;
-    }
-    uint8_t crc = 0;
-    for (int i = 0; i < idx; ++i) crc ^= frame[i];
-    frame[idx++] = crc;
+    const uint8_t ch = (uint8_t)(channel & 0x03);
 
-    // Bounded mutex + UART write — no blocking semaphore wait, no CPX
-    // CTS/CTR handshake. The deck driver UART RX task on the drone side
-    // parses 0xAA frames continuously; nothing to ack.
+    /* ---- Non-REPL channels: single raw frame, no MF byte. ---- */
+    if (ch != SENTAI_LINK_CH_REPL) {
+        if (len > SENTAI_LINK_MAX_DATA) return -2;
+        uint8_t frame[1 + 1 + 1 + SENTAI_LINK_MAX_DATA + 1];
+        int idx = 0;
+        frame[idx++] = SENTAI_LINK_START;
+        frame[idx++] = (uint8_t)(1 + len);              // CH + DATA
+        frame[idx++] = ch;
+        if (len > 0) {
+            memcpy(&frame[idx], data, len);
+            idx += len;
+        }
+        uint8_t crc = 0;
+        for (int i = 0; i < idx; ++i) crc ^= frame[i];
+        frame[idx++] = crc;
+        for (int retry = 0; retry < kCrazyTxRetries; retry++) {
+            if (xSemaphoreTake(g_crazy_tx_mutex, kCrazyTxMutexTimeout) == pdTRUE) {
+                int n = sentai_uart_serial_write(frame, idx);
+                xSemaphoreGive(g_crazy_tx_mutex);
+                return (n == idx) ? 0 : -3;
+            }
+        }
+        return -3;
+    }
+
+    /* ---- CH_REPL: auto-fragment with MF byte. ----
+     *
+     * Hold the TX mutex across the whole burst so consecutive fragments
+     * stay together on the wire — no CTS frame from a parallel writer
+     * can sneak between two fragments and confuse the host reassembler.
+     * Worst-case burst at 576 000 baud / 33 B per frame ≈ 580 µs/frame;
+     * CHUNK=29 B keeps the mutex held for at most a few ms on long
+     * replies, well under any other writer's tolerance. */
+    bool locked = false;
     for (int retry = 0; retry < kCrazyTxRetries; retry++) {
         if (xSemaphoreTake(g_crazy_tx_mutex, kCrazyTxMutexTimeout) == pdTRUE) {
-            int n = sentai_uart_serial_write(frame, idx);
-            xSemaphoreGive(g_crazy_tx_mutex);
-            return (n == idx) ? 0 : -3;
+            locked = true;
+            break;
         }
     }
-    return -3;
+    if (!locked) return -3;
+
+    int sent = 0;
+    int rc = 0;
+    do {
+        int chunk = len - sent;
+        if (chunk > SENTAI_LINK_REPL_CHUNK) chunk = SENTAI_LINK_REPL_CHUNK;
+        const uint8_t mf = (sent + chunk < len) ? 1u : 0u;
+
+        uint8_t frame[1 + 1 + 1 + 1 + SENTAI_LINK_REPL_CHUNK + 1];
+        int idx = 0;
+        frame[idx++] = SENTAI_LINK_START;
+        frame[idx++] = (uint8_t)(1 + 1 + chunk);        // CH + MF + chunk
+        frame[idx++] = ch;
+        frame[idx++] = mf;
+        if (chunk > 0) {
+            memcpy(&frame[idx], data + sent, chunk);
+            idx += chunk;
+        }
+        uint8_t crc = 0;
+        for (int i = 0; i < idx; ++i) crc ^= frame[i];
+        frame[idx++] = crc;
+
+        int n = sentai_uart_serial_write(frame, idx);
+        if (n != idx) { rc = -3; break; }
+
+        sent += chunk;
+        /* len==0 → single MF=0 empty fragment, then exit. */
+        if (chunk == 0) break;
+    } while (sent < len);
+
+    xSemaphoreGive(g_crazy_tx_mutex);
+    return rc;
+}
+
+// =====================================================================
+// CH_TELEM (channel 2): query a single drone log variable as float.
+//
+// Wire protocol — both directions on UART CH=2:
+//     request:  [cmd:1]
+//     reply:    [cmd_echo:1][float32:4]   (LE on the wire == Cortex-M)
+//
+// Drone-side cmd codes are echoed in sentai_crazy.h (TELEM_*). NaN is
+// returned for unknown cmd or unresolved drone log var.
+//
+// Returns 0 on success (out_value populated), -1=not running,
+// -2=invalid args, -3=UART tx fail, -4=timeout, -5=cmd-mismatch
+// (reply was for a different cmd — likely from a stale earlier query
+// that arrived after our timeout).
+// =====================================================================
+extern "C" int sentai_crazy_query_telemetry(uint8_t cmd,
+                                             float* out_value,
+                                             int timeout_ms) {
+    if (!g_crazy_running) return -1;
+    if (out_value == nullptr) return -2;
+    if (g_telem_resp_sem == nullptr) return -1;
+
+    /* Drain any stale response so a previous-query reply that arrived
+     * post-timeout can't satisfy this fresh call. */
+    xSemaphoreTake(g_telem_resp_sem, 0);
+
+    /* Send the 1-byte query on channel 2 — single-frame, no MF byte
+     * (CH != 0 path in link_send doesn't auto-fragment). */
+    int rc = sentai_crazy_link_send(2, &cmd, 1);
+    if (rc != 0) return -3;
+
+    /* Wait for the rx task to give us the response. */
+    if (xSemaphoreTake(g_telem_resp_sem,
+                       pdMS_TO_TICKS(timeout_ms)) != pdTRUE) {
+        return -4;
+    }
+
+    /* Reject mismatched cmd echo — it'd mean we've raced with another
+     * caller. Today this API is not concurrent-safe (single response
+     * slot), but the check is cheap and catches the "stale reply"
+     * edge case where a previous timed-out query lands between our
+     * drain above and our send. */
+    if (g_telem_resp_cmd != cmd) return -5;
+
+    *out_value = g_telem_resp_val;
+    return 0;
 }

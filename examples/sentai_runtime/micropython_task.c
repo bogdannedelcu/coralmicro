@@ -48,6 +48,11 @@ extern void sentai_repl_activity(void);
 // Multi-line block buffer size
 #define REPL_BLOCK_MAX 4096
 
+// Idle drain interval (ms) — REPL stdin polls at this granularity.
+// Same value used in `sentai.rtos.sleep_ms` chunked path so async
+// scheduler callbacks fire within ~10 ms regardless of the path.
+#define MP_SCHED_DRAIN_MS 10
+
 // Command history
 #define HISTORY_SIZE 20
 static char history[HISTORY_SIZE][REPL_LINE_MAX];
@@ -225,12 +230,23 @@ static void mp_exec_str_with_ctrlc(const char* src) {
 }
 
 // ---------- Helper: read one char from serial, blocking with yield ----------
+// While idle, drain MicroPython's scheduler queue so callbacks scheduled
+// from non-MP tasks (e.g. sentai_crazy_request_drain from crazy_rx_task)
+// actually run instead of waiting until the user pastes Python bytecode.
+// This mirrors the standard MicroPython port pattern where stdin polling
+// is the natural place to call mp_handle_pending(true).
 static int repl_getchar(void) {
     char ch;
     while (1) {
         int n = sentai_console_read(&ch, 1);
         if (n == 1) return (unsigned char)ch;
-        vTaskDelay(pdMS_TO_TICKS(10));
+        /* `false`: drain scheduler callbacks but DON'T raise pending
+         * exceptions. We're at REPL prompt with no NLR handler — a
+         * raise here would propagate uncaught up `repl_readline` ->
+         * `micropython_repl_task` and crash. Ctrl-C is handled
+         * directly via `if (ch == 0x03)` in `repl_readline`. */
+        mp_handle_pending(false);
+        vTaskDelay(pdMS_TO_TICKS(MP_SCHED_DRAIN_MS));
     }
 }
 
@@ -241,7 +257,13 @@ static int repl_getchar_timeout(int timeout_ms) {
     while (waited < timeout_ms) {
         int n = sentai_console_read(&ch, 1);
         if (n == 1) return (unsigned char)ch;
-        vTaskDelay(pdMS_TO_TICKS(10));
+        /* `false`: drain scheduler callbacks but DON'T raise pending
+         * exceptions. We're at REPL prompt with no NLR handler — a
+         * raise here would propagate uncaught up `repl_readline` ->
+         * `micropython_repl_task` and crash. Ctrl-C is handled
+         * directly via `if (ch == 0x03)` in `repl_readline`. */
+        mp_handle_pending(false);
+        vTaskDelay(pdMS_TO_TICKS(MP_SCHED_DRAIN_MS));
         waited += 10;
     }
     return -1;

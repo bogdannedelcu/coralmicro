@@ -188,29 +188,317 @@ static mp_obj_t mod_sentai_crazy_fly_stop(void) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_crazy_fly_stop_obj, mod_sentai_crazy_fly_stop);
 
-// sentai.crazy.altitude() -> float
-// Read altitude from CF Kalman estimator (stateEstimate.z).
-// First call scans log TOC + starts streaming (~2-5s), then instant.
-// Returns altitude in metres, or -999.0 if not available.
-static mp_obj_t mod_sentai_crazy_altitude(void) {
-    return mp_obj_new_float(sentai_crazy_get_altitude());
-}
-static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_crazy_altitude_obj, mod_sentai_crazy_altitude);
+// =====================================================================
+// CH_TELEM (channel 2) — drone telemetry queries via the deck-driver
+// path. Each call sends a 1-byte cmd to the drone, drone reads the
+// matching log var and replies with `[cmd][float32]`. Round-trip is
+// typically a few ms (UART latency dominated).
+//
+// Returns the float (NaN on unknown cmd, default on transport error).
+//
+// On error returns the default-on-fail value (-999.0 by convention,
+// matching the legacy `sentai.crazy.altitude()` API). Callers wanting
+// to distinguish should use `sentai.crazy.telem(cmd, timeout)` which
+// raises OSError on transport failure.
+// =====================================================================
+extern int sentai_crazy_query_telemetry(uint8_t cmd, float* out, int timeout_ms);
 
-// sentai.crazy.poll_event(timeout_ms=100) -> bytes or None
-// Drain one CPX APP-layer message from the radio bridge queue.
-// timeout_ms < 0 = wait forever (Ctrl-C to break).
-extern int sentai_crazy_app_poll(int timeout_ms, uint8_t* out_buf,
-                                 int out_max, int* out_len);
-static mp_obj_t mod_sentai_crazy_poll_event(size_t n_args, const mp_obj_t* args) {
-    int timeout_ms = (n_args >= 1) ? mp_obj_get_int(args[0]) : 100;
-    uint8_t buf[96];
-    int got = 0;
-    int rc = sentai_crazy_app_poll(timeout_ms, buf, sizeof(buf), &got);
-    if (rc <= 0) return mp_const_none;
-    return mp_obj_new_bytes(buf, got);
+#define TELEM_BARO_ASL     0x01
+#define TELEM_STATE_Z      0x02
+#define TELEM_BATTERY_V    0x03
+#define TELEM_BATTERY_PCT  0x04
+#define TELEM_TEMP_C       0x05
+#define TELEM_PRESSURE     0x06
+
+static float telem_or_default(uint8_t cmd, int timeout_ms, float fallback) {
+    float v = fallback;
+    if (sentai_crazy_query_telemetry(cmd, &v, timeout_ms) != 0) return fallback;
+    return v;
 }
-static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_crazy_poll_event_obj, 0, 1, mod_sentai_crazy_poll_event);
+
+// sentai.crazy.baro(timeout_ms=200) -> float
+//   Barometric altitude above sea level (m). Raw baro reading, NOT
+//   fused with IMU. Use altitude() for the EKF-fused estimate.
+static mp_obj_t mod_sentai_crazy_baro(size_t n_args, const mp_obj_t* args) {
+    int t = (n_args > 0) ? mp_obj_get_int(args[0]) : 200;
+    return mp_obj_new_float(telem_or_default(TELEM_BARO_ASL, t, -999.0f));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_crazy_baro_obj, 0, 1, mod_sentai_crazy_baro);
+
+// sentai.crazy.altitude(timeout_ms=200) -> float
+//   Fused altitude estimate (m) from CF Kalman estimator. Combines
+//   barometer + IMU + flow if a flow deck is attached. Replaces the
+//   former CPX-based altitude() which is now defunct (CPX disabled).
+static mp_obj_t mod_sentai_crazy_altitude(size_t n_args, const mp_obj_t* args) {
+    int t = (n_args > 0) ? mp_obj_get_int(args[0]) : 200;
+    return mp_obj_new_float(telem_or_default(TELEM_STATE_Z, t, -999.0f));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_crazy_altitude_obj, 0, 1, mod_sentai_crazy_altitude);
+
+// sentai.crazy.battery(timeout_ms=200) -> float
+//   Battery voltage (V).
+static mp_obj_t mod_sentai_crazy_battery(size_t n_args, const mp_obj_t* args) {
+    int t = (n_args > 0) ? mp_obj_get_int(args[0]) : 200;
+    return mp_obj_new_float(telem_or_default(TELEM_BATTERY_V, t, -1.0f));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_crazy_battery_obj, 0, 1, mod_sentai_crazy_battery);
+
+// sentai.crazy.battery_pct(timeout_ms=200) -> float
+//   Battery level (%).
+static mp_obj_t mod_sentai_crazy_battery_pct(size_t n_args, const mp_obj_t* args) {
+    int t = (n_args > 0) ? mp_obj_get_int(args[0]) : 200;
+    return mp_obj_new_float(telem_or_default(TELEM_BATTERY_PCT, t, -1.0f));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_crazy_battery_pct_obj, 0, 1, mod_sentai_crazy_battery_pct);
+
+// sentai.crazy.temp(timeout_ms=200) -> float
+//   Barometer temperature (°C).
+static mp_obj_t mod_sentai_crazy_temp(size_t n_args, const mp_obj_t* args) {
+    int t = (n_args > 0) ? mp_obj_get_int(args[0]) : 200;
+    return mp_obj_new_float(telem_or_default(TELEM_TEMP_C, t, -999.0f));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_crazy_temp_obj, 0, 1, mod_sentai_crazy_temp);
+
+// sentai.crazy.pressure(timeout_ms=200) -> float
+//   Atmospheric pressure (mbar).
+static mp_obj_t mod_sentai_crazy_pressure(size_t n_args, const mp_obj_t* args) {
+    int t = (n_args > 0) ? mp_obj_get_int(args[0]) : 200;
+    return mp_obj_new_float(telem_or_default(TELEM_PRESSURE, t, -1.0f));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_crazy_pressure_obj, 0, 1, mod_sentai_crazy_pressure);
+
+// sentai.crazy.telem(cmd:int, timeout_ms=200) -> float
+//   Generic telemetry query — drops directly through to channel 2.
+//   Useful for forward-compat: drone-side firmware can add cmd codes
+//   without needing a new MP binding. Raises OSError on transport
+//   failure so callers can distinguish "drone offline" from "value =
+//   -999.0".
+static mp_obj_t mod_sentai_crazy_telem(size_t n_args, const mp_obj_t* args) {
+    uint8_t cmd = (uint8_t)mp_obj_get_int(args[0]);
+    int t = (n_args > 1) ? mp_obj_get_int(args[1]) : 200;
+    float v = 0.0f;
+    int rc = sentai_crazy_query_telemetry(cmd, &v, t);
+    if (rc != 0) {
+        mp_raise_OSError(rc);
+    }
+    return mp_obj_new_float(v);
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_crazy_telem_obj, 1, 2, mod_sentai_crazy_telem);
+
+// =====================================================================
+// sentai.crazy.on_message(callback|None) — async dispatch
+// =====================================================================
+//
+// Register a single Python callable to receive every inbound 0xAA frame
+// from the drone-side bridge except those handled by the built-in
+// `$`-prefix REPL exec path. Setting None drops further frames silently.
+//
+// Callback signature:    fn(channel: int, data: bytes) -> None
+//
+// Invocation runs in the MicroPython VM context (via mp_sched_schedule)
+// — fully heap-safe, can call link_send to reply, can raise exceptions
+// (caught + reported back over the radio as `ERR ...`).
+//
+// Inbound CH_REPL fragments are reassembled in C (MF byte stripped); the
+// callback receives the *full* message. Other channels deliver each
+// frame's raw body untouched.
+//
+// Wire-side semantics live in sentai_crazy.cc. This file owns the MP
+// interface only.
+//
+// (runtime.h / obj.h / lexer.h / parse.h / compile.h are already pulled
+//  in by modsentai.c — modsentai_crazy.c is #include'd from there.)
+
+extern int sentai_crazy_dispatch_pop(uint8_t* kind, uint8_t* channel,
+                                     uint8_t* buf, int max, int* out_len);
+extern int sentai_crazy_link_send(int channel, const uint8_t* data, int len);
+
+// GC-rooted handler slot. NULL = no handler (drop frames).
+MP_REGISTER_ROOT_POINTER(mp_obj_t crazy_msg_handler);
+
+#define CRAZY_KIND_EXEC   1u
+#define CRAZY_KIND_USER   2u
+#define CRAZY_DRAIN_BUF   256
+
+static volatile uint8_t g_crazy_drain_pending = 0;
+
+int sentai_crazy_handler_is_set(void) {
+    /* Read of an aligned pointer is atomic on 32-bit; the rx task only
+     * needs a binary "set or not" answer to decide whether to enqueue
+     * USER-kind frames at all. Race against on_message(None) at worst
+     * delivers one extra frame to the trampoline, which checks again. */
+    return MP_STATE_VM(crazy_msg_handler) != MP_OBJ_NULL ? 1 : 0;
+}
+
+/* ---------- $-prefix built-in REPL exec ---------- */
+
+/* One screenful is the bound on every reply path. Keeps stack vstrs tiny
+ * and prevents runaway repr() output from monopolizing the radio link. */
+#define CRAZY_REPLY_BUF   200
+
+static void crazy_send_reply(const uint8_t* data, int len) {
+    if (len < 0) len = 0;
+    if (len > CRAZY_REPLY_BUF) len = CRAZY_REPLY_BUF;
+    sentai_crazy_link_send(0, data, len);
+}
+
+static void crazy_send_reply_str(const char* s) {
+    crazy_send_reply((const uint8_t*)s, (int)strlen(s));
+}
+
+static void crazy_run_exec(const uint8_t* src, int src_len) {
+    if (src_len <= 0) {
+        crazy_send_reply_str("ERR empty");
+        return;
+    }
+
+    /* mp_lexer_new_from_str_len with free_len=0 doesn't take ownership
+     * of the bytes — it reads exactly `src_len` chars. The dispatch
+     * trampoline keeps the source buffer alive on its stack until this
+     * function returns, so no copy / heap alloc is needed here.
+     *
+     * We lex twice (EVAL first, FILE on SyntaxError) because mp_parse
+     * consumes its lexer; pre-tokenizing once would require a custom
+     * reader. Two lex passes are fine — the source is at most 200 B. */
+    qstr src_name = qstr_from_str("<radio>");
+    mp_obj_t val = mp_const_none;
+    bool used_eval = true;
+    bool ok = false;
+
+    nlr_buf_t outer;
+    if (nlr_push(&outer) == 0) {
+        nlr_buf_t inner;
+        mp_parse_tree_t pt;
+        if (nlr_push(&inner) == 0) {
+            mp_lexer_t* lex = mp_lexer_new_from_str_len(src_name,
+                (const char*)src, (size_t)src_len, 0);
+            pt = mp_parse(lex, MP_PARSE_EVAL_INPUT);
+            nlr_pop();
+        } else {
+            used_eval = false;
+            mp_lexer_t* lex2 = mp_lexer_new_from_str_len(src_name,
+                (const char*)src, (size_t)src_len, 0);
+            pt = mp_parse(lex2, MP_PARSE_FILE_INPUT);
+        }
+        mp_obj_t mod = mp_compile(&pt, src_name, false);
+        val = mp_call_function_0(mod);
+        ok = true;
+        nlr_pop();
+    }
+
+    /* Stack-only vstr — no GC heap on the reply path. Wrap the print in
+     * an inner NLR: vstr_ensure_extra on a fixed-buf vstr raises
+     * RuntimeError when full, and we want to ship whatever fit instead
+     * of silently propagating the overflow up the dispatch trampoline. */
+    VSTR_FIXED(v, CRAZY_REPLY_BUF);
+    mp_print_t pr = { &v, (mp_print_strn_t)vstr_add_strn };
+
+    if (ok) {
+        if (used_eval) {
+            vstr_add_str(&v, "OK ");
+            nlr_buf_t pn;
+            if (nlr_push(&pn) == 0) {
+                mp_obj_print_helper(&pr, val, PRINT_REPR);
+                nlr_pop();
+            }
+            /* On overflow we just send the truncated prefix as-is. */
+        } else {
+            vstr_add_str(&v, "OK");
+        }
+    } else {
+        vstr_add_str(&v, "ERR ");
+        nlr_buf_t pn;
+        if (nlr_push(&pn) == 0) {
+            mp_obj_print_helper(&pr, MP_OBJ_FROM_PTR(outer.ret_val), PRINT_EXC);
+            nlr_pop();
+        }
+    }
+    /* Always ship the reply, even when truncated or empty. */
+    crazy_send_reply((const uint8_t*)vstr_str(&v), (int)vstr_len(&v));
+}
+
+/* ---------- user on_message(channel, data) ---------- */
+
+static void crazy_run_user(uint8_t channel, const uint8_t* data, int len) {
+    mp_obj_t handler = MP_STATE_VM(crazy_msg_handler);
+    if (handler == MP_OBJ_NULL) return;
+
+    nlr_buf_t nlr;
+    if (nlr_push(&nlr) == 0) {
+        mp_obj_t args[2] = {
+            MP_OBJ_NEW_SMALL_INT((mp_int_t)channel),
+            mp_obj_new_bytes(data, (size_t)len),
+        };
+        mp_call_function_n_kw(handler, 2, 0, args);
+        nlr_pop();
+    } else {
+        /* User handler raised — send a short error back, no traceback.
+         * Inner NLR catches vstr fixed-buf overflow (RuntimeError) so we
+         * always ship whatever fit. */
+        VSTR_FIXED(v, CRAZY_REPLY_BUF);
+        mp_print_t pr = { &v, (mp_print_strn_t)vstr_add_strn };
+        vstr_add_str(&v, "ERR ");
+        nlr_buf_t pn;
+        if (nlr_push(&pn) == 0) {
+            mp_obj_print_helper(&pr, MP_OBJ_FROM_PTR(nlr.ret_val), PRINT_EXC);
+            nlr_pop();
+        }
+        crazy_send_reply((const uint8_t*)vstr_str(&v), (int)vstr_len(&v));
+    }
+}
+
+/* ---------- drain trampoline (one mp_sched slot, drains entire FIFO) ---------- */
+
+static mp_obj_t crazy_dispatch_drain(mp_obj_t arg) {
+    (void)arg;
+    g_crazy_drain_pending = 0;
+    for (;;) {
+        uint8_t kind = 0, channel = 0;
+        uint8_t buf[CRAZY_DRAIN_BUF];
+        int len = 0;
+        if (sentai_crazy_dispatch_pop(&kind, &channel, buf, sizeof(buf), &len) == 0)
+            break;
+        if (kind == CRAZY_KIND_EXEC) {
+            crazy_run_exec(buf, len);
+        } else if (kind == CRAZY_KIND_USER) {
+            crazy_run_user(channel, buf, len);
+        }
+    }
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(crazy_dispatch_drain_obj, crazy_dispatch_drain);
+
+void sentai_crazy_request_drain(void) {
+    /* Always attempt to schedule. The earlier dedup-via-pending-flag
+     * design got stuck if a scheduled trampoline was somehow lost
+     * (no MP bytecode running between schedule and drain → flag stays
+     * at 1 forever, all future requests skip). The cost of removing
+     * dedup is at most a few "empty drain" trampoline calls per burst,
+     * which exit immediately on FIFO empty. */
+    g_crazy_drain_pending = 1;
+    if (!mp_sched_schedule(MP_OBJ_FROM_PTR(&crazy_dispatch_drain_obj),
+                           mp_const_none)) {
+        /* Scheduler queue full — let next push retry. */
+        g_crazy_drain_pending = 0;
+    }
+}
+
+// sentai.crazy.on_message(callback) -> None
+//   callback(channel: int, data: bytes) is invoked for every inbound
+//   frame except `$`-prefix exec messages on CH_REPL.
+//   Pass None to detach (frames are dropped silently).
+static mp_obj_t mod_sentai_crazy_on_message(mp_obj_t cb_obj) {
+    if (cb_obj == mp_const_none) {
+        MP_STATE_VM(crazy_msg_handler) = MP_OBJ_NULL;
+    } else {
+        if (!mp_obj_is_callable(cb_obj)) {
+            mp_raise_TypeError(MP_ERROR_TEXT("on_message: callable or None required"));
+        }
+        MP_STATE_VM(crazy_msg_handler) = cb_obj;
+    }
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_crazy_on_message_obj, mod_sentai_crazy_on_message);
 
 // sentai.crazy.link_send(channel, data) -> int
 // Send a payload to the drone-side "sentai" deck driver over UART2,
@@ -250,7 +538,13 @@ static const mp_rom_map_elem_t sentai_crazy_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_attitude),      MP_ROM_PTR(&mod_sentai_crazy_attitude_obj) },
     { MP_ROM_QSTR(MP_QSTR_fly_stop),      MP_ROM_PTR(&mod_sentai_crazy_fly_stop_obj) },
     { MP_ROM_QSTR(MP_QSTR_altitude),       MP_ROM_PTR(&mod_sentai_crazy_altitude_obj) },
-    { MP_ROM_QSTR(MP_QSTR_poll_event),     MP_ROM_PTR(&mod_sentai_crazy_poll_event_obj) },
+    { MP_ROM_QSTR(MP_QSTR_baro),           MP_ROM_PTR(&mod_sentai_crazy_baro_obj) },
+    { MP_ROM_QSTR(MP_QSTR_battery),        MP_ROM_PTR(&mod_sentai_crazy_battery_obj) },
+    { MP_ROM_QSTR(MP_QSTR_battery_pct),    MP_ROM_PTR(&mod_sentai_crazy_battery_pct_obj) },
+    { MP_ROM_QSTR(MP_QSTR_temp),           MP_ROM_PTR(&mod_sentai_crazy_temp_obj) },
+    { MP_ROM_QSTR(MP_QSTR_pressure),       MP_ROM_PTR(&mod_sentai_crazy_pressure_obj) },
+    { MP_ROM_QSTR(MP_QSTR_telem),          MP_ROM_PTR(&mod_sentai_crazy_telem_obj) },
+    { MP_ROM_QSTR(MP_QSTR_on_message),     MP_ROM_PTR(&mod_sentai_crazy_on_message_obj) },
     { MP_ROM_QSTR(MP_QSTR_link_send),      MP_ROM_PTR(&mod_sentai_crazy_link_send_obj) },
 };
 static MP_DEFINE_CONST_DICT(sentai_crazy_globals, sentai_crazy_globals_table);

@@ -1921,3 +1921,387 @@ fresh buffer.
 
 Reference experiment: `experiments/s085_cam_snapshot/` -- one JPEG per
 camera with the simple sleep-1500ms recipe + lessons learned.
+
+---
+
+## 18. Crazyflie radio bridge (2026-05-06+, sentai-deck-driver fork)
+
+The SentAI board is wired to a Crazyflie 2.1 brushless drone over UART2
+(PA2 = drone TX, PA3 = drone RX, 576 000 baud, 8N1, no flow control).
+The bridge gives a host PC on Crazyradio PA a path to the board's
+MicroPython REPL and (future) lets the board issue control commands
+to the drone directly. Drone-side firmware lives in our fork:
+`https://github.com/bogdannedelcu/crazyflie-firmware`, branch
+`sentai-deck-driver`, rebased on bitcraze/master. The deck driver
+itself is at `examples/app_sentai_bridge/` in that fork.
+
+### Hard constants (do not negotiate with these)
+
+| Constant                         | Value     | Where defined |
+|----------------------------------|-----------|---------------|
+| Drone radio link                 | Crazyradio PA, default `radio://0/80/2M/E7E7E7E7E7` (bootloader on `/0/2M`, channel 0) |
+| UART2 baudrate                   | 576 000   | Both sides; matches Bitcraze CPX UART convention. |
+| `CRTP_MAX_DATA_SIZE`             | **30**    | `crtp.h:35` — radio CRTP max payload. nRF51 RF24 MTU is 32 B; 1 B is CRTP header. **`crtpSendPacket(p)` ASSERTs if `p->size > 30`**. |
+| `CPX_MAX_PAYLOAD_SIZE`           | 100       | `cpx.h:74` — CPX over UART/SPI/WiFi only, NOT radio. |
+| Our wire format start byte       | **`0xAA`**| Distinct from CPX `0xFF` so the two stacks could cohabit on the same UART (we do not use CPX). |
+| Our wire `LEN` field             | uint8, 1..31 | `LEN = 1 + DATA_BYTES`; CH(1) + DATA(≤30). |
+| Reserved CRTP port for the bridge | **`0x0E`**| Free in upstream Bitcraze (TEST/spare). All host↔board traffic goes through this single port. |
+| Channel allocation               | 4 channels (CRTP `channel` field is 2 bits) | See table below. |
+| Per-fragment payload (channel 0) | **29 B**  | 1 B `MF` (more-fragments) prefix + 29 B data = 30 B CRTP packet. |
+| `flow_pkt_t` size                | **16 B**  | Packed `float dpx, dpy, dt, std`. Fits one CRTP packet, no fragmentation. |
+| Drone deck UART RX task          | priority 2, stack 256 words (1 KB) | Above appMain (prio 1) so we always drain UART; below CRTP service. |
+
+### Wire format on UART2
+
+Single self-synchronising frame, no flow control, point-to-point:
+
+```
++------+-----+----+--------+-----+
+| 0xAA | LEN | CH | DATA…  | CRC |
++------+-----+----+--------+-----+
+```
+
+- `0xAA` start byte (different from CPX's `0xFF`).
+- `LEN` uint8 = 1 + DATA bytes; range 1..31.
+- `CH` channel multiplexer (2 bits used, top 6 reserved for future
+  flags, e.g. an `LP` last-packet bit if we ever skip the MF byte).
+- `DATA` ≤30 bytes (CRTP MAX_PAYLOAD on the radio side).
+- `CRC` XOR of every byte before it including `0xAA` and `LEN`.
+
+Channel allocation (this is a **convention layered on top of the
+deck-driver protocol** — drone never inspects DATA contents):
+
+| CH | Direction       | Use                                          |
+|----|-----------------|----------------------------------------------|
+| 0  | bidirectional   | REPL text / commands. Forwarded to/from radio CRTP port `0x0E`. **Convention**: byte 0 is `MF` (1 = more fragments, 0 = last). 29 bytes useful per fragment. |
+| 1  | board → drone   | Optical-flow `flow_pkt_t` (16 B). Consumed locally on the drone via `estimatorEnqueueFlow()`. **Never echoed to the radio**. |
+| 2  | bidirectional   | Reserved for future board → drone control + drone → board telemetry queries (takeoff/arm/setpoint, altitude/battery readback). |
+| 3  | reserved        | —                                            |
+
+Fragmentation (channel 0 only) is **automatic in C, transparent to
+callers**. Board-side `sentai_crazy_link_send(0, data, len)` accepts an
+arbitrary-length buffer and emits one or more 0xAA frames, each with
+`MF` set to 1 (more) or 0 (last). The TX mutex is held across the
+entire burst so consecutive fragments cannot be split by another
+writer (cpx CTS, etc.). Inbound fragments are reassembled by the
+board's rx task before the message is dispatched (see Pattern C
+below). Host side reassembly is the host's responsibility. zlib / smaz
+were measured against typical REPL replies and offered no useful win
+(see compression notes in §experiment.md `Compression decisions`).
+
+### Inbound dispatch on the board (Pattern C, single-handler)
+
+Once the rx task has reassembled a complete CH=0 message, the C-side
+dispatcher routes it by **first byte of the payload**:
+
+| First byte    | Routed to                                                 |
+|---------------|-----------------------------------------------------------|
+| `$`           | Built-in REPL exec in C (`crazy_run_exec`). No Python handler involvement — compile + try EVAL → fall back to FILE on `SyntaxError`, send back `OK <repr>` / `OK` / `ERR <type>: <msg>` over CH=0 (auto-fragmented). |
+| anything else | `sentai.crazy.on_message(channel, data)` if registered, otherwise dropped. |
+
+Frames on CH != 0 are delivered to the user handler raw (no MF byte —
+those channels are single-frame, ≤30 B today).
+
+The handoff from rx task (FreeRTOS) to MicroPython VM (different
+FreeRTOS task) goes through:
+
+1. SPSC FIFO `g_dispatch_q[8]` — fixed-capacity, drop-newest with a
+   counter (`g_dispatch_dropped`). Single 256-byte slot per message;
+   anything bigger is truncated at push time. No heap on the rx path.
+2. `mp_sched_schedule(crazy_dispatch_drain_obj, ...)` — scheduled
+   exactly once per burst (`g_crazy_drain_pending` flag dedupes). The
+   trampoline drains the entire FIFO in one VM tick, so a single sched
+   slot absorbs an arbitrary burst.
+3. `MICROPY_BEGIN_ATOMIC_SECTION()` is overridden in `mpconfigport.h`
+   to use FreeRTOS `taskENTER_CRITICAL` (default embed-port no-op is
+   not safe across tasks). The wrapper functions live in
+   `mp_embed_safe.c` so the QSTR pre-pass doesn't choke on the
+   FreeRTOS include path.
+
+Inside the trampoline (which runs in MP context, heap-safe):
+
+- EXEC kind → lex twice (EVAL then FILE), `mp_compile`,
+  `mp_call_function_0`. Both NLR paths caught; reply built in a
+  stack-only `VSTR_FIXED(200)` and sent via `link_send`. **No GC
+  heap allocation on the reply path.**
+- USER kind → `mp_call_function_n_kw(handler, 2, 0, [channel, bytes])`.
+  Exception caught, `ERR <type>: <msg>` sent back over CH=0.
+
+Python API is intentionally tiny:
+
+```python
+import sentai
+sentai.crazy.init()                      # one-shot UART2 + tasks
+sentai.crazy.on_message(my_handler)      # my_handler(ch:int, data:bytes)
+sentai.crazy.on_message(None)            # detach; frames are dropped silently
+sentai.crazy.link_send(channel, data)    # arbitrary-length on CH=0
+```
+
+The host doesn't need a Python helper on the board to drive the REPL:
+
+```python
+# host
+cf.send_packet(port=0x0E, channel=0, data=b'$1+1')   # → b'OK 2'
+cf.send_packet(port=0x0E, channel=0, data=b'$sentai.io.led(1,1)')  # → b'OK'
+```
+
+Note: `$` was chosen over `>>> ` to save 3 of the 29 useful payload
+bytes per fragment.
+
+### How the deck driver was built (drone side, `app_sentai_bridge`)
+
+Pattern is the **Bitcraze deck-driver howto** verbatim
+(`docs/development/howto/`):
+
+1. Source file `examples/app_sentai_bridge/src/sentai_bridge.c` declares
+   a `DeckDriver` struct and registers it via `DECK_DRIVER(...)`. The
+   macro emits the struct into a `.deckDriver.<name>` linker section
+   that deck-core scans at boot:
+
+   ```c
+   static const DeckDriver sentaiDeck = {
+       .name       = "sentai",
+       .usedPeriph = DECK_USING_UART2,   // declares ownership of UART2
+       .init       = sentaiInit,         // called by deck-core at boot
+       .test       = sentaiTest,         // returns isInit
+   };
+   DECK_DRIVER(sentaiDeck);
+   ```
+
+2. The SentAI board has no 1-wire memory, so the deck would never be
+   discovered automatically. We force-load it:
+   ```
+   # examples/app_sentai_bridge/app-config
+   CONFIG_DECK_FORCE="sentai"
+   CONFIG_APP_ENABLE=n          # we use a deck driver, not an app
+   ```
+   `CONFIG_DECK_AI=n` and `CONFIG_DECK_CPX_HOST_ON_UART2=n` keep the
+   AI-deck and the CPX-on-UART2 drivers out of the build, so neither
+   touches UART2. CPX subsystem still gets compiled (selected by
+   default by other configs) but no init path is reachable — it is
+   dead code, ~5 KB flash, zero runtime overhead.
+
+3. `sentaiInit(DeckInfo*)` runs in deck-core context, **before** any
+   user task is scheduled. It does only three things:
+   - `uart2Init(576000)` — owns UART2 from this point.
+   - `crtpRegisterPortCB(LINK_PORT, on_radio_packet)` — installs the
+     callback that runs in the high-priority CRTP RX task.
+   - `xTaskCreate(uart_rx_task, …)` — creates the UART → radio pump.
+
+4. **Why a deck driver and not `CONFIG_APP_ENABLE=y` `appMain`**: with
+   the app pattern and Appchannel polling in `appMain` (low priority),
+   the radio CRTP TOC handshake during host `open_link()` times out
+   and `LED_RED_R` (SYS_LED) goes dark — STM32 scheduler is starved
+   by the appchannel queue dance. Deck-driver callbacks run in the
+   high-priority CRTP RX task itself; no scheduler stall.
+
+5. Outbound (radio → UART): `on_radio_packet` builds the 0xAA frame
+   on its own stack and calls `uart2SendData(idx, frame)`. This is
+   DMA-driven and bounded; no shared TX buffer (which had a race in
+   an earlier version that produced `RX bad len 255` on the board).
+
+6. Inbound (UART → radio): `uart_rx_task` blocks on
+   `uart2GetDataWithTimeout(1, &b, M2T(50))` (always finite — never
+   `portMAX_DELAY`), runs a 5-state parser (`RX_WAIT_START → LEN →
+   CH → DATA → CRC`), and on a valid frame builds a `CRTPPacket` and
+   calls `crtpSendPacket(&out)`. **Critical**: the task starts with
+   `systemWaitStart()` (Bitcraze convention). Without that, it can
+   spin against an uninitialised stream buffer and miss the first
+   wave of incoming bytes — observed empirically: `bytes_seen=0` for
+   30 s straight, despite the board sending fine.
+
+7. Diagnostic counters are exposed via `PARAM_GROUP_START(deck)` so
+   they're visible in cfclient PARAM tab:
+   `sentaiR2U / R2Udrp / U2R / U2Rdrp / Ucrc / Ubad / Flow / FlowDrp`.
+
+### Bitcraze CPX UART transport: avoid for third-party decks
+
+`cpx-host-on-uart2` deck driver works for ESP32/AI-deck pairs because
+both sides are Bitcraze firmware that strictly implement the
+`0xFF 0x00` ack-per-packet flow control. Third-party decks (us)
+hit two repeatable hangs:
+
+1. The drone's `CPX_UART_TX` task does
+   `do { wait CTS } while (! CTS_EVENT)` with `portMAX_DELAY` — if
+   our side ever misses an ack, the drone wedges silently with no
+   recovery short of reboot.
+2. `xQueueSend(uartTxQueue, packet, portMAX_DELAY)` and
+   `xQueueReceive(...)` use mismatched element sizes between
+   `CPXPacket_t` (size N+2) and `CPXRoutablePacket_t` (size N) —
+   2-byte BSS overflow into adjacent `uart_task_context.txp.route`
+   that produces corrupt UART output (`RX bad len 255` on the board
+   RX state machine).
+
+Both bugs are in upstream Bitcraze firmware. We patched
+`cpx_uart_transport.c` once with bounded timeouts but reverted —
+**simpler fix is not to use CPX over UART at all**. Our 0xAA-framed
+protocol sidesteps both, has zero per-packet overhead, and respects
+`embeded.md` rule "no `portMAX_DELAY` on shared resources".
+
+### LED diagnostics on the drone (Crazyflie 2.1 brushless)
+
+| LED      | Symbol                       | Meaning                                                              |
+|----------|-------------------------------|----------------------------------------------------------------------|
+| RED_R    | `SYS_LED` + `LOWBAT_LED`     | System heartbeat. **Going dark mid-test = STM32 scheduler starved or hard-fault**. |
+| RED_L    | `LINK_DOWN_LED` + `ERR_LED1` | NRF↔STM link / fault state.                                          |
+| BLUE_L   | `CHG_LED`                    | USB charging.                                                        |
+| GREEN_L  | `LINK_LED`                   | Radio link active.                                                   |
+| GREEN_R  | `USER_NOTF_LED`              | App-notify.                                                          |
+| BLUE×2 (NRF) | bootloader status        | Solid blue at boot = NRF51 bootloader window (~5 s for cfloader).    |
+
+**Important**: if `cflib.crtp.scan_interfaces()` returns the drone but
+`open_link()` times out, the **NRF51 radio MCU is alive while STM32
+firmware is hung**. NRF51 answers scans on its own. Don't read a
+successful scan as proof the firmware is healthy — check `LED_RED_R`
+visually and the drone console.
+
+### Drone DFU / cfloader procedure
+
+cfloader speaks the NRF51 radio bootloader (not USB DFU). What works:
+
+1. Drone fully OFF (long press until LEDs off).
+2. **Hold power button** before running `cfloader`.
+3. Continue holding ~3 s while drone boots → blue LEDs solid (NRF51
+   bootloader window, ~5 s).
+4. `cfloader flash …/cf21bl.bin stm32-fw` finds it on
+   `radio://0/0/2M/E7E7E7E7E7` (note: bootloader uses channel 0,
+   firmware default channel is 80).
+
+Empirical: `Failed to flash: Could not connect to bootloader` on the
+**second** invocation usually means the previous flash succeeded and
+the drone has already exited the bootloader window. Confirm with
+`cflib.crtp.scan_interfaces()` and a 2-s `cf.open_link()` before
+assuming a real failure.
+
+### Anti-patterns (every one of these cost real debug time)
+
+- **Don't** poll Appchannel from `appMain` — see scheduler-starve note
+  above.
+- **Don't** call `cpxSendPacketBlocking()` from a CRTP RX task callback
+  — it can block the receiving link and starve the radio scheduler.
+- **Don't** assume `link_send(channel, data)` argument order matches
+  Bitcraze convention. Our binding is `(channel, data)` to be
+  consistent with the C side; double-check the MP signature
+  (`MP_DEFINE_CONST_FUN_OBJ_2`) before each refactor.
+- **Don't** add MICROPY_BEGIN_ATOMIC_SECTION overrides that include
+  FreeRTOS headers directly in `mpconfigport.h`. The QSTR pre-pass
+  cpp's that file *without* the firmware include paths and will fail.
+  Route through extern wrappers in `mp_embed_safe.c` instead.
+- **Don't** introduce a second `on_message` handler. Pattern C is
+  intentionally single-handler; the user routes by channel internally.
+  Two handlers would force a registration ordering policy and break
+  the dispatcher's "drop if not set" semantics.
+- **Critical, 2026-05-06**: in the drone fork's `app-config` you
+  MUST have `CONFIG_ENABLE_CPX=n`. Upstream Kconfig defaults it to
+  `y` and `select`s `ENABLE_CPX_ON_UART2`, which compiles
+  `cpx_uart_transport.c`. That CPX transport then **races our deck
+  driver for the shared static globals `txBuffer/txIdx/txSize` in
+  `uart2.c`** — both call `uart2SendData`, second call clobbers the
+  first's in-flight state, ISR feeds wrong bytes, TX_DONE never fires
+  for our deck, `on_radio_packet` wedges in `xEventGroupWaitBits`,
+  CRTP RX task stalls, R2U stops climbing. Only fix is power-cycle
+  AND building with CPX off. The anti-pattern label "no CPX over
+  UART" was already documented but the implementation depended on a
+  Kconfig that had to be explicitly disabled, which we missed in the
+  initial commit.
+
+### Pattern C scheduler-drain hooks (MUST stay in place)
+
+`mp_sched_schedule` from non-MP FreeRTOS tasks (rx_task, IMU IRQ,
+flow timer …) only delivers its callback when MicroPython is **inside
+a branch opcode of executing bytecode**. The default embed-port REPL
+loop blocks on stdin and never ticks the scheduler — async callbacks
+queue up indefinitely.
+
+We close this with three drain hooks. **Removing any of them breaks
+async dispatch silently** (no error, callbacks just never fire):
+
+1. **REPL idle drain** — `repl_getchar` and `repl_getchar_timeout`
+   in [micropython_task.c](../micropython_task.c) call
+   `mp_handle_pending(true)` between read attempts (every 10 ms).
+   Mainline ports do the same in their `mp_hal_stdin_rx_chr`.
+
+2. **Sleep chunked drain** — `mod_sentai_sleep_ms` in
+   [modsentai_rtos.c](../modsentai_rtos.c) chops the requested delay
+   into ≤10 ms slices and calls `mp_handle_pending(true)` after each
+   slice. A naive `vTaskDelay(N)` would block the VM for the full N
+   ms — `sentai.crazy.on_message` would silently miss frames.
+
+3. **Cross-task atomic section** — `MICROPY_BEGIN/END_ATOMIC_SECTION`
+   overridden in [mpconfigport.h](../mpconfigport.h) to FreeRTOS
+   `taskENTER/EXIT_CRITICAL` via wrappers in
+   [mp_embed_safe.c](../mp_embed_safe.c). The default no-op makes
+   `mp_sched_schedule` not thread-safe across tasks.
+
+**Diagnostic recipe** if async dispatch dies:
+- Print `MP_STATE_VM(sched_state)` and `MP_STATE_VM(sched_len)` after
+  `mp_sched_schedule` returns. State should be `PENDING (1)`, len ≥ 1.
+- Add `printf` at trampoline entry. If it never fires, VM isn't
+  draining — check the three hooks above.
+- `sum(range(N))` and other built-in C reductions don't tick the
+  scheduler. To stress-test, use a Python `for` loop or sprinkle
+  `sentai.rtos.sleep_ms(0)`.
+
+This was empirically discovered chasing a Pattern C silent failure
+2026-05-06 — frames arrived, dispatch_push fired, schedule returned
+true, but trampoline never ran because user was idle at REPL prompt.
+Fix is in board build ≥1188.
+
+### Drone-side wire debug with USB2serial
+
+When the bridge stops working, prove which direction is broken with
+a CP2102/FTDI/CH340 adapter at **576000 8N1, 3.3 V**:
+
+| Adapter pin | Drone deck pad | Direction tested |
+|-------------|----------------|------------------|
+| RX          | TX2 (PA2)      | drone → board    |
+| TX          | RX2 (PA3)      | board → drone    |
+| GND         | GND            | mandatory        |
+
+- Disconnect the SentAI board temporarily, plug in adapter only.
+- Open `/dev/ttyUSB0` at 576000 in Python
+- Drive cflib `cf.send_packet(port=0x0E, channel=0, data=b'$1+1')` —
+  expect adapter to receive 8 bytes per packet: `AA 05 00 $1+1 CRC`
+  (e.g. `aa050024312b31a0` for `$1+1`)
+- Drive raw 0xAA frames TX from adapter — expect `deck.sentaiUcrc=0`,
+  `Ucrc=0`, `Ubad=0`, `U2Rdrp+=N` on the drone counters
+
+If both directions pass with the adapter, the previous problem was
+the SentAI side wire/connector — re-seat or replace it.
+- **Don't** use `bytes(s, 'utf-8').encode()` — MicroPython micro-build
+  doesn't expose `.encode()` on `str`. Use `bytes(s, 'utf-8')` directly.
+- **Don't** assume `bytes_obj.decode()` works on board either; use
+  `str(b, 'utf-8')` to go the other way.
+- **Don't** `flashtool.py --ram` and assume `/lib/diag` survives.
+  RAM-only flash usually wipes the FileX user partition. Persistent
+  flash (`-e sentai_runtime` without `--ram`) keeps it. Always recheck
+  `sentai.fs.ls('/lib')` after any flash.
+- **Don't** trust cflib `cf.param.get_value()` for PARAM values that
+  the firmware mutates fast — values may be cached. Re-read or use
+  log blocks for live counters.
+
+### Empirically validated end-to-end
+
+Initial validation on fork `sentai-deck-driver` @ e93ba973 / board
+build 1182 (poll-event Pattern B, `>>> ` REPL prefix). Pattern C
+(C-side dispatcher + `$` prefix + `on_message`) shipped in board
+build 1183.
+
+```
+host PC                            drone STM32              SentAI board
+─────────                          ───────────                ─────────────
+cf.send_packet(port=0x0E,                                       MF reassembly →
+   data=b'$1+1')           ──►   on_radio_packet (CRTP cb)  ──►   dispatch_push(EXEC)
+                                   high-prio CRTP RX task                ▼
+                                          ▲                       mp_sched_schedule
+                                          │                              ▼
+                                                                 crazy_run_exec (MP ctx)
+                                                                 compile + eval + send
+                                       ◄── crtpSendPacket ◄────  link_send(0, b'OK 2')
+cf.add_port_callback(0x0E)         (uart_rx_task @ prio 2)       (auto-fragmented 0xAA)
+```
+
+Round-trip latency host→board→host: tens of ms. Validated with
+`$1+1` → `b'OK 2'` (single fragment) and the version reply (>30 B,
+2 fragments auto-emitted by C, reassembled by host). LED RED_R stays
+lit throughout (SYS_LED healthy, no scheduler stall).

@@ -4,6 +4,12 @@
 // returns 0 on success or -1 on exception. The exception traceback is
 // still printed to stdout.
 //
+// Also hosts the FreeRTOS critical-section wrappers used as the embed
+// port's MICROPY_BEGIN/END_ATOMIC_SECTION macros (see mpconfigport.h).
+// Wrapping is necessary because the QSTR preprocessor stage cpp's
+// mpconfigport.h without the firmware include paths, so we can't
+// include FreeRTOS headers there.
+//
 // Lives in our source tree (not in micropython_embed/port/) so it
 // survives QSTR regeneration without any patching.
 
@@ -12,6 +18,12 @@
 #include "py/runtime.h"
 #include "py/nlr.h"
 #include "port/micropython_embed.h"
+
+#include "third_party/freertos_kernel/include/FreeRTOS.h"
+#include "third_party/freertos_kernel/include/task.h"
+
+void mp_embed_enter_critical(void) { taskENTER_CRITICAL(); }
+void mp_embed_exit_critical(void)  { taskEXIT_CRITICAL();  }
 
 #if MICROPY_ENABLE_COMPILER
 int mp_embed_exec_str_safe(const char *src) {

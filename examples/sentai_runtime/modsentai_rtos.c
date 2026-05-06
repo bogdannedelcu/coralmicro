@@ -2,8 +2,19 @@
 // This file is #include'd from modsentai.c — do NOT compile separately.
 
 // sentai.rtos.sleep_ms(ms)
+// Chunked + drains the MicroPython scheduler queue every 10 ms so
+// async callbacks (e.g. sentai.crazy.on_message dispatch trampoline)
+// fire promptly even during long sleeps. Mirrors the MICROPY_EVENT_POLL_HOOK
+// pattern that mainline ports use inside time.sleep / select.poll.
 static mp_obj_t mod_sentai_sleep_ms(mp_obj_t ms_obj) {
-    sentai_sleep_ms(mp_obj_get_int(ms_obj));
+    int total = mp_obj_get_int(ms_obj);
+    if (total <= 0) return mp_const_none;
+    while (total > 0) {
+        int slice = (total > 10) ? 10 : total;
+        sentai_sleep_ms(slice);
+        mp_handle_pending(true);
+        total -= slice;
+    }
     return mp_const_none;
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_sleep_ms_obj, mod_sentai_sleep_ms);

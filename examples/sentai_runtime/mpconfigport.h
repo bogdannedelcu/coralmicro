@@ -17,6 +17,34 @@
 // Enable keyboard interrupt (Ctrl+C) support for stopping running scripts.
 #define MICROPY_KBD_EXCEPTION           (1)
 
+// Enable mp_sched_schedule so non-MP FreeRTOS tasks (e.g. crazy_rx_task)
+// can deliver async events into a Python callback at the next VM tick.
+#define MICROPY_ENABLE_SCHEDULER        (1)
+
+// Make MICROPY_BEGIN_ATOMIC_SECTION cross-task safe.
+//
+// MicroPython's default for the embed port leaves these as a no-op,
+// which is fine for single-task interpreters. We schedule callbacks
+// from `crazy_rx_task` (a *different* FreeRTOS task than the MP VM
+// task), so the sched_queue head/tail/state must be protected against
+// concurrent access from both sides — exactly what FreeRTOS critical
+// sections are for.
+//
+// We can't include FreeRTOS headers here directly: this file is also
+// processed by the QSTR preprocessor stage (without the firmware
+// include paths). Instead we route through tiny extern wrappers
+// implemented in mp_embed_safe.c, which lives in the firmware build.
+#ifdef __cplusplus
+extern "C" {
+#endif
+void mp_embed_enter_critical(void);
+void mp_embed_exit_critical(void);
+#ifdef __cplusplus
+}
+#endif
+#define MICROPY_BEGIN_ATOMIC_SECTION()    (mp_embed_enter_critical(), (mp_uint_t)0)
+#define MICROPY_END_ATOMIC_SECTION(state) do { (void)(state); mp_embed_exit_critical(); } while (0)
+
 // Enable importing .py files from LittleFS filesystem
 #define MICROPY_ENABLE_EXTERNAL_IMPORT  (1)
 
