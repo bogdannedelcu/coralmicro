@@ -221,6 +221,15 @@ extern int sentai_crazy_query_telemetry(uint8_t cmd, float* out, int timeout_ms)
 #define TELEM_CANFLY       0x30
 #define TELEM_IS_FLYING    0x31
 #define TELEM_IS_TUMBLED   0x32
+/* EKF cross-check (kalman_pred log group from mm_flow.c) */
+#define TELEM_PRED_NX      0x40
+#define TELEM_PRED_NY      0x41
+#define TELEM_MEAS_NX      0x42
+#define TELEM_MEAS_NY      0x43
+/* PARAM SET — flowdeck.flowdeckPos_{x,y,z} (lever-arm), m */
+#define TELEM_SET_POS_X    0x80
+#define TELEM_SET_POS_Y    0x81
+#define TELEM_SET_POS_Z    0x82
 
 static float telem_or_default(uint8_t cmd, int timeout_ms, float fallback) {
     float v = fallback;
@@ -296,6 +305,52 @@ static mp_obj_t mod_sentai_crazy_telem(size_t n_args, const mp_obj_t* args) {
     return mp_obj_new_float(v);
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_crazy_telem_obj, 1, 2, mod_sentai_crazy_telem);
+
+// sentai.crazy.flow_pred(timeout_ms=200) -> (predNX, predNY, measNX, measNY)
+//   EKF cross-check: read the drone's predicted vs measured flow pixel
+//   motion (PMW3901 units) for the last update.  When our scale_x/y
+//   and body_xform are correct, predicted and measured should track
+//   each other tightly during controlled motion.  Diverging values
+//   point at a calibration error before flight.  Four sequential CH=2
+//   queries (~5 ms wall).  Returns (-999.0, ...) tuple on transport
+//   failure for any of the four.
+static mp_obj_t mod_sentai_crazy_flow_pred(size_t n_args, const mp_obj_t* args) {
+    int t = (n_args > 0) ? mp_obj_get_int(args[0]) : 200;
+    float pnx = -999.0f, pny = -999.0f, mnx = -999.0f, mny = -999.0f;
+    sentai_crazy_query_telemetry(TELEM_PRED_NX, &pnx, t);
+    sentai_crazy_query_telemetry(TELEM_PRED_NY, &pny, t);
+    sentai_crazy_query_telemetry(TELEM_MEAS_NX, &mnx, t);
+    sentai_crazy_query_telemetry(TELEM_MEAS_NY, &mny, t);
+    mp_obj_t tuple[4] = { mp_obj_new_float(pnx), mp_obj_new_float(pny),
+                          mp_obj_new_float(mnx), mp_obj_new_float(mny) };
+    return mp_obj_new_tuple(4, tuple);
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_crazy_flow_pred_obj, 0, 1, mod_sentai_crazy_flow_pred);
+
+// sentai.crazy.flowdeck_pos(x, y, z, timeout_ms=400) -> (rb_x, rb_y, rb_z)
+//   PARAM SET: write camera lever-arm offsets to the drone EKF
+//   (flowdeck.flowdeckPos_x/y/z).  Body-frame metres, +x forward / +y
+//   left / +z up.  Returns the drone's readback values (NaN on failure).
+//   Three sequential CH=2 SETs (~6 ms wall) with longer default timeout
+//   to absorb the paramSetFloat path.  Persistence: the param is marked
+//   PARAM_PERSISTENT in the drone, so the value survives a drone reboot
+//   if you also call eepromCommit on the drone side -- TODO add an
+//   opcode for that, today the value goes to RAM only.
+extern int sentai_crazy_set_telem(uint8_t cmd, float value,
+                                   float* out_readback, int timeout_ms);
+static mp_obj_t mod_sentai_crazy_flowdeck_pos(size_t n_args, const mp_obj_t* args) {
+    float x = mp_obj_get_float(args[0]);
+    float y = mp_obj_get_float(args[1]);
+    float z = mp_obj_get_float(args[2]);
+    int t = (n_args > 3) ? mp_obj_get_int(args[3]) : 400;
+    float rbx = 0.0f, rby = 0.0f, rbz = 0.0f;
+    sentai_crazy_set_telem(TELEM_SET_POS_X, x, &rbx, t);
+    sentai_crazy_set_telem(TELEM_SET_POS_Y, y, &rby, t);
+    sentai_crazy_set_telem(TELEM_SET_POS_Z, z, &rbz, t);
+    mp_obj_t tuple[3] = { mp_obj_new_float(rbx), mp_obj_new_float(rby), mp_obj_new_float(rbz) };
+    return mp_obj_new_tuple(3, tuple);
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_crazy_flowdeck_pos_obj, 3, 4, mod_sentai_crazy_flowdeck_pos);
 
 // sentai.crazy.attitude(timeout_ms=200) -> (roll, pitch, yaw)
 //   Fused EKF Euler angles in degrees. Three sequential CH=2 queries
@@ -666,6 +721,8 @@ static const mp_rom_map_elem_t sentai_crazy_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_telem),          MP_ROM_PTR(&mod_sentai_crazy_telem_obj) },
     { MP_ROM_QSTR(MP_QSTR_attitude_get),   MP_ROM_PTR(&mod_sentai_crazy_attitude_get_obj) },
     { MP_ROM_QSTR(MP_QSTR_velocity),       MP_ROM_PTR(&mod_sentai_crazy_velocity_obj) },
+    { MP_ROM_QSTR(MP_QSTR_flow_pred),      MP_ROM_PTR(&mod_sentai_crazy_flow_pred_obj) },
+    { MP_ROM_QSTR(MP_QSTR_flowdeck_pos),   MP_ROM_PTR(&mod_sentai_crazy_flowdeck_pos_obj) },
     { MP_ROM_QSTR(MP_QSTR_canfly),         MP_ROM_PTR(&mod_sentai_crazy_canfly_obj) },
     { MP_ROM_QSTR(MP_QSTR_is_flying),      MP_ROM_PTR(&mod_sentai_crazy_is_flying_obj) },
     { MP_ROM_QSTR(MP_QSTR_is_tumbled),     MP_ROM_PTR(&mod_sentai_crazy_is_tumbled_obj) },

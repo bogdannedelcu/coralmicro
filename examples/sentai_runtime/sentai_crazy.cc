@@ -1959,3 +1959,49 @@ extern "C" int sentai_crazy_query_telemetry(uint8_t cmd,
     *out_value = w.f;
     return 0;
 }
+
+// =====================================================================
+// CH_TELEM SET path (cmd >= 0x80): write a float to a Bitcraze PARAM.
+//
+// Wire protocol on UART CH=2:
+//     request:  [cmd:1][float32 LE:4]   (dataLen == 5; cmd >= 0x80)
+//     reply:    [cmd_echo:1][float32 LE:4]   (drone-side readback)
+//
+// Same single-slot concurrency contract as query_telemetry — call from
+// the MP VM context only.  Returns identical error codes; on success
+// out_readback is populated with the value the drone reports having
+// written (NaN if drone-side paramSetFloat failed or cmd unknown).
+// =====================================================================
+extern "C" int sentai_crazy_set_telem(uint8_t cmd, float value,
+                                       float* out_readback,
+                                       int timeout_ms) {
+    if (!g_crazy_running) return -1;
+    if (out_readback == nullptr) return -2;
+    if (g_telem_resp_sem == nullptr) return -1;
+
+    xSemaphoreTake(g_telem_resp_sem, 0);
+
+    /* Build [cmd:1][float32 LE:4] -- LE-on-Cortex-M is native. */
+    uint8_t pkt[5];
+    pkt[0] = cmd;
+    crazy_telem_word_t w;
+    w.f = value;
+    pkt[1] = (uint8_t)(w.u      );
+    pkt[2] = (uint8_t)(w.u >>  8);
+    pkt[3] = (uint8_t)(w.u >> 16);
+    pkt[4] = (uint8_t)(w.u >> 24);
+
+    int rc = sentai_crazy_link_send(2, pkt, sizeof(pkt));
+    if (rc != 0) return -3;
+
+    if (xSemaphoreTake(g_telem_resp_sem,
+                       pdMS_TO_TICKS(timeout_ms)) != pdTRUE) {
+        return -4;
+    }
+    if (g_telem_resp_cmd != cmd) return -5;
+
+    crazy_telem_word_t w_back;
+    w_back.u = g_telem_resp_word;
+    *out_readback = w_back.f;
+    return 0;
+}
