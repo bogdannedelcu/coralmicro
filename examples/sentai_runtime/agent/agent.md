@@ -1975,8 +1975,52 @@ deck-driver protocol** — drone never inspects DATA contents):
 |----|-----------------|----------------------------------------------|
 | 0  | bidirectional   | REPL text / commands. Forwarded to/from radio CRTP port `0x0E`. **Convention**: byte 0 is `MF` (1 = more fragments, 0 = last). 29 bytes useful per fragment. |
 | 1  | board → drone   | Optical-flow `flow_pkt_t` (16 B). Consumed locally on the drone via `estimatorEnqueueFlow()`. **Never echoed to the radio**. |
-| 2  | bidirectional   | Reserved for future board → drone control + drone → board telemetry queries (takeoff/arm/setpoint, altitude/battery readback). |
-| 3  | reserved        | —                                            |
+| 2  | bidirectional   | **Telemetry queries** (request-response). Single-byte `cmd` from board, drone replies with `[cmd_echo][float32 LE]`. Single response slot — **MP-context-only on the board**. See "Channel-2 telemetry opcodes" below. |
+| 3  | reserved        | future: board → drone control opcodes (takeoff/arm/setpoint via direct API on drone, no CRTP injection). |
+
+### Channel-2 telemetry opcodes (drone → board log var query)
+
+Drone-side handler resolves Bitcraze log var IDs lazily with cache-only-on-success (so an early-boot lookup race with the log subsystem doesn't permanently disable a channel). Board-side `sentai_crazy_query_telemetry(cmd, &out, timeout_ms)` synchronizes via a single binary-semaphore + cmd-echo verification (-5 returned on stale-reply race, defense in depth).
+
+| Opcode | Drone log var | Unit | MP API |
+|--------|---------------|------|--------|
+| `0x01` | `baro.asl` | m | `sentai.crazy.baro()` |
+| `0x02` | `stateEstimate.z` | m | `sentai.crazy.altitude()` |
+| `0x03` | `pm.vbat` | V | `sentai.crazy.battery()` |
+| `0x04` | `pm.batteryLevel` | % | `sentai.crazy.battery_pct()` |
+| `0x05` | `baro.temp` | °C | `sentai.crazy.temp()` |
+| `0x06` | `baro.pressure` | mbar | `sentai.crazy.pressure()` |
+| `0x10..0x12` | `stateEstimate.{roll,pitch,yaw}` | deg | `sentai.crazy.attitude_get()` returns tuple |
+| `0x20..0x22` | `stateEstimate.{vx,vy,vz}` | m/s | `sentai.crazy.velocity()` returns tuple |
+| `0x30` | `sys.canfly` | bool | `sentai.crazy.canfly()` |
+| `0x31` | `sys.isFlying` | bool | `sentai.crazy.is_flying()` |
+| `0x32` | `sys.isTumbled` | bool | `sentai.crazy.is_tumbled()` |
+| any | — | — | `sentai.crazy.telem(cmd, timeout_ms=200)` (raises OSError on transport fail) |
+
+Adding more telemetry: ~5 lines on each side — append a `TELEM_*` opcode + log var lookup in `telem_read()` on the drone, add the matching MP binding on the board, regenerate QSTRs, build, flash. Useful candidates: `motor.m{1..4}` (PWM), `acc.{x,y,z}` (raw IMU), quaternion `q{x,y,z,w}` (no gimbal lock for orientation control).
+
+### Channel-1 optical flow injection (board → drone EKF)
+
+Wire format on UART CH=1 carries a packed 16-byte `flow_pkt_t`:
+
+```c
+typedef struct __attribute__((packed)) {
+    float dpx;    // accumulated pixel motion x since last sample
+    float dpy;    // accumulated pixel motion y since last sample
+    float dt;     // seconds elapsed for the accumulation window
+    float std;    // measurement standard deviation
+} flow_pkt_t;
+```
+
+Drone-side handler is `estimatorEnqueueFlow(&fm)` where `flowMeasurement_t fm` is built from the packed struct with sanity rejection (`dt`, `std`, NaN checks) before injection — match Bitcraze's flow_v2 deck conventions exactly so the EKF treats us as a legitimate flow source.
+
+**Convention** (matches Bitcraze flow_v2 / pmw3901):
+- `dpx`, `dpy` are **accumulated pixel-flow** measurements relative to the **drone body frame** (NOT camera frame). The drone EKF then converts pixels to body-frame velocity using its altitude estimate (`stateEstimate.z`).
+- Camera-frame → body-frame transform must be applied at the **board** before sending. With our SentAI camera mounted **looking down** with the camera's image-x axis aligned with the drone's body-X (forward) axis: `dpx_body = dpx_camera`, `dpy_body = dpy_camera`. Verify alignment with a controlled-translation test before flying.
+- `dt` must be > 0 and ≤ 1.0 s (drone rejects out-of-range). Match the actual integration window used by `sentai.flow`.
+- `std` must be > 0 and ≤ 100 (std-dev in pixels). Use a reasonable estimate from the flow algorithm's confidence.
+
+Counter `deck.sentaiFlow` increments on each successful inject; `deck.sentaiFlowDrp` on rejected packets (bad len / bad floats / out-of-range). Watch both during integration tests.
 
 Fragmentation (channel 0 only) is **automatic in C, transparent to
 callers**. Board-side `sentai_crazy_link_send(0, data, len)` accepts an

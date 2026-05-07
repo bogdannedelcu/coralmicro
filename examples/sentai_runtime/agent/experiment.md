@@ -5916,9 +5916,9 @@ Pattern C (C-side dispatcher + `$` prefix + `on_message`) shipped in
 board build 1183.  Round-trip ~tens of ms.  Drone LED `RED_R` remains
 lit throughout (SYS_LED healthy).
 
-## Status snapshot (end of 2026-05-06)
+## Status snapshot (end of 2026-05-06, updated 2026-05-07)
 
-✅ **Shipped end-to-end** (board build #1204, drone fork e93ba973+telem):
+✅ **Shipped end-to-end** (board build #1209, drone fork `9d1f0b77`):
 
 - Drone deck driver `sentai_bridge.c`: race-free, bounded-timeouts,
   `systemWaitStart`-clean.
@@ -5981,16 +5981,28 @@ replies received on `cf.add_port_callback(0x0E, ...)` with MF reassembly:
 
 ### Telemetry channel (CH=2) — drone state via board
 
-Board API:
+Board API (build #1209+, validated end-to-end via radio):
 
 ```python
+# scalar log vars
 sentai.crazy.baro()         # barometer altitude m (raw)
 sentai.crazy.altitude()     # stateEstimate.z  m (EKF-fused)
 sentai.crazy.battery()      # vbat              V
 sentai.crazy.battery_pct()  # batteryLevel      %
 sentai.crazy.temp()         # baro temperature  °C
 sentai.crazy.pressure()     # baro pressure     mbar
-sentai.crazy.telem(cmd, timeout_ms=200)  # generic, raises OSError on transport fail
+
+# 3-axis tuples (3 sequential CH=2 queries each, ~5 ms total)
+sentai.crazy.attitude_get() # (roll, pitch, yaw) in degrees, EKF-fused
+sentai.crazy.velocity()     # (vx, vy, vz)       in m/s, world frame, EKF-fused
+
+# supervisor/flight-state booleans
+sentai.crazy.canfly()       # ready to take off
+sentai.crazy.is_flying()    # currently airborne (EKF + supervisor)
+sentai.crazy.is_tumbled()   # rolled/pitched > threshold (auto-cuts motors)
+
+# generic for forward compat (drone can add opcodes without new MP binding)
+sentai.crazy.telem(cmd, timeout_ms=200)  # raises OSError on transport fail
 ```
 
 Wire protocol on UART2 channel 2 (board ↔ drone):
@@ -6015,16 +6027,39 @@ the wire; rest is task scheduling).
 Counters exposed via `cfclient` PARAM tab on group `deck`:
 `sentaiTelem` (queries served), `sentaiTelBad` (unknown cmds).
 
-Live values captured 2026-05-06 (drone idle, indoor):
+Live values captured 2026-05-07 (drone idle on bench, indoor):
 
 ```
 baro         = 92.92 m
 altitude     = 92.91 m
-battery      = 3.74 V
+battery      = 3.47 V (low after long bench session)
 battery_pct  = 10.0 %
 temp         = 30.83 °C
 pressure     = 1004.96 mbar
+attitude_get = (-1.20°, -0.47°, 0.25°)   # roughly level
+velocity     = (0.0, 0.0, 0.04 m/s)      # quiescent
+canfly       = False                      # not armed
+is_flying    = False
+is_tumbled   = False
 ```
+
+### Wire-protocol counters exposed via cflib PARAM (`deck.sentai*`)
+
+Watch these during integration / regression tests:
+
+| PARAM | Meaning |
+|-------|---------|
+| `sentaiR2U` | radio→UART forwards completed |
+| `sentaiR2Udrp` | radio→UART drops (oversized CRTP) |
+| `sentaiU2R` | UART→radio forwards completed |
+| `sentaiU2Rdrp` | UART→radio drops (CRTP TX queue full) |
+| `sentaiUcrc` | UART RX CRC errors (bad frames) |
+| `sentaiUbad` | UART RX bad-LEN frames |
+| `sentaiFlow` | flow_pkt_t injections accepted into EKF |
+| `sentaiFlowDrp` | flow_pkt_t rejected (bad len/floats/range) |
+| `sentaiTelem` | CH=2 telemetry queries served |
+| `sentaiTelBad` | CH=2 unknown cmd codes |
+| `sentaiTxTo` | `uart2SendDataBounded` timeouts (0 on healthy hw) |
 
 ⏳ **Open**
 
