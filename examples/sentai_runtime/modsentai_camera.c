@@ -14,14 +14,28 @@
 // switch fps after a successful init, sentai.sys.reset() the
 // board and call init(streaming, new_fps) again.
 extern int sentai_cam_init_fps(int streaming, int fps);
+extern int sentai_cam_init_full(int streaming, int fps, int hflip, int vflip);
 extern volatile uint32_t g_runtime_fps;
+// sentai.camera.init(streaming=1, fps=<runtime>, hflip=0, vflip=1)
+//   Defaults reflect the FLOW BASELINE established 2026-05-07:
+//   hflip=0, vflip=1 -- with this orientation cam0's image-axis
+//   convention (LEFT=fw, BOTTOM=left, TOP=right, RIGHT=back) holds
+//   and matches diag/_orientation_cam0_vflip.jpg.  Pass -1 to either
+//   to "leave the OV5640 init driver default" (which is H-mirror ON,
+//   V-flip OFF -- the original behavior, on-screen text reads correctly
+//   for visualization but flow body-frame mapping breaks).
+//   Both cameras receive the same orientation; cam1's body-frame
+//   mapping under this default is unverified -- run
+//   diag/_t_flow_to_drone.py::verify_orientation(cam_id=1) first.
 static mp_obj_t mod_sentai_cam_init(size_t n_args, const mp_obj_t *args) {
     int streaming = (n_args > 0) ? mp_obj_get_int(args[0]) : 1;
     int fps       = (n_args > 1) ? mp_obj_get_int(args[1])
                                   : (int)g_runtime_fps;
-    return mp_obj_new_int(sentai_cam_init_fps(streaming, fps));
+    int hflip     = (n_args > 2) ? mp_obj_get_int(args[2]) : 0;
+    int vflip     = (n_args > 3) ? mp_obj_get_int(args[3]) : 1;
+    return mp_obj_new_int(sentai_cam_init_full(streaming, fps, hflip, vflip));
 }
-static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_cam_init_obj, 0, 2, mod_sentai_cam_init);
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_cam_init_obj, 0, 4, mod_sentai_cam_init);
 
 // sentai.camera.stop() -> int
 static mp_obj_t mod_sentai_cam_stop(void) {

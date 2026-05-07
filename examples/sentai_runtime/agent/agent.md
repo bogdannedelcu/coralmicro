@@ -2031,21 +2031,43 @@ sentai.flow.period_ms()                      # current publisher cadence in ms
 
 `send_flow` packs the four floats LE into a 16-byte payload and ships via the existing `link_send(CH=1, ...)` path (no fragmentation, single 0xAA frame). End-to-end validated 2026-05-07: 6 s pass at 30 Hz delivered 180/180, drone PARAM `sentaiFlow` advanced from 0 → 180 in step, `sentaiFlBad = sentaiUcrc = 0`.
 
-**Body-frame convention** (camera mounted with bus index = `cam_id`; see `paper/flow_body_frame.md`):
+**Board orientation + image-axis convention (BASELINE 2026-05-07)**
+
+Hardware mount on Crazyflie 2.1:
+- `cam0` is the camera physically nearest the SentAI board's USB-C port (drone "back" of the board)
+- `cam1` is at the far end of the board
+- Drone body **+x (FORWARD)** = direction from `cam0` toward `cam1`
+- Body +y (LEFT), +z (UP) follow the standard right-hand frame
+
+Camera orientation chosen for FLOW:
+- `cam_hflip = 0`, `cam_vflip = 1`
+- vflip=1 selected so the image visually matches natural reading orientation of the calibration target — verified by `diag/_orientation_cam0_default.jpg` (vflip=0) vs `diag/_orientation_cam0_vflip.jpg` (vflip=1)
+
+In the vflip=1 buffer, image axis ↔ body axis:
+| Image position | Body direction |
+|---|---|
+| LEFT   | FORWARD  (+x) |
+| RIGHT  | BACKWARD (-x) |
+| TOP    | RIGHT    (-y) |
+| BOTTOM | LEFT     (+y) |
+
+`sentai.flow.read()` reports +dx/+dy as *image-buffer feature displacement* (standard phase-correlation sign: +dx = features moved RIGHT in buffer, +dy = features moved DOWN). Combined with the convention above, when the drone moves physically:
+- FORWARD (+body_x) → features → image RIGHT → flow `dx > 0`
+- LEFT    (+body_y) → features → image TOP   → flow `dy < 0`
+
+**Body-frame transform encoded in driver** (`diag/_t_flow_to_drone.py`):
 
 ```python
-# milli-grid-pixel (mgp) → grid-pixel; 1 grid-px = 8 raw-px after PXP step-8
-dx_grid = d['dx'] / 1000.0
-dy_grid = d['dy'] / 1000.0
-if d['cam_id'] == 0:        # FRONT camera
-    body_fw = -dx_grid; body_left = +dy_grid
-else:                       # BACK camera
-    body_fw = +dx_grid; body_left = -dy_grid
-dpx = body_fw   * 8.0       # raw pixels (drone EKF expects raw-px)
-dpy = body_left * 8.0
+# DEFAULTS['body_xform']: (fw_from_dx, fw_from_dy, left_from_dx, left_from_dy)
+body_xform = {
+    0: (+1.0, 0.0, 0.0, -1.0),   # cam0 baseline (vflip=1)
+    1: (+1.0, 0.0, 0.0, -1.0),   # cam1 PLACEHOLDER -- verify before flight
+}
 ```
 
-Reference driver: `diag/_t_flow_to_drone.py` (also bench-runnable via `_host_paste_bench.py --file diag/_t_flow_to_drone.py --fps 0`).
+All scaling (grid-px → drone EKF dpixel units) is derived from FOV/Npix in the same DEFAULTS — see `_scale_to_drone_units()`.
+
+Reference driver: `diag/_t_flow_to_drone.py` (also bench-runnable via `_host_paste_bench.py --file diag/_t_flow_to_drone.py --fps 0`). For controlled-translation re-derivation: `diag/_t_flow_to_drone.py::verify_orientation(cam_id)`.
 
 Fragmentation (channel 0 only) is **automatic in C, transparent to
 callers**. Board-side `sentai_crazy_link_send(0, data, len)` accepts an

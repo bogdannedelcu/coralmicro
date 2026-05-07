@@ -2464,7 +2464,28 @@ extern "C" int sentai_cam_set_res(int w, int h) {
  * caller must reboot (sentai.sys.reset()) and call init() again
  * with the new fps.  This is still a strict win over rebuild +
  * reflash. */
-extern "C" __attribute__((section(".sdram_text"))) int sentai_cam_init_fps(int streaming, int fps) {
+/* Map (hflip, vflip) -> SetCameraRotation degrees code.
+ *   (false,false) = no mirror, no flip   -> degrees=0
+ *   (true,false)  = mirror only          -> degrees=90
+ *   (true,true)   = mirror + flip        -> degrees=180
+ *   (false,true)  = flip only            -> degrees=270
+ * The OV5640 NXP init driver leaves H-mirror ON by default (so text
+ * reads correctly when displayed); callers that want raw sensor
+ * orientation must explicitly request hflip=0/vflip=0 here. */
+static int sentai_flip_to_degrees(int hflip, int vflip) {
+  if (hflip && !vflip) return 90;
+  if (hflip && vflip)  return 180;
+  if (!hflip && vflip) return 270;
+  return 0;
+}
+
+/* Full init entry point.  hflip/vflip override the OV5640 mirror/flip
+ * registers (0x3820/0x3821 bits 1+2) post-SwitchCamera so both cameras
+ * land in the same configured orientation.  -1 (default for both)
+ * means "leave whatever the OV5640 init driver programmed", which is
+ * H-mirror ON, V-flip OFF.  Pass 0/0 explicitly to clear both. */
+extern "C" __attribute__((section(".sdram_text"))) int sentai_cam_init_full(
+    int streaming, int fps, int hflip, int vflip) {
   /* Validate fps against the patched fsl_ov5640.c VGA table. */
   if (fps != 15 && fps != 30 && fps != 45 && fps != 60 && fps != 90) {
     return -10;
@@ -2498,11 +2519,27 @@ extern "C" __attribute__((section(".sdram_text"))) int sentai_cam_init_fps(int s
     return -2;
   }
   g_cam_initialized = true;
+  /* Touch each camera in turn so the OV5640 init driver runs against
+   * each silicon, then optionally apply orientation override.  Order
+   * matters: end on cam 0 so the next pipeline read sees front. */
   cam->SwitchCamera(coralmicro::SwitchCameraId::kCameraBack);
   g_cam_current_id = 1;
+  if (hflip >= 0 && vflip >= 0) {
+    int deg = sentai_flip_to_degrees(hflip, vflip);
+    (void)cam->SetCameraRotation(1, deg);   /* best-effort; logs on failure */
+  }
   cam->SwitchCamera(coralmicro::SwitchCameraId::kCameraFront);
   g_cam_current_id = 0;
+  if (hflip >= 0 && vflip >= 0) {
+    int deg = sentai_flip_to_degrees(hflip, vflip);
+    (void)cam->SetCameraRotation(0, deg);
+  }
   return 0;
+}
+
+/* Backward-compat: no orientation override, leave OV5640 defaults. */
+extern "C" int sentai_cam_init_fps(int streaming, int fps) {
+  return sentai_cam_init_full(streaming, fps, -1, -1);
 }
 
 /* Existing entry point — preserved for any caller that doesn't
