@@ -209,6 +209,18 @@ extern int sentai_crazy_query_telemetry(uint8_t cmd, float* out, int timeout_ms)
 #define TELEM_BATTERY_PCT  0x04
 #define TELEM_TEMP_C       0x05
 #define TELEM_PRESSURE     0x06
+/* Attitude (degrees, fused EKF) */
+#define TELEM_ROLL         0x10
+#define TELEM_PITCH        0x11
+#define TELEM_YAW          0x12
+/* Velocity (m/s, world frame, fused EKF) */
+#define TELEM_VX           0x20
+#define TELEM_VY           0x21
+#define TELEM_VZ           0x22
+/* Supervisor flags (bool — true if value != 0.0) */
+#define TELEM_CANFLY       0x30
+#define TELEM_IS_FLYING    0x31
+#define TELEM_IS_TUMBLED   0x32
 
 static float telem_or_default(uint8_t cmd, int timeout_ms, float fallback) {
     float v = fallback;
@@ -284,6 +296,65 @@ static mp_obj_t mod_sentai_crazy_telem(size_t n_args, const mp_obj_t* args) {
     return mp_obj_new_float(v);
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_crazy_telem_obj, 1, 2, mod_sentai_crazy_telem);
+
+// sentai.crazy.attitude(timeout_ms=200) -> (roll, pitch, yaw)
+//   Fused EKF Euler angles in degrees. Three sequential CH=2 queries
+//   on the wire (~1.5 ms each), so worst-case latency is ~5 ms with
+//   a 200 ms timeout per query. Returns NaN-tuple if transport fails.
+static mp_obj_t mod_sentai_crazy_attitude_get(size_t n_args, const mp_obj_t* args) {
+    int t = (n_args > 0) ? mp_obj_get_int(args[0]) : 200;
+    float r = -999.0f, p = -999.0f, y = -999.0f;
+    sentai_crazy_query_telemetry(TELEM_ROLL,  &r, t);
+    sentai_crazy_query_telemetry(TELEM_PITCH, &p, t);
+    sentai_crazy_query_telemetry(TELEM_YAW,   &y, t);
+    mp_obj_t tuple[3] = { mp_obj_new_float(r), mp_obj_new_float(p), mp_obj_new_float(y) };
+    return mp_obj_new_tuple(3, tuple);
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_crazy_attitude_get_obj, 0, 1, mod_sentai_crazy_attitude_get);
+
+// sentai.crazy.velocity(timeout_ms=200) -> (vx, vy, vz)
+//   Fused EKF velocity in world frame (m/s). Three sequential CH=2
+//   queries — same wire-time pattern as attitude().
+static mp_obj_t mod_sentai_crazy_velocity(size_t n_args, const mp_obj_t* args) {
+    int t = (n_args > 0) ? mp_obj_get_int(args[0]) : 200;
+    float vx = -999.0f, vy = -999.0f, vz = -999.0f;
+    sentai_crazy_query_telemetry(TELEM_VX, &vx, t);
+    sentai_crazy_query_telemetry(TELEM_VY, &vy, t);
+    sentai_crazy_query_telemetry(TELEM_VZ, &vz, t);
+    mp_obj_t tuple[3] = { mp_obj_new_float(vx), mp_obj_new_float(vy), mp_obj_new_float(vz) };
+    return mp_obj_new_tuple(3, tuple);
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_crazy_velocity_obj, 0, 1, mod_sentai_crazy_velocity);
+
+// Boolean flag accessors — drone log var is uint8_t, widened to float
+// by logGetFloat. We threshold at != 0.0; transport failure returns
+// False (conservative — better to say "not flying" than to claim it).
+static bool telem_bool(uint8_t cmd, int timeout_ms) {
+    float v = 0.0f;
+    if (sentai_crazy_query_telemetry(cmd, &v, timeout_ms) != 0) return false;
+    return v != 0.0f;
+}
+
+// sentai.crazy.canfly(timeout_ms=200) -> bool
+static mp_obj_t mod_sentai_crazy_canfly(size_t n_args, const mp_obj_t* args) {
+    int t = (n_args > 0) ? mp_obj_get_int(args[0]) : 200;
+    return mp_obj_new_bool(telem_bool(TELEM_CANFLY, t));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_crazy_canfly_obj, 0, 1, mod_sentai_crazy_canfly);
+
+// sentai.crazy.is_flying(timeout_ms=200) -> bool
+static mp_obj_t mod_sentai_crazy_is_flying(size_t n_args, const mp_obj_t* args) {
+    int t = (n_args > 0) ? mp_obj_get_int(args[0]) : 200;
+    return mp_obj_new_bool(telem_bool(TELEM_IS_FLYING, t));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_crazy_is_flying_obj, 0, 1, mod_sentai_crazy_is_flying);
+
+// sentai.crazy.is_tumbled(timeout_ms=200) -> bool
+static mp_obj_t mod_sentai_crazy_is_tumbled(size_t n_args, const mp_obj_t* args) {
+    int t = (n_args > 0) ? mp_obj_get_int(args[0]) : 200;
+    return mp_obj_new_bool(telem_bool(TELEM_IS_TUMBLED, t));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_crazy_is_tumbled_obj, 0, 1, mod_sentai_crazy_is_tumbled);
 
 // =====================================================================
 // sentai.crazy.on_message(callback|None) — async dispatch
@@ -553,6 +624,11 @@ static const mp_rom_map_elem_t sentai_crazy_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_temp),           MP_ROM_PTR(&mod_sentai_crazy_temp_obj) },
     { MP_ROM_QSTR(MP_QSTR_pressure),       MP_ROM_PTR(&mod_sentai_crazy_pressure_obj) },
     { MP_ROM_QSTR(MP_QSTR_telem),          MP_ROM_PTR(&mod_sentai_crazy_telem_obj) },
+    { MP_ROM_QSTR(MP_QSTR_attitude_get),   MP_ROM_PTR(&mod_sentai_crazy_attitude_get_obj) },
+    { MP_ROM_QSTR(MP_QSTR_velocity),       MP_ROM_PTR(&mod_sentai_crazy_velocity_obj) },
+    { MP_ROM_QSTR(MP_QSTR_canfly),         MP_ROM_PTR(&mod_sentai_crazy_canfly_obj) },
+    { MP_ROM_QSTR(MP_QSTR_is_flying),      MP_ROM_PTR(&mod_sentai_crazy_is_flying_obj) },
+    { MP_ROM_QSTR(MP_QSTR_is_tumbled),     MP_ROM_PTR(&mod_sentai_crazy_is_tumbled_obj) },
     { MP_ROM_QSTR(MP_QSTR_on_message),     MP_ROM_PTR(&mod_sentai_crazy_on_message_obj) },
     { MP_ROM_QSTR(MP_QSTR_link_send),      MP_ROM_PTR(&mod_sentai_crazy_link_send_obj) },
 };
