@@ -23,6 +23,9 @@ extern void     sentai_flow_perf_cyc(uint32_t* pxp, uint32_t* rgb2y,
                                       uint32_t* stretch, uint32_t* sad,
                                       uint32_t* total, uint32_t* grab,
                                       uint32_t* loop);
+extern void     sentai_flow_deadband_state(uint32_t* period_ms_x10,
+                                            uint32_t* deadband_mgp,
+                                            uint32_t* velocity_mgp_per_s);
 extern int      sentai_fs_cache_write(const uint8_t* data, int size);
 
 // sentai.flow.enable() -> int (0 on success, -1 if no compute backend)
@@ -164,6 +167,25 @@ static mp_obj_t mod_sentai_flow_gray_stretch(size_t n_args,
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_flow_gray_stretch_obj,
                                             0, 1, mod_sentai_flow_gray_stretch);
 
+// sentai.flow.period_ms() -> float
+//
+// Current per-frame sample period in milliseconds, derived from the
+// rate-aware deadband state machine (sliding-window over the camera
+// notify cadence). Useful for the drone-flow injection path that
+// needs an explicit `dt` per measurement: pass this into the
+// flow_pkt_t.dt field to match the actual integration window.
+//
+// Returns the *most recently observed* period; on cold start (before
+// the first deadband recompute window completes) returns the
+// 30-fps bootstrap value (33.3 ms).
+static mp_obj_t mod_sentai_flow_period_ms(void) {
+    uint32_t per_x10 = 333;
+    sentai_flow_deadband_state(&per_x10, NULL, NULL);
+    return mp_obj_new_float((float)per_x10 / 10.0f);
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_flow_period_ms_obj,
+                                  mod_sentai_flow_period_ms);
+
 // sentai.flow.pub_stats() -> dict (publisher diag counters)
 static mp_obj_t mod_sentai_flow_pub_stats(void) {
     uint32_t frames = 0, grab_fail_total = 0, grab_fail_streak = 0;
@@ -214,6 +236,7 @@ static const mp_rom_map_elem_t sentai_flow_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_gray_to_cache),  MP_ROM_PTR(&mod_sentai_flow_gray_to_cache_obj) },
     { MP_ROM_QSTR(MP_QSTR_detail_score),   MP_ROM_PTR(&mod_sentai_flow_detail_score_obj) },
     { MP_ROM_QSTR(MP_QSTR_gray_stretch),   MP_ROM_PTR(&mod_sentai_flow_gray_stretch_obj) },
+    { MP_ROM_QSTR(MP_QSTR_period_ms),      MP_ROM_PTR(&mod_sentai_flow_period_ms_obj) },
     { MP_ROM_QSTR(MP_QSTR_pub_stats),      MP_ROM_PTR(&mod_sentai_flow_pub_stats_obj) },
     { MP_ROM_QSTR(MP_QSTR_perf),           MP_ROM_PTR(&mod_sentai_flow_perf_obj) },
 };

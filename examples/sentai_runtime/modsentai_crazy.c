@@ -580,6 +580,46 @@ static mp_obj_t mod_sentai_crazy_on_message(mp_obj_t cb_obj) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_crazy_on_message_obj, mod_sentai_crazy_on_message);
 
+// sentai.crazy.send_flow(dpx, dpy, dt, std) -> int
+//
+// Pack and ship one optical-flow measurement to the drone EKF on
+// CH=1. Body-frame conventions (per paper/flow_body_frame.md):
+//   dpx — accumulated body-X (forward) pixel motion since last sample
+//   dpy — accumulated body-Y (left)    pixel motion since last sample
+//   dt  — elapsed time in seconds (drone rejects dt <= 0 or > 1.0)
+//   std — measurement standard deviation in pixels (>0, ≤ 100)
+//
+// On the drone, our deck driver parses the packed 16-byte flow_pkt_t,
+// builds a flowMeasurement_t (Bitcraze convention) and calls
+// estimatorEnqueueFlow(&fm). Sanity-rejected on bad floats / range —
+// counter visible as deck.sentaiFlowDrp; accepted as deck.sentaiFlow.
+//
+// Caller is responsible for the camera→body transform AND the
+// mgp→pixel conversion. With our 80×60 grid (step-8 from VGA),
+// 1 grid-px = 8 raw-px, so:
+//   raw_px = sentai.flow.read()['dx'] / 1000.0 * 8.0
+// then apply the cam0/cam1 sign flip per body_frame.md.
+//
+// Returns 0 on success, -1=not running, -3=UART tx fail.
+static mp_obj_t mod_sentai_crazy_send_flow(size_t n_args, const mp_obj_t* args) {
+    /* Pack into the same layout the drone deck parses (16 B). Wire
+     * is LE float32; Cortex-M is LE so direct memcpy works (the
+     * static_assert in sentai_crazy.cc enforces this). */
+    float dpx = mp_obj_get_float(args[0]);
+    float dpy = mp_obj_get_float(args[1]);
+    float dt  = mp_obj_get_float(args[2]);
+    float std = mp_obj_get_float(args[3]);
+
+    uint8_t pkt[16];
+    memcpy(&pkt[0],  &dpx, 4);
+    memcpy(&pkt[4],  &dpy, 4);
+    memcpy(&pkt[8],  &dt,  4);
+    memcpy(&pkt[12], &std, 4);
+
+    return mp_obj_new_int(sentai_crazy_link_send(1, pkt, 16));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_crazy_send_flow_obj, 4, 4, mod_sentai_crazy_send_flow);
+
 // sentai.crazy.link_send(channel, data) -> int
 // Send a payload to the drone-side "sentai" deck driver over UART2,
 // using channel multiplexing on the 0xAA wire format:
@@ -631,6 +671,7 @@ static const mp_rom_map_elem_t sentai_crazy_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_is_tumbled),     MP_ROM_PTR(&mod_sentai_crazy_is_tumbled_obj) },
     { MP_ROM_QSTR(MP_QSTR_on_message),     MP_ROM_PTR(&mod_sentai_crazy_on_message_obj) },
     { MP_ROM_QSTR(MP_QSTR_link_send),      MP_ROM_PTR(&mod_sentai_crazy_link_send_obj) },
+    { MP_ROM_QSTR(MP_QSTR_send_flow),      MP_ROM_PTR(&mod_sentai_crazy_send_flow_obj) },
 };
 static MP_DEFINE_CONST_DICT(sentai_crazy_globals, sentai_crazy_globals_table);
 static const mp_obj_module_t sentai_crazy_module = {

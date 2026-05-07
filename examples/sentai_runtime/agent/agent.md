@@ -2020,7 +2020,32 @@ Drone-side handler is `estimatorEnqueueFlow(&fm)` where `flowMeasurement_t fm` i
 - `dt` must be > 0 and ≤ 1.0 s (drone rejects out-of-range). Match the actual integration window used by `sentai.flow`.
 - `std` must be > 0 and ≤ 100 (std-dev in pixels). Use a reasonable estimate from the flow algorithm's confidence.
 
-Counter `deck.sentaiFlow` increments on each successful inject; `deck.sentaiFlowDrp` on rejected packets (bad len / bad floats / out-of-range). Watch both during integration tests.
+Counter `deck.sentaiFlow` increments on each successful inject; `deck.sentaiFlBad` on rejected packets (bad len / NaN / `dt` or `std` out-of-range). Watch both via cflib `cf.param.get_value('deck.sentaiFlow')` during integration tests.
+
+**Board MP API** (build #1211+):
+
+```python
+sentai.crazy.send_flow(dpx, dpy, dt, std)   # returns 0 on success
+sentai.flow.period_ms()                      # current publisher cadence in ms
+```
+
+`send_flow` packs the four floats LE into a 16-byte payload and ships via the existing `link_send(CH=1, ...)` path (no fragmentation, single 0xAA frame). End-to-end validated 2026-05-07: 6 s pass at 30 Hz delivered 180/180, drone PARAM `sentaiFlow` advanced from 0 → 180 in step, `sentaiFlBad = sentaiUcrc = 0`.
+
+**Body-frame convention** (camera mounted with bus index = `cam_id`; see `paper/flow_body_frame.md`):
+
+```python
+# milli-grid-pixel (mgp) → grid-pixel; 1 grid-px = 8 raw-px after PXP step-8
+dx_grid = d['dx'] / 1000.0
+dy_grid = d['dy'] / 1000.0
+if d['cam_id'] == 0:        # FRONT camera
+    body_fw = -dx_grid; body_left = +dy_grid
+else:                       # BACK camera
+    body_fw = +dx_grid; body_left = -dy_grid
+dpx = body_fw   * 8.0       # raw pixels (drone EKF expects raw-px)
+dpy = body_left * 8.0
+```
+
+Reference driver: `diag/_t_flow_to_drone.py` (also bench-runnable via `_host_paste_bench.py --file diag/_t_flow_to_drone.py --fps 0`).
 
 Fragmentation (channel 0 only) is **automatic in C, transparent to
 callers**. Board-side `sentai_crazy_link_send(0, data, len)` accepts an

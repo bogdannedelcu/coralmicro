@@ -5931,9 +5931,15 @@ lit throughout (SYS_LED healthy).
   **automatic in-C fragmentation** (`link_send` accepts any length,
   emits 29-byte `[MF][chunk]` frames under one held mutex; rx side
   reassembles before dispatch).
-- Channel 1 flow-inject: code path complete on both sides, queue
-  counters wired (`deck.sentaiFlow / FlowDrp`); not yet exercised
-  end-to-end with a real flow source.
+- **Channel 1 flow-inject SHIPPED** (2026-05-07) — board MP API
+  `sentai.crazy.send_flow(dpx, dpy, dt, std)` packs a 16-byte
+  `flow_pkt_t` (4 × float32 LE, body-frame raw-px) and ships on CH=1;
+  drone-side `estimatorEnqueueFlow()` accepts and feeds the EKF.
+  Validated end-to-end with the real `sentai.flow` algorithm: 6 s
+  bench at 30 Hz delivered 180/180 packets, drone PARAM
+  `deck.sentaiFlow` increments live over radio, 0 `sentaiFlBad`,
+  0 `sentaiUcrc`. New `sentai.flow.period_ms()` returns the publisher
+  cadence so callers can size `dt` clamps.
 - **Channel 2 telemetry SHIPPED** (2026-05-06) — drone-side handler
   resolves Bitcraze log var IDs lazily, board-side `query_telemetry`
   semaphore-synchronizes a single response slot. Default timeout
@@ -6056,7 +6062,7 @@ Watch these during integration / regression tests:
 | `sentaiUcrc` | UART RX CRC errors (bad frames) |
 | `sentaiUbad` | UART RX bad-LEN frames |
 | `sentaiFlow` | flow_pkt_t injections accepted into EKF |
-| `sentaiFlowDrp` | flow_pkt_t rejected (bad len/floats/range) |
+| `sentaiFlBad` | flow_pkt_t rejected (bad len / NaN / dt or std out of range) |
 | `sentaiTelem` | CH=2 telemetry queries served |
 | `sentaiTelBad` | CH=2 unknown cmd codes |
 | `sentaiTxTo` | `uart2SendDataBounded` timeouts (0 on healthy hw) |
