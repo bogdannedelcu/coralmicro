@@ -210,6 +210,25 @@ static mp_obj_t mod_sentai_fs_mkdir(mp_obj_t path_obj) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_fs_mkdir_obj, mod_sentai_fs_mkdir);
 
+// sentai.fs.sync() -> bool
+//   Force FAT-table flush to NAND.  Phase 3.2 perf-tuning dropped
+//   per-write fx_media_flush; callers that need POWER-CYCLE
+//   durability for their last writes MUST call this explicitly
+//   before they remove USB / pull battery.  sys.reset (NVIC) is
+//   safer because SDRAM cache survives across reset, but power
+//   cycle clears SDRAM and unflushed FAT chains are lost.
+extern int sentai_fs_sync(void);
+static mp_obj_t mod_sentai_fs_sync(void) {
+    _fs_check_usb();
+    if (!sentai_fs_lock()) {
+        mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("lfs busy"));
+    }
+    int rc = sentai_fs_sync();
+    sentai_fs_unlock();
+    return mp_obj_new_bool(rc);
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_fs_sync_obj, mod_sentai_fs_sync);
+
 // Callback context for listdir
 typedef struct {
     mp_obj_list_t* list;
@@ -255,6 +274,7 @@ static const mp_rom_map_elem_t sentai_fs_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_format),      MP_ROM_PTR(&mod_sentai_fs_format_obj) },
     { MP_ROM_QSTR(MP_QSTR_remove),      MP_ROM_PTR(&mod_sentai_fs_remove_obj) },
     { MP_ROM_QSTR(MP_QSTR_mkdir),       MP_ROM_PTR(&mod_sentai_fs_mkdir_obj) },
+    { MP_ROM_QSTR(MP_QSTR_sync),        MP_ROM_PTR(&mod_sentai_fs_sync_obj) },
     { MP_ROM_QSTR(MP_QSTR_ls),          MP_ROM_PTR(&mod_sentai_ls_obj) },
 };
 static MP_DEFINE_CONST_DICT(sentai_fs_globals, sentai_fs_globals_table);

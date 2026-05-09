@@ -209,11 +209,30 @@ def _upload_one(ser, local: pathlib.Path, remote: str):
     ).decode("utf-8", errors="replace")
     marker = "OK:%s:%d" % (local.name, n)
     dt = time.time() - t0
-    if marker in resp:
-        print("    ✓ wrote %d bytes in %.1fs" % (n, dt))
-        return True
-    print("    ✗ missing '%s' in reply; last 300 chars:\n%s" % (marker, resp[-300:]))
-    return False
+    if marker not in resp:
+        print("    ✗ missing '%s' in reply; last 300 chars:\n%s" % (marker, resp[-300:]))
+        return False
+    # Phase 3.2 dropped per-write fx_media_flush, so the file we just
+    # wrote may live only in SDRAM cache.  sys.reset (NVIC) survives
+    # because SDRAM persists across the reset, but a power cycle
+    # clears SDRAM and the file vanishes.  Force a FAT-table flush
+    # NOW so the upload is durable across power cycles too.  Older
+    # firmware without sentai.fs.sync just gets a benign AttributeError
+    # (caught silently); upgrade firmware to make uploads safe.
+    sync_resp = _send_line(
+        ser,
+        "print('SYNC:' + repr(sentai.fs.sync())) if 'sync' in dir(sentai.fs) "
+        "else print('SYNC:NOAPI')",
+        timeout=5.0,
+    ).decode("utf-8", errors="replace")
+    if "SYNC:True" in sync_resp:
+        sync_note = " sync=ok"
+    elif "SYNC:NOAPI" in sync_resp:
+        sync_note = " sync=NO-API (firmware old; upload not power-cycle durable)"
+    else:
+        sync_note = " sync=FAIL"
+    print("    ✓ wrote %d bytes in %.1fs%s" % (n, dt, sync_note))
+    return True
 
 
 def main():

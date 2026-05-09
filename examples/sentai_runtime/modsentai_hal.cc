@@ -132,6 +132,17 @@ int sentai_fs_append(const char* path, const uint8_t* buf, int size) {
     return coralmicro::LfsUserAppendFile(path, buf, (size_t)size) ? 1 : 0;
 }
 
+// Force FAT-table flush to NAND.  Phase 3.2 dropped per-write
+// fx_media_flush for perf; callers that need crash/power-cycle
+// durability for their LAST writes (e.g. uploading /main.py over
+// REPL) MUST call this before sys.reset() or removing power.
+// Returns 1 on success, 0 on failure (volume not mounted, mutex
+// timeout).
+extern "C" int FxUserSync(void);
+int sentai_fs_sync(void) {
+    return FxUserSync();
+}
+
 // Remove file or empty directory. Returns 0 on success.
 int sentai_fs_remove(const char* path) {
     return coralmicro::LfsUserRemove(path);
