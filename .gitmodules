@@ -68,3 +68,6 @@
 [submodule "third_party/eclipse-threadx/levelx"]
 	path = third_party/eclipse-threadx/levelx
 	url = https://github.com/eclipse-threadx/levelx.git
+[submodule "third_party/aifes"]
+	path = third_party/aifes
+	url = https://github.com/Fraunhofer-IMS/AIfES_for_Arduino.git
