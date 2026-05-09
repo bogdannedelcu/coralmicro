@@ -33,18 +33,18 @@
 #   * Image TOP    ←→  body RIGHT    (-y)
 #   * Image BOTTOM ←→  body LEFT     (+y)
 #
-# Phase-correlation sign convention (standard): +dx, +dy in the
-# sentai.flow output are the displacement of features in the BUFFER
-# frame between consecutive frames.  +dx = features moved RIGHT in
-# buffer; +dy = features moved DOWN in buffer.
+# EMPIRICAL sign convention (verified 2026-05-07 by controlled-
+# translation test, _t_flow_capture.py with LED-cued FORWARD/BACK/LEFT):
+#   drone moves FORWARD →  flow dx ≈ -222 mgp   (NOT +dx as theory suggested)
+#   drone moves BACK    →  flow dx ≈ +364 mgp
+#   drone moves LEFT    →  flow dy ≈ +233 mgp
 #
-# Combining both: when the drone moves PHYSICALLY,
-#   forward (+body_x):  features move toward image RIGHT  →  flow dx > 0
-#   left    (+body_y):  features move toward image TOP    →  flow dy < 0
-# so the body-frame components are
-#   body_fw   = +1.0 * dx + 0.0 * dy
-#   body_left =  0.0 * dx + (-1.0) * dy
-# encoded in DEFAULTS['body_xform'][0] = (+1.0, 0.0, 0.0, -1.0).
+# Sentai's phase-correlation thus reports peak SHIFT in the OPPOSITE
+# direction of feature motion in the buffer.  We trust the data, not
+# the model.  Body components are:
+#   body_fw   = -1.0 * dx + 0.0 * dy   (negate dx so forward is +ve)
+#   body_left =  0.0 * dx + +1.0 * dy
+# encoded in DEFAULTS['body_xform'][0] = (-1.0, 0.0, 0.0, +1.0).
 #
 # cam1 is mounted at the opposite end of the board; its sign convention
 # may differ (rotation around board long axis).  Verify with
@@ -101,14 +101,21 @@ DEFAULTS = {
     # Body component = fw_from_dx * dx + fw_from_dy * dy etc.
     #
     # cam0 baseline (vflip=1, USB-side camera, forward = cam0->cam1):
-    #   body_fw   = +1.0 * dx                  (drone forward → +dx)
-    #   body_left =                -1.0 * dy   (drone left    → -dy)
+    #   Hardware-verified 2026-05-07 via _t_flow_capture.py controlled
+    #   translation: forward 10cm gave dx=-222 mgp, back gave dx=+364,
+    #   left gave dy=+233.  Empirical sign convention is OPPOSITE of
+    #   the textbook "drone forward = features go to image right" model
+    #   (probably because sentai phase-correlation reports peak shift
+    #   in the OPPOSITE direction of feature motion).  Trust the data.
+    #
+    #   body_fw   = -dx   (forward gives -dx, we want body_fw > 0)
+    #   body_left = +dy   (left gives +dy, we want body_left > 0)
     #
     # cam1 NOT YET VERIFIED -- placeholder copy of cam0; run
-    # verify_orientation(cam_id=1) before using cam1 in flight.
+    # capture_orientation_run(cam_id=1) before using cam1 in flight.
     'body_xform': {
-        0: (+1.0,  0.0,   0.0, -1.0),   # BASELINE 2026-05-07 (cam0 + vflip=1)
-        1: (+1.0,  0.0,   0.0, -1.0),   # placeholder; verify before flight
+        0: (-1.0,  0.0,   0.0, +1.0),   # BASELINE 2026-05-07 (cam0 + vflip=1)
+        1: (-1.0,  0.0,   0.0, +1.0),   # placeholder; verify before flight
     },
 
     # --- camera position relative to drone centre of mass --------------------
@@ -399,12 +406,123 @@ def verify_orientation(cam_id=0, secs=20, period_ms=200):
     print('=== verify_orientation done ===')
 
 
+def capture_orientation_run(secs=16, period_ms=100, cam_id=0):
+    """Guided 4-motion capture with LED phase cues.
+
+    Total timeline (all on board's own clock):
+        T=0.0 - 1.0   STARTUP  : LED flashes 5x to signal start
+        T=1.0 - 3.0   STILL    : LED off; baseline noise window
+        T=3.0 - 6.0   MOTION 1 : LED on solid; user moves FORWARD
+        T=6.0 - 8.0   STILL    : LED off; brief settle
+        T=8.0 - 11.0  MOTION 2 : LED on solid; user moves BACK
+       T=11.0 - 13.0  STILL    : LED off; settle
+       T=13.0 - 16.0  MOTION 3 : LED on solid; user moves LEFT
+       (extend secs >= 21 for MOTION 4 RIGHT — default 16s covers 3 motions)
+
+    Output stream: lines like
+        OBS:<t_ms>,<dx_mgp>,<dy_mgp>,<conf>,<seq>
+    plus CUE:<phase> markers at each transition.  Streamed via REPL
+    print(); _host_paste_bench captures and stores.
+
+    Note: LED visibility is the ONLY synchronization signal.  User
+    moves drone IFF LED is on; rests IFF LED is off.  No stopwatch
+    needed.
+    """
+    # Bring up bridge + camera + flow with the FLOW BASELINE defaults
+    # so the body_xform we want to validate is the one in effect.
+    cfg = dict(DEFAULTS)
+    sentai.crazy.init()
+    sentai.camera.init(cfg['cam_streaming'], cfg['cam_fps'],
+                       cfg['cam_hflip'], cfg['cam_vflip'])
+    sentai.flow.enable()
+    sentai.flow.start(cam_id)
+    sentai.rtos.sleep_ms(400)
+
+    # Phase schedule (start_ms, end_ms, label, led_on)
+    schedule = [
+        (   0,  1000, 'STARTUP', None),    # LED handled separately
+        (1000,  3000, 'STILL_1', False),
+        (3000,  6000, 'FORWARD', True),
+        (6000,  8000, 'STILL_2', False),
+        (8000, 11000, 'BACK',    True),
+        (11000,13000, 'STILL_3', False),
+        (13000,16000, 'LEFT',    True),
+        (16000,18000, 'STILL_4', False),
+        (18000,21000, 'RIGHT',   True),
+    ]
+    total_ms = secs * 1000
+
+    print('=== capture_orientation_run secs=%d cam_id=%d ===' % (secs, cam_id))
+    print('# Schedule prints CUE: markers; phases with led_on=True =>')
+    print('# user moves drone in the named direction.  Phases with')
+    print('# led_on=False => keep drone STILL.')
+
+    t0 = sentai.rtos.ticks_ms()
+
+    # Startup flash: 5 quick blinks at ~10 Hz
+    print('CUE:STARTUP')
+    for _ in range(5):
+        sentai.io.led_on()
+        sentai.rtos.sleep_ms(80)
+        sentai.io.led_off()
+        sentai.rtos.sleep_ms(80)
+    sentai.io.led_off()
+
+    cur_phase_idx = -1   # force first iteration to publish CUE
+    last_seq = -1
+
+    while True:
+        t_now = sentai.rtos.ticks_ms() - t0
+        if t_now >= total_ms:
+            break
+
+        # Phase transition?  Walk forward through schedule until we
+        # find the one covering t_now.
+        new_idx = cur_phase_idx
+        while (new_idx + 1 < len(schedule) and
+               schedule[new_idx + 1][0] <= t_now):
+            new_idx += 1
+        if new_idx != cur_phase_idx and new_idx >= 0:
+            cur_phase_idx = new_idx
+            phase = schedule[cur_phase_idx]
+            want_led = phase[3]
+            if want_led is True:
+                sentai.io.led_on()
+            elif want_led is False:
+                sentai.io.led_off()
+            print('CUE:%s' % phase[2])
+
+        # Sample flow.  Skip duplicates by frame_seq; 30 fps source vs
+        # 10 Hz poll means each seq appears at most twice.
+        d = sentai.flow.read()
+        seq = d['frame_seq']
+        if seq != last_seq:
+            last_seq = seq
+            print('OBS:%d,%d,%d,%d,%d' %
+                  (t_now, d['dx'], d['dy'], d['confidence'], seq))
+
+        sentai.rtos.sleep_ms(period_ms)
+
+    sentai.io.led_off()
+    sentai.flow.stop()
+    print('=== done ===')
+
+
 # Bench harness: when streamed via _host_paste_bench.py, _target_fps is set
 # but unused here; we just run a single 6 s pass and print '=== done ===' so
 # the harness exits cleanly.
 try:
     _ = _target_fps  # noqa: F821 - injected by _host_paste_bench
-    run(secs=6, cam_id=0)
-    print('=== done ===')
+    # When streamed via _host_paste_bench, dispatch on the literal value:
+    #   _target_fps == -1  → capture_orientation_run (calibration)
+    #   _target_fps == -2  → capture_orientation_run secs=21 (4 motions)
+    #   anything else      → run() with normal flow injection
+    if _target_fps == -1:
+        capture_orientation_run(secs=16, cam_id=0)
+    elif _target_fps == -2:
+        capture_orientation_run(secs=21, cam_id=0)
+    else:
+        run(secs=6, cam_id=0)
+        print('=== done ===')
 except NameError:
     pass
