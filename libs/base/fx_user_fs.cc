@@ -83,6 +83,32 @@ uint32_t          g_mount_failures = 0;
 constexpr uint32_t kMountRetries       = 3u;
 constexpr uint32_t kMountRetryDelayMs  = 50u;
 
+/* Pre-scheduler-safe delay.  vTaskDelay() requires the scheduler to be
+ * running (it manipulates pxCurrentTCB which is NULL pre-scheduler →
+ * null deref → HardFault → boot loop).  FxUserInit and FxUserOpenLxOnly
+ * are called from CHECK(LfsUserInit()) in main_freertos_m7.cc:389 BEFORE
+ * vTaskStartScheduler — so a vTaskDelay(50) inside the bounded retry
+ * loop would brick boot the moment any retry was needed.  Discovered
+ * 2026-05-09 (see experiment.md "fx_user_fs vTaskDelay pre-scheduler
+ * boot brick" session): board ran for 985 ms post-reset then halted at
+ * progress=0x06 with 14 tasks created but app_main task never scheduled
+ * (xTaskCreate failed silently because heap was clobbered by the fault).
+ *
+ * Post-scheduler: vTaskDelay (yields CPU, accurate ms timing).
+ * Pre-scheduler: cycle-counted busy spin (CPU @ 800 MHz × ms × 1000). */
+inline void bounded_delay_ms(uint32_t ms) {
+    if (xTaskGetSchedulerState() == taskSCHEDULER_RUNNING) {
+        vTaskDelay(pdMS_TO_TICKS(ms));
+        return;
+    }
+    /* Busy-spin pre-scheduler.  800 MHz core; one volatile-load per
+     * iteration is roughly 4-8 cycles, so 800e6 cycles/sec ÷ ~6 cyc =
+     * ~130 M iters/sec.  Cap to be safe. */
+    volatile uint32_t i;
+    const uint32_t kIters = ms * 100000u; /* generous; busy-spin > vTaskDelay tick anyway */
+    for (i = 0; i < kIters; ++i) { __asm__ volatile("nop"); }
+}
+
 /* Boot timestamp seed for best-effort mtime.  FAT timestamps require
  * year >= 1980; we substitute (boot tick) seconds and tag the year as
  * a constant so the field is monotonic-ish for the same boot. */
@@ -407,7 +433,7 @@ extern "C" int FxUserInit(int force_format) {
             return 1;
         }
         if (attempt + 1u < kMountRetries) {
-            vTaskDelay(pdMS_TO_TICKS(kMountRetryDelayMs));
+            bounded_delay_ms(kMountRetryDelayMs);
         }
     }
 
@@ -1039,7 +1065,7 @@ extern "C" int FxUserOpenLxOnly(void) {
             return 1;
         }
         if (attempt + 1u < kMountRetries) {
-            vTaskDelay(pdMS_TO_TICKS(kMountRetryDelayMs));
+            bounded_delay_ms(kMountRetryDelayMs);
         }
     }
 
