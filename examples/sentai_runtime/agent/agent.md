@@ -2623,6 +2623,95 @@ Round-trip latency host→board→host: tens of ms. Validated with
 2 fragments auto-emitted by C, reassembled by host). LED RED_R stays
 lit throughout (SYS_LED healthy, no scheduler stall).
 
+### Best practice — DO NOT transfer files via radio (CRTP MTU 30 B)
+
+Validated 2026-05-09 (board on drone battery, USB unplugged):
+the radio path is for **short inline `$exec` commands and telemetry
+queries only**.  File transfer over radio is technically possible
+(MF-fragmented `$sentai.fs.append(path, b'<chunk>')` calls) but:
+
+- CRTP payload max = 30 B per packet → ~5-6 useful bytes per call after
+  `$sentai.fs.append('/main.py', b'')` overhead → ~300+ round-trips
+  per 1 KB script → ~15 s minimum at 50 ms RTT.
+- Each round-trip eats radio bandwidth that you usually need for
+  control + telemetry instead.
+- A dropped packet mid-chunk silently truncates the file and
+  `sentai.fs.sync()` will happily commit the truncated state.
+
+**The right model**: pre-load EVERYTHING via USB before the board
+goes on the drone.  Once on radio, only short inline `$exec`,
+`$sentai.crazy.*` telemetry queries, and one-shot status commands.
+
+#### What works inline (≤29 B payload after `$` prefix)
+
+Validated 2026-05-09 motion test on drone battery:
+
+```python
+$1+1                                # sanity
+$sentai.flow.pub_stats()            # 24 B — multi-fragment auto-reasm
+$sentai.camera.init()               # 21 B
+$sentai.flow.enable()               # 21 B
+$sentai.flow.start(0)               # 21 B
+$sentai.io.led_on()                 # 19 B
+$sentai.io.led_off()                # 20 B
+$sentai.crazy.battery()             # 23 B → telemetry float reply
+$sentai.crazy.send_flow(0,0,0.033,1) # 35 B → TOO LONG, use alias trick
+```
+
+#### Alias trick for >29 B calls
+
+Reduce call site to fit MTU by binding a short name first:
+
+```python
+$r=sentai.flow.read       # 19 B   then  $r()              #  5 B
+$f=sentai.crazy.send_flow # 24 B   then  $f(dx,dy,dt,std)  # ≤22 B
+$l=sentai.io.led_on       # 19 B   then  $l()              #  5 B
+$o=sentai.io.led_off      # 20 B   then  $o()              #  5 B
+```
+
+Aliases live in MP REPL globals so they persist across radio
+exec calls (same MP VM context).  Lost only on board reset.
+
+#### Reply fragmentation (board → host)
+
+Replies > 29 B fragment automatically on the board side
+(`link_send` walks the buffer, prepends MF=1 to all but the last
+fragment, MF=0 to the last).  Host reassembles trivially:
+
+```python
+fragments = []
+def cb(pkt):
+    fragments.append(bytes(pkt.data))
+cf.add_port_callback(0x0E, cb)
+# ... send packet, wait for reply ...
+joined = b''.join(f[1:] for f in fragments).decode('utf-8')
+# strip MF byte from each fragment, concatenate
+```
+
+A single `cf.send_packet` of `$sentai.flow.read()` (16 B) returns
+~150 B reply across 6 fragments — fully transparent.
+
+#### Round-trip estimate
+
+| Reply size | Fragments | RTT @ 50 ms baseline |
+|---|---|---|
+| ≤29 B (`$1+1` → `OK 2`)        | 1 | ~30 ms |
+| 60 B (`$sentai.version()`)     | 2 | ~50 ms |
+| 150 B (`$sentai.flow.read()`)  | 6 | ~120 ms |
+| 250 B (`$dir(sentai.io)`)      | 9 | ~180 ms |
+
+At 50 Hz polling for `$sentai.flow.read()`, ~6 Hz effective is the
+realistic ceiling on a quiet radio link.  Don't try to drive a fast
+control loop over radio — it's for supervision, not real-time.
+
+#### Reference test driver
+
+[`/tmp/test_flow_motion_radio.py`](file:///tmp/test_flow_motion_radio.py)
+(host-side) — full motion test pattern: connect → sanity → cold-start
+flow via inline `$exec` → set aliases → LED-cued 8 s loop reading
+`$r()` and parsing dict replies.  All 100 % over radio with USB
+unplugged.
+
 ### Quick-reference recipes — interacting with the drone
 
 All recipes below assume `sentai.crazy.init()` has been called once
