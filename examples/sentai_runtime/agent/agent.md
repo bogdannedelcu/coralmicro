@@ -1924,10 +1924,64 @@ camera with the simple sleep-1500ms recipe + lessons learned.
 
 ---
 
+## 17.5 Console redirection (USB CDC ↔ UART)
+
+The MicroPython REPL runs on whichever console target is selected.
+
+| Target | Hardware | Default baud | Selected by |
+|---|---|---|---|
+| `usb`  | USB CDC-ACM (`/dev/ttyACM0`) | 115200 (CDC pseudo) | factory default |
+| `uart` | **the on-board UART** (single physical UART exposed on the header / Crazyflie deck pins) | 115200 | `sentai.console('uart')` |
+
+**There is only ONE on-board UART**, shared between three potential
+consumers — pick exactly one at a time:
+
+1. **REPL on UART** (`sentai.console('uart')`) — interactive Python.
+2. **Raw bridge** (`sentai.uart.open()` / `read` / `write`) — host-
+   driven byte stream, no REPL semantics.
+3. **Crazyflie deck driver** (`sentai.crazy.init()`) — `0xAA`-framed
+   protocol at 576 000 baud, used when the board sits on a Crazyflie.
+
+The latter two BOTH `mp_raise_msg(OSError, "REPL must be on USB ...")`
+when REPL is on UART, because none of them can multiplex the wire.
+To use crazy + console-on-UART simultaneously: don't, the hardware
+doesn't support it.
+
+Switch from REPL:
+```python
+sentai.console('uart')   # next stdin/stdout char goes to UART
+sentai.console('usb')    # back to CDC-ACM
+sentai.console()         # query current target -> 'usb' or 'uart'
+```
+
+Connect from Linux at `sentai.console('uart')`:
+```bash
+screen /dev/ttyUSB0 115200          # exit Ctrl-A K Y
+picocom /dev/ttyUSB0 -b 115200      # exit Ctrl-A Ctrl-X
+tio /dev/ttyUSB0 -b 115200          # exit Ctrl-T Q
+```
+
+Boot-time auto-switch: write `sentai.console('uart')` into `/main.py`
+(LFS root) so each boot lands on UART. To get USB REPL back after
+that, send `sentai.console('usb')` over UART. To DISABLE the auto-
+switch entirely, `sentai.fs.remove('/main.py')` over whichever
+channel is currently active.
+
 ## 18. Crazyflie radio bridge (2026-05-06+, sentai-deck-driver fork)
 
-The SentAI board is wired to a Crazyflie 2.1 brushless drone over UART2
-(PA2 = drone TX, PA3 = drone RX, 576 000 baud, 8N1, no flow control).
+The SentAI board is wired to a Crazyflie 2.1 brushless drone over the
+single UART exposed on the M7 (LPUART6 on the SentAI side; pads
+labelled "UART2" on the drone deck — same physical wires, two names).
+576 000 baud, 8N1, no flow control. The Crazyflie firmware references
+it as `UART2`; coralmicro firmware references the same hardware as
+LPUART6.  Pin map: drone PA2 = drone TX → SentAI RX, drone PA3 =
+drone RX → SentAI TX.
+
+**Mutual exclusion**: `sentai.crazy.*`, `sentai.uart.*` (raw bridge),
+and REPL-on-UART (`sentai.console('uart')`) all compete for the same
+LPUART6 wire — pick one consumer at a time. Calling
+`sentai.crazy.init()` while REPL is on UART will raise OSError; same
+for `sentai.uart.open()`.
 The bridge gives a host PC on Crazyradio PA a path to the board's
 MicroPython REPL and (future) lets the board issue control commands
 to the drone directly. Drone-side firmware lives in our fork:
@@ -2051,17 +2105,23 @@ In the vflip=1 buffer, image axis ↔ body axis:
 | TOP    | RIGHT    (-y) |
 | BOTTOM | LEFT     (+y) |
 
-`sentai.flow.read()` reports +dx/+dy as *image-buffer feature displacement* (standard phase-correlation sign: +dx = features moved RIGHT in buffer, +dy = features moved DOWN). Combined with the convention above, when the drone moves physically:
-- FORWARD (+body_x) → features → image RIGHT → flow `dx > 0`
-- LEFT    (+body_y) → features → image TOP   → flow `dy < 0`
+**EMPIRICAL sign convention** (verified 2026-05-07 with `_t_flow_capture.py` LED-cued translation test):
+
+| Drone motion | Flow output | mean (mgp) |
+|---|---|---|
+| FORWARD (+body_x) | dx **negative** | −222 |
+| BACK    (−body_x) | dx **positive** | +364 |
+| LEFT    (+body_y) | dy **positive** | +233 |
+
+Sentai's phase-correlation reports peak SHIFT in the OPPOSITE direction of feature motion (vs the textbook model). Trust the data, not the model.
 
 **Body-frame transform encoded in driver** (`diag/_t_flow_to_drone.py`):
 
 ```python
 # DEFAULTS['body_xform']: (fw_from_dx, fw_from_dy, left_from_dx, left_from_dy)
 body_xform = {
-    0: (+1.0, 0.0, 0.0, -1.0),   # cam0 baseline (vflip=1)
-    1: (+1.0, 0.0, 0.0, -1.0),   # cam1 PLACEHOLDER -- verify before flight
+    0: (-1.0, 0.0, 0.0, +1.0),   # cam0 verified 2026-05-07 (vflip=1)
+    1: (-1.0, 0.0, 0.0, +1.0),   # cam1 PLACEHOLDER -- re-verify before flight
 }
 ```
 
@@ -2396,3 +2456,106 @@ Round-trip latency host→board→host: tens of ms. Validated with
 `$1+1` → `b'OK 2'` (single fragment) and the version reply (>30 B,
 2 fragments auto-emitted by C, reassembled by host). LED RED_R stays
 lit throughout (SYS_LED healthy, no scheduler stall).
+
+### Quick-reference recipes — interacting with the drone
+
+All recipes below assume `sentai.crazy.init()` has been called once
+since boot (uart_rx + cmd tasks need to be running).
+
+**1. From the BOARD (MicroPython REPL):**
+
+```python
+import sentai
+sentai.crazy.init()              # idempotent; brings up UART2 + tasks
+
+# --- Telemetry (board reads from drone via CH=2) ----------------------
+sentai.crazy.baro()              # barometric altitude (m, raw)
+sentai.crazy.altitude()          # EKF stateEstimate.z (m, fused)
+sentai.crazy.battery()           # vbat (V)
+sentai.crazy.battery_pct()       # batteryLevel (%)
+sentai.crazy.temp()              # baro temp (°C)
+sentai.crazy.pressure()          # baro pressure (mbar)
+sentai.crazy.attitude_get()      # (roll, pitch, yaw) in degrees
+sentai.crazy.velocity()          # (vx, vy, vz) m/s, world frame
+sentai.crazy.canfly()            # bool — armable
+sentai.crazy.is_flying()         # bool — currently airborne
+sentai.crazy.is_tumbled()        # bool — flipped past threshold
+sentai.crazy.flow_pred()         # (predNX, predNY, measNX, measNY)
+sentai.crazy.telem(cmd, t=200)   # generic CH=2 GET; raises OSError on fail
+
+# --- Optical flow inject (board → drone EKF, CH=1) --------------------
+# After init + camera + flow.start, call once per new frame.  See
+# diag/_t_flow_to_drone.py for the body_xform + scale derivation.
+sentai.crazy.send_flow(dpx, dpy, dt, std)   # 0 ok, !=0 transport fail
+
+# --- PARAM SET (board → drone, CH=2 cmd>=0x80) ------------------------
+# Pushes camera lever-arm to flowdeck.flowdeckPos_*; values land in
+# RAM only (drone-side eepromCommit not yet exposed).
+sentai.crazy.flowdeck_pos(x_m, y_m, z_m, t=400)   # body-frame metres
+
+# --- User-handler (radio CH=0 frames not starting with `$`) -----------
+def my_handler(channel, data):
+    print('got CH%d %r' % (channel, data))
+sentai.crazy.on_message(my_handler)
+sentai.crazy.on_message(None)              # detach; frames dropped
+
+# --- Send arbitrary bytes back over CH=0 (auto-fragmented) -----------
+sentai.crazy.link_send(0, b'OK from board')
+```
+
+**2. From the HOST PC (cflib over Crazyradio):**
+
+```python
+import cflib.crtp
+from cflib.crazyflie import Crazyflie
+from cflib.crazyflie.syncCrazyflie import SyncCrazyflie
+from cflib.crazyflie.log import LogConfig
+
+cflib.crtp.init_drivers(enable_debug_driver=False)
+URI = 'radio://0/80/2M'
+
+with SyncCrazyflie(URI, cf=Crazyflie(rw_cache='/tmp/cf_cache')) as scf:
+    cf = scf.cf
+
+    # Bridge counters (PARAMs, cflib caches them — refresh by reconnect)
+    print(cf.param.get_value('deck.sentaiFlow'))   # injected
+    print(cf.param.get_value('deck.sentaiFlBad'))  # rejected
+    print(cf.param.get_value('deck.sentaiR2U'))    # radio→uart fwd
+    print(cf.param.get_value('deck.sentaiU2R'))    # uart→radio fwd
+
+    # Switch estimator to Kalman (REQUIRED for kalman_pred LOG to update
+    # and for our flow injections to actually feed the EKF -- the
+    # default Complementary estimator ignores the flow queue):
+    cf.param.set_value('stabilizer.estimator', 2)
+
+    # LOG block (push-based, NOT cached) — for LIVE EKF cross-check:
+    lg = LogConfig(name='kp', period_in_ms=100)
+    lg.add_variable('kalman_pred.predNX', 'float')
+    lg.add_variable('kalman_pred.measNX', 'float')
+    lg.add_variable('kalman_pred.predNY', 'float')
+    lg.add_variable('kalman_pred.measNY', 'float')
+    cf.log.add_config(lg)
+    lg.data_received_cb.add_callback(
+        lambda t, d, _: print(d['kalman_pred.measNX']))
+    lg.start()
+    # ... do work ...
+    lg.stop()
+
+    # Drive the BOARD's REPL via radio (port 0x0E, CH=0 with `$` prefix):
+    cf.send_packet(port=0x0E, channel=0, data=b'$1+1')
+    # Reply comes back as one or more 0x0E packets; collect via:
+    cf.add_port_callback(0x0E, lambda pkt: print(pkt.data))
+```
+
+**3. Common gotchas:**
+
+- `cf.param.get_value()` returns CACHED values — useless for live counters.
+  Use a LOG block when you need push-based readings, OR reconnect to
+  refresh the PARAM cache.
+- The Kalman estimator (`stabilizer.estimator = 2`) is required for our
+  flow injections to actually update `kalman_pred.measNX/NY`.  Default
+  is Complementary (=1) which doesn't consume the flow measurement queue.
+- Flowdeck PARAM `flowdeckPos_*` is `PARAM_PERSISTENT` — survives reboot
+  ONLY after `eepromCommit` (no opcode for that yet on our bridge).
+- Keep `sentai.crazy.send_flow` calls in MP-context — there's a single
+  CH response slot and concurrent callers race.
