@@ -170,6 +170,16 @@ extern "C" {
 #define SERR_LFX_LOCK_TIMEOUT   (SERR_MOD_LFX | 0x25)  // FxUser mutex acquisition timed out (val=ms)
 #define SERR_LFX_NOT_MOUNTED    (SERR_MOD_LFX | 0x26)  // FxUser* called on unmounted volume (val=op_id)
 #define SERR_LFX_BBT_PERSIST    (SERR_MOD_LFX | 0x27)  // /system/.nand_bbt write failed
+// 2026-05-09 — bounded retry + SAFE-MODE refactor of FxUserInit/FxUserSync.
+// Previously FxUserInit silently auto-formatted on any mount failure,
+// destroying user data after a single transient ECC error.  These codes
+// trace the new path: retry-then-SAFE-MODE; auto-format only on virgin NAND.
+#define SERR_LFX_MOUNT_RETRY_OK (SERR_MOD_LFX | 0x28)  // mount succeeded after N retries (val=attempt)
+#define SERR_LFX_MOUNT_FAIL_SAFE (SERR_MOD_LFX | 0x29) // mount failed; entered SAFE MODE (val=last_lx_status)
+#define SERR_LFX_FIRST_BOOT_FORMAT (SERR_MOD_LFX | 0x2A) // virgin NAND, auto-formatting (val=lx_status)
+#define SERR_LFX_SYNC_LX_CLOSE  (SERR_MOD_LFX | 0x2B)  // FxUserSync: lx_close failed (val=lx_status)
+#define SERR_LFX_SYNC_LX_REOPEN (SERR_MOD_LFX | 0x2C)  // FxUserSync: lx_reopen failed (val=lx_status); volume now unmounted
+#define SERR_LFX_LXONLY_FAIL_SAFE (SERR_MOD_LFX | 0x2D) // FxUserOpenLxOnly: failed; refusing implicit format (val=lx_status)
 #define SERR_LFX_RESTORE_LFS    (SERR_MOD_LFX | 0xF0)  // LfsUserInit re-format failed after smoke
 
 // ===================== USB Errors (0x0Cxx) =====================

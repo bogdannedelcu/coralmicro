@@ -8,6 +8,126 @@ Dead-end paths PURGED — see "Production cleanup pass" below.
 
 ---
 
+## 🧪 Session 2026-05-09 — FS hardening + radio auto-init (build #1223)
+
+Goal: stop losing `/main.py` after power-cycles + decouple radio
+recovery from `/main.py` state.  Driven by repeated incident where
+`sentai.fs.write('/main.py', ...)` returned True, `sentai.fs.sync()`
+returned True, but the file vanished after pulling power and re-
+applying.  The board then booted into a REPL with no auto-init,
+which on a drone-deployed board (no USB) is functionally bricked.
+
+Scope intentionally rejected (operator decision, in NASA/JPL spirit):
+embedding `main.py` as a const string in firmware.  That hides the
+symptom; the root cause is FS that lies and FS that destroys data.
+We fix the FS, not paper over it.
+
+### Fault model recovered (pre-change)
+
+Three independent bugs in the write+sync chain explained the loss:
+
+1.  **`FxUserSync` only flushed FileX caches** (sector cache + FAT
+    table) via `fx_media_flush`.  LevelX log-page indirection +
+    wear-level mapping table stayed in `g_lx_memory_buffer` (32 KB
+    SDRAM).  After a power loss, the FAT table on NAND referenced
+    logical sectors whose LX→physical-page mapping was never
+    persisted — next mount read garbage from those pages.
+    `sync()` returned True the whole time.
+2.  **`FxUserInit` silently auto-formatted on ANY mount failure.**
+    A single transient ECC blip after brownout (Crazyflie BL deck
+    delivers ~3.7 V VBAT, board needs 5 V/1 A) triggered
+    `format_and_mount()` which wiped the user partition.  No
+    bounded retry, no virgin-NAND check, no SAFE-MODE escalation.
+3.  **`FxUserOpenLxOnly` (storage MSC entry) had the same anti-
+    pattern**: any LX open failure → silent `lx_nand_flash_format`,
+    plus the comment said it would let the next default-mode boot
+    finish the job (FAT format).  So entering MSC after a tranzitor
+    error completely wiped the volume across two boots.
+
+The 3-cache mental model that clarified this:
+
+```
+sentai.fs.write(buf)
+  └─► N1: FileX logical sector cache (16 KB SDRAM)
+        └─► N2: FileX FAT/dir cache
+              └─► N3: LevelX log + wear-level cache (32 KB SDRAM)
+                    └─► NAND page program
+```
+
+| API | Flushes N1 | Flushes N2 | Flushes N3 |
+|-----|------------|------------|------------|
+| `fx_file_close` | only this file's chain | NO | NO |
+| `fx_media_flush` (was sync()) | YES | YES | **NO** ← gap |
+| `_lx_nand_flash_close` | (already closed) | (already closed) | YES |
+
+### Fix landed (build #1223)
+
+- **`FxUserSync`** now does `fx_media_flush` + `_lx_nand_flash_close`
+  + `lx_nand_flash_open`.  The close is the only public path that
+  writes LX metadata to NAND.  Cost: ~200-500 ms per explicit sync;
+  zero on hot path (no per-write flush re-introduced).
+- **`FxUserInit`** does bounded retry (3×50 ms) → on persistent
+  failure check `LX_SYSTEM_INVALID_FORMAT` / `LX_NO_PAGES` for
+  virgin NAND only → otherwise SAFE MODE (`g_mounted=false`, REPL
+  + radio stay alive, FS APIs return clean errors, operator
+  recovers via `sentai.diag.fx_format(0xDEADBEEF)`).
+- **`FxUserOpenLxOnly`** mirrors the same policy.  Storage MSC
+  refuses to mount on corruption rather than wiping; no chain-
+  reaction format across boots.
+- **Radio bridge auto-init** moved from `/main.py` into firmware
+  (`micropython_repl_task` claims UART2 @ 576 000 before
+  `/main.py` runs).  `main.py` simplified to mission code only.
+- New SERR codes 0x0D28..0x0D2D registered in `sentai_error.h` +
+  `error_codes.csv` so post-mortem can correlate every retry,
+  every SAFE-MODE entry, every virgin-NAND auto-format.
+
+### End-to-end validation
+
+Persistent flash deployed, USB disconnected, board powered from
+drone battery only.  Test driver `/tmp/test_radio_1plus1.py` over
+Crazyradio PA at `radio://0/80/2M/E7E7E7E7E7`:
+
+```
+sending port=0x0E ch=0 data=bytearray(b'$1+1')
+got 1 fragment(s) totalling 5 bytes:
+  [0] b'\x00OK 2'
+PASS: $1+1 -> OK 2 via radio
+```
+
+`$sentai.io.led_on()` over the same radio path → `\x00OK None` +
+visual LED confirmation.  Both succeeded with `lsusb` showing no
+NXP / no Coral ID — board purely on drone battery.  This is the
+actual deployment scenario and the auto-init path delivered.
+
+Boot.log on a follow-up USB connection confirmed the firmware
+entry point fired before any user code:
+
+```
+[crazy] RX task started
+[crazy] CMD task started
+[crazy] initialized at 576000 baud (CPX/CRTP)
+[boot] crazy bridge auto-init OK (radio surface up)
+```
+
+### Lessons (folded into agent.md best practices)
+
+1.  Multi-layer caches require multi-layer flush.  A "sync" API
+    that only flushes the top layer lies.
+2.  Auto-format on mount failure is silent data destruction
+    masquerading as "self-healing".  Real self-healing is bounded
+    retry → degraded mode → operator-confirmed recovery.  Never
+    destroy data without explicit operator confirm-magic.
+3.  Recovery infrastructure must NEVER depend on user-modifiable
+    state.  Radio auto-init in `/main.py` made the "remote
+    recovery path" depend on the same FAT volume that was failing
+    — circular dependency that defeats the purpose.
+4.  Brownout is a credible fault on this hardware (Crazyflie BL
+    deck VBAT ~3.7 V vs board's 5 V need); FS code must assume
+    mid-write power loss happens, not be retro-fitted to handle
+    it after the first incident.
+
+---
+
 ## 🧪 Session 2026-05-05 — Flow real-life validation (build #1111 baseline)
 
 Goal: validate `sentai.flow` (M4-offload SAD block-match @ 80×60 grayscale)

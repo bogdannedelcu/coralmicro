@@ -470,6 +470,38 @@ static void micropython_repl_task(void* param) {
     // This also makes all sub-modules (sentai.io, sentai.fs, etc.) accessible.
     mp_embed_exec_str("import sentai");
 
+    // ===================== Crazyflie radio bridge auto-init =====================
+    // Bring the radio bridge up BEFORE main.py runs.  Rationale (NASA/JPL §M
+    // anti-brick + §F escalation): radio is the ONLY remote-recovery path
+    // for a board deployed on the drone (no USB cable in flight).  If we
+    // depend on main.py to call `sentai.crazy.init()`, then any /main.py
+    // corruption (lost on power-cycle, truncated upload, syntax error,
+    // SAFE MODE skip after 3 boot loops) means the board goes radio-deaf
+    // with no way to recover except plugging USB back in.
+    //
+    // Doing it here in firmware decouples self-healing from FAT/MicroPython
+    // state.  Idempotent on the API side (`sentai_crazy_init` no-ops if
+    // already running), so legacy main.py files that call it remain valid.
+    //
+    // UART2 / LPUART6 ownership: this claims the wire.  Dev workflows that
+    // need REPL-on-UART or raw `sentai.uart.*` must call
+    // `sentai.crazy.stop()` first.  Documented in agent.md §17.5/§18.
+    //
+    // Failure handling: if init returns negative (UART unavailable, drone
+    // power off, hardware fault), we log the error code and continue —
+    // USB-side REPL stays fully functional, only the radio surface is
+    // missing.  Embeded.md §F: degraded mode > silent failure.
+    {
+        extern int sentai_crazy_init(uint32_t baudrate);
+        int crc = sentai_crazy_init(576000);  /* CF deck UART baud */
+        if (crc == 0) {
+            printf("[boot] crazy bridge auto-init OK (radio surface up)\r\n");
+        } else {
+            printf("[boot] crazy bridge auto-init failed: %d "
+                   "(USB REPL still up; radio degraded)\r\n", crc);
+        }
+    }
+
     // Auto-run /main.py if it exists on the user partition
     // Protected by safe boot counter + timeout to prevent boot loops.
     // (skip if USB drive is active — LFS is unmounted)

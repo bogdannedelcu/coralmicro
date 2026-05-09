@@ -64,6 +64,25 @@ bool              g_systems_initialized = false;
 uint32_t          g_format_count = 0;
 uint32_t          g_mount_failures = 0;
 
+/* ===== Mount retry policy (embeded.md §F: bounded local retry) =====
+ *
+ * 3 attempts × 50 ms inter-attempt delay = 150 ms worst-case extra
+ * boot latency.  Tolerates a single transient NAND ECC blip after a
+ * brownout reset without escalating to data-destroying format.
+ *
+ * If retries are exhausted AND the volume is NOT virgin (LevelX
+ * reports a recognisable header), we enter SAFE MODE: g_mounted
+ * stays false, all FxUser* APIs return clean errors, but REPL +
+ * radio remain alive so the operator can diagnose and explicitly
+ * recover via `sentai.diag.fx_format(FX_DESTRUCTIVE_CONFIRM_MAGIC)`.
+ *
+ * Auto-format runs ONLY when LevelX reports a virgin-NAND signature
+ * (LX_SYSTEM_INVALID_FORMAT or LX_NO_PAGES) — first-boot bootstrap.
+ * Any other failure code is treated as corruption-of-real-data and
+ * preserved for forensic analysis. */
+constexpr uint32_t kMountRetries       = 3u;
+constexpr uint32_t kMountRetryDelayMs  = 50u;
+
 /* Boot timestamp seed for best-effort mtime.  FAT timestamps require
  * year >= 1980; we substitute (boot tick) seconds and tag the year as
  * a constant so the field is monotonic-ish for the same boot. */
@@ -283,30 +302,47 @@ bool format_and_mount() {
     return true;
 }
 
-/* Try to mount an EXISTING volume.  Returns true on success.  On
- * failure, the caller falls back to format_and_mount. */
-bool try_mount_existing() {
+/* Try to mount an EXISTING volume.  Returns LX_SUCCESS only when both
+ * LX and FX opened cleanly.  On failure, *fx_out reports the FileX
+ * status (FX_NOT_OPEN if the LX layer never opened, otherwise the
+ * actual fx_media_open return).  This split lets the caller
+ * distinguish three cases:
+ *   1. LX != LX_SUCCESS              -> LevelX layer broken (or virgin)
+ *   2. LX == LX_SUCCESS, FX != OK    -> FAT layer broken (LX is fine)
+ *   3. LX == LX_SUCCESS, FX == OK    -> mounted ok (g_mounted = true)
+ *
+ * Caller (FxUserInit) uses (1) to decide first-boot bootstrap vs
+ * SAFE MODE, and treats (2) as SAFE MODE (FAT corruption alone
+ * should NOT be papered over with a format that wipes LX too). */
+UINT try_mount_existing(UINT* fx_out) {
+    if (fx_out != nullptr) *fx_out = FX_NOT_OPEN;
     UINT lx = lx_nand_flash_open(&g_lx_nand, (CHAR*)"sentai_user",
                                  fx_nand_driver_initialize,
                                  g_lx_memory_buffer,
                                  sizeof(g_lx_memory_buffer));
     if (lx != LX_SUCCESS) {
-        printf("[fx_user] lx_open failed: %u (will format)\r\n",
-               (unsigned)lx);
-        return false;
+        return lx;
     }
     UINT fx = fx_media_open(&g_fx_media, (CHAR*)"sentai_user",
                             fx_user_nand_driver, FX_NULL,
                             g_fx_media_memory, sizeof(g_fx_media_memory));
+    if (fx_out != nullptr) *fx_out = fx;
     if (fx != FX_SUCCESS) {
-        printf("[fx_user] fx_media_open failed: %u (will format)\r\n",
-               (unsigned)fx);
         (void)_lx_nand_flash_close(&g_lx_nand);
-        return false;
+        return LX_SUCCESS;  /* LX side is clean; caller inspects *fx_out */
     }
     g_mounted = true;
-    printf("[fx_user] mounted (existing volume)\r\n");
-    return true;
+    return LX_SUCCESS;
+}
+
+/* True if `lx_status` indicates the LevelX header is missing or the
+ * partition is uninitialised — i.e. the only states where auto-format
+ * cannot destroy real user data.  Any other non-success code is
+ * treated as POTENTIAL corruption of valid data and triggers SAFE
+ * MODE, never silent format. */
+inline bool is_virgin_nand_signature(UINT lx_status) {
+    return lx_status == LX_SYSTEM_INVALID_FORMAT ||
+           lx_status == LX_NO_PAGES;
 }
 
 /* FileX FAT accepts both '/' and '\\' as separators; we keep the
@@ -342,14 +378,69 @@ extern "C" int FxUserInit(int force_format) {
         g_mounted = false;
     }
 
+    /* Operator-confirmed format path — only entered with force_format=1
+     * (e.g. `sentai.diag.fx_format(FX_DESTRUCTIVE_CONFIRM_MAGIC)`).
+     * Distinct from any auto-format below. */
     if (force_format) {
-        printf("[fx_user] force_format requested\r\n");
+        printf("[fx_user] force_format requested (operator confirmed)\r\n");
         return format_and_mount() ? 1 : 0;
     }
-    if (try_mount_existing()) return 1;
+
+    /* Bounded retry — embeded.md §F: tolerate transient ECC blips
+     * before any escalation.  Each attempt either mounts or returns
+     * the LX/FX status from the failure for the next decision step. */
+    UINT last_lx = LX_ERROR;
+    UINT last_fx = FX_NOT_OPEN;
+    for (uint32_t attempt = 0; attempt < kMountRetries; ++attempt) {
+        last_lx = try_mount_existing(&last_fx);
+        if (last_lx == LX_SUCCESS && last_fx == FX_SUCCESS) {
+            if (attempt > 0) {
+                /* Recovered after retry — log so post-mortem can correlate
+                 * with brownout / RX-noise events. */
+                SERR_LOG(SERR_LFX_MOUNT_RETRY_OK, attempt);
+                printf("[fx_user] mounted (existing volume) after %u retr%s\r\n",
+                       (unsigned)attempt, attempt == 1u ? "y" : "ies");
+            } else {
+                printf("[fx_user] mounted (existing volume)\r\n");
+            }
+            sentai_repl_activity();
+            return 1;
+        }
+        if (attempt + 1u < kMountRetries) {
+            vTaskDelay(pdMS_TO_TICKS(kMountRetryDelayMs));
+        }
+    }
+
     g_mount_failures++;
-    /* First boot post-migration OR corrupted volume: format. */
-    return format_and_mount() ? 1 : 0;
+
+    /* Virgin-NAND first-boot bootstrap is the ONLY auto-format path.
+     * LevelX returns LX_SYSTEM_INVALID_FORMAT or LX_NO_PAGES when the
+     * partition has no recognisable LX header — i.e. nothing to
+     * destroy.  Any other failure code (LX_ERROR, LX_BAD_BLOCK,
+     * LX_NAND_ERROR_NOT_CORRECTED, ...) implies the volume HAD valid
+     * data that's now unreadable; we will NOT silently destroy it. */
+    if (is_virgin_nand_signature(last_lx)) {
+        SERR_LOG(SERR_LFX_FIRST_BOOT_FORMAT, last_lx);
+        printf("[fx_user] virgin NAND (lx=%u) -> first-boot format\r\n",
+               (unsigned)last_lx);
+        return format_and_mount() ? 1 : 0;
+    }
+
+    /* SAFE MODE — embeded.md §F escalation: degraded mode preserves
+     * data and keeps REPL alive so the operator can decide.  The
+     * board STAYS in communication (anti-brick rule §M satisfied):
+     * USB CDC is up, REPL is up, radio bridge auto-init still runs.
+     * FxUser* APIs return clean errors on every write/read attempt
+     * because g_mounted is false. */
+    SERR_LOG(SERR_LFX_MOUNT_FAIL_SAFE, last_lx);
+    printf("[fx_user] *** MOUNT FAIL (lx=%u, fx=%u) -- SAFE MODE ***\r\n",
+           (unsigned)last_lx, (unsigned)last_fx);
+    printf("[fx_user]   FS is read+write disabled to protect existing data.\r\n");
+    printf("[fx_user]   REPL + radio remain alive for diagnosis.\r\n");
+    printf("[fx_user]   To DESTROY user data and re-format:\r\n");
+    printf("[fx_user]     sentai.diag.fx_format(0xDEADBEEF)\r\n");
+    g_mounted = false;
+    return 0;
 }
 
 extern "C" int FxUserRemount(void) { return FxUserInit(/*force_format=*/0); }
@@ -523,15 +614,67 @@ extern "C" int FxUserAppendFile(const char* path, const uint8_t* buf,
     return ok;
 }
 
-/* Public sync.  Forces a FAT-table flush so any pending writes hit
- * NAND.  Use before power-down or when readers MUST see latest data
- * across tasks (uncommon — fx_file_close already flushes per-file). */
+/* Public sync.  Flushes BOTH cache layers down to NAND so any pending
+ * writes are durable across power loss:
+ *
+ *   N1+N2 (FileX logical-sector cache + FAT/dir cache)
+ *         flushed by fx_media_flush.
+ *   N3    (LevelX log-page indirection + wear-level mapping table)
+ *         flushed only by _lx_nand_flash_close.  Re-open immediately
+ *         so consumers see no mount gap.
+ *
+ * Without the N3 flush, fx_media_flush returns success but log-page
+ * mapping stays in g_lx_memory_buffer (32 KB SDRAM).  Power loss
+ * then leaves the FAT table on NAND referencing logical sectors
+ * whose physical NAND pages were never actually written, so on next
+ * boot try_mount_existing returns garbage (or refuses to mount,
+ * which used to trigger silent format — now SAFE MODE per §F).
+ *
+ * Cost: ~200-500 ms per call (NAND write of LX log + metadata).
+ * Callers should invoke sparingly — typically before sys.reset()
+ * or after a critical write (e.g. /main.py upload).  Per-write
+ * sync is NOT needed and was explicitly removed in Phase 3.2 for
+ * 41-139× small-write speed-up. */
 extern "C" int FxUserSync(void) {
     if (!g_mounted) return 0;
     LockGuard guard;
     if (!guard.held) return 0;
+
+    /* Step 1: FileX cache -> LevelX layer. */
     UINT fx = fx_media_flush(&g_fx_media);
-    return (fx == FX_SUCCESS) ? 1 : 0;
+    if (fx != FX_SUCCESS) {
+        SERR_LOG(SERR_LFX_FX_OPEN, fx);  /* re-using FX_OPEN code: fx err on flush */
+        return 0;
+    }
+
+    /* Step 2: LevelX cache -> NAND (only path that actually does this). */
+    UINT lx = _lx_nand_flash_close(&g_lx_nand);
+    if (lx != LX_SUCCESS) {
+        /* LX close failed -- volume state is inconsistent (FileX
+         * thinks it's mounted but LX is half-closed).  Mark unmounted
+         * to force operator-visible error on subsequent FS calls
+         * rather than silent corruption. */
+        SERR_LOG(SERR_LFX_SYNC_LX_CLOSE, lx);
+        g_mounted = false;
+        return 0;
+    }
+
+    /* Step 3: re-open LX so the volume stays usable.  No FX re-open
+     * needed; FileX retains its in-RAM media descriptor and the next
+     * fx_* call will issue driver-level sector reads through the new
+     * LX session transparently. */
+    lx = lx_nand_flash_open(&g_lx_nand, (CHAR*)"sentai_user",
+                            fx_nand_driver_initialize,
+                            g_lx_memory_buffer,
+                            sizeof(g_lx_memory_buffer));
+    if (lx != LX_SUCCESS) {
+        SERR_LOG(SERR_LFX_SYNC_LX_REOPEN, lx);
+        printf("[fx_user] *** SYNC: LX reopen failed (%u) -- UNMOUNTED ***\r\n",
+               (unsigned)lx);
+        g_mounted = false;
+        return 0;
+    }
+    return 1;
 }
 
 extern "C" int FxUserRemove(const char* path) {
@@ -878,18 +1021,37 @@ extern "C" int FxUserOpenLxOnly(void) {
         lx_nand_flash_initialize();
         g_systems_initialized = true;
     }
-    UINT lx = lx_nand_flash_open(&g_lx_nand, (CHAR*)"sentai_user",
-                                 fx_nand_driver_initialize,
-                                 g_lx_memory_buffer,
-                                 sizeof(g_lx_memory_buffer));
-    if (lx != LX_SUCCESS) {
-        printf("[fx_user] LxOnly open failed: %u — formatting\r\n",
+
+    /* Bounded retry — same policy as FxUserInit (embeded.md §F). */
+    UINT lx = LX_ERROR;
+    for (uint32_t attempt = 0; attempt < kMountRetries; ++attempt) {
+        lx = lx_nand_flash_open(&g_lx_nand, (CHAR*)"sentai_user",
+                                fx_nand_driver_initialize,
+                                g_lx_memory_buffer,
+                                sizeof(g_lx_memory_buffer));
+        if (lx == LX_SUCCESS) {
+            g_lx_only_open = true;
+            if (attempt > 0) {
+                SERR_LOG(SERR_LFX_MOUNT_RETRY_OK, attempt);
+            }
+            printf("[fx_user] LxOnly mounted for storage MSC%s\r\n",
+                   attempt > 0 ? " (after retry)" : "");
+            return 1;
+        }
+        if (attempt + 1u < kMountRetries) {
+            vTaskDelay(pdMS_TO_TICKS(kMountRetryDelayMs));
+        }
+    }
+
+    /* Virgin-NAND first-boot in storage mode is legitimate (board
+     * just flashed, host wants to inspect raw partition).  Auto-
+     * format ONLY on the unambiguous virgin signature; otherwise
+     * refuse and force the operator to recover via default-mode
+     * boot + explicit `sentai.diag.fx_format(0xDEADBEEF)`. */
+    if (is_virgin_nand_signature(lx)) {
+        SERR_LOG(SERR_LFX_FIRST_BOOT_FORMAT, lx);
+        printf("[fx_user] LxOnly: virgin NAND (lx=%u) -> first-boot format\r\n",
                (unsigned)lx);
-        SERR_LOG(SERR_LFX_LX_OPEN, lx);
-        /* First boot in storage mode after a fresh flash — the user
-         * partition may still hold LFS metadata.  Format LX so the
-         * volume becomes valid; FileX format will run on next default-
-         * mode boot when FxUserInit is called. */
         UINT fmt = lx_nand_flash_format(&g_lx_nand, (CHAR*)"sentai_user",
                                         fx_nand_driver_initialize,
                                         g_lx_memory_buffer,
@@ -902,11 +1064,26 @@ extern "C" int FxUserOpenLxOnly(void) {
                                 fx_nand_driver_initialize,
                                 g_lx_memory_buffer,
                                 sizeof(g_lx_memory_buffer));
-        if (lx != LX_SUCCESS) return 0;
+        if (lx != LX_SUCCESS) {
+            SERR_LOG(SERR_LFX_LX_OPEN, lx);
+            return 0;
+        }
+        g_lx_only_open = true;
+        printf("[fx_user] LxOnly mounted (post first-boot format)\r\n");
+        return 1;
     }
-    g_lx_only_open = true;
-    printf("[fx_user] LxOnly mounted for storage MSC\r\n");
-    return 1;
+
+    /* SAFE MODE for storage MSC: refuse to mount, refuse to format.
+     * Storage MSC simply won't expose /dev/sda; operator boots into
+     * default mode where FxUserInit will reach the same SAFE-MODE
+     * gate and surface a recoverable error. */
+    SERR_LOG(SERR_LFX_LXONLY_FAIL_SAFE, lx);
+    printf("[fx_user] *** LxOnly MOUNT FAIL (lx=%u) -- SAFE MODE ***\r\n",
+           (unsigned)lx);
+    printf("[fx_user]   Storage MSC unavailable; refusing implicit format.\r\n");
+    printf("[fx_user]   Reboot to default mode and run:\r\n");
+    printf("[fx_user]     sentai.diag.fx_format(0xDEADBEEF)  [DESTROYS DATA]\r\n");
+    return 0;
 }
 
 extern "C" int FxUserMscLbaSize(void) {

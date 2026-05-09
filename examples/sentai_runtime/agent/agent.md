@@ -123,6 +123,48 @@ These are load-bearing.  Violating them has cost whole days of debug.
     flashtool, verify build # incremented vs expected.  Mismatch = stale
     firmware, your code changes aren't live.
 
+11. **REPL `sentai.fs.write/append/remove/mkdir` are NOT power-cycle
+    durable until you call `sentai.fs.sync()`** — Phase 3.2 dropped per-
+    write `fx_media_flush` for 41-139× small-write speed-up.  Three cache
+    levels sit between the API and NAND (FileX sector cache, FileX FAT
+    cache, LevelX log+wear-level cache).  `fx_file_close` flushes only
+    the per-file FAT chain.  `sentai.fs.sync()` flushes ALL three (build
+    #1222+: now also closes+reopens LevelX so the wear-level table
+    actually hits NAND, not just SDRAM cache).  **Always call
+    `sentai.fs.sync()` after writing files you must survive a power
+    cycle** — `/main.py`, configs, manifests.  The chunked REPL uploader
+    [`diag/_host_upload_repl.py`](../diag/_host_upload_repl.py) auto-calls
+    sync after the last chunk.  `sys.reset()` is safe without sync (SDRAM
+    persists across NVIC reset); ONLY power-cycle / brownout requires it.
+
+12. **FS mount failure no longer auto-formats** — build #1222+, embeded.md
+    §F escalation: `FxUserInit` does bounded retry (3×50 ms) and on
+    persistent failure enters **SAFE MODE** (`g_mounted=false`) instead
+    of silently wiping user data.  Auto-format runs only on the
+    unambiguous virgin-NAND signature (`LX_SYSTEM_INVALID_FORMAT` /
+    `LX_NO_PAGES`).  Any other LX failure is treated as
+    corruption-of-real-data and preserved.  In SAFE MODE the board stays
+    radio-reachable; `sentai.fs.*` write APIs return clean errors,
+    `sentai.fs.exists/read/ls` (read-only side) likewise fail because
+    `g_mounted` is false.  Operator-recoverable via
+    `sentai.diag.fx_format(0xDEADBEEF)` (DESTROYS user data).
+    Diagnostic codes: `SERR_LFX_MOUNT_FAIL_SAFE`=0x0D29,
+    `SERR_LFX_MOUNT_RETRY_OK`=0x0D28, `SERR_LFX_FIRST_BOOT_FORMAT`=0x0D2A,
+    `SERR_LFX_LXONLY_FAIL_SAFE`=0x0D2D — visible in `/log/boot_prev.log`
+    on the boot following the failure.
+
+13. **Crazyflie radio bridge auto-inits in firmware** — build #1222+, no
+    longer started from `/main.py`.  Rationale (§M anti-brick + §F
+    escalation): radio is the only remote-recovery path on a
+    drone-deployed board.  If radio init lived in `/main.py` and the
+    file got truncated, missing, or skipped by SAFE_MODE_MAX_ATTEMPTS,
+    the board would go radio-deaf with no recovery short of plugging
+    USB back in.  Firmware now claims UART2 @ 576 000 baud in
+    `micropython_repl_task` BEFORE `/main.py` runs;  `/main.py` should
+    contain only MISSION code (camera, flow, experiment setup).  Dev
+    workflows needing REPL-on-UART or raw `sentai.uart.*` must call
+    `sentai.crazy.stop()` first to release the wire.
+
 ---
 
 ## 3. Operating tools (all host-side, on Linux)
@@ -1285,12 +1327,33 @@ mount /dev/sda /mnt   # Linux auto-mounts; bidirectional file ops
    Mode-switch goes via `sentai.usb.drive(1)` → warm reset.  Files
    written from the host in storage mode are visible from REPL after
    exit, and vice versa.
-4. **Power-fail durability is per-file-close, not per-write.**
-   `fx_file_close` flushes the file's FAT chain.  `FxUserSync()`
-   forces a full FAT-table flush — call it before a planned
-   `sys.reset()` if you must guarantee earlier writes are on disk.
-   Phase 3.2 dropped per-write `fx_media_flush` — DON'T re-add it
-   "just in case" (small-file writes regress 40× if you do).
+4. **Power-fail durability requires `FxUserSync()` / `sentai.fs.sync()`
+   — NOT just `fx_file_close`.**  Three cache layers sit between the
+   public API and NAND:
+
+   ```
+   N1 FileX logical-sector cache (16 KB SDRAM, g_fx_media_memory)
+   N2 FileX FAT/dir cache
+   N3 LevelX log + wear-level mapping table (32 KB SDRAM, g_lx_memory_buffer)
+   ```
+
+   `fx_file_close` flushes ONLY the per-file FAT chain (subset of N2).
+   Build #1222 and earlier: `FxUserSync` flushed N1+N2 but NOT N3 — so
+   `sync()` returned True while LX log-page indirection was still in
+   SDRAM, and a power-cycle left the FAT pointing at NAND pages that
+   were never programmed.  Build #1223+: `FxUserSync` does
+   `fx_media_flush` + `_lx_nand_flash_close` + `lx_nand_flash_open` so
+   ALL three layers hit NAND.  Cost: ~200-500 ms per call (NAND program
+   of LX metadata).  Phase 3.2 STILL applies — DON'T re-add per-write
+   `fx_media_flush` (41-139× regression on small writes).
+
+   **Rule of thumb:** `sys.reset()` is durable WITHOUT sync (NVIC
+   reset preserves SDRAM, so unflushed caches survive into the next
+   boot's mount).  Power-cycle / brownout / pulling USB on bus-powered
+   board REQUIRES an explicit `sentai.fs.sync()` after the writes you
+   care about.  The chunked REPL uploader in
+   [`diag/_host_upload_repl.py`](../diag/_host_upload_repl.py)
+   auto-calls it after the last chunk; ad-hoc REPL writes do not.
 5. **No `lfs_setattr` / `lfs_getattr` substitutes.**  FAT has no
    arbitrary user attributes; old LFS code that stored write-time as
    an attr is silently a no-op.  Use file mtime via `FxUserStat` if
@@ -1303,6 +1366,52 @@ mount /dev/sda /mnt   # Linux auto-mounts; bidirectional file ops
 7. **HTTP uploads CAN now work** (small-medium files via
    `/api/write/...`).  Throughput on `/api/raw` is ~16 KB/s with the
    lwip Nagle-off patch.  For >100 KB transfers, USB MSC is faster.
+
+### Mount states — MOUNTED vs SAFE MODE (build #1223+)
+
+`FxUserInit` is now a small state machine per embeded.md §F:
+
+```
+COLD ──► MOUNT_TRY ─ok──► MOUNTED
+            │ fail
+            ▼
+        RETRY (3×, 50 ms apart)
+            │ ok ──────────────► MOUNTED + SERR_LFX_MOUNT_RETRY_OK
+            │ exhausted
+            ▼
+        is virgin NAND? (LX_SYSTEM_INVALID_FORMAT / LX_NO_PAGES)
+            │ yes ──► FORMATTING ──► MOUNTED + SERR_LFX_FIRST_BOOT_FORMAT
+            │ no
+            ▼
+        SAFE_MODE  (g_mounted=false)
+            │ operator: sentai.diag.fx_format(0xDEADBEEF)
+            ▼
+        FORMATTING ──► MOUNTED
+```
+
+In **SAFE MODE**:
+- `g_mounted == false` — every `FxUser*()` write/read returns 0 / -1.
+- `sentai.fs.exists(...)` returns False (because `g_mounted` gates
+  the `FxUserStat` path).
+- REPL stays alive, radio bridge stays alive, USB CDC stays alive.
+- Boot.log on the NEXT boot will contain `SERR_LFX_MOUNT_FAIL_SAFE`
+  (0x0D29) with the underlying LX status code, plus the human-
+  readable `*** MOUNT FAIL (lx=N, fx=N) -- SAFE MODE ***` printf
+  preserved via `.sdram_boot_log`.
+
+**Quick diagnosis recipe** (when REPL works but `sentai.fs.*` doesn't):
+
+```python
+import sentai
+print(sentai.fs.exists("/"))            # False = SAFE MODE
+print(sentai.diag.dmesg()[-2000:])      # tail of boot log
+```
+
+If you see `MOUNT FAIL (lx=...)`, decide: is the data worth recovering?
+- **Yes**: connect JTAG, dump NAND, attempt offline LX recovery.
+- **No**: `sentai.diag.fx_format(0xDEADBEEF)` to wipe and re-mount.
+
+The board will NEVER decide for you — that's the contract.
 
 ### Write performance — what to expect
 
@@ -1405,7 +1514,64 @@ When picking up the project fresh:
 
 ---
 
-## 15. Lessons learned (2026-04-25 sprint)
+## 15. Lessons learned
+
+### 2026-05-09 sprint — FS hardening + radio auto-init (build #1223)
+
+Durable observations from the FS-write-loses-main.py incident.  Apply
+when picking up FS, recovery, or boot-path work.
+
+**FS-1. Multi-layer caches require multi-layer flush.**  A "sync" API
+that flushes the top layer only LIES.  Every storage stack with more
+than one cache (filesystem above wear-level above flash) needs an
+explicit "drain everything to physical media" path, and that path must
+include the layer that owns the wear-leveling / log-page indirection
+because that layer is the one that translates logical addresses to
+physical addresses.  Without it, the upper-layer FAT pointers are
+self-consistent but reference physical pages that were never written.
+Fix pattern: top-layer flush + close+reopen of bottom layer.
+
+**FS-2. Auto-format on mount failure is silent data destruction.**
+Self-healing means bounded retry → degraded mode → operator-confirmed
+recovery.  Self-healing does NOT mean "wipe and try again".  Real
+NASA/JPL discipline (embeded.md §F): never destroy data without
+explicit operator confirm-magic.  Distinguish virgin-NAND signature
+(`LX_SYSTEM_INVALID_FORMAT` / `LX_NO_PAGES`) from corruption — only
+the former is safe to auto-format.
+
+**FS-3. Recovery infrastructure must NOT depend on user-modifiable
+state.**  Putting `sentai.crazy.init()` in `/main.py` made the radio
+recovery path depend on the FAT volume that was failing — circular
+dependency that defeats the purpose.  Anti-brick rule §M: any path
+that exists to recover the board MUST live in firmware, not in user
+code, not on a writable filesystem, not behind any state that can
+be corrupted by the failure mode it's supposed to recover from.
+Generalisation: WDOG, USB CDC bring-up, radio bridge, debug LED —
+all firmware-side, all unconditional.  User-modifiable code (main.py)
+is for MISSION, never for recovery.
+
+**FS-4. Brownout is a credible fault on this hardware.**  Crazyflie BL
+deck VBAT ~3.7 V vs board's 5 V/1 A need.  FS code MUST assume
+mid-write power loss can happen, not be retro-fitted to handle it
+after the first incident.  This is not a "rare edge case" — it
+happens every time the operator pulls USB on a battery-light
+deployment.  Atomic-write-then-rename + sync-after-write = baseline,
+not optimisation.
+
+**FS-5. `sys.reset()` is durable WITHOUT sync; power-cycle is not.**
+NVIC reset preserves SDRAM (so unflushed FileX/LevelX caches survive
+into the next mount).  Power loss / brownout / USB unplug on bus-
+powered board wipes SDRAM.  Test workflows that use `sys.reset()` as
+a "checkpoint" produce false confidence — only a real power-cycle
+validates persistence.
+
+**FS-6. boot.log survives reset (build #1110+, `.sdram_boot_log` NOLOAD)
+but ONLY if board reaches the next boot.**  If the failure is
+catastrophic-pre-USB or runs out of boot attempts, you'll need JTAG
+to dump the SDRAM section directly.  Don't assume boot_prev.log will
+always be there.
+
+### 2026-04-25 sprint (TPU pipeline)
 
 These are durable observations from the Cale 1+ MoverTask sprint —
 prepend to your mental model when picking up TPU/pipeline work.

@@ -116,6 +116,12 @@ CODE,MODULE,NAME,DESCRIPTION,VERSION_ADDED,STATUS
 0x0D25,LFX,LOCK_TIMEOUT,FxUser mutex acquisition timed out (val=ms_waited),v1.6,ACTIVE
 0x0D26,LFX,NOT_MOUNTED,FxUser API called on unmounted volume (val=op_id),v1.6,ACTIVE
 0x0D27,LFX,BBT_PERSIST,/system/.nand_bbt write failed (BBT lost on reboot),v1.7,ACTIVE
+0x0D28,LFX,MOUNT_RETRY_OK,FxUserInit mount succeeded after N retries (val=attempt_count_zero_based),v1.8,ACTIVE
+0x0D29,LFX,MOUNT_FAIL_SAFE,FxUserInit mount failed after retries; entered SAFE MODE - REPL alive, FS R/W disabled (val=last_lx_status),v1.8,ACTIVE
+0x0D2A,LFX,FIRST_BOOT_FORMAT,Virgin NAND detected - first-boot auto-format permitted (val=lx_probe_status),v1.8,ACTIVE
+0x0D2B,LFX,SYNC_LX_CLOSE,FxUserSync: _lx_nand_flash_close failed during LevelX cache flush (val=lx_status),v1.8,ACTIVE
+0x0D2C,LFX,SYNC_LX_REOPEN,FxUserSync: lx_nand_flash_open after close failed - volume now unmounted (val=lx_status),v1.8,ACTIVE
+0x0D2D,LFX,LXONLY_FAIL_SAFE,FxUserOpenLxOnly mount failed after retries; refusing implicit format - storage MSC unavailable (val=last_lx_status),v1.8,ACTIVE
 0x0DF0,LFX,RESTORE_LFS,LfsUserInit re-format failed after smoke - user partition unusable until reflash,v1.5,ACTIVE
 # === Module 0x0F: System ===
 0x0F01,SYS,BOOT_ATTEMPT,Boot attempt N - counter from SRC_GPR1 (val=attempt_number),v1.0,ACTIVE
