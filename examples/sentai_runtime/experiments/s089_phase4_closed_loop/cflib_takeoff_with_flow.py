@@ -183,6 +183,15 @@ class FlowReceiver(threading.Thread):
                 if conf == 0:
                     self.n_gated += 1
                     continue
+                # Attitude gate: cf2 mm_flow.c uses R[2][2]=cos(roll)*cos(pitch)
+                # for the body→world flow projection.  At |attitude|>20° the
+                # term degrades and any flow noise spills into KC_STATE_Z
+                # (1/z² Jacobian).  Skip flow here, let pure baro hold Z.
+                roll  = self.altitude_ref.get("roll",  0.0)
+                pitch = self.altitude_ref.get("pitch", 0.0)
+                if abs(roll) > self.MAX_TILT_RAD or abs(pitch) > self.MAX_TILT_RAD:
+                    self.n_gated += 1
+                    continue
                 dpx, dpy = _to_body(dx, dy)
                 std = _conf_to_std(conf) * _altitude_std_scale(self.altitude_ref["z"])
                 pk = CRTPPacket()
@@ -237,11 +246,15 @@ def main():
         log_cfg.add_variable("stateEstimate.x", "float")
         log_cfg.add_variable("stateEstimate.y", "float")
         log_cfg.add_variable("stateEstimate.z", "float")
+        log_cfg.add_variable("stabilizer.roll",  "float")  # deg
+        log_cfg.add_variable("stabilizer.pitch", "float")  # deg
 
         rows = []
         def cb(ts, data, _):
             z = data["stateEstimate.z"]
-            altitude["z"] = z
+            altitude["z"]     = z
+            altitude["roll"]  = math.radians(data["stabilizer.roll"])
+            altitude["pitch"] = math.radians(data["stabilizer.pitch"])
             if z > FlowReceiver.MIN_INJECT_Z and not enable_evt.is_set():
                 enable_evt.set()
                 print(f"[gate OPEN] z={z:.2f} > {FlowReceiver.MIN_INJECT_Z}, "

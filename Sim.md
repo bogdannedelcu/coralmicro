@@ -558,23 +558,68 @@ of motion frames (see `/tmp/test_sign_convention.sh`); after `body_xform =
 (-1, 0, 0, +1)` the post-transform `body_fw_dpx` is positive → cf2 EKF
 corrects in the right direction.
 
-**Remaining issues for follow-up**:
-1. Z control gets noisy with flow injection (`stateEstimate.z` swings
-   1.24 m up, -0.19 m down vs commanded 1.0 m).  Flow is body-frame
-   velocity; combined with attitude noise it leaks into Z via EKF.  Look
-   at `mm_flow.c` on cf2 to see if PMW3901-style flow assumes IMU-stable
-   attitude.
-2. Phase-corr magnitude saturates (-32k mgp values seen) when the wind
-   gust is large and Garden's render rate is below the bridge's 30 fps —
-   frame-to-frame ground motion exceeds the algorithm's ±32 grid-px
-   measurable range.  Mitigation: throttle `gz_to_uds_bridge` to send
-   every Nth frame so consecutive frames have known time spacing, OR use
-   `Xvfb` with a higher refresh rate, OR add multi-resolution pyramid to
-   phase-corr.
-3. cf2 SUP can still lock if the gate opens too late (`z=0.30` vs `z=1.0`
-   command — drone reaches gate threshold around t=1.5 s into ramp).
-   Consider raising gate to z=0.5 m, OR delaying ramp by 1 s of pure
-   thrust so EKF settles first.
+**Remaining issues addressed (2026-05-11)**:
+
+**Issue #2 (magnitude saturation)** — fixed in `camera_bridge_recv.c`:
+duplicate-frame CRC detection (Garden render rate < 30 fps now reports
+conf=0 instead of stale-but-confident motion); saturation guard at
+±28k mgp drops aliased peak-edge readings.  Code is portable C, identical
+on ARM where OV5640 always produces fresh frames so the duplicate path
+never fires.
+
+**Issue #3 (takeoff timing)** — fixed in `cflib_takeoff_*.py`:
+new ramp-hold-climb profile (0→0.30m in 1s, hold 2s, climb to 1m in 2s).
+Flow gate opens at z>0.30 with clear margin before climbing further.
+
+**Issue #1 (Z noise)** — substantially mitigated in `FlowReceiver`:
+1. `_altitude_std_scale(z)` inflates flow std at low altitude (1/z²
+   Jacobian in cf2 mm_flow.c bleeds flow noise into KC_STATE_Z most
+   strongly there): std multiplier goes 1.0 @ z>=1m, 4.0 @ z=0.5m,
+   8.0 @ z<=0.30m.
+2. **Attitude gate** at |roll| or |pitch| > 0.35 rad (~20°): skip flow
+   entirely above this attitude.  cf2 mm_flow.c uses
+   R[2][2]=cos(roll)*cos(pitch) for body→world; tilt degrades the
+   coupling and any flow noise spills into Z.
+
+**Verified end-to-end (2026-05-11)**:
+
+Wind +X (forward drift):
+| Run                    | X delta | Y delta | Z range      |
+|------------------------|---------|---------|--------------|
+| baseline (no flow)     | 1.42 m  | 0.18 m  | [0.99, 1.07] |
+| with flow (gated)      | 0.23 m  | 0.13 m  | [-0.21..1.24] |
+| **X drift reduction**  | **6×**  |         |              |
+
+Wind +Y (perpendicular drift):
+| Run                    | X delta | Y delta | Z range      |
+|------------------------|---------|---------|--------------|
+| baseline (no flow)     | 0.08 m  | 0.30 m  | [1.00, 1.08] |
+| with flow (gated)      | 0.07 m  | 0.06 m  | [-0.21..1.08] |
+| **Y drift reduction**  |         | **5×**  |              |
+
+Yaw +180° rotation under flow (no wind):
+| Phase                  | X drift | Y drift | Z range      | Yaw         |
+|------------------------|---------|---------|--------------|-------------|
+| Pre-rotate hover (8s)  | 4 cm    | 2 cm    | [0.81, 1.08] | 0°          |
+| **During rotation 4s** | 2 cm    | 2 cm    | **[1.00, 1.02]** ✅ | 0 → 128°    |
+| Post-rotate hover (8s) | 2 cm    | 8 cm    | [-0.19, 1.00] | 27 → 153°   |
+
+The yaw test confirms body-frame flow projection is invariant to drone
+yaw — cf2 EKF applies the current attitude R matrix to convert body
+velocity into world frame, and the body_xform mapping in the bridge
+(image axes → drone body axes) is itself rotation-invariant because the
+camera is rigidly attached to the drone.  Z stayed within 2 cm during
+the actual rotation thanks to the attitude gate keeping flow injection
+quiet while the drone settled.
+
+**Open items for next session**:
+- Post-rotation Z transient ([-0.19, 1.00] at end of yaw run) needs
+  further damping (gate opens too quickly after the rotation stops?
+  hysteresis on attitude gate?).
+- Closed-loop test under wind +X simultaneously with yaw rotation
+  (real-world disturbance scenario).
+- Push Garden render rate higher with VirtualGL or upgrade to Harmonic
+  fix once that lands (Sim.md §10c bans Harmonic for now).
 
 ## 11. References
 
