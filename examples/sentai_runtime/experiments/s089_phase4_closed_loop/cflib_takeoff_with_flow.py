@@ -84,14 +84,28 @@ def _to_body(dx_q, dy_q):
 
 
 class FlowReceiver(threading.Thread):
-    """Background thread: read flow_out UDS, push into cf via send_packet."""
-    def __init__(self, cf, stop_evt):
+    """Background thread: read flow_out UDS, push into cf via send_packet.
+
+    Per embeded.md "bounded behavior" + "explicit failure semantics":
+    - All sock I/O has timeouts (no infinite blocks).
+    - Flow packets are GATED on `enable.is_set()` — main thread releases
+      the gate only after the drone is airborne (z > MIN_INJECT_Z).  This
+      avoids feeding the cf2 EKF noisy/wrong ground-state observations
+      that would lock the supervisor before takeoff completes.
+    - Disconnect / EOF detected and logged; thread exits cleanly so the
+      main thread's join() returns.
+    """
+    MIN_INJECT_Z = 0.30   # metres — gate threshold per embeded.md
+
+    def __init__(self, cf, stop_evt, enable_evt):
         super().__init__(daemon=True)
         self.cf = cf
         self.stop_evt = stop_evt
+        self.enable_evt = enable_evt   # main thread sets when z > MIN_INJECT_Z
         self.n_sent = 0
         self.n_drop = 0
-        self.connected = False   # main thread checks this after start()
+        self.n_gated = 0           # flow snapshots dropped because not airborne
+        self.connected = False     # main thread checks this after start()
 
     def run(self):
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -132,6 +146,12 @@ class FlowReceiver(threading.Thread):
                 now = time.monotonic()
                 dt  = max(CFG["min_dt_s"], min(CFG["max_dt_s"], now - t_last))
                 t_last = now
+                # Gate per embeded.md: do not feed flow into EKF until
+                # drone is high enough that the camera actually sees the
+                # ground (and not the underside of the ground plane).
+                if not self.enable_evt.is_set():
+                    self.n_gated += 1
+                    continue
                 dpx, dpy = _to_body(dx, dy)
                 std = _conf_to_std(conf)
                 pk = CRTPPacket()
@@ -167,8 +187,9 @@ def main():
         time.sleep(1.0)
         print("[with_flow] estimator switched to EKF (2)")
 
-        stop_evt = threading.Event()
-        flow = FlowReceiver(cf, stop_evt)
+        stop_evt   = threading.Event()
+        enable_evt = threading.Event()   # set when z > MIN_INJECT_Z
+        flow = FlowReceiver(cf, stop_evt, enable_evt)
         flow.start()
         # CRITICAL fix (code review HIGH): operator MUST know if flow is
         # actually being injected.  Bail loudly within 5s if not connected.

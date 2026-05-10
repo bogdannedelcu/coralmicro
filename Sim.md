@@ -540,16 +540,41 @@ right ballpark for the actual frame-to-frame ground-pixel shift.
 - Opening the GUI ImageDisplay as a viewer — wakes some renders but not
   reliably per-frame (ros_gz#346 workaround helps but isn't enough).
 
-**Open issue**: with flow injection actually wired into the cf2 EKF
-(`cf.send_packet` on `CRTPPort.LOCALIZATION` ch=1), the cf2 supervisor
-goes `Locked, reboot required` because EKF state diverges before takeoff
-completes.  Symptom: drone stays on ground, `stateEstimate.z` stuck at
-0.01 m, flow packets keep being sent and queued.  Hypothesis: flow std
-too low and EKF treats noisy initial flow (when drone is on ground —
-camera below ground plane sees sky) as authoritative position
-observation, killing the Kalman state.  Fix candidates (next session):
-gate `cf.send_packet` on `state.z > 0.3 m`, OR raise std at low altitude,
-OR don't open the FlowReceiver socket until takeoff command issued.
+**Closed-loop X stabilization working (2026-05-10 v21)**:
+Applied the `state.z > 0.30 m` gate in `cflib_takeoff_with_flow.py`
+FlowReceiver thread (per embeded.md "bounded behaviour" + "explicit
+failure semantics" — refuse to feed the EKF until the camera actually
+sees the ground).  Result with wind 0.5 m/s +X over a 25-s hover:
+
+| Run | X drift in hover window 5..25 s |
+|---|---|
+| Baseline (no flow injection) | ~1.42 m  (drone hits north wall) |
+| **Flow injection gated z>0.3 m** | **0.23 m** |
+
+That's a **6× reduction** in X drift.  Sign convention also empirically
+re-verified in SIM (matches the 2026-05-07 hardware test): wind +X → drone
+moves FORWARD body → `dx` from `flow_phase_corr` is **negative** for 100%
+of motion frames (see `/tmp/test_sign_convention.sh`); after `body_xform =
+(-1, 0, 0, +1)` the post-transform `body_fw_dpx` is positive → cf2 EKF
+corrects in the right direction.
+
+**Remaining issues for follow-up**:
+1. Z control gets noisy with flow injection (`stateEstimate.z` swings
+   1.24 m up, -0.19 m down vs commanded 1.0 m).  Flow is body-frame
+   velocity; combined with attitude noise it leaks into Z via EKF.  Look
+   at `mm_flow.c` on cf2 to see if PMW3901-style flow assumes IMU-stable
+   attitude.
+2. Phase-corr magnitude saturates (-32k mgp values seen) when the wind
+   gust is large and Garden's render rate is below the bridge's 30 fps —
+   frame-to-frame ground motion exceeds the algorithm's ±32 grid-px
+   measurable range.  Mitigation: throttle `gz_to_uds_bridge` to send
+   every Nth frame so consecutive frames have known time spacing, OR use
+   `Xvfb` with a higher refresh rate, OR add multi-resolution pyramid to
+   phase-corr.
+3. cf2 SUP can still lock if the gate opens too late (`z=0.30` vs `z=1.0`
+   command — drone reaches gate threshold around t=1.5 s into ramp).
+   Consider raising gate to z=0.5 m, OR delaying ramp by 1 s of pure
+   thrust so EKF settles first.
 
 ## 11. References
 
