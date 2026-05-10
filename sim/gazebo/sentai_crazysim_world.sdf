@@ -1,0 +1,170 @@
+<?xml version="1.0" ?>
+<!--
+  sim/gazebo/sentai_crazysim_world.sdf
+  ====================================
+  Custom Gazebo Harmonic world for SentAI optical-flow + Crazyflie SITL
+  testing.  Based on CrazySim's crazysim_default.sdf, with:
+
+    1. A ground plane painted with a HIGH-CONTRAST CHECKERBOARD texture
+       (alternating 1 m black/white squares).  Optical flow needs visible
+       features under the camera; a uniform ground gives zero flow.
+
+    2. A grid of colored cubes (red/green/blue/yellow) scattered on the
+       ground at varied heights and positions.  Provides corner / edge
+       features that survive any camera angle.
+
+    3. Same physics + lighting as crazysim_default so the SITL drone +
+       crazysim plugin behave identically to the default world.
+
+  Launch (replaces -w crazysim_default with this file):
+
+    bash $CRAZYSIM/tools/.../sitl_singleagent.sh -w sentai_crazysim
+
+  After Phase 4 lands the camera-socket bridge, point sentai_sim's
+  camera input at the Gazebo image topic from the drone's down-cam (added
+  in a follow-up world).
+-->
+<sdf version="1.9">
+  <world name="sentai_crazysim">
+    <physics type="ode">
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+      <real_time_update_rate>1000</real_time_update_rate>
+    </physics>
+    <plugin name='gz::sim::systems::Physics' filename='libgz-sim-physics-system.so'/>
+    <plugin name='gz::sim::systems::UserCommands' filename='libgz-sim-user-commands-system.so'/>
+    <plugin name='gz::sim::systems::SceneBroadcaster' filename='libgz-sim-scene-broadcaster-system.so'/>
+    <plugin name='gz::sim::systems::Contact' filename='libgz-sim-contact-system.so'/>
+    <plugin name='gz::sim::systems::Imu' filename='libgz-sim-imu-system.so'/>
+    <plugin name='gz::sim::systems::AirPressure' filename='libgz-sim-air-pressure-system.so'/>
+    <plugin name='gz::sim::systems::Sensors' filename='libgz-sim-sensors-system.so'>
+      <render_engine>ogre2</render_engine>
+    </plugin>
+
+    <gravity>0 0 -9.80665</gravity>
+    <magnetic_field>6e-06 2.3e-05 -4.2e-05</magnetic_field>
+    <atmosphere type='adiabatic'/>
+
+    <scene>
+      <grid>false</grid>
+      <ambient>0.5 0.5 0.5 1</ambient>
+      <background>0.7 0.85 1.0 1</background>
+      <shadows>true</shadows>
+    </scene>
+
+    <!-- ===================================================== -->
+    <!--  GROUND PLANE — checkerboard, 4x4 m, 5 cm squares     -->
+    <!--                                                       -->
+    <!-- Drone hovers at ~1 m, cam FOV ~60° → footprint ~1.2x  -->
+    <!-- 1.2 m on ground.  Squares of 5 cm (0.05 m) give ~24   -->
+    <!-- visible per axis: dense feature texture, no aliasing. -->
+    <!-- World scale 4x4 m so we see "infinite floor" in any   -->
+    <!-- 1-2 m flight envelope.                                -->
+    <!-- ===================================================== -->
+    <model name="ground_plane">
+      <static>true</static>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <plane>
+              <normal>0 0 1</normal>
+              <size>4 4</size>
+            </plane>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <plane>
+              <normal>0 0 1</normal>
+              <size>4 4</size>
+            </plane>
+          </geometry>
+          <material>
+            <diffuse>0.9 0.9 0.9 1</diffuse>
+            <specular>0.5 0.5 0.5 1</specular>
+            <pbr>
+              <metal>
+                <albedo_map>materials/textures/checker.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ===================================================== -->
+    <!--  TINY COLORED MARKERS — feature grid for optical flow -->
+    <!--                                                       -->
+    <!-- Drone hovers at ~1 m above origin.  Markers are 5 cm  -->
+    <!-- cubes within ±0.6 m of origin so they stay in-frame   -->
+    <!-- the whole flight.  Tiny (5 cm) so they don't dominate -->
+    <!-- the scene; checkerboard ground does most feature work,-->
+    <!-- markers add color/landmark anchors.                   -->
+    <!-- ===================================================== -->
+    <model name="marker_red">
+      <static>true</static>
+      <pose>0.4 0.3 0.025 0 0 0</pose>
+      <link name="link">
+        <visual name="v"><geometry><box><size>0.05 0.05 0.05</size></box></geometry>
+          <material><ambient>0.8 0.1 0.1 1</ambient><diffuse>0.9 0.1 0.1 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="marker_green">
+      <static>true</static>
+      <pose>-0.4 0.3 0.025 0 0 0</pose>
+      <link name="link">
+        <visual name="v"><geometry><box><size>0.05 0.05 0.05</size></box></geometry>
+          <material><ambient>0.1 0.7 0.1 1</ambient><diffuse>0.1 0.9 0.1 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="marker_blue">
+      <static>true</static>
+      <pose>0.3 -0.4 0.025 0 0 0</pose>
+      <link name="link">
+        <visual name="v"><geometry><box><size>0.05 0.05 0.05</size></box></geometry>
+          <material><ambient>0.1 0.1 0.8 1</ambient><diffuse>0.2 0.2 1.0 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="marker_yellow">
+      <static>true</static>
+      <pose>-0.3 -0.4 0.025 0 0 0</pose>
+      <link name="link">
+        <visual name="v"><geometry><box><size>0.05 0.05 0.05</size></box></geometry>
+          <material><ambient>0.9 0.9 0.1 1</ambient><diffuse>1.0 1.0 0.1 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="marker_magenta">
+      <static>true</static>
+      <pose>0.55 0 0.025 0 0 0</pose>
+      <link name="link">
+        <visual name="v"><geometry><box><size>0.05 0.05 0.05</size></box></geometry>
+          <material><ambient>0.8 0.2 0.8 1</ambient><diffuse>1.0 0.2 1.0 1</diffuse></material></visual>
+      </link>
+    </model>
+    <model name="marker_cyan">
+      <static>true</static>
+      <pose>-0.55 0 0.025 0 0 0</pose>
+      <link name="link">
+        <visual name="v"><geometry><box><size>0.05 0.05 0.05</size></box></geometry>
+          <material><ambient>0.1 0.7 0.7 1</ambient><diffuse>0.2 0.9 0.9 1</diffuse></material></visual>
+      </link>
+    </model>
+
+    <!-- ====================== -->
+    <!--  Sun + sky lights      -->
+    <!-- ====================== -->
+    <light type="directional" name="sun">
+      <cast_shadows>true</cast_shadows>
+      <pose>0 0 10 0 0 0</pose>
+      <diffuse>0.95 0.95 0.95 1</diffuse>
+      <specular>0.3 0.3 0.3 1</specular>
+      <attenuation>
+        <range>1000</range>
+        <constant>0.9</constant>
+        <linear>0.01</linear>
+        <quadratic>0.001</quadratic>
+      </attenuation>
+      <direction>-0.3 0.2 -0.9</direction>
+    </light>
+  </world>
+</sdf>

@@ -1,0 +1,215 @@
+<?xml version="1.0" ?>
+<!--
+  sim/gazebo/sentai_x3_camera.sdf
+  ===============================
+  Gazebo Harmonic world with the X3 multicopter (Gazebo built-in)
+  carrying a downward-facing camera.  Used to validate the full
+  Gazebo→sentai_sim pipeline without depending on CrazySim's SITL bridge
+  (which has a cflib handshake issue on Harmonic — debug deferred).
+
+  Camera publishes RGB frames on topic /world/sentai_x3/model/X3/.../image
+  (auto-namespaced by Gazebo).  After spawn, find the exact name with:
+    gz topic -l | grep image
+
+  X3 motors are driven by gz topic /X3/gazebo/command/motor_speed
+  (sample command in the comment block at the end of this file).
+
+  Uses checkerboard ground + tiny color markers from the same materials/
+  dir as sentai_crazysim_world.sdf so optical-flow features are dense
+  and visible at the planned 1 m hover altitude.
+-->
+<sdf version="1.6">
+  <world name="sentai_x3">
+    <physics name="1ms" type="ignored">
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+    </physics>
+    <plugin filename="gz-sim-physics-system" name="gz::sim::systems::Physics"/>
+    <plugin filename="gz-sim-scene-broadcaster-system" name="gz::sim::systems::SceneBroadcaster"/>
+    <plugin filename="gz-sim-user-commands-system" name="gz::sim::systems::UserCommands"/>
+    <plugin filename="gz-sim-sensors-system" name="gz::sim::systems::Sensors">
+      <render_engine>ogre2</render_engine>
+    </plugin>
+    <plugin filename="gz-sim-imu-system" name="gz::sim::systems::Imu"/>
+
+    <light type="directional" name="sun">
+      <cast_shadows>true</cast_shadows>
+      <pose>0 0 10 0 0 0</pose>
+      <diffuse>0.9 0.9 0.9 1</diffuse>
+      <specular>0.3 0.3 0.3 1</specular>
+      <attenuation>
+        <range>1000</range>
+        <constant>0.9</constant>
+        <linear>0.01</linear>
+        <quadratic>0.001</quadratic>
+      </attenuation>
+      <direction>-0.3 0.2 -0.9</direction>
+    </light>
+
+    <!-- Ground plane with checkerboard texture (5cm tiles) -->
+    <model name="ground_plane">
+      <static>true</static>
+      <link name="link">
+        <collision name="collision">
+          <geometry><plane><normal>0 0 1</normal><size>4 4</size></plane></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><plane><normal>0 0 1</normal><size>4 4</size></plane></geometry>
+          <material>
+            <diffuse>0.9 0.9 0.9 1</diffuse>
+            <pbr><metal><albedo_map>materials/textures/checker.png</albedo_map></metal></pbr>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Tiny color markers — 5 cm cubes within ±0.6 m of origin -->
+    <model name="marker_red"><static>true</static><pose>0.4 0.3 0.025 0 0 0</pose><link name="l">
+      <visual name="v"><geometry><box><size>0.05 0.05 0.05</size></box></geometry>
+        <material><ambient>0.8 0.1 0.1 1</ambient><diffuse>0.9 0.1 0.1 1</diffuse></material></visual></link></model>
+    <model name="marker_green"><static>true</static><pose>-0.4 0.3 0.025 0 0 0</pose><link name="l">
+      <visual name="v"><geometry><box><size>0.05 0.05 0.05</size></box></geometry>
+        <material><ambient>0.1 0.7 0.1 1</ambient><diffuse>0.1 0.9 0.1 1</diffuse></material></visual></link></model>
+    <model name="marker_blue"><static>true</static><pose>0.3 -0.4 0.025 0 0 0</pose><link name="l">
+      <visual name="v"><geometry><box><size>0.05 0.05 0.05</size></box></geometry>
+        <material><ambient>0.1 0.1 0.8 1</ambient><diffuse>0.2 0.2 1.0 1</diffuse></material></visual></link></model>
+    <model name="marker_yellow"><static>true</static><pose>-0.3 -0.4 0.025 0 0 0</pose><link name="l">
+      <visual name="v"><geometry><box><size>0.05 0.05 0.05</size></box></geometry>
+        <material><ambient>0.9 0.9 0.1 1</ambient><diffuse>1.0 1.0 0.1 1</diffuse></material></visual></link></model>
+
+    <!-- X3 multicopter from Fuel + a downward camera attached to its base_link -->
+    <include>
+      <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/X3 UAV/4</uri>
+      <name>X3</name>
+      <pose>0 0 0.05 0 0 0</pose>
+
+      <!-- 4 motor plugins (same as quadcopter.sdf demo) -->
+      <plugin filename="gz-sim-multicopter-motor-model-system" name="gz::sim::systems::MulticopterMotorModel">
+        <robotNamespace>X3</robotNamespace>
+        <jointName>X3/rotor_0_joint</jointName><linkName>X3/rotor_0</linkName>
+        <turningDirection>ccw</turningDirection>
+        <timeConstantUp>0.0125</timeConstantUp><timeConstantDown>0.025</timeConstantDown>
+        <maxRotVelocity>800.0</maxRotVelocity>
+        <motorConstant>8.54858e-06</motorConstant><momentConstant>0.016</momentConstant>
+        <commandSubTopic>gazebo/command/motor_speed</commandSubTopic>
+        <actuator_number>0</actuator_number>
+        <rotorDragCoefficient>8.06428e-05</rotorDragCoefficient>
+        <rollingMomentCoefficient>1e-06</rollingMomentCoefficient>
+        <motorSpeedPubTopic>motor_speed/0</motorSpeedPubTopic>
+        <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
+        <motorType>velocity</motorType>
+      </plugin>
+      <plugin filename="gz-sim-multicopter-motor-model-system" name="gz::sim::systems::MulticopterMotorModel">
+        <robotNamespace>X3</robotNamespace>
+        <jointName>X3/rotor_1_joint</jointName><linkName>X3/rotor_1</linkName>
+        <turningDirection>ccw</turningDirection>
+        <timeConstantUp>0.0125</timeConstantUp><timeConstantDown>0.025</timeConstantDown>
+        <maxRotVelocity>800.0</maxRotVelocity>
+        <motorConstant>8.54858e-06</motorConstant><momentConstant>0.016</momentConstant>
+        <commandSubTopic>gazebo/command/motor_speed</commandSubTopic>
+        <actuator_number>1</actuator_number>
+        <rotorDragCoefficient>8.06428e-05</rotorDragCoefficient>
+        <rollingMomentCoefficient>1e-06</rollingMomentCoefficient>
+        <motorSpeedPubTopic>motor_speed/1</motorSpeedPubTopic>
+        <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
+        <motorType>velocity</motorType>
+      </plugin>
+      <plugin filename="gz-sim-multicopter-motor-model-system" name="gz::sim::systems::MulticopterMotorModel">
+        <robotNamespace>X3</robotNamespace>
+        <jointName>X3/rotor_2_joint</jointName><linkName>X3/rotor_2</linkName>
+        <turningDirection>cw</turningDirection>
+        <timeConstantUp>0.0125</timeConstantUp><timeConstantDown>0.025</timeConstantDown>
+        <maxRotVelocity>800.0</maxRotVelocity>
+        <motorConstant>8.54858e-06</motorConstant><momentConstant>0.016</momentConstant>
+        <commandSubTopic>gazebo/command/motor_speed</commandSubTopic>
+        <actuator_number>2</actuator_number>
+        <rotorDragCoefficient>8.06428e-05</rotorDragCoefficient>
+        <rollingMomentCoefficient>1e-06</rollingMomentCoefficient>
+        <motorSpeedPubTopic>motor_speed/2</motorSpeedPubTopic>
+        <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
+        <motorType>velocity</motorType>
+      </plugin>
+      <plugin filename="gz-sim-multicopter-motor-model-system" name="gz::sim::systems::MulticopterMotorModel">
+        <robotNamespace>X3</robotNamespace>
+        <jointName>X3/rotor_3_joint</jointName><linkName>X3/rotor_3</linkName>
+        <turningDirection>cw</turningDirection>
+        <timeConstantUp>0.0125</timeConstantUp><timeConstantDown>0.025</timeConstantDown>
+        <maxRotVelocity>800.0</maxRotVelocity>
+        <motorConstant>8.54858e-06</motorConstant><momentConstant>0.016</momentConstant>
+        <commandSubTopic>gazebo/command/motor_speed</commandSubTopic>
+        <actuator_number>3</actuator_number>
+        <rotorDragCoefficient>8.06428e-05</rotorDragCoefficient>
+        <rollingMomentCoefficient>1e-06</rollingMomentCoefficient>
+        <motorSpeedPubTopic>motor_speed/3</motorSpeedPubTopic>
+        <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
+        <motorType>velocity</motorType>
+      </plugin>
+
+      <!-- Velocity-control plugin (PID over body-frame setpoint).
+           Listens on /X3/gazebo/command/twist (gz.msgs.Twist).
+           Easier to fly than raw motor speeds. -->
+      <plugin filename="gz-sim-multicopter-control-system" name="gz::sim::systems::MulticopterVelocityControl">
+        <robotNamespace>X3</robotNamespace>
+        <commandSubTopic>cmd_vel</commandSubTopic>
+        <enableSubTopic>enable</enableSubTopic>
+        <comLinkName>X3/base_link</comLinkName>
+        <velocityGain>2.7 2.7 2.7</velocityGain>
+        <attitudeGain>2 3 0.15</attitudeGain>
+        <angularRateGain>0.4 0.52 0.18</angularRateGain>
+        <maximumLinearAcceleration>2 2 2</maximumLinearAcceleration>
+        <rotorConfiguration>
+          <rotor><jointName>X3/rotor_0_joint</jointName><forceConstant>8.54858e-06</forceConstant>
+            <momentConstant>0.016</momentConstant><direction>1</direction></rotor>
+          <rotor><jointName>X3/rotor_1_joint</jointName><forceConstant>8.54858e-06</forceConstant>
+            <momentConstant>0.016</momentConstant><direction>1</direction></rotor>
+          <rotor><jointName>X3/rotor_2_joint</jointName><forceConstant>8.54858e-06</forceConstant>
+            <momentConstant>0.016</momentConstant><direction>-1</direction></rotor>
+          <rotor><jointName>X3/rotor_3_joint</jointName><forceConstant>8.54858e-06</forceConstant>
+            <momentConstant>0.016</momentConstant><direction>-1</direction></rotor>
+        </rotorConfiguration>
+      </plugin>
+    </include>
+
+    <!-- Standalone camera fixed in world, looking down at the markers.
+         The X3 model from Fuel doesn't carry one, and SDF <include> can't
+         attach a sensor to a foreign frame.  Hovering camera at z=1 m
+         emulates what the drone's down-cam would see. -->
+    <model name="downward_cam">
+      <static>true</static>
+      <pose>0 0 1.0 0 1.5707963 0</pose>     <!-- pitch +90° = look straight down -->
+      <link name="link">
+        <visual name="vis"><geometry><box><size>0.05 0.05 0.02</size></box></geometry>
+          <material><ambient>0.1 0.1 0.1 1</ambient><diffuse>0.2 0.2 0.2 1</diffuse></material></visual>
+        <sensor name="cam" type="camera">
+          <camera>
+            <horizontal_fov>1.047</horizontal_fov>   <!-- 60° -->
+            <image><width>640</width><height>480</height><format>R8G8B8</format></image>
+            <clip><near>0.05</near><far>10</far></clip>
+          </camera>
+          <update_rate>30</update_rate>
+          <topic>downward_cam/image</topic>
+          <always_on>1</always_on>
+        </sensor>
+      </link>
+    </model>
+
+  </world>
+</sdf>
+
+<!--
+  Sample commands (run in another terminal after launching the world):
+
+  # Spin up motors (drone won't fly stable, but visible motion)
+  gz topic -t /X3/gazebo/command/motor_speed --msgtype gz.msgs.Actuators \
+    -p 'velocity:[700, 700, 700, 700]'
+
+  # Velocity control: enable + go up at 0.5 m/s
+  gz topic -t /X3/enable --msgtype gz.msgs.Boolean -p 'data: true'
+  gz topic -t /X3/cmd_vel --msgtype gz.msgs.Twist -p 'linear: {z: 0.5}'
+
+  # List image topics
+  gz topic -l | grep image
+
+  # Snapshot image
+  gz topic -e -t /downward_cam/image -n 1 > /tmp/frame.bin
+-->
