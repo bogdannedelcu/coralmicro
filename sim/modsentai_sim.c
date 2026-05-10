@@ -196,21 +196,39 @@ static const mp_obj_module_t sentai_sys_module = {
  * Phase 2 LIGHT here is enough to test scripts that only use the
  * sentai.fs.* API surface. */
 
-#define SIM_FS_ROOT_DEFAULT "./sentai_sim_root"
+/* Default set at compile time by sim/CMakeLists.txt to
+ * `${CMAKE_BINARY_DIR}/sentai_fs_root`.  Override with SENTAI_SIM_ROOT
+ * env var at runtime. */
+#ifndef SENTAI_SIM_FS_ROOT_DEFAULT
+#define SENTAI_SIM_FS_ROOT_DEFAULT "./sentai_sim_root"
+#endif
+
+#define SIM_FS_MAXPATH 512
 
 static const char* sim_fs_root(void) {
     static const char *cached = NULL;
     if (cached) return cached;
     const char *env = getenv("SENTAI_SIM_ROOT");
-    cached = (env && env[0]) ? env : SIM_FS_ROOT_DEFAULT;
-    /* Ensure root exists (mkdir -p, ignore EEXIST). */
-    mkdir(cached, 0755);
+    cached = (env && env[0]) ? env : SENTAI_SIM_FS_ROOT_DEFAULT;
+    /* Ensure root exists (mkdir -p; ignore EEXIST).  Walk parents in
+     * case the build dir wasn't created yet. */
+    char tmp[SIM_FS_MAXPATH + 1];
+    strncpy(tmp, cached, sizeof(tmp) - 1);
+    tmp[sizeof(tmp) - 1] = '\0';
+    for (char *p = tmp + 1; *p; p++) {
+        if (*p == '/') {
+            *p = '\0';
+            mkdir(tmp, 0755);
+            *p = '/';
+        }
+    }
+    mkdir(tmp, 0755);
+    if (s_verbose) printf("[sim] FS root: %s\n", cached);
     return cached;
 }
 
 /* Resolve board path "/a/b" to full Linux path "<root>/a/b".
- * Returns 0 on success.  buf must be MAXPATH+1 bytes. */
-#define SIM_FS_MAXPATH 512
+ * Returns 0 on success.  buf must be SIM_FS_MAXPATH+1 bytes. */
 static int sim_fs_resolve(const char *bpath, char *out, size_t outsz) {
     if (!bpath || !out) return -1;
     const char *root = sim_fs_root();

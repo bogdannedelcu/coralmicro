@@ -129,5 +129,15 @@ target_include_directories(sentai_sim PRIVATE
 )
 # Force build_version.h to refresh on every build.
 add_dependencies(sentai_sim increment_sim_build_version)
+
+# Default location for the SIM virtual filesystem.  Lives under the build
+# directory so it's:
+#   - isolated per-build (separate build-sim/ instances don't share state)
+#   - automatically gitignored (anything under build-sim/ is git-ignored)
+#   - co-located with the binary (easy to find when debugging)
+# Operator can override at runtime via the SENTAI_SIM_ROOT env var.
+target_compile_definitions(sentai_sim PRIVATE
+    SENTAI_SIM_FS_ROOT_DEFAULT="${CMAKE_BINARY_DIR}/sentai_fs_root"
+)
 # modsentai_sim.c includes FreeRTOS.h for vTaskDelay; libfreertos_posix
 # already exports the include path PUBLIC, so just linking gets us those.
