@@ -79,6 +79,17 @@ int  FxUserIsMounted(void);
  * that need durability before a planned reset must call this. */
 int  FxUserSync(void);
 
+/* Idle-driven auto-sync.  Called periodically (every 5 s tick) by
+ * CombinedWatchdogTask.  Internally checks: writes-pending > 0 AND
+ * last-write older than 2 s.  When both true, calls FxUserSync()
+ * synchronously (~200-500 ms).  Bounds the unflushed-data window to
+ * ~7 s on an idle board so a USB→battery brownout (Crazyflie BL deck
+ * VBAT ~3.7V vs board's 5V need) is unlikely to interrupt an
+ * in-flight NAND program.  Returns: 1 sync ran ok, 0 skipped (no
+ * pending writes, or activity still hot), -1 sync failed (volume
+ * marked unmounted, see SERR log).  Build #1226+. */
+int  FxUserMaybeIdleSync(void);
+
 /* ===== Stat ========================================================== */
 
 typedef struct {

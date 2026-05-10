@@ -645,6 +645,14 @@ static void CombinedWatchdogTask(void* param) {
         uint32_t now = xTaskGetTickCount() * portTICK_PERIOD_MS;
         sentai_fault_set_uptime(now);  // update crash timestamp hint for fault handler
 
+        // Idle-driven auto-sync: bound the unflushed-data window so a
+        // USB→battery brownout doesn't catch a NAND program in-flight.
+        // No-op when nothing's pending or when writes are still hot;
+        // costs ~200-500 ms only when actually flushing.  See
+        // libs/base/fx_user_fs.cc note_write/FxUserMaybeIdleSync (Pas 2,
+        // build #1226+).
+        FxUserMaybeIdleSync();
+
         // === STORAGE MODE: REPL/HTTP are intentionally off, no activity
         // signal is possible.  Keep the hardware watchdog alive (protects
         // against CPU lockup) but skip the dead/warn logic entirely — the

@@ -64,6 +64,36 @@ bool              g_systems_initialized = false;
 uint32_t          g_format_count = 0;
 uint32_t          g_mount_failures = 0;
 
+/* ===== Idle-driven auto-sync (Pas 2 brownout protection) =============
+ *
+ * Phase 3.2 (build #1074) dropped per-write fx_media_flush for 41-139×
+ * small-write speed-up — but writes then live ONLY in the FileX/LevelX
+ * SDRAM caches until an explicit FxUserSync().  If the operator pulls
+ * USB or the board switches USB→battery (Crazyflie BL deck VBAT ~3.7V
+ * vs board's 5V need) before sync, the last write's NAND program may
+ * be in-flight when brownout hits, leaving an ECC-corrupted page that
+ * fails the next mount.
+ *
+ * Fix (build #1226+): track unflushed writes + last-write timestamp.
+ * The hardware-watchdog task (CombinedWatchdogTask) calls
+ * FxUserMaybeIdleSync() once per 5 s tick.  If unflushed > 0 AND no
+ * write happened in the last kIdleSyncMs, it forces a sync.
+ *
+ * Net effect: max window of unflushed data shrinks from "indefinite"
+ * to ~7 s (5 s tick + 2 s idle gate) on an idle board, with zero
+ * impact on hot-path write throughput (sync only fires when activity
+ * has actually stopped).  Critical writes that need stronger
+ * guarantees (/main.py uploads, configs) still call sentai.fs.sync()
+ * explicitly per agent.md rule #11. */
+volatile uint32_t g_unflushed_writes = 0;
+volatile uint32_t g_last_write_ms    = 0;
+constexpr uint32_t kIdleSyncMs       = 2000u;
+
+static inline void note_write(void) {
+    g_unflushed_writes++;
+    g_last_write_ms = (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS);
+}
+
 /* ===== Mount retry policy (embeded.md §F: bounded local retry) =====
  *
  * 3 attempts × 50 ms inter-attempt delay = 150 ms worst-case extra
@@ -466,7 +496,21 @@ extern "C" int FxUserInit(int force_format) {
     printf("[fx_user]   To DESTROY user data and re-format:\r\n");
     printf("[fx_user]     sentai.diag.fx_format(0xDEADBEEF)\r\n");
     g_mounted = false;
-    return 0;
+    /* SAFE MODE = boot SUCCESS with FS in degraded mode.
+     * Returning 0 here propagates to LfsUserInit() -> false ->
+     * CHECK(LfsUserInit()) fail in main_freertos_m7.cc:389 ->
+     * vTaskSuspendAll() pre-scheduler -> scheduler starts with
+     * uxSchedulerSuspended >= 1 -> no user task ever runs ->
+     * USB CDC never enumerates -> board APPEARS bricked even though
+     * the firmware itself is alive.  That directly contradicts the
+     * comment above and the operator-facing convention "FileX corrupt
+     * => REPL + USB CDC stay alive so we can fx_format from REPL".
+     * g_mounted=false is sufficient to gate every FxUser* API call
+     * (each early-returns 0/-1 when not mounted), so write/read
+     * semantics remain safe regardless of this return value.
+     * Diagnosed via JTAG 2026-05-10 — see experiment.md session for
+     * the dmesg trace + uxSchedulerSuspended=2 evidence. */
+    return 1;
 }
 
 extern "C" int FxUserRemount(void) { return FxUserInit(/*force_format=*/0); }
@@ -599,6 +643,7 @@ extern "C" int FxUserWriteFile(const char* path, const uint8_t* buf,
      * on NAND with sector_size=2048 and is redundant for one-shot
      * small writes.  Callers that need durability should call
      * FxUserSync() explicitly. */
+    note_write();
     return 1;
 }
 
@@ -637,6 +682,7 @@ extern "C" int FxUserAppendFile(const char* path, const uint8_t* buf,
     }
     (void)fx_file_close(&f);
     /* Phase 3.2: no per-call fx_media_flush — see FxUserWriteFile. */
+    if (ok) note_write();
     return ok;
 }
 
@@ -700,7 +746,27 @@ extern "C" int FxUserSync(void) {
         g_mounted = false;
         return 0;
     }
+    /* Sync succeeded — every pending write is now durable on NAND. */
+    g_unflushed_writes = 0;
     return 1;
+}
+
+/* Idle-driven auto-sync helper.  Called from CombinedWatchdogTask once
+ * per 5 s tick.  Forces a sync only when:
+ *   1. Volume is mounted (SAFE MODE => skip; nothing to flush anyway).
+ *   2. There are unflushed writes pending.
+ *   3. The last write was > kIdleSyncMs ago — i.e. activity has
+ *      stopped, so the sync's ~200-500 ms cost won't compete with a
+ *      hot write loop.
+ *
+ * Returns 1 if a sync ran (and succeeded), 0 if skipped, -1 on sync
+ * failure.  Failures are logged via SERR_LOG inside FxUserSync. */
+extern "C" int FxUserMaybeIdleSync(void) {
+    if (!g_mounted) return 0;
+    if (g_unflushed_writes == 0u) return 0;
+    uint32_t now = (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS);
+    if ((now - g_last_write_ms) < kIdleSyncMs) return 0;
+    return FxUserSync() ? 1 : -1;
 }
 
 extern "C" int FxUserRemove(const char* path) {
@@ -713,10 +779,12 @@ extern "C" int FxUserRemove(const char* path) {
      * entry change; full FAT flush costs ~1 s and is unnecessary. */
     UINT fx = fx_file_delete(&g_fx_media, (CHAR*)path);
     if (fx == FX_SUCCESS) {
+        note_write();
         return 0;
     }
     fx = fx_directory_delete(&g_fx_media, (CHAR*)path);
     if (fx == FX_SUCCESS) {
+        note_write();
         return 0;
     }
     /* Map FX errors to negative LFS-ish return codes for compat. */
@@ -757,18 +825,22 @@ extern "C" int FxUserMakeDirs(const char* path) {
      * value tells the truth.  Old behaviour ignored ALL fx codes
      * which silently masked NAND read errors and made callers
      * believe the directory existed when it did not. */
+    bool any_created = false;
     for (size_t i = 1; i <= plen; ++i) {
         if (i == plen || buf[i] == '/') {
             char saved = buf[i];
             buf[i] = '\0';
             UINT fx = fx_directory_create(&g_fx_media, buf);
-            if (fx != FX_SUCCESS && fx != FX_ALREADY_CREATED) {
+            if (fx == FX_SUCCESS) {
+                any_created = true;
+            } else if (fx != FX_ALREADY_CREATED) {
                 buf[i] = saved;
                 return 0;
             }
             buf[i] = saved;
         }
     }
+    if (any_created) note_write();
     return 1;
 }
 
@@ -777,9 +849,9 @@ extern "C" int FxUserRename(const char* from, const char* to) {
     LockGuard guard;
     if (!guard.held) return -1;
     UINT fx = fx_file_rename(&g_fx_media, (CHAR*)from, (CHAR*)to);
-    if (fx == FX_SUCCESS) return 0;
+    if (fx == FX_SUCCESS) { note_write(); return 0; }
     fx = fx_directory_rename(&g_fx_media, (CHAR*)from, (CHAR*)to);
-    if (fx == FX_SUCCESS) return 0;
+    if (fx == FX_SUCCESS) { note_write(); return 0; }
     if (fx == FX_NOT_FOUND) return -2;
     return -5;
 }
