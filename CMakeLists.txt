@@ -14,14 +14,27 @@
 
 cmake_minimum_required(VERSION 3.18)
 
+# SIM build switch (Sim.md).  When ON, builds the x86/Linux SIL target
+# instead of the ARM firmware.  Must be set BEFORE project() so the
+# toolchain selection below picks the right compiler.
+option(SENTAI_SIM "Build the x86/Linux SIM target instead of ARM firmware" OFF)
+
 # Toolchain must be set before project() call.
 if (NOT DEFINED CMAKE_TOOLCHAIN_FILE)
-    set(CMAKE_TOOLCHAIN_FILE ${CMAKE_CURRENT_LIST_DIR}/cmake/toolchain-arm-none-eabi-gcc.cmake)
+    if (SENTAI_SIM)
+        set(CMAKE_TOOLCHAIN_FILE ${CMAKE_CURRENT_LIST_DIR}/cmake/toolchain-x86-sim.cmake)
+    else()
+        set(CMAKE_TOOLCHAIN_FILE ${CMAKE_CURRENT_LIST_DIR}/cmake/toolchain-arm-none-eabi-gcc.cmake)
+    endif()
 endif()
 
 project(CoralMicroProject)
 
-include(third_party/github/cristianadam/bundle_static_library.cmake)
+# bundle_static_library is ARM-only (uses arm-archive recipes).  SIM uses
+# plain host static libraries.
+if (NOT SENTAI_SIM)
+    include(third_party/github/cristianadam/bundle_static_library.cmake)
+endif()
 
 if (NOT DEFINED CMAKE_BUILD_TYPE OR NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Build Type" FORCE)
@@ -47,8 +60,10 @@ add_definitions(-DWIFI_PSK="${WIFI_PSK}")
 # build even after a `git submodule update` pulls upstream HEAD.
 # Set SENTAI_SKIP_SDK_PATCHES=ON to bypass (for CI that wants a
 # known-pristine SDK).
+# Skip in SIM builds — patches target the NXP RT1176 SDK which isn't
+# compiled at all on Linux.
 option(SENTAI_SKIP_SDK_PATCHES "Skip auto-applying patches in patches/coralmicro-rt1176-sdk/" OFF)
-if(NOT SENTAI_SKIP_SDK_PATCHES)
+if(NOT SENTAI_SKIP_SDK_PATCHES AND NOT SENTAI_SIM)
     execute_process(
         COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/scripts/apply_sdk_patches.sh
         RESULT_VARIABLE _sentai_patch_rc
@@ -85,11 +100,20 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 include_directories(.)
 
-if (${CMAKE_SOURCE_DIR} STREQUAL ${PROJECT_SOURCE_DIR})
-    add_subdirectory(apps)
-    add_subdirectory(examples)
+if (SENTAI_SIM)
+    # SIM build: skip the entire ARM tree.  Only the sim/ subdirectory is
+    # compiled in Phase 1 (FreeRTOS POSIX kernel + standalone smoke test).
+    # Future phases will incrementally pull in subsets of libs/ and
+    # examples/sentai_runtime/ once HAL shims are in place.
+    add_subdirectory(sim)
 else()
-    add_subdirectory(apps/elf_loader)
-endif()
+    # ARM build: original layout.
+    if (${CMAKE_SOURCE_DIR} STREQUAL ${PROJECT_SOURCE_DIR})
+        add_subdirectory(apps)
+        add_subdirectory(examples)
+    else()
+        add_subdirectory(apps/elf_loader)
+    endif()
 
-add_subdirectory(libs)
+    add_subdirectory(libs)
+endif()

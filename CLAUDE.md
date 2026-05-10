@@ -6,9 +6,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A fork of `coralmicro` (Coral Dev Board Micro firmware — NXP i.MX RT1176, Cortex-M7 @ 800 MHz + Cortex-M4 + EdgeTPU + dual OV5640 cameras). Upstream is a generic FreeRTOS+TFLite-Micro SDK; this fork's active deliverable is the **SentAI firmware** under `examples/sentai_runtime/`, which adds MicroPython REPL over USB CDC-ACM, an HTTP server over USB CDC-NCM, EdgeTPU pipelines, optical-flow on M7, FileX/LevelX user partition, and a Crazyflie radio bridge over UART2.
 
+## Core SentAI design principle
+
+**Compute-intensive work lives in C/C++; MicroPython is for logic, control, and simple glue.** Hot paths (camera ISR, PXP scaling, FFT phase correlation, TPU invocation, NAND I/O, optical flow SAD/USADA8 inner loops) are written in C/C++ with cycle-counted `__attribute__((section(".ramfunc")))` placement and SIMD intrinsics where applicable. MicroPython on top exposes those primitives as `sentai.*` bindings and is used for orchestration, mission scripts (`/main.py`), experiment drivers, and REPL diagnostics — never for tight loops over pixel data or per-frame math. When adding a new feature, ask: is this <1 ms inner-loop work? then C++. Is this scripting / decision logic / sequencing? then MicroPython.
+
 ## Authoritative project guide — READ THIS FIRST
 
-`examples/sentai_runtime/agent/agent.md` (~2800 lines) is the canonical handoff doc for the SentAI firmware. It supersedes anything generic in this file: load-bearing rules (anti-brick, ISR discipline, error codes), recovery recipes, REPL upload protocol, architecture map, error-code registry, and a full chronology of dead-ends to avoid. Companion docs in the same `agent/` dir: `embeded.md` (NASA/JPL discipline rules), `experiment.md` (chronological session log), `ov5640registers.md`. Long-form lab notes per subsystem live in `examples/sentai_runtime/paper/`.
+`examples/sentai_runtime/agent/agent.md` (~2800 lines) is the canonical handoff doc for the SentAI firmware.
+
+## SIL plan (x86/Linux build of SentAI)
+
+[Sim.md](Sim.md) describes the plan to bring up SentAI on x86 Linux using the FreeRTOS POSIX/Linux port (already vendored at `third_party/freertos_kernel/portable/ThirdParty/GCC/Posix/`). Goal: same source code, two build targets — ARM remains the deliverable, SIM is a tool for CI/regression/no-hardware development. Phase 1 deliverable: `./build-sim/sentai_sim` boots, MicroPython REPL on stdin/stdout, `>>> 1+1 → 2`. Future phases add NAND→file, UART→CrazySim socket, camera→Gazebo bridge. Hard rule: **the ARM build must never regress** — every PR builds both targets in CI. It supersedes anything generic in this file: load-bearing rules (anti-brick, ISR discipline, error codes), recovery recipes, REPL upload protocol, architecture map, error-code registry, and a full chronology of dead-ends to avoid. Companion docs in the same `agent/` dir: `embeded.md` (NASA/JPL discipline rules), `experiment.md` (chronological session log), `ov5640registers.md`. Long-form lab notes per subsystem live in `examples/sentai_runtime/paper/`.
 
 Persistent cross-session memory built up over prior sessions lives in `/home/bogdan/.claude/projects/-home-bogdan-work-coralmicro/memory/` — `MEMORY.md` is the index, individual `.md` files cover specific decisions, dead-ends, and conventions. The harness auto-loads `MEMORY.md` into context at session start; the per-topic files can be read on demand. Past session transcripts (`.jsonl`) live alongside the memory dir but are not auto-loaded.
 
