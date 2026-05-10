@@ -382,6 +382,16 @@ The remaining **57 files (87% codebase)** are pure logic + FreeRTOS API + MicroP
 4. **SIM isn't allowed to fork SentAI logic.** If the algorithm needs to behave differently in SIM, the difference goes into HAL impl, not into the algo.
 5. **Document in `agent.md` §SIM-section** any divergence in behavior between ARM and SIM (e.g. timing jitter, missing hardware feature). Future maintainers must know what SIM does NOT cover.
 6. **No `/tmp` for SIM artifacts.** Use `build-sim/` and `examples/sentai_runtime/experiments/sNNN_<name>/` per the existing convention.
+7. **All blocking syscalls in SIM HAL must EINTR-retry.** The POSIX port
+   delivers SIGALRM at `configTICK_RATE_HZ` (1 kHz) to drive the
+   scheduler tick.  Any `read()`/`recv()`/`accept()`/`select()` on stdin,
+   sockets, or pipes WILL be interrupted ~1000 times per second.  Standard
+   buffered IO (`fgets`, `fread`, `scanf`) does NOT retry on EINTR — they
+   return NULL/0 and set feof, which the caller sees as spurious EOF.
+   Always wrap raw syscalls in `do { ... } while (n == -1 && errno == EINTR);`
+   See `sim/main_sim.c::sim_read_line()` as the canonical example.
+   Caught the hard way 2026-05-10: REPL exited instantly after the first
+   tick because `fgets()` saw EOF.  Fixed in commit `e00cdf41`.
 
 ---
 
