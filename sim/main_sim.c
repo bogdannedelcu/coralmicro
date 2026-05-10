@@ -16,6 +16,8 @@
 #include <string.h>
 #include <unistd.h>
 #include <signal.h>
+#include <errno.h>
+#include <fcntl.h>
 
 #include "FreeRTOS.h"
 #include "task.h"
@@ -39,6 +41,42 @@ static volatile int g_got_sigint = 0;
 static void sigint_handler(int sig) {
     (void) sig;
     g_got_sigint = 1;
+}
+
+/* ---- EINTR-resilient line reader from stdin ----
+ *
+ * The FreeRTOS POSIX port delivers SIGALRM at configTICK_RATE_HZ (1 kHz)
+ * to drive the scheduler tick.  This interrupts any blocking read()
+ * syscall on stdin with errno=EINTR.  glibc's fgets() does NOT retry on
+ * EINTR — it returns NULL and sets feof(), making the REPL think the user
+ * pressed Ctrl-D after every single tick.
+ *
+ * Workaround: read one char at a time via read(STDIN_FILENO, ...) with an
+ * explicit EINTR-retry loop.  Returns 0 on EOF, -1 on real error, or the
+ * line length on success (line is null-terminated, newline stripped). */
+static int sim_read_line(char *buf, size_t max_len) {
+    size_t pos = 0;
+    while (pos < max_len - 1) {
+        char c;
+        ssize_t n;
+        do {
+            n = read(STDIN_FILENO, &c, 1);
+        } while (n == -1 && errno == EINTR);
+
+        if (n == 0) {
+            /* True EOF (Ctrl-D on empty line) */
+            if (pos == 0) return 0;
+            break;          /* EOF after some bytes — return what we have */
+        }
+        if (n < 0) {
+            return -1;
+        }
+        if (c == '\n') break;
+        if (c == '\r') continue;            /* tolerate CRLF */
+        buf[pos++] = c;
+    }
+    buf[pos] = '\0';
+    return (int) pos + 1;   /* >=1 so callers can distinguish from EOF */
 }
 
 /* ---- REPL task ----
@@ -68,17 +106,18 @@ static void repl_task(void *param) {
         printf(">>> ");
         fflush(stdout);
 
-        /* Block on stdin.  POSIX port lets the FreeRTOS scheduler keep
-         * running other tasks while this pthread sleeps in read(). */
-        if (fgets(s_line, sizeof(s_line), stdin) == NULL) {
-            /* EOF (Ctrl-D) or error */
+        /* Use sim_read_line — fgets is not safe under SIGALRM-driven
+         * scheduler ticks (see comment above sim_read_line). */
+        int len = sim_read_line(s_line, sizeof(s_line));
+        if (len == 0) {
+            /* True Ctrl-D / EOF */
             printf("\n[sim] EOF on stdin, exiting\n");
             break;
         }
-
-        /* Strip trailing newline */
-        size_t n = strlen(s_line);
-        if (n > 0 && s_line[n - 1] == '\n') s_line[n - 1] = '\0';
+        if (len < 0) {
+            printf("\n[sim] read error on stdin: %s\n", strerror(errno));
+            break;
+        }
 
         if (s_line[0] == '\0') continue;
         if (strcmp(s_line, "exit") == 0 || strcmp(s_line, "quit") == 0) {
