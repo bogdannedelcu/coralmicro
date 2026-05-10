@@ -19,7 +19,7 @@
 #add_subdirectory(blink_led)
 #add_subdirectory(button_led)
 #add_subdirectory(camera_motion_detection)
-add_subdirectory(camera_streaming_http)
+#add_subdirectory(camera_streaming_http)  # disabled 2026-05-10: pre-existing link errors (sentai_repl_activity / g_cam_* unresolved); not used by SentAI
 #add_subdirectory(camera_streaming_rpc)
 #add_subdirectory(camera_triggered)
 #add_subdirectory(classify_audio)

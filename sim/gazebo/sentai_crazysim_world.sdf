@@ -41,12 +41,63 @@
       <render_engine>ogre2</render_engine>
     </plugin>
 
+    <!-- ====================================================== -->
+    <!--  Wind disturbance — perturbs X/Y so we can see whether   -->
+    <!--  flow stabilizes the drone (with bridge --send-flow) or  -->
+    <!--  the drone drifts away (no flow source).                 -->
+    <!--  Constant 0.5 m/s in +X world (~5 km/h, mild breeze).    -->
+    <!--  WindEffects plugin applies this to any model with a     -->
+    <!--  <wind> element (Crazyflie model gets one in              -->
+    <!--  model.sdf.jinja so this actually pushes the drone).     -->
+    <!-- ====================================================== -->
+    <plugin filename="gz-sim-wind-effects-system" name="gz::sim::systems::WindEffects">
+      <horizontal>
+        <magnitude>
+          <time_for_rise>2</time_for_rise>
+          <sin>
+            <amplitude_percent>0.05</amplitude_percent>
+            <period>10</period>
+          </sin>
+          <noise type="gaussian">
+            <mean>0</mean>
+            <stddev>0.05</stddev>
+          </noise>
+        </magnitude>
+        <direction>
+          <time_for_rise>2</time_for_rise>
+          <sin>
+            <amplitude>5</amplitude>
+            <period>20</period>
+          </sin>
+          <noise type="gaussian">
+            <mean>0</mean>
+            <stddev>2</stddev>
+          </noise>
+        </direction>
+      </horizontal>
+      <vertical>
+        <noise type="gaussian">
+          <mean>0</mean>
+          <stddev>0.03</stddev>
+        </noise>
+      </vertical>
+    </plugin>
+    <wind>
+      <linear_velocity>0.5 0 0</linear_velocity>
+    </wind>
+
     <gravity>0 0 -9.80665</gravity>
     <magnetic_field>6e-06 2.3e-05 -4.2e-05</magnetic_field>
     <atmosphere type='adiabatic'/>
 
     <scene>
       <grid>false</grid>
+      <!-- 2026-05-10: bright red sky so the PiP camera widget makes it
+           obvious when the drone-attached cam is pointing UP (red) vs
+           DOWN at the ground (checker + colored cubes).  Red doesn't
+           appear in the ground textures so any red in the PiP = sky bleed
+           or wrong camera orientation. -->
+      <background>1.0 0.1 0.1 1</background>
       <ambient>0.5 0.5 0.5 1</ambient>
       <background>0.7 0.85 1.0 1</background>
       <shadows>true</shadows>
@@ -82,6 +133,34 @@
           <material>
             <diffuse>0.9 0.9 0.9 1</diffuse>
             <specular>0.5 0.5 0.5 1</specular>
+            <pbr>
+              <metal>
+                <albedo_map>materials/textures/checker.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- 2026-05-10: deep checkerboard fallback at z=-10m.
+         Visible only to a downward-pointing camera; provides feature
+         texture even if the drone is positioned right above an empty
+         spot of the primary ground plane.  Larger area + bigger checker
+         tiles so the perspective from 11 m up still has decent contrast. -->
+    <model name="ground_plane_deep">
+      <static>true</static>
+      <pose>0 0 -10 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <plane>
+              <normal>0 0 1</normal>
+              <size>40 40</size>
+            </plane>
+          </geometry>
+          <material>
+            <diffuse>1 1 1 1</diffuse>
             <pbr>
               <metal>
                 <albedo_map>materials/textures/checker.png</albedo_map>
@@ -157,23 +236,58 @@
     <!--   Gazebo Garden).  Drone hovers at z=1m, so it appears -->
     <!--   in the cadru when in flight.                         -->
     <!-- ====================================================== -->
-    <model name="downward_cam">
-      <static>true</static>
-      <pose>0 0 1.5 0 1.5707963 0</pose>
-      <link name="link">
-        <visual name="vis"><geometry><box><size>0.05 0.05 0.02</size></box></geometry>
-          <material><ambient>0.1 0.1 0.1 1</ambient><diffuse>0.2 0.2 0.2 1</diffuse></material></visual>
-        <sensor name="cam" type="camera">
-          <camera>
-            <horizontal_fov>1.047</horizontal_fov>
-            <image><width>640</width><height>480</height><format>R8G8B8</format></image>
-            <clip><near>0.05</near><far>10</far></clip>
-          </camera>
-          <update_rate>30</update_rate>
-          <topic>/downward_cam/image</topic>
-          <always_on>1</always_on>
-        </sensor>
-      </link>
+    <!-- Camera mount conventions (MUST match firmware — see Sim.md §10b
+         and examples/sentai_runtime/paper/flow_body_frame.md):
+           - 640x480, 30 fps                                    (sensor native)
+           - horizontal FOV = 58° = 1.0123 rad                  (lens calibrated)
+           - vertical   FOV = 45°                               (derived from 4:3)
+           - mount yaw 180° (after pitch 90°) -> image LEFT axis aligns with
+             body FORWARD (+x_body), image TOP -> body RIGHT (-y_body),
+             matching cam0 with vflip=1 on hardware.
+         For Phase 4a (camera fixed in world @ z=1.5m) the convention is
+         only used for sign-of-flow validation; once Phase 4b attaches the
+         camera to the drone link, this exact yaw is what makes flow output
+         feed back correctly into the cf2 EKF.  The on-drone offset (-4cm
+         back, -2cm down) is applied at the drone-link mount, not here. -->
+    <!-- 2026-05-10: world-fixed downward_cam DELETED.
+         The downward camera now lives on the drone link (added to
+         CrazySim's model.sdf.jinja under base_link), so what the flow
+         algorithm sees actually changes when the drone moves.  The
+         fixed camera was a temporary Phase 4a proxy that produced
+         dx/dy=0 at all times because the scene below it was static. -->
+    <!-- (no camera model here — see model.sdf.jinja sensor "downward_cam") -->
+
+    <!-- ====================== -->
+    <!--  4 walls around the arena (3 m × 3 m × 1.5 m tall)        -->
+    <!--  Reason: when the drone tilts during X/Y drift the camera   -->
+    <!--  catches the wall edges, which gives phase-correlation a    -->
+    <!--  reliable feature even at low altitude.  Walls are coloured -->
+    <!--  uniquely (north=blue, south=yellow, east=green, west=cyan) -->
+    <!--  so the operator can tell orientation from the PiP.         -->
+    <!-- ====================== -->
+    <model name="wall_north">
+      <static>true</static><pose>1.5 0 0.75 0 0 0</pose>
+      <link name="link"><visual name="v"><geometry><box><size>0.05 3.0 1.5</size></box></geometry>
+        <material><ambient>0 0 0.6 1</ambient><diffuse>0.1 0.1 1 1</diffuse></material></visual>
+        <collision name="c"><geometry><box><size>0.05 3.0 1.5</size></box></geometry></collision></link>
+    </model>
+    <model name="wall_south">
+      <static>true</static><pose>-1.5 0 0.75 0 0 0</pose>
+      <link name="link"><visual name="v"><geometry><box><size>0.05 3.0 1.5</size></box></geometry>
+        <material><ambient>0.6 0.6 0 1</ambient><diffuse>1 1 0.1 1</diffuse></material></visual>
+        <collision name="c"><geometry><box><size>0.05 3.0 1.5</size></box></geometry></collision></link>
+    </model>
+    <model name="wall_east">
+      <static>true</static><pose>0 1.5 0.75 0 0 0</pose>
+      <link name="link"><visual name="v"><geometry><box><size>3.0 0.05 1.5</size></box></geometry>
+        <material><ambient>0 0.6 0 1</ambient><diffuse>0.1 1 0.1 1</diffuse></material></visual>
+        <collision name="c"><geometry><box><size>3.0 0.05 1.5</size></box></geometry></collision></link>
+    </model>
+    <model name="wall_west">
+      <static>true</static><pose>0 -1.5 0.75 0 0 0</pose>
+      <link name="link"><visual name="v"><geometry><box><size>3.0 0.05 1.5</size></box></geometry>
+        <material><ambient>0 0.6 0.6 1</ambient><diffuse>0.1 1 1 1</diffuse></material></visual>
+        <collision name="c"><geometry><box><size>3.0 0.05 1.5</size></box></geometry></collision></link>
     </model>
 
     <!-- ====================== -->

@@ -1,10 +1,26 @@
 #!/bin/bash
 # install_gazebo_harmonic.sh
-# Installs Gazebo Harmonic on Ubuntu 24.04 (Noble) from the official OSRF apt repo.
-# Source: https://gazebosim.org/docs/harmonic/install_ubuntu
+# ──────────────────────────────────────────────────────────────────────
+# LEGACY — DO NOT RUN FOR SentAI PHASE 3/4 WORK.
 #
-# Run with: bash /tmp/install_gazebo_harmonic.sh
-# (sudo will prompt for your password once at the start)
+# Gazebo Harmonic 8.x has a hard blocker bug for CrazySim cf2 SITL
+# (sensor calibration loop never completes; see Sim.md status log entry
+# "3 known-issue" dated 2026-05-10).  SentAI Phase 3/4 uses ONLY Gazebo
+# Garden 7.9 inside the `crazysim-garden` distrobox container — see
+# `sim/scripts/install_crazysim.sh` for the supported path.
+#
+# This script is kept solely for historical reproduction of the dead-end.
+# It will refuse to run unless `SENTAI_FORCE_HARMONIC=1` is set.
+# ──────────────────────────────────────────────────────────────────────
+# Originally: installs Gazebo Harmonic on Ubuntu 24.04 (Noble) from the
+# official OSRF apt repo.  Source: https://gazebosim.org/docs/harmonic/install_ubuntu
+
+if [ "${SENTAI_FORCE_HARMONIC:-0}" != "1" ]; then
+  echo "REFUSING to install Harmonic — banned for SentAI (cf2 SITL deadlock)."
+  echo "Use Gazebo Garden in the crazysim-garden distrobox instead."
+  echo "Set SENTAI_FORCE_HARMONIC=1 only for historical reproduction."
+  exit 2
+fi
 
 set -e
 set -o pipefail

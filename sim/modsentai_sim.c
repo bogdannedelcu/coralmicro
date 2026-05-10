@@ -500,6 +500,68 @@ static const mp_obj_module_t sentai_camera_module = {
     .globals = (mp_obj_dict_t *) &sentai_camera_globals,
 };
 
+/* ===== sentai.flow — Phase 4 real binding (was Phase 1.5 stub) =====
+ *
+ * Backed by the snapshot updated by sim/camera_bridge_recv.c on every
+ * Gazebo frame.  read() returns a 5-tuple matching the firmware contract:
+ *     (seq, dx_q1000, dy_q1000, conf, latency_us)
+ *
+ * Units identical to ARM:
+ *   dx, dy   — milli-grid-pixels (1000 = 1 grid-px = 8 raw-px after PXP)
+ *   conf     — 0..255 (peak/mean ratio of the phase-corr surface, scaled)
+ *   latency  — recv-to-publish wall time, microseconds
+ *
+ * Body-frame mapping (cam0 vflip=1) lives at the consumer (`_t_flow_to_drone.py`
+ * `body_xform`); see Sim.md §10b.  This binding stays raw-image-frame.
+ */
+typedef struct {
+    volatile uint32_t seq;
+    volatile int32_t  dx_q1000;
+    volatile int32_t  dy_q1000;
+    volatile uint32_t conf;
+    volatile uint64_t latency_us;
+} _sim_flow_snapshot_t;
+extern const _sim_flow_snapshot_t* sim_camera_flow_snapshot(void);
+
+static mp_obj_t sentai_flow_read(void) {
+    const _sim_flow_snapshot_t* s = sim_camera_flow_snapshot();
+    /* Snapshot stably: read seq, then payload, then re-read seq.  If the
+     * second seq differs we lost the race with the writer — return the
+     * later seq's data on a quick retry.  Bounded one retry. */
+    uint32_t seq0 = s->seq;
+    int32_t  dx   = s->dx_q1000;
+    int32_t  dy   = s->dy_q1000;
+    uint32_t cf   = s->conf;
+    uint64_t lat  = s->latency_us;
+    uint32_t seq1 = s->seq;
+    if (seq1 != seq0) {
+        dx  = s->dx_q1000;
+        dy  = s->dy_q1000;
+        cf  = s->conf;
+        lat = s->latency_us;
+        seq0 = seq1;
+    }
+    mp_obj_t items[5] = {
+        mp_obj_new_int_from_uint(seq0),
+        mp_obj_new_int(dx),
+        mp_obj_new_int(dy),
+        mp_obj_new_int_from_uint(cf),
+        mp_obj_new_int_from_ull(lat),
+    };
+    return mp_obj_new_tuple(5, items);
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(sentai_flow_read_obj, sentai_flow_read);
+
+static const mp_rom_map_elem_t sentai_flow_globals_table[] = {
+    { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_flow) },
+    { MP_ROM_QSTR(MP_QSTR_read),     MP_ROM_PTR(&sentai_flow_read_obj) },
+};
+static MP_DEFINE_CONST_DICT(sentai_flow_globals, sentai_flow_globals_table);
+static const mp_obj_module_t sentai_flow_module = {
+    .base = { &mp_type_module },
+    .globals = (mp_obj_dict_t *) &sentai_flow_globals,
+};
+
 /* ===== top-level sentai module ===== */
 static const mp_rom_map_elem_t sentai_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_sentai) },
@@ -510,6 +572,8 @@ static const mp_rom_map_elem_t sentai_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_diag),     MP_ROM_PTR(&sentai_diag_module) },
     { MP_ROM_QSTR(MP_QSTR_sys),      MP_ROM_PTR(&sentai_sys_module) },
     { MP_ROM_QSTR(MP_QSTR_fs),       MP_ROM_PTR(&sentai_fs_module) },
+    { MP_ROM_QSTR(MP_QSTR_camera),   MP_ROM_PTR(&sentai_camera_module) },
+    { MP_ROM_QSTR(MP_QSTR_flow),     MP_ROM_PTR(&sentai_flow_module) },
 };
 static MP_DEFINE_CONST_DICT(sentai_globals, sentai_globals_table);
 

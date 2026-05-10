@@ -174,6 +174,14 @@ int main(void) {
         NULL);
     configASSERT(ok == pdPASS);
 
+    /* Phase 4: start the camera socket bridge task.  It listens on a UDS
+     * (/tmp/sentai_cam.sock) and feeds incoming frames through the same
+     * sentai_pxp_scale + sentai_flow_phase_corr_compute pipeline as the
+     * ARM firmware.  Safe to start before the scheduler — it's just an
+     * xTaskCreateStatic that returns immediately. */
+    extern void sim_camera_bridge_start(void);
+    sim_camera_bridge_start();
+
     vTaskStartScheduler();
 
     /* Should never reach here */

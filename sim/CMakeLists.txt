@@ -116,27 +116,35 @@ target_compile_options(libmicropython_embed_sim PRIVATE
 add_executable_sim(sentai_sim
     main_sim.c
     modsentai_sim.c
+    camera_bridge_recv.c          # Phase 4 UDS receiver, runs flow pipeline
+    # Phase 4 — flow algorithm shared between ARM and SIM.
+    # flow_phase_corr.cc compiles unchanged on both targets thanks to
+    # sentai_fft_shim.h (CMSIS on ARM, FFTW3 wrapper on SIM).
+    ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/flow_phase_corr.cc
+    ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_fft_shim_sim.c
+    ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_pxp_shim_sim.c
 )
 target_link_libraries(sentai_sim PRIVATE
     libfreertos_posix
     libmicropython_embed_sim
+    fftw3f         # SIM-only: FFTW3 single-precision (CMSIS shim backend)
     m              # math functions — must come AFTER libmicropython_embed_sim
 )
-# Need MP headers + FreeRTOS in modsentai_sim.c.
+# Need MP headers + FreeRTOS in modsentai_sim.c, plus repo root for
+# flow_phase_corr's "examples/sentai_runtime/flow_shared.h" include path.
 target_include_directories(sentai_sim PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}        # build_version.h, mpconfigport.h
     ${MP_EMBED_DIR}
+    ${CMAKE_SOURCE_DIR}                # for "examples/sentai_runtime/*.h"
 )
 # Force build_version.h to refresh on every build.
 add_dependencies(sentai_sim increment_sim_build_version)
 
-# Default location for the SIM virtual filesystem.  Lives under the build
-# directory so it's:
-#   - isolated per-build (separate build-sim/ instances don't share state)
-#   - automatically gitignored (anything under build-sim/ is git-ignored)
-#   - co-located with the binary (easy to find when debugging)
-# Operator can override at runtime via the SENTAI_SIM_ROOT env var.
+# SIM-only feature gates.
+#   SENTAI_PLATFORM_SIM    — selects FFTW3/POSIX paths in sentai_*_shim.h
+#   SENTAI_SIM_FS_ROOT_*   — see modsentai_sim.c (virtual FS root)
 target_compile_definitions(sentai_sim PRIVATE
+    SENTAI_PLATFORM_SIM=1
     SENTAI_SIM_FS_ROOT_DEFAULT="${CMAKE_BINARY_DIR}/sentai_fs_root"
 )
 # modsentai_sim.c includes FreeRTOS.h for vTaskDelay; libfreertos_posix

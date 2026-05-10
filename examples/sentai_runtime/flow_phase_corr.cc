@@ -35,13 +35,15 @@
 #include <cstdio>
 #include <cstring>
 #include <cmath>
+#ifdef SENTAI_PLATFORM_SIM
+#include <ctime>      // clock_gettime / CLOCK_MONOTONIC for SIM dwt_cyc shim
+#endif
 
 #include "examples/sentai_runtime/flow_shared.h"
-
-extern "C" {
-#include "arm_math.h"
-#include "arm_const_structs.h"
-}
+#include "examples/sentai_runtime/sentai_fft_shim.h"
+// sentai_fft_shim.h pulls in CMSIS arm_math.h on ARM and a portable
+// FFTW3-backed shim on SIM (gated by SENTAI_PLATFORM_SIM).  Same call
+// site `sentai_cfft_f32(s_cfft, ...)` works on both targets.
 
 namespace {
 
@@ -63,7 +65,7 @@ static float s_cross[2 * N2]             __attribute__((section(".sdram_bss")));
 
 static int  s_have_prev = 0;             // 0 = first call, no prev FFT yet
 static int  s_initialized = 0;
-static const arm_cfft_instance_f32* s_cfft = nullptr;
+static const sentai_cfft_instance_f32* s_cfft = nullptr;
 
 // Crash-isolation breadcrumbs.  Persistent across CPU reset (SDRAM
 // retains content unless full power cycle).  Inspect via JTAG/GDB:
@@ -102,8 +104,17 @@ static volatile BreadcrumbRing s_bc __attribute__((section(".sdram_phase_corr_bc
 static volatile uint32_t s_call_seq = 0;
 
 static inline uint32_t dwt_cyc(void) {
+#ifdef SENTAI_PLATFORM_SIM
+    // Cortex-M DWT->CYCCNT does not exist on x86; segfault if dereferenced.
+    // Use CLOCK_MONOTONIC nanoseconds & 0xFFFFFFFF as a stand-in cycle counter
+    // (sufficient resolution for breadcrumb forensics; only used in bc_log).
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (uint32_t)((uint64_t)ts.tv_sec * 1000000000ull + (uint64_t)ts.tv_nsec);
+#else
     extern volatile uint32_t* const _bc_dwt_addr;
     return *((volatile uint32_t*)0xE0001004u);  // DWT->CYCCNT
+#endif
 }
 
 static inline void bc_log(uint32_t stage, uint32_t value) {
@@ -159,7 +170,7 @@ static void init_once(void) {
             s_window[y * N + x] = wy[y] * wx[x];
         }
     }
-    s_cfft = &arm_cfft_sR_f32_len64;   // pre-built 64-point CFFT instance
+    s_cfft = &sentai_cfft_sR_f32_len64;   // pre-built 64-point CFFT instance
     s_initialized = 1;
 }
 
@@ -179,7 +190,7 @@ static float s_transpose_scratch[2 * N2]
 static void fft2d(float* data, uint8_t inverse) {
     // Row FFTs.
     for (int y = 0; y < N; ++y) {
-        arm_cfft_f32(s_cfft, data + y * 2 * N, inverse, 1);
+        sentai_cfft_f32(s_cfft, data + y * 2 * N, inverse, 1);
     }
     // Transpose into scratch.
     for (int y = 0; y < N; ++y) {
@@ -190,7 +201,7 @@ static void fft2d(float* data, uint8_t inverse) {
     }
     // FFT the transposed rows (= original columns).
     for (int y = 0; y < N; ++y) {
-        arm_cfft_f32(s_cfft, s_transpose_scratch + y * 2 * N, inverse, 1);
+        sentai_cfft_f32(s_cfft, s_transpose_scratch + y * 2 * N, inverse, 1);
     }
     // Transpose back into data.
     for (int y = 0; y < N; ++y) {
@@ -237,9 +248,12 @@ extern "C" void sentai_flow_phase_corr_compute(const uint8_t* gray80x60,
                                                 int* dy_q1000_out,
                                                 uint8_t* conf_out) {
     s_call_seq++;
-    bc_log(0x10, (uint32_t)gray80x60);
+    // Pointer breadcrumbs: cast via uintptr_t so the same source file
+    // builds on both 32-bit ARM and 64-bit SIM (truncating to low 32 bits
+    // is fine — bc_log is a forensic ring, not a precise pointer log).
+    bc_log(0x10, (uint32_t)(uintptr_t)gray80x60);
     init_once();
-    bc_log(0x11, (uint32_t)s_cfft);
+    bc_log(0x11, (uint32_t)(uintptr_t)s_cfft);
 
     if (!gray80x60 || !dx_q1000_out || !dy_q1000_out || !conf_out) {
         bc_log(0xF1, 0);
