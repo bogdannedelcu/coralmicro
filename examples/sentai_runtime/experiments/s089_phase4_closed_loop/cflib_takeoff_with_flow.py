@@ -26,10 +26,11 @@ from cflib.crazyflie.syncCrazyflie import SyncCrazyflie
 from cflib.crtp.crtpstack import CRTPPacket, CRTPPort
 
 URI         = "udp://127.0.0.1:19850"
-TAKEOFF_S   = 5.0
-HOVER_S     = 30.0
-LAND_S      = 5.0
-TARGET_Z    = 1.0
+GATE_Z      = 0.30   # m — start flow injection here (per session plan)
+TARGET_Z    = 1.0    # m — final hover altitude
+GATE_HOLD_S = 2.0    # hold at GATE_Z this long before climbing to TARGET_Z
+HOVER_S     = 25.0   # hover at TARGET_Z (with flow stabilising X/Y)
+LAND_S      = 3.0
 LOG_PERIOD_MS = 50
 FLOW_SOCK   = "/tmp/sentai_flow_out.sock"
 
@@ -74,6 +75,26 @@ def _conf_to_std(c):
     return CFG["std_ceil"]
 
 
+def _altitude_std_scale(z):
+    """Scale flow standard deviation by altitude.
+
+    cf2 mm_flow.c partial-derivative wrt KC_STATE_Z is proportional to
+    1/z^2 (R[2][2] * dx_g / -z^2).  Low altitude => any flow update
+    bleeds strongly into the Z estimate, causing the Z swings we
+    observed (1.24 m up / -0.19 m down at z_target=1.0 m).  Compensate
+    by inflating std at low altitude so the EKF down-weights flow there.
+
+    Returns a multiplier in [1.0, 8.0]:
+      z >= 1.0 m  -> 1.0  (full trust)
+      z == 0.5 m  -> 4.0  (mid trust)
+      z <= 0.30 m -> 8.0  (essentially noise)
+    """
+    if z <= 0.30: return 8.0
+    if z >= 1.0:  return 1.0
+    # Linear ramp in between.
+    return 1.0 + 7.0 * (1.0 - z) / 0.7
+
+
 def _to_body(dx_q, dy_q):
     fw_dx, fw_dy, lf_dx, lf_dy = CFG["body_xform"]
     dx_g = dx_q / 1000.0
@@ -95,13 +116,17 @@ class FlowReceiver(threading.Thread):
     - Disconnect / EOF detected and logged; thread exits cleanly so the
       main thread's join() returns.
     """
-    MIN_INJECT_Z = 0.30   # metres — gate threshold per embeded.md
+    MIN_INJECT_Z   = 0.30        # metres — gate threshold per embeded.md
+    MAX_TILT_RAD   = 0.35        # ~20° — skip flow above this attitude
+                                  # (mm_flow.c R[2][2] term degrades fast at
+                                  # large tilt, leaks into KC_STATE_Z)
 
-    def __init__(self, cf, stop_evt, enable_evt):
+    def __init__(self, cf, stop_evt, enable_evt, altitude_ref):
         super().__init__(daemon=True)
         self.cf = cf
         self.stop_evt = stop_evt
         self.enable_evt = enable_evt   # main thread sets when z > MIN_INJECT_Z
+        self.altitude_ref = altitude_ref  # dict {"z","roll","pitch"} updated by main
         self.n_sent = 0
         self.n_drop = 0
         self.n_gated = 0           # flow snapshots dropped because not airborne
@@ -152,8 +177,14 @@ class FlowReceiver(threading.Thread):
                 if not self.enable_evt.is_set():
                     self.n_gated += 1
                     continue
+                # Bridge marks duplicate frames + saturation as conf=0.
+                # Skip them - feeding them with high std would still nudge
+                # the EKF; just drop entirely is safer.
+                if conf == 0:
+                    self.n_gated += 1
+                    continue
                 dpx, dpy = _to_body(dx, dy)
-                std = _conf_to_std(conf)
+                std = _conf_to_std(conf) * _altitude_std_scale(self.altitude_ref["z"])
                 pk = CRTPPacket()
                 pk.port = CRTPPort.LOCALIZATION
                 pk.channel = 1
@@ -187,9 +218,10 @@ def main():
         time.sleep(1.0)
         print("[with_flow] estimator switched to EKF (2)")
 
-        stop_evt   = threading.Event()
-        enable_evt = threading.Event()   # set when z > MIN_INJECT_Z
-        flow = FlowReceiver(cf, stop_evt, enable_evt)
+        stop_evt    = threading.Event()
+        enable_evt  = threading.Event()   # set when z > MIN_INJECT_Z
+        altitude    = {"z": 0.0}          # mutated by log callback below
+        flow = FlowReceiver(cf, stop_evt, enable_evt, altitude)
         flow.start()
         # CRITICAL fix (code review HIGH): operator MUST know if flow is
         # actually being injected.  Bail loudly within 5s if not connected.
@@ -208,32 +240,59 @@ def main():
 
         rows = []
         def cb(ts, data, _):
+            z = data["stateEstimate.z"]
+            altitude["z"] = z
+            if z > FlowReceiver.MIN_INJECT_Z and not enable_evt.is_set():
+                enable_evt.set()
+                print(f"[gate OPEN] z={z:.2f} > {FlowReceiver.MIN_INJECT_Z}, "
+                      "flow injection enabled", flush=True)
             rows.append((ts, data["stateEstimate.x"],
-                         data["stateEstimate.y"], data["stateEstimate.z"]))
+                         data["stateEstimate.y"], z))
 
         cf.log.add_config(log_cfg)
         log_cfg.data_received_cb.add_callback(cb)
         log_cfg.start()
 
-        # send_hover_setpoint(0, 0, 0, z) — same as no_flow, so the only
-        # difference between the two runs is whether flow snapshots are
-        # injected by FlowReceiver.  Z held by baro+EKF, X/Y must come
-        # from optical flow (or drift if no flow source).
+        # New takeoff profile (per session plan 2026-05-10):
+        #   1. ramp 0 -> GATE_Z (0.30 m) over ~1 s — no flow yet (gate closed)
+        #   2. hold at GATE_Z for GATE_HOLD_S so the EKF settles its R matrix
+        #      before flow starts pushing observations through hx[KC_STATE_Z]
+        #   3. flow gate opens automatically when stateEstimate.z > GATE_Z
+        #   4. ramp GATE_Z -> TARGET_Z over 2 s; flow std drops to 1.0
+        #      smoothly via _altitude_std_scale()
+        #   5. hover HOVER_S at TARGET_Z with flow stabilising X/Y
+        #   6. land
+        print(f"[with_flow] ramp 0 -> {GATE_Z} m (1s)", flush=True)
         t0 = time.monotonic()
-        while time.monotonic() - t0 < TAKEOFF_S:
-            t = (time.monotonic() - t0) / TAKEOFF_S
-            z = TARGET_Z * t
-            cf.commander.send_hover_setpoint(0.0, 0.0, 0.0, z)
-            time.sleep(0.1)
+        while time.monotonic() - t0 < 1.0:
+            cf.commander.send_hover_setpoint(0.0, 0.0, 0.0,
+                                              GATE_Z * (time.monotonic() - t0))
+            time.sleep(0.05)
 
-        print(f"[with_flow] hovering {HOVER_S} s at z={TARGET_Z} m "
-              "(flow bridge MUST be running)...")
+        print(f"[with_flow] hold {GATE_HOLD_S}s at {GATE_Z} m "
+              "(flow gate opens here)", flush=True)
+        t0 = time.monotonic()
+        while time.monotonic() - t0 < GATE_HOLD_S:
+            cf.commander.send_hover_setpoint(0.0, 0.0, 0.0, GATE_Z)
+            time.sleep(0.05)
+
+        print(f"[with_flow] climb {GATE_Z} -> {TARGET_Z} m (2s) — "
+              "flow std smoothly drops via altitude scale", flush=True)
+        t0 = time.monotonic()
+        while time.monotonic() - t0 < 2.0:
+            frac = (time.monotonic() - t0) / 2.0
+            z = GATE_Z + (TARGET_Z - GATE_Z) * frac
+            cf.commander.send_hover_setpoint(0.0, 0.0, 0.0, z)
+            time.sleep(0.05)
+
+        print(f"[with_flow] hover {HOVER_S}s at z={TARGET_Z} m "
+              "with flow injection", flush=True)
         t0 = time.monotonic()
         while time.monotonic() - t0 < HOVER_S:
             cf.commander.send_hover_setpoint(0.0, 0.0, 0.0, TARGET_Z)
             time.sleep(0.05)
 
-        print("[with_flow] landing ...")
+        print("[with_flow] landing ...", flush=True)
         t0 = time.monotonic()
         while time.monotonic() - t0 < LAND_S:
             t = 1.0 - (time.monotonic() - t0) / LAND_S

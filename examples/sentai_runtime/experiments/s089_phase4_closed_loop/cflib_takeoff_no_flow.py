@@ -20,11 +20,12 @@ from cflib.crazyflie.log import LogConfig
 from cflib.crazyflie.syncCrazyflie import SyncCrazyflie
 
 URI         = "udp://127.0.0.1:19850"
-TAKEOFF_S   = 5.0
-HOVER_S     = 30.0
-LAND_S      = 5.0
-TARGET_Z    = 1.0      # m
-LOG_PERIOD_MS = 50     # 20 Hz pose log
+GATE_Z      = 0.30   # match with_flow profile (apples-to-apples)
+GATE_HOLD_S = 2.0
+TARGET_Z    = 1.0
+HOVER_S     = 25.0
+LAND_S      = 3.0
+LOG_PERIOD_MS = 50
 
 OUT = Path(__file__).parent / "csv" / "no_flow.csv"
 OUT.parent.mkdir(parents=True, exist_ok=True)
@@ -61,30 +62,39 @@ def main():
         log_cfg.data_received_cb.add_callback(cb)
         log_cfg.start()
 
-        # Use send_hover_setpoint(vx=0, vy=0, yawrate=0, zdistance) for
-        # Z-hold + zero horizontal command.  Drone holds altitude via baro
-        # but X/Y are unconstrained — IMU integration noise produces drift
-        # in the no-flow case (visible in the GUI as the drone wandering).
+        # Same takeoff profile as cflib_takeoff_with_flow.py for fair
+        # baseline comparison: ramp-hold-climb-hover-land.  Without flow
+        # injection, the EKF integrates IMU noise -> X/Y drifts freely
+        # under wind disturbance.
+        print(f"[no_flow] ramp 0 -> {GATE_Z} m (1s)", flush=True)
         t0 = time.monotonic()
-        while time.monotonic() - t0 < TAKEOFF_S:
-            t = (time.monotonic() - t0) / TAKEOFF_S
-            z = TARGET_Z * t
-            cf.commander.send_hover_setpoint(0.0, 0.0, 0.0, z)
-            time.sleep(0.1)
-
-        print(f"[no_flow] hovering {HOVER_S} s at z={TARGET_Z} m (X/Y free)...")
-        t0 = time.monotonic()
-        while time.monotonic() - t0 < HOVER_S:
-            cf.commander.send_hover_setpoint(0.0, 0.0, 0.0, TARGET_Z)
+        while time.monotonic() - t0 < 1.0:
+            cf.commander.send_hover_setpoint(0,0,0, GATE_Z * (time.monotonic()-t0))
             time.sleep(0.05)
 
-        print("[no_flow] landing ...")
+        print(f"[no_flow] hold {GATE_HOLD_S}s at {GATE_Z} m", flush=True)
+        t0 = time.monotonic()
+        while time.monotonic() - t0 < GATE_HOLD_S:
+            cf.commander.send_hover_setpoint(0,0,0, GATE_Z); time.sleep(0.05)
+
+        print(f"[no_flow] climb {GATE_Z} -> {TARGET_Z} m (2s)", flush=True)
+        t0 = time.monotonic()
+        while time.monotonic() - t0 < 2.0:
+            frac = (time.monotonic()-t0) / 2.0
+            cf.commander.send_hover_setpoint(0,0,0, GATE_Z + (TARGET_Z-GATE_Z)*frac)
+            time.sleep(0.05)
+
+        print(f"[no_flow] hover {HOVER_S}s at z={TARGET_Z} m (X/Y free)...", flush=True)
+        t0 = time.monotonic()
+        while time.monotonic() - t0 < HOVER_S:
+            cf.commander.send_hover_setpoint(0,0,0, TARGET_Z); time.sleep(0.05)
+
+        print("[no_flow] landing ...", flush=True)
         t0 = time.monotonic()
         while time.monotonic() - t0 < LAND_S:
             t = 1.0 - (time.monotonic() - t0) / LAND_S
             z = max(0.05, TARGET_Z * t)
-            cf.commander.send_hover_setpoint(0.0, 0.0, 0.0, z)
-            time.sleep(0.1)
+            cf.commander.send_hover_setpoint(0,0,0, z); time.sleep(0.1)
 
         cf.commander.send_stop_setpoint()
         log_cfg.stop()

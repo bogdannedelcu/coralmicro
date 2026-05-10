@@ -259,42 +259,64 @@ static int handle_one_frame(int fd) {
 
     rgb888_to_y(s_rgb_small, s_gray80x60, DST_W * DST_H);
 
-    // DEBUG: checksum of the gray80x60 plane fed to phase-corr.
-    // Plus dump the FIRST 2 distinct gray frames to disk for offline
-    // numpy verification.
-    {
-        static uint32_t s_prev_gray_crc = 0;
-        static int s_gdbg = 0;
-        static int s_dumped_a = 0, s_dumped_b = 0;
-        uint32_t gc = 0;
-        for (int i = 0; i < DST_W * DST_H; ++i) gc = gc * 31u + s_gray80x60[i];
-        if ((s_gdbg++ % 30) == 0) {
-            printf("camera_bridge: gray_crc=0x%08x (prev=0x%08x, %s)\r\n",
-                   gc, s_prev_gray_crc,
-                   (gc == s_prev_gray_crc) ? "STATIC" : "CHANGED");
-        }
-        // Dump 10 frames spaced 1s apart (every 30th frame after connect),
-        // overwriting on each new connection so we always have fresh data.
-        {
-            static int s_dump_idx = 0;
-            if (s_dumped_a == 0) s_dumped_a = 1;  // mark connected
-            if ((s_gdbg % 30) == 0 && s_dump_idx < 10) {
-                char path[64];
-                snprintf(path, sizeof(path), "/tmp/sim_gray_%d.raw", s_dump_idx);
-                FILE* f = fopen(path, "wb");
-                if (f) { fwrite(s_gray80x60, 1, DST_W*DST_H, f); fclose(f); }
-                printf("camera_bridge: dumped %s (crc 0x%08x, gdbg=%d)\r\n",
-                       path, gc, s_gdbg);
-                s_dump_idx++;
-            }
-        }
-        (void)s_dumped_b;
-        s_prev_gray_crc = gc;
+    // ─────────────────────────────────────────────────────────────────
+    // DUPLICATE-FRAME DETECTION (embeded.md "bounded behaviour" +
+    // "preserve essential mission functions under overload").
+    //
+    // Garden's render thread runs slower than our 30 fps publish rate
+    // (Sim.md §10d), so consecutive frames from the bridge are often
+    // bit-identical with only the timestamp updated.  Running phase-corr
+    // on duplicates wastes CPU AND, more importantly, lets the cf2 EKF
+    // integrate stale-but-confident "zero motion" observations between
+    // real renders — corrupting the position estimate.
+    //
+    // Solution: detect duplicate gray80x60 frames via a fast CRC.  On a
+    // duplicate, REUSE the previous flow result (same dx/dy) and mark
+    // confidence to 0 so the EKF down-weights the sample (caller maps
+    // conf<conf_thresh_low → high std).  This way:
+    //   - phase-corr runs only on distinct frames  → no wasted compute
+    //   - EKF gets one strong observation per render + low-conf
+    //     interpolation between → integration stays accurate
+    //
+    // Code is portable C, shared with ARM (where the OV5640 always
+    // produces fresh frames so the duplicate path never fires — but the
+    // code stays inert there, no behaviour change).
+    // ─────────────────────────────────────────────────────────────────
+    static uint32_t s_prev_gray_crc = 0;
+    static int32_t  s_last_dx_q = 0;
+    static int32_t  s_last_dy_q = 0;
+    uint32_t gray_crc = 0;
+    for (int i = 0; i < DST_W * DST_H; ++i) {
+        gray_crc = gray_crc * 31u + s_gray80x60[i];
     }
 
     int dx_q = 0, dy_q = 0;
     uint8_t conf = 0;
-    sentai_flow_phase_corr_compute(s_gray80x60, &dx_q, &dy_q, &conf);
+
+    if (gray_crc == s_prev_gray_crc) {
+        // Duplicate frame — re-use previous result with conf=0 so the
+        // EKF treats it as a low-confidence interpolation between renders.
+        dx_q = s_last_dx_q;
+        dy_q = s_last_dy_q;
+        conf = 0;
+    } else {
+        sentai_flow_phase_corr_compute(s_gray80x60, &dx_q, &dy_q, &conf);
+
+        // Saturation guard: phase-corr peak at the edge of its ±32
+        // grid-px search range usually means the actual shift is larger
+        // than the algorithm can measure unambiguously.  Treat as
+        // unreliable (conf=0) rather than passing aliased values to the
+        // EKF.  (Sim.md §10d issue #2.)
+        const int SAT_LIMIT_MGP = 28000;   // 28 of ±32 grid-px
+        if (dx_q >  SAT_LIMIT_MGP || dx_q < -SAT_LIMIT_MGP ||
+            dy_q >  SAT_LIMIT_MGP || dy_q < -SAT_LIMIT_MGP) {
+            conf = 0;   // EKF down-weights, doesn't integrate aliased motion
+        }
+
+        s_last_dx_q = dx_q;
+        s_last_dy_q = dy_q;
+    }
+    s_prev_gray_crc = gray_crc;
 
     uint64_t t1 = now_us();
 

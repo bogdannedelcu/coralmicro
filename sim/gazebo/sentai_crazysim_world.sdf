@@ -83,7 +83,14 @@
       </vertical>
     </plugin>
     <wind>
-      <linear_velocity>0.5 0 0</linear_velocity>
+      <!-- Wind direction set per test scenario:
+             0 0 0     : no wind (calm, baseline, yaw test)
+             0.5 0 0   : +X wind (forward drift)
+             0 0.5 0   : +Y wind (perpendicular drift)
+           Edit before world reload (gz sim restart).
+           Wind on a grounded drone tips it -> SUP supervisor lock; for
+           any test where drone hovers from ground we keep this calm. -->
+      <linear_velocity>0 0 0</linear_velocity>
     </wind>
 
     <gravity>0 0 -9.80665</gravity>
