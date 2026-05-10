@@ -28,6 +28,8 @@
 #include "py/objmodule.h"
 #include "port/micropython_embed.h"
 
+#include "build_version.h"
+
 /* ---- Heap for MicroPython ---- */
 #define MP_HEAP_SIZE  (256 * 1024)   /* 256 KB — generous for REPL + small scripts */
 static char s_mp_heap[MP_HEAP_SIZE];
@@ -97,9 +99,16 @@ static void repl_task(void *param) {
     int dummy;
     mp_embed_init(&s_mp_heap[0], MP_HEAP_SIZE, &dummy);
 
+    /* Auto-import sentai so the REPL can use sentai.* without an explicit
+     * `import sentai` first.  Mirrors examples/sentai_runtime/
+     * micropython_task.c:micropython_repl_task() which does the same on
+     * the firmware. */
+    mp_embed_exec_str("import sentai");
+
     printf("\n");
     printf("MicroPython on SentAI SIM (FreeRTOS POSIX port + MicroPython embed)\n");
     printf("Type expressions, end with Enter.  Ctrl-D or 'exit' to quit.\n");
+    printf("Try: sentai.version(), sentai.fs.write(...), help()\n");
     printf("\n");
 
     for (;;) {
@@ -150,7 +159,7 @@ int main(void) {
      * Default would terminate immediately. */
     signal(SIGINT, sigint_handler);
 
-    printf("[sim] sentai_sim — Phase 1 minimal REPL\n");
+    printf("[sim] sentai_sim build #%d (%s)\n", BUILD_VERSION, BUILD_TIMESTAMP);
     printf("[sim] FreeRTOS POSIX port: tick=%u Hz, heap=%u bytes\n",
            (unsigned) configTICK_RATE_HZ,
            (unsigned) configTOTAL_HEAP_SIZE);
@@ -222,24 +231,32 @@ void mp_embed_exit_critical(void) {
     /* no-op in Phase 1 */
 }
 
-/* Help text stub.  On firmware this is a generated symbol from
- * gen_help_embed.py that produces help_txt_data.cc with the SentAI help
- * text in a SDRAM section.  In Phase 1 SIM we just expose a placeholder. */
+/* Help text — shown by MicroPython's builtin help().  On firmware this
+ * is generated from examples/sentai_runtime/help.txt by gen_help_embed.py.
+ * SIM uses a curated short version — the firmware help text references
+ * many bindings that aren't wired in SIM yet. */
 const char sentai_help_builtin_text[] =
-    "SentAI SIM — Phase 1 minimal REPL.\n"
-    "MicroPython embed running on FreeRTOS POSIX/Linux port.\n"
-    "Most sentai.* bindings are not registered yet (added in Phase 2+).\n"
-    "Type expressions, end with Enter.  Ctrl-D to exit.\n";
+    "Welcome to SentAI SIM (MicroPython on FreeRTOS POSIX/Linux port).\n"
+    "\n"
+    "Available bindings (see modsentai_sim.c for the full list):\n"
+    "  sentai.version()           - build identifier\n"
+    "  sentai.verbose([on])       - silence/restore [SIM] log output\n"
+    "  sentai.io.led_on/off()     - LED stub (printf to stdout)\n"
+    "  sentai.rtos.sleep_ms(ms)   - vTaskDelay\n"
+    "  sentai.diag.dmesg()        - in-memory log ring (4 KB)\n"
+    "  sentai.sys.reset()         - clean exit\n"
+    "  sentai.fs.write/append/read/read_str(path[, bytes])\n"
+    "  sentai.fs.exists/size/ls/mkdir/remove/sync()\n"
+    "    -- backed by ./sentai_sim_root/ (override SENTAI_SIM_ROOT env)\n"
+    "\n"
+    "Not yet in SIM (Phase 3+):\n"
+    "  sentai.crazy.*  (Crazyflie radio bridge over UART socket)\n"
+    "  sentai.flow.*   (optical flow on Gazebo camera frames)\n"
+    "  sentai.tpu.*    (libedgetpu Linux for EdgeTPU acceleration)\n"
+    "\n"
+    "REPL: type expression + Enter.  Ctrl-D or sentai.sys.reset() exits.\n";
 
-/* mp_module_sentai stub.  On firmware this is the real module defined in
- * modsentai.c with all its bindings.  In Phase 1 SIM we expose an empty
- * module (the QSTR table still references it because mpconfigport.h
- * is shared with firmware).  `import sentai` succeeds; calling any
- * `sentai.*` function raises AttributeError until Phase 2+ wires bindings. */
-const mp_obj_module_t mp_module_sentai = {
-    .base = { &mp_type_module },
-    .globals = NULL,
-};
+/* mp_module_sentai is now defined in modsentai_sim.c with real bindings. */
 
 /* Filesystem-import stubs.  Firmware would route these through LFS / FileX
  * (`mp_lexer_new_from_file`, `mp_import_stat`).  Phase 1 SIM has no FS

@@ -9,6 +9,23 @@
 find_package(Threads REQUIRED)
 
 # ---------------------------------------------------------------------------
+# Auto-increment SIM build counter.
+#
+# Reuses the same script as the ARM firmware (examples/sentai_runtime/
+# increment_version.cmake) but writes to a SEPARATE file under sim/ so the
+# SIM and ARM build numbers don't collide.  ARM is at build #N, SIM is at
+# its own build #M, both timestamped at last build.  Banner in main_sim.c
+# prints "SentAI SIM build #M (timestamp)" so the operator always knows
+# what's running.
+# ---------------------------------------------------------------------------
+add_custom_target(increment_sim_build_version ALL
+    COMMAND ${CMAKE_COMMAND}
+        -DSRC_DIR=${CMAKE_CURRENT_SOURCE_DIR}
+        -P ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/increment_version.cmake
+    COMMENT "Incrementing SIM build version..."
+)
+
+# ---------------------------------------------------------------------------
 # libfreertos_posix — FreeRTOS kernel built with the POSIX/Linux port.
 # ---------------------------------------------------------------------------
 set(FREERTOS_KERNEL_DIR ${CMAKE_SOURCE_DIR}/third_party/freertos_kernel)
@@ -98,14 +115,19 @@ target_compile_options(libmicropython_embed_sim PRIVATE
 # ---------------------------------------------------------------------------
 add_executable_sim(sentai_sim
     main_sim.c
+    modsentai_sim.c
 )
 target_link_libraries(sentai_sim PRIVATE
     libfreertos_posix
     libmicropython_embed_sim
     m              # math functions — must come AFTER libmicropython_embed_sim
 )
-# Need MP headers in main_sim.c too.
+# Need MP headers + FreeRTOS in modsentai_sim.c.
 target_include_directories(sentai_sim PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}        # build_version.h, mpconfigport.h
     ${MP_EMBED_DIR}
 )
+# Force build_version.h to refresh on every build.
+add_dependencies(sentai_sim increment_sim_build_version)
+# modsentai_sim.c includes FreeRTOS.h for vTaskDelay; libfreertos_posix
+# already exports the include path PUBLIC, so just linking gets us those.
