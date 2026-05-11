@@ -31,13 +31,19 @@ import cv2
 # Known world positions of markers (matches SDF).  Used by the
 # calibration loop to compute drone-to-marker offsets in world frame
 # without needing to query Gazebo each tick.
+# 2026-05-11 COMPACT LAYOUT: markers moved closer to origin so all 4
+# fit in FOV at z=0.5m hover.  FOV at z=0.5: 0.55m × 0.41m.  Markers
+# span 0.30m × 0.20m physical → ~12cm pixel-margin per axis.
 KNOWN_POSITIONS_M = {
-    0: (+0.7, +0.5, 0.005),  # NE corner
-    1: (-0.7, +0.5, 0.005),  # NW corner
-    2: (-0.7, -0.5, 0.005),  # SW corner
-    3: (+0.7, -0.5, 0.005),  # SE corner
+    # Tall posts (10cm tall, top face at z=0.20m) so they sit above the
+    # 5cm-tall cat picture at z=0.05m and cannot be visually occluded.
+    # PnP uses top-face corners — Z of the marker = top face = 0.20m.
+    0: (+0.15, +0.10, 0.20),  # NE corner of compact pattern
+    1: (-0.15, +0.10, 0.20),  # NW
+    2: (-0.15, -0.10, 0.20),  # SW
+    3: (+0.15, -0.10, 0.20),  # SE
 }
-MARKER_SIZE_M = 0.30   # physical size of one marker's square on the ground
+MARKER_SIZE_M = 0.08   # physical size of one marker's square on the ground
 
 # Camera intrinsics — derived from gz cam SDF FOV.  Used for pose
 # estimation (estimatePoseSingleMarkers).
