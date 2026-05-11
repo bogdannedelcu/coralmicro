@@ -520,6 +520,8 @@ typedef struct {
     volatile int32_t  dy_q1000;
     volatile uint32_t conf;
     volatile uint64_t latency_us;
+    volatile int32_t  dz_q1000;        // added 2026-05-11
+    volatile uint32_t dz_conf;
 } _sim_flow_snapshot_t;
 extern const _sim_flow_snapshot_t* sim_camera_flow_snapshot(void);
 
@@ -533,22 +535,31 @@ static mp_obj_t sentai_flow_read(void) {
     int32_t  dy   = s->dy_q1000;
     uint32_t cf   = s->conf;
     uint64_t lat  = s->latency_us;
+    int32_t  dz   = s->dz_q1000;
+    uint32_t dzc  = s->dz_conf;
     uint32_t seq1 = s->seq;
     if (seq1 != seq0) {
         dx  = s->dx_q1000;
         dy  = s->dy_q1000;
         cf  = s->conf;
         lat = s->latency_us;
+        dz  = s->dz_q1000;
+        dzc = s->dz_conf;
         seq0 = seq1;
     }
-    mp_obj_t items[5] = {
+    /* Tuple: (seq, dx_q1000, dy_q1000, conf, latency_us, dz_q1000, dz_conf)
+     * dz_q1000 is µ/frame (parts-per-million altitude rate); diagnostic only,
+     * cf2 EKF does NOT consume it. */
+    mp_obj_t items[7] = {
         mp_obj_new_int_from_uint(seq0),
         mp_obj_new_int(dx),
         mp_obj_new_int(dy),
         mp_obj_new_int_from_uint(cf),
         mp_obj_new_int_from_ull(lat),
+        mp_obj_new_int(dz),
+        mp_obj_new_int_from_uint(dzc),
     };
-    return mp_obj_new_tuple(5, items);
+    return mp_obj_new_tuple(7, items);
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(sentai_flow_read_obj, sentai_flow_read);
 

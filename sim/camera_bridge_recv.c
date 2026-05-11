@@ -84,6 +84,12 @@ extern void sentai_flow_phase_corr_compute(const uint8_t* gray80x60,
                                             int* dx_q1000_out,
                                             int* dy_q1000_out,
                                             uint8_t* conf_out);
+// dz divergence path (added 2026-05-11) — runs 4 sub-block phase-corrs
+// to estimate altitude rate (drone rising/falling) from radial flow
+// expansion/contraction.  Diagnostic only — cf2 EKF doesn't consume it.
+extern void sentai_flow_phase_corr_compute_dz(const uint8_t* gray80x60,
+                                                int* dz_q1000_out,
+                                                uint8_t* conf_out);
 
 // ────────────────────────────────────────────────────────────────────────
 // Public flow snapshot — single-writer (this task), many-reader (REPL).
@@ -96,6 +102,8 @@ typedef struct {
     volatile int32_t  dy_q1000;
     volatile uint32_t conf;         // peak/mean ratio (capped 0..255)
     volatile uint64_t latency_us;   // recv -> publish wall time
+    volatile int32_t  dz_q1000;     // µ/frame altitude rate (diagnostic)
+    volatile uint32_t dz_conf;
 } sim_flow_snapshot_t;
 
 static sim_flow_snapshot_t g_flow = {0};
@@ -138,6 +146,13 @@ typedef struct __attribute__((packed)) {
     int32_t  dy_q1000;
     uint32_t conf;
     uint64_t latency_us;
+    // dz from sub-block divergence (added 2026-05-11):
+    //   units: micro per frame (1000 = +0.1% altitude/frame)
+    //   sign:  positive = drone rising  (image features expand)
+    //          negative = drone falling (image features converge)
+    // Diagnostic only; cf2 EKF doesn't accept dz from flow.
+    int32_t  dz_q1000;
+    uint32_t dz_conf;
 } flow_reply_t;
 
 // ────────────────────────────────────────────────────────────────────────
@@ -290,8 +305,8 @@ static int handle_one_frame(int fd) {
         gray_crc = gray_crc * 31u + s_gray80x60[i];
     }
 
-    int dx_q = 0, dy_q = 0;
-    uint8_t conf = 0;
+    int dx_q = 0, dy_q = 0, dz_q = 0;
+    uint8_t conf = 0, dz_conf = 0;
 
     if (gray_crc == s_prev_gray_crc) {
         // Duplicate frame — re-use previous result with conf=0 so the
@@ -315,6 +330,10 @@ static int handle_one_frame(int fd) {
 
         s_last_dx_q = dx_q;
         s_last_dy_q = dy_q;
+
+        // dz divergence: only meaningful on a fresh frame (not a duplicate).
+        // Cheap extra: 4× length-32 phase-corr ≈ 0.6 ms on x86.
+        sentai_flow_phase_corr_compute_dz(s_gray80x60, &dz_q, &dz_conf);
     }
     s_prev_gray_crc = gray_crc;
 
@@ -326,6 +345,8 @@ static int handle_one_frame(int fd) {
     g_flow.dy_q1000   = dy_q;
     g_flow.conf       = conf;
     g_flow.latency_us = t1 - t0;
+    g_flow.dz_q1000   = dz_q;
+    g_flow.dz_conf    = dz_conf;
     __sync_synchronize();
     g_flow.seq        = hdr.seq;
 
@@ -338,6 +359,8 @@ static int handle_one_frame(int fd) {
         .dy_q1000    = dy_q,
         .conf        = (uint32_t)conf,
         .latency_us  = t1 - t0,
+        .dz_q1000    = dz_q,
+        .dz_conf     = (uint32_t)dz_conf,
     };
     if (write_full(fd, &reply, sizeof(reply)) != 0) return -1;
 

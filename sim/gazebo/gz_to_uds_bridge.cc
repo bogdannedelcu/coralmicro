@@ -81,6 +81,8 @@ struct Reply {
     int32_t  dy_q1000;
     uint32_t conf;
     uint64_t latency_us;
+    int32_t  dz_q1000;       // added 2026-05-11 — micro/frame altitude rate
+    uint32_t dz_conf;
 };
 #pragma pack(pop)
 
@@ -233,10 +235,10 @@ void on_image(const gz::msgs::Image& msg) {
 
     if ((seq % 30u) == 0u || reply.dx_q1000 != 0 || reply.dy_q1000 != 0) {
         std::fprintf(stderr,
-                     "[bridge] seq=%u  dx=%+5d dy=%+5d conf=%u lat=%llu us  "
+                     "[bridge] seq=%u  dx=%+5d dy=%+5d dz=%+5d conf=%u lat=%llu us  "
                      "(in=%u pub=%u)\n",
-                     seq, reply.dx_q1000, reply.dy_q1000, reply.conf,
-                     (unsigned long long)reply.latency_us,
+                     seq, reply.dx_q1000, reply.dy_q1000, reply.dz_q1000,
+                     reply.conf, (unsigned long long)reply.latency_us,
                      g_frames_in.load(), g_frames_pub.load());
     }
 }

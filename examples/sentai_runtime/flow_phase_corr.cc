@@ -638,26 +638,39 @@ extern "C" void sentai_flow_phase_corr_compute_dz(const uint8_t* gray80x60,
 
     if (!ok) return;   // first call, sub-prevs not cached yet
 
-    // Divergence approximation (1 / grid-px units):
-    //   div_y = (dy_bottom - dy_top) / 30    (block centres 30 px apart)
-    //   div_x = (dx_right  - dx_left) / 48   (block centres ~48 px apart)
-    //   total div ≈ div_x + div_y
+    // Divergence approximation — Horn-Schunck dz/z = -divergence/2.
     //
-    // dz/z = -div / 2 → dz_q1000 ∝ -(div_x + div_y) * scale.
+    // div_y = ∂(vy)/∂y ≈ (dy_bottom - dy_top) / (y_b - y_t)
+    //   y_b centre = 45 grid-px (rows 30..59), y_t centre = 15 grid-px,
+    //   so distance = 30 grid-px.
+    // div_x ≈ (dx_right - dx_left) / (x_r - x_l)
+    //   x_r centre = 64, x_l centre = 16, distance = 48 grid-px.
     //
-    // We report dz in the same "milli-grid-px shift per frame" units as
-    // dx/dy: a value of +1000 means "centre features moved outward by 1
-    // grid-px during this frame", i.e. drone climbed ~12 cm at z=1 m.
-    int div_y_q = (dy_b - dy_t);          // mgp, vertical "stretch"
-    int div_x_q = (dx_r - dx_l);          // mgp, horizontal "stretch"
-    int dz_q    = -(div_x_q + div_y_q) / 2;
-    *dz_q1000_out = dz_q;
+    // Both dx,dy come from sub-block phase-corr in mgp units (1000 = 1
+    // grid-px shift between consecutive frames).  Dividing mgp/(grid-px)
+    // gives "milli per grid-px", which is the same unit that
+    // -div_total/2 would have for dz/z (per-frame relative rate).
+    //
+    // Output convention: dz_q1000 = (dz / z) × 1e6 [parts-per-million / frame].
+    //   +1000 micro per frame = +0.001 (m/m) per frame
+    //                        = drone climbed 0.1 % of current altitude
+    //                        = at z=1m → dz=+1mm per frame → +30 mm/s
+    //
+    // Caller computes absolute dz_metres_per_sec by:
+    //    dz_mps = z_estimate_metres × dz_q1000 / 1e6 × frame_rate_hz
+    //
+    // Focal length cancels out — this is the beauty of using the
+    // dimensionless divergence form.
+    int div_y_micro = (dy_b - dy_t) * 1000 / 30;   // (mgp/30 grid-px) × 1000 → µ/frame
+    int div_x_micro = (dx_r - dx_l) * 1000 / 48;
+    int dz_q        = -(div_x_micro + div_y_micro) / 2;
+    *dz_q1000_out   = dz_q;
 
     // Confidence: low if any sub-block returned zero motion when the global
     // path detected motion; here we approximate as "non-zero divergence
     // magnitude" capped at 255.
-    int mag = div_x_q < 0 ? -div_x_q : div_x_q;
-    int mag2 = div_y_q < 0 ? -div_y_q : div_y_q;
+    int mag  = div_x_micro < 0 ? -div_x_micro : div_x_micro;
+    int mag2 = div_y_micro < 0 ? -div_y_micro : div_y_micro;
     int total = (mag + mag2) / 16;
     if (total > 255) total = 255;
     *conf_out = (uint8_t)total;
