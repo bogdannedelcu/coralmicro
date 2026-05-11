@@ -318,6 +318,88 @@ static void rgb888_to_y(const uint8_t* rgb, uint8_t* y, int n_pixels) {
 //
 // Box-filter R rxR_to_gray: read R×R block of RGB, average to 1 gray
 // pixel using BT.601 luma weights (77, 150, 29) and >>8 rescale.
+// P1 (PX4Flow-style): pre-screen texture quality before running phase-corr.
+// Returns a metric (sum of |grad_x| + |grad_y|) over the 80×60 gray buffer.
+// If below threshold the scene is "textureless" — phase-corr peak will be
+// random/noisy.  Skip and return conf=0 instead of wasting ~5ms on it.
+//
+// Cost: 80×60×2 = 9600 subtractions + 9600 abs + 9600 adds = ~30K ops
+// = ~50µs ARM.  Saves ~5ms when image is uniform.
+static uint32_t compute_texture_quality(const uint8_t* gray, int w, int h) {
+    uint32_t grad_sum = 0;
+    // Horizontal gradient (skip last col)
+    for (int y = 0; y < h; ++y) {
+        for (int x = 0; x < w - 1; ++x) {
+            int g = (int)gray[y * w + x + 1] - (int)gray[y * w + x];
+            grad_sum += (g < 0) ? -g : g;
+        }
+    }
+    // Vertical gradient (skip last row)
+    for (int y = 0; y < h - 1; ++y) {
+        for (int x = 0; x < w; ++x) {
+            int g = (int)gray[(y + 1) * w + x] - (int)gray[y * w + x];
+            grad_sum += (g < 0) ? -g : g;
+        }
+    }
+    return grad_sum;
+}
+
+// P3: 4-corner SAD validation.  After global FFT phase-corr produces a
+// motion estimate, sample 4 small 16×16 patches at image corners + run
+// SAD search ±4 px around the global estimate.  If majority disagree by
+// > 2 pixels, the global estimate is suspect (textureless centre, false
+// peak).  Returns: 1 = consensus, 0 = outlier detected.
+//
+// Cost: 4 patches × (16×16 × 9×9 search) = 83K ops = ~100µs ARM.
+static int validate_motion_4corners(const uint8_t* gray_curr,
+                                     const uint8_t* gray_prev,
+                                     int w, int h,
+                                     int dx_global, int dy_global) {
+    // 4 patch centers near corners (avoid edges by margin 12).
+    const int patch_sz = 16;
+    const int margin = patch_sz + 4;
+    const int corners[4][2] = {
+        {margin,      margin},      // top-left
+        {w - margin,  margin},      // top-right
+        {margin,      h - margin},  // bottom-left
+        {w - margin,  h - margin},  // bottom-right
+    };
+    int agree_count = 0;
+    for (int c = 0; c < 4; ++c) {
+        int cx = corners[c][0];
+        int cy = corners[c][1];
+        // Reference 16×16 from curr at (cx-8, cy-8)
+        uint32_t best_sad = UINT32_MAX;
+        int best_dx = 0, best_dy = 0;
+        for (int sy = -4; sy <= 4; ++sy) {
+            for (int sx = -4; sx <= 4; ++sx) {
+                int rx = cx + dx_global + sx;
+                int ry = cy + dy_global + sy;
+                if (rx - 8 < 0 || rx + 8 > w || ry - 8 < 0 || ry + 8 > h) continue;
+                uint32_t sad = 0;
+                for (int dy = -8; dy < 8; ++dy) {
+                    for (int dx = -8; dx < 8; ++dx) {
+                        int a = gray_curr[(cy + dy) * w + (cx + dx)];
+                        int b = gray_prev[(ry + dy) * w + (rx + dx)];
+                        int d = a - b;
+                        sad += (d < 0) ? -d : d;
+                    }
+                }
+                if (sad < best_sad) {
+                    best_sad = sad;
+                    best_dx = sx;
+                    best_dy = sy;
+                }
+            }
+        }
+        // Corner says global+best is the right answer; agree if |sx|,|sy| ≤ 2
+        if ((best_dx >= -2 && best_dx <= 2) && (best_dy >= -2 && best_dy <= 2)) {
+            agree_count++;
+        }
+    }
+    return (agree_count >= 3) ? 1 : 0;   // need 3/4 corners agreeing
+}
+
 // NATIVE crop — take center 80×60 pixels from raw 640×480, NO decimation.
 // At z=1m, this gives per-pixel ground resolution = 1.73mm (8× better
 // than L0 wide).  Smaller FOV (14×10cm) but enough for hover-over-markers
@@ -562,12 +644,24 @@ static int handle_one_frame(int fd) {
     int dx_q = 0, dy_q = 0, dz_q = 0;
     uint8_t conf = 0, dz_conf = 0;
 
+    // P1: texture quality pre-screen (PX4Flow style).  Skip phase-corr
+    // if scene is too uniform — gradient sum below threshold means peak
+    // detection would be random.
+    const uint32_t TEXTURE_MIN_THRESH = 10000;   // ~2.1 mean abs gradient/pixel
+    uint32_t texture_quality = compute_texture_quality(s_gray80x60, DST_W, DST_H);
+
     if (gray_crc == s_prev_rgb_crc) {
         // True duplicate frame (raw RGB byte-identical) — re-use
         // previous result with conf=0 so the EKF down-weights this
         // sample.  Happens during pre-takeoff or gz render pauses.
         dx_q = s_last_dx_q;
         dy_q = s_last_dy_q;
+        conf = 0;
+    } else if (texture_quality < TEXTURE_MIN_THRESH) {
+        // P1: textureless scene — phase-corr would return random peak.
+        // Return zero motion with conf=0; EKF down-weights.
+        dx_q = 0;
+        dy_q = 0;
         conf = 0;
     } else {
         sentai_flow_phase_corr_compute_at(0, s_gray80x60, &dx_q, &dy_q, &conf);  // L0 wide
@@ -591,6 +685,26 @@ static int handle_one_frame(int fd) {
         sentai_flow_phase_corr_compute_dz(s_gray80x60, &dz_q, &dz_conf);
     }
     s_prev_rgb_crc = gray_crc;
+
+    // P3: 4-corner SAD validation of global L0 phase-corr estimate.
+    // Compare against 4 corner patches' independent SAD search; if
+    // majority disagree by > 2 pixels, mark L0 conf as low (outlier).
+    // Helps when global FFT peak is dominated by a single feature (e.g.,
+    // marker) but local areas show different motion.
+    static uint8_t s_prev_gray_for_sad[DST_W * DST_H];
+    static int s_have_prev_for_sad = 0;
+    if (conf > 0 && s_have_prev_for_sad) {
+        int dx_px = dx_q / 1000;   // convert mgrid → integer grid pixels
+        int dy_px = dy_q / 1000;
+        int agree = validate_motion_4corners(s_gray80x60, s_prev_gray_for_sad,
+                                              DST_W, DST_H, dx_px, dy_px);
+        if (!agree) {
+            // Outlier — downgrade confidence so fusion prefers other levels.
+            if (conf > 80) conf = 80;
+        }
+    }
+    memcpy(s_prev_gray_for_sad, s_gray80x60, sizeof(s_prev_gray_for_sad));
+    s_have_prev_for_sad = 1;
 
     // ─────────────────────────────────────────────────────────────────
     // BURT-ADELSON PYRAMID — L1 (mid) + L2 (fine) levels.

@@ -554,20 +554,29 @@ extern "C" void sentai_flow_phase_corr_compute_at(int pipe_id,
     int dy_int = (peak_y > N / 2) ? (peak_y - N) : peak_y;
     int dx_int = (peak_x > N / 2) ? (peak_x - N) : peak_x;
 
-    // Sub-pixel refinement via Guizar-Sicairos DFT-upsampling.
-    // Evaluates iFFT of the cross-power spectrum at 1/M resolution
-    // around the integer peak — more robust to broad/noisy peaks than
-    // Foroosh's 3-point local fit (the previous algorithm).  Returns
-    // delta_x/y in milli-grid units, range [-1000, +1000].
-    int delta_x = 0, delta_y = 0;
-    guizar_sicairos_q1000(peak_x, peak_y, &delta_x, &delta_y);
-    // Defensive clamp — should never trigger if M=10 and the algorithm
-    // searches ±1 pixel, but guards against integer peak being at extreme.
-    if (delta_x >  1000) delta_x =  1000;
-    if (delta_x < -1000) delta_x = -1000;
-    if (delta_y >  1000) delta_y =  1000;
-    if (delta_y < -1000) delta_y = -1000;
-    (void)foroosh_q1000;   // kept for reference / future A/B fallback
+    // P2 (PX4Flow-philosophy: keep it simple, cheap, integer):
+    // Reverted to Foroosh-Zerubia local 3-point parabolic fit on the
+    // correlation surface.  Trade-off vs Guizar-Sicairos DFT-upsampling:
+    //   Foroosh: ~10 ops, 1/64 grid precision (~0.22mm at z=1m)
+    //   Guizar:  ~500K ops, 1/640 grid precision (~0.022mm at z=1m)
+    // Drone hover physical noise floor is ~10mm/s = 0.7mm/frame ≫
+    // 0.22mm Foroosh precision.  Guizar's extra precision wasted.
+    // Saves ~600µs ARM × 6 pipes = 3.6ms total.
+    auto val_at = [&](int yy, int xx) -> float {
+        if (yy < 0) yy += N;
+        if (yy >= N) yy -= N;
+        if (xx < 0) xx += N;
+        if (xx >= N) xx -= N;
+        return s_cross[(yy * N + xx) * 2 + 0];
+    };
+    float a_x = val_at(peak_y, peak_x - 1);
+    float b_x = peak_val;
+    float c_x = val_at(peak_y, peak_x + 1);
+    float a_y = val_at(peak_y - 1, peak_x);
+    float c_y = val_at(peak_y + 1, peak_x);
+    int delta_x = foroosh_q1000(a_x, b_x, c_x);
+    int delta_y = foroosh_q1000(a_y, b_x, c_y);
+    (void)guizar_sicairos_q1000;   // kept compiled for reference / future opt
 
     // Map FFT bins (1 bin = 1 cropped pixel = 1 grid-px after the
     // 8x PXP downscale) directly to grid-px units.  N=64 grid-px max
