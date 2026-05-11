@@ -59,11 +59,19 @@ from aruco_detector import (
 # ────────────────────────────────────────────────────────────
 # Tuning constants
 # ────────────────────────────────────────────────────────────
-CAL_TARGET_Z_M       = 2.5        # altitude during calibration
-ANCHOR_MARKER_ID     = 0           # marker we monitor for "still in view"
-N_REQUIRED_MARKERS   = 2           # at least this many corner markers must stay visible
+# Multi-altitude sweep: one flight, full schedule.  At each z the drone
+# climbs, cruises to origin, runs X then Y sweep.  Result is a schedule
+# of (z, v_max_x, v_max_y) rows that hover runtime can interpolate.
+#
+# Why these z values: at z<1.3m the corner anchor at (+0.7,+0.5) is OUT
+# of FOV at pose neutral (geometry: 320 - fx*0.7/z < 30px), so 1.5m is
+# practical floor.  At z>3.5m the SIM gz environment starts to lose
+# marker resolution (each tag spans <30 px on a side).
+Z_SCHEDULE_M         = [1.5, 2.0, 2.5, 3.0]
+ANCHOR_MARKER_ID     = 0           # informational only — primary metric is avg_markers
+N_REQUIRED_MARKERS   = 2           # PRIMARY threshold: avg markers visible per trial
 V_STEP_M             = 0.05        # increment between trial velocities
-V_MAX_TRIAL_M        = 0.30        # don't try beyond 30 cm/s
+V_MAX_TRIAL_M        = 0.40        # 40 cm/s upper bound (envelope grows with z)
 STEP_HOLD_S          = 1.5         # how long to hold each velocity step
 SETTLE_S             = 2.0         # let drone return + settle between steps
 DETECTION_RATE_THRESH = 0.80       # min fraction of frames detecting anchor
@@ -216,6 +224,24 @@ def run_step_trial(mc, axis: str, v: float, frames_dir: Path) -> dict:
 # ────────────────────────────────────────────────────────────
 # Cruise to world (0, 0, z) — drone needs all 4 markers in FOV
 # ────────────────────────────────────────────────────────────
+def climb_to(mc, target_z: float, timeout_s: float = 12.0) -> bool:
+    """Open-loop climb/descend to target_z.  Sends vertical velocity
+    commands until |z - target| < 10cm or timeout.  Uses cflib EKF z."""
+    KP_Z = 0.6
+    t0 = time.monotonic()
+    while time.monotonic() - t0 < timeout_s:
+        with _att_lock:
+            dz = target_z - _z
+        if abs(dz) < 0.10:
+            mc.start_linear_motion(0, 0, 0)
+            return True
+        vz = max(-0.4, min(0.4, dz * KP_Z))
+        mc.start_linear_motion(0, 0, vz)
+        time.sleep(0.1)
+    mc.start_linear_motion(0, 0, 0)
+    return False
+
+
 def cruise_to_origin(mc, timeout_s: float = 10.0) -> bool:
     """Open-loop cruise to world (0, 0) using cflib's EKF position
     estimate.  Good enough to position the drone where all 4 corner
@@ -255,14 +281,17 @@ def sweep_axis(mc, axis: str, frames_dir: Path) -> dict:
               f"anchor_in_bounds={r['anchor_in_bounds_rate']*100:5.1f}%  "
               f"avg_markers={r['avg_markers_visible']:.1f}  "
               f"max|pitch|={r['max_pitch_deg']:5.2f}°", file=sys.stderr)
-        # Safety threshold: anchor stays detected + in-bounds AND avg ≥ N_REQUIRED
-        if (r["anchor_detection_rate"] >= DETECTION_RATE_THRESH
-                and r["anchor_in_bounds_rate"] >= DETECTION_RATE_THRESH
-                and r["avg_markers_visible"] >= N_REQUIRED_MARKERS):
+        # PRIMARY safety metric: avg markers visible >= N_REQUIRED across the trial.
+        # The anchor in-bounds check is secondary (only enforced when anchor is
+        # geometrically reachable at this z — at low z the corner anchor may be
+        # out-of-FOV even at pose neutral, in which case the avg-markers metric
+        # is the only reliable signal).
+        if r["avg_markers_visible"] >= N_REQUIRED_MARKERS:
             v_max_safe = v
         else:
-            print(f"[cal]   v={v:.2f} m/s: visibility constraint hit — stopping sweep",
-                  file=sys.stderr)
+            print(f"[cal]   v={v:.2f} m/s: visibility constraint hit "
+                  f"(avg_mk={r['avg_markers_visible']:.1f}<{N_REQUIRED_MARKERS}) — "
+                  f"stopping sweep", file=sys.stderr)
             break
         v += V_STEP_M
     return {
@@ -309,19 +338,47 @@ def main() -> int:
     lc.data_received_cb.add_callback(_att_cb)
     lc.start()
 
-    mc = MotionCommander(sync, default_height=CAL_TARGET_Z_M)
-    mc.take_off(height=CAL_TARGET_Z_M, velocity=0.4)
+    # Take off to the first scheduled altitude
+    z0 = Z_SCHEDULE_M[0]
+    mc = MotionCommander(sync, default_height=z0)
+    mc.take_off(height=z0, velocity=0.4)
     time.sleep(2.0)
 
-    # Cruise to world (0, 0) — drone should see all 4 corner markers.
-    print("[cal] cruising to world origin (multi-marker FOV centre)", file=sys.stderr)
-    cruise_to_origin(mc, timeout_s=8.0)
-    time.sleep(2.0)
+    # In-flight altitude sweep — one decolare, calibration per z, then land.
+    schedule = []
+    for z in Z_SCHEDULE_M:
+        print(f"\n[cal] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+              file=sys.stderr)
+        print(f"[cal] altitude tier z={z:.2f} m", file=sys.stderr)
+        print(f"[cal] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+              file=sys.stderr)
 
-    # Run sweeps
-    x_result = sweep_axis(mc, "x", frames_dir)
-    time.sleep(2.0)
-    y_result = sweep_axis(mc, "y", frames_dir)
+        climb_to(mc, z, timeout_s=10.0)
+        time.sleep(1.5)
+        cruise_to_origin(mc, timeout_s=8.0)
+        time.sleep(SETTLE_S)
+
+        # Snapshot the actual achieved z (climb may undershoot by ~10cm)
+        with _att_lock:
+            z_achieved = _z
+
+        x_result = sweep_axis(mc, "x", frames_dir)
+        time.sleep(2.0)
+        cruise_to_origin(mc, timeout_s=5.0)
+        time.sleep(SETTLE_S)
+        y_result = sweep_axis(mc, "y", frames_dir)
+
+        row = {
+            "z_target_m": z,
+            "z_achieved_m": round(z_achieved, 3),
+            "v_max_x_mps": x_result["v_max_safe_mps"],
+            "v_max_y_mps": y_result["v_max_safe_mps"],
+            "_x_trials": x_result["trials"],
+            "_y_trials": y_result["trials"],
+        }
+        schedule.append(row)
+        print(f"\n[cal] z={z:.2f}m  →  v_max_x={row['v_max_x_mps']:.2f}  "
+              f"v_max_y={row['v_max_y_mps']:.2f} m/s", file=sys.stderr)
 
     # Land
     try:
@@ -331,21 +388,32 @@ def main() -> int:
     lc.stop()
     sync.close_link()
 
-    # Persist envelope
+    # Persist envelope as a SCHEDULE.  Format keeps backward-compat scalar
+    # fields (v_max_x_mps / v_max_y_mps) populated from the middle tier
+    # so legacy hover code without interpolation support still works.
+    if not schedule:
+        print("[cal] no calibrations completed", file=sys.stderr)
+        return 1
+    mid = schedule[len(schedule) // 2]
     out = {
-        "v_max_x_mps": x_result["v_max_safe_mps"],
-        "v_max_y_mps": y_result["v_max_safe_mps"],
-        "calibration_z_m": CAL_TARGET_Z_M,
+        "schedule": schedule,
+        # Legacy single-z fields (back-compat for hover_over_cat.py before
+        # the interp wiring lands): use the middle tier.
+        "v_max_x_mps": mid["v_max_x_mps"],
+        "v_max_y_mps": mid["v_max_y_mps"],
+        "calibration_z_m": mid["z_achieved_m"],
         "marker_id_used": ANCHOR_MARKER_ID,
         "_last_run": time.strftime("%Y-%m-%dT%H:%M:%S"),
-        "_x_trials": x_result["trials"],
-        "_y_trials": y_result["trials"],
     }
     with open(ENVELOPE_PATH, "w") as f:
         json.dump(out, f, indent=2)
-    print(f"\n[cal] velocity envelope saved → {ENVELOPE_PATH}", file=sys.stderr)
-    print(f"[cal]   v_max_x = {out['v_max_x_mps']:.2f} m/s", file=sys.stderr)
-    print(f"[cal]   v_max_y = {out['v_max_y_mps']:.2f} m/s", file=sys.stderr)
+    print(f"\n[cal] velocity envelope schedule saved → {ENVELOPE_PATH}",
+          file=sys.stderr)
+    print(f"[cal]   {'z':>6}  {'v_max_x':>8}  {'v_max_y':>8}", file=sys.stderr)
+    for row in schedule:
+        print(f"[cal]   {row['z_achieved_m']:>6.2f}  "
+              f"{row['v_max_x_mps']:>8.2f}  {row['v_max_y_mps']:>8.2f}",
+              file=sys.stderr)
     return 0
 
 

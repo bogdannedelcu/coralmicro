@@ -1,110 +1,467 @@
 {
-  "v_max_x_mps": 0.1,
-  "v_max_y_mps": 0.25,
-  "calibration_z_m": 2.5,
-  "marker_id_used": 0,
-  "_last_run": "2026-05-11T14:51:11",
-  "_x_trials": [
+  "schedule": [
     {
-      "v": 0.05,
-      "n_total": 8,
-      "n_anchor_seen": 8,
-      "n_anchor_in_bounds": 8,
-      "anchor_detection_rate": 1.0,
-      "anchor_in_bounds_rate": 1.0,
-      "avg_markers_visible": 4.0,
-      "max_pitch_deg": 1.5312228202819824,
-      "max_roll_deg": 0.32760366797447205
+      "z_target_m": 1.5,
+      "z_achieved_m": 1.359,
+      "v_max_x_mps": 0.0,
+      "v_max_y_mps": 0.0,
+      "_x_trials": [
+        {
+          "v": 0.05,
+          "n_total": 8,
+          "n_anchor_seen": 0,
+          "n_anchor_in_bounds": 0,
+          "anchor_detection_rate": 0.0,
+          "anchor_in_bounds_rate": 0.0,
+          "avg_markers_visible": 0.0,
+          "max_pitch_deg": 1.4755643606185913,
+          "max_roll_deg": 0.39908310770988464
+        }
+      ],
+      "_y_trials": [
+        {
+          "v": 0.05,
+          "n_total": 8,
+          "n_anchor_seen": 0,
+          "n_anchor_in_bounds": 0,
+          "anchor_detection_rate": 0.0,
+          "anchor_in_bounds_rate": 0.0,
+          "avg_markers_visible": 0.0,
+          "max_pitch_deg": 0.32013100385665894,
+          "max_roll_deg": 1.5258138179779053
+        }
+      ]
     },
     {
-      "v": 0.1,
-      "n_total": 8,
-      "n_anchor_seen": 8,
-      "n_anchor_in_bounds": 8,
-      "anchor_detection_rate": 1.0,
-      "anchor_in_bounds_rate": 1.0,
-      "avg_markers_visible": 4.0,
-      "max_pitch_deg": 2.7975499629974365,
-      "max_roll_deg": 0.5367557406425476
+      "z_target_m": 2.0,
+      "z_achieved_m": 2.112,
+      "v_max_x_mps": 0.05,
+      "v_max_y_mps": 0.05,
+      "_x_trials": [
+        {
+          "v": 0.05,
+          "n_total": 8,
+          "n_anchor_seen": 0,
+          "n_anchor_in_bounds": 0,
+          "anchor_detection_rate": 0.0,
+          "anchor_in_bounds_rate": 0.0,
+          "avg_markers_visible": 2.0,
+          "max_pitch_deg": 1.6312620639801025,
+          "max_roll_deg": 0.3598065972328186
+        },
+        {
+          "v": 0.1,
+          "n_total": 8,
+          "n_anchor_seen": 0,
+          "n_anchor_in_bounds": 0,
+          "anchor_detection_rate": 0.0,
+          "anchor_in_bounds_rate": 0.0,
+          "avg_markers_visible": 1.25,
+          "max_pitch_deg": 3.074634313583374,
+          "max_roll_deg": 0.49005603790283203
+        }
+      ],
+      "_y_trials": [
+        {
+          "v": 0.05,
+          "n_total": 7,
+          "n_anchor_seen": 0,
+          "n_anchor_in_bounds": 0,
+          "anchor_detection_rate": 0.0,
+          "anchor_in_bounds_rate": 0.0,
+          "avg_markers_visible": 2.0,
+          "max_pitch_deg": 0.22306998074054718,
+          "max_roll_deg": 1.6023670434951782
+        },
+        {
+          "v": 0.1,
+          "n_total": 8,
+          "n_anchor_seen": 0,
+          "n_anchor_in_bounds": 0,
+          "anchor_detection_rate": 0.0,
+          "anchor_in_bounds_rate": 0.0,
+          "avg_markers_visible": 1.625,
+          "max_pitch_deg": 0.3059709966182709,
+          "max_roll_deg": 3.0233314037323
+        }
+      ]
     },
     {
-      "v": 0.15000000000000002,
-      "n_total": 8,
-      "n_anchor_seen": 7,
-      "n_anchor_in_bounds": 5,
-      "anchor_detection_rate": 0.875,
-      "anchor_in_bounds_rate": 0.625,
-      "avg_markers_visible": 3.75,
-      "max_pitch_deg": 4.928040981292725,
-      "max_roll_deg": 0.79868084192276
+      "z_target_m": 2.5,
+      "z_achieved_m": 2.569,
+      "v_max_x_mps": 0.39999999999999997,
+      "v_max_y_mps": 0.39999999999999997,
+      "_x_trials": [
+        {
+          "v": 0.05,
+          "n_total": 7,
+          "n_anchor_seen": 7,
+          "n_anchor_in_bounds": 7,
+          "anchor_detection_rate": 1.0,
+          "anchor_in_bounds_rate": 1.0,
+          "avg_markers_visible": 3.857142857142857,
+          "max_pitch_deg": 1.4609583616256714,
+          "max_roll_deg": 0.37832945585250854
+        },
+        {
+          "v": 0.1,
+          "n_total": 7,
+          "n_anchor_seen": 7,
+          "n_anchor_in_bounds": 7,
+          "anchor_detection_rate": 1.0,
+          "anchor_in_bounds_rate": 1.0,
+          "avg_markers_visible": 4.0,
+          "max_pitch_deg": 2.8420064449310303,
+          "max_roll_deg": 0.39733943343162537
+        },
+        {
+          "v": 0.15000000000000002,
+          "n_total": 7,
+          "n_anchor_seen": 7,
+          "n_anchor_in_bounds": 5,
+          "anchor_detection_rate": 1.0,
+          "anchor_in_bounds_rate": 0.7142857142857143,
+          "avg_markers_visible": 4.0,
+          "max_pitch_deg": 4.41196346282959,
+          "max_roll_deg": 0.6093273162841797
+        },
+        {
+          "v": 0.2,
+          "n_total": 8,
+          "n_anchor_seen": 4,
+          "n_anchor_in_bounds": 4,
+          "anchor_detection_rate": 0.5,
+          "anchor_in_bounds_rate": 0.5,
+          "avg_markers_visible": 3.0,
+          "max_pitch_deg": 6.743816375732422,
+          "max_roll_deg": 0.5998497009277344
+        },
+        {
+          "v": 0.25,
+          "n_total": 8,
+          "n_anchor_seen": 5,
+          "n_anchor_in_bounds": 5,
+          "anchor_detection_rate": 0.625,
+          "anchor_in_bounds_rate": 0.625,
+          "avg_markers_visible": 2.75,
+          "max_pitch_deg": 7.619958400726318,
+          "max_roll_deg": 0.8284434676170349
+        },
+        {
+          "v": 0.3,
+          "n_total": 7,
+          "n_anchor_seen": 4,
+          "n_anchor_in_bounds": 4,
+          "anchor_detection_rate": 0.5714285714285714,
+          "anchor_in_bounds_rate": 0.5714285714285714,
+          "avg_markers_visible": 2.7142857142857144,
+          "max_pitch_deg": 8.543947219848633,
+          "max_roll_deg": 1.2179815769195557
+        },
+        {
+          "v": 0.35,
+          "n_total": 7,
+          "n_anchor_seen": 2,
+          "n_anchor_in_bounds": 2,
+          "anchor_detection_rate": 0.2857142857142857,
+          "anchor_in_bounds_rate": 0.2857142857142857,
+          "avg_markers_visible": 2.2857142857142856,
+          "max_pitch_deg": 12.038029670715332,
+          "max_roll_deg": 1.386937141418457
+        },
+        {
+          "v": 0.39999999999999997,
+          "n_total": 8,
+          "n_anchor_seen": 4,
+          "n_anchor_in_bounds": 4,
+          "anchor_detection_rate": 0.5,
+          "anchor_in_bounds_rate": 0.5,
+          "avg_markers_visible": 2.25,
+          "max_pitch_deg": 11.353353500366211,
+          "max_roll_deg": 1.4948135614395142
+        }
+      ],
+      "_y_trials": [
+        {
+          "v": 0.05,
+          "n_total": 8,
+          "n_anchor_seen": 8,
+          "n_anchor_in_bounds": 8,
+          "anchor_detection_rate": 1.0,
+          "anchor_in_bounds_rate": 1.0,
+          "avg_markers_visible": 4.0,
+          "max_pitch_deg": 0.3320554494857788,
+          "max_roll_deg": 1.8137423992156982
+        },
+        {
+          "v": 0.1,
+          "n_total": 8,
+          "n_anchor_seen": 8,
+          "n_anchor_in_bounds": 8,
+          "anchor_detection_rate": 1.0,
+          "anchor_in_bounds_rate": 1.0,
+          "avg_markers_visible": 4.0,
+          "max_pitch_deg": 0.3231622874736786,
+          "max_roll_deg": 3.049992561340332
+        },
+        {
+          "v": 0.15000000000000002,
+          "n_total": 7,
+          "n_anchor_seen": 7,
+          "n_anchor_in_bounds": 7,
+          "anchor_detection_rate": 1.0,
+          "anchor_in_bounds_rate": 1.0,
+          "avg_markers_visible": 4.0,
+          "max_pitch_deg": 0.5372012257575989,
+          "max_roll_deg": 4.192546844482422
+        },
+        {
+          "v": 0.2,
+          "n_total": 8,
+          "n_anchor_seen": 8,
+          "n_anchor_in_bounds": 8,
+          "anchor_detection_rate": 1.0,
+          "anchor_in_bounds_rate": 1.0,
+          "avg_markers_visible": 4.0,
+          "max_pitch_deg": 0.7266676425933838,
+          "max_roll_deg": 6.029594898223877
+        },
+        {
+          "v": 0.25,
+          "n_total": 7,
+          "n_anchor_seen": 7,
+          "n_anchor_in_bounds": 7,
+          "anchor_detection_rate": 1.0,
+          "anchor_in_bounds_rate": 1.0,
+          "avg_markers_visible": 4.0,
+          "max_pitch_deg": 0.9122547507286072,
+          "max_roll_deg": 7.271568298339844
+        },
+        {
+          "v": 0.3,
+          "n_total": 8,
+          "n_anchor_seen": 8,
+          "n_anchor_in_bounds": 8,
+          "anchor_detection_rate": 1.0,
+          "anchor_in_bounds_rate": 1.0,
+          "avg_markers_visible": 4.0,
+          "max_pitch_deg": 1.1400766372680664,
+          "max_roll_deg": 8.972952842712402
+        },
+        {
+          "v": 0.35,
+          "n_total": 7,
+          "n_anchor_seen": 7,
+          "n_anchor_in_bounds": 7,
+          "anchor_detection_rate": 1.0,
+          "anchor_in_bounds_rate": 1.0,
+          "avg_markers_visible": 4.0,
+          "max_pitch_deg": 1.336403250694275,
+          "max_roll_deg": 11.2047119140625
+        },
+        {
+          "v": 0.39999999999999997,
+          "n_total": 7,
+          "n_anchor_seen": 7,
+          "n_anchor_in_bounds": 7,
+          "anchor_detection_rate": 1.0,
+          "anchor_in_bounds_rate": 1.0,
+          "avg_markers_visible": 4.0,
+          "max_pitch_deg": 1.555570363998413,
+          "max_roll_deg": 11.581382751464844
+        }
+      ]
+    },
+    {
+      "z_target_m": 3.0,
+      "z_achieved_m": 3.077,
+      "v_max_x_mps": 0.39999999999999997,
+      "v_max_y_mps": 0.39999999999999997,
+      "_x_trials": [
+        {
+          "v": 0.05,
+          "n_total": 8,
+          "n_anchor_seen": 8,
+          "n_anchor_in_bounds": 8,
+          "anchor_detection_rate": 1.0,
+          "anchor_in_bounds_rate": 1.0,
+          "avg_markers_visible": 4.0,
+          "max_pitch_deg": 1.486510992050171,
+          "max_roll_deg": 0.24734625220298767
+        },
+        {
+          "v": 0.1,
+          "n_total": 8,
+          "n_anchor_seen": 8,
+          "n_anchor_in_bounds": 8,
+          "anchor_detection_rate": 1.0,
+          "anchor_in_bounds_rate": 1.0,
+          "avg_markers_visible": 4.0,
+          "max_pitch_deg": 2.9421041011810303,
+          "max_roll_deg": 0.5101543664932251
+        },
+        {
+          "v": 0.15000000000000002,
+          "n_total": 8,
+          "n_anchor_seen": 8,
+          "n_anchor_in_bounds": 8,
+          "anchor_detection_rate": 1.0,
+          "anchor_in_bounds_rate": 1.0,
+          "avg_markers_visible": 4.0,
+          "max_pitch_deg": 4.6034932136535645,
+          "max_roll_deg": 0.5419630408287048
+        },
+        {
+          "v": 0.2,
+          "n_total": 8,
+          "n_anchor_seen": 8,
+          "n_anchor_in_bounds": 8,
+          "anchor_detection_rate": 1.0,
+          "anchor_in_bounds_rate": 1.0,
+          "avg_markers_visible": 4.0,
+          "max_pitch_deg": 5.823172569274902,
+          "max_roll_deg": 0.7524248361587524
+        },
+        {
+          "v": 0.25,
+          "n_total": 8,
+          "n_anchor_seen": 8,
+          "n_anchor_in_bounds": 8,
+          "anchor_detection_rate": 1.0,
+          "anchor_in_bounds_rate": 1.0,
+          "avg_markers_visible": 4.0,
+          "max_pitch_deg": 7.918500900268555,
+          "max_roll_deg": 0.8448089957237244
+        },
+        {
+          "v": 0.3,
+          "n_total": 7,
+          "n_anchor_seen": 7,
+          "n_anchor_in_bounds": 7,
+          "anchor_detection_rate": 1.0,
+          "anchor_in_bounds_rate": 1.0,
+          "avg_markers_visible": 4.0,
+          "max_pitch_deg": 8.578765869140625,
+          "max_roll_deg": 1.047162413597107
+        },
+        {
+          "v": 0.35,
+          "n_total": 8,
+          "n_anchor_seen": 8,
+          "n_anchor_in_bounds": 8,
+          "anchor_detection_rate": 1.0,
+          "anchor_in_bounds_rate": 1.0,
+          "avg_markers_visible": 4.0,
+          "max_pitch_deg": 11.062122344970703,
+          "max_roll_deg": 1.2563172578811646
+        },
+        {
+          "v": 0.39999999999999997,
+          "n_total": 7,
+          "n_anchor_seen": 7,
+          "n_anchor_in_bounds": 7,
+          "anchor_detection_rate": 1.0,
+          "anchor_in_bounds_rate": 1.0,
+          "avg_markers_visible": 4.0,
+          "max_pitch_deg": 12.038660049438477,
+          "max_roll_deg": 1.484852910041809
+        }
+      ],
+      "_y_trials": [
+        {
+          "v": 0.05,
+          "n_total": 8,
+          "n_anchor_seen": 8,
+          "n_anchor_in_bounds": 8,
+          "anchor_detection_rate": 1.0,
+          "anchor_in_bounds_rate": 1.0,
+          "avg_markers_visible": 4.0,
+          "max_pitch_deg": 0.2027851641178131,
+          "max_roll_deg": 1.5494506359100342
+        },
+        {
+          "v": 0.1,
+          "n_total": 8,
+          "n_anchor_seen": 8,
+          "n_anchor_in_bounds": 8,
+          "anchor_detection_rate": 1.0,
+          "anchor_in_bounds_rate": 1.0,
+          "avg_markers_visible": 4.0,
+          "max_pitch_deg": 0.35011565685272217,
+          "max_roll_deg": 2.949091672897339
+        },
+        {
+          "v": 0.15000000000000002,
+          "n_total": 8,
+          "n_anchor_seen": 8,
+          "n_anchor_in_bounds": 8,
+          "anchor_detection_rate": 1.0,
+          "anchor_in_bounds_rate": 1.0,
+          "avg_markers_visible": 4.0,
+          "max_pitch_deg": 0.5270721316337585,
+          "max_roll_deg": 4.586031913757324
+        },
+        {
+          "v": 0.2,
+          "n_total": 8,
+          "n_anchor_seen": 8,
+          "n_anchor_in_bounds": 8,
+          "anchor_detection_rate": 1.0,
+          "anchor_in_bounds_rate": 1.0,
+          "avg_markers_visible": 4.0,
+          "max_pitch_deg": 0.7262334823608398,
+          "max_roll_deg": 6.271724700927734
+        },
+        {
+          "v": 0.25,
+          "n_total": 7,
+          "n_anchor_seen": 7,
+          "n_anchor_in_bounds": 7,
+          "anchor_detection_rate": 1.0,
+          "anchor_in_bounds_rate": 1.0,
+          "avg_markers_visible": 4.0,
+          "max_pitch_deg": 0.9733930826187134,
+          "max_roll_deg": 7.431880950927734
+        },
+        {
+          "v": 0.3,
+          "n_total": 7,
+          "n_anchor_seen": 7,
+          "n_anchor_in_bounds": 7,
+          "anchor_detection_rate": 1.0,
+          "anchor_in_bounds_rate": 1.0,
+          "avg_markers_visible": 4.0,
+          "max_pitch_deg": 1.102213978767395,
+          "max_roll_deg": 8.45656681060791
+        },
+        {
+          "v": 0.35,
+          "n_total": 7,
+          "n_anchor_seen": 7,
+          "n_anchor_in_bounds": 7,
+          "anchor_detection_rate": 1.0,
+          "anchor_in_bounds_rate": 1.0,
+          "avg_markers_visible": 4.0,
+          "max_pitch_deg": 1.17746102809906,
+          "max_roll_deg": 9.81821060180664
+        },
+        {
+          "v": 0.39999999999999997,
+          "n_total": 8,
+          "n_anchor_seen": 8,
+          "n_anchor_in_bounds": 8,
+          "anchor_detection_rate": 1.0,
+          "anchor_in_bounds_rate": 1.0,
+          "avg_markers_visible": 4.0,
+          "max_pitch_deg": 1.3630270957946777,
+          "max_roll_deg": 11.957802772521973
+        }
+      ]
     }
   ],
-  "_y_trials": [
-    {
-      "v": 0.05,
-      "n_total": 8,
-      "n_anchor_seen": 8,
-      "n_anchor_in_bounds": 8,
-      "anchor_detection_rate": 1.0,
-      "anchor_in_bounds_rate": 1.0,
-      "avg_markers_visible": 4.0,
-      "max_pitch_deg": 0.23351700603961945,
-      "max_roll_deg": 1.4795639514923096
-    },
-    {
-      "v": 0.1,
-      "n_total": 8,
-      "n_anchor_seen": 8,
-      "n_anchor_in_bounds": 8,
-      "anchor_detection_rate": 1.0,
-      "anchor_in_bounds_rate": 1.0,
-      "avg_markers_visible": 4.0,
-      "max_pitch_deg": 0.3596992790699005,
-      "max_roll_deg": 3.1877455711364746
-    },
-    {
-      "v": 0.15000000000000002,
-      "n_total": 8,
-      "n_anchor_seen": 8,
-      "n_anchor_in_bounds": 8,
-      "anchor_detection_rate": 1.0,
-      "anchor_in_bounds_rate": 1.0,
-      "avg_markers_visible": 4.0,
-      "max_pitch_deg": 0.5355066657066345,
-      "max_roll_deg": 4.58522367477417
-    },
-    {
-      "v": 0.2,
-      "n_total": 7,
-      "n_anchor_seen": 7,
-      "n_anchor_in_bounds": 7,
-      "anchor_detection_rate": 1.0,
-      "anchor_in_bounds_rate": 1.0,
-      "avg_markers_visible": 4.0,
-      "max_pitch_deg": 0.7166163325309753,
-      "max_roll_deg": 6.308272361755371
-    },
-    {
-      "v": 0.25,
-      "n_total": 8,
-      "n_anchor_seen": 8,
-      "n_anchor_in_bounds": 7,
-      "anchor_detection_rate": 1.0,
-      "anchor_in_bounds_rate": 0.875,
-      "avg_markers_visible": 3.875,
-      "max_pitch_deg": 0.8243349194526672,
-      "max_roll_deg": 7.78746223449707
-    },
-    {
-      "v": 0.3,
-      "n_total": 8,
-      "n_anchor_seen": 7,
-      "n_anchor_in_bounds": 6,
-      "anchor_detection_rate": 0.875,
-      "anchor_in_bounds_rate": 0.75,
-      "avg_markers_visible": 3.75,
-      "max_pitch_deg": 0.9995867609977722,
-      "max_roll_deg": 9.274066925048828
-    }
-  ]
+  "v_max_x_mps": 0.39999999999999997,
+  "v_max_y_mps": 0.39999999999999997,
+  "calibration_z_m": 2.569,
+  "marker_id_used": 0,
+  "_last_run": "2026-05-11T15:13:10"
 }

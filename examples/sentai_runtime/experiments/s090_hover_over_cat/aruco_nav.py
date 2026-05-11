@@ -88,14 +88,43 @@ def get_pose():
 # ────────────────────────────────────────────────────────────
 # Envelope loading
 # ────────────────────────────────────────────────────────────
-def load_envelope() -> tuple[float, float]:
+def load_envelope_fn():
+    """Returns env_at(z) -> (v_max_x, v_max_y).  Supports both the
+    multi-z schedule format and the legacy single-z format."""
     try:
         env = json.loads(ENVELOPE_PATH.read_text())
-        return float(env["v_max_x_mps"]), float(env["v_max_y_mps"])
     except FileNotFoundError:
-        print(f"[nav] no envelope, falling back to "
+        print(f"[nav] no envelope, falling back to fixed "
               f"({V_MAX_FALLBACK_X_M}, {V_MAX_FALLBACK_Y_M})", file=sys.stderr)
-        return V_MAX_FALLBACK_X_M, V_MAX_FALLBACK_Y_M
+        return lambda _z: (V_MAX_FALLBACK_X_M, V_MAX_FALLBACK_Y_M)
+
+    sched = env.get("schedule")
+    if isinstance(sched, list) and sched:
+        rows = sorted(((float(r["z_achieved_m"]),
+                        float(r["v_max_x_mps"]),
+                        float(r["v_max_y_mps"])) for r in sched),
+                       key=lambda t: t[0])
+        print(f"[nav] loaded multi-z schedule with {len(rows)} tiers",
+              file=sys.stderr)
+        def _interp(z):
+            if z <= rows[0][0]:
+                return rows[0][1], rows[0][2]
+            if z >= rows[-1][0]:
+                return rows[-1][1], rows[-1][2]
+            for i in range(len(rows) - 1):
+                z0, vx0, vy0 = rows[i]
+                z1, vx1, vy1 = rows[i + 1]
+                if z0 <= z <= z1:
+                    t = (z - z0) / (z1 - z0) if z1 > z0 else 0.0
+                    return (vx0 + t * (vx1 - vx0), vy0 + t * (vy1 - vy0))
+            return rows[-1][1], rows[-1][2]
+        return _interp
+
+    vx = float(env.get("v_max_x_mps", V_MAX_FALLBACK_X_M))
+    vy = float(env.get("v_max_y_mps", V_MAX_FALLBACK_Y_M))
+    print(f"[nav] legacy scalar envelope: v_max_x={vx:.2f} v_max_y={vy:.2f}",
+          file=sys.stderr)
+    return lambda _z: (vx, vy)
 
 
 # ────────────────────────────────────────────────────────────
@@ -131,8 +160,7 @@ def closest_to_center(dets: dict):
 # ────────────────────────────────────────────────────────────
 # One leg: navigate to one waypoint with envelope clamp
 # ────────────────────────────────────────────────────────────
-def fly_leg(mc, target_id: int, v_cap_x: float, v_cap_y: float,
-            frames_dir: Path) -> dict:
+def fly_leg(mc, target_id: int, envelope_at, frames_dir: Path) -> dict:
     """Navigate to target_id's known world position.  Returns leg
     statistics: arrival success, time, samples, anchor lost count."""
     target_xy = KNOWN_POSITIONS_M[target_id][:2]
@@ -157,7 +185,9 @@ def fly_leg(mc, target_id: int, v_cap_x: float, v_cap_y: float,
             ex = target_xy[0] - _x
             ey = target_xy[1] - _y
             cur_pitch, cur_roll = _pitch, _roll
+            z_now = _z
         dist_m = math.hypot(ex, ey)
+        v_cap_x, v_cap_y = envelope_at(z_now)
 
         if dist_m < ARRIVAL_THRESH_M:
             mc.start_linear_motion(0, 0, 0)
@@ -235,9 +265,7 @@ def main() -> int:
     assert frames_dir.is_dir(), (
         f"set SENTAI_DUMP_FRAMES_DIR + run sentai_sim first ({frames_dir})")
 
-    v_cap_x, v_cap_y = load_envelope()
-    print(f"[nav] envelope: v_cap_x={v_cap_x:.2f} m/s  "
-          f"v_cap_y={v_cap_y:.2f} m/s", file=sys.stderr)
+    envelope_at = load_envelope_fn()
 
     cflib.crtp.init_drivers()
     sync = SyncCrazyflie("udp://127.0.0.1:19850", cf=Crazyflie(rw_cache=None))
@@ -265,7 +293,7 @@ def main() -> int:
 
     legs = []
     for target_id in TOUR_SEQUENCE:
-        leg = fly_leg(mc, target_id, v_cap_x, v_cap_y, frames_dir)
+        leg = fly_leg(mc, target_id, envelope_at, frames_dir)
         legs.append(leg)
         time.sleep(1.0)
 
@@ -289,7 +317,7 @@ def main() -> int:
               f"{leg['anchor_lost_rate']*100:>8.1f}", file=sys.stderr)
 
     LOG_PATH.write_text(json.dumps({
-        "envelope": {"v_max_x_mps": v_cap_x, "v_max_y_mps": v_cap_y},
+        "envelope_at_target_z": envelope_at(NAV_TARGET_Z_M),
         "target_z_m": NAV_TARGET_Z_M,
         "tour_sequence": TOUR_SEQUENCE,
         "legs": legs,

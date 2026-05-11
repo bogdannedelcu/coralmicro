@@ -127,28 +127,69 @@ VELOCITY_ENVELOPE_PATH = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "velocity_envelope.json")
 
 
-def load_velocity_envelope() -> tuple:
-    """Returns (v_max_x_mps, v_max_y_mps).  Falls back to (None, None) if
-    the calibration JSON is missing or malformed — caller then uses the
-    legacy single V_MAX_M clamp."""
+def load_velocity_envelope():
+    """Returns a callable `env_at(z) -> (v_max_x, v_max_y)`.  Two file
+    formats supported:
+
+      1. New: `{"schedule": [{"z_achieved_m":..., "v_max_x_mps":...,
+         "v_max_y_mps":...}, ...]}` — piecewise-linear interpolation,
+         clamps at endpoints.
+      2. Legacy: `{"v_max_x_mps":..., "v_max_y_mps":...}` — constant
+         caps, returned regardless of z.
+
+    Falls back to a no-op env_at returning (None, None) if file is
+    missing or malformed; caller then uses legacy V_MAX_M clamp."""
+    def _noop(_z):
+        return None, None
     try:
         with open(VELOCITY_ENVELOPE_PATH) as f:
             env = json.load(f)
-        vx = float(env["v_max_x_mps"])
-        vy = float(env["v_max_y_mps"])
-        print(f"[envelope] loaded FOV-safe velocity caps: "
-              f"v_max_x={vx:.2f} m/s  v_max_y={vy:.2f} m/s "
-              f"(calibrated at z={env.get('calibration_z_m', '?')}m)",
-              file=sys.stderr)
-        return vx, vy
     except FileNotFoundError:
         print(f"[envelope] no {VELOCITY_ENVELOPE_PATH} — using PID V_MAX_M",
               file=sys.stderr)
-        return None, None
+        return _noop
     except Exception as e:
         print(f"[envelope] WARN load failed: {e}; using PID V_MAX_M",
               file=sys.stderr)
-        return None, None
+        return _noop
+
+    sched = env.get("schedule")
+    if isinstance(sched, list) and len(sched) >= 1:
+        rows = sorted(((float(r["z_achieved_m"]),
+                        float(r["v_max_x_mps"]),
+                        float(r["v_max_y_mps"])) for r in sched),
+                       key=lambda t: t[0])
+        print(f"[envelope] loaded multi-z schedule with {len(rows)} tiers:",
+              file=sys.stderr)
+        for z, vx, vy in rows:
+            print(f"[envelope]   z={z:.2f}m  v_max_x={vx:.2f}  v_max_y={vy:.2f}",
+                  file=sys.stderr)
+        def _interp(z):
+            if z <= rows[0][0]:
+                return rows[0][1], rows[0][2]
+            if z >= rows[-1][0]:
+                return rows[-1][1], rows[-1][2]
+            for i in range(len(rows) - 1):
+                z0, vx0, vy0 = rows[i]
+                z1, vx1, vy1 = rows[i + 1]
+                if z0 <= z <= z1:
+                    t = (z - z0) / (z1 - z0) if z1 > z0 else 0.0
+                    return (vx0 + t * (vx1 - vx0), vy0 + t * (vy1 - vy0))
+            return rows[-1][1], rows[-1][2]
+        return _interp
+
+    # Legacy scalar format
+    try:
+        vx = float(env["v_max_x_mps"])
+        vy = float(env["v_max_y_mps"])
+        z_cal = env.get("calibration_z_m", "?")
+        print(f"[envelope] loaded legacy scalar caps: v_max_x={vx:.2f} "
+              f"v_max_y={vy:.2f} (calibrated at z={z_cal})", file=sys.stderr)
+        return lambda _z: (vx, vy)
+    except (KeyError, ValueError, TypeError) as e:
+        print(f"[envelope] WARN unrecognised format: {e}; using PID V_MAX_M",
+              file=sys.stderr)
+        return _noop
 PID_DEFAULTS = {
     # Working tuning from 2026-05-11 manual run (hit 11.6cm final dist).
     # Auto-calibration runs as ILC across flights: if THIS flight had
@@ -532,7 +573,7 @@ def main() -> int:
     # them to cflib.  If no STATE in a few ticks, hold steady.
     # === Load PID gains from disk (or DEFAULTS) for this flight ===
     pid = load_pid_params()
-    v_cap_x, v_cap_y = load_velocity_envelope()
+    envelope_at = load_velocity_envelope()
 
     miss = 0
     vx_body = vy_body = 0.0
@@ -610,9 +651,10 @@ def main() -> int:
                 # per-tick (close enough); proper d/dt would need actual dt.
                 d_err_x_m = err_x_m - prev_err_x_m
                 d_err_y_m = err_y_m - prev_err_y_m
-                # Per-axis clamp: take the tighter of legacy V_MAX_M and the
-                # ArUco-calibrated FOV-safe envelope (if loaded).  vx_m drives
-                # body-X (pitch axis), vy_m drives body-Y (roll axis).
+                # Per-axis clamp: tighter of legacy V_MAX_M and the ArUco-
+                # calibrated FOV-safe envelope interpolated at current z.
+                # vx_m drives body-X (pitch axis), vy_m drives body-Y (roll).
+                v_cap_x, v_cap_y = envelope_at(z_now)
                 vmx = min(V_MAX_M, v_cap_x) if v_cap_x is not None else V_MAX_M
                 vmy = min(V_MAX_M, v_cap_y) if v_cap_y is not None else V_MAX_M
                 vx_m = max(-vmx, min(vmx, KP_M * err_y_m + KD_M * d_err_y_m))
