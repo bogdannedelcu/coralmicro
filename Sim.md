@@ -881,6 +881,88 @@ Without coast, the drone yo-yos: full thrust toward target → lose
 detection → zero command → drone drifts → reacquire → full thrust →
 oscillate.
 
+## 10h. Flow + commanded-velocity integration (Bitcraze-recommended patterns)
+
+After session 2026-05-11 web research, here are the canonical Bitcraze
+patterns and pitfalls for integrating optical flow with target-driven
+lateral motion.  Mirrors what the HW examples + community forum threads
+converged on, transposed to our SIM stack.
+
+**1. EKF reset post-setup, pre-injection.**  Set `kalman.resetEstimation=1`
+AFTER flipping `stabilizer.estimator=2` (Kalman) and BEFORE you start
+streaming external observations.  Without reset the cold EKF state can
+diverge to NaN when fed conflicting flow+IMU data — position control
+then silently fails.  In `hover_over_cat.py` (s090) this single one-line
+change lifted LOCK events from 93 → 312 (3.4×) in identical 30 s
+hovers because the EKF no longer fights its own startup transient.
+Source: Bitcraze forum t=2629 + t=4125.
+
+**2. `send_hover_setpoint(vx, vy, yawrate, zdistance)` feeds the
+velocity controller, not position.**  Cascade order:
+`velocity → attitude → attitude-rate → motor PWM`.  Flow measurements
+update EKF velocity/position; the controller then drives motors via
+the cascade.  With flow-only positioning, the EKF's absolute X/Y is
+capped at ±10 m and is NOT trustworthy — `send_position_setpoint`
+"may not make so much sense since the absolute position is not known"
+per Bitcraze docs.  Sticking with `send_hover_setpoint` is the right
+call for flow-only stacks.  Source:
+[controllers.md](https://github.com/bitcraze/crazyflie-firmware/blob/master/docs/functional-areas/sensor-to-control/controllers.md),
+[state_estimators](https://www.bitcraze.io/documentation/repository/crazyflie-firmware/master/functional-areas/sensor-to-control/state_estimators/).
+
+**3. Setpoint streaming >= 10 Hz.**  Lower than that and the cf2
+watchdog (`commanderWatchdogTimeout = 500 ms`) zeros roll/pitch then
+cuts motors at 1 s.  Symptom: drone tilts in then springs back
+repeatedly.  Our s090 wrapper streams at 5 Hz which is on the edge;
+bump RATE_HZ to 10 if you see watchdog twitch.  Source:
+[Bitcraze forum t=2629](https://forum.bitcraze.io/viewtopic.php?t=2629).
+
+**4. Motion Commander class is designed for the Flow Deck.**  It runs
+a background thread that streams velocity setpoints continuously,
+handles takeoff/landing, and matches the flow stack's relative
+positioning semantics.  Lacks a "go to absolute X/Y" equivalent — use
+`Commander.send_position_setpoint` for that, but only when you have an
+absolute-position source (MOCAP, UWB, Lighthouse).  Bitcraze's own
+demos for flow-only drones use Motion Commander, not the low-level
+Commander.  Source:
+[Kim McGuire — Commander framework offboard/onboard 2024](http://www.mcguirerobotics.com/blog/old_bitcraze_blogposts/2024_01_01_the-commander-framework-part-2-offboard-or-onboard/).
+
+**5. Visual servoing residual problem: drone tilt rotates camera
+FOV without translating the drone, making the bbox appear to move in
+image space.**  s090 observed bbox shift ~65 cm of world-equivalent in
+the image, while drone physical translation was ~2 cm.  Pure
+pixel-error → body-velocity feedback over-reacts to attitude wobble.
+Real PMW3901 flowdeck firmware already filters this via gyro-rate
+de-rotation in `mm_flow.c` — for our pipeline, future work is to
+gravity-vector / attitude-compensate the bbox centroid before
+computing err_x/err_y.  No Bitcraze forum thread documents this fix in
+the offboard-detection path; it remains open.
+
+**6. CrazySim sensors_sitl flow protocol — extend stdDev in packet,
+not hardcode.**  Vanilla CrazySim hardcodes `flowData.stdDevX = 2.0f`
+in `sensors_sitl.c::SENSOR_FLOW_SIM`.  Real PMW3901 deck driver maps
+the sensor's confidence byte to std (high conf → low std, low conf →
+high std).  We patched CrazySim to accept std from the wire (17-byte
+packet, std at p.data[13..17]) and made our host wrapper send the
+conf-mapped value.  With `std=4.0` (mid-trust band) flow no longer
+fights drone wobble integration.  Patch lives at
+`bogdannedelcu/crazysim-crazyflie-firmware` branch
+`sentai-flow-sim-support`, commit e4374251.
+
+**Reference threads + docs (all consulted 2026-05-11):**
+- [Bitcraze forum: Flying Crazyflie to specific position setpoint](https://forum.bitcraze.io/viewtopic.php?t=4125)
+- [Bitcraze forum: Setpoint handling in Crazyflie firmware](https://forum.bitcraze.io/viewtopic.php?t=3459)
+- [Bitcraze forum: Position data of crazyflie](https://forum.bitcraze.io/viewtopic.php?t=2867)
+- [Bitcraze forum: Issuing position change commands](https://forum.bitcraze.io/viewtopic.php?t=2629)
+- [Bitcraze forum: Kalman filter reset [SOLVED]](https://forum.bitcraze.io/viewtopic.php?t=3616)
+- [Bitcraze forum: Hovering scripts](https://forum.bitcraze.io/viewtopic.php?t=4051)
+- [Bitcraze docs: Controllers in the Crazyflie](https://www.bitcraze.io/documentation/repository/crazyflie-firmware/master/functional-areas/sensor-to-control/controllers/)
+- [Bitcraze docs: State estimation](https://www.bitcraze.io/documentation/repository/crazyflie-firmware/master/functional-areas/sensor-to-control/state_estimators/)
+- [Bitcraze docs: Parameter groups (kalman.resetEstimation)](https://www.bitcraze.io/documentation/repository/crazyflie-firmware/master/api/params/)
+- [Kim McGuire blog: Commander framework offboard/onboard 2024](http://www.mcguirerobotics.com/blog/old_bitcraze_blogposts/2024_01_01_the-commander-framework-part-2-offboard-or-onboard/)
+- [Bitcraze AI-deck documentation update 2023](https://www.bitcraze.io/2023/03/ai-deck-documentation-and-examples-update/)
+- [CrazySim repo (gtfactslab) — base SIM stack](https://github.com/gtfactslab/CrazySim)
+- [crazyflie_ros issue #66: velocity setpoints with Flow Deck (whoenig)](https://github.com/whoenig/crazyflie_ros/issues/66)
+
 ## 11. References
 
 - FreeRTOS POSIX port docs: https://www.freertos.org/FreeRTOS-simulator-for-Linux.html

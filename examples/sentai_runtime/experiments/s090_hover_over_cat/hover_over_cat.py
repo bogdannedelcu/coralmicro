@@ -217,10 +217,17 @@ def main() -> int:
     sync.open_link()
     cf = sync.cf
     cf.param.set_value("stabilizer.estimator", 2)
-    # Longer settle: EKF needs ~1-2s to converge from cold-start after
-    # the param flip; without flow injection it relies solely on baro+IMU
-    # and can otherwise refuse takeoff (SUP lock on tumble).
-    time.sleep(3.0)
+    time.sleep(0.5)
+    # Reset Kalman filter AFTER setting estimator + before flow injection.
+    # Per Bitcraze guidance: "The external position can make the EKF diverge
+    # and output NaN, in that case position control will not work. You can
+    # try to reset the EKF after starting to send position update, this way
+    # the EKF will converge to the external position."  We do the reset
+    # PRE-injection so the EKF starts from a clean state.
+    cf.param.set_value("kalman.resetEstimation", 1)
+    time.sleep(0.5)
+    cf.param.set_value("kalman.resetEstimation", 0)
+    time.sleep(2.0)   # let EKF settle
 
     # Staged takeoff — drone camera is BELOW ground for z<1m on this drone
     # model (user-confirmed via Gazebo GUI PIP) so any "lock" at <1m is a
