@@ -86,6 +86,13 @@ extern void sentai_flow_phase_corr_compute_at(int pipe_id,
                                                 int* dx_q1000_out,
                                                 int* dy_q1000_out,
                                                 uint8_t* conf_out);
+extern void sentai_flow_phase_corr_set_anchor(int pipe_id,
+                                                const uint8_t* gray80x60);
+extern void sentai_flow_phase_corr_compute_against_anchor(int pipe_id,
+                                                            const uint8_t* gray80x60,
+                                                            int* dx_q1000_out,
+                                                            int* dy_q1000_out,
+                                                            uint8_t* conf_out);
 extern void sentai_flow_phase_corr_compute(const uint8_t* gray80x60,
                                             int* dx_q1000_out,
                                             int* dy_q1000_out,
@@ -208,6 +215,15 @@ typedef struct __attribute__((packed)) {
     int32_t  dx_fine_q1000;
     int32_t  dy_fine_q1000;
     uint32_t conf_fine;
+    // LastChangedFrame (LCF) anchor — pipe 3.  Reports CUMULATIVE motion
+    // (in L0 mgrid units) since anchor was last refreshed.  Refresh
+    // triggered by instantaneous motion exceeding MOTION_DETECT_THRESH.
+    // Caller converts to velocity: vx_avg = dx_anchor / frames_since_anchor.
+    // Sub-pixel slow drift becomes detectable after enough accumulation.
+    int32_t  dx_anchor_q1000;
+    int32_t  dy_anchor_q1000;
+    uint32_t conf_anchor;
+    uint32_t frames_since_anchor;
 } flow_reply_t;
 
 // ────────────────────────────────────────────────────────────────────────
@@ -659,6 +675,58 @@ static int handle_one_frame(int fd) {
     int dy_f = dy_c * 2 + dy_res_L2;
     uint8_t conf_f = conf_L2;
 
+    // ─────────────────────────────────────────────────────────────────
+    // LastChangedFrame (LCF) ANCHOR — pipe 3.  Detect SLOW cumulative
+    // drift that frame-to-frame phase-corr can't see (sub-pixel motion).
+    //
+    // Strategy:
+    //   - When instantaneous motion (|dx_q| or |dy_q| on L0) is BELOW
+    //     a small threshold, the LCF is HELD — anchor reference stays
+    //     pointed at the frame where motion was last detected.
+    //   - Compute phase-corr current frame vs anchor → cumulative drift
+    //     since anchor was set.  Sub-pixel drift over many frames
+    //     accumulates into a detectable peak.
+    //   - When instantaneous motion exceeds threshold, REFRESH anchor:
+    //     copy current FFT into pipe 3's prev_fft.  Anchor follows
+    //     drone whenever it's actively moving.
+    // ─────────────────────────────────────────────────────────────────
+    // mgrid threshold for "drone is moving" → refresh anchor.  Set
+    // ABOVE the L0 phase-corr noise floor (~100-300 mgrid for our 8×
+    // PXP downsample) so transient noise spikes don't reset the anchor
+    // every few frames.  Anchor needs ~30+ frames hold to detect slow
+    // sub-pixel drift cumulatively.
+    const int MOTION_DETECT_THRESH = 1500;
+    static int s_have_anchor = 0;
+    static uint32_t s_anchor_seq = 0;
+    int dx_anchor = 0, dy_anchor = 0;
+    uint8_t conf_anchor = 0;
+    uint32_t frames_since_anchor = 0;
+    int is_moving = (abs(dx_q) >= MOTION_DETECT_THRESH ||
+                     abs(dy_q) >= MOTION_DETECT_THRESH);
+    // DEBUG: keep a SHADOW copy of anchor gray buffer so we can dump
+    // it later for visual diff.  Lives in SDRAM (4.8KB).
+    static uint8_t s_anchor_gray_shadow[DST_W * DST_H];
+    if (!s_have_anchor) {
+        // Initialize anchor with first frame seen.
+        sentai_flow_phase_corr_set_anchor(3, s_gray80x60);
+        memcpy(s_anchor_gray_shadow, s_gray80x60, sizeof(s_anchor_gray_shadow));
+        s_have_anchor = 1;
+        s_anchor_seq = hdr.seq;
+    } else if (is_moving && conf > 0) {
+        // Drone is actively moving — refresh anchor.  Don't return a
+        // cumulative-drift estimate this frame (caller uses inst motion).
+        sentai_flow_phase_corr_set_anchor(3, s_gray80x60);
+        memcpy(s_anchor_gray_shadow, s_gray80x60, sizeof(s_anchor_gray_shadow));
+        s_anchor_seq = hdr.seq;
+    } else {
+        // Stationary (or low conf inst): compare current frame against
+        // frozen anchor.  Returns CUMULATIVE motion since anchor was set.
+        sentai_flow_phase_corr_compute_against_anchor(3, s_gray80x60,
+                                                       &dx_anchor, &dy_anchor,
+                                                       &conf_anchor);
+        frames_since_anchor = hdr.seq - s_anchor_seq;
+    }
+
     // DEBUG DUMP: write each pyramid level's 80×60 gray buffer to disk
     // as a PPM (gray triplicated to RGB so any image viewer opens it).
     // Triggered every N frames (SENTAI_DUMP_PYRAMID_EVERY env, default 60).
@@ -681,12 +749,13 @@ static int handle_one_frame(int fd) {
             }
         }
         if (s_pyr_dir && (hdr.seq % s_pyr_every) == 0) {
-            const uint8_t* bufs[3] = {
-                s_gray80x60, s_gray80x60_center, s_gray80x60_fine
+            const uint8_t* bufs[4] = {
+                s_gray80x60, s_gray80x60_center, s_gray80x60_fine,
+                s_anchor_gray_shadow
             };
-            const char* names[3] = {"L0", "L1", "L2"};
+            const char* names[4] = {"L0", "L1", "L2", "ANCHOR"};
             uint8_t rgb_out[DST_W * DST_H * 3];
-            for (int b = 0; b < 3; ++b) {
+            for (int b = 0; b < 4; ++b) {
                 // Triplicate gray to RGB
                 for (int i = 0; i < DST_W * DST_H; ++i) {
                     uint8_t g = bufs[b][i];
@@ -737,6 +806,10 @@ static int handle_one_frame(int fd) {
         .dx_fine_q1000   = dx_f,
         .dy_fine_q1000   = dy_f,
         .conf_fine       = (uint32_t)conf_f,
+        .dx_anchor_q1000 = dx_anchor,
+        .dy_anchor_q1000 = dy_anchor,
+        .conf_anchor     = (uint32_t)conf_anchor,
+        .frames_since_anchor = frames_since_anchor,
     };
     if (write_full(fd, &reply, sizeof(reply)) != 0) return -1;
 

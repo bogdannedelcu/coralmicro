@@ -70,9 +70,9 @@ SENSOR_FLOW_SIM        = 6
 # must be rebuilt for this protocol revision.
 FLOW_OUT_SOCK    = "/tmp/sentai_flow_out.sock"
 REPLY_MAGIC      = 0x46524C31   # 'FRL1'
-REPLY_FMT        = "<IIiiIQiIiiIiiI"  # +L1 (mid, center fields) +L2 (fine)
+REPLY_FMT        = "<IIiiIQiIiiIiiIiiII"  # +LCF anchor (dx,dy,conf,frames_since)
 REPLY_SZ         = struct.calcsize(REPLY_FMT)
-assert REPLY_SZ == 60, f"unexpected REPLY_SZ={REPLY_SZ}"
+assert REPLY_SZ == 76, f"unexpected REPLY_SZ={REPLY_SZ}"
 
 # Pyramid scale ratios — fine-grained mgrid in each level corresponds to
 # different physical ground motion.  Convert each level's mgrid to the
@@ -179,7 +179,9 @@ def flow_forwarder(stop_evt: threading.Event, cf, stats: dict) -> None:
                 rec, buf = buf[:REPLY_SZ], buf[REPLY_SZ:]
                 (magic, seq, dx, dy, conf, lat, dz, dz_conf,
                  dx_c, dy_c, conf_c,
-                 dx_f, dy_f, conf_f) = struct.unpack(REPLY_FMT, rec)
+                 dx_f, dy_f, conf_f,
+                 dx_anch, dy_anch, conf_anch, frames_since_anch) = (
+                    struct.unpack(REPLY_FMT, rec))
                 if magic != REPLY_MAGIC:
                     idx = buf.find(struct.pack("<I", REPLY_MAGIC))
                     buf = buf[idx:] if idx >= 0 else b""
@@ -201,38 +203,59 @@ def flow_forwarder(stop_evt: threading.Event, cf, stats: dict) -> None:
                 # to wide-equivalent units and use it.  Else fall back to
                 # wide.  This makes slow drift visible without sacrificing
                 # fast-motion tracking.
-                # COARSE-TO-FINE fusion: L1 and L2 now report COMBINED
-                # motion (= L0_coarse + their_residual).  So PREFER the
-                # finest level with usable confidence — it has more sub-
-                # pixel accuracy than coarse levels.
-                #   Pick L2 if conf_L2 ≥ MIN_REFINE_CONF AND magnitude
-                #   under L2 saturation band → use refined estimate.
-                #   Else fall back to L1 if conf_L1 OK.
-                #   Else use L0 raw.
-                MIN_REFINE_CONF = 64
-                if (conf_f >= MIN_REFINE_CONF
-                        and abs(dx_f) < 24000 and abs(dy_f) < 24000):
-                    dx_eff = int(dx_f * L2_TO_L0_RATIO)
-                    dy_eff = int(dy_f * L2_TO_L0_RATIO)
-                    conf_eff = conf_f
-                    used_level = "L2_refined"
-                elif (conf_c >= MIN_REFINE_CONF
-                        and abs(dx_c) < 24000 and abs(dy_c) < 24000):
-                    dx_eff = int(dx_c * L1_TO_L0_RATIO)
-                    dy_eff = int(dy_c * L1_TO_L0_RATIO)
-                    conf_eff = conf_c
-                    used_level = "L1_refined"
-                elif conf > 0 and abs(dx) < 28000 and abs(dy) < 28000:
-                    dx_eff, dy_eff, conf_eff = dx, dy, conf
-                    used_level = "L0_raw"
-                else:
-                    dx_eff, dy_eff, conf_eff = dx, dy, conf
-                    used_level = "L0_fallback"
+                # FUSION with LastChangedFrame ANCHOR:
+                # When instantaneous L0 motion is small (drone "thinks"
+                # stationary), check the anchor-derived velocity.  If
+                # anchor has accumulated meaningful drift over enough
+                # frames, USE that as the velocity observation — captures
+                # sub-pixel slow drift that frame-to-frame phase-corr
+                # cannot resolve.
+                INST_LOW = 200             # mgrid; below = "drone thinks stationary"
+                ANCH_MIN_FRAMES = 8        # need ≥8 frames for trustworthy avg
+                ANCH_MIN_CONF = 80
+                ANCH_MIN_CUM_MAG = 300     # mgrid cum drift to be worth reporting
+                used_anchor = False
+                if (abs(dx) < INST_LOW and abs(dy) < INST_LOW
+                        and frames_since_anch >= ANCH_MIN_FRAMES
+                        and conf_anch >= ANCH_MIN_CONF
+                        and (abs(dx_anch) >= ANCH_MIN_CUM_MAG
+                             or abs(dy_anch) >= ANCH_MIN_CUM_MAG)):
+                    # Average mgrid per frame.  This IS the average
+                    # body-frame velocity expressed at L0 grid scale,
+                    # ready for the existing flow_to_dpixel pipeline.
+                    dx_eff = int(dx_anch / frames_since_anch)
+                    dy_eff = int(dy_anch / frames_since_anch)
+                    conf_eff = conf_anch
+                    used_level = "LCF_anchor"
+                    used_anchor = True
+                if not used_anchor:
+                    # Coarse-to-fine prefer-refined fusion as before.
+                    MIN_REFINE_CONF = 64
+                    if (conf_f >= MIN_REFINE_CONF
+                            and abs(dx_f) < 24000 and abs(dy_f) < 24000):
+                        dx_eff = int(dx_f * L2_TO_L0_RATIO)
+                        dy_eff = int(dy_f * L2_TO_L0_RATIO)
+                        conf_eff = conf_f
+                        used_level = "L2_refined"
+                    elif (conf_c >= MIN_REFINE_CONF
+                            and abs(dx_c) < 24000 and abs(dy_c) < 24000):
+                        dx_eff = int(dx_c * L1_TO_L0_RATIO)
+                        dy_eff = int(dy_c * L1_TO_L0_RATIO)
+                        conf_eff = conf_c
+                        used_level = "L1_refined"
+                    elif conf > 0 and abs(dx) < 28000 and abs(dy) < 28000:
+                        dx_eff, dy_eff, conf_eff = dx, dy, conf
+                        used_level = "L0_raw"
+                    else:
+                        dx_eff, dy_eff, conf_eff = dx, dy, conf
+                        used_level = "L0_fallback"
                 # Stats per-pipeline for post-run analysis
                 stats.setdefault("pp", []).append({
                     "L0_dx": dx, "L0_dy": dy, "L0_conf": conf,
                     "L1_dx": dx_c, "L1_dy": dy_c, "L1_conf": conf_c,
                     "L2_dx": dx_f, "L2_dy": dy_f, "L2_conf": conf_f,
+                    "anch_dx": dx_anch, "anch_dy": dy_anch,
+                    "anch_conf": conf_anch, "anch_frames": frames_since_anch,
                     "used": used_level,
                 })
                 dpx, dpy = flow_to_dpixel(dx_eff, dy_eff)

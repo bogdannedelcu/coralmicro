@@ -603,6 +603,75 @@ extern "C" void sentai_flow_phase_corr_compute(const uint8_t* gray80x60,
                                        dx_q1000_out, dy_q1000_out, conf_out);
 }
 
+// LastChangedFrame (anchor) helpers — pipe's prev_fft is FROZEN at a
+// past frame.  Compare current frame to that frozen reference WITHOUT
+// updating the frozen prev_fft.  Reveals cumulative sub-pixel drift
+// that frame-to-frame phase-corr cannot resolve.
+//
+// Usage:
+//   1. Call _set_anchor(pipe, gray) when you decide to "freeze" — copies
+//      FFT(gray) to pipe's prev_fft.  Subsequent _compute_against_anchor
+//      calls will compare against this frame.
+//   2. Each frame, call _compute_against_anchor(pipe, gray, ...) — runs
+//      phase-corr against frozen prev, does NOT touch prev_fft.
+//   3. When motion picks up (caller decides via instantaneous flow), call
+//      _set_anchor again to refresh the reference to the current frame.
+extern "C" void sentai_flow_phase_corr_set_anchor(int pipe_id,
+                                                    const uint8_t* gray80x60) {
+    if (pipe_id < 0) pipe_id = 0;
+    if (pipe_id >= FLOW_N_PIPES) pipe_id = FLOW_N_PIPES - 1;
+    init_once();
+    // Window + FFT the gray buffer into prev_fft[pipe_id] directly.
+    float mean = 0.0f;
+    int n = 0;
+    for (int y = 0; y < CROP_H; ++y) {
+        for (int x = 0; x < CROP_W; ++x) {
+            mean += (float)gray80x60[y * FLOW_GRAY_W + (CROP_OFF + x)];
+            n++;
+        }
+    }
+    mean /= (float)n;
+    for (int y = 0; y < N; ++y) {
+        for (int x = 0; x < N; ++x) {
+            float v = 0.0f;
+            if (y < CROP_H && x < CROP_W) {
+                uint8_t s = gray80x60[y * FLOW_GRAY_W + (CROP_OFF + x)];
+                v = ((float)s - mean) * s_window[y * N + x];
+            }
+            s_curr_fft[(y * N + x) * 2 + 0] = v;
+            s_curr_fft[(y * N + x) * 2 + 1] = 0.0f;
+        }
+    }
+    fft2d(s_curr_fft, /*inverse=*/0);
+    memcpy(s_prev_fft[pipe_id], s_curr_fft, sizeof(s_prev_fft[pipe_id]));
+    s_have_prev_per[pipe_id] = 1;
+}
+
+// Same as _compute_at but skips the prev_fft update at the end —
+// keeps the frozen reference alive across multiple frames.  Caller is
+// responsible for calling _set_anchor when refresh is needed.
+extern "C" void sentai_flow_phase_corr_compute_against_anchor(int pipe_id,
+                                                                const uint8_t* gray80x60,
+                                                                int* dx_q1000_out,
+                                                                int* dy_q1000_out,
+                                                                uint8_t* conf_out) {
+    // Save prev_fft[pipe_id], call compute_at, restore prev_fft[pipe_id].
+    // Simpler than refactoring compute_at to skip the update conditionally.
+    static float s_save[2 * N2];
+    if (pipe_id < 0) pipe_id = 0;
+    if (pipe_id >= FLOW_N_PIPES) pipe_id = FLOW_N_PIPES - 1;
+    if (!s_have_prev_per[pipe_id]) {
+        *dx_q1000_out = 0;
+        *dy_q1000_out = 0;
+        *conf_out = 0;
+        return;
+    }
+    memcpy(s_save, s_prev_fft[pipe_id], sizeof(s_save));
+    sentai_flow_phase_corr_compute_at(pipe_id, gray80x60,
+                                       dx_q1000_out, dy_q1000_out, conf_out);
+    memcpy(s_prev_fft[pipe_id], s_save, sizeof(s_prev_fft[pipe_id]));
+}
+
 // Reset cached state.  Call at flow.start() to drop stale prev FFT.
 extern "C" void sentai_flow_phase_corr_reset(void) {
     for (int p = 0; p < FLOW_N_PIPES; ++p) {
