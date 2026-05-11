@@ -1,0 +1,138 @@
+{
+  "_last_run": "2026-05-11T16:19:05",
+  "test_z_m": 0.5,
+  "v_step_m": 0.1,
+  "step_duration_s": 4.0,
+  "expected_dx_q_signed": -481.07940140571304,
+  "expected_dx_q_mag": 481.07940140571304,
+  "mag_tol": 0.35,
+  "results": {
+    "t1": {
+      "pass": true,
+      "code": 0,
+      "code_str": "OK",
+      "msg": "ok",
+      "dx_stats": {
+        "n": 64,
+        "mean": -25.15625,
+        "stdev": 42.888379381103924,
+        "min": -125,
+        "max": 32
+      },
+      "dy_stats": {
+        "n": 64,
+        "mean": -24.640625,
+        "stdev": 59.445712415693826,
+        "min": -184,
+        "max": 44
+      },
+      "conf_rate": 1.0,
+      "n_samples": 64
+    },
+    "t2": {
+      "pass": true,
+      "code": 0,
+      "code_str": "OK",
+      "msg": "ok",
+      "dx_stats": {
+        "n": 50,
+        "mean": -60.32,
+        "stdev": 55.743498275583676,
+        "min": -157,
+        "max": 67
+      },
+      "dy_stats": {
+        "n": 50,
+        "mean": -483.66,
+        "stdev": 344.50141422060955,
+        "min": -930,
+        "max": 679
+      },
+      "conf_rate": 1.0,
+      "expected_q": -481.07940140571304,
+      "n_samples": 50,
+      "pose_pre": {
+        "x": -0.0032621908467262983,
+        "y": 0.0006235099281184375,
+        "z": 0.5042657256126404,
+        "roll": 0.004040715284645557,
+        "pitch": -0.00944699440151453,
+        "yaw": 8.701069873495726e-07
+      },
+      "pose_post": {
+        "x": 0.12574507296085358,
+        "y": 0.016628164798021317,
+        "z": 0.4998875856399536,
+        "roll": 0.07149116694927216,
+        "pitch": -0.5671307444572449,
+        "yaw": 0.012919298373162746
+      },
+      "delta_pose": {
+        "dx_m": 0.12900726380757987,
+        "dy_m": 0.01600465486990288
+      },
+      "expected_q_signed": -481.07940140571304
+    },
+    "t3": {
+      "pass": true,
+      "code": 0,
+      "code_str": "OK",
+      "msg": "ok",
+      "dx_stats": {
+        "n": 50,
+        "mean": -484.46,
+        "stdev": 434.35972235003555,
+        "min": -970,
+        "max": 846
+      },
+      "dy_stats": {
+        "n": 50,
+        "mean": 17.56,
+        "stdev": 101.9133278820783,
+        "min": -196,
+        "max": 166
+      },
+      "conf_rate": 1.0,
+      "expected_q": -481.07940140571304,
+      "n_samples": 50,
+      "pose_pre": {
+        "x": 0.2221776247024536,
+        "y": 0.007001873571425676,
+        "z": 0.49813997745513916,
+        "roll": -0.006107783876359463,
+        "pitch": 0.14912958443164825,
+        "yaw": -0.004424639977514744
+      },
+      "pose_post": {
+        "x": 0.21564920246601105,
+        "y": 0.12616923451423645,
+        "z": 0.4991370737552643,
+        "roll": -0.5054613351821899,
+        "pitch": -0.09455859661102295,
+        "yaw": 0.008637957274913788
+      },
+      "delta_pose": {
+        "dx_m": -0.006528422236442566,
+        "dy_m": 0.11916736094281077
+      },
+      "expected_q_signed": -481.07940140571304
+    }
+  },
+  "sniffer_total_packets": 427,
+  "overall_pass": true,
+  "error_codes_legend": {
+    "0x0000": "OK",
+    "0xF100": "BODY_XFORM X-axis sign wrong",
+    "0xF101": "BODY_XFORM Y-axis sign wrong",
+    "0xF102": "X-axis motion leaks into dy (axis swap?)",
+    "0xF103": "Y-axis motion leaks into dx (axis swap?)",
+    "0xF200": "FLOW_SCALE_X magnitude wrong (>35% off)",
+    "0xF201": "FLOW_SCALE_Y magnitude wrong (>35% off)",
+    "0xF300": "phase-corr conf low \u2014 sentai_sim flow broken or scene bad",
+    "0xF400": "intrinsics FOV mismatch with gz camera (suspect)",
+    "0xF500": "cf2 plugin not acking SENSOR_FLOW_SIM packets",
+    "0xF600": "EKF flow_update response wrong (kalman/sign issue)",
+    "0xF700": "dt observed outside [0.001, 0.5]s",
+    "0xF800": "drone drifted in T1 \u2014 controller/hold protocol issue"
+  }
+}

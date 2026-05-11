@@ -46,7 +46,17 @@ FLOW_GRID_H       = 60
 DRONE_NPIX        = 35.0
 DRONE_THETAPIX    = 0.71674
 DRONE_FLOW_RES    = 0.10
-BODY_XFORM        = (-1.0, 0.0, 0.0, +1.0)   # cam0+vflip=1 (Sim.md §10b)
+# SIM-specific body↔image axes mapping.  Verified by flow_diagnostic T2/T3
+# (commit 1aa12e18 + subsequent): with the current sentai_crazysim camera
+# mount in gz Garden, raw phase-corr output has IMAGE-X axis aligned to
+# body-Y and IMAGE-Y axis aligned to body-X, both sign-inverted.
+#   body_fw  =  -dy_grid    (T2: body+X → dy_q1000 = -500)
+#   body_lft =  -dx_grid    (T3: body+Y → dx_q1000 = -500)
+# This DIFFERS from the HW convention (cam0+vflip=1, BODY_XFORM=(-1,0,0,+1)
+# per Sim.md §10b) — the SDF cam mount yaw in CrazySim doesn't replicate
+# the OV5640 vflip path, so we have a SIM-only override here.  TODO:
+# unify by fixing the gz camera mount yaw to match HW image orientation.
+BODY_XFORM        = (0.0, -1.0, -1.0, 0.0)
 _FLOW_SCALE_X = (math.radians(FLOW_FOV_H_DEG) * DRONE_NPIX) / (FLOW_GRID_W * DRONE_FLOW_RES * DRONE_THETAPIX)
 _FLOW_SCALE_Y = (math.radians(FLOW_FOV_V_DEG) * DRONE_NPIX) / (FLOW_GRID_H * DRONE_FLOW_RES * DRONE_THETAPIX)
 CRTP_PORT_SETPOINT_SIM = 0x09
@@ -192,6 +202,16 @@ def main() -> int:
 
     cf.param.set_value("stabilizer.estimator", 2)
     time.sleep(0.5)
+    # CRITICAL: disable the firmware-internal flowdeck driver task.  In SIM
+    # the PMW3901 driver still runs and pushes flow=(0,0) into the EKF at
+    # 100 Hz, competing with our sentai flow injection and dragging the
+    # velocity estimate toward zero.  flowdeck_v1v2.c has a
+    # `motion.disable` param that gates the enqueueFlow call.
+    try:
+        cf.param.set_value("motion.disable", 1)
+    except Exception as e:
+        print(f"[hover] WARN motion.disable param missing: {e}", file=sys.stderr)
+    time.sleep(0.3)
     cf.param.set_value("kalman.resetEstimation", 1)
     time.sleep(0.5)
     cf.param.set_value("kalman.resetEstimation", 0)

@@ -1,277 +1,149 @@
 {
   "target_z_m": 0.5,
   "hover_s": 15.0,
-  "n_samples": 35,
+  "n_samples": 37,
   "all4_rate": 0.0,
-  "any_rate": 0.2,
-  "dist_mean_m": 1.2351142857142856,
-  "dist_max_m": 1.627,
-  "z_mean_cm": 16.287142857142857,
-  "z_rms_cm": 16.892749501318185,
-  "flow_n": 258,
-  "flow_hz": 17.2,
+  "any_rate": 0.16216216216216217,
+  "dist_mean_m": 1.087162162162162,
+  "dist_max_m": 1.435,
+  "z_mean_cm": 6.675000000000001,
+  "z_rms_cm": 10.565748908619776,
+  "flow_n": 266,
+  "flow_hz": 17.733333333333334,
   "pass_all": false,
-  "_last_run": "2026-05-11T15:35:57",
+  "_last_run": "2026-05-11T16:25:13",
   "samples": [
     {
-      "fseq": 318,
+      "fseq": 360,
       "n_det": 2,
       "ids": [
         1,
         2
       ],
       "ekf": [
-        -0.159,
-        -0.136,
-        0.672
-      ],
-      "pnp": [
-        -0.17,
-        0.01,
-        0.821
-      ],
-      "z_err_cm": 14.94,
-      "dist_target_m": 0.271,
-      "flow_n": 51
-    },
-    {
-      "fseq": 324,
-      "n_det": 2,
-      "ids": [
-        1,
-        2
-      ],
-      "ekf": [
-        -0.114,
-        -0.181,
+        -0.117,
+        -0.197,
         0.677
       ],
       "pnp": [
-        -0.201,
-        0.003,
-        0.827
+        -0.198,
+        0.029,
+        0.797
       ],
-      "z_err_cm": 14.96,
-      "dist_target_m": 0.278,
-      "flow_n": 57
+      "z_err_cm": 11.97,
+      "dist_target_m": 0.289,
+      "flow_n": 52
     },
     {
-      "fseq": 330,
-      "n_det": 1,
-      "ids": [
-        2
-      ],
-      "ekf": [
-        -0.172,
-        -0.124,
-        0.667
-      ],
-      "pnp": [
-        -0.18,
-        -0.031,
-        0.744
-      ],
-      "z_err_cm": 7.7,
-      "dist_target_m": 0.27,
-      "flow_n": 62
-    },
-    {
-      "fseq": 336,
-      "n_det": 1,
-      "ids": [
-        2
-      ],
-      "ekf": [
-        -0.16,
-        -0.284,
-        0.609
-      ],
-      "pnp": [
-        -0.074,
-        -0.056,
-        0.752
-      ],
-      "z_err_cm": 14.34,
-      "dist_target_m": 0.344,
-      "flow_n": 70
-    },
-    {
-      "fseq": 342,
-      "n_det": 1,
-      "ids": [
-        2
-      ],
-      "ekf": [
-        -0.086,
-        -0.223,
-        0.556
-      ],
-      "pnp": [
-        -0.14,
-        -0.03,
-        0.772
-      ],
-      "z_err_cm": 21.64,
-      "dist_target_m": 0.245,
-      "flow_n": 76
-    },
-    {
-      "fseq": 348,
+      "fseq": 366,
       "n_det": 2,
       "ids": [
         1,
         2
       ],
       "ekf": [
-        -0.182,
-        -0.204,
-        0.644
+        -0.13,
+        -0.156,
+        0.738
       ],
       "pnp": [
-        -0.199,
-        0.0,
-        0.844
+        -0.202,
+        0.01,
+        0.819
       ],
-      "z_err_cm": 20.07,
-      "dist_target_m": 0.309,
-      "flow_n": 81
+      "z_err_cm": 8.07,
+      "dist_target_m": 0.313,
+      "flow_n": 55
     },
     {
-      "fseq": 354,
+      "fseq": 372,
       "n_det": 1,
       "ids": [
         2
       ],
       "ekf": [
-        -0.321,
-        -0.347,
-        0.65
+        -0.134,
+        -0.231,
+        0.858
       ],
       "pnp": [
-        -0.232,
-        -0.182,
-        0.853
+        -0.125,
+        -0.057,
+        0.764
       ],
-      "z_err_cm": 20.36,
-      "dist_target_m": 0.496,
-      "flow_n": 87
-    },
-    {
-      "fseq": 360,
-      "n_det": 0,
-      "ids": [],
-      "ekf": [
-        -0.399,
-        -0.461,
-        0.629
-      ],
-      "pnp": [
-        null,
-        null,
-        null
-      ],
-      "z_err_cm": null,
-      "dist_target_m": 0.623,
-      "flow_n": 93
-    },
-    {
-      "fseq": 366,
-      "n_det": 0,
-      "ids": [],
-      "ekf": [
-        -0.515,
-        -0.644,
-        0.59
-      ],
-      "pnp": [
-        null,
-        null,
-        null
-      ],
-      "z_err_cm": null,
-      "dist_target_m": 0.829,
-      "flow_n": 99
-    },
-    {
-      "fseq": 372,
-      "n_det": 0,
-      "ids": [],
-      "ekf": [
-        -0.578,
-        -0.851,
-        0.559
-      ],
-      "pnp": [
-        null,
-        null,
-        null
-      ],
-      "z_err_cm": null,
-      "dist_target_m": 1.03,
-      "flow_n": 105
+      "z_err_cm": -9.33,
+      "dist_target_m": 0.446,
+      "flow_n": 61
     },
     {
       "fseq": 378,
-      "n_det": 0,
-      "ids": [],
+      "n_det": 2,
+      "ids": [
+        1,
+        2
+      ],
       "ekf": [
-        -0.664,
-        -1.054,
-        0.533
+        -0.22,
+        -0.191,
+        0.618
       ],
       "pnp": [
-        null,
-        null,
-        null
+        -0.149,
+        -0.089,
+        0.784
       ],
-      "z_err_cm": null,
-      "dist_target_m": 1.246,
-      "flow_n": 111
+      "z_err_cm": 16.6,
+      "dist_target_m": 0.314,
+      "flow_n": 69
     },
     {
       "fseq": 384,
-      "n_det": 0,
-      "ids": [],
+      "n_det": 1,
+      "ids": [
+        2
+      ],
       "ekf": [
-        -0.619,
-        -1.3,
-        0.517
+        -0.084,
+        -0.123,
+        0.567
       ],
       "pnp": [
-        null,
-        null,
-        null
+        -0.116,
+        -0.041,
+        0.66
       ],
-      "z_err_cm": null,
-      "dist_target_m": 1.44,
-      "flow_n": 117
+      "z_err_cm": 9.34,
+      "dist_target_m": 0.164,
+      "flow_n": 74
     },
     {
       "fseq": 390,
-      "n_det": 0,
-      "ids": [],
+      "n_det": 1,
+      "ids": [
+        2
+      ],
       "ekf": [
-        -0.589,
-        -1.445,
-        0.535
+        -0.22,
+        -0.126,
+        0.635
       ],
       "pnp": [
-        null,
-        null,
-        null
+        -0.171,
+        -0.126,
+        0.669
       ],
-      "z_err_cm": null,
-      "dist_target_m": 1.561,
-      "flow_n": 122
+      "z_err_cm": 3.4,
+      "dist_target_m": 0.287,
+      "flow_n": 80
     },
     {
       "fseq": 396,
       "n_det": 0,
       "ids": [],
       "ekf": [
-        -0.577,
-        -1.44,
-        0.525
+        -0.245,
+        -0.266,
+        0.485
       ],
       "pnp": [
         null,
@@ -279,17 +151,17 @@
         null
       ],
       "z_err_cm": null,
-      "dist_target_m": 1.551,
-      "flow_n": 128
+      "dist_target_m": 0.362,
+      "flow_n": 85
     },
     {
       "fseq": 402,
       "n_det": 0,
       "ids": [],
       "ekf": [
-        -0.56,
-        -1.437,
-        0.506
+        -0.367,
+        -0.311,
+        0.499
       ],
       "pnp": [
         null,
@@ -297,17 +169,17 @@
         null
       ],
       "z_err_cm": null,
-      "dist_target_m": 1.543,
-      "flow_n": 134
+      "dist_target_m": 0.481,
+      "flow_n": 91
     },
     {
       "fseq": 408,
       "n_det": 0,
       "ids": [],
       "ekf": [
-        -0.564,
-        -1.425,
-        0.504
+        -0.494,
+        -0.349,
+        0.492
       ],
       "pnp": [
         null,
@@ -315,17 +187,17 @@
         null
       ],
       "z_err_cm": null,
-      "dist_target_m": 1.533,
-      "flow_n": 140
+      "dist_target_m": 0.605,
+      "flow_n": 97
     },
     {
       "fseq": 414,
       "n_det": 0,
       "ids": [],
       "ekf": [
-        -0.564,
-        -1.422,
-        0.497
+        -0.609,
+        -0.398,
+        0.493
       ],
       "pnp": [
         null,
@@ -333,17 +205,17 @@
         null
       ],
       "z_err_cm": null,
-      "dist_target_m": 1.53,
-      "flow_n": 148
+      "dist_target_m": 0.727,
+      "flow_n": 103
     },
     {
       "fseq": 420,
       "n_det": 0,
       "ids": [],
       "ekf": [
-        -0.566,
-        -1.424,
-        0.489
+        -0.771,
+        -0.421,
+        0.496
       ],
       "pnp": [
         null,
@@ -351,17 +223,17 @@
         null
       ],
       "z_err_cm": null,
-      "dist_target_m": 1.533,
-      "flow_n": 154
+      "dist_target_m": 0.879,
+      "flow_n": 109
     },
     {
       "fseq": 426,
       "n_det": 0,
       "ids": [],
       "ekf": [
-        -0.57,
-        -1.421,
-        0.487
+        -0.853,
+        -0.456,
+        0.534
       ],
       "pnp": [
         null,
@@ -369,34 +241,16 @@
         null
       ],
       "z_err_cm": null,
-      "dist_target_m": 1.531,
-      "flow_n": 159
+      "dist_target_m": 0.968,
+      "flow_n": 116
     },
     {
       "fseq": 432,
       "n_det": 0,
       "ids": [],
       "ekf": [
-        -0.569,
-        -1.425,
-        0.482
-      ],
-      "pnp": [
-        null,
-        null,
-        null
-      ],
-      "z_err_cm": null,
-      "dist_target_m": 1.535,
-      "flow_n": 165
-    },
-    {
-      "fseq": 438,
-      "n_det": 0,
-      "ids": [],
-      "ekf": [
-        -0.572,
-        -1.427,
+        -0.927,
+        -0.47,
         0.473
       ],
       "pnp": [
@@ -405,17 +259,35 @@
         null
       ],
       "z_err_cm": null,
-      "dist_target_m": 1.537,
-      "flow_n": 171
+      "dist_target_m": 1.039,
+      "flow_n": 122
+    },
+    {
+      "fseq": 438,
+      "n_det": 0,
+      "ids": [],
+      "ekf": [
+        -1.007,
+        -0.507,
+        0.479
+      ],
+      "pnp": [
+        null,
+        null,
+        null
+      ],
+      "z_err_cm": null,
+      "dist_target_m": 1.128,
+      "flow_n": 128
     },
     {
       "fseq": 444,
       "n_det": 0,
       "ids": [],
       "ekf": [
-        -0.585,
-        -1.418,
-        0.469
+        -1.082,
+        -0.495,
+        0.486
       ],
       "pnp": [
         null,
@@ -423,17 +295,17 @@
         null
       ],
       "z_err_cm": null,
-      "dist_target_m": 1.535,
-      "flow_n": 176
+      "dist_target_m": 1.19,
+      "flow_n": 134
     },
     {
       "fseq": 450,
       "n_det": 0,
       "ids": [],
       "ekf": [
-        -0.592,
-        -1.423,
-        0.467
+        -1.179,
+        -0.426,
+        0.481
       ],
       "pnp": [
         null,
@@ -441,17 +313,17 @@
         null
       ],
       "z_err_cm": null,
-      "dist_target_m": 1.541,
-      "flow_n": 182
+      "dist_target_m": 1.253,
+      "flow_n": 140
     },
     {
       "fseq": 456,
       "n_det": 0,
       "ids": [],
       "ekf": [
-        -0.598,
-        -1.423,
-        0.466
+        -1.241,
+        -0.373,
+        0.479
       ],
       "pnp": [
         null,
@@ -459,17 +331,17 @@
         null
       ],
       "z_err_cm": null,
-      "dist_target_m": 1.544,
-      "flow_n": 188
+      "dist_target_m": 1.296,
+      "flow_n": 147
     },
     {
       "fseq": 462,
       "n_det": 0,
       "ids": [],
       "ekf": [
-        -0.617,
-        -1.417,
-        0.464
+        -1.303,
+        -0.329,
+        0.476
       ],
       "pnp": [
         null,
@@ -477,17 +349,17 @@
         null
       ],
       "z_err_cm": null,
-      "dist_target_m": 1.546,
-      "flow_n": 196
+      "dist_target_m": 1.344,
+      "flow_n": 153
     },
     {
       "fseq": 468,
       "n_det": 0,
       "ids": [],
       "ekf": [
-        -0.627,
-        -1.418,
-        0.463
+        -1.365,
+        -0.29,
+        0.477
       ],
       "pnp": [
         null,
@@ -495,17 +367,17 @@
         null
       ],
       "z_err_cm": null,
-      "dist_target_m": 1.551,
-      "flow_n": 202
+      "dist_target_m": 1.396,
+      "flow_n": 159
     },
     {
       "fseq": 474,
       "n_det": 0,
       "ids": [],
       "ekf": [
-        -0.642,
-        -1.416,
-        0.464
+        -1.397,
+        -0.247,
+        0.48
       ],
       "pnp": [
         null,
@@ -513,17 +385,17 @@
         null
       ],
       "z_err_cm": null,
-      "dist_target_m": 1.555,
-      "flow_n": 208
+      "dist_target_m": 1.418,
+      "flow_n": 164
     },
     {
       "fseq": 480,
       "n_det": 0,
       "ids": [],
       "ekf": [
-        -0.655,
-        -1.415,
-        0.463
+        -1.404,
+        -0.189,
+        0.484
       ],
       "pnp": [
         null,
@@ -531,17 +403,17 @@
         null
       ],
       "z_err_cm": null,
-      "dist_target_m": 1.559,
-      "flow_n": 213
+      "dist_target_m": 1.416,
+      "flow_n": 170
     },
     {
       "fseq": 486,
       "n_det": 0,
       "ids": [],
       "ekf": [
-        -0.668,
-        -1.418,
-        0.464
+        -1.406,
+        -0.193,
+        0.493
       ],
       "pnp": [
         null,
@@ -549,17 +421,17 @@
         null
       ],
       "z_err_cm": null,
-      "dist_target_m": 1.567,
-      "flow_n": 219
+      "dist_target_m": 1.42,
+      "flow_n": 176
     },
     {
       "fseq": 492,
       "n_det": 0,
       "ids": [],
       "ekf": [
-        -0.684,
-        -1.417,
-        0.464
+        -1.416,
+        -0.21,
+        0.48
       ],
       "pnp": [
         null,
@@ -567,17 +439,17 @@
         null
       ],
       "z_err_cm": null,
-      "dist_target_m": 1.574,
-      "flow_n": 224
+      "dist_target_m": 1.432,
+      "flow_n": 182
     },
     {
       "fseq": 498,
       "n_det": 0,
       "ids": [],
       "ekf": [
-        -0.7,
-        -1.419,
-        0.464
+        -1.418,
+        -0.203,
+        0.477
       ],
       "pnp": [
         null,
@@ -585,17 +457,17 @@
         null
       ],
       "z_err_cm": null,
-      "dist_target_m": 1.583,
-      "flow_n": 230
+      "dist_target_m": 1.433,
+      "flow_n": 188
     },
     {
       "fseq": 504,
       "n_det": 0,
       "ids": [],
       "ekf": [
-        -0.733,
-        -1.414,
-        0.465
+        -1.417,
+        -0.205,
+        0.478
       ],
       "pnp": [
         null,
@@ -603,17 +475,17 @@
         null
       ],
       "z_err_cm": null,
-      "dist_target_m": 1.593,
-      "flow_n": 238
+      "dist_target_m": 1.432,
+      "flow_n": 193
     },
     {
       "fseq": 510,
       "n_det": 0,
       "ids": [],
       "ekf": [
-        -0.756,
-        -1.414,
-        0.465
+        -1.417,
+        -0.205,
+        0.478
       ],
       "pnp": [
         null,
@@ -621,17 +493,17 @@
         null
       ],
       "z_err_cm": null,
-      "dist_target_m": 1.604,
-      "flow_n": 244
+      "dist_target_m": 1.432,
+      "flow_n": 199
     },
     {
       "fseq": 516,
       "n_det": 0,
       "ids": [],
       "ekf": [
-        -0.778,
-        -1.414,
-        0.466
+        -1.417,
+        -0.207,
+        0.478
       ],
       "pnp": [
         null,
@@ -639,17 +511,17 @@
         null
       ],
       "z_err_cm": null,
-      "dist_target_m": 1.615,
-      "flow_n": 249
+      "dist_target_m": 1.432,
+      "flow_n": 205
     },
     {
       "fseq": 522,
       "n_det": 0,
       "ids": [],
       "ekf": [
-        -0.806,
-        -1.413,
-        0.468
+        -1.418,
+        -0.208,
+        0.479
       ],
       "pnp": [
         null,
@@ -657,8 +529,170 @@
         null
       ],
       "z_err_cm": null,
-      "dist_target_m": 1.627,
+      "dist_target_m": 1.433,
+      "flow_n": 211
+    },
+    {
+      "fseq": 528,
+      "n_det": 0,
+      "ids": [],
+      "ekf": [
+        -1.418,
+        -0.208,
+        0.479
+      ],
+      "pnp": [
+        null,
+        null,
+        null
+      ],
+      "z_err_cm": null,
+      "dist_target_m": 1.434,
+      "flow_n": 217
+    },
+    {
+      "fseq": 534,
+      "n_det": 0,
+      "ids": [],
+      "ekf": [
+        -1.418,
+        -0.207,
+        0.479
+      ],
+      "pnp": [
+        null,
+        null,
+        null
+      ],
+      "z_err_cm": null,
+      "dist_target_m": 1.433,
+      "flow_n": 223
+    },
+    {
+      "fseq": 540,
+      "n_det": 0,
+      "ids": [],
+      "ekf": [
+        -1.419,
+        -0.207,
+        0.479
+      ],
+      "pnp": [
+        null,
+        null,
+        null
+      ],
+      "z_err_cm": null,
+      "dist_target_m": 1.434,
+      "flow_n": 231
+    },
+    {
+      "fseq": 546,
+      "n_det": 0,
+      "ids": [],
+      "ekf": [
+        -1.418,
+        -0.207,
+        0.479
+      ],
+      "pnp": [
+        null,
+        null,
+        null
+      ],
+      "z_err_cm": null,
+      "dist_target_m": 1.433,
+      "flow_n": 237
+    },
+    {
+      "fseq": 552,
+      "n_det": 0,
+      "ids": [],
+      "ekf": [
+        -1.42,
+        -0.207,
+        0.48
+      ],
+      "pnp": [
+        null,
+        null,
+        null
+      ],
+      "z_err_cm": null,
+      "dist_target_m": 1.435,
+      "flow_n": 243
+    },
+    {
+      "fseq": 558,
+      "n_det": 0,
+      "ids": [],
+      "ekf": [
+        -1.418,
+        -0.206,
+        0.479
+      ],
+      "pnp": [
+        null,
+        null,
+        null
+      ],
+      "z_err_cm": null,
+      "dist_target_m": 1.433,
+      "flow_n": 249
+    },
+    {
+      "fseq": 564,
+      "n_det": 0,
+      "ids": [],
+      "ekf": [
+        -1.417,
+        -0.207,
+        0.48
+      ],
+      "pnp": [
+        null,
+        null,
+        null
+      ],
+      "z_err_cm": null,
+      "dist_target_m": 1.433,
       "flow_n": 254
+    },
+    {
+      "fseq": 570,
+      "n_det": 0,
+      "ids": [],
+      "ekf": [
+        -1.417,
+        -0.206,
+        0.48
+      ],
+      "pnp": [
+        null,
+        null,
+        null
+      ],
+      "z_err_cm": null,
+      "dist_target_m": 1.432,
+      "flow_n": 259
+    },
+    {
+      "fseq": 576,
+      "n_det": 0,
+      "ids": [],
+      "ekf": [
+        -1.414,
+        -0.204,
+        0.48
+      ],
+      "pnp": [
+        null,
+        null,
+        null
+      ],
+      "z_err_cm": null,
+      "dist_target_m": 1.429,
+      "flow_n": 265
     }
   ]
 }
