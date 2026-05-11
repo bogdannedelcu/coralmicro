@@ -645,10 +645,9 @@ static int handle_one_frame(int fd) {
     int dx_q = 0, dy_q = 0, dz_q = 0;
     uint8_t conf = 0, dz_conf = 0;
 
-    // P1: texture quality pre-screen (PX4Flow style).  Skip phase-corr
-    // if scene is too uniform — gradient sum below threshold means peak
-    // detection would be random.
-    const uint32_t TEXTURE_MIN_THRESH = 10000;   // ~2.1 mean abs gradient/pixel
+    // P1: texture quality pre-screen (PX4Flow style).  Threshold raised
+    // 10000→15000 — empirically more reliable rejection of weak scenes.
+    const uint32_t TEXTURE_MIN_THRESH = 15000;
     uint32_t texture_quality = compute_texture_quality(s_gray80x60, DST_W, DST_H);
 
     if (gray_crc == s_prev_rgb_crc) {
@@ -686,6 +685,15 @@ static int handle_one_frame(int fd) {
         sentai_flow_phase_corr_compute_dz(s_gray80x60, &dz_q, &dz_conf);
     }
     s_prev_rgb_crc = gray_crc;
+
+    // P6: post-correlation strict reject — drop low-conf peaks entirely
+    // (don't propagate weak/random direction into EKF).
+    const uint32_t POST_CORR_REJECT_CONF = 32;
+    if (conf > 0 && conf < POST_CORR_REJECT_CONF) {
+        dx_q = 0;
+        dy_q = 0;
+        conf = 0;
+    }
 
     // P5 (new): median-of-3 smoothing on best output (dx_best, dy_best)
     // to suppress single-frame phase-corr noise spikes that propagate
