@@ -63,6 +63,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <math.h>     // floorf for warp_translate_bilinear
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -164,6 +165,7 @@ static uint8_t s_rgb_small[DST_W * DST_H * 3];        // 14.4 KB
 static uint8_t s_gray80x60[DST_W * DST_H];            // 4.8 KB  — L0 wide (8×)
 static uint8_t s_gray80x60_center[DST_W * DST_H];     // 4.8 KB  — L1 mid (4× box)
 static uint8_t s_gray80x60_fine[DST_W * DST_H];       // 4.8 KB  — L2 fine (2× box)
+static uint8_t s_gray80x60_warped[DST_W * DST_H];     // 4.8 KB  — warp scratch
 
 #define SOCK_PATH "/tmp/sentai_cam.sock"
 
@@ -303,6 +305,49 @@ static void boxfilter_2x_rgb_to_gray(const uint8_t* rgb_full,
             }
             // 4 pixels × max(77+150+29 = 256) × 255 = 261120.  >>10 = >>(8+2).
             y_out[row * out_w + col] = (uint8_t)(sum >> 10);
+        }
+    }
+}
+
+// Bilinear translation warp — shift gray image by (dx, dy) in pixels.
+// Pixels that go out of bounds are clamped (replicate edge).  Used for
+// the coarse-to-fine pyramid: after L0 finds coarse motion, the L1 input
+// is "pre-shifted" so phase-corr on the warped frame finds only the
+// small residual motion that L0 missed.
+//
+// Inputs in pixel units of the SAME resolution as src/dst.  Sub-pixel
+// dx, dy are handled by bilinear interpolation.
+static void warp_translate_bilinear(const uint8_t* src, uint8_t* dst,
+                                     int w, int h,
+                                     float dx, float dy) {
+    // For each output pixel (x, y), sample input at (x + dx, y + dy).
+    // Negative dx,dy means: output[x,y] = input[x+dx, y+dy], i.e., the
+    // image "shifts" so feature at input(x+dx) appears at output(x).
+    for (int y = 0; y < h; ++y) {
+        float sy = (float)y + dy;
+        int y0 = (int)floorf(sy);
+        float fy = sy - (float)y0;
+        if (y0 < 0)   { y0 = 0;   fy = 0.0f; }
+        if (y0 >= h-1) { y0 = h-2; fy = 1.0f; }
+        int y1 = y0 + 1;
+        for (int x = 0; x < w; ++x) {
+            float sx = (float)x + dx;
+            int x0 = (int)floorf(sx);
+            float fx = sx - (float)x0;
+            if (x0 < 0)   { x0 = 0;   fx = 0.0f; }
+            if (x0 >= w-1) { x0 = w-2; fx = 1.0f; }
+            int x1 = x0 + 1;
+            float a = (float)src[y0 * w + x0];
+            float b = (float)src[y0 * w + x1];
+            float c = (float)src[y1 * w + x0];
+            float d = (float)src[y1 * w + x1];
+            float top = a * (1.0f - fx) + b * fx;
+            float bot = c * (1.0f - fx) + d * fx;
+            float v = top * (1.0f - fy) + bot * fy;
+            int iv = (int)(v + 0.5f);
+            if (iv < 0) iv = 0;
+            if (iv > 255) iv = 255;
+            dst[y * w + x] = (uint8_t)iv;
         }
     }
 }
@@ -515,66 +560,152 @@ static int handle_one_frame(int fd) {
     // Acceptable for the FUSION test — proper per-level state isolation
     // is the next refactor if results warrant it.
     // ─────────────────────────────────────────────────────────────────
+    // COARSE-TO-FINE refinement: L0 motion predicts where L1 features
+    // should have moved; warp L1 frame BY that prediction so phase-corr
+    // sees only the small RESIDUAL.  At small residual phase-corr peaks
+    // are unambiguous (near origin) even on periodic textures.
+    //
+    // Scaling: L0 grid = 8 raw pixels, L1 grid = 4 raw pixels.  So
+    // 1 L0 grid = 2 L1 pixels.  Conversion: dx_L1_px = dx0_mgrid / 500.0
     boxfilter_4x_rgb_to_gray(s_rgb_full, EXPECT_W, EXPECT_H,
                               s_gray80x60_center, DST_W, DST_H);
+
+    float dx_pred_L1 = (float)dx_q / 500.0f;
+    float dy_pred_L1 = (float)dy_q / 500.0f;
+    // Pre-shift L1 input by predicted motion (negate: warp curr toward
+    // alignment with prev_fft cache).
+    warp_translate_bilinear(s_gray80x60_center, s_gray80x60_warped,
+                             DST_W, DST_H, -dx_pred_L1, -dy_pred_L1);
 
     static uint32_t s_prev_center_crc = 0;
     static int32_t  s_last_dx_c = 0;
     static int32_t  s_last_dy_c = 0;
     uint32_t center_crc = 0;
     for (int i = 0; i < DST_W * DST_H; ++i) {
-        center_crc = center_crc * 31u + s_gray80x60_center[i];
+        center_crc = center_crc * 31u + s_gray80x60_warped[i];
     }
 
-    int dx_c = 0, dy_c = 0;
-    uint8_t conf_c = 0;
-    if (center_crc == s_prev_center_crc) {
-        dx_c = s_last_dx_c;
-        dy_c = s_last_dy_c;
-        conf_c = 0;
+    int dx_res_L1 = 0, dy_res_L1 = 0;
+    uint8_t conf_L1 = 0;
+    if (center_crc == s_prev_center_crc && conf > 0) {
+        dx_res_L1 = s_last_dx_c;
+        dy_res_L1 = s_last_dy_c;
+        conf_L1 = 0;
     } else {
-        sentai_flow_phase_corr_compute_at(1, s_gray80x60_center, &dx_c, &dy_c, &conf_c);  // L1 mid
+        sentai_flow_phase_corr_compute_at(1, s_gray80x60_warped,
+                                           &dx_res_L1, &dy_res_L1, &conf_L1);
         const int SAT_LIMIT_MGP = 28000;
-        if (dx_c >  SAT_LIMIT_MGP || dx_c < -SAT_LIMIT_MGP ||
-            dy_c >  SAT_LIMIT_MGP || dy_c < -SAT_LIMIT_MGP) {
-            conf_c = 0;
+        if (dx_res_L1 >  SAT_LIMIT_MGP || dx_res_L1 < -SAT_LIMIT_MGP ||
+            dy_res_L1 >  SAT_LIMIT_MGP || dy_res_L1 < -SAT_LIMIT_MGP) {
+            conf_L1 = 0;
         }
-        s_last_dx_c = dx_c;
-        s_last_dy_c = dy_c;
+        s_last_dx_c = dx_res_L1;
+        s_last_dy_c = dy_res_L1;
     }
     s_prev_center_crc = center_crc;
 
-    // L2 (fine) — 160×120 → 80×60 via 2× box-filter.  Per-grid 3.46 mm
-    // at z=1m — 4× sub-pixel sensitivity vs wide.  Smaller FOV (0.27m)
-    // but still contains the marker cluster at hover position.
+    // Combined L1 motion in L1-mgrid units (1000 mgrid = 1 L1 grid =
+    // half a L0 grid worth of raw pixels).  Equation:
+    //   dx_combined_L1 = (predicted_L0_motion converted to L1) + L1_residual
+    //                  = (dx0_L0_mgrid × 2) + dx_residual_L1_mgrid
+    int dx_c = dx_q * 2 + dx_res_L1;
+    int dy_c = dy_q * 2 + dy_res_L1;
+    // The conf reported is the L1 conf (residual peak quality); if L0
+    // had conf=0 we can't predict so fall back to using L1 raw — but
+    // warping by zero is a no-op, so this happens naturally.
+    uint8_t conf_c = conf_L1;
+
+    // L2 fine — same coarse-to-fine scheme: warp by L1 combined estimate,
+    // then phase-corr finds residual.  Scaling: L1 grid = 4 raw px,
+    // L2 grid = 2 raw px → 1 L1 grid = 2 L2 pixels →
+    //   dx_L2_px = dx_combined_L1_mgrid / 500.0
     boxfilter_2x_rgb_to_gray(s_rgb_full, EXPECT_W, EXPECT_H,
                               s_gray80x60_fine, DST_W, DST_H);
+
+    float dx_pred_L2 = (float)dx_c / 500.0f;
+    float dy_pred_L2 = (float)dy_c / 500.0f;
+    warp_translate_bilinear(s_gray80x60_fine, s_gray80x60_warped,
+                             DST_W, DST_H, -dx_pred_L2, -dy_pred_L2);
 
     static uint32_t s_prev_fine_crc = 0;
     static int32_t  s_last_dx_f = 0;
     static int32_t  s_last_dy_f = 0;
     uint32_t fine_crc = 0;
     for (int i = 0; i < DST_W * DST_H; ++i) {
-        fine_crc = fine_crc * 31u + s_gray80x60_fine[i];
+        fine_crc = fine_crc * 31u + s_gray80x60_warped[i];
     }
 
-    int dx_f = 0, dy_f = 0;
-    uint8_t conf_f = 0;
-    if (fine_crc == s_prev_fine_crc) {
-        dx_f = s_last_dx_f;
-        dy_f = s_last_dy_f;
-        conf_f = 0;
+    int dx_res_L2 = 0, dy_res_L2 = 0;
+    uint8_t conf_L2 = 0;
+    if (fine_crc == s_prev_fine_crc && conf_c > 0) {
+        dx_res_L2 = s_last_dx_f;
+        dy_res_L2 = s_last_dy_f;
+        conf_L2 = 0;
     } else {
-        sentai_flow_phase_corr_compute_at(2, s_gray80x60_fine, &dx_f, &dy_f, &conf_f);  // L2 fine
+        sentai_flow_phase_corr_compute_at(2, s_gray80x60_warped,
+                                           &dx_res_L2, &dy_res_L2, &conf_L2);
         const int SAT_LIMIT_MGP = 28000;
-        if (dx_f >  SAT_LIMIT_MGP || dx_f < -SAT_LIMIT_MGP ||
-            dy_f >  SAT_LIMIT_MGP || dy_f < -SAT_LIMIT_MGP) {
-            conf_f = 0;
+        if (dx_res_L2 >  SAT_LIMIT_MGP || dx_res_L2 < -SAT_LIMIT_MGP ||
+            dy_res_L2 >  SAT_LIMIT_MGP || dy_res_L2 < -SAT_LIMIT_MGP) {
+            conf_L2 = 0;
         }
-        s_last_dx_f = dx_f;
-        s_last_dy_f = dy_f;
+        s_last_dx_f = dx_res_L2;
+        s_last_dy_f = dy_res_L2;
     }
     s_prev_fine_crc = fine_crc;
+
+    // Combined L2 motion: (L1 combined × 2) + L2 residual.
+    int dx_f = dx_c * 2 + dx_res_L2;
+    int dy_f = dy_c * 2 + dy_res_L2;
+    uint8_t conf_f = conf_L2;
+
+    // DEBUG DUMP: write each pyramid level's 80×60 gray buffer to disk
+    // as a PPM (gray triplicated to RGB so any image viewer opens it).
+    // Triggered every N frames (SENTAI_DUMP_PYRAMID_EVERY env, default 60).
+    // Files: <frames_dir>/pyr_L0_<seq>.ppm, pyr_L1_<seq>.ppm, pyr_L2_<seq>.ppm
+    {
+        static int s_pyr_init = 0;
+        static const char* s_pyr_dir = NULL;
+        static int s_pyr_every = 60;
+        if (!s_pyr_init) {
+            s_pyr_init = 1;
+            s_pyr_dir = getenv("SENTAI_DUMP_FRAMES_DIR");
+            const char* en = getenv("SENTAI_DUMP_PYRAMID_EVERY");
+            if (en && *en) {
+                int v = atoi(en);
+                if (v > 0) s_pyr_every = v;
+            }
+            if (s_pyr_dir) {
+                printf("camera_bridge: pyramid dump enabled → %s (every %d frames)\r\n",
+                       s_pyr_dir, s_pyr_every);
+            }
+        }
+        if (s_pyr_dir && (hdr.seq % s_pyr_every) == 0) {
+            const uint8_t* bufs[3] = {
+                s_gray80x60, s_gray80x60_center, s_gray80x60_fine
+            };
+            const char* names[3] = {"L0", "L1", "L2"};
+            uint8_t rgb_out[DST_W * DST_H * 3];
+            for (int b = 0; b < 3; ++b) {
+                // Triplicate gray to RGB
+                for (int i = 0; i < DST_W * DST_H; ++i) {
+                    uint8_t g = bufs[b][i];
+                    rgb_out[i * 3 + 0] = g;
+                    rgb_out[i * 3 + 1] = g;
+                    rgb_out[i * 3 + 2] = g;
+                }
+                char path[512];
+                snprintf(path, sizeof path, "%s/pyr_%s_%06u.ppm",
+                         s_pyr_dir, names[b], (unsigned)hdr.seq);
+                FILE* fp = fopen(path, "wb");
+                if (fp) {
+                    fprintf(fp, "P6\n%d %d\n255\n", DST_W, DST_H);
+                    fwrite(rgb_out, 1, DST_W * DST_H * 3, fp);
+                    fclose(fp);
+                }
+            }
+        }
+    }
 
     uint64_t t1 = now_us();
 

@@ -1,199 +1,40 @@
 {
   "target_z_m": 1.0,
   "hover_s": 15.0,
-  "n_samples": 32,
-  "all4_rate": 0.34375,
-  "any_rate": 0.78125,
-  "dist_mean_m": 0.3605,
-  "dist_max_m": 0.64,
-  "z_mean_cm": 28.7892,
-  "z_rms_cm": 29.38349938315721,
-  "flow_n": 281,
-  "flow_hz": 18.733333333333334,
+  "n_samples": 33,
+  "all4_rate": 0.21212121212121213,
+  "any_rate": 0.696969696969697,
+  "dist_mean_m": 0.3885757575757576,
+  "dist_max_m": 0.65,
+  "z_mean_cm": 27.903478260869566,
+  "z_rms_cm": 28.45713893773826,
+  "flow_n": 300,
+  "flow_hz": 20.0,
   "pass_all": false,
-  "_last_run": "2026-05-11T18:21:54",
+  "_last_run": "2026-05-11T18:38:16",
   "samples": [
     {
-      "fseq": 336,
-      "n_det": 4,
-      "ids": [
-        0,
-        1,
-        2,
-        3
-      ],
-      "ekf": [
-        -0.043,
-        -0.057,
-        1.374
-      ],
-      "pnp": [
-        -0.075,
-        -0.049,
-        1.674
-      ],
-      "z_err_cm": 30.05,
-      "dist_target_m": 0.38,
-      "flow_n": 98
-    },
-    {
-      "fseq": 342,
-      "n_det": 4,
-      "ids": [
-        0,
-        1,
-        2,
-        3
-      ],
-      "ekf": [
-        -0.046,
-        -0.058,
-        1.377
-      ],
-      "pnp": [
-        -0.078,
-        -0.048,
-        1.786
-      ],
-      "z_err_cm": 40.9,
-      "dist_target_m": 0.384,
-      "flow_n": 100
-    },
-    {
-      "fseq": 348,
-      "n_det": 4,
-      "ids": [
-        0,
-        1,
-        2,
-        3
-      ],
-      "ekf": [
-        -0.052,
-        -0.057,
-        1.346
-      ],
-      "pnp": [
-        -0.078,
-        -0.054,
-        1.753
-      ],
-      "z_err_cm": 40.74,
-      "dist_target_m": 0.355,
-      "flow_n": 105
-    },
-    {
-      "fseq": 354,
-      "n_det": 4,
-      "ids": [
-        0,
-        1,
-        2,
-        3
-      ],
-      "ekf": [
-        -0.063,
-        -0.056,
-        1.248
-      ],
-      "pnp": [
-        -0.069,
-        -0.065,
-        1.647
-      ],
-      "z_err_cm": 39.91,
-      "dist_target_m": 0.262,
-      "flow_n": 112
-    },
-    {
-      "fseq": 360,
-      "n_det": 4,
-      "ids": [
-        0,
-        1,
-        2,
-        3
-      ],
-      "ekf": [
-        -0.072,
-        -0.056,
-        1.158
-      ],
-      "pnp": [
-        -0.066,
-        -0.087,
-        1.494
-      ],
-      "z_err_cm": 33.56,
-      "dist_target_m": 0.183,
-      "flow_n": 117
-    },
-    {
-      "fseq": 366,
-      "n_det": 4,
-      "ids": [
-        0,
-        1,
-        2,
-        3
-      ],
-      "ekf": [
-        -0.089,
-        -0.052,
-        1.045
-      ],
-      "pnp": [
-        -0.05,
-        -0.099,
-        1.387
-      ],
-      "z_err_cm": 34.24,
-      "dist_target_m": 0.112,
-      "flow_n": 125
-    },
-    {
-      "fseq": 372,
-      "n_det": 4,
-      "ids": [
-        0,
-        1,
-        2,
-        3
-      ],
-      "ekf": [
-        -0.105,
-        -0.053,
-        0.981
-      ],
-      "pnp": [
-        -0.061,
-        -0.123,
-        1.228
-      ],
-      "z_err_cm": 24.7,
-      "dist_target_m": 0.119,
-      "flow_n": 130
-    },
-    {
       "fseq": 378,
-      "n_det": 2,
+      "n_det": 4,
       "ids": [
+        0,
         1,
-        2
+        2,
+        3
       ],
       "ekf": [
-        -0.12,
-        -0.051,
-        0.946
+        -0.045,
+        -0.063,
+        1.366
       ],
       "pnp": [
-        -0.07,
-        0.03,
-        1.145
+        -0.097,
+        -0.04,
+        1.768
       ],
-      "z_err_cm": 19.87,
-      "dist_target_m": 0.141,
-      "flow_n": 135
+      "z_err_cm": 40.19,
+      "dist_target_m": 0.374,
+      "flow_n": 103
     },
     {
       "fseq": 384,
@@ -205,18 +46,18 @@
         3
       ],
       "ekf": [
-        -0.141,
-        -0.049,
-        0.933
+        -0.057,
+        -0.062,
+        1.334
       ],
       "pnp": [
-        -0.065,
-        -0.173,
-        1.187
+        -0.081,
+        -0.053,
+        1.73
       ],
-      "z_err_cm": 25.38,
-      "dist_target_m": 0.164,
-      "flow_n": 142
+      "z_err_cm": 39.57,
+      "dist_target_m": 0.345,
+      "flow_n": 110
     },
     {
       "fseq": 390,
@@ -228,18 +69,18 @@
         3
       ],
       "ekf": [
-        -0.157,
-        -0.048,
-        0.942
+        -0.071,
+        -0.057,
+        1.244
       ],
       "pnp": [
-        -0.06,
-        -0.199,
-        1.188
+        -0.07,
+        -0.08,
+        1.603
       ],
-      "z_err_cm": 24.57,
-      "dist_target_m": 0.174,
-      "flow_n": 147
+      "z_err_cm": 35.89,
+      "dist_target_m": 0.261,
+      "flow_n": 115
     },
     {
       "fseq": 396,
@@ -251,18 +92,18 @@
         3
       ],
       "ekf": [
-        -0.185,
-        -0.042,
-        0.976
+        -0.085,
+        -0.057,
+        1.152
       ],
       "pnp": [
-        -0.064,
-        -0.229,
-        1.236
+        -0.067,
+        -0.108,
+        1.442
       ],
-      "z_err_cm": 25.99,
-      "dist_target_m": 0.192,
-      "flow_n": 154
+      "z_err_cm": 28.97,
+      "dist_target_m": 0.183,
+      "flow_n": 120
     },
     {
       "fseq": 402,
@@ -274,39 +115,41 @@
         3
       ],
       "ekf": [
-        -0.201,
-        -0.039,
-        0.995
+        -0.105,
+        -0.055,
+        1.04
       ],
       "pnp": [
-        -0.054,
-        -0.254,
-        1.277
+        -0.052,
+        -0.109,
+        1.358
       ],
-      "z_err_cm": 28.22,
-      "dist_target_m": 0.205,
-      "flow_n": 159
+      "z_err_cm": 31.86,
+      "dist_target_m": 0.125,
+      "flow_n": 128
     },
     {
       "fseq": 408,
-      "n_det": 2,
+      "n_det": 4,
       "ids": [
+        0,
         1,
-        2
+        2,
+        3
       ],
       "ekf": [
-        -0.232,
-        -0.036,
-        1.027
+        -0.131,
+        -0.053,
+        0.984
       ],
       "pnp": [
-        -0.046,
-        -0.11,
-        1.252
+        -0.068,
+        -0.14,
+        1.234
       ],
-      "z_err_cm": 22.5,
-      "dist_target_m": 0.236,
-      "flow_n": 166
+      "z_err_cm": 24.99,
+      "dist_target_m": 0.142,
+      "flow_n": 133
     },
     {
       "fseq": 414,
@@ -316,39 +159,41 @@
         2
       ],
       "ekf": [
-        -0.25,
-        -0.032,
-        1.039
+        -0.14,
+        -0.052,
+        0.955
       ],
       "pnp": [
-        -0.042,
-        -0.138,
-        1.281
+        -0.062,
+        -0.003,
+        1.165
       ],
-      "z_err_cm": 24.16,
-      "dist_target_m": 0.255,
-      "flow_n": 171
+      "z_err_cm": 21.05,
+      "dist_target_m": 0.156,
+      "flow_n": 139
     },
     {
       "fseq": 420,
-      "n_det": 2,
+      "n_det": 4,
       "ids": [
+        0,
         1,
-        2
+        2,
+        3
       ],
       "ekf": [
-        -0.278,
-        -0.029,
-        1.046
+        -0.174,
+        -0.052,
+        0.947
       ],
       "pnp": [
-        -0.037,
-        -0.169,
-        1.301
+        -0.065,
+        -0.213,
+        1.204
       ],
-      "z_err_cm": 25.53,
-      "dist_target_m": 0.283,
-      "flow_n": 179
+      "z_err_cm": 25.65,
+      "dist_target_m": 0.189,
+      "flow_n": 147
     },
     {
       "fseq": 426,
@@ -358,18 +203,18 @@
         2
       ],
       "ekf": [
-        -0.296,
-        -0.024,
-        1.044
+        -0.197,
+        -0.05,
+        0.962
       ],
       "pnp": [
-        -0.03,
-        -0.202,
-        1.301
+        -0.065,
+        -0.065,
+        1.164
       ],
-      "z_err_cm": 25.69,
-      "dist_target_m": 0.3,
-      "flow_n": 183
+      "z_err_cm": 20.25,
+      "dist_target_m": 0.206,
+      "flow_n": 152
     },
     {
       "fseq": 432,
@@ -379,18 +224,18 @@
         2
       ],
       "ekf": [
-        -0.317,
-        -0.021,
-        1.037
+        -0.217,
+        -0.052,
+        0.98
       ],
       "pnp": [
-        -0.03,
-        -0.234,
-        1.292
+        -0.039,
+        -0.098,
+        1.23
       ],
-      "z_err_cm": 25.54,
-      "dist_target_m": 0.32,
-      "flow_n": 189
+      "z_err_cm": 24.97,
+      "dist_target_m": 0.224,
+      "flow_n": 157
     },
     {
       "fseq": 438,
@@ -400,18 +245,18 @@
         2
       ],
       "ekf": [
-        -0.341,
-        -0.019,
-        1.027
+        -0.237,
+        -0.049,
+        1.002
       ],
       "pnp": [
-        -0.021,
-        -0.266,
-        1.273
+        -0.065,
+        -0.127,
+        1.228
       ],
-      "z_err_cm": 24.64,
-      "dist_target_m": 0.343,
-      "flow_n": 196
+      "z_err_cm": 22.63,
+      "dist_target_m": 0.243,
+      "flow_n": 163
     },
     {
       "fseq": 444,
@@ -421,18 +266,18 @@
         2
       ],
       "ekf": [
-        -0.365,
-        -0.017,
-        1.016
+        -0.267,
+        -0.047,
+        1.025
       ],
       "pnp": [
-        -0.02,
-        -0.298,
-        1.256
+        -0.062,
+        -0.158,
+        1.251
       ],
-      "z_err_cm": 23.93,
-      "dist_target_m": 0.366,
-      "flow_n": 200
+      "z_err_cm": 22.59,
+      "dist_target_m": 0.272,
+      "flow_n": 171
     },
     {
       "fseq": 450,
@@ -442,18 +287,18 @@
         2
       ],
       "ekf": [
-        -0.396,
-        -0.014,
-        1.005
+        -0.288,
+        -0.045,
+        1.035
       ],
       "pnp": [
-        -0.014,
-        -0.335,
-        1.25
+        -0.056,
+        -0.19,
+        1.275
       ],
-      "z_err_cm": 24.49,
-      "dist_target_m": 0.396,
-      "flow_n": 208
+      "z_err_cm": 24.01,
+      "dist_target_m": 0.294,
+      "flow_n": 176
     },
     {
       "fseq": 456,
@@ -463,78 +308,81 @@
         2
       ],
       "ekf": [
-        -0.415,
-        -0.013,
-        1.0
+        -0.307,
+        -0.045,
+        1.038
       ],
       "pnp": [
-        -0.014,
-        -0.36,
-        1.235
+        -0.055,
+        -0.217,
+        1.275
       ],
-      "z_err_cm": 23.47,
-      "dist_target_m": 0.416,
-      "flow_n": 213
+      "z_err_cm": 23.77,
+      "dist_target_m": 0.312,
+      "flow_n": 182
     },
     {
       "fseq": 462,
-      "n_det": 1,
+      "n_det": 2,
       "ids": [
+        1,
         2
       ],
       "ekf": [
-        -0.444,
-        -0.013,
-        0.997
+        -0.324,
+        -0.044,
+        1.037
       ],
       "pnp": [
-        0.128,
-        -0.357,
-        1.347
+        -0.056,
+        -0.247,
+        1.293
       ],
-      "z_err_cm": 34.97,
-      "dist_target_m": 0.444,
-      "flow_n": 221
+      "z_err_cm": 25.59,
+      "dist_target_m": 0.329,
+      "flow_n": 187
     },
     {
       "fseq": 468,
-      "n_det": 1,
+      "n_det": 2,
       "ids": [
+        1,
         2
       ],
       "ekf": [
-        -0.463,
-        -0.013,
-        0.998
+        -0.347,
+        -0.044,
+        1.031
       ],
       "pnp": [
-        0.122,
-        -0.381,
-        1.334
+        -0.053,
+        -0.252,
+        1.312
       ],
-      "z_err_cm": 33.53,
-      "dist_target_m": 0.463,
-      "flow_n": 226
+      "z_err_cm": 28.17,
+      "dist_target_m": 0.351,
+      "flow_n": 193
     },
     {
       "fseq": 474,
-      "n_det": 1,
+      "n_det": 2,
       "ids": [
+        1,
         2
       ],
       "ekf": [
-        -0.481,
-        -0.015,
-        1.001
+        -0.371,
+        -0.045,
+        1.02
       ],
       "pnp": [
-        0.123,
-        -0.408,
-        1.336
+        -0.054,
+        -0.301,
+        1.264
       ],
-      "z_err_cm": 33.53,
-      "dist_target_m": 0.481,
-      "flow_n": 232
+      "z_err_cm": 24.42,
+      "dist_target_m": 0.374,
+      "flow_n": 201
     },
     {
       "fseq": 480,
@@ -544,63 +392,68 @@
         2
       ],
       "ekf": [
-        -0.501,
-        -0.016,
-        1.003
+        -0.388,
+        -0.046,
+        1.013
       ],
       "pnp": [
-        -0.026,
-        -0.423,
-        1.299
+        -0.056,
+        -0.322,
+        1.253
       ],
-      "z_err_cm": 29.62,
-      "dist_target_m": 0.501,
-      "flow_n": 237
+      "z_err_cm": 24.08,
+      "dist_target_m": 0.391,
+      "flow_n": 206
     },
     {
       "fseq": 486,
-      "n_det": 0,
-      "ids": [],
+      "n_det": 2,
+      "ids": [
+        1,
+        2
+      ],
       "ekf": [
-        -0.517,
-        -0.017,
-        1.005
+        -0.409,
+        -0.05,
+        1.007
       ],
       "pnp": [
-        null,
-        null,
-        null
+        -0.058,
+        -0.324,
+        1.292
       ],
-      "z_err_cm": null,
-      "dist_target_m": 0.517,
-      "flow_n": 242
+      "z_err_cm": 28.47,
+      "dist_target_m": 0.412,
+      "flow_n": 212
     },
     {
       "fseq": 492,
-      "n_det": 0,
-      "ids": [],
+      "n_det": 1,
+      "ids": [
+        1
+      ],
       "ekf": [
-        -0.543,
-        -0.021,
-        1.008
+        -0.424,
+        -0.05,
+        1.004
       ],
       "pnp": [
-        null,
-        null,
-        null
+        -0.191,
+        -0.375,
+        1.25
       ],
-      "z_err_cm": null,
-      "dist_target_m": 0.543,
-      "flow_n": 250
+      "z_err_cm": 24.64,
+      "dist_target_m": 0.427,
+      "flow_n": 218
     },
     {
       "fseq": 498,
       "n_det": 0,
       "ids": [],
       "ekf": [
-        -0.555,
-        -0.023,
-        1.008
+        -0.443,
+        -0.055,
+        1.002
       ],
       "pnp": [
         null,
@@ -608,70 +461,77 @@
         null
       ],
       "z_err_cm": null,
-      "dist_target_m": 0.556,
-      "flow_n": 255
+      "dist_target_m": 0.447,
+      "flow_n": 223
     },
     {
       "fseq": 504,
-      "n_det": 0,
-      "ids": [],
+      "n_det": 1,
+      "ids": [
+        2
+      ],
       "ekf": [
-        -0.578,
-        -0.028,
-        1.008
+        -0.459,
+        -0.058,
+        1.001
       ],
       "pnp": [
-        null,
-        null,
-        null
+        0.061,
+        -0.377,
+        1.323
       ],
-      "z_err_cm": null,
-      "dist_target_m": 0.579,
-      "flow_n": 261
+      "z_err_cm": 32.23,
+      "dist_target_m": 0.462,
+      "flow_n": 228
     },
     {
       "fseq": 510,
-      "n_det": 0,
-      "ids": [],
+      "n_det": 1,
+      "ids": [
+        2
+      ],
       "ekf": [
-        -0.602,
-        -0.033,
-        1.007
+        -0.483,
+        -0.065,
+        1.002
       ],
       "pnp": [
-        null,
-        null,
-        null
+        0.057,
+        -0.404,
+        1.337
       ],
-      "z_err_cm": null,
-      "dist_target_m": 0.603,
-      "flow_n": 269
+      "z_err_cm": 33.45,
+      "dist_target_m": 0.488,
+      "flow_n": 237
     },
     {
       "fseq": 516,
-      "n_det": 0,
-      "ids": [],
+      "n_det": 2,
+      "ids": [
+        1,
+        2
+      ],
       "ekf": [
-        -0.621,
-        -0.037,
-        1.005
+        -0.5,
+        -0.07,
+        1.003
       ],
       "pnp": [
-        null,
-        null,
-        null
+        -0.091,
+        -0.429,
+        1.347
       ],
-      "z_err_cm": null,
-      "dist_target_m": 0.623,
-      "flow_n": 274
+      "z_err_cm": 34.34,
+      "dist_target_m": 0.505,
+      "flow_n": 242
     },
     {
       "fseq": 522,
       "n_det": 0,
       "ids": [],
       "ekf": [
-        -0.639,
-        -0.042,
+        -0.515,
+        -0.074,
         1.004
       ],
       "pnp": [
@@ -680,24 +540,168 @@
         null
       ],
       "z_err_cm": null,
-      "dist_target_m": 0.64,
-      "flow_n": 280
+      "dist_target_m": 0.52,
+      "flow_n": 248
+    },
+    {
+      "fseq": 528,
+      "n_det": 0,
+      "ids": [],
+      "ekf": [
+        -0.535,
+        -0.078,
+        1.005
+      ],
+      "pnp": [
+        null,
+        null,
+        null
+      ],
+      "z_err_cm": null,
+      "dist_target_m": 0.54,
+      "flow_n": 253
+    },
+    {
+      "fseq": 534,
+      "n_det": 0,
+      "ids": [],
+      "ekf": [
+        -0.551,
+        -0.08,
+        1.006
+      ],
+      "pnp": [
+        null,
+        null,
+        null
+      ],
+      "z_err_cm": null,
+      "dist_target_m": 0.557,
+      "flow_n": 259
+    },
+    {
+      "fseq": 540,
+      "n_det": 0,
+      "ids": [],
+      "ekf": [
+        -0.567,
+        -0.086,
+        1.006
+      ],
+      "pnp": [
+        null,
+        null,
+        null
+      ],
+      "z_err_cm": null,
+      "dist_target_m": 0.574,
+      "flow_n": 265
+    },
+    {
+      "fseq": 546,
+      "n_det": 0,
+      "ids": [],
+      "ekf": [
+        -0.588,
+        -0.093,
+        1.006
+      ],
+      "pnp": [
+        null,
+        null,
+        null
+      ],
+      "z_err_cm": null,
+      "dist_target_m": 0.595,
+      "flow_n": 273
+    },
+    {
+      "fseq": 552,
+      "n_det": 0,
+      "ids": [],
+      "ekf": [
+        -0.603,
+        -0.098,
+        1.005
+      ],
+      "pnp": [
+        null,
+        null,
+        null
+      ],
+      "z_err_cm": null,
+      "dist_target_m": 0.611,
+      "flow_n": 279
+    },
+    {
+      "fseq": 558,
+      "n_det": 0,
+      "ids": [],
+      "ekf": [
+        -0.616,
+        -0.102,
+        1.005
+      ],
+      "pnp": [
+        null,
+        null,
+        null
+      ],
+      "z_err_cm": null,
+      "dist_target_m": 0.625,
+      "flow_n": 284
+    },
+    {
+      "fseq": 564,
+      "n_det": 0,
+      "ids": [],
+      "ekf": [
+        -0.63,
+        -0.106,
+        1.004
+      ],
+      "pnp": [
+        null,
+        null,
+        null
+      ],
+      "z_err_cm": null,
+      "dist_target_m": 0.639,
+      "flow_n": 290
+    },
+    {
+      "fseq": 570,
+      "n_det": 0,
+      "ids": [],
+      "ekf": [
+        -0.641,
+        -0.111,
+        1.003
+      ],
+      "pnp": [
+        null,
+        null,
+        null
+      ],
+      "z_err_cm": null,
+      "dist_target_m": 0.65,
+      "flow_n": 296
     }
   ],
   "pipeline_stats": {
-    "n_records": 281,
+    "n_records": 300,
     "fusion_picks": {
-      "L0_fallback": 51,
-      "L0": 204,
-      "L1": 15,
-      "L2": 11
+      "L1_refined": 71,
+      "L2_refined": 214,
+      "L0_raw": 14,
+      "L0_fallback": 1
     },
-    "L0_avg_conf": 189.66548042704628,
-    "L0_zero_pct": 18.505338078291814,
-    "L1_avg_conf": 189.26334519572953,
-    "L1_zero_pct": 18.505338078291814,
-    "L2_avg_conf": 184.82918149466192,
-    "L2_zero_pct": 18.14946619217082
+    "L0_avg_conf": 190.87666666666667,
+    "L0_zero_pct": 18.333333333333332,
+    "L1_avg_conf": 234.44,
+    "L1_zero_pct": 1.6666666666666667,
+    "L2_avg_conf": 170.75333333333333,
+    "L2_zero_pct": 19.666666666666664
   },
   "pipeline_records": [
     {
@@ -706,11 +710,11 @@
       "L0_conf": 0,
       "L1_dx": 0,
       "L1_dy": 0,
-      "L1_conf": 0,
+      "L1_conf": 255,
       "L2_dx": 0,
       "L2_dy": 0,
       "L2_conf": 0,
-      "used": "L0_fallback"
+      "used": "L1_refined"
     },
     {
       "L0_dx": 0,
@@ -718,11 +722,11 @@
       "L0_conf": 0,
       "L1_dx": 0,
       "L1_dy": 0,
-      "L1_conf": 0,
+      "L1_conf": 255,
       "L2_dx": 0,
       "L2_dy": 0,
       "L2_conf": 0,
-      "used": "L0_fallback"
+      "used": "L1_refined"
     },
     {
       "L0_dx": 0,
@@ -730,11 +734,11 @@
       "L0_conf": 0,
       "L1_dx": 0,
       "L1_dy": 0,
-      "L1_conf": 0,
+      "L1_conf": 255,
       "L2_dx": 0,
       "L2_dy": 0,
       "L2_conf": 0,
-      "used": "L0_fallback"
+      "used": "L1_refined"
     },
     {
       "L0_dx": 0,
@@ -742,11 +746,11 @@
       "L0_conf": 0,
       "L1_dx": 0,
       "L1_dy": 0,
-      "L1_conf": 0,
+      "L1_conf": 255,
       "L2_dx": 0,
       "L2_dy": 0,
       "L2_conf": 0,
-      "used": "L0_fallback"
+      "used": "L1_refined"
     },
     {
       "L0_dx": 0,
@@ -754,11 +758,11 @@
       "L0_conf": 0,
       "L1_dx": 0,
       "L1_dy": 0,
-      "L1_conf": 0,
+      "L1_conf": 255,
       "L2_dx": 0,
       "L2_dy": 0,
       "L2_conf": 0,
-      "used": "L0_fallback"
+      "used": "L1_refined"
     },
     {
       "L0_dx": 0,
@@ -766,11 +770,11 @@
       "L0_conf": 0,
       "L1_dx": 0,
       "L1_dy": 0,
-      "L1_conf": 0,
+      "L1_conf": 255,
       "L2_dx": 0,
       "L2_dy": 0,
       "L2_conf": 0,
-      "used": "L0_fallback"
+      "used": "L1_refined"
     },
     {
       "L0_dx": 0,
@@ -778,11 +782,11 @@
       "L0_conf": 0,
       "L1_dx": 0,
       "L1_dy": 0,
-      "L1_conf": 0,
+      "L1_conf": 255,
       "L2_dx": 0,
       "L2_dy": 0,
       "L2_conf": 0,
-      "used": "L0_fallback"
+      "used": "L1_refined"
     },
     {
       "L0_dx": 0,
@@ -790,11 +794,11 @@
       "L0_conf": 0,
       "L1_dx": 0,
       "L1_dy": 0,
-      "L1_conf": 0,
+      "L1_conf": 255,
       "L2_dx": 0,
       "L2_dy": 0,
       "L2_conf": 0,
-      "used": "L0_fallback"
+      "used": "L1_refined"
     },
     {
       "L0_dx": 0,
@@ -802,11 +806,11 @@
       "L0_conf": 0,
       "L1_dx": 0,
       "L1_dy": 0,
-      "L1_conf": 0,
+      "L1_conf": 255,
       "L2_dx": 0,
       "L2_dy": 0,
       "L2_conf": 0,
-      "used": "L0_fallback"
+      "used": "L1_refined"
     },
     {
       "L0_dx": 0,
@@ -814,11 +818,11 @@
       "L0_conf": 0,
       "L1_dx": 0,
       "L1_dy": 0,
-      "L1_conf": 0,
+      "L1_conf": 255,
       "L2_dx": 0,
       "L2_dy": 0,
       "L2_conf": 0,
-      "used": "L0_fallback"
+      "used": "L1_refined"
     },
     {
       "L0_dx": 0,
@@ -826,11 +830,11 @@
       "L0_conf": 0,
       "L1_dx": 0,
       "L1_dy": 0,
-      "L1_conf": 0,
+      "L1_conf": 255,
       "L2_dx": 0,
       "L2_dy": 0,
       "L2_conf": 0,
-      "used": "L0_fallback"
+      "used": "L1_refined"
     },
     {
       "L0_dx": 0,
@@ -838,11 +842,11 @@
       "L0_conf": 0,
       "L1_dx": 0,
       "L1_dy": 0,
-      "L1_conf": 0,
+      "L1_conf": 255,
       "L2_dx": 0,
       "L2_dy": 0,
       "L2_conf": 0,
-      "used": "L0_fallback"
+      "used": "L1_refined"
     },
     {
       "L0_dx": 0,
@@ -850,11 +854,11 @@
       "L0_conf": 0,
       "L1_dx": 0,
       "L1_dy": 0,
-      "L1_conf": 0,
+      "L1_conf": 255,
       "L2_dx": 0,
       "L2_dy": 0,
       "L2_conf": 0,
-      "used": "L0_fallback"
+      "used": "L1_refined"
     },
     {
       "L0_dx": 0,
@@ -862,11 +866,11 @@
       "L0_conf": 0,
       "L1_dx": 0,
       "L1_dy": 0,
-      "L1_conf": 0,
+      "L1_conf": 255,
       "L2_dx": 0,
       "L2_dy": 0,
       "L2_conf": 0,
-      "used": "L0_fallback"
+      "used": "L1_refined"
     },
     {
       "L0_dx": 0,
@@ -874,11 +878,11 @@
       "L0_conf": 0,
       "L1_dx": 0,
       "L1_dy": 0,
-      "L1_conf": 0,
+      "L1_conf": 255,
       "L2_dx": 0,
       "L2_dy": 0,
       "L2_conf": 0,
-      "used": "L0_fallback"
+      "used": "L1_refined"
     },
     {
       "L0_dx": 0,
@@ -886,11 +890,11 @@
       "L0_conf": 0,
       "L1_dx": 0,
       "L1_dy": 0,
-      "L1_conf": 0,
+      "L1_conf": 255,
       "L2_dx": 0,
       "L2_dy": 0,
       "L2_conf": 0,
-      "used": "L0_fallback"
+      "used": "L1_refined"
     },
     {
       "L0_dx": 0,
@@ -898,11 +902,11 @@
       "L0_conf": 0,
       "L1_dx": 0,
       "L1_dy": 0,
-      "L1_conf": 0,
+      "L1_conf": 255,
       "L2_dx": 0,
       "L2_dy": 0,
       "L2_conf": 0,
-      "used": "L0_fallback"
+      "used": "L1_refined"
     },
     {
       "L0_dx": 0,
@@ -910,11 +914,11 @@
       "L0_conf": 0,
       "L1_dx": 0,
       "L1_dy": 0,
-      "L1_conf": 0,
+      "L1_conf": 255,
       "L2_dx": 0,
       "L2_dy": 0,
       "L2_conf": 0,
-      "used": "L0_fallback"
+      "used": "L1_refined"
     },
     {
       "L0_dx": 0,
@@ -922,11 +926,11 @@
       "L0_conf": 0,
       "L1_dx": 0,
       "L1_dy": 0,
-      "L1_conf": 0,
+      "L1_conf": 255,
       "L2_dx": 0,
       "L2_dy": 0,
       "L2_conf": 0,
-      "used": "L0_fallback"
+      "used": "L1_refined"
     },
     {
       "L0_dx": 0,
@@ -934,11 +938,11 @@
       "L0_conf": 0,
       "L1_dx": 0,
       "L1_dy": 0,
-      "L1_conf": 0,
+      "L1_conf": 255,
       "L2_dx": 0,
       "L2_dy": 0,
       "L2_conf": 0,
-      "used": "L0_fallback"
+      "used": "L1_refined"
     },
     {
       "L0_dx": 0,
@@ -946,11 +950,11 @@
       "L0_conf": 0,
       "L1_dx": 0,
       "L1_dy": 0,
-      "L1_conf": 0,
+      "L1_conf": 255,
       "L2_dx": 0,
       "L2_dy": 0,
       "L2_conf": 0,
-      "used": "L0_fallback"
+      "used": "L1_refined"
     },
     {
       "L0_dx": 0,
@@ -958,11 +962,11 @@
       "L0_conf": 0,
       "L1_dx": 0,
       "L1_dy": 0,
-      "L1_conf": 0,
+      "L1_conf": 255,
       "L2_dx": 0,
       "L2_dy": 0,
       "L2_conf": 0,
-      "used": "L0_fallback"
+      "used": "L1_refined"
     },
     {
       "L0_dx": 0,
@@ -970,11 +974,11 @@
       "L0_conf": 0,
       "L1_dx": 0,
       "L1_dy": 0,
-      "L1_conf": 0,
+      "L1_conf": 255,
       "L2_dx": 0,
       "L2_dy": 0,
       "L2_conf": 0,
-      "used": "L0_fallback"
+      "used": "L1_refined"
     },
     {
       "L0_dx": 0,
@@ -982,11 +986,11 @@
       "L0_conf": 0,
       "L1_dx": 0,
       "L1_dy": 0,
-      "L1_conf": 0,
+      "L1_conf": 255,
       "L2_dx": 0,
       "L2_dy": 0,
       "L2_conf": 0,
-      "used": "L0_fallback"
+      "used": "L1_refined"
     },
     {
       "L0_dx": 0,
@@ -994,11 +998,11 @@
       "L0_conf": 0,
       "L1_dx": 0,
       "L1_dy": 0,
-      "L1_conf": 0,
+      "L1_conf": 255,
       "L2_dx": 0,
       "L2_dy": 0,
       "L2_conf": 0,
-      "used": "L0_fallback"
+      "used": "L1_refined"
     },
     {
       "L0_dx": 0,
@@ -1006,11 +1010,11 @@
       "L0_conf": 0,
       "L1_dx": 0,
       "L1_dy": 0,
-      "L1_conf": 0,
+      "L1_conf": 255,
       "L2_dx": 0,
       "L2_dy": 0,
       "L2_conf": 0,
-      "used": "L0_fallback"
+      "used": "L1_refined"
     },
     {
       "L0_dx": 0,
@@ -1018,11 +1022,11 @@
       "L0_conf": 0,
       "L1_dx": 0,
       "L1_dy": 0,
-      "L1_conf": 0,
+      "L1_conf": 255,
       "L2_dx": 0,
       "L2_dy": 0,
       "L2_conf": 0,
-      "used": "L0_fallback"
+      "used": "L1_refined"
     },
     {
       "L0_dx": 0,
@@ -1030,11 +1034,11 @@
       "L0_conf": 0,
       "L1_dx": 0,
       "L1_dy": 0,
-      "L1_conf": 0,
+      "L1_conf": 255,
       "L2_dx": 0,
       "L2_dy": 0,
       "L2_conf": 0,
-      "used": "L0_fallback"
+      "used": "L1_refined"
     },
     {
       "L0_dx": 0,
@@ -1042,11 +1046,11 @@
       "L0_conf": 0,
       "L1_dx": 0,
       "L1_dy": 0,
-      "L1_conf": 0,
+      "L1_conf": 255,
       "L2_dx": 0,
       "L2_dy": 0,
       "L2_conf": 0,
-      "used": "L0_fallback"
+      "used": "L1_refined"
     },
     {
       "L0_dx": 0,
@@ -1054,11 +1058,11 @@
       "L0_conf": 0,
       "L1_dx": 0,
       "L1_dy": 0,
-      "L1_conf": 0,
+      "L1_conf": 255,
       "L2_dx": 0,
       "L2_dy": 0,
       "L2_conf": 0,
-      "used": "L0_fallback"
+      "used": "L1_refined"
     },
     {
       "L0_dx": 0,
@@ -1066,11 +1070,11 @@
       "L0_conf": 0,
       "L1_dx": 0,
       "L1_dy": 0,
-      "L1_conf": 0,
+      "L1_conf": 255,
       "L2_dx": 0,
       "L2_dy": 0,
       "L2_conf": 0,
-      "used": "L0_fallback"
+      "used": "L1_refined"
     },
     {
       "L0_dx": 0,
@@ -1078,11 +1082,11 @@
       "L0_conf": 0,
       "L1_dx": 0,
       "L1_dy": 0,
-      "L1_conf": 0,
+      "L1_conf": 255,
       "L2_dx": 0,
       "L2_dy": 0,
       "L2_conf": 0,
-      "used": "L0_fallback"
+      "used": "L1_refined"
     },
     {
       "L0_dx": 0,
@@ -1090,11 +1094,11 @@
       "L0_conf": 0,
       "L1_dx": 0,
       "L1_dy": 0,
-      "L1_conf": 0,
+      "L1_conf": 255,
       "L2_dx": 0,
       "L2_dy": 0,
       "L2_conf": 0,
-      "used": "L0_fallback"
+      "used": "L1_refined"
     },
     {
       "L0_dx": 0,
@@ -1102,11 +1106,11 @@
       "L0_conf": 0,
       "L1_dx": 0,
       "L1_dy": 0,
-      "L1_conf": 0,
+      "L1_conf": 255,
       "L2_dx": 0,
       "L2_dy": 0,
       "L2_conf": 0,
-      "used": "L0_fallback"
+      "used": "L1_refined"
     },
     {
       "L0_dx": 0,
@@ -1114,11 +1118,11 @@
       "L0_conf": 0,
       "L1_dx": 0,
       "L1_dy": 0,
-      "L1_conf": 0,
+      "L1_conf": 255,
       "L2_dx": 0,
       "L2_dy": 0,
       "L2_conf": 0,
-      "used": "L0_fallback"
+      "used": "L1_refined"
     },
     {
       "L0_dx": 0,
@@ -1126,11 +1130,11 @@
       "L0_conf": 0,
       "L1_dx": 0,
       "L1_dy": 0,
-      "L1_conf": 0,
+      "L1_conf": 255,
       "L2_dx": 0,
       "L2_dy": 0,
       "L2_conf": 0,
-      "used": "L0_fallback"
+      "used": "L1_refined"
     },
     {
       "L0_dx": 0,
@@ -1138,11 +1142,11 @@
       "L0_conf": 0,
       "L1_dx": 0,
       "L1_dy": 0,
-      "L1_conf": 0,
+      "L1_conf": 255,
       "L2_dx": 0,
       "L2_dy": 0,
       "L2_conf": 0,
-      "used": "L0_fallback"
+      "used": "L1_refined"
     },
     {
       "L0_dx": 0,
@@ -1150,11 +1154,11 @@
       "L0_conf": 0,
       "L1_dx": 0,
       "L1_dy": 0,
-      "L1_conf": 0,
+      "L1_conf": 255,
       "L2_dx": 0,
       "L2_dy": 0,
       "L2_conf": 0,
-      "used": "L0_fallback"
+      "used": "L1_refined"
     },
     {
       "L0_dx": 0,
@@ -1162,11 +1166,11 @@
       "L0_conf": 0,
       "L1_dx": 0,
       "L1_dy": 0,
-      "L1_conf": 0,
+      "L1_conf": 255,
       "L2_dx": 0,
       "L2_dy": 0,
       "L2_conf": 0,
-      "used": "L0_fallback"
+      "used": "L1_refined"
     },
     {
       "L0_dx": 0,
@@ -1174,11 +1178,11 @@
       "L0_conf": 0,
       "L1_dx": 0,
       "L1_dy": 0,
-      "L1_conf": 0,
+      "L1_conf": 255,
       "L2_dx": 0,
       "L2_dy": 0,
       "L2_conf": 0,
-      "used": "L0_fallback"
+      "used": "L1_refined"
     },
     {
       "L0_dx": 0,
@@ -1186,11 +1190,11 @@
       "L0_conf": 0,
       "L1_dx": 0,
       "L1_dy": 0,
-      "L1_conf": 0,
+      "L1_conf": 255,
       "L2_dx": 0,
       "L2_dy": 0,
       "L2_conf": 0,
-      "used": "L0_fallback"
+      "used": "L1_refined"
     },
     {
       "L0_dx": 0,
@@ -1198,11 +1202,11 @@
       "L0_conf": 0,
       "L1_dx": 0,
       "L1_dy": 0,
-      "L1_conf": 0,
+      "L1_conf": 255,
       "L2_dx": 0,
       "L2_dy": 0,
       "L2_conf": 0,
-      "used": "L0_fallback"
+      "used": "L1_refined"
     },
     {
       "L0_dx": 0,
@@ -1210,11 +1214,11 @@
       "L0_conf": 0,
       "L1_dx": 0,
       "L1_dy": 0,
-      "L1_conf": 0,
+      "L1_conf": 255,
       "L2_dx": 0,
       "L2_dy": 0,
       "L2_conf": 0,
-      "used": "L0_fallback"
+      "used": "L1_refined"
     },
     {
       "L0_dx": 0,
@@ -1222,11 +1226,11 @@
       "L0_conf": 0,
       "L1_dx": 0,
       "L1_dy": 0,
-      "L1_conf": 0,
+      "L1_conf": 255,
       "L2_dx": 0,
       "L2_dy": 0,
       "L2_conf": 0,
-      "used": "L0_fallback"
+      "used": "L1_refined"
     },
     {
       "L0_dx": 0,
@@ -1234,11 +1238,11 @@
       "L0_conf": 0,
       "L1_dx": 0,
       "L1_dy": 0,
-      "L1_conf": 0,
+      "L1_conf": 255,
       "L2_dx": 0,
       "L2_dy": 0,
       "L2_conf": 0,
-      "used": "L0_fallback"
+      "used": "L1_refined"
     },
     {
       "L0_dx": 0,
@@ -1246,11 +1250,11 @@
       "L0_conf": 0,
       "L1_dx": 0,
       "L1_dy": 0,
-      "L1_conf": 0,
+      "L1_conf": 255,
       "L2_dx": 0,
       "L2_dy": 0,
       "L2_conf": 0,
-      "used": "L0_fallback"
+      "used": "L1_refined"
     },
     {
       "L0_dx": 0,
@@ -1258,11 +1262,11 @@
       "L0_conf": 0,
       "L1_dx": 0,
       "L1_dy": 0,
-      "L1_conf": 0,
+      "L1_conf": 255,
       "L2_dx": 0,
       "L2_dy": 0,
       "L2_conf": 0,
-      "used": "L0_fallback"
+      "used": "L1_refined"
     },
     {
       "L0_dx": 0,
@@ -1270,11 +1274,11 @@
       "L0_conf": 0,
       "L1_dx": 0,
       "L1_dy": 0,
-      "L1_conf": 0,
+      "L1_conf": 255,
       "L2_dx": 0,
       "L2_dy": 0,
       "L2_conf": 0,
-      "used": "L0_fallback"
+      "used": "L1_refined"
     },
     {
       "L0_dx": 0,
@@ -1282,11 +1286,11 @@
       "L0_conf": 0,
       "L1_dx": 0,
       "L1_dy": 0,
-      "L1_conf": 0,
+      "L1_conf": 255,
       "L2_dx": 0,
       "L2_dy": 0,
       "L2_conf": 0,
-      "used": "L0_fallback"
+      "used": "L1_refined"
     },
     {
       "L0_dx": 0,
@@ -1294,11 +1298,11 @@
       "L0_conf": 0,
       "L1_dx": 0,
       "L1_dy": 0,
-      "L1_conf": 0,
+      "L1_conf": 255,
       "L2_dx": 0,
       "L2_dy": 0,
       "L2_conf": 0,
-      "used": "L0_fallback"
+      "used": "L1_refined"
     },
     {
       "L0_dx": 0,
@@ -1306,11 +1310,47 @@
       "L0_conf": 0,
       "L1_dx": 0,
       "L1_dy": 0,
-      "L1_conf": 0,
+      "L1_conf": 255,
       "L2_dx": 0,
       "L2_dy": 0,
       "L2_conf": 0,
-      "used": "L0_fallback"
+      "used": "L1_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 0,
+      "L1_dx": 0,
+      "L1_dy": 0,
+      "L1_conf": 255,
+      "L2_dx": 0,
+      "L2_dy": 0,
+      "L2_conf": 0,
+      "used": "L1_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 0,
+      "L1_dx": 0,
+      "L1_dy": 0,
+      "L1_conf": 255,
+      "L2_dx": 0,
+      "L2_dy": 0,
+      "L2_conf": 0,
+      "used": "L1_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 0,
+      "L1_dx": 0,
+      "L1_dy": 0,
+      "L1_conf": 255,
+      "L2_dx": 0,
+      "L2_dy": 0,
+      "L2_conf": 0,
+      "used": "L1_refined"
     },
     {
       "L0_dx": 0,
@@ -1322,7 +1362,2359 @@
       "L2_dx": 0,
       "L2_dy": 0,
       "L2_conf": 255,
-      "used": "L0"
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": -1200,
+      "L0_dy": 200,
+      "L0_conf": 255,
+      "L1_dx": -5300,
+      "L1_dy": 300,
+      "L1_conf": 255,
+      "L2_dx": -23700,
+      "L2_dy": 700,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": -1000,
+      "L0_dy": -1000,
+      "L0_conf": 255,
+      "L1_dx": -2900,
+      "L1_dy": -6100,
+      "L1_conf": 255,
+      "L2_dx": -3700,
+      "L2_dy": -28300,
+      "L2_conf": 255,
+      "used": "L1_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 2000,
+      "L1_dy": 2000,
+      "L1_conf": 255,
+      "L2_dx": 13100,
+      "L2_dy": 18900,
+      "L2_conf": 251,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": -900,
+      "L1_dy": -100,
+      "L1_conf": 255,
+      "L2_dx": -9800,
+      "L2_dy": -4200,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": -1000,
+      "L1_dy": -1000,
+      "L1_conf": 255,
+      "L2_dx": -3000,
+      "L2_dy": -5000,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": -100,
+      "L0_dy": 100,
+      "L0_conf": 255,
+      "L1_dx": 800,
+      "L1_dy": 200,
+      "L1_conf": 255,
+      "L2_dx": 7700,
+      "L2_dy": 2300,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 200,
+      "L1_dy": -200,
+      "L1_conf": 255,
+      "L2_dx": -1600,
+      "L2_dy": -400,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 0,
+      "L1_dy": 0,
+      "L1_conf": 255,
+      "L2_dx": -1200,
+      "L2_dy": 200,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 22200,
+      "L0_dy": -18200,
+      "L0_conf": 38,
+      "L1_dx": 43400,
+      "L1_dy": -37400,
+      "L1_conf": 0,
+      "L2_dx": 85800,
+      "L2_dy": -75800,
+      "L2_conf": 0,
+      "used": "L0_raw"
+    },
+    {
+      "L0_dx": 2100,
+      "L0_dy": -7100,
+      "L0_conf": 51,
+      "L1_dx": 3200,
+      "L1_dy": -15200,
+      "L1_conf": 0,
+      "L2_dx": 5400,
+      "L2_dy": -31400,
+      "L2_conf": 0,
+      "used": "L0_raw"
+    },
+    {
+      "L0_dx": -1100,
+      "L0_dy": 100,
+      "L0_conf": 146,
+      "L1_dx": -2200,
+      "L1_dy": 200,
+      "L1_conf": 114,
+      "L2_dx": -4400,
+      "L2_dy": 400,
+      "L2_conf": 220,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": -11900,
+      "L0_dy": 0,
+      "L0_conf": 23,
+      "L1_dx": 6200,
+      "L1_dy": 0,
+      "L1_conf": 0,
+      "L2_dx": -10600,
+      "L2_dy": -30900,
+      "L2_conf": 0,
+      "used": "L0_raw"
+    },
+    {
+      "L0_dx": -14900,
+      "L0_dy": 0,
+      "L0_conf": 24,
+      "L1_dx": -30000,
+      "L1_dy": 200,
+      "L1_conf": 30,
+      "L2_dx": -79000,
+      "L2_dy": 26400,
+      "L2_conf": 22,
+      "used": "L0_raw"
+    },
+    {
+      "L0_dx": 200,
+      "L0_dy": -1100,
+      "L0_conf": 29,
+      "L1_dx": -29600,
+      "L1_dy": -2200,
+      "L1_conf": 0,
+      "L2_dx": -55100,
+      "L2_dy": 3500,
+      "L2_conf": 52,
+      "used": "L0_raw"
+    },
+    {
+      "L0_dx": -3900,
+      "L0_dy": -29100,
+      "L0_conf": 0,
+      "L1_dx": 2200,
+      "L1_dy": -58200,
+      "L1_conf": 48,
+      "L2_dx": 2500,
+      "L2_dy": -116500,
+      "L2_conf": 44,
+      "used": "L0_fallback"
+    },
+    {
+      "L0_dx": 17000,
+      "L0_dy": -14000,
+      "L0_conf": 25,
+      "L1_dx": 21100,
+      "L1_dy": -2100,
+      "L1_conf": 32,
+      "L2_dx": 42100,
+      "L2_dy": -4100,
+      "L2_conf": 49,
+      "used": "L0_raw"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 100,
+      "L0_conf": 39,
+      "L1_dx": -8900,
+      "L1_dy": 100,
+      "L1_conf": 30,
+      "L2_dx": -17700,
+      "L2_dy": 100,
+      "L2_conf": 58,
+      "used": "L0_raw"
+    },
+    {
+      "L0_dx": -200,
+      "L0_dy": 3200,
+      "L0_conf": 47,
+      "L1_dx": -1400,
+      "L1_dy": 6400,
+      "L1_conf": 50,
+      "L2_dx": -2800,
+      "L2_dy": 12800,
+      "L2_conf": 57,
+      "used": "L0_raw"
+    },
+    {
+      "L0_dx": 1200,
+      "L0_dy": 1900,
+      "L0_conf": 42,
+      "L1_dx": 11500,
+      "L1_dy": -5300,
+      "L1_conf": 31,
+      "L2_dx": 12100,
+      "L2_dy": -10700,
+      "L2_conf": 30,
+      "used": "L0_raw"
+    },
+    {
+      "L0_dx": -200,
+      "L0_dy": 2200,
+      "L0_conf": 39,
+      "L1_dx": -600,
+      "L1_dy": 4600,
+      "L1_conf": 42,
+      "L2_dx": -28200,
+      "L2_dy": 9200,
+      "L2_conf": 25,
+      "used": "L0_raw"
+    },
+    {
+      "L0_dx": 1000,
+      "L0_dy": 1100,
+      "L0_conf": 70,
+      "L1_dx": 33000,
+      "L1_dy": 2200,
+      "L1_conf": 0,
+      "L2_dx": 89000,
+      "L2_dy": 18400,
+      "L2_conf": 24,
+      "used": "L0_raw"
+    },
+    {
+      "L0_dx": -3200,
+      "L0_dy": 3200,
+      "L0_conf": 68,
+      "L1_dx": -11300,
+      "L1_dy": 19300,
+      "L1_conf": 47,
+      "L2_dx": -13600,
+      "L2_dy": 49600,
+      "L2_conf": 29,
+      "used": "L0_raw"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 48,
+      "L1_dx": 0,
+      "L1_dy": -3000,
+      "L1_conf": 56,
+      "L2_dx": 32000,
+      "L2_dy": 21000,
+      "L2_conf": 0,
+      "used": "L0_raw"
+    },
+    {
+      "L0_dx": 2000,
+      "L0_dy": 2000,
+      "L0_conf": 44,
+      "L1_dx": 21800,
+      "L1_dy": 4200,
+      "L1_conf": 35,
+      "L2_dx": 49600,
+      "L2_dy": 8400,
+      "L2_conf": 25,
+      "used": "L0_raw"
+    },
+    {
+      "L0_dx": 1000,
+      "L0_dy": 900,
+      "L0_conf": 37,
+      "L1_dx": 2000,
+      "L1_dy": 1800,
+      "L1_conf": 90,
+      "L2_dx": 3000,
+      "L2_dy": 3600,
+      "L2_conf": 25,
+      "used": "L1_refined"
+    },
+    {
+      "L0_dx": 1200,
+      "L0_dy": 1800,
+      "L0_conf": 45,
+      "L1_dx": 3300,
+      "L1_dy": 7700,
+      "L1_conf": 82,
+      "L2_dx": 35700,
+      "L2_dy": 34300,
+      "L2_conf": 0,
+      "used": "L1_refined"
+    },
+    {
+      "L0_dx": 1000,
+      "L0_dy": 2000,
+      "L0_conf": 80,
+      "L1_dx": 4100,
+      "L1_dy": 5900,
+      "L1_conf": 87,
+      "L2_dx": 10200,
+      "L2_dy": 8800,
+      "L2_conf": 30,
+      "used": "L1_refined"
+    },
+    {
+      "L0_dx": -1200,
+      "L0_dy": 1100,
+      "L0_conf": 60,
+      "L1_dx": -4400,
+      "L1_dy": 1100,
+      "L1_conf": 90,
+      "L2_dx": -7700,
+      "L2_dy": -900,
+      "L2_conf": 29,
+      "used": "L1_refined"
+    },
+    {
+      "L0_dx": -1200,
+      "L0_dy": 2200,
+      "L0_conf": 59,
+      "L1_dx": 800,
+      "L1_dy": 8200,
+      "L1_conf": 72,
+      "L2_dx": -17400,
+      "L2_dy": 24400,
+      "L2_conf": 25,
+      "used": "L1_refined"
+    },
+    {
+      "L0_dx": -1100,
+      "L0_dy": -1000,
+      "L0_conf": 79,
+      "L1_dx": -200,
+      "L1_dy": -6000,
+      "L1_conf": 103,
+      "L2_dx": 10500,
+      "L2_dy": -32900,
+      "L2_conf": 34,
+      "used": "L1_refined"
+    },
+    {
+      "L0_dx": -1200,
+      "L0_dy": 1200,
+      "L0_conf": 71,
+      "L1_dx": -1300,
+      "L1_dy": 7300,
+      "L1_conf": 93,
+      "L2_dx": 11400,
+      "L2_dy": -2400,
+      "L2_conf": 23,
+      "used": "L1_refined"
+    },
+    {
+      "L0_dx": -100,
+      "L0_dy": 1200,
+      "L0_conf": 76,
+      "L1_dx": 2800,
+      "L1_dy": 3400,
+      "L1_conf": 118,
+      "L2_dx": 14600,
+      "L2_dy": -300,
+      "L2_conf": 74,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": -100,
+      "L0_dy": 100,
+      "L0_conf": 70,
+      "L1_dx": 800,
+      "L1_dy": -800,
+      "L1_conf": 119,
+      "L2_dx": -300,
+      "L2_dy": -10700,
+      "L2_conf": 35,
+      "used": "L1_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 104,
+      "L1_dx": -100,
+      "L1_dy": 1100,
+      "L1_conf": 116,
+      "L2_dx": -1300,
+      "L2_dy": 6300,
+      "L2_conf": 54,
+      "used": "L1_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 152,
+      "L1_dx": 1000,
+      "L1_dy": 1100,
+      "L1_conf": 84,
+      "L2_dx": 6000,
+      "L2_dy": 3200,
+      "L2_conf": 240,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": -100,
+      "L0_dy": 100,
+      "L0_conf": 187,
+      "L1_dx": -300,
+      "L1_dy": 1300,
+      "L1_conf": 130,
+      "L2_dx": -2800,
+      "L2_dy": 4800,
+      "L2_conf": 119,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 223,
+      "L1_dx": -200,
+      "L1_dy": 1200,
+      "L1_conf": 116,
+      "L2_dx": 700,
+      "L2_dy": 2300,
+      "L2_conf": 137,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 0,
+      "L1_dy": 1100,
+      "L1_conf": 124,
+      "L2_dx": -100,
+      "L2_dy": 3300,
+      "L2_conf": 237,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 100,
+      "L1_dy": -100,
+      "L1_conf": 181,
+      "L2_dx": 100,
+      "L2_dy": -1100,
+      "L2_conf": 210,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 0,
+      "L1_dy": 0,
+      "L1_conf": 209,
+      "L2_dx": 1200,
+      "L2_dy": -200,
+      "L2_conf": 211,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": -100,
+      "L0_dy": 100,
+      "L0_conf": 255,
+      "L1_dx": 900,
+      "L1_dy": 100,
+      "L1_conf": 255,
+      "L2_dx": 5900,
+      "L2_dy": 100,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 0,
+      "L1_dy": 0,
+      "L1_conf": 255,
+      "L2_dx": -2000,
+      "L2_dy": 0,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 100,
+      "L1_dy": -100,
+      "L1_conf": 255,
+      "L2_dx": -900,
+      "L2_dy": -100,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": -100,
+      "L0_dy": 100,
+      "L0_conf": 255,
+      "L1_dx": -200,
+      "L1_dy": 200,
+      "L1_conf": 255,
+      "L2_dx": -400,
+      "L2_dy": 300,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": -100,
+      "L1_dy": 100,
+      "L1_conf": 255,
+      "L2_dx": -400,
+      "L2_dy": 400,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 100,
+      "L1_dy": -100,
+      "L1_conf": 255,
+      "L2_dx": 200,
+      "L2_dy": -200,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": -100,
+      "L0_dy": 100,
+      "L0_conf": 255,
+      "L1_dx": -200,
+      "L1_dy": 200,
+      "L1_conf": 255,
+      "L2_dx": -400,
+      "L2_dy": 400,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": -100,
+      "L1_dy": 100,
+      "L1_conf": 255,
+      "L2_dx": -300,
+      "L2_dy": 300,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": -900,
+      "L1_dy": -100,
+      "L1_conf": 255,
+      "L2_dx": -4700,
+      "L2_dy": -300,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 400,
+      "L1_dy": -400,
+      "L1_conf": 255,
+      "L2_dx": 2900,
+      "L2_dy": -900,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 0,
+      "L1_dy": 0,
+      "L1_conf": 255,
+      "L2_dx": 100,
+      "L2_dy": 900,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 200,
+      "L1_dy": -200,
+      "L1_conf": 255,
+      "L2_dx": -800,
+      "L2_dy": -200,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 300,
+      "L1_dy": -300,
+      "L1_conf": 255,
+      "L2_dx": 700,
+      "L2_dy": -700,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 100,
+      "L1_dy": -100,
+      "L1_conf": 255,
+      "L2_dx": 200,
+      "L2_dy": 900,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 100,
+      "L1_dy": -100,
+      "L1_conf": 255,
+      "L2_dx": 400,
+      "L2_dy": -400,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 200,
+      "L1_dy": -200,
+      "L1_conf": 255,
+      "L2_dx": 300,
+      "L2_dy": 700,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 100,
+      "L1_dy": -100,
+      "L1_conf": 255,
+      "L2_dx": 100,
+      "L2_dy": 900,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 300,
+      "L1_dy": -300,
+      "L1_conf": 255,
+      "L2_dx": 600,
+      "L2_dy": -600,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 200,
+      "L0_dy": -200,
+      "L0_conf": 227,
+      "L1_dx": -700,
+      "L1_dy": -400,
+      "L1_conf": 194,
+      "L2_dx": -5500,
+      "L2_dy": 300,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 200,
+      "L1_dy": 800,
+      "L1_conf": 255,
+      "L2_dx": 1300,
+      "L2_dy": 5800,
+      "L2_conf": 168,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 300,
+      "L1_dy": -300,
+      "L1_conf": 255,
+      "L2_dx": 600,
+      "L2_dy": -1600,
+      "L2_conf": 231,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 300,
+      "L1_dy": -300,
+      "L1_conf": 255,
+      "L2_dx": -400,
+      "L2_dy": -600,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 200,
+      "L1_dy": -300,
+      "L1_conf": 246,
+      "L2_dx": 400,
+      "L2_dy": 400,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 300,
+      "L1_dy": -300,
+      "L1_conf": 255,
+      "L2_dx": 500,
+      "L2_dy": 500,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 300,
+      "L1_dy": -300,
+      "L1_conf": 255,
+      "L2_dx": 600,
+      "L2_dy": 400,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 300,
+      "L1_dy": -300,
+      "L1_conf": 255,
+      "L2_dx": 600,
+      "L2_dy": 400,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 100,
+      "L1_dy": 900,
+      "L1_conf": 255,
+      "L2_dx": -900,
+      "L2_dy": 5900,
+      "L2_conf": 235,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 300,
+      "L1_dy": -300,
+      "L1_conf": 255,
+      "L2_dx": 600,
+      "L2_dy": -2700,
+      "L2_conf": 236,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 300,
+      "L1_dy": -300,
+      "L1_conf": 255,
+      "L2_dx": -500,
+      "L2_dy": 500,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 300,
+      "L1_dy": -300,
+      "L1_conf": 255,
+      "L2_dx": 600,
+      "L2_dy": 400,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 1000,
+      "L0_conf": 255,
+      "L1_dx": -1000,
+      "L1_dy": 5000,
+      "L1_conf": 255,
+      "L2_dx": -5800,
+      "L2_dy": 21800,
+      "L2_conf": 157,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 1200,
+      "L1_dy": -2200,
+      "L1_conf": 255,
+      "L2_dx": 7500,
+      "L2_dy": -18500,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 100,
+      "L1_dy": -100,
+      "L1_conf": 255,
+      "L2_dx": -1600,
+      "L2_dy": 3600,
+      "L2_conf": 196,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": -100,
+      "L0_dy": 1100,
+      "L0_conf": 255,
+      "L1_dx": -100,
+      "L1_dy": 5100,
+      "L1_conf": 255,
+      "L2_dx": 0,
+      "L2_dy": 22000,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 100,
+      "L1_dy": -2100,
+      "L1_conf": 255,
+      "L2_dx": 0,
+      "L2_dy": -17000,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 100,
+      "L1_dy": -100,
+      "L1_conf": 255,
+      "L2_dx": 300,
+      "L2_dy": 3700,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": -100,
+      "L0_dy": 1100,
+      "L0_conf": 255,
+      "L1_dx": -200,
+      "L1_dy": 5100,
+      "L1_conf": 255,
+      "L2_dx": -500,
+      "L2_dy": 23300,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": -100,
+      "L0_dy": 1100,
+      "L0_conf": 255,
+      "L1_dx": -200,
+      "L1_dy": 3200,
+      "L1_conf": 255,
+      "L2_dx": -1500,
+      "L2_dy": 4500,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 300,
+      "L1_dy": -2300,
+      "L1_conf": 255,
+      "L2_dx": 600,
+      "L2_dy": -14600,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 1000,
+      "L0_conf": 255,
+      "L1_dx": 100,
+      "L1_dy": 6000,
+      "L1_conf": 254,
+      "L2_dx": -800,
+      "L2_dy": 32100,
+      "L2_conf": 255,
+      "used": "L1_refined"
+    },
+    {
+      "L0_dx": -100,
+      "L0_dy": 1100,
+      "L0_conf": 255,
+      "L1_dx": -100,
+      "L1_dy": 3100,
+      "L1_conf": 255,
+      "L2_dx": 0,
+      "L2_dy": 2000,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": -100,
+      "L0_dy": 100,
+      "L0_conf": 255,
+      "L1_dx": -200,
+      "L1_dy": -2800,
+      "L1_conf": 255,
+      "L2_dx": -400,
+      "L2_dy": -18600,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 0,
+      "L1_dy": 0,
+      "L1_conf": 255,
+      "L2_dx": 0,
+      "L2_dy": 6000,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 1000,
+      "L0_conf": 255,
+      "L1_dx": 0,
+      "L1_dy": 6100,
+      "L1_conf": 252,
+      "L2_dx": -1000,
+      "L2_dy": 27200,
+      "L2_conf": 255,
+      "used": "L1_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 0,
+      "L1_dy": -2000,
+      "L1_conf": 255,
+      "L2_dx": -200,
+      "L2_dy": -18800,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": -100,
+      "L0_dy": 100,
+      "L0_conf": 255,
+      "L1_dx": -200,
+      "L1_dy": 200,
+      "L1_conf": 255,
+      "L2_dx": -200,
+      "L2_dy": 3200,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": -100,
+      "L0_dy": 1100,
+      "L0_conf": 255,
+      "L1_dx": -400,
+      "L1_dy": 6400,
+      "L1_conf": 249,
+      "L2_dx": -1000,
+      "L2_dy": 29000,
+      "L2_conf": 255,
+      "used": "L1_refined"
+    },
+    {
+      "L0_dx": -100,
+      "L0_dy": 1100,
+      "L0_conf": 255,
+      "L1_dx": -100,
+      "L1_dy": 3100,
+      "L1_conf": 255,
+      "L2_dx": 1000,
+      "L2_dy": 2000,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 0,
+      "L1_dy": -2100,
+      "L1_conf": 246,
+      "L2_dx": 1000,
+      "L2_dy": -13200,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 1000,
+      "L0_conf": 255,
+      "L1_dx": 0,
+      "L1_dy": 6100,
+      "L1_conf": 248,
+      "L2_dx": -1000,
+      "L2_dy": 31200,
+      "L2_conf": 255,
+      "used": "L1_refined"
+    },
+    {
+      "L0_dx": -100,
+      "L0_dy": 1100,
+      "L0_conf": 255,
+      "L1_dx": -100,
+      "L1_dy": 3100,
+      "L1_conf": 255,
+      "L2_dx": 900,
+      "L2_dy": 3200,
+      "L2_conf": 200,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 200,
+      "L1_dy": -2200,
+      "L1_conf": 255,
+      "L2_dx": 200,
+      "L2_dy": -13200,
+      "L2_conf": 241,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 300,
+      "L1_dy": -300,
+      "L1_conf": 255,
+      "L2_dx": 700,
+      "L2_dy": 3300,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": -100,
+      "L0_dy": 1100,
+      "L0_conf": 255,
+      "L1_dx": 0,
+      "L1_dy": 5000,
+      "L1_conf": 255,
+      "L2_dx": 0,
+      "L2_dy": 24100,
+      "L2_conf": 142,
+      "used": "L1_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 1100,
+      "L1_dy": -2100,
+      "L1_conf": 255,
+      "L2_dx": 5000,
+      "L2_dy": -17000,
+      "L2_conf": 175,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": -900,
+      "L1_dy": -100,
+      "L1_conf": 255,
+      "L2_dx": -6900,
+      "L2_dy": 4900,
+      "L2_conf": 249,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 200,
+      "L1_dy": 800,
+      "L1_conf": 255,
+      "L2_dx": 2200,
+      "L2_dy": 5800,
+      "L2_conf": 221,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 100,
+      "L1_dy": 900,
+      "L1_conf": 255,
+      "L2_dx": 1300,
+      "L2_dy": 3800,
+      "L2_conf": 166,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 100,
+      "L1_dy": 900,
+      "L1_conf": 255,
+      "L2_dx": 200,
+      "L2_dy": 2800,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 1100,
+      "L0_conf": 255,
+      "L1_dx": -900,
+      "L1_dy": 5100,
+      "L1_conf": 255,
+      "L2_dx": -5800,
+      "L2_dy": 18100,
+      "L2_conf": 88,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 100,
+      "L1_dy": -1100,
+      "L1_conf": 255,
+      "L2_dx": 2200,
+      "L2_dy": -12200,
+      "L2_conf": 120,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 1100,
+      "L1_dy": 1000,
+      "L1_conf": 255,
+      "L2_dx": 6300,
+      "L2_dy": 6900,
+      "L2_conf": 221,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": -200,
+      "L1_dy": 1200,
+      "L1_conf": 255,
+      "L2_dx": -1200,
+      "L2_dy": 3200,
+      "L2_conf": 157,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": -100,
+      "L1_dy": 1100,
+      "L1_conf": 255,
+      "L2_dx": -200,
+      "L2_dy": 2100,
+      "L2_conf": 204,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 100,
+      "L1_dy": 900,
+      "L1_conf": 255,
+      "L2_dx": 200,
+      "L2_dy": 2800,
+      "L2_conf": 230,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 100,
+      "L1_dy": 900,
+      "L1_conf": 255,
+      "L2_dx": 1200,
+      "L2_dy": 3900,
+      "L2_conf": 207,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 100,
+      "L1_dy": 900,
+      "L1_conf": 255,
+      "L2_dx": 400,
+      "L2_dy": 1600,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 400,
+      "L1_dy": -400,
+      "L1_conf": 255,
+      "L2_dx": 800,
+      "L2_dy": -2900,
+      "L2_conf": 184,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 200,
+      "L1_dy": 800,
+      "L1_conf": 255,
+      "L2_dx": -800,
+      "L2_dy": 5800,
+      "L2_conf": 94,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 100,
+      "L1_dy": 900,
+      "L1_conf": 255,
+      "L2_dx": 300,
+      "L2_dy": 1600,
+      "L2_conf": 196,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 100,
+      "L1_dy": 900,
+      "L1_conf": 255,
+      "L2_dx": 100,
+      "L2_dy": 2900,
+      "L2_conf": 237,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": -1000,
+      "L1_dy": 1000,
+      "L1_conf": 255,
+      "L2_dx": -5000,
+      "L2_dy": 3000,
+      "L2_conf": 223,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 200,
+      "L1_dy": 800,
+      "L1_conf": 255,
+      "L2_dx": 2500,
+      "L2_dy": 1500,
+      "L2_conf": 208,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": -100,
+      "L1_dy": 1100,
+      "L1_conf": 255,
+      "L2_dx": -300,
+      "L2_dy": 4300,
+      "L2_conf": 139,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 200,
+      "L1_dy": 800,
+      "L1_conf": 255,
+      "L2_dx": 500,
+      "L2_dy": 1500,
+      "L2_conf": 221,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 0,
+      "L1_dy": 1000,
+      "L1_conf": 255,
+      "L2_dx": 100,
+      "L2_dy": 1800,
+      "L2_conf": 118,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 100,
+      "L1_dy": 900,
+      "L1_conf": 255,
+      "L2_dx": 200,
+      "L2_dy": 1700,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": -200,
+      "L1_dy": 1200,
+      "L1_conf": 255,
+      "L2_dx": -400,
+      "L2_dy": 2300,
+      "L2_conf": 201,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 100,
+      "L1_dy": 900,
+      "L1_conf": 255,
+      "L2_dx": 200,
+      "L2_dy": 1800,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": -1000,
+      "L1_dy": 1000,
+      "L1_conf": 255,
+      "L2_dx": -4900,
+      "L2_dy": 1800,
+      "L2_conf": 174,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 0,
+      "L1_dy": -100,
+      "L1_conf": 255,
+      "L2_dx": 3100,
+      "L2_dy": -1300,
+      "L2_conf": 158,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": -1100,
+      "L0_dy": 0,
+      "L0_conf": 235,
+      "L1_dx": -5300,
+      "L1_dy": 1100,
+      "L1_conf": 255,
+      "L2_dx": -22500,
+      "L2_dy": 5100,
+      "L2_conf": 120,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 200,
+      "L0_dy": -200,
+      "L0_conf": 255,
+      "L1_dx": 2600,
+      "L1_dy": -600,
+      "L1_conf": 249,
+      "L2_dx": 20400,
+      "L2_dy": -3300,
+      "L2_conf": 104,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": -100,
+      "L1_dy": 1100,
+      "L1_conf": 255,
+      "L2_dx": -4200,
+      "L2_dy": 6200,
+      "L2_conf": 117,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 0,
+      "L1_dy": -100,
+      "L1_conf": 255,
+      "L2_dx": 1100,
+      "L2_dy": -2300,
+      "L2_conf": 238,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 100,
+      "L1_dy": -100,
+      "L1_conf": 255,
+      "L2_dx": 1400,
+      "L2_dy": -400,
+      "L2_conf": 216,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 400,
+      "L1_dy": -400,
+      "L1_conf": 255,
+      "L2_dx": 800,
+      "L2_dy": -800,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 100,
+      "L1_dy": -100,
+      "L1_conf": 255,
+      "L2_dx": -1000,
+      "L2_dy": 2000,
+      "L2_conf": 137,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": -100,
+      "L1_dy": 0,
+      "L1_conf": 255,
+      "L2_dx": 1000,
+      "L2_dy": -200,
+      "L2_conf": 252,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 300,
+      "L1_dy": -300,
+      "L1_conf": 255,
+      "L2_dx": 1700,
+      "L2_dy": -700,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 200,
+      "L1_dy": 900,
+      "L1_conf": 255,
+      "L2_dx": 500,
+      "L2_dy": 4700,
+      "L2_conf": 172,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 0,
+      "L1_dy": -100,
+      "L1_conf": 255,
+      "L2_dx": -100,
+      "L2_dy": -100,
+      "L2_conf": 182,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": -100,
+      "L1_dy": 0,
+      "L1_conf": 255,
+      "L2_dx": 900,
+      "L2_dy": -100,
+      "L2_conf": 206,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 200,
+      "L1_dy": 900,
+      "L1_conf": 240,
+      "L2_dx": -600,
+      "L2_dy": 1800,
+      "L2_conf": 146,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": -200,
+      "L0_dy": 1200,
+      "L0_conf": 255,
+      "L1_dx": -400,
+      "L1_dy": 5400,
+      "L1_conf": 191,
+      "L2_dx": -800,
+      "L2_dy": 13800,
+      "L2_conf": 134,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 100,
+      "L1_dy": -2200,
+      "L1_conf": 206,
+      "L2_dx": 100,
+      "L2_dy": -11400,
+      "L2_conf": 103,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 200,
+      "L1_dy": 900,
+      "L1_conf": 255,
+      "L2_dx": 300,
+      "L2_dy": 8900,
+      "L2_conf": 140,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 200,
+      "L1_dy": 800,
+      "L1_conf": 255,
+      "L2_dx": -700,
+      "L2_dy": 1700,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 300,
+      "L1_dy": 800,
+      "L1_conf": 255,
+      "L2_dx": 800,
+      "L2_dy": 1500,
+      "L2_conf": 203,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 100,
+      "L1_dy": -100,
+      "L1_conf": 255,
+      "L2_dx": 200,
+      "L2_dy": -200,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 0,
+      "L1_dy": -100,
+      "L1_conf": 243,
+      "L2_dx": 1100,
+      "L2_dy": -300,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 0,
+      "L1_dy": 0,
+      "L1_conf": 255,
+      "L2_dx": 1100,
+      "L2_dy": -100,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 0,
+      "L1_dy": 0,
+      "L1_conf": 255,
+      "L2_dx": -100,
+      "L2_dy": 100,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 300,
+      "L1_dy": -300,
+      "L1_conf": 255,
+      "L2_dx": 600,
+      "L2_dy": -600,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 100,
+      "L1_dy": -100,
+      "L1_conf": 255,
+      "L2_dx": -900,
+      "L2_dy": -100,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 100,
+      "L1_dy": -100,
+      "L1_conf": 255,
+      "L2_dx": 200,
+      "L2_dy": -200,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 100,
+      "L1_dy": -100,
+      "L1_conf": 255,
+      "L2_dx": 200,
+      "L2_dy": -200,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 200,
+      "L1_dy": -200,
+      "L1_conf": 255,
+      "L2_dx": 1500,
+      "L2_dy": -500,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 0,
+      "L1_dy": -100,
+      "L1_conf": 255,
+      "L2_dx": -100,
+      "L2_dy": -100,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 200,
+      "L1_dy": -200,
+      "L1_conf": 255,
+      "L2_dx": 300,
+      "L2_dy": -300,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 300,
+      "L1_dy": -300,
+      "L1_conf": 255,
+      "L2_dx": 600,
+      "L2_dy": -600,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 1200,
+      "L1_dy": -200,
+      "L1_conf": 255,
+      "L2_dx": 5300,
+      "L2_dy": -300,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 200,
+      "L1_dy": 900,
+      "L1_conf": 245,
+      "L2_dx": -2600,
+      "L2_dy": 1800,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 200,
+      "L1_dy": 900,
+      "L1_conf": 255,
+      "L2_dx": -600,
+      "L2_dy": 1800,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 300,
+      "L1_dy": -300,
+      "L1_conf": 255,
+      "L2_dx": 500,
+      "L2_dy": -500,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": -200,
+      "L1_dy": 1200,
+      "L1_conf": 204,
+      "L2_dx": -500,
+      "L2_dy": 5500,
+      "L2_conf": 208,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 1000,
+      "L1_dy": 900,
+      "L1_conf": 248,
+      "L2_dx": 4900,
+      "L2_dy": 1800,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": -900,
+      "L1_dy": -200,
+      "L1_conf": 255,
+      "L2_dx": -6900,
+      "L2_dy": -300,
+      "L2_conf": 216,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 300,
+      "L1_dy": -300,
+      "L1_conf": 255,
+      "L2_dx": 2600,
+      "L2_dy": -600,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 300,
+      "L1_dy": -300,
+      "L1_conf": 255,
+      "L2_dx": 700,
+      "L2_dy": -700,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 0,
+      "L1_dy": -100,
+      "L1_conf": 255,
+      "L2_dx": 100,
+      "L2_dy": -300,
+      "L2_conf": 242,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": -900,
+      "L1_dy": -100,
+      "L1_conf": 255,
+      "L2_dx": -4700,
+      "L2_dy": -300,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 100,
+      "L1_dy": -100,
+      "L1_conf": 255,
+      "L2_dx": 3400,
+      "L2_dy": -400,
+      "L2_conf": 215,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": -100,
+      "L1_dy": 0,
+      "L1_conf": 255,
+      "L2_dx": 1000,
+      "L2_dy": -200,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 200,
+      "L1_dy": -200,
+      "L1_conf": 255,
+      "L2_dx": 1600,
+      "L2_dy": -600,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 300,
+      "L1_dy": -300,
+      "L1_conf": 255,
+      "L2_dx": 700,
+      "L2_dy": -700,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": -100,
+      "L1_dy": 1100,
+      "L1_conf": 255,
+      "L2_dx": -100,
+      "L2_dy": 5100,
+      "L2_conf": 177,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 0,
+      "L1_dy": -100,
+      "L1_conf": 255,
+      "L2_dx": 1000,
+      "L2_dy": -1200,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 300,
+      "L1_dy": -300,
+      "L1_conf": 255,
+      "L2_dx": 600,
+      "L2_dy": -700,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 100,
+      "L1_dy": 900,
+      "L1_conf": 255,
+      "L2_dx": 300,
+      "L2_dy": 4700,
+      "L2_conf": 144,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 0,
+      "L1_dy": -100,
+      "L1_conf": 255,
+      "L2_dx": 1200,
+      "L2_dy": -1400,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 100,
+      "L1_dy": -100,
+      "L1_conf": 255,
+      "L2_dx": 300,
+      "L2_dy": -300,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 300,
+      "L1_dy": -300,
+      "L1_conf": 255,
+      "L2_dx": 600,
+      "L2_dy": -600,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": -100,
+      "L1_dy": 1100,
+      "L1_conf": 255,
+      "L2_dx": -300,
+      "L2_dy": 6300,
+      "L2_conf": 196,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 0,
+      "L1_dy": 0,
+      "L1_conf": 255,
+      "L2_dx": -100,
+      "L2_dy": -900,
+      "L2_conf": 225,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 0,
+      "L1_dy": 0,
+      "L1_conf": 255,
+      "L2_dx": 100,
+      "L2_dy": -100,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": -200,
+      "L1_dy": 1200,
+      "L1_conf": 255,
+      "L2_dx": -600,
+      "L2_dy": 6600,
+      "L2_conf": 133,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 200,
+      "L1_dy": -200,
+      "L1_conf": 255,
+      "L2_dx": 1500,
+      "L2_dy": -2500,
+      "L2_conf": 193,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 100,
+      "L1_dy": -100,
+      "L1_conf": 255,
+      "L2_dx": 200,
+      "L2_dy": -300,
+      "L2_conf": 248,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 200,
+      "L1_dy": -200,
+      "L1_conf": 255,
+      "L2_dx": 500,
+      "L2_dy": -500,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": -100,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 900,
+      "L1_dy": 1000,
+      "L1_conf": 255,
+      "L2_dx": 4800,
+      "L2_dy": 5000,
+      "L2_conf": 182,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 0,
+      "L1_dy": 0,
+      "L1_conf": 255,
+      "L2_dx": -2100,
+      "L2_dy": -900,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 100,
+      "L1_dy": -100,
+      "L1_conf": 255,
+      "L2_dx": 100,
+      "L2_dy": 900,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 100,
+      "L1_dy": -100,
+      "L1_conf": 255,
+      "L2_dx": 100,
+      "L2_dy": 900,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 100,
+      "L1_dy": -100,
+      "L1_conf": 255,
+      "L2_dx": 100,
+      "L2_dy": 900,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 0,
+      "L1_dy": 0,
+      "L1_conf": 255,
+      "L2_dx": 0,
+      "L2_dy": 1000,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 0,
+      "L1_dy": 0,
+      "L1_conf": 255,
+      "L2_dx": 1000,
+      "L2_dy": 1100,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 100,
+      "L1_dy": -100,
+      "L1_conf": 255,
+      "L2_dx": 100,
+      "L2_dy": 900,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 100,
+      "L1_dy": -100,
+      "L1_conf": 255,
+      "L2_dx": 100,
+      "L2_dy": 900,
+      "L2_conf": 254,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 100,
+      "L1_dy": -100,
+      "L1_conf": 255,
+      "L2_dx": 100,
+      "L2_dy": 900,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 0,
+      "L1_dy": -100,
+      "L1_conf": 255,
+      "L2_dx": 1100,
+      "L2_dy": 700,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 300,
+      "L1_dy": -300,
+      "L1_conf": 255,
+      "L2_dx": 800,
+      "L2_dy": -800,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 1000,
+      "L1_dy": 1100,
+      "L1_conf": 255,
+      "L2_dx": 5000,
+      "L2_dy": 6200,
+      "L2_conf": 216,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 300,
+      "L1_dy": -300,
+      "L1_conf": 255,
+      "L2_dx": -1400,
+      "L2_dy": -2600,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": -100,
+      "L1_dy": 1100,
+      "L1_conf": 255,
+      "L2_dx": -1400,
+      "L2_dy": 6400,
+      "L2_conf": 219,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": -100,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 800,
+      "L1_dy": 1100,
+      "L1_conf": 255,
+      "L2_dx": 4600,
+      "L2_dy": 3200,
+      "L2_conf": 255,
+      "used": "L2_refined"
     },
     {
       "L0_dx": 0,
@@ -1333,596 +3725,32 @@
       "L1_conf": 255,
       "L2_dx": -1000,
       "L2_dy": -1000,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": -1000,
-      "L0_dy": -1000,
-      "L0_conf": 255,
-      "L1_dx": -2100,
-      "L1_dy": -2000,
-      "L1_conf": 255,
-      "L2_dx": -3000,
-      "L2_dy": -3000,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": -1100,
-      "L1_dy": -900,
-      "L1_conf": 255,
-      "L2_dx": -900,
-      "L2_dy": -2100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": -100,
-      "L1_dy": 1100,
-      "L1_conf": 255,
-      "L2_dx": 0,
-      "L2_dy": 1000,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": -100,
-      "L1_dy": 100,
-      "L1_conf": 255,
-      "L2_dx": -100,
-      "L2_dy": 200,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": -100,
-      "L0_dy": 100,
-      "L0_conf": 255,
-      "L1_dx": 100,
-      "L1_dy": -1100,
-      "L1_conf": 255,
-      "L2_dx": 100,
-      "L2_dy": -2100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": -100,
-      "L0_dy": 100,
-      "L0_conf": 255,
-      "L1_dx": -100,
-      "L1_dy": 100,
-      "L1_conf": 255,
-      "L2_dx": 1000,
-      "L2_dy": 0,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": 100,
-      "L1_dy": -100,
-      "L1_conf": 255,
-      "L2_dx": -1100,
-      "L2_dy": 100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 18700,
-      "L0_dy": -13700,
-      "L0_conf": 69,
-      "L1_dx": 900,
-      "L1_dy": -30900,
-      "L1_conf": 0,
-      "L2_dx": 3000,
-      "L2_dy": -27000,
-      "L2_conf": 63,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 2200,
-      "L0_dy": -7200,
-      "L0_conf": 103,
-      "L1_dx": 0,
-      "L1_dy": 0,
-      "L1_conf": 167,
-      "L2_dx": 0,
-      "L2_dy": 0,
-      "L2_conf": 158,
-      "used": "L1"
-    },
-    {
-      "L0_dx": -1200,
-      "L0_dy": 200,
-      "L0_conf": 108,
-      "L1_dx": 1000,
-      "L1_dy": 0,
-      "L1_conf": 255,
-      "L2_dx": 2200,
-      "L2_dy": -100,
-      "L2_conf": 152,
-      "used": "L1"
-    },
-    {
-      "L0_dx": 32200,
-      "L0_dy": -200,
-      "L0_conf": 0,
-      "L1_dx": 22900,
-      "L1_dy": 100,
-      "L1_conf": 42,
-      "L2_dx": 19000,
-      "L2_dy": 0,
-      "L2_conf": 27,
-      "used": "L1"
-    },
-    {
-      "L0_dx": 8800,
-      "L0_dy": 19200,
-      "L0_conf": 27,
-      "L1_dx": -21000,
-      "L1_dy": 0,
-      "L1_conf": 26,
-      "L2_dx": 100,
-      "L2_dy": -100,
-      "L2_conf": 59,
-      "used": "L2"
-    },
-    {
-      "L0_dx": 19000,
-      "L0_dy": 0,
-      "L0_conf": 28,
-      "L1_dx": 1100,
-      "L1_dy": -100,
-      "L1_conf": 45,
-      "L2_dx": -16200,
-      "L2_dy": 100,
-      "L2_conf": 41,
-      "used": "L1"
-    },
-    {
-      "L0_dx": -1100,
-      "L0_dy": 100,
-      "L0_conf": 26,
-      "L1_dx": -100,
-      "L1_dy": 100,
-      "L1_conf": 43,
-      "L2_dx": -100,
-      "L2_dy": 25100,
-      "L2_conf": 25,
-      "used": "L1"
-    },
-    {
-      "L0_dx": -900,
-      "L0_dy": -4100,
-      "L0_conf": 35,
-      "L1_dx": 7900,
-      "L1_dy": 0,
-      "L1_conf": 30,
-      "L2_dx": 1000,
-      "L2_dy": 0,
-      "L2_conf": 38,
-      "used": "L2"
-    },
-    {
-      "L0_dx": -2100,
-      "L0_dy": -900,
-      "L0_conf": 41,
-      "L1_dx": 20100,
-      "L1_dy": -100,
-      "L1_conf": 27,
-      "L2_dx": 0,
-      "L2_dy": 0,
-      "L2_conf": 47,
-      "used": "L2"
-    },
-    {
-      "L0_dx": -200,
-      "L0_dy": 4200,
-      "L0_conf": 54,
-      "L1_dx": 10000,
-      "L1_dy": 0,
-      "L1_conf": 31,
-      "L2_dx": -1100,
-      "L2_dy": 100,
-      "L2_conf": 55,
-      "used": "L2"
-    },
-    {
-      "L0_dx": -100,
-      "L0_dy": 3100,
-      "L0_conf": 47,
-      "L1_dx": 900,
-      "L1_dy": 100,
-      "L1_conf": 29,
-      "L2_dx": 1900,
-      "L2_dy": 100,
-      "L2_conf": 34,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 3100,
-      "L0_dy": 3900,
-      "L0_conf": 71,
-      "L1_dx": 4900,
-      "L1_dy": 100,
-      "L1_conf": 42,
-      "L2_dx": 10100,
-      "L2_dy": -100,
-      "L2_conf": 30,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 1100,
-      "L0_conf": 81,
-      "L1_dx": 2000,
-      "L1_dy": 2000,
-      "L1_conf": 28,
-      "L2_dx": -100,
-      "L2_dy": 100,
-      "L2_conf": 32,
-      "used": "L0"
-    },
-    {
-      "L0_dx": -3900,
-      "L0_dy": 3900,
-      "L0_conf": 63,
-      "L1_dx": -1100,
-      "L1_dy": 9100,
-      "L1_conf": 37,
-      "L2_dx": -100,
-      "L2_dy": 100,
-      "L2_conf": 32,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 2000,
-      "L0_dy": 2000,
-      "L0_conf": 57,
-      "L1_dx": 0,
-      "L1_dy": 2000,
-      "L1_conf": 51,
-      "L2_dx": -100,
-      "L2_dy": 100,
-      "L2_conf": 44,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 2000,
-      "L0_dy": 4100,
-      "L0_conf": 40,
-      "L1_dx": 100,
-      "L1_dy": -100,
-      "L1_conf": 60,
-      "L2_dx": 0,
-      "L2_dy": 0,
-      "L2_conf": 49,
-      "used": "L1"
-    },
-    {
-      "L0_dx": 2000,
-      "L0_dy": 3100,
-      "L0_conf": 44,
-      "L1_dx": 1100,
-      "L1_dy": 1900,
-      "L1_conf": 171,
-      "L2_dx": -1100,
-      "L2_dy": 100,
-      "L2_conf": 59,
-      "used": "L1"
-    },
-    {
-      "L0_dx": 2100,
-      "L0_dy": 2000,
-      "L0_conf": 58,
-      "L1_dx": 2100,
-      "L1_dy": 900,
-      "L1_conf": 118,
-      "L2_dx": 2900,
-      "L2_dy": 100,
-      "L2_conf": 31,
-      "used": "L1"
-    },
-    {
-      "L0_dx": 900,
-      "L0_dy": 2100,
-      "L0_conf": 57,
-      "L1_dx": 3100,
-      "L1_dy": 2000,
-      "L1_conf": 104,
-      "L2_dx": -100,
-      "L2_dy": 100,
-      "L2_conf": 45,
-      "used": "L1"
-    },
-    {
-      "L0_dx": -2200,
-      "L0_dy": 2200,
-      "L0_conf": 55,
-      "L1_dx": 1000,
-      "L1_dy": 2000,
-      "L1_conf": 119,
-      "L2_dx": 0,
-      "L2_dy": 2000,
-      "L2_conf": 44,
-      "used": "L1"
-    },
-    {
-      "L0_dx": 900,
-      "L0_dy": 2100,
-      "L0_conf": 59,
-      "L1_dx": 2000,
-      "L1_dy": 2000,
-      "L1_conf": 96,
-      "L2_dx": 2000,
-      "L2_dy": 2000,
-      "L2_conf": 56,
-      "used": "L1"
-    },
-    {
-      "L0_dx": -1100,
-      "L0_dy": 1100,
-      "L0_conf": 94,
-      "L1_dx": 2100,
-      "L1_dy": 2000,
-      "L1_conf": 74,
-      "L2_dx": 1000,
-      "L2_dy": 2000,
-      "L2_conf": 80,
-      "used": "L0"
-    },
-    {
-      "L0_dx": -100,
-      "L0_dy": 1100,
-      "L0_conf": 101,
-      "L1_dx": 1000,
-      "L1_dy": 1000,
-      "L1_conf": 102,
-      "L2_dx": 1000,
-      "L2_dy": 2100,
-      "L2_conf": 83,
-      "used": "L1"
-    },
-    {
-      "L0_dx": -100,
-      "L0_dy": 1100,
-      "L0_conf": 90,
-      "L1_dx": 2200,
-      "L1_dy": 800,
-      "L1_conf": 96,
-      "L2_dx": 1900,
-      "L2_dy": 2200,
-      "L2_conf": 137,
-      "used": "L2"
-    },
-    {
-      "L0_dx": -100,
-      "L0_dy": 1200,
-      "L0_conf": 83,
-      "L1_dx": 1100,
-      "L1_dy": 900,
-      "L1_conf": 94,
-      "L2_dx": -200,
-      "L2_dy": 2200,
-      "L2_conf": 173,
-      "used": "L2"
-    },
-    {
-      "L0_dx": -100,
-      "L0_dy": 100,
-      "L0_conf": 115,
-      "L1_dx": 1000,
-      "L1_dy": 1000,
-      "L1_conf": 115,
-      "L2_dx": 900,
-      "L2_dy": 1100,
-      "L2_conf": 161,
-      "used": "L2"
-    },
-    {
-      "L0_dx": -100,
-      "L0_dy": 100,
-      "L0_conf": 126,
-      "L1_dx": -100,
-      "L1_dy": 1100,
-      "L1_conf": 81,
-      "L2_dx": 2100,
-      "L2_dy": 900,
-      "L2_conf": 145,
-      "used": "L2"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 167,
-      "L1_dx": 0,
-      "L1_dy": 1100,
-      "L1_conf": 124,
-      "L2_dx": -100,
-      "L2_dy": 1100,
-      "L2_conf": 207,
-      "used": "L2"
-    },
-    {
-      "L0_dx": -100,
-      "L0_dy": 100,
-      "L0_conf": 231,
-      "L1_dx": 0,
-      "L1_dy": 0,
-      "L1_conf": 142,
-      "L2_dx": 1100,
-      "L2_dy": -100,
-      "L2_conf": 195,
-      "used": "L0"
-    },
-    {
-      "L0_dx": -100,
-      "L0_dy": 100,
-      "L0_conf": 255,
-      "L1_dx": -100,
-      "L1_dy": 100,
-      "L1_conf": 137,
-      "L2_dx": 1000,
-      "L2_dy": 0,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": -100,
-      "L0_dy": 100,
-      "L0_conf": 255,
-      "L1_dx": -100,
-      "L1_dy": 100,
-      "L1_conf": 138,
-      "L2_dx": 1000,
-      "L2_dy": 0,
-      "L2_conf": 219,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": 100,
-      "L1_dy": -100,
-      "L1_conf": 219,
-      "L2_dx": -100,
-      "L2_dy": 1100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": -100,
-      "L0_dy": 100,
-      "L0_conf": 255,
-      "L1_dx": -100,
-      "L1_dy": 100,
-      "L1_conf": 254,
-      "L2_dx": 1100,
-      "L2_dy": -100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": 0,
-      "L1_dy": 0,
-      "L1_conf": 255,
-      "L2_dx": -100,
-      "L2_dy": 100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": 100,
-      "L1_dy": -100,
-      "L1_conf": 255,
-      "L2_dx": -100,
-      "L2_dy": 1100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": -100,
-      "L0_dy": 100,
-      "L0_conf": 255,
-      "L1_dx": -100,
-      "L1_dy": 100,
-      "L1_conf": 255,
-      "L2_dx": 1000,
-      "L2_dy": 0,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": 0,
-      "L1_dy": 0,
-      "L1_conf": 255,
-      "L2_dx": -100,
-      "L2_dy": 100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": 0,
-      "L1_dy": 0,
-      "L1_conf": 255,
-      "L2_dx": 0,
-      "L2_dy": 0,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": 0,
-      "L1_dy": 0,
-      "L1_conf": 255,
-      "L2_dx": 0,
-      "L2_dy": 0,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": 0,
-      "L1_dy": 0,
-      "L1_conf": 255,
-      "L2_dx": 0,
-      "L2_dy": 0,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": 0,
-      "L1_dy": 0,
-      "L1_conf": 255,
-      "L2_dx": 0,
-      "L2_dy": 0,
-      "L2_conf": 255,
-      "used": "L0"
+      "L2_conf": 215,
+      "used": "L2_refined"
     },
     {
       "L0_dx": 100,
       "L0_dy": -100,
       "L0_conf": 255,
-      "L1_dx": -1100,
-      "L1_dy": 100,
+      "L1_dx": 300,
+      "L1_dy": -300,
       "L1_conf": 255,
-      "L2_dx": -900,
-      "L2_dy": -100,
-      "L2_conf": 255,
-      "used": "L0"
+      "L2_dx": 500,
+      "L2_dy": -600,
+      "L2_conf": 235,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": -100,
+      "L1_dy": 1100,
+      "L1_conf": 255,
+      "L2_dx": -100,
+      "L2_dy": 6100,
+      "L2_conf": 200,
+      "used": "L2_refined"
     },
     {
       "L0_dx": 0,
@@ -1931,266 +3759,158 @@
       "L1_dx": 100,
       "L1_dy": -100,
       "L1_conf": 255,
-      "L2_dx": 100,
-      "L2_dy": -100,
-      "L2_conf": 255,
-      "used": "L0"
+      "L2_dx": 300,
+      "L2_dy": -2300,
+      "L2_conf": 208,
+      "used": "L2_refined"
     },
     {
       "L0_dx": 0,
       "L0_dy": 0,
       "L0_conf": 255,
-      "L1_dx": 0,
-      "L1_dy": 0,
+      "L1_dx": 1200,
+      "L1_dy": -200,
       "L1_conf": 255,
-      "L2_dx": -100,
-      "L2_dy": 100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": 0,
-      "L1_dy": 0,
-      "L1_conf": 255,
-      "L2_dx": 0,
-      "L2_dy": 0,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": 0,
-      "L1_dy": 0,
-      "L1_conf": 255,
-      "L2_dx": -100,
-      "L2_dy": 100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": 0,
-      "L1_dy": 0,
-      "L1_conf": 255,
-      "L2_dx": 0,
-      "L2_dy": 0,
-      "L2_conf": 255,
-      "used": "L0"
+      "L2_dx": 6600,
+      "L2_dy": -600,
+      "L2_conf": 164,
+      "used": "L2_refined"
     },
     {
       "L0_dx": 100,
       "L0_dy": -100,
       "L0_conf": 255,
-      "L1_dx": -1100,
-      "L1_dy": 0,
-      "L1_conf": 247,
-      "L2_dx": -1000,
-      "L2_dy": 1100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": 0,
-      "L1_dy": 0,
+      "L1_dx": -900,
+      "L1_dy": -100,
       "L1_conf": 255,
-      "L2_dx": 100,
-      "L2_dy": -100,
+      "L2_dx": -6800,
+      "L2_dy": 800,
       "L2_conf": 255,
-      "used": "L0"
+      "used": "L2_refined"
     },
     {
       "L0_dx": 100,
       "L0_dy": -100,
       "L0_conf": 255,
       "L1_dx": 200,
-      "L1_dy": -200,
-      "L1_conf": 219,
-      "L2_dx": -1100,
-      "L2_dy": 1100,
+      "L1_dy": 900,
+      "L1_conf": 255,
+      "L2_dx": 1300,
+      "L2_dy": 4900,
       "L2_conf": 255,
-      "used": "L0"
+      "used": "L2_refined"
     },
     {
       "L0_dx": 0,
       "L0_dy": 0,
       "L0_conf": 255,
       "L1_dx": 0,
-      "L1_dy": 0,
-      "L1_conf": 255,
-      "L2_dx": 100,
-      "L2_dy": -100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": 0,
-      "L1_dy": 0,
-      "L1_conf": 255,
-      "L2_dx": -100,
-      "L2_dy": 100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": 100,
       "L1_dy": -100,
       "L1_conf": 255,
-      "L2_dx": -1000,
-      "L2_dy": -100,
+      "L2_dx": 1100,
+      "L2_dy": -1300,
       "L2_conf": 255,
-      "used": "L0"
+      "used": "L2_refined"
     },
     {
       "L0_dx": 0,
       "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": 0,
-      "L1_dy": 0,
-      "L1_conf": 255,
-      "L2_dx": 0,
-      "L2_dy": 0,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
       "L0_conf": 255,
       "L1_dx": 100,
       "L1_dy": -100,
       "L1_conf": 255,
       "L2_dx": 100,
-      "L2_dy": 1000,
-      "L2_conf": 232,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 200,
-      "L0_dy": -200,
-      "L0_conf": 244,
-      "L1_dx": -1000,
-      "L1_dy": -100,
-      "L1_conf": 214,
-      "L2_dx": -2100,
-      "L2_dy": 1100,
+      "L2_dy": 900,
       "L2_conf": 255,
-      "used": "L2"
+      "used": "L2_refined"
     },
     {
       "L0_dx": 100,
       "L0_dy": -100,
       "L0_conf": 255,
-      "L1_dx": 0,
-      "L1_dy": 0,
+      "L1_dx": 200,
+      "L1_dy": 900,
       "L1_conf": 255,
-      "L2_dx": 100,
-      "L2_dy": -100,
+      "L2_dx": -600,
+      "L2_dy": 4800,
       "L2_conf": 255,
-      "used": "L0"
+      "used": "L2_refined"
     },
     {
       "L0_dx": 100,
       "L0_dy": -100,
       "L0_conf": 255,
-      "L1_dx": 0,
-      "L1_dy": 0,
+      "L1_dx": 300,
+      "L1_dy": -300,
       "L1_conf": 255,
-      "L2_dx": 100,
-      "L2_dy": -100,
+      "L2_dx": 700,
+      "L2_dy": -2700,
       "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": -1100,
-      "L0_dy": 1100,
-      "L0_conf": 237,
-      "L1_dx": -2100,
-      "L1_dy": 1100,
-      "L1_conf": 233,
-      "L2_dx": -3000,
-      "L2_dy": 2100,
-      "L2_conf": 243,
-      "used": "L2"
+      "used": "L2_refined"
     },
     {
       "L0_dx": -100,
-      "L0_dy": 0,
-      "L0_conf": 231,
+      "L0_dy": 100,
+      "L0_conf": 255,
       "L1_dx": 1000,
       "L1_dy": 0,
       "L1_conf": 255,
-      "L2_dx": 2200,
-      "L2_dy": -200,
-      "L2_conf": 255,
-      "used": "L1"
+      "L2_dx": 5100,
+      "L2_dy": 900,
+      "L2_conf": 190,
+      "used": "L2_refined"
     },
     {
-      "L0_dx": 100,
-      "L0_dy": -100,
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": -100,
+      "L1_dy": 0,
+      "L1_conf": 255,
+      "L2_dx": -1100,
+      "L2_dy": 900,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
       "L0_conf": 255,
       "L1_dx": 0,
       "L1_dy": 0,
       "L1_conf": 255,
-      "L2_dx": 200,
-      "L2_dy": -200,
+      "L2_dx": 0,
+      "L2_dy": -100,
       "L2_conf": 255,
-      "used": "L0"
+      "used": "L2_refined"
     },
     {
-      "L0_dx": 100,
-      "L0_dy": -100,
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 0,
+      "L1_dy": 0,
+      "L1_conf": 255,
+      "L2_dx": 1200,
+      "L2_dy": -200,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
       "L0_conf": 255,
       "L1_dx": 100,
       "L1_dy": -100,
       "L1_conf": 255,
-      "L2_dx": -1200,
-      "L2_dy": 1200,
+      "L2_dx": 100,
+      "L2_dy": 900,
       "L2_conf": 255,
-      "used": "L0"
+      "used": "L2_refined"
     },
     {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": 0,
-      "L1_dy": 0,
-      "L1_conf": 255,
-      "L2_dx": -100,
-      "L2_dy": 1100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": 0,
-      "L1_dy": 0,
-      "L1_conf": 255,
-      "L2_dx": -200,
-      "L2_dy": 1200,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
+      "L0_dx": 0,
+      "L0_dy": 0,
       "L0_conf": 255,
       "L1_dx": 0,
       "L1_dy": 0,
@@ -2198,1003 +3918,163 @@
       "L2_dx": 100,
       "L2_dy": -100,
       "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": 100,
-      "L1_dy": -100,
-      "L1_conf": 255,
-      "L2_dx": 100,
-      "L2_dy": 900,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": -100,
-      "L0_dy": 1100,
-      "L0_conf": 255,
-      "L1_dx": 0,
-      "L1_dy": 1000,
-      "L1_conf": 255,
-      "L2_dx": -1000,
-      "L2_dy": 1000,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": -100,
-      "L0_dy": 1100,
-      "L0_conf": 255,
-      "L1_dx": 100,
-      "L1_dy": -100,
-      "L1_conf": 255,
-      "L2_dx": 0,
-      "L2_dy": 1000,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": -100,
-      "L1_dy": 1100,
-      "L1_conf": 255,
-      "L2_dx": 100,
-      "L2_dy": 900,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": 0,
-      "L1_dy": 1000,
-      "L1_conf": 255,
-      "L2_dx": 0,
-      "L2_dy": 2100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": -200,
-      "L0_dy": 1200,
-      "L0_conf": 255,
-      "L1_dx": -200,
-      "L1_dy": 1200,
-      "L1_conf": 244,
-      "L2_dx": 1100,
-      "L2_dy": 900,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": 100,
-      "L1_dy": -100,
-      "L1_conf": 255,
-      "L2_dx": 0,
-      "L2_dy": 1000,
-      "L2_conf": 255,
-      "used": "L0"
+      "used": "L2_refined"
     },
     {
       "L0_dx": 0,
       "L0_dy": 0,
       "L0_conf": 255,
       "L1_dx": 0,
-      "L1_dy": -100,
-      "L1_conf": 255,
-      "L2_dx": -100,
-      "L2_dy": 1100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": -100,
-      "L0_dy": 1100,
-      "L0_conf": 255,
-      "L1_dx": 0,
-      "L1_dy": 1000,
-      "L1_conf": 255,
-      "L2_dx": -1000,
-      "L2_dy": 900,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": -100,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": 1100,
-      "L1_dy": -100,
-      "L1_conf": 255,
-      "L2_dx": 2000,
-      "L2_dy": 1100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 200,
-      "L0_dy": -200,
-      "L0_conf": 255,
-      "L1_dx": -1100,
-      "L1_dy": 1100,
-      "L1_conf": 255,
-      "L2_dx": -900,
-      "L2_dy": 900,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 200,
-      "L0_dy": -200,
-      "L0_conf": 255,
-      "L1_dx": -1100,
-      "L1_dy": 1100,
-      "L1_conf": 255,
-      "L2_dx": -1000,
-      "L2_dy": 2000,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": -100,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": 1100,
-      "L1_dy": -100,
-      "L1_conf": 255,
-      "L2_dx": 1900,
-      "L2_dy": 1100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": -200,
-      "L1_dy": 1200,
-      "L1_conf": 255,
-      "L2_dx": 1100,
-      "L2_dy": 900,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": -1100,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": -1000,
-      "L1_dy": 1000,
-      "L1_conf": 255,
-      "L2_dx": -2100,
-      "L2_dy": 2100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": -100,
-      "L1_dy": 1100,
-      "L1_conf": 255,
-      "L2_dx": -100,
-      "L2_dy": 2100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": 100,
-      "L1_dy": 900,
-      "L1_conf": 255,
-      "L2_dx": -1100,
-      "L2_dy": 2100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 200,
-      "L0_dy": -200,
-      "L0_conf": 255,
-      "L1_dx": -1100,
-      "L1_dy": 1100,
-      "L1_conf": 255,
-      "L2_dx": -900,
-      "L2_dy": 900,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": -100,
-      "L1_dy": 1100,
-      "L1_conf": 255,
-      "L2_dx": -200,
-      "L2_dy": 2200,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": 1100,
-      "L1_dy": 1000,
-      "L1_conf": 255,
-      "L2_dx": 900,
-      "L2_dy": 2100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": -100,
-      "L1_dy": 1100,
-      "L1_conf": 255,
-      "L2_dx": 0,
-      "L2_dy": 900,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": 0,
-      "L1_dy": 1000,
-      "L1_conf": 255,
-      "L2_dx": 100,
-      "L2_dy": 900,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": -100,
-      "L1_dy": 1100,
-      "L1_conf": 255,
-      "L2_dx": 100,
-      "L2_dy": 900,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": 0,
-      "L1_dy": -100,
-      "L1_conf": 255,
-      "L2_dx": 1100,
-      "L2_dy": 900,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": -100,
-      "L1_dy": 1100,
-      "L1_conf": 255,
-      "L2_dx": 0,
-      "L2_dy": 1000,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": -1200,
-      "L1_dy": 1200,
-      "L1_conf": 255,
-      "L2_dx": -1100,
-      "L2_dy": 2100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": -100,
-      "L1_dy": 1100,
-      "L1_conf": 255,
-      "L2_dx": -100,
-      "L2_dy": 1000,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": 1100,
-      "L1_dy": 1000,
+      "L1_dy": 0,
       "L1_conf": 255,
       "L2_dx": 1000,
-      "L2_dy": 1000,
+      "L2_dy": 1100,
       "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 200,
-      "L0_dy": -200,
-      "L0_conf": 255,
-      "L1_dx": -1100,
-      "L1_dy": 1100,
-      "L1_conf": 255,
-      "L2_dx": -2100,
-      "L2_dy": 1000,
-      "L2_conf": 239,
-      "used": "L0"
+      "used": "L2_refined"
     },
     {
       "L0_dx": 100,
       "L0_dy": -100,
       "L0_conf": 255,
+      "L1_dx": 300,
+      "L1_dy": -300,
+      "L1_conf": 255,
+      "L2_dx": 700,
+      "L2_dy": -700,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 100,
+      "L1_dy": -100,
+      "L1_conf": 255,
+      "L2_dx": 100,
+      "L2_dy": 2000,
+      "L2_conf": 204,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 100,
+      "L1_dy": -100,
+      "L1_conf": 255,
+      "L2_dx": 100,
+      "L2_dy": 900,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 1200,
+      "L0_dy": -200,
+      "L0_conf": 255,
+      "L1_dx": 5400,
+      "L1_dy": -400,
+      "L1_conf": 255,
+      "L2_dx": 10700,
+      "L2_dy": -800,
+      "L2_conf": 48,
+      "used": "L1_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": -2700,
+      "L1_dy": -300,
+      "L1_conf": 255,
+      "L2_dx": -10200,
+      "L2_dy": -800,
+      "L2_conf": 45,
+      "used": "L1_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 1100,
+      "L1_dy": 900,
+      "L1_conf": 255,
+      "L2_dx": 11300,
+      "L2_dy": 5700,
+      "L2_conf": 119,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
       "L1_dx": 0,
-      "L1_dy": 1000,
+      "L1_dy": 0,
+      "L1_conf": 255,
+      "L2_dx": -900,
+      "L2_dy": -1100,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 300,
+      "L1_dy": -300,
+      "L1_conf": 255,
+      "L2_dx": 700,
+      "L2_dy": -700,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 100,
+      "L1_dy": -100,
       "L1_conf": 255,
       "L2_dx": 200,
       "L2_dy": 800,
       "L2_conf": 255,
-      "used": "L0"
+      "used": "L2_refined"
     },
     {
       "L0_dx": -100,
-      "L0_dy": 100,
-      "L0_conf": 255,
-      "L1_dx": 1200,
-      "L1_dy": -200,
-      "L1_conf": 255,
-      "L2_dx": 900,
-      "L2_dy": 1100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": 0,
-      "L1_dy": 1100,
-      "L1_conf": 255,
-      "L2_dx": 100,
-      "L2_dy": 900,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": -1100,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": -1100,
-      "L1_dy": 1100,
-      "L1_conf": 255,
-      "L2_dx": -2200,
-      "L2_dy": 2200,
-      "L2_conf": 246,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": 0,
-      "L1_dy": -100,
-      "L1_conf": 255,
-      "L2_dx": 1000,
-      "L2_dy": 1000,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": -100,
-      "L0_dy": 100,
-      "L0_conf": 255,
-      "L1_dx": 1200,
-      "L1_dy": -200,
-      "L1_conf": 255,
-      "L2_dx": 800,
-      "L2_dy": 1200,
-      "L2_conf": 225,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": -1100,
-      "L1_dy": 1100,
-      "L1_conf": 255,
-      "L2_dx": -1000,
-      "L2_dy": 2100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": -1200,
-      "L1_dy": 1200,
-      "L1_conf": 255,
-      "L2_dx": -900,
-      "L2_dy": 900,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": 0,
-      "L1_dy": 1000,
-      "L1_conf": 255,
-      "L2_dx": 0,
-      "L2_dy": 2000,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": 0,
-      "L1_dy": 1000,
-      "L1_conf": 255,
-      "L2_dx": 0,
-      "L2_dy": 2100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": -100,
-      "L1_dy": 1100,
-      "L1_conf": 255,
-      "L2_dx": 0,
-      "L2_dy": 1000,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": -100,
-      "L1_dy": 1100,
-      "L1_conf": 255,
-      "L2_dx": 0,
-      "L2_dy": 1000,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": 0,
-      "L1_dy": 1100,
-      "L1_conf": 255,
-      "L2_dx": 100,
-      "L2_dy": 900,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": 100,
-      "L1_dy": -100,
-      "L1_conf": 255,
-      "L2_dx": -100,
-      "L2_dy": 1100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": 100,
-      "L1_dy": -100,
-      "L1_conf": 255,
-      "L2_dx": -100,
-      "L2_dy": 1100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": -100,
-      "L1_dy": 1100,
-      "L1_conf": 255,
-      "L2_dx": -100,
-      "L2_dy": 1100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": 0,
-      "L1_dy": 1000,
-      "L1_conf": 255,
-      "L2_dx": -1100,
-      "L2_dy": 1100,
-      "L2_conf": 224,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": 100,
-      "L1_dy": -100,
-      "L1_conf": 255,
-      "L2_dx": -100,
-      "L2_dy": 1100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": 0,
-      "L1_dy": 1000,
-      "L1_conf": 255,
-      "L2_dx": 0,
-      "L2_dy": 1000,
-      "L2_conf": 245,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": 0,
-      "L1_dy": 1000,
-      "L1_conf": 255,
-      "L2_dx": -1200,
-      "L2_dy": 2200,
-      "L2_conf": 170,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": -200,
-      "L1_dy": 1200,
-      "L1_conf": 255,
-      "L2_dx": 1100,
-      "L2_dy": 900,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": -100,
-      "L1_dy": 1100,
-      "L1_conf": 255,
-      "L2_dx": -100,
-      "L2_dy": 1100,
-      "L2_conf": 195,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": -1200,
-      "L1_dy": 1200,
-      "L1_conf": 255,
-      "L2_dx": -1000,
-      "L2_dy": 1000,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": 0,
-      "L1_dy": 1000,
-      "L1_conf": 255,
-      "L2_dx": -100,
-      "L2_dy": 2200,
-      "L2_conf": 203,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": 0,
-      "L1_dy": 1000,
-      "L1_conf": 255,
-      "L2_dx": -1200,
-      "L2_dy": 1200,
-      "L2_conf": 181,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": 0,
-      "L1_dy": 1000,
-      "L1_conf": 255,
-      "L2_dx": 0,
-      "L2_dy": 1000,
-      "L2_conf": 237,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": -200,
-      "L1_dy": 1200,
-      "L1_conf": 255,
-      "L2_dx": 900,
-      "L2_dy": 1100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": 0,
-      "L1_dy": 1000,
-      "L1_conf": 255,
-      "L2_dx": -1200,
-      "L2_dy": 1100,
-      "L2_conf": 143,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": 100,
-      "L1_dy": 1000,
-      "L1_conf": 255,
-      "L2_dx": -1100,
-      "L2_dy": 1100,
-      "L2_conf": 215,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": 0,
-      "L1_dy": -100,
-      "L1_conf": 255,
-      "L2_dx": 1100,
-      "L2_dy": -100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": 0,
-      "L1_dy": 1000,
-      "L1_conf": 255,
-      "L2_dx": 0,
-      "L2_dy": 1000,
-      "L2_conf": 201,
-      "used": "L0"
-    },
-    {
-      "L0_dx": -100,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": 900,
-      "L1_dy": 1100,
-      "L1_conf": 255,
-      "L2_dx": 2000,
-      "L2_dy": 1000,
-      "L2_conf": 167,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 200,
-      "L0_dy": -200,
-      "L0_conf": 225,
-      "L1_dx": -1100,
-      "L1_dy": 1100,
-      "L1_conf": 255,
-      "L2_dx": -2200,
-      "L2_dy": 2200,
-      "L2_conf": 195,
-      "used": "L1"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": 0,
-      "L1_dy": 1000,
-      "L1_conf": 255,
-      "L2_dx": 100,
-      "L2_dy": 900,
-      "L2_conf": 157,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": -100,
-      "L1_dy": 0,
-      "L1_conf": 255,
-      "L2_dx": 1000,
-      "L2_dy": 1000,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": -1100,
-      "L0_dy": 0,
-      "L0_conf": 249,
-      "L1_dx": -1100,
-      "L1_dy": 1100,
-      "L1_conf": 255,
-      "L2_dx": -2200,
-      "L2_dy": 2200,
-      "L2_conf": 188,
-      "used": "L1"
-    },
-    {
-      "L0_dx": -100,
-      "L0_dy": 1100,
-      "L0_conf": 255,
-      "L1_dx": 0,
-      "L1_dy": 1000,
-      "L1_conf": 255,
-      "L2_dx": -1100,
-      "L2_dy": 2100,
-      "L2_conf": 209,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
       "L0_dy": 0,
       "L0_conf": 255,
       "L1_dx": 1000,
-      "L1_dy": 1100,
-      "L1_conf": 255,
-      "L2_dx": 900,
-      "L2_dy": 1100,
-      "L2_conf": 177,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 200,
-      "L0_dy": -200,
-      "L0_conf": 255,
-      "L1_dx": -1100,
-      "L1_dy": 1100,
-      "L1_conf": 255,
-      "L2_dx": -1000,
-      "L2_dy": 1000,
-      "L2_conf": 133,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": 0,
-      "L1_dy": -100,
-      "L1_conf": 255,
-      "L2_dx": 1100,
-      "L2_dy": -100,
-      "L2_conf": 230,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": 100,
-      "L1_dy": -100,
-      "L1_conf": 255,
-      "L2_dx": 0,
-      "L2_dy": -100,
-      "L2_conf": 249,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": 0,
-      "L1_dy": -100,
-      "L1_conf": 252,
-      "L2_dx": 1100,
-      "L2_dy": -100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": -100,
-      "L1_dy": 1100,
-      "L1_conf": 255,
-      "L2_dx": 0,
-      "L2_dy": -100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": -100,
-      "L1_dy": 1100,
-      "L1_conf": 255,
-      "L2_dx": 0,
-      "L2_dy": 1100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 1100,
-      "L0_conf": 255,
-      "L1_dx": -1100,
-      "L1_dy": 1100,
-      "L1_conf": 255,
-      "L2_dx": -900,
-      "L2_dy": -100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": -100,
-      "L1_dy": 1100,
-      "L1_conf": 255,
-      "L2_dx": 0,
-      "L2_dy": 0,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": 0,
-      "L1_dy": 0,
-      "L1_conf": 255,
-      "L2_dx": 1100,
-      "L2_dy": -100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 200,
-      "L0_dy": -200,
-      "L0_conf": 255,
-      "L1_dx": 100,
-      "L1_dy": 900,
-      "L1_conf": 255,
-      "L2_dx": -1000,
-      "L2_dy": 0,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": -200,
-      "L0_dy": 1200,
-      "L0_conf": 255,
-      "L1_dx": -200,
-      "L1_dy": 1200,
-      "L1_conf": 249,
-      "L2_dx": 1000,
-      "L2_dy": 0,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": 200,
       "L1_dy": -200,
       "L1_conf": 255,
-      "L2_dx": 100,
-      "L2_dy": -100,
-      "L2_conf": 255,
-      "used": "L0"
+      "L2_dx": 5100,
+      "L2_dy": -500,
+      "L2_conf": 254,
+      "used": "L2_refined"
     },
     {
       "L0_dx": 100,
       "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": 300,
+      "L1_dy": -300,
+      "L1_conf": 255,
+      "L2_dx": -1300,
+      "L2_dy": -700,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
       "L0_conf": 255,
       "L1_dx": 100,
       "L1_dy": -100,
       "L1_conf": 255,
-      "L2_dx": 0,
-      "L2_dy": 0,
+      "L2_dx": -900,
+      "L2_dy": 900,
       "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": -100,
-      "L1_dy": 1100,
-      "L1_conf": 255,
-      "L2_dx": 0,
-      "L2_dy": 0,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": 100,
-      "L1_dy": 1000,
-      "L1_conf": 255,
-      "L2_dx": -1000,
-      "L2_dy": 0,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": 100,
-      "L1_dy": -100,
-      "L1_conf": 255,
-      "L2_dx": 100,
-      "L2_dy": -100,
-      "L2_conf": 255,
-      "used": "L0"
+      "used": "L2_refined"
     },
     {
       "L0_dx": 0,
@@ -3203,454 +4083,118 @@
       "L1_dx": 0,
       "L1_dy": 0,
       "L1_conf": 255,
-      "L2_dx": 1100,
-      "L2_dy": -100,
+      "L2_dx": 1000,
+      "L2_dy": 1000,
       "L2_conf": 255,
-      "used": "L0"
+      "used": "L2_refined"
     },
     {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": -200,
-      "L1_dy": 1200,
-      "L1_conf": 255,
-      "L2_dx": 1100,
-      "L2_dy": -100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": -100,
-      "L0_dy": 1200,
+      "L0_dx": 0,
+      "L0_dy": 0,
       "L0_conf": 255,
       "L1_dx": 100,
       "L1_dy": -100,
       "L1_conf": 255,
-      "L2_dx": 100,
-      "L2_dy": -100,
+      "L2_dx": 300,
+      "L2_dy": -300,
       "L2_conf": 255,
-      "used": "L0"
+      "used": "L2_refined"
     },
     {
       "L0_dx": 100,
       "L0_dy": -100,
       "L0_conf": 255,
-      "L1_dx": -100,
-      "L1_dy": 1100,
+      "L1_dx": 300,
+      "L1_dy": -300,
       "L1_conf": 255,
-      "L2_dx": 200,
+      "L2_dx": 600,
+      "L2_dy": 400,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 100,
+      "L1_dy": -100,
+      "L1_conf": 255,
+      "L2_dx": -900,
       "L2_dy": -200,
-      "L2_conf": 255,
-      "used": "L0"
+      "L2_conf": 173,
+      "used": "L2_refined"
     },
     {
-      "L0_dx": 100,
-      "L0_dy": -100,
+      "L0_dx": 0,
+      "L0_dy": 0,
       "L0_conf": 255,
       "L1_dx": 100,
       "L1_dy": -100,
       "L1_conf": 255,
-      "L2_dx": 100,
-      "L2_dy": -100,
+      "L2_dx": 300,
+      "L2_dy": -300,
       "L2_conf": 255,
-      "used": "L0"
+      "used": "L2_refined"
     },
     {
-      "L0_dx": -100,
-      "L0_dy": 1100,
+      "L0_dx": 0,
+      "L0_dy": 0,
       "L0_conf": 255,
       "L1_dx": 0,
-      "L1_dy": 1000,
+      "L1_dy": 0,
       "L1_conf": 255,
       "L2_dx": 0,
-      "L2_dy": 2100,
-      "L2_conf": 163,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": 0,
-      "L1_dy": 1000,
-      "L1_conf": 255,
-      "L2_dx": -100,
-      "L2_dy": 2100,
-      "L2_conf": 218,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": 200,
-      "L1_dy": -200,
-      "L1_conf": 255,
-      "L2_dx": -1000,
-      "L2_dy": -100,
-      "L2_conf": 157,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": 0,
-      "L1_dy": 1000,
-      "L1_conf": 255,
-      "L2_dx": 100,
-      "L2_dy": 900,
-      "L2_conf": 148,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": -100,
-      "L1_dy": 1100,
-      "L1_conf": 255,
-      "L2_dx": -100,
-      "L2_dy": 1100,
+      "L2_dy": 0,
       "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": 100,
-      "L1_dy": -100,
-      "L1_conf": 255,
-      "L2_dx": -100,
-      "L2_dy": 1100,
-      "L2_conf": 255,
-      "used": "L0"
+      "used": "L2_refined"
     },
     {
       "L0_dx": 0,
       "L0_dy": 0,
       "L0_conf": 255,
       "L1_dx": 0,
-      "L1_dy": -100,
-      "L1_conf": 255,
-      "L2_dx": -200,
-      "L2_dy": 1200,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": 0,
-      "L1_dy": -100,
-      "L1_conf": 255,
-      "L2_dx": 1000,
-      "L2_dy": 1000,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": 100,
-      "L1_dy": -100,
-      "L1_conf": 255,
-      "L2_dx": -100,
-      "L2_dy": 1100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": -100,
-      "L1_dy": 1100,
-      "L1_conf": 255,
-      "L2_dx": 1000,
-      "L2_dy": 2100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": 0,
-      "L1_dy": 1000,
-      "L1_conf": 255,
-      "L2_dx": -1100,
-      "L2_dy": 1100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": 200,
-      "L1_dy": -200,
-      "L1_conf": 255,
-      "L2_dx": -1100,
-      "L2_dy": 1100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": 100,
-      "L1_dy": -100,
-      "L1_conf": 255,
-      "L2_dx": -100,
-      "L2_dy": 1100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": 100,
-      "L1_dy": -100,
-      "L1_conf": 255,
-      "L2_dx": 0,
-      "L2_dy": 1000,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": 100,
-      "L1_dy": -100,
-      "L1_conf": 255,
-      "L2_dx": -100,
-      "L2_dy": 1100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": 100,
-      "L1_dy": -100,
-      "L1_conf": 255,
-      "L2_dx": -100,
-      "L2_dy": 1100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": -1000,
-      "L1_dy": -100,
-      "L1_conf": 255,
-      "L2_dx": -900,
-      "L2_dy": 900,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": -100,
-      "L1_dy": 1100,
-      "L1_conf": 255,
-      "L2_dx": 0,
-      "L2_dy": 1000,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": 0,
-      "L1_dy": -100,
-      "L1_conf": 255,
-      "L2_dx": 1100,
-      "L2_dy": 900,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": -100,
-      "L1_dy": 1100,
-      "L1_conf": 255,
-      "L2_dx": 0,
-      "L2_dy": 1000,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": 100,
-      "L1_dy": -100,
-      "L1_conf": 255,
-      "L2_dx": 0,
-      "L2_dy": 1000,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": -100,
-      "L1_dy": 1100,
-      "L1_conf": 255,
-      "L2_dx": 0,
-      "L2_dy": 1000,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": 0,
-      "L1_dy": -100,
-      "L1_conf": 255,
-      "L2_dx": 1100,
-      "L2_dy": 900,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": 100,
-      "L1_dy": -100,
-      "L1_conf": 255,
-      "L2_dx": -100,
-      "L2_dy": 1100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": 100,
-      "L1_dy": -100,
-      "L1_conf": 255,
-      "L2_dx": 100,
-      "L2_dy": 900,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": -100,
-      "L1_dy": 1100,
-      "L1_conf": 255,
-      "L2_dx": 0,
-      "L2_dy": 1000,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": 0,
-      "L1_dy": -100,
-      "L1_conf": 255,
-      "L2_dx": 1100,
-      "L2_dy": 900,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": 100,
-      "L1_dy": -100,
-      "L1_conf": 255,
-      "L2_dx": -1100,
-      "L2_dy": 1100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": 100,
-      "L1_dy": -100,
-      "L1_conf": 255,
-      "L2_dx": -100,
-      "L2_dy": 1100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": 0,
-      "L1_dy": -100,
-      "L1_conf": 255,
-      "L2_dx": 1100,
-      "L2_dy": 1000,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": -100,
       "L1_dy": 0,
       "L1_conf": 255,
       "L2_dx": 1000,
-      "L2_dy": 1000,
+      "L2_dy": 1100,
       "L2_conf": 255,
-      "used": "L0"
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 0,
+      "L1_dy": -100,
+      "L1_conf": 255,
+      "L2_dx": 1100,
+      "L2_dy": 800,
+      "L2_conf": 255,
+      "used": "L2_refined"
     },
     {
       "L0_dx": 100,
       "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": -100,
-      "L1_dy": 1100,
-      "L1_conf": 255,
-      "L2_dx": 0,
-      "L2_dy": 1000,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": -1100,
-      "L0_dy": 0,
       "L0_conf": 255,
       "L1_dx": -900,
       "L1_dy": -100,
       "L1_conf": 255,
-      "L2_dx": -2000,
-      "L2_dy": 1000,
+      "L2_dx": -4800,
+      "L2_dy": -200,
       "L2_conf": 255,
-      "used": "L0"
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 1100,
+      "L1_dy": 1000,
+      "L1_conf": 228,
+      "L2_dx": 7300,
+      "L2_dy": 1900,
+      "L2_conf": 150,
+      "used": "L2_refined"
     },
     {
       "L0_dx": 0,
@@ -3659,118 +4203,58 @@
       "L1_dx": 1200,
       "L1_dy": -200,
       "L1_conf": 255,
-      "L2_dx": 2100,
-      "L2_dy": 1000,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": 100,
-      "L1_dy": -100,
-      "L1_conf": 255,
-      "L2_dx": 100,
-      "L2_dy": 900,
-      "L2_conf": 255,
-      "used": "L0"
+      "L2_dx": 3300,
+      "L2_dy": -300,
+      "L2_conf": 188,
+      "used": "L2_refined"
     },
     {
       "L0_dx": 0,
       "L0_dy": 0,
       "L0_conf": 255,
-      "L1_dx": 0,
-      "L1_dy": 0,
-      "L1_conf": 255,
-      "L2_dx": -200,
-      "L2_dy": 1200,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": 200,
-      "L1_dy": -200,
-      "L1_conf": 255,
-      "L2_dx": -1100,
-      "L2_dy": 1100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": -1000,
+      "L1_dx": 100,
       "L1_dy": -100,
       "L1_conf": 255,
-      "L2_dx": -1000,
-      "L2_dy": 1000,
+      "L2_dx": -1700,
+      "L2_dy": -300,
       "L2_conf": 255,
-      "used": "L0"
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 100,
+      "L0_dy": -100,
+      "L0_conf": 255,
+      "L1_dx": -900,
+      "L1_dy": -100,
+      "L1_conf": 255,
+      "L2_dx": -4800,
+      "L2_dy": -200,
+      "L2_conf": 255,
+      "used": "L2_refined"
+    },
+    {
+      "L0_dx": 0,
+      "L0_dy": 0,
+      "L0_conf": 255,
+      "L1_dx": 100,
+      "L1_dy": -100,
+      "L1_conf": 255,
+      "L2_dx": 2300,
+      "L2_dy": -300,
+      "L2_conf": 255,
+      "used": "L2_refined"
     },
     {
       "L0_dx": -100,
       "L0_dy": 100,
       "L0_conf": 255,
-      "L1_dx": 1100,
-      "L1_dy": -100,
+      "L1_dx": 900,
+      "L1_dy": 100,
       "L1_conf": 255,
-      "L2_dx": 1900,
-      "L2_dy": 1100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": 100,
-      "L1_dy": -100,
-      "L1_conf": 255,
-      "L2_dx": -100,
-      "L2_dy": 1100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": 100,
-      "L1_dy": -100,
-      "L1_conf": 255,
-      "L2_dx": 0,
-      "L2_dy": 1000,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": 100,
-      "L1_dy": -100,
-      "L1_conf": 255,
-      "L2_dx": 0,
-      "L2_dy": 1000,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": -100,
-      "L1_dy": 1100,
-      "L1_conf": 255,
-      "L2_dx": 0,
-      "L2_dy": 1000,
-      "L2_conf": 255,
-      "used": "L0"
+      "L2_dx": 6100,
+      "L2_dy": -100,
+      "L2_conf": 249,
+      "used": "L2_refined"
     },
     {
       "L0_dx": 0,
@@ -3778,299 +4262,47 @@
       "L0_conf": 255,
       "L1_dx": 0,
       "L1_dy": 0,
-      "L1_conf": 255,
-      "L2_dx": -100,
-      "L2_dy": 1100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 200,
-      "L0_dy": -200,
-      "L0_conf": 255,
-      "L1_dx": -900,
-      "L1_dy": -100,
       "L1_conf": 255,
       "L2_dx": -2100,
-      "L2_dy": 1100,
+      "L2_dy": 0,
       "L2_conf": 255,
-      "used": "L0"
+      "used": "L2_refined"
     },
     {
       "L0_dx": 0,
       "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": 1200,
-      "L1_dy": -200,
-      "L1_conf": 255,
-      "L2_dx": 1000,
-      "L2_dy": 1000,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": -100,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": 900,
-      "L1_dy": 1100,
-      "L1_conf": 255,
-      "L2_dx": 2100,
-      "L2_dy": 900,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": 100,
-      "L1_dy": -100,
-      "L1_conf": 255,
-      "L2_dx": 0,
-      "L2_dy": 1000,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": 100,
-      "L1_dy": -100,
-      "L1_conf": 255,
-      "L2_dx": -100,
-      "L2_dy": 1100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": 100,
-      "L1_dy": -100,
-      "L1_conf": 255,
-      "L2_dx": 0,
-      "L2_dy": 1000,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": 0,
-      "L1_dy": -100,
-      "L1_conf": 233,
-      "L2_dx": 1000,
-      "L2_dy": 1000,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": 1200,
-      "L1_dy": -200,
-      "L1_conf": 255,
-      "L2_dx": 900,
-      "L2_dy": 1100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": -1100,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": -1000,
-      "L1_dy": 1100,
-      "L1_conf": 255,
-      "L2_dx": -1900,
-      "L2_dy": 900,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": 0,
-      "L1_dy": -100,
-      "L1_conf": 255,
-      "L2_dx": -100,
-      "L2_dy": 1000,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": 1200,
-      "L1_dy": -200,
-      "L1_conf": 255,
-      "L2_dx": 900,
-      "L2_dy": 1100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": 0,
-      "L1_dy": -100,
-      "L1_conf": 255,
-      "L2_dx": 1100,
-      "L2_dy": 900,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": -200,
-      "L1_dy": 1200,
-      "L1_conf": 255,
-      "L2_dx": 1100,
-      "L2_dy": 900,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": 100,
-      "L1_dy": -100,
-      "L1_conf": 255,
-      "L2_dx": 100,
-      "L2_dy": 1000,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
       "L0_conf": 255,
       "L1_dx": -100,
-      "L1_dy": 1100,
-      "L1_conf": 255,
-      "L2_dx": 100,
-      "L2_dy": 900,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": 1200,
-      "L1_dy": -200,
-      "L1_conf": 255,
-      "L2_dx": 1100,
-      "L2_dy": -100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": -200,
-      "L1_dy": 1200,
-      "L1_conf": 255,
-      "L2_dx": 1100,
-      "L2_dy": 900,
-      "L2_conf": 221,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": -1100,
       "L1_dy": 0,
       "L1_conf": 255,
-      "L2_dx": -900,
+      "L2_dx": 900,
       "L2_dy": -100,
       "L2_conf": 255,
-      "used": "L0"
+      "used": "L2_refined"
     },
     {
       "L0_dx": 0,
       "L0_dy": 0,
       "L0_conf": 255,
-      "L1_dx": 1200,
-      "L1_dy": -200,
-      "L1_conf": 255,
-      "L2_dx": 900,
-      "L2_dy": 1100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": 200,
-      "L1_dy": -200,
-      "L1_conf": 255,
-      "L2_dx": -1100,
-      "L2_dy": 1100,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": -200,
-      "L1_dy": 1200,
-      "L1_conf": 255,
-      "L2_dx": 1000,
-      "L2_dy": 1000,
-      "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 0,
-      "L0_dy": 0,
-      "L0_conf": 255,
-      "L1_dx": 1200,
-      "L1_dy": -200,
+      "L1_dx": 0,
+      "L1_dy": 0,
       "L1_conf": 255,
       "L2_dx": 1100,
       "L2_dy": -100,
       "L2_conf": 255,
-      "used": "L0"
+      "used": "L2_refined"
     },
     {
       "L0_dx": 100,
       "L0_dy": -100,
       "L0_conf": 255,
-      "L1_dx": 0,
-      "L1_dy": 1100,
+      "L1_dx": 300,
+      "L1_dy": -300,
       "L1_conf": 255,
-      "L2_dx": -1100,
-      "L2_dy": 1100,
+      "L2_dx": 600,
+      "L2_dy": -600,
       "L2_conf": 255,
-      "used": "L0"
-    },
-    {
-      "L0_dx": 100,
-      "L0_dy": -100,
-      "L0_conf": 255,
-      "L1_dx": 100,
-      "L1_dy": -100,
-      "L1_conf": 255,
-      "L2_dx": 100,
-      "L2_dy": -100,
-      "L2_conf": 255,
-      "used": "L0"
+      "used": "L2_refined"
     }
   ]
 }

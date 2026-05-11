@@ -201,29 +201,30 @@ def flow_forwarder(stop_evt: threading.Event, cf, stats: dict) -> None:
                 # to wide-equivalent units and use it.  Else fall back to
                 # wide.  This makes slow drift visible without sacrificing
                 # fast-motion tracking.
-                # 3-way fusion: pick highest-conf pipeline among the
-                # three levels (after scaling each level's mgrid to L0
-                # wide-equivalent units).  Each level has a saturation
-                # band determined by its grid coverage — finer levels
-                # saturate at smaller body motion.
-                candidates = []
-                if conf > 0 and abs(dx) < 28000 and abs(dy) < 28000:
-                    candidates.append((conf, dx, dy, "L0"))
-                if conf_c > 0 and abs(dx_c) < 24000 and abs(dy_c) < 24000:
-                    candidates.append((conf_c,
-                                       int(dx_c * L1_TO_L0_RATIO),
-                                       int(dy_c * L1_TO_L0_RATIO),
-                                       "L1"))
-                if conf_f > 0 and abs(dx_f) < 24000 and abs(dy_f) < 24000:
-                    candidates.append((conf_f,
-                                       int(dx_f * L2_TO_L0_RATIO),
-                                       int(dy_f * L2_TO_L0_RATIO),
-                                       "L2"))
-                if candidates:
-                    # Highest-confidence wins.
-                    candidates.sort(key=lambda c: c[0], reverse=True)
-                    _, dx_eff, dy_eff, used_level = candidates[0]
-                    conf_eff = candidates[0][0]
+                # COARSE-TO-FINE fusion: L1 and L2 now report COMBINED
+                # motion (= L0_coarse + their_residual).  So PREFER the
+                # finest level with usable confidence — it has more sub-
+                # pixel accuracy than coarse levels.
+                #   Pick L2 if conf_L2 ≥ MIN_REFINE_CONF AND magnitude
+                #   under L2 saturation band → use refined estimate.
+                #   Else fall back to L1 if conf_L1 OK.
+                #   Else use L0 raw.
+                MIN_REFINE_CONF = 64
+                if (conf_f >= MIN_REFINE_CONF
+                        and abs(dx_f) < 24000 and abs(dy_f) < 24000):
+                    dx_eff = int(dx_f * L2_TO_L0_RATIO)
+                    dy_eff = int(dy_f * L2_TO_L0_RATIO)
+                    conf_eff = conf_f
+                    used_level = "L2_refined"
+                elif (conf_c >= MIN_REFINE_CONF
+                        and abs(dx_c) < 24000 and abs(dy_c) < 24000):
+                    dx_eff = int(dx_c * L1_TO_L0_RATIO)
+                    dy_eff = int(dy_c * L1_TO_L0_RATIO)
+                    conf_eff = conf_c
+                    used_level = "L1_refined"
+                elif conf > 0 and abs(dx) < 28000 and abs(dy) < 28000:
+                    dx_eff, dy_eff, conf_eff = dx, dy, conf
+                    used_level = "L0_raw"
                 else:
                     dx_eff, dy_eff, conf_eff = dx, dy, conf
                     used_level = "L0_fallback"
