@@ -32,6 +32,48 @@ import sys
 import threading
 import time
 
+# ── attitude (roll/pitch) compensation on bbox centroid ────────────
+# Drone tilts to command lateral velocity → camera FOV rotates → static
+# ground content appears to shift in image WITHOUT drone translating.
+# Without correction the loop over-reacts to tilt-induced bbox shift.
+# Real PMW3901 deck firmware filters this via gyro-rate de-rotation
+# (mm_flow.c).  For our offboard bbox path we instead pre-compensate
+# the centroid using cf2's stateEstimate.{roll,pitch} log block.
+SSD_INPUT_W = 300
+SSD_INPUT_H = 300
+CAM_FOV_H_RAD = math.radians(58.0)
+CAM_FOV_V_RAD = math.radians(45.0)
+# Focal length in pixels — image_w / (2 * tan(FOV/2))
+CAM_FX_PX = SSD_INPUT_W / (2.0 * math.tan(CAM_FOV_H_RAD / 2.0))   # ~270 px
+CAM_FY_PX = SSD_INPUT_H / (2.0 * math.tan(CAM_FOV_V_RAD / 2.0))   # ~362 px
+
+# Live drone attitude (deg, EKF-fused) updated by cflib log callback.
+_att_lock = threading.Lock()
+_drone_roll_deg = 0.0
+_drone_pitch_deg = 0.0
+_drone_yaw_deg = 0.0
+
+
+def attitude_compensate(cx: int, cy: int) -> tuple[int, int]:
+    """Subtract apparent-bbox shift due to drone tilt.
+    cam0+vflip=1 convention:
+      - image LEFT = body FORWARD: forward pitch makes image center
+        track body+X, so cat at body+X appears at smaller cx → we ADD
+        f_px*pitch back to recover true bbox-vs-body position.
+      - image TOP = body LEFT (empirical): right roll makes image
+        center track body-Y, so cat at body-Y appears at smaller cy →
+        we ADD f_py*roll back to recover true position.
+    Sign conventions verified empirically with cf2's stateEstimate
+    (roll right > 0, pitch fwd > 0).
+    """
+    with _att_lock:
+        pitch_rad = math.radians(_drone_pitch_deg)
+        roll_rad = math.radians(_drone_roll_deg)
+    cx_corr = int(round(cx + CAM_FX_PX * pitch_rad))
+    cy_corr = int(round(cy + CAM_FY_PX * roll_rad))
+    return cx_corr, cy_corr
+
+
 # ── flow → cf2 conversion (mirrors examples/sentai_runtime/diag/_t_flow_to_drone.py) ─
 # Same math used on HW board; same body convention (cam0 + vflip=1).
 FLOW_FOV_H_DEG    = 58.0
@@ -206,10 +248,15 @@ def main() -> int:
     time.sleep(0.5)
     print("[hover] sentai_sim configured, tracker emitting", file=sys.stderr)
 
-    # Concurrent: cflib drone control
+    # Concurrent: cflib drone control via MotionCommander (designed
+    # specifically for flow-deck stacks per Bitcraze guidance — runs a
+    # background thread streaming velocity setpoints at 10 Hz, handles
+    # takeoff/landing, refreshes the cf2 watchdog automatically).
     import cflib.crtp
     from cflib.crazyflie import Crazyflie
     from cflib.crazyflie.syncCrazyflie import SyncCrazyflie
+    from cflib.positioning.motion_commander import MotionCommander
+    from cflib.crazyflie.log import LogConfig
 
     from cflib.crtp.crtpstack import CRTPPacket
     cflib.crtp.init_drivers()
@@ -219,56 +266,41 @@ def main() -> int:
     cf.param.set_value("stabilizer.estimator", 2)
     time.sleep(0.5)
     # Reset Kalman filter AFTER setting estimator + before flow injection.
-    # Per Bitcraze guidance: "The external position can make the EKF diverge
-    # and output NaN, in that case position control will not work. You can
-    # try to reset the EKF after starting to send position update, this way
-    # the EKF will converge to the external position."  We do the reset
-    # PRE-injection so the EKF starts from a clean state.
+    # Per Bitcraze: "external position can make EKF diverge to NaN ...
+    # reset the EKF after starting to send position update".  Our reset
+    # is pre-injection so EKF starts clean.
     cf.param.set_value("kalman.resetEstimation", 1)
     time.sleep(0.5)
     cf.param.set_value("kalman.resetEstimation", 0)
     time.sleep(2.0)   # let EKF settle
 
-    # Staged takeoff — drone camera is BELOW ground for z<1m on this drone
-    # model (user-confirmed via Gazebo GUI PIP) so any "lock" at <1m is a
-    # spurious hallucination on underground checkerboard.  Filter by:
-    #   (a) altitude >= MIN_LOCK_Z
-    #   (b) tracker class in PLAUSIBLE_CAT_CLASSES (MobileNet COCO17
-    #       conflates cat with dog and bear on this photo).
-    print("[hover] staged takeoff: climbing until cat detected (need z>=1m, class∈{15,16,21})",
-          file=sys.stderr)
-    target_z = 0.0
-    cat_locked_at_z = None
-    MAX_CLIMB_Z = 3.0
-    MIN_LOCK_Z = 2.0   # raised so 1×1m cat picture fits in FOV with margin
+    # Subscribe to drone attitude (10 ms = 100 Hz) — used for bbox tilt
+    # compensation in attitude_compensate() above.
+    def _att_cb(timestamp, data, logconf):
+        global _drone_roll_deg, _drone_pitch_deg, _drone_yaw_deg
+        with _att_lock:
+            _drone_roll_deg = data['stateEstimate.roll']
+            _drone_pitch_deg = data['stateEstimate.pitch']
+            _drone_yaw_deg = data['stateEstimate.yaw']
+    log_att = LogConfig(name="att", period_in_ms=10)
+    log_att.add_variable("stateEstimate.roll", "float")
+    log_att.add_variable("stateEstimate.pitch", "float")
+    log_att.add_variable("stateEstimate.yaw", "float")
+    try:
+        cf.log.add_config(log_att)
+        log_att.data_received_cb.add_callback(_att_cb)
+        log_att.start()
+        print("[hover] attitude log subscribed @ 100 Hz", file=sys.stderr)
+    except Exception as e:
+        print(f"[hover] WARN attitude log failed: {e}", file=sys.stderr)
+
+    # MotionCommander takeoff to TARGET_Z (2.5m).  MC auto-streams hover
+    # setpoints at 10Hz on a background thread → satisfies cf2 watchdog.
+    HOLD_Z = TARGET_Z
     PLAUSIBLE_CAT_CLASSES = {15, 16, 21}
-    while target_z < MAX_CLIMB_Z:
-        target_z = min(MAX_CLIMB_Z, target_z + 0.5 * 0.1)  # 0.5 m/s = +0.05m/tick at 10Hz → MAX 3m in 6s
-        cf.commander.send_hover_setpoint(0, 0, 0, target_z)
-        time.sleep(0.1)
-        peek_lock = False
-        try:
-            while True:
-                s = _state_queue.get_nowait()
-                if (len(s) >= 12 and s[1] > 0 and s[3] >= MIN_CONF_PERMIL
-                        and s[2] in PLAUSIBLE_CAT_CLASSES):
-                    peek_lock = True
-                    break
-        except _queue.Empty:
-            pass
-        if peek_lock and target_z >= MIN_LOCK_Z:
-            cat_locked_at_z = target_z
-            print(f"[hover] CAT LOCKED at altitude {target_z:.2f} m — "
-                  f"start centering", file=sys.stderr)
-            break
-    if cat_locked_at_z is None:
-        print(f"[hover] climbed to {target_z:.2f} m without cat lock — proceeding anyway", file=sys.stderr)
-        cat_locked_at_z = target_z
-    # HOLD at lock altitude — do NOT keep climbing.  User feedback
-    # 2026-05-11: "cand se detecteaza pisica sa nu se mai ridice, sa se
-    # miste spre centrul boxului".  Hover loop below sends (vx, vy, 0,
-    # HOLD_Z) so lateral motion happens but altitude stays put.
-    HOLD_Z = cat_locked_at_z
+    print(f"[hover] MotionCommander takeoff → {HOLD_Z:.1f}m", file=sys.stderr)
+    mc = MotionCommander(sync, default_height=HOLD_Z)
+    mc.take_off(height=HOLD_Z, velocity=0.5)   # 0.5 m/s climb
     # Confirm airborne via gz pose query before starting hover-over.
     try:
         pose = subprocess.run(
@@ -324,26 +356,36 @@ def main() -> int:
         except _queue.Empty:
             pass
         for state in states_this_tick:
-            # STATE now has 16 fields: ..., vx_cmd, vy_cmd, flow_dx_q,
-            # flow_dy_q, x1, y1, x2, y2.  Older runs had 12 / 10 fields.
-            if len(state) >= 12:
+            # STATE: ..., vx_cmd_raw, vy_cmd_raw, flow_dx_q, flow_dy_q,
+            # x1, y1, x2, y2.  We RECOMPUTE vx/vy host-side after applying
+            # attitude compensation on the bbox centroid (drone tilt
+            # rotates camera FOV → bbox appears to shift in image without
+            # drone translating; correct by subtracting f_px*tilt_rad).
+            if len(state) >= 16:
+                it, tid, cls, conf, cx, cy, ex, ey, _, _, fvx, fvy, x1, y1, x2, y2 = state
+                # Tilt-compensated centroid.
+                cx_c, cy_c = attitude_compensate(cx, cy)
+                err_x_c = cx_c - SSD_INPUT_W // 2
+                err_y_c = cy_c - SSD_INPUT_H // 2
+                # Sign convention (matches hover_logic 2026-05-11 fix):
+                # vx = +err_y * GAIN, vy = +err_x * GAIN.
+                GAIN = 4
+                V_MAX_MM = 200
+                vx_mm = max(-V_MAX_MM, min(V_MAX_MM,  err_y_c * GAIN))
+                vy_mm = max(-V_MAX_MM, min(V_MAX_MM,  err_x_c * GAIN))
+            elif len(state) >= 12:
                 it, tid, cls, conf, cx, cy, ex, ey, vx_mm, vy_mm, fvx, fvy = state[:12]
+                cx_c, cy_c, err_x_c, err_y_c = cx, cy, ex, ey
             else:
                 it, tid, cls, conf, cx, cy, ex, ey, vx_mm, vy_mm = state[:10]
                 fvx = fvy = 0
-            # Forward each fresh flow sample to cf2 EKF as a
-            # SENSOR_FLOW_SIM CRTP packet (mirrors what the PMW3901 flow
-            # deck would push — same conf→std mapping the HW deck uses
-            # via _t_flow_to_drone.py, so noisy phase-corr samples get
-            # high std and the EKF weighs them less).
+                cx_c, cy_c, err_x_c, err_y_c = cx, cy, ex, ey
+            # Forward fresh flow to cf2 (PMW3901-style conf→std mapping).
             if fvx or fvy:
                 now = time.monotonic()
                 dt = max(0.001, min(0.2, now - last_flow_send_t))
                 last_flow_send_t = now
                 dpx, dpy = flow_to_dpixel(fvx, fvy)
-                # State has fconf at index 12? Not yet — fconf not in STATE.
-                # Use fvx+fvy magnitude as a crude conf proxy until we plumb
-                # conf through STATE.  Better: just default mid std for now.
                 std = 4.0
                 pk = CRTPPacket()
                 pk.port = CRTP_PORT_SETPOINT_SIM
@@ -359,27 +401,40 @@ def main() -> int:
                 vy_body = vy_mm / 1000.0
                 miss = 0
                 n_lock += 1
+                with _att_lock:
+                    rd, pd = _drone_roll_deg, _drone_pitch_deg
                 print(f"[hover] LOCK iter={it} id={tid} cls={cls} conf={conf} "
-                      f"cxy=({cx},{cy}) err=({ex:+4d},{ey:+4d}) "
-                      f"flow=({fvx:+4d},{fvy:+4d}mm/s) "
+                      f"raw=({cx},{cy}) corr=({cx_c},{cy_c}) "
+                      f"err_c=({err_x_c:+4d},{err_y_c:+4d}) "
+                      f"att=(r{rd:+4.1f},p{pd:+4.1f}) "
                       f"cmd=({vx_body:+.3f},{vy_body:+.3f})", file=sys.stderr)
             else:
                 miss += 1
                 if miss == LOST_FRAMES:
                     print(f"[hover] target LOST (iter={it})", file=sys.stderr)
                     vx_body = vy_body = 0.0
-        cf.commander.send_hover_setpoint(vx_body, vy_body, 0, HOLD_Z)
+        # MotionCommander streams setpoints on its OWN background thread
+        # @ 10 Hz — we just call start_linear_motion each time we have a
+        # new command.  zero-velocity is implicit between calls until
+        # next update arrives.
+        try:
+            mc.start_linear_motion(vx_body, vy_body, 0.0)
+        except Exception as e:
+            print(f"[hover] MC update err: {e}", file=sys.stderr)
         time.sleep(1.0 / RATE_HZ)
     print(f"[hover] total LOCK events: {n_lock}  flow packets sent to cf2: {n_flow_sent}  HOLD_Z={HOLD_Z:.2f}m",
           file=sys.stderr)
 
-    print("[hover] landing", file=sys.stderr)
-    t0 = time.monotonic()
-    while time.monotonic() - t0 < 3.0:
-        z = max(0.05, TARGET_Z * (1.0 - (time.monotonic() - t0) / 3.0))
-        cf.commander.send_hover_setpoint(0, 0, 0, z)
-        time.sleep(0.05)
-    cf.commander.send_stop_setpoint()
+    print("[hover] MotionCommander landing", file=sys.stderr)
+    try:
+        mc.land(velocity=0.4)
+    except Exception as e:
+        print(f"[hover] mc.land err: {e}", file=sys.stderr)
+    # mc.land handles the descent profile + send_stop_setpoint internally.
+    try:
+        log_att.stop()
+    except Exception:
+        pass
     sync.close_link()
 
     _stop.set()
