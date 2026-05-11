@@ -392,7 +392,8 @@ static int validate_motion_4corners(const uint8_t* gray_curr,
                 }
             }
         }
-        // Corner says global+best is the right answer; agree if |sx|,|sy| ≤ 2
+        // Corner says global+best is correct if |sx|,|sy| ≤ 2 (strict).
+        // Empirically: strict 2px gave 53.6% all-4, relaxed 3px regressed.
         if ((best_dx >= -2 && best_dx <= 2) && (best_dy >= -2 && best_dy <= 2)) {
             agree_count++;
         }
@@ -686,6 +687,15 @@ static int handle_one_frame(int fd) {
     }
     s_prev_rgb_crc = gray_crc;
 
+    // P5 (new): median-of-3 smoothing on best output (dx_best, dy_best)
+    // to suppress single-frame phase-corr noise spikes that propagate
+    // straight into cf2 EKF velocity observation.  Median is naturally
+    // outlier-robust (unlike mean averaging which oscillates on drone
+    // wobble — already tested + rejected earlier in this session).
+    //
+    // History buffer stored AFTER fusion (later in this function).
+    // Hooked in just before reply.dx_best assignment.
+
     // P3: 4-corner SAD validation of global L0 phase-corr estimate.
     // Compare against 4 corner patches' independent SAD search; if
     // majority disagree by > 2 pixels, mark L0 conf as low (outlier).
@@ -832,8 +842,7 @@ static int handle_one_frame(int fd) {
         s_have_anchor = 1;
         s_anchor_seq = hdr.seq;
     } else if (is_moving && conf > 0) {
-        // Drone is actively moving — refresh anchor.  Don't return a
-        // cumulative-drift estimate this frame (caller uses inst motion).
+        // P4 hysteresis reverted — net-neutral trade-off in tests.
         sentai_flow_phase_corr_set_anchor(3, s_gray80x60);
         memcpy(s_anchor_gray_shadow, s_gray80x60, sizeof(s_anchor_gray_shadow));
         s_anchor_seq = hdr.seq;
@@ -988,6 +997,7 @@ static int handle_one_frame(int fd) {
         best_source = 1;
     }
     // else default L0 already set
+    // P5 median-of-3 reverted — introduced lag on oscillating drone.
 
     // DEBUG DUMP: write each pyramid level's 80×60 gray buffer to disk
     // as a PPM (gray triplicated to RGB so any image viewer opens it).
