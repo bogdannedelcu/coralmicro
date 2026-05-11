@@ -782,6 +782,105 @@ work: 200-iter top-level loop now lives in
 `build-sim/sentai_fs_root/hover_logic.py` and the wrapper does
 `import hover_logic` — single REPL line, MP lexer streams it from disk.
 
+## 10g. Hover-over-detection best practices (s090, 2026-05-11)
+
+Hard-won lessons from the closed-loop SSD + flow + cf2 hover-over demo.
+Read these before adding new gaze-and-track behaviours to any SIM
+experiment.
+
+**1. CrazySim drone camera is BELOW ground for z<1m on this drone
+model.**  Confirmed via Gazebo GUI PIP.  At low altitude the downward
+camera sees only the z=-10m deep checkerboard fallback plane and SSD
+hallucinates `tv/sink/refrigerator` at 10-20% conf on the uniform
+texture.  Any "lock" at z<1m is therefore a spurious hallucination.
+Staged-takeoff fix: enforce `MIN_LOCK_Z >= 1.0m` AND filter on
+plausible classes before accepting the lock.
+
+**2. cf2 SITL `send_hover_setpoint(vx, vy, yawrate, zDistance)` has
+INVERTED vy convention vs the body +Y=left textbook.**  Empirically
+verified 2026-05-11: at z=2.6m the drone with vy=-200 moved world +Y
+(left) instead of world -Y (right).  hover_logic.py compensates by
+emitting `vy = -err_x * GAIN` (flipped sign vs original cam0+vflip=1
+body convention).  vx behaves as expected (`vx = +err_y * GAIN`).
+
+**3. Coral COCO-17 model class labels — `class 16 = CAT`, not dog.**
+Per Coral's official mapping in
+`/home/bogdan/work/edge/edgetpu/test_data/coco_labels.txt`: 15=bird,
+**16=cat**, 17=dog, 18=horse, 19=sheep, 20=cow, 21=elephant, 22=bear.
+pycoral's `Detection.id` field is 0-indexed RAW model output; do NOT
+add a +1 offset.  Initial overlay scripts in this repo had the wrong
+mapping (16→"dog") and labels were corrected only after user caught
+the mislabelled green bboxes visually.  When in doubt, run
+`from pycoral.utils.dataset import read_label_file; print(read_label_file(...))`
+and compare to your hard-coded dict.
+
+**4. MobileNet V2 COCO17 confuses cat with dog/bear/horse on
+`test_data/cat.bmp`.**  At z=2.6m looking down the model returns class
+16 (cat) at 75-78% conf consistently when properly oriented; flipped
+180° the model still gets 16 but conf varies 50-65%.  The hover_logic
+class filter is `PLAUSIBLE_CAT_CLASSES = {15, 16, 21}` — accepts the
+canonical cat plus its common confusion buckets.  Don't lock the
+filter to `{16}` only or you'll lose track during partial views.
+
+**5. Gazebo Garden 7.9 PBR textures must be SQUARE + power-of-two.**
+A non-square texture (e.g. 512×341 from a 4:3 photo) loads but renders
+INVISIBLE — Garden silently falls back to base diffuse colour and you
+see only the underlying ground plane.  Fix: pad the source PNG to
+512×512 (or 1024×1024) with white/neutral background, then adjust the
+SDF `<box>` size to match the new aspect.  `file` will confirm
+`PNG image data, 512 x 512`; checker.png (which works) is also 512×512
+and uses the same `<pbr><metal><albedo_map>` element.
+
+**6. Sentai_sim camera_bridge_recv frame dump (SIM-only).**  Set
+`SENTAI_DUMP_FRAMES_DIR=/some/dir` + `SENTAI_DUMP_FRAMES_EVERY=15`
+before launching `sentai_sim` to save raw 640×480 RGB PPMs to disk
+(every Nth received frame).  Code lives in `sim/camera_bridge_recv.c`
+which is only compiled on SIM target — never on ARM (PPM I/O is too
+slow for the M7).  The wrapper at `/tmp/run_hover.sh` makes a
+**timestamped per-experiment dir** so runs don't overwrite each other
+(`/tmp/sentai_frames_YYYYMMDD_HHMMSS/`).
+
+**7. TPU helper daemon (`sim/scripts/sim_tpu_helper.py`) is brittle —
+it dies on USB transfer errors when the Coral USB Accelerator returns
+LIBUSB_TRANSFER_ERROR (5).**  Symptom: `sentai.tpu.load() = -1` +
+`HOVER_LOGIC_DIAG iter=N n_tracks=0 stats={'frames': 0}` (pipeline
+runs but no model loaded → no detections).  Restart procedure:
+```bash
+pkill -9 -f sim_tpu_helper.py
+rm -f /tmp/sentai_tpu.sock
+nohup venv-coral/bin/python3 -u sim/scripts/sim_tpu_helper.py < /dev/null > /tmp/tpu_helper.log 2>&1 &
+disown
+```
+Add `pgrep -f sim_tpu_helper >/dev/null || restart_tpu_helper()` to
+any long-running experiment harness.
+
+**8. STATE= line emitted by hover_logic.py must include FULL bbox
+(x1,y1,x2,y2), not just the centroid.**  Initial 12-field STATE only
+had `cx, cy` — host-side overlay had to synthesize an artificial
+±50px box around the centroid, leading to bbox positions that didn't
+match what SSD actually saw.  16-field STATE now appends `x1, y1,
+x2, y2` in 300×300 SSD-input space.  Host scales by `640/300, 480/300`
+when overlaying on 640×480 PPM.
+
+**9. hover_logic loop duration must exceed staged-takeoff time.**
+With N_ITER * RATE_MS too short (e.g. 200 × 200 ms = 40 s), a slow
+staged takeoff (60+ s climbing to MAX_CLIMB_Z=3m at 0.05 m/s) finishes
+the inner loop BEFORE the host wrapper enters its hover-over phase →
+zero STATE messages → zero LOCK events → zero flow packets.  Either
+make the climb fast (`+0.05 m/tick` at 10 Hz = 0.5 m/s, MAX_CLIMB_Z
+reached in 6 s) or extend N_ITER (currently 500 = 100 s, generous
+headroom).
+
+**10. Coast through detection dropouts.**  SSD MobileNet V2 on
+non-canonical poses (drone pitched, motion blur, cat partially out of
+FOV) drops the class-16 track for 5-10 frames at a time.  hover_logic
+keeps the last commanded velocity active for `COAST_FRAMES` ticks
+after detection loss, so the drone keeps approaching the last-known
+bbox centre instead of stopping cold.  Reacquisition is usually <2 s.
+Without coast, the drone yo-yos: full thrust toward target → lose
+detection → zero command → drone drifts → reacquire → full thrust →
+oscillate.
+
 ## 11. References
 
 - FreeRTOS POSIX port docs: https://www.freertos.org/FreeRTOS-simulator-for-Linux.html

@@ -125,11 +125,14 @@ class SentaiRepl:
 
 # Background reader keeps sentai_sim's stdout drained + parses STATE lines
 # into a queue.  Earlier impl overwrote a single _latest_state slot which
-# caused the host loop to miss most tid>0 transitions (reader updates @5Hz,
-# host polls @5Hz but skewed → most updates clobbered before host read).
+# caused the host loop to miss most tid>0 transitions.
 import queue as _queue
 _state_queue: _queue.Queue = _queue.Queue(maxsize=4096)
 _stop = threading.Event()
+# Fires when hover_logic prints HOVER_CENTERED — bbox within CENTER_THRESH
+# for CENTERED_HOLD consecutive frames.  Host waits 3s post-centered then
+# lands.
+_centered_event = threading.Event()
 
 
 def reader_thread(proc: subprocess.Popen):
@@ -154,8 +157,10 @@ def reader_thread(proc: subprocess.Popen):
                 print(f"[reader] parse err: {e}: {payload[:80]}", file=sys.stderr)
         elif "Traceback" in line or "ERROR" in line.upper():
             print(f"[reader] {line.rstrip()}", file=sys.stderr)
-        elif "HOVER_LOGIC_" in line:
+        elif "HOVER_LOGIC_" in line or "HOVER_CENTERED" in line or "HOVER_COAST_END" in line:
             print(f"[reader] {line.rstrip()[:200]}", file=sys.stderr)
+            if "HOVER_CENTERED" in line:
+                _centered_event.set()
     sim_log.close()
 
 
@@ -216,11 +221,11 @@ def main() -> int:
           file=sys.stderr)
     target_z = 0.0
     cat_locked_at_z = None
-    MAX_CLIMB_Z = 2.5
-    MIN_LOCK_Z = 1.0
+    MAX_CLIMB_Z = 3.0
+    MIN_LOCK_Z = 2.0   # raised so 1×1m cat picture fits in FOV with margin
     PLAUSIBLE_CAT_CLASSES = {15, 16, 21}
     while target_z < MAX_CLIMB_Z:
-        target_z = min(MAX_CLIMB_Z, target_z + 0.05 * 0.1)  # +0.005 m/tick at 10 Hz
+        target_z = min(MAX_CLIMB_Z, target_z + 0.5 * 0.1)  # 0.5 m/s = +0.05m/tick at 10Hz → MAX 3m in 6s
         cf.commander.send_hover_setpoint(0, 0, 0, target_z)
         time.sleep(0.1)
         peek_lock = False
@@ -271,8 +276,26 @@ def main() -> int:
     n_lock = 0
     n_flow_sent = 0
     last_flow_send_t = time.monotonic()
+    centered_at = None        # monotonic timestamp when hover_logic first reported HOVER_CENTERED
+    HOLD_AFTER_CENTER_S = 3.0
+    HOVER_TIMEOUT_S = 60.0    # safety cap if drone never centers
     t0 = time.monotonic()
-    while time.monotonic() - t0 < HOVER_S:
+    # Loop until HOVER_CENTERED fires + 3s elapsed, OR safety timeout.
+    while True:
+        elapsed = time.monotonic() - t0
+        if centered_at is not None and (time.monotonic() - centered_at) >= HOLD_AFTER_CENTER_S:
+            print(f"[hover] HOLD_AFTER_CENTER_S ({HOLD_AFTER_CENTER_S}s) elapsed — landing",
+                  file=sys.stderr)
+            break
+        if elapsed >= HOVER_TIMEOUT_S:
+            print(f"[hover] HOVER_TIMEOUT_S ({HOVER_TIMEOUT_S}s) — landing without center",
+                  file=sys.stderr)
+            break
+        if _centered_event.is_set() and centered_at is None:
+            centered_at = time.monotonic()
+            print(f"[hover] CENTERED detected — holding {HOLD_AFTER_CENTER_S}s then land",
+                  file=sys.stderr)
+            _centered_event.clear()
         # Drain queue — process every STATE emitted by hover_logic since
         # last host poll, not just the latest.  Last lock state wins for
         # the actual setpoint.
@@ -283,12 +306,12 @@ def main() -> int:
         except _queue.Empty:
             pass
         for state in states_this_tick:
-            # STATE now has 12 fields: ..., vx_cmd_mm, vy_cmd_mm,
-            #                          flow_dx_q1000, flow_dy_q1000
-            if len(state) == 12:
-                it, tid, cls, conf, cx, cy, ex, ey, vx_mm, vy_mm, fvx, fvy = state
+            # STATE now has 16 fields: ..., vx_cmd, vy_cmd, flow_dx_q,
+            # flow_dy_q, x1, y1, x2, y2.  Older runs had 12 / 10 fields.
+            if len(state) >= 12:
+                it, tid, cls, conf, cx, cy, ex, ey, vx_mm, vy_mm, fvx, fvy = state[:12]
             else:
-                it, tid, cls, conf, cx, cy, ex, ey, vx_mm, vy_mm = state
+                it, tid, cls, conf, cx, cy, ex, ey, vx_mm, vy_mm = state[:10]
                 fvx = fvy = 0
             # Forward each fresh flow sample to cf2 EKF as a
             # SENSOR_FLOW_SIM CRTP packet (mirrors what gz_crazysim_plugin
