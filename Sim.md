@@ -1016,6 +1016,193 @@ two TSVs + PPMs via `make_video.py <exp_dir>`.
   `/tmp/sentai_frames_*` dir is a workdir; results that prove a
   hypothesis get copied / linked back into the sNNN directory).
 
+## 10j. Hover-over-detected-object — conclusions (s090 final state, 2026-05-11)
+
+The s090 experiment closed the loop: drone detects the ImageNet cat
+picture on the ground via on-board SSD + SORT, then navigates above it
+holding altitude, with optical flow stabilising drift simultaneously.
+**Pure classical control did the job — no policy learning, no RL.**
+This section captures what worked, what didn't, and the canonical
+recipe for similar tasks.
+
+### What works (the recipe)
+
+```
+gz camera (640×480 @30fps)
+    │
+    ▼
+camera_bridge_recv  ── PPM dump (every 15th frame, /tmp/sentai_frames_<TS>/)
+    │  (RGB → PXP 80×60 → BT.601 luma → phase corr → g_flow snapshot)
+    │  (RGB → nearest-neighbor 300×300 → SSD MobileNet V2 → SORT)
+    │
+    ├──► sentai.flow.read()  ← gz frame seq propagated through `f[0]`
+    │     │
+    │     ▼
+    │   host wrapper: flow_to_dpixel() PMW3901 conversion (body_xform=(-1,0,0,+1))
+    │     │
+    │     ▼  17-byte CRTP packet [SENSOR_FLOW_SIM=6, dpx, dpy, dt, stdDev=4.0]
+    │   cf2 SITL sensors_sitl.c → estimatorEnqueueFlow
+    │     │
+    │     ▼
+    │   cf2 EKF velocity update (×27 drift reduction vs no flow)
+    │
+    └──► sentai.pipeline.tracker_tracks()  → confirmed cls=16 cat track
+          │
+          ▼
+        hover_logic.py: bbox centroid → 17-field STATE w/ fseq
+          │
+          ▼  (push to per-experiment state.tsv on disk)
+        host wrapper: attitude_compensate() bbox using cf.log.stateEstimate.{roll,pitch}
+          │  (subtract f_px * pitch_rad, f_py * roll_rad — small-angle virtual horizontal cam)
+          ▼
+        proportional pixel-error → body velocity (vx = +err_y*GAIN, vy = +err_x*GAIN)
+          │
+          ▼
+        MotionCommander.start_linear_motion(vx, vy, 0)  → cf2 cascaded PID
+          │  (velocity → attitude → attitude-rate → motor PWM)
+          ▼
+        DRONE TRANSLATES toward bbox-image-centre
+```
+
+### Best practices distilled
+
+**1. Kalman EKF reset post-stabilizer-flip.** `kalman.resetEstimation=1`
+   after `stabilizer.estimator=2`, BEFORE flow injection starts.
+   Without reset the cold EKF state diverges on the first noisy flow
+   sample.  Verified ×3.4 lift in LOCK events (93 → 312) in s090.
+
+**2. MotionCommander, not raw send_hover_setpoint.**  The flow-deck-
+   aware background-streaming class keeps cf2's 500 ms watchdog fed and
+   handles takeoff/landing.  Drone went from "barely 5cm motion in 30s"
+   to "+0.54m / -0.39m within ~10cm of the cat target" on the run after
+   switching.
+
+**3. Virtual horizontal camera frame.**  Drone tilt rotates camera FOV
+   ↔ bbox appears to shift in image WITHOUT drone translating.  Real
+   PMW3901 deck firmware compensates this via gyro-rate de-rotation in
+   `mm_flow.c`; offboard pipelines need the equivalent.  Our
+   small-angle `attitude_compensate()` applies `cx += f_x * pitch_rad`,
+   `cy += f_y * roll_rad` with `f_x ≈ 270 px`, `f_y ≈ 362 px` at our
+   58°×45° FOV.  For tilts ≥5° upgrade to full rotation homography.
+
+**4. Sign convention is camera-mount-specific — verify empirically,
+   don't trust documentation.**  Our SIM cam0+vflip=1 setup ended up
+   with: image LEFT (low cx) ↔ body forward (+X), image BOTTOM (high
+   cy) ↔ body right (-Y).  Controller: `vx = +err_y*GAIN`,
+   `vy = +err_x*GAIN`.  THREE sign-flip iterations before this stuck.
+   Always log world pose alongside cmd to catch reversed axes.
+
+**5. cf2 SITL `SENSOR_FLOW_SIM` packet must carry stdDev.**  The vanilla
+   13-byte form hardcodes `stdDevX = stdDevY = 2.0` which over-trusts
+   noisy phase-corr in featureless scenes.  We extended `sensors_sitl.c`
+   to accept stdDev in p.data[13..17] (17-byte packet form, legacy
+   13-byte still works).  Mirrors the PMW3901 deck driver's internal
+   conf→std mapping.  Patch on
+   `bogdannedelcu/crazysim-crazyflie-firmware:sentai-flow-sim-support`.
+
+**6. Same seq number throughout the data pipeline.**  Source PPM
+   `frame_NNNNNN.ppm` ↔ rendered overlay `frame_NNNNNN.png` ↔ state.tsv
+   row with fseq=NNNNNN.  No index-ratio mapping anywhere.  Per
+   embeded.md §"replace implicit conventions with explicit APIs".  An
+   earlier overlay used proportional index-matching and produced bboxes
+   shifted by 30+ frames of detection lag — invisible until rendered.
+
+**7. Per-experiment self-contained dir.**  All artifacts in
+   `/tmp/sentai_frames_<YYYYMMDD_HHMMSS>/`: PPMs, flight.tsv, state.tsv,
+   hover.log, hover_sim.log, run.mp4.  Re-runs never overwrite — every
+   experiment is post-hoc-analysable from disk alone.  Anti-pattern:
+   scraping `/tmp/hover_sim.log` which the next run will overwrite.
+   Per §10i.
+
+**8. Auto-restart brittle services pre-run.**  The Coral USB driver
+   throws transfer error 5 on client disconnect and dies; `run_hover.sh`
+   `pkill -9` + restart of `sim_tpu_helper.py` is now standard pre-run
+   so the helper is provably alive when sentai_sim calls `tpu.load()`.
+   Without this, pipeline silently runs without a loaded model and
+   produces `frames=N, n_tracks=0` forever.
+
+### What we did NOT need (deliberately)
+
+- **No reinforcement learning / no policy training.**  Classical PID
+  on the tilt-compensated pixel error matches what the academic
+  literature converges on for this task.
+- **No absolute position source (UWB, Lighthouse, MOCAP).**  Flow-only
+  positioning is sufficient for stationkeeping during the hover phase;
+  bbox-in-image acts as the absolute-position reference for the
+  controller.
+- **No HW-side firmware mod beyond CrazySim cf2.**  `app_sentai_bridge`
+  (the UART2 bridge on real hardware) isn't compiled into CrazySim —
+  not needed, because cf2 SITL already has `SENSOR_FLOW_SIM` wired in
+  `sensors_sitl.c` (we just extended the packet format).
+
+### Papers + references that informed this design
+
+The recipe above tracks closely with established quadrotor IBVS
+literature.  Sources consulted during s090 development:
+
+**Visual servoing fundamentals**:
+- Virtual camera-based visual servoing for rotorcraft using monocular
+  camera and gyroscopic feedback — Elsevier ScienceDirect.  Closest
+  match to our attitude_compensate() approach.
+  <https://www.sciencedirect.com/science/article/abs/pii/S001600322200552X>
+- Autonomous Vision-Based Object Detection and Tracking System for
+  Quadrotor UAVs — MDPI Sensors 2025 (full IBVS+detection pipeline).
+  <https://www.mdpi.com/1424-8220/25/20/6403>
+  <https://pmc.ncbi.nlm.nih.gov/articles/PMC12567932/>
+- Precise Interception Flight Targets by Image-based Visual Servoing
+  of Multicopter — arXiv 2024 (attitude-change handling).
+  <https://arxiv.org/html/2409.17497v1>
+- Image-Based Visual Servoing for UAVs Based on Fuzzy Logic — Sage
+  Journals 2023.
+  <https://journals.sagepub.com/doi/10.1177/16878132231167238>
+- Image-Based Adaptive Visual Control of Quadrotor UAV — MDPI
+  Electronics.
+  <https://www.mdpi.com/2079-9292/14/15/3114>
+- Visual Servoing Approach to Autonomous UAV Landing on a Moving
+  Vehicle — MDPI Sensors 2022.
+  <https://www.mdpi.com/1424-8220/22/17/6549>
+
+**Hybrid / self-supervised approaches** (for reference, NOT adopted):
+- Efficient Self-Supervised Neuro-Analytic Visual Servoing for
+  Real-time Quadrotor Control — arXiv 2025.
+  <https://arxiv.org/html/2507.19878>
+
+**Bitcraze stack references**:
+- Crazyflie controllers cascade documentation.
+  <https://www.bitcraze.io/documentation/repository/crazyflie-firmware/master/functional-areas/sensor-to-control/controllers/>
+- State estimation (Kalman EKF + flow handling).
+  <https://www.bitcraze.io/documentation/repository/crazyflie-firmware/master/functional-areas/sensor-to-control/state_estimators/>
+- Bitcraze forum: flying to position with flow deck pitfalls.
+  <https://forum.bitcraze.io/viewtopic.php?t=4125>
+- Bitcraze forum: Kalman filter reset (resolved).
+  <https://forum.bitcraze.io/viewtopic.php?t=3616>
+- Kim McGuire — Commander framework offboard/onboard 2024.
+  <http://www.mcguirerobotics.com/blog/old_bitcraze_blogposts/2024_01_01_the-commander-framework-part-2-offboard-or-onboard/>
+- CrazySim repo (gtfactslab) — base simulator.
+  <https://github.com/gtfactslab/CrazySim>
+
+**Tutorials & tooling**:
+- ViSP Tutorial: Image-based visual servo (IBVS).
+  <https://visp-doc.inria.fr/doxygen/visp-daily/tutorial-ibvs.html>
+- Robotics Knowledgebase: Visual Servoing.
+  <https://roboticsknowledgebase.com/wiki/state-estimation/visual-servoing/>
+
+### Open work
+
+- **Full rotation homography** for tilt compensation (we use
+  small-angle approx; OK for ±2° hover, breaks ≥5°).
+- **Per-sample flow stdDev** plumbed end-to-end (currently host uses
+  fixed `std=4.0`; the conf-mapped per-frame value from
+  `sentai.flow.read()[3]` would let the EKF adapt to scene-quality
+  changes during flight).
+- **Move-the-target test** — currently cat is static at world
+  (+0.4, -0.3).  A moving target would exercise the SORT predict step
+  and the controller's response to a drifting setpoint.
+- **Re-run on ARM** to confirm the bbox-tilt-compensation +
+  MotionCommander pattern transfers (the firmware-side flow path on
+  HW already does gyro de-rotation in `mm_flow.c`, so the host-side
+  compensation in our s090 wrapper may be redundant on HW).
+
 ## 11. References
 
 - FreeRTOS POSIX port docs: https://www.freertos.org/FreeRTOS-simulator-for-Linux.html
