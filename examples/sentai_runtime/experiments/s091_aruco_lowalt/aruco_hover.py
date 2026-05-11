@@ -80,8 +80,8 @@ assert REPLY_SZ == 92, f"unexpected REPLY_SZ={REPLY_SZ}"
 #   L0  (8× decimation): 13.85 mm/grid @ z=1m  (reference)
 #   L1  (4× decimation):  6.93 mm/grid  → L1 mgrid × 0.5 = L0 mgrid
 #   L2  (2× decimation):  3.46 mm/grid  → L2 mgrid × 0.25 = L0 mgrid
-L1_TO_L0_RATIO = 0.5    # mid → wide-equivalent
-L2_TO_L0_RATIO = 0.25   # fine → wide-equivalent
+L1_TO_L0_RATIO = 0.5    # mid (4× decim) → wide-equivalent
+L2_TO_L0_RATIO = 0.125  # native crop (8× finer per-px) → wide-equivalent
 # Back-compat alias (some code may still reference CENTER_TO_WIDE_RATIO).
 CENTER_TO_WIDE_RATIO = L1_TO_L0_RATIO
 

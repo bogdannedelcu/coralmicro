@@ -307,28 +307,29 @@ static void rgb888_to_y(const uint8_t* rgb, uint8_t* y, int n_pixels) {
 //
 // Box-filter R rxR_to_gray: read R×R block of RGB, average to 1 gray
 // pixel using BT.601 luma weights (77, 150, 29) and >>8 rescale.
-static void boxfilter_2x_rgb_to_gray(const uint8_t* rgb_full,
-                                      int full_w, int full_h,
-                                      uint8_t* y_out,
-                                      int out_w, int out_h) {
-    // 2× box filter: 4 input pixels (2×2) per output pixel.
-    const int patch_w = out_w * 2;
-    const int patch_h = out_h * 2;
-    const int x_start = (full_w - patch_w) / 2;
-    const int y_start = (full_h - patch_h) / 2;
+// NATIVE crop — take center 80×60 pixels from raw 640×480, NO decimation.
+// At z=1m, this gives per-pixel ground resolution = 1.73mm (8× better
+// than L0 wide).  Smaller FOV (14×10cm) but enough for hover-over-markers
+// since markers cluster at center.  Same compute cost as box-filters
+// (still produces 80×60 gray buffer).
+//
+// Replaces previous 2× box-filter which had limited sub-pixel benefit
+// (per-grid still 3.46mm — couldn't detect slow drift < 4.8cm/s).
+static void crop_center_native_to_gray(const uint8_t* rgb_full,
+                                        int full_w, int full_h,
+                                        uint8_t* y_out,
+                                        int out_w, int out_h) {
+    // Center 80×60 pixels — zero decimation, raw camera resolution.
+    const int x_start = (full_w - out_w) / 2;
+    const int y_start = (full_h - out_h) / 2;
     for (int row = 0; row < out_h; ++row) {
+        const uint8_t* src = rgb_full + ((y_start + row) * full_w + x_start) * 3;
+        uint8_t* dst = y_out + row * out_w;
         for (int col = 0; col < out_w; ++col) {
-            uint32_t sum = 0;
-            for (int dy = 0; dy < 2; ++dy) {
-                const uint8_t* src = rgb_full +
-                    ((y_start + row * 2 + dy) * full_w + x_start + col * 2) * 3;
-                for (int dx = 0; dx < 2; ++dx) {
-                    sum += 77u * src[dx * 3 + 0] + 150u * src[dx * 3 + 1]
-                         +  29u * src[dx * 3 + 2];
-                }
-            }
-            // 4 pixels × max(77+150+29 = 256) × 255 = 261120.  >>10 = >>(8+2).
-            y_out[row * out_w + col] = (uint8_t)(sum >> 10);
+            uint8_t R = src[col * 3 + 0];
+            uint8_t G = src[col * 3 + 1];
+            uint8_t B = src[col * 3 + 2];
+            dst[col] = (uint8_t)((77u * R + 150u * G + 29u * B) >> 8);
         }
     }
 }
@@ -652,15 +653,22 @@ static int handle_one_frame(int fd) {
     // warping by zero is a no-op, so this happens naturally.
     uint8_t conf_c = conf_L1;
 
-    // L2 fine — same coarse-to-fine scheme: warp by L1 combined estimate,
-    // then phase-corr finds residual.  Scaling: L1 grid = 4 raw px,
-    // L2 grid = 2 raw px → 1 L1 grid = 2 L2 pixels →
-    //   dx_L2_px = dx_combined_L1_mgrid / 500.0
-    boxfilter_2x_rgb_to_gray(s_rgb_full, EXPECT_W, EXPECT_H,
-                              s_gray80x60_fine, DST_W, DST_H);
+    // L2 fine — NATIVE crop (NO decimation) from center 80×60 of raw
+    // 640×480.  At z=1m, per-pixel = 1.73mm = 8× finer than L0 wide.
+    // Detects slow drift (2-4 cm/s = 1.4-2.9 mm/frame) that L0/L1
+    // averaging erases.
+    // Coarse-to-fine scaling: L0 grid = 8 raw px, native grid = 1 raw px.
+    // So 1 L0 grid = 8 native pixels →
+    //   dx_native_px = dx_combined_L1_mgrid_in_L1_grid × 4 / 1000 OR
+    //   from L0 mgrid: dx_native_px = dx_L0_mgrid × 8 / 1000.
+    // Predict from L1 combined estimate (which already incorporates L0 coarse):
+    //   L1_combined_mgrid / 1000 = L1 grids → × 4 = native pixels (L1 grid = 4 native).
+    //   So dx_native_px = dx_combined_L1_mgrid * 4 / 1000 = / 250
+    crop_center_native_to_gray(s_rgb_full, EXPECT_W, EXPECT_H,
+                                s_gray80x60_fine, DST_W, DST_H);
 
-    float dx_pred_L2 = (float)dx_c / 500.0f;
-    float dy_pred_L2 = (float)dy_c / 500.0f;
+    float dx_pred_L2 = (float)dx_c / 250.0f;
+    float dy_pred_L2 = (float)dy_c / 250.0f;
     warp_translate_bilinear(s_gray80x60_fine, s_gray80x60_warped,
                              DST_W, DST_H, -dx_pred_L2, -dy_pred_L2);
 
@@ -711,15 +719,16 @@ static int handle_one_frame(int fd) {
     //     copy current FFT into pipe 3's prev_fft.  Anchor follows
     //     drone whenever it's actively moving.
     // ─────────────────────────────────────────────────────────────────
-    // LastMovedFrame (LMF) semantic per user spec 2026-05-11:
-    //   - while frame-to-frame motion is ZERO → keep LMF, compare current
-    //     against LMF for cumulative drift detection
-    //   - when frame-to-frame motion is NON-ZERO → update LMF to current
+    // LastMovedFrame (LMF) — refresh threshold tuned empirically:
     //
-    // Threshold = 0: ANY non-zero L0 phase-corr means "drone moved between
-    // these two frames, so the previous frame WAS a moved-frame; cache it".
-    // A small dead-band (50 mgrid) filters phase-corr noise floor.
-    const int MOTION_DETECT_THRESH = 50;
+    //   threshold = 50:   refresh every frame → anchor never holds → useless
+    //   threshold = 1500: anchor holds 100+ frames in true slow-drift hover,
+    //                    refreshes only on clearly-detected motion
+    //
+    // L0 phase-corr noise floor at hover = ±100-300 mgrid (random peak
+    // placement on sub-pixel motion).  1500 is above noise + below
+    // typical "real motion detected" bursts of 2000-5000 mgrid.
+    const int MOTION_DETECT_THRESH = 1500;
     static int s_have_anchor = 0;
     static uint32_t s_anchor_seq = 0;
     int dx_anchor = 0, dy_anchor = 0;
@@ -788,9 +797,9 @@ static int handle_one_frame(int fd) {
     } else if (conf_f >= REFINE_MIN_CONF
                && dx_f < SAT_LIMIT_REFINE && dx_f > -SAT_LIMIT_REFINE
                && dy_f < SAT_LIMIT_REFINE && dy_f > -SAT_LIMIT_REFINE) {
-        // L2 (fine) — scale to L0-equivalent mgrid: L2_mgrid × 0.25
-        dx_best     = dx_f / 4;
-        dy_best     = dy_f / 4;
+        // L2 NATIVE crop (8× finer per-px than L0) → scale L0-equivalent by 1/8
+        dx_best     = dx_f / 8;
+        dy_best     = dy_f / 8;
         conf_best   = conf_f;
         best_source = 2;
     } else if (conf_c >= REFINE_MIN_CONF
