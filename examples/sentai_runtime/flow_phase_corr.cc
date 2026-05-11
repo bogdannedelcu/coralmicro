@@ -71,6 +71,14 @@ static float s_cross[2 * N2]             __attribute__((section(".sdram_bss")));
 // the frequency-domain representation to evaluate iFFT on a finer
 // grid around the integer peak.
 static float s_cross_spec[2 * N2]        __attribute__((section(".sdram_bss")));
+// Running-average cross-power spectrum.  Each frame contributes:
+//   s_cross_spec_avg = α · s_cross_spec + (1−α) · s_cross_spec_avg
+// Coherent averaging: at constant drift, signal phase is identical each
+// frame → builds up linearly; noise phase is random → averages to zero.
+// Effective SNR boost = √(1/α).  Used as input to both iFFT (peak search)
+// AND Guizar-Sicairos sub-pixel refinement.
+static float s_cross_spec_avg[2 * N2]    __attribute__((section(".sdram_bss")));
+static int   s_have_cross_avg = 0;       // first-touch flag
 // Pre-computed twiddle factors for Guizar-Sicairos.  We sample the
 // inverse-FFT at K fractional positions (-1 .. +1 pixels at 1/M
 // resolution) around the integer peak.  But peak position varies
@@ -476,6 +484,35 @@ extern "C" void sentai_flow_phase_corr_compute(const uint8_t* gray80x60,
     // sub-pixel refinement evaluates iFFT at fractional positions.
     memcpy(s_cross_spec, s_cross, sizeof(s_cross_spec));
 
+    // Temporal accumulation EVALUATED — DISABLED.
+    //   α=0.30 (heavy averaging): all-4-detect 61% → 29% (REGRESSION)
+    //   α=0.60 (light averaging): dist_max -10% but conf=0 rate +5%
+    //   α=1.00 (passthrough)    : current baseline
+    //
+    // Root cause: drone hover motion is NOT monotonic — IMU noise +
+    // wind gusts + controller response cause direction reversals every
+    // 100-300ms.  Cross-power spectrum phase rotates between frames,
+    // so averaging DECOHERES the signal instead of building it up.
+    //
+    // Coherent averaging works when motion is constant over the window
+    // (e.g., radar pulses on fixed target, astronomy stacking).  Doesn't
+    // apply here.  Code path kept for adaptive-α experimentation later.
+    const float ALPHA = 1.00f;
+    if (!s_have_cross_avg) {
+        memcpy(s_cross_spec_avg, s_cross_spec, sizeof(s_cross_spec_avg));
+        s_have_cross_avg = 1;
+    } else {
+        for (int i = 0; i < N2 * 2; ++i) {
+            s_cross_spec_avg[i] = ALPHA * s_cross_spec[i]
+                                + (1.0f - ALPHA) * s_cross_spec_avg[i];
+        }
+    }
+    // Replace per-frame spec with running average for downstream use.
+    // s_cross (which will be iFFT'd) and s_cross_spec (Guizar input)
+    // both use the temporally-accumulated version.
+    memcpy(s_cross, s_cross_spec_avg, sizeof(s_cross));
+    memcpy(s_cross_spec, s_cross_spec_avg, sizeof(s_cross_spec));
+
     // Step 4: inverse 2D FFT -> real correlation surface.
     bc_log(0x50, 0);
     fft2d(s_cross, /*inverse=*/1);
@@ -550,6 +587,7 @@ extern "C" void sentai_flow_phase_corr_compute(const uint8_t* gray80x60,
 extern "C" void sentai_flow_phase_corr_reset(void) {
     s_have_prev = 0;
     s_have_prev_subblocks = 0;
+    s_have_cross_avg = 0;   // 2026-05-11: also drop the running-avg spec
 }
 
 // ─────────────────────────────────────────────────────────────────────────
