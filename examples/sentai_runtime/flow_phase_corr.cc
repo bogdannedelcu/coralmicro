@@ -49,6 +49,11 @@ namespace {
 
 constexpr int N        = 64;          // 2D FFT size (must be power of 2)
 constexpr int N2       = N * N;
+// Guizar-Sicairos sub-pixel upsampling.  M=10 gives 1/10 grid resolution
+// = 0.022 mm/pixel at z=1m drone hover.  K = 2*M+1 search window around
+// integer peak (±1 pixel at 1/M resolution).
+constexpr int GS_M     = 10;
+constexpr int GS_K     = 2 * GS_M + 1;   // 21
 constexpr int CROP_W   = 64;          // we use full 64 cols of 80 input
 constexpr int CROP_H   = 60;          // bottom 4 rows zero-padded
 constexpr int SR       = N / 2;       // search half-range = ±32
@@ -62,6 +67,23 @@ static float s_window[N2]                __attribute__((section(".sdram_bss")));
 static float s_prev_fft[2 * N2]          __attribute__((section(".sdram_bss")));
 static float s_curr_fft[2 * N2]          __attribute__((section(".sdram_bss")));
 static float s_cross[2 * N2]             __attribute__((section(".sdram_bss")));
+// Cross-power spectrum snapshot (BEFORE iFFT) — Guizar-Sicairos needs
+// the frequency-domain representation to evaluate iFFT on a finer
+// grid around the integer peak.
+static float s_cross_spec[2 * N2]        __attribute__((section(".sdram_bss")));
+// Pre-computed twiddle factors for Guizar-Sicairos.  We sample the
+// inverse-FFT at K fractional positions (-1 .. +1 pixels at 1/M
+// resolution) around the integer peak.  But peak position varies
+// per-frame, so we precompute the BASE twiddle (one per output bin
+// per input bin) and multiply by exp(2πi · peak · n / N) at runtime.
+// Storage: K complex twiddles per input bin × N input bins × 2 axes.
+// Total: GS_K * N * 2 (real+imag) per axis = 21 * 64 * 2 = 2688 floats.
+static float s_gs_twid_x[GS_K * N * 2]   __attribute__((section(".sdram_bss")));
+static float s_gs_twid_y[GS_K * N * 2]   __attribute__((section(".sdram_bss")));
+// Intermediate buffer for separable 2D upsampled DFT: K rows × N cols.
+static float s_gs_intermed[GS_K * N * 2] __attribute__((section(".sdram_bss")));
+// Output: K × K upsampled correlation surface (real part used for peak).
+static float s_gs_upsamp[GS_K * GS_K * 2] __attribute__((section(".sdram_bss")));
 
 static int  s_have_prev = 0;             // 0 = first call, no prev FFT yet
 static int  s_initialized = 0;
@@ -174,6 +196,25 @@ static void init_once(void) {
         }
     }
     s_cfft = &sentai_cfft_sR_f32_len64;   // pre-built 64-point CFFT instance
+
+    // Pre-compute Guizar-Sicairos base twiddle factors.  For each output
+    // sub-pixel offset k_off (∈ [-1, +1] at 1/M step) and each input bin
+    // n (∈ [0, N)), the twiddle is exp(+2πi · k_off · n / N) — used to
+    // evaluate iFFT at fractional position k_off above the integer peak.
+    // We separate twiddle_x (col) and twiddle_y (row) for the separable
+    // 2D pass.  Both arrays are identical since the formula is symmetric;
+    // we keep two copies anyway for clarity + possible future asymmetry.
+    for (int k = 0; k < GS_K; ++k) {
+        float frac = (float)(k - GS_M) / (float)GS_M;   // -1 .. +1
+        for (int n = 0; n < N; ++n) {
+            // 2D iFFT convention: factor = exp(+2πi · frac · n / N)
+            float ang = 2.0f * (float)M_PI * frac * (float)n / (float)N;
+            s_gs_twid_y[(k * N + n) * 2 + 0] = cosf(ang);
+            s_gs_twid_y[(k * N + n) * 2 + 1] = sinf(ang);
+            s_gs_twid_x[(k * N + n) * 2 + 0] = cosf(ang);
+            s_gs_twid_x[(k * N + n) * 2 + 1] = sinf(ang);
+        }
+    }
     s_initialized = 1;
 }
 
@@ -213,6 +254,85 @@ static void fft2d(float* data, uint8_t inverse) {
             data[(y * N + x) * 2 + 1] = s_transpose_scratch[(x * N + y) * 2 + 1];
         }
     }
+}
+
+// Guizar-Sicairos sub-pixel refinement via DFT-based upsampling.
+// Evaluates the inverse-FFT of the (already-normalized) cross-power
+// spectrum at K = 2*M+1 fractional positions in each axis around the
+// integer peak.  Output is the sub-pixel offset in milli-grid-pixels.
+//
+// Reference: Guizar-Sicairos, Thurman & Fienup 2008, "Efficient subpixel
+// image registration algorithms", Optics Letters 33(2):156-158.
+//
+// Cost: K*N + K*K*N complex muls (separable 2D DFT) = ~115K complex muls
+// for K=21, N=64.  ~500K float ops total.  On Cortex-M7 @ 800 MHz with
+// cached twiddles ≈ 300-600 µs per frame.  On x86 ≈ 100 µs.
+static void guizar_sicairos_q1000(int peak_x, int peak_y,
+                                    int* delta_x_q1000_out,
+                                    int* delta_y_q1000_out) {
+    // First pass: 1D DFT in Y, evaluated at K fractional rows around
+    // peak_y.  For each output (ky, x):
+    //   intermed[ky, x] = sum_{j} s_cross_spec[j, x] ·
+    //                     exp(+2πi · (peak_y + frac_ky) · j / N)
+    //   where frac_ky = (ky - M) / M
+    // = sum_{j} s_cross_spec[j, x] ·
+    //   exp(+2πi · peak_y · j / N) · twid_y[ky, j]
+    //
+    // We fold the peak-y rotation into the loop for cache-friendly access.
+    for (int ky = 0; ky < GS_K; ++ky) {
+        for (int x = 0; x < N; ++x) {
+            float sum_re = 0.0f, sum_im = 0.0f;
+            for (int j = 0; j < N; ++j) {
+                // Integer-peak twiddle: exp(+2πi · peak_y · j / N)
+                float ang_p = 2.0f * (float)M_PI * (float)peak_y * (float)j / (float)N;
+                float cp = cosf(ang_p), sp = sinf(ang_p);
+                // Sub-pixel twiddle from cache
+                float ck = s_gs_twid_y[(ky * N + j) * 2 + 0];
+                float sk = s_gs_twid_y[(ky * N + j) * 2 + 1];
+                // Combined twiddle: (cp + i sp) · (ck + i sk)
+                float tw_re = cp * ck - sp * sk;
+                float tw_im = cp * sk + sp * ck;
+                float spec_re = s_cross_spec[(j * N + x) * 2 + 0];
+                float spec_im = s_cross_spec[(j * N + x) * 2 + 1];
+                sum_re += spec_re * tw_re - spec_im * tw_im;
+                sum_im += spec_re * tw_im + spec_im * tw_re;
+            }
+            s_gs_intermed[(ky * N + x) * 2 + 0] = sum_re;
+            s_gs_intermed[(ky * N + x) * 2 + 1] = sum_im;
+        }
+    }
+    // Second pass: 1D DFT in X, evaluated at K fractional cols around
+    // peak_x, on the K rows from pass 1.
+    float best_val = -1e30f;
+    int best_kx = GS_M, best_ky = GS_M;   // default: integer peak
+    for (int ky = 0; ky < GS_K; ++ky) {
+        for (int kx = 0; kx < GS_K; ++kx) {
+            float sum_re = 0.0f, sum_im = 0.0f;
+            for (int i = 0; i < N; ++i) {
+                float ang_p = 2.0f * (float)M_PI * (float)peak_x * (float)i / (float)N;
+                float cp = cosf(ang_p), sp = sinf(ang_p);
+                float ck = s_gs_twid_x[(kx * N + i) * 2 + 0];
+                float sk = s_gs_twid_x[(kx * N + i) * 2 + 1];
+                float tw_re = cp * ck - sp * sk;
+                float tw_im = cp * sk + sp * ck;
+                float r = s_gs_intermed[(ky * N + i) * 2 + 0];
+                float im = s_gs_intermed[(ky * N + i) * 2 + 1];
+                sum_re += r * tw_re - im * tw_im;
+                sum_im += r * tw_im + im * tw_re;
+            }
+            s_gs_upsamp[(ky * GS_K + kx) * 2 + 0] = sum_re;
+            s_gs_upsamp[(ky * GS_K + kx) * 2 + 1] = sum_im;
+            if (sum_re > best_val) {
+                best_val = sum_re;
+                best_kx = kx;
+                best_ky = ky;
+            }
+        }
+    }
+    // Sub-pixel offset relative to integer peak in milli-grid units.
+    // Range: [-1000, +1000] mgrid = ±1 grid-pixel at 1/M resolution.
+    *delta_x_q1000_out = ((best_kx - GS_M) * 1000) / GS_M;
+    *delta_y_q1000_out = ((best_ky - GS_M) * 1000) / GS_M;
 }
 
 // Foroosh-Zerubia sub-pixel formula for phase-correlation peak.
@@ -352,6 +472,10 @@ extern "C" void sentai_flow_phase_corr_compute(const uint8_t* gray80x60,
         return;
     }
 
+    // Save the cross-power spectrum BEFORE iFFT — Guizar-Sicairos
+    // sub-pixel refinement evaluates iFFT at fractional positions.
+    memcpy(s_cross_spec, s_cross, sizeof(s_cross_spec));
+
     // Step 4: inverse 2D FFT -> real correlation surface.
     bc_log(0x50, 0);
     fft2d(s_cross, /*inverse=*/1);
@@ -382,24 +506,20 @@ extern "C" void sentai_flow_phase_corr_compute(const uint8_t* gray80x60,
     int dy_int = (peak_y > N / 2) ? (peak_y - N) : peak_y;
     int dx_int = (peak_x > N / 2) ? (peak_x - N) : peak_x;
 
-    // Sub-pixel via Foroosh.  Need correlation values at peak ± 1
-    // (with wrap-around).
-    auto val_at = [&](int yy, int xx) -> float {
-        // wrap to [0,N)
-        if (yy < 0) yy += N;
-        if (yy >= N) yy -= N;
-        if (xx < 0) xx += N;
-        if (xx >= N) xx -= N;
-        return s_cross[(yy * N + xx) * 2 + 0];
-    };
-    float a_x = val_at(peak_y, peak_x - 1);
-    float b_x = peak_val;
-    float c_x = val_at(peak_y, peak_x + 1);
-    float a_y = val_at(peak_y - 1, peak_x);
-    float c_y = val_at(peak_y + 1, peak_x);
-
-    int delta_x = foroosh_q1000(a_x, b_x, c_x);
-    int delta_y = foroosh_q1000(a_y, b_x, c_y);
+    // Sub-pixel refinement via Guizar-Sicairos DFT-upsampling.
+    // Evaluates iFFT of the cross-power spectrum at 1/M resolution
+    // around the integer peak — more robust to broad/noisy peaks than
+    // Foroosh's 3-point local fit (the previous algorithm).  Returns
+    // delta_x/y in milli-grid units, range [-1000, +1000].
+    int delta_x = 0, delta_y = 0;
+    guizar_sicairos_q1000(peak_x, peak_y, &delta_x, &delta_y);
+    // Defensive clamp — should never trigger if M=10 and the algorithm
+    // searches ±1 pixel, but guards against integer peak being at extreme.
+    if (delta_x >  1000) delta_x =  1000;
+    if (delta_x < -1000) delta_x = -1000;
+    if (delta_y >  1000) delta_y =  1000;
+    if (delta_y < -1000) delta_y = -1000;
+    (void)foroosh_q1000;   // kept for reference / future A/B fallback
 
     // Map FFT bins (1 bin = 1 cropped pixel = 1 grid-px after the
     // 8x PXP downscale) directly to grid-px units.  N=64 grid-px max
