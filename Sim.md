@@ -621,6 +621,53 @@ quiet while the drone settled.
 - Push Garden render rate higher with VirtualGL or upgrade to Harmonic
   fix once that lands (Sim.md §10c bans Harmonic for now).
 
+## 10e. dz from optical flow — sub-block divergence (diagnostic)
+
+Added 2026-05-11 — `sentai_flow_phase_corr_compute_dz()` runs phase
+correlation on 4 sub-blocks of the 80×60 gray (top/bottom/left/right,
+each 32×32 padded) and computes the Horn-Schunck divergence:
+
+    dz/z = -divergence/2
+    div  = (dy_bottom - dy_top)/Δy + (dx_right - dx_left)/Δx
+
+Output `dz_q1000` is in **µ-per-frame** (parts-per-million altitude rate;
++1000 = +0.1 % altitude/frame).  No focal length required — divergence
+is dimensionless, focal cancels out.  Caller derives absolute m/s by:
+
+    dz_mps = z_estimate_metres × dz_q1000 / 1e6 × frame_rate_hz
+
+**cf2 firmware does NOT consume dz from flow** — `flowMeasurement_t`
+only has `dpixelx`, `dpixely`.  Z absolute comes from baro
+(`heightMeasurement_t`) or laser ToF (`tofMeasurement_t`).  Three
+options to use our dz:
+  A. **Diagnostic only** (current): expose via `sentai.flow.read()`,
+     don't feed EKF.  Use cases: ground-rush detection, baro vs vision
+     cross-check.  Zero risk.
+  B. Send as `extpos.send_extpos(z=...)` after integrating dz×dt — gives
+     EKF an absolute Z observation.  Risk: integration drift.
+  C. Modify cf2 firmware (add `dpixelz` + Jacobian to `mm_flow.c`).
+     Risk: breaks Bitcraze upstream compatibility.
+
+**SIM validation (drone climb 0→1m, descend 1.5→0.5 m at ~25 cm/s)**:
+
+| Phase                         | Expected dz/frame | Observed dz/frame | Verdict          |
+|-------------------------------|-------------------|-------------------|------------------|
+| Phase E: descent at z=1m      | −8 333 µ          | −10 416 µ         | ✅ sign + ~125% |
+| Phase B: hover at 1m (steady) | ~0                | initial transient | needs filter    |
+
+Sign is **negative for descent** (features converge as drone gets closer
+to ground), positive for climb.  Magnitude within 25 % of theory in
+steady-state.
+
+`sentai.flow.read()` now returns 7-tuple (was 5):
+  `(seq, dx_q1000, dy_q1000, conf, latency_us, dz_q1000, dz_conf)`
+Both ARM and SIM expose the same tuple — code is shared in
+`flow_phase_corr.cc`.  ARM uses CMSIS `arm_cfft_sR_f32_len32`, SIM uses
+the FFTW3-backed `sentai_cfft_sR_f32_len32` instance.
+
+Cost: 4× length-32 phase-corrs ≈ 1.6 ms on M7 @ 800 MHz, 0.6 ms on x86
+— well inside the 33 ms / 30 fps budget.
+
 ## 11. References
 
 - FreeRTOS POSIX port docs: https://www.freertos.org/FreeRTOS-simulator-for-Linux.html
