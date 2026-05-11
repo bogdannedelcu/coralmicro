@@ -70,7 +70,12 @@ REPLY_SZ         = struct.calcsize(REPLY_FMT)
 assert REPLY_SZ == 36, f"unexpected REPLY_SZ={REPLY_SZ}"
 
 # Test parameters
-TARGET_Z_M       = 0.5
+# Climb rapid to 1.0m — at 0.5m drone is too low and small drifts push
+# markers out of FOV before EKF settles via flow.  At 1.0m FOV footprint
+# is 1.1m × 0.83m so the 0.30×0.20 marker pattern has ~25cm margin per
+# axis even if drone drifts 30cm laterally during takeoff transient.
+TARGET_Z_M       = 1.0
+TAKEOFF_VEL_MPS  = 0.8     # fast climb to escape low-altitude FOV-loss
 HOVER_S          = 15.0
 SAMPLE_HZ        = 5
 LOG_PATH         = Path(__file__).parent / "hover_log.json"
@@ -239,10 +244,10 @@ def main() -> int:
     time.sleep(1.0)
 
     mc = MotionCommander(sync, default_height=TARGET_Z_M)
-    print(f"[hover] take off to {TARGET_Z_M}m  (flow forwarder active)",
+    print(f"[hover] FAST take off to {TARGET_Z_M}m @ {TAKEOFF_VEL_MPS} m/s",
           file=sys.stderr)
-    mc.take_off(height=TARGET_Z_M, velocity=0.3)
-    time.sleep(2.0)
+    mc.take_off(height=TARGET_Z_M, velocity=TAKEOFF_VEL_MPS)
+    time.sleep(2.5)   # settle at altitude before hover phase
 
     # Hover hold — zero velocity setpoint, cf2 EKF uses flow to maintain
     # position under wind disturbance.

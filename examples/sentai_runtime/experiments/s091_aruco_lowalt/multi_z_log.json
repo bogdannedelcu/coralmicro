@@ -1,0 +1,113 @@
+{
+  "_last_run": "2026-05-11T16:44:11",
+  "phases": [
+    {
+      "target_z": 0.5,
+      "n_samples": 3,
+      "lat_dist_mean_m": 0.636,
+      "lat_dist_max_m": 0.686,
+      "lat_dist_rms_m": 0.638,
+      "z_err_mean_m": 0.217,
+      "z_err_max_m": 0.26,
+      "n_det_avg": 0,
+      "flow_n_phase": 19,
+      "flow_hz_phase": 1.58,
+      "samples": [
+        {
+          "fseq": 408,
+          "t": 0.22,
+          "n_det": 0,
+          "ekf": [
+            -0.218,
+            -0.523,
+            0.338
+          ],
+          "pnp_z": null,
+          "dist_lateral_m": 0.567,
+          "dist_z_err_m": 0.162
+        },
+        {
+          "fseq": 414,
+          "t": 0.84,
+          "n_det": 0,
+          "ekf": [
+            -0.228,
+            -0.613,
+            0.27
+          ],
+          "pnp_z": null,
+          "dist_lateral_m": 0.654,
+          "dist_z_err_m": 0.23
+        },
+        {
+          "fseq": 420,
+          "t": 1.25,
+          "n_det": 0,
+          "ekf": [
+            -0.248,
+            -0.64,
+            0.24
+          ],
+          "pnp_z": null,
+          "dist_lateral_m": 0.686,
+          "dist_z_err_m": 0.26
+        }
+      ]
+    },
+    {
+      "target_z": 1.0,
+      "n_samples": 1,
+      "lat_dist_mean_m": 1.156,
+      "lat_dist_max_m": 1.156,
+      "lat_dist_rms_m": 1.156,
+      "z_err_mean_m": 0.221,
+      "z_err_max_m": 0.221,
+      "n_det_avg": 0,
+      "flow_n_phase": 0,
+      "flow_hz_phase": 0.0,
+      "samples": [
+        {
+          "fseq": 420,
+          "t": 0.21,
+          "n_det": 0,
+          "ekf": [
+            -0.96,
+            -0.644,
+            1.221
+          ],
+          "pnp_z": null,
+          "dist_lateral_m": 1.156,
+          "dist_z_err_m": 0.221
+        }
+      ]
+    },
+    {
+      "target_z": 1.5,
+      "n_samples": 1,
+      "lat_dist_mean_m": 1.652,
+      "lat_dist_max_m": 1.652,
+      "lat_dist_rms_m": 1.652,
+      "z_err_mean_m": 0.152,
+      "z_err_max_m": 0.152,
+      "n_det_avg": 0,
+      "flow_n_phase": 0,
+      "flow_hz_phase": 0.0,
+      "samples": [
+        {
+          "fseq": 420,
+          "t": 0.2,
+          "n_det": 0,
+          "ekf": [
+            -1.4,
+            -0.877,
+            1.652
+          ],
+          "pnp_z": null,
+          "dist_lateral_m": 1.652,
+          "dist_z_err_m": 0.152
+        }
+      ]
+    }
+  ],
+  "flow_total": 166
+}
