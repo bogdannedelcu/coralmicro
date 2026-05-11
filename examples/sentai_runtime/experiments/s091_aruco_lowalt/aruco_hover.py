@@ -62,12 +62,23 @@ _FLOW_SCALE_Y = (math.radians(FLOW_FOV_V_DEG) * DRONE_NPIX) / (FLOW_GRID_H * DRO
 CRTP_PORT_SETPOINT_SIM = 0x09
 SENSOR_FLOW_SIM        = 6
 
-# Flow output socket protocol (gz_to_uds_bridge.cc Reply struct, packed 1)
+# Flow output socket protocol (gz_to_uds_bridge.cc Reply struct, packed 1).
+# 2026-05-11: extended with foveated CENTER pipeline — adds dx/dy/conf for
+# the native-pixel center-patch flow (8× higher per-pixel resolution at
+# z=1m, so detects sub-pixel-of-wide-grid slow drift).  Reply grew from
+# 36 → 48 bytes — BOTH ends of the pipeline (sentai_sim + gz_to_uds_bridge)
+# must be rebuilt for this protocol revision.
 FLOW_OUT_SOCK    = "/tmp/sentai_flow_out.sock"
 REPLY_MAGIC      = 0x46524C31   # 'FRL1'
-REPLY_FMT        = "<IIiiIQiI"  # magic seq dx dy conf lat_us dz dz_conf
+REPLY_FMT        = "<IIiiIQiIiiI"  # +dx_c +dy_c +conf_c at tail
 REPLY_SZ         = struct.calcsize(REPLY_FMT)
-assert REPLY_SZ == 36, f"unexpected REPLY_SZ={REPLY_SZ}"
+assert REPLY_SZ == 48, f"unexpected REPLY_SZ={REPLY_SZ}"
+
+# Center-pipeline scaling: 8× more pixels per ground-meter than wide.
+# To convert center mgrid → wide-equivalent mgrid, multiply by 1/8.
+# This makes dpx/dpy from center pipe directly compatible with the
+# existing flow_to_dpixel scaling that assumes wide-grid units.
+CENTER_TO_WIDE_RATIO = 1.0 / 8.0
 
 # Test parameters
 # Climb rapid to 1.0m — at 0.5m drone is too low and small drifts push
@@ -161,24 +172,39 @@ def flow_forwarder(stop_evt: threading.Event, cf, stats: dict) -> None:
             buf += chunk
             while len(buf) >= REPLY_SZ:
                 rec, buf = buf[:REPLY_SZ], buf[REPLY_SZ:]
-                magic, seq, dx, dy, conf, lat, dz, dz_conf = struct.unpack(
-                    REPLY_FMT, rec)
+                (magic, seq, dx, dy, conf, lat, dz, dz_conf,
+                 dx_c, dy_c, conf_c) = struct.unpack(REPLY_FMT, rec)
                 if magic != REPLY_MAGIC:
-                    # Re-sync: scan forward
                     idx = buf.find(struct.pack("<I", REPLY_MAGIC))
                     buf = buf[idx:] if idx >= 0 else b""
                     continue
                 now = time.monotonic()
                 dt = max(0.001, min(0.2, now - last_send_t))
                 last_send_t = now
-                # Forward EVERY phase-corr result, including (0,0,conf=0)
-                # "stale frame" markers.  cf2 EKF down-weights high-stdDev
-                # samples to near-zero impact, but the steady packet rate
-                # keeps the EKF's flow_update path warm (mm_flow.c uses
-                # the latest observation between propagation steps).
-                # At gz 30 fps this yields ~30 Hz to cf2.
-                dpx, dpy = flow_to_dpixel(dx, dy)
-                std = flow_conf_to_std(conf)
+
+                # FUSION wide ↔ center.  Two phase-corr results:
+                #   WIDE:    coarse but full-FOV.  Good for any motion
+                #            magnitude up to ±32 wide-grid ≈ ±0.44 m at z=1m.
+                #            Loses confidence below ~0.5 wide-grid ≈ 7mm.
+                #   CENTER:  fine but limited-FOV.  Resolves 1.73mm/pixel
+                #            so detects sub-wide-grid motion at high conf.
+                #            Saturates above ±28 center-grid ≈ 5cm body shift
+                #            between frames.
+                # Rule: prefer the source with higher confidence.  If center
+                # has high conf AND magnitude under sat band, scale center
+                # to wide-equivalent units and use it.  Else fall back to
+                # wide.  This makes slow drift visible without sacrificing
+                # fast-motion tracking.
+                use_center = (conf_c >= conf and conf_c >= 64
+                              and abs(dx_c) < 24000 and abs(dy_c) < 24000)
+                if use_center:
+                    dx_eff = int(dx_c * CENTER_TO_WIDE_RATIO)
+                    dy_eff = int(dy_c * CENTER_TO_WIDE_RATIO)
+                    conf_eff = conf_c
+                else:
+                    dx_eff, dy_eff, conf_eff = dx, dy, conf
+                dpx, dpy = flow_to_dpixel(dx_eff, dy_eff)
+                std = flow_conf_to_std(conf_eff)
                 pk = CRTPPacket()
                 pk.port = CRTP_PORT_SETPOINT_SIM
                 pk.channel = 0

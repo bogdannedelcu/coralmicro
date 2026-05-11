@@ -81,8 +81,11 @@ struct Reply {
     int32_t  dy_q1000;
     uint32_t conf;
     uint64_t latency_us;
-    int32_t  dz_q1000;       // added 2026-05-11 — micro/frame altitude rate
+    int32_t  dz_q1000;        // 2026-05-11 — micro/frame altitude rate
     uint32_t dz_conf;
+    int32_t  dx_center_q1000; // 2026-05-11 — foveated center-patch flow
+    int32_t  dy_center_q1000;
+    uint32_t conf_center;
 };
 #pragma pack(pop)
 

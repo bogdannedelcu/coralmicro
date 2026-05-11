@@ -7,7 +7,7 @@ slow-drift frames produce conf=0 (hypothesis being tested).
 import socket, struct, time, sys
 from collections import Counter
 
-REPLY_FMT = "<IIiiIQiI"
+REPLY_FMT = "<IIiiIQiIiiI"   # 48 bytes: wide + center pipelines
 REPLY_SZ = struct.calcsize(REPLY_FMT)
 REPLY_MAGIC = 0x46524C31
 
@@ -29,7 +29,8 @@ while time.monotonic() - t0 < DURATION_S:
         buf += chunk
         while len(buf) >= REPLY_SZ:
             rec, buf = buf[:REPLY_SZ], buf[REPLY_SZ:]
-            magic, seq, dx, dy, conf, lat, dz, dz_conf = struct.unpack(REPLY_FMT, rec)
+            (magic, seq, dx, dy, conf, lat, dz, dz_conf,
+             dx_c, dy_c, conf_c) = struct.unpack(REPLY_FMT, rec)
             if magic != REPLY_MAGIC:
                 idx = buf.find(struct.pack("<I", REPLY_MAGIC))
                 buf = buf[idx:] if idx >= 0 else b""

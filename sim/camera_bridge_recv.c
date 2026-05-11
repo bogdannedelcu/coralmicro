@@ -156,7 +156,8 @@ size_t sim_camera_latest_rgb(uint8_t* dst, size_t max_bytes,
 
 static uint8_t s_xrgb_buf[EXPECT_W * EXPECT_H * 4];   // 1.2 MB
 static uint8_t s_rgb_small[DST_W * DST_H * 3];        // 14.4 KB
-static uint8_t s_gray80x60[DST_W * DST_H];            // 4.8 KB
+static uint8_t s_gray80x60[DST_W * DST_H];            // 4.8 KB  — wide downsample
+static uint8_t s_gray80x60_center[DST_W * DST_H];     // 4.8 KB  — center crop (native)
 
 #define SOCK_PATH "/tmp/sentai_cam.sock"
 
@@ -175,17 +176,24 @@ typedef struct __attribute__((packed)) {
 typedef struct __attribute__((packed)) {
     uint32_t reply_magic;
     uint32_t seq;
+    // WIDE pipeline (PXP-downsampled 80x60 from full 640x480, ~13.85 mm/grid at z=1m)
     int32_t  dx_q1000;
     int32_t  dy_q1000;
     uint32_t conf;
     uint64_t latency_us;
     // dz from sub-block divergence (added 2026-05-11):
-    //   units: micro per frame (1000 = +0.1% altitude/frame)
-    //   sign:  positive = drone rising  (image features expand)
-    //          negative = drone falling (image features converge)
-    // Diagnostic only; cf2 EKF doesn't accept dz from flow.
     int32_t  dz_q1000;
     uint32_t dz_conf;
+    // CENTER pipeline (native 80x60 crop from 640x480, ~1.73 mm/pixel at z=1m).
+    // Added 2026-05-11 — foveated vision: this pipeline detects sub-pixel
+    // wide-grid motion (slow drift below ~5mm/frame).  Caller fuses results
+    // by confidence + magnitude.  Units: same milli-grid (mgrid) convention,
+    // BUT scaled by the 8× resolution difference — to convert center mgrid
+    // to wide-equivalent body velocity, divide by 8 (or scale ground-meter
+    // per-grid accordingly).
+    int32_t  dx_center_q1000;
+    int32_t  dy_center_q1000;
+    uint32_t conf_center;
 } flow_reply_t;
 
 // ────────────────────────────────────────────────────────────────────────
@@ -243,6 +251,29 @@ static void rgb888_to_y(const uint8_t* rgb, uint8_t* y, int n_pixels) {
         uint8_t G = rgb[i * 3 + 1];
         uint8_t B = rgb[i * 3 + 2];
         y[i] = (uint8_t)((77u * R + 150u * G + 29u * B) >> 8);
+    }
+}
+
+// Extract center 80×60 patch from full 640×480 RGB888 frame, converting
+// to gray in-line.  THIS IS THE FOVEATED VISION PIPELINE: at z=1m the
+// native-pixel patch covers only the central 12.5% of FOV (≈ 14cm on
+// the ground) BUT at 8× higher per-pixel resolution (1.73 mm/pixel vs
+// 13.85 mm/grid for the wide downsampled version).  Used in parallel
+// with the wide pipeline; consumer fuses by confidence.
+static void crop_center_to_gray(const uint8_t* rgb_full,
+                                 int full_w, int full_h,
+                                 uint8_t* y_out, int out_w, int out_h) {
+    const int x_start = (full_w - out_w) / 2;
+    const int y_start = (full_h - out_h) / 2;
+    for (int row = 0; row < out_h; ++row) {
+        const uint8_t* src = rgb_full + ((y_start + row) * full_w + x_start) * 3;
+        uint8_t* dst = y_out + row * out_w;
+        for (int col = 0; col < out_w; ++col) {
+            uint8_t R = src[col * 3 + 0];
+            uint8_t G = src[col * 3 + 1];
+            uint8_t B = src[col * 3 + 2];
+            dst[col] = (uint8_t)((77u * R + 150u * G + 29u * B) >> 8);
+        }
     }
 }
 
@@ -410,6 +441,41 @@ static int handle_one_frame(int fd) {
     }
     s_prev_gray_crc = gray_crc;
 
+    // ─────────────────────────────────────────────────────────────────
+    // CENTER pipeline (foveated vision) — native-pixel 80×60 crop from
+    // 640×480 center.  Same phase-corr engine, but the per-grid resolves
+    // 8× more meters-per-pixel.  Detects slow drift that the wide
+    // downsampled pipeline misses (sub-pixel motion in wide grid).
+    // ─────────────────────────────────────────────────────────────────
+    crop_center_to_gray(s_rgb_full, EXPECT_W, EXPECT_H,
+                        s_gray80x60_center, DST_W, DST_H);
+
+    static uint32_t s_prev_center_crc = 0;
+    static int32_t  s_last_dx_c = 0;
+    static int32_t  s_last_dy_c = 0;
+    uint32_t center_crc = 0;
+    for (int i = 0; i < DST_W * DST_H; ++i) {
+        center_crc = center_crc * 31u + s_gray80x60_center[i];
+    }
+
+    int dx_c = 0, dy_c = 0;
+    uint8_t conf_c = 0;
+    if (center_crc == s_prev_center_crc) {
+        dx_c = s_last_dx_c;
+        dy_c = s_last_dy_c;
+        conf_c = 0;
+    } else {
+        sentai_flow_phase_corr_compute(s_gray80x60_center, &dx_c, &dy_c, &conf_c);
+        const int SAT_LIMIT_MGP = 28000;
+        if (dx_c >  SAT_LIMIT_MGP || dx_c < -SAT_LIMIT_MGP ||
+            dy_c >  SAT_LIMIT_MGP || dy_c < -SAT_LIMIT_MGP) {
+            conf_c = 0;
+        }
+        s_last_dx_c = dx_c;
+        s_last_dy_c = dy_c;
+    }
+    s_prev_center_crc = center_crc;
+
     uint64_t t1 = now_us();
 
     // Publish atomically-ish: write payload first, bump seq last so
@@ -434,6 +500,9 @@ static int handle_one_frame(int fd) {
         .latency_us  = t1 - t0,
         .dz_q1000    = dz_q,
         .dz_conf     = (uint32_t)dz_conf,
+        .dx_center_q1000 = dx_c,
+        .dy_center_q1000 = dy_c,
+        .conf_center     = (uint32_t)conf_c,
     };
     if (write_full(fd, &reply, sizeof(reply)) != 0) return -1;
 

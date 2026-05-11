@@ -141,9 +141,10 @@ MAG_TOL              = 0.35
 # Flow output socket
 FLOW_OUT_SOCK        = "/tmp/sentai_flow_out.sock"
 REPLY_MAGIC          = 0x46524C31
-REPLY_FMT            = "<IIiiIQiI"
+# 2026-05-11: protocol rev — appended foveated CENTER pipeline fields.
+REPLY_FMT            = "<IIiiIQiIiiI"
 REPLY_SZ             = struct.calcsize(REPLY_FMT)
-assert REPLY_SZ == 36
+assert REPLY_SZ == 48
 
 # Output
 LOG_PATH             = Path(__file__).parent / "flow_diag_log.json"
@@ -231,8 +232,8 @@ class FlowSniffer:
                 buf += chunk
                 while len(buf) >= self.REPLY_BYTES:
                     rec, buf = buf[:self.REPLY_BYTES], buf[self.REPLY_BYTES:]
-                    magic, seq, dx, dy, conf, lat, dz, dz_conf = struct.unpack(
-                        REPLY_FMT, rec)
+                    (magic, seq, dx, dy, conf, lat, dz, dz_conf,
+                     dx_c, dy_c, conf_c) = struct.unpack(REPLY_FMT, rec)
                     if magic != REPLY_MAGIC:
                         idx = buf.find(struct.pack("<I", REPLY_MAGIC))
                         buf = buf[idx:] if idx >= 0 else b""
@@ -247,6 +248,9 @@ class FlowSniffer:
                         "lat_us": lat,
                         "dz_q1000": dz,
                         "dz_conf": dz_conf,
+                        "dx_c": dx_c,
+                        "dy_c": dy_c,
+                        "conf_c": conf_c,
                     }
                     with self._lock:
                         self._ring.append(sample)
