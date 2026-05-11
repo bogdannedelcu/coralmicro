@@ -92,10 +92,15 @@ def flow_to_dpixel(dx_q1000: int, dy_q1000: int) -> tuple[float, float]:
 
 
 def flow_conf_to_std(conf: int) -> float:
-    if conf >= 200: return 1.0
-    if conf >= 128: return 2.0
-    if conf >= 64:  return 4.0
-    return 8.0
+    # 2026-05-11: bumped 1/2/4/8 → 3/4/6/10.  Cf2 EKF was over-trusting
+    # flow observations (small std → high Kalman gain → aggressive
+    # correction → phase-lag oscillation at 20Hz vs PMW3901's 100Hz
+    # tuning).  Raising std reduces gain, trades drift quality for
+    # hover stability.
+    if conf >= 200: return 3.0
+    if conf >= 128: return 4.0
+    if conf >= 64:  return 6.0
+    return 10.0
 
 
 # ────────────────────────────────────────────────────────────
@@ -210,15 +215,21 @@ def main() -> int:
 
     cf.param.set_value("stabilizer.estimator", 2)
     time.sleep(0.5)
-    # CRITICAL: disable the firmware-internal flowdeck driver task.  In SIM
-    # the PMW3901 driver still runs and pushes flow=(0,0) into the EKF at
-    # 100 Hz, competing with our sentai flow injection and dragging the
-    # velocity estimate toward zero.  flowdeck_v1v2.c has a
-    # `motion.disable` param that gates the enqueueFlow call.
-    try:
-        cf.param.set_value("motion.disable", 1)
-    except Exception as e:
-        print(f"[hover] WARN motion.disable param missing: {e}", file=sys.stderr)
+
+    # 2026-05-11: damp the cascaded controller to counter flow @ 20Hz
+    # phase-lag oscillation.  Best-effort: each param wrapped in
+    # try/except since not all cf2 builds expose the same TOC.
+    DAMP_PARAMS = {
+        "posCtlPid.xyKd":  0.5,   # default 0.2 — position-loop damping
+        "velCtlPid.vxKd":  0.05,  # default 0.0
+        "velCtlPid.vyKd":  0.05,
+    }
+    for k, v in DAMP_PARAMS.items():
+        try:
+            cf.param.set_value(k, v)
+            print(f"[hover] set {k}={v}", file=sys.stderr)
+        except Exception as e:
+            print(f"[hover] WARN {k} not in TOC: {e}", file=sys.stderr)
     time.sleep(0.3)
     cf.param.set_value("kalman.resetEstimation", 1)
     time.sleep(0.5)
