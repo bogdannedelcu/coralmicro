@@ -1488,6 +1488,91 @@ for best target-acquisition precision.  For real-world applications
 where altitude is constrained (e.g., flying under a ceiling), the
 controller still works but expect ~2× wider final-distance variance.
 
+### Altitude-sweep calibration (multi-DOF excitation, 2026-05-11 ship)
+
+User asked "can we do a calibration that sweeps altitude (±25cm) while
+tracking the cat, to probe gains at multiple z's?"  Answer: yes, this
+is the canonical **Quad-M frequency-sweep ID** maneuver applied to
+multi-DOF (Z sweep + XY centering).  Enabled via `SENTAI_ALT_CAL=1`
+env var; adds ~20s overhead at start of flight.
+
+**What it does** (in `hover_over_cat.py` post-takeoff, pre-hover):
+
+```
+for 20 s:
+  z_cmd = HOLD_Z + 0.25 * sin(2π·t/20)          # 1 cycle, ±25cm sweep
+  mc.start_linear_motion(0, 0, (z_cmd - z_now) * 0.5)
+  drain STATE queue, bucket bbox-err by current z relative to HOLD_Z:
+    low      = z < HOLD_Z - 15cm
+    mid_low  = -15cm < z - HOLD_Z < 0
+    mid_high = 0 < z - HOLD_Z < +15cm
+    high     = z > HOLD_Z + 15cm
+```
+
+**Validation 2026-05-11**:
+
+| Altitude bucket | Samples | mean \|err_x\| (px) | mean \|err_y\| (px) |
+|-----------------|---------|---------------------|---------------------|
+| low             | 44      | 44.6                | 88.2                |
+| mid_low         | 10      | 57.2                | 78.7                |
+| mid_high        | 44      | 41.9                | 73.5                |
+| high            | 0       | n/a                 | n/a                 |
+
+**Findings:**
+
+1. `err_x` is roughly altitude-invariant (45–57 px across buckets) ⇒
+   altitude normalisation in the X-axis gain works.
+
+2. `err_y` is consistently larger (74–88 px) AND degrades slightly at
+   low z (88 vs 73 px) ⇒ Y dynamics benefit from altitude scheduling
+   in the next iteration of the controller.
+
+3. `high` bucket has 0 samples — drone's vertical step response is
+   slower than the sweep period.  The `mc.start_linear_motion(_,_,vz)`
+   command effects altitude with delay > 0.1s; gain `(z_cmd-z_now)*0.5`
+   produced too-gentle vertical setpoints to overcome cf2's altitude
+   damping in time.  Fix: increase gain to ~2.0 and/or extend
+   `CAL_DURATION_S` to 30s.
+
+4. Side effect: **the calibration acts as a warm-up**; main hover
+   phase immediately afterward hit **1.7cm final distance** (new
+   record vs prior 1.9cm at z=2.5m without calibration).  Likely the
+   EKF has settled fully + the SORT tracker has multiple consistent
+   detections before the centering phase starts.
+
+**Approaches from literature for in-flight calibration**:
+
+- **Chirp / frequency sweep** in attitude (CIFER tool) — standard for
+  manned helicopter ID; ArduPilot port at
+  <https://ardupilot.org/copter/docs/systemid-model-development.html>
+- **In-situ rotation for optical flow focal length** — Wang et al
+  2023 "Improved modeling and fast in-field calibration of optical
+  flow sensor for UAV position estimation"
+  <https://www.sciencedirect.com/science/article/abs/pii/S0263224123016305>
+- **Quad-M principles** for flight vehicle ID (Maneuvers,
+  Measurements, Model, Method) — see SJSU/VFS 2019 paper at
+  <https://www.sjsu.edu/researchfoundation/docs/VFS_2019_Ivler.pdf>
+- **Adaptive PID gain-scheduling for 3D quadrotor** — recent IEEE
+  conf paper specifically about altitude-correlated gain table
+  <https://ieeexplore.ieee.org/document/10638945/>
+- **Fuzzy Gain-Scheduling PID for UAV** — MDPI 2022 Sensors,
+  position + altitude controllers with fuzzy gain rules
+  <https://www.mdpi.com/1424-8220/22/6/2173>
+- **ArduPilot in-flight flow calibration**: hover at 10m, rock
+  ±5° roll/pitch to identify focal length / installation angles
+  <https://ardupilot.org/copter/docs/common-optical-flow-sensor-setup.html>
+
+**Open ideas for next iteration**:
+
+- Higher vz gain (2.0 instead of 0.5) + longer sweep window (30s) to
+  reach the "high" bucket properly and get 4-point altitude coverage.
+- Sweep amplitude scaling with detected oscillation strength (start
+  small, grow until performance differs across buckets).
+- Per-axis gain learning: separate `KP_X_M`, `KP_Y_M`, `KD_X_M`,
+  `KD_Y_M` since Y axis has more inherent overshoot in cf2 SITL.
+- Move to **gain-scheduling table** `KP(z), KD(z)` populated by
+  calibration sweep, interpolated at run time using current cflib `z`.
+
 ### Open work
 
 - **Full rotation homography** for tilt compensation (we use

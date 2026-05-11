@@ -1,0 +1,1154 @@
+[hover] spawn sentai_sim
+[hover] state.tsv → /tmp/sentai_frames_20260511_132725/state.tsv
+[hover] sentai_sim configured, tracker emitting
+Could not save cache, no writable directory
+[reader] HOVER_LOGIC_READY
+[reader] HOVER_LOGIC_DIAG iter=0 n_tracks=0 stats={'frames': 0, 'running': True, 'total_ms_sum': 0, 'invoke_ms_max': 0}
+[reader] HOVER_LOGIC_DIAG iter=5 n_tracks=0 stats={'frames': 5, 'running': True, 'total_ms_sum': 106, 'invoke_ms_max': 18}
+[reader] HOVER_LOGIC_DETS= ((218, 243, 284, 300, 266, 71), (10, 240, 82, 299, 250, 81), (15, 0, 82, 61, 234, 71), (13, 150, 81, 241, 203, 71), (154, 1, 219, 61, 188, 71), (80, 62, 150, 150, 180, 71), (81, 245,
+[reader] HOVER_LOGIC_DIAG iter=10 n_tracks=0 stats={'frames': 10, 'running': True, 'total_ms_sum': 193, 'invoke_ms_max': 18}
+[reader] HOVER_LOGIC_DETS= ((218, 243, 284, 300, 266, 71), (10, 240, 82, 299, 250, 81), (15, 0, 82, 61, 234, 71), (13, 150, 81, 241, 203, 71), (154, 1, 219, 61, 188, 71), (80, 62, 150, 150, 180, 71), (81, 245,
+[reader] HOVER_LOGIC_DIAG iter=15 n_tracks=0 stats={'frames': 15, 'running': True, 'total_ms_sum': 289, 'invoke_ms_max': 21}
+[reader] HOVER_LOGIC_DETS= ((218, 243, 284, 300, 266, 71), (10, 240, 82, 299, 250, 81), (15, 0, 82, 61, 234, 71), (13, 150, 81, 241, 203, 71), (154, 1, 219, 61, 188, 71), (80, 62, 150, 150, 180, 71), (81, 245,
+[reader] HOVER_LOGIC_DIAG iter=20 n_tracks=0 stats={'frames': 21, 'running': True, 'total_ms_sum': 401, 'invoke_ms_max': 20}
+Could not save cache, no writable directory
+[reader] HOVER_LOGIC_DETS= ((218, 243, 284, 300, 266, 71), (10, 240, 82, 299, 250, 81), (15, 0, 82, 61, 234, 71), (13, 150, 81, 241, 203, 71), (154, 1, 219, 61, 188, 71), (80, 62, 150, 150, 180, 71), (81, 245,
+[reader] HOVER_LOGIC_DIAG iter=25 n_tracks=0 stats={'frames': 26, 'running': True, 'total_ms_sum': 487, 'invoke_ms_max': 18}
+[reader] HOVER_LOGIC_DETS= ((218, 243, 284, 300, 266, 71), (10, 240, 82, 299, 250, 81), (15, 0, 82, 61, 234, 71), (13, 150, 81, 241, 203, 71), (154, 1, 219, 61, 188, 71), (80, 62, 150, 150, 180, 71), (81, 245,
+[reader] HOVER_LOGIC_DIAG iter=30 n_tracks=0 stats={'frames': 31, 'running': True, 'total_ms_sum': 577, 'invoke_ms_max': 20}
+[reader] HOVER_LOGIC_DETS= ((218, 243, 284, 300, 266, 71), (10, 240, 82, 299, 250, 81), (15, 0, 82, 61, 234, 71), (13, 150, 81, 241, 203, 71), (154, 1, 219, 61, 188, 71), (80, 62, 150, 150, 180, 71), (81, 245,
+[reader] HOVER_LOGIC_DIAG iter=35 n_tracks=0 stats={'frames': 36, 'running': True, 'total_ms_sum': 665, 'invoke_ms_max': 16}
+[reader] HOVER_LOGIC_DETS= ((218, 243, 284, 300, 266, 71), (10, 240, 82, 299, 250, 81), (15, 0, 82, 61, 234, 71), (13, 150, 81, 241, 203, 71), (154, 1, 219, 61, 188, 71), (80, 62, 150, 150, 180, 71), (81, 245,
+[reader] HOVER_LOGIC_DIAG iter=40 n_tracks=0 stats={'frames': 40, 'running': True, 'total_ms_sum': 729, 'invoke_ms_max': 16}
+[hover] attitude+pos log subscribed @ 50 Hz → /tmp/sentai_frames_20260511_132725/flight.tsv
+[hover] MotionCommander takeoff → 2.5m
+[reader] HOVER_LOGIC_DETS= ((218, 243, 284, 300, 266, 71), (10, 240, 82, 299, 250, 81), (15, 0, 82, 61, 234, 71), (13, 150, 81, 241, 203, 71), (154, 1, 219, 61, 188, 71), (80, 62, 150, 150, 180, 71), (81, 245,
+[reader] HOVER_LOGIC_DIAG iter=45 n_tracks=0 stats={'frames': 46, 'running': True, 'total_ms_sum': 835, 'invoke_ms_max': 24}
+[reader] HOVER_LOGIC_DETS= ((218, 243, 284, 300, 266, 71), (10, 240, 82, 299, 250, 81), (15, 0, 82, 61, 234, 71), (13, 150, 81, 241, 203, 71), (154, 1, 219, 61, 188, 71), (80, 62, 150, 150, 180, 71), (81, 245,
+[reader] HOVER_LOGIC_DIAG iter=50 n_tracks=0 stats={'frames': 51, 'running': True, 'total_ms_sum': 929, 'invoke_ms_max': 18}
+[reader] HOVER_LOGIC_DETS= ((218, 243, 284, 300, 266, 71), (10, 240, 82, 299, 250, 81), (15, 0, 82, 61, 234, 71), (13, 150, 81, 241, 203, 71), (154, 1, 219, 61, 188, 71), (80, 62, 150, 150, 180, 71), (81, 245,
+[reader] HOVER_LOGIC_DIAG iter=55 n_tracks=0 stats={'frames': 56, 'running': True, 'total_ms_sum': 1017, 'invoke_ms_max': 14}
+[reader] HOVER_LOGIC_DETS= ((218, 243, 284, 300, 266, 71), (10, 240, 82, 299, 250, 81), (15, 0, 82, 61, 234, 71), (13, 150, 81, 241, 203, 71), (154, 1, 219, 61, 188, 71), (80, 62, 150, 150, 180, 71), (81, 245,
+[reader] HOVER_LOGIC_DIAG iter=60 n_tracks=0 stats={'frames': 61, 'running': True, 'total_ms_sum': 1105, 'invoke_ms_max': 20}
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+[hover] altitude-sweep calibration: ±0.25m around HOLD_Z, 1 cycle / 20s with XY centering active
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+[reader] HOVER_LOGIC_DETS= ((218, 243, 284, 300, 266, 71), (10, 240, 82, 299, 250, 81), (15, 0, 82, 61, 234, 71), (13, 150, 81, 241, 203, 71), (154, 1, 219, 61, 188, 71), (80, 62, 150, 150, 180, 71), (81, 245,
+[reader] HOVER_LOGIC_DIAG iter=65 n_tracks=0 stats={'frames': 66, 'running': True, 'total_ms_sum': 1191, 'invoke_ms_max': 16}
+[reader] HOVER_LOGIC_DETS= ((218, 243, 284, 300, 266, 71), (10, 240, 82, 299, 250, 81), (15, 0, 82, 61, 234, 71), (13, 150, 81, 241, 203, 71), (154, 1, 219, 61, 188, 71), (80, 62, 150, 150, 180, 71), (81, 245,
+[reader] HOVER_LOGIC_DIAG iter=70 n_tracks=0 stats={'frames': 71, 'running': True, 'total_ms_sum': 1277, 'invoke_ms_max': 18}
+[reader] HOVER_LOGIC_DETS= ((8, 45, 287, 289, 188, 4), (-2, 106, 215, 318, 148, 4), (-6, 147, 282, 298, 117, 4), (98, 68, 297, 307, 109, 0), (139, 72, 209, 257, 105, 46), (161, 92, 218, 251, 105, 46))
+[reader] HOVER_LOGIC_DIAG iter=75 n_tracks=0 stats={'frames': 76, 'running': True, 'total_ms_sum': 1363, 'invoke_ms_max': 16}
+[reader] HOVER_LOGIC_DETS= ((3, 164, 255, 300, 465, 0), (2, 183, 73, 299, 441, 0), (189, 12, 241, 87, 430, 0), (2, 183, 153, 299, 387, 0), (8, 2, 151, 107, 375, 71), (5, 90, 276, 297, 324, 0), (143, -1, 281, 1
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+[cal] per-altitude bbox tracking precision:
+[cal]   low      :   44 samples, mean |err_x|= 44.6px, |err_y|= 88.2px
+[cal]   mid_low  :   10 samples, mean |err_x|= 57.2px, |err_y|= 78.7px
+[cal]   mid_high :   44 samples, mean |err_x|= 41.9px, |err_y|= 73.5px
+[cal]   high     : 0 samples
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+[hover] takeoff pose: [-0.208486 -0.047086 2.443240]
+[hover] hover-over for 30.0s targeting class=16
+[pid] loaded params from /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s090_hover_over_cat/pid_params.json: KP_M=0.295 KD_M=0.966
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+[hover] LOCK iter=178 id=4 cls=16 conf=773 raw=(105,245) corr=(104,246) err_c=( -46, +96) att=(r+0.1,p-0.2) cmd=(+0.189,-0.121)
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+[hover] LOCK iter=179 id=4 cls=16 conf=766 raw=(106,246) corr=(105,247) err_c=( -45, +97) att=(r+0.1,p-0.2) cmd=(+0.197,-0.110)
+[hover] LOCK iter=180 id=4 cls=16 conf=773 raw=(106,246) corr=(105,247) err_c=( -45, +97) att=(r+0.1,p-0.2) cmd=(+0.191,-0.118)
+[hover] LOCK iter=181 id=4 cls=16 conf=742 raw=(107,246) corr=(106,247) err_c=( -44, +97) att=(r+0.1,p-0.2) cmd=(+0.191,-0.107)
+[hover] LOCK iter=182 id=4 cls=16 conf=766 raw=(107,245) corr=(106,246) err_c=( -44, +96) att=(r+0.1,p-0.2) cmd=(+0.183,-0.116)
+[hover] LOCK iter=183 id=4 cls=16 conf=750 raw=(107,245) corr=(106,246) err_c=( -44, +96) att=(r+0.1,p-0.2) cmd=(+0.189,-0.116)
+[hover] LOCK iter=184 id=4 cls=16 conf=758 raw=(108,246) corr=(107,247) err_c=( -43, +97) att=(r+0.1,p-0.2) cmd=(+0.197,-0.104)
+[hover] LOCK iter=185 id=4 cls=16 conf=766 raw=(108,247) corr=(107,248) err_c=( -43, +98) att=(r+0.1,p-0.2) cmd=(+0.199,-0.113)
+[hover] LOCK iter=186 id=4 cls=16 conf=750 raw=(109,247) corr=(108,248) err_c=( -42, +98) att=(r+0.1,p-0.2) cmd=(+0.193,-0.102)
+[hover] LOCK iter=187 id=4 cls=16 conf=750 raw=(109,246) corr=(108,247) err_c=( -42, +97) att=(r+0.1,p-0.2) cmd=(+0.184,-0.110)
+[hover] LOCK iter=188 id=4 cls=16 conf=766 raw=(108,246) corr=(107,247) err_c=( -43, +97) att=(r+0.1,p-0.2) cmd=(+0.191,-0.122)
+[hover] LOCK iter=189 id=4 cls=16 conf=766 raw=(109,246) corr=(108,247) err_c=( -42, +97) att=(r+0.1,p-0.2) cmd=(+0.191,-0.102)
+[hover] LOCK iter=190 id=4 cls=16 conf=773 raw=(109,246) corr=(108,247) err_c=( -42, +97) att=(r+0.1,p-0.2) cmd=(+0.191,-0.110)
+[hover] LOCK iter=191 id=4 cls=16 conf=766 raw=(109,246) corr=(108,247) err_c=( -42, +97) att=(r+0.1,p-0.2) cmd=(+0.191,-0.110)
+[hover] LOCK iter=192 id=4 cls=16 conf=758 raw=(109,246) corr=(108,247) err_c=( -42, +97) att=(r+0.1,p-0.2) cmd=(+0.191,-0.110)
+[hover] LOCK iter=193 id=4 cls=16 conf=750 raw=(110,246) corr=(109,247) err_c=( -41, +97) att=(r+0.1,p-0.2) cmd=(+0.191,-0.099)
+[hover] LOCK iter=194 id=4 cls=16 conf=773 raw=(110,246) corr=(109,247) err_c=( -41, +97) att=(r+0.1,p-0.2) cmd=(+0.191,-0.108)
+[hover] LOCK iter=195 id=4 cls=16 conf=785 raw=(109,246) corr=(108,247) err_c=( -42, +97) att=(r+0.1,p-0.2) cmd=(+0.191,-0.119)
+[hover] LOCK iter=196 id=4 cls=16 conf=742 raw=(109,246) corr=(108,247) err_c=( -42, +97) att=(r+0.1,p-0.2) cmd=(+0.191,-0.110)
+[hover] LOCK iter=197 id=4 cls=16 conf=773 raw=(109,247) corr=(108,248) err_c=( -42, +98) att=(r+0.1,p-0.2) cmd=(+0.199,-0.110)
+[hover] LOCK iter=198 id=4 cls=16 conf=742 raw=(109,247) corr=(108,248) err_c=( -42, +98) att=(r+0.1,p-0.2) cmd=(+0.193,-0.110)
+[hover] LOCK iter=199 id=4 cls=16 conf=742 raw=(109,247) corr=(108,248) err_c=( -42, +98) att=(r+0.1,p-0.2) cmd=(+0.193,-0.110)
+[hover] LOCK iter=200 id=4 cls=16 conf=766 raw=(108,248) corr=(107,249) err_c=( -43, +99) att=(r+0.1,p-0.2) cmd=(+0.200,-0.122)
+[hover] LOCK iter=201 id=4 cls=16 conf=766 raw=(109,248) corr=(108,249) err_c=( -42, +99) att=(r+0.1,p-0.2) cmd=(+0.195,-0.102)
+[hover] LOCK iter=202 id=4 cls=16 conf=750 raw=(109,248) corr=(108,249) err_c=( -42, +99) att=(r+0.1,p-0.2) cmd=(+0.195,-0.110)
+[hover] LOCK iter=203 id=4 cls=16 conf=766 raw=(109,248) corr=(108,249) err_c=( -42, +99) att=(r+0.1,p-0.2) cmd=(+0.195,-0.110)
+[hover] LOCK iter=204 id=4 cls=16 conf=742 raw=(108,247) corr=(107,248) err_c=( -43, +98) att=(r+0.1,p-0.2) cmd=(+0.186,-0.122)
+[hover] LOCK iter=205 id=4 cls=16 conf=734 raw=(108,248) corr=(107,249) err_c=( -43, +99) att=(r+0.1,p-0.2) cmd=(+0.200,-0.113)
+[hover] LOCK iter=206 id=4 cls=16 conf=742 raw=(108,248) corr=(107,249) err_c=( -43, +99) att=(r+0.1,p-0.2) cmd=(+0.195,-0.113)
+[hover] LOCK iter=207 id=4 cls=16 conf=758 raw=(108,248) corr=(107,249) err_c=( -43, +99) att=(r+0.1,p-0.2) cmd=(+0.195,-0.113)
+[hover] LOCK iter=208 id=4 cls=16 conf=766 raw=(107,249) corr=(106,250) err_c=( -44,+100) att=(r+0.1,p-0.2) cmd=(+0.200,-0.124)
+[hover] LOCK iter=209 id=4 cls=16 conf=766 raw=(107,249) corr=(106,250) err_c=( -44,+100) att=(r+0.1,p-0.2) cmd=(+0.197,-0.116)
+[hover] LOCK iter=210 id=4 cls=16 conf=750 raw=(107,249) corr=(106,250) err_c=( -44,+100) att=(r+0.1,p-0.2) cmd=(+0.197,-0.116)
+[hover] LOCK iter=211 id=4 cls=16 conf=766 raw=(107,249) corr=(106,250) err_c=( -44,+100) att=(r+0.1,p-0.2) cmd=(+0.197,-0.116)
+[hover] LOCK iter=212 id=4 cls=16 conf=766 raw=(107,249) corr=(106,250) err_c=( -44,+100) att=(r+0.1,p-0.2) cmd=(+0.197,-0.116)
+[hover] LOCK iter=213 id=4 cls=16 conf=773 raw=(107,248) corr=(106,249) err_c=( -44, +99) att=(r+0.1,p-0.2) cmd=(+0.188,-0.116)
+[hover] LOCK iter=214 id=4 cls=16 conf=766 raw=(107,248) corr=(106,249) err_c=( -44, +99) att=(r+0.1,p-0.2) cmd=(+0.195,-0.116)
+[hover] LOCK iter=215 id=4 cls=16 conf=785 raw=(107,248) corr=(106,249) err_c=( -44, +99) att=(r+0.1,p-0.2) cmd=(+0.195,-0.116)
+[hover] LOCK iter=216 id=4 cls=16 conf=789 raw=(107,249) corr=(106,250) err_c=( -44,+100) att=(r+0.1,p-0.2) cmd=(+0.200,-0.116)
+[hover] LOCK iter=217 id=4 cls=16 conf=797 raw=(107,249) corr=(106,250) err_c=( -44,+100) att=(r+0.1,p-0.2) cmd=(+0.197,-0.116)
+[hover] LOCK iter=218 id=4 cls=16 conf=789 raw=(107,249) corr=(106,250) err_c=( -44,+100) att=(r+0.1,p-0.2) cmd=(+0.197,-0.116)
+[hover] LOCK iter=219 id=4 cls=16 conf=773 raw=(107,250) corr=(106,251) err_c=( -44,+101) att=(r+0.1,p-0.2) cmd=(+0.200,-0.116)
+[hover] LOCK iter=220 id=4 cls=16 conf=789 raw=(107,250) corr=(106,251) err_c=( -44,+101) att=(r+0.1,p-0.2) cmd=(+0.199,-0.116)
+[hover] LOCK iter=221 id=4 cls=16 conf=789 raw=(106,250) corr=(105,251) err_c=( -45,+101) att=(r+0.1,p-0.2) cmd=(+0.199,-0.127)
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+[hover] LOCK iter=222 id=4 cls=16 conf=789 raw=(106,249) corr=(102,252) err_c=( -48,+102) att=(r+0.5,p-0.8) cmd=(+0.200,-0.151)
+[hover] LOCK iter=223 id=4 cls=16 conf=785 raw=(107,248) corr=(103,251) err_c=( -47,+101) att=(r+0.5,p-0.8) cmd=(+0.192,-0.115)
+[hover] LOCK iter=224 id=4 cls=16 conf=750 raw=(107,249) corr=(103,252) err_c=( -47,+102) att=(r+0.5,p-0.8) cmd=(+0.200,-0.123)
+[hover] LOCK iter=225 id=13 cls=16 conf=590 raw=(119,251) corr=(115,254) err_c=( -35,+104) att=(r+0.5,p-0.8) cmd=(+0.200,+0.011)
+[hover] LOCK iter=226 id=4 cls=16 conf=645 raw=(108,252) corr=(104,255) err_c=( -46,+105) att=(r+0.5,p-0.8) cmd=(+0.200,-0.200)
+[hover] LOCK iter=227 id=4 cls=16 conf=676 raw=(106,254) corr=(102,257) err_c=( -48,+107) att=(r+0.5,p-0.8) cmd=(+0.200,-0.143)
+[hover] LOCK iter=228 id=4 cls=16 conf=664 raw=(105,254) corr=(101,257) err_c=( -49,+107) att=(r+0.5,p-0.8) cmd=(+0.200,-0.137)
+[hover] LOCK iter=229 id=4 cls=16 conf=656 raw=(105,255) corr=(101,258) err_c=( -49,+108) att=(r+0.5,p-0.8) cmd=(+0.200,-0.129)
+[hover] LOCK iter=230 id=4 cls=16 conf=664 raw=(104,255) corr=(100,258) err_c=( -50,+108) att=(r+0.5,p-0.8) cmd=(+0.200,-0.140)
+[hover] LOCK iter=231 id=4 cls=16 conf=734 raw=(105,254) corr=(101,257) err_c=( -49,+107) att=(r+0.5,p-0.8) cmd=(+0.200,-0.120)
+[hover] LOCK iter=232 id=4 cls=16 conf=695 raw=(104,254) corr=(100,257) err_c=( -50,+107) att=(r+0.5,p-0.8) cmd=(+0.200,-0.140)
+[hover] LOCK iter=233 id=4 cls=16 conf=715 raw=(105,252) corr=(101,255) err_c=( -49,+105) att=(r+0.5,p-0.8) cmd=(+0.194,-0.120)
+[hover] LOCK iter=234 id=4 cls=16 conf=758 raw=(106,249) corr=(102,252) err_c=( -48,+102) att=(r+0.5,p-0.8) cmd=(+0.181,-0.117)
+[hover] LOCK iter=235 id=4 cls=16 conf=773 raw=(107,247) corr=(103,250) err_c=( -47,+100) att=(r+0.5,p-0.8) cmd=(+0.184,-0.115)
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+[hover] LOCK iter=236 id=4 cls=16 conf=758 raw=(109,245) corr=(105,248) err_c=( -45, +98) att=(r+0.5,p-0.8) cmd=(+0.180,-0.101)
+[hover] LOCK iter=237 id=7 cls=16 conf=723 raw=(124,235) corr=(120,238) err_c=( -30, +88) att=(r+0.5,p-0.8) cmd=(+0.108,+0.050)
+[hover] LOCK iter=238 id=7 cls=16 conf=742 raw=(117,236) corr=(113,239) err_c=( -37, +89) att=(r+0.5,p-0.8) cmd=(+0.181,-0.157)
+[hover] LOCK iter=239 id=7 cls=16 conf=750 raw=(120,237) corr=(116,240) err_c=( -34, +90) att=(r+0.5,p-0.8) cmd=(+0.183,-0.063)
+[hover] LOCK iter=240 id=7 cls=16 conf=734 raw=(117,236) corr=(113,239) err_c=( -37, +89) att=(r+0.5,p-0.8) cmd=(+0.168,-0.123)
+[hover] LOCK iter=241 id=7 cls=16 conf=750 raw=(123,230) corr=(119,233) err_c=( -31, +83) att=(r+0.5,p-0.8) cmd=(+0.124,-0.029)
+[hover] LOCK iter=242 id=7 cls=16 conf=758 raw=(129,229) corr=(125,232) err_c=( -25, +82) att=(r+0.5,p-0.8) cmd=(+0.155,-0.014)
+[hover] LOCK iter=243 id=7 cls=16 conf=773 raw=(128,229) corr=(124,232) err_c=( -26, +82) att=(r+0.5,p-0.8) cmd=(+0.161,-0.077)
+[hover] LOCK iter=244 id=7 cls=16 conf=789 raw=(126,229) corr=(122,232) err_c=( -28, +82) att=(r+0.5,p-0.8) cmd=(+0.161,-0.091)
+[hover] LOCK iter=245 id=7 cls=16 conf=785 raw=(124,227) corr=(120,230) err_c=( -30, +80) att=(r+0.5,p-0.8) cmd=(+0.144,-0.096)
+[hover] LOCK iter=246 id=7 cls=16 conf=813 raw=(124,221) corr=(120,224) err_c=( -30, +74) att=(r+0.5,p-0.8) cmd=(+0.107,-0.079)
+[hover] LOCK iter=247 id=7 cls=16 conf=805 raw=(125,218) corr=(121,221) err_c=( -29, +71) att=(r+0.5,p-0.8) cmd=(+0.120,-0.067)
+[hover] LOCK iter=248 id=7 cls=16 conf=813 raw=(127,214) corr=(123,217) err_c=( -27, +67) att=(r+0.5,p-0.8) cmd=(+0.106,-0.053)
+[hover] LOCK iter=249 id=7 cls=16 conf=785 raw=(128,210) corr=(124,213) err_c=( -26, +63) att=(r+0.5,p-0.8) cmd=(+0.098,-0.059)
+[hover] LOCK iter=250 id=7 cls=16 conf=820 raw=(130,205) corr=(126,208) err_c=( -24, +58) att=(r+0.5,p-0.8) cmd=(+0.082,-0.046)
+[hover] LOCK iter=251 id=7 cls=16 conf=805 raw=(132,201) corr=(128,204) err_c=( -22, +54) att=(r+0.5,p-0.8) cmd=(+0.080,-0.040)
+[hover] LOCK iter=252 id=7 cls=16 conf=742 raw=(135,196) corr=(131,199) err_c=( -19, +49) att=(r+0.5,p-0.8) cmd=(+0.064,-0.024)
+[hover] LOCK iter=253 id=7 cls=16 conf=688 raw=(139,191) corr=(135,194) err_c=( -15, +44) att=(r+0.5,p-0.8) cmd=(+0.054,-0.005)
+[hover] LOCK iter=254 id=7 cls=16 conf=789 raw=(141,188) corr=(137,191) err_c=( -13, +41) att=(r+0.5,p-0.8) cmd=(+0.061,-0.017)
+[hover] LOCK iter=255 id=7 cls=16 conf=797 raw=(142,184) corr=(138,187) err_c=( -12, +37) att=(r+0.5,p-0.8) cmd=(+0.047,-0.023)
+[hover] LOCK iter=256 id=7 cls=16 conf=813 raw=(144,181) corr=(140,184) err_c=( -10, +34) att=(r+0.5,p-0.8) cmd=(+0.047,-0.009)
+[hover] LOCK iter=257 id=4 cls=16 conf=789 raw=(156,172) corr=(152,175) err_c=(  +2, +25) att=(r+0.5,p-0.8) cmd=(-0.008,+0.108)
+[hover] LOCK iter=258 id=4 cls=16 conf=797 raw=(150,173) corr=(146,176) err_c=(  -4, +26) att=(r+0.5,p-0.8) cmd=(+0.057,-0.062)
+[hover] LOCK iter=259 id=4 cls=16 conf=750 raw=(149,172) corr=(145,175) err_c=(  -5, +25) att=(r+0.5,p-0.8) cmd=(+0.042,-0.021)
+[hover] LOCK iter=260 id=4 cls=16 conf=688 raw=(149,170) corr=(145,173) err_c=(  -5, +23) att=(r+0.5,p-0.8) cmd=(+0.032,-0.013)
+[hover] LOCK iter=261 id=4 cls=16 conf=723 raw=(150,166) corr=(146,169) err_c=(  -4, +19) att=(r+0.5,p-0.8) cmd=(+0.011,-0.001)
+[hover] LOCK iter=262 id=4 cls=16 conf=734 raw=(151,162) corr=(147,165) err_c=(  -3, +15) att=(r+0.5,p-0.8) cmd=(+0.003,+0.000)
+[hover] LOCK iter=263 id=4 cls=16 conf=750 raw=(153,159) corr=(149,162) err_c=(  -1, +12) att=(r+0.5,p-0.8) cmd=(+0.004,+0.014)
+[hover] LOCK iter=264 id=4 cls=16 conf=766 raw=(154,155) corr=(150,158) err_c=(  +0,  +8) att=(r+0.5,p-0.8) cmd=(-0.010,+0.008)
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+[hover] LOCK iter=265 id=4 cls=16 conf=773 raw=(157,150) corr=(156,148) err_c=(  +6,  -2) att=(r-0.4,p-0.2) cmd=(-0.068,+0.067)
+[hover] LOCK iter=266 id=4 cls=16 conf=664 raw=(159,146) corr=(158,144) err_c=(  +8,  -6) att=(r-0.4,p-0.2) cmd=(-0.037,+0.038)
+[hover] LOCK iter=267 id=4 cls=16 conf=820 raw=(159,143) corr=(158,141) err_c=(  +8,  -9) att=(r-0.4,p-0.2) cmd=(-0.037,+0.021)
+[hover] LOCK iter=268 id=4 cls=16 conf=750 raw=(164,133) corr=(163,131) err_c=( +13, -19) att=(r-0.4,p-0.2) cmd=(-0.101,+0.077)
+[hover] LOCK iter=269 id=4 cls=16 conf=785 raw=(168,126) corr=(167,124) err_c=( +17, -26) att=(r-0.4,p-0.2) cmd=(-0.096,+0.079)
+[hover] LOCK iter=270 id=4 cls=16 conf=789 raw=(170,123) corr=(169,121) err_c=( +19, -29) att=(r-0.4,p-0.2) cmd=(-0.076,+0.067)
+[hover] LOCK iter=271 id=4 cls=16 conf=707 raw=(173,119) corr=(172,117) err_c=( +22, -33) att=(r-0.4,p-0.2) cmd=(-0.090,+0.083)
+[hover] LOCK iter=272 id=4 cls=16 conf=805 raw=(174,116) corr=(173,114) err_c=( +23, -36) att=(r-0.4,p-0.2) cmd=(-0.090,+0.069)
+[hover] LOCK iter=273 id=4 cls=16 conf=758 raw=(177,113) corr=(176,111) err_c=( +26, -39) att=(r-0.4,p-0.2) cmd=(-0.096,+0.094)
+[hover] LOCK iter=274 id=4 cls=16 conf=695 raw=(178,109) corr=(177,107) err_c=( +27, -43) att=(r-0.4,p-0.2) cmd=(-0.110,+0.079)
+[hover] LOCK iter=275 id=4 cls=16 conf=773 raw=(179,105) corr=(178,103) err_c=( +28, -47) att=(r-0.4,p-0.2) cmd=(-0.118,+0.082)
+[hover] LOCK iter=276 id=4 cls=16 conf=750 raw=(180,104) corr=(179,102) err_c=( +29, -48) att=(r-0.4,p-0.2) cmd=(-0.100,+0.085)
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+[hover] LOCK iter=277 id=4 cls=16 conf=723 raw=(180,103) corr=(179,101) err_c=( +29, -49) att=(r-0.4,p-0.2) cmd=(-0.102,+0.076)
+[hover] LOCK iter=278 id=4 cls=16 conf=688 raw=(180,103) corr=(179,101) err_c=( +29, -49) att=(r-0.4,p-0.2) cmd=(-0.096,+0.076)
+[hover] LOCK iter=279 id=4 cls=16 conf=664 raw=(180,104) corr=(179,102) err_c=( +29, -48) att=(r-0.4,p-0.2) cmd=(-0.088,+0.076)
+[hover] LOCK iter=280 id=4 cls=16 conf=688 raw=(180,103) corr=(179,101) err_c=( +29, -49) att=(r-0.4,p-0.2) cmd=(-0.102,+0.076)
+[hover] LOCK iter=281 id=4 cls=16 conf=688 raw=(181,103) corr=(180,101) err_c=( +30, -49) att=(r-0.4,p-0.2) cmd=(-0.096,+0.087)
+[hover] LOCK iter=282 id=4 cls=16 conf=676 raw=(183,104) corr=(182,102) err_c=( +32, -48) att=(r-0.4,p-0.2) cmd=(-0.088,+0.101)
+[hover] LOCK iter=283 id=4 cls=16 conf=695 raw=(183,103) corr=(182,101) err_c=( +32, -49) att=(r-0.4,p-0.2) cmd=(-0.102,+0.084)
+[hover] LOCK iter=284 id=4 cls=16 conf=613 raw=(183,103) corr=(182,101) err_c=( +32, -49) att=(r-0.4,p-0.2) cmd=(-0.096,+0.084)
+[hover] LOCK iter=285 id=4 cls=16 conf=766 raw=(183,103) corr=(182,101) err_c=( +32, -49) att=(r-0.4,p-0.2) cmd=(-0.096,+0.084)
+[hover] LOCK iter=286 id=4 cls=16 conf=688 raw=(184,105) corr=(183,103) err_c=( +33, -47) att=(r-0.4,p-0.2) cmd=(-0.079,+0.095)
+[hover] LOCK iter=287 id=4 cls=16 conf=688 raw=(184,106) corr=(183,104) err_c=( +33, -46) att=(r-0.4,p-0.2) cmd=(-0.084,+0.086)
+[hover] LOCK iter=288 id=4 cls=16 conf=734 raw=(185,106) corr=(184,104) err_c=( +34, -46) att=(r-0.4,p-0.2) cmd=(-0.090,+0.098)
+[hover] LOCK iter=289 id=4 cls=16 conf=750 raw=(184,106) corr=(183,104) err_c=( +33, -46) att=(r-0.4,p-0.2) cmd=(-0.090,+0.078)
+[hover] LOCK iter=290 id=4 cls=16 conf=750 raw=(183,106) corr=(182,104) err_c=( +32, -46) att=(r-0.4,p-0.2) cmd=(-0.090,+0.075)
+[hover] LOCK iter=291 id=4 cls=16 conf=664 raw=(183,107) corr=(182,105) err_c=( +32, -45) att=(r-0.4,p-0.2) cmd=(-0.082,+0.084)
+[hover] LOCK iter=292 id=4 cls=16 conf=688 raw=(184,108) corr=(183,106) err_c=( +33, -44) att=(r-0.4,p-0.2) cmd=(-0.080,+0.095)
+[hover] LOCK iter=293 id=4 cls=16 conf=750 raw=(184,108) corr=(183,106) err_c=( +33, -44) att=(r-0.4,p-0.2) cmd=(-0.086,+0.086)
+[hover] LOCK iter=294 id=4 cls=16 conf=688 raw=(186,106) corr=(185,104) err_c=( +35, -46) att=(r-0.4,p-0.2) cmd=(-0.103,+0.109)
+[hover] LOCK iter=295 id=4 cls=16 conf=750 raw=(186,107) corr=(185,105) err_c=( +35, -45) att=(r-0.4,p-0.2) cmd=(-0.082,+0.092)
+[hover] LOCK iter=296 id=4 cls=16 conf=758 raw=(188,108) corr=(187,106) err_c=( +37, -44) att=(r-0.4,p-0.2) cmd=(-0.080,+0.114)
+[hover] LOCK iter=297 id=4 cls=16 conf=723 raw=(190,111) corr=(189,109) err_c=( +39, -41) att=(r-0.4,p-0.2) cmd=(-0.061,+0.120)
+[hover] LOCK iter=298 id=4 cls=16 conf=758 raw=(191,112) corr=(190,110) err_c=( +40, -40) att=(r-0.4,p-0.2) cmd=(-0.072,+0.114)
+[hover] LOCK iter=299 id=4 cls=16 conf=758 raw=(190,114) corr=(189,112) err_c=( +39, -38) att=(r-0.4,p-0.2) cmd=(-0.061,+0.094)
+[hover] LOCK iter=300 id=4 cls=16 conf=723 raw=(191,116) corr=(190,114) err_c=( +40, -36) att=(r-0.4,p-0.2) cmd=(-0.058,+0.114)
+[hover] LOCK iter=301 id=4 cls=16 conf=734 raw=(189,116) corr=(188,114) err_c=( +38, -36) att=(r-0.4,p-0.2) cmd=(-0.070,+0.082)
+[hover] LOCK iter=302 id=4 cls=16 conf=715 raw=(187,117) corr=(186,115) err_c=( +36, -35) att=(r-0.4,p-0.2) cmd=(-0.062,+0.077)
+[hover] LOCK iter=303 id=4 cls=16 conf=766 raw=(188,119) corr=(187,117) err_c=( +37, -33) att=(r-0.4,p-0.2) cmd=(-0.052,+0.106)
+[hover] LOCK iter=304 id=4 cls=16 conf=766 raw=(188,120) corr=(187,118) err_c=( +37, -32) att=(r-0.4,p-0.2) cmd=(-0.056,+0.097)
+[hover] LOCK iter=305 id=4 cls=16 conf=742 raw=(188,120) corr=(187,118) err_c=( +37, -32) att=(r-0.4,p-0.2) cmd=(-0.063,+0.097)
+[hover] LOCK iter=306 id=4 cls=16 conf=742 raw=(188,120) corr=(187,118) err_c=( +37, -32) att=(r-0.4,p-0.2) cmd=(-0.063,+0.097)
+[hover] LOCK iter=307 id=4 cls=16 conf=750 raw=(186,119) corr=(185,117) err_c=( +35, -33) att=(r-0.4,p-0.2) cmd=(-0.071,+0.074)
+[hover] LOCK iter=308 id=4 cls=16 conf=723 raw=(185,120) corr=(184,118) err_c=( +34, -32) att=(r-0.4,p-0.2) cmd=(-0.056,+0.080)
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+[reader] HOVER_CENTERED iter=350 cxy=(155,152) err=(5,2)
+[hover] CENTERED detected — holding 3.0s then land
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+[hover] LOCK iter=309 id=4 cls=16 conf=773 raw=(184,120) corr=(184,118) err_c=( +34, -32) att=(r-0.4,p+0.0) cmd=(-0.063,+0.089)
+[hover] LOCK iter=310 id=4 cls=16 conf=715 raw=(184,121) corr=(184,119) err_c=( +34, -31) att=(r-0.4,p+0.0) cmd=(-0.054,+0.089)
+[hover] LOCK iter=311 id=4 cls=16 conf=715 raw=(184,122) corr=(184,120) err_c=( +34, -30) att=(r-0.4,p+0.0) cmd=(-0.052,+0.089)
+[hover] LOCK iter=312 id=4 cls=16 conf=750 raw=(187,119) corr=(187,117) err_c=( +37, -33) att=(r-0.4,p+0.0) cmd=(-0.084,+0.123)
+[hover] LOCK iter=313 id=4 cls=16 conf=766 raw=(189,120) corr=(189,118) err_c=( +39, -32) att=(r-0.4,p+0.0) cmd=(-0.056,+0.120)
+[hover] LOCK iter=314 id=4 cls=16 conf=656 raw=(189,120) corr=(189,118) err_c=( +39, -32) att=(r-0.4,p+0.0) cmd=(-0.063,+0.102)
+[hover] LOCK iter=315 id=4 cls=16 conf=734 raw=(188,120) corr=(188,118) err_c=( +38, -32) att=(r-0.4,p+0.0) cmd=(-0.063,+0.091)
+[hover] LOCK iter=316 id=4 cls=16 conf=707 raw=(189,121) corr=(189,119) err_c=( +39, -31) att=(r-0.4,p+0.0) cmd=(-0.054,+0.111)
+[hover] LOCK iter=317 id=4 cls=16 conf=773 raw=(187,121) corr=(187,119) err_c=( +37, -31) att=(r-0.4,p+0.0) cmd=(-0.061,+0.080)
+[hover] LOCK iter=318 id=4 cls=16 conf=766 raw=(185,122) corr=(185,120) err_c=( +35, -30) att=(r-0.4,p+0.0) cmd=(-0.052,+0.074)
+[hover] LOCK iter=319 id=4 cls=16 conf=766 raw=(184,123) corr=(184,121) err_c=( +34, -29) att=(r-0.4,p+0.0) cmd=(-0.050,+0.080)
+[hover] LOCK iter=320 id=4 cls=16 conf=742 raw=(184,124) corr=(184,122) err_c=( +34, -28) att=(r-0.4,p+0.0) cmd=(-0.048,+0.089)
+[hover] LOCK iter=321 id=4 cls=16 conf=688 raw=(183,124) corr=(183,122) err_c=( +33, -28) att=(r-0.4,p+0.0) cmd=(-0.055,+0.078)
+[hover] LOCK iter=322 id=4 cls=16 conf=750 raw=(182,125) corr=(182,123) err_c=( +32, -27) att=(r-0.4,p+0.0) cmd=(-0.046,+0.075)
+[hover] LOCK iter=323 id=4 cls=16 conf=750 raw=(181,126) corr=(181,124) err_c=( +31, -26) att=(r-0.4,p+0.0) cmd=(-0.044,+0.073)
+[hover] LOCK iter=324 id=4 cls=16 conf=742 raw=(179,126) corr=(179,124) err_c=( +29, -26) att=(r-0.4,p+0.0) cmd=(-0.051,+0.059)
+[hover] LOCK iter=325 id=4 cls=16 conf=773 raw=(179,126) corr=(179,124) err_c=( +29, -26) att=(r-0.4,p+0.0) cmd=(-0.051,+0.076)
+[hover] LOCK iter=326 id=4 cls=16 conf=695 raw=(178,127) corr=(178,125) err_c=( +28, -25) att=(r-0.4,p+0.0) cmd=(-0.042,+0.065)
+[hover] LOCK iter=327 id=4 cls=16 conf=723 raw=(178,128) corr=(178,126) err_c=( +28, -24) att=(r-0.4,p+0.0) cmd=(-0.040,+0.073)
+[hover] LOCK iter=328 id=4 cls=16 conf=773 raw=(177,130) corr=(177,128) err_c=( +27, -22) att=(r-0.4,p+0.0) cmd=(-0.030,+0.062)
+[hover] LOCK iter=329 id=4 cls=16 conf=758 raw=(178,130) corr=(178,128) err_c=( +28, -22) att=(r-0.4,p+0.0) cmd=(-0.043,+0.082)
+[hover] LOCK iter=330 id=4 cls=16 conf=785 raw=(177,131) corr=(177,129) err_c=( +27, -21) att=(r-0.4,p+0.0) cmd=(-0.034,+0.062)
+[hover] LOCK iter=331 id=4 cls=16 conf=785 raw=(177,133) corr=(177,131) err_c=( +27, -19) att=(r-0.4,p+0.0) cmd=(-0.024,+0.071)
+[hover] LOCK iter=332 id=4 cls=16 conf=766 raw=(177,135) corr=(177,133) err_c=( +27, -17) att=(r-0.4,p+0.0) cmd=(-0.020,+0.071)
+[hover] LOCK iter=333 id=4 cls=16 conf=785 raw=(174,137) corr=(174,135) err_c=( +24, -15) att=(r-0.4,p+0.0) cmd=(-0.016,+0.037)
+[hover] LOCK iter=334 id=4 cls=16 conf=820 raw=(172,137) corr=(172,135) err_c=( +22, -15) att=(r-0.4,p+0.0) cmd=(-0.029,+0.040)
+[hover] LOCK iter=335 id=4 cls=16 conf=797 raw=(171,139) corr=(171,137) err_c=( +21, -13) att=(r-0.4,p+0.0) cmd=(-0.012,+0.046)
+[hover] LOCK iter=336 id=4 cls=16 conf=805 raw=(169,140) corr=(169,138) err_c=( +19, -12) att=(r-0.4,p+0.0) cmd=(-0.017,+0.032)
+[hover] LOCK iter=337 id=4 cls=16 conf=805 raw=(169,140) corr=(169,138) err_c=( +19, -12) att=(r-0.4,p+0.0) cmd=(-0.023,+0.050)
+[hover] LOCK iter=338 id=4 cls=16 conf=805 raw=(167,141) corr=(167,139) err_c=( +17, -11) att=(r-0.4,p+0.0) cmd=(-0.015,+0.027)
+[hover] LOCK iter=339 id=4 cls=16 conf=773 raw=(165,142) corr=(165,140) err_c=( +15, -10) att=(r-0.4,p+0.0) cmd=(-0.013,+0.022)
+[hover] LOCK iter=340 id=4 cls=16 conf=785 raw=(165,143) corr=(165,141) err_c=( +15,  -9) att=(r-0.4,p+0.0) cmd=(-0.011,+0.039)
+[hover] LOCK iter=341 id=4 cls=16 conf=797 raw=(164,144) corr=(164,142) err_c=( +14,  -8) att=(r-0.4,p+0.0) cmd=(-0.009,+0.028)
+[hover] LOCK iter=342 id=4 cls=16 conf=715 raw=(163,145) corr=(163,143) err_c=( +13,  -7) att=(r-0.4,p+0.0) cmd=(-0.007,+0.025)
+[hover] LOCK iter=343 id=4 cls=16 conf=707 raw=(162,147) corr=(162,145) err_c=( +12,  -5) att=(r-0.4,p+0.0) cmd=(+0.003,+0.023)
+[hover] LOCK iter=344 id=4 cls=16 conf=832 raw=(161,149) corr=(161,147) err_c=( +11,  -3) att=(r-0.4,p+0.0) cmd=(+0.006,+0.020)
+[hover] LOCK iter=345 id=4 cls=16 conf=766 raw=(161,149) corr=(161,147) err_c=( +11,  -3) att=(r-0.4,p+0.0) cmd=(-0.005,+0.028)
+[hover] LOCK iter=346 id=4 cls=16 conf=750 raw=(160,149) corr=(160,147) err_c=( +10,  -3) att=(r-0.4,p+0.0) cmd=(-0.005,+0.017)
+[hover] LOCK iter=347 id=4 cls=16 conf=750 raw=(159,149) corr=(159,147) err_c=(  +9,  -3) att=(r-0.4,p+0.0) cmd=(-0.005,+0.015)
+[hover] LOCK iter=348 id=4 cls=16 conf=773 raw=(159,150) corr=(159,148) err_c=(  +9,  -2) att=(r-0.4,p+0.0) cmd=(+0.002,+0.023)
+[hover] LOCK iter=349 id=4 cls=16 conf=773 raw=(157,152) corr=(157,150) err_c=(  +7,  +0) att=(r-0.4,p+0.0) cmd=(+0.012,+0.001)
+[hover] LOCK iter=350 id=4 cls=16 conf=723 raw=(155,152) corr=(155,150) err_c=(  +5,  +0) att=(r-0.4,p+0.0) cmd=(+0.000,-0.004)
+[hover] LOCK iter=351 id=4 cls=16 conf=773 raw=(155,153) corr=(155,151) err_c=(  +5,  +1) att=(r-0.4,p+0.0) cmd=(+0.008,+0.013)
+[hover] LOCK iter=352 id=4 cls=16 conf=734 raw=(155,153) corr=(155,151) err_c=(  +5,  +1) att=(r-0.4,p+0.0) cmd=(+0.001,+0.013)
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+[hover] HOLD_AFTER_CENTER_S (3.0s) elapsed — landing
+[hover] total LOCK events: 175  flow packets sent to cf2: 175  HOLD_Z=2.50m
+[pid] flight summary: max overshoot x=0.447m y=0.721m, final err 0.045m
+[pid] ILC: overshoot 0.72m > 0.40m → REDUCE KP (0.266), BOOST KD (1.063)
+[pid] saved refined params to /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s090_hover_over_cat/pid_params.json (stable=False)
+[hover] MotionCommander landing
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+/home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib/crazyflie/commander.py:181: DeprecationWarning: Using legacy TYPE_HOVER_LEGACY. Please update your crazyflie-firmware.
+  warnings.warn(
+[hover] artifacts on disk: /tmp/sentai_frames_20260511_132725/
+[hover]   frame_*.ppm  (81 files)
+[hover]   flight.tsv   (drone XYZ + RPY @ 50 Hz)
+[hover]   state.tsv    (tracker + flow + cmd @ 5 Hz)
+[hover] done

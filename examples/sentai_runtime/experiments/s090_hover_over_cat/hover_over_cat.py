@@ -416,6 +416,69 @@ def main() -> int:
     print(f"[hover] MotionCommander takeoff → {HOLD_Z:.1f}m", file=sys.stderr)
     mc = MotionCommander(sync, default_height=HOLD_Z)
     mc.take_off(height=HOLD_Z, velocity=0.5)   # 0.5 m/s climb
+
+    # ─── ALTITUDE SWEEP CALIBRATION (CHIRP-style multi-DOF excitation) ───
+    # Quad-M principle: rich-enough input (Manoeuvres) reveals all plant
+    # modes.  We sweep z by ±0.25m around HOLD_Z for one full cycle while
+    # simultaneously tracking the cat (XY centering active).  Bbox metrics
+    # are binned by altitude — if performance is altitude-invariant the
+    # current gains are universal; if performance degrades at low z (or
+    # high z), gain scheduling KP(z) / KD(z) is justified.
+    # Enabled via env var SENTAI_ALT_CAL=1 (default off — adds ~20s overhead).
+    if os.environ.get("SENTAI_ALT_CAL", "0") == "1":
+        print("[hover] altitude-sweep calibration: ±0.25m around HOLD_Z, "
+              "1 cycle / 20s with XY centering active", file=sys.stderr)
+        cal_buckets = {"low": [], "mid_low": [], "mid_high": [], "high": []}
+        cal_t0 = time.monotonic()
+        CAL_DURATION_S = 20.0
+        CAL_AMP_M = 0.25
+        while time.monotonic() - cal_t0 < CAL_DURATION_S:
+            t = time.monotonic() - cal_t0
+            z_cmd = HOLD_Z + CAL_AMP_M * math.sin(2 * math.pi * t / CAL_DURATION_S)
+            # Get current state for bucketing
+            with _att_lock:
+                z_now = _drone_z
+            # Bucket by current z relative to HOLD_Z
+            dz = z_now - HOLD_Z
+            if dz < -0.15:
+                bucket = "low"
+            elif dz < 0:
+                bucket = "mid_low"
+            elif dz < 0.15:
+                bucket = "mid_high"
+            else:
+                bucket = "high"
+            # Drain any STATE rows since last poll, log bbox err per bucket
+            try:
+                while True:
+                    s = _state_queue.get_nowait()
+                    if len(s) >= 16 and s[1] > 0:
+                        cal_buckets[bucket].append((abs(s[6]), abs(s[7])))  # (|err_x|, |err_y|)
+            except _queue.Empty:
+                pass
+            # Send vertical sweep cmd + zero lateral velocity (calibration: pure z motion)
+            try:
+                mc.start_linear_motion(0, 0, (z_cmd - z_now) * 0.5)
+            except Exception:
+                pass
+            time.sleep(0.1)
+        # Report per-bucket overshoot
+        print("[cal] per-altitude bbox tracking precision:", file=sys.stderr)
+        for name, errs in cal_buckets.items():
+            if errs:
+                mean_ex = sum(e[0] for e in errs) / len(errs)
+                mean_ey = sum(e[1] for e in errs) / len(errs)
+                print(f"[cal]   {name:9s}: {len(errs):4d} samples, "
+                      f"mean |err_x|={mean_ex:5.1f}px, |err_y|={mean_ey:5.1f}px",
+                      file=sys.stderr)
+            else:
+                print(f"[cal]   {name:9s}: 0 samples", file=sys.stderr)
+        # Return to HOLD_Z before main hover
+        try:
+            mc.start_linear_motion(0, 0, 0)
+        except Exception:
+            pass
+        time.sleep(0.5)
     # Confirm airborne via gz pose query before starting hover-over.
     try:
         pose = subprocess.run(
