@@ -63,7 +63,7 @@ def flow_to_dpixel(dx_q1000: int, dy_q1000: int) -> tuple[float, float]:
 # ── mission tuning ─────────────────────────────────────────────────────
 TARGET_CLASS   = 16
 IMG_W, IMG_H   = 300, 300
-TARGET_Z       = 1.0
+TARGET_Z       = 2.5   # higher altitude → larger FOV → easier to see cat picture
 GATE_Z         = 0.30
 GAIN_M_PER_PX  = 0.004
 V_MAX          = 0.20
@@ -206,11 +206,46 @@ def main() -> int:
     # and can otherwise refuse takeoff (SUP lock on tumble).
     time.sleep(3.0)
 
-    print("[hover] takeoff to 1m", file=sys.stderr)
-    t0 = time.monotonic()
-    while time.monotonic() - t0 < 4.0:
-        cf.commander.send_hover_setpoint(0, 0, 0, (time.monotonic() - t0) / 4.0)
-        time.sleep(0.05)
+    # Staged takeoff — drone camera is BELOW ground for z<1m on this drone
+    # model (user-confirmed via Gazebo GUI PIP) so any "lock" at <1m is a
+    # spurious hallucination on underground checkerboard.  Filter by:
+    #   (a) altitude >= MIN_LOCK_Z
+    #   (b) tracker class in PLAUSIBLE_CAT_CLASSES (MobileNet COCO17
+    #       conflates cat with dog and bear on this photo).
+    print("[hover] staged takeoff: climbing until cat detected (need z>=1m, class∈{15,16,21})",
+          file=sys.stderr)
+    target_z = 0.0
+    cat_locked_at_z = None
+    MAX_CLIMB_Z = 2.5
+    MIN_LOCK_Z = 1.0
+    PLAUSIBLE_CAT_CLASSES = {15, 16, 21}
+    while target_z < MAX_CLIMB_Z:
+        target_z = min(MAX_CLIMB_Z, target_z + 0.05 * 0.1)  # +0.005 m/tick at 10 Hz
+        cf.commander.send_hover_setpoint(0, 0, 0, target_z)
+        time.sleep(0.1)
+        peek_lock = False
+        try:
+            while True:
+                s = _state_queue.get_nowait()
+                if (len(s) >= 12 and s[1] > 0 and s[3] >= MIN_CONF_PERMIL
+                        and s[2] in PLAUSIBLE_CAT_CLASSES):
+                    peek_lock = True
+                    break
+        except _queue.Empty:
+            pass
+        if peek_lock and target_z >= MIN_LOCK_Z:
+            cat_locked_at_z = target_z
+            print(f"[hover] CAT LOCKED at altitude {target_z:.2f} m — "
+                  f"start centering", file=sys.stderr)
+            break
+    if cat_locked_at_z is None:
+        print(f"[hover] climbed to {target_z:.2f} m without cat lock — proceeding anyway", file=sys.stderr)
+        cat_locked_at_z = target_z
+    # HOLD at lock altitude — do NOT keep climbing.  User feedback
+    # 2026-05-11: "cand se detecteaza pisica sa nu se mai ridice, sa se
+    # miste spre centrul boxului".  Hover loop below sends (vx, vy, 0,
+    # HOLD_Z) so lateral motion happens but altitude stays put.
+    HOLD_Z = cat_locked_at_z
     # Confirm airborne via gz pose query before starting hover-over.
     try:
         pose = subprocess.run(
@@ -287,9 +322,9 @@ def main() -> int:
                 if miss == LOST_FRAMES:
                     print(f"[hover] target LOST (iter={it})", file=sys.stderr)
                     vx_body = vy_body = 0.0
-        cf.commander.send_hover_setpoint(vx_body, vy_body, 0, TARGET_Z)
+        cf.commander.send_hover_setpoint(vx_body, vy_body, 0, HOLD_Z)
         time.sleep(1.0 / RATE_HZ)
-    print(f"[hover] total LOCK events: {n_lock}  flow packets sent to cf2: {n_flow_sent}",
+    print(f"[hover] total LOCK events: {n_lock}  flow packets sent to cf2: {n_flow_sent}  HOLD_Z={HOLD_Z:.2f}m",
           file=sys.stderr)
 
     print("[hover] landing", file=sys.stderr)

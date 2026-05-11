@@ -303,6 +303,39 @@ static int handle_one_frame(int fd) {
         s_prev_rgb_crc = crc;
     }
 
+    // Optional frame dump for visual debug.  Set SENTAI_DUMP_FRAMES_DIR
+    // to a directory; we save every Nth frame as PPM (default N=30 = 1 / 6s
+    // at 5 fps).  Filename: frame_<seq:06d>.ppm.
+    {
+        static int s_dump_init = 0;
+        static const char* s_dump_dir = NULL;
+        static int s_dump_every = 30;
+        if (!s_dump_init) {
+            s_dump_init = 1;
+            s_dump_dir = getenv("SENTAI_DUMP_FRAMES_DIR");
+            const char* en = getenv("SENTAI_DUMP_FRAMES_EVERY");
+            if (en && *en) {
+                int v = atoi(en);
+                if (v > 0) s_dump_every = v;
+            }
+            if (s_dump_dir) {
+                printf("camera_bridge: frame dump enabled → %s (every %d frames)\r\n",
+                       s_dump_dir, s_dump_every);
+            }
+        }
+        if (s_dump_dir && (hdr.seq % s_dump_every) == 0) {
+            char path[512];
+            snprintf(path, sizeof path, "%s/frame_%06u.ppm",
+                     s_dump_dir, (unsigned)hdr.seq);
+            FILE* fp = fopen(path, "wb");
+            if (fp) {
+                fprintf(fp, "P6\n%d %d\n255\n", EXPECT_W, EXPECT_H);
+                fwrite(s_rgb_full, 1, expected_bytes, fp);
+                fclose(fp);
+            }
+        }
+    }
+
     rgb888_to_xrgb8888(s_rgb_full, s_xrgb_buf, EXPECT_W * EXPECT_H);
 
     int rc = sentai_pxp_scale(s_xrgb_buf, EXPECT_W, EXPECT_H,
