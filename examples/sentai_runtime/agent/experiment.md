@@ -6242,3 +6242,81 @@ Watch these during integration / regression tests:
 3. If the drone radio scans but `open_link()` times out, the STM32
    firmware is hung — power-cycle the drone, **don't** rely on
    `cfloader reset`. See `agent.md` §18 DFU procedure.
+
+
+## Session 2026-05-11 — TPU SIM via pycoral USB (Phase 5.1-5.5 SHIPPED)
+
+`sentai.tpu` REPL surface now works in SIM with the SAME MP_QSTR
+contract as ARM.  Architecture:
+
+```
+MicroPython REPL: sentai.tpu.load(path) / .invoke() / .output(idx) / ...
+   ↓
+sim/modsentai_sim.c (sentai_tpu_globals_table — mirror of ARM
+                     examples/sentai_runtime/modsentai_tpu.c)
+   ↓
+sim/sim_tpu_shim.c (C wrapper — mirrors sentai_tpu_* C entry points
+                    from sentai_runtime.cc)
+   ↓ /tmp/sentai_tpu.sock (UDS, length-prefixed framing)
+   ↓
+sim/scripts/sim_tpu_helper.py (Python daemon, pycoral, persistent)
+   ↓
+libedgetpu.so.1 + Coral USB Accelerator (or CPU tflite_runtime fallback)
+```
+
+Validated with `models/mobilenet_v1_1.0_224_quant_edgetpu.tflite`:
+  - `sentai.tpu.load(...)` → 0
+  - `sentai.tpu.input_quant()` → `(0.0078125, 128)`
+  - `sentai.tpu.invoke()` → 0 (16 ms with USB Coral plugged)
+  - `sentai.tpu.output_dims(0)` → `(1, 1001)` (1000 ImageNet + bg)
+  - `sentai.tpu.output(0)[:8]` → bytes returned
+
+**Coral USB on local Linux**: detected as `1a6e:089a Global Unichip Corp.`
+before first use, becomes `18d1:9302 Google Inc.` after pycoral opens it
+(runtime DFU).  pycoral uses libedgetpu1-std (`apt install` already done).
+USB exclusive lock — only one helper daemon can hold the device at once;
+if helper crashes, restart it before the next session.
+
+Run helper:
+```bash
+nohup ~/work/coralmicro/venv-coral/bin/python3 \
+      ~/work/coralmicro/sim/scripts/sim_tpu_helper.py \
+      > /tmp/tpu_helper.log 2>&1 &
+disown
+```
+
+### Open: model-specific surface (yolo p3p4 vs mobilenet)
+
+The REPL `sentai.tpu` surface (load/invoke/output) is model-agnostic —
+it returns raw output bytes + dims.  Post-processing (NMS, decode of
+yolo head, keypoint heatmaps for posenet) was retired from the REPL
+on 2026-04-28 in favour of typed C++ helpers.
+
+But the iarna p3p4 family (`models/iarna_p3p4_{C2f,GELAN,MSBlock}_1ep/
+export_uint8_480x640/*.tflite`) was specifically exported WITHOUT the
+ultralytics Detect head — only the raw P3 + P4 feature pyramid
+outputs.  The ARM `sentai.pipeline` then runs its own custom decode
+in C++ (see `examples/sentai_runtime/paper/models.md`).
+
+Implications for SIM `sentai.pipeline` (Phase 5.6):
+
+1. **mobilenet_v1 / classification**: pipeline.start expects 1×1001
+   logits per frame.  Top-1 selection in MP land.  Should "just work"
+   on top of the validated `sentai.tpu` surface.
+
+2. **yolo / standard**: tensor shape varies by model (e.g. yolo5_256
+   = 1×1344×85).  Pipeline currently uses `sentai.tpu.row(idx, row)`
+   on ARM for fast slicing.  In SIM we have `sentai.tpu.output(idx)`
+   returning bytes — slicing is OK but slower (Python-side).  May
+   need to add `sentai.tpu.row()` to SIM if pipeline benchmarks
+   matter.
+
+3. **iarna p3p4 (custom)**: feature-pyramid only.  If we want
+   `sentai.pipeline` SIM to handle these we'd need to also port the
+   custom decode (currently in `examples/sentai_runtime/`
+   `pipeline.cc` / similar).  **Plan**: skip iarna in SIM until the
+   ARM decode code is factored into a shared C++ source file that
+   both targets can link.  Validate sentai.pipeline SIM with a
+   STANDARD model first (mobilenet_v1 classification, then maybe
+   yolo5_256 with full Detect head), then come back for iarna.
+

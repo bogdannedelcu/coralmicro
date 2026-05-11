@@ -117,6 +117,7 @@ add_executable_sim(sentai_sim
     main_sim.c
     modsentai_sim.c
     camera_bridge_recv.c          # Phase 4 UDS receiver, runs flow pipeline
+    sim_tpu_shim.c                # Phase 5 — pycoral helper UDS client
     # Phase 4 — flow algorithm shared between ARM and SIM.
     # flow_phase_corr.cc compiles unchanged on both targets thanks to
     # sentai_fft_shim.h (CMSIS on ARM, FFTW3 wrapper on SIM).
