@@ -93,6 +93,12 @@ struct Reply {
     int32_t  dy_anchor_q1000;
     uint32_t conf_anchor;
     uint32_t frames_since_anchor;
+    // FUSION WINNER (C-side chosen)
+    int32_t  dx_best_q1000;
+    int32_t  dy_best_q1000;
+    uint32_t conf_best;
+    uint8_t  best_source;       // 0=L0,1=L1,2=L2,3=ANCHOR
+    uint8_t  _pad[3];
 };
 #pragma pack(pop)
 

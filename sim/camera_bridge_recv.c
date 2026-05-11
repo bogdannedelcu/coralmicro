@@ -224,6 +224,14 @@ typedef struct __attribute__((packed)) {
     int32_t  dy_anchor_q1000;
     uint32_t conf_anchor;
     uint32_t frames_since_anchor;
+    // FUSION WINNER — chosen in C side (not Python).  On ARM/HW this
+    // is what sentai.flow.read() returns; MicroPython/Python just
+    // relay to cf2 EKF.  Selection rule below in handle_one_frame.
+    int32_t  dx_best_q1000;
+    int32_t  dy_best_q1000;
+    uint32_t conf_best;
+    uint8_t  best_source;        // 0=L0, 1=L1, 2=L2, 3=ANCHOR
+    uint8_t  _pad[3];
 } flow_reply_t;
 
 // ────────────────────────────────────────────────────────────────────────
@@ -703,12 +711,15 @@ static int handle_one_frame(int fd) {
     //     copy current FFT into pipe 3's prev_fft.  Anchor follows
     //     drone whenever it's actively moving.
     // ─────────────────────────────────────────────────────────────────
-    // mgrid threshold for "drone is moving" → refresh anchor.  Set
-    // ABOVE the L0 phase-corr noise floor (~100-300 mgrid for our 8×
-    // PXP downsample) so transient noise spikes don't reset the anchor
-    // every few frames.  Anchor needs ~30+ frames hold to detect slow
-    // sub-pixel drift cumulatively.
-    const int MOTION_DETECT_THRESH = 1500;
+    // LastMovedFrame (LMF) semantic per user spec 2026-05-11:
+    //   - while frame-to-frame motion is ZERO → keep LMF, compare current
+    //     against LMF for cumulative drift detection
+    //   - when frame-to-frame motion is NON-ZERO → update LMF to current
+    //
+    // Threshold = 0: ANY non-zero L0 phase-corr means "drone moved between
+    // these two frames, so the previous frame WAS a moved-frame; cache it".
+    // A small dead-band (50 mgrid) filters phase-corr noise floor.
+    const int MOTION_DETECT_THRESH = 50;
     static int s_have_anchor = 0;
     static uint32_t s_anchor_seq = 0;
     int dx_anchor = 0, dy_anchor = 0;
@@ -739,6 +750,59 @@ static int handle_one_frame(int fd) {
                                                        &conf_anchor);
         frames_since_anchor = hdr.seq - s_anchor_seq;
     }
+
+    // ─────────────────────────────────────────────────────────────────
+    // FUSION (C-side, single best estimate exposed to consumer)
+    //
+    // Priority order:
+    //   1. ANCHOR — when held ≥20 frames AND conf decent AND has
+    //      accumulated significant cumulative motion.  Anchor-derived
+    //      per-frame velocity is INHERENTLY smoother (integrated)
+    //      than instantaneous L0 phase-corr noise.
+    //   2. L2 refined — if conf high (fine pyramid level, coarse-to-fine
+    //      already applied via warping)
+    //   3. L1 refined — fallback to mid-level if L2 confidence low
+    //   4. L0 raw — final fallback for fast motion / no other reliable
+    //
+    // All outputs in L0-equivalent mgrid units (per consumer convention).
+    // ─────────────────────────────────────────────────────────────────
+    int32_t  dx_best = dx_q, dy_best = dy_q;
+    uint32_t conf_best = conf;
+    uint8_t  best_source = 0;   // L0 default
+
+    const uint32_t ANCH_MIN_FRAMES   = 20;
+    const uint32_t ANCH_MIN_CONF     = 60;
+    const int      ANCH_MIN_CUM_MAG  = 200;
+    const uint32_t REFINE_MIN_CONF   = 64;
+    const int      SAT_LIMIT_REFINE  = 24000;
+
+    if (frames_since_anchor >= ANCH_MIN_FRAMES
+            && conf_anchor >= ANCH_MIN_CONF
+            && ((dx_anchor > ANCH_MIN_CUM_MAG || dx_anchor < -ANCH_MIN_CUM_MAG)
+                || (dy_anchor > ANCH_MIN_CUM_MAG || dy_anchor < -ANCH_MIN_CUM_MAG))) {
+        // Anchor-derived per-frame velocity in L0 mgrid units.
+        dx_best     = dx_anchor / (int)frames_since_anchor;
+        dy_best     = dy_anchor / (int)frames_since_anchor;
+        conf_best   = conf_anchor;
+        best_source = 3;
+    } else if (conf_f >= REFINE_MIN_CONF
+               && dx_f < SAT_LIMIT_REFINE && dx_f > -SAT_LIMIT_REFINE
+               && dy_f < SAT_LIMIT_REFINE && dy_f > -SAT_LIMIT_REFINE) {
+        // L2 (fine) — scale to L0-equivalent mgrid: L2_mgrid × 0.25
+        dx_best     = dx_f / 4;
+        dy_best     = dy_f / 4;
+        conf_best   = conf_f;
+        best_source = 2;
+    } else if (conf_c >= REFINE_MIN_CONF
+               && dx_c < SAT_LIMIT_REFINE && dx_c > -SAT_LIMIT_REFINE
+               && dy_c < SAT_LIMIT_REFINE && dy_c > -SAT_LIMIT_REFINE) {
+        // L1 (mid) — scale to L0-equivalent: L1_mgrid × 0.5
+        dx_best     = dx_c / 2;
+        dy_best     = dy_c / 2;
+        conf_best   = conf_c;
+        best_source = 1;
+    }
+    // else default L0 already set
 
     // DEBUG DUMP: write each pyramid level's 80×60 gray buffer to disk
     // as a PPM (gray triplicated to RGB so any image viewer opens it).
@@ -823,6 +887,10 @@ static int handle_one_frame(int fd) {
         .dy_anchor_q1000 = dy_anchor,
         .conf_anchor     = (uint32_t)conf_anchor,
         .frames_since_anchor = frames_since_anchor,
+        .dx_best_q1000   = dx_best,
+        .dy_best_q1000   = dy_best,
+        .conf_best       = conf_best,
+        .best_source     = best_source,
     };
     if (write_full(fd, &reply, sizeof(reply)) != 0) return -1;
 

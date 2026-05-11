@@ -70,9 +70,9 @@ SENSOR_FLOW_SIM        = 6
 # must be rebuilt for this protocol revision.
 FLOW_OUT_SOCK    = "/tmp/sentai_flow_out.sock"
 REPLY_MAGIC      = 0x46524C31   # 'FRL1'
-REPLY_FMT        = "<IIiiIQiIiiIiiIiiII"  # +LCF anchor (dx,dy,conf,frames_since)
+REPLY_FMT        = "<IIiiIQiIiiIiiIiiIIiiIB3x"  # +BEST (dx,dy,conf,source) at tail
 REPLY_SZ         = struct.calcsize(REPLY_FMT)
-assert REPLY_SZ == 76, f"unexpected REPLY_SZ={REPLY_SZ}"
+assert REPLY_SZ == 92, f"unexpected REPLY_SZ={REPLY_SZ}"
 
 # Pyramid scale ratios — fine-grained mgrid in each level corresponds to
 # different physical ground motion.  Convert each level's mgrid to the
@@ -180,7 +180,8 @@ def flow_forwarder(stop_evt: threading.Event, cf, stats: dict) -> None:
                 (magic, seq, dx, dy, conf, lat, dz, dz_conf,
                  dx_c, dy_c, conf_c,
                  dx_f, dy_f, conf_f,
-                 dx_anch, dy_anch, conf_anch, frames_since_anch) = (
+                 dx_anch, dy_anch, conf_anch, frames_since_anch,
+                 dx_best, dy_best, conf_best, best_source) = (
                     struct.unpack(REPLY_FMT, rec))
                 if magic != REPLY_MAGIC:
                     idx = buf.find(struct.pack("<I", REPLY_MAGIC))
@@ -203,52 +204,13 @@ def flow_forwarder(stop_evt: threading.Event, cf, stats: dict) -> None:
                 # to wide-equivalent units and use it.  Else fall back to
                 # wide.  This makes slow drift visible without sacrificing
                 # fast-motion tracking.
-                # FUSION with LastChangedFrame ANCHOR:
-                # When instantaneous L0 motion is small (drone "thinks"
-                # stationary), check the anchor-derived velocity.  If
-                # anchor has accumulated meaningful drift over enough
-                # frames, USE that as the velocity observation — captures
-                # sub-pixel slow drift that frame-to-frame phase-corr
-                # cannot resolve.
-                INST_LOW = 200             # mgrid; below = "drone thinks stationary"
-                ANCH_MIN_FRAMES = 8        # need ≥8 frames for trustworthy avg
-                ANCH_MIN_CONF = 80
-                ANCH_MIN_CUM_MAG = 300     # mgrid cum drift to be worth reporting
-                used_anchor = False
-                if (abs(dx) < INST_LOW and abs(dy) < INST_LOW
-                        and frames_since_anch >= ANCH_MIN_FRAMES
-                        and conf_anch >= ANCH_MIN_CONF
-                        and (abs(dx_anch) >= ANCH_MIN_CUM_MAG
-                             or abs(dy_anch) >= ANCH_MIN_CUM_MAG)):
-                    # Average mgrid per frame.  This IS the average
-                    # body-frame velocity expressed at L0 grid scale,
-                    # ready for the existing flow_to_dpixel pipeline.
-                    dx_eff = int(dx_anch / frames_since_anch)
-                    dy_eff = int(dy_anch / frames_since_anch)
-                    conf_eff = conf_anch
-                    used_level = "LCF_anchor"
-                    used_anchor = True
-                if not used_anchor:
-                    # Coarse-to-fine prefer-refined fusion as before.
-                    MIN_REFINE_CONF = 64
-                    if (conf_f >= MIN_REFINE_CONF
-                            and abs(dx_f) < 24000 and abs(dy_f) < 24000):
-                        dx_eff = int(dx_f * L2_TO_L0_RATIO)
-                        dy_eff = int(dy_f * L2_TO_L0_RATIO)
-                        conf_eff = conf_f
-                        used_level = "L2_refined"
-                    elif (conf_c >= MIN_REFINE_CONF
-                            and abs(dx_c) < 24000 and abs(dy_c) < 24000):
-                        dx_eff = int(dx_c * L1_TO_L0_RATIO)
-                        dy_eff = int(dy_c * L1_TO_L0_RATIO)
-                        conf_eff = conf_c
-                        used_level = "L1_refined"
-                    elif conf > 0 and abs(dx) < 28000 and abs(dy) < 28000:
-                        dx_eff, dy_eff, conf_eff = dx, dy, conf
-                        used_level = "L0_raw"
-                    else:
-                        dx_eff, dy_eff, conf_eff = dx, dy, conf
-                        used_level = "L0_fallback"
+                # FUSION DONE C-SIDE (in camera_bridge_recv.c handle_one_frame).
+                # We just use dx_best/dy_best/conf_best as the single source
+                # of truth.  This matches the ARM real-time architecture:
+                # firmware does the fusion, Python only relays to cf2 EKF.
+                dx_eff, dy_eff, conf_eff = dx_best, dy_best, conf_best
+                level_names = {0: "L0", 1: "L1_refined", 2: "L2_refined", 3: "LCF_anchor"}
+                used_level = level_names.get(best_source, f"?{best_source}")
                 # Stats per-pipeline for post-run analysis
                 stats.setdefault("pp", []).append({
                     "L0_dx": dx, "L0_dy": dy, "L0_conf": conf,
