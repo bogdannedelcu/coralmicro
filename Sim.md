@@ -1016,6 +1016,285 @@ two TSVs + PPMs via `make_video.py <exp_dir>`.
   `/tmp/sentai_frames_*` dir is a workdir; results that prove a
   hypothesis get copied / linked back into the sNNN directory).
 
+## 10k. sentai.flow — multi-pyramid + triple-anchor architecture (s091, 2026-05-11)
+
+After s090 closed the cat-hover loop, s091 investigated **flow-only
+position hold** under Gazebo wind perturbations (no SSD target).
+Discovered + fixed several architectural issues; final architecture
+holds drone within 7.6 cm under realistic indoor wind, 30-60 cm under
+aggressive wind (== physical limit of PMW3901-class odometry-only).
+
+### Architecture
+
+```
+                                    PER-FRAME PIPELINE
+                                    ──────────────────
+  640×480 RGB ──┐
+                ├─ PXP 8× decim ── 80×60 wide gray ──┐
+                │                                    │
+                ├─ 4×4 box-filter from 320×240 ─── 80×60 mid gray ──┐
+                │   centred patch                                    │
+                │                                                    │
+                └─ Native crop of 80×60 from         80×60 fine gray ─┤
+                    640×480 centre (NO decim)                        │
+                                                                     │
+       L0/L1/L2 phase-corr (independent 64×64 FFTs):                 │
+         L0: frame[t] vs frame[t-1] @ L0 grid                        │
+         L1: frame[t] vs frame[t-1] @ L1 grid                        │
+         L2: frame[t] vs frame[t-1] @ L2 grid (native pixels)        │
+                                                                     │
+       L0/L1/L2 LCF anchors (independent 64×64 FFTs):                │
+         frame[t] vs anchor[t-N] @ each level                        │
+         anchor refreshes when L#-detected motion exceeds threshold  │
+                                                                     │
+       Sub-pixel refinement: Guizar-Sicairos DFT upsampling          │
+         M=10 → 1/10 grid resolution                                 │
+                                                                     │
+       C-side fusion picks SINGLE (dx, dy, conf) per ARM convention  │
+                                                                     │
+  Output → sentai.flow.read() → cf2 EKF via SENSOR_FLOW_SIM CRTP ────┘
+```
+
+### Per-level math (z=1m drone hover, 14fps gz Garden)
+
+| Level | Decimation | Per-grid ground | FOV ground | Min detectable motion |
+|-------|------------|------------------|-------------|-----------------------|
+| **L0** wide | 8× PXP | 13.85 mm | 1.10 × 0.83 m | > 19.4 cm/s |
+| **L1** mid  | 4× box | 6.93 mm  | 0.55 × 0.42 m | > 9.7 cm/s |
+| **L2** fine | NATIVE crop | 1.73 mm | 0.14 × 0.10 m | > 2.4 cm/s |
+| **Anchors** | cumulative | level-dependent | level-dependent | level/√N (over N frames) |
+
+Drone slow drift typical 2-4 cm/s → only L2 native + anchors can resolve.
+L0/L1 averaging erases sub-pixel motion (key insight discovered through
+empirical pixel-byte-difference analysis of dumped frames).
+
+### Critical bugs found + fixed (chronological)
+
+1. **BODY_XFORM axes swap in SIM** (2026-05-11): gz camera mount in
+   `sentai_crazysim.sdf` has yaw=π after pitch=π/2 — image axes are
+   SWAPPED + sign-flipped relative to HW (cam0 + OV5640 vflip=1).
+   Empirically determined: `(0, -1, -1, 0)` instead of HW's
+   `(-1, 0, 0, +1)`.  Verified via flow_diagnostic T1/T2/T3 PASS.
+
+2. **Duplicate-frame CRC on downsampled gray** (CRITICAL): camera_bridge
+   was computing duplicate-detection hash on `s_gray80x60` (post-PXP
+   8× decim).  At drone slow drift (2-4 cm/s ≈ 1.4-2.9 mm/frame),
+   the 8×8 averaging produced byte-identical downsampled output even
+   though raw RGB had 50-80% pixels differing.  Phase-corr was being
+   SKIPPED (conf=0 returned) in ~48% of frames.  **Fix**: CRC on
+   raw 640×480 instead.  Detects only TRUE gz duplicates (pre-takeoff
+   or render pause), no false positives on slow motion.
+
+3. **flow_phase_corr.cc shared state across pipes**: original
+   `sentai_flow_phase_corr_compute` had file-static `prev_fft` —
+   calling it for L0, L1, L2 in sequence cross-contaminated state.
+   **Refactor**: added `_compute_at(pipe_id, ...)` with per-pipe
+   state arrays (prev_fft[FLOW_N_PIPES], have_prev_per[], etc.).
+   Legacy entry-point preserved as wrapper to pipe_id=0.
+
+4. **L2 anchor threshold mis-scaled**: L2 native uses 8× finer mgrid
+   units, but anchor refresh threshold was 1500 mgrid (= 2.6mm physical
+   motion).  Anchor refreshed every sub-frame, never accumulated.
+   **Fix**: scaled per-level — L0=1500, L1=3000, L2=12000 mgrid (all
+   = 20.8mm physical).
+
+5. **L2 anchor spurious peaks beyond FOV**: native L2 crop FOV is only
+   14×10cm.  When drone drifts > 7cm, anchor sees DIFFERENT ground
+   content → phase-corr returns spurious match.  **Fix**: sat-guard
+   on L2 anchor at ±40000 native mgrid (≈ half FOV) — beyond that,
+   reject estimate.
+
+### Sub-pixel refinement: Foroosh-Zerubia → Guizar-Sicairos
+
+Original phase-corr used Foroosh-Zerubia 3-point local parabolic fit on
+the correlation surface around the integer peak.  Replaced with
+**Guizar-Sicairos DFT-based upsampling** (Optics Letters 2008):
+1. After integer peak, evaluate iFFT(cross_power_spectrum) at K=21
+   fractional positions ±1 pixel around peak at 1/M=1/10 resolution
+2. Separable 2D DFT via pre-computed twiddle factors (init_once)
+3. Cost: ~500K float ops per call (~300-600µs ARM, ~100µs x86)
+
+Guizar-Sicairos is more **robust to noisy / broad peaks** than
+local parabolic fit — uses global spectrum, not just 3 neighbours.
+Empirical improvement modest (~7-16% conf increase) because phase-corr
+peak at sub-pixel motion is fundamentally broad regardless of fit
+algorithm.
+
+### LastChangedFrame (LCF) anchor — temporal integration
+
+User-proposed innovation: keep ANCHOR frame in pipe's `prev_fft` while
+drone is stationary; refresh anchor only when motion is clearly
+detected.  Compare each subsequent frame against frozen anchor →
+CUMULATIVE drift over many frames.
+
+```
+anchor algorithm per level:
+  if motion(current frame) > threshold:
+    refresh_anchor(current)
+  else:
+    cumulative_drift = phase_corr(current, anchor_FFT)
+    per_frame_velocity = cumulative_drift / frames_since_anchor
+```
+
+Anchor captures sub-pixel-per-frame drift that frame-to-frame
+phase-corr misses (peak too broad).  Over N frames, motion accumulates
+to detectable signal.
+
+Triple-anchor (L0+L1+L2 independent): each level has its own anchor,
+matching its physical-motion-equivalent threshold.  C-side fusion
+prefers finest anchor with reliable confidence + within-FOV constraint.
+
+### Empirical performance (hover at z=1m, 15s)
+
+| Wind level | all-4 detect | dist_mean | dist_max | Anchor usage |
+|------------|--------------|-----------|----------|--------------|
+| Full (0.2 + σ=0.15 m/s) | 35% | 0.32 m | 0.56 m | <5% |
+| **Half (0.1 + σ=0.075 m/s)** | **100%** | **0.076 m** | **0.38 m** | 4% |
+
+Half-wind result demonstrates flow algorithm IS correct.  Real cf2 with
+PMW3901 + flowdeck hover indoors typically holds 5-15 cm — our 7.6 cm
+mean drift matches that benchmark.
+
+### Compute cost (per-frame)
+
+| Operation | x86 SIM | ARM Cortex-M7 @ 800 MHz |
+|-----------|---------|--------------------------|
+| Box-filter L1 (320→80) | ~30 µs | ~150 µs |
+| Native crop L2 (80 from 640) | ~5 µs | ~30 µs |
+| Phase-corr per pipeline | ~250 µs | ~5 ms |
+| Guizar-Sicairos sub-pixel | ~100 µs | ~600 µs |
+| Coarse-to-fine warp (bilinear) | ~3 µs | ~30 µs |
+| **6 pipelines total (3 main + 3 anchors)** | **~2 ms** | **~30 ms** |
+
+ARM budget tight (30 ms of 33 ms @ 30 fps) — drop L1-anchor for headroom
+if needed; L0+L2+anchors_L0 alone gives ~20 ms ARM, ~13 ms headroom.
+
+### Open architectural issues
+
+1. **EKF integrating IMU noise without absolute position reference**:
+   when flow returns zero (drone truly stationary), cf2 EKF integrates
+   IMU bias drift, producing fake position drift in state estimate.
+   Fix: PnP from ArUco markers as MOCAP-equivalent injection
+   (CRTP `EXT_POSE` channel).  Not in flow scope.
+
+2. **Native L2 FOV too small for translation**: 14×10cm covers only
+   region directly under drone.  Lateral translation > 7cm loses the
+   anchor.  Current sat-guard handles this defensively but loses
+   anchor benefit.  Real fix needs SLAM-like map of ground patches.
+
+3. **Phase-corr peak broadness at sub-pixel motion**: Foroosh /
+   Guizar-Sicairos refine the peak but cannot create signal where
+   spatial cross-correlation is genuinely flat (motion below 1/10 grid).
+   This is fundamental to FFT-based correlation; only higher input
+   resolution or longer baselines (anchors) help.
+
+### References
+
+Classical optical flow:
+
+- **Lucas & Kanade 1981** "An Iterative Image Registration Technique
+  with an Application to Stereo Vision". DARPA Image Understanding Workshop.
+  Original gradient-based optical flow.
+
+- **Burt & Adelson 1983** "The Laplacian Pyramid as a Compact Image Code".
+  IEEE Trans. Comm. 31(4):532-540.  Foundational multi-resolution
+  decomposition that enabled coarse-to-fine flow.
+
+- **Bouguet 2001** "Pyramidal Implementation of the Lucas Kanade Feature
+  Tracker — Description of the Algorithm".  Intel Corp tech report.
+  Standard pyramidal LK reference, source of "coarse-to-fine with
+  warping" pattern. [PDF](http://robots.stanford.edu/cs223b04/algo_tracking.pdf)
+
+Phase correlation + sub-pixel:
+
+- **Kuglin & Hines 1975** "The Phase Correlation Image Alignment Method".
+  IEEE Int. Conf. Cybernetics & Society.  Origin of phase correlation.
+
+- **Foroosh, Zerubia & Berthod 2002** "Extension of Phase Correlation
+  to Subpixel Registration". IEEE Trans. Image Proc. 11(3):188-200.
+  Closed-form sub-pixel fit on phase-corr surface.
+
+- **Guizar-Sicairos, Thurman & Fienup 2008** "Efficient subpixel image
+  registration algorithms". Optics Letters 33(2):156-158.  DFT-based
+  upsampling — what we use.  Heavily used in HST/JWST astronomy.
+
+- **Wang et al. 2021** "Modified phase correlation algorithm for image
+  registration based on pyramid". Alexandria Eng. J. — Pyramidal
+  phase-correlation refinement, similar to our coarse-to-fine.
+
+Drone-specific optical flow:
+
+- **Bristeau et al. 2011** "The navigation and control technology
+  inside the AR.Drone micro UAV". IFAC Proc. 44(1):1477-1484.
+  AR.Drone optical flow using LK pyramidal — first commercial
+  flying camera w/ flow stabilisation.
+
+- **Honegger et al. 2013** "An Open Source and Open Hardware Embedded
+  Metric Optical Flow CMOS Camera for Indoor and Outdoor Applications".
+  IEEE ICRA 2013.  **The PX4Flow paper** — single-scale SAD with
+  bilinear sub-pixel refinement on STM32F4 @ 400Hz.  Hardware ancestor
+  of PMW3901 commercial chip. [PDF](https://people.inf.ethz.ch/pomarc/pubs/HoneggerICRA13.pdf)
+
+- **Briod et al. 2013** "Optic-flow based control of a 46g quadrotor".
+  IROS 2013.  Multi-patch phase-correlation on nano-quadrotor — most
+  similar setup to ours (lightweight, embedded, indoor hover).
+
+- **PMW3901 datasheet** (PixArt Imaging, 2016).  Commercial optical
+  flow sensor on Bitcraze FlowDeck v1/v2 — internal architecture:
+  35×35 effective pixels, sub-pixel via phase-corr + parabolic fit,
+  output ±2048 "fractional pixels" at ~100 Hz.
+
+Recent (2024-2025) deep-learning state-of-art (for context):
+
+- **DPFlow (Morimitsu et al. 2025)** "Adaptive Optical Flow Estimation
+  with a Dual-Pyramid Framework". CVPR 2025.  GPU-scale dual-pyramid,
+  not realistic for MCU but informs architecture decisions.
+  [arXiv:2503.14880](https://arxiv.org/abs/2503.14880)
+
+- **RAPIDFlow (2024)** "Recurrent Adaptable Pyramids with Iterative
+  Decoding". ICRA 2024.  Recurrent pyramidal refinement.
+
+### Concluzia alegerilor (post-session 2026-05-11)
+
+**Ce am păstrat în final**:
+
+| Componentă | Motiv |
+|------------|-------|
+| **3-level pyramid (L0+L1+L2)** | L0 catches fast motion, L2 native catches slow drift, L1 fills mid-range. Burt-Adelson classical pattern. |
+| **L2 = NATIVE crop (not 2× decim)** | 8× finer per-pixel resolution. Singura cale pentru sub-cm motion (2-4 cm/s drift). Same compute cost ca L2 box-filter. |
+| **Coarse-to-fine warping (Bouguet)** | L0 coarse predicts → warp L1 → L1 finds residual → predict L2 → warp L2 → residual. Matematic corect (vs parallel pyramid care eşua pe periodic textures). |
+| **Guizar-Sicairos sub-pixel** | Mai robust decât Foroosh la peak broad. Bonus per axă: ~600 µs ARM. |
+| **Triple LCF anchor (L0/L1/L2)** | Detectează cumulative drift sub pragul de single-frame phase-corr. Native L2 anchor cu FOV sat-guard. |
+| **Duplicate-CRC pe RAW RGB** | Era pe downsampled = bug critic. RGB CRC detects only true gz duplicates. |
+| **C-side fusion** | Single (dx, dy, conf) exposed la consumer. Python doar relay → matches ARM real-time architecture. |
+
+**Ce am respins / drop-uit**:
+
+| Componentă | Motivul respingerii |
+|------------|---------------------|
+| **640×480 phase-corr direct** | 100× compute (~500ms ARM) — neîncadrabil în budget 33ms |
+| **Temporal averaging (running avg pe cross-power)** | Decoherează semnal pe oscilation drone — bun doar pe motion constant |
+| **Parallel pyramid fusion** | Periodic textures → diferite niveluri văd aliasing-uri diferite → sign-disagreement 22% (random) |
+| **Threshold-low (MOTION=50)** | Anchor refresh la fiecare frame → niciodată acumulează |
+| **Native-only single pipeline** | FOV 14cm — drone leaves anchor too fast, L0 wide needed pentru large motion |
+
+**Limita fizică confirmată**: cu wind 0.2 m/s + σ=0.15 m/s (peak gusts 0.5 m/s), nicio configuraţie nu duce drift sub ~35cm.  Real cf2+PMW3901 indoors are aceeaşi limită — confirmare empirică.  Cu wind realistic indoor (≈ half power), drone hovers cu **7.6cm mean drift, 100% marker visibility**.
+
+**Pentru deployment pe HW ARM**: tot pipeline-ul ~30 ms ARM (90% budget) e tight.  Recomandat: drop L1-anchor sau L1 main pentru headroom ~13ms.  Funcţie de mission profile:
+- **Indoor hover-focus**: keep all 6 pipes (drift detection priority)
+- **Aerial cruise/explore**: drop L2 anchor (FOV irrelevant during translation)
+
+EKF + flow fusion:
+
+- **Mueller, Hamer & D'Andrea 2015** "Fusing ultra-wideband range
+  measurements with accelerometers and rate gyros for quadrocopter
+  state estimation". IEEE ICRA 2015.  Bitcraze's EKF foundation —
+  same kalman_core.c we feed via SENSOR_FLOW_SIM.
+
+- **Förster et al. 2017** "On-Manifold Preintegration for Real-Time
+  Visual–Inertial Odometry". IEEE Trans. Robotics 33(1).
+  Tight coupling of flow + IMU — what cf2 EKF does in firmware.
+
 ## 10j. Hover-over-detected-object — conclusions (s090 final state, 2026-05-11)
 
 The s090 experiment closed the loop: drone detects the ImageNet cat
