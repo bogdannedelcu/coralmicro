@@ -60,6 +60,17 @@ def flow_to_dpixel(dx_q1000: int, dy_q1000: int) -> tuple[float, float]:
     left_grid = lf_dx * dx_grid + lf_dy * dy_grid
     return (fw_grid * _FLOW_SCALE_X, left_grid * _FLOW_SCALE_Y)
 
+
+def flow_conf_to_std(conf: int) -> float:
+    """Conf-to-stdDev mapping mirrors _t_flow_to_drone.py DEFAULTS.
+    Higher std = less EKF trust = drone moves more freely under noisy flow.
+    sentai_sim phase-corr conf is uint8 (0..255).
+    """
+    if conf >= 200: return 1.0
+    if conf >= 128: return 2.0
+    if conf >= 64:  return 4.0
+    return 8.0
+
 # ── mission tuning ─────────────────────────────────────────────────────
 TARGET_CLASS   = 16
 IMG_W, IMG_H   = 300, 300
@@ -314,18 +325,23 @@ def main() -> int:
                 it, tid, cls, conf, cx, cy, ex, ey, vx_mm, vy_mm = state[:10]
                 fvx = fvy = 0
             # Forward each fresh flow sample to cf2 EKF as a
-            # SENSOR_FLOW_SIM CRTP packet (mirrors what gz_crazysim_plugin
-            # would do if a flowdeck were physically attached — we're
-            # injecting OUR sentai.flow phase-corr result instead).
+            # SENSOR_FLOW_SIM CRTP packet (mirrors what the PMW3901 flow
+            # deck would push — same conf→std mapping the HW deck uses
+            # via _t_flow_to_drone.py, so noisy phase-corr samples get
+            # high std and the EKF weighs them less).
             if fvx or fvy:
                 now = time.monotonic()
                 dt = max(0.001, min(0.2, now - last_flow_send_t))
                 last_flow_send_t = now
                 dpx, dpy = flow_to_dpixel(fvx, fvy)
+                # State has fconf at index 12? Not yet — fconf not in STATE.
+                # Use fvx+fvy magnitude as a crude conf proxy until we plumb
+                # conf through STATE.  Better: just default mid std for now.
+                std = 4.0
                 pk = CRTPPacket()
                 pk.port = CRTP_PORT_SETPOINT_SIM
                 pk.channel = 0
-                pk.data = struct.pack("<Bfff", SENSOR_FLOW_SIM, dpx, dpy, dt)
+                pk.data = struct.pack("<Bffff", SENSOR_FLOW_SIM, dpx, dpy, dt, std)
                 try:
                     cf.send_packet(pk)
                     n_flow_sent += 1
