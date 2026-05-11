@@ -555,35 +555,47 @@ static int handle_one_frame(int fd) {
         s_prev_rgb_crc = crc;
     }
 
-    // Optional frame dump for visual debug.  Set SENTAI_DUMP_FRAMES_DIR
-    // to a directory; we save every Nth frame as PPM (default N=30 = 1 / 6s
-    // at 5 fps).  Filename: frame_<seq:06d>.ppm.
+    // Raw 640×480 RGB dump — env SENTAI_DUMP_RAW_EVERY (default 6 if
+    // SENTAI_DUMP_FRAMES_DIR set, 0 = off).  ~921 KB per file; needed
+    // for host-side ArUco PnP at 5 Hz sample rate.  Distinct from L0
+    // 80×60 dump below (per-frame, cheap, for inspection).
     {
-        static int s_dump_init = 0;
-        static const char* s_dump_dir = NULL;
-        static int s_dump_every = 30;
-        if (!s_dump_init) {
-            s_dump_init = 1;
-            s_dump_dir = getenv("SENTAI_DUMP_FRAMES_DIR");
-            const char* en = getenv("SENTAI_DUMP_FRAMES_EVERY");
+        static int s_raw_init = 0;
+        static const char* s_raw_dir = NULL;
+        static int s_raw_every = 0;
+        if (!s_raw_init) {
+            s_raw_init = 1;
+            s_raw_dir = getenv("SENTAI_DUMP_FRAMES_DIR");
+            const char* en = getenv("SENTAI_DUMP_RAW_EVERY");
             if (en && *en) {
                 int v = atoi(en);
-                if (v > 0) s_dump_every = v;
+                if (v >= 0) s_raw_every = v;
+            } else if (s_raw_dir) {
+                s_raw_every = 6;   // default cadence for 5 Hz ArUco sampling
             }
-            if (s_dump_dir) {
-                printf("camera_bridge: frame dump enabled → %s (every %d frames)\r\n",
-                       s_dump_dir, s_dump_every);
+            if (s_raw_dir) {
+                printf("camera_bridge: dump dir=%s raw_every=%d\r\n",
+                       s_raw_dir, s_raw_every);
             }
         }
-        if (s_dump_dir && (hdr.seq % s_dump_every) == 0) {
+        if (s_raw_dir && s_raw_every > 0 && (hdr.seq % s_raw_every) == 0) {
             char path[512];
             snprintf(path, sizeof path, "%s/frame_%06u.ppm",
-                     s_dump_dir, (unsigned)hdr.seq);
+                     s_raw_dir, (unsigned)hdr.seq);
             FILE* fp = fopen(path, "wb");
             if (fp) {
                 fprintf(fp, "P6\n%d %d\n255\n", EXPECT_W, EXPECT_H);
                 fwrite(s_rgb_full, 1, expected_bytes, fp);
                 fclose(fp);
+            } else {
+                // Log once-per-100 failures to surface disk-full / perm errors
+                // without spamming the console.
+                static uint32_t s_raw_fopen_fail = 0;
+                if ((s_raw_fopen_fail++ % 100) == 0) {
+                    fprintf(stderr, "camera_bridge: raw dump fopen('%s') failed "
+                                    "(cumulative=%u)\r\n",
+                            path, s_raw_fopen_fail);
+                }
             }
         }
     }
@@ -1007,50 +1019,39 @@ static int handle_one_frame(int fd) {
     // else default L0 already set
     // P5 median-of-3 reverted — introduced lag on oscillating drone.
 
-    // DEBUG DUMP: write each pyramid level's 80×60 gray buffer to disk
-    // as a PPM (gray triplicated to RGB so any image viewer opens it).
-    // Triggered every N frames (SENTAI_DUMP_PYRAMID_EVERY env, default 60).
-    // Files: <frames_dir>/pyr_L0_<seq>.ppm, pyr_L1_<seq>.ppm, pyr_L2_<seq>.ppm
+    // L0 80×60 gray dump per frame (~5 KB each as P5/grayscale PPM).
+    // Use SENTAI_DUMP_FRAMES_EVERY (default 1 = every frame).  This is
+    // the buffer the L0 phase-corr sees — what you'd inspect to debug
+    // texture / scene / motion frame-by-frame.  L1 / L2 / ANCHOR dumps
+    // dropped — only useful for pyramid validation, not routine inspect.
     {
-        static int s_pyr_init = 0;
-        static const char* s_pyr_dir = NULL;
-        static int s_pyr_every = 60;
-        if (!s_pyr_init) {
-            s_pyr_init = 1;
-            s_pyr_dir = getenv("SENTAI_DUMP_FRAMES_DIR");
-            const char* en = getenv("SENTAI_DUMP_PYRAMID_EVERY");
+        static int s_l0_init = 0;
+        static const char* s_l0_dir = NULL;
+        static int s_l0_every = 1;
+        if (!s_l0_init) {
+            s_l0_init = 1;
+            s_l0_dir = getenv("SENTAI_DUMP_FRAMES_DIR");
+            const char* en = getenv("SENTAI_DUMP_FRAMES_EVERY");
             if (en && *en) {
                 int v = atoi(en);
-                if (v > 0) s_pyr_every = v;
-            }
-            if (s_pyr_dir) {
-                printf("camera_bridge: pyramid dump enabled → %s (every %d frames)\r\n",
-                       s_pyr_dir, s_pyr_every);
+                if (v > 0) s_l0_every = v;
             }
         }
-        if (s_pyr_dir && (hdr.seq % s_pyr_every) == 0) {
-            const uint8_t* bufs[4] = {
-                s_gray80x60, s_gray80x60_center, s_gray80x60_fine,
-                s_anchor_gray_shadow
-            };
-            const char* names[4] = {"L0", "L1", "L2", "ANCHOR"};
-            uint8_t rgb_out[DST_W * DST_H * 3];
-            for (int b = 0; b < 4; ++b) {
-                // Triplicate gray to RGB
-                for (int i = 0; i < DST_W * DST_H; ++i) {
-                    uint8_t g = bufs[b][i];
-                    rgb_out[i * 3 + 0] = g;
-                    rgb_out[i * 3 + 1] = g;
-                    rgb_out[i * 3 + 2] = g;
-                }
-                char path[512];
-                snprintf(path, sizeof path, "%s/pyr_%s_%06u.ppm",
-                         s_pyr_dir, names[b], (unsigned)hdr.seq);
-                FILE* fp = fopen(path, "wb");
-                if (fp) {
-                    fprintf(fp, "P6\n%d %d\n255\n", DST_W, DST_H);
-                    fwrite(rgb_out, 1, DST_W * DST_H * 3, fp);
-                    fclose(fp);
+        if (s_l0_dir && s_l0_every > 0 && (hdr.seq % s_l0_every) == 0) {
+            char path[512];
+            snprintf(path, sizeof path, "%s/L0_%06u.pgm",
+                     s_l0_dir, (unsigned)hdr.seq);
+            FILE* fp = fopen(path, "wb");
+            if (fp) {
+                fprintf(fp, "P5\n%d %d\n255\n", DST_W, DST_H);
+                fwrite(s_gray80x60, 1, DST_W * DST_H, fp);
+                fclose(fp);
+            } else {
+                static uint32_t s_l0_fopen_fail = 0;
+                if ((s_l0_fopen_fail++ % 100) == 0) {
+                    fprintf(stderr, "camera_bridge: L0 dump fopen('%s') failed "
+                                    "(cumulative=%u)\r\n",
+                            path, s_l0_fopen_fail);
                 }
             }
         }

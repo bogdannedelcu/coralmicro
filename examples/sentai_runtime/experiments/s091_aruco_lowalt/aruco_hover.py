@@ -21,6 +21,7 @@ Architecture:
 """
 from __future__ import annotations
 
+import csv
 import json
 import math
 import os
@@ -33,7 +34,8 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "s090_hover_over_cat"))
-from aruco_detector import detect_in_ppm, latest_ppm, KNOWN_POSITIONS_M
+from aruco_detector import (detect_in_ppm, latest_ppm,
+                             KNOWN_POSITIONS_M, estimate_drone_world_pose)
 
 # ────────────────────────────────────────────────────────────
 # Constants — body-frame xform + flow-to-PMW3901 scaling
@@ -214,17 +216,29 @@ def flow_forwarder(stop_evt: threading.Event, cf, stats: dict) -> None:
                 level_names = {0: "L0", 1: "L1_refined", 2: "L2_refined",
                                3: "LCF_L0", 4: "LCF_L2", 5: "LCF_L1"}
                 used_level = level_names.get(best_source, f"?{best_source}")
-                # Stats per-pipeline for post-run analysis
+                dpx, dpy = flow_to_dpixel(dx_eff, dy_eff)
+                std = flow_conf_to_std(conf_eff)
+                # Per-flow record for CSV — has gz seq linking it to the
+                # L0_<seq>.pgm dumped by camera_bridge.
                 stats.setdefault("pp", []).append({
+                    "seq": seq,
+                    "t": now,
                     "L0_dx": dx, "L0_dy": dy, "L0_conf": conf,
                     "L1_dx": dx_c, "L1_dy": dy_c, "L1_conf": conf_c,
                     "L2_dx": dx_f, "L2_dy": dy_f, "L2_conf": conf_f,
                     "anch_dx": dx_anch, "anch_dy": dy_anch,
                     "anch_conf": conf_anch, "anch_frames": frames_since_anch,
+                    "anchL1_dx": dx_anch_L1, "anchL1_dy": dy_anch_L1,
+                    "anchL1_conf": conf_anch_L1, "anchL1_frames": frames_since_anch_L1,
+                    "anchL2_dx": dx_anch_L2, "anchL2_dy": dy_anch_L2,
+                    "anchL2_conf": conf_anch_L2, "anchL2_frames": frames_since_anch_L2,
+                    "best_dx": dx_best, "best_dy": dy_best,
+                    "best_conf": conf_best, "best_source": best_source,
                     "used": used_level,
+                    "lat_us": lat,
+                    "dt_send": dt,
+                    "dpx": dpx, "dpy": dpy, "std": std,
                 })
-                dpx, dpy = flow_to_dpixel(dx_eff, dy_eff)
-                std = flow_conf_to_std(conf_eff)
                 pk = CRTPPacket()
                 pk.port = CRTP_PORT_SETPOINT_SIM
                 pk.channel = 0
@@ -265,10 +279,18 @@ def main() -> int:
     # 2026-05-11: damp the cascaded controller to counter flow @ 20Hz
     # phase-lag oscillation.  Best-effort: each param wrapped in
     # try/except since not all cf2 builds expose the same TOC.
+    # Plus 2026-05-11 s093 finding: default xVelMax/yVelMax=1.0 m/s caps
+    # the position-PID's velocity output, leaving only ~0.6 m/s headroom
+    # to fight wind gusts of 0.4 m/s peak.  Raising to 2.5 m/s gives
+    # the drone real authority to counter wind disturbance.
     DAMP_PARAMS = {
         "posCtlPid.xyKd":  0.5,   # default 0.2 — position-loop damping
         "velCtlPid.vxKd":  0.05,  # default 0.0
         "velCtlPid.vyKd":  0.05,
+        "posCtlPid.xVelMax": 2.5, # default 1.0 — wind-rejection headroom
+        "posCtlPid.yVelMax": 2.5,
+        "posCtlPid.xKp":   3.0,   # default 2.0 — moderately more aggressive
+        "posCtlPid.yKp":   3.0,
     }
     for k, v in DAMP_PARAMS.items():
         try:
@@ -333,20 +355,17 @@ def main() -> int:
         except Exception:
             continue
 
-        ekf_x, ekf_y, ekf_z, _, _, _ = get_ekf()
-        # PnP altitude = mean tvec[2] across all detected markers, plus
-        # marker top-face altitude (0.20m for the compact tall posts).
-        zs = [m.tvec[2] for m in dets.values() if m.tvec is not None]
-        pnp_z = (statistics.mean(zs) + 0.20) if zs else None
-
-        # Drone-to-pattern-centroid offset (PnP-based world X/Y of cam)
-        # — assuming yaw=0 and downward cam, the average horizontal
-        # tvec in body frame ≈ (x_drone - centroid_x, y_drone - centroid_y).
-        # KNOWN_POSITIONS_M centroid is (0,0).  So (cam→marker_avg) ≈ -drone_xy.
-        xs = [-(m.tvec[0]) for m in dets.values() if m.tvec is not None]
-        ys = [-(m.tvec[1]) for m in dets.values() if m.tvec is not None]
-        pnp_x = statistics.mean(xs) if xs else None
-        pnp_y = statistics.mean(ys) if ys else None
+        ekf_x, ekf_y, ekf_z, _, _, ekf_yaw_deg = get_ekf()
+        # Robust PnP — solves once with ALL visible corners in WORLD
+        # coords, so partial-FOV (only some markers visible) no longer
+        # biases the X/Y centroid.  Marker top face = z=0.20m already
+        # encoded in KNOWN_POSITIONS_M; camera-CoM offset corrected.
+        # cf2 stateEstimate.yaw is in DEGREES — convert to radians.
+        pose = estimate_drone_world_pose(dets, drone_yaw=math.radians(ekf_yaw_deg))
+        if pose is not None:
+            pnp_x, pnp_y, pnp_z = pose
+        else:
+            pnp_x = pnp_y = pnp_z = None
 
         dist_from_target_m = math.sqrt(ekf_x ** 2 + ekf_y ** 2 + (ekf_z - TARGET_Z_M) ** 2)
 
@@ -470,6 +489,40 @@ def main() -> int:
         "pipeline_records": pp,
     }, indent=2))
     print(f"[hover] log → {LOG_PATH}", file=sys.stderr)
+
+    # CSV dumps in the frames dir for inspection alongside the L0_*.pgm files.
+    flow_csv = frames_dir / "flow_records.csv"
+    if pp:
+        cols = list(pp[0].keys())
+        with flow_csv.open("w", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=cols)
+            w.writeheader()
+            for r in pp:
+                w.writerow(r)
+        print(f"[hover] flow CSV → {flow_csv} ({len(pp)} rows)", file=sys.stderr)
+    samples_csv = frames_dir / "samples.csv"
+    if samples:
+        flat = []
+        for s in samples:
+            row = {
+                "fseq": s["fseq"],
+                "n_det": s["n_det"],
+                "ids": "|".join(str(i) for i in s["ids"]),
+                "ekf_x": s["ekf"][0], "ekf_y": s["ekf"][1], "ekf_z": s["ekf"][2],
+                "pnp_x": s["pnp"][0], "pnp_y": s["pnp"][1], "pnp_z": s["pnp"][2],
+                "z_err_cm": s["z_err_cm"],
+                "dist_target_m": s["dist_target_m"],
+                "flow_n": s["flow_n"],
+            }
+            flat.append(row)
+        with samples_csv.open("w", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=list(flat[0].keys()))
+            w.writeheader()
+            for r in flat:
+                w.writerow(r)
+        print(f"[hover] sample CSV → {samples_csv} ({len(flat)} rows)",
+              file=sys.stderr)
+
     return 0 if all([pass_dist, pass_4det, pass_anydet, pass_z, pass_flow]) else 1
 
 

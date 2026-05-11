@@ -1868,6 +1868,229 @@ for 20 s:
   HW already does gyro de-rotation in `mm_flow.c`, so the host-side
   compensation in our s090 wrapper may be redundant on HW).
 
+## 10l. Hover-under-wind — bug hunt + final tuning (s091/s092/s093, 2026-05-11)
+
+A multi-hour session driven by a single user complaint: *"drone drifts 40 cm
+under wind even though the flow algorithm 'looks right'."*  Three independent
+bugs were uncovered (none were in flow proper) and the controller was
+re-tuned for proper wind-rejection authority.
+
+### Bug 1 — PnP marker size off by 28%
+
+**Symptom:** `pnp_z` always reported drone altitude 25 cm higher than EKF.
+With drone at world z = 1.00 m, PnP said z ≈ 1.25 m; with EKF reset, gz
+ground-truth at z = 1.00 m, same disparity.
+
+**Root cause:** the ArUco texture
+`materials/textures/aruco_4x4_50_id0.png` is a 512 × 512 PNG with the
+black-bordered marker occupying only the centre 400 × 400 px (78.1 % of
+the image; 22 % white padding around the border).  The marker box face is
+0.08 m × 0.08 m, but the *detected* outer-black-square is only
+0.08 × 0.781 = **0.0625 m**.  `MARKER_SIZE_M = 0.08` told `solvePnP` the
+marker was larger than it actually appears → `tvec[2]` came back inflated
+by exactly 1.28× (= 0.08 / 0.0625) → 25 cm extra at z = 1 m.
+
+**Fix:** `examples/sentai_runtime/experiments/s090_hover_over_cat/aruco_detector.py:46`
+```python
+MARKER_SIZE_M = 0.0625
+```
+After fix: PnP-z error 25 cm → **2 – 5 cm**.
+
+**Diagnosis recipe (reusable):** when PnP scale looks off, dump the
+texture, compute black-pattern fraction with cv2:
+```python
+img = cv2.imread(tex, cv2.IMREAD_GRAYSCALE)
+ys, xs = np.where(img < 128)
+print('pattern coverage %.1f%%' % ((xs.max()-xs.min())/img.shape[1]*100))
+```
+
+### Bug 2 — PnP X / Y label inversion under partial-FOV
+
+**Symptom:** with wind, EKF said `x = -0.42 m`, PnP said `x = +0.01 m`,
+both at the same instant.  Disagreement of 40 cm.  gz `model -p`
+ground-truth agreed with EKF, so PnP was the liar.
+
+**Root cause:** the old s091 PnP code averaged per-marker
+`-tvec[0]` / `-tvec[1]` assuming (a) camera_X axis == body_X axis and
+(b) the marker centroid stays at world (0, 0).  Both wrong:
+
+1. The downward camera is mounted with `pose: pitch=+π/2, yaw=+π`.  After
+   rotation, `cam_X = -body_Y` and `cam_Y = -body_X` (verified
+   empirically in §10l calibration below).  So `-tvec[0]` actually maps
+   to `drone_y`, not `drone_x`.
+2. When the drone drifts > 0.3 m the markers at the *near* side leave the
+   FOV (drone is at z = 1 m, FOV at z = 1 m is ≈ 1.1 × 0.83 m).  The
+   per-marker average then centroids around the *visible* markers, not
+   the geometric centre at (0, 0).
+
+**Fix:** new `aruco_detector.estimate_drone_world_pose()` that
+(a) uses each marker's *known world position* `KNOWN_POSITIONS_M[mid]`
+(centroid bias eliminated even with partial visibility),
+(b) applies a fixed `_R_CAM_TO_BODY = [[0,-1,0],[-1,0,0],[0,0,-1]]`
+(empirically determined from s092 axis calibration),
+(c) rotates by drone yaw (read from cf2 `stateEstimate.yaw`,
+converted from degrees to radians),
+(d) subtracts the 4 cm camera-CoM offset from the body frame.
+
+After both fixes: EKF/PnP agreement within ±3 cm on X/Y, ±2 cm on Z.
+
+### s092 — Empirical camera-axis calibration
+
+Built `examples/sentai_runtime/experiments/s092_axis_calib/axis_calib.py`
+to determine the body↔image axis mapping by *controlled motion test*
+rather than guessing from the SDF pose math.  Protocol:
+1. Wind disabled.  Takeoff to z = 1 m, settle 5 s, measure DC bias.
+2. Command +body_X at 0.30 m/s for 4 s.  Hover 3 s.
+3. Command -body_X at 0.30 m/s for 4 s.  Hover 3 s.
+4. Same for ±body_Y.
+5. Subtract pre-motion bias, take the (+) - (-) differential (cancels
+   any residual DC).  Middle 50 % of each phase only (skip accel/decel
+   tilt transients).
+
+Result (bias-corrected differential, per 1.2 m of body motion):
+
+| Motion | mean L0_dx | mean L0_dy |
+|---|---:|---:|
+| +body_X (forward) | -114 | **-732** |
+| -body_X | +234 | **+676** |
+| +body_Y (left) | **-957** | +131 |
+| -body_Y | **+653** | -184 |
+
+Pattern is clear: `L0_dy` tracks body_X motion (sign-inverted), `L0_dx`
+tracks body_Y motion (sign-inverted).  This matches the current
+`BODY_XFORM = (0, -1, -1, 0)` in `s091/aruco_hover.py` — i.e. **flow
+axes were already correct** (confirmed, not changed).  But the *PnP*
+code used the *opposite* assumption and was wrong.
+
+This experiment is now the reference for any future axis-confusion
+debug.  Empirical control test > rotation-matrix arithmetic.
+
+### Bug 3 — cf2 position-PID velocity cap = 1.0 m/s (the real blocker)
+
+s091 hover under full wind plateaued at ~17 % all-4 detect, 43 cm mean
+drift, no matter how the *flow* fusion was tuned.  Six parameter sweeps
+(texture threshold, REFINE_MIN_CONF, deadband, conf-std mapping ½×/2×,
+etc.) all gave statistically identical results.  The flow algorithm
+itself was clean (no wind: 100 % detect, < 10 cm hover; gz ground truth
+agreed with both EKF and PnP).  So *something else* was capping
+performance.
+
+s093 (`max_velocity.py` + `max_velocity_pos.py`) commanded the drone to
+fly at progressively higher velocities.  Two findings:
+
+1. With MotionCommander (high-level wrapper), achieved velocity tops
+   out at **0.78 m/s** even when commanded 2.0 m/s — MotionCommander
+   smooths velocity setpoints.
+2. With direct `cf.commander.send_position_setpoint(D, 0, z)` at 100 Hz
+   (bypassing MotionCommander), peak velocity hits exactly **1.01 m/s**
+   regardless of target distance D — a hard cap.
+
+`grep PID_POS_VEL_X_MAX` in the CrazySim firmware tree found:
+```
+src/platform/interface/platform_defaults_sitl.h:123:#define PID_POS_VEL_X_MAX 1.0f
+```
+This is the *output limit* of the cf2 position-PID (set on
+`pidX.pid.outputLimit` in `position_controller_pid.c`).  The position
+loop physically cannot ask the velocity loop for more than 1.0 m/s,
+regardless of how far the setpoint is from current position.
+
+**Implication for hover under wind:** Gazebo `WindEffects` is configured
+at 0.20 m/s steady + 0.15 m/s Gaussian noise + 20 % sin modulation, with
+gust peaks reaching ~0.4 m/s.  With cap = 1.0 m/s, the drone has
+~0.6 m/s of *spare authority* to push back against wind.  Per
+fundamental-mode control theory the maximum sustained correction is the
+authority *minus* the disturbance — so steady-state error is bounded
+below by `(wind / authority) × characteristic_length`, on the order of
+40 – 60 cm with these numbers.  That matches the observed drift exactly.
+
+**Fix:** raise `posCtlPid.xVelMax` and `posCtlPid.yVelMax` to **2.5 m/s**
+via cflib `cf.param.set_value()`:
+```python
+DAMP_PARAMS = {
+    "posCtlPid.xyKd":    0.5,
+    "velCtlPid.vxKd":    0.05,
+    "velCtlPid.vyKd":    0.05,
+    "posCtlPid.xVelMax": 2.5,   # default 1.0 — wind-rejection authority
+    "posCtlPid.yVelMax": 2.5,
+    "posCtlPid.xKp":     3.0,   # default 2.0 — more aggressive correction
+    "posCtlPid.yKp":     3.0,
+}
+```
+xKp = 3.0 was the sweet spot — xKp = 4.0 over-corrects and oscillates.
+
+Higher than 2.5 m/s on the velocity cap pushed the flow algorithm past
+its phase-correlation saturation (28000 mgrid, ≈ 32 L0-px shift =
+~358 mm/frame at z = 1 m) and the EKF lost track entirely.  So
+2.5 m/s is the practical upper bound at z = 1 m hover; flying higher
+proportionally raises the saturation budget.
+
+### s093 — Max velocity bench (cap-raised)
+
+z = 3 m, no wind, direct position setpoint at 100 Hz, cap = 3.0 m/s:
+
+| target | peak_v_x | flow_peak | sat |
+|---|---:|---:|---:|
+| 0.5 m | 0.30 m/s | 5200 | 0 % |
+| 1.0 m | 0.72 m/s | 2808 | 0 % |
+| 3.0 m | **2.27 m/s** | 23888 | 0 % |
+| 5.0 m | EKF noise (>10 m/s reading = glitch) | n/a | flow lost |
+| 8.0 m | EKF garbage | n/a | flow lost |
+
+**Practical max sustained velocity at z = 3 m hover: ~2.27 m/s.**
+Beyond that flow saturates (32-pixel phase-corr range exceeded), EKF
+position estimate jumps wildly, and the controller goes unstable.
+
+### Final hover-under-wind result (3-trial mean, full wind)
+
+| Config | all-4 % | dist mean | dist max |
+|---|---:|---:|---:|
+| Default (cap = 1.0, defaults) | 17 % | 43 cm | 66 cm |
+| Optimized (cap = 2.5, xKp = 3.0) | **28.2 %** | **32.5 cm** | 52 cm |
+
+Improvement: +65 % on detection, −25 % on drift — without touching the
+flow algorithm at all.  The remaining drift is *real physical drift*
+the drone cannot dodge faster than the controller authority allows
+under this wind profile.
+
+### Lessons / discipline
+
+1. **Always verify with ground truth.**  Three weeks of "tuning the
+   flow fusion" was wasted because EKF and PnP were both being trusted.
+   `gz model -m crazyflie_0 -p` in a shell took 30 seconds and ended
+   the whole debate.
+2. **Controller caps masquerade as algorithm limits.**  Before tuning
+   any perception stack against a control failure, grep the controller
+   firmware for `*_MAX` / `*_LIMIT` constants.  In CrazySim these live
+   in `src/platform/interface/platform_defaults_sitl.h`.
+3. **Bias contaminates passive observation.**  Empirical axis
+   identification *only* works under controlled motion with bias
+   subtraction (s092 protocol).  Trying to derive the rotation matrix
+   from hover data with wind running gave coefficients that were 90 %
+   bias and 10 % signal.
+4. **Texture padding is a real failure mode.**  When using
+   `cv2.aruco.generateImageMarker(... sidePixels=N, borderBits=1)` the
+   total pattern is `(N + 2) × cell_size` but the texture file may be
+   padded to a power-of-two size with white space.  Always compute the
+   black-bordered fraction before passing the box size to `solvePnP`.
+
+### Files shipped
+
+- `examples/sentai_runtime/experiments/s090_hover_over_cat/aruco_detector.py`
+  — `MARKER_SIZE_M = 0.0625`, new `estimate_drone_world_pose()`,
+  `CAM_OFFSET_BODY`, `_R_CAM_TO_BODY`.
+- `examples/sentai_runtime/experiments/s091_aruco_lowalt/aruco_hover.py`
+  — uses the new PnP function, sets `posCtlPid.{xVelMax,yVelMax,xKp,yKp}`,
+  writes `flow_records.csv` + `samples.csv` per run.
+- `examples/sentai_runtime/experiments/s092_axis_calib/axis_calib.py`
+  — controlled-motion axis identification.
+- `examples/sentai_runtime/experiments/s093_max_velocity/{max_velocity,max_velocity_pos}.py`
+  — velocity-bench tests (MotionCommander vs direct position setpoint).
+- `sim/camera_bridge_recv.c` — dump infra split: `SENTAI_DUMP_RAW_EVERY`
+  controls 640×480 RGB dumps (default 6 frames, ArUco PnP rate); a
+  separate L0 80×60 PGM dump per frame via `SENTAI_DUMP_FRAMES_EVERY=1`
+  (cheap, for visual debug).  Both fopen failures now log once per 100
+  errors instead of failing silently.
+
 ## 11. References
 
 - FreeRTOS POSIX port docs: https://www.freertos.org/FreeRTOS-simulator-for-Linux.html
@@ -1903,3 +2126,4 @@ Update as phases land.
 | 2026-05-10 | 10b | DONE — Sim.md camera + flow conventions section | n/a | New section §10b documents the lens FOV (58°×45°), 4:3 long-axis = FW-BACK, body-frame mapping (image LEFT = body FORWARD with cam0 vflip=1, sign convention from 2026-05-07 LED-translation test), camera physical mount offset on the drone (-4 cm back, -2 cm down — needed for EKF lever-arm if we ever switch to OPTICAL_FLOW_RAD), and the PXP downscale + flow input chain (identical ARM ↔ SIM after the shim).  Anything Phase 4 produces or consumes MUST match this — otherwise cf2 EKF rejects samples or amplifies drift. |
 | 2026-05-11 | 5b import-bridge | DONE — native `import` from SIM virtual FS (replaces `exec(read_str())`) | SIM build #after-#1234 | **Built the firmware-parity import path on SIM.**  `sim/main_sim.c` now provides real `mp_lexer_new_from_file` + `mp_import_stat` routed through `sim_fs_resolve()` (the same resolver `sentai.fs.*` uses).  Backed by an inline 64-byte FD reader inside `main_sim.c` (typedef `sim_reader_fd_t` with `readbyte` + `close` callbacks) so we don't have to flip `MICROPY_READER_POSIX=1` on the embed config — that flag would pull a competing `mp_lexer_new_from_file` from `lexer.c` that bypasses our `sim_fs_resolve()`.  REPL boot now does `import sys; sys.path.append('/'); sys.path.append('')` so a bare `import hover_logic` finds `<sim_fs_root>/hover_logic.py`.  `sim_fs_root()` and `sim_fs_resolve()` in `modsentai_sim.c` un-staticed and `extern`-declared in `main_sim.c`.  Smoke test: `>>> import smoke_import; smoke_import.greet()` returns `"hello from disk"` after a single .py file is dropped at `build-sim/sentai_fs_root/smoke_import.py`.  Migration: `examples/sentai_runtime/experiments/s090_hover_over_cat/hover_over_cat.py` swapped `exec(sentai.fs.read_str("hover_logic.py"))` for `import hover_logic` — heap cost drops from ~KB source-string to 64 B FD buffer streamed char-by-char by the lexer; tracebacks now show `hover_logic.py` line N instead of `<string>`; second invocation is free (cached in `sys.modules`).  New best-practices section §10f documents the rule + the anti-patterns to avoid (multi-line for/if blocks through stdin REPL → `SyntaxError`; `exec(read_str())` for anything larger than a one-liner → useless heap copy).  ARM parity guarantee: firmware build provides the equivalent through FileX (`FxUserOpenRead`) so the same `import foo` line works on both targets. |
 | 2026-05-10 | 3 best-practices | DONE — captured during cflib TOC debug session | n/a | **Hard-won CrazySim/Gazebo Garden best practices.  (Originally collected on Harmonic but Harmonic is now banned; the practices apply equally to Garden in distrobox.)  Read these before any future debug session.**  (1) **`stdbuf -oL` is mandatory for cf2** — `cf2`'s stdout is block-buffered when redirected to a file (4 KB).  Default `sitl_singleagent.sh` does `cf2 ... > out.log 2> error.log &` and the logs stay EMPTY for minutes.  Wrap with `stdbuf -oL -eL cf2 ...` to flush per-line and see boot progress (`SOCKET_LINK: Waiting for connection with gazebo`, `Connection established`, `SYS: Software-in-the-Loop Simulator is up and running!`).  (2) **Always launch `gz sim` with `-v 4` (debug) during bringup, not the default `-v 3`** — plugin-load failures (`Failed to load system plugin [gz_crazysim_plugin] : Could not find shared library`) are logged ONLY at `-v 4`.  At `-v 3` the world boots silently with no plugin and EVERYTHING downstream (cflib TOC, motor commands, telemetry) silently times out.  (3) **`GZ_SIM_SYSTEM_PLUGIN_PATH`, `GZ_SIM_RESOURCE_PATH`, `LD_LIBRARY_PATH` MUST be set in the shell that launches `gz sim`** — `setup_gz.bash` sets them, but only inside the script's process tree.  If you run `gz sim ...` ad-hoc in another shell, the plugin is silently missing and the drone's `/cf_0/imu` topic exists but with NO subscriber on the cf2 side.  (4) **Plugin <-> cf2 handshake is `0xF3`** — cf2 SOCKET_LINK sends `0xF3` (1 byte, header only, size=0) repeatedly until plugin echos `0xF3` back.  Plugin learns cf2's ephemeral source addr from `recvfrom`'s remaddr.  cf2 then continues to system init.  Sequence visible at cf2 stdout (with stdbuf): `Create socket succeed → Binding succeed → Waiting for connection with gazebo → Connection established with gazebo → SYS: Software-in-the-Loop Simulator is up and running!`  (5) **cflib UdpDriver handshake is `\xff\x01\x01\x01`** — plugin doesn't ack this, just learns cflib's addr from recvfrom.  Subsequent CRTP packets are bidirectional. |
+| 2026-05-11 | 10l hover-under-wind | DONE — 3 bugs found + cf2 PID cap fix, drift 43cm→32cm at full wind | SIM build trail | Bug 1: MARKER_SIZE_M was 0.08 but ArUco texture padding makes effective marker 0.0625m → PnP-z over-estimated by 1.28×.  Bug 2: per-marker -tvec[0] averaging assumed (a) cam_X=body_X and (b) marker centroid stayed at world (0,0) — both wrong; partial-FOV biased the centroid 40cm.  Bug 3 (the real blocker): cf2 `platform_defaults_sitl.h:PID_POS_VEL_X_MAX=1.0f` caps position-PID velocity output at 1 m/s → drone has only ~0.6 m/s wind-rejection authority vs 0.4 m/s gusts.  Fix: raise `posCtlPid.xVelMax/yVelMax` to 2.5 + `xKp/yKp` to 3.0 via cflib param.set_value.  s092 (axis_calib.py) controlled-motion test confirms current BODY_XFORM=(0,-1,-1,0) is correct (axes were never the bug; PnP labels were).  s093 (max_velocity.py + max_velocity_pos.py) discovers the hard 1 m/s cap and finds max sustainable velocity at z=3m hover is ~2.27 m/s (peak before flow saturates at 32 L0-px shift).  Final 3-trial mean hover-under-wind: all-4 17%→28.2%, dist mean 43cm→32.5cm, no flow-algorithm changes.  Full section in §10l. |

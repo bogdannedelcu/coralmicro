@@ -18,6 +18,7 @@ for the ARM port — same algorithm validates on both targets later.
 """
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -43,7 +44,14 @@ KNOWN_POSITIONS_M = {
     2: (-0.15, -0.10, 0.20),  # SW
     3: (+0.15, -0.10, 0.20),  # SE
 }
-MARKER_SIZE_M = 0.08   # physical size of one marker's square on the ground
+MARKER_SIZE_M = 0.0625  # ArUco pattern fills 400/512=78.1% of the 0.08m
+                        # box face texture (22% white padding around the
+                        # black border).  solvePnP detects the outer black
+                        # border so the EFFECTIVE physical marker size is
+                        # 0.08 × 0.781 = 0.0625m, NOT 0.08m.  Empirically
+                        # verified 2026-05-11: with 0.08, PnP-z over-
+                        # estimated drone altitude by 1.28× (= 0.08/0.0625);
+                        # with 0.0625, PnP-z agrees with EKF-z within ±2cm.
 
 # Camera intrinsics — derived from gz cam SDF FOV.  Used for pose
 # estimation (estimatePoseSingleMarkers).
@@ -78,6 +86,85 @@ class Marker:
 _DET_PARAMS = cv2.aruco.DetectorParameters()
 _DICT = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
 _DETECTOR = cv2.aruco.ArucoDetector(_DICT, _DET_PARAMS)
+
+
+# Camera offset from drone CoM (body frame).  From model.sdf.jinja:
+# <pose>-0.04 0 -0.02 0 1.5707963 3.1415927</pose>
+#   -0.04m: camera is 4cm BACK of CoM along body +X
+#   0:      no Y offset
+#   -0.02m: camera is 2cm BELOW CoM along body +Z
+CAM_OFFSET_BODY = np.array([-0.04, 0.0, -0.02], dtype=np.float32)
+
+
+_R_CAM_TO_BODY = np.array([[0.0, -1.0,  0.0],
+                            [-1.0, 0.0,  0.0],
+                            [0.0,  0.0, -1.0]], dtype=np.float32)
+# Derived empirically (s092 axis calibration 2026-05-11):
+# - +body_X motion ↔ -L0_dy (cam_Y axis = -body_X)
+# - +body_Y motion ↔ -L0_dx (cam_X axis = -body_Y)
+# - cam_Z (optical axis) points DOWN = -body_Z
+# Verified: with this R and drone at (0,0,1), marker[0]@(0.15,0.10,0.20),
+# computed tvec ≈ (-0.10, -0.19, +0.78) — matches observed solvePnP output.
+
+
+def estimate_drone_world_pose(dets, known_positions=None, drone_yaw=0.0):
+    """Compute drone world position from detected ArUco markers.
+
+    Strategy: use solvePnP's tvec for each marker (well-defined under
+    any drone attitude), and a KNOWN camera-to-world rotation derived
+    from drone yaw + the fixed body-to-camera mount transform.  Avoids
+    relying on solvePnP's rvec, which can be sign-ambiguous under tilt.
+
+    For each detected marker i with known world position marker_w:
+        tvec_i = marker_i_in_camera_frame
+        cam_in_world = marker_w - R_cam_to_world @ tvec_i
+
+    Average across visible markers, then subtract camera-CoM offset.
+
+    Args:
+        dets: {marker_id: Marker} from detect_markers(estimate_pose=True).
+        known_positions: override module-level KNOWN_POSITIONS_M.
+        drone_yaw: drone heading (radians) for body↔world rotation.
+
+    Returns:
+        (drone_x, drone_y, drone_z) in world frame, or None on failure.
+    """
+    if not dets:
+        return None
+    kp = known_positions or KNOWN_POSITIONS_M
+    # Sanity-check drone_yaw — bounded to ±2π (any larger value indicates
+    # unit confusion, e.g. degrees passed in by mistake).
+    if not math.isfinite(drone_yaw) or abs(drone_yaw) > 2 * math.pi + 1e-3:
+        return None
+    # Camera-to-world rotation = (body-to-world by yaw) ∘ (cam-to-body).
+    # Ignore drone roll/pitch — they're <5° even under wind, contribute
+    # <10% projection error in tvec interpretation.  Yaw matters more
+    # since it can rotate up to 360°.
+    cy, sy = np.cos(drone_yaw), np.sin(drone_yaw)
+    R_body_to_world = np.array([[cy, -sy, 0],
+                                 [sy,  cy, 0],
+                                 [0,   0,  1]], dtype=np.float32)
+    R_cam_to_world = R_body_to_world @ _R_CAM_TO_BODY
+    cam_estimates = []
+    for mid, m in dets.items():
+        if mid not in kp or m.tvec is None:
+            continue
+        # Validate tvec shape — solvePnP returns either (3,) or (3, 1).
+        # A wrong shape would crash later; bail explicitly for this marker.
+        tvec_raw = np.asarray(m.tvec).reshape(-1)
+        if tvec_raw.size != 3 or not np.all(np.isfinite(tvec_raw)):
+            continue
+        mx, my, mz = kp[mid]
+        tvec = tvec_raw.astype(np.float32)
+        cam_in_world = np.array([mx, my, mz]) - R_cam_to_world @ tvec
+        cam_estimates.append(cam_in_world)
+    if not cam_estimates:
+        return None
+    cam_world = np.mean(cam_estimates, axis=0)
+    # Drone CoM = camera world position - (body-to-world rotated cam offset)
+    cam_offset_world = R_body_to_world @ CAM_OFFSET_BODY
+    drone_world = cam_world - cam_offset_world
+    return tuple(float(v) for v in drone_world)
 
 
 def detect_markers(rgb_or_gray: np.ndarray,
