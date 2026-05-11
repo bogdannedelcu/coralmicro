@@ -201,25 +201,37 @@ def main():
     out_seq_dir.mkdir(exist_ok=True)
     for old in out_seq_dir.glob("*.png"):
         old.unlink()
-    fseq_list = sorted(state_by_fseq.keys())
+    # Output filename uses the SAME seq number as the source PPM so
+    # `frame_000255.png` always comes from `frame_000255.ppm` — no
+    # index-vs-seq confusion possible.  Per embeded.md "replace implicit
+    # conventions with explicit APIs".  ffmpeg consumes via -pattern_type
+    # glob so non-contiguous numbers work.
+    fseq_list = sorted([s for s in state_by_fseq.keys() if s >= 0])
+    fseq_match_tolerance = 15   # ±0.5 s at 30 fps
     n_frames = len(ppms)
+    n_with_bbox = 0
+    n_no_bbox = 0
     for i, ppm in enumerate(ppms):
         m = re.match(r"frame_(\d+)\.ppm", ppm.name)
         frame_seq = int(m.group(1)) if m else i
-        # Match STATE: prefer fseq within ±30 of frame seq.
         state = None
         if fseq_list:
             closest = min(fseq_list, key=lambda s: abs(s - frame_seq))
-            if abs(closest - frame_seq) <= 30:
+            if abs(closest - frame_seq) <= fseq_match_tolerance:
                 state = state_by_fseq[closest]
-        elif state_list:
-            # Fallback for old (16-field) STATE: proportional index match.
-            idx = min(len(state_list) - 1,
-                      int(i * len(state_list) / max(1, n_frames)))
-            state = state_list[idx]
+        # STRICT: no fallback to proportional index match.  If no fseq
+        # within tolerance, the frame gets the HUD but NO bbox — better
+        # than showing a wrong bbox that doesn't match the image content.
+        if state:
+            n_with_bbox += 1
+        else:
+            n_no_bbox += 1
         flight_row = latest_flight_state_for_frame(flight, i, n_frames)
-        out_png = out_seq_dir / f"{i:04d}.png"
+        # SAME seq number in render filename as source PPM.
+        out_png = out_seq_dir / f"frame_{frame_seq:06d}.png"
         render_frame(ppm, state, flight_row, out_png, frame_seq)
+    print(f"[overlay] {n_with_bbox} frames with bbox (fseq matched within ±{fseq_match_tolerance}), "
+          f"{n_no_bbox} without (no STATE for this frame)", file=sys.stderr)
     print(f"rendered {n_frames} HUD-overlaid PNGs to {out_seq_dir}", file=sys.stderr)
     # Stitch with ffmpeg.  Prefer imageio-ffmpeg's bundled binary so we
     # don't depend on a system-wide install.
@@ -230,9 +242,12 @@ def main():
         ffmpeg_exe = "ffmpeg"
     # Baseline profile + Level 3.0 + faststart for max compatibility
     # (VLC, browser HTML5 video, ffplay, mobile players).
+    # Use glob input pattern so frame_NNNNNN.png with arbitrary jumps in
+    # seq numbers all get included in seq order.
     cmd = [ffmpeg_exe, "-y",
            "-framerate", "5",
-           "-i", str(out_seq_dir / "%04d.png"),
+           "-pattern_type", "glob",
+           "-i", str(out_seq_dir / "frame_*.png"),
            "-c:v", "libx264",
            "-profile:v", "baseline",
            "-level", "3.0",

@@ -45,6 +45,7 @@ for i in range(N_ITER):
         last_flow_seq = f[0]
     fvx = f[1] if flow_fresh else 0
     fvy = f[2] if flow_fresh else 0
+    fseq = f[0] if len(f) >= 1 else 0   # gz frame seq for overlay sync
     best = None
     for t in tracks:
         if len(t) < 10: continue
@@ -73,8 +74,11 @@ for i in range(N_ITER):
                     i, cx, cy, err_x, err_y))
         else:
             centered_count = 0
+        # 17 fields: ..., bbox(x1,y1,x2,y2), fseq.  fseq is the gz frame
+        # seq that produced THIS detection, so post-run overlay can match
+        # a STATE row to the exact frame_NNNNNN.ppm that ran through SSD.
         print("STATE=", (i, best[0], best[1], best[6], cx, cy, err_x, err_y,
-                          vx, vy, fvx, fvy, best[2], best[3], best[4], best[5]))
+                          vx, vy, fvx, fvy, best[2], best[3], best[4], best[5], fseq))
     elif coast_left > 0 and last_cx is not None:
         # Coast — detection dropped, keep commanding toward last known cx/cy
         # for COAST_FRAMES ticks.  Don't increment centered_count (need a
@@ -89,13 +93,13 @@ for i in range(N_ITER):
         vx = int(last_vx * decay)
         vy = int(last_vy * decay)
         print("STATE=", (i, -1, -1, 0, last_cx, last_cy, err_x, err_y,
-                          vx, vy, fvx, fvy, 0, 0, 0, 0))
+                          vx, vy, fvx, fvy, 0, 0, 0, 0, fseq))
         if coast_left == 0:
             print("HOVER_COAST_END iter={} (detection lost, coast expired)".format(i))
     else:
         # No detection, no coast → stationary, no command.
         centered_count = 0
-        print("STATE=", (i, 0, 0, 0, 0, 0, 0, 0, 0, 0, fvx, fvy, 0, 0, 0, 0))
+        print("STATE=", (i, 0, 0, 0, 0, 0, 0, 0, 0, 0, fvx, fvy, 0, 0, 0, 0, fseq))
         # Diagnostic every 1s — when no target, dump tracks + raw SSD
         # detections so the host log shows whether SSD sees anything at
         # all and which filter rejects it (class / state / conf).
