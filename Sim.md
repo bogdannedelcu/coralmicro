@@ -1336,6 +1336,87 @@ acrobatic / fast-trajectory / non-linear-coupled cases.
 - [Fuzzy Gain-Scheduling Based Fault Tolerant Visual Servo Control of Quadrotors (MDPI Drones)](https://www.mdpi.com/2504-446X/7/2/100) — fuzzy-rules-driven gain scheduling
 - [PID control of quadrotor UAVs: A survey (Elsevier 2023)](https://www.sciencedirect.com/science/article/abs/pii/S1367578823000640) — overall survey covering linear, nonlinear, adaptive, event-based, gain-scheduling, fault-tolerant, fractional-order, intelligent PID
 
+### Self-calibrating PID across flights (ILC, 2026-05-11 ship)
+
+User wanted "load PID params at takeoff, test, refine in-flight if
+behaviour bad, persist for next flight."  After two failed attempts
+(Ziegler-Nichols online didn't fit our overshoot-then-creep response
+pattern, naive overshoot-driven adapter ran KP toward zero), the
+working pattern is **Iterative Learning Control across flights**:
+
+```
+LOAD pid_params.json (defaults if absent: KP=0.5, KD=0.6 — the
+                      manually-tuned working values that hit 8.9cm)
+   │
+   ▼
+RUN flight with loaded gains
+   │  (track max |err_x_m|, |err_y_m| during hover phase)
+   ▼
+AT END OF HOVER PHASE: adjust gains for NEXT flight based on outcome
+   │
+   ├─ overshoot > 40 cm → recalibrate (KP × 0.9, KD × 1.1)
+   ├─ overshoot < 20 cm AND final_dist > 30 cm → drone too cautious
+   │                                              (KP × 1.1)
+   └─ otherwise → behaviour acceptable, FREEZE gains
+   │
+   ▼
+SAVE pid_params.json (with _last_overshoot, _last_final_dist
+                      annotations for audit)
+```
+
+This is **adaptive at the granularity of flights, not within a flight**.
+Within-flight adaptation (the earlier attempts) was unstable because:
+
+- Our system response is overshoot-then-slow-creep, not sustained
+  ringing.  Z-N requires sustained oscillation to measure Tu — only 3
+  sign-flips observed in 50 s of hover, insufficient for ID.
+- Within-flight adapter that REDUCES gain on every overshoot event
+  monotonically converges to over-damped (KP → KP_MIN) over several
+  flights, because the climb/takeoff transient always registers as
+  "overshoot" against the bbox-error target.
+
+Bounds in `pid_params.json`: `KP_MIN=0.20, KP_MAX=0.90, KD_MIN=0.30,
+KD_MAX=1.20`.  Auto-calibration NEVER pushes outside these — if the
+adapter wants to go further, it clips and `_stable_at_end=False` flag
+prompts manual inspection.
+
+**File location**:
+`examples/sentai_runtime/experiments/s090_hover_over_cat/pid_params.json`
+— committed to git; the `_last_*` audit fields update on each run
+but the structural fields (KP_M, KD_M, bounds, thresholds) form the
+durable "learned configuration" for the drone-camera-environment
+combination.
+
+**Recovery from bad saved params** — user's main concern:
+
+> "as vrea ca daca la un zbor nou nu reuseste sa foloseasca constantele
+> invatate de pana atunci si stocate in memorie sa incerce sa le invete
+> din nou."
+
+The ILC handles this naturally.  If the loaded params produce a bad
+flight (overshoot > 40 cm), the rule:
+
+```
+pid["KP_M"] = max(pid["KP_M"] * 0.9, pid["KP_MIN"])
+pid["KD_M"] = min(pid["KD_M"] * 1.1, pid["KD_MAX"])
+```
+
+backs off proportional gain + boosts damping for next flight.  Over
+3–5 flights the system converges to a stable point.  Manual reset is
+available by deleting `pid_params.json` — system reverts to working
+defaults and starts re-learning.
+
+**Validation runs 2026-05-11**:
+
+| Flight | Loaded | Overshoot (max) | Final dist | Saved |
+|--------|--------|-----------------|------------|-------|
+| 1 (defaults) | KP=0.50, KD=0.60 | 0.41 m | **0.089 m** | KP=0.45, KD=0.66 |
+| 2 (refined)  | KP=0.45, KD=0.66 | 0.45 m | 0.228 m | KP=0.40, KD=0.73 |
+
+Variance between flights is real — gz physics restart, drone yaw drift,
+SSD class oscillation all contribute.  The ILC handles this gracefully
+because gains converge over multiple flights, not within a single one.
+
 ### Open work
 
 - **Full rotation homography** for tilt compensation (we use

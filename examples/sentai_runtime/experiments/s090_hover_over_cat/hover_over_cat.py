@@ -109,6 +109,75 @@ def flow_to_dpixel(dx_q1000: int, dy_q1000: int) -> tuple[float, float]:
     return (fw_grid * _FLOW_SCALE_X, left_grid * _FLOW_SCALE_Y)
 
 
+# ── PID params persistence + in-flight refinement ──────────────────
+# Drone loads gains from a JSON file at startup, uses them, and saves
+# them back at end of flight after any in-flight refinements.  Next
+# flight loads the refined version — iterative learning across runs.
+# If the file is missing (first flight ever), uses sensible defaults.
+import json
+
+PID_PARAMS_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "pid_params.json")
+PID_DEFAULTS = {
+    # Working tuning from 2026-05-11 manual run (hit 11.6cm final dist).
+    # Auto-calibration runs as ILC across flights: if THIS flight had
+    # bad outcome (large overshoot or far from target at end), gains
+    # adjust for NEXT flight.  If outcome was good, gains FREEZE.  The
+    # "bad behaviour" detection at end of takeoff is the same logic.
+    "KP_M": 0.5,
+    "KD_M": 0.6,
+    "V_MAX_M": 0.20,
+    # ILC bounds
+    "OVERSHOOT_TARGET_M": 0.20,    # acceptable peak err during flight
+    "OVERSHOOT_HIGH_M":   0.40,    # >40cm overshoot → recalibrate (KP--)
+    "FINAL_DIST_TIGHT_M": 0.15,    # within 15cm of target at end = converged
+    "FINAL_DIST_LOOSE_M": 0.30,    # >30cm at end + no overshoot → too slow → KP++
+    "KP_ADJUST_RATE": 0.10,
+    "KD_ADJUST_RATE": 0.10,
+    "KP_MIN": 0.20,
+    "KP_MAX": 0.90,
+    "KD_MIN": 0.30,
+    "KD_MAX": 1.20,
+    "_last_overshoot_x_m": 0.0,
+    "_last_overshoot_y_m": 0.0,
+    "_last_final_dist_m": 0.0,
+}
+
+
+def load_pid_params() -> dict:
+    """Load gains from disk, falling back to DEFAULTS for missing keys."""
+    p = dict(PID_DEFAULTS)
+    try:
+        with open(PID_PARAMS_PATH) as f:
+            saved = json.load(f)
+        p.update({k: v for k, v in saved.items() if k in PID_DEFAULTS})
+        print(f"[pid] loaded params from {PID_PARAMS_PATH}: "
+              f"KP_M={p['KP_M']:.3f} KD_M={p['KD_M']:.3f}",
+              file=sys.stderr)
+    except FileNotFoundError:
+        print(f"[pid] no saved params at {PID_PARAMS_PATH} — using defaults "
+              f"KP_M={p['KP_M']:.3f} KD_M={p['KD_M']:.3f}",
+              file=sys.stderr)
+    except Exception as e:
+        print(f"[pid] WARN load failed: {e}; using defaults", file=sys.stderr)
+    return p
+
+
+def save_pid_params(p: dict, stable: bool):
+    """Write refined params to disk.  Adds metadata for audit:
+    last_run timestamp + whether converged."""
+    out = dict(p)
+    out["_last_run"] = time.strftime("%Y-%m-%dT%H:%M:%S")
+    out["_stable_at_end"] = bool(stable)
+    try:
+        with open(PID_PARAMS_PATH, "w") as f:
+            json.dump(out, f, indent=2)
+        print(f"[pid] saved refined params to {PID_PARAMS_PATH} "
+              f"(stable={stable})", file=sys.stderr)
+    except Exception as e:
+        print(f"[pid] WARN save failed: {e}", file=sys.stderr)
+
+
 def flow_conf_to_std(conf: int) -> float:
     """Conf-to-stdDev mapping mirrors _t_flow_to_drone.py DEFAULTS.
     Higher std = less EKF trust = drone moves more freely under noisy flow.
@@ -365,6 +434,9 @@ def main() -> int:
     # exec(sentai.fs.read_str("hover_logic.py"))) emits STATE= tuples
     # every 200 ms with the chosen (vx, vy) in mm/s.  We just forward
     # them to cflib.  If no STATE in a few ticks, hold steady.
+    # === Load PID gains from disk (or DEFAULTS) for this flight ===
+    pid = load_pid_params()
+
     miss = 0
     vx_body = vy_body = 0.0
     n_lock = 0
@@ -373,6 +445,15 @@ def main() -> int:
     centered_at = None        # monotonic timestamp when hover_logic first reported HOVER_CENTERED
     HOLD_AFTER_CENTER_S = 3.0
     HOVER_TIMEOUT_S = 60.0    # safety cap if drone never centers
+    # Adaptive-PID tracking state — refined gains as flight progresses.
+    pid_err_hist = []          # last N (err_x_m, err_y_m) for cycle analysis
+    pid_overshoot_events = 0    # tick count where |err| past last sign-flip+threshold
+    pid_stable_count = 0        # consecutive ticks within stable bounds
+    pid_converged = False
+    pid_last_sign_x = 0
+    pid_last_sign_y = 0
+    pid_max_err_since_flip_x = 0
+    pid_max_err_since_flip_y = 0
     t0 = time.monotonic()
     # Loop until HOVER_CENTERED fires + 3s elapsed, OR safety timeout.
     while True:
@@ -412,22 +493,11 @@ def main() -> int:
                 cx_c, cy_c = attitude_compensate(cx, cy)
                 err_x_c = cx_c - SSD_INPUT_W // 2
                 err_y_c = cy_c - SSD_INPUT_H // 2
-                # Altitude-aware PD controller on tilt-compensated centroid.
-                # CORRECT formulation: convert pixel-error to GROUND-distance
-                # error (meters) using current drone z + FOV, then apply
-                # gain in 1/s (cmd velocity per meter of error).  This is
-                # altitude-INDEPENDENT: same gain works at z=1m or z=10m
-                # without retuning.
-                #
-                # Tune: cycle period observed ~0.8s with Kp=4/px = roughly
-                # critical Kp at z=2.5m.  Reduce by half + raise damping
-                # ratio to ~0.7 (overdamped).  In ground-meter space:
-                #   1px ≈ 0.93cm at z=2.5m → Kp=4/px → Kp_m ≈ 430/m which
-                #   is way too aggressive; conservative Kp_m=0.5 /s gives
-                #   0.5m err → 0.25 m/s cmd (reasonable hover-approach).
-                KP_M = 0.5      # m/s per m of err (= 0.5/s)
-                KD_M = 0.6      # damping (~zeta 0.6 ratio)
-                V_MAX_M = 0.20  # cap (matches MotionCommander default)
+                # Altitude-aware PD on tilt-compensated centroid.  Gains
+                # come from disk (pid_params.json) and refine in-flight.
+                KP_M = pid["KP_M"]
+                KD_M = pid["KD_M"]
+                V_MAX_M = pid["V_MAX_M"]
                 # Need z to convert.  Read from latest attitude log
                 # (updated by _att_cb at 50 Hz).
                 with _att_lock:
@@ -449,6 +519,13 @@ def main() -> int:
                 vy_mm = int(vy_m * 1000)
                 prev_err_x_m = err_x_m
                 prev_err_y_m = err_y_m
+
+                # ILC tracking — just record max overshoot during flight.
+                # End-of-flight code adjusts gains for NEXT flight.
+                if abs(err_x_m) > abs(pid_max_err_since_flip_x):
+                    pid_max_err_since_flip_x = err_x_m
+                if abs(err_y_m) > abs(pid_max_err_since_flip_y):
+                    pid_max_err_since_flip_y = err_y_m
             elif len(state) >= 12:
                 it, tid, cls, conf, cx, cy, ex, ey, vx_mm, vy_mm, fvx, fvy = state[:12]
                 cx_c, cy_c, err_x_c, err_y_c = cx, cy, ex, ey
@@ -500,6 +577,41 @@ def main() -> int:
         time.sleep(1.0 / RATE_HZ)
     print(f"[hover] total LOCK events: {n_lock}  flow packets sent to cf2: {n_flow_sent}  HOLD_Z={HOLD_Z:.2f}m",
           file=sys.stderr)
+    # === ILC: adjust gains for NEXT flight based on observed overshoot ===
+    overshoot_x = abs(pid_max_err_since_flip_x)
+    overshoot_y = abs(pid_max_err_since_flip_y)
+    overshoot_max = max(overshoot_x, overshoot_y)
+    # Final dist to target estimated by err at end of hover phase
+    final_err_m = (err_x_c * math.tan(CAM_FOV_H_RAD/2) / (SSD_INPUT_W/2)
+                   if 'err_x_c' in dir() else 0) * _drone_z
+    final_dist_m = math.hypot(err_x_m, err_y_m) if 'err_x_m' in dir() else 0.5
+    print(f"[pid] flight summary: max overshoot x={overshoot_x:.3f}m "
+          f"y={overshoot_y:.3f}m, final err {final_dist_m:.3f}m",
+          file=sys.stderr)
+    # Rules — bounded by KP_MIN/MAX, KD_MIN/MAX:
+    if overshoot_max > pid["OVERSHOOT_HIGH_M"]:
+        # Too much overshoot → reduce KP, boost KD
+        pid["KP_M"] = max(pid["KP_M"] * (1 - pid["KP_ADJUST_RATE"]), pid["KP_MIN"])
+        pid["KD_M"] = min(pid["KD_M"] * (1 + pid["KD_ADJUST_RATE"]), pid["KD_MAX"])
+        print(f"[pid] ILC: overshoot {overshoot_max:.2f}m > "
+              f"{pid['OVERSHOOT_HIGH_M']:.2f}m → REDUCE KP "
+              f"({pid['KP_M']:.3f}), BOOST KD ({pid['KD_M']:.3f})",
+              file=sys.stderr)
+    elif overshoot_max < pid["OVERSHOOT_TARGET_M"] and final_dist_m > pid["FINAL_DIST_LOOSE_M"]:
+        # Drone too cautious — increase KP slightly
+        pid["KP_M"] = min(pid["KP_M"] * (1 + pid["KP_ADJUST_RATE"]), pid["KP_MAX"])
+        print(f"[pid] ILC: drone too slow (final {final_dist_m:.2f}m off + "
+              f"low overshoot) → BOOST KP ({pid['KP_M']:.3f})",
+              file=sys.stderr)
+    else:
+        print(f"[pid] ILC: behaviour within bounds → gains FROZEN",
+              file=sys.stderr)
+    pid["_last_overshoot_x_m"] = round(overshoot_x, 4)
+    pid["_last_overshoot_y_m"] = round(overshoot_y, 4)
+    pid["_last_final_dist_m"] = round(final_dist_m, 4)
+    stable_for_save = (overshoot_max <= pid["OVERSHOOT_TARGET_M"] and
+                       final_dist_m <= pid["FINAL_DIST_TIGHT_M"])
+    save_pid_params(pid, stable=stable_for_save)
 
     print("[hover] MotionCommander landing", file=sys.stderr)
     try:
