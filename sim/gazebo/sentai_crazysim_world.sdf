@@ -150,6 +150,33 @@
       </link>
     </model>
 
+    <!-- 2026-05-11: ImageNet test target — a 1m × 0.667m photo of a
+         cat placed centred on the ground.  When the drone hovers at
+         z=1m the downward camera looks straight at this, and mobilenet
+         classifies it as "Egyptian cat" with raw score ≈ 206/255 ≈
+         81% confidence (verified offline against models/mobilenet_v1_1.0
+         _224_quant_edgetpu.tflite).  Source image: test_data/cat.bmp
+         (Coral test asset, 512×341, ≈ 4:3 aspect → 1m × 0.667m). -->
+    <model name="imagenet_cat_target">
+      <static>true</static>
+      <pose>0 0 0.005 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <box><size>1.0 0.667 0.005</size></box>
+          </geometry>
+          <material>
+            <diffuse>1 1 1 1</diffuse>
+            <pbr>
+              <metal>
+                <albedo_map>materials/textures/imagenet_cat.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+      </link>
+    </model>
+
     <!-- 2026-05-10: deep checkerboard fallback at z=-10m.
          Visible only to a downward-pointing camera; provides feature
          texture even if the drone is positioned right above an empty

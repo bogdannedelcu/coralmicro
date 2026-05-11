@@ -779,6 +779,10 @@ static int pipeline_tick_once(void) {
     s_pipe_last_ms    = dt;
     s_pipe_total_ms  += dt;
     s_pipe_last_err   = 0;
+
+    /* Update tracker history (declared below; forward-decl). */
+    extern void track_record(void);
+    track_record();
     return (int)dt;
 }
 
@@ -847,6 +851,137 @@ static mp_obj_t sentai_pipeline_target_fps_mp(size_t n_args, const mp_obj_t* arg
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(sentai_pipeline_target_fps_obj, 0, 1, sentai_pipeline_target_fps_mp);
 
+/* sentai.pipeline.detect(top_n=5) — returns top-N (idx, score_byte) tuples
+ * from the FIRST output tensor of the loaded model.  Works for any
+ * classification head (mobilenet 1001 classes, etc.).  For YOLO/heatmap
+ * outputs the caller has to interpret bytes themselves.
+ *
+ * Returns: tuple of N tuples, each (class_idx_int, score_byte_int).
+ * If no model loaded or no output: empty tuple. */
+static mp_obj_t sentai_pipeline_detect_mp(size_t n_args, const mp_obj_t* args) {
+    int top_n = (n_args >= 1) ? mp_obj_get_int(args[0]) : 5;
+    if (top_n < 1) top_n = 1;
+    if (top_n > 16) top_n = 16;
+    if (!sentai_tpu_is_ready() || sentai_tpu_num_outputs() < 1) {
+        return mp_obj_new_tuple(0, NULL);
+    }
+    int sz = sentai_tpu_get_output_size(0);
+    const uint8_t* d = (const uint8_t*)sentai_tpu_get_output_data(0);
+    if (!d || sz <= 0) return mp_obj_new_tuple(0, NULL);
+
+    /* Bounded heap-free top-N by repeated linear scan; sz<=1001 typical. */
+    int best_idx[16];
+    uint8_t best_val[16];
+    int found = 0;
+    for (int rank = 0; rank < top_n; ++rank) {
+        int   bi = -1;
+        int   bv = -1;
+        for (int i = 0; i < sz; ++i) {
+            int v = d[i];
+            /* Skip indices already chosen at higher rank. */
+            int already = 0;
+            for (int k = 0; k < rank; ++k) if (best_idx[k] == i) { already = 1; break; }
+            if (already) continue;
+            if (v > bv) { bv = v; bi = i; }
+        }
+        if (bi < 0) break;
+        best_idx[rank] = bi;
+        best_val[rank] = (uint8_t)bv;
+        ++found;
+    }
+    mp_obj_t out[16];
+    for (int i = 0; i < found; ++i) {
+        mp_obj_t pair[2] = {
+            mp_obj_new_int(best_idx[i]),
+            mp_obj_new_int(best_val[i]),
+        };
+        out[i] = mp_obj_new_tuple(2, pair);
+    }
+    return mp_obj_new_tuple(found, out);
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(sentai_pipeline_detect_obj, 0, 1, sentai_pipeline_detect_mp);
+
+/* sentai.pipeline.tracks() — returns list of "stable" classifications
+ * over a sliding window of recent step()s.  A class counts as "tracked"
+ * if it appeared in top-3 of >= 3 of the last 5 frames.  Useful for
+ * filtering noise from per-frame detect().
+ *
+ * Returns: tuple of (class_idx, hit_count_in_window) tuples.  Empty
+ * if no model, no recent frames, or no class qualified.
+ */
+#define TRACK_WINDOW 5
+#define TRACK_TOPN   3
+#define TRACK_MIN_HITS 3
+static int s_track_hist[TRACK_WINDOW][TRACK_TOPN];
+static int s_track_idx = 0;
+static int s_track_count = 0;
+
+/* Internal: called from pipeline_tick_once after a successful invoke.
+ * Records the top-3 class indices into the rolling window. */
+void track_record(void) {
+    if (!sentai_tpu_is_ready() || sentai_tpu_num_outputs() < 1) return;
+    int sz = sentai_tpu_get_output_size(0);
+    const uint8_t* d = (const uint8_t*)sentai_tpu_get_output_data(0);
+    if (!d || sz <= 0) return;
+
+    int slot = s_track_idx % TRACK_WINDOW;
+    int chosen[TRACK_TOPN];
+    for (int rank = 0; rank < TRACK_TOPN; ++rank) {
+        int bi = -1, bv = -1;
+        for (int i = 0; i < sz; ++i) {
+            int already = 0;
+            for (int k = 0; k < rank; ++k) if (chosen[k] == i) { already = 1; break; }
+            if (already) continue;
+            int v = d[i];
+            if (v > bv) { bv = v; bi = i; }
+        }
+        chosen[rank] = bi;
+        s_track_hist[slot][rank] = bi;
+    }
+    s_track_idx++;
+    if (s_track_count < TRACK_WINDOW) s_track_count++;
+}
+
+static mp_obj_t sentai_pipeline_tracks_mp(void) {
+    /* Count how often each class appears in the window. */
+    int n_eff = s_track_count < TRACK_WINDOW ? s_track_count : TRACK_WINDOW;
+    int classes[TRACK_WINDOW * TRACK_TOPN];
+    int counts [TRACK_WINDOW * TRACK_TOPN];
+    int n_unique = 0;
+    for (int slot = 0; slot < n_eff; ++slot) {
+        for (int r = 0; r < TRACK_TOPN; ++r) {
+            int c = s_track_hist[slot][r];
+            if (c < 0) continue;
+            int found = -1;
+            for (int u = 0; u < n_unique; ++u) if (classes[u] == c) { found = u; break; }
+            if (found >= 0) counts[found]++;
+            else { classes[n_unique] = c; counts[n_unique] = 1; n_unique++; }
+        }
+    }
+    /* Emit qualifying entries unsorted; caller can sort by count. */
+    mp_obj_t out[16];
+    int n_out = 0;
+    for (int i = 0; i < n_unique && n_out < 16; ++i) {
+        if (counts[i] >= TRACK_MIN_HITS) {
+            mp_obj_t pair[2] = {
+                mp_obj_new_int(classes[i]),
+                mp_obj_new_int(counts[i]),
+            };
+            out[n_out++] = mp_obj_new_tuple(2, pair);
+        }
+    }
+    return mp_obj_new_tuple(n_out, out);
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(sentai_pipeline_tracks_obj, sentai_pipeline_tracks_mp);
+
+/* Reset track history (e.g., after model swap). */
+static mp_obj_t sentai_pipeline_track_reset_mp(void) {
+    s_track_idx = 0;
+    s_track_count = 0;
+    return mp_obj_new_int(0);
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(sentai_pipeline_track_reset_obj, sentai_pipeline_track_reset_mp);
+
 static const mp_rom_map_elem_t sentai_pipeline_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__),    MP_ROM_QSTR(MP_QSTR_pipeline) },
     { MP_ROM_QSTR(MP_QSTR_step),        MP_ROM_PTR(&sentai_pipeline_tick_obj) },
@@ -855,6 +990,9 @@ static const mp_rom_map_elem_t sentai_pipeline_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_running),     MP_ROM_PTR(&sentai_pipeline_running_obj) },
     { MP_ROM_QSTR(MP_QSTR_stats),       MP_ROM_PTR(&sentai_pipeline_stats_obj) },
     { MP_ROM_QSTR(MP_QSTR_target_fps),  MP_ROM_PTR(&sentai_pipeline_target_fps_obj) },
+    { MP_ROM_QSTR(MP_QSTR_predict),      MP_ROM_PTR(&sentai_pipeline_detect_obj) },
+    { MP_ROM_QSTR(MP_QSTR_tracks),      MP_ROM_PTR(&sentai_pipeline_tracks_obj) },
+    { MP_ROM_QSTR(MP_QSTR_infer_reset), MP_ROM_PTR(&sentai_pipeline_track_reset_obj) },
 };
 static MP_DEFINE_CONST_DICT(sentai_pipeline_globals, sentai_pipeline_globals_table);
 static const mp_obj_module_t sentai_pipeline_module = {
