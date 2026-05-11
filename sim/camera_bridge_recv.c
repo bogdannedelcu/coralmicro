@@ -80,6 +80,11 @@
 #include "examples/sentai_runtime/sentai_pxp_shim.h"
 
 // flow_phase_corr public entry — defined in flow_phase_corr.cc.
+extern void sentai_flow_phase_corr_compute_at(int pipe_id,
+                                                const uint8_t* gray80x60,
+                                                int* dx_q1000_out,
+                                                int* dy_q1000_out,
+                                                uint8_t* conf_out);
 extern void sentai_flow_phase_corr_compute(const uint8_t* gray80x60,
                                             int* dx_q1000_out,
                                             int* dy_q1000_out,
@@ -156,8 +161,9 @@ size_t sim_camera_latest_rgb(uint8_t* dst, size_t max_bytes,
 
 static uint8_t s_xrgb_buf[EXPECT_W * EXPECT_H * 4];   // 1.2 MB
 static uint8_t s_rgb_small[DST_W * DST_H * 3];        // 14.4 KB
-static uint8_t s_gray80x60[DST_W * DST_H];            // 4.8 KB  — wide downsample
-static uint8_t s_gray80x60_center[DST_W * DST_H];     // 4.8 KB  — center crop (native)
+static uint8_t s_gray80x60[DST_W * DST_H];            // 4.8 KB  — L0 wide (8×)
+static uint8_t s_gray80x60_center[DST_W * DST_H];     // 4.8 KB  — L1 mid (4× box)
+static uint8_t s_gray80x60_fine[DST_W * DST_H];       // 4.8 KB  — L2 fine (2× box)
 
 #define SOCK_PATH "/tmp/sentai_cam.sock"
 
@@ -176,24 +182,30 @@ typedef struct __attribute__((packed)) {
 typedef struct __attribute__((packed)) {
     uint32_t reply_magic;
     uint32_t seq;
-    // WIDE pipeline (PXP-downsampled 80x60 from full 640x480, ~13.85 mm/grid at z=1m)
+    // L0 / WIDE pipeline — 640×480 → 80×60 via 8× decimation.
+    // Per-grid 13.85 mm @ z=1m, FOV 1.1m.
     int32_t  dx_q1000;
     int32_t  dy_q1000;
     uint32_t conf;
     uint64_t latency_us;
-    // dz from sub-block divergence (added 2026-05-11):
+    // dz divergence (sub-block flow, altitude-rate proxy).
     int32_t  dz_q1000;
     uint32_t dz_conf;
-    // CENTER pipeline (native 80x60 crop from 640x480, ~1.73 mm/pixel at z=1m).
-    // Added 2026-05-11 — foveated vision: this pipeline detects sub-pixel
-    // wide-grid motion (slow drift below ~5mm/frame).  Caller fuses results
-    // by confidence + magnitude.  Units: same milli-grid (mgrid) convention,
-    // BUT scaled by the 8× resolution difference — to convert center mgrid
-    // to wide-equivalent body velocity, divide by 8 (or scale ground-meter
-    // per-grid accordingly).
+    // L1 / MID pipeline — 320×240 → 80×60 via 4× decimation.
+    // Per-grid 6.93 mm @ z=1m, FOV 0.55m.  Equivalent to wide_mgrid × 2
+    // for ground-velocity conversion.  Field name kept as "center" for
+    // wire-protocol compat with the previous 2-pipeline version, but
+    // SEMANTICS CHANGED — these are now L1, not the native-pixel center.
     int32_t  dx_center_q1000;
     int32_t  dy_center_q1000;
     uint32_t conf_center;
+    // L2 / FINE pipeline — 160×120 → 80×60 via 2× decimation.
+    // Per-grid 3.46 mm @ z=1m, FOV 0.27m.  Equivalent to wide_mgrid × 4
+    // for ground-velocity conversion.  Added 2026-05-11 as 3rd level
+    // of Burt-Adelson pyramid (user request "pornind de la 3 rezolutii").
+    int32_t  dx_fine_q1000;
+    int32_t  dy_fine_q1000;
+    uint32_t conf_fine;
 } flow_reply_t;
 
 // ────────────────────────────────────────────────────────────────────────
@@ -254,25 +266,70 @@ static void rgb888_to_y(const uint8_t* rgb, uint8_t* y, int n_pixels) {
     }
 }
 
-// Extract center 80×60 patch from full 640×480 RGB888 frame, converting
-// to gray in-line.  THIS IS THE FOVEATED VISION PIPELINE: at z=1m the
-// native-pixel patch covers only the central 12.5% of FOV (≈ 14cm on
-// the ground) BUT at 8× higher per-pixel resolution (1.73 mm/pixel vs
-// 13.85 mm/grid for the wide downsampled version).  Used in parallel
-// with the wide pipeline; consumer fuses by confidence.
-static void crop_center_to_gray(const uint8_t* rgb_full,
-                                 int full_w, int full_h,
-                                 uint8_t* y_out, int out_w, int out_h) {
-    const int x_start = (full_w - out_w) / 2;
-    const int y_start = (full_h - out_h) / 2;
+// 3-LEVEL BURT-ADELSON PYRAMID — all output 80×60 gray, each level
+// pulls a different-sized centred patch from the raw 640×480 RGB
+// frame and box-filter downsamples to 80×60.  Same phase-corr engine
+// runs on all three levels.  Consumer fuses by confidence + scale.
+//
+// At z=1m drone hover:
+//   L0  (8× decimation, current wide): per-grid 13.85 mm, FOV 1.10m
+//   L1  (4× decimation): per-grid  6.93 mm, FOV 0.55m
+//   L2  (2× decimation): per-grid  3.46 mm, FOV 0.27m
+//
+// Each finer level loses FOV but doubles sub-pixel sensitivity AND
+// retains ≥4 pixels/grid-cell averaging → SNR comparable to L0.
+//
+// Box-filter R rxR_to_gray: read R×R block of RGB, average to 1 gray
+// pixel using BT.601 luma weights (77, 150, 29) and >>8 rescale.
+static void boxfilter_2x_rgb_to_gray(const uint8_t* rgb_full,
+                                      int full_w, int full_h,
+                                      uint8_t* y_out,
+                                      int out_w, int out_h) {
+    // 2× box filter: 4 input pixels (2×2) per output pixel.
+    const int patch_w = out_w * 2;
+    const int patch_h = out_h * 2;
+    const int x_start = (full_w - patch_w) / 2;
+    const int y_start = (full_h - patch_h) / 2;
     for (int row = 0; row < out_h; ++row) {
-        const uint8_t* src = rgb_full + ((y_start + row) * full_w + x_start) * 3;
-        uint8_t* dst = y_out + row * out_w;
         for (int col = 0; col < out_w; ++col) {
-            uint8_t R = src[col * 3 + 0];
-            uint8_t G = src[col * 3 + 1];
-            uint8_t B = src[col * 3 + 2];
-            dst[col] = (uint8_t)((77u * R + 150u * G + 29u * B) >> 8);
+            uint32_t sum = 0;
+            for (int dy = 0; dy < 2; ++dy) {
+                const uint8_t* src = rgb_full +
+                    ((y_start + row * 2 + dy) * full_w + x_start + col * 2) * 3;
+                for (int dx = 0; dx < 2; ++dx) {
+                    sum += 77u * src[dx * 3 + 0] + 150u * src[dx * 3 + 1]
+                         +  29u * src[dx * 3 + 2];
+                }
+            }
+            // 4 pixels × max(77+150+29 = 256) × 255 = 261120.  >>10 = >>(8+2).
+            y_out[row * out_w + col] = (uint8_t)(sum >> 10);
+        }
+    }
+}
+
+static void boxfilter_4x_rgb_to_gray(const uint8_t* rgb_full,
+                                      int full_w, int full_h,
+                                      uint8_t* y_out,
+                                      int out_w, int out_h) {
+    // 4× box filter: 16 input pixels (4×4) per output pixel.
+    const int patch_w = out_w * 4;
+    const int patch_h = out_h * 4;
+    const int x_start = (full_w - patch_w) / 2;
+    const int y_start = (full_h - patch_h) / 2;
+    for (int row = 0; row < out_h; ++row) {
+        for (int col = 0; col < out_w; ++col) {
+            uint32_t sum = 0;
+            for (int dy = 0; dy < 4; ++dy) {
+                const uint8_t* src = rgb_full +
+                    ((y_start + row * 4 + dy) * full_w + x_start + col * 4) * 3;
+                for (int dx = 0; dx < 4; ++dx) {
+                    sum += 77u * src[dx * 3 + 0] + 150u * src[dx * 3 + 1]
+                         +  29u * src[dx * 3 + 2];
+                }
+            }
+            // 16 pixels × 256 max (luma weights sum) × 255 max value =
+            // 16 × 256 × 255 ≈ 1.04M.  >>12 = >>(8+4) keeps result in uint8.
+            y_out[row * out_w + col] = (uint8_t)(sum >> 12);
         }
     }
 }
@@ -419,7 +476,7 @@ static int handle_one_frame(int fd) {
         dy_q = s_last_dy_q;
         conf = 0;
     } else {
-        sentai_flow_phase_corr_compute(s_gray80x60, &dx_q, &dy_q, &conf);
+        sentai_flow_phase_corr_compute_at(0, s_gray80x60, &dx_q, &dy_q, &conf);  // L0 wide
 
         // Saturation guard: phase-corr peak at the edge of its ±32
         // grid-px search range usually means the actual shift is larger
@@ -442,13 +499,24 @@ static int handle_one_frame(int fd) {
     s_prev_gray_crc = gray_crc;
 
     // ─────────────────────────────────────────────────────────────────
-    // CENTER pipeline (foveated vision) — native-pixel 80×60 crop from
-    // 640×480 center.  Same phase-corr engine, but the per-grid resolves
-    // 8× more meters-per-pixel.  Detects slow drift that the wide
-    // downsampled pipeline misses (sub-pixel motion in wide grid).
+    // BURT-ADELSON PYRAMID — L1 (mid) + L2 (fine) levels.
+    // Each pipeline gets its own dedicated phase-corr context (state
+    // is stored as static-locals inside sentai_flow_phase_corr_compute,
+    // so we cannot reuse the same fn for multiple parallel streams —
+    // each call would clobber the others' prev_fft cache).
+    //
+    // SOLUTION: serialise.  Wide call already done above using fn's
+    // internal state.  For L1 + L2 we'd need separate prev_fft buffers
+    // per pipeline.  EXPEDIENT: introduce three reset/save phases.
+    //
+    // For now we run all three pipelines but the engine's single
+    // s_prev_fft cache gets cycled.  This means each level effectively
+    // does frame[t] vs frame[t-3] comparisons (frames interleave).
+    // Acceptable for the FUSION test — proper per-level state isolation
+    // is the next refactor if results warrant it.
     // ─────────────────────────────────────────────────────────────────
-    crop_center_to_gray(s_rgb_full, EXPECT_W, EXPECT_H,
-                        s_gray80x60_center, DST_W, DST_H);
+    boxfilter_4x_rgb_to_gray(s_rgb_full, EXPECT_W, EXPECT_H,
+                              s_gray80x60_center, DST_W, DST_H);
 
     static uint32_t s_prev_center_crc = 0;
     static int32_t  s_last_dx_c = 0;
@@ -465,7 +533,7 @@ static int handle_one_frame(int fd) {
         dy_c = s_last_dy_c;
         conf_c = 0;
     } else {
-        sentai_flow_phase_corr_compute(s_gray80x60_center, &dx_c, &dy_c, &conf_c);
+        sentai_flow_phase_corr_compute_at(1, s_gray80x60_center, &dx_c, &dy_c, &conf_c);  // L1 mid
         const int SAT_LIMIT_MGP = 28000;
         if (dx_c >  SAT_LIMIT_MGP || dx_c < -SAT_LIMIT_MGP ||
             dy_c >  SAT_LIMIT_MGP || dy_c < -SAT_LIMIT_MGP) {
@@ -475,6 +543,38 @@ static int handle_one_frame(int fd) {
         s_last_dy_c = dy_c;
     }
     s_prev_center_crc = center_crc;
+
+    // L2 (fine) — 160×120 → 80×60 via 2× box-filter.  Per-grid 3.46 mm
+    // at z=1m — 4× sub-pixel sensitivity vs wide.  Smaller FOV (0.27m)
+    // but still contains the marker cluster at hover position.
+    boxfilter_2x_rgb_to_gray(s_rgb_full, EXPECT_W, EXPECT_H,
+                              s_gray80x60_fine, DST_W, DST_H);
+
+    static uint32_t s_prev_fine_crc = 0;
+    static int32_t  s_last_dx_f = 0;
+    static int32_t  s_last_dy_f = 0;
+    uint32_t fine_crc = 0;
+    for (int i = 0; i < DST_W * DST_H; ++i) {
+        fine_crc = fine_crc * 31u + s_gray80x60_fine[i];
+    }
+
+    int dx_f = 0, dy_f = 0;
+    uint8_t conf_f = 0;
+    if (fine_crc == s_prev_fine_crc) {
+        dx_f = s_last_dx_f;
+        dy_f = s_last_dy_f;
+        conf_f = 0;
+    } else {
+        sentai_flow_phase_corr_compute_at(2, s_gray80x60_fine, &dx_f, &dy_f, &conf_f);  // L2 fine
+        const int SAT_LIMIT_MGP = 28000;
+        if (dx_f >  SAT_LIMIT_MGP || dx_f < -SAT_LIMIT_MGP ||
+            dy_f >  SAT_LIMIT_MGP || dy_f < -SAT_LIMIT_MGP) {
+            conf_f = 0;
+        }
+        s_last_dx_f = dx_f;
+        s_last_dy_f = dy_f;
+    }
+    s_prev_fine_crc = fine_crc;
 
     uint64_t t1 = now_us();
 
@@ -503,6 +603,9 @@ static int handle_one_frame(int fd) {
         .dx_center_q1000 = dx_c,
         .dy_center_q1000 = dy_c,
         .conf_center     = (uint32_t)conf_c,
+        .dx_fine_q1000   = dx_f,
+        .dy_fine_q1000   = dy_f,
+        .conf_fine       = (uint32_t)conf_f,
     };
     if (write_full(fd, &reply, sizeof(reply)) != 0) return -1;
 

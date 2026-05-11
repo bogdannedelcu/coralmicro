@@ -64,21 +64,26 @@ constexpr int CROP_OFF = (FLOW_GRAY_W - CROP_W) / 2;  // 8: skip 8 cols each sid
 // arm_cfft_f32 layout: interleaved real,imag pairs.
 // Buffer of N2 complex elements = 2 * N2 floats.
 static float s_window[N2]                __attribute__((section(".sdram_bss")));
-static float s_prev_fft[2 * N2]          __attribute__((section(".sdram_bss")));
+// PER-PIPELINE state arrays.  Up to FLOW_N_PIPES independent contexts
+// share the same algorithm but have isolated prev_fft + running-avg
+// caches, so the caller can drive a pyramid (L0, L1, L2…) without
+// state cross-contamination between levels.
+//
+// Storage: FLOW_N_PIPES × (32KB prev_fft + 32KB cross_spec_avg) = 192KB
+// total for 3 pipes.  Lives in SDRAM (sdram_bss section).
+#define FLOW_N_PIPES 4
+static float s_prev_fft[FLOW_N_PIPES][2 * N2]
+    __attribute__((section(".sdram_bss")));
+static int   s_have_prev_per[FLOW_N_PIPES] = {0};
+static float s_cross_spec_avg_per[FLOW_N_PIPES][2 * N2]
+    __attribute__((section(".sdram_bss")));
+static int   s_have_cross_avg_per[FLOW_N_PIPES] = {0};
+// Shared intermediates — written + read sequentially within one
+// compute() call, so no race between pipes (calls are serialised on
+// caller side).
 static float s_curr_fft[2 * N2]          __attribute__((section(".sdram_bss")));
 static float s_cross[2 * N2]             __attribute__((section(".sdram_bss")));
-// Cross-power spectrum snapshot (BEFORE iFFT) — Guizar-Sicairos needs
-// the frequency-domain representation to evaluate iFFT on a finer
-// grid around the integer peak.
 static float s_cross_spec[2 * N2]        __attribute__((section(".sdram_bss")));
-// Running-average cross-power spectrum.  Each frame contributes:
-//   s_cross_spec_avg = α · s_cross_spec + (1−α) · s_cross_spec_avg
-// Coherent averaging: at constant drift, signal phase is identical each
-// frame → builds up linearly; noise phase is random → averages to zero.
-// Effective SNR boost = √(1/α).  Used as input to both iFFT (peak search)
-// AND Guizar-Sicairos sub-pixel refinement.
-static float s_cross_spec_avg[2 * N2]    __attribute__((section(".sdram_bss")));
-static int   s_have_cross_avg = 0;       // first-touch flag
 // Pre-computed twiddle factors for Guizar-Sicairos.  We sample the
 // inverse-FFT at K fractional positions (-1 .. +1 pixels at 1/M
 // resolution) around the integer peak.  But peak position varies
@@ -93,7 +98,7 @@ static float s_gs_intermed[GS_K * N * 2] __attribute__((section(".sdram_bss")));
 // Output: K × K upsampled correlation surface (real part used for peak).
 static float s_gs_upsamp[GS_K * GS_K * 2] __attribute__((section(".sdram_bss")));
 
-static int  s_have_prev = 0;             // 0 = first call, no prev FFT yet
+// (per-pipe have_prev flags are in s_have_prev_per[] above)
 static int  s_initialized = 0;
 static const sentai_cfft_instance_f32* s_cfft = nullptr;
 
@@ -374,10 +379,17 @@ static int foroosh_q1000(float a, float b, float c) {
 // dx,dy are in milli-grid-pixels (1000 = 1 grid-px = 8 raw-px after
 // PXP downscale), same convention as SAD path -- so the rest of the
 // flow_task pipeline (deadband, conf-floor, publish) works unchanged.
-extern "C" void sentai_flow_phase_corr_compute(const uint8_t* gray80x60,
-                                                int* dx_q1000_out,
-                                                int* dy_q1000_out,
-                                                uint8_t* conf_out) {
+// 2026-05-11: refactored to take a pipe_id for pyramid-multi-instance
+// support.  Each pipe maintains independent prev_fft + cross_spec_avg.
+// Legacy entry-point sentai_flow_phase_corr_compute (no pipe_id) is
+// kept below as a wrapper that calls with pipe_id=0.
+extern "C" void sentai_flow_phase_corr_compute_at(int pipe_id,
+                                                   const uint8_t* gray80x60,
+                                                   int* dx_q1000_out,
+                                                   int* dy_q1000_out,
+                                                   uint8_t* conf_out) {
+    if (pipe_id < 0) pipe_id = 0;
+    if (pipe_id >= FLOW_N_PIPES) pipe_id = FLOW_N_PIPES - 1;
     s_call_seq++;
     // Pointer breadcrumbs: cast via uintptr_t so the same source file
     // builds on both 32-bit ARM and 64-bit SIM (truncating to low 32 bits
@@ -432,10 +444,10 @@ extern "C" void sentai_flow_phase_corr_compute(const uint8_t* gray80x60,
     fft2d(s_curr_fft, /*inverse=*/0);
     bc_log(0x31, 0);
 
-    if (!s_have_prev) {
+    if (!s_have_prev_per[pipe_id]) {
         bc_log(0x32, 0);
-        memcpy(s_prev_fft, s_curr_fft, sizeof(s_prev_fft));
-        s_have_prev = 1;
+        memcpy(s_prev_fft[pipe_id], s_curr_fft, sizeof(s_prev_fft[pipe_id]));
+        s_have_prev_per[pipe_id] = 1;
         bc_log(0x33, 0);
         return;
     }
@@ -447,8 +459,8 @@ extern "C" void sentai_flow_phase_corr_compute(const uint8_t* gray80x60,
     for (int i = 0; i < N2; ++i) {
         float cr = s_curr_fft[i * 2 + 0];
         float ci = s_curr_fft[i * 2 + 1];
-        float pr = s_prev_fft[i * 2 + 0];
-        float pi = s_prev_fft[i * 2 + 1];
+        float pr = s_prev_fft[pipe_id][i * 2 + 0];
+        float pi = s_prev_fft[pipe_id][i * 2 + 1];
         // curr * conj(prev) = (cr + i ci) * (pr - i pi)
         //                   = (cr*pr + ci*pi) + i (ci*pr - cr*pi)
         float xr = cr * pr + ci * pi;
@@ -476,7 +488,7 @@ extern "C" void sentai_flow_phase_corr_compute(const uint8_t* gray80x60,
         // Degraded mode: skip IFFT, return zeros (caller treats as
         // "no motion this frame").  Cache curr FFT so next frame can
         // try again.  Bounded recovery, no infinite retry.
-        memcpy(s_prev_fft, s_curr_fft, sizeof(s_prev_fft));
+        memcpy(s_prev_fft[pipe_id], s_curr_fft, sizeof(s_prev_fft[pipe_id]));
         return;
     }
 
@@ -498,20 +510,19 @@ extern "C" void sentai_flow_phase_corr_compute(const uint8_t* gray80x60,
     // (e.g., radar pulses on fixed target, astronomy stacking).  Doesn't
     // apply here.  Code path kept for adaptive-α experimentation later.
     const float ALPHA = 1.00f;
-    if (!s_have_cross_avg) {
-        memcpy(s_cross_spec_avg, s_cross_spec, sizeof(s_cross_spec_avg));
-        s_have_cross_avg = 1;
+    if (!s_have_cross_avg_per[pipe_id]) {
+        memcpy(s_cross_spec_avg_per[pipe_id], s_cross_spec,
+               sizeof(s_cross_spec_avg_per[pipe_id]));
+        s_have_cross_avg_per[pipe_id] = 1;
     } else {
         for (int i = 0; i < N2 * 2; ++i) {
-            s_cross_spec_avg[i] = ALPHA * s_cross_spec[i]
-                                + (1.0f - ALPHA) * s_cross_spec_avg[i];
+            s_cross_spec_avg_per[pipe_id][i] =
+                  ALPHA * s_cross_spec[i]
+                + (1.0f - ALPHA) * s_cross_spec_avg_per[pipe_id][i];
         }
     }
-    // Replace per-frame spec with running average for downstream use.
-    // s_cross (which will be iFFT'd) and s_cross_spec (Guizar input)
-    // both use the temporally-accumulated version.
-    memcpy(s_cross, s_cross_spec_avg, sizeof(s_cross));
-    memcpy(s_cross_spec, s_cross_spec_avg, sizeof(s_cross_spec));
+    memcpy(s_cross, s_cross_spec_avg_per[pipe_id], sizeof(s_cross));
+    memcpy(s_cross_spec, s_cross_spec_avg_per[pipe_id], sizeof(s_cross_spec));
 
     // Step 4: inverse 2D FFT -> real correlation surface.
     bc_log(0x50, 0);
@@ -579,15 +590,26 @@ extern "C" void sentai_flow_phase_corr_compute(const uint8_t* gray80x60,
     bc_log(0x70, ((uint32_t)(uint16_t)dy_q << 16) | (uint32_t)(uint16_t)dx_q);
 
     // Step 5: cache curr FFT as prev for next frame.
-    memcpy(s_prev_fft, s_curr_fft, sizeof(s_prev_fft));
+    memcpy(s_prev_fft[pipe_id], s_curr_fft, sizeof(s_prev_fft[pipe_id]));
     bc_log(0x71, 0);
+}
+
+// Legacy entry point — calls into pipe_id=0 (single-instance compat).
+extern "C" void sentai_flow_phase_corr_compute(const uint8_t* gray80x60,
+                                                int* dx_q1000_out,
+                                                int* dy_q1000_out,
+                                                uint8_t* conf_out) {
+    sentai_flow_phase_corr_compute_at(0, gray80x60,
+                                       dx_q1000_out, dy_q1000_out, conf_out);
 }
 
 // Reset cached state.  Call at flow.start() to drop stale prev FFT.
 extern "C" void sentai_flow_phase_corr_reset(void) {
-    s_have_prev = 0;
+    for (int p = 0; p < FLOW_N_PIPES; ++p) {
+        s_have_prev_per[p] = 0;
+        s_have_cross_avg_per[p] = 0;
+    }
     s_have_prev_subblocks = 0;
-    s_have_cross_avg = 0;   // 2026-05-11: also drop the running-avg spec
 }
 
 // ─────────────────────────────────────────────────────────────────────────

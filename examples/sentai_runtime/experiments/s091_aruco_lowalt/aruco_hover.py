@@ -70,15 +70,20 @@ SENSOR_FLOW_SIM        = 6
 # must be rebuilt for this protocol revision.
 FLOW_OUT_SOCK    = "/tmp/sentai_flow_out.sock"
 REPLY_MAGIC      = 0x46524C31   # 'FRL1'
-REPLY_FMT        = "<IIiiIQiIiiI"  # +dx_c +dy_c +conf_c at tail
+REPLY_FMT        = "<IIiiIQiIiiIiiI"  # +L1 (mid, center fields) +L2 (fine)
 REPLY_SZ         = struct.calcsize(REPLY_FMT)
-assert REPLY_SZ == 48, f"unexpected REPLY_SZ={REPLY_SZ}"
+assert REPLY_SZ == 60, f"unexpected REPLY_SZ={REPLY_SZ}"
 
-# Center-pipeline scaling: 8× more pixels per ground-meter than wide.
-# To convert center mgrid → wide-equivalent mgrid, multiply by 1/8.
-# This makes dpx/dpy from center pipe directly compatible with the
-# existing flow_to_dpixel scaling that assumes wide-grid units.
-CENTER_TO_WIDE_RATIO = 1.0 / 8.0
+# Pyramid scale ratios — fine-grained mgrid in each level corresponds to
+# different physical ground motion.  Convert each level's mgrid to the
+# wide-equivalent (L0) reference by dividing.  Per-grid:
+#   L0  (8× decimation): 13.85 mm/grid @ z=1m  (reference)
+#   L1  (4× decimation):  6.93 mm/grid  → L1 mgrid × 0.5 = L0 mgrid
+#   L2  (2× decimation):  3.46 mm/grid  → L2 mgrid × 0.25 = L0 mgrid
+L1_TO_L0_RATIO = 0.5    # mid → wide-equivalent
+L2_TO_L0_RATIO = 0.25   # fine → wide-equivalent
+# Back-compat alias (some code may still reference CENTER_TO_WIDE_RATIO).
+CENTER_TO_WIDE_RATIO = L1_TO_L0_RATIO
 
 # Test parameters
 # Climb rapid to 1.0m — at 0.5m drone is too low and small drifts push
@@ -173,7 +178,8 @@ def flow_forwarder(stop_evt: threading.Event, cf, stats: dict) -> None:
             while len(buf) >= REPLY_SZ:
                 rec, buf = buf[:REPLY_SZ], buf[REPLY_SZ:]
                 (magic, seq, dx, dy, conf, lat, dz, dz_conf,
-                 dx_c, dy_c, conf_c) = struct.unpack(REPLY_FMT, rec)
+                 dx_c, dy_c, conf_c,
+                 dx_f, dy_f, conf_f) = struct.unpack(REPLY_FMT, rec)
                 if magic != REPLY_MAGIC:
                     idx = buf.find(struct.pack("<I", REPLY_MAGIC))
                     buf = buf[idx:] if idx >= 0 else b""
@@ -195,14 +201,39 @@ def flow_forwarder(stop_evt: threading.Event, cf, stats: dict) -> None:
                 # to wide-equivalent units and use it.  Else fall back to
                 # wide.  This makes slow drift visible without sacrificing
                 # fast-motion tracking.
-                use_center = (conf_c >= conf and conf_c >= 64
-                              and abs(dx_c) < 24000 and abs(dy_c) < 24000)
-                if use_center:
-                    dx_eff = int(dx_c * CENTER_TO_WIDE_RATIO)
-                    dy_eff = int(dy_c * CENTER_TO_WIDE_RATIO)
-                    conf_eff = conf_c
+                # 3-way fusion: pick highest-conf pipeline among the
+                # three levels (after scaling each level's mgrid to L0
+                # wide-equivalent units).  Each level has a saturation
+                # band determined by its grid coverage — finer levels
+                # saturate at smaller body motion.
+                candidates = []
+                if conf > 0 and abs(dx) < 28000 and abs(dy) < 28000:
+                    candidates.append((conf, dx, dy, "L0"))
+                if conf_c > 0 and abs(dx_c) < 24000 and abs(dy_c) < 24000:
+                    candidates.append((conf_c,
+                                       int(dx_c * L1_TO_L0_RATIO),
+                                       int(dy_c * L1_TO_L0_RATIO),
+                                       "L1"))
+                if conf_f > 0 and abs(dx_f) < 24000 and abs(dy_f) < 24000:
+                    candidates.append((conf_f,
+                                       int(dx_f * L2_TO_L0_RATIO),
+                                       int(dy_f * L2_TO_L0_RATIO),
+                                       "L2"))
+                if candidates:
+                    # Highest-confidence wins.
+                    candidates.sort(key=lambda c: c[0], reverse=True)
+                    _, dx_eff, dy_eff, used_level = candidates[0]
+                    conf_eff = candidates[0][0]
                 else:
                     dx_eff, dy_eff, conf_eff = dx, dy, conf
+                    used_level = "L0_fallback"
+                # Stats per-pipeline for post-run analysis
+                stats.setdefault("pp", []).append({
+                    "L0_dx": dx, "L0_dy": dy, "L0_conf": conf,
+                    "L1_dx": dx_c, "L1_dy": dy_c, "L1_conf": conf_c,
+                    "L2_dx": dx_f, "L2_dy": dy_f, "L2_conf": conf_f,
+                    "used": used_level,
+                })
                 dpx, dpy = flow_to_dpixel(dx_eff, dy_eff)
                 std = flow_conf_to_std(conf_eff)
                 pk = CRTPPacket()
@@ -400,6 +431,31 @@ def main() -> int:
     print(f"PASS z_rms<12cm : {'YES' if pass_z else 'no'}", file=sys.stderr)
     print(f"PASS flow>=5Hz  : {'YES' if pass_flow else 'no'}", file=sys.stderr)
 
+    # 3-pipeline pyramid stats
+    pp = flow_stats.get("pp", [])
+    import statistics as _s
+    def _stats(key_conf, key_dx, key_dy, name):
+        confs = [r[key_conf] for r in pp]
+        zeros = sum(1 for c in confs if c == 0)
+        mags = [max(abs(r[key_dx]), abs(r[key_dy])) for r in pp]
+        avg_conf = _s.mean(confs) if confs else 0
+        med_mag = _s.median(mags) if mags else 0
+        print(f"{name:>4}: avg_conf={avg_conf:5.1f}  conf=0 in "
+              f"{zeros}/{len(pp)} ({zeros/max(1,len(pp))*100:.1f}%)  "
+              f"median |mag|={med_mag:.0f}", file=sys.stderr)
+        return avg_conf, zeros / max(1, len(pp)) * 100
+    used_counts = {}
+    for r in pp:
+        used_counts[r.get("used", "?")] = used_counts.get(r.get("used", "?"), 0) + 1
+    print(f"\n=== PER-PIPELINE FLOW STATS ===", file=sys.stderr)
+    print(f"records       : {len(pp)}", file=sys.stderr)
+    print(f"fusion picks  : "
+          + ", ".join(f"{k}={v}/{len(pp)}" for k, v in sorted(used_counts.items())),
+          file=sys.stderr)
+    L0_avg, L0_zpct = _stats("L0_conf", "L0_dx", "L0_dy", "L0")
+    L1_avg, L1_zpct = _stats("L1_conf", "L1_dx", "L1_dy", "L1")
+    L2_avg, L2_zpct = _stats("L2_conf", "L2_dx", "L2_dy", "L2")
+
     LOG_PATH.write_text(json.dumps({
         "target_z_m": TARGET_Z_M,
         "hover_s": HOVER_S,
@@ -415,6 +471,14 @@ def main() -> int:
         "pass_all": all([pass_dist, pass_4det, pass_anydet, pass_z, pass_flow]),
         "_last_run": time.strftime("%Y-%m-%dT%H:%M:%S"),
         "samples": samples,
+        "pipeline_stats": {
+            "n_records": len(pp),
+            "fusion_picks": used_counts,
+            "L0_avg_conf": L0_avg, "L0_zero_pct": L0_zpct,
+            "L1_avg_conf": L1_avg, "L1_zero_pct": L1_zpct,
+            "L2_avg_conf": L2_avg, "L2_zero_pct": L2_zpct,
+        },
+        "pipeline_records": pp,
     }, indent=2))
     print(f"[hover] log → {LOG_PATH}", file=sys.stderr)
     return 0 if all([pass_dist, pass_4det, pass_anydet, pass_z, pass_flow]) else 1

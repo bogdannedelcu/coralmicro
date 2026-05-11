@@ -77,15 +77,18 @@ struct Header {
 struct Reply {
     uint32_t reply_magic;
     uint32_t seq;
-    int32_t  dx_q1000;
+    int32_t  dx_q1000;          // L0 wide
     int32_t  dy_q1000;
     uint32_t conf;
     uint64_t latency_us;
-    int32_t  dz_q1000;        // 2026-05-11 — micro/frame altitude rate
+    int32_t  dz_q1000;          // sub-block divergence
     uint32_t dz_conf;
-    int32_t  dx_center_q1000; // 2026-05-11 — foveated center-patch flow
+    int32_t  dx_center_q1000;   // L1 mid (320→80)
     int32_t  dy_center_q1000;
     uint32_t conf_center;
+    int32_t  dx_fine_q1000;     // L2 fine (160→80) — 2026-05-11
+    int32_t  dy_fine_q1000;
+    uint32_t conf_fine;
 };
 #pragma pack(pop)
 
