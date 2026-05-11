@@ -1187,6 +1187,69 @@ literature.  Sources consulted during s090 development:
 - Robotics Knowledgebase: Visual Servoing.
   <https://roboticsknowledgebase.com/wiki/state-estimation/visual-servoing/>
 
+### Firmware-side capabilities we found but haven't fully exploited
+
+Audit done 2026-05-11 after the s090 run to check whether
+MotionCommander or cf2 firmware does anything clever we're not using.
+
+**MotionCommander (cflib client-side)** is a thin wrapper.  It runs a
+background thread that streams `send_hover_setpoint` packets at 10 Hz
+with the current commanded velocity, plus convenience primitives
+(`take_off`, `land`, `start_forward`, `circle_left`, etc.).  No
+de-rotation, no smart pose handling, nothing magical — what we send
+goes straight through.
+
+**`cf2/src/modules/src/kalman_core/mm_flow.c` IS doing gyro
+de-rotation on flow** — and it's the firmware-side equivalent of what
+we do offboard with `attitude_compensate()` on bbox.  Formula:
+
+```c
+omegax_b = gyro->x * DEG_TO_RAD;
+omegay_b = gyro->y * DEG_TO_RAD;
+predictedNX = (dt * Npix / thetapix) * ((dx_g * R[2][2] / z_g) - omegay_b);
+predictedNY = (dt * Npix / thetapix) * ((dy_g * R[2][2] / z_g) + omegax_b);
+```
+
+The `-omegay_b` and `+omegax_b` terms subtract the pixel motion
+contributed by body rotation, isolating the translation-induced flow
+which the EKF then integrates into velocity.  **Confirms our flow
+injection via SENSOR_FLOW_SIM is processed correctly** — the firmware
+itself handles attitude wobble.
+
+For the **bbox detection path**, the firmware does NOTHING — bbox
+lives entirely offboard.  Our `attitude_compensate()` in
+hover_over_cat.py is necessary.
+
+**Three things to explore next**:
+
+1. **`kalman_pred.predNX/predNY` log vars** — already exposed by cf2.
+   We can subscribe via cflib log and CROSS-CHECK live against our
+   measured/injected flow.  If `predNX` diverges from injected `dpx`,
+   it means our flow signs / scale are wrong.  Free continuous-time
+   diagnostic, costs nothing to add.  `_t_flow_to_drone.py` on HW
+   already uses this via the CH_TELEM channel.
+
+2. **`flowdeck.flowdeckPos_{x,y,z}` PARAMs** — lever-arm offsets for
+   the flow deck relative to drone CoM.  Default=0; if our gz cam SDF
+   has the camera off-CoM, the EKF should know.  Formula from
+   `_t_flow_to_drone.py`:
+
+   ```
+   v_cam_bx_add = omega_y * pos_z - omega_z * pos_y
+   v_cam_by_add = omega_z * pos_x - omega_x * pos_z
+   ```
+
+   Setting these correctly reduces yaw-rate-induced apparent flow.
+   Currently low-priority (our drone hovers with negligible yaw) but
+   would matter for spin manoeuvres.
+
+3. **`cf.commander.send_velocity_world_setpoint(vx, vy, vz, yawrate)`**
+   — world-frame velocity instead of body.  With drone yaw drift, body
+   cmds rotate against the world; world cmds + a host-side
+   `world ← body` transformation using `stateEstimate.yaw` are robust
+   to yaw drift.  For s090 we have yaw≈0 throughout so the upgrade is
+   academic, but a moving-target experiment would want this.
+
 ### Open work
 
 - **Full rotation homography** for tilt compensation (we use

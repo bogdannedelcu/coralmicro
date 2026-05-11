@@ -6320,3 +6320,90 @@ Implications for SIM `sentai.pipeline` (Phase 5.6):
    STANDARD model first (mobilenet_v1 classification, then maybe
    yolo5_256 with full Detect head), then come back for iarna.
 
+
+## Session 2026-05-11 — s090 hover-over-cat CLOSED-LOOP SHIPPED
+
+End-to-end SIM demo: drone takes off via MotionCommander, climbs to
+2.5m, detects ImageNet cat picture on ground via SSD MobileNet V2 +
+SORT, navigates toward it using tilt-compensated bbox-error → body
+velocity, while sentai.flow phase-corr feeds the cf2 EKF as
+`SENSOR_FLOW_SIM` packets at ~10 Hz.  First time we got drone within
+~10-25 cm of a visually-detected ground target with the full pipeline
+active.
+
+**Result artifacts saved at**
+`examples/sentai_runtime/experiments/s090_hover_over_cat/results_20260511/`:
+- `run.mp4` (717 KB, 17.6 s, 5 fps, baseline H.264 — VLC-playable)
+- `state.tsv` (17 cols, 5 Hz)
+- `flight.tsv` (7 cols, 50 Hz, cf2 EKF state)
+- 3 key annotated PNGs (frame_600 cat-locked, frame_900 centering,
+  frame_1200 landing)
+- `hover.log` + `hover_sim.log`
+- `README.md` documenting numbers + reproduction recipe
+
+**Code shipped** (Sim.md §10j has the full recipe):
+
+1. **CrazySim cf2 firmware patches** — `bogdannedelcu/crazysim-crazyflie-firmware`
+   branch `sentai-flow-sim-support`:
+   - `sensors_sitl.c::SENSOR_FLOW_SIM` extended to accept stdDev from
+     packet (17-byte form), legacy 13-byte still falls back to 2.0 px
+   - `kalman_core.c` propwash fix (port from real firmware)
+   - `estimator_kalman.c` `KALMAN_USE_BARO_UPDATE` enabled (idem)
+
+2. **coralmicro `examples/sentai_runtime/experiments/s090_hover_over_cat/`**:
+   - `hover_over_cat.py` — host orchestrator, MotionCommander control,
+     attitude-compensated bbox, flow → cf2 forwarder, per-experiment
+     disk artifacts
+   - `hover_logic.py` — MicroPython controller running inside
+     `sentai_sim` REPL.  17-field STATE emitted with gz frame seq.
+   - `overlay_frames.py` — post-run static bbox overlay tool
+   - `make_video.py` — post-run MP4 builder with HUD + bbox
+   - `README.md` — reproduction recipe + pass criteria
+   - `results_20260511/` — committed artifacts from validation run
+
+3. **`sim/main_sim.c`** — native `mp_lexer_new_from_file` +
+   `mp_import_stat` routed through `sim_fs_resolve()`.  Lets
+   `import hover_logic` stream the .py file via the lexer (no
+   `exec(read_str())` source-string heap copy).  Matches the ARM
+   FileX import path semantically.
+
+4. **`sim/modsentai_sim.c`** — `sentai.pipeline.*` bindings (tracker
+   bridging to SORT C++), `sentai.flow.read()` returning 7-tuple with
+   seq for overlay sync.  Un-staticed `sim_fs_root()` /
+   `sim_fs_resolve()` so `main_sim.c` can use them.
+
+5. **`sim/camera_bridge_recv.c`** — optional frame dump via
+   `SENTAI_DUMP_FRAMES_DIR` env var (SIM-only — file is in `sim/` tree
+   and never compiled on ARM).
+
+6. **Sim.md §10g..§10j** — four new sections documenting:
+   - §10g: hover-over experiment best practices
+   - §10h: flow + commanded-velocity integration patterns (paper refs)
+   - §10i: disk-first experiment artifacts rule
+   - §10j: consolidated s090 recipe + 8 distilled best practices +
+     full paper reference list (15+ sources)
+
+**Key bug fixes en route** (all in §10j):
+- EKF reset post-stabilizer-flip (×3.4 lift in LOCK events)
+- MotionCommander instead of raw send_hover_setpoint (drone responds
+  to lateral velocity setpoints)
+- Sign convention for cam0+vflip=1: `vx=+err_y*GAIN, vy=+err_x*GAIN`
+  (three iterations to nail empirically — always verify against world
+  pose, don't trust documentation)
+- 17-field STATE with `fseq` (gz frame seq) for strict overlay matching
+  (the index-ratio fallback produced bboxes shifted 30+ frames of
+  detection lag — invisible until rendered)
+- Per-experiment self-contained directory with PPMs + state.tsv +
+  flight.tsv + logs + MP4
+
+**Drone trajectory** (cat at world (+0.4, -0.3)):
+- Final pose: X +0.66m, Y -0.42m, Z +0.13m (post-landing)
+- During hover: X reached +0.90, Y reached -0.75 (overshoot)
+- Within ~10-25 cm of target on the hover plateau
+
+**Did NOT need (deliberately)**:
+- RL / policy training (classical IBVS + PID is sufficient per
+  literature)
+- Absolute position source (UWB/MOCAP) — flow + bbox is enough
+- `app_sentai_bridge` on cf2 SITL (the `SENSOR_FLOW_SIM` channel in
+  `sensors_sitl.c` is the SITL equivalent of the HW UART2 bridge)
