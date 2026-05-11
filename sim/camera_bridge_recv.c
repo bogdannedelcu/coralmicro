@@ -519,20 +519,33 @@ static int handle_one_frame(int fd) {
     // produces fresh frames so the duplicate path never fires — but the
     // code stays inert there, no behaviour change).
     // ─────────────────────────────────────────────────────────────────
-    static uint32_t s_prev_gray_crc = 0;
+    // 2026-05-11 CRITICAL FIX: duplicate detection was running on the
+    // DOWNSAMPLED 80×60 gray buffer.  At z=1m, the 8× decimation
+    // averages 14mm of ground per output pixel, so any sub-14mm
+    // drone motion produces IDENTICAL downsampled output even though
+    // the raw 640×480 RGB has 50-80% pixels differing.  Phase-corr
+    // was reporting conf=0 on real but small motion (2-4cm/s slow
+    // drift = ~2mm/frame = invisible at 80×60).
+    //
+    // FIX: check duplicate on the RAW 640×480 RGB instead.  Detects
+    // ONLY truly identical frames (pre-takeoff / paused gz / etc.).
+    // Cost: ~50K hash ops on 921600 bytes = ~150µs.  Worth it.
+    static uint32_t s_prev_rgb_crc = 0;
     static int32_t  s_last_dx_q = 0;
     static int32_t  s_last_dy_q = 0;
     uint32_t gray_crc = 0;
-    for (int i = 0; i < DST_W * DST_H; ++i) {
-        gray_crc = gray_crc * 31u + s_gray80x60[i];
+    // Sparse sample of raw RGB (every 19th byte) for cheap CRC.
+    for (size_t i = 0; i < expected_bytes; i += 19) {
+        gray_crc = gray_crc * 31u + s_rgb_full[i];
     }
 
     int dx_q = 0, dy_q = 0, dz_q = 0;
     uint8_t conf = 0, dz_conf = 0;
 
-    if (gray_crc == s_prev_gray_crc) {
-        // Duplicate frame — re-use previous result with conf=0 so the
-        // EKF treats it as a low-confidence interpolation between renders.
+    if (gray_crc == s_prev_rgb_crc) {
+        // True duplicate frame (raw RGB byte-identical) — re-use
+        // previous result with conf=0 so the EKF down-weights this
+        // sample.  Happens during pre-takeoff or gz render pauses.
         dx_q = s_last_dx_q;
         dy_q = s_last_dy_q;
         conf = 0;
@@ -557,7 +570,7 @@ static int handle_one_frame(int fd) {
         // Cheap extra: 4× length-32 phase-corr ≈ 0.6 ms on x86.
         sentai_flow_phase_corr_compute_dz(s_gray80x60, &dz_q, &dz_conf);
     }
-    s_prev_gray_crc = gray_crc;
+    s_prev_rgb_crc = gray_crc;
 
     // ─────────────────────────────────────────────────────────────────
     // BURT-ADELSON PYRAMID — L1 (mid) + L2 (fine) levels.
