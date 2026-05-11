@@ -191,7 +191,9 @@ def flow_conf_to_std(conf: int) -> float:
 # ── mission tuning ─────────────────────────────────────────────────────
 TARGET_CLASS   = 16
 IMG_W, IMG_H   = 300, 300
-TARGET_Z       = 2.5   # higher altitude → larger FOV → easier to see cat picture
+TARGET_Z       = float(os.environ.get("HOVER_TARGET_Z", "2.5"))
+# Env-configurable so the altitude-normalization claim (gains
+# learned at z=2.5 work at any z) can be validated experimentally.
 GATE_Z         = 0.30
 GAIN_M_PER_PX  = 0.004
 V_MAX          = 0.20

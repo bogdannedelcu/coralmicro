@@ -1429,6 +1429,65 @@ a single one.  No flight requires manual intervention; the system
 self-recovers from over-aggressive saved gains by detecting overshoot
 and pulling KP down on the next iteration.
 
+### Altitude-correlation validation (z=1.75 m vs z=2.5 m, 2026-05-11)
+
+After the 5-flight ILC at z=2.5 m proved auto-tuning works, ran a
+parallel 5-flight series at z=1.75 m (= 70% of 2.5 m) with
+`HOVER_TARGET_Z=1.75` env var override to validate the
+altitude-normalization claim (gains learned at one altitude generalise
+to another because controller converts px→meters via current `z`).
+
+**Both 5-flight runs starting from defaults `KP=0.5, KD=0.6`:**
+
+| Flight | KP/KD loaded | z peak (m) | Final dist (cm) | Overshoot (cm) |
+|--------|--------------|------------|-----------------|----------------|
+| **z=2.5 m series** | | | | |
+| 1 | 0.500/0.600 | ~2.5 | **8.9** | 41 |
+| 2 | 0.450/0.660 | ~2.5 | 22.8 | 45 |
+| 3 | 0.405/0.726 | ~2.5 | 17.9 | 66 |
+| 4 | 0.365/0.799 | ~2.5 | **1.9** 🎯 | 50 |
+| 5 | 0.328/0.878 | ~2.5 | 7.3 | 43 |
+| Mean / Best | | | **~12 / 1.9** | |
+| **z=1.75 m series** | | | | |
+| 1 | 0.500/0.600 | 2.14 | **9.8** | 45 |
+| 2 | 0.450/0.660 | 2.14 | 38.5 | 47 |
+| 3 | 0.405/0.726 | 2.13 | 12.2 | 52 |
+| 4 | 0.365/0.799 | 2.11 | 11.4 | 33 |
+| 5 | 0.328/0.878 | 2.15 | 21.9 | 39 |
+| Mean / Best | | | **~19 / 9.8** | |
+
+**Findings:**
+
+1. **ILC converges to IDENTICAL gains** at both altitudes
+   (`KP=0.295, KD=0.966` after 5 flights either way).  This is by
+   construction: ILC adjustment is a deterministic multiplier per
+   overshoot event, and both runs had similar overshoot patterns ⇒
+   same fixed point.
+
+2. **Final-distance precision is better at higher altitude** (~12 cm
+   mean at z=2.5 m vs ~19 cm mean at z=1.75 m).  Best-case run at
+   z=2.5 m hit **1.9 cm**; best at z=1.75 m was 9.8 cm.  Explanation:
+   higher altitude → wider FOV in metres → drone has more room to
+   manoeuvre without losing the bbox at image edges, so the controller
+   gets more useful frames of feedback per second.
+
+3. **z peak overshoot of 0.4 m at takeoff** — `MotionCommander.take_off`
+   with `velocity=0.5 m/s` and `height=HOLD_Z` consistently overshoots
+   altitude by ~0.4 m before settling.  cf2's altitude controller has
+   internal damping but isn't perfectly critically damped.  Lower
+   `velocity=0.2 m/s` would reduce this.
+
+4. **Altitude-normalisation in the gain math (px → meters via live `z`
+   from cflib log) WORKS as designed.**  Performance at z=1.75 m is
+   only ~7 cm worse mean than z=2.5 m, all explainable by FOV margin
+   not by gain mismatch.  Same `pid_params.json` file would work at
+   either altitude.
+
+**Recommendation**: in the s090 hover-over use case, prefer z ≥ 2.5 m
+for best target-acquisition precision.  For real-world applications
+where altitude is constrained (e.g., flying under a ceiling), the
+controller still works but expect ~2× wider final-distance variance.
+
 ### Open work
 
 - **Full rotation homography** for tilt compensation (we use

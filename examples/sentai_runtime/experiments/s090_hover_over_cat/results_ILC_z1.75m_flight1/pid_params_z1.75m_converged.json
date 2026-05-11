@@ -1,0 +1,20 @@
+{
+  "KP_M": 0.2952450000000001,
+  "KD_M": 0.9663060000000003,
+  "V_MAX_M": 0.2,
+  "OVERSHOOT_TARGET_M": 0.2,
+  "OVERSHOOT_HIGH_M": 0.4,
+  "FINAL_DIST_TIGHT_M": 0.15,
+  "FINAL_DIST_LOOSE_M": 0.3,
+  "KP_ADJUST_RATE": 0.1,
+  "KD_ADJUST_RATE": 0.1,
+  "KP_MIN": 0.2,
+  "KP_MAX": 0.9,
+  "KD_MIN": 0.3,
+  "KD_MAX": 1.2,
+  "_last_overshoot_x_m": 1.1564,
+  "_last_overshoot_y_m": 0.8584,
+  "_last_final_dist_m": 0.1399,
+  "_last_run": "2026-05-11T13:23:07",
+  "_stable_at_end": false
+}
