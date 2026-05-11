@@ -1,6 +1,10 @@
 // ============== sentai.pipeline — Continuous detection pipeline =============
 // This file is #include'd from modsentai.c — do NOT compile separately.
 
+// SIM-only extra QSTRs (zero cost on ARM, makes them visible in the
+// shared genhdr/qstrdefs.generated.h so sim/modsentai_sim.c can use them).
+#include "qstrdefs_sim_extra.h"
+
 // Extern declarations for detection_task.cc functions
 extern int sentai_detection_start(int conf_permil, int iou_permil, int max_dets);
 extern int sentai_detection_stop(void);

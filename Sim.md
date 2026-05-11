@@ -668,6 +668,120 @@ the FFTW3-backed `sentai_cfft_sR_f32_len32` instance.
 Cost: 4× length-32 phase-corrs ≈ 1.6 ms on M7 @ 800 MHz, 0.6 ms on x86
 — well inside the 33 ms / 30 fps budget.
 
+## 10e2. sentai.flow → cf2 EKF wire (SIM, 2026-05-11)
+
+**On HW**: `_t_flow_to_drone.py` (board) reads `sentai.flow.read()` →
+converts to PMW3901 dpixel → ships `flow_pkt_t` over UART2 CRTP ch=1 →
+`app_sentai_bridge` deck driver receives → `estimatorEnqueueFlow()`.
+
+**In SIM**: same algorithm, different transport.  CrazySim cf2
+firmware **already has** the SITL-side flow ingest path —
+`src/hal/src/sensors_sitl.c` listens on `CRTP_PORT_SETPOINT_SIM = 0x09`
+for packets where `data[0] == SENSOR_FLOW_SIM (=6)`, decodes
+`[dpx f32 LE, dpy f32 LE, dt f32 LE]`, calls `estimatorEnqueueFlow()`
+identically.  **No `app_sentai_bridge` build needed in SIM** — the
+UART2 transport doesn't exist anyway, and the SITL HAL already
+provides equivalent receive.
+
+What we wired up:
+
+- **CrazySim cf2 driver-side patches (parity with HW firmware)**:
+  - `kalman_core.c`: propwash fix on `baroReferenceHeight` capture
+    (commit 53d72897 from `bogdannedelcu/crazyflie-firmware` ported).
+    Without this, baseline gets corrupted at takeoff and altitude hold
+    is unstable.
+  - `estimator_kalman.c`: enable `KALMAN_USE_BARO_UPDATE` (commit
+    2b7661c5).  Required for stable altitude hold with optical-flow
+    feeding the EKF.
+- **Host-side sender** in `experiments/s090_hover_over_cat/hover_over_cat.py`:
+  - hover_logic.py emits `STATE=` with raw `dx_q1000`, `dy_q1000` in the
+    last 2 fields (read from `sentai.flow.read()`).
+  - Host wrapper consumes via queue, applies `_to_body_dpx` (cam0+vflip=1
+    `body_xform=(-1,0,0,+1)`), scales by `_FLOW_SCALE_X/Y` derived from
+    sensor FOV vs drone PMW3901 geometry (matches `_t_flow_to_drone.py`
+    on HW exactly), then `cf.send_packet(port=0x09, channel=0,
+    data=struct.pack("<Bfff", 6, dpx, dpy, dt))`.
+- **Tracking + hover algorithm is decoupled**.  hover_logic.py does NOT
+  use flow data in its controller — pure bbox-centroid pixel-error →
+  body velocity command.  Flow stabilises the drone via cf2's own EKF
+  consumer; it's an independent path running on the same camera frames.
+
+**Validation (2026-05-11, this session, build #38)**:
+
+| Metric | No flow | With sentai.flow → cf2 |
+|--------|---------|------------------------|
+| Drift after 30 s hover @ 1 m | +0.41 m Y | **+0.015 m Y (×27 reduction)** |
+| Flow packets to cf2 | 0 | 136 |
+| LOCK events (SSD detections) | 139 | 122 |
+| Drone final pose | (0.203, −0.427, 0.015) | (−0.004, +0.015, 0.015) |
+
+cf2 receives flow, EKF locks position, drone stays put when commanded
+to hover.  hover-over algorithm sends body-velocity commands on top —
+they get partially absorbed by the EKF stationkeeping, so visible
+position chasing is reduced versus open-loop.  Net behaviour: tight
+hold with detection-driven small nudges (matches expected closed-loop
+PMW3901 + SSD coexistence).
+
+## 10f. Native `import` from the SIM virtual FS (best practice, 2026-05-11)
+
+**Rule: ship Python helpers as importable modules in the SIM virtual FS,
+not as `exec(sentai.fs.read_str("foo.py"))` source-string blobs.**
+
+What changed in 2026-05-11 build:
+
+- `sim/main_sim.c` now provides real `mp_lexer_new_from_file` and
+  `mp_import_stat` routed through `sim_fs_resolve()` (the same resolver
+  `sentai.fs.*` uses).  Backed by an inline 64-byte FD reader — no need
+  to flip `MICROPY_READER_POSIX` on the embed config (that would also
+  pull a competing `mp_lexer_new_from_file` that bypasses `fs_resolve`).
+- `mp_embed_exec_str("import sys\nsys.path.append('/')\n")` runs once at
+  REPL boot, so a bare `import foo` finds `<sim_fs_root>/foo.py`.
+- `sim_fs_root()` and `sim_fs_resolve()` in `modsentai_sim.c` are now
+  non-static (extern) so main_sim.c can call them.
+
+**Why import beats exec(read_str()):**
+
+| Aspect             | `exec(sentai.fs.read_str("foo.py"))`         | `import foo`                              |
+|--------------------|----------------------------------------------|-------------------------------------------|
+| Heap allocation    | full file as one `str` object (~KBs)         | 64 B FD buffer, lexer streams char-by-char |
+| Source lifetime    | str pinned in `exec`'s scope                 | freed as soon as lexer consumes it        |
+| Tracebacks         | `<string>` line N — no filename              | `foo.py` line N — usable                  |
+| Re-execution       | re-reads + re-compiles each call             | cached in `sys.modules`, second call free |
+| Firmware parity    | requires `sentai.fs.read_str` everywhere     | matches firmware: FileX-backed import     |
+
+**ARM parity guarantee:** firmware build provides equivalent
+`mp_lexer_new_from_file` / `mp_import_stat` routed through FileX
+(`FxUserOpenRead`).  Same `import foo` line works in both targets as
+long as `foo.py` lives at the FS root.  This is the LOAD-BEARING reason
+to keep this contract: identical test scripts on SIM and HW.
+
+**How to use in a test:**
+
+1. Drop the helper script at `build-sim/sentai_fs_root/<name>.py`
+   (SIM) or push to `/<name>.py` over REPL (HW).
+2. From the controlling Python wrapper, send a single-line REPL command:
+   `import <name>`
+3. If the helper has a top-level loop, the loop runs to completion before
+   `import` returns.  If you need to invoke it on demand, structure the
+   helper as `def run(): ...` and the wrapper sends `<name>.run()` as a
+   second REPL line.
+
+**Anti-patterns to avoid:**
+
+- Piping multi-line `for`/`if` blocks through the REPL stdin — the
+  line-by-line REPL mis-indents them and emits `SyntaxError`.  Put the
+  block in a `.py` file and `import` it.
+- Calling `exec(sentai.fs.read_str(...))` for anything larger than a
+  one-liner — both the source `str` and the resulting code object live
+  on the heap until the calling scope exits.
+- Hand-rolled `compile() + exec()` — same heap cost, plus the extra
+  `code` object.  No upside over `import`.
+
+`hover_over_cat.py` (s090) was the migration site that drove this
+work: 200-iter top-level loop now lives in
+`build-sim/sentai_fs_root/hover_logic.py` and the wrapper does
+`import hover_logic` — single REPL line, MP lexer streams it from disk.
+
 ## 11. References
 
 - FreeRTOS POSIX port docs: https://www.freertos.org/FreeRTOS-simulator-for-Linux.html
@@ -701,4 +815,5 @@ Update as phases land.
 | 2026-05-10 | 4 cleanup | DONE — `examples/CMakeLists.txt` only builds `sentai_runtime` | examples/CMakeLists.txt | All vendor examples (`camera_streaming_http`, `audio_streaming`, … 30+ subdirs) commented out; only `sentai_runtime` is a live build target.  The `camera_streaming_http` was the last hold-out and already failed to link (undefined refs to `sentai_repl_activity`, `g_cam_current_id`, `g_cam_switch_seq`, `g_flow_pub_isr_task`, `g_cam_ratio_packed`, `g_cam_pending_mux_id` — these symbols moved into the SentAI camera-id propagation work months ago and were never re-exported to the vendor demo).  Other persistent ARM build issues remain in `libs/nxp/rt1176-sdk` (e.g. WICED WiFi `xTaskIsTaskFinished` undeclared in `wwd_rtos.c`) but they don't break `--target sentai_runtime`, which is the only thing this fork ships.  ARM full-build clean is out-of-scope until/unless we need vendor extras. |
 | 2026-05-10 | 4.1–4.6 | STRUCTURAL — Phase 4 plumbing complete, awaits libfftw3-dev install + closed-loop run | new files in repo | **Phase 4 (camera socket + flow + cflib bridge) plumbed end-to-end.**  All shared algorithm code stays in C/C++ per the realtime rule (zero PIL/numpy in any per-pixel path); Python only marshals bytes.  Components landed: (1) `examples/sentai_runtime/sentai_pxp_shim.{h,c-sim}` — XRGB->RGB area-average resize, ARM keeps PXP DMA, SIM gets pure-C @ 0.187 ms/frame (BENCH 100 frames PASS). (2) `examples/sentai_runtime/sentai_fft_shim.{h,c-sim}` — `arm_cfft_f32` -> CMSIS on ARM, FFTW3 wrapper on SIM (FFTW_ESTIMATE \| FFTW_UNALIGNED, /N rescale on inverse to match CMSIS).  `flow_phase_corr.cc` edited to call `sentai_cfft_f32` instead of `arm_cfft_f32` — zero overhead on ARM via macro, identical algorithm on SIM.  Pointer breadcrumbs cast through `uintptr_t` so 64-bit host doesn't `-fpermissive` error. (3) `sim/camera_bridge_recv.c` — UDS `/tmp/sentai_cam.sock` server task, half-duplex protocol: client sends 24B header + 921 600 B RGB, gets 32B flow snapshot reply per frame.  Pipeline: RGB->XRGB inline -> `sentai_pxp_scale` -> `rgb888_to_y` (BT.601 fixed-point) -> `sentai_flow_phase_corr_compute` -> publish `g_flow` snapshot + reply.  Static buffers, zero malloc per frame. (4) `sim/scripts/gz_to_camera_bridge.py` — gz transport13 subscriber, threading.Lock around UDS, optional `--send-flow --uri udp://127.0.0.1:19850` enables cflib injection.  Drone-EKF math (`_scale_to_drone_units`, `_to_body_dpx`, `_conf_to_std`) ported verbatim from `_t_flow_to_drone.py` so SIM uses the same body-frame convention (image LEFT = body FORWARD, `body_xform=(-1,0,0,+1)` for cam0+vflip1). (5) `sim/modsentai_sim.c` — `sentai.flow.read()` real binding wired to `g_flow` snapshot, returns `(seq, dx_q1000, dy_q1000, conf, latency_us)`. Phase 1.5 stub deleted.  `sentai.camera` also exposed at top level (was missing from `sentai_globals_table`). (6) `sim/main_sim.c` — `sim_camera_bridge_start()` called before `vTaskStartScheduler`. (7) `examples/sentai_runtime/experiments/s088_pxp_fft_shim_smoke/` — standalone make-driven smoke tests for both shims, PXP all PASS, FFT pending fftw3-dev install. (8) `examples/sentai_runtime/experiments/s089_phase4_closed_loop/` — drift-vs-stable validation runner: `cflib_takeoff_no_flow.py` + `cflib_takeoff_with_flow.py` + `analyze_drift.py`, pass criterion `RMS(x,y)_with_flow < 0.5 * RMS(x,y)_no_flow` over 10..30 s window. (9) `sim/gazebo/sentai_crazysim_world.sdf` — downward camera FOV corrected from 1.047 (60°) to 1.0123 (58°) per SentAI lens spec; pose yaw flipped 180° so image LEFT = body FORWARD per convention.  ARM build still 100% green (sentai_runtime build #1230) — shims are zero-cost on ARM.  REMAINING: `sudo apt install -y libfftw3-dev`, `cmake --build build-sim --target sentai_sim`, run `make run` in s088, then s089 dual-run. |
 | 2026-05-10 | 10b | DONE — Sim.md camera + flow conventions section | n/a | New section §10b documents the lens FOV (58°×45°), 4:3 long-axis = FW-BACK, body-frame mapping (image LEFT = body FORWARD with cam0 vflip=1, sign convention from 2026-05-07 LED-translation test), camera physical mount offset on the drone (-4 cm back, -2 cm down — needed for EKF lever-arm if we ever switch to OPTICAL_FLOW_RAD), and the PXP downscale + flow input chain (identical ARM ↔ SIM after the shim).  Anything Phase 4 produces or consumes MUST match this — otherwise cf2 EKF rejects samples or amplifies drift. |
+| 2026-05-11 | 5b import-bridge | DONE — native `import` from SIM virtual FS (replaces `exec(read_str())`) | SIM build #after-#1234 | **Built the firmware-parity import path on SIM.**  `sim/main_sim.c` now provides real `mp_lexer_new_from_file` + `mp_import_stat` routed through `sim_fs_resolve()` (the same resolver `sentai.fs.*` uses).  Backed by an inline 64-byte FD reader inside `main_sim.c` (typedef `sim_reader_fd_t` with `readbyte` + `close` callbacks) so we don't have to flip `MICROPY_READER_POSIX=1` on the embed config — that flag would pull a competing `mp_lexer_new_from_file` from `lexer.c` that bypasses our `sim_fs_resolve()`.  REPL boot now does `import sys; sys.path.append('/'); sys.path.append('')` so a bare `import hover_logic` finds `<sim_fs_root>/hover_logic.py`.  `sim_fs_root()` and `sim_fs_resolve()` in `modsentai_sim.c` un-staticed and `extern`-declared in `main_sim.c`.  Smoke test: `>>> import smoke_import; smoke_import.greet()` returns `"hello from disk"` after a single .py file is dropped at `build-sim/sentai_fs_root/smoke_import.py`.  Migration: `examples/sentai_runtime/experiments/s090_hover_over_cat/hover_over_cat.py` swapped `exec(sentai.fs.read_str("hover_logic.py"))` for `import hover_logic` — heap cost drops from ~KB source-string to 64 B FD buffer streamed char-by-char by the lexer; tracebacks now show `hover_logic.py` line N instead of `<string>`; second invocation is free (cached in `sys.modules`).  New best-practices section §10f documents the rule + the anti-patterns to avoid (multi-line for/if blocks through stdin REPL → `SyntaxError`; `exec(read_str())` for anything larger than a one-liner → useless heap copy).  ARM parity guarantee: firmware build provides the equivalent through FileX (`FxUserOpenRead`) so the same `import foo` line works on both targets. |
 | 2026-05-10 | 3 best-practices | DONE — captured during cflib TOC debug session | n/a | **Hard-won CrazySim/Gazebo Garden best practices.  (Originally collected on Harmonic but Harmonic is now banned; the practices apply equally to Garden in distrobox.)  Read these before any future debug session.**  (1) **`stdbuf -oL` is mandatory for cf2** — `cf2`'s stdout is block-buffered when redirected to a file (4 KB).  Default `sitl_singleagent.sh` does `cf2 ... > out.log 2> error.log &` and the logs stay EMPTY for minutes.  Wrap with `stdbuf -oL -eL cf2 ...` to flush per-line and see boot progress (`SOCKET_LINK: Waiting for connection with gazebo`, `Connection established`, `SYS: Software-in-the-Loop Simulator is up and running!`).  (2) **Always launch `gz sim` with `-v 4` (debug) during bringup, not the default `-v 3`** — plugin-load failures (`Failed to load system plugin [gz_crazysim_plugin] : Could not find shared library`) are logged ONLY at `-v 4`.  At `-v 3` the world boots silently with no plugin and EVERYTHING downstream (cflib TOC, motor commands, telemetry) silently times out.  (3) **`GZ_SIM_SYSTEM_PLUGIN_PATH`, `GZ_SIM_RESOURCE_PATH`, `LD_LIBRARY_PATH` MUST be set in the shell that launches `gz sim`** — `setup_gz.bash` sets them, but only inside the script's process tree.  If you run `gz sim ...` ad-hoc in another shell, the plugin is silently missing and the drone's `/cf_0/imu` topic exists but with NO subscriber on the cf2 side.  (4) **Plugin <-> cf2 handshake is `0xF3`** — cf2 SOCKET_LINK sends `0xF3` (1 byte, header only, size=0) repeatedly until plugin echos `0xF3` back.  Plugin learns cf2's ephemeral source addr from `recvfrom`'s remaddr.  cf2 then continues to system init.  Sequence visible at cf2 stdout (with stdbuf): `Create socket succeed → Binding succeed → Waiting for connection with gazebo → Connection established with gazebo → SYS: Software-in-the-Loop Simulator is up and running!`  (5) **cflib UdpDriver handshake is `\xff\x01\x01\x01`** — plugin doesn't ack this, just learns cflib's addr from recvfrom.  Subsequent CRTP packets are bidirectional. |

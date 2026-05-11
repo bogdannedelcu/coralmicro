@@ -22,11 +22,19 @@
 #include "FreeRTOS.h"
 #include "task.h"
 
+#include <sys/stat.h>
+
 #include "py/runtime.h"
 #include "py/lexer.h"
+#include "py/reader.h"
 #include "py/builtin.h"
 #include "py/objmodule.h"
+#include "py/gc.h"
 #include "port/micropython_embed.h"
+
+/* Provided by modsentai_sim.c — same path resolver `sentai.fs.*` uses. */
+extern const char *sim_fs_root(void);
+extern int sim_fs_resolve(const char *bpath, char *out, size_t outsz);
 
 #include "build_version.h"
 
@@ -104,6 +112,11 @@ static void repl_task(void *param) {
      * micropython_task.c:micropython_repl_task() which does the same on
      * the firmware. */
     mp_embed_exec_str("import sentai");
+
+    /* Make `/` (the SIM virtual FS root) importable.  `import hover_logic`
+     * then finds `<sim_fs_root>/hover_logic.py` via mp_import_stat above.
+     * On firmware this is set up by the LFS-init path. */
+    mp_embed_exec_str("import sys\nsys.path.append('/')\nsys.path.append('')\n");
 
     printf("\n");
     printf("MicroPython on SentAI SIM (FreeRTOS POSIX port + MicroPython embed)\n");
@@ -266,16 +279,80 @@ const char sentai_help_builtin_text[] =
 
 /* mp_module_sentai is now defined in modsentai_sim.c with real bindings. */
 
-/* Filesystem-import stubs.  Firmware would route these through LFS / FileX
- * (`mp_lexer_new_from_file`, `mp_import_stat`).  Phase 1 SIM has no FS
- * yet — return "not found" so `import foo` from a .py file gracefully
- * raises ImportError. */
-mp_lexer_t *mp_lexer_new_from_file(qstr filename) {
-    (void) filename;
-    mp_raise_OSError(2 /* ENOENT */);
+/* Filesystem-import bridge — Phase 5b.
+ *
+ * `import foo` walks `sys.path`, calling `mp_import_stat()` on each candidate
+ * path (e.g. "/foo.py") and then `mp_lexer_new_from_file()` once found.  We
+ * route both through `sim_fs_resolve()` so the SIM virtual FS (the same
+ * `sentai.fs.*` files see) is the single source of truth.  This lets test
+ * scripts use native `import hover_logic` — no `exec(read_str(...))`, no
+ * source-string heap copy.
+ *
+ * The firmware equivalent lives in `examples/sentai_runtime/sentai_runtime.cc`
+ * and routes through FileX (`FxUserOpenRead`); behaviour and on-disk layout
+ * are identical so the SAME .py files work on both targets. */
+
+#define SIM_IMPORT_PATH_MAX 512
+
+/* Minimal POSIX-fd-backed mp_reader — the embed library's version is gated
+ * by MICROPY_READER_POSIX which we leave off (firmware doesn't use it).
+ * 32-byte buffer is plenty: lexer pulls 1 byte at a time and refills. */
+typedef struct sim_reader_fd_t {
+    int fd;
+    size_t len;
+    size_t pos;
+    unsigned char buf[64];
+} sim_reader_fd_t;
+
+static mp_uint_t sim_reader_fd_readbyte(void *data) {
+    sim_reader_fd_t *r = (sim_reader_fd_t *)data;
+    if (r->pos >= r->len) {
+        ssize_t n = read(r->fd, r->buf, sizeof r->buf);
+        if (n <= 0) return MP_READER_EOF;
+        r->len = (size_t)n;
+        r->pos = 0;
+    }
+    return r->buf[r->pos++];
+}
+
+static void sim_reader_fd_close(void *data) {
+    sim_reader_fd_t *r = (sim_reader_fd_t *)data;
+    if (r->fd >= 0) close(r->fd);
+    m_del_obj(sim_reader_fd_t, r);
 }
 
 mp_import_stat_t mp_import_stat(const char *path) {
-    (void) path;
+    char resolved[SIM_IMPORT_PATH_MAX + 1];
+    if (sim_fs_resolve(path, resolved, sizeof resolved) != 0) {
+        return MP_IMPORT_STAT_NO_EXIST;
+    }
+    struct stat st;
+    if (stat(resolved, &st) != 0) {
+        return MP_IMPORT_STAT_NO_EXIST;
+    }
+    if (S_ISDIR(st.st_mode)) return MP_IMPORT_STAT_DIR;
+    if (S_ISREG(st.st_mode)) return MP_IMPORT_STAT_FILE;
     return MP_IMPORT_STAT_NO_EXIST;
+}
+
+mp_lexer_t *mp_lexer_new_from_file(qstr filename) {
+    const char *bpath = qstr_str(filename);
+    char resolved[SIM_IMPORT_PATH_MAX + 1];
+    if (sim_fs_resolve(bpath, resolved, sizeof resolved) != 0) {
+        mp_raise_OSError(ENOENT);
+    }
+    int fd = open(resolved, O_RDONLY);
+    if (fd < 0) {
+        mp_raise_OSError_with_filename(errno, bpath);
+    }
+    sim_reader_fd_t *r = m_new_obj(sim_reader_fd_t);
+    r->fd = fd;
+    r->len = 0;
+    r->pos = 0;
+    mp_reader_t reader = {
+        .data = r,
+        .readbyte = sim_reader_fd_readbyte,
+        .close = sim_reader_fd_close,
+    };
+    return mp_lexer_new(filename, reader);
 }

@@ -205,7 +205,7 @@ static const mp_obj_module_t sentai_sys_module = {
 
 #define SIM_FS_MAXPATH 512
 
-static const char* sim_fs_root(void) {
+const char* sim_fs_root(void) {
     static const char *cached = NULL;
     if (cached) return cached;
     const char *env = getenv("SENTAI_SIM_ROOT");
@@ -229,7 +229,7 @@ static const char* sim_fs_root(void) {
 
 /* Resolve board path "/a/b" to full Linux path "<root>/a/b".
  * Returns 0 on success.  buf must be SIM_FS_MAXPATH+1 bytes. */
-static int sim_fs_resolve(const char *bpath, char *out, size_t outsz) {
+int sim_fs_resolve(const char *bpath, char *out, size_t outsz) {
     if (!bpath || !out) return -1;
     const char *root = sim_fs_root();
     /* Strip leading slashes from bpath so we don't end up with "//". */
@@ -783,6 +783,12 @@ static int pipeline_tick_once(void) {
     /* Update tracker history (declared below; forward-decl). */
     extern void track_record(void);
     track_record();
+
+    /* If the loaded model is SSD-style (4 outputs), auto-feed SentAI-SORT
+     * with decoded detections.  Defined below — forward-decl + later
+     * code calls it.  See ssd_decode_into() further down. */
+    extern int  pipeline_autoupdate_tracker_if_ssd(void);
+    pipeline_autoupdate_tracker_if_ssd();
     return (int)dt;
 }
 
@@ -982,6 +988,213 @@ static mp_obj_t sentai_pipeline_track_reset_mp(void) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(sentai_pipeline_track_reset_obj, sentai_pipeline_track_reset_mp);
 
+/* ============= SSD MobileNet V2 detections + SentAI-SORT integration =====
+ *
+ * SSD MobileNet V2 (tf2_ssd_mobilenet_v2_coco17_ptq_edgetpu.tflite) has
+ * postprocess built-in.  4 outputs:
+ *   out[0]: scores       float32 [20]
+ *   out[1]: boxes        float32 [20,4] (ymin,xmin,ymax,xmax normalized)
+ *   out[2]: num_detect   float32 [1]
+ *   out[3]: classes      float32 [20]
+ *
+ * We pack these into the shared sentai_runtime/detection_task.h `Detection`
+ * struct, then feed them to the BoT-SORT-adapted SentAI-SORT tracker
+ * (sentai_tracker_*) — same code as ARM.  REPL surface mirrors the ARM
+ * sentai.pipeline.* names so user scripts port unchanged.
+ */
+#include "examples/sentai_runtime/sentai_tracker.h"
+#include "examples/sentai_runtime/detection_task.h"
+
+#define SIM_SSD_INPUT_W 300
+#define SIM_SSD_INPUT_H 300
+#define SIM_SSD_INPUT_C 3
+#define SIM_MAX_DETS    32
+
+static Detection s_dets[SIM_MAX_DETS];
+static int       s_n_dets = 0;
+static uint32_t  s_det_frame_seq = 0;
+/* Last input tensor we sent to TPU — needed by tracker's histogram path. */
+extern uint8_t  s_pipe_resized[];
+
+static int ssd_decode_into(int conf_thresh_permil) {
+    s_n_dets = 0;
+    if (!sentai_tpu_is_ready()) return -1;
+    if (sentai_tpu_num_outputs() < 4) return -2;
+
+    int sz_scores = sentai_tpu_get_output_size(0);
+    int sz_boxes  = sentai_tpu_get_output_size(1);
+    int sz_num    = sentai_tpu_get_output_size(2);
+    int sz_class  = sentai_tpu_get_output_size(3);
+    const float* sc  = (const float*)sentai_tpu_get_output_data(0);
+    const float* bx  = (const float*)sentai_tpu_get_output_data(1);
+    const float* nm  = (const float*)sentai_tpu_get_output_data(2);
+    const float* cls = (const float*)sentai_tpu_get_output_data(3);
+    if (!sc || !bx || !nm || !cls) return -3;
+    (void)sz_scores; (void)sz_boxes; (void)sz_num; (void)sz_class;
+
+    int n_avail = (int)nm[0];
+    if (n_avail > 20) n_avail = 20;
+    int kept = 0;
+    for (int i = 0; i < n_avail && kept < SIM_MAX_DETS; ++i) {
+        int permil = (int)(sc[i] * 1000.0f + 0.5f);
+        if (permil < conf_thresh_permil) continue;
+        float ymin = bx[i*4+0], xmin = bx[i*4+1];
+        float ymax = bx[i*4+2], xmax = bx[i*4+3];
+        Detection* d = &s_dets[kept++];
+        d->x1 = (int16_t)(xmin * SIM_SSD_INPUT_W);
+        d->y1 = (int16_t)(ymin * SIM_SSD_INPUT_H);
+        d->x2 = (int16_t)(xmax * SIM_SSD_INPUT_W);
+        d->y2 = (int16_t)(ymax * SIM_SSD_INPUT_H);
+        d->conf_permil = (int16_t)permil;
+        d->class_id    = (int16_t)cls[i];
+    }
+    s_n_dets = kept;
+    s_det_frame_seq++;
+    return kept;
+}
+
+/* Called from pipeline_tick_once() in the start() task — auto-feeds
+ * SentAI-SORT with the latest detections when an SSD-style model is
+ * loaded (4 outputs).  No-op for classification models. */
+int pipeline_autoupdate_tracker_if_ssd(void) {
+    if (sentai_tpu_num_outputs() < 4) return 0;
+    int n = ssd_decode_into(300);   /* 30% threshold default */
+    if (n <= 0) return 0;
+    return sentai_tracker_update(s_dets, n,
+                                  s_pipe_resized,
+                                  SIM_SSD_INPUT_W, SIM_SSD_INPUT_H, SIM_SSD_INPUT_C,
+                                  0 /* zp */, s_det_frame_seq);
+}
+
+/* sentai.pipeline.detections(thresh_permil=300) — returns list of
+ * (x1, y1, x2, y2, conf_permil, class_id).  Decodes from the CURRENT
+ * cached TPU output (last invoke).  Caller is expected to have done
+ * pipeline.step() (or pipeline.start) before reading. */
+static mp_obj_t sentai_pipeline_detections_mp(size_t n_args, const mp_obj_t* args) {
+    int thresh = (n_args >= 1) ? mp_obj_get_int(args[0]) : 300;
+    int n = ssd_decode_into(thresh);
+    if (n < 0) return mp_obj_new_tuple(0, NULL);
+    mp_obj_t out[SIM_MAX_DETS];
+    for (int i = 0; i < n; ++i) {
+        mp_obj_t t[6] = {
+            mp_obj_new_int(s_dets[i].x1),
+            mp_obj_new_int(s_dets[i].y1),
+            mp_obj_new_int(s_dets[i].x2),
+            mp_obj_new_int(s_dets[i].y2),
+            mp_obj_new_int(s_dets[i].conf_permil),
+            mp_obj_new_int(s_dets[i].class_id),
+        };
+        out[i] = mp_obj_new_tuple(6, t);
+    }
+    return mp_obj_new_tuple(n, out);
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(sentai_pipeline_detections_obj, 0, 1, sentai_pipeline_detections_mp);
+
+/* sentai.pipeline.tracker_update(thresh_permil=300) — decodes detections
+ * from current TPU output then feeds them to SentAI-SORT.  Returns the
+ * number of confirmed tracks after update. */
+static mp_obj_t sentai_pipeline_tracker_update_mp(size_t n_args, const mp_obj_t* args) {
+    int thresh = (n_args >= 1) ? mp_obj_get_int(args[0]) : 300;
+    int n = ssd_decode_into(thresh);
+    if (n < 0) return mp_obj_new_int(n);
+    int confirmed = sentai_tracker_update(s_dets, n,
+                                            s_pipe_resized,
+                                            SIM_SSD_INPUT_W, SIM_SSD_INPUT_H, SIM_SSD_INPUT_C,
+                                            0 /* zp */, s_det_frame_seq);
+    return mp_obj_new_int(confirmed);
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(sentai_pipeline_tracker_update_obj, 0, 1, sentai_pipeline_tracker_update_mp);
+
+/* sentai.pipeline.tracker_enable(bool) */
+static mp_obj_t sentai_pipeline_tracker_enable_mp(mp_obj_t v) {
+    int on = mp_obj_is_true(v) ? 1 : 0;
+    if (on) { sentai_tracker_reset(); sentai_tracker_set_enabled(1); }
+    else      sentai_tracker_set_enabled(0);
+    return mp_obj_new_int(on);
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(sentai_pipeline_tracker_enable_obj, sentai_pipeline_tracker_enable_mp);
+
+/* sentai.pipeline.tracker_reset() */
+static mp_obj_t sentai_pipeline_tracker_reset_mp(void) {
+    sentai_tracker_reset();
+    return mp_obj_new_int(0);
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(sentai_pipeline_tracker_reset_obj, sentai_pipeline_tracker_reset_mp);
+
+/* sentai.pipeline.tracker_tracks() — list of (id, class_id, x1,y1,x2,y2,
+ * conf_permil, state, hits, age) */
+#define SIM_MAX_TRACKS 16
+static mp_obj_t sentai_pipeline_tracker_tracks_mp(void) {
+    TrackedObject buf[SIM_MAX_TRACKS];
+    int n = sentai_tracker_get_tracks(buf, SIM_MAX_TRACKS);
+    if (n < 0) n = 0;
+    mp_obj_t out[SIM_MAX_TRACKS];
+    for (int i = 0; i < n; ++i) {
+        mp_obj_t t[10] = {
+            mp_obj_new_int(buf[i].id),
+            mp_obj_new_int(buf[i].class_id),
+            mp_obj_new_int(buf[i].x1),
+            mp_obj_new_int(buf[i].y1),
+            mp_obj_new_int(buf[i].x2),
+            mp_obj_new_int(buf[i].y2),
+            mp_obj_new_int(buf[i].conf_permil),
+            mp_obj_new_int(buf[i].state),
+            mp_obj_new_int(buf[i].hits),
+            mp_obj_new_int(buf[i].age_frames),
+        };
+        out[i] = mp_obj_new_tuple(10, t);
+    }
+    return mp_obj_new_tuple(n, out);
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(sentai_pipeline_tracker_tracks_obj, sentai_pipeline_tracker_tracks_mp);
+
+/* sentai.pipeline.tracker_camera(cam_id, fov_h_deg, fov_v_deg) — set
+ * camera intrinsics for the projection path.  Mount angles default to
+ * 0 (drone looking straight down). */
+static mp_obj_t sentai_pipeline_tracker_camera_mp(size_t n_args, const mp_obj_t* args) {
+    int cam = (n_args >= 1) ? mp_obj_get_int(args[0]) : 0;
+    CameraConfig cfg = {0};
+    cfg.fov_h_deg = (n_args >= 2) ? mp_obj_get_float(args[1]) : 58.0f;
+    cfg.fov_v_deg = (n_args >= 3) ? mp_obj_get_float(args[2]) : 45.0f;
+    cfg.mount_pitch_deg = 0; cfg.mount_roll_deg = 0; cfg.mount_yaw_deg = 0;
+    cfg.ground_ref = 0;  // CENTROID — drone overhead
+    sentai_tracker_set_camera(cam, &cfg);
+    return mp_obj_new_int(0);
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(sentai_pipeline_tracker_camera_obj, 0, 3, sentai_pipeline_tracker_camera_mp);
+
+/* sentai.pipeline.tracker_pose(altitude_cm, heading_deg=-1) — set drone
+ * altitude + compass so tracks get ground-plane coordinates. */
+static mp_obj_t sentai_pipeline_tracker_pose_mp(size_t n_args, const mp_obj_t* args) {
+    int alt_cm  = (n_args >= 1) ? mp_obj_get_int(args[0]) : 100;
+    int heading = (n_args >= 2) ? mp_obj_get_int(args[1]) : -1;
+    sentai_tracker_set_pose(alt_cm, heading, 0.0f, 0.0f);
+    return mp_obj_new_int(0);
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(sentai_pipeline_tracker_pose_obj, 0, 2, sentai_pipeline_tracker_pose_mp);
+
+/* sentai.pipeline.tracker_event(timeout_ms=0) — non-blocking event poll.
+ * Returns None if no event, otherwise tuple
+ * (type, id, class_id, x1,y1,x2,y2, conf_permil, frame_seq). */
+static mp_obj_t sentai_pipeline_tracker_event_mp(size_t n_args, const mp_obj_t* args) {
+    int timeout_ms = (n_args >= 1) ? mp_obj_get_int(args[0]) : 0;
+    TrackEvent evt;
+    if (!sentai_tracker_get_event(&evt, timeout_ms)) return mp_const_none;
+    mp_obj_t t[9] = {
+        mp_obj_new_int(evt.type),
+        mp_obj_new_int(evt.id),
+        mp_obj_new_int(evt.class_id),
+        mp_obj_new_int(evt.x1),
+        mp_obj_new_int(evt.y1),
+        mp_obj_new_int(evt.x2),
+        mp_obj_new_int(evt.y2),
+        mp_obj_new_int(evt.conf_permil),
+        mp_obj_new_int_from_uint(evt.frame_seq),
+    };
+    return mp_obj_new_tuple(9, t);
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(sentai_pipeline_tracker_event_obj, 0, 1, sentai_pipeline_tracker_event_mp);
+
 static const mp_rom_map_elem_t sentai_pipeline_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__),    MP_ROM_QSTR(MP_QSTR_pipeline) },
     { MP_ROM_QSTR(MP_QSTR_step),        MP_ROM_PTR(&sentai_pipeline_tick_obj) },
@@ -993,6 +1206,15 @@ static const mp_rom_map_elem_t sentai_pipeline_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_predict),      MP_ROM_PTR(&sentai_pipeline_detect_obj) },
     { MP_ROM_QSTR(MP_QSTR_tracks),      MP_ROM_PTR(&sentai_pipeline_tracks_obj) },
     { MP_ROM_QSTR(MP_QSTR_infer_reset), MP_ROM_PTR(&sentai_pipeline_track_reset_obj) },
+    /* SSD + SORT bindings */
+    { MP_ROM_QSTR(MP_QSTR_detections),     MP_ROM_PTR(&sentai_pipeline_detections_obj) },
+    { MP_ROM_QSTR(MP_QSTR_tracker_update), MP_ROM_PTR(&sentai_pipeline_tracker_update_obj) },
+    { MP_ROM_QSTR(MP_QSTR_tracker_enable), MP_ROM_PTR(&sentai_pipeline_tracker_enable_obj) },
+    { MP_ROM_QSTR(MP_QSTR_tracker_reset),  MP_ROM_PTR(&sentai_pipeline_tracker_reset_obj) },
+    { MP_ROM_QSTR(MP_QSTR_tracker_tracks), MP_ROM_PTR(&sentai_pipeline_tracker_tracks_obj) },
+    { MP_ROM_QSTR(MP_QSTR_tracker_camera), MP_ROM_PTR(&sentai_pipeline_tracker_camera_obj) },
+    { MP_ROM_QSTR(MP_QSTR_tracker_pose),   MP_ROM_PTR(&sentai_pipeline_tracker_pose_obj) },
+    { MP_ROM_QSTR(MP_QSTR_tracker_event),  MP_ROM_PTR(&sentai_pipeline_tracker_event_obj) },
 };
 static MP_DEFINE_CONST_DICT(sentai_pipeline_globals, sentai_pipeline_globals_table);
 static const mp_obj_module_t sentai_pipeline_module = {
