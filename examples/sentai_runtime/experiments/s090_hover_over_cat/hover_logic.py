@@ -17,7 +17,17 @@ TARGET_CLASS  = None      # None = accept any class
 IMG_W = 300
 IMG_H = 300
 MIN_CONF      = 300       # permille
-GAIN          = 4         # pixel error * GAIN / 1000 = m/s
+# PD controller gains.  Pure-P (Kd=0) overshot ~50cm on s090 2026-05-11
+# (drone reached +0.90X then settled to +0.66X for cat at +0.40X) because
+# at err≈+80px commanded velocity saturated 200 mm/s for many seconds
+# and the drone built momentum the static-P couldn't shed.
+# Kd adds a damping term proportional to err-rate-of-change: when err is
+# shrinking fast (drone approaching target) the cmd is pulled down,
+# producing critical-damped settle.  Rule of thumb: Kd ≈ 2·sqrt(Kp) for
+# unit-mass critical damping; we have actuator clipping + cf2 cascade
+# latency so empirically Kd=10 starts the tuning, adjust per overshoot.
+KP            = 4         # proportional gain (mm/s per px err)
+KD            = 10        # derivative gain (mm/s per px/tick err rate)
 V_MAX         = 200       # mm/s
 RATE_MS       = 200       # 5 Hz
 N_ITER        = 500       # 500*200ms = 100s — enough headroom for slow staged climb
@@ -36,6 +46,9 @@ last_cx = last_cy = None       # last seen bbox centroid
 last_vx = last_vy = 0           # last commanded velocity (for coast)
 coast_left = 0                  # frames remaining of coast-after-loss
 centered_count = 0              # consecutive frames within CENTER_THRESH
+# PD derivative term — remember previous err to compute err-rate.
+prev_err_x = None
+prev_err_y = None
 for i in range(N_ITER):
     tracks = sentai.pipeline.tracker_tracks()
     n_tracks = len(tracks)
@@ -59,9 +72,20 @@ for i in range(N_ITER):
         cy = (best[3] + best[5]) // 2
         err_x = cx - IMG_W // 2
         err_y = cy - IMG_H // 2
-        # Sign convention (empirically verified — cf2 SITL inverts vy):
-        vx = clamp( err_y * GAIN, -V_MAX, V_MAX)
-        vy = clamp(-err_x * GAIN, -V_MAX, V_MAX)
+        # PD controller — proportional on err + derivative on err-rate.
+        # Standard textbook: vx = Kp*err_y - Kd*d(err_y)/dt (negate D so
+        # rapidly-shrinking err -> reduced cmd -> soft brake).  In tick
+        # units (dt fixed = 1 tick) the derivative is just the diff.
+        # Sign convention cam0+vflip=1: vx=+err_y, vy=+err_x (verified
+        # empirically vs world pose).
+        d_err_x = (err_x - prev_err_x) if prev_err_x is not None else 0
+        d_err_y = (err_y - prev_err_y) if prev_err_y is not None else 0
+        # PD: when err is shrinking (we're approaching target) d_err < 0,
+        # so +KD*d_err REDUCES the cmd → damping.  Initial sign mistake
+        # (had -KD) caused worse overshoot vs pure-P.
+        vx = clamp(KP * err_y + KD * d_err_y, -V_MAX, V_MAX)
+        vy = clamp(KP * err_x + KD * d_err_x, -V_MAX, V_MAX)
+        prev_err_x, prev_err_y = err_x, err_y
         # Memorise for coast + center-hold logic.
         last_cx, last_cy = cx, cy
         last_vx, last_vy = vx, vy

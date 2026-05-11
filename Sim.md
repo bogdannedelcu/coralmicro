@@ -1250,6 +1250,92 @@ hover_over_cat.py is necessary.
    to yaw drift.  For s090 we have yaw≈0 throughout so the upgrade is
    academic, but a moving-target experiment would want this.
 
+### PD controller with altitude-aware ground-error gain (2026-05-11 follow-up)
+
+After §10j shipped the closed-loop hover with pure-P on pixel error,
+the drone overshot ~50 cm in X / 45 cm in Y before settling within
+~25 cm of the cat target.  Mid-flight log showed sustained oscillation
+`err_x ∈ [-44, +49]` over a ~0.8 s period — classic underdamped
+response.  Two fixes converged on a much better tuning:
+
+**1. Convert pixel-error to ground-distance error in metres before
+applying gain.**  Without this, the same Kp gives different effective
+velocity-per-meter at different altitudes.  Formula (small-angle):
+
+```python
+m_per_px_x = 2 * z * tan(FOV_H/2) / IMG_W
+m_per_px_y = 2 * z * tan(FOV_V/2) / IMG_H
+err_x_m = err_x_px * m_per_px_x   # body Y in meters of ground
+err_y_m = err_y_px * m_per_px_y   # body X in meters of ground
+```
+
+At z=2.5 m / FOV=58° / 300 px, `1 px ≈ 0.93 cm` of ground.  Use the
+current `z` from cflib's `stateEstimate.z` log (50 Hz), not a hardcoded
+constant — controller becomes altitude-independent.
+
+**2. PD with damping ratio ≈ 0.7 in ground-meter space.**  Empirically
+`KP_M = 0.5 /s` and `KD_M = 0.6` give well-damped response without
+overshoot blow-up.  Cmd output is in m/s, clip to `V_MAX_M = 0.20`
+(matches MotionCommander default).
+
+```python
+vx_m = clip(KP_M * err_y_m + KD_M * d_err_y_m, -V_MAX_M, V_MAX_M)
+vy_m = clip(KP_M * err_x_m + KD_M * d_err_x_m, -V_MAX_M, V_MAX_M)
+```
+
+**Sign on the derivative term is `+`, not `-`.**  When err is
+shrinking (drone approaching target), `d_err < 0`, and `+KD * d_err`
+reduces the cmd → damping.  Inverted sign (initial bug) made oscillation
+WORSE — cmd grew as err shrank.  Standard textbook PID form is
+`u = Kp·e + Kd·(de/dt)`, not minus.
+
+**Validation (2026-05-11)**: final distance to cat target dropped
+25 cm → **11.6 cm** with the altitude-aware PD vs pure-P.  Drone
+reached `err=(-4, +2) px` at iter 132 (effectively centred) before
+drifting slightly in late hover.
+
+### On adaptive / auto-tuning controllers (future direction)
+
+User asked "can we have a smarter PID that auto-tunes in flight?"
+Answer: YES, four scalable techniques from the control literature:
+
+| Method | Mechanism | Risk | When to use |
+|--------|-----------|------|-------------|
+| **Ziegler-Nichols online** | Increase Kp until sustained oscillation, measure period Tu, set `Kp = 0.6·Ku, Kd = Kp·Tu/8` | Medium — deliberately oscillating in flight | Fresh stack tune-up |
+| **MIT rule (MRAC)** | Online gradient descent: `Kp ← Kp + γ·err·(de/dt)` | Low — converges gradually | Slowly-varying dynamics |
+| **Iterative Learning Control (ILC)** | Adjust gains BETWEEN runs based on previous-run overshoot/settle metrics | Zero — offline | Repeated identical tasks |
+| **Rule-based adaptive** | Heuristics: if `\|err\| small AND \|de/dt\| large`, boost Kd; if overshoot detected, drop Kp | Low — bounded by clamps | Production-safe |
+
+For s090 we recommend **rule-based adaptive** as the next step (≤50
+LOC Python in `hover_over_cat.py`).  Pseudocode:
+
+```python
+def adapt_gains(err, d_err, overshoot_detected, kp, kd):
+    # Boost damping if approaching fast (large derivative near target)
+    if abs(err) < 0.10 and abs(d_err) > 0.20:  # 10cm err, 20cm/s rate
+        kd = min(kd * 1.1, KD_MAX)
+    # Back off proportional if past overshoot
+    if overshoot_detected:
+        kp = max(kp * 0.9, KP_MIN)
+    # Slowly drift back to default when stable
+    if abs(err) < 0.05 and abs(d_err) < 0.02:
+        kp += (KP_DEFAULT - kp) * 0.05
+        kd += (KD_DEFAULT - kd) * 0.05
+    return kp, kd
+```
+
+**RL/policy training is overkill** for this static-target problem.
+Literature consensus (Bitcraze + IBVS papers in §10h, §10j refs) is
+classical PD + altitude scaling is sufficient.  Reserve RL for
+acrobatic / fast-trajectory / non-linear-coupled cases.
+
+**Reference paper** for adaptive IBVS:
+- [Adaptive Image-Based Visual Servoing for an Underactuated Quadrotor System (JGCD)](https://arc.aiaa.org/doi/abs/10.2514/1.52169) — gradient-descent gain adaptation
+- [Adaptive Output-Feedback IBVS for Quadrotor UAVs (IEEE)](https://ieeexplore.ieee.org/document/8628313/) — online identification
+- [IBVS based on adaptive sliding mode for quadrotor target tracking under perturbations (Elsevier)](https://www.sciencedirect.com/science/article/abs/pii/S0957415822001271) — adaptive gain + sliding mode for robustness
+- [Fuzzy Gain-Scheduling Based Fault Tolerant Visual Servo Control of Quadrotors (MDPI Drones)](https://www.mdpi.com/2504-446X/7/2/100) — fuzzy-rules-driven gain scheduling
+- [PID control of quadrotor UAVs: A survey (Elsevier 2023)](https://www.sciencedirect.com/science/article/abs/pii/S1367578823000640) — overall survey covering linear, nonlinear, adaptive, event-based, gain-scheduling, fault-tolerant, fractional-order, intelligent PID
+
 ### Open work
 
 - **Full rotation homography** for tilt compensation (we use

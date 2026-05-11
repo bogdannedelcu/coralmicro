@@ -412,12 +412,43 @@ def main() -> int:
                 cx_c, cy_c = attitude_compensate(cx, cy)
                 err_x_c = cx_c - SSD_INPUT_W // 2
                 err_y_c = cy_c - SSD_INPUT_H // 2
-                # Sign convention (matches hover_logic 2026-05-11 fix):
-                # vx = +err_y * GAIN, vy = +err_x * GAIN.
-                GAIN = 4
-                V_MAX_MM = 200
-                vx_mm = max(-V_MAX_MM, min(V_MAX_MM,  err_y_c * GAIN))
-                vy_mm = max(-V_MAX_MM, min(V_MAX_MM,  err_x_c * GAIN))
+                # Altitude-aware PD controller on tilt-compensated centroid.
+                # CORRECT formulation: convert pixel-error to GROUND-distance
+                # error (meters) using current drone z + FOV, then apply
+                # gain in 1/s (cmd velocity per meter of error).  This is
+                # altitude-INDEPENDENT: same gain works at z=1m or z=10m
+                # without retuning.
+                #
+                # Tune: cycle period observed ~0.8s with Kp=4/px = roughly
+                # critical Kp at z=2.5m.  Reduce by half + raise damping
+                # ratio to ~0.7 (overdamped).  In ground-meter space:
+                #   1px ≈ 0.93cm at z=2.5m → Kp=4/px → Kp_m ≈ 430/m which
+                #   is way too aggressive; conservative Kp_m=0.5 /s gives
+                #   0.5m err → 0.25 m/s cmd (reasonable hover-approach).
+                KP_M = 0.5      # m/s per m of err (= 0.5/s)
+                KD_M = 0.6      # damping (~zeta 0.6 ratio)
+                V_MAX_M = 0.20  # cap (matches MotionCommander default)
+                # Need z to convert.  Read from latest attitude log
+                # (updated by _att_cb at 50 Hz).
+                with _att_lock:
+                    z_now = max(0.1, _drone_z)
+                m_per_px_x = 2 * z_now * math.tan(CAM_FOV_H_RAD/2) / SSD_INPUT_W
+                m_per_px_y = 2 * z_now * math.tan(CAM_FOV_V_RAD/2) / SSD_INPUT_H
+                err_x_m = err_x_c * m_per_px_x
+                err_y_m = err_y_c * m_per_px_y
+                if 'prev_err_x_m' not in dir():
+                    prev_err_x_m = err_x_m
+                    prev_err_y_m = err_y_m
+                # dt is the host poll interval ~0.2s.  Derivative computed
+                # per-tick (close enough); proper d/dt would need actual dt.
+                d_err_x_m = err_x_m - prev_err_x_m
+                d_err_y_m = err_y_m - prev_err_y_m
+                vx_m = max(-V_MAX_M, min(V_MAX_M, KP_M * err_y_m + KD_M * d_err_y_m))
+                vy_m = max(-V_MAX_M, min(V_MAX_M, KP_M * err_x_m + KD_M * d_err_x_m))
+                vx_mm = int(vx_m * 1000)
+                vy_mm = int(vy_m * 1000)
+                prev_err_x_m = err_x_m
+                prev_err_y_m = err_y_m
             elif len(state) >= 12:
                 it, tid, cls, conf, cx, cy, ex, ey, vx_mm, vy_mm, fvx, fvy = state[:12]
                 cx_c, cy_c, err_x_c, err_y_c = cx, cy, ex, ey
