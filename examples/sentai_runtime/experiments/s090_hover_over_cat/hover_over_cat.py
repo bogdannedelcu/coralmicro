@@ -118,6 +118,37 @@ import json
 
 PID_PARAMS_PATH = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "pid_params.json")
+# velocity_envelope.json is produced by aruco_calibration.py — TPU-independent
+# step-and-return sweep on body-X / body-Y, identifies the max v that doesn't
+# tilt the down-camera enough to lose visual landmarks.  Used as a per-axis
+# clamp on the PD output so visual servoing stays inside the proven FOV-safe
+# envelope, regardless of how aggressive the PID gains drift via ILC.
+VELOCITY_ENVELOPE_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "velocity_envelope.json")
+
+
+def load_velocity_envelope() -> tuple:
+    """Returns (v_max_x_mps, v_max_y_mps).  Falls back to (None, None) if
+    the calibration JSON is missing or malformed — caller then uses the
+    legacy single V_MAX_M clamp."""
+    try:
+        with open(VELOCITY_ENVELOPE_PATH) as f:
+            env = json.load(f)
+        vx = float(env["v_max_x_mps"])
+        vy = float(env["v_max_y_mps"])
+        print(f"[envelope] loaded FOV-safe velocity caps: "
+              f"v_max_x={vx:.2f} m/s  v_max_y={vy:.2f} m/s "
+              f"(calibrated at z={env.get('calibration_z_m', '?')}m)",
+              file=sys.stderr)
+        return vx, vy
+    except FileNotFoundError:
+        print(f"[envelope] no {VELOCITY_ENVELOPE_PATH} — using PID V_MAX_M",
+              file=sys.stderr)
+        return None, None
+    except Exception as e:
+        print(f"[envelope] WARN load failed: {e}; using PID V_MAX_M",
+              file=sys.stderr)
+        return None, None
 PID_DEFAULTS = {
     # Working tuning from 2026-05-11 manual run (hit 11.6cm final dist).
     # Auto-calibration runs as ILC across flights: if THIS flight had
@@ -501,6 +532,7 @@ def main() -> int:
     # them to cflib.  If no STATE in a few ticks, hold steady.
     # === Load PID gains from disk (or DEFAULTS) for this flight ===
     pid = load_pid_params()
+    v_cap_x, v_cap_y = load_velocity_envelope()
 
     miss = 0
     vx_body = vy_body = 0.0
@@ -578,8 +610,13 @@ def main() -> int:
                 # per-tick (close enough); proper d/dt would need actual dt.
                 d_err_x_m = err_x_m - prev_err_x_m
                 d_err_y_m = err_y_m - prev_err_y_m
-                vx_m = max(-V_MAX_M, min(V_MAX_M, KP_M * err_y_m + KD_M * d_err_y_m))
-                vy_m = max(-V_MAX_M, min(V_MAX_M, KP_M * err_x_m + KD_M * d_err_x_m))
+                # Per-axis clamp: take the tighter of legacy V_MAX_M and the
+                # ArUco-calibrated FOV-safe envelope (if loaded).  vx_m drives
+                # body-X (pitch axis), vy_m drives body-Y (roll axis).
+                vmx = min(V_MAX_M, v_cap_x) if v_cap_x is not None else V_MAX_M
+                vmy = min(V_MAX_M, v_cap_y) if v_cap_y is not None else V_MAX_M
+                vx_m = max(-vmx, min(vmx, KP_M * err_y_m + KD_M * d_err_y_m))
+                vy_m = max(-vmy, min(vmy, KP_M * err_x_m + KD_M * d_err_x_m))
                 vx_mm = int(vx_m * 1000)
                 vy_mm = int(vy_m * 1000)
                 prev_err_x_m = err_x_m
