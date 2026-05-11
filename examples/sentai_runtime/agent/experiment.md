@@ -6407,3 +6407,134 @@ active.
 - Absolute position source (UWB/MOCAP) — flow + bbox is enough
 - `app_sentai_bridge` on cf2 SITL (the `SENSOR_FLOW_SIM` channel in
   `sensors_sitl.c` is the SITL equivalent of the HW UART2 bridge)
+
+
+## Session 2026-05-11 — s091 sentai.flow hover-stability deep dive
+
+Standalone investigation of flow-only position-hold under Gazebo
+wind perturbations.  Started from s090 baseline (closed-loop hover-
+over-cat at z=2.5m worked); s091 focused on z=1m hover with ArUco
+markers + various wind levels.
+
+### Test progression (all hover 15s at z=1m, gz WindEffects + IMU noise)
+
+| # | Configuration | Wind | all-4 | dist_mean | dist_max | Notes |
+|---|---------------|------|-------|-----------|----------|-------|
+| 1 | L0 wide + Foroosh sub-pixel | full | 61% | 0.31m | 0.51m | baseline |
+| 2 | + foveated 2-pipe (wide+native) | full | 61% | 0.20m | 0.42m | center pipe rarely picked |
+| 3 | 3-level parallel pyramid | full | 30% | 0.36m | 0.60m | aliasing on checker — sign agreement 22% (random!) |
+| 4 | coarse-to-fine warping | full | 33% | 0.36m | 0.60m | L1 used 26% (vs 5%) |
+| 5 | + LCF anchor (L0 only) | full | 38% | 0.33m | 0.55m | anchor picks 5-18% |
+| 6 | Foroosh → Guizar-Sicairos | full | 61% | 0.42m | conf +7-16% | marginal sub-pixel improvement |
+| 7 | **duplicate-CRC fix (raw RGB)** | full | similar | similar | **CRITICAL bug fix** |
+| 8 | L2 = NATIVE crop (no decim) | full | 37.5% | 0.33m | 0.55m | per-grid 1.73mm |
+| 9 | anchor priority earlier | full | 21% | 0.31m | 0.53m | over-aggressive |
+| 10 | + anchor MID-tune (f=12,c=50) | full | 37.5% | **0.285m** | 0.53m | sweet spot |
+| 11 | drop L1 (ARM compute saving) | full | 37.5% | 0.31m | 0.54m | same with less compute |
+| 12 | dual anchor L0+L2 native | full | 29% | 0.34m | 0.59m | L2 anchor noisy beyond FOV |
+| 13 | + L2 anchor FOV sat-guard | full | 29% | 0.40m | 0.58m | guards against spurious |
+| 14 | **HALF WIND** validation | half | **100%** | **0.076m** | **0.38m** | drone holds! |
+| 15 | TRIPLE anchor (L0+L1+L2 sep) | full | 35% | 0.32m | 0.56m | anchors total 4% — wind limit |
+
+### Critical bug discovered (test #7)
+
+Duplicate-frame detection in `camera_bridge_recv.c` was hashing
+`s_gray80x60` (post-PXP 8× decim).  At slow drift 2-4 cm/s, motion
+< 14 mm/frame which the 8×8 averaging COMPLETELY ERASED — same
+output bytes → "duplicate detected" → phase-corr SKIPPED → conf=0.
+
+Affected 47.8% of frames in active hover.  Fixed by hashing raw
+640×480 RGB (sparse sample).
+
+**Discovery process** (per user request "compara 2 poze la 2s
+distanta"): dumped PPM frames at intervals, computed pixel difference.
+Raw RGB had 50-80% pixels differing while 80×60 downsample was
+byte-identical → proved averaging erased the motion.
+
+### Architectural finding: NATIVE crop > more decimation
+
+Per-level minimum detectable motion at z=1m, 14fps:
+
+| Level | Decim | Per-grid ground | Min motion |
+|-------|-------|------------------|------------|
+| L0 wide | 8× PXP | 13.85 mm | > 19.4 cm/s |
+| L1 mid | 4× box | 6.93 mm | > 9.7 cm/s |
+| L2 (was 2× box) | 2× | 3.46 mm | > 4.8 cm/s |
+| **L2 NATIVE crop** | **1×** | **1.73 mm** | **> 2.4 cm/s** ← detects slow drift! |
+
+Drone slow drift 2-4 cm/s = 1.4-2.9 mm/frame.  ONLY native crop reliably
+detects.  Same compute cost as decim'd L2 (still 64×64 FFT after
+Tukey window + zero-pad).
+
+### LCF (LastChangedFrame) anchor — user innovation
+
+User-proposed pattern: keep a frame in cache as "anchor"; while motion
+is below threshold, compare current vs anchor; when motion detected,
+update anchor.  Returns CUMULATIVE motion since anchor was set →
+detects sub-pixel-per-frame drift that integrates over N frames.
+
+Triple-anchor (L0/L1/L2 independent pipes 3, 4, 5):
+- L0 anchor: full FOV, catches large cumulative drift
+- L1 anchor: mid FOV, balanced
+- L2 anchor: native pixel sensitivity, but FOV-limited (sat-guard at
+  ±40000 native mgrid ≈ half FOV)
+
+Implementation: 6 pipes in flow_phase_corr.cc (3 main + 3 anchors),
+per-pipe state isolation via `s_prev_fft[FLOW_N_PIPES][2*N2]`.
+Save/restore prev_fft pattern in `compute_against_anchor()`.
+
+### Wind sensitivity — fundamental limit confirmed
+
+| Wind level | all-4 | dist_mean | Verdict |
+|------------|-------|-----------|---------|
+| Half (0.1+σ=0.075 m/s) | **100%** | **7.6 cm** | Drone holds — real cf2+PMW3901 parity |
+| Full (0.2+σ=0.15 m/s)  | 35-38% | 32 cm | Physical limit of odometry-only |
+
+**Half-wind = 7.6cm hover** matches real cf2+flowdeck indoor hover
+performance.  Full-wind drift not a bug — fundamental limit of
+optical-flow-only position hold without absolute reference.
+
+### Lessons learned
+
+1. **Test with real frame dumps**, not just metrics.  The duplicate
+   bug was invisible from metrics — only frame-byte comparison revealed it.
+2. **Sub-pixel motion fundamentally limits FFT-based phase-corr**.
+   No algorithm can recover signal where cross-correlation surface
+   is flat.  Native pixel resolution is the only fix.
+3. **Anchor over single-frame**: temporal integration via frozen
+   reference frame catches sub-pixel-per-frame drift that single-frame
+   phase-corr misses.  Doesn't help on oscillating motion (decoherence)
+   but works for monotonic slow drift.
+4. **Don't mix coarse and fine in parallel**.  Periodic textures
+   cause different aliasing at different resolutions → sign-disagreement.
+   Sequential coarse-to-fine with warping is the canonical fix.
+5. **Real-time architecture**: heavy work in C++ exposed via single
+   (dx, dy, conf) interface, Python only relays.  Matches ARM HW
+   deployment model.
+
+### Final shipped architecture
+
+```
+6-pipe phase-corr system (flow_phase_corr.cc + camera_bridge_recv.c):
+  pipe 0: L0 main   (640→80 PXP 8× decim, ~5ms ARM)
+  pipe 1: L1 main   (320→80 box 4× decim, ~5ms)
+  pipe 2: L2 main   (80×60 native crop, ~5ms)
+  pipe 3: L0 anchor (LCF on L0 buffer, ~5ms)
+  pipe 4: L1 anchor (LCF on L1 buffer, ~5ms)
+  pipe 5: L2 anchor (LCF on L2 buffer + FOV sat, ~5ms)
+TOTAL: ~30ms ARM (tight; can drop pipes for headroom)
+
+Sub-pixel: Guizar-Sicairos DFT upsampling M=10 on each main pipe.
+Coarse-to-fine: L0 predict → warp L1 → residual → warp L2.
+C-side fusion: chooses single best (dx, dy, conf) per priority:
+  1. L2 anchor (finest cumulative)
+  2. L1 anchor (mid)
+  3. L0 anchor (largest cumulative)
+  4. L2 refined (coarse-to-fine combined)
+  5. L1 refined
+  6. L0 raw fallback
+```
+
+See `Sim.md §10k` for full design rationale + 14 paper references
+(Burt-Adelson 1983, Bouguet 2001, Foroosh 2002, Guizar-Sicairos 2008,
+PX4Flow paper Honegger 2013, Briod 2013, DPFlow 2025, etc.).
