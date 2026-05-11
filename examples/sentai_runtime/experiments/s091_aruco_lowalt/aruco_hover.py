@@ -161,9 +161,12 @@ def flow_forwarder(stop_evt: threading.Event, cf, stats: dict) -> None:
                 now = time.monotonic()
                 dt = max(0.001, min(0.2, now - last_send_t))
                 last_send_t = now
-                if dx == 0 and dy == 0 and conf == 0:
-                    # Stale / no-motion — skip
-                    continue
+                # Forward EVERY phase-corr result, including (0,0,conf=0)
+                # "stale frame" markers.  cf2 EKF down-weights high-stdDev
+                # samples to near-zero impact, but the steady packet rate
+                # keeps the EKF's flow_update path warm (mm_flow.c uses
+                # the latest observation between propagation steps).
+                # At gz 30 fps this yields ~30 Hz to cf2.
                 dpx, dpy = flow_to_dpixel(dx, dy)
                 std = flow_conf_to_std(conf)
                 pk = CRTPPacket()
