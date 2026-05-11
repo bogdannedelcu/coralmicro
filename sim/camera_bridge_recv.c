@@ -224,6 +224,17 @@ typedef struct __attribute__((packed)) {
     int32_t  dy_anchor_q1000;
     uint32_t conf_anchor;
     uint32_t frames_since_anchor;
+    // L2-NATIVE anchor (independent of L0 anchor) — cumulative drift
+    // at native pixel resolution.  Native mgrid units (8× finer than L0).
+    int32_t  dx_anchor_L2_q1000;
+    int32_t  dy_anchor_L2_q1000;
+    uint32_t conf_anchor_L2;
+    uint32_t frames_since_anchor_L2;
+    // L1-MID anchor — added 2026-05-11.
+    int32_t  dx_anchor_L1_q1000;
+    int32_t  dy_anchor_L1_q1000;
+    uint32_t conf_anchor_L1;
+    uint32_t frames_since_anchor_L1;
     // FUSION WINNER — chosen in C side (not Python).  On ARM/HW this
     // is what sentai.flow.read() returns; MicroPython/Python just
     // relay to cf2 EKF.  Selection rule below in handle_one_frame.
@@ -598,77 +609,37 @@ static int handle_one_frame(int fd) {
     // Acceptable for the FUSION test — proper per-level state isolation
     // is the next refactor if results warrant it.
     // ─────────────────────────────────────────────────────────────────
-    // COARSE-TO-FINE refinement: L0 motion predicts where L1 features
-    // should have moved; warp L1 frame BY that prediction so phase-corr
-    // sees only the small RESIDUAL.  At small residual phase-corr peaks
-    // are unambiguous (near origin) even on periodic textures.
-    //
-    // Scaling: L0 grid = 8 raw pixels, L1 grid = 4 raw pixels.  So
-    // 1 L0 grid = 2 L1 pixels.  Conversion: dx_L1_px = dx0_mgrid / 500.0
+    // L1 RE-ADDED 2026-05-11 per user: "fa LCF drift la L1, poate
+    // acolo e mai ok".  L1 mid-level (4× decim, 6.93mm/grid at z=1m,
+    // FOV 0.55m) sits between L0 wide and L2 native.  Per-grid 2×
+    // L0 (catches motion L0 misses), FOV 4× L2 (anchor stays in FOV
+    // longer for cumulative drift detection).
     boxfilter_4x_rgb_to_gray(s_rgb_full, EXPECT_W, EXPECT_H,
                               s_gray80x60_center, DST_W, DST_H);
 
-    float dx_pred_L1 = (float)dx_q / 500.0f;
-    float dy_pred_L1 = (float)dy_q / 500.0f;
-    // Pre-shift L1 input by predicted motion (negate: warp curr toward
-    // alignment with prev_fft cache).
-    warp_translate_bilinear(s_gray80x60_center, s_gray80x60_warped,
-                             DST_W, DST_H, -dx_pred_L1, -dy_pred_L1);
-
-    static uint32_t s_prev_center_crc = 0;
-    static int32_t  s_last_dx_c = 0;
-    static int32_t  s_last_dy_c = 0;
-    uint32_t center_crc = 0;
-    for (int i = 0; i < DST_W * DST_H; ++i) {
-        center_crc = center_crc * 31u + s_gray80x60_warped[i];
-    }
-
-    int dx_res_L1 = 0, dy_res_L1 = 0;
-    uint8_t conf_L1 = 0;
-    if (center_crc == s_prev_center_crc && conf > 0) {
-        dx_res_L1 = s_last_dx_c;
-        dy_res_L1 = s_last_dy_c;
-        conf_L1 = 0;
-    } else {
-        sentai_flow_phase_corr_compute_at(1, s_gray80x60_warped,
-                                           &dx_res_L1, &dy_res_L1, &conf_L1);
+    int dx_c = 0, dy_c = 0;
+    uint8_t conf_c = 0;
+    sentai_flow_phase_corr_compute_at(2, s_gray80x60_center,
+                                       &dx_c, &dy_c, &conf_c);
+    {
         const int SAT_LIMIT_MGP = 28000;
-        if (dx_res_L1 >  SAT_LIMIT_MGP || dx_res_L1 < -SAT_LIMIT_MGP ||
-            dy_res_L1 >  SAT_LIMIT_MGP || dy_res_L1 < -SAT_LIMIT_MGP) {
-            conf_L1 = 0;
+        if (dx_c >  SAT_LIMIT_MGP || dx_c < -SAT_LIMIT_MGP ||
+            dy_c >  SAT_LIMIT_MGP || dy_c < -SAT_LIMIT_MGP) {
+            conf_c = 0;
         }
-        s_last_dx_c = dx_res_L1;
-        s_last_dy_c = dy_res_L1;
     }
-    s_prev_center_crc = center_crc;
-
-    // Combined L1 motion in L1-mgrid units (1000 mgrid = 1 L1 grid =
-    // half a L0 grid worth of raw pixels).  Equation:
-    //   dx_combined_L1 = (predicted_L0_motion converted to L1) + L1_residual
-    //                  = (dx0_L0_mgrid × 2) + dx_residual_L1_mgrid
-    int dx_c = dx_q * 2 + dx_res_L1;
-    int dy_c = dy_q * 2 + dy_res_L1;
-    // The conf reported is the L1 conf (residual peak quality); if L0
-    // had conf=0 we can't predict so fall back to using L1 raw — but
-    // warping by zero is a no-op, so this happens naturally.
-    uint8_t conf_c = conf_L1;
 
     // L2 fine — NATIVE crop (NO decimation) from center 80×60 of raw
     // 640×480.  At z=1m, per-pixel = 1.73mm = 8× finer than L0 wide.
-    // Detects slow drift (2-4 cm/s = 1.4-2.9 mm/frame) that L0/L1
+    // Detects slow drift (2-4 cm/s = 1.4-2.9 mm/frame) that L0
     // averaging erases.
     // Coarse-to-fine scaling: L0 grid = 8 raw px, native grid = 1 raw px.
-    // So 1 L0 grid = 8 native pixels →
-    //   dx_native_px = dx_combined_L1_mgrid_in_L1_grid × 4 / 1000 OR
-    //   from L0 mgrid: dx_native_px = dx_L0_mgrid × 8 / 1000.
-    // Predict from L1 combined estimate (which already incorporates L0 coarse):
-    //   L1_combined_mgrid / 1000 = L1 grids → × 4 = native pixels (L1 grid = 4 native).
-    //   So dx_native_px = dx_combined_L1_mgrid * 4 / 1000 = / 250
+    // So 1 L0 grid = 8 native pixels → dx_native_px = dx_L0_mgrid * 8 / 1000 = /125
     crop_center_native_to_gray(s_rgb_full, EXPECT_W, EXPECT_H,
                                 s_gray80x60_fine, DST_W, DST_H);
 
-    float dx_pred_L2 = (float)dx_c / 250.0f;
-    float dy_pred_L2 = (float)dy_c / 250.0f;
+    float dx_pred_L2 = (float)dx_q / 125.0f;   // L0 mgrid → native pixels
+    float dy_pred_L2 = (float)dy_q / 125.0f;
     warp_translate_bilinear(s_gray80x60_fine, s_gray80x60_warped,
                              DST_W, DST_H, -dx_pred_L2, -dy_pred_L2);
 
@@ -699,9 +670,10 @@ static int handle_one_frame(int fd) {
     }
     s_prev_fine_crc = fine_crc;
 
-    // Combined L2 motion: (L1 combined × 2) + L2 residual.
-    int dx_f = dx_c * 2 + dx_res_L2;
-    int dy_f = dy_c * 2 + dy_res_L2;
+    // Combined L2 motion in NATIVE mgrid (= 8× higher resolution than L0):
+    //   combined = (L0_mgrid × 8) + native_residual_mgrid
+    int dx_f = dx_q * 8 + dx_res_L2;
+    int dy_f = dy_q * 8 + dy_res_L2;
     uint8_t conf_f = conf_L2;
 
     // ─────────────────────────────────────────────────────────────────
@@ -760,6 +732,63 @@ static int handle_one_frame(int fd) {
         frames_since_anchor = hdr.seq - s_anchor_seq;
     }
 
+    // ─── L1 MID ANCHOR (pipe 4, NEW) ─────────────────────────────────
+    static int s_have_anchor_L1 = 0;
+    static uint32_t s_anchor_seq_L1 = 0;
+    int dx_anchor_L1 = 0, dy_anchor_L1 = 0;
+    uint8_t conf_anchor_L1 = 0;
+    uint32_t frames_since_anchor_L1 = 0;
+    // L1 native = 6.93mm/px → threshold 3000 mgrid = 20.8mm motion match L0.
+    const int MOTION_DETECT_THRESH_L1 = 3000;
+    int is_moving_L1 = (abs(dx_c) >= MOTION_DETECT_THRESH_L1 ||
+                        abs(dy_c) >= MOTION_DETECT_THRESH_L1);
+    if (!s_have_anchor_L1) {
+        sentai_flow_phase_corr_set_anchor(4, s_gray80x60_center);
+        s_have_anchor_L1 = 1;
+        s_anchor_seq_L1 = hdr.seq;
+    } else if (is_moving_L1 && conf_c > 0) {
+        sentai_flow_phase_corr_set_anchor(4, s_gray80x60_center);
+        s_anchor_seq_L1 = hdr.seq;
+    } else {
+        sentai_flow_phase_corr_compute_against_anchor(4, s_gray80x60_center,
+                                                       &dx_anchor_L1, &dy_anchor_L1,
+                                                       &conf_anchor_L1);
+        frames_since_anchor_L1 = hdr.seq - s_anchor_seq_L1;
+    }
+
+    // ─── L2 NATIVE-CROP ANCHOR (pipe 5, moved from pipe 1) ────────────
+    // Same logic as L0 anchor but on s_gray80x60_fine (native pixel crop).
+    // 8× finer per-pixel resolution → detects much smaller cumulative drift.
+    // Refresh triggered by L2's OWN phase-corr motion (dx_res_L2) — not
+    // L0's, because L2 sees finer motion that L0 misses.
+    static int s_have_anchor_L2 = 0;
+    static uint32_t s_anchor_seq_L2 = 0;
+    int dx_anchor_L2 = 0, dy_anchor_L2 = 0;
+    uint8_t conf_anchor_L2 = 0;
+    uint32_t frames_since_anchor_L2 = 0;
+    // L2 native is 8× higher resolution than L0, so its mgrid threshold
+    // must be 8× higher to represent the SAME physical motion magnitude:
+    //   L0 threshold 1500 mgrid = 20.8mm motion at z=1m
+    //   L2 threshold 12000 mgrid = 20.8mm motion at z=1m (matched)
+    // Bug: previously set to 1500 — fired every sub-frame → anchor never
+    // accumulated → LCF_L2 picks = 0/272 in test.  Fix: scale to L2 units.
+    const int MOTION_DETECT_THRESH_L2 = 12000;
+    int is_moving_L2 = (abs(dx_res_L2) >= MOTION_DETECT_THRESH_L2 ||
+                        abs(dy_res_L2) >= MOTION_DETECT_THRESH_L2);
+    if (!s_have_anchor_L2) {
+        sentai_flow_phase_corr_set_anchor(5, s_gray80x60_fine);
+        s_have_anchor_L2 = 1;
+        s_anchor_seq_L2 = hdr.seq;
+    } else if (is_moving_L2 && conf_L2 > 0) {
+        sentai_flow_phase_corr_set_anchor(5, s_gray80x60_fine);
+        s_anchor_seq_L2 = hdr.seq;
+    } else {
+        sentai_flow_phase_corr_compute_against_anchor(5, s_gray80x60_fine,
+                                                       &dx_anchor_L2, &dy_anchor_L2,
+                                                       &conf_anchor_L2);
+        frames_since_anchor_L2 = hdr.seq - s_anchor_seq_L2;
+    }
+
     // ─────────────────────────────────────────────────────────────────
     // FUSION (C-side, single best estimate exposed to consumer)
     //
@@ -779,21 +808,54 @@ static int handle_one_frame(int fd) {
     uint32_t conf_best = conf;
     uint8_t  best_source = 0;   // L0 default
 
-    const uint32_t ANCH_MIN_FRAMES   = 20;
-    const uint32_t ANCH_MIN_CONF     = 60;
-    const int      ANCH_MIN_CUM_MAG  = 200;
+    // Anchor priority MID-TUNE 2026-05-11 (sweet spot):
+    //   8  frames + conf 40 + mag  80 → dist_mean=0.307 but all-4 drop 37%→21%
+    //   20 frames + conf 60 + mag 200 → dist_mean=0.329 with all-4 37%
+    //   12 frames + conf 50 + mag 120 → MIDDLE GROUND test
+    const uint32_t ANCH_MIN_FRAMES   = 12;
+    const uint32_t ANCH_MIN_CONF     = 50;
+    const int      ANCH_MIN_CUM_MAG  = 120;
     const uint32_t REFINE_MIN_CONF   = 64;
     const int      SAT_LIMIT_REFINE  = 24000;
 
-    if (frames_since_anchor >= ANCH_MIN_FRAMES
+    // L2-NATIVE anchor priority FIRST — BUT only when cumulative drift is
+    // still WITHIN the native FOV (14cm at z=1m).  If anchor reports
+    // motion approaching FOV edge, the ground content under camera has
+    // shifted to a region the anchor never saw → phase-corr peak
+    // unreliable (spurious match).  Saturation limit ~50% of FOV =
+    // 40 native pixels = 40000 mgrid.
+    const int L2_ANCHOR_SAT_MGRID = 40000;
+    int l2_anchor_in_fov = (dx_anchor_L2 < L2_ANCHOR_SAT_MGRID
+                              && dx_anchor_L2 > -L2_ANCHOR_SAT_MGRID
+                              && dy_anchor_L2 < L2_ANCHOR_SAT_MGRID
+                              && dy_anchor_L2 > -L2_ANCHOR_SAT_MGRID);
+    if (l2_anchor_in_fov
+            && frames_since_anchor_L2 >= ANCH_MIN_FRAMES
+            && conf_anchor_L2 >= ANCH_MIN_CONF
+            && ((dx_anchor_L2 > ANCH_MIN_CUM_MAG || dx_anchor_L2 < -ANCH_MIN_CUM_MAG)
+                || (dy_anchor_L2 > ANCH_MIN_CUM_MAG || dy_anchor_L2 < -ANCH_MIN_CUM_MAG))) {
+        dx_best     = (dx_anchor_L2 / (int)frames_since_anchor_L2) / 8;
+        dy_best     = (dy_anchor_L2 / (int)frames_since_anchor_L2) / 8;
+        conf_best   = conf_anchor_L2;
+        best_source = 4;   // LCF_anchor_L2
+    } else if (frames_since_anchor_L1 >= ANCH_MIN_FRAMES
+            && conf_anchor_L1 >= ANCH_MIN_CONF
+            && ((dx_anchor_L1 > ANCH_MIN_CUM_MAG || dx_anchor_L1 < -ANCH_MIN_CUM_MAG)
+                || (dy_anchor_L1 > ANCH_MIN_CUM_MAG || dy_anchor_L1 < -ANCH_MIN_CUM_MAG))) {
+        // L1-anchor (mid) — per-frame in L1 mgrid → divide by 2 for L0-equiv
+        dx_best     = (dx_anchor_L1 / (int)frames_since_anchor_L1) / 2;
+        dy_best     = (dy_anchor_L1 / (int)frames_since_anchor_L1) / 2;
+        conf_best   = conf_anchor_L1;
+        best_source = 5;   // LCF_anchor_L1
+    } else if (frames_since_anchor >= ANCH_MIN_FRAMES
             && conf_anchor >= ANCH_MIN_CONF
             && ((dx_anchor > ANCH_MIN_CUM_MAG || dx_anchor < -ANCH_MIN_CUM_MAG)
                 || (dy_anchor > ANCH_MIN_CUM_MAG || dy_anchor < -ANCH_MIN_CUM_MAG))) {
-        // Anchor-derived per-frame velocity in L0 mgrid units.
+        // L0-anchor — per-frame velocity already in L0 mgrid units.
         dx_best     = dx_anchor / (int)frames_since_anchor;
         dy_best     = dy_anchor / (int)frames_since_anchor;
         conf_best   = conf_anchor;
-        best_source = 3;
+        best_source = 3;   // LCF_anchor_L0
     } else if (conf_f >= REFINE_MIN_CONF
                && dx_f < SAT_LIMIT_REFINE && dx_f > -SAT_LIMIT_REFINE
                && dy_f < SAT_LIMIT_REFINE && dy_f > -SAT_LIMIT_REFINE) {
@@ -896,6 +958,14 @@ static int handle_one_frame(int fd) {
         .dy_anchor_q1000 = dy_anchor,
         .conf_anchor     = (uint32_t)conf_anchor,
         .frames_since_anchor = frames_since_anchor,
+        .dx_anchor_L2_q1000 = dx_anchor_L2,
+        .dy_anchor_L2_q1000 = dy_anchor_L2,
+        .conf_anchor_L2     = (uint32_t)conf_anchor_L2,
+        .frames_since_anchor_L2 = frames_since_anchor_L2,
+        .dx_anchor_L1_q1000 = dx_anchor_L1,
+        .dy_anchor_L1_q1000 = dy_anchor_L1,
+        .conf_anchor_L1     = (uint32_t)conf_anchor_L1,
+        .frames_since_anchor_L1 = frames_since_anchor_L1,
         .dx_best_q1000   = dx_best,
         .dy_best_q1000   = dy_best,
         .conf_best       = conf_best,

@@ -89,10 +89,18 @@ struct Reply {
     int32_t  dx_fine_q1000;     // L2 fine (160→80) — 2026-05-11
     int32_t  dy_fine_q1000;
     uint32_t conf_fine;
-    int32_t  dx_anchor_q1000;   // LCF anchor — cumulative drift
+    int32_t  dx_anchor_q1000;
     int32_t  dy_anchor_q1000;
     uint32_t conf_anchor;
     uint32_t frames_since_anchor;
+    int32_t  dx_anchor_L2_q1000;
+    int32_t  dy_anchor_L2_q1000;
+    uint32_t conf_anchor_L2;
+    uint32_t frames_since_anchor_L2;
+    int32_t  dx_anchor_L1_q1000;
+    int32_t  dy_anchor_L1_q1000;
+    uint32_t conf_anchor_L1;
+    uint32_t frames_since_anchor_L1;
     // FUSION WINNER (C-side chosen)
     int32_t  dx_best_q1000;
     int32_t  dy_best_q1000;

@@ -71,7 +71,7 @@ static float s_window[N2]                __attribute__((section(".sdram_bss")));
 //
 // Storage: FLOW_N_PIPES × (32KB prev_fft + 32KB cross_spec_avg) = 192KB
 // total for 3 pipes.  Lives in SDRAM (sdram_bss section).
-#define FLOW_N_PIPES 4
+#define FLOW_N_PIPES 6
 static float s_prev_fft[FLOW_N_PIPES][2 * N2]
     __attribute__((section(".sdram_bss")));
 static int   s_have_prev_per[FLOW_N_PIPES] = {0};

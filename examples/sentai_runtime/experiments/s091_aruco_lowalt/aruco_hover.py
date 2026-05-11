@@ -70,9 +70,9 @@ SENSOR_FLOW_SIM        = 6
 # must be rebuilt for this protocol revision.
 FLOW_OUT_SOCK    = "/tmp/sentai_flow_out.sock"
 REPLY_MAGIC      = 0x46524C31   # 'FRL1'
-REPLY_FMT        = "<IIiiIQiIiiIiiIiiIIiiIB3x"  # +BEST (dx,dy,conf,source) at tail
+REPLY_FMT        = "<IIiiIQiIiiIiiIiiIIiiIIiiIIiiIB3x"  # +L1 anchor
 REPLY_SZ         = struct.calcsize(REPLY_FMT)
-assert REPLY_SZ == 92, f"unexpected REPLY_SZ={REPLY_SZ}"
+assert REPLY_SZ == 124, f"unexpected REPLY_SZ={REPLY_SZ}"
 
 # Pyramid scale ratios — fine-grained mgrid in each level corresponds to
 # different physical ground motion.  Convert each level's mgrid to the
@@ -181,6 +181,8 @@ def flow_forwarder(stop_evt: threading.Event, cf, stats: dict) -> None:
                  dx_c, dy_c, conf_c,
                  dx_f, dy_f, conf_f,
                  dx_anch, dy_anch, conf_anch, frames_since_anch,
+                 dx_anch_L2, dy_anch_L2, conf_anch_L2, frames_since_anch_L2,
+                 dx_anch_L1, dy_anch_L1, conf_anch_L1, frames_since_anch_L1,
                  dx_best, dy_best, conf_best, best_source) = (
                     struct.unpack(REPLY_FMT, rec))
                 if magic != REPLY_MAGIC:
@@ -209,7 +211,8 @@ def flow_forwarder(stop_evt: threading.Event, cf, stats: dict) -> None:
                 # of truth.  This matches the ARM real-time architecture:
                 # firmware does the fusion, Python only relays to cf2 EKF.
                 dx_eff, dy_eff, conf_eff = dx_best, dy_best, conf_best
-                level_names = {0: "L0", 1: "L1_refined", 2: "L2_refined", 3: "LCF_anchor"}
+                level_names = {0: "L0", 1: "L1_refined", 2: "L2_refined",
+                               3: "LCF_L0", 4: "LCF_L2", 5: "LCF_L1"}
                 used_level = level_names.get(best_source, f"?{best_source}")
                 # Stats per-pipeline for post-run analysis
                 stats.setdefault("pp", []).append({
