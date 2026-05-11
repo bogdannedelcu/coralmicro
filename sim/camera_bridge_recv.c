@@ -112,6 +112,8 @@ const sim_flow_snapshot_t* sim_camera_flow_snapshot(void) {
     return &g_flow;
 }
 
+// (sim_camera_latest_rgb defined below, after EXPECT_W/H macros.)
+
 // ────────────────────────────────────────────────────────────────────────
 // Static buffers — sized for 640x480 RGB and 80x60 RGB+gray.
 // Keeping them static avoids any allocator in the per-frame path.
@@ -120,6 +122,37 @@ const sim_flow_snapshot_t* sim_camera_flow_snapshot(void) {
 #define EXPECT_H   480
 #define DST_W      80
 #define DST_H      60
+
+// ────────────────────────────────────────────────────────────────────────
+// Latest-RGB-frame getter for sentai.pipeline (Phase 5.6).
+// Copies the most recent 640x480 RGB888 frame from the bridge into the
+// caller's buffer.  Returns the byte count copied (0 if no frame yet).
+// Thread-safe via the seq fence used elsewhere — caller may see one
+// frame older than current if the bridge is mid-write.
+// ────────────────────────────────────────────────────────────────────────
+static uint8_t  s_rgb_full_pub[EXPECT_W * EXPECT_H * 3] = {0};
+static volatile uint32_t s_rgb_full_seq = 0;
+
+size_t sim_camera_latest_rgb(uint8_t* dst, size_t max_bytes,
+                              int* out_w, int* out_h, uint32_t* out_seq) {
+    if (out_w) *out_w = EXPECT_W;
+    if (out_h) *out_h = EXPECT_H;
+    const size_t need = EXPECT_W * EXPECT_H * 3u;
+    if (!dst || max_bytes < need || s_rgb_full_seq == 0) {
+        if (out_seq) *out_seq = 0;
+        return 0;
+    }
+    uint32_t s0 = s_rgb_full_seq;
+    memcpy(dst, s_rgb_full_pub, need);
+    uint32_t s1 = s_rgb_full_seq;
+    if (s1 != s0) {
+        // Bridge wrote during the copy; redo once.  Bounded one retry.
+        memcpy(dst, s_rgb_full_pub, need);
+        s0 = s_rgb_full_seq;
+    }
+    if (out_seq) *out_seq = s0;
+    return need;
+}
 
 static uint8_t s_xrgb_buf[EXPECT_W * EXPECT_H * 4];   // 1.2 MB
 static uint8_t s_rgb_small[DST_W * DST_H * 3];        // 14.4 KB
@@ -243,6 +276,13 @@ static int handle_one_frame(int fd) {
     // Total: 921 600 bytes per frame; static lives in BSS.
     static uint8_t s_rgb_full[EXPECT_W * EXPECT_H * 3];
     if (read_full(fd, s_rgb_full, expected_bytes) != 0) return -1;
+
+    // Publish a copy for sentai.pipeline.tick() (Phase 5.6).  Write
+    // payload first then bump seq — same pattern as g_flow.  640x480
+    // copy ~1ms — only happens per fresh frame from Garden.
+    memcpy(s_rgb_full_pub, s_rgb_full, expected_bytes);
+    __sync_synchronize();
+    s_rgb_full_seq = hdr.seq;
 
     uint64_t t0 = now_us();
 

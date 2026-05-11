@@ -297,13 +297,25 @@ def main() -> int:
     srv = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     srv.bind(SOCK_PATH)
     os.chmod(SOCK_PATH, 0o666)
-    srv.listen(1)
+    srv.listen(4)   # let multiple sentai_sim connect attempts queue
     print(f"[tpu] listening on {SOCK_PATH}", file=sys.stderr)
     eng = TPUEngine()
     while True:
-        cl, _ = srv.accept()
+        try:
+            cl, _ = srv.accept()
+        except Exception as e:
+            print(f"[tpu] accept err: {e}", file=sys.stderr)
+            time.sleep(0.5)
+            continue
         # Single-client at a time (sentai_sim is the only writer).
-        handle_client(cl, eng)
+        try:
+            handle_client(cl, eng)
+        except Exception as e:
+            import traceback; traceback.print_exc(file=sys.stderr)
+            print(f"[tpu] handler crashed: {e}; resuming accept loop",
+                  file=sys.stderr)
+            try: cl.close()
+            except Exception: pass
 
 
 if __name__ == "__main__":

@@ -682,6 +682,186 @@ static const mp_obj_module_t sentai_tpu_module = {
     .globals = (mp_obj_dict_t *) &sentai_tpu_globals,
 };
 
+/* ===== sentai.pipeline — Phase 5.6 minimal SIM ============================
+ *
+ * ARM has 35+ pipeline functions covering tracking, events, camera config,
+ * health, etc.  For SIM we ship the essentials needed to demonstrate the
+ * camera→TPU loop:
+ *
+ *   pipeline.tick()             — sync: latest cam frame → CPU resize →
+ *                                  TPU set_input → invoke.  Returns
+ *                                  invoke time in ms (-1 on failure).
+ *   pipeline.start()            — spawn a FreeRTOS task running tick()
+ *                                  in a loop at target_fps_hz.
+ *   pipeline.stop()             — clear the task's run flag.
+ *   pipeline.running()          — bool.
+ *   pipeline.stats()            — dict {frames, last_invoke_ms,
+ *                                  total_invoke_ms, last_err}.
+ *
+ * Camera frame must come from the Gazebo bridge (camera_bridge_recv has
+ * a copy in s_rgb_full_pub).  TPU helper must be running.
+ */
+#include "FreeRTOS.h"
+#include "task.h"
+
+extern size_t sim_camera_latest_rgb(uint8_t* dst, size_t max_bytes,
+                                     int* out_w, int* out_h, uint32_t* out_seq);
+
+#define PIPE_CAM_W   640
+#define PIPE_CAM_H   480
+#define PIPE_CAM_SZ  (PIPE_CAM_W * PIPE_CAM_H * 3)
+
+static uint8_t  s_pipe_cam_buf[PIPE_CAM_SZ];
+static uint8_t  s_pipe_resized[1024 * 1024];   // up to ~1 MB resized tensor
+static volatile int     s_pipe_running = 0;
+static TaskHandle_t     s_pipe_task = NULL;
+static volatile uint32_t s_pipe_frames = 0;
+static volatile uint32_t s_pipe_last_ms = 0;
+static volatile uint32_t s_pipe_total_ms = 0;
+static volatile int     s_pipe_last_err = 0;
+static volatile uint32_t s_pipe_target_fps = 10;  // safe default; helper ~16ms invoke
+
+/* Bilinear-ish CPU resize (nearest-neighbour for speed; works for the
+ * "let me see something running" smoke level.  Production should use
+ * area-resampling for accuracy — same pattern as sentai_pxp_shim_sim.c. */
+static int sim_resize_rgb888_nearest(const uint8_t* src, int sw, int sh,
+                                      uint8_t* dst, int dw, int dh) {
+    if (!src || !dst) return -1;
+    for (int y = 0; y < dh; ++y) {
+        int sy = (y * sh) / dh;
+        if (sy >= sh) sy = sh - 1;
+        const uint8_t* srow = src + sy * sw * 3;
+        uint8_t* drow = dst + y * dw * 3;
+        for (int x = 0; x < dw; ++x) {
+            int sx = (x * sw) / dw;
+            if (sx >= sw) sx = sw - 1;
+            drow[x*3+0] = srow[sx*3+0];
+            drow[x*3+1] = srow[sx*3+1];
+            drow[x*3+2] = srow[sx*3+2];
+        }
+    }
+    return 0;
+}
+
+/* Core single-tick: cam → resize → set_input → invoke.  Returns inference
+ * latency in ms, or negative on error. */
+static int pipeline_tick_once(void) {
+    if (!sentai_tpu_is_ready()) return -10;
+
+    /* Get latest 640x480 RGB frame. */
+    int cw, ch; uint32_t seq;
+    size_t got = sim_camera_latest_rgb(s_pipe_cam_buf, sizeof(s_pipe_cam_buf),
+                                        &cw, &ch, &seq);
+    if (got == 0) return -11;   /* no frame yet (Gazebo bridge not running?) */
+
+    /* Query TPU input dimensions. */
+    int iw=0, ih=0, ic=0, itype=0, izp=0;
+    uint8_t* dummy = NULL;
+    if (sentai_get_tensor_info(&iw, &ih, &ic, &dummy, &itype, &izp) != 0) {
+        return -12;
+    }
+    if (ic != 3) return -13;   /* SIM resize path is RGB888 only */
+    int resized_bytes = iw * ih * 3;
+    if ((size_t)resized_bytes > sizeof(s_pipe_resized)) return -14;
+
+    if (sim_resize_rgb888_nearest(s_pipe_cam_buf, cw, ch,
+                                   s_pipe_resized, iw, ih) != 0) return -15;
+
+    /* Push to TPU + invoke. */
+    if (sentai_tpu_set_input_slot(0, s_pipe_resized, resized_bytes) != 0) return -16;
+
+    TickType_t t0 = xTaskGetTickCount();
+    int rc = sentai_tpu_invoke();
+    if (rc != 0) return -17 - rc;
+    uint32_t dt = (uint32_t)(xTaskGetTickCount() - t0) * portTICK_PERIOD_MS;
+
+    s_pipe_frames    += 1;
+    s_pipe_last_ms    = dt;
+    s_pipe_total_ms  += dt;
+    s_pipe_last_err   = 0;
+    return (int)dt;
+}
+
+static mp_obj_t sentai_pipeline_tick_mp(void) {
+    int ms = pipeline_tick_once();
+    if (ms < 0) s_pipe_last_err = ms;
+    return mp_obj_new_int(ms);
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(sentai_pipeline_tick_obj, sentai_pipeline_tick_mp);
+
+static void pipeline_task(void* arg) {
+    (void)arg;
+    s_pipe_running = 1;
+    while (s_pipe_running) {
+        uint32_t period_ms = 1000 / (s_pipe_target_fps ? s_pipe_target_fps : 1);
+        TickType_t t0 = xTaskGetTickCount();
+        pipeline_tick_once();
+        TickType_t spent = xTaskGetTickCount() - t0;
+        TickType_t period = pdMS_TO_TICKS(period_ms);
+        if (spent < period) vTaskDelay(period - spent);
+        else                vTaskDelay(1);
+    }
+    s_pipe_task = NULL;
+    vTaskDelete(NULL);
+}
+
+static mp_obj_t sentai_pipeline_start_mp(size_t n_args, const mp_obj_t* args) {
+    if (s_pipe_running) return mp_obj_new_int(-1);
+    if (n_args >= 1) s_pipe_target_fps = mp_obj_get_int(args[0]);
+    BaseType_t ok = xTaskCreate(pipeline_task, "pipeline",
+                                 configMINIMAL_STACK_SIZE * 16,
+                                 NULL, tskIDLE_PRIORITY + 2, &s_pipe_task);
+    if (ok != pdPASS) return mp_obj_new_int(-2);
+    return mp_obj_new_int(0);
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(sentai_pipeline_start_obj, 0, 1, sentai_pipeline_start_mp);
+
+static mp_obj_t sentai_pipeline_stop_mp(void) {
+    s_pipe_running = 0;
+    return mp_obj_new_int(0);
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(sentai_pipeline_stop_obj, sentai_pipeline_stop_mp);
+
+static mp_obj_t sentai_pipeline_running_mp(void) {
+    return mp_obj_new_bool(s_pipe_running);
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(sentai_pipeline_running_obj, sentai_pipeline_running_mp);
+
+static mp_obj_t sentai_pipeline_stats_mp(void) {
+    mp_obj_t d = mp_obj_new_dict(0);
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_frames),
+                      mp_obj_new_int_from_uint(s_pipe_frames));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_invoke_ms_max),
+                      mp_obj_new_int_from_uint(s_pipe_last_ms));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_total_ms_sum),
+                      mp_obj_new_int_from_uint(s_pipe_total_ms));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_running),
+                      mp_obj_new_bool(s_pipe_running));
+    return d;
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(sentai_pipeline_stats_obj, sentai_pipeline_stats_mp);
+
+static mp_obj_t sentai_pipeline_target_fps_mp(size_t n_args, const mp_obj_t* args) {
+    if (n_args >= 1) s_pipe_target_fps = mp_obj_get_int(args[0]);
+    return mp_obj_new_int(s_pipe_target_fps);
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(sentai_pipeline_target_fps_obj, 0, 1, sentai_pipeline_target_fps_mp);
+
+static const mp_rom_map_elem_t sentai_pipeline_globals_table[] = {
+    { MP_ROM_QSTR(MP_QSTR___name__),    MP_ROM_QSTR(MP_QSTR_pipeline) },
+    { MP_ROM_QSTR(MP_QSTR_step),        MP_ROM_PTR(&sentai_pipeline_tick_obj) },
+    { MP_ROM_QSTR(MP_QSTR_start),       MP_ROM_PTR(&sentai_pipeline_start_obj) },
+    { MP_ROM_QSTR(MP_QSTR_stop),        MP_ROM_PTR(&sentai_pipeline_stop_obj) },
+    { MP_ROM_QSTR(MP_QSTR_running),     MP_ROM_PTR(&sentai_pipeline_running_obj) },
+    { MP_ROM_QSTR(MP_QSTR_stats),       MP_ROM_PTR(&sentai_pipeline_stats_obj) },
+    { MP_ROM_QSTR(MP_QSTR_target_fps),  MP_ROM_PTR(&sentai_pipeline_target_fps_obj) },
+};
+static MP_DEFINE_CONST_DICT(sentai_pipeline_globals, sentai_pipeline_globals_table);
+static const mp_obj_module_t sentai_pipeline_module = {
+    .base = { &mp_type_module },
+    .globals = (mp_obj_dict_t *) &sentai_pipeline_globals,
+};
+
 /* ===== top-level sentai module ===== */
 static const mp_rom_map_elem_t sentai_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_sentai) },
@@ -695,6 +875,7 @@ static const mp_rom_map_elem_t sentai_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_camera),   MP_ROM_PTR(&sentai_camera_module) },
     { MP_ROM_QSTR(MP_QSTR_flow),     MP_ROM_PTR(&sentai_flow_module) },
     { MP_ROM_QSTR(MP_QSTR_tpu),      MP_ROM_PTR(&sentai_tpu_module) },
+    { MP_ROM_QSTR(MP_QSTR_pipeline), MP_ROM_PTR(&sentai_pipeline_module) },
 };
 static MP_DEFINE_CONST_DICT(sentai_globals, sentai_globals_table);
 
