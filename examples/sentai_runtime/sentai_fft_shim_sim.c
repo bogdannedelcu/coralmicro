@@ -24,6 +24,14 @@ sentai_cfft_instance_f32 sentai_cfft_sR_f32_len64 = {
     .plan_inv = NULL,
 };
 
+// Length-32 instance — used by the dz divergence sub-block path in
+// flow_phase_corr.cc (32×32 sub-blocks).  Same lazy-init pattern.
+sentai_cfft_instance_f32 sentai_cfft_sR_f32_len32 = {
+    .N        = 32,
+    .plan_fwd = NULL,
+    .plan_inv = NULL,
+};
+
 static void ensure_plans(sentai_cfft_instance_f32* inst) {
     if (inst->plan_fwd) return;
 
