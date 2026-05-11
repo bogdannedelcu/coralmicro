@@ -47,11 +47,17 @@ CAM_FOV_V_RAD = math.radians(45.0)
 CAM_FX_PX = SSD_INPUT_W / (2.0 * math.tan(CAM_FOV_H_RAD / 2.0))   # ~270 px
 CAM_FY_PX = SSD_INPUT_H / (2.0 * math.tan(CAM_FOV_V_RAD / 2.0))   # ~362 px
 
-# Live drone attitude (deg, EKF-fused) updated by cflib log callback.
+# Live drone attitude (deg) + position (m), EKF-fused, updated by cflib
+# log callback at 100 Hz.  Position drift accumulates because we have no
+# absolute position observation — values are useful for visualisation, not
+# absolute reference.
 _att_lock = threading.Lock()
 _drone_roll_deg = 0.0
 _drone_pitch_deg = 0.0
 _drone_yaw_deg = 0.0
+_drone_x = 0.0
+_drone_y = 0.0
+_drone_z = 0.0
 
 
 def attitude_compensate(cx: int, cy: int) -> tuple[int, int]:
@@ -182,6 +188,10 @@ class SentaiRepl:
 import queue as _queue
 _state_queue: _queue.Queue = _queue.Queue(maxsize=4096)
 _stop = threading.Event()
+# state.tsv path — set once we know the per-exp dir (post env-var resolution).
+_state_tsv_path = None
+_state_tsv_f = None
+_state_tsv_lock = threading.Lock()
 # Fires when hover_logic prints HOVER_CENTERED — bbox within CENTER_THRESH
 # for CENTERED_HOLD consecutive frames.  Host waits 3s post-centered then
 # lands.
@@ -190,7 +200,8 @@ _centered_event = threading.Event()
 
 def reader_thread(proc: subprocess.Popen):
     """Read sentai_sim stdout continuously; push STATE= tuples into queue
-    so the host hover loop sees every transition, not just the latest."""
+    AND log each STATE row as TSV to state_tsv_f for disk replay.  All
+    experiment artifacts land on disk (per Sim.md best practice §10i)."""
     sim_log = open("/tmp/hover_sim.log", "w")
     while not _stop.is_set():
         line = proc.stdout.readline()
@@ -206,6 +217,12 @@ def reader_thread(proc: subprocess.Popen):
                     _state_queue.put_nowait(tup)
                 except _queue.Full:
                     pass
+                # ALSO write to state.tsv for disk-only replay.
+                with _state_tsv_lock:
+                    if _state_tsv_f is not None:
+                        # Pad to 17 fields with -1 (so columns match).
+                        padded = list(tup) + [-1] * (17 - len(tup))
+                        _state_tsv_f.write("\t".join(str(v) for v in padded[:17]) + "\n")
             except Exception as e:
                 print(f"[reader] parse err: {e}: {payload[:80]}", file=sys.stderr)
         elif "Traceback" in line or "ERROR" in line.upper():
@@ -219,6 +236,17 @@ def reader_thread(proc: subprocess.Popen):
 
 def main() -> int:
     print("[hover] spawn sentai_sim", file=sys.stderr)
+    # Open state.tsv in per-experiment dir.  ALL artifacts (PPMs, flight.tsv,
+    # state.tsv, hover.log, hover_sim.log) live in the same folder so each
+    # experiment is fully self-contained on disk.  Sim.md §10i.
+    global _state_tsv_path, _state_tsv_f
+    exp_dir = os.environ.get("SENTAI_DUMP_FRAMES_DIR", "/tmp/sentai_frames")
+    os.makedirs(exp_dir, exist_ok=True)
+    _state_tsv_path = os.path.join(exp_dir, "state.tsv")
+    _state_tsv_f = open(_state_tsv_path, "w")
+    _state_tsv_f.write("iter\ttid\tcls\tconf\tcx\tcy\terr_x\terr_y\t"
+                       "vx\tvy\tfvx\tfvy\tx1\ty1\tx2\ty2\tfseq\n")
+    print(f"[hover] state.tsv → {_state_tsv_path}", file=sys.stderr)
     repl = SentaiRepl()
 
     # Drain banner
@@ -274,23 +302,39 @@ def main() -> int:
     cf.param.set_value("kalman.resetEstimation", 0)
     time.sleep(2.0)   # let EKF settle
 
-    # Subscribe to drone attitude (10 ms = 100 Hz) — used for bbox tilt
-    # compensation in attitude_compensate() above.
+    # Subscribe to drone attitude + position (EKF state) at 100 Hz.  Used
+    # for: (a) bbox tilt compensation, (b) flight.tsv log for analysis,
+    # (c) overlay metadata in the final MP4.
+    flight_log_path = os.path.join(
+        os.environ.get("SENTAI_DUMP_FRAMES_DIR", "/tmp/sentai_frames"),
+        "flight.tsv")
+    flight_log_f = open(flight_log_path, "w")
+    flight_log_f.write("ts\troll\tpitch\tyaw\tx\ty\tz\n")
     def _att_cb(timestamp, data, logconf):
         global _drone_roll_deg, _drone_pitch_deg, _drone_yaw_deg
+        global _drone_x, _drone_y, _drone_z
         with _att_lock:
             _drone_roll_deg = data['stateEstimate.roll']
             _drone_pitch_deg = data['stateEstimate.pitch']
             _drone_yaw_deg = data['stateEstimate.yaw']
-    log_att = LogConfig(name="att", period_in_ms=10)
+            _drone_x = data['stateEstimate.x']
+            _drone_y = data['stateEstimate.y']
+            _drone_z = data['stateEstimate.z']
+        flight_log_f.write(f"{timestamp}\t{_drone_roll_deg:.3f}\t{_drone_pitch_deg:.3f}\t"
+                           f"{_drone_yaw_deg:.3f}\t{_drone_x:.4f}\t{_drone_y:.4f}\t{_drone_z:.4f}\n")
+    log_att = LogConfig(name="att", period_in_ms=20)  # 50 Hz (8 vars × 4 B = 32 B < 26 B limit so split)
     log_att.add_variable("stateEstimate.roll", "float")
     log_att.add_variable("stateEstimate.pitch", "float")
     log_att.add_variable("stateEstimate.yaw", "float")
+    log_att.add_variable("stateEstimate.x", "float")
+    log_att.add_variable("stateEstimate.y", "float")
+    log_att.add_variable("stateEstimate.z", "float")
     try:
         cf.log.add_config(log_att)
         log_att.data_received_cb.add_callback(_att_cb)
         log_att.start()
-        print("[hover] attitude log subscribed @ 100 Hz", file=sys.stderr)
+        print(f"[hover] attitude+pos log subscribed @ 50 Hz → {flight_log_path}",
+              file=sys.stderr)
     except Exception as e:
         print(f"[hover] WARN attitude log failed: {e}", file=sys.stderr)
 
@@ -362,7 +406,8 @@ def main() -> int:
             # rotates camera FOV → bbox appears to shift in image without
             # drone translating; correct by subtracting f_px*tilt_rad).
             if len(state) >= 16:
-                it, tid, cls, conf, cx, cy, ex, ey, _, _, fvx, fvy, x1, y1, x2, y2 = state
+                # 17-field has fseq at end; we don't need it host-side.
+                it, tid, cls, conf, cx, cy, ex, ey, _, _, fvx, fvy, x1, y1, x2, y2 = state[:16]
                 # Tilt-compensated centroid.
                 cx_c, cy_c = attitude_compensate(cx, cy)
                 err_x_c = cx_c - SSD_INPUT_W // 2
@@ -439,7 +484,20 @@ def main() -> int:
 
     _stop.set()
     repl.stop()
-    print("[hover] done", file=sys.stderr)
+    # Flush + close per-experiment disk artifacts.
+    try:
+        flight_log_f.close()
+    except Exception:
+        pass
+    with _state_tsv_lock:
+        if _state_tsv_f is not None:
+            _state_tsv_f.close()
+    print(f"[hover] artifacts on disk: {exp_dir}/", file=sys.stderr)
+    print(f"[hover]   frame_*.ppm  ({len(list(__import__('glob').glob(exp_dir + '/frame_*.ppm')))} files)",
+          file=sys.stderr)
+    print(f"[hover]   flight.tsv   (drone XYZ + RPY @ 50 Hz)", file=sys.stderr)
+    print(f"[hover]   state.tsv    (tracker + flow + cmd @ 5 Hz)", file=sys.stderr)
+    print(f"[hover] done", file=sys.stderr)
     return 0
 
 

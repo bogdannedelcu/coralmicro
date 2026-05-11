@@ -70,10 +70,13 @@ def overlay(ppm_path: Path, dets: list[tuple], out_path: Path):
 def parse_hover_log(log: Path):
     """Return:
       dets_by_iter: {iter: [(x1,y1,x2,y2,conf,cls), ...]}  — from HOVER_LOGIC_DETS
-      state_by_iter: {iter: (tid, cls, conf, cx, cy)}     — from STATE= (only tid>0)
+      state_by_fseq: {gz_frame_seq: (tid, cls, conf, cx, cy, x1, y1, x2, y2)}
+                       from STATE= (only tid>0, 17-field with fseq).  Falls back
+                       to keying by iter for older 16-field STATE.
     """
     dets = {}
-    states = {}
+    state_by_fseq = {}
+    state_by_iter = {}   # legacy fallback
     last_iter = -1
     with log.open() as f:
         for line in f:
@@ -81,20 +84,24 @@ def parse_hover_log(log: Path):
                 try:
                     t = ast.literal_eval(line.split("STATE=", 1)[1].strip())
                     last_iter = t[0]
-                    if t[1] > 0:  # tid>0 = a confirmed track this frame
-                        # 16-field STATE: ..., x1, y1, x2, y2 at indices [12..15]
-                        if len(t) >= 16:
-                            states[t[0]] = (t[1], t[2], t[3], t[4], t[5],
-                                            t[12], t[13], t[14], t[15])
+                    if t[1] > 0:
+                        if len(t) >= 17:
+                            # NEW: gz frame seq at t[16] — keys by seq.
+                            entry = (t[1], t[2], t[3], t[4], t[5],
+                                     t[12], t[13], t[14], t[15])
+                            state_by_fseq[t[16]] = entry
+                        elif len(t) >= 16:
+                            state_by_iter[t[0]] = (t[1], t[2], t[3], t[4], t[5],
+                                                   t[12], t[13], t[14], t[15])
                         else:
-                            states[t[0]] = (t[1], t[2], t[3], t[4], t[5],
-                                            None, None, None, None)
+                            state_by_iter[t[0]] = (t[1], t[2], t[3], t[4], t[5],
+                                                   None, None, None, None)
                 except Exception:
                     pass
             elif "HOVER_LOGIC_DETS=" in line:
                 payload = line.split("HOVER_LOGIC_DETS=", 1)[1].strip()
                 dets[last_iter] = parse_dets(payload)
-    return dets, states
+    return dets, state_by_fseq, state_by_iter
 
 
 def main():
@@ -106,34 +113,39 @@ def main():
     if not frames_dir.is_dir():
         print(f"no dir: {frames_dir}", file=sys.stderr)
         return 1
-    dets_by_iter, state_by_iter = parse_hover_log(log)
+    dets_by_iter, state_by_fseq, state_by_iter = parse_hover_log(log)
     ppms = sorted(frames_dir.glob("frame_*.ppm"))
     print(f"{len(ppms)} dumped frames, {len(dets_by_iter)} DETS, "
-          f"{len(state_by_iter)} STATE-with-track", file=sys.stderr)
-    # Merge: prefer state (per-iter, more abundant during good lock).  For each
-    # frame index, pick nearest iter from the union of dets+states keys.
-    all_iters = sorted(set(dets_by_iter) | set(state_by_iter))
+          f"{len(state_by_fseq)} STATE-by-fseq (preferred), "
+          f"{len(state_by_iter)} STATE-by-iter (fallback)", file=sys.stderr)
+    fseq_sorted = sorted(state_by_fseq.keys()) if state_by_fseq else []
+    iter_sorted = sorted(state_by_iter.keys()) if state_by_iter else []
     n_overlaid = n_with_track = 0
-    for i, ppm in enumerate(ppms):
+    for ppm in ppms:
+        # Parse gz frame seq from filename frame_NNNNNN.ppm
+        try:
+            frame_seq = int(ppm.stem.replace("frame_", ""))
+        except Exception:
+            frame_seq = -1
         chosen_dets = []
-        if all_iters:
-            idx = min(len(all_iters) - 1, int(i * len(all_iters) / max(1, len(ppms))))
-            it = all_iters[idx]
-            # Prefer tracker (state) — it gives a single best confirmed bbox.
-            # Fall back to raw DETS if no track was confirmed at that iter.
-            if it in state_by_iter:
-                tid, cls, conf, cx, cy, x1, y1, x2, y2 = state_by_iter[it]
+        if fseq_sorted and frame_seq >= 0:
+            # Match by FSEQ — find STATE entry whose fseq is closest.
+            best_fseq = min(fseq_sorted, key=lambda s: abs(s - frame_seq))
+            # Only use if within reasonable window (±15 frames at 30 fps = 0.5 s).
+            if abs(best_fseq - frame_seq) <= 30:
+                tid, cls, conf, cx, cy, x1, y1, x2, y2 = state_by_fseq[best_fseq]
                 if x1 is not None:
-                    # Real tracker bbox in 300x300 SSD-input space.
                     chosen_dets = [(x1, y1, x2, y2, conf, cls)]
-                else:
-                    BB = 50  # legacy fallback
-                    chosen_dets = [(max(0,cx-BB), max(0,cy-BB),
-                                    min(300,cx+BB), min(300,cy+BB), conf, cls)]
+                    n_with_track += 1
+        elif iter_sorted:
+            # Legacy fallback: index-ratio match (known buggy on misaligned rates).
+            i = ppms.index(ppm)
+            idx = min(len(iter_sorted) - 1, int(i * len(iter_sorted) / max(1, len(ppms))))
+            it = iter_sorted[idx]
+            tid, cls, conf, cx, cy, x1, y1, x2, y2 = state_by_iter[it]
+            if x1 is not None:
+                chosen_dets = [(x1, y1, x2, y2, conf, cls)]
                 n_with_track += 1
-            elif it in dets_by_iter:
-                # show only top 3 dets by conf to avoid clutter
-                chosen_dets = sorted(dets_by_iter[it], key=lambda d: -d[4])[:3]
         out = ppm.with_suffix(".png")
         overlay(ppm, chosen_dets, out)
         n_overlaid += 1

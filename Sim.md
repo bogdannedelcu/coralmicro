@@ -963,6 +963,59 @@ fights drone wobble integration.  Patch lives at
 - [CrazySim repo (gtfactslab) — base SIM stack](https://github.com/gtfactslab/CrazySim)
 - [crazyflie_ros issue #66: velocity setpoints with Flow Deck (whoenig)](https://github.com/whoenig/crazyflie_ros/issues/66)
 
+## 10i. Disk-first experiment artifacts (best practice 2026-05-11)
+
+**Rule**: every SIM experiment must produce ALL data needed to
+reconstruct, analyse, and replay it as files on disk in a single
+**per-experiment directory**.  No reliance on REPL stdout being
+captured, no ephemeral in-memory state, no "the SSD detection scrolled
+past in the terminal and you'd have to scroll up to see it".
+
+**Reason**: during s090 development this session we spent 2-3 hours
+debugging a misaligned bbox overlay that turned out to be a
+frame-to-STATE index-ratio mismatch.  The fix was trivial (match by
+gz frame seq, not by index) but the bug was invisible because the
+state was buried in an ephemeral hover_sim.log getting overwritten on
+every run.  Had the per-experiment dir included a structured state.tsv
++ flight.tsv, the bug would have been immediately catchable by
+sorting and joining the two files in pandas.
+
+**Layout** for `/tmp/sentai_frames_<YYYYMMDD_HHMMSS>/`:
+
+| File              | Format | Rate    | Source                              |
+|-------------------|--------|---------|-------------------------------------|
+| `frame_NNNNNN.ppm`| PPM 640×480 | gz fps / N | sim/camera_bridge_recv.c       |
+| `state.tsv`       | TSV    | 5 Hz    | host wrapper drains hover_logic STATE |
+| `flight.tsv`      | TSV    | 50 Hz   | cflib LogConfig stateEstimate.{rpy,xyz} |
+| `hover.log`       | text   | event   | host wrapper [hover] events         |
+| `hover_sim.log`   | text   | sim stdout | reader_thread tee                |
+| `run.mp4`         | H.264 baseline | 5 Hz | make_video.py post-run rendering |
+
+`state.tsv` columns (17): `iter tid cls conf cx cy err_x err_y vx vy
+fvx fvy x1 y1 x2 y2 fseq`.
+
+`flight.tsv` columns (7): `ts roll pitch yaw x y z`.
+
+**Replay**: any post-hoc tool reads `<exp_dir>/state.tsv` and
+`<exp_dir>/flight.tsv` directly with `pandas.read_csv(sep='\t')` and
+correlates by timestamp / gz frame seq.  No need to re-run the
+experiment or scrape stdout.  Overlay video reproduces from the same
+two TSVs + PPMs via `make_video.py <exp_dir>`.
+
+**Anti-patterns to avoid:**
+
+- Scraping STATE from a global `/tmp/hover_sim.log` that the NEXT run
+  will overwrite.  Always copy/snapshot per-experiment.
+- Logging to REPL stdout instead of to disk.  REPL terminal scrollback
+  is fine for interactive debug, but it's NOT the experiment record.
+- "I'll re-run if needed" — re-runs aren't reproducible (Coral USB
+  drops between runs, gz timing varies, drone yaw differs).  Capture
+  ONCE, analyse FOREVER.
+- Storing experiment dirs outside the canonical pattern
+  `examples/sentai_runtime/experiments/sNNN_<name>/` (the
+  `/tmp/sentai_frames_*` dir is a workdir; results that prove a
+  hypothesis get copied / linked back into the sNNN directory).
+
 ## 11. References
 
 - FreeRTOS POSIX port docs: https://www.freertos.org/FreeRTOS-simulator-for-Linux.html
