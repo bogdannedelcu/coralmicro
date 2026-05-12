@@ -116,13 +116,9 @@ def main() -> int:
                         vy_body = -sy*vx_enu + cy*vy_enu
                         h = max(0.10, pz)        # altitude (m), floor 10cm to
                                                  # avoid div by tiny number
-                        # SANITY CHECK: send pure-zero flow always.
-                        # If drone diverges anyway, the issue is not sign
-                        # convention but something else (yaw stability,
-                        # gyro NaN, EKF framing).  If drone HOLDS, then
-                        # divergence is sign-driven and we iterate signs.
-                        flow_y = 0.0
-                        flow_x = 0.0
+                        # Combo 5: swap + both positive (untested).
+                        flow_y = +vy_body * dt / h
+                        flow_x = +vx_body * dt / h
 
                         dt_us = max(1, int(dt * 1e6))
                         usec = int((now - args_t0) * 1e6)

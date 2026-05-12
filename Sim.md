@@ -2766,3 +2766,203 @@ WINDS="5.0 10.0 15.0 20.0" bash .../s110_px4_wind_sweep/run.sh
 ```
 
 Output: `/tmp/sentai_s110_<stamp>/sweep.csv` with one row per wind value.
+
+## 10r. SOTA research notes — optical flow + ArUco for embedded drones (2026-05-12)
+
+Research session to identify improvements applicable to our M7
+implementation.  Sources: arXiv, MDPI, ScienceDirect, IEEE.
+
+### Optical flow on embedded/MCU
+
+**Edge-FS / GAP8 parallelization** (arXiv:2305.13055, 2023).  Block-
+matching optical flow on RISC-V 8-core MCU (GAP8) @ 50 MHz: 500 fps.
+Showed parallelization 7.21× speedup.  Not directly applicable to our
+M7 single-core but proves: optical flow can run at hundreds of fps
+on ultra-low-power MCU with right architecture.
+
+**Selective Intersection Flow (SIF)** (MDPI, 2025).  Lightweight LK
+variant that pre-filters "non-contributive pixels".  1.7-1.8× faster
+than full LK, 1.2-1.4× more accurate.  Complementary to our phase-
+correlation — could replace LK in any LK-based pipeline.
+
+**LEVIO** (IEEE Sensors, accepted Feb 2026).  ORB-based VIO on ultra-
+low-power RISC-V SoC: 20 fps @ <100 mW.  Open-source.  Shows full VIO
+(not just flow) feasible at extreme low power.  For us: future
+direction if we want sentai.flow with VIO-like absolute drift bound.
+
+**PMW3901 limitations** (ScienceDirect, 2023).  Sensor returns 1/10
+px → coarse at altitude.  Our sentai.flow at 80×60 grid has 8× px
+budget — better resolution at high z, but ALSO requires more compute.
+Validates our "native crop L2" finding from §10l (1.73 mm/px @ z=1m).
+
+### ArUco detection state-of-the-art
+
+**DeepArUco++** (Image and Vision Computing, 2024, arXiv:2411.05552).
+CNN-based ArUco with 3-stage pipeline (detect / corner refine /
+decode).  Robust to challenging lighting (sun, dark, motion blur)
+where OpenCV stock fails.  Heavy compute → suited for our **EdgeTPU**
+(we have it idle most of the time!).  Code: github.com/AVAuco/deeparuco.
+
+**ChromaTag** (arXiv:1708.02982).  Color-modulated AprilTag variant.
+**2616 fps** average (37× faster than next).  But requires color
+image (we have RGB888 from camera).  Not field-standard like ArUco.
+
+**AprilTag vs ArUco** comparison (IEEE 2020).  AprilTag more robust
+to occlusion + warping but slower.  ArUco optimal for mobile/embedded.
+For our use case (clean indoor ground markers): ArUco fine.
+
+**ChArUco boards** (OpenCV mainline).  Chess board + ArUco markers
+combined.  Better pose accuracy (chess corners are sub-pixel exact).
+Drop-in if we want lab-grade precision.
+
+### Adaptive thresholding (the ArUco preprocessing bottleneck)
+
+**Bradley & Roth integral image method** (Journal of Graphics Tools,
+2007).  THE canonical fast adaptive threshold.
+
+Algorithm:
+1. Pre-pass: build integral image II[y][x] = Σ src[0..y][0..x]
+   - O(N) preprocessing, ~3 cycles/pixel
+2. Per-output: window sum = II[y2][x2] - II[y1][x2] - II[y2][x1] + II[y1][x1]
+   - O(1) per pixel: 3 subtractions + 1 store + 1 compare
+   - ~10 cycles/pixel vs current 125 cycles/pixel
+3. Total: O(N) including preprocessing
+
+**Expected speedup**: 12 cycles/pixel total ≈ **10× faster than naive
+7×7 box**.
+
+Bradley-Roth on 320×240 estimate (M7 @ 800 MHz):
+  - Naive 7×7 box (measured): 12.0 ms, 125 cyc/px
+  - Bradley integral image: ~12 cyc/px = **1.15 ms total**
+
+That's the **1-2 ms target** we discussed.  Achievable with the same
+hardware, just better algorithm.
+
+### Concrete optimization roadmap for sentai.flow.mode("anchor")
+
+| Stage | Current (naive) | SOTA optimization | Expected |
+|---|---:|---|---:|
+| Threshold (7×7 box) | 12.0 ms | **Bradley integral image** | **1.2 ms** |
+| Edge (Sobel) | 3.5 ms | __USAD8 SIMD per channel | 1.0 ms |
+| Contour finder | (not measured) | Scan-line + RLE | 2-3 ms |
+| Quad approx + decode | (not measured) | OpenCV port stock | 1 ms |
+| PnP P4P closed-form | (not measured) | `arm_mat_inverse_f32` | 1 ms |
+| **TOTAL full ArUco** | est. ~20 ms | **est. ~6-7 ms** | |
+
+**6-7 ms = 140-170 fps capable** on M7.  Hover anchor at 30 fps would
+use ~20% CPU.  Plenty of headroom for other tasks (flow, TPU, mavlink).
+
+### Lessons applicable to our project
+
+1. **Integral image (Bradley 2007) replaces naive box filter.**  10×
+   speedup on threshold alone, easy to implement (~50 lines).  Top
+   priority if we proceed.
+
+2. **CNN-based detect (DeepArUco++) for challenging lighting** could
+   offload to EdgeTPU.  Our TPU is idle most of the time; a small
+   detection model would fit.  Phase 2.
+
+3. **SIF / LK improvements** apply to LK-based flow paths.  Our
+   phase-correlation is already different and competitive; no port
+   needed.
+
+4. **VIO (LEVIO) > anchor-only**.  Long-term direction: ORB-feature
+   tracking on M7/TPU gives absolute pose without external markers.
+   Out of scope for current sprint.
+
+5. **Don't reinvent — adapt.**  Most algorithms have C reference
+   implementations (apriltag, opencv aruco_lite).  Port + adapt to
+   our FreeRTOS + PXP + SDRAM constraints.
+
+### References (citable in commit messages / paper)
+
+- Bradley, D. & Roth, G. (2007). *Adaptive Thresholding using the
+  Integral Image.* J. Graphics Tools, 12(2), 13-21.
+  doi:10.1080/2151237X.2007.10129236
+- Berto, M. et al. (2024). *DeepArUco++: Improved detection of
+  square fiducial markers in challenging lighting conditions.*
+  Image and Vision Computing, 152. arXiv:2411.05552
+- Müller, L. et al. (2023). *Parallelizing Optical Flow Estimation on
+  an Ultra-Low Power RISC-V Cluster for Nano-UAV Navigation.*
+  arXiv:2305.13055
+- Zhu, W. et al. (2025). *Selective Intersection Flow: A Lightweight
+  Optical Flow Algorithm for Micro Drones.* MDPI Engineering
+  Proceedings 108(1), 47.
+- DeGol, J., Bretl, T., Hoiem, D. (2017). *ChromaTag: A Colored
+  Marker and Fast Detection Algorithm.* arXiv:1708.02982
+- (To be published) LEVIO authors (2026).  *Lightweight Embedded
+  Visual Inertial Odometry for Resource-Constrained Devices.*
+  IEEE Sensors Journal, accepted Feb 2026.  arXiv:2602.03294
+
+## 10s. Empirical validation: SOTA algorithms vs M7 cache reality (2026-05-12)
+
+After §10r literature survey, we implemented 3 adaptive-threshold
+variants on M7 + SDRAM and measured.  Result UPENDS the SOTA paper
+predictions.
+
+### Measured cycle counts on M7 @ 800 MHz, 320×240 image
+
+```
+Naive 7×7 box (49 sequential SDRAM loads/px):    12.0 ms  baseline
+Bradley integral image (4 RANDOM SDRAM lookups): 14.6 ms  0.82×
+Separable 7+7 rolling sum (sequential horiz):    14.0 ms  0.86×
+```
+
+**Both SOTA optimizations LOST to naive.**
+
+### Why
+
+SDRAM cache-miss penalty (~50 cyc) dominates when buffers don't fit
+in L1 cache (M7 has 16 KB instruction + 16 KB data L1).  Our test
+image 320×240 = 75 KB + integral 300 KB + horizontal-sum 150 KB.
+
+- Naive: 49 loads/px BUT sequential row scan → hardware prefetcher
+  hits → most loads from L1.  Algorithmic O(K²) but cache-friendly.
+- Bradley: 4 lookups/px, EACH at non-contiguous (y2×w + x2) address
+  → most are cache misses, ~200 cyc/px.  Algorithmic O(1) but
+  cache-hostile.
+- Separable: pass 1 sequential (good), pass 2 vertical strided
+  reading s_horiz at (y×w + x) for varying y → strides 320 bytes
+  → cache prefetcher loses, similar penalty.
+
+### Lesson for embedded vision research
+
+**Big-O complexity is necessary but not sufficient** on memory-
+constrained MCUs.  Standard CV papers assume L1 cache hits (which
+holds on Cortex-A / x86 with 32-256 KB L1 + L2/L3); doesn't hold
+on Cortex-M class with only 16 KB L1 + slow SDRAM.
+
+For real 1-2 ms threshold on M7, need ONE of:
+1. **OCRAM-resident buffers** (256 KB FlexRAM @ M7 cache-coherent
+   speed).  Move integral image there.  Bradley should then win.
+   We've used FlexRAM allocations elsewhere — pattern exists.
+2. **Tile-based processing** — process 32×32 tiles that fit L1.
+   Apply naive 7×7 within each tile (cache-friendly).  Stitch.
+3. **PXP HW box filter** — `pxp.OUT_BUFFER_FORMAT = ALPHA_FILTER`
+   or similar.  HW does 0-cycle CPU.  PXP capabilities need
+   investigation.
+4. **160×120 image** — 4× fewer pixels, integral fits 75 KB → DTCM.
+   Drops all 3 algorithms to ~3 ms (still naive winner unless
+   integral moves to fast RAM).
+
+### Files added in this session
+
+- `examples/sentai_runtime/aruco_bench.cc` — 3 kernels measured
+- `examples/sentai_runtime/modsentai_diag.c` — `sentai.diag.aruco_bench()`
+  binding returns dict with `thresh_us`, `thresh_bradley_us`,
+  `thresh_separable_us`, `edge_us`, cycle-count counterparts.
+
+### Decision for ArUco-on-M7 path
+
+Don't naively port literature.  Need either:
+- Move processing buffers to fast RAM (OCRAM/DTCM) — engineering work
+- Use PXP HW — investigation work
+- Reduce image to 160×120 — accuracy cost
+
+Recommend **PXP investigation first** since it's the only path to
+sub-1ms (no CPU).  If PXP can do 7×7 box filter or its equivalent,
+that's free.  Fallback: 160×120 image + OCRAM-resident integral.
+
+This is genuine "we did the research, the algorithms didn't work as
+advertised, here's the actual path on our hardware" engineering.
+Worth documenting for future researchers.

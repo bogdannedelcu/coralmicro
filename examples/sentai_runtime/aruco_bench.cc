@@ -124,6 +124,107 @@ static void k_adaptive_threshold(const uint8_t* src, uint8_t* dst,
     }
 }
 
+// Kernel 2b: Bradley-Roth adaptive threshold via integral image
+// (J. Graphics Tools, 2007).  O(1) per output pixel after O(N)
+// preprocessing — replaces the naive 49-load per-pixel scan of k_adaptive_threshold.
+//
+// Two-pass: build integral image II[y][x] = sum of src[0..y][0..x],
+// then for each output pixel sum = II[br] - II[tr] - II[bl] + II[tl]
+// over a (2*S+1) × (2*S+1) window.
+//
+// Integral type: uint32_t — max pixel sum at 320×240 = 76800 × 255 =
+// 19.5M, fits 24 bits; 32-bit gives headroom.  Total integral buffer:
+// 320×240×4 = 307200 bytes → must live in SDRAM.
+__attribute__((section(".sdram_bss")))
+static uint32_t s_integral[W * H];
+
+__attribute__((section(".sdram_text"), noinline))
+static void k_adaptive_threshold_bradley(const uint8_t* src, uint8_t* dst,
+                                          int w, int h) {
+    constexpr int S = 3;          // half-window (window = 7×7 same as naive)
+    constexpr int OFFSET = 5;
+
+    // Pass 1: build integral image (row-wise running sum + column sum).
+    for (int y = 0; y < h; ++y) {
+        uint32_t row_sum = 0;
+        for (int x = 0; x < w; ++x) {
+            row_sum += src[y * w + x];
+            s_integral[y * w + x] = (y == 0 ? 0 : s_integral[(y-1) * w + x]) + row_sum;
+        }
+    }
+
+    // Pass 2: per-pixel window mean from 4 integral lookups.
+    for (int y = S; y < h - S; ++y) {
+        for (int x = S; x < w - S; ++x) {
+            // Window corners.
+            int x1 = x - S - 1, x2 = x + S;
+            int y1 = y - S - 1, y2 = y + S;
+            uint32_t br = s_integral[y2 * w + x2];
+            uint32_t tr = (y1 < 0) ? 0 : s_integral[y1 * w + x2];
+            uint32_t bl = (x1 < 0) ? 0 : s_integral[y2 * w + x1];
+            uint32_t tl = (x1 < 0 || y1 < 0) ? 0 : s_integral[y1 * w + x1];
+            uint32_t sum = br - tr - bl + tl;
+            constexpr int K = 2 * S + 1;
+            uint32_t mean = sum / (K * K);
+            int v = src[y * w + x];
+            dst[y * w + x] = (v + OFFSET < (int)mean) ? 255 : 0;
+        }
+    }
+}
+
+
+// Kernel 2c: separable 7×7 box filter.  Two passes with sequential
+// access (cache-friendly).  Per-pixel ops: 7 + 7 = 14 instead of 49.
+// On M7 + SDRAM, sequential access usually beats theoretical-better
+// random access (cf. Bradley measurement).
+//
+// Pass 1 horizontal: rolling sum of 7 pixels in row → s_horiz[y][x]
+// Pass 2 vertical: sum 7 vertical values → divide → threshold
+__attribute__((section(".sdram_bss")))
+static uint16_t s_horiz[W * H];   // 153 600 bytes, row sums ≤ 7*255 = 1785 fits u16
+
+__attribute__((section(".sdram_text"), noinline))
+static void k_adaptive_threshold_separable(const uint8_t* src, uint8_t* dst,
+                                            int w, int h) {
+    constexpr int S = 3;
+    constexpr int K = 2 * S + 1;
+    constexpr int OFFSET = 5;
+
+    // Pass 1: horizontal rolling sum of 7 → s_horiz.
+    // Pre-load first window, then rolling: sum += new - old.
+    for (int y = 0; y < h; ++y) {
+        const uint8_t* row = src + y * w;
+        uint16_t* hout = s_horiz + y * w;
+        // Initial window sum (first K pixels).
+        uint32_t sum = 0;
+        for (int i = 0; i < K; ++i) sum += row[i];
+        hout[S] = (uint16_t)sum;
+        for (int x = S + 1; x < w - S; ++x) {
+            sum += row[x + S];
+            sum -= row[x - S - 1];
+            hout[x] = (uint16_t)sum;
+        }
+    }
+
+    // Pass 2: vertical rolling sum of 7 from s_horiz, divide, threshold.
+    for (int x = S; x < w - S; ++x) {
+        uint32_t vsum = 0;
+        for (int i = 0; i < K; ++i) vsum += s_horiz[i * w + x];
+        // First valid output row.
+        int v = src[S * w + x];
+        uint32_t mean = vsum / (K * K);
+        dst[S * w + x] = (v + OFFSET < (int)mean) ? 255 : 0;
+        for (int y = S + 1; y < h - S; ++y) {
+            vsum += s_horiz[(y + S) * w + x];
+            vsum -= s_horiz[(y - S - 1) * w + x];
+            mean = vsum / (K * K);
+            v = src[y * w + x];
+            dst[y * w + x] = (v + OFFSET < (int)mean) ? 255 : 0;
+        }
+    }
+}
+
+
 // Kernel 3: Sobel-like edge filter (3×3 |dx|+|dy|).
 // Approximates the gradient computation that precedes contour finding.
 __attribute__((section(".sdram_text"), noinline))
@@ -148,10 +249,12 @@ static void k_edge(const uint8_t* src, uint8_t* dst, int w, int h) {
 // kernel 3 times, reports min cycle count (warm cache).
 // Result struct shared between C++ kernel runner and MP binding.
 struct aruco_bench_result_t {
-    uint32_t w, h;            // image size
-    uint32_t scan_cyc;        // raw memory traversal cycles
-    uint32_t thresh_cyc;      // adaptive threshold cycles
-    uint32_t edge_cyc;        // sobel-like edge filter cycles
+    uint32_t w, h;
+    uint32_t scan_cyc;
+    uint32_t thresh_cyc;          // naive 7×7 box (baseline)
+    uint32_t edge_cyc;
+    uint32_t thresh_bradley_cyc;     // Bradley-Roth integral image
+    uint32_t thresh_separable_cyc;   // separable 7+7 rolling sum
 };
 
 extern "C" __attribute__((section(".sdram_text"), noinline))
@@ -165,7 +268,8 @@ void aruco_bench_run(aruco_bench_result_t* out) {
     init_pattern();
 
     uint32_t scan_min = ~0u, thresh_min = ~0u, edge_min = ~0u;
-    // Externally-visible sink so compiler can't fold k_scan() away.
+    uint32_t thresh_bradley_min = ~0u;
+    uint32_t thresh_separable_min = ~0u;
     extern volatile uint32_t s_aruco_bench_sink;
 
     for (int trial = 0; trial < 3; ++trial) {
@@ -180,6 +284,16 @@ void aruco_bench_run(aruco_bench_result_t* out) {
         if (t1 - t0 < thresh_min) thresh_min = t1 - t0;
 
         t0 = dwt_cyc();
+        k_adaptive_threshold_bradley(s_gray, s_bin, W, H);
+        t1 = dwt_cyc();
+        if (t1 - t0 < thresh_bradley_min) thresh_bradley_min = t1 - t0;
+
+        t0 = dwt_cyc();
+        k_adaptive_threshold_separable(s_gray, s_bin, W, H);
+        t1 = dwt_cyc();
+        if (t1 - t0 < thresh_separable_min) thresh_separable_min = t1 - t0;
+
+        t0 = dwt_cyc();
         k_edge(s_gray, s_edge, W, H);
         t1 = dwt_cyc();
         if (t1 - t0 < edge_min) edge_min = t1 - t0;
@@ -188,5 +302,7 @@ void aruco_bench_run(aruco_bench_result_t* out) {
     out->w = W; out->h = H;
     out->scan_cyc = scan_min;
     out->thresh_cyc = thresh_min;
+    out->thresh_bradley_cyc = thresh_bradley_min;
+    out->thresh_separable_cyc = thresh_separable_min;
     out->edge_cyc = edge_min;
 }
