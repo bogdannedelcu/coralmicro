@@ -45,14 +45,11 @@ TYPE_MASK_POSITION_ONLY = (
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--mav", default="udpin:127.0.0.1:14540",
-                    help="pymavlink connection.  PX4 SITL Onboard "
-                         "stream sends to 14540 by convention; bind there "
-                         "with udpin so PX4's outbound HB lands on us "
-                         "and pymavlink learns its source addr for "
-                         "command replies.  14550 is the GCS port "
-                         "(QGroundControl) — avoid; vision_bridge on "
-                         "18570 may already claim partnership.")
+    ap.add_argument("--mav", default="udp:127.0.0.1:14550",
+                    help="PX4 Normal stream sends to 14550 by convention "
+                         "and listens on 18570.  `udp:` is bidirectional, "
+                         "binds 14550 locally and reuses learned partner "
+                         "addr for command replies.")
     ap.add_argument("--target-z", type=float, default=1.5,
                     help="hover altitude (m, AGL positive up)")
     ap.add_argument("--hover-s", type=float, default=15.0)

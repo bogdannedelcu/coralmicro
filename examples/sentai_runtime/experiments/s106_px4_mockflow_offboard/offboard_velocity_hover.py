@@ -18,12 +18,15 @@ from pymavlink import mavutil
 
 PX4_CUSTOM_MAIN_MODE_OFFBOARD = 6
 
-# SET_POSITION_TARGET_LOCAL_NED type_mask: VELOCITY ONLY.
-# bit set = field ignored.
-TYPE_MASK_VELOCITY_ONLY = (
+# SET_POSITION_TARGET_LOCAL_NED type_mask.
+# bit set = field IGNORED.  Standard PX4 OFFBOARD velocity setup uses
+# velocity (vx, vy, vz) + yaw_rate (kept active at 0 = hold heading).
+# Pure velocity-only (with yaw_rate also masked) confuses PX4 attitude
+# controller → minimum thrust → no takeoff.
+TYPE_MASK_VELOCITY_YAWRATE = (
     (1 << 0) | (1 << 1) | (1 << 2) |     # px, py, pz ignored
     (1 << 6) | (1 << 7) | (1 << 8) |     # ax, ay, az ignored
-    (1 << 9) | (1 << 10) | (1 << 11)     # force, yaw, yaw_rate ignored
+    (1 << 9) | (1 << 10)                 # force, yaw ignored (NOT yaw_rate)
 )
 
 
@@ -68,11 +71,11 @@ def main() -> int:
                 int((time.monotonic() - t0) * 1e3),
                 m.target_system, m.target_component,
                 mavutil.mavlink.MAV_FRAME_LOCAL_NED,
-                TYPE_MASK_VELOCITY_ONLY,
+                TYPE_MASK_VELOCITY_YAWRATE,
                 0, 0, 0,
                 s["vx"], s["vy"], s["vz"],
                 0, 0, 0,
-                0, 0)
+                0, 0)             # yaw (ignored), yaw_rate=0 (hold heading)
             n_sp[0] += 1
             time.sleep(period)
 
