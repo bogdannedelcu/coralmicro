@@ -14,7 +14,7 @@ WITHOUT GPS.
 | PX4 EKF2 acknowledges flow uORB publish | ✅ DONE — `handle_message_optical_flow_rad` publishes to `sensor_optical_flow` |
 | Gazebo world with PX4 drone (x500) + downward cam + markers | ⏳ NOT DONE |
 | sentai_sim reading frames from gz, computing flow | ✅ DONE — works for cf2 via `sentai_crazysim.sdf` already |
-| Loop: read flow → convert mgrid→rad → send_flow to PX4 | ⏳ NOT DONE |
+| Loop: read flow → convert mgrid→rad → send_flow to PX4 | ✅ DONE (C-side, s099) — `sentai.link.flow(1)` starts the C task, Python NOT in hot path |
 | EKF2 param tuning (AID_MASK, OF_QMIN, HGT_MODE) | ⏳ NOT DONE |
 
 So the WIRE is plumbed end-to-end, but the FULL pipeline (gz world
@@ -38,22 +38,16 @@ not yet wired into a runnable bench.
    EKF2_RNG_AID  = 0          # we provide distance in the flow msg
    COM_ARM_WO_GPS = 1         # allow arming without GPS
    ```
-4. Loop: a MicroPython script that does
+4. Loop: SHIPPED as a C task in `sim/sentai_link_sim.cc::link_flow_forward_task`.
+   Python role is on/off only — parity with ARM firmware where the Crazy
+   radio bridge auto-inits in firmware (see memory
+   `project_crazyflie_radio_bridge.md`).  Verified by s099.
    ```python
-   import sentai, time
-   sentai.link.init()
-   last_t = time.ticks_us()
-   while True:
-       dx, dy, conf, _, _, _, _ = sentai.flow.read()
-       now = time.ticks_us()
-       dt = now - last_t; last_t = now
-       # convert mgrid (1 mgrid = 1/1000 L0-pixel) to radians
-       # 1 L0-pixel = 12.6 mrad (HFOV 58°/640 * 8x decim)
-       dx_rad = (dx / 1000.0) * 0.0126
-       dy_rad = (dy / 1000.0) * 0.0126
-       q = min(255, conf)
-       sentai.link.send_flow(dx_rad, dy_rad, dt, q, 1.0)
-       time.sleep_ms(50)
+   import sentai
+   sentai.link.init(57600, 1, 191)
+   sentai.link.flow(1, 1.0)   # start forwarder; arg 2 = distance in m
+   # ... C task runs at tskIDLE_PRIORITY+2, no Python crossings ...
+   sentai.link.flow(0)        # stop
    ```
 
 ## Phase 6 progression summary

@@ -136,6 +136,7 @@ extern "C" int sentai_link_send_tunnel(uint16_t payload_type,
 struct LinkStats {
     std::atomic<uint32_t> tx_heartbeat{0};
     std::atomic<uint32_t> tx_statustext{0};
+    std::atomic<uint32_t> tx_flow{0};
     std::atomic<uint32_t> rx_total{0};
     std::atomic<uint32_t> rx_heartbeat{0};
     std::atomic<uint32_t> rx_other{0};
@@ -150,6 +151,11 @@ static int                s_debug_level = 0;
 static TaskHandle_t       s_reader_task = nullptr;
 static std::atomic<bool>  s_reader_stop{false};
 static std::atomic<bool>  s_open{false};
+
+/* ---- Flow forwarder state (C-side, Python is on/off only) ---- */
+static TaskHandle_t       s_fwd_task = nullptr;
+static std::atomic<bool>  s_fwd_run{false};
+static float              s_fwd_distance_m = 1.0f;
 
 /* Accessors used by extern "C" send_tunnel above. */
 extern "C" uint8_t s_sysid_get(void)  { return s_sysid; }
@@ -366,10 +372,21 @@ extern "C" int sentai_link_cmd_arm(int do_arm) {
 
 
 extern "C" int sentai_link_cmd_takeoff(float altitude_m) {
-    /* MAV_CMD_NAV_TAKEOFF (22): p7 = altitude (m, above home/GLOBAL frame). */
-    return link_send_command_long(22, 0,0,0, 0,
-                                    /* lat/lon */ 0, 0,
-                                    /* alt */ altitude_m);
+    /* MAV_CMD_NAV_TAKEOFF (22): p7 = altitude (m).
+     *
+     * IMPORTANT (PX4 issue #21601): lat/lon=0 is "arbitrary coords"
+     * and triggers "Disarmed by auto preflight disarming" or wild
+     * flight behaviour.  Pass NaN for lat/lon/yaw → PX4 interprets
+     * as "use current/home position".
+     */
+    return link_send_command_long(22,
+        /* p1 min_pitch */ 0,
+        /* p2 unused   */ 0,
+        /* p3 unused   */ 0,
+        /* p4 yaw      */ NAN,
+        /* p5 lat      */ NAN,
+        /* p6 lon      */ NAN,
+        /* p7 alt      */ altitude_m);
 }
 
 
@@ -417,6 +434,123 @@ extern "C" int sentai_link_send_flow(float dx_rad, float dy_rad,
 }
 
 
+/* ---- C-side flow forwarder ----
+ *
+ * Reads g_flow snapshot published by sim/camera_bridge_recv.c, converts
+ * mgrid → radians (1 L0 grid-px = 12.6 mrad @ HFOV 58°/640 × 8× decim,
+ * 1 mgrid = 1/1000 grid-px → 12.6e-6 rad), and sends OPTICAL_FLOW_RAD
+ * directly via the C send_flow path.
+ *
+ * Python role is on/off only — once started, the task runs at
+ * tskIDLE_PRIORITY+2 (same as link reader) and never crosses MP VM.
+ * Parity with ARM HW where Crazy radio bridge auto-inits in firmware
+ * before /main.py (see memory: project_crazyflie_radio_bridge.md).
+ */
+extern "C" {
+typedef struct {
+    volatile uint32_t seq;
+    volatile int32_t  dx_q1000;
+    volatile int32_t  dy_q1000;
+    volatile uint32_t conf;
+    volatile uint64_t latency_us;
+    volatile int32_t  dz_q1000;
+    volatile uint32_t dz_conf;
+} sim_flow_snapshot_t;
+const sim_flow_snapshot_t* sim_camera_flow_snapshot(void);
+}
+
+/* 1 L0 grid-pixel = 12.6 mrad (HFOV 58° / 640 px × 8× decimation).
+ * Snapshot is in milli-grid (1000 = 1 grid-px), so:
+ *   rad = (dx_q1000 / 1000) * 0.0126 = dx_q1000 * 12.6e-6
+ */
+static constexpr float MGRID_TO_RAD = 12.6e-6f;
+
+static void link_flow_forward_task(void* arg) {
+    (void)arg;
+    const sim_flow_snapshot_t* fs = sim_camera_flow_snapshot();
+    uint32_t last_seq = 0;
+    TickType_t last_tick = xTaskGetTickCount();
+    fprintf(stderr, "sentai.link: flow forwarder task started (dist=%.2fm)\r\n",
+            (double)s_fwd_distance_m);
+    while (s_fwd_run.load()) {
+        /* Snapshot read with seq fence to detect tearing. */
+        uint32_t s0, s1;
+        int32_t  dx_q, dy_q;
+        uint32_t conf;
+        int retry = 2;
+        do {
+            s0 = fs->seq;
+            dx_q = fs->dx_q1000;
+            dy_q = fs->dy_q1000;
+            conf = fs->conf;
+            s1 = fs->seq;
+        } while (s0 != s1 && --retry > 0);
+
+        if (s0 != 0 && s0 != last_seq) {
+            TickType_t now = xTaskGetTickCount();
+            uint32_t dt_ms = (uint32_t)(now - last_tick);
+            uint32_t dt_us = (dt_ms == 0) ? 1000U : (dt_ms * 1000U);
+            last_tick = now;
+            last_seq = s0;
+
+            float dx_rad = (float)dx_q * MGRID_TO_RAD;
+            float dy_rad = (float)dy_q * MGRID_TO_RAD;
+            uint8_t q = (conf > 255) ? 255 : (uint8_t)conf;
+
+            if (sentai_link_send_flow(dx_rad, dy_rad, dt_us, q,
+                                       s_fwd_distance_m)) {
+                s_stats.tx_flow.fetch_add(1);
+            }
+            if (s_debug_level >= 2) {
+                fprintf(stderr, "[link.fwd] seq=%u dx=%.4f dy=%.4f dt=%uus "
+                                "q=%u d=%.2f\r\n",
+                        s0, (double)dx_rad, (double)dy_rad, dt_us, q,
+                        (double)s_fwd_distance_m);
+            }
+        }
+        /* Bounded poll — 50 Hz cap matches typical camera bridge cadence. */
+        vTaskDelay(pdMS_TO_TICKS(20));
+    }
+    s_fwd_task = nullptr;
+    fprintf(stderr, "sentai.link: flow forwarder task exiting\r\n");
+    vTaskDelete(nullptr);
+}
+
+
+extern "C" int sentai_link_flow_forward(int enable) {
+    if (enable) {
+        if (s_fwd_run.load()) return 1;     /* already running */
+        if (!s_open.load()) return 0;       /* link must be up first */
+        s_fwd_run.store(true);
+        BaseType_t ok = xTaskCreate(link_flow_forward_task, "link_fwd",
+                                      configMINIMAL_STACK_SIZE * 4,
+                                      nullptr, tskIDLE_PRIORITY + 2,
+                                      &s_fwd_task);
+        if (ok != pdPASS) {
+            s_fwd_run.store(false);
+            return 0;
+        }
+        return 1;
+    } else {
+        if (!s_fwd_run.load()) return 1;    /* already stopped */
+        s_fwd_run.store(false);
+        /* Bounded join: wait up to 500 ms for task to exit. */
+        for (int i = 0; i < 50 && s_fwd_task != nullptr; ++i) {
+            vTaskDelay(pdMS_TO_TICKS(10));
+        }
+        return 1;
+    }
+}
+
+
+extern "C" int sentai_link_flow_set_distance(float dist_m) {
+    if (dist_m < 0.05f) dist_m = 0.05f;
+    if (dist_m > 100.0f) dist_m = 100.0f;
+    s_fwd_distance_m = dist_m;
+    return 1;
+}
+
+
 extern "C" int sentai_link_cmd_set_mode(uint8_t main_mode, uint8_t sub_mode) {
     /* MAV_CMD_DO_SET_MODE (176).  PX4 custom_mode packing:
      *   p1 = base_mode (1 = MAV_MODE_FLAG_CUSTOM_MODE_ENABLED).
@@ -448,7 +582,7 @@ extern "C" int sentai_link_send_statustext(uint8_t severity, const char* text) {
 
 
 /* ---- Stats accessor for Python diag ---- */
-extern "C" void sentai_link_get_stats(uint32_t out[8]) {
+extern "C" void sentai_link_get_stats(uint32_t out[9]) {
     if (!out) return;
     out[0] = s_stats.tx_heartbeat.load();
     out[1] = s_stats.tx_statustext.load();
@@ -458,6 +592,7 @@ extern "C" void sentai_link_get_stats(uint32_t out[8]) {
     out[5] = s_stats.rx_parse_err.load();
     out[6] = s_stats.last_peer_sysid.load();
     out[7] = s_stats.last_peer_compid.load();
+    out[8] = s_stats.tx_flow.load();
 }
 
 

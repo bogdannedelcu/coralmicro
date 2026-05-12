@@ -1238,6 +1238,8 @@ extern int sentai_link_cmd_arm(int do_arm);
 extern int sentai_link_cmd_takeoff(float altitude_m);
 extern int sentai_link_cmd_land(void);
 extern int sentai_link_cmd_set_mode(uint8_t main_mode, uint8_t sub_mode);
+extern int sentai_link_flow_forward(int enable);
+extern int sentai_link_flow_set_distance(float dist_m);
 extern int sentai_link_send_flow(float dx_rad, float dy_rad,
                                   uint32_t dt_us, uint8_t quality,
                                   float distance_m);
@@ -1273,17 +1275,35 @@ static mp_obj_t sim_link_send(size_t n_args, const mp_obj_t *args) {
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(sim_link_send_obj, 1, 2, sim_link_send);
 
 static mp_obj_t sim_link_stats(void) {
-    uint32_t s[8] = {0};
+    uint32_t s[9] = {0};
     sentai_link_get_stats(s);
-    mp_obj_t items[8] = {
+    mp_obj_t items[9] = {
         mp_obj_new_int_from_uint(s[0]), mp_obj_new_int_from_uint(s[1]),
         mp_obj_new_int_from_uint(s[2]), mp_obj_new_int_from_uint(s[3]),
         mp_obj_new_int_from_uint(s[4]), mp_obj_new_int_from_uint(s[5]),
         mp_obj_new_int_from_uint(s[6]), mp_obj_new_int_from_uint(s[7]),
+        mp_obj_new_int_from_uint(s[8]),
     };
-    return mp_obj_new_tuple(8, items);
+    return mp_obj_new_tuple(9, items);
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(sim_link_stats_obj, sim_link_stats);
+
+/* sentai.link.flow(enable[, distance_m])
+ *   - enable=1: start C-side forwarder task (reads g_flow snapshot,
+ *     converts mgrid→rad, sends OPTICAL_FLOW_RAD; Python NOT in loop).
+ *   - enable=0: stop the task.
+ *   - optional distance_m sets the flow message distance field (default
+ *     1.0 m).  Reuses existing `flow` QSTR (no regen needed).
+ * Returns 1 on success, 0 on failure (e.g., link not init).
+ */
+static mp_obj_t sim_link_flow(size_t n_args, const mp_obj_t *args) {
+    int en = mp_obj_get_int(args[0]);
+    if (n_args > 1) {
+        sentai_link_flow_set_distance(mp_obj_get_float(args[1]));
+    }
+    return mp_obj_new_int(sentai_link_flow_forward(en));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(sim_link_flow_obj, 1, 2, sim_link_flow);
 
 static mp_obj_t sim_link_arm(size_t n_args, const mp_obj_t *args) {
     int do_arm = (n_args > 0) ? mp_obj_get_int(args[0]) : 1;
@@ -1333,6 +1353,7 @@ static const mp_rom_map_elem_t sentai_link_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_takeoff),   MP_ROM_PTR(&sim_link_takeoff_obj) },
     { MP_ROM_QSTR(MP_QSTR_land),      MP_ROM_PTR(&sim_link_land_obj) },
     { MP_ROM_QSTR(MP_QSTR_send_flow), MP_ROM_PTR(&sim_link_send_flow_obj) },
+    { MP_ROM_QSTR(MP_QSTR_flow),      MP_ROM_PTR(&sim_link_flow_obj) },
 };
 static MP_DEFINE_CONST_DICT(sentai_link_globals, sentai_link_globals_table);
 static const mp_obj_module_t sentai_link_module = {

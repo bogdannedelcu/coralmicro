@@ -6538,3 +6538,124 @@ C-side fusion: chooses single best (dx, dy, conf) per priority:
 See `Sim.md §10k` for full design rationale + 14 paper references
 (Burt-Adelson 1983, Bouguet 2001, Foroosh 2002, Guizar-Sicairos 2008,
 PX4Flow paper Honegger 2013, Briod 2013, DPFlow 2025, etc.).
+
+
+## Session 2026-05-12 — Phase 6d (PX4 SITL + Gazebo + sentai.flow)
+
+Goal: reproduce s091 wind-hover-stability results on PX4 instead of
+cf2, using the SAME canonical sentai_crazysim world (CrazySim vendor
+tree) for apples-to-apples comparison.  Same flow algorithm
+(`flow_phase_corr.cc`), same world, same wind plugin — only the drone
++ autopilot change.
+
+### Architecture decisions
+
+1. **Flow forwarder runs ALL in C** — Python only toggles on/off.
+   Matches the ARM-firmware pattern where the Crazyflie radio bridge
+   auto-inits in firmware (see memory `project_crazyflie_radio_bridge`).
+   Shipped: `sim/sentai_link_sim.cc::link_flow_forward_task`
+   reads `g_flow` snapshot, converts mgrid→rad (`MGRID_TO_RAD = 12.6e-6`),
+   calls `sentai_link_send_flow()` which emits MAVLink OPTICAL_FLOW_RAD.
+   Verified by `experiments/s099_link_flow_c_forward/` — synthetic
+   30 Hz camera feeder → SIM → UDP sniffer caught 42 OPTICAL_FLOW_RAD
+   frames in 2 s, `link.stats()[8]` matched exactly.
+
+2. **Drone model** — created `x500_sentai` by cloning PX4's default
+   `x500` model and adding a `downward_cam` sensor block with the SAME
+   parameters as cf2's `sentai_crazysim` model (pose orientation
+   `pitch=+π/2 yaw=+π`, HFOV 1.0123 rad, 640×480 R8G8B8, 30 Hz,
+   `/downward_cam/image` topic).  Camera position differs (cf2 -4cm
+   back -2cm down; x500_sentai 0,0,-5cm) — irrelevant for flow
+   algorithm; matters only for ArUco PnP ground-truth compensation.
+
+3. **World** — use canonical `sentai_crazysim.sdf` from CrazySim
+   vendor tree, NOT the stripped `sim/gazebo/sentai_crazysim_world.sdf`
+   from coralmicro (latter has no ArUco markers).  Modifications:
+   walls enlarged 2× (3×3×1.5 → 6×6×3 m) for x500 wingspan; ArUco
+   markers spaced 2× (±0.15 ±0.10 → ±0.30 ±0.20); cat photo
+   lowered to z=0.006 (effectively ground); backups in
+   `.pre_x500_walls_20260512`.  s091 drift numbers stay the comparison
+   baseline because wind+markers stay close to original layout.
+
+### The 3-pitfalls bring-up (s101)
+
+Documented in detail in Sim.md §10o.  TL;DR: PX4 MUST launch gz itself
+for lockstep to engage (else EKF starves); `MAV_CMD_NAV_TAKEOFF` lat/lon
+MUST be NaN (not 0,0) per PX4 issue #21601; spawn z must clear
+obstacles.
+
+Hours lost on each:
+- Pitfall #1 (lockstep): 45 min — symptom looks like a sensor config
+  issue, but it's actually a launch-order issue.  Solved by reading
+  `px4-rc.simulator` rcS and noticing the gz-already-running branch.
+- Pitfall #2 (NaN lat/lon): 30 min — auto preflight disarming
+  symptom looked like our airframe wasn't loading properly.  Solved
+  by web search → PX4 GitHub issue #21601.
+- Pitfall #3 (spawn collision): 15 min — user's intuition spotted
+  it (`cumva e activa colisiunea in Gazebo si se loveste de cuburile
+  de markeri?`).  Fix was just raising spawn z.
+
+### s101 baseline (GPS-mode, no wind, 2026-05-12)
+
+| Metric | Value |
+|---|---|
+| Build | sentai_sim #100 |
+| Airframe | 4040_gz_x500_sentai (GPS+baro+mag+IMU) |
+| Spawn | (0, 0, 1.0) |
+| Target alt | 1.5 m (clamped to 2.5 min by `COM_TAKEOFF_ALT`) |
+| Hover window | 10 s |
+| Peak z | +2.142 m |
+| Hover z mean | +1.915 m |
+| **Drift XY mean** | **10.4 cm** |
+| Drift XY max | 16.9 cm |
+| Final XY | (+0.073, -0.055) m |
+
+Sub-20 cm regime; in line with s091 cf2 baseline (no wind).  PX4 EKF
+ground-truth parity established.
+
+### Reference papers + docs cited
+
+External docs that surfaced during s101 bring-up:
+
+- **PX4 issue #21601 — Strange behaviors of MAV_CMD_NAV_TAKEOFF**
+  https://github.com/PX4/PX4-Autopilot/issues/21601
+  Source of the NaN-lat/lon fix.  "User discovered that using home
+  coordinates instead of arbitrary coordinates resolves the issue.
+  Using non-home coordinates resulted in 'Disarmed by auto preflight
+  disarming' errors."
+
+- **PX4 Arm/Disarm Configuration**
+  https://docs.px4.io/main/en/advanced_config/prearm_arm_disarm
+  Confirmed `COM_DISARM_PRFLT` default 10 s — the timer that fires
+  when drone armed but no takeoff happens.
+
+- **PX4 Gazebo Simulation Guide (main)**
+  https://docs.px4.io/main/en/sim_gazebo_gz/
+  Standard launch pattern (`make px4_sitl gz_x500`) — implicitly uses
+  the lockstep path we needed.  Documents `PX4_GZ_STANDALONE` env var
+  for separate-terminal startups.
+
+- **MAVSDK Actions Guide (Taking off / Landing)**
+  https://mavsdk.mavlink.io/main/en/cpp/guide/taking_off_landing.html
+  High-level reference for the takeoff flow (Arm → Takeoff → monitor);
+  did not document the exact MAV cmd packing, but established the
+  order.
+
+No new flow/EKF papers cited yet for PX4 path — the algorithm side
+reuses everything from s091/s083/s084 (Bouguet 2001 LK pyramid,
+Foroosh 2002 phase corr, Guizar-Sicairos 2008 sub-pixel, etc., per
+Sim.md §10k).
+
+### s101b plan (no GPS, flow-only nav)
+
+Next session:
+1. Toggle airframe 4040 → `SENS_EN_GPSSIM=0`, `EKF2_AID_MASK=2` (or
+   create 4041 to preserve s101 baseline).
+2. Wire gz camera bridge (C++ `gz_to_uds_bridge`) into the launch.
+3. Start `sentai.link.flow(1)` BEFORE arming so EKF gets flow data
+   for convergence pre-arm.  Per user intuition: "*arming nu merge
+   fără GPS … trebuie să dai o comandă specială ca să meargă doar
+   cu Flow*" — that's `COM_ARM_WO_GPS=1` plus `EKF2_AID_MASK=2`
+   plus pre-feeding flow.
+4. Compare drift to s091 #1 (full-wind 31 cm baseline) and #14
+   (half-wind 7.6 cm).

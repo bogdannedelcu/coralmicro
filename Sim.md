@@ -2269,6 +2269,236 @@ when CrazySim already started gz with the sentai world.
 test uses `sihsim` simulator backend which doesn't need Gazebo at
 all.  Real Gazebo coexistence is the next milestone after REPL.)
 
+
+## 10n. PX4 Phase 6d asset map (2026-05-12)
+
+Where every asset that participates in the PX4 + Gazebo + sentai.flow
+end-to-end test lives.  Apples-to-apples comparison with the cf2
+hover-stability bench (s091) requires using the SAME world and
+matching the camera mount conventions.  Keep this table accurate;
+when an asset moves, update here first.
+
+### Drone model — `x500_sentai`
+
+| Item | Value |
+|---|---|
+| Path | `/home/bogdan/work/px4/PX4-Autopilot/Tools/simulation/gz/models/x500_sentai/` |
+| Files | `model.config` + `model.sdf` + `meshes/` + `materials/` + `thumbnails/` |
+| Base | Copied from `x500/` then added `downward_cam` sensor |
+| Spawn name in PX4 | `x500_sentai_0` (PX4 appends `_<instance>`) |
+| Airframe used | `4001_gz_x500` (env override — no new airframe needed yet) |
+
+### Downward camera mount (parity with cf2)
+
+| Property | cf2 model.sdf.jinja | x500_sentai model.sdf |
+|---|---|---|
+| `<pose>` | `-0.04 0 -0.02 0 1.5707963 3.1415927` | `0 0 -0.05 0 1.5707963 3.1415927` |
+| HFOV | `1.0123` rad (58°) | identical |
+| Image | 640×480 R8G8B8 | identical |
+| `<topic>` | `/downward_cam/image` | identical |
+| `<update_rate>` | 30 Hz | identical |
+| `<always_on>` | 1 | identical |
+| `<clip>` | (default) | `near=0.05 far=30` |
+
+Camera **orientation** (pitch=π/2, yaw=π) is identical → the
+body-frame transform `(-1, 0, 0, +1)` from memory
+`project_flow_body_frame_baseline.md` applies UNCHANGED on PX4.
+
+Camera **position** differs (cf2 has 4 cm X back-offset from CoM;
+x500_sentai is centered).  For the FLOW algorithm this is irrelevant
+(flow measures ground-relative motion, not absolute pose).  For ArUco
+PnP-based ground-truth comparison the offset enters the
+`estimate_drone_world_pose()` cam-to-CoM compensation — update that
+function if you wire ArUco PnP into the PX4 bench.
+
+### Gazebo world — canonical s091 world
+
+| Item | Value |
+|---|---|
+| Path | `/home/bogdan/work/crazyflie/CrazySim/crazyflie-firmware/tools/crazyflie-simulation/simulator_files/gazebo/worlds/sentai_crazysim.sdf` |
+| Internal name | `sentai_crazysim` (`<world name="sentai_crazysim">`) |
+| Resource path | same dir (textures + materials live here) |
+| Contains | 4 ArUco markers id0..3, 6 color cubes, cat target, checkerboard ground, wind plugin, deep ground texture |
+
+**Do NOT use** `sim/gazebo/sentai_crazysim_world.sdf` for PX4 hover
+bench — it is a stripped variant **without ArUco markers** (only
+color cubes + cat).  It's an earlier Sentai-host world kept around
+for the camera-bridge smoke tests but is NOT the s091 baseline.
+
+ArUco texture files (4×4_50 dictionary, ids 0..3):
+`<crazysim_root>/worlds/materials/textures/aruco_4x4_50_id{0..3}.png`
+
+Marker positions in the world (matches `KNOWN_POSITIONS_M` in
+`s090_hover_over_cat/aruco_detector.py`):
+
+| id | pose (x, y, z_base) | z_top (visible face) |
+|---|---|---|
+| 0 | +0.15, +0.10, 0.15 | 0.20 m |
+| 1 | -0.15, +0.10, 0.15 | 0.20 m |
+| 2 | -0.15, -0.10, 0.15 | 0.20 m |
+| 3 | +0.15, -0.10, 0.15 | 0.20 m |
+
+Effective marker size for PnP: 0.0625 m (NOT 0.08 m — texture has
+22% white padding; bug fixed s091 commit `6e492c28`).
+
+### Gazebo GUI config (mandatory per Sim.md §10c rule 1)
+
+| Item | Value |
+|---|---|
+| Path | `/home/bogdan/work/coralmicro/sim/gazebo/sentai_gui.config` |
+| Purpose | Layout with PiP camera widget so operator can see drone-eye view |
+| Use | `gz sim --gui-config <path> <world.sdf>` |
+
+### Launch wiring (s100 smoke = the working recipe)
+
+Inside the `crazysim-garden` distrobox:
+1. `gz sim --verbose=1 -r --gui-config <gui> sentai_crazysim.sdf`
+   with `GZ_SIM_RESOURCE_PATH = <crazysim_worlds>:<px4_gz_models>`
+2. Wait for `/world/sentai_crazysim/clock` topic to appear.
+3. `PX4_SYS_AUTOSTART=4001 PX4_SIMULATOR=gz PX4_GZ_MODEL=x500_sentai
+    PX4_GZ_WORLD=sentai_crazysim PX4_GZ_MODEL_POSE='0,0,0.2,0,0,0' px4`
+4. Wait for "Ready for takeoff" in PX4 log.
+
+PX4 detects the running gz, attaches via `gz_bridge`, spawns
+x500_sentai_0 into the world.  The downward_cam sensor begins
+publishing `/downward_cam/image` immediately at 30 Hz.
+
+### Flow forwarder (C-side, no Python per frame)
+
+| Item | Value |
+|---|---|
+| Source | `sim/sentai_link_sim.cc::link_flow_forward_task` |
+| Toggle (Python) | `sentai.link.flow(1[, dist_m])` / `sentai.link.flow(0)` |
+| Stats counter | `sentai.link.stats()[8]` (tx_flow) |
+| Verified by | `experiments/s099_link_flow_c_forward/` |
+
+See memory `project_px4_flow_c_forwarder.md` for full design.
+
+### Smoke test sequence (Phase 6d steps)
+
+| s### | Goal | Status |
+|---|---|---|
+| s099 | C-side flow forwarder verified | ✅ PASS |
+| s100 | x500_sentai spawns in canonical world + cam publishes | ✅ PASS |
+| s101 | EKF2 flow-only nav (no-wind hover baseline) | ⏳ next |
+| s102 | Half-wind hover (target: ~7.6 cm drift = s091 #14 parity) | ⏳ |
+| s103 | Full-wind hover (target: ~32 cm drift = s091 #1 parity) | ⏳ |
+
+## 10o. PX4 + Gazebo bring-up — 3 pitfalls + canonical sequence (s101, 2026-05-12)
+
+Phase 6d step 1 (x500_sentai takeoff/hover/land with GPS baseline)
+exposed three non-obvious failure modes between PX4 SITL and our gz
+world.  All three documented here; memory file
+`feedback_px4_gz_takeoff_pitfalls.md` mirrors this for cross-session
+recall.
+
+### Pitfall #1 — Lockstep does NOT engage when gz is pre-launched
+
+**Symptom:** PX4 boots, `gz_bridge` attaches, topics are published —
+but EKF2 logs `Preflight Fail: ekf2 missing data` and `Preflight Fail:
+Compass Sensor 0 missing`.  Drone won't arm-and-take-off.
+
+**Root cause:** When gz is already running before PX4 starts, the
+`px4-rc.simulator` init script takes the "gazebo already running"
+branch which only attaches via `gz_bridge` without engaging the
+lockstep scheduler.  IMU/baro topics ARE published but the timing
+contract that EKF2 expects (`lockstep_scheduler initial absolute time`
+log line never appears) breaks.
+
+**Fix:** Always let PX4 launch gz itself by setting
+`PX4_GZ_WORLDS=<dir>` + `PX4_GZ_WORLD=<name-without-.sdf>` in the
+env passed to the PX4 binary.  PX4 spawns gz via `gz sim -s` then
+spawns a bare `gz sim -g` GUI.  If you want the sentai PiP layout,
+kill the bare GUI and re-launch separately with `--gui-config`.
+
+```bash
+# Working pattern (in distrobox):
+export GZ_SIM_RESOURCE_PATH="$CRAZYSIM_WORLDS:$PX4_GZ_MODELS"
+export PX4_GZ_MODELS="$PX4_GZ_MODELS"
+export PX4_GZ_WORLDS="$CRAZYSIM_WORLDS"
+PX4_SYS_AUTOSTART=4040 PX4_SIMULATOR=gz \
+  PX4_GZ_MODEL=x500_sentai PX4_GZ_WORLD=sentai_crazysim \
+  PX4_GZ_MODEL_POSE='0,0,1.0,0,0,0' \
+  $PX4_BIN -i 0 -d $PX4_ETC
+# Then:
+pkill -9 -f "gz sim -g"
+gz sim --gui-config $SENTAI_GUI_CFG -g
+```
+
+### Pitfall #2 — `MAV_CMD_NAV_TAKEOFF` lat/lon=0 triggers auto-disarm
+
+**Symptom:** `Armed by external command` → ~10 s pause → `Disarmed by
+auto preflight disarming` (governed by `COM_DISARM_PRFLT`, default
+10 s).  Drone never lifts.
+
+**Root cause** (per [PX4 issue #21601](https://github.com/PX4/PX4-Autopilot/issues/21601)):
+`p5=0, p6=0` (lat/lon) in `MAV_CMD_NAV_TAKEOFF` are "arbitrary
+coordinates" — PX4 interprets them as "fly to (0°, 0°)" (in the
+Atlantic ocean near the equator) before climbing.  The internal
+sanity check rejects the maneuver but doesn't surface a useful error;
+drone stays armed-on-ground until `COM_DISARM_PRFLT` triggers.
+
+**Fix:** pass NaN for `p4` (yaw), `p5` (lat), `p6` (lon).  PX4
+interprets NaN as "use current / home position".  Shipped in
+`sim/sentai_link_sim.cc::sentai_link_cmd_takeoff` on 2026-05-12.
+
+```c
+return link_send_command_long(22,
+    /* p1 min_pitch */ 0,
+    /* p2 unused   */ 0,
+    /* p3 unused   */ 0,
+    /* p4 yaw      */ NAN,
+    /* p5 lat      */ NAN,
+    /* p6 lon      */ NAN,
+    /* p7 alt      */ altitude_m);
+```
+
+### Pitfall #3 — Spawn pose must clear obstacles
+
+**Symptom:** drone spawns but stays on ground despite GPS+EKF being
+ready; pose CSV shows constant z near body-half-height.
+
+**Root cause:** If `PX4_GZ_MODEL_POSE` puts the drone overlapping any
+collision geometry, gz physics pins it.  Specific to s101 setup: the
+sentai_crazysim ArUco posts have NO `<collision>` element (visual-only)
+so they don't collide; but the x500 drone (~46 cm body + arms) is
+larger than the cf2 (~10 cm) the world was originally designed for.
+Spawn at z=0.2 was too low.
+
+**Fix:** spawn at z=1.0 m for x500.  Markers were also doubled-out to
+±0.30 ±0.20 (was ±0.15 ±0.10) so they remain in the downward-cam FOV
+when drone hovers at z=1.0-2.0 m.  ArUco IDs unchanged; positions
+updated in `KNOWN_POSITIONS_M` (aruco_detector.py) too — see
+`reference_px4_phase6d_assets.md` for the new pose table.
+
+### Pitfall #4 (cosmetic) — `COM_TAKEOFF_ALT` minimum
+
+PX4 enforces 2.5 m minimum takeoff altitude by default.  Requesting
+1.5 m results in `WARN [navigator] Using minimum takeoff altitude:
+2.50 m` and drone climbs higher.  Override per airframe or via
+runtime `param set` if low-altitude testing matters.
+
+### Canonical bring-up sequence (s101 working baseline)
+
+1. PX4 binary already built (`make px4_sitl gz_x500`).
+2. Custom airframe `4040_gz_x500_sentai` registered in
+   `build/px4_sitl_default/etc/init.d-posix/airframes/`.
+3. Custom model `x500_sentai` in `Tools/simulation/gz/models/`.
+4. World file (canonical s091 in CrazySim tree) loaded via env vars.
+5. Bring-up: launch PX4 (lockstep-mode); wait for `Ready for takeoff`;
+   replace bare GUI with PiP-configured one.
+6. REPL: `sentai.link.init()` → `arm(1)` → `takeoff(alt)` with NaN
+   lat/lon → wait → `land()` → `arm(0)`.
+
+Result on 2026-05-12 build #100 of sentai_sim: hover z_mean +1.92 m
+(target 1.5, clamped to ≥2.5), drift mean **10.4 cm**, max **16.9 cm**
+over 10 s window.  Compare to cf2 s091 baseline (no wind): same
+sub-20 cm regime → PX4 ground-truth EKF parity OK.
+
+Reference snapshot:
+`experiments/s101_px4_hover_nowind/`.
+
+
 ## 11. References
 
 - FreeRTOS POSIX port docs: https://www.freertos.org/FreeRTOS-simulator-for-Linux.html
