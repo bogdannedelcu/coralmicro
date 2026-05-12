@@ -6721,3 +6721,109 @@ documented to avoid re-investigation.
 - [PX4 forum: home position with optical flow](https://discuss.px4.io/t/how-do-you-set-the-home-position-to-fly-with-optical-flow-navigation/26454)
 - [PX4 issue #22250: takeoff without GPS](https://github.com/PX4/PX4-Autopilot/issues/22250)
 - [PX4 ECL EKF tuning guide](https://docs.px4.io/main/en/advanced_config/tuning_the_ecl_ekf.html)
+
+
+## Session 2026-05-12 (continued) — Phase 6d hover stress + ArUco VPE
+
+Full plumbing of cf2-equivalent vision-anchored hover on PX4 SITL.
+End-of-session: drone flies in all tested configurations, ArUco
+detection works in flight (473 detections / 15 s), VPE flowing.
+
+### s107: PX4 + Garden + flow-only — architecture pass (sanity)
+
+Confirmed with flow=0 mock and wind=0: drone hovers at target z
+within 2 cm in EKF AND in gz ground-truth.  Architecture
+(OFFBOARD-POSITION + airframe 4041 + flow data + SET_GPS_GLOBAL_ORIGIN)
+works.  Path forward = compatible body↔sensor convention.
+
+Flow sign tuning attempted (4 combos), all diverged due to
+positive-feedback loop.  cf2 §10l BODY_XFORM=(0,-1,-1,0) doesn't
+directly transfer to PX4 OPTICAL_FLOW_RAD — PX4 EKF source negates
+pixel_flow internally and applies own body-to-sensor rotation.
+Empirical PX4 calibration deferred to next session.
+
+### s108: ArUco PnP → VPE shipped
+
+Host-side bridge (`sim/scripts/aruco_to_vision_estimate.py`) consumes
+gz cam frames via `gz_to_uds_bridge` UDS protocol (124-byte Reply
+struct — initial 28-byte reply caused bridge disconnect, fixed).
+
+Pipeline:
+1. cv2.aruco.DICT_4X4_50 detection per frame
+2. solvePnP for each visible marker (4 markers at known world poses)
+3. `estimate_drone_world_pose` from s090 averages per-marker camera
+   positions with empirical R_cam_to_body
+4. ENU → NED conversion
+5. MAVLink VISION_POSITION_ESTIMATE with yaw=NaN (use mag yaw)
+
+Test result (airframe 4040 GPS, stress factors active):
+  - 316 detections in 15 s flight
+  - Drone armed, took off, hovered, landed
+  - Drift mean 33.7 cm, max 55.6 cm
+  - vs no-stress GPS baseline (s104) 9.8 cm — extra drift from
+    IMU/motor noise stress factors
+
+Critical fix during s108: sending VPE with `yaw=0` caused 22 m drift
+because drone yaw_NED = +π/2 (faces east) but VPE said yaw=0
+(faces north).  Mag fought VPE → spiral.  `yaw=NaN` → PX4 uses mag,
+drift drops to 33 cm.
+
+### s109: ArUco VPE + wind + stress — cf2 parity attempt
+
+Airframe 4043: GPS+VPE fused (`EKF2_EV_CTRL=3` for horiz+vert pos
+fusion; vision yaw stays disabled).  Wind 0.2 m/s + IMU + motor
+noise all active.
+
+Result:
+  - Drone flew (peak z=2.21 m, hover z_mean=1.77 m)
+  - 473 ArUco detections in 15 s
+  - Drift mean **67.7 cm**, max 172.8 cm
+
+vs cf2 s091 baseline (same world, same wind, sentai.flow path):
+  - Half wind: 7.6 cm, 100% all-4 markers
+  - Full wind: **32 cm**, 35% all-4 markers (after §10l PID fix)
+
+PX4 s109 is **~2× cf2 s091** at full wind.  Suspect controller tune
+(parallel to cf2 §10l finding "controller caps masquerade as
+algorithm limits").  Next session: PX4 MPC_XY_* sweep.
+
+### Gazebo stress factors validated
+
+IMU gaussian noise: gyro stddev 0.01 rad/s + bias 1e-3, accel 0.1
+m/s² + bias 1e-2 (mid-grade MEMS realistic).
+
+Motor asymmetry: motorConstant per rotor 8.40, 8.61, 8.71, 8.41 ×e-6
+(±2% from nominal 8.54858).  Effect: drone wants to rotate when
+commanded zero → coupled x+y drift, isn't aligned with any single
+axis.  Realistic manufacturing tolerance.
+
+Stress alone (no wind), flow=0 mock isolation: 70 cm drift in 10 s
+purely from motor asymmetry + IMU noise propagating through EKF.
+With VPE fusion (s108) drift drops to 33 cm — confirms VPE is
+cancelling part of the noise-induced drift.
+
+### Open work (s110+)
+
+1. **PX4 MPC_XY_P / MPC_XY_VEL_* sweep** — mirror cf2 §10l protocol
+   - Start: 0.95 default
+   - Sweep 1.5, 2.0, 3.0 — find sweet spot before oscillation
+   - Document drift vs gain at full wind
+2. **Flow-only path closure** — empirical s092 protocol on PX4:
+   - Spawn drone with GPS active
+   - Command +X velocity setpoint, observe EKF body_x velocity
+   - Run mock flow bridge with sign config X, observe EKF FLOW
+     innovation in ESTIMATOR_STATUS
+   - Try 8 sign combos, find the one with low innovation
+3. **Half-wind comparison** — set wind 0.1 m/s, target s091 #14
+   parity (7.6 cm drift) with VPE+stress
+
+### Lessons distilled
+
+1. **ArUco PnP is the SAFE path** for PX4 SITL vision-anchored hover.
+   No axis sign tuning required (the rotation matrix is computed in
+   `_R_CAM_TO_BODY` from camera SDF pose).  VPE yaw must be NaN.
+2. **Gazebo IMU + motor noise are realistic stress factors** — adding
+   them moves results from "perfect sim" toward "real-hardware
+   expected drift".  Should be enabled by default for any hover test.
+3. **PX4 has its own MPC_* tune, distinct from cf2 posCtlPid_*** —
+   don't assume cf2 parameters transfer.

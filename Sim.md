@@ -2536,3 +2536,151 @@ Update as phases land.
 | 2026-05-10 | 3 best-practices | DONE — captured during cflib TOC debug session | n/a | **Hard-won CrazySim/Gazebo Garden best practices.  (Originally collected on Harmonic but Harmonic is now banned; the practices apply equally to Garden in distrobox.)  Read these before any future debug session.**  (1) **`stdbuf -oL` is mandatory for cf2** — `cf2`'s stdout is block-buffered when redirected to a file (4 KB).  Default `sitl_singleagent.sh` does `cf2 ... > out.log 2> error.log &` and the logs stay EMPTY for minutes.  Wrap with `stdbuf -oL -eL cf2 ...` to flush per-line and see boot progress (`SOCKET_LINK: Waiting for connection with gazebo`, `Connection established`, `SYS: Software-in-the-Loop Simulator is up and running!`).  (2) **Always launch `gz sim` with `-v 4` (debug) during bringup, not the default `-v 3`** — plugin-load failures (`Failed to load system plugin [gz_crazysim_plugin] : Could not find shared library`) are logged ONLY at `-v 4`.  At `-v 3` the world boots silently with no plugin and EVERYTHING downstream (cflib TOC, motor commands, telemetry) silently times out.  (3) **`GZ_SIM_SYSTEM_PLUGIN_PATH`, `GZ_SIM_RESOURCE_PATH`, `LD_LIBRARY_PATH` MUST be set in the shell that launches `gz sim`** — `setup_gz.bash` sets them, but only inside the script's process tree.  If you run `gz sim ...` ad-hoc in another shell, the plugin is silently missing and the drone's `/cf_0/imu` topic exists but with NO subscriber on the cf2 side.  (4) **Plugin <-> cf2 handshake is `0xF3`** — cf2 SOCKET_LINK sends `0xF3` (1 byte, header only, size=0) repeatedly until plugin echos `0xF3` back.  Plugin learns cf2's ephemeral source addr from `recvfrom`'s remaddr.  cf2 then continues to system init.  Sequence visible at cf2 stdout (with stdbuf): `Create socket succeed → Binding succeed → Waiting for connection with gazebo → Connection established with gazebo → SYS: Software-in-the-Loop Simulator is up and running!`  (5) **cflib UdpDriver handshake is `\xff\x01\x01\x01`** — plugin doesn't ack this, just learns cflib's addr from recvfrom.  Subsequent CRTP packets are bidirectional. |
 | 2026-05-11 | 10l hover-under-wind | DONE — 3 bugs found + cf2 PID cap fix, drift 43cm→32cm at full wind | SIM build trail | Bug 1: MARKER_SIZE_M was 0.08 but ArUco texture padding makes effective marker 0.0625m → PnP-z over-estimated by 1.28×.  Bug 2: per-marker -tvec[0] averaging assumed (a) cam_X=body_X and (b) marker centroid stayed at world (0,0) — both wrong; partial-FOV biased the centroid 40cm.  Bug 3 (the real blocker): cf2 `platform_defaults_sitl.h:PID_POS_VEL_X_MAX=1.0f` caps position-PID velocity output at 1 m/s → drone has only ~0.6 m/s wind-rejection authority vs 0.4 m/s gusts.  Fix: raise `posCtlPid.xVelMax/yVelMax` to 2.5 + `xKp/yKp` to 3.0 via cflib param.set_value.  s092 (axis_calib.py) controlled-motion test confirms current BODY_XFORM=(0,-1,-1,0) is correct (axes were never the bug; PnP labels were).  s093 (max_velocity.py + max_velocity_pos.py) discovers the hard 1 m/s cap and finds max sustainable velocity at z=3m hover is ~2.27 m/s (peak before flow saturates at 32 L0-px shift).  Final 3-trial mean hover-under-wind: all-4 17%→28.2%, dist mean 43cm→32.5cm, no flow-algorithm changes.  Full section in §10l. |
 | 2026-05-12 | 10m Phase 6 PX4-link | DONE — PX4 v1.14 SITL installed + sentai.link MAVLink bridge, TX/RX heartbeat round-trip verified (s095_px4_link_ping PASS: TX=5 RX=7 peer_sys=1) | SIM build trail | New: `sim/scripts/install_px4_sitl.sh` clones PX4 v1.14 to /home/bogdan/work/px4/PX4-Autopilot (sibling of CrazySim).  Garden 7.9 + gz-transport12 + gz-msgs9 stack matches PX4 v1.14 native deps.  Pip needs `pyros-genmsg` + `future` inside distrobox.  New: `sim/sentai_uart_serial_udp.c` provides ARM-ABI-compatible UART backend over UDP (BIND 14540, SEND 14580 = PX4 v1.14 offboard mavlink, per `PX4 ROMFS/.../px4-rc.mavlink`).  New: `sim/sentai_link_sim.cc` slim MAVLink encoder/parser (heartbeat + statustext only, no tracker/mesh/nanopb deps) with reader task — CRITICAL FIX: reader task priority must be `tskIDLE_PRIORITY+2` to MATCH main MP task; at +1 (lower) it never gets scheduled on POSIX FreeRTOS port while camera_bridge is perpetually ready.  `sentai.link.{init,stop,debug,heartbeat,send,stats}` Python module exposed in SIM via `sim/modsentai_sim.c` (mirrors firmware modsentai_link.c surface).  Port allocation disjoint from CrazySim (19850) and PX4 GCS (18570) so all 3 can run together.  Plan §10m.b: REPL-over-MAVLink via TUNNEL msgid 385 payload_type=0xC0DE (128B MTU vs Crazyflie CRTP 30B); same protocol on ARM/HW radio. |
+
+## 10p. PX4 SITL hover-under-stress + ArUco VPE — Phase 6d final (2026-05-12)
+
+End-of-session state for PX4 SITL hover validation.  All architectural
+pieces of the cf2-equivalent flow stack are now plumbed end-to-end on
+x86; remaining work is controller tuning + sign-convention closure.
+
+### Architecture proven on PX4 SITL (Garden, x500_sentai)
+
+```
+gz Garden 7.9 (sentai_crazysim world, ArUco markers id0..3 at ±0.30,±0.20)
+   │
+   │ /downward_cam/image (gz topic, 640×480 RGB, 30 Hz)
+   ▼
+gz_to_uds_bridge (C++, distrobox, gz-transport12 → UDS)
+   │
+   │ Unix socket /tmp/sentai_cam.sock (full 124-byte Reply protocol)
+   ▼
+aruco_to_vision_estimate.py (HOST venv: cv2 + pymavlink)
+   │  - detect_markers (cv2.aruco DICT_4X4_50)
+   │  - estimate_drone_world_pose (per-marker solvePnP + R_cam_to_world)
+   │  - ENU→NED transform
+   │  - VPE yaw = NaN (PX4 uses mag yaw, avoids conflict)
+   ▼
+MAVLink VISION_POSITION_ESTIMATE (msg id 102) → PX4 UDP 14580
+   ▼
+PX4 EKF2 (airframe 4043: GPS+VPE fused, EKF2_EV_CTRL=3, EVP_NOISE=0.05)
+   ▼
+OFFBOARD-POSITION (Python pymavlink, 20 Hz setpoint stream, port 14550)
+```
+
+### Hover bench results (x500_sentai, 15 s OFFBOARD hover, z=1.5 m target)
+
+| s### | Setup | Wind | Stress | XY drift mean | XY drift max | Notes |
+|---|---|---|---|---:|---:|---|
+| s101 | GPS, AUTO.TAKEOFF | 0 | none | 14.0 cm | 20.0 cm | baseline |
+| s104 | GPS, OFFBOARD-pos | 0 | none | **9.8 cm** | 18.1 cm | tightest |
+| s107 sanity | no GPS, flow=0 mock | 0 | none | **<2 cm** | <3 cm | architecture proof |
+| s107 stress | no GPS, flow=0 mock | 0 | IMU+motor | 70 cm | — | EKF blind to drift |
+| s108 | GPS, OFFBOARD-pos | 0 | IMU+motor | 33.7 cm | 55.6 cm | + ArUco VPE (no fusion) |
+| s109 | GPS+VPE fused, OFFBOARD | 0.2 m/s | IMU+motor | 67.7 cm | 172.8 cm | wind on |
+
+vs cf2 s091 (same world, same wind 0.2 m/s, sentai.flow path):
+  - Half wind: 7.6 cm drift, 100% all-4 markers
+  - Full wind: 32 cm drift, 35% all-4 (after PID cap fix)
+
+PX4 s109 drift ≈ 2× cf2 s091.  Suspect — per §10l lesson "controller
+caps masquerade as algorithm limits":
+  - PX4 `MPC_XY_P` default 0.95 (proportional position gain)
+  - PX4 `MPC_XY_VEL_P_ACC` default 1.8 (velocity feedforward)
+  - PX4 `MPC_XY_VEL_MAX` default 12 m/s (lots of authority, not the
+    cap-issue cf2 had)
+  - Likely need a sweep similar to cf2 §10l's `posCtlPid.xKp` 2→3 fix.
+
+### Built-in Gazebo stress factors (added to x500_sentai SDF)
+
+IMU sensor noise (gz built-in):
+```xml
+<imu>
+  <angular_velocity>
+    <x|y|z>
+      <noise type="gaussian">
+        <stddev>0.01</stddev>          <!-- rad/s, mid-grade MEMS -->
+        <bias_stddev>0.001</bias_stddev>
+      </noise>
+    </x|y|z>
+  </angular_velocity>
+  <linear_acceleration>
+    <x|y|z>
+      <noise type="gaussian">
+        <stddev>0.1</stddev>           <!-- m/s², mid-grade MEMS -->
+        <bias_stddev>0.01</bias_stddev>
+      </noise>
+    </x|y|z>
+  </linear_acceleration>
+</imu>
+```
+
+Motor asymmetry (manufacturing tolerance simulation):
+- 4 rotors with `motorConstant` perturbed ±2% from 8.54858e-06 nominal
+  - rotor 0: 8.61e-06 (+0.6%)
+  - rotor 1: 8.40e-06 (-1.7%)
+  - rotor 2: 8.71e-06 (+1.8%)
+  - rotor 3: 8.41e-06 (-1.7%)
+
+Result with stress alone (no wind), flow=0 mock to isolate stress
+effect: drone holds altitude (baro stable) but drifts ~70 cm in 10 s
+on coupled x+y axes — motor asymmetry causes rotational drift, IMU
+noise propagates into EKF velocity estimate.  With ArUco VPE active
++ GPS, drift drops to 33 cm (s108).
+
+### Constraints / open issues for full s091 parity
+
+1. **Controller tuning** — PX4 MPC_XY_* params not yet tuned for our
+   x500_sentai mass/inertia + flow-source setup.  cf2 needed §10l
+   posCtlPid.xKp 2→3 + xVelMax 1.0→2.5 ratio.  Equivalent PX4 sweep
+   to be done in s110+.
+2. **Flow-only path (no GPS) blocked on axis-sign convention** —
+   s092 cf2 BODY_XFORM=(0,-1,-1,0) does NOT directly apply; PX4
+   EKF source negates pixel_flow internally and uses different
+   convention.  4 sign combos tried, all diverged.  Requires
+   PX4-side controlled-motion calibration (s092 protocol replicated
+   for PX4) — estimated 8-12h focused session.
+3. **Lockstep camera cadence** — sentai.flow real path (vs ArUco
+   mock) needs camera frames at 30 Hz real wall-clock to keep
+   phase-corr inter-frame motion in search range.  PX4-gz lockstep
+   slows camera to ~1 Hz, breaks phase-corr.  Workaround: use
+   ArUco VPE path (s108/s109) which is timing-tolerant.
+4. **Spawn altitude vs marker visibility** — at z=0.23 m (drone on
+   ground, body half-height), camera at z=0.18 m is BELOW marker
+   tops at z=0.20 m → no detection until drone airborne.  Use GPS
+   or baro-only for initial climb, switch to ArUco-VPE once airborne.
+   Spawn pose set to (0,0,1.0) for x500 to clear ArUco posts.
+
+### Mandatory MAVLink + PX4 conventions (load-bearing)
+
+- **NaN yaw in VPE** — sending VPE with yaw=0 caused 22 m drift in
+  s108; PX4 had yaw conflict with mag.  Fix: yaw/roll/pitch = NaN.
+- **NaN lat/lon in NAV_TAKEOFF** — sending lat=lon=0 = "arbitrary
+  coords" → auto-disarm.  Per §10o pitfall #2.
+- **HEADLESS=1 + manual GUI** — PX4 launches its own bare gz GUI
+  if HEADLESS not set; running our PiP-config GUI on top races.
+  Per §10o pitfall #1.
+- **MAVLink port 14550 for OFFBOARD pymavlink** — PX4 Normal stream
+  sends to 14550; 14540 is Onboard stream which the flow-bridge
+  may have claimed partnership of.
+- **PX4 launches gz itself** (`PX4_GZ_WORLDS` env) — external gz +
+  PX4 attach later skips lockstep handshake → EKF starves.
+- **Reply struct = 124 bytes** for gz_to_uds_bridge UDS — sending
+  smaller reply causes bridge to disconnect.  Per s108 fix.
+
+### Files shipped this session
+
+- `examples/sentai_runtime/experiments/s107_px4_offboard_pos_mockflow/`
+  no-GPS + flow + OFFBOARD-position, sanity flow=0 PASS
+- `examples/sentai_runtime/experiments/s108_px4_aruco_vpe/`
+  ArUco PnP → VPE pipeline, all components verified
+- `examples/sentai_runtime/experiments/s109_px4_aruco_wind/`
+  ArUco VPE + wind + stress, drift 67.7 cm (cf2 parity target 32 cm)
+- `sim/scripts/aruco_to_vision_estimate.py` — host-side ArUco PnP
+  bridge (cv2 + pymavlink), 124-byte Reply protocol compat
+- `sim/scripts/gz_pose_to_flow_estimate.py` — gz-pose → OPTICAL_FLOW_RAD
+  mock (axis-sign tuning open)
+- Airframes installed in PX4 build/etc/init.d-posix/airframes/:
+  - 4040 = x500_sentai GPS baseline (proven)
+  - 4041 = x500_sentai flow-only nav (axis tuning open)
+  - 4042 = x500_sentai external vision only (no GPS)
+  - 4043 = x500_sentai GPS+VPE fused
