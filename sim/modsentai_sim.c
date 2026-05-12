@@ -1223,6 +1223,77 @@ static const mp_obj_module_t sentai_pipeline_module = {
 };
 
 /* ===== top-level sentai module ===== */
+/* ===== sentai.link — SIM MAVLink bridge (Phase 6) ============================
+ * Slim mirror of examples/sentai_runtime/modsentai_link.c.  Same Python
+ * surface as ARM (init/stop/debug/heartbeat/send/stats); transport is
+ * UDP via sentai_uart_serial_udp.c instead of LPUART.
+ */
+extern int sentai_link_init(uint32_t baudrate, uint8_t sysid, uint8_t compid);
+extern int sentai_link_stop(void);
+extern void sentai_link_set_debug(int level);
+extern int sentai_link_send_heartbeat(uint8_t type);
+extern int sentai_link_send_statustext(uint8_t severity, const char* text);
+extern void sentai_link_get_stats(uint32_t out[8]);
+
+static mp_obj_t sim_link_init(size_t n_args, const mp_obj_t *args) {
+    uint32_t baudrate = (n_args > 0) ? (uint32_t)mp_obj_get_int(args[0]) : 57600;
+    uint8_t sysid  = (n_args > 1) ? (uint8_t)mp_obj_get_int(args[1]) : 1;
+    uint8_t compid = (n_args > 2) ? (uint8_t)mp_obj_get_int(args[2]) : 191;
+    return mp_obj_new_int(sentai_link_init(baudrate, sysid, compid));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(sim_link_init_obj, 0, 3, sim_link_init);
+
+static mp_obj_t sim_link_stop(void) { return mp_obj_new_int(sentai_link_stop()); }
+static MP_DEFINE_CONST_FUN_OBJ_0(sim_link_stop_obj, sim_link_stop);
+
+static mp_obj_t sim_link_debug(mp_obj_t lvl) {
+    sentai_link_set_debug(mp_obj_get_int(lvl));
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(sim_link_debug_obj, sim_link_debug);
+
+static mp_obj_t sim_link_heartbeat(size_t n_args, const mp_obj_t *args) {
+    uint8_t type = (n_args > 0) ? (uint8_t)mp_obj_get_int(args[0]) : 18;
+    return mp_obj_new_int(sentai_link_send_heartbeat(type));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(sim_link_heartbeat_obj, 0, 1, sim_link_heartbeat);
+
+static mp_obj_t sim_link_send(size_t n_args, const mp_obj_t *args) {
+    const char* text = mp_obj_str_get_str(args[0]);
+    uint8_t severity = (n_args > 1) ? (uint8_t)mp_obj_get_int(args[1]) : 6;
+    return mp_obj_new_int(sentai_link_send_statustext(severity, text));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(sim_link_send_obj, 1, 2, sim_link_send);
+
+static mp_obj_t sim_link_stats(void) {
+    uint32_t s[8] = {0};
+    sentai_link_get_stats(s);
+    mp_obj_t items[8] = {
+        mp_obj_new_int_from_uint(s[0]), mp_obj_new_int_from_uint(s[1]),
+        mp_obj_new_int_from_uint(s[2]), mp_obj_new_int_from_uint(s[3]),
+        mp_obj_new_int_from_uint(s[4]), mp_obj_new_int_from_uint(s[5]),
+        mp_obj_new_int_from_uint(s[6]), mp_obj_new_int_from_uint(s[7]),
+    };
+    return mp_obj_new_tuple(8, items);
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(sim_link_stats_obj, sim_link_stats);
+
+static const mp_rom_map_elem_t sentai_link_globals_table[] = {
+    { MP_ROM_QSTR(MP_QSTR___name__),  MP_ROM_QSTR(MP_QSTR_link) },
+    { MP_ROM_QSTR(MP_QSTR_init),      MP_ROM_PTR(&sim_link_init_obj) },
+    { MP_ROM_QSTR(MP_QSTR_stop),      MP_ROM_PTR(&sim_link_stop_obj) },
+    { MP_ROM_QSTR(MP_QSTR_debug),     MP_ROM_PTR(&sim_link_debug_obj) },
+    { MP_ROM_QSTR(MP_QSTR_heartbeat), MP_ROM_PTR(&sim_link_heartbeat_obj) },
+    { MP_ROM_QSTR(MP_QSTR_send),      MP_ROM_PTR(&sim_link_send_obj) },
+    { MP_ROM_QSTR(MP_QSTR_stats),     MP_ROM_PTR(&sim_link_stats_obj) },
+};
+static MP_DEFINE_CONST_DICT(sentai_link_globals, sentai_link_globals_table);
+static const mp_obj_module_t sentai_link_module = {
+    .base = { &mp_type_module },
+    .globals = (mp_obj_dict_t *) &sentai_link_globals,
+};
+
+
 static const mp_rom_map_elem_t sentai_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_sentai) },
     { MP_ROM_QSTR(MP_QSTR_version),  MP_ROM_PTR(&sentai_version_obj) },
@@ -1236,6 +1307,7 @@ static const mp_rom_map_elem_t sentai_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_flow),     MP_ROM_PTR(&sentai_flow_module) },
     { MP_ROM_QSTR(MP_QSTR_tpu),      MP_ROM_PTR(&sentai_tpu_module) },
     { MP_ROM_QSTR(MP_QSTR_pipeline), MP_ROM_PTR(&sentai_pipeline_module) },
+    { MP_ROM_QSTR(MP_QSTR_link),     MP_ROM_PTR(&sentai_link_module) },
 };
 static MP_DEFINE_CONST_DICT(sentai_globals, sentai_globals_table);
 

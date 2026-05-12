@@ -118,6 +118,8 @@ add_executable_sim(sentai_sim
     modsentai_sim.c
     camera_bridge_recv.c          # Phase 4 UDS receiver, runs flow pipeline
     sim_tpu_shim.c                # Phase 5 — pycoral helper UDS client
+    sentai_uart_serial_udp.c      # Phase 6 — sentai.link UART→UDP bridge for SIM
+    sentai_link_sim.cc            # Phase 6 — slim MAVLink bridge (heartbeat/statustext)
     # Phase 5b — SentAI-SORT tracker, shared with ARM (BoT-SORT adapted).
     ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_tracker.cc
     # Phase 4 — flow algorithm shared between ARM and SIM.
@@ -139,6 +141,7 @@ target_include_directories(sentai_sim PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}        # build_version.h, mpconfigport.h
     ${MP_EMBED_DIR}
     ${CMAKE_SOURCE_DIR}                # for "examples/sentai_runtime/*.h"
+    ${CMAKE_SOURCE_DIR}/third_party/mavlink  # Phase 6 — sentai_link_sim.cc
 )
 # Force build_version.h to refresh on every build.
 add_dependencies(sentai_sim increment_sim_build_version)

@@ -2091,6 +2091,184 @@ under this wind profile.
   (cheap, for visual debug).  Both fopen failures now log once per 100
   errors instead of failing silently.
 
+## 10m. PX4 SITL coexistence + sentai.link MAVLink bridge (Phase 6, 2026-05-12)
+
+PX4 v1.14 SITL installed alongside CrazySim in the existing
+`crazysim-garden` distrobox.  Verified bidirectional MAVLink between
+`sentai_sim` and a real PX4 instance over UDP — `sentai.link` works
+unchanged with a SIM-only UDP backend, mirroring the ARM UART path.
+
+### Compatibility verdict
+
+| Stack piece | Distrobox (crazysim-garden, Ubuntu 22.04) | PX4 v1.14 | Match |
+|---|---|---|---|
+| Gazebo Sim | 7.9.0 (Garden) | requires gz-transport12 | ✓ |
+| gz-transport | 12.2.2 | gz-transport12 | ✓ |
+| gz-msgs | 9.5.1 | gz-msgs9 | ✓ |
+| World plugins | Physics, UserCmd, SceneBcast, Contact, Imu, AirPressure, Sensors | identical 7 plugins | ✓ |
+
+PX4 v1.15 also works (fallback to gz-transport12).  v1.16+ requires
+gz-transport13 / Harmonic → INCOMPATIBLE with our Garden distrobox.
+Don't propose v1.16+ for this codebase without first migrating the
+whole stack to Harmonic.
+
+### Port allocation — NO conflicts when all 3 sims run together
+
+| Port  | Owner    | Role | Bind/Send |
+|------:|----------|------|---|
+| 14540 | sentai_sim | PX4 telemetry IN | bind |
+| 14580 | PX4 SITL   | offboard cmds IN | bind (PX4 sends to 14540) |
+| 18570 | PX4 SITL   | GCS link | bind (reserved for pymavlink/MAVSDK) |
+| 14550 | reserved   | legacy GCS UDP | free |
+| 19850 | CrazySim cf2 | cflib CRTP | bind |
+
+`sim/sentai_uart_serial_udp.c` defaults: BIND 14540, SEND 14580
+(env vars `SENTAI_LINK_UDP_LOCAL_PORT` / `SENTAI_LINK_UDP_REMOTE_PORT`
+override).
+
+### Architecture — same `sentai.link` API on ARM + SIM
+
+```
+       ARM (firmware)                           SIM (host)
+  ┌────────────────────┐                  ┌────────────────────────┐
+  │ Python REPL        │                  │ Python REPL            │
+  │   sentai.link.*    │                  │   sentai.link.*        │
+  └────────┬───────────┘                  └────────┬───────────────┘
+           │ (same C ABI: sentai_link_init,         │
+           │  send_heartbeat, send_statustext,      │
+           │  set_debug, get_stats, ...)            │
+  ┌────────▼───────────┐                  ┌────────▼───────────────┐
+  │ sentai_link.cc     │                  │ sim/sentai_link_sim.cc │
+  │ (full firmware:    │                  │ (slim: hb + statustext │
+  │  tracker, mesh,    │                  │  + parse rx hb)        │
+  │  health, nanopb)   │                  │                        │
+  └────────┬───────────┘                  └────────┬───────────────┘
+           │                                       │
+  ┌────────▼───────────┐                  ┌────────▼───────────────┐
+  │ sentai_uart_serial │                  │ sim/sentai_uart_serial │
+  │ * (LPUART6 ARM HAL)│                  │ _udp.c (Linux UDP)     │
+  └────────┬───────────┘                  └────────┬───────────────┘
+           │ UART2 @ 57600                          │ UDP datagram
+           │   ↓                                    │   ↓
+  ┌────────▼───────────┐                  ┌────────▼───────────────┐
+  │ Crazyflie 2 radio  │                  │ PX4 SITL instance 0    │
+  │ or external FCU    │                  │ mavlink onboard 14580  │
+  └────────────────────┘                  └────────────────────────┘
+```
+
+Key invariant: `examples/sentai_runtime/modsentai_link.c` (Python
+binding) and the C ABI surface (`sentai_link_init / *_send_heartbeat /
+*_send_statustext / *_set_debug / *_get_stats`) are IDENTICAL on both
+targets.  Only the transport differs.  Future firmware features added
+to `sentai_link.cc` (e.g. TUNNEL handler) must keep ABI parity so the
+SIM mirror picks them up.
+
+### Verification (s095_px4_link_ping)
+
+`bash examples/sentai_runtime/experiments/s095_px4_link_ping/ping_test.sh`
+- Starts PX4 SITL (sihsim_quadx, no Gazebo needed) inside distrobox
+- Spawns `sentai_sim`, drives `sentai.link.init/heartbeat/stats`
+- Asserts `tx_hb > 0` AND `rx_hb > 0` AND `last_peer_sysid == 1`
+
+Result on 2026-05-12: TX=5, RX=7, peer_sys=1.  PASS.
+
+### Phase 6 — installation + build
+
+1. `bash sim/scripts/install_px4_sitl.sh` clones PX4 v1.14 to
+   `/home/bogdan/work/px4/PX4-Autopilot` (sibling of CrazySim, NOT
+   vendored into coralmicro/ per §2.3) and installs build deps inside
+   the distrobox.  Pip deps `pyros-genmsg` and `future` are also
+   installed inside distrobox (used by uORB / mavgen code generators).
+2. Build:
+   `distrobox enter crazysim-garden -- bash -c 'cd /home/bogdan/work/px4/PX4-Autopilot && make px4_sitl_default -j$(nproc)'`
+3. Output binary: `/home/bogdan/work/px4/PX4-Autopilot/build/px4_sitl_default/bin/px4` (~47 MB).
+
+### SIM bridge implementation (NASA/JPL discipline per `agent/embeded.md`)
+
+`sim/sentai_uart_serial_udp.c`:
+- Bounded I/O: UDP datagrams ≤ 2 KB, timeouts capped at 5 s.
+- No dynamic allocation after init (single static `s_sock`, static
+  `s_peer` sockaddr).
+- All `socket() / bind() / sendto() / recvfrom()` return codes checked;
+  failures logged once-per-100 (no log spam, no silent swallowing).
+- Open is idempotent (`s_sock >= 0 → return 1`).
+- `_read()` learns peer ephemeral source from `recvfrom` and locks
+  subsequent sends to that real address (PX4 mavlink module uses
+  ephemeral src ports that don't match the configured remote).
+
+`sim/sentai_link_sim.cc`:
+- Same public C ABI as `examples/sentai_runtime/sentai_link.cc` so
+  `modsentai_link.c` works unchanged — but slim (~250 LoC vs 700 LoC)
+  because SIM doesn't need tracker / mesh / health / nanopb deps.
+- Reader task created with priority `tskIDLE_PRIORITY + 2` — MATCH the
+  main MP task.  Earlier tried `+1` (lower) → POSIX FreeRTOS port did
+  not schedule it while the same-prio camera_bridge task was perpetually
+  ready, so RX silently stayed at 0.  **Lesson**: on the POSIX port
+  always set link-reader priority equal-or-higher than the IO-bound
+  tasks that compete for the scheduler.
+- Stop has bounded join: 500 ms max wait for reader to exit, then drop
+  socket regardless.  No infinite-wait join.
+- All `atomic<bool>` flags between main + reader task; no mutex needed.
+
+### Plan — REPL-over-MAVLink (next step, scoped)
+
+User spec (2026-05-12): "*căutăm un mesaj TEXT sau ceva custom în
+MAVLink și implementăm comenzile de REPL prin radio așa cum aveam și
+în crazy.  Cu sentai_sim vorbim tot prin command prompt; prin
+intermediul radio-ului vorbim cu o buclă REPL care face exec.  Spre PX4
+NU folosim cflib — folosim MAVSDK sau altă librărie x86 ce trimite UDP
+către PX4.  Watch UDP conflicts.*"
+
+Design — TUNNEL message (msgid 385, MAVLink v2 only):
+- `target_system / target_component` — addresses sentai_sim (sysid=1, compid=191)
+- `payload_type` — custom value `0xC0DE` ("SentAI REPL")
+- `payload_length` (uint8) — 1..128
+- `payload[128]` — raw REPL bytes (UTF-8)
+
+Forward direction (host → sentai_sim REPL):
+- Host pymavlink/MAVSDK sends TUNNEL{payload_type=0xC0DE, payload=cmd}
+- PX4 mavlink module routes by target_system; with sentai on UDP 14540
+  and sysid=1, PX4 forwards the TUNNEL to us
+- `sentai_link_sim.cc` reader detects payload_type 0xC0DE → pushes
+  bytes into a stdin-tap FIFO that `main_sim.c::sim_read_line()` polls
+  in addition to actual stdin
+- MicroPython processes line, emits result via stdout
+
+Reverse direction (sentai_sim REPL output → host):
+- `main_sim.c` already has a tee on stdout (used by the REPL prompt);
+  add a hook that mirrors bytes into `sentai_link_send_tunnel(payload)`
+- Reader on host re-assembles → prints to terminal
+
+Constraints:
+- TUNNEL payload is 128 B per packet — large vs Crazyflie CRTP's 30 B
+  MTU (radio bridge memory `feedback_radio_no_file_transfer.md`).
+- Still NOT for file transfer — keep small `$exec`-style commands.
+- ARM uses same TUNNEL bytes over UART; no protocol change between
+  SIM ↔ HW so the test we write here proves the HW radio path too.
+
+Test scaffold:
+- `s095_px4_link_ping/ping_test.sh` — current MVP (heartbeat only)
+- `s096_repl_over_mavlink/` (future) — TUNNEL round-trip, exec inline,
+  multi-packet response chunking, recovery from packet drop.
+
+### Coexistence with CrazySim in same Gazebo world
+
+Both PX4 and CrazySim cf2 can spawn in the same `sentai_crazysim.sdf`:
+- CrazySim adds Crazyflie model named `crazyflie_0`, plugin claims
+  topics `/cf_0/*` and UDP 19850
+- PX4 spawns x500 (or sihsim) model named `x500_0`, plugin claims
+  `/world/.../model/x500_0/*` topics and UDP 14580/14540/18570
+- Model names disjoint, topic prefixes disjoint, port allocations
+  disjoint → safe coexistence.
+
+`PX4_GZ_STANDALONE=1` env var lets the PX4 binary attach to an
+already-running Gazebo instance instead of spawning its own — preferred
+when CrazySim already started gz with the sentai world.
+
+(This is documented but NOT yet wired into a runner script; the s095
+test uses `sihsim` simulator backend which doesn't need Gazebo at
+all.  Real Gazebo coexistence is the next milestone after REPL.)
+
 ## 11. References
 
 - FreeRTOS POSIX port docs: https://www.freertos.org/FreeRTOS-simulator-for-Linux.html
@@ -2127,3 +2305,4 @@ Update as phases land.
 | 2026-05-11 | 5b import-bridge | DONE — native `import` from SIM virtual FS (replaces `exec(read_str())`) | SIM build #after-#1234 | **Built the firmware-parity import path on SIM.**  `sim/main_sim.c` now provides real `mp_lexer_new_from_file` + `mp_import_stat` routed through `sim_fs_resolve()` (the same resolver `sentai.fs.*` uses).  Backed by an inline 64-byte FD reader inside `main_sim.c` (typedef `sim_reader_fd_t` with `readbyte` + `close` callbacks) so we don't have to flip `MICROPY_READER_POSIX=1` on the embed config — that flag would pull a competing `mp_lexer_new_from_file` from `lexer.c` that bypasses our `sim_fs_resolve()`.  REPL boot now does `import sys; sys.path.append('/'); sys.path.append('')` so a bare `import hover_logic` finds `<sim_fs_root>/hover_logic.py`.  `sim_fs_root()` and `sim_fs_resolve()` in `modsentai_sim.c` un-staticed and `extern`-declared in `main_sim.c`.  Smoke test: `>>> import smoke_import; smoke_import.greet()` returns `"hello from disk"` after a single .py file is dropped at `build-sim/sentai_fs_root/smoke_import.py`.  Migration: `examples/sentai_runtime/experiments/s090_hover_over_cat/hover_over_cat.py` swapped `exec(sentai.fs.read_str("hover_logic.py"))` for `import hover_logic` — heap cost drops from ~KB source-string to 64 B FD buffer streamed char-by-char by the lexer; tracebacks now show `hover_logic.py` line N instead of `<string>`; second invocation is free (cached in `sys.modules`).  New best-practices section §10f documents the rule + the anti-patterns to avoid (multi-line for/if blocks through stdin REPL → `SyntaxError`; `exec(read_str())` for anything larger than a one-liner → useless heap copy).  ARM parity guarantee: firmware build provides the equivalent through FileX (`FxUserOpenRead`) so the same `import foo` line works on both targets. |
 | 2026-05-10 | 3 best-practices | DONE — captured during cflib TOC debug session | n/a | **Hard-won CrazySim/Gazebo Garden best practices.  (Originally collected on Harmonic but Harmonic is now banned; the practices apply equally to Garden in distrobox.)  Read these before any future debug session.**  (1) **`stdbuf -oL` is mandatory for cf2** — `cf2`'s stdout is block-buffered when redirected to a file (4 KB).  Default `sitl_singleagent.sh` does `cf2 ... > out.log 2> error.log &` and the logs stay EMPTY for minutes.  Wrap with `stdbuf -oL -eL cf2 ...` to flush per-line and see boot progress (`SOCKET_LINK: Waiting for connection with gazebo`, `Connection established`, `SYS: Software-in-the-Loop Simulator is up and running!`).  (2) **Always launch `gz sim` with `-v 4` (debug) during bringup, not the default `-v 3`** — plugin-load failures (`Failed to load system plugin [gz_crazysim_plugin] : Could not find shared library`) are logged ONLY at `-v 4`.  At `-v 3` the world boots silently with no plugin and EVERYTHING downstream (cflib TOC, motor commands, telemetry) silently times out.  (3) **`GZ_SIM_SYSTEM_PLUGIN_PATH`, `GZ_SIM_RESOURCE_PATH`, `LD_LIBRARY_PATH` MUST be set in the shell that launches `gz sim`** — `setup_gz.bash` sets them, but only inside the script's process tree.  If you run `gz sim ...` ad-hoc in another shell, the plugin is silently missing and the drone's `/cf_0/imu` topic exists but with NO subscriber on the cf2 side.  (4) **Plugin <-> cf2 handshake is `0xF3`** — cf2 SOCKET_LINK sends `0xF3` (1 byte, header only, size=0) repeatedly until plugin echos `0xF3` back.  Plugin learns cf2's ephemeral source addr from `recvfrom`'s remaddr.  cf2 then continues to system init.  Sequence visible at cf2 stdout (with stdbuf): `Create socket succeed → Binding succeed → Waiting for connection with gazebo → Connection established with gazebo → SYS: Software-in-the-Loop Simulator is up and running!`  (5) **cflib UdpDriver handshake is `\xff\x01\x01\x01`** — plugin doesn't ack this, just learns cflib's addr from recvfrom.  Subsequent CRTP packets are bidirectional. |
 | 2026-05-11 | 10l hover-under-wind | DONE — 3 bugs found + cf2 PID cap fix, drift 43cm→32cm at full wind | SIM build trail | Bug 1: MARKER_SIZE_M was 0.08 but ArUco texture padding makes effective marker 0.0625m → PnP-z over-estimated by 1.28×.  Bug 2: per-marker -tvec[0] averaging assumed (a) cam_X=body_X and (b) marker centroid stayed at world (0,0) — both wrong; partial-FOV biased the centroid 40cm.  Bug 3 (the real blocker): cf2 `platform_defaults_sitl.h:PID_POS_VEL_X_MAX=1.0f` caps position-PID velocity output at 1 m/s → drone has only ~0.6 m/s wind-rejection authority vs 0.4 m/s gusts.  Fix: raise `posCtlPid.xVelMax/yVelMax` to 2.5 + `xKp/yKp` to 3.0 via cflib param.set_value.  s092 (axis_calib.py) controlled-motion test confirms current BODY_XFORM=(0,-1,-1,0) is correct (axes were never the bug; PnP labels were).  s093 (max_velocity.py + max_velocity_pos.py) discovers the hard 1 m/s cap and finds max sustainable velocity at z=3m hover is ~2.27 m/s (peak before flow saturates at 32 L0-px shift).  Final 3-trial mean hover-under-wind: all-4 17%→28.2%, dist mean 43cm→32.5cm, no flow-algorithm changes.  Full section in §10l. |
+| 2026-05-12 | 10m Phase 6 PX4-link | DONE — PX4 v1.14 SITL installed + sentai.link MAVLink bridge, TX/RX heartbeat round-trip verified (s095_px4_link_ping PASS: TX=5 RX=7 peer_sys=1) | SIM build trail | New: `sim/scripts/install_px4_sitl.sh` clones PX4 v1.14 to /home/bogdan/work/px4/PX4-Autopilot (sibling of CrazySim).  Garden 7.9 + gz-transport12 + gz-msgs9 stack matches PX4 v1.14 native deps.  Pip needs `pyros-genmsg` + `future` inside distrobox.  New: `sim/sentai_uart_serial_udp.c` provides ARM-ABI-compatible UART backend over UDP (BIND 14540, SEND 14580 = PX4 v1.14 offboard mavlink, per `PX4 ROMFS/.../px4-rc.mavlink`).  New: `sim/sentai_link_sim.cc` slim MAVLink encoder/parser (heartbeat + statustext only, no tracker/mesh/nanopb deps) with reader task — CRITICAL FIX: reader task priority must be `tskIDLE_PRIORITY+2` to MATCH main MP task; at +1 (lower) it never gets scheduled on POSIX FreeRTOS port while camera_bridge is perpetually ready.  `sentai.link.{init,stop,debug,heartbeat,send,stats}` Python module exposed in SIM via `sim/modsentai_sim.c` (mirrors firmware modsentai_link.c surface).  Port allocation disjoint from CrazySim (19850) and PX4 GCS (18570) so all 3 can run together.  Plan §10m.b: REPL-over-MAVLink via TUNNEL msgid 385 payload_type=0xC0DE (128B MTU vs Crazyflie CRTP 30B); same protocol on ARM/HW radio. |
