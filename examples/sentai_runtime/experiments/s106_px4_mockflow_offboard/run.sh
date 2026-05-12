@@ -49,7 +49,7 @@ export PX4_GZ_MODELS="$GZ_X500_MODELS"
 export PX4_GZ_WORLDS="$CRAZYSIM_RES"
 cd "$PX4_DIR"
 nohup env HEADLESS=1 \
-          PX4_SYS_AUTOSTART=4041 \
+          PX4_SYS_AUTOSTART=4040 \
           PX4_SIMULATOR=gz \
           PX4_GZ_MODEL=x500_sentai \
           PX4_GZ_WORLD=$WORLD_NAME \
