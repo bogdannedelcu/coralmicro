@@ -1238,6 +1238,9 @@ extern int sentai_link_cmd_arm(int do_arm);
 extern int sentai_link_cmd_takeoff(float altitude_m);
 extern int sentai_link_cmd_land(void);
 extern int sentai_link_cmd_set_mode(uint8_t main_mode, uint8_t sub_mode);
+extern int sentai_link_send_flow(float dx_rad, float dy_rad,
+                                  uint32_t dt_us, uint8_t quality,
+                                  float distance_m);
 
 static mp_obj_t sim_link_init(size_t n_args, const mp_obj_t *args) {
     uint32_t baudrate = (n_args > 0) ? (uint32_t)mp_obj_get_int(args[0]) : 57600;
@@ -1299,6 +1302,20 @@ static mp_obj_t sim_link_land(void) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(sim_link_land_obj, sim_link_land);
 
+/* sentai.link.send_flow(dx_rad, dy_rad, dt_us, quality=200, distance_m=1.0)
+ * Build + send MAVLINK_MSG_ID_OPTICAL_FLOW_RAD to PX4.  Used by hover
+ * scripts to feed sentai.flow into PX4 EKF2 (set EKF2_AID_MASK to
+ * include flow). */
+static mp_obj_t sim_link_send_flow(size_t n_args, const mp_obj_t *args) {
+    float dx = mp_obj_get_float(args[0]);
+    float dy = mp_obj_get_float(args[1]);
+    uint32_t dt = (uint32_t)mp_obj_get_int(args[2]);
+    uint8_t q = (n_args > 3) ? (uint8_t)mp_obj_get_int(args[3]) : 200;
+    float dist = (n_args > 4) ? mp_obj_get_float(args[4]) : 1.0f;
+    return mp_obj_new_int(sentai_link_send_flow(dx, dy, dt, q, dist));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(sim_link_send_flow_obj, 3, 5, sim_link_send_flow);
+
 /* set_mode: dropped from binding for MVP (QSTR `set_mode` not in pool).
  * MP_REGISTER_MODULE regen needed to expose it.  In the meantime
  * sentai.link.send_command_long(176, ...) (also not exposed yet) or
@@ -1315,6 +1332,7 @@ static const mp_rom_map_elem_t sentai_link_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_arm),       MP_ROM_PTR(&sim_link_arm_obj) },
     { MP_ROM_QSTR(MP_QSTR_takeoff),   MP_ROM_PTR(&sim_link_takeoff_obj) },
     { MP_ROM_QSTR(MP_QSTR_land),      MP_ROM_PTR(&sim_link_land_obj) },
+    { MP_ROM_QSTR(MP_QSTR_send_flow), MP_ROM_PTR(&sim_link_send_flow_obj) },
 };
 static MP_DEFINE_CONST_DICT(sentai_link_globals, sentai_link_globals_table);
 static const mp_obj_module_t sentai_link_module = {

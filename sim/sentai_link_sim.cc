@@ -30,6 +30,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <cmath>
 #include <atomic>
 
 #include "third_party/freertos_kernel/include/FreeRTOS.h"
@@ -375,6 +376,44 @@ extern "C" int sentai_link_cmd_takeoff(float altitude_m) {
 extern "C" int sentai_link_cmd_land(void) {
     /* MAV_CMD_NAV_LAND (21): land at current XY, descend to ground. */
     return link_send_command_long(21, 0,0,0,0, 0,0,0);
+}
+
+
+extern "C" int sentai_link_send_flow(float dx_rad, float dy_rad,
+                                       uint32_t dt_us, uint8_t quality,
+                                       float distance_m) {
+    /* MAVLINK_MSG_ID_OPTICAL_FLOW_RAD (106).  PX4 v1.14 EKF2 fuses
+     * this when EKF2_AID_MASK has OPT_FLOW bit set AND the message
+     * carries valid integration_time + distance.
+     *
+     * Fields (matches PX4 handle_message_optical_flow_rad):
+     *   integrated_x / _y      → cumulative angular flow (radians)
+     *   integration_time_us    → time window over which integrated
+     *   quality                → 0..255, threshold by EKF2_OF_QMIN
+     *   integrated_xgyro/ygyro/zgyro → IMU de-rotation (NaN to defer)
+     *   distance               → rangefinder reading (m), <0 = unknown
+     */
+    if (!s_open.load()) return 0;
+    mavlink_message_t msg;
+    float nan_v = NAN;
+    mavlink_msg_optical_flow_rad_pack(s_sysid, s_compid, &msg,
+        (uint64_t)dt_us /* time_usec since boot (approx, PX4 ignores) */,
+        0 /* sensor_id */,
+        dt_us,
+        dx_rad, dy_rad,
+        nan_v, nan_v, nan_v /* integrated_xgyro/ygyro/zgyro — let PX4 derotate */,
+        20 /* temperature, centidegC, unused */,
+        quality,
+        (uint32_t)dt_us /* time_delta_distance_us */,
+        distance_m);
+    uint8_t wire[MAVLINK_MAX_PACKET_LEN];
+    int wlen = mavlink_msg_to_send_buffer(wire, &msg);
+    int w = sentai_uart_serial_write(wire, wlen);
+    if (s_debug_level >= 2) {
+        fprintf(stderr, "[link.tx] FLOW dx=%.4f dy=%.4f dt=%uus q=%u d=%.2f → %d\r\n",
+                (double)dx_rad, (double)dy_rad, dt_us, quality, (double)distance_m, w);
+    }
+    return (w > 0) ? 1 : 0;
 }
 
 
