@@ -1062,7 +1062,9 @@ extern "C" void app_main(void* param) {
   
   coralmicro::app_start_tick = xTaskGetTickCount();
   coralmicro::logf("\r\nSentAI build #%d (%s)\r\n", BUILD_VERSION, BUILD_TIMESTAMP);
-  
+
+  // ArUco benchmark exposed via sentai.diag.aruco_bench() from REPL.
+
   // Check and log previous reset reason
   coralmicro::ResetStats stats = coralmicro::ResetGetStats();
   if (stats.reset_reason != 0) {

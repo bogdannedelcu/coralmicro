@@ -834,6 +834,34 @@ static mp_obj_t mod_sentai_diag_fx_format(mp_obj_t magic_obj) {
 static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_diag_fx_format_obj,
                                   mod_sentai_diag_fx_format);
 
+// ---- ArUco feasibility benchmark ----
+// Runs adaptive threshold + edge filter on a synthetic 320×240 image
+// and returns DWT cycle counts.  Used to validate if hand-rolled
+// ArUco detection on M7 is feasible (vs companion-computer fallback).
+typedef struct {
+    uint32_t w, h;
+    uint32_t scan_cyc, thresh_cyc, edge_cyc;
+} aruco_bench_result_t;
+extern void aruco_bench_run(aruco_bench_result_t* out);
+
+static mp_obj_t mod_sentai_diag_aruco_bench(void) {
+    aruco_bench_result_t r = {0};
+    aruco_bench_run(&r);
+    // M7 @ 800 MHz: cycles / 800 = microseconds.
+    mp_obj_t dict = mp_obj_new_dict(0);
+    mp_obj_dict_store(dict, MP_ROM_QSTR(MP_QSTR_w), mp_obj_new_int(r.w));
+    mp_obj_dict_store(dict, MP_ROM_QSTR(MP_QSTR_h), mp_obj_new_int(r.h));
+    mp_obj_dict_store(dict, MP_ROM_QSTR(MP_QSTR_scan_us),   mp_obj_new_int(r.scan_cyc / 800));
+    mp_obj_dict_store(dict, MP_ROM_QSTR(MP_QSTR_thresh_us), mp_obj_new_int(r.thresh_cyc / 800));
+    mp_obj_dict_store(dict, MP_ROM_QSTR(MP_QSTR_edge_us),   mp_obj_new_int(r.edge_cyc / 800));
+    mp_obj_dict_store(dict, MP_ROM_QSTR(MP_QSTR_scan_cyc),   mp_obj_new_int_from_uint(r.scan_cyc));
+    mp_obj_dict_store(dict, MP_ROM_QSTR(MP_QSTR_thresh_cyc), mp_obj_new_int_from_uint(r.thresh_cyc));
+    mp_obj_dict_store(dict, MP_ROM_QSTR(MP_QSTR_edge_cyc),   mp_obj_new_int_from_uint(r.edge_cyc));
+    return dict;
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_diag_aruco_bench_obj,
+                                  mod_sentai_diag_aruco_bench);
+
 // ---- module table ----
 static const mp_rom_map_elem_t sentai_diag_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__),   MP_ROM_QSTR(MP_QSTR_diag) },
@@ -868,6 +896,7 @@ static const mp_rom_map_elem_t sentai_diag_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_cache_len),       MP_ROM_PTR(&mod_sentai_diag_cache_len_obj) },
     { MP_ROM_QSTR(MP_QSTR_cache_dropped),   MP_ROM_PTR(&mod_sentai_diag_cache_dropped_obj) },
     { MP_ROM_QSTR(MP_QSTR_cache_close),     MP_ROM_PTR(&mod_sentai_diag_cache_close_obj) },
+    { MP_ROM_QSTR(MP_QSTR_aruco_bench),     MP_ROM_PTR(&mod_sentai_diag_aruco_bench_obj) },
 };
 static MP_DEFINE_CONST_DICT(sentai_diag_globals, sentai_diag_globals_table);
 static const mp_obj_module_t sentai_diag_module = {
