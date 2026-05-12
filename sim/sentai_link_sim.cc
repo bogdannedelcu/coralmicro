@@ -55,6 +55,82 @@ extern void sentai_uart_restore_baudrate(void);
 #include "third_party/mavlink/common/mavlink.h"
 
 
+/* ---- REPL-over-MAVLink TUNNEL bridge (Sim.md §10m.b) ---------------------
+ *
+ * Host (pymavlink) → sentai_sim REPL:
+ *   sender wraps a REPL command in a MAVLink TUNNEL message with
+ *   payload_type = SENTAI_REPL_PAYLOAD (0xC0DE, in the >32767 "local
+ *   experimental" block).  Reader task below detects it and pushes
+ *   bytes into the FIFO.  main_sim.c::sim_read_line() drains the FIFO
+ *   alongside actual stdin, so MicroPython sees radio bytes as if they
+ *   were typed locally.
+ *
+ * Bounded: 4 KB ring (~32 command lines), drop-on-overflow with a
+ * dropped-byte counter (no infinite buffering).  Single producer
+ * (reader task), single consumer (main REPL task) → lock-free SPSC
+ * with std::atomic indices.
+ */
+#define SENTAI_REPL_PAYLOAD     0xC0DE
+#define REPL_FIFO_SZ            4096
+
+static char         s_repl_fifo[REPL_FIFO_SZ];
+static std::atomic<uint32_t> s_repl_w{0};
+static std::atomic<uint32_t> s_repl_r{0};
+static std::atomic<uint32_t> s_repl_dropped{0};
+
+
+static void repl_fifo_push(const uint8_t* src, size_t n) {
+    /* Bounded loop: at most `n` iterations, each O(1). */
+    for (size_t i = 0; i < n; ++i) {
+        uint32_t w = s_repl_w.load(std::memory_order_relaxed);
+        uint32_t nw = (w + 1) % REPL_FIFO_SZ;
+        if (nw == s_repl_r.load(std::memory_order_acquire)) {
+            /* Full — drop and count.  Better than blocking on a fifo
+             * the consumer might not be draining (consumer = main MP
+             * task which can be busy in an exec).  */
+            s_repl_dropped.fetch_add(1, std::memory_order_relaxed);
+            return;
+        }
+        s_repl_fifo[w] = (char)src[i];
+        s_repl_w.store(nw, std::memory_order_release);
+    }
+}
+
+
+extern "C" int sentai_link_repl_rx_pop(char* out, int max_n) {
+    if (!out || max_n <= 0) return 0;
+    int popped = 0;
+    while (popped < max_n) {
+        uint32_t r = s_repl_r.load(std::memory_order_relaxed);
+        if (r == s_repl_w.load(std::memory_order_acquire)) break;
+        out[popped++] = s_repl_fifo[r];
+        s_repl_r.store((r + 1) % REPL_FIFO_SZ, std::memory_order_release);
+    }
+    return popped;
+}
+
+
+extern "C" int sentai_link_send_tunnel(uint16_t payload_type,
+                                         const uint8_t* data, int len,
+                                         uint8_t target_sys,
+                                         uint8_t target_comp) {
+    if (!data || len <= 0) return 0;
+    if (len > 128) len = 128;
+    /* Static payload buffer to avoid memcpy from caller into stack. */
+    uint8_t payload[128];
+    memset(payload, 0, sizeof payload);
+    memcpy(payload, data, (size_t)len);
+    mavlink_message_t msg;
+    extern uint8_t s_sysid_get(void);   /* fwd decl below */
+    extern uint8_t s_compid_get(void);
+    mavlink_msg_tunnel_pack(s_sysid_get(), s_compid_get(), &msg,
+        target_sys, target_comp, payload_type, (uint8_t)len, payload);
+    uint8_t wire[MAVLINK_MAX_PACKET_LEN];
+    int wlen = mavlink_msg_to_send_buffer(wire, &msg);
+    return sentai_uart_serial_write(wire, wlen);
+}
+
+
 /* ---- Module state ---- */
 struct LinkStats {
     std::atomic<uint32_t> tx_heartbeat{0};
@@ -73,6 +149,10 @@ static int                s_debug_level = 0;
 static TaskHandle_t       s_reader_task = nullptr;
 static std::atomic<bool>  s_reader_stop{false};
 static std::atomic<bool>  s_open{false};
+
+/* Accessors used by extern "C" send_tunnel above. */
+extern "C" uint8_t s_sysid_get(void)  { return s_sysid; }
+extern "C" uint8_t s_compid_get(void) { return s_compid; }
 
 
 /* ---- Reader task: parses MAVLink frames coming back from PX4 ---- */
@@ -102,6 +182,54 @@ static void link_reader_task(void* arg) {
                                         "(tot=%u)\r\n",
                                 msg.sysid, msg.compid,
                                 s_stats.rx_heartbeat.load());
+                    }
+                } else if (msg.msgid == MAVLINK_MSG_ID_TUNNEL) {
+                    mavlink_tunnel_t t;
+                    mavlink_msg_tunnel_decode(&msg, &t);
+                    if (t.payload_type == SENTAI_REPL_PAYLOAD) {
+                        /* Target check: 0 = broadcast, our sysid = direct. */
+                        if (t.target_system == 0 || t.target_system == s_sysid) {
+                            uint8_t len = t.payload_length;
+                            if (len > 128) len = 128;
+                            /* Crazyflie-radio convention: only lines that
+                             * start with '$' are executed (matches
+                             * `$exec` pattern from
+                             * feedback_radio_no_file_transfer.md memory).
+                             * Strip the '$' before pushing so the REPL
+                             * sees clean Python.  Lines without '$' are
+                             * dropped silently — stray bytes won't run. */
+                            const uint8_t* p = t.payload;
+                            int n = (int)len;
+                            if (n > 0 && p[0] == '$') {
+                                /* Accept three forms (Crazyflie-radio
+                                 * `$exec` convention):
+                                 *   `$cmd`        → strip '$'
+                                 *   `$ cmd`       → strip '$ '
+                                 *   `$exec cmd`   → strip '$exec '
+                                 */
+                                p++; n--;
+                                if (n >= 5 && memcmp(p, "exec ", 5) == 0) {
+                                    p += 5; n -= 5;
+                                } else if (n > 0 && p[0] == ' ') {
+                                    p++; n--;
+                                }
+                                repl_fifo_push(p, (size_t)n);
+                                if (s_debug_level >= 1) {
+                                    fprintf(stderr, "[link.rx] REPL TUNNEL "
+                                                    "%d bytes (after $-strip) "
+                                                    "from sys=%u\r\n",
+                                            n, msg.sysid);
+                                }
+                            } else {
+                                if (s_debug_level >= 1) {
+                                    fprintf(stderr, "[link.rx] TUNNEL %u "
+                                                    "bytes DROPPED (no $ "
+                                                    "marker)\r\n", len);
+                                }
+                            }
+                        }
+                    } else {
+                        s_stats.rx_other.fetch_add(1);
                     }
                 } else {
                     s_stats.rx_other.fetch_add(1);
@@ -190,6 +318,76 @@ extern "C" int sentai_link_send_heartbeat(uint8_t type) {
                 type, w, s_stats.tx_heartbeat.load());
     }
     return w;
+}
+
+
+/* ---- High-level MAV_CMD wrappers (Phase 6b) ----
+ *
+ * Convenience C entry points for MicroPython bindings (modsentai_sim.c).
+ * Each sends MAV_CMD_* via mavlink COMMAND_LONG to PX4 (target sysid=1).
+ * Return 1 on send-success, 0 on link not open / send fail.
+ *
+ * Caller is responsible for waiting for COMMAND_ACK if needed (PX4 emits
+ * ACKs in a separate MAVLink message we don't currently parse; for the
+ * MVP we just send-and-pray — sufficient for arm/takeoff/land in
+ * SITL).
+ */
+static int link_send_command_long(uint16_t command,
+                                    float p1, float p2, float p3, float p4,
+                                    float p5, float p6, float p7,
+                                    uint8_t target_sys = 1,
+                                    uint8_t target_comp = 1) {
+    if (!s_open.load()) return 0;
+    mavlink_message_t msg;
+    mavlink_msg_command_long_pack(s_sysid, s_compid, &msg,
+        target_sys, target_comp,
+        command,
+        0,                  /* confirmation */
+        p1, p2, p3, p4, p5, p6, p7);
+    uint8_t wire[MAVLINK_MAX_PACKET_LEN];
+    int wlen = mavlink_msg_to_send_buffer(wire, &msg);
+    int w = sentai_uart_serial_write(wire, wlen);
+    if (s_debug_level >= 1) {
+        fprintf(stderr, "[link.tx] CMD %u (p1=%.2f) → %d bytes\r\n",
+                command, (double)p1, w);
+    }
+    return (w > 0) ? 1 : 0;
+}
+
+
+extern "C" int sentai_link_cmd_arm(int do_arm) {
+    /* MAV_CMD_COMPONENT_ARM_DISARM (400): p1 = 1.0 arm / 0.0 disarm.
+     * p2 = 21196 forces arm even if pre-arm checks fail (SITL convenience).
+     */
+    return link_send_command_long(400, do_arm ? 1.0f : 0.0f, 21196.0f,
+                                    0,0,0,0,0);
+}
+
+
+extern "C" int sentai_link_cmd_takeoff(float altitude_m) {
+    /* MAV_CMD_NAV_TAKEOFF (22): p7 = altitude (m, above home/GLOBAL frame). */
+    return link_send_command_long(22, 0,0,0, 0,
+                                    /* lat/lon */ 0, 0,
+                                    /* alt */ altitude_m);
+}
+
+
+extern "C" int sentai_link_cmd_land(void) {
+    /* MAV_CMD_NAV_LAND (21): land at current XY, descend to ground. */
+    return link_send_command_long(21, 0,0,0,0, 0,0,0);
+}
+
+
+extern "C" int sentai_link_cmd_set_mode(uint8_t main_mode, uint8_t sub_mode) {
+    /* MAV_CMD_DO_SET_MODE (176).  PX4 custom_mode packing:
+     *   p1 = base_mode (1 = MAV_MODE_FLAG_CUSTOM_MODE_ENABLED).
+     *   p2 = main_mode (PX4_CUSTOM_MAIN_MODE_*: 1=MANUAL, 2=ALTCTL,
+     *        3=POSCTL, 4=AUTO, 5=ACRO, 6=OFFBOARD, 7=STABILIZED, 8=RATTITUDE)
+     *   p3 = sub_mode (for AUTO: 2=TAKEOFF, 3=LOITER, 5=LAND, etc.)
+     */
+    return link_send_command_long(176, 1.0f /* CUSTOM enabled */,
+                                    (float)main_mode, (float)sub_mode,
+                                    0,0,0,0);
 }
 
 

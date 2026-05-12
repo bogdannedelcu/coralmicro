@@ -1234,6 +1234,10 @@ extern void sentai_link_set_debug(int level);
 extern int sentai_link_send_heartbeat(uint8_t type);
 extern int sentai_link_send_statustext(uint8_t severity, const char* text);
 extern void sentai_link_get_stats(uint32_t out[8]);
+extern int sentai_link_cmd_arm(int do_arm);
+extern int sentai_link_cmd_takeoff(float altitude_m);
+extern int sentai_link_cmd_land(void);
+extern int sentai_link_cmd_set_mode(uint8_t main_mode, uint8_t sub_mode);
 
 static mp_obj_t sim_link_init(size_t n_args, const mp_obj_t *args) {
     uint32_t baudrate = (n_args > 0) ? (uint32_t)mp_obj_get_int(args[0]) : 57600;
@@ -1278,6 +1282,28 @@ static mp_obj_t sim_link_stats(void) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(sim_link_stats_obj, sim_link_stats);
 
+static mp_obj_t sim_link_arm(size_t n_args, const mp_obj_t *args) {
+    int do_arm = (n_args > 0) ? mp_obj_get_int(args[0]) : 1;
+    return mp_obj_new_int(sentai_link_cmd_arm(do_arm));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(sim_link_arm_obj, 0, 1, sim_link_arm);
+
+static mp_obj_t sim_link_takeoff(size_t n_args, const mp_obj_t *args) {
+    float alt = (n_args > 0) ? mp_obj_get_float(args[0]) : 1.0f;
+    return mp_obj_new_int(sentai_link_cmd_takeoff(alt));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(sim_link_takeoff_obj, 0, 1, sim_link_takeoff);
+
+static mp_obj_t sim_link_land(void) {
+    return mp_obj_new_int(sentai_link_cmd_land());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(sim_link_land_obj, sim_link_land);
+
+/* set_mode: dropped from binding for MVP (QSTR `set_mode` not in pool).
+ * MP_REGISTER_MODULE regen needed to expose it.  In the meantime
+ * sentai.link.send_command_long(176, ...) (also not exposed yet) or
+ * direct python pymavlink-from-host is the workaround. */
+
 static const mp_rom_map_elem_t sentai_link_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__),  MP_ROM_QSTR(MP_QSTR_link) },
     { MP_ROM_QSTR(MP_QSTR_init),      MP_ROM_PTR(&sim_link_init_obj) },
@@ -1286,6 +1312,9 @@ static const mp_rom_map_elem_t sentai_link_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_heartbeat), MP_ROM_PTR(&sim_link_heartbeat_obj) },
     { MP_ROM_QSTR(MP_QSTR_send),      MP_ROM_PTR(&sim_link_send_obj) },
     { MP_ROM_QSTR(MP_QSTR_stats),     MP_ROM_PTR(&sim_link_stats_obj) },
+    { MP_ROM_QSTR(MP_QSTR_arm),       MP_ROM_PTR(&sim_link_arm_obj) },
+    { MP_ROM_QSTR(MP_QSTR_takeoff),   MP_ROM_PTR(&sim_link_takeoff_obj) },
+    { MP_ROM_QSTR(MP_QSTR_land),      MP_ROM_PTR(&sim_link_land_obj) },
 };
 static MP_DEFINE_CONST_DICT(sentai_link_globals, sentai_link_globals_table);
 static const mp_obj_module_t sentai_link_module = {

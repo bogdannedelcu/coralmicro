@@ -53,7 +53,7 @@ static void sigint_handler(int sig) {
     g_got_sigint = 1;
 }
 
-/* ---- EINTR-resilient line reader from stdin ----
+/* ---- EINTR-resilient line reader from stdin + REPL-TUNNEL fifo ----
  *
  * The FreeRTOS POSIX port delivers SIGALRM at configTICK_RATE_HZ (1 kHz)
  * to drive the scheduler tick.  This interrupts any blocking read()
@@ -61,32 +61,56 @@ static void sigint_handler(int sig) {
  * EINTR — it returns NULL and sets feof(), making the REPL think the user
  * pressed Ctrl-D after every single tick.
  *
- * Workaround: read one char at a time via read(STDIN_FILENO, ...) with an
- * explicit EINTR-retry loop.  Returns 0 on EOF, -1 on real error, or the
- * line length on success (line is null-terminated, newline stripped). */
+ * Workaround: select(stdin) with a short timeout in an EINTR-retry loop,
+ * then read(STDIN_FILENO, ...) ONE BYTE.  Also poll the
+ * `sentai_link_repl_rx_pop` FIFO each iteration so commands arriving over
+ * MAVLink TUNNEL (host pymavlink → sentai_link reader task → FIFO) are
+ * dispatched into the REPL the same way as typed input.
+ *
+ * Returns 0 on EOF, -1 on real error, or line length on success (line
+ * null-terminated, newline stripped, >=1). */
+extern int sentai_link_repl_rx_pop(char *out, int max_n);
+
 static int sim_read_line(char *buf, size_t max_len) {
     size_t pos = 0;
     while (pos < max_len - 1) {
         char c;
+
+        /* 1. Drain the radio FIFO first — non-blocking. */
+        if (sentai_link_repl_rx_pop(&c, 1) == 1) {
+            if (c == '\n') break;
+            if (c == '\r') continue;
+            buf[pos++] = c;
+            continue;
+        }
+
+        /* 2. Otherwise wait briefly for stdin or signal. */
+        fd_set rfds;
+        FD_ZERO(&rfds);
+        FD_SET(STDIN_FILENO, &rfds);
+        struct timeval tv = {0, 50000};   /* 50 ms — polls FIFO @ 20 Hz */
+        int sel = select(STDIN_FILENO + 1, &rfds, NULL, NULL, &tv);
+        if (sel < 0) {
+            if (errno == EINTR) continue;   /* SIGALRM tick — retry */
+            return -1;
+        }
+        if (sel == 0) continue;     /* timeout — go check FIFO again */
+
         ssize_t n;
         do {
             n = read(STDIN_FILENO, &c, 1);
         } while (n == -1 && errno == EINTR);
-
         if (n == 0) {
-            /* True EOF (Ctrl-D on empty line) */
-            if (pos == 0) return 0;
-            break;          /* EOF after some bytes — return what we have */
+            if (pos == 0) return 0;     /* true EOF on empty line */
+            break;
         }
-        if (n < 0) {
-            return -1;
-        }
+        if (n < 0) return -1;
         if (c == '\n') break;
-        if (c == '\r') continue;            /* tolerate CRLF */
+        if (c == '\r') continue;
         buf[pos++] = c;
     }
     buf[pos] = '\0';
-    return (int) pos + 1;   /* >=1 so callers can distinguish from EOF */
+    return (int) pos + 1;
 }
 
 /* ---- REPL task ----
