@@ -20,6 +20,11 @@
 #include <cstdio>
 #include <cstring>
 
+#include "fsl_pxp.h"
+#include "fsl_cache.h"
+
+#define DEMO_PXP PXP
+
 namespace {
 
 // 320×240 grayscale test pattern.  Buffers in SDRAM via section attr.
@@ -225,6 +230,82 @@ static void k_adaptive_threshold_separable(const uint8_t* src, uint8_t* dst,
 }
 
 
+// Kernel 2d: PXP-accelerated adaptive threshold.
+// HW DMA does the 4× downscale (= 4×4 block average) → 80×60 reference
+// image.  CPU loop then thresholds 320×240 px against the 80×60
+// reference (each src pixel compared to its corresponding scale-down
+// pixel via nearest-neighbor lookup).  Expected near-1 ms total.
+//
+// PXP path: 320×240 Y8 input → 80×60 Y8 output, scale 4× via bilinear.
+// On RT1176, equivalent op for 640×480→80×60 takes ~1.15 ms (existing
+// camera pipeline).  Our 4× smaller input → expect 0.3 ms PXP HW time.
+__attribute__((section(".sdram_bss"), aligned(32)))
+static uint8_t s_pxp_meanref[(W/4) * (H/4)];   // 80×60 = 4800 bytes
+
+__attribute__((section(".sdram_text"), noinline))
+static void k_adaptive_threshold_pxp(const uint8_t* src, uint8_t* dst,
+                                      int w, int h) {
+    constexpr int RW = W / 4;    // reference 80×60
+    constexpr int RH = H / 4;
+    constexpr int OFFSET = 5;
+
+    // Configure PXP: Y8 in (src 320×240), Y8 out (mean 80×60).
+    pxp_ps_buffer_config_t ps = {};
+    ps.pixelFormat = kPXP_PsPixelFormatY8;
+    ps.swapByte    = false;
+    ps.bufferAddr  = (uint32_t)src;
+    ps.bufferAddrU = 0;
+    ps.bufferAddrV = 0;
+    ps.pitchBytes  = w;          // 1 byte/px
+
+    pxp_output_buffer_config_t out = {};
+    out.pixelFormat    = kPXP_OutputPixelFormatY8;
+    out.interlacedMode = kPXP_OutputProgressive;
+    out.buffer0Addr    = (uint32_t)s_pxp_meanref;
+    out.buffer1Addr    = 0;
+    out.pitchBytes     = RW;
+    out.width          = RW;
+    out.height         = RH;
+
+    // Cache: ensure DMA doesn't clobber dirty lines.
+    DCACHE_CleanInvalidateByRange((uint32_t)s_pxp_meanref, RW * RH);
+
+    PXP_SetProcessSurfaceBufferConfig(DEMO_PXP, &ps);
+    PXP_SetProcessSurfaceScaler(DEMO_PXP, w, h, RW, RH);
+    PXP_SetProcessSurfacePosition(DEMO_PXP, 0, 0, RW - 1, RH - 1);
+    PXP_SetAlphaSurfacePosition(DEMO_PXP, 0xFFFFU, 0xFFFFU, 0U, 0U);
+    PXP_EnableCsc1(DEMO_PXP, false);
+    PXP_SetOutputBufferConfig(DEMO_PXP, &out);
+    PXP_Start(DEMO_PXP);
+
+    // Robust timeout via DWT cycle counter (variable doesn't get
+    // optimized away).  100M cycles @ 800 MHz = 125 ms.
+    uint32_t t_start = dwt_cyc();
+    while (!(kPXP_CompleteFlag & PXP_GetStatusFlags(DEMO_PXP))) {
+        if ((dwt_cyc() - t_start) > 100000000u) {
+            break;          // PXP timeout — abort silently
+        }
+    }
+    PXP_ClearStatusFlags(DEMO_PXP, kPXP_CompleteFlag);
+
+    // CPU sees DMA result — invalidate cache.
+    DCACHE_InvalidateByRange((uint32_t)s_pxp_meanref, RW * RH);
+
+    // Per-pixel threshold against scaled-down reference.
+    // Nearest lookup: src[y][x] vs ref[y/4][x/4].
+    for (int y = 0; y < h; ++y) {
+        const uint8_t* sr = src + y * w;
+        uint8_t* dr = dst + y * w;
+        const uint8_t* rf = s_pxp_meanref + (y / 4) * RW;
+        for (int x = 0; x < w; ++x) {
+            int v = sr[x];
+            int m = rf[x / 4];
+            dr[x] = (v + OFFSET < m) ? 255 : 0;
+        }
+    }
+}
+
+
 // Kernel 3: Sobel-like edge filter (3×3 |dx|+|dy|).
 // Approximates the gradient computation that precedes contour finding.
 __attribute__((section(".sdram_text"), noinline))
@@ -255,6 +336,7 @@ struct aruco_bench_result_t {
     uint32_t edge_cyc;
     uint32_t thresh_bradley_cyc;     // Bradley-Roth integral image
     uint32_t thresh_separable_cyc;   // separable 7+7 rolling sum
+    uint32_t thresh_pxp_cyc;         // PXP HW scale + CPU compare
 };
 
 extern "C" __attribute__((section(".sdram_text"), noinline))
@@ -270,6 +352,7 @@ void aruco_bench_run(aruco_bench_result_t* out) {
     uint32_t scan_min = ~0u, thresh_min = ~0u, edge_min = ~0u;
     uint32_t thresh_bradley_min = ~0u;
     uint32_t thresh_separable_min = ~0u;
+    uint32_t thresh_pxp_min = ~0u;
     extern volatile uint32_t s_aruco_bench_sink;
 
     for (int trial = 0; trial < 3; ++trial) {
@@ -294,6 +377,11 @@ void aruco_bench_run(aruco_bench_result_t* out) {
         if (t1 - t0 < thresh_separable_min) thresh_separable_min = t1 - t0;
 
         t0 = dwt_cyc();
+        k_adaptive_threshold_pxp(s_gray, s_bin, W, H);
+        t1 = dwt_cyc();
+        if (t1 - t0 < thresh_pxp_min) thresh_pxp_min = t1 - t0;
+
+        t0 = dwt_cyc();
         k_edge(s_gray, s_edge, W, H);
         t1 = dwt_cyc();
         if (t1 - t0 < edge_min) edge_min = t1 - t0;
@@ -304,5 +392,6 @@ void aruco_bench_run(aruco_bench_result_t* out) {
     out->thresh_cyc = thresh_min;
     out->thresh_bradley_cyc = thresh_bradley_min;
     out->thresh_separable_cyc = thresh_separable_min;
+    out->thresh_pxp_cyc = thresh_pxp_min;
     out->edge_cyc = edge_min;
 }
