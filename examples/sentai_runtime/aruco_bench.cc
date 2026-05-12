@@ -44,6 +44,13 @@ static uint8_t s_edge[N] __attribute__((section(".sdram_bss")));
 // constant folding of the memory-scan kernel.
 volatile uint32_t s_aruco_bench_sink __attribute__((section(".sdram_bss")));
 
+// PXP debug capture — externally visible so kernel + binding can share.
+uint32_t s_pxp_dbg_stat_before __attribute__((section(".sdram_bss")));
+uint32_t s_pxp_dbg_ctrl_before __attribute__((section(".sdram_bss")));
+uint32_t s_pxp_dbg_stat_after  __attribute__((section(".sdram_bss")));
+uint32_t s_pxp_dbg_ctrl_after  __attribute__((section(".sdram_bss")));
+uint32_t s_pxp_dbg_wait_iters  __attribute__((section(".sdram_bss")));
+
 namespace {
 
 // Generate a synthetic test pattern: light bg (200), dark square in
@@ -276,16 +283,26 @@ static void k_adaptive_threshold_pxp(const uint8_t* src, uint8_t* dst,
     PXP_SetAlphaSurfacePosition(DEMO_PXP, 0xFFFFU, 0xFFFFU, 0U, 0U);
     PXP_EnableCsc1(DEMO_PXP, false);
     PXP_SetOutputBufferConfig(DEMO_PXP, &out);
+    // Capture PXP state BEFORE we trigger (debug only).  Use ::-prefix
+    // because we are inside an anonymous namespace, and the variables
+    // are defined at global scope.
+    ::s_pxp_dbg_stat_before = *(volatile uint32_t*)0x40814010u;
+    ::s_pxp_dbg_ctrl_before = *(volatile uint32_t*)0x40814000u;
+
     PXP_Start(DEMO_PXP);
 
-    // Robust timeout via DWT cycle counter (variable doesn't get
-    // optimized away).  100M cycles @ 800 MHz = 125 ms.
+    // Robust timeout via DWT cycle counter.  100M cycles @ 800 MHz = 125 ms.
     uint32_t t_start = dwt_cyc();
+    volatile uint32_t iters = 0;
     while (!(kPXP_CompleteFlag & PXP_GetStatusFlags(DEMO_PXP))) {
+        iters++;
         if ((dwt_cyc() - t_start) > 100000000u) {
-            break;          // PXP timeout — abort silently
+            break;
         }
     }
+    ::s_pxp_dbg_stat_after = *(volatile uint32_t*)0x40814010u;
+    ::s_pxp_dbg_ctrl_after = *(volatile uint32_t*)0x40814000u;
+    ::s_pxp_dbg_wait_iters = iters;
     PXP_ClearStatusFlags(DEMO_PXP, kPXP_CompleteFlag);
 
     // CPU sees DMA result — invalidate cache.
@@ -337,6 +354,12 @@ struct aruco_bench_result_t {
     uint32_t thresh_bradley_cyc;     // Bradley-Roth integral image
     uint32_t thresh_separable_cyc;   // separable 7+7 rolling sum
     uint32_t thresh_pxp_cyc;         // PXP HW scale + CPU compare
+    // PXP debug capture (filled by k_adaptive_threshold_pxp).
+    uint32_t pxp_stat_before_start;  // PXP STAT before our trigger
+    uint32_t pxp_ctrl_before_start;  // PXP CTRL before our trigger
+    uint32_t pxp_stat_after_wait;    // PXP STAT after busy-wait done/timeout
+    uint32_t pxp_ctrl_after_wait;    // PXP CTRL after busy-wait
+    uint32_t pxp_wait_iters;         // how many iterations the wait did
 };
 
 extern "C" __attribute__((section(".sdram_text"), noinline))
@@ -394,4 +417,10 @@ void aruco_bench_run(aruco_bench_result_t* out) {
     out->thresh_separable_cyc = thresh_separable_min;
     out->thresh_pxp_cyc = thresh_pxp_min;
     out->edge_cyc = edge_min;
+    // Pass through debug captures.
+    out->pxp_stat_before_start = s_pxp_dbg_stat_before;
+    out->pxp_ctrl_before_start = s_pxp_dbg_ctrl_before;
+    out->pxp_stat_after_wait   = s_pxp_dbg_stat_after;
+    out->pxp_ctrl_after_wait   = s_pxp_dbg_ctrl_after;
+    out->pxp_wait_iters        = s_pxp_dbg_wait_iters;
 }

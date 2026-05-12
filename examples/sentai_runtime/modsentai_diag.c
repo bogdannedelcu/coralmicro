@@ -844,6 +844,9 @@ typedef struct {
     uint32_t thresh_bradley_cyc;
     uint32_t thresh_separable_cyc;
     uint32_t thresh_pxp_cyc;
+    uint32_t pxp_stat_before_start, pxp_ctrl_before_start;
+    uint32_t pxp_stat_after_wait,   pxp_ctrl_after_wait;
+    uint32_t pxp_wait_iters;
 } aruco_bench_result_t;
 extern void aruco_bench_run(aruco_bench_result_t* out);
 
@@ -859,6 +862,11 @@ static mp_obj_t mod_sentai_diag_aruco_bench(void) {
     mp_obj_dict_store(dict, MP_ROM_QSTR(MP_QSTR_thresh_bradley_us), mp_obj_new_int(r.thresh_bradley_cyc / 800));
     mp_obj_dict_store(dict, MP_ROM_QSTR(MP_QSTR_thresh_separable_us), mp_obj_new_int(r.thresh_separable_cyc / 800));
     mp_obj_dict_store(dict, MP_ROM_QSTR(MP_QSTR_thresh_pxp_us), mp_obj_new_int(r.thresh_pxp_cyc / 800));
+    mp_obj_dict_store(dict, MP_ROM_QSTR(MP_QSTR_pxp_stat_before), mp_obj_new_int_from_uint(r.pxp_stat_before_start));
+    mp_obj_dict_store(dict, MP_ROM_QSTR(MP_QSTR_pxp_ctrl_before), mp_obj_new_int_from_uint(r.pxp_ctrl_before_start));
+    mp_obj_dict_store(dict, MP_ROM_QSTR(MP_QSTR_pxp_stat_after), mp_obj_new_int_from_uint(r.pxp_stat_after_wait));
+    mp_obj_dict_store(dict, MP_ROM_QSTR(MP_QSTR_pxp_ctrl_after), mp_obj_new_int_from_uint(r.pxp_ctrl_after_wait));
+    mp_obj_dict_store(dict, MP_ROM_QSTR(MP_QSTR_pxp_iters), mp_obj_new_int_from_uint(r.pxp_wait_iters));
     mp_obj_dict_store(dict, MP_ROM_QSTR(MP_QSTR_edge_us),   mp_obj_new_int(r.edge_cyc / 800));
     mp_obj_dict_store(dict, MP_ROM_QSTR(MP_QSTR_scan_cyc),   mp_obj_new_int_from_uint(r.scan_cyc));
     mp_obj_dict_store(dict, MP_ROM_QSTR(MP_QSTR_thresh_cyc), mp_obj_new_int_from_uint(r.thresh_cyc));
