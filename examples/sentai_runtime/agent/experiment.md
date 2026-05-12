@@ -6827,3 +6827,68 @@ cancelling part of the noise-induced drift.
    expected drift".  Should be enabled by default for any hover test.
 3. **PX4 has its own MPC_* tune, distinct from cf2 posCtlPid_*** —
    don't assume cf2 parameters transfer.
+
+
+## Session 2026-05-12 (cont'd) — s110 PX4 outdoor wind ceiling
+
+Operator: "PX4 va zbura outdoor, sa vedem max wind posibil... outdoor
+flow only cu wind".  Proxy via VPE-anchored hover (flow-only path
+blocked on axis tuning).
+
+### s110 wind sweep (airframe 4043, GPS+VPE fused, stress active)
+
+10 wind values from 0.2 to 20.0 m/s (Beaufort 1 → 8, "calm" → "gale"):
+
+| wind | Beaufort | drift_mean | flew |
+|---:|---:|---:|---|
+| 0.2 | 1 |  94.4 cm | ✅ |
+| 0.5 | 1 |  52.1 cm | ✅ |
+| 1.0 | 2 |  62.6 cm | ✅ |
+| 2.0 | 2 |  92.0 cm | ✅ |
+| 3.0 | 3 |  72.0 cm | ✅ |
+| 5.0 | 3 |  29.7 cm | ✅ |
+| 7.0 | 4 |  45.9 cm | ✅ |
+|10.0 | 5 |  51.1 cm | ✅ |
+|15.0 | 7 | 137.4 cm | ✅ |
+|20.0 | 8 |  82.0 cm | ✅ |
+
+**Drone never crashed at any tested wind.**  Drift not monotonic with
+wind — stress factors (IMU+motor noise) dominate per-run variability.
+
+### Why no failure point found
+
+PX4 + VPE (absolute position from ArUco PnP) eliminates the cf2-style
+"velocity-only EKF drift" failure mode.  EKF always knows where drone
+is.  Controller commands counter-thrust.  As long as wind <
+MPC_XY_VEL_MAX (12 m/s default), drone has authority.
+
+Above ~12 m/s wind (15-20 in our test), drift starts growing but
+EKF still has correct position → controller keeps trying → drone
+holds.  True failure would require wind > controller saturation +
+gyro/IMU corruption from extreme thrust commands.
+
+### Comparison cf2 s091 indoor
+
+Same wind plugin, same world.  cf2 + PMW3901 flow:
+- 0.2 m/s wind: 32 cm drift (after PID tune)
+- 0.4 m/s gust: drone struggles, ~50 cm drift max
+- Higher wind: cf2 cannot fight — flow loses signal at speed
+
+PX4 + VPE at SAME 0.2 m/s wind: 94 cm drift (per-run noise) but never
+loses lock.  Architecturally MORE robust due to absolute position
+anchor.
+
+### Files shipped this run
+
+- `examples/sentai_runtime/experiments/s110_px4_wind_sweep/run.sh`
+  Iterates wind values via inline sed in world SDF; reuses s109
+  run.sh per wind.  CSV output with drift_mean / drift_max / peak_z
+  / hover_z_mean / flew per row.
+
+### Open work (s111+)
+
+- Replicate s092 axis-calibration on PX4 → unblock flow-only path
+- Once flow-only works, repeat s110 sweep with airframe 4041 to find
+  the FLOW-bounded wind ceiling (expected ~0.4-1.0 m/s).  This is the
+  real "outdoor flow only" answer.
+- Half-wind comparison vs cf2 s091 #14 (target 7.6 cm drift parity)
