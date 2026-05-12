@@ -157,6 +157,10 @@ static TaskHandle_t       s_fwd_task = nullptr;
 static std::atomic<bool>  s_fwd_run{false};
 static float              s_fwd_distance_m = 1.0f;
 
+/* ---- Heartbeat broadcaster state ---- */
+static TaskHandle_t       s_hb_task = nullptr;
+static std::atomic<bool>  s_hb_run{false};
+
 /* Accessors used by extern "C" send_tunnel above. */
 extern "C" uint8_t s_sysid_get(void)  { return s_sysid; }
 extern "C" uint8_t s_compid_get(void) { return s_compid; }
@@ -256,6 +260,32 @@ static void link_reader_task(void* arg) {
 }
 
 
+/* ---- Heartbeat broadcaster task ----
+ *
+ * MAVLink protocol layer.  PX4 marks the companion "lost" if no
+ * HEARTBEAT seen for ~3s and silently rejects arm.  This is a
+ * protocol detail that should never bubble up to MicroPython — once
+ * sentai.link.init() succeeds, heartbeat just runs.  Auto-stops on
+ * sentai_link_stop().  Same priority as the reader task.
+ */
+extern "C" int sentai_link_send_heartbeat(uint8_t type);   /* fwd decl */
+
+static void link_heartbeat_task(void* arg) {
+    (void)arg;
+    fprintf(stderr, "sentai.link: heartbeat task started (1 Hz, "
+                    "MAV_TYPE_ONBOARD_CONTROLLER)\r\n");
+    while (s_hb_run.load()) {
+        /* MAV_TYPE_ONBOARD_CONTROLLER = 18 — companion computer.  PX4
+         * tracks heartbeats from this type as the "mission computer". */
+        sentai_link_send_heartbeat(18);
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+    s_hb_task = nullptr;
+    fprintf(stderr, "sentai.link: heartbeat task exiting\r\n");
+    vTaskDelete(nullptr);
+}
+
+
 /* ---- Public C ABI (matches sentai_link.cc symbols) ---- */
 extern "C" int sentai_link_init(uint32_t baudrate, uint8_t sysid, uint8_t compid) {
     if (s_open.load()) return 1;       /* already up */
@@ -279,6 +309,20 @@ extern "C" int sentai_link_init(uint32_t baudrate, uint8_t sysid, uint8_t compid
         return 0;
     }
     s_open.store(true);
+
+    /* Auto-start the heartbeat broadcaster so PX4 keeps us as a live
+     * companion.  This is part of the MAVLink protocol contract — Python
+     * shouldn't have to call link.heartbeat() periodically. */
+    s_hb_run.store(true);
+    BaseType_t hb_ok = xTaskCreate(link_heartbeat_task, "link_hb",
+                                     configMINIMAL_STACK_SIZE * 2,
+                                     nullptr, tskIDLE_PRIORITY + 2,
+                                     &s_hb_task);
+    if (hb_ok != pdPASS) {
+        fprintf(stderr, "sentai.link: WARN heartbeat task failed to start\r\n");
+        s_hb_run.store(false);
+    }
+
     fprintf(stderr, "sentai.link: init sys=%u comp=%u (UDP backend)\r\n",
             s_sysid, s_compid);
     return 1;
@@ -287,6 +331,11 @@ extern "C" int sentai_link_init(uint32_t baudrate, uint8_t sysid, uint8_t compid
 
 extern "C" int sentai_link_stop(void) {
     if (!s_open.load()) return 1;
+    /* Stop heartbeat first so it doesn't try to write to a closed sock. */
+    s_hb_run.store(false);
+    for (int i = 0; i < 50 && s_hb_task != nullptr; ++i) {
+        vTaskDelay(pdMS_TO_TICKS(10));
+    }
     s_reader_stop.store(true);
     /* Bounded join: wait up to 500 ms for the task to exit on its own. */
     for (int i = 0; i < 50 && s_reader_task != nullptr; ++i) {
