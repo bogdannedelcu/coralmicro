@@ -495,7 +495,14 @@ static void link_flow_forward_task(void* arg) {
 
             float dx_rad = (float)dx_q * MGRID_TO_RAD;
             float dy_rad = (float)dy_q * MGRID_TO_RAD;
-            uint8_t q = (conf > 255) ? 255 : (uint8_t)conf;
+            /* PX4 EKF rejects quality=0 (with EKF2_OF_QMIN>0).  When the
+             * drone is static, our phase-corr emits conf=0 because the
+             * duplicate-CRC fix skips identical-frame computation (s091
+             * commit cc5aef1a).  But "no motion detected over static
+             * scene" is a VALID measurement for PX4 to incorporate as
+             * dx=0 dy=0.  Floor quality at 50 so EKF accepts it. */
+            uint8_t q = (conf == 0) ? 50
+                      : (conf > 255) ? 255 : (uint8_t)conf;
 
             if (sentai_link_send_flow(dx_rad, dy_rad, dt_us, q,
                                        s_fwd_distance_m)) {

@@ -6659,3 +6659,65 @@ Next session:
    plus pre-feeding flow.
 4. Compare drift to s091 #1 (full-wind 31 cm baseline) and #14
    (half-wind 7.6 cm).
+
+
+## Session 2026-05-12 (cont'd) — s101b BLOCKED (flow-only no-GPS arming)
+
+After s101 GPS baseline passed (drift 14 cm), attempted s101b: same
+pipeline but with airframe 4041 (SENS_EN_GPSSIM=0, EKF2_OF_CTRL=1,
+EKF2_GPS_CTRL=0, EKF2_BARO_CTRL=1).  Plumbing all works:
+
+- Camera bridge (C++ `gz_to_uds_bridge` in distrobox) → /tmp/sentai_cam.sock
+- sentai_sim flow_phase_corr → g_flow
+- `sentai.link.flow(1)` C task → 1300+ OPTICAL_FLOW_RAD frames per session
+- PX4 accepts the frames (stats[8] match TX count)
+
+But PX4 refuses to arm: `MAV_RESULT_TEMPORARILY_REJECTED` (probed via
+pymavlink direct on UDP 18570).  `ESTIMATOR_STATUS` shows `pos_horiz_ratio: NaN`.
+
+### Root cause (research + verification)
+
+Optical flow is a *velocity* sensor.  Without a separate absolute-pose
+anchor, PX4 EKF2 cannot establish horizontal position.  The arm gate
+requires `pos_horiz_ratio != NaN`.  PX4 forum:
+
+> "Optical flow sensor outputs velocity measurements and not position.
+> Therefore the position will eventually drift and you cannot 'visually
+> navigate' with only optical flow without GPS."
+
+cf2 firmware (s091 working setup) bypasses this entirely because it
+integrates flow velocity in its OWN controller (no PX4-style EKF
+arm-gate).
+
+### Things tried (and failed)
+
+- v1.14 EKF param names: `EKF2_OF_CTRL=1`, `EKF2_GPS_CTRL=0`,
+  `EKF2_BARO_CTRL=1`, `EKF2_HGT_REF=0`, `EKF2_RNG_CTRL=1`,
+  `EKF2_OF_QMIN=1` — all set correctly.
+- Forwarder quality floor at 50 (was 0 when frames identical) — accepted
+  by PX4 but doesn't make EKF give a position estimate.
+- `SET_GPS_GLOBAL_ORIGIN` + `SET_HOME_POSITION` via pymavlink (LLA
+  Zurich PX4 default).  Origin accepted: `INFO [ekf2] 0 - New NED
+  origin (LLA): 47.3977418, 8.5455938, 488` — but `pos_horiz_ratio`
+  stays NaN.
+
+### Forward path (proposed)
+
+1. **OFFBOARD mode + SET_POSITION_TARGET_LOCAL_NED** (~s102) — stream
+   setpoints (z=1.5, x=0, y=0).  PX4 follows.  No EKF arm-gate to
+   appease, no absolute pos requirement.  Closest analogue to cflib
+   `cf.commander.send_position_setpoint()` we use on cf2.
+2. **VISION_POSITION_ESTIMATE from ArUco PnP** — host-side cv2.aruco
+   detector reads gz camera frames, computes drone world pose via
+   `solvePnP` with KNOWN_POSITIONS_M, sends `VISION_POSITION_ESTIMATE`
+   MAVLink msg to PX4.  Provides the absolute anchor EKF needs.
+   Matches PX4's `x500_vision` airframe pattern.
+
+Decision deferred to next session.  Pipeline progress committed and
+documented to avoid re-investigation.
+
+### External docs cited this session
+
+- [PX4 forum: home position with optical flow](https://discuss.px4.io/t/how-do-you-set-the-home-position-to-fly-with-optical-flow-navigation/26454)
+- [PX4 issue #22250: takeoff without GPS](https://github.com/PX4/PX4-Autopilot/issues/22250)
+- [PX4 ECL EKF tuning guide](https://docs.px4.io/main/en/advanced_config/tuning_the_ecl_ekf.html)
