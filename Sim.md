@@ -3057,3 +3057,187 @@ git reset --hard HEAD~1        # back out, root-cause, retry
 
 Don't accumulate "I'll fix the regression in the next commit" debt —
 the next commit may make the root cause invisible.
+
+`aruco_to_vision_estimate.py` was written for PX4 + MAVLink.  When
+reusing it on the cf2 path (which doesn't speak MAVLink), pass
+`--mav udpout:127.0.0.1:1` — UDP is fire-and-forget, port 1 has
+nothing bound, packets get dropped silently, no side-effects.
+
+Alternative would be a `--no-mav` flag, but the empty-port trick is
+zero-LoC and works today.  Use the trick; leave the flag for s113
+if/when MAVLink turns out to have a side effect (it doesn't).
+
+### B-8. Live-test PASS criteria — count, peak, ground-truth
+
+A live-Gazebo validation script must report THREE numbers:
+
+| Metric | Why |
+|---|---|
+| `DETECTED_COUNT / TOTAL_COUNT` of poll iterations with `detected=True` | proves the chain is actually flowing, not just bound |
+| `PEAK_Z` from poses where `detected=True` | rough sanity vs takeoff target — catches "drone never flew" |
+| Bridge stats (`detect=N pose=N vpe=N`) from `aruco_to_vision_estimate.py` log | external check that detection was happening, separately from our shim |
+
+PASS threshold for s112 was `DETECTED_COUNT >= 10`.  Lower means the
+takeoff didn't complete, the world has no markers visible, or our
+shim is dropping packets.  All three are real failure modes we hit
+during s112 bring-up; the counter immediately localizes which.
+
+## 10v. Dual-scale world pattern: cf2 vs PX4 (2026-05-13)
+
+**Constrângere fundamentală**: cele două platforme de zbor operează
+la altitudini complet diferite, deci scena vizibilă din camera
+dronei este la **scări complet diferite**:
+
+| Platform | Altitudine tipică | Ground coverage @ FOV 70° | Scală obiecte |
+|---|---|---|---|
+| **CrazyFlie / CrazySim** | 0.2-2 m | 0.3-2.8 m diameter | **SMALL** (proportional) |
+| **PX4 / x500_sentai** | 2-20 m | 2.8-28 m diameter | **REAL-WORLD** |
+
+**Consecință**: SCENA conceptuală (markeri ArUco + obiecte detectate
+de MobileNet COCO + obstacole) trebuie redată în **două variante
+fizice diferite** care păstrează **proporțiile relative drone↔obiect**.
+
+### Pattern decis pentru sentai.explore canonical world
+
+**Aceleași CLASE de obiecte** (person/car/chair/etc.), **scări fizice
+diferite**:
+
+| Obiect | PX4 world scale | cf2 world scale | Ratio |
+|---|---:|---:|---|
+| Person panel/actor height | 1.70 m (real) | **0.17 m** | 10× |
+| Car length | 4.0 m (real) | **0.40 m** | 10× |
+| ArUco marker size | 0.40 m | **0.04 m** | 10× |
+| Bench length | 1.5 m | **0.15 m** | 10× |
+| Arena dimensions | 20×20×5 m | **2×2×0.5 m** | 10× |
+| Drone wingspan/diam | 0.5 m (x500) | **0.10 m** (cf2) | 5× |
+
+Factor general: **10× downscale** pentru cf2 vs PX4 (cu mici ajustări
+pentru drona însăși — cf2 nu e 5× mai mică decât x500, deci unele
+proporții drone↔obstacol sunt diferite).
+
+### Implicații în plan
+
+**Class priors** (din §3 Stage 1.B `sentai.slam.set_class_prior`):
+```python
+# PX4 world
+sentai.slam.set_class_prior(0,  1.70)   # person
+sentai.slam.set_class_prior(2,  4.00)   # car
+sentai.slam.set_class_prior(56, 0.85)   # chair
+sentai.slam.set_class_prior(13, 1.50)   # bench
+
+# cf2 world
+sentai.slam.set_class_prior(0,  0.17)   # person (scaled 10×)
+sentai.slam.set_class_prior(2,  0.40)   # car
+sentai.slam.set_class_prior(56, 0.085)  # chair
+sentai.slam.set_class_prior(13, 0.15)   # bench
+```
+
+Tabela priors e ATAȘATĂ misiunii (parameter în `sentai.explore.start()`
+ulterior, sau set explicit înainte de mission start).
+
+**World files** — 2 variante pinned în repo:
+
+```
+sim/gazebo/worlds/
+├── explore_canonical_px4.sdf   ← 20×20 m arena, real-scale objects
+└── explore_canonical_cf2.sdf   ← 2×2 m arena, 10× downscaled objects
+```
+
+Geometric topology IDENTICĂ (4 markeri ArUco corners, 4 panouri foto
+COCO classes, 2 pillars obstacles); doar mărimile scalate.
+
+**Camera intrinsics păstrate** — FOV 70° este aceeași pe ambele
+platforme; **distanța pixel-per-meter SE SCALEAZĂ în funcție de
+altitude**. Detection probability și pseudo-depth math funcționează
+identic, dar ground-truth e adaptat.
+
+### Pattern de testing — same code path, two scenes
+
+```bash
+# PX4 path
+bash experiments/s115_endtoend_cube_landing/run_px4.sh \
+     --world=explore_canonical_px4.sdf \
+     --class-priors=px4_priors.json
+
+# cf2 path
+bash experiments/s115_endtoend_cube_landing/run_cf2.sh \
+     --world=explore_canonical_cf2.sdf \
+     --class-priors=cf2_priors.json
+```
+
+Codul firmware (sentai.explore + sentai.slam + sentai.servo) e
+**identic**. Doar **world file + class priors JSON** se schimbă
+ca params per launch.
+
+### H3 hex resolution per platform (legat de §15)
+
+Constrângerea de scală 10× impactează direct **resoluția H3 optimă**:
+
+| Platform alt | Ground coverage | Optimal H3 res | Cell side |
+|---|---:|---:|---:|
+| PX4 @ 5 m | ~7 m | **12** | 9.4 m |
+| PX4 @ 20 m | ~28 m | **11** | 25 m |
+| cf2 @ 0.5 m | ~0.7 m | **15** | ~0.5 m (or 14 = 1.4 m) |
+| cf2 @ 2 m | ~2.8 m | **13** | 3.6 m |
+
+cf2 lucrează la **rezoluții H3 mai mari (cell-uri mai mici)**, iar PX4
+la rezoluții mai mici (cell-uri mai mari). Funcția
+`optimal_h3_res_for_altitude(alt)` din §15.5 returnează valoarea
+corectă transparently per platformă; nu necesită platform-specific
+code path în sentai.places.
+
+### What this means for content (foto panels — §10v.update)
+
+Panouri foto pentru sentai.explore canonical:
+- **PX4**: 60×60 cm panouri (vizibile la 5-20 m alt)
+- **cf2**: 6×6 cm panouri (vizibile la 0.5-2 m alt)
+
+Conținutul (PNG cu poza COCO class) e **IDENTIC** între platforme;
+doar mărimea panoului fizic în Gazebo se schimbă. Modelul MobileNet
+COCO recunoaște textura indiferent de mărimea fizică (depinde doar
+de proiectia pixel-space).
+
+### Convenție de naming în repo
+
+```
+sim/gazebo/worlds/
+  explore_canonical_<platform>.sdf    # {px4, cf2}
+
+sim/scripts/world_assets/
+  panels/                              # PNG textures (shared)
+    person.png, car.png, chair.png, cat.png, ...
+  actors/                              # 3D mesh (shared)
+    walking_person.dae
+  priors/
+    px4_priors.json                    # class → real_size_m
+    cf2_priors.json                    # class → scaled_size_m
+
+examples/sentai_runtime/experiments/sNNN_*/
+  run_px4.sh
+  run_cf2.sh
+  README.md                            # documents both paths
+```
+
+### Anti-pattern de evitat
+
+- ❌ **NU** încerci să folosești same SDF pentru ambele platforme cu
+  un wrapper "scale=0.1" — Gazebo `<scale>` pe actor / model
+  composite poate produce bug-uri de rendering (lighting, collision,
+  sensor)
+- ❌ **NU** ai un singur set de class priors pentru ambele —
+  pseudo-depth math depinde linear de prior, off-by-10× distruge slam
+- ❌ **NU** încerci să zbori cf2 într-o lume scalată PX4 (drona se
+  ciocnește de panouri de 1.7 m / pillars de 2 m care în lumea ei
+  proporțională sunt obstacole gigantice)
+
+### Decizia operațională
+
+Pentru sentai.explore Stage 8 (canonical test scenario):
+- **Ambele world files** create + version-pinned în repo
+- **Două perechi de class priors** JSON
+- **Tot codul firmware** rămâne identic
+- **Test pe ambele scale** = real validation MCU+algorithm portabil
+
+Asta protejează arhitectura: dacă **ALGORITMUL** funcționează la
+scale 10× diferit, înseamnă că NU e dependent de scale-specific
+hyperparameters magic numbers — e cu adevărat scale-invariant.
