@@ -16,8 +16,11 @@ from __future__ import annotations
 
 import os
 import re
+import socket
+import struct
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -52,6 +55,14 @@ HARMONIC_TILE_PATH = Path(__file__).resolve().parents[5] / "sim/gazebo/worlds/as
 PLANE_HALF_M       = 12.5
 PLANE_M            = 25.0
 SKIP_VARIANCE_THR  = 5.0     # below this stddev → "uniform / water" → skip
+FLOW_OUT_SOCK      = "/tmp/sentai_flow_out.sock"   # set by gz_to_uds_bridge
+# Drone EKF flow scaling (DEFAULTS from gz_to_camera_bridge.py).
+DRONE_NPIX            = 35.0
+DRONE_THETAPIX_RAD    = 0.71674
+FOV_H_RAD             = 1.0123          # 58° horizontal
+FOV_V_RAD             = 0.7854          # 45° vertical
+GRID_W                = 80
+GRID_H                = 60
                               # Calibrated on Harmonic 4K: terrain ~25, lake ~1,
                               # marginal/forest ~10.  threshold 5 keeps most of
                               # the visible scene visitable while flagging
@@ -146,6 +157,96 @@ class SentaiSim:
 # ---------------------------------------------------------------------------
 # Gazebo H3-cell overlay — spawn small translucent cylinders via gz service
 # ---------------------------------------------------------------------------
+
+def flow_forwarder(stop_evt: threading.Event, cf) -> None:
+    """Read flow snapshots from /tmp/sentai_flow_out.sock and forward
+    each one to cf2 as CRTP_LOCALIZATION ch=1 packet (s091 pattern).
+    Runs as a daemon thread sharing the orchestrator's cflib session."""
+    from cflib.crtp.crtpstack import CRTPPacket, CRTPPort
+
+    # Same struct layout as s091/aruco_hover.py — 124-byte FRL1 record.
+    REPLY_FMT  = "<IIiiIQiIiiIiiIiiIIiiIIiiIIiiIB3x"
+    REPLY_SZ   = struct.calcsize(REPLY_FMT)
+    REPLY_MAGIC = 0x46524C31  # 'FRL1'
+
+    # Grid-px → drone-pixel scale.
+    grid_per_rad_x = GRID_W / FOV_H_RAD
+    grid_per_rad_y = GRID_H / FOV_V_RAD
+    scale_x = DRONE_NPIX * DRONE_THETAPIX_RAD / grid_per_rad_x
+    scale_y = DRONE_NPIX * DRONE_THETAPIX_RAD / grid_per_rad_y
+
+    # Wait for the bridge to come up (up to 15 s).
+    sock = None
+    for _ in range(30):
+        if stop_evt.is_set():
+            return
+        try:
+            s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            s.settimeout(0.5)
+            s.connect(FLOW_OUT_SOCK)
+            sock = s
+            break
+        except Exception:
+            time.sleep(0.5)
+    if sock is None:
+        print(f"[flow_fwd] FAIL connect {FLOW_OUT_SOCK} — flow disabled", flush=True)
+        return
+    print(f"[flow_fwd] connected {FLOW_OUT_SOCK}", flush=True)
+
+    buf = b""
+    n_sent = 0
+    last_log = time.monotonic()
+    last_send = time.monotonic()
+    while not stop_evt.is_set():
+        try:
+            sock.settimeout(0.5)
+            chunk = sock.recv(4096)
+            if not chunk:
+                time.sleep(0.01)
+                continue
+            buf += chunk
+            while len(buf) >= REPLY_SZ:
+                rec, buf = buf[:REPLY_SZ], buf[REPLY_SZ:]
+                fields = struct.unpack(REPLY_FMT, rec)
+                if fields[0] != REPLY_MAGIC:
+                    idx = buf.find(struct.pack("<I", REPLY_MAGIC))
+                    buf = buf[idx:] if idx >= 0 else b""
+                    continue
+                dx_q1000 = fields[2]; dy_q1000 = fields[3]; conf = fields[4]
+                dpx = (dx_q1000 / 1000.0) * scale_x
+                dpy = (dy_q1000 / 1000.0) * scale_y
+                now = time.monotonic()
+                dt  = max(0.001, min(0.2, now - last_send))
+                last_send = now
+                std = max(1.0, 8.0 - conf / 32.0)
+
+                pk = CRTPPacket()
+                pk.port    = CRTPPort.LOCALIZATION
+                pk.channel = 1
+                pk.data    = struct.pack("<fhhfHH",
+                                          float(dt),
+                                          int(round(dpx)),
+                                          int(round(dpy)),
+                                          float(std),
+                                          int(min(conf, 0xFFFF)), 0)
+                cf.send_packet(pk)
+                n_sent += 1
+
+                if now - last_log > 4.0:
+                    print(f"[flow_fwd] sent={n_sent} conf={conf} dpx={dpx:+.1f} dpy={dpy:+.1f}",
+                          flush=True)
+                    last_log = now
+        except socket.timeout:
+            continue
+        except Exception as e:
+            if not stop_evt.is_set():
+                print(f"[flow_fwd] err {e}", flush=True)
+            time.sleep(0.1)
+    try:
+        sock.close()
+    except Exception:
+        pass
+
 
 class TextureFeatureScorer:
     """Score whether a (x,y) world coordinate has "enough features" to be
@@ -259,25 +360,35 @@ def fly_mission(sim: SentaiSim, overlay: "CellOverlay",
     cflib.crtp.init_drivers()
     print(f"[s125] connecting cflib → {URI}")
     cf = Crazyflie(rw_cache="./cache")
+    flow_stop = threading.Event()
+    flow_th = None
     with SyncCrazyflie(URI, cf=cf) as scf:
-        # Architecture: cf2 Kalman EKF (=2) + sentai.flow feeding optical
-        # flow observations is the proven s091 path.  Today the camera
-        # bridge wiring (Gazebo /downward_cam/image → sentai_sim flow
-        # pipeline → sentai bridge UART → cf2 EKF) is NOT brought up in
-        # this orchestrator — that's Phase 4 work tracked in Sim.md §10c.
-        # Without flow input the Kalman EKF drifts and MotionCommander's
-        # velocity setpoints amplify the drift → operator observed
-        # chaotic flight (2026-05-13).
+        # Start flow forwarder thread BEFORE we activate sentai.flow inside
+        # sentai_sim, so the bridge has someone reading its output socket
+        # the moment frames start flowing.
+        flow_th = threading.Thread(
+            target=flow_forwarder, args=(flow_stop, scf.cf), daemon=True)
+        flow_th.start()
+        # FULL FLOW PIPELINE WIRED (run_demo.sh starts gz_to_uds_bridge +
+        # this orchestrator runs a flow_forwarder thread).  Verified
+        # end-to-end on 2026-05-13: bridge processed 1500 frames, forwarder
+        # pushed 1450 packets to cf2.  BUT the flow output is zero because
+        # cf2 SITL spawns at z=0.5 m which puts the downward camera below
+        # ground (memory project_camera_fps_regression / Sim.md §10m).
+        # Stationary on the ground → camera sees gray → conf=0 forever.
         #
-        # Until Phase 4 is wired into s125: fall back to complementary
-        # estimator (=1) which uses ONLY IMU + baro (no horizontal
-        # position observations).  Takeoff and hover are stable.  Lateral
-        # moves are open-loop integrators so the drone WILL drift a few
-        # cm per second on longer moves — acceptable for the visual demo
-        # but not for closed-loop missions.  When Phase 4 lands, switch
-        # this back to estimator=2 and stand up sentai.flow → bridge.
+        # Bootstrap deadlock with Kalman: drone needs flow to take off,
+        # can't get flow without taking off.  s091 worked around by
+        # spawning at z=1.0 m (clear of ground), but sitl_singleagent.sh
+        # hardcodes z=0.5 in the gz service request.
+        #
+        # Until we patch the spawn pose: use complementary (=1) so the
+        # drone reliably takes off, sentai.flow.start() still activates
+        # so the bridge stays in the loop and flow telemetry is observable.
         scf.cf.param.set_value("stabilizer.estimator", 1)
-        time.sleep(2.0)   # let the estimator initialize before commands
+        time.sleep(2.0)
+        sim.cmd("sentai.flow.start(0)")
+        time.sleep(0.3)
 
         # sentai_sim setup
         sim.cmd('sentai.places.init(40.689167, -74.044444, 10.0, 13)')
@@ -497,6 +608,10 @@ def fly_mission(sim: SentaiSim, overlay: "CellOverlay",
         sim.cmd('sentai.explore.tick()')   # PRECISION_LAND → COAST_LAND → DONE
         sim.cmd('sentai.explore.tick()')
         sim.cmd('sentai.explore.tick()')
+    # SyncCrazyflie exited; stop the flow thread.
+    flow_stop.set()
+    if flow_th is not None:
+        flow_th.join(timeout=1.5)
 
     # final dump
     cells = sim.query_str("len(sentai.places.cells())", key="CELLS_TOTAL")

@@ -39,6 +39,8 @@ fi
 cleanup() {
   echo "[s125] cleanup"
   pkill -f "orchestrator.py" 2>/dev/null || true
+  pkill -f "flow_to_cf2.py" 2>/dev/null || true
+  pkill -f "gz_to_uds_bridge\|gz_to_camera_bridge" 2>/dev/null || true
   pkill -x cf2 2>/dev/null || true
   pkill -9 "gz sim" 2>/dev/null || true
   pkill -9 ruby 2>/dev/null || true
@@ -72,13 +74,40 @@ done
 # Extra grace for Gazebo GUI to come up + EKF to settle
 sleep 5
 
-# 7. Run orchestrator on the HOST using its venv (cflib lives there) —
+# 7. Start the C++ gz→UDS bridge (Phase 4 of Sim.md §6).  We use the
+#    C++ variant (build-sim/sim/gz_to_uds_bridge, built once via
+#    sim/gazebo/build_gz_bridge.sh) because Garden's Python bindings
+#    for gz-transport12/msgs9 aren't packaged in Ubuntu 22.04 distrobox
+#    (only Harmonic transport13/msgs10 are, and Harmonic is banned).
+#    The bridge subscribes to /downward_cam/image, forwards frames to
+#    sentai_sim via /tmp/sentai_cam.sock, reads the (dx,dy,conf) reply,
+#    and exposes it on /tmp/sentai_flow_out.sock for the orchestrator's
+#    flow_forwarder thread (s091 pattern) to send to cf2.
+echo "[s125] starting gz→UDS bridge (C++) inside distrobox"
+distrobox enter crazysim-garden -- \
+  "$REPO/build-sim/sim/gz_to_uds_bridge" \
+  --topic /downward_cam/image \
+  --in-sock /tmp/sentai_cam.sock \
+  --out-sock /tmp/sentai_flow_out.sock \
+  > /tmp/s125_bridge.log 2>&1 &
+BRIDGE_PID=$!
+sleep 2
+
+# 7b. The flow → cf2 forwarder runs INSIDE the orchestrator as a thread
+# (s091 pattern), reusing the orchestrator's single cflib SyncCrazyflie
+# session.  Two cflib clients on the same drone collide on the UDP
+# handshake.
+
+# 8. Run orchestrator on the HOST using its venv (cflib lives there) —
 #    NOT in distrobox.  Reasons:
 #      a) sentai_sim was built against host glibc (2.38); distrobox is on
 #         glibc 2.35 and would fail with `version `GLIBC_2.38' not found`.
-#      b) Distrobox doesn't have cflib by default; the host venv does.
-#      c) cflib speaks UDP to 127.0.0.1:19850 which traverses the shared
+#      b) cflib speaks UDP to 127.0.0.1:19850 which traverses the shared
 #         network namespace and reaches cf2 inside the container.
+#    The orchestrator coexists with the gz_to_camera_bridge as a second
+#    cflib client on the same drone — cf2 firmware demuxes by packet type
+#    (bridge sends OPTICAL_FLOW, orchestrator sends MotionCommander
+#    HOVER setpoints — no collision).
 echo "[s125] starting orchestrator on HOST"
 # Tee both to a log file AND the operator's terminal so progress messages
 # (takeoff, waypoint, places.info(), …) appear live next to the Gazebo GUI.
