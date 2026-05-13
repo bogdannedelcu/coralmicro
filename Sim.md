@@ -3241,3 +3241,68 @@ Pentru sentai.explore Stage 8 (canonical test scenario):
 Asta protejează arhitectura: dacă **ALGORITMUL** funcționează la
 scale 10× diferit, înseamnă că NU e dependent de scale-specific
 hyperparameters magic numbers — e cu adevărat scale-invariant.
+
+## 10o. FlowBaseline — regression-gate config (s127, 2026-05-13)
+
+Singura configurație **reproductibilă** pentru `sentai.flow` + cf2 SITL
+hover. Half-wind (s091 #14 original) s-a dovedit non-determinist pe acest
+stack (4.8 → 50 cm dist_mean între rulări) pentru că bucla cf2+flow are
+slab wind-rejection (drona derivă **în** wind, nu downwind — bias
+acumulat în flow→EKF, nu disturbance rejection).
+
+### Config canonic
+
+| Componenta | Stare canonică | Notă |
+|---|---|---|
+| CrazySim world `sentai_crazysim.sdf` | `linear_velocity 0 0 0` + WindEffects toate σ/amplitude=0 | NO WIND |
+| `model.sdf.jinja` motoare | m1=+1% (1.8145e-8), m2=nom (1.7965e-8), m3=-1% (1.7785e-8), m4=nom | diagonal asymmetry, ±1% real cf2 band |
+| `model.sdf.jinja` IMU | gyro σ=0.0035 rad/s, accel σ=0.05 m/s² (MPU9250-realistic) | internal disturbance flow MUST reject |
+| cf2 firmware | branch `sentai-flow-sim-support` @ `e4374251` | 17-byte SENSOR_FLOW_SIM packet |
+| CrazySim repo `crazyflie-simulation` submodule | checkout `aeb7ee6` + `world_no_wind.patch` | patch zeroes wind only |
+| coralmicro | `integration/from-180bbb5f` (or descendant) | |
+
+### Numere canonice (run 2026-05-13 21:35)
+
+```
+dist_mean_m=0.074     (target s091 #14: 0.076 — match)
+dist_max_m=0.150
+all4_rate=1.00        (18/18 samples)
+z_mean_cm=3.1
+flow_n=399  flow_hz=26.6
+```
+
+### Sensibilitate la stres (informational)
+
+| Variația | dist_mean | all4 | Observație |
+|---|---:|---:|---|
+| canonic (acesta) | 7.4 cm | 100% | PASS cu margin |
+| + motor asymm ±2% pe toate 4 + IMU σ 3× | 12.3 cm | 78% | derivă +X bias, fără oscilație XY |
+| + wind 0.1 m/s + WindEffects σ=0.075 | 49 cm | 15% | derivă -X, rejection slabă |
+
+### Pass gate (verdict.py)
+
+```
+dist_mean_m < 0.15   AND   all4_rate >= 0.5   AND   n_samples >= 5
+```
+
+### How to run
+
+```bash
+bash examples/sentai_runtime/experiments/s127_flowbaseline/run.sh
+```
+
+Exit code 0 = PASS, 1 = FAIL. CI / pre-commit hooks tratează non-zero
+ca regression.
+
+### De ce „no wind" pentru regression-gate
+
+Wind rejection și flow correctness sunt **două axe ortogonale** de
+testare. Gate-ul de regression trebuie să prindă bug-uri în flow
+(memcpy, sign, alignment) **fără** să fie sensitive la PID tune sau
+performanța wind rejection — altfel devine flaky și pierde credibilitate.
+Wind tuning are propria suite (s109 PX4+VPE wind ceiling, s110 outdoor
+wind sweep) care testează altă proprietate.
+
+Patch-ul `world_no_wind.patch` este intenționat **mai îngust** decât
+`world_half_wind.patch` original — schimbă DOAR wind, lasă motor
+asymmetry/IMU noise neatinse ca să rămână stres realist intern.
