@@ -111,12 +111,24 @@ Full launch with Gazebo GUI + cf2 SITL + orchestrator + sentai_sim:
 
   - ✅ Drone took off (z=1.03 m reached in 0.2 s)
   - ✅ All 4 waypoints visited
-  - ✅ **6 distinct H3 cells observed** (`places.info().n` grew 1 → 6)
+  - ✅ **9 distinct H3 cells observed** (`places.info().n` grew 1 → 9)
   - ✅ Mission completed cleanly, drone landed
 
 The path from the orchestrator's perspective traced a 1.5 m × 1.5 m
-square at 1 m altitude, and the world-model gallery captured 6 unique
+square at 1 m altitude, and the world-model gallery captured 9 unique
 hex cells (res=13, ~3.5 m edge after scale=10).
+
+**FSM state transitions observed end-to-end:**
+
+```
+ARM_AT_MARKER → TAKEOFF → ESTABLISH_BASELINE → EXPLORE →
+RETURN_HOME → PRECISION_LAND → DONE
+```
+
+All 7 guard-driven transitions fire in order. The FSM is driven by the
+orchestrator pushing sensor inputs (`set_alt`, `set_arm_ack`,
+`set_marker`, `set_cells_visited`, `set_dist_home`) plus explicit
+`tick()` calls per pose update.
 
 ## What's deferred
 
