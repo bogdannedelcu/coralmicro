@@ -347,6 +347,7 @@ static void _fs_check_usb(void) {
 #include "modsentai_rl.c"
 #include "modsentai_slam.c"
 #include "modsentai_explore.c"
+#include "modsentai_places.c"
 #include "modsentai_tfl.c"
 #include "modsentai_diag.c"
 #include "modsentai_sys.c"

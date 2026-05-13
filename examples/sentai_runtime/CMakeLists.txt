@@ -43,6 +43,8 @@ target_include_directories(libmicropython PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/micropython_embed  # for #include "port/..."
     ${PROJECT_SOURCE_DIR}/third_party/nanopb   # pb.h (for sentai_mesh.h -> visionmesh.pb.h)
     ${CMAKE_CURRENT_SOURCE_DIR}/generated      # meshtastic/*.pb.h, visionmesh.pb.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/h3_gen          # pre-generated h3api.h (modsentai_places.c)
+    ${PROJECT_SOURCE_DIR}/third_party/h3/src/h3lib/include  # H3 types/internals
 )
 
 # MicroPython is C99; compile with -Os; suppress warnings; must match CM7 target flags
@@ -123,6 +125,22 @@ target_compile_options(meshtastic_pb PRIVATE -w
     -fno-common -ffunction-sections -fdata-sections -ffreestanding -fno-builtin
 )
 
+# Uber H3 v4.4.1 — hexagonal hierarchical spatial indexing (sentai.places).
+# Vendored at third_party/h3.  Compile only the 18 lib/*.c files; skip the
+# CMakeLists.txt at root (it pulls in tests/examples we don't need).
+# h3api.h is pre-generated at examples/sentai_runtime/h3_gen/ (3 version-
+# macro substitutions from h3api.h.in; stable until we bump the submodule).
+file(GLOB H3_LIB_SRC "${PROJECT_SOURCE_DIR}/third_party/h3/src/h3lib/lib/*.c")
+add_library(libh3 STATIC ${H3_LIB_SRC})
+target_include_directories(libh3 PUBLIC
+    ${PROJECT_SOURCE_DIR}/third_party/h3/src/h3lib/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/h3_gen
+)
+target_compile_options(libh3 PRIVATE -Os -w
+    -mcpu=cortex-m7 -mfloat-abi=hard -mfpu=fpv5-d16 -mthumb
+    -fno-common -ffunction-sections -fdata-sections -ffreestanding -fno-builtin
+)
+
 add_executable_m7(sentai_runtime
     LINKER_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/MIMXRT1176xxxxx_cm7_ram_mp.ld
     sentai_runtime.cc
@@ -197,6 +215,7 @@ target_link_libraries(sentai_runtime
     libs_CMSIS-m7              # CMSIS-DSP arm_cfft_f32 (flow_phase_corr.cc)
     nanopb
     meshtastic_pb
+    libh3                       # Uber H3 — sentai.places (Stage 11.B)
 )
 
 # Include dirs for MicroPython headers in main sources

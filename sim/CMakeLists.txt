@@ -139,9 +139,23 @@ add_executable_sim(sentai_sim
     # goes through sentai_link_sim.cc::sentai_link_send_vpe.
     ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_anchor_forward.cc
 )
+# --- Uber H3 v4.4.1 (Stage 11.A) — vendored at third_party/h3 -----------
+# Compile the 18 lib/*.c files as a private static library.  h3api.h is
+# pre-generated at examples/sentai_runtime/h3_gen/h3api.h (3 version-macro
+# substitutions from h3api.h.in; stable until we bump the submodule pin).
+# See examples/sentai_runtime/experiments/s119_h3_smoke for the verifier.
+file(GLOB H3_LIB_SRC "${CMAKE_SOURCE_DIR}/third_party/h3/src/h3lib/lib/*.c")
+add_library(libh3_sim STATIC ${H3_LIB_SRC})
+target_include_directories(libh3_sim PUBLIC
+    ${CMAKE_SOURCE_DIR}/third_party/h3/src/h3lib/include
+    ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/h3_gen   # pre-generated h3api.h
+)
+target_compile_options(libh3_sim PRIVATE -Os -w)
+
 target_link_libraries(sentai_sim PRIVATE
     libfreertos_posix
     libmicropython_embed_sim
+    libh3_sim      # Stage 11.A — Uber H3 hex-indexing for sentai.places
     fftw3f         # SIM-only: FFTW3 single-precision (CMSIS shim backend)
     m              # math functions — must come AFTER libmicropython_embed_sim
 )
@@ -152,6 +166,8 @@ target_include_directories(sentai_sim PRIVATE
     ${MP_EMBED_DIR}
     ${CMAKE_SOURCE_DIR}                # for "examples/sentai_runtime/*.h"
     ${CMAKE_SOURCE_DIR}/third_party/mavlink  # Phase 6 — sentai_link_sim.cc
+    ${CMAKE_SOURCE_DIR}/third_party/h3/src/h3lib/include  # for modsentai_places.c
+    ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/h3_gen    # pre-generated h3api.h
 )
 # Force build_version.h to refresh on every build.
 add_dependencies(sentai_sim increment_sim_build_version)
