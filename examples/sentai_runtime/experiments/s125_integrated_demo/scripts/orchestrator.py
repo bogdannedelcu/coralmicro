@@ -51,7 +51,11 @@ SENTAI_SIM_BIN   = Path(__file__).resolve().parents[5] / "build-sim/sim/sentai_s
 HARMONIC_TILE_PATH = Path(__file__).resolve().parents[5] / "sim/gazebo/worlds/assets/harmonic_tiles/harmonic_alt200_4k.png"
 PLANE_HALF_M       = 12.5
 PLANE_M            = 25.0
-SKIP_VARIANCE_THR  = 12.0     # below this stddev → "uniform / water" → skip
+SKIP_VARIANCE_THR  = 5.0     # below this stddev → "uniform / water" → skip
+                              # Calibrated on Harmonic 4K: terrain ~25, lake ~1,
+                              # marginal/forest ~10.  threshold 5 keeps most of
+                              # the visible scene visitable while flagging
+                              # the lake patches.
 
 # ---------------------------------------------------------------------------
 # sentai_sim REPL pipe — newline-flushed; output is captured into a buffer
@@ -256,18 +260,24 @@ def fly_mission(sim: SentaiSim, overlay: "CellOverlay",
     print(f"[s125] connecting cflib → {URI}")
     cf = Crazyflie(rw_cache="./cache")
     with SyncCrazyflie(URI, cf=cf) as scf:
-        # Use the same proven setup pattern as s091_aruco_hover.py:
-        # Kalman estimator (stabilizer.estimator=2), reset estimation,
-        # then MotionCommander for takeoff/move/land.  This is the
-        # path that actually works on CrazySim cf2 — high_level_commander
-        # + enHighLevel param flip turned out NOT to be needed and
-        # actually prevented the drone from taking off (z stayed at 0).
-        scf.cf.param.set_value("stabilizer.estimator", 2)
-        time.sleep(0.3)
-        scf.cf.param.set_value("kalman.resetEstimation", 1)
-        time.sleep(0.5)
-        scf.cf.param.set_value("kalman.resetEstimation", 0)
-        time.sleep(1.5)
+        # Architecture: cf2 Kalman EKF (=2) + sentai.flow feeding optical
+        # flow observations is the proven s091 path.  Today the camera
+        # bridge wiring (Gazebo /downward_cam/image → sentai_sim flow
+        # pipeline → sentai bridge UART → cf2 EKF) is NOT brought up in
+        # this orchestrator — that's Phase 4 work tracked in Sim.md §10c.
+        # Without flow input the Kalman EKF drifts and MotionCommander's
+        # velocity setpoints amplify the drift → operator observed
+        # chaotic flight (2026-05-13).
+        #
+        # Until Phase 4 is wired into s125: fall back to complementary
+        # estimator (=1) which uses ONLY IMU + baro (no horizontal
+        # position observations).  Takeoff and hover are stable.  Lateral
+        # moves are open-loop integrators so the drone WILL drift a few
+        # cm per second on longer moves — acceptable for the visual demo
+        # but not for closed-loop missions.  When Phase 4 lands, switch
+        # this back to estimator=2 and stand up sentai.flow → bridge.
+        scf.cf.param.set_value("stabilizer.estimator", 1)
+        time.sleep(2.0)   # let the estimator initialize before commands
 
         # sentai_sim setup
         sim.cmd('sentai.places.init(40.689167, -74.044444, 10.0, 13)')

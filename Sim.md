@@ -3572,3 +3572,37 @@ firmware, orchestrator's sentai_sim subprocess). Cleanup order matters:
 Reverse-spawn order avoids races where a dying process tries to
 publish to a topic served by an already-killed peer. `trap cleanup
 EXIT SIGINT SIGTERM` in the launcher script is the right pattern.
+
+### 10w.7 cf2 SITL stable flight needs sentai.flow (or anchors) — NOT flowdeck simulation
+
+Operator caught chaotic flight in the s125 demo (2026-05-13) when
+MotionCommander commands were streamed against a freshly-reset Kalman
+EKF.  Root cause: cf2's Kalman estimator (`stabilizer.estimator=2`)
+expects horizontal-position observations, normally fed by either:
+
+  - **`--flowdeck` simulation** in `sitl_singleagent.sh` — DON'T USE.
+    The Gazebo launcher doesn't expose this flag (only MuJoCo does),
+    and the flowdeck simulation is a coarse mock that doesn't match
+    what the M7 firmware will see on the real board.
+
+  - **`sentai.flow` + sentai bridge** — the CANONICAL path.  sentai.flow
+    consumes Gazebo `/downward_cam/image`, runs phase-correlation flow
+    on the M7 (or x86 in SIM), and forwards `OPTICAL_FLOW_RAD` packets
+    via the existing UART socket bridge to cf2 firmware (Phase 3+4).
+    Proven on s091/s092/s101: hover < 2 cm drift at z=1 m.
+
+  - **`sentai.flow.mode("anchor")`** + ArUco markers — even tighter
+    pose lock when home markers are visible (s112).  Drone gets full
+    absolute pose corrections, not just velocity.
+
+When a SIM-side experiment that uses cf2 SITL needs stable flight, the
+work to do is **bring up the sentai.flow → bridge → cf2 wiring**, NOT
+reinvent estimator tweaks.  As a temporary stopgap, switching to
+`stabilizer.estimator=1` (complementary) lets the drone take off and
+hover without horizontal-position feedback — acceptable for visual
+demos where exact position doesn't matter, but commits the drone to
+open-loop drift on long moves.
+
+s125 currently runs with the complementary stopgap.  Wiring sentai.flow
+into it is the next iteration (tracked as Stage 3.D in the
+objects_plan; same path s091/s112 already proved).
