@@ -18,7 +18,7 @@ from cflib.crazyflie.syncCrazyflie import SyncCrazyflie
 from cflib.positioning.motion_commander import MotionCommander
 
 URI = "udp://127.0.0.1:19850"
-TARGET_Z = 1.0
+TARGET_Z = 2.0
 HOVER_S  = 5.0
 
 def main():
