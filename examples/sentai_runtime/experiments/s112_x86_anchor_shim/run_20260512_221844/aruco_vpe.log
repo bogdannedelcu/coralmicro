@@ -1,0 +1,8 @@
+[aruco-vpe] dual-publishing anchor pose to /tmp/sentai_aruco_pose_recv.sock
+[aruco-vpe] mavlink udpout:127.0.0.1:14580
+[aruco-vpe] listening on /tmp/sentai_cam.sock
+[aruco-vpe] bridge connected
+[aruco-vpe] frames=24 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=55 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=86 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=116 detect=0 pose=0 vpe=0

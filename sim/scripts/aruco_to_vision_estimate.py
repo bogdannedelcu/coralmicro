@@ -70,7 +70,27 @@ def main() -> int:
                     help="PX4 Onboard listen port")
     ap.add_argument("--rate-log", type=float, default=1.0,
                     help="Hz of stderr status logging")
+    # s112 — anchor-shim dual-publish.  When set, every successful
+    # pose estimate is ALSO sent to the sentai_aruco_shim_sim UDS
+    # so `sentai.flow.anchor_pose()` reflects it.  Independent of
+    # the MAVLink VPE path — both run side-by-side.
+    ap.add_argument("--anchor-pub-uds", default=None,
+                    help="Optional: also publish poses to this UDS "
+                         "(matches sim/sentai_aruco_shim_sim.c bind path, "
+                         "typically /tmp/sentai_aruco_pose_recv.sock)")
     args = ap.parse_args()
+
+    # s112 dual-publisher socket setup.
+    anchor_sock = None
+    if args.anchor_pub_uds:
+        anchor_sock = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
+        # Wire format matches sim/sentai_aruco_shim_sim.c::aruco_wire_t.
+        # `<II BB H ffff II` = 36 B, magic 'ARC2'.
+        ANCHOR_FMT   = "<II BB H ffff II"
+        ANCHOR_MAGIC = 0x41524332
+        anchor_seq   = 0
+        print(f"[aruco-vpe] dual-publishing anchor pose to {args.anchor_pub_uds}",
+              file=sys.stderr)
 
     # Open mavlink.
     print(f"[aruco-vpe] mavlink {args.mav}", file=sys.stderr)
@@ -146,6 +166,21 @@ def main() -> int:
                 m.mav.vision_position_estimate_send(
                     usec, x_ned, y_ned, z_ned, nan, nan, nan, cov)
                 n_vpe += 1
+                # s112 — also publish to anchor shim UDS if requested.
+                # Publishes ENU coords (what the shim/MicroPython see).
+                if anchor_sock is not None:
+                    anchor_seq += 1
+                    src_ts_ms = int(time.monotonic() * 1000.0) & 0xFFFFFFFF
+                    pkt = struct.pack(ANCHOR_FMT,
+                                      ANCHOR_MAGIC, anchor_seq,
+                                      1, len(dets) & 0xFF, 0,
+                                      float(x_enu), float(y_enu), float(z_enu),
+                                      0.0, 0, src_ts_ms)
+                    try:
+                        anchor_sock.sendto(pkt, args.anchor_pub_uds)
+                    except (FileNotFoundError, ConnectionRefusedError):
+                        # SIM not running / not bound yet; harmless.
+                        pass
 
         # Always reply with zero-flow (bridge protocol).  Full 124-byte
         # reply struct — all fields zero except magic+seq+best_source.

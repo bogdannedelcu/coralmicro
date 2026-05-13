@@ -1,0 +1,84 @@
+[sim] sentai_sim build #118 (2026-05-12 22:17:02)
+[sim] FreeRTOS POSIX port: tick=1000 Hz, heap=4194304 bytes
+[sim] MicroPython heap: 262144 bytes
+
+MicroPython on SentAI SIM (FreeRTOS POSIX port + MicroPython embed)
+Type expressions, end with Enter.  Ctrl-D or 'exit' to quit.
+Try: sentai.version(), sentai.fs.write(...), help()
+
+>>> >>> aruco_shim: SIM ready, bound to /tmp/sentai_aruco_pose_recv.sock, awaiting /tmp/sentai_aruco_pose.sock
+'anchor'
+>>> sentai_uart_udp: open OK — bind :14540 → peer 127.0.0.1:14580
+sentai.link: xTaskCreate -> OK (handle=0x5d56f139e9e0)
+sentai.link: init sys=1 comp=191 (UDP backend)
+1
+>>> sentai.link: reader task started (s_sock=open=1)
+sentai.link: heartbeat task started (1 Hz, MAV_TYPE_ONBOARD_CONTROLLER)
+camera_bridge: listening on /tmp/sentai_cam.sock (waiting for Gazebo bridge)
+0
+>>> =ANCHOR_READY
+>>> ANCHOR 1 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 2 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 3 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 4 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 5 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 6 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 7 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 8 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 9 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 10 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 11 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 12 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 13 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 14 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 15 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 16 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 17 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 18 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 19 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 20 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 21 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 22 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 23 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 24 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 25 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 26 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 27 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 28 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 29 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 30 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 31 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 32 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 33 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 34 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 35 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 36 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 37 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 38 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 39 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 40 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 41 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 42 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 43 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 44 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 45 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 46 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 47 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 48 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 49 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 50 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 51 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 52 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 53 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 54 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 55 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 56 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 57 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 58 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 59 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 60 False 0 0.0 0.0 0.0 0
+>>> =FWD_STATS {'sent_px4': 0, 'iters': 384, 'rate_hz': 10, 'last_seq': 0, 'sent_cf2': 0, 'running': True, 'skipped': 383, 'target': 'px4', 'send_failed': 0}
+>>> =DONE
+>>> 
+[sim] EOF on stdin, exiting
+[sim] REPL task done, terminating process

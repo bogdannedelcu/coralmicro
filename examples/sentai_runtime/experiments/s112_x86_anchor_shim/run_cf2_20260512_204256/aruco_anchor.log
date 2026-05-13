@@ -1,0 +1,32 @@
+[aruco-vpe] dual-publishing anchor pose to /tmp/sentai_aruco_pose_recv.sock
+[aruco-vpe] mavlink udpout:127.0.0.1:1
+[aruco-vpe] listening on /tmp/sentai_cam.sock
+[aruco-vpe] bridge connected
+[aruco-vpe] frames=21 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=46 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=71 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=96 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=121 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=145 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=169 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=194 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=219 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=244 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=269 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=294 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=318 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=341 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=366 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=389 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=414 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=439 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=464 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=489 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=514 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=538 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=562 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=586 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=610 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=635 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=659 detect=0 pose=0 vpe=0
+[aruco-vpe] bridge disconnected

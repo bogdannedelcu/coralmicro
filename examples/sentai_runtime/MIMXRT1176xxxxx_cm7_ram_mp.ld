@@ -280,6 +280,70 @@ SECTIONS
      . = ALIGN(4);
   } > m_sdram
 
+  /* .littlefs / .imu / .usb_msc / .tpu_dfu — moved ITCM → SDRAM
+     2026-05-12 (s113 P1 prep).  All cold / mode-gated / boot-only
+     code paths:
+       - LittleFS  : system partition is mostly read-only after boot;
+                     user partition is on FileX now, so LFS is rarely
+                     hot — usage = mount + occasional system-FS read.
+       - IMU       : sentai.imu.read() is called on demand from REPL;
+                     no ISR-rate access.
+       - USB MSC   : only active in storage mode (rare; explicit user
+                     toggle via sentai.usb.msc(1)).
+       - TPU DFU   : only fires once at boot to load Apex firmware
+                     onto the EdgeTPU; otherwise dormant.
+     Net: ~21 KB freed from m_text/ITCM.  None of these are on the
+     30 fps camera+TPU pipeline hot path.  Pipeline FPS measured
+     before/after must stay ≥ 42 fps to confirm no regression. */
+  .littlefs :
+  {
+     . = ALIGN(4);
+     __littlefs_start = .;
+     *liblibs_littlefs.a:*(.text .text*)
+     *liblibs_littlefs.a:*(.data .data*)
+     *liblibs_littlefs.a:*(.rodata .rodata*)
+     __littlefs_end = .;
+     . = ALIGN(4);
+  } > m_sdram
+
+  .imu :
+  {
+     . = ALIGN(4);
+     __imu_start = .;
+     *liblibs_lis2du12_freertos.a:*(.text .text*)
+     *liblibs_lis2du12_freertos.a:*(.data .data*)
+     *liblibs_lis2du12_freertos.a:*(.rodata .rodata*)
+     __imu_end = .;
+     . = ALIGN(4);
+  } > m_sdram
+
+  .usb_msc :
+  {
+     . = ALIGN(4);
+     __usb_msc_start = .;
+     *liblibs_msc_ums_freertos.a:*(.text .text*)
+     *liblibs_msc_ums_freertos.a:*(.data .data*)
+     *liblibs_msc_ums_freertos.a:*(.rodata .rodata*)
+     /* usb_device_msc.c.obj + usb_device_msc_ufi.c.obj live inside
+        libs_nxp_rt1176-sdk_freertos.a — we can't move them by archive
+        name alone without sweeping the whole archive (which contains
+        eDMA / clock / CSI = HOT).  File-name match works: */
+     *(.text.usb_device_msc*) *(.rodata.usb_device_msc*)
+     __usb_msc_end = .;
+     . = ALIGN(4);
+  } > m_sdram
+
+  .tpu_dfu :
+  {
+     . = ALIGN(4);
+     __tpu_dfu_start = .;
+     *liblibs_tpu_dfu_task_freertos.a:*(.text .text*)
+     *liblibs_tpu_dfu_task_freertos.a:*(.data .data*)
+     *liblibs_tpu_dfu_task_freertos.a:*(.rodata .rodata*)
+     __tpu_dfu_end = .;
+     . = ALIGN(4);
+  } > m_sdram
+
   /* .aifes — moved OCRAM → SDRAM 2026-04-22 to free space for the
      TPU output tensor relocation.  Not on the per-invoke hot path. */
   .aifes :

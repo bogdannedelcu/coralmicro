@@ -1428,6 +1428,22 @@ extern "C" int sentai_crazy_send_crtp(uint8_t port, uint8_t channel,
     return crtp_send(port, channel, data, len);
 }
 
+// ===================== External Position (POSITION_CH) =====================
+// Crazyflie firmware locsrv expects port 6, channel 1, 12-byte payload
+// of 3 LE float32s.  See Crazyflie-firmware src/modules/src/locsrv.c
+// (POSITION_CH = 1 in `enum locsrv_channels`).  Hot-path freq = 10 Hz —
+// .sdram_text is fine.
+extern "C" __attribute__((section(".sdram_text"), noinline))
+int sentai_crazy_send_ext_position(float x_m, float y_m, float z_m) {
+    if (!g_crazy_running) return -1;
+    // Wire format: 3 packed float32, little-endian (M7 is LE).
+    uint8_t payload[12];
+    memcpy(&payload[0], &x_m, 4);
+    memcpy(&payload[4], &y_m, 4);
+    memcpy(&payload[8], &z_m, 4);
+    return crtp_send(/*port=*/6, /*channel=*/1, payload, sizeof(payload));
+}
+
 // ===================== Ping (CRTP Echo) =====================
 // Send CRTP echo on LINK port (0x0F), channel 0.
 // CrazyFlie echoes the payload back — we measure round-trip time.

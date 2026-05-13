@@ -1,0 +1,49 @@
+[aruco-vpe] dual-publishing anchor pose to /tmp/sentai_aruco_pose_recv.sock
+[aruco-vpe] mavlink udpout:127.0.0.1:14580
+[aruco-vpe] listening on /tmp/sentai_cam.sock
+[aruco-vpe] bridge connected
+[aruco-vpe] frames=23 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=54 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=85 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=115 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=146 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=177 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=208 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=239 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=270 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=301 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=331 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=362 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=393 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=423 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=454 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=485 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=515 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=546 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=576 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=607 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=638 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=669 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=699 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=730 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=760 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=791 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=822 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=852 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=883 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=914 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=945 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=975 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=1006 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=1037 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=1067 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=1098 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=1129 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=1160 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=1191 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=1222 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=1252 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=1283 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=1314 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=1345 detect=0 pose=0 vpe=0
+[aruco-vpe] bridge disconnected

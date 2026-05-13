@@ -104,6 +104,25 @@ int sentai_link_send_vision_delete(
     int32_t last_gx_cm, int32_t last_gy_cm,
     uint8_t severity);
 
+// Send MAVLink VISION_POSITION_ESTIMATE (#102) — drone WORLD pose
+// from external source (e.g. our ArUco anchor shim).
+//
+// Inputs are in WORLD ENU metres + radians (the convention the rest
+// of sentai.flow already uses).  This function converts to NED on
+// the wire (the frame PX4 + ArduPilot expect for VISION_POSITION_*):
+//   x_ned =  y_enu
+//   y_ned =  x_enu
+//   z_ned = -z_enu
+// Orientation: only yaw is forwarded; roll/pitch as NaN so the FCU
+// uses VPE for position only and keeps mag/IMU yaw (avoids
+// yaw-conflict crashes — same convention as
+// sim/scripts/aruco_to_vision_estimate.py).
+//
+// Returns 0 on success, -1 if the link isn't running, negative on
+// MAVLink encode/send failure.
+int sentai_link_send_vpe(float x_enu, float y_enu, float z_enu,
+                         float yaw_rad);
+
 // Send raw COMMAND_LONG message.
 // param1..7 are native float values (sent directly on wire).
 int sentai_link_send_command_long(

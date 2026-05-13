@@ -1,0 +1,4 @@
+[bridge] topic=/downward_cam/image in=/tmp/sentai_cam.sock out=/tmp/sentai_flow_out.sock
+[bridge] connected to sentai_sim on /tmp/sentai_cam.sock
+[bridge] listening flow-out on /tmp/sentai_flow_out.sock
+[bridge] subscribed; Ctrl-C to stop

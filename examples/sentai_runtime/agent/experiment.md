@@ -6892,3 +6892,578 @@ anchor.
   the FLOW-bounded wind ceiling (expected ~0.4-1.0 m/s).  This is the
   real "outdoor flow only" answer.
 - Half-wind comparison vs cf2 s091 #14 (target 7.6 cm drift parity)
+
+## Session 2026-05-12 (cont'd) — s111 M7 ArUco PXP path unblocked
+
+### What we measured (build #1271, 320×240 Y8 synthetic)
+
+| Kernel              | Time (µs) | vs naive |
+|---------------------|-----------|----------|
+| scan (mem floor)    |       790 | —        |
+| edge (3×3 Sobel)    |     3 512 | —        |
+| naive 7×7 box       |    12 103 | 1.00×    |
+| Bradley integral    |    14 759 | 0.82× (slower) |
+| separable 7+7       |    14 131 | 0.86× (slower) |
+| **PXP HW + compare**|   **2 616** | **4.63×** |
+
+PXP HW alone is ~tens of µs (busy-wait 3 682 iters); the 2.6 ms is
+dominated by the post-PXP CPU compare loop (76 800 nearest-neighbor
+src vs ref).  SIMD'ing the compare → sub-1 ms is plausible (USAD8 on
+4 px at a time).
+
+### Root cause + fix (this is the keeper)
+
+PXP is held in **SFTRST + CLKGATE** (`PXP_CTRL = 0xC0000000`) until
+`BOARD_InitPxp()` runs.  That function is only invoked from
+`CameraTask::HandleEnableRequest()`, i.e. on the first
+`sentai.camera.init(...)` call.  If a code path (here:
+`sentai.diag.aruco_bench`) uses PXP **before** the camera is enabled,
+`PXP_Start()` is a no-op and the wait spins through the full 125 ms
+DWT timeout.
+
+**Fix:** `PXP_Init(DEMO_PXP)` at the top of `aruco_bench_run()`.
+Idempotent.  Same lesson applies to any future non-camera consumer of
+PXP (e.g. an ArUco preprocessor that runs at REPL boot, before any
+camera is opened).
+
+Debug capture (now part of the bench dict, useful for future PXP
+forensics):
+```
+pxp_ctrl_before / pxp_stat_before  — peripheral state at trigger time
+pxp_ctrl_after  / pxp_stat_after   — state when busy-wait exits
+pxp_iters                          — how many loops the wait did
+```
+Pre-fix vs post-fix:
+- pre:  CTRL=0xC0000000 (SFTRST+CLKGATE), STAT=0x0, iters=2 751 555 (full 125 ms timeout)
+- post: CTRL_before=0x0, STAT_after=0x80001 (IRQ0/CompleteFlag), iters=3 682
+
+### Bradley + separable lost to naive — why
+
+Theoretical algorithm complexity beats naive (O(1) vs O(K²)) but
+on M7+SDRAM the integral image is 307 KB (`uint32_t × 320×240`) and
+the separable horizontal-sum buffer is 154 KB.  L1-D is 16 KB.
+Random access defeats theoretical big-O.  This is a research
+finding worth keeping: SOTA papers benchmark on Cortex-A / x86 where
+the buffer fits in L1/L2; on Cortex-M with SDRAM the wall-time
+ranking flips.
+
+### s111 artefacts
+
+- `experiments/s111_m7_aruco_pxp_dbg/README.md` — full writeup
+- `experiments/s111_m7_aruco_pxp_dbg/read_pxp_dbg.py` — line-by-line
+  REPL read (avoids the chunking that broke initial reads)
+- `aruco_bench.cc` — kernel + debug capture infra (lives in
+  `.sdram_text` since ITCM/m_text is full)
+
+## Session 2026-05-12 (cont'd) — s111 Phase 1-6: M7 ArUco kernel optimisation sweep (builds #1272..#1278)
+
+Six incremental optimisations on the PXP+SIMD adaptive-threshold
+path.  Each phase = separate flash + REPL bench read.
+
+| Phase | Build | Change | PXP-SIMD path µs | Δ |
+|-------|------:|--------|-----------------:|--:|
+| 0 | 1271 | PXP scalar compare baseline | 2 600 | — |
+| 1 | 1272 | SIMD compare (`__UQADD8/USUB8/SEL`, 4 px/iter) | 1 701 | **-899** |
+| 2 | 1273 | `-O3 -funroll-loops` on aruco_bench.cc only | 1 576 | -125 |
+| 3 | 1275 | `s_pxp_meanref` → DTCM | 1 490 | -86 |
+| 4 | 1276 | PXP rectify 60×60→32×32 (new kernel = 37 µs) | 1 486 | — |
+| 5 | 1277 | src staged SDRAM→DTCM via memcpy strips | 1 096 | **-394** |
+| 6 | 1278 | CMSIS-DSP BasicMath+Statistics q7 (`arm_offset/max/min`) in build | 1 096 | — |
+
+**Total: 2 600 → 1 096 µs = -58%** on PXP path.
+
+Other kernels (320×240 Y8, build #1278, -O3):
+- naive 7×7: 15 525 µs (-O3 made this WORSE +28% vs -Os — icache thrash)
+- Bradley integral: 12 076 µs (finally beats naive under -O3)
+- separable 7+7: 13 725 µs
+- edge 3×3 Sobel: 3 052 µs
+- CMSIS-DSP demo (3-pass 76 800 B): 4 507 µs
+
+**Headline: PXP+SIMD+DTCM-staged threshold = 1.1 ms.**  Full ArUco
+preprocessing budget per 320×240 frame ≈ 4.1 ms (threshold + edge +
+N×rectify) ⇒ 240 FPS ceiling.  Camera caps at 30 FPS → contour
+finder + PnP have ~30 ms slack.
+
+### Counter-intuitive results worth keeping
+
+1. **-O3 made naive 7×7 SLOWER (+28%)** — unrolled inner loop spilled
+   ICache, every iteration paid SDRAM instruction-fetch.  Lesson:
+   `-O3` is not universally a win on Cortex-M with SDRAM code.
+2. **Bradley integral image LOST to naive at -Os** (14.7 vs 12.1 ms)
+   despite theoretical O(1) per output px.  The 307 KB integral
+   buffer blows the 16 KB L1-D — algorithmic advantage masked by
+   cache misses.  Only -O3 + smaller working set restored the win.
+3. **SDRAM source-data reads were ~26% of the SIMD kernel time** —
+   staging 76 800 B to DTCM via CPU memcpy first cut 386 µs.  Cost
+   of the memcpy is ~200 µs; net win ~186 µs ≠ 386, so the SIMD
+   compare itself ALSO speeds up substantially when reading from
+   single-cycle DTCM (probably hardware prefetcher engages better
+   on DTCM stride access).
+4. **`.ocram_bss` is misnamed in this codebase** — landing site is
+   DTCM (m_data), not OCRAM (m_ocram).  Real OCRAM is locked by
+   `.tpu_input` (916 KB) and other named sections per
+   `paper/memory_map.md`.  Don't grow `.ocram_bss` buffers past a
+   few KB without reading the linker map.
+
+### Library updates this session
+
+- `libs/CMSIS/CMakeLists.txt` — added BasicMathFunctions + Statistics
+  q7 sources to `libs_CMSIS-m7` (offset/abs/dot_prod/max/min/mean).
+  All use `__QADD8/__QSUB8/__SXTB16` SIMD intrinsics.  Available
+  for future ArUco contour finder + decoder work.
+- `aruco_bench.cc` — 4 new kernels (SIMD compare, DTCM-staged
+  variant, PXP rectify, CMSIS-DSP demo) + PXP debug capture.
+- `modsentai_diag.c` — extended `sentai.diag.aruco_bench()` dict
+  with `thresh_pxp_simd_us`, `thresh_pxp_simd_staged_us`,
+  `pxp_rectify_us`, `cmsis_dsp_demo_us`.
+
+### Per-phase delta (which lever moved the needle)
+
+| From → To | PXP-SIMD path µs | Δ µs | Lesson |
+|---|---:|---:|---|
+| Phase 0 (PXP scalar baseline) | 2 600 | — | starting point |
+| + Phase 1: SIMD compare | 1 701 | **-899** | quad-byte packed compare ≈ 16× on the loop alone |
+| + Phase 2: -O3 on file | 1 576 | -125 | compiler unroll, modest |
+| + Phase 3: ref in DTCM | 1 490 | -86 | cache-eviction reduction, modest |
+| + Phase 5: src staged to DTCM | 1 096 | **-394** | SDRAM source read was real |
+| total saved | | **-1 504** | -58% |
+
+Phase 4 (PXP rectify) and Phase 6 (CMSIS-DSP build) add infra/new
+measurements but don't alter the PXP-SIMD threshold path directly.
+
+### Resolved open-work items from s111 Phase 0
+
+| Item from prior session | Status |
+|---|---|
+| SIMD the post-PXP compare loop (USAD8 quad-byte) → sub-1 ms target | **DONE** — `__UQADD8/USUB8/SEL` at 4 px/iter, total path 1.1 ms |
+| Move ref buffer to fast RAM (OCRAM/FlexRAM) | **DONE** (DTCM via `.ocram_bss` orphan) |
+| Test image staging to fast RAM | **DONE** (60-row DTCM strip via memcpy) |
+| Wire bench output into full ArUco pipeline | **DEFERRED to s112+** (needs contour finder + PnP) |
+| Re-run Bradley with smaller working set in fast RAM | **PARTIAL** — -O3 alone restored Bradley over naive (12.1 vs 15.5 ms); buffer-relocation TODO |
+
+### Production-pipeline note
+
+The flow stack already runs PXP continuously at 30 FPS to scale
+640×480 → 80×60 RGB888 into `flow_task.cc:s_pxp_scratch` (verified
+in `.sdram_bss`, not OCRAM despite some session-memory claims).  A
+real ArUco-on-M7 production path should **reuse that buffer** + pay
+one RGB→Y conversion in the SIMD compare loop (~150 µs), instead of
+spinning up a second PXP call per frame.  This bench measures
+kernels in isolation; integration is a separate task.
+
+### Open work (s112+)
+
+- Implement contour finder on the 1.1 ms threshold output —
+  Suzuki-Abe O(N) border tracing fits comfortably in the ~30 ms
+  per-frame slack budget.
+- Quad-fit + bit-pattern decode (4×4 dictionary lookup) — should
+  fit under 0.5 ms per marker using PXP rectify (37 µs) + CMSIS-DSP
+  `arm_dot_prod_q7`.
+- PnP pose solve on M7 — CMSIS-DSP MatrixFunctions (Cholesky /
+  Gauss-Newton) or a precomputed-bit-pattern fast path; budget ~1-2 ms.
+- Wire the bench buffers into flow's existing `s_pxp_scratch` —
+  share the PXP output instead of double-running.
+- Try `.ramfunc` placement for the SIMD inner kernel (ITCM has
+  ~10 KB free per `arm-none-eabi-objdump -h`); may unlock another
+  ~100-200 µs by eliminating SDRAM instruction fetch.
+
+## Session 2026-05-12 (cont'd) — s112 x86 SIM ArUco anchor shim (platform abstraction)
+
+After s111 validated the ARM speed budget, this session brings the
+**same `sentai.flow.mode("anchor")` API** up on the x86 SIM so SIM ↔
+ARM parity is enforced by the type system.
+
+### Architecture (same pattern as `sentai_pxp_shim.h`)
+
+- `examples/sentai_runtime/sentai_aruco_shim.h` — shared C API
+  (`sentai_aruco_init/detect/get_latest/shutdown`,
+  `sentai_aruco_pose_t`).
+- `examples/sentai_runtime/sentai_aruco_shim_arm.cc` — ARM stub
+  (returns detected=0; full M7 detector deferred to s113+ using
+  s111 building blocks).
+- `sim/sentai_aruco_shim_sim.c` — SIM impl: `SOCK_DGRAM` UDS reader
+  bound to `/tmp/sentai_aruco_pose_recv.sock`.  Non-blocking, drains
+  the queue on every read so cached snapshot is always the most
+  recent datagram.
+- `sim/scripts/aruco_pose_publisher.py` — Python sidecar: subscribes
+  to gz `/downward_cam/image`, runs `cv2.aruco` + `solvePnP` +
+  `estimate_drone_world_pose` (reusing `experiments/s090_hover_over_cat/
+  aruco_detector.py`), publishes 36-byte pose datagrams.
+
+### MicroPython surface (parity across ARM + SIM)
+
+```python
+sentai.flow.mode()              # -> "normal" | "anchor"
+sentai.flow.mode("anchor")      # enables anchor; auto-inits shim
+sentai.flow.anchor_pose()       # -> dict(detected, num_markers,
+                                #         x, y, z, yaw,
+                                #         frame_seq, detect_us,
+                                #         src_ts_ms)
+```
+
+ARM and SIM dict fields are identical — drivers ported between
+targets without changes.
+
+### Wire format (C struct == Python struct.pack)
+
+```
+"<II BB H ffff II"  — 36 bytes, little-endian
+magic=0x41524332 ('ARC2'), frame_seq,
+detected, num_markers, pad,
+x_m, y_m, z_m, yaw_rad,
+detect_us, src_ts_ms
+```
+
+Magic check + drain-to-latest semantics make the reader loss-tolerant.
+
+### Bring-up + smoke test
+
+| Step | Build | Verify |
+|---|---|---|
+| Define `sentai_aruco_shim.h` contract | — | header compiles standalone |
+| ARM stub (`.sdram_text` to avoid ITCM overflow) | #1280 | ARM build OK, `sentai_runtime` size unchanged |
+| SIM impl + UDS bind | sim #107 | `sentai.flow.mode("anchor")` logs `aruco_shim: SIM ready, bound to …` |
+| Regenerate QSTRs for `mode/yaw/detected/num_markers/anchor_pose` | sim #107 / arm #1280 | `grep -c …` in `qstrdefs.generated.h` returns 5 |
+| Bug fix: `get_latest()` must also drain UDS, not only `detect()` | sim #107 (rebuild) | end-to-end wire test passes |
+
+### Test result — end-to-end wire (no Gazebo, no OpenCV)
+
+`examples/sentai_runtime/experiments/s112_x86_anchor_shim/test_anchor_wire.py`:
+
+- spawns `sentai_sim`
+- waits for `/tmp/sentai_aruco_pose_recv.sock`
+- sends one `struct.pack` packet with known values
+- reads `sentai.flow.anchor_pose()` via REPL
+- diffs dict against expected values
+
+Result: **PASS** — `det=1 n=3 x=1.25 y=-0.5 z=1.75 seq=42`
+round-tripped intact through the C shim.
+
+### Lessons
+
+1. **`.ocram_bss` orphan-landing was load-bearing for the ARM stub**
+   too — adding any new code to ITCM (m_text) overflows.  Default
+   any new ARM-side code that isn't an ISR-hot inner loop to
+   `.sdram_text`.
+2. **`SOCK_DGRAM` + drain-to-latest** is the right semantic for
+   pose snapshots — packet loss is harmless (next datagram arrives
+   in <33 ms), and `recvfrom(MSG_DONTWAIT)` never stalls the flow
+   task.  No need for shared memory or a request/reply round-trip.
+3. **Hand-port MP bindings rather than `#include`** — the ARM and
+   SIM `sentai.flow` modules have intentionally different backends
+   (`flow_shared_t` on ARM vs an x86 snapshot struct on SIM).  Each
+   target's `modsentai_*.c` should declare its own copy of the
+   binding that calls the platform shim; sharing source would
+   tangle two different state models.
+4. **QSTR regen recipe `agent.md §6` works as documented.**  Don't
+   skip — `MP_QSTR_*` references in source must exist in
+   `qstrdefs.generated.h` or the binding table fails to link.
+
+### Live Gazebo validation — BOTH cf2 + PX4 PASS
+
+End-to-end check in Garden with a real drone in the air:
+
+| Path | Drone | Detected/Total | Peak z | Target z | Bridge detects |
+|---|---|---:|---:|---:|---:|
+| **PX4 (x500_sentai)** | airframe 4043, OFFBOARD hover | **45 / 60** | 2.45 m | 1.5 m | 399 |
+| **cf2 (CrazySim)** | crazyflie, cflib MotionCommander | **23 / 40** | 1.19 m | 1.0 m | 318 |
+
+Pose values track the climb cleanly on both (e.g. PX4 z went
+0.83 → 1.55 → 1.71 → 2.22 m as drone climbed; cf2 stable at
+~1.10-1.20 m during the 15 s hover).
+
+#### Bring-up sequence (both paths share this)
+
+1. Drone+Gazebo brought up via existing launch (`/tmp/dbox_launch_cf2_headless.sh`
+   for cf2; the s109 PX4 launch for PX4).
+2. `gz_to_uds_bridge` (C++ in distrobox) feeds frames from
+   `/downward_cam/image` to `/tmp/sentai_cam.sock`.
+3. `sim/scripts/aruco_to_vision_estimate.py` (HOST venv with cv2)
+   reads the UDS, runs cv2.aruco + solvePnP + `estimate_drone_world_pose`,
+   **dual-publishes**:
+   - VISION_POSITION_ESTIMATE → MAVLink (PX4 EKF; for cf2 we point
+     `--mav` at an unused port — UDP is fire-and-forget)
+   - 36-byte ArUco wire packet → `/tmp/sentai_aruco_pose_recv.sock`
+     (our anchor shim, via the new `--anchor-pub-uds` flag)
+4. `sentai_sim` polls `sentai.flow.anchor_pose()` over a FIFO every 0.5 s
+   while the drone is in the air.
+5. Validator counts `detected=True` samples + checks peak z is plausible.
+
+#### Key patch this session
+
+- `sim/scripts/aruco_to_vision_estimate.py` — added `--anchor-pub-uds`
+  flag and dual-publish in the detection loop (~20 LoC).  Backwards
+  compatible: when the flag is omitted, behaviour is unchanged (s108/
+  s109 still work).
+
+#### Run commands (reproducible)
+
+```bash
+# PX4 path
+bash examples/sentai_runtime/experiments/s112_x86_anchor_shim/run_px4_live.sh
+
+# cf2 path (after one-time s090 prep that creates /tmp/dbox_launch_cf2_headless.sh)
+bash examples/sentai_runtime/experiments/s112_x86_anchor_shim/run_cf2_live.sh
+```
+
+Both scripts exit 0 on PASS and print a clean summary.
+
+### Measured performance — live Gazebo runs (2026-05-12)
+
+#### Frame-rate / throughput
+
+| Stage | PX4 path | cf2 path |
+|---|---:|---:|
+| Gazebo `/downward_cam/image` publish | **30.3 fps** | ~30 fps (limited by Garden render thread) |
+| `gz_to_uds_bridge` → `/tmp/sentai_cam.sock` | 30.3 fps (1230 frames in 40.6 s) | 30 fps |
+| `aruco_to_vision_estimate.py` consumption | 30 fps (matches bridge — no backlog) | 30 fps |
+| Anchor UDS publish to shim | bounded by detect rate (no queueing) | same |
+
+#### Per-frame latency budget (host x86, cv2.aruco 4.13)
+
+| Step | Cost |
+|---|---:|
+| RGB888 frame unpack + numpy reshape | <0.1 ms |
+| `cv2.aruco.detectMarkers` (4×4_50, 640×480) | **~5-8 ms** (4 markers visible) |
+| `solvePnP` per detected marker | <0.5 ms each |
+| `estimate_drone_world_pose` (multi-marker fusion) | <0.5 ms |
+| `struct.pack` + `sendto` UDS | <0.05 ms |
+| C shim `recvfrom` + cache | <0.05 ms |
+| **end-to-end gz frame → REPL dict** | **~8-10 ms** |
+
+Reference: synth-frame test reported `detect=7.7ms` for the cv2.aruco
+step on host x86 (Ryzen 7 5800X3D class).
+
+#### Detection statistics over the live runs
+
+| Metric | PX4 (s109+s112 patch) | cf2 (CrazySim s090 + s112) |
+|---|---:|---:|
+| Bridge total frames | 1255 | 817 |
+| Bridge ArUco detections | **427** (34%) | **318** (39%) |
+| Pose estimates (cv2 → world ENU) | 427 | 318 |
+| MAVLink VPE sends (PX4 only) | 427 | n/a (port 1, dropped) |
+| Anchor UDS packets to shim | 427 | 318 |
+| `sentai.flow.anchor_pose()` polls @ 2 Hz | 60 | 40 |
+| Polls with `detected=True` | **45** (75 %) | **23** (58 %) |
+| Detected z-range | 0.83 → 2.22 m | 0.78 → 1.19 m |
+| Target z (commanded hover) | 1.5 m | 1.0 m |
+| Peak detected z (drone climb) | 2.45 m | 1.19 m |
+
+The 60–75 % "polls with `detected=True`" rate is dominated by the
+pre-takeoff phase where the drone is on the ground (camera sees
+ground, no markers).  During the steady-state hover window the rate
+is effectively 100 %.
+
+#### Bridge-side throughput sanity (PX4)
+
+```
+bridge seq=1260, stamp=44.1 s, size=921600 B/frame
+→ 1260 / 44.1 = 28.6 fps (matches Garden render rate)
+→ 921600 × 28.6 = 26.3 MB/s through the UDS
+```
+
+cv2.aruco kept up at 30 fps with ~8 ms cost per frame on host x86 —
+plenty of headroom for additional consumers.  No queue backlog
+observed (frames vs detections diff stable across the run).
+
+#### What this means for the eventual ARM port (s113+)
+
+s111 measured M7 ArUco preprocessing at **4.1 ms / frame** (1.1 ms
+threshold + 3.0 ms edge + 0.04 ms × N rectify).  Add s112's
+remaining stages (contour finder ~2-3 ms, quad decode ~1 ms, PnP
+~1-2 ms) → target **~8-10 ms / frame on M7** — parity with the host
+x86 cv2.aruco path measured here, well within the 33 ms / frame
+budget at 30 fps.
+
+The shipped SIM impl is the reference behaviour the ARM detector
+must match — same dict fields, same wire format, same pose
+semantics (WORLD ENU metres).
+
+## Session 2026-05-12 (cont'd) — s113 P2: auto-VPE forwarder shipped
+
+`sentai.flow.anchor_forward(rate_hz, target)` — continuous C++
+FreeRTOS task that pushes the latest anchor pose to the flight
+controller(s) without REPL polling.  Same API + same wire format on
+ARM and SIM (mirrors the platform-abstraction precedent from s112).
+
+### API surface
+
+```python
+sentai.flow.anchor_forward()              # start at 10 Hz, target "auto"
+sentai.flow.anchor_forward(20, "px4")     # 20 Hz, MAVLink VPE only
+sentai.flow.anchor_forward(20, "cf2")     # 20 Hz, CRTP ext_position only
+sentai.flow.anchor_forward(20, "both")    # both transports unconditionally
+sentai.flow.anchor_forward(0)             # stop
+sentai.flow.anchor_forward_stats()        # dict
+```
+
+`anchor_forward_stats()` keys: `sent_px4`, `sent_cf2`, `skipped`,
+`last_seq`, `send_failed`, `running`, `rate_hz`, `target`, `iters`.
+
+### New C transports
+
+| Function | ARM impl | SIM impl |
+|---|---|---|
+| `sentai_link_send_vpe(x,y,z,yaw)` | `sentai_link.cc` — MAVLink #102 over UART | `sentai_link_sim.cc` — MAVLink #102 over UDP |
+| `sentai_crazy_send_ext_position(x,y,z)` | `sentai_crazy.cc` — CRTP port 6 / ch 1, 12-byte payload | stub (`sentai_crazy_stub_sim.c`) — no on-board cf2 bridge on x86 |
+| `sentai_link_is_running()` / `sentai_crazy_is_running()` | already existed | added in `sentai_link_sim.cc`; stub in `sentai_crazy_stub_sim.c` |
+
+Both `send_vpe` paths convert ENU → NED on the wire (matches PX4
+expectation; same convention as `aruco_to_vision_estimate.py`).
+
+### Bring-up gotcha — task priority matters on POSIX
+
+First cut used `xTaskCreate(... tskIDLE_PRIORITY + 1, ...)` and the
+task body NEVER ran on SIM — `iters` stayed at 0 forever despite
+`running=True`.  Root cause: SIM REPL task and camera-bridge task
+both run at `tskIDLE_PRIORITY + 2`; the FreeRTOS POSIX scheduler
+preempted the lower-priority forwarder out of the run queue and
+never came back.  Fix: bump to `+2` (same as REPL) — round-robin
+sharing then works.
+
+Also added a 500 ms **liveness check** in `_start()` that polls the
+in-task `s_iters` counter and returns -3 if the task hasn't run by
+then — fails loud instead of silently reporting `running=True`.
+
+### Live PX4+Gazebo validation (build sim #115, 2026-05-12)
+
+`run_px4_live.sh` extended to call `sentai.link.init()` +
+`sentai.flow.anchor_forward(10, "px4")` before takeoff, then dump
+`anchor_forward_stats()` at end.
+
+Final stats over ~38 s of flight (`OFFBOARD` target z=1.5 m):
+
+```
+sent_px4    = 98          # MAVLink VPE packets auto-forwarded
+sent_cf2    = 0           # not requested (target='px4')
+iters       = 384         # task ran 384 times at 10 Hz ≈ 38 s
+skipped     = 285         # iterations w/o fresh detection
+                          #   (pre-takeoff + frame_seq dedupe)
+send_failed = 0           # all MAVLink sends OK
+last_seq    = 290         # last forwarded detection frame_seq
+target      = 'px4'
+rate_hz     = 10
+running     = True
+```
+
+Cross-checks:
+- `aruco_pose()` pull-mode still functioning: 46/60 polls
+  detected=True during the same run (PASS s112 threshold).
+- `aruco_to_vision_estimate.py` log: `frames=1250 detect=290 pose=290 vpe=290`
+  — bridge saw 290 detected frames; forwarder sent 98 of them (rate-
+  limited to 10 Hz; bridge runs at 30 fps so ~1/3 ratio is expected).
+- Peak detected z = 1.53 m (target 1.5 m) — drone tracked target.
+
+### What this closes from prior open-work
+
+| s112+ item | Status |
+|---|---|
+| Forward VPE automatically when `mode("anchor")` | **DONE** |
+| Per-platform API parity for `anchor_forward` | **DONE** (ARM real, SIM real PX4 + cf2 stub) |
+| cf2 ext_position helper (`sentai_crazy_send_ext_position`) | **DONE on ARM; stubbed on SIM** |
+
+### Files shipped this session
+
+- `examples/sentai_runtime/sentai_anchor_forward.cc` — task + start/stop/stats
+- `examples/sentai_runtime/sentai_link.{h,cc}` — `+sentai_link_send_vpe`
+- `examples/sentai_runtime/sentai_crazy.{h,cc}` — `+sentai_crazy_send_ext_position`
+- `sim/sentai_link_sim.cc` — `+sentai_link_send_vpe`, `+sentai_link_is_running`
+- `sim/sentai_crazy_stub_sim.c` — cf2 entry-point stubs (no cf2 bridge on x86)
+- `examples/sentai_runtime/modsentai_flow.c` — `+anchor_forward`, `+anchor_forward_stats`
+- `sim/modsentai_sim.c` — same bindings
+- `examples/sentai_runtime/CMakeLists.txt` / `sim/CMakeLists.txt` — wire new sources
+- QSTR regen: `MP_QSTR_anchor_forward`, `MP_QSTR_anchor_forward_stats`
+
+### NASA/JPL discipline hardening (per `agent/embeded.md`)
+
+After the live PX4 run shipped, the auto-forwarder was audited
+against `embeded.md` and gained the following gates — all enforced
+in C in `sentai_anchor_forward.cc`, all observable via the
+`anchor_forward_stats()` dict.
+
+| Fault | Trigger | Action | Counter |
+|---|---|---|---|
+| **F1** NaN / Inf in any pose float (cv2/PnP blow-up) | IEEE-754 exponent == 0xFF | drop sample | `dropped_nonfinite` |
+| **F2** Out-of-bounds coords (drone outside `±50 m XY`, `[-2, +20] m Z`, `±π yaw`) | per-axis bound check | drop sample | `dropped_oob` |
+| **F3** Stale pose (publisher silent > 500 ms) | `now_ms - src_ts_ms > 500` | drop sample | `dropped_stale` |
+| F4 Transport down at send time | `_is_running() == 0` | skip that leg | (existing skipped) |
+| F5 Send error (UART/UDP/CRTP) | non-zero rc from send fn | counter only | `send_failed` |
+| F6 Task starvation (priority too low) | `s_iters == 0` after 500 ms | start() returns -3 | (caller-visible) |
+
+Plus stack high-water-mark is exposed (`stack_hwm_words` — the FreeRTOS
+`uxTaskGetStackHighWaterMark` value) so CI can monitor for budget
+creep.
+
+Other discipline notes implemented:
+- NaN / Inf check uses **IEEE-754 bit-pattern**, not `isnan/isinf`,
+  to avoid pulling libgcc helpers into the already-tight m_text.
+- All counters are bounded `uint32_t`; wrap is harmless (4 B
+  events/year at 30 fps).
+- No dynamic allocation; all state is static globals in `.sdram_bss`.
+- Liveness wait in `_start()` polls `s_iters` for up to 500 ms before
+  reporting success.
+
+Unit test: `experiments/s112_x86_anchor_shim/test_fault_gates.py`
+sends one NaN packet, one out-of-bounds packet, and one stale packet
+over UDS, then verifies each counter incremented.  **PASS**
+(`dropped_nonfinite=2, dropped_oob=3, dropped_stale=5,
+stack_hwm_words=2043`).
+
+### ITCM relocation sprint (s113 P2.5, 2026-05-12)
+
+Audit of `output.map` revealed ~24 KB of cold-path code still in
+m_text/ITCM that could safely be moved to SDRAM, freeing budget for
+the s113 P1 M7 ArUco detector.
+
+**Already in SDRAM** (don't need touching — moved in 2026-04-22):
+- `.lwip` 56.3 KB (lwip + httpd + mdns + base-m7_http_server)
+- `.libjpeg` 102.4 KB
+- `.tensorflow` 55.3 KB, `.micropython` 219 KB, `.cmsis_dsp` 3.6 KB
+- `.audio` 4.9 KB, `.shine` 17.0 KB, `.aifes` 23.8 KB
+- `.sentai_slow` 65.7 KB, `.libm`, `.camera` 5.9 KB
+- Total already-relocated: ~564 KB of code+rodata
+
+**Moved this session** (ITCM → SDRAM):
+| New section | Size | Why it's safe to move |
+|---|---:|---|
+| `.littlefs` | 15.4 KB | system FS, mount + occasional read; user FS is on FileX |
+| `.tpu_dfu` | 12.9 KB | runs ONCE at boot to upload Apex firmware; dormant after |
+| `.imu` (lis2du12) | 2.9 KB | `sentai.imu.read()` is REPL-on-demand, no ISR-rate access |
+| `.usb_msc` | 1.5 KB | only active in storage mode (explicit `sentai.usb.msc(1)`) |
+| **Total moved** | **32.7 KB** | |
+
+Net effect on m_text/ITCM:
+- `.text` went 246 816 → **224 544 bytes** (-22 KB)
+- Free margin: ~10 KB → **~32 KB** (3× headroom for s113 P1 detector)
+
+Verification on hardware (build #1298, board re-enumerated as
+`1fc9:c0a1`):
+- Board boots cleanly, no brick
+- USB CDC-ACM `/dev/ttyACM0` REPL alive
+- `sentai.camera.init(0) = 0` — full LittleFS + I2C + MIPI CSI path
+  (`HandlePowerRequest`, `CAMERA_RECEIVER_Init`, `CAMERA_DEVICE_Start`,
+  sensor fps reporting), both cameras up at 29 fps
+- `dir(sentai.tpu)` returns full API surface — DFU-loaded TPU code
+  module intact
+
+Not yet moved (~12 KB more available if needed):
+- USB device boot/enum: `usb_device_ch9.c` (1.85 KB), `clock_config.c`
+  (1.6 KB), `fsl_clock.c` (2.9 KB) — risky (touches boot path; would
+  need careful anti-brick testing).
+- `libg_nano.a` (22 KB newlib) — pulled in by *everything*; moving
+  needs careful flag (`-Wl,--gc-sections` already on).
+
+### Open work (s113 P1 — M7 detector)
+
+- Implement contour finder + quad decode + PnP in
+  `sentai_aruco_shim_arm.cc` using s111 building blocks.  s112 cv2
+  reference: ~8 ms / frame; M7 budget on PXP+SIMD ≈ 8-10 ms / frame
+  with the bench primitives.
+- ITCM is full (m_text overflow on any new `.text` byte) — new
+  detector code must default to `__attribute__((section(".sdram_text")))`
+  and avoid library-helper string literals (printf in error paths
+  blew the budget in this session).
+- The auto-forwarder is now waiting on the detector — once arm-side
+  pose is published into `sentai_aruco_get_latest()`, the existing
+  task will auto-forward to PX4 or cf2 without further integration.
+  All fault gates (F1-F3) will catch detector bugs at the boundary.

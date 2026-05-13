@@ -32,6 +32,7 @@
 #include <cstring>
 #include <cmath>
 #include <atomic>
+#include <chrono>
 
 #include "third_party/freertos_kernel/include/FreeRTOS.h"
 #include "third_party/freertos_kernel/include/task.h"
@@ -355,6 +356,11 @@ extern "C" void sentai_link_set_debug(int level) {
 }
 
 
+/* Reported to the anchor-forwarder so it knows whether to send VPE. */
+extern "C" int sentai_link_is_running(void) {
+    return s_open.load() ? 1 : 0;
+}
+
 extern "C" int sentai_link_send_heartbeat(uint8_t type) {
     if (!s_open.load()) return 0;
     mavlink_message_t msg;
@@ -374,6 +380,49 @@ extern "C" int sentai_link_send_heartbeat(uint8_t type) {
                 type, w, s_stats.tx_heartbeat.load());
     }
     return w;
+}
+
+
+/* ---- VISION_POSITION_ESTIMATE (#102) — s113 P2 ----
+ *
+ * Mirrors examples/sentai_runtime/sentai_link.cc:sentai_link_send_vpe.
+ * Same ENU→NED frame conversion, same yaw-only orientation.
+ *
+ * Why on SIM: when sentai_anchor_forward.cc auto-fires VPE on the
+ * x86 target, this is the wire path it lands in.  Independent of
+ * sim/scripts/aruco_to_vision_estimate.py — that script can keep
+ * sending its own VPE for the s108/s109 path (cv2 host-side bridge),
+ * OR caller can pass --no-mav and let the firmware handle forwarding.
+ */
+extern "C" int sentai_link_send_vpe(float x_enu, float y_enu, float z_enu,
+                                     float yaw_rad) {
+    if (!s_open.load()) return -1;
+    float x_ned =  y_enu;
+    float y_ned =  x_enu;
+    float z_ned = -z_enu;
+    float nan = NAN;
+    float cov[21] = {nan};
+    for (int i = 1; i < 21; i++) cov[i] = 0.0f;
+    /* SIM has no FreeRTOS tick_us; use monotonic. */
+    auto now = std::chrono::steady_clock::now().time_since_epoch();
+    uint64_t usec = std::chrono::duration_cast<std::chrono::microseconds>(now).count();
+    mavlink_message_t msg;
+    mavlink_msg_vision_position_estimate_pack(
+        s_sysid, s_compid, &msg,
+        usec,
+        x_ned, y_ned, z_ned,
+        nan, nan, yaw_rad,
+        cov,
+        0);
+    uint8_t buf[MAVLINK_MAX_PACKET_LEN];
+    int len = mavlink_msg_to_send_buffer(buf, &msg);
+    int w = sentai_uart_serial_write(buf, len);
+    if (s_debug_level >= 2) {
+        fprintf(stderr, "[link.tx] VPE x=%.2f y=%.2f z=%.2f yaw=%.2f → "
+                "NED(%.2f,%.2f,%.2f) len=%d\r\n",
+                x_enu, y_enu, z_enu, yaw_rad, x_ned, y_ned, z_ned, w);
+    }
+    return (w > 0) ? 0 : -2;
 }
 
 

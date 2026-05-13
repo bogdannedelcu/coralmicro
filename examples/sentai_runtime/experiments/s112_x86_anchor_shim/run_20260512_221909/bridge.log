@@ -1,0 +1,88 @@
+[bridge] topic=/downward_cam/image in=/tmp/sentai_cam.sock out=/tmp/sentai_flow_out.sock
+[bridge] connected to sentai_sim on /tmp/sentai_cam.sock
+[bridge] listening flow-out on /tmp/sentai_flow_out.sock
+[bridge] subscribed; Ctrl-C to stop
+[bridge_recv] seq=30 stamp=2.872000000 data_crc=0x8871cb3c size=921600
+[bridge] seq=30  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=30 pub=0)
+[bridge_recv] seq=60 stamp=3.864000000 data_crc=0x9d6e2060 size=921600
+[bridge] seq=60  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=60 pub=0)
+[bridge_recv] seq=90 stamp=4.852000000 data_crc=0x690cb9ad size=921600
+[bridge] seq=90  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=90 pub=0)
+[bridge_recv] seq=120 stamp=5.844000000 data_crc=0xb8ae2e9b size=921600
+[bridge] seq=120  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=120 pub=0)
+[bridge_recv] seq=150 stamp=6.832000000 data_crc=0x9c5a72da size=921600
+[bridge] seq=150  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=150 pub=0)
+[bridge_recv] seq=180 stamp=7.824000000 data_crc=0x9c5a72da size=921600
+[bridge] seq=180  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=180 pub=0)
+[bridge_recv] seq=210 stamp=8.812000000 data_crc=0x9c5a72da size=921600
+[bridge] seq=210  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=210 pub=0)
+[bridge_recv] seq=240 stamp=9.804000000 data_crc=0x9c5a72da size=921600
+[bridge] seq=240  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=240 pub=0)
+[bridge_recv] seq=270 stamp=10.792000000 data_crc=0x9c5a72da size=921600
+[bridge] seq=270  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=270 pub=0)
+[bridge_recv] seq=300 stamp=11.784000000 data_crc=0x9c5a72da size=921600
+[bridge] seq=300  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=300 pub=0)
+[bridge_recv] seq=330 stamp=12.772000000 data_crc=0x9c5a72da size=921600
+[bridge] seq=330  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=330 pub=0)
+[bridge_recv] seq=360 stamp=13.764000000 data_crc=0x9c5a72da size=921600
+[bridge] seq=360  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=360 pub=0)
+[bridge_recv] seq=390 stamp=14.752000000 data_crc=0x9c5a72da size=921600
+[bridge] seq=390  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=390 pub=0)
+[bridge_recv] seq=420 stamp=15.744000000 data_crc=0x9c5a72da size=921600
+[bridge] seq=420  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=420 pub=0)
+[bridge_recv] seq=450 stamp=16.732000000 data_crc=0x9c5a72da size=921600
+[bridge] seq=450  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=450 pub=0)
+[bridge_recv] seq=480 stamp=17.724000000 data_crc=0x6f53ae16 size=921600
+[bridge] seq=480  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=480 pub=0)
+[bridge_recv] seq=510 stamp=18.712000000 data_crc=0x6f53ae16 size=921600
+[bridge] seq=510  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=510 pub=0)
+[bridge_recv] seq=540 stamp=19.704000000 data_crc=0xd6e07a6a size=921600
+[bridge] seq=540  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=540 pub=0)
+[bridge_recv] seq=570 stamp=20.692000000 data_crc=0xc1915630 size=921600
+[bridge] seq=570  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=570 pub=0)
+[bridge_recv] seq=600 stamp=21.684000000 data_crc=0x6a355c43 size=921600
+[bridge] seq=600  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=600 pub=0)
+[bridge_recv] seq=630 stamp=22.672000000 data_crc=0x417c634f size=921600
+[bridge] seq=630  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=630 pub=0)
+[bridge_recv] seq=660 stamp=23.664000000 data_crc=0xf56bf9dc size=921600
+[bridge] seq=660  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=660 pub=0)
+[bridge_recv] seq=690 stamp=24.652000000 data_crc=0x74f04e43 size=921600
+[bridge] seq=690  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=690 pub=0)
+[bridge_recv] seq=720 stamp=25.644000000 data_crc=0x0ea5a185 size=921600
+[bridge] seq=720  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=720 pub=0)
+[bridge_recv] seq=750 stamp=26.632000000 data_crc=0x18c4db3b size=921600
+[bridge] seq=750  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=750 pub=0)
+[bridge_recv] seq=780 stamp=27.624000000 data_crc=0x5391306c size=921600
+[bridge] seq=780  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=780 pub=0)
+[bridge_recv] seq=810 stamp=28.612000000 data_crc=0x499e7c98 size=921600
+[bridge] seq=810  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=810 pub=0)
+[bridge_recv] seq=840 stamp=29.604000000 data_crc=0x9e61d7ac size=921600
+[bridge] seq=840  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=840 pub=0)
+[bridge_recv] seq=870 stamp=30.592000000 data_crc=0x14dbf992 size=921600
+[bridge] seq=870  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=870 pub=0)
+[bridge_recv] seq=900 stamp=31.584000000 data_crc=0x20f738ac size=921600
+[bridge] seq=900  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=900 pub=0)
+[bridge_recv] seq=930 stamp=32.572000000 data_crc=0xca691264 size=921600
+[bridge] seq=930  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=930 pub=0)
+[bridge_recv] seq=960 stamp=33.564000000 data_crc=0xf8c35fd7 size=921600
+[bridge] seq=960  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=960 pub=0)
+[bridge_recv] seq=990 stamp=34.552000000 data_crc=0x6b15d3b7 size=921600
+[bridge] seq=990  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=990 pub=0)
+[bridge_recv] seq=1020 stamp=35.544000000 data_crc=0xf461f5ac size=921600
+[bridge] seq=1020  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=1020 pub=0)
+[bridge_recv] seq=1050 stamp=36.532000000 data_crc=0x1b1d0e25 size=921600
+[bridge] seq=1050  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=1050 pub=0)
+[bridge_recv] seq=1080 stamp=37.524000000 data_crc=0x205c27ab size=921600
+[bridge] seq=1080  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=1080 pub=0)
+[bridge_recv] seq=1110 stamp=38.512000000 data_crc=0x5070201d size=921600
+[bridge] seq=1110  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=1110 pub=0)
+[bridge_recv] seq=1140 stamp=39.504000000 data_crc=0x14b07b2f size=921600
+[bridge] seq=1140  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=1140 pub=0)
+[bridge_recv] seq=1170 stamp=40.492000000 data_crc=0x89d62193 size=921600
+[bridge] seq=1170  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=1170 pub=0)
+[bridge_recv] seq=1200 stamp=41.484000000 data_crc=0xbcb29540 size=921600
+[bridge] seq=1200  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=1200 pub=0)
+[bridge_recv] seq=1230 stamp=42.472000000 data_crc=0xa29177f2 size=921600
+[bridge] seq=1230  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=1230 pub=0)
+[bridge_recv] seq=1260 stamp=43.464000000 data_crc=0xd86e89f4 size=921600
+[bridge] seq=1260  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=1260 pub=0)

@@ -1,0 +1,85 @@
++ /home/bogdan/work/coralmicro/build-sim/sim/sentai_sim
+[sim] sentai_sim build #118 (2026-05-12 22:17:02)
+[sim] FreeRTOS POSIX port: tick=1000 Hz, heap=4194304 bytes
+[sim] MicroPython heap: 262144 bytes
+
+MicroPython on SentAI SIM (FreeRTOS POSIX port + MicroPython embed)
+Type expressions, end with Enter.  Ctrl-D or 'exit' to quit.
+Try: sentai.version(), sentai.fs.write(...), help()
+
+>>> >>> aruco_shim: SIM ready, bound to /tmp/sentai_aruco_pose_recv.sock, awaiting /tmp/sentai_aruco_pose.sock
+'anchor'
+>>> sentai_uart_udp: open OK — bind :14540 → peer 127.0.0.1:14580
+sentai.link: xTaskCreate -> OK (handle=0x5a6a3d6569e0)
+sentai.link: init sys=1 comp=191 (UDP backend)
+1
+>>> camera_bridge: listening on /tmp/sentai_cam.sock (waiting for Gazebo bridge)
+sentai.link: reader task started (s_sock=open=1)
+sentai.link: heartbeat task started (1 Hz, MAV_TYPE_ONBOARD_CONTROLLER)
+0
+>>> =ANCHOR_READY
+>>> ANCHOR 1 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 2 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 3 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 4 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 5 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 6 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 7 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 8 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 9 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 10 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 11 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 12 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 13 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 14 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 15 True 1 0.3643184 0.2387981 0.427062 3
+>>> ANCHOR 16 True 1 0.3866905 0.2283084 0.5161862 11
+>>> ANCHOR 17 True 1 0.4252669 0.2333104 0.5600629 12
+>>> ANCHOR 18 True 2 0.5649549 -0.1133419 0.93416 16
+>>> ANCHOR 19 True 3 0.1907421 -0.02082107 1.084215 32
+>>> ANCHOR 20 True 4 -0.02656641 -0.05119727 1.177796 46
+>>> ANCHOR 21 True 2 0.3797679 0.1506222 1.229902 62
+>>> ANCHOR 22 True 2 0.07598359 0.2691306 1.332624 77
+>>> ANCHOR 23 True 2 0.08963014 0.4304057 1.381624 92
+>>> ANCHOR 24 True 1 0.1098233 0.2094788 1.277411 107
+>>> ANCHOR 25 True 1 -0.1002424 0.3976901 1.416948 122
+>>> ANCHOR 26 True 1 -0.1002424 0.3976901 1.416948 122
+>>> ANCHOR 27 True 1 -0.1002424 0.3976901 1.416948 122
+>>> ANCHOR 28 True 1 -0.1002424 0.3976901 1.416948 122
+>>> ANCHOR 29 True 1 -0.1002424 0.3976901 1.416948 122
+>>> ANCHOR 30 True 1 -0.1039327 0.3918596 1.435653 124
+>>> ANCHOR 31 True 1 -0.0206275 0.1828011 1.424317 139
+>>> ANCHOR 32 True 2 0.09766552 0.3363918 1.466322 154
+>>> ANCHOR 33 True 2 0.2170303 0.04799452 1.428063 169
+>>> ANCHOR 34 True 2 0.3755858 -0.06357321 1.447068 184
+>>> ANCHOR 35 True 4 -0.01954635 -0.2881948 1.457383 199
+>>> ANCHOR 36 True 1 -0.3762783 -0.2192555 1.467623 215
+>>> ANCHOR 37 True 1 -0.2809054 -0.4809978 1.530272 227
+>>> ANCHOR 38 True 1 -0.2809054 -0.4809978 1.530272 227
+>>> ANCHOR 39 True 1 -0.2809054 -0.4809978 1.530272 227
+>>> ANCHOR 40 True 1 -0.2809054 -0.4809978 1.530272 227
+>>> ANCHOR 41 True 1 -0.2809054 -0.4809978 1.530272 227
+>>> ANCHOR 42 True 1 -0.2809054 -0.4809978 1.530272 227
+>>> ANCHOR 43 True 1 -0.2809054 -0.4809978 1.530272 227
+>>> ANCHOR 44 True 1 -0.2809054 -0.4809978 1.530272 227
+>>> ANCHOR 45 True 2 0.08271219 -0.2146749 1.409004 242
+>>> ANCHOR 46 True 2 0.07610374 -0.05826811 1.321325 257
+>>> ANCHOR 47 True 2 -0.2280729 -0.2305674 1.269078 272
+>>> ANCHOR 48 True 2 -0.1083813 0.0018797 0.7015449 288
+>>> ANCHOR 49 True 1 -0.1232868 -0.383772 0.6400511 290
+>>> ANCHOR 50 True 1 -0.1232868 -0.383772 0.6400511 290
+>>> ANCHOR 51 True 1 -0.1232868 -0.383772 0.6400511 290
+>>> ANCHOR 52 True 1 -0.1232868 -0.383772 0.6400511 290
+>>> ANCHOR 53 True 1 -0.1232868 -0.383772 0.6400511 290
+>>> ANCHOR 54 True 1 -0.1232868 -0.383772 0.6400511 290
+>>> ANCHOR 55 True 1 -0.1232868 -0.383772 0.6400511 290
+>>> ANCHOR 56 True 1 -0.1232868 -0.383772 0.6400511 290
+>>> ANCHOR 57 True 1 -0.1232868 -0.383772 0.6400511 290
+>>> ANCHOR 58 True 1 -0.1232868 -0.383772 0.6400511 290
+>>> ANCHOR 59 True 1 -0.1232868 -0.383772 0.6400511 290
+>>> ANCHOR 60 True 1 -0.1232868 -0.383772 0.6400511 290
+>>> =FWD_STATS {'sent_px4': 98, 'iters': 384, 'rate_hz': 10, 'last_seq': 290, 'sent_cf2': 0, 'running': True, 'skipped': 285, 'target': 'px4', 'send_failed': 0}
+>>> =DONE
+>>> 
+[sim] EOF on stdin, exiting
+[sim] REPL task done, terminating process

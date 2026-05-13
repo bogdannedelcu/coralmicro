@@ -1,0 +1,21 @@
++ /home/bogdan/work/coralmicro/build-sim/sim/sentai_sim
+[sim] sentai_sim build #118 (2026-05-12 22:17:02)
+[sim] FreeRTOS POSIX port: tick=1000 Hz, heap=4194304 bytes
+[sim] MicroPython heap: 262144 bytes
+
+MicroPython on SentAI SIM (FreeRTOS POSIX port + MicroPython embed)
+Type expressions, end with Enter.  Ctrl-D or 'exit' to quit.
+Try: sentai.version(), sentai.fs.write(...), help()
+
+>>> >>> aruco_shim: SIM ready, bound to /tmp/sentai_aruco_pose_recv.sock, awaiting /tmp/sentai_aruco_pose.sock
+'anchor'
+>>> sentai_uart_udp: open OK — bind :14540 → peer 127.0.0.1:14580
+sentai.link: xTaskCreate -> OK (handle=0x5c7310de09e0)
+sentai.link: init sys=1 comp=191 (UDP backend)
+1
+>>> sentai.link: reader task started (s_sock=open=1)
+sentai.link: heartbeat task started (1 Hz, MAV_TYPE_ONBOARD_CONTROLLER)
+camera_bridge: listening on /tmp/sentai_cam.sock (waiting for Gazebo bridge)
+0
+>>> =ANCHOR_READY
+>>> 

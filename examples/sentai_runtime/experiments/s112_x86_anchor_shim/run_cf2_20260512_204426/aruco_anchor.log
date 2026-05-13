@@ -1,0 +1,42 @@
+[aruco-vpe] dual-publishing anchor pose to /tmp/sentai_aruco_pose_recv.sock
+[aruco-vpe] mavlink udpout:127.0.0.1:1
+[aruco-vpe] listening on /tmp/sentai_cam.sock
+[aruco-vpe] bridge connected
+[aruco-vpe] frames=24 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=50 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=75 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=99 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=124 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=148 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=174 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=201 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=227 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=253 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=279 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=305 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=331 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=351 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=370 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=389 detect=0 pose=0 vpe=0
+[aruco-vpe] frames=408 detect=12 pose=12 vpe=12
+[aruco-vpe] frames=427 detect=31 pose=31 vpe=31
+[aruco-vpe] frames=446 detect=50 pose=50 vpe=50
+[aruco-vpe] frames=466 detect=70 pose=70 vpe=70
+[aruco-vpe] frames=485 detect=89 pose=89 vpe=89
+[aruco-vpe] frames=505 detect=109 pose=109 vpe=109
+[aruco-vpe] frames=525 detect=129 pose=129 vpe=129
+[aruco-vpe] frames=545 detect=149 pose=149 vpe=149
+[aruco-vpe] frames=565 detect=169 pose=169 vpe=169
+[aruco-vpe] frames=586 detect=190 pose=190 vpe=190
+[aruco-vpe] frames=606 detect=210 pose=210 vpe=210
+[aruco-vpe] frames=626 detect=227 pose=227 vpe=227
+[aruco-vpe] frames=647 detect=242 pose=242 vpe=242
+[aruco-vpe] frames=668 detect=255 pose=255 vpe=255
+[aruco-vpe] frames=689 detect=264 pose=264 vpe=264
+[aruco-vpe] frames=711 detect=264 pose=264 vpe=264
+[aruco-vpe] frames=732 detect=273 pose=273 vpe=273
+[aruco-vpe] frames=753 detect=291 pose=291 vpe=291
+[aruco-vpe] frames=774 detect=308 pose=308 vpe=308
+[aruco-vpe] frames=795 detect=316 pose=316 vpe=316
+[aruco-vpe] frames=817 detect=318 pose=318 vpe=318
+[aruco-vpe] bridge disconnected

@@ -1,0 +1,35 @@
+[sim] sentai_sim build #108 (2026-05-12 20:28:02)
+[sim] FreeRTOS POSIX port: tick=1000 Hz, heap=4194304 bytes
+[sim] MicroPython heap: 262144 bytes
+
+MicroPython on SentAI SIM (FreeRTOS POSIX port + MicroPython embed)
+Type expressions, end with Enter.  Ctrl-D or 'exit' to quit.
+Try: sentai.version(), sentai.fs.write(...), help()
+
+>>> [sim] FS root: /home/bogdan/work/coralmicro/build-sim/sentai_fs_root
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+ImportError: no module named 'time'
+>>> >>> >>> =BOOT_OK
+>>> camera_bridge: listening on /tmp/sentai_cam.sock (waiting for Gazebo bridge)
+aruco_shim: SIM ready, bound to /tmp/sentai_aruco_pose_recv.sock, awaiting /tmp/sentai_aruco_pose.sock
+anchor
+>>> Traceback (most recent call last):
+  File "<stdin>", line 2
+SyntaxError: invalid syntax
+>>> Traceback (most recent call last):
+  File "<stdin>", line 1
+IndentationError: unexpected indent
+>>> Traceback (most recent call last):
+  File "<stdin>", line 1
+IndentationError: unexpected indent
+>>> Traceback (most recent call last):
+  File "<stdin>", line 1
+IndentationError: unexpected indent
+>>> Traceback (most recent call last):
+  File "<stdin>", line 1
+IndentationError: unexpected indent
+>>> =DONE
+>>> 
+[sim] EOF on stdin, exiting
+[sim] REPL task done, terminating process

@@ -266,6 +266,37 @@ extern "C" int sentai_link_send_heartbeat(uint8_t type) {
     return link_send_msg(&msg);
 }
 
+// ===================== TX: VISION_POSITION_ESTIMATE (#102) =====================
+// External-source drone world pose, used by sentai.flow.mode("anchor")
+// + sentai_anchor_forward.cc.  See sentai_link.h for the ENU→NED
+// frame convention.  Hot-path frequency = 10-30 Hz, well below
+// camera ISR — fine in .sdram_text.
+extern "C" __attribute__((section(".sdram_text"), noinline))
+int sentai_link_send_vpe(float x_enu, float y_enu, float z_enu,
+                          float yaw_rad) {
+    if (!g_link_running) return -1;
+    // ENU → NED conversion (mirrors aruco_to_vision_estimate.py).
+    float x_ned =  y_enu;
+    float y_ned =  x_enu;
+    float z_ned = -z_enu;
+    float nan = NAN;
+    // Covariance: 21 elements (upper-triangle of 6×6).  NaN[0] disables
+    // detailed cov tracking — PX4 falls back to default.
+    float cov[21] = {nan};
+    for (int i = 1; i < 21; i++) cov[i] = 0.0f;
+    uint64_t usec = (uint64_t)xTaskGetTickCount() * 1000ull;  // ms→µs (rough)
+    mavlink_message_t msg;
+    mavlink_msg_vision_position_estimate_pack(
+        g_link_sysid, g_link_compid, &msg,
+        usec,
+        x_ned, y_ned, z_ned,
+        nan, nan, yaw_rad,                  // roll/pitch NaN, yaw only
+        cov,
+        0                                   // reset_counter
+    );
+    return link_send_msg(&msg);
+}
+
 // ===================== TX: StatusText (single) =====================
 extern "C" int sentai_link_send_statustext(uint8_t severity, const char* text) {
     if (!g_link_running) return -1;

@@ -2966,3 +2966,243 @@ that's free.  Fallback: 160×120 image + OCRAM-resident integral.
 This is genuine "we did the research, the algorithms didn't work as
 advertised, here's the actual path on our hardware" engineering.
 Worth documenting for future researchers.
+
+## 10t. Platform-abstracted ArUco anchor shim (s112, 2026-05-12)
+
+Closes the SIM ↔ ARM parity gap for `sentai.flow.mode("anchor")`.
+After s111 validated the M7 speed budget (1.1 ms threshold, 3.0 ms
+edge, 37 µs rectify; total ArUco preprocessing ~4.1 ms), the same
+MicroPython API is now alive on the x86 SIM.
+
+### Pattern (matches `sentai_pxp_shim.h` + `sentai_fft_shim.h`)
+
+| Layer | ARM | SIM |
+|---|---|---|
+| Contract header | `examples/sentai_runtime/sentai_aruco_shim.h` (shared) | same |
+| Impl | `sentai_aruco_shim_arm.cc` (stub today — s113+) | `sim/sentai_aruco_shim_sim.c` |
+| Detector | M7 PXP+SIMD pipeline (s111 building blocks, s113+ wiring) | Python sidecar `sim/scripts/aruco_pose_publisher.py` using `cv2.aruco` + `solvePnP` (reuses s090 `aruco_detector.py`) |
+| Transport | direct C call | `SOCK_DGRAM` UDS, 36-byte fixed packet, drain-to-latest |
+
+### MicroPython surface (identical on both targets)
+
+```python
+sentai.flow.mode()              # -> "normal" | "anchor"
+sentai.flow.mode("anchor")      # auto-inits shim, opens UDS on SIM
+sentai.flow.anchor_pose()       # -> dict(detected, num_markers,
+                                #         x, y, z, yaw, frame_seq,
+                                #         detect_us, src_ts_ms)
+```
+
+Drivers built against ARM are byte-identical on SIM.
+
+### Wire format (UDS, little-endian)
+
+```
+"<II BB H ffff II"  (36 B)
+magic=0x41524332, frame_seq,
+detected, num_markers, pad,
+x_m, y_m, z_m, yaw_rad,
+detect_us, src_ts_ms
+```
+
+### Bring-up gotchas (worth keeping)
+
+1. **`.ocram_bss` orphan-landing is load-bearing for new ARM code**
+   too — adding any function to ITCM (`m_text`) overflows.  Default
+   non-ISR ARM functions to `__attribute__((section(".sdram_text")))`.
+2. **`SOCK_DGRAM` + drain-to-latest** is the right semantic for pose
+   snapshots — packet loss harmless (next datagram <33 ms), and
+   `recvfrom(MSG_DONTWAIT)` never stalls the flow task.
+3. **`get_latest()` MUST also drain the UDS**, not just `detect()`.
+   The first cut had drain only in detect() and pose reads returned
+   stale zeros despite live publisher.
+4. **Hand-port the MP binding** between ARM and SIM `modsentai_*`
+   sources rather than `#include`-ing — ARM uses `flow_shared_t`
+   (M7+M4 IPC), SIM uses an x86 snapshot struct.  Different backends
+   in the same binding would tangle two state models.
+5. **QSTR regen is mandatory** when adding `MP_QSTR_*` symbols
+   (`mode`, `yaw`, `detected`, `num_markers`, `anchor_pose` here).
+   Recipe in `agent.md §6`.
+
+### Smoke test (no Gazebo, no OpenCV)
+
+`examples/sentai_runtime/experiments/s112_x86_anchor_shim/test_anchor_wire.py`
+spawns `sentai_sim`, pushes one `struct.pack` packet over UDS,
+reads `sentai.flow.anchor_pose()` via REPL, diffs values.  Result
+(2026-05-12, sim build #107): **PASS** — det=1, n=3, x=1.25,
+y=-0.5, z=1.75, seq=42 round-tripped intact.
+
+### Files
+
+- `examples/sentai_runtime/sentai_aruco_shim.h`
+- `examples/sentai_runtime/sentai_aruco_shim_arm.cc`
+- `sim/sentai_aruco_shim_sim.c`
+- `sim/scripts/aruco_pose_publisher.py`
+- `examples/sentai_runtime/modsentai_flow.c`  (ARM binding)
+- `sim/modsentai_sim.c`                       (SIM binding)
+- `examples/sentai_runtime/experiments/s112_x86_anchor_shim/{README.md,test_anchor_wire.py}`
+
+### Open work
+
+- `sentai_aruco_shim_arm.cc` real M7 detector (s111 budget shows
+  ~5 ms/frame is feasible; remaining is contour finder + quad
+  decode + PnP).
+- Auto-forward VPE from flow path when `mode == "anchor"` —
+  `sentai.link.send_vpe(...)` (PX4) and `sentai.crazy.send_external_position(...)`
+  (cf2) already exist; just need the per-frame call site.
+- gz-subscription path in `aruco_pose_publisher.py` unit-tested
+  inside `crazysim-garden` distrobox with a live Garden session.
+
+## 10u. Best practices for SIM ↔ ARM platform abstraction (s112 distilled)
+
+Captured after shipping `sentai_aruco_shim` end-to-end (struct.pack
+smoke + cv2 synth frame + live Gazebo on PX4 + cf2 all PASS).
+These rules generalise — apply to ANY new primitive that needs to
+run on both targets.
+
+### B-1. The three-file contract (mandatory shape)
+
+```
+examples/sentai_runtime/sentai_<NAME>_shim.h        ← contract, shared
+examples/sentai_runtime/sentai_<NAME>_shim_arm.cc   ← ARM impl
+sim/sentai_<NAME>_shim_sim.c                        ← SIM impl
+```
+
+Header defines the C ABI: opaque struct + `init/op/get/shutdown`.
+`extern "C"` everywhere — never put C++ types in the contract.
+
+Precedent: `sentai_pxp_shim.h` (HW DMA on ARM, area-average on SIM),
+`sentai_fft_shim.h` (CMSIS-DSP on ARM, FFTW3 on SIM),
+`sentai_aruco_shim.h` (M7 detector on ARM — s113+; Python sidecar
+sidecar+UDS on SIM).
+
+### B-2. SOCK_DGRAM + drain-to-latest for snapshot streams
+
+For periodically-updated state (pose snapshots, detection results,
+sensor readings): `SOCK_DGRAM` Unix sockets with **drain on every
+read**.  Wrong:
+
+```c
+recvfrom(fd, &snapshot, sizeof, MSG_DONTWAIT);   // returns ONE oldest packet
+```
+
+Right:
+
+```c
+while (1) {
+    n = recvfrom(fd, &snapshot, sizeof, MSG_DONTWAIT);
+    if (n < 0) break;                            // EAGAIN — queue empty
+    // overwrite cached state with whatever just arrived
+}
+```
+
+Drop-old semantics is what you want for "latest pose" or "latest
+detection" — packet loss is harmless, staleness is the enemy.
+Bug captured the hard way in s112: drain in `detect()` but not
+in `get_latest()` returned zeros forever despite an active publisher.
+
+### B-3. Hand-port MP bindings between targets, don't `#include`
+
+ARM `modsentai_<x>.c` and SIM `modsentai_sim.c` should both register
+the same MP namespace + dict shape but with **separate
+implementations of each binding**.  Don't try to share via `#include`
+— the state backends differ (ARM uses `flow_shared_t` cross-core
+IPC; SIM uses an x86 snapshot struct).  Sharing source tangles two
+state models in one binding.
+
+Rule of thumb: if the binding body has more than 1 `#ifdef SENTAI_PLATFORM_SIM`
+you should split it.
+
+### B-4. The SIM REPL is **line-at-a-time** — don't pipe multi-line blocks
+
+`( sentai_sim < script.py )` fails for any `for:`, `if:`, `def:` block
+because the REPL parses each line independently.  Symptoms:
+`SyntaxError: invalid syntax` on the first indented line; the rest
+of the block executes as top-level statements with stale parser state.
+
+Two working idioms:
+
+**(a) Single-line semicolon chains** — what `s111_m7_aruco_pxp_dbg/read_pxp_dbg.py`
+uses:
+
+```python
+s.write(b'p=sentai.flow.anchor_pose(); print(p["detected"], p["x"])\r\n')
+```
+
+**(b) FIFO + bash loop with sleeps** — what `s112/run_*_live.sh` uses:
+
+```bash
+FIFO=$OUT/sim_repl.fifo
+mkfifo "$FIFO"
+( $SIM_BIN < "$FIFO" ) > $OUT/sim.log 2>&1 &
+SIM_PID=$!
+exec 3>"$FIFO"                                   # keeps FIFO open
+echo "import sentai"             >&3
+for i in $(seq 1 60); do
+    echo "p=sentai.flow.anchor_pose(); print('ANCHOR',$i,p['detected'])" >&3
+    sleep 0.5
+done
+exec 3>&-                                        # sim sees EOF
+wait $SIM_PID
+```
+
+FD 3 stays open until the script closes it, so the SIM doesn't get
+EOF after the first batch.
+
+### B-5. Extend the proven bridge, don't fork a new one
+
+For SIM detection sidecars (cv2.aruco, segmentation, etc.) that
+operate on Gazebo camera frames, **extend the existing
+`gz_to_uds_bridge` + `aruco_to_vision_estimate.py` chain with an
+optional `--<x>-pub-uds` flag**.  Don't write a parallel gz
+subscriber.
+
+Why: distrobox `crazysim-garden` has gz transport (via `gz` binary)
+but NO cv2 / NO `gz-transport` Python bindings; host venv has cv2
+but no gz transport.  The proven chain — C++ `gz_to_uds_bridge` in
+distrobox feeds a UDS, host-venv Python reads + detects — already
+sidesteps this.  Don't fight it.
+
+Backwards-compat rule: the new flag MUST default to off, so all
+existing s108/s109 launches still pass.  ~20 LoC patch typical.
+
+### B-6. Three-tier validation, escalating cost
+
+Before claiming a SIM↔ARM shim "works":
+
+| Tier | What it proves | Cost |
+|---|---|---|
+| **T1 wire test** (`struct.pack` → UDS → REPL diff) | wire format, drain-to-latest, dict shape | seconds |
+| **T2 synth-frame test** (cv2 detection on a synthetic PPM → publisher → SIM) | real detector code path, publisher plumbing | tens of seconds |
+| **T3 live Gazebo** (PX4 or cf2 SITL + flying drone) | end-to-end through real renderer + flight stack | minutes (incl. cleanup) |
+
+Run T1 → T2 → T3 in order.  Most regressions die in T1/T2 where
+the iteration is cheap; T3 is for the architectural integration
+proof.  s112 caught a real bug at T1 (drain-on-read missing) — would
+have wasted a full Gazebo cycle if we'd skipped to T3.
+
+### B-7. cf2 `--mav` argument trick
+
+`aruco_to_vision_estimate.py` was written for PX4 + MAVLink.  When
+reusing it on the cf2 path (which doesn't speak MAVLink), pass
+`--mav udpout:127.0.0.1:1` — UDP is fire-and-forget, port 1 has
+nothing bound, packets get dropped silently, no side-effects.
+
+Alternative would be a `--no-mav` flag, but the empty-port trick is
+zero-LoC and works today.  Use the trick; leave the flag for s113
+if/when MAVLink turns out to have a side effect (it doesn't).
+
+### B-8. Live-test PASS criteria — count, peak, ground-truth
+
+A live-Gazebo validation script must report THREE numbers:
+
+| Metric | Why |
+|---|---|
+| `DETECTED_COUNT / TOTAL_COUNT` of poll iterations with `detected=True` | proves the chain is actually flowing, not just bound |
+| `PEAK_Z` from poses where `detected=True` | rough sanity vs takeoff target — catches "drone never flew" |
+| Bridge stats (`detect=N pose=N vpe=N`) from `aruco_to_vision_estimate.py` log | external check that detection was happening, separately from our shim |
+
+PASS threshold for s112 was `DETECTED_COUNT >= 10`.  Lower means the
+takeoff didn't complete, the world has no markers visible, or our
+shim is dropping packets.  All three are real failure modes we hit
+during s112 bring-up; the counter immediately localizes which.

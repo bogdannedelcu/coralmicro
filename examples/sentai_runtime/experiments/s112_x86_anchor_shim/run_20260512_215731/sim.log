@@ -1,0 +1,84 @@
+[sim] sentai_sim build #111 (2026-05-12 21:55:38)
+[sim] FreeRTOS POSIX port: tick=1000 Hz, heap=4194304 bytes
+[sim] MicroPython heap: 262144 bytes
+
+MicroPython on SentAI SIM (FreeRTOS POSIX port + MicroPython embed)
+Type expressions, end with Enter.  Ctrl-D or 'exit' to quit.
+Try: sentai.version(), sentai.fs.write(...), help()
+
+>>> >>> aruco_shim: SIM ready, bound to /tmp/sentai_aruco_pose_recv.sock, awaiting /tmp/sentai_aruco_pose.sock
+'anchor'
+>>> sentai_uart_udp: open OK — bind :14540 → peer 127.0.0.1:14580
+sentai.link: xTaskCreate -> OK (handle=0x5adf6c3809e0)
+sentai.link: init sys=1 comp=191 (UDP backend)
+1
+>>> 0
+>>> sentai.link: reader task started (s_sock=open=1)
+sentai.link: heartbeat task started (1 Hz, MAV_TYPE_ONBOARD_CONTROLLER)
+camera_bridge: listening on /tmp/sentai_cam.sock (waiting for Gazebo bridge)
+=ANCHOR_READY
+>>> ANCHOR 1 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 2 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 3 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 4 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 5 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 6 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 7 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 8 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 9 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 10 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 11 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 12 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 13 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 14 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 15 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 16 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 17 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 18 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 19 True 2 -0.2751835 -0.002404287 0.6276913 9
+>>> ANCHOR 20 True 2 -0.2053711 -0.04064429 0.7564278 24
+>>> ANCHOR 21 True 2 -0.1262064 -0.06000077 0.833015 39
+>>> ANCHOR 22 True 2 -0.1099817 -0.03102009 0.9535055 55
+>>> ANCHOR 23 True 2 -0.0189468 -0.06083312 1.000916 70
+>>> ANCHOR 24 True 1 0.07398629 0.2947192 1.09602 80
+>>> ANCHOR 25 True 1 0.07398629 0.2947192 1.09602 80
+>>> ANCHOR 26 True 1 0.07398629 0.2947192 1.09602 80
+>>> ANCHOR 27 True 1 0.07398629 0.2947192 1.09602 80
+>>> ANCHOR 28 True 1 0.07398629 0.2947192 1.09602 80
+>>> ANCHOR 29 True 2 0.1230014 -0.07454315 1.273487 84
+>>> ANCHOR 30 True 2 0.02142221 -0.03911832 1.212615 99
+>>> ANCHOR 31 True 2 0.009599079 -0.1044745 1.19534 114
+>>> ANCHOR 32 True 2 -0.05844497 -0.2403785 1.175269 130
+>>> ANCHOR 33 True 1 -0.136421 0.04583591 1.135117 145
+>>> ANCHOR 34 True 1 -0.2207659 -0.0881679 1.25425 160
+>>> ANCHOR 35 True 1 -0.3538398 -0.151256 1.232532 175
+>>> ANCHOR 36 True 2 0.1038435 -0.185087 1.16433 190
+>>> ANCHOR 37 True 1 0.5314875 -0.2429844 1.196363 205
+>>> ANCHOR 38 True 1 0.3844192 -0.3059459 1.201331 216
+>>> ANCHOR 39 True 1 0.3844192 -0.3059459 1.201331 216
+>>> ANCHOR 40 True 1 0.3844192 -0.3059459 1.201331 216
+>>> ANCHOR 41 True 1 0.3844192 -0.3059459 1.201331 216
+>>> ANCHOR 42 True 1 0.3844192 -0.3059459 1.201331 216
+>>> ANCHOR 43 True 1 -0.4718628 -0.2038147 1.087114 222
+>>> ANCHOR 44 True 1 -0.3726498 -0.05180954 1.150169 236
+>>> ANCHOR 45 True 2 -0.2237091 -0.2652932 1.118345 252
+>>> ANCHOR 46 True 2 -0.1288373 -0.04605063 1.150023 267
+>>> ANCHOR 47 True 2 0.0135773 0.06912894 1.195899 282
+>>> ANCHOR 48 True 1 0.106031 0.5525769 1.174364 293
+>>> ANCHOR 49 True 1 0.106031 0.5525769 1.174364 293
+>>> ANCHOR 50 True 1 0.106031 0.5525769 1.174364 293
+>>> ANCHOR 51 True 1 0.106031 0.5525769 1.174364 293
+>>> ANCHOR 52 True 1 0.106031 0.5525769 1.174364 293
+>>> ANCHOR 53 True 1 0.106031 0.5525769 1.174364 293
+>>> ANCHOR 54 True 1 0.106031 0.5525769 1.174364 293
+>>> ANCHOR 55 True 1 0.106031 0.5525769 1.174364 293
+>>> ANCHOR 56 True 1 0.106031 0.5525769 1.174364 293
+>>> ANCHOR 57 True 1 0.106031 0.5525769 1.174364 293
+>>> ANCHOR 58 True 1 0.106031 0.5525769 1.174364 293
+>>> ANCHOR 59 True 1 0.106031 0.5525769 1.174364 293
+>>> ANCHOR 60 True 1 0.106031 0.5525769 1.174364 293
+>>> =FWD_STATS {'target': 'px4', 'sent_cf2': 0, 'sent_px4': 0, 'running': True, 'rate_hz': 10, 'skipped': 0, 'send_failed': 0, 'last_seq': 0}
+>>> =DONE
+>>> 
+[sim] EOF on stdin, exiting
+[sim] REPL task done, terminating process

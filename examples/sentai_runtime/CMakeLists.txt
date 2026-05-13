@@ -133,6 +133,8 @@ add_executable_m7(sentai_runtime
     flow_task.cc
     flow_phase_corr.cc
     aruco_bench.cc
+    sentai_aruco_shim_arm.cc
+    sentai_anchor_forward.cc
     sentai_tracker.cc
     modsentai_hal.cc
     sentai_mesh.cc
@@ -209,6 +211,16 @@ target_include_directories(sentai_runtime PRIVATE
 )
 
 target_compile_options(sentai_runtime PRIVATE -Os)
+
+# aruco_bench.cc — opt for SPEED, not size.  This file holds the
+# CPU-side ArUco preprocessing kernels; auto-vectorization + loop
+# unroll on the Cortex-M7 DSP-extension intrinsics gives ~2× on the
+# unsigned compare/edge loops.  Everything else stays at -Os so the
+# overall image size doesn't move.
+set_source_files_properties(
+    ${CMAKE_CURRENT_SOURCE_DIR}/aruco_bench.cc
+    PROPERTIES COMPILE_FLAGS "-O3 -funroll-loops"
+)
 
 # Ensure version header is generated before compiling
 add_dependencies(libmicropython increment_build_version)

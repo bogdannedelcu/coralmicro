@@ -1,0 +1,14 @@
+[cf2_headless] starting Xvfb on :99 (Garden render needs X to drive sensor cameras)
+[cf2_headless] starting gz sim with DISPLAY=:99 world=sentai_crazysim
+[cf2_headless] DEBUG: which python3 = /usr/bin/python3
+[cf2_headless] DEBUG: PYTHONPATH='/usr/lib/python3/dist-packages:/usr/local/lib/python3.10/dist-packages:'
+[DEBUG] sys.path[0..3] = ['', '/usr/lib/python3/dist-packages', '/usr/local/lib/python3.10/dist-packages']
+[DEBUG] jinja2 OK /usr/lib/python3/dist-packages/jinja2/__init__.py
+/home/bogdan/work/crazyflie/CrazySim/crazyflie-firmware/tools/crazyflie-simulation/simulator_files/gazebo/models/crazyflie/model.sdf.jinja -> /tmp/crazyflie_0.sdf
+[cf2_headless] DEBUG: which python3 = /usr/bin/python3
+[cf2_headless] DEBUG: PYTHONPATH = '/usr/lib/python3/dist-packages:/usr/local/lib/python3.10/dist-packages:'
+[cf2_headless] DEBUG sys.path: ['', '/usr/lib/python3/dist-packages', '/usr/local/lib/python3.10/dist-packages', '/home/bogdan/work/crazyflie/CrazySim/crazyflie-firmware/sitl_make/build/0', '/usr/lib/python310.zip', '/usr/lib/python3.10', '/usr/lib/python3.10/lib-dynload', '/home/bogdan/.local/lib/python3.10/site-packages']
+[cf2_headless] DEBUG jinja2: /usr/lib/python3/dist-packages/jinja2/__init__.py
+[cf2_headless] spawning crazyflie_0 at 0 0 via EntityFactory service
+[cf2_headless] cf2 PID 880497, gz PID 880296
+[cf2_headless] launch done

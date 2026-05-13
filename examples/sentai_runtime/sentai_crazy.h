@@ -98,6 +98,17 @@ int sentai_crazy_hover(float vx, float vy, float yaw_rate, float z_distance);
 int sentai_crazy_send_crtp(uint8_t port, uint8_t channel,
                            const uint8_t* data, int len);
 
+// ===================== External Position (POSITION_CH) =====================
+// Send drone WORLD position (x, y, z in metres) to Crazyflie's
+// locsrv → EKF as an absolute pose update.  Wire format matches
+// Crazyflie firmware's `EXT_POSITION` packet:
+//   CRTP port 6 (LOCALIZATION), channel 1 (POSITION_CH), 12 bytes
+//   payload = 3 × little-endian float32 (x_m, y_m, z_m).
+// Crazyflie expects WORLD ENU coordinates, same convention as our
+// sentai_aruco_pose_t — no transform needed.  Returns 0 on success,
+// -1 if bridge not running, negative on send failure.
+int sentai_crazy_send_ext_position(float x_m, float y_m, float z_m);
+
 // ===================== Status / Ping =====================
 // Ping CrazyFlie via CRTP echo (LINK port 0x0F, channel 0).
 // Sends 4 bytes, waits for echo response.

@@ -1,0 +1,12 @@
+[bridge] topic=/downward_cam/image in=/tmp/sentai_cam.sock out=/tmp/sentai_flow_out.sock
+[bridge] connected to sentai_sim on /tmp/sentai_cam.sock
+[bridge] listening flow-out on /tmp/sentai_flow_out.sock
+[bridge] subscribed; Ctrl-C to stop
+[bridge_recv] seq=30 stamp=3.268000000 data_crc=0x1c4caab0 size=921600
+[bridge] seq=30  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=30 pub=0)
+[bridge_recv] seq=60 stamp=4.260000000 data_crc=0x220d56bb size=921600
+[bridge] seq=60  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=60 pub=0)
+[bridge_recv] seq=90 stamp=5.248000000 data_crc=0xafb5ddfb size=921600
+[bridge] seq=90  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=90 pub=0)
+[bridge_recv] seq=120 stamp=6.240000000 data_crc=0x9c5a72da size=921600
+[bridge] seq=120  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=120 pub=0)

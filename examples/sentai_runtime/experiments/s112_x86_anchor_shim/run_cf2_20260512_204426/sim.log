@@ -1,0 +1,56 @@
+[sim] sentai_sim build #108 (2026-05-12 20:28:02)
+[sim] FreeRTOS POSIX port: tick=1000 Hz, heap=4194304 bytes
+[sim] MicroPython heap: 262144 bytes
+
+MicroPython on SentAI SIM (FreeRTOS POSIX port + MicroPython embed)
+Type expressions, end with Enter.  Ctrl-D or 'exit' to quit.
+Try: sentai.version(), sentai.fs.write(...), help()
+
+>>> >>> aruco_shim: SIM ready, bound to /tmp/sentai_aruco_pose_recv.sock, awaiting /tmp/sentai_aruco_pose.sock
+'anchor'
+>>> =ANCHOR_READY
+>>> camera_bridge: listening on /tmp/sentai_cam.sock (waiting for Gazebo bridge)
+ANCHOR 1 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 2 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 3 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 4 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 5 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 6 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 7 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 8 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 9 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 10 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 11 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 12 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 13 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 14 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 15 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 16 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 17 False 0 0.0 0.0 0.0 0
+>>> ANCHOR 18 True 2 -0.3591819 -0.006037757 0.7818214 4
+>>> ANCHOR 19 True 1 0.5538423 -0.1527567 0.7873507 10
+>>> ANCHOR 20 True 3 -0.1328142 0.1391787 0.9662503 18
+>>> ANCHOR 21 True 1 -0.512146 -0.1356842 1.031669 27
+>>> ANCHOR 22 True 2 0.4430989 0.05864372 1.118351 37
+>>> ANCHOR 23 True 4 0.03052536 -0.02577661 1.190628 46
+>>> ANCHOR 24 True 4 0.06553198 -0.005356964 1.163218 56
+>>> ANCHOR 25 True 2 -0.2665634 0.2002063 1.175526 66
+>>> ANCHOR 26 True 2 0.4579588 0.1829666 1.18976 75
+>>> ANCHOR 27 True 1 -0.4464105 0.04890123 1.037915 85
+>>> ANCHOR 28 True 2 0.01266119 0.2137223 1.100272 94
+>>> ANCHOR 29 True 1 -0.3739225 -0.03011474 1.021921 104
+>>> ANCHOR 30 True 1 -0.4099712 0.1629822 1.094274 114
+>>> ANCHOR 31 True 2 -0.3132011 0.1642077 1.02016 124
+>>> ANCHOR 32 True 2 -0.3550436 -0.0595859 1.031691 133
+>>> ANCHOR 33 True 2 -0.3916812 0.09705898 1.059739 143
+>>> ANCHOR 34 True 2 -0.2480447 0.0471775 1.135275 153
+>>> ANCHOR 35 True 2 -0.1074975 0.04123044 1.120323 163
+>>> ANCHOR 36 True 2 -0.2847918 0.2411565 1.133664 173
+>>> ANCHOR 37 True 2 -0.1541489 0.05783207 1.126314 183
+>>> ANCHOR 38 True 2 -0.2290186 0.1323317 1.132609 193
+>>> ANCHOR 39 True 2 -0.2938429 0.08091745 1.133281 203
+>>> ANCHOR 40 True 2 -0.07855746 0.2450877 1.060439 213
+>>> =DONE
+>>> 
+[sim] EOF on stdin, exiting
+[sim] REPL task done, terminating process

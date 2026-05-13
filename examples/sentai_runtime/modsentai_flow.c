@@ -8,6 +8,16 @@
 #include <string.h>
 
 #include "flow_shared.h"
+#include "sentai_aruco_shim.h"
+
+// Mode flag — see sentai.flow.mode().  0 = normal (flow only),
+// 1 = anchor (flow + ArUco VPE publish).  Polled by flow_task
+// (ARM) and camera_bridge_recv (SIM).
+//
+// Single writer (MicroPython REPL via mode()), multiple readers.
+// `volatile` is enough — atomicity of a single uint32 store is
+// guaranteed on both ARM Cortex-M7 and x86_64.
+volatile uint32_t g_flow_anchor_mode = 0;
 
 extern int      sentai_flow_enable(void);
 extern int      sentai_flow_start(int cam_id);
@@ -224,6 +234,138 @@ static mp_obj_t mod_sentai_flow_perf(void) {
 static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_flow_perf_obj,
                                   mod_sentai_flow_perf);
 
+// sentai.flow.mode(name) -> str
+//
+// Switches the optical-flow path between "normal" (flow only — the
+// default) and "anchor" (flow + per-frame ArUco detection that
+// publishes drone WORLD pose).  Returns the active mode after the
+// call.  Architecture: see sentai_aruco_shim.h.
+//
+//   sentai.flow.mode()           -> read current mode
+//   sentai.flow.mode("normal")   -> back to flow-only
+//   sentai.flow.mode("anchor")   -> enable anchor + lazy-init shim
+__attribute__((section(".sdram_text"), noinline))
+static mp_obj_t mod_sentai_flow_mode(size_t n_args, const mp_obj_t* args) {
+    if (n_args >= 1) {
+        size_t len = 0;
+        const char* s = mp_obj_str_get_data(args[0], &len);
+        if (len == 6 && strncmp(s, "normal", 6) == 0) {
+            g_flow_anchor_mode = 0;
+        } else if (len == 6 && strncmp(s, "anchor", 6) == 0) {
+            sentai_aruco_init();          // idempotent
+            g_flow_anchor_mode = 1;
+        } else {
+            mp_raise_msg_varg(&mp_type_ValueError,
+                              MP_ERROR_TEXT("flow.mode expects 'normal' or 'anchor'"));
+        }
+    }
+    const char* name = (g_flow_anchor_mode == 1) ? "anchor" : "normal";
+    return mp_obj_new_str(name, strlen(name));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_flow_mode_obj,
+                                            0, 1, mod_sentai_flow_mode);
+
+// sentai.flow.anchor_pose() -> dict
+//
+// Returns the latest snapshot from the ArUco anchor shim.  Available
+// in both 'normal' and 'anchor' modes (in 'normal' the dict will
+// report detected=0 unless a previous anchor session left state).
+// Useful for diagnostics + as a feed for sentai.link.send_vpe(...).
+__attribute__((section(".sdram_text"), noinline))
+static mp_obj_t mod_sentai_flow_anchor_pose(void) {
+    sentai_aruco_pose_t p = {0};
+    sentai_aruco_get_latest(&p);
+    mp_obj_t d = mp_obj_new_dict(9);
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_detected),    mp_obj_new_bool(p.detected));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_num_markers), mp_obj_new_int(p.num_markers));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_x),           mp_obj_new_float(p.x_m));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_y),           mp_obj_new_float(p.y_m));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_z),           mp_obj_new_float(p.z_m));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_yaw),         mp_obj_new_float(p.yaw_rad));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_frame_seq),   mp_obj_new_int_from_uint(p.frame_seq));
+    mp_obj_dict_store(d, mp_obj_new_str("detect_us", 9),   mp_obj_new_int_from_uint(p.detect_us));
+    mp_obj_dict_store(d, mp_obj_new_str("src_ts_ms", 9),   mp_obj_new_int_from_uint(p.src_ts_ms));
+    return d;
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_flow_anchor_pose_obj,
+                                  mod_sentai_flow_anchor_pose);
+
+// sentai.flow.anchor_forward(rate_hz, target="auto") -> int
+//
+// Enables the continuous C++ forwarder task that pushes the latest
+// anchor pose to the flight controller(s) at `rate_hz` Hz.  Stops
+// the task if rate_hz == 0 or target == "off".
+//
+//   target:  "auto" | "px4" | "cf2" | "both" | "off"
+//   rate_hz: 1..200 (capped); 0 stops
+//
+// Returns 0 on success, -1 if FreeRTOS could not spawn the task,
+// -2 if `target` is not one of the accepted names.
+extern int sentai_anchor_forward_start(uint32_t rate_hz,
+                                        const char* target, int target_len);
+extern int sentai_anchor_forward_stop(void);
+extern void sentai_anchor_forward_stats(uint32_t* sent_px4, uint32_t* sent_cf2,
+                                         uint32_t* skipped, uint32_t* last_seq,
+                                         uint32_t* send_failed, uint32_t* running,
+                                         uint32_t* rate_hz, uint32_t* target);
+extern uint32_t sentai_anchor_forward_iters(void);
+extern void sentai_anchor_forward_health(uint32_t* dropped_nonfinite,
+                                          uint32_t* dropped_oob,
+                                          uint32_t* dropped_stale,
+                                          uint32_t* stack_hwm_words);
+
+__attribute__((section(".sdram_text"), noinline))
+static mp_obj_t mod_sentai_flow_anchor_forward(size_t n_args, const mp_obj_t* args) {
+    int rate = (n_args >= 1) ? mp_obj_get_int(args[0]) : 10;
+    const char* tgt = "auto";
+    size_t tgt_len = 4;
+    if (n_args >= 2) tgt = mp_obj_str_get_data(args[1], &tgt_len);
+    int rc = sentai_anchor_forward_start((uint32_t)rate, tgt, (int)tgt_len);
+    if (rc == -2) {
+        mp_raise_msg_varg(&mp_type_ValueError,
+                          MP_ERROR_TEXT("flow.anchor_forward: target must be 'auto'|'px4'|'cf2'|'both'|'off'"));
+    }
+    return mp_obj_new_int(rc);
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_flow_anchor_forward_obj,
+                                            0, 2, mod_sentai_flow_anchor_forward);
+
+// sentai.flow.anchor_forward_stats() -> dict
+__attribute__((section(".sdram_text"), noinline))
+static mp_obj_t mod_sentai_flow_anchor_forward_stats(void) {
+    uint32_t sent_px4 = 0, sent_cf2 = 0, skipped = 0, last_seq = 0;
+    uint32_t send_failed = 0, running = 0, rate_hz = 0, target = 0;
+    sentai_anchor_forward_stats(&sent_px4, &sent_cf2, &skipped, &last_seq,
+                                 &send_failed, &running, &rate_hz, &target);
+    static const char* const TGT_NAMES[] = {"off","auto","px4","cf2","both"};
+    const char* tname = (target < 5) ? TGT_NAMES[target] : "unknown";
+    mp_obj_t d = mp_obj_new_dict(8);
+    mp_obj_dict_store(d, mp_obj_new_str("sent_px4",    8), mp_obj_new_int_from_uint(sent_px4));
+    mp_obj_dict_store(d, mp_obj_new_str("sent_cf2",    8), mp_obj_new_int_from_uint(sent_cf2));
+    mp_obj_dict_store(d, mp_obj_new_str("skipped",     7), mp_obj_new_int_from_uint(skipped));
+    mp_obj_dict_store(d, mp_obj_new_str("last_seq",    8), mp_obj_new_int_from_uint(last_seq));
+    mp_obj_dict_store(d, mp_obj_new_str("send_failed",11), mp_obj_new_int_from_uint(send_failed));
+    mp_obj_dict_store(d, mp_obj_new_str("running",     7), mp_obj_new_bool(running));
+    mp_obj_dict_store(d, mp_obj_new_str("rate_hz",     7), mp_obj_new_int_from_uint(rate_hz));
+    mp_obj_dict_store(d, mp_obj_new_str("target",      6), mp_obj_new_str(tname, strlen(tname)));
+    mp_obj_dict_store(d, mp_obj_new_str("iters",       5), mp_obj_new_int_from_uint(sentai_anchor_forward_iters()));
+    // embeded.md fault-model counters packed as a single tuple to
+    // minimise m_text dict-store call sites.  Order:
+    //   (dropped_nonfinite, dropped_oob, dropped_stale, stack_hwm_words)
+    uint32_t dnf = 0, doob = 0, dst = 0, hwm = 0;
+    sentai_anchor_forward_health(&dnf, &doob, &dst, &hwm);
+    mp_obj_t htup[4] = {
+        mp_obj_new_int_from_uint(dnf),
+        mp_obj_new_int_from_uint(doob),
+        mp_obj_new_int_from_uint(dst),
+        mp_obj_new_int_from_uint(hwm),
+    };
+    mp_obj_dict_store(d, mp_obj_new_str("health", 6), mp_obj_new_tuple(4, htup));
+    return d;
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_flow_anchor_forward_stats_obj,
+                                  mod_sentai_flow_anchor_forward_stats);
+
 // ---- module table ----
 static const mp_rom_map_elem_t sentai_flow_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__),       MP_ROM_QSTR(MP_QSTR_flow) },
@@ -239,6 +381,11 @@ static const mp_rom_map_elem_t sentai_flow_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_period_ms),      MP_ROM_PTR(&mod_sentai_flow_period_ms_obj) },
     { MP_ROM_QSTR(MP_QSTR_pub_stats),      MP_ROM_PTR(&mod_sentai_flow_pub_stats_obj) },
     { MP_ROM_QSTR(MP_QSTR_perf),           MP_ROM_PTR(&mod_sentai_flow_perf_obj) },
+    { MP_ROM_QSTR(MP_QSTR_mode),           MP_ROM_PTR(&mod_sentai_flow_mode_obj) },
+    { MP_ROM_QSTR(MP_QSTR_anchor_pose),    MP_ROM_PTR(&mod_sentai_flow_anchor_pose_obj) },
+    { MP_ROM_QSTR(MP_QSTR_anchor_forward), MP_ROM_PTR(&mod_sentai_flow_anchor_forward_obj) },
+    { MP_ROM_QSTR(MP_QSTR_anchor_forward_stats),
+                                           MP_ROM_PTR(&mod_sentai_flow_anchor_forward_stats_obj) },
 };
 static MP_DEFINE_CONST_DICT(sentai_flow_globals, sentai_flow_globals_table);
 static const mp_obj_module_t sentai_flow_module = {

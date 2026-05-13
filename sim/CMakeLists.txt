@@ -128,6 +128,15 @@ add_executable_sim(sentai_sim
     ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/flow_phase_corr.cc
     ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_fft_shim_sim.c
     ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_pxp_shim_sim.c
+    # Phase 6e — ArUco anchor mode shim.  SIM impl reads pose snapshots
+    # from a Python sidecar (sim/scripts/aruco_pose_publisher.py) over
+    # UDS.  Same C API on ARM (stub today, full M7 detector is s112+).
+    sentai_aruco_shim_sim.c
+    sentai_crazy_stub_sim.c     # Phase 6e — cf2 bridge entry-point stubs
+    # Phase 6e P2 — auto-VPE forwarder task, shared with ARM build.
+    # On SIM, cf2 path is stubbed (no on-board cf2 link); PX4 path
+    # goes through sentai_link_sim.cc::sentai_link_send_vpe.
+    ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_anchor_forward.cc
 )
 target_link_libraries(sentai_sim PRIVATE
     libfreertos_posix

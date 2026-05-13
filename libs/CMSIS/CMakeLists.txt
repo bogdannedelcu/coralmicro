@@ -71,6 +71,18 @@ set(libs_CMSIS_SOURCES
     ${PROJECT_SOURCE_DIR}/third_party/CMSIS/CMSIS/DSP/Source/TransformFunctions/arm_bitreversal2.c
     ${PROJECT_SOURCE_DIR}/third_party/CMSIS/CMSIS/DSP/Source/CommonTables/arm_common_tables.c
     ${PROJECT_SOURCE_DIR}/third_party/CMSIS/CMSIS/DSP/Source/CommonTables/arm_const_structs.c
+
+    # CMSIS-DSP BasicMath / Statistics q7 primitives (int8) — used by
+    # ArUco preprocessing kernels (sentai.diag.aruco_bench).  All
+    # internally use __QADD8 / __QSUB8 / __SXTB16 SIMD intrinsics, same
+    # DSP-extension hardware our hand-written kernels use.
+    # Added 2026-05-12 for s111 M7 ArUco feasibility study.
+    ${PROJECT_SOURCE_DIR}/third_party/CMSIS/CMSIS/DSP/Source/BasicMathFunctions/arm_offset_q7.c
+    ${PROJECT_SOURCE_DIR}/third_party/CMSIS/CMSIS/DSP/Source/BasicMathFunctions/arm_abs_q7.c
+    ${PROJECT_SOURCE_DIR}/third_party/CMSIS/CMSIS/DSP/Source/BasicMathFunctions/arm_dot_prod_q7.c
+    ${PROJECT_SOURCE_DIR}/third_party/CMSIS/CMSIS/DSP/Source/StatisticsFunctions/arm_max_q7.c
+    ${PROJECT_SOURCE_DIR}/third_party/CMSIS/CMSIS/DSP/Source/StatisticsFunctions/arm_min_q7.c
+    ${PROJECT_SOURCE_DIR}/third_party/CMSIS/CMSIS/DSP/Source/StatisticsFunctions/arm_mean_q7.c
 )
 
 set(libs_CMSIS_INCLUDE_DIRECTORIES

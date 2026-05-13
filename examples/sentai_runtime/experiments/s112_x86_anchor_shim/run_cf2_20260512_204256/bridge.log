@@ -1,0 +1,78 @@
+[bridge] topic=/downward_cam/image in=/tmp/sentai_cam.sock out=/tmp/sentai_flow_out.sock
+[bridge] connected to sentai_sim on /tmp/sentai_cam.sock
+[bridge] listening flow-out on /tmp/sentai_flow_out.sock
+[bridge] subscribed; Ctrl-C to stop
+[bridge_recv] seq=30 stamp=7.460000000 data_crc=0x189edd1a size=921600
+[bridge] seq=30  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=30 pub=0)
+[bridge_recv] seq=60 stamp=8.452000000 data_crc=0x189edd1a size=921600
+[bridge] seq=60  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=60 pub=0)
+[bridge_recv] seq=90 stamp=9.440000000 data_crc=0x189edd1a size=921600
+[bridge] seq=90  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=90 pub=0)
+[bridge_recv] seq=120 stamp=10.432000000 data_crc=0x189edd1a size=921600
+[bridge] seq=120  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=120 pub=0)
+[bridge_recv] seq=150 stamp=11.420000000 data_crc=0x189edd1a size=921600
+[bridge] seq=150  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=150 pub=0)
+[bridge_recv] seq=180 stamp=12.412000000 data_crc=0x189edd1a size=921600
+[bridge] seq=180  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=180 pub=0)
+[bridge_recv] seq=210 stamp=13.400000000 data_crc=0x189edd1a size=921600
+[bridge] seq=210  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=210 pub=0)
+[bridge_recv] seq=240 stamp=14.392000000 data_crc=0x189edd1a size=921600
+[bridge] seq=240  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=240 pub=0)
+[bridge_recv] seq=270 stamp=15.380000000 data_crc=0x189edd1a size=921600
+[bridge] seq=270  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=270 pub=0)
+[bridge_recv] seq=300 stamp=16.372000000 data_crc=0x189edd1a size=921600
+[bridge] seq=300  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=300 pub=0)
+[bridge_recv] seq=330 stamp=17.360000000 data_crc=0x189edd1a size=921600
+[bridge] seq=330  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=330 pub=0)
+Exception sending a multicast message:Network is unreachable
+Exception sending a multicast message:Network is unreachable
+Exception sending a multicast message:Network is unreachable
+Exception sending a multicast message:Network is unreachable
+[bridge_recv] seq=360 stamp=18.352000000 data_crc=0x189edd1a size=921600
+[bridge] seq=360  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=360 pub=0)
+Exception sending a multicast message:Network is unreachable
+Exception sending a multicast message:Network is unreachable
+[bridge_recv] seq=390 stamp=19.340000000 data_crc=0x189edd1a size=921600
+[bridge] seq=390  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=390 pub=0)
+Exception sending a multicast message:No such device
+Exception sending a multicast message:No such device
+[bridge_recv] seq=420 stamp=20.332000000 data_crc=0x189edd1a size=921600
+[bridge] seq=420  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=420 pub=0)
+Exception sending a multicast message:No such device
+Exception sending a multicast message:No such device
+[bridge_recv] seq=450 stamp=21.320000000 data_crc=0x189edd1a size=921600
+[bridge] seq=450  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=450 pub=0)
+Exception sending a multicast message:No such device
+Exception sending a multicast message:No such device
+Exception sending a multicast message:No such device
+Exception sending a multicast message:No such device
+[bridge_recv] seq=480 stamp=22.312000000 data_crc=0x189edd1a size=921600
+[bridge] seq=480  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=480 pub=0)
+Exception sending a multicast message:No such device
+Exception sending a multicast message:No such device
+[bridge_recv] seq=510 stamp=23.300000000 data_crc=0x189edd1a size=921600
+[bridge] seq=510  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=510 pub=0)
+Exception sending a multicast message:No such device
+Exception sending a multicast message:No such device
+[bridge_recv] seq=540 stamp=24.292000000 data_crc=0x189edd1a size=921600
+[bridge] seq=540  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=540 pub=0)
+Exception sending a multicast message:No such device
+Exception sending a multicast message:No such device
+[bridge_recv] seq=570 stamp=25.280000000 data_crc=0x189edd1a size=921600
+[bridge] seq=570  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=570 pub=0)
+Exception sending a multicast message:No such device
+Exception sending a multicast message:No such device
+Exception sending a multicast message:No such device
+Exception sending a multicast message:No such device
+[bridge_recv] seq=600 stamp=26.272000000 data_crc=0x189edd1a size=921600
+[bridge] seq=600  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=600 pub=0)
+Exception sending a multicast message:No such device
+Exception sending a multicast message:No such device
+[bridge_recv] seq=630 stamp=27.260000000 data_crc=0x189edd1a size=921600
+[bridge] seq=630  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=630 pub=0)
+Exception sending a multicast message:No such device
+Exception sending a multicast message:No such device
+[bridge_recv] seq=660 stamp=28.252000000 data_crc=0x189edd1a size=921600
+[bridge] seq=660  dx=   +0 dy=   +0 dz=   +0 conf=0 lat=0 us  (in=660 pub=0)
+Exception sending a multicast message:No such device
+Exception sending a multicast message:No such device
