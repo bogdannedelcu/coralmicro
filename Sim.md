@@ -3366,3 +3366,96 @@ Pentru sentai.explore Stage 8 (canonical test scenario):
 Asta protejează arhitectura: dacă **ALGORITMUL** funcționează la
 scale 10× diferit, înseamnă că NU e dependent de scale-specific
 hyperparameters magic numbers — e cu adevărat scale-invariant.
+
+### Floor texture (OSM map background) — aplicarea regulii de scale
+
+**Constrângere matematică confirmată**: drona cf2 la 0.2 m și PX4 la
+2 m văd **bit-identic** aceeași imagine prin cameră (FOV 70°,
+320×240) DOAR DACĂ conținutul fizic e scalat 10×.
+
+```
+cf2 @ 0.2 m:  ground visible = 0.28 m diameter →  pixel @ 0.875 mm/px
+PX4 @ 2.0 m:  ground visible = 2.80 m diameter →  pixel @ 8.75 mm/px
+                                                  Ratio: 10× — IDENTIC
+```
+
+**Aplicat la podea OSM/satellite map**:
+
+Soluția elegantă = **TEXTURA IMAGINE IDENTICĂ; doar world dimensions
+diferă**:
+
+```
+sim/gazebo/worlds/assets/
+  floor_osm_4096.png        ← SAME image, ~4 MB
+
+PX4 world (explore_osm_px4.sdf):
+  floor plane: 20×20 m
+  texture mapped: 1 map_image → 20×20 m physical
+  ⇒ at PX4 altitude 5 m, drone sees 7×7 m of map = 35% of map image
+
+cf2 world (explore_osm_cf2.sdf):
+  floor plane: 2×2 m
+  texture mapped: 1 map_image → 2×2 m physical  ← 10× smaller world
+  ⇒ at cf2 altitude 0.5 m, drone sees 0.7×0.7 m of map = 35% of map image
+                                                     ↑ SAME 35%!
+```
+
+**Rezultat**: drona vede **bit-identic** la altitudini proporționale,
+**fără să generăm a doua texturi**. Doar SDF-ul scalează planul podea.
+
+```xml
+<!-- explore_osm_px4.sdf -->
+<model name="ground_plane">
+    <link name="link">
+        <collision name="collision"><geometry>
+            <plane><normal>0 0 1</normal><size>20 20</size></plane>
+        </geometry></collision>
+        <visual name="visual"><geometry>
+            <plane><normal>0 0 1</normal><size>20 20</size></plane>
+        </geometry><material><pbr><metal>
+            <albedo_map>assets/floor_osm_4096.png</albedo_map>
+        </metal></pbr></material></visual>
+    </link>
+</model>
+
+<!-- explore_osm_cf2.sdf — SAME texture, smaller plane -->
+<model name="ground_plane">
+    <link name="link">
+        <collision><geometry>
+            <plane><normal>0 0 1</normal><size>2 2</size></plane>  <!-- 10× smaller -->
+        </geometry></collision>
+        <visual><geometry>
+            <plane><normal>0 0 1</normal><size>2 2</size></plane>
+        </geometry><material><pbr><metal>
+            <albedo_map>assets/floor_osm_4096.png</albedo_map>  <!-- SAME asset -->
+        </metal></pbr></material></visual>
+    </link>
+</model>
+```
+
+**Win operational**:
+- 1× binary asset în repo (~4 MB, nu 2×)
+- Algoritm identic (descriptori scene match între platforme)
+- Dovedește scale-invariance: dacă cf2 descriptor matches în lumea
+  mică, PX4 descriptor SAME matches în lumea mare, fără re-training
+
+**Excepție**: dacă texturăm cu **detalii sub-pixel-relevant** (ex: text
+mic pe drumuri "STOP"), atunci la cf2 vor fi vizibile la scale fine
+unde nu erau în PX4. Asta-i ACCEPTABIL pentru place recognition
+(diversitate features = mai bun match), NU pentru detection (un
+"STOP" sign de 1 mm la cf2 nu mai e detectabil de YOLO COCO).
+
+### Bottom line — confirmare model dual-scale
+
+**Da, exact**: în Gazebo vom avea **două lumi** cu **proporții
+identice** dar **scale fizic 10× diferit**:
+- Toate obiectele (oameni, mașini, scaune, panouri foto) scalate 10×
+- Texturile (incl. OSM floor map) sunt **același fișier**, mapate pe
+  plane de dimensiuni diferite
+- Drona cf2 la 0.2-2 m vede content identic ca PX4 la 2-20 m
+- Codul firmware (sentai.slam, sentai.explore, sentai.places)
+  rămâne 100% identic — DAR class priors + arena dimensions
+  parametrizate prin config JSON la mission start
+
+**Documentat: confirmat din linkat. Asset floor_osm_4096.png va fi
+shared cross-platform.**
