@@ -44,6 +44,14 @@ cleanup() {
   pkill -x cf2 2>/dev/null || true
   pkill -9 "gz sim" 2>/dev/null || true
   pkill -9 ruby 2>/dev/null || true
+  # Operator noted 2026-05-13: two cf2 instances ("crazyflie_0" +
+  # "crazyflie_0_0") would spawn if a prior run wasn't fully cleaned up
+  # (CrazySim's gz service create has allow_renaming:1 so the second
+  # spawn doesn't error, it just clones the first).  Add an explicit
+  # podman-exec kill inside the distrobox container — pkill from the
+  # host doesn't always reach containerized processes promptly.
+  distrobox enter crazysim-garden -- pkill -9 -f "gz sim\|cf2\|gz_to_uds_bridge" 2>/dev/null || true
+  sleep 1
 }
 trap cleanup SIGINT SIGTERM EXIT
 cleanup
