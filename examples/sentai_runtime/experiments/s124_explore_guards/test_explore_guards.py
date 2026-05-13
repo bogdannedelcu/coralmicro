@@ -15,7 +15,7 @@ Driver:
  11. set_dist_home(0.1) + tick() → PRECISION_LAND
  12. set_alt(0.15) + tick() → COAST_LAND
  13. set_alt(0.02) + tick() → DONE
- 14. Restart and trigger critical-battery abort → EMERGENCY_HOVER
+ 14. Restart, drive to EXPLORE, force timeout via tiny budget → RETURN_HOME
  15. set_thresholds() changes target_alt and re-test transition
 """
 import subprocess, sys
@@ -78,16 +78,19 @@ print("=S12", e.tick())
 e.set_alt(0.02)
 print("=S13", e.tick())
 
-# 14. battery critical from a fresh mission — drive through full chain to EXPLORE
-e.start("battery_test")
+# 14. EXPLORE timeout — set cells below budget, walk past timeout ticks
+e.start("timeout_test")
 e.set_arm_ack(1); e.set_marker(1); e.set_alt(1.0)
 e.tick(); e.tick(); e.tick(); e.tick(); e.tick()  # 5 ticks land in EXPLORE
-print("=B_PRE", e.state())
-e.set_battery(10.0)   # below crit (default 15%)
-print("=B_AFTER", e.tick())
-print("=B_REASON", e.metrics()["abort_reason"])
+print("=TO_PRE", e.state())
+# Make EXPLORE timeout immediately by setting timeout to 1 tick
+e.set_thresholds(0, 0, 0, 0, 0, 1)   # explore_timeout_ticks=1
+print("=TO_AFTER", e.tick())          # state_ticks ≥ 1 → RETURN_HOME
+print("=TO_REASON", e.metrics()["abort_reason"])   # 1 = TIMEOUT
 
 # 15. set_thresholds — raise target_alt to 2.0 m, verify TAKEOFF holds at 1.5m
+# Move FSM to ABORT first since RETURN_HOME isn't a restartable terminal state
+e.abort()
 e.start("th_test")
 e.set_thresholds(2.0)   # target_alt = 2.0
 e.set_arm_ack(1); e.set_marker(1)
@@ -142,9 +145,9 @@ check("dist_home large holds",              "=S10", "RETURN_HOME")
 check("dist_home small → PRECISION_LAND",   "=S11", "PRECISION_LAND")
 check("alt below safe_land → COAST_LAND",   "=S12", "COAST_LAND")
 check("alt below done_alt → DONE",          "=S13", "DONE")
-check("pre-battery state EXPLORE",          "=B_PRE",     "EXPLORE")
-check("battery critical → EMERGENCY_HOVER", "=B_AFTER",   "EMERGENCY_HOVER")
-check("abort_reason = 1 (BATTERY_CRIT)",    "=B_REASON",  "1")
+check("pre-timeout state EXPLORE",          "=TO_PRE",    "EXPLORE")
+check("explore timeout → RETURN_HOME",      "=TO_AFTER",  "RETURN_HOME")
+check("abort_reason = 1 (TIMEOUT)",         "=TO_REASON", "1")
 check("threshold change: 1.5m holds",       "=TH_HOLD",   "TAKEOFF")
 check("threshold change: 2.0m goes",        "=TH_GO",     "ESTABLISH_BASELINE")
 

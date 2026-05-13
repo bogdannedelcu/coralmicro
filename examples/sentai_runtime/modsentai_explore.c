@@ -68,26 +68,27 @@ static uint32_t     g_exp_abort_reason   = 0;
 // future C-side mission task that polls the actual sources).  Negative
 // sentinels mean "unknown" — guards default to NOT-READY, so a state will
 // hold until the relevant input is supplied.
+//
+// NB: battery / IMU / link sensors do NOT live here.  Hardware-side
+// safety lives in a separate sentai.safety FSM (out of scope for the
+// objects_plan / world-model stack).  This module only tracks
+// mission-progress signals.
 static float g_exp_alt_m            = -1.0f;   /* drone altitude AGL (m), -1 = unknown */
-static float g_exp_battery_pct      = -1.0f;   /* 0..100,                  -1 = unknown */
 static int   g_exp_marker_visible   = -1;      /* 0 / 1,                   -1 = unknown */
 static float g_exp_dist_home_m      = -1.0f;   /* dist from home (m),      -1 = unknown */
 static int   g_exp_cells_visited    = 0;       /* monotonic counter         */
 static int   g_exp_arm_ack          = -1;      /* 0 / 1,                   -1 = unknown */
 
-// Stage 3.B abort codes — exposed in metrics().  Numeric so the wire format
-// is stable; descriptive names are exposed via abort_reason() helper.
-#define EXP_ABORT_BATTERY_CRITICAL  1
-#define EXP_ABORT_LOST_MARKER       2
-#define EXP_ABORT_TIMEOUT           3
-#define EXP_ABORT_OPERATOR          4
+// Mission-side abort codes — exposed in metrics().  Hardware safety
+// aborts (battery critical, link loss, IMU fault) come from a
+// separate sentai.safety FSM and are NOT defined here.
+#define EXP_ABORT_TIMEOUT       1
+#define EXP_ABORT_OPERATOR      2
 
 // Stage 3.B — runtime-tunable thresholds.  Defaults safe for cf2 indoor.
 static float g_exp_target_alt_m       = 1.0f;    /* TAKEOFF complete when alt ≥ this */
 static float g_exp_safe_land_alt_m    = 0.20f;   /* PRECISION → COAST when alt < this */
 static float g_exp_done_alt_m         = 0.05f;   /* COAST → DONE                       */
-static float g_exp_battery_low_pct    = 25.0f;   /* warn / start RTH                   */
-static float g_exp_battery_crit_pct   = 15.0f;   /* immediate EMERGENCY_HOVER          */
 static int   g_exp_explore_cell_budget= 8;       /* EXPLORE → RTH when cells_visited ≥ */
 static float g_exp_dist_home_tol_m    = 0.30f;   /* RETURN_HOME → PRECISION_LAND       */
 static uint32_t g_exp_explore_timeout_ticks = 600; /* hard timeout for EXPLORE         */
@@ -103,34 +104,17 @@ static void exp_goto(exp_state_t next) {
     g_exp_transitions++;
 }
 
-// Stage 3.B — pre-check global aborts that override any normal transition.
-//   - Battery critical: drop everything, hover (operator triggers land).
-// Returns 1 if state was forced; caller skips normal transition logic.
-static int exp_check_aborts(void) {
-    if (g_exp_battery_pct >= 0.0f &&
-        g_exp_battery_pct < g_exp_battery_crit_pct) {
-        if (g_exp_state != EXP_EMERGENCY_HOVER &&
-            g_exp_state != EXP_ABORT &&
-            g_exp_state != EXP_DONE) {
-            g_exp_abort_reason = EXP_ABORT_BATTERY_CRITICAL;
-            exp_goto(EXP_EMERGENCY_HOVER);
-            return 1;
-        }
-    }
-    return 0;
-}
-
 // State step — called per tick.  Returns next state.
 // Stage 3.B: tick budgets replaced with guard expressions over the
-// sensor inputs set via set_alt() / set_battery() / set_marker() / etc.
+// mission-progress inputs (set_alt / set_marker / set_dist_home /
+// set_cells_visited / set_arm_ack).  Hardware-side safety (battery,
+// link, IMU) is NOT considered here — that's the sentai.safety FSM's
+// job (out of scope for objects_plan; tracked separately).
 // If an input remains at its sentinel ("unknown"), the corresponding
 // guard returns false and the state holds — that's the safe default.
 static exp_state_t exp_step(void) {
     g_exp_ticks++;
     g_exp_state_ticks++;
-
-    /* Global pre-check — battery critical overrides everything. */
-    if (exp_check_aborts()) return g_exp_state;
 
     switch (g_exp_state) {
         case EXP_IDLE:
@@ -158,13 +142,10 @@ static exp_state_t exp_step(void) {
             if (g_exp_state_ticks >= 3) exp_goto(EXP_EXPLORE);
             break;
         case EXP_EXPLORE:
-            /* Exit when (a) explored cell budget hit, (b) battery low (not
-             * critical — critical hits the abort above), or (c) hard
-             * tick timeout.  Whichever fires first. */
+            /* Exit when explored cell budget is hit, or the hard tick
+             * timeout fires.  Whichever comes first.  (Hardware safety
+             * — battery, link — is handled by sentai.safety, not here.) */
             if (g_exp_cells_visited >= g_exp_explore_cell_budget) {
-                exp_goto(EXP_RETURN_HOME);
-            } else if (g_exp_battery_pct >= 0.0f &&
-                       g_exp_battery_pct < g_exp_battery_low_pct) {
                 exp_goto(EXP_RETURN_HOME);
             } else if (g_exp_state_ticks >= g_exp_explore_timeout_ticks) {
                 g_exp_abort_reason = EXP_ABORT_TIMEOUT;
@@ -203,13 +184,12 @@ static exp_state_t exp_step(void) {
 // ===================== MicroPython bindings =====================
 
 static mp_obj_t mod_explore_start(size_t n_args, const mp_obj_t* args) {
-    /* Allow restart from terminal / safety-hold states.  Stage 3.B added
-     * EMERGENCY_HOVER to this list — the operator can clear a battery-
-     * critical halt by re-issuing start() after swapping packs. */
-    if (g_exp_state != EXP_IDLE         &&
-        g_exp_state != EXP_DONE         &&
-        g_exp_state != EXP_ABORT        &&
-        g_exp_state != EXP_EMERGENCY_HOVER) {
+    /* Allow restart from terminal states only.  EMERGENCY_HOVER is owned
+     * by the (future) sentai.safety FSM — it must clear that hold before
+     * a fresh mission can launch. */
+    if (g_exp_state != EXP_IDLE  &&
+        g_exp_state != EXP_DONE  &&
+        g_exp_state != EXP_ABORT) {
         return mp_obj_new_int(-1);   // already running
     }
     const char* lbl = "default";
@@ -227,7 +207,6 @@ static mp_obj_t mod_explore_start(size_t n_args, const mp_obj_t* args) {
     g_exp_abort_reason = 0;
     /* Stage 3.B — sensor inputs reset to unknown so guards hold by default */
     g_exp_alt_m          = -1.0f;
-    g_exp_battery_pct    = -1.0f;
     g_exp_marker_visible = -1;
     g_exp_dist_home_m    = -1.0f;
     g_exp_cells_visited  = 0;
@@ -301,13 +280,6 @@ static mp_obj_t mod_explore_set_alt(mp_obj_t v) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(mod_explore_set_alt_obj, mod_explore_set_alt);
 
-// set_battery(pct) -> None
-static mp_obj_t mod_explore_set_battery(mp_obj_t v) {
-    g_exp_battery_pct = mp_obj_get_float(v);
-    return mp_const_none;
-}
-static MP_DEFINE_CONST_FUN_OBJ_1(mod_explore_set_battery_obj, mod_explore_set_battery);
-
 // set_marker(visible_0_or_1) -> None
 static mp_obj_t mod_explore_set_marker(mp_obj_t v) {
     g_exp_marker_visible = mp_obj_get_int(v) ? 1 : 0;
@@ -336,22 +308,21 @@ static mp_obj_t mod_explore_set_arm_ack(mp_obj_t v) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(mod_explore_set_arm_ack_obj, mod_explore_set_arm_ack);
 
-// set_thresholds(target_alt, safe_land_alt, batt_low, batt_crit,
-//                cell_budget, dist_home_tol [, done_alt [, explore_timeout]])
-// All positional; pass any -1 / 0 sentinel to keep the current value.
+// set_thresholds(target_alt [, safe_land_alt [, cell_budget
+//                [, dist_home_tol [, done_alt [, explore_timeout]]]]])
+// All positional; pass 0 or negative to keep the current value.
+// Hardware safety thresholds (battery, link, IMU) belong in sentai.safety.
 static mp_obj_t mod_explore_set_thresholds(size_t n_args, const mp_obj_t *args) {
     if (n_args >= 1) { float v = mp_obj_get_float(args[0]); if (v > 0) g_exp_target_alt_m       = v; }
     if (n_args >= 2) { float v = mp_obj_get_float(args[1]); if (v > 0) g_exp_safe_land_alt_m    = v; }
-    if (n_args >= 3) { float v = mp_obj_get_float(args[2]); if (v > 0) g_exp_battery_low_pct    = v; }
-    if (n_args >= 4) { float v = mp_obj_get_float(args[3]); if (v > 0) g_exp_battery_crit_pct   = v; }
-    if (n_args >= 5) { int   i = mp_obj_get_int  (args[4]); if (i > 0) g_exp_explore_cell_budget= i; }
-    if (n_args >= 6) { float v = mp_obj_get_float(args[5]); if (v > 0) g_exp_dist_home_tol_m    = v; }
-    if (n_args >= 7) { float v = mp_obj_get_float(args[6]); if (v > 0) g_exp_done_alt_m         = v; }
-    if (n_args >= 8) { uint32_t u = (uint32_t)mp_obj_get_int(args[7]); if (u > 0) g_exp_explore_timeout_ticks = u; }
+    if (n_args >= 3) { int   i = mp_obj_get_int  (args[2]); if (i > 0) g_exp_explore_cell_budget= i; }
+    if (n_args >= 4) { float v = mp_obj_get_float(args[3]); if (v > 0) g_exp_dist_home_tol_m    = v; }
+    if (n_args >= 5) { float v = mp_obj_get_float(args[4]); if (v > 0) g_exp_done_alt_m         = v; }
+    if (n_args >= 6) { uint32_t u = (uint32_t)mp_obj_get_int(args[5]); if (u > 0) g_exp_explore_timeout_ticks = u; }
     return mp_const_none;
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_explore_set_thresholds_obj,
-                                            1, 8, mod_explore_set_thresholds);
+                                            1, 6, mod_explore_set_thresholds);
 
 // ===================== Module table =====================
 
@@ -365,7 +336,6 @@ static const mp_rom_map_elem_t sentai_explore_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_metrics),  MP_ROM_PTR(&mod_explore_metrics_obj) },
     /* Stage 3.B sensor input + threshold setters */
     { MP_ROM_QSTR(MP_QSTR_set_alt),            MP_ROM_PTR(&mod_explore_set_alt_obj) },
-    { MP_ROM_QSTR(MP_QSTR_set_battery),        MP_ROM_PTR(&mod_explore_set_battery_obj) },
     { MP_ROM_QSTR(MP_QSTR_set_marker),         MP_ROM_PTR(&mod_explore_set_marker_obj) },
     { MP_ROM_QSTR(MP_QSTR_set_dist_home),      MP_ROM_PTR(&mod_explore_set_dist_home_obj) },
     { MP_ROM_QSTR(MP_QSTR_set_cells_visited),  MP_ROM_PTR(&mod_explore_set_cells_visited_obj) },

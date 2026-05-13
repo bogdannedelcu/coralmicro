@@ -661,6 +661,7 @@ Total: ~3-4 săptămâni dezvoltare focusată (estimat conservativ).
 - **CubeSLAM / QuadricSLAM cuboid landmarks** — point + class lookup is the MCU-appropriate choice (concept §8.5).
 - **Behavior Trees** — FSM remains clearer for < 15 states (concept §9 reference Colledanchise & Ögren).
 - **Magnetometer** — explicitly out (concept hardware spec). Loop closure substitutes.
+- **Hardware safety state machine (`sentai.safety`)** — battery thresholds, link-loss aborts, IMU faults, geofence breaches, watchdog handlers. Tracked in a **separate plan**, NOT in this objects_plan. The mission FSM (`sentai.explore`, Stage 3) communicates with `sentai.safety` via a thin handshake (safety can force-hold or force-land the mission) but never owns the safety logic itself. Don't push battery / link / IMU thresholds into `sentai.explore` guards — they belong in `sentai.safety`.
 
 ---
 
