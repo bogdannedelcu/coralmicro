@@ -122,6 +122,10 @@ add_executable_sim(sentai_sim
     sentai_link_sim.cc            # Phase 6 — slim MAVLink bridge (heartbeat/statustext)
     # Phase 5b — SentAI-SORT tracker, shared with ARM (BoT-SORT adapted).
     ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_tracker.cc
+    # ObjectsPlan L2 — persistent world-frame object map (pure data + math,
+    # single .cc shared with ARM via the SENTAI_PLATFORM_SIM ifdef in the
+    # source).
+    ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_objects.cc
     # Phase 4 — flow algorithm shared between ARM and SIM.
     # flow_phase_corr.cc compiles unchanged on both targets thanks to
     # sentai_fft_shim.h (CMSIS on ARM, FFTW3 wrapper on SIM).

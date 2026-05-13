@@ -330,6 +330,12 @@ SECTIONS
      *sentai_crazy.cc.obj(.text .text*)
      *sentai_crazy.cc.obj(.data .data*)
      *sentai_crazy.cc.obj(.rodata .rodata*)
+     /* ObjectsPlan L2 (2026-05-13): persistent world-frame object map.
+        Pure cold-path data layer, no per-frame work — same SDRAM
+        treatment as sentai_tracker.cc.  Per [[itcm-budget]]. */
+     *sentai_objects.cc.obj(.text .text*)
+     *sentai_objects.cc.obj(.data .data*)
+     *sentai_objects.cc.obj(.rodata .rodata*)
      __sentai_slow_end = .;
      . = ALIGN(4);
   } > m_sdram

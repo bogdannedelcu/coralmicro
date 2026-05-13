@@ -134,6 +134,7 @@ add_executable_m7(sentai_runtime
     flow_phase_corr.cc
     aruco_bench.cc
     sentai_tracker.cc
+    sentai_objects.cc
     modsentai_hal.cc
     sentai_mesh.cc
     sentai_link.cc

@@ -49,7 +49,17 @@ extern "C" {
 #define SERR_MOD_TPU     0x0B00
 #define SERR_MOD_LFX     0x0D00  /* FileX/LevelX migration (0x0Dxx) */
 #define SERR_MOD_FLOW    0x0E00  /* sentai.flow stack (0x0Exx) */
+#define SERR_MOD_OBJ     0x1000  /* sentai.objects map     (0x10xx) */
 #define SERR_MOD_SYS     0x0F00
+
+// ===================== Objects-map Errors (0x10xx) — ObjectsPlan L2 ===
+// Returned as negative ints by sentai_objects_add/get/remove/etc.; logged
+// as positive 0x10xx codes when ingestion is wired from C tasks (L4+).
+#define SERR_OBJ_OOB_INPUT       (SERR_MOD_OBJ | 0x01) // NaN/Inf or class>=DICT_MAX (val=class_id)
+#define SERR_OBJ_BAD_ID          (SERR_MOD_OBJ | 0x02) // get/remove/mark with unknown id (val=id)
+#define SERR_OBJ_FULL            (SERR_MOD_OBJ | 0x40) // map full and no STALE to evict
+#define SERR_OBJ_EVICTED         (SERR_MOD_OBJ | 0x10) // STALE slot reclaimed (val=evicted_id)
+#define SERR_OBJ_COV_CLAMPED     (SERR_MOD_OBJ | 0x11) // input cov diagonal clamped to σ_min² (val=id)
 
 // ===================== Flow Errors (0x0Exx) =====================
 #define SERR_FLOW_M4_NOT_ALIVE       (SERR_MOD_FLOW | 0x01) // magic timeout at enable

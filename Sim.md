@@ -3306,3 +3306,50 @@ wind sweep) care testează altă proprietate.
 Patch-ul `world_no_wind.patch` este intenționat **mai îngust** decât
 `world_half_wind.patch` original — schimbă DOAR wind, lasă motor
 asymmetry/IMU noise neatinse ca să rămână stres realist intern.
+
+## 10w. Running Python tests against `sentai_sim` REPL (2026-05-13)
+
+The minimal MicroPython embed REPL in `sentai_sim` is a **friendly,
+line-buffered REPL**.  This means:
+
+- Multi-line `def` / `if` / `for` blocks pasted via stdin do NOT survive
+  — each line is parsed independently and indented bodies trigger
+  `IndentationError` because the previous `def` line was already executed
+  in isolation.
+- Paste mode (`Ctrl-E … Ctrl-D`) is NOT implemented in this embed port.
+- `open(...)` is NOT exposed — the embed port has no file builtin.
+- Wrapping the script in a single-line `exec("…")` works for trivial
+  scripts but breaks on any `"` character or multi-line string literal.
+
+**Recipe that works**: write the test script as a real `.py` file under
+the SIM virtual FS root, then `import` it from REPL.
+
+```bash
+# 1. Drop the test into the SIM filesystem root.
+#    By default this is ${CMAKE_BINARY_DIR}/sentai_fs_root (i.e.
+#    build-sim/sentai_fs_root); override via SENTAI_SIM_ROOT env var.
+cp examples/sentai_runtime/diag/_t_01_objects.py \
+   build-sim/sentai_fs_root/t01_objects.py     # NOTE: drop the leading
+                                                # underscore — Python
+                                                # identifiers can't start
+                                                # with `_`-prefixed names
+                                                # in `import`.
+
+# 2. Trigger via REPL stdin.  `import t01_objects` runs the module
+#    top-level code, which uses `print()` for visible PASS/FAIL output.
+echo 'import t01_objects' | ./build-sim/sim/sentai_sim
+```
+
+Why this works: `mp_import_stat()` in `sim/main_sim.c` walks `sys.path`
+(which `main_sim.c` initializes with `'/'` and `''`), calls into
+`sim_fs_root()` for the on-disk lookup, and `mp_lexer_new_from_file()`
+parses the file as a single compilation unit — bypassing the line-by-line
+REPL parser entirely.
+
+**`diag/_t_*` convention**: on-board diag tests start with `_` so the
+chunked uploader picks them up; for SIM use, copy WITHOUT the leading
+underscore so they import as plain Python modules.
+
+This recipe should be reused for every SIM test from L2 onwards — see
+`examples/sentai_runtime/experiments/s127_flowbaseline/` and any
+`diag/_t_*.py` driver.

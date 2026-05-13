@@ -1362,6 +1362,13 @@ static const mp_obj_module_t sentai_link_module = {
 };
 
 
+// ObjectsPlan L2 — sentai.objects.  Pure data-layer binding shared with
+// ARM via #include of the canonical source under examples/sentai_runtime/.
+// Keeps ARM and SIM exposing an identical surface; backing store + math
+// live in sentai_objects.{h,cc} (also in this build via sim/CMakeLists.txt).
+#include "../examples/sentai_runtime/modsentai_objects.c"
+
+
 static const mp_rom_map_elem_t sentai_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_sentai) },
     { MP_ROM_QSTR(MP_QSTR_version),  MP_ROM_PTR(&sentai_version_obj) },
@@ -1376,6 +1383,7 @@ static const mp_rom_map_elem_t sentai_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_tpu),      MP_ROM_PTR(&sentai_tpu_module) },
     { MP_ROM_QSTR(MP_QSTR_pipeline), MP_ROM_PTR(&sentai_pipeline_module) },
     { MP_ROM_QSTR(MP_QSTR_link),     MP_ROM_PTR(&sentai_link_module) },
+    { MP_ROM_QSTR(MP_QSTR_objects),  MP_ROM_PTR(&sentai_objects_module) },
 };
 static MP_DEFINE_CONST_DICT(sentai_globals, sentai_globals_table);
 
