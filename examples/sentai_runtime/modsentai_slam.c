@@ -992,6 +992,60 @@ static mp_obj_t mod_slam_imu_correct(mp_obj_t pitch_obj, mp_obj_t roll_obj) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_2(mod_slam_imu_correct_obj, mod_slam_imu_correct);
 
+// ===================== Class size prior (Stage 1.B, 2026-05-13) =====================
+//
+// Class-specific real-world size in metres, used by upcoming
+// `update_3d` (Stage 1.C) to compute pseudo-depth from bbox pixel
+// width: depth_est ≈ focal * real_size_class / pixel_w.
+//
+// Static array indexed by class_id (0..63).  Zero = unknown / no
+// prior available (caller must use default range or skip lift).
+//
+// NASA/JPL: bounded array, no heap, explicit bounds check on
+// class_id at set/get time.  Compile-time guarantees: NUM_CLASS_PRIOR
+// is fixed; OOB class_id rejected with -1.
+#define SLAM_NUM_CLASS_PRIOR 64
+static float g_slam_class_prior_m[SLAM_NUM_CLASS_PRIOR] = {0};
+
+// sentai.slam.set_class_prior(class_id, real_size_m) -> int
+//
+//   class_id     int in [0, 63]; out-of-range rejected with -1
+//   real_size_m  float metres > 0; non-finite or <=0 rejected with -2
+//                Passing 0.0 explicitly clears the prior for that class.
+//
+// Returns 0 on success, negative on input fault.  No state side-effect
+// outside the class_id row.
+static mp_obj_t mod_slam_set_class_prior(mp_obj_t cls_obj, mp_obj_t size_obj) {
+    int class_id = mp_obj_get_int(cls_obj);
+    float size_m = mp_obj_get_float(size_obj);
+    if (class_id < 0 || class_id >= SLAM_NUM_CLASS_PRIOR) {
+        return mp_obj_new_int(-1);
+    }
+    // Allow exactly 0.0 to mean "clear prior" — but reject NaN/Inf/negative.
+    // IEEE-754 bit-pattern check: exponent==0xFF → NaN/Inf.
+    union { float f; uint32_t u; } v;
+    v.f = size_m;
+    if ((v.u & 0x7F800000u) == 0x7F800000u) return mp_obj_new_int(-2);
+    if (size_m < 0.0f) return mp_obj_new_int(-2);
+    g_slam_class_prior_m[class_id] = size_m;
+    return mp_obj_new_int(0);
+}
+static MP_DEFINE_CONST_FUN_OBJ_2(mod_slam_set_class_prior_obj, mod_slam_set_class_prior);
+
+// sentai.slam.class_prior(class_id) -> float
+//   Returns the stored real-world size for the class.  0.0 = unset.
+//   Out-of-range class_id raises ValueError.
+static mp_obj_t mod_slam_class_prior(mp_obj_t cls_obj) {
+    int class_id = mp_obj_get_int(cls_obj);
+    if (class_id < 0 || class_id >= SLAM_NUM_CLASS_PRIOR) {
+        mp_raise_msg_varg(&mp_type_ValueError,
+                          MP_ERROR_TEXT("class_id out of range [0, %d)"),
+                          SLAM_NUM_CLASS_PRIOR);
+    }
+    return mp_obj_new_float(g_slam_class_prior_m[class_id]);
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(mod_slam_class_prior_obj, mod_slam_class_prior);
+
 // sentai.slam.clear() -> None
 static mp_obj_t mod_slam_clear(void) {
     if (!g_slam_initialized) return mp_const_none;
@@ -1067,6 +1121,9 @@ static const mp_rom_map_elem_t sentai_slam_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_load), MP_ROM_PTR(&mod_slam_load_obj) },
     // Info
     { MP_ROM_QSTR(MP_QSTR_info), MP_ROM_PTR(&mod_slam_info_obj) },
+    // Class size priors (Stage 1.B) — used by future update_3d
+    { MP_ROM_QSTR(MP_QSTR_set_class_prior), MP_ROM_PTR(&mod_slam_set_class_prior_obj) },
+    { MP_ROM_QSTR(MP_QSTR_class_prior),     MP_ROM_PTR(&mod_slam_class_prior_obj) },
 };
 static MP_DEFINE_CONST_DICT(sentai_slam_globals, sentai_slam_globals_table);
 static const mp_obj_module_t sentai_slam_module = {
