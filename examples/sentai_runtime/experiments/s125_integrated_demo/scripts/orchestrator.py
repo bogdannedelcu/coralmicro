@@ -369,24 +369,19 @@ def fly_mission(sim: SentaiSim, overlay: "CellOverlay",
         flow_th = threading.Thread(
             target=flow_forwarder, args=(flow_stop, scf.cf), daemon=True)
         flow_th.start()
-        # FULL FLOW PIPELINE WIRED (run_demo.sh starts gz_to_uds_bridge +
-        # this orchestrator runs a flow_forwarder thread).  Verified
-        # end-to-end on 2026-05-13: bridge processed 1500 frames, forwarder
-        # pushed 1450 packets to cf2.  BUT the flow output is zero because
-        # cf2 SITL spawns at z=0.5 m which puts the downward camera below
-        # ground (memory project_camera_fps_regression / Sim.md §10m).
-        # Stationary on the ground → camera sees gray → conf=0 forever.
-        #
-        # Bootstrap deadlock with Kalman: drone needs flow to take off,
-        # can't get flow without taking off.  s091 worked around by
-        # spawning at z=1.0 m (clear of ground), but sitl_singleagent.sh
-        # hardcodes z=0.5 in the gz service request.
-        #
-        # Until we patch the spawn pose: use complementary (=1) so the
-        # drone reliably takes off, sentai.flow.start() still activates
-        # so the bridge stays in the loop and flow telemetry is observable.
-        scf.cf.param.set_value("stabilizer.estimator", 1)
-        time.sleep(2.0)
+        # Full sentai.flow pipeline is wired (run_demo.sh launches
+        # gz_to_uds_bridge + this orchestrator runs flow_forwarder
+        # thread).  cf2 was teleported to z=1.2 m by run_demo.sh step 6b
+        # so the down-cam clears the ground plane and phase-corr can
+        # produce real (dx, dy, conf) observations.
+        # Kalman estimator (=2) is the proven s091 setup; reset + grace
+        # let the EKF lock onto the incoming flow before takeoff.
+        scf.cf.param.set_value("stabilizer.estimator", 2)
+        time.sleep(0.3)
+        scf.cf.param.set_value("kalman.resetEstimation", 1)
+        time.sleep(0.5)
+        scf.cf.param.set_value("kalman.resetEstimation", 0)
+        time.sleep(2.5)
         sim.cmd("sentai.flow.start(0)")
         time.sleep(0.3)
 

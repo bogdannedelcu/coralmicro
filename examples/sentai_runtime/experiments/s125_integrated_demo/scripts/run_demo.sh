@@ -74,6 +74,21 @@ done
 # Extra grace for Gazebo GUI to come up + EKF to settle
 sleep 5
 
+# 6b. Teleport the drone from spawn z=0.5 (sitl_singleagent.sh hardcoded)
+# to z=1.2 — clears the cf2 downward camera above the ground plane so it
+# actually sees the textured floor.  Without this, frames are uniform
+# (camera below ground) → sentai.flow phase-corr returns conf=0 → cf2
+# Kalman EKF gets no flow observations → takeoff blocked.
+# See Sim.md §10m / memory project_camera_fps_regression.
+echo "[s125] teleport drone to z=1.2 (above-ground camera)"
+distrobox enter crazysim-garden -- \
+  gz service -s /world/s125_demo/set_pose \
+  --reqtype gz.msgs.Pose --reptype gz.msgs.Boolean \
+  --timeout 2000 \
+  --req 'name: "crazyflie_0", position: {x: 0.0, y: 0.0, z: 1.2}' \
+  > /dev/null 2>&1 || true
+sleep 1
+
 # 7. Start the C++ gz→UDS bridge (Phase 4 of Sim.md §6).  We use the
 #    C++ variant (build-sim/sim/gz_to_uds_bridge, built once via
 #    sim/gazebo/build_gz_bridge.sh) because Garden's Python bindings
