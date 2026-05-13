@@ -71,3 +71,6 @@
 [submodule "third_party/aifes"]
 	path = third_party/aifes
 	url = https://github.com/Fraunhofer-IMS/AIfES_for_Arduino.git
+[submodule "third_party/h3"]
+	path = third_party/h3
+	url = https://github.com/uber/h3.git
