@@ -3606,3 +3606,25 @@ open-loop drift on long moves.
 s125 currently runs with the complementary stopgap.  Wiring sentai.flow
 into it is the next iteration (tracked as Stage 3.D in the
 objects_plan; same path s091/s112 already proved).
+
+**Reuse pattern for s126 (planned):**
+
+  s091/aruco_hover.py already orchestrates the full sentai.flow pipeline
+  end-to-end (verified: 7.6 cm hover at half-wind, see experiment.md
+  §"Session 2026-05-11 — s091 sentai.flow hover-stability deep dive"):
+
+  ```text
+  flow_forwarder thread:
+    UDS socket /tmp/flow.sock  ← sentai_sim camera_bridge + flow pipeline
+      (dx, dy, conf) packets   ←   Gazebo /downward_cam/image @ ~14 fps
+      ↓ wrap into CRTPPacket
+      cf.send_packet()         →   cf2 firmware OPTICAL_FLOW input
+                                   → Kalman EKF horizontal-position observation
+                                   → MotionCommander velocity setpoints land cleanly
+  ```
+
+  Triple-anchor (L0+L1+L2 LCF) + Foroosh→Guizar-Sicairos sub-pixel +
+  duplicate-CRC fix (raw RGB hash) are baked in to the shipped
+  flow_phase_corr.cc.  s126 = s091's aruco_hover orchestrator + s125's
+  sentai.places overlay layered on top — NO algorithm changes, just
+  combine two proven pieces.  Don't refactor sentai.flow.
