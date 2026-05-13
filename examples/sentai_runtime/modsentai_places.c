@@ -49,6 +49,7 @@ typedef struct {
     places_class_bucket_t  hist[PLACES_HIST_BINS];    // class histogram (sorted by count desc)
     int       has_embedding;                          // 0/1 — Stage 11.D sets this
     uint8_t   embedding[PLACES_EMB_DIM];              // 8-bit normalized histogram (Stage 11.D)
+    int       skippable;                              // 0=normal, 1=no features (water/uniform) — SFLVP skips these
 } places_entry_t;
 
 // ===================== Global State =====================
@@ -74,6 +75,24 @@ static void places_local_to_geo(double x_m, double y_m,
     *lat_rad = g_places_origin_lat_rad + (Y / PLACES_EARTH_R_M);
     *lng_rad = g_places_origin_lng_rad +
                (X / (PLACES_EARTH_R_M * cos(g_places_origin_lat_rad)));
+}
+
+// Inverse of places_local_to_geo — go from geodetic (radians) back to
+// local (x, y) meters, accounting for the scene-scale factor.
+static void places_geo_to_local(double lat_rad, double lng_rad,
+                                double *x_m, double *y_m) {
+    double dLat = lat_rad - g_places_origin_lat_rad;
+    double dLng = lng_rad - g_places_origin_lng_rad;
+    double Y = dLat * PLACES_EARTH_R_M;
+    double X = dLng * PLACES_EARTH_R_M * cos(g_places_origin_lat_rad);
+    /* Reverse scene-scale */
+    if (g_places_scale > 0.0) {
+        *x_m = X / g_places_scale;
+        *y_m = Y / g_places_scale;
+    } else {
+        *x_m = X;
+        *y_m = Y;
+    }
 }
 
 // Locate an entry by H3 cell — linear probe; returns index or -1.
@@ -334,6 +353,44 @@ static mp_obj_t mod_places_match(size_t n_args, const mp_obj_t *args) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_places_match_obj, 1, 2, mod_places_match);
 
+// places.center(cell) -> (x_m, y_m) — local-meter centroid of an H3 cell.
+// Useful for SFLVP traversal: query neighbors via places.neighbors(c,1),
+// then fly to each neighbor's center.
+static mp_obj_t mod_places_center(mp_obj_t cell_obj) {
+    if (!g_places_initialized) return mp_const_none;
+    H3Index cell = (H3Index)mp_obj_get_int(cell_obj);
+    LatLng p;
+    if (cellToLatLng(cell, &p)) return mp_const_none;
+    double x, y;
+    places_geo_to_local(p.lat, p.lng, &x, &y);
+    mp_obj_t pair[2] = { mp_obj_new_float(x), mp_obj_new_float(y) };
+    return mp_obj_new_tuple(2, pair);
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(mod_places_center_obj, mod_places_center);
+
+// places.set_skippable(cell, val) -> int
+//   val=1 marks the cell as "no features / skip during SFLVP" (e.g., water,
+//   uniform texture).  val=0 clears the flag.  Returns 0 ok, -1 invalid.
+static mp_obj_t mod_places_set_skippable(mp_obj_t cell_obj, mp_obj_t val_obj) {
+    H3Index cell = (H3Index)mp_obj_get_int(cell_obj);
+    int val = mp_obj_get_int(val_obj) ? 1 : 0;
+    if (cell == PLACES_INVALID_CELL || !isValidCell(cell)) return mp_obj_new_int(-1);
+    int idx = places_get_or_create(cell);
+    if (idx < 0) return mp_obj_new_int(-1);
+    g_places[idx].skippable = val;
+    return mp_obj_new_int(0);
+}
+static MP_DEFINE_CONST_FUN_OBJ_2(mod_places_set_skippable_obj, mod_places_set_skippable);
+
+// places.is_skippable(cell) -> int (0=visit, 1=skip; -1 if unknown cell)
+static mp_obj_t mod_places_is_skippable(mp_obj_t cell_obj) {
+    H3Index cell = (H3Index)mp_obj_get_int(cell_obj);
+    int idx = places_find(cell);
+    if (idx < 0) return mp_obj_new_int(-1);
+    return mp_obj_new_int(g_places[idx].skippable);
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(mod_places_is_skippable_obj, mod_places_is_skippable);
+
 // places.cells() -> [cell, ...]   all known cells
 static mp_obj_t mod_places_cells(void) {
     mp_obj_t result = mp_obj_new_list(0, NULL);
@@ -387,6 +444,9 @@ static const mp_rom_map_elem_t sentai_places_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_visits),    MP_ROM_PTR(&mod_places_visits_obj) },
     { MP_ROM_QSTR(MP_QSTR_neighbors), MP_ROM_PTR(&mod_places_neighbors_obj) },
     { MP_ROM_QSTR(MP_QSTR_cells),     MP_ROM_PTR(&mod_places_cells_obj) },
+    { MP_ROM_QSTR(MP_QSTR_center),    MP_ROM_PTR(&mod_places_center_obj) },
+    { MP_ROM_QSTR(MP_QSTR_set_skippable), MP_ROM_PTR(&mod_places_set_skippable_obj) },
+    { MP_ROM_QSTR(MP_QSTR_is_skippable),  MP_ROM_PTR(&mod_places_is_skippable_obj) },
     { MP_ROM_QSTR(MP_QSTR_clear),     MP_ROM_PTR(&mod_places_clear_obj) },
     { MP_ROM_QSTR(MP_QSTR_info),      MP_ROM_PTR(&mod_places_info_obj) },
     /* Stage 11.D — HSV histogram embedding */

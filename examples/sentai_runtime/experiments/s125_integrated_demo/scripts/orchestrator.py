@@ -33,19 +33,25 @@ from cflib.positioning.motion_commander import MotionCommander
 # ---------------------------------------------------------------------------
 URI = "udp://127.0.0.1:19850"
 
-# Demo mission: 4-corner square at altitude 1.0 m, cf2-natural units (m).
-# Per Sim.md §10v, scale=10 maps cf2 → PX4-equiv.  We feed PX4-equiv
-# coordinates to sentai.places.cell() via sentai.places.init(scale=10).
-WORLD_NAME = "s125_demo"
-WAYPOINTS_M = [
-    (1.5,  0.0, 1.0),   # east
-    (1.5,  1.5, 1.0),   # northeast
-    (0.0,  1.5, 1.0),   # north
-    (0.0,  0.0, 1.0),   # back to origin
-]
-HOVER_TIME_S        = 4.0   # at each waypoint
-OBSERVE_HZ          = 4     # cell observations per second during cruise
-SENTAI_SIM_BIN      = Path(__file__).resolve().parents[5] / "build-sim/sim/sentai_sim"
+# SFLVP exploration parameters (Stage 3.C — replaces fixed waypoints).
+# Per objects_plan §7.5: visit a central cell + its 6 neighbors, then
+# pick the next central greedily.  Drone flies at fixed altitude.
+WORLD_NAME       = "s125_demo"
+ALTITUDE_M       = 1.0
+HOVER_TIME_S     = 1.8        # at each cell — short, just enough for EKF to settle
+MAX_CELLS        = 13         # safety stop (1 central + 6 ring + 6 next-ring)
+MOTION_VELOCITY  = 0.3        # m/s
+SENTAI_SIM_BIN   = Path(__file__).resolve().parents[5] / "build-sim/sim/sentai_sim"
+
+# Floor texture for skippable-cell detection — same Harmonic 4K we paint
+# on the ground plane in world/s125_demo.sdf.  25 m physical plane,
+# 4096 px texture, centred on origin: pixel (px, py) ↔ world (x, y) via
+#   px = (x + PLANE_HALF) / PLANE * IMG_W
+#   py = (PLANE_HALF - y) / PLANE * IMG_H   (image Y is inverted)
+HARMONIC_TILE_PATH = Path(__file__).resolve().parents[5] / "sim/gazebo/worlds/assets/harmonic_tiles/harmonic_alt200_4k.png"
+PLANE_HALF_M       = 12.5
+PLANE_M            = 25.0
+SKIP_VARIANCE_THR  = 12.0     # below this stddev → "uniform / water" → skip
 
 # ---------------------------------------------------------------------------
 # sentai_sim REPL pipe — newline-flushed; output is captured into a buffer
@@ -137,6 +143,39 @@ class SentaiSim:
 # Gazebo H3-cell overlay — spawn small translucent cylinders via gz service
 # ---------------------------------------------------------------------------
 
+class TextureFeatureScorer:
+    """Score whether a (x,y) world coordinate has "enough features" to be
+    worth visiting.  Loads the Harmonic 4K floor tile once, samples a 16×16
+    patch at each query, returns the pixel-intensity std-dev as a score.
+    Std-dev < SKIP_VARIANCE_THR → flag as skippable (water / uniform).
+    """
+    def __init__(self, tile_path: Path):
+        self.tile_arr = None
+        self.h = self.w = 0
+        try:
+            from PIL import Image
+            import numpy as np
+            img = Image.open(tile_path).convert("L")
+            self.tile_arr = np.asarray(img)
+            self.h, self.w = self.tile_arr.shape
+            self._np = np
+            print(f"[scorer] loaded {tile_path.name} {self.w}x{self.h} for skippable detection")
+        except Exception as e:
+            print(f"[scorer] WARN: skippable detection disabled — {e}")
+
+    def score(self, x_m: float, y_m: float) -> float:
+        """Return std-dev around the (x,y) coordinate (0 if disabled)."""
+        if self.tile_arr is None:
+            return 999.0   # never skip if scorer is disabled
+        px = int((x_m + PLANE_HALF_M) / PLANE_M * self.w)
+        py = int((PLANE_HALF_M - y_m) / PLANE_M * self.h)
+        # Clamp
+        if px < 8 or px >= self.w - 8 or py < 8 or py >= self.h - 8:
+            return 999.0   # off-tile → don't skip
+        patch = self.tile_arr[py - 8:py + 8, px - 8:px + 8]
+        return float(patch.std())
+
+
 class CellOverlay:
     """Spawn a small cylinder marker at each newly-visited cell centroid.
 
@@ -145,19 +184,23 @@ class CellOverlay:
     cell *centroid* (i.e., quantized to the H3 grid lattice as known from
     the orchestrator side).
     """
+    # Physical drone scale: cf2 lives in ~3 m of physical space.  H3 cells
+    # are ~0.35 m physical diameter at res=13/scale=10, so a 0.15 m radius
+    # cylinder lands inside a single cell footprint without overlapping
+    # neighbors visually.  Larger length=0.08 makes them noticeable from
+    # the operator's bird's-eye GUI camera at z=8 m looking down.
     SDF_TEMPLATE = """<?xml version="1.0"?>
 <sdf version="1.9">
   <model name="{name}">
     <static>true</static>
-    <pose>{x} {y} 0.02 0 0 0</pose>
+    <pose>{x} {y} 0.05 0 0 0</pose>
     <link name="link">
       <visual name="v">
-        <geometry><cylinder><radius>0.35</radius><length>0.04</length></cylinder></geometry>
+        <geometry><cylinder><radius>0.15</radius><length>0.08</length></cylinder></geometry>
         <material>
-          <ambient>{r} {g} {b} 0.5</ambient>
-          <diffuse>{r} {g} {b} 0.5</diffuse>
+          <ambient>{r} {g} {b} 1</ambient>
+          <diffuse>{r} {g} {b} 1</diffuse>
         </material>
-        <transparency>0.5</transparency>
       </visual>
     </link>
   </model>
@@ -179,21 +222,26 @@ class CellOverlay:
         r, g, b = palette[self.counter % 4]
         self.counter += 1
         name = f"hex_cell_{self.counter:03d}"
-        sdf_txt = self.SDF_TEMPLATE.format(name=name, x=x, y=y, r=r, g=g, b=b).replace("\n", " ")
-        # Write SDF to a temp file (multi-line strings in gz service args are tricky)
+        # Write SDF to a temp file (the gz service call references it by path).
         tmpf = Path(f"/tmp/{name}.sdf")
         tmpf.write_text(self.SDF_TEMPLATE.format(name=name, x=x, y=y, r=r, g=g, b=b))
         req = (f'sdf_filename: "{tmpf}", '
                f'pose: {{position: {{x: {x}, y: {y}, z: 0.02}}}}, '
                f'name: "{name}", allow_renaming: 1')
+        # IMPORTANT: gz service MUST run inside distrobox crazysim-garden
+        # so it talks the right Garden 7 protocol (host gz is Harmonic 8
+        # and silently fails — that's why hex cylinders were missing in
+        # the operator's first watch, 2026-05-13).  /tmp is shared between
+        # host and container so the SDF file path resolves on both sides.
         try:
             subprocess.run([
+                "distrobox", "enter", "crazysim-garden", "--",
                 "gz", "service", "-s", f"/world/{self.world}/create",
                 "--reqtype", "gz.msgs.EntityFactory",
                 "--reptype", "gz.msgs.Boolean",
                 "--timeout", "1000",
                 "--req", req,
-            ], check=False, capture_output=True, timeout=3.0)
+            ], check=False, capture_output=True, timeout=4.0)
         except subprocess.TimeoutExpired:
             print(f"[overlay] spawn timeout for {name}")
 
@@ -202,7 +250,8 @@ class CellOverlay:
 # cflib helper — high-level commander, log pose stream
 # ---------------------------------------------------------------------------
 
-def fly_mission(sim: SentaiSim, overlay: CellOverlay):
+def fly_mission(sim: SentaiSim, overlay: "CellOverlay",
+                scorer: "TextureFeatureScorer"):
     cflib.crtp.init_drivers()
     print(f"[s125] connecting cflib → {URI}")
     cf = Crazyflie(rw_cache="./cache")
@@ -274,59 +323,159 @@ def fly_mission(sim: SentaiSim, overlay: CellOverlay):
                 print("[s125] hold 1.5 s at 1.0 m (visual confirmation)…")
                 time.sleep(1.5)
 
-                # Walk waypoints — MotionCommander.move_distance is
-                # blocking with a velocity setpoint, returns when arrived.
+                # ============================================================
+                # SFLVP exploration — "S From Last Visited Place"
+                # (objects_plan.md §7.5).  Visit central cell, then its
+                # 6 H3 neighbors, then pick the next central; repeat
+                # until MAX_CELLS hit.  Cells flagged as skippable=1
+                # (no features) are skipped during neighbor traversal.
+                # ============================================================
                 cur_x, cur_y = 0.0, 0.0
                 seq = -1
-                for wp_idx, (wx, wy, wz) in enumerate(WAYPOINTS_M):
-                    dx, dy = wx - cur_x, wy - cur_y
-                    print(f"[s125] → waypoint {wp_idx} target=({wx},{wy},{wz})  Δ=({dx:.2f},{dy:.2f})")
-                    mc.move_distance(dx, dy, 0.0, velocity=0.3)
-                    cur_x, cur_y = wx, wy
+                visited_cells = set()
+                central_queue = []
+                # Seed with the current cell as the first central.
+                home_cell = sim.query_str(
+                    f"hex(sentai.places.cell({cur_x:.3f},{cur_y:.3f}))",
+                    key="SFLVP_SEED")
+                if home_cell:
+                    central_queue.append(home_cell)
 
-                    # Hover briefly after arrival so the EKF settles and
-                    # the place observation lands on a stable cell.
-                    t_hover_end = time.time() + HOVER_TIME_S
-                    while time.time() < t_hover_end:
-                        try:
-                            _ts, data, _logconf = next(iter(logger))
-                        except Exception:
+                def fly_to_cell(cell_hex):
+                    """Resolve cell → (x,y) via places.center, then
+                    MotionCommander.move_distance from current pose."""
+                    nonlocal cur_x, cur_y
+                    coords = sim.query_str(
+                        f"sentai.places.center({cell_hex})",
+                        key=f"CTR{seq}")
+                    if not coords or coords == "None":
+                        return False
+                    # coords looks like "(0.123, 0.456)"
+                    try:
+                        s = coords.strip("() ")
+                        tx, ty = [float(v) for v in s.split(",")]
+                    except Exception as e:
+                        print(f"[sflvp] center parse fail: {coords!r} -> {e}")
+                        return False
+                    dx, dy = tx - cur_x, ty - cur_y
+                    if abs(dx) < 0.02 and abs(dy) < 0.02:
+                        return True   # already there
+                    print(f"[sflvp]   fly_to cell {cell_hex} center=({tx:.2f},{ty:.2f}) Δ=({dx:.2f},{dy:.2f})")
+                    mc.move_distance(dx, dy, 0.0, velocity=MOTION_VELOCITY)
+                    cur_x, cur_y = tx, ty
+                    return True
+
+                while central_queue and len(visited_cells) < MAX_CELLS:
+                    central = central_queue.pop(0)
+                    if central in visited_cells:
+                        continue
+                    print(f"[sflvp] central cell {central}  (visited={len(visited_cells)}/{MAX_CELLS})")
+                    # Fly to central (no-op for first iteration since we
+                    # are already at its centroid)
+                    if not fly_to_cell(central):
+                        visited_cells.add(central)
+                        continue
+                    visited_cells.add(central)
+
+                    # Visit the 6 neighbors
+                    nbrs_raw = sim.query_str(
+                        f"[hex(c) for c in sentai.places.neighbors({central},1)]",
+                        key=f"NBR{len(visited_cells)}")
+                    if not nbrs_raw:
+                        continue
+                    # nbrs_raw is like "['0xabc', '0xdef', ...]" — eval safely.
+                    try:
+                        # ast.literal_eval is safe for python literals.
+                        import ast as _ast
+                        nbr_list = _ast.literal_eval(nbrs_raw)
+                    except Exception:
+                        print(f"[sflvp] neighbors parse fail: {nbrs_raw!r}")
+                        nbr_list = []
+                    # Exclude the central itself; remaining 6 are the ring.
+                    nbr_list = [c for c in nbr_list if c != central]
+
+                    for nbr in nbr_list:
+                        if nbr in visited_cells:
+                            continue
+                        # Pre-classify the neighbor: compute its center,
+                        # sample the Harmonic floor texture there, decide
+                        # whether to skip on low variance (uniform/water).
+                        coords_str = sim.query_str(
+                            f"sentai.places.center({nbr})",
+                            key=f"NCTR{len(visited_cells)}")
+                        if coords_str and coords_str != "None":
+                            try:
+                                s = coords_str.strip("() ")
+                                nx, ny = [float(v) for v in s.split(",")]
+                            except Exception:
+                                nx = ny = 0.0
+                            std = scorer.score(nx, ny)
+                            if std < SKIP_VARIANCE_THR:
+                                # Persist the classification on the cell
+                                # so future SFLVP queries can short-circuit.
+                                sim.cmd(
+                                    f"sentai.places.set_skippable({nbr}, 1)")
+                                print(f"[sflvp]   skip {nbr} center=({nx:.2f},{ny:.2f}) std={std:.1f} (no features)")
+                                visited_cells.add(nbr)
+                                continue
+                        # Existing persisted flag also honored.
+                        skip = sim.query_str(
+                            f"sentai.places.is_skippable({nbr})",
+                            key=f"SK{len(visited_cells)}")
+                        if skip == "1":
+                            print(f"[sflvp]   skip {nbr} (previously flagged)")
+                            visited_cells.add(nbr)
+                            continue
+                        if not fly_to_cell(nbr):
+                            continue
+                        visited_cells.add(nbr)
+                        # Brief settle + observe + FSM update at the new cell
+                        t_hover_end = time.time() + HOVER_TIME_S
+                        while time.time() < t_hover_end:
+                            try:
+                                _ts, data, _logconf = next(iter(logger))
+                            except Exception:
+                                break
+                            seq += 1
+                            x = data["stateEstimate.x"]
+                            y = data["stateEstimate.y"]
+                            z = data["stateEstimate.z"]
+                            sim.cmd(f'sentai.explore.set_alt({z:.3f})')
+                            sim.cmd('sentai.explore.tick()')
+                            cur_cell = sim.query_str(
+                                f"hex(sentai.places.cell({x:.3f},{y:.3f}))",
+                                key=f"OBS{seq}")
+                            if cur_cell:
+                                sim.cmd(f'sentai.places.observe({cur_cell}, 0)')
+                                overlay.add_cell(cur_cell, x, y)
+                                sim.cmd(f'sentai.explore.set_cells_visited({len(overlay.spawned)})')
+                            if seq % 4 == 0:
+                                sim.cmd('sentai.slam.update_3d([(140,100,180,140,0.9,0)])')
+                            if seq % 6 == 0:
+                                info = sim.query_str(
+                                    "sentai.places.info()", key=f"I{seq}")
+                                state = sim.query_str(
+                                    'sentai.explore.state()', key=f"S{seq}")
+                                if info: print(f"[s125] places.info() = {info}")
+                                if state: print(f"[s125] explore.state() = {state}")
+
+                    # Frontier-greedy next central — first unvisited neighbor.
+                    # Simple heuristic; objects_plan §7.5 calls for the
+                    # neighbor whose own ring has the most unvisited cells
+                    # but we defer that optimization until we've seen
+                    # it run end-to-end.
+                    for c in nbr_list:
+                        if c not in visited_cells:
+                            central_queue.append(c)
                             break
-                        seq += 1
-                        x = data["stateEstimate.x"]
-                        y = data["stateEstimate.y"]
-                        z = data["stateEstimate.z"]
-                        sim.cmd(f'sentai.explore.set_alt({z:.3f})')
-                        # Advance the FSM — without explicit tick() calls
-                        # the state machine never crosses guard expressions.
-                        sim.cmd('sentai.explore.tick()')
 
-                        cell = sim.query_str(
-                            f"hex(sentai.places.cell({x:.3f},{y:.3f}))",
-                            key=f"C{seq}")
-                        if cell:
-                            sim.cmd(f'sentai.places.observe({cell}, 0)')
-                            overlay.add_cell(cell, x, y)
-                            # The orchestrator IS the cell counter for the
-                            # FSM — push the running count so EXPLORE can
-                            # transition to RETURN_HOME when the budget hits.
-                            sim.cmd(f'sentai.explore.set_cells_visited({len(overlay.spawned)})')
-                        if seq % 4 == 0:
-                            sim.cmd('sentai.slam.update_3d([(140,100,180,140,0.9,0)])')
+                # Fly back to origin to land at home
+                print(f"[sflvp] exploration done — {len(visited_cells)} cells. flying home")
+                dx, dy = -cur_x, -cur_y
+                if abs(dx) > 0.01 or abs(dy) > 0.01:
+                    mc.move_distance(dx, dy, 0.0, velocity=MOTION_VELOCITY)
+                    cur_x, cur_y = 0.0, 0.0
 
-                        if seq % 6 == 0:
-                            info = sim.query_str(
-                                "sentai.places.info()", key=f"I{seq}")
-                            state = sim.query_str(
-                                'sentai.explore.state()', key=f"S{seq}")
-                            if info:
-                                print(f"[s125] places.info() = {info}")
-                            if state:
-                                print(f"[s125] explore.state() = {state}")
-
-                # After the last waypoint we are back at the origin —
-                # tell the FSM the drone is HOME so RETURN_HOME passes
-                # the dist_home_tol guard and walks down to PRECISION_LAND.
                 sim.cmd('sentai.explore.set_dist_home(0.0)')
                 sim.cmd('sentai.explore.tick()')
                 state = sim.query_str('sentai.explore.state()', key="S_END")
@@ -351,12 +500,13 @@ def fly_mission(sim: SentaiSim, overlay: CellOverlay):
 # ---------------------------------------------------------------------------
 
 def main():
-    print("[s125] starting orchestrator (v3: enHighLevel + ArUco hold + altitude gate)")
+    print("[s125] starting orchestrator (v4: SFLVP + skippable detection)")
     print(f"[s125] sentai_sim = {SENTAI_SIM_BIN}")
     sim = SentaiSim(SENTAI_SIM_BIN)
     overlay = CellOverlay(WORLD_NAME)
+    scorer  = TextureFeatureScorer(HARMONIC_TILE_PATH)
     try:
-        fly_mission(sim, overlay)
+        fly_mission(sim, overlay, scorer)
     finally:
         sim.close()
 
