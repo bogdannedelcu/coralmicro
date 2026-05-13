@@ -81,6 +81,12 @@ static float g_slam_prev_bearings[SLAM_PREV_MAX];   // bearing per prev detectio
 static int   g_slam_prev_classes[SLAM_PREV_MAX];     // class per prev detection
 static int   g_slam_n_prev = 0;
 
+// Stage 1.B class size priors — placed here (before update_3d uses them)
+// so the file remains single-pass-compileable.  See set_class_prior /
+// class_prior MP bindings further down for the typed API + fault gates.
+#define SLAM_NUM_CLASS_PRIOR 64
+static float g_slam_class_prior_m[SLAM_NUM_CLASS_PRIOR] = {0};
+
 // ===================== Utility =====================
 
 static float slam_wrap_angle(float a) {
@@ -849,6 +855,109 @@ static mp_obj_t mod_slam_update(mp_obj_t dets_obj) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(mod_slam_update_obj, mod_slam_update);
 
+// =====================================================================
+// Stage 1.C — update_3d: monocular range from class-size prior
+// =====================================================================
+//
+// Pinhole pseudo-depth:
+//   range_m = (real_height_m × focal_px) / bbox_height_px
+//
+// real_height_m comes from g_slam_class_prior_m[class_id] (Stage 1.B).
+// If no prior set for the class, that detection falls back to
+// SLAM_DEFAULT_RANGE (bearing-only association, same as plain update()).
+// Skips degenerate boxes (height ≤ 1 px) — they would produce blow-up
+// ranges and corrupt the EKF.
+
+// sentai.slam.update_3d(detections) -> int (landmarks updated / created)
+// detections: same format as update() — (x1, y1, x2, y2, conf, class_id)
+static mp_obj_t mod_slam_update_3d(mp_obj_t dets_obj) {
+    if (!g_slam_initialized) return mp_obj_new_int(-1);
+
+    size_t n_dets;
+    mp_obj_t *det_items;
+    mp_obj_get_array(dets_obj, &n_dets, &det_items);
+    if (n_dets == 0) return mp_obj_new_int(0);
+    if (n_dets > SLAM_MAX_DETS) n_dets = SLAM_MAX_DETS;
+
+    float bearings[SLAM_MAX_DETS];
+    float ranges[SLAM_MAX_DETS];
+    int   classes[SLAM_MAX_DETS];
+    int   has_range[SLAM_MAX_DETS];
+    int   keep = 0;
+
+    for (size_t i = 0; i < n_dets; i++) {
+        size_t tlen;
+        mp_obj_t *titems;
+        mp_obj_get_array(det_items[i], &tlen, &titems);
+        if (tlen < 6) return mp_obj_new_int(-2);
+
+        int x1 = mp_obj_get_int(titems[0]);
+        int y1 = mp_obj_get_int(titems[1]);
+        int x2 = mp_obj_get_int(titems[2]);
+        int y2 = mp_obj_get_int(titems[3]);
+        int class_id = mp_obj_get_int(titems[5]);
+
+        int bbox_h = y2 - y1;
+        if (bbox_h < 2) continue;  /* degenerate — skip */
+
+        float cx = ((float)x1 + (float)x2) * 0.5f;
+        bearings[keep] = slam_pixel_to_bearing(cx);
+        classes[keep]  = class_id;
+
+        /* Class prior lookup — gated on class_id range */
+        if (class_id >= 0 && class_id < SLAM_NUM_CLASS_PRIOR &&
+            g_slam_class_prior_m[class_id] > 0.0f &&
+            g_slam_focal > 0.0f) {
+            float r = (g_slam_class_prior_m[class_id] * g_slam_focal) / (float)bbox_h;
+            if (r > SLAM_MIN_RANGE && r < 50.0f) {
+                ranges[keep] = r;
+                has_range[keep] = 1;
+            } else {
+                ranges[keep] = SLAM_DEFAULT_RANGE;
+                has_range[keep] = 0;
+            }
+        } else {
+            ranges[keep] = SLAM_DEFAULT_RANGE;
+            has_range[keep] = 0;
+        }
+        keep++;
+    }
+
+    if (keep == 0) return mp_obj_new_int(0);
+
+    /* Same predict/age/associate flow as slam_update_detections, minus
+     * the stereo branch which is irrelevant for monocular class-prior. */
+    float dtheta = slam_estimate_dtheta(bearings, classes, keep);
+    slam_predict(0.0f, 0.0f, dtheta);
+    slam_age_landmarks();
+
+    int n_updated = 0;
+    for (int i = 0; i < keep; i++) {
+        int lm = slam_associate(classes[i], bearings[i], ranges[i], has_range[i]);
+        if (lm >= 0) {
+            slam_update_lm(lm, bearings[i], ranges[i], has_range[i]);
+            g_slam_lm[lm].seen_count++;
+            g_slam_lm[lm].unseen_streak = 0;
+            n_updated++;
+        } else {
+            float r = has_range[i] ? ranges[i] : SLAM_DEFAULT_RANGE;
+            int slot = slam_add_landmark(classes[i], bearings[i], r);
+            if (slot >= 0) n_updated++;
+        }
+    }
+
+    /* Stash bearings for next-frame dtheta estimate */
+    int n_store = (keep < SLAM_PREV_MAX) ? keep : SLAM_PREV_MAX;
+    for (int i = 0; i < n_store; i++) {
+        g_slam_prev_bearings[i] = bearings[i];
+        g_slam_prev_classes[i]  = classes[i];
+    }
+    g_slam_n_prev = n_store;
+
+    return mp_obj_new_int(n_updated);
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(mod_slam_update_3d_obj, mod_slam_update_3d);
+
 // sentai.slam.update_stereo(dets_left, dets_right) -> int
 static mp_obj_t mod_slam_update_stereo(mp_obj_t left_obj, mp_obj_t right_obj) {
     if (!g_slam_initialized) return mp_obj_new_int(-1);
@@ -1004,8 +1113,9 @@ static MP_DEFINE_CONST_FUN_OBJ_2(mod_slam_imu_correct_obj, mod_slam_imu_correct)
 // NASA/JPL: bounded array, no heap, explicit bounds check on
 // class_id at set/get time.  Compile-time guarantees: NUM_CLASS_PRIOR
 // is fixed; OOB class_id rejected with -1.
-#define SLAM_NUM_CLASS_PRIOR 64
-static float g_slam_class_prior_m[SLAM_NUM_CLASS_PRIOR] = {0};
+//
+// (Storage is declared at the top of the file so update_3d can see it
+// without a forward declaration; only the MP bindings live here.)
 
 // sentai.slam.set_class_prior(class_id, real_size_m) -> int
 //
@@ -1103,6 +1213,7 @@ static const mp_rom_map_elem_t sentai_slam_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_init), MP_ROM_PTR(&mod_slam_init_obj) },
     // Detection-based update
     { MP_ROM_QSTR(MP_QSTR_update), MP_ROM_PTR(&mod_slam_update_obj) },
+    { MP_ROM_QSTR(MP_QSTR_update_3d), MP_ROM_PTR(&mod_slam_update_3d_obj) },
     { MP_ROM_QSTR(MP_QSTR_update_stereo), MP_ROM_PTR(&mod_slam_update_stereo_obj) },
     // Manual observation
     { MP_ROM_QSTR(MP_QSTR_observe), MP_ROM_PTR(&mod_slam_observe_obj) },
