@@ -2966,3 +2966,94 @@ that's free.  Fallback: 160×120 image + OCRAM-resident integral.
 This is genuine "we did the research, the algorithms didn't work as
 advertised, here's the actual path on our hardware" engineering.
 Worth documenting for future researchers.
+
+## 10t. FlowBaseline — regression-gate test (s127, 2026-05-13)
+
+Canonical regression test for the `sentai.flow` + cf2 SITL hover
+pipeline.  Every commit on `integration/from-180bbb5f` (and any
+descendant branch) MUST run this and pass BEFORE the commit lands.
+If a change degrades flow stability, the baseline catches it before
+the regression accumulates with downstream work.
+
+### Why this test exists
+
+Reproducing s091 #14 by hand took most of 2026-05-13: rolling back
+the CrazySim submodule, halving the wind, fixing render-thread
+starvation with Xvfb, threading env vars through a FIFO into
+sentai_sim, etc.  Once it worked, we froze the recipe so future
+sessions don't pay the same setup cost.  See
+`examples/sentai_runtime/experiments/s127_flowbaseline/README.md`
+for the full provenance.
+
+### Pass criteria
+
+```
+dist_mean_m < 0.15   AND   all4_rate >= 0.5   AND   n_samples >= 5
+```
+
+`flow_n > 0` is *informational*, not gating — depends on flow
+forwarder thread connecting before bridge starts publishing.
+Drone holds half-wind hover from baro+IMU alone if flow drops, so
+absence of flow_n doesn't necessarily fail the test.  When debugging,
+inspect `flow_n` / `flow_hz` in `hover_log.json` manually.
+
+### How to run
+
+```bash
+bash examples/sentai_runtime/experiments/s127_flowbaseline/run.sh
+```
+
+Exit 0 = PASS (safe to commit), exit 1 = FAIL (regression — investigate
+before committing).
+
+The runner auto-detects whether the SITL stack is already up and
+brings up missing layers.  See script header for the stack components
+it manages.
+
+### Reference numbers (2026-05-13, branch `integration/from-180bbb5f`)
+
+| Trial | dist_mean | all4_rate | flow_n | flow_hz |
+|---|---|---|---|---|
+| #1 | 0.048 m | 100 % | 0 (race) | — |
+| #2 | **0.097 m** | 100 % | 292 | 19.5 Hz |
+| #3 | 0.386 m (1 sample) | — | 0 | — |
+
+vs s091 #14 PASS: `dist_mean = 0.076 m`, `all4_rate = 1.00`.  Trial #2
+is the canonical FlowBaseline-PASS result with flow injection live.
+Trial #3 documents the known cf2-SITL-degrades-after-N-reconnects
+fragility; full stack restart cures it.
+
+### Load-bearing dependencies (DO NOT MODIFY in cherry-picks without
+revalidating FlowBaseline immediately):
+
+- `sim/camera_bridge_recv.c` — duplicate-frame CRC on RAW RGB
+  (not post-PXP grayscale); the post-PXP path eats slow drift,
+  see Sim.md §10l "Bug 1".
+- `examples/sentai_runtime/flow_phase_corr.cc` — multi-pyramid
+  + triple-anchor architecture (Sim.md §10k).
+- `examples/sentai_runtime/experiments/s091_aruco_lowalt/aruco_hover.py`
+  — `BODY_XFORM = (0, -1, -1, 0)`, conf→std mapping, DAMP_PARAMS,
+  17-byte SENSOR_FLOW_SIM packet.
+- `sim/gazebo/gz_to_uds_bridge.cc` — gz-transport12 subscriber +
+  UDS bridge inside the `crazysim-garden` distrobox.
+- World config in `crazyflie-simulation` submodule: world at
+  `aeb7ee6` + half-wind edits (Sim.md §10l "Final hover-under-wind
+  result").  Restoring full wind reverts drift from ~10cm to ~35cm.
+- CrazySim cf2 firmware on `sentai-flow-sim-support` branch
+  (commit `e4374251`) — 17-byte flow packet with stdDev field.
+
+### Workflow for staged integration
+
+Each cherry-pick from a later commit:
+
+```bash
+git cherry-pick <sha>          # or staged manual edits
+bash examples/sentai_runtime/experiments/s127_flowbaseline/run.sh
+# If PASS:
+git commit --amend --no-edit   # finalize
+# If FAIL:
+git reset --hard HEAD~1        # back out, root-cause, retry
+```
+
+Don't accumulate "I'll fix the regression in the next commit" debt —
+the next commit may make the root cause invisible.

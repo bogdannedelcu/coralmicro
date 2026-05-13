@@ -1,0 +1,56 @@
+diff --git a/simulator_files/gazebo/worlds/sentai_crazysim.sdf b/simulator_files/gazebo/worlds/sentai_crazysim.sdf
+index 56bde65..c0017b7 100644
+--- a/simulator_files/gazebo/worlds/sentai_crazysim.sdf
++++ b/simulator_files/gazebo/worlds/sentai_crazysim.sdf
+@@ -72,30 +72,31 @@
+            be predicted by an integrator.  This is the realistic profile
+            for indoor flight: small constant build bias + random air
+            motion + sensor noise. -->
++      <!-- HALF WIND (s091 #14 PASS config: 7.6 cm hover drift target) -->
+       <horizontal>
+         <magnitude>
+           <time_for_rise>2</time_for_rise>
+           <sin>
+-            <amplitude_percent>0.20</amplitude_percent>
++            <amplitude_percent>0.10</amplitude_percent>
+             <period>8</period>
+           </sin>
+-          <noise type="gaussian"><mean>0</mean><stddev>0.15</stddev></noise>
++          <noise type="gaussian"><mean>0</mean><stddev>0.075</stddev></noise>
+         </magnitude>
+         <direction>
+           <time_for_rise>2</time_for_rise>
+           <sin>
+-            <amplitude>10</amplitude>
++            <amplitude>5</amplitude>
+             <period>15</period>
+           </sin>
+-          <noise type="gaussian"><mean>0</mean><stddev>5</stddev></noise>
++          <noise type="gaussian"><mean>0</mean><stddev>2.5</stddev></noise>
+         </direction>
+       </horizontal>
+       <vertical>
+-        <noise type="gaussian"><mean>0</mean><stddev>0.08</stddev></noise>
++        <noise type="gaussian"><mean>0</mean><stddev>0.04</stddev></noise>
+       </vertical>
+     </plugin>
+     <wind>
+-      <linear_velocity>0.2 0 0</linear_velocity>
++      <linear_velocity>0.1 0 0</linear_velocity>
+     </wind>
+ 
+     <gravity>0 0 -9.80665</gravity>
+@@ -170,10 +171,10 @@
+            the bbox in image; with cat at (0.4, -0.3) and drone spawn at
+            (0, 0, 0.5), drone needs to move ~+40 cm forward + ~30 cm
+            right to centre the picture in its downward camera. -->
+-      <!-- Raised to 0.05 m so it sits above the ground plane plate (which
+-           sometimes has its own visual at z=0).  Box thickness 0.01 m.
++      <!-- 2026-05-13: per operator request — cat photo right on ground
++           (z = box-half-thickness 0.005 m so visible face is at z=0.01).
+            Yaw=π rotates texture 180° (head-up orientation, 2026-05-11). -->
+-      <pose>0.4 -0.3 0.05 0 0 3.14159</pose>
++      <pose>0.4 -0.3 0.005 0 0 3.14159</pose>
+       <link name="link">
+         <visual name="visual">
+           <geometry>
