@@ -133,6 +133,7 @@ add_executable_sim(sentai_sim
     # UDS.  Same C API on ARM (stub today, full M7 detector is s112+).
     sentai_aruco_shim_sim.c
     sentai_crazy_stub_sim.c     # Phase 6e — cf2 bridge entry-point stubs
+    sim_fs_c_api.c               # Stage 1 prep — C-side bridge for sentai_fs_*
     # Phase 6e P2 — auto-VPE forwarder task, shared with ARM build.
     # On SIM, cf2 path is stubbed (no on-board cf2 link); PX4 path
     # goes through sentai_link_sim.cc::sentai_link_send_vpe.

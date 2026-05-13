@@ -239,7 +239,7 @@ int sim_fs_resolve(const char *bpath, char *out, size_t outsz) {
     return 0;
 }
 
-static mp_obj_t sentai_fs_write(mp_obj_t path_obj, mp_obj_t buf_obj) {
+static mp_obj_t mp_sentai_fs_write(mp_obj_t path_obj, mp_obj_t buf_obj) {
     const char *bpath = mp_obj_str_get_str(path_obj);
     mp_buffer_info_t bi;
     mp_get_buffer_raise(buf_obj, &bi, MP_BUFFER_READ);
@@ -265,7 +265,7 @@ static mp_obj_t sentai_fs_write(mp_obj_t path_obj, mp_obj_t buf_obj) {
     close(fd);
     return mp_obj_new_bool(w == (ssize_t) bi.len);
 }
-static MP_DEFINE_CONST_FUN_OBJ_2(sentai_fs_write_obj, sentai_fs_write);
+static MP_DEFINE_CONST_FUN_OBJ_2(sentai_fs_write_obj, mp_sentai_fs_write);
 
 static mp_obj_t sentai_fs_append(mp_obj_t path_obj, mp_obj_t buf_obj) {
     const char *bpath = mp_obj_str_get_str(path_obj);
@@ -282,7 +282,7 @@ static mp_obj_t sentai_fs_append(mp_obj_t path_obj, mp_obj_t buf_obj) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_2(sentai_fs_append_obj, sentai_fs_append);
 
-static mp_obj_t sentai_fs_read(mp_obj_t path_obj) {
+static mp_obj_t mp_sentai_fs_read(mp_obj_t path_obj) {
     const char *bpath = mp_obj_str_get_str(path_obj);
     char fp[SIM_FS_MAXPATH + 1];
     if (sim_fs_resolve(bpath, fp, sizeof(fp)) != 0) {
@@ -304,7 +304,7 @@ static mp_obj_t sentai_fs_read(mp_obj_t path_obj) {
     }
     return mp_obj_new_bytes_from_vstr(&vstr);
 }
-static MP_DEFINE_CONST_FUN_OBJ_1(sentai_fs_read_obj, sentai_fs_read);
+static MP_DEFINE_CONST_FUN_OBJ_1(sentai_fs_read_obj, mp_sentai_fs_read);
 
 static mp_obj_t sentai_fs_read_str(mp_obj_t path_obj) {
     /* Same as read but return str (decoded UTF-8). */
@@ -333,7 +333,7 @@ static mp_obj_t sentai_fs_exists(mp_obj_t path_obj) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(sentai_fs_exists_obj, sentai_fs_exists);
 
-static mp_obj_t sentai_fs_size(mp_obj_t path_obj) {
+static mp_obj_t mp_sentai_fs_size(mp_obj_t path_obj) {
     const char *bpath = mp_obj_str_get_str(path_obj);
     char fp[SIM_FS_MAXPATH + 1];
     if (sim_fs_resolve(bpath, fp, sizeof(fp)) != 0) return mp_obj_new_int(-1);
@@ -341,7 +341,7 @@ static mp_obj_t sentai_fs_size(mp_obj_t path_obj) {
     if (stat(fp, &st) != 0 || !S_ISREG(st.st_mode)) return mp_obj_new_int(-1);
     return mp_obj_new_int_from_uint((unsigned) st.st_size);
 }
-static MP_DEFINE_CONST_FUN_OBJ_1(sentai_fs_size_obj, sentai_fs_size);
+static MP_DEFINE_CONST_FUN_OBJ_1(sentai_fs_size_obj, mp_sentai_fs_size);
 
 static mp_obj_t sentai_fs_ls(mp_obj_t path_obj) {
     const char *bpath = mp_obj_str_get_str(path_obj);
@@ -1491,6 +1491,16 @@ static const mp_obj_module_t sentai_link_module = {
 };
 
 
+/* ===== sentai.slam — pulled from ARM build (s113 Stage 1 prep) ============
+ *
+ * modsentai_slam.c is #include'd as ARM is — file uses standard C99 +
+ * math.h + malloc/realloc + sentai_fs_* (which exists on SIM too).
+ * Identical API contract.  Will be extended in upcoming stages for 3D
+ * drone use case (set_class_prior, update_3d, anchor_update).
+ */
+#include "../examples/sentai_runtime/modsentai_slam.c"
+
+
 static const mp_rom_map_elem_t sentai_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_sentai) },
     { MP_ROM_QSTR(MP_QSTR_version),  MP_ROM_PTR(&sentai_version_obj) },
@@ -1505,6 +1515,7 @@ static const mp_rom_map_elem_t sentai_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_tpu),      MP_ROM_PTR(&sentai_tpu_module) },
     { MP_ROM_QSTR(MP_QSTR_pipeline), MP_ROM_PTR(&sentai_pipeline_module) },
     { MP_ROM_QSTR(MP_QSTR_link),     MP_ROM_PTR(&sentai_link_module) },
+    { MP_ROM_QSTR(MP_QSTR_slam),     MP_ROM_PTR(&sentai_slam_module) },
 };
 static MP_DEFINE_CONST_DICT(sentai_globals, sentai_globals_table);
 
