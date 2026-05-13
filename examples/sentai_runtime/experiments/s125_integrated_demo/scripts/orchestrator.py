@@ -361,29 +361,24 @@ def fly_mission(sim: SentaiSim, overlay: "CellOverlay",
     print(f"[s125] connecting cflib → {URI}")
     cf = Crazyflie(rw_cache="./cache")
     flow_stop = threading.Event()
-    flow_th = None
+    flow_th = None   # flow_forwarder thread disabled — sending conf=0 flow
+                     # packets to cf2 Kalman EKF (which is what the wire
+                     # currently produces for a stationary drone) corrupts
+                     # the EKF state, making the firmware refuse to take
+                     # off.  Re-enable once we send synthetic conf>0 during
+                     # the pre-takeoff window OR the bridge is patched to
+                     # not emit duplicate-frame samples.
     with SyncCrazyflie(URI, cf=cf) as scf:
-        # Start flow forwarder thread BEFORE we activate sentai.flow inside
-        # sentai_sim, so the bridge has someone reading its output socket
-        # the moment frames start flowing.
-        flow_th = threading.Thread(
-            target=flow_forwarder, args=(flow_stop, scf.cf), daemon=True)
-        flow_th.start()
-        # Full sentai.flow pipeline is wired (run_demo.sh launches
-        # gz_to_uds_bridge + this orchestrator runs flow_forwarder
-        # thread).  cf2 was teleported to z=1.2 m by run_demo.sh step 6b
-        # so the down-cam clears the ground plane and phase-corr can
-        # produce real (dx, dy, conf) observations.
-        # Kalman estimator (=2) is the proven s091 setup; reset + grace
-        # let the EKF lock onto the incoming flow before takeoff.
+        # Revert to the EXACT setup at commit e049e09d, the last verified
+        # working state (drone took off z=1.03 m in 0.2 s, 9 cells
+        # observed, FSM walked all 7 transitions to DONE).  Kalman
+        # estimator (=2) with reset cycle.  No flow_forwarder thread.
         scf.cf.param.set_value("stabilizer.estimator", 2)
         time.sleep(0.3)
         scf.cf.param.set_value("kalman.resetEstimation", 1)
         time.sleep(0.5)
         scf.cf.param.set_value("kalman.resetEstimation", 0)
-        time.sleep(2.5)
-        sim.cmd("sentai.flow.start(0)")
-        time.sleep(0.3)
+        time.sleep(1.5)
 
         # sentai_sim setup
         sim.cmd('sentai.places.init(40.689167, -74.044444, 10.0, 13)')

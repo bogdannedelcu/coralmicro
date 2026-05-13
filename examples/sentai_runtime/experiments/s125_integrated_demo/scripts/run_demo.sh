@@ -40,6 +40,7 @@ cleanup() {
   echo "[s125] cleanup"
   pkill -f "orchestrator.py" 2>/dev/null || true
   pkill -f "flow_to_cf2.py" 2>/dev/null || true
+  pkill -f "save_downcam_frames\|save_pose" 2>/dev/null || true
   pkill -f "gz_to_uds_bridge\|gz_to_camera_bridge" 2>/dev/null || true
   pkill -x cf2 2>/dev/null || true
   pkill -9 "gz sim" 2>/dev/null || true
@@ -50,7 +51,7 @@ cleanup() {
   # spawn doesn't error, it just clones the first).  Add an explicit
   # podman-exec kill inside the distrobox container — pkill from the
   # host doesn't always reach containerized processes promptly.
-  distrobox enter crazysim-garden -- pkill -9 -f "gz sim\|cf2\|gz_to_uds_bridge" 2>/dev/null || true
+  distrobox enter crazysim-garden -- pkill -9 -f "gz sim\|cf2\|gz_to_uds_bridge\|save_downcam_frames" 2>/dev/null || true
   sleep 1
 }
 trap cleanup SIGINT SIGTERM EXIT
@@ -61,9 +62,15 @@ sleep 1
 #    plugin + cf2 firmware binary).  The launcher backgrounds gz sim -s -r,
 #    spawns cf2 (listening on UDP 19950 for the plugin, UDP 19850 for cflib),
 #    and opens gz sim -g for the GUI.  ALL of these run inside distrobox.
-echo "[s125] launching CrazySim SITL inside distrobox crazysim-garden"
+echo "[s125] launching CrazySim SITL inside distrobox crazysim-garden (spawn z=1.5)"
+# Use our patched launcher which spawns at z=1.5 instead of z=0.5.  The
+# extra altitude gives the cf2 camera frames that CHANGE during the
+# free-fall to ground (~0.5 s), giving sentai.flow enough motion data
+# to lock the Kalman EKF before the drone settles on the floor — same
+# bootstrap pattern s091/aruco_hover.py relied on.
 distrobox enter crazysim-garden -- \
-  bash "$CRAZYSIM/launch/sitl_singleagent.sh" -w s125_demo -m crazyflie -x 0 -y 0 \
+  bash "$REPO/examples/sentai_runtime/experiments/s125_integrated_demo/scripts/sitl_singleagent_patched.sh" \
+  -w s125_demo -m crazyflie -x 0 -y 0 \
   > /tmp/s125_sitl.log 2>&1 &
 SITL_HOST_PID=$!
 
@@ -120,6 +127,24 @@ sleep 2
 # (s091 pattern), reusing the orchestrator's single cflib SyncCrazyflie
 # session.  Two cflib clients on the same drone collide on the UDP
 # handshake.
+
+# 7c. Start parallel frame saver + pose logger inside distrobox — captures
+# every frame from /downward_cam/image AND records the drone's true pose
+# at each gz tick to a CSV.  After the run, analyze_run.py correlates
+# the two: did the drone leave the ground? did the scene change?
+RUN_TS=$(date +%Y%m%d_%H%M%S)
+CAPS_DIR="$REPO/examples/sentai_runtime/experiments/s125_integrated_demo/captures/run_$RUN_TS"
+echo "[s125] starting frame saver → $CAPS_DIR"
+chmod +x "$REPO/sim/scripts/save_downcam_frames.sh" "$REPO/sim/scripts/save_pose.sh"
+distrobox enter crazysim-garden -- \
+  bash "$REPO/sim/scripts/save_downcam_frames.sh" "$CAPS_DIR" 75 \
+  > /tmp/s125_saver.log 2>&1 &
+SAVER_PID=$!
+distrobox enter crazysim-garden -- \
+  bash "$REPO/sim/scripts/save_pose.sh" "$CAPS_DIR" s125_demo 75 \
+  > /tmp/s125_pose.log 2>&1 &
+POSE_PID=$!
+sleep 1
 
 # 8. Run orchestrator on the HOST using its venv (cflib lives there) —
 #    NOT in distrobox.  Reasons:

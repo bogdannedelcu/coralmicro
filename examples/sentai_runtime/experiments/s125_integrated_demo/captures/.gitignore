@@ -1,0 +1,3 @@
+# Per-run capture directories (each is ~100 PNGs ≈ 5-10 MB).
+# Keep only the README.md + standalone diagnostic PNGs at this level.
+run_*/
