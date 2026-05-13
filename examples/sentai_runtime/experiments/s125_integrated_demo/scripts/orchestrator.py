@@ -297,6 +297,9 @@ def fly_mission(sim: SentaiSim, overlay: CellOverlay):
                         y = data["stateEstimate.y"]
                         z = data["stateEstimate.z"]
                         sim.cmd(f'sentai.explore.set_alt({z:.3f})')
+                        # Advance the FSM — without explicit tick() calls
+                        # the state machine never crosses guard expressions.
+                        sim.cmd('sentai.explore.tick()')
 
                         cell = sim.query_str(
                             f"hex(sentai.places.cell({x:.3f},{y:.3f}))",
@@ -304,20 +307,37 @@ def fly_mission(sim: SentaiSim, overlay: CellOverlay):
                         if cell:
                             sim.cmd(f'sentai.places.observe({cell}, 0)')
                             overlay.add_cell(cell, x, y)
+                            # The orchestrator IS the cell counter for the
+                            # FSM — push the running count so EXPLORE can
+                            # transition to RETURN_HOME when the budget hits.
+                            sim.cmd(f'sentai.explore.set_cells_visited({len(overlay.spawned)})')
                         if seq % 4 == 0:
                             sim.cmd('sentai.slam.update_3d([(140,100,180,140,0.9,0)])')
 
                         if seq % 6 == 0:
                             info = sim.query_str(
                                 "sentai.places.info()", key=f"I{seq}")
+                            state = sim.query_str(
+                                'sentai.explore.state()', key=f"S{seq}")
                             if info:
                                 print(f"[s125] places.info() = {info}")
+                            if state:
+                                print(f"[s125] explore.state() = {state}")
 
-                sim.cmd('sentai.explore.set_cells_visited(8)')
+                # After the last waypoint we are back at the origin —
+                # tell the FSM the drone is HOME so RETURN_HOME passes
+                # the dist_home_tol guard and walks down to PRECISION_LAND.
+                sim.cmd('sentai.explore.set_dist_home(0.0)')
+                sim.cmd('sentai.explore.tick()')
+                state = sim.query_str('sentai.explore.state()', key="S_END")
+                print(f"[s125] explore.state() pre-landing = {state}")
 
             print("[s125] landing (MotionCommander exit)")
         # MotionCommander.__exit__ already issued land — no manual call needed.
         sim.cmd('sentai.explore.set_alt(0.02)')
+        sim.cmd('sentai.explore.tick()')   # PRECISION_LAND → COAST_LAND → DONE
+        sim.cmd('sentai.explore.tick()')
+        sim.cmd('sentai.explore.tick()')
 
     # final dump
     cells = sim.query_str("len(sentai.places.cells())", key="CELLS_TOTAL")

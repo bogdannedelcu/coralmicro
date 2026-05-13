@@ -87,17 +87,70 @@ python3 examples/sentai_runtime/experiments/s125_integrated_demo/scripts/dry_run
 Verifies the REPL pipe + cell quantization without Gazebo / cf2.
 Expected: PASS, 16 poses → 6 distinct cells, total matches places.cells().
 
-Verified 2026-05-13.
+## End-to-end run — verified 2026-05-13
+
+Full launch with Gazebo GUI + cf2 SITL + orchestrator + sentai_sim:
+
+```
+[s125] cf2 UDP port open (after 7s)
+[s125] starting orchestrator (v3: enHighLevel + ArUco hold + altitude gate)
+[s125] pre-takeoff: visual stabilization on ArUco panels (3 s)…
+[s125] takeoff → 1.0 m via MotionCommander
+[s125] hover @ z=1.03 m reached (in 0.2 s) — markers stable, starting exploration
+[s125] → waypoint 0 target=(1.5,0.0,1.0)  Δ=(1.50,0.00)
+[s125] places.info() = {..., 'n': 1, ...}
+[s125] places.info() = {..., 'n': 2, ...}
+[s125] places.info() = {..., 'n': 3, ...}
+[s125] → waypoint 1 target=(1.5,1.5,1.0)  Δ=(0.00,1.50)
+[s125] places.info() = {..., 'n': 4, ...}
+[s125] places.info() = {..., 'n': 6, ...}
+[s125] → waypoint 2 target=(0.0,1.5,1.0)  Δ=(-1.50,0.00)
+[s125] → waypoint 3 target=(0.0,0.0,1.0)  Δ=(0.00,-1.50)
+[s125] DONE — cells_visited=6  state=ARM_AT_MARKER
+```
+
+  - ✅ Drone took off (z=1.03 m reached in 0.2 s)
+  - ✅ All 4 waypoints visited
+  - ✅ **6 distinct H3 cells observed** (`places.info().n` grew 1 → 6)
+  - ✅ Mission completed cleanly, drone landed
+
+The path from the orchestrator's perspective traced a 1.5 m × 1.5 m
+square at 1 m altitude, and the world-model gallery captured 6 unique
+hex cells (res=13, ~3.5 m edge after scale=10).
 
 ## What's deferred
 
+  - **`sentai.explore` FSM auto-tick.** The orchestrator drives the FSM
+    by calling `set_alt` / `set_arm_ack` / `set_marker` /
+    `set_cells_visited` / `set_dist_home` plus explicit `tick()` per
+    pose update. A future Stage 3.E ships a FreeRTOS task on ARM that
+    drives the FSM automatically; the SIM equivalent is a Python
+    threading.Timer in the orchestrator.
   - **`sentai.servo` real dispatch** — today the orchestrator drives the
     drone via cflib directly; the FSM's `servo.arm()` / `servo.takeoff()`
     only record traces. Stage 4.A wires servo → cflib so the FSM
     actually owns the actuation path.
+  - **Real ArUco-locked stabilization.** The 4 ArUco panels in the world
+    are visible to the operator's eye (and in the PIP widget showing
+    `/downward_cam/image`), but the orchestrator's "stabilization" phase
+    is currently just a 3-second time wait — no actual marker detection
+    feeds the EKF. The proven pattern from `s091_aruco_hover.py` runs
+    `cv2.aruco` + `solvePnP` against the down-cam image and forwards
+    pose via `sentai.flow` anchor mode. Wiring that into s125 is the
+    next iteration.
   - **Synthetic detections.** `slam.update_3d` is fed a fixed bbox
     every 4 ticks just to exercise the EKF; not from the drone's
     downward camera. Stage 5 (object lifter) consumes real TPU output.
-  - **VPE forwarding.** Drone EKF uses its own onboard Kalman estimator
-    (default Crazyflie complementary or kalman_estimator); no `sentai`
-    pose feed into the FCS. Adequate for SITL hover.
+  - **SFLVP exploration pattern** — `objects_plan.md §7.5` specifies the
+    canonical "visit central cell, then 6 neighbors, jump to next" hex
+    traversal. Today's orchestrator walks 4 hardcoded waypoints; the
+    next iteration generates the trajectory from `places.neighbors()`
+    queries.
+
+## TYPE_HOVER_LEGACY deprecation warnings
+
+cflib's `MotionCommander` uses `TYPE_HOVER_LEGACY` setpoints that the
+CrazySim firmware accepts but with a deprecation warning. Cosmetic
+only — the drone flies. The warning will go away once we update the
+cf2 firmware in CrazySim to a newer commit (out of scope for this
+experiment).
