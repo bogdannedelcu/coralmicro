@@ -26,6 +26,7 @@ from cflib.crazyflie import Crazyflie
 from cflib.crazyflie.syncCrazyflie import SyncCrazyflie
 from cflib.crazyflie.log import LogConfig
 from cflib.crazyflie.syncLogger import SyncLogger
+from cflib.positioning.motion_commander import MotionCommander
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -206,23 +207,17 @@ def fly_mission(sim: SentaiSim, overlay: CellOverlay):
     print(f"[s125] connecting cflib → {URI}")
     cf = Crazyflie(rw_cache="./cache")
     with SyncCrazyflie(URI, cf=cf) as scf:
-        commander = scf.cf.high_level_commander
-
-        # CrazyFlie HighLevelCommander needs the firmware param enabled.
-        # Default cf2 firmware ships with enHighLevel=0; we MUST flip this
-        # before any takeoff/go_to/land call or the planner ignores them
-        # and the drone drifts uncommanded (operator-reported: "crashing
-        # chaotically", 2026-05-13).
-        scf.cf.param.set_value("commander.enHighLevel", "1")
-        # Use the legacy PID controller (1) — Mellinger (2) needs trajectory
-        # smoothing we don't provide here.
-        scf.cf.param.set_value("stabilizer.controller", "1")
+        # Use the same proven setup pattern as s091_aruco_hover.py:
+        # Kalman estimator (stabilizer.estimator=2), reset estimation,
+        # then MotionCommander for takeoff/move/land.  This is the
+        # path that actually works on CrazySim cf2 — high_level_commander
+        # + enHighLevel param flip turned out NOT to be needed and
+        # actually prevented the drone from taking off (z stayed at 0).
+        scf.cf.param.set_value("stabilizer.estimator", 2)
         time.sleep(0.3)
-
-        # Reset Kalman estimator so spawn pose is the origin.
-        scf.cf.param.set_value("kalman.resetEstimation", "1")
+        scf.cf.param.set_value("kalman.resetEstimation", 1)
         time.sleep(0.5)
-        scf.cf.param.set_value("kalman.resetEstimation", "0")
+        scf.cf.param.set_value("kalman.resetEstimation", 0)
         time.sleep(1.5)
 
         # sentai_sim setup
@@ -244,83 +239,84 @@ def fly_mission(sim: SentaiSim, overlay: CellOverlay):
             print(f"[s125]   stab {k+1}/3 — markers visible at (±0.4, ±0.4)")
             time.sleep(1.0)
 
-        # Start pose-logger early — covers takeoff + waypoints in one loop.
+        # Pose-logger reads cf2 EKF state in parallel with motion commands.
         lg = LogConfig(name="pose", period_in_ms=200)
         lg.add_variable("stateEstimate.x", "float")
         lg.add_variable("stateEstimate.y", "float")
         lg.add_variable("stateEstimate.z", "float")
 
-        print("[s125] takeoff → 1.0 m (drone holds over ArUco grid)")
-        commander.takeoff(1.0, 3.5)
-        sim.cmd('sentai.explore.set_alt(0.0)')   # initial value; logger overrides
-
-        with SyncLogger(scf, lg) as logger:
-            # Phase 1 — hold over markers until altitude ≥ 0.95 m.
-            print("[s125] stabilizing over ArUco markers (waiting for z ≥ 0.95 m)…")
-            t_stab_start = time.time()
-            for entry in logger:
-                _ts, data, _logconf = entry
-                z = data["stateEstimate.z"]
-                sim.cmd(f'sentai.explore.set_alt({z:.3f})')
-                if z >= 0.95:
-                    elapsed = time.time() - t_stab_start
-                    print(f"[s125] hover @ z={z:.2f} m reached (in {elapsed:.1f} s) — markers stable, starting exploration")
-                    break
-                if time.time() - t_stab_start > 10.0:
-                    print(f"[s125] WARN: altitude never reached 0.95 m (last z={z:.2f}); proceeding anyway")
-                    break
-
-            seq = -1
-            wp_idx = 0
-            # Hover-confirm pause so the drone visibly holds before moving
-            print("[s125] hold 1.5 s at 1.0 m (visual confirmation)…")
-            time.sleep(1.5)
-
-            # Issue the first waypoint.
-            wx0, wy0, wz0 = WAYPOINTS_M[0]
-            print(f"[s125] → waypoint 0 ({wx0},{wy0},{wz0})")
-            commander.go_to(wx0, wy0, wz0, 0.0, 3.0, relative=False)
-            wp_idx = 1
-            t_arrive = time.time() + 3.0 + HOVER_TIME_S   # 3s travel + hover
-
-            # Phase 2 — pose loop until all waypoints visited.
-            for entry in logger:
-                seq += 1
-                _ts, data, _logconf = entry
-                x = data["stateEstimate.x"]
-                y = data["stateEstimate.y"]
-                z = data["stateEstimate.z"]
-
-                sim.cmd(f'sentai.explore.set_alt({z:.3f})')
-
-                cell = sim.query_str(f"hex(sentai.places.cell({x:.3f},{y:.3f}))",
-                                     key=f"C{seq}")
-                if cell:
-                    sim.cmd(f'sentai.places.observe({cell}, 0)')
-                    overlay.add_cell(cell, x, y)
-                if seq % 4 == 0:
-                    sim.cmd('sentai.slam.update_3d([(140,100,180,140,0.9,0)])')
-
-                if time.time() >= t_arrive:
-                    if wp_idx < len(WAYPOINTS_M):
-                        wx, wy, wz = WAYPOINTS_M[wp_idx]
-                        print(f"[s125] → waypoint {wp_idx} ({wx},{wy},{wz})")
-                        commander.go_to(wx, wy, wz, 0.0, 3.0, relative=False)
-                        wp_idx += 1
-                        t_arrive = time.time() + 3.0 + HOVER_TIME_S
-                    else:
+        # MotionCommander handles takeoff/move/land via velocity-setpoint
+        # CRTP packets — the same path CrazySim's own examples use.  Its
+        # context manager auto-takeoffs to default_height on entry and
+        # auto-lands on exit, so the structure of the mission is just
+        # "move from one waypoint to the next".
+        print("[s125] takeoff → 1.0 m via MotionCommander")
+        with MotionCommander(scf, default_height=1.0) as mc:
+            # MotionCommander.__enter__ already kicked takeoff.  Wait for
+            # the climb to settle by reading altitude from the log stream.
+            with SyncLogger(scf, lg) as logger:
+                print("[s125] stabilizing over ArUco markers (waiting for z ≥ 0.95 m)…")
+                t_stab_start = time.time()
+                for entry in logger:
+                    _ts, data, _logconf = entry
+                    z = data["stateEstimate.z"]
+                    sim.cmd(f'sentai.explore.set_alt({z:.3f})')
+                    if z >= 0.95:
+                        elapsed = time.time() - t_stab_start
+                        print(f"[s125] hover @ z={z:.2f} m reached (in {elapsed:.1f} s) — markers stable, starting exploration")
+                        break
+                    if time.time() - t_stab_start > 10.0:
+                        print(f"[s125] WARN: altitude never reached 0.95 m (last z={z:.2f}); proceeding anyway")
                         break
 
-                if seq % 8 == 0:
-                    info = sim.query_str("sentai.places.info()", key=f"I{seq}")
-                    if info:
-                        print(f"[s125] places.info() = {info}")
+                # Brief hover-confirm pause so the operator sees the
+                # drone stationary at 1 m over the marker grid.
+                print("[s125] hold 1.5 s at 1.0 m (visual confirmation)…")
+                time.sleep(1.5)
 
-            sim.cmd('sentai.explore.set_cells_visited(8)')
+                # Walk waypoints — MotionCommander.move_distance is
+                # blocking with a velocity setpoint, returns when arrived.
+                cur_x, cur_y = 0.0, 0.0
+                seq = -1
+                for wp_idx, (wx, wy, wz) in enumerate(WAYPOINTS_M):
+                    dx, dy = wx - cur_x, wy - cur_y
+                    print(f"[s125] → waypoint {wp_idx} target=({wx},{wy},{wz})  Δ=({dx:.2f},{dy:.2f})")
+                    mc.move_distance(dx, dy, 0.0, velocity=0.3)
+                    cur_x, cur_y = wx, wy
 
-        print("[s125] landing")
-        commander.land(0.0, 3.0)
-        time.sleep(4.0)
+                    # Hover briefly after arrival so the EKF settles and
+                    # the place observation lands on a stable cell.
+                    t_hover_end = time.time() + HOVER_TIME_S
+                    while time.time() < t_hover_end:
+                        try:
+                            _ts, data, _logconf = next(iter(logger))
+                        except Exception:
+                            break
+                        seq += 1
+                        x = data["stateEstimate.x"]
+                        y = data["stateEstimate.y"]
+                        z = data["stateEstimate.z"]
+                        sim.cmd(f'sentai.explore.set_alt({z:.3f})')
+
+                        cell = sim.query_str(
+                            f"hex(sentai.places.cell({x:.3f},{y:.3f}))",
+                            key=f"C{seq}")
+                        if cell:
+                            sim.cmd(f'sentai.places.observe({cell}, 0)')
+                            overlay.add_cell(cell, x, y)
+                        if seq % 4 == 0:
+                            sim.cmd('sentai.slam.update_3d([(140,100,180,140,0.9,0)])')
+
+                        if seq % 6 == 0:
+                            info = sim.query_str(
+                                "sentai.places.info()", key=f"I{seq}")
+                            if info:
+                                print(f"[s125] places.info() = {info}")
+
+                sim.cmd('sentai.explore.set_cells_visited(8)')
+
+            print("[s125] landing (MotionCommander exit)")
+        # MotionCommander.__exit__ already issued land — no manual call needed.
         sim.cmd('sentai.explore.set_alt(0.02)')
 
     # final dump

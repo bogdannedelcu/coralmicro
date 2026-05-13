@@ -70,6 +70,22 @@
         <step>1</step>
         <start_paused>0</start_paused>
       </plugin>
+      <!-- PIP: drone's downward camera (cf2 crazyflie model publishes
+           /downward_cam/image at ~16 fps).  Operator uses this to verify
+           the drone sees the ArUco markers during pre-takeoff hold. -->
+      <plugin filename='ImageDisplay' name='Image Display'>
+        <gz-gui>
+          <title>cf2 downward_cam (PIP)</title>
+          <property type='bool' key='showTitleBar'>1</property>
+          <property type='string' key='state'>floating</property>
+          <property type='double' key='width'>320</property>
+          <property type='double' key='height'>240</property>
+          <property type='double' key='x'>10</property>
+          <property type='double' key='y'>10</property>
+        </gz-gui>
+        <topic>/downward_cam/image</topic>
+        <topic_picker>true</topic_picker>
+      </plugin>
     </gui>
 
     <wind><linear_velocity>0 0 0</linear_velocity></wind>
@@ -159,8 +175,10 @@
         <visual name="visual">
           <geometry><box><size>0.4 0.4 0.005</size></box></geometry>
           <material>
+            <ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse>
             <pbr><metal>
               <albedo_map>materials/textures/aruco_4x4_50_id0.png</albedo_map>
+              <metalness>0</metalness><roughness>1</roughness>
             </metal></pbr>
           </material>
         </visual>
@@ -173,8 +191,10 @@
         <visual name="visual">
           <geometry><box><size>0.4 0.4 0.005</size></box></geometry>
           <material>
+            <ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse>
             <pbr><metal>
               <albedo_map>materials/textures/aruco_4x4_50_id1.png</albedo_map>
+              <metalness>0</metalness><roughness>1</roughness>
             </metal></pbr>
           </material>
         </visual>
@@ -187,8 +207,10 @@
         <visual name="visual">
           <geometry><box><size>0.4 0.4 0.005</size></box></geometry>
           <material>
+            <ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse>
             <pbr><metal>
               <albedo_map>materials/textures/aruco_4x4_50_id2.png</albedo_map>
+              <metalness>0</metalness><roughness>1</roughness>
             </metal></pbr>
           </material>
         </visual>
@@ -201,8 +223,10 @@
         <visual name="visual">
           <geometry><box><size>0.4 0.4 0.005</size></box></geometry>
           <material>
+            <ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse>
             <pbr><metal>
               <albedo_map>materials/textures/aruco_4x4_50_id3.png</albedo_map>
+              <metalness>0</metalness><roughness>1</roughness>
             </metal></pbr>
           </material>
         </visual>
