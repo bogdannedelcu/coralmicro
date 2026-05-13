@@ -1501,6 +1501,7 @@ static const mp_obj_module_t sentai_link_module = {
 #include "../examples/sentai_runtime/modsentai_slam.c"
 #include "../examples/sentai_runtime/modsentai_explore.c"
 #include "../examples/sentai_runtime/modsentai_places.c"
+#include "../examples/sentai_runtime/modsentai_servo.c"
 
 
 static const mp_rom_map_elem_t sentai_globals_table[] = {
@@ -1520,6 +1521,7 @@ static const mp_rom_map_elem_t sentai_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_slam),     MP_ROM_PTR(&sentai_slam_module) },
     { MP_ROM_QSTR(MP_QSTR_explore),  MP_ROM_PTR(&sentai_explore_module) },
     { MP_ROM_QSTR(MP_QSTR_places),   MP_ROM_PTR(&sentai_places_module) },
+    { MP_ROM_QSTR(MP_QSTR_servo),    MP_ROM_PTR(&sentai_servo_module) },
 };
 static MP_DEFINE_CONST_DICT(sentai_globals, sentai_globals_table);
 
