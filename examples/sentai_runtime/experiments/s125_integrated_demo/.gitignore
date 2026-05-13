@@ -1,0 +1,4 @@
+# cflib radio handshake cache (created at orchestrator runtime)
+cache/
+# orchestrator subprocess logs
+*.log

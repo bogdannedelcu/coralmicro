@@ -125,10 +125,13 @@
       </link>
     </model>
 
-    <!-- Larger underlay so peripheral vision still sees something -->
-    <model name="ground_plane_deep">
+    <!-- Wide green backdrop at the SAME ground level (z=0) so peripheral
+         vision sees green grass instead of a 10 m pit around the harmonic
+         square.  Tiny -1 mm offset on Z prevents z-fighting with the
+         textured plane on top. -->
+    <model name="ground_plane_backdrop">
       <static>true</static>
-      <pose>0 0 -10 0 0 0</pose>
+      <pose>0 0 -0.001 0 0 0</pose>
       <link name="link">
         <visual name="visual">
           <geometry>
@@ -137,6 +140,70 @@
           <material>
             <ambient>0.45 0.55 0.45 1</ambient>
             <diffuse>0.55 0.65 0.55 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ArUco markers around the takeoff origin so the drone has visual
+         anchors for pre-takeoff stabilization.  4×4_50 IDs 0..3 are the
+         CrazySim defaults (already in materials/textures/).  Each marker
+         is a 0.4 m × 0.4 m flat panel raised 6 mm above the ground so it
+         sits on top of the Harmonic texture.  Placed in a ~0.8 m square
+         pattern centred on (0,0) — drone spawns at (0,0,0.5) so the
+         downward camera (60° FOV) sees all four immediately. -->
+    <model name="aruco_id0">
+      <static>true</static>
+      <pose>0.4 0.4 0.006 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry><box><size>0.4 0.4 0.005</size></box></geometry>
+          <material>
+            <pbr><metal>
+              <albedo_map>materials/textures/aruco_4x4_50_id0.png</albedo_map>
+            </metal></pbr>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name="aruco_id1">
+      <static>true</static>
+      <pose>-0.4 0.4 0.006 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry><box><size>0.4 0.4 0.005</size></box></geometry>
+          <material>
+            <pbr><metal>
+              <albedo_map>materials/textures/aruco_4x4_50_id1.png</albedo_map>
+            </metal></pbr>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name="aruco_id2">
+      <static>true</static>
+      <pose>-0.4 -0.4 0.006 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry><box><size>0.4 0.4 0.005</size></box></geometry>
+          <material>
+            <pbr><metal>
+              <albedo_map>materials/textures/aruco_4x4_50_id2.png</albedo_map>
+            </metal></pbr>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name="aruco_id3">
+      <static>true</static>
+      <pose>0.4 -0.4 0.006 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry><box><size>0.4 0.4 0.005</size></box></geometry>
+          <material>
+            <pbr><metal>
+              <albedo_map>materials/textures/aruco_4x4_50_id3.png</albedo_map>
+            </metal></pbr>
           </material>
         </visual>
       </link>

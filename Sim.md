@@ -3459,3 +3459,116 @@ identice** dar **scale fizic 10× diferit**:
 
 **Documentat: confirmat din linkat. Asset floor_osm_4096.png va fi
 shared cross-platform.**
+
+---
+
+## 10w. CrazySim runtime hygiene (best practices, 2026-05-13)
+
+Lessons learned bringing up the s125 integrated visual demo. These rules
+are **load-bearing** — every minute we ignore one of them costs ~30
+minutes of debug.
+
+### 10w.1 NEVER run `gz sim` from the host
+
+Sim.md §10c+§10d already says "Garden 7.9 inside distrobox, Harmonic
+banned on host". This is stricter than it sounds: **the host's `gz`
+binary is on `$PATH`**, so any script that calls `gz sim …` directly
+runs the HOST version (Harmonic 8.x on this dev box). Harmonic loads our
+world successfully, then fails to load the CrazySim plugin (it's built
+against `libgz-sim7`, not `libgz-sim8`), and cf2 never spawns.
+
+  - **Symptom**: SITL launcher prints
+    `Error while loading the library [.../libgz_crazysim_plugin.so]:
+    libgz-sim7.so.7: cannot open shared object file`,
+    followed by `Failed to load system plugin (Reason: No plugins
+    detected in library)`. cflib then gets `ConnectionRefused` on
+    `udp://127.0.0.1:19850` because cf2 never started.
+  - **Rule**: every CrazySim invocation (sitl_singleagent.sh, raw
+    `gz sim`, `gz topic`, `gz service`) MUST run **inside** distrobox
+    `crazysim-garden`. Don't even put the SITL launcher in a host
+    script that pipes commands in — the moment gz starts on the host,
+    you've lost.
+  - **One-line check before debugging anything else**:
+    `gz sim --version` (host) vs `distrobox enter crazysim-garden -- gz
+    sim --version`. Host = 8.x → use distrobox. If only host has gz,
+    distrobox isn't entered.
+
+Concretely for the s125 demo: `run_demo.sh` enters distrobox FIRST and
+runs `sitl_singleagent.sh -w s125_demo` from there, NOT from the host.
+
+### 10w.2 Texture-path resolution under Garden — symlink trick
+
+CrazySim's `setup_gz.bash` only adds `models` and `worlds` to
+`GZ_SIM_RESOURCE_PATH`. World SDFs using
+`<albedo_map>materials/textures/foo.png</albedo_map>` expect the texture
+to resolve relative to the SDF's directory — i.e.,
+`worlds/materials/textures/foo.png`. But the textures live at
+`<gazebo-root>/materials/textures/`.
+
+  - **Symptom**: `[Err] [SystemPaths.cc] File [.../worlds/materials/
+    textures/foo.png] resolved to path [.../worlds/materials/textures/
+    foo.png] but the path does not exist`, followed by `Unable to find
+    file`. Drone spawns, world loads, but the ground plane is solid
+    white (no texture).
+  - **Fix**: one-time symlink at install time:
+    `ln -s ../materials <gazebo-root>/worlds/materials`. This is
+    idempotent and shared across all worlds + textures (checker.png,
+    aruco markers, harmonic_alt200_4k.png, …).
+  - **Apply once**: `run_demo.sh` is now idempotent — checks for the
+    symlink and creates it if missing.
+
+### 10w.3 Texture file deployment for new worlds
+
+When committing a new world SDF to the SentAI repo that references a
+texture not already in the CrazySim install:
+
+  1. **Source of truth** for textures stays under
+     `sim/gazebo/worlds/assets/<tile-name>/` in this repo (one canonical
+     copy, versioned, durable).
+  2. **Mirror to CrazySim** install at world-launch time —
+     `run_demo.sh` checks for the file under
+     `$CRAZYSIM/materials/textures/`, copies if missing. Don't expect
+     operators to remember a separate `cp` step.
+  3. **Keep symlink path stable**: `worlds/materials → ../materials`
+     resolves new textures automatically once dropped into the mirror.
+
+### 10w.4 Harmonic generation infra removed from repo (2026-05-13)
+
+Per operator direction, the `sim/gazebo/worlds/harmonic_scene.sdf` and
+`sim/scripts/render_topdown.py` / `topdown_subscribe.py` were deleted —
+they pulled Harmonic World models from Fuel and required Gazebo
+8/Harmonic to render. The 4K artifact lives under
+`sim/gazebo/worlds/assets/harmonic_tiles/` (versioned PNG + JPEG
+previews) and is treated as a **frozen asset**; regeneration recipe is
+the README in that dir, but normal development should never need it.
+
+### 10w.5 Subprocess REPL pipe → sentai_sim (orchestrator pattern)
+
+For the s125 demo, the orchestrator uses a subprocess pipe to a
+`sentai_sim` process — sending lines to stdin, parsing `=KEY value`
+markers from stdout. Lessons:
+
+  - **REPL is line-at-a-time on multiline blocks.** No multi-line `def`,
+    no `for: …` loops over multiple statements. Use one-liners /
+    inline generators. (Same caveat already in
+    `feedback_no_complex_serial_orchestration.md`.)
+  - **Banner consumption matters.** sentai_sim prints a build banner +
+    `>>> ` prompt at startup; consume those before issuing queries or
+    you'll mis-parse the first response.
+  - **Always send a distinct response key per query** (`=Q01`, `=Q02`)
+    so the parser can grep its own response out of the noisy stdout
+    stream without false matches against echoed input lines.
+
+### 10w.6 Cleanup discipline — kill in reverse-spawn order
+
+Demo scripts spawn 3+ processes (gz sim server, gz sim GUI, cf2
+firmware, orchestrator's sentai_sim subprocess). Cleanup order matters:
+
+  1. `pkill -f "orchestrator.py"` (high-level, owns subprocess)
+  2. `pkill -x cf2`
+  3. `pkill -9 "gz sim"` (server then GUI)
+  4. `pkill -9 ruby` (CrazySim Ruby helper)
+
+Reverse-spawn order avoids races where a dying process tries to
+publish to a topic served by an already-killed peer. `trap cleanup
+EXIT SIGINT SIGTERM` in the launcher script is the right pattern.

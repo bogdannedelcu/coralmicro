@@ -20,18 +20,22 @@ terrain heightmap spans ~1200 m × 1200 m, so this tile shows the central
 
 ## How it was made
 
-```bash
-python3 sim/scripts/render_topdown.py \
-  --src ~/.gz/fuel/fuel.gazebosim.org/openrobotics/worlds/"harmonic world"/3/harmonic.sdf \
-  --out sim/gazebo/worlds/assets/harmonic_tiles/harmonic_alt200_4k.png \
-  --altitude 200 \
-  --fov-deg 100 \
-  --run-seconds 18
-```
+This is a **frozen artifact** — the render pipeline (`sim/scripts/render_topdown.py`
+plus a minimal scene SDF that `<include>`d four Fuel-hosted Harmonic World
+models) was removed 2026-05-13. We use Gazebo **Garden 7.9** (per Sim.md
+§10c+§10d), and Harmonic-side infrastructure isn't needed once the texture
+is generated.
 
-The render script auto-strips problematic includes (Fidget Spinner, Pendulum,
-Tethys, CartPole, wide-angle-camera-lensflare — none renderable under
-ogre2/Garden 7.9) and injects a static nadir camera with `<save enabled="true">`.
+If you ever need to regenerate it, the recipe is:
 
-Multi-altitude variants (100 m / 500 m) require additional scene tuning —
-deferred until needed. The 200 m tile is sufficient as a backdrop texture.
+  1. Install a Gazebo 8/Harmonic environment (NOT on the dev host — use a
+     separate distrobox or VM; the dev host MUST stay on Garden 7.9 or
+     run no gz at all).
+  2. Set up a minimal scene SDF that includes the 4 Harmonic World
+     `<include>` URIs (Terrain, TerrainObjects, Lake House, Coast Waves 2)
+     plus a static nadir camera with `<save enabled="true">`.
+  3. Run `gz sim -r --headless-rendering` for 15–20 s; grab the PNG that
+     the camera writes.
+
+The 4K master here is sufficient as a backdrop texture for SIM demos
+(see `examples/sentai_runtime/experiments/s125_integrated_demo/`).

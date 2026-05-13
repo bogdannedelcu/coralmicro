@@ -665,6 +665,51 @@ Total: ~3-4 săptămâni dezvoltare focusată (estimat conservativ).
 
 ---
 
+## 7.5 Canonical exploration pattern — SFLVP (S From Last Visited Place)
+
+**Specified 2026-05-13.**  When `sentai.explore` walks the world model
+during the EXPLORE state (§3 stage 3), the canonical traversal is:
+
+  1. Mark the **current cell** as visited (`places.observe(cell, …)`).
+  2. Enumerate the **6 hex neighbors** of the current cell (`places.neighbors(cell, 1)` minus the cell itself).
+  3. **Visit each neighbor** in turn — fly to its centroid, settle briefly,
+     observe (class histogram + HSV embedding once Stage 11.D fires).
+  4. After all 6 neighbors are visited, **pick the next central** —
+     the neighbor whose own k=1 ring contains the most still-unvisited
+     cells (greedy frontier).
+  5. Repeat until the explore cell budget (Stage 3.B `cell_budget`)
+     is hit or `set_thresholds(..., explore_timeout_ticks)` fires.
+
+The traversal traces an "S" shape from each last-visited place as the
+drone leaves a fully-covered group and jumps to the next central — hence
+**SFLVP** (S From Last Visited Place).
+
+**Why this shape (vs spiral / lawn-mower / Voronoi-frontier):**
+
+  - **Hex neighbors are pre-computed by H3** — `gridDisk(k=1)` returns
+    the 6 cells deterministically.  No path-planning needed inside the
+    inner loop.
+  - **Coverage is uniform** at each scale — each cell is observed AT
+    LEAST once and at most twice (when it's a neighbor of two
+    consecutive centrals).
+  - **Compatible with the dual-scale convention (§10v)** — at PX4
+    natural scale the hex edges are ~10 m, at cf2 1/10 they're ~1 m;
+    the same SFLVP algorithm runs unchanged, only `places.init(scale=…)`
+    differs.
+  - **Backtracking is free** — the "S" jump from the corner of one
+    ring to the start of the next is a single fly-through (no zig-zag).
+
+**Implementation home:** lives in `sentai.explore` (Stage 3.C) as a
+helper consumed by the EXPLORE state's per-tick action.  The mission FSM
+calls `_explore_next_waypoint()` which returns the next H3 cell centroid
+to fly to — that's what `sentai.servo.move(...)` then commands.
+
+s125_integrated_demo currently flies a hard-coded 4-corner square (Stage
+3.A-era).  Stage 3.C swaps this for SFLVP — same world model, same FSM,
+new waypoint generator.
+
+---
+
 ## 8. Where new modules live (architecture map)
 
 ```
