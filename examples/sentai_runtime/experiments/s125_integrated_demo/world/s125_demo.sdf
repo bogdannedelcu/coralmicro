@@ -161,6 +161,64 @@
       </link>
     </model>
 
+    <!-- Bootstrap deep plane for the cf2 down-cam.
+         The cf2 model spawns the down-cam at offset (-0.04, 0, -0.02) m
+         from the drone link.  Drone link rests at z≈0.015 m (gravity
+         settles the body on the floor), so camera ends up at z=-0.005 m
+         — BELOW the harmonic floor.  Looking down it would see the
+         pastel-blue background through the floor, sentai.flow gets
+         conf=0, the cf2 Kalman EKF won't lock, takeoff is blocked.
+
+         A high-contrast textured plane 50 cm below the floor gives the
+         camera something to lock onto during the bootstrap second
+         (before the drone lifts above the harmonic floor).  At z=-0.5
+         m the plane is far below the operator's bird's-eye view
+         (harmonic z=0 plane is opaque), so it does NOT recreate the
+         "walls below" visual issue the operator caught with the prior
+         z=-10 deep plane.
+
+         Checker pattern reused from CrazySim's materials/textures
+         already symlinked into the worlds/materials dir (§10w.2). -->
+    <model name="bootstrap_deep_plane">
+      <static>true</static>
+      <pose>0 0 -0.5 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <plane><normal>0 0 1</normal><size>40 40</size></plane>
+          </geometry>
+          <material>
+            <ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse>
+            <pbr><metal>
+              <albedo_map>materials/textures/checker.png</albedo_map>
+              <metalness>0</metalness><roughness>1</roughness>
+            </metal></pbr>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- s091-style ultimate fallback plane at z=-10.  Solid black so
+         that ANY frame the cf2 camera produces while it's between the
+         floor and z=1 has SOMETHING below it (not the pastel-blue
+         background showing through).  Operator visible only at the
+         very edge of the harmonic floor if they look obliquely. -->
+    <model name="ground_plane_fallback_deep">
+      <static>true</static>
+      <pose>0 0 -10 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <plane><normal>0 0 1</normal><size>200 200</size></plane>
+          </geometry>
+          <material>
+            <ambient>0.05 0.05 0.05 1</ambient>
+            <diffuse>0.05 0.05 0.05 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
     <!-- ArUco markers around the takeoff origin so the drone has visual
          anchors for pre-takeoff stabilization.  4×4_50 IDs 0..3 are the
          CrazySim defaults (already in materials/textures/).  Each marker
