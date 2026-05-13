@@ -222,6 +222,118 @@ static mp_obj_t mod_places_neighbors(mp_obj_t cell_obj, mp_obj_t k_obj) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_2(mod_places_neighbors_obj, mod_places_neighbors);
 
+// ===================== Embedding (Stage 11.D) =====================
+//
+// Convention: 128-byte HSV histogram (4x4 spatial × 8 hue bins) produced by
+// sentai_tracker.cc's hist_extract (or an offline equivalent on the host).
+// Each 8-bin cell is normalized so it sums to ~255.  Match uses per-cell
+// Bhattacharyya distance averaged across all 16 spatial cells, mirroring
+// what sentai_tracker uses for re-id.
+
+#define PLACES_BHATTACHARYYA_CELLS 16    /* 4×4 spatial grid */
+#define PLACES_BHATTACHARYYA_BINS  8     /* hue bins per cell */
+
+static float places_hist_bhattacharyya(const uint8_t *a, const uint8_t *b) {
+    float bc = 0.0f;
+    for (int c = 0; c < PLACES_BHATTACHARYYA_CELLS; c++) {
+        int base = c * PLACES_BHATTACHARYYA_BINS;
+        float sa = 0, sb = 0, cell = 0;
+        for (int i = 0; i < PLACES_BHATTACHARYYA_BINS; i++) {
+            float ai = (float)a[base + i], bi = (float)b[base + i];
+            sa += ai;
+            sb += bi;
+            cell += sqrtf(ai * bi);
+        }
+        float norm = sqrtf(sa * sb);
+        if (norm > 0.01f) bc += cell / norm;
+    }
+    bc /= (float)PLACES_BHATTACHARYYA_CELLS;
+    return 1.0f - bc;       /* 0 = identical, 1 = different */
+}
+
+// places.set_embedding(cell, bytes) -> int  (0=ok, -1=cell invalid/unknown,
+//                                            -2=wrong length)
+static mp_obj_t mod_places_set_embedding(mp_obj_t cell_obj, mp_obj_t buf_obj) {
+    H3Index cell = (H3Index)mp_obj_get_int(cell_obj);
+    if (cell == PLACES_INVALID_CELL || !isValidCell(cell)) return mp_obj_new_int(-1);
+    mp_buffer_info_t bi;
+    if (!mp_get_buffer(buf_obj, &bi, MP_BUFFER_READ)) return mp_obj_new_int(-2);
+    if (bi.len != PLACES_EMB_DIM) return mp_obj_new_int(-2);
+    int idx = places_get_or_create(cell);
+    if (idx < 0) return mp_obj_new_int(-1);
+    memcpy(g_places[idx].embedding, bi.buf, PLACES_EMB_DIM);
+    g_places[idx].has_embedding = 1;
+    return mp_obj_new_int(0);
+}
+static MP_DEFINE_CONST_FUN_OBJ_2(mod_places_set_embedding_obj, mod_places_set_embedding);
+
+// places.embedding(cell) -> bytes(128) | None
+static mp_obj_t mod_places_embedding(mp_obj_t cell_obj) {
+    H3Index cell = (H3Index)mp_obj_get_int(cell_obj);
+    int idx = places_find(cell);
+    if (idx < 0 || !g_places[idx].has_embedding) return mp_const_none;
+    return mp_obj_new_bytes(g_places[idx].embedding, PLACES_EMB_DIM);
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(mod_places_embedding_obj, mod_places_embedding);
+
+// places.match(bytes [, k=1]) -> [(cell, similarity_pct), ...] best-first
+// similarity_pct = (1 - bhattacharyya) × 100, integer 0..100.
+// Returns empty list if no embeddings stored or query length != 128.
+static mp_obj_t mod_places_match(size_t n_args, const mp_obj_t *args) {
+    mp_buffer_info_t bi;
+    if (!mp_get_buffer(args[0], &bi, MP_BUFFER_READ)) return mp_obj_new_list(0, NULL);
+    if (bi.len != PLACES_EMB_DIM) return mp_obj_new_list(0, NULL);
+    int k = (n_args >= 2) ? mp_obj_get_int(args[1]) : 1;
+    if (k < 1) k = 1;
+    if (k > 16) k = 16;
+
+    /* Single-pass top-k via insertion sort into a fixed-size array.
+     * Distances are small floats; we negate to keep the top-k smallest
+     * (highest similarity).  Result is ascending distance ⇒ best first. */
+    typedef struct { float dist; H3Index cell; } cand_t;
+    cand_t top[16];
+    int n_top = 0;
+
+    for (int i = 0; i < PLACES_MAX; i++) {
+        if (g_places[i].cell == PLACES_INVALID_CELL) continue;
+        if (!g_places[i].has_embedding) continue;
+        float d = places_hist_bhattacharyya((const uint8_t *)bi.buf,
+                                            g_places[i].embedding);
+        /* Insert into sorted top-k array */
+        if (n_top < k) {
+            int p = n_top++;
+            while (p > 0 && top[p-1].dist > d) {
+                top[p] = top[p-1];
+                p--;
+            }
+            top[p].dist = d;
+            top[p].cell = g_places[i].cell;
+        } else if (d < top[k-1].dist) {
+            int p = k - 1;
+            while (p > 0 && top[p-1].dist > d) {
+                top[p] = top[p-1];
+                p--;
+            }
+            top[p].dist = d;
+            top[p].cell = g_places[i].cell;
+        }
+    }
+
+    mp_obj_t result = mp_obj_new_list(0, NULL);
+    for (int i = 0; i < n_top; i++) {
+        int sim_pct = (int)((1.0f - top[i].dist) * 100.0f + 0.5f);
+        if (sim_pct < 0)   sim_pct = 0;
+        if (sim_pct > 100) sim_pct = 100;
+        mp_obj_t pair[2] = {
+            mp_obj_new_int_from_ull((unsigned long long)top[i].cell),
+            mp_obj_new_int(sim_pct),
+        };
+        mp_obj_list_append(result, mp_obj_new_tuple(2, pair));
+    }
+    return result;
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_places_match_obj, 1, 2, mod_places_match);
+
 // places.cells() -> [cell, ...]   all known cells
 static mp_obj_t mod_places_cells(void) {
     mp_obj_t result = mp_obj_new_list(0, NULL);
@@ -277,6 +389,10 @@ static const mp_rom_map_elem_t sentai_places_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_cells),     MP_ROM_PTR(&mod_places_cells_obj) },
     { MP_ROM_QSTR(MP_QSTR_clear),     MP_ROM_PTR(&mod_places_clear_obj) },
     { MP_ROM_QSTR(MP_QSTR_info),      MP_ROM_PTR(&mod_places_info_obj) },
+    /* Stage 11.D — HSV histogram embedding */
+    { MP_ROM_QSTR(MP_QSTR_set_embedding), MP_ROM_PTR(&mod_places_set_embedding_obj) },
+    { MP_ROM_QSTR(MP_QSTR_embedding),     MP_ROM_PTR(&mod_places_embedding_obj) },
+    { MP_ROM_QSTR(MP_QSTR_match),         MP_ROM_PTR(&mod_places_match_obj) },
 };
 static MP_DEFINE_CONST_DICT(sentai_places_globals, sentai_places_globals_table);
 static const mp_obj_module_t sentai_places_module = {
