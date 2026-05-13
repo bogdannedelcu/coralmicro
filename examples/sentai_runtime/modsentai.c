@@ -346,6 +346,7 @@ static void _fs_check_usb(void) {
 #include "modsentai_hmm.c"
 #include "modsentai_rl.c"
 #include "modsentai_slam.c"
+#include "modsentai_explore.c"
 #include "modsentai_tfl.c"
 #include "modsentai_diag.c"
 #include "modsentai_sys.c"
@@ -567,6 +568,7 @@ static const mp_rom_map_elem_t sentai_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_hmm),       MP_ROM_PTR(&sentai_hmm_module) },
     { MP_ROM_QSTR(MP_QSTR_rl),        MP_ROM_PTR(&sentai_rl_module) },
     { MP_ROM_QSTR(MP_QSTR_slam),      MP_ROM_PTR(&sentai_slam_module) },
+    { MP_ROM_QSTR(MP_QSTR_explore),   MP_ROM_PTR(&sentai_explore_module) },
     { MP_ROM_QSTR(MP_QSTR_tfl),       MP_ROM_PTR(&sentai_tfl_module) },
     { MP_ROM_QSTR(MP_QSTR_diag),      MP_ROM_PTR(&sentai_diag_module) },
     { MP_ROM_QSTR(MP_QSTR_sys),       MP_ROM_PTR(&sentai_sys_module) },
