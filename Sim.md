@@ -455,6 +455,12 @@ RGB 80×60 → grayscale Y plane → centre-crop 64×60 → zero-pad 64×64
 These are **mandatory** rules added during the 2026-05-10 Phase 4 bring-up
 session.  They take priority over any earlier "headless is fine" pattern.
 
+> **Reaffirmed 2026-05-14** during ObjectsPlan L3 wrap-up: rule applies to
+> ALL Gazebo experiments, not just Phase 4 — operator wants to watch the
+> drone visually for every closed-loop run.  This includes upcoming s128
+> (ArUco -> world model + waypoint hover), s127 FlowBaseline regression
+> reruns, and any future SLAM / explore validation.  Headless = invalid.
+
 ### Rule 1 — Always launch the Gazebo GUI for any experiment
 
 When running ANY closed-loop test that touches Garden + cf2 SITL + the
