@@ -5029,3 +5029,224 @@ Toate referințele tehnice trec prin documentul sursă. Pentru detalii de
 implementare per modul, consultă file-urile sentai_* enumerate la
 fiecare stagiu, plus invarianții din `agent/agent.md §11` care nu
 trebuie rebroke.*
+
+---
+
+## 20. Bibliography — SOTA references (verified 2026-05-14)
+
+Sursele consultate înainte de start L5 (Stage 5 `sentai_object_lifter`).
+Verificate online; folosite pentru a confirma că arhitectura proiectului
+este aliniată cu literatura 2024–2026 înainte de a investi 5-7 zile în
+implementare ARM. Concluzie sintetică: alegerile noastre
+(inverse-depth EKF + class-prior pseudo-depth + ArUco bootstrap +
+HSV/H3 places) sunt **2017–2019 metodic + 2026 platformă mai mică**,
+nu cutting-edge dense reconstruction. Aceasta este alegere principială
+pentru bugetul nostru de compute (M7 800 MHz + EdgeTPU 4 TOPS), nu un
+gap metodologic.
+
+### 20.1 EKF inverse-depth parametrization pentru monocular SLAM
+
+- **Civera, Davison, Montiel** (TRO 2008) — *Inverse Depth
+  Parametrization for Monocular SLAM*. Referința foundațională pentru
+  Stage 5. Algoritmul lifter implementat e direct din această
+  metodologie: 6-state EKF per landmark `(x₀, y₀, z₀, θ, φ, ρ)` cu
+  `ρ = 1/depth`, ce permite undelay-ed initialization la features cu
+  parallax mic. <https://www.doc.ic.ac.uk/~ajd/Publications/civera_etal_tro2008.pdf>
+
+- **MDPI Drones 2025** — *UAV Navigation Using EKF-MonoSLAM Aided by
+  Range-to-Base Measurements*. Confirmă în 2025 că EKF (vs sliding-window
+  optimization) rămâne alegerea corectă pentru aerial embedded:
+  "EKF-based VIO solutions are generally lower compute and memory, used
+  in embedded systems applications such as aerial vehicles".
+  <https://www.mdpi.com/2504-446X/9/8/570>
+
+- **Equivariant Filter VIO (EQVIO)**, arXiv 2205.01980 (2022) —
+  alternativă geometric mai elegantă (equivariant filter pe SE_2(3)),
+  dar implementarea cere library Lie-theoretic; pentru MCU,
+  inverse-depth EKF Civera 2008 e mai practic.
+  <https://arxiv.org/pdf/2205.01980>
+
+### 20.2 ArUco multi-marker localization + PnP
+
+- **arXiv 2509.17345** (2025) — *Investigation of ArUco Marker
+  Placement for Planar Indoor Localization*. Studiu de plasament
+  optimal pentru indoor; relevant pentru calibration takeoff Stage 6
+  loop closure.
+  <https://arxiv.org/pdf/2509.17345>
+
+- **MDPI Drones 2025** — *Embedded ArUco (e-ArUco) Detection for
+  Precision Landing*. Justifică ArUco ca **permanent fixture** pentru
+  takeoff calibration (mapăm noi pe `aruco_detector.py` actual + Stage
+  6 loop closure planificat).
+
+- **Kalman filtering with adaptive measurement noise** pentru
+  multi-marker — pattern de fuziune folosit în s130 (vezi
+  [[s130-45baseline-shipped]]); 2D Procrustes (Kabsch closed-form)
+  pentru recover yaw în absența IMU heading e validat ca tehnică
+  industry-standard.
+
+### 20.3 Object-level SLAM cu class prior + bbox
+
+- **CubeSLAM** (Tony Hou paper notes) — *Monocular 3D Object SLAM*.
+  Folosește 2D bbox + cuboid prior factor graph pentru construct
+  obiecte 3D. **Ancestorul metodic al Stage 5**: clasa noastră
+  "class-prior pseudo-depth (size table)" e exact ce numesc cuboid size
+  prior la CubeSLAM, dar simplificat (no factor graph, no g2o
+  optimization — only per-tracklet EKF).
+  <https://tony-hou.github.io/Learning-AI/paper_notes/cube_slam.html>
+
+- **MDPI Sensors 2025** — *Monocular Object-Level SLAM Enhanced by
+  Joint Semantic Segmentation and Depth Estimation* (JSDNet, March
+  2025). Adaugă depth estimation network + semantic segmentation.
+  Necesită GPU mid-range; NU îl putem rula pe EdgeTPU 4 TOPS la 30 fps;
+  conștient out-of-scope.
+  <https://www.mdpi.com/1424-8220/25/7/2110>
+
+- **ADEmono-SLAM** (MDPI Electronics 2025) — *Absolute Depth Estimation
+  for Monocular Visual SLAM*. Folosește o rețea de absolute depth
+  pentru a scoate scale; clasa de soluții pe care nu o pursuim
+  (deep depth nets) — dar referință pentru când TPU bugetul permite.
+  <https://www.mdpi.com/2079-9292/14/20/4126>
+
+### 20.4 Dense SLAM (out-of-scope pentru MCU)
+
+- **WildGS-SLAM** (CVPR 2025) — *Monocular Gaussian Splatting SLAM
+  in Dynamic Environments*. Cutting-edge dense reconstruction; cere
+  GPU 8+ GB. **NU îl pursuim**: nu există drum credibil de la 3D
+  Gaussian Splatting → 1 MB OCRAM + EdgeTPU. Reference cited doar
+  pentru a justifica decizia "sparse landmarks în `sentai.objects`".
+  <https://openaccess.thecvf.com/content/CVPR2025/papers/Zheng_WildGS-SLAM_Monocular_Gaussian_Splatting_SLAM_in_Dynamic_Environments_CVPR_2025_paper.pdf>
+
+### 20.5 Mapping SOTA-trends → decizii proiect
+
+| Trend SOTA 2025-2026 | Decizia proiect | Justificare embeded.md |
+|---|---|---|
+| NeRF/3DGS dense reconstruction | Sparse landmarks (`sentai.objects` 32-slot) | "Avoid abstractions too heavy for MCU" + 1 MB OCRAM budget |
+| Learned absolute depth nets (MiDaS/DPT) | Class-prior real-size table | EdgeTPU 8 MB stock + 32 ms invoke budget alocat detector |
+| NetVLAD descriptors (4096-dim) | HSV 64-B histogram + H3 indexing | M7 SIMD `__USADA8` proven s111; 1.1 ms threshold pentru HSV pe PXP |
+| Tightly-coupled visual-inertial (sliding window) | Loosely-coupled (cf2/PX4 EKF + flow) | RT1176 nu are timestamp synchronization hardware pentru tight VIO |
+| g2o / Ceres factor graph optimization | Per-landmark independent EKF (Civera 2008) | "Bounded behavior" — fără iterare nelimitată, fără heap |
+
+### 20.6 Noutatea proiectului (research-grade contribution)
+
+- **Integrarea (MCU + EdgeTPU + ArUco-bootstrap + class-prior +
+  H3-indexed places) pe class de hardware mai mic decât oricare paper
+  publicat**. Cele mai apropiate puncte de comparare în literatură
+  (PicoVO @ STM32F767, Navion ASIC) folosesc VO completă, nu
+  object-level SLAM cu semantic. Coral Dev Board Micro = 1× M7 +
+  EdgeTPU = ~5 W class device.
+
+Note: aceasta secțiune e **anchor pentru decizii arhitecturale**, nu
+implementation guide. Pentru detalii algoritmici per stagiu, vezi §3.1-3.10.
+
+*Bibliography compilată 2026-05-14 înainte de start L5 implementare.*
+
+---
+
+## 21. Camera-to-body orientation calibration la takeoff (HARDWARE REALITY 2026-05-14)
+
+### 21.1 Problema (operator-flagged 2026-05-14)
+
+**Concern**: în SIM, orientarea camerei pe corpul dronei este exactă (vine din SDF). Pe hardware real:
+
+- Lipirea/montarea modulului OV5640 pe corpul Crazyflie are toleranță mecanică
+  (~±2-5° pitch/roll/yaw între planul corpului și planul senzorului).
+- Vibrațiile + impacturile minore în zbor pot deplasa montura (uzură).
+- Două drone fizice cu acelaș firmware NU vor avea aceeași matrice
+  `R_cam_to_body` — fiecare are nevoie de calibrare per-unitate.
+
+Toate algoritmele propuse (Stage 4.5 image-only nav, Stage 5 lifter
+inverse-depth EKF, Stage 6 loop closure pe yaw) **presupun** că
+`R_cam_to_body` e cunoscută exact. Eroarea pe orientare se propagă
+direct în:
+- bearing direction al lifter → marker world position bias
+- yaw recovery din Procrustes → drone heading bias
+- IBVS pixel servoing → biasing the saturation point
+
+**O eroare de 3° în R_cam_to_body @ z=1.5 m → bias bearing ≈ 8 cm
+în plane orizontal.** Inacceptabil pentru landing precis sau loop closure.
+
+### 21.2 Soluția propusă — auto-calibration la takeoff cu ArUco
+
+**Concept**: în timpul fazei de takeoff (sau imediat după), drona
+execută o procedură scurtă de calibration unde:
+
+1. Drona stă la `z = 0.5-1.5 m` deasupra unui marker ArUco cunoscut
+   (poate fi același marker de landing pad).
+2. Drona efectuează o **mișcare cunoscută** controlată (ex: yaw 360° lent
+   sau translation lateral ±0.1 m).
+3. La fiecare frame:
+   - Aruco detector publică `tvec_cam, rvec_cam` (PnP).
+   - cf2 / PX4 EKF publică drone state `(x_W, y_W, z_W, yaw_W)`.
+4. Pentru fiecare frame avem:
+   - `marker_world_known` = (0, 0, 0) (landing pad origin)
+   - `cam_world = marker_world - R_cam_to_world @ tvec_cam`
+   - Dar `R_cam_to_world = R_body_to_world(yaw_W) @ R_cam_to_body`
+   - Necunoscută: `R_cam_to_body` (matrix 3×3, parametrizată ca quaternion 4-DOF).
+5. **Kabsch 3D Procrustes** pe N≥4 frame-uri → soluție closed-form
+   pentru `R_cam_to_body`:
+   ```
+   H = Σ (tvec_cam_i) ⊗ (R_W_B(yaw_i)^T @ (marker_W - drone_W_i))^T
+   U Σ V^T = SVD(H)
+   R_cam_to_body = V @ diag(1, 1, det(V@U^T)) @ U^T
+   ```
+
+### 21.3 Persistare + verificare la fiecare takeoff
+
+- Rezultatul calibrării (R_cam_to_body) e persistat în `/system/cam_calib.json`
+  (FileX user partition, schema-versioned).
+- La fiecare takeoff:
+  - Citim `cam_calib.json`.
+  - Executăm un "calibration sanity check" rapid (1-2 sec, marker ArUco
+    în FOV) — dacă noua estimare diferă de cea persistată cu > 3°,
+    re-calibrăm și suprascriem.
+  - Dacă marker-ul de landing pad NU e vizibil → log warning, continuă
+    cu valoarea persistată (degraded mode).
+
+### 21.4 Implementare planificată
+
+Acest lucru e Pas 2 imediat post-s131:
+- Crează `examples/sentai_runtime/_shared/camera_calibration.py` (host
+  module, Python — folosit de toate experimentele).
+- Crează `sentai.calib` MicroPython binding (Stage 6 follow-up) pentru
+  on-board calibration la takeoff:
+  - `sentai.calib.cam_to_body_from_aruco(samples)` — Kabsch 3D
+    Procrustes pe samples colectate din vol controlat.
+  - `sentai.calib.save_cam_to_body(R)` → `/system/cam_calib.json`
+  - `sentai.calib.load_cam_to_body()` → R matrix sau identity dacă lipsește.
+- Stage 5 lifter + Stage 4.5 image_localize trec prin `sentai.calib`
+  pentru R, nu prin constante hardcoded.
+
+### 21.5 Fault modes (per embeded.md discipline)
+
+| Failure | Detection | Reaction |
+|---|---|---|
+| Marker landing pad nu e vizibil la takeoff | bbox count == 0 după 3 sec | Folosește valoarea persistată; emit `CAL_NO_MARKER` event |
+| Calibration produce R cu det(R) < 0.99 | SVD post-check | Reject + folosește persistată; emit `CAL_DET_FAIL` event |
+| New calibration diferă > 10° de persistată | comparison post-Kabsch | Reject + log; presupune marker drift / mecanic shift critic |
+| `cam_calib.json` corrupt sau lipsește | JSON parse fail | Fallback la identity + emit `CAL_SCHEMA_FAIL`; mision continuă în degraded mode |
+| Calibration drift > 3° in flight | runtime monitor (periodic check at hover) | Trigger re-calibration la next hover; emit `CAL_DRIFT` event |
+
+Sistemul rămâne **self-healing**: calibration corruption NU brick-uiește
+boot-ul; e doar degraded mode până la următorul takeoff cu marker
+vizibil.
+
+### 21.6 Cost compute (M7 budget)
+
+Per takeoff (one-shot, ~1-2 sec):
+- 30 samples × (tvec computation 0.5 ms + matrix push) → 15 ms total accumulate
+- 1× SVD 3×3 closed-form (LAPACK / CMSIS-DSP) → ~50 µs
+- Total ~ 15 ms one-shot, completely outside hot path.
+
+Runtime (load `cam_calib.json` la boot): 1 fs.read + JSON parse ~5 ms,
+o singură dată în main_freertos.cc init.
+
+**Verdict**: compute negligible, FileX overhead negligible, problema
+e disciplinare-implementaţională (frame conventions + SVD numerical
+stability), nu compute.
+
+---
+
+*Operator-flagged 2026-05-14: real-world camera mount tolerance ≠ SIM
+SDF exact. Calibration la takeoff e mandatory înainte de hardware
+deployment, opțional în SIM (deja avem identity).*
