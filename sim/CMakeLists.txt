@@ -182,6 +182,10 @@ add_executable_sim(sentai_sim
     # ObjectsPlan L3 — H3-indexed place gallery + descriptor match.
     # Pure data + math; H3 graph queries via libh3_sim (linked below).
     ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_places.cc
+    # ObjectsPlan L4 — backend-agnostic action layer (skeleton).
+    # Pure FSM + 16-entry trace ring; shared with ARM via the same
+    # SENTAI_PLATFORM_SIM ifdef pattern as L2/L3.
+    ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_servo.cc
     # Phase 4 — flow algorithm shared between ARM and SIM.
     # flow_phase_corr.cc compiles unchanged on both targets thanks to
     # sentai_fft_shim.h (CMSIS on ARM, FFTW3 wrapper on SIM).
