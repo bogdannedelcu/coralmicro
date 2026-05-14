@@ -31,8 +31,13 @@ import time
 from pathlib import Path
 
 S091_DIR = Path(__file__).resolve().parent.parent / "s091_aruco_lowalt"
+S090_DIR = Path(__file__).resolve().parent.parent / "s090_hover_over_cat"
 sys.path.insert(0, str(S091_DIR))
+sys.path.insert(0, str(S090_DIR))
 import aruco_hover  # noqa: E402  flow_forwarder + scaling constants
+from aruco_detector import (  # noqa: E402  ArUco PnP + detection helpers
+    detect_in_ppm, latest_ppm, CAM_CX, CAM_CY,
+)
 
 WORKDIR = Path("/tmp/s128_l41baseline")
 WORKDIR.mkdir(parents=True, exist_ok=True)
@@ -49,16 +54,46 @@ REPO_ROOT      = Path(__file__).resolve().parents[4]
 SENTAI_SIM_BIN = REPO_ROOT / "build-sim" / "sim" / "sentai_sim"
 SENTAI_FS_ROOT = REPO_ROOT / "build-sim" / "sentai_fs_root"
 
-# ─── ONE marker — east of takeoff origin at z=1 m ───────────────────
-MARKERS = [
-    # (class_id, x_m, y_m, z_m, label)
-    (10, +0.50, +0.00, 1.00, "M0_east"),
+# ─── ONE marker — REAL ArUco id0 placed by the world SDF ─────────────
+# sentai_crazysim.sdf model `aruco_id0` is at pose (+0.15, +0.10, 0.15);
+# top face is at z=0.20.  Drone takes off at (~0,0,0), flies to
+# (marker.x, marker.y, HOVER_Z_M) so the marker sits directly under
+# the downward camera → centered in image.
+ARUCO_MARKERS = [
+    # (class_id_for_objects.add, world_x, world_y, world_z, label,
+    #  aruco_dictionary_id)
+    # Tour: NE → NW → SW → SE (quadrant sweep, all 4 corners of the
+    # compact pattern).  Each leg ≤ 0.30 m so well within the
+    # servo.move() 5 m / pi/2 caps.
+    (0, +0.15, +0.10, 0.20, "aruco_id0_NE", 0),
+    (1, -0.15, +0.10, 0.20, "aruco_id1_NW", 1),
+    (2, -0.15, -0.10, 0.20, "aruco_id2_SW", 2),
+    (3, +0.15, -0.10, 0.20, "aruco_id3_SE", 3),
 ]
+HOVER_Z_M         = 1.00     # drone altitude during marker hover
 TAKEOFF_Z_M       = 1.00
 HOVER_AT_MARKER_S = 3.0      # plenty of dwell so cf2 settles
 TAKEOFF_VEL_MPS   = 0.6
 MOVE_VEL_MPS      = 0.3      # gentle move for first integration test
 WAYPOINT_NEAR_M   = 0.30
+# Visual check: how far (in pixels) the chosen marker centroid may sit
+# from the image centre (CAM_CX=320, CAM_CY=240 in a 640×480 frame).
+# At z=1.0 m the camera footprint is ~1.11 × 0.83 m, so 1 px ≈ 1.7 mm.
+# 80 px tolerance ≈ 14 cm physical, which is comfortably wider than the
+# cf2 EKF/flow settle band (~5 cm).  Tighten once we trust the loop.
+MARKER_PIXEL_NEAR_PX = 80
+N_VISUAL_SAMPLES     = 5     # frames averaged at end of hover for the check
+
+# ─── Closed-loop EKF correction (operator 2026-05-14) ─────────────────
+# Replace one-shot `move_distance` with iterate-until-within-tolerance,
+# closing the loop on cf2's stateEstimate to fight accumulated flow/EKF
+# drift between waypoints.  Cap total time per segment at 5 s — these
+# are <30 cm hops so anything longer is a fail.
+NAV_TOL_M            = 0.05  # 5 cm — within visual-check resolution
+NAV_TIMEOUT_S        = 5.0
+NAV_SETTLE_S         = 0.6   # cf2 settle after each move_distance call
+NAV_MAX_ITERS        = 5
+NAV_MIN_STEP_M       = 0.02  # don't bother correcting deltas < 2 cm
 
 # REPL-side journal (sentai.sim.journal_*) — structured append-mode log
 # the host parses post-mortem.  Each action writes a line:
@@ -126,6 +161,7 @@ class ReplDriver:
         env["SENTAI_DUMP_FRAMES_DIR"]   = str(fdir)
         env["SENTAI_DUMP_FRAMES_EVERY"] = "15"
         env["SENTAI_DUMP_RAW_EVERY"]    = "15"
+        self.frames_dir = fdir   # exposed for the visual-check phase
 
         self.proc = subprocess.Popen(
             [str(bin_path)],
@@ -283,6 +319,60 @@ def tel_snapshot() -> dict:
 
 
 # ─────────────────────────────────────────────────────────────────
+# Visual-check helper — averages target-marker pixel centroid across
+# N consecutive dumped PPM frames so we don't trust a single noisy
+# detection.  Returns (cx, cy, n_hits, last_ppm_path) or None if the
+# target marker was never detected across the sampled frames.
+# ─────────────────────────────────────────────────────────────────
+def sample_marker_pixel_center(frames_dir: Path, target_aruco_id: int,
+                                n: int, log: 'StepLog') -> dict | None:
+    """Read up to `n` most-recent unique PPM frames, run ArUco detection,
+    average the target marker's pixel centroid.  Skips frames where the
+    marker isn't visible."""
+    cxs, cys = [], []
+    last_seq, last_path = -1, None
+    deadline = time.monotonic() + 4.0   # hard cap so the test never wedges
+    while len(cxs) < n and time.monotonic() < deadline:
+        ppm = latest_ppm(frames_dir)
+        if ppm is None:
+            time.sleep(0.05)
+            continue
+        try:
+            seq = int(ppm.stem.replace("frame_", ""))
+        except ValueError:
+            time.sleep(0.05)
+            continue
+        if seq <= last_seq:
+            time.sleep(0.05)
+            continue
+        last_seq = seq
+        last_path = ppm
+        try:
+            dets = detect_in_ppm(ppm, estimate_pose=False)
+        except Exception as e:
+            log.info(f"        visual: detect failed on {ppm.name}: {e}")
+            continue
+        if target_aruco_id in dets:
+            m = dets[target_aruco_id]
+            cxs.append(m.cx)
+            cys.append(m.cy)
+            log.info(f"        visual: {ppm.name}  id{target_aruco_id} "
+                     f"pixel=({m.cx:.1f},{m.cy:.1f})  "
+                     f"all_ids={sorted(dets.keys())}")
+        else:
+            log.info(f"        visual: {ppm.name}  id{target_aruco_id} "
+                     f"NOT in frame  (saw {sorted(dets.keys())})")
+    if not cxs:
+        return None
+    return {
+        "cx_mean": sum(cxs) / len(cxs),
+        "cy_mean": sum(cys) / len(cys),
+        "n_hits":  len(cxs),
+        "last_ppm": str(last_path) if last_path else None,
+    }
+
+
+# ─────────────────────────────────────────────────────────────────
 # Mission
 # ─────────────────────────────────────────────────────────────────
 def fly(log: StepLog, repl: ReplDriver) -> dict:
@@ -377,19 +467,20 @@ def fly(log: StepLog, repl: ReplDriver) -> dict:
         cleared_trace = repl.exec_int("sentai.servo.clear_trace()")
         log.info(f"        cleared {cleared_trace} prior trace entries")
 
-    with log.step(f"REPL: seed {len(MARKERS)} marker(s) via objects.add"):
+    with log.step(f"REPL: seed {len(ARUCO_MARKERS)} marker(s) via objects.add"):
         ids = []
-        for cid, x, y, z, label in MARKERS:
+        for cid, x, y, z, label, _aid in ARUCO_MARKERS:
             rid = repl.exec_int(f"sentai.objects.add({cid}, {x}, {y}, {z})")
             if rid <= 0:
                 raise RuntimeError(f"objects.add({label}) returned {rid}")
             ids.append((rid, label, (x, y, z)))
-            log.info(f"        seeded {label} cid={cid} → id={rid}")
+            log.info(f"        seeded {label} cid={cid} world=({x:+.2f},"
+                     f"{y:+.2f},{z:.2f}) → id={rid}")
         summary["seeded_ids"] = [{"id": r, "label": l, "xyz": list(c)}
                                  for r, l, c in ids]
         n = repl.exec_int("sentai.objects.count()")
-        if n != len(MARKERS):
-            raise RuntimeError(f"objects.count()={n}, expected {len(MARKERS)}")
+        if n != len(ARUCO_MARKERS):
+            raise RuntimeError(f"objects.count()={n}, expected {len(ARUCO_MARKERS)}")
 
     with log.step(f"REPL: servo.arm + servo.takeoff({TAKEOFF_Z_M})"):
         rc = j_int("servo_arm", "sentai.servo.arm()")
@@ -411,16 +502,62 @@ def fly(log: StepLog, repl: ReplDriver) -> dict:
                  f"{tel['z']:.2f})  flow_n={flow_stats['n_sent']}")
 
     # ─── Single-waypoint tour ───
-    cur_xyz = [0.0, 0.0, TAKEOFF_Z_M]
-    for (cid, x, y, z, label) in MARKERS:
-        dx, dy, dz = x - cur_xyz[0], y - cur_xyz[1], z - cur_xyz[2]
-        with log.step(f"REPL servo.move({dx:+.2f},{dy:+.2f},{dz:+.2f}) + "
-                      f"cf2 move_distance"):
-            rc = j_int(f"servo_move_{label}", f"sentai.servo.move({dx}, {dy}, {dz})")
-            if rc != 0:
-                raise RuntimeError(f"servo.move toward {label} rc={rc}")
-            mc.move_distance(dx, dy, dz, velocity=MOVE_VEL_MPS)
-            cur_xyz = [x, y, z]
+    # Initialise cur_xyz from ACTUAL post-takeoff telemetry — kalman.reset
+    # zeroes the EKF state but does NOT physically respawn cf2 in Gazebo.
+    # So consecutive runs start with cf2 wherever the previous mission
+    # left it (e.g. above the last marker).  Reading actual cf2 position
+    # here makes the test position-invariant and matches world-frame
+    # targets correctly.
+    tel0 = tel_snapshot()
+    cur_xyz = [tel0["x"], tel0["y"], tel0["z"]]
+    log.info(f"        cur_xyz from telemetry: ({cur_xyz[0]:+.2f},"
+             f"{cur_xyz[1]:+.2f},{cur_xyz[2]:.2f})")
+    for (cid, mx, my, mz, label, aruco_id) in ARUCO_MARKERS:
+        # Drone target XY = marker XY (so marker is centered in
+        # downward camera); drone target Z = HOVER_Z_M (above marker).
+        tx, ty, tz = mx, my, HOVER_Z_M
+        with log.step(f"navigate UNTIL <{label} (target=({tx:+.2f},"
+                      f"{ty:+.2f},{tz:.2f}))> [closed-loop EKF, 5s max]"):
+            # Closed-loop on cf2.stateEstimate.  Iterate move + settle
+            # until residual < NAV_TOL_M or 5 s elapsed.  Every iter is
+            # journal'd separately so we see how many corrections each
+            # waypoint needed.  See [[experiments-start-from-origin]]
+            # for the upstream reasoning behind why one-shot is fragile.
+            t_start = time.monotonic()
+            for it in range(NAV_MAX_ITERS):
+                tel = tel_snapshot()
+                dx = tx - tel["x"]
+                dy = ty - tel["y"]
+                dz = tz - tel["z"]
+                err_max = max(abs(dx), abs(dy), abs(dz))
+                if err_max < NAV_TOL_M:
+                    log.info(f"        iter{it}: WITHIN tol (err_max="
+                             f"{err_max:.3f} m < {NAV_TOL_M} m)")
+                    break
+                if (time.monotonic() - t_start) > NAV_TIMEOUT_S:
+                    log.info(f"        iter{it}: TIMEOUT ("
+                             f"{NAV_TIMEOUT_S}s) err_max={err_max:.3f} m")
+                    break
+                # Clamp tiny corrections (cf2 PID has dead-band; sending
+                # 1 cm setpoints just adds noise).
+                sx = dx if abs(dx) >= NAV_MIN_STEP_M else 0.0
+                sy = dy if abs(dy) >= NAV_MIN_STEP_M else 0.0
+                sz = dz if abs(dz) >= NAV_MIN_STEP_M else 0.0
+                log.info(f"        iter{it}: cf2=({tel['x']:+.2f},"
+                         f"{tel['y']:+.2f},{tel['z']:.2f})  "
+                         f"err=({dx:+.3f},{dy:+.3f},{dz:+.3f})  "
+                         f"step=({sx:+.3f},{sy:+.3f},{sz:+.3f})")
+                rc = j_int(f"servo_move_{label}_it{it}",
+                           f"sentai.servo.move({sx}, {sy}, {sz})")
+                if rc != 0:
+                    raise RuntimeError(
+                        f"servo.move iter{it} toward {label} rc={rc}")
+                mc.move_distance(sx, sy, sz, velocity=MOVE_VEL_MPS)
+                time.sleep(NAV_SETTLE_S)
+            else:
+                log.info(f"        no early break — exhausted "
+                         f"NAV_MAX_ITERS={NAV_MAX_ITERS}")
+            cur_xyz = [tx, ty, tz]
         with log.step(f"hover {HOVER_AT_MARKER_S} s over {label}"):
             mc.start_linear_motion(0.0, 0.0, 0.0)
             rc = j_int(f"servo_hover_{label}", "sentai.servo.hover()")
@@ -428,17 +565,52 @@ def fly(log: StepLog, repl: ReplDriver) -> dict:
                 raise RuntimeError(f"servo.hover at {label} rc={rc}")
             time.sleep(HOVER_AT_MARKER_S)
             tel = tel_snapshot()
-            dist = math.sqrt((tel["x"] - x) ** 2 + (tel["y"] - y) ** 2
-                              + (tel["z"] - z) ** 2)
-            log.info(f"        cf2 @ ({tel['x']:+.2f},{tel['y']:+.2f},"
-                     f"{tel['z']:.2f})  dist={dist:.3f} m  "
-                     f"flow_n={flow_stats['n_sent']}")
-            summary["waypoints"].append({
+            dist = math.sqrt((tel["x"] - tx) ** 2 + (tel["y"] - ty) ** 2
+                              + (tel["z"] - tz) ** 2)
+            log.info(f"        target=({tx:+.2f},{ty:+.2f},{tz:.2f})  "
+                     f"cf2=({tel['x']:+.2f},{tel['y']:+.2f},{tel['z']:.2f})"
+                     f"  dist={dist:.3f} m  flow_n={flow_stats['n_sent']}")
+            wp_record: dict = {
                 "label": label,
-                "target": [x, y, z],
+                "target": [tx, ty, tz],
+                "marker_world_xyz": [mx, my, mz],
+                "aruco_id": aruco_id,
                 "cf2": [tel["x"], tel["y"], tel["z"]],
                 "dist_m": dist,
-            })
+            }
+            # ─── Visual check (operator request, 2026-05-14) ───
+            # The actual baseline objective: marker must appear centered
+            # in the downward camera image, NOT just "drone reached
+            # world XY".  Sample N PPMs, detect ArUco, average pixel
+            # centroid, compute distance from image centre.
+            vis = sample_marker_pixel_center(repl.frames_dir, aruco_id,
+                                              N_VISUAL_SAMPLES, log)
+            if vis is None:
+                log.info(f"        visual: id{aruco_id} not detected in "
+                         f"any of last frames")
+                wp_record["visual"] = {
+                    "detected": False,
+                    "n_hits": 0,
+                }
+            else:
+                px_dx = vis["cx_mean"] - CAM_CX
+                px_dy = vis["cy_mean"] - CAM_CY
+                px_dist = math.sqrt(px_dx * px_dx + px_dy * px_dy)
+                log.info(f"        visual: id{aruco_id} mean pixel "
+                         f"({vis['cx_mean']:.1f},{vis['cy_mean']:.1f})  "
+                         f"d_from_center=({px_dx:+.1f},{px_dy:+.1f})  "
+                         f"px_dist={px_dist:.1f}  hits={vis['n_hits']}")
+                wp_record["visual"] = {
+                    "detected": True,
+                    "n_hits": vis["n_hits"],
+                    "cx_mean": vis["cx_mean"],
+                    "cy_mean": vis["cy_mean"],
+                    "img_cx":  CAM_CX,
+                    "img_cy":  CAM_CY,
+                    "px_dist_to_center": px_dist,
+                    "last_ppm": vis["last_ppm"],
+                }
+            summary["waypoints"].append(wp_record)
 
     with log.step("REPL: servo.land + servo.disarm"):
         rc = j_int("servo_land", "sentai.servo.land()")

@@ -22,6 +22,31 @@ MISSION="$SCRIPT_DIR/mission_l41.py"
 VERDICT="$SCRIPT_DIR/verdict.py"
 
 WORLD=sentai_crazysim
+STOP_SH="$REPO_ROOT/examples/sentai_runtime/experiments/s127_flowbaseline/stop.sh"
+
+# 2026-05-14 [[experiments-start-from-origin]]: cf2 MUST respawn at
+# world origin between runs.  `kalman.resetEstimation` zeroes the EKF
+# but does NOT teleport cf2 in Gazebo, so reusing a running SITL means
+# takeoff happens wherever the previous mission landed.  Allow opt-out
+# via S128_NO_RESPAWN=1 only for fast iteration of host-side parser
+# changes that don't depend on flight reproducibility.
+respawn_cf2_at_origin() {
+    if [ "${S128_NO_RESPAWN:-0}" = "1" ]; then
+        echo "[s128] S128_NO_RESPAWN=1 set — skipping SITL respawn (NOT reproducible!)"
+        return 0
+    fi
+    if is_cf2_up; then
+        echo "[s128] tearing down running SITL so cf2 respawns at origin"
+        bash "$STOP_SH" > /dev/null 2>&1 || true
+        # Belt-and-braces: stop.sh occasionally misses the gz server when
+        # distrobox-enter's pkill matches its own shell.  Kill leftovers.
+        for p in $(pgrep -f "build-sim/sim/sentai_sim$|gz_to_uds_bridge|sitl_make/build/cf2|gz sim"); do
+            kill -9 "$p" 2>/dev/null || true
+        done
+        rm -f /tmp/sentai_cam.sock /tmp/sentai_flow_out.sock 2>/dev/null
+        sleep 1
+    fi
+}
 
 is_cf2_up() { ss -lun 2>/dev/null | grep -q ":19850"; }
 
@@ -134,6 +159,7 @@ verdict() {
 }
 
 # ─── Main orchestration ───
+respawn_cf2_at_origin              # always — see [[experiments-start-from-origin]]
 ensure_sitl_up         || exit 1
 kill_existing_sim
 ensure_bridge_up       || true   # informational; may need post-sim launch

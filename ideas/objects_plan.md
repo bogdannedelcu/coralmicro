@@ -358,6 +358,63 @@ mission_sm.intent()  →  action_layer (50 Hz tick)
 
 ---
 
+### Stage 4.5 — Multi-marker constellation localization (blind-nav between objects) — added 2026-05-14
+
+**Context**: between L4 (action layer + closed-loop tests s128/s129)
+and Stage 5 (inverse-depth EKF) there is a missing primitive operator
+flagged during the s129 multi-marker IBVS work: when the target marker
+is NOT in the current camera view, the drone needs to NAVIGATE to it
+using world memory + a re-localization from the markers it CAN see.
+
+The s129 test as shipped fakes this — `APPROACH_WORLD_XY` is a static
+table consulted via dead-reckoning on cf2's EKF.  That works when all
+markers are simultaneously visible (compact ±0.15×±0.10 pattern at
+z=1 m), but breaks immediately when markers span more than one FOV.
+
+**Goal**: drone with N seeded objects (positions in `sentai.objects`)
+can navigate from any visible-subset to a target object even if the
+target itself is outside FOV during the transit.  Localization is
+done by multi-marker PnP on whatever subset is currently visible,
+re-evaluated at every detection.
+
+**Existing reuse — most of the plumbing is already shipped**:
+- `sentai.objects` (Stage 1 / L2) — world coords of known markers.
+- `aruco_detector.estimate_drone_world_pose(dets, known_positions, drone_yaw)`
+  — multi-marker PnP localization, proven in s091 aruco_hover.py.
+- `sentai.servo.move()` (Stage 4 / L4) — intent recording.
+- cf2 cflib MotionCommander — until Stage 4.A wires transport.
+
+**What's new**:
+- The localization step in the control loop: every iter, detect visible
+  markers, look up world positions in `sentai.objects.list()`, compute
+  drone world pose from the visible subset, plan the route to target.
+- When target enters FOV: switch to IBVS (L4.2) for fine centering.
+
+**No new firmware module needed for v1**.  Implementation is a host-
+side mission script that composes existing primitives.  Stage 5
+(`sentai_object_lifter` with inverse-depth EKF) is a strict superset
+that ALSO handles the case where markers are not pre-known — but Stage
+4.5 specifically validates the case where world coords ARE known from
+the seed phase.
+
+**Pass criteria (s130, proposed)**:
+- Markers placed far apart in world.sdf (e.g. ±0.5×±0.5 m) so only a
+  subset is visible at any drone position at z=1 m hover.
+- Drone visits each marker; at least 50% of the path between markers
+  the target is NOT detected in camera (proving "blind" transit).
+- Re-localization via PnP on visible markers keeps world-pose error
+  < 5 cm during transit (compared to cf2 EKF ground truth).
+- Final IBVS-centered px_dist < 30 px on each marker (same as s129).
+
+**Time estimate**: 1-2 zile (composition test, no new firmware).
+
+**Relation to s129**: s129 proves IBVS works (visual-only fine centering).
+Stage 4.5 / s130 proves NAVIGATION USING THE WORLD MODEL works (target
+position recalled from `sentai.objects` while in transit).  Both are
+prerequisites for L6 explore SM.
+
+---
+
 ### Stage 5 — Object lifter (2D→3D bearing → inverse-depth EKF)
 
 **Goal**: convert each mature 2D tracklet into a 3D landmark estimate using bearing + class-prior pseudo-depth. Initial inverse-depth parameterization (Civera/Davison/Montiel TRO 2008) converges with parallax over a few seconds of lateral motion.

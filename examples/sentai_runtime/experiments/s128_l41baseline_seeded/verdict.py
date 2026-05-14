@@ -24,21 +24,25 @@ ACT_TAKEOFF, ACT_MOVE, ACT_HOVER, ACT_LAND = 4, 5, 6, 7
 BACKEND_SIM = 1
 FLIGHT_GROUND, FLIGHT_AIRBORNE = 0, 1
 
-# Simplified s128 (2026-05-14): ONE marker tour.  Trace ring after
-# clear_trace contains: ARM, TAKEOFF, MOVE, HOVER, LAND, DISARM = 6.
-EXPECTED_SEQ = [
-    ACT_ARM,
-    ACT_TAKEOFF,
-    ACT_MOVE, ACT_HOVER,
-    ACT_LAND,
-    ACT_DISARM,
-]
-# clear_trace() preserves lifetime counters, so actions_ok counts the
-# pre-clear INIT plus everything after:
-#   INIT, ARM, TAKEOFF, MOVE, HOVER, LAND, DISARM = 7 successful.
-EXPECTED_ACTIONS_OK = 7
-WAYPOINT_NEAR_M     = 0.30
-N_MARKERS           = 1
+# s128 (2026-05-14, 4-marker tour, closed-loop EKF): MOVE count is
+# variable because each waypoint may need 1..NAV_MAX_ITERS corrections.
+# So we drop the exact-sequence check and validate STRUCTURAL invariants:
+#   - first non-trace-ring-rolled action is ARM
+#   - last action is DISARM
+#   - HOVER count == N_MARKERS (one dwell per waypoint)
+#   - every MOVE entry has result == 0
+N_MARKERS             = 4
+EXPECTED_HOVER_COUNT  = N_MARKERS
+# trace ring depth = 16; if we hit too many corrections per waypoint,
+# entries roll off and `trace_count` clamps at 16 (overwrites > 0).
+# That's still a valid run if the visual + ground-truth gates pass.
+WAYPOINT_NEAR_M       = 0.30
+# Visual baseline (operator request, 2026-05-14): the chosen ArUco
+# marker MUST appear within MARKER_PIXEL_NEAR_PX of the image centre
+# in the downward camera at end-of-hover.  640×480, fy≈fx≈579 px →
+# 80 px ≈ 14 cm physical at z=1 m hover (wider than EKF/flow settle
+# band, so this is the loose first-pass gate).
+MARKER_PIXEL_NEAR_PX  = 80
 
 
 def _print_journal_tail(n: int = 12) -> None:
@@ -123,8 +127,12 @@ def main() -> int:
     print(f"          actions_ok={actions_ok} faults oob={faults_oob} "
           f"no_bk={faults_no_bk} not_armed={faults_not_armed}")
 
-    if actions_ok != EXPECTED_ACTIONS_OK:
-        fails.append(f"actions_ok={actions_ok} != {EXPECTED_ACTIONS_OK}")
+    # actions_ok lower bound: INIT(1) + ARM(1) + TAKEOFF(1) + N_MARKERS*HOVER
+    # + LAND(1) + DISARM(1) + at_least_one_MOVE_per_waypoint(N_MARKERS) = 5 + 2N.
+    # No upper bound — closed-loop may legitimately issue many corrections.
+    min_actions_ok = 5 + 2 * N_MARKERS
+    if actions_ok < min_actions_ok:
+        fails.append(f"actions_ok={actions_ok} < min {min_actions_ok}")
     if faults_oob != 0:
         fails.append(f"faults_oob={faults_oob} != 0")
     if faults_no_bk != 0:
@@ -142,14 +150,28 @@ def main() -> int:
     if flight != FLIGHT_GROUND:
         fails.append(f"final flight={flight} != GROUND ({FLIGHT_GROUND})")
 
+    # Structural trace check (closed-loop adds variable MOVE count, so
+    # we validate invariants instead of an exact sequence):
     actual_seq = [e.get("action") for e in trace]
-    if actual_seq != EXPECTED_SEQ:
-        fails.append(f"trace action sequence mismatch:\n"
-                     f"          expected {EXPECTED_SEQ}\n"
-                     f"          actual   {actual_seq}")
+    n_hover = sum(1 for a in actual_seq if a == ACT_HOVER)
+    n_move  = sum(1 for a in actual_seq if a == ACT_MOVE)
+    n_takeoff = sum(1 for a in actual_seq if a == ACT_TAKEOFF)
+    n_land    = sum(1 for a in actual_seq if a == ACT_LAND)
+    print(f"          trace action counts: MOVE={n_move} HOVER={n_hover} "
+          f"TAKEOFF={n_takeoff} LAND={n_land}")
+    if n_hover != EXPECTED_HOVER_COUNT:
+        # Note: with deep closed-loop iteration the ring may roll over
+        # and lose old entries; the lifetime counter is more reliable
+        # for n_hover than the snapshot but we'll catch outright misses.
+        fails.append(f"trace HOVER count = {n_hover} (expected "
+                     f"{EXPECTED_HOVER_COUNT} — one per waypoint)")
+    if n_move < EXPECTED_HOVER_COUNT:
+        fails.append(f"trace MOVE count = {n_move} < {EXPECTED_HOVER_COUNT} "
+                     f"(need at least one move per waypoint)")
+    if actual_seq and actual_seq[-1] != ACT_DISARM:
+        fails.append(f"trace last action = {actual_seq[-1]} (expected DISARM)")
 
-    # All MOVE entries should have result==0 (every move was within
-    # the 5 m / pi/2 caps — markers placed at radius 0.5 m).
+    # All MOVE entries should have result==0.
     bad_moves = [(i, e) for i, e in enumerate(trace)
                  if e.get("action") == ACT_MOVE and e.get("result") != 0]
     if bad_moves:
@@ -164,13 +186,33 @@ def main() -> int:
     print(f"          waypoint tour ({len(waypoints)} entries):")
     for w in waypoints:
         dist = w.get("dist_m", float("inf"))
-        ok = dist < WAYPOINT_NEAR_M
-        marker = "OK " if ok else "BAD"
+        wp_ok = dist < WAYPOINT_NEAR_M
+        marker = "OK " if wp_ok else "BAD"
         print(f"            [{marker}] {w.get('label')}  "
               f"target={w.get('target')}  cf2={w.get('cf2')}  dist={dist:.3f} m")
-        if not ok:
+        if not wp_ok:
             fails.append(f"{w.get('label')} dist {dist:.3f} m >= "
                          f"{WAYPOINT_NEAR_M} m threshold")
+        # ── Visual baseline: marker centered in image ──
+        vis = w.get("visual")
+        if vis is None:
+            fails.append(f"{w.get('label')} missing 'visual' record — "
+                         f"mission did not run the pixel-center check")
+            continue
+        if not vis.get("detected", False):
+            fails.append(f"{w.get('label')} marker not detected during hover "
+                         f"(hits=0) — drone not actually pointing at marker")
+            continue
+        px = vis.get("px_dist_to_center", float("inf"))
+        vis_ok = px < MARKER_PIXEL_NEAR_PX
+        vmarker = "OK " if vis_ok else "BAD"
+        print(f"                  [{vmarker}] visual: id{w.get('aruco_id')}"
+              f"  mean=({vis['cx_mean']:.0f},{vis['cy_mean']:.0f})"
+              f"  img_center=({vis['img_cx']:.0f},{vis['img_cy']:.0f})"
+              f"  px_dist={px:.1f}  hits={vis['n_hits']}")
+        if not vis_ok:
+            fails.append(f"{w.get('label')} pixel_dist {px:.1f} >= "
+                         f"{MARKER_PIXEL_NEAR_PX} px (marker not centered)")
     if len(waypoints) != N_MARKERS:
         fails.append(f"only {len(waypoints)} waypoints flown, expected {N_MARKERS}")
 
