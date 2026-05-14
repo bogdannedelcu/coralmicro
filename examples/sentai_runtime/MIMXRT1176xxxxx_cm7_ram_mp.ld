@@ -346,6 +346,19 @@ SECTIONS
      *liblibh3_arm.a:*(.text .text*)
      *liblibh3_arm.a:*(.data .data*)
      *liblibh3_arm.a:*(.rodata .rodata*)
+     /* ObjectsPlan L4 (2026-05-14): sentai.servo action layer skeleton.
+        Pure FSM + 16-entry trace ring, called at <50 Hz from mission.
+        Cold-path data layer; SDRAM matches L2/L3 pattern. */
+     *sentai_servo.cc.obj(.text .text*)
+     *sentai_servo.cc.obj(.data .data*)
+     *sentai_servo.cc.obj(.rodata .rodata*)
+     /* ObjectsPlan L5 (2026-05-15): inverse-depth EKF landmark lifter.
+        Per-tracklet 1-state EKF; called at ≤30 Hz from detection_task
+        after tracker.update().  Math is all float (FPU native), no
+        ISR, no HW — fits SDRAM cold-path budget. */
+     *sentai_object_lifter.cc.obj(.text .text*)
+     *sentai_object_lifter.cc.obj(.data .data*)
+     *sentai_object_lifter.cc.obj(.rodata .rodata*)
      __sentai_slow_end = .;
      . = ALIGN(4);
   } > m_sdram

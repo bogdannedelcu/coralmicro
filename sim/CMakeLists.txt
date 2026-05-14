@@ -186,6 +186,10 @@ add_executable_sim(sentai_sim
     # Pure FSM + 16-entry trace ring; shared with ARM via the same
     # SENTAI_PLATFORM_SIM ifdef pattern as L2/L3.
     ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_servo.cc
+    # ObjectsPlan L5 — inverse-depth EKF landmark lifter.  Pure float
+    # math; SIM uses scalar fallback (no CMSIS-DSP).  Validated against
+    # experiments/s131_lifter_replay/lifter_proto.py.
+    ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_object_lifter.cc
     # Phase 4 — flow algorithm shared between ARM and SIM.
     # flow_phase_corr.cc compiles unchanged on both targets thanks to
     # sentai_fft_shim.h (CMSIS on ARM, FFTW3 wrapper on SIM).

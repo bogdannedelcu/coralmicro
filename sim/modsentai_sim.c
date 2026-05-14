@@ -1542,6 +1542,9 @@ static const mp_obj_module_t sentai_link_module = {
 // ObjectsPlan L4 — sentai.servo (action layer skeleton).  Pure FSM +
 // trace ring shared with ARM via the same #include pattern.
 #include "../examples/sentai_runtime/modsentai_servo.c"
+// ObjectsPlan L5 — sentai.object_lifter (inverse-depth EKF landmark
+// lifter). Pure float math; shared with ARM via the same #include.
+#include "../examples/sentai_runtime/modsentai_object_lifter.c"
 
 
 static const mp_rom_map_elem_t sentai_globals_table[] = {
@@ -1561,6 +1564,7 @@ static const mp_rom_map_elem_t sentai_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_objects),  MP_ROM_PTR(&sentai_objects_module) },
     { MP_ROM_QSTR(MP_QSTR_places),   MP_ROM_PTR(&sentai_places_module) },
     { MP_ROM_QSTR(MP_QSTR_servo),    MP_ROM_PTR(&sentai_servo_module) },
+    { MP_ROM_QSTR(MP_QSTR_object_lifter), MP_ROM_PTR(&sentai_object_lifter_module) },
     { MP_ROM_QSTR(MP_QSTR_sim),      MP_ROM_PTR(&sentai_sim_module) },
 };
 static MP_DEFINE_CONST_DICT(sentai_globals, sentai_globals_table);
