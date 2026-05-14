@@ -336,6 +336,16 @@ SECTIONS
      *sentai_objects.cc.obj(.text .text*)
      *sentai_objects.cc.obj(.data .data*)
      *sentai_objects.cc.obj(.rodata .rodata*)
+     /* ObjectsPlan L3 (2026-05-14): H3-indexed place gallery + Uber H3
+        library.  Both cold-path: the gallery is queried at ~1 Hz from
+        the explore SM, never on the per-frame TPU path.  H3 lib is
+        ~14 KB of .text — keep ITCM headroom by routing here. */
+     *sentai_places.cc.obj(.text .text*)
+     *sentai_places.cc.obj(.data .data*)
+     *sentai_places.cc.obj(.rodata .rodata*)
+     *liblibh3_arm.a:*(.text .text*)
+     *liblibh3_arm.a:*(.data .data*)
+     *liblibh3_arm.a:*(.rodata .rodata*)
      __sentai_slow_end = .;
      . = ALIGN(4);
   } > m_sdram

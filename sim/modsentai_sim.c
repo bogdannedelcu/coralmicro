@@ -1367,6 +1367,10 @@ static const mp_obj_module_t sentai_link_module = {
 // Keeps ARM and SIM exposing an identical surface; backing store + math
 // live in sentai_objects.{h,cc} (also in this build via sim/CMakeLists.txt).
 #include "../examples/sentai_runtime/modsentai_objects.c"
+// ObjectsPlan L3 — sentai.places.  Same #include pattern as L2; the
+// libh3_sim target is linked by sim/CMakeLists.txt so the H3 calls
+// (cell_at, neighbors, gridDisk inside query) resolve at link time.
+#include "../examples/sentai_runtime/modsentai_places.c"
 
 
 static const mp_rom_map_elem_t sentai_globals_table[] = {
@@ -1384,6 +1388,7 @@ static const mp_rom_map_elem_t sentai_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_pipeline), MP_ROM_PTR(&sentai_pipeline_module) },
     { MP_ROM_QSTR(MP_QSTR_link),     MP_ROM_PTR(&sentai_link_module) },
     { MP_ROM_QSTR(MP_QSTR_objects),  MP_ROM_PTR(&sentai_objects_module) },
+    { MP_ROM_QSTR(MP_QSTR_places),   MP_ROM_PTR(&sentai_places_module) },
 };
 static MP_DEFINE_CONST_DICT(sentai_globals, sentai_globals_table);
 

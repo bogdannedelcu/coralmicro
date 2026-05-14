@@ -43,6 +43,8 @@ target_include_directories(libmicropython PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/micropython_embed  # for #include "port/..."
     ${PROJECT_SOURCE_DIR}/third_party/nanopb   # pb.h (for sentai_mesh.h -> visionmesh.pb.h)
     ${CMAKE_CURRENT_SOURCE_DIR}/generated      # meshtastic/*.pb.h, visionmesh.pb.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/h3_gen         # h3api.h pre-generated (matches QSTR pre-pass)
+    ${PROJECT_SOURCE_DIR}/third_party/h3/src/h3lib/include  # H3 internals headers
 )
 
 # MicroPython is C99; compile with -Os; suppress warnings; must match CM7 target flags
@@ -123,6 +125,61 @@ target_compile_options(meshtastic_pb PRIVATE -w
     -fno-common -ffunction-sections -fdata-sections -ffreestanding -fno-builtin
 )
 
+# ---------------------------------------------------------------------------
+# libh3_arm — Uber H3 hexagonal spatial index, ARM build.
+#
+# ObjectsPlan L3 (sentai.places) prerequisite.  L1 vendored the submodule
+# at third_party/h3 v4.4.1; L3 wires it into both SIM (sim/CMakeLists.txt)
+# and ARM here.  Pure C99, 18 lib/*.c sources, no external deps.  The 4
+# version macros in h3api.h.in are substituted via configure_file (mirror
+# of the SIM-side recipe; same generated header layout).
+#
+# Per [[itcm-budget]]: H3 is general code, NOT a hot path — defaults to
+# .text via the M7 flags and lands in SDRAM .text via the linker script's
+# wildcard rules.  No .ramfunc placement.
+# ---------------------------------------------------------------------------
+set(H3_DIR ${PROJECT_SOURCE_DIR}/third_party/h3)
+file(STRINGS ${H3_DIR}/VERSION H3_VERSION_FULL LIMIT_COUNT 1)
+string(REGEX REPLACE "-.*$" "" H3_VERSION_FULL "${H3_VERSION_FULL}")
+string(REPLACE "." ";" H3_VERSION_LIST "${H3_VERSION_FULL}")
+list(GET H3_VERSION_LIST 0 H3_VERSION_MAJOR)
+list(GET H3_VERSION_LIST 1 H3_VERSION_MINOR)
+list(GET H3_VERSION_LIST 2 H3_VERSION_PATCH)
+configure_file(
+    ${H3_DIR}/src/h3lib/include/h3api.h.in
+    ${CMAKE_CURRENT_BINARY_DIR}/h3_gen/h3api.h
+    @ONLY
+)
+add_library_m7(libh3_arm STATIC
+    ${H3_DIR}/src/h3lib/lib/algos.c
+    ${H3_DIR}/src/h3lib/lib/area.c
+    ${H3_DIR}/src/h3lib/lib/baseCells.c
+    ${H3_DIR}/src/h3lib/lib/bbox.c
+    ${H3_DIR}/src/h3lib/lib/cellsToMultiPoly.c
+    ${H3_DIR}/src/h3lib/lib/directedEdge.c
+    ${H3_DIR}/src/h3lib/lib/faceijk.c
+    ${H3_DIR}/src/h3lib/lib/h3Assert.c
+    ${H3_DIR}/src/h3lib/lib/h3Index.c
+    ${H3_DIR}/src/h3lib/lib/iterators.c
+    ${H3_DIR}/src/h3lib/lib/latLng.c
+    ${H3_DIR}/src/h3lib/lib/linkedGeo.c
+    ${H3_DIR}/src/h3lib/lib/localij.c
+    ${H3_DIR}/src/h3lib/lib/mathExtensions.c
+    ${H3_DIR}/src/h3lib/lib/polyfill.c
+    ${H3_DIR}/src/h3lib/lib/polygon.c
+    ${H3_DIR}/src/h3lib/lib/vec2d.c
+    ${H3_DIR}/src/h3lib/lib/vertex.c
+)
+target_include_directories(libh3_arm PUBLIC
+    ${H3_DIR}/src/h3lib/include
+    ${CMAKE_CURRENT_BINARY_DIR}/h3_gen
+)
+target_compile_options(libh3_arm PRIVATE
+    -std=gnu11
+    -Os
+    -w                          # H3 sources are clean upstream; silence ARM-host warnings
+)
+
 add_executable_m7(sentai_runtime
     LINKER_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/MIMXRT1176xxxxx_cm7_ram_mp.ld
     sentai_runtime.cc
@@ -135,6 +192,7 @@ add_executable_m7(sentai_runtime
     aruco_bench.cc
     sentai_tracker.cc
     sentai_objects.cc
+    sentai_places.cc
     modsentai_hal.cc
     sentai_mesh.cc
     sentai_link.cc
@@ -194,6 +252,7 @@ target_link_libraries(sentai_runtime
     libmicropython
     libs_aifes_task_m7
     libs_CMSIS-m7              # CMSIS-DSP arm_cfft_f32 (flow_phase_corr.cc)
+    libh3_arm                  # ObjectsPlan L3 — H3 spatial index (sentai.places)
     nanopb
     meshtastic_pb
 )

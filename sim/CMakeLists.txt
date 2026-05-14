@@ -106,6 +106,59 @@ target_compile_options(libmicropython_embed_sim PRIVATE
 )
 
 # ---------------------------------------------------------------------------
+# libh3_sim — Uber H3 hexagonal spatial index (vendored at third_party/h3).
+#
+# ObjectsPlan L3 (sentai.places) prerequisite.  L1 only vendored the
+# submodule + standalone smoke (s119); L3 wires it into the production
+# SIM build.  18 lib/*.c sources (no external deps, MIT-licensed C99) +
+# generated h3api.h with version macros substituted via configure_file.
+#
+# Mirror this pattern in examples/sentai_runtime/CMakeLists.txt for the
+# ARM build when L3 lands on hardware.
+# ---------------------------------------------------------------------------
+set(H3_DIR ${CMAKE_SOURCE_DIR}/third_party/h3)
+file(STRINGS ${H3_DIR}/VERSION H3_VERSION_FULL LIMIT_COUNT 1)
+string(REGEX REPLACE "-.*$" "" H3_VERSION_FULL "${H3_VERSION_FULL}")
+string(REPLACE "." ";" H3_VERSION_LIST "${H3_VERSION_FULL}")
+list(GET H3_VERSION_LIST 0 H3_VERSION_MAJOR)
+list(GET H3_VERSION_LIST 1 H3_VERSION_MINOR)
+list(GET H3_VERSION_LIST 2 H3_VERSION_PATCH)
+configure_file(
+    ${H3_DIR}/src/h3lib/include/h3api.h.in
+    ${CMAKE_CURRENT_BINARY_DIR}/h3_gen/h3api.h
+    @ONLY
+)
+add_library_sim(libh3_sim STATIC
+    ${H3_DIR}/src/h3lib/lib/algos.c
+    ${H3_DIR}/src/h3lib/lib/area.c
+    ${H3_DIR}/src/h3lib/lib/baseCells.c
+    ${H3_DIR}/src/h3lib/lib/bbox.c
+    ${H3_DIR}/src/h3lib/lib/cellsToMultiPoly.c
+    ${H3_DIR}/src/h3lib/lib/directedEdge.c
+    ${H3_DIR}/src/h3lib/lib/faceijk.c
+    ${H3_DIR}/src/h3lib/lib/h3Assert.c
+    ${H3_DIR}/src/h3lib/lib/h3Index.c
+    ${H3_DIR}/src/h3lib/lib/iterators.c
+    ${H3_DIR}/src/h3lib/lib/latLng.c
+    ${H3_DIR}/src/h3lib/lib/linkedGeo.c
+    ${H3_DIR}/src/h3lib/lib/localij.c
+    ${H3_DIR}/src/h3lib/lib/mathExtensions.c
+    ${H3_DIR}/src/h3lib/lib/polyfill.c
+    ${H3_DIR}/src/h3lib/lib/polygon.c
+    ${H3_DIR}/src/h3lib/lib/vec2d.c
+    ${H3_DIR}/src/h3lib/lib/vertex.c
+)
+target_include_directories(libh3_sim PUBLIC
+    ${H3_DIR}/src/h3lib/include
+    ${CMAKE_CURRENT_BINARY_DIR}/h3_gen
+)
+target_compile_options(libh3_sim PRIVATE
+    -std=gnu11
+    -Os
+    -w                          # H3 sources are clean upstream; silence host warnings
+)
+
+# ---------------------------------------------------------------------------
 # sentai_sim — Phase 1 step 8-10 deliverable: REPL on stdin/stdout.
 #
 # Boots FreeRTOS POSIX scheduler, single REPL task drives MicroPython embed,
@@ -126,6 +179,9 @@ add_executable_sim(sentai_sim
     # single .cc shared with ARM via the SENTAI_PLATFORM_SIM ifdef in the
     # source).
     ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_objects.cc
+    # ObjectsPlan L3 — H3-indexed place gallery + descriptor match.
+    # Pure data + math; H3 graph queries via libh3_sim (linked below).
+    ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_places.cc
     # Phase 4 — flow algorithm shared between ARM and SIM.
     # flow_phase_corr.cc compiles unchanged on both targets thanks to
     # sentai_fft_shim.h (CMSIS on ARM, FFTW3 wrapper on SIM).
@@ -136,6 +192,7 @@ add_executable_sim(sentai_sim
 target_link_libraries(sentai_sim PRIVATE
     libfreertos_posix
     libmicropython_embed_sim
+    libh3_sim      # ObjectsPlan L3 — H3 spatial index (sentai.places)
     fftw3f         # SIM-only: FFTW3 single-precision (CMSIS shim backend)
     m              # math functions — must come AFTER libmicropython_embed_sim
 )

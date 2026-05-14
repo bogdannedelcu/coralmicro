@@ -1,0 +1,285 @@
+// ============== sentai.places — H3-indexed place gallery ==============
+// This file is #include'd from modsentai.c (ARM) AND sim/modsentai_sim.c
+// (SIM) — do NOT compile separately.  Single source of truth for the MP
+// binding so ARM and SIM expose an identical surface.
+//
+// Backing store + L1 match math live in sentai_places.{h,cc}.
+// H3 helper bindings (cell_at, cell_to_latlng, neighbors) wrap libh3
+// directly so MP code does not need a separate sentai.h3 module.
+//
+// API (per ideas/objects_plan.md §13.6 + §15.11):
+//
+//   sentai.places.add(h3_cell, desc_bytes_or_None, x=0, y=0, z=0) -> id|<0
+//   sentai.places.get(id)                                          -> dict|None
+//   sentai.places.observe(id)                                      -> 0|-1
+//   sentai.places.set_status(id, status)                           -> 0|-1|-2
+//   sentai.places.remove(id)                                       -> 0|-1
+//   sentai.places.clear()                                          -> int
+//   sentai.places.count()                                          -> int
+//   sentai.places.list()                                           -> [dict, ...]
+//   sentai.places.query(desc_bytes, h3_cell=0, k_disk=1, thresh=0) -> dict|None
+//   sentai.places.stats()                                          -> dict
+//   sentai.places.cell_at(lat, lng, res)                           -> int (H3Index)
+//   sentai.places.cell_to_latlng(h3_cell)                          -> (lat, lng)
+//   sentai.places.neighbors(h3_cell, k=1)                          -> [int, ...]
+//   sentai.places.{FREE, TENTATIVE, CONFIRMED}
+
+#include "sentai_places.h"
+
+#include <math.h>
+#include <string.h>
+
+#include "h3api.h"
+
+// Snapshot buffer is file-scope static (≈6 KB) to keep MP-task stack small.
+// Single-writer-single-reader contract per sentai_places.h.
+static sentai_place_t s_plr_list_snap[SENTAI_PLACES_MAX];
+
+// ===================== Helpers =====================
+
+static mp_obj_t plr_to_dict(const sentai_place_t* p) {
+    mp_obj_dict_t* d = MP_OBJ_TO_PTR(mp_obj_new_dict(10));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_id),            mp_obj_new_int(p->id));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_status),        mp_obj_new_int(p->status));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_visits),        mp_obj_new_int(p->visits));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_h3_cell),       mp_obj_new_int_from_ull(p->h3_cell));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_x),             mp_obj_new_float(p->p_W[0]));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_y),             mp_obj_new_float(p->p_W[1]));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_z),             mp_obj_new_float(p->p_W[2]));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_first_seen_ms), mp_obj_new_int(p->first_seen_ms));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_last_visit_ms), mp_obj_new_int(p->last_visit_ms));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_desc_set),      mp_obj_new_int(p->desc_set));
+    return MP_OBJ_FROM_PTR(d);
+}
+
+// Extract DESC_DIM bytes from a Python `bytes`/`bytearray`/buffer-protocol
+// object into `out`.  Returns 1 ok, 0 wrong length / not buffer-like.
+static int plr_extract_desc(mp_obj_t obj, uint8_t* out) {
+    mp_buffer_info_t bi;
+    if (!mp_get_buffer(obj, &bi, MP_BUFFER_READ)) return 0;
+    if (bi.len != SENTAI_PLACES_DESC_DIM) return 0;
+    memcpy(out, bi.buf, SENTAI_PLACES_DESC_DIM);
+    return 1;
+}
+
+// ===================== add(h3_cell, desc, x=0, y=0, z=0) ===============
+
+static mp_obj_t mod_places_add(size_t n_args, const mp_obj_t* args) {
+    uint64_t h3_cell = (uint64_t)mp_obj_get_int(args[0]);
+
+    uint8_t  desc_buf[SENTAI_PLACES_DESC_DIM];
+    const uint8_t* desc = NULL;
+    if (args[1] != mp_const_none) {
+        if (!plr_extract_desc(args[1], desc_buf)) return mp_obj_new_int(-2);
+        desc = desc_buf;
+    }
+    float x = (n_args >= 3) ? mp_obj_get_float(args[2]) : 0.0f;
+    float y = (n_args >= 4) ? mp_obj_get_float(args[3]) : 0.0f;
+    float z = (n_args >= 5) ? mp_obj_get_float(args[4]) : 0.0f;
+
+    return mp_obj_new_int(sentai_places_add(h3_cell, desc, x, y, z));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_places_add_obj, 2, 5, mod_places_add);
+
+// ===================== get(id) =========================================
+
+static mp_obj_t mod_places_get(mp_obj_t id_obj) {
+    int id = mp_obj_get_int(id_obj);
+    if (id < 0 || id > 255) return mp_const_none;
+    sentai_place_t snap;
+    if (sentai_places_get((uint8_t)id, &snap) != 0) return mp_const_none;
+    return plr_to_dict(&snap);
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(mod_places_get_obj, mod_places_get);
+
+// ===================== list() ==========================================
+
+static mp_obj_t mod_places_list(void) {
+    int n = sentai_places_list(s_plr_list_snap, SENTAI_PLACES_MAX);
+    mp_obj_list_t* lst = MP_OBJ_TO_PTR(mp_obj_new_list(0, NULL));
+    for (int i = 0; i < n; i++) {
+        mp_obj_list_append(MP_OBJ_FROM_PTR(lst), plr_to_dict(&s_plr_list_snap[i]));
+    }
+    return MP_OBJ_FROM_PTR(lst);
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_places_list_obj, mod_places_list);
+
+// ===================== observe(id) =====================================
+
+static mp_obj_t mod_places_observe(mp_obj_t id_obj) {
+    int id = mp_obj_get_int(id_obj);
+    if (id < 0 || id > 255) return mp_obj_new_int(-1);
+    return mp_obj_new_int(sentai_places_observe((uint8_t)id));
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(mod_places_observe_obj, mod_places_observe);
+
+// ===================== set_status(id, status) ==========================
+
+static mp_obj_t mod_places_set_status(mp_obj_t id_obj, mp_obj_t status_obj) {
+    int id     = mp_obj_get_int(id_obj);
+    int status = mp_obj_get_int(status_obj);
+    if (id < 0 || id > 255)         return mp_obj_new_int(-1);
+    if (status < 0 || status > 255) return mp_obj_new_int(-2);
+    return mp_obj_new_int(sentai_places_set_status((uint8_t)id, (uint8_t)status));
+}
+static MP_DEFINE_CONST_FUN_OBJ_2(mod_places_set_status_obj, mod_places_set_status);
+
+// ===================== remove(id) ======================================
+
+static mp_obj_t mod_places_remove(mp_obj_t id_obj) {
+    int id = mp_obj_get_int(id_obj);
+    if (id < 0 || id > 255) return mp_obj_new_int(-1);
+    return mp_obj_new_int(sentai_places_remove((uint8_t)id));
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(mod_places_remove_obj, mod_places_remove);
+
+// ===================== clear() / count() ===============================
+
+static mp_obj_t mod_places_clear(void) {
+    return mp_obj_new_int(sentai_places_clear());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_places_clear_obj, mod_places_clear);
+
+static mp_obj_t mod_places_count(void) {
+    return mp_obj_new_int(sentai_places_count());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_places_count_obj, mod_places_count);
+
+// ===================== query(desc, cell=0, k_disk=1, thresh=0) =========
+// Returns a dict {id, score_pct, l1_dist, hit} or None on hard failure.
+// hit is 1 when score_pct >= thresh else 0.  id == 0 also means miss.
+
+static mp_obj_t mod_places_query(size_t n_args, const mp_obj_t* args) {
+    uint8_t  desc_buf[SENTAI_PLACES_DESC_DIM];
+    if (!plr_extract_desc(args[0], desc_buf)) return mp_const_none;
+
+    uint64_t cell = (n_args >= 2) ? (uint64_t)mp_obj_get_int(args[1]) : 0;
+    int      k    = (n_args >= 3) ?           mp_obj_get_int(args[2]) : 1;
+    int      thr  = (n_args >= 4) ?           mp_obj_get_int(args[3]) : 0;
+    if (k < 0)   k = 0;
+    if (thr < 0) thr = 0;
+    if (thr > 100) thr = 100;
+
+    sentai_places_match_t r = sentai_places_query(desc_buf, cell, k, thr);
+
+    mp_obj_dict_t* d = MP_OBJ_TO_PTR(mp_obj_new_dict(4));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_id),        mp_obj_new_int(r.id));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_score_pct), mp_obj_new_int(r.score_pct));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_l1_dist),   mp_obj_new_int(r.l1_dist));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_hit),
+                      mp_obj_new_int((r.id != 0 && r.score_pct >= thr) ? 1 : 0));
+    return MP_OBJ_FROM_PTR(d);
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_places_query_obj, 1, 4, mod_places_query);
+
+// ===================== stats() =========================================
+
+static mp_obj_t mod_places_stats(void) {
+    sentai_places_stats_t c;
+    int used = 0, tent = 0, conf = 0;
+    sentai_places_stats(&c, &used, &tent, &conf);
+
+    mp_obj_dict_t* d = MP_OBJ_TO_PTR(mp_obj_new_dict(13));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_used),                 mp_obj_new_int(used));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_hwm),                  mp_obj_new_int(c.hwm_used));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_capacity),             mp_obj_new_int(SENTAI_PLACES_MAX));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_desc_dim),             mp_obj_new_int(SENTAI_PLACES_DESC_DIM));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_tentative),            mp_obj_new_int(tent));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_confirmed),            mp_obj_new_int(conf));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_adds),                 mp_obj_new_int(c.adds));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_removes),              mp_obj_new_int(c.removes));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_evictions),            mp_obj_new_int(c.evictions));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_observations),         mp_obj_new_int(c.observations));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_queries),              mp_obj_new_int(c.queries));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_matches_above_thresh), mp_obj_new_int(c.matches_above_thresh));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_oob_rejected),         mp_obj_new_int(c.oob_rejected));
+    return MP_OBJ_FROM_PTR(d);
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_places_stats_obj, mod_places_stats);
+
+// ===================== H3 helpers ======================================
+// Thin wrappers around libh3 so MP code can use H3 indexing without a
+// separate sentai.h3 module.  Pure-functional, no state, no allocation.
+
+// cell_at(lat_deg, lng_deg, res) -> int H3Index (0 on H3 failure).
+static mp_obj_t mod_places_cell_at(mp_obj_t lat_obj, mp_obj_t lng_obj, mp_obj_t res_obj) {
+    LatLng ll;
+    ll.lat = degsToRads((double)mp_obj_get_float(lat_obj));
+    ll.lng = degsToRads((double)mp_obj_get_float(lng_obj));
+    int    res = mp_obj_get_int(res_obj);
+    if (res < 0 || res > 15) return mp_obj_new_int_from_ull(0);
+    H3Index out = 0;
+    if (latLngToCell(&ll, res, &out) != E_SUCCESS) return mp_obj_new_int_from_ull(0);
+    return mp_obj_new_int_from_ull((unsigned long long)out);
+}
+static MP_DEFINE_CONST_FUN_OBJ_3(mod_places_cell_at_obj, mod_places_cell_at);
+
+// cell_to_latlng(h3_cell) -> (lat_deg, lng_deg) or None.
+static mp_obj_t mod_places_cell_to_latlng(mp_obj_t cell_obj) {
+    H3Index cell = (H3Index)mp_obj_get_int(cell_obj);
+    if (cell == 0) return mp_const_none;
+    LatLng ll = {0, 0};
+    if (cellToLatLng(cell, &ll) != E_SUCCESS) return mp_const_none;
+    mp_obj_t pair[2] = {
+        mp_obj_new_float(radsToDegs(ll.lat)),
+        mp_obj_new_float(radsToDegs(ll.lng)),
+    };
+    return mp_obj_new_tuple(2, pair);
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(mod_places_cell_to_latlng_obj, mod_places_cell_to_latlng);
+
+// neighbors(h3_cell, k=1) -> list[int].  Cap k at 3 to keep the static
+// ring buffer ≤ 37 cells (matches sentai_places.cc internal cap).
+static mp_obj_t mod_places_neighbors(size_t n_args, const mp_obj_t* args) {
+    H3Index cell = (H3Index)mp_obj_get_int(args[0]);
+    int     k    = (n_args >= 2) ? mp_obj_get_int(args[1]) : 1;
+    if (k < 0) k = 0;
+    if (k > 3) k = 3;
+
+    int64_t max_n = 0;
+    if (cell == 0 || maxGridDiskSize(k, &max_n) != E_SUCCESS || max_n <= 0) {
+        return mp_obj_new_list(0, NULL);
+    }
+    if (max_n > 37) max_n = 37;
+    H3Index ring[37] = {0};
+    if (gridDisk(cell, k, ring) != E_SUCCESS) {
+        return mp_obj_new_list(0, NULL);
+    }
+    mp_obj_list_t* lst = MP_OBJ_TO_PTR(mp_obj_new_list(0, NULL));
+    for (int i = 0; i < (int)max_n; i++) {
+        if (ring[i] == 0) continue;
+        mp_obj_list_append(MP_OBJ_FROM_PTR(lst),
+                           mp_obj_new_int_from_ull((unsigned long long)ring[i]));
+    }
+    return MP_OBJ_FROM_PTR(lst);
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_places_neighbors_obj, 1, 2, mod_places_neighbors);
+
+// ===================== Module table ====================================
+
+static const mp_rom_map_elem_t sentai_places_globals_table[] = {
+    { MP_ROM_QSTR(MP_QSTR___name__),        MP_ROM_QSTR(MP_QSTR_places) },
+    { MP_ROM_QSTR(MP_QSTR_add),             MP_ROM_PTR(&mod_places_add_obj) },
+    { MP_ROM_QSTR(MP_QSTR_get),             MP_ROM_PTR(&mod_places_get_obj) },
+    { MP_ROM_QSTR(MP_QSTR_list),            MP_ROM_PTR(&mod_places_list_obj) },
+    { MP_ROM_QSTR(MP_QSTR_observe),         MP_ROM_PTR(&mod_places_observe_obj) },
+    { MP_ROM_QSTR(MP_QSTR_set_status),      MP_ROM_PTR(&mod_places_set_status_obj) },
+    { MP_ROM_QSTR(MP_QSTR_remove),          MP_ROM_PTR(&mod_places_remove_obj) },
+    { MP_ROM_QSTR(MP_QSTR_clear),           MP_ROM_PTR(&mod_places_clear_obj) },
+    { MP_ROM_QSTR(MP_QSTR_count),           MP_ROM_PTR(&mod_places_count_obj) },
+    { MP_ROM_QSTR(MP_QSTR_query),           MP_ROM_PTR(&mod_places_query_obj) },
+    { MP_ROM_QSTR(MP_QSTR_stats),           MP_ROM_PTR(&mod_places_stats_obj) },
+    { MP_ROM_QSTR(MP_QSTR_cell_at),         MP_ROM_PTR(&mod_places_cell_at_obj) },
+    { MP_ROM_QSTR(MP_QSTR_cell_to_latlng),  MP_ROM_PTR(&mod_places_cell_to_latlng_obj) },
+    { MP_ROM_QSTR(MP_QSTR_neighbors),       MP_ROM_PTR(&mod_places_neighbors_obj) },
+    // Status constants
+    { MP_ROM_QSTR(MP_QSTR_FREE),            MP_ROM_INT(PLR_FREE) },
+    { MP_ROM_QSTR(MP_QSTR_TENTATIVE),       MP_ROM_INT(PLR_TENTATIVE) },
+    { MP_ROM_QSTR(MP_QSTR_CONFIRMED),       MP_ROM_INT(PLR_CONFIRMED) },
+};
+static MP_DEFINE_CONST_DICT(sentai_places_globals, sentai_places_globals_table);
+
+static const mp_obj_module_t sentai_places_module = {
+    .base    = { &mp_type_module },
+    .globals = (mp_obj_dict_t*)&sentai_places_globals,
+};
