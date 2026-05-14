@@ -22,7 +22,7 @@
 #include "py/runtime.h"
 
 static const mp_rom_obj_tuple_t _sentai_sim_qstr_keepalive __attribute__((unused)) = {
-    {&mp_type_tuple}, 16, {
+    {&mp_type_tuple}, 23, {
         MP_ROM_QSTR(MP_QSTR_detections),
         MP_ROM_QSTR(MP_QSTR_tracker_update),
         MP_ROM_QSTR(MP_QSTR_tracker_enable),
@@ -39,6 +39,14 @@ static const mp_rom_obj_tuple_t _sentai_sim_qstr_keepalive __attribute__((unused
         MP_ROM_QSTR(MP_QSTR_dz_q1000),
         MP_ROM_QSTR(MP_QSTR_dz_conf),
         MP_ROM_QSTR(MP_QSTR_set_input),
+        // sentai.sim (SIM-only diagnostic utilities — journal API)
+        MP_ROM_QSTR(MP_QSTR_sim),
+        MP_ROM_QSTR(MP_QSTR_journal_open),
+        MP_ROM_QSTR(MP_QSTR_journal_close),
+        MP_ROM_QSTR(MP_QSTR_journal_write),
+        MP_ROM_QSTR(MP_QSTR_journal_status),
+        MP_ROM_QSTR(MP_QSTR_lines),
+        MP_ROM_QSTR(MP_QSTR_errors),
     }
 };
 

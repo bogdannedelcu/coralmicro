@@ -3359,3 +3359,115 @@ underscore so they import as plain Python modules.
 This recipe should be reused for every SIM test from L2 onwards — see
 `examples/sentai_runtime/experiments/s127_flowbaseline/` and any
 `diag/_t_*.py` driver.
+
+## 10x. SIM-only journal API — `sentai.sim.journal_*` (2026-05-14)
+
+Added when s128 L4.1Baseline grew complex enough that "test silently
+hung and I can't tell why" started biting.  The journal is a structured
+append-mode log file under the SIM virtual FS that captures every
+significant step + state snapshot, so a crash mid-mission leaves the
+last-known-good state and the failing step on disk.
+
+### API surface
+
+```python
+sentai.sim.journal_open(path[, truncate=True])  # -> 0 ok, -1 fail
+sentai.sim.journal_close()                       # -> 0
+sentai.sim.journal_write(label[, value=None])    # -> 0 ok, -1 not open
+sentai.sim.journal_status()                      # -> dict
+```
+
+The `value` argument can be any Python object — its `repr()` is written.
+`None` (the default) writes a `-` placeholder.  Errors are local: a
+failed `journal_write` does NOT raise; the test continues.
+
+### Line format
+
+```
+# sentai.sim journal opened path=/.../journal.txt truncate=1 t_ms=727622661
+727622662 mission_begin -
+727622665 servo_init {'last_result': 0, ..., 'actions_ok': 1, 'armed': 0}
+727622676 servo_arm {'last_result': 0, ..., 'actions_ok': 2, 'armed': 1}
+...
+# closed t_ms=727641004 lines=11 errors=0
+```
+
+- Field 1: monotonic ms timestamp.
+- Field 2: caller-supplied label (1 word).
+- Field 3+: `repr(value)` or `-`.
+
+Header line and footer line begin with `#` (skip in parsers).
+
+### Host-side parser pattern
+
+```python
+import ast, re
+for line in Path("/tmp/.../journal.txt").read_text().splitlines():
+    if line.startswith("#"):
+        continue
+    m = re.match(r"(\d+)\s+(\S+)\s+(.*)", line)
+    t_ms, label, rest = int(m[1]), m[2], m[3]
+    value = ast.literal_eval(rest) if rest != "-" else None
+```
+
+### When to use it
+
+- Multi-step integration tests (e.g. s128, future s129) where a crash
+  needs to be localised quickly.
+- Any test where the operator wants to inspect "what was the system
+  state at step N" post-mortem without re-running.
+- NOT a replacement for `print()` debugging or `sentai.diag.dmesg` —
+  the journal is for structured, queryable, machine-parseable history.
+
+### Programming idiom (mission script side)
+
+```python
+import sentai
+sentai.verbose(0)                               # silence stdout chatter
+sentai.sim.journal_open('my_test.txt')          # truncate=True by default
+sentai.sim.journal_write('start', None)
+
+# After every meaningful action, snapshot state:
+rc = sentai.servo.arm()
+sentai.sim.journal_write('arm', {'rc': rc, 'st': sentai.servo.status()})
+
+# … or just pass the live status dict; it'll be repr'd:
+sentai.sim.journal_write('post_takeoff', sentai.servo.status())
+
+sentai.sim.journal_close()                      # writes footer + flushes
+```
+
+### Programming idiom (host runner side)
+
+When the host drives REPL over `ReplDriver`, wrap every action in a
+helper that issues both the action and the journal write:
+
+```python
+def j_int(repl, label, cmd):
+    rc = repl.exec_int(cmd)
+    repl.exec_int(f"sentai.sim.journal_write('{label}', sentai.servo.status())")
+    return rc
+```
+
+The journal file lives at `${SENTAI_SIM_ROOT}/<name>` — typically
+`build-sim/sentai_fs_root/<name>` — so the host reads it directly with
+`Path(...).read_text()` once the mission ends (or crashes).
+
+### What it is NOT
+
+- It is NOT a hook on the REPL parser — only what you explicitly write
+  ends up in the journal.  For exhaustive command capture, the host-
+  side `repl.transcript` (line-by-line stdin/stdout) is the complement.
+- It is SIM-only.  ARM build does not expose `sentai.sim` (the module
+  registers in `sim/modsentai_sim.c`, not in `examples/sentai_runtime/`).
+  When/if an ARM equivalent is needed, file lifetime + FileX semantics
+  differ enough that a separate `sentai.diag.journal_*` is the right
+  surface, not lifting `sentai.sim` to the device.
+
+### Example: see `s128_l41baseline_seeded`
+
+`examples/sentai_runtime/experiments/s128_l41baseline_seeded/mission_l41.py`
+is the canonical user — every servo.* call goes through `j_int()`, and
+the journal copy at `/tmp/s128_l41baseline/journal.txt` is the primary
+post-mortem artifact when `verdict.py` fails.
+
