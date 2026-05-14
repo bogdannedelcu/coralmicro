@@ -152,11 +152,13 @@ class ReplDriver:
     the value.  That makes the parser immune to async chatter."""
 
     def __init__(self, bin_path: Path, fs_root: Path, transcript: Path,
-                 startup_timeout_s: float = 8.0):
+                 startup_timeout_s: float = 8.0,
+                 frames_dir_base: Path | None = None):
         self.transcript = open(transcript, "w", buffering=1)
         env = os.environ.copy()
         env["SENTAI_SIM_ROOT"] = str(fs_root)
-        fdir = WORKDIR / f"sentai_frames_{dt.datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        base = frames_dir_base if frames_dir_base is not None else WORKDIR
+        fdir = base / f"sentai_frames_{dt.datetime.now().strftime('%Y%m%d_%H%M%S')}"
         fdir.mkdir(parents=True, exist_ok=True)
         env["SENTAI_DUMP_FRAMES_DIR"]   = str(fdir)
         env["SENTAI_DUMP_FRAMES_EVERY"] = "15"
