@@ -359,6 +359,14 @@ SECTIONS
      *sentai_object_lifter.cc.obj(.text .text*)
      *sentai_object_lifter.cc.obj(.data .data*)
      *sentai_object_lifter.cc.obj(.rodata .rodata*)
+     /* ObjectsPlan L6 (2026-05-15): sentai.explore mission FSM.
+        Pure FSM wrapping L4 servo + L5 lifter; operator-driven via
+        REPL/radio, <50 Hz tick rate.  Cold-path; SDRAM matches L4/L5
+        pattern.  Captures .rodata string literals (state names) to
+        keep m_text margin. */
+     *sentai_explore.cc.obj(.text .text*)
+     *sentai_explore.cc.obj(.data .data*)
+     *sentai_explore.cc.obj(.rodata .rodata*)
      __sentai_slow_end = .;
      . = ALIGN(4);
   } > m_sdram
