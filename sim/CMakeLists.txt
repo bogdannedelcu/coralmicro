@@ -182,6 +182,8 @@ add_executable_sim(sentai_sim
     # ObjectsPlan L3 — H3-indexed place gallery + descriptor match.
     # Pure data + math; H3 graph queries via libh3_sim (linked below).
     ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_places.cc
+    # PHOG (Bosch 2007) — Track A place descriptor component.
+    ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_phog.cc
     # ObjectsPlan L4 — backend-agnostic action layer (skeleton).
     # Pure FSM + 16-entry trace ring; shared with ARM via the same
     # SENTAI_PLATFORM_SIM ifdef pattern as L2/L3.

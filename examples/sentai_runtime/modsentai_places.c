@@ -25,6 +25,7 @@
 //   sentai.places.{FREE, TENTATIVE, CONFIRMED}
 
 #include "sentai_places.h"
+#include "sentai_phog.h"
 
 #include <math.h>
 #include <string.h>
@@ -257,6 +258,33 @@ static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_places_neighbors_obj, 1, 2, mod_p
 
 // ===================== Module table ====================================
 
+// ===================== compute_phog(gray_bytes, w, h) -> list[168] ====
+// PHOG (Pyramid Histogram of Oriented Gradients) — Track A foundation
+// per ideas/objects_plan.md §22.2.
+
+static mp_obj_t mod_places_compute_phog(size_t n_args, const mp_obj_t* args) {
+    (void)n_args;
+    mp_buffer_info_t bi;
+    if (!mp_get_buffer(args[0], &bi, MP_BUFFER_READ)) {
+        return mp_const_none;
+    }
+    int w = mp_obj_get_int(args[1]);
+    int h = mp_obj_get_int(args[2]);
+    if (w <= 0 || h <= 0) return mp_const_none;
+    if ((size_t)(w * h) > bi.len) return mp_const_none;
+
+    float out[SENTAI_PHOG_DIM];
+    int rc = sentai_phog_compute((const uint8_t*)bi.buf, w, h, out);
+    if (rc < 0) return mp_const_none;
+
+    mp_obj_list_t* lst = MP_OBJ_TO_PTR(mp_obj_new_list(0, NULL));
+    for (int i = 0; i < SENTAI_PHOG_DIM; ++i) {
+        mp_obj_list_append(MP_OBJ_FROM_PTR(lst), mp_obj_new_float(out[i]));
+    }
+    return MP_OBJ_FROM_PTR(lst);
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_places_compute_phog_obj, 3, 3, mod_places_compute_phog);
+
 static const mp_rom_map_elem_t sentai_places_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__),        MP_ROM_QSTR(MP_QSTR_places) },
     { MP_ROM_QSTR(MP_QSTR_add),             MP_ROM_PTR(&mod_places_add_obj) },
@@ -272,6 +300,8 @@ static const mp_rom_map_elem_t sentai_places_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_cell_at),         MP_ROM_PTR(&mod_places_cell_at_obj) },
     { MP_ROM_QSTR(MP_QSTR_cell_to_latlng),  MP_ROM_PTR(&mod_places_cell_to_latlng_obj) },
     { MP_ROM_QSTR(MP_QSTR_neighbors),       MP_ROM_PTR(&mod_places_neighbors_obj) },
+    // Track A descriptor compute (Bosch 2007 PHOG).
+    { MP_ROM_QSTR(MP_QSTR_compute_phog),    MP_ROM_PTR(&mod_places_compute_phog_obj) },
     // Status constants
     { MP_ROM_QSTR(MP_QSTR_FREE),            MP_ROM_INT(PLR_FREE) },
     { MP_ROM_QSTR(MP_QSTR_TENTATIVE),       MP_ROM_INT(PLR_TENTATIVE) },

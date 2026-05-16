@@ -367,6 +367,11 @@ SECTIONS
      *sentai_explore.cc.obj(.text .text*)
      *sentai_explore.cc.obj(.data .data*)
      *sentai_explore.cc.obj(.rodata .rodata*)
+     /* Track A places (s139+, 2026-05-16): PHOG descriptor compute.
+        Cold-path ~1 Hz, ~10 ms on M7; .sdram_text per [[itcm-budget]]. */
+     *sentai_phog.cc.obj(.text .text*)
+     *sentai_phog.cc.obj(.data .data*)
+     *sentai_phog.cc.obj(.rodata .rodata*)
      __sentai_slow_end = .;
      . = ALIGN(4);
   } > m_sdram
