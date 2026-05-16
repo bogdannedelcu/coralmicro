@@ -3487,3 +3487,125 @@ is the canonical user — every servo.* call goes through `j_int()`, and
 the journal copy at `/tmp/s128_l41baseline/journal.txt` is the primary
 post-mortem artifact when `verdict.py` fails.
 
+
+## 10y. SIM + ARM file organisation (refactor 2026-05-16)
+
+### TL;DR
+
+```
+sim/                                   # SIM-only (POSIX host build)
+├── modsentai_sim.c                    # dispatcher (~160 LoC): includes + top-level table
+├── modsentai_sim_io.c                 # one fragment per subsystem,
+├── modsentai_sim_rtos.c               # all #include'd into modsentai_sim.c
+├── modsentai_sim_diag.c               # so they share one translation unit
+├── modsentai_sim_sys.c
+├── modsentai_sim_fs.c
+├── modsentai_sim_journal.c            # sentai.sim.journal_*
+├── modsentai_sim_camera.c
+├── modsentai_sim_flow.c
+├── modsentai_sim_tpu.c
+├── modsentai_sim_pipeline.c
+├── modsentai_sim_link.c               # MAVLink ↔ PX4 SITL
+├── modsentai_sim_crazy.c              # CRTP-UDP ↔ cf2 SITL  (Task #39)
+└── sentai_crazy_sim.cc, sentai_link_sim.cc, ...   # SIM-only impls
+
+examples/sentai_runtime/               # ARM firmware (Cortex-M7 deliverable)
+├── modsentai.c                        # dispatcher: includes bindings/* + top-level
+├── bindings/                          # 31× modsentai_<subsystem>.c (MP bindings)
+│   ├── modsentai_camera.c
+│   ├── modsentai_crazy.c              # CPX-over-UART
+│   ├── modsentai_flow.c
+│   ├── ... (28 more)
+├── sentai_<subsystem>.{cc,h}          # impl + header at top level (flat for now)
+└── (vendored) micropython_embed/, generated/, h3_gen/, modules/
+```
+
+### The two ironclad rules
+
+1. **Bindings (`modsentai_*.c` files) are `#include`d, NEVER compiled
+   stand-alone.**  They share a single translation unit with their
+   dispatcher (`modsentai.c` for ARM, `modsentai_sim.c` for SIM) so all
+   `static` linkage between sections stays intact — no header files
+   need to be added when one fragment uses a helper defined earlier.
+
+2. **One implementation file owns each subsystem; bindings only call
+   into it.**  The MP binding is a thin facade.  Hot code lives in
+   `sentai_<name>.{cc,h}` (ARM) or `sentai_<name>_sim.cc` (SIM).
+   When ARM and SIM share the impl, the file lives at
+   `examples/sentai_runtime/sentai_<name>.cc` and is added to BOTH the
+   ARM and SIM CMakeLists.
+
+### File-naming convention
+
+| Pattern | Where | Owner |
+|---|---|---|
+| `modsentai_<name>.c` | `examples/sentai_runtime/bindings/` | ARM MicroPython binding |
+| `modsentai_sim_<name>.c` | `sim/` | SIM MicroPython binding |
+| `sentai_<name>.cc` + `.h` | `examples/sentai_runtime/` | shared impl (ARM + SIM via #ifdef) |
+| `sentai_<name>_sim.cc` | `sim/` | SIM-only impl (no ARM counterpart) |
+| `<feature>_task.cc` | `examples/sentai_runtime/` | FreeRTOS task body (ARM) |
+
+### Include-path consequences
+
+ARM (`bash build.sh` → cmake → arm-none-eabi-gcc):
+- `examples/sentai_runtime/CMakeLists.txt` already adds
+  `${CMAKE_CURRENT_SOURCE_DIR}` to `target_include_directories`, so
+  `bindings/modsentai_X.c` doing `#include "sentai_X.h"` still resolves
+  via that -I.
+
+SIM (`cmake --build build-sim --target sentai_sim`):
+- `sim/CMakeLists.txt` adds `${CMAKE_SOURCE_DIR}/examples/sentai_runtime`
+  to `target_include_directories(sentai_sim PRIVATE ...)` for the same
+  reason.
+
+QSTR pre-pass (`make … micropython-embed-package`, host gcc):
+- `examples/sentai_runtime/modules/sentai/micropython.mk` adds
+  `-I$(SENTAI_MOD_DIR)/../..` so the preprocessor finds local headers
+  when walking the bindings inside the dispatcher's TU.
+
+### When you add a new subsystem
+
+1. Decide if it's ARM-only, SIM-only, or shared.
+2. Impl: drop `sentai_<name>.{cc,h}` at the appropriate location (see
+   table above).  If shared, add it to BOTH CMakeLists `add_executable`
+   /  `add_library_sim` source lists.
+3. Binding:
+   - ARM: drop `bindings/modsentai_<name>.c`, add `#include
+     "bindings/modsentai_<name>.c"` to `examples/sentai_runtime/modsentai.c`.
+   - SIM: drop `sim/modsentai_sim_<name>.c`, add `#include
+     "modsentai_sim_<name>.c"` to `sim/modsentai_sim.c`.
+   - Add a `{ MP_ROM_QSTR(MP_QSTR_<name>), MP_ROM_PTR(&sentai_<name>_module) }`
+     entry to the top-level `sentai_globals_table`.
+4. QSTRs: if introducing any `MP_QSTR_xxx` not already in
+   `examples/sentai_runtime/micropython_embed/genhdr/qstrdefs.generated.h`:
+   - For ARM-visible: just regen QSTRs (recipe in CLAUDE.md §QSTR regen).
+   - For SIM-only: append to `qstrdefs_sim_extra.h` first, then regen.
+5. Build BOTH targets + run smoke (FlowBaseline gate for substantive
+   changes, smoke-only for cosmetic).
+
+### Anti-patterns (don't do these)
+
+- **Cross-file `static`** — if a fragment needs a helper across `.c`
+  files, either keep both in the same fragment OR promote the helper
+  to `sentai_<utility>.{cc,h}` and remove `static`.
+- **Reordering fragment includes** without verifying — later fragments
+  may reference earlier `static` symbols.  The order is documented;
+  diff against `modsentai.c` / `modsentai_sim.c` before reshuffling.
+- **Linker section moves** — `MIMXRT1176xxxxx_cm7_ram_mp.ld` references
+  specific `<file>.cc.obj` patterns for `.sentai_slow` placement.  If
+  you rename or move a `.cc` that's in there (`sentai_phog.cc`,
+  `sentai_gist.cc`, `sentai_object_lifter.cc`, etc.), update the ld
+  script too.
+
+### Migration history
+
+- **2026-05-16 refactor T0**: `sim/modsentai_sim.c` (1684 LoC) split
+  into 12 `modsentai_sim_<name>.c` fragments + 164-line dispatcher.
+- **2026-05-16 refactor T1**: 31 ARM `modsentai_*.c` files moved from
+  `examples/sentai_runtime/` flat top level into `bindings/`
+  subdirectory.  Required: `-I` updates in
+  `examples/sentai_runtime/modules/sentai/micropython.mk` and
+  `sim/CMakeLists.txt`.
+- **(planned) refactor T2**: split the two monoliths
+  `sentai_runtime.cc` (3321 LoC) and `sentai_crazy.cc` (2007 LoC) by
+  concern, before Stage 9 ARM bring-up.

@@ -22,7 +22,7 @@
 #include "py/runtime.h"
 
 static const mp_rom_obj_tuple_t _sentai_sim_qstr_keepalive __attribute__((unused)) = {
-    {&mp_type_tuple}, 25, {
+    {&mp_type_tuple}, 27, {
         MP_ROM_QSTR(MP_QSTR_detections),
         MP_ROM_QSTR(MP_QSTR_tracker_update),
         MP_ROM_QSTR(MP_QSTR_tracker_enable),
@@ -50,6 +50,10 @@ static const mp_rom_obj_tuple_t _sentai_sim_qstr_keepalive __attribute__((unused
         // s144: sentai.camera.grab_gray return dict keys + method
         MP_ROM_QSTR(MP_QSTR_grab_gray),
         MP_ROM_QSTR(MP_QSTR_data),
+        // sentai.crazy SIM bindings (Task #39 gap-fill, 2026-05-16):
+        // tuple-returning methods avoid needing dict-key QSTRs.
+        MP_ROM_QSTR(MP_QSTR_is_running),
+        MP_ROM_QSTR(MP_QSTR_recv_crtp),
     }
 };
 

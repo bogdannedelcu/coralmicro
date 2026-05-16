@@ -3,6 +3,14 @@ SENTAI_MOD_DIR := $(USERMOD_DIR)
 # Main module in parent (sentai_runtime) directory
 SRC_USERMOD_C += $(SENTAI_MOD_DIR)/../../modsentai.c
 
+# Refactor T1 (2026-05-16): modsentai_*.c bindings moved into bindings/.
+# Each binding still does `#include "sentai_X.h"` and `#include
+# "qstrdefs_sim_extra.h"` with an unqualified path that used to resolve via
+# the includer's directory (= examples/sentai_runtime/).  After the move
+# the includer's directory is bindings/, so we add the parent explicitly so
+# those headers still resolve during the QSTR pre-pass.
+CFLAGS_USERMOD += -I$(SENTAI_MOD_DIR)/../..
+
 # Include paths for sentai_mesh.h -> visionmesh.pb.h -> pb.h
 CFLAGS_USERMOD += -I$(SENTAI_MOD_DIR)/../../generated
 CFLAGS_USERMOD += -I$(SENTAI_MOD_DIR)/../../../../third_party/nanopb

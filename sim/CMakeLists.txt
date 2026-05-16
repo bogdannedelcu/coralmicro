@@ -173,6 +173,7 @@ add_executable_sim(sentai_sim
     sim_tpu_shim.c                # Phase 5 — pycoral helper UDS client
     sentai_uart_serial_udp.c      # Phase 6 — sentai.link UART→UDP bridge for SIM
     sentai_link_sim.cc            # Phase 6 — slim MAVLink bridge (heartbeat/statustext)
+    sentai_crazy_sim.cc           # Task #39 — sentai.crazy CRTP-over-UDP to cf2 SITL
     # Phase 5b — SentAI-SORT tracker, shared with ARM (BoT-SORT adapted).
     ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_tracker.cc
     # ObjectsPlan L2 — persistent world-frame object map (pure data + math,
@@ -217,6 +218,10 @@ target_include_directories(sentai_sim PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}        # build_version.h, mpconfigport.h
     ${MP_EMBED_DIR}
     ${CMAKE_SOURCE_DIR}                # for "examples/sentai_runtime/*.h"
+    # Refactor T1: bindings/modsentai_*.c includes "sentai_X.h" unqualified.
+    # Used to work because the includer was at examples/sentai_runtime/; now
+    # it lives at .../bindings/, so we add the parent dir to the search path.
+    ${CMAKE_SOURCE_DIR}/examples/sentai_runtime
     ${CMAKE_SOURCE_DIR}/third_party/mavlink  # Phase 6 — sentai_link_sim.cc
 )
 # Force build_version.h to refresh on every build.
