@@ -76,11 +76,16 @@ SENTAI_GIST_TEXT int sentai_gist_compute(const uint8_t* gray, int w, int h,
     int dh = h / 4;
     if (dw < SENTAI_GIST_GRID || dh < SENTAI_GIST_GRID) return -1;
 
-    // Stack decimated buffer.  Max use ~120*90 = 10800 bytes for 480×360
-    // input; conservatively cap at 80×60 = 4800 bytes for typical 320×240.
-    // For larger images, we'd need a heap buffer.
-    static uint8_t s_decim[160 * 120];  // covers up to 640×480 input
-    if (dw * dh > (int)sizeof(s_decim)) return -1;
+    // Decimated buffer.  Single-writer contract: this function MUST NOT
+    // be called concurrently from multiple tasks.  In the SentAI runtime,
+    // place-fingerprint computation is a 1 Hz cold-path task; no other
+    // task calls compute_gist.  If this contract is ever violated, switch
+    // to a per-call stack buffer (4800 B for 320×240 input fits typical
+    // 16 KB FreeRTOS task stack).
+    //
+    // Buffer sized for typical camera frames up to 640×480 → 160×120 decim.
+    static uint8_t s_decim[160 * 120];
+    if (dw * dh > (int)sizeof(s_decim)) return -2;  // image too large
 
     gist_decimate_4x(gray, w, h, s_decim);
 
