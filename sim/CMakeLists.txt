@@ -184,6 +184,8 @@ add_executable_sim(sentai_sim
     ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_places.cc
     # PHOG (Bosch 2007) — Track A place descriptor component.
     ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_phog.cc
+    # GIST-lite (Oliva & Torralba 2001) — coarse scene envelope.
+    ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_gist.cc
     # ObjectsPlan L4 — backend-agnostic action layer (skeleton).
     # Pure FSM + 16-entry trace ring; shared with ARM via the same
     # SENTAI_PLATFORM_SIM ifdef pattern as L2/L3.

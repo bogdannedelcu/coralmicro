@@ -372,6 +372,11 @@ SECTIONS
      *sentai_phog.cc.obj(.text .text*)
      *sentai_phog.cc.obj(.data .data*)
      *sentai_phog.cc.obj(.rodata .rodata*)
+     /* Track A places (s140, 2026-05-16): GIST-lite descriptor.
+        Cold-path ~1 Hz, ~1-2 ms on M7 post-decimation; .sdram_text. */
+     *sentai_gist.cc.obj(.text .text*)
+     *sentai_gist.cc.obj(.data .data*)
+     *sentai_gist.cc.obj(.rodata .rodata*)
      __sentai_slow_end = .;
      . = ALIGN(4);
   } > m_sdram

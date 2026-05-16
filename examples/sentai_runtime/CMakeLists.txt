@@ -194,6 +194,7 @@ add_executable_m7(sentai_runtime
     sentai_objects.cc
     sentai_places.cc
     sentai_phog.cc
+    sentai_gist.cc
     sentai_servo.cc
     sentai_object_lifter.cc
     sentai_explore.cc
