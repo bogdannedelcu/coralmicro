@@ -85,6 +85,19 @@ static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_places_add_obj, 2, 5, mod_places_
 
 // ===================== get(id) =========================================
 
+// Returns the descriptor bytes for a place, or None if id unknown /
+// desc not set.  Complements places.get() (which returns the
+// pose+status dict only).
+static mp_obj_t mod_places_get_desc(mp_obj_t id_obj) {
+    int id = mp_obj_get_int(id_obj);
+    if (id < 1 || id > 255) return mp_const_none;
+    sentai_place_t snap;
+    if (sentai_places_get((uint8_t)id, &snap) != 0) return mp_const_none;
+    if (!snap.desc_set) return mp_const_none;
+    return mp_obj_new_bytes(snap.desc, SENTAI_PLACES_DESC_DIM);
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(mod_places_get_desc_obj, mod_places_get_desc);
+
 static mp_obj_t mod_places_get(mp_obj_t id_obj) {
     int id = mp_obj_get_int(id_obj);
     if (id < 0 || id > 255) return mp_const_none;
@@ -314,6 +327,7 @@ static const mp_rom_map_elem_t sentai_places_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__),        MP_ROM_QSTR(MP_QSTR_places) },
     { MP_ROM_QSTR(MP_QSTR_add),             MP_ROM_PTR(&mod_places_add_obj) },
     { MP_ROM_QSTR(MP_QSTR_get),             MP_ROM_PTR(&mod_places_get_obj) },
+    { MP_ROM_QSTR(MP_QSTR_get_desc),        MP_ROM_PTR(&mod_places_get_desc_obj) },
     { MP_ROM_QSTR(MP_QSTR_list),            MP_ROM_PTR(&mod_places_list_obj) },
     { MP_ROM_QSTR(MP_QSTR_observe),         MP_ROM_PTR(&mod_places_observe_obj) },
     { MP_ROM_QSTR(MP_QSTR_set_status),      MP_ROM_PTR(&mod_places_set_status_obj) },
