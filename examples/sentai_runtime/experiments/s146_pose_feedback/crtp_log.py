@@ -210,11 +210,14 @@ def scan_toc(timeout_ms=3000, max_items=400):
         nul1 = rest.find(b'\x00')
         if nul1 < 0:
             continue
-        group = rest[:nul1].decode('ascii')
+        # MP embed `bytes` lacks .decode(); str(b, 'ascii') is the
+        # portable equivalent.  Group/name are guaranteed ASCII by
+        # the cf2 firmware-side LOG_ADD macros (C identifier subset).
+        group = str(rest[:nul1], 'ascii')
         nul2 = rest.find(b'\x00', nul1 + 1)
         if nul2 < 0:
             continue
-        name = rest[nul1+1:nul2].decode('ascii')
+        name = str(rest[nul1+1:nul2], 'ascii')
         _toc[(group, name)] = (idx, ttype)
     return len(_toc)
 
