@@ -266,6 +266,39 @@ int sentai_lifter_init_from_bbox(uint16_t tracklet_id, uint8_t class_id,
     return slot;
 }
 
+int sentai_lifter_inject(uint16_t tracklet_id, uint8_t class_id,
+                         float wx, float wy, float wz) {
+    if (!isfinite(wx) || !isfinite(wy) || !isfinite(wz)) {
+        g_stats.rejects_invalid_input++; return -2;
+    }
+    float range = sqrtf(wx*wx + wy*wy + wz*wz);
+    if (range < 1e-3f) { g_stats.rejects_invalid_input++; return -2; }
+    int slot = lif_find(tracklet_id);
+    if (slot < 0) slot = lif_first_free();
+    if (slot < 0) slot = lif_oldest_lost();
+    if (slot < 0) return -3;
+    uint32_t now = lif_now_ms();
+    memset(&g_lifters[slot], 0, sizeof(g_lifters[slot]));
+    g_lifters[slot].status = LIFTER_LIFTED;
+    g_lifters[slot].class_id = class_id;
+    g_lifters[slot].tracklet_id = tracklet_id;
+    g_lifters[slot].rho = 1.0f / range;
+    g_lifters[slot].var_rho = 1e-6f;          // very confident (test-only)
+    g_lifters[slot].anchor_w[0] = 0.0f;
+    g_lifters[slot].anchor_w[1] = 0.0f;
+    g_lifters[slot].anchor_w[2] = 0.0f;
+    g_lifters[slot].r_w[0] = wx / range;
+    g_lifters[slot].r_w[1] = wy / range;
+    g_lifters[slot].r_w[2] = wz / range;
+    g_lifters[slot].n_obs = 1;
+    g_lifters[slot].last_obs_ms = now;
+    g_lifters[slot].init_ms = now;
+    g_stats.inits++;
+    g_stats.lifted++;
+    if (slot + 1 > g_stats.hwm_used) g_stats.hwm_used = (uint16_t)(slot + 1);
+    return slot;
+}
+
 int sentai_lifter_update_bbox(uint16_t tracklet_id,
                               float u_c, float v_c,
                               const float* drone_W3, float yaw_rad,

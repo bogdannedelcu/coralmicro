@@ -217,6 +217,24 @@ static mp_obj_t mod_lifter_set_camera(size_t n_args, const mp_obj_t* args) {
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
     mod_lifter_set_camera_obj, 6, 6, mod_lifter_set_camera);
 
+// ===================== inject(tid, cls, x, y, z) [TEST-ONLY] =====================
+
+static mp_obj_t mod_lifter_inject(size_t n_args, const mp_obj_t* args) {
+    (void)n_args;
+    int tid = mp_obj_get_int(args[0]);
+    int cls = mp_obj_get_int(args[1]);
+    float wx = mp_obj_get_float(args[2]);
+    float wy = mp_obj_get_float(args[3]);
+    float wz = mp_obj_get_float(args[4]);
+    if (tid < 0 || tid > 0xFFFF || cls < 0 || cls > 255) {
+        return mp_obj_new_int(-2);
+    }
+    return mp_obj_new_int(
+        sentai_lifter_inject((uint16_t)tid, (uint8_t)cls, wx, wy, wz));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
+    mod_lifter_inject_obj, 5, 5, mod_lifter_inject);
+
 // ===================== Module table =====================
 
 static const mp_rom_map_elem_t sentai_object_lifter_globals_table[] = {
@@ -231,6 +249,7 @@ static const mp_rom_map_elem_t sentai_object_lifter_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_clear),               MP_ROM_PTR(&mod_lifter_clear_obj) },
     { MP_ROM_QSTR(MP_QSTR_stats),               MP_ROM_PTR(&mod_lifter_stats_obj) },
     { MP_ROM_QSTR(MP_QSTR_set_camera),          MP_ROM_PTR(&mod_lifter_set_camera_obj) },
+    { MP_ROM_QSTR(MP_QSTR_inject),              MP_ROM_PTR(&mod_lifter_inject_obj) },
     // Status constants.
     { MP_ROM_QSTR(MP_QSTR_FREE),                MP_ROM_INT(LIFTER_FREE) },
     { MP_ROM_QSTR(MP_QSTR_TRACKING),            MP_ROM_INT(LIFTER_TRACKING) },

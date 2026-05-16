@@ -172,6 +172,19 @@ void sentai_lifter_stats(sentai_lifter_stats_t* out_counters,
                          int* out_lifted,
                          int* out_lost);
 
+// TEST-ONLY DEBUG: directly inject a LIFTED slot with a fabricated
+// world position (anchor_w = origin, r_w + rho chosen so world_pos
+// equals (wx, wy, wz)).  Bypasses the inverse-depth EKF entirely.
+//
+// Use ONLY in test scenarios where you need targets at known world
+// positions beyond what the real camera can resolve in the test world
+// (e.g., L6 long-distance goto demo s137).  Real missions must use
+// init_from_bbox + update_bbox to converge on real markers.
+//
+// Returns ≥0 slot index, -2 invalid input, -3 full.
+int sentai_lifter_inject(uint16_t tracklet_id, uint8_t class_id,
+                         float wx, float wy, float wz);
+
 #ifdef __cplusplus
 }
 #endif
