@@ -234,6 +234,16 @@ static mp_obj_t mod_explore_clear_trace(void) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(mod_explore_clear_trace_obj, mod_explore_clear_trace);
 
+// ===================== set_tunables(home_radius_m, inspect_ms, land_ms) ===
+
+static mp_obj_t mod_explore_set_tunables(size_t n_args, const mp_obj_t* args) {
+    float hr = (n_args >= 1) ? mp_obj_get_float(args[0]) : -1.f;
+    int inspect_ms = (n_args >= 2) ? mp_obj_get_int(args[1]) : -1;
+    int land_ms    = (n_args >= 3) ? mp_obj_get_int(args[2]) : -1;
+    return mp_obj_new_int(sentai_explore_set_tunables(hr, inspect_ms, land_ms));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_explore_set_tunables_obj, 0, 3, mod_explore_set_tunables);
+
 // ===================== Module table ====================================
 
 static const mp_rom_map_elem_t sentai_explore_globals_table[] = {
@@ -252,6 +262,7 @@ static const mp_rom_map_elem_t sentai_explore_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_metrics),      MP_ROM_PTR(&mod_explore_metrics_obj) },
     { MP_ROM_QSTR(MP_QSTR_trace),        MP_ROM_PTR(&mod_explore_trace_obj) },
     { MP_ROM_QSTR(MP_QSTR_clear_trace),  MP_ROM_PTR(&mod_explore_clear_trace_obj) },
+    { MP_ROM_QSTR(MP_QSTR_set_tunables), MP_ROM_PTR(&mod_explore_set_tunables_obj) },
 
     // State ids (match metrics().state, trace().state_before/after)
     { MP_ROM_QSTR(MP_QSTR_IDLE),         MP_ROM_INT(EXPLORE_IDLE) },

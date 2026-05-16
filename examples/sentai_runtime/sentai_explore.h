@@ -246,6 +246,15 @@ const char* sentai_explore_state_name(uint8_t state);
 // Translate action enum to short string.
 const char* sentai_explore_action_name(uint8_t action);
 
+// Runtime tunables (override compile-time defaults).  Pass 0 / NaN /
+// negative for a slot to leave it unchanged.  Useful when a test
+// scenario needs a smaller HOME_RADIUS (tight world) or a shorter
+// INSPECT/LAND dwell.  Default values from SENTAI_EXPLORE_*_M[S].
+//   Return: 0 ok, -2 if all args invalid.
+int sentai_explore_set_tunables(float home_radius_m,
+                                int inspect_dur_ms,
+                                int land_dur_ms);
+
 #ifdef __cplusplus
 }
 #endif

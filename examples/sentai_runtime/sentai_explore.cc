@@ -43,6 +43,12 @@ typedef struct {
 
 SENTAI_EXP_SDRAM_BSS static explore_fsm_t g_exp;
 
+// Runtime tunables — default to compile-time macros, overridable via
+// sentai_explore_set_tunables().
+SENTAI_EXP_SDRAM_BSS static float    g_home_radius_m  = SENTAI_EXPLORE_HOME_RADIUS_M;
+SENTAI_EXP_SDRAM_BSS static uint32_t g_inspect_dur_ms = SENTAI_EXPLORE_INSPECT_DUR_MS;
+SENTAI_EXP_SDRAM_BSS static uint32_t g_land_dur_ms    = SENTAI_EXPLORE_LAND_DUR_MS;
+
 // ---- Helpers -----------------------------------------------------------
 
 static inline int exp_finite4(float a, float b, float c, float d) {
@@ -307,7 +313,7 @@ SENTAI_EXP_SDRAM_TEXT int sentai_explore_return_home(void) {
     float dx = g_exp.s.home_x - g_exp.s.pose_x;
     float dy = g_exp.s.home_y - g_exp.s.pose_y;
     float dist = sqrtf(dx*dx + dy*dy);
-    if (dist <= SENTAI_EXPLORE_HOME_RADIUS_M) {
+    if (dist <= g_home_radius_m) {
         (void)sentai_servo_hover();
         g_exp.s.seq++;
         exp_ring_push(EXPLORE_ACT_RETURN, 0, g_exp.s.state, EXPLORE_HOVERING,
@@ -430,7 +436,7 @@ SENTAI_EXP_SDRAM_TEXT int sentai_explore_tick(void) {
             }
         }
     } else if (st == EXPLORE_INSPECT) {
-        if ((now - g_exp.s.t_state_entered_ms) >= SENTAI_EXPLORE_INSPECT_DUR_MS) {
+        if ((now - g_exp.s.t_state_entered_ms) >= g_inspect_dur_ms) {
             g_exp.s.gotos_completed++;
             exp_set_state(EXPLORE_HOVERING, 3.f /* reason: inspect done */);
             transitions++;
@@ -440,14 +446,14 @@ SENTAI_EXP_SDRAM_TEXT int sentai_explore_tick(void) {
             float dx = g_exp.s.home_x - g_exp.s.pose_x;
             float dy = g_exp.s.home_y - g_exp.s.pose_y;
             float dist = sqrtf(dx*dx + dy*dy);
-            if (dist <= SENTAI_EXPLORE_HOME_RADIUS_M) {
+            if (dist <= g_home_radius_m) {
                 (void)sentai_servo_hover();
                 exp_set_state(EXPLORE_HOVERING, 4.f /* reason: home reached */);
                 transitions++;
             }
         }
     } else if (st == EXPLORE_LANDING) {
-        if ((now - g_exp.s.t_state_entered_ms) >= SENTAI_EXPLORE_LAND_DUR_MS) {
+        if ((now - g_exp.s.t_state_entered_ms) >= g_land_dur_ms) {
             (void)sentai_servo_disarm();
             exp_set_state(EXPLORE_DONE, 5.f /* reason: landing complete */);
             transitions++;
@@ -512,4 +518,23 @@ SENTAI_EXP_SDRAM_TEXT const char* sentai_explore_action_name(uint8_t action) {
         case EXPLORE_ACT_TRANSITION: return "TRANSITION";
         default:                     return "?";
     }
+}
+
+SENTAI_EXP_SDRAM_TEXT int sentai_explore_set_tunables(float home_radius_m,
+                                                     int inspect_dur_ms,
+                                                     int land_dur_ms) {
+    int changed = 0;
+    if (isfinite(home_radius_m) && home_radius_m > 0.f) {
+        g_home_radius_m = home_radius_m;
+        changed++;
+    }
+    if (inspect_dur_ms > 0) {
+        g_inspect_dur_ms = (uint32_t)inspect_dur_ms;
+        changed++;
+    }
+    if (land_dur_ms > 0) {
+        g_land_dur_ms = (uint32_t)land_dur_ms;
+        changed++;
+    }
+    return (changed == 0) ? -2 : 0;
 }
