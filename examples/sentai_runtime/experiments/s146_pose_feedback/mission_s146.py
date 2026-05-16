@@ -25,7 +25,7 @@ import crtp_log
 JOURNAL_NAME    = "mission_s146_journal.txt"
 SUMMARY_NAME    = "mission_s146_summary.json"
 
-TAKEOFF_HEIGHT  = 0.5    # m
+TAKEOFF_HEIGHT  = 0.75    # m
 TAKEOFF_DUR     = 2.0    # s
 LAND_DUR        = 2.0    # s
 WAYPOINT_DUR    = 3.0    # s

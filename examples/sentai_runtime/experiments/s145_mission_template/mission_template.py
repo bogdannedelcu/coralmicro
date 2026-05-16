@@ -21,7 +21,7 @@ import sentai
 JOURNAL_NAME    = "mission_template_journal.txt"
 SUMMARY_NAME    = "mission_template_summary.json"
 
-TAKEOFF_HEIGHT  = 0.5    # m
+TAKEOFF_HEIGHT  = 0.75    # m
 TAKEOFF_DUR     = 2.0    # s
 LAND_DUR        = 2.0    # s
 WAYPOINT_DUR    = 3.0    # s (cf2 onboard trajectory planner takes this long)

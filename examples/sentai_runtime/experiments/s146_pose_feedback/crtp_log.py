@@ -32,6 +32,38 @@
 import sentai
 import struct
 
+# ─── Low-level Position Commander (Generic Commander port 7) ───────
+# CrazyFlie firmware src/modules/src/crtp_commander_generic.c defines
+# TYPE_POSITION = 7 with payload <Bffff> = (type, x, y, z, yaw_deg).
+# Unlike HL Commander GO_TO (open-loop polynomial trajectory), Position
+# commander is a closed-loop ABSOLUTE position setpoint — cf2 holds
+# the commanded xy/z indefinitely while we keep sending packets.
+#
+# Usage: spam at 20 Hz to drive the drone tightly to a point.  cf2
+# safety watchdog cuts motors if no setpoint arrives for ~1 s, so the
+# 20 Hz cadence is mandatory while this commander is active.
+TYPE_POSITION_CMD = 7
+
+def send_position(x, y, z, yaw_deg=0.0):
+    """Low-level absolute-position setpoint.  See module-level note."""
+    pkt = struct.pack('<Bffff', TYPE_POSITION_CMD,
+                       float(x), float(y), float(z), float(yaw_deg))
+    return sentai.crazy.send_crtp(0x07, 0, pkt)
+
+
+def hold_at(x, y, z, ms, yaw_deg=0.0, period_ms=50):
+    """Spam position-setpoint for `ms` to hold drone at (x,y,z).
+    Drains pose updates in parallel.  Returns final pose or None."""
+    last = None
+    polled = 0
+    while polled < ms:
+        send_position(x, y, z, yaw_deg)
+        sentai.rtos.sleep_ms(period_ms)
+        poll()
+        last = _latest_pose
+        polled += period_ms
+    return last
+
 # ─── Protocol constants (verbatim from cflib/crazyflie/log.py) ─────
 CRTP_PORT_LOG       = 0x05
 CH_TOC              = 0
@@ -178,9 +210,14 @@ def reset():
     _drain_for_reply(CH_SETTINGS, CMD_RESET_LOGGING, timeout_ms=200)
 
 
-def scan_toc(timeout_ms=3000, max_items=400):
-    """Discover (group, name) → ID for every log variable.
-    Returns the number of entries discovered.  Idempotent (re-scans)."""
+def scan_toc(timeout_ms=3000, max_items=400, stop_when=None):
+    """Discover (group, name) → ID for log variables.
+    Returns the number of entries discovered.  Idempotent (re-scans).
+
+    `stop_when=set([(group,name),...])` early-exits once ALL listed
+    targets are resolved.  Saves wall-time AND MP heap (each scanned
+    entry costs ~30 B in _toc).  For a 361-entry stock cf2 TOC, a
+    4-entry stop_when typically completes in <50 entries."""
     _toc.clear()
 
     # 1. INFO request → 6-byte payload (num_items_lo, num_items_hi, crc[4])
@@ -219,6 +256,10 @@ def scan_toc(timeout_ms=3000, max_items=400):
             continue
         name = str(rest[nul1+1:nul2], 'ascii')
         _toc[(group, name)] = (idx, ttype)
+        if stop_when is not None and (group, name) in stop_when:
+            # Check if ALL targets now resolved.
+            if all((g, nm) in _toc for (g, nm) in stop_when):
+                return len(_toc)
     return len(_toc)
 
 

@@ -39,7 +39,11 @@ extern int sim_fs_resolve(const char *bpath, char *out, size_t outsz);
 #include "build_version.h"
 
 /* ---- Heap for MicroPython ---- */
-#define MP_HEAP_SIZE  (256 * 1024)   /* 256 KB — generous for REPL + small scripts */
+#define MP_HEAP_SIZE  (512 * 1024)   /* 512 KB — doubled 2026-05-16: hex_helpers
+                                       * hex_image() 16 KB transient × 3 waypoints +
+                                       * crtp_log._toc 11 KB + compute_phog/gist
+                                       * returns fragmented the old 256 KB.  6 KB
+                                       * allocations failed mid-mission. */
 static char s_mp_heap[MP_HEAP_SIZE];
 
 /* ---- REPL line buffer ---- */
