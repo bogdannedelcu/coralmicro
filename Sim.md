@@ -3609,3 +3609,114 @@ QSTR pre-pass (`make … micropython-embed-package`, host gcc):
 - **(planned) refactor T2**: split the two monoliths
   `sentai_runtime.cc` (3321 LoC) and `sentai_crazy.cc` (2007 LoC) by
   concern, before Stage 9 ARM bring-up.
+
+## 10z. Experiment execution model — what runs where (2026-05-16)
+
+Codified after Task #41/#42 mission migrations.  Every closed-loop
+experiment that uses cf2 SITL follows the SAME process layout:
+
+```
+HOST (Linux x86)                           DISTROBOX crazysim-garden
+─────────────────                          ─────────────────────────
+run.sh launcher                            Gazebo Garden server
+  │                                          ├─ physics + sensors
+  ├─ launch_hybrid_cf2.sh ─────────►       ├─ /downward_cam/image
+  │   (start gz + cf2 + Xvfb)              └─ /tf, /odometry
+  │
+  ├─ cp mission_sNNN.py fs_root/          cf2 SITL binary
+  ├─ spawn sentai_sim binary                ├─ UDP 19850 (CRTP server)
+  │    │                                    ├─ EKF, HL Commander, LOG
+  │    │ ◄────── CRTP-over-UDP ────►       └─ Bitcraze firmware
+  │    │
+  │    │ ◄────── UDS frame stream ──        gz_to_uds_bridge
+  │    │                                    └─ /tmp/sentai_cam.sock
+  │    ▼
+  │  sentai_sim process (POSIX user-space)
+  │    ├─ FreeRTOS POSIX scheduler (1 kHz tick)
+  │    ├─ C tasks: crazy_rx, camera_bridge, flow, link_reader
+  │    ├─ MicroPython VM (512 KB heap, embed port)
+  │    │    └─ mission_sNNN.run()  ←─── mission logic lives here
+  │    │         ├─ crtp_log.py  (TOC scan, pose subscribe)
+  │    │         ├─ hex_helpers.py (descriptor compute)
+  │    │         └─ sentai.crazy.*, sentai.places.*, sentai.sim.journal_*
+  │    └─ Virtual FS root: build-sim/sentai_fs_root/
+  │         ├── *.py  (imported by mission)
+  │         ├── *_summary.json  (mission writes via sentai.fs)
+  │         └── *_journal.txt   (sentai.sim.journal_*)
+  │
+  ├─ echo "import mission_sNNN; mission_sNNN.run()" │ stdin
+  ├─ (wait for sentai_sim to exit)
+  ├─ python3 verdict.py  (reads fs_root files, applies gates)
+  └─ stop.sh  (tear down gz + cf2 + bridge)
+```
+
+### Strict allocation of responsibilities
+
+| Layer | What it does | What it MUST NOT do |
+|---|---|---|
+| **host bash** | spawn stack, stage files, single REPL kick-off line, wait for exit, verdict | NEVER send flight commands |
+| **host python (verdict.py)** | post-mortem analysis only — runs AFTER sentai_sim exits | NEVER touch cf2 during the flight |
+| **Gazebo server** | physics + camera + IMU | n/a |
+| **cf2 SITL** | drone firmware (EKF, PID, CRTP) | n/a |
+| **gz_to_uds_bridge** | camera frame forwarding only | NEVER decode/process pixels |
+| **sentai_sim C tasks** | UDP/UDS plumbing, FreeRTOS scheduling | NEVER hold mission state |
+| **MicroPython VM in sentai_sim** | **mission orchestration lives HERE** | NEVER spawn host calls |
+
+### Key wire protocols
+
+| Path | Layer | Used by |
+|---|---|---|
+| host stdin → sentai_sim | TTY pipe | single `import mission_sNNN` line per run |
+| sentai_sim ↔ cf2 SITL | CRTP-over-UDP `127.0.0.1:19850` | `sentai.crazy.*` |
+| sentai_sim ↔ Gazebo | UDS `/tmp/sentai_cam.sock` | camera_bridge_recv → `sentai.camera.grab_gray()` |
+| (PX4 missions only) sentai_sim ↔ PX4 | MAVLink UDP `127.0.0.1:14540` | `sentai.link.*` |
+| mission → fs | C `fopen/fwrite` in `build-sim/sentai_fs_root/` | `sentai.fs.write()`, `sentai.sim.journal_write()` |
+
+### Canonical run command
+
+```bash
+# launch SITL stack (background, idempotent)
+distrobox enter crazysim-garden -- bash sim/scripts/launch_hybrid_cf2.sh sentai_crazysim &
+until ss -lun | grep -q ":19850"; do sleep 2; done
+
+# stage mission helpers + mission file
+cp examples/sentai_runtime/experiments/s146_pose_feedback/crtp_log.py build-sim/sentai_fs_root/
+cp examples/sentai_runtime/experiments/s142_hex_descriptor_patrol/hex_helpers.py build-sim/sentai_fs_root/
+cp examples/sentai_runtime/experiments/sNNN_*/mission_sNNN.py        build-sim/sentai_fs_root/
+
+# run mission — single REPL line, mission orchestrates from there
+echo "import mission_sNNN; r=mission_sNNN.run(); print('FINAL:', r['status'])" \
+    | ./build-sim/sim/sentai_sim
+
+# verdict reads summary.json + journal.txt from fs_root
+python3 examples/sentai_runtime/experiments/sNNN_*/verdict.py
+```
+
+### Why this layout matters for the thesis
+
+The thesis claim is **"autonomous drone on MCU"**.  In this execution
+model, `mission_sNNN.py` runs inside a MicroPython VM inside a FreeRTOS
+task inside the `sentai_sim` process.  When we port to the Coral Dev
+Board Micro (Stage 9), **the same `.py` runs on the MCU unchanged** —
+only the C transport tasks differ (CRTP-over-UART radio bridge instead
+of CRTP-over-UDP, FileX instead of POSIX fs).  Host scripts are
+launcher + observer only; they NEVER carry mission state.  This is
+load-bearing for `[[missions-run-in-sentai-only]]`.
+
+### Reference experiments demonstrating this model
+
+| Experiment | What it proves |
+|---|---|
+| `s146_pose_feedback` | end-to-end closed-loop closure < 10 cm (3.46 cm live) |
+| `s147_explore_long_mp` | multi-leg trajectory closure < 10 cm (8.14 cm live) |
+| `s149_hex_patrol_mp` | places integration live (9.43 cm + 3/3 self-query) |
+| `s150_loop_closure_mp` | 2-lap consume-memory pattern (10.95 cm + 3/3 round-trip) |
+
+### Related
+
+- `[[missions-run-in-sentai-only]]` — the firm rule this model enforces
+- `[[sim-repl-test-recipe]]` — single-line import pattern
+- `[[sim-test-must-return-home]]` — closure gate (10 cm single-lap, 12 cm 2-lap)
+- `[[s146-pose-feedback-shipped]]` — pose feedback via crtp_log
+- `[[s147-s151-migrations-shipped]]` — full migration set
+- §10w (REPL test recipe), §10y (file organisation)
