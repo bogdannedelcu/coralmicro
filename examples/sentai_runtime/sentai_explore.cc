@@ -45,9 +45,13 @@ SENTAI_EXP_SDRAM_BSS static explore_fsm_t g_exp;
 
 // Runtime tunables — default to compile-time macros, overridable via
 // sentai_explore_set_tunables().
-SENTAI_EXP_SDRAM_BSS static float    g_home_radius_m  = SENTAI_EXPLORE_HOME_RADIUS_M;
-SENTAI_EXP_SDRAM_BSS static uint32_t g_inspect_dur_ms = SENTAI_EXPLORE_INSPECT_DUR_MS;
-SENTAI_EXP_SDRAM_BSS static uint32_t g_land_dur_ms    = SENTAI_EXPLORE_LAND_DUR_MS;
+SENTAI_EXP_SDRAM_BSS static float    g_home_radius_m   = SENTAI_EXPLORE_HOME_RADIUS_M;
+SENTAI_EXP_SDRAM_BSS static uint32_t g_inspect_dur_ms  = SENTAI_EXPLORE_INSPECT_DUR_MS;
+SENTAI_EXP_SDRAM_BSS static uint32_t g_land_dur_ms     = SENTAI_EXPLORE_LAND_DUR_MS;
+SENTAI_EXP_SDRAM_BSS static float    g_lost_alt_boost  = SENTAI_EXPLORE_LOST_ALT_BOOST_M;
+SENTAI_EXP_SDRAM_BSS static uint32_t g_lost_timeout_ms = SENTAI_EXPLORE_LOST_TIMEOUT_MS;
+// State to resume to after LOST recovery (set when entering LOST).
+SENTAI_EXP_SDRAM_BSS static uint8_t  g_pre_lost_state  = 0;
 
 // ---- Helpers -----------------------------------------------------------
 
@@ -401,6 +405,54 @@ SENTAI_EXP_SDRAM_TEXT int sentai_explore_abort(void) {
     return exp_classify_and_count(0);
 }
 
+SENTAI_EXP_SDRAM_TEXT int sentai_explore_force_lost(void) {
+    uint8_t st = g_exp.s.state;
+    // Allow entry only from in-flight states.
+    if (st != EXPLORE_HOVERING && st != EXPLORE_APPROACH &&
+        st != EXPLORE_INSPECT && st != EXPLORE_RETURNING) {
+        g_exp.s.seq++;
+        exp_ring_push(EXPLORE_ACT_LOST, -1, st, st, 0.f,0.f,0.f,0.f);
+        return exp_classify_and_count(-1);
+    }
+    g_pre_lost_state = st;
+    // Emit ascend boost.  servo.move dz is in body frame but matches
+    // world Z for level flight (yaw-agnostic for vertical).
+    (void)sentai_servo_move(0.0f, 0.0f, g_lost_alt_boost, 0.0f);
+    g_exp.s.seq++;
+    exp_ring_push(EXPLORE_ACT_LOST, 0, st, EXPLORE_LOST,
+                  (float)st, g_lost_alt_boost, 0.f, 0.f);
+    exp_set_state(EXPLORE_LOST, (float)st /* reason: pre_lost state */);
+    return exp_classify_and_count(0);
+}
+
+SENTAI_EXP_SDRAM_TEXT int sentai_explore_signal_marker_seen(float wx, float wy) {
+    if (g_exp.s.state != EXPLORE_LOST) {
+        g_exp.s.seq++;
+        exp_ring_push(EXPLORE_ACT_RECOVERED, -1, g_exp.s.state,
+                      g_exp.s.state, wx, wy, 0.f, 0.f);
+        return exp_classify_and_count(-1);
+    }
+    if (!isfinite(wx) || !isfinite(wy)) {
+        g_exp.s.seq++;
+        exp_ring_push(EXPLORE_ACT_RECOVERED, -2, g_exp.s.state,
+                      g_exp.s.state, wx, wy, 0.f, 0.f);
+        return exp_classify_and_count(-2);
+    }
+    // Reset pose snapshot to the observed marker world position.
+    g_exp.s.pose_x = wx;
+    g_exp.s.pose_y = wy;
+    g_exp.s.t_last_pose_ms = exp_now_ms();
+    // Emit hover to stabilize, then go back to pre-LOST state.
+    (void)sentai_servo_hover();
+    uint8_t target = g_pre_lost_state;
+    if (target == 0) target = EXPLORE_HOVERING;
+    g_exp.s.seq++;
+    exp_ring_push(EXPLORE_ACT_RECOVERED, 0, EXPLORE_LOST, target,
+                  wx, wy, (float)target, 0.f);
+    exp_set_state(target, 100.f /* reason: recovered */);
+    return exp_classify_and_count(0);
+}
+
 SENTAI_EXP_SDRAM_TEXT int sentai_explore_tick(void) {
     uint32_t now = exp_now_ms();
     int transitions = 0;
@@ -458,6 +510,14 @@ SENTAI_EXP_SDRAM_TEXT int sentai_explore_tick(void) {
             exp_set_state(EXPLORE_DONE, 5.f /* reason: landing complete */);
             transitions++;
         }
+    } else if (st == EXPLORE_LOST) {
+        // Timeout in LOST without recovery signal → ABORT.
+        if ((now - g_exp.s.t_state_entered_ms) >= g_lost_timeout_ms) {
+            (void)sentai_servo_disarm();
+            g_exp.s.aborts++;
+            exp_set_state(EXPLORE_ABORT, 6.f /* reason: lost timeout */);
+            transitions++;
+        }
     }
     return transitions;
 }
@@ -500,6 +560,7 @@ SENTAI_EXP_SDRAM_TEXT const char* sentai_explore_state_name(uint8_t state) {
         case EXPLORE_LANDING:   return "LANDING";
         case EXPLORE_DONE:      return "DONE";
         case EXPLORE_ABORT:     return "ABORT";
+        case EXPLORE_LOST:      return "LOST";
         default:                return "?";
     }
 }
@@ -516,6 +577,8 @@ SENTAI_EXP_SDRAM_TEXT const char* sentai_explore_action_name(uint8_t action) {
         case EXPLORE_ACT_STOP:       return "STOP";
         case EXPLORE_ACT_ABORT:      return "ABORT";
         case EXPLORE_ACT_TRANSITION: return "TRANSITION";
+        case EXPLORE_ACT_LOST:       return "LOST";
+        case EXPLORE_ACT_RECOVERED:  return "RECOVERED";
         default:                     return "?";
     }
 }
@@ -534,6 +597,20 @@ SENTAI_EXP_SDRAM_TEXT int sentai_explore_set_tunables(float home_radius_m,
     }
     if (land_dur_ms > 0) {
         g_land_dur_ms = (uint32_t)land_dur_ms;
+        changed++;
+    }
+    return (changed == 0) ? -2 : 0;
+}
+
+SENTAI_EXP_SDRAM_TEXT int sentai_explore_set_lost_tunables(float lost_alt_boost_m,
+                                                          int lost_timeout_ms) {
+    int changed = 0;
+    if (isfinite(lost_alt_boost_m) && lost_alt_boost_m > 0.f) {
+        g_lost_alt_boost = lost_alt_boost_m;
+        changed++;
+    }
+    if (lost_timeout_ms > 0) {
+        g_lost_timeout_ms = (uint32_t)lost_timeout_ms;
         changed++;
     }
     return (changed == 0) ? -2 : 0;

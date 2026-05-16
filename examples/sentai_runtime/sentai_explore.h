@@ -84,6 +84,7 @@ typedef enum {
     EXPLORE_LANDING   = 7,    // descending; servo.land() emitted
     EXPLORE_DONE      = 8,    // mission complete, disarmed
     EXPLORE_ABORT     = 9,    // terminal fault state (motors disarmed)
+    EXPLORE_LOST      = 10,   // pose reference lost; ascending to re-acquire
 } sentai_explore_state_t;
 
 // ---- Trace action codes (also stored in ring) --------------------------
@@ -98,6 +99,8 @@ typedef enum {
     EXPLORE_ACT_STOP       = 7,
     EXPLORE_ACT_ABORT      = 8,
     EXPLORE_ACT_TRANSITION = 9,  // state-machine internal transition
+    EXPLORE_ACT_LOST       = 10, // entered LOST (e.g., force_lost or auto)
+    EXPLORE_ACT_RECOVERED  = 11, // signal_marker_seen → exit LOST
 } sentai_explore_action_t;
 
 // ---- Trace ring entry (~32 B) ------------------------------------------
@@ -175,6 +178,8 @@ typedef struct {
 #define SENTAI_EXPLORE_ALT_MIN_M         0.05f
 #define SENTAI_EXPLORE_ALT_MAX_M         30.0f
 #define SENTAI_EXPLORE_TAKEOFF_TOLER_M   0.15f   // pose.z within this of alt → HOVERING
+#define SENTAI_EXPLORE_LOST_ALT_BOOST_M  1.5f    // ascend boost when entering LOST
+#define SENTAI_EXPLORE_LOST_TIMEOUT_MS   15000u  // ABORT if no recovery
 
 // ---- C API -------------------------------------------------------------
 // All entries: 0 on success, negative on fault per F1..F5.
@@ -224,6 +229,20 @@ int sentai_explore_stop(void);
 // Emergency: any state → ABORT.  Emits servo.disarm().  Terminal.
 int sentai_explore_abort(void);
 
+// Force LOST state — testing entrypoint (later: automatic from timeouts).
+// Captures the state we were in (pre_lost_state) for resume.  Emits
+// servo.move(0, 0, +lost_alt_boost_m, 0) to ascend.  LOST waits up to
+// SENTAI_EXPLORE_LOST_TIMEOUT_MS for a recovery signal, else → ABORT.
+//   Pre: state in {HOVERING, APPROACH, INSPECT, RETURNING}.  Returns
+//        -1 otherwise.
+int sentai_explore_force_lost(void);
+
+// Host-side signal that the drone is seeing a known marker at world (x, y).
+// L6 sets pose to (x, y, current z) and transitions LOST → pre_lost_state.
+// Used by the host vision loop when ArUco / place match recovers pose.
+//   Pre: state == LOST.  Returns -1 otherwise.
+int sentai_explore_signal_marker_seen(float wx, float wy);
+
 // Re-evaluate time-based + pose-based transitions.  Called internally by
 // set_pose() and by any command; can also be called explicitly from the
 // operator loop (poll-driven SKELETON).
@@ -254,6 +273,11 @@ const char* sentai_explore_action_name(uint8_t action);
 int sentai_explore_set_tunables(float home_radius_m,
                                 int inspect_dur_ms,
                                 int land_dur_ms);
+
+// Override LOST-related tunables.  Pass 0/NaN/negative to leave a slot
+// unchanged.  Returns 0 ok, -2 if all args invalid.
+int sentai_explore_set_lost_tunables(float lost_alt_boost_m,
+                                     int lost_timeout_ms);
 
 #ifdef __cplusplus
 }

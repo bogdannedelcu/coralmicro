@@ -244,6 +244,32 @@ static mp_obj_t mod_explore_set_tunables(size_t n_args, const mp_obj_t* args) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_explore_set_tunables_obj, 0, 3, mod_explore_set_tunables);
 
+// ===================== set_lost_tunables(alt_boost_m, timeout_ms) ===
+
+static mp_obj_t mod_explore_set_lost_tunables(size_t n_args, const mp_obj_t* args) {
+    float ab = (n_args >= 1) ? mp_obj_get_float(args[0]) : -1.f;
+    int to_ms = (n_args >= 2) ? mp_obj_get_int(args[1]) : -1;
+    return mp_obj_new_int(sentai_explore_set_lost_tunables(ab, to_ms));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_explore_set_lost_tunables_obj, 0, 2, mod_explore_set_lost_tunables);
+
+// ===================== force_lost() ===
+
+static mp_obj_t mod_explore_force_lost(void) {
+    return mp_obj_new_int(sentai_explore_force_lost());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_explore_force_lost_obj, mod_explore_force_lost);
+
+// ===================== signal_marker_seen(wx, wy) ===
+
+static mp_obj_t mod_explore_signal_marker_seen(size_t n_args, const mp_obj_t* args) {
+    (void)n_args;
+    float wx = mp_obj_get_float(args[0]);
+    float wy = mp_obj_get_float(args[1]);
+    return mp_obj_new_int(sentai_explore_signal_marker_seen(wx, wy));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_explore_signal_marker_seen_obj, 2, 2, mod_explore_signal_marker_seen);
+
 // ===================== Module table ====================================
 
 static const mp_rom_map_elem_t sentai_explore_globals_table[] = {
@@ -263,6 +289,9 @@ static const mp_rom_map_elem_t sentai_explore_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_trace),        MP_ROM_PTR(&mod_explore_trace_obj) },
     { MP_ROM_QSTR(MP_QSTR_clear_trace),  MP_ROM_PTR(&mod_explore_clear_trace_obj) },
     { MP_ROM_QSTR(MP_QSTR_set_tunables), MP_ROM_PTR(&mod_explore_set_tunables_obj) },
+    { MP_ROM_QSTR(MP_QSTR_set_lost_tunables), MP_ROM_PTR(&mod_explore_set_lost_tunables_obj) },
+    { MP_ROM_QSTR(MP_QSTR_force_lost),   MP_ROM_PTR(&mod_explore_force_lost_obj) },
+    { MP_ROM_QSTR(MP_QSTR_signal_marker_seen), MP_ROM_PTR(&mod_explore_signal_marker_seen_obj) },
 
     // State ids (match metrics().state, trace().state_before/after)
     { MP_ROM_QSTR(MP_QSTR_IDLE),         MP_ROM_INT(EXPLORE_IDLE) },
@@ -275,6 +304,7 @@ static const mp_rom_map_elem_t sentai_explore_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_LANDING),      MP_ROM_INT(EXPLORE_LANDING) },
     { MP_ROM_QSTR(MP_QSTR_DONE),         MP_ROM_INT(EXPLORE_DONE) },
     { MP_ROM_QSTR(MP_QSTR_ABORT),        MP_ROM_INT(EXPLORE_ABORT) },
+    { MP_ROM_QSTR(MP_QSTR_LOST),         MP_ROM_INT(EXPLORE_LOST) },
 
     // Action ids (match trace.action)
     { MP_ROM_QSTR(MP_QSTR_ACT_NONE),       MP_ROM_INT(EXPLORE_ACT_NONE) },
@@ -287,6 +317,8 @@ static const mp_rom_map_elem_t sentai_explore_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_ACT_STOP),       MP_ROM_INT(EXPLORE_ACT_STOP) },
     { MP_ROM_QSTR(MP_QSTR_ACT_ABORT),      MP_ROM_INT(EXPLORE_ACT_ABORT) },
     { MP_ROM_QSTR(MP_QSTR_ACT_TRANSITION), MP_ROM_INT(EXPLORE_ACT_TRANSITION) },
+    { MP_ROM_QSTR(MP_QSTR_ACT_LOST),       MP_ROM_INT(EXPLORE_ACT_LOST) },
+    { MP_ROM_QSTR(MP_QSTR_ACT_RECOVERED),  MP_ROM_INT(EXPLORE_ACT_RECOVERED) },
 };
 static MP_DEFINE_CONST_DICT(sentai_explore_globals, sentai_explore_globals_table);
 
