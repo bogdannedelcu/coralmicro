@@ -22,7 +22,7 @@
 #include "py/runtime.h"
 
 static const mp_rom_obj_tuple_t _sentai_sim_qstr_keepalive __attribute__((unused)) = {
-    {&mp_type_tuple}, 23, {
+    {&mp_type_tuple}, 25, {
         MP_ROM_QSTR(MP_QSTR_detections),
         MP_ROM_QSTR(MP_QSTR_tracker_update),
         MP_ROM_QSTR(MP_QSTR_tracker_enable),
@@ -47,6 +47,9 @@ static const mp_rom_obj_tuple_t _sentai_sim_qstr_keepalive __attribute__((unused
         MP_ROM_QSTR(MP_QSTR_journal_status),
         MP_ROM_QSTR(MP_QSTR_lines),
         MP_ROM_QSTR(MP_QSTR_errors),
+        // s144: sentai.camera.grab_gray return dict keys + method
+        MP_ROM_QSTR(MP_QSTR_grab_gray),
+        MP_ROM_QSTR(MP_QSTR_data),
     }
 };
 

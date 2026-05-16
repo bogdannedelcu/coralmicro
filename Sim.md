@@ -378,6 +378,22 @@ The remaining **57 files (87% codebase)** are pure logic + FreeRTOS API + MicroP
 
 ## 10. Discipline rules for ongoing development
 
+0. **HARD RULE — missions run in SentAI firmware ONLY.**  Every flight
+   mission, integration test, and closed-loop experiment runs inside the
+   sentai firmware: either C++ in `sentai_runtime` (with MP binding for
+   invocation) or MicroPython as a `.py` file in `build-sim/sentai_fs_root/`
+   imported once via the REPL.  **Never** orchestrated from host Python.
+   Host scripts exist only for: stack launch (`gz sim` + `cf2 SITL` +
+   `gz_to_uds_bridge` + `sentai_sim`), one-line `import mission_sNNN`
+   kick-off via REPL, and passive collection of `summary.json` /
+   `journal.txt` / `cf2_telemetry.json` after the mission terminates.
+   Sentai interacts with Gazebo via virtual sensors only (camera UDS,
+   cf2 telemetry/MAVLink, optical flow).  Operator-mandated 2026-05-16:
+   this is **load-bearing for the thesis claim "autonomous drone on
+   MCU"** — if mission logic runs on host Python, the demonstration
+   becomes "Python script controls drone" which defeats the claim.
+   See `[[missions-run-in-sentai-only]]` in user memory.
+
 1. **Every PR that touches SentAI source must build BOTH targets.** Not optional.
 2. **New NXP SDK calls in SentAI code are flagged.** PR reviewer asks: does this need a SIM-side stub? File the issue immediately if yes.
 3. **HAL boundary is a one-way street.** Never call `LPUART_Init` directly from new code; always go through `hal_uart_*` once that layer exists.

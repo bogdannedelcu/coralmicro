@@ -62,3 +62,58 @@ def self_query(pid):
     if r is None:
         return -3
     return r['id']
+
+# ──── s144: REAL Gazebo frame variants ─────────────────────────────
+# Use sentai.camera.grab_gray() instead of synthetic hex_image.
+# All returns are explicit numeric codes per embeded.md §2.5
+# (check all returns).
+
+def real_capture_and_store(x, y, z=0.0, w=80, h=60):
+    """Grab real Gazebo frame → compute descriptors → quantize → places.add.
+    Returns:
+       ≥1   assigned place id (success)
+       -200 no frame from camera (grab_gray returned None)
+       -201 PHOG/GIST compute fail
+       -202 places.add fail (propagated; gallery full, NaN, etc.)
+    """
+    fr = sentai.camera.grab_gray(w, h)
+    if fr is None:
+        return -200
+    img = fr['data']
+    fw  = fr['w']
+    fh  = fr['h']
+    phog = sentai.places.compute_phog(img, fw, fh)
+    gist = sentai.places.compute_gist(img, fw, fh)
+    if phog is None or gist is None:
+        return -201
+    desc = quantize(phog, gist)
+    cell = xy_to_h3(x, y, 15)
+    pid = sentai.places.add(cell, desc, x, y, z)
+    if pid < 0:
+        return -202
+    return pid
+
+def real_query_at(x, y, w=80, h=60):
+    """Grab fresh real frame → compute desc → query gallery (NO store).
+    Returns:
+       dict {id, score_pct, l1_dist, hit, frame_seq}  on success
+       None on grab/compute failure
+    """
+    fr = sentai.camera.grab_gray(w, h)
+    if fr is None:
+        return None
+    img = fr['data']
+    fw  = fr['w']
+    fh  = fr['h']
+    phog = sentai.places.compute_phog(img, fw, fh)
+    gist = sentai.places.compute_gist(img, fw, fh)
+    if phog is None or gist is None:
+        return None
+    desc = quantize(phog, gist)
+    cell = xy_to_h3(x, y, 15)
+    r = sentai.places.query(desc, cell, 1, 0)
+    if r is None:
+        return None
+    # Annotate with frame seq for journal post-mortem.
+    r['frame_seq'] = fr['seq']
+    return r
