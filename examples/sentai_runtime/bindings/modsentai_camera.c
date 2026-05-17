@@ -474,18 +474,19 @@ static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_cam_switch_drain_obj,
 // WITHOUT copying the 76 KB image buffer across the MicroPython
 // binding boundary.  Per CLAUDE.md compute-in-C principle.
 //
-// Conversion uses the PXP HARDWARE path (kPXP_OutputPixelFormatY8)
-// — see sentai_pxp_xrgb_to_y8 in sentai_runtime.cc.  PXP computes
-// BT.601 luma internally; no scalar RGB→Y loop.  Per
-// [[arm-hw-primitives-first]] HW primitives FIRST on ARM.
+// Phase 1b dual-path (2026-05-17):
+//   1. FAST: read from sentai_prep SLOT_GRAY_NATIVE if the slot is
+//      enabled by a consumer (refcount > 0) AND the pipeline is
+//      running.  Returns the latest slot pointer + seq — ZERO PXP
+//      work on this call path (PXP already ran in PrepTask).
+//   2. FALLBACK: on-demand PXP via sentai_pxp_xrgb_to_y8 if no slot
+//      is published yet (pipeline not started, or first frame).
+//      Same logic as the original implementation.
 //
-// Throughput: PXP XRGB→Y8 320×240 ≈ 50 µs (per s111 PXP bench).
-// Scalar fallback would be ~5 ms — 100× slower + ITCM pressure.
-//
-// Thread safety: sentai_cam_grab_latest returns the COMPLETED buffer
-// (CSI ISR fills a different one in the ring).  PXP DMAs into our
-// dedicated scratch; caller may not retain the returned pointer
-// across calls — every call refills s_aruco_gray_buf.
+// Why dual-path: the operator architecture expects continuous slot
+// publishing once pipeline starts ([[no-heavy-data-through-mp]]).
+// But consumer code (sentai.aruco mission scripts) shouldn't break
+// when pipeline isn't running — that's why fallback exists.
 // ───────────────────────────────────────────────────────────────────
 extern int sentai_cam_grab_latest(uint8_t** raw);
 extern int sentai_cam_get_width(void);
@@ -494,9 +495,13 @@ extern int sentai_pxp_xrgb_to_y8(const uint8_t* src, int src_w, int src_h,
                                   uint8_t* dst, int dst_w, int dst_h);
 extern volatile int g_cam_grabbed_id;
 
+#include "sentai_prep.h"
+
 #define SENTAI_ARUCO_GRAY_W 320
 #define SENTAI_ARUCO_GRAY_H 240
 
+// Scratch only used by the FALLBACK on-demand path.  When the slot
+// path is active, this buffer is dormant.
 static uint8_t s_aruco_gray_buf[SENTAI_ARUCO_GRAY_W * SENTAI_ARUCO_GRAY_H]
     __attribute__((section(".sdram_bss"), aligned(64)));
 
@@ -505,6 +510,26 @@ int sentai_camera_grab_gray_zerocopy(const uint8_t** out_buf,
                                       uint32_t* out_seq,
                                       uint32_t* out_ts_ms) {
     if (!out_buf || !out_w || !out_h) return -1;
+
+    // Fast path: slot already populated by PrepTask.
+    {
+        const uint8_t* slot_buf = NULL;
+        int sw = 0, sh = 0;
+        uint32_t sseq = 0;
+        if (sentai_prep_slot_get(SENTAI_PREP_SLOT_GRAY_NATIVE,
+                                  &slot_buf, &sw, &sh, &sseq) == 0) {
+            *out_buf = slot_buf;
+            *out_w   = sw;
+            *out_h   = sh;
+            *out_seq = sseq;
+            if (out_ts_ms) *out_ts_ms = (uint32_t)xTaskGetTickCount();
+            return 0;
+        }
+    }
+
+    // Fallback: pipeline not running OR slot not enabled.  On-demand
+    // PXP into local scratch.  Cold-path for diag scripts running
+    // outside of any pipeline session.
     uint8_t* xrgb = NULL;
     int idx = sentai_cam_grab_latest(&xrgb);
     if (idx < 0 || !xrgb) return -1;

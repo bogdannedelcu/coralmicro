@@ -21,6 +21,13 @@
 #include "sentai_tracker.h"
 #include "sentai_error.h"
 #include "sentai_health.h"
+#include "sentai_prep.h"        // Phase 1b: aux slot fan-out
+
+// Forward decl — defined in sentai_runtime.cc (.sdram_text).  PXP HW
+// path for XRGB→Y8 conversion (kPXP_OutputPixelFormatY8) used by the
+// aux slot publishing block in prep_task_fn.
+extern "C" int sentai_pxp_xrgb_to_y8(const uint8_t* src, int src_w, int src_h,
+                                      uint8_t* dst, int dst_w, int dst_h);
 
 #include <cmath>
 #include <cstdio>
@@ -639,6 +646,38 @@ static void prep_task_fn(void* /*param*/) {
             continue;
         }
         cam_miss_streak = 0;  // reset on successful frame grab
+
+        // ── sentai_prep Phase 1b: aux slot fan-out ──────────────────
+        // After cam_grab succeeded + force_parity passed, publish
+        // enabled aux slots from the same `raw` XRGB8888 frame.
+        //
+        // NON-BLOCKING by design (no semaphore on this path) — slot
+        // consumers tolerate last-frame-wins per [[no-heavy-data-
+        // through-mp]] / continuous-publish discipline.  ISR-ready
+        // (no FreeRTOS blocking primitives invoked).
+        //
+        // Cost: only fires for slots whose refcount > 0 AND whose
+        // frame_div counter aligned this frame (today always 1).
+        // Disabled slots are a single mask test — zero PXP work when
+        // no consumer is active.
+        {
+            const uint32_t fire_mask = sentai_prep_tick_frame();
+            if (fire_mask & (1u << SENTAI_PREP_SLOT_GRAY_NATIVE)) {
+                int sw = 0, sh = 0;
+                uint8_t* sbuf = sentai_prep_slot_begin_write(
+                    SENTAI_PREP_SLOT_GRAY_NATIVE, &sw, &sh);
+                if (sbuf) {
+                    // PXP XRGB→Y8 luma (kPXP_OutputPixelFormatY8) —
+                    // BT.601 luma computed internally by PXP HW.
+                    sentai_pxp_xrgb_to_y8(raw, DEMO_CAMERA_WIDTH,
+                                           DEMO_CAMERA_HEIGHT,
+                                           sbuf, sw, sh);
+                    sentai_prep_slot_commit(SENTAI_PREP_SLOT_GRAY_NATIVE);
+                }
+            }
+            // SLOT_RGB_64 and SLOT_GRAY_64 — Phase 1c (added when
+            // SlamTask lands).
+        }
 
         // MODE 2 (CAM): skip PXP + quant.  Return raw buffer immediately
         // and zero the tensor destination.  Tests if camera traffic alone
