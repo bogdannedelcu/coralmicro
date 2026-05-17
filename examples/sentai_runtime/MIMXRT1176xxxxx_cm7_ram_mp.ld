@@ -404,6 +404,13 @@ SECTIONS
      *sentai_hsv.cc.obj(.text .text*)
      *sentai_hsv.cc.obj(.data .data*)
      *sentai_hsv.cc.obj(.rodata .rodata*)
+     /* Camera-frame slot infrastructure (Phase 1a foundation,
+        2026-05-17).  Pure storage + atomic-publish; called from
+        PrepTask context in detection_task.cc (future integration).
+        .sdram_text per [[itcm-budget]]. */
+     *sentai_prep.cc.obj(.text .text*)
+     *sentai_prep.cc.obj(.data .data*)
+     *sentai_prep.cc.obj(.rodata .rodata*)
      __sentai_slow_end = .;
      . = ALIGN(4);
   } > m_sdram

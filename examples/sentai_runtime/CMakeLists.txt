@@ -197,6 +197,10 @@ add_executable_m7(sentai_runtime
     sentai_gist.cc
     # Track A piece 3/4 — HSV 16h×4s histogram (OP-S10-W4).
     sentai_hsv.cc
+    # Camera-frame slot infrastructure (sentai_prep) — Phase 1a foundation.
+    # Producer (PrepTask) populates slots; consumers (SlamTask, future
+    # AnchorTask) read via zerocopy.  No PXP work here — pure storage.
+    sentai_prep.cc
     sentai_servo.cc
     sentai_object_lifter.cc
     # ObjectsPlan OP-S6-W1 — sentai.calib Kabsch.  ARM build enables
