@@ -350,6 +350,7 @@ static void _fs_check_usb(void) {
 #include "bindings/modsentai_places.c"
 #include "bindings/modsentai_servo.c"
 #include "bindings/modsentai_object_lifter.c"
+#include "bindings/modsentai_calib.c"
 #include "bindings/modsentai_explore.c"
 #include "bindings/modsentai_tfl.c"
 #include "bindings/modsentai_diag.c"
@@ -576,6 +577,7 @@ static const mp_rom_map_elem_t sentai_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_places),    MP_ROM_PTR(&sentai_places_module) },
     { MP_ROM_QSTR(MP_QSTR_servo),     MP_ROM_PTR(&sentai_servo_module) },
     { MP_ROM_QSTR(MP_QSTR_object_lifter), MP_ROM_PTR(&sentai_object_lifter_module) },
+    { MP_ROM_QSTR(MP_QSTR_calib),     MP_ROM_PTR(&sentai_calib_module) },
     { MP_ROM_QSTR(MP_QSTR_explore),   MP_ROM_PTR(&sentai_explore_module) },
     { MP_ROM_QSTR(MP_QSTR_tfl),       MP_ROM_PTR(&sentai_tfl_module) },
     { MP_ROM_QSTR(MP_QSTR_diag),      MP_ROM_PTR(&sentai_diag_module) },

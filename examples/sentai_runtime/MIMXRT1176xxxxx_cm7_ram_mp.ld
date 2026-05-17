@@ -372,6 +372,14 @@ SECTIONS
      *sentai_explore.cc.obj(.text .text*)
      *sentai_explore.cc.obj(.data .data*)
      *sentai_explore.cc.obj(.rodata .rodata*)
+     /* ObjectsPlan OP-S6-W1 (2026-05-17): sentai.calib Kabsch.
+        One-shot at takeoff (~15 ms); Jacobi 3x3 SVD + FxUser JSON
+        persist.  Cold-path; .sdram_text matches the L4/L5/L6 pattern.
+        Captures .rodata (default R_B_C constants + JSON format
+        strings) to keep ITCM headroom intact per [[itcm-budget]]. */
+     *sentai_calib.cc.obj(.text .text*)
+     *sentai_calib.cc.obj(.data .data*)
+     *sentai_calib.cc.obj(.rodata .rodata*)
      /* Track A places (s139+, 2026-05-16): PHOG descriptor compute.
         Cold-path ~1 Hz, ~10 ms on M7; .sdram_text per [[itcm-budget]]. */
      *sentai_phog.cc.obj(.text .text*)

@@ -198,6 +198,9 @@ add_executable_sim(sentai_sim
     # math; SIM uses scalar fallback (no CMSIS-DSP).  Validated against
     # experiments/s131_lifter_replay/lifter_proto.py.
     ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_object_lifter.cc
+    # ObjectsPlan OP-S6-W1 — sentai.calib (camera-to-body Kabsch).  Pure
+    # float math; SIM build skips FxUser (HOST stdio fallback in .cc).
+    ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_calib.cc
     # ObjectsPlan L6 — mission FSM wrapping L4 servo + L5 lifter.
     # Pure FSM, no transport bytes; same #include pattern as L2-L5.
     ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_explore.cc
