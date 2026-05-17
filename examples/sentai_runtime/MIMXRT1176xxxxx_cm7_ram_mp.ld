@@ -411,6 +411,12 @@ SECTIONS
      *sentai_prep.cc.obj(.text .text*)
      *sentai_prep.cc.obj(.data .data*)
      *sentai_prep.cc.obj(.rodata .rodata*)
+     /* OP-S10-W11-T3 (Phase 1c, 2026-05-17): SlamTask perception
+        loop.  Cold path (~200 µs/frame); no hot-loop work here, so
+        .sdram_text is the natural placement per [[itcm-budget]]. */
+     *slam_task.cc.obj(.text .text*)
+     *slam_task.cc.obj(.data .data*)
+     *slam_task.cc.obj(.rodata .rodata*)
      __sentai_slow_end = .;
      . = ALIGN(4);
   } > m_sdram

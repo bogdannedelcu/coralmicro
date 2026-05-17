@@ -201,6 +201,10 @@ add_executable_m7(sentai_runtime
     # Producer (PrepTask) populates slots; consumers (SlamTask, future
     # AnchorTask) read via zerocopy.  No PXP work here — pure storage.
     sentai_prep.cc
+    # OP-S10-W11-T3 — InferTask-style perception loop: wakes on PrepTask
+    # SLOT_RGB_64 signal, runs sentai_hsv_compute + sentai_places_query,
+    # publishes match struct atomically.  MP sees only small scalars.
+    slam_task.cc
     sentai_servo.cc
     sentai_object_lifter.cc
     # ObjectsPlan OP-S6-W1 — sentai.calib Kabsch.  ARM build enables

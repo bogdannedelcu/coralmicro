@@ -22,6 +22,7 @@
 #include "sentai_error.h"
 #include "sentai_health.h"
 #include "sentai_prep.h"        // Phase 1b: aux slot fan-out
+#include "slam_task.h"          // Phase 1c: signal SlamTask after SLOT_RGB_64
 
 // Forward decl — defined in sentai_runtime.cc (.sdram_text).  PXP HW
 // path for XRGB→Y8 conversion (kPXP_OutputPixelFormatY8) used by the
@@ -675,8 +676,17 @@ static void prep_task_fn(void* /*param*/) {
                     sentai_prep_slot_commit(SENTAI_PREP_SLOT_GRAY_NATIVE);
                 }
             }
-            // SLOT_RGB_64 and SLOT_GRAY_64 — Phase 1c (added when
-            // SlamTask lands).
+            // Phase 1c: SLOT_RGB_64 (64×64 RGB888 packed) for SlamTask.
+            // Body extracted to slam_task.cc (.sentai_slow) so the
+            // PXP scale + commit + signal call sequence doesn't bloat
+            // m_text on ARM.
+            if (fire_mask & (1u << SENTAI_PREP_SLOT_RGB_64)) {
+                sentai_prep_publish_slot_rgb_64(raw, DEMO_CAMERA_WIDTH,
+                                                 DEMO_CAMERA_HEIGHT);
+            }
+            // SLOT_GRAY_64 — added when a consumer (e.g. a future PHOG
+            // task) needs it.  Until then, refcount stays 0 and the
+            // producer never fires.
         }
 
         // MODE 2 (CAM): skip PXP + quant.  Return raw buffer immediately

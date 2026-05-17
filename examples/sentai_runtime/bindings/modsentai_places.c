@@ -28,6 +28,7 @@
 #include "sentai_phog.h"
 #include "sentai_gist.h"
 #include "sentai_hsv.h"
+#include "slam_task.h"      // OP-S10-W11-T3 — SlamTask MP lifecycle
 
 #include <math.h>
 #include <string.h>
@@ -349,6 +350,49 @@ static mp_obj_t mod_places_compute_hsv(size_t n_args, const mp_obj_t* args) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_places_compute_hsv_obj, 3, 3, mod_places_compute_hsv);
 
+// ===================== SlamTask lifecycle (OP-S10-W11-T3) =============
+// Embedded perception loop: PrepTask SLOT_RGB_64 → sentai_hsv_compute →
+// sentai_places_query → atomic publish.  No frames/tensors cross the MP
+// boundary (per [[no-heavy-data-through-mp]]) — MP only sees small
+// scalars (match id, score, l1 dist, monotonic seq, compute µs).
+
+static mp_obj_t mod_places_start_slam(void) {
+    return mp_obj_new_int(sentai_slam_start());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_places_start_slam_obj, mod_places_start_slam);
+
+static mp_obj_t mod_places_stop_slam(void) {
+    return mp_obj_new_int(sentai_slam_stop());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_places_stop_slam_obj, mod_places_stop_slam);
+
+static mp_obj_t mod_places_slam_current(void) {
+    sentai_slam_result_t r;
+    sentai_slam_get_current(&r);
+    mp_obj_t d = mp_obj_new_dict(0);
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_match_id),     mp_obj_new_int(r.match_id));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_score_pct),    mp_obj_new_int(r.score_pct));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_l1_dist),      mp_obj_new_int(r.l1_dist));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_frame_seq),    mp_obj_new_int(r.frame_seq));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_result_seq),   mp_obj_new_int(r.result_seq));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_t_compute_us), mp_obj_new_int(r.t_compute_us));
+    return d;
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_places_slam_current_obj, mod_places_slam_current);
+
+static mp_obj_t mod_places_slam_stats(void) {
+    sentai_slam_stats_t s;
+    sentai_slam_get_stats(&s);
+    mp_obj_t d = mp_obj_new_dict(0);
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_frames_processed), mp_obj_new_int(s.frames_processed));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_frames_dropped),   mp_obj_new_int(s.frames_dropped));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_last_compute_us),  mp_obj_new_int(s.last_compute_us));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_avg_compute_us),   mp_obj_new_int(s.avg_compute_us));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_is_running),       mp_obj_new_int(s.is_running));
+    return d;
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_places_slam_stats_obj, mod_places_slam_stats);
+
 static const mp_rom_map_elem_t sentai_places_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__),        MP_ROM_QSTR(MP_QSTR_places) },
     { MP_ROM_QSTR(MP_QSTR_add),             MP_ROM_PTR(&mod_places_add_obj) },
@@ -369,6 +413,12 @@ static const mp_rom_map_elem_t sentai_places_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_compute_phog),    MP_ROM_PTR(&mod_places_compute_phog_obj) },
     { MP_ROM_QSTR(MP_QSTR_compute_gist),    MP_ROM_PTR(&mod_places_compute_gist_obj) },
     { MP_ROM_QSTR(MP_QSTR_compute_hsv),     MP_ROM_PTR(&mod_places_compute_hsv_obj) },
+    // SlamTask lifecycle (OP-S10-W11-T3).  Embedded perception loop —
+    // see slam_task.h for the design contract.
+    { MP_ROM_QSTR(MP_QSTR_start_slam),      MP_ROM_PTR(&mod_places_start_slam_obj) },
+    { MP_ROM_QSTR(MP_QSTR_stop_slam),       MP_ROM_PTR(&mod_places_stop_slam_obj) },
+    { MP_ROM_QSTR(MP_QSTR_slam_current),    MP_ROM_PTR(&mod_places_slam_current_obj) },
+    { MP_ROM_QSTR(MP_QSTR_slam_stats),      MP_ROM_PTR(&mod_places_slam_stats_obj) },
     // Status constants
     { MP_ROM_QSTR(MP_QSTR_FREE),            MP_ROM_INT(PLR_FREE) },
     { MP_ROM_QSTR(MP_QSTR_TENTATIVE),       MP_ROM_INT(PLR_TENTATIVE) },

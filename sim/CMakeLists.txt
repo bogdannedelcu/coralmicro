@@ -192,6 +192,10 @@ add_executable_sim(sentai_sim
     ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_hsv.cc
     # Camera-frame slot infrastructure (Phase 1a — storage only).
     ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_prep.cc
+    # OP-S10-W11-T3 — SlamTask perception loop (shared with ARM).
+    # SIM compiles + runs the task; real frames land once Phase 1d
+    # wires camera_bridge_recv as the SLOT_RGB_64 producer.
+    ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/slam_task.cc
     # GIST-lite (Oliva & Torralba 2001) — coarse scene envelope.
     ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_gist.cc
     # ObjectsPlan L4 — backend-agnostic action layer (skeleton).
