@@ -188,6 +188,8 @@ add_executable_sim(sentai_sim
     ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_places.cc
     # PHOG (Bosch 2007) — Track A place descriptor component.
     ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_phog.cc
+    # Track A piece 3/4 — HSV 16h×4s histogram (OP-S10-W4).
+    ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_hsv.cc
     # GIST-lite (Oliva & Torralba 2001) — coarse scene envelope.
     ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_gist.cc
     # ObjectsPlan L4 — backend-agnostic action layer (skeleton).

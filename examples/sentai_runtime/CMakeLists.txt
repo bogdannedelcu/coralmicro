@@ -195,6 +195,8 @@ add_executable_m7(sentai_runtime
     sentai_places.cc
     sentai_phog.cc
     sentai_gist.cc
+    # Track A piece 3/4 — HSV 16h×4s histogram (OP-S10-W4).
+    sentai_hsv.cc
     sentai_servo.cc
     sentai_object_lifter.cc
     # ObjectsPlan OP-S6-W1 — sentai.calib Kabsch.  ARM build enables

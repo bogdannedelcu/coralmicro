@@ -398,6 +398,12 @@ SECTIONS
      *sentai_gist.cc.obj(.text .text*)
      *sentai_gist.cc.obj(.data .data*)
      *sentai_gist.cc.obj(.rodata .rodata*)
+     /* Track A places (s161, 2026-05-17): HSV 16h×4s histogram.
+        Slot-native uint8[64] (no quantize step needed).  Cold-path
+        ~150 µs on M7; .sdram_text per [[itcm-budget]]. */
+     *sentai_hsv.cc.obj(.text .text*)
+     *sentai_hsv.cc.obj(.data .data*)
+     *sentai_hsv.cc.obj(.rodata .rodata*)
      __sentai_slow_end = .;
      . = ALIGN(4);
   } > m_sdram

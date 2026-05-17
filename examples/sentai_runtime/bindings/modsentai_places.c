@@ -27,6 +27,7 @@
 #include "sentai_places.h"
 #include "sentai_phog.h"
 #include "sentai_gist.h"
+#include "sentai_hsv.h"
 
 #include <math.h>
 #include <string.h>
@@ -323,6 +324,31 @@ static mp_obj_t mod_places_compute_gist(size_t n_args, const mp_obj_t* args) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_places_compute_gist_obj, 3, 3, mod_places_compute_gist);
 
+// ===================== compute_hsv(rgb_bytes, w, h) -> bytes(64) ======
+// HS histogram (16 hue × 4 sat bins, V channel discarded) per Smith
+// 1978.  Output is SLOT-NATIVE — `SENTAI_PLACES_DESC_DIM == 64 ==
+// SENTAI_HSV_DIM`, so the bytes can be passed straight to places.add
+// without a quantize() step (unlike PHOG/GIST which return float lists
+// that hex_helpers.py:quantize() packs into 64 B).
+//
+// rgb_bytes layout: 3*w*h bytes, packed [R,G,B, R,G,B, ...].
+
+static mp_obj_t mod_places_compute_hsv(size_t n_args, const mp_obj_t* args) {
+    (void)n_args;
+    mp_buffer_info_t bi;
+    if (!mp_get_buffer(args[0], &bi, MP_BUFFER_READ)) return mp_const_none;
+    int w = mp_obj_get_int(args[1]);
+    int h = mp_obj_get_int(args[2]);
+    if (w <= 0 || h <= 0) return mp_const_none;
+    if ((size_t)(w * h * 3) > bi.len) return mp_const_none;
+
+    uint8_t out[SENTAI_HSV_DIM];
+    int rc = sentai_hsv_compute((const uint8_t*)bi.buf, w, h, out);
+    if (rc < 0) return mp_const_none;
+    return mp_obj_new_bytes(out, SENTAI_HSV_DIM);
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_places_compute_hsv_obj, 3, 3, mod_places_compute_hsv);
+
 static const mp_rom_map_elem_t sentai_places_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__),        MP_ROM_QSTR(MP_QSTR_places) },
     { MP_ROM_QSTR(MP_QSTR_add),             MP_ROM_PTR(&mod_places_add_obj) },
@@ -342,6 +368,7 @@ static const mp_rom_map_elem_t sentai_places_globals_table[] = {
     // Track A descriptor compute (Bosch 2007 PHOG).
     { MP_ROM_QSTR(MP_QSTR_compute_phog),    MP_ROM_PTR(&mod_places_compute_phog_obj) },
     { MP_ROM_QSTR(MP_QSTR_compute_gist),    MP_ROM_PTR(&mod_places_compute_gist_obj) },
+    { MP_ROM_QSTR(MP_QSTR_compute_hsv),     MP_ROM_PTR(&mod_places_compute_hsv_obj) },
     // Status constants
     { MP_ROM_QSTR(MP_QSTR_FREE),            MP_ROM_INT(PLR_FREE) },
     { MP_ROM_QSTR(MP_QSTR_TENTATIVE),       MP_ROM_INT(PLR_TENTATIVE) },
