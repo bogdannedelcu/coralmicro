@@ -304,6 +304,38 @@ submission Q2 2027. Effort ≈ 6 weeks post-defense.
 
 ---
 
+## FW18 — OP-S10-W11 prep-pipeline observability polish
+
+**Source**: W11 embeded.md audit 2026-05-17 (items M5/M6/M7/m4 from
+the evaluation, deferred from `T3.1` per operator scope-cut).
+**Canonical doc**: see commit message of `OP-S10-W11-T3.1` for the
+finding catalog; this entry is the parking lot.
+
+**Scope** — four discipline upgrades on the prep slot + SlamTask path:
+
+1. **M5 Camera-health gate**: PrepTask checks `sentai_cam_is_initialized()`
+   per iteration; on failure increment a counter + disable slot
+   publishing so consumers observe a frozen `seq` (escalation to
+   mission code, no silent stale matches).
+2. **M6 Stack watermark in `slam_stats`**: 1-line
+   `uxTaskGetStackHighWaterMark(s_slam_task)` exposure so the
+   `kSlamStackWords` guess can be empirically validated.
+3. **M7 Split `frames_dropped`** into `drops_slot_get / drops_hsv /
+   drops_timeout` for diagnostic-coverage breakdown (§4.3).
+4. **m4 Formal safe-state contract** in `sentai_prep.h` +
+   `slam_task.h` headers per `embeded.md §1.4`.
+
+**Why deferred**: T3.1 already lands the critical/major fixes
+(seqlock, SERR codes, health integration).  These four are polish
+that the existing per-frame counters and ARM live tests will
+implicitly surface; no autonomy hazard.
+
+**Promotion trigger**: any non-trivial follow-up touch to
+`sentai_prep` / `slam_task` (e.g. T4 SIM producer, T5 EXP-s163
+live test).  Pack into a `T3.2` discipline commit.
+
+---
+
 ## Items currently NOT in FutureWork (may be added)
 
 When operator notes a new idea during thesis work that's not on the

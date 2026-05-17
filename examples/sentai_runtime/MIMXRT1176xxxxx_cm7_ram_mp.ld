@@ -417,6 +417,13 @@ SECTIONS
      *slam_task.cc.obj(.text .text*)
      *slam_task.cc.obj(.data .data*)
      *slam_task.cc.obj(.rodata .rodata*)
+     /* OP-S10-W11-T3.1 (2026-05-17): sentai_health.cc — module
+        health state machine.  Called at ≤30 Hz aggregate from all
+        SUBSYS_* call sites; no per-frame hot work.  Move out of
+        m_text to free room for ITCM-resident hot paths. */
+     *sentai_health.cc.obj(.text .text*)
+     *sentai_health.cc.obj(.data .data*)
+     *sentai_health.cc.obj(.rodata .rodata*)
      __sentai_slow_end = .;
      . = ALIGN(4);
   } > m_sdram

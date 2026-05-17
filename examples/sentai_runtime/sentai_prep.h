@@ -98,10 +98,46 @@ int sentai_prep_slot_is_enabled(sentai_prep_slot_id_t id);
 // is invalid, the slot is disabled (refcount == 0), or no frame has
 // been produced yet (seq == 0).  Caller MUST consume buf before the
 // next frame interval — buffer is single-slot last-frame-wins.
+//
+// Tearing: this call returns immediately; the buffer may be partially
+// overwritten by the producer while the caller is computing on it
+// (~0.5% collision per consume at 30 Hz producer + ~150 µs consumer).
+// For tear-detection, prefer _begin_read / _end_read below.
 int sentai_prep_slot_get(sentai_prep_slot_id_t id,
                           const uint8_t** out_buf,
                           int* out_w, int* out_h,
                           uint32_t* out_seq);
+
+// Seqlock-style atomic read protocol — preferred for any consumer
+// that runs non-trivial compute on the slot buffer (HSV, ArUco,
+// future PHOG/GIST).  Pattern:
+//
+//   const uint8_t* buf; int w, h; uint32_t ticket;
+//   if (sentai_prep_slot_begin_read(id, &buf, &w, &h, &ticket) != 0) {
+//       // slot disabled / no frame — skip this cycle.
+//   } else {
+//       compute_on(buf, w, h);              // any duration
+//       if (!sentai_prep_slot_end_read(id, ticket)) {
+//           // Producer wrote during compute → result is torn.
+//           // s_producer_overruns bumped by _end_read; caller may
+//           // retry once (bounded) or accept best-effort.
+//       }
+//   }
+//
+// _begin_read returns 0 on success and emits a DMB before returning
+// so the caller's subsequent reads happen-after the seq snapshot.
+// _end_read emits a DMB before re-sampling seq, then returns 1 on
+// consistent (no producer write during compute) or 0 on torn.
+//
+// Single-consumer-per-slot assumption: s_producer_overruns is a
+// plain uint32 incremented without atomicity.  Multi-consumer slots
+// would need atomic-add — see [[op-s10-w11-prep-pipeline]] follow-up.
+int sentai_prep_slot_begin_read(sentai_prep_slot_id_t id,
+                                 const uint8_t** out_buf,
+                                 int* out_w, int* out_h,
+                                 uint32_t* out_ticket);
+
+int sentai_prep_slot_end_read(sentai_prep_slot_id_t id, uint32_t ticket);
 
 // Optional skip-frame divider (future hook — today the producer
 // ignores it and runs every enabled slot per frame).  N=1 = every

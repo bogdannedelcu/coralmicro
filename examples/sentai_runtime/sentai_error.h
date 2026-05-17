@@ -51,6 +51,8 @@ extern "C" {
 #define SERR_MOD_FLOW    0x0E00  /* sentai.flow stack (0x0Exx) */
 #define SERR_MOD_OBJ     0x1000  /* sentai.objects map     (0x10xx) */
 #define SERR_MOD_PLR     0x1100  /* sentai.places gallery  (0x11xx) */
+#define SERR_MOD_PREP    0x1200  /* sentai_prep slot table (0x12xx) — OP-S10-W11 */
+#define SERR_MOD_SLAM    0x1300  /* SlamTask perception    (0x13xx) — OP-S10-W11-T3 */
 #define SERR_MOD_SYS     0x0F00
 
 // ===================== Objects-map Errors (0x10xx) — ObjectsPlan L2 ===
@@ -70,6 +72,21 @@ extern "C" {
 #define SERR_PLR_BAD_ID          (SERR_MOD_PLR | 0x03) // get/remove/observe with unknown id (val=id)
 #define SERR_PLR_FULL            (SERR_MOD_PLR | 0x40) // gallery full and no non-CONFIRMED to evict
 #define SERR_PLR_EVICTED         (SERR_MOD_PLR | 0x10) // non-CONFIRMED slot reclaimed (val=evicted_id)
+
+// ===================== Prep Pipeline Errors (0x12xx) — OP-S10-W11 =====
+// Lockless SPMC slot table + PrepTask producer.  Codes logged on first
+// occurrence per fault class per session (not per drop) — the loop-side
+// counters in sentai_prep_stats carry the per-frame detail.
+#define SERR_PREP_TORN_READ      (SERR_MOD_PREP | 0x10) // _end_read seq mismatch — producer wrote during consume (val=slot_id)
+#define SERR_PREP_REFCOUNT_SAT   (SERR_MOD_PREP | 0x20) // slot refcount saturated at 255 — buggy caller (val=slot_id)
+#define SERR_PREP_BAD_SLOT       (SERR_MOD_PREP | 0x30) // begin_read / begin_write with invalid slot id (val=slot_id)
+
+// ===================== SlamTask Errors (0x13xx) — OP-S10-W11-T3 ========
+#define SERR_SLAM_PREREQ_CAM     (SERR_MOD_SLAM | 0x01) // start_slam: sentai.camera.init() not called
+#define SERR_SLAM_PREREQ_PIPE    (SERR_MOD_SLAM | 0x02) // start_slam: sentai.pipeline.start() not called
+#define SERR_SLAM_SEM_ALLOC      (SERR_MOD_SLAM | 0x03) // xSemaphoreCreateCounting returned NULL
+#define SERR_SLAM_TASK_ALLOC     (SERR_MOD_SLAM | 0x04) // xTaskCreateStatic returned NULL
+#define SERR_SLAM_TORN_UNRESOLVED (SERR_MOD_SLAM | 0x10) // bounded retries exhausted, accepted torn read
 
 // ===================== Flow Errors (0x0Exx) =====================
 #define SERR_FLOW_M4_NOT_ALIVE       (SERR_MOD_FLOW | 0x01) // magic timeout at enable

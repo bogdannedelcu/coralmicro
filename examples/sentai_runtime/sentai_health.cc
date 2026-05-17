@@ -27,7 +27,7 @@ static volatile SystemMode_t s_system_mode = SYS_MODE_BOOTING;
 // Names (shortened to save flash)
 static const char s_states[] = "HLTY\0DEGD\0FLTD\0RCVR\0N/A";  // 4-char state ids
 static const char* const s_subsys_names[] = {
-    "lk", "ms", "cz", "dt", "ht", "rp", "au"  // 2-char subsystem ids
+    "lk", "ms", "cz", "dt", "ht", "rp", "au", "sl"  // 2-char subsystem ids
 };
 
 // ===================== Internal Functions =====================

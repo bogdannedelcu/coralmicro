@@ -36,6 +36,7 @@ typedef enum {
     SUBSYS_HTTP     = 4,   // HTTP server
     SUBSYS_REPL     = 5,   // MicroPython REPL
     SUBSYS_AUDIO    = 6,   // Audio service
+    SUBSYS_SLAM     = 7,   // SlamTask perception loop (OP-S10-W11-T3)
     SUBSYS_COUNT            // Must be last
 } SubsystemId_t;
 

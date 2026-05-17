@@ -5,10 +5,18 @@
 #include "sentai_prep.h"
 #include "sentai_hsv.h"
 #include "sentai_places.h"
+#include "sentai_error.h"
 
 #include "third_party/freertos_kernel/include/FreeRTOS.h"
 #include "third_party/freertos_kernel/include/task.h"
 #include "third_party/freertos_kernel/include/semphr.h"
+
+#ifndef SENTAI_PLATFORM_SIM
+// ARM-only — sentai_health is not yet ported to the SIM build (the
+// subsystem table sizing + boot-mode is ARM-specific).  SIM treats
+// the calls as no-ops.
+#include "sentai_health.h"
+#endif
 
 #include <stdint.h>
 #include <string.h>
@@ -84,6 +92,24 @@ static uint32_t mean_avg(void) {
 // lets MP readers detect a fresh result by sampling result_seq.
 static volatile sentai_slam_result_t s_current = {0, 0, 0, 0, 0, 0};
 
+// Health calls are ARM-only (SIM doesn't link sentai_health).
+static inline void slam_health_success(void) {
+#ifndef SENTAI_PLATFORM_SIM
+    sentai_health_success(SUBSYS_SLAM);
+#endif
+}
+static inline void slam_health_fail(void) {
+#ifndef SENTAI_PLATFORM_SIM
+    sentai_health_fail(SUBSYS_SLAM);
+#endif
+}
+
+// Bounded retry budget for seqlock collisions per consumer cycle.
+// 0 = no retry (single try), 1 = one retry, etc.  PrepTask fires at
+// ~30 Hz (33 ms period) and HSV compute is ~150 µs, so the collision
+// window is ~0.5% — a single retry resolves >99.99% of cases.
+#define SLAM_TORN_RETRIES   1
+
 // ============================================================
 // SlamTask body.
 // ============================================================
@@ -105,26 +131,63 @@ static void slam_task_fn(void* /*param*/) {
 
         const uint32_t t_start = slam_now_us();
 
-        // F2: zerocopy read of SLOT_RGB_64.  Fails only if slot is
-        // disabled (refcount race) or no frame produced yet.  Treat
-        // either as a transient miss; counter ticks; next signal retries.
-        const uint8_t* rgb = nullptr;
-        int sw = 0, sh = 0;
-        uint32_t slot_seq = 0;
-        if (sentai_prep_slot_get(SENTAI_PREP_SLOT_RGB_64,
-                                  &rgb, &sw, &sh, &slot_seq) != 0) {
-            s_frames_dropped++;
-            continue;
+        // ── Seqlock-protected consume (W11-T3.1 — C1 fix) ──────────
+        // Try up to SLAM_TORN_RETRIES + 1 times; if every attempt is
+        // torn, accept the last result as best-effort and SERR_LOG
+        // the unresolved torn read (rare — should not happen in
+        // practice given the 0.5% collision rate × 2 attempts).
+        const uint8_t* rgb        = nullptr;
+        int            sw         = 0;
+        int            sh         = 0;
+        uint32_t       ticket     = 0;
+        uint8_t        desc[SENTAI_HSV_DIM];
+        int            attempt;
+        bool           consistent = false;
+        bool           hsv_ok     = false;
+
+        for (attempt = 0; attempt <= SLAM_TORN_RETRIES; ++attempt) {
+            if (sentai_prep_slot_begin_read(SENTAI_PREP_SLOT_RGB_64,
+                                             &rgb, &sw, &sh, &ticket) != 0) {
+                // F2: slot disabled / no frame yet.  Bounded miss —
+                // don't retry, next signal will arrive.
+                break;
+            }
+            if (sentai_hsv_compute(rgb, sw, sh, desc) != 0) {
+                // F3: hsv_compute bad args — should not happen since
+                // begin_read validated dims.  Treat as a drop.
+                hsv_ok = false;
+                // Still need to close the read so producer_overruns
+                // isn't biased by us walking away mid-compute.
+                (void)sentai_prep_slot_end_read(SENTAI_PREP_SLOT_RGB_64, ticket);
+                break;
+            }
+            hsv_ok = true;
+            if (sentai_prep_slot_end_read(SENTAI_PREP_SLOT_RGB_64, ticket)) {
+                // Tear-free read — done.
+                consistent = true;
+                break;
+            }
+            // Torn read — retry if budget remains.  end_read already
+            // bumped s_producer_overruns + SERR'd on first occurrence.
         }
 
-        // F3: HSV histogram compute.  64×64×3 → 64-byte descriptor.
-        // ~150 µs cold on M7 per [[op-s10-w4 shipped]].  Returns -1 on
-        // invalid args (cannot happen — we just validated dims via
-        // slot_get); defensive check anyway per NASA/JPL §5.
-        uint8_t desc[SENTAI_HSV_DIM];
-        if (sentai_hsv_compute(rgb, sw, sh, desc) != 0) {
-            s_frames_dropped++;
-            continue;
+        if (!hsv_ok || !consistent) {
+            if (!consistent && hsv_ok) {
+                // Retries exhausted; result accepted best-effort.
+                // SERR once per session — rare enough to surface.
+                static uint8_t s_torn_unresolved_logged = 0;
+                if (!s_torn_unresolved_logged) {
+                    s_torn_unresolved_logged = 1;
+                    SERR_LOG(SERR_SLAM_TORN_UNRESOLVED, 0);
+                }
+            }
+            if (!hsv_ok) {
+                // Drop the frame (no publish).
+                s_frames_dropped++;
+                slam_health_fail();
+                continue;
+            }
+            // hsv_ok && !consistent → fall through, publish best-effort.
         }
 
         // Places query: scan whole gallery (cell_ring=0).  Threshold 0
@@ -140,13 +203,14 @@ static void slam_task_fn(void* /*param*/) {
         s_last_compute_us = dt;
         push_avg(dt);
         s_frames_processed++;
+        slam_health_success();
 
         // Publish.  Fields-then-seq with __DMB barrier between, so an MP
         // reader sampling result_seq sees fully-consistent fields.
         s_current.match_id     = m.id;
         s_current.score_pct    = m.score_pct;
         s_current.l1_dist      = m.l1_dist;
-        s_current.frame_seq    = slot_seq;
+        s_current.frame_seq    = ticket;   // seq at which descriptor was sampled
         s_current.t_compute_us = dt;
         SLAM_DMB();
         s_current.result_seq   = s_current.result_seq + 1u;
@@ -177,11 +241,17 @@ extern "C" int sentai_slam_start(void) {
     // F0: prereq — camera (and therefore PXP HW via BOARD_InitPxp,
     // see [[pxp-init-required]]) must be initialised before we can
     // run sentai_pxp_scale in the PrepTask SLOT_RGB_64 producer.
-    if (!sentai_cam_is_initialized()) return -10;
+    if (!sentai_cam_is_initialized()) {
+        SERR_LOG(SERR_SLAM_PREREQ_CAM, 0);
+        return -10;
+    }
 
     // F0: prereq — PrepTask must be running, since IT is the
     // SLOT_RGB_64 producer.  Without it SlamTask would idle forever.
-    if (!sentai_detection_is_running()) return -11;
+    if (!sentai_detection_is_running()) {
+        SERR_LOG(SERR_SLAM_PREREQ_PIPE, 0);
+        return -11;
+    }
 #endif
 
     // Lazy sem create — heap touched only at init, per NASA/JPL §1.3.
@@ -190,7 +260,10 @@ extern "C" int sentai_slam_start(void) {
     // the producer-signal path as well).
     if (!s_sem_slam_input) {
         s_sem_slam_input = xSemaphoreCreateCounting(1, 0);
-        if (!s_sem_slam_input) return -1;
+        if (!s_sem_slam_input) {
+            SERR_LOG(SERR_SLAM_SEM_ALLOC, 0);
+            return -1;
+        }
     }
     // Drain any leftover signal from a prior run so the first iteration
     // genuinely waits for a fresh PrepTask publish.
@@ -216,10 +289,16 @@ extern "C" int sentai_slam_start(void) {
                                      tskIDLE_PRIORITY + 1,
                                      s_slam_stack, &s_slam_tcb);
     if (!s_slam_task) {
+        SERR_LOG(SERR_SLAM_TASK_ALLOC, 0);
         s_running = false;
         sentai_prep_slot_disable(SENTAI_PREP_SLOT_RGB_64);
         return -3;
     }
+#ifndef SENTAI_PLATFORM_SIM
+    // Module starts healthy — subsequent fail()/success() calls move
+    // it through the standard DEGRADED/FAULTED transitions.
+    sentai_health_set_recovering(SUBSYS_SLAM);
+#endif
     return 0;
 }
 
@@ -238,6 +317,9 @@ extern "C" int sentai_slam_stop(void) {
     }
 
     sentai_prep_slot_disable(SENTAI_PREP_SLOT_RGB_64);
+#ifndef SENTAI_PLATFORM_SIM
+    sentai_health_set_unavailable(SUBSYS_SLAM);
+#endif
     // Always return 0: from the caller's perspective the task IS
     // stopped — s_running is false, MP `is_running` reads 0.  The
     // self-delete is best-effort; a dirty exit (rare, POSIX jitter)

@@ -7,8 +7,10 @@
 // the SENTAI_PREP_BSS macro picks the right linker section.
 
 #include "sentai_prep.h"
+#include "sentai_error.h"
 
 #include <stdint.h>
+#include <stdio.h>     // SERR_LOG → printf
 #include <string.h>
 
 #if defined(SENTAI_PLATFORM_SIM) || !defined(__arm__)
@@ -92,6 +94,11 @@ static uint32_t s_frames_total      = 0;
 static uint32_t s_frames_with_aux   = 0;
 static uint32_t s_producer_overruns = 0;
 
+// Bitmask: bit i = SERR_PREP_TORN_READ was already logged for slot i
+// in this session.  Defined here (before init/reset functions that
+// touch it) so file order doesn't bite.  Reset by init/reset_stats.
+static uint8_t  s_torn_logged       = 0;
+
 // =========================================================================
 // Helpers
 // =========================================================================
@@ -111,12 +118,18 @@ extern "C" void sentai_prep_init(void) {
     s_frames_total      = 0;
     s_frames_with_aux   = 0;
     s_producer_overruns = 0;
+    s_torn_logged       = 0;
 }
 
 extern "C" int sentai_prep_slot_enable(sentai_prep_slot_id_t id) {
-    if (!slot_id_ok(id)) return -1;
+    if (!slot_id_ok(id)) { SERR_LOG(SERR_PREP_BAD_SLOT, (uint32_t)id); return -1; }
     // uint8 saturates at 255; bound the refcount to detect rogue callers.
-    if (s_state[id].refcount < 255) s_state[id].refcount++;
+    if (s_state[id].refcount < 255) {
+        s_state[id].refcount++;
+    } else {
+        // Log once per saturation hit (M4 — silent saturation gone).
+        SERR_LOG(SERR_PREP_REFCOUNT_SAT, (uint32_t)id);
+    }
     return (int)s_state[id].refcount;
 }
 
@@ -142,6 +155,53 @@ extern "C" int sentai_prep_slot_get(sentai_prep_slot_id_t id,
     *out_w   = s_state[id].cur_w;
     *out_h   = s_state[id].cur_h;
     if (out_seq) *out_seq = s_state[id].seq;
+    return 0;
+}
+
+// ---- Seqlock-style atomic read protocol (W11 audit C1+M1 fix) ----
+//
+// Detection of producer-during-consume interleave.  See header for
+// the contract.  s_producer_overruns is bumped by _end_read on miss
+// (the metric was previously dead code).
+//
+// SERR_PREP_TORN_READ is logged only on the FIRST torn read per slot
+// (s_torn_logged bit) — the per-frame counter is the right place for
+// recurrence; the SERR is just a forensics breadcrumb that the
+// hazard fired at all in this session.  (s_torn_logged declared
+// above near the module-wide counters.)
+
+extern "C" int sentai_prep_slot_begin_read(sentai_prep_slot_id_t id,
+                                            const uint8_t** out_buf,
+                                            int* out_w, int* out_h,
+                                            uint32_t* out_ticket) {
+    if (!slot_id_ok(id) || !out_buf || !out_w || !out_h || !out_ticket) return -1;
+    if (s_state[id].refcount == 0) return -1;
+    const uint32_t seq = s_state[id].seq;
+    if (seq == 0) return -1;
+    *out_buf    = s_buf[id];
+    *out_w      = s_state[id].cur_w;
+    *out_h      = s_state[id].cur_h;
+    *out_ticket = seq;
+    // Ensure subsequent buffer reads happen-after this seq snapshot.
+    SENTAI_PREP_DMB();
+    return 0;
+}
+
+extern "C" int sentai_prep_slot_end_read(sentai_prep_slot_id_t id,
+                                          uint32_t ticket) {
+    if (!slot_id_ok(id)) return 0;
+    SENTAI_PREP_DMB();
+    if (s_state[id].seq == ticket) return 1;   // no torn read
+
+    // Torn: producer fired during consume window.  Bump counter and
+    // SERR_LOG on first occurrence per slot per session.  Counter is
+    // single-writer per slot today (one consumer assumption) — safe.
+    s_producer_overruns++;
+    const uint8_t bit = (uint8_t)(1u << (int)id);
+    if (!(s_torn_logged & bit)) {
+        s_torn_logged = (uint8_t)(s_torn_logged | bit);
+        SERR_LOG(SERR_PREP_TORN_READ, (uint32_t)id);
+    }
     return 0;
 }
 
@@ -210,6 +270,7 @@ extern "C" void sentai_prep_reset_stats(void) {
     s_frames_total      = 0;
     s_frames_with_aux   = 0;
     s_producer_overruns = 0;
+    s_torn_logged       = 0;
     // Note: do NOT reset per-slot seq — consumers track monotonic seq.
 }
 
