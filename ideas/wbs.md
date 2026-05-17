@@ -101,13 +101,22 @@ OP — ObjectsPlan thesis
 │   ├── OP-S10-W1 — PHOG descriptor                              ✅ SHIPPED (EXP-s139)
 │   ├── OP-S10-W2 — GIST-lite descriptor                         ✅ SHIPPED (EXP-s140)
 │   ├── OP-S10-W3 — DescriptorBaseline anti-regression           ✅ SHIPPED (EXP-s141)
-│   ├── OP-S10-W4 — HSV descriptor                               ⬜ TODO (calendar W2)
+│   ├── OP-S10-W4 — HSV descriptor                               ✅ SHIPPED (EXP-s161, 2026-05-17)
 │   ├── OP-S10-W5 — FFT-mag log-polar descriptor                 ⬜ TODO (calendar W3)
 │   ├── OP-S10-W6 — Opposite-direction recall ≥ 80% (§14)        ⬜ TODO (calendar W3)
 │   ├── OP-S10-W7 — L1 tracker minimal w/ ArUco shim             ⬜ TODO (calendar W4)
 │   ├── OP-S10-W8 — L7 indoor integrated demo (§23.1 north star) ⬜ TODO
 │   ├── OP-S10-W9 — Outdoor PX4 experiments (2-3 runs)           ⬜ TODO
-│   └── OP-S10-W10 — Evaluation chapter writeup                  ⬜ TODO
+│   ├── OP-S10-W10 — Evaluation chapter writeup                  ⬜ TODO
+│   └── OP-S10-W11 — sentai_prep frame slot pipeline              🟡 IN PROGRESS (2026-05-17)
+│       │   Cross-cutting frame producer (PrepTask fan-out) + SlamTask
+│       │   InferTask-style consumer.  Foundation for places.compute_*
+│       │   _from_camera variants per [[no-heavy-data-through-mp]].
+│       ├── OP-S10-W11-T1 — sentai_prep.{h,cc} foundation        ✅ SHIPPED (commit b104d77e — retroactively-labeled "Phase 1a")
+│       ├── OP-S10-W11-T2 — PrepTask SLOT_GRAY_NATIVE + grab_gray refactor  ✅ SHIPPED (commit 90b0523b — retroactively-labeled "Phase 1b")
+│       ├── OP-S10-W11-T3 — slam_task.cc (perception loop)        ⬜ TODO (Phase 1c)
+│       ├── OP-S10-W11-T4 — SIM mirror in camera_bridge_recv.c    ⬜ TODO (Phase 1d)
+│       └── OP-S10-W11-T5 — EXP-s162 live scene-discrimination    ⬜ TODO (Phase 1e)
 │
 └── Milestones
     ├── OP-M1 — Thesis MVP (SIM): 4 descriptors + L1 + calib working end-to-end
@@ -156,6 +165,7 @@ WBS replacement:
 | `F-AC-1`, `F-AC-2` | keep `F-AC-{NN}` shape | sim/ANTI_CHEAT.md |
 | `FW1..FW17` | keep `FW-{NN}` shape | FutureWork.md |
 | `s100..s163` | keep as `EXP-s{NNN}` shape (folder name unchanged) | experiments/ |
+| `Phase 1a/1b` (sentai_prep) | retroactively `OP-S10-W11-T1` / `T2` | commits `b104d77e` / `90b0523b` lacked the WBS prefix — flagged 2026-05-17 audit, going forward Phase 1c+ use OP-S10-W11-T{K} prefixes |
 
 ## 4. Hard rule (write into CLAUDE.md)
 
