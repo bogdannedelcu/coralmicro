@@ -197,6 +197,10 @@ add_executable_m7(sentai_runtime
     sentai_gist.cc
     sentai_servo.cc
     sentai_object_lifter.cc
+    # ObjectsPlan OP-S6-W1 — sentai.calib Kabsch.  ARM build enables
+    # FxUser persistence via SENTAI_HAVE_FXUSER (set below); SIM build
+    # falls back to host stdio in the cwd.  See Sim.md §2 rule 2 — we
+    # feature-detect, never test for the ARM target directly.
     sentai_calib.cc
     sentai_explore.cc
     modsentai_hal.cc
@@ -246,6 +250,11 @@ target_compile_definitions(sentai_runtime PRIVATE
     ENABLE_NETWORK_STACK=0
     ENABLE_USB_EEM=0
     ENABLE_RANDOM=0
+    # Feature flag for sentai_calib.cc — pulls in libs/base/fx_user_fs.h
+    # for /system/cam_calib.json persistence.  SIM build omits this and
+    # falls back to host stdio (Sim.md §2 rule 2: feature-detect, never
+    # branch on SENTAI_SIM directly).
+    SENTAI_HAVE_FXUSER=1
 )
 
 target_link_libraries(sentai_runtime

@@ -8,10 +8,13 @@
 #include <stdlib.h>
 #include <string.h>
 
-// FxUser persistence is only available in the ARM firmware build.  On
-// the SIM (and host bring-up) we fall back to a stdio-backed shim that
-// reads/writes the schema-versioned JSON without going through FileX.
-#if defined(SENTAI_HAVE_FXUSER) || defined(__ARM_ARCH)
+// FxUser persistence is only available in the ARM firmware build.
+// Per Sim.md §2 rule 2 ("no `#ifdef SENTAI_SIM` in core SentAI source"),
+// we feature-detect via `SENTAI_HAVE_FXUSER` — defined as a compile
+// flag in `examples/sentai_runtime/CMakeLists.txt` for the ARM target
+// only.  On SIM (no define) we fall back to a stdio-backed shim that
+// reads/writes the schema-versioned JSON in the launching cwd.
+#if defined(SENTAI_HAVE_FXUSER)
 // fx_user_fs.h already declares its C entry points with extern "C"
 // guards internally + a separate coralmicro_fx:: C++ namespace block.
 // Do NOT wrap it ourselves — that re-declares the C++ overloads as C
