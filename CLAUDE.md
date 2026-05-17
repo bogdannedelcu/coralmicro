@@ -6,6 +6,84 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A fork of `coralmicro` (Coral Dev Board Micro firmware — NXP i.MX RT1176, Cortex-M7 @ 800 MHz + Cortex-M4 + EdgeTPU + dual OV5640 cameras). Upstream is a generic FreeRTOS+TFLite-Micro SDK; this fork's active deliverable is the **SentAI firmware** under `examples/sentai_runtime/`, which adds MicroPython REPL over USB CDC-ACM, an HTTP server over USB CDC-NCM, EdgeTPU pipelines, optical-flow on M7, FileX/LevelX user partition, and a Crazyflie radio bridge over UART2.
 
+## Local LLM distillation tool
+
+`scripts/ai_distill.sh <file> "<question>"` — distill a file through
+local Ollama on `hpc.lan` (qwen3.5:35b-a3b, MoE 3B active) and return
+a focused answer to stdout.  Use this when you need information out
+of a long .md / source file but don't want to burn the agent's context
+reading the whole thing.  Wrapper enforces a hard 100 KB input limit
+(model ctx is 32K tokens; larger inputs silently truncate + hallucinate).
+For large files: `sed -n 'A,Bp' file > /tmp/section.md` first, then
+distill.  Override `OLLAMA_MODEL` / `OLLAMA_CTX` via env if needed.
+Returns ~40 tok/s, sub-10s wallclock for typical doc-summary tasks.
+
+## Language hard rule — English everywhere except chat
+
+Operator-stated 2026-05-17.  **All documentation, plans, code,
+comments, commit messages, READMEs, PR descriptions, memory entries,
+and anything else written to disk MUST be in English.**  The final
+thesis paper is in English; the project artefacts must match.
+
+Only allowed Romanian: live chat between operator and assistant
+during a session.  Anything that gets committed, logged, persisted
+to memory, or rendered in a published artefact: English.
+
+If you encounter Romanian text in existing files, translate it on
+your next pass through that file — do not write new Romanian or copy
+Romanian fragments into new artefacts.
+
+## Project plan numbering — WBS hard rule (PMP-style)
+
+Canonical scheme lives in `ideas/wbs.md`.  Every plan artifact (markdown
+in `ideas/`, commit subject lines, experiment READMEs, memory entries,
+task tracker entries, PR descriptions) MUST reference its canonical
+WBS code.  The hierarchy:
+
+- `OP` — project (ObjectsPlan thesis)
+- `OP-S{N}` — Stage (1..10, FROZEN per `objects_plan.md` §3)
+- `OP-S{N}-W{M}` — Work Package (deliverable, ~1 week)
+- `OP-S{N}-W{M}-T{K}` — Task (atomic, ≤ 1 day)
+- `OP-M{N}` — Milestone (cross-stage gate)
+
+Orthogonal axes (NOT WBS): `ARCH-L{n}` (code layer), `EXP-s{NNN}`
+(experiment, append-only), `FW-{NN}` (FutureWork item), `RISK-{NN}`,
+`F-AC-{NN}` (anti-cheat feature), `§{N.M}` (doc-section ref).
+
+**Append-only**: codes are stable IDs (like ticket IDs); never
+renumber, rename, or reorder.  New work appends the next available
+code.  Adding a Stage (`OP-S11+`) needs explicit operator approval.
+**No ad-hoc letters** (`Stage X.A`, `A9`, `W5` etc.) — append a proper
+`OP-S{N}-W{M}-T{K}` instead.  Commit subject convention:
+`OP-S6-W1-T4: <one-line>`.
+
+See `ideas/wbs.md` §3 for the full legacy→canonical mapping table
+(maps old Stage 4.A / A1-A8 / W1-W4 / Stage 11 references to the
+canonical codes).
+
+## Anti-cheat rule — `sentai_sim` is AIR-GAPPED from ground truth
+
+Operator-stated 2026-05-17.  **`sentai_sim` may NOT consume Gazebo
+ground-truth state, ever.**  SentAI sensors are fed only by:
+
+- Camera frames (via `gz_to_uds_bridge` → `/tmp/sentai_cam.sock`; the
+  bridge hard-rejects any non-camera topic at startup)
+- Drone telemetry over CRTP LOG (`sentai.crazy.pose_*`,
+  `sentai.servo.pose()`)
+
+Ground truth (`/world/.../dynamic_pose/info`, model poses, etc.) may be
+used **only on the host side, downstream**, for post-mortem comparison
+in verdict scripts (e.g. compare SentAI's estimate against gz truth to
+measure error).  Never inject ground truth into `sentai_sim` via files,
+sockets, or pre-populated MP state.
+
+Enforcement: `bash sim/scripts/audit_anti_cheat.sh` greps the tree for
+forbidden patterns; the bridge itself allowlists camera topics by
+substring (`/image` or `_cam`).  Legacy PX4 mock experiments (s100-s109)
+are documented exemptions in `sim/ANTI_CHEAT.md` — do NOT pattern after
+them.  Exceptions require explicit operator approval recorded in the
+test's README.
+
 ## Core SentAI design principle
 
 **Compute-intensive work lives in C/C++; MicroPython is for logic, control, and simple glue.** Hot paths (camera ISR, PXP scaling, FFT phase correlation, TPU invocation, NAND I/O, optical flow SAD/USADA8 inner loops) are written in C/C++ with cycle-counted `__attribute__((section(".ramfunc")))` placement and SIMD intrinsics where applicable. MicroPython on top exposes those primitives as `sentai.*` bindings and is used for orchestration, mission scripts (`/main.py`), experiment drivers, and REPL diagnostics — never for tight loops over pixel data or per-frame math. When adding a new feature, ask: is this <1 ms inner-loop work? then C++. Is this scripting / decision logic / sequencing? then MicroPython.

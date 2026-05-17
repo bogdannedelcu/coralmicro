@@ -237,6 +237,19 @@ def main() -> int:
                     help="cflib link URI for cf2 SITL")
     args = ap.parse_args()
 
+    # Anti-cheat allowlist (operator-stated rule 2026-05-17, sim/ANTI_CHEAT.md):
+    # sentai_sim is air-gapped from Gazebo ground truth.  This bridge is the
+    # only camera path INTO sentai_sim, so the topic allowlist is enforced
+    # HERE in addition to the C++ bridge's check.  Camera topics contain
+    # "/image" or "_cam"; any other topic is hard-rejected.
+    t = args.topic
+    if "/image" not in t and "_cam" not in t:
+        print(f"[gz_bridge] REJECTED topic '{t}' — anti-cheat rule:\n"
+              f"           SentAI sensors can only be fed by camera-class\n"
+              f"           topics (containing '/image' or '_cam').  See\n"
+              f"           sim/ANTI_CHEAT.md.", file=sys.stderr)
+        return 5
+
     cfg = dict(DEFAULTS)
     scale_x, scale_y = _scale_to_drone_units(cfg)
     print(f"[gz_bridge] drone-scale: x={scale_x:.3f}  y={scale_y:.3f}  "

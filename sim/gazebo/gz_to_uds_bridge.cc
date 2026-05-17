@@ -285,6 +285,20 @@ void out_accept_loop(int listen_fd) {
 
 }  // namespace
 
+// Anti-cheat allowlist (operator-stated rule 2026-05-17):
+// SentAI sensors must NEVER consume Gazebo ground-truth state.  The bridge
+// is the only path from the simulator into sentai_sim, so the topic
+// allowlist is enforced HERE — any attempt to forward a non-camera topic
+// (e.g. /world/.../dynamic_pose/info, /world/.../model/.../pose) is hard
+// rejected and the bridge refuses to start.  Camera topics are
+// recognised by the substring "/image" or "_cam" — if you need to extend
+// this list, add a justification in the code comment + ANTI_CHEAT.md.
+static bool is_camera_topic(const std::string& t) {
+    if (t.find("/image") != std::string::npos) return true;
+    if (t.find("_cam")   != std::string::npos) return true;
+    return false;
+}
+
 int main(int argc, char** argv) {
     std::string topic    = "/downward_cam/image";
     std::string in_sock  = "/tmp/sentai_cam.sock";
@@ -300,6 +314,15 @@ int main(int argc, char** argv) {
         else if (auto v = eat("--out-sock")) out_sock = v;
     }
 
+    if (!is_camera_topic(topic)) {
+        std::fprintf(stderr,
+            "[bridge] REJECTED topic '%s' — anti-cheat rule: SentAI sensors\n"
+            "         can only be fed by camera-class topics (containing\n"
+            "         '/image' or '_cam').  Gazebo ground-truth subscription\n"
+            "         from sentai_sim is forbidden.  See sim/ANTI_CHEAT.md.\n",
+            topic.c_str());
+        return 5;
+    }
     std::fprintf(stderr, "[bridge] topic=%s in=%s out=%s\n",
                  topic.c_str(), in_sock.c_str(), out_sock.c_str());
 
