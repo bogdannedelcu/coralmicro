@@ -202,6 +202,7 @@ add_executable_m7(sentai_runtime
     sentai_mesh.cc
     sentai_link.cc
     sentai_crazy.cc
+    sentai_crazy_log.cc          # Task #44 — CRTP LOG (pose subscribe) in C
     sentai_httpd.cc
     sentai_fs_task.cc
     sentai_health.cc

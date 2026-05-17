@@ -330,6 +330,11 @@ SECTIONS
      *sentai_crazy.cc.obj(.text .text*)
      *sentai_crazy.cc.obj(.data .data*)
      *sentai_crazy.cc.obj(.rodata .rodata*)
+     /* Task #44 (2026-05-16): sentai.crazy.pose_* — CRTP LOG state machine.
+        Cold-path (mission-driven, ≤10 Hz subscribe/poll). */
+     *sentai_crazy_log.cc.obj(.text .text*)
+     *sentai_crazy_log.cc.obj(.data .data*)
+     *sentai_crazy_log.cc.obj(.rodata .rodata*)
      /* ObjectsPlan L2 (2026-05-13): persistent world-frame object map.
         Pure cold-path data layer, no per-frame work — same SDRAM
         treatment as sentai_tracker.cc.  Per [[itcm-budget]]. */

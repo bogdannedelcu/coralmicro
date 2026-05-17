@@ -174,6 +174,9 @@ add_executable_sim(sentai_sim
     sentai_uart_serial_udp.c      # Phase 6 — sentai.link UART→UDP bridge for SIM
     sentai_link_sim.cc            # Phase 6 — slim MAVLink bridge (heartbeat/statustext)
     sentai_crazy_sim.cc           # Task #39 — sentai.crazy CRTP-over-UDP to cf2 SITL
+    # Task #44 — CRTP LOG (TOC scan + block subscribe + pose cache) in C.
+    # Shared with ARM via the same SENTAI_PLATFORM_SIM pattern as L2-L5.
+    ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_crazy_log.cc
     # Phase 5b — SentAI-SORT tracker, shared with ARM (BoT-SORT adapted).
     ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_tracker.cc
     # ObjectsPlan L2 — persistent world-frame object map (pure data + math,

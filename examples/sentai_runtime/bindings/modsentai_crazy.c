@@ -693,6 +693,59 @@ static mp_obj_t mod_sentai_crazy_link_send(mp_obj_t channel_obj, mp_obj_t data_o
 }
 static MP_DEFINE_CONST_FUN_OBJ_2(mod_sentai_crazy_link_send_obj, mod_sentai_crazy_link_send);
 
+// ========== sentai.crazy.pose_* — Task #44: CRTP LOG in C =============
+// Implementations live in examples/sentai_runtime/sentai_crazy_log.cc
+// (shared ARM+SIM TU; ARM transport relies on a weak recv_pop stub
+// until proper LOG routing lands — see sentai_crazy_log.cc comment).
+
+#include "sentai_crazy_log.h"
+
+// sentai.crazy.pose_subscribe(period_ms=100) -> int
+// Returns 0 ok, -1 transport not initialised, -2 TOC scan timeout,
+// -3 missing var, -4 CREATE_BLOCK NAK, -5 START_LOGGING NAK.
+static mp_obj_t mod_sentai_crazy_pose_subscribe(size_t n_args, const mp_obj_t *args) {
+    int period_ms = (n_args > 0) ? mp_obj_get_int(args[0]) : 100;
+    return mp_obj_new_int(sentai_crazy_pose_subscribe(period_ms));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_crazy_pose_subscribe_obj, 0, 1, mod_sentai_crazy_pose_subscribe);
+
+// sentai.crazy.pose() -> (x, y, z, yaw) tuple, or None if not ready.
+static mp_obj_t mod_sentai_crazy_pose(void) {
+    float x = 0, y = 0, z = 0, yaw = 0;
+    int rc = sentai_crazy_pose(&x, &y, &z, &yaw);
+    if (rc != 0) return mp_const_none;
+    mp_obj_t tup[4] = {
+        mp_obj_new_float(x), mp_obj_new_float(y),
+        mp_obj_new_float(z), mp_obj_new_float(yaw),
+    };
+    return mp_obj_new_tuple(4, tup);
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_crazy_pose_obj, mod_sentai_crazy_pose);
+
+// sentai.crazy.pose_stop() -> int (always 0).
+static mp_obj_t mod_sentai_crazy_pose_stop(void) {
+    return mp_obj_new_int(sentai_crazy_pose_stop());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_crazy_pose_stop_obj, mod_sentai_crazy_pose_stop);
+
+// sentai.crazy.pose_ready() -> 1 if subscribed AND data flowing.
+static mp_obj_t mod_sentai_crazy_pose_ready(void) {
+    return mp_obj_new_int(sentai_crazy_pose_ready());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_crazy_pose_ready_obj, mod_sentai_crazy_pose_ready);
+
+// sentai.crazy.log_stats() -> (subscribed, toc_n, frames, block_id)
+static mp_obj_t mod_sentai_crazy_log_stats(void) {
+    uint32_t s[4];
+    sentai_crazy_log_stats(s);
+    mp_obj_t tup[4] = {
+        mp_obj_new_int_from_uint(s[0]), mp_obj_new_int_from_uint(s[1]),
+        mp_obj_new_int_from_uint(s[2]), mp_obj_new_int_from_uint(s[3]),
+    };
+    return mp_obj_new_tuple(4, tup);
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_crazy_log_stats_obj, mod_sentai_crazy_log_stats);
+
 // ---- module table ----
 static const mp_rom_map_elem_t sentai_crazy_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__),      MP_ROM_QSTR(MP_QSTR_crazy) },
@@ -729,6 +782,12 @@ static const mp_rom_map_elem_t sentai_crazy_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_on_message),     MP_ROM_PTR(&mod_sentai_crazy_on_message_obj) },
     { MP_ROM_QSTR(MP_QSTR_link_send),      MP_ROM_PTR(&mod_sentai_crazy_link_send_obj) },
     { MP_ROM_QSTR(MP_QSTR_send_flow),      MP_ROM_PTR(&mod_sentai_crazy_send_flow_obj) },
+    // Task #44 — pose_* (CRTP LOG in C)
+    { MP_ROM_QSTR(MP_QSTR_pose_subscribe), MP_ROM_PTR(&mod_sentai_crazy_pose_subscribe_obj) },
+    { MP_ROM_QSTR(MP_QSTR_pose),           MP_ROM_PTR(&mod_sentai_crazy_pose_obj) },
+    { MP_ROM_QSTR(MP_QSTR_pose_stop),      MP_ROM_PTR(&mod_sentai_crazy_pose_stop_obj) },
+    { MP_ROM_QSTR(MP_QSTR_pose_ready),     MP_ROM_PTR(&mod_sentai_crazy_pose_ready_obj) },
+    { MP_ROM_QSTR(MP_QSTR_log_stats),      MP_ROM_PTR(&mod_sentai_crazy_log_stats_obj) },
 };
 static MP_DEFINE_CONST_DICT(sentai_crazy_globals, sentai_crazy_globals_table);
 static const mp_obj_module_t sentai_crazy_module = {

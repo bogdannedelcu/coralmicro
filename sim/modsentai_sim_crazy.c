@@ -178,6 +178,54 @@ static mp_obj_t sim_crazy_stats(void) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(sim_crazy_stats_obj, sim_crazy_stats);
 
+/* ========== sentai.crazy.pose_* — Task #44 (CRTP LOG in C) ============
+ * Shared impl with ARM lives in examples/sentai_runtime/sentai_crazy_log.cc,
+ * added to sentai_sim CMakeLists below.
+ */
+extern int  sentai_crazy_pose_subscribe(int period_ms);
+extern int  sentai_crazy_pose(float* x, float* y, float* z, float* yaw);
+extern int  sentai_crazy_pose_stop(void);
+extern int  sentai_crazy_pose_ready(void);
+extern void sentai_crazy_log_stats(uint32_t out[4]);
+
+static mp_obj_t sim_crazy_pose_subscribe(size_t n_args, const mp_obj_t *args) {
+    int period_ms = (n_args > 0) ? mp_obj_get_int(args[0]) : 100;
+    return mp_obj_new_int(sentai_crazy_pose_subscribe(period_ms));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(sim_crazy_pose_subscribe_obj, 0, 1, sim_crazy_pose_subscribe);
+
+static mp_obj_t sim_crazy_pose(void) {
+    float x=0, y=0, z=0, yaw=0;
+    if (sentai_crazy_pose(&x, &y, &z, &yaw) != 0) return mp_const_none;
+    mp_obj_t tup[4] = {
+        mp_obj_new_float(x), mp_obj_new_float(y),
+        mp_obj_new_float(z), mp_obj_new_float(yaw),
+    };
+    return mp_obj_new_tuple(4, tup);
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(sim_crazy_pose_obj, sim_crazy_pose);
+
+static mp_obj_t sim_crazy_pose_stop(void) {
+    return mp_obj_new_int(sentai_crazy_pose_stop());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(sim_crazy_pose_stop_obj, sim_crazy_pose_stop);
+
+static mp_obj_t sim_crazy_pose_ready(void) {
+    return mp_obj_new_int(sentai_crazy_pose_ready());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(sim_crazy_pose_ready_obj, sim_crazy_pose_ready);
+
+static mp_obj_t sim_crazy_log_stats(void) {
+    uint32_t s[4];
+    sentai_crazy_log_stats(s);
+    mp_obj_t tup[4] = {
+        mp_obj_new_int_from_uint(s[0]), mp_obj_new_int_from_uint(s[1]),
+        mp_obj_new_int_from_uint(s[2]), mp_obj_new_int_from_uint(s[3]),
+    };
+    return mp_obj_new_tuple(4, tup);
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(sim_crazy_log_stats_obj, sim_crazy_log_stats);
+
 /* ===================== Module table ===================== */
 static const mp_rom_map_elem_t sentai_crazy_sim_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__),    MP_ROM_QSTR(MP_QSTR_crazy) },
@@ -195,6 +243,12 @@ static const mp_rom_map_elem_t sentai_crazy_sim_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_send_crtp),   MP_ROM_PTR(&sim_crazy_send_crtp_obj) },
     { MP_ROM_QSTR(MP_QSTR_recv_crtp),   MP_ROM_PTR(&sim_crazy_recv_crtp_obj) },
     { MP_ROM_QSTR(MP_QSTR_stats),       MP_ROM_PTR(&sim_crazy_stats_obj) },
+    /* Task #44 — pose_* (CRTP LOG in C) */
+    { MP_ROM_QSTR(MP_QSTR_pose_subscribe), MP_ROM_PTR(&sim_crazy_pose_subscribe_obj) },
+    { MP_ROM_QSTR(MP_QSTR_pose),           MP_ROM_PTR(&sim_crazy_pose_obj) },
+    { MP_ROM_QSTR(MP_QSTR_pose_stop),      MP_ROM_PTR(&sim_crazy_pose_stop_obj) },
+    { MP_ROM_QSTR(MP_QSTR_pose_ready),     MP_ROM_PTR(&sim_crazy_pose_ready_obj) },
+    { MP_ROM_QSTR(MP_QSTR_log_stats),      MP_ROM_PTR(&sim_crazy_log_stats_obj) },
 };
 static MP_DEFINE_CONST_DICT(sentai_crazy_sim_globals, sentai_crazy_sim_globals_table);
 static const mp_obj_module_t sentai_crazy_module = {

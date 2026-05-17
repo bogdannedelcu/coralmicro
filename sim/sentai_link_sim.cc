@@ -80,6 +80,74 @@ static std::atomic<uint32_t> s_repl_r{0};
 static std::atomic<uint32_t> s_repl_dropped{0};
 
 
+/* ---- Pose cache (PX4 → sentai.servo, Task #47) -----------------------
+ * Single writer (link_reader_task), single reader (MP task via
+ * sentai_link_pose()).  Atomic seq publishes new snapshots; readers
+ * sample seq before/after read to detect tearing (4 floats > 1 word).
+ *
+ * Coordinates: PX4 LOCAL_POSITION_NED is North-East-Down.  We translate
+ * to ENU (East-North-Up) so the mission API stays consistent with cf2
+ * (which is ENU in stateEstimate).  yaw comes from ATTITUDE.yaw, range
+ * [-π,π], radians — matches cf2 stabilizer.yaw convention close enough
+ * for thesis-grade mission code (operator chose servo.pose() as
+ * "best-effort backend-uniform pose", not metric guarantee).
+ */
+static std::atomic<uint32_t> s_link_pose_seq{0};
+static std::atomic<uint32_t> s_link_pose_ready{0};
+static float                 s_link_pose_x   = 0.0f;
+static float                 s_link_pose_y   = 0.0f;
+static float                 s_link_pose_z   = 0.0f;
+static float                 s_link_pose_yaw = 0.0f;
+
+/* Seqlock pattern (embeded.md §3.4):
+ *   Writer: seq++ → odd ("in-flight"), write fields, seq++ → even.
+ *   Reader: load seq.  If odd, retry.  Else read fields, load seq
+ *           again — equal = consistent snapshot.
+ * Single writer (link_reader_task), single reader (MP task).  Bounded
+ * retry (4 attempts) so reader can't spin forever on a stuck writer. */
+static inline void link_pose_publish(float x, float y, float z, float yaw) {
+    s_link_pose_seq.fetch_add(1, std::memory_order_release);  /* → odd */
+    s_link_pose_x   = x;
+    s_link_pose_y   = y;
+    s_link_pose_z   = z;
+    s_link_pose_yaw = yaw;
+    s_link_pose_seq.fetch_add(1, std::memory_order_release);  /* → even */
+    s_link_pose_ready.store(1, std::memory_order_release);
+}
+
+extern "C" int sentai_link_pose(float* x, float* y, float* z, float* yaw) {
+    if (s_link_pose_ready.load(std::memory_order_acquire) == 0) return -2;
+    for (int retry = 0; retry < 4; retry++) {
+        uint32_t s0 = s_link_pose_seq.load(std::memory_order_acquire);
+        if (s0 & 1u) continue;   /* writer in-flight, retry */
+        float vx = s_link_pose_x;
+        float vy = s_link_pose_y;
+        float vz = s_link_pose_z;
+        float vyaw = s_link_pose_yaw;
+        uint32_t s1 = s_link_pose_seq.load(std::memory_order_acquire);
+        if (s0 == s1) {
+            if (x)   *x   = vx;
+            if (y)   *y   = vy;
+            if (z)   *z   = vz;
+            if (yaw) *yaw = vyaw;
+            return 0;
+        }
+    }
+    return -2;
+}
+
+extern "C" int sentai_link_pose_subscribe(int period_ms) {
+    /* PX4 streams LOCAL_POSITION_NED + ATTITUDE by default once the EKF
+     * publishes a local frame.  No subscribe handshake is needed —
+     * unlike cf2 LOG TOC, the reader task just picks them up.  We could
+     * issue REQUEST_DATA_STREAM here to bump rate, but that's a v1.14-
+     * deprecated MAVLink message; leaving streams at PX4 defaults
+     * (LOCAL_POSITION_NED ~50 Hz, ATTITUDE ~50 Hz) which match the
+     * mission needs (≤10 Hz pose poll). */
+    (void)period_ms;
+    return 0;
+}
+
 static void repl_fifo_push(const uint8_t* src, size_t n) {
     /* Bounded loop: at most `n` iterations, each O(1). */
     for (size_t i = 0; i < n; ++i) {
@@ -242,6 +310,22 @@ static void link_reader_task(void* arg) {
                     } else {
                         s_stats.rx_other.fetch_add(1);
                     }
+                } else if (msg.msgid == MAVLINK_MSG_ID_LOCAL_POSITION_NED) {
+                    // PX4 → SentAI pose feed (Task #47).
+                    // LOCAL_POSITION_NED is NED → translate to ENU
+                    // (x_east = y_NED, y_north = x_NED, z_up = -z_NED).
+                    mavlink_local_position_ned_t lp;
+                    mavlink_msg_local_position_ned_decode(&msg, &lp);
+                    float x_enu = lp.y;
+                    float y_enu = lp.x;
+                    float z_up  = -lp.z;
+                    // Keep the previous yaw — ATTITUDE handler below refreshes it.
+                    link_pose_publish(x_enu, y_enu, z_up, s_link_pose_yaw);
+                } else if (msg.msgid == MAVLINK_MSG_ID_ATTITUDE) {
+                    mavlink_attitude_t at;
+                    mavlink_msg_attitude_decode(&msg, &at);
+                    link_pose_publish(s_link_pose_x, s_link_pose_y,
+                                       s_link_pose_z, at.yaw);
                 } else {
                     s_stats.rx_other.fetch_add(1);
                     if (s_debug_level >= 2) {
@@ -442,6 +526,64 @@ extern "C" int sentai_link_cmd_takeoff(float altitude_m) {
 extern "C" int sentai_link_cmd_land(void) {
     /* MAV_CMD_NAV_LAND (21): land at current XY, descend to ground. */
     return link_send_command_long(21, 0,0,0,0, 0,0,0);
+}
+
+
+/* ---- Task #47: PX4 backend move() ---------------------------------- *
+ * SET_POSITION_TARGET_LOCAL_NED with MAV_FRAME_LOCAL_OFFSET_NED (=7).
+ * Body of the message specifies an OFFSET in local-NED axes from the
+ * vehicle's current position.  PX4 EKF2 + position controller handle
+ * the trajectory; mission code just sends one message + sleeps for
+ * the expected duration (mirrors cf2 HL Commander go_to semantics).
+ *
+ * Args are ENU deltas (matching cf2 stateEstimate frame); we translate
+ * to NED offsets here so the mission API stays uniform.
+ *
+ *   dx (east_enu)  → dy_NED
+ *   dy (north_enu) → dx_NED
+ *   dz (up_enu)    → -dz_NED
+ *
+ * type_mask leaves position bits 0..2 ACTIVE and disables vel/accel
+ * (bits 3..8) and yaw rate (bit 11); bit 10 (yaw setpoint) is also
+ * disabled — we let PX4 hold whatever yaw it had unless caller is
+ * explicit (servo.move(dyaw=0) maps to NaN here).
+ */
+extern "C" int sentai_link_cmd_move(float dx_enu, float dy_enu,
+                                     float dz_enu, float dyaw_rad) {
+    if (!s_open.load()) return -1;
+    float dx_ned = dy_enu;
+    float dy_ned = dx_enu;
+    float dz_ned = -dz_enu;
+    /* MAV_FRAME_LOCAL_OFFSET_NED = 7.
+     * type_mask: bits set = "ignore".  Position bits (0,1,2) = USE.
+     * vel (3,4,5), accel (6,7,8) = IGNORE.  yaw (10) = USE iff caller
+     * passes finite dyaw; yaw_rate (11) always IGNORE.
+     */
+    uint16_t type_mask = 0;
+    type_mask |= (1u << 3) | (1u << 4) | (1u << 5);   /* ignore vel */
+    type_mask |= (1u << 6) | (1u << 7) | (1u << 8);   /* ignore accel */
+    type_mask |= (1u << 11);                           /* ignore yaw_rate */
+    float yaw_arg = dyaw_rad;
+    if (!std::isfinite(dyaw_rad) || dyaw_rad == 0.0f) {
+        type_mask |= (1u << 10);
+        yaw_arg = 0.0f;
+    }
+    mavlink_message_t msg;
+    mavlink_msg_set_position_target_local_ned_pack(
+        s_sysid, s_compid, &msg,
+        /* time_boot_ms */ (uint32_t)0,
+        /* target_system  */ s_stats.last_peer_sysid.load(),
+        /* target_component*/ s_stats.last_peer_compid.load(),
+        /* coordinate_frame*/ 7,   /* MAV_FRAME_LOCAL_OFFSET_NED */
+        type_mask,
+        dx_ned, dy_ned, dz_ned,
+        0, 0, 0,
+        0, 0, 0,
+        yaw_arg, 0);
+    uint8_t wire[MAVLINK_MAX_PACKET_LEN];
+    int wlen = mavlink_msg_to_send_buffer(wire, &msg);
+    int w = sentai_uart_serial_write(wire, wlen);
+    return (w > 0) ? 0 : -1;
 }
 
 

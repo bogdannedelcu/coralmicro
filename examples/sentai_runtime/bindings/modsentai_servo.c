@@ -112,6 +112,17 @@ static mp_obj_t mod_servo_move(size_t n_args, const mp_obj_t* args) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_servo_move_obj, 3, 4, mod_servo_move);
 
+// ===================== go_to(x, y, z, yaw=0) — absolute ===============
+
+static mp_obj_t mod_servo_go_to(size_t n_args, const mp_obj_t* args) {
+    float x   =                 mp_obj_get_float(args[0]);
+    float y   =                 mp_obj_get_float(args[1]);
+    float z   =                 mp_obj_get_float(args[2]);
+    float yaw = (n_args >= 4) ? mp_obj_get_float(args[3]) : 0.0f;
+    return mp_obj_new_int(sentai_servo_go_to(x, y, z, yaw));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_servo_go_to_obj, 3, 4, mod_servo_go_to);
+
 // ===================== hover / land ====================================
 
 static mp_obj_t mod_servo_hover(void) {
@@ -176,6 +187,35 @@ static mp_obj_t mod_servo_clear_trace(void) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(mod_servo_clear_trace_obj, mod_servo_clear_trace);
 
+// ===================== Stage 4.A: pose() / set_durations() =============
+
+// sentai.servo.set_durations(takeoff_s, move_s, land_s) -> int
+static mp_obj_t mod_servo_set_durations(mp_obj_t to_obj, mp_obj_t mo_obj, mp_obj_t la_obj) {
+    float to = mp_obj_get_float(to_obj);
+    float mo = mp_obj_get_float(mo_obj);
+    float la = mp_obj_get_float(la_obj);
+    return mp_obj_new_int(sentai_servo_set_durations(to, mo, la));
+}
+static MP_DEFINE_CONST_FUN_OBJ_3(mod_servo_set_durations_obj, mod_servo_set_durations);
+
+// sentai.servo.pose() -> (x, y, z, yaw) tuple, or None.
+static mp_obj_t mod_servo_pose(void) {
+    float x=0, y=0, z=0, yaw=0;
+    if (sentai_servo_pose(&x, &y, &z, &yaw) != 0) return mp_const_none;
+    mp_obj_t tup[4] = {
+        mp_obj_new_float(x), mp_obj_new_float(y),
+        mp_obj_new_float(z), mp_obj_new_float(yaw),
+    };
+    return mp_obj_new_tuple(4, tup);
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_servo_pose_obj, mod_servo_pose);
+
+// sentai.servo.pose_ready() -> 0/1
+static mp_obj_t mod_servo_pose_ready(void) {
+    return mp_obj_new_int(sentai_servo_pose_ready());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_servo_pose_ready_obj, mod_servo_pose_ready);
+
 // ===================== Module table ====================================
 
 static const mp_rom_map_elem_t sentai_servo_globals_table[] = {
@@ -185,11 +225,16 @@ static const mp_rom_map_elem_t sentai_servo_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_disarm),       MP_ROM_PTR(&mod_servo_disarm_obj) },
     { MP_ROM_QSTR(MP_QSTR_takeoff),      MP_ROM_PTR(&mod_servo_takeoff_obj) },
     { MP_ROM_QSTR(MP_QSTR_move),         MP_ROM_PTR(&mod_servo_move_obj) },
+    { MP_ROM_QSTR(MP_QSTR_go_to),        MP_ROM_PTR(&mod_servo_go_to_obj) },
     { MP_ROM_QSTR(MP_QSTR_hover),        MP_ROM_PTR(&mod_servo_hover_obj) },
     { MP_ROM_QSTR(MP_QSTR_land),         MP_ROM_PTR(&mod_servo_land_obj) },
     { MP_ROM_QSTR(MP_QSTR_status),       MP_ROM_PTR(&mod_servo_status_obj) },
     { MP_ROM_QSTR(MP_QSTR_trace),        MP_ROM_PTR(&mod_servo_trace_obj) },
     { MP_ROM_QSTR(MP_QSTR_clear_trace),  MP_ROM_PTR(&mod_servo_clear_trace_obj) },
+    // Stage 4.A (#45 + #47): pose + tuning
+    { MP_ROM_QSTR(MP_QSTR_pose),         MP_ROM_PTR(&mod_servo_pose_obj) },
+    { MP_ROM_QSTR(MP_QSTR_pose_ready),   MP_ROM_PTR(&mod_servo_pose_ready_obj) },
+    { MP_ROM_QSTR(MP_QSTR_set_durations),MP_ROM_PTR(&mod_servo_set_durations_obj) },
 
     // Backend ids
     { MP_ROM_QSTR(MP_QSTR_NONE),         MP_ROM_INT(SERVO_BACKEND_NONE) },
@@ -210,6 +255,7 @@ static const mp_rom_map_elem_t sentai_servo_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_ACT_MOVE),     MP_ROM_INT(SERVO_ACT_MOVE) },
     { MP_ROM_QSTR(MP_QSTR_ACT_HOVER),    MP_ROM_INT(SERVO_ACT_HOVER) },
     { MP_ROM_QSTR(MP_QSTR_ACT_LAND),     MP_ROM_INT(SERVO_ACT_LAND) },
+    { MP_ROM_QSTR(MP_QSTR_ACT_GO_TO),    MP_ROM_INT(SERVO_ACT_GO_TO) },
 };
 static MP_DEFINE_CONST_DICT(sentai_servo_globals, sentai_servo_globals_table);
 

@@ -96,6 +96,7 @@ typedef enum {
     SERVO_ACT_MOVE    = 5,
     SERVO_ACT_HOVER   = 6,
     SERVO_ACT_LAND    = 7,
+    SERVO_ACT_GO_TO   = 8,    // absolute waypoint (#45)
 } sentai_servo_action_t;
 
 // ---- Trace ring entry --------------------------------------------------
@@ -185,6 +186,43 @@ int sentai_servo_trace(sentai_servo_trace_t* out, int max);
 // Wipe ring.  FSM state (backend / armed / flight) AND lifetime
 // counters are preserved.  Returns # of entries discarded.
 int sentai_servo_clear_trace(void);
+
+// ============== Stage 4.A: transport wiring (#45 + #47) ================
+//
+// init(backend != SIM) auto-initialises the transport (crazy / link) and
+// subscribes pose feedback.  After init() succeeds, every subsequent
+// action records via the trace ring AND emits transport bytes.  Failures
+// from the transport are surfaced as fault code -4 (TX_FAIL) — separate
+// from the FSM fault codes -1/-2/-3 so post-mortems can tell whether the
+// problem was logic (state machine) or wire (cf2 didn't ACK).
+
+#define SERVO_FAULT_TX_FAIL    (-4)
+
+// Override per-action durations (seconds).  Called any time after init().
+// `move_dur` is the polynomial-trajectory duration for sentai_servo_move();
+// `takeoff_dur`/`land_dur` apply to takeoff()/land().  Defaults: 2 / 6 / 2.
+// Caller must ensure all 3 are > 0; otherwise -1 is returned and state
+// untouched.  Mission constants like s149's WAYPOINT_DUR=6.0 plug in here.
+int sentai_servo_set_durations(float takeoff_dur, float move_dur, float land_dur);
+
+// Absolute go-to (cf2 HL Commander GO_TO with relative=0, PX4
+// SET_POSITION_TARGET_LOCAL_NED with frame=LOCAL_NED).  Mission
+// waypoints expressed in world coords (s147-s151 convention).
+//   Pre: backend != NONE, armed=1, flight=AIRBORNE,
+//        |x|,|y|,|z| ≤ 30 m, all finite.
+//   Returns 0/-1/-2/-3/-4 per fault model.
+int sentai_servo_go_to(float x, float y, float z, float yaw);
+
+// Read the latest autopilot pose snapshot.  Backend-agnostic:
+//   CF2: drains CRTP LOG block (stateEstimate.{x,y,z} + stabilizer.yaw),
+//   PX4: drains MAVLink LOCAL_POSITION_NED + ATTITUDE.
+// Returns 0 on success, -1 if not initialised / no backend, -2 if no
+// frame has arrived yet (pose pipeline not ready).  Any of the out
+// pointers may be NULL.
+int sentai_servo_pose(float* out_x, float* out_y, float* out_z, float* out_yaw);
+
+// True iff pose snapshot is current (at least one frame consumed since init).
+int sentai_servo_pose_ready(void);
 
 #ifdef __cplusplus
 }
