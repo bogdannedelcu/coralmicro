@@ -24,9 +24,11 @@ import sentai
 JOURNAL_NAME    = "mission_s158_journal.txt"
 SUMMARY_NAME    = "mission_s158_summary.json"
 
-# Takeoff to z=1.0 (s160 proved all 4 OpenCV ids 0..3 are visible
-# from there with sub-pixel reprojection).
-TAKEOFF_HEIGHT  = 1.00
+# A4-pad layout: 6 cm flat markers (top at z=0.005).  Hover at 0.5 m
+# gives projected 28.8 px per marker (~5 px/cell, decoder OK).  Higher
+# altitudes shrink the marker below the decoder's reliable range
+# given the heuristic quad extraction.
+TAKEOFF_HEIGHT  = 0.50
 TAKEOFF_DUR     = 2.0
 LAND_DUR        = 2.0
 WAYPOINT_DUR    = 8.0
@@ -35,10 +37,11 @@ CALIB_SETTLE_MS  = 2500
 CALIB_FRAME_PERIOD_MS = 200
 CALIB_N_FRAMES   = 8
 
-# s153 waypoints, scaled down because we're at z=1.0 (not 0.75) and the
-# marker layout is at (±0.15, ±0.10) — visit two non-trivial offsets.
-WP1 = (0.20, 0.00, TAKEOFF_HEIGHT)
-WP2 = (0.20, 0.20, TAKEOFF_HEIGHT)
+# Waypoints scaled to fit the A4 layout (markers at ±0.06 in x, ±0.10
+# in y).  Stay within ~25 cm of origin to keep the markers in FOV
+# during the trajectory.
+WP1 = (0.15, 0.00, TAKEOFF_HEIGHT)
+WP2 = (0.15, 0.15, TAKEOFF_HEIGHT)
 
 # Closure gate same as s153 (10 cm) with a relaxed budget for the
 # extra calibration leg (single 5 cm bump per [[s147-s151-migrations]]).
@@ -53,20 +56,22 @@ CAM_FX = 240.0
 CAM_FY = 240.0
 CAM_CX = 160.0
 CAM_CY = 120.0
-MARKER_SIZE_M = 0.08
+MARKER_SIZE_M = 0.06
 
-# Known marker positions in WORLD frame, from sentai_crazysim.sdf:
-#   model aruco_id<N>:  <pose>X Y Z 0 0 0</pose>, box z=0.10 tall, top
-#   face at z = pose_z + 0.05.  Centre pose values from the SDF.
-# id0=(+0.15, +0.10, 0.15) -> top z=0.20
-# id1=(-0.15, +0.10, 0.15) -> top z=0.20
-# id2=(-0.15, -0.10, 0.15) -> top z=0.20
-# id3=(+0.15, -0.10, 0.15) -> top z=0.20
+# A4 takeoff/landing pad layout (sim identical to real-world A4 print).
+# 4 markers, 6x6 cm flat face, top at z=0.005 m (=5 mm above ground —
+# matches the cat-rug pose to stay in-plane).  Centres at (±60, ±100)
+# mm from page centre.  Total spread 12x20 cm fits A4 portrait
+# (210x297 mm) with ~4.5 cm L/R + 4.85 cm T/B margins.
+#
+# To print: see s158_calib_takeoff/README.md for the exact PDF spec.
+# Real-world setup: lay the A4 sheet flat on a hard surface, drone
+# takes off from page centre, hovers at z=0.5 m, samples markers.
 MARKER_W = {
-    0: (+0.15, +0.10, 0.20),
-    1: (-0.15, +0.10, 0.20),
-    2: (-0.15, -0.10, 0.20),
-    3: (+0.15, -0.10, 0.20),
+    0: (+0.06, +0.10, 0.005),
+    1: (-0.06, +0.10, 0.005),
+    2: (-0.06, -0.10, 0.005),
+    3: (+0.06, -0.10, 0.005),
 }
 
 CALIB_ACCEPT_MEAN_RES_DEG = 3.0

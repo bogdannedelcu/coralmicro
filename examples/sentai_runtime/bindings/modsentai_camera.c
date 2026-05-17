@@ -468,6 +468,64 @@ static mp_obj_t mod_sentai_cam_switch_drain(size_t n_args, const mp_obj_t *args)
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_cam_switch_drain_obj,
                                             0, 1, mod_sentai_cam_switch_drain);
 
+// ───────────────────────────────────────────────────────────────────
+// sentai_camera_grab_gray_zerocopy — C-side hook used by sentai.aruco
+// (OP-S6-W3) so the ArUco detector runs on the latest CSI frame
+// WITHOUT copying the 76 KB image buffer across the MicroPython
+// binding boundary.  Per CLAUDE.md compute-in-C principle.
+//
+// Conversion uses the PXP HARDWARE path (kPXP_OutputPixelFormatY8)
+// — see sentai_pxp_xrgb_to_y8 in sentai_runtime.cc.  PXP computes
+// BT.601 luma internally; no scalar RGB→Y loop.  Per
+// [[arm-hw-primitives-first]] HW primitives FIRST on ARM.
+//
+// Throughput: PXP XRGB→Y8 320×240 ≈ 50 µs (per s111 PXP bench).
+// Scalar fallback would be ~5 ms — 100× slower + ITCM pressure.
+//
+// Thread safety: sentai_cam_grab_latest returns the COMPLETED buffer
+// (CSI ISR fills a different one in the ring).  PXP DMAs into our
+// dedicated scratch; caller may not retain the returned pointer
+// across calls — every call refills s_aruco_gray_buf.
+// ───────────────────────────────────────────────────────────────────
+extern int sentai_cam_grab_latest(uint8_t** raw);
+extern int sentai_cam_get_width(void);
+extern int sentai_cam_get_height(void);
+extern int sentai_pxp_xrgb_to_y8(const uint8_t* src, int src_w, int src_h,
+                                  uint8_t* dst, int dst_w, int dst_h);
+extern volatile int g_cam_grabbed_id;
+
+#define SENTAI_ARUCO_GRAY_W 320
+#define SENTAI_ARUCO_GRAY_H 240
+
+static uint8_t s_aruco_gray_buf[SENTAI_ARUCO_GRAY_W * SENTAI_ARUCO_GRAY_H]
+    __attribute__((section(".sdram_bss"), aligned(64)));
+
+int sentai_camera_grab_gray_zerocopy(const uint8_t** out_buf,
+                                      int* out_w, int* out_h,
+                                      uint32_t* out_seq,
+                                      uint32_t* out_ts_ms) {
+    if (!out_buf || !out_w || !out_h) return -1;
+    uint8_t* xrgb = NULL;
+    int idx = sentai_cam_grab_latest(&xrgb);
+    if (idx < 0 || !xrgb) return -1;
+    const int W = sentai_cam_get_width();
+    const int H = sentai_cam_get_height();
+    if (W <= 0 || H <= 0 ||
+        W > SENTAI_ARUCO_GRAY_W || H > SENTAI_ARUCO_GRAY_H) {
+        return -1;
+    }
+    if (sentai_pxp_xrgb_to_y8(xrgb, W, H,
+                                s_aruco_gray_buf, W, H) != 0) {
+        return -1;
+    }
+    *out_buf = s_aruco_gray_buf;
+    *out_w   = W;
+    *out_h   = H;
+    *out_seq = (uint32_t)g_cam_grabbed_id;
+    if (out_ts_ms) *out_ts_ms = (uint32_t)xTaskGetTickCount();
+    return 0;
+}
+
 // ---- module table ----
 static const mp_rom_map_elem_t sentai_camera_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__),   MP_ROM_QSTR(MP_QSTR_camera) },

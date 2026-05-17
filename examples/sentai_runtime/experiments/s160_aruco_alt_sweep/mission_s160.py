@@ -43,14 +43,15 @@ CAM_FX = 240.0
 CAM_FY = 240.0
 CAM_CX = 160.0
 CAM_CY = 120.0
-# ArUco markers in sentai_crazysim.sdf are 0.08x0.08 m face at z=0.20 m
-# (10 cm tall box on the floor, texture on the top face).
-MARKER_SIZE_M = 0.08
+# A4 layout (2026-05-17): ArUco markers in sentai_crazysim.sdf are
+# 0.06x0.06 m face, FLAT on the ground (top at z=0.005 m).  Smaller
+# than the old 8 cm spec to fit on a real-world A4 print.
+MARKER_SIZE_M = 0.06
 
-# Altitudes (drone z above ground in meters).  Below 0.30 m we get
-# danger from prop-wash + obstacle margin; above 1.2 m markers are
-# too small in 320x240.
-ALT_SWEEP = (0.30, 0.40, 0.50, 0.70, 1.00)
+# Altitudes (drone z above ground in meters).  Sweet spot for the
+# A4 layout is z=0.4-0.6 m (projected 24-36 px per marker); above
+# 0.8 m the 4x4 bit cells get too small for the heuristic decoder.
+ALT_SWEEP = (0.30, 0.40, 0.50, 0.60, 0.80)
 
 
 def _j(label, value=None):

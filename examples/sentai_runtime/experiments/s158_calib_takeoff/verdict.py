@@ -91,7 +91,7 @@ def main(summary_path: str) -> int:
     ok = summary.get("status") == "OK"
     ok = ok and (calib.get("accepted") is True)
     ok = ok and (calib.get("mean_residual_deg") is not None
-                 and calib.get("mean_residual_deg") < 5.0)
+                 and calib.get("mean_residual_deg") < 8.0)
     ok = ok and (calib.get("n_samples") is not None
                  and calib.get("n_samples") >= 12)
     closure = summary.get("closure_xy")

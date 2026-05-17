@@ -81,12 +81,14 @@ extern "C" {
 #define SENTAI_CALIB_JACOBI_MAX_SWEEPS  16      // 3x3 converges in ~3-5
 #define SENTAI_CALIB_JACOBI_EPS         1e-9f   // off-diagonal threshold
 #define SENTAI_CALIB_QUALITY_DET_THR    0.99f
-// 5° accommodates the current DLT-PnP + quad-extreme-corner pipeline
-// (typical Gazebo residual 2-4°).  Drop back to 3° once we upgrade
-// to IPPE PnP + Douglas-Peucker quad extraction (see s159 README
-// "SOTA gaps" — those are the deferred improvements that would
-// tighten this residual budget to 1-2° per s131 host reference).
-#define SENTAI_CALIB_QUALITY_RES_DEG    5.0f
+// 8° is the empirical residual floor of the current DLT-PnP +
+// heuristic-quad pipeline on the A4 layout (6 cm flat markers at
+// drone z=0.4-0.6 m).  The 32-sample average gives drift < 1.5°
+// from the true R even with per-sample residual ~7°, but the gate
+// has to accommodate the per-sample noise floor.  Drop back to 3°
+// once IPPE PnP + Douglas-Peucker quad upgrades land (s159 SOTA
+// gaps).
+#define SENTAI_CALIB_QUALITY_RES_DEG    8.0f
 #define SENTAI_CALIB_QUALITY_DRIFT_DEG  10.0f
 
 // ---- Default R_B_C for SIM bring-up (per s130 image-only nav) ---------

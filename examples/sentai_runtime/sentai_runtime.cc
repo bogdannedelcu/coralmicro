@@ -2461,6 +2461,65 @@ extern "C" int sentai_cam_set_res(int w, int h) {
   return 0;
 }
 
+// ---------------------------------------------------------------------
+// PXP HW path: XRGB8888 (camera native) → Y8 luma (single-plane).
+// Mirrors pxp_scale_xrgb_to_rgb but outputs kPXP_OutputPixelFormatY8 —
+// the PXP computes the BT.601 luma internally so we do NOT write any
+// scalar RGB→Y loop ourselves (see [[arm-hw-primitives-first]]).
+// Used by sentai.aruco / sentai.calib (OP-S6-W1, OP-S6-W3) to feed the
+// detector a Y8 buffer directly from the camera, no MP copy.
+// Returns 0 on success.
+// ---------------------------------------------------------------------
+extern "C"
+__attribute__((section(".sdram_text")))
+int sentai_pxp_xrgb_to_y8(const uint8_t* src, int src_w, int src_h,
+                          uint8_t* dst, int dst_w, int dst_h) {
+  pxp_ps_buffer_config_t ps_cfg;
+  memset(&ps_cfg, 0, sizeof(ps_cfg));
+  ps_cfg.pixelFormat = kPXP_PsPixelFormatRGB888;   /* 32-bit, no alpha */
+  ps_cfg.swapByte    = false;
+  ps_cfg.bufferAddr  = (uint32_t)src;
+  ps_cfg.bufferAddrU = 0;
+  ps_cfg.bufferAddrV = 0;
+  ps_cfg.pitchBytes  = (src_w + LINE_PADDING) * DEMO_CAMERA_BUFFER_BPP;
+
+  pxp_output_buffer_config_t out_cfg;
+  memset(&out_cfg, 0, sizeof(out_cfg));
+  out_cfg.pixelFormat    = kPXP_OutputPixelFormatY8;   /* 8 bpp luma */
+  out_cfg.interlacedMode = kPXP_OutputProgressive;
+  out_cfg.buffer0Addr    = (uint32_t)dst;
+  out_cfg.buffer1Addr    = 0;
+  out_cfg.pitchBytes     = dst_w;                       /* 1 byte / px */
+  out_cfg.width          = dst_w;
+  out_cfg.height         = dst_h;
+
+  const uint32_t dst_size = (uint32_t)(dst_w * dst_h);
+
+#if (__CORTEX_M == 7)
+  DCACHE_CleanInvalidateByRange((uint32_t)dst, dst_size);
+#endif
+
+  PXP_SetProcessSurfaceBufferConfig(DEMO_PXP, &ps_cfg);
+  PXP_SetProcessSurfaceScaler(DEMO_PXP, src_w, src_h, dst_w, dst_h);
+  PXP_SetProcessSurfacePosition(DEMO_PXP, 0, 0, dst_w - 1, dst_h - 1);
+  PXP_SetAlphaSurfacePosition(DEMO_PXP, 0xFFFFU, 0xFFFFU, 0U, 0U);
+  /* CSC1 is NOT needed here — the Y8 output path computes luma
+   * internally using fixed BT.601 coefficients (per RT1176 RM 41.4). */
+  PXP_EnableCsc1(DEMO_PXP, false);
+  PXP_SetOutputBufferConfig(DEMO_PXP, &out_cfg);
+  PXP_Start(DEMO_PXP);
+
+  while (!(kPXP_CompleteFlag & PXP_GetStatusFlags(DEMO_PXP))) {
+    taskYIELD();
+  }
+  PXP_ClearStatusFlags(DEMO_PXP, kPXP_CompleteFlag);
+
+#if (__CORTEX_M == 7)
+  DCACHE_InvalidateByRange((uint32_t)dst, dst_size);
+#endif
+  return 0;
+}
+
 /* Build #980 — accept fps as the second arg to sentai.camera.init().
  * Backward-compatible: callers passing only `streaming` get the
  * previous behaviour (g_runtime_fps stays at its boot default = 30).
