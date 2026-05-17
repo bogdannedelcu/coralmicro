@@ -284,9 +284,13 @@ extern "C" int sentai_slam_start(void) {
     memset(s_avg_ring, 0, sizeof(s_avg_ring));
 
     s_running = true;
+    // Priority +2 matches PrepTask (ARM) / camera_bridge (SIM) so the
+    // sem-driven handoff isn't artificially starved when the producer
+    // sits at the same priority.  On POSIX with time-slicing, equal
+    // priority gives fair scheduling between the producer/consumer pair.
     s_slam_task = xTaskCreateStatic(slam_task_fn, "slam",
                                      kSlamStackWords, nullptr,
-                                     tskIDLE_PRIORITY + 1,
+                                     tskIDLE_PRIORITY + 2,
                                      s_slam_stack, &s_slam_tcb);
     if (!s_slam_task) {
         SERR_LOG(SERR_SLAM_TASK_ALLOC, 0);

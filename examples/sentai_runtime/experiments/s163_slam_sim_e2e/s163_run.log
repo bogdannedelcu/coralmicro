@@ -1,0 +1,22 @@
+[sim] sentai_sim build #172 (2026-05-17 16:52:34)
+[sim] FreeRTOS POSIX port: tick=1000 Hz, heap=4194304 bytes
+[sim] MicroPython heap: 524288 bytes
+
+MicroPython on SentAI SIM (FreeRTOS POSIX port + MicroPython embed)
+Type expressions, end with Enter.  Ctrl-D or 'exit' to quit.
+Try: sentai.version(), sentai.fs.write(...), help()
+
+>>> [sim] FS root: /home/bogdan/work/coralmicro/build-sim/sentai_fs_root
+[PASS] start_slam returns 0 (rc=0)
+camera_bridge: listening on /tmp/sentai_cam.sock (waiting for Gazebo bridge)
+camera_bridge: client connected
+camera_bridge: rgb_crc=0xd8a5f7e7 (prev=0x00000000, CHANGED)
+camera_bridge: client disconnected (frames=14)
+[PASS] frames_processed >= 5 (got 15; dropped=0, last_us=20)
+[PASS] result_seq >= 5 (got 15)
+[PASS] t_compute_us > 0 (got 20)
+[PASS] stop clean (rc=0, running=0)
+[VERDICT] s163 slam_task SIM e2e: PASS
+>>> 
+[sim] EOF on stdin, exiting
+[sim] REPL task done, terminating process

@@ -79,6 +79,8 @@
 #include "task.h"
 
 #include "examples/sentai_runtime/sentai_pxp_shim.h"
+#include "examples/sentai_runtime/sentai_prep.h"     // W11-T4: SLOT_RGB_64 producer
+#include "examples/sentai_runtime/slam_task.h"       // W11-T4: publish helper
 
 // flow_phase_corr public entry — defined in flow_phase_corr.cc.
 extern void sentai_flow_phase_corr_compute_at(int pipe_id,
@@ -601,6 +603,25 @@ static int handle_one_frame(int fd) {
     }
 
     rgb888_to_xrgb8888(s_rgb_full, s_xrgb_buf, EXPECT_W * EXPECT_H);
+
+    // ─── W11-T4: sentai_prep aux slot fan-out (SIM mirror of ARM
+    // PrepTask producer in detection_task.cc:prep_task_fn) ────────────
+    // Same atomic-publish contract; same continuous-publish policy.
+    // When SlamTask is running it has enabled SLOT_RGB_64 — we fire
+    // sentai_prep_publish_slot_rgb_64 which PXP-scales (SIM shim →
+    // scalar area-average) the XRGB buffer and signals SlamTask's
+    // counting sem.  No-op when no consumer is attached.
+    {
+        const uint32_t fire_mask = sentai_prep_tick_frame();
+        if (fire_mask & (1u << SENTAI_PREP_SLOT_RGB_64)) {
+            (void)sentai_prep_publish_slot_rgb_64(s_xrgb_buf,
+                                                   EXPECT_W, EXPECT_H);
+        }
+        // SLOT_GRAY_NATIVE + SLOT_GRAY_64 producers on SIM: not yet
+        // wired — no SIM consumer requires them at this point.
+        // Adding them is mechanical (mirror the SLOT_RGB_64 block
+        // with the appropriate PXP shim variant).
+    }
 
     int rc = sentai_pxp_scale(s_xrgb_buf, EXPECT_W, EXPECT_H,
                               s_rgb_small, DST_W, DST_H);
