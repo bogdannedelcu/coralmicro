@@ -77,7 +77,27 @@ typedef struct {
 
 // Lifecycle.  Idempotent — calling start() while running is a no-op
 // (returns 0).  Calling stop() while not running is also a no-op.
-// Returns 0 on success, negative on failure.
+//
+// ARM prereqs (enforced — start() fails if missing):
+//   1. sentai.camera.init(streaming=1, ...)  → enables CSI + PXP HW
+//      (BOARD_InitPxp runs inside HandleEnableRequest, only triggered
+//      by sentai.camera.init).  See [[pxp-init-required]].
+//   2. sentai.pipeline.start()               → starts PrepTask, which
+//      is the SLOT_RGB_64 producer.  Without this, SlamTask wakes on
+//      its 500-ms timeout cycle and reports idle (frames_processed=0).
+//
+// SIM: no equivalent gates.  The frame producer is
+// `camera_bridge_recv` which is always live once `sentai_sim` is up;
+// Phase 1d will wire SLOT_RGB_64 production into it.  Until then,
+// start_slam() returns 0 but the task idles.
+//
+// Return codes:
+//    0  success
+//   -1  sem allocation failed
+//   -2  slot enable failed
+//   -3  task allocation failed
+//  -10  ARM-only: sentai.camera.init not called
+//  -11  ARM-only: sentai.pipeline.start not called
 int  sentai_slam_start(void);
 int  sentai_slam_stop(void);
 int  sentai_slam_is_running(void);

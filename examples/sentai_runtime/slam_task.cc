@@ -161,8 +161,28 @@ static void slam_task_fn(void* /*param*/) {
 // ============================================================
 // Lifecycle.
 // ============================================================
+
+#ifndef SENTAI_PLATFORM_SIM
+// ARM prereq probes — defined in sentai_runtime.cc / detection_task.cc.
+// On SIM the camera/pipeline equivalents don't exist; the producer
+// (camera_bridge_recv) is always alive once main() runs.
+extern "C" int sentai_cam_is_initialized(void);
+extern "C" int sentai_detection_is_running(void);
+#endif
+
 extern "C" int sentai_slam_start(void) {
     if (s_running && s_slam_task) return 0;   // idempotent
+
+#ifndef SENTAI_PLATFORM_SIM
+    // F0: prereq — camera (and therefore PXP HW via BOARD_InitPxp,
+    // see [[pxp-init-required]]) must be initialised before we can
+    // run sentai_pxp_scale in the PrepTask SLOT_RGB_64 producer.
+    if (!sentai_cam_is_initialized()) return -10;
+
+    // F0: prereq — PrepTask must be running, since IT is the
+    // SLOT_RGB_64 producer.  Without it SlamTask would idle forever.
+    if (!sentai_detection_is_running()) return -11;
+#endif
 
     // Lazy sem create — heap touched only at init, per NASA/JPL §1.3.
     // Counting sem with max=1 → multiple signals between consumer wakes

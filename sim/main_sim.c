@@ -207,6 +207,12 @@ int main(void) {
     printf("[sim] MicroPython heap: %u bytes\n", (unsigned) MP_HEAP_SIZE);
     fflush(stdout);
 
+    /* Initialize the sentai_prep slot table (refcounts=0, frame_div=1).
+     * BSS-zero is defensive; explicit init keeps the contract clean
+     * per [[op-s10-w11-prep-pipeline]]. */
+    extern void sentai_prep_init(void);
+    sentai_prep_init();
+
     BaseType_t ok = xTaskCreate(
         repl_task, "repl",
         configMINIMAL_STACK_SIZE * 8,    /* generous: MP can recurse */

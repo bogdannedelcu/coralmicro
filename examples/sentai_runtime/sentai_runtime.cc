@@ -1055,7 +1055,15 @@ extern "C" void app_main(void* param) {
 
   // Initialize health monitoring FIRST
   sentai_health_init();
-  
+
+  // Initialize the sentai_prep slot table (refcounts=0, frame_div=1,
+  // counters=0).  BSS-zero is defensive (sentai_prep_tick_frame
+  // treats frame_div==0 as 1), but an explicit init keeps the
+  // contract clean per [[op-s10-w11-prep-pipeline]] and avoids
+  // surprise if BSS layout ever changes.
+  extern void sentai_prep_init(void);
+  sentai_prep_init();
+
   // Initialize boot logging FIRST (before any printf)
   boot_log_init();
   sentai_boot_progress_mark(0x11);
