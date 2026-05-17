@@ -380,6 +380,14 @@ SECTIONS
      *sentai_calib.cc.obj(.text .text*)
      *sentai_calib.cc.obj(.data .data*)
      *sentai_calib.cc.obj(.rodata .rodata*)
+     /* ObjectsPlan OP-S6-W3 (2026-05-17): sentai.aruco detector + PnP.
+        Per-frame detect ~5-10 ms on M7 (estimated from s111 building
+        blocks).  Routed to .sdram_text — preprocessing buffers live
+        in .sdram_bss (~150 KB).  Detect runs in camera_bridge_recv /
+        detection_task; readers via slot snapshot. */
+     *sentai_aruco.cc.obj(.text .text*)
+     *sentai_aruco.cc.obj(.data .data*)
+     *sentai_aruco.cc.obj(.rodata .rodata*)
      /* Track A places (s139+, 2026-05-16): PHOG descriptor compute.
         Cold-path ~1 Hz, ~10 ms on M7; .sdram_text per [[itcm-budget]]. */
      *sentai_phog.cc.obj(.text .text*)

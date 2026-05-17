@@ -202,6 +202,10 @@ add_executable_m7(sentai_runtime
     # falls back to host stdio in the cwd.  See Sim.md §2 rule 2 — we
     # feature-detect, never test for the ARM target directly.
     sentai_calib.cc
+    # ObjectsPlan OP-S6-W3 — sentai.aruco fiducial detector + PnP.
+    # Compute-heavy work (adaptive threshold, contour finder, PnP)
+    # stays in C/C++; MP binding returns small scalars only.
+    sentai_aruco.cc
     sentai_explore.cc
     modsentai_hal.cc
     sentai_mesh.cc

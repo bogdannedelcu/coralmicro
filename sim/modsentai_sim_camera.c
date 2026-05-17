@@ -154,6 +154,66 @@ static mp_obj_t sentai_camera_grab_gray(size_t n_args, const mp_obj_t* args) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(sentai_camera_grab_gray_obj, 0, 2, sentai_camera_grab_gray);
 
+/* Zero-copy gray-frame hook for C consumers (sentai_aruco, future
+ * sentai_phog, ...).  Returns a pointer into the static s_grab_gray
+ * buffer + dims + frame_seq + a tick-count timestamp.  Caller MUST
+ * consume the data before the next call (single-buffer; if a future
+ * task needs concurrent consumption switch to a 2-slot rotating
+ * cache).  Returns 0 on success, -1 on no-frame / failure.
+ *
+ * Default working resolution: 320x240 — matches sentai_aruco intrinsics
+ * defaults + the s091/s130 aruco_hover capture.  Caller can later add
+ * per-consumer dims if needed; for the OP-S6-W3 path 320x240 suffices.
+ */
+extern uint32_t sentai_now_ms(void) __attribute__((weak));
+int sentai_camera_grab_gray_zerocopy(const uint8_t** out_buf,
+                                      int* out_w, int* out_h,
+                                      uint32_t* out_seq,
+                                      uint32_t* out_ts_ms) {
+    if (!out_buf || !out_w || !out_h) return -1;
+    const int W = 320, H = 240;
+    int cw = 0, ch = 0;
+    uint32_t seq = 0;
+    size_t got = sim_camera_latest_rgb(s_grab_rgb_src, sizeof(s_grab_rgb_src),
+                                        &cw, &ch, &seq);
+    if (got == 0 || cw <= 0 || ch <= 0) return -1;
+    if ((size_t)(cw * ch * 3) > sizeof(s_grab_rgb_src)) return -1;
+
+    const uint8_t* rgb_src;
+    int rw, rh;
+    if (cw == W && ch == H) {
+        rgb_src = s_grab_rgb_src;
+        rw = cw;
+        rh = ch;
+    } else {
+        if (sim_resize_rgb888_nearest(s_grab_rgb_src, cw, ch,
+                                       s_grab_rgb_dst, W, H) != 0) {
+            return -1;
+        }
+        rgb_src = s_grab_rgb_dst;
+        rw = W;
+        rh = H;
+    }
+    const int n_pix = rw * rh;
+    for (int i = 0; i < n_pix; ++i) {
+        int r = rgb_src[i*3 + 0];
+        int g = rgb_src[i*3 + 1];
+        int b = rgb_src[i*3 + 2];
+        int y = ((66*r + 129*g + 25*b + 128) >> 8) + 16;
+        if (y < 0) y = 0;
+        if (y > 255) y = 255;
+        s_grab_gray[i] = (uint8_t)y;
+    }
+    *out_buf = s_grab_gray;
+    *out_w   = rw;
+    *out_h   = rh;
+    *out_seq = seq;
+    if (out_ts_ms) {
+        *out_ts_ms = sentai_now_ms ? sentai_now_ms() : 0u;
+    }
+    return 0;
+}
+
 static const mp_rom_map_elem_t sentai_camera_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__),    MP_ROM_QSTR(MP_QSTR_camera) },
     { MP_ROM_QSTR(MP_QSTR_init),        MP_ROM_PTR(&sentai_camera_init_obj) },

@@ -125,6 +125,9 @@ static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(sentai_verbose_obj, 0, 1,
 // with ARM via the same #include; the .cc file branches on
 // SENTAI_HAVE_FXUSER to pick FileX (ARM) vs host stdio (SIM).
 #include "../examples/sentai_runtime/bindings/modsentai_calib.c"
+// ObjectsPlan OP-S6-W3 — sentai.aruco (fiducial detector + PnP).
+// Compute in C/C++; MP returns scalars only.
+#include "../examples/sentai_runtime/bindings/modsentai_aruco.c"
 // ObjectsPlan L6 — sentai.explore (mission FSM).  Pure FSM that wraps
 // L4 servo + L5 lifter; shared with ARM via the same #include.
 #include "../examples/sentai_runtime/bindings/modsentai_explore.c"
@@ -155,6 +158,7 @@ static const mp_rom_map_elem_t sentai_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_servo),    MP_ROM_PTR(&sentai_servo_module) },
     { MP_ROM_QSTR(MP_QSTR_object_lifter), MP_ROM_PTR(&sentai_object_lifter_module) },
     { MP_ROM_QSTR(MP_QSTR_calib),    MP_ROM_PTR(&sentai_calib_module) },
+    { MP_ROM_QSTR(MP_QSTR_aruco),    MP_ROM_PTR(&sentai_aruco_module) },
     { MP_ROM_QSTR(MP_QSTR_explore),  MP_ROM_PTR(&sentai_explore_module) },
     { MP_ROM_QSTR(MP_QSTR_crazy),    MP_ROM_PTR(&sentai_crazy_module) },
     { MP_ROM_QSTR(MP_QSTR_sim),      MP_ROM_PTR(&sentai_sim_module) },

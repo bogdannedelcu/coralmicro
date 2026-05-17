@@ -201,6 +201,9 @@ add_executable_sim(sentai_sim
     # ObjectsPlan OP-S6-W1 — sentai.calib (camera-to-body Kabsch).  Pure
     # float math; SIM build skips FxUser (HOST stdio fallback in .cc).
     ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_calib.cc
+    # ObjectsPlan OP-S6-W3 — sentai.aruco fiducial detector + PnP.
+    # Pure C/C++; SIM zerocopy hook lives in modsentai_sim_camera.c.
+    ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_aruco.cc
     # ObjectsPlan L6 — mission FSM wrapping L4 servo + L5 lifter.
     # Pure FSM, no transport bytes; same #include pattern as L2-L5.
     ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_explore.cc
