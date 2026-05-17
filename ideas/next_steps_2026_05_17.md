@@ -1,113 +1,155 @@
-# Next steps — post sentai.servo Stage 4.A (2026-05-17)
+# Next steps — ObjectsPlan in-scope remainder (2026-05-17)
 
-Plan derivat din memoriile cross-session + research review 2026-05-16.
-Ordonat critical-path → improvements → hardening → future work.
+Plan strict scoped to `ideas/objects_plan.md` §23.2 thesis-MVP items
+that are still TODO. Research directions from `research_review_2026_05_16.md`
+are sanity-check / FutureWork material; they do NOT belong in this plan.
 
----
+Updated tally of §23.2 status post sentai.servo Stage 4.A landing
+(commit 58f47bd4, 2026-05-17):
 
-## A. Critical path (thesis-defense blockers)
-
-### A1. Migrate remaining missions s147/s148/s150/s151 → sentai.servo paradigm
-- **State**: s152_hex_patrol_servo PASS (closure 2.31 cm) demonstrates the canonical pattern. s149-equivalent. s147/s148/s150/s151 still on old `sentai.crazy.*` + `crtp_log.py` shape.
-- **Effort**: ~3-4h per mission, mostly mechanical. Drop `import crtp_log`, replace `sentai.crazy.X` with `sentai.servo.X`, fix `_converge_to` settle_ms bug if present.
-- **Gate**: each migrated mission must pass its existing verdict closure gate (10 cm single-lap, 12 cm 2-lap per [[sim-test-must-return-home]]).
-- **Why now**: closes [[s147-s151-migrations-shipped]] memory loop, validates servo paradigm across 5 mission shapes, kills the `crtp_log.py` host-side dependency completely.
-
-### A2. Stage 9 prep — ARM port of sentai_crazy_recv_pop + LOG routing
-- **State**: ARM links via weak stub of `sentai_crazy_recv_pop`. On real hardware, `sentai.crazy.pose_subscribe()` returns -2 (TOC timeout). Per CLAUDE.md hard rule "ARM build must never regress" + [[missions-run-in-sentai-only]].
-- **Effort**: ~1 week. Add a generic LOG-channel RX FIFO in `sentai_crazy.cc` (`crazy_rx_task` already parses LOG packets per-block; widen the routing to a 32-entry SPSC ring for non-altitude blocks). Drop the weak stub.
-- **Gate**: smoke pose_subscribe + pose() on the live Crazyflie radio bridge ([[crazyflie-radio-bridge]] board #1224 + drone 53d72897).
-
-### A3. Camera-mount R_cam_to_body auto-calibration on ARM
-- **State**: SIM has 3D Procrustes Kabsch auto-calib at takeoff via ArUco landing pad ([[camera-mount-calibration]]). ARM build stale; objects_plan.md §21 documents ±2-5° per-unit mount tolerance.
-- **Effort**: ~1 week. Port `_shared/camera_calibration.py` logic into C; write to `/system/cam_calib.json` via FxUser. Run at boot if calibrated marker visible.
-- **Why now**: any real-hardware demo requires this — uncalibrated mount = systematic bias in PnP-derived pose.
-
----
-
-## B. Research-driven improvements (5 directions from research_review_2026_05_16.md)
-
-### B1. Schmidt-EKF upgrade for sentai_object_lifter [impact: high, effort: 2-3 wk]
-- **Source**: Geneva CVPR 2019 (arXiv 1903.08636), MDPI Machines 13(7):582 (2025).
-- **What**: Replace independent per-slot 6-state EKFs with a coupled formulation that treats matured landmarks as nuisance parameters (kept in covariance, never updated). Linear cost in map size; bounded-error consistency — the property reviewers will demand.
-- **Files**: new `sentai_object_lifter_schmidt.cc` (flag-switchable); reproduce s131 math-validation harness with Schmidt variant; FlowBaseline gate after.
-- **Risk**: numerical stability — Joseph form + ρ_min clamp already in baseline lifter; verify Schmidt preserves them.
-
-### B2. SeqSLAM-style sequence VPR over Track A [impact: high, effort: 1-2 wk]
-- **Source**: Milford & Wyeth ICRA 2012; MDPI Drones 8(7):322 (2024).
-- **What**: Match K=5 consecutive PHOG/GIST descriptors as a DP-aligned sequence rather than single-frame. Suppresses spurious single-frame false-positives under viewpoint drift. K×168 floats ~3.4 KB ringbuffer. Zero TPU cost.
-- **Files**: new `sentai_places_sequence.cc`; expose `sentai.places.match_sequence(K, descs[])`; re-run s143 loop-closure with K=5; measure FP reduction.
-- **Promotion**: lives in FutureWork FW2 today; this lifts it into the implementation tree.
-
-### B3. SQ-SLAM superquadric upgrade to lifter [impact: high, effort: 3-4 wk]
-- **Source**: Cao/Han/Yang JIRS 2023 (arXiv 2209.10817).
-- **What**: Replace 3D-point landmark with superquadric (5-10 params: pose + extent + shape ε). Gives orientation AND footprint, exploitable by `sentai.explore` (near/far inspect, footprint class). Fits 64-byte L3 slot at 8×float16.
-- **Files**: extend `sentai_object_lifter.cc`; SIM-first validation on s132 Gazebo Aruco scene; ARM port after.
-- **Risk**: Gauss-Newton iteration on 5-param residual — bounded by 8 iters / 1 ms M7 budget.
-
-### B4. Binary-descriptor short-circuit for VPR [impact: medium, effort: 2 wk]
-- **Source**: SuperVLAD (NeurIPS 2024), BinVPR (MDPI Sensors 24(13):4130, 2024).
-- **What**: Derive 256-bit signature via `sign(GIST - median)`. Hamming popcount over 64 slots = ~64×4 instructions on M7 SIMD (`__USADA8` pattern from s111). Short-circuit ahead of full L1 ranking; only top-K candidates pay full distance.
-- **Files**: `sentai_places_binary.cc`; `sentai.places.bin_match()` API; gate via Hamming-recall@K vs L1 sweep, target ≤5% recall drop.
-
-### B5. Thesis writeup — sentai.servo as publishable artifact [impact: medium-high, effort: 1 wk writing]
-- **Source**: Panerati 2026 (arXiv 2602.07264), UAL 2020, Aerostack2 2023.
-- **What**: §3 "Action layer" subsection + 2-column comparison table (CPU/MEM/firmware/backends/transport) positioning sentai.servo as the on-MCU counterpart of aerial-autonomy-stack/UAL/Aerostack2. Cross-section unoccupied in literature.
-- **No code**. Push into objects_plan.md §22 or new ideas/thesis_chapter_action_layer.md.
+| §23.2 element | Status | Notes |
+|---|---|---|
+| Foundation infra | ✅ shipped | |
+| L2 sentai.objects | ✅ shipped | |
+| L3 sentai.places (H3) | ✅ shipped | |
+| L4 sentai.servo | ✅ shipped — **now with Stage 4.A backend dispatch (CF2 + PX4)** | |
+| L4.5 image-only nav (s130) | ✅ shipped | |
+| L5 sentai.object_lifter | ✅ shipped (s132 Gazebo PASS) | |
+| L6 sentai.explore | ✅ skeleton + s135-s138 SIM PASS | Stage A1 below extends |
+| **L1 tracker minimal** | TODO | item §23.2 |
+| **Stage 6 sentai.calib (on-board MP binding)** | TODO | item §23.2 — mandatory before HW indoor |
+| **Track A places minimal (PHOG+GIST+HSV+FFT)** | partial: PHOG (s139) + GIST (s140) + baseline (s141) + HexPatrol (s142) + loop closure (s143-s144) all SIM PASS | HSV + FFT-mag descriptors still TODO; cross-track validation against opposite-direction recall ≥ 80% TODO |
+| **Stage 9 ARM bring-up + DWT timing** | TODO | item §23.2 — "rulează pe MCU real" |
+| **L7 integrated indoor demo (§23.1 north star)** | TODO | item §23.2 |
+| **Outdoor PX4 experiments (2-3 runs)** | TODO | item §23.2 |
+| **DNN models on-board** | TODO (parallel track, not on this plan) | |
+| **Quantitative evaluation chapter** | TODO | item §23.2 |
 
 ---
 
-## C. Hardening / tech debt
+## Critical path (linear-sequenced per §23.5)
 
-### C1. Refactor T2 — split sentai_runtime.cc (3321 LoC) + sentai_crazy.cc (2007 LoC)
-- **State**: Sim.md §10y notes the planned split; not started.
-- **Why**: before Stage 9 ARM bringup, monoliths become merge-conflict magnets and obscure ownership.
-- **Effort**: ~2 days. Split by concern (boot, USB CDC, MP REPL, FS, watchdog for runtime; CPX framing, CRTP routing, HL Commander, telemetry for crazy).
+### A1. Migrate s147/s148/s150/s151 → sentai.servo paradigm
+**Why first**: closes [[s147-s151-migrations-shipped]] loop and validates Stage 4.A across 5 mission shapes before anything new ships on top of it. s152 already PASS as the template.
 
-### C2. Document sentai.servo Stage 4.A in objects_plan.md
-- **State**: §3 Stage 4 still describes skeleton-only. Update with the wiring that landed (#45 + #47), the SERVO_FAULT_TX_FAIL code, the dispatch table.
-- **Effort**: 1h.
+- Drop `import crtp_log`, replace `sentai.crazy.*` with `sentai.servo.*`
+- Apply the `_converge_to(settle_ms / poll_ms)` fix from s152 mission (settle_ms < poll_ms invariant)
+- Each migrated mission must pass its existing closure gate (10 cm single-lap, 12 cm 2-lap per [[sim-test-must-return-home]])
+- Estimated: 3-4h per mission × 4 = ~2 days
+- Output: `s153_s149_servo`, `s154_s147_servo`, `s155_s148_servo`, `s156_s150_servo`, `s157_s151_servo` (or rename in-place if cleaner)
 
-### C3. Migrate ARM build out of WICED pre-existing breakage
-- **State**: `bash build.sh` fails on `wwd_rtos.c` (vTaskStackOverflowHook type conflict) — unrelated to sentai code. We build via `cmake --build build --target sentai_runtime` to bypass.
-- **Effort**: 1-2h. Either patch wwd_rtos.c locally or disable WICED in apps/CMakeLists.txt.
-- **Why**: CI gate on full `bash build.sh` is broken until fixed.
+### A2. L1 tracker minimal (§23.2 TODO)
+**Why**: L5 lifter needs stable tracklet_id across frames. Currently the s132 path uses ArUco-id-as-tracklet for thesis MVP per §23.2 note. For the indoor demo (L7) with DNN-detected objects, we need a real 2D tracker.
+
+- Choice already made in `sentai_tracker.cc`: BoT-SORT-lite + ByteTrack + IMU CMC + histograms. TENTATIVE/CONFIRMED/LOST states already exist.
+- TODO: wire `sentai_tracker.update()` output (track_id) into `sentai_object_lifter.observe(track_id, bearing)` end-to-end on a Gazebo scene with multiple non-ArUco objects.
+- Validation: SIM smoke with 2-3 cubes of different colors, drone orbits, lifter accumulates 3 landmarks with stable ids ≥ 5 s each.
+- Estimated: 1 week (mostly wiring; algorithm already exists).
+
+### A3. Track A places: complete HSV + FFT-mag descriptors
+**Why**: §22.5 design ships PHOG + GIST + HSV + FFT-mag (4 components). PHOG + GIST already in (s139/s140). HSV + FFT-mag remain.
+
+- HSV: 8×8×8 = 512-bin histogram on hue/sat/val, project to 64 B via top-K bins. Cold-path C++, mirror `sentai_phog.cc` shape.
+- FFT-mag: log-polar FFT magnitude (rotation invariance per §14). 32-bin coarse grid → 64 B. CMSIS-DSP `arm_rfft_fast_f32` on ARM, FFTW3 on SIM (existing shim).
+- Each lands in `sentai_places.cc` as a new compute method + 64-byte slot variant.
+- Validation: s158_hsv_baseline + s159_fft_baseline anti-regression gates (mirror s141 PHOG/GIST goldens).
+- Open: opposite-direction recall ≥ 80% test per §14 — requires drone to fly through gallery in BOTH directions and match.
+- Estimated: 2 weeks (1 week descriptor coding + 1 week validation + opposite-dir test).
+
+### A4. Stage 6 sentai.calib on-board MP binding
+**Why**: §23.2 mandatory before HW indoor demo. Per [[camera-mount-calibration]] real hardware has ±2-5° mount tolerance per unit.
+
+- Port `_shared/camera_calibration.py` Kabsch 3D Procrustes logic to C (`sentai_calib.cc`)
+- Run at boot if calibrated ArUco marker visible; persist to `/system/cam_calib.json` via FxUser
+- MP binding: `sentai.calib.run_takeoff_pad()`, `sentai.calib.get_R_cam_to_body()`, `sentai.calib.is_calibrated()`
+- Validation: SIM round-trip — perturb known-good extrinsics in Gazebo, calibrate, recover within 0.5°
+- Estimated: 1 week.
+
+### A5. Stage 9 ARM bring-up + DWT timing
+**Why**: §23.2 thesis-essence. "Rulează pe MCU real" — the central claim.
+
+Prerequisites (decompose first):
+- Add generic LOG-channel RX FIFO in `sentai_crazy.cc` so `sentai_crazy_recv_pop` on ARM actually drains (today: weak stub returning 0; `sentai.crazy.pose_subscribe()` returns -2 on ARM). Single 32-entry SPSC ring; rest of `crazy_rx_task` per-block routing stays unchanged.
+- Verify radio bridge per [[crazyflie-radio-bridge]] (board #1224 + drone 53d72897) carries CRTP LOG frames over the UART CPX channel. Drone-side bridge already forwards CRTP host→radio; need to confirm reverse direction.
+
+Main bring-up:
+- Flash sentai_runtime onto Coral Dev Board Micro, verify `sentai.version()` reports correct build #
+- Smoke `sentai.servo.init(CF2)` + `pose_subscribe` + `pose()` over radio
+- Instrument each pipeline stage with DWT cycle counter:
+  - Camera → PXP → flow phase-corr
+  - TPU invoke + detection
+  - Tracker update
+  - Lifter EKF step
+  - Servo dispatch + transport TX
+- Capture full pipeline 1 Hz for 60 s; produce table for thesis eval chapter
+- Estimated: 2 weeks (1 week ARM LOG ring + radio verify; 1 week timing harness + capture)
+
+### A6. L7 integrated indoor demo (§23.1 north star)
+**Why**: thesis defense demo. Must repeat 95% / 20 runs.
+
+Composition: A1 (servo paradigm) + A2 (tracker) + A3 (full Track A places) + A4 (calib) + A5 (ARM bring-up) → drone autonomously explores 5×5m room, visits objects on radio REPL command, returns to origin with drift < 15 cm.
+
+- New mission `s160_l7_indoor_demo.py`: combines `sentai.explore` FSM + `sentai.places.match_*` recall + radio REPL command parser
+- Validation: 20 consecutive runs, drift histogram, success rate, success := all phases fired + closure < 15 cm + ≥ N/3 places recovered
+- Estimated: 3 weeks (1 week composition + 1 week tuning under real lighting + 1 week 20-run validation campaign)
+
+### A7. Outdoor PX4 experiments (2 runs minimum)
+**Why**: §23.2 generality validation. Same source compiles for PX4 backend (already wired in #47).
+
+- ArUco landmarks at known poses, GPS ground truth log
+- Mission: takeoff → 3-waypoint pattern → return, on PX4 SITL first then real PX4 frame
+- Validation: same closure gate adapted (50 cm outdoor budget per §23.1)
+- Estimated: 2 weeks (1 week PX4 frame setup + 1 week flight ops + log capture)
+
+### A8. Quantitative evaluation chapter
+**Why**: §23.2 numbers reviewers will demand.
+
+- Drift/min vs altitude, object count, mission duration
+- Success rate (mission completion + closure)
+- Per-pipeline-stage latency (from A5 DWT instrumentation)
+- Power (board-level, USB inline ammeter)
+- Compile into thesis evaluation chapter
+- Estimated: 2 weeks pure writing.
 
 ---
 
-## D. Recommended sequencing (8-week horizon)
+## Sequencing (12-week horizon to defense-ready)
 
 | Week | Focus |
 |---|---|
-| 1 | A1 (migrate s147/s148/s150/s151 to servo) + C2 (docs) |
-| 2 | A2 (ARM LOG routing) + smoke pose on real Crazyflie |
-| 3 | B5 (thesis writeup §3 + comparison table) |
-| 4-5 | B1 (Schmidt-EKF lifter upgrade) |
-| 6 | B2 (SeqSLAM over PHOG/GIST) + B4 (binary short-circuit) — parallel |
-| 7 | A3 (ARM camera auto-calib) |
-| 8 | B3 (SQ-SLAM superquadric) start; spills into next sprint |
+| 1 | A1 migrate s147/s148/s150/s151 (paradigm closure) |
+| 2-3 | A3 HSV + FFT-mag descriptors + anti-regression gates |
+| 4 | A2 L1 tracker wiring to lifter |
+| 5 | A4 Stage 6 calib MP binding |
+| 6-7 | A5 ARM bring-up (LOG ring + radio + DWT timing) |
+| 8-10 | A6 L7 indoor demo + 20-run validation |
+| 11 | A7 outdoor PX4 (2 runs) |
+| 12 | A8 evaluation chapter writeup |
 
-C1 (refactor T2) and C3 (WICED fix) are slot-in anytime, ideally weeks 1-3.
-
----
-
-## E. Out of scope (anti-list — do NOT pull in)
-
-Per memory `[[objectsplan-vs-futurework]]`:
-
-- NetVLAD/MixVPR/AnyLoc on EdgeTPU — anti-recommendation #1 in research review.
-- Loopy-SLAM / dense neural SLAM — GPU-class.
-- Tightly-coupled VIO with HW timestamp sync — RT1176 lacks the silicon.
-- ROS / MAVROS bridge for sentai.servo — gives up the "no-SBC" thesis claim.
-- L1 ego-motion EKF own on M7 — redundant with PX4/cf2 internal KF.
-- XfeatSLAM (g2o won't fit 1 MB OCRAM).
+Slack: ~10% buffer absorbed into A6 (lighting tuning is unpredictable).
 
 ---
 
-## F. Cross-references
+## Anti-list (do NOT pull in from research review)
 
-- Research review: `ideas/research_review_2026_05_16.md`
-- Thesis-MVP scope: `ideas/objects_plan.md` §23
+The 5 improvement directions in `ideas/research_review_2026_05_16.md`
+(Schmidt-EKF, SeqSLAM, SQ-SLAM, binary-VPR short-circuit, thesis writeup
+artifact) are **FutureWork material**, not in-scope per §23.2.
+
+Per [[objectsplan-vs-futurework]]: research review = sanity check that
+our choices stay aligned with literature; promotion criteria for any
+direction to move from FutureWork into ObjectsPlan must be documented
+(e.g., "Schmidt-EKF promotes iff inverse-depth lifter shows divergence
+> 5% on real-world ARM bring-up"). None of the 5 currently meet a
+promotion criterion.
+
+---
+
+## Cross-references
+
+- Scope freeze: `ideas/objects_plan.md` §23 (frozen 2026-05-15)
 - FutureWork parking lot: `ideas/FutureWork.md`
-- Mission canonical pattern: `examples/sentai_runtime/experiments/s152_hex_patrol_servo/`
-- SIL plan: `Sim.md` §10y (file org) + §10z (execution model)
+- Sanity-check research review: `ideas/research_review_2026_05_16.md`
+- Canonical mission pattern: `examples/sentai_runtime/experiments/s152_hex_patrol_servo/`
+- SIL execution model: `Sim.md` §10z
+- Memory rules: [[missions-run-in-sentai-only]], [[sim-test-must-return-home]], [[test-must-be-relevant-to-claim]], [[gate-every-layer-no-exceptions]]
