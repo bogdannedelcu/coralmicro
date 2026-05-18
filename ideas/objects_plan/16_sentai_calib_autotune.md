@@ -463,6 +463,113 @@ Phase-2 plan: T7 persistence, T11 step-response (cleaner
 deterministic alternative), then s127 FlowBaseline regression
 re-validated with WITH-NOISE SDF + identified Kp.
 
+## 12. T16 prerequisite — rotation-robust marker selection (in progress)
+
+Operator-asked 2026-05-18 ("nu poti folosi doar markeri care nu au
+problema asta? Doar ne trebuie 4 markeri bine alesi"): instead of
+listing PnP rotation-decoder ambiguity as a "failure mode to
+anticipate" for T16, eliminate it by choosing 4 markers from the
+4×4_50 dictionary whose bit pattern is maximally distinguishable
+from its own 90°/180°/270° rotations.
+
+### Why this matters
+
+Current SDF uses IDs 0..3 (first 4 in dict).  No rotation-
+robustness analysis was done at marker-selection time.  Some of
+these IDs may have a bit pattern that, when rotated 90°, matches
+another valid marker (or is very close in Hamming distance) →
+the detector flips orientation hypotheses → tvec/rvec become
+unstable at certain camera-rotation angles.
+
+For T16 (drone rotates 360° at ~30°/s while hovering), this WILL
+appear as n_dets dropouts at specific rotation angles + possibly
+big jumps in computed drone yaw from PnP aggregate.  Replacing
+with rotation-robust markers eliminates the entire failure class.
+
+### Step-by-step plan (in execution order)
+
+1. **`sim/scripts/aruco_pick_robust.py`** — offline Python analysis:
+     - load DICT_4X4_50 via cv2.aruco
+     - for each ID 0..49: compute marker bit pattern + its 3
+       rotations; score = min Hamming distance from each rotation
+       to ANY other marker in the dict
+     - sort by score desc; pick top 4
+     - emit chosen IDs + score table to stdout for the diary
+   Output: 4 chosen marker IDs.
+
+2. **Generate PNG textures** for chosen IDs via cv2.aruco's
+   `generateImageMarker()`; save to
+   `sim/gazebo/materials/textures/aruco_4x4_50_id<N>.png`.
+   (Existing 0..3 already present; only NEW IDs need generation.)
+
+3. **Update vendor SDF** (CrazySim tree, separate git, manually
+   tracked): replace 4 `<albedo_map>...id{0..3}.png</albedo_map>`
+   with the chosen IDs.  Pose offsets stay (±0.12, ±0.20 grid).
+
+4. **Update `KNOWN_POSITIONS_M`** in 3 places (positions stay,
+   only IDs change):
+     - `examples/sentai_runtime/sentai_calib_task.cc` (KNOWN_POS_M
+       table — currently indexed by ID 0..3; change indexing
+       scheme to map chosen IDs to positions)
+     - `examples/sentai_runtime/experiments/s090_hover_over_cat/
+       aruco_detector.py` (KNOWN_POSITIONS_M dict — change keys)
+     - Any mission file that references specific IDs (none in
+       current s17X — they all just count n_dets ≥ 4).
+
+5. **(Optional)** update `sentai_aruco`'s 8-entry placeholder
+   dictionary if the chosen IDs aren't in the first 8 slots.
+
+6. **Baseline regression** — re-run s173 HOLD with new markers:
+   should pass with same ~1.5 cm max / 0.7 cm RMS bound.  If
+   drift envelope changes significantly, investigate intrinsics
+   or detector parameters before proceeding to T16.
+
+7. **Diary entry** — record chosen IDs + score in
+   `diary/2026-05-18.md` so the rationale is preserved.
+
+### Save-point markers (if we get blocked)
+
+- After step 1: chosen IDs known.  Re-startable from step 2.
+- After step 2-3: PNGs + SDF updated.  Re-startable from step 4
+  (apply code-side `KNOWN_POSITIONS_M` change).
+- After step 4-5: code uses new IDs.  Step 6 (regression) gates
+  T16 proceed.
+
+### Result: prerequisite VERIFIED, no texture work needed
+
+`sim/scripts/aruco_pick_robust.py` ran (2026-05-18) over the full
+DICT_4X4_50 with three independent scorings:
+
+| Set | In-scene min Hamming | Verdict |
+|---|---|---|
+| Legacy {0,1,2,3} (currently in SDF) | **7** | ✅ safe (max possible 16) |
+| Greedy top-4 by ext-dict score {1,23,0,2} | 6 | ⬇ slightly WORSE in-scene |
+| Brute-force optimum {1,4,8,40} | **8** | ✅ math optimum |
+
+Hamming 7 on a 16-bit pattern = 44 % of bits flipped from any
+rotation to any other in-scene marker → essentially impossible
+for the detector to confuse.  Web search cross-check (OpenCV
+docs + PyImageSearch + community FAQ) confirmed: ArUco dictionary
+design already handles rotation-recovery by construction; the
+"PoseEstimation ambiguity" issue (#3190) is a CAMERA-MARKER
+GEOMETRY problem (small/distant markers), not a marker-ID
+problem.  Our 12 cm markers at z = 0.9 m project ~32 px/side —
+well outside the small-marker ambiguity regime.
+
+Marginal gain Hamming 7→8 not worth the 30 min of texture
+generation + SDF rewrite + 3-file KNOWN_POSITIONS_M update +
+regression re-baseline.
+
+**Step 7 (diary entry) done; this section IS the record.**
+
+Marker selection prerequisite for T16: ✅ **VERIFIED — no
+change required to legacy {0,1,2,3}**.  Proceed to T16
+implementation.
+
+Estimated total saved: ~30 min by NOT doing the texture work.
+Analysis script kept in `sim/scripts/aruco_pick_robust.py` for
+future audits / different dictionary choices.
+
 ## 10. Cross-references
 
 - [[op-s6-w1-calib-shipped]] — existing `sentai.calib` Kabsch / SVD
