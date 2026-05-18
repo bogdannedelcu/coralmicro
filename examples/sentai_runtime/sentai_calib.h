@@ -242,6 +242,19 @@ int sentai_calib_task_start(sentai_calib_axis_t axis,
 int sentai_calib_task_stop(void);
 int sentai_calib_task_is_done(void);          // 0/1
 
+// OP-S10-W14-T12 — VALIDATION mode: use identified Kp_x, Kp_y in a
+// closed-loop P-controller hold for dur_s seconds.  At each camera
+// tick:  v_cmd_x = -kp_x * drift_x,  v_cmd_y = -kp_y * drift_y,
+// hover(v_cmd_x, v_cmd_y, 0, z_hold).  Measures max + RMS drift
+// during the hold for post-mortem (logged via sentai.fr).  Use to
+// confirm the autotune-identified gains actually hold position when
+// both axes are active simultaneously (vs the relay autotune which
+// is single-axis).
+int sentai_calib_hold_start(float kp_x, float kp_y,
+                              float vmax_clip, float dur_s);
+float sentai_calib_get_hold_max_drift_m(void);
+float sentai_calib_get_hold_rms_drift_m(void);
+
 #ifdef __cplusplus
 }
 #endif

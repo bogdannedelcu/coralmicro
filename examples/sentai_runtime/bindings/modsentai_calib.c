@@ -284,6 +284,29 @@ static mp_obj_t calib_get_td_ms(void) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(calib_get_td_ms_obj, calib_get_td_ms);
 
+// OP-S10-W14-T12 — HOLD validation (closed-loop P with both Kp_x/y).
+//   sentai.calib.hold_start(kp_x, kp_y, vmax_clip, dur_s) -> int
+static mp_obj_t calib_hold_start(size_t n_args, const mp_obj_t* args) {
+    float kp_x      = mp_obj_get_float(args[0]);
+    float kp_y      = mp_obj_get_float(args[1]);
+    float vmax_clip = mp_obj_get_float(args[2]);
+    float dur_s     = mp_obj_get_float(args[3]);
+    return mp_obj_new_int(sentai_calib_hold_start(kp_x, kp_y,
+                                                    vmax_clip, dur_s));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(calib_hold_start_obj, 4, 4,
+                                            calib_hold_start);
+
+static mp_obj_t calib_get_hold_max(void) {
+    return mp_obj_new_float(sentai_calib_get_hold_max_drift_m());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(calib_get_hold_max_obj, calib_get_hold_max);
+
+static mp_obj_t calib_get_hold_rms(void) {
+    return mp_obj_new_float(sentai_calib_get_hold_rms_drift_m());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(calib_get_hold_rms_obj, calib_get_hold_rms);
+
 // ===================== Module table =====================
 
 static const mp_rom_map_elem_t sentai_calib_globals_table[] = {
@@ -306,6 +329,10 @@ static const mp_rom_map_elem_t sentai_calib_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_is_done),           MP_ROM_PTR(&calib_is_done_obj) },
     { MP_ROM_QSTR(MP_QSTR_get_kp),            MP_ROM_PTR(&calib_get_kp_obj) },
     { MP_ROM_QSTR(MP_QSTR_get_td_ms),         MP_ROM_PTR(&calib_get_td_ms_obj) },
+    // OP-S10-W14-T12 — HOLD validation
+    { MP_ROM_QSTR(MP_QSTR_hold_start),        MP_ROM_PTR(&calib_hold_start_obj) },
+    { MP_ROM_QSTR(MP_QSTR_get_hold_max),      MP_ROM_PTR(&calib_get_hold_max_obj) },
+    { MP_ROM_QSTR(MP_QSTR_get_hold_rms),      MP_ROM_PTR(&calib_get_hold_rms_obj) },
 };
 static MP_DEFINE_CONST_DICT(sentai_calib_globals, sentai_calib_globals_table);
 

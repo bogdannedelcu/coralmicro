@@ -80,6 +80,21 @@ static uint32_t s_n_ticks      = 0;
 static uint32_t s_n_valid_pnp  = 0;
 static uint32_t s_n_no_pnp     = 0;
 
+// ── HOLD mode (W14-T12 validation) — closed-loop P-controller using
+//    the autotuned Kp values on BOTH axes simultaneously.  Different
+//    code path from the relay autotune; same shared infrastructure
+//    (PnP read, VPE forward, hover() command, anchor).
+enum WorkerMode { MODE_AUTOTUNE = 0, MODE_HOLD = 1 };
+static int   s_mode             = MODE_AUTOTUNE;
+static float s_hold_kp_x        = 0.0f;
+static float s_hold_kp_y        = 0.0f;
+static float s_hold_vmax_clip   = 0.30f;
+static float s_hold_dur_s       = 30.0f;
+static float s_hold_max_drift_m = 0.0f;     // peak |drift| L2 distance
+static float s_hold_rms_sum_sq  = 0.0f;     // running sum of drift²
+static uint32_t s_hold_rms_n     = 0;
+static uint32_t s_hold_t_start_ms = 0;
+
 inline uint32_t now_ms_() {
     if (sentai_now_ms) return sentai_now_ms();
     // No SIM-local fallback here; SIM should always have a now_ms
@@ -249,6 +264,68 @@ void worker_loop_() {
             }
         }
 
+        // ── HOLD MODE branch (W14-T12 validation) ────────────────
+        // Use BOTH Kp_x and Kp_y simultaneously in a closed-loop
+        // P-controller.  No relay, no oscillation — pure feedback
+        // using the autotune-identified gains.  Measures peak +
+        // RMS drift for verdict.
+        if (s_mode == MODE_HOLD) {
+            float drift_x = pnp_valid
+                ? drift_along_axis_(mk, n, SENTAI_CALIB_AXIS_X) : 0.0f;
+            float drift_y = pnp_valid
+                ? drift_along_axis_(mk, n, SENTAI_CALIB_AXIS_Y) : 0.0f;
+            // Negative feedback P-control: drive AGAINST drift.
+            float vx_p = -s_hold_kp_x * drift_x;
+            float vy_p = -s_hold_kp_y * drift_y;
+            // Saturation clip.
+            if (vx_p > +s_hold_vmax_clip) vx_p = +s_hold_vmax_clip;
+            if (vx_p < -s_hold_vmax_clip) vx_p = -s_hold_vmax_clip;
+            if (vy_p > +s_hold_vmax_clip) vy_p = +s_hold_vmax_clip;
+            if (vy_p < -s_hold_vmax_clip) vy_p = -s_hold_vmax_clip;
+            (void)sentai_crazy_hover(vx_p, vy_p, 0.0f, s_ctx.z_hold_m);
+
+            // Stats: peak + RMS of L2 drift distance.
+            if (pnp_valid) {
+                float d2 = drift_x*drift_x + drift_y*drift_y;
+                float d  = sqrtf(d2);
+                if (d > s_hold_max_drift_m) s_hold_max_drift_m = d;
+                s_hold_rms_sum_sq += d2;
+                ++s_hold_rms_n;
+            }
+            sentai_fr_push_scalar("hold_drift_x", drift_x, ts);
+            sentai_fr_push_scalar("hold_drift_y", drift_y, ts);
+            sentai_fr_push_scalar("hold_vx_cmd",  vx_p,    ts);
+            sentai_fr_push_scalar("hold_vy_cmd",  vy_p,    ts);
+
+            if (s_hold_t_start_ms == 0) s_hold_t_start_ms = ts;
+            float hold_elapsed_s =
+                (float)(ts - s_hold_t_start_ms) * 1e-3f;
+            if (hold_elapsed_s >= s_hold_dur_s) {
+                float rms = (s_hold_rms_n > 0)
+                    ? sqrtf(s_hold_rms_sum_sq / (float)s_hold_rms_n)
+                    : 0.0f;
+                char buf[128];
+                snprintf(buf, sizeof(buf),
+                         "kp_x=%.3f kp_y=%.3f dur=%.1f max=%.4fm rms=%.4fm n=%u",
+                         (double)s_hold_kp_x, (double)s_hold_kp_y,
+                         (double)s_hold_dur_s,
+                         (double)s_hold_max_drift_m, (double)rms,
+                         (unsigned)s_hold_rms_n);
+                sentai_fr_push_event("hold_done", buf);
+                (void)sentai_crazy_hover(0.0f, 0.0f, 0.0f, s_ctx.z_hold_m);
+                s_done = true;
+                break;
+            }
+            // Safety abort exits HOLD same as autotune.
+            if (sentai_safety_is_aborted()) {
+                sentai_fr_push_event("hold", "safety_abort");
+                s_done = true;
+                break;
+            }
+            vTaskDelay(pdMS_TO_TICKS(SENTAI_CALIB_TASK_PERIOD_MS));
+            continue;       // skip the AUTOTUNE block below
+        }
+
         // Drive the state machine.
         float v_cmd = sentai_calib_autotune_tick(drift_m, ts, pnp_valid);
 
@@ -392,6 +469,7 @@ extern "C" int sentai_calib_task_start(sentai_calib_axis_t axis,
     s_n_valid_pnp   = 0;
     s_n_no_pnp      = 0;
     s_done          = false;
+    s_mode          = MODE_AUTOTUNE;
     sentai_calib_autotune_init();
     int arm_rc = sentai_calib_autotune_arm(axis, dur_s, vmax_m_s);
     if (arm_rc != 0) return -2;
@@ -427,4 +505,57 @@ extern "C" int sentai_calib_task_stop(void) {
 
 extern "C" int sentai_calib_task_is_done(void) {
     return s_done ? 1 : 0;
+}
+
+// ─── HOLD validation API (W14-T12) ────────────────────────────────
+extern "C" int sentai_calib_hold_start(float kp_x, float kp_y,
+                                         float vmax_clip, float dur_s) {
+    if (s_started) return 0;                          // already running
+    if (!(kp_x > 0.0f && kp_x < 10.0f))   return -1;
+    if (!(kp_y > 0.0f && kp_y < 10.0f))   return -1;
+    if (!(dur_s > 0.0f && dur_s < 300.0f)) return -1;
+    if (!(vmax_clip > 0.0f && vmax_clip < 1.0f)) return -1;
+
+    // Reset shared state (same as task_start does for AUTOTUNE).
+    s_anchored      = 0;
+    s_anchor_cx     = 0.0f;
+    s_anchor_cy     = 0.0f;
+    s_n_ticks       = 0;
+    s_n_valid_pnp   = 0;
+    s_n_no_pnp      = 0;
+    s_done          = false;
+    // HOLD-specific state.
+    s_mode             = MODE_HOLD;
+    s_hold_kp_x        = kp_x;
+    s_hold_kp_y        = kp_y;
+    s_hold_vmax_clip   = vmax_clip;
+    s_hold_dur_s       = dur_s;
+    s_hold_max_drift_m = 0.0f;
+    s_hold_rms_sum_sq  = 0.0f;
+    s_hold_rms_n       = 0;
+    s_hold_t_start_ms  = 0;
+
+    if (!s_stop_evt) s_stop_evt = xEventGroupCreate();
+    if (!s_stop_evt) return -3;
+    xEventGroupClearBits(s_stop_evt, STOP_BIT);
+
+    BaseType_t ok = xTaskCreate(
+        worker_entry_, "sentai_calib",
+        configMINIMAL_STACK_SIZE * 4, nullptr,
+        tskIDLE_PRIORITY + 2, &s_task_handle);
+    if (ok != pdPASS || !s_task_handle) {
+        fprintf(stderr, "[sentai_calib_task] HOLD xTaskCreate FAIL ok=%ld\n",
+                (long)ok);
+        return -4;
+    }
+    s_started = true;
+    return 0;
+}
+
+extern "C" float sentai_calib_get_hold_max_drift_m(void) {
+    return s_hold_max_drift_m;
+}
+extern "C" float sentai_calib_get_hold_rms_drift_m(void) {
+    if (s_hold_rms_n == 0) return 0.0f;
+    return sqrtf(s_hold_rms_sum_sq / (float)s_hold_rms_n);
 }
