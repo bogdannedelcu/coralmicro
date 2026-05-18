@@ -19,9 +19,14 @@ import sentai
 Z_HOLD       = 0.90    # 50% above s127/s170 baseline (0.60m) — operator
                        # 2026-05-18 ("altitudine mai mare cu 50% ca sa poti
                        # avea mai mult loc de manevra")
-TAKEOFF_DUR  = 2.0
+TAKEOFF_DUR  = 2.5    # Iter #12: longer takeoff so cf2 reaches z_hold
+                       # FULLY before hl_stop releases HL Commander.
 LAND_DUR     = 2.5
-SETTLE_S     = 1.2
+SETTLE_S     = 4.0    # Iter #12: was 1.2 s.  GT showed cf2 still at
+                       # z=0.5 m after 1.2 s — takeoff trajectory
+                       # incomplete.  Longer settle gives altitude
+                       # PID time to converge to 0.9 m before relay
+                       # disturbs it.
 
 # Marker geometry — matches the doubled 2026-05-18 SDF layout
 # (sentai_crazysim.sdf aruco_id0..3 at ±0.12, ±0.20; 0.12 m face).
@@ -36,7 +41,10 @@ AT_VMAX      = 0.10        # m/s relay magnitude
 
 # Safety
 SAFETY_N_MIN      = 4
-SAFETY_MAX_LOSS_S = 1.0
+# Operator 2026-05-18 ("4 secunde e ok sa stam fara markeri in FOV
+# nu e grav"): give autotune room to overshoot momentarily.  120
+# frames at 30 FPS = 4.0 s — relaxed from baseline s170's 1.0 s.
+SAFETY_MAX_LOSS_S = 4.0
 
 POLL_MS         = 100
 DEADLINE_MS     = int((AT_DUR_S + 10.0) * 1000.0)
@@ -119,6 +127,18 @@ def run():
         sentai.rtos.sleep_ms(int(SETTLE_S * 1000))
         _j("takeoff_settled", {})
         summary["phases_done"].append("takeoff")
+
+        # Release HL Commander so the autotune's hover() commands
+        # take effect (otherwise HL position-hold setpoints win).
+        # OP-S10-W14 iter #11 — without this, hover() is ignored
+        # post-takeoff.  After hl_stop(), CALIB worker MUST send
+        # hover() at 30 Hz continuously or cf2 motors cut.
+        _j("crazy_hl_stop", {"rc": sentai.crazy.hl_stop()})
+        # Prime hover at z_hold before starting autotune task so the
+        # cf2 Commander watchdog has fresh Generic Setpoints to keep.
+        for _ in range(5):
+            sentai.crazy.hover(0.0, 0.0, 0.0, Z_HOLD)
+            sentai.rtos.sleep_ms(30)
 
         # ── Arm safety BEFORE autotune (4-marker invariant) ────────
         _j("safety_enable_aruco",

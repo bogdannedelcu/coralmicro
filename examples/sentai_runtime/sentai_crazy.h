@@ -83,6 +83,15 @@ int sentai_crazy_stop_motors(uint8_t group_mask);
 int sentai_crazy_go_to(float x, float y, float z, float yaw, float duration,
                        int relative, int linear, uint8_t group_mask);
 
+// HL Commander STOP — sets the HL Commander state to IDLE so Generic
+// Setpoint commands (hover/attitude) take effect WITHOUT being
+// overridden by HL position-hold setpoints.  Does NOT kill motors;
+// the caller must already be sending Generic Setpoints at 10+ Hz or
+// the cf2 Commander watchdog will trigger motors-off after ~1 s.
+// Use case (OP-S10-W14): release HL after sentai_crazy_takeoff() so
+// the autotuner's hover() velocity commands actually drive the drone.
+int sentai_crazy_hl_stop(uint8_t group_mask);
+
 // ===================== Generic Setpoint: Hover =====================
 // Velocity-based hover. Must be sent CONTINUOUSLY at ~10-20 Hz.
 // If you stop sending, the CrazyFlie safety watchdog cuts motors after ~1s.

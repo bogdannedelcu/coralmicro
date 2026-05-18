@@ -8,6 +8,7 @@
 
 #include "sentai_calib_autotune.h"
 #include "sentai_calib.h"
+#include "sentai_fr.h"            // for sentai_fr_push_scalar (peak logging)
 
 #include <math.h>
 #include <string.h>
@@ -40,12 +41,17 @@ struct State {
 
     // Live sign discovery (operator 2026-05-18 — "nu cumva sign-ul
     // poate fi detectat live").  In ARMING we apply +v_max for
-    // SIGN_PROBE_MS and measure which way drift goes.  If +v_max
-    // makes drift INCREASE (drive away from anchor), the sign is
-    // inverted relative to our convention → sign_flip = -1, so
-    // EXCITING multiplies the chosen relay direction by -1.
+    // SIGN_PROBE_MS and track the PEAK signed drift response (not
+    // end-of-probe — cf2's velocity loop has overshoot, the
+    // end-value can have any sign).  Sign of peak |drift| during
+    // probe determines `sign_flip`:
+    //   peak > 0  → "+v_max produced positive drift" → relay
+    //               uses sign_flip = +1 (drive opposite of sign(drift))
+    //   peak < 0  → "+v_max produced negative drift" → relay
+    //               uses sign_flip = -1 (drive same as sign(drift))
     float    sign_drift_at_probe_start;
-    int      sign_flip;          // +1 or -1 after probe
+    float    sign_probe_peak_signed;   // max |drift| during probe, signed
+    int      sign_flip;                 // +1 or -1 after probe
     uint32_t t_probe_started_ms;
 
     // DONE_OK results (valid only when state == DONE_OK)
@@ -57,10 +63,17 @@ struct State {
 static State s = {};
 
 #ifndef SENTAI_CALIB_AT_SIGN_PROBE_MS
-#define SENTAI_CALIB_AT_SIGN_PROBE_MS  1000  // 1 s of probe
+// 2026-05-18 iter #3: 1 s → 1.5 s.  cf2's velocity loop response
+// has ~500 ms time constant in SIM; probe needed > 1 RC period to
+// capture the steady-state direction not just the initial overshoot.
+#define SENTAI_CALIB_AT_SIGN_PROBE_MS  1500
 #endif
 #ifndef SENTAI_CALIB_AT_SIGN_MIN_DRIFT_M
-#define SENTAI_CALIB_AT_SIGN_MIN_DRIFT_M 0.010f  // ≥ 1 cm to call it
+// PEAK |drift| must exceed this magnitude during probe for sign
+// detection to be conclusive.  6 mm = 3 × dead-band (was 10 mm,
+// but trial #2 saw peak −9.7 mm get rejected as "too close to
+// threshold" while end-of-probe was +12 mm → wrong sign chosen).
+#define SENTAI_CALIB_AT_SIGN_MIN_DRIFT_M 0.006f
 #endif
 
 inline int sign_of_(float x, float dead) {
@@ -145,9 +158,10 @@ extern "C" int sentai_calib_autotune_arm(sentai_calib_axis_t axis,
     s.last_Tu_s      = 0.0f;
     s.last_ay_m      = 0.0f;
     s.last_cycles    = 0;
-    s.sign_flip      = +1;
+    s.sign_flip                 = +1;
     s.sign_drift_at_probe_start = 0.0f;
-    s.t_probe_started_ms = 0;
+    s.sign_probe_peak_signed    = 0.0f;
+    s.t_probe_started_ms        = 0;
     s.state          = SENTAI_CALIB_AT_ARMING;
     return 0;
 }
@@ -194,18 +208,25 @@ extern "C" float sentai_calib_autotune_tick(float drift_m,
     }
 
     // ── ARMING: sign-probe phase ─────────────────────────────────
-    // Apply +v_max for SIGN_PROBE_MS and observe drift sign change.
-    // If drift went POSITIVE we know "command +v → drift +"; that's
-    // the SAME direction → sign_flip = -1 so EXCITING drives against
-    // it.  If drift went negative, sign convention matches our
-    // negative-feedback assumption → sign_flip = +1.
+    // Apply +v_max for SIGN_PROBE_MS and track the PEAK signed drift
+    // excursion.  cf2's velocity loop has overshoot, so end-of-probe
+    // value can be wrong-signed (trial #2: peak -9.7 mm but end
+    // +12 mm — wrong sign chosen).  Using peak |drift| is robust
+    // because the largest deviation reflects which way the loop is
+    // actually being pushed, not where damping eventually settles.
     if (s.state == SENTAI_CALIB_AT_ARMING) {
         if (s.t_probe_started_ms == 0) {
-            s.t_probe_started_ms       = ts_ms;
+            s.t_probe_started_ms        = ts_ms;
             s.sign_drift_at_probe_start = drift_m;
-            s.last_v_cmd               = +s.vmax_m_s;
-            s.prev_drift_m             = drift_m;
+            s.sign_probe_peak_signed    = 0.0f;
+            s.last_v_cmd                = +s.vmax_m_s;
+            s.prev_drift_m              = drift_m;
             return s.last_v_cmd;
+        }
+        // Track peak |drift| signed (excursion from anchor).
+        float excursion = drift_m - s.sign_drift_at_probe_start;
+        if (fabsf(excursion) > fabsf(s.sign_probe_peak_signed)) {
+            s.sign_probe_peak_signed = excursion;
         }
         uint32_t probe_elapsed = ts_ms - s.t_probe_started_ms;
         if (probe_elapsed < SENTAI_CALIB_AT_SIGN_PROBE_MS) {
@@ -214,35 +235,25 @@ extern "C" float sentai_calib_autotune_tick(float drift_m,
             s.prev_drift_m = drift_m;
             return s.last_v_cmd;
         }
-        // Probe complete — analyse.
-        float ddrift = drift_m - s.sign_drift_at_probe_start;
-        if (ddrift > +SENTAI_CALIB_AT_SIGN_MIN_DRIFT_M) {
-            // +v_max increased drift (drove drone +X in our drift
-            // coordinate).  For negative feedback the relay must
-            // command -v_max when drift > 0; with our existing
-            // "command sign opposite of drift sign" logic that's
-            // already correct → sign_flip = +1.
+        // Probe complete — analyse PEAK signed excursion.
+        float peak = s.sign_probe_peak_signed;
+        if (peak > +SENTAI_CALIB_AT_SIGN_MIN_DRIFT_M) {
+            // +v_max peak in +drift direction → drift sign matches
+            // our negative-feedback assumption → sign_flip = +1.
             s.sign_flip = +1;
-        } else if (ddrift < -SENTAI_CALIB_AT_SIGN_MIN_DRIFT_M) {
-            // +v_max DECREASED drift — i.e. the relay direction we
-            // assume points the WRONG way.  Multiply by -1.
+        } else if (peak < -SENTAI_CALIB_AT_SIGN_MIN_DRIFT_M) {
+            // +v_max peak in -drift direction → convention inverted.
             s.sign_flip = -1;
         } else {
-            // Inconclusive (drone barely moved).  Default sign_flip
-            // remains +1; relay may still converge if hold dynamics
-            // are right.
+            // Inconclusive (drone barely moved beyond noise).
+            // Default sign_flip = +1; if wrong, drone drifts away
+            // until safety latches abort — operator visible failure
+            // mode, not silent error.
             s.sign_flip = +1;
         }
         // Transition.
         s.state        = SENTAI_CALIB_AT_EXCITING;
         s.prev_drift_m = drift_m;
-        // Anchor refresh: re-zero the relay reference at end-of-probe
-        // so the drone is approximately at "drift = 0" when the
-        // relay starts (it's been moving for 1 s).
-        // We do NOT modify drift_m directly; instead the relay
-        // tracks the sign of CURRENT drift_m which after probe may
-        // be non-zero, and that's fine — relay flips at sign change
-        // as usual.
         // Initial command from EXCITING fall-through below.
     }
 
@@ -256,6 +267,9 @@ extern "C" float sentai_calib_autotune_tick(float drift_m,
         // PREVIOUS drift sample (most negative if we just turned
         // positive, etc.).  Good enough at 33 ms tick granularity.
         push_peak_(ts_ms, s.prev_drift_m);
+        // Log to FR so we can correlate state-machine peaks with
+        // raw drift in post-mortem (iter #9 diagnostic addition).
+        sentai_fr_push_scalar("at_peak", s.prev_drift_m, ts_ms);
     }
 
     // Command sign decision (no hysteresis — dead band already

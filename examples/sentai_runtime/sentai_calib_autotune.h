@@ -25,13 +25,24 @@ extern "C" {
 #define SENTAI_CALIB_AT_MAX_CYCLES        24    // → DONE_FAIL if exceeded
 #endif
 #ifndef SENTAI_CALIB_AT_AMP_STABLE_TOL
-#define SENTAI_CALIB_AT_AMP_STABLE_TOL    0.20f // ±20% across last 4 cycles
+// 2026-05-18 iter #8: relaxed from 0.20 → 0.40.  Real oscillation
+// trace shows peaks varying ±50 % around the median (cf2's HL
+// trajectory dynamics + PnP measurement noise + finite step relay).
+// Tighter than ±20 % required > 30 s of clean data which exceeds
+// our practical safety budget.  ZN with 40 % amp-stable still
+// produces a useful Kp estimate (median-of-recent-peaks is the
+// describing-function input — robust to outliers).
+#define SENTAI_CALIB_AT_AMP_STABLE_TOL    0.40f
 #endif
 #ifndef SENTAI_CALIB_AT_AMP_STABLE_N
 #define SENTAI_CALIB_AT_AMP_STABLE_N      4     // window size for stability
 #endif
 #ifndef SENTAI_CALIB_AT_DEAD_BAND_M
-#define SENTAI_CALIB_AT_DEAD_BAND_M       0.005f // ±5 mm — ignore sub-noise
+// 2026-05-18 iter #3 (post-marker-doubling): peak amplitude observed
+// in s172 trial was ~12 mm, so a 5 mm dead band was eating half the
+// cycle and stalling peak detection.  Drop to 3 mm (above PnP noise
+// floor ≈ 1-2 mm, well below typical relay amplitude).
+#define SENTAI_CALIB_AT_DEAD_BAND_M       0.003f
 #endif
 
 // Initialise the state machine.  Idempotent.  Clears history; does

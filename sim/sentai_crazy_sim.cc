@@ -308,6 +308,17 @@ extern "C" int sentai_crazy_stop_motors(uint8_t group_mask) {
  *       protocol v8+.  We use the legacy form for max compatibility with
  *       older SITL builds.
  */
+extern "C" int sentai_crazy_hl_stop(uint8_t group_mask) {
+    /* HL_CMD_STOP — puts the HL Commander into IDLE state.  Generic
+     * Setpoints (hover/attitude) then become the authoritative
+     * setpoint source.  Caller responsibility: keep sending Generic
+     * Setpoints at 10+ Hz or motors cut after ~1 s watchdog. */
+    uint8_t p[2];
+    p[0] = HL_CMD_STOP;
+    p[1] = group_mask;
+    return send_crtp_raw(CRTP_PORT_SETPOINT_HL, 0, p, 2);
+}
+
 extern "C" int sentai_crazy_go_to(float x, float y, float z, float yaw,
                                    float duration, int relative, int linear,
                                    uint8_t group_mask) {

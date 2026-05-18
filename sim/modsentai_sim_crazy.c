@@ -114,6 +114,13 @@ static mp_obj_t sim_crazy_stop_motors(size_t n_args, const mp_obj_t *args) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(sim_crazy_stop_motors_obj, 0, 1, sim_crazy_stop_motors);
 
+extern int sentai_crazy_hl_stop(uint8_t group_mask);
+static mp_obj_t sim_crazy_hl_stop(size_t n_args, const mp_obj_t *args) {
+    uint8_t g = (n_args > 0) ? (uint8_t)mp_obj_get_int(args[0]) : 0;
+    return mp_obj_new_int(sentai_crazy_hl_stop(g));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(sim_crazy_hl_stop_obj, 0, 1, sim_crazy_hl_stop);
+
 static mp_obj_t sim_crazy_go_to(size_t n_args, const mp_obj_t *args) {
     float x   = mp_obj_get_float(args[0]);
     float y   = mp_obj_get_float(args[1]);
@@ -238,6 +245,7 @@ static const mp_rom_map_elem_t sentai_crazy_sim_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_takeoff),     MP_ROM_PTR(&sim_crazy_takeoff_obj) },
     { MP_ROM_QSTR(MP_QSTR_land),        MP_ROM_PTR(&sim_crazy_land_obj) },
     { MP_ROM_QSTR(MP_QSTR_stop_motors), MP_ROM_PTR(&sim_crazy_stop_motors_obj) },
+    { MP_ROM_QSTR(MP_QSTR_hl_stop),     MP_ROM_PTR(&sim_crazy_hl_stop_obj) },
     { MP_ROM_QSTR(MP_QSTR_go_to),       MP_ROM_PTR(&sim_crazy_go_to_obj) },
     { MP_ROM_QSTR(MP_QSTR_hover),       MP_ROM_PTR(&sim_crazy_hover_obj) },
     { MP_ROM_QSTR(MP_QSTR_send_crtp),   MP_ROM_PTR(&sim_crazy_send_crtp_obj) },

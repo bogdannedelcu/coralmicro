@@ -122,7 +122,8 @@ inline float drift_along_axis_(const sentai_aruco_marker_t* mk, int n,
     // Sign of relative motion: drone +X_body → centroid -X_cam, so
     // drift_body = -(R · dt_cam).  ZN math is invariant to overall
     // sign as long as the closed loop is negative feedback; the
-    // task's relay (drive AGAINST drift) handles the sign correctly.
+    // sign-probe inside the state machine handles the unknown
+    // sign of the cmd→drift mapping via `sign_flip`.
     if (axis == SENTAI_CALIB_AXIS_X) return -body_x;
     else                              return -body_y;
 }
@@ -131,6 +132,21 @@ void worker_loop_() {
     fprintf(stderr, "[sentai_calib_task] START axis=%d z_hold=%.2f\n",
             (int)s_cycle_axis, (double)s_ctx.z_hold_m);
     sentai_fr_push_event("autotune", "task_start");
+
+    // Relay step size (HL go_to(relative=1) magnitude per sign-flip).
+    // Tuned 2026-05-18 iter #4: hover() doesn't override HL Commander
+    // after takeoff (empirically confirmed — drift stayed +ve even with
+    // v_cmd=-v_max for 1.5 s).  Use go_to(relative=1) instead — stays
+    // within HL Commander mode and is proven to work (s170, s145).
+    // Step magnitude = vmax × half_period_target (rough).  vmax=0.10,
+    // T_u_target ≈ 1.5 s → step = 0.10 × 0.75 = 0.075 m.  Bounded by
+    // FOV (capped further inside).
+    // Iter #10: gentler step.  5 cm × 0.4 s caused too much pitch
+    // → cf2 altitude controller compensated by climbing.  2 cm step
+    // over 0.6 s reduces peak pitch by ~3× and lowers z coupling.
+    const float step_dur_s = 0.6f;
+    float step_size = 0.02f;        // 2 cm per relay step
+    int last_relay_sgn = 0;          // tracks last v_cmd sign
 
     while ((xEventGroupGetBits(s_stop_evt) & STOP_BIT) == 0) {
         ++s_n_ticks;
@@ -147,15 +163,70 @@ void worker_loop_() {
             : 0.0f;
         uint32_t ts = now_ms_();
 
+        // Operator-observed 2026-05-18 ("drona driftuieste in sus
+        // si ne afecteaza testul autotune; ce vezi tu cu semne
+        // schimbate e de fapt un efect al driftului pe verticala
+        // cand obiectele de la sol par ca se deplaseaza inspre
+        // centru").  Z drift contaminates lateral PnP geometry, so
+        // keep z_hold via a minimal passive correction (NOT T10 full
+        // active loop — just a per-relay-tick z bump in the go_to
+        // call when sign changes).  Compute z error from PnP only
+        // when valid; hold last value otherwise to avoid noise.
+        static float last_z_correction = 0.0f;
+        if (pnp_valid) {
+            // tvec_cam[2] = depth from cam to marker ≈ drone altitude
+            // for the downward-facing setup at z=z_hold above flat
+            // markers.  Mean over visible markers smooths per-marker
+            // PnP noise.
+            float z_pnp = 0.0f;
+            for (int i = 0; i < n; ++i) z_pnp += mk[i].tvec_cam[2];
+            z_pnp /= (float)n;
+            // z_error > 0 when drone is TOO LOW (drone < z_hold).
+            // cf2 body z = +Z up (NWU), so dz_command should follow
+            // sign of z_error.  Gain 1.0 since we send only on sign
+            // change (~ 2 Hz), well-damped.
+            // Gain 0.1 (not 1.0): with relative=1 go_to applied on
+            // every sign-flip (~2 Hz), commanded z deltas accumulate.
+            // 1.0 gain × ±10 cm clip × 30 ticks during autotune = ±3 m
+            // total commanded — way too aggressive (iter #6 trial:
+            // drone climbed uncontrolled to z_hold + ε).  0.1 gain
+            // with ±2 cm clip gives ±60 cm cumulative max, well-damped.
+            last_z_correction = 0.1f * (s_ctx.z_hold_m - z_pnp);
+            if (last_z_correction > +0.02f) last_z_correction = +0.02f;
+            if (last_z_correction < -0.02f) last_z_correction = -0.02f;
+        }
+        sentai_fr_push_scalar("at_z_corr", last_z_correction, ts);
+
         // Drive the state machine.
         float v_cmd = sentai_calib_autotune_tick(drift_m, ts, pnp_valid);
 
-        // Issue body-frame velocity command via cf2 hover.
-        // hover(vx, vy, yaw_rate, z_distance).  yaw_rate=0; z held.
-        if (s_cycle_axis == SENTAI_CALIB_AXIS_X) {
-            (void)sentai_crazy_hover(v_cmd, 0.0f, 0.0f, s_ctx.z_hold_m);
-        } else {
-            (void)sentai_crazy_hover(0.0f, v_cmd, 0.0f, s_ctx.z_hold_m);
+        // Iter #11: switch to TRUE velocity relay via hover() +
+        // absolute z_hold.  Prereq: caller has issued
+        // sentai.crazy.hl_stop() after takeoff so Generic Setpoints
+        // win over HL Commander.  Two killer benefits vs go_to:
+        //   1. hover.z_distance is ABSOLUTE altitude (m above
+        //      takeoff) — no accumulation.  cf2 holds the altitude
+        //      via its altitude PID + baro; z_hold stays at our
+        //      setpoint regardless of how many ticks pass.
+        //   2. hover commanded velocity is INSTANTANEOUS (not a
+        //      trajectory) — no overshoot, no ringing.  The relay
+        //      flips happen exactly at drift sign changes.
+        //
+        // Note: we send hover EVERY tick (30 Hz), not just on sign
+        // change, because the cf2 Generic Commander watchdog cuts
+        // motors after ~1 s without setpoints.
+        float vx = (s_cycle_axis == SENTAI_CALIB_AXIS_X) ? v_cmd : 0.0f;
+        float vy = (s_cycle_axis == SENTAI_CALIB_AXIS_Y) ? v_cmd : 0.0f;
+        (void)sentai_crazy_hover(vx, vy, /*yaw_rate=*/0.0f,
+                                    /*z_absolute=*/s_ctx.z_hold_m);
+        // Track sign-flips for diagnostics; last_relay_sgn no longer
+        // gates the call (every tick now), but useful for FR events.
+        int sgn_cmd = (v_cmd > 0.001f) ? +1 : (v_cmd < -0.001f ? -1 : 0);
+        if (sgn_cmd != 0 && sgn_cmd != last_relay_sgn) {
+            char buf[48];
+            snprintf(buf, sizeof(buf), "sgn=%d v_cmd=%.3f", sgn_cmd, (double)v_cmd);
+            sentai_fr_push_event("autotune_relay_flip", buf);
+            last_relay_sgn = sgn_cmd;
         }
 
         // Push samples to FR (silent no-op if channel not open).
@@ -173,8 +244,10 @@ void worker_loop_() {
         if (st == SENTAI_CALIB_AT_DONE_OK ||
             st == SENTAI_CALIB_AT_DONE_FAIL ||
             st == SENTAI_CALIB_AT_ABORTED) {
-            // Park at zero velocity.
-            (void)sentai_crazy_hover(0.0f, 0.0f, 0.0f, s_ctx.z_hold_m);
+            // Park: HL Commander already holds at last commanded
+            // trajectory endpoint when we stop sending go_to.  No
+            // explicit park call needed (used to call hover(0,0,...)
+            // but hover doesn't override HL — see comment above).
             if (st == SENTAI_CALIB_AT_DONE_OK) {
                 float kp = sentai_calib_autotune_get_last_kp();
                 s_gains.Kp[s_cycle_axis] = kp;

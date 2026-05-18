@@ -92,14 +92,21 @@ float s_fx = 240.0f;
 float s_fy = 240.0f;
 float s_cx = 160.0f;
 float s_cy = 120.0f;
-// OP-S10-W14 (2026-05-18) — bumped from 0.0625 to 0.125 alongside
-// the SDF marker face doubling (operator: "imaginea RGB e prea
-// mica, hai sa ii facem markerii de 2 ori mai mari").  Effective
-// ArUco square (texture-padded inside the 0.12 m physical face)
-// follows the same 0.781 ratio as before: 0.12 * 0.781 ≈ 0.094 m;
-// the 0.125 default here preserves the same s130 calibration
-// invariant (scaled 2×).  See SDF aruco_id0 comment block.
-float s_marker_size_m = 0.125f;
+// OP-S10-W14 iter #7 (2026-05-18) — corrected from 0.125 to 0.094.
+//
+// Previous 0.125 was a wrong 2× scale of the OLD 0.0625, ignoring
+// that 0.0625 already accounted for ArUco texture padding inside the
+// physical marker face (0.08 m * 0.781 ratio).  s172 trial #6 had
+// PnP report z_pnp = 0.90 m when GT z = 0.45 m — exact 2× scale
+// error, traced to this constant + texture-padding mishandling.
+//
+// New value 0.094 = (0.12 m physical face) × (0.781 effective-ArUco
+// ratio from old s130 calibration).  Until we re-measure the actual
+// padding ratio in the doubled textures, this is the consistent
+// scaling.  If z_pnp still mismatches GT after this fix, the ratio
+// itself needs re-measuring (e.g. detect a static marker at known
+// pose and back-solve s_marker_size_m).
+float s_marker_size_m = 0.094f;
 int   s_initialised   = 0;
 
 sentai_aruco_marker_t s_cache[SENTAI_ARUCO_MAX_MARKERS];

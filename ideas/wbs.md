@@ -235,8 +235,17 @@ OP — ObjectsPlan thesis
 │       │                    centroid robustness — see commit notes)
 │       ├── OP-S10-W14-T7 — flow_gains.json persistence via FxUser    ⬜ TODO
 │       ├── OP-S10-W14-T8 — Y-axis autotune (mirror X)                ⬜ TODO (phase 2)
-│       └── OP-S10-W14-T9 — Online td estimation via gyro × PnP
-│                            cross-correlation (CMSIS-DSP)              ⬜ TODO (phase 2)
+│       ├── OP-S10-W14-T9 — Online td estimation via gyro × PnP
+│       │                    cross-correlation (CMSIS-DSP)              ⬜ TODO (phase 2)
+│       └── OP-S10-W14-T10 — Active PnP-based altitude hold during
+│                            autotune (operator 2026-05-18:
+│                            "experimentul de stabilizare la altitudine
+│                            constanta"; chose monitor-only for
+│                            baseline, active hold deferred to keep
+│                            autotune isolated from a second control
+│                            loop with its own gain).  Would close
+│                            loop on z_pnp = mean(tvec_cam.z) to
+│                            compensate baro drift.                    ⬜ TODO (phase 2)
 │
 └── Milestones
     ├── OP-M1 — Thesis MVP (SIM): 4 descriptors + L1 + calib working end-to-end

@@ -90,6 +90,17 @@ static mp_obj_t mod_sentai_crazy_stop_motors(size_t n_args, const mp_obj_t *args
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_crazy_stop_motors_obj, 0, 1, mod_sentai_crazy_stop_motors);
 
+// sentai.crazy.hl_stop(group=0) -> int
+// Release HL Commander (set to IDLE).  After takeoff, call this so
+// Generic Setpoints (hover, attitude) actually drive the drone
+// instead of being overridden by HL position-hold.  Does NOT kill
+// motors; caller must already be sending Generic Setpoints at 10+ Hz.
+static mp_obj_t mod_sentai_crazy_hl_stop(size_t n_args, const mp_obj_t *args) {
+    uint8_t group = (n_args > 0) ? (uint8_t)mp_obj_get_int(args[0]) : 0;
+    return mp_obj_new_int(sentai_crazy_hl_stop(group));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_crazy_hl_stop_obj, 0, 1, mod_sentai_crazy_hl_stop);
+
 // sentai.crazy.hover(vx=0, vy=0, yaw_rate=0, z=0.5) -> int
 // MUST be called continuously at ~10-20 Hz to maintain hover!
 // vx, vy: m/s (body frame), yaw_rate: deg/s, z: metres (absolute)
@@ -757,6 +768,7 @@ static const mp_rom_map_elem_t sentai_crazy_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_takeoff),       MP_ROM_PTR(&mod_sentai_crazy_takeoff_obj) },
     { MP_ROM_QSTR(MP_QSTR_land),          MP_ROM_PTR(&mod_sentai_crazy_land_obj) },
     { MP_ROM_QSTR(MP_QSTR_stop_motors),   MP_ROM_PTR(&mod_sentai_crazy_stop_motors_obj) },
+    { MP_ROM_QSTR(MP_QSTR_hl_stop),       MP_ROM_PTR(&mod_sentai_crazy_hl_stop_obj) },
     { MP_ROM_QSTR(MP_QSTR_hover),         MP_ROM_PTR(&mod_sentai_crazy_hover_obj) },
     { MP_ROM_QSTR(MP_QSTR_go_to),         MP_ROM_PTR(&mod_sentai_crazy_go_to_obj) },
     { MP_ROM_QSTR(MP_QSTR_send_crtp),     MP_ROM_PTR(&mod_sentai_crazy_send_crtp_obj) },
