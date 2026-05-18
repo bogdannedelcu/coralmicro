@@ -39,6 +39,14 @@ struct State {
     PeakSample peaks[PEAK_RING_CAP];
     int      peak_head;          // next slot
 
+    // Iter #21 hysteresis-safe extremum tracking (see push_peak_
+    // call site in tick()): track running max-|drift| signed since
+    // last sign flip, plus last NON-ZERO sgn (sticky across the
+    // dead-band silent zone).
+    int      last_active_sgn;    // +1 / -1 / 0 (only 0 at start)
+    float    peak_extremum;       // signed max |drift| this half-cycle
+    int      peak_in_progress;   // 0/1 — set on first non-zero tick
+
     // Live sign discovery (operator 2026-05-18 — "nu cumva sign-ul
     // poate fi detectat live").  In ARMING we apply +v_max for
     // SIGN_PROBE_MS and track the PEAK signed drift response (not
@@ -162,6 +170,9 @@ extern "C" int sentai_calib_autotune_arm(sentai_calib_axis_t axis,
     s.sign_drift_at_probe_start = 0.0f;
     s.sign_probe_peak_signed    = 0.0f;
     s.t_probe_started_ms        = 0;
+    s.last_active_sgn           = 0;
+    s.peak_extremum             = 0.0f;
+    s.peak_in_progress          = 0;
     s.state          = SENTAI_CALIB_AT_ARMING;
     return 0;
 }
@@ -258,19 +269,42 @@ extern "C" float sentai_calib_autotune_tick(float drift_m,
     }
 
     // EXCITING: relay = drive velocity AGAINST drift sign × sign_flip.
-    int   sgn       = sign_of_(drift_m,        SENTAI_CALIB_AT_DEAD_BAND_M);
-    int   prev_sgn  = sign_of_(s.prev_drift_m, SENTAI_CALIB_AT_DEAD_BAND_M);
+    int sgn = sign_of_(drift_m, SENTAI_CALIB_AT_DEAD_BAND_M);
 
-    // Sign-flip across the dead band → peak.
-    if (sgn != 0 && prev_sgn != 0 && sgn != prev_sgn) {
-        // The PEAK we record is the EXTREMUM we just passed, i.e. the
-        // PREVIOUS drift sample (most negative if we just turned
-        // positive, etc.).  Good enough at 33 ms tick granularity.
-        push_peak_(ts_ms, s.prev_drift_m);
-        // Log to FR so we can correlate state-machine peaks with
-        // raw drift in post-mortem (iter #9 diagnostic addition).
-        sentai_fr_push_scalar("at_peak", s.prev_drift_m, ts_ms);
+    // ── Peak detection with HYSTERESIS-safe extremum tracking ────
+    //    Iter #21 fix.  Previous (iter #20) code required the prev
+    //    tick's sgn != 0 to detect a flip — broke with dead_band
+    //    20 mm because drift slips through the dead-band silently
+    //    between camera ticks, leaving prev_sgn=0 and missing the
+    //    flip event.  Now we track:
+    //      - last_active_sgn: most recent NON-ZERO sign (sticky)
+    //      - peak_extremum:   running max-|drift| since last flip,
+    //                         signed (preserves which side of zero)
+    //    On a true sign flip (sgn != 0 && sgn != last_active_sgn),
+    //    we record peak_extremum (the actual extremum we just
+    //    passed, not just last tick) and reset.
+    if (sgn != 0) {
+        // Update extremum tracker while we're outside dead-band.
+        if (s.peak_in_progress &&
+            (fabsf(drift_m) > fabsf(s.peak_extremum))) {
+            s.peak_extremum = drift_m;
+        } else if (!s.peak_in_progress) {
+            // First entry into a non-zero zone after a flip — start
+            // tracking the new extremum from this sample.
+            s.peak_extremum    = drift_m;
+            s.peak_in_progress = 1;
+        }
+        // Sign flip detection — relative to last NON-ZERO sgn.
+        if (s.last_active_sgn != 0 && sgn != s.last_active_sgn) {
+            push_peak_(ts_ms, s.peak_extremum);
+            sentai_fr_push_scalar("at_peak", s.peak_extremum, ts_ms);
+            // Reset extremum tracker for the new half-cycle.
+            s.peak_extremum    = drift_m;
+        }
+        s.last_active_sgn = sgn;
     }
+    // (When sgn == 0, leave last_active_sgn and peak_extremum
+    // untouched — the next non-zero tick continues the half-cycle.)
 
     // Command sign decision (no hysteresis — dead band already
     // guards against jitter).  sign_flip swaps direction if the

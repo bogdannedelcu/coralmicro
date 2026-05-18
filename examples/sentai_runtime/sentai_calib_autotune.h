@@ -19,7 +19,15 @@ extern "C" {
 
 // Tunables — exposed as constants for future override via -D.
 #ifndef SENTAI_CALIB_AT_MIN_CYCLES
-#define SENTAI_CALIB_AT_MIN_CYCLES        6     // half-periods detected
+// 2026-05-18 iter #22: reduced 6 → 4.  With hysteresis 20 mm the
+// half-period is ~3-4 s (vs ~1 s with tight dead-band), so over a
+// 30 s autotune trial we get only 7-10 half-periods total.  Iter
+// #21 trial produced 5 CLEAN peaks (+74, -77, +92, -89, +89 mm,
+// ~10 % variance) but timed out before MIN_CYCLES=6 was reached.
+// Lowering to 4 lets us latch onto the converged oscillation
+// sooner; AMP_STABLE_N=4 stability check still requires 4 peaks
+// to be in tolerance, so the convergence guarantee is preserved.
+#define SENTAI_CALIB_AT_MIN_CYCLES        4
 #endif
 #ifndef SENTAI_CALIB_AT_MAX_CYCLES
 #define SENTAI_CALIB_AT_MAX_CYCLES        24    // → DONE_FAIL if exceeded
