@@ -499,6 +499,28 @@ static void aruco_dp_mark(const int16_t* pts, int n, float eps_sq) {
     }
 }
 
+// T18-O step 2: cv2 isContourConvex check for a quadrilateral.
+// A 4-vertex polygon is convex iff all 4 cross-products of adjacent
+// edges have the same sign.  Returns 1 if convex, 0 if not.
+static int aruco_is_quad_convex_(const float corners[8]) {
+    int sign = 0;
+    for (int i = 0; i < 4; ++i) {
+        const float ax = corners[((i+1)%4)*2 + 0] - corners[i*2 + 0];
+        const float ay = corners[((i+1)%4)*2 + 1] - corners[i*2 + 1];
+        const float bx = corners[((i+2)%4)*2 + 0] - corners[((i+1)%4)*2 + 0];
+        const float by = corners[((i+2)%4)*2 + 1] - corners[((i+1)%4)*2 + 1];
+        const float cross = ax * by - ay * bx;
+        if (cross > 0.0f) {
+            if (sign < 0) return 0;
+            sign = +1;
+        } else if (cross < 0.0f) {
+            if (sign > 0) return 0;
+            sign = -1;
+        }
+    }
+    return 1;
+}
+
 // New aruco_extract_quad replacement.  Returns 0 on success with 4
 // corners in CW order; -1 on failure (not a 4-vertex polygon).
 static int aruco_extract_quad(uint8_t lab_target, int w, int h,
@@ -698,6 +720,43 @@ static uint16_t aruco_decode_canonical_(const uint8_t* warped, int N,
     return pattern;
 }
 
+// T18-O step 1: port cv2 _getBorderErrors.
+// Counts BRIGHT cells in the border ring of the warped marker grid.
+// markerSizeWithBorders = 6 (4 inner + 2 border), border = 1.
+// Border cells: row 0, row 5, col 0, col 5 — total 4*6 - 4 = 20 cells.
+// Returns the number of cells where DARK majority FAILS (i.e. cell
+// looks bright/white = bit=1 in cv2's convention).  cv2 rejects if
+// borderErrors > markerSize² * maxErroneousBitsInBorderRate = 16 * 0.35 = 5.6.
+static int aruco_decode_border_errors_(const uint8_t* warped, int N,
+                                         int cell_size, int marker_border,
+                                         uint8_t t) {
+    const int margin = (int)(0.13f * (float)cell_size + 0.5f);
+    const int side = (4 + 2 * marker_border);    // 6 for our case
+    int errors = 0;
+    for (int cy = 0; cy < side; ++cy) {
+        for (int cx = 0; cx < side; ++cx) {
+            // Skip inner data cells (only check border ring).
+            const int is_border = (cy < marker_border)
+                                 || (cy >= side - marker_border)
+                                 || (cx < marker_border)
+                                 || (cx >= side - marker_border);
+            if (!is_border) continue;
+            const int yc = cy * cell_size;
+            const int xc = cx * cell_size;
+            int n_dark = 0, n_tot = 0;
+            for (int dy = margin; dy < cell_size - margin; ++dy) {
+                for (int dx = margin; dx < cell_size - margin; ++dx) {
+                    if (warped[(yc + dy) * N + (xc + dx)] < t) n_dark++;
+                    n_tot++;
+                }
+            }
+            // BRIGHT (non-dark majority) = error in border ring.
+            if (n_dark * 2 <= n_tot) errors++;
+        }
+    }
+    return errors;
+}
+
 // =========================================================================
 // Pipeline stage D — decode marker bits + dictionary lookup.
 //
@@ -733,6 +792,16 @@ static int aruco_decode_marker(const uint8_t* gray,
     }
     const uint8_t t = aruco_otsu_threshold(s_warp_buf,
                                             ARUCO_BITGRID_SIDE * ARUCO_BITGRID_SIDE);
+    // T18-O step 1: cv2 _getBorderErrors gate.  cv2's threshold:
+    // borderErrors > markerSize² * maxErroneousBitsInBorderRate
+    //              = 16 * 0.35 = 5.6  → reject if > 5.
+    const int border_errors = aruco_decode_border_errors_(
+        s_warp_buf, ARUCO_BITGRID_SIDE,
+        ARUCO_BITGRID_CELL, ARUCO_BITGRID_BORDER, t);
+    if (border_errors > 5) {
+        if (out_hamming) *out_hamming = 17;
+        return -1;
+    }
     const uint16_t pattern = aruco_decode_canonical_(
         s_warp_buf, ARUCO_BITGRID_SIDE,
         ARUCO_BITGRID_CELL, ARUCO_BITGRID_BORDER, t);
@@ -1563,7 +1632,10 @@ extern "C" int sentai_aruco_detect(const uint8_t* gray, int w, int h,
     // ~25 px to ~80 px).  The full pipeline runs at each scale; markers
     // detected at multiple scales are deduplicated by marker_id (best
     // reproj wins).
-    static const int SCALE_BLOCKS[] = { 23, 51, 101, 201 };
+    // T18-O step 5: cv2.aruco default scales (adaptiveThreshWinSizeMin=3,
+    // Max=23, Step=10).  We append larger blocks for our larger markers
+    // not present in cv2's mostly-small-marker default scenarios.
+    static const int SCALE_BLOCKS[] = { 3, 13, 23, 51, 101, 201 };
     constexpr int N_SCALES = (int)(sizeof(SCALE_BLOCKS) / sizeof(SCALE_BLOCKS[0]));
 
     // Per-id best candidate (one slot per known marker, ids 0..N-1).
@@ -1575,22 +1647,66 @@ extern "C" int sentai_aruco_detect(const uint8_t* gray, int w, int h,
         aruco_adaptive_threshold(gray, w, h, SCALE_BLOCKS[si]);
         const int n_comp = aruco_label_components(w, h);
 
+        // T18-O step 6: cv2 minMarkerPerimeterRate=0.03,
+        // maxMarkerPerimeterRate=4.0 (proxies via bbox diagonal which
+        // bounds the perimeter).
+        const int max_dim = (w > h) ? w : h;
+        const int min_perim_px = (int)(0.03f * (float)max_dim);  // ~10 for 320x240
+        const int max_perim_px = (int)(4.0f  * (float)max_dim);  // ~1280
+        const int min_bbox_diag_sq = (min_perim_px * min_perim_px) / 16;  // perim≈4*side
+        const int max_bbox_diag_sq = (max_perim_px * max_perim_px) / 4;
+
         for (int ci = 0; ci < n_comp; ++ci) {
             const aruco_comp_t* c = &s_components[ci];
             if (c->touches_border) continue;
-            const float area = (float)c->n_pix;
-            if (area < SENTAI_ARUCO_MIN_QUAD_AREA) continue;
             const int bbox_w = c->x1 - c->x0 + 1;
             const int bbox_h = c->y1 - c->y0 + 1;
-            if (bbox_w < 8 || bbox_h < 8) continue;
+            const int diag_sq = bbox_w * bbox_w + bbox_h * bbox_h;
+            if (diag_sq < min_bbox_diag_sq) continue;
+            if (diag_sq > max_bbox_diag_sq) continue;
+            // Aspect gate (markers are roughly square; reject wide-rectangle noise).
             const float aspect = (float)bbox_w / (float)bbox_h;
             if (aspect < 0.33f || aspect > 3.0f) continue;
+            const float area = (float)c->n_pix;
             const float fill_ratio = area / (float)(bbox_w * bbox_h);
             if (fill_ratio < 0.30f) continue;
 
             const uint8_t lab = (uint8_t)(ci + 1);
             float corners[8];
             if (aruco_extract_quad(lab, w, h, c, corners) != 0) continue;
+
+            // T18-O step 2: cv2 isContourConvex check.
+            if (!aruco_is_quad_convex_(corners)) continue;
+
+            // T18-O step 3: cv2 minDistanceToBorder (3 px default).
+            {
+                int tooNear = 0;
+                for (int k = 0; k < 4; ++k) {
+                    const float u = corners[k*2 + 0];
+                    const float v = corners[k*2 + 1];
+                    if (u < 3.0f || v < 3.0f ||
+                        u > (float)(w - 1 - 3) || v > (float)(h - 1 - 3)) {
+                        tooNear = 1; break;
+                    }
+                }
+                if (tooNear) continue;
+            }
+
+            // T18-O step 4: cv2 minCornerDistance (perim * 0.05 default).
+            // Compute squared perimeter and squared min edge length.
+            {
+                float min_edge_sq = 1e18f;
+                float total_edge = 0.0f;
+                for (int k = 0; k < 4; ++k) {
+                    const float dx = corners[((k+1)%4)*2 + 0] - corners[k*2 + 0];
+                    const float dy = corners[((k+1)%4)*2 + 1] - corners[k*2 + 1];
+                    const float e_sq = dx*dx + dy*dy;
+                    if (e_sq < min_edge_sq) min_edge_sq = e_sq;
+                    total_edge += sqrtf(e_sq);
+                }
+                const float min_thresh = total_edge * 0.05f;
+                if (min_edge_sq < min_thresh * min_thresh) continue;
+            }
 
             // T18-K: enforce CW winding (js-aruco / cv2.aruco standard).
             // Cross product (c1-c0) × (c2-c0): negative → CCW → swap c1,c3.

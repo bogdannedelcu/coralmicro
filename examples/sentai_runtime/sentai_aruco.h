@@ -84,7 +84,13 @@ extern "C" {
 // Quality / acceptance thresholds (§21.5-style).
 #define SENTAI_ARUCO_MIN_QUAD_AREA  256.0f      // px², 16x16 minimum
 #define SENTAI_ARUCO_MIN_PERIMETER  40.0f       // px
-#define SENTAI_ARUCO_MAX_HAMMING    4           // bits flipped allowed (cv2 errorCorrectionRate=0.6)
+// cv2.aruco: errorCorrectionRate=0.6 × distMin(=5 for DICT_4X4_50) / 2 = 1.5 → 1.
+// We use 4 — empirically necessary since our integer-pixel contour +
+// Förstner subpix produces noisier bit patterns than cv2's
+// _refineCandidateLines (sub-pixel float corner extraction).  False-
+// positive risk mitigated by _getBorderErrors gate (T18-O step 1) +
+// _filterTooCloseCandidates dedup + downstream VPE id <4 filter.
+#define SENTAI_ARUCO_MAX_HAMMING    4
 #define SENTAI_ARUCO_REPROJ_MAX_PX  3.0f        // PnP residual gate
 
 // ---- Reject codes ------------------------------------------------------
