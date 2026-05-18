@@ -165,7 +165,17 @@ static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(sentai_camera_grab_gray_obj, 0, 2, se
  * defaults + the s091/s130 aruco_hover capture.  Caller can later add
  * per-consumer dims if needed; for the OP-S6-W3 path 320x240 suffices.
  */
+#include <time.h>           // SIM-local clock for sentai_now_ms fallback
 extern uint32_t sentai_now_ms(void) __attribute__((weak));
+// SIM-local fallback: real monotonic clock so consumers (SafetyTask,
+// FR, etc.) get useful timestamps even when no other module defines
+// sentai_now_ms.  Without this, every frame got ts_ms=0 and the
+// time-based safety abort logic could never reach its threshold.
+static inline uint32_t sim_local_now_ms_(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (uint32_t)(ts.tv_sec * 1000ULL + ts.tv_nsec / 1000000ULL);
+}
 int sentai_camera_grab_gray_zerocopy(const uint8_t** out_buf,
                                       int* out_w, int* out_h,
                                       uint32_t* out_seq,
@@ -209,7 +219,9 @@ int sentai_camera_grab_gray_zerocopy(const uint8_t** out_buf,
     *out_h   = rh;
     *out_seq = seq;
     if (out_ts_ms) {
-        *out_ts_ms = sentai_now_ms ? sentai_now_ms() : 0u;
+        // Prefer a module-provided sentai_now_ms; fall back to a real
+        // monotonic clock so SafetyTask + FR always see a useful ts.
+        *out_ts_ms = sentai_now_ms ? sentai_now_ms() : sim_local_now_ms_();
     }
     return 0;
 }

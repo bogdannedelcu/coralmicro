@@ -187,6 +187,77 @@ rationale.  Bibliography stays here.
 - `[[s132-lifter-gazebo-shipped]]` — last completed milestone
 - `[[places-two-track-decision]]` — §22 Track A/B split
 - `[[camera-mount-calibration]]` — §21 Stage 6 motivation
+
+### 23.7 Live-defense demo scenarios (operator-noted 2026-05-17)
+
+Concrete three-mission script for the thesis defense.  Each mission
+exercises one increment of the autonomy claim, building on the
+previous one's persisted state.  DNN object recognition (car / human)
+is on the parallel track per §23.5 step 6; for any pre-DNN rehearsal
+the categories collapse to ArUco-id-as-class.
+
+**Mission 1 — Mapping pass** (~60 s)
+1. Takeoff at origin.
+2. `sentai.calib` self-calibration on the A4 ArUco landing pad
+   (§21 Kabsch, OP-S6-W1).
+3. Visit 7 H3 hexagons (centre + 6 neighbours, H3 res-15 ≈ 0.5–1 m
+   cell at indoor scale per `[[dual-scale-world-pattern]]`).  At
+   each cell: hover ~1 s, `places.add()` with current HSV+PHOG+GIST
+   descriptor + cell H3 index + world-frame xyz.
+4. Return to takeoff, land.
+5. **Demo claim**: drone has *scanned its surroundings* into a
+   persistent gallery indexed hexagonally.
+
+**Mission 2 — Command-driven object hunt** (~90 s, radio-REPL driven)
+1. Takeoff, `sentai.calib`.  Gallery from Mission 1 already loaded
+   (FW10 persistent-gallery is the production form; thesis demo
+   can keep the gallery in RAM across missions or reload from
+   `/data/gallery.bin` via `sentai.fs`).
+2. Drone hovers, waits for command on radio REPL.
+3. Operator types over the link: `sentai.explore.find("car")`.
+4. Drone iterates over known H3 cells (cells with stored
+   descriptors are candidate visit targets), at each cell runs the
+   DNN classifier on the current frame.  On first positive: enters
+   HOVER over the cell, publishes the find.
+5. Operator: `sentai.explore.find("human")`.  Same protocol with
+   different DNN class.  Drone HOVERS over the human's cell.
+6. Operator: `sentai.explore.return_home()`.  Drone returns to
+   takeoff, lands.
+7. **Demo claim**: drone takes high-level natural-language-ish
+   commands over radio, executes hex-by-hex search with on-board
+   DNN, hovers on find.
+
+**Mission 3 — Memory-aware direct dispatch** (~30 s)
+1. Takeoff, `sentai.calib`.  Gallery now includes per-cell DNN
+   class observations from Mission 2 (car at cell X, human at
+   cell Y, etc.).
+2. Hovers, waits for command.
+3. Operator: `sentai.explore.find("human")`.
+4. Drone flies *directly* to the cell where it previously
+   classified a human — no hex-by-hex search needed because the
+   memory associates class → location.
+5. **Demo claim**: persistent memory + class indexing → from
+   pixels at boot to "I remember where the human was" in O(1)
+   lookup, not O(N) search.
+
+**Open dependencies** (not blocking the W11 / OP-S10 work):
+- DNN classifier(s) — `[[op-s10-w11]]` is the perception
+  scaffolding; the actual car/human DNN models are a parallel
+  track.  Demo rehearsal with ArUco-id-as-class is the
+  pre-DNN fallback.
+- Radio REPL — already shipped (CRTP over USB CDC-ACM / CDC-NCM).
+  Outdoor demo would need the 433 MHz Meshtastic / Crazyradio
+  variant; `[[airrepl-paper]]` is the mini-paper that documents
+  this surface.
+- Multi-class persistence — `places.add()` already carries
+  descriptor; need a small extension to attach `class_observed`
+  per cell.  Defer the spec to L7 integration.
+- Class confidence policy — when to HOVER vs keep searching.
+  Spec: trigger HOVER on `dnn_score > 0.7` AND `frames_consistent >= 3`.
+
+These scenarios are the *target shape* of the L7 integrated demo
+(§23.2 row "L7 integrated indoor demo").  All three reuse the same
+underlying stack — they differ only in mission script.
 - `[[gate-every-layer-no-exceptions]]` — discipline rule
 - `[[experiments-start-from-origin]]` — reproducibility rule
 
@@ -219,6 +290,8 @@ preserves the original `§N.M` section numbering as stable anchors.
 | [11 Camera calib](objects_plan/11_camera_calib.md) | §21 | Camera-to-body extrinsic auto-calibration at takeoff | `OP-S6-W1` spec |
 | [12 Places — two tracks](objects_plan/12_places_two_track.md) | §22 | Track A no-DNN / Track B DNN decision | `OP-S10-W{1..6}` = Track A; Track B → `FW-1` |
 | [13 DNN dynamic objects](objects_plan/13_dnn_dyn_objects.md) | §24 | DNN dynamic-object detection — separate concern from flow/EKF | Parallel track |
+| [14 sentai.safety](objects_plan/14_sentai_safety.md) | §25 | Firmware-side mission safety service (multi-check, sticky abort flag, stale-feed watchdog).  ArUco-FOV first; alt_floor / ekf_ceil / battery / link stubbed for future. | `OP-S10-W12`; spec also in top-level `Safety.md` |
+| [15 sentai.fr](objects_plan/15_sentai_fr.md) | §26 | Flight Recorder subsystem (NASA/JPL FDR analogue).  Multi-channel bounded-queue producers + single drain task → disk.  Frames / events / scalars / kernel channels. | `OP-S10-W13`; PX4-style minimal CSV/text format per operator |
 
 ## Cross-references
 
@@ -231,6 +304,14 @@ preserves the original `§N.M` section numbering as stable anchors.
 
 ## Change log
 
+- **2026-05-18**: added §25 (sentai.safety = OP-S10-W12) + §26
+  (sentai.fr = OP-S10-W13).  Both are distinct work packages, sister
+  modules under OP-S10 (hardening + paper-grade evidence stage).  WBS
+  doc `wbs.md` updated with the full T1..T9 task lists.  Top-level
+  arch docs: `Safety.md` (already shipped) + chapter files
+  `objects_plan/14_sentai_safety.md` + `objects_plan/15_sentai_fr.md`
+  (TBD — to be authored from the existing Safety.md content + design
+  doc).
 - **2026-05-17**: split into chapter files under `objects_plan/`; §0 + §23
   hoisted into this index.  Doc language switched fully to English.
   Pre-split version preserved in git at HEAD~1.

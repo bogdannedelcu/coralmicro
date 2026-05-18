@@ -216,6 +216,17 @@ add_executable_m7(sentai_runtime
     # Compute-heavy work (adaptive threshold, contour finder, PnP)
     # stays in C/C++; MP binding returns small scalars only.
     sentai_aruco.cc
+    # ObjectsPlan OP-S10-W12 — sentai.safety state machine + SafetyTask
+    # worker.  Pure state machine + FreeRTOS task consuming the
+    # EXISTING sentai_aruco_detect + sentai_camera_grab_gray_zerocopy.
+    # No detection / camera intake duplicated.  See Safety.md for the
+    # architecture.  Routed to .sdram_text per [[itcm-budget]].
+    sentai_safety.cc
+    sentai_safety_task.cc
+    # ObjectsPlan OP-S10-W13 — sentai.fr Flight Recorder.  Independent
+    # NASA/JPL-style FDR subsystem; producers push items, single drain
+    # task writes to disk.  See objects_plan/15_sentai_fr.md.
+    sentai_fr.cc
     sentai_explore.cc
     modsentai_hal.cc
     sentai_mesh.cc

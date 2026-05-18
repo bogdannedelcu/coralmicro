@@ -212,6 +212,17 @@ add_executable_sim(sentai_sim
     # ObjectsPlan OP-S6-W3 — sentai.aruco fiducial detector + PnP.
     # Pure C/C++; SIM zerocopy hook lives in modsentai_sim_camera.c.
     ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_aruco.cc
+    # ObjectsPlan OP-S10-W12 — sentai.safety state machine + SafetyTask
+    # worker.  Pure-compute state machine + a pthread worker (FreeRTOS
+    # task on ARM) that REUSES sentai_camera_grab_gray_zerocopy +
+    # sentai_aruco_detect; no detection / camera intake duplicated.
+    # See Safety.md for the architecture.
+    ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_safety.cc
+    ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_safety_task.cc
+    # ObjectsPlan OP-S10-W13 — sentai.fr Flight Recorder subsystem.
+    # NASA/JPL FDR-style: multi-channel bounded-queue producers + single
+    # drain task → disk.  SIM-only initially; ARM port deferred.
+    ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_fr.cc
     # ObjectsPlan L6 — mission FSM wrapping L4 servo + L5 lifter.
     # Pure FSM, no transport bytes; same #include pattern as L2-L5.
     ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_explore.cc

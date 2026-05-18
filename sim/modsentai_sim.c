@@ -128,6 +128,13 @@ static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(sentai_verbose_obj, 0, 1,
 // ObjectsPlan OP-S6-W3 — sentai.aruco (fiducial detector + PnP).
 // Compute in C/C++; MP returns scalars only.
 #include "../examples/sentai_runtime/bindings/modsentai_aruco.c"
+// ObjectsPlan OP-S10-W12 — sentai.safety (firmware-side mission safety).
+// State machine + SafetyTask worker; consumes sentai.aruco results.
+// See Safety.md for architecture.
+#include "../examples/sentai_runtime/bindings/modsentai_safety.c"
+// ObjectsPlan OP-S10-W13 — sentai.fr (Flight Recorder subsystem).
+// Multi-channel recorder; producers push items, drain task writes to disk.
+#include "../examples/sentai_runtime/bindings/modsentai_fr.c"
 // ObjectsPlan L6 — sentai.explore (mission FSM).  Pure FSM that wraps
 // L4 servo + L5 lifter; shared with ARM via the same #include.
 #include "../examples/sentai_runtime/bindings/modsentai_explore.c"
@@ -159,6 +166,8 @@ static const mp_rom_map_elem_t sentai_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_object_lifter), MP_ROM_PTR(&sentai_object_lifter_module) },
     { MP_ROM_QSTR(MP_QSTR_calib),    MP_ROM_PTR(&sentai_calib_module) },
     { MP_ROM_QSTR(MP_QSTR_aruco),    MP_ROM_PTR(&sentai_aruco_module) },
+    { MP_ROM_QSTR(MP_QSTR_safety),   MP_ROM_PTR(&sentai_safety_module) },
+    { MP_ROM_QSTR(MP_QSTR_fr),       MP_ROM_PTR(&sentai_fr_module) },
     { MP_ROM_QSTR(MP_QSTR_explore),  MP_ROM_PTR(&sentai_explore_module) },
     { MP_ROM_QSTR(MP_QSTR_crazy),    MP_ROM_PTR(&sentai_crazy_module) },
     { MP_ROM_QSTR(MP_QSTR_sim),      MP_ROM_PTR(&sentai_sim_module) },

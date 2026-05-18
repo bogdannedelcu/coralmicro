@@ -85,7 +85,49 @@ OP — ObjectsPlan thesis
 │
 ├── OP-S8 — End-to-end SITL integration (cf2 + PX4)             🟡 partial
 │   ├── cf2 SITL working (EXP-s153..s156)
-│   └── PX4 SITL pending OP-S9 ARM bring-up
+│   ├── PX4 SITL pending OP-S9 ARM bring-up
+│   │
+│   └── OP-S8-W1 — cf2 SITL anti-cheat + honest vision-anchored validation
+│       │   🚨 CRISIS-OPENED 2026-05-17.  Discovery: every cf2-side drift
+│       │   number ever published in this project (s127 FlowBaseline 7.4 cm,
+│       │   s130 1.2 cm, s142 1.8 cm closure, s147+ closures, etc.) was
+│       │   masked by the `gz-sim-odometry-publisher-system` Gazebo plugin
+│       │   injecting GT pose directly into cf2 EKF as `CrtpExtPose`.  With
+│       │   the plugin disabled, cf2 has NO honest absolute reference until
+│       │   we wire ArUco PnP → cf2 via VPE (`cf.extpos.send_extpos`).  See
+│       │   [[cf2-sitl-cheat-odom-gt]] + [[op-s8-w1-cf2-sim-honest]] for
+│       │   the full forensic log.
+│       │
+│       │   Until this WP is GREEN, NO new cf2-side flight test produces a
+│       │   trustworthy drift number.  Hard freeze on quoting cf2 drift in
+│       │   thesis text until OP-S8-W1 closes.
+│       │
+│       ├── T1 — Disable `gz-sim-odometry-publisher-system` in
+│       │       `model.sdf.jinja`                                  ✅ SHIPPED 2026-05-17
+│       ├── T2 — Update `aruco_detector.py` KNOWN_POSITIONS_M +
+│       │       MARKER_SIZE_M to match current world SDF            ✅ SHIPPED 2026-05-17
+│       ├── T3 — Add VPE forwarder in `aruco_hover.py`
+│       │       (`cf.extpos.send_extpos` from PnP, gated)           ✅ SHIPPED 2026-05-17
+│       ├── T4 — Switch FlowBaseline hover from velocity setpoint
+│       │       to POSITION setpoint @ origin                       ✅ SHIPPED 2026-05-17
+│       ├── T5 — Retune cf2 position-PID (Kp 3→1, VelMax 2.5→0.5)
+│       │       + VPE rate 20→5 Hz to stop noise-chasing            ✅ SHIPPED 2026-05-17
+│       ├── T6 — Enforce reproducible cf2 spawn at origin BEFORE every
+│       │       trial (rule [[experiments-start-from-origin]] —
+│       │       current run.sh respawn is racy)                     ⬜ TODO (tomorrow)
+│       ├── T7 — Add GT recorder + verdict gate ON cf2-side
+│       │       FlowBaseline (current verdict trusts EKF belief
+│       │       which lies without anchor)                          ⬜ TODO (tomorrow)
+│       ├── T8 — Run new FlowBaseline canonical (3 trials, σ),
+│       │       publish as `[[flowbaseline-canonical-2-no-cheat]]`  ⬜ TODO (tomorrow)
+│       ├── T9 — Document discovery in Sim.md + agent.md +
+│       │       objects_plan.md risk register update                ⬜ TODO (tomorrow)
+│       ├── T10 — Audit ALL prior cf2 drift claims; re-run any
+│       │       experiment whose conclusions depended on a drift
+│       │       number (s127, s130, s142, s147..s150)                ⬜ TODO (later)
+│       └── T11 — Revisit OP-S10-W11-T5.A (1m square) with the new
+│                 honest baseline — open question whether to keep
+│                 EXP-s164 as a documented invalid trial or rerun    ⬜ TODO (later)
 │
 ├── OP-S9 — ARM bring-up + DWT timing budget                    ⬜ TODO
 │   ├── OP-S9-W1 — Generic LOG-channel RX FIFO in sentai_crazy.cc
@@ -108,15 +150,64 @@ OP — ObjectsPlan thesis
 │   ├── OP-S10-W8 — L7 indoor integrated demo (§23.1 north star) ⬜ TODO
 │   ├── OP-S10-W9 — Outdoor PX4 experiments (2-3 runs)           ⬜ TODO
 │   ├── OP-S10-W10 — Evaluation chapter writeup                  ⬜ TODO
-│   └── OP-S10-W11 — sentai_prep frame slot pipeline              🟡 IN PROGRESS (2026-05-17)
-│       │   Cross-cutting frame producer (PrepTask fan-out) + SlamTask
-│       │   InferTask-style consumer.  Foundation for places.compute_*
-│       │   _from_camera variants per [[no-heavy-data-through-mp]].
-│       ├── OP-S10-W11-T1 — sentai_prep.{h,cc} foundation        ✅ SHIPPED (commit b104d77e — retroactively-labeled "Phase 1a")
-│       ├── OP-S10-W11-T2 — PrepTask SLOT_GRAY_NATIVE + grab_gray refactor  ✅ SHIPPED (commit 90b0523b — retroactively-labeled "Phase 1b")
-│       ├── OP-S10-W11-T3 — slam_task.cc (perception loop)        ⬜ TODO (Phase 1c)
-│       ├── OP-S10-W11-T4 — SIM mirror in camera_bridge_recv.c    ⬜ TODO (Phase 1d)
-│       └── OP-S10-W11-T5 — EXP-s162 live scene-discrimination    ⬜ TODO (Phase 1e)
+│   ├── OP-S10-W11 — sentai_prep frame slot pipeline              🟡 IN PROGRESS (2026-05-17)
+│   │   │   Cross-cutting frame producer (PrepTask fan-out) + SlamTask
+│   │   │   InferTask-style consumer.  Foundation for places.compute_*
+│   │   │   _from_camera variants per [[no-heavy-data-through-mp]].
+│   │   ├── OP-S10-W11-T1 — sentai_prep.{h,cc} foundation        ✅ SHIPPED (commit b104d77e — retroactively-labeled "Phase 1a")
+│   │   ├── OP-S10-W11-T2 — PrepTask SLOT_GRAY_NATIVE + grab_gray refactor  ✅ SHIPPED (commit 90b0523b — retroactively-labeled "Phase 1b")
+│   │   ├── OP-S10-W11-T3 — slam_task.cc (perception loop)        ⬜ TODO (Phase 1c)
+│   │   ├── OP-S10-W11-T4 — SIM mirror in camera_bridge_recv.c    ⬜ TODO (Phase 1d)
+│   │   └── OP-S10-W11-T5 — EXP-s162 live scene-discrimination    ⬜ TODO (Phase 1e)
+│   │
+│   ├── OP-S10-W12 — sentai.safety (firmware-side mission safety) 🟡 IN PROGRESS (opened 2026-05-18)
+│   │   │   Continuous in-firmware mission-safety monitor per CLAUDE.md
+│   │   │   compute-in-C principle + [[no-safety-logic-in-explore]].
+│   │   │   Mission MP arms checks (ArUco first) and polls `aborted()`;
+│   │   │   SafetyTask worker drives detection at camera FPS using the
+│   │   │   EXISTING sentai.aruco + sentai.camera (no pipeline duplication).
+│   │   │   Replaces interim host-side SafetyMonitor from s167.  See
+│   │   │   Safety.md for full architecture.
+│   │   ├── OP-S10-W12-T1 — sentai_safety.h API contract           ✅ SHIPPED
+│   │   ├── OP-S10-W12-T2 — sentai_safety.cc state machine        ✅ SHIPPED
+│   │   ├── OP-S10-W12-T3 — sentai_safety_task.cc worker          ✅ SHIPPED
+│   │   ├── OP-S10-W12-T4 — bindings/modsentai_safety.c MP API    ✅ SHIPPED (minimal: 8 fns, no dicts)
+│   │   ├── OP-S10-W12-T5 — SIM CMake + dispatch + QSTR regen     ✅ SHIPPED
+│   │   ├── OP-S10-W12-T6 — EXP-s170 SecurityArucoBaseline smoke  🟡 IN PROGRESS (operator-named)
+│   │   ├── OP-S10-W12-T7 — Migrate FlowBaseline2 mission to MP   ⬜ TODO (depends on FlightRecorder)
+│   │   ├── OP-S10-W12-T8 — agent.md + Safety.md complete         ⬜ TODO
+│   │   ├── OP-S10-W12-T9 — ARM build + ITCM budget + s127 gate   ⬜ TODO
+│   │   ├── OP-S10-W12-T10 — Migrate in-place PGM journal from
+│   │   │                     SafetyTask to sentai.fr (depends W13)  ⬜ TODO
+│   │   └── OP-S10-W12-T11 — sentai_aruco frame_seq memoisation   ⬜ TODO (T-future)
+│   │
+│   └── OP-S10-W13 — sentai.fr (Flight Recorder subsystem)        🟡 IN PROGRESS (opened 2026-05-18)
+│       │   Independent NASA/JPL-style flight data recorder per
+│       │   embeded.md §3.1 (strict layer separation) + §7.2
+│       │   (structured event log).  Multi-channel (frames / events /
+│       │   scalars / kernel), bounded-queue producers, single drain
+│       │   task → disk.  Producers (SafetyTask, mission, flow_task,
+│       │   future health) push items O(1) non-blocking; recorder
+│       │   thread does the I/O.  SIM-only initially; ARM port (FxUser
+│       │   sinks) deferred.  Operator analogy: avionics FDR/CVR.
+│       │   Format minimal per operator 2026-05-18 ("nu vreau mai
+│       │   complicat de atat, vezi cum face PX4"): per-channel CSV
+│       │   text, no JSON in MP path.
+│       ├── OP-S10-W13-T1 — sentai_fr.h API contract              ✅ SHIPPED
+│       ├── OP-S10-W13-T2 — sentai_fr.cc state + recorder task    ✅ SHIPPED
+│       ├── OP-S10-W13-T3 — bindings/modsentai_fr.c MP API +
+│       │                    `sentai.fs.record_image(source)` helper
+│       │                    (caller picks rgb/gray/resized)         ⬜ TODO
+│       ├── OP-S10-W13-T4 — SIM CMake + dispatch + QSTR regen      ⬜ TODO
+│       ├── OP-S10-W13-T5 — Migrate sentai_safety_task PGM dump
+│       │                    to sentai_fr_push_frame                ⬜ TODO
+│       ├── OP-S10-W13-T6 — Migrate sentai_dmesg → fr "kernel" ch  ⬜ TODO (T-future)
+│       ├── OP-S10-W13-T7 — EXP-s171 FlightRecorder smoke
+│       │                    (writes + drops + queue depths)        ⬜ TODO
+│       ├── OP-S10-W13-T8 — ARM port (FxUser sinks)                 ⬜ TODO (T-future)
+│       └── OP-S10-W13-T9 — Migrate sim/modsentai_sim_journal.c
+│                            (sentai.sim.journal_*) → sentai.fr
+│                            events channel                          ⬜ TODO (T-future)
 │
 └── Milestones
     ├── OP-M1 — Thesis MVP (SIM): 4 descriptors + L1 + calib working end-to-end
