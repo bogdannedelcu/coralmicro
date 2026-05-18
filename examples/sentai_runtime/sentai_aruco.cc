@@ -1330,9 +1330,34 @@ extern "C" int sentai_aruco_detect(const uint8_t* gray, int w, int h,
 
             int rotation = 0;
             int hamming = 0;
-            const int mid = aruco_decode_marker(gray, corners, w, h,
+            int mid = aruco_decode_marker(gray, corners, w, h,
                                                  &rotation, &hamming);
-            if (mid < 0) { s_stats.rejected_dict_total++; continue; }
+            // T18-I: cv2's findContours produces CCW for outer contours
+            // while our Moore-Neighbor produces CW.  If dict-decode fails
+            // on the CW ordering, try the CCW (reverse) ordering before
+            // giving up.  Reverses the marker pattern in 4×4 grid, which
+            // dict-decode's 4-rotation search alone cannot recover.
+            if (mid < 0) {
+                float corners_rev[8] = {
+                    corners[0], corners[1],   // TL stays
+                    corners[6], corners[7],   // BL → "TR"
+                    corners[4], corners[5],   // BR stays
+                    corners[2], corners[3],   // TR → "BL"
+                };
+                int rot2 = 0, hamm2 = 0;
+                int mid2 = aruco_decode_marker(gray, corners_rev, w, h,
+                                                 &rot2, &hamm2);
+                if (mid2 >= 0) {
+                    mid = mid2;
+                    rotation = rot2;
+                    hamming = hamm2;
+                    memcpy(corners, corners_rev, sizeof(corners));
+                }
+            }
+            if (mid < 0) {
+                s_stats.rejected_dict_total++;
+                continue;
+            }
             aruco_realign_corners(corners, (4 - rotation) % 4);
 
             float tvec[3], rvec[3], reproj;

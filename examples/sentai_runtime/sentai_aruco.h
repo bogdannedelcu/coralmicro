@@ -84,7 +84,7 @@ extern "C" {
 // Quality / acceptance thresholds (§21.5-style).
 #define SENTAI_ARUCO_MIN_QUAD_AREA  256.0f      // px², 16x16 minimum
 #define SENTAI_ARUCO_MIN_PERIMETER  40.0f       // px
-#define SENTAI_ARUCO_MAX_HAMMING    2           // bits flipped allowed
+#define SENTAI_ARUCO_MAX_HAMMING    4           // bits flipped allowed (cv2 errorCorrectionRate=0.6)
 #define SENTAI_ARUCO_REPROJ_MAX_PX  3.0f        // PnP residual gate
 
 // ---- Reject codes ------------------------------------------------------
