@@ -1322,6 +1322,20 @@ extern "C" int sentai_aruco_detect(const uint8_t* gray, int w, int h,
             float corners[8];
             if (aruco_extract_quad(lab, w, h, c, corners) != 0) continue;
 
+            // T18-K: enforce CW winding (js-aruco / cv2.aruco standard).
+            // Cross product (c1-c0) × (c2-c0): negative → CCW → swap c1,c3.
+            {
+                const float dx1 = corners[2] - corners[0];
+                const float dy1 = corners[3] - corners[1];
+                const float dx2 = corners[4] - corners[0];
+                const float dy2 = corners[5] - corners[1];
+                if (dx1 * dy2 - dy1 * dx2 < 0.0f) {
+                    float tx = corners[2], ty = corners[3];
+                    corners[2] = corners[6]; corners[3] = corners[7];
+                    corners[6] = tx;         corners[7] = ty;
+                }
+            }
+
             for (int k = 0; k < 4; ++k) {
                 aruco_refine_corner_subpix(gray, w, h,
                                              &corners[k*2 + 0],
