@@ -241,7 +241,13 @@ OP — ObjectsPlan thesis
 │       │                    17-27 cm — incompatible with [[sim-test-
 │       │                    must-return-home]] ≤10 cm rule at current
 │       │                    parameters; algorithm itself succeeded.
-│       ├── OP-S10-W14-T7 — flow_gains.json persistence via FxUser    ⬜ TODO
+│       ├── OP-S10-W14-T7 — flow_gains.txt (key=value) persist via   ⬜ TODO
+│       │                    FxUser.  Operator-mandated 2026-05-18:
+│       │                    "nu prea vreau sa tinem configurari in
+│       │                    json, un format mai simplu cheie-valoare
+│       │                    e mai potrivit pentru MCU".  One line
+│       │                    per setting, ~20-line parser, no JSON
+│       │                    library on ARM.
 │       ├── OP-S10-W14-T8 — Y-axis autotune (mirror X)                ✅ SHIPPED
 │       │                    3 trials Kp_y=0.39 ± 0.10 (median 0.336,
 │       │                    σ=0.10).  Confirms cf2 X/Y symmetry.
