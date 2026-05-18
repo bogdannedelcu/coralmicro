@@ -304,28 +304,39 @@ void worker_loop_() {
                 //     commanded yaw_rate over time.  Drone follows
                 //     via hover.yaw_rate naturally; cf2 EKF gets a
                 //     smooth yaw reference + full position fix.
-                float qz = 0.0f, qw = 1.0f;
+                // T19 option A (SHIPPED): when HOLD is yawing, DROP
+                // the ExtPose quaternion and send POSITION-ONLY via
+                // ExtPos.  Eliminates the positive-feedback loop
+                // between our VPE quaternion and cf2's yaw controller.
+                // Trade-off:
+                //   - Yaw rate doesn't track command precisely (cf2
+                //     SITL ~20% of commanded rate without yaw ref).
+                //   - Position hold is excellent: 5 cm land drift on
+                //     a 24 s yaw mission (vs 48 cm with quat feedback
+                //     and 91 cm with PnP-derived quat which resonated
+                //     and crashed).
+                //   - No safety abort.  ArUco detection at 82-90 %
+                //     n=4 throughout rotation (T18 stack).
+                // Options B (PnP-derived yaw quat) and C (identity
+                // quat) both crashed via resonance in s174 trials —
+                // see T19 notes / commit history.
                 if (s_mode == MODE_HOLD &&
                     fabsf(s_hold_yaw_rate_deg_s) > 0.01f) {
-                    // Advance model by (rate × dt).  Use real wall
-                    // dt from VPE last_ms (clamped to 200 ms max).
+                    // Update FR diag — track INTEGRATED commanded yaw
+                    // (not real yaw; real yaw not measured by VPE in
+                    // this mode).
                     uint32_t dt_ms = (s_vpe_last_ms == 0)
                         ? 33 : (ts - s_vpe_last_ms);
                     if (dt_ms > 200) dt_ms = 200;
                     s_hold_yaw_integrated_deg +=
                         s_hold_yaw_rate_deg_s * (float)dt_ms * 1e-3f;
-                    // Wrap to (-180, 180] for numerical stability.
-                    while (s_hold_yaw_integrated_deg >  180.0f)
-                        s_hold_yaw_integrated_deg -= 360.0f;
-                    while (s_hold_yaw_integrated_deg <= -180.0f)
-                        s_hold_yaw_integrated_deg += 360.0f;
-                    float yaw_rad = s_hold_yaw_integrated_deg
-                                      * 0.01745329f;   // π/180
-                    qz = sinf(yaw_rad * 0.5f);
-                    qw = cosf(yaw_rad * 0.5f);
+                    (void)sentai_crazy_send_extpos(dx, dy, dz);
+                } else {
+                    // Static hold (T12/T13): identity quaternion locks
+                    // yaw to world +X via ExtPose.
+                    (void)sentai_crazy_send_extpose(dx, dy, dz,
+                                                      0.0f, 0.0f, 0.0f, 1.0f);
                 }
-                (void)sentai_crazy_send_extpose(dx, dy, dz,
-                                                  0.0f, 0.0f, qz, qw);
                 sentai_fr_push_scalar("at_vpe_x", dx, ts);
                 sentai_fr_push_scalar("at_vpe_y", dy, ts);
                 sentai_fr_push_scalar("at_vpe_z", dz, ts);
