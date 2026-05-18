@@ -686,6 +686,30 @@ static mp_obj_t mod_sentai_crazy_send_flow(size_t n_args, const mp_obj_t* args) 
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_crazy_send_flow_obj, 4, 4, mod_sentai_crazy_send_flow);
 
+// sentai.crazy.send_extpos(x, y, z) -> int
+// CRTP LOCALIZATION port 6 channel 0 — position-only VPE update.
+static mp_obj_t mod_sentai_crazy_send_extpos(size_t n_args, const mp_obj_t* args) {
+    float x = mp_obj_get_float(args[0]);
+    float y = mp_obj_get_float(args[1]);
+    float z = mp_obj_get_float(args[2]);
+    return mp_obj_new_int(sentai_crazy_send_extpos(x, y, z));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_crazy_send_extpos_obj, 3, 3, mod_sentai_crazy_send_extpos);
+
+// sentai.crazy.send_extpose(x, y, z, qx, qy, qz, qw) -> int
+// CRTP LOCALIZATION port 6 channel 1 — full ExtPose with quaternion.
+static mp_obj_t mod_sentai_crazy_send_extpose(size_t n_args, const mp_obj_t* args) {
+    float x  = mp_obj_get_float(args[0]);
+    float y  = mp_obj_get_float(args[1]);
+    float z  = mp_obj_get_float(args[2]);
+    float qx = mp_obj_get_float(args[3]);
+    float qy = mp_obj_get_float(args[4]);
+    float qz = mp_obj_get_float(args[5]);
+    float qw = mp_obj_get_float(args[6]);
+    return mp_obj_new_int(sentai_crazy_send_extpose(x, y, z, qx, qy, qz, qw));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_crazy_send_extpose_obj, 7, 7, mod_sentai_crazy_send_extpose);
+
 // sentai.crazy.link_send(channel, data) -> int
 // Send a payload to the drone-side "sentai" deck driver over UART2,
 // using channel multiplexing on the 0xAA wire format:
@@ -794,6 +818,8 @@ static const mp_rom_map_elem_t sentai_crazy_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_on_message),     MP_ROM_PTR(&mod_sentai_crazy_on_message_obj) },
     { MP_ROM_QSTR(MP_QSTR_link_send),      MP_ROM_PTR(&mod_sentai_crazy_link_send_obj) },
     { MP_ROM_QSTR(MP_QSTR_send_flow),      MP_ROM_PTR(&mod_sentai_crazy_send_flow_obj) },
+    { MP_ROM_QSTR(MP_QSTR_send_extpos),    MP_ROM_PTR(&mod_sentai_crazy_send_extpos_obj) },
+    { MP_ROM_QSTR(MP_QSTR_send_extpose),   MP_ROM_PTR(&mod_sentai_crazy_send_extpose_obj) },
     // Task #44 — pose_* (CRTP LOG in C)
     { MP_ROM_QSTR(MP_QSTR_pose_subscribe), MP_ROM_PTR(&mod_sentai_crazy_pose_subscribe_obj) },
     { MP_ROM_QSTR(MP_QSTR_pose),           MP_ROM_PTR(&mod_sentai_crazy_pose_obj) },

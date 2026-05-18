@@ -50,6 +50,9 @@ extern int   sentai_crazy_go_to(float x, float y, float z, float yaw,
 extern int   sentai_crazy_hover(float vx, float vy, float yaw_rate, float z);
 extern int   sentai_crazy_send_crtp(uint8_t port, uint8_t channel,
                                      const uint8_t* data, int len);
+extern int   sentai_crazy_send_extpos(float x, float y, float z);
+extern int   sentai_crazy_send_extpose(float x, float y, float z,
+                                        float qx, float qy, float qz, float qw);
 extern int   sentai_crazy_recv_pop(uint8_t* port, uint8_t* ch,
                                     uint8_t* data, int max_len, int* out_len);
 extern void  sentai_crazy_get_stats(uint32_t out[4]);
@@ -153,6 +156,28 @@ static mp_obj_t sim_crazy_send_crtp(mp_obj_t port_obj, mp_obj_t ch_obj, mp_obj_t
 }
 static MP_DEFINE_CONST_FUN_OBJ_3(sim_crazy_send_crtp_obj, sim_crazy_send_crtp);
 
+/* send_extpos(x, y, z) — CRTP LOCALIZATION ch 0, position-only VPE. */
+static mp_obj_t sim_crazy_send_extpos(size_t n_args, const mp_obj_t* args) {
+    float x = mp_obj_get_float(args[0]);
+    float y = mp_obj_get_float(args[1]);
+    float z = mp_obj_get_float(args[2]);
+    return mp_obj_new_int(sentai_crazy_send_extpos(x, y, z));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(sim_crazy_send_extpos_obj, 3, 3, sim_crazy_send_extpos);
+
+/* send_extpose(x, y, z, qx, qy, qz, qw) — full ExtPose VPE (ch 1 GENERIC). */
+static mp_obj_t sim_crazy_send_extpose(size_t n_args, const mp_obj_t* args) {
+    float x  = mp_obj_get_float(args[0]);
+    float y  = mp_obj_get_float(args[1]);
+    float z  = mp_obj_get_float(args[2]);
+    float qx = mp_obj_get_float(args[3]);
+    float qy = mp_obj_get_float(args[4]);
+    float qz = mp_obj_get_float(args[5]);
+    float qw = mp_obj_get_float(args[6]);
+    return mp_obj_new_int(sentai_crazy_send_extpose(x, y, z, qx, qy, qz, qw));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(sim_crazy_send_extpose_obj, 7, 7, sim_crazy_send_extpose);
+
 /* recv_crtp() -> (port, ch, data:bytes) | None
  * Non-blocking — pops one packet from the RX FIFO if available. */
 static mp_obj_t sim_crazy_recv_crtp(void) {
@@ -249,6 +274,8 @@ static const mp_rom_map_elem_t sentai_crazy_sim_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_go_to),       MP_ROM_PTR(&sim_crazy_go_to_obj) },
     { MP_ROM_QSTR(MP_QSTR_hover),       MP_ROM_PTR(&sim_crazy_hover_obj) },
     { MP_ROM_QSTR(MP_QSTR_send_crtp),   MP_ROM_PTR(&sim_crazy_send_crtp_obj) },
+    { MP_ROM_QSTR(MP_QSTR_send_extpos), MP_ROM_PTR(&sim_crazy_send_extpos_obj) },
+    { MP_ROM_QSTR(MP_QSTR_send_extpose),MP_ROM_PTR(&sim_crazy_send_extpose_obj) },
     { MP_ROM_QSTR(MP_QSTR_recv_crtp),   MP_ROM_PTR(&sim_crazy_recv_crtp_obj) },
     { MP_ROM_QSTR(MP_QSTR_stats),       MP_ROM_PTR(&sim_crazy_stats_obj) },
     /* Task #44 — pose_* (CRTP LOG in C) */
