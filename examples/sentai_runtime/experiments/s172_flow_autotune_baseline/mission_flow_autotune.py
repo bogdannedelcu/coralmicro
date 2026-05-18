@@ -35,7 +35,9 @@ GRID_DY_M    = 0.40       # center-to-center between id0 and id3 (=2×0.20)
 MARKER_SIZE  = 0.125      # matches sentai_aruco.cc s_marker_size_m
 
 # Autotune knobs
-AT_AXIS      = "x"
+AT_AXIS      = "x"   # canonical baseline; flip to "y" to repeat
+                      # T8 mirror-axis trials (Y-axis converged at
+                      # Kp_y ≈ 0.39 too in iter #26 3 trials).
 AT_DUR_S     = 30.0
 # Iter #17 reverted iter #16 reduction: vmax=0.03 produced WORSE
 # lateral oscillation (±18 cm), not better — at low vmax the relay

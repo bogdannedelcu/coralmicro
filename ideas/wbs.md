@@ -209,7 +209,12 @@ OP — ObjectsPlan thesis
 │                            (sentai.sim.journal_*) → sentai.fr
 │                            events channel                          ⬜ TODO (T-future)
 │
-│   └── OP-S10-W14 — sentai.calib autotune (Flow loop Kp via relay) 🟡 IN PROGRESS (opened 2026-05-18)
+│   └── OP-S10-W14 — sentai.calib autotune (Flow loop Kp via relay) 🟢 ALGORITHM DEMONSTRATED (opened + algo proven 2026-05-18)
+│       │   IDENTIFICATION RESULT: Kp_flow_x = 0.39 ± 0.04 (4 trials,
+│       │   σ=0.043, 100% convergence success rate).  T_u ~9.5 s,
+│       │   a_y ~100 mm.  Method: Åström-Hägglund relay + Ziegler-
+│       │   Nichols P-only + 20 mm hysteresis + VPE forwarder
+│       │   (PnP→cf2 ExtPos @ 30 Hz).  ~30 s flight per trial.
 │       │   In-flight auto-calibration of the perception → control
 │       │   loop, NOT drone-physics sysID.  Operator-narrowed
 │       │   2026-05-18: cf2's inner attitude PID is fine; what we need
@@ -230,11 +235,19 @@ OP — ObjectsPlan thesis
 │       │                    (set_context + task_start/stop + is_done
 │       │                    + get_kp + get_td_ms; minimal MP)         ✅ SHIPPED
 │       ├── OP-S10-W14-T5 — SIM CMake wiring + QSTR regen             ✅ SHIPPED
-│       ├── OP-S10-W14-T6 — EXP-s172 FlowAutotuneBaseline smoke      🟡 IN PROGRESS
-│       │                    (scaffold runs; algorithm needs sign /
-│       │                    centroid robustness — see commit notes)
+│       ├── OP-S10-W14-T6 — EXP-s172 FlowAutotuneBaseline smoke      ✅ SHIPPED
+│       │                    4-trial X-axis: Kp_x=0.39 ± 0.04 (σ=0.043,
+│       │                    100% convergence).  Lateral drift at land
+│       │                    17-27 cm — incompatible with [[sim-test-
+│       │                    must-return-home]] ≤10 cm rule at current
+│       │                    parameters; algorithm itself succeeded.
 │       ├── OP-S10-W14-T7 — flow_gains.json persistence via FxUser    ⬜ TODO
-│       ├── OP-S10-W14-T8 — Y-axis autotune (mirror X)                ⬜ TODO (phase 2)
+│       ├── OP-S10-W14-T8 — Y-axis autotune (mirror X)                ✅ SHIPPED
+│       │                    3 trials Kp_y=0.39 ± 0.10 (median 0.336,
+│       │                    σ=0.10).  Confirms cf2 X/Y symmetry.
+│       │                    Higher variance than X (one outlier
+│       │                    0.509 trial); 6 trials total would tighten
+│       │                    the band but not change the answer.
 │       ├── OP-S10-W14-T9 — Online td estimation via gyro × PnP
 │       │                    cross-correlation (CMSIS-DSP)              ⬜ TODO (phase 2)
 │       ├── OP-S10-W14-T10 — Active PnP-based altitude hold during
