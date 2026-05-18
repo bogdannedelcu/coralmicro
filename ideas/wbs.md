@@ -364,6 +364,28 @@ OP — ObjectsPlan thesis
 │       │   The 5-line DP seed loop fix delivered the biggest single
 │       │   gain (+18 pp).  Always measure before keeping complexity.
 │       │
+│       │   Reference marker frames (raw PGM from real flight):
+│       │     - examples/sentai_runtime/experiments/s175_pnp_planar_ambiguity/
+│       │         frame_original.pgm     — axis-aligned 4 markers
+│       │         frame_rot35.pgm        — same scene bilinear-rotated
+│       │                                  35° (synthetic artefact;
+│       │                                  not used for real measure)
+│       │     - examples/sentai_runtime/experiments/s177_corner_subpix_prototype/
+│       │         frame_horiz_n4.pgm     — real capture, axis-aligned,
+│       │                                  4 markers, easy case
+│       │         frame_rot45_n1.pgm     — real capture, ~45° in-plane
+│       │                                  rotation, the WORST case
+│       │                                  (pre-T18: 0 of 4 detected;
+│       │                                  post-T18: 4 of 4)
+│       │     - examples/sentai_runtime/experiments/s178_cv2_vs_ours_dump/
+│       │         frame_133.pgm          — the SMOKING GUN frame from
+│       │                                  s174 yaw mission: cv2 sees
+│       │                                  ids 0,1,2,3 at z≈1.10 m,
+│       │                                  pre-T18-M our pipeline saw
+│       │                                  only id=3.  Used to isolate
+│       │                                  the DLT-PnP-instability bug
+│       │                                  → IPPE_SQUARE port.
+│       │
 │       └── OP-S10-W14-T11 — STEP RESPONSE identification alternative
 │                            to ZN-relay (operator-noted 2026-05-18:
 │                            relay produces ±6-10 cm lateral oscillation
