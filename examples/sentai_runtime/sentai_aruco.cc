@@ -602,11 +602,15 @@ static int aruco_extract_quad_legacy(uint8_t lab_target, int w, int h,
 
 static uint8_t s_warp_buf[ARUCO_BITGRID_SIDE * ARUCO_BITGRID_SIDE] ARUCO_BSS_ATTR;
 
-// Forward decl — definition lower in file (used by T18-F before the
-// PnP block where DLT was originally introduced).
+// Forward decls — definitions lower in file.
 static int aruco_dlt_homography(const float mx[4], const float my[4],
                                  const float u[4], const float v[4],
                                  float H[9]);
+static int aruco_reproj_err(const float R[9], const float t[3],
+                             const float mx[4], const float my[4],
+                             const float u[4], const float v[4],
+                             float fx, float fy, float cx, float cy,
+                             float* err_out);
 
 static int aruco_warp_to_canonical(const uint8_t* img, int W, int H_img,
                                     const float corners[8],
@@ -931,6 +935,265 @@ static void aruco_refine_corner_subpix(const uint8_t* img, int W, int H,
 }
 
 // =========================================================================
+// T18-M — Port of cv2 IPPE_SQUARE PnP solver
+// (opencv/modules/calib3d/src/ippe.cpp, BSD-3-Clause, OpenCV 4.x).
+//
+// Why we need this: our DLT-homography-decomposition PnP (below) is
+// numerically unstable under sub-pixel corner noise.  On real-flight
+// frames where extracted corners are 1-2 px off the true position,
+// our DLT gives tvec_z errors up to 24% and reproj 4-7 px (fails
+// the 3-px gate).  IPPE_SQUARE uses an analytical 2-pose formulation
+// based on the Jacobian of the homography at the marker centroid;
+// it stays numerically stable for noisy inputs.
+//
+// Empirical s174 frame 133 measurement (same corners):
+//   our DLT:        tvec_z=0.826m  reproj=3.98 px ✗
+//   cv2 IPPE_SQUARE: tvec_z=1.089m reproj=0.30 px ✓
+//
+// This single change closes most of the 40% → 92% real-flight
+// detection gap.
+// =========================================================================
+
+// Rotation matrix that rotates the input vector a onto +z axis.
+// Output Ra is row-major 3x3.  Port of PoseSolver::rotateVec2ZAxis.
+static void aruco_ippe_rotate_vec2zaxis(const float a[3], float Ra[9]) {
+    const float nrm = sqrtf(a[0]*a[0] + a[1]*a[1] + a[2]*a[2]);
+    const float ax = a[0] / nrm;
+    const float ay = a[1] / nrm;
+    const float az = a[2] / nrm;
+    const float c = az;
+    if (fabsf(1.0f + c) < 1e-7f) {
+        Ra[0]=1; Ra[1]=0; Ra[2]= 0;
+        Ra[3]=0; Ra[4]=1; Ra[5]= 0;
+        Ra[6]=0; Ra[7]=0; Ra[8]=-1;
+        return;
+    }
+    const float d = 1.0f / (1.0f + c);
+    const float ax2 = ax * ax;
+    const float ay2 = ay * ay;
+    const float axay = ax * ay;
+    Ra[0] = -ax2 * d + 1.0f;  Ra[1] = -axay * d;        Ra[2] = -ax;
+    Ra[3] = -axay * d;        Ra[4] = -ay2 * d + 1.0f;  Ra[5] = -ay;
+    Ra[6] = ax;               Ra[7] = ay;               Ra[8] = 1.0f - (ax2 + ay2) * d;
+}
+
+// Analytical homography from 4 (normalized) target points to a square
+// of half-length halfL centered at origin.  Port of
+// PoseSolver::homographyFromSquarePoints.  Returns H 3x3 row-major.
+// Returns -1 on degenerate input.
+static int aruco_ippe_h_from_square(const float xn[4], const float yn[4],
+                                     float halfL, float H[9]) {
+    const float p1x = -xn[0], p1y = -yn[0];
+    const float p2x = -xn[1], p2y = -yn[1];
+    const float p3x = -xn[2], p3y = -yn[2];
+    const float p4x = -xn[3], p4y = -yn[3];
+    const float det = halfL * (p1x*p2y - p2x*p1y - p1x*p4y + p2x*p3y
+                              - p3x*p2y + p4x*p1y + p3x*p4y - p4x*p3y);
+    if (fabsf(det) < 1e-9f) return -1;
+    const float di = -1.0f / det;
+    H[0] = di * (p1x*p3x*p2y - p2x*p3x*p1y - p1x*p4x*p2y + p2x*p4x*p1y
+               - p1x*p3x*p4y + p1x*p4x*p3y + p2x*p3x*p4y - p2x*p4x*p3y);
+    H[1] = di * (p1x*p2x*p3y - p1x*p3x*p2y - p1x*p2x*p4y + p2x*p4x*p1y
+               + p1x*p3x*p4y - p3x*p4x*p1y - p2x*p4x*p3y + p3x*p4x*p2y);
+    H[2] = di * halfL * (p1x*p2x*p3y - p2x*p3x*p1y - p1x*p2x*p4y
+               + p1x*p4x*p2y - p1x*p4x*p3y + p3x*p4x*p1y + p2x*p3x*p4y
+               - p3x*p4x*p2y);
+    H[3] = di * (p1x*p2y*p3y - p2x*p1y*p3y - p1x*p2y*p4y + p2x*p1y*p4y
+               - p3x*p1y*p4y + p4x*p1y*p3y + p3x*p2y*p4y - p4x*p2y*p3y);
+    H[4] = di * (p2x*p1y*p3y - p3x*p1y*p2y - p1x*p2y*p4y + p4x*p1y*p2y
+               + p1x*p3y*p4y - p4x*p1y*p3y - p2x*p3y*p4y + p3x*p2y*p4y);
+    H[5] = di * halfL * (p1x*p2y*p3y - p3x*p1y*p2y - p2x*p1y*p4y
+               + p4x*p1y*p2y - p1x*p3y*p4y + p3x*p1y*p4y + p2x*p3y*p4y
+               - p4x*p2y*p3y);
+    H[6] = -di * (p1x*p3y - p3x*p1y - p1x*p4y - p2x*p3y + p3x*p2y
+               + p4x*p1y + p2x*p4y - p4x*p2y);
+    H[7] = di * (p1x*p2y - p2x*p1y - p1x*p3y + p3x*p1y + p2x*p4y
+               - p4x*p2y - p3x*p4y + p4x*p3y);
+    H[8] = 1.0f;
+    return 0;
+}
+
+// Compute the two rotation candidates from Jacobian of H at origin.
+// Port of PoseSolver::computeRotations.  R1, R2 row-major 3x3.
+static int aruco_ippe_compute_rotations(float j00, float j01,
+                                          float j10, float j11,
+                                          float p, float q,
+                                          float R1[9], float R2[9]) {
+    const float v[3] = { p, q, 1.0f };
+    float RvT[9];
+    aruco_ippe_rotate_vec2zaxis(v, RvT);
+    // Rv = RvT transposed (cv2 transposes after rotateVec2ZAxis).
+    const float rv00 = RvT[0], rv01 = RvT[3], rv02 = RvT[6];
+    const float rv10 = RvT[1], rv11 = RvT[4], rv12 = RvT[7];
+    const float rv20 = RvT[2], rv21 = RvT[5], rv22 = RvT[8];
+    const float b00 = rv00 - p * rv20;
+    const float b01 = rv01 - p * rv21;
+    const float b10 = rv10 - q * rv20;
+    const float b11 = rv11 - q * rv21;
+    const float bdet = b00 * b11 - b01 * b10;
+    if (fabsf(bdet) < 1e-9f) return -1;
+    const float dtinv = 1.0f / bdet;
+    const float binv00 =  dtinv * b11;
+    const float binv01 = -dtinv * b01;
+    const float binv10 = -dtinv * b10;
+    const float binv11 =  dtinv * b00;
+    const float a00 = binv00 * j00 + binv01 * j10;
+    const float a01 = binv00 * j01 + binv01 * j11;
+    const float a10 = binv10 * j00 + binv11 * j10;
+    const float a11 = binv10 * j01 + binv11 * j11;
+    // Largest singular value of A.
+    const float ata00 = a00 * a00 + a01 * a01;
+    const float ata01 = a00 * a10 + a01 * a11;
+    const float ata11 = a10 * a10 + a11 * a11;
+    const float disc = (ata00 - ata11) * (ata00 - ata11) + 4.0f * ata01 * ata01;
+    const float g2 = 0.5f * (ata00 + ata11 + sqrtf(disc));
+    if (g2 < 0.0f) return -1;
+    const float gamma = sqrtf(g2);
+    if (fabsf(gamma) < 1e-9f) return -1;
+    const float rt00 = a00 / gamma, rt01 = a01 / gamma;
+    const float rt10 = a10 / gamma, rt11 = a11 / gamma;
+    const float b0_2 = 1.0f - rt00 * rt00 - rt10 * rt10;
+    const float b1_2 = 1.0f - rt01 * rt01 - rt11 * rt11;
+    if (b0_2 < 0.0f || b1_2 < 0.0f) return -1;
+    const float b0 = sqrtf(b0_2);
+    float b1   = sqrtf(b1_2);
+    const float sp = -rt00 * rt01 - rt10 * rt11;
+    if (sp < 0.0f) b1 = -b1;
+    // r3 column = cross of (rt0, rt1, b)
+    const float c00 = b1 * rt10 - b0 * rt11;
+    const float c01 = b0 * rt01 - b1 * rt00;
+    const float c02 = rt00 * rt11 - rt01 * rt10;
+    R1[0] = rt00*rv00 + rt10*rv01 + b0*rv02;
+    R1[1] = rt01*rv00 + rt11*rv01 + b1*rv02;
+    R1[2] = c00*rv00 + c01*rv01 + c02*rv02;
+    R1[3] = rt00*rv10 + rt10*rv11 + b0*rv12;
+    R1[4] = rt01*rv10 + rt11*rv11 + b1*rv12;
+    R1[5] = c00*rv10 + c01*rv11 + c02*rv12;
+    R1[6] = rt00*rv20 + rt10*rv21 + b0*rv22;
+    R1[7] = rt01*rv20 + rt11*rv21 + b1*rv22;
+    R1[8] = c00*rv20 + c01*rv21 + c02*rv22;
+    // R2 has b0, b1, c00, c01 negated (per cv2 source).
+    R2[0] = rt00*rv00 + rt10*rv01 + (-b0)*rv02;
+    R2[1] = rt01*rv00 + rt11*rv01 + (-b1)*rv02;
+    R2[2] = -c00*rv00 + -c01*rv01 + c02*rv02;
+    R2[3] = rt00*rv10 + rt10*rv11 + (-b0)*rv12;
+    R2[4] = rt01*rv10 + rt11*rv11 + (-b1)*rv12;
+    R2[5] = -c00*rv10 + -c01*rv11 + c02*rv12;
+    R2[6] = rt00*rv20 + rt10*rv21 + (-b0)*rv22;
+    R2[7] = rt01*rv20 + rt11*rv21 + (-b1)*rv22;
+    R2[8] = -c00*rv20 + -c01*rv21 + c02*rv22;
+    return 0;
+}
+
+// Compute translation t given R, 4 marker 2D pts, and 4 normalized
+// image pts.  Port of PoseSolver::computeTranslation.  Solves
+// A^T A t = A^T b via the closed-form 3x3 inverse for n=4.
+static int aruco_ippe_compute_translation(const float mx[4], const float my[4],
+                                            const float xn[4], const float yn[4],
+                                            const float R[9],
+                                            float t[3]) {
+    const int n = 4;
+    float ATA00 = (float)n, ATA02 = 0.0f, ATA11 = (float)n;
+    float ATA12 = 0.0f, ATA20 = 0.0f, ATA21 = 0.0f, ATA22 = 0.0f;
+    float ATb0 = 0.0f, ATb1 = 0.0f, ATb2 = 0.0f;
+    for (int i = 0; i < n; ++i) {
+        const float rx = R[0]*mx[i] + R[1]*my[i];
+        const float ry = R[3]*mx[i] + R[4]*my[i];
+        const float rz = R[6]*mx[i] + R[7]*my[i];
+        const float a2 = -xn[i];
+        const float b2 = -yn[i];
+        ATA02 += a2; ATA12 += b2;
+        ATA20 += a2; ATA21 += b2;
+        ATA22 += a2 * a2 + b2 * b2;
+        const float bx = -a2 * rz - rx;
+        const float by = -b2 * rz - ry;
+        ATb0 += bx;
+        ATb1 += by;
+        ATb2 += a2 * bx + b2 * by;
+    }
+    const float detA = ATA00 * ATA11 * ATA22 - ATA00 * ATA12 * ATA21
+                        - ATA02 * ATA11 * ATA20;
+    if (fabsf(detA) < 1e-9f) return -1;
+    const float dAi = 1.0f / detA;
+    const float S00 = ATA11 * ATA22 - ATA12 * ATA21;
+    const float S01 = ATA02 * ATA21;
+    const float S02 = -ATA02 * ATA11;
+    const float S10 = ATA12 * ATA20;
+    const float S11 = ATA00 * ATA22 - ATA02 * ATA20;
+    const float S12 = -ATA00 * ATA12;
+    const float S20 = -ATA11 * ATA20;
+    const float S21 = -ATA00 * ATA21;
+    const float S22 = ATA00 * ATA11;
+    t[0] = dAi * (S00 * ATb0 + S01 * ATb1 + S02 * ATb2);
+    t[1] = dAi * (S10 * ATb0 + S11 * ATb1 + S12 * ATb2);
+    t[2] = dAi * (S20 * ATb0 + S21 * ATb1 + S22 * ATb2);
+    return 0;
+}
+
+// Top-level IPPE_SQUARE solver.  Input: 4 image-pixel corners (TL,
+// TR, BR, BL in marker frame), intrinsics, marker side L.  Output:
+// best (R, t) by reproj error.  Returns 0 on success, -1 on failure.
+static int aruco_pnp_ippe_square(const float corners[8],
+                                   float fx, float fy, float cx, float cy,
+                                   float L,
+                                   float tvec_out[3], float rvec_out[3],
+                                   float* reproj_err_out) {
+    // Normalize image points: xn = (u - cx) / fx, yn = (v - cy) / fy.
+    const float xn[4] = {
+        (corners[0] - cx) / fx,
+        (corners[2] - cx) / fx,
+        (corners[4] - cx) / fx,
+        (corners[6] - cx) / fx,
+    };
+    const float yn[4] = {
+        (corners[1] - cy) / fy,
+        (corners[3] - cy) / fy,
+        (corners[5] - cy) / fy,
+        (corners[7] - cy) / fy,
+    };
+    const float halfL = 0.5f * L;
+    // Marker corners 2D in marker frame (y-up).
+    const float mx[4] = { -halfL, +halfL, +halfL, -halfL };
+    const float my[4] = { +halfL, +halfL, -halfL, -halfL };
+    // Analytical H from 4 normalized pixels + halfL.
+    float H[9];
+    if (aruco_ippe_h_from_square(xn, yn, halfL, H) != 0) return -1;
+    // Jacobian of H at origin.
+    const float j00 = H[0] - H[6] * H[2];
+    const float j01 = H[1] - H[7] * H[2];
+    const float j10 = H[3] - H[6] * H[5];
+    const float j11 = H[4] - H[7] * H[5];
+    const float v0 = H[2];
+    const float v1 = H[5];
+    // Compute two rotation candidates.
+    float R1[9], R2[9];
+    if (aruco_ippe_compute_rotations(j00, j01, j10, j11, v0, v1, R1, R2) != 0)
+        return -1;
+    // Compute translation for each.
+    float t1[3], t2[3];
+    if (aruco_ippe_compute_translation(mx, my, xn, yn, R1, t1) != 0) return -1;
+    if (aruco_ippe_compute_translation(mx, my, xn, yn, R2, t2) != 0) return -1;
+    // Pick the candidate with smaller reproj error.
+    const float u[4] = { corners[0], corners[2], corners[4], corners[6] };
+    const float v[4] = { corners[1], corners[3], corners[5], corners[7] };
+    float err1, err2;
+    int r1_ok = (aruco_reproj_err(R1, t1, mx, my, u, v, fx, fy, cx, cy, &err1) == 0);
+    int r2_ok = (aruco_reproj_err(R2, t2, mx, my, u, v, fx, fy, cx, cy, &err2) == 0);
+    if (!r1_ok && !r2_ok) return -1;
+    const float* Rbest;
+    const float* tbest;
+    float ebest;
+    if (r1_ok && (!r2_ok || err1 <= err2)) { Rbest = R1; tbest = t1; ebest = err1; }
+    else                                    { Rbest = R2; tbest = t2; ebest = err2; }
+    tvec_out[0] = tbest[0];
+    tvec_out[1] = tbest[1];
+    tvec_out[2] = tbest[2];
+    sentai_aruco_R_to_rvec(Rbest, rvec_out);
+    if (reproj_err_out) *reproj_err_out = ebest;
+    return 0;
+}
+
+// =========================================================================
 // Pipeline stage E — planar PnP via homography decomposition.
 //
 // For a planar marker, given 4 image corners + camera intrinsics, the
@@ -1037,6 +1300,13 @@ static int aruco_pnp_from_corners(const float corners[8],
                                   float marker_size_m,
                                   float tvec_out[3], float rvec_out[3],
                                   float* reproj_err_out) {
+    // T18-M: route through IPPE_SQUARE (numerically stable under
+    // sub-pixel corner noise).  Falls through to the legacy DLT
+    // homography decomposition on IPPE failure (degenerate input).
+    if (aruco_pnp_ippe_square(corners, fx, fy, cx, cy, marker_size_m,
+                                tvec_out, rvec_out, reproj_err_out) == 0) {
+        return 0;
+    }
     const float L2 = marker_size_m * 0.5f;
     // Marker corners in marker frame (y up).
     const float mx[4] = { -L2, +L2, +L2, -L2 };
