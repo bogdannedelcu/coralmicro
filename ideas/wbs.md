@@ -263,17 +263,28 @@ OP — ObjectsPlan thesis
 │       │                    PID closing on z_pnp deferred — only
 │       │                    needed if baro drift exceeds VPE
 │       │                    correction.                                ⬜ TODO (phase 2)
-│       ├── OP-S10-W14-T16 — YawArucoBaseline experiment (operator
-│       │                    2026-05-18: "drona se invarte 360° in
-│       │                    cerc in timp ce hover-uieste la markeri").
-│       │                    Validates: yaw control via hover.yaw_rate,
-│       │                    PnP robustness under camera rotation,
-│       │                    necessity of PnP-DERIVED quaternion in
-│       │                    ExtPose (T13's identity quat would fight
-│       │                    the commanded rotation).  Prereq: extend
-│       │                    sentai_calib_task to compute true yaw
-│       │                    from aruco rvec_cam and send via ExtPose.
-│       │                                                              ⬜ TODO (phase 2)
+│       ├── OP-S10-W14-T16 — YawArucoBaseline experiment.            ⬜ TODO (phase 2)
+│       │   Operator-proposed 2026-05-18.  Drone hovers at z_hold,
+│       │   rotates 360° at ~30°/s while holding (x,y), markers stay
+│       │   in FOV throughout.  Profile: pre-hold 3 s → rotation
+│       │   12 s → post-hold 3 s → land.
+│       │
+│       │   Validates 5 independent claims:
+│       │     1. Yaw control: hover.yaw_rate actually rotates cf2
+│       │     2. Position hold under rotation: x,y drift < 5 cm
+│       │        even as body axes rotate beneath the relay
+│       │     3. PnP rotation invariance: n_dets ≥ 4 for ≥ 95 % of
+│       │        rotation window (markers move in image, still detect)
+│       │     4. VPE quaternion correctness: cf2 yaw (via CRTP LOG)
+│       │        matches GT yaw within 10°
+│       │     5. Smooth motion: measured yaw_rate = ~30°/s ±5°/s
+│       │
+│       │   Prereq: replace T13's identity quaternion with PnP-derived
+│       │   quaternion (rvec_cam aggregate → R_drone_world → yaw → qz,qw).
+│       │   ~50 LoC extension to sentai_calib_task VPE forwarder.
+│       │
+│       │   Effort: ~3 h (PnP-quat ~1 h, HOLD yaw_rate arg ~0.5 h,
+│       │   s174 experiment ~0.5 h, trials + analysis ~1 h).
 │       └── OP-S10-W14-T11 — STEP RESPONSE identification alternative
 │                            to ZN-relay (operator-noted 2026-05-18:
 │                            relay produces ±6-10 cm lateral oscillation
