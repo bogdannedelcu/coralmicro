@@ -90,6 +90,17 @@ static float s_hold_kp_x        = 0.0f;
 static float s_hold_kp_y        = 0.0f;
 static float s_hold_vmax_clip   = 0.30f;
 static float s_hold_dur_s       = 30.0f;
+// OP-S10-W14-T16: commanded yaw rate during HOLD (deg/s).  0 means
+// static hold (T13 path with ExtPose+identity quat).  Non-zero means
+// rotating hold.
+// Iter 2 (operator-observed: drone climbed during iter 1 with
+// ExtPos position-only): keep sending ExtPose, but the quaternion
+// is built from an INTEGRATED commanded-yaw model (open-loop yaw,
+// closed-loop position).  cf2 EKF still gets full pose correction
+// → altitude stays anchored; yaw evolves via the model and the
+// actual hover.yaw_rate drives the drone to follow it.
+static float s_hold_yaw_rate_deg_s = 0.0f;
+static float s_hold_yaw_integrated_deg = 0.0f;   // open-loop model
 static float s_hold_max_drift_m = 0.0f;     // peak |drift| L2 distance
 static float s_hold_rms_sum_sq  = 0.0f;     // running sum of drift²
 static uint32_t s_hold_rms_n     = 0;
@@ -256,20 +267,43 @@ void worker_loop_() {
                 float dx = dx_sum / (float)dn_used;
                 float dy = dy_sum / (float)dn_used;
                 float dz = dz_sum / (float)dn_used;
-                // OP-S10-W14-T13: send full POSE (position + identity
-                // quaternion) so cf2's EKF corrects yaw drift too.
-                // Identity quat = "drone faces world +X" — locks yaw
-                // to 0, so body-frame hover() commands stay aligned
-                // with world frame over the autotune+hold trial.
-                // Drone may rotate slightly if it had drifted; that's
-                // the WANTED correction (operator iter #18 observed
-                // 45° yaw drift over 30 s, which decoupled body-X
-                // relay direction from world-X PnP-drift signal).
+                // T13/T16 VPE format — ALWAYS send ExtPose so cf2
+                // EKF gets full pose correction (altitude stays
+                // anchored).  Quaternion source:
+                //   - HOLD with yaw_rate == 0  → identity quat (lock
+                //     yaw to world +X — T13 path).
+                //   - HOLD with yaw_rate != 0  → quaternion from an
+                //     OPEN-LOOP yaw model that integrates the
+                //     commanded yaw_rate over time.  Drone follows
+                //     via hover.yaw_rate naturally; cf2 EKF gets a
+                //     smooth yaw reference + full position fix.
+                float qz = 0.0f, qw = 1.0f;
+                if (s_mode == MODE_HOLD &&
+                    fabsf(s_hold_yaw_rate_deg_s) > 0.01f) {
+                    // Advance model by (rate × dt).  Use real wall
+                    // dt from VPE last_ms (clamped to 200 ms max).
+                    uint32_t dt_ms = (s_vpe_last_ms == 0)
+                        ? 33 : (ts - s_vpe_last_ms);
+                    if (dt_ms > 200) dt_ms = 200;
+                    s_hold_yaw_integrated_deg +=
+                        s_hold_yaw_rate_deg_s * (float)dt_ms * 1e-3f;
+                    // Wrap to (-180, 180] for numerical stability.
+                    while (s_hold_yaw_integrated_deg >  180.0f)
+                        s_hold_yaw_integrated_deg -= 360.0f;
+                    while (s_hold_yaw_integrated_deg <= -180.0f)
+                        s_hold_yaw_integrated_deg += 360.0f;
+                    float yaw_rad = s_hold_yaw_integrated_deg
+                                      * 0.01745329f;   // π/180
+                    qz = sinf(yaw_rad * 0.5f);
+                    qw = cosf(yaw_rad * 0.5f);
+                }
                 (void)sentai_crazy_send_extpose(dx, dy, dz,
-                                                  0.0f, 0.0f, 0.0f, 1.0f);
+                                                  0.0f, 0.0f, qz, qw);
                 sentai_fr_push_scalar("at_vpe_x", dx, ts);
                 sentai_fr_push_scalar("at_vpe_y", dy, ts);
                 sentai_fr_push_scalar("at_vpe_z", dz, ts);
+                sentai_fr_push_scalar("at_vpe_yaw",
+                                        s_hold_yaw_integrated_deg, ts);
                 s_vpe_last_ms = ts;
             }
         }
@@ -292,7 +326,14 @@ void worker_loop_() {
             if (vx_p < -s_hold_vmax_clip) vx_p = -s_hold_vmax_clip;
             if (vy_p > +s_hold_vmax_clip) vy_p = +s_hold_vmax_clip;
             if (vy_p < -s_hold_vmax_clip) vy_p = -s_hold_vmax_clip;
-            (void)sentai_crazy_hover(vx_p, vy_p, 0.0f, s_ctx.z_hold_m);
+            // T16: yaw_rate (deg/s) commanded via hover Generic
+            // Setpoint.  cf2 has a dedicated yaw_rate controller in
+            // the position loop — passes through to body-Z thrust
+            // differential.  0 for static hold (T12), non-zero for
+            // T16 rotation.
+            (void)sentai_crazy_hover(vx_p, vy_p,
+                                       s_hold_yaw_rate_deg_s,
+                                       s_ctx.z_hold_m);
 
             // Stats: peak + RMS of L2 drift distance.
             if (pnp_valid) {
@@ -517,14 +558,19 @@ extern "C" int sentai_calib_task_is_done(void) {
     return s_done ? 1 : 0;
 }
 
-// ─── HOLD validation API (W14-T12) ────────────────────────────────
-extern "C" int sentai_calib_hold_start(float kp_x, float kp_y,
-                                         float vmax_clip, float dur_s) {
+// ─── HOLD validation API (W14-T12 static, W14-T16 with rotation) ──
+// Internal helper that takes all 5 args including yaw_rate.  Both
+// public entry points (hold_start, hold_yaw_start) flow through here.
+// This way s_hold_yaw_rate_deg_s is set BEFORE xTaskCreate and the
+// worker's first tick reads the correct value (no race window).
+static int hold_start_impl(float kp_x, float kp_y, float vmax_clip,
+                            float dur_s, float yaw_rate_deg_s) {
     if (s_started) return 0;                          // already running
     if (!(kp_x > 0.0f && kp_x < 10.0f))   return -1;
     if (!(kp_y > 0.0f && kp_y < 10.0f))   return -1;
     if (!(dur_s > 0.0f && dur_s < 300.0f)) return -1;
     if (!(vmax_clip > 0.0f && vmax_clip < 1.0f)) return -1;
+    if (!(yaw_rate_deg_s > -200.0f && yaw_rate_deg_s < 200.0f)) return -1;
 
     // Reset shared state (same as task_start does for AUTOTUNE).
     s_anchored      = 0;
@@ -539,11 +585,13 @@ extern "C" int sentai_calib_hold_start(float kp_x, float kp_y,
     s_hold_kp_x        = kp_x;
     s_hold_kp_y        = kp_y;
     s_hold_vmax_clip   = vmax_clip;
-    s_hold_dur_s       = dur_s;
-    s_hold_max_drift_m = 0.0f;
-    s_hold_rms_sum_sq  = 0.0f;
-    s_hold_rms_n       = 0;
-    s_hold_t_start_ms  = 0;
+    s_hold_dur_s            = dur_s;
+    s_hold_yaw_rate_deg_s   = yaw_rate_deg_s;   // set BEFORE spawn
+    s_hold_yaw_integrated_deg = 0.0f;            // model starts at 0
+    s_hold_max_drift_m      = 0.0f;
+    s_hold_rms_sum_sq       = 0.0f;
+    s_hold_rms_n            = 0;
+    s_hold_t_start_ms       = 0;
 
     if (!s_stop_evt) s_stop_evt = xEventGroupCreate();
     if (!s_stop_evt) return -3;
@@ -560,6 +608,19 @@ extern "C" int sentai_calib_hold_start(float kp_x, float kp_y,
     }
     s_started = true;
     return 0;
+}
+
+// Public wrappers — flow through hold_start_impl so yaw_rate is set
+// before xTaskCreate (no race window).
+extern "C" int sentai_calib_hold_start(float kp_x, float kp_y,
+                                         float vmax_clip, float dur_s) {
+    return hold_start_impl(kp_x, kp_y, vmax_clip, dur_s, /*yaw_rate=*/0.0f);
+}
+extern "C" int sentai_calib_hold_yaw_start(float kp_x, float kp_y,
+                                             float vmax_clip,
+                                             float dur_s,
+                                             float yaw_rate_deg_s) {
+    return hold_start_impl(kp_x, kp_y, vmax_clip, dur_s, yaw_rate_deg_s);
 }
 
 extern "C" float sentai_calib_get_hold_max_drift_m(void) {

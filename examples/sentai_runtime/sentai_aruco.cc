@@ -24,6 +24,7 @@
 
 #include <math.h>
 #include <stdint.h>
+#include <stdio.h>     // fopen/fprintf for s175 detect_pgm_file test
 #include <string.h>
 
 // =========================================================================
@@ -719,6 +720,62 @@ static uint16_t aruco_rotate_pattern_cw(uint16_t pattern, int times) {
         cur = rot;
     }
     return cur;
+}
+
+// =========================================================================
+// OP-S10-W14-T16/T19 — load a PGM file (P5, 320x240, 8-bit gray) and
+// run detection on it.  Used by s175 to compare per-marker tvec_cam
+// across image rotations (drone yaw) and confirm/refute the
+// planar-marker pose ambiguity hypothesis.
+//
+// Anti-cheat: caller hands a file path; C does the file read + detect.
+// No heavy data crosses MP.
+//
+// Returns n_dets on success, -1 if file can't be opened, -2 if format
+// is unexpected.
+extern "C" int sentai_aruco_detect_pgm_file(const char* path) {
+    FILE* fp = fopen(path, "rb");
+    if (!fp) return -1;
+    char header[3] = {0};
+    int w = 0, h = 0, maxval = 0;
+    if (fscanf(fp, "%2s %d %d %d", header, &w, &h, &maxval) != 4
+        || header[0] != 'P' || header[1] != '5') {
+        fclose(fp); return -2;
+    }
+    if (w != 320 || h != 240 || maxval != 255) {
+        fprintf(stderr, "detect_pgm: expected 320x240 maxval=255 P5, "
+                "got %dx%d maxval=%d header=%s\n", w, h, maxval, header);
+        fclose(fp); return -2;
+    }
+    // Skip the single whitespace after maxval, then read 76800 bytes.
+    fgetc(fp);
+    const size_t expected = (size_t)w * (size_t)h;
+    if (expected > sizeof(s_test_gray)) { fclose(fp); return -2; }
+    if (fread(s_test_gray, 1, expected, fp) != expected) {
+        fclose(fp); return -2;
+    }
+    fclose(fp);
+    sentai_aruco_marker_t local[SENTAI_ARUCO_MAX_MARKERS];
+    int n = sentai_aruco_detect(s_test_gray, w, h, 0, 0,
+                                  local, SENTAI_ARUCO_MAX_MARKERS);
+    // Per-marker dump to stderr for the s175 verdict.  C-side print,
+    // no MP heap crossing.
+    if (n > 0) {
+        for (int i = 0; i < n; ++i) {
+            fprintf(stderr,
+              "PGM_RESULT id=%u tvec=(%+.4f,%+.4f,%+.4f) "
+              "rvec=(%+.4f,%+.4f,%+.4f) reproj=%.3f path=%s\n",
+              (unsigned)local[i].marker_id,
+              (double)local[i].tvec_cam[0], (double)local[i].tvec_cam[1],
+              (double)local[i].tvec_cam[2],
+              (double)local[i].rvec_cam[0], (double)local[i].rvec_cam[1],
+              (double)local[i].rvec_cam[2],
+              (double)local[i].reproj_err_px, path);
+        }
+    } else {
+        fprintf(stderr, "PGM_RESULT n=%d path=%s\n", n, path);
+    }
+    return n;
 }
 
 extern "C" int sentai_aruco_test_synth_and_detect(int marker_id,

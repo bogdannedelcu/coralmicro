@@ -251,6 +251,14 @@ static mp_obj_t aruco_test_synth_and_detect_(size_t n_args,
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(aruco_test_synth_obj, 1, 3,
                                             aruco_test_synth_and_detect_);
 
+// s175 PnP rotation invariance test — load PGM file from disk + detect.
+extern int sentai_aruco_detect_pgm_file(const char* path);
+static mp_obj_t aruco_test_pgm_(mp_obj_t path_obj) {
+    const char* path = mp_obj_str_get_str(path_obj);
+    return mp_obj_new_int(sentai_aruco_detect_pgm_file(path));
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(aruco_test_pgm_obj, aruco_test_pgm_);
+
 // =======================================================================
 // Module table
 // =======================================================================
@@ -269,6 +277,7 @@ static const mp_rom_map_elem_t sentai_aruco_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_R_to_rvec),        MP_ROM_PTR(&aruco_R_to_rvec_obj) },
     { MP_ROM_QSTR(MP_QSTR__test_synth_and_detect),
                                               MP_ROM_PTR(&aruco_test_synth_obj) },
+    { MP_ROM_QSTR(MP_QSTR__test_pgm),         MP_ROM_PTR(&aruco_test_pgm_obj) },
 };
 static MP_DEFINE_CONST_DICT(sentai_aruco_globals, sentai_aruco_globals_table);
 

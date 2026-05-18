@@ -252,6 +252,19 @@ int sentai_calib_task_is_done(void);          // 0/1
 // is single-axis).
 int sentai_calib_hold_start(float kp_x, float kp_y,
                               float vmax_clip, float dur_s);
+
+// OP-S10-W14-T16 — YawArucoBaseline: as hold_start but also commands
+// a continuous yaw rotation at `yaw_rate_deg_s` for the entire hold
+// window.  Auto-switches VPE format on the fly:
+//   yaw_rate == 0  → ExtPose with identity quaternion (lock yaw)
+//   yaw_rate != 0  → ExtPos position-only (cf2 gyro handles yaw,
+//                    hover.yaw_rate drives the rotation)
+// Lateral position correction (Kp_x, Kp_y) stays active throughout.
+// Returns 0/-1 same as hold_start.
+int sentai_calib_hold_yaw_start(float kp_x, float kp_y,
+                                  float vmax_clip, float dur_s,
+                                  float yaw_rate_deg_s);
+
 float sentai_calib_get_hold_max_drift_m(void);
 float sentai_calib_get_hold_rms_drift_m(void);
 

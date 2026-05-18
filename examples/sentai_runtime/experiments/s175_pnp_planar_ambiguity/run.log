@@ -1,0 +1,23 @@
+[sim] sentai_sim build #219 (2026-05-18 17:29:50)
+[sim] FreeRTOS POSIX port: tick=1000 Hz, heap=4194304 bytes
+[sim] MicroPython heap: 524288 bytes
+
+MicroPython on SentAI SIM (FreeRTOS POSIX port + MicroPython embed)
+Type expressions, end with Enter.  Ctrl-D or 'exit' to quit.
+Try: sentai.version(), sentai.fs.write(...), help()
+
+>>> >>> >>> 0
+>>> === frame_original.pgm ===
+>>> PGM_RESULT id=2 tvec=(-0.2020,-0.0927,+0.6097) rvec=(+0.0000,+3.1416,+0.0000) reproj=0.000 path=/home/bogdan/work/coralmicro/build-sim/sentai_fs_root/frame_original.pgm
+PGM_RESULT id=1 tvec=(+0.2147,-0.0927,+0.6097) rvec=(+0.0000,+3.1416,+0.0000) reproj=0.000 path=/home/bogdan/work/coralmicro/build-sim/sentai_fs_root/frame_original.pgm
+PGM_RESULT id=3 tvec=(-0.2020,+0.1588,+0.6097) rvec=(+0.0000,+3.1416,+0.0000) reproj=0.000 path=/home/bogdan/work/coralmicro/build-sim/sentai_fs_root/frame_original.pgm
+PGM_RESULT id=0 tvec=(+0.2147,+0.1588,+0.6097) rvec=(+0.0000,+3.1416,+0.0000) reproj=0.000 path=/home/bogdan/work/coralmicro/build-sim/sentai_fs_root/frame_original.pgm
+camera_bridge: listening on /tmp/sentai_cam.sock (waiting for Gazebo bridge)
+>>> n_dets original = 4
+>>> === frame_rot35.pgm ===
+>>> PGM_RESULT id=1 tvec=(+0.1181,-0.1962,+0.5972) rvec=(-0.5511,-2.5783,+0.1984) reproj=2.619 path=/home/bogdan/work/coralmicro/build-sim/sentai_fs_root/frame_rot35.pgm
+PGM_RESULT id=0 tvec=(+0.2751,+0.0061,+0.6360) rvec=(-0.8456,-2.4517,-0.0712) reproj=1.391 path=/home/bogdan/work/coralmicro/build-sim/sentai_fs_root/frame_rot35.pgm
+>>> n_dets rot35 = 2
+>>> >>> 
+[sim] EOF on stdin, exiting
+[sim] REPL task done, terminating process

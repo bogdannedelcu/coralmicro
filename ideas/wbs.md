@@ -263,6 +263,16 @@ OP — ObjectsPlan thesis
 │       │                    PID closing on z_pnp deferred — only
 │       │                    needed if baro drift exceeds VPE
 │       │                    correction.                                ⬜ TODO (phase 2)
+│       ├── OP-S10-W14-T17 — Abstract hover() / yaw_rate through      ⬜ TODO (FW)
+│       │   `sentai.servo` instead of `sentai.crazy` directly.
+│       │   Operator-noted 2026-05-18 ("daca are si PX4 le bagam in
+│       │   sentai.servo... si folosim de acolo").  cf2 has hover.
+│       │   yaw_rate via Generic Setpoint type 5; PX4 has it via
+│       │   MAVLink SET_POSITION_TARGET_LOCAL_NED (type_mask) or
+│       │   ATTITUDE_TARGET.body_yaw_rate.  Sentai.servo.hover(vx,
+│       │   vy, yaw_rate, z) should dispatch to either backend.
+│       │   Refactor target: sentai_calib_task.cc + any other caller.
+│       │   Effort: ~1 h after sentai.servo has PX4 backend mapped.
 │       ├── OP-S10-W14-T16 — YawArucoBaseline experiment.            ⬜ TODO (phase 2)
 │       │   Operator-proposed 2026-05-18.  Drone hovers at z_hold,
 │       │   rotates 360° at ~30°/s while holding (x,y), markers stay

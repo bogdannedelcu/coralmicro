@@ -165,6 +165,13 @@ int sentai_aruco_detect(const uint8_t* gray, int w, int h,
 // the number of markers in the cache (0 .. capacity).
 int sentai_aruco_get_latest(sentai_aruco_marker_t* out, int out_capacity);
 
+// OP-S10-W14 / s175 — load a P5 320x240 PGM file from disk and run
+// detection on it (no camera involved).  Per-marker results printed
+// to stderr.  Returns n_dets or negative error.  Used to test PnP
+// rotation invariance — feed the SAME scene at different image
+// rotations and see if tvec_cam[2] (Z) stays constant.
+int sentai_aruco_detect_pgm_file(const char* path);
+
 // Read the monitoring counters.
 void sentai_aruco_get_stats(sentai_aruco_stats_t* out);
 

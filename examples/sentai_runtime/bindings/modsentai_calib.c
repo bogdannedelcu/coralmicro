@@ -297,6 +297,22 @@ static mp_obj_t calib_hold_start(size_t n_args, const mp_obj_t* args) {
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(calib_hold_start_obj, 4, 4,
                                             calib_hold_start);
 
+// OP-S10-W14-T16 — YawArucoBaseline rotating hold (5th arg = yaw_rate
+// in deg/s).  Same as hold_start but commands rotation; auto-switches
+// VPE format (ExtPos position-only while rotating).
+static mp_obj_t calib_hold_yaw_start(size_t n_args, const mp_obj_t* args) {
+    float kp_x       = mp_obj_get_float(args[0]);
+    float kp_y       = mp_obj_get_float(args[1]);
+    float vmax_clip  = mp_obj_get_float(args[2]);
+    float dur_s      = mp_obj_get_float(args[3]);
+    float yaw_rate   = mp_obj_get_float(args[4]);
+    return mp_obj_new_int(sentai_calib_hold_yaw_start(kp_x, kp_y,
+                                                       vmax_clip, dur_s,
+                                                       yaw_rate));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(calib_hold_yaw_start_obj, 5, 5,
+                                            calib_hold_yaw_start);
+
 static mp_obj_t calib_get_hold_max(void) {
     return mp_obj_new_float(sentai_calib_get_hold_max_drift_m());
 }
@@ -331,6 +347,7 @@ static const mp_rom_map_elem_t sentai_calib_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_get_td_ms),         MP_ROM_PTR(&calib_get_td_ms_obj) },
     // OP-S10-W14-T12 — HOLD validation
     { MP_ROM_QSTR(MP_QSTR_hold_start),        MP_ROM_PTR(&calib_hold_start_obj) },
+    { MP_ROM_QSTR(MP_QSTR_hold_yaw_start),    MP_ROM_PTR(&calib_hold_yaw_start_obj) },
     { MP_ROM_QSTR(MP_QSTR_get_hold_max),      MP_ROM_PTR(&calib_get_hold_max_obj) },
     { MP_ROM_QSTR(MP_QSTR_get_hold_rms),      MP_ROM_PTR(&calib_get_hold_rms_obj) },
 };
