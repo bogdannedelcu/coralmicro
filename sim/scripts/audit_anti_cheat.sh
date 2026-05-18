@@ -59,6 +59,21 @@ EXCLUDES=(
     'sim/scripts/audit_anti_cheat.sh'
     'sim/gazebo/gz_to_uds_bridge.cc'    # contains the anti-pattern in a rejection comment
     'examples/sentai_runtime/agent/'    # historical experiment.md narrative
+    # HOST-side post-mortem GT recorder + verdict scripts.  These run
+    # OUTSIDE sentai_sim (host venv-python), write to gt_poses.jsonl,
+    # and that file is consumed ONLY by verdict.py for pass/fail
+    # comparison AFTER sentai_sim has exited.  Never injected back
+    # into sentai_sim — verified by reading every s17X run.sh
+    # (audit timestamp 2026-05-18).
+    'sim/scripts/gt_recorder.py'                      # canonical tool
+    'examples/sentai_runtime/experiments/s165_square_drift_gt/'  # uses GT for verdict only
+    'examples/sentai_runtime/experiments/s166_flowbaseline_gt/'  # uses GT for verdict only
+    'examples/sentai_runtime/experiments/s167_flowbaseline_calibrated/' # GT post-mortem only
+    'examples/sentai_runtime/experiments/s170_security_aruco_baseline/' # GT post-mortem only
+    'examples/sentai_runtime/experiments/s172_flow_autotune_baseline/'  # GT post-mortem only
+    'examples/sentai_runtime/experiments/s173_flow_hold_validation/'    # GT post-mortem only
+    'sim/scripts/README.md'
+    'examples/sentai_runtime/Sim.md'    # documentation
 )
 
 EXCLUDE_GREP=""
