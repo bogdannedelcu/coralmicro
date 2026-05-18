@@ -212,6 +212,13 @@ add_executable_m7(sentai_runtime
     # falls back to host stdio in the cwd.  See Sim.md §2 rule 2 — we
     # feature-detect, never test for the ARM target directly.
     sentai_calib.cc
+    # ObjectsPlan OP-S10-W14 — `sentai.calib` autotuner extension.
+    # Adds a long-running C++ task that drives an Åström-Hägglund
+    # relay on the velocity-feedback loop to learn Kp_flow without
+    # manual tuning.  Pure-compute state machine + dedicated worker
+    # mirror the sentai.safety split.  See objects_plan/16_*.
+    sentai_calib_autotune.cc
+    sentai_calib_task.cc
     # ObjectsPlan OP-S6-W3 — sentai.aruco fiducial detector + PnP.
     # Compute-heavy work (adaptive threshold, contour finder, PnP)
     # stays in C/C++; MP binding returns small scalars only.

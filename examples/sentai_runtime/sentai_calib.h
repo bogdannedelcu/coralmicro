@@ -181,6 +181,67 @@ int          sentai_calib_is_calibrated(void);      // 0/1
 // mission FSM can use it for drift gates.
 float sentai_calib_rotation_angle_deg(const float R1[9], const float R2[9]);
 
+// =========================================================================
+// OP-S10-W14 — in-flight Flow autotuner extension.
+// =========================================================================
+// Adds a long-running C++ task (sentai_calib_task) that drives a
+// velocity-relay Åström-Hägglund auto-tune to learn the Flow loop
+// gain Kp per axis.  Implementation lives in:
+//   - sentai_calib_autotune.cc — state machine + relay + Ziegler-Nichols
+//   - sentai_calib_task.cc      — FreeRTOS worker driving the relay
+//                                 via sentai_crazy_hover, reading PnP
+//                                 via sentai_aruco_get_latest, pushing
+//                                 samples to sentai.fr, watching
+//                                 sentai.safety.aborted.
+// MP API (minimal per operator 2026-05-18 "MP doar comanda start/stop"):
+//   sentai.calib.set_context(z_hold, gdx, gdy, msize)
+//   sentai.calib.task_start(axis, dur_s, vmax)
+//   sentai.calib.task_stop()
+//   sentai.calib.is_done()  -> bool
+//   sentai.calib.get_kp(axis_str) -> float (-1.0f if not converged)
+// =========================================================================
+
+// Axis selector for autotune endpoints.
+typedef enum {
+    SENTAI_CALIB_AXIS_X = 0,
+    SENTAI_CALIB_AXIS_Y = 1,
+} sentai_calib_axis_t;
+
+// AUTOTUNE_RELAY sub-states (returned by sentai_calib_autotune_get_state).
+typedef enum {
+    SENTAI_CALIB_AT_IDLE       = 0,
+    SENTAI_CALIB_AT_ARMING     = 1,
+    SENTAI_CALIB_AT_EXCITING   = 2,
+    SENTAI_CALIB_AT_SETTLING   = 3,
+    SENTAI_CALIB_AT_DONE_OK    = 4,
+    SENTAI_CALIB_AT_DONE_FAIL  = 5,
+    SENTAI_CALIB_AT_ABORTED    = 6,
+} sentai_calib_autotune_state_t;
+
+// Persistent context (the geometry knobs the autotune task needs).
+// Operator-suggested 2026-05-18 ("altitudinea la care se calibreaza ...
+// pozitie markeri, dimensiuni").  Idempotent; can be called multiple
+// times before task_start.  Returns 0 on success, -1 on invalid input.
+int sentai_calib_set_context(float z_hold_m,
+                              float marker_grid_dx_m,
+                              float marker_grid_dy_m,
+                              float marker_size_m);
+
+// Read-side accessors for the learned Flow gains (-1.0f if not set).
+float    sentai_calib_get_kp(sentai_calib_axis_t axis);
+uint32_t sentai_calib_get_td_ms(void);
+
+// Worker task lifecycle (full impl in sentai_calib_task.cc).
+//   axis      ∈ {SENTAI_CALIB_AXIS_X, SENTAI_CALIB_AXIS_Y}
+//   dur_s     hard upper bound (DONE_FAIL if not converged by then)
+//   vmax_m_s  relay velocity magnitude (default 0.10 m/s)
+// Returns 0 / negative.  Idempotent (already-running → 0).
+int sentai_calib_task_start(sentai_calib_axis_t axis,
+                             float dur_s,
+                             float vmax_m_s);
+int sentai_calib_task_stop(void);
+int sentai_calib_task_is_done(void);          // 0/1
+
 #ifdef __cplusplus
 }
 #endif

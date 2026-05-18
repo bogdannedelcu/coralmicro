@@ -1,0 +1,304 @@
+// sentai_calib_autotune.cc — OP-S10-W14-T3 state machine implementation.
+//
+// Pure compute.  See sentai_calib_autotune.h for the API contract.
+// Algorithm: Åström-Hägglund relay autotune driving the velocity-
+// feedback loop, Ziegler-Nichols P-only formula on the measured
+// (T_u, a_y) pair.  References + math derivation in
+// ideas/objects_plan/16_sentai_calib_autotune.md §2 / §5.
+
+#include "sentai_calib_autotune.h"
+#include "sentai_calib.h"
+
+#include <math.h>
+#include <string.h>
+#include <stdint.h>
+
+namespace {
+
+// ── Peak ring ─────────────────────────────────────────────────────────
+struct PeakSample {
+    uint32_t ts_ms;
+    float    drift_m;          // signed
+};
+static constexpr int PEAK_RING_CAP = 32;
+
+struct State {
+    // Configured at arm()
+    sentai_calib_axis_t axis;
+    float    vmax_m_s;
+    float    dur_s_max;
+
+    // Runtime
+    sentai_calib_autotune_state_t state;
+    float    last_v_cmd;
+    float    prev_drift_m;
+    uint32_t t_arm_ms;
+    uint32_t t_last_tick_ms;
+    int      cycle_count;       // half-periods detected
+    PeakSample peaks[PEAK_RING_CAP];
+    int      peak_head;          // next slot
+
+    // Live sign discovery (operator 2026-05-18 — "nu cumva sign-ul
+    // poate fi detectat live").  In ARMING we apply +v_max for
+    // SIGN_PROBE_MS and measure which way drift goes.  If +v_max
+    // makes drift INCREASE (drive away from anchor), the sign is
+    // inverted relative to our convention → sign_flip = -1, so
+    // EXCITING multiplies the chosen relay direction by -1.
+    float    sign_drift_at_probe_start;
+    int      sign_flip;          // +1 or -1 after probe
+    uint32_t t_probe_started_ms;
+
+    // DONE_OK results (valid only when state == DONE_OK)
+    float    last_kp;
+    float    last_Tu_s;
+    float    last_ay_m;
+    int      last_cycles;
+};
+static State s = {};
+
+#ifndef SENTAI_CALIB_AT_SIGN_PROBE_MS
+#define SENTAI_CALIB_AT_SIGN_PROBE_MS  1000  // 1 s of probe
+#endif
+#ifndef SENTAI_CALIB_AT_SIGN_MIN_DRIFT_M
+#define SENTAI_CALIB_AT_SIGN_MIN_DRIFT_M 0.010f  // ≥ 1 cm to call it
+#endif
+
+inline int sign_of_(float x, float dead) {
+    if (x >  dead) return +1;
+    if (x < -dead) return -1;
+    return 0;
+}
+
+inline void push_peak_(uint32_t ts_ms, float drift_m) {
+    s.peaks[s.peak_head] = (PeakSample){ts_ms, drift_m};
+    s.peak_head = (s.peak_head + 1) % PEAK_RING_CAP;
+    if (s.cycle_count < PEAK_RING_CAP * 1000) s.cycle_count++;
+}
+
+// Returns true if the last N peaks have stable |amplitude| within tol.
+// Also computes mean half-period (s) and mean |amplitude| (m) into out_*.
+bool peaks_stable_(int N, float tol, float* out_Tu_s, float* out_ay_m) {
+    if (s.cycle_count < N + 1) return false;
+    int head = s.peak_head;
+    // Walk back N+1 peaks (indices N..0 from most recent backwards).
+    int idx[PEAK_RING_CAP];
+    for (int i = 0; i < N + 1; ++i) {
+        int j = (head - 1 - i + PEAK_RING_CAP) % PEAK_RING_CAP;
+        idx[i] = j;
+    }
+    // Amplitudes (last N)
+    float amps[PEAK_RING_CAP];
+    float amp_mean = 0.0f;
+    for (int i = 0; i < N; ++i) {
+        amps[i] = fabsf(s.peaks[idx[i]].drift_m);
+        amp_mean += amps[i];
+    }
+    amp_mean /= (float)N;
+    if (amp_mean <= 1e-6f) return false;
+    for (int i = 0; i < N; ++i) {
+        float rel = fabsf(amps[i] - amp_mean) / amp_mean;
+        if (rel > tol) return false;
+    }
+    // Half-period: mean inter-peak time over last N
+    float dt_sum_s = 0.0f;
+    for (int i = 0; i < N; ++i) {
+        uint32_t t1 = s.peaks[idx[i]].ts_ms;
+        uint32_t t0 = s.peaks[idx[i + 1]].ts_ms;
+        if (t1 <= t0) return false;
+        dt_sum_s += (float)(t1 - t0) * 1e-3f;
+    }
+    float half_period_s = dt_sum_s / (float)N;
+    if (half_period_s <= 1e-3f) return false;
+    *out_Tu_s = 2.0f * half_period_s;       // full period
+    *out_ay_m = amp_mean;
+    return true;
+}
+
+}  // namespace
+
+extern "C" void sentai_calib_autotune_init(void) {
+    memset(&s, 0, sizeof(s));
+    s.state = SENTAI_CALIB_AT_IDLE;
+}
+
+extern "C" int sentai_calib_autotune_arm(sentai_calib_axis_t axis,
+                                          float dur_s_max,
+                                          float vmax_m_s) {
+    if (s.state == SENTAI_CALIB_AT_ARMING ||
+        s.state == SENTAI_CALIB_AT_EXCITING ||
+        s.state == SENTAI_CALIB_AT_SETTLING) return -1;
+    if (!(dur_s_max > 0.0f) || !(vmax_m_s > 0.0f && vmax_m_s < 1.0f))
+        return -2;
+    if (axis != SENTAI_CALIB_AXIS_X && axis != SENTAI_CALIB_AXIS_Y)
+        return -2;
+    memset(&s.peaks, 0, sizeof(s.peaks));
+    s.peak_head      = 0;
+    s.cycle_count    = 0;
+    s.axis           = axis;
+    s.dur_s_max      = dur_s_max;
+    s.vmax_m_s       = vmax_m_s;
+    s.last_v_cmd     = 0.0f;
+    s.prev_drift_m   = 0.0f;
+    s.t_arm_ms       = 0;
+    s.t_last_tick_ms = 0;
+    s.last_kp        = -1.0f;
+    s.last_Tu_s      = 0.0f;
+    s.last_ay_m      = 0.0f;
+    s.last_cycles    = 0;
+    s.sign_flip      = +1;
+    s.sign_drift_at_probe_start = 0.0f;
+    s.t_probe_started_ms = 0;
+    s.state          = SENTAI_CALIB_AT_ARMING;
+    return 0;
+}
+
+extern "C" void sentai_calib_autotune_abort(void) {
+    if (s.state == SENTAI_CALIB_AT_DONE_OK   ||
+        s.state == SENTAI_CALIB_AT_DONE_FAIL ||
+        s.state == SENTAI_CALIB_AT_ABORTED   ||
+        s.state == SENTAI_CALIB_AT_IDLE) return;
+    s.state      = SENTAI_CALIB_AT_ABORTED;
+    s.last_v_cmd = 0.0f;
+}
+
+extern "C" float sentai_calib_autotune_tick(float drift_m,
+                                              uint32_t ts_ms,
+                                              int pnp_valid) {
+    switch (s.state) {
+    case SENTAI_CALIB_AT_IDLE:
+    case SENTAI_CALIB_AT_DONE_OK:
+    case SENTAI_CALIB_AT_DONE_FAIL:
+    case SENTAI_CALIB_AT_ABORTED:
+        return 0.0f;
+    default: break;
+    }
+
+    if (s.t_arm_ms == 0) {
+        s.t_arm_ms       = ts_ms;
+        s.t_last_tick_ms = ts_ms;
+    }
+
+    // Deadline → DONE_FAIL.
+    uint32_t elapsed_ms = ts_ms - s.t_arm_ms;
+    if ((float)elapsed_ms * 1e-3f >= s.dur_s_max) {
+        s.state      = SENTAI_CALIB_AT_DONE_FAIL;
+        s.last_v_cmd = 0.0f;
+        return 0.0f;
+    }
+
+    // If this tick has no valid PnP, HOLD last command (graceful).
+    // We don't grow the streak / detect peaks — peak detection is
+    // driven by drift derivative; missing samples are skipped.
+    if (!pnp_valid) {
+        return s.last_v_cmd;
+    }
+
+    // ── ARMING: sign-probe phase ─────────────────────────────────
+    // Apply +v_max for SIGN_PROBE_MS and observe drift sign change.
+    // If drift went POSITIVE we know "command +v → drift +"; that's
+    // the SAME direction → sign_flip = -1 so EXCITING drives against
+    // it.  If drift went negative, sign convention matches our
+    // negative-feedback assumption → sign_flip = +1.
+    if (s.state == SENTAI_CALIB_AT_ARMING) {
+        if (s.t_probe_started_ms == 0) {
+            s.t_probe_started_ms       = ts_ms;
+            s.sign_drift_at_probe_start = drift_m;
+            s.last_v_cmd               = +s.vmax_m_s;
+            s.prev_drift_m             = drift_m;
+            return s.last_v_cmd;
+        }
+        uint32_t probe_elapsed = ts_ms - s.t_probe_started_ms;
+        if (probe_elapsed < SENTAI_CALIB_AT_SIGN_PROBE_MS) {
+            // Hold +v_max command throughout probe.
+            s.last_v_cmd   = +s.vmax_m_s;
+            s.prev_drift_m = drift_m;
+            return s.last_v_cmd;
+        }
+        // Probe complete — analyse.
+        float ddrift = drift_m - s.sign_drift_at_probe_start;
+        if (ddrift > +SENTAI_CALIB_AT_SIGN_MIN_DRIFT_M) {
+            // +v_max increased drift (drove drone +X in our drift
+            // coordinate).  For negative feedback the relay must
+            // command -v_max when drift > 0; with our existing
+            // "command sign opposite of drift sign" logic that's
+            // already correct → sign_flip = +1.
+            s.sign_flip = +1;
+        } else if (ddrift < -SENTAI_CALIB_AT_SIGN_MIN_DRIFT_M) {
+            // +v_max DECREASED drift — i.e. the relay direction we
+            // assume points the WRONG way.  Multiply by -1.
+            s.sign_flip = -1;
+        } else {
+            // Inconclusive (drone barely moved).  Default sign_flip
+            // remains +1; relay may still converge if hold dynamics
+            // are right.
+            s.sign_flip = +1;
+        }
+        // Transition.
+        s.state        = SENTAI_CALIB_AT_EXCITING;
+        s.prev_drift_m = drift_m;
+        // Anchor refresh: re-zero the relay reference at end-of-probe
+        // so the drone is approximately at "drift = 0" when the
+        // relay starts (it's been moving for 1 s).
+        // We do NOT modify drift_m directly; instead the relay
+        // tracks the sign of CURRENT drift_m which after probe may
+        // be non-zero, and that's fine — relay flips at sign change
+        // as usual.
+        // Initial command from EXCITING fall-through below.
+    }
+
+    // EXCITING: relay = drive velocity AGAINST drift sign × sign_flip.
+    int   sgn       = sign_of_(drift_m,        SENTAI_CALIB_AT_DEAD_BAND_M);
+    int   prev_sgn  = sign_of_(s.prev_drift_m, SENTAI_CALIB_AT_DEAD_BAND_M);
+
+    // Sign-flip across the dead band → peak.
+    if (sgn != 0 && prev_sgn != 0 && sgn != prev_sgn) {
+        // The PEAK we record is the EXTREMUM we just passed, i.e. the
+        // PREVIOUS drift sample (most negative if we just turned
+        // positive, etc.).  Good enough at 33 ms tick granularity.
+        push_peak_(ts_ms, s.prev_drift_m);
+    }
+
+    // Command sign decision (no hysteresis — dead band already
+    // guards against jitter).  sign_flip swaps direction if the
+    // probe-phase analysis showed our convention was inverted.
+    if (sgn > 0)      s.last_v_cmd = -s.vmax_m_s * (float)s.sign_flip;
+    else if (sgn < 0) s.last_v_cmd = +s.vmax_m_s * (float)s.sign_flip;
+    // else hold previous (in dead band)
+
+    s.prev_drift_m   = drift_m;
+    s.t_last_tick_ms = ts_ms;
+
+    // Convergence check
+    if (s.cycle_count >= SENTAI_CALIB_AT_MIN_CYCLES) {
+        float Tu_s, ay_m;
+        if (peaks_stable_(SENTAI_CALIB_AT_AMP_STABLE_N,
+                           SENTAI_CALIB_AT_AMP_STABLE_TOL,
+                           &Tu_s, &ay_m)) {
+            // ZN P-only:  Ku = 4*v_max / (pi*a_y); Kp = 0.5 * Ku
+            float Ku = (4.0f * s.vmax_m_s) / (3.14159265f * ay_m);
+            float Kp = 0.5f * Ku;
+            s.last_kp     = Kp;
+            s.last_Tu_s   = Tu_s;
+            s.last_ay_m   = ay_m;
+            s.last_cycles = s.cycle_count;
+            s.state       = SENTAI_CALIB_AT_DONE_OK;
+            s.last_v_cmd  = 0.0f;
+            return 0.0f;
+        }
+    }
+    if (s.cycle_count >= SENTAI_CALIB_AT_MAX_CYCLES) {
+        s.state      = SENTAI_CALIB_AT_DONE_FAIL;
+        s.last_v_cmd = 0.0f;
+        return 0.0f;
+    }
+    return s.last_v_cmd;
+}
+
+extern "C" sentai_calib_autotune_state_t sentai_calib_autotune_get_state(void) {
+    return s.state;
+}
+
+extern "C" float sentai_calib_autotune_get_last_kp(void)    { return s.last_kp; }
+extern "C" float sentai_calib_autotune_get_last_Tu_s(void)  { return s.last_Tu_s; }
+extern "C" float sentai_calib_autotune_get_last_ay_m(void)  { return s.last_ay_m; }
+extern "C" int   sentai_calib_autotune_get_last_cycles(void){ return s.last_cycles; }

@@ -225,6 +225,65 @@ static mp_obj_t calib_rotation_angle(mp_obj_t a, mp_obj_t b) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_2(calib_rotation_angle_obj, calib_rotation_angle);
 
+// ===================== OP-S10-W14 autotuner =====================
+// Minimal MP surface (operator 2026-05-18): set_context + task_start
+// + task_stop + is_done + get_kp.  All math + state machine in C++.
+
+static int calib_parse_axis_(mp_obj_t obj, sentai_calib_axis_t* out) {
+    if (!mp_obj_is_str(obj)) return -1;
+    size_t n;
+    const char* s = mp_obj_str_get_data(obj, &n);
+    if (n == 1 && (s[0] == 'x' || s[0] == 'X')) { *out = SENTAI_CALIB_AXIS_X; return 0; }
+    if (n == 1 && (s[0] == 'y' || s[0] == 'Y')) { *out = SENTAI_CALIB_AXIS_Y; return 0; }
+    return -1;
+}
+
+static mp_obj_t calib_set_context(size_t n_args, const mp_obj_t* args) {
+    float zh   = mp_obj_get_float(args[0]);
+    float gdx  = mp_obj_get_float(args[1]);
+    float gdy  = mp_obj_get_float(args[2]);
+    float ms   = mp_obj_get_float(args[3]);
+    return mp_obj_new_int(sentai_calib_set_context(zh, gdx, gdy, ms));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(calib_set_context_obj,
+                                            4, 4, calib_set_context);
+
+static mp_obj_t calib_task_start(size_t n_args, const mp_obj_t* args) {
+    sentai_calib_axis_t axis;
+    if (calib_parse_axis_(args[0], &axis) != 0) {
+        mp_raise_ValueError(MP_ERROR_TEXT("axis must be 'x' or 'y'"));
+    }
+    float dur_s    = mp_obj_get_float(args[1]);
+    float vmax_m_s = mp_obj_get_float(args[2]);
+    return mp_obj_new_int(sentai_calib_task_start(axis, dur_s, vmax_m_s));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(calib_task_start_obj,
+                                            3, 3, calib_task_start);
+
+static mp_obj_t calib_task_stop(void) {
+    return mp_obj_new_int(sentai_calib_task_stop());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(calib_task_stop_obj, calib_task_stop);
+
+static mp_obj_t calib_is_done(void) {
+    return mp_obj_new_bool(sentai_calib_task_is_done());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(calib_is_done_obj, calib_is_done);
+
+static mp_obj_t calib_get_kp(mp_obj_t axis_obj) {
+    sentai_calib_axis_t axis;
+    if (calib_parse_axis_(axis_obj, &axis) != 0) {
+        mp_raise_ValueError(MP_ERROR_TEXT("axis must be 'x' or 'y'"));
+    }
+    return mp_obj_new_float(sentai_calib_get_kp(axis));
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(calib_get_kp_obj, calib_get_kp);
+
+static mp_obj_t calib_get_td_ms(void) {
+    return mp_obj_new_int_from_uint(sentai_calib_get_td_ms());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(calib_get_td_ms_obj, calib_get_td_ms);
+
 // ===================== Module table =====================
 
 static const mp_rom_map_elem_t sentai_calib_globals_table[] = {
@@ -240,6 +299,13 @@ static const mp_rom_map_elem_t sentai_calib_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_is_calibrated),     MP_ROM_PTR(&calib_is_calib_obj) },
     { MP_ROM_QSTR(MP_QSTR_rotation_angle_deg),
                                               MP_ROM_PTR(&calib_rotation_angle_obj) },
+    // OP-S10-W14 autotuner surface
+    { MP_ROM_QSTR(MP_QSTR_set_context),       MP_ROM_PTR(&calib_set_context_obj) },
+    { MP_ROM_QSTR(MP_QSTR_task_start),        MP_ROM_PTR(&calib_task_start_obj) },
+    { MP_ROM_QSTR(MP_QSTR_task_stop),         MP_ROM_PTR(&calib_task_stop_obj) },
+    { MP_ROM_QSTR(MP_QSTR_is_done),           MP_ROM_PTR(&calib_is_done_obj) },
+    { MP_ROM_QSTR(MP_QSTR_get_kp),            MP_ROM_PTR(&calib_get_kp_obj) },
+    { MP_ROM_QSTR(MP_QSTR_get_td_ms),         MP_ROM_PTR(&calib_get_td_ms_obj) },
 };
 static MP_DEFINE_CONST_DICT(sentai_calib_globals, sentai_calib_globals_table);
 

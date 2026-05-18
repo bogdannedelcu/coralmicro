@@ -209,6 +209,35 @@ OP — ObjectsPlan thesis
 │                            (sentai.sim.journal_*) → sentai.fr
 │                            events channel                          ⬜ TODO (T-future)
 │
+│   └── OP-S10-W14 — sentai.calib autotune (Flow loop Kp via relay) 🟡 IN PROGRESS (opened 2026-05-18)
+│       │   In-flight auto-calibration of the perception → control
+│       │   loop, NOT drone-physics sysID.  Operator-narrowed
+│       │   2026-05-18: cf2's inner attitude PID is fine; what we need
+│       │   is the gain that converts drift (PnP) → velocity setpoint
+│       │   smoothly (no oscillation, no lag) post-cheat removal.
+│       │   Algorithm: Åström-Hägglund relay + Ziegler-Nichols.
+│       │   Velocity-only excitation via sentai_crazy_hover (no
+│       │   world-frame go_to — operator: "nu avem inca un sistem
+│       │   reliable de coordonate").  sentai.calib promoted from
+│       │   one-shot library to long-running C++ task (mirrors
+│       │   sentai.safety + sentai_safety_task split).
+│       ├── OP-S10-W14-T1 — Design doc + math + API
+│       │                    (ideas/objects_plan/16_*.md)             ✅ SHIPPED
+│       ├── OP-S10-W14-T2 — wbs.md OP-S10-W14 row (this section)      ✅ SHIPPED
+│       ├── OP-S10-W14-T3 — sentai_calib_autotune.{h,cc} + task
+│       │                    split (sentai_calib_task.{h,cc})         ✅ SHIPPED
+│       ├── OP-S10-W14-T4 — bindings/modsentai_calib.c extension
+│       │                    (set_context + task_start/stop + is_done
+│       │                    + get_kp + get_td_ms; minimal MP)         ✅ SHIPPED
+│       ├── OP-S10-W14-T5 — SIM CMake wiring + QSTR regen             ✅ SHIPPED
+│       ├── OP-S10-W14-T6 — EXP-s172 FlowAutotuneBaseline smoke      🟡 IN PROGRESS
+│       │                    (scaffold runs; algorithm needs sign /
+│       │                    centroid robustness — see commit notes)
+│       ├── OP-S10-W14-T7 — flow_gains.json persistence via FxUser    ⬜ TODO
+│       ├── OP-S10-W14-T8 — Y-axis autotune (mirror X)                ⬜ TODO (phase 2)
+│       └── OP-S10-W14-T9 — Online td estimation via gyro × PnP
+│                            cross-correlation (CMSIS-DSP)              ⬜ TODO (phase 2)
+│
 └── Milestones
     ├── OP-M1 — Thesis MVP (SIM): 4 descriptors + L1 + calib working end-to-end
     ├── OP-M2 — ARM bring-up done: same source compiles + runs on RT1176 over radio

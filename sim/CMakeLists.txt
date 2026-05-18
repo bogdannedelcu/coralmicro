@@ -209,6 +209,11 @@ add_executable_sim(sentai_sim
     # ObjectsPlan OP-S6-W1 — sentai.calib (camera-to-body Kabsch).  Pure
     # float math; SIM build skips FxUser (HOST stdio fallback in .cc).
     ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_calib.cc
+    # ObjectsPlan OP-S10-W14 — sentai.calib autotuner extension (Flow
+    # loop Kp via Åström-Hägglund relay).  Pure-compute state machine
+    # + FreeRTOS worker mirroring the sentai.safety split.
+    ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_calib_autotune.cc
+    ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_calib_task.cc
     # ObjectsPlan OP-S6-W3 — sentai.aruco fiducial detector + PnP.
     # Pure C/C++; SIM zerocopy hook lives in modsentai_sim_camera.c.
     ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_aruco.cc
