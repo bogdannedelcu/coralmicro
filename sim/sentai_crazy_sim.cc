@@ -335,6 +335,38 @@ extern "C" int sentai_crazy_send_extpos(float x, float y, float z) {
                            CRTP_LOC_POSITION_CH, p, 12);
 }
 
+/* OP-S10-W14-T13 — full POSE forwarder (position + quaternion).
+ * cf2's EKF fuses ExtPos for position only — yaw is integrated from
+ * gyro and drifts.  ExtPose adds an orientation correction so cf2
+ * KEEPS its yaw aligned with our reference (typically identity →
+ * "drone always faces world +X").  Without this, body-frame velocity
+ * commands (hover) progressively decouple from world frame as yaw
+ * drifts (operator-observed ~45° drift over 30 s autotune).
+ *
+ * CRTP format per CrazySim crtp_localization_service.{c,h}:
+ *   port    = 6 (LOCALIZATION)
+ *   channel = 1 (GENERIC_TYPE)
+ *   payload = [type_id=EXT_POSE(8), x, y, z, qx, qy, qz, qw]
+ *             1 + 7×4 = 29 bytes
+ */
+#define CRTP_LOC_GENERIC_CH  1
+#define CRTP_LOC_EXT_POSE_ID 8
+extern "C" int sentai_crazy_send_extpose(float x, float y, float z,
+                                           float qx, float qy, float qz,
+                                           float qw) {
+    uint8_t p[29];
+    p[0] = CRTP_LOC_EXT_POSE_ID;
+    pack_f32(p +  1, x);
+    pack_f32(p +  5, y);
+    pack_f32(p +  9, z);
+    pack_f32(p + 13, qx);
+    pack_f32(p + 17, qy);
+    pack_f32(p + 21, qz);
+    pack_f32(p + 25, qw);
+    return send_crtp_raw(CRTP_PORT_LOCALIZATION,
+                           CRTP_LOC_GENERIC_CH, p, 29);
+}
+
 extern "C" int sentai_crazy_hl_stop(uint8_t group_mask) {
     /* HL_CMD_STOP — puts the HL Commander into IDLE state.  Generic
      * Setpoints (hover/attitude) then become the authoritative

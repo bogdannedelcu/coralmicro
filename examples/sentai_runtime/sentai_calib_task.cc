@@ -256,7 +256,17 @@ void worker_loop_() {
                 float dx = dx_sum / (float)dn_used;
                 float dy = dy_sum / (float)dn_used;
                 float dz = dz_sum / (float)dn_used;
-                (void)sentai_crazy_send_extpos(dx, dy, dz);
+                // OP-S10-W14-T13: send full POSE (position + identity
+                // quaternion) so cf2's EKF corrects yaw drift too.
+                // Identity quat = "drone faces world +X" — locks yaw
+                // to 0, so body-frame hover() commands stay aligned
+                // with world frame over the autotune+hold trial.
+                // Drone may rotate slightly if it had drifted; that's
+                // the WANTED correction (operator iter #18 observed
+                // 45° yaw drift over 30 s, which decoupled body-X
+                // relay direction from world-X PnP-drift signal).
+                (void)sentai_crazy_send_extpose(dx, dy, dz,
+                                                  0.0f, 0.0f, 0.0f, 1.0f);
                 sentai_fr_push_scalar("at_vpe_x", dx, ts);
                 sentai_fr_push_scalar("at_vpe_y", dy, ts);
                 sentai_fr_push_scalar("at_vpe_z", dz, ts);

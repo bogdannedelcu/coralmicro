@@ -99,6 +99,14 @@ int sentai_crazy_hl_stop(uint8_t group_mask);
 // because the caller passes PERCEPTION-derived (x,y,z), not GT.
 int sentai_crazy_send_extpos(float x, float y, float z);
 
+// OP-S10-W14-T13 — full POSE (position + quaternion).  cf2's EKF
+// fuses BOTH position AND orientation, so this also corrects yaw
+// drift (ExtPos alone leaves yaw to drift via gyro integration).
+// Pass identity (0,0,0,1) to lock yaw to world +X, or PnP-derived
+// quaternion for true orientation correction.
+int sentai_crazy_send_extpose(float x, float y, float z,
+                                float qx, float qy, float qz, float qw);
+
 // ===================== Generic Setpoint: Hover =====================
 // Velocity-based hover. Must be sent CONTINUOUSLY at ~10-20 Hz.
 // If you stop sending, the CrazyFlie safety watchdog cuts motors after ~1s.
