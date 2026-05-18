@@ -41,9 +41,10 @@ HOLD_VMAX     = 0.30
 # Iter 2 (-15 → actual +7°/s,  altitude → 1.6 m):   FAIL altitude
 # Iter 3 (-3  → actual ~+1.5°/s, expect altitude stable since
 #         yaw torque is tiny → motor thrust differential minimal).
-#         Over 24 s gives ~36° total rotation — small, but proves
-#         the rotating-hold path can hold z when commanded gently.
-YAW_RATE_DEG_S = -3.0
+# T20  (T18+T19 stack): cmd -3 → actual +0.5°/s = 17 % authority.
+#       Need ~15°/s actual to hit 360° in 24 s.  Try cmd = -90
+#       (10×-ish): if ratio holds, expect actual ≈ -15°/s.
+YAW_RATE_DEG_S = -3.0   # T20: calib_task auto-stops at 360° integrated rotation
 
 SAFETY_N_MIN      = 4
 SAFETY_MAX_LOSS_S = 4.0

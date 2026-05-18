@@ -295,6 +295,90 @@ OP — ObjectsPlan thesis
 │       │
 │       │   Effort: ~3 h (PnP-quat ~1 h, HOLD yaw_rate arg ~0.5 h,
 │       │   s174 experiment ~0.5 h, trials + analysis ~1 h).
+│       ├── OP-S10-W14-T19 — VPE positive-feedback investigation    ✅ SHIPPED option A (2026-05-18)
+│       │   After T18 detection jumped to 90 %, s174 yaw mission
+│       │   showed positive-feedback loop between ExtPose quaternion
+│       │   (open-loop integrated commanded yaw rate) and cf2's
+│       │   yaw setpoint controller.  Commanded −3°/s → drone rotated
+│       │   559° in 14 s (peak 103°/s).  Tested 3 options:
+│       │     A. VPE position-only (ExtPos canal 0)  → STABLE,
+│       │        14° rotation, 7 cm land drift, no abort.
+│       │     B. PnP-derived REAL yaw quaternion     → CRASH
+│       │        (resonance, 91 cm drift, abort + visual crash).
+│       │     C. Identity quat always                 → similar to B.
+│       │   Shipped option A.  Commit c226571d.
+│       │
+│       ├── OP-S10-W14-T20 — yaw rate authority + 360° rotation     ⬜ DEFERRED (research done, T21 is path)
+│       │
+│       │   Problem: with T19 option A, cf2 SITL only tracks ~17 %
+│       │   of commanded yaw_rate (−3 cmd → 0.5°/s actual; −90 cmd →
+│       │   18.5°/s actual but mission aborts via position drift).
+│       │   No setting of cmd magnitude alone gives a clean 360° in
+│       │   the 24 s mission window.
+│       │
+│       │   Trials run (all FAIL):
+│       │     YAW_RATE | rotation | land drift | safety abort
+│       │       −3°/s  |   14°    |    7 cm    | none ✓
+│       │       −45°/s |   88°    |   173 cm   | yes
+│       │       −90°/s |  432°    |   153 cm   | yes
+│       │       −3 + auto-stop@360 (re-enable quat): 61°, 51 cm drift, abort
+│       │
+│       │   Research summary (cf2 firmware + literature):
+│       │     • cf2 cascade: yaw POSITION PID → yaw RATE PID → motor diff
+│       │     • Hover packet (Generic Setpoint type 5) sets
+│       │       attitudeRate.yaw = -arg (cf2 negates).  modeVelocity
+│       │       internally integrates this to maintain a yaw POSITION
+│       │       setpoint.  Stop = send yaw_rate=0 → cf2 decelerates.
+│       │     • ExtPose quat fused into EKF as a yaw MEASUREMENT.
+│       │       If measurement disagrees with internal setpoint, the
+│       │       yaw POSITION controller fights → motor output spikes.
+│       │     • Our open-loop integrated quat lies behind the real
+│       │       drone yaw (model = cmd × t, reality = cmd × t × 7.8
+│       │       for our SIM).  Controller sees ESTIMATE < SETPOINT,
+│       │       drives motors harder → drone over-rotates.
+│       │     • Mocap-grade vision (200 Hz, <1° error) doesn't show
+│       │       this — our 30 Hz PnP with 1-2° noise resonates.
+│       │
+│       │   SOTA approaches for vision-guided yaw rotation:
+│       │     1. cf2 HL go_to(yaw=target) — minimum-jerk trajectory
+│       │        between current and target yaw.  Smooth, stops
+│       │        automatically.  But HL mode locks out hover() so
+│       │        we'd need to combine position-hold into the go_to
+│       │        call (x=0, y=0, z=z_hold, yaw=target).
+│       │     2. Trapezoidal velocity profile generator (extern) —
+│       │        ramp up rate, plateau, ramp down to reach target.
+│       │     3. Step-wise (operator-proposed 2026-05-18) — small
+│       │        target increments (22.5° × 16 steps = 360°) with
+│       │        dwell between.  Robust, slow.  See T21.
+│       │     4. PID on yaw ERROR with low-pass-filtered PnP yaw —
+│       │        target yaw_rate = Kp × (target_yaw − measured_yaw).
+│       │        Filter cuts the resonance frequency.
+│       │
+│       │   T20 conclusion: yaw rate tracking via hover() + ExtPose
+│       │   is fundamentally NOT robust in our setup.  Time-tuning
+│       │   the cmd magnitude doesn't converge to a clean 360 + safe
+│       │   position hold.  Path forward = T21 step-wise.
+│       │
+│       ├── OP-S10-W14-T21 — step-wise yaw rotation (the path)      ⬜ TODO (next session priority)
+│       │
+│       │   Operator-proposed 2026-05-18: rotate in N steps of
+│       │   360°/N (e.g., 22.5° × 16 = 360°).  Each step: command
+│       │   target → wait for cf2 to settle (within ε of target) →
+│       │   check markers in FOV → next step.  Total time ~30-60 s.
+│       │
+│       │   Two implementation paths:
+│       │     (a) cf2 HL go_to(x=0, y=0, z=z_hold, yaw=cur+22.5°)
+│       │         — uses cf2's trajectory generator.  Smooth motion,
+│       │         stops automatically.  Requires exiting our
+│       │         hover()-based HOLD mode for the rotation.
+│       │     (b) hover(yaw_rate=±k) for short burst then yaw_rate=0
+│       │         + 1 s settle, repeat.  Stays in HOLD mode but is
+│       │         essentially open-loop bang-bang.
+│       │
+│       │   Recommendation: try (a) first.  cf2 HL handles position
+│       │   hold + yaw target simultaneously; minimum-jerk profile
+│       │   is the SOTA standard.  Effort ~3-4 h.
+│       │
 │       ├── OP-S10-W14-T18 — ArUco detector cv2 1:1 port           🟢 ALGORITHM PORTED (2026-05-18)
 │       │
 │       │   Operator-driven 2026-05-18: align sentai_aruco with

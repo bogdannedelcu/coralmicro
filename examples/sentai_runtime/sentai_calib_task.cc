@@ -126,6 +126,7 @@ static float s_hold_dur_s       = 30.0f;
 // actual hover.yaw_rate drives the drone to follow it.
 static float s_hold_yaw_rate_deg_s = 0.0f;
 static float s_hold_yaw_integrated_deg = 0.0f;   // open-loop model
+static float s_hold_yaw_target_deg     = 360.0f; // T20 auto-stop target
 static float s_hold_max_drift_m = 0.0f;     // peak |drift| L2 distance
 static float s_hold_rms_sum_sq  = 0.0f;     // running sum of drift²
 static uint32_t s_hold_rms_n     = 0;
@@ -304,27 +305,14 @@ void worker_loop_() {
                 //     commanded yaw_rate over time.  Drone follows
                 //     via hover.yaw_rate naturally; cf2 EKF gets a
                 //     smooth yaw reference + full position fix.
-                // T19 option A (SHIPPED): when HOLD is yawing, DROP
-                // the ExtPose quaternion and send POSITION-ONLY via
-                // ExtPos.  Eliminates the positive-feedback loop
-                // between our VPE quaternion and cf2's yaw controller.
-                // Trade-off:
-                //   - Yaw rate doesn't track command precisely (cf2
-                //     SITL ~20% of commanded rate without yaw ref).
-                //   - Position hold is excellent: 5 cm land drift on
-                //     a 24 s yaw mission (vs 48 cm with quat feedback
-                //     and 91 cm with PnP-derived quat which resonated
-                //     and crashed).
-                //   - No safety abort.  ArUco detection at 82-90 %
-                //     n=4 throughout rotation (T18 stack).
-                // Options B (PnP-derived yaw quat) and C (identity
-                // quat) both crashed via resonance in s174 trials —
-                // see T19 notes / commit history.
+                // T19 option A (SHIPPED): VPE position-only during
+                // yaw (ExtPos canal 0).  T20 attempted to re-enable
+                // the ExtPose quat with auto-stop at 360° but
+                // position drift exceeded safety limits before the
+                // 360° trigger fired.  Step-wise rotation (T21) is
+                // the proper fix.  See WBS OP-S10-W14-T20/T21.
                 if (s_mode == MODE_HOLD &&
                     fabsf(s_hold_yaw_rate_deg_s) > 0.01f) {
-                    // Update FR diag — track INTEGRATED commanded yaw
-                    // (not real yaw; real yaw not measured by VPE in
-                    // this mode).
                     uint32_t dt_ms = (s_vpe_last_ms == 0)
                         ? 33 : (ts - s_vpe_last_ms);
                     if (dt_ms > 200) dt_ms = 200;
@@ -332,8 +320,6 @@ void worker_loop_() {
                         s_hold_yaw_rate_deg_s * (float)dt_ms * 1e-3f;
                     (void)sentai_crazy_send_extpos(dx, dy, dz);
                 } else {
-                    // Static hold (T12/T13): identity quaternion locks
-                    // yaw to world +X via ExtPose.
                     (void)sentai_crazy_send_extpose(dx, dy, dz,
                                                       0.0f, 0.0f, 0.0f, 1.0f);
                 }
@@ -626,6 +612,7 @@ static int hold_start_impl(float kp_x, float kp_y, float vmax_clip,
     s_hold_dur_s            = dur_s;
     s_hold_yaw_rate_deg_s   = yaw_rate_deg_s;   // set BEFORE spawn
     s_hold_yaw_integrated_deg = 0.0f;            // model starts at 0
+    s_hold_yaw_target_deg     = 360.0f;          // stop after ~one revolution
     s_hold_max_drift_m      = 0.0f;
     s_hold_rms_sum_sq       = 0.0f;
     s_hold_rms_n            = 0;
