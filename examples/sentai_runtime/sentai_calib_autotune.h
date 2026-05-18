@@ -25,24 +25,30 @@ extern "C" {
 #define SENTAI_CALIB_AT_MAX_CYCLES        24    // → DONE_FAIL if exceeded
 #endif
 #ifndef SENTAI_CALIB_AT_AMP_STABLE_TOL
-// 2026-05-18 iter #8: relaxed from 0.20 → 0.40.  Real oscillation
-// trace shows peaks varying ±50 % around the median (cf2's HL
-// trajectory dynamics + PnP measurement noise + finite step relay).
-// Tighter than ±20 % required > 30 s of clean data which exceeds
-// our practical safety budget.  ZN with 40 % amp-stable still
-// produces a useful Kp estimate (median-of-recent-peaks is the
-// describing-function input — robust to outliers).
-#define SENTAI_CALIB_AT_AMP_STABLE_TOL    0.40f
+// 2026-05-18 iter #19: relaxed 0.40 → 0.60 after empirical noise-OFF
+// trials.  Without IMU noise, peaks were 17-50 mm (±50 % around
+// mean 33 mm).  cf2 dynamics are inherently nonlinear (velocity
+// loop saturation, lateral coupling) so even noise-free trials show
+// >40 % amplitude variance.  ZN with 60 % tolerance still produces
+// a usable Kp; the alternative is no convergence at all.
+#define SENTAI_CALIB_AT_AMP_STABLE_TOL    0.60f
 #endif
 #ifndef SENTAI_CALIB_AT_AMP_STABLE_N
 #define SENTAI_CALIB_AT_AMP_STABLE_N      4     // window size for stability
 #endif
 #ifndef SENTAI_CALIB_AT_DEAD_BAND_M
-// 2026-05-18 iter #3 (post-marker-doubling): peak amplitude observed
-// in s172 trial was ~12 mm, so a 5 mm dead band was eating half the
-// cycle and stalling peak detection.  Drop to 3 mm (above PnP noise
-// floor ≈ 1-2 mm, well below typical relay amplitude).
-#define SENTAI_CALIB_AT_DEAD_BAND_M       0.003f
+// 2026-05-18 iter #20: dead-band acts as relay HYSTERESIS (classical
+// Åström-Hägglund extension).  3 mm dead-band caused resonance —
+// relay flipped at zero-crossing, drone had no time to settle before
+// the next command reversed direction → amplitude amplified each
+// cycle (operator: "pare asa ca intr-o rezonanta care tot amplifica").
+// 20 mm hysteresis forces the drone to ACTUALLY DISPLACE before the
+// relay flips, breaking the resonance.  ZN math with hysteresis:
+//   Ku = 4·vmax / (π·sqrt(a²−ε²))  where ε = hysteresis = dead_band.
+// Approximation: when ε << a we get back to plain ZN.  Trial: ε=20mm
+// expects a ≈ 40-60 mm → sqrt(a²−ε²) ≈ 35-55 mm vs a=40-60 mm = 15 %
+// gain underestimate, acceptable for first-iter ID.
+#define SENTAI_CALIB_AT_DEAD_BAND_M       0.020f
 #endif
 
 // Initialise the state machine.  Idempotent.  Clears history; does
