@@ -44,6 +44,31 @@ struct Context {
 };
 static Context s_ctx = { 0.60f, 0.20f, 0.15f, 0.0625f, 0 };
 
+// Coordinate-wise median + outlier reject.  Returns the mean of the
+// values within `tol_m` of the median.  Used to fuse per-marker PnP
+// estimates: if one of the n markers picks the wrong IPPE pose
+// (Collins-Bartoli 2014 two-fold ambiguity) its Z deviates from the
+// others by ~1-3 cm and gets rejected, instead of polluting the mean.
+static float median_robust_(const float* vals, int n, float tol_m) {
+    if (n <= 0) return 0.0f;
+    float s[16];
+    int k = (n > 16) ? 16 : n;
+    for (int i = 0; i < k; ++i) s[i] = vals[i];
+    for (int i = 1; i < k; ++i) {
+        float v = s[i];
+        int j = i;
+        while (j > 0 && s[j-1] > v) { s[j] = s[j-1]; --j; }
+        s[j] = v;
+    }
+    const float med = (k & 1) ? s[k/2] : 0.5f * (s[k/2 - 1] + s[k/2]);
+    float sum = 0.0f;
+    int   cnt = 0;
+    for (int i = 0; i < k; ++i) {
+        if (fabsf(vals[i] - med) <= tol_m) { sum += vals[i]; ++cnt; }
+    }
+    return (cnt > 0) ? (sum / (float)cnt) : med;
+}
+
 // ── KNOWN_POSITIONS_M — marker world positions (must match the SDF
 //    aruco_id0..3 + aruco_detector.py KNOWN_POSITIONS_M).
 //    OP-S10-W14 iter #2 layout (2026-05-18): doubled to 12×12 cm
@@ -211,11 +236,13 @@ void worker_loop_() {
         if (pnp_valid) {
             // tvec_cam[2] = depth from cam to marker ≈ drone altitude
             // for the downward-facing setup at z=z_hold above flat
-            // markers.  Mean over visible markers smooths per-marker
-            // PnP noise.
-            float z_pnp = 0.0f;
-            for (int i = 0; i < n; ++i) z_pnp += mk[i].tvec_cam[2];
-            z_pnp /= (float)n;
+            // markers.  Median + 5cm-outlier-reject across visible
+            // markers rejects any marker whose PnP picked the wrong
+            // IPPE pose (Z jumps 1-3 cm from the correct value, see
+            // s175 + [[t18-pnp-rotation-ambiguity]]).
+            float z_per[16];
+            for (int i = 0; i < n; ++i) z_per[i] = mk[i].tvec_cam[2];
+            const float z_pnp = median_robust_(z_per, n, 0.05f);
             // z_error > 0 when drone is TOO LOW (drone < z_hold).
             // cf2 body z = +Z up (NWU), so dz_command should follow
             // sign of z_error.  Gain 1.0 since we send only on sign
@@ -242,10 +269,10 @@ void worker_loop_() {
         static uint32_t s_vpe_last_ms = 0;
         if (pnp_valid && (ts - s_vpe_last_ms) >= 33) {  // 30 Hz
             // drone_world[i] = marker_world[i] - R_cam_to_body * tvec_cam[i]
-            // Average over visible markers.  R_cam_to_body comes
-            // from sentai_calib (SIM default identity-like).
+            // Per-marker (dx, dy, dz) then coord-wise median + 5cm
+            // outlier reject — see median_robust_ comment above.
             const float* R = sentai_calib_get_R_cam_to_body();
-            float dx_sum = 0.0f, dy_sum = 0.0f, dz_sum = 0.0f;
+            float dx_per[16], dy_per[16], dz_per[16];
             int   dn_used = 0;
             for (int i = 0; i < n; ++i) {
                 uint8_t mid = mk[i].marker_id;
@@ -258,15 +285,15 @@ void worker_loop_() {
                 float rx = R[0]*tx + R[1]*ty + R[2]*tz;
                 float ry = R[3]*tx + R[4]*ty + R[5]*tz;
                 float rz = R[6]*tx + R[7]*ty + R[8]*tz;
-                dx_sum += mw[0] - rx;
-                dy_sum += mw[1] - ry;
-                dz_sum += mw[2] - rz;
+                dx_per[dn_used] = mw[0] - rx;
+                dy_per[dn_used] = mw[1] - ry;
+                dz_per[dn_used] = mw[2] - rz;
                 ++dn_used;
             }
             if (dn_used > 0) {
-                float dx = dx_sum / (float)dn_used;
-                float dy = dy_sum / (float)dn_used;
-                float dz = dz_sum / (float)dn_used;
+                float dx = median_robust_(dx_per, dn_used, 0.05f);
+                float dy = median_robust_(dy_per, dn_used, 0.05f);
+                float dz = median_robust_(dz_per, dn_used, 0.05f);
                 // T13/T16 VPE format — ALWAYS send ExtPose so cf2
                 // EKF gets full pose correction (altitude stays
                 // anchored).  Quaternion source:

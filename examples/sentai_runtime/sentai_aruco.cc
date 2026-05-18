@@ -43,6 +43,8 @@
 // down to 24 px @ z=1.0 m.  block=151 catches z≥0.7 but fails at
 // z≤0.5 (block ≲ marker).  block=201 covers markers up to ~190 px,
 // which spans our entire useful altitude range (0.3-1.5 m).
+// Default threshold block size (T18-G provides multi-scale at runtime;
+// this constant remains as a fallback / single-scale path reference).
 #define ARUCO_THRESH_BLOCK             201
 #define ARUCO_THRESH_C                 7
 // Component-labeling capacity.  More components than this and we drop
@@ -228,7 +230,8 @@ extern "C" void sentai_aruco_R_to_rvec(const float R[9], float rvec_out[3]) {
 //
 // Output is binary[i] = 0 or 1.
 // =========================================================================
-static void aruco_adaptive_threshold(const uint8_t* gray, int w, int h) {
+static void aruco_adaptive_threshold(const uint8_t* gray, int w, int h,
+                                       int block) {
     const int W = w, H = h;
     const int stride_i = W + 1;
     // Build integral image (zeroes in row 0 / col 0 simplify boundary).
@@ -246,7 +249,7 @@ static void aruco_adaptive_threshold(const uint8_t* gray, int w, int h) {
                                            + row_sum;
         }
     }
-    const int half = ARUCO_THRESH_BLOCK / 2;
+    const int half = block / 2;
     for (int y = 0; y < H; ++y) {
         int y0 = y - half;        if (y0 < 0) y0 = 0;
         int y1 = y + half;        if (y1 >= H) y1 = H - 1;
@@ -267,11 +270,16 @@ static void aruco_adaptive_threshold(const uint8_t* gray, int w, int h) {
 }
 
 // =========================================================================
-// Pipeline stage B — connected-component labeling (4-connected flood fill).
+// Pipeline stage B — connected-component labeling (8-connected flood fill).
 //
 // Iterate each pixel; on the first BLACK unlabeled pixel, flood-fill all
-// 4-connected BLACK pixels and assign them the next label.  Record
+// 8-connected BLACK pixels and assign them the next label.  Record
 // bounding box + pixel count + border-touch flag.
+//
+// 8-connectivity matches cv2.connectedComponents(connectivity=8) used by
+// cv2.aruco.  Critical for rotated markers: a 45°-rotated marker's black
+// border ring is connected only diagonally between pixel rows, so 4-conn
+// fragments it into many small pieces and the area gate then rejects them.
 //
 // Single-pass + DFS via explicit stack (no recursion — embedded NASA/JPL
 // rule).  Stack depth bounded by ARUCO_FILL_STACK_SZ.
@@ -315,10 +323,10 @@ static int aruco_label_components(int w, int h) {
                 if (px == 0 || px == w-1 || py == 0 || py == h-1) {
                     c->touches_border = 1;
                 }
-                // 4-connected neighbours.
-                static const int dx[4] = { -1, +1, 0, 0 };
-                static const int dy[4] = { 0, 0, -1, +1 };
-                for (int k = 0; k < 4; ++k) {
+                // 8-connected neighbours (matches cv2 default).
+                static const int dx[8] = { -1, +1,  0, 0, -1, -1, +1, +1 };
+                static const int dy[8] = {  0,  0, -1, +1, -1, +1, -1, +1 };
+                for (int k = 0; k < 8; ++k) {
                     const int nx = px + dx[k];
                     const int ny = py + dy[k];
                     if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
@@ -362,7 +370,182 @@ next_pixel:
 // Returns 0 on success + fills corners[8] = u0,v0,...,u3,v3 (TL,TR,BR,BL).
 // Returns -1 if degenerate (any two corners coincide).
 // =========================================================================
+// =========================================================================
+// T18-E — Moore-Neighbor border tracing + Ramer-Douglas-Peucker polygon
+// simplification.  This replaces the integer-pixel extrema heuristic
+// (aruco_extract_quad_legacy below) which produces 1-3 px corner offsets
+// for in-plane-rotated markers.
+//
+// Border-following: Moore-Neighbor (8-connected), starting from the
+// top-most-then-left-most pixel of the labeled component.  Produces
+// the outer boundary as an ordered CW sequence of integer pixel
+// coordinates.
+//
+// Polygon simplification: Ramer (1972) / Douglas-Peucker (1973).  Algo
+// ported from OpenCV's modules/imgproc/src/approx.cpp (Intel
+// Corporation 2000, BSD-3-Clause).  The iterative-stack form
+// matches the OpenCV implementation closely; adapted to fixed-size
+// int16 buffers and float arithmetic for M7 portability.  See
+// experiments/s177_corner_subpix_prototype/FINDINGS.md for the
+// motivation (cv2.aruco detects 4/4 markers on our rot45 frame
+// where the legacy extractor finds 0).
+//
+// Output: 4 corner candidates in CW cyclic order.  The downstream
+// bit decoder tries all 4 rotations, so identifying TL is not
+// required here.
+// =========================================================================
+#define ARUCO_BORDER_MAX        2048       // outer-perimeter pixel cap
+#define ARUCO_DP_STACK_MAX      64
+#define ARUCO_DP_EPS_FRAC       0.04f      // cv2.aruco: 0.04 * perimeter
+
+static int16_t s_border[2 * ARUCO_BORDER_MAX]   ARUCO_BSS_ATTR;
+static uint8_t s_dp_keep[ARUCO_BORDER_MAX]      ARUCO_BSS_ATTR;
+
+// Moore-Neighbor 8-connected outer-border trace.  Starts at (sx, sy)
+// which must be on the boundary of the labeled component.  Returns
+// number of border pixels (closed loop, no duplicate at end), or -1
+// on overflow / degenerate input.  CW order assuming start pixel was
+// reached scanning rows top-to-bottom, left-to-right.
+static int aruco_trace_border(uint8_t lab, int w, int h,
+                               int sx, int sy,
+                               int16_t* out) {
+    static const int8_t DX[8] = { +1, +1,  0, -1, -1, -1,  0, +1 };
+    static const int8_t DY[8] = {  0, -1, -1, -1,  0, +1, +1, +1 };
+    int x = sx, y = sy;
+    int came = 4;           // came from west — search starts NW going CW
+    int n = 0;
+    for (;;) {
+        if (n >= ARUCO_BORDER_MAX) return -1;
+        out[n*2 + 0] = (int16_t)x;
+        out[n*2 + 1] = (int16_t)y;
+        n++;
+        // Search CW from (came - 1) mod 8.
+        const int start_dir = (came + 7) & 7;
+        int found = -1;
+        for (int k = 0; k < 8; ++k) {
+            const int dir = (start_dir + 8 - k) & 7;
+            const int nx = x + DX[dir];
+            const int ny = y + DY[dir];
+            if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+            if (s_labels[nx + ny*w] != lab) continue;
+            found = dir;
+            break;
+        }
+        if (found < 0) return n;   // isolated pixel
+        x += DX[found];
+        y += DY[found];
+        came = (found + 4) & 7;
+        if (x == sx && y == sy && n >= 2) break;
+    }
+    return n;
+}
+
+// Iterative Douglas-Peucker on a closed polygon.  Sets s_dp_keep[i]=1
+// for points retained.  eps_sq is squared perpendicular threshold.
+static void aruco_dp_mark(const int16_t* pts, int n, float eps_sq) {
+    memset(s_dp_keep, 0, (size_t)n);
+    if (n < 3) {
+        for (int i = 0; i < n; ++i) s_dp_keep[i] = 1;
+        return;
+    }
+    // Seed: point #0 plus the point farthest from #0.
+    int seed_b = 0;
+    float max_d = -1.0f;
+    for (int j = 1; j < n; ++j) {
+        const float dx = (float)(pts[j*2 + 0] - pts[0]);
+        const float dy = (float)(pts[j*2 + 1] - pts[1]);
+        const float d  = dx*dx + dy*dy;
+        if (d > max_d) { max_d = d; seed_b = j; }
+    }
+    s_dp_keep[0]      = 1;
+    s_dp_keep[seed_b] = 1;
+    // Stack of (start, end) index pairs, closed-polygon convention
+    // where end may equal start + n to wrap.
+    int stack_s[ARUCO_DP_STACK_MAX];
+    int stack_e[ARUCO_DP_STACK_MAX];
+    int top = 0;
+    stack_s[top] = 0;       stack_e[top] = seed_b;       top++;
+    stack_s[top] = seed_b;  stack_e[top] = n;            top++;   // wraps to 0
+
+    while (top > 0) {
+        --top;
+        const int s = stack_s[top];
+        const int e = stack_e[top];
+        if (e - s < 2) continue;
+        const int ee = e % n;
+        const float x0 = (float)pts[s*2 + 0];
+        const float y0 = (float)pts[s*2 + 1];
+        const float x1 = (float)pts[ee*2 + 0];
+        const float y1 = (float)pts[ee*2 + 1];
+        const float dx = x1 - x0;
+        const float dy = y1 - y0;
+        const float len_sq = dx*dx + dy*dy + 1e-9f;
+        int   best_k     = -1;
+        float best_d_sq  = -1.0f;
+        for (int j = s + 1; j < e; ++j) {
+            const int jj = j % n;
+            const float px = (float)pts[jj*2 + 0];
+            const float py = (float)pts[jj*2 + 1];
+            const float cross = (px - x0) * dy - (py - y0) * dx;
+            const float d_sq  = (cross * cross) / len_sq;
+            if (d_sq > best_d_sq) { best_d_sq = d_sq; best_k = j; }
+        }
+        if (best_k >= 0 && best_d_sq > eps_sq) {
+            s_dp_keep[best_k % n] = 1;
+            if (top + 2 > ARUCO_DP_STACK_MAX) continue;   // overflow → skip
+            stack_s[top] = s;       stack_e[top] = best_k;  top++;
+            stack_s[top] = best_k;  stack_e[top] = e;       top++;
+        }
+    }
+}
+
+// New aruco_extract_quad replacement.  Returns 0 on success with 4
+// corners in CW order; -1 on failure (not a 4-vertex polygon).
 static int aruco_extract_quad(uint8_t lab_target, int w, int h,
+                              const aruco_comp_t* c, float corners[8]) {
+    // Find a top-left starting boundary pixel of the component.
+    int sx = -1, sy = -1;
+    for (int y = c->y0; y <= c->y1 && sy < 0; ++y) {
+        for (int x = c->x0; x <= c->x1; ++x) {
+            if (s_labels[x + y*w] == lab_target) {
+                sx = x; sy = y;
+                break;
+            }
+        }
+    }
+    if (sy < 0) return -1;
+
+    const int n = aruco_trace_border(lab_target, w, h, sx, sy, s_border);
+    if (n < 8) return -1;
+
+    // Iterative eps: cv2.aruco uses 0.05 but noisy rendered contours
+    // sometimes need 0.07-0.10 to collapse minor wobbles into 4 vertices.
+    // Sweep [0.03..0.10] coarsely; first eps that yields exactly 4
+    // wins.  Cheap on M7 (≤8 DP passes, each O(n)).
+    int n_kept = 0;
+    int kept_idx[16];
+    static const float EPS_FRACS[] = {
+        0.04f, 0.05f, 0.06f, 0.07f, 0.03f, 0.08f, 0.10f, 0.02f
+    };
+    for (unsigned ei = 0; ei < sizeof(EPS_FRACS) / sizeof(EPS_FRACS[0]); ++ei) {
+        const float eps = EPS_FRACS[ei] * (float)n;
+        aruco_dp_mark(s_border, n, eps * eps);
+        n_kept = 0;
+        for (int i = 0; i < n && n_kept < 16; ++i) {
+            if (s_dp_keep[i]) kept_idx[n_kept++] = i;
+        }
+        if (n_kept == 4) break;
+    }
+    if (n_kept != 4) return -1;
+    for (int i = 0; i < 4; ++i) {
+        corners[i*2 + 0] = (float)s_border[kept_idx[i]*2 + 0];
+        corners[i*2 + 1] = (float)s_border[kept_idx[i]*2 + 1];
+    }
+    return 0;
+}
+
+// Kept for reference; superseded by the DP-based extractor above.
+static int aruco_extract_quad_legacy(uint8_t lab_target, int w, int h,
                               const aruco_comp_t* c, float corners[8]) {
     int   best_tl_sum = INT32_MAX, best_tl_px = 0, best_tl_py = 0;
     int   best_br_sum = INT32_MIN, best_br_px = 0, best_br_py = 0;
@@ -402,6 +585,116 @@ static int aruco_extract_quad(uint8_t lab_target, int w, int h,
 }
 
 // =========================================================================
+// T18-F — Port of cv2.aruco _extractBits (modules/objdetect/src/aruco/
+// aruco_detector.cpp:324, BSD-3-Clause, Intel/OpenCV).
+//
+// Step 1: Compute perspective transform from quad corners to a canonical
+//         N×N output via DLT homography (we re-use aruco_dlt_homography).
+// Step 2: Warp the grayscale image to the canonical buffer (nearest-
+//         neighbour sample, matching cv2's INTER_NEAREST default).
+// Step 3: Apply Otsu's global threshold on the warped buffer.
+// Step 4: Count DARK pixels in each inner cell — bit = 1 if majority is
+//         dark, matching our dictionary's bit-1-is-black convention.
+// =========================================================================
+#define ARUCO_BITGRID_CELL      4       // px per marker cell in canonical
+#define ARUCO_BITGRID_BORDER    1       // ArUco border bits = 1
+#define ARUCO_BITGRID_SIDE      (ARUCO_PATCH_DIM * ARUCO_BITGRID_CELL)
+
+static uint8_t s_warp_buf[ARUCO_BITGRID_SIDE * ARUCO_BITGRID_SIDE] ARUCO_BSS_ATTR;
+
+// Forward decl — definition lower in file (used by T18-F before the
+// PnP block where DLT was originally introduced).
+static int aruco_dlt_homography(const float mx[4], const float my[4],
+                                 const float u[4], const float v[4],
+                                 float H[9]);
+
+static int aruco_warp_to_canonical(const uint8_t* img, int W, int H_img,
+                                    const float corners[8],
+                                    uint8_t* out, int N) {
+    // Source (canonical) corners — output pixel positions for TL, TR, BR, BL.
+    const float mx[4] = { 0.0f, (float)(N - 1), (float)(N - 1), 0.0f };
+    const float my[4] = { 0.0f, 0.0f,           (float)(N - 1), (float)(N - 1) };
+    const float u[4]  = { corners[0], corners[2], corners[4], corners[6] };
+    const float v[4]  = { corners[1], corners[3], corners[5], corners[7] };
+    float H[9];
+    if (aruco_dlt_homography(mx, my, u, v, H) != 0) return -1;
+    for (int yd = 0; yd < N; ++yd) {
+        for (int xd = 0; xd < N; ++xd) {
+            const float wd = H[6] * (float)xd + H[7] * (float)yd + H[8];
+            if (fabsf(wd) < 1e-9f) { out[yd*N + xd] = 0; continue; }
+            const float xs = (H[0]*(float)xd + H[1]*(float)yd + H[2]) / wd;
+            const float ys = (H[3]*(float)xd + H[4]*(float)yd + H[5]) / wd;
+            int xi = (int)(xs + 0.5f);
+            int yi = (int)(ys + 0.5f);
+            if (xi < 0) xi = 0;
+            if (yi < 0) yi = 0;
+            if (xi >= W)     xi = W - 1;
+            if (yi >= H_img) yi = H_img - 1;
+            out[yd*N + xd] = img[yi*W + xi];
+        }
+    }
+    return 0;
+}
+
+// Otsu's global threshold (1979) — between-class-variance maximisation.
+// Returns threshold value in [0, 255].
+static uint8_t aruco_otsu_threshold(const uint8_t* img, int n_pixels) {
+    int hist[256];
+    memset(hist, 0, sizeof(hist));
+    for (int i = 0; i < n_pixels; ++i) hist[img[i]]++;
+    long total = n_pixels;
+    long sum = 0;
+    for (int i = 0; i < 256; ++i) sum += (long)i * hist[i];
+    long sum_b = 0;
+    long w_b   = 0;
+    float max_var = 0.0f;
+    int   best   = 127;
+    for (int t = 0; t < 256; ++t) {
+        w_b += hist[t];
+        if (w_b == 0) continue;
+        long w_f = total - w_b;
+        if (w_f == 0) break;
+        sum_b += (long)t * hist[t];
+        const float mean_b = (float)sum_b / (float)w_b;
+        const float mean_f = (float)(sum - sum_b) / (float)w_f;
+        const float var_between = (float)w_b * (float)w_f *
+                                  (mean_b - mean_f) * (mean_b - mean_f);
+        if (var_between > max_var) {
+            max_var = var_between;
+            best = t;
+        }
+    }
+    return (uint8_t)best;
+}
+
+// Decode the 4×4 inner data cells from an already-warped canonical
+// buffer.  `t` is the Otsu threshold for the buffer.  Returns the
+// 16-bit pattern with bit=1 where the cell majority is DARK.
+static uint16_t aruco_decode_canonical_(const uint8_t* warped, int N,
+                                          int cell_size, int marker_border,
+                                          uint8_t t) {
+    const int margin = (int)(0.13f * (float)cell_size + 0.5f);   // cv2 default
+    uint16_t pattern = 0;
+    for (int cy = 0; cy < 4; ++cy) {
+        const int yc = (cy + marker_border) * cell_size;
+        for (int cx = 0; cx < 4; ++cx) {
+            const int xc = (cx + marker_border) * cell_size;
+            int n_dark = 0, n_tot = 0;
+            for (int dy = margin; dy < cell_size - margin; ++dy) {
+                for (int dx = margin; dx < cell_size - margin; ++dx) {
+                    if (warped[(yc + dy) * N + (xc + dx)] < t) n_dark++;
+                    n_tot++;
+                }
+            }
+            if (n_dark * 2 > n_tot) {
+                pattern |= (uint16_t)(1u << (cy * 4 + cx));
+            }
+        }
+    }
+    return pattern;
+}
+
+// =========================================================================
 // Pipeline stage D — decode marker bits + dictionary lookup.
 //
 // Sample a 6x6 grid inside the quad (1-pixel border + 4x4 data).  Each
@@ -423,47 +716,26 @@ static inline uint8_t aruco_sample_at(int x, int y, int w, int h) {
     return s_binary[x + y * w];
 }
 
-static int aruco_decode_marker(const float corners[8], int w, int h,
+static int aruco_decode_marker(const uint8_t* gray,
+                               const float corners[8], int w, int h,
                                int* out_rotation, int* out_hamming) {
-    // Bilinear interpolation: at grid (i, j) where i, j in [0, 5],
-    //   u = (1 - alpha)*(1 - beta)*c0 + alpha*(1 - beta)*c1
-    //     + (1 - alpha)*beta*c3 + alpha*beta*c2
-    // where alpha = (i + 0.5) / 6, beta = (j + 0.5) / 6.
-    // corners[]: TL,TR,BR,BL  -> c0,c1,c2,c3.
-    uint16_t pattern = 0;
-    // Read 4x4 INNER data cells (i,j in 1..4).  Inner cell at (i,j)
-    // corresponds to bit (j-1)*4 + (i-1).
-    for (int j = 1; j <= 4; ++j) {
-        const float beta = (j + 0.5f) / (float)ARUCO_PATCH_DIM;
-        for (int i = 1; i <= 4; ++i) {
-            const float alpha = (i + 0.5f) / (float)ARUCO_PATCH_DIM;
-            const float u = (1.0f - alpha)*(1.0f - beta) * corners[0]
-                          + alpha * (1.0f - beta)        * corners[2]
-                          + alpha * beta                  * corners[4]
-                          + (1.0f - alpha) * beta         * corners[6];
-            const float v = (1.0f - alpha)*(1.0f - beta) * corners[1]
-                          + alpha * (1.0f - beta)        * corners[3]
-                          + alpha * beta                  * corners[5]
-                          + (1.0f - alpha) * beta         * corners[7];
-            const int ix = (int)(u + 0.5f);
-            const int iy = (int)(v + 0.5f);
-            // Sample a 3x3 majority around (ix, iy) for noise tolerance.
-            int votes = 0;
-            for (int dy = -1; dy <= 1; ++dy) {
-                for (int dx = -1; dx <= 1; ++dx) {
-                    votes += aruco_sample_at(ix + dx, iy + dy, w, h);
-                }
-            }
-            // BLACK = bit 1 (matches dictionary convention).
-            if (votes >= 5) {
-                pattern |= (uint16_t)(1u << ((j-1) * 4 + (i-1)));
-            }
-        }
+    // T18-F: cv2.aruco _extractBits pipeline — perspective warp, Otsu
+    // threshold, per-cell majority count of DARK pixels (bit-1-is-black
+    // matches our dictionary convention).
+    if (aruco_warp_to_canonical(gray, w, h, corners,
+                                  s_warp_buf, ARUCO_BITGRID_SIDE) != 0) {
+        if (out_hamming) *out_hamming = 17;
+        return -1;
     }
+    const uint8_t t = aruco_otsu_threshold(s_warp_buf,
+                                            ARUCO_BITGRID_SIDE * ARUCO_BITGRID_SIDE);
+    const uint16_t pattern = aruco_decode_canonical_(
+        s_warp_buf, ARUCO_BITGRID_SIDE,
+        ARUCO_BITGRID_CELL, ARUCO_BITGRID_BORDER, t);
     // Try 4 rotations.  Rotation by 90° CW maps bit at (i, j) to
     // (j, 3 - i) in a 4x4 grid.  We rotate the BIT PATTERN.
     int best_id = -1;
-    int best_hamm = SENTAI_ARUCO_MAX_HAMMING + 1;
+    int best_hamm = 17;          // strictly greater than any possible hamming (16)
     int best_rot = 0;
     uint16_t cur = pattern;
     for (int r = 0; r < 4; ++r) {
@@ -519,22 +791,155 @@ static void aruco_realign_corners(float corners[8], int rotation_steps) {
 }
 
 // =========================================================================
-// Pipeline stage E — IPPE planar PnP.
+// Pipeline stage D.5 — Förstner corner sub-pixel refinement (T18-C).
 //
-// IPPE = Infinitesimal Plane-based Pose Estimation (Collins & Bartoli
-// IJCV 2014).  For a planar marker, given 4 image corners + camera
-// intrinsics, gives two analytical pose candidates; pick the one with
-// the lowest reprojection error.
+// Ported byte-for-byte from OpenCV cv::cornerSubPix (cornersubpix.cpp,
+// 4.x), validated against the reference in Python at
+// examples/sentai_runtime/experiments/s177_corner_subpix_prototype/
+// our_subpix_pure.py — match to 0.0000 px on real-frame test inputs.
 //
-// We use the simpler "homography decomposition" route, which is
-// algebraically equivalent to IPPE for a single planar marker.  Given
-// a homography H mapping marker-plane points (with z=0) to image
-// points, the two solutions for (R, t) are:
+// Why we need this: contour-finder corners are integer-pixel; under
+// in-plane rotation the rendered marker corners drift sub-pixel; this
+// propagates to PnP Z at ~20-60 mm/frame (see s177 FINDINGS.md).
+// Refinement cuts the per-frame Z noise by ~5×.
 //
-//   K^{-1} H = [r1 r2 t]   (scale by 1 / ||K^{-1} h1||)
-//   r3 = r1 × r2  (sign choice gives two solutions)
+// Window: 5×5 inner gradient region inside a 7×7 bilinear-sampled
+// patch.  Up to 30 iterations or |Δ| < 0.01 px.  Safety: revert to
+// initial corner if final |Δc| > 2 px on either axis (oscillation).
+// =========================================================================
+// win_half = 5 matches cv2.aruco DetectorParameters default
+// (cornerRefinementWinSize = 5 ⇒ 11x11 window).  Larger window is
+// required to capture corner offsets > 2 px that occur with rotated
+// quads (contour extrema land at integer-pixel near the true corner
+// but can be 2-3 px off the actual sub-pixel corner location).
+#define ARUCO_SUBPIX_WIN_HALF   2          // 5x5 inner window (cv2.aruco
+                                            // default = 5 = 11x11 window)
+#define ARUCO_SUBPIX_WIN        (2 * ARUCO_SUBPIX_WIN_HALF + 1)
+#define ARUCO_SUBPIX_BIG        (ARUCO_SUBPIX_WIN + 2)
+#define ARUCO_SUBPIX_MAX_ITER   30
+#define ARUCO_SUBPIX_EPS_PX     0.01f
+
+// cv2 Gaussian mask, computed at runtime once (11x11 → 121 floats,
+// constant after first call).  Build with:
+//   vy[i] = exp(-((i - win_half) / win_half)^2) for i in 0..2*win_half
+//   mask[i,j] = vy[i] * vy[j]
+static float ARUCO_SUBPIX_MASK[ARUCO_SUBPIX_WIN * ARUCO_SUBPIX_WIN];
+static int   ARUCO_SUBPIX_MASK_READY = 0;
+
+static void aruco_subpix_init_mask_(void) {
+    if (ARUCO_SUBPIX_MASK_READY) return;
+    const float inv_h = 1.0f / (float)ARUCO_SUBPIX_WIN_HALF;
+    for (int i = 0; i < ARUCO_SUBPIX_WIN; ++i) {
+        const float ry = (float)(i - ARUCO_SUBPIX_WIN_HALF) * inv_h;
+        const float vy = expf(-ry * ry);
+        for (int j = 0; j < ARUCO_SUBPIX_WIN; ++j) {
+            const float rx = (float)(j - ARUCO_SUBPIX_WIN_HALF) * inv_h;
+            ARUCO_SUBPIX_MASK[i * ARUCO_SUBPIX_WIN + j] = vy * expf(-rx * rx);
+        }
+    }
+    ARUCO_SUBPIX_MASK_READY = 1;
+}
+
+static inline float aruco_bilinear_(const uint8_t* img, int W, int H,
+                                     float x, float y) {
+    if (x < 0.0f) x = 0.0f;
+    if (y < 0.0f) y = 0.0f;
+    const float xmax = (float)(W - 1);
+    const float ymax = (float)(H - 1);
+    if (x > xmax) x = xmax;
+    if (y > ymax) y = ymax;
+    const int xi = (int)x;
+    const int yi = (int)y;
+    const float ax = x - (float)xi;
+    const float ay = y - (float)yi;
+    const int xi1 = (xi + 1 < W) ? xi + 1 : xi;
+    const int yi1 = (yi + 1 < H) ? yi + 1 : yi;
+    const float i00 = (float)img[yi  * W + xi ];
+    const float i01 = (float)img[yi  * W + xi1];
+    const float i10 = (float)img[yi1 * W + xi ];
+    const float i11 = (float)img[yi1 * W + xi1];
+    return (1.0f - ax) * (1.0f - ay) * i00 +
+           ax          * (1.0f - ay) * i01 +
+           (1.0f - ax) * ay          * i10 +
+           ax          * ay          * i11;
+}
+
+static void aruco_refine_corner_subpix(const uint8_t* img, int W, int H,
+                                        float* cx_io, float* cy_io) {
+    aruco_subpix_init_mask_();
+    const float x_init = *cx_io;
+    const float y_init = *cy_io;
+    float x = x_init;
+    float y = y_init;
+    const float half = (float)(ARUCO_SUBPIX_BIG - 1) * 0.5f;
+    const float eps_sq = ARUCO_SUBPIX_EPS_PX * ARUCO_SUBPIX_EPS_PX;
+    float patch[ARUCO_SUBPIX_BIG][ARUCO_SUBPIX_BIG];
+
+    for (int iter = 0; iter < ARUCO_SUBPIX_MAX_ITER; ++iter) {
+        // Bounds: bilinear handles edges but we need room for the
+        // 7x7 patch + 1 px margin for the inner gradient stencil.
+        if (x - half - 1.0f < 0.0f) break;
+        if (y - half - 1.0f < 0.0f) break;
+        if (x + half + 1.0f >= (float)W) break;
+        if (y + half + 1.0f >= (float)H) break;
+
+        for (int i = 0; i < ARUCO_SUBPIX_BIG; ++i) {
+            const float sy = y + ((float)i - half);
+            for (int j = 0; j < ARUCO_SUBPIX_BIG; ++j) {
+                const float sx = x + ((float)j - half);
+                patch[i][j] = aruco_bilinear_(img, W, H, sx, sy);
+            }
+        }
+
+        float A00 = 0.0f, A01 = 0.0f, A11 = 0.0f;
+        float b0 = 0.0f, b1 = 0.0f;
+        for (int di = 0; di < ARUCO_SUBPIX_WIN; ++di) {
+            const float pix_ry = (float)(di - ARUCO_SUBPIX_WIN_HALF);
+            for (int dj = 0; dj < ARUCO_SUBPIX_WIN; ++dj) {
+                const float pix_rx = (float)(dj - ARUCO_SUBPIX_WIN_HALF);
+                const float m   = ARUCO_SUBPIX_MASK[di * ARUCO_SUBPIX_WIN + dj];
+                const float tgx = patch[di + 1][dj + 2] - patch[di + 1][dj];
+                const float tgy = patch[di + 2][dj + 1] - patch[di    ][dj + 1];
+                const float gxx = tgx * tgx * m;
+                const float gxy = tgx * tgy * m;
+                const float gyy = tgy * tgy * m;
+                A00 += gxx;
+                A01 += gxy;
+                A11 += gyy;
+                b0 += gxx * pix_rx + gxy * pix_ry;
+                b1 += gxy * pix_rx + gyy * pix_ry;
+            }
+        }
+        const float det = A00 * A11 - A01 * A01;
+        if (fabsf(det) < 1e-12f) break;
+        const float inv = 1.0f / det;
+        const float dx  = ( A11 * b0 - A01 * b1) * inv;
+        const float dy  = (-A01 * b0 + A00 * b1) * inv;
+        x += dx;
+        y += dy;
+        if (dx*dx + dy*dy < eps_sq) break;
+    }
+
+    // cv2 safety revert.
+    const float wh = (float)ARUCO_SUBPIX_WIN_HALF;
+    if (fabsf(x - x_init) > wh || fabsf(y - y_init) > wh) {
+        x = x_init;
+        y = y_init;
+    }
+    *cx_io = x;
+    *cy_io = y;
+}
+
+// =========================================================================
+// Pipeline stage E — planar PnP via homography decomposition.
 //
-// We compute reprojection error for both and pick the lower.
+// For a planar marker, given 4 image corners + camera intrinsics, the
+// homography H decomposes into [r1 r2 t] (column-major) after K^{-1}
+// normalisation.  See Collins & Bartoli IJCV 2014 (IPPE) for the full
+// 2-solution analytical treatment.  In our scene (markers ≈ parallel
+// to image plane), the IPPE two-fold ambiguity collapses (both
+// solutions identical) so we keep just one solution.  s176 Python
+// sweep validated this empirically across 0°-90° corner rotations.
 //
 // Marker is centered at origin, side L; corners in marker frame:
 //   M0 = (-L/2, +L/2, 0)  TL
@@ -604,6 +1009,29 @@ static int aruco_dlt_homography(const float mx[4], const float my[4],
     return 0;
 }
 
+// Mean L2 reprojection error of the 4 marker corners through (R, t).
+// Returns 0 on success; -1 if a corner falls behind the camera.
+static int aruco_reproj_err(const float R[9], const float t[3],
+                             const float mx[4], const float my[4],
+                             const float u[4], const float v[4],
+                             float fx, float fy, float cx, float cy,
+                             float* err_out) {
+    float err = 0.0f;
+    for (int i = 0; i < 4; ++i) {
+        const float Xc = R[0]*mx[i] + R[1]*my[i] + t[0];
+        const float Yc = R[3]*mx[i] + R[4]*my[i] + t[1];
+        const float Zc = R[6]*mx[i] + R[7]*my[i] + t[2];
+        if (Zc <= 1e-9f) return -1;
+        const float u_p = fx * (Xc / Zc) + cx;
+        const float v_p = fy * (Yc / Zc) + cy;
+        const float du = u_p - u[i];
+        const float dv = v_p - v[i];
+        err += sqrtf(du*du + dv*dv);
+    }
+    *err_out = err * 0.25f;
+    return 0;
+}
+
 static int aruco_pnp_from_corners(const float corners[8],
                                   float fx, float fy, float cx, float cy,
                                   float marker_size_m,
@@ -656,8 +1084,9 @@ static int aruco_pnp_from_corners(const float corners[8],
         r1[0]*r2[1] - r1[1]*r2[0],
     };
     // tvec_z > 0 required (marker in front of camera).  If t[2] < 0,
-    // flip the sign of (r1, r2, t) — equivalent to picking the other
-    // analytical solution.
+    // negate (r1, r2, r3, t) to put the marker in front.  This is a
+    // chirality flip (R → -R changes det sign; we also negate r3 so
+    // det stays +1 since flipping any column twice nets out).
     if (t[2] < 0.0f) {
         r1[0] = -r1[0]; r1[1] = -r1[1]; r1[2] = -r1[2];
         r2[0] = -r2[0]; r2[1] = -r2[1]; r2[2] = -r2[2];
@@ -665,25 +1094,14 @@ static int aruco_pnp_from_corners(const float corners[8],
         t[0] = -t[0]; t[1] = -t[1]; t[2] = -t[2];
     }
     // Build R (columns are r1, r2, r3) row-major.
-    float R[9] = {
+    const float R[9] = {
         r1[0], r2[0], r3[0],
         r1[1], r2[1], r3[1],
         r1[2], r2[2], r3[2],
     };
-    // Reproject + measure error.
-    float err = 0.0f;
-    for (int i = 0; i < 4; ++i) {
-        const float Xc = R[0]*mx[i] + R[1]*my[i] + t[0];
-        const float Yc = R[3]*mx[i] + R[4]*my[i] + t[1];
-        const float Zc = R[6]*mx[i] + R[7]*my[i] + t[2];
-        if (Zc <= 1e-9f) return -1;
-        const float u_p = fx * (Xc / Zc) + cx;
-        const float v_p = fy * (Yc / Zc) + cy;
-        const float du = u_p - u[i];
-        const float dv = v_p - v[i];
-        err += sqrtf(du*du + dv*dv);
-    }
-    err *= 0.25f;
+    float err;
+    if (aruco_reproj_err(R, t, mx, my, u, v,
+                         fx, fy, cx, cy, &err) != 0) return -1;
     tvec_out[0] = t[0];
     tvec_out[1] = t[1];
     tvec_out[2] = t[2];
@@ -869,68 +1287,87 @@ extern "C" int sentai_aruco_detect(const uint8_t* gray, int w, int h,
     s_stats.frames_total++;
     if (out_capacity <= 0) return 0;
 
-    aruco_adaptive_threshold(gray, w, h);
-    const int n_comp = aruco_label_components(w, h);
+    // T18-G: cv2.aruco-style multi-scale adaptive threshold.  cv2 default
+    // is (winSizeMin=3, winSizeMax=23, winSizeStep=10) → blocks 3,13,23.
+    // We use a coarser set tuned for our 320x240 scene (markers at
+    // ~25 px to ~80 px).  The full pipeline runs at each scale; markers
+    // detected at multiple scales are deduplicated by marker_id (best
+    // reproj wins).
+    static const int SCALE_BLOCKS[] = { 23, 51, 101, 201 };
+    constexpr int N_SCALES = (int)(sizeof(SCALE_BLOCKS) / sizeof(SCALE_BLOCKS[0]));
+
+    // Per-id best candidate (one slot per known marker, ids 0..N-1).
+    sentai_aruco_marker_t best[SENTAI_ARUCO_MAX_MARKERS];
+    bool best_set[SENTAI_ARUCO_MAX_MARKERS];
+    for (int i = 0; i < SENTAI_ARUCO_MAX_MARKERS; ++i) best_set[i] = false;
+
+    for (int si = 0; si < N_SCALES; ++si) {
+        aruco_adaptive_threshold(gray, w, h, SCALE_BLOCKS[si]);
+        const int n_comp = aruco_label_components(w, h);
+
+        for (int ci = 0; ci < n_comp; ++ci) {
+            const aruco_comp_t* c = &s_components[ci];
+            if (c->touches_border) continue;
+            const float area = (float)c->n_pix;
+            if (area < SENTAI_ARUCO_MIN_QUAD_AREA) continue;
+            const int bbox_w = c->x1 - c->x0 + 1;
+            const int bbox_h = c->y1 - c->y0 + 1;
+            if (bbox_w < 8 || bbox_h < 8) continue;
+            const float aspect = (float)bbox_w / (float)bbox_h;
+            if (aspect < 0.33f || aspect > 3.0f) continue;
+            const float fill_ratio = area / (float)(bbox_w * bbox_h);
+            if (fill_ratio < 0.30f) continue;
+
+            const uint8_t lab = (uint8_t)(ci + 1);
+            float corners[8];
+            if (aruco_extract_quad(lab, w, h, c, corners) != 0) continue;
+
+            for (int k = 0; k < 4; ++k) {
+                aruco_refine_corner_subpix(gray, w, h,
+                                             &corners[k*2 + 0],
+                                             &corners[k*2 + 1]);
+            }
+
+            int rotation = 0;
+            int hamming = 0;
+            const int mid = aruco_decode_marker(gray, corners, w, h,
+                                                 &rotation, &hamming);
+            if (mid < 0) { s_stats.rejected_dict_total++; continue; }
+            aruco_realign_corners(corners, (4 - rotation) % 4);
+
+            float tvec[3], rvec[3], reproj;
+            if (aruco_pnp_from_corners(corners, s_fx, s_fy, s_cx, s_cy,
+                                        s_marker_size_m,
+                                        tvec, rvec, &reproj) != 0) {
+                s_stats.rejected_reproj_total++;
+                continue;
+            }
+            if (reproj > ARUCO_REPROJ_GATE_PX) {
+                s_stats.rejected_reproj_total++;
+                continue;
+            }
+
+            if (mid < 0 || mid >= SENTAI_ARUCO_MAX_MARKERS) continue;
+            if (best_set[mid] && best[mid].reproj_err_px <= reproj) continue;
+            sentai_aruco_marker_t* m = &best[mid];
+            memset(m, 0, sizeof(*m));
+            m->marker_id     = (uint8_t)mid;
+            m->hamming       = (uint8_t)hamming;
+            memcpy(m->tvec_cam,    tvec,    sizeof(tvec));
+            memcpy(m->rvec_cam,    rvec,    sizeof(rvec));
+            memcpy(m->corners_px,  corners, sizeof(corners));
+            m->reproj_err_px = reproj;
+            m->detect_us     = 0;
+            m->src_ts_ms     = src_ts_ms;
+            m->frame_seq     = frame_seq;
+            best_set[mid] = true;
+        }
+    }
 
     int n_out = 0;
-    for (int ci = 0; ci < n_comp && n_out < out_capacity; ++ci) {
-        const aruco_comp_t* c = &s_components[ci];
-        if (c->touches_border) continue;
-        const float area = (float)c->n_pix;
-        if (area < SENTAI_ARUCO_MIN_QUAD_AREA) continue;
-        const int bbox_w = c->x1 - c->x0 + 1;
-        const int bbox_h = c->y1 - c->y0 + 1;
-        if (bbox_w < 8 || bbox_h < 8) continue;
-        // Reject non-rectangle-ish (perimeter * perimeter vs area).
-        const float aspect = (float)bbox_w / (float)bbox_h;
-        if (aspect < 0.33f || aspect > 3.0f) continue;
-        // Fill ratio (area vs bbox area) — markers are mostly solid
-        // after threshold so ratio should be > 0.45 typically.
-        const float fill_ratio = area / (float)(bbox_w * bbox_h);
-        if (fill_ratio < 0.30f) continue;
-
-        const uint8_t lab = (uint8_t)(ci + 1);
-        float corners[8];
-        if (aruco_extract_quad(lab, w, h, c, corners) != 0) continue;
-
-        int rotation = 0;
-        int hamming = 0;
-        const int mid = aruco_decode_marker(corners, w, h,
-                                             &rotation, &hamming);
-        if (mid < 0) {
-            s_stats.rejected_dict_total++;
-            continue;
-        }
-        // The decoder reports how many CW rotations of the SAMPLE were
-        // needed to align it with the dictionary entry; that is the
-        // INVERSE of the drawn-rotation we need for corner reordering.
-        // drawn = (4 - decoder_rotation) % 4.
-        aruco_realign_corners(corners, (4 - rotation) % 4);
-
-        float tvec[3], rvec[3], reproj;
-        if (aruco_pnp_from_corners(corners, s_fx, s_fy, s_cx, s_cy,
-                                    s_marker_size_m,
-                                    tvec, rvec, &reproj) != 0) {
-            s_stats.rejected_reproj_total++;
-            continue;
-        }
-        if (reproj > ARUCO_REPROJ_GATE_PX) {
-            s_stats.rejected_reproj_total++;
-            continue;
-        }
-
-        sentai_aruco_marker_t* m = &out[n_out];
-        memset(m, 0, sizeof(*m));
-        m->marker_id     = (uint8_t)mid;
-        m->hamming       = (uint8_t)hamming;
-        memcpy(m->tvec_cam,    tvec,    sizeof(tvec));
-        memcpy(m->rvec_cam,    rvec,    sizeof(rvec));
-        memcpy(m->corners_px,  corners, sizeof(corners));
-        m->reproj_err_px = reproj;
-        m->detect_us     = 0;       // filled by caller / instrumentation
-        m->src_ts_ms     = src_ts_ms;
-        m->frame_seq     = frame_seq;
-        n_out++;
+    for (int mid = 0; mid < SENTAI_ARUCO_MAX_MARKERS && n_out < out_capacity; ++mid) {
+        if (!best_set[mid]) continue;
+        out[n_out++] = best[mid];
         s_stats.markers_total++;
     }
 

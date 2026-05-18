@@ -1,0 +1,36 @@
+
+=== HORIZONTAL ===
+  id=1
+    init→ours  max=0.822 mean=0.761
+    init→cv2   max=0.768 mean=0.714
+    ours vs cv2 max diff = 0.1334 px (mean 0.1201)
+  id=0
+    init→ours  max=0.522 mean=0.496
+    init→cv2   max=0.583 mean=0.529
+    ours vs cv2 max diff = 0.1411 px (mean 0.0687)
+  id=3
+    init→ours  max=0.500 mean=0.441
+    init→cv2   max=0.544 mean=0.480
+    ours vs cv2 max diff = 0.1022 px (mean 0.0678)
+  id=2
+    init→ours  max=0.862 mean=0.681
+    init→cv2   max=0.788 mean=0.681
+    ours vs cv2 max diff = 0.1448 px (mean 0.0987)
+
+=== ROTATED45 ===
+  id=1
+    init→ours  max=1.744 mean=0.881
+    init→cv2   max=0.842 mean=0.539
+    ours vs cv2 max diff = 1.7437 px (mean 0.7441)
+  id=0
+    init→ours  max=1.011 mean=0.568
+    init→cv2   max=1.369 mean=0.656
+    ours vs cv2 max diff = 0.8735 px (mean 0.5011)
+  id=3
+    init→ours  max=1.196 mean=0.575
+    init→cv2   max=1.662 mean=0.793
+    ours vs cv2 max diff = 0.7319 px (mean 0.3237)
+  id=2
+    init→ours  max=1.572 mean=1.028
+    init→cv2   max=1.767 mean=0.979
+    ours vs cv2 max diff = 0.5121 px (mean 0.2847)
