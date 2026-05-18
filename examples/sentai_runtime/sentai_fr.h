@@ -174,9 +174,17 @@ int sentai_fr_open(sentai_fr_channel_t ch, const char* path);
 int sentai_fr_close(sentai_fr_channel_t ch);
 
 // ── Recorder task lifecycle ─────────────────────────────────────────
-// task_start spawns the drain thread.  task_stop signals + joins.
-int sentai_fr_task_start(void);
-int sentai_fr_task_stop(void);
+// task_start / task_stop now live in sentai_fr_task.h (split mirrors
+// sentai.safety's state vs. task separation).  Producers can `#include
+// "sentai_fr.h"` and never reach the worker side at all.
+
+// ── Drain primitive (used by the worker task) ──────────────────────
+// Drain up to N items from EACH channel, writing them to disk via the
+// channel's sink (fopen/fwrite for SIM).  Returns the total number of
+// items consumed across all channels this round.  Worker calls this
+// on a 20 ms cadence — see sentai_fr_task.cc.  Producers should NOT
+// call this directly.
+uint32_t sentai_fr_drain_round(void);
 
 // ── Producer push endpoints ─────────────────────────────────────────
 // All push_* are O(1), non-blocking (brief mutex only), returning

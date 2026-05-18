@@ -1,10 +1,15 @@
 # sentai.safety — firmware-side mission safety service
 
-**WBS**: OP-S10-W12 (opened 2026-05-18, operator-approved 2026-05-18)
-**Status**: T1 header ✅, T2 state machine ✅, T3/T4/T5 in progress
+**WBS**: OP-S10-W12
+**Status**: **SHIPPED** 2026-05-18 (commit `6303b95d`).  T1-T6 done;
+T7-T9 (FlowBaseline migration, ARM build, future checks) pending.
 **Replaces**: host-side `SafetyMonitor` Python class in
 `examples/sentai_runtime/experiments/s167_flowbaseline_calibrated/mission_flowbaseline2.py`
 (retained as interim debug artefact; do NOT extend).
+**Validated**: `s171_safety_unit` (state machine) 8/8 PASS;
+`s170_security_aruco_baseline` (end-to-end SIM, drift + abort + land)
+PASS, abort fired at `n_dets=2 < 4 for 1031 ms`, landed 5.2 cm from
+origin (≤10 cm rule [[sim-test-must-return-home]]).
 
 ## 1. Why this exists
 
@@ -122,51 +127,58 @@ if `now - last_push_t > STALE_TIMEOUT_S` (default 2.0 s), the check
 abort latches with reason "feeder silent ...".  Catches silent
 SafetyTask / sentai.crazy death.
 
-## 4. MP API (binding in `bindings/modsentai_safety.c`, T4)
+## 4. MP API (binding in `bindings/modsentai_safety.c`)
+
+Shipped surface is **minimal** — only ints / bools / str, no MP dicts.
+Operator-mandated 2026-05-18 ("in MP tinem doar lucruri simple").
 
 ```python
-sentai.safety.init()                                       # idempotent
-sentai.safety.enable("aruco", n_min=4, max_loss_s=1.0)     # arm
-sentai.safety.disable("aruco")
-sentai.safety.tick()                                       # MP-driven watchdog (opt)
+# Lifecycle
+sentai.safety.init()              -> int   # idempotent reset
+sentai.safety.clear()             -> int   # re-arm boundary only
 
-sentai.safety.aborted() -> bool                            # sticky
-sentai.safety.reason() -> str                              # "" if not aborted
-sentai.safety.snapshot() -> dict                           # full state
-sentai.safety.events() -> list[dict]                       # ring of recent
+# Per-check arming
+sentai.safety.enable_aruco(n_min, max_loss_s)   -> int
+sentai.safety.disable_aruco()                   -> int
 
-sentai.safety.clear()                                      # only at re-arm
+# Worker control (auto-inits sentai.aruco internally)
+sentai.safety.task_start()        -> int
+sentai.safety.task_stop()         -> int
+
+# Read-side
+sentai.safety.aborted()           -> bool    # sticky
+sentai.safety.reason()            -> str     # "" if not aborted
+
+# Test injection (unit tests; NEVER from real missions)
+sentai.safety._test_push_aruco(n_dets, seq, ts_ms)   -> int
 ```
 
-Snapshot dict shape (T4):
-```python
-{
-  "aborted": bool,
-  "active_mask": int,            # bitmask over check enum
-  "abort_kind": str | None,      # "aruco" | "alt_floor" | …
-  "abort_t_ms": int,
-  "reason": str,
-  "aruco": {
-    "last_n_dets": int,
-    "streak_ms": int,
-    "n_frames_processed": int,
-    "last_push_t_ms": int,
-  },
-}
-```
+**Why no `snapshot()` / `events()` in MP?** Snapshots over MP would
+mean allocating MP dicts every poll — heap churn in the hot loop.  If
+post-mortem detail is needed, push it to `sentai.fr` events instead
+(text CSV, drained on a separate task, ms-cheap on the push side).
 
 ## 5. Implementation files
 
-| File | Lines | Purpose |
+| File | LoC | Purpose |
 |---|---:|---|
-| `examples/sentai_runtime/sentai_safety.h`             | ~210 | API contract + SYSTEM MODEL |
-| `examples/sentai_runtime/sentai_safety.cc`            | ~350 | State machine (pure compute) |
-| `examples/sentai_runtime/sentai_safety_task.cc`       | ~80  | Camera FPS worker (T3, pending) |
-| `examples/sentai_runtime/bindings/modsentai_safety.c` | ~250 | MP binding (T4, pending) |
+| `examples/sentai_runtime/sentai_safety.h`             | 248 | API contract + SYSTEM MODEL |
+| `examples/sentai_runtime/sentai_safety.cc`            | 425 | State machine (pure compute) |
+| `examples/sentai_runtime/sentai_safety_task.h`        | 161 | Worker API + system model |
+| `examples/sentai_runtime/sentai_safety_task.cc`       | 318 | Camera FPS worker (FreeRTOS task) |
+| `examples/sentai_runtime/bindings/modsentai_safety.c` | 119 | MP binding (9 fns, scalars only) |
 
-The .cc detects platform via `__ARM_ARCH` (or explicit
-`SENTAI_HAVE_FREERTOS`) for mutex impl: `xSemaphoreCreateMutexStatic`
-on ARM/RTOS, `pthread_mutex_t` on POSIX SIM.
+**Threading**: shipped uses FreeRTOS on both targets (ARM + the SIM's
+libfreertos_posix).  `xTaskCreate` dynamic at `tskIDLE_PRIORITY + 2`
+(same priority class as `crazy_rx` and other SIM tasks — proven to
+schedule reliably).  Stack = `configMINIMAL_STACK_SIZE * 4` (POSIX
+pthread frames are larger than ARM; aruco's contour finder + Jacobi
+PnP also consume frames).
+
+**Memory**: 100 % static.  Stats struct, markers buffer
+(`SENTAI_ARUCO_MAX_MARKERS = 16`), and the safety state's event ring
+(32 entries) are all file-level statics.  Zero heap, per
+`agent/embeded.md` §2 rule 3.
 
 ## 6. Anti-cheat invariants (codified, audit-friendly)
 
@@ -189,31 +201,56 @@ on ARM/RTOS, `pthread_mutex_t` on POSIX SIM.
 
 ## 7. Operational notes
 
-### How a mission uses it
+### How a mission uses it (canonical pattern from s170)
+
+The reference mission is `examples/sentai_runtime/experiments/
+s170_security_aruco_baseline/mission_security_aruco.py`.  Skeleton:
 
 ```python
-# Mission MP file under sentai_fs_root/
 import sentai
 
-def run_mission():
-    sentai.safety.init()
-    sentai.safety.enable("aruco", n_min=4, max_loss_s=1.0)
+def run():
+    # ── Init ─────────────────────────────────────────────────────
+    sentai.camera.init()
+    sentai.safety.init()                  # idempotent reset
 
-    sentai.servo.takeoff(z=0.6)
-    try:
-        while sentai.servo.is_airborne():
-            if sentai.safety.aborted():
-                print("safety abort:", sentai.safety.reason())
-                break
-            run_calibration_step()
-    finally:
-        sentai.servo.land()
-        sentai.safety.disable("aruco")
-        # Post-mortem: dump events for the verdict.
-        for ev in sentai.safety.events():
-            print(ev)
-        sentai.safety.clear()
+    # ── Crazy connect + takeoff (cf2 EKF is stable post-settle) ─
+    sentai.crazy.init()
+    sentai.crazy.arm()
+    sentai.crazy.takeoff(0.60, 2.0)
+    sentai.rtos.sleep_ms(2500)            # let takeoff transient finish
+
+    # ── ARM safety AFTER takeoff (avoid pre-takeoff transient) ──
+    sentai.safety.enable_aruco(4, 1.0)    # n_min=4, max_loss_s=1.0s
+    sentai.safety.task_start()            # auto-inits sentai.aruco
+
+    # ── Mission body — poll abort flag at 10 Hz ─────────────────
+    for i in range(int(20 * 10)):         # 20 s deadline
+        if sentai.safety.aborted():
+            print("ABORT:", sentai.safety.reason())
+            break
+        # ... mission step (e.g. go_to, hover, …)
+        sentai.rtos.sleep_ms(100)
+
+    # ── Land + teardown ─────────────────────────────────────────
+    sentai.crazy.land(0.0, 2.5)
+    sentai.rtos.sleep_ms(3000)
+    sentai.safety.task_stop()
+    sentai.safety.disable_aruco()
+    sentai.safety.clear()                 # re-arm boundary
 ```
+
+Key orderings (HARD-LEARNED 2026-05-18):
+
+1. **Open `sentai.fr` BEFORE `sentai.safety.task_start()`** if you
+   want SafetyTask's per-frame PGM push to be recorded.  SafetyTask
+   calls `sentai_fr_push_frame()` whether or not the channel is open;
+   a closed channel is a silent no-op (zero cost).
+2. **Arm safety AFTER `takeoff_settled`**, not before — the
+   takeoff transient (~2 s) sees the camera FOV swing through
+   marker-poor regions and would trip the abort early.
+3. **`task_stop()` BEFORE `disable_aruco()`** so the worker exits
+   cleanly before the state machine drops the check.
 
 ### Failure handling
 
@@ -242,17 +279,20 @@ called from the same task or from `sentai.safety.tick()` in MP.
 
 | T# | Task | Status | Files |
 |---|---|---|---|
-| T1 | API design doc / sentai_safety.h | ✅ | sentai_safety.h |
-| T2 | SafetyManager state machine (ArUco check, stubs, event log, stale watchdog) | ✅ | sentai_safety.cc |
-| T3 | SafetyTask camera FPS worker (POSIX + FreeRTOS) | ⬜ | sentai_safety_task.cc |
-| T4 | MP bindings `bindings/modsentai_safety.c` + QSTR regen | ⬜ | modsentai_safety.c |
-| T5 | SIM CMakeLists.txt entries + sentai_sim dispatch | ⬜ | sim/CMakeLists.txt, sim/modsentai_sim.c |
-| T6 | s170 SafetyTask smoke test (no markers → abort flag → recover) | ⬜ | experiments/s170_safety_smoke/ |
-| T7 | Migrate FlowBaseline2 to use sentai.safety + retire host-side SafetyMonitor | ⬜ | mission_flowbaseline2.py (delete or port to MP) |
-| T8 | Memory + agent.md section + this Safety.md update | ⬜ (this file is start) | Safety.md, agent/agent.md |
+| T1 | API design doc / sentai_safety.h | ✅ SHIPPED | sentai_safety.h |
+| T2 | SafetyManager state machine | ✅ SHIPPED | sentai_safety.cc |
+| T3 | SafetyTask camera FPS worker | ✅ SHIPPED | sentai_safety_task.{h,cc} |
+| T4 | MP bindings + QSTR regen | ✅ SHIPPED | bindings/modsentai_safety.c |
+| T5 | SIM CMakeLists.txt + dispatch | ✅ SHIPPED | sim/CMakeLists.txt, sim/modsentai_sim.c |
+| T6 | s170 SafetyArucoBaseline smoke test (drift → abort → land) | ✅ SHIPPED | experiments/s170_security_aruco_baseline/ |
+| T7 | Migrate FlowBaseline2 (s167) host SafetyMonitor → firmware | ⬜ | mission_flowbaseline2.py port |
+| T8 | Memory + agent.md section + Safety.md update | ✅ | Safety.md (this), `memory/project_op_s10_w12_w13_shipped.md` |
 | T9 | ARM build + ITCM budget check + FlowBaseline gate (s127) | ⬜ | n/a |
+| T10 | s171 state-machine unit test (8/8 PASS) | ✅ SHIPPED | experiments/s171_safety_unit/ |
+| T11 | sentai_aruco frame_seq memoisation (cache) — eliminate duplicate detect across mission + safety | ⬜ | sentai_aruco.cc |
 
-Estimated total: ~16 h focused work.
+Total shipped 2026-05-18 commit `6303b95d`: T1-T6 + T8 + T10.
+Remaining (T7, T9, T11): non-blocking; tracked.
 
 ## 9. Cross-references
 

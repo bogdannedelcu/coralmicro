@@ -4,7 +4,15 @@
 **Opened**: 2026-05-18 (operator-decided 2026-05-18 after T3 review:
 "hai sa avem un FR bun pentru a depana misiunea SafetyArucoBaseline...
 ca la avionics sa avem flight recorder").
-**Authoritative C API**: `examples/sentai_runtime/sentai_fr.h`.
+**Status**: **SHIPPED** 2026-05-18 (commit `6303b95d`).  T1-T5 + T7
+done; T6 (kernel channel from sentai_dmesg), T8 (ARM port), T9
+(migrate `sim/modsentai_sim_journal.c`) pending.
+**Authoritative C API**: `examples/sentai_runtime/sentai_fr.h` +
+`examples/sentai_runtime/sentai_fr_task.h`.
+**Validated**: `s170_security_aruco_baseline` last trial (post-split):
+frames `pushes=135 / writes_ok=135 / drops_full=0 / worst_q=1` and
+events `pushes=14 / writes_ok=14` — no drops, drain keeps up at
+camera FPS.
 
 ## Purpose
 
@@ -94,44 +102,108 @@ Commas / newlines / control chars in input are sanitised to spaces by
 the recorder before write so the line-oriented CSV stays robust on
 weird input.
 
-## MP API (minimal)
+## MP API (shipped surface — minimal)
+
+Operator-mandated 2026-05-18 ("din MP nu vom publica jsoane, e prea
+complicat... in MP tinem doar lucruri simple"): no MP dicts, no JSON.
+Return values are ints / bools / str or 7-tuple of ints (`stats`).
 
 ```python
-sentai.fr.open("frames",  "/tmp/run/frames")    # dir
-sentai.fr.open("events",  "/tmp/run/events.csv")
-sentai.fr.open("scalars", "/tmp/run/scalars.csv")
-sentai.fr.task_start()
-# ... mission ...
-sentai.fr.task_stop()
-sentai.fr.close("frames")
-sentai.fr.stats("frames") -> (writes_ok, drops, queue_depth)  # tuple of ints
+# Lifecycle
+sentai.fr.init()                                 -> int  # idempotent
+sentai.fr.open(channel_str, path)                -> int  # 0 / err
+sentai.fr.close(channel_str)                     -> int
+
+# Worker
+sentai.fr.task_start()                           -> int
+sentai.fr.task_stop()                            -> int
+
+# Producer endpoints from MP (text only — frames pushed from C side)
+sentai.fr.push_event(type_str, text_str)         -> int
+sentai.fr.push_scalar(label_str, value, ts_ms=0) -> int
+
+# Stats — 7-tuple of ints (pushes_total, accepted, drops_full,
+#                          writes_ok, writes_fail, queue_depth,
+#                          worst_queue_depth)
+sentai.fr.stats(channel_str) -> tuple[int×7]
 ```
 
-For frame recording the friendlier helper is:
+`channel_str` ∈ {"frames", "events", "scalars", "kernel"}.
 
-```python
-sentai.fs.record_image(source="gray", n_dets=4)    # source ∈ {"gray", "rgb", "resized"}
-```
+**Frame recording is C-side only** — there is intentionally no
+`sentai.fs.record_image()` MP helper.  SafetyTask (and any future
+camera-FPS consumer) pushes via `sentai_fr_push_frame()` so the raw
+pixel bytes never cross the MP heap boundary — preserves the
+[[no-heavy-data-through-mp]] hard rule.  If a closed channel is hit,
+the push is a silent no-op (zero cost).
 
-(operator spec 2026-05-18: caller picks what to record — recorder
-fetches the image from the requested source via the existing camera
-APIs, then pushes through `sentai_fr_push_frame`.)
+## Implementation files (state ↔ worker split)
 
-## Task list (mirrors `wbs.md` OP-S10-W13)
+Mirrors `sentai.safety`'s `state machine | task` split.  Each half is
+independently testable.
 
-T1 header • T2 state + recorder task • T3 MP binding +
-`sentai.fs.record_image` helper • T4 SIM CMake + dispatch + QSTR •
-T5 migrate sentai_safety_task in-place PGM dump → push_frame •
-T6 migrate sentai_dmesg → kernel channel (T-future) •
-T7 EXP-s171 FlightRecorder smoke • T8 ARM port (FxUser sinks,
-T-future) • T9 migrate `sim/modsentai_sim_journal.c` → events
-channel (T-future).
+| File | LoC | Purpose |
+|---|---:|---|
+| `sentai_fr.h`       |  ~210 | Public API — channels, push, stats, drain primitive |
+| `sentai_fr.cc`      |  ~440 | State + pools + locking + drain functions |
+| `sentai_fr_task.h`  |   ~35 | Worker lifecycle (start / stop) |
+| `sentai_fr_task.cc` |  ~130 | xTaskCreate + drain loop at 20 ms cadence |
+| `bindings/modsentai_fr.c` | ~115 | MP binding (9 fns, scalars / tuples only) |
+
+## Threading + concurrency (load-bearing decisions)
+
+- **FreeRTOS task @ `tskIDLE_PRIORITY + 2`** (NOT `+1`).  Empirically
+  `+1` (one above idle) gets starved by the MP main thread + safety
+  task + crazy_rx on FreeRTOS POSIX SIM — writes_ok stayed at 0.
+  `+2` is the proven priority class (crazy_rx, sentai_safety_task).
+- **Producer/drain lock = binary semaphore**, NOT
+  `xSemaphoreCreateMutex`.  A FreeRTOS mutex carries priority
+  inheritance; contention between SafetyTask and the drain task
+  tripped the `pxTCB == pxCurrentTCB` assertion in
+  `xTaskPriorityDisinherit`.  PI also entangles task priorities,
+  which contradicts the operator-mandated principle "FR trebuie sa
+  fie independent de alte task-uri".  Binary semaphore = non-PI
+  mutex; held only briefly per slot, no priority inversion in
+  practice.
+- **Drain-side scratch is static BSS, NOT on the task stack.**  A
+  `FrameSlot` at 320×240 gray is ~76 KB; the FreeRTOS POSIX task
+  stack is ~16 KB (`configMINIMAL_STACK_SIZE × sizeof(StackType_t) ×
+  4`).  Copying a frame to the stack overflows instantly.  Lifting
+  `s_drain_snap_frame` to static BSS fixes this; only the drain task
+  reads/writes it, so no extra synchronisation needed.
+- **20 ms poll, not condition-variable wake**.  Producers do NOT
+  signal the worker; the worker polls via `vTaskDelay`.  Trades a
+  little CPU for one less synchronisation primitive (and avoids
+  another counting-semaphore-wake-pattern bug seen during bring-up).
+
+## SIM-only quirks bundled in same commit
+
+- `sim/modsentai_sim_camera.c`: `sentai_now_ms` is a weak symbol.
+  When no other TU provided it on SIM, every grabbed frame's
+  `ts_ms = 0` and FR's time-stamped filenames collided.  Now the
+  SIM camera shim falls back to `clock_gettime(CLOCK_MONOTONIC)`
+  via a static inline `sim_local_now_ms_`.
+
+## Task list — actual status
+
+| T# | Task | Status |
+|---|---|---|
+| T1 | sentai_fr.h header (channels, slot pools, status codes, capacities) | ✅ SHIPPED |
+| T2 | sentai_fr.cc state + push API + drain functions (4 channels) | ✅ SHIPPED |
+| T3 | bindings/modsentai_fr.c MP binding (9 fns, no dicts) | ✅ SHIPPED |
+| T4 | SIM CMakeLists.txt + sim/modsentai_sim.c dispatch + QSTR regen | ✅ SHIPPED |
+| T5 | SafetyTask integration: `sentai_fr_push_frame` from worker | ✅ SHIPPED |
+| T6 | Kernel channel → mirror sentai_dmesg ring (stub today) | ⬜ |
+| T7 | SIM bring-up smoke (covered by s170 SafetyArucoBaseline indirectly) | ✅ SHIPPED |
+| T8 | ARM port: FxUser sinks; disable `frames` channel by default per operator note ("salvarea frames probabil nu va merge pe ARM pentru ca consuma f mult procesor") | ⬜ |
+| T9 | Migrate `sim/modsentai_sim_journal.c` → events channel | ⬜ |
 
 ## Cross-references
 
 - `examples/sentai_runtime/sentai_fr.{h,cc}`
-- `examples/sentai_runtime/bindings/modsentai_fr.c` (T3)
-- `examples/sentai_runtime/experiments/s171_fr_smoke/` (T7)
-- §25 — `sentai.safety` (primary consumer)
+- `examples/sentai_runtime/sentai_fr_task.{h,cc}`
+- `examples/sentai_runtime/bindings/modsentai_fr.c`
+- `examples/sentai_runtime/experiments/s170_security_aruco_baseline/`
+- §25 — `sentai.safety` (primary frame producer)
 - `agent/embeded.md` §3.1 layer separation, §7.2 event log, §4.1 memory
 - `wbs.md` `OP-S10-W13` full task list

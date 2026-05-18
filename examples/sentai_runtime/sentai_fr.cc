@@ -20,31 +20,27 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-// ── Threading model (operator spec 2026-05-18 — "sentai.fr trebuie
-//    sa fie independent de alte task-uri si nu trebuie sa le incurce,
-//    e doar un jurnal de zbor"; followup: "nu decupla de FreeRTOS") ──
-// Recorder is a regular FreeRTOS task at the SAME priority as other
-// SIM tasks (tskIDLE_PRIORITY + 2).  ISOLATION from other tasks is
-// achieved by using a BINARY semaphore (no priority inheritance) as
-// the producer/drain lock — NOT a FreeRTOS mutex.
+// ── Threading model (operator spec 2026-05-18) ─────────────────────
+// "sentai.fr trebuie sa fie independent de alte task-uri si nu trebuie
+//  sa le incurce, e doar un jurnal de zbor"; followup: "nu decupla
+//  de FreeRTOS".
 //
-// Why: an earlier prototype used xSemaphoreCreateMutex (PI-enabled)
-// and tripped xTaskPriorityDisinherit's `pxTCB == pxCurrentTCB`
-// assertion (FreeRTOS tasks.c) when SafetyTask and the FR drain
-// task contended on it.  Priority inheritance entangles tasks'
-// priorities transparently — the opposite of "independent".  A
-// binary semaphore behaves as a non-PI mutex: ideal for an isolated
-// recorder.  Held only briefly (memcpy of one slot), so the lack of
-// PI cannot cause priority inversion in practice.
+// Producers acquire `s_lock` (BINARY semaphore — NOT a PI-mutex) for a
+// brief slot memcpy and release.  The worker (in sentai_fr_task.cc)
+// calls `sentai_fr_drain_round()` from this TU, which acquires the
+// same lock briefly per item, copies into a static drain-side scratch,
+// releases, then does I/O outside the lock.
 //
-// ARM port note: the same binary-semaphore + xTaskCreate pattern is
-// used everywhere in libs/base; the only ARM-specific change will be
-// the disk-sink backend (FxUser instead of fopen).  No host pthread
-// in this file — operator-mandated 2026-05-18.
+// Why a binary semaphore, not xSemaphoreCreateMutex?  A FreeRTOS
+// MUTEX is priority-inheriting; producer + drain contention tripped
+// `xTaskPriorityDisinherit pxTCB == pxCurrentTCB` (FreeRTOS tasks.c).
+// PI also entangles tasks' priorities — the opposite of "independent".
+// A binary semaphore behaves as a non-PI mutex; held only briefly,
+// no priority inversion is possible in practice.
 #include "FreeRTOS.h"
 #include "semphr.h"
 #include "task.h"
-#include <time.h>            // clock_gettime fallback for SIM ts
+#include <time.h>
 #define FR_HAVE_FREERTOS 1
 
 // ============================================================================
@@ -97,13 +93,10 @@ inline uint32_t pool_size_for(sentai_fr_channel_t c) {
 }
 
 // ── Binary semaphore (FreeRTOS, no priority inheritance) ───────────────
-// Held briefly (single slot memcpy or snapshot).  Drain task polls
-// every FR_POLL_MS via vTaskDelay — no condition variable / counting
-// semaphore wake mechanism.  The binary semaphore behaves as a
-// non-PI mutex.
+// Held briefly (single slot memcpy or snapshot).  Worker (in
+// sentai_fr_task.cc) polls via vTaskDelay — no condition variable.
 static StaticSemaphore_t s_lock_buf;
 static SemaphoreHandle_t s_lock = nullptr;
-static constexpr uint32_t FR_POLL_MS = 20;
 inline void mu_init() {
     if (!s_lock) {
         s_lock = xSemaphoreCreateBinaryStatic(&s_lock_buf);
@@ -112,22 +105,19 @@ inline void mu_init() {
 }
 inline void mu_lock()   { if (s_lock) xSemaphoreTake(s_lock, portMAX_DELAY); }
 inline void mu_unlock() { if (s_lock) xSemaphoreGive(s_lock); }
-inline void wake_post() { /* no-op: drain polls */ }
-inline bool wake_wait_ms(uint32_t ms) {
-    vTaskDelay(pdMS_TO_TICKS(ms));
-    return true;
-}
+// Producers used to signal the worker via a counting semaphore; that
+// mechanism was removed when the worker switched to a 20 ms polling
+// schedule (see sentai_fr_task.cc).  Keep a no-op so existing
+// push_* sites still compile.
+inline void wake_post() {}
 
 struct MuGuard { MuGuard(){ mu_lock(); } ~MuGuard(){ mu_unlock(); } };
 
-// ── Recorder thread (use xTaskCreate dynamic like other SIM tasks;
-// configMINIMAL_STACK_SIZE = 1024 words on POSIX) ────────────────────
-static TaskHandle_t s_task_handle = nullptr;
-static volatile bool s_started   = false;
-static volatile bool s_stop_flag = false;
-static volatile bool s_worker_alive = false;   // set by worker on entry,
-                                                // cleared on exit; lets
-                                                // task_stop break early
+// Recorder thread lives in sentai_fr_task.cc (split for clarity,
+// mirrors sentai_safety / sentai_safety_task).  Public callers reach
+// it via sentai_fr_task_start / sentai_fr_task_stop declared in
+// sentai_fr_task.h.
+
 static FILE* s_events_fp  = nullptr;
 static FILE* s_scalars_fp = nullptr;
 
@@ -416,10 +406,13 @@ bool drain_one_scalar_() {
     return true;
 }
 
-uint32_t worker_drain_round_() {
-    // Best-effort: drain up to N items per channel per round so a
-    // single noisy channel can't starve others.  Return the number of
-    // items drained this round (any channel) for diagnostic prints.
+}  // namespace
+
+// Public drain primitive — called by the worker task in
+// sentai_fr_task.cc.  Best-effort: drain up to 8 items PER CHANNEL
+// per call so a single noisy channel can't starve the others.
+// Returns the total number of items consumed across all channels.
+extern "C" uint32_t sentai_fr_drain_round(void) {
     uint32_t n = 0;
     for (int i = 0; i < 8 && drain_one_frame_();  ++i) ++n;
     for (int i = 0; i < 8 && drain_one_event_();  ++i) ++n;
@@ -427,78 +420,7 @@ uint32_t worker_drain_round_() {
     return n;
 }
 
-void worker_main_loop_() {
-    // One-shot start/end markers so operators can confirm in stderr
-    // that the recorder task was actually scheduled.  Per-tick prints
-    // were used during the s170 bring-up but are noise once stable.
-    fprintf(stderr, "[sentai_fr] worker START\n");
-    uint32_t round = 0;
-    uint32_t total_drained = 0;
-    while (!s_stop_flag) {
-        wake_wait_ms(FR_POLL_MS);
-        total_drained += worker_drain_round_();
-        ++round;
-    }
-    // Final drain on stop — bounded so we never lose items in the
-    // ring buffer just because task_stop was called fast.
-    for (int i = 0; i < 16; ++i) {
-        if (worker_drain_round_() == 0) break;
-    }
-    fprintf(stderr,
-            "[sentai_fr] worker STOP rounds=%u drained=%u\n",
-            (unsigned)round, (unsigned)total_drained);
-}
-
-#if FR_HAVE_FREERTOS
-void worker_task_entry(void*) {
-    s_worker_alive = true;
-    worker_main_loop_();
-    s_worker_alive = false;
-    vTaskDelete(nullptr);
-}
-#else
-void* worker_pthread_entry(void*) {
-    s_worker_alive = true;
-    worker_main_loop_();
-    s_worker_alive = false;
-    return nullptr;
-}
-#endif
-
-}  // namespace
-
-extern "C" int sentai_fr_task_start(void) {
-    if (s_started) return 0;
-    mu_init();
-    s_stop_flag    = false;
-    s_worker_alive = false;
-    // Priority +2 (NOT +1): SafetyTask and crazy_rx_task run at +2
-    // and reliably get scheduled.  At +1 (one above idle) we
-    // empirically saw zero scheduling — see comment in mu_init().
-    BaseType_t ok = xTaskCreate(
-        worker_task_entry, "sentai_fr",
-        configMINIMAL_STACK_SIZE * 4, nullptr,
-        tskIDLE_PRIORITY + 2,
-        &s_task_handle);
-    if (ok != pdPASS || !s_task_handle) {
-        fprintf(stderr, "[sentai_fr] xTaskCreate FAIL ok=%ld\n", (long)ok);
-        return -1;
-    }
-    s_started = true;
-    return SENTAI_FR_OK;
-}
-
-extern "C" int sentai_fr_task_stop(void) {
-    if (!s_started) return 0;
-    s_stop_flag = true;
-    // Break early if worker confirms exit (clears s_worker_alive).
-    // Bound = 30 × 50 ms = 1.5 s — generous so the final-drain pass
-    // (up to 16 rounds, 3 channels × 8 items each) always completes.
-    for (int i = 0; i < 30; ++i) {
-        if (!s_worker_alive) break;
-        vTaskDelay(pdMS_TO_TICKS(50));
-    }
-    s_task_handle = nullptr;
-    s_started     = false;
-    return SENTAI_FR_OK;
-}
+// Internal entry point used by sentai_fr_task.cc::sentai_fr_task_start
+// to make sure the lock semaphore is created before the worker takes
+// it.  Idempotent.  Public ABI; not exposed via the high-level header.
+extern "C" void sentai_fr_internal_mu_init(void) { mu_init(); }

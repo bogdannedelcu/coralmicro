@@ -220,9 +220,12 @@ add_executable_sim(sentai_sim
     ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_safety.cc
     ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_safety_task.cc
     # ObjectsPlan OP-S10-W13 — sentai.fr Flight Recorder subsystem.
-    # NASA/JPL FDR-style: multi-channel bounded-queue producers + single
-    # drain task → disk.  SIM-only initially; ARM port deferred.
+    # NASA/JPL FDR-style: multi-channel bounded-queue producers + a
+    # worker task → disk.  Split into state (sentai_fr.cc) + worker
+    # (sentai_fr_task.cc), mirroring sentai.safety's split.  SIM-only
+    # initially; ARM port deferred.
     ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_fr.cc
+    ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_fr_task.cc
     # ObjectsPlan L6 — mission FSM wrapping L4 servo + L5 lifter.
     # Pure FSM, no transport bytes; same #include pattern as L2-L5.
     ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_explore.cc
