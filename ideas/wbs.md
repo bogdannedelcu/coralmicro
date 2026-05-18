@@ -237,15 +237,25 @@ OP — ObjectsPlan thesis
 │       ├── OP-S10-W14-T8 — Y-axis autotune (mirror X)                ⬜ TODO (phase 2)
 │       ├── OP-S10-W14-T9 — Online td estimation via gyro × PnP
 │       │                    cross-correlation (CMSIS-DSP)              ⬜ TODO (phase 2)
-│       └── OP-S10-W14-T10 — Active PnP-based altitude hold during
-│                            autotune (operator 2026-05-18:
-│                            "experimentul de stabilizare la altitudine
-│                            constanta"; chose monitor-only for
-│                            baseline, active hold deferred to keep
-│                            autotune isolated from a second control
-│                            loop with its own gain).  Would close
-│                            loop on z_pnp = mean(tvec_cam.z) to
-│                            compensate baro drift.                    ⬜ TODO (phase 2)
+│       ├── OP-S10-W14-T10 — Active PnP-based altitude hold during
+│       │                    autotune.  VPE forwarder (iter #13-15)
+│       │                    achieves passive altitude stabilization
+│       │                    via cf2 EKF (z stable ±5 cm).  Active
+│       │                    PID closing on z_pnp deferred — only
+│       │                    needed if baro drift exceeds VPE
+│       │                    correction.                                ⬜ TODO (phase 2)
+│       └── OP-S10-W14-T11 — STEP RESPONSE identification alternative
+│                            to ZN-relay (operator-noted 2026-05-18:
+│                            relay produces ±6-10 cm lateral oscillation
+│                            inherently, plus trial-to-trial variance
+│                            high — iter #15 converged Kp=1.58, iter
+│                            #17 same params landed 36 cm out + safety
+│                            abort).  Step response: ONE 5 cm position
+│                            step + 5 s record + 1st-order fit
+│                            y(t)=K·(1-e^(-t/τ)).  Single trial, no
+│                            oscillation, deterministic.  Implement
+│                            via sentai_crazy_go_to(rel=0) absolute
+│                            position step using PnP anchor.            ⬜ TODO (phase 2)
 │
 └── Milestones
     ├── OP-M1 — Thesis MVP (SIM): 4 descriptors + L1 + calib working end-to-end

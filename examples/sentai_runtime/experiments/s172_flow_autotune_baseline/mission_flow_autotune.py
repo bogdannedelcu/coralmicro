@@ -37,7 +37,14 @@ MARKER_SIZE  = 0.125      # matches sentai_aruco.cc s_marker_size_m
 # Autotune knobs
 AT_AXIS      = "x"
 AT_DUR_S     = 30.0
-AT_VMAX      = 0.10        # m/s relay magnitude
+# Iter #17 reverted iter #16 reduction: vmax=0.03 produced WORSE
+# lateral oscillation (±18 cm), not better — at low vmax the relay
+# signal drops below the drift-bias floor and the system wanders
+# instead of oscillating cleanly.  ZN method has an inherent
+# minimum vmax for SNR.  0.06 is the empirical sweet spot:
+# converges (iter #15: Kp=1.58, Tu=2.0 s) with bounded ±6-10 cm
+# oscillation.
+AT_VMAX      = 0.06
 
 # Safety
 SAFETY_N_MIN      = 4
