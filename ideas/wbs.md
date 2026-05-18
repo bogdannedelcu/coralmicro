@@ -295,6 +295,75 @@ OP — ObjectsPlan thesis
 │       │
 │       │   Effort: ~3 h (PnP-quat ~1 h, HOLD yaw_rate arg ~0.5 h,
 │       │   s174 experiment ~0.5 h, trials + analysis ~1 h).
+│       ├── OP-S10-W14-T18 — ArUco detector cv2 1:1 port           🟢 ALGORITHM PORTED (2026-05-18)
+│       │
+│       │   Operator-driven 2026-05-18: align sentai_aruco with
+│       │   cv2.aruco at every pipeline stage, byte-for-byte where
+│       │   feasible.  Starting state: 0-40 % 4/4 detection rate on
+│       │   real s174 yaw-mission frame set (cv2: 92 %).  After T18:
+│       │   90 % 4/4 — effective cv2 parity within 2 pp.
+│       │
+│       │   ├── T18-A — IPPE 2-solution disambiguation              ❌ REVERTED (no-op in our scene)
+│       │   ├── T18-B — VPE median+outlier reject                   ⬜ ARM-build-blocked
+│       │   ├── T18-C — Förstner subpix refinement                  ❌ DROPPED at ablation
+│       │   │   (validated 0.0000 px vs cv2.cornerSubPix but
+│       │   │   regressed real-flight detection by 1 pp; code
+│       │   │   retained as static function for future use with
+│       │   │   findContours port)
+│       │   ├── T18-D/E — Moore-Neighbor + Douglas-Peucker          ✅ KEPT (essential)
+│       │   ├── T18-F — Perspective warp + Otsu + cell decode       ✅ KEPT (essential)
+│       │   ├── T18-G — Multi-scale threshold loop                   ❌ DROPPED at ablation
+│       │   │   (6× scales [3,13,23,51,101,201]: only 1 pp gain vs
+│       │   │   single block=201; massive CPU cost not worth it)
+│       │   ├── T18-H — 8-connectivity flood fill                    ✅ KEPT (critical: fixed rot45 0→3 of 4)
+│       │   ├── T18-I/J — Investigation + side-by-side diff           ✅ Done
+│       │   ├── T18-K — Explicit CW corner winding                    ✅ KEPT (defensive)
+│       │   ├── T18-M — IPPE_SQUARE PnP (~250 LoC port from cv2)     ✅ KEPT (essential, +10 pp on its own)
+│       │   ├── T18-O — cv2 filter pipeline (borderErrors, convex,
+│       │   │   minCornerDist, minDistToBorder, perim gates,
+│       │   │   DP init_iters=3)                                    ✅ KEPT (init_iters=3 was worth +18 pp)
+│       │   ├── T18-Q — Ablation + early-exit on n_ids==4            ✅ DONE (~25 % wall-time saved)
+│       │   └── T18-P — findContours Suzuki-Abe port                 ⬜ TODO (final 2 pp gap)
+│       │
+│       │   Ablation results (s174 frame set, 356 frames):
+│       │     Full T18 stack                                    90 % 4/4
+│       │     − multi-scale (single block=201)                  89 %  (−1 pp)
+│       │     − subpix (T18-C)                                  90 %  (+0 pp, +1 frame)
+│       │     − IPPE_SQUARE (revert to DLT)                     80 %  (−10 pp)
+│       │     + early-exit on all 4 ids found                   90 %  (+0 pp)
+│       │   cv2.aruco oracle baseline                           92 % 4/4
+│       │
+│       │   Cumulative gains by component:
+│       │     init_iters=3 (cv2 DP seed)             +18 pp  (5 lines of code)
+│       │     IPPE_SQUARE PnP                        +10 pp
+│       │     8-conn flood fill                       +3 pp  (critical for rot45)
+│       │     cv2 multi-scale (now dropped)           +1 pp
+│       │     border/convex/dist/perim gates          +0-2 pp combined
+│       │     Förstner subpix (now dropped)           -1 pp  (regression!)
+│       │
+│       │   Compute saved by dropping unhelpful components:
+│       │     − multi-scale → −83 % threshold + flood-fill work
+│       │     − subpix       → −110 µs/frame (Förstner saddle, 30 iter)
+│       │     + early-exit   → −25 % wall-time when 4 markers found early
+│       │
+│       │   Final ARM-side footprint (cf [[arm-hw-primitives-first]]):
+│       │     - 8-conn flood fill (4-conn was the rot45 bug)
+│       │     - Moore-Neighbor + DP with cv2 init_iters=3 seed selection
+│       │     - Perspective warp + Otsu + cell-majority bit decoder
+│       │     - _getBorderErrors + isContourConvex + perim gates
+│       │     - IPPE_SQUARE PnP (~250 LoC math, ~50 µs/marker)
+│       │     - Early-exit short-circuit on n_known_ids == 4
+│       │
+│       │   Commits: 6d22b295 (T18-C/D/E/F/G/H), ed4ff640 (T18-M),
+│       │   0fb5bcb7 (T18-O steps 1-6), a89245c1 (T18-O step 7
+│       │   init_iters=3), 5abe1df5 (T18-Q ablation).
+│       │
+│       │   Lesson learned: empirical ablation > intuition.  Most
+│       │   compute-heavy "obvious wins" (multi-scale, subpix)
+│       │   actually regressed or made no difference on real frames.
+│       │   The 5-line DP seed loop fix delivered the biggest single
+│       │   gain (+18 pp).  Always measure before keeping complexity.
+│       │
 │       └── OP-S10-W14-T11 — STEP RESPONSE identification alternative
 │                            to ZN-relay (operator-noted 2026-05-18:
 │                            relay produces ±6-10 cm lateral oscillation
