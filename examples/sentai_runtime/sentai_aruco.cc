@@ -448,24 +448,42 @@ static void aruco_dp_mark(const int16_t* pts, int n, float eps_sq) {
         for (int i = 0; i < n; ++i) s_dp_keep[i] = 1;
         return;
     }
-    // Seed: point #0 plus the point farthest from #0.
+    // cv2 init_iters: iterate 3× finding farthest point from current
+    // seed to converge on a well-spread (seed_a, seed_b) pair.  Without
+    // this, a single farthest-from-0 search can pick a suboptimal pair
+    // for non-axis-aligned shapes and miss the actual marker corners.
+    int seed_a = 0;
     int seed_b = 0;
-    float max_d = -1.0f;
-    for (int j = 1; j < n; ++j) {
-        const float dx = (float)(pts[j*2 + 0] - pts[0]);
-        const float dy = (float)(pts[j*2 + 1] - pts[1]);
-        const float d  = dx*dx + dy*dy;
-        if (d > max_d) { max_d = d; seed_b = j; }
+    for (int it = 0; it < 3; ++it) {
+        float max_d = -1.0f;
+        const int ax = pts[seed_a * 2 + 0];
+        const int ay = pts[seed_a * 2 + 1];
+        int new_b = seed_a;
+        for (int j = 0; j < n; ++j) {
+            if (j == seed_a) continue;
+            const float dx = (float)(pts[j*2 + 0] - ax);
+            const float dy = (float)(pts[j*2 + 1] - ay);
+            const float d  = dx*dx + dy*dy;
+            if (d > max_d) { max_d = d; new_b = j; }
+        }
+        seed_b = new_b;
+        if (it < 2) seed_a = seed_b;     // advance for next iter; keep
+                                          // final pair distinct
     }
-    s_dp_keep[0]      = 1;
+    if (seed_a == seed_b) return;        // degenerate (n<2)
+    // Final seed_a and seed_b are roughly diametrically opposite.
+    s_dp_keep[seed_a] = 1;
     s_dp_keep[seed_b] = 1;
     // Stack of (start, end) index pairs, closed-polygon convention
     // where end may equal start + n to wrap.
     int stack_s[ARUCO_DP_STACK_MAX];
     int stack_e[ARUCO_DP_STACK_MAX];
     int top = 0;
-    stack_s[top] = 0;       stack_e[top] = seed_b;       top++;
-    stack_s[top] = seed_b;  stack_e[top] = n;            top++;   // wraps to 0
+    // Two slices: (seed_a, seed_b) and (seed_b, seed_a + n).
+    const int sa = seed_a;
+    const int sb = (seed_b < seed_a) ? seed_b + n : seed_b;
+    stack_s[top] = sa;       stack_e[top] = sb;        top++;
+    stack_s[top] = sb;       stack_e[top] = sa + n;    top++;
 
     while (top > 0) {
         --top;
@@ -540,14 +558,16 @@ static int aruco_extract_quad(uint8_t lab_target, int w, int h,
     const int n = aruco_trace_border(lab_target, w, h, sx, sy, s_border);
     if (n < 8) return -1;
 
-    // Iterative eps: cv2.aruco uses 0.05 but noisy rendered contours
-    // sometimes need 0.07-0.10 to collapse minor wobbles into 4 vertices.
-    // Sweep [0.03..0.10] coarsely; first eps that yields exactly 4
-    // wins.  Cheap on M7 (≤8 DP passes, each O(n)).
+    // cv2 uses single-pass approxPolyDP eps=perim*0.03.  Our
+    // Moore-Neighbor contour is staircase-noisy vs cv2's Suzuki-Abe
+    // output, so we sweep eps from cv2's default upward until DP
+    // yields exactly 4 vertices.  Reverting to single-pass dropped
+    // detection 72 % → 49 %.  Until findContours port (T18-P), the
+    // sweep is the correct compensation.
     int n_kept = 0;
     int kept_idx[16];
     static const float EPS_FRACS[] = {
-        0.04f, 0.05f, 0.06f, 0.07f, 0.03f, 0.08f, 0.10f, 0.02f
+        0.03f, 0.04f, 0.05f, 0.06f, 0.07f, 0.08f, 0.10f, 0.02f
     };
     for (unsigned ei = 0; ei < sizeof(EPS_FRACS) / sizeof(EPS_FRACS[0]); ++ei) {
         const float eps = EPS_FRACS[ei] * (float)n;
