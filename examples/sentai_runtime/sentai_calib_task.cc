@@ -126,7 +126,6 @@ static float s_hold_dur_s       = 30.0f;
 // actual hover.yaw_rate drives the drone to follow it.
 static float s_hold_yaw_rate_deg_s = 0.0f;
 static float s_hold_yaw_integrated_deg = 0.0f;   // open-loop model
-static float s_hold_yaw_target_deg     = 360.0f; // T20 auto-stop target
 static float s_hold_max_drift_m = 0.0f;     // peak |drift| L2 distance
 static float s_hold_rms_sum_sq  = 0.0f;     // running sum of drift²
 static uint32_t s_hold_rms_n     = 0;
@@ -318,10 +317,26 @@ void worker_loop_() {
                     if (dt_ms > 200) dt_ms = 200;
                     s_hold_yaw_integrated_deg +=
                         s_hold_yaw_rate_deg_s * (float)dt_ms * 1e-3f;
-                    (void)sentai_crazy_send_extpos(dx, dy, dz);
+                    // ExtPos canal 0 — position-only VPE (12 bytes).
+                    uint8_t p[12];
+                    memcpy(p + 0, &dx, 4);
+                    memcpy(p + 4, &dy, 4);
+                    memcpy(p + 8, &dz, 4);
+                    (void)sentai_crazy_send_crtp(6, 0, p, 12);
                 } else {
-                    (void)sentai_crazy_send_extpose(dx, dy, dz,
-                                                      0.0f, 0.0f, 0.0f, 1.0f);
+                    // ExtPose canal 1 GENERIC — identity quaternion
+                    // (locks yaw to world +X), 29 bytes with type=8 prefix.
+                    uint8_t p[29];
+                    float qx = 0.0f, qy = 0.0f, qz = 0.0f, qw = 1.0f;
+                    p[0] = 8;
+                    memcpy(p +  1, &dx, 4);
+                    memcpy(p +  5, &dy, 4);
+                    memcpy(p +  9, &dz, 4);
+                    memcpy(p + 13, &qx, 4);
+                    memcpy(p + 17, &qy, 4);
+                    memcpy(p + 21, &qz, 4);
+                    memcpy(p + 25, &qw, 4);
+                    (void)sentai_crazy_send_crtp(6, 1, p, 29);
                 }
                 sentai_fr_push_scalar("at_vpe_x", dx, ts);
                 sentai_fr_push_scalar("at_vpe_y", dy, ts);
@@ -612,7 +627,6 @@ static int hold_start_impl(float kp_x, float kp_y, float vmax_clip,
     s_hold_dur_s            = dur_s;
     s_hold_yaw_rate_deg_s   = yaw_rate_deg_s;   // set BEFORE spawn
     s_hold_yaw_integrated_deg = 0.0f;            // model starts at 0
-    s_hold_yaw_target_deg     = 360.0f;          // stop after ~one revolution
     s_hold_max_drift_m      = 0.0f;
     s_hold_rms_sum_sq       = 0.0f;
     s_hold_rms_n            = 0;

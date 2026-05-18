@@ -1372,6 +1372,14 @@ extern "C" int sentai_crazy_stop_motors(uint8_t group_mask) {
     return crtp_send(CRTP_PORT_SETPOINT_HL, 0, data, 2);
 }
 
+// Alias for the high-level commander STOP — both names point at the
+// same CRTP HL_CMD_STOP packet.  sentai_crazy_hl_stop is the name
+// used in MP bindings; sentai_crazy_stop_motors is the legacy name
+// used by the autoland / brownout paths.  Same effect either way.
+extern "C" int sentai_crazy_hl_stop(uint8_t group_mask) {
+    return sentai_crazy_stop_motors(group_mask);
+}
+
 // ===================== HL Commander: GoTo =====================
 // Payload: [cmd=12][groupMask][relative][linear][x:f32][y:f32][z:f32][yaw:f32][duration:f32]
 extern "C" int sentai_crazy_go_to(float x, float y, float z, float yaw,

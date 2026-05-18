@@ -2655,7 +2655,6 @@ extern "C" int sentai_cam_stop(void) {
 static int sentai_cam_get_raw_with_recovery(uint8_t** raw_out) {
   auto* cam = coralmicro::CameraTask::GetSingleton();
   const int kMaxRecoveries = 2;
-  TickType_t t_start = xTaskGetTickCount();
 
   // After a camera switch, we need >= 2 fresh ISR frames from the new
   // camera before the image is guaranteed clean (the first frame after MUX

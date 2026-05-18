@@ -111,14 +111,32 @@ typedef enum {
 } sentai_fr_status_t;
 
 // ---- Capacities (compile-time; tune via -D…) --------------------------
+//
+// ARM build is RAM-constrained: m_sdram is 16 MB and shares space with
+// .sentai_slow, .sdram_text, MicroPython, lwIP httpd, audio, etc.  The
+// production camera output is 320×240, so we ship smaller defaults on
+// ARM (~614 KB pool) and keep the generous 4.9 MB SIM defaults for
+// host debugging at 640×480.
 #ifndef SENTAI_FR_FRAMES_SLOTS
-#define SENTAI_FR_FRAMES_SLOTS    16
+#  ifdef __arm__
+#    define SENTAI_FR_FRAMES_SLOTS  8
+#  else
+#    define SENTAI_FR_FRAMES_SLOTS  16
+#  endif
 #endif
 #ifndef SENTAI_FR_FRAMES_MAX_W
-#define SENTAI_FR_FRAMES_MAX_W    640
+#  ifdef __arm__
+#    define SENTAI_FR_FRAMES_MAX_W  320
+#  else
+#    define SENTAI_FR_FRAMES_MAX_W  640
+#  endif
 #endif
 #ifndef SENTAI_FR_FRAMES_MAX_H
-#define SENTAI_FR_FRAMES_MAX_H    480
+#  ifdef __arm__
+#    define SENTAI_FR_FRAMES_MAX_H  240
+#  else
+#    define SENTAI_FR_FRAMES_MAX_H  480
+#  endif
 #endif
 #define  SENTAI_FR_FRAMES_BYTES   (SENTAI_FR_FRAMES_MAX_W * SENTAI_FR_FRAMES_MAX_H)
 

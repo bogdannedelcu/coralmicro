@@ -688,16 +688,23 @@ static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_crazy_send_flow_obj, 4, 4,
 
 // sentai.crazy.send_extpos(x, y, z) -> int
 // CRTP LOCALIZATION port 6 channel 0 — position-only VPE update.
+// Packs the 12-byte payload inline and reuses the existing
+// sentai_crazy_send_crtp transport (ARM + SIM, no extra wrapper).
 static mp_obj_t mod_sentai_crazy_send_extpos(size_t n_args, const mp_obj_t* args) {
     float x = mp_obj_get_float(args[0]);
     float y = mp_obj_get_float(args[1]);
     float z = mp_obj_get_float(args[2]);
-    return mp_obj_new_int(sentai_crazy_send_extpos(x, y, z));
+    uint8_t p[12];
+    memcpy(p +  0, &x, 4);
+    memcpy(p +  4, &y, 4);
+    memcpy(p +  8, &z, 4);
+    return mp_obj_new_int(sentai_crazy_send_crtp(/*port*/6, /*ch*/0, p, 12));
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_crazy_send_extpos_obj, 3, 3, mod_sentai_crazy_send_extpos);
 
 // sentai.crazy.send_extpose(x, y, z, qx, qy, qz, qw) -> int
-// CRTP LOCALIZATION port 6 channel 1 — full ExtPose with quaternion.
+// CRTP LOCALIZATION port 6 channel 1 — full ExtPose with quaternion
+// (cf2 firmware expects type_id=8 prefix + 7 floats = 29 bytes).
 static mp_obj_t mod_sentai_crazy_send_extpose(size_t n_args, const mp_obj_t* args) {
     float x  = mp_obj_get_float(args[0]);
     float y  = mp_obj_get_float(args[1]);
@@ -706,7 +713,16 @@ static mp_obj_t mod_sentai_crazy_send_extpose(size_t n_args, const mp_obj_t* arg
     float qy = mp_obj_get_float(args[4]);
     float qz = mp_obj_get_float(args[5]);
     float qw = mp_obj_get_float(args[6]);
-    return mp_obj_new_int(sentai_crazy_send_extpose(x, y, z, qx, qy, qz, qw));
+    uint8_t p[29];
+    p[0] = 8; /* EXT_POSE type id */
+    memcpy(p +  1, &x,  4);
+    memcpy(p +  5, &y,  4);
+    memcpy(p +  9, &z,  4);
+    memcpy(p + 13, &qx, 4);
+    memcpy(p + 17, &qy, 4);
+    memcpy(p + 21, &qz, 4);
+    memcpy(p + 25, &qw, 4);
+    return mp_obj_new_int(sentai_crazy_send_crtp(/*port*/6, /*ch*/1, p, 29));
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_crazy_send_extpose_obj, 7, 7, mod_sentai_crazy_send_extpose);
 

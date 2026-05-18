@@ -27,7 +27,11 @@
 /* Entry Point */
 ENTRY(Reset_Handler)
 
-HEAP_SIZE  = DEFINED(__heap_size__)  ? __heap_size__  : 0x01000000;
+/* HEAP_SIZE was 16 MB; reduced to 14 MB on 2026-05-18 to make room for
+ * sentai_fr frame/event/scalar pools in .sdram_bss.  Newlib malloc still
+ * gets 14 MB which is enormous for an M7 firmware (MP has its own 1 MB
+ * GC heap in .sdram_bss, FreeRTOS has its own ucHeap). */
+HEAP_SIZE  = DEFINED(__heap_size__)  ? __heap_size__  : 0x00E00000;
 STACK_SIZE = DEFINED(__stack_size__) ? __stack_size__ : 0x0400;
 RPMSG_SHMEM_SIZE = DEFINED(__use_shmem__) ? 0x2000 : 0;
 NCACHE_SIZE = 0x8000;
@@ -388,6 +392,17 @@ SECTIONS
      *sentai_aruco.cc.obj(.text .text*)
      *sentai_aruco.cc.obj(.data .data*)
      *sentai_aruco.cc.obj(.rodata .rodata*)
+     /* OP-S10-W14 sentai.calib autotune + worker task — VPE
+        forwarder + Aström-Hägglund relay state machine + hold
+        controller.  Cold-path (~30 Hz mission tick).  Route to
+        .sdram_text per [[itcm-budget]] (.text overflowed 504 B
+        after T18 IPPE_SQUARE port). */
+     *sentai_calib_autotune.cc.obj(.text .text*)
+     *sentai_calib_autotune.cc.obj(.data .data*)
+     *sentai_calib_autotune.cc.obj(.rodata .rodata*)
+     *sentai_calib_task.cc.obj(.text .text*)
+     *sentai_calib_task.cc.obj(.data .data*)
+     *sentai_calib_task.cc.obj(.rodata .rodata*)
      /* Track A places (s139+, 2026-05-16): PHOG descriptor compute.
         Cold-path ~1 Hz, ~10 ms on M7; .sdram_text per [[itcm-budget]]. */
      *sentai_phog.cc.obj(.text .text*)
@@ -424,6 +439,38 @@ SECTIONS
      *sentai_health.cc.obj(.text .text*)
      *sentai_health.cc.obj(.data .data*)
      *sentai_health.cc.obj(.rodata .rodata*)
+     /* OP-S10-W12 (2026-05-18): sentai.safety state machine + worker.
+        Worker ticks at 6.6 Hz off ArUco frames; no ISR / per-pixel work.
+        Cold-path; .sdram_text to keep ITCM hot. */
+     *sentai_safety.cc.obj(.text .text*)
+     *sentai_safety.cc.obj(.data .data*)
+     *sentai_safety.cc.obj(.rodata .rodata*)
+     *sentai_safety_task.cc.obj(.text .text*)
+     *sentai_safety_task.cc.obj(.data .data*)
+     *sentai_safety_task.cc.obj(.rodata .rodata*)
+     /* OP-S10-W13 (2026-05-18): sentai.fr Flight Recorder.  Producers
+        do brief mutex+memcpy (≤ a few KHz aggregate worst case); the
+        drain task is 50 Hz with PGM writes outside the lock.  No ISR /
+        no per-pixel work — .sdram_text per [[itcm-budget]]. */
+     *sentai_fr.cc.obj(.text .text*)
+     *sentai_fr.cc.obj(.data .data*)
+     *sentai_fr.cc.obj(.rodata .rodata*)
+     *sentai_fr_task.cc.obj(.text .text*)
+     *sentai_fr_task.cc.obj(.data .data*)
+     *sentai_fr_task.cc.obj(.rodata .rodata*)
+     /* MP bindings (2026-05-18 cleanup): all cold-path REPL/script
+        glue.  Pulled out of ITCM to make room for hot-path additions.
+        HAL bindings are the biggest single contributor; safety/fr are
+        small but kept here for consistency. */
+     *modsentai_hal.cc.obj(.text .text*)
+     *modsentai_hal.cc.obj(.data .data*)
+     *modsentai_hal.cc.obj(.rodata .rodata*)
+     *modsentai_safety.c.obj(.text .text*)
+     *modsentai_safety.c.obj(.data .data*)
+     *modsentai_safety.c.obj(.rodata .rodata*)
+     *modsentai_fr.c.obj(.text .text*)
+     *modsentai_fr.c.obj(.data .data*)
+     *modsentai_fr.c.obj(.rodata .rodata*)
      __sentai_slow_end = .;
      . = ALIGN(4);
   } > m_sdram

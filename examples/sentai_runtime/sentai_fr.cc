@@ -49,6 +49,16 @@
 namespace {
 
 // ── Frames pool ────────────────────────────────────────────────────────
+// On ARM the pool defaults are 8 × 320×240 (~614 KB) — must live in
+// SDRAM because m_data is only 224 KB.  The explicit `"aw",%nobits`
+// assembler attributes match the NOLOAD type of the linker section
+// (otherwise GCC emits .sdram_bss as PROGBITS and the assembler warns).
+// SIM build keeps the pool in default .bss with no linker constraints.
+#ifdef __arm__
+#define SENTAI_FR_POOL_ATTR  __attribute__((section(".sdram_bss,\"aw\",%nobits @")))
+#else
+#define SENTAI_FR_POOL_ATTR
+#endif
 struct FrameSlot {
     uint8_t   data[SENTAI_FR_FRAMES_BYTES];
     int       w, h;
@@ -56,23 +66,26 @@ struct FrameSlot {
     uint32_t  seq;
     uint32_t  ts_ms;
 };
-static FrameSlot s_frame_pool[SENTAI_FR_FRAMES_SLOTS];
+static FrameSlot s_frame_pool[SENTAI_FR_FRAMES_SLOTS] SENTAI_FR_POOL_ATTR;
 
 // ── Events pool ────────────────────────────────────────────────────────
+// 256 × 120 B ≈ 30 KB.  ARM: routed to .sdram_bss (m_data is 224 KB and
+// shared with the rest of the firmware's DTCM .bss).
 struct EventSlot {
     uint32_t  ts_ms;
     char      type[SENTAI_FR_EVENT_TYPE_LEN];
     char      text[SENTAI_FR_EVENT_TEXT_LEN];
 };
-static EventSlot s_event_pool[SENTAI_FR_EVENTS_SLOTS];
+static EventSlot s_event_pool[SENTAI_FR_EVENTS_SLOTS] SENTAI_FR_POOL_ATTR;
 
 // ── Scalars pool ───────────────────────────────────────────────────────
+// 1024 × 32 B = 32 KB.  ARM: routed to .sdram_bss (same reason as events).
 struct ScalarSlot {
     uint32_t  ts_ms;
     char      label[SENTAI_FR_SCALAR_LABEL_LEN];
     double    value;
 };
-static ScalarSlot s_scalar_pool[SENTAI_FR_SCALARS_SLOTS];
+static ScalarSlot s_scalar_pool[SENTAI_FR_SCALARS_SLOTS] SENTAI_FR_POOL_ATTR;
 
 // ── Per-channel runtime state (mutex-protected) ────────────────────────
 struct ChanState {
@@ -122,12 +135,20 @@ static FILE* s_events_fp  = nullptr;
 static FILE* s_scalars_fp = nullptr;
 
 // ── Helpers ────────────────────────────────────────────────────────────
+// mkdir is a POSIX-only call.  ARM build uses FileX / NXP HAL — caller
+// is responsible for ensuring the FX directory exists on the user
+// partition.  We treat the host-side mkdir as a no-op on ARM and
+// trust the FileX volume layout.
 inline bool mkdir_p(const char* path) {
     if (!path || !*path) return false;
+#ifdef __arm__
+    (void)path;
+    return true;
+#else
     struct stat st;
     if (stat(path, &st) == 0) return S_ISDIR(st.st_mode);
-    // Single-level mkdir is enough for our use (operator passes full path).
     return mkdir(path, 0755) == 0;
+#endif
 }
 
 inline void copy_str_(char* dst, size_t cap, const char* src) {
@@ -325,8 +346,9 @@ namespace {
 // FrameSlot is ~308 KB max / 76 KB at 320×240 — would overflow the
 // task stack instantly).  Only the drain task reads/writes this, so
 // no concurrent access; safe outside the channel mutex once snapshot
-// has been copied under the lock.
-static FrameSlot s_drain_snap_frame;
+// has been copied under the lock.  Routed to SDRAM on ARM (same as
+// the pool itself — m_data is only 224 KB).
+static FrameSlot s_drain_snap_frame SENTAI_FR_POOL_ATTR;
 
 // Drain one frame slot if available.  Returns true on consumed.
 bool drain_one_frame_() {
