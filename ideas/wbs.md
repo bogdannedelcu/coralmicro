@@ -263,6 +263,17 @@ OP — ObjectsPlan thesis
 │       │                    PID closing on z_pnp deferred — only
 │       │                    needed if baro drift exceeds VPE
 │       │                    correction.                                ⬜ TODO (phase 2)
+│       ├── OP-S10-W14-T16 — YawArucoBaseline experiment (operator
+│       │                    2026-05-18: "drona se invarte 360° in
+│       │                    cerc in timp ce hover-uieste la markeri").
+│       │                    Validates: yaw control via hover.yaw_rate,
+│       │                    PnP robustness under camera rotation,
+│       │                    necessity of PnP-DERIVED quaternion in
+│       │                    ExtPose (T13's identity quat would fight
+│       │                    the commanded rotation).  Prereq: extend
+│       │                    sentai_calib_task to compute true yaw
+│       │                    from aruco rvec_cam and send via ExtPose.
+│       │                                                              ⬜ TODO (phase 2)
 │       └── OP-S10-W14-T11 — STEP RESPONSE identification alternative
 │                            to ZN-relay (operator-noted 2026-05-18:
 │                            relay produces ±6-10 cm lateral oscillation

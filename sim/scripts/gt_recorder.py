@@ -136,15 +136,17 @@ def main() -> int:
     rx_x    = re.compile(r'^\s*x:\s*([-\d.eE+]+)')
     rx_y    = re.compile(r'^\s*y:\s*([-\d.eE+]+)')
     rx_z    = re.compile(r'^\s*z:\s*([-\d.eE+]+)')
+    rx_w    = re.compile(r'^\s*w:\s*([-\d.eE+]+)')  # quaternion w
     rx_sec  = re.compile(r'^\s*sec:\s*(\d+)')
     rx_nsec = re.compile(r'^\s*nsec:\s*(\d+)')
 
-    in_position = False
-    saw_target  = False
-    gz_sec      = None
-    gz_nsec     = None
-    record: dict = {}
-    n_written   = 0
+    in_position    = False
+    in_orientation = False     # OP-S10-W14-T13 — capture quaternion
+    saw_target     = False
+    gz_sec         = None
+    gz_nsec        = None
+    record: dict   = {}
+    n_written      = 0
 
     with open(args.out, "w", buffering=1) as fp:
         for line in proc.stdout:
@@ -164,8 +166,12 @@ def main() -> int:
                 record = {}
                 continue
             if saw_target and line.strip().startswith("position {"):
-                in_position = True
-                record = {}
+                in_position    = True
+                in_orientation = False
+                continue
+            if saw_target and line.strip().startswith("orientation {"):
+                in_orientation = True
+                in_position    = False
                 continue
             if in_position:
                 for rx, key in ((rx_x, "x"), (rx_y, "y"), (rx_z, "z")):
@@ -174,7 +180,27 @@ def main() -> int:
                         record[key] = float(m.group(1))
                         break
                 if line.strip() == "}":
-                    if all(k in record for k in ("x", "y", "z")):
+                    in_position = False
+            elif in_orientation:
+                for rx, key in ((rx_x, "qx"), (rx_y, "qy"),
+                                 (rx_z, "qz"), (rx_w, "qw")):
+                    m = rx.match(line)
+                    if m:
+                        record[key] = float(m.group(1))
+                        break
+                if line.strip() == "}":
+                    in_orientation = False
+                    # Pose complete (position + orientation) — derive
+                    # yaw and emit one record per pose update.
+                    if all(k in record for k in ("x", "y", "z",
+                                                   "qx","qy","qz","qw")):
+                        import math as _math
+                        qx, qy = record["qx"], record["qy"]
+                        qz, qw = record["qz"], record["qw"]
+                        yaw_rad = _math.atan2(
+                            2.0 * (qw * qz + qx * qy),
+                            1.0 - 2.0 * (qy * qy + qz * qz))
+                        yaw_deg = yaw_rad * 180.0 / _math.pi
                         rec = {
                             "t_wall":  time.monotonic(),
                             "t_unix":  time.time(),
@@ -183,11 +209,12 @@ def main() -> int:
                             "x": record["x"],
                             "y": record["y"],
                             "z": record["z"],
+                            "qx": qx, "qy": qy, "qz": qz, "qw": qw,
+                            "yaw_deg": yaw_deg,
                         }
                         fp.write(json.dumps(rec) + "\n")
                         n_written += 1
-                    in_position = False
-                    saw_target  = False
+                    saw_target = False
                     record = {}
     proc.wait(timeout=2.0)
     sys.stderr.write(f"[gt_recorder] wrote {n_written} records → {args.out}\n")
