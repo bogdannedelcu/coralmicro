@@ -92,7 +92,14 @@ float s_fx = 240.0f;
 float s_fy = 240.0f;
 float s_cx = 160.0f;
 float s_cy = 120.0f;
-float s_marker_size_m = 0.0625f;       // s130 marker size ([[pnp-bugs-fixed]])
+// OP-S10-W14 (2026-05-18) — bumped from 0.0625 to 0.125 alongside
+// the SDF marker face doubling (operator: "imaginea RGB e prea
+// mica, hai sa ii facem markerii de 2 ori mai mari").  Effective
+// ArUco square (texture-padded inside the 0.12 m physical face)
+// follows the same 0.781 ratio as before: 0.12 * 0.781 ≈ 0.094 m;
+// the 0.125 default here preserves the same s130 calibration
+// invariant (scaled 2×).  See SDF aruco_id0 comment block.
+float s_marker_size_m = 0.125f;
 int   s_initialised   = 0;
 
 sentai_aruco_marker_t s_cache[SENTAI_ARUCO_MAX_MARKERS];

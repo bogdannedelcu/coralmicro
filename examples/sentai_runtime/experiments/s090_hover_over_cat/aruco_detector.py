@@ -32,26 +32,33 @@ import cv2
 # Known world positions of markers (matches SDF).  Used by the
 # calibration loop to compute drone-to-marker offsets in world frame
 # without needing to query Gazebo each tick.
-# 2026-05-11 COMPACT LAYOUT: markers moved closer to origin so all 4
-# fit in FOV at z=0.5m hover.  FOV at z=0.5: 0.55m × 0.41m.  Markers
-# span 0.30m × 0.20m physical → ~12cm pixel-margin per axis.
+# A4 takeoff/landing pad layout — re-aligned 2026-05-17 to match the
+# CURRENT world SDF (sentai_crazysim.sdf) marker poses after the
+# A4-pad redesign.  Old layout (tall posts at ±0.15, ±0.10, z=0.20)
+# was ORPHANED — the world was updated 2026-05-17 to A4 ground-flat
+# poses (±0.06, ±0.10, z=0.005) but this PnP table never followed.
+# That divergence silently corrupted every PnP-derived pose until
+# the [[cf2-sitl-cheat-odom-gt]] cheat plugin masked it; with the
+# cheat removed in FlowBaseline, the drone spiralled out (3.17 m
+# offset in s127 trial 2026-05-17).  Single source of truth lives
+# alongside the world SDF + s158_calib_takeoff/mission_s158.py.
+#
+# OP-S10-W14 (2026-05-18) — bumped from 0.06 to 0.12 m face / from
+# ±0.06,±0.10 to ±0.12,±0.20 positions alongside SDF doubling
+# (operator: "imaginea RGB e prea mica, hai sa ii facem markerii de
+# 2 ori mai mari").
+# Marker: 12×12 cm box face, top at z = pose.z + thickness/2 = 0.005 +
+# 0.005 = 0.010 m.  PnP uses top-face corners.
 KNOWN_POSITIONS_M = {
-    # Tall posts (10cm tall, top face at z=0.20m) so they sit above the
-    # 5cm-tall cat picture at z=0.05m and cannot be visually occluded.
-    # PnP uses top-face corners — Z of the marker = top face = 0.20m.
-    0: (+0.15, +0.10, 0.20),  # NE corner of compact pattern
-    1: (-0.15, +0.10, 0.20),  # NW
-    2: (-0.15, -0.10, 0.20),  # SW
-    3: (+0.15, -0.10, 0.20),  # SE
+    0: (+0.12, +0.20, 0.010),
+    1: (-0.12, +0.20, 0.010),
+    2: (-0.12, -0.20, 0.010),
+    3: (+0.12, -0.20, 0.010),
 }
-MARKER_SIZE_M = 0.0625  # ArUco pattern fills 400/512=78.1% of the 0.08m
-                        # box face texture (22% white padding around the
-                        # black border).  solvePnP detects the outer black
-                        # border so the EFFECTIVE physical marker size is
-                        # 0.08 × 0.781 = 0.0625m, NOT 0.08m.  Empirically
-                        # verified 2026-05-11: with 0.08, PnP-z over-
-                        # estimated drone altitude by 1.28× (= 0.08/0.0625);
-                        # with 0.0625, PnP-z agrees with EKF-z within ±2cm.
+# Effective ArUco square size — 12×12 cm box face fully textured with
+# the 4x4_50 pattern.  solvePnP detects the outer black border = full
+# 0.12 m face.
+MARKER_SIZE_M = 0.12
 
 # Camera intrinsics — derived from gz cam SDF FOV.  Used for pose
 # estimation (estimatePoseSingleMarkers).

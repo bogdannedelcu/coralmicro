@@ -23,10 +23,11 @@ TAKEOFF_DUR  = 2.0
 LAND_DUR     = 2.5
 SETTLE_S     = 1.2
 
-# Marker geometry (operator-supplied per s127 world layout)
-GRID_DX_M    = 0.20
-GRID_DY_M    = 0.15
-MARKER_SIZE  = 0.0625
+# Marker geometry — matches the doubled 2026-05-18 SDF layout
+# (sentai_crazysim.sdf aruco_id0..3 at ±0.12, ±0.20; 0.12 m face).
+GRID_DX_M    = 0.24       # center-to-center between id0 and id1 (=2×0.12)
+GRID_DY_M    = 0.40       # center-to-center between id0 and id3 (=2×0.20)
+MARKER_SIZE  = 0.125      # matches sentai_aruco.cc s_marker_size_m
 
 # Autotune knobs
 AT_AXIS      = "x"
