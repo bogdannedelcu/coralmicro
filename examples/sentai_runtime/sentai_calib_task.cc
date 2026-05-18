@@ -206,16 +206,15 @@ void worker_loop_() {
         }
         sentai_fr_push_scalar("at_z_corr", last_z_correction, ts);
 
-        // ── VPE forwarder (OP-S10-W14 iter #13): close the loop
-        //    on cf2's EKF altitude.  Without this, cf2's internal
-        //    z estimate drifts (baro + IMU integration) and the
-        //    drone climbs uncontrolled even with hover(z=z_hold)
-        //    absolute (iter #12 showed +90 cm climb in 30 s).
-        //    Computes drone world pose from PnP + KNOWN_POSITIONS_M
-        //    and sends as CRTP LOCALIZATION/ExtPos to cf2 at 5 Hz.
+        // ── VPE forwarder (OP-S10-W14 iter #14): close the loop
+        //    on cf2's EKF altitude.  Iter #13 with 5 Hz reduced
+        //    z overshoot 35 % but didn't eliminate it — cf2 fusion
+        //    weight on sparse VPE was too low.  Iter #14: send
+        //    EVERY tick (30 Hz) so the EKF gets continuous
+        //    correction, on par with cf2's baro update rate.
         //    Anti-cheat compliant: PnP-derived, not GT-injected.
         static uint32_t s_vpe_last_ms = 0;
-        if (pnp_valid && (ts - s_vpe_last_ms) >= 200) {  // 5 Hz
+        if (pnp_valid && (ts - s_vpe_last_ms) >= 33) {  // 30 Hz
             // drone_world[i] = marker_world[i] - R_cam_to_body * tvec_cam[i]
             // Average over visible markers.  R_cam_to_body comes
             // from sentai_calib (SIM default identity-like).
