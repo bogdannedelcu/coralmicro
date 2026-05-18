@@ -1390,8 +1390,7 @@ static int aruco_pnp_from_corners(const float corners[8],
                                   float tvec_out[3], float rvec_out[3],
                                   float* reproj_err_out) {
     // T18-M: route through IPPE_SQUARE (numerically stable under
-    // sub-pixel corner noise).  Falls through to the legacy DLT
-    // homography decomposition on IPPE failure (degenerate input).
+    // sub-pixel corner noise; ablation showed +10 pp vs DLT-only).
     if (aruco_pnp_ippe_square(corners, fx, fy, cx, cy, marker_size_m,
                                 tvec_out, rvec_out, reproj_err_out) == 0) {
         return 0;
@@ -1652,10 +1651,11 @@ extern "C" int sentai_aruco_detect(const uint8_t* gray, int w, int h,
     // ~25 px to ~80 px).  The full pipeline runs at each scale; markers
     // detected at multiple scales are deduplicated by marker_id (best
     // reproj wins).
-    // T18-O step 5: cv2.aruco default scales (adaptiveThreshWinSizeMin=3,
-    // Max=23, Step=10).  We append larger blocks for our larger markers
-    // not present in cv2's mostly-small-marker default scenarios.
-    static const int SCALE_BLOCKS[] = { 3, 13, 23, 51, 101, 201 };
+    // T18-Q ablation result: single-scale block=201 matches full
+    // [3, 13, 23, 51, 101, 201] within 1 pp (89 % vs 90 %).  The
+    // multi-scale loop costs 6× threshold + flood-fill per frame for
+    // marginal gain — single-scale is the right ARM trade.
+    static const int SCALE_BLOCKS[] = { 201 };
     constexpr int N_SCALES = (int)(sizeof(SCALE_BLOCKS) / sizeof(SCALE_BLOCKS[0]));
 
     // Per-id best candidate (one slot per known marker, ids 0..N-1).
@@ -1677,6 +1677,10 @@ extern "C" int sentai_aruco_detect(const uint8_t* gray, int w, int h,
         const int max_bbox_diag_sq = (max_perim_px * max_perim_px) / 4;
 
         for (int ci = 0; ci < n_comp; ++ci) {
+            // Early-exit: all known ids already covered.  Skip remaining
+            // components (and break out of scale loop below).
+            if (best_set[0] && best_set[1] &&
+                best_set[2] && best_set[3]) goto all_ids_found;
             const aruco_comp_t* c = &s_components[ci];
             if (c->touches_border) continue;
             const int bbox_w = c->x1 - c->x0 + 1;
@@ -1742,11 +1746,15 @@ extern "C" int sentai_aruco_detect(const uint8_t* gray, int w, int h,
                 }
             }
 
-            for (int k = 0; k < 4; ++k) {
-                aruco_refine_corner_subpix(gray, w, h,
-                                             &corners[k*2 + 0],
-                                             &corners[k*2 + 1]);
-            }
+            // T18-Q ablation result: Förstner subpix refinement REGRESSED
+            // detection on real flight frames (322 → 320 @ 4/4 when
+            // enabled).  The integer-pixel corners from
+            // aruco_extract_quad + IPPE_SQUARE PnP handle 1-2 px noise
+            // well enough that subpix's safety-revert (win_half=2)
+            // sometimes drifts the corner toward a neighbouring strong
+            // gradient instead of the true marker corner.  Disabled.
+            // Code retained for future use if combined with proper
+            // findContours (T18-P).
 
             int rotation = 0;
             int hamming = 0;
@@ -1793,6 +1801,11 @@ extern "C" int sentai_aruco_detect(const uint8_t* gray, int w, int h,
             }
 
             if (mid < 0 || mid >= SENTAI_ARUCO_MAX_MARKERS) continue;
+            // Early-exit speedup: if we have all expected IDs already
+            // and current candidate is no better, skip the marker
+            // copy.  Also break out of component loop when we have
+            // SENTAI_ARUCO_DICT_N_KNOWN ids covered (saves processing
+            // the remaining noise candidates in this scale).
             if (best_set[mid] && best[mid].reproj_err_px <= reproj) continue;
             sentai_aruco_marker_t* m = &best[mid];
             memset(m, 0, sizeof(*m));
@@ -1808,6 +1821,7 @@ extern "C" int sentai_aruco_detect(const uint8_t* gray, int w, int h,
             best_set[mid] = true;
         }
     }
+all_ids_found: ;
 
     int n_out = 0;
     for (int mid = 0; mid < SENTAI_ARUCO_MAX_MARKERS && n_out < out_capacity; ++mid) {
