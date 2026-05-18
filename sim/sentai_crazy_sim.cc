@@ -308,6 +308,31 @@ extern "C" int sentai_crazy_stop_motors(uint8_t group_mask) {
  *       protocol v8+.  We use the legacy form for max compatibility with
  *       older SITL builds.
  */
+/* CRTP LOCALIZATION port: send ExtPos (perception → cf2 EKF).
+ * Format per cflib/crazyflie/extpos.py send_extpos():
+ *   port = 6 (LOCALIZATION), channel = 1 (GENERIC),
+ *   payload = [POSITION_CH_ID=0, x_f32, y_f32, z_f32]  (13 bytes)
+ * cf2 EKF fuses this with baro + IMU, correcting altitude drift
+ * (root cause of OP-S10-W14 iter #12 non-convergence — without VPE,
+ * cf2 internal z estimate diverges from reality by ~50 cm in 30 s).
+ *
+ * Anti-cheat: caller responsibility to pass PnP-DERIVED (x,y,z), NOT
+ * Gazebo GT pose.  This primitive merely forwards perception data
+ * across the CRTP boundary, same as commands do.
+ */
+#define CRTP_PORT_LOCALIZATION  0x06
+#define CRTP_LOC_GENERIC_CH     1
+#define CRTP_LOC_EXTPOS_ID      0
+extern "C" int sentai_crazy_send_extpos(float x, float y, float z) {
+    uint8_t p[13];
+    p[0] = CRTP_LOC_EXTPOS_ID;
+    pack_f32(p + 1, x);
+    pack_f32(p + 5, y);
+    pack_f32(p + 9, z);
+    return send_crtp_raw(CRTP_PORT_LOCALIZATION,
+                           CRTP_LOC_GENERIC_CH, p, 13);
+}
+
 extern "C" int sentai_crazy_hl_stop(uint8_t group_mask) {
     /* HL_CMD_STOP — puts the HL Commander into IDLE state.  Generic
      * Setpoints (hover/attitude) then become the authoritative

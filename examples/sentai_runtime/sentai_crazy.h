@@ -92,6 +92,13 @@ int sentai_crazy_go_to(float x, float y, float z, float yaw, float duration,
 // the autotuner's hover() velocity commands actually drive the drone.
 int sentai_crazy_hl_stop(uint8_t group_mask);
 
+// Send PnP-derived absolute position (world frame, m) to the cf2
+// EKF as an external measurement (CRTP LOCALIZATION port, ExtPos
+// channel).  cf2 fuses with its baro + IMU to correct internal
+// estimate drift.  Recommended rate: ~5 Hz.  Anti-cheat compliant
+// because the caller passes PERCEPTION-derived (x,y,z), not GT.
+int sentai_crazy_send_extpos(float x, float y, float z);
+
 // ===================== Generic Setpoint: Hover =====================
 // Velocity-based hover. Must be sent CONTINUOUSLY at ~10-20 Hz.
 // If you stop sending, the CrazyFlie safety watchdog cuts motors after ~1s.

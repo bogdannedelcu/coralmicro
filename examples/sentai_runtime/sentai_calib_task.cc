@@ -44,6 +44,17 @@ struct Context {
 };
 static Context s_ctx = { 0.60f, 0.20f, 0.15f, 0.0625f, 0 };
 
+// ── KNOWN_POSITIONS_M — marker world positions (must match the SDF
+//    aruco_id0..3 + aruco_detector.py KNOWN_POSITIONS_M).
+//    OP-S10-W14 iter #2 layout (2026-05-18): doubled to 12×12 cm
+//    markers at ±0.12, ±0.20.  Z = top-of-box (0.005 + 0.005 = 0.010).
+static const float KNOWN_POS_M[4][3] = {
+    /* id 0 */ { +0.12f, +0.20f, 0.010f },
+    /* id 1 */ { -0.12f, +0.20f, 0.010f },
+    /* id 2 */ { -0.12f, -0.20f, 0.010f },
+    /* id 3 */ { +0.12f, -0.20f, 0.010f },
+};
+
 // ── Flow gains (the W14 deliverable) ──────────────────────────────────
 struct FlowGains {
     float    Kp[2];        // [SENTAI_CALIB_AXIS_X, SENTAI_CALIB_AXIS_Y]
@@ -141,11 +152,9 @@ void worker_loop_() {
     // Step magnitude = vmax × half_period_target (rough).  vmax=0.10,
     // T_u_target ≈ 1.5 s → step = 0.10 × 0.75 = 0.075 m.  Bounded by
     // FOV (capped further inside).
-    // Iter #10: gentler step.  5 cm × 0.4 s caused too much pitch
-    // → cf2 altitude controller compensated by climbing.  2 cm step
-    // over 0.6 s reduces peak pitch by ~3× and lowers z coupling.
-    const float step_dur_s = 0.6f;
-    float step_size = 0.02f;        // 2 cm per relay step
+    // Iter #11+: relay drives via hover() velocity, no per-step
+    // position trajectory.  step_size kept for future go_to fallback.
+    (void)0;       /* placeholder */
     int last_relay_sgn = 0;          // tracks last v_cmd sign
 
     while ((xEventGroupGetBits(s_stop_evt) & STOP_BIT) == 0) {
@@ -196,6 +205,50 @@ void worker_loop_() {
             if (last_z_correction < -0.02f) last_z_correction = -0.02f;
         }
         sentai_fr_push_scalar("at_z_corr", last_z_correction, ts);
+
+        // ── VPE forwarder (OP-S10-W14 iter #13): close the loop
+        //    on cf2's EKF altitude.  Without this, cf2's internal
+        //    z estimate drifts (baro + IMU integration) and the
+        //    drone climbs uncontrolled even with hover(z=z_hold)
+        //    absolute (iter #12 showed +90 cm climb in 30 s).
+        //    Computes drone world pose from PnP + KNOWN_POSITIONS_M
+        //    and sends as CRTP LOCALIZATION/ExtPos to cf2 at 5 Hz.
+        //    Anti-cheat compliant: PnP-derived, not GT-injected.
+        static uint32_t s_vpe_last_ms = 0;
+        if (pnp_valid && (ts - s_vpe_last_ms) >= 200) {  // 5 Hz
+            // drone_world[i] = marker_world[i] - R_cam_to_body * tvec_cam[i]
+            // Average over visible markers.  R_cam_to_body comes
+            // from sentai_calib (SIM default identity-like).
+            const float* R = sentai_calib_get_R_cam_to_body();
+            float dx_sum = 0.0f, dy_sum = 0.0f, dz_sum = 0.0f;
+            int   dn_used = 0;
+            for (int i = 0; i < n; ++i) {
+                uint8_t mid = mk[i].marker_id;
+                if (mid >= 4) continue;                 // only id 0..3 known
+                const float* mw = KNOWN_POS_M[mid];
+                // R * tvec_cam (row-major)
+                float tx = mk[i].tvec_cam[0];
+                float ty = mk[i].tvec_cam[1];
+                float tz = mk[i].tvec_cam[2];
+                float rx = R[0]*tx + R[1]*ty + R[2]*tz;
+                float ry = R[3]*tx + R[4]*ty + R[5]*tz;
+                float rz = R[6]*tx + R[7]*ty + R[8]*tz;
+                dx_sum += mw[0] - rx;
+                dy_sum += mw[1] - ry;
+                dz_sum += mw[2] - rz;
+                ++dn_used;
+            }
+            if (dn_used > 0) {
+                float dx = dx_sum / (float)dn_used;
+                float dy = dy_sum / (float)dn_used;
+                float dz = dz_sum / (float)dn_used;
+                (void)sentai_crazy_send_extpos(dx, dy, dz);
+                sentai_fr_push_scalar("at_vpe_x", dx, ts);
+                sentai_fr_push_scalar("at_vpe_y", dy, ts);
+                sentai_fr_push_scalar("at_vpe_z", dz, ts);
+                s_vpe_last_ms = ts;
+            }
+        }
 
         // Drive the state machine.
         float v_cmd = sentai_calib_autotune_tick(drift_m, ts, pnp_valid);
