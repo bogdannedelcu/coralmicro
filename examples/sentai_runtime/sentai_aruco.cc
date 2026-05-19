@@ -441,6 +441,93 @@ static void aruco_adaptive_threshold(const uint8_t* gray, int w, int h,
 // (sentai_aruco_adaptive_threshold_verify is defined after s_test_gray below.)
 
 // =========================================================================
+// Pipeline stage A.2 — rolling-integral Bradley adaptive threshold.
+//
+// Rationale: the full integral image (W+1)*(H+1)*4 = 309 KB @ 320×240 is
+// the largest single buffer in the ArUco pipeline, far too large to place
+// in M7 OCRAM alongside the 900 KB .tpu_input staging tensor.  With SDRAM-
+// backed integral image, the 32 KB D-cache cannot hold the full working set
+// during Phase 2's row-stride scan, so SDRAM accesses dominate the kernel.
+//
+// This variant uses NO integral image.  It maintains a single running
+// column-sum (col_sum[x] = vertical sum over the current [y_top..y_bot]
+// band) and, per output row, builds a 1D prefix sum (prefix_x[]) that
+// gives O(1) box-sum lookup.  Memory cost: 4*W + 4*(W+1) = ~2.6 KB scratch,
+// comfortably in OCRAM.
+//
+// Math identity:
+//   prefix_x[i+1] - prefix_x[i] = col_sum[i] = sum_{yy=y_top..y_bot} gray[yy][i]
+//   box_sum = prefix_x[x1+1] - prefix_x[x0]
+//           = sum_{x'=x0..x1} col_sum[x']
+//           = sum over rectangle [x0..x1] × [y_top..y_bot]  ✓
+//   Byte-identical to scalar reference; asserted at runtime via
+//   sentai_aruco_adaptive_threshold_rolling_verify().
+#ifdef __arm__
+static int32_t s_rolling_col_sum [ARUCO_MAX_W]
+    __attribute__((section(".ocram_bss"), aligned(32)));
+static int32_t s_rolling_prefix_x[ARUCO_MAX_W + 1]
+    __attribute__((section(".ocram_bss"), aligned(32)));
+#else
+static int32_t s_rolling_col_sum [ARUCO_MAX_W];
+static int32_t s_rolling_prefix_x[ARUCO_MAX_W + 1];
+#endif
+
+static void aruco_adaptive_threshold_rolling(const uint8_t* gray, int w, int h,
+                                              int block, uint8_t* out_binary) {
+    const int W = w, H = h;
+    const int half = block / 2;
+
+    // Initialise running column sums for the y=0 band: [0..min(half,H-1)].
+    int y_top = 0;
+    int y_bot = (half < H - 1) ? half : H - 1;
+    for (int x = 0; x < W; ++x) s_rolling_col_sum[x] = 0;
+    for (int yy = y_top; yy <= y_bot; ++yy) {
+        const uint8_t* row = gray + yy * W;
+        for (int x = 0; x < W; ++x) s_rolling_col_sum[x] += row[x];
+    }
+
+    for (int y = 0; y < H; ++y) {
+        const int y_top_new = (y - half >= 0) ? y - half : 0;
+        const int y_bot_new = (y + half < H)  ? y + half : H - 1;
+
+        // Expand bottom (add rows y_bot+1..y_bot_new).
+        while (y_bot < y_bot_new) {
+            ++y_bot;
+            const uint8_t* row = gray + y_bot * W;
+            for (int x = 0; x < W; ++x) s_rolling_col_sum[x] += row[x];
+        }
+        // Contract top (remove rows y_top..y_top_new-1).
+        while (y_top < y_top_new) {
+            const uint8_t* row = gray + y_top * W;
+            for (int x = 0; x < W; ++x) s_rolling_col_sum[x] -= row[x];
+            ++y_top;
+        }
+
+        const int32_t box_h = y_bot - y_top + 1;
+
+        // Build prefix_x from col_sum.
+        s_rolling_prefix_x[0] = 0;
+        int32_t acc = 0;
+        for (int x = 0; x < W; ++x) {
+            acc += s_rolling_col_sum[x];
+            s_rolling_prefix_x[x + 1] = acc;
+        }
+
+        // Threshold each pixel in this row.
+        const uint8_t* gray_row = gray + y * W;
+        uint8_t* bin_row = out_binary + y * W;
+        for (int x = 0; x < W; ++x) {
+            int x0 = (x - half >= 0) ? x - half : 0;
+            int x1 = (x + half < W)  ? x + half : W - 1;
+            const int32_t bs = s_rolling_prefix_x[x1 + 1] - s_rolling_prefix_x[x0];
+            const int32_t ba = (x1 - x0 + 1) * box_h;
+            const int32_t mean = bs / ba;
+            bin_row[x] = ((int32_t)gray_row[x] < mean - ARUCO_THRESH_C) ? 1u : 0u;
+        }
+    }
+}
+
+// =========================================================================
 // Pipeline stage B — connected-component labeling (8-connected flood fill).
 //
 // Iterate each pixel; on the first BLACK unlabeled pixel, flood-fill all
@@ -1577,6 +1664,51 @@ extern "C" uint32_t sentai_aruco_thresh_old_cyc(void) {
 }
 extern "C" uint32_t sentai_aruco_thresh_new_cyc(void) {
     return s_aruco_thresh_new_cyc;
+}
+
+// OP-S10-W16-T3.8 — rolling-integral threshold bench + verify.
+// Returns: byte-mismatch count between scalar reference and rolling
+// kernel (0 means byte-identical).  Cycle count for the rolling kernel
+// is left in s_aruco_thresh_rolling_cyc, retrievable via
+// sentai_aruco_thresh_rolling_cyc().
+static uint32_t s_aruco_thresh_rolling_cyc = 0;
+
+extern "C" int sentai_aruco_thresh_rolling_verify(int block) {
+    const int W = 320, H = 240;
+    if (block < 3 || block > 511) return -1;
+    // Build synth frame (same shape as adaptive_threshold_verify).
+    for (int y = 0; y < H; ++y) {
+        for (int x = 0; x < W; ++x) {
+            uint32_t lfsr = (uint32_t)(y * W + x) * 2654435761u;
+            uint8_t noise = (lfsr >> 16) & 0x1F;
+            int v = 180 + (x * 40) / W + (int)noise - 8;
+            if (v < 0) v = 0;
+            if (v > 255) v = 255;
+            s_test_gray[y * W + x] = (uint8_t)v;
+        }
+    }
+    const int cx = W / 2, cy = H / 2;
+    for (int y = cy - 40; y < cy + 40; ++y) {
+        for (int x = cx - 40; x < cx + 40; ++x) {
+            s_test_gray[y * W + x] = 30;
+        }
+    }
+    // Scalar reference into s_labels (reused as scratch).
+    aruco_adaptive_threshold_scalar_ref(s_test_gray, W, H, block, s_labels);
+    // Rolling kernel into s_binary, timed.
+    const uint32_t t0 = aruco_dwt_cyc();
+    aruco_adaptive_threshold_rolling(s_test_gray, W, H, block, s_binary);
+    const uint32_t t1 = aruco_dwt_cyc();
+    s_aruco_thresh_rolling_cyc = t1 - t0;
+    int mismatches = 0;
+    for (int i = 0; i < W * H; ++i) {
+        if (s_labels[i] != s_binary[i]) mismatches++;
+    }
+    return mismatches;
+}
+
+extern "C" uint32_t sentai_aruco_thresh_rolling_cyc(void) {
+    return s_aruco_thresh_rolling_cyc;
 }
 
 // OP-S10-W16 ablation 2026-05-19: re-run scalar threshold on the

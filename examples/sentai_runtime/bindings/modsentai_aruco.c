@@ -290,6 +290,24 @@ static mp_obj_t aruco_thresh_nocache_(mp_obj_t block_obj) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(aruco_thresh_nocache_obj, aruco_thresh_nocache_);
 
+// OP-S10-W16-T3.8 — rolling-integral threshold verify + bench.
+// Eliminates the 309 KB integral image (uses 2.6 KB OCRAM scratch instead).
+// Returns byte-mismatch count vs scalar reference; cycle count for the
+// rolling kernel readable via _thresh_rolling_cyc().
+extern int sentai_aruco_thresh_rolling_verify(int block);
+extern uint32_t sentai_aruco_thresh_rolling_cyc(void);
+static mp_obj_t aruco_thresh_rolling_verify_(mp_obj_t block_obj) {
+    const int block = mp_obj_get_int(block_obj);
+    return mp_obj_new_int(sentai_aruco_thresh_rolling_verify(block));
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(aruco_thresh_rolling_verify_obj,
+                                  aruco_thresh_rolling_verify_);
+static mp_obj_t aruco_thresh_rolling_cyc_(void) {
+    return mp_obj_new_int_from_uint(sentai_aruco_thresh_rolling_cyc());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(aruco_thresh_rolling_cyc_obj,
+                                  aruco_thresh_rolling_cyc_);
+
 // =======================================================================
 // Module table
 // =======================================================================
@@ -312,6 +330,10 @@ static const mp_rom_map_elem_t sentai_aruco_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR__verify_threshold), MP_ROM_PTR(&aruco_verify_threshold_obj) },
     { MP_ROM_QSTR(MP_QSTR__thresh_cycles),    MP_ROM_PTR(&aruco_thresh_cycles_obj) },
     { MP_ROM_QSTR(MP_QSTR__thresh_nocache),   MP_ROM_PTR(&aruco_thresh_nocache_obj) },
+    { MP_ROM_QSTR(MP_QSTR__thresh_rolling_verify),
+                                              MP_ROM_PTR(&aruco_thresh_rolling_verify_obj) },
+    { MP_ROM_QSTR(MP_QSTR__thresh_rolling_cyc),
+                                              MP_ROM_PTR(&aruco_thresh_rolling_cyc_obj) },
 };
 static MP_DEFINE_CONST_DICT(sentai_aruco_globals, sentai_aruco_globals_table);
 
