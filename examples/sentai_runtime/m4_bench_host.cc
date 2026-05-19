@@ -1,118 +1,91 @@
-// m4_bench_host.cc — M7-side driver for the M4 ArUco-threshold bench
-// (OP-S10-W16-T2/T3).
+// m4_bench_host.cc — M7-side driver for the M4 ArUco-threshold cycle
+// bench (OP-S10-W16-T3).
 //
-// Boots the M4 core via IpcM7::StartM4(), populates the shared mailbox
-// at 0x20330000 with a synthetic 160×120 grayscale frame, kicks the
-// "go" flag with a block-size parameter, polls for the M4-published
-// "done" flag, returns the DWT cycle count.
-//
-// See m4_aruco_bench.cc for the mailbox layout.  Both sides agree on
-// the absolute address 0x20330000 (shared OCRAM2, past the TPU
-// staging tensor and past M4's linker-managed m_ocram region).
+// Uses the canonical coralmicro IpcM7 API (StartM4 + MessageBuffer-
+// based IPC) — same pattern as examples/multi_core_ipc.  No
+// hardcoded mailbox addresses; the RPMSG infrastructure handles
+// cross-core memory & cache.
 
 #include <stdint.h>
 #include <string.h>
 
 #include "FreeRTOS.h"
 #include "task.h"
+#include "semphr.h"
 
 #include "libs/base/ipc_m7.h"
+#include "examples/sentai_runtime/m4_bench_message.h"
 
-// Mailbox addresses match m4_aruco_bench.cc:
-#define M4_MAILBOX_BASE   0x202C2000u
-#define M4_MAILBOX_MAGIC  0x4D344D34u  // "M4M4"
-#define M4_FRAME_W        80
-#define M4_FRAME_H        60
+namespace {
 
-static volatile uint32_t* const s_mbox = (volatile uint32_t*)M4_MAILBOX_BASE;
-static          uint8_t*  const s_gray = (uint8_t*)(M4_MAILBOX_BASE + 16);
+// One-shot result slot filled by the M4-message handler.
+static SemaphoreHandle_t s_result_sem    = nullptr;   // binary, given when result lands
+static volatile uint32_t s_result_cycles = 0;
+static volatile uint16_t s_result_n_dets = 0;
+static int               s_m4_started    = 0;
 
-// Did we already start the M4 core in this firmware boot?
-static int s_m4_started = 0;
-
-// Synth pattern: gradient 180..220 + LFSR noise + central dark square.
-// Same shape as sentai_aruco_adaptive_threshold_verify on M7 so the
-// two cycle counts measure the same algorithm on the same input.
-static void synth_frame_(uint8_t* dst, int w, int h) {
-    for (int y = 0; y < h; ++y) {
-        for (int x = 0; x < w; ++x) {
-            uint32_t lfsr = (uint32_t)(y * w + x) * 2654435761u;
-            uint8_t noise = (lfsr >> 16) & 0x1F;
-            int v = 180 + (x * 40) / w + (int)noise - 8;
-            if (v < 0) v = 0;
-            if (v > 255) v = 255;
-            dst[y * w + x] = (uint8_t)v;
-        }
-    }
-    // Central 40x40 dark square (proportional to the 80x80 we use at
-    // 320×240 — keeps the marker-ish geometry roughly similar).
-    const int cx = w / 2, cy = h / 2;
-    const int half = 20;
-    for (int y = cy - half; y < cy + half; ++y) {
-        for (int x = cx - half; x < cx + half; ++x) {
-            if (x >= 0 && x < w && y >= 0 && y < h) {
-                dst[y * w + x] = 30;
-            }
-        }
+void handle_m4_message_(const uint8_t data[coralmicro::kIpcMessageBufferDataSize]) {
+    const auto* msg = reinterpret_cast<const M4BenchAppMessage*>(data);
+    if (msg->type != M4BenchMessageType::kBenchDone) return;
+    s_result_cycles = msg->cycles;
+    s_result_n_dets = msg->n_dets;
+    if (s_result_sem) {
+        BaseType_t hpw = pdFALSE;
+        xSemaphoreGiveFromISR(s_result_sem, &hpw);
+        portYIELD_FROM_ISR(hpw);
     }
 }
 
-// Returns 1 if M4 came up + published its magic within `timeout_ms`,
-// 0 otherwise.  Idempotent: subsequent calls are no-ops once M4 is up.
+}  // namespace
+
+// Lazily boot M4 + register handler.  Idempotent.  Returns 1 on
+// success, 0 if M4 didn't come up within `timeout_ms`.
 extern "C" int sentai_m4_bench_start(uint32_t timeout_ms) {
     if (s_m4_started) return 1;
-    // Pre-clear the mailbox so a stale magic from a previous boot
-    // can't fool us.
-    s_mbox[0] = 0;  // magic
-    s_mbox[1] = 0;  // go
-    s_mbox[2] = 0;  // done
-    s_mbox[3] = 0;  // result
-    __asm volatile ("dsb sy" ::: "memory");
-    // Start the M4 core.  No-op if no M4 binary is linked; in that
-    // case the magic poll below will time out and we return 0.
-    coralmicro::IpcM7::GetSingleton()->StartM4();
-    // Poll for magic with bounded wait.
-    const TickType_t deadline = xTaskGetTickCount() +
-                                  pdMS_TO_TICKS(timeout_ms);
-    while (xTaskGetTickCount() < deadline) {
-        if (s_mbox[0] == M4_MAILBOX_MAGIC) {
-            s_m4_started = 1;
-            return 1;
-        }
-        vTaskDelay(pdMS_TO_TICKS(2));
+    if (!s_result_sem) {
+        s_result_sem = xSemaphoreCreateBinary();
+        if (!s_result_sem) return 0;
     }
-    return 0;
+    auto* ipc = coralmicro::IpcM7::GetSingleton();
+    ipc->RegisterAppMessageHandler(handle_m4_message_);
+    ipc->StartM4();
+    // Wait for the M4's IPC framework to signal it's alive.
+    if (!ipc->M4IsAlive(timeout_ms)) {
+        return 0;
+    }
+    s_m4_started = 1;
+    return 1;
 }
 
-// Run one bench iteration on M4 with the given block size.  Returns 1
-// on success (out_cyc filled), 0 on timeout / M4 dead.  Caller MUST
-// have called sentai_m4_bench_start first and gotten 1 back.
+// Run one bench iteration with the given block size.  out_cyc filled
+// on success.  Returns 1 on success, 0 on timeout.
 extern "C" int sentai_m4_bench_run(int block, uint32_t* out_cyc,
                                      uint32_t timeout_ms) {
-    if (!s_m4_started) return 0;
-    if (!out_cyc) return 0;
-    if (block < 3 || block > 511) return 0;
-    // Populate frame.
-    synth_frame_(s_gray, M4_FRAME_W, M4_FRAME_H);
-    // Clear done flag, then kick the go flag with block as payload.
-    s_mbox[2] = 0;       // done
-    s_mbox[3] = 0;       // result
-    __asm volatile ("dsb sy" ::: "memory");
-    s_mbox[1] = (uint32_t)block;  // go (also conveys block size)
-    __asm volatile ("dsb sy" ::: "memory");
-    // Poll for done.
-    const TickType_t deadline = xTaskGetTickCount() +
-                                  pdMS_TO_TICKS(timeout_ms);
-    while (xTaskGetTickCount() < deadline) {
-        if (s_mbox[2] != 0) {
-            *out_cyc = s_mbox[3];
-            return 1;
-        }
-        vTaskDelay(pdMS_TO_TICKS(1));
+    if (!s_m4_started || !out_cyc) return 0;
+    if (block < 3) block = 3;
+    if (block > 511) block = 511;
+
+    // Drain any prior pending signal.
+    xSemaphoreTake(s_result_sem, 0);
+    s_result_cycles = 0;
+    s_result_n_dets = 0;
+
+    coralmicro::IpcMessage msg{};
+    msg.type = coralmicro::IpcMessageType::kApp;
+    auto* app = reinterpret_cast<M4BenchAppMessage*>(&msg.message.data);
+    app->type   = M4BenchMessageType::kBenchGo;
+    app->block  = (uint16_t)block;
+    app->cycles = 0;
+    app->n_dets = 0;
+    coralmicro::IpcM7::GetSingleton()->SendMessage(msg);
+
+    if (xSemaphoreTake(s_result_sem, pdMS_TO_TICKS(timeout_ms)) != pdTRUE) {
+        return 0;
     }
-    return 0;
+    *out_cyc = s_result_cycles;
+    return 1;
 }
 
 extern "C" int sentai_m4_bench_is_alive(void) {
-    return s_m4_started && (s_mbox[0] == M4_MAILBOX_MAGIC);
+    return s_m4_started;
 }
