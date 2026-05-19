@@ -50,8 +50,16 @@
 // =========================================================================
 // Compile-time configuration.
 // =========================================================================
-#define ARUCO_MAX_W                    640
-#define ARUCO_MAX_H                    480
+// Reduced from 640x480 to 320x240 (production resolution) at OP-S10-W17
+// (2026-05-19): PrepTask SLOT_GRAY_NATIVE produces 320x240 Y8, never
+// 640x480, so the over-provisioned buffers (300+300+1230 KB) wasted
+// 1.4 MB SDRAM that wasn't usable for anything else AND blocked these
+// buffers from being moved into the 103 KB-free M7 OCRAM region.  No
+// external call sites depend on the 640 max; verified by grep before
+// the change.  Re-raise to 640 ONLY if a future PrepTask slot at full
+// camera native enters the ArUco/WhyCon pipelines.
+#define ARUCO_MAX_W                    320
+#define ARUCO_MAX_H                    240
 #define ARUCO_BUF_SZ                   (ARUCO_MAX_W * ARUCO_MAX_H)
 // Adaptive threshold parameters.  block_size must be LARGER than the
 // expected marker side so the local box-mean is dominated by the
@@ -103,16 +111,24 @@
 #define ARUCO_OCRAM_ATTR __attribute__((aligned(32)))
 #endif
 
+// OP-S10-W17 memory placement strategy:
+//  - s_test_gray  (75 KB) → OCRAM: hottest read in Phase A (rolling
+//    threshold's full-frame column-sum scan).  PXP places the camera
+//    Y8 here in production, so OCRAM is also the "image already lives"
+//    spot — zero copy needed.
+//  - s_fill_stack (16 KB) → OCRAM: hottest push/pop in Phase B flood
+//    fill DFS.  Stack ops are random-access by access frequency, so
+//    OCRAM 3-cyc beats SDRAM 50-cyc cache-miss every push.
+//  - s_binary, s_labels, s_components, s_integral → stay in SDRAM:
+//    103 KB OCRAM free after .tpu_input fits exactly 91 KB (gray+stack);
+//    s_binary (75 KB) doesn't fit alongside.  D-cache absorbs s_binary
+//    sequential writes in Phase A and the (mostly) sequential reads in
+//    Phase B label assignment.  s_labels is touched once per pixel per
+//    Phase W2 bbox scan; SDRAM with prefetch is acceptable there.
 static uint8_t  s_binary[ARUCO_BUF_SZ]   ARUCO_BSS_ATTR;
 static uint8_t  s_labels[ARUCO_BUF_SZ]   ARUCO_BSS_ATTR;
 static int32_t  s_integral[(ARUCO_MAX_W + 1) * (ARUCO_MAX_H + 1)] ARUCO_BSS_ATTR;
-static int32_t  s_fill_stack[ARUCO_FILL_STACK_SZ] ARUCO_BSS_ATTR;
-// Note: ARUCO_BUF_SZ is sized for 640x480 (OV5640 max), so s_binary +
-// s_fill_stack at full ARUCO_BUF_SZ won't fit in 103 KB free OCRAM
-// after .tpu_input.  OCRAM-routing of these buffers requires either
-// downsizing ARUCO_BUF_SZ to 320x240 (loses 640x480 support) or
-// introducing a separate _ocram view sized for the production resolution.
-// Deferred — current rolling-only OCRAM placement still gives 1.67x.
+static int32_t  s_fill_stack[ARUCO_FILL_STACK_SZ] ARUCO_OCRAM_ATTR;
 
 typedef struct {
     int      x0, y0, x1, y1;     // bounding box (inclusive)
@@ -527,12 +543,75 @@ static void aruco_adaptive_threshold_rolling(const uint8_t* gray, int w, int h,
             s_rolling_prefix_x[x + 1] = acc;
         }
 
-        // Threshold each pixel in this row.
+        // Threshold each pixel in this row.  Split into left-border /
+        // interior (constant box_w = block, SIMD-able) / right-border —
+        // same shape as the production aruco_adaptive_threshold but
+        // operating on the row's prefix_x instead of a 2-D integral image.
         const uint8_t* gray_row = gray + y * W;
         uint8_t* bin_row = out_binary + y * W;
-        for (int x = 0; x < W; ++x) {
-            int x0 = (x - half >= 0) ? x - half : 0;
-            int x1 = (x + half < W)  ? x + half : W - 1;
+        const int x_int_start = (half <= W - 1) ? half : W;
+        const int x_int_end   = (W - half - 1 >= 0) ? (W - half - 1) : -1;
+        const int32_t box_area_int = (int32_t)block * box_h;
+#if ARUCO_HAVE_DSP_SIMD
+        const uint32_t C_plus_1_pack = (uint32_t)(ARUCO_THRESH_C + 1) * 0x01010101u;
+        const uint32_t ones_pack     = 0x01010101u;
+        const uint32_t zeros_pack    = 0x00000000u;
+#endif
+        // Left border: x in [0 .. x_int_start) — variable box_w.
+        for (int x = 0; x < x_int_start; ++x) {
+            int x0 = x - half; if (x0 < 0) x0 = 0;
+            int x1 = x + half; if (x1 >= W) x1 = W - 1;
+            const int32_t bs = s_rolling_prefix_x[x1 + 1] - s_rolling_prefix_x[x0];
+            const int32_t ba = (x1 - x0 + 1) * box_h;
+            const int32_t mean = bs / ba;
+            bin_row[x] = ((int32_t)gray_row[x] < mean - ARUCO_THRESH_C) ? 1u : 0u;
+        }
+#if ARUCO_HAVE_DSP_SIMD
+        // Interior: x_int_start..x_int_end inclusive, box_w = block.
+        // Divide-free compare: (gray+C+1)*box_area_int <= box_sum.
+        // 4-wide using USUB8 + SEL.
+        int x = x_int_start;
+        for (; x + 4 <= x_int_end + 1; x += 4) {
+            const int32_t bs0 = s_rolling_prefix_x[x + 0 + half + 1]
+                              - s_rolling_prefix_x[x + 0 - half];
+            const int32_t bs1 = s_rolling_prefix_x[x + 1 + half + 1]
+                              - s_rolling_prefix_x[x + 1 - half];
+            const int32_t bs2 = s_rolling_prefix_x[x + 2 + half + 1]
+                              - s_rolling_prefix_x[x + 2 - half];
+            const int32_t bs3 = s_rolling_prefix_x[x + 3 + half + 1]
+                              - s_rolling_prefix_x[x + 3 - half];
+            const uint32_t m0 = (uint32_t)(bs0 / box_area_int) & 0xFFu;
+            const uint32_t m1 = (uint32_t)(bs1 / box_area_int) & 0xFFu;
+            const uint32_t m2 = (uint32_t)(bs2 / box_area_int) & 0xFFu;
+            const uint32_t m3 = (uint32_t)(bs3 / box_area_int) & 0xFFu;
+            const uint32_t m_pack = m0 | (m1 << 8) | (m2 << 16) | (m3 << 24);
+            const uint32_t g_pack = *(const uint32_t*)(gray_row + x);
+            const uint32_t raw      = aruco_usub8(m_pack, g_pack);
+            const uint32_t clamped  = aruco_sel(raw, zeros_pack);
+            (void)              aruco_usub8(clamped, C_plus_1_pack);
+            const uint32_t bin_pack = aruco_sel(ones_pack, zeros_pack);
+            *(uint32_t*)(bin_row + x) = bin_pack;
+        }
+        // Tail of interior — scalar, no clamps needed.
+        for (; x <= x_int_end; ++x) {
+            const int32_t bs = s_rolling_prefix_x[x + half + 1]
+                              - s_rolling_prefix_x[x - half];
+            const int32_t mean = bs / box_area_int;
+            bin_row[x] = ((int32_t)gray_row[x] < mean - ARUCO_THRESH_C) ? 1u : 0u;
+        }
+#else
+        // Non-ARM fallback for interior — scalar, no clamps.
+        for (int x = x_int_start; x <= x_int_end; ++x) {
+            const int32_t bs = s_rolling_prefix_x[x + half + 1]
+                              - s_rolling_prefix_x[x - half];
+            const int32_t mean = bs / box_area_int;
+            bin_row[x] = ((int32_t)gray_row[x] < mean - ARUCO_THRESH_C) ? 1u : 0u;
+        }
+#endif
+        // Right border: x in (x_int_end .. W) — variable box_w.
+        for (int x = x_int_end + 1; x < W; ++x) {
+            int x0 = x - half; if (x0 < 0) x0 = 0;
+            int x1 = x + half; if (x1 >= W) x1 = W - 1;
             const int32_t bs = s_rolling_prefix_x[x1 + 1] - s_rolling_prefix_x[x0];
             const int32_t ba = (x1 - x0 + 1) * box_h;
             const int32_t mean = bs / ba;
@@ -1612,7 +1691,13 @@ static int aruco_pnp_from_corners(const float corners[8],
 // Returns the number of markers detected (the cache holds the
 // per-marker breakdown for the caller via get_latest()).
 // =========================================================================
-static uint8_t s_test_gray[ARUCO_BUF_SZ] ARUCO_BSS_ATTR;
+// s_test_gray in OCRAM: this is where the synthesized / PGM-loaded
+// grayscale frame lives during the WhyCon and ArUco benches.  Reading
+// it lands in the threshold's column-sum scan — the hot Phase A path.
+// Placing it in OCRAM gives 3-cyc access vs ~50-cyc SDRAM cache miss
+// (per OP-S10-W16 ablation), AND mirrors where PXP DMA already lands
+// the production camera Y8.
+static uint8_t s_test_gray[ARUCO_BUF_SZ] ARUCO_OCRAM_ATTR;
 
 // DWT cycle counter for Cortex-M7 (no-op on POSIX SIM — returns 0).
 static inline uint32_t aruco_dwt_cyc(void) {
