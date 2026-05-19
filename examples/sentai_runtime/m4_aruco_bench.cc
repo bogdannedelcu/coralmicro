@@ -149,24 +149,38 @@ static void handle_m7_message_(const uint8_t data[coralmicro::kIpcMessageBufferD
 
 // Bench worker task.  Blocks on the semaphore; on take, snapshots
 // the pending block, runs the threshold, sends back kBenchDone.
+//
+// DIAGNOSTIC v3.2 — bisect IPC-reply vs compute-crash:
+//   - If block == 0xCAFE (special sentinel from M7): skip compute,
+//     reply with cycles = 0xCAFEBABE immediately.  Confirms the
+//     IPC reply path works in isolation.
+//   - Otherwise: normal compute + DWT timing.
 [[noreturn]] static void bench_worker_(void* arg) {
     (void)arg;
     while (true) {
         if (xSemaphoreTake(s_work_sem, portMAX_DELAY) != pdTRUE) continue;
-        const int block = (int)s_pending_block;
-
-        synth_frame_();
-        const uint32_t t0 = dwt_cyc();
-        aruco_adaptive_threshold_m4(block);
-        const uint32_t t1 = dwt_cyc();
+        const uint16_t block = s_pending_block;
 
         coralmicro::IpcMessage ack{};
         ack.type = coralmicro::IpcMessageType::kApp;
         auto* app = reinterpret_cast<M4BenchAppMessage*>(&ack.message.data);
         app->type   = M4BenchMessageType::kBenchDone;
-        app->block  = (uint16_t)block;
-        app->cycles = t1 - t0;
-        app->n_dets = 0;     // not running PnP at this stage
+        app->block  = block;
+        app->n_dets = 0;
+
+        if (block == 0xCAFEu) {
+            // IPC-only smoke test — no compute.
+            app->cycles = 0xCAFEBABEu;
+        } else {
+            int b = (int)block;
+            if (b < 3)   b = 3;
+            if (b > 511) b = 511;
+            synth_frame_();
+            const uint32_t t0 = dwt_cyc();
+            aruco_adaptive_threshold_m4(b);
+            const uint32_t t1 = dwt_cyc();
+            app->cycles = t1 - t0;
+        }
         coralmicro::IpcM4::GetSingleton()->SendMessage(ack);
     }
 }
