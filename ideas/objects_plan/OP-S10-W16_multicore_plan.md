@@ -199,6 +199,55 @@ same IpcMessage + shared OCRAM-buffer pattern.
 - `imxrt1170 ocram_m4 alias address map`
 - `freertos m4 m7 mcmgr deadlock`
 
+## 2.4 Latency-budget constraint (operator note 2026-05-19)
+
+End-goal for production: **minimise frame-capture → drone-control-pulse
+latency**.  Each cross-core handoff adds delay; the cf2 EKF is
+sensitive to delays beyond ~20-30 ms (we already saw a positive-
+feedback resonance under T19-T21 yaw work — `[[op-s10-w14-t19-yaw]]`).
+
+End-to-end pipeline budget (current M7-only):
+
+| Stage | Time | Where |
+|---|---:|---|
+| Camera CSI vblank → SDRAM ring | <1 ms | DMA, M7 ISR `.ramfunc` |
+| PrepTask (PXP XRGB→Y8) | ~1 ms | M7 |
+| ArUco detect | 22 ms | M7 |
+| VPE PnP + median | ~0.5 ms | M7 (calib_task) |
+| CRTP ExtPose send via UART2 | ~0.3 ms | M7 (sentai_crazy) |
+| **TOTAL frame → pulse**  | **~25 ms** | (one camera frame at 30 Hz ≈ 33 ms) |
+
+If we move ArUco to M4, the new budget:
+
+| Stage | Time | Where |
+|---|---:|---|
+| Camera CSI vblank → SDRAM ring | <1 ms | M7 |
+| PrepTask (PXP XRGB→Y8) | ~1 ms | M7 |
+| **M7→M4 handoff (frame_ready msg)** | <0.5 ms | IpcMessage 80 B |
+| ArUco detect on M4 | ?? ms | M4 (T3.6 measures) |
+| **M4→M7 handoff (result msg)** | <0.5 ms | IpcMessage 80 B |
+| VPE PnP + median | ~0.5 ms | M7 |
+| CRTP ExtPose send | ~0.3 ms | M7 |
+| **TOTAL frame → pulse** | **3 + M4_aruco_ms** | |
+
+M4 ArUco budget for parity: ≤ 22 ms.  M4 @ 400 MHz with no
+D-cache → expect 1.5-3× M7 cost for the same code.  At 80×60
+frame the algorithm itself is ~1 ms (rough est), so M4 still wins
+on absolute latency.  At 320×240 frame (production resolution),
+M4 might be 50-70 ms — WORSE than M7's 22 ms, which would push
+the EKF back toward the resonance regime.
+
+**Implication for T4 decision matrix**: M4 viability is conditional
+on the *production frame resolution* we choose for ArUco.  If 80×60
+or 160×120 is good enough for detection (next gate), M4 wins
+clearly on freed-M7-budget AND latency.  If we need 320×240, M4
+is slower than M7 and the offload pays for itself only in
+freeing M7 — not in absolute latency.
+
+This is a real input to the algorithmic choice (frame size) ↔
+core choice (M7 vs M4) trade.  T3.6 measures M4 cycle count
+across frame sizes to feed this decision.
+
 ## 3. Risks + mitigations
 
 | Risk | Likelihood | Mitigation |

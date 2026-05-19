@@ -29,10 +29,10 @@ void handle_m4_message_(const uint8_t data[coralmicro::kIpcMessageBufferDataSize
     if (msg->type != M4BenchMessageType::kBenchDone) return;
     s_result_cycles = msg->cycles;
     s_result_n_dets = msg->n_dets;
+    // IpcM7 RX runs in a FreeRTOS *task*, not ISR — use plain
+    // xSemaphoreGive (the …FromISR variant was the v2 bug).
     if (s_result_sem) {
-        BaseType_t hpw = pdFALSE;
-        xSemaphoreGiveFromISR(s_result_sem, &hpw);
-        portYIELD_FROM_ISR(hpw);
+        xSemaphoreGive(s_result_sem);
     }
 }
 

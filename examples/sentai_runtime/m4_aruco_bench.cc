@@ -1,40 +1,38 @@
 // m4_aruco_bench.cc — Cortex-M4 worker for the ArUco-threshold cycle
-// bench (OP-S10-W16-T3).
+// bench (OP-S10-W16-T3 v3).
 //
-// Architecture (per the canonical examples/multi_core_ipc pattern):
-//   - Entry point is `app_main(void* param)`; the SDK + FreeRTOS
-//     startup in libs_base-m4_freertos handles SystemInit, MPU,
-//     SysTick + scheduler bring-up.
-//   - We register an IpcM4 app-message handler.  On `kBenchGo` the
-//     handler synthesises a deterministic 80×60 grayscale frame in
-//     M4-local memory (LFSR pattern + central dark square — same
-//     shape as sentai_aruco_adaptive_threshold_verify on the M7
-//     side, just smaller), runs `aruco_adaptive_threshold` once
-//     with DWT cycle counting, and sends back `kBenchDone` with
-//     the cycle delta.
-//   - All buffers live in M4-local memory (default `.bss` → m_data
-//     per the M4 linker script).  No SDRAM access from M4 during
-//     the inner loop → zero SEMC contention with M7.
-//
-// Constraints respected (per OP-S10-W16 scoping):
-//   - NO custom mailbox at hardcoded addresses (RT1176 OCRAM
-//     aliases between cores differ; rely on the SDK's RPMSG
-//     section attributes + IpcM4 framework instead).
-//   - NO PXP, no camera, no FxUser — pure compute.
+// Architecture (NASA/JPL embedded discipline per agent/embeded.md):
+//   - Entry: `app_main(void* param)`.  SDK + FreeRTOS startup in
+//     libs_base-m4_freertos handles SystemInit, MPU, SysTick +
+//     scheduler bring-up.
+//   - IPC callback is EVENT-CAPTURE ONLY: it stores the requested
+//     block size + gives a binary semaphore.  No compute inside the
+//     callback (the v2 attempt did ~1 ms of threshold compute from
+//     callback context, which is suspected to have starved the
+//     IpcM4 RX-task message-buffer service).
+//   - A dedicated FreeRTOS "bench worker" task blocks on the
+//     semaphore.  When kicked, it synthesises a deterministic 80×60
+//     gray frame in M4-local memory, runs the threshold with DWT
+//     cycle counting, sends back the kBenchDone message via
+//     IpcM4::SendMessage from clean task context (no ISR / RX
+//     constraint).
+//   - All buffers in M4-local m_data.  No SDRAM access on the hot
+//     path → zero SEMC contention with M7.
 
 #include <stdint.h>
 #include <string.h>
 
 #include "FreeRTOS.h"
 #include "task.h"
+#include "semphr.h"
 
 #include "libs/base/ipc_m4.h"
 #include "examples/sentai_runtime/m4_bench_message.h"
 
 // ─────────────────────────────────────────────────────────────────
 // Threshold buffers — entirely M4-local.
-// Frame: 80×60 = 4800 pixels.  Integral image (81×61)·4 = 19 764 B.
-// Output binary: 4800 B.  Total ≈ 28 KB — fits comfortably in
+// Frame 80×60 = 4800 pixels.  Integral image (81×61)·4 = 19 764 B.
+// Output binary 4800 B.  Total ≈ 28 KB — fits comfortably in
 // M4 m_data (128 KB).
 // ─────────────────────────────────────────────────────────────────
 #define M4_FRAME_W  80
@@ -46,7 +44,23 @@ static int32_t  s_integral[(M4_FRAME_W + 1) * (M4_FRAME_H + 1)]     __attribute_
 
 #define ARUCO_THRESH_C  7
 
-// DWT cycle counter — same MMIO on M4 as M7 (architectural Cortex-M).
+// ─────────────────────────────────────────────────────────────────
+// Worker task wakeup signal + pending request slot.
+// `s_pending_block` is written by the IPC callback, read by the
+// worker task.  Single-producer / single-consumer — no mutex
+// needed; the binary semaphore provides ordering.
+// ─────────────────────────────────────────────────────────────────
+static StaticSemaphore_t s_work_sem_buf;
+static SemaphoreHandle_t s_work_sem = nullptr;
+static volatile uint16_t s_pending_block = 0;
+
+static constexpr size_t kBenchTaskStackWords = 1024;
+static StackType_t  s_bench_task_stack[kBenchTaskStackWords];
+static StaticTask_t s_bench_task_tcb;
+
+// ─────────────────────────────────────────────────────────────────
+// DWT cycle counter on M4 (architectural Cortex-M MMIO).
+// ─────────────────────────────────────────────────────────────────
 static inline uint32_t dwt_cyc(void) {
     return *((volatile uint32_t*)0xE0001004u);
 }
@@ -55,9 +69,8 @@ static void dwt_init(void) {
     *((volatile uint32_t*)0xE0001000u) |= 1u;           // DWT.CTRL.CYCCNTENA
 }
 
-// Deterministic synth frame: gradient + LFSR noise + dark square.
-// Same algebraic shape as sentai_aruco_adaptive_threshold_verify on M7
-// (only the resolution differs), so qualitatively comparable.
+// Deterministic synth frame: gradient + LFSR noise + central dark
+// square.  Algebraically identical shape to the M7 verify pattern.
 static void synth_frame_(void) {
     for (int y = 0; y < M4_FRAME_H; ++y) {
         for (int x = 0; x < M4_FRAME_W; ++x) {
@@ -81,11 +94,9 @@ static void synth_frame_(void) {
 }
 
 // Bradley adaptive threshold — verbatim algorithm from sentai_aruco.cc
-// (the scalar reference path).  Math IDENTICAL to the production
-// M7 kernel; this run produces the M4 cycle count for the same
-// algorithm.  Kept as inline-compiled C (no DSP intrinsics here —
-// raw-C baseline first, optional CMSIS opt later if we choose to
-// keep ArUco on M4 permanently).
+// (the scalar reference path).  Math IDENTICAL to the M7 production
+// kernel; this run produces the M4 cycle count for the same
+// algorithm.
 static void aruco_adaptive_threshold_m4(int block) {
     const int W = M4_FRAME_W, H = M4_FRAME_H;
     const int stride_i = W + 1;
@@ -120,36 +131,64 @@ static void aruco_adaptive_threshold_m4(int block) {
     }
 }
 
-// IpcM4 message handler — runs in the IpcM4 RX task context, with
-// the FreeRTOS scheduler active (SysTick alive).  When a kBenchGo
-// arrives, runs one threshold pass and answers with kBenchDone.
+// IpcM4 message handler — runs in IpcM4 RX task context.  EVENT
+// CAPTURE ONLY (per agent/embeded.md): record the request + give
+// the worker-task semaphore.  Do NOT compute here.
 static void handle_m7_message_(const uint8_t data[coralmicro::kIpcMessageBufferDataSize]) {
     const auto* msg = reinterpret_cast<const M4BenchAppMessage*>(data);
     if (msg->type != M4BenchMessageType::kBenchGo) return;
-    int block = (int)msg->block;
-    if (block < 3) block = 3;
+    uint16_t block = msg->block;
+    if (block < 3)   block = 3;
     if (block > 511) block = 511;
+    s_pending_block = block;
+    // RX context — give from task (NOT from ISR); use plain xSemaphoreGive.
+    if (s_work_sem) {
+        xSemaphoreGive(s_work_sem);
+    }
+}
 
-    synth_frame_();
-    const uint32_t t0 = dwt_cyc();
-    aruco_adaptive_threshold_m4(block);
-    const uint32_t t1 = dwt_cyc();
+// Bench worker task.  Blocks on the semaphore; on take, snapshots
+// the pending block, runs the threshold, sends back kBenchDone.
+[[noreturn]] static void bench_worker_(void* arg) {
+    (void)arg;
+    while (true) {
+        if (xSemaphoreTake(s_work_sem, portMAX_DELAY) != pdTRUE) continue;
+        const int block = (int)s_pending_block;
 
-    coralmicro::IpcMessage ack{};
-    ack.type = coralmicro::IpcMessageType::kApp;
-    auto* app = reinterpret_cast<M4BenchAppMessage*>(&ack.message.data);
-    app->type   = M4BenchMessageType::kBenchDone;
-    app->block  = msg->block;
-    app->cycles = t1 - t0;
-    app->n_dets = 0;     // not running PnP at this stage
-    coralmicro::IpcM4::GetSingleton()->SendMessage(ack);
+        synth_frame_();
+        const uint32_t t0 = dwt_cyc();
+        aruco_adaptive_threshold_m4(block);
+        const uint32_t t1 = dwt_cyc();
+
+        coralmicro::IpcMessage ack{};
+        ack.type = coralmicro::IpcMessageType::kApp;
+        auto* app = reinterpret_cast<M4BenchAppMessage*>(&ack.message.data);
+        app->type   = M4BenchMessageType::kBenchDone;
+        app->block  = (uint16_t)block;
+        app->cycles = t1 - t0;
+        app->n_dets = 0;     // not running PnP at this stage
+        coralmicro::IpcM4::GetSingleton()->SendMessage(ack);
+    }
 }
 
 extern "C" void app_main(void* param) {
     (void)param;
     dwt_init();
+
+    // Create the worker semaphore + task BEFORE registering the RX
+    // handler, so any inbound kBenchGo finds the worker ready.
+    s_work_sem = xSemaphoreCreateBinaryStatic(&s_work_sem_buf);
+    configASSERT(s_work_sem);
+
+    auto handle = xTaskCreateStatic(bench_worker_, "m4_bench", kBenchTaskStackWords,
+                                     nullptr,
+                                     tskIDLE_PRIORITY + 3,
+                                     s_bench_task_stack, &s_bench_task_tcb);
+    configASSERT(handle);
+
     coralmicro::IpcM4::GetSingleton()->RegisterAppMessageHandler(
         handle_m7_message_);
-    // Idle forever — the IpcM4 RX task handles all work in callbacks.
+
+    // app_main is itself a task; we have nothing else to do here.
     vTaskSuspend(nullptr);
 }
