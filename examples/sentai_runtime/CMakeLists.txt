@@ -248,12 +248,28 @@ add_executable_m7(sentai_runtime
     sentai_health.cc
     sentai_dmesg.cc
     sentai_fs_cache.cc
+    M4_EXECUTABLE
+    sentai_m4_aruco_bench
+    DATA
 )
 
 # M4 build target removed 2026-05-05 (build #1130+).  Flow SAD now
 # runs on M7 in flow_task.cc (M4 had unreliable SysTick + freeze
 # under load).  flow_task_m4.cc is kept on disk as historical
 # reference but no longer compiled.
+
+# OP-S10-W16-T3 (2026-05-19): M4 ArUco-threshold cycle bench, built
+# as a SEPARATE ELF that we can test in isolation (no link into
+# sentai_runtime yet — that's T4+).  Bare-metal entry, no FreeRTOS
+# scheduler, no SysTick — sidesteps the build #1130 freeze mode and
+# gives a clean cycle count for the threshold kernel on M4.  Boot
+# integration lands in a follow-up commit.
+add_executable_m4(sentai_m4_aruco_bench
+    m4_aruco_bench.cc
+)
+target_link_libraries(sentai_m4_aruco_bench
+    libs_base-m4_freertos
+)
 
 # Embed browser.html as a C byte array (avoids LFS system partition dependency)
 set(BROWSER_HTML_SRC "${CMAKE_CURRENT_SOURCE_DIR}/web/browser.html")

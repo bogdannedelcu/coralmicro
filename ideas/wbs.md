@@ -151,6 +151,9 @@ OP — ObjectsPlan thesis
 │   ├── OP-S10-W9 — Outdoor PX4 experiments (2-3 runs)           ⬜ TODO
 │   ├── OP-S10-W10 — Evaluation chapter writeup                  ⬜ TODO
 │   ├── OP-S10-W11 — sentai_prep frame slot pipeline              🟡 IN PROGRESS (2026-05-17)
+│   │                Spec: ideas/objects_plan/OP-S10-W11_sentai_prep.md
+│   │                (cadence, refcount, ARM/SIM differences, design
+│   │                invariants, full task contract).
 │   │   │   Cross-cutting frame producer (PrepTask fan-out) + SlamTask
 │   │   │   InferTask-style consumer.  Foundation for places.compute_*
 │   │   │   _from_camera variants per [[no-heavy-data-through-mp]].
@@ -158,6 +161,33 @@ OP — ObjectsPlan thesis
 │   │   ├── OP-S10-W11-T2 — PrepTask SLOT_GRAY_NATIVE + grab_gray refactor  ✅ SHIPPED (commit 90b0523b — retroactively-labeled "Phase 1b")
 │   │   ├── OP-S10-W11-T3 — slam_task.cc (perception loop)        ⬜ TODO (Phase 1c)
 │   │   ├── OP-S10-W11-T4 — SIM mirror in camera_bridge_recv.c    ⬜ TODO (Phase 1d)
+│   │   │                   Design decision 2026-05-19 (operator-
+│   │   │                   approved): SLOT_GRAY_64 is DERIVED from
+│   │   │                   SLOT_RGB_64 via RGB→Y luma cast (~7 µs
+│   │   │                   NEON on 4096 px), NOT produced by a
+│   │   │                   second independent PXP pass.  Rationale:
+│   │   │                     (a) pixel-perfect consistency — both
+│   │   │                         64×64 slots refer to the SAME
+│   │   │                         source frame (no PXP race window);
+│   │   │                     (b) one PXP setup per frame instead of
+│   │   │                         two — saves SEMC bandwidth;
+│   │   │                     (c) simpler producer code on both ARM
+│   │   │                         (PrepTask) and SIM (camera_bridge_
+│   │   │                         recv).
+│   │   │                   Implementation note: when consumer enables
+│   │   │                   SLOT_GRAY_64, producer first writes
+│   │   │                   SLOT_RGB_64 (PXP HW), then luma-casts
+│   │   │                   into SLOT_GRAY_64 (scalar / NEON), then
+│   │   │                   commits both.  Document the invariant in
+│   │   │                   sentai_prep.h header: "GRAY_64 corresponds
+│   │   │                   to the same source frame as RGB_64 (luma
+│   │   │                   downcast, not an independent capture)".
+│   │   │                   Re-evaluate IF a future consumer needs
+│   │   │                   gray-only AND wants to skip the RGB pass
+│   │   │                   entirely — then a separate slot is the
+│   │   │                   right answer.  Not the case for the
+│   │   │                   thesis-MVP consumer set (HSV on RGB_64 +
+│   │   │                   FFT-log-polar on GRAY_64 via W5).
 │   │   └── OP-S10-W11-T5 — EXP-s162 live scene-discrimination    ⬜ TODO (Phase 1e)
 │   │
 │   ├── OP-S10-W12 — sentai.safety (firmware-side mission safety) 🟡 IN PROGRESS (opened 2026-05-18)
@@ -482,6 +512,186 @@ OP — ObjectsPlan thesis
 │                            oscillation, deterministic.  Implement
 │                            via sentai_crazy_go_to(rel=0) absolute
 │                            position step using PnP anchor.            ⬜ TODO (phase 2)
+│
+├── OP-S10-W15 — ARM memory allocation + task-priority budget       ⬜ TODO (open ToDo,
+│                operator-requested 2026-05-19, not scheduled yet)
+│   │
+│   │  Motivation:
+│   │
+│   │  The ARM build broke silently across W12+W13+W14 because every
+│   │  new subsystem (sentai.safety, sentai.fr pools, calib autotune
+│   │  task) added static buffers to the default DTCM .bss and new
+│   │  cold-path code to ITCM, without any global view of what the
+│   │  budget actually IS.  T22 (commit 3a89466f, 2026-05-18) restored
+│   │  the build reactively: shrunk HEAP_SIZE 16→14 MB, routed new
+│   │  pools to .sdram_bss, parked cold-path code in .sentai_slow.
+│   │  That fix is one-shot — the next subsystem (S6-W2 / S6-W3 / W11
+│   │  prep pipeline expansion / DNN if ever) WILL repeat the same
+│   │  break unless the project owns a documented allocation policy.
+│   │
+│   │  Scope:
+│   │
+│   │  Produce a Memory Allocation + Task Priority design document
+│   │  (paper/arm_memory_budget.md) that fixes, for the SentAI
+│   │  firmware on RT1176-M7:
+│   │
+│   │    1. The MEMORY MAP intent: which static buffer / pool goes
+│   │       into which region (ITCM .ramfunc / DTCM m_data / OCRAM
+│   │       m_ocram / SDRAM m_sdram / m_ncamera / m_heap), with
+│   │       explicit rationale per category (DMA reach, cache
+│   │       coherence, latency budget, contention class).
+│   │
+│   │    2. The TASK PRIORITY table: every FreeRTOS task in the
+│   │       firmware (CameraTask, ArucoDetectTask, FlowTask, FR drain,
+│   │       SafetyTask, CalibTask, MicroPython REPL, HTTPServer, ...)
+│   │       with its (priority, stack size, stack location, periodic
+│   │       deadline, justification).
+│   │
+│   │    3. The "WHERE DOES THIS GO?" decision flowchart for new
+│   │       subsystems — 5-step checklist (Is it ISR? Is it
+│   │       DMA-touched? Is it >1 KB? Is it per-frame? etc.) that
+│   │       resolves to a region + section attribute name + linker
+│   │       snippet.
+│   │
+│   │    4. A budget table with current (post-T22) consumption per
+│   │       region + remaining headroom + soft alarm thresholds (e.g.,
+│   │       "m_data ≥ 80 % full → file a W-future for offload").
+│   │
+│   │    5. Rules of engagement: when a new feature is allowed to
+│   │       expand the budget (and how) vs when it must reuse / shrink
+│   │       existing allocation.
+│   │    6. CACHE-LINE ALIGNMENT POLICY (operator-emphasised 2026-05-19):
+│   │       hot / frequently-used buffers (camera ring, TPU staging,
+│   │       SLOT_GRAY_NATIVE, SLOT_RGB_64, SLOT_GRAY_64, flow
+│   │       phase-corr buffers, aruco preprocessing, FR pool slots)
+│   │       MUST be aligned to 32 bytes on M7 (one D-cache line).
+│   │       Standardise a SENTAI_HOT_BUF_ALIGN macro expanding to
+│   │       __attribute__((aligned(32))) and apply to every new
+│   │       hot-path static buffer; T5 retrofits the existing scattered
+│   │       __attribute__((aligned(...))) uses.  Audit script flags any
+│   │       .sdram_bss / .ocram / m_data buffer ≥ 256 B not on a 32 B
+│   │       boundary.
+│   │
+│   │  Why "not scheduled yet":
+│   │
+│   │  T22 bought us margin (m_sdram has ~3 MB free, m_data ~30 KB
+│   │  free, m_text ~7 KB free post-routing).  Not urgent before the
+│   │  next big subsystem lands.  But CRITICAL before the thesis
+│   │  defense — committee will ask "how does this scale on a real
+│   │  embedded target?" and the right answer is a documented memory
+│   │  + scheduling policy, not "we route things to .sentai_slow when
+│   │  it breaks."
+│   │
+│   │  Trigger to promote to scheduled status:
+│   │
+│   │  Either (a) the next subsystem (any one of S6-W2, S10-W5-W7,
+│   │  DNN-on-TPU revisit, ARM port of W12/W13/W14) breaks the build
+│   │  again, OR (b) thesis writing reaches the embedded-engineering
+│   │  chapter — whichever comes first.
+│   │
+│   │  Tentative task breakdown (when promoted):
+│   │
+│   │    ├── OP-S10-W15-T1 — Memory map audit script: parse the .map
+│   │    │                   output + dump per-region top consumers,
+│   │    │                   per-region utilisation, post-link
+│   │    │                   summary.  Auto-run in CI for both ARM
+│   │    │                   and SIM builds.
+│   │    │
+│   │    ├── OP-S10-W15-T2 — Task priority + stack audit script:
+│   │    │                   parse xTaskCreate/xTaskCreateStatic call
+│   │    │                   sites, emit a table; compare against
+│   │    │                   FreeRTOSConfig priorities + reservation.
+│   │    │
+│   │    ├── OP-S10-W15-T3 — paper/arm_memory_budget.md design doc
+│   │    │                   (the 5 scope items above).
+│   │    │
+│   │    ├── OP-S10-W15-T4 — Per-region "soft alarm" assertions in
+│   │    │                   CMake post-build: warn at 80 % / 90 %,
+│   │    │                   error at 95 % to fail fast in CI.
+│   │    │
+│   │    └── OP-S10-W15-T5 — Retrofit existing subsystems to declare
+│   │                        their memory class in a single header
+│   │                        (e.g., SENTAI_MEM_COLD_PATH macro that
+│   │                        expands to the right section attribute).
+│   │                        Removes copy-paste of the
+│   │                        __attribute__((section(...))) idiom
+│   │                        scattered across ~15 files today.
+│   │
+│   │  Anti-scope:  This is a DESIGN + AUDIT WP, not a refactor.  No
+│   │  functional changes; if any allocation moves, document the
+│   │  before/after.  Lifetime: 1-2 days when actually pulled in.
+│   │
+├── OP-S10-W16 — Multi-core architecture (M7 + M4) clarification + replay  ⬜ TODO
+│   │
+│   │  Why: RT1176 has Cortex-M7 (800 MHz) + Cortex-M4 (400 MHz, with
+│   │  single-precision FPU per NXP datasheet).  Build #1130+ removed
+│   │  the M4 build target because flow_task_m4 had "unreliable SysTick
+│   │  + freeze under load" (CMakeLists comment, 2026-05-05).  That
+│   │  investigation predated the J-Link / SWD debugger now wired to
+│   │  the board, so root-cause was guess-driven.  With the debugger
+│   │  attached we can finally answer:
+│   │    - Is M4 SysTick genuinely buggy on RT1176, or was it a
+│   │      configuration mistake (clock root, ISR priority, FreeRTOS
+│   │      tick handler placement)?
+│   │    - What's the actual freeze mode (deadlock on RPMSG, WDOG
+│   │      reset, SEMC bus contention, cache coherency)?
+│   │    - Can ArUco run on M4 cleanly if SysTick is fixed?  ArUco
+│   │      uses FPU only inside the PnP path (small).
+│   │    - Same question for any future heavy task (TPU pre-process,
+│   │      flow phase-corr).
+│   │
+│   │  Today's effective allocation (per code review 2026-05-19):
+│   │     M7: camera ISR, PrepTask (PXP DMA), InferTask (TPU
+│   │          orchestration via USB), Flow SAD (flow_task.cc),
+│   │          ArUco (sentai_aruco_detect via SafetyTask),
+│   │          Safety state machine, FR drain (FxUser writes),
+│   │          Crazy radio bridge (UART2), REPL + MicroPython,
+│   │          USB CDC-ACM + CDC-NCM stack, lwIP HTTP,
+│   │          health/dmesg/calib/places/servo helpers.
+│   │     M4: idle — flow_task_m4.cc kept as historical reference,
+│   │          NOT compiled.
+│   │
+│   │    ├── OP-S10-W16-T1 — Document current core allocation in
+│   │    │                   paper/multi_core_arch.md: per-task
+│   │    │                   placement, period, priority, stack size,
+│   │    │                   memory class.  Source: code review +
+│   │    │                   FreeRTOS task list dump from on-board
+│   │    │                   diag (uxTaskGetSystemState).
+│   │    │
+│   │    ├── OP-S10-W16-T2 — Wire J-Link/SWD investigation harness:
+│   │    │                   tiny M4 "hello world" with FreeRTOS
+│   │    │                   scheduler, vTaskDelay(100), GPIO toggle.
+│   │    │                   Trace via OpenOCD/PyOCD; identify whether
+│   │    │                   SysTick fires reliably under no load,
+│   │    │                   under M7-heavy load, under SEMC pressure.
+│   │    │
+│   │    ├── OP-S10-W16-T3 — Reproduce the build-#1130 freeze: revive
+│   │    │                   flow_task_m4.cc (or simpler kernel),
+│   │    │                   capture exactly the failure mode + JTAG
+│   │    │                   memory dump at freeze.  Compare to
+│   │    │                   FreeRTOS internal state (xTickCount,
+│   │    │                   pxReadyTasksLists, current task TCB).
+│   │    │
+│   │    ├── OP-S10-W16-T4 — Decision matrix: with root-cause in hand,
+│   │    │                   document which workloads CAN move to M4
+│   │    │                   safely.  Candidates ranked by M7 budget
+│   │    │                   pressure: ArUco detect (22 ms × 30 Hz =
+│   │    │                   66% M7), TPU pre-process if grow, future
+│   │    │                   descriptor compute.
+│   │    │
+│   │    └── OP-S10-W16-T5 — Architecture freeze: paper/multi_core_
+│   │                        final.md with the validated split (or
+│   │                        "M4 stays unused, here's why" if M4 root-
+│   │                        cause is fundamental NXP silicon bug).
+│   │                        Tasks > T5 (actual offload work, if
+│   │                        chosen) get their own per-subsystem WPs.
+│   │
+│   │  Anti-scope: This is INVESTIGATE + DECIDE.  Actual code moves
+│   │  (e.g., ArUco on M4) get their own WP based on T4's verdict.
+│   │  Promotion trigger: M7 budget squeeze that the W15 audit or a
+│   │  s179-style HW bench shows is real (current SafetyTask 30 Hz
+│   │  load is the immediate motivator).  Lifetime: ~1 week
+│   │  investigation + 1 week design doc when actually pulled in.
 │
 └── Milestones
     ├── OP-M1 — Thesis MVP (SIM): 4 descriptors + L1 + calib working end-to-end
