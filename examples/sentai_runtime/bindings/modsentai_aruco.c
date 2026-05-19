@@ -290,6 +290,12 @@ static mp_obj_t aruco_thresh_nocache_(mp_obj_t block_obj) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(aruco_thresh_nocache_obj, aruco_thresh_nocache_);
 
+extern uint32_t sentai_aruco_thresh_ocram(int block);
+static mp_obj_t aruco_thresh_ocram_(mp_obj_t block_obj) {
+    return mp_obj_new_int_from_uint(sentai_aruco_thresh_ocram(mp_obj_get_int(block_obj)));
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(aruco_thresh_ocram_obj, aruco_thresh_ocram_);
+
 // =======================================================================
 // Module table
 // =======================================================================
@@ -312,6 +318,7 @@ static const mp_rom_map_elem_t sentai_aruco_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR__verify_threshold), MP_ROM_PTR(&aruco_verify_threshold_obj) },
     { MP_ROM_QSTR(MP_QSTR__thresh_cycles),    MP_ROM_PTR(&aruco_thresh_cycles_obj) },
     { MP_ROM_QSTR(MP_QSTR__thresh_nocache),   MP_ROM_PTR(&aruco_thresh_nocache_obj) },
+    { MP_ROM_QSTR(MP_QSTR__thresh_ocram),     MP_ROM_PTR(&aruco_thresh_ocram_obj) },
 };
 static MP_DEFINE_CONST_DICT(sentai_aruco_globals, sentai_aruco_globals_table);
 

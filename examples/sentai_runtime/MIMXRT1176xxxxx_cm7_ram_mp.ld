@@ -878,6 +878,21 @@ SECTIONS
   ASSERT(__tpu_input_end__ <= ORIGIN(m_ocram) + LENGTH(m_ocram),
          "ERROR: .tpu_input overflows m_ocram into rpmsg_sh_mem")
 
+  /* OP-S10-W16 ablation 2026-05-19: .ocram_bss for the apples-to-
+   * apples M7-vs-M4 thresh comparison.  Lands in m_ocram AFTER
+   * .tpu_input (~230 KB free here).  NOLOAD = BSS, zero-init at
+   * boot via crt. */
+  .ocram_bss (NOLOAD) :
+  {
+    . = ALIGN(32);
+    __ocram_bss_start__ = .;
+    *(.ocram_bss*)
+    . = ALIGN(32);
+    __ocram_bss_end__ = .;
+  } > m_ocram
+  ASSERT(__ocram_bss_end__ <= ORIGIN(m_ocram) + LENGTH(m_ocram),
+         "ERROR: .ocram_bss overflows m_ocram (TPU staging collision)")
+
   /* Initializes stack on the end of block */
   __StackTop   = ORIGIN(m_data) + LENGTH(m_data);
   __StackLimit = __StackTop - STACK_SIZE;

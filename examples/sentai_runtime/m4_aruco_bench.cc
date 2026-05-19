@@ -55,8 +55,8 @@ __attribute__((always_inline)) static inline uint32_t m4_sel(uint32_t a, uint32_
 //     (128 KB) where the default .bss lands.
 // Production frame size; identical math to M7 SafetyArucoBaseline.
 // ─────────────────────────────────────────────────────────────────
-#define M4_FRAME_W  320
-#define M4_FRAME_H  240
+#define M4_FRAME_W  160
+#define M4_FRAME_H  120
 
 static uint8_t  s_gray   [M4_FRAME_W * M4_FRAME_H]                  __attribute__((section(".ocram_bss"), aligned(32)));
 static uint8_t  s_binary [M4_FRAME_W * M4_FRAME_H]                  __attribute__((section(".ocram_bss"), aligned(32)));
