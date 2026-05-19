@@ -196,6 +196,18 @@ Effort: ~1 week if SysTick stays stable on M4 under detection
 load.  Risk: build-#1130 freeze pattern reappears under load,
 JTAG required to root-cause.
 
+**Honest rationale (post-T3 ablation, 2026-05-19):** M4 is NOT
+the faster core for this workload (see §8.5).  M7-with-OCRAM
+is 11× faster than M4-with-OCRAM on the identical kernel.  M4
+wins in production solely because M7's OCRAM is exhausted by
+the 786 KB `.tpu_input` staging tensor, so M7's 309 KB integral
+image is forced into SDRAM (50 ns access).  M4's OCRAM is
+unallocated → it gets fast on-die memory "for free".  Net at
+320×240: M7 SDRAM 12 ms vs M4 OCRAM 9.75 ms.  This is a
+**memory-placement win**, not a core-architecture win.  A
+future TPU model with smaller input tensor would let ArUco
+return to M7 at ~0.85 ms.
+
 ### 7.3 Flow-on-M4 hot path (OP-S10-W16-T3b, stretch)
 
 After ArUco-on-M4 lands, also move the Flow USAD8 SAD inner loop
@@ -217,18 +229,76 @@ offload pattern is the natural release valve.
   `vTaskDelay(100)` + GPIO toggle; trace via OpenOCD / PyOCD.
   Confirm SysTick fires reliably under no load, M7-heavy load,
   SEMC pressure.
-- **T3** — *ArUco bench on M4* (in progress as of 2026-05-19):
-  - Build infrastructure: DONE (commits 1869594c, 4c4dee42).
-  - IPC handshake: WORKS (`M4IsAlive` returns true).
-  - **kBenchDone reply delivery: BROKEN** — bench handler runs
-    but result message never lands at M7 callback.  Likely
-    handler-context starvation; next iteration moves the
-    threshold work into a dedicated FreeRTOS task on M4.
+- **T3** — *ArUco bench on M4* — **DONE** 2026-05-19.
+  - Build infrastructure: commits 1869594c, 4c4dee42.
+  - IPC handshake `M4IsAlive`: works.
+  - **kBenchDone reply path: FIXED at 692f8b95** — root cause
+    was rpmsg_sh_mem linker mismatch (M7 had it at 0x2033E000/8 KB;
+    M4 SDK default at 0x202C0000/16 KB).  IpcM4/IpcM7
+    MessageBuffer framework reconstructs handles as
+    `__RPMSG_SH_MEM_START | eventData` — different physical
+    regions silently lose replies.  Fixed by aligning M4's
+    linker to the M7 layout.  See
+    `[[rpmsg-cross-core-alignment-hard-rule-2026-05-19]]`.
+  - Bench results: **3.9 M cycles @ 320×240 = 9.75 ms** scalar
+    Bradley, plain C, no SIMD (commit 862b5c91).
+- **T3 ablation** — *measurement triangulation* — **DONE**.
+  Three rounds: 862b5c91, e8d8a584, 940611e2.  See §8.5 below.
 - **T3b** — *Flow hot path on M4* (stretch, task #79).
 - **T4** — *Decision matrix*: with T2 + T3 data, ranked
   recommendation for which workloads move.
 - **T5** — *Architecture freeze*: paper/multi_core_final.md
   with the validated split.
+
+## 8.5 Ablation measurements (2026-05-19, three rounds)
+
+| Setup                              | Wall-clock | Cycles  | Cyc/px |
+|------------------------------------|-----------:|--------:|-------:|
+| M7 SDRAM, cache ON @ 320×240       |    12 ms   |  9.6 M  |  125   |
+| M7 SDRAM, cache OFF @ 320×240      |   148 ms   | 118.6 M | 1544   |
+| M4 OCRAM @ 320×240                 |   9.75 ms  |  3.9 M  |   51   |
+| M4 OCRAM @ 80×60                   |   250 µs   |  100 k  |   21   |
+| **M7 OCRAM @ 160×120**             | **212 µs** |   170 k |   8.8  |
+| **M4 OCRAM @ 160×120**             |   2422 µs  |   970 k |   50   |
+| (M7 OCRAM @ 320×240, extrapolated) |  ~850 µs   |  ~680 k |  ~8.8  |
+
+Round 1 (862b5c91) — naive "M4 1.6× faster than M7":
+**WRONG**.  Compared M4-OCRAM against M7's `aruco_bench` kernel
+(16 ms) — a different implementation, not sentai_aruco.cc's
+production threshold.  Apples to oranges.
+
+Round 2 (e8d8a584) — M7 cache-disabled + M4 SIMD attempt:
+- M7 cache OFF: 12× slower (148 ms).  Cache is **essential** to
+  hide SDRAM 50 ns access penalty, not a thrash liability.
+- M4 SIMD: 2.5× **slower** than M4 scalar.  Pack-overhead
+  doesn't pay off on M4F single-issue without dual-issue
+  pipeline to absorb the setup cost.  Reverted at e51915bd.
+
+Round 3 (940611e2) — apples-to-apples both cores in OCRAM:
+M7 wins by 11×.  Why M7 wins when OCRAM is available:
+
+1. **Cache exploitation** — Phase 1 write-allocates the
+   integral into D-cache; Phase 2 reads are L1 hits at 1 cycle.
+   M4 has no D-cache, every OCRAM access pays the full 3 cyc.
+2. **800 MHz clock** vs M4's 400 MHz (2× advantage).
+3. **Superscalar dual-issue** on M7 vs M4F single-issue.
+
+**Why offload anyway?**  M7's OCRAM is FULL.  786 KB of m_ocram
+is `.tpu_input` (V22 staging tensor for 512×512 RGB888).  Only
+~230 KB free.  309 KB integral at 320×240 doesn't fit — M7
+ArUco is **forced** to back the integral in SDRAM.  M4's OCRAM
+is unallocated (504 KB free post commit 692f8b95).  M4 gets the
+fast on-die path "for free".
+
+Production at 320×240:
+- M7 SDRAM: 12 ms (current)
+- M4 OCRAM: 9.75 ms (this WP) — **wins by ~20% AND frees M7
+  for camera/TPU/safety/VPE/REPL.**
+
+If a future TPU model shrinks `.tpu_input` enough to free
+≥309 KB of OCRAM for ArUco, M7 would return to ~0.85 ms — a
+14× improvement over current production.  Documented as a
+deferred lever in `[[op-s10-w15-arm-memory-budget]]`.
 
 ## 9. Hard rules / DO NOT REDISCOVER
 
