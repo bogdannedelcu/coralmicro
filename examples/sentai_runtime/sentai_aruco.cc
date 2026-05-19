@@ -132,8 +132,15 @@ static int32_t  s_fill_stack[ARUCO_FILL_STACK_SZ] ARUCO_OCRAM_ATTR;
 
 typedef struct {
     int      x0, y0, x1, y1;     // bounding box (inclusive)
-    int      cx_sum, cy_sum;     // centroid accumulator
+    int      cx_sum, cy_sum;     // first-order centroid accumulator (m10, m01)
     int      n_pix;
+    // OP-S10-W17-T2: 2nd-order moment accumulators, populated in
+    // aruco_label_components flood-fill so the WhyCon path doesn't
+    // need a separate Phase W2 rescan over the bbox.  64-bit because
+    // m20 = Σ x² can reach ~76800 × 320² ≈ 8 G for a full-frame blob.
+    int64_t  m20_sum;
+    int64_t  m02_sum;
+    int64_t  m11_sum;
     uint8_t  touches_border;
 } aruco_comp_t;
 
@@ -658,6 +665,7 @@ static int aruco_label_components(int w, int h) {
             c->x0 = x; c->x1 = x;
             c->y0 = y; c->y1 = y;
             c->cx_sum = 0; c->cy_sum = 0;
+            c->m20_sum = 0; c->m02_sum = 0; c->m11_sum = 0;
             c->n_pix = 0;
             c->touches_border = 0;
             while (stack_top > 0) {
@@ -670,6 +678,9 @@ static int aruco_label_components(int w, int h) {
                 if (py > c->y1) c->y1 = py;
                 c->cx_sum += px;
                 c->cy_sum += py;
+                c->m20_sum += (int64_t)px * px;
+                c->m02_sum += (int64_t)py * py;
+                c->m11_sum += (int64_t)px * py;
                 c->n_pix++;
                 if (px == 0 || px == w-1 || py == 0 || py == h-1) {
                     c->touches_border = 1;
@@ -2383,28 +2394,16 @@ static int whycon_filter_and_moments_(int n_comp, int W, int H) {
         float fill = (float)c->n_pix / (float)(bw * bh);
         if (fill < s_whycon_min_fill) continue;
 
-        // Re-scan pixels in bbox to accumulate 2nd-order moments.
-        // c->cx_sum / cy_sum already give m10/m01 (integer); we need
-        // m20, m02, m11 — accumulate them here.  Labels in s_labels[]
-        // are 1-based; the label for component ci is (ci+1) per
-        // aruco_label_components contract.
-        const uint8_t lab = (uint8_t)(ci + 1);
-        int64_t m20 = 0, m02 = 0, m11 = 0;
-        for (int y = c->y0; y <= c->y1; ++y) {
-            for (int x = c->x0; x <= c->x1; ++x) {
-                if (s_labels[x + y * W] != lab) continue;
-                m20 += (int64_t)x * x;
-                m02 += (int64_t)y * y;
-                m11 += (int64_t)x * y;
-            }
-        }
+        // OP-S10-W17-T2: 2nd-order moments are pre-accumulated by the
+        // flood-fill in aruco_label_components, so this stage no longer
+        // needs a bbox rescan.  c->m20_sum / m02_sum / m11_sum give the
+        // raw moments; central moments + eigenvalues stay the same.
         const float m00 = (float)c->n_pix;
         const float cx  = (float)c->cx_sum / m00;
         const float cy  = (float)c->cy_sum / m00;
-        // Central moments.
-        const float mu20 = (float)m20 / m00 - cx * cx;
-        const float mu02 = (float)m02 / m00 - cy * cy;
-        const float mu11 = (float)m11 / m00 - cx * cy;
+        const float mu20 = (float)c->m20_sum / m00 - cx * cx;
+        const float mu02 = (float)c->m02_sum / m00 - cy * cy;
+        const float mu11 = (float)c->m11_sum / m00 - cx * cy;
         // Eigenvalues of the covariance [[mu20, mu11],[mu11, mu02]].
         const float tr   = mu20 + mu02;
         const float det  = mu20 * mu02 - mu11 * mu11;
