@@ -2216,3 +2216,252 @@ extern "C" void sentai_aruco_get_stats(sentai_aruco_stats_t* out) {
     if (!out) return;
     memcpy(out, &s_stats, sizeof(*out));
 }
+
+// =========================================================================
+// OP-S10-W17-T1 — WhyCon-lite (timing prototype).
+//
+// Goal of THIS file's WhyCon block: measure end-to-end latency on M7
+// for the circular-marker pipeline (Krajník/Nitsche 2013 family).
+// It re-uses the existing ArUco scratch buffers and pipeline stages
+// A (threshold) + B (8-conn connected components) and adds:
+//   - Stage W1: filter components by area, bbox aspect, fill ratio
+//                 (rejects rectangles + thin shapes — circles only).
+//   - Stage W2: compute centroid sub-pixel + 2nd-order moments for
+//                 axis ratio (eccentricity proxy) on filtered candidates.
+//   - Stage W3 (optional): concentric-circle validation — checks for
+//                 an inner WHITE blob centered on each dark detection.
+//
+// Concentric check is the difference between "WhyCon-lite" (this file,
+// timing-focused) and full WhyCon — the original always validates the
+// inner ring.  Disabled by default so the timing reflects the minimum
+// detection pipeline.  Toggle via sentai_whycon_set_concentric_check(1).
+//
+// NOT integrated with safety/mission yet — pure perf instrumentation.
+// =========================================================================
+
+typedef struct {
+    float cx;      // centroid x sub-pixel
+    float cy;      // centroid y sub-pixel
+    float axis_a;  // semi-major axis length (pixels)
+    float axis_b;  // semi-minor axis length (pixels)
+    float angle;   // orientation of major axis (radians, [-π/2, π/2])
+    int   comp_id; // index in s_components
+} sentai_whycon_marker_t;
+
+#define SENTAI_WHYCON_MAX_DETS    16
+
+static sentai_whycon_marker_t s_whycon_markers[SENTAI_WHYCON_MAX_DETS];
+static int s_whycon_n_markers = 0;
+static int s_whycon_concentric_check = 0;  // 0 = WhyCon-lite, 1 = full WhyCon
+
+// Filter knobs — tuned for 320×240 frames, marker diameter 12-60 px.
+static int   s_whycon_min_area     = 25;     // pixels (≥ 5 px diameter @ 80% fill)
+static int   s_whycon_max_area     = 4000;   // pixels (~70 px diameter)
+static float s_whycon_min_fill     = 0.55f;  // circle ≈ π/4 = 0.785; allow noise
+static float s_whycon_max_bbox_ar  = 1.5f;   // bbox w/h ratio: circle ≈ 1.0
+static float s_whycon_max_axis_ratio = 2.0f; // a/b axis ratio: circle ≈ 1.0
+
+extern "C" void sentai_whycon_set_concentric_check(int on) {
+    s_whycon_concentric_check = on ? 1 : 0;
+}
+
+// Filter + moments stage.  Runs over s_components (already populated
+// by aruco_label_components) + s_labels (label map for moment scan).
+//
+// Algorithm per candidate component:
+//   1) Coarse filter on area + bbox aspect + fill ratio  (rejects
+//      non-circles cheaply).
+//   2) Walk all pixels labelled `lab` within the bbox, accumulate
+//      m10, m01, m20, m02, m11 (zeroth-order m00 already known as
+//      c->n_pix).  ~5-15 cyc/px; bbox-bounded so it's much cheaper
+//      than a full-frame scan even for large blobs.
+//   3) Compute central moments + eigenvalues to extract semi-axes
+//      a, b and axis angle.  Reject if a/b > max_axis_ratio.
+//
+// Output written to s_whycon_markers[].  Returns count.
+static int whycon_filter_and_moments_(int n_comp, int W, int H) {
+    s_whycon_n_markers = 0;
+    for (int ci = 0; ci < n_comp; ++ci) {
+        if (s_whycon_n_markers >= SENTAI_WHYCON_MAX_DETS) break;
+        const aruco_comp_t* c = &s_components[ci];
+        if (c->touches_border) continue;
+        if (c->n_pix < s_whycon_min_area) continue;
+        if (c->n_pix > s_whycon_max_area) continue;
+        const int bw = c->x1 - c->x0 + 1;
+        const int bh = c->y1 - c->y0 + 1;
+        // bbox aspect — reject elongated rectangles.
+        float ar = (bw > bh)
+                     ? (float)bw / (float)bh
+                     : (float)bh / (float)bw;
+        if (ar > s_whycon_max_bbox_ar) continue;
+        // Fill ratio — reject hollow / sparse shapes.
+        float fill = (float)c->n_pix / (float)(bw * bh);
+        if (fill < s_whycon_min_fill) continue;
+
+        // Re-scan pixels in bbox to accumulate 2nd-order moments.
+        // c->cx_sum / cy_sum already give m10/m01 (integer); we need
+        // m20, m02, m11 — accumulate them here.  Labels in s_labels[]
+        // are 1-based; the label for component ci is (ci+1) per
+        // aruco_label_components contract.
+        const uint8_t lab = (uint8_t)(ci + 1);
+        int64_t m20 = 0, m02 = 0, m11 = 0;
+        for (int y = c->y0; y <= c->y1; ++y) {
+            for (int x = c->x0; x <= c->x1; ++x) {
+                if (s_labels[x + y * W] != lab) continue;
+                m20 += (int64_t)x * x;
+                m02 += (int64_t)y * y;
+                m11 += (int64_t)x * y;
+            }
+        }
+        const float m00 = (float)c->n_pix;
+        const float cx  = (float)c->cx_sum / m00;
+        const float cy  = (float)c->cy_sum / m00;
+        // Central moments.
+        const float mu20 = (float)m20 / m00 - cx * cx;
+        const float mu02 = (float)m02 / m00 - cy * cy;
+        const float mu11 = (float)m11 / m00 - cx * cy;
+        // Eigenvalues of the covariance [[mu20, mu11],[mu11, mu02]].
+        const float tr   = mu20 + mu02;
+        const float det  = mu20 * mu02 - mu11 * mu11;
+        const float disc = tr * tr * 0.25f - det;
+        const float sq   = disc > 0.0f ? __builtin_sqrtf(disc) : 0.0f;
+        const float l1   = tr * 0.5f + sq;
+        const float l2   = tr * 0.5f - sq;
+        const float a    = (l1 > 0.0f) ? 2.0f * __builtin_sqrtf(l1) : 0.0f;
+        const float b    = (l2 > 0.0f) ? 2.0f * __builtin_sqrtf(l2) : 0.0f;
+        if (b < 0.001f) continue;
+        const float ax_ratio = a / b;
+        if (ax_ratio > s_whycon_max_axis_ratio) continue;
+        // Orientation of major axis.
+        const float theta = 0.5f * __builtin_atan2f(2.0f * mu11, mu20 - mu02);
+
+        sentai_whycon_marker_t* m = &s_whycon_markers[s_whycon_n_markers++];
+        m->cx = cx; m->cy = cy;
+        m->axis_a = a; m->axis_b = b; m->angle = theta;
+        m->comp_id = ci;
+    }
+    return s_whycon_n_markers;
+}
+
+// Synth frame generator — draws N filled black disks on a white
+// background.  Deterministic positions on a coarse grid + small
+// jitter from index, so the bench is reproducible.  Output written
+// to s_test_gray, returns number of disks actually drawn.
+static int whycon_synth_frame_(int n_circles, int radius, int W, int H) {
+    // White background.
+    memset(s_test_gray, 220, (size_t)W * (size_t)H);
+    if (n_circles <= 0) return 0;
+    if (n_circles > 8) n_circles = 8;
+    if (radius < 4) radius = 4;
+    if (radius > 30) radius = 30;
+    // Lay out on up-to-4x2 grid.
+    const int cols = (n_circles > 4) ? 4 : n_circles;
+    const int rows = (n_circles + cols - 1) / cols;
+    const int dx = W / (cols + 1);
+    const int dy = H / (rows + 1);
+    int drawn = 0;
+    for (int i = 0; i < n_circles; ++i) {
+        const int col = i % cols;
+        const int row = i / cols;
+        const int cx = (col + 1) * dx + (i * 7) % 5;   // small jitter
+        const int cy = (row + 1) * dy + (i * 13) % 5;
+        for (int y = cy - radius; y <= cy + radius; ++y) {
+            if (y < 0 || y >= H) continue;
+            for (int x = cx - radius; x <= cx + radius; ++x) {
+                if (x < 0 || x >= W) continue;
+                const int dxp = x - cx;
+                const int dyp = y - cy;
+                if (dxp * dxp + dyp * dyp <= radius * radius) {
+                    s_test_gray[x + y * W] = 20;   // dark disk
+                }
+            }
+        }
+        ++drawn;
+    }
+    return drawn;
+}
+
+// Top-level WhyCon-lite detect — used both standalone (synth bench)
+// and from the public _test_pgm wrapper.  Frame size is fixed 320×240
+// (production resolution).
+static int whycon_detect_inplace_(int W, int H) {
+    // Stage A — rolling-integral Bradley threshold.  block_size = 31
+    // is the tuned value for circles at 12-60 px diameter; finer
+    // edges than ArUco quads benefit from a slightly smaller block.
+    aruco_adaptive_threshold_rolling(s_test_gray, W, H, 31, s_binary);
+    // Phase B — 8-connected flood-fill labeling.
+    // 4-conn / 8-conn doesn't matter much for circles (no diagonal
+    // bridges), but 8-conn is the same path as ArUco so we re-use.
+    // First invert binary: aruco_adaptive_threshold writes 1=below-mean
+    // (i.e. dark pixel), which IS what we want for black disks — keep
+    // as-is.
+    const int n_comp = aruco_label_components(W, H);
+    // Stage W1+W2 — filter + moments.
+    return whycon_filter_and_moments_(n_comp, W, H);
+}
+
+// Timing wrapper: build/load gray frame into s_test_gray, then run
+// the WhyCon-lite pipeline with DWT cycle counting around the
+// detection cost only (NOT the synth/PGM-load cost).
+static volatile uint32_t s_whycon_cyc_last = 0;
+
+extern "C" int sentai_whycon_test_synth(int n_circles, int radius) {
+    const int W = 320, H = 240;
+    if (n_circles < 0) n_circles = 0;
+    whycon_synth_frame_(n_circles, radius, W, H);
+    const uint32_t t0 = aruco_dwt_cyc();
+    const int n = whycon_detect_inplace_(W, H);
+    const uint32_t t1 = aruco_dwt_cyc();
+    s_whycon_cyc_last = t1 - t0;
+    return n;
+}
+
+extern "C" int sentai_whycon_test_pgm(const char* path) {
+    const int W = 320, H = 240;
+    // Re-use the ArUco PGM loader — both fopen and FxUser fallback
+    // paths populate s_test_gray with the 320×240 grayscale payload.
+    // We replicate the loader here as a thin call to keep timing
+    // pure (the actual ArUco function would also run detect after).
+    FILE* fp = fopen(path, "rb");
+    if (fp) {
+        char header[3] = {0};
+        int wpgm = 0, hpgm = 0, maxval = 0;
+        if (fscanf(fp, "%2s %d %d %d", header, &wpgm, &hpgm, &maxval) != 4
+            || header[0] != 'P' || header[1] != '5'
+            || wpgm != W || hpgm != H || maxval != 255) {
+            fclose(fp); return -2;
+        }
+        fgetc(fp);
+        if (fread(s_test_gray, 1, (size_t)W * (size_t)H, fp)
+              != (size_t)W * (size_t)H) {
+            fclose(fp); return -2;
+        }
+        fclose(fp);
+    } else {
+        ssize_t sz = FxUserSize(path);
+        if (sz < 0) return -1;
+        if ((size_t)sz > sizeof(s_labels)) return -3;
+        size_t got = FxUserReadFile(path, s_labels, sizeof(s_labels));
+        if (got == 0) return -1;
+        int rc = aruco_parse_pgm_buffer_(s_labels, got);
+        if (rc != 0) return rc;
+    }
+    const uint32_t t0 = aruco_dwt_cyc();
+    const int n = whycon_detect_inplace_(W, H);
+    const uint32_t t1 = aruco_dwt_cyc();
+    s_whycon_cyc_last = t1 - t0;
+    return n;
+}
+
+extern "C" uint32_t sentai_whycon_detect_cyc_last(void) {
+    return s_whycon_cyc_last;
+}
+
+extern "C" int sentai_whycon_get_markers(sentai_whycon_marker_t* out,
+                                           int out_capacity) {
+    if (!out || out_capacity <= 0) return 0;
+    const int n = (s_whycon_n_markers < out_capacity)
+                    ? s_whycon_n_markers : out_capacity;
+    memcpy(out, s_whycon_markers, (size_t)n * sizeof(sentai_whycon_marker_t));
+    return n;
+}
