@@ -1579,6 +1579,50 @@ extern "C" uint32_t sentai_aruco_thresh_new_cyc(void) {
     return s_aruco_thresh_new_cyc;
 }
 
+// OP-S10-W16 ablation 2026-05-19: re-run scalar threshold on the
+// synth frame with M7's D-cache DISABLED, return DWT cycles.  This
+// isolates the cache-thrash penalty contribution to M7's per-pixel
+// inefficiency vs M4 (which has no D-cache by design).  Expected
+// result: M7 cycle count drops from ~12.8M to closer to M4's ~3.9M
+// at 400 MHz × 2 → ~7-8M cycles, validating that the cache miss
+// penalty is the dominant cost on 309 KB integral-image stride
+// patterns.
+//
+// Only compiles on ARM (SCB_* MMIO is Cortex-M specific).
+#ifdef __arm__
+#include "third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/cm7/fsl_cache.h"
+extern "C" uint32_t sentai_aruco_thresh_nocache(int block) {
+    if (block < 3 || block > 511) return 0;
+    const int W = 320, H = 240;
+    // Build synth frame (same shape as verify).
+    for (int y = 0; y < H; ++y) {
+        for (int x = 0; x < W; ++x) {
+            uint32_t lfsr = (uint32_t)(y * W + x) * 2654435761u;
+            uint8_t noise = (lfsr >> 16) & 0x1F;
+            int v = 180 + (x * 40) / W + (int)noise - 8;
+            if (v < 0) v = 0;
+            if (v > 255) v = 255;
+            s_test_gray[y * W + x] = (uint8_t)v;
+        }
+    }
+    const int cx = W / 2, cy = H / 2;
+    for (int y = cy - 40; y < cy + 40; ++y) {
+        for (int x = cx - 40; x < cx + 40; ++x) {
+            s_test_gray[y * W + x] = 30;
+        }
+    }
+    SCB_CleanInvalidateDCache();   // flush dirty + invalidate all lines
+    SCB_DisableDCache();           // all subsequent loads bypass cache
+    const uint32_t t0 = aruco_dwt_cyc();
+    aruco_adaptive_threshold_scalar_ref(s_test_gray, W, H, block, s_binary);
+    const uint32_t t1 = aruco_dwt_cyc();
+    SCB_EnableDCache();            // restore for normal operation
+    return t1 - t0;
+}
+#else
+extern "C" uint32_t sentai_aruco_thresh_nocache(int) { return 0; }
+#endif
+
 static uint16_t aruco_rotate_pattern_cw(uint16_t pattern, int times) {
     uint16_t cur = pattern;
     for (int t = 0; t < times; ++t) {

@@ -29,6 +29,23 @@
 #include "libs/base/ipc_m4.h"
 #include "examples/sentai_runtime/m4_bench_message.h"
 
+// M4F has the same ARM DSP-extension instruction set as M7 (USUB8, SEL,
+// UQADD8 etc).  Inline-asm wrappers — verbatim from the sentai M7
+// production path in sentai_aruco.cc — let us measure the SIMD upper
+// bound on the same algorithm on the M4 core.
+#ifdef __arm__
+__attribute__((always_inline)) static inline uint32_t m4_usub8(uint32_t a, uint32_t b) {
+    uint32_t r;
+    __asm volatile ("usub8 %0, %1, %2" : "=r"(r) : "r"(a), "r"(b));
+    return r;
+}
+__attribute__((always_inline)) static inline uint32_t m4_sel(uint32_t a, uint32_t b) {
+    uint32_t r;
+    __asm volatile ("sel %0, %1, %2" : "=r"(r) : "r"(a), "r"(b));
+    return r;
+}
+#endif
+
 // ─────────────────────────────────────────────────────────────────
 // Threshold buffers — entirely M4-local but split across regions:
 //   - s_gray, s_binary, s_integral → m_ocram (.ocram_bss section).
@@ -96,13 +113,14 @@ static void synth_frame_(void) {
     }
 }
 
-// Bradley adaptive threshold — verbatim algorithm from sentai_aruco.cc
-// (the scalar reference path).  Math IDENTICAL to the M7 production
-// kernel; this run produces the M4 cycle count for the same
-// algorithm.
+// Bradley adaptive threshold — SIMD path mirrors M7 production
+// (sentai_aruco.cc commit 35b18c9d T18-T+U).  Math IDENTICAL.
+// Phase 2 splits interior (4-wide __USUB8/__SEL compare,
+// divide-eliminated) from border (scalar with x clamping).
 static void aruco_adaptive_threshold_m4(int block) {
     const int W = M4_FRAME_W, H = M4_FRAME_H;
     const int stride_i = W + 1;
+    // Phase 1 — serial prefix sum integral image.
     for (int x = 0; x <= W; ++x) s_integral[x] = 0;
     for (int y = 1; y <= H; ++y) {
         int32_t row_sum = 0;
@@ -114,22 +132,72 @@ static void aruco_adaptive_threshold_m4(int block) {
         }
     }
     const int half = block / 2;
+    const int x_int_start = (half <= W - 1) ? half : W;
+    const int x_int_end   = (W - half - 1 >= 0) ? (W - half - 1) : -1;
+    const uint32_t C_plus_1_pack = (uint32_t)(ARUCO_THRESH_C + 1) * 0x01010101u;
+    const uint32_t ones_pack     = 0x01010101u;
+    const uint32_t zeros_pack    = 0x00000000u;
     for (int y = 0; y < H; ++y) {
-        int y0 = y - half;        if (y0 < 0) y0 = 0;
-        int y1 = y + half;        if (y1 >= H) y1 = H - 1;
-        for (int x = 0; x < W; ++x) {
-            int x0 = x - half;    if (x0 < 0) x0 = 0;
-            int x1 = x + half;    if (x1 >= W) x1 = W - 1;
-            const int32_t A = s_integral[(x1+1) + (y1+1) * stride_i];
-            const int32_t B = s_integral[(x0)   + (y1+1) * stride_i];
-            const int32_t C = s_integral[(x1+1) + (y0)   * stride_i];
-            const int32_t D = s_integral[(x0)   + (y0)   * stride_i];
-            const int32_t box_sum = A - B - C + D;
-            const int32_t box_area = (x1 - x0 + 1) * (y1 - y0 + 1);
-            const int32_t mean = box_sum / box_area;
-            const uint8_t v = s_gray[x + y * W];
-            s_binary[x + y * W] = ((int32_t)v < mean - ARUCO_THRESH_C)
-                                    ? 1u : 0u;
+        int y0 = y - half; if (y0 < 0) y0 = 0;
+        int y1 = y + half; if (y1 >= H) y1 = H - 1;
+        const int32_t y_factor = y1 - y0 + 1;
+        const int32_t* int_top = s_integral + (y0)     * stride_i;
+        const int32_t* int_bot = s_integral + (y1 + 1) * stride_i;
+        const uint8_t* gray_row = s_gray + y * W;
+        uint8_t*       bin_row  = s_binary + y * W;
+        // Left border (scalar, x clamped).
+        for (int x = 0; x < x_int_start; ++x) {
+            int x0 = x - half; if (x0 < 0) x0 = 0;
+            int x1 = x + half; if (x1 >= W) x1 = W - 1;
+            const int32_t bs = int_bot[x1 + 1] - int_bot[x0]
+                              - int_top[x1 + 1] + int_top[x0];
+            const int32_t ba = (x1 - x0 + 1) * y_factor;
+            const int32_t mean = bs / ba;
+            bin_row[x] = ((int32_t)gray_row[x] < mean - ARUCO_THRESH_C)
+                          ? 1u : 0u;
+        }
+        // Interior — 4-wide SIMD compare on M4F DSP extensions.
+        const int32_t box_area_int = (int32_t)block * y_factor;
+        int x = x_int_start;
+        for (; x + 4 <= x_int_end + 1; x += 4) {
+            const int32_t bs0 = int_bot[x + 0 + half + 1] - int_bot[x + 0 - half]
+                              - int_top[x + 0 + half + 1] + int_top[x + 0 - half];
+            const int32_t bs1 = int_bot[x + 1 + half + 1] - int_bot[x + 1 - half]
+                              - int_top[x + 1 + half + 1] + int_top[x + 1 - half];
+            const int32_t bs2 = int_bot[x + 2 + half + 1] - int_bot[x + 2 - half]
+                              - int_top[x + 2 + half + 1] + int_top[x + 2 - half];
+            const int32_t bs3 = int_bot[x + 3 + half + 1] - int_bot[x + 3 - half]
+                              - int_top[x + 3 + half + 1] + int_top[x + 3 - half];
+            const uint32_t m0 = (uint32_t)(bs0 / box_area_int) & 0xFFu;
+            const uint32_t m1 = (uint32_t)(bs1 / box_area_int) & 0xFFu;
+            const uint32_t m2 = (uint32_t)(bs2 / box_area_int) & 0xFFu;
+            const uint32_t m3 = (uint32_t)(bs3 / box_area_int) & 0xFFu;
+            const uint32_t m_pack = m0 | (m1 << 8) | (m2 << 16) | (m3 << 24);
+            const uint32_t g_pack = *(const uint32_t*)(gray_row + x);
+            const uint32_t raw      = m4_usub8(m_pack, g_pack);
+            const uint32_t clamped  = m4_sel(raw, zeros_pack);
+            (void)              m4_usub8(clamped, C_plus_1_pack);
+            const uint32_t bin_pack = m4_sel(ones_pack, zeros_pack);
+            *(uint32_t*)(bin_row + x) = bin_pack;
+        }
+        // Interior tail (1-3 leftover pixels).
+        for (; x <= x_int_end; ++x) {
+            const int32_t bs = int_bot[x + half + 1] - int_bot[x - half]
+                              - int_top[x + half + 1] + int_top[x - half];
+            const int32_t mean = bs / box_area_int;
+            bin_row[x] = ((int32_t)gray_row[x] < mean - ARUCO_THRESH_C)
+                          ? 1u : 0u;
+        }
+        // Right border (scalar, x1 clamped).
+        for (int x = x_int_end + 1; x < W; ++x) {
+            int x0 = x - half; if (x0 < 0) x0 = 0;
+            int x1 = x + half; if (x1 >= W) x1 = W - 1;
+            const int32_t bs = int_bot[x1 + 1] - int_bot[x0]
+                              - int_top[x1 + 1] + int_top[x0];
+            const int32_t ba = (x1 - x0 + 1) * y_factor;
+            const int32_t mean = bs / ba;
+            bin_row[x] = ((int32_t)gray_row[x] < mean - ARUCO_THRESH_C)
+                          ? 1u : 0u;
         }
     }
 }

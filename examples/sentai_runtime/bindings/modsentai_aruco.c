@@ -281,6 +281,15 @@ static mp_obj_t aruco_thresh_cycles_(void) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(aruco_thresh_cycles_obj, aruco_thresh_cycles_);
 
+// OP-S10-W16 ablation: run scalar threshold on M7 with D-cache OFF.
+// Validates that cache thrash on 309 KB integral image is the root
+// cause of M7's per-pixel inefficiency vs M4.
+extern uint32_t sentai_aruco_thresh_nocache(int block);
+static mp_obj_t aruco_thresh_nocache_(mp_obj_t block_obj) {
+    return mp_obj_new_int_from_uint(sentai_aruco_thresh_nocache(mp_obj_get_int(block_obj)));
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(aruco_thresh_nocache_obj, aruco_thresh_nocache_);
+
 // =======================================================================
 // Module table
 // =======================================================================
@@ -302,6 +311,7 @@ static const mp_rom_map_elem_t sentai_aruco_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR__test_pgm),         MP_ROM_PTR(&aruco_test_pgm_obj) },
     { MP_ROM_QSTR(MP_QSTR__verify_threshold), MP_ROM_PTR(&aruco_verify_threshold_obj) },
     { MP_ROM_QSTR(MP_QSTR__thresh_cycles),    MP_ROM_PTR(&aruco_thresh_cycles_obj) },
+    { MP_ROM_QSTR(MP_QSTR__thresh_nocache),   MP_ROM_PTR(&aruco_thresh_nocache_obj) },
 };
 static MP_DEFINE_CONST_DICT(sentai_aruco_globals, sentai_aruco_globals_table);
 
