@@ -912,9 +912,9 @@ static mp_obj_t mod_sentai_diag_m4_aruco_bench(mp_obj_t block_obj) {
     mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_us),
                        mp_obj_new_int(cyc / 400u));
     mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_frame_w),
-                       mp_obj_new_int(80));
+                       mp_obj_new_int(320));
     mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_frame_h),
-                       mp_obj_new_int(60));
+                       mp_obj_new_int(240));
     return d;
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_diag_m4_aruco_bench_obj,

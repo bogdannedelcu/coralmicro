@@ -30,17 +30,20 @@
 #include "examples/sentai_runtime/m4_bench_message.h"
 
 // ─────────────────────────────────────────────────────────────────
-// Threshold buffers — entirely M4-local.
-// Frame 80×60 = 4800 pixels.  Integral image (81×61)·4 = 19 764 B.
-// Output binary 4800 B.  Total ≈ 28 KB — fits comfortably in
-// M4 m_data (128 KB).
+// Threshold buffers — entirely M4-local but split across regions:
+//   - s_gray, s_binary, s_integral → m_ocram (.ocram_bss section).
+//     Total at 320×240 = 76 + 76 + 309 = 461 KB out of 504 KB
+//     m_ocram, ~43 KB margin.
+//   - Stack, task TCBs, mailbox, work-sem buf stay in m_data
+//     (128 KB) where the default .bss lands.
+// Production frame size; identical math to M7 SafetyArucoBaseline.
 // ─────────────────────────────────────────────────────────────────
-#define M4_FRAME_W  80
-#define M4_FRAME_H  60
+#define M4_FRAME_W  320
+#define M4_FRAME_H  240
 
-static uint8_t  s_gray   [M4_FRAME_W * M4_FRAME_H]                  __attribute__((aligned(32)));
-static uint8_t  s_binary [M4_FRAME_W * M4_FRAME_H]                  __attribute__((aligned(32)));
-static int32_t  s_integral[(M4_FRAME_W + 1) * (M4_FRAME_H + 1)]     __attribute__((aligned(32)));
+static uint8_t  s_gray   [M4_FRAME_W * M4_FRAME_H]                  __attribute__((section(".ocram_bss"), aligned(32)));
+static uint8_t  s_binary [M4_FRAME_W * M4_FRAME_H]                  __attribute__((section(".ocram_bss"), aligned(32)));
+static int32_t  s_integral[(M4_FRAME_W + 1) * (M4_FRAME_H + 1)]     __attribute__((section(".ocram_bss"), aligned(32)));
 
 #define ARUCO_THRESH_C  7
 
