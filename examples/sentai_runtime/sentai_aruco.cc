@@ -27,6 +27,26 @@
 #include <stdio.h>     // fopen/fprintf for s175 detect_pgm_file test
 #include <string.h>
 
+// ARM Cortex-M7 DSP-extension intrinsics (aruco_usub8, aruco_sel, __UQADD8).
+// Toolchain `arm_acle.h` doesn't ship these on this gcc 9.3 SDK; we wrap
+// the inline-asm forms directly (verbatim from CMSIS/Core cmsis_gcc.h).
+// SIM (x86_64) builds use scalar fallback.
+#ifdef __arm__
+  __attribute__((always_inline)) static inline uint32_t aruco_usub8(uint32_t a, uint32_t b) {
+      uint32_t r;
+      __asm volatile ("usub8 %0, %1, %2" : "=r"(r) : "r"(a), "r"(b));
+      return r;
+  }
+  __attribute__((always_inline)) static inline uint32_t aruco_sel(uint32_t a, uint32_t b) {
+      uint32_t r;
+      __asm volatile ("sel %0, %1, %2" : "=r"(r) : "r"(a), "r"(b));
+      return r;
+  }
+  #define ARUCO_HAVE_DSP_SIMD 1
+#else
+  #define ARUCO_HAVE_DSP_SIMD 0
+#endif
+
 // =========================================================================
 // Compile-time configuration.
 // =========================================================================
@@ -64,11 +84,15 @@
 
 // =========================================================================
 // Static buffers — .sdram_bss so they don't consume ITCM budget.
+// All hot buffers are 32 B aligned to match the Cortex-M7 D-cache line —
+// avoids partial-line invalidates on mixed read/write paths and lets the
+// compiler emit wide LDM/STM in the threshold inner loop without crossing
+// a cache line per 4-pixel chunk.  Per OP-S10-W15 alignment policy.
 // =========================================================================
 #ifdef __arm__
-#define ARUCO_BSS_ATTR  __attribute__((section(".sdram_bss")))
+#define ARUCO_BSS_ATTR  __attribute__((section(".sdram_bss"), aligned(32)))
 #else
-#define ARUCO_BSS_ATTR
+#define ARUCO_BSS_ATTR  __attribute__((aligned(32)))
 #endif
 
 static uint8_t  s_binary[ARUCO_BUF_SZ]   ARUCO_BSS_ATTR;
@@ -230,15 +254,16 @@ extern "C" void sentai_aruco_R_to_rvec(const float R[9], float rvec_out[3]) {
 //
 // Output is binary[i] = 0 or 1.
 // =========================================================================
-static void aruco_adaptive_threshold(const uint8_t* gray, int w, int h,
-                                       int block) {
+
+// Verbatim copy of the pre-2026-05-19 scalar implementation, kept as a
+// reference for the runtime byte-equivalence check
+// (`sentai_aruco_adaptive_threshold_verify`).  NOT called from production
+// — that uses `aruco_adaptive_threshold` below.
+static void aruco_adaptive_threshold_scalar_ref(const uint8_t* gray,
+                                                 int w, int h, int block,
+                                                 uint8_t* out_binary) {
     const int W = w, H = h;
     const int stride_i = W + 1;
-    // Build integral image (zeroes in row 0 / col 0 simplify boundary).
-    // i[(x+1) + (y+1) * stride] = i[(x) + (y+1) * stride]
-    //                            + i[(x+1) + (y) * stride]
-    //                            - i[(x) + (y) * stride]
-    //                            + gray[x + y*W]
     for (int x = 0; x <= W; ++x) s_integral[x] = 0;
     for (int y = 1; y <= H; ++y) {
         int32_t row_sum = 0;
@@ -264,10 +289,156 @@ static void aruco_adaptive_threshold(const uint8_t* gray, int w, int h,
             const int32_t box_area = (x1 - x0 + 1) * (y1 - y0 + 1);
             const int32_t mean = box_sum / box_area;
             const uint8_t v = gray[x + y * W];
-            s_binary[x + y * W] = ((int32_t)v < mean - ARUCO_THRESH_C) ? 1u : 0u;
+            out_binary[x + y * W] = ((int32_t)v < mean - ARUCO_THRESH_C)
+                                      ? 1u : 0u;
         }
     }
 }
+
+// OP-S10-W14-T18-T iteration history (kept here so the dead ends and
+// the win are both documented in-line):
+//
+//   - Iter 1: per-column LUTs + division-elimination in pure C.
+//     Measured 24 % SLOWER; gcc -O2 already hoists invariants and
+//     converts the divide to multiply-by-reciprocal.  LUT loads
+//     added 3 cacheable hits per pixel and broke pipelining.
+//   - Iter 2: ITCM placement via `__attribute__((section(".ramfunc")))`.
+//     Measured 16 % SLOWER; function-call overhead from breaking
+//     inlining outweighed the ITCM fetch win on an 870-byte kernel.
+//   - Iter 3: explicit CMSIS-DSP intrinsics (aruco_usub8 / aruco_sel /
+//     __UQADD8) for the interior columns + divide-free comparison
+//     ((gray+C+1)*box_area <= box_sum, math-identical to mean-based
+//     form).  This is the current production variant
+//     (`aruco_adaptive_threshold` below).
+//
+// Byte-equivalence vs the scalar reference is asserted at runtime by
+// sentai_aruco_adaptive_threshold_verify() — any future Phase-2 refactor
+// MUST keep that at 0 mismatches.  Cycle counts queryable from MP via
+// sentai.aruco._thresh_cycles().
+//
+// Production threshold — Phase 1 scalar (serial prefix sum), Phase 2 split:
+//   - Interior columns (x_factor = block, constant per row): 4-wide SIMD
+//     compare via aruco_usub8/aruco_sel on Cortex-M7 DSP extensions.  Divide-free
+//     via algebraic identity (gray<mean-C ⟺ mean-gray >= C+1).
+//   - Border columns (x_factor varies per pixel): scalar reference path.
+// On non-ARM (SIM) builds, falls back to scalar throughout — same math,
+// confirmed byte-identical by sentai_aruco_adaptive_threshold_verify().
+static void aruco_adaptive_threshold(const uint8_t* gray, int w, int h,
+                                       int block) {
+    const int W = w, H = h;
+    const int stride_i = W + 1;
+    // Phase 1 — integral image build (serial prefix sum; hard to vectorise).
+    for (int x = 0; x <= W; ++x) s_integral[x] = 0;
+    for (int y = 1; y <= H; ++y) {
+        int32_t row_sum = 0;
+        s_integral[y * stride_i] = 0;
+        for (int x = 1; x <= W; ++x) {
+            row_sum += gray[(x-1) + (y-1) * W];
+            s_integral[x + y * stride_i] = s_integral[x + (y-1) * stride_i]
+                                           + row_sum;
+        }
+    }
+    const int half = block / 2;
+    // Interior x range: [x_int_start .. x_int_end] inclusive, where both
+    // x-half >= 0 and x+half < W.  For W=320 block=201: [100, 219], 120
+    // cols (37.5 % of frame).  Borders use scalar path.
+    const int x_int_start = (half <= W - 1) ? half : W;
+    const int x_int_end   = (W - half - 1 >= 0) ? (W - half - 1) : -1;
+#if ARUCO_HAVE_DSP_SIMD
+    const uint32_t C_plus_1_pack = (uint32_t)(ARUCO_THRESH_C + 1) * 0x01010101u;
+    const uint32_t ones_pack     = 0x01010101u;
+    const uint32_t zeros_pack    = 0x00000000u;
+#endif
+    for (int y = 0; y < H; ++y) {
+        int y0 = y - half;        if (y0 < 0) y0 = 0;
+        int y1 = y + half;        if (y1 >= H) y1 = H - 1;
+        const int32_t y_factor   = y1 - y0 + 1;
+        const int32_t* int_top   = s_integral + (y0)     * stride_i;
+        const int32_t* int_bot   = s_integral + (y1 + 1) * stride_i;
+        const uint8_t* gray_row  = gray     + y * W;
+        uint8_t*       bin_row   = s_binary + y * W;
+        // Left border — scalar with x clamping.
+        for (int x = 0; x < x_int_start; ++x) {
+            int x0 = x - half; if (x0 < 0) x0 = 0;
+            int x1 = x + half; if (x1 >= W) x1 = W - 1;
+            const int32_t bs = int_bot[x1 + 1] - int_bot[x0]
+                              - int_top[x1 + 1] + int_top[x0];
+            const int32_t ba = (x1 - x0 + 1) * y_factor;
+            const int32_t mean = bs / ba;
+            bin_row[x] = ((int32_t)gray_row[x] < mean - ARUCO_THRESH_C)
+                          ? 1u : 0u;
+        }
+#if ARUCO_HAVE_DSP_SIMD
+        // Interior — 4-wide SIMD compare.  Divide-free: compare
+        //   (gray + C + 1) * box_area <= box_sum
+        // box_area = block * y_factor is constant inside this row.
+        const int32_t box_area_int = (int32_t)block * y_factor;
+        int x = x_int_start;
+        for (; x + 4 <= x_int_end + 1; x += 4) {
+            // Four box_sums.  Hardcoded offsets (no LUT) so the compiler
+            // can keep everything in registers.
+            const int32_t bs0 = int_bot[x + 0 + half + 1] - int_bot[x + 0 - half]
+                              - int_top[x + 0 + half + 1] + int_top[x + 0 - half];
+            const int32_t bs1 = int_bot[x + 1 + half + 1] - int_bot[x + 1 - half]
+                              - int_top[x + 1 + half + 1] + int_top[x + 1 - half];
+            const int32_t bs2 = int_bot[x + 2 + half + 1] - int_bot[x + 2 - half]
+                              - int_top[x + 2 + half + 1] + int_top[x + 2 - half];
+            const int32_t bs3 = int_bot[x + 3 + half + 1] - int_bot[x + 3 - half]
+                              - int_top[x + 3 + half + 1] + int_top[x + 3 - half];
+            // Mean = bs/ba (gcc-O2 converts to multiply-by-reciprocal
+            // since box_area_int is loop-invariant).  Bounded 0..255.
+            const uint32_t m0 = (uint32_t)(bs0 / box_area_int) & 0xFFu;
+            const uint32_t m1 = (uint32_t)(bs1 / box_area_int) & 0xFFu;
+            const uint32_t m2 = (uint32_t)(bs2 / box_area_int) & 0xFFu;
+            const uint32_t m3 = (uint32_t)(bs3 / box_area_int) & 0xFFu;
+            const uint32_t m_pack = m0 | (m1 << 8) | (m2 << 16) | (m3 << 24);
+            // Load 4 gray bytes as one uint32_t (M7 supports unaligned LDR.W).
+            const uint32_t g_pack = *(const uint32_t*)(gray_row + x);
+            // Two-step compare so the mean<gray underflow doesn't fool us:
+            //   1) raw = USUB8(mean, gray); GE[i]=1 iff mean[i]>=gray[i]
+            //   2) clamped = SEL(raw, 0)   — zero out lanes where mean<gray
+            //   3) USUB8(clamped, C+1)     — GE[i]=1 iff diff >= C+1
+            //   4) bin = SEL(1, 0)
+            const uint32_t raw      = aruco_usub8(m_pack, g_pack);
+            const uint32_t clamped  = aruco_sel(raw, zeros_pack);
+            (void)              aruco_usub8(clamped, C_plus_1_pack);
+            const uint32_t bin_pack = aruco_sel(ones_pack, zeros_pack);
+            *(uint32_t*)(bin_row + x) = bin_pack;
+        }
+        // Tail of interior (1-3 pixels) — scalar, no clamping needed.
+        for (; x <= x_int_end; ++x) {
+            const int32_t bs = int_bot[x + half + 1] - int_bot[x - half]
+                              - int_top[x + half + 1] + int_top[x - half];
+            const int32_t mean = bs / box_area_int;
+            bin_row[x] = ((int32_t)gray_row[x] < mean - ARUCO_THRESH_C)
+                          ? 1u : 0u;
+        }
+#else
+        // Non-ARM (SIM) fallback for interior — scalar, no clamps.
+        const int32_t box_area_int = (int32_t)block * y_factor;
+        for (int x = x_int_start; x <= x_int_end; ++x) {
+            const int32_t bs = int_bot[x + half + 1] - int_bot[x - half]
+                              - int_top[x + half + 1] + int_top[x - half];
+            const int32_t mean = bs / box_area_int;
+            bin_row[x] = ((int32_t)gray_row[x] < mean - ARUCO_THRESH_C)
+                          ? 1u : 0u;
+        }
+#endif
+        // Right border — scalar with x1 clamping.
+        for (int x = x_int_end + 1; x < W; ++x) {
+            int x0 = x - half; if (x0 < 0) x0 = 0;
+            int x1 = x + half; if (x1 >= W) x1 = W - 1;
+            const int32_t bs = int_bot[x1 + 1] - int_bot[x0]
+                              - int_top[x1 + 1] + int_top[x0];
+            const int32_t ba = (x1 - x0 + 1) * y_factor;
+            const int32_t mean = bs / ba;
+            bin_row[x] = ((int32_t)gray_row[x] < mean - ARUCO_THRESH_C)
+                          ? 1u : 0u;
+        }
+    }
+}
+
+// (sentai_aruco_adaptive_threshold_verify is defined after s_test_gray below.)
 
 // =========================================================================
 // Pipeline stage B — connected-component labeling (8-connected flood fill).
@@ -884,146 +1055,6 @@ static void aruco_realign_corners(float corners[8], int rotation_steps) {
 }
 
 // =========================================================================
-// Pipeline stage D.5 — Förstner corner sub-pixel refinement (T18-C).
-//
-// Ported byte-for-byte from OpenCV cv::cornerSubPix (cornersubpix.cpp,
-// 4.x), validated against the reference in Python at
-// examples/sentai_runtime/experiments/s177_corner_subpix_prototype/
-// our_subpix_pure.py — match to 0.0000 px on real-frame test inputs.
-//
-// Why we need this: contour-finder corners are integer-pixel; under
-// in-plane rotation the rendered marker corners drift sub-pixel; this
-// propagates to PnP Z at ~20-60 mm/frame (see s177 FINDINGS.md).
-// Refinement cuts the per-frame Z noise by ~5×.
-//
-// Window: 5×5 inner gradient region inside a 7×7 bilinear-sampled
-// patch.  Up to 30 iterations or |Δ| < 0.01 px.  Safety: revert to
-// initial corner if final |Δc| > 2 px on either axis (oscillation).
-// =========================================================================
-// win_half = 5 matches cv2.aruco DetectorParameters default
-// (cornerRefinementWinSize = 5 ⇒ 11x11 window).  Larger window is
-// required to capture corner offsets > 2 px that occur with rotated
-// quads (contour extrema land at integer-pixel near the true corner
-// but can be 2-3 px off the actual sub-pixel corner location).
-#define ARUCO_SUBPIX_WIN_HALF   2          // 5x5 inner window (cv2.aruco
-                                            // default = 5 = 11x11 window)
-#define ARUCO_SUBPIX_WIN        (2 * ARUCO_SUBPIX_WIN_HALF + 1)
-#define ARUCO_SUBPIX_BIG        (ARUCO_SUBPIX_WIN + 2)
-#define ARUCO_SUBPIX_MAX_ITER   30
-#define ARUCO_SUBPIX_EPS_PX     0.01f
-
-// cv2 Gaussian mask, computed at runtime once (11x11 → 121 floats,
-// constant after first call).  Build with:
-//   vy[i] = exp(-((i - win_half) / win_half)^2) for i in 0..2*win_half
-//   mask[i,j] = vy[i] * vy[j]
-static float ARUCO_SUBPIX_MASK[ARUCO_SUBPIX_WIN * ARUCO_SUBPIX_WIN];
-static int   ARUCO_SUBPIX_MASK_READY = 0;
-
-static void aruco_subpix_init_mask_(void) {
-    if (ARUCO_SUBPIX_MASK_READY) return;
-    const float inv_h = 1.0f / (float)ARUCO_SUBPIX_WIN_HALF;
-    for (int i = 0; i < ARUCO_SUBPIX_WIN; ++i) {
-        const float ry = (float)(i - ARUCO_SUBPIX_WIN_HALF) * inv_h;
-        const float vy = expf(-ry * ry);
-        for (int j = 0; j < ARUCO_SUBPIX_WIN; ++j) {
-            const float rx = (float)(j - ARUCO_SUBPIX_WIN_HALF) * inv_h;
-            ARUCO_SUBPIX_MASK[i * ARUCO_SUBPIX_WIN + j] = vy * expf(-rx * rx);
-        }
-    }
-    ARUCO_SUBPIX_MASK_READY = 1;
-}
-
-static inline float aruco_bilinear_(const uint8_t* img, int W, int H,
-                                     float x, float y) {
-    if (x < 0.0f) x = 0.0f;
-    if (y < 0.0f) y = 0.0f;
-    const float xmax = (float)(W - 1);
-    const float ymax = (float)(H - 1);
-    if (x > xmax) x = xmax;
-    if (y > ymax) y = ymax;
-    const int xi = (int)x;
-    const int yi = (int)y;
-    const float ax = x - (float)xi;
-    const float ay = y - (float)yi;
-    const int xi1 = (xi + 1 < W) ? xi + 1 : xi;
-    const int yi1 = (yi + 1 < H) ? yi + 1 : yi;
-    const float i00 = (float)img[yi  * W + xi ];
-    const float i01 = (float)img[yi  * W + xi1];
-    const float i10 = (float)img[yi1 * W + xi ];
-    const float i11 = (float)img[yi1 * W + xi1];
-    return (1.0f - ax) * (1.0f - ay) * i00 +
-           ax          * (1.0f - ay) * i01 +
-           (1.0f - ax) * ay          * i10 +
-           ax          * ay          * i11;
-}
-
-static void aruco_refine_corner_subpix(const uint8_t* img, int W, int H,
-                                        float* cx_io, float* cy_io) {
-    aruco_subpix_init_mask_();
-    const float x_init = *cx_io;
-    const float y_init = *cy_io;
-    float x = x_init;
-    float y = y_init;
-    const float half = (float)(ARUCO_SUBPIX_BIG - 1) * 0.5f;
-    const float eps_sq = ARUCO_SUBPIX_EPS_PX * ARUCO_SUBPIX_EPS_PX;
-    float patch[ARUCO_SUBPIX_BIG][ARUCO_SUBPIX_BIG];
-
-    for (int iter = 0; iter < ARUCO_SUBPIX_MAX_ITER; ++iter) {
-        // Bounds: bilinear handles edges but we need room for the
-        // 7x7 patch + 1 px margin for the inner gradient stencil.
-        if (x - half - 1.0f < 0.0f) break;
-        if (y - half - 1.0f < 0.0f) break;
-        if (x + half + 1.0f >= (float)W) break;
-        if (y + half + 1.0f >= (float)H) break;
-
-        for (int i = 0; i < ARUCO_SUBPIX_BIG; ++i) {
-            const float sy = y + ((float)i - half);
-            for (int j = 0; j < ARUCO_SUBPIX_BIG; ++j) {
-                const float sx = x + ((float)j - half);
-                patch[i][j] = aruco_bilinear_(img, W, H, sx, sy);
-            }
-        }
-
-        float A00 = 0.0f, A01 = 0.0f, A11 = 0.0f;
-        float b0 = 0.0f, b1 = 0.0f;
-        for (int di = 0; di < ARUCO_SUBPIX_WIN; ++di) {
-            const float pix_ry = (float)(di - ARUCO_SUBPIX_WIN_HALF);
-            for (int dj = 0; dj < ARUCO_SUBPIX_WIN; ++dj) {
-                const float pix_rx = (float)(dj - ARUCO_SUBPIX_WIN_HALF);
-                const float m   = ARUCO_SUBPIX_MASK[di * ARUCO_SUBPIX_WIN + dj];
-                const float tgx = patch[di + 1][dj + 2] - patch[di + 1][dj];
-                const float tgy = patch[di + 2][dj + 1] - patch[di    ][dj + 1];
-                const float gxx = tgx * tgx * m;
-                const float gxy = tgx * tgy * m;
-                const float gyy = tgy * tgy * m;
-                A00 += gxx;
-                A01 += gxy;
-                A11 += gyy;
-                b0 += gxx * pix_rx + gxy * pix_ry;
-                b1 += gxy * pix_rx + gyy * pix_ry;
-            }
-        }
-        const float det = A00 * A11 - A01 * A01;
-        if (fabsf(det) < 1e-12f) break;
-        const float inv = 1.0f / det;
-        const float dx  = ( A11 * b0 - A01 * b1) * inv;
-        const float dy  = (-A01 * b0 + A00 * b1) * inv;
-        x += dx;
-        y += dy;
-        if (dx*dx + dy*dy < eps_sq) break;
-    }
-
-    // cv2 safety revert.
-    const float wh = (float)ARUCO_SUBPIX_WIN_HALF;
-    if (fabsf(x - x_init) > wh || fabsf(y - y_init) > wh) {
-        x = x_init;
-        y = y_init;
-    }
-    *cx_io = x;
-    *cy_io = y;
-}
-
-// =========================================================================
 // T18-M — Port of cv2 IPPE_SQUARE PnP solver
 // (opencv/modules/calib3d/src/ippe.cpp, BSD-3-Clause, OpenCV 4.x).
 //
@@ -1482,6 +1513,72 @@ static int aruco_pnp_from_corners(const float corners[8],
 // =========================================================================
 static uint8_t s_test_gray[ARUCO_BUF_SZ] ARUCO_BSS_ATTR;
 
+// DWT cycle counter for Cortex-M7 (no-op on POSIX SIM — returns 0).
+static inline uint32_t aruco_dwt_cyc(void) {
+#if defined(__ARM_ARCH) && (__ARM_ARCH >= 7)
+    return *((volatile uint32_t*)0xE0001004u);  // DWT->CYCCNT
+#else
+    return 0u;
+#endif
+}
+
+// Per-bench cycle counts, written by sentai_aruco_threshold_bench(),
+// read by the MP binding.
+extern "C" {
+uint32_t s_aruco_thresh_old_cyc = 0;
+uint32_t s_aruco_thresh_new_cyc = 0;
+}
+
+// Runtime byte-equivalence check for the SIMD-friendly adaptive threshold
+// (OP-S10-W14-T18-T).  Builds a deterministic synth gray frame
+// (gradient + LFSR noise + central dark square — same shape as
+// aruco_bench.cc's init_pattern), runs both the scalar reference and the
+// optimized variant, and returns the count of differing s_binary bytes.
+// 0 == math-identical (expected).  Also leaves cycle counts for each
+// variant in s_aruco_thresh_*_cyc — read via sentai.aruco._thresh_cycles().
+// Called from MP via sentai.aruco._verify_threshold(block).
+extern "C" int sentai_aruco_adaptive_threshold_verify(int block) {
+    const int W = 320, H = 240;
+    if (block < 3 || block > 511) return -1;
+    for (int y = 0; y < H; ++y) {
+        for (int x = 0; x < W; ++x) {
+            uint32_t lfsr = (uint32_t)(y * W + x) * 2654435761u;
+            uint8_t noise = (lfsr >> 16) & 0x1F;
+            int v = 180 + (x * 40) / W + (int)noise - 8;
+            if (v < 0) v = 0;
+            if (v > 255) v = 255;
+            s_test_gray[y * W + x] = (uint8_t)v;
+        }
+    }
+    const int cx = W / 2, cy = H / 2;
+    for (int y = cy - 40; y < cy + 40; ++y) {
+        for (int x = cx - 40; x < cx + 40; ++x) {
+            s_test_gray[y * W + x] = 30;
+        }
+    }
+    // Run scalar reference → write into s_labels (also 320*240 byte buffer).
+    const uint32_t t0 = aruco_dwt_cyc();
+    aruco_adaptive_threshold_scalar_ref(s_test_gray, W, H, block, s_labels);
+    const uint32_t t1 = aruco_dwt_cyc();
+    // Run optimized variant → writes into s_binary.
+    aruco_adaptive_threshold(s_test_gray, W, H, block);
+    const uint32_t t2 = aruco_dwt_cyc();
+    s_aruco_thresh_old_cyc = t1 - t0;
+    s_aruco_thresh_new_cyc = t2 - t1;
+    int mismatches = 0;
+    for (int i = 0; i < W * H; ++i) {
+        if (s_labels[i] != s_binary[i]) mismatches++;
+    }
+    return mismatches;
+}
+
+extern "C" uint32_t sentai_aruco_thresh_old_cyc(void) {
+    return s_aruco_thresh_old_cyc;
+}
+extern "C" uint32_t sentai_aruco_thresh_new_cyc(void) {
+    return s_aruco_thresh_new_cyc;
+}
+
 static uint16_t aruco_rotate_pattern_cw(uint16_t pattern, int times) {
     uint16_t cur = pattern;
     for (int t = 0; t < times; ++t) {
@@ -1746,15 +1843,13 @@ extern "C" int sentai_aruco_detect(const uint8_t* gray, int w, int h,
                 }
             }
 
-            // T18-Q ablation result: Förstner subpix refinement REGRESSED
-            // detection on real flight frames (322 → 320 @ 4/4 when
-            // enabled).  The integer-pixel corners from
-            // aruco_extract_quad + IPPE_SQUARE PnP handle 1-2 px noise
-            // well enough that subpix's safety-revert (win_half=2)
-            // sometimes drifts the corner toward a neighbouring strong
-            // gradient instead of the true marker corner.  Disabled.
-            // Code retained for future use if combined with proper
-            // findContours (T18-P).
+            // T18-Q ablation (2026-05-18): Förstner subpix refinement
+            // regressed detection on real flight frames (322 → 320 @ 4/4)
+            // when combined with IPPE_SQUARE.  Removed 2026-05-19 —
+            // integer-pixel corners from aruco_extract_quad + IPPE_SQUARE
+            // PnP handle 1-2 px noise well enough that the safety-revert
+            // path (win_half=2) sometimes drifted corners onto neighbour
+            // gradients.  See diary/2026-05-19.md for the deletion log.
 
             int rotation = 0;
             int hamming = 0;

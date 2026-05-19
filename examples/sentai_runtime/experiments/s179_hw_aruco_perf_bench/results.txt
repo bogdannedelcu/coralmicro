@@ -1,0 +1,30 @@
+# s179 HW ArUco detect perf bench (real M7 @ 800 MHz)
+# Generated: 2026-05-19 09:02:51
+# Board: 1fc9:c0a1 (Coral Dev Board Micro)
+# VERSION:SentAI v1.0 build 1353 (2026-05-19 08:58:48)
+# MODS:safety=1,fr=1,calib=1,aruco=1,fs=1,camera=1,crazy=1,flow=1,prep=0,places=1,servo=1,health=0,diag=1
+# synth frame: marker_id=0 side_px=96 (no FS dep)
+
+# kernel-bench (sentai.diag.aruco_bench) — single 320x240 Y8 frame
+# sub-stage cycle counts converted via M7 @ 800 MHz (800 cyc / us)
+kernel.scan_us           = 836   # raw memory scan (BW floor)
+kernel.thresh_naive_us   = 12165   # scalar 7x7 box mean
+kernel.thresh_bradley_us = 16464   # integral-image (Bradley-Roth)
+kernel.thresh_pxp_us     = 2799   # PXP HW scale + CPU compare
+kernel.edge_us           = 3761   # Sobel-like 3x3 |dx|+|dy|
+# PXP vs naive speedup       = 4.3x
+
+# end-to-end sentai_aruco_detect (synth marker → full multi-scale
+# threshold + contour search; PnP cost NOT included because synth
+# detection currently returns 0 markers post T18 — see CAVEAT.
+# Timing source: sentai.rtos.ticks_ms() (millisecond precision).
+n_iters         = 10
+times_ms        = [23, 23, 23, 23, 22, 23, 23, 23, 23, 23]
+dets            = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+min_ms          = 22
+median_ms       = 23
+mean_ms         = 22.9
+max_ms          = 23
+stdev_ms        = 0.3
+equivalent_fps  = 43.5 (median)
+30fps_budget    = 69% of 33.3 ms frame slot

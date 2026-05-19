@@ -259,6 +259,28 @@ static mp_obj_t aruco_test_pgm_(mp_obj_t path_obj) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(aruco_test_pgm_obj, aruco_test_pgm_);
 
+// OP-S10-W14-T18-T verify: runs scalar reference + optimized adaptive
+// threshold on a deterministic synth gray frame, returns the count of
+// differing s_binary bytes.  0 == math-identical (expected).
+extern int sentai_aruco_adaptive_threshold_verify(int block);
+static mp_obj_t aruco_verify_threshold_(mp_obj_t block_obj) {
+    const int block = mp_obj_get_int(block_obj);
+    return mp_obj_new_int(sentai_aruco_adaptive_threshold_verify(block));
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(aruco_verify_threshold_obj,
+                                  aruco_verify_threshold_);
+
+extern uint32_t sentai_aruco_thresh_old_cyc(void);
+extern uint32_t sentai_aruco_thresh_new_cyc(void);
+static mp_obj_t aruco_thresh_cycles_(void) {
+    mp_obj_t tup[2] = {
+        mp_obj_new_int_from_uint(sentai_aruco_thresh_old_cyc()),
+        mp_obj_new_int_from_uint(sentai_aruco_thresh_new_cyc()),
+    };
+    return mp_obj_new_tuple(2, tup);
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(aruco_thresh_cycles_obj, aruco_thresh_cycles_);
+
 // =======================================================================
 // Module table
 // =======================================================================
@@ -278,6 +300,8 @@ static const mp_rom_map_elem_t sentai_aruco_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR__test_synth_and_detect),
                                               MP_ROM_PTR(&aruco_test_synth_obj) },
     { MP_ROM_QSTR(MP_QSTR__test_pgm),         MP_ROM_PTR(&aruco_test_pgm_obj) },
+    { MP_ROM_QSTR(MP_QSTR__verify_threshold), MP_ROM_PTR(&aruco_verify_threshold_obj) },
+    { MP_ROM_QSTR(MP_QSTR__thresh_cycles),    MP_ROM_PTR(&aruco_thresh_cycles_obj) },
 };
 static MP_DEFINE_CONST_DICT(sentai_aruco_globals, sentai_aruco_globals_table);
 
