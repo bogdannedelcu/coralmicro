@@ -90,15 +90,29 @@
 // a cache line per 4-pixel chunk.  Per OP-S10-W15 alignment policy.
 // =========================================================================
 #ifdef __arm__
-#define ARUCO_BSS_ATTR  __attribute__((section(".sdram_bss"), aligned(32)))
+#define ARUCO_BSS_ATTR   __attribute__((section(".sdram_bss"), aligned(32)))
+// OP-S10-W16-T3.9: hottest random-access buffers in OCRAM.  s_binary is
+// read repeatedly by flood-fill (Phase B) + warp_to_canonical (Phase E),
+// and written by threshold (Phase A).  s_fill_stack is push/pop hot in
+// DFS.  s_labels is intentionally kept in SDRAM — putting all three in
+// OCRAM would overflow the 103 KB free post-.tpu_input budget; D-cache
+// absorbs s_labels' mostly-sequential access pattern.
+#define ARUCO_OCRAM_ATTR __attribute__((section(".ocram_bss"), aligned(32)))
 #else
-#define ARUCO_BSS_ATTR  __attribute__((aligned(32)))
+#define ARUCO_BSS_ATTR   __attribute__((aligned(32)))
+#define ARUCO_OCRAM_ATTR __attribute__((aligned(32)))
 #endif
 
 static uint8_t  s_binary[ARUCO_BUF_SZ]   ARUCO_BSS_ATTR;
 static uint8_t  s_labels[ARUCO_BUF_SZ]   ARUCO_BSS_ATTR;
 static int32_t  s_integral[(ARUCO_MAX_W + 1) * (ARUCO_MAX_H + 1)] ARUCO_BSS_ATTR;
 static int32_t  s_fill_stack[ARUCO_FILL_STACK_SZ] ARUCO_BSS_ATTR;
+// Note: ARUCO_BUF_SZ is sized for 640x480 (OV5640 max), so s_binary +
+// s_fill_stack at full ARUCO_BUF_SZ won't fit in 103 KB free OCRAM
+// after .tpu_input.  OCRAM-routing of these buffers requires either
+// downsizing ARUCO_BUF_SZ to 320x240 (loses 640x480 support) or
+// introducing a separate _ocram view sized for the production resolution.
+// Deferred — current rolling-only OCRAM placement still gives 1.67x.
 
 typedef struct {
     int      x0, y0, x1, y1;     // bounding box (inclusive)
@@ -1782,28 +1796,80 @@ static uint16_t aruco_rotate_pattern_cw(uint16_t pattern, int times) {
 //
 // Returns n_dets on success, -1 if file can't be opened, -2 if format
 // is unexpected.
-extern "C" int sentai_aruco_detect_pgm_file(const char* path) {
-    FILE* fp = fopen(path, "rb");
-    if (!fp) return -1;
-    char header[3] = {0};
+// PGM parse helper — given a memory buffer containing a full PGM file
+// (P5 raw), validate the 320x240 maxval=255 header and copy the pixel
+// payload into s_test_gray.  Returns 0 on success, -2 on bad header,
+// -3 on bad pixel-data size.
+static int aruco_parse_pgm_buffer_(const uint8_t* buf, size_t len) {
+    if (!buf || len < 16) return -2;
+    // Find header: "P5\n<W> <H>\n<maxval>\n<pixels>"
+    const char* p = (const char*)buf;
+    const char* end = p + len;
+    if (p[0] != 'P' || p[1] != '5') return -2;
+    p += 2;
     int w = 0, h = 0, maxval = 0;
-    if (fscanf(fp, "%2s %d %d %d", header, &w, &h, &maxval) != 4
-        || header[0] != 'P' || header[1] != '5') {
-        fclose(fp); return -2;
-    }
-    if (w != 320 || h != 240 || maxval != 255) {
-        fprintf(stderr, "detect_pgm: expected 320x240 maxval=255 P5, "
-                "got %dx%d maxval=%d header=%s\n", w, h, maxval, header);
-        fclose(fp); return -2;
-    }
-    // Skip the single whitespace after maxval, then read 76800 bytes.
-    fgetc(fp);
+    // Skip whitespace + parse w
+    while (p < end && (*p == ' ' || *p == '\n' || *p == '\t' || *p == '\r')) ++p;
+    while (p < end && *p >= '0' && *p <= '9') { w = w * 10 + (*p - '0'); ++p; }
+    while (p < end && (*p == ' ' || *p == '\n' || *p == '\t' || *p == '\r')) ++p;
+    while (p < end && *p >= '0' && *p <= '9') { h = h * 10 + (*p - '0'); ++p; }
+    while (p < end && (*p == ' ' || *p == '\n' || *p == '\t' || *p == '\r')) ++p;
+    while (p < end && *p >= '0' && *p <= '9') { maxval = maxval * 10 + (*p - '0'); ++p; }
+    // Exactly ONE whitespace separates maxval from pixel data per PGM P5.
+    if (p < end) ++p;
+    if (w != 320 || h != 240 || maxval != 255) return -2;
     const size_t expected = (size_t)w * (size_t)h;
-    if (expected > sizeof(s_test_gray)) { fclose(fp); return -2; }
-    if (fread(s_test_gray, 1, expected, fp) != expected) {
-        fclose(fp); return -2;
+    if ((size_t)(end - p) < expected) return -3;
+    if (expected > sizeof(s_test_gray)) return -3;
+    memcpy(s_test_gray, p, expected);
+    return 0;
+}
+
+// FxUser typed C API for FAT user-partition access (preferred per
+// agent.md §12).  Pure C linkage block in the header.
+#include "libs/base/fx_user_fs.h"
+
+extern "C" int sentai_aruco_detect_pgm_file(const char* path) {
+    // Path 1: try newlib fopen (works under SIM Linux + on LittleFS-
+    // backed system partition).
+    FILE* fp = fopen(path, "rb");
+    if (fp) {
+        char header[3] = {0};
+        int w = 0, h = 0, maxval = 0;
+        if (fscanf(fp, "%2s %d %d %d", header, &w, &h, &maxval) != 4
+            || header[0] != 'P' || header[1] != '5') {
+            fclose(fp); return -2;
+        }
+        if (w != 320 || h != 240 || maxval != 255) {
+            fprintf(stderr, "detect_pgm: expected 320x240 maxval=255 P5, "
+                    "got %dx%d maxval=%d header=%s\n", w, h, maxval, header);
+            fclose(fp); return -2;
+        }
+        fgetc(fp);
+        const size_t expected = (size_t)w * (size_t)h;
+        if (expected > sizeof(s_test_gray)) { fclose(fp); return -2; }
+        if (fread(s_test_gray, 1, expected, fp) != expected) {
+            fclose(fp); return -2;
+        }
+        fclose(fp);
+    } else {
+        // Path 2: HW board fallback — read via FxUser FAT API.  PGM
+        // files dropped via USB MSC mount live on the FAT volume and
+        // are NOT visible to libnewlib's fopen.
+        ssize_t sz = FxUserSize(path);
+        if (sz < 0) return -1;
+        // Provide a small staging buffer reusing s_labels (mostly idle
+        // before threshold runs).  Avoids a fresh allocation while
+        // staying within budget for 320x240 + small PGM header.
+        const size_t max_buf = sizeof(s_labels);
+        if ((size_t)sz > max_buf) return -3;
+        size_t got = FxUserReadFile(path, s_labels, max_buf);
+        if (got == 0) return -1;
+        int rc = aruco_parse_pgm_buffer_(s_labels, got);
+        if (rc != 0) return rc;
     }
-    fclose(fp);
+    // Both paths produce s_test_gray with the canonical 320x240 layout.
+    const int w = 320, h = 240;
     sentai_aruco_marker_t local[SENTAI_ARUCO_MAX_MARKERS];
     int n = sentai_aruco_detect(s_test_gray, w, h, 0, 0,
                                   local, SENTAI_ARUCO_MAX_MARKERS);
@@ -1906,6 +1972,24 @@ extern "C" int sentai_aruco_set_marker_size(float size_m) {
     return 0;
 }
 
+// OP-S10-W16-T3.8 — runtime toggle for rolling-integral threshold path.
+// 0 = use production aruco_adaptive_threshold (SIMD + full 309 KB integral image).
+// 1 = use aruco_adaptive_threshold_rolling (scalar, 2.6 KB OCRAM scratch).
+static volatile int s_aruco_use_rolling = 0;
+// Last call's full detect() cycle count (DWT @ M7 clock).  Updated whether
+// or not any markers were found, and whether or not the toggle is on.
+static volatile uint32_t s_aruco_detect_cyc_last = 0;
+
+extern "C" void sentai_aruco_set_use_rolling(int on) {
+    s_aruco_use_rolling = on ? 1 : 0;
+}
+extern "C" int sentai_aruco_get_use_rolling(void) {
+    return s_aruco_use_rolling;
+}
+extern "C" uint32_t sentai_aruco_detect_cyc_last(void) {
+    return s_aruco_detect_cyc_last;
+}
+
 extern "C" int sentai_aruco_detect(const uint8_t* gray, int w, int h,
                                     uint32_t frame_seq, uint32_t src_ts_ms,
                                     sentai_aruco_marker_t* out,
@@ -1917,6 +2001,8 @@ extern "C" int sentai_aruco_detect(const uint8_t* gray, int w, int h,
 
     s_stats.frames_total++;
     if (out_capacity <= 0) return 0;
+
+    const uint32_t detect_t0 = aruco_dwt_cyc();
 
     // T18-G: cv2.aruco-style multi-scale adaptive threshold.  cv2 default
     // is (winSizeMin=3, winSizeMax=23, winSizeStep=10) → blocks 3,13,23.
@@ -1937,7 +2023,11 @@ extern "C" int sentai_aruco_detect(const uint8_t* gray, int w, int h,
     for (int i = 0; i < SENTAI_ARUCO_MAX_MARKERS; ++i) best_set[i] = false;
 
     for (int si = 0; si < N_SCALES; ++si) {
-        aruco_adaptive_threshold(gray, w, h, SCALE_BLOCKS[si]);
+        if (s_aruco_use_rolling) {
+            aruco_adaptive_threshold_rolling(gray, w, h, SCALE_BLOCKS[si], s_binary);
+        } else {
+            aruco_adaptive_threshold(gray, w, h, SCALE_BLOCKS[si]);
+        }
         const int n_comp = aruco_label_components(w, h);
 
         // T18-O step 6: cv2 minMarkerPerimeterRate=0.03,
@@ -2110,6 +2200,7 @@ all_ids_found: ;
     } else {
         s_cache_count = 0;
     }
+    s_aruco_detect_cyc_last = aruco_dwt_cyc() - detect_t0;
     return n_out;
 }
 

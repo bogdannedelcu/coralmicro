@@ -290,6 +290,23 @@ static mp_obj_t aruco_thresh_nocache_(mp_obj_t block_obj) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(aruco_thresh_nocache_obj, aruco_thresh_nocache_);
 
+// OP-S10-W16-T3.8 — end-to-end detect() timing + rolling-path toggle.
+// Lets us measure the savings from rolling-integral threshold against
+// the full sentai_aruco_detect() pipeline (not just the threshold stage).
+extern void sentai_aruco_set_use_rolling(int on);
+extern int  sentai_aruco_get_use_rolling(void);
+extern uint32_t sentai_aruco_detect_cyc_last(void);
+static mp_obj_t aruco_use_rolling_(mp_obj_t on_obj) {
+    const int prev = sentai_aruco_get_use_rolling();
+    sentai_aruco_set_use_rolling(mp_obj_get_int(on_obj));
+    return mp_obj_new_int(prev);
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(aruco_use_rolling_obj, aruco_use_rolling_);
+static mp_obj_t aruco_detect_cyc_(void) {
+    return mp_obj_new_int_from_uint(sentai_aruco_detect_cyc_last());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(aruco_detect_cyc_obj, aruco_detect_cyc_);
+
 // OP-S10-W16-T3.8 — rolling-integral threshold verify + bench.
 // Eliminates the 309 KB integral image (uses 2.6 KB OCRAM scratch instead).
 // Returns byte-mismatch count vs scalar reference; cycle count for the
@@ -334,6 +351,8 @@ static const mp_rom_map_elem_t sentai_aruco_globals_table[] = {
                                               MP_ROM_PTR(&aruco_thresh_rolling_verify_obj) },
     { MP_ROM_QSTR(MP_QSTR__thresh_rolling_cyc),
                                               MP_ROM_PTR(&aruco_thresh_rolling_cyc_obj) },
+    { MP_ROM_QSTR(MP_QSTR__use_rolling),      MP_ROM_PTR(&aruco_use_rolling_obj) },
+    { MP_ROM_QSTR(MP_QSTR__detect_cyc),       MP_ROM_PTR(&aruco_detect_cyc_obj) },
 };
 static MP_DEFINE_CONST_DICT(sentai_aruco_globals, sentai_aruco_globals_table);
 
