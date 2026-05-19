@@ -24,19 +24,38 @@ static volatile uint32_t s_result_cycles = 0;
 static volatile uint16_t s_result_n_dets = 0;
 static int               s_m4_started    = 0;
 
+// Diagnostic counters — observe whether the handler is hit at all,
+// what message types arrive, and what payload bytes look like.
+static volatile uint32_t s_handler_calls  = 0;   // total invocations
+static volatile uint32_t s_handler_done   = 0;   // kBenchDone count
+static volatile uint32_t s_handler_other  = 0;   // any other type
+static volatile uint32_t s_last_type_byte = 0;
+static volatile uint32_t s_last_block     = 0;
+
 void handle_m4_message_(const uint8_t data[coralmicro::kIpcMessageBufferDataSize]) {
+    s_handler_calls++;
     const auto* msg = reinterpret_cast<const M4BenchAppMessage*>(data);
-    if (msg->type != M4BenchMessageType::kBenchDone) return;
+    s_last_type_byte = (uint32_t)data[0];
+    s_last_block     = (uint32_t)msg->block;
+    if (msg->type != M4BenchMessageType::kBenchDone) {
+        s_handler_other++;
+        return;
+    }
+    s_handler_done++;
     s_result_cycles = msg->cycles;
     s_result_n_dets = msg->n_dets;
-    // IpcM7 RX runs in a FreeRTOS *task*, not ISR — use plain
-    // xSemaphoreGive (the …FromISR variant was the v2 bug).
     if (s_result_sem) {
         xSemaphoreGive(s_result_sem);
     }
 }
 
 }  // namespace
+
+extern "C" uint32_t sentai_m4_bench_handler_calls(void)  { return s_handler_calls; }
+extern "C" uint32_t sentai_m4_bench_handler_done(void)   { return s_handler_done; }
+extern "C" uint32_t sentai_m4_bench_handler_other(void)  { return s_handler_other; }
+extern "C" uint32_t sentai_m4_bench_last_type(void)      { return s_last_type_byte; }
+extern "C" uint32_t sentai_m4_bench_last_block(void)     { return s_last_block; }
 
 // Lazily boot M4 + register handler.  Idempotent.  Returns 1 on
 // success, 0 if M4 didn't come up within `timeout_ms`.

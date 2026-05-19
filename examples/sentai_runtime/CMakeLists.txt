@@ -271,6 +271,12 @@ add_executable_m4(sentai_m4_aruco_bench
 target_link_libraries(sentai_m4_aruco_bench
     libs_base-m4_freertos
 )
+# OP-S10-W16 fix 2026-05-19: the global M4 linker
+# (libs/nxp/rt1176-sdk/MIMXRT1176xxxxx_cm4_ram.ld) has been modified
+# to mirror the sentai M7 rpmsg_sh_mem layout (0x2033E000, 8 KB).
+# Other coralmicro multi-core examples are disabled in the build
+# (examples/CMakeLists.txt:41-43), so the global change is safe for
+# this repo's current scope.  See OP-S10-W16_multicore.md §4.
 
 # Embed browser.html as a C byte array (avoids LFS system partition dependency)
 set(BROWSER_HTML_SRC "${CMAKE_CURRENT_SOURCE_DIR}/web/browser.html")

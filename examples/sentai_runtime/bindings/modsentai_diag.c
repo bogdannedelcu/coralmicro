@@ -892,8 +892,11 @@ extern int sentai_m4_bench_is_alive(void);
 
 static mp_obj_t mod_sentai_diag_m4_aruco_bench(mp_obj_t block_obj) {
     const int block = mp_obj_get_int(block_obj);
-    // Ensure M4 is up (idempotent; ~50 ms cold-start budget).
-    const int started = sentai_m4_bench_start(50u);
+    // Ensure M4 is up.  Cold-start budget generous: M4 needs to
+    // boot, init clocks, init MPU, run pre_app_main + my app_main,
+    // create worker task, then trigger the RemoteApplicationEvent
+    // that resumes M7's tx_task.  500 ms accommodates a slow path.
+    const int started = sentai_m4_bench_start(500u);
     uint32_t cyc = 0;
     int ok = 0;
     if (started) {
@@ -916,6 +919,30 @@ static mp_obj_t mod_sentai_diag_m4_aruco_bench(mp_obj_t block_obj) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_diag_m4_aruco_bench_obj,
                                   mod_sentai_diag_m4_aruco_bench);
+
+// Diagnostic peek into the M7-side IPC handler — useful when the
+// bench returns ok=0 to tell whether M7 ever saw a reply at all.
+extern uint32_t sentai_m4_bench_handler_calls(void);
+extern uint32_t sentai_m4_bench_handler_done(void);
+extern uint32_t sentai_m4_bench_handler_other(void);
+extern uint32_t sentai_m4_bench_last_type(void);
+extern uint32_t sentai_m4_bench_last_block(void);
+static mp_obj_t mod_sentai_diag_m4_bench_diag(void) {
+    mp_obj_t d = mp_obj_new_dict(0);
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_handler_calls),
+                       mp_obj_new_int_from_uint(sentai_m4_bench_handler_calls()));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_handler_done),
+                       mp_obj_new_int_from_uint(sentai_m4_bench_handler_done()));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_handler_other),
+                       mp_obj_new_int_from_uint(sentai_m4_bench_handler_other()));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_last_type),
+                       mp_obj_new_int_from_uint(sentai_m4_bench_last_type()));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_last_block),
+                       mp_obj_new_int_from_uint(sentai_m4_bench_last_block()));
+    return d;
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_diag_m4_bench_diag_obj,
+                                  mod_sentai_diag_m4_bench_diag);
 
 // ---- module table ----
 static const mp_rom_map_elem_t sentai_diag_globals_table[] = {
@@ -943,6 +970,7 @@ static const mp_rom_map_elem_t sentai_diag_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_flexram_info),    MP_ROM_PTR(&mod_sentai_diag_flexram_info_obj) },
     { MP_ROM_QSTR(MP_QSTR_fx_bench),        MP_ROM_PTR(&mod_sentai_diag_fx_bench_obj) },
     { MP_ROM_QSTR(MP_QSTR_m4_aruco_bench),  MP_ROM_PTR(&mod_sentai_diag_m4_aruco_bench_obj) },
+    { MP_ROM_QSTR(MP_QSTR_m4_bench_diag),   MP_ROM_PTR(&mod_sentai_diag_m4_bench_diag_obj) },
     { MP_ROM_QSTR(MP_QSTR_fx_stats),        MP_ROM_PTR(&mod_sentai_diag_fx_stats_obj) },
     { MP_ROM_QSTR(MP_QSTR_fx_format),       MP_ROM_PTR(&mod_sentai_diag_fx_format_obj) },
     { MP_ROM_QSTR(MP_QSTR_storage_log),     MP_ROM_PTR(&mod_sentai_diag_storage_log_obj) },

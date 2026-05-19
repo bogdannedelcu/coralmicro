@@ -131,17 +131,37 @@ static void aruco_adaptive_threshold_m4(int block) {
     }
 }
 
-// IpcM4 message handler — runs in IpcM4 RX task context.  EVENT
-// CAPTURE ONLY (per agent/embeded.md): record the request + give
-// the worker-task semaphore.  Do NOT compute here.
+// IpcM4 message handler.
+//
+// HELLO-WORLD MODE (operator request 2026-05-19 "fa un hello world
+// pt M4 sa verifici ca poti vorbi cu el din M7 REPL"): if the
+// requested block is the sentinel 0xCAFE, reply IMMEDIATELY from
+// the RX callback context (no semaphore, no worker task) — exactly
+// the multi_core_ipc_m4.cc pattern.  Mostly to bisect whether the
+// reply path itself works at all.
+//
+// Otherwise: event-capture only (give work-task semaphore).
 static void handle_m7_message_(const uint8_t data[coralmicro::kIpcMessageBufferDataSize]) {
     const auto* msg = reinterpret_cast<const M4BenchAppMessage*>(data);
     if (msg->type != M4BenchMessageType::kBenchGo) return;
     uint16_t block = msg->block;
+
+    if (block == 0xCAFEu) {
+        // Hello-world: reply right here from RX context.
+        coralmicro::IpcMessage ack{};
+        ack.type = coralmicro::IpcMessageType::kApp;
+        auto* app = reinterpret_cast<M4BenchAppMessage*>(&ack.message.data);
+        app->type   = M4BenchMessageType::kBenchDone;
+        app->block  = 0xCAFEu;
+        app->cycles = 0xCAFEBABEu;
+        app->n_dets = 0;
+        coralmicro::IpcM4::GetSingleton()->SendMessage(ack);
+        return;
+    }
+
     if (block < 3)   block = 3;
     if (block > 511) block = 511;
     s_pending_block = block;
-    // RX context — give from task (NOT from ISR); use plain xSemaphoreGive.
     if (s_work_sem) {
         xSemaphoreGive(s_work_sem);
     }

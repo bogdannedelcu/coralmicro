@@ -29,7 +29,21 @@ ENTRY(Reset_Handler)
 
 HEAP_SIZE  = DEFINED(__heap_size__)  ? __heap_size__  : 0x800000;
 STACK_SIZE = DEFINED(__stack_size__) ? __stack_size__ : 0x0400;
-RPMSG_SHMEM_SIZE = DEFINED(__use_shmem__) ? 0x4000 : 0;
+/* OP-S10-W16 fix 2026-05-19: aligned to the sentai M7 linker.
+ * Standard M7 linker has rpmsg at 0x202C0000 / 0x4000 (16 KB); sentai
+ * M7 linker (MIMXRT1176xxxxx_cm7_ram_mp.ld) moved rpmsg to 0x2033E000
+ * / 0x2000 (8 KB) so OCRAM2 below it can host the V22 TPU 786 KB
+ * tensor staging.  For cross-core FreeRTOS-MessageBuffers IPC the
+ * .noinit.$rpmsg_sh_mem section MUST live at the SAME physical
+ * address on both cores — the event handle reconstruction
+ * (__RPMSG_SH_MEM_START | eventData) silently mis-targets otherwise
+ * and reply messages are dropped on the floor.
+ *
+ * This M4 linker is now sentai-flavoured.  examples/multi_core_ipc
+ * and friends are disabled in the build (examples/CMakeLists.txt:
+ * 41-43); if/when re-enabled they need the standard M7 layout and
+ * this file would need to revert (or move sentai to a side linker). */
+RPMSG_SHMEM_SIZE = DEFINED(__use_shmem__) ? 0x2000 : 0;
 NCACHE_SIZE = 0x800;
 
 /* Specify the memory areas */
@@ -39,8 +53,10 @@ MEMORY
   m_text                (RX)  : ORIGIN = 0x20200400, LENGTH = 0x0001FC00
   m_ncache              (RW)  : ORIGIN = 0x20220000, LENGTH = NCACHE_SIZE
   m_data                (RW)  : ORIGIN = 0x20220000 + NCACHE_SIZE, LENGTH = 0x00020000 - NCACHE_SIZE
-  rpmsg_sh_mem          (RW)  : ORIGIN = 0x202C0000, LENGTH = RPMSG_SHMEM_SIZE
-  m_ocram               (RW)  : ORIGIN = 0x202C0000 + RPMSG_SHMEM_SIZE, LENGTH = 0x60000
+  /* rpmsg at the TOP of OCRAM2 — matches sentai M7 exactly. */
+  rpmsg_sh_mem          (RW)  : ORIGIN = 0x20340000 - RPMSG_SHMEM_SIZE, LENGTH = RPMSG_SHMEM_SIZE
+  /* m_ocram fills OCRAM2 below rpmsg — grew from 384 KB to ~504 KB. */
+  m_ocram               (RW)  : ORIGIN = 0x202C0000, LENGTH = 0x80000 - RPMSG_SHMEM_SIZE
   m_heap                (RW)  : ORIGIN = 0x83000000, LENGTH = HEAP_SIZE
   m_sdram               (RX)  : ORIGIN = 0x83000000 + HEAP_SIZE, LENGTH = 0x01000000 - HEAP_SIZE
 }
