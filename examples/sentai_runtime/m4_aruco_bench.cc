@@ -55,12 +55,20 @@ __attribute__((always_inline)) static inline uint32_t m4_sel(uint32_t a, uint32_
 //     (128 KB) where the default .bss lands.
 // Production frame size; identical math to M7 SafetyArucoBaseline.
 // ─────────────────────────────────────────────────────────────────
-#define M4_FRAME_W  160
-#define M4_FRAME_H  120
+#define M4_FRAME_W  320
+#define M4_FRAME_H  240
 
 static uint8_t  s_gray   [M4_FRAME_W * M4_FRAME_H]                  __attribute__((section(".ocram_bss"), aligned(32)));
 static uint8_t  s_binary [M4_FRAME_W * M4_FRAME_H]                  __attribute__((section(".ocram_bss"), aligned(32)));
 static int32_t  s_integral[(M4_FRAME_W + 1) * (M4_FRAME_H + 1)]     __attribute__((section(".ocram_bss"), aligned(32)));
+
+// XOR sink — keeps s_binary store-side load-bearing so the M4
+// LTO+O3 doesn't DCE the entire Phase-2 loop body.  Reads back
+// the threshold result before reporting the cycle count.  The
+// alternative was `volatile s_binary` but that forces per-byte
+// store-byte without coalesce/SIMD, biasing the measurement
+// pessimistically.
+static volatile uint8_t s_bench_sink;
 
 #define ARUCO_THRESH_C  7
 
@@ -218,7 +226,16 @@ static void handle_m7_message_(const uint8_t data[coralmicro::kIpcMessageBufferD
             synth_frame_();
             const uint32_t t0 = dwt_cyc();
             aruco_adaptive_threshold_m4(b);
+            // XOR-fold s_binary into the volatile sink so the
+            // Phase-2 stores can't be DCE'd by LTO.  The fold
+            // itself is outside the timed region — it's there
+            // only to keep the stores load-bearing.
             const uint32_t t1 = dwt_cyc();
+            uint32_t fold = 0;
+            for (int i = 0; i < M4_FRAME_W * M4_FRAME_H; i += 16) {
+                fold ^= s_binary[i];
+            }
+            s_bench_sink = (uint8_t)fold;
             app->cycles = t1 - t0;
         }
         coralmicro::IpcM4::GetSingleton()->SendMessage(ack);

@@ -884,7 +884,7 @@ static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_diag_aruco_bench_obj,
 //   alive       : 1 if M4 magic visible
 //   cycles      : DWT cycle delta (M4 @ 400 MHz, divide by 400 for us)
 //   us          : cycles / 400 (M4 clock)
-//   frame_w/h   : 160 / 120 (M4 bench fixed frame)
+//   frame_w/h   : 320 / 240 (M4 bench fixed frame — production)
 extern int sentai_m4_bench_start(uint32_t timeout_ms);
 extern int sentai_m4_bench_run(int block, uint32_t* out_cyc,
                                 uint32_t timeout_ms);
@@ -912,9 +912,9 @@ static mp_obj_t mod_sentai_diag_m4_aruco_bench(mp_obj_t block_obj) {
     mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_us),
                        mp_obj_new_int(cyc / 400u));
     mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_frame_w),
-                       mp_obj_new_int(160));
+                       mp_obj_new_int(320));
     mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_frame_h),
-                       mp_obj_new_int(120));
+                       mp_obj_new_int(240));
     return d;
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_diag_m4_aruco_bench_obj,
