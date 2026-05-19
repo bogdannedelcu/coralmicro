@@ -62,6 +62,13 @@ static uint8_t  s_gray   [M4_FRAME_W * M4_FRAME_H]                  __attribute_
 static uint8_t  s_binary [M4_FRAME_W * M4_FRAME_H]                  __attribute__((section(".ocram_bss"), aligned(32)));
 static int32_t  s_integral[(M4_FRAME_W + 1) * (M4_FRAME_H + 1)]     __attribute__((section(".ocram_bss"), aligned(32)));
 
+// OP-S10-W17-T2 M4 ablation — rolling-integral scratch (2.6 KB total,
+// in OCRAM).  Mirrors the M7 sentai_aruco.cc OCRAM-resident rolling
+// scratch.  Used by aruco_threshold_rolling_m4 for the WhyCon
+// timing comparison.
+static int32_t s_rolling_col_sum_m4 [M4_FRAME_W]     __attribute__((section(".ocram_bss"), aligned(32)));
+static int32_t s_rolling_prefix_x_m4[M4_FRAME_W + 1] __attribute__((section(".ocram_bss"), aligned(32)));
+
 // XOR sink — keeps s_binary store-side load-bearing so the M4
 // LTO+O3 doesn't DCE the entire Phase-2 loop body.  Reads back
 // the threshold result before reporting the cycle count.  The
@@ -117,6 +124,86 @@ static void synth_frame_(void) {
             if (x >= 0 && x < M4_FRAME_W && y >= 0 && y < M4_FRAME_H) {
                 s_gray[y * M4_FRAME_W + x] = 30;
             }
+        }
+    }
+}
+
+// OP-S10-W17-T2 M4 ablation — WhyCon synth + rolling-integral threshold.
+// Mirrors the M7 path (whycon_synth_frame_ + aruco_adaptive_threshold_rolling)
+// but stays plain scalar (M4F single-issue; SIMD-pack attempt earlier
+// measured 2.5× slower than scalar — kept).  All buffers in OCRAM.
+//
+// Frame: N filled black disks on white background, layout matches the M7
+// whycon_synth_frame_ pattern so results are directly comparable.
+static void whycon_synth_frame_m4(int n_circles, int radius) {
+    const int W = M4_FRAME_W, H = M4_FRAME_H;
+    for (int i = 0; i < W * H; ++i) s_gray[i] = 220;  // white background
+    if (n_circles <= 0) return;
+    if (n_circles > 8) n_circles = 8;
+    if (radius < 4) radius = 4;
+    if (radius > 30) radius = 30;
+    const int cols = (n_circles > 4) ? 4 : n_circles;
+    const int rows = (n_circles + cols - 1) / cols;
+    const int dx = W / (cols + 1);
+    const int dy = H / (rows + 1);
+    for (int i = 0; i < n_circles; ++i) {
+        const int col = i % cols;
+        const int row = i / cols;
+        const int cx = (col + 1) * dx + (i * 7) % 5;
+        const int cy = (row + 1) * dy + (i * 13) % 5;
+        for (int y = cy - radius; y <= cy + radius; ++y) {
+            if (y < 0 || y >= H) continue;
+            for (int x = cx - radius; x <= cx + radius; ++x) {
+                if (x < 0 || x >= W) continue;
+                const int dxp = x - cx;
+                const int dyp = y - cy;
+                if (dxp * dxp + dyp * dyp <= radius * radius) {
+                    s_gray[x + y * W] = 20;
+                }
+            }
+        }
+    }
+}
+
+static void aruco_threshold_rolling_m4(int block) {
+    const int W = M4_FRAME_W, H = M4_FRAME_H;
+    const int half = block / 2;
+    int y_top = 0;
+    int y_bot = (half < H - 1) ? half : H - 1;
+    for (int x = 0; x < W; ++x) s_rolling_col_sum_m4[x] = 0;
+    for (int yy = y_top; yy <= y_bot; ++yy) {
+        const uint8_t* row = s_gray + yy * W;
+        for (int x = 0; x < W; ++x) s_rolling_col_sum_m4[x] += row[x];
+    }
+    for (int y = 0; y < H; ++y) {
+        const int y_top_new = (y - half >= 0) ? y - half : 0;
+        const int y_bot_new = (y + half < H)  ? y + half : H - 1;
+        while (y_bot < y_bot_new) {
+            ++y_bot;
+            const uint8_t* row = s_gray + y_bot * W;
+            for (int x = 0; x < W; ++x) s_rolling_col_sum_m4[x] += row[x];
+        }
+        while (y_top < y_top_new) {
+            const uint8_t* row = s_gray + y_top * W;
+            for (int x = 0; x < W; ++x) s_rolling_col_sum_m4[x] -= row[x];
+            ++y_top;
+        }
+        const int32_t box_h = y_bot - y_top + 1;
+        s_rolling_prefix_x_m4[0] = 0;
+        int32_t acc = 0;
+        for (int x = 0; x < W; ++x) {
+            acc += s_rolling_col_sum_m4[x];
+            s_rolling_prefix_x_m4[x + 1] = acc;
+        }
+        const uint8_t* gray_row = s_gray + y * W;
+        uint8_t* bin_row = s_binary + y * W;
+        for (int x = 0; x < W; ++x) {
+            int x0 = (x - half >= 0) ? x - half : 0;
+            int x1 = (x + half < W)  ? x + half : W - 1;
+            const int32_t bs = s_rolling_prefix_x_m4[x1 + 1] - s_rolling_prefix_x_m4[x0];
+            const int32_t ba = (x1 - x0 + 1) * box_h;
+            const int32_t mean = bs / ba;
+            bin_row[x] = ((int32_t)gray_row[x] < mean - ARUCO_THRESH_C) ? 1u : 0u;
         }
     }
 }
@@ -187,6 +274,14 @@ static void handle_m7_message_(const uint8_t data[coralmicro::kIpcMessageBufferD
         return;
     }
 
+    // WhyCon sentinel range: 0xC100..0xC108 = synth(N disks) + rolling threshold.
+    // Worker decodes N = (block & 0x000F).
+    if (block >= 0xC100u && block <= 0xC108u) {
+        s_pending_block = block;
+        if (s_work_sem) xSemaphoreGive(s_work_sem);
+        return;
+    }
+
     if (block < 3)   block = 3;
     if (block > 511) block = 511;
     s_pending_block = block;
@@ -219,6 +314,21 @@ static void handle_m7_message_(const uint8_t data[coralmicro::kIpcMessageBufferD
         if (block == 0xCAFEu) {
             // IPC-only smoke test — no compute.
             app->cycles = 0xCAFEBABEu;
+        } else if (block >= 0xC100u && block <= 0xC108u) {
+            // OP-S10-W17-T2 M4 WhyCon ablation — synth disks + rolling
+            // threshold (same kernel as M7's optimized WhyCon Phase A).
+            const int n_circles = (int)(block & 0xFu);
+            whycon_synth_frame_m4(n_circles, 15);
+            const uint32_t t0 = dwt_cyc();
+            aruco_threshold_rolling_m4(31);   // block_size matches M7 WhyCon
+            const uint32_t t1 = dwt_cyc();
+            uint32_t fold = 0;
+            for (int i = 0; i < M4_FRAME_W * M4_FRAME_H; i += 16) {
+                fold ^= s_binary[i];
+            }
+            s_bench_sink = (uint8_t)fold;
+            app->cycles = t1 - t0;
+            app->n_dets = (uint16_t)n_circles;
         } else {
             int b = (int)block;
             if (b < 3)   b = 3;
