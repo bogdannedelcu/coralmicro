@@ -248,6 +248,7 @@ add_executable_m7(sentai_runtime
     sentai_health.cc
     sentai_dmesg.cc
     sentai_fs_cache.cc
+    m4_bench_host.cc           # OP-S10-W16-T3: M7 driver for the M4 ArUco bench
     M4_EXECUTABLE
     sentai_m4_aruco_bench
     DATA

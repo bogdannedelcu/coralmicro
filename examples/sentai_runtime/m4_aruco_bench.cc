@@ -46,16 +46,21 @@ extern "C" void BOARD_ConfigMPU(void);
 //   [3] result  = M4 writes DWT cycle delta here
 // Followed by 320*240 bytes of gray frame at offset 16.
 // ─────────────────────────────────────────────────────────────────
-#define M4_MAILBOX_BASE   0x202C0000u
+// Mailbox lives inside rpmsg_sh_mem (0x202C0000-0x202C4000, 16 KB),
+// guaranteed non-cacheable on both M7 and M4 (the standard SDK MPU
+// configures this region as device-memory).  IpcM7 itself uses ~400
+// bytes near the start for its tx/rx message queues; we place our
+// mailbox + frame at 0x202C2000 (8 KB into the region) to be safely
+// past those.
+//
+// Frame size 80×60 (4800 bytes) keeps the bench payload inside the
+// 16 KB rpmsg window with room to spare.  Throughput numbers scale
+// predictably with pixel count; cross-core wiring soundness is the
+// thing we measure first.
+#define M4_MAILBOX_BASE   0x202C2000u
 #define M4_MAILBOX_MAGIC  0x4D344D34u  // "M4M4"
-// First M4 bench uses 160x120 to fit all buffers in M4-local OCRAM
-// (integral 78 KB + binary 19 KB + labels 19 KB = 116 KB << 384 KB).
-// 320x240 needs 309 KB integral alone — 1 KB over the OCRAM budget
-// when binary/labels are added.  Detection-rate impact on the s174
-// frame set is measured separately; threshold-perf measurement is
-// resolution-independent in cycles/pixel.
-#define M4_FRAME_W        160
-#define M4_FRAME_H        120
+#define M4_FRAME_W        80
+#define M4_FRAME_H        60
 
 static volatile uint32_t* const s_mbox  = (volatile uint32_t*)M4_MAILBOX_BASE;
 static const    uint8_t*  const s_gray  = (const    uint8_t*)(M4_MAILBOX_BASE + 16);

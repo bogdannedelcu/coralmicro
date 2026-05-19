@@ -877,6 +877,46 @@ static mp_obj_t mod_sentai_diag_aruco_bench(void) {
 static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_diag_aruco_bench_obj,
                                   mod_sentai_diag_aruco_bench);
 
+// OP-S10-W16-T3: M4 ArUco-threshold bench.
+//   sentai.diag.m4_aruco_bench(block) -> dict
+// Returns:
+//   ok          : 1 if M4 produced a result, 0 if timeout / M4 dead
+//   alive       : 1 if M4 magic visible
+//   cycles      : DWT cycle delta (M4 @ 400 MHz, divide by 400 for us)
+//   us          : cycles / 400 (M4 clock)
+//   frame_w/h   : 160 / 120 (M4 bench fixed frame)
+extern int sentai_m4_bench_start(uint32_t timeout_ms);
+extern int sentai_m4_bench_run(int block, uint32_t* out_cyc,
+                                uint32_t timeout_ms);
+extern int sentai_m4_bench_is_alive(void);
+
+static mp_obj_t mod_sentai_diag_m4_aruco_bench(mp_obj_t block_obj) {
+    const int block = mp_obj_get_int(block_obj);
+    // Ensure M4 is up (idempotent; ~50 ms cold-start budget).
+    const int started = sentai_m4_bench_start(50u);
+    uint32_t cyc = 0;
+    int ok = 0;
+    if (started) {
+        ok = sentai_m4_bench_run(block, &cyc, 500u);
+    }
+    mp_obj_t d = mp_obj_new_dict(0);
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_ok),
+                       mp_obj_new_int(ok));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_alive),
+                       mp_obj_new_int(sentai_m4_bench_is_alive()));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_cycles),
+                       mp_obj_new_int_from_uint(cyc));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_us),
+                       mp_obj_new_int(cyc / 400u));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_frame_w),
+                       mp_obj_new_int(80));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_frame_h),
+                       mp_obj_new_int(60));
+    return d;
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_diag_m4_aruco_bench_obj,
+                                  mod_sentai_diag_m4_aruco_bench);
+
 // ---- module table ----
 static const mp_rom_map_elem_t sentai_diag_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__),   MP_ROM_QSTR(MP_QSTR_diag) },
@@ -902,6 +942,7 @@ static const mp_rom_map_elem_t sentai_diag_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_repl_kick),       MP_ROM_PTR(&mod_sentai_diag_repl_kick_obj) },
     { MP_ROM_QSTR(MP_QSTR_flexram_info),    MP_ROM_PTR(&mod_sentai_diag_flexram_info_obj) },
     { MP_ROM_QSTR(MP_QSTR_fx_bench),        MP_ROM_PTR(&mod_sentai_diag_fx_bench_obj) },
+    { MP_ROM_QSTR(MP_QSTR_m4_aruco_bench),  MP_ROM_PTR(&mod_sentai_diag_m4_aruco_bench_obj) },
     { MP_ROM_QSTR(MP_QSTR_fx_stats),        MP_ROM_PTR(&mod_sentai_diag_fx_stats_obj) },
     { MP_ROM_QSTR(MP_QSTR_fx_format),       MP_ROM_PTR(&mod_sentai_diag_fx_format_obj) },
     { MP_ROM_QSTR(MP_QSTR_storage_log),     MP_ROM_PTR(&mod_sentai_diag_storage_log_obj) },
