@@ -32,7 +32,7 @@ specific and load-bearing for the thesis chapter:
 |---|---|
 | 8-conn (not 4-conn) flood-fill | More robust at marker boundary thin connections; same SOTA algorithm class (Rosenfeld-Pfaltz) but a stronger neighbour set |
 | Inline 2nd-order moments during flood-fill | Avoids a second bbox-rescan pass for axis recovery; net −0.26 ms on M7 at 4 markers vs split passes |
-| Asymmetric cross marker layout (N(0,0.20) E(0.16,0) S(0,-0.20) W(-0.08,0)) | Breaks 4-fold rotational symmetry — single-marker yaw stays indeterminate per Krajník §6.2, but a constellation pose solver can recover yaw from the asymmetric layout (future work, W19-T3) |
+| H-pattern marker layout (4 corners + 2 mid-bar; ICAO Annex 14 helipad) | Symmetric on X, asymmetric on Y (top arm 20 cm, bottom arm 14 cm).  Cited reference: Kim, Yang & Kim 2013 (IROS) "A new approach to drone-based fast localization for landing using only landmark pattern recognition".  Iter-3 5-marker rotated cross abandoned because the markers were collinear on the cardinal axes — uneven lever arms gave X-MAE ≫ Y-MAE under Kabsch fit |
 | Permutation-Procrustes for N≤4 | Closed-form correspondence + alignment; replaces the EKF-pose-dependent pixel-projection assoc which fails when cf2 EKF drifts |
 | Annulus correction factor `axis_a / R = √(1 + (r₁/R)²)` | Compensates for the discrepancy between eigenvalue-derived semi-axis (which integrates over the annular mass) and the projected outer-ring radius.  Value: 1.166 for the ideal Krajník synth (s181), reduces to ~1.0 for Gazebo-rendered markers due to AA/PBR-induced blob smoothing (s182 iter-3 finding) |
 | Cam-intrinsics from SDF FOV at runtime | Eliminates manual `set_intrinsics(...)` calls; reads SDF horizontal_fov + downscale ratio |

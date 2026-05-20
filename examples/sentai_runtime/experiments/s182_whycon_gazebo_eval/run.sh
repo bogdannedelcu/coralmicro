@@ -22,7 +22,11 @@ mkdir -p "$WORKDIR"
 VENV_PY="$REPO_ROOT/venv/bin/python3"
 SIM_BIN="$REPO_ROOT/build-sim/sim/sentai_sim"
 LAUNCH_HYBRID="$REPO_ROOT/sim/scripts/launch_hybrid_cf2.sh"
-GZ_BRIDGE="$REPO_ROOT/sim/scripts/gz_to_camera_bridge.py"
+# Bridge is C++ (build-sim/sim/gz_to_uds_bridge), MUST run inside
+# crazysim-garden distrobox where gz transport libs are available
+# (host venv lacks `gz` Python bindings).  iter-6 first run was
+# silent-n=0 because we used the Python wrapper host-side.
+GZ_BRIDGE_BIN="$REPO_ROOT/build-sim/sim/gz_to_uds_bridge"
 GT_RECORDER="$REPO_ROOT/sim/scripts/gt_recorder.py"
 VERDICT="$SCRIPT_DIR/verdict.py"
 MISSION_SRC="$SCRIPT_DIR/mission_s182.py"
@@ -35,7 +39,7 @@ cleanup_socks(){ rm -f /tmp/sentai_cam.sock /tmp/sentai_flow_out.sock 2>/dev/nul
 
 cleanup_all() {
     echo "[s182] cleanup"
-    for p in $(pgrep -f "build-sim/sim/sentai_sim$|gz_to_camera_bridge|sitl_make/build/cf2|gz sim|gt_recorder"); do
+    for p in $(pgrep -f "build-sim/sim/sentai_sim$|gz_to_uds_bridge|gz_to_camera_bridge|sitl_make/build/cf2|gz sim|gt_recorder"); do
         kill -9 "$p" 2>/dev/null || true
     done
     distrobox enter crazysim-garden -- \
@@ -66,10 +70,16 @@ until is_cf2_up; do
 done
 echo "[s182] cf2 UDP 19850 ready"
 
-# ---- 2. launch camera bridge -----------------------------------------
-echo "[s182] launching gz_to_camera_bridge"
-"$VENV_PY" "$GZ_BRIDGE" > "$WORKDIR/gz_bridge.log" 2>&1 &
+# ---- 2. launch camera bridge (C++ binary inside distrobox) -----------
+echo "[s182] launching gz_to_uds_bridge inside crazysim-garden"
+distrobox enter crazysim-garden -- bash -c \
+    "$GZ_BRIDGE_BIN \
+        --cam-topic /downward_cam/image \
+        --cam-sock /tmp/sentai_cam.sock \
+        --out-sock /tmp/sentai_flow_out.sock" \
+    > "$WORKDIR/gz_bridge.log" 2>&1 < /dev/null &
 BRIDGE_PID=$!
+disown $BRIDGE_PID 2>/dev/null || true
 sleep 3
 
 # ---- 3. start gt_recorder (host-side post-mortem only) ---------------
@@ -85,6 +95,9 @@ sleep 2
 
 # ---- 4. stage mission into sentai_fs_root + run inside sentai_sim ----
 mkdir -p "$FS_ROOT"
+# Pre-create FR output tree (mkdir_p in sentai_fr.cc is single-level).
+rm -rf "$WORKDIR/fr_current"
+mkdir -p "$WORKDIR/fr_current/frames"
 cp "$MISSION_SRC" "$FS_ROOT/mission_s182.py"
 echo "[s182] running mission inside sentai_sim"
 (echo "import mission_s182; r = mission_s182.run(); print('FINAL:', r['status'])" \

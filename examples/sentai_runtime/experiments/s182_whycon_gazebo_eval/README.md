@@ -29,21 +29,40 @@ disambiguation is W19-T3).  Geometry: outer dark annulus 232 px /
 inner white disc 139 px / centre dark dot 46 px on 512 px image,
 matching the W3 sample geometry constants in `sentai_aruco.cc`.
 
-### 2. Marker layout (asymmetric cross)
+### 2. Marker layout — H-pattern (Kim 2013)
 
 ```
-            N (0, +0.20)
-             |
-W (-0.08,0)──┼──E (+0.16, 0)
-             |
-            S (0, -0.20)
+NW (-0.16, +0.20) ──────── NE (+0.16, +0.20)
+        ║                          ║
+        ║                          ║
+        ║                          ║
+ W (-0.16,  0.00) ─────────  E (+0.16, 0.00)   ← horizontal bar
+        ║                          ║
+        ║                          ║
+ SW (-0.16, -0.14) ────────  SE (+0.16, -0.14)
 ```
 
-Operator-noted: 4 perfectly symmetric markers would be yaw-ambiguous.
-E is shifted outward by 4 cm and W pulled in by 4 cm so the cross
-has NO 4-fold rotational symmetry.  Single-marker WhyCon can't
-recover yaw anyway (W17 §6.2), but the asymmetric layout is the
-right shape for a multi-marker constellation pose solver (W19-T3).
+6 markers in the shape of the letter **H**, asymmetric on Y (top arm
+20 cm, bottom arm 14 cm), symmetric on X.  Operator request 2026-05-20:
+"obiectiv: takeoff/landing markers area pe care sa verificam flow,
+calibrare, stabilizare pe X, Y si Z".
+
+SOTA basis: Kim, Yang & Kim 2013 (IROS) "A new approach to drone-
+based fast localization for landing using only landmark pattern
+recognition" — 6-marker H pattern minimises pose ambiguity for downward
+VTOL landing.  Equivalent geometry to the ICAO Annex 14 helipad **H**.
+
+Iter-3 (5-marker rotated cross) was abandoned because the 5 markers
+were collinear on the X and Y cardinal axes — drift on one axis was
+constrained only by 2 markers, the other axis by 3 (uneven lever
+arms).  The H pattern has 4 outer corners + 2 mid-bar markers, all 6
+contributing roughly equal lever to X and Y — well-conditioned Kabsch
+fit (s182 iter-3 numbers reflect the BAD layout; iter-5+ use H).
+
+Marker physical outer-ring diameter on the 0.12 m box face:
+`(232/256) × 0.06 m × 2 = 0.1088 m` (PNG margin offsets reduce the
+on-face circle radius).  Pass `sentai.markers.set_marker_size(0.1088)`
+to match.
 
 Marker physical outer-ring diameter on the 0.12 m box face:
 `(232/256) × 0.06 m × 2 = 0.1088 m` (PNG margin offsets reduce the

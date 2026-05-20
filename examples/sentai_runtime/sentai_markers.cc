@@ -207,6 +207,14 @@ extern "C" int sentai_markers_detect_frame(const uint8_t* gray, int w, int h,
     s_stats.frames_total++;
     s_stats.markers_total += (uint32_t)s_cache_n;
     if (s_cache_n > 0) s_stats.frames_with_detect++;
+
+    // OP-S10-W19-T4 iter-6: forward the grayscale frame + n_dets to
+    // the Flight Recorder.  Silent no-op if the mission hasn't opened
+    // the "frames" channel.  Mirrors sentai_safety_task.cc:219 pattern.
+    extern int sentai_fr_push_frame(const uint8_t* gray, int w_, int h_,
+                                      int n, uint32_t seq, uint32_t ts);
+    (void)sentai_fr_push_frame(gray, w, h, s_cache_n, frame_seq, src_ts_ms);
+
     return s_cache_n;
 }
 

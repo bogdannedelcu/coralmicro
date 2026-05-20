@@ -26,6 +26,15 @@ import sentai
 JOURNAL_NAME = "mission_s182_journal.txt"
 SUMMARY_NAME = "mission_s182_summary.json"
 
+# Flight Recorder channel paths (per [[op-s10-w13-shipped]] pattern).
+# On SIM, sentai.fr uses native POSIX fopen with literal host paths.
+# Must be host-writable + parent must already exist (mkdir_p is
+# single-level only).  /tmp pattern mirrors s174.
+FR_DIR           = "/tmp/s182_whycon_gazebo/fr_current"
+FR_FRAMES_DIR    = FR_DIR + "/frames"
+FR_EVENTS_FILE   = FR_DIR + "/events.csv"
+FR_SCALARS_FILE  = FR_DIR + "/scalars.csv"
+
 # Camera intrinsics — derived from cf2 SDF downward_cam horizontal_fov
 # = 1.0123 rad (cf2 model.sdf.jinja).  At 640×480 native:
 #   fx = (640/2) / tan(1.0123/2) ≈ 576.6
@@ -54,6 +63,16 @@ HOVER_TICKS    = 30     # ~3s @ 10 Hz logging
 TICK_INTERVAL_MS = 100  # ~10 Hz logging cadence
 
 ALT_SWEEP = [0.40, 0.50, 0.60, 0.70, 0.80, 1.00]
+
+# VPE control.  iter-6 lesson (2026-05-20): sending VPE est_z from
+# per-frame median tz creates a POSITIVE FEEDBACK LOOP — cf2 EKF
+# accepts the new z, the next frame's tz reflects the NEW (wrong)
+# altitude, cf2 jumps further.  After 2 ticks the drone is at z=2 m
+# commanded 0.4 m.  Until we have a proper Kabsch-based XYZ in-mission
+# (W19-T3), VPE stays OFF.  Drone will slowly drift on X/Y/Z under
+# cf2's open-loop control — still good enough for ~3-5 s of capture
+# over the H pattern.
+ENABLE_VPE = False
 
 # Known marker world positions (must match sentai_whycon.sdf).  Used
 # in-mission to feed VPE back into cf2 EKF — sentai_sim is the
@@ -211,22 +230,10 @@ def _log_tick(tick_idx, target_alt):
                 "v":    t[11],
             })
 
-    # ---- VPE forwarder — feed estimated drone pose back to cf2 EKF.
+    # ---- Iter-7: VPE permanently OFF until Kabsch-in-mission (W19-T3).
+    # See ENABLE_VPE comment above for the iter-6 positive-feedback
+    # loop that this iteration retires.
     vpe_sent = None
-    assocs = _associate_and_estimate(dets, cf2)
-    if assocs:
-        # Median (robust to single outlier) across associated markers.
-        xs = sorted(a[1] for a in assocs)
-        ys = sorted(a[2] for a in assocs)
-        zs = sorted(a[3] for a in assocs)
-        mx = xs[len(xs) // 2]
-        my = ys[len(ys) // 2]
-        mz = zs[len(zs) // 2]
-        try:
-            sentai.crazy.send_extpos(mx, my, mz)
-            vpe_sent = (mx, my, mz)
-        except (AttributeError, RuntimeError):
-            pass
     # sentai.sim.journal_write auto-prefixes the line with the host
     # monotonic timestamp (see line "286089204 takeoff ..." in journal),
     # so we don't add ts_ms here — sentai.rtos has only sleep_ms in
@@ -239,7 +246,6 @@ def _log_tick(tick_idx, target_alt):
         "n":      n,
         "dets":   dets,
         "vpe":    vpe_sent,
-        "n_assoc": len(assocs),
     })
 
 
@@ -283,17 +289,32 @@ def run():
         _j("crazy_arm", {})
         sentai.rtos.sleep_ms(300)
 
-        # ---- crazy pose subscribe — opens CRTP LOG block for the
-        #      stateEstimate.{x,y,z} + stabilizer.yaw stream so
-        #      sentai.crazy.pose() returns non-None values during the
-        #      altitude sweep below.  50 ms period ≈ 20 Hz (cf2 EKF
-        #      onboard publish rate).
-        try:
-            sub_rc = sentai.crazy.pose_subscribe(50)
-            _j("pose_subscribe", {"rc": sub_rc, "period_ms": 50})
-        except (AttributeError, RuntimeError) as ex:
-            _j("pose_subscribe_err", {"err": repr(ex)})
-        sentai.rtos.sleep_ms(500)   # let first pose frame arrive
+        # ---- crazy pose subscribe — retry loop until CRTP TOC ready.
+        # Iter-5 finding (2026-05-20): a single subscribe call at
+        # arm+300ms returns rc=-3 (no TOC yet); cf2 TOC download takes
+        # ~1-3 s post-link.  Retry up to 30 attempts × 200 ms = 6 s.
+        sub_rc = -3
+        for _try in range(30):
+            try:
+                sub_rc = sentai.crazy.pose_subscribe(50)
+            except (AttributeError, RuntimeError) as ex:
+                _j("pose_subscribe_err", {"try": _try, "err": repr(ex)})
+                sub_rc = -99
+            if sub_rc == 0:
+                break
+            sentai.rtos.sleep_ms(200)
+        _j("pose_subscribe", {"rc": sub_rc, "period_ms": 50, "tries": _try + 1})
+        sentai.rtos.sleep_ms(500)
+
+        # ---- Flight Recorder — open channels so per-tick frames are
+        #      saved via sentai_markers_detect_frame's sentai_fr_push_frame
+        #      hook.  Used by s182_replay.py post-mortem to compare
+        #      drone-side detection vs cv2 vs local numpy.
+        _j("fr_init",         {"rc": sentai.fr.init()})
+        _j("fr_open_frames",  {"rc": sentai.fr.open("frames",  FR_FRAMES_DIR)})
+        _j("fr_open_events",  {"rc": sentai.fr.open("events",  FR_EVENTS_FILE)})
+        _j("fr_open_scalars", {"rc": sentai.fr.open("scalars", FR_SCALARS_FILE)})
+        _j("fr_task_start",   {"rc": sentai.fr.task_start()})
 
         # ---- takeoff to working altitude --------------------------
         rc = sentai.crazy.takeoff(TAKEOFF_HEIGHT, TAKEOFF_DUR)
@@ -301,21 +322,29 @@ def run():
         _sleep_after_cmd(TAKEOFF_DUR)
         summary["phases_done"].append("takeoff")
 
-        # ---- altitude sweep ---------------------------------------
+        # ---- hover-and-log loop -----------------------------------
+        # Iter-7: skip the multi-altitude sweep; cf2 drifts in 1-2 s
+        # without VPE so a long altitude sweep mostly logs frames AWAY
+        # from the H pattern.  Instead hover at takeoff height with
+        # repeated set_position re-commands and log @ 10 Hz for ~6 s.
+        # Verdict picks up the few ticks where cf2 is still over the
+        # pattern.
+        HOVER_TICKS_TOTAL = 80      # 8 s @ 10 Hz
+        REASSERT_EVERY = 5          # re-issue go_to every 5 ticks (~0.5 s)
         tick_idx = 0
-        for alt in ALT_SWEEP:
-            rc = sentai.crazy.go_to(0.0, 0.0, alt, 0.0, 2.0, 0, 0, 0)
-            _j("goto", {"z": alt, "rc": rc})
-            _sleep_after_cmd(2.0)
-            # Let cf2 settle before sampling.
-            sentai.rtos.sleep_ms(int(HOVER_WAIT_S * 1000))
-            _j("hover_start", {"alt": alt})
-            for _ in range(HOVER_TICKS):
-                _log_tick(tick_idx, alt)
-                tick_idx += 1
-                sentai.rtos.sleep_ms(TICK_INTERVAL_MS)
-            _j("hover_done", {"alt": alt, "ticks": HOVER_TICKS})
-        summary["phases_done"].append("alt_sweep")
+        alt = TAKEOFF_HEIGHT
+        _j("hover_start", {"alt": alt})
+        for k in range(HOVER_TICKS_TOTAL):
+            if k % REASSERT_EVERY == 0:
+                try:
+                    sentai.crazy.go_to(0.0, 0.0, alt, 0.0, 0.6, 0, 0, 0)
+                except (AttributeError, RuntimeError):
+                    pass
+            _log_tick(tick_idx, alt)
+            tick_idx += 1
+            sentai.rtos.sleep_ms(TICK_INTERVAL_MS)
+        _j("hover_done", {"alt": alt, "ticks": HOVER_TICKS_TOTAL})
+        summary["phases_done"].append("hover_log")
         summary["ticks_logged"] = tick_idx
 
         # ---- land + disarm ----------------------------------------
@@ -325,6 +354,22 @@ def run():
         sentai.crazy.disarm()
         _j("disarm", {})
         summary["phases_done"].append("land")
+
+        # ---- Stop + close FR channels -----------------------------
+        try:
+            _j("fr_task_stop",     {"rc": sentai.fr.task_stop()})
+            for ch in ("frames", "events", "scalars"):
+                try:
+                    st = sentai.fr.stats(ch)
+                    _j("fr_stats", {"ch": ch, "stats": st})
+                except (AttributeError, RuntimeError):
+                    pass
+            _j("fr_close_frames",  {"rc": sentai.fr.close("frames")})
+            _j("fr_close_events",  {"rc": sentai.fr.close("events")})
+            _j("fr_close_scalars", {"rc": sentai.fr.close("scalars")})
+        except (AttributeError, RuntimeError) as ex:
+            _j("fr_close_err", {"err": repr(ex)})
+
         summary["status"] = "OK"
     except Exception as e:
         summary["errors"].append(repr(e))
