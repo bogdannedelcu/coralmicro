@@ -125,12 +125,11 @@ static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(sentai_verbose_obj, 0, 1,
 // with ARM via the same #include; the .cc file branches on
 // SENTAI_HAVE_FXUSER to pick FileX (ARM) vs host stdio (SIM).
 #include "../examples/sentai_runtime/bindings/modsentai_calib.c"
-// ObjectsPlan OP-S6-W3 — sentai.aruco (fiducial detector + PnP).
-// Compute in C/C++; MP returns scalars only.
-#include "../examples/sentai_runtime/bindings/modsentai_aruco.c"
-// OP-S10-W17 — sentai.whycon circular-marker prototype.
-#include "../examples/sentai_runtime/bindings/modsentai_whycon.c"
-// OP-S10-W19-T1 — sentai.markers unified pose-emitting dispatcher.
+// OP-S10-W19-T1 hard rename: legacy sentai.aruco + sentai.whycon
+// MP bindings de-registered.  C backends (sentai_aruco.cc + WhyCon
+// helpers in the same TU) remain as backend implementations called
+// by sentai_markers_*.  Only the unified dispatcher binding is
+// included.
 #include "../examples/sentai_runtime/bindings/modsentai_markers.c"
 // ObjectsPlan OP-S10-W12 — sentai.safety (firmware-side mission safety).
 // State machine + SafetyTask worker; consumes sentai.aruco results.
@@ -169,8 +168,8 @@ static const mp_rom_map_elem_t sentai_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_servo),    MP_ROM_PTR(&sentai_servo_module) },
     { MP_ROM_QSTR(MP_QSTR_object_lifter), MP_ROM_PTR(&sentai_object_lifter_module) },
     { MP_ROM_QSTR(MP_QSTR_calib),    MP_ROM_PTR(&sentai_calib_module) },
-    { MP_ROM_QSTR(MP_QSTR_aruco),    MP_ROM_PTR(&sentai_aruco_module) },
-    { MP_ROM_QSTR(MP_QSTR_whycon),   MP_ROM_PTR(&sentai_whycon_module) },
+    // OP-S10-W19-T1 hard rename: sentai.markers is the canonical
+    // fiducial-marker namespace (mirrors modsentai.c on ARM).
     { MP_ROM_QSTR(MP_QSTR_markers),  MP_ROM_PTR(&sentai_markers_module) },
     { MP_ROM_QSTR(MP_QSTR_safety),   MP_ROM_PTR(&sentai_safety_module) },
     { MP_ROM_QSTR(MP_QSTR_fr),       MP_ROM_PTR(&sentai_fr_module) },

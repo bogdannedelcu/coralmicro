@@ -21,7 +21,7 @@
 
 #include "sentai_safety_task.h"
 #include "sentai_safety.h"
-#include "sentai_aruco.h"
+#include "sentai_markers.h"
 #include "sentai_fr.h"        // OP-S10-W13: Flight Recorder push API
 
 #include <stdint.h>
@@ -103,8 +103,11 @@ struct State {
 };
 static State s;
 
-// Markers buffer: capped at SENTAI_ARUCO_MAX_MARKERS (16).  Static.
-static sentai_aruco_marker_t s_markers[SENTAI_ARUCO_MAX_MARKERS];
+// W19-T1 — s_markers was filled by the old aruco_detect call but
+// never read by the safety task (only the count `n` matters here;
+// the result struct goes nowhere).  Removed.  The unified
+// sentai_markers_detect_frame caches the poses internally; any
+// downstream consumer goes through sentai_markers_get_latest().
 
 // Stop event + task handle.  Stack must be >= configMINIMAL_STACK_SIZE.
 // SIM (POSIX) requires 1024 words minimum (per FreeRTOSConfig.h).
@@ -183,12 +186,13 @@ bool tick_one_iter() {
     s.last_seq_processed = cam_seq;
     s.stats.last_seq_processed = cam_seq;
 
-    // ── §1.1 F2: aruco detect ─────────────────────────────────────
+    // ── §1.1 F2: marker detect via the unified W19 dispatcher ────
     // REUSE: this is the SINGLE detection per frame in the s167 use
     // case.  See file header REUSE NOTE for the OP-S10-W12-T11
     // memoisation TODO that would also dedupe across mission calls.
-    int n = sentai_aruco_detect(gray, w, h, cam_seq, cam_ts_ms,
-                                  s_markers, SENTAI_ARUCO_MAX_MARKERS);
+    // Backend (ArUco / WhyCon) was chosen at sentai_markers_init time
+    // by the mission-setup MP code; the safety task is backend-agnostic.
+    int n = sentai_markers_detect_frame(gray, w, h, cam_seq, cam_ts_ms);
     if (n < 0) {
         s.stats.aruco_fails++;
         // Recovery escalation §1.3 step 1: treat as worst-case (0
@@ -267,7 +271,10 @@ extern "C" int sentai_safety_task_start(void) {
     // continuous caller in MP missions that don't otherwise call
     // sentai.aruco.init().  Idempotent; uses built-in defaults
     // (fx=fy=240, cx=160, cy=120 for 320×240 — SIM downward_cam matches).
-    sentai_aruco_init();
+    // W19-T1: init the unified marker dispatcher with the ArUco
+    // backend by default.  Mission setup may switch to WhyCon via
+    // sentai.markers.init('whycon') before SafetyTask starts.
+    sentai_markers_init(SENTAI_MARKERS_BACKEND_ARUCO);
     // Frame journal moved to sentai.fr (OP-S10-W13): mission MP calls
     // `sentai.fr.open("frames", "/tmp/.../frames")` + `task_start()`.
 

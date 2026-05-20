@@ -16,7 +16,7 @@
 #include "sentai_calib.h"
 #include "sentai_calib_task.h"
 #include "sentai_calib_autotune.h"
-#include "sentai_aruco.h"
+#include "sentai_markers.h"
 #include "sentai_safety.h"
 #include "sentai_fr.h"
 #include "sentai_crazy.h"
@@ -148,7 +148,7 @@ inline uint32_t now_ms_() {
 // (downward cam, identity R) the formulas below are correct; the
 // safety task will latch abort if it does diverge (markers leave FOV
 // in < 1 s), which is the correct fail-safe.
-inline float drift_along_axis_(const sentai_aruco_marker_t* mk, int n,
+inline float drift_along_axis_(const SentaiMarkersPose* mk, int n,
                                  int axis) {
     if (n <= 0) return 0.0f;
     float cx = 0.0f, cy = 0.0f;
@@ -211,9 +211,15 @@ void worker_loop_() {
     while ((xEventGroupGetBits(s_stop_evt) & STOP_BIT) == 0) {
         ++s_n_ticks;
 
-        // Pull latest PnP (cached; no detect re-run).
-        sentai_aruco_marker_t mk[16];
-        int n = sentai_aruco_get_latest(mk, 16);
+        // Pull latest PnP (cached; no detect re-run).  W19-T1: now
+        // routes through the unified sentai.markers dispatcher;
+        // backend is whichever was selected at sentai_markers_init.
+        SentaiMarkersPose mk[16];
+        int n = sentai_markers_get_count();
+        if (n > 16) n = 16;
+        for (int i = 0; i < n; ++i) {
+            (void)sentai_markers_get_latest(i, &mk[i]);
+        }
         int pnp_valid = (n >= 4) ? 1 : 0;
         if (pnp_valid) ++s_n_valid_pnp; else ++s_n_no_pnp;
 
@@ -275,7 +281,7 @@ void worker_loop_() {
             float dx_per[16], dy_per[16], dz_per[16];
             int   dn_used = 0;
             for (int i = 0; i < n; ++i) {
-                uint8_t mid = mk[i].marker_id;
+                uint8_t mid = (uint8_t)mk[i].id;
                 if (mid >= 4) continue;                 // only id 0..3 known
                 const float* mw = KNOWN_POS_M[mid];
                 // R * tvec_cam (row-major)

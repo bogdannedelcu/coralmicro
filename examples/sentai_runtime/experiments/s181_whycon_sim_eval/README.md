@@ -1,11 +1,33 @@
-# s181 — WhyCon SIM pose-estimation eval
+# s181 — WhyCon CLOSED-FORM PnP synth validation (NOT a Gazebo run)
 
-WBS: **OP-S10-W19-T4**.  First end-to-end exercise of the unified
-`sentai.markers` namespace with the WhyCon backend on the SIM build.
-Generates the thesis-grade X/Y/Z estimated-vs-ground-truth plots
-the operator asked for ("vreau să ajungem să desenăm pe niște
-grafice fine pe care să le folosim la teză: poziție estimată vs
-poziție reală").
+WBS: **OP-S10-W19-T4 step 1**.  First end-to-end exercise of the
+unified `sentai.markers` namespace with the WhyCon backend on the
+SIM build.
+
+> **Scope clarification (operator, 2026-05-20):**  When the operator
+> asked for "grafice X/Y/Z estimat vs poziție reală în simulator",
+> the canonical simulator is **Gazebo**, where sentai_sim sees
+> ONLY camera frames + CRTP LOG telemetry (anti-cheat rule
+> `[[sentai-sim-air-gapped-from-truth]]`).  GT is host-side only.
+>
+> This experiment is **NOT** that.  s181 is a controlled-synth
+> unit test of the closed-form PnP formula: forward-project a
+> known world pose into a single image, draw a perfect Krajník
+> pattern, run WhyCon detection, compare recovered tvec_cam
+> against the known world pose.  No Gazebo, no real camera, no
+> motion.  It validates the **algorithm** under noise-free
+> conditions and surfaced the annulus-correction bug.
+>
+> The real Gazebo evaluation lives in **s182** (next iter, T4 step
+> 2): cf2 SITL flies a trajectory over a Krajník-marker scene,
+> sentai_sim consumes camera frames via the `gz_to_uds_bridge` UDS,
+> WhyCon emits poses, host-side `gt_recorder` captures GT for the
+> post-mortem plot.  THAT'S the thesis-grade eval.
+
+s181 stays on disk per `[[experiments-in-own-folder-log-dead-ends]]`
+as algorithmic validation evidence — it shows the closed-form PnP
+math works under ideal conditions, which is a prerequisite for
+trusting the s182 numbers under real noise.
 
 ## What's measured
 

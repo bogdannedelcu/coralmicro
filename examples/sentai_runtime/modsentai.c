@@ -351,11 +351,12 @@ static void _fs_check_usb(void) {
 #include "bindings/modsentai_servo.c"
 #include "bindings/modsentai_object_lifter.c"
 #include "bindings/modsentai_calib.c"
-#include "bindings/modsentai_aruco.c"
-// OP-S10-W17 — sentai.whycon (WhyCon-lite circular-marker timing
-// prototype; pure perf instrumentation, not integrated with safety).
-#include "bindings/modsentai_whycon.c"
-// OP-S10-W19-T1 — sentai.markers unified pose-emitting dispatcher.
+// OP-S10-W19-T1 hard rename: the legacy modsentai_aruco.c +
+// modsentai_whycon.c binding tables are no longer compiled in.
+// Their C implementations (sentai_aruco.cc + the WhyCon helpers
+// living in the same TU) remain as backend code called by
+// sentai_markers_*.  Only the unified dispatcher binding is
+// included below.
 #include "bindings/modsentai_markers.c"
 // ObjectsPlan OP-S10-W12 — sentai.safety (mission safety service).
 // See Safety.md for the architecture; state machine + SafetyTask
@@ -593,8 +594,11 @@ static const mp_rom_map_elem_t sentai_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_servo),     MP_ROM_PTR(&sentai_servo_module) },
     { MP_ROM_QSTR(MP_QSTR_object_lifter), MP_ROM_PTR(&sentai_object_lifter_module) },
     { MP_ROM_QSTR(MP_QSTR_calib),     MP_ROM_PTR(&sentai_calib_module) },
-    { MP_ROM_QSTR(MP_QSTR_aruco),     MP_ROM_PTR(&sentai_aruco_module) },
-    { MP_ROM_QSTR(MP_QSTR_whycon),    MP_ROM_PTR(&sentai_whycon_module) },
+    // OP-S10-W19-T1: sentai.markers is the canonical fiducial-marker
+    // namespace.  The legacy sentai.aruco + sentai.whycon modules are
+    // de-registered; their internal C functions remain as backend
+    // implementations called by sentai_markers_*.  Hard rename — no
+    // shim, no aliases (operator-stated 2026-05-20).
     { MP_ROM_QSTR(MP_QSTR_markers),   MP_ROM_PTR(&sentai_markers_module) },
     { MP_ROM_QSTR(MP_QSTR_safety),    MP_ROM_PTR(&sentai_safety_module) },
     { MP_ROM_QSTR(MP_QSTR_fr),        MP_ROM_PTR(&sentai_fr_module) },

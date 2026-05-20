@@ -129,6 +129,15 @@ void sentai_markers_set_marker_size(float meters);
 // sentai_whycon_detect_from_camera() depending on the backend.
 int  sentai_markers_detect_from_camera(void);
 
+// Run detection on a caller-supplied grayscale frame.  Used by
+// SafetyTask (which already has the frame in hand from
+// sentai_camera_grab_gray_zerocopy) to avoid the extra hop through
+// the binding's camera grab.  Returns n_detected or negative on
+// hard error.  Backend must already be initialised.
+int  sentai_markers_detect_frame(const uint8_t* gray, int w, int h,
+                                    uint32_t frame_seq,
+                                    uint32_t src_ts_ms);
+
 // Count of markers from the most recent detect call.
 int  sentai_markers_get_count(void);
 
