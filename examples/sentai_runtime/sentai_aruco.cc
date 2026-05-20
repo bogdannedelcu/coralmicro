@@ -2957,6 +2957,23 @@ extern "C" int sentai_whycon_test_synth_krajnik(int n_circles, int radius) {
     return n;
 }
 
+// W19-T1 / s182 — WhyCon detection on a caller-supplied gray buffer
+// (e.g. the camera frame from sentai_camera_grab_gray_zerocopy).
+// Copies into the local s_test_gray staging then runs the full
+// detect pipeline.  Used by sentai_markers_detect_frame's WHYCON
+// branch.  Returns n_dets or negative on bad input.
+extern "C" int sentai_whycon_detect_buffer(const uint8_t* gray, int w, int h) {
+    if (!gray) return -1;
+    if (w != 320 || h != 240) return -2;
+    if ((size_t)w * (size_t)h > sizeof(s_test_gray)) return -3;
+    memcpy(s_test_gray, gray, (size_t)w * (size_t)h);
+    const uint32_t t0 = aruco_dwt_cyc();
+    const int n = whycon_detect_inplace_(w, h);
+    const uint32_t t1 = aruco_dwt_cyc();
+    s_whycon_cyc_last = t1 - t0;
+    return n;
+}
+
 // W19-T1 / s181 — single Krajník marker at arbitrary pixel position
 // + radius.  Used by the SIM evaluator to forward-project known
 // world poses (X, Y, Z) through the pinhole intrinsics into image

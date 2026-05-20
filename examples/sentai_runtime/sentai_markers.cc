@@ -193,11 +193,14 @@ extern "C" int sentai_markers_detect_frame(const uint8_t* gray, int w, int h,
         s_cache_n = (n > SENTAI_MARKERS_MAX_DETS)
                       ? SENTAI_MARKERS_MAX_DETS : n;
     } else if (s_backend == SENTAI_MARKERS_BACKEND_WHYCON) {
-        // WhyCon detect operates on its own s_test_gray staging.
-        // For W19-T1: not yet wired through.  Production WhyCon
-        // detection path is via synth/PGM in the bench (s181); the
-        // camera-driven path is W19-T1.5 (Lane K continuation).
-        return -SENTAI_ARUCO_ERR_NO_INTR;
+        // W19-T1 / s182 camera-driven path: copy gray into the WhyCon
+        // s_test_gray staging via sentai_whycon_detect_buffer, then
+        // run the full detect pipeline.  Returns n_dets or negative.
+        extern int sentai_whycon_detect_buffer(const uint8_t* g, int w_, int h_);
+        const int n = sentai_whycon_detect_buffer(gray, w, h);
+        if (n < 0) return n;
+        cache_from_whycon_(n);
+        (void)frame_seq; (void)src_ts_ms;
     } else {
         return 0;
     }

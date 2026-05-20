@@ -1,0 +1,1 @@
+{"alt_sweep": [0.4, 0.5, 0.6, 0.7, 0.8, 1.0], "status": "OK", "name": "mission_s182", "ticks_logged": 180, "frames_w_det": 0, "errors": [], "phases_done": ["markers_init", "crazy_init", "takeoff", "alt_sweep", "land"], "version": "SentAI SIM v1.0 build 308 (2026-05-20 14:15:01) - FreeRTOS POSIX + MicroPython embed"}

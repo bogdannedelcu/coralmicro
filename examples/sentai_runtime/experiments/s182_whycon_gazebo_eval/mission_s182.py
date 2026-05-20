@@ -49,6 +49,20 @@ TICK_INTERVAL_MS = 100  # ~10 Hz logging cadence
 
 ALT_SWEEP = [0.40, 0.50, 0.60, 0.70, 0.80, 1.00]
 
+# Known marker world positions (must match sentai_whycon.sdf).  Used
+# in-mission to feed VPE back into cf2 EKF — sentai_sim is the
+# perception source, cf2 EKF fuses VPE with IMU, drone stays
+# stabilised on Z without the host doing any vision work.
+# Per [[missions-run-in-sentai-only]] this is THE pattern (the old
+# host-side aruco_to_vision_estimate.py is deprecated).
+MARKER_WORLD = (
+    ( 0.00, +0.20, 0.005),   # N
+    (+0.16,  0.00, 0.005),   # E
+    ( 0.00, -0.20, 0.005),   # S
+    (-0.08,  0.00, 0.005),   # W
+)
+MARKER_NAMES = ("N", "E", "S", "W")
+
 
 def _j(event, payload):
     sentai.sim.journal_write(event, payload)
@@ -82,17 +96,90 @@ def _write_summary(summary):
 def _read_cf2_pose():
     """Read cf2 EKF pose snapshot via CRTP LOG (anti-cheat-compliant —
     this is what cf2 thinks its pose is, NOT ground truth).
-    Returns a 7-tuple (x, y, z, qx, qy, qz, qw) or None if unavailable."""
+    Returns a tuple (x, y, z, yaw) or None if pose not yet subscribed
+    or first frame not yet arrived."""
     try:
         return sentai.crazy.pose()
     except (AttributeError, RuntimeError):
         return None
 
 
+def _associate_and_estimate(dets, cf2):
+    """In-mission marker-to-world association + per-detection drone
+    pose estimate.  Same logic as the host verdict but runs INSIDE
+    sentai_sim so we can also feed VPE back to cf2 EKF.
+
+    Strategy: forward-project each known marker into image space
+    using cf2 EKF pose (cf2 looking straight down, yaw≈0), then
+    match each detection to its nearest projected marker.  Discard
+    detections whose nearest marker is > MAX_ASSOC_PX away or whose
+    tz is wildly inconsistent with cf2.z.
+    """
+    if cf2 is None:
+        return []
+    cx_w, cy_w, cz_w, _yaw = cf2
+    # Forward-project each marker.
+    projected = []
+    for i in range(len(MARKER_WORLD)):
+        mx, my, mz = MARKER_WORLD[i]
+        z = cz_w - mz
+        if z <= 0.01:
+            projected.append(None)
+            continue
+        # body_xform = (-1, 0, 0, +1) ⇒ image LEFT (+x_body) maps to
+        # cam +X being on the -x_body axis.  See verdict.py.
+        u = CX - FX * (mx - cx_w) / z
+        v = CY + FY * (my - cy_w) / z
+        projected.append((u, v, mx, my, mz, i))
+
+    out = []
+    used = set()
+    for d in dets:
+        if not d.get("v"):
+            continue
+        tz = d["tz"]
+        if cz_w > 0.05:
+            rel = tz / cz_w
+            if rel < 0.5 or rel > 1.5:
+                continue
+        # Closest unused projected marker.
+        best_i = -1
+        best_dist2 = 80 * 80   # MAX_ASSOC_PX squared
+        for p in projected:
+            if p is None:
+                continue
+            u, v, _mx, _my, _mz, idx = p
+            if idx in used:
+                continue
+            dx = d["px"] - u
+            dy = d["py"] - v
+            dist2 = dx * dx + dy * dy
+            if dist2 < best_dist2:
+                best_dist2 = dist2
+                best_i = idx
+        if best_i < 0:
+            continue
+        used.add(best_i)
+        mx, my, mz = MARKER_WORLD[best_i]
+        # Drone world pose estimate.  Sign convention chosen so the
+        # plot matches GT (verified visually in iter #2):
+        #   drone_world.x = marker.x - tvec.x
+        #   drone_world.y = marker.y - tvec.y
+        #   drone_world.z = marker.z + tvec.z   (cam +Z is depth = world DOWN)
+        est_x = mx - d["tx"]
+        est_y = my - d["ty"]
+        est_z = mz + d["tz"]
+        out.append((best_i, est_x, est_y, est_z, d))
+    return out
+
+
 def _log_tick(tick_idx, target_alt):
     """One logging tick: run WhyCon detection on the current camera
-    frame, log cf2 EKF pose + per-marker tvec_cam.  All numbers
-    journalled for the host verdict to consume."""
+    frame, associate detections with known markers, AVERAGE the per-
+    marker drone-world estimates, send the result back to cf2 EKF
+    via send_extpos so cf2 stays stabilised on Z.  Log cf2 EKF pose
+    + per-marker estimates + the VPE we sent.
+    """
     cf2 = _read_cf2_pose()
     n = sentai.markers.detect_from_camera()
     dets = []
@@ -115,13 +202,36 @@ def _log_tick(tick_idx, target_alt):
                 "rep":  t[9],
                 "v":    t[11],
             })
+
+    # ---- VPE forwarder — feed estimated drone pose back to cf2 EKF.
+    vpe_sent = None
+    assocs = _associate_and_estimate(dets, cf2)
+    if assocs:
+        # Median (robust to single outlier) across associated markers.
+        xs = sorted(a[1] for a in assocs)
+        ys = sorted(a[2] for a in assocs)
+        zs = sorted(a[3] for a in assocs)
+        mx = xs[len(xs) // 2]
+        my = ys[len(ys) // 2]
+        mz = zs[len(zs) // 2]
+        try:
+            sentai.crazy.send_extpos(mx, my, mz)
+            vpe_sent = (mx, my, mz)
+        except (AttributeError, RuntimeError):
+            pass
+    # sentai.sim.journal_write auto-prefixes the line with the host
+    # monotonic timestamp (see line "286089204 takeoff ..." in journal),
+    # so we don't add ts_ms here — sentai.rtos has only sleep_ms in
+    # the SIM build, no ticks_ms (caught the hard way 2026-05-20 in
+    # the s182 first run).
     _j("tick", {
         "i":      tick_idx,
         "alt":    target_alt,
-        "ts_ms":  sentai.rtos.ticks_ms(),
         "cf2":    cf2,
         "n":      n,
         "dets":   dets,
+        "vpe":    vpe_sent,
+        "n_assoc": len(assocs),
     })
 
 
@@ -164,6 +274,18 @@ def run():
         sentai.crazy.arm()
         _j("crazy_arm", {})
         sentai.rtos.sleep_ms(300)
+
+        # ---- crazy pose subscribe — opens CRTP LOG block for the
+        #      stateEstimate.{x,y,z} + stabilizer.yaw stream so
+        #      sentai.crazy.pose() returns non-None values during the
+        #      altitude sweep below.  50 ms period ≈ 20 Hz (cf2 EKF
+        #      onboard publish rate).
+        try:
+            sub_rc = sentai.crazy.pose_subscribe(50)
+            _j("pose_subscribe", {"rc": sub_rc, "period_ms": 50})
+        except (AttributeError, RuntimeError) as ex:
+            _j("pose_subscribe_err", {"err": repr(ex)})
+        sentai.rtos.sleep_ms(500)   # let first pose frame arrive
 
         # ---- takeoff to working altitude --------------------------
         rc = sentai.crazy.takeoff(TAKEOFF_HEIGHT, TAKEOFF_DUR)

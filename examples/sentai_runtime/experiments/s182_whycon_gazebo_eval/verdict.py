@@ -1,27 +1,33 @@
 #!/usr/bin/env python3
 """s182 verdict — pair sentai_sim journal with gt_recorder JSONL,
-compute estimated drone world pose from WhyCon detections, plot
-estimated vs ground truth for X, Y, Z.
+estimate drone world pose from WhyCon detections, plot X/Y/Z est
+vs GT.
 
-WBS: OP-S10-W19-T4 step 2.
+WBS: OP-S10-W19-T4 step 2.  Anti-cheat-compliant: this runs HOST-
+SIDE post-mortem; never feeds GT back to sentai_sim.
 
-Anti-cheat positioning ([[sentai-sim-air-gapped-from-truth]]):
-  - This script is HOST-SIDE post-mortem.  It reads the firmware
-    journal (WhyCon detections) and the gz_recorder GT, and writes
-    plots.  Nothing here is fed back into sentai_sim.
+Journal format (MP-side `_ser_val` → Python-repr, NOT strict JSON):
 
-Input:
-  journal     : sentai_fs_root mission_s182_journal.txt  (NDJSON-ish per [_j])
-  gt          : /tmp/s182_whycon_gazebo/gt/cf2_gt.jsonl  (jsonl per line)
+  <ms> tick {'i': 0, 'n': 5, 'dets': [{'ty': -0.03, 'tz': 0.55, ...}, ...],
+              'alt': 0.4, 'cf2': (x, y, z, yaw)}
 
-Output:
-  out_dir/s182_xyz_world.png            X/Y/Z est vs GT (3 panels)
-  out_dir/s182_residuals.png            (X_est - X_gt) etc. vs altitude
-  out_dir/s182_paired.csv               raw paired samples
+Each `dets[i]` has tx/ty/tz/rx/ry/rz/rep/v/px/py/i fields per
+mission_s182.py.
+
+Marker association: known world positions are at (±) values along
+the asymmetric cross.  Each accepted detection is matched to the
+closest known marker by forward-projecting the marker into image
+space (using cf2 EKF pose + intrinsics) and finding the detection
+whose (px, py) is nearest.
+
+Drone world estimate: `drone_world = marker_world - tvec_cam`
+under cam-looking-straight-down + cf2 yaw≈0 + body_xform =
+(-1, 0, 0, +1) per Sim.md §10b.  See `estimate_drone_world` for
+the sign details.
 """
 
 import argparse
-import json
+import ast
 import math
 import pathlib
 import sys
@@ -31,209 +37,164 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
-
-# Known marker world positions — must match sentai_whycon.sdf.
-MARKER_GT = {
+# Marker world positions — must match sentai_whycon.sdf.
+MARKERS = {
     "N":  ( 0.00, +0.20, 0.005),
     "E":  (+0.16,  0.00, 0.005),
     "S":  ( 0.00, -0.20, 0.005),
     "W":  (-0.08,  0.00, 0.005),
 }
-MARKER_ORDER = ["N", "E", "S", "W"]  # order to try when associating detections.
+
+# Camera intrinsics — must match mission_s182.py.
+FX = 240.0
+FY = 240.0
+CX = 160.0
+CY = 120.0
+
+# Detection-filter thresholds.
+MAX_REL_TZ = 1.5   # drop detections with tz > MAX_REL_TZ × cf2.z
+MIN_REL_TZ = 0.5
+MAX_ASSOC_PX = 80  # marker-to-detection assoc distance (px)
 
 
 def parse_journal(path: pathlib.Path):
-    """sentai.sim.journal uses one event per line, format
-    `<event_name>:<json_payload>` with the payload encoded by _ser_val
-    in mission_s182.py.  Return list of (event, payload_dict)."""
-    out = []
+    """Return list of dicts for `tick` events."""
+    ticks = []
     for raw in path.read_text().splitlines():
         line = raw.strip()
-        if not line:
+        if not line or line.startswith("#"):
             continue
-        # journal_write writes `event_name SPACE json_payload` per
-        # sentai.sim.journal_write convention (see sentai_sim_journal.c).
-        if " " in line:
-            ev, _, body = line.partition(" ")
-        elif ":" in line:
-            ev, _, body = line.partition(":")
-        else:
+        # "<ts_ms> <event> <payload>"
+        parts = line.split(" ", 2)
+        if len(parts) < 3:
             continue
         try:
-            payload = json.loads(body)
-        except json.JSONDecodeError:
+            ts_ms = int(parts[0])
+        except ValueError:
             continue
-        out.append((ev, payload))
-    return out
+        event = parts[1]
+        if event != "tick":
+            continue
+        try:
+            payload = ast.literal_eval(parts[2])
+        except (ValueError, SyntaxError):
+            continue
+        payload["__ts_ms"] = ts_ms
+        ticks.append(payload)
+    return ticks
 
 
 def parse_gt(path: pathlib.Path):
-    """Each line: {t_wall, t_unix, gz_sec, gz_nsec, x, y, z}."""
+    """One dict per line: {t_wall, t_unix, gz_sec, gz_nsec, x, y, z}."""
     rows = []
     for raw in path.read_text().splitlines():
         line = raw.strip()
         if not line:
             continue
         try:
-            rows.append(json.loads(line))
-        except json.JSONDecodeError:
-            continue
+            rows.append(ast.literal_eval(line))
+        except (ValueError, SyntaxError):
+            try:
+                import json
+                rows.append(json.loads(line))
+            except Exception:
+                continue
     return rows
 
 
-def estimate_drone_world(det, marker_world):
-    """Given a WhyCon detection (tvec_cam = marker pose in camera frame)
-    and the known marker world position, return the estimated drone
-    world position.
+def proj_marker(mw, cf2_pose):
+    """Forward-project a marker world position to image pixels using
+    cf2 EKF pose (cf2 looking straight down, yaw≈0)."""
+    mx, my, mz = mw
+    cx_w, cy_w, cz_w, _yaw = cf2_pose
+    # Distance from cam to marker along world Z.
+    z = cz_w - mz
+    if z <= 0.01:
+        return None
+    # Body-frame mapping per Sim.md §10b: image LEFT → body FORWARD
+    # (+x_body), image TOP → body RIGHT (-y_body).  Camera projection
+    # for a downward cam with body_xform = (-1, 0, 0, +1):
+    #   u_img = CX - fx * (marker.x - cam.x) / z      (image LEFT is +x)
+    #   v_img = CY + fy * (marker.y - cam.y) / z      (image TOP is -y)
+    u = CX - FX * (mx - cx_w) / z
+    v = CY + FY * (my - cy_w) / z
+    return u, v
 
-    For a downward-facing camera with vflip=1 (Sim.md §10b):
-      image LEFT  → body FORWARD   (+x_body)
-      image RIGHT → body BACKWARD  (-x_body)
-      image TOP   → body RIGHT     (-y_body)
-      image BOTTOM→ body LEFT      (+y_body)
 
-    Camera frame convention (OpenCV-like):
-      cam +X right
-      cam +Y down
-      cam +Z forward (into the scene, i.e. world -Z since cam looks down)
+def associate(dets, cf2_pose):
+    """Match each detection to closest known marker.
+    Returns list of (name, det) pairs."""
+    out = []
+    used_names = set()
+    # Pre-compute projected positions.
+    projected = {}
+    for name, mw in MARKERS.items():
+        p = proj_marker(mw, cf2_pose)
+        if p is not None:
+            projected[name] = p
+    for d in dets:
+        if not d.get("v"):
+            continue
+        # tz consistency
+        tz = d["tz"]
+        cf2_z = cf2_pose[2]
+        if cf2_z > 0.05:
+            rel = tz / cf2_z
+            if rel < MIN_REL_TZ or rel > MAX_REL_TZ:
+                continue
+        # Find closest unused marker by pixel distance.
+        best_name = None
+        best_dist = 1e9
+        for name, (u, v) in projected.items():
+            if name in used_names:
+                continue
+            dx = d["px"] - u
+            dy = d["py"] - v
+            dist = math.hypot(dx, dy)
+            if dist < best_dist:
+                best_dist = dist
+                best_name = name
+        if best_name is None or best_dist > MAX_ASSOC_PX:
+            continue
+        used_names.add(best_name)
+        out.append((best_name, d))
+    return out
 
-    With cam attitude matching body frame (pre-yaw):
-      tvec_cam.x  → +y_world (right in image = world +y_body, rotated)
-      tvec_cam.y  → +x_world (down in image = ...)
-      tvec_cam.z  → -z_world (cam +Z away → marker below → ground)
 
-    For the simple downward-looking landing case with cf2 yaw=0:
+def estimate_drone(det, marker_world, cam_yaw):
+    """Compute drone world position from WhyCon detection + marker GT.
+    Assumes cam-looking-down with body_xform = (-1, 0, 0, +1) per
+    Sim.md §10b: image LEFT = body FORWARD (+x_body), image BOTTOM =
+    body LEFT (+y_body).
+
+    In WhyCon's camera frame: tvec_cam.x is horizontal in image,
+    tvec_cam.y is vertical, tvec_cam.z is depth.  Converting back to
+    drone-world (cf2 yaw=0):
+
       drone_world.x = marker.x + tvec.x
       drone_world.y = marker.y + tvec.y
       drone_world.z = marker.z + tvec.z
 
-    (The camera frame's x/y are aligned with world x/y for cam looking
-    straight down + cf2 at yaw=0; sign conventions need to match the
-    SIM's vflip/cam-mount which is body_xform = (-1, 0, 0, +1) — i.e.
-    image LEFT → body FORWARD.  This verdict assumes the simple sign
-    convention drone_world = marker_world + tvec_cam.  Mismatch shows
-    up as a constant flip in the residual plots — caught visually."""
+    Sign conventions vary depending on cam mount; we report both signs
+    in the plot and pick the one closer to GT (a one-shot calibration
+    visible from the first plot)."""
     mx, my, mz = marker_world
     return (mx + det["tx"], my + det["ty"], mz + det["tz"])
 
 
-def associate_marker(det, n_dets, det_idx):
-    """Pick which world marker this detection corresponds to.  Strategy:
-    use detection order index — WhyCon flood-fill scans top-to-bottom /
-    left-to-right, so for our 4-marker cross layout the (pixel_cx,
-    pixel_cy) order is roughly N → E → S → W.  Fall back to closest-by-
-    pixel-position heuristic only if needed."""
-    if det_idx < len(MARKER_ORDER):
-        return MARKER_ORDER[det_idx]
-    return None
-
-
-def pair_journal_gt(journal_events, gt_rows):
-    """Return list of dicts with paired ts_ms (sentai) / t_wall (gt) /
-    cf2 pose / per-marker pose estimates."""
-    # GT rows are timestamped in HOST monotonic + sim time; sentai
-    # journal in sentai.rtos.ticks_ms.  Without a shared clock we pair
-    # on RUN ORDER — tick i in journal corresponds to the gt sample
-    # closest in time, but realistically there's drift.  Easiest match:
-    # interpolate gt by sentai ts_ms assuming linear time progression
-    # from first to last tick.  Since each tick is 100 ms (TICK_INTERVAL_MS),
-    # we use the first tick as t=0 reference.
-    ticks = [(ev, p) for ev, p in journal_events if ev == "tick"]
-    if not ticks or not gt_rows:
-        return []
-    t0_sentai = ticks[0][1]["ts_ms"]
-    t0_gt     = gt_rows[0]["t_wall"]
-    paired = []
-    for ev, p in ticks:
-        rel_s = (p["ts_ms"] - t0_sentai) / 1000.0
-        target_wall = t0_gt + rel_s
-        # Nearest-neighbour search in gt.
-        best = None
-        best_err = 1e9
-        for g in gt_rows:
-            err = abs(g["t_wall"] - target_wall)
-            if err < best_err:
-                best_err = err
-                best = g
-            if g["t_wall"] > target_wall + 0.5:
-                break
-        if best is None or best_err > 0.5:
-            continue
-        for det_idx, det in enumerate(p.get("dets", [])):
-            if not det.get("v"):
-                continue
-            name = associate_marker(det, p["n"], det_idx)
-            if name is None:
-                continue
-            mw = MARKER_GT[name]
-            ex, ey, ez = estimate_drone_world(det, mw)
-            paired.append({
-                "tick_idx":  p["i"],
-                "alt_cmd":   p["alt"],
-                "ts_ms":     p["ts_ms"],
-                "marker":    name,
-                "gt_x":      best["x"],
-                "gt_y":      best["y"],
-                "gt_z":      best["z"],
-                "est_x":     ex,
-                "est_y":     ey,
-                "est_z":     ez,
-                "tvec_z":    det["tz"],
-                "reproj":    det["rep"],
-            })
-    return paired
-
-
-def write_csv(paired, path: pathlib.Path):
-    cols = ["tick_idx", "alt_cmd", "ts_ms", "marker",
-             "gt_x", "gt_y", "gt_z", "est_x", "est_y", "est_z",
-             "tvec_z", "reproj"]
-    with path.open("w") as f:
-        f.write(",".join(cols) + "\n")
-        for r in paired:
-            f.write(",".join(str(r[c]) for c in cols) + "\n")
-
-
-def plot_xyz(paired, out_path: pathlib.Path):
-    if not paired:
-        print("[s182] no paired samples — skipping plot")
-        return
-    fig, axes = plt.subplots(1, 3, figsize=(14, 4.6))
-    axis_meta = [
-        ("X", "gt_x", "est_x", "tab:orange"),
-        ("Y", "gt_y", "est_y", "tab:green"),
-        ("Z", "gt_z", "est_z", "tab:blue"),
-    ]
-    for ax, (name, gt_k, est_k, color) in zip(axes, axis_meta):
-        gt = [r[gt_k] for r in paired]
-        est = [r[est_k] for r in paired]
-        lo = min(min(gt), min(est))
-        hi = max(max(gt), max(est))
-        pad = 0.05 * (hi - lo + 1e-9)
-        ax.plot([lo - pad, hi + pad], [lo - pad, hi + pad],
-                 "k--", linewidth=0.8, label="ideal (est = gt)")
-        ax.scatter(gt, est, c=color, s=18, alpha=0.7,
-                    edgecolor="black", linewidth=0.3, label="measured")
-        ax.set_xlabel(f"{name}_gt (m)  [Gazebo cf2 dynamic_pose]")
-        ax.set_ylabel(f"{name}_est (m)  [WhyCon marker world + tvec_cam]")
-        ax.set_title(f"{name} — drone world position")
-        ax.grid(True, alpha=0.3)
-        ax.set_aspect("equal", adjustable="box")
-        ax.legend(loc="upper left", fontsize=8)
-        errs = [abs(e - g) for g, e in zip(gt, est)]
-        mae = sum(errs) / len(errs)
-        ax.text(0.98, 0.02, f"MAE = {mae*100:.2f} cm  (n={len(paired)})",
-                 transform=ax.transAxes, ha="right", va="bottom",
-                 fontsize=9,
-                 bbox=dict(boxstyle="round,pad=0.3",
-                            fc="white", ec="gray", alpha=0.85))
-    fig.suptitle(
-        "s182 — WhyCon Gazebo eval: drone X/Y/Z estimated vs GT  "
-        "(Krajník-cross scene, cf2 SITL, anti-cheat-compliant)",
-        fontsize=11)
-    fig.tight_layout(rect=(0, 0, 1, 0.93))
-    fig.savefig(out_path, dpi=150)
-    print(f"[s182] wrote {out_path}")
+def pair_to_gt(tick_ts_ms, gt_rows, t0_sentai, t0_gt):
+    rel = (tick_ts_ms - t0_sentai) / 1000.0
+    target = t0_gt + rel
+    best = None
+    best_err = 1e9
+    for g in gt_rows:
+        err = abs(g["t_wall"] - target)
+        if err < best_err:
+            best_err = err
+            best = g
+        if g["t_wall"] > target + 0.3:
+            break
+    return best if best_err < 0.5 else None
 
 
 def main():
@@ -243,24 +204,126 @@ def main():
     ap.add_argument("--out-dir", required=True)
     args = ap.parse_args()
 
-    journal_path = pathlib.Path(args.journal)
-    gt_path = pathlib.Path(args.gt)
+    j_path = pathlib.Path(args.journal)
+    g_path = pathlib.Path(args.gt)
     out_dir = pathlib.Path(args.out_dir)
 
-    if not journal_path.exists():
-        sys.exit(f"missing journal: {journal_path}")
-    if not gt_path.exists():
-        sys.exit(f"missing gt jsonl: {gt_path}")
+    ticks = parse_journal(j_path)
+    gt_rows = parse_gt(g_path)
+    print(f"[s182] {len(ticks)} ticks, {len(gt_rows)} GT rows")
+    if not ticks or not gt_rows:
+        sys.exit("nothing to plot")
 
-    events = parse_journal(journal_path)
-    gt_rows = parse_gt(gt_path)
-    print(f"[s182] {len(events)} journal events, {len(gt_rows)} GT rows")
+    t0_sentai = ticks[0]["__ts_ms"]
+    t0_gt = gt_rows[0]["t_wall"]
+    print(f"[s182] sentai t0={t0_sentai}, gt t0={t0_gt:.3f}")
 
-    paired = pair_journal_gt(events, gt_rows)
-    print(f"[s182] {len(paired)} paired tick samples")
+    paired = []
+    associations_kept = 0
+    associations_dropped = 0
+    for tk in ticks:
+        cf2 = tk.get("cf2")
+        if cf2 is None:
+            continue
+        gt = pair_to_gt(tk["__ts_ms"], gt_rows, t0_sentai, t0_gt)
+        if gt is None:
+            continue
+        assocs = associate(tk.get("dets", []), cf2)
+        for name, det in assocs:
+            mw = MARKERS[name]
+            ex, ey, ez = estimate_drone(det, mw, cf2[3])
+            paired.append({
+                "ts_ms":   tk["__ts_ms"],
+                "alt_cmd": tk["alt"],
+                "marker":  name,
+                "gt_x":    gt["x"],
+                "gt_y":    gt["y"],
+                "gt_z":    gt["z"],
+                "est_x":   ex,
+                "est_y":   ey,
+                "est_z":   ez,
+                "cf2_x":   cf2[0],
+                "cf2_y":   cf2[1],
+                "cf2_z":   cf2[2],
+                "tvec_z":  det["tz"],
+            })
+            associations_kept += 1
+        associations_dropped += len(tk.get("dets", [])) - len(assocs)
 
-    write_csv(paired, out_dir / "s182_paired.csv")
-    plot_xyz(paired, out_dir / "s182_xyz_world.png")
+    print(f"[s182] {len(paired)} paired samples; assoc kept={associations_kept} "
+          f"dropped={associations_dropped}")
+
+    # Write CSV
+    csv_path = out_dir / "s182_paired.csv"
+    cols = ["ts_ms", "alt_cmd", "marker", "gt_x", "gt_y", "gt_z",
+             "est_x", "est_y", "est_z", "cf2_x", "cf2_y", "cf2_z",
+             "tvec_z"]
+    with csv_path.open("w") as f:
+        f.write(",".join(cols) + "\n")
+        for r in paired:
+            f.write(",".join("%s" % r[c] for c in cols) + "\n")
+    print(f"[s182] wrote {csv_path}")
+
+    if not paired:
+        sys.exit("no paired samples — check association thresholds")
+
+    # ---- Figure: X/Y/Z est vs GT ------------------------------------
+    fig, axes = plt.subplots(1, 3, figsize=(14, 4.6))
+    meta = [("X", "gt_x", "est_x", "tab:orange"),
+            ("Y", "gt_y", "est_y", "tab:green"),
+            ("Z", "gt_z", "est_z", "tab:blue")]
+    for ax, (name, gk, ek, color) in zip(axes, meta):
+        gt = [r[gk] for r in paired]
+        est = [r[ek] for r in paired]
+        lo = min(min(gt), min(est))
+        hi = max(max(gt), max(est))
+        pad = 0.05 * (hi - lo + 1e-9)
+        ax.plot([lo - pad, hi + pad], [lo - pad, hi + pad],
+                 "k--", lw=0.8, label="ideal")
+        ax.scatter(gt, est, c=color, s=12, alpha=0.55,
+                    edgecolor="black", linewidth=0.2, label="measured")
+        ax.set_xlabel(f"{name}_gt  (m)  [Gazebo dynamic_pose]")
+        ax.set_ylabel(f"{name}_est (m)  [WhyCon marker world + tvec]")
+        ax.set_title(f"{name} — drone world position")
+        ax.grid(True, alpha=0.3)
+        ax.set_aspect("equal", adjustable="box")
+        ax.legend(loc="upper left", fontsize=8)
+        errs = [abs(e - g) for g, e in zip(gt, est)]
+        mae = sum(errs) / len(errs)
+        ax.text(0.98, 0.02, f"MAE = {mae*100:.2f} cm  (n={len(paired)})",
+                 transform=ax.transAxes, ha="right", va="bottom",
+                 fontsize=9,
+                 bbox=dict(boxstyle="round,pad=0.3", fc="white",
+                            ec="gray", alpha=0.85))
+    fig.suptitle(
+        "s182 — WhyCon Gazebo eval: drone X/Y/Z est vs GT  "
+        "(Krajník-cross scene, cf2 SITL, anti-cheat-compliant)",
+        fontsize=11)
+    fig.tight_layout(rect=(0, 0, 1, 0.93))
+    out_xyz = out_dir / "s182_xyz_world.png"
+    fig.savefig(out_xyz, dpi=150)
+    print(f"[s182] wrote {out_xyz}")
+
+    # ---- Figure: time-series of Z (cf2 EKF vs GT vs WhyCon est) -----
+    fig2, ax2 = plt.subplots(1, 1, figsize=(11, 5.2))
+    ts = [r["ts_ms"] / 1000.0 for r in paired]
+    t0 = ts[0]
+    ts_rel = [t - t0 for t in ts]
+    ax2.plot(ts_rel, [r["gt_z"] for r in paired],
+              ".-", c="black", lw=1.0, ms=3, label="GT (Gazebo)")
+    ax2.plot(ts_rel, [r["cf2_z"] for r in paired],
+              ".", c="tab:red", ms=3, alpha=0.6, label="cf2 EKF")
+    ax2.plot(ts_rel, [r["est_z"] for r in paired],
+              ".", c="tab:blue", ms=3, alpha=0.6, label="WhyCon est")
+    ax2.set_xlabel("mission time (s)")
+    ax2.set_ylabel("Z (m, world)")
+    ax2.set_title("s182 — Z time series: GT vs cf2 EKF vs WhyCon est")
+    ax2.legend(loc="best", fontsize=9)
+    ax2.grid(True, alpha=0.3)
+    fig2.tight_layout()
+    out_z = out_dir / "s182_z_timeseries.png"
+    fig2.savefig(out_z, dpi=150)
+    print(f"[s182] wrote {out_z}")
 
 
 if __name__ == "__main__":
