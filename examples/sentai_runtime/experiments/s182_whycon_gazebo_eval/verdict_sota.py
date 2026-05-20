@@ -436,8 +436,13 @@ def main():
         residuals = np.array([res_max])
         assocs = dict(zip(used_names, valid_dets))
 
+        # Iter-10b: both sentai tick __ts_ms and GT t_wall come from
+        # host time.monotonic() (sentai writes ms, GT writes seconds),
+        # so they share the SAME wall clock — pair by ABSOLUTE time,
+        # not normalized-to-zero (which paired post-takeoff hover ticks
+        # with pre-takeoff GT rows, giving the persistent ~35 cm Z bias).
         rel_s = (tk["__ts_ms"] - t0_sentai) / 1000.0
-        target_wall = t0_gt + rel_s
+        target_wall = tk["__ts_ms"] / 1000.0
         best_gt = None
         best_err = 1e9
         for g in gt_rows:

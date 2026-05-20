@@ -54,29 +54,34 @@ CY = 120.0
 # R_world = 232/256 * 0.06 = 0.0544 m → diameter = 0.1088 m.
 MARKER_DIAMETER_M = 0.1088
 
-# Flight plan.  iter-9b: raised TAKEOFF_HEIGHT 0.6→1.0 m.  Without
-# VPE feedback cf2 drifts on Z and we end up below the altitude
-# where the full H pattern is visible — at z<0.4 m the Y extent
-# (0.34 m) starts clipping out of FOV → fewer markers detected,
-# Kabsch degenerates to collinear-column subsets → X-bimodal flips.
-TAKEOFF_HEIGHT = 1.0
-TAKEOFF_DUR    = 3.0
-LAND_DUR       = 3.0
-HOVER_WAIT_S   = 2.0    # let cf2 settle before logging
-HOVER_TICKS    = 30     # ~3s @ 10 Hz logging
-TICK_INTERVAL_MS = 100  # ~10 Hz logging cadence
+# Flight plan — iter-10.  Pattern copied from s174 YawArucoBaseline,
+# the closest precedent (ArUco markers + altitude hold via VPE on cf2
+# SITL).  Sequence:
+#   1. takeoff(Z_HOLD, dur) — HighLevel commander
+#   2. settle = dur + 0.5s + SETTLE_S
+#   3. hl_stop() + 5× hover(0, 0, 0, Z_HOLD) @ 30 ms — pin with
+#      low-level setpoint
+#   4. enable VPE Z (median tz with W3 + correct ANNULUS_FACTOR)
+#   5. hover-and-log
+Z_HOLD          = 0.60   # s170 used 0.6, s174 used 0.9; 0.6 keeps full H pattern in FOV
+TAKEOFF_DUR     = 2.5
+LAND_DUR        = 2.5
+SETTLE_S        = 4.0    # s174 value
+HOVER_WAIT_S    = 0.5
+HOVER_TICKS     = 80     # 8 s of hover logging
+TICK_INTERVAL_MS = 100   # ~10 Hz logging cadence
 
-ALT_SWEEP = [0.40, 0.50, 0.60, 0.70, 0.80, 1.00]
-
-# VPE control.  iter-6 lesson (2026-05-20): sending VPE est_z from
-# per-frame median tz creates a POSITIVE FEEDBACK LOOP — cf2 EKF
-# accepts the new z, the next frame's tz reflects the NEW (wrong)
-# altitude, cf2 jumps further.  After 2 ticks the drone is at z=2 m
-# commanded 0.4 m.  Until we have a proper Kabsch-based XYZ in-mission
-# (W19-T3), VPE stays OFF.  Drone will slowly drift on X/Y/Z under
-# cf2's open-loop control — still good enough for ~3-5 s of capture
-# over the H pattern.
-ENABLE_VPE = False
+# VPE control.  iter-6 sent VPE est_z from median raw tz and the C-side
+# ANNULUS_FACTOR was wrong (1.0 instead of 1.166) → tz overestimated
+# → positive-feedback loop drove cf2 EKF Z from 0.4 to 2.0 m in one
+# tick.  iter-9 fixed the C-side factor to the analytic Krajník value
+# 1.166, so median tz is now an honest Z observation.  Re-enable VPE
+# Z; X+Y pass-through from cf2 EKF (closed by optical flow / IMU).
+# Median is taken over detections whose tz is within 30% of cohort
+# median — rejects outliers without anchoring on (drifting) cf2_z.
+ENABLE_VPE      = True
+VPE_TZ_BAND     = 0.30   # ±30% from cohort median
+VPE_MIN_DETS    = 4      # require both columns' worth of markers
 
 # Known marker world positions (must match sentai_whycon.sdf).  Used
 # in-mission to feed VPE back into cf2 EKF — sentai_sim is the
@@ -236,10 +241,23 @@ def _log_tick(tick_idx, target_alt):
                 "v":    t[11],
             })
 
-    # ---- Iter-7: VPE permanently OFF until Kabsch-in-mission (W19-T3).
-    # See ENABLE_VPE comment above for the iter-6 positive-feedback
-    # loop that this iteration retires.
+    # ---- iter-10 VPE-Z from median tz (now with correct ANNULUS_FACTOR).
     vpe_sent = None
+    if ENABLE_VPE and cf2 is not None and dets:
+        all_tz = sorted([d["tz"] for d in dets
+                          if d.get("v") and 0.05 < d["tz"] < 3.0])
+        if len(all_tz) >= VPE_MIN_DETS:
+            med_tz = all_tz[len(all_tz) // 2]
+            band_lo = (1.0 - VPE_TZ_BAND) * med_tz
+            band_hi = (1.0 + VPE_TZ_BAND) * med_tz
+            filt = [t for t in all_tz if band_lo <= t <= band_hi]
+            if len(filt) >= VPE_MIN_DETS:
+                est_z = filt[len(filt) // 2] + 0.005      # +marker_z
+                try:
+                    sentai.crazy.send_extpos(cf2[0], cf2[1], est_z)
+                    vpe_sent = (cf2[0], cf2[1], est_z)
+                except (AttributeError, RuntimeError):
+                    pass
     # sentai.sim.journal_write auto-prefixes the line with the host
     # monotonic timestamp (see line "286089204 takeoff ..." in journal),
     # so we don't add ts_ms here — sentai.rtos has only sleep_ms in
@@ -263,7 +281,7 @@ def run():
         "version":       sentai.version(),
         "status":        "STARTED",
         "phases_done":   [],
-        "alt_sweep":     ALT_SWEEP,
+        "z_hold":        Z_HOLD,
         "ticks_logged":  0,
         "frames_w_det":  0,
         "errors":        [],
@@ -322,34 +340,44 @@ def run():
         _j("fr_open_scalars", {"rc": sentai.fr.open("scalars", FR_SCALARS_FILE)})
         _j("fr_task_start",   {"rc": sentai.fr.task_start()})
 
-        # ---- takeoff to working altitude --------------------------
-        rc = sentai.crazy.takeoff(TAKEOFF_HEIGHT, TAKEOFF_DUR)
-        _j("takeoff", {"h": TAKEOFF_HEIGHT, "rc": rc})
-        _sleep_after_cmd(TAKEOFF_DUR)
+        # ---- s174-style takeoff + settle + hl_stop pin -----------
+        rc = sentai.crazy.takeoff(Z_HOLD, TAKEOFF_DUR)
+        _j("takeoff", {"h": Z_HOLD, "rc": rc})
+        sentai.rtos.sleep_ms(int(TAKEOFF_DUR * 1000) + 500)
+        sentai.rtos.sleep_ms(int(SETTLE_S * 1000))
+        _j("takeoff_settled", {})
         summary["phases_done"].append("takeoff")
 
-        # ---- hover-and-log loop -----------------------------------
-        # Iter-7: skip the multi-altitude sweep; cf2 drifts in 1-2 s
-        # without VPE so a long altitude sweep mostly logs frames AWAY
-        # from the H pattern.  Instead hover at takeoff height with
-        # repeated set_position re-commands and log @ 10 Hz for ~6 s.
-        # Verdict picks up the few ticks where cf2 is still over the
-        # pattern.
-        HOVER_TICKS_TOTAL = 80      # 8 s @ 10 Hz
-        REASSERT_EVERY = 5          # re-issue go_to every 5 ticks (~0.5 s)
+        # Drop HighLevel + pin with low-level hover setpoint (s174
+        # pattern).  Five repeats give cf2 time to converge to the
+        # low-level controller before we start logging.
+        try:
+            _j("crazy_hl_stop", {"rc": sentai.crazy.hl_stop()})
+        except (AttributeError, RuntimeError) as ex:
+            _j("hl_stop_err", {"err": repr(ex)})
+        for _ in range(5):
+            try:
+                sentai.crazy.hover(0.0, 0.0, 0.0, Z_HOLD)
+            except (AttributeError, RuntimeError):
+                pass
+            sentai.rtos.sleep_ms(30)
+        _j("hover_pin_ready", {"alt": Z_HOLD})
+
+        # ---- hover-and-log with VPE-Z enabled --------------------
         tick_idx = 0
-        alt = TAKEOFF_HEIGHT
-        _j("hover_start", {"alt": alt})
-        for k in range(HOVER_TICKS_TOTAL):
-            if k % REASSERT_EVERY == 0:
+        _j("hover_start", {"alt": Z_HOLD})
+        for k in range(HOVER_TICKS):
+            # Re-assert low-level hover setpoint every 5 ticks (~0.5 s)
+            # to keep cf2 from drifting out of the low-level commander.
+            if k % 5 == 0:
                 try:
-                    sentai.crazy.go_to(0.0, 0.0, alt, 0.0, 0.6, 0, 0, 0)
+                    sentai.crazy.hover(0.0, 0.0, 0.0, Z_HOLD)
                 except (AttributeError, RuntimeError):
                     pass
-            _log_tick(tick_idx, alt)
+            _log_tick(tick_idx, Z_HOLD)
             tick_idx += 1
             sentai.rtos.sleep_ms(TICK_INTERVAL_MS)
-        _j("hover_done", {"alt": alt, "ticks": HOVER_TICKS_TOTAL})
+        _j("hover_done", {"alt": Z_HOLD, "ticks": HOVER_TICKS})
         summary["phases_done"].append("hover_log")
         summary["ticks_logged"] = tick_idx
 
