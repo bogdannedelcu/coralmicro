@@ -667,6 +667,97 @@ extern "C" void sentai_flow_deadband_state(uint32_t* period_ms_x10,
 static volatile uint32_t s_flow_test_sink = 0;
 static volatile uint32_t s_flow_test_cyc  = 0;
 
+// OP-S10-W18-T1: search-mode toggle.  Default exhaustive (production
+// accuracy preserved).  Diamond search (LDSP+SDSP, Tham 1998) trades
+// global-optimum guarantee for ~12-25× compute reduction.  Set via
+// sentai.flow.set_search_mode("exhaustive"|"diamond").
+//   0 = exhaustive ±12 (625 candidates)
+//   1 = diamond search (LDSP→SDSP, ~25-50 evaluations typical)
+static volatile int s_flow_search_mode = 0;
+
+extern "C" void sentai_flow_set_search_mode(int mode) {
+    s_flow_search_mode = (mode == 1) ? 1 : 0;
+}
+extern "C" int sentai_flow_get_search_mode(void) { return s_flow_search_mode; }
+
+// Forward-decl SAD evaluator for diamond search (reused from sad_match).
+// Computes raw SAD on the 32×32 block at offset (dx, dy) relative to
+// the centered curr block.  No parabolic / conf / deadband — just SAD.
+__attribute__((always_inline)) static inline uint32_t
+flow_sad_at_(const uint8_t* curr, const uint8_t* prev, int dx, int dy) {
+    const int bx = (FLOW_GRAY_W - kBlockW) / 2;
+    const int by = (FLOW_GRAY_H - kBlockH) / 2;
+    uint32_t sad = 0;
+    for (int y = 0; y < kBlockH; ++y) {
+        const uint8_t* c = curr + (by + y) * FLOW_GRAY_W + bx;
+        const uint8_t* p = prev + (by + y + dy) * FLOW_GRAY_W + (bx + dx);
+        sad = __USADA8(LD32U(c +  0), LD32U(p +  0), sad);
+        sad = __USADA8(LD32U(c +  4), LD32U(p +  4), sad);
+        sad = __USADA8(LD32U(c +  8), LD32U(p +  8), sad);
+        sad = __USADA8(LD32U(c + 12), LD32U(p + 12), sad);
+        sad = __USADA8(LD32U(c + 16), LD32U(p + 16), sad);
+        sad = __USADA8(LD32U(c + 20), LD32U(p + 20), sad);
+        sad = __USADA8(LD32U(c + 24), LD32U(p + 24), sad);
+        sad = __USADA8(LD32U(c + 28), LD32U(p + 28), sad);
+    }
+    return sad;
+}
+
+// Diamond search (Tham, Ranganath, Ramakrishnan, Kasahara 1998).
+// LDSP = Large Diamond Search Pattern (9 points, 2-pixel max radius)
+// SDSP = Small Diamond Search Pattern (5 points, 1-pixel radius)
+// Algorithm:
+//   1. center = (0,0).  Evaluate 9 LDSP points centered on origin.
+//   2. If best is center, go to step 4 (refinement).
+//   3. Move center to best LDSP point, repeat step 1.
+//   4. Evaluate 5 SDSP points around current center.  Output is best.
+// Converges in 3-5 LDSP iterations + 1 SDSP for typical drone motion.
+// Total evaluations: ~25-50 vs 625 for exhaustive ±12 search.
+static void diamond_search_(const uint8_t* curr, const uint8_t* prev,
+                              int* out_dx, int* out_dy, uint32_t* out_sad) {
+    /* LDSP — 9 points, signed offsets (dx, dy) from center. */
+    static const int8_t LDSP_DX[9] = { 0, -1, +1, -2,  0, +2, -1, +1,  0 };
+    static const int8_t LDSP_DY[9] = {-2, -1, -1,  0,  0,  0, +1, +1, +2 };
+    /* SDSP — 5 points. */
+    static const int8_t SDSP_DX[5] = { 0, -1,  0, +1,  0 };
+    static const int8_t SDSP_DY[5] = {-1,  0,  0,  0, +1 };
+
+    int cx = 0, cy = 0;
+    uint32_t cbest = flow_sad_at_(curr, prev, 0, 0);
+    int max_ldsp_iter = 8;   /* bounded; LDSP normally converges in 3-5 */
+    while (max_ldsp_iter-- > 0) {
+        int   blx = 0, bly = 0;
+        uint32_t blbest = cbest;
+        for (int k = 0; k < 9; ++k) {
+            const int dx = cx + LDSP_DX[k];
+            const int dy = cy + LDSP_DY[k];
+            /* Bounds check against search range (±kSearchRange = ±12). */
+            if (dx < -kSearchRange || dx > kSearchRange) continue;
+            if (dy < -kSearchRange || dy > kSearchRange) continue;
+            /* Skip the center (we already have it as cbest). */
+            if (LDSP_DX[k] == 0 && LDSP_DY[k] == 0) continue;
+            const uint32_t sad = flow_sad_at_(curr, prev, dx, dy);
+            if (sad < blbest) { blbest = sad; blx = LDSP_DX[k]; bly = LDSP_DY[k]; }
+        }
+        if (blbest >= cbest) break;   /* center remained best → SDSP phase */
+        cx += blx; cy += bly;
+        cbest = blbest;
+    }
+    /* SDSP refinement around current center. */
+    int sbx = cx, sby = cy;
+    uint32_t sbest = cbest;
+    for (int k = 0; k < 5; ++k) {
+        const int dx = cx + SDSP_DX[k];
+        const int dy = cy + SDSP_DY[k];
+        if (dx < -kSearchRange || dx > kSearchRange) continue;
+        if (dy < -kSearchRange || dy > kSearchRange) continue;
+        if (SDSP_DX[k] == 0 && SDSP_DY[k] == 0) continue;
+        const uint32_t sad = flow_sad_at_(curr, prev, dx, dy);
+        if (sad < sbest) { sbest = sad; sbx = dx; sby = dy; }
+    }
+    *out_dx = sbx; *out_dy = sby; *out_sad = sbest;
+}
+
 extern "C" uint32_t sentai_flow_test_sad(int shift_px) {
     if (shift_px < -8) shift_px = -8;
     if (shift_px >  8) shift_px =  8;
@@ -703,7 +794,11 @@ extern "C" uint32_t sentai_flow_test_sad(int shift_px) {
     uint32_t best_sad = 0;
     dwt_enable_once();
     const uint32_t t0 = dwt_now();
-    sad_match(curr, prev, &dx, &dy, &best_sad);
+    if (s_flow_search_mode == 1) {
+        diamond_search_(curr, prev, &dx, &dy, &best_sad);
+    } else {
+        sad_match(curr, prev, &dx, &dy, &best_sad);
+    }
     const uint32_t t1 = dwt_now();
     s_flow_test_cyc = t1 - t0;
     // XOR-sink for DCE — best_sad / dx / dy all consumed.

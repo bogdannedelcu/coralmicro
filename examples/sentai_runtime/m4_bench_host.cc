@@ -78,11 +78,29 @@ extern "C" int sentai_m4_bench_start(uint32_t timeout_ms) {
 
 // Run one bench iteration with the given block size.  out_cyc filled
 // on success.  Returns 1 on success, 0 on timeout.
+//
+// CRITICAL FIX 2026-05-20 (OP-S10-W18 debug session): block was being
+// clamped to [3, 511] BEFORE being sent over IPC, which silently
+// destroyed all sentinel-routed dispatch paths on M4:
+//
+//   0xCAFE  (51966)  — IPC smoke test         } all >> 511 → clamped
+//   0xC100..0xC108   — WhyCon synth+threshold } to 511, which falls
+//   0xF10F  (61711)  — Flow SAD exhaustive    } into the default
+//   0xF1D7  (61911)  — Flow SAD on M4 DTCM    } ArUco threshold path
+//   0xF1DD  (61917)  — Flow diamond search    } @ block=511.
+//
+// This invalidates the M4 numbers reported in W16 (ArUco block sweep),
+// W17-T2 (WhyCon Phase A), W17-T4 (Flow SAD ablations) — they all
+// measured the same code path (ArUco threshold @ b=511) regardless
+// of the sentinel.  Numbers must be re-benched after this fix.
+//
+// HARD-RULE for any future sentinel range over IPC: clamp logic ALWAYS
+// LIVES IN THE WORKER, NOT THE HOST.  Host transmits raw block bytes.
 extern "C" int sentai_m4_bench_run(int block, uint32_t* out_cyc,
                                      uint32_t timeout_ms) {
     if (!s_m4_started || !out_cyc) return 0;
-    if (block < 3) block = 3;
-    if (block > 511) block = 511;
+    /* Clamp removed — was destroying sentinel routing.  Worker applies
+     * its own clamp for the legitimate ArUco-threshold range. */
 
     // Drain any prior pending signal.
     xSemaphoreTake(s_result_sem, 0);

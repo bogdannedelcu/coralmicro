@@ -262,6 +262,71 @@ static void aruco_adaptive_threshold_m4(int block) {
     }
 }
 
+// OP-S10-W18-T1 — Diamond search (Tham 1998) on M4, runs over the
+// shared OCRAM scratch.  ~25-50 SAD evaluations vs 625 for the
+// exhaustive variant.  Mirrors flow_task.cc::diamond_search_ logic.
+__attribute__((always_inline)) static inline uint32_t
+m4_flow_sad_at_(const uint8_t* curr, const uint8_t* prev, int dx, int dy) {
+    const int W = FLOW_BENCH_GRAY_W;
+    const int bx = (W - FLOW_BENCH_BLOCK_W) / 2;
+    const int by = (FLOW_BENCH_GRAY_H - FLOW_BENCH_BLOCK_H) / 2;
+    uint32_t sad = 0;
+    for (int y = 0; y < FLOW_BENCH_BLOCK_H; ++y) {
+        const uint8_t* c = curr + (by + y) * W + bx;
+        const uint8_t* p = prev + (by + y + dy) * W + (bx + dx);
+        sad = m4_usada8(M4_LD32U(c +  0), M4_LD32U(p +  0), sad);
+        sad = m4_usada8(M4_LD32U(c +  4), M4_LD32U(p +  4), sad);
+        sad = m4_usada8(M4_LD32U(c +  8), M4_LD32U(p +  8), sad);
+        sad = m4_usada8(M4_LD32U(c + 12), M4_LD32U(p + 12), sad);
+        sad = m4_usada8(M4_LD32U(c + 16), M4_LD32U(p + 16), sad);
+        sad = m4_usada8(M4_LD32U(c + 20), M4_LD32U(p + 20), sad);
+        sad = m4_usada8(M4_LD32U(c + 24), M4_LD32U(p + 24), sad);
+        sad = m4_usada8(M4_LD32U(c + 28), M4_LD32U(p + 28), sad);
+    }
+    return sad;
+}
+
+static uint32_t aruco_flow_diamond_m4(int* out_dx, int* out_dy) {
+    const uint8_t* curr = FLOW_BENCH_CURR_PTR;
+    const uint8_t* prev = FLOW_BENCH_PREV_PTR;
+    static const int8_t LDSP_DX[9] = { 0, -1, +1, -2,  0, +2, -1, +1,  0 };
+    static const int8_t LDSP_DY[9] = {-2, -1, -1,  0,  0,  0, +1, +1, +2 };
+    static const int8_t SDSP_DX[5] = { 0, -1,  0, +1,  0 };
+    static const int8_t SDSP_DY[5] = {-1,  0,  0,  0, +1 };
+    int cx = 0, cy = 0;
+    uint32_t cbest = m4_flow_sad_at_(curr, prev, 0, 0);
+    int max_iter = 8;
+    while (max_iter-- > 0) {
+        int blx = 0, bly = 0;
+        uint32_t blbest = cbest;
+        for (int k = 0; k < 9; ++k) {
+            const int dx = cx + LDSP_DX[k];
+            const int dy = cy + LDSP_DY[k];
+            if (dx < -FLOW_BENCH_SEARCH || dx > FLOW_BENCH_SEARCH) continue;
+            if (dy < -FLOW_BENCH_SEARCH || dy > FLOW_BENCH_SEARCH) continue;
+            if (LDSP_DX[k] == 0 && LDSP_DY[k] == 0) continue;
+            const uint32_t sad = m4_flow_sad_at_(curr, prev, dx, dy);
+            if (sad < blbest) { blbest = sad; blx = LDSP_DX[k]; bly = LDSP_DY[k]; }
+        }
+        if (blbest >= cbest) break;
+        cx += blx; cy += bly;
+        cbest = blbest;
+    }
+    int sbx = cx, sby = cy;
+    uint32_t sbest = cbest;
+    for (int k = 0; k < 5; ++k) {
+        const int dx = cx + SDSP_DX[k];
+        const int dy = cy + SDSP_DY[k];
+        if (dx < -FLOW_BENCH_SEARCH || dx > FLOW_BENCH_SEARCH) continue;
+        if (dy < -FLOW_BENCH_SEARCH || dy > FLOW_BENCH_SEARCH) continue;
+        if (SDSP_DX[k] == 0 && SDSP_DY[k] == 0) continue;
+        const uint32_t sad = m4_flow_sad_at_(curr, prev, dx, dy);
+        if (sad < sbest) { sbest = sad; sbx = dx; sby = dy; }
+    }
+    *out_dx = sbx; *out_dy = sby;
+    return sbest;
+}
+
 // OP-S10-W17-T4 DTCM-variant — local M4 DTCM mirror buffers.
 // Operator-requested "doar DTCM test, fara alte optimizari pe algoritm"
 // 2026-05-20.  Same algorithm, same SIMD intrinsics, same loop body
@@ -379,10 +444,11 @@ static void handle_m7_message_(const uint8_t data[coralmicro::kIpcMessageBufferD
         if (s_work_sem) xSemaphoreGive(s_work_sem);
         return;
     }
-    // OP-S10-W17-T4 Flow SAD sentinels:
-    //   0xF10F = M4 reads shared OCRAM directly (3-cyc/load)
-    //   0xF1D7 = M4 pre-copies OCRAM → local DTCM, then SAD (1-cyc/load)
-    if (block == 0xF10Fu || block == 0xF1D7u) {
+    // OP-S10-W17-T4 / W18-T1 Flow SAD sentinels:
+    //   0xF10F = M4 exhaustive SAD on shared OCRAM (3-cyc/load)
+    //   0xF1D7 = M4 exhaustive SAD on local DTCM (1-cyc/load)
+    //   0xF1DD = M4 diamond search (LDSP+SDSP) on shared OCRAM
+    if (block == 0xF10Fu || block == 0xF1D7u || block == 0xF1DDu) {
         s_pending_block = block;
         if (s_work_sem) xSemaphoreGive(s_work_sem);
         return;
@@ -432,6 +498,16 @@ static void handle_m7_message_(const uint8_t data[coralmicro::kIpcMessageBufferD
             s_bench_sink = (uint8_t)s_m4_flow_sink;
             app->cycles = t1 - t0;
             app->n_dets = 0;
+        } else if (block == 0xF1DDu) {
+            // OP-S10-W18-T1: diamond search on shared OCRAM.
+            int dx_out = 0, dy_out = 0;
+            const uint32_t t0 = dwt_cyc();
+            const uint32_t best = aruco_flow_diamond_m4(&dx_out, &dy_out);
+            const uint32_t t1 = dwt_cyc();
+            s_m4_flow_sink = best ^ (uint32_t)dx_out ^ ((uint32_t)dy_out << 16);
+            s_bench_sink = (uint8_t)s_m4_flow_sink;
+            app->cycles = t1 - t0;
+            app->n_dets = 2;  /* diamond variant flag */
         } else if (block == 0xF1D7u) {
             // OP-S10-W17-T4 DTCM variant: M4 pre-copies OCRAM shared
             // into DTCM local scratch (1-cyc access) BEFORE the timed

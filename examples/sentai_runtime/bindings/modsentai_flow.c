@@ -236,6 +236,26 @@ static mp_obj_t mod_sentai_flow_test_sad(mp_obj_t shift_obj) {
 static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_flow_test_sad_obj,
                                   mod_sentai_flow_test_sad);
 
+// OP-S10-W18-T1: search-mode toggle for the M7 Flow SAD path.
+// Accepts either a string ("exhaustive"/"diamond") or an int (0/1).
+// Returns the previous mode as int.  Default at boot is 0 (exhaustive).
+extern void sentai_flow_set_search_mode(int mode);
+extern int  sentai_flow_get_search_mode(void);
+static mp_obj_t mod_sentai_flow_set_search_mode(mp_obj_t mode_obj) {
+    const int prev = sentai_flow_get_search_mode();
+    int mode = 0;
+    if (mp_obj_is_str(mode_obj)) {
+        const char* s = mp_obj_str_get_str(mode_obj);
+        if (s && (s[0] == 'd' || s[0] == 'D')) mode = 1;
+    } else {
+        mode = (mp_obj_get_int(mode_obj) == 1) ? 1 : 0;
+    }
+    sentai_flow_set_search_mode(mode);
+    return mp_obj_new_int(prev);
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_flow_set_search_mode_obj,
+                                  mod_sentai_flow_set_search_mode);
+
 // ---- module table ----
 static const mp_rom_map_elem_t sentai_flow_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__),       MP_ROM_QSTR(MP_QSTR_flow) },
@@ -252,6 +272,8 @@ static const mp_rom_map_elem_t sentai_flow_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_pub_stats),      MP_ROM_PTR(&mod_sentai_flow_pub_stats_obj) },
     { MP_ROM_QSTR(MP_QSTR_perf),           MP_ROM_PTR(&mod_sentai_flow_perf_obj) },
     { MP_ROM_QSTR(MP_QSTR__test_sad),      MP_ROM_PTR(&mod_sentai_flow_test_sad_obj) },
+    { MP_ROM_QSTR(MP_QSTR_set_search_mode),
+                                            MP_ROM_PTR(&mod_sentai_flow_set_search_mode_obj) },
 };
 static MP_DEFINE_CONST_DICT(sentai_flow_globals, sentai_flow_globals_table);
 static const mp_obj_module_t sentai_flow_module = {
