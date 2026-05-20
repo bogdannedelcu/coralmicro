@@ -2468,20 +2468,37 @@ static int whycon_synth_frame_(int n_circles, int radius, int W, int H) {
 // Top-level WhyCon-lite detect — used both standalone (synth bench)
 // and from the public _test_pgm wrapper.  Frame size is fixed 320×240
 // (production resolution).
+// Per-stage cycle counters — populated by whycon_detect_inplace_ on
+// every call, queryable via sentai.whycon._stage_cyc() for honest
+// per-stage breakdown (OP-S10-W17 follow-up after the Flow-opt
+// review showed the USAD8-style tricks don't apply to bulk WhyCon).
+static volatile uint32_t s_whycon_t_a = 0;   // Phase A: rolling threshold
+static volatile uint32_t s_whycon_t_b = 0;   // Phase B: 8-conn flood fill
+static volatile uint32_t s_whycon_t_w = 0;   // Phase W1+W2: filter + moments
+
 static int whycon_detect_inplace_(int W, int H) {
-    // Stage A — rolling-integral Bradley threshold.  block_size = 31
-    // is the tuned value for circles at 12-60 px diameter; finer
-    // edges than ArUco quads benefit from a slightly smaller block.
+    const uint32_t t0 = aruco_dwt_cyc();
+    // Stage A — rolling-integral Bradley threshold.
     aruco_adaptive_threshold_rolling(s_test_gray, W, H, 31, s_binary);
-    // Phase B — 8-connected flood-fill labeling.
-    // 4-conn / 8-conn doesn't matter much for circles (no diagonal
-    // bridges), but 8-conn is the same path as ArUco so we re-use.
-    // First invert binary: aruco_adaptive_threshold writes 1=below-mean
-    // (i.e. dark pixel), which IS what we want for black disks — keep
-    // as-is.
+    const uint32_t t1 = aruco_dwt_cyc();
+    // Stage B — 8-connected flood-fill labeling.  Per-component
+    // 2nd-order moments accumulated inline (OP-S10-W17-T2 8eccf31b).
     const int n_comp = aruco_label_components(W, H);
-    // Stage W1+W2 — filter + moments.
-    return whycon_filter_and_moments_(n_comp, W, H);
+    const uint32_t t2 = aruco_dwt_cyc();
+    // Stage W1+W2 — filter + axes from moments.
+    const int n = whycon_filter_and_moments_(n_comp, W, H);
+    const uint32_t t3 = aruco_dwt_cyc();
+    s_whycon_t_a = t1 - t0;
+    s_whycon_t_b = t2 - t1;
+    s_whycon_t_w = t3 - t2;
+    return n;
+}
+
+extern "C" void sentai_whycon_stage_cyc(uint32_t* t_a, uint32_t* t_b,
+                                          uint32_t* t_w) {
+    if (t_a) *t_a = s_whycon_t_a;
+    if (t_b) *t_b = s_whycon_t_b;
+    if (t_w) *t_w = s_whycon_t_w;
 }
 
 // Timing wrapper: build/load gray frame into s_test_gray, then run

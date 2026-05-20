@@ -18,6 +18,7 @@ extern int      sentai_whycon_test_synth(int n_circles, int radius);
 extern int      sentai_whycon_test_pgm(const char* path);
 extern uint32_t sentai_whycon_detect_cyc_last(void);
 extern void     sentai_whycon_set_concentric_check(int on);
+extern void     sentai_whycon_stage_cyc(uint32_t* t_a, uint32_t* t_b, uint32_t* t_w);
 
 typedef struct {
     float cx, cy, axis_a, axis_b, angle;
@@ -44,6 +45,18 @@ static mp_obj_t whycon_detect_cyc_(void) {
     return mp_obj_new_int_from_uint(sentai_whycon_detect_cyc_last());
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(whycon_detect_cyc_obj, whycon_detect_cyc_);
+
+static mp_obj_t whycon_stage_cyc_(void) {
+    uint32_t a = 0, b = 0, w = 0;
+    sentai_whycon_stage_cyc(&a, &b, &w);
+    mp_obj_t t[3] = {
+        mp_obj_new_int_from_uint(a),
+        mp_obj_new_int_from_uint(b),
+        mp_obj_new_int_from_uint(w),
+    };
+    return mp_obj_new_tuple(3, t);
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(whycon_stage_cyc_obj, whycon_stage_cyc_);
 
 static mp_obj_t whycon_set_concentric(mp_obj_t on_obj) {
     sentai_whycon_set_concentric_check(mp_obj_get_int(on_obj));
@@ -78,6 +91,7 @@ static const mp_rom_map_elem_t sentai_whycon_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR__test_synth),     MP_ROM_PTR(&whycon_test_synth_obj) },
     { MP_ROM_QSTR(MP_QSTR__test_pgm),       MP_ROM_PTR(&whycon_test_pgm_obj) },
     { MP_ROM_QSTR(MP_QSTR__detect_cyc),     MP_ROM_PTR(&whycon_detect_cyc_obj) },
+    { MP_ROM_QSTR(MP_QSTR__stage_cyc),      MP_ROM_PTR(&whycon_stage_cyc_obj) },
     { MP_ROM_QSTR(MP_QSTR__set_concentric), MP_ROM_PTR(&whycon_set_concentric_obj) },
     { MP_ROM_QSTR(MP_QSTR__get_markers),    MP_ROM_PTR(&whycon_get_markers_obj) },
 };
