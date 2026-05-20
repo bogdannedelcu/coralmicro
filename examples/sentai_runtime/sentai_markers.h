@@ -67,6 +67,9 @@ typedef struct {
     uint8_t  backend;        // sentai_markers_backend_t enum value
     uint8_t  pose_valid;     // 1 iff tvec/rvec/reproj populated
     uint16_t _pad;
+    uint32_t _pad32;         // rounds size to 48 B for cache-line nice-ness
+                             // + leaves room for a future per-marker field
+                             // (e.g. detect_us)
 } SentaiMarkersPose;
 
 typedef struct {

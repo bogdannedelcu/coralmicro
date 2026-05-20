@@ -171,6 +171,8 @@ add_executable_sim(sentai_sim
     modsentai_sim.c
     camera_bridge_recv.c          # Phase 4 UDS receiver, runs flow pipeline
     sim_tpu_shim.c                # Phase 5 — pycoral helper UDS client
+    fx_user_stubs.c               # W17-T8 — FxUserSize/ReadFile no-op stubs
+                                  # so SIM-side PGM loaders compile.
     sentai_uart_serial_udp.c      # Phase 6 — sentai.link UART→UDP bridge for SIM
     sentai_link_sim.cc            # Phase 6 — slim MAVLink bridge (heartbeat/statustext)
     sentai_crazy_sim.cc           # Task #39 — sentai.crazy CRTP-over-UDP to cf2 SITL
@@ -217,6 +219,8 @@ add_executable_sim(sentai_sim
     # ObjectsPlan OP-S6-W3 — sentai.aruco fiducial detector + PnP.
     # Pure C/C++; SIM zerocopy hook lives in modsentai_sim_camera.c.
     ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_aruco.cc
+    # OP-S10-W19-T1 unified pose-emitting dispatcher (sentai.markers).
+    ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_markers.cc
     # ObjectsPlan OP-S10-W12 — sentai.safety state machine + SafetyTask
     # worker.  Pure-compute state machine + a pthread worker (FreeRTOS
     # task on ARM) that REUSES sentai_camera_grab_gray_zerocopy +

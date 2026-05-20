@@ -223,6 +223,8 @@ add_executable_m7(sentai_runtime
     # Compute-heavy work (adaptive threshold, contour finder, PnP)
     # stays in C/C++; MP binding returns small scalars only.
     sentai_aruco.cc
+    # OP-S10-W19-T1 unified pose-emitting dispatcher.
+    sentai_markers.cc
     # ObjectsPlan OP-S10-W12 — sentai.safety state machine + SafetyTask
     # worker.  Pure state machine + FreeRTOS task consuming the
     # EXISTING sentai_aruco_detect + sentai_camera_grab_gray_zerocopy.

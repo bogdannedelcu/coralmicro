@@ -2604,6 +2604,22 @@ static int whycon_w3_check_(const uint8_t* gray, int W, int H,
 // circular marker (W17 §6.2 — multi-marker constellation in W19-T3
 // resolves it).  Writes results into the marker in-place.  No-op if
 // intrinsics or diameter unset (pose_valid left at 0).
+// Annulus-correction factor for closed-form PnP.  For a Krajník
+// marker with outer radius R and inner-white-disc radius r1, the
+// 2nd-order moment along the major axis is
+//   mu20 = (R² + r1²) / 4
+// so the eigenvalue-derived semi-major axis is
+//   axis_a = 2·sqrt(mu20) = sqrt(R² + r1²) = R·sqrt(1 + (r1/R)²)
+// With the synth's r1/R = 0.6, that gives axis_a = R · sqrt(1.36)
+// = R · 1.16619.  The closed-form PnP `z = fx · d / (2·axis_a)`
+// assumes axis_a == R (solid disc), so for an annulus it under-
+// estimates Z by a factor of 1/sqrt(1 + (r1/R)²).  Apply the
+// inverse factor to recover the correct Z.
+//
+// Source: see s181 sweep — bias measured as 0.857× across the
+// 0.2–1.2 m altitude band, matching the 1/1.166 = 0.857 prediction.
+#define WHYCON_PNP_ANNULUS_FACTOR  1.16619f
+
 static void whycon_pnp_inplace_(sentai_whycon_marker_t* m) {
     m->tvec_cam[0] = 0.0f;
     m->tvec_cam[1] = 0.0f;
@@ -2617,7 +2633,8 @@ static void whycon_pnp_inplace_(sentai_whycon_marker_t* m) {
     if (s_whycon_diameter_m <= 0.0f) return;
     if (m->axis_a <= 0.001f) return;
 
-    const float z = s_fx * s_whycon_diameter_m / (2.0f * m->axis_a);
+    const float z = s_fx * s_whycon_diameter_m /
+                       (2.0f * m->axis_a) * WHYCON_PNP_ANNULUS_FACTOR;
     m->tvec_cam[2] = z;
     m->tvec_cam[0] = (m->cx - s_cx) * z / s_fx;
     m->tvec_cam[1] = (m->cy - s_cy) * z / s_fy;
@@ -2746,6 +2763,37 @@ static int whycon_filter_and_moments_(const uint8_t* gray,
 //
 // Background and white intensities = 220 (matches existing lite synth);
 // dark = 20.  Output written to s_test_gray; returns number drawn.
+
+// W19-T1 / s181 — single Krajník marker at arbitrary pixel position.
+// Returns 1 if a marker was drawn (geometry fit at all in frame), else 0.
+static int whycon_synth_one_krajnik_(int cx, int cy, int radius,
+                                        int W, int H) {
+    memset(s_test_gray, 220, (size_t)W * (size_t)H);
+    if (radius < 6) radius = 6;
+    if (radius > 60) radius = 60;
+    const int r_outer_sq  = radius * radius;
+    const int r_white_sq  = (int)((float)r_outer_sq * 0.60f * 0.60f);
+    const int r_centre_sq = (int)((float)r_outer_sq * 0.20f * 0.20f);
+    int touched = 0;
+    for (int y = cy - radius; y <= cy + radius; ++y) {
+        if (y < 0 || y >= H) continue;
+        for (int x = cx - radius; x <= cx + radius; ++x) {
+            if (x < 0 || x >= W) continue;
+            const int dxp = x - cx;
+            const int dyp = y - cy;
+            const int r2  = dxp * dxp + dyp * dyp;
+            if (r2 > r_outer_sq) continue;
+            uint8_t v;
+            if (r2 <= r_centre_sq)      v = 20;
+            else if (r2 <= r_white_sq)  v = 220;
+            else                        v = 20;
+            s_test_gray[x + y * W] = v;
+            touched = 1;
+        }
+    }
+    return touched;
+}
+
 static int whycon_synth_frame_krajnik_(int n_circles, int radius,
                                           int W, int H) {
     memset(s_test_gray, 220, (size_t)W * (size_t)H);
@@ -2902,6 +2950,23 @@ extern "C" int sentai_whycon_test_synth_krajnik(int n_circles, int radius) {
     const int W = 320, H = 240;
     if (n_circles < 0) n_circles = 0;
     whycon_synth_frame_krajnik_(n_circles, radius, W, H);
+    const uint32_t t0 = aruco_dwt_cyc();
+    const int n = whycon_detect_inplace_(W, H);
+    const uint32_t t1 = aruco_dwt_cyc();
+    s_whycon_cyc_last = t1 - t0;
+    return n;
+}
+
+// W19-T1 / s181 — single Krajník marker at arbitrary pixel position
+// + radius.  Used by the SIM evaluator to forward-project known
+// world poses (X, Y, Z) through the pinhole intrinsics into image
+// space, then verify the closed-form PnP recovers the world pose.
+extern "C" int sentai_whycon_synth_one(int cx_px, int cy_px, int radius_px) {
+    const int W = 320, H = 240;
+    if (!whycon_synth_one_krajnik_(cx_px, cy_px, radius_px, W, H)) {
+        s_whycon_n_markers = 0;
+        return 0;
+    }
     const uint32_t t0 = aruco_dwt_cyc();
     const int n = whycon_detect_inplace_(W, H);
     const uint32_t t1 = aruco_dwt_cyc();

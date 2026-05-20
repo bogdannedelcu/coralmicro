@@ -1,0 +1,251 @@
+// modsentai_markers.c — MicroPython binding for sentai.markers.*
+// (OP-S10-W19-T1 unified fiducial-marker namespace).
+//
+// Surface (minimal, struct-only):
+//
+//   sentai.markers.init(backend)            -> int (0 ok, <0 err)
+//                                            backend ∈ {"aruco", "whycon"}
+//                                            or int (1=ARUCO, 2=WHYCON).
+//   sentai.markers.clear()                  -> None
+//   sentai.markers.backend()                -> "none" | "aruco" | "whycon"
+//   sentai.markers.set_intrinsics(fx,fy,cx,cy) -> None
+//   sentai.markers.set_marker_size(metres)  -> None
+//   sentai.markers.detect_from_camera()     -> int n_detected (or <0 err)
+//   sentai.markers.get_count()              -> int
+//   sentai.markers.get_pose(i, out_buf)     -> int (1 ok, 0 idx-out)
+//                                              out_buf is bytearray(48)
+//   sentai.markers.get_stats(out_buf)       -> int (1 ok)
+//                                              out_buf is bytearray(20)
+//   sentai.markers.detect_cyc_last()        -> uint
+//
+// SIM eval helper (W19-T4):
+//   sentai.markers.synth_one_whycon(cx, cy, R) -> int n_detected
+//
+// Per HARD-RULE [[no-heavy-data-through-mp]]: callers ALLOCATE the
+// bytearray; the binding writes the struct in place.  NO mp_obj_dict_*
+// calls in this module.
+
+#include <string.h>
+
+#include "py/runtime.h"
+#include "py/objarray.h"
+
+#include "../sentai_markers.h"
+
+// =====================================================================
+// Forward decls — C surface from sentai_markers.cc.
+// =====================================================================
+
+extern int      sentai_markers_init(sentai_markers_backend_t backend);
+extern void     sentai_markers_clear(void);
+extern sentai_markers_backend_t sentai_markers_get_backend(void);
+extern void     sentai_markers_set_intrinsics(float fx, float fy,
+                                                float cx, float cy);
+extern void     sentai_markers_set_marker_size(float meters);
+extern int      sentai_markers_detect_frame(const uint8_t* gray, int w, int h,
+                                              uint32_t frame_seq,
+                                              uint32_t src_ts_ms);
+extern int      sentai_markers_get_count(void);
+extern int      sentai_markers_get_pose(int i, SentaiMarkersPose* out);
+extern int      sentai_markers_get_stats(SentaiMarkersStats* out);
+extern int      sentai_markers_get_latest(int i, SentaiMarkersPose* out);
+extern uint32_t sentai_markers_detect_cyc_last(void);
+extern int      sentai_markers_synth_one_whycon(int cx_px, int cy_px,
+                                                  int radius_px);
+
+extern int sentai_camera_grab_gray_zerocopy(const uint8_t** out_buf,
+                                              int* out_w, int* out_h,
+                                              uint32_t* out_seq,
+                                              uint32_t* out_ts);
+
+// =====================================================================
+// Backend parsing.
+// =====================================================================
+
+static sentai_markers_backend_t parse_backend_(mp_obj_t obj) {
+    if (mp_obj_is_str(obj)) {
+        const char* s = mp_obj_str_get_str(obj);
+        if (strcmp(s, "aruco")  == 0) return SENTAI_MARKERS_BACKEND_ARUCO;
+        if (strcmp(s, "whycon") == 0) return SENTAI_MARKERS_BACKEND_WHYCON;
+        if (strcmp(s, "none")   == 0) return SENTAI_MARKERS_BACKEND_NONE;
+        mp_raise_ValueError(MP_ERROR_TEXT(
+            "backend must be 'aruco' or 'whycon'"));
+    }
+    const int v = mp_obj_get_int(obj);
+    if (v == (int)SENTAI_MARKERS_BACKEND_ARUCO ||
+        v == (int)SENTAI_MARKERS_BACKEND_WHYCON ||
+        v == (int)SENTAI_MARKERS_BACKEND_NONE) {
+        return (sentai_markers_backend_t)v;
+    }
+    mp_raise_ValueError(MP_ERROR_TEXT(
+        "backend int must be 0 (NONE), 1 (ARUCO), or 2 (WHYCON)"));
+}
+
+// =====================================================================
+// MP bindings.
+// =====================================================================
+
+static mp_obj_t markers_init_(mp_obj_t backend_obj) {
+    const int rc = sentai_markers_init(parse_backend_(backend_obj));
+    return mp_obj_new_int(rc);
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(markers_init_obj, markers_init_);
+
+static mp_obj_t markers_clear_(void) {
+    sentai_markers_clear();
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(markers_clear_obj, markers_clear_);
+
+static mp_obj_t markers_backend_(void) {
+    switch (sentai_markers_get_backend()) {
+    case SENTAI_MARKERS_BACKEND_ARUCO:
+        return mp_obj_new_str("aruco", 5);
+    case SENTAI_MARKERS_BACKEND_WHYCON:
+        return mp_obj_new_str("whycon", 6);
+    default:
+        return mp_obj_new_str("none", 4);
+    }
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(markers_backend_obj, markers_backend_);
+
+static mp_obj_t markers_set_intrinsics_(size_t n_args, const mp_obj_t* args) {
+    (void)n_args;
+    const float fx = (float)mp_obj_get_float(args[0]);
+    const float fy = (float)mp_obj_get_float(args[1]);
+    const float cx = (float)mp_obj_get_float(args[2]);
+    const float cy = (float)mp_obj_get_float(args[3]);
+    sentai_markers_set_intrinsics(fx, fy, cx, cy);
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(markers_set_intrinsics_obj,
+                                             4, 4, markers_set_intrinsics_);
+
+static mp_obj_t markers_set_marker_size_(mp_obj_t m_obj) {
+    sentai_markers_set_marker_size((float)mp_obj_get_float(m_obj));
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(markers_set_marker_size_obj,
+                                   markers_set_marker_size_);
+
+static mp_obj_t markers_detect_from_camera_(void) {
+    const uint8_t* buf = NULL;
+    int w = 0, h = 0;
+    uint32_t seq = 0, ts = 0;
+    if (sentai_camera_grab_gray_zerocopy(&buf, &w, &h, &seq, &ts) != 0) {
+        return mp_obj_new_int(0);
+    }
+    return mp_obj_new_int(
+        sentai_markers_detect_frame(buf, w, h, seq, ts));
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(markers_detect_from_camera_obj,
+                                   markers_detect_from_camera_);
+
+static mp_obj_t markers_get_count_(void) {
+    return mp_obj_new_int(sentai_markers_get_count());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(markers_get_count_obj, markers_get_count_);
+
+static mp_obj_t markers_get_pose_(mp_obj_t idx_obj, mp_obj_t buf_obj) {
+    const int idx = mp_obj_get_int(idx_obj);
+    mp_buffer_info_t bi;
+    if (!mp_get_buffer(buf_obj, &bi, MP_BUFFER_WRITE)) {
+        mp_raise_TypeError(MP_ERROR_TEXT(
+            "out_buf must be writable bytearray(48)"));
+    }
+    if (bi.len < (mp_int_t)sizeof(SentaiMarkersPose)) {
+        mp_raise_ValueError(MP_ERROR_TEXT("out_buf too small"));
+    }
+    return mp_obj_new_int(
+        sentai_markers_get_pose(idx, (SentaiMarkersPose*)bi.buf));
+}
+static MP_DEFINE_CONST_FUN_OBJ_2(markers_get_pose_obj, markers_get_pose_);
+
+// SIM-convenience variant: returns a 12-tuple
+//   (id, pixel_cx, pixel_cy, tx, ty, tz, rx, ry, rz, reproj_err,
+//    backend, pose_valid)
+// for callers that lack `bytearray` (the embed REPL config in SIM
+// doesn't ship the bytearray builtin).  Equivalent payload to
+// get_pose's struct write; ONLY for SIM eval scripts — production
+// code should use get_pose + bytearray.
+static mp_obj_t markers_get_pose_tuple_(mp_obj_t idx_obj) {
+    const int idx = mp_obj_get_int(idx_obj);
+    SentaiMarkersPose p;
+    if (!sentai_markers_get_pose(idx, &p)) {
+        return mp_const_none;
+    }
+    mp_obj_t t[12] = {
+        mp_obj_new_int(p.id),
+        mp_obj_new_float(p.pixel_cx),
+        mp_obj_new_float(p.pixel_cy),
+        mp_obj_new_float(p.tvec_cam[0]),
+        mp_obj_new_float(p.tvec_cam[1]),
+        mp_obj_new_float(p.tvec_cam[2]),
+        mp_obj_new_float(p.rvec_cam[0]),
+        mp_obj_new_float(p.rvec_cam[1]),
+        mp_obj_new_float(p.rvec_cam[2]),
+        mp_obj_new_float(p.reproj_err_px),
+        mp_obj_new_int(p.backend),
+        mp_obj_new_int(p.pose_valid),
+    };
+    return mp_obj_new_tuple(12, t);
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(markers_get_pose_tuple_obj,
+                                   markers_get_pose_tuple_);
+
+static mp_obj_t markers_get_stats_(mp_obj_t buf_obj) {
+    mp_buffer_info_t bi;
+    if (!mp_get_buffer(buf_obj, &bi, MP_BUFFER_WRITE)) {
+        mp_raise_TypeError(MP_ERROR_TEXT(
+            "out_buf must be writable bytearray(20)"));
+    }
+    if (bi.len < (mp_int_t)sizeof(SentaiMarkersStats)) {
+        mp_raise_ValueError(MP_ERROR_TEXT("out_buf too small"));
+    }
+    return mp_obj_new_int(
+        sentai_markers_get_stats((SentaiMarkersStats*)bi.buf));
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(markers_get_stats_obj, markers_get_stats_);
+
+static mp_obj_t markers_detect_cyc_last_(void) {
+    return mp_obj_new_int_from_uint(sentai_markers_detect_cyc_last());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(markers_detect_cyc_last_obj,
+                                   markers_detect_cyc_last_);
+
+static mp_obj_t markers_synth_one_whycon_(size_t n_args, const mp_obj_t* args) {
+    (void)n_args;
+    const int cx = mp_obj_get_int(args[0]);
+    const int cy = mp_obj_get_int(args[1]);
+    const int r  = mp_obj_get_int(args[2]);
+    return mp_obj_new_int(sentai_markers_synth_one_whycon(cx, cy, r));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(markers_synth_one_whycon_obj,
+                                             3, 3, markers_synth_one_whycon_);
+
+// =====================================================================
+// Module table.
+// =====================================================================
+
+static const mp_rom_map_elem_t sentai_markers_globals_table[] = {
+    { MP_ROM_QSTR(MP_QSTR___name__),          MP_ROM_QSTR(MP_QSTR_markers) },
+    { MP_ROM_QSTR(MP_QSTR_init),              MP_ROM_PTR(&markers_init_obj) },
+    { MP_ROM_QSTR(MP_QSTR_clear),             MP_ROM_PTR(&markers_clear_obj) },
+    { MP_ROM_QSTR(MP_QSTR_backend),           MP_ROM_PTR(&markers_backend_obj) },
+    { MP_ROM_QSTR(MP_QSTR_set_intrinsics),    MP_ROM_PTR(&markers_set_intrinsics_obj) },
+    { MP_ROM_QSTR(MP_QSTR_set_marker_size),   MP_ROM_PTR(&markers_set_marker_size_obj) },
+    { MP_ROM_QSTR(MP_QSTR_detect_from_camera),
+                                                MP_ROM_PTR(&markers_detect_from_camera_obj) },
+    { MP_ROM_QSTR(MP_QSTR_get_count),         MP_ROM_PTR(&markers_get_count_obj) },
+    { MP_ROM_QSTR(MP_QSTR_get_pose),          MP_ROM_PTR(&markers_get_pose_obj) },
+    { MP_ROM_QSTR(MP_QSTR_get_pose_tuple),    MP_ROM_PTR(&markers_get_pose_tuple_obj) },
+    { MP_ROM_QSTR(MP_QSTR_get_stats),         MP_ROM_PTR(&markers_get_stats_obj) },
+    { MP_ROM_QSTR(MP_QSTR_detect_cyc_last),   MP_ROM_PTR(&markers_detect_cyc_last_obj) },
+    { MP_ROM_QSTR(MP_QSTR_synth_one_whycon),  MP_ROM_PTR(&markers_synth_one_whycon_obj) },
+};
+static MP_DEFINE_CONST_DICT(sentai_markers_globals, sentai_markers_globals_table);
+
+const mp_obj_module_t sentai_markers_module = {
+    .base = { &mp_type_module },
+    .globals = (mp_obj_dict_t*)&sentai_markers_globals,
+};

@@ -128,6 +128,10 @@ static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(sentai_verbose_obj, 0, 1,
 // ObjectsPlan OP-S6-W3 — sentai.aruco (fiducial detector + PnP).
 // Compute in C/C++; MP returns scalars only.
 #include "../examples/sentai_runtime/bindings/modsentai_aruco.c"
+// OP-S10-W17 — sentai.whycon circular-marker prototype.
+#include "../examples/sentai_runtime/bindings/modsentai_whycon.c"
+// OP-S10-W19-T1 — sentai.markers unified pose-emitting dispatcher.
+#include "../examples/sentai_runtime/bindings/modsentai_markers.c"
 // ObjectsPlan OP-S10-W12 — sentai.safety (firmware-side mission safety).
 // State machine + SafetyTask worker; consumes sentai.aruco results.
 // See Safety.md for architecture.
@@ -166,6 +170,8 @@ static const mp_rom_map_elem_t sentai_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_object_lifter), MP_ROM_PTR(&sentai_object_lifter_module) },
     { MP_ROM_QSTR(MP_QSTR_calib),    MP_ROM_PTR(&sentai_calib_module) },
     { MP_ROM_QSTR(MP_QSTR_aruco),    MP_ROM_PTR(&sentai_aruco_module) },
+    { MP_ROM_QSTR(MP_QSTR_whycon),   MP_ROM_PTR(&sentai_whycon_module) },
+    { MP_ROM_QSTR(MP_QSTR_markers),  MP_ROM_PTR(&sentai_markers_module) },
     { MP_ROM_QSTR(MP_QSTR_safety),   MP_ROM_PTR(&sentai_safety_module) },
     { MP_ROM_QSTR(MP_QSTR_fr),       MP_ROM_PTR(&sentai_fr_module) },
     { MP_ROM_QSTR(MP_QSTR_explore),  MP_ROM_PTR(&sentai_explore_module) },
