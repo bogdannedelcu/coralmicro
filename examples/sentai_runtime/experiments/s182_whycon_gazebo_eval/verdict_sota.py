@@ -207,18 +207,13 @@ def kabsch_3d_3d(p_cam_xyz, p_world_xyz):
     return R, t, residuals
 
 
-#  Iter-8 finding: at known drone altitude 0.252 m, our WhyCon PnP
-#  returns tz ≈ 0.408 m — 62 % too high.  Root cause: the C-side
-#  WHYCON_PNP_ANNULUS_FACTOR = 1.0 (set for "Gazebo PBR + bilinear
-#  smooths annulus into solid disc" — iter-3 finding) but the actual
-#  Gazebo render here is closer to a true Krajník annulus.  The
-#  detector's 2nd-order-moment-derived semi-axis is ~62 % of the
-#  outer-ring true radius, not 100 % as the iter-3 factor assumes.
-#  Until we re-tune the C-side factor + rebuild, the verdict applies
-#  a post-mortem scale of TVEC_SCALE on every (tx, ty, tz) tuple —
-#  uniform scale preserves the projection geometry so Kabsch still
-#  solves correctly.
-TVEC_SCALE = 0.617
+#  Iter-8c: TVEC_SCALE retired.  C-side WHYCON_PNP_ANNULUS_FACTOR
+#  reset to the analytic Krajník value 1.166 (= sqrt(1+(r1/R)^2) for
+#  r1/R=0.6).  Verified by sweeping scale in [0.5..1.166] on the
+#  iter-8b journal — Kabsch residual minimised at scale=1.166 with
+#  mean 0.77 mm (vs 107 mm at scale=0.617 which I incorrectly used
+#  earlier based on misreading the GT data).
+TVEC_SCALE = 1.0  # set to 1.0 after iter-9 C-rebuild (factor=1.166 baked in)
 
 
 def tvec_to_cam_xyz(d):
@@ -239,6 +234,13 @@ def kabsch_with_assignment(p_cam_list, marker_world_dict):
     permutations max — trivial.  Avoids needing a reliable cf2-EKF-
     based pre-association (which fails when cf2 is drifting).
 
+    Iter-9c: the H-pattern markers are coplanar (all at world z=0.005)
+    so unconstrained 3D Kabsch has a 2-fold ambiguity by reflection
+    across the marker plane.  The two solutions are mathematically
+    equivalent residual-wise; we must pick the physical one (drone
+    ABOVE the markers, z > 0.005).  After the best-residual fit, if
+    est_z (= t[2]) lies below the marker plane, reflect t around it.
+
     Returns: (R, t, residual_max, used_marker_names) or None if no
     assignment yields residual < threshold."""
     from itertools import permutations
@@ -255,6 +257,15 @@ def kabsch_with_assignment(p_cam_list, marker_world_dict):
         res_max = float(residuals.max())
         if best is None or res_max < best[2]:
             best = (R, t, res_max, list(marker_subset))
+    if best is not None:
+        R, t, res_max, names = best
+        # Reflect across the marker plane (z = 0.005) if drone is below.
+        marker_z_mean = float(np.mean(
+            [marker_world_dict[n][2] for n in names]))
+        if t[2] < marker_z_mean:
+            t = t.copy()
+            t[2] = 2.0 * marker_z_mean - t[2]
+        best = (R, t, res_max, names)
     return best
 
 
@@ -395,13 +406,23 @@ def main():
         if len(valid_dets) < 3:
             n_no_assoc += 1
             continue
-        # Iter-8b: back to unconstrained Kabsch.  The constrained
-        # pose solver needed a hard-coded R_CAM_TO_WORLD_FIXED that
-        # depended on the exact cf2 SDF cam mount orientation; getting
-        # it wrong gives huge residuals.  With 6-marker X-asymmetric H,
-        # unconstrained Kabsch should resolve the orientation uniquely.
+        # Iter-8b: back to unconstrained Kabsch.
         p_cam_list = [tvec_to_cam_xyz(d) for d in valid_dets]
         fit = kabsch_with_assignment(p_cam_list, MARKER_WORLD)
+
+        # Iter-9: reject collinear-marker fits.  When all detections
+        # come from ONE COLUMN of the H pattern (3 markers at X=-0.16
+        # = {NW,W,SW}, or 3 at X=+0.12 = {NE,E,SE}), Kabsch's
+        # rotation around the Y axis is unconstrained → X is bimodal
+        # (large MAE).  Require markers from BOTH columns.
+        if fit is not None:
+            used_names = fit[3]
+            x_lefts  = {"NW", "W", "SW"}
+            x_rights = {"NE", "E", "SE"}
+            has_left  = any(n in x_lefts  for n in used_names)
+            has_right = any(n in x_rights for n in used_names)
+            if not (has_left and has_right):
+                fit = None
         if fit is None:
             n_no_assoc += 1
             continue

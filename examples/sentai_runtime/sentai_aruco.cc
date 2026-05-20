@@ -2628,7 +2628,15 @@ static int whycon_w3_check_(const uint8_t* gray, int W, int H,
 // markers (no AA, no smearing): closer to 1.166.  Future work: make
 // this empirically calibrated at takeoff via a single ground-fixed
 // marker at known altitude.
-#define WHYCON_PNP_ANNULUS_FACTOR  1.0f
+// OP-S10-W19-T4 iter-8c: restored to the analytic Krajník value
+// sqrt(1 + (r1/R)^2) = sqrt(1 + 0.6^2) = sqrt(1.36) ≈ 1.166.  Iter-3
+// had it set to 1.0 ("Gazebo PBR smooths annulus into disc") — but
+// the iter-8b residual sweep over 79 ticks of true Gazebo render
+// data showed scale=1.166 → Kabsch residual mean 0.77 mm  (vs 32 mm
+// at scale 1.0, 107 mm at scale 0.617).  The bilinear/PBR smoothing
+// does not bias the eigenvalue-derived semi-axis enough to change
+// the analytical factor — that conclusion was wrong.
+#define WHYCON_PNP_ANNULUS_FACTOR  1.166f
 
 static void whycon_pnp_inplace_(sentai_whycon_marker_t* m) {
     m->tvec_cam[0] = 0.0f;

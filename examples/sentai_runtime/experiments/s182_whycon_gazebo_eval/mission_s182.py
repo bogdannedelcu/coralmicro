@@ -54,10 +54,14 @@ CY = 120.0
 # R_world = 232/256 * 0.06 = 0.0544 m → diameter = 0.1088 m.
 MARKER_DIAMETER_M = 0.1088
 
-# Flight plan.
-TAKEOFF_HEIGHT = 0.6
-TAKEOFF_DUR    = 2.5
-LAND_DUR       = 2.5
+# Flight plan.  iter-9b: raised TAKEOFF_HEIGHT 0.6→1.0 m.  Without
+# VPE feedback cf2 drifts on Z and we end up below the altitude
+# where the full H pattern is visible — at z<0.4 m the Y extent
+# (0.34 m) starts clipping out of FOV → fewer markers detected,
+# Kabsch degenerates to collinear-column subsets → X-bimodal flips.
+TAKEOFF_HEIGHT = 1.0
+TAKEOFF_DUR    = 3.0
+LAND_DUR       = 3.0
 HOVER_WAIT_S   = 2.0    # let cf2 settle before logging
 HOVER_TICKS    = 30     # ~3s @ 10 Hz logging
 TICK_INTERVAL_MS = 100  # ~10 Hz logging cadence
