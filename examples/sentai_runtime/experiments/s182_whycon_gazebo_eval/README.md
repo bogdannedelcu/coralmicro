@@ -126,6 +126,39 @@ Outputs land in this folder:
     the s181-measured minimum of 6 px.  At z=1.5 m we'd hit `r_px ≈ 8.7`
     which is borderline; the altitude sweep doesn't go that high.
 
+## Status (2026-05-20 EOD)
+
+Scaffolding COMPLETE, end-to-end run NOT yet validated.  Known
+issues from the first launch attempt:
+
+  - **launch_hybrid_cf2.sh tears down when its foreground `gz sim -g`
+    closes.**  Backgrounding the script via `&` followed by `disown`
+    leaves the GUI in the orphaned script's foreground; when the
+    parent shell exits, the GUI dies, the trap fires, and the whole
+    stack goes down.  Mitigation: run `bash run.sh` from a terminal
+    that stays open, OR add `wait` at the end of launch_hybrid +
+    drop the EXIT trap.
+  - **150 s deadline in run.sh** may be too short on first-build
+    machines (cf2 SITL pre-task-loop init can take that long).
+    Bump to 240 s if first launch times out.
+  - **World name inside SDF** was originally `sentai_crazysim`
+    (carried from the copy source); now corrected to `sentai_whycon`
+    so gz topics route correctly to `/world/sentai_whycon/dynamic_pose/info`.
+    gt_recorder env `GT_RECORDER_WORLD=sentai_whycon` is set in
+    run.sh.
+  - **White-marker rendering** — operator reported on first attempt
+    that markers appeared as white squares (no Krajník circles
+    visible).  Three working hypotheses:
+      1. PBR texture cache lag in Gazebo — relaunch from scratch
+         after a full `pkill gz` should fix.
+      2. The texture file wasn't yet in CrazySim's
+         `materials/textures/` when the launch ran — now it IS
+         (verified: 3616 bytes at the canonical path).
+      3. Hidden material mismatch between PBR `<diffuse>1 1 1 1</diffuse>`
+         + `albedo_map` — ArUco markers use the same config and
+         render fine, so probably not it.
+    Next operator interaction confirms which.
+
 ## Cross-refs
 
   - `[[sentai-sim-air-gapped-from-truth]]` — anti-cheat hard rule.

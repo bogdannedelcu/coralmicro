@@ -25,7 +25,7 @@
   in a follow-up world).
 -->
 <sdf version="1.9">
-  <world name="sentai_crazysim">
+  <world name="sentai_whycon">
     <physics type="ode">
       <!-- Slow-time experiment 2026-05-11 — REVERTED.  RTF=0.5 broke
            cf2 EKF: firmware tick rate runs wall-time (1 kHz) while gz
