@@ -336,6 +336,52 @@ live test).  Pack into a `T3.2` discipline commit.
 
 ---
 
+## FW19 — Flow vs LightV8nPnP DNN pose ablation
+
+**Source**: operator-stated 2026-05-20 during the WhyCon
+optimization sprint, after the per-stage breakdown made the
+"classical-vs-learned pose" tradeoff concrete.
+**Moved**: 2026-05-20
+
+**Scope** — when the DNN pose stage is wired in (YOLOv8 nano +
+PnP solver on detected corners, running through the existing M7 +
+EdgeTPU pipeline), run a head-to-head ablation against the
+classical optical-flow stack we have today.
+
+Metrics to capture:
+
+1. **Latency on the same scene** — per-stage breakdown like the
+   per-stage DWT instrumentation we now have on WhyCon (`Phase A
+   / B / W` decomposition).
+2. **Accuracy + drift** over a 30-s static-board run (zero-motion
+   input → cumsum should be zero; anything else is bias).
+3. **Robustness** to lighting variation, motion blur, partial
+   occlusion.  Flow degrades gracefully (less contrast → lower
+   confidence + deadband zeros it); DNN may hard-fail on
+   out-of-distribution inputs.
+4. **Slot usage** at 30 / 60 Hz SafetyTask periods.
+
+**Reference numbers (today, build #1399)**:
+
+| Stack | Latency / publish | Bench source |
+|---|---:|---|
+| Flow SAD (M7, USAD8+LD32U) | 0.94 ms / 2.29 ms full | experiment.md #1139 |
+| WhyCon-lite (M7, OCRAM+SIMD+inline) | 6.00 ms @ 4 markers | OP-S10-W17 |
+| ArUco rolling (M7, OCRAM) | 24.83 ms @ 4 markers | OP-S10-W16 |
+
+**Gate before merging DNN to production**: must beat Flow's
+2.29 ms / WhyCon's 6 ms on the same scene OR have a clear
+robustness story that justifies the extra latency.
+
+**Why deferred**: DNN pose stage isn't wired yet; this is a
+thesis-data-point item rather than a development gate.  The
+WhyCon + Flow numbers are the comparison baseline.
+
+**Promotion trigger**: any DNN-based pose / corner detection
+work that touches `sentai_runtime.cc` TPU pipeline.
+
+---
+
 ## Items currently NOT in FutureWork (may be added)
 
 When operator notes a new idea during thesis work that's not on the
