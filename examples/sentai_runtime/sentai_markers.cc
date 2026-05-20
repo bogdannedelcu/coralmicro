@@ -30,6 +30,98 @@
 
 #include "sentai_aruco.h"
 
+// =====================================================================
+// OP-S10-W19-T5: camera extrinsics (operator 2026-05-20).
+// =====================================================================
+//
+// When set, transforms every detected marker's tvec from CAMERA
+// OPTICAL frame (where the PnP solver produces it — OpenCV convention
+// X-right, Y-down, Z-forward) into the BODY frame of the drone
+// (X-forward, Y-left, Z-up — REP-103 / cf2 firmware convention).
+//
+// Composition:
+//
+//   R_opt_to_body = R_link_to_body · R_opt_to_link
+//
+//   R_opt_to_link (fixed, ROS REP 103):
+//                  [ 0  0  1]    (cam Z = link X)
+//                  [-1  0  0]    (cam X = -link Y)
+//                  [ 0 -1  0]    (cam Y = -link Z)
+//
+//   R_link_to_body = R_z(yaw) · R_y(pitch) · R_x(roll)  (extrinsic
+//                   XYZ, SDF / urdf convention)
+//
+//   t_link_in_body = (tx, ty, tz) from SDF <pose> position
+//
+// Default state: identity transform (R_opt_to_body = I, t = 0).  In
+// this state tvec stays in cam optical frame — preserves backward
+// compatibility with sentai_calib_task (whose job is to compute
+// R_cam_to_body from raw cam-frame tvec, so it needs the untransformed
+// input).
+//
+static float s_cam_t_body[3]    = { 0.0f, 0.0f, 0.0f };
+static float s_R_opt_to_body[9] = {
+    1.0f, 0.0f, 0.0f,
+    0.0f, 1.0f, 0.0f,
+    0.0f, 0.0f, 1.0f,
+};
+static uint8_t s_extrinsics_set = 0;   // 0 = identity (passthrough)
+
+static inline void apply_cam_extrinsics_(float tvec[3]) {
+    if (!s_extrinsics_set) return;
+    const float x = tvec[0], y = tvec[1], z = tvec[2];
+    tvec[0] = s_R_opt_to_body[0]*x + s_R_opt_to_body[1]*y
+            + s_R_opt_to_body[2]*z + s_cam_t_body[0];
+    tvec[1] = s_R_opt_to_body[3]*x + s_R_opt_to_body[4]*y
+            + s_R_opt_to_body[5]*z + s_cam_t_body[1];
+    tvec[2] = s_R_opt_to_body[6]*x + s_R_opt_to_body[7]*y
+            + s_R_opt_to_body[8]*z + s_cam_t_body[2];
+}
+
+extern "C" void sentai_markers_set_cam_extrinsics(float tx, float ty, float tz,
+                                                     float roll, float pitch,
+                                                     float yaw) {
+    s_cam_t_body[0] = tx;
+    s_cam_t_body[1] = ty;
+    s_cam_t_body[2] = tz;
+
+    const float cr = cosf(roll),  sr = sinf(roll);
+    const float cp = cosf(pitch), sp = sinf(pitch);
+    const float cy = cosf(yaw),   sy = sinf(yaw);
+
+    // R_link_to_body = R_z(yaw) · R_y(pitch) · R_x(roll)  (row-major).
+    const float R_l2b[9] = {
+        cy*cp,  cy*sp*sr - sy*cr,  cy*sp*cr + sy*sr,
+        sy*cp,  sy*sp*sr + cy*cr,  sy*sp*cr - cy*sr,
+        -sp,    cp*sr,             cp*cr
+    };
+
+    // R_opt_to_link (ROS REP 103, fixed).
+    const float R_o2l[9] = {
+        0.0f, 0.0f, 1.0f,
+       -1.0f, 0.0f, 0.0f,
+        0.0f,-1.0f, 0.0f
+    };
+
+    // R_opt_to_body = R_l2b · R_o2l.
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            float sum = 0.0f;
+            for (int k = 0; k < 3; ++k) {
+                sum += R_l2b[i*3 + k] * R_o2l[k*3 + j];
+            }
+            s_R_opt_to_body[i*3 + j] = sum;
+        }
+    }
+    s_extrinsics_set = 1;
+}
+
+extern "C" void sentai_markers_clear_cam_extrinsics(void) {
+    for (int i = 0; i < 9; ++i) s_R_opt_to_body[i] = (i % 4 == 0) ? 1.0f : 0.0f;
+    s_cam_t_body[0] = s_cam_t_body[1] = s_cam_t_body[2] = 0.0f;
+    s_extrinsics_set = 0;
+}
+
 // Internal WhyCon helpers — live in sentai_aruco.cc alongside the
 // WhyCon detection pipeline.  Header-less by design: this dispatcher
 // is the only consumer post-W19-T1, so we forward-declare locally.
@@ -89,6 +181,7 @@ static void aruco_to_unified_(const sentai_aruco_marker_t* in,
     out->pixel_cy = cy * 0.25f;
     memcpy(out->tvec_cam, in->tvec_cam, sizeof(out->tvec_cam));
     memcpy(out->rvec_cam, in->rvec_cam, sizeof(out->rvec_cam));
+    apply_cam_extrinsics_(out->tvec_cam);   // T5: cam-optical → body
     out->reproj_err_px = in->reproj_err_px;
     out->backend       = (uint8_t)SENTAI_MARKERS_BACKEND_ARUCO;
     out->pose_valid    = 1;
@@ -102,6 +195,7 @@ static void whycon_to_unified_(const sentai_whycon_marker_internal_t* in,
     out->pixel_cy      = in->cy;
     memcpy(out->tvec_cam, in->tvec_cam, sizeof(out->tvec_cam));
     memcpy(out->rvec_cam, in->rvec_cam, sizeof(out->rvec_cam));
+    apply_cam_extrinsics_(out->tvec_cam);   // T5: cam-optical → body
     out->reproj_err_px = in->reproj_err_px;
     out->backend       = (uint8_t)SENTAI_MARKERS_BACKEND_WHYCON;
     out->pose_valid    = in->pose_valid;

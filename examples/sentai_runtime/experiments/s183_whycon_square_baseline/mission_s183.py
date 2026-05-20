@@ -318,6 +318,23 @@ def run():
             return summary
         sentai.markers.set_intrinsics(FX, FY, CX, CY)
         sentai.markers.set_marker_size(MARKER_DIAMETER_M)
+
+        # OP-S10-W19-T5: feed the library the cf2 SDF cam mount so that
+        # tvec returned by get_pose is in BODY frame (drone CoM), not
+        # camera optical frame.  SDF says:
+        #   <pose>-0.04 0 -0.02  0 1.5707963 3.1415927</pose>
+        # i.e. cam link is 4 cm forward + 2 cm below body centre,
+        # rotated pitch=π/2 (link X → world DOWN when level) and
+        # yaw=π (cam image-right ↔ body -Y).  ROS REP 103 optical
+        # convention is applied automatically by the library.
+        import math as _math
+        sentai.markers.set_cam_extrinsics(
+            -0.04, 0.0, -0.02,
+            0.0, _math.pi / 2.0, _math.pi)
+        _j("markers_extrinsics_set", {
+            "t": (-0.04, 0.0, -0.02),
+            "rpy": (0.0, _math.pi / 2.0, _math.pi),
+        })
         summary["phases_done"].append("markers_init")
 
         # ---- crazy.init -------------------------------------------

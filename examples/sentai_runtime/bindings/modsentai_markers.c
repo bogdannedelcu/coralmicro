@@ -42,6 +42,10 @@ extern sentai_markers_backend_t sentai_markers_get_backend(void);
 extern void     sentai_markers_set_intrinsics(float fx, float fy,
                                                 float cx, float cy);
 extern void     sentai_markers_set_marker_size(float meters);
+extern void     sentai_markers_set_cam_extrinsics(float tx, float ty,
+                                                     float tz, float roll,
+                                                     float pitch, float yaw);
+extern void     sentai_markers_clear_cam_extrinsics(void);
 extern int      sentai_markers_detect_frame(const uint8_t* gray, int w, int h,
                                               uint32_t frame_seq,
                                               uint32_t src_ts_ms);
@@ -127,6 +131,32 @@ static mp_obj_t markers_set_marker_size_(mp_obj_t m_obj) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(markers_set_marker_size_obj,
                                    markers_set_marker_size_);
+
+// sentai.markers.set_cam_extrinsics(tx, ty, tz, roll, pitch, yaw)
+//   All floats in metres / radians.  Configures the cam-mount offset
+//   so that tvec_cam returned by get_pose is in BODY frame (drone
+//   centre of mass), not camera optical frame.
+static mp_obj_t markers_set_cam_extrinsics_(size_t n_args,
+                                               const mp_obj_t* args) {
+    (void)n_args;
+    const float tx    = (float)mp_obj_get_float(args[0]);
+    const float ty    = (float)mp_obj_get_float(args[1]);
+    const float tz    = (float)mp_obj_get_float(args[2]);
+    const float roll  = (float)mp_obj_get_float(args[3]);
+    const float pitch = (float)mp_obj_get_float(args[4]);
+    const float yaw   = (float)mp_obj_get_float(args[5]);
+    sentai_markers_set_cam_extrinsics(tx, ty, tz, roll, pitch, yaw);
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(markers_set_cam_extrinsics_obj,
+                                             6, 6, markers_set_cam_extrinsics_);
+
+static mp_obj_t markers_clear_cam_extrinsics_(void) {
+    sentai_markers_clear_cam_extrinsics();
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(markers_clear_cam_extrinsics_obj,
+                                   markers_clear_cam_extrinsics_);
 
 static mp_obj_t markers_detect_from_camera_(void) {
     const uint8_t* buf = NULL;
@@ -233,6 +263,10 @@ static const mp_rom_map_elem_t sentai_markers_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_clear),             MP_ROM_PTR(&markers_clear_obj) },
     { MP_ROM_QSTR(MP_QSTR_backend),           MP_ROM_PTR(&markers_backend_obj) },
     { MP_ROM_QSTR(MP_QSTR_set_intrinsics),    MP_ROM_PTR(&markers_set_intrinsics_obj) },
+    { MP_ROM_QSTR(MP_QSTR_set_cam_extrinsics),
+                                                MP_ROM_PTR(&markers_set_cam_extrinsics_obj) },
+    { MP_ROM_QSTR(MP_QSTR_clear_cam_extrinsics),
+                                                MP_ROM_PTR(&markers_clear_cam_extrinsics_obj) },
     { MP_ROM_QSTR(MP_QSTR_set_marker_size),   MP_ROM_PTR(&markers_set_marker_size_obj) },
     { MP_ROM_QSTR(MP_QSTR_detect_from_camera),
                                                 MP_ROM_PTR(&markers_detect_from_camera_obj) },

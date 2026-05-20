@@ -392,7 +392,10 @@ def main():
         valid_dets = []
         for d in deduped:
             tz_s = d.get("tz", 0.0) * TVEC_SCALE
-            if 0.05 < tz_s < 1.5:                    # plausible hover band
+            # T5: tvec is now in BODY frame (after set_cam_extrinsics).
+            # For a marker UNDER the drone, body Z is NEGATIVE.  Use
+            # absolute depth for the plausibility gate.
+            if 0.05 < abs(tz_s) < 1.5:
                 valid_dets.append(d)
         # Iter-8b: NO CAP — operator: "sigur vrei cap la 4 markeri,
         # parca erau probleme la simetrie, de asta am pus 6".  The

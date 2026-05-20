@@ -118,6 +118,45 @@ void sentai_markers_set_intrinsics(float fx, float fy, float cx, float cy);
 void sentai_markers_set_marker_size(float meters);
 
 // =====================================================================
+// Camera extrinsics — OPTIONAL.
+//
+// Configures where the camera is mounted on the drone body.  When
+// set, the library transforms every detected marker's tvec from the
+// camera OPTICAL frame into the BODY frame, so all downstream
+// consumers (VPE forwarder, mission Kabsch, autotune) get marker
+// positions relative to the drone's centre of mass instead of the
+// camera optical centre.
+//
+//   tvec_body = R_opt_to_body · tvec_cam_optical  +  (tx, ty, tz)
+//
+// where R_opt_to_body is computed from:
+//   - R_opt_to_link (fixed, ROS REP 103 convention: image-right ↔
+//     -link-Y, image-down ↔ -link-Z, depth ↔ +link-X)
+//   - R_link_to_body from the SDF <pose> RPY angles (extrinsic XYZ
+//     order = R_z(yaw) · R_y(pitch) · R_x(roll))
+//
+// (tx, ty, tz) = sensor link origin in body frame, from SDF <pose>
+// position component.
+//
+// DEFAULT (before this is called): identity transform — tvec stays
+// in camera optical frame, backward-compatible with consumers that
+// expect raw cam-optical tvec (sentai_calib's R_cam_to_body solver).
+//
+// For cf2 SIM downward camera, the SDF says:
+//   <pose>-0.04 0 -0.02  0 1.5707963 3.1415927</pose>
+//   → set_cam_extrinsics(-0.04, 0, -0.02, 0, M_PI/2, M_PI)
+//
+// Operator request 2026-05-20: "algoritmul nostru de detectie
+// markeri ar trebui sa ii detecteze relativ la centrul de masa al
+// dronei".
+void sentai_markers_set_cam_extrinsics(float tx, float ty, float tz,
+                                          float roll, float pitch, float yaw);
+
+// Reset extrinsics to identity (default state).  After this call, tvec
+// is in cam optical frame again.
+void sentai_markers_clear_cam_extrinsics(void);
+
+// =====================================================================
 // Detection.
 // =====================================================================
 
