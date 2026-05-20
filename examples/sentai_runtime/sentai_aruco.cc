@@ -2618,7 +2618,17 @@ static int whycon_w3_check_(const uint8_t* gray, int W, int H,
 //
 // Source: see s181 sweep — bias measured as 0.857× across the
 // 0.2–1.2 m altitude band, matching the 1/1.166 = 0.857 prediction.
-#define WHYCON_PNP_ANNULUS_FACTOR  1.16619f
+// Empirical finding (s182 iter-3, 2026-05-20): Gazebo's bilinear
+// texture render + PBR shading bridges the white inner disc across
+// the dark annulus + centre dot — flood-fill picks up the blob as a
+// near-solid disc, so eigenvalue axis_a ≈ R (NOT 1.17·R as for the
+// ideal annulus geometry in s181's synth bench).  The annulus factor
+// must be tuned to the actual sensor / render pipeline.  For Gazebo
+// + downscaled UDS feed: 1.0.  For real cameras + sharp Krajník
+// markers (no AA, no smearing): closer to 1.166.  Future work: make
+// this empirically calibrated at takeoff via a single ground-fixed
+// marker at known altitude.
+#define WHYCON_PNP_ANNULUS_FACTOR  1.0f
 
 static void whycon_pnp_inplace_(sentai_whycon_marker_t* m) {
     m->tvec_cam[0] = 0.0f;

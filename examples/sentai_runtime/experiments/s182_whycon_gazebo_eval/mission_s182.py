@@ -26,11 +26,17 @@ import sentai
 JOURNAL_NAME = "mission_s182_journal.txt"
 SUMMARY_NAME = "mission_s182_summary.json"
 
-# Camera intrinsics — 320x240 downward cam in sentai_whycon world.
-# Values match sim/scripts/aruco_to_vision_estimate.py + the existing
-# ArUco bench convention (fx=fy=240 in pixels).
-FX = 240.0
-FY = 240.0
+# Camera intrinsics — derived from cf2 SDF downward_cam horizontal_fov
+# = 1.0123 rad (cf2 model.sdf.jinja).  At 640×480 native:
+#   fx = (640/2) / tan(1.0123/2) ≈ 576.6
+# Bridge downsamples nearest 640×480 → 320×240 (camera_bridge_recv +
+# sim_camera_grab_gray_zerocopy resize), so the effective intrinsics
+# at the buffer sentai.markers actually receives are HALVED:
+#   fx = fy ≈ 288 ;  cx = 160 ; cy = 120
+# Caught the hard way 2026-05-20 — initial fx=240 underestimated by
+# 17 % giving 0.5+ m Z bias even after the WhyCon annulus correction.
+FX = 288.3
+FY = 288.3
 CX = 160.0
 CY = 120.0
 
