@@ -692,6 +692,70 @@ OP — ObjectsPlan thesis
 │   │  s179-style HW bench shows is real (current SafetyTask 30 Hz
 │   │  load is the immediate motivator).  Lifetime: ~1 week
 │   │  investigation + 1 week design doc when actually pulled in.
+│   │
+│   ├── OP-S10-W17 — WhyCon-lite circular-marker detection         ✅ SHIPPED
+│   │    │ (2026-05-19/20) M7 6.00 ms / 4-marker frame, 5.3× faster
+│   │    │ than ArUco.  Spec: ideas/objects_plan/OP-S10-W17_whycon.md
+│   │    │
+│   │    ├── OP-S10-W17-T1 — WhyCon-lite implementation + M7 bench  ✅ SHIPPED
+│   │    ├── OP-S10-W17-T2 — OCRAM + SIMD + inline 2nd moments       ✅ SHIPPED
+│   │    ├── OP-S10-W17-T2.1 — Per-stage timing breakdown             ✅ SHIPPED
+│   │    ├── OP-S10-W17-T4 — Flow SAD M7 vs M4 ablation               ✅ SHIPPED
+│   │    ├── OP-S10-W17-T5 — Phase W3 concentric inner-disc check    ✅ SHIPPED (2026-05-20)
+│   │    │   Auto-enabled on `sentai.markers.init('whycon')`.  Was the
+│   │    │   root cause of "9 detections / frame" instead of expected 6 —
+│   │    │   without W3, the centre dark dot and the outer dark annulus
+│   │    │   both pass W1 fill-ratio, giving duplicate detections.
+│   │    ├── OP-S10-W17-T6 — ArUco per-stage timing instrumentation  ✅ SHIPPED
+│   │    ├── OP-S10-W17-T7 — Apples-to-apples bench + §4 fair table  ✅ SHIPPED
+│   │    ├── OP-S10-W17-T8 — Fix W3 sample geometry + W1 selection   ✅ SHIPPED
+│   │    └── OP-S10-W17-T9 — BUG #74 (synth detect returns 0 post-T18) ⬜ TODO
+│   │
+│   ├── OP-S10-W18 — Diamond search Flow (M7 + M4) + WhyCon M4 bench ✅ SHIPPED
+│   │    │ (2026-05-19/20)
+│   │    │
+│   │    ├── OP-S10-W18-T1 — Diamond search Flow option              ✅ SHIPPED
+│   │    └── OP-S10-W18-T2 — Define-ify + M4 WhyCon FULL bench       ✅ SHIPPED
+│   │
+│   ├── OP-S10-W19 — sentai.markers unified namespace + Gazebo eval  🟡 T1-T6 mostly SHIPPED
+│   │    │ (2026-05-20).  Spec: ideas/objects_plan/OP-S10-W19_markers_unified.md
+│   │    │ Final s183 numbers: X MAE 2.0 mm, Y MAE 2.1 mm, Z MAE 6.6 mm
+│   │    │ (WhyCon beats cf2 EKF on all axes by 4-10×).
+│   │    │
+│   │    ├── OP-S10-W19-T1 — sentai.markers hard rename + struct ABI ✅ SHIPPED
+│   │    │   Commit b36280b0.  No dicts; struct-based caller-allocated
+│   │    │   bytearray; sentai_aruco/sentai_whycon namespaces deleted.
+│   │    ├── OP-S10-W19-T2 — WhyCon closed-form PnP-z                 ✅ SHIPPED
+│   │    │   Commit 89061cef.  tz = fx·D/(2·a)·ANNULUS_FACTOR;
+│   │    │   ANNULUS_FACTOR=1.166 = √(1+0.6²) per analytic Krajník.
+│   │    ├── OP-S10-W19-T3 — Multi-marker constellation pose          ⬜ TODO
+│   │    │   (next session candidate).  Conic-section pose recovery
+│   │    │   (Faugeras-Toscani 1986) or full PnP4P with marker IDs.
+│   │    │   Yaw recovery from constellation.
+│   │    ├── OP-S10-W19-T4 — SIM eval with thesis-quality X/Y/Z plots ✅ SHIPPED
+│   │    │   s182 + s183 experiments.  Anti-cheat compliant
+│   │    │   (sentai_sim consumes only camera + CRTP telemetry).
+│   │    ├── OP-S10-W19-T5 — Cam extrinsics in sentai_markers         ✅ SHIPPED
+│   │    │   Commit e52883e8.  set_cam_extrinsics(tx, ty, tz, roll,
+│   │    │   pitch, yaw) → tvec auto-transformed to body frame.
+│   │    │   Operator architectural directive 2026-05-20.
+│   │    ├── OP-S10-W19-T6a — Yaw-anchor mirror picker (host)        ✅ SHIPPED (eod)
+│   │    │   verdict_sota.py disambiguates the square-pad 4-fold
+│   │    │   Kabsch ambiguity by checking sign of R[0,0]/R[1,1] vs
+│   │    │   cos(cf2_yaw).  X/Y MAE went from ~4 cm → 2 mm.
+│   │    └── OP-S10-W19-T6b — Yaw-anchor picker runtime port (C)     ⬜ TODO (2026-05-21)
+│   │        Prereq: extract jacobi_sym3+svd3+Kabsch from
+│   │        sentai_calib.cc to shared libs/sentai/sentai_svd3.{h,cc}.
+│   │
+│   └── OP-S10-W20 — SVD/Kabsch shared module refactor               ⬜ TODO (2026-05-21)
+│        │ Operator-flagged today: extract the static jacobi_sym3 +
+│        │ svd3 + Kabsch composition out of sentai_calib.cc to a
+│        │ shared utility.  Load-bearing for:
+│        │   - W19-T6b runtime port (drone-pose Kabsch in C)
+│        │   - W19-T3 multi-marker yaw (uses Kabsch)
+│        │   - sentai_calib_autotune (potential future user)
+│        │ Mechanical: rename + un-`static` + add header.  Should land
+│        │ BEFORE W19-T6b runtime so the port can reuse.
 │
 └── Milestones
     ├── OP-M1 — Thesis MVP (SIM): 4 descriptors + L1 + calib working end-to-end

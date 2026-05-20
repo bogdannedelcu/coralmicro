@@ -1,7 +1,30 @@
 # OP-S10-W19 — `sentai.markers` unified namespace + SIM A/B migration
 
-**Status**: planning filed 2026-05-20 (end-of-day pre-compaction).  T1
-implementation deferred to next session.
+**Status (2026-05-20 EOD)**:
+- **T1** SHIPPED (commit `b36280b0`) — hard rename, struct-based ABI
+- **T2** SHIPPED (commit `89061cef`) — WhyCon closed-form PnP-z
+- **T4** SHIPPED (commits `db1a0e1d`..`a3912c0c`, `e52883e8`) — WhyCon
+  Gazebo SIM eval with thesis-quality X/Y/Z plots in `s183_whycon_square_baseline`
+- **T5** SHIPPED (commit `e52883e8`) — `sentai_markers_set_cam_extrinsics`;
+  tvec is in body frame after caller configures cam mount
+- **T6 host-side** SHIPPED (commit pending end-of-day) — Kabsch
+  mirror disambiguation via cf2 yaw anchor in `verdict_sota.py`
+- **T3** pending — multi-marker yaw recovery (constellation pose)
+- **T6 runtime port** carried to 2026-05-21 — needs Kabsch in C
+  (SVD shared module refactor of `sentai_calib.cc::jacobi_sym3/svd3`
+  comes first)
+
+**Final measurements (s183 iter-5_yawXY, 63 paired ticks)**:
+
+| Axis | WhyCon-Kabsch MAE | max | cf2 EKF MAE |
+|------|---------------------|------|-------------|
+| X    | 0.200 cm (2.0 mm)   | 0.903 cm | 1.251 cm |
+| Y    | 0.211 cm (2.1 mm)   | 0.811 cm | 0.796 cm |
+| Z    | 0.657 cm (6.6 mm)   | 0.788 cm | 6.730 cm |
+
+Kabsch residual mean 1.20 mm.  WhyCon beats cf2 EKF on ALL axes by
+4-10×.  See `diary/2026-05-20.md` for the path from "Y MAE 17 cm" to
+"Y MAE 2 mm" and the full bibliography.
 
 ## 1. Why this WP exists
 

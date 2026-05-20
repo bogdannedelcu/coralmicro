@@ -440,6 +440,33 @@ def main():
         residuals = np.array([res_max])
         assocs = dict(zip(used_names, valid_dets))
 
+        # Iter-5 / OP-S10-W19-T6: yaw-anchored mirror disambiguation
+        # ---------------------------------------------------------------
+        # The square layout (markers symmetric under X-mirror, Y-mirror,
+        # and 180°-Z rotation) gives Kabsch FOUR equally-valid solutions:
+        #   diag(+1,+1,+1) = identity  (correct level hover yaw≈0)
+        #   diag(+1,-1,-1) = 180° around X  (Y-flipped est)
+        #   diag(-1,+1,-1) = 180° around Y  (X-flipped est)
+        #   diag(-1,-1,+1) = 180° around Z  (X+Y flipped est)
+        # All have det=+1 (Kabsch's reflection-safe constraint).
+        #
+        # Physical disambiguation: cf2 hover yaw ≈ 0 → R should be
+        # near-identity, R[0,0] ≈ R[1,1] ≈ R[2,2] ≈ +1.  Use the
+        # SIGN of R's diagonal to detect which mirror Kabsch picked,
+        # and flip t around the marker centroid accordingly.
+        cf2_yaw = float(cf2[3])
+        cos_yaw_expected = math.cos(cf2_yaw)
+        sin_yaw_expected = math.sin(cf2_yaw)
+        # For yaw=0: R[0,0] should match +cos, R[1,1] should match +cos
+        flip_x = (R[0][0] * cos_yaw_expected < 0)
+        flip_y = (R[1][1] * cos_yaw_expected < 0)
+        if flip_x or flip_y:
+            mx = sum(MARKER_WORLD[n][0] for n in MARKER_ORDER) / 6.0
+            my = sum(MARKER_WORLD[n][1] for n in MARKER_ORDER) / 6.0
+            new_tx = (2.0*mx - t[0]) if flip_x else t[0]
+            new_ty = (2.0*my - t[1]) if flip_y else t[1]
+            t = np.array([new_tx, new_ty, t[2]])
+
         # Iter-10b: both sentai tick __ts_ms and GT t_wall come from
         # host time.monotonic() (sentai writes ms, GT writes seconds),
         # so they share the SAME wall clock — pair by ABSOLUTE time,
@@ -472,6 +499,7 @@ def main():
             "est_x":      float(t[0]),
             "est_y":      float(t[1]),
             "est_z":      float(t[2]),
+            "__last_t":   (float(t[0]), float(t[1]), float(t[2])),
             "cf2_x":      cf2[0],
             "cf2_y":      cf2[1],
             "cf2_z":      cf2[2],
