@@ -379,6 +379,165 @@ static uint32_t aruco_flow_sad_m4_dtcm(int* out_dx, int* out_dy) {
 // Returns best_sad, dx, dy via the volatile sink to defeat DCE.
 static volatile uint32_t s_m4_flow_sink = 0;
 
+// =================================================================
+// OP-S10-W18-T2 M4 WhyCon FULL pipeline bench.
+//
+// Operator-requested 2026-05-20: "as vrea sa clarificam si cat
+// dureaza WhyCon complet pe M4, nu numai Phase A".
+//
+// Phase A (rolling Bradley threshold) already implemented as
+// aruco_threshold_rolling_m4().  This block adds Phase B (8-conn
+// flood-fill with inline moments) + Phase W (filter + axes via
+// eigenvalues) — identical algorithm to sentai_aruco.cc on M7,
+// no SIMD (M4F single-issue + no D-cache).
+//
+// Memory: the WhyCon Full path uses ROLLING threshold (Phase A),
+// so s_integral is unused.  Its 309 KB OCRAM are repurposed as
+// scratch for s_labels (75 KB) + s_fill_stack (16 KB) + the
+// components array — total ~98 KB, fits within s_integral.
+// =================================================================
+#define M4_ARUCO_MAX_COMPONENTS    96
+#define M4_ARUCO_FILL_STACK_SZ     4096
+#define M4_WHYCON_MAX_DETS         16
+
+typedef struct {
+    int      x0, y0, x1, y1;
+    int      cx_sum, cy_sum;
+    int      n_pix;
+    int64_t  m20_sum, m02_sum, m11_sum;
+    uint8_t  touches_border;
+} m4_aruco_comp_t;
+
+// Aliased pointers into s_integral (309 KB) — reused as scratch
+// because the rolling-threshold path doesn't need the integral image.
+//   [0          .. 76800)     → s_labels      (W*H bytes)
+//   [76800      .. 93184)     → s_fill_stack  (4096 * 4 bytes)
+//   [93184      .. ~)         → s_components  (96 * ~64 bytes)
+static uint8_t*          const s_m4_labels      = (uint8_t*)s_integral;
+static int32_t*          const s_m4_fill_stack  = (int32_t*)((uint8_t*)s_integral
+                                                              + M4_FRAME_W * M4_FRAME_H);
+static m4_aruco_comp_t*  const s_m4_components  = (m4_aruco_comp_t*)((uint8_t*)s_integral
+                                                              + M4_FRAME_W * M4_FRAME_H
+                                                              + M4_ARUCO_FILL_STACK_SZ * 4);
+
+typedef struct {
+    float cx, cy, axis_a, axis_b, angle;
+    int   comp_id;
+} m4_whycon_marker_t;
+
+static m4_whycon_marker_t s_m4_whycon_markers[M4_WHYCON_MAX_DETS];
+
+// Phase B — 8-conn flood-fill labeling with inline moments.
+// Algorithm identical to sentai_aruco.cc:aruco_label_components.
+static int m4_aruco_label_components(int w, int h) {
+    memset(s_m4_labels, 0, (size_t)w * (size_t)h);
+    int next_label = 1;
+    int n_components = 0;
+    for (int y = 0; y < h; ++y) {
+        for (int x = 0; x < w; ++x) {
+            const int idx0 = x + y * w;
+            if (s_binary[idx0] == 0 || s_m4_labels[idx0] != 0) continue;
+            uint8_t lab = (next_label <= 254) ? (uint8_t)next_label : 255u;
+            if (next_label > 254) {
+                s_m4_labels[idx0] = 255u;
+                continue;
+            }
+            int stack_top = 0;
+            s_m4_fill_stack[stack_top++] = idx0;
+            s_m4_labels[idx0] = lab;
+            m4_aruco_comp_t* c = &s_m4_components[n_components];
+            c->x0 = x; c->x1 = x; c->y0 = y; c->y1 = y;
+            c->cx_sum = 0; c->cy_sum = 0;
+            c->m20_sum = 0; c->m02_sum = 0; c->m11_sum = 0;
+            c->n_pix = 0; c->touches_border = 0;
+            while (stack_top > 0) {
+                const int idx = s_m4_fill_stack[--stack_top];
+                const int px = idx % w;
+                const int py = idx / w;
+                if (px < c->x0) c->x0 = px;
+                if (px > c->x1) c->x1 = px;
+                if (py < c->y0) c->y0 = py;
+                if (py > c->y1) c->y1 = py;
+                c->cx_sum += px;
+                c->cy_sum += py;
+                c->m20_sum += (int64_t)px * px;
+                c->m02_sum += (int64_t)py * py;
+                c->m11_sum += (int64_t)px * py;
+                c->n_pix++;
+                if (px == 0 || px == w-1 || py == 0 || py == h-1) {
+                    c->touches_border = 1;
+                }
+                static const int dx[8] = { -1, +1,  0, 0, -1, -1, +1, +1 };
+                static const int dy[8] = {  0,  0, -1, +1, -1, +1, -1, +1 };
+                for (int k = 0; k < 8; ++k) {
+                    const int nx = px + dx[k];
+                    const int ny = py + dy[k];
+                    if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
+                    const int nidx = nx + ny * w;
+                    if (s_binary[nidx] == 0 || s_m4_labels[nidx] != 0) continue;
+                    if (stack_top >= M4_ARUCO_FILL_STACK_SZ) {
+                        break;
+                    }
+                    s_m4_labels[nidx] = lab;
+                    s_m4_fill_stack[stack_top++] = nidx;
+                }
+            }
+            ++next_label;
+            ++n_components;
+            if (n_components >= M4_ARUCO_MAX_COMPONENTS) {
+                return n_components;
+            }
+        }
+    }
+    return n_components;
+}
+
+// Phase W1+W2 — filter + 2nd-order moments → axes + angle.
+// Identical to sentai_aruco.cc:whycon_filter_and_moments_, scalar.
+static int m4_whycon_filter_(int n_comp) {
+    int n_out = 0;
+    /* Same knobs as the M7 path. */
+    const int   min_area      = 25;
+    const int   max_area      = 4000;
+    const float min_fill      = 0.55f;
+    const float max_bbox_ar   = 1.5f;
+    const float max_axis_ratio = 2.0f;
+    for (int ci = 0; ci < n_comp; ++ci) {
+        if (n_out >= M4_WHYCON_MAX_DETS) break;
+        const m4_aruco_comp_t* c = &s_m4_components[ci];
+        if (c->touches_border) continue;
+        if (c->n_pix < min_area || c->n_pix > max_area) continue;
+        const int bw = c->x1 - c->x0 + 1;
+        const int bh = c->y1 - c->y0 + 1;
+        float ar = (bw > bh) ? (float)bw/(float)bh : (float)bh/(float)bw;
+        if (ar > max_bbox_ar) continue;
+        float fill = (float)c->n_pix / (float)(bw * bh);
+        if (fill < min_fill) continue;
+        const float m00 = (float)c->n_pix;
+        const float cx  = (float)c->cx_sum / m00;
+        const float cy  = (float)c->cy_sum / m00;
+        const float mu20 = (float)c->m20_sum / m00 - cx * cx;
+        const float mu02 = (float)c->m02_sum / m00 - cy * cy;
+        const float mu11 = (float)c->m11_sum / m00 - cx * cy;
+        const float tr   = mu20 + mu02;
+        const float det  = mu20 * mu02 - mu11 * mu11;
+        const float disc = tr * tr * 0.25f - det;
+        const float sq   = disc > 0.0f ? __builtin_sqrtf(disc) : 0.0f;
+        const float l1   = tr * 0.5f + sq;
+        const float l2   = tr * 0.5f - sq;
+        const float a = (l1 > 0.0f) ? 2.0f * __builtin_sqrtf(l1) : 0.0f;
+        const float b = (l2 > 0.0f) ? 2.0f * __builtin_sqrtf(l2) : 0.0f;
+        if (b < 0.001f) continue;
+        if (a / b > max_axis_ratio) continue;
+        const float theta = 0.5f * __builtin_atan2f(2.0f * mu11, mu20 - mu02);
+        m4_whycon_marker_t* m = &s_m4_whycon_markers[n_out++];
+        m->cx = cx; m->cy = cy;
+        m->axis_a = a; m->axis_b = b; m->angle = theta;
+        m->comp_id = ci;
+    }
+    return n_out;
+}
+
 static uint32_t aruco_flow_sad_m4(int* out_dx, int* out_dy) {
     const uint8_t* curr = FLOW_BENCH_CURR_PTR;
     const uint8_t* prev = FLOW_BENCH_PREV_PTR;
@@ -440,6 +599,13 @@ static void handle_m7_message_(const uint8_t data[coralmicro::kIpcMessageBufferD
     // WhyCon synth+Phase A: N disks = (block & M4BENCH_WHYCON_N_MASK).
     if (block >= M4BENCH_SENTINEL_WHYCON_LO &&
         block <= M4BENCH_SENTINEL_WHYCON_HI) {
+        s_pending_block = block;
+        if (s_work_sem) xSemaphoreGive(s_work_sem);
+        return;
+    }
+    // WhyCon FULL pipeline (Phase A+B+W): N disks = block & N_MASK.
+    if (block >= M4BENCH_SENTINEL_WHYFULL_LO &&
+        block <= M4BENCH_SENTINEL_WHYFULL_HI) {
         s_pending_block = block;
         if (s_work_sem) xSemaphoreGive(s_work_sem);
         return;
@@ -523,6 +689,31 @@ static void handle_m7_message_(const uint8_t data[coralmicro::kIpcMessageBufferD
             s_bench_sink = (uint8_t)s_m4_flow_sink;
             app->cycles = t1 - t0;
             app->n_dets = 1;  /* DTCM variant flag */
+        } else if (block >= M4BENCH_SENTINEL_WHYFULL_LO &&
+                    block <= M4BENCH_SENTINEL_WHYFULL_HI) {
+            // OP-S10-W18-T2 M4 WhyCon FULL pipeline: synth + Phase A
+            // (rolling threshold) + Phase B (flood-fill + inline
+            // moments) + Phase W (filter + axes).  Returns total
+            // cycles for the detection pipeline.
+            const int n_circles = (int)(block & M4BENCH_WHYCON_N_MASK);
+            whycon_synth_frame_m4(n_circles, 15);
+            const uint32_t t0 = dwt_cyc();
+            aruco_threshold_rolling_m4(31);
+            const int n_comp = m4_aruco_label_components(M4_FRAME_W, M4_FRAME_H);
+            const int n_det  = m4_whycon_filter_(n_comp);
+            const uint32_t t1 = dwt_cyc();
+            /* DCE sink — fold labels + marker count + first centroid
+             * into volatile to keep flood-fill + filter writes live. */
+            uint32_t fold = (uint32_t)n_det;
+            for (int i = 0; i < M4_FRAME_W * M4_FRAME_H; i += 32) {
+                fold ^= s_m4_labels[i];
+            }
+            if (n_det > 0) {
+                fold ^= (uint32_t)(s_m4_whycon_markers[0].cx * 1024.0f);
+            }
+            s_bench_sink = (uint8_t)fold;
+            app->cycles = t1 - t0;
+            app->n_dets = (uint16_t)n_det;
         } else if (block >= M4BENCH_SENTINEL_WHYCON_LO &&
                     block <= M4BENCH_SENTINEL_WHYCON_HI) {
             // OP-S10-W17-T2 M4 WhyCon ablation — synth disks + rolling

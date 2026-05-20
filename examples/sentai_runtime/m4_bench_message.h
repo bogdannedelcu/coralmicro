@@ -33,6 +33,12 @@
 #define M4BENCH_SENTINEL_WHYCON_HI     0xC108u   /* inclusive (N=8) */
 #define M4BENCH_WHYCON_N_MASK          0x000Fu
 
+/* OP-S10-W18-T2: WhyCon FULL pipeline (Phase A+B+W) — sentinel range,
+ * N disks = (block & M4BENCH_WHYCON_N_MASK).  Returns total cycles
+ * for synth + threshold + flood-fill + filter + moments. */
+#define M4BENCH_SENTINEL_WHYFULL_LO    0xC200u
+#define M4BENCH_SENTINEL_WHYFULL_HI    0xC208u
+
 /* Flow SAD ablation sentinels.  See OP-S10-W18_flow_search.md §5. */
 #define M4BENCH_SENTINEL_FLOW_OCRAM    0xF10Fu   /* exhaustive on shared OCRAM */
 #define M4BENCH_SENTINEL_FLOW_DTCM     0xF1D7u   /* exhaustive on M4 local DTCM */
