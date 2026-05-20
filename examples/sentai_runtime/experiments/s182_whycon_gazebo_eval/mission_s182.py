@@ -62,12 +62,14 @@ ALT_SWEEP = [0.40, 0.50, 0.60, 0.70, 0.80, 1.00]
 # Per [[missions-run-in-sentai-only]] this is THE pattern (the old
 # host-side aruco_to_vision_estimate.py is deprecated).
 MARKER_WORLD = (
-    ( 0.00, +0.20, 0.005),   # N
-    (+0.16,  0.00, 0.005),   # E
-    ( 0.00, -0.20, 0.005),   # S
-    (-0.08,  0.00, 0.005),   # W
+    (-0.16, +0.20, 0.005),   # NW
+    (+0.16, +0.20, 0.005),   # NE
+    (-0.16,  0.00, 0.005),   # W   ← cross-bar
+    (+0.16,  0.00, 0.005),   # E   ← cross-bar
+    (-0.16, -0.14, 0.005),   # SW
+    (+0.16, -0.14, 0.005),   # SE
 )
-MARKER_NAMES = ("N", "E", "S", "W")
+MARKER_NAMES = ("NW", "NE", "W", "E", "SW", "SE")
 
 
 def _j(event, payload):

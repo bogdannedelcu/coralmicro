@@ -61,14 +61,18 @@ import numpy as np
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt   # noqa: E402
 
-# Marker world positions (sentai_whycon.sdf canonical).
+# Marker world positions — H layout per Kim, Yang, Kim 2013 IROS.
+# Asymmetric Y (top arm 0.20 m, bottom arm 0.14 m) breaks 180° yaw
+# ambiguity while preserving Y-axis (left-right) mirror symmetry.
 MARKER_WORLD = {
-    "N":  np.array([ 0.00, +0.20, 0.005], dtype=np.float64),
+    "NW": np.array([-0.16, +0.20, 0.005], dtype=np.float64),
+    "NE": np.array([+0.16, +0.20, 0.005], dtype=np.float64),
+    "W":  np.array([-0.16,  0.00, 0.005], dtype=np.float64),
     "E":  np.array([+0.16,  0.00, 0.005], dtype=np.float64),
-    "S":  np.array([ 0.00, -0.20, 0.005], dtype=np.float64),
-    "W":  np.array([-0.08,  0.00, 0.005], dtype=np.float64),
+    "SW": np.array([-0.16, -0.14, 0.005], dtype=np.float64),
+    "SE": np.array([+0.16, -0.14, 0.005], dtype=np.float64),
 }
-MARKER_ORDER = ["N", "E", "S", "W"]
+MARKER_ORDER = ["NW", "NE", "W", "E", "SW", "SE"]
 
 # Camera intrinsics — must match mission_s182.py.  Derived from cf2
 # SDF horizontal_fov = 1.0123 rad @ 640×480, halved by the 320×240

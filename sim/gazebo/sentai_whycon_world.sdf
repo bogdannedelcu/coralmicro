@@ -267,93 +267,103 @@
          margin on each side — comfortable for the ±5 cm relay.
          POSITIONS keep parity with aruco_detector.py
          KNOWN_POSITIONS_M (updated alongside SDF). -->
-    <!-- OP-S10-W19-T4 / s182: 4 Krajník (WhyCon) markers laid out
-         as an ASYMMETRIC cross — same scene size as the ArUco
-         square (which sat on the corners), but markers placed on
-         the EDGE MIDPOINTS so neither layout overlaps when both
-         worlds load.  Asymmetry chosen by SHIFTING the East
-         marker outward + the West marker inward so the pattern
-         is NOT 4-fold rotationally symmetric (single-circular-
-         marker yaw is indeterminate anyway per W17 §6.2, but the
-         cross of 4 lets a future constellation pose / multi-
-         marker solver break the ambiguity without needing
-         WhyCode bit-decode).
+    <!-- OP-S10-W19-T4 / s182 iter-5: 6 Krajník markers in an H
+         layout (canonical helipad pattern; Kim, Yang, Kim 2013
+         IROS — "A monocular vision based landing approach for
+         autonomous UAVs"; ICAO Annex 14 helipad H marking).
 
-         Layout:
-           N at ( 0.00, +0.20, 0.005)
-           E at (+0.16,  0.00, 0.005)   ← east shifted +0.04 m
-           S at ( 0.00, -0.20, 0.005)
-           W at (-0.08,  0.00, 0.005)   ← west pulled in -0.04 m
+         Asymmetric Y (top arm 0.20 m, bottom arm 0.14 m) breaks
+         the X-axis symmetry so yaw 180° is unambiguous WITHOUT
+         needing WhyCode bit-decode.  Y-axis symmetry (left↔right
+         mirror) preserved.
 
-         All four use the SAME texture (whycon_krajnik.png) — Krajník
-         markers are ID-less; constellation pose disambiguation is
-         W19-T3.  Marker physical outer-ring diameter ≈ 0.108 m on
-         the 0.12 m box face (texture has 24 px margin on a 256 px
-         half-frame → R_world = 232/256 × 0.06 = 0.0544 m).  Use
-         `sentai.markers.set_marker_size(0.1088)` to match. -->
-    <model name="whycon_N">
+         Layout (origin = takeoff point):
+           NW (-0.16, +0.20)    NE (+0.16, +0.20)
+           W  (-0.16,  0.00)    E  (+0.16,  0.00)    ← cross-bar
+           SW (-0.16, -0.14)    SE (+0.16, -0.14)
+
+         Properties:
+         - Lever arm X = 0.32 m, Y = 0.34 m (balanced for Kabsch)
+         - 3 distinct Y values, 2 distinct X values
+         - All 6 visible at z ≥ 0.5 m (FOV radius 0.30 m at z=0.5,
+           max marker distance 0.255 m).
+         - Drone center clear for fine touchdown — markers form
+           the H letter outline, drone descends into the H gap.
+
+         Marker physical outer diameter ≈ 0.108 m (PNG 24 px margin
+         on 256 px half-frame mapped to 0.12 m box face).  Use
+         sentai.markers.set_marker_size(0.1088). -->
+    <model name="whycon_NW">
       <static>true</static>
-      <pose>0.00 +0.20 0.005  0 0 0</pose>
-      <link name="link">
-        <visual name="v">
-          <geometry><box><size>0.12 0.12 0.01</size></box></geometry>
-          <material>
-            <ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse>
-            <pbr><metal>
-              <albedo_map>materials/textures/whycon_krajnik.png</albedo_map>
-              <metalness>0</metalness><roughness>1</roughness>
-            </metal></pbr>
-          </material>
-        </visual>
-      </link>
+      <pose>-0.16 +0.20 0.005  0 0 0</pose>
+      <link name="link"><visual name="v">
+        <geometry><box><size>0.12 0.12 0.01</size></box></geometry>
+        <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse>
+          <pbr><metal>
+            <albedo_map>materials/textures/whycon_krajnik.png</albedo_map>
+            <metalness>0</metalness><roughness>1</roughness>
+          </metal></pbr></material>
+      </visual></link>
+    </model>
+    <model name="whycon_NE">
+      <static>true</static>
+      <pose>+0.16 +0.20 0.005  0 0 0</pose>
+      <link name="link"><visual name="v">
+        <geometry><box><size>0.12 0.12 0.01</size></box></geometry>
+        <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse>
+          <pbr><metal>
+            <albedo_map>materials/textures/whycon_krajnik.png</albedo_map>
+            <metalness>0</metalness><roughness>1</roughness>
+          </metal></pbr></material>
+      </visual></link>
+    </model>
+    <model name="whycon_W">
+      <static>true</static>
+      <pose>-0.16 0.00 0.005  0 0 0</pose>
+      <link name="link"><visual name="v">
+        <geometry><box><size>0.12 0.12 0.01</size></box></geometry>
+        <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse>
+          <pbr><metal>
+            <albedo_map>materials/textures/whycon_krajnik.png</albedo_map>
+            <metalness>0</metalness><roughness>1</roughness>
+          </metal></pbr></material>
+      </visual></link>
     </model>
     <model name="whycon_E">
       <static>true</static>
       <pose>+0.16 0.00 0.005  0 0 0</pose>
-      <link name="link">
-        <visual name="v">
-          <geometry><box><size>0.12 0.12 0.01</size></box></geometry>
-          <material>
-            <ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse>
-            <pbr><metal>
-              <albedo_map>materials/textures/whycon_krajnik.png</albedo_map>
-              <metalness>0</metalness><roughness>1</roughness>
-            </metal></pbr>
-          </material>
-        </visual>
-      </link>
+      <link name="link"><visual name="v">
+        <geometry><box><size>0.12 0.12 0.01</size></box></geometry>
+        <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse>
+          <pbr><metal>
+            <albedo_map>materials/textures/whycon_krajnik.png</albedo_map>
+            <metalness>0</metalness><roughness>1</roughness>
+          </metal></pbr></material>
+      </visual></link>
     </model>
-    <model name="whycon_S">
+    <model name="whycon_SW">
       <static>true</static>
-      <pose>0.00 -0.20 0.005  0 0 0</pose>
-      <link name="link">
-        <visual name="v">
-          <geometry><box><size>0.12 0.12 0.01</size></box></geometry>
-          <material>
-            <ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse>
-            <pbr><metal>
-              <albedo_map>materials/textures/whycon_krajnik.png</albedo_map>
-              <metalness>0</metalness><roughness>1</roughness>
-            </metal></pbr>
-          </material>
-        </visual>
-      </link>
+      <pose>-0.16 -0.14 0.005  0 0 0</pose>
+      <link name="link"><visual name="v">
+        <geometry><box><size>0.12 0.12 0.01</size></box></geometry>
+        <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse>
+          <pbr><metal>
+            <albedo_map>materials/textures/whycon_krajnik.png</albedo_map>
+            <metalness>0</metalness><roughness>1</roughness>
+          </metal></pbr></material>
+      </visual></link>
     </model>
-    <model name="whycon_W">
+    <model name="whycon_SE">
       <static>true</static>
-      <pose>-0.08 0.00 0.005  0 0 0</pose>
-      <link name="link">
-        <visual name="v">
-          <geometry><box><size>0.12 0.12 0.01</size></box></geometry>
-          <material>
-            <ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse>
-            <pbr><metal>
-              <albedo_map>materials/textures/whycon_krajnik.png</albedo_map>
-              <metalness>0</metalness><roughness>1</roughness>
-            </metal></pbr>
-          </material>
-        </visual>
-      </link>
+      <pose>+0.16 -0.14 0.005  0 0 0</pose>
+      <link name="link"><visual name="v">
+        <geometry><box><size>0.12 0.12 0.01</size></box></geometry>
+        <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse>
+          <pbr><metal>
+            <albedo_map>materials/textures/whycon_krajnik.png</albedo_map>
+            <metalness>0</metalness><roughness>1</roughness>
+          </metal></pbr></material>
+      </visual></link>
     </model>
 
     <!-- ====================================================== -->
