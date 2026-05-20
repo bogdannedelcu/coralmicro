@@ -262,6 +262,50 @@ static void aruco_adaptive_threshold_m4(int block) {
     }
 }
 
+// OP-S10-W17-T4 DTCM-variant — local M4 DTCM mirror buffers.
+// Operator-requested "doar DTCM test, fara alte optimizari pe algoritm"
+// 2026-05-20.  Same algorithm, same SIMD intrinsics, same loop body
+// as aruco_flow_sad_m4 below — only the source pointers point to
+// DTCM-resident buffers instead of OCRAM-shared ones.  Pre-copy
+// OCRAM→DTCM is done OUTSIDE the timed region (operator instruction:
+// "pre-copy nu intra in masuratoare").
+//
+// M4 DTCM = m_data section at 0x20220000+NCACHE, 1-cycle access (vs
+// OCRAM 3-cycle).  Default .bss attribute on M4 lands here, no
+// special section needed.
+static uint8_t s_m4_flow_curr_dt[FLOW_BENCH_GRAY_PIX] __attribute__((aligned(4)));
+static uint8_t s_m4_flow_prev_dt[FLOW_BENCH_GRAY_PIX] __attribute__((aligned(4)));
+
+static uint32_t aruco_flow_sad_m4_dtcm(int* out_dx, int* out_dy) {
+    const uint8_t* curr = s_m4_flow_curr_dt;
+    const uint8_t* prev = s_m4_flow_prev_dt;
+    const int W = FLOW_BENCH_GRAY_W;
+    const int bx = (W - FLOW_BENCH_BLOCK_W) / 2;
+    const int by = (FLOW_BENCH_GRAY_H - FLOW_BENCH_BLOCK_H) / 2;
+    uint32_t best = 0xFFFFFFFFu;
+    int bdx = 0, bdy = 0;
+    for (int dy = -FLOW_BENCH_SEARCH; dy <= FLOW_BENCH_SEARCH; ++dy) {
+        for (int dx = -FLOW_BENCH_SEARCH; dx <= FLOW_BENCH_SEARCH; ++dx) {
+            uint32_t sad = 0;
+            for (int y = 0; y < FLOW_BENCH_BLOCK_H; ++y) {
+                const uint8_t* c = curr + (by + y) * W + bx;
+                const uint8_t* p = prev + (by + y + dy) * W + (bx + dx);
+                sad = m4_usada8(M4_LD32U(c +  0), M4_LD32U(p +  0), sad);
+                sad = m4_usada8(M4_LD32U(c +  4), M4_LD32U(p +  4), sad);
+                sad = m4_usada8(M4_LD32U(c +  8), M4_LD32U(p +  8), sad);
+                sad = m4_usada8(M4_LD32U(c + 12), M4_LD32U(p + 12), sad);
+                sad = m4_usada8(M4_LD32U(c + 16), M4_LD32U(p + 16), sad);
+                sad = m4_usada8(M4_LD32U(c + 20), M4_LD32U(p + 20), sad);
+                sad = m4_usada8(M4_LD32U(c + 24), M4_LD32U(p + 24), sad);
+                sad = m4_usada8(M4_LD32U(c + 28), M4_LD32U(p + 28), sad);
+            }
+            if (sad < best) { best = sad; bdx = dx; bdy = dy; }
+        }
+    }
+    *out_dx = bdx; *out_dy = bdy;
+    return best;
+}
+
 // OP-S10-W17-T4 M4 ablation — Flow SAD inner loop on the SHARED
 // .tpu_input OCRAM region (M4 reads same physical addresses M7 wrote).
 // Algorithm IDENTICAL to flow_task.cc:sad_match — 25×25 search ×
@@ -335,10 +379,10 @@ static void handle_m7_message_(const uint8_t data[coralmicro::kIpcMessageBufferD
         if (s_work_sem) xSemaphoreGive(s_work_sem);
         return;
     }
-    // OP-S10-W17-T4 Flow SAD sentinel: 0xF10F.  M7 must populate the
-    // shared OCRAM .tpu_input scratch (FLOW_BENCH_CURR/PREV_PTR) BEFORE
-    // sending this message; M4 reads same physical addresses.
-    if (block == 0xF10Fu) {
+    // OP-S10-W17-T4 Flow SAD sentinels:
+    //   0xF10F = M4 reads shared OCRAM directly (3-cyc/load)
+    //   0xF1D7 = M4 pre-copies OCRAM → local DTCM, then SAD (1-cyc/load)
+    if (block == 0xF10Fu || block == 0xF1D7u) {
         s_pending_block = block;
         if (s_work_sem) xSemaphoreGive(s_work_sem);
         return;
@@ -388,6 +432,21 @@ static void handle_m7_message_(const uint8_t data[coralmicro::kIpcMessageBufferD
             s_bench_sink = (uint8_t)s_m4_flow_sink;
             app->cycles = t1 - t0;
             app->n_dets = 0;
+        } else if (block == 0xF1D7u) {
+            // OP-S10-W17-T4 DTCM variant: M4 pre-copies OCRAM shared
+            // into DTCM local scratch (1-cyc access) BEFORE the timed
+            // SAD region.  Pre-copy intentionally excluded from
+            // measurement per operator instruction.
+            memcpy(s_m4_flow_curr_dt, FLOW_BENCH_CURR_PTR, FLOW_BENCH_GRAY_PIX);
+            memcpy(s_m4_flow_prev_dt, FLOW_BENCH_PREV_PTR, FLOW_BENCH_GRAY_PIX);
+            int dx_out = 0, dy_out = 0;
+            const uint32_t t0 = dwt_cyc();
+            const uint32_t best = aruco_flow_sad_m4_dtcm(&dx_out, &dy_out);
+            const uint32_t t1 = dwt_cyc();
+            s_m4_flow_sink = best ^ (uint32_t)dx_out ^ ((uint32_t)dy_out << 16);
+            s_bench_sink = (uint8_t)s_m4_flow_sink;
+            app->cycles = t1 - t0;
+            app->n_dets = 1;  /* DTCM variant flag */
         } else if (block >= 0xC100u && block <= 0xC108u) {
             // OP-S10-W17-T2 M4 WhyCon ablation — synth disks + rolling
             // threshold (same kernel as M7's optimized WhyCon Phase A).
