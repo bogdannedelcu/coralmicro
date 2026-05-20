@@ -325,6 +325,27 @@ static mp_obj_t aruco_thresh_rolling_cyc_(void) {
 static MP_DEFINE_CONST_FUN_OBJ_0(aruco_thresh_rolling_cyc_obj,
                                   aruco_thresh_rolling_cyc_);
 
+// OP-S10-W17-T6 — per-stage cycle breakdown for apples-to-apples
+// comparison vs WhyCon `_stage_cyc5()`.  Returns 5-tuple of cycle
+// counts accumulated during the last sentai_aruco_detect() call:
+//   (t_thresh, t_flood, t_quad, t_decode, t_pnp).
+extern void sentai_aruco_stage_cyc(uint32_t* t_thresh, uint32_t* t_flood,
+                                     uint32_t* t_quad, uint32_t* t_decode,
+                                     uint32_t* t_pnp);
+static mp_obj_t aruco_stage_cyc_(void) {
+    uint32_t t_thr = 0, t_fl = 0, t_q = 0, t_dec = 0, t_pnp = 0;
+    sentai_aruco_stage_cyc(&t_thr, &t_fl, &t_q, &t_dec, &t_pnp);
+    mp_obj_t t[5] = {
+        mp_obj_new_int_from_uint(t_thr),
+        mp_obj_new_int_from_uint(t_fl),
+        mp_obj_new_int_from_uint(t_q),
+        mp_obj_new_int_from_uint(t_dec),
+        mp_obj_new_int_from_uint(t_pnp),
+    };
+    return mp_obj_new_tuple(5, t);
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(aruco_stage_cyc_obj, aruco_stage_cyc_);
+
 // =======================================================================
 // Module table
 // =======================================================================
@@ -353,6 +374,7 @@ static const mp_rom_map_elem_t sentai_aruco_globals_table[] = {
                                               MP_ROM_PTR(&aruco_thresh_rolling_cyc_obj) },
     { MP_ROM_QSTR(MP_QSTR__use_rolling),      MP_ROM_PTR(&aruco_use_rolling_obj) },
     { MP_ROM_QSTR(MP_QSTR__detect_cyc),       MP_ROM_PTR(&aruco_detect_cyc_obj) },
+    { MP_ROM_QSTR(MP_QSTR__stage_cyc),        MP_ROM_PTR(&aruco_stage_cyc_obj) },
 };
 static MP_DEFINE_CONST_DICT(sentai_aruco_globals, sentai_aruco_globals_table);
 

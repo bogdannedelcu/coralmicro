@@ -1,0 +1,94 @@
+[s180] open REPL @ /dev/ttyACM0
+[s180] sentai.version() + module sanity
+  VER:SentAI v1.0 build 1412 (2026-05-20 09:35:00)
+  HAS_aruco:1
+  HAS_whycon:1
+[s180] init ArUco
+[s180] WhyCon — set diameter for PnP (intrinsics shared with ArUco)
+[s180] upload aruco_frame.pgm -> /aruco_frame.pgm (76815 bytes, chunk=192)
+  4800/76815 bytes (6%)  9600/76815 bytes (12%)  14400/76815 bytes (19%)  19200/76815 bytes (25%)  24000/76815 bytes (31%)  28800/76815 bytes (37%)  33600/76815 bytes (44%)  38400/76815 bytes (50%)  43200/76815 bytes (56%)  48000/76815 bytes (62%)  52800/76815 bytes (69%)  57600/76815 bytes (75%)  62400/76815 bytes (81%)  67200/76815 bytes (87%)  72000/76815 bytes (94%)  76800/76815 bytes (100%)
+[s180] upload OK 0.3 KB/s
+
+[s180] ArUco — _test_pgm(/aruco_frame.pgm), 7 iters
+  iter 0: n=4  thresh=9633732  flood=11226215  quad=590971  decode=870716  pnp=39226
+  iter 1: n=4  thresh=9613965  flood=11246643  quad=586724  decode=867314  pnp=38776
+  iter 2: n=4  thresh=9633554  flood=11197370  quad=589297  decode=867148  pnp=38461
+  iter 3: n=4  thresh=9612113  flood=11238267  quad=589274  decode=864546  pnp=33594
+  iter 4: n=4  thresh=9626993  flood=11205409  quad=588595  decode=866446  pnp=37452
+  iter 5: n=4  thresh=9623515  flood=11213857  quad=598220  decode=865828  pnp=37263
+  iter 6: n=4  thresh=9623354  flood=11207775  quad=591211  decode=865228  pnp=35025
+
+[s180] WhyCon — lite (solid disks, no W3, no PnP), 7 iters
+  iter 0: n=4  A=2658988  B=2484977  W=10508  W3=0  PnP=9066
+  iter 1: n=4  A=2655016  B=2486732  W=8539  W3=0  PnP=7070
+  iter 2: n=4  A=2653054  B=2484489  W=7898  W3=0  PnP=6921
+  iter 3: n=4  A=2650949  B=2488194  W=7830  W3=0  PnP=7099
+  iter 4: n=4  A=2650976  B=2488283  W=7882  W3=0  PnP=6974
+  iter 5: n=4  A=2649761  B=2488927  W=7745  W3=0  PnP=6448
+  iter 6: n=4  A=2648537  B=2485706  W=7995  W3=0  PnP=6954
+
+[s180] WhyCon — Krajnik pattern (no W3, no PnP), 7 iters
+  iter 0: n=4  A=2653461  B=2116528  W=8950  W3=0  PnP=6778
+  iter 1: n=4  A=2646065  B=2116740  W=9219  W3=0  PnP=6168
+  iter 2: n=4  A=2653078  B=2118545  W=8824  W3=0  PnP=6576
+  iter 3: n=4  A=2655892  B=2072107  W=8394  W3=0  PnP=6475
+  iter 4: n=4  A=2655216  B=2118621  W=8876  W3=0  PnP=6059
+  iter 5: n=4  A=2654840  B=2120783  W=8518  W3=0  PnP=6605
+  iter 6: n=4  A=2666700  B=2111486  W=8990  W3=0  PnP=6411
+
+[s180] WhyCon — Krajnik pattern + W3 + PnP (production), 7 iters
+  iter 0: n=4  A=2651553  B=2119786  W=8405  W3=26731  PnP=4829
+  iter 1: n=4  A=2652602  B=2112787  W=9189  W3=25684  PnP=4076
+  iter 2: n=4  A=2653669  B=2113763  W=8896  W3=24730  PnP=5112
+  iter 3: n=4  A=2650965  B=2119806  W=8873  W3=26618  PnP=5118
+  iter 4: n=4  A=2656529  B=2116440  W=9286  W3=25529  PnP=4754
+  iter 5: n=4  A=2654648  B=2120611  W=9035  W3=26551  PnP=4528
+  iter 6: n=4  A=2654285  B=2121984  W=9001  W3=25915  PnP=4732
+
+=== s180 SUMMARY ===
+# s180 — ArUco vs WhyCon apples-to-apples per-stage bench
+# Build: real M7 @ 800 MHz, sentai_runtime
+# Generated: 2026-05-20 09:40:36
+# Frame: 320x240 synth, 4 markers per frame
+# Iters: 7  (median reported)
+
+## Per-stage medians (cycles @ 800 MHz → ms)
+
+### ArUco production
+aruco.thresh  =    9623515 cyc  = 12.029 ms
+aruco.flood   =   11213857 cyc  = 14.017 ms
+aruco.quad    =     589297 cyc  = 0.737 ms
+aruco.decode  =     866446 cyc  = 1.083 ms
+aruco.pnp     =      37452 cyc  = 0.047 ms
+aruco.TOTAL  =   22330567 cyc  = 27.913 ms
+aruco.n_dets_median = 4 (iters: [4, 4, 4, 4, 4, 4, 4])
+
+### WhyCon-lite  (solid disks, no W3, no PnP)
+  whycon.A   =    2650976 cyc  = 3.314 ms
+  whycon.B   =    2486732 cyc  = 3.108 ms
+  whycon.W   =       7898 cyc  = 0.010 ms
+  whycon.W3  =          0 cyc  = 0.000 ms
+  whycon.PnP =       6974 cyc  = 0.009 ms
+  whycon.TOT =    5152580 cyc  = 6.441 ms
+  whycon.n_dets_median = 4 (iters: [4, 4, 4, 4, 4, 4, 4])
+
+### WhyCon       (Krajnik pattern, no W3, no PnP)
+  whycon.A   =    2654840 cyc  = 3.319 ms
+  whycon.B   =    2116740 cyc  = 2.646 ms
+  whycon.W   =       8876 cyc  = 0.011 ms
+  whycon.W3  =          0 cyc  = 0.000 ms
+  whycon.PnP =       6475 cyc  = 0.008 ms
+  whycon.TOT =    4786931 cyc  = 5.984 ms
+  whycon.n_dets_median = 4 (iters: [4, 4, 4, 4, 4, 4, 4])
+
+### WhyCon       (Krajnik pattern + W3 + PnP) [PRODUCTION]
+  whycon.A   =    2653669 cyc  = 3.317 ms
+  whycon.B   =    2119786 cyc  = 2.650 ms
+  whycon.W   =       9001 cyc  = 0.011 ms
+  whycon.W3  =      25915 cyc  = 0.032 ms
+  whycon.PnP =       4754 cyc  = 0.006 ms
+  whycon.TOT =    4813125 cyc  = 6.016 ms
+  whycon.n_dets_median = 4 (iters: [4, 4, 4, 4, 4, 4, 4])
+
+
+[s180] wrote /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s180_aruco_whycon_apples_to_apples/results.txt + /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s180_aruco_whycon_apples_to_apples/results.json

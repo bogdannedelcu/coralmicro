@@ -380,10 +380,14 @@ static uint32_t aruco_flow_sad_m4_dtcm(int* out_dx, int* out_dy) {
 static volatile uint32_t s_m4_flow_sink = 0;
 
 // =================================================================
-// OP-S10-W18-T2 M4 WhyCon FULL pipeline bench.
+// OP-S10-W18-T2 M4 WhyCon-lite end-to-end pipeline bench.
 //
 // Operator-requested 2026-05-20: "as vrea sa clarificam si cat
-// dureaza WhyCon complet pe M4, nu numai Phase A".
+// dureaza WhyCon complet pe M4, nu numai Phase A".  Operator
+// terminology "WhyCon complet" maps to WhyCon-LITE end-to-end here,
+// i.e. the same code path as the M7 6.00 ms number reported in
+// W17 §4 — NOT WhyCon production (still missing W3 concentric, PnP,
+// WhyCode; see W17 §6).
 //
 // Phase A (rolling Bradley threshold) already implemented as
 // aruco_threshold_rolling_m4().  This block adds Phase B (8-conn
@@ -603,7 +607,7 @@ static void handle_m7_message_(const uint8_t data[coralmicro::kIpcMessageBufferD
         if (s_work_sem) xSemaphoreGive(s_work_sem);
         return;
     }
-    // WhyCon FULL pipeline (Phase A+B+W): N disks = block & N_MASK.
+    // WhyCon-lite end-to-end (Phase A+B+W): N disks = block & N_MASK.
     if (block >= M4BENCH_SENTINEL_WHYFULL_LO &&
         block <= M4BENCH_SENTINEL_WHYFULL_HI) {
         s_pending_block = block;
@@ -691,10 +695,12 @@ static void handle_m7_message_(const uint8_t data[coralmicro::kIpcMessageBufferD
             app->n_dets = 1;  /* DTCM variant flag */
         } else if (block >= M4BENCH_SENTINEL_WHYFULL_LO &&
                     block <= M4BENCH_SENTINEL_WHYFULL_HI) {
-            // OP-S10-W18-T2 M4 WhyCon FULL pipeline: synth + Phase A
+            // OP-S10-W18-T2 M4 WhyCon-lite end-to-end: synth + Phase A
             // (rolling threshold) + Phase B (flood-fill + inline
             // moments) + Phase W (filter + axes).  Returns total
-            // cycles for the detection pipeline.
+            // cycles for the detection pipeline.  Same code path as
+            // M7's 6.00 ms WhyCon-lite full opt; NOT WhyCon production
+            // (no W3 concentric, no PnP — see W17 §6).
             const int n_circles = (int)(block & M4BENCH_WHYCON_N_MASK);
             whycon_synth_frame_m4(n_circles, 15);
             const uint32_t t0 = dwt_cyc();

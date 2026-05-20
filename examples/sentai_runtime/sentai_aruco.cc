@@ -1952,16 +1952,21 @@ extern "C" int sentai_aruco_detect_pgm_file(const char* path) {
         // Path 2: HW board fallback — read via FxUser FAT API.  PGM
         // files dropped via USB MSC mount live on the FAT volume and
         // are NOT visible to libnewlib's fopen.
+        //
+        // Staging: reuse s_integral (1.2 MB int32_t buffer, idle pre-
+        // threshold) as a byte-buffer scratch.  A 320×240 P5 PGM with
+        // its ~15 B ASCII header is ~76.8 KB; s_labels at exactly
+        // ARUCO_BUF_SZ = 76800 B was 15 B short for the full file
+        // and rejected legit PGM uploads with -SENTAI_ARUCO_ERR_OVERFLOW
+        // (W17-T8 finding via s180 bench).  s_integral has room.
         ssize_t sz = FxUserSize(path);
         if (sz < 0) return -1;
-        // Provide a small staging buffer reusing s_labels (mostly idle
-        // before threshold runs).  Avoids a fresh allocation while
-        // staying within budget for 320x240 + small PGM header.
-        const size_t max_buf = sizeof(s_labels);
+        uint8_t* stage = (uint8_t*)s_integral;
+        const size_t max_buf = sizeof(s_integral);
         if ((size_t)sz > max_buf) return -3;
-        size_t got = FxUserReadFile(path, s_labels, max_buf);
+        size_t got = FxUserReadFile(path, stage, max_buf);
         if (got == 0) return -1;
-        int rc = aruco_parse_pgm_buffer_(s_labels, got);
+        int rc = aruco_parse_pgm_buffer_(stage, got);
         if (rc != 0) return rc;
     }
     // Both paths produce s_test_gray with the canonical 320x240 layout.
@@ -2086,6 +2091,38 @@ extern "C" uint32_t sentai_aruco_detect_cyc_last(void) {
     return s_aruco_detect_cyc_last;
 }
 
+// OP-S10-W17-T6: Per-stage cycle counters — accumulated across the
+// scale-loop / component-loop nesting inside sentai_aruco_detect().
+// Reset to 0 at the top of each detect() call; queryable through
+// `sentai.aruco._stage_cyc()`.  These give the breakdown needed for
+// the mere-cu-mere comparison with WhyCon `_stage_cyc5()`:
+//
+//   t_thresh : Bradley adaptive threshold (all scales summed)
+//   t_flood  : 8-conn flood-fill labeling (all scales summed)
+//   t_quad   : per-component bbox/aspect/fill filter + extract_quad +
+//              convex / minDistanceToBorder / minCornerDistance / CW
+//              winding (the "geometric gates" — analogue of WhyCon
+//              W1+W2 size/circularity/axes).
+//   t_decode : aruco_decode_marker (perspective warp + Otsu + bit
+//              extract + dictionary lookup + hamming).  This is the
+//              ID-emitting part of ArUco that WhyCon-lite skips.
+//   t_pnp    : aruco_pnp_from_corners (IPPE_SQUARE) + reproj gate.
+static volatile uint32_t s_aruco_t_thresh = 0;
+static volatile uint32_t s_aruco_t_flood  = 0;
+static volatile uint32_t s_aruco_t_quad   = 0;
+static volatile uint32_t s_aruco_t_decode = 0;
+static volatile uint32_t s_aruco_t_pnp    = 0;
+
+extern "C" void sentai_aruco_stage_cyc(uint32_t* t_thresh, uint32_t* t_flood,
+                                         uint32_t* t_quad, uint32_t* t_decode,
+                                         uint32_t* t_pnp) {
+    if (t_thresh) *t_thresh = s_aruco_t_thresh;
+    if (t_flood)  *t_flood  = s_aruco_t_flood;
+    if (t_quad)   *t_quad   = s_aruco_t_quad;
+    if (t_decode) *t_decode = s_aruco_t_decode;
+    if (t_pnp)    *t_pnp    = s_aruco_t_pnp;
+}
+
 extern "C" int sentai_aruco_detect(const uint8_t* gray, int w, int h,
                                     uint32_t frame_seq, uint32_t src_ts_ms,
                                     sentai_aruco_marker_t* out,
@@ -2097,6 +2134,13 @@ extern "C" int sentai_aruco_detect(const uint8_t* gray, int w, int h,
 
     s_stats.frames_total++;
     if (out_capacity <= 0) return 0;
+
+    // T6: reset per-stage counters at the start of every detect().
+    s_aruco_t_thresh = 0;
+    s_aruco_t_flood  = 0;
+    s_aruco_t_quad   = 0;
+    s_aruco_t_decode = 0;
+    s_aruco_t_pnp    = 0;
 
     const uint32_t detect_t0 = aruco_dwt_cyc();
 
@@ -2119,12 +2163,17 @@ extern "C" int sentai_aruco_detect(const uint8_t* gray, int w, int h,
     for (int i = 0; i < SENTAI_ARUCO_MAX_MARKERS; ++i) best_set[i] = false;
 
     for (int si = 0; si < N_SCALES; ++si) {
+        const uint32_t t_thr_0 = aruco_dwt_cyc();
         if (s_aruco_use_rolling) {
             aruco_adaptive_threshold_rolling(gray, w, h, SCALE_BLOCKS[si], s_binary);
         } else {
             aruco_adaptive_threshold(gray, w, h, SCALE_BLOCKS[si]);
         }
+        s_aruco_t_thresh += aruco_dwt_cyc() - t_thr_0;
+
+        const uint32_t t_fl_0 = aruco_dwt_cyc();
         const int n_comp = aruco_label_components(w, h);
+        s_aruco_t_flood += aruco_dwt_cyc() - t_fl_0;
 
         // T18-O step 6: cv2 minMarkerPerimeterRate=0.03,
         // maxMarkerPerimeterRate=4.0 (proxies via bbox diagonal which
@@ -2140,26 +2189,27 @@ extern "C" int sentai_aruco_detect(const uint8_t* gray, int w, int h,
             // components (and break out of scale loop below).
             if (best_set[0] && best_set[1] &&
                 best_set[2] && best_set[3]) goto all_ids_found;
+            const uint32_t t_q_0 = aruco_dwt_cyc();
             const aruco_comp_t* c = &s_components[ci];
-            if (c->touches_border) continue;
+            if (c->touches_border) { s_aruco_t_quad += aruco_dwt_cyc() - t_q_0; continue; }
             const int bbox_w = c->x1 - c->x0 + 1;
             const int bbox_h = c->y1 - c->y0 + 1;
             const int diag_sq = bbox_w * bbox_w + bbox_h * bbox_h;
-            if (diag_sq < min_bbox_diag_sq) continue;
-            if (diag_sq > max_bbox_diag_sq) continue;
+            if (diag_sq < min_bbox_diag_sq) { s_aruco_t_quad += aruco_dwt_cyc() - t_q_0; continue; }
+            if (diag_sq > max_bbox_diag_sq) { s_aruco_t_quad += aruco_dwt_cyc() - t_q_0; continue; }
             // Aspect gate (markers are roughly square; reject wide-rectangle noise).
             const float aspect = (float)bbox_w / (float)bbox_h;
-            if (aspect < 0.33f || aspect > 3.0f) continue;
+            if (aspect < 0.33f || aspect > 3.0f) { s_aruco_t_quad += aruco_dwt_cyc() - t_q_0; continue; }
             const float area = (float)c->n_pix;
             const float fill_ratio = area / (float)(bbox_w * bbox_h);
-            if (fill_ratio < 0.30f) continue;
+            if (fill_ratio < 0.30f) { s_aruco_t_quad += aruco_dwt_cyc() - t_q_0; continue; }
 
             const uint8_t lab = (uint8_t)(ci + 1);
             float corners[8];
-            if (aruco_extract_quad(lab, w, h, c, corners) != 0) continue;
+            if (aruco_extract_quad(lab, w, h, c, corners) != 0) { s_aruco_t_quad += aruco_dwt_cyc() - t_q_0; continue; }
 
             // T18-O step 2: cv2 isContourConvex check.
-            if (!aruco_is_quad_convex_(corners)) continue;
+            if (!aruco_is_quad_convex_(corners)) { s_aruco_t_quad += aruco_dwt_cyc() - t_q_0; continue; }
 
             // T18-O step 3: cv2 minDistanceToBorder (3 px default).
             {
@@ -2172,7 +2222,7 @@ extern "C" int sentai_aruco_detect(const uint8_t* gray, int w, int h,
                         tooNear = 1; break;
                     }
                 }
-                if (tooNear) continue;
+                if (tooNear) { s_aruco_t_quad += aruco_dwt_cyc() - t_q_0; continue; }
             }
 
             // T18-O step 4: cv2 minCornerDistance (perim * 0.05 default).
@@ -2188,7 +2238,7 @@ extern "C" int sentai_aruco_detect(const uint8_t* gray, int w, int h,
                     total_edge += sqrtf(e_sq);
                 }
                 const float min_thresh = total_edge * 0.05f;
-                if (min_edge_sq < min_thresh * min_thresh) continue;
+                if (min_edge_sq < min_thresh * min_thresh) { s_aruco_t_quad += aruco_dwt_cyc() - t_q_0; continue; }
             }
 
             // T18-K: enforce CW winding (js-aruco / cv2.aruco standard).
@@ -2204,6 +2254,7 @@ extern "C" int sentai_aruco_detect(const uint8_t* gray, int w, int h,
                     corners[6] = tx;         corners[7] = ty;
                 }
             }
+            s_aruco_t_quad += aruco_dwt_cyc() - t_q_0;
 
             // T18-Q ablation (2026-05-18): Förstner subpix refinement
             // regressed detection on real flight frames (322 → 320 @ 4/4)
@@ -2213,6 +2264,7 @@ extern "C" int sentai_aruco_detect(const uint8_t* gray, int w, int h,
             // path (win_half=2) sometimes drifted corners onto neighbour
             // gradients.  See diary/2026-05-19.md for the deletion log.
 
+            const uint32_t t_dec_0 = aruco_dwt_cyc();
             int rotation = 0;
             int hamming = 0;
             int mid = aruco_decode_marker(gray, corners, w, h,
@@ -2239,16 +2291,20 @@ extern "C" int sentai_aruco_detect(const uint8_t* gray, int w, int h,
                     memcpy(corners, corners_rev, sizeof(corners));
                 }
             }
+            s_aruco_t_decode += aruco_dwt_cyc() - t_dec_0;
             if (mid < 0) {
                 s_stats.rejected_dict_total++;
                 continue;
             }
             aruco_realign_corners(corners, (4 - rotation) % 4);
 
+            const uint32_t t_pnp_0 = aruco_dwt_cyc();
             float tvec[3], rvec[3], reproj;
-            if (aruco_pnp_from_corners(corners, s_fx, s_fy, s_cx, s_cy,
-                                        s_marker_size_m,
-                                        tvec, rvec, &reproj) != 0) {
+            const int pnp_rc = aruco_pnp_from_corners(corners, s_fx, s_fy, s_cx, s_cy,
+                                                        s_marker_size_m,
+                                                        tvec, rvec, &reproj);
+            s_aruco_t_pnp += aruco_dwt_cyc() - t_pnp_0;
+            if (pnp_rc != 0) {
                 s_stats.rejected_reproj_total++;
                 continue;
             }
@@ -2335,6 +2391,13 @@ extern "C" void sentai_aruco_get_stats(sentai_aruco_stats_t* out) {
 // NOT integrated with safety/mission yet — pure perf instrumentation.
 // =========================================================================
 
+// OP-S10-W17-T5 / W19-T2 — pose-emitting WhyCon: Phase W3 concentric
+// inner-disc validation + closed-form PnP-z from semi-major axis +
+// physical diameter.  ABI extension: previous lite-only fields (cx,
+// cy, axis_a, axis_b, angle, comp_id) preserved at the head so old
+// binding's 24-byte view still reads correct values.  New fields
+// trail; binding's `sentai_whycon_marker_pub_t` must mirror this
+// layout (verified by static_assert in binding TU after rebuild).
 typedef struct {
     float cx;      // centroid x sub-pixel
     float cy;      // centroid y sub-pixel
@@ -2342,6 +2405,25 @@ typedef struct {
     float axis_b;  // semi-minor axis length (pixels)
     float angle;   // orientation of major axis (radians, [-π/2, π/2])
     int   comp_id; // index in s_components
+    // ---- W17-T5 / W19-T2 trailing fields ----
+    float tvec_cam[3];     // (x, y, z) in camera frame, metres.  All
+                           // 0 if !pose_valid (intrinsics or diameter
+                           // unset, or W3 disabled and caller still
+                           // queried PnP).
+    float rvec_cam[3];     // partial axis-angle: magnitude = tilt φ,
+                           // direction = rotation axis in image plane
+                           // perpendicular to projected major axis.
+                           // Yaw around marker normal is indeterminate
+                           // from a single circular marker (W17 §6.2).
+                           // Multi-marker constellation (W19-T3)
+                           // resolves yaw.
+    float reproj_err_px;   // self-consistent by construction (closed-
+                           // form); kept as a field for API parity
+                           // with ArUco's marker struct.
+    uint8_t pose_valid;    // 1 iff intrinsics + diameter populated
+                           // AND detection accepted (including W3 if
+                           // enabled).
+    uint8_t _pad[3];
 } sentai_whycon_marker_t;
 
 #define SENTAI_WHYCON_MAX_DETS    16
@@ -2351,14 +2433,209 @@ static int s_whycon_n_markers = 0;
 static int s_whycon_concentric_check = 0;  // 0 = WhyCon-lite, 1 = full WhyCon
 
 // Filter knobs — tuned for 320×240 frames, marker diameter 12-60 px.
-static int   s_whycon_min_area     = 25;     // pixels (≥ 5 px diameter @ 80% fill)
+// W17-T8: min_area raised from 25 to 100 to reject centre-dot blobs
+// of Krajník-pattern markers.  The dark centre dot of a real Krajník
+// marker is a separate blob from the outer annulus (the white inner
+// disc disconnects them); both pass the W1 fill gate, but the centre
+// dot's tiny area (~40 px² for an 18 px outer-radius marker) means
+// Phase W3 can't sample the surrounding annulus at meaningful radii.
+// Raising min_area kicks the centre-dot blob out at W1, leaving only
+// the annulus for W3 to validate.  Filter is still inclusive enough
+// for solid-disc lite markers (40 px² blobs allowed by the original
+// 25 → too small to be useful pose targets anyway).
+// W1 min_fill stays at 0.55: annulus fill = 0.50 for a 0.6R-to-R
+// donut, just below this gate — so we ALSO need to either lower
+// fill OR accept annulus by topology.  Decision: lower min_fill to
+// 0.40 to include annulus markers, then rely on min_area + W3 to
+// reject false positives.
+static int   s_whycon_min_area     = 100;    // pixels (≥ 11 px diameter blob)
 static int   s_whycon_max_area     = 4000;   // pixels (~70 px diameter)
-static float s_whycon_min_fill     = 0.55f;  // circle ≈ π/4 = 0.785; allow noise
+static float s_whycon_min_fill     = 0.40f;  // annulus ≈ 0.50, disc ≈ 0.79
 static float s_whycon_max_bbox_ar  = 1.5f;   // bbox w/h ratio: circle ≈ 1.0
 static float s_whycon_max_axis_ratio = 2.0f; // a/b axis ratio: circle ≈ 1.0
 
+// W17-T5: Phase W3 concentric-validation knobs.  WhyCon markers
+// (Krajník/Nitsche style) are a dark outer annulus surrounding a
+// white inner disc with a small dark sub-pixel localiser dot.  The
+// flood-fill upstream picked up the outer DARK annulus as one blob
+// (centre dot connects to ring via the outer dark region, but the
+// inner white disc bisects the blob — except that 8-connected fill
+// over-bridges thin separations.  See `s180` ablation log for the
+// reasoning behind the radial sample set).
+//
+// Pattern-aware sampling (cheap):
+//   - centre 3×3 mean: expect DARK (sub-pixel localiser dot)
+//   - 0.55·a radial samples (8 angles): expect WHITE (inner disc)
+//   - 0.95·a radial samples (8 angles): expect DARK (outer ring)
+//
+// All radii are pre-scaled by axis_a; ellipse-tilted markers project
+// each radius onto a · (axis_b/axis_a) along the minor axis direction,
+// but for tilts < 30° (cos(30°) ≈ 0.87) the major-axis radius alone
+// is within the band width on both axes — no per-sample axis_b
+// scaling needed.
+#define WHYCON_W3_INNER_RADIUS_FRAC   0.55f
+#define WHYCON_W3_OUTER_RADIUS_FRAC   0.95f
+#define WHYCON_W3_N_RADIAL_SAMPLES    8
+#define WHYCON_W3_GRAY_DARK_MAX       100   // pixel < this counts as DARK
+#define WHYCON_W3_GRAY_LIGHT_MIN      127   // pixel >= this counts as WHITE
+#define WHYCON_W3_INNER_WHITE_HITS_MIN  6   // 6/8 inner samples must be white
+#define WHYCON_W3_OUTER_DARK_HITS_MIN   6   // 6/8 outer samples must be dark
+
+// W19-T2: WhyCon physical diameter (metres).  Required for closed-form
+// PnP-z `z = fx * d / (2 * axis_a)`.  Intrinsics are shared with ArUco
+// (s_fx / s_fy / s_cx / s_cy) — the camera is the same.
+static float s_whycon_diameter_m = 0.0f;
+
+// Per-stage cycle counters for W3 + PnP — defined here so the
+// filter+moments writer (further down) sees them; the rest of the
+// counters (t_a / t_b / t_w) live below near whycon_detect_inplace_
+// for back-compat with the original 3-tuple ordering.
+static volatile uint32_t s_whycon_t_w3  = 0;
+static volatile uint32_t s_whycon_t_pnp = 0;
+
 extern "C" void sentai_whycon_set_concentric_check(int on) {
     s_whycon_concentric_check = on ? 1 : 0;
+}
+
+extern "C" void sentai_whycon_set_diameter(float meters) {
+    s_whycon_diameter_m = (meters > 0.0f) ? meters : 0.0f;
+}
+
+extern "C" float sentai_whycon_get_diameter(void) {
+    return s_whycon_diameter_m;
+}
+
+// W17-T5 / T8 Phase W3 — concentric inner-disc validation.  Returns
+// 1 if the candidate centred at (cx, cy) with outer radius `bbox_R`
+// passes the pattern check, 0 otherwise.  See WHYCON_W3_* constants
+// above for the sample geometry.  Cheap: 9 + 2·N_RADIAL = 25 pixel
+// lookups per candidate, with N candidates after Phase W1+W2
+// filtering (typically ≤ 8 on a clean frame).  No floating-point
+// divides in the hot loop.
+//
+// Why bbox_R and not axis_a (eigenvalue):
+//   - For a SOLID dark disc: axis_a ≈ R (the disc radius)
+//   - For a DARK ANNULUS (0.6R..R): axis_a ≈ 1.17·R (eigenvalues of
+//     the annular mass distribution)
+//   - For a small CENTRE DOT (≤ 0.2R): axis_a ≈ 0.2·R
+// Anchoring on axis_a would put inner/outer ring samples at vastly
+// different physical fractions of marker radius depending on which
+// blob the upstream stage picked up.  bbox_R = max(bbox_w, bbox_h)/2
+// is invariant: it's always the PHYSICAL outer radius of the blob
+// (the bbox encloses the whole marker for both annulus and disc).
+// Annular fill_ratio = 0.50, disc fill_ratio = 0.78 — W1's lowered
+// 0.40 gate admits both.  Centre-dot blobs are rejected upstream by
+// min_area = 100.
+static int whycon_w3_check_(const uint8_t* gray, int W, int H,
+                              float cx, float cy, float bbox_R) {
+    const int icx = (int)(cx + 0.5f);
+    const int icy = (int)(cy + 0.5f);
+    if (icx < 1 || icx >= W - 1 || icy < 1 || icy >= H - 1) return 0;
+
+    // Centre 3×3 mean.  For a Krajník marker WITH a centre localiser
+    // dot, the centre reads DARK; for plain annulus markers (no
+    // localiser dot), the centre reads WHITE (the inner light disc).
+    // We accept EITHER — the inner-ring + outer-ring checks below
+    // are the load-bearing pattern test.  Centre 3×3 used only to
+    // assert there IS a clean pattern (centre + ring agree).
+    int csum = 0;
+    csum += gray[(icx - 1) + (icy - 1) * W];
+    csum += gray[(icx    ) + (icy - 1) * W];
+    csum += gray[(icx + 1) + (icy - 1) * W];
+    csum += gray[(icx - 1) + (icy    ) * W];
+    csum += gray[(icx    ) + (icy    ) * W];
+    csum += gray[(icx + 1) + (icy    ) * W];
+    csum += gray[(icx - 1) + (icy + 1) * W];
+    csum += gray[(icx    ) + (icy + 1) * W];
+    csum += gray[(icx + 1) + (icy + 1) * W];
+    const int cmean = csum / 9;
+    /* centre check (informational): either dark or light is OK. */
+
+    // Inner-disc ring samples — must be WHITE.  For an annulus marker
+    // of outer radius R, the inner disc spans 0.20R < r < 0.60R; we
+    // sample at 0.55·R which is inside the white region.
+    const float r_inner = bbox_R * WHYCON_W3_INNER_RADIUS_FRAC;
+    int white_hits = 0;
+    for (int s = 0; s < WHYCON_W3_N_RADIAL_SAMPLES; ++s) {
+        const float ang = (float)s * (6.2831853f /
+                                       (float)WHYCON_W3_N_RADIAL_SAMPLES);
+        const int sx = (int)(cx + r_inner * __builtin_cosf(ang) + 0.5f);
+        const int sy = (int)(cy + r_inner * __builtin_sinf(ang) + 0.5f);
+        if (sx < 0 || sx >= W || sy < 0 || sy >= H) continue;
+        if (gray[sx + sy * W] >= WHYCON_W3_GRAY_LIGHT_MIN) white_hits++;
+    }
+    if (white_hits < WHYCON_W3_INNER_WHITE_HITS_MIN) return 0;
+
+    // Outer-ring samples — must be DARK.  For an annulus marker, the
+    // dark annulus spans 0.60R < r < R; we sample at 0.95·R which is
+    // inside the dark region.  For a solid disc this also reads DARK
+    // (the entire disc is dark).  Rejects false-positive blobs whose
+    // outer ring isn't dark (e.g., partial occlusions, isolated dots).
+    const float r_outer = bbox_R * WHYCON_W3_OUTER_RADIUS_FRAC;
+    int dark_hits = 0;
+    for (int s = 0; s < WHYCON_W3_N_RADIAL_SAMPLES; ++s) {
+        const float ang = (float)s * (6.2831853f /
+                                       (float)WHYCON_W3_N_RADIAL_SAMPLES);
+        const int sx = (int)(cx + r_outer * __builtin_cosf(ang) + 0.5f);
+        const int sy = (int)(cy + r_outer * __builtin_sinf(ang) + 0.5f);
+        if (sx < 0 || sx >= W || sy < 0 || sy >= H) continue;
+        if (gray[sx + sy * W] <= WHYCON_W3_GRAY_DARK_MAX) dark_hits++;
+    }
+    if (dark_hits < WHYCON_W3_OUTER_DARK_HITS_MIN) return 0;
+
+    /* Centre 3×3 is informational; sink it into an unused-warning-
+     * suppression no-op so the compile doesn't whine. */
+    (void)cmean;
+    return 1;
+}
+
+// W19-T2 Closed-form PnP for circular markers.  Given semi-major axis
+// `a_px` and physical diameter `d_m` and pinhole intrinsics (fx, fy,
+// cx_intr, cy_intr), recover the 3D pose:
+//
+//   z       = fx · d / (2 · a_px)
+//   tvec.x  = (cx_px - cx_intr) · z / fx
+//   tvec.y  = (cy_px - cy_intr) · z / fy
+//   tilt φ  = acos(min(1, b/a))
+//   rvec    = φ · (axis perpendicular to projected major axis in
+//                  the image plane)
+//
+// Yaw around the marker normal is NOT recoverable from a single
+// circular marker (W17 §6.2 — multi-marker constellation in W19-T3
+// resolves it).  Writes results into the marker in-place.  No-op if
+// intrinsics or diameter unset (pose_valid left at 0).
+static void whycon_pnp_inplace_(sentai_whycon_marker_t* m) {
+    m->tvec_cam[0] = 0.0f;
+    m->tvec_cam[1] = 0.0f;
+    m->tvec_cam[2] = 0.0f;
+    m->rvec_cam[0] = 0.0f;
+    m->rvec_cam[1] = 0.0f;
+    m->rvec_cam[2] = 0.0f;
+    m->reproj_err_px = 0.0f;
+    m->pose_valid = 0;
+    if (s_fx <= 0.0f || s_fy <= 0.0f) return;
+    if (s_whycon_diameter_m <= 0.0f) return;
+    if (m->axis_a <= 0.001f) return;
+
+    const float z = s_fx * s_whycon_diameter_m / (2.0f * m->axis_a);
+    m->tvec_cam[2] = z;
+    m->tvec_cam[0] = (m->cx - s_cx) * z / s_fx;
+    m->tvec_cam[1] = (m->cy - s_cy) * z / s_fy;
+
+    // Tilt magnitude from axis ratio.  Clamp to [0, 1] before acos.
+    float br = (m->axis_a > 0.0f) ? (m->axis_b / m->axis_a) : 1.0f;
+    if (br > 1.0f) br = 1.0f;
+    if (br < 0.0f) br = 0.0f;
+    const float tilt = __builtin_acosf(br);
+    // Tilt axis is perpendicular to the projected major axis (which
+    // is at orientation `angle`); axis direction in the image plane.
+    const float ux = -__builtin_sinf(m->angle);
+    const float uy =  __builtin_cosf(m->angle);
+    m->rvec_cam[0] = tilt * ux;
+    m->rvec_cam[1] = tilt * uy;
+    m->rvec_cam[2] = 0.0f;  // yaw around normal indeterminate
+
+    m->pose_valid = 1;
 }
 
 // Filter + moments stage.  Runs over s_components (already populated
@@ -2373,10 +2650,20 @@ extern "C" void sentai_whycon_set_concentric_check(int on) {
 //      than a full-frame scan even for large blobs.
 //   3) Compute central moments + eigenvalues to extract semi-axes
 //      a, b and axis angle.  Reject if a/b > max_axis_ratio.
+//   4) Phase W3 (optional) — concentric inner-disc validation against
+//      the source grayscale frame.  Adds ~17 pixel reads / candidate.
+//   5) Closed-form PnP (optional) — if intrinsics + diameter are set.
+//      Adds 4 divides + 2 trigs / candidate.
 //
-// Output written to s_whycon_markers[].  Returns count.
-static int whycon_filter_and_moments_(int n_comp, int W, int H) {
+// Output written to s_whycon_markers[].  Returns count.  Per-substage
+// cycles accumulated into s_whycon_t_w3 / s_whycon_t_pnp; the W1+W2
+// time (filter + moments + eigenvalues) is timed by the caller as a
+// single span and written to s_whycon_t_w.
+static int whycon_filter_and_moments_(const uint8_t* gray,
+                                        int n_comp, int W, int H) {
     s_whycon_n_markers = 0;
+    uint32_t cyc_w3  = 0;
+    uint32_t cyc_pnp = 0;
     for (int ci = 0; ci < n_comp; ++ci) {
         if (s_whycon_n_markers >= SENTAI_WHYCON_MAX_DETS) break;
         const aruco_comp_t* c = &s_components[ci];
@@ -2419,12 +2706,84 @@ static int whycon_filter_and_moments_(int n_comp, int W, int H) {
         // Orientation of major axis.
         const float theta = 0.5f * __builtin_atan2f(2.0f * mu11, mu20 - mu02);
 
+        // Phase W3 — concentric validation against grayscale frame.
+        // Anchored on bbox_R (physical outer radius), not axis_a
+        // (eigenvalue) — see whycon_w3_check_ comments.
+        if (s_whycon_concentric_check) {
+            const float bbox_R = (float)((bw > bh ? bw : bh)) * 0.5f;
+            const uint32_t t_w3_0 = aruco_dwt_cyc();
+            const int accept = whycon_w3_check_(gray, W, H, cx, cy, bbox_R);
+            cyc_w3 += aruco_dwt_cyc() - t_w3_0;
+            if (!accept) continue;
+        }
+
         sentai_whycon_marker_t* m = &s_whycon_markers[s_whycon_n_markers++];
         m->cx = cx; m->cy = cy;
         m->axis_a = a; m->axis_b = b; m->angle = theta;
         m->comp_id = ci;
+
+        // Closed-form PnP — emits tvec/rvec into the marker struct.
+        const uint32_t t_pnp_0 = aruco_dwt_cyc();
+        whycon_pnp_inplace_(m);
+        cyc_pnp += aruco_dwt_cyc() - t_pnp_0;
     }
+    s_whycon_t_w3  = cyc_w3;
+    s_whycon_t_pnp = cyc_pnp;
     return s_whycon_n_markers;
+}
+
+// W17-T5 / W19-T2 Synth: Krajník-pattern marker = dark outer annulus
+// + white inner disc + dark sub-pixel localiser dot.  This is what
+// Phase W3 expects.  Three concentric zones — radii chosen to match
+// the WHYCON_W3_INNER_RADIUS_FRAC (0.55) / OUTER_RADIUS_FRAC (0.95)
+// sample geometry so the pattern is decidable by the radial samples.
+//
+// Geometry (outer radius R = full marker radius):
+//   r <= 0.20 R           → DARK  (centre localiser, 9-px Phase W3 mean)
+//   0.20 R < r <= 0.60 R  → WHITE (inner disc, 0.55 R radial samples)
+//   0.60 R < r <= 1.00 R  → DARK  (outer ring, 0.95 R radial samples)
+//   r > 1.00 R            → WHITE (background)
+//
+// Background and white intensities = 220 (matches existing lite synth);
+// dark = 20.  Output written to s_test_gray; returns number drawn.
+static int whycon_synth_frame_krajnik_(int n_circles, int radius,
+                                          int W, int H) {
+    memset(s_test_gray, 220, (size_t)W * (size_t)H);
+    if (n_circles <= 0) return 0;
+    if (n_circles > 8) n_circles = 8;
+    if (radius < 6) radius = 6;
+    if (radius > 30) radius = 30;
+    const int cols = (n_circles > 4) ? 4 : n_circles;
+    const int rows = (n_circles + cols - 1) / cols;
+    const int dx = W / (cols + 1);
+    const int dy = H / (rows + 1);
+    const int r_outer_sq = radius * radius;
+    const int r_white_sq = (int)((float)r_outer_sq * 0.60f * 0.60f);
+    const int r_centre_sq = (int)((float)r_outer_sq * 0.20f * 0.20f);
+    int drawn = 0;
+    for (int i = 0; i < n_circles; ++i) {
+        const int col = i % cols;
+        const int row = i / cols;
+        const int cx = (col + 1) * dx + (i * 7) % 5;
+        const int cy = (row + 1) * dy + (i * 13) % 5;
+        for (int y = cy - radius; y <= cy + radius; ++y) {
+            if (y < 0 || y >= H) continue;
+            for (int x = cx - radius; x <= cx + radius; ++x) {
+                if (x < 0 || x >= W) continue;
+                const int dxp = x - cx;
+                const int dyp = y - cy;
+                const int r2  = dxp * dxp + dyp * dyp;
+                if (r2 > r_outer_sq) continue;
+                uint8_t v;
+                if (r2 <= r_centre_sq)      v = 20;   // centre dark dot
+                else if (r2 <= r_white_sq)  v = 220;  // inner white
+                else                        v = 20;   // outer dark ring
+                s_test_gray[x + y * W] = v;
+            }
+        }
+        ++drawn;
+    }
+    return drawn;
 }
 
 // Synth frame generator — draws N filled black disks on a white
@@ -2472,9 +2831,15 @@ static int whycon_synth_frame_(int n_circles, int radius, int W, int H) {
 // every call, queryable via sentai.whycon._stage_cyc() for honest
 // per-stage breakdown (OP-S10-W17 follow-up after the Flow-opt
 // review showed the USAD8-style tricks don't apply to bulk WhyCon).
-static volatile uint32_t s_whycon_t_a = 0;   // Phase A: rolling threshold
-static volatile uint32_t s_whycon_t_b = 0;   // Phase B: 8-conn flood fill
-static volatile uint32_t s_whycon_t_w = 0;   // Phase W1+W2: filter + moments
+// W17-T5 / W19-T2 extension: separate counters for Phase W3
+// (concentric inner-disc validation) and PnP (closed-form z + xy).
+// When W3 is disabled, t_w3 stays 0; when intrinsics+diameter are
+// unset, t_pnp stays 0 — the detector skips those sub-stages.
+static volatile uint32_t s_whycon_t_a   = 0;  // Phase A: rolling threshold
+static volatile uint32_t s_whycon_t_b   = 0;  // Phase B: 8-conn flood fill
+static volatile uint32_t s_whycon_t_w   = 0;  // Phase W1+W2: filter + axes (eigenvalues)
+// s_whycon_t_w3 / s_whycon_t_pnp forward-declared near the top of the
+// WhyCon section so the filter+moments writer (defined above) compiles.
 
 static int whycon_detect_inplace_(int W, int H) {
     const uint32_t t0 = aruco_dwt_cyc();
@@ -2485,12 +2850,16 @@ static int whycon_detect_inplace_(int W, int H) {
     // 2nd-order moments accumulated inline (OP-S10-W17-T2 8eccf31b).
     const int n_comp = aruco_label_components(W, H);
     const uint32_t t2 = aruco_dwt_cyc();
-    // Stage W1+W2 — filter + axes from moments.
-    const int n = whycon_filter_and_moments_(n_comp, W, H);
+    // Stage W1+W2 — filter + axes from moments.  W3 concentric +
+    // PnP are timed internally and written to s_whycon_t_w3/_pnp.
+    const int n = whycon_filter_and_moments_(s_test_gray, n_comp, W, H);
     const uint32_t t3 = aruco_dwt_cyc();
     s_whycon_t_a = t1 - t0;
     s_whycon_t_b = t2 - t1;
-    s_whycon_t_w = t3 - t2;
+    // Subtract W3 + PnP so t_w reflects ONLY filter + moments + axes.
+    const uint32_t span_w = t3 - t2;
+    const uint32_t inner  = s_whycon_t_w3 + s_whycon_t_pnp;
+    s_whycon_t_w = (span_w > inner) ? (span_w - inner) : 0;
     return n;
 }
 
@@ -2499,6 +2868,17 @@ extern "C" void sentai_whycon_stage_cyc(uint32_t* t_a, uint32_t* t_b,
     if (t_a) *t_a = s_whycon_t_a;
     if (t_b) *t_b = s_whycon_t_b;
     if (t_w) *t_w = s_whycon_t_w;
+}
+
+// W17-T5 / W19-T2: full 5-stage breakdown including W3 + PnP.
+extern "C" void sentai_whycon_stage_cyc5(uint32_t* t_a, uint32_t* t_b,
+                                           uint32_t* t_w, uint32_t* t_w3,
+                                           uint32_t* t_pnp) {
+    if (t_a)   *t_a   = s_whycon_t_a;
+    if (t_b)   *t_b   = s_whycon_t_b;
+    if (t_w)   *t_w   = s_whycon_t_w;
+    if (t_w3)  *t_w3  = s_whycon_t_w3;
+    if (t_pnp) *t_pnp = s_whycon_t_pnp;
 }
 
 // Timing wrapper: build/load gray frame into s_test_gray, then run
@@ -2510,6 +2890,18 @@ extern "C" int sentai_whycon_test_synth(int n_circles, int radius) {
     const int W = 320, H = 240;
     if (n_circles < 0) n_circles = 0;
     whycon_synth_frame_(n_circles, radius, W, H);
+    const uint32_t t0 = aruco_dwt_cyc();
+    const int n = whycon_detect_inplace_(W, H);
+    const uint32_t t1 = aruco_dwt_cyc();
+    s_whycon_cyc_last = t1 - t0;
+    return n;
+}
+
+// W17-T5 / W19-T2 Krajník-pattern variant for the W3 + PnP bench.
+extern "C" int sentai_whycon_test_synth_krajnik(int n_circles, int radius) {
+    const int W = 320, H = 240;
+    if (n_circles < 0) n_circles = 0;
+    whycon_synth_frame_krajnik_(n_circles, radius, W, H);
     const uint32_t t0 = aruco_dwt_cyc();
     const int n = whycon_detect_inplace_(W, H);
     const uint32_t t1 = aruco_dwt_cyc();

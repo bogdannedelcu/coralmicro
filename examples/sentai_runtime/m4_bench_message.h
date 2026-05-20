@@ -33,9 +33,13 @@
 #define M4BENCH_SENTINEL_WHYCON_HI     0xC108u   /* inclusive (N=8) */
 #define M4BENCH_WHYCON_N_MASK          0x000Fu
 
-/* OP-S10-W18-T2: WhyCon FULL pipeline (Phase A+B+W) — sentinel range,
- * N disks = (block & M4BENCH_WHYCON_N_MASK).  Returns total cycles
- * for synth + threshold + flood-fill + filter + moments. */
+/* OP-S10-W18-T2: WhyCon-lite end-to-end pipeline on M4 (Phase A
+ * threshold + Phase B 8-conn flood-fill with inline moments + Phase W1
+ * filter + Phase W2 axis eigenvalues).  Same code path as the M7
+ * "WhyCon-lite full opt" 6.00 ms number reported in W17 §4.  "FULL"
+ * here distinguishes from the M4 Phase-A-only sibling (0xC100..0xC108);
+ * it does NOT mean WhyCon production — W3 concentric, PnP, WhyCode
+ * are still missing (see W17 §6). */
 #define M4BENCH_SENTINEL_WHYFULL_LO    0xC200u
 #define M4BENCH_SENTINEL_WHYFULL_HI    0xC208u
 

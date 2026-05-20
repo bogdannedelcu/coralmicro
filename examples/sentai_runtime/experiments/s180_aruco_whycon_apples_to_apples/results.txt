@@ -1,0 +1,141 @@
+# s180 — ArUco vs WhyCon apples-to-apples per-stage bench
+# Build: real M7 @ 800 MHz, sentai_runtime
+# Generated: 2026-05-20 09:40:36
+# Frame: 320x240 synth, 4 markers per frame
+# Iters: 7  (median reported)
+
+## Per-stage medians (cycles @ 800 MHz → ms)
+
+### ArUco production
+aruco.thresh  =    9623515 cyc  = 12.029 ms
+aruco.flood   =   11213857 cyc  = 14.017 ms
+aruco.quad    =     589297 cyc  = 0.737 ms
+aruco.decode  =     866446 cyc  = 1.083 ms
+aruco.pnp     =      37452 cyc  = 0.047 ms
+aruco.TOTAL  =   22330567 cyc  = 27.913 ms
+aruco.n_dets_median = 4 (iters: [4, 4, 4, 4, 4, 4, 4])
+
+### WhyCon-lite  (solid disks, no W3, no PnP)
+  whycon.A   =    2650976 cyc  = 3.314 ms
+  whycon.B   =    2486732 cyc  = 3.108 ms
+  whycon.W   =       7898 cyc  = 0.010 ms
+  whycon.W3  =          0 cyc  = 0.000 ms
+  whycon.PnP =       6974 cyc  = 0.009 ms
+  whycon.TOT =    5152580 cyc  = 6.441 ms
+  whycon.n_dets_median = 4 (iters: [4, 4, 4, 4, 4, 4, 4])
+
+### WhyCon       (Krajnik pattern, no W3, no PnP)
+  whycon.A   =    2654840 cyc  = 3.319 ms
+  whycon.B   =    2116740 cyc  = 2.646 ms
+  whycon.W   =       8876 cyc  = 0.011 ms
+  whycon.W3  =          0 cyc  = 0.000 ms
+  whycon.PnP =       6475 cyc  = 0.008 ms
+  whycon.TOT =    4786931 cyc  = 5.984 ms
+  whycon.n_dets_median = 4 (iters: [4, 4, 4, 4, 4, 4, 4])
+
+### WhyCon       (Krajnik pattern + W3 + PnP) [PRODUCTION]
+  whycon.A   =    2653669 cyc  = 3.317 ms
+  whycon.B   =    2119786 cyc  = 2.650 ms
+  whycon.W   =       9001 cyc  = 0.011 ms
+  whycon.W3  =      25915 cyc  = 0.032 ms
+  whycon.PnP =       4754 cyc  = 0.006 ms
+  whycon.TOT =    4813125 cyc  = 6.016 ms
+  whycon.n_dets_median = 4 (iters: [4, 4, 4, 4, 4, 4, 4])
+
+
+## Analysis (iteration 2 — REAL apples-to-apples)
+
+Iteration 2 fixes that landed between run #1 and run #2:
+
+  1. **W17-T8** — WhyCon W3 sample geometry anchored on bbox_R
+     (physical outer radius) instead of axis_a (eigenvalue).  W1
+     fill gate lowered 0.55 → 0.40 to admit annulus markers; W1
+     min_area raised 25 → 100 to reject centre-dot blobs.  Result:
+     n=4 detected in production mode (was 0/4 in iter #1).
+  2. **`_test_pgm` staging buffer bumped** — switched from
+     s_labels (76 800 B, exactly pixel count) to s_integral
+     (309 KB) so a 320×240 P5 PGM with its ~15 B ASCII header
+     loads without -SENTAI_ARUCO_ERR_OVERFLOW.
+  3. **PGM upload over REPL** — uses sentai.fs.write + chunked
+     append; needs sentai.diag.fx_format(0xDEADBEEF) once per
+     fresh `--ram` flash (FxUser partition is empty until formatted).
+
+### Headline (real M7 @ 800 MHz)
+
+| Stage                       | ArUco prod ¹      | WhyCon production ² |
+|-----------------------------|------------------:|--------------------:|
+| Bradley adaptive threshold  | **12.03 ms** (block=201) | **3.32 ms** (block=31) |
+| 8-conn flood-fill           |   14.02 ms ³      | 2.65 ms            |
+| geometric gate / W1+W2      |    0.74 ms        | 0.01 ms            |
+| decode (ID-emit; warp+Otsu+dict) | 1.08 ms        | n/a                |
+| W3 concentric (inner-disc)  |    n/a            | 0.03 ms            |
+| PnP (IPPE / closed-form)    |    0.05 ms        | 0.006 ms           |
+| **TOTAL**                   |  **27.91 ms**     | **6.02 ms**        |
+
+¹ ArUco bench on `s175/frame_original.pgm` (Gazebo SIM render,
+4 ArUco markers, 320×240, clean rendering).  Real production
+camera frames are similar.
+
+² WhyCon bench on internal Krajnik-pattern synth (320×240,
+4 annular markers with centre localiser dot).  All 4 markers
+survive Phase W3 in production mode; PnP populates `tvec_cam`
++ `rvec_cam` in `s_whycon_markers`.
+
+³ Flood-fill cost is HIGHER on the real-frame ArUco bench
+(14 ms) than the synth WhyCon (2.65 ms) because the Gazebo
+render has many small high-contrast blobs from scene texture
+(ground tiles, marker shadows).  On the equivalent WhyCon
+real-frame bench (deferred — needs a Krajnik-markered Gazebo
+scene), flood-fill would also grow proportionally.
+
+### Headline ratios
+
+- Full pipeline: **ArUco 27.91 ms / WhyCon 6.02 ms = 4.64×**
+- Without ID (decode stripped from ArUco):
+  ArUco 26.83 ms / WhyCon 6.02 ms = **4.46×**
+- Threshold-only (block-size-dominated): 12.03 / 3.32 = **3.6×**
+  (intrinsic to marker physical size — ArUco markers project
+   as larger pixels and need a larger Bradley block to cover
+   them)
+
+### Insights
+
+1. **The lite-vs-production headline (5.3×) and the apples-to-
+   apples comparison (4.6×) are consistent.**  Adding W3 + PnP
+   to WhyCon costs <40 µs total (sub-percent of the budget); the
+   ratio shift to 4.6× comes from comparing WhyCon production
+   vs ArUco PRODUCTION (with decode + PnP) on a REAL FRAME,
+   not WhyCon-lite vs ArUco-prod-on-synth-no-detection.
+
+2. **PnP is a non-event for both detectors.**  ArUco IPPE_SQUARE
+   = 12 µs/marker × 4 = 47 µs (0.2% of budget).  WhyCon closed-
+   form PnP = 1.5 µs/marker × 4 = 6 µs (0.1% of budget).  PnP
+   choice does not drive the comparison.
+
+3. **WhyCon W3 is essentially free.**  26 µs across 4 candidates
+   = 6.5 µs/candidate.  Pattern-validation does NOT change the
+   budget — it's the right default to leave on.
+
+4. **The two big gaps that DO drive the comparison**:
+   - Bradley threshold block size (ArUco 201 vs WhyCon 31)
+     → 8.7 ms difference, intrinsic to marker physical size
+   - Flood-fill on cluttered real frames (ArUco 14 ms) vs
+     clean synth (WhyCon 2.65 ms) → 11.4 ms difference, may
+     close once both are benched on equivalent scenes
+
+5. **ArUco budget at 30 Hz** = 27.91 / 33.3 = 84 % of frame
+   slot.  **WhyCon budget at 30 Hz** = 6.02 / 33.3 = 18 %.
+   WhyCon leaves 4.6× more headroom for higher control-loop
+   rates or for other M7 work (Flow, FR, mission FSM).
+
+### Follow-up
+
+- **s180-iter3** — render a Krajnik-markered scene in Gazebo
+  to bench WhyCon on a real frame; close the synth-vs-real
+  asymmetry.
+- **W19-T1** ALL — the markers-namespace refactor + SIM A/B
+  campaign builds on top of these numbers.
+- **W17 §4 update** — fold this table in as the canonical
+  apples-to-apples reference, supersedes iter #1 (kept above
+  for the engineering-process trail per
+  `[[experiments-in-own-folder-log-dead-ends]]`).

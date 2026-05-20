@@ -113,6 +113,20 @@ blob pixel count).
 
 ## 4. Comparison vs ArUco production (4 markers)
 
+> **Scope of "WhyCon-lite" measurement.**  Every row below is the
+> full end-to-end pipeline executed on the synth 4-marker frame:
+> Phase A (rolling adaptive threshold) + Phase B (8-connected flood
+> fill with inline 2nd-order moments) + Phase W1 (size/circularity
+> filter) + Phase W2 (covariance eigenvalues → axis_a / axis_b /
+> angle).  W3 concentric inner-disc validation is a no-op stub
+> (see §6.1); PnP / WhyCode / multi-marker pose are NOT included
+> (§6.2-6.4) — those would add ~1 ms (W3) plus PnP cost on top of
+> the numbers below.  "WhyCon-lite" in this WP and "WhyCon FULL
+> pipeline" in the M4 bench code (`m4_aruco_bench.cc`, sentinel
+> `0xC200..0xC208`) refer to the SAME code path; naming was kept
+> stable here, the M4 sentinel name distinguishes it only from the
+> M4 Phase-A-only sibling (`0xC100..0xC108`).
+
 | Algorithm | Latency | vs ArUco prod |
 |---|---:|:---:|
 | ArUco production (SIMD integral SDRAM) | 31.8 ms | 1.0× |
@@ -121,6 +135,96 @@ blob pixel count).
 | WhyCon-lite + OCRAM | 7.54 ms | 4.22× |
 | WhyCon-lite + OCRAM + SIMD | 6.12 ms | 5.19× |
 | **WhyCon-lite + OCRAM + SIMD + inline moments** | **6.00 ms** | **5.30×** |
+
+### 4.1 Apples-to-apples per-stage breakdown (s180, build #1412)
+
+The table above compares the two detectors as a single end-to-end
+number, but the two pipelines emit different OUTPUTS — ArUco
+production returns per-marker `tvec_cam` / `rvec_cam` (full 6-DOF
+pose via IPPE PnP) plus a decoded `marker_id`, while WhyCon-lite
+returns only `(cx, cy, axis_a, axis_b, angle)` — 2D ellipse with
+no 3D pose and no ID.  T5 (Phase W3 concentric inner-disc) +
+W19-T2 (closed-form PnP-z) brought WhyCon up to pose-emitting
+parity; T6 added per-stage cycle counters on both detectors;
+T8 fixed W3 sample geometry (anchor on `bbox_R`, not eigenvalue
+`axis_a`) and the FxUser PGM-staging buffer.  See
+`examples/sentai_runtime/experiments/s180_aruco_whycon_apples_to_apples/`
+for the bench harness + raw `results.json`.
+
+|                                 |    ArUco prod ¹ | WhyCon production ² |
+|---------------------------------|---------------:|--------------------:|
+| Bradley adaptive threshold      | **12.03 ms** (block=201) | **3.32 ms** (block=31) |
+| 8-conn flood-fill (with inline moments) | 14.02 ms ³ | 2.65 ms |
+| geometric gate / W1+W2 (eigenvalue axes) | 0.74 ms | 0.01 ms |
+| decode (ID-emit; warp + Otsu + dict) |   1.08 ms | n/a |
+| W3 concentric (inner-disc pattern) |  n/a       | 0.03 ms |
+| PnP (IPPE for ArUco, closed-form for WhyCon) | 0.05 ms ⁴ | 0.006 ms |
+| **TOTAL**                       | **27.91 ms**   | **6.02 ms**         |
+
+¹ ArUco bench on `experiments/s175_pnp_planar_ambiguity/frame_original.pgm`
+(Gazebo SIM render, 4 ArUco markers, 320×240, clean) — the same
+frame s175 + s176 used to validate IPPE_SQUARE PnP.  4/4 markers
+detected and PnP succeeded each iteration.
+
+² WhyCon bench on internal Krajnik-pattern synth (320×240, 4
+annular markers).  Post-T8, all 4 survive Phase W3 in production
+mode; PnP populates `tvec_cam` + `rvec_cam` in `s_whycon_markers`.
+
+³ ArUco flood-fill is dominated by real-frame texture — the
+Gazebo scene has many small high-contrast blobs (ground tiles,
+shadows) that all become candidate components.  WhyCon synth
+has 4 clean markers + minimal background = much less flood-
+fill work.  Future iter (s180-iter3) will render a Krajnik-
+markered Gazebo scene to close this asymmetry.
+
+⁴ ArUco IPPE_SQUARE PnP = 12 µs / marker × 4 = 47 µs total.
+Closed-form WhyCon PnP-z = 1.5 µs / marker × 4 = 6 µs total.
+Both are <0.3 % of their respective budgets.
+
+### 4.2 Headline interpretation
+
+| Comparison | ArUco | WhyCon | Ratio |
+|---|--:|--:|--:|
+| Full pipeline (pose-emitting, with ID)  | 27.91 ms | 6.02 ms | **4.6×** |
+| Without ID stage (decode stripped)      | 26.83 ms | 6.02 ms | **4.5×** |
+| Threshold-only (block-size-driven)      | 12.03 ms | 3.32 ms | 3.6× |
+| 30 Hz slot utilisation                  | 84 %     | 18 %    | — |
+
+Five take-aways:
+
+1. **The lite-vs-production headline (5.3×) and the strict
+   apples-to-apples comparison (4.6×) are consistent.**  Adding
+   W3 + PnP to WhyCon costs <40 µs total (sub-percent); the
+   small ratio drop from 5.3× to 4.6× comes from comparing
+   WhyCon production vs ArUco PRODUCTION (with real-frame
+   decode + PnP), not WhyCon-lite vs ArUco-prod-on-synth-no-
+   detection (which had decode + PnP at zero cost because
+   nothing was detected).
+
+2. **PnP cost is a non-event for both detectors.**  ArUco
+   IPPE_SQUARE on this frame = 12 µs / marker; WhyCon closed-
+   form = 1.5 µs / marker.  PnP choice does not drive the
+   comparison.
+
+3. **WhyCon W3 is essentially free.**  6.5 µs / candidate.
+   Pattern validation does NOT change the budget — it's the
+   right default to leave on.
+
+4. **The two stages that DO drive the gap**:
+   - Bradley threshold block size (ArUco 201 vs WhyCon 31)
+     → 8.7 ms difference, intrinsic to marker physical size.
+     ArUco markers project as larger pixels and need a larger
+     Bradley block to cover them.
+   - Flood-fill on cluttered real frames (ArUco 14 ms) vs
+     clean synth (WhyCon 2.65 ms) → 11.4 ms difference,
+     partly closes when both are benched on equivalent
+     scenes; needs a Krajnik-markered Gazebo scene to
+     measure (deferred to s180-iter3).
+
+5. **Operational headroom** — at 30 Hz, WhyCon production leaves
+   the M7 ~82 % idle slot for Flow, FR, mission FSM, and the
+   pose-feedback loop.  ArUco at 84 % slot utilisation is
+   marginal even for SafetyTask alone.
 
 At 30 Hz SafetyTask (33 ms slot):
 
