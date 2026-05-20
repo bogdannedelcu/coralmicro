@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""s182 verdict — pair sentai_sim journal with gt_recorder JSONL,
+"""s183 verdict — pair sentai_sim journal with gt_recorder JSONL,
 estimate drone world pose from WhyCon detections, plot X/Y/Z est
 vs GT.
 
@@ -12,7 +12,7 @@ Journal format (MP-side `_ser_val` → Python-repr, NOT strict JSON):
               'alt': 0.4, 'cf2': (x, y, z, yaw)}
 
 Each `dets[i]` has tx/ty/tz/rx/ry/rz/rep/v/px/py/i fields per
-mission_s182.py.
+mission_s183.py.
 
 Marker association: known world positions are at (±) values along
 the asymmetric cross.  Each accepted detection is matched to the
@@ -45,7 +45,7 @@ MARKERS = {
     "W":  (-0.08,  0.00, 0.005),
 }
 
-# Camera intrinsics — must match mission_s182.py.
+# Camera intrinsics — must match mission_s183.py.
 FX = 240.0
 FY = 240.0
 CX = 160.0
@@ -215,13 +215,13 @@ def main():
 
     ticks = parse_journal(j_path)
     gt_rows = parse_gt(g_path)
-    print(f"[s182] {len(ticks)} ticks, {len(gt_rows)} GT rows")
+    print(f"[s183] {len(ticks)} ticks, {len(gt_rows)} GT rows")
     if not ticks or not gt_rows:
         sys.exit("nothing to plot")
 
     t0_sentai = ticks[0]["__ts_ms"]
     t0_gt = gt_rows[0]["t_wall"]
-    print(f"[s182] sentai t0={t0_sentai}, gt t0={t0_gt:.3f}")
+    print(f"[s183] sentai t0={t0_sentai}, gt t0={t0_gt:.3f}")
 
     paired = []
     associations_kept = 0
@@ -255,11 +255,11 @@ def main():
             associations_kept += 1
         associations_dropped += len(tk.get("dets", [])) - len(assocs)
 
-    print(f"[s182] {len(paired)} paired samples; assoc kept={associations_kept} "
+    print(f"[s183] {len(paired)} paired samples; assoc kept={associations_kept} "
           f"dropped={associations_dropped}")
 
     # Write CSV
-    csv_path = out_dir / "s182_paired.csv"
+    csv_path = out_dir / "s183_paired.csv"
     cols = ["ts_ms", "alt_cmd", "marker", "gt_x", "gt_y", "gt_z",
              "est_x", "est_y", "est_z", "cf2_x", "cf2_y", "cf2_z",
              "tvec_z"]
@@ -267,7 +267,7 @@ def main():
         f.write(",".join(cols) + "\n")
         for r in paired:
             f.write(",".join("%s" % r[c] for c in cols) + "\n")
-    print(f"[s182] wrote {csv_path}")
+    print(f"[s183] wrote {csv_path}")
 
     if not paired:
         sys.exit("no paired samples — check association thresholds")
@@ -301,13 +301,13 @@ def main():
                  bbox=dict(boxstyle="round,pad=0.3", fc="white",
                             ec="gray", alpha=0.85))
     fig.suptitle(
-        "s182 — WhyCon Gazebo eval: drone X/Y/Z est vs GT  "
+        "s183 — WhyCon Gazebo eval: drone X/Y/Z est vs GT  "
         "(Krajník-cross scene, cf2 SITL, anti-cheat-compliant)",
         fontsize=11)
     fig.tight_layout(rect=(0, 0, 1, 0.93))
-    out_xyz = out_dir / "s182_xyz_world.png"
+    out_xyz = out_dir / "s183_xyz_world.png"
     fig.savefig(out_xyz, dpi=150)
-    print(f"[s182] wrote {out_xyz}")
+    print(f"[s183] wrote {out_xyz}")
 
     # ---- Figure: time-series of Z (cf2 EKF vs GT vs WhyCon est) -----
     fig2, ax2 = plt.subplots(1, 1, figsize=(11, 5.2))
@@ -322,13 +322,13 @@ def main():
               ".", c="tab:blue", ms=3, alpha=0.6, label="WhyCon est")
     ax2.set_xlabel("mission time (s)")
     ax2.set_ylabel("Z (m, world)")
-    ax2.set_title("s182 — Z time series: GT vs cf2 EKF vs WhyCon est")
+    ax2.set_title("s183 — Z time series: GT vs cf2 EKF vs WhyCon est")
     ax2.legend(loc="best", fontsize=9)
     ax2.grid(True, alpha=0.3)
     fig2.tight_layout()
-    out_z = out_dir / "s182_z_timeseries.png"
+    out_z = out_dir / "s183_z_timeseries.png"
     fig2.savefig(out_z, dpi=150)
-    print(f"[s182] wrote {out_z}")
+    print(f"[s183] wrote {out_z}")
 
 
 if __name__ == "__main__":
