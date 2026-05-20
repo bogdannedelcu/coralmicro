@@ -43,4 +43,10 @@
 #define FLOW_BENCH_SEARCH      12
 #define FLOW_BENCH_SURF_DIM    (2 * FLOW_BENCH_SEARCH + 1)
 
+/* Test synth — shift_px clamp (used by sentai_flow_test_sad and M4).
+ * Range chosen so the shifted block is entirely visible (FLOW_GRAY_W/H
+ * minus FLOW_BENCH_BLOCK_W/H gives the safe shift envelope). */
+#define FLOW_BENCH_SHIFT_MIN   (-8)
+#define FLOW_BENCH_SHIFT_MAX   (+8)
+
 #endif  /* FLOW_BENCH_SHARED_H_ */

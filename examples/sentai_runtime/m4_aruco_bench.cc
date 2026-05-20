@@ -424,38 +424,38 @@ static void handle_m7_message_(const uint8_t data[coralmicro::kIpcMessageBufferD
     if (msg->type != M4BenchMessageType::kBenchGo) return;
     uint16_t block = msg->block;
 
-    if (block == 0xCAFEu) {
+    if (block == M4BENCH_SENTINEL_HELLO_WORLD) {
         // Hello-world: reply right here from RX context.
         coralmicro::IpcMessage ack{};
         ack.type = coralmicro::IpcMessageType::kApp;
         auto* app = reinterpret_cast<M4BenchAppMessage*>(&ack.message.data);
         app->type   = M4BenchMessageType::kBenchDone;
-        app->block  = 0xCAFEu;
-        app->cycles = 0xCAFEBABEu;
+        app->block  = M4BENCH_SENTINEL_HELLO_WORLD;
+        app->cycles = M4BENCH_SENTINEL_HELLO_REPLY;
         app->n_dets = 0;
         coralmicro::IpcM4::GetSingleton()->SendMessage(ack);
         return;
     }
 
-    // WhyCon sentinel range: 0xC100..0xC108 = synth(N disks) + rolling threshold.
-    // Worker decodes N = (block & 0x000F).
-    if (block >= 0xC100u && block <= 0xC108u) {
+    // WhyCon synth+Phase A: N disks = (block & M4BENCH_WHYCON_N_MASK).
+    if (block >= M4BENCH_SENTINEL_WHYCON_LO &&
+        block <= M4BENCH_SENTINEL_WHYCON_HI) {
         s_pending_block = block;
         if (s_work_sem) xSemaphoreGive(s_work_sem);
         return;
     }
-    // OP-S10-W17-T4 / W18-T1 Flow SAD sentinels:
-    //   0xF10F = M4 exhaustive SAD on shared OCRAM (3-cyc/load)
-    //   0xF1D7 = M4 exhaustive SAD on local DTCM (1-cyc/load)
-    //   0xF1DD = M4 diamond search (LDSP+SDSP) on shared OCRAM
-    if (block == 0xF10Fu || block == 0xF1D7u || block == 0xF1DDu) {
+    // Flow SAD sentinels (OP-S10-W17-T4 / W18-T1).
+    if (block == M4BENCH_SENTINEL_FLOW_OCRAM  ||
+        block == M4BENCH_SENTINEL_FLOW_DTCM   ||
+        block == M4BENCH_SENTINEL_FLOW_DIAMOND) {
         s_pending_block = block;
         if (s_work_sem) xSemaphoreGive(s_work_sem);
         return;
     }
 
-    if (block < 3)   block = 3;
-    if (block > 511) block = 511;
+    // Legitimate ArUco-threshold input range — clamp in worker.
+    if (block < M4BENCH_ARUCO_BLOCK_MIN) block = M4BENCH_ARUCO_BLOCK_MIN;
+    if (block > M4BENCH_ARUCO_BLOCK_MAX) block = M4BENCH_ARUCO_BLOCK_MAX;
     s_pending_block = block;
     if (s_work_sem) {
         xSemaphoreGive(s_work_sem);
@@ -483,10 +483,10 @@ static void handle_m7_message_(const uint8_t data[coralmicro::kIpcMessageBufferD
         app->block  = block;
         app->n_dets = 0;
 
-        if (block == 0xCAFEu) {
+        if (block == M4BENCH_SENTINEL_HELLO_WORLD) {
             // IPC-only smoke test — no compute.
-            app->cycles = 0xCAFEBABEu;
-        } else if (block == 0xF10Fu) {
+            app->cycles = M4BENCH_SENTINEL_HELLO_REPLY;
+        } else if (block == M4BENCH_SENTINEL_FLOW_OCRAM) {
             // OP-S10-W17-T4: Flow SAD on shared OCRAM curr/prev.
             // M7 has already synth'd both into FLOW_BENCH_CURR/PREV_PTR
             // before dispatching this message — M4 just runs SAD.
@@ -498,7 +498,7 @@ static void handle_m7_message_(const uint8_t data[coralmicro::kIpcMessageBufferD
             s_bench_sink = (uint8_t)s_m4_flow_sink;
             app->cycles = t1 - t0;
             app->n_dets = 0;
-        } else if (block == 0xF1DDu) {
+        } else if (block == M4BENCH_SENTINEL_FLOW_DIAMOND) {
             // OP-S10-W18-T1: diamond search on shared OCRAM.
             int dx_out = 0, dy_out = 0;
             const uint32_t t0 = dwt_cyc();
@@ -508,7 +508,7 @@ static void handle_m7_message_(const uint8_t data[coralmicro::kIpcMessageBufferD
             s_bench_sink = (uint8_t)s_m4_flow_sink;
             app->cycles = t1 - t0;
             app->n_dets = 2;  /* diamond variant flag */
-        } else if (block == 0xF1D7u) {
+        } else if (block == M4BENCH_SENTINEL_FLOW_DTCM) {
             // OP-S10-W17-T4 DTCM variant: M4 pre-copies OCRAM shared
             // into DTCM local scratch (1-cyc access) BEFORE the timed
             // SAD region.  Pre-copy intentionally excluded from
@@ -523,10 +523,11 @@ static void handle_m7_message_(const uint8_t data[coralmicro::kIpcMessageBufferD
             s_bench_sink = (uint8_t)s_m4_flow_sink;
             app->cycles = t1 - t0;
             app->n_dets = 1;  /* DTCM variant flag */
-        } else if (block >= 0xC100u && block <= 0xC108u) {
+        } else if (block >= M4BENCH_SENTINEL_WHYCON_LO &&
+                    block <= M4BENCH_SENTINEL_WHYCON_HI) {
             // OP-S10-W17-T2 M4 WhyCon ablation — synth disks + rolling
             // threshold (same kernel as M7's optimized WhyCon Phase A).
-            const int n_circles = (int)(block & 0xFu);
+            const int n_circles = (int)(block & M4BENCH_WHYCON_N_MASK);
             whycon_synth_frame_m4(n_circles, 15);
             const uint32_t t0 = dwt_cyc();
             aruco_threshold_rolling_m4(31);   // block_size matches M7 WhyCon
@@ -540,8 +541,8 @@ static void handle_m7_message_(const uint8_t data[coralmicro::kIpcMessageBufferD
             app->n_dets = (uint16_t)n_circles;
         } else {
             int b = (int)block;
-            if (b < 3)   b = 3;
-            if (b > 511) b = 511;
+            if (b < M4BENCH_ARUCO_BLOCK_MIN) b = M4BENCH_ARUCO_BLOCK_MIN;
+            if (b > M4BENCH_ARUCO_BLOCK_MAX) b = M4BENCH_ARUCO_BLOCK_MAX;
             synth_frame_();
             const uint32_t t0 = dwt_cyc();
             aruco_adaptive_threshold_m4(b);

@@ -759,8 +759,8 @@ static void diamond_search_(const uint8_t* curr, const uint8_t* prev,
 }
 
 extern "C" uint32_t sentai_flow_test_sad(int shift_px) {
-    if (shift_px < -8) shift_px = -8;
-    if (shift_px >  8) shift_px =  8;
+    if (shift_px < FLOW_BENCH_SHIFT_MIN) shift_px = FLOW_BENCH_SHIFT_MIN;
+    if (shift_px > FLOW_BENCH_SHIFT_MAX) shift_px = FLOW_BENCH_SHIFT_MAX;
     const int W = FLOW_BENCH_GRAY_W, H = FLOW_BENCH_GRAY_H;
     uint8_t* curr = FLOW_BENCH_CURR_PTR;
     uint8_t* prev = FLOW_BENCH_PREV_PTR;
