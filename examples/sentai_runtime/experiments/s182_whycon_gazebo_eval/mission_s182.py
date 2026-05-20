@@ -80,13 +80,15 @@ ENABLE_VPE = False
 # stabilised on Z without the host doing any vision work.
 # Per [[missions-run-in-sentai-only]] this is THE pattern (the old
 # host-side aruco_to_vision_estimate.py is deprecated).
+# iter-8: east column shifted from +0.16 → +0.12 to break the
+# X-mirror symmetry of the H pattern.  See verdict_sota.py header.
 MARKER_WORLD = (
     (-0.16, +0.20, 0.005),   # NW
-    (+0.16, +0.20, 0.005),   # NE
-    (-0.16,  0.00, 0.005),   # W   ← cross-bar
-    (+0.16,  0.00, 0.005),   # E   ← cross-bar
+    (+0.12, +0.20, 0.005),   # NE
+    (-0.16,  0.00, 0.005),   # W   ← cross-bar (left)
+    (+0.12,  0.00, 0.005),   # E   ← cross-bar (right)
     (-0.16, -0.14, 0.005),   # SW
-    (+0.16, -0.14, 0.005),   # SE
+    (+0.12, -0.14, 0.005),   # SE
 )
 MARKER_NAMES = ("NW", "NE", "W", "E", "SW", "SE")
 

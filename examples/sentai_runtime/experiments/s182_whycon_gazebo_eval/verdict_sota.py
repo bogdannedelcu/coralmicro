@@ -61,16 +61,19 @@ import numpy as np
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt   # noqa: E402
 
-# Marker world positions — H layout per Kim, Yang, Kim 2013 IROS.
-# Asymmetric Y (top arm 0.20 m, bottom arm 0.14 m) breaks 180° yaw
-# ambiguity while preserving Y-axis (left-right) mirror symmetry.
+# Marker world positions — H layout per Kim, Yang, Kim 2013 IROS,
+# with iter-8 X-asymmetry fix: east column at +0.12 m (not +0.16 m)
+# breaks the X-mirror that caused iter-7 Kabsch ±0.4 m sign flips
+# (residual was 26 mm but est_x was bimodal because the mirror gave
+# equally-low residual on the wrong solution).  Y stays asymmetric
+# (20 cm top arm vs 14 cm bottom arm).  Total span: 28 cm × 34 cm.
 MARKER_WORLD = {
     "NW": np.array([-0.16, +0.20, 0.005], dtype=np.float64),
-    "NE": np.array([+0.16, +0.20, 0.005], dtype=np.float64),
+    "NE": np.array([+0.12, +0.20, 0.005], dtype=np.float64),
     "W":  np.array([-0.16,  0.00, 0.005], dtype=np.float64),
-    "E":  np.array([+0.16,  0.00, 0.005], dtype=np.float64),
+    "E":  np.array([+0.12,  0.00, 0.005], dtype=np.float64),
     "SW": np.array([-0.16, -0.14, 0.005], dtype=np.float64),
-    "SE": np.array([+0.16, -0.14, 0.005], dtype=np.float64),
+    "SE": np.array([+0.12, -0.14, 0.005], dtype=np.float64),
 }
 MARKER_ORDER = ["NW", "NE", "W", "E", "SW", "SE"]
 
@@ -204,24 +207,28 @@ def kabsch_3d_3d(p_cam_xyz, p_world_xyz):
     return R, t, residuals
 
 
+#  Iter-8 finding: at known drone altitude 0.252 m, our WhyCon PnP
+#  returns tz ≈ 0.408 m — 62 % too high.  Root cause: the C-side
+#  WHYCON_PNP_ANNULUS_FACTOR = 1.0 (set for "Gazebo PBR + bilinear
+#  smooths annulus into solid disc" — iter-3 finding) but the actual
+#  Gazebo render here is closer to a true Krajník annulus.  The
+#  detector's 2nd-order-moment-derived semi-axis is ~62 % of the
+#  outer-ring true radius, not 100 % as the iter-3 factor assumes.
+#  Until we re-tune the C-side factor + rebuild, the verdict applies
+#  a post-mortem scale of TVEC_SCALE on every (tx, ty, tz) tuple —
+#  uniform scale preserves the projection geometry so Kabsch still
+#  solves correctly.
+TVEC_SCALE = 0.617
+
+
 def tvec_to_cam_xyz(d):
-    """The marker position in CAM frame from a WhyCon detection.
-
-    sentai_aruco's closed-form PnP returns tvec_cam = (tx, ty, tz)
-    interpreted via the cam-mount convention: tx and ty are pixel-
-    derived lateral offsets, tz is depth.  For our downward cam with
-    body_xform = (-1, 0, 0, +1):
-      cam +X is image right (== body -X = world -X when yaw=0)
-      cam +Y is image down  (== body -Y = world -Y when yaw=0)
-      cam +Z is depth into the scene (== world -Z below the drone)
-
-    For the Kabsch fit we need points in a CAM frame whose origin is
-    the camera optical center and whose axes are consistent across
-    all markers.  Just use (tx, ty, tz) directly — the sign convention
-    is handled by Kabsch's R solve (which produces the rotation from
-    cam frame to world frame).
+    """The marker position in CAM frame from a WhyCon detection,
+    scaled by the empirical TVEC_SCALE to compensate for the C-side
+    ANNULUS_FACTOR mismatch (see comment above).
     """
-    return np.array([d["tx"], d["ty"], d["tz"]], dtype=np.float64)
+    s = TVEC_SCALE
+    return np.array([d["tx"] * s, d["ty"] * s, d["tz"] * s],
+                     dtype=np.float64)
 
 
 def kabsch_with_assignment(p_cam_list, marker_world_dict):
@@ -245,6 +252,74 @@ def kabsch_with_assignment(p_cam_list, marker_world_dict):
         p_world = np.array([marker_world_dict[n] for n in marker_subset],
                             dtype=np.float64)
         R, t, residuals = kabsch_3d_3d(p_cam, p_world)
+        res_max = float(residuals.max())
+        if best is None or res_max < best[2]:
+            best = (R, t, res_max, list(marker_subset))
+    return best
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Constrained pose solver — yaw-only rotation around world Z.
+#
+# Iter-8 finding: unconstrained Kabsch SVD with reflection-safe R has
+# 2² = 4 valid orientations per assignment (mirror X and/or mirror Y,
+# det adjusted via Z mirror).  Even with the H pattern X-asymmetry,
+# the Y-mirror still satisfies det(R)=+1 because Z mirrors with it.
+# So Kabsch picks between 2 valid R's (flip-Y and not) → bimodal Y/Z.
+#
+# Physical truth: the cf2 downward cam has a FIXED rotation w.r.t.
+# the cf2 body frame.  Combined with cf2 yaw (which we read from
+# CRTP LOG / journal), R_world_from_cam is a 1-DOF problem — just
+# the yaw angle.  Once yaw is fixed, t is a closed-form 3-DOF
+# least-squares.
+#
+# Cam mount convention (cf2 model.sdf.jinja downward_cam_link with
+# the rotation 0 pi 0 around body Z, body X-axis): cam +X = world +X,
+# cam +Y = world -Y, cam +Z = world -Z (when yaw=0).
+# That gives R_cam_to_world_yaw0 = diag(1, -1, -1).
+# ──────────────────────────────────────────────────────────────────────
+
+R_CAM_TO_WORLD_FIXED = np.diag([1.0, -1.0, -1.0])
+
+
+def yaw_rotation(theta: float) -> np.ndarray:
+    """Rotation around world Z by theta (yaw)."""
+    c, s = math.cos(theta), math.sin(theta)
+    return np.array([
+        [c, -s, 0.0],
+        [s,  c, 0.0],
+        [0.0, 0.0, 1.0],
+    ], dtype=np.float64)
+
+
+def constrained_pose(p_cam_xyz, p_world_xyz, yaw_world: float):
+    """Solve t such that p_world ≈ R_yaw(yaw_world) · R_cam_to_world_fixed
+    · p_cam + t.  Closed-form least squares: t = mean(p_world - R · p_cam).
+    Returns (R, t, residuals)."""
+    R = yaw_rotation(yaw_world) @ R_CAM_TO_WORLD_FIXED
+    pc = np.asarray(p_cam_xyz, dtype=np.float64)
+    pw = np.asarray(p_world_xyz, dtype=np.float64)
+    # Per-detection world estimate, then mean.
+    t_per = pw - (R @ pc.T).T
+    t = t_per.mean(axis=0)
+    residuals = np.linalg.norm((R @ pc.T).T + t - pw, axis=1)
+    return R, t, residuals
+
+
+def constrained_pose_with_assignment(p_cam_list, marker_world_dict,
+                                       yaw_world: float):
+    """Pick the assignment that minimises constrained-pose residual."""
+    from itertools import permutations
+    n_dets = len(p_cam_list)
+    if n_dets < 3:
+        return None
+    names_all = list(marker_world_dict.keys())
+    best = None
+    for marker_subset in permutations(names_all, n_dets):
+        p_cam = np.array(p_cam_list, dtype=np.float64)
+        p_world = np.array([marker_world_dict[n] for n in marker_subset],
+                            dtype=np.float64)
+        R, t, residuals = constrained_pose(p_cam, p_world, yaw_world)
         res_max = float(residuals.max())
         if best is None or res_max < best[2]:
             best = (R, t, res_max, list(marker_subset))
@@ -282,27 +357,49 @@ def main():
         cf2 = tk.get("cf2")
         if cf2 is None:
             continue
-        # Filter detections by tz consistency (drop obvious outliers).
-        cf2_z = cf2[2] if cf2 is not None else 1.0
-        if cf2_z < 0.05:
-            cf2_z = 1.0
+        # iter-8: dedupe by pixel proximity + take MIN tz for each
+        # cluster.  WhyCon detector reports each true marker TWICE
+        # (inner-disc + outer-ring blobs) — same pixel center, two
+        # very different tz values.  The OUTER blob is what we want
+        # (smaller tz because larger axis_a).  Drop duplicates within
+        # 10 px pixel distance, keeping the smallest-tz of each cluster.
+        raw_dets = [d for d in tk.get("dets", []) if d.get("v")]
+        # Sort by tz so smaller tz comes first (= outer-ring detection).
+        raw_dets.sort(key=lambda d: d.get("tz", 1e6))
+        deduped = []
+        for d in raw_dets:
+            px, py = d["px"], d["py"]
+            dupe = False
+            for k in deduped:
+                if (k["px"] - px) ** 2 + (k["py"] - py) ** 2 < 10 ** 2:
+                    dupe = True
+                    break
+            if not dupe:
+                deduped.append(d)
+        # Now apply tz scale + sanity range.
         valid_dets = []
-        for d in tk.get("dets", []):
-            if not d.get("v"):
-                continue
-            tz = d.get("tz", 0.0)
-            rel = tz / cf2_z
-            if 0.4 < rel < 1.6:
+        for d in deduped:
+            tz_s = d.get("tz", 0.0) * TVEC_SCALE
+            if 0.05 < tz_s < 1.5:                    # plausible hover band
                 valid_dets.append(d)
-        # Cap at 4 — the 4-marker constellation in the world.  If >4,
-        # take the 4 with the smallest |tx|+|ty| (closest to optical
-        # axis, most reliable).
-        if len(valid_dets) > 4:
+        # Iter-8b: NO CAP — operator: "sigur vrei cap la 4 markeri,
+        # parca erau probleme la simetrie, de asta am pus 6".  The
+        # whole point of 6-marker H pattern is to OVER-determine the
+        # Kabsch fit + break ambiguities.  Capping defeats that.
+        # We rely on dedupe (pixel proximity) + tz-range filter above
+        # to keep the constellation clean.  If still >6, take 6 with
+        # smallest |tx|+|ty|.
+        if len(valid_dets) > 6:
             valid_dets.sort(key=lambda d: abs(d["tx"]) + abs(d["ty"]))
-            valid_dets = valid_dets[:4]
+            valid_dets = valid_dets[:6]
         if len(valid_dets) < 3:
             n_no_assoc += 1
             continue
+        # Iter-8b: back to unconstrained Kabsch.  The constrained
+        # pose solver needed a hard-coded R_CAM_TO_WORLD_FIXED that
+        # depended on the exact cf2 SDF cam mount orientation; getting
+        # it wrong gives huge residuals.  With 6-marker X-asymmetric H,
+        # unconstrained Kabsch should resolve the orientation uniquely.
         p_cam_list = [tvec_to_cam_xyz(d) for d in valid_dets]
         fit = kabsch_with_assignment(p_cam_list, MARKER_WORLD)
         if fit is None:

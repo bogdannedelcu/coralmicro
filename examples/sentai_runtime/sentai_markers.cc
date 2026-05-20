@@ -143,6 +143,15 @@ extern "C" int sentai_markers_init(sentai_markers_backend_t backend) {
     if (backend == SENTAI_MARKERS_BACKEND_ARUCO) {
         return sentai_aruco_init();
     }
+    // OP-S10-W19-T4 iter-8b: enable Phase W3 concentric inner-disc
+    // validation by default when WhyCon backend is selected.  Without
+    // W3, the detector returns TWO blobs per marker (the outer black
+    // annulus AND the centre black dot are both dark, both pass the
+    // fill-ratio gate).  W3 samples at 0.55·R and 0.95·R from the
+    // bbox centre — the centre-dot candidate fails because there's
+    // no white inner ring inside it, while the outer-annulus candidate
+    // passes (white at 0.55·R, black at 0.95·R = the annulus body).
+    sentai_whycon_set_concentric_check(1);
     return 0;
 }
 

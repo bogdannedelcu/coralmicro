@@ -202,54 +202,11 @@
     <!-- the scene; checkerboard ground does most feature work,-->
     <!-- markers add color/landmark anchors.                   -->
     <!-- ===================================================== -->
-    <model name="marker_red">
-      <static>true</static>
-      <pose>0.4 0.3 0.025 0 0 0</pose>
-      <link name="link">
-        <visual name="v"><geometry><box><size>0.05 0.05 0.05</size></box></geometry>
-          <material><ambient>0.8 0.1 0.1 1</ambient><diffuse>0.9 0.1 0.1 1</diffuse></material></visual>
-      </link>
-    </model>
-    <model name="marker_green">
-      <static>true</static>
-      <pose>-0.4 0.3 0.025 0 0 0</pose>
-      <link name="link">
-        <visual name="v"><geometry><box><size>0.05 0.05 0.05</size></box></geometry>
-          <material><ambient>0.1 0.7 0.1 1</ambient><diffuse>0.1 0.9 0.1 1</diffuse></material></visual>
-      </link>
-    </model>
-    <model name="marker_blue">
-      <static>true</static>
-      <pose>0.3 -0.4 0.025 0 0 0</pose>
-      <link name="link">
-        <visual name="v"><geometry><box><size>0.05 0.05 0.05</size></box></geometry>
-          <material><ambient>0.1 0.1 0.8 1</ambient><diffuse>0.2 0.2 1.0 1</diffuse></material></visual>
-      </link>
-    </model>
-    <model name="marker_yellow">
-      <static>true</static>
-      <pose>-0.3 -0.4 0.025 0 0 0</pose>
-      <link name="link">
-        <visual name="v"><geometry><box><size>0.05 0.05 0.05</size></box></geometry>
-          <material><ambient>0.9 0.9 0.1 1</ambient><diffuse>1.0 1.0 0.1 1</diffuse></material></visual>
-      </link>
-    </model>
-    <model name="marker_magenta">
-      <static>true</static>
-      <pose>0.55 0 0.025 0 0 0</pose>
-      <link name="link">
-        <visual name="v"><geometry><box><size>0.05 0.05 0.05</size></box></geometry>
-          <material><ambient>0.8 0.2 0.8 1</ambient><diffuse>1.0 0.2 1.0 1</diffuse></material></visual>
-      </link>
-    </model>
-    <model name="marker_cyan">
-      <static>true</static>
-      <pose>-0.55 0 0.025 0 0 0</pose>
-      <link name="link">
-        <visual name="v"><geometry><box><size>0.05 0.05 0.05</size></box></geometry>
-          <material><ambient>0.1 0.7 0.7 1</ambient><diffuse>0.2 0.9 0.9 1</diffuse></material></visual>
-      </link>
-    </model>
+    <!-- Iter-8b: removed 6 colored cube landmarks that lived here in
+         earlier iterations.  They projected as 30 px dark squares on
+         the checkerboard ground and tripped the WhyCon flood-fill
+         into spurious detections (iter-8 saw 7-9 dets/frame instead
+         of the expected 6). -->
 
     <!-- ArUco calibration markers — 4x4_50 dict.
          OP-S10-W14 layout (2026-05-18): doubled from the original 6 cm
@@ -307,7 +264,7 @@
     </model>
     <model name="whycon_NE">
       <static>true</static>
-      <pose>+0.16 +0.20 0.005  0 0 0</pose>
+      <pose>+0.12 +0.20 0.005  0 0 0</pose>
       <link name="link"><visual name="v">
         <geometry><box><size>0.12 0.12 0.01</size></box></geometry>
         <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse>
@@ -331,7 +288,7 @@
     </model>
     <model name="whycon_E">
       <static>true</static>
-      <pose>+0.16 0.00 0.005  0 0 0</pose>
+      <pose>+0.12 0.00 0.005  0 0 0</pose>
       <link name="link"><visual name="v">
         <geometry><box><size>0.12 0.12 0.01</size></box></geometry>
         <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse>
@@ -355,7 +312,7 @@
     </model>
     <model name="whycon_SE">
       <static>true</static>
-      <pose>+0.16 -0.14 0.005  0 0 0</pose>
+      <pose>+0.12 -0.14 0.005  0 0 0</pose>
       <link name="link"><visual name="v">
         <geometry><box><size>0.12 0.12 0.01</size></box></geometry>
         <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse>
