@@ -28,6 +28,7 @@
 
 #include "libs/base/ipc_m4.h"
 #include "examples/sentai_runtime/m4_bench_message.h"
+#include "examples/sentai_runtime/flow_bench_shared.h"
 
 // M4F has the same ARM DSP-extension instruction set as M7 (USUB8, SEL,
 // UQADD8 etc).  Inline-asm wrappers — verbatim from the sentai M7
@@ -44,7 +45,22 @@ __attribute__((always_inline)) static inline uint32_t m4_sel(uint32_t a, uint32_
     __asm volatile ("sel %0, %1, %2" : "=r"(r) : "r"(a), "r"(b));
     return r;
 }
+// USADA8: 4-byte sum-of-abs-differences + accumulate (DSP-extension
+// SIMD on Cortex-M4F, same as M7).  arm_acle.h doesn't ship __USADA8
+// on the toolchain we use, so inline-asm wrapper.
+__attribute__((always_inline)) static inline uint32_t m4_usada8(uint32_t a, uint32_t b, uint32_t acc) {
+    uint32_t r;
+    __asm volatile ("usada8 %0, %1, %2, %3" : "=r"(r) : "r"(a), "r"(b), "r"(acc));
+    return r;
+}
 #endif
+
+/* Unaligned LDR helper — same packed-struct trick as M7 flow_task.cc:57.
+ * Cortex-M4 supports unaligned LDR transparently.  Without this the
+ * inner SAD loop emits memcpy() calls and tanks USADA8's win (see
+ * agent.md hard-rule). */
+typedef struct { uint32_t v; } __attribute__((packed)) m4_u32u_t;
+#define M4_LD32U(p) (((const m4_u32u_t*)(p))->v)
 
 // ─────────────────────────────────────────────────────────────────
 // Threshold buffers — entirely M4-local but split across regions:
@@ -246,6 +262,44 @@ static void aruco_adaptive_threshold_m4(int block) {
     }
 }
 
+// OP-S10-W17-T4 M4 ablation — Flow SAD inner loop on the SHARED
+// .tpu_input OCRAM region (M4 reads same physical addresses M7 wrote).
+// Algorithm IDENTICAL to flow_task.cc:sad_match — 25×25 search ×
+// 32×32 block, USADA8+LD32U inner loop.
+//
+// Returns best_sad, dx, dy via the volatile sink to defeat DCE.
+static volatile uint32_t s_m4_flow_sink = 0;
+
+static uint32_t aruco_flow_sad_m4(int* out_dx, int* out_dy) {
+    const uint8_t* curr = FLOW_BENCH_CURR_PTR;
+    const uint8_t* prev = FLOW_BENCH_PREV_PTR;
+    const int W = FLOW_BENCH_GRAY_W;
+    const int bx = (W - FLOW_BENCH_BLOCK_W) / 2;
+    const int by = (FLOW_BENCH_GRAY_H - FLOW_BENCH_BLOCK_H) / 2;
+    uint32_t best = 0xFFFFFFFFu;
+    int bdx = 0, bdy = 0;
+    for (int dy = -FLOW_BENCH_SEARCH; dy <= FLOW_BENCH_SEARCH; ++dy) {
+        for (int dx = -FLOW_BENCH_SEARCH; dx <= FLOW_BENCH_SEARCH; ++dx) {
+            uint32_t sad = 0;
+            for (int y = 0; y < FLOW_BENCH_BLOCK_H; ++y) {
+                const uint8_t* c = curr + (by + y) * W + bx;
+                const uint8_t* p = prev + (by + y + dy) * W + (bx + dx);
+                sad = m4_usada8(M4_LD32U(c +  0), M4_LD32U(p +  0), sad);
+                sad = m4_usada8(M4_LD32U(c +  4), M4_LD32U(p +  4), sad);
+                sad = m4_usada8(M4_LD32U(c +  8), M4_LD32U(p +  8), sad);
+                sad = m4_usada8(M4_LD32U(c + 12), M4_LD32U(p + 12), sad);
+                sad = m4_usada8(M4_LD32U(c + 16), M4_LD32U(p + 16), sad);
+                sad = m4_usada8(M4_LD32U(c + 20), M4_LD32U(p + 20), sad);
+                sad = m4_usada8(M4_LD32U(c + 24), M4_LD32U(p + 24), sad);
+                sad = m4_usada8(M4_LD32U(c + 28), M4_LD32U(p + 28), sad);
+            }
+            if (sad < best) { best = sad; bdx = dx; bdy = dy; }
+        }
+    }
+    *out_dx = bdx; *out_dy = bdy;
+    return best;
+}
+
 // IpcM4 message handler.
 //
 // HELLO-WORLD MODE (operator request 2026-05-19 "fa un hello world
@@ -277,6 +331,14 @@ static void handle_m7_message_(const uint8_t data[coralmicro::kIpcMessageBufferD
     // WhyCon sentinel range: 0xC100..0xC108 = synth(N disks) + rolling threshold.
     // Worker decodes N = (block & 0x000F).
     if (block >= 0xC100u && block <= 0xC108u) {
+        s_pending_block = block;
+        if (s_work_sem) xSemaphoreGive(s_work_sem);
+        return;
+    }
+    // OP-S10-W17-T4 Flow SAD sentinel: 0xF10F.  M7 must populate the
+    // shared OCRAM .tpu_input scratch (FLOW_BENCH_CURR/PREV_PTR) BEFORE
+    // sending this message; M4 reads same physical addresses.
+    if (block == 0xF10Fu) {
         s_pending_block = block;
         if (s_work_sem) xSemaphoreGive(s_work_sem);
         return;
@@ -314,6 +376,18 @@ static void handle_m7_message_(const uint8_t data[coralmicro::kIpcMessageBufferD
         if (block == 0xCAFEu) {
             // IPC-only smoke test — no compute.
             app->cycles = 0xCAFEBABEu;
+        } else if (block == 0xF10Fu) {
+            // OP-S10-W17-T4: Flow SAD on shared OCRAM curr/prev.
+            // M7 has already synth'd both into FLOW_BENCH_CURR/PREV_PTR
+            // before dispatching this message — M4 just runs SAD.
+            int dx_out = 0, dy_out = 0;
+            const uint32_t t0 = dwt_cyc();
+            const uint32_t best = aruco_flow_sad_m4(&dx_out, &dy_out);
+            const uint32_t t1 = dwt_cyc();
+            s_m4_flow_sink = best ^ (uint32_t)dx_out ^ ((uint32_t)dy_out << 16);
+            s_bench_sink = (uint8_t)s_m4_flow_sink;
+            app->cycles = t1 - t0;
+            app->n_dets = 0;
         } else if (block >= 0xC100u && block <= 0xC108u) {
             // OP-S10-W17-T2 M4 WhyCon ablation — synth disks + rolling
             // threshold (same kernel as M7's optimized WhyCon Phase A).

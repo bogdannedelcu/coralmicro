@@ -224,6 +224,18 @@ static mp_obj_t mod_sentai_flow_perf(void) {
 static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_flow_perf_obj,
                                   mod_sentai_flow_perf);
 
+// OP-S10-W17-T4: standalone SAD inner-loop bench (M7 ablation half).
+// Pairs with sentai.diag.m4_aruco_bench(0xF10F) on M4 — both cores
+// read the SAME OCRAM scratch zone (.tpu_input borrow) so the
+// comparison measures pure core architecture.
+extern uint32_t sentai_flow_test_sad(int shift_px);
+static mp_obj_t mod_sentai_flow_test_sad(mp_obj_t shift_obj) {
+    const int shift = mp_obj_get_int(shift_obj);
+    return mp_obj_new_int_from_uint(sentai_flow_test_sad(shift));
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_flow_test_sad_obj,
+                                  mod_sentai_flow_test_sad);
+
 // ---- module table ----
 static const mp_rom_map_elem_t sentai_flow_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__),       MP_ROM_QSTR(MP_QSTR_flow) },
@@ -239,6 +251,7 @@ static const mp_rom_map_elem_t sentai_flow_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_period_ms),      MP_ROM_PTR(&mod_sentai_flow_period_ms_obj) },
     { MP_ROM_QSTR(MP_QSTR_pub_stats),      MP_ROM_PTR(&mod_sentai_flow_pub_stats_obj) },
     { MP_ROM_QSTR(MP_QSTR_perf),           MP_ROM_PTR(&mod_sentai_flow_perf_obj) },
+    { MP_ROM_QSTR(MP_QSTR__test_sad),      MP_ROM_PTR(&mod_sentai_flow_test_sad_obj) },
 };
 static MP_DEFINE_CONST_DICT(sentai_flow_globals, sentai_flow_globals_table);
 static const mp_obj_module_t sentai_flow_module = {

@@ -639,6 +639,80 @@ extern "C" void sentai_flow_deadband_state(uint32_t* period_ms_x10,
     if (velocity_mgp_per_s) *velocity_mgp_per_s = kDeadbandVelocityMgpPerSec;
 }
 
+// =====================================================================
+// OP-S10-W17-T4 — Flow SAD M7 vs M4 ablation test point.
+//
+// Standalone bench equivalent of sad_match — same algorithm, same
+// USAD8+LD32U pattern, but with deterministic synth curr/prev pair
+// (curr = gradient + central dark square, prev = same shifted by
+// `shift_px` pixels in both X and Y) so the bench is reproducible
+// and decoupled from camera/PXP/RGB2Y.
+//
+// Buffers SHARED with M4 via FLOW_BENCH_*_PTR in the m_ocram .tpu_input
+// region (operator-stated 2026-05-20: "refoloseste zona de tensor de
+// la M7, e ceva temporar").  Both cores read/write the SAME physical
+// OCRAM address so the ablation measures pure core difference, not
+// memory tier difference.  See flow_bench_shared.h for the hard-rule
+// exception rationale.
+//
+// Anti-DCE: XOR-fold best_sad + dx + dy into a volatile sink after
+// the timed region (same methodology as OP-S10-W16 M4 bench).
+//
+// Excludes: PXP downscale (PrepTask responsibility), RGB->Y
+// conversion (PrepTask responsibility), publisher_task wrapper,
+// frame_seq dedup, gray_stretch.  Pure SAD inner loop only.
+// =====================================================================
+#include "examples/sentai_runtime/flow_bench_shared.h"
+
+static volatile uint32_t s_flow_test_sink = 0;
+static volatile uint32_t s_flow_test_cyc  = 0;
+
+extern "C" uint32_t sentai_flow_test_sad(int shift_px) {
+    if (shift_px < -8) shift_px = -8;
+    if (shift_px >  8) shift_px =  8;
+    const int W = FLOW_BENCH_GRAY_W, H = FLOW_BENCH_GRAY_H;
+    uint8_t* curr = FLOW_BENCH_CURR_PTR;
+    uint8_t* prev = FLOW_BENCH_PREV_PTR;
+    // Synth gradient + central dark square in curr; copy to prev with
+    // shift (clamping at borders).
+    for (int y = 0; y < H; ++y) {
+        for (int x = 0; x < W; ++x) {
+            uint32_t lfsr = (uint32_t)(y * W + x) * 2654435761u;
+            uint8_t noise = (lfsr >> 16) & 0x1F;
+            int v = 120 + (x * 60) / W + (int)noise - 8;
+            if (v < 0) v = 0; if (v > 255) v = 255;
+            curr[x + y * W] = (uint8_t)v;
+        }
+    }
+    const int cx = W / 2, cy = H / 2;
+    for (int y = cy - 10; y < cy + 10; ++y) {
+        for (int x = cx - 10; x < cx + 10; ++x) {
+            if (x >= 0 && x < W && y >= 0 && y < H) curr[x + y * W] = 30;
+        }
+    }
+    // prev = curr shifted by shift_px in both axes (with edge clamp).
+    for (int y = 0; y < H; ++y) {
+        for (int x = 0; x < W; ++x) {
+            int sx = x - shift_px; if (sx < 0) sx = 0; if (sx >= W) sx = W - 1;
+            int sy = y - shift_px; if (sy < 0) sy = 0; if (sy >= H) sy = H - 1;
+            prev[x + y * W] = curr[sx + sy * W];
+        }
+    }
+    // Time the SAD core only.
+    int dx = 0, dy = 0;
+    uint32_t best_sad = 0;
+    dwt_enable_once();
+    const uint32_t t0 = dwt_now();
+    sad_match(curr, prev, &dx, &dy, &best_sad);
+    const uint32_t t1 = dwt_now();
+    s_flow_test_cyc = t1 - t0;
+    // XOR-sink for DCE — best_sad / dx / dy all consumed.
+    s_flow_test_sink = (uint32_t)dx ^ (uint32_t)(dy << 16) ^ best_sad;
+    return s_flow_test_cyc;
+}
+
+extern "C" uint32_t sentai_flow_test_sad_cyc(void) { return s_flow_test_cyc; }
+
 // DWT cycle stats from the most recent publish_frame + publisher
 // loop iteration.  M7 core clock = 800 MHz, so 1 us = 800 cycles.
 extern "C" void sentai_flow_perf_cyc(uint32_t* pxp, uint32_t* rgb2y,
