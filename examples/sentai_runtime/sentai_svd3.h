@@ -162,6 +162,40 @@ int sentai_kabsch_align(const float* a_xyz_n3,
                         float t_out[3],
                         float* res_max_out);
 
+// ---- N-by-N symmetric Jacobi eigendecomposition (W21-T4d) -------------
+// Generalised version of jacobi_sym3 for arbitrary N (typically N=9 for
+// DLT homography null-space recovery).
+// Input:   A[N*N] symmetric row-major.  A is DESTROYED on return.
+// Output:  V[N*N] eigenvectors as columns; d[N] eigenvalues.
+//          Sorted by DESCENDING |d_i| (smallest in slot N-1).
+// Returns: 0 on success, -1 if did not converge.
+// Caller-allocated outputs; zero heap.
+// Max N supported is 16 (compile-time scratch in sentai_svd3.cc).
+int sentai_jacobi_symN(float* A, int N, float* V, float* d);
+
+// ---- Coplanar multi-marker PnP (W21-T4d) ------------------------------
+// Closed-form solver for camera pose given N>=4 coplanar markers at
+// known world XY (Z=0 implied) + measured image (px, py) + intrinsics.
+// Algorithm: DLT homography null-space via symmetric eigen on A^TA,
+// then K^-1 decomposition + 3x3 SVD orthonormalisation.
+// Inputs:
+//   img_pts_xy_n2  - flat N x 2 array of (px, py)
+//   world_pts_xy_n2 - flat N x 2 array of (X_w, Y_w)
+//   n              - 4 <= n <= 16
+//   fx,fy,cx,cy    - camera intrinsics
+// Outputs:
+//   cam_world_out[3] - camera centre in WORLD frame
+//   R_w2c_out[9]     - row-major R world→cam
+//   reproj_max_px_out - (optional, NULL OK) max reproj residual
+// Returns 0 on success, -1 if n<4 or solver fails.
+int sentai_coplanar_pnp(const float* img_pts_xy_n2,
+                        const float* world_pts_xy_n2,
+                        int n,
+                        float fx, float fy, float cx, float cy,
+                        float cam_world_out[3],
+                        float R_w2c_out[9],
+                        float* reproj_max_px_out);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

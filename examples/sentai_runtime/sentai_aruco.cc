@@ -2075,6 +2075,17 @@ extern "C" void sentai_aruco_set_intrinsics(float fx, float fy,
     s_fx = fx; s_fy = fy; s_cx = cx; s_cy = cy;
 }
 
+// W21-T4d: read-side accessor used by sentai_calib_bringup.cc's coplanar
+// PnP integration.  No heavy-data MP exposure per [[no-heavy-data-through
+// -mp]] — this is C-to-C only.
+extern "C" void sentai_aruco_get_intrinsics(float* fx, float* fy,
+                                              float* cx, float* cy) {
+    if (fx) *fx = s_fx;
+    if (fy) *fy = s_fy;
+    if (cx) *cx = s_cx;
+    if (cy) *cy = s_cy;
+}
+
 extern "C" int sentai_aruco_set_marker_size(float size_m) {
     if (!isfinite(size_m) || size_m <= 0.0f) {
         return -SENTAI_ARUCO_ERR_BAD_MSIZE;

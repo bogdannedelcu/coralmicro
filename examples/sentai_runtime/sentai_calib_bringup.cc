@@ -29,6 +29,7 @@
 #include "sentai_crazy_log.h"
 #include "sentai_safety.h"
 #include "sentai_fr.h"
+#include "sentai_svd3.h"          // W21-T4d coplanar PnP
 
 #include <math.h>
 #include <stdint.h>
@@ -56,6 +57,10 @@ extern "C" int sentai_camera_grab_gray_zerocopy(
 // (sentai_crazy.h's signature: len is `int`, not uint8_t.)
 extern "C" int sentai_crazy_send_crtp(uint8_t port, uint8_t chan,
                                         const uint8_t* data, int len);
+
+// W21-T4d coplanar PnP intrinsics accessor (C-to-C, zero MP exposure).
+extern "C" void sentai_aruco_get_intrinsics(float* fx, float* fy,
+                                              float* cx, float* cy);
 
 namespace {
 
@@ -188,6 +193,10 @@ int phase_sample_() {
         // raw mk.id, which is backend-dependent and not stable for WhyCon).
         float tvec_acc[SENTAI_CALIB_BRINGUP_MAX_MARKERS][3] = {{0}};
         int   tvec_n_acc[SENTAI_CALIB_BRINGUP_MAX_MARKERS] = {0};
+        // W21-T4d: also accumulate pixel positions per matched marker —
+        // these feed the coplanar PnP for an accurate drone_W estimate
+        // that doesn't propagate Krajník depth-from-ring bias.
+        float px_acc[SENTAI_CALIB_BRINGUP_MAX_MARKERS][2] = {{0}};
         float px = 0.0f, py = 0.0f, pz = 0.0f, pyaw = 0.0f;
         int   pose_n = 0;
         for (int t = 0; t < 5; ++t) {
@@ -255,6 +264,8 @@ int phase_sample_() {
                 tvec_acc[k][0] += mk.tvec_cam[0];
                 tvec_acc[k][1] += mk.tvec_cam[1];
                 tvec_acc[k][2] += mk.tvec_cam[2];
+                px_acc[k][0]   += mk.pixel_cx;
+                px_acc[k][1]   += mk.pixel_cy;
                 ++tvec_n_acc[k];
                 // Per-marker VPE drone_W estimate:
                 //   drone_W = marker_W - R · tvec_cam - cam_offset_B
@@ -358,43 +369,124 @@ int phase_sample_() {
         // We need state across ticks: track pose-level dxyz median sum.
         (void)inv_pn;  // not used after switch to constellation drone_W
 
-        // Use last-tick VPE-derived dx/dy/dz medians as the pose's
-        // representative drone_W (the dx/dy/dz medians are computed
-        // in the VPE block below; we re-derive them here from the
-        // accumulated raw values to keep ordering simple).
-        // Recompute median (the VPE block also did this but its arrays
-        // are scoped per tick — capture from the per-pose accumulator).
-        // Simpler: use the mean of dx/dy/dz across all matched markers
-        // accumulated through the capture loop.
-        // dx_per/dy_per/dz_per are tick-local; we re-iterate through
-        // tvec_acc + marker_world to compute pose-level drone_W mean.
-        float drone_W[3] = {0,0,0};
-        int   drone_W_n = 0;
-        const float* R_cached_pose   = sentai_calib_get_R_cam_to_body();
-        const float* off_cached_pose = sentai_calib_get_cam_offset_B();
+        // W21-T4d: drone_W estimate via COPLANAR MULTI-MARKER PnP.
+        // Replaces the previous "marker_W - R·tvec_cam - cam_offset"
+        // mean which propagates Krajník depth-from-ring perspective
+        // bias (10-30% per marker).  PnP on pixel positions + known
+        // world XY gives sub-pixel reproj residual.
+        //
+        // Pixel→world correspondence: DO NOT rely on associate_'s
+        // forward-projection match (which uses cf2 EKF drone_W, biased
+        // without VPE).  Instead use the spatial 3-col × 2-row sort
+        // that matches the 6-marker WhyCon pad geometry directly:
+        //   - sort by image X → 3 columns (left/mid/right)
+        //   - within each col, sort by image Y → top/bot
+        // Maps to MARKER_WORLD canonical order (NW NE W E SW SE):
+        //   right col top=NW(0)  bot=NE(1)
+        //   mid   col top=W(2)   bot=E(3)
+        //   left  col top=SW(4)  bot=SE(5)
+        //
+        // Gather all matched marker mean pixels first.
+        struct DetPx { float x, y; int k; };
+        DetPx all_pixels[SENTAI_CALIB_BRINGUP_MAX_MARKERS];
+        int all_n = 0;
         for (int k = 0; k < s_ctx.marker_n; ++k) {
             if (tvec_n_acc[k] == 0) continue;
             const float inv_mn = 1.0f / (float)tvec_n_acc[k];
-            const float tx = tvec_acc[k][0] * inv_mn;
-            const float ty = tvec_acc[k][1] * inv_mn;
-            const float tz = tvec_acc[k][2] * inv_mn;
-            const float* mw = &s_ctx.marker_world_n3[3*k];
-            const float rx = R_cached_pose[0]*tx + R_cached_pose[1]*ty + R_cached_pose[2]*tz;
-            const float ry = R_cached_pose[3]*tx + R_cached_pose[4]*ty + R_cached_pose[5]*tz;
-            const float rz = R_cached_pose[6]*tx + R_cached_pose[7]*ty + R_cached_pose[8]*tz;
-            drone_W[0] += mw[0] - rx - off_cached_pose[0];
-            drone_W[1] += mw[1] - ry - off_cached_pose[1];
-            drone_W[2] += mw[2] - rz - off_cached_pose[2];
-            ++drone_W_n;
+            all_pixels[all_n].x = px_acc[k][0] * inv_mn;
+            all_pixels[all_n].y = px_acc[k][1] * inv_mn;
+            all_pixels[all_n].k = k;
+            ++all_n;
+        }
+        float pnp_img[2 * SENTAI_CALIB_BRINGUP_MAX_MARKERS];
+        float pnp_wld[2 * SENTAI_CALIB_BRINGUP_MAX_MARKERS];
+        int pnp_n = 0;
+        if (all_n == 6 && s_ctx.marker_n == 6) {
+            // Spatial sort: 3 cols × 2 rows, ignore association.
+            // Selection sort by x ascending.
+            for (int a = 0; a < 5; ++a) {
+                int mn = a;
+                for (int b = a + 1; b < 6; ++b) {
+                    if (all_pixels[b].x < all_pixels[mn].x) mn = b;
+                }
+                if (mn != a) {
+                    DetPx tmp = all_pixels[a];
+                    all_pixels[a] = all_pixels[mn]; all_pixels[mn] = tmp;
+                }
+            }
+            // Now sorted left→right.  Within each pair, sort by y asc.
+            for (int pair = 0; pair < 3; ++pair) {
+                int i = 2 * pair;
+                if (all_pixels[i + 1].y < all_pixels[i].y) {
+                    DetPx tmp = all_pixels[i];
+                    all_pixels[i] = all_pixels[i + 1];
+                    all_pixels[i + 1] = tmp;
+                }
+            }
+            // Map to MARKER_WORLD canonical order NW NE W E SW SE.
+            // After spatial sort: indices [0,1]=left col, [2,3]=mid, [4,5]=right.
+            // World order (caller): NW(0) NE(1) W(2) E(3) SW(4) SE(5).
+            // Right col (pixels 4,5) → world 0,1 (NW, NE).
+            // Mid   col (pixels 2,3) → world 2,3 (W, E).
+            // Left  col (pixels 0,1) → world 4,5 (SW, SE).
+            const int img_idx[6] = {4, 5, 2, 3, 0, 1};
+            for (int w = 0; w < 6; ++w) {
+                pnp_img[2*w + 0] = all_pixels[img_idx[w]].x;
+                pnp_img[2*w + 1] = all_pixels[img_idx[w]].y;
+                pnp_wld[2*w + 0] = s_ctx.marker_world_n3[3*w + 0];
+                pnp_wld[2*w + 1] = s_ctx.marker_world_n3[3*w + 1];
+            }
+            pnp_n = 6;
+        } else {
+            // Fall through with associate-mapped pairs (less reliable
+            // but better than nothing for n<6).
+            for (int i = 0; i < all_n; ++i) {
+                int k = all_pixels[i].k;
+                pnp_img[2*pnp_n + 0] = all_pixels[i].x;
+                pnp_img[2*pnp_n + 1] = all_pixels[i].y;
+                pnp_wld[2*pnp_n + 0] = s_ctx.marker_world_n3[3*k + 0];
+                pnp_wld[2*pnp_n + 1] = s_ctx.marker_world_n3[3*k + 1];
+                ++pnp_n;
+            }
+        }
+        float drone_W[3] = {0,0,0};
+        int   drone_W_n = pnp_n;
+        if (pnp_n >= 4) {
+            float fx, fy, cx, cy;
+            sentai_aruco_get_intrinsics(&fx, &fy, &cx, &cy);
+            float R_w2c[9];
+            float reproj_max = 0.0f;
+            static int pnp_diag = 0;
+            if (pnp_diag++ < 3) {
+                fprintf(stderr, "[pnp_pairs] p=%d n=%d\n", p, pnp_n);
+                for (int i = 0; i < pnp_n; ++i) {
+                    fprintf(stderr,
+                        "  img=(%.1f,%.1f) wld=(%.3f,%.3f)\n",
+                        (double)pnp_img[2*i], (double)pnp_img[2*i+1],
+                        (double)pnp_wld[2*i], (double)pnp_wld[2*i+1]);
+                }
+            }
+            const int rc = sentai_coplanar_pnp(pnp_img, pnp_wld, pnp_n,
+                                                  fx, fy, cx, cy,
+                                                  drone_W, R_w2c,
+                                                  &reproj_max);
+            if (pnp_diag <= 3) {
+                fprintf(stderr,
+                    "[pnp_result] rc=%d drone_W=(%.3f,%.3f,%.3f) reproj=%.2f px\n",
+                    rc, (double)drone_W[0], (double)drone_W[1], (double)drone_W[2],
+                    (double)reproj_max);
+            }
+            if (rc != 0) { drone_W_n = 0; }
+            else {
+                drone_W[2] += s_ctx.marker_world_n3[2];
+            }
+        } else {
+            drone_W_n = 0;
         }
         if (drone_W_n == 0) continue;
-        const float inv_dn = 1.0f / (float)drone_W_n;
-        drone_W[0] *= inv_dn;
-        drone_W[1] *= inv_dn;
-        drone_W[2] *= inv_dn;
         fprintf(stderr,
             "[bringup_pose] p=%d drone_W=(%.3f,%.3f,%.3f) "
-            "ekf=(%.3f,%.3f,%.3f) yaw=%.3f n=%d\n",
+            "ekf=(%.3f,%.3f,%.3f) yaw=%.3f n=%d (pnp)\n",
             p, (double)drone_W[0], (double)drone_W[1], (double)drone_W[2],
             (double)(px*inv_pn), (double)(py*inv_pn), (double)(pz*inv_pn),
             (double)drone_yaw, drone_W_n);

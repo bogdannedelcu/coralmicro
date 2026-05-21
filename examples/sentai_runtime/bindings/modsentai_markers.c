@@ -217,6 +217,62 @@ static mp_obj_t markers_get_binary_(mp_obj_t buf_obj) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(markers_get_binary_obj, markers_get_binary_);
 
+// W21-T4d coplanar PnP — bench test entry from MP.
+extern int sentai_coplanar_pnp(const float* img_pts_xy_n2,
+                                  const float* world_pts_xy_n2,
+                                  int n,
+                                  float fx, float fy, float cx, float cy,
+                                  float cam_world_out[3],
+                                  float R_w2c_out[9],
+                                  float* reproj_max_px_out);
+static mp_obj_t markers_coplanar_pnp_(size_t n_args, const mp_obj_t* args) {
+    // args[0] = img_pts (list of (px,py) tuples)
+    // args[1] = world_pts (list of (Mx,My) tuples)
+    // args[2..5] = fx, fy, cx, cy
+    size_t n_img, n_wld;
+    mp_obj_t *img_items, *wld_items;
+    mp_obj_get_array(args[0], &n_img, &img_items);
+    mp_obj_get_array(args[1], &n_wld, &wld_items);
+    if (n_img != n_wld) mp_raise_ValueError(MP_ERROR_TEXT("img/world len mismatch"));
+    if (n_img < 4 || n_img > 16) mp_raise_ValueError(MP_ERROR_TEXT("n must be 4..16"));
+    float img[32], wld[32];
+    for (size_t i = 0; i < n_img; ++i) {
+        size_t k;
+        mp_obj_t *p;
+        mp_obj_get_array(img_items[i], &k, &p);
+        if (k < 2) mp_raise_ValueError(MP_ERROR_TEXT("img point must be 2-tuple"));
+        img[2*i + 0] = (float)mp_obj_get_float(p[0]);
+        img[2*i + 1] = (float)mp_obj_get_float(p[1]);
+        mp_obj_get_array(wld_items[i], &k, &p);
+        if (k < 2) mp_raise_ValueError(MP_ERROR_TEXT("world point must be 2-tuple"));
+        wld[2*i + 0] = (float)mp_obj_get_float(p[0]);
+        wld[2*i + 1] = (float)mp_obj_get_float(p[1]);
+    }
+    const float fx = mp_obj_get_float(args[2]);
+    const float fy = mp_obj_get_float(args[3]);
+    const float cx = mp_obj_get_float(args[4]);
+    const float cy = mp_obj_get_float(args[5]);
+    float cam[3], R[9], res = 0.0f;
+    const int rc = sentai_coplanar_pnp(img, wld, (int)n_img,
+                                          fx, fy, cx, cy, cam, R, &res);
+    if (rc != 0) return mp_const_none;
+    mp_obj_t out = mp_obj_new_dict(0);
+    mp_obj_t cam_tup[3] = {
+        mp_obj_new_float(cam[0]), mp_obj_new_float(cam[1]), mp_obj_new_float(cam[2]),
+    };
+    mp_obj_t R_tup[9];
+    for (int k = 0; k < 9; ++k) R_tup[k] = mp_obj_new_float(R[k]);
+    mp_obj_dict_store(out, MP_OBJ_NEW_QSTR(MP_QSTR_cam_world),
+                       mp_obj_new_tuple(3, cam_tup));
+    mp_obj_dict_store(out, MP_OBJ_NEW_QSTR(MP_QSTR_R_w2c),
+                       mp_obj_new_tuple(9, R_tup));
+    mp_obj_dict_store(out, MP_OBJ_NEW_QSTR(MP_QSTR_reproj_max_px),
+                       mp_obj_new_float(res));
+    return out;
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(markers_coplanar_pnp_obj, 6, 6,
+                                              markers_coplanar_pnp_);
+
 extern int sentai_whycon_dump_binary_pgm(const char* path);
 static mp_obj_t markers_dump_binary_pgm_(mp_obj_t path_obj) {
     const char* path = mp_obj_str_get_str(path_obj);
@@ -418,6 +474,7 @@ static const mp_rom_map_elem_t sentai_markers_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_detect_buffer),     MP_ROM_PTR(&markers_detect_buffer_obj) },
     { MP_ROM_QSTR(MP_QSTR_get_binary),        MP_ROM_PTR(&markers_get_binary_obj) },
     { MP_ROM_QSTR(MP_QSTR_dump_binary_pgm),   MP_ROM_PTR(&markers_dump_binary_pgm_obj) },
+    { MP_ROM_QSTR(MP_QSTR_coplanar_pnp),      MP_ROM_PTR(&markers_coplanar_pnp_obj) },
     { MP_ROM_QSTR(MP_QSTR_get_count),         MP_ROM_PTR(&markers_get_count_obj) },
     { MP_ROM_QSTR(MP_QSTR_get_pose),          MP_ROM_PTR(&markers_get_pose_obj) },
     { MP_ROM_QSTR(MP_QSTR_get_pose_tuple),    MP_ROM_PTR(&markers_get_pose_tuple_obj) },

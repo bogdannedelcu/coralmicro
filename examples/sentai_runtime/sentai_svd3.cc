@@ -272,3 +272,251 @@ extern "C" int sentai_kabsch_align(const float* a_xyz_n3,
 
     return 0;
 }
+
+// =========================================================================
+// W21-T4d — N-by-N symmetric Jacobi eigendecomposition.
+// =========================================================================
+// Same algorithm as sentai_jacobi_sym3 but generalised to N (capped at
+// 16).  Each sweep iterates through ALL upper-triangle entries (cyclic
+// Jacobi) instead of finding the single largest off-diagonal — for
+// N>3 cyclic-by-row is faster than scanning for the global max each
+// rotation.  Convergence: ~10-50 sweeps for N=9 in our DLT context.
+//
+// Caller's outputs are written even on early break (so the partial
+// decomposition is usable if the residual off-diagonal is acceptable).
+#define SENTAI_JACOBI_SYMN_MAX_N      16
+#define SENTAI_JACOBI_SYMN_MAX_SWEEPS 100
+#define SENTAI_JACOBI_SYMN_EPS        1e-9f
+
+extern "C" int sentai_jacobi_symN(float* A, int N, float* V, float* d) {
+    if (N < 2 || N > SENTAI_JACOBI_SYMN_MAX_N) return -1;
+    // Initialise V to identity.
+    for (int i = 0; i < N; ++i)
+        for (int j = 0; j < N; ++j)
+            V[i*N + j] = (i == j) ? 1.0f : 0.0f;
+
+    int converged = 0;
+    for (int sweep = 0; sweep < SENTAI_JACOBI_SYMN_MAX_SWEEPS; ++sweep) {
+        // Compute off-diagonal sum-of-squares (convergence test).
+        float off = 0.0f;
+        for (int p = 0; p < N - 1; ++p) {
+            for (int q = p + 1; q < N; ++q) {
+                const float apq = A[p*N + q];
+                off += apq * apq;
+            }
+        }
+        if (off < SENTAI_JACOBI_SYMN_EPS) { converged = 1; break; }
+
+        // Cyclic Jacobi: iterate all (p, q) pairs.
+        for (int p = 0; p < N - 1; ++p) {
+            for (int q = p + 1; q < N; ++q) {
+                const float apq = A[p*N + q];
+                if (fabsf(apq) < SENTAI_JACOBI_SYMN_EPS) continue;
+                const float app = A[p*N + p];
+                const float aqq = A[q*N + q];
+
+                // Givens rotation angle.
+                float t;
+                if (fabsf(aqq - app) < SENTAI_JACOBI_SYMN_EPS) {
+                    t = (apq >= 0.0f) ? 1.0f : -1.0f;
+                } else {
+                    const float theta = (aqq - app) / (2.0f * apq);
+                    if (theta >= 0.0f) {
+                        t = 1.0f / (theta + sqrtf(1.0f + theta * theta));
+                    } else {
+                        t = 1.0f / (theta - sqrtf(1.0f + theta * theta));
+                    }
+                }
+                const float c = 1.0f / sqrtf(1.0f + t * t);
+                const float s = t * c;
+
+                // Update A: rotate rows/cols p, q.
+                A[p*N + p] = app - t * apq;
+                A[q*N + q] = aqq + t * apq;
+                A[p*N + q] = 0.0f;
+                A[q*N + p] = 0.0f;
+                for (int k = 0; k < N; ++k) {
+                    if (k == p || k == q) continue;
+                    const float akp = A[k*N + p];
+                    const float akq = A[k*N + q];
+                    A[k*N + p] = c * akp - s * akq;
+                    A[k*N + q] = s * akp + c * akq;
+                    A[p*N + k] = A[k*N + p];
+                    A[q*N + k] = A[k*N + q];
+                }
+                // Update V (columns p, q).
+                for (int k = 0; k < N; ++k) {
+                    const float vkp = V[k*N + p];
+                    const float vkq = V[k*N + q];
+                    V[k*N + p] = c * vkp - s * vkq;
+                    V[k*N + q] = s * vkp + c * vkq;
+                }
+            }
+        }
+    }
+
+    // Extract eigenvalues from diagonal of (now-diagonal) A.
+    for (int i = 0; i < N; ++i) d[i] = A[i*N + i];
+
+    // Sort by |d| descending (so smallest |eigval| lands in slot N-1 —
+    // matches sentai_jacobi_sym3 convention; this is the null-space).
+    for (int i = 0; i < N - 1; ++i) {
+        int max_j = i;
+        for (int j = i + 1; j < N; ++j) {
+            if (fabsf(d[j]) > fabsf(d[max_j])) max_j = j;
+        }
+        if (max_j != i) {
+            float tmp = d[i]; d[i] = d[max_j]; d[max_j] = tmp;
+            // Swap columns i and max_j of V.
+            for (int k = 0; k < N; ++k) {
+                float v = V[k*N + i];
+                V[k*N + i] = V[k*N + max_j];
+                V[k*N + max_j] = v;
+            }
+        }
+    }
+    return converged ? 0 : -1;
+}
+
+// =========================================================================
+// W21-T4d — Coplanar multi-marker PnP via DLT homography + decomposition.
+// =========================================================================
+// Algorithm:
+//   1. For each (Mx, My) ↔ (px, py):
+//        row 2i:   [Mx, My, 1,  0,  0, 0,  -px*Mx, -px*My, -px]
+//        row 2i+1: [ 0,  0, 0, Mx, My, 1,  -py*Mx, -py*My, -py]
+//   2. A^T A is 9x9 symmetric.  Smallest-eigenvalue eigenvector of A^T A
+//      is the homography H (3x3) up to scale.
+//   3. M = K^-1 @ H; columns are [r1 r2 t] up to a scalar lambda.
+//      lambda = 1 / |m1|; sign chosen so t_z > 0.
+//   4. r3 = r1 × r2.  Orthonormalise R via 3x3 SVD (Procrustes).
+//   5. cam_world = -R^T @ t.
+// =========================================================================
+extern "C" int sentai_coplanar_pnp(const float* img_pts_xy_n2,
+                                     const float* world_pts_xy_n2,
+                                     int n,
+                                     float fx, float fy, float cx, float cy,
+                                     float cam_world_out[3],
+                                     float R_w2c_out[9],
+                                     float* reproj_max_px_out) {
+    if (n < 4 || n > SENTAI_JACOBI_SYMN_MAX_N) return -1;
+
+    // Build A^T A directly (avoid storing 2N x 9 A).
+    // A^T A = sum over rows of A: a_i a_i^T (outer product, accumulate).
+    float AtA[9 * 9] = {0};
+    for (int i = 0; i < n; ++i) {
+        const float Mx = world_pts_xy_n2[2*i + 0];
+        const float My = world_pts_xy_n2[2*i + 1];
+        const float px = img_pts_xy_n2[2*i + 0];
+        const float py = img_pts_xy_n2[2*i + 1];
+        // Two rows per correspondence.
+        const float row0[9] = {Mx, My, 1.0f,  0.0f, 0.0f, 0.0f,
+                                -px*Mx, -px*My, -px};
+        const float row1[9] = {0.0f, 0.0f, 0.0f,  Mx, My, 1.0f,
+                                -py*Mx, -py*My, -py};
+        for (int a = 0; a < 9; ++a) {
+            for (int b = 0; b < 9; ++b) {
+                AtA[a*9 + b] += row0[a] * row0[b] + row1[a] * row1[b];
+            }
+        }
+    }
+
+    // Eigendecompose A^T A: smallest eigenvalue's eigenvector = H.
+    float V[9 * 9];
+    float d[9];
+    int jrc = sentai_jacobi_symN(AtA, 9, V, d);
+    if (jrc != 0) return -1;
+    // Smallest |eigval| is in slot 8 (last) per the sort order.
+    float H[9];
+    for (int k = 0; k < 9; ++k) H[k] = V[k*9 + 8];
+
+    // M = K^-1 H.  K is upper-triangular so K^-1 is easy:
+    //   K^-1 = [[1/fx,  0,    -cx/fx],
+    //           [0,     1/fy, -cy/fy],
+    //           [0,     0,     1    ]]
+    const float inv_fx = 1.0f / fx;
+    const float inv_fy = 1.0f / fy;
+    float M[9];
+    for (int col = 0; col < 3; ++col) {
+        const float h0 = H[0*3 + col];
+        const float h1 = H[1*3 + col];
+        const float h2 = H[2*3 + col];
+        M[0*3 + col] = inv_fx * h0 - (cx * inv_fx) * h2;
+        M[1*3 + col] = inv_fy * h1 - (cy * inv_fy) * h2;
+        M[2*3 + col] = h2;
+    }
+
+    // Columns m1, m2, t.  Normalise so |m1| = 1.
+    const float m1x = M[0], m1y = M[3], m1z = M[6];
+    const float m1_norm = sqrtf(m1x*m1x + m1y*m1y + m1z*m1z);
+    if (m1_norm < 1e-9f) return -1;
+    float lam = 1.0f / m1_norm;
+
+    float r1[3] = { m1x*lam, m1y*lam, m1z*lam };
+    float r2[3] = { M[1]*lam, M[4]*lam, M[7]*lam };
+    float t[3]  = { M[2]*lam, M[5]*lam, M[8]*lam };
+
+    // Sign: ensure camera is ABOVE the marker plane (t_z > 0).
+    // t_z is the camera Z coord IN THE PLANE FRAME — must be > 0 for
+    // a physically meaningful solution.
+    if (t[2] < 0.0f) {
+        r1[0] = -r1[0]; r1[1] = -r1[1]; r1[2] = -r1[2];
+        r2[0] = -r2[0]; r2[1] = -r2[1]; r2[2] = -r2[2];
+        t[0]  = -t[0];  t[1]  = -t[1];  t[2]  = -t[2];
+    }
+    // r3 = r1 × r2.
+    float r3[3] = {
+        r1[1]*r2[2] - r1[2]*r2[1],
+        r1[2]*r2[0] - r1[0]*r2[2],
+        r1[0]*r2[1] - r1[1]*r2[0],
+    };
+
+    // Build R_world_to_cam = [r1 | r2 | r3] (column-major into row-major).
+    float R[9] = {
+        r1[0], r2[0], r3[0],
+        r1[1], r2[1], r3[1],
+        r1[2], r2[2], r3[2],
+    };
+
+    // Orthonormalise R via 3x3 SVD: R_ortho = U @ V^T (Procrustes).
+    float U[9], sv[3], Vt[9];
+    if (sentai_svd3(R, U, sv, Vt) != 0) return -1;
+    // R_ortho = U @ Vt.  Use sentai_mat3_mul.
+    float R_ortho[9];
+    sentai_mat3_mul(U, Vt, R_ortho);
+    // Reflection-safe: if det < 0, flip sign of U's last column.
+    if (sentai_mat3_det(R_ortho) < 0.0f) {
+        U[2] = -U[2]; U[5] = -U[5]; U[8] = -U[8];
+        sentai_mat3_mul(U, Vt, R_ortho);
+    }
+
+    // Copy R out.
+    for (int k = 0; k < 9; ++k) R_w2c_out[k] = R_ortho[k];
+
+    // cam_in_world = -R^T @ t.
+    cam_world_out[0] = -(R_ortho[0]*t[0] + R_ortho[3]*t[1] + R_ortho[6]*t[2]);
+    cam_world_out[1] = -(R_ortho[1]*t[0] + R_ortho[4]*t[1] + R_ortho[7]*t[2]);
+    cam_world_out[2] = -(R_ortho[2]*t[0] + R_ortho[5]*t[1] + R_ortho[8]*t[2]);
+
+    // Reproj residual (optional).
+    if (reproj_max_px_out) {
+        float max_r2 = 0.0f;
+        for (int i = 0; i < n; ++i) {
+            const float Mx = world_pts_xy_n2[2*i + 0];
+            const float My = world_pts_xy_n2[2*i + 1];
+            // pred = H @ [Mx, My, 1]
+            const float u = H[0]*Mx + H[1]*My + H[2];
+            const float v = H[3]*Mx + H[4]*My + H[5];
+            const float w = H[6]*Mx + H[7]*My + H[8];
+            if (fabsf(w) < 1e-9f) continue;
+            const float up = u / w;
+            const float vp = v / w;
+            const float du = up - img_pts_xy_n2[2*i + 0];
+            const float dv = vp - img_pts_xy_n2[2*i + 1];
+            const float r2 = du*du + dv*dv;
+            if (r2 > max_r2) max_r2 = r2;
+        }
+        *reproj_max_px_out = sqrtf(max_r2);
+    }
+    return 0;
+}
