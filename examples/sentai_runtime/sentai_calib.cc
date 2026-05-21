@@ -3,6 +3,8 @@
 
 #include "sentai_calib.h"
 
+#include "sentai_svd3.h"
+
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -45,238 +47,10 @@ const float SENTAI_CALIB_DEFAULT_R_SIM[9] = {
 const float SENTAI_CALIB_DEFAULT_CAM_OFFSET_SIM[3] = { -0.04f, 0.0f, -0.02f };
 
 // =========================================================================
-// Linear algebra helpers (3x3 only, hand-rolled — CMSIS-DSP overkill).
-// All matrices are row-major: M[i*3 + j] = M(row=i, col=j).
+// 3x3 lin-alg helpers + Jacobi/SVD live in sentai_svd3.{h,cc} (extracted
+// 2026-05-21 for OP-S10-W19-T6 reuse).  This file uses the sentai_*
+// namespaced API directly -- no local aliases.
 // =========================================================================
-static inline float det3(const float M[9]) {
-    return  M[0] * (M[4] * M[8] - M[5] * M[7])
-          - M[1] * (M[3] * M[8] - M[5] * M[6])
-          + M[2] * (M[3] * M[7] - M[4] * M[6]);
-}
-
-static void mat3_mul(const float A[9], const float B[9], float C[9]) {
-    float tmp[9];
-    for (int i = 0; i < 3; ++i) {
-        for (int j = 0; j < 3; ++j) {
-            float s = 0.0f;
-            for (int k = 0; k < 3; ++k) s += A[i*3 + k] * B[k*3 + j];
-            tmp[i*3 + j] = s;
-        }
-    }
-    memcpy(C, tmp, sizeof(tmp));
-}
-
-static void mat3_mul_T_left(const float A[9], const float B[9], float C[9]) {
-    // C = A^T * B
-    float tmp[9];
-    for (int i = 0; i < 3; ++i) {
-        for (int j = 0; j < 3; ++j) {
-            float s = 0.0f;
-            for (int k = 0; k < 3; ++k) s += A[k*3 + i] * B[k*3 + j];
-            tmp[i*3 + j] = s;
-        }
-    }
-    memcpy(C, tmp, sizeof(tmp));
-}
-
-static void mat3_transpose(const float A[9], float AT[9]) {
-    float tmp[9];
-    tmp[0] = A[0]; tmp[1] = A[3]; tmp[2] = A[6];
-    tmp[3] = A[1]; tmp[4] = A[4]; tmp[5] = A[7];
-    tmp[6] = A[2]; tmp[7] = A[5]; tmp[8] = A[8];
-    memcpy(AT, tmp, sizeof(tmp));
-}
-
-static void mat3_identity(float M[9]) {
-    M[0] = 1.0f; M[1] = 0.0f; M[2] = 0.0f;
-    M[3] = 0.0f; M[4] = 1.0f; M[5] = 0.0f;
-    M[6] = 0.0f; M[7] = 0.0f; M[8] = 1.0f;
-}
-
-static inline float vec3_dot(const float a[3], const float b[3]) {
-    return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-}
-
-static inline float vec3_norm(const float v[3]) {
-    return sqrtf(vec3_dot(v, v));
-}
-
-static inline void vec3_cross(const float a[3], const float b[3], float r[3]) {
-    r[0] = a[1] * b[2] - a[2] * b[1];
-    r[1] = a[2] * b[0] - a[0] * b[2];
-    r[2] = a[0] * b[1] - a[1] * b[0];
-}
-
-// =========================================================================
-// Jacobi eigen-decomposition of a 3x3 symmetric matrix.
-// On exit:  A_initial = V * diag(d) * V^T  (within JACOBI_EPS).
-// A is destroyed; V holds the eigenvectors as columns; d the eigenvalues.
-// Eigenpairs are sorted in DESCENDING order of |d| so the smallest σ²
-// lands in slot 2 — that is the position we apply the Kabsch sign flip.
-// =========================================================================
-static int jacobi_sym3(float A[9], float V[9], float d[3]) {
-    mat3_identity(V);
-
-    for (int sweep = 0; sweep < SENTAI_CALIB_JACOBI_MAX_SWEEPS; ++sweep) {
-        // Find the largest |off-diagonal|: (0,1), (0,2), (1,2).
-        float a01 = fabsf(A[0*3 + 1]);
-        float a02 = fabsf(A[0*3 + 2]);
-        float a12 = fabsf(A[1*3 + 2]);
-        int   p, q;
-        if (a01 >= a02 && a01 >= a12) { p = 0; q = 1; }
-        else if (a02 >= a12)          { p = 0; q = 2; }
-        else                          { p = 1; q = 2; }
-        const float apq = A[p*3 + q];
-        if (fabsf(apq) < SENTAI_CALIB_JACOBI_EPS) {
-            // Converged — off-diagonals are negligible.
-            break;
-        }
-
-        // Compute the Givens rotation (c, s) that zeroes A[p, q].
-        const float app = A[p*3 + p];
-        const float aqq = A[q*3 + q];
-        float t;
-        if (fabsf(aqq - app) < SENTAI_CALIB_JACOBI_EPS) {
-            // app == aqq: rotation is 45 degrees.
-            t = (apq >= 0.0f) ? 1.0f : -1.0f;
-        } else {
-            const float theta = (aqq - app) / (2.0f * apq);
-            float       sgn   = (theta >= 0.0f) ? 1.0f : -1.0f;
-            t = sgn / (fabsf(theta) + sqrtf(1.0f + theta * theta));
-        }
-        const float c = 1.0f / sqrtf(1.0f + t * t);
-        const float s = t * c;
-
-        // Apply: A -> G^T * A * G  (only rows/cols p, q change).
-        const float new_app = app - t * apq;
-        const float new_aqq = aqq + t * apq;
-        A[p*3 + p] = new_app;
-        A[q*3 + q] = new_aqq;
-        A[p*3 + q] = 0.0f;
-        A[q*3 + p] = 0.0f;
-
-        for (int r = 0; r < 3; ++r) {
-            if (r == p || r == q) continue;
-            const float arp = A[r*3 + p];
-            const float arq = A[r*3 + q];
-            const float new_arp = c * arp - s * arq;
-            const float new_arq = s * arp + c * arq;
-            A[r*3 + p] = new_arp;
-            A[p*3 + r] = new_arp;   // symmetry
-            A[r*3 + q] = new_arq;
-            A[q*3 + r] = new_arq;
-        }
-
-        // Update V (columns p, q rotate the same way).
-        for (int r = 0; r < 3; ++r) {
-            const float vrp = V[r*3 + p];
-            const float vrq = V[r*3 + q];
-            V[r*3 + p] = c * vrp - s * vrq;
-            V[r*3 + q] = s * vrp + c * vrq;
-        }
-    }
-
-    d[0] = A[0*3 + 0];
-    d[1] = A[1*3 + 1];
-    d[2] = A[2*3 + 2];
-
-    // Sort eigenpairs descending by |d_i|.  Swap helpers operate on
-    // column i of V (the eigenvector for d_i).
-    auto swap_pair = [](float V_[9], float d_[3], int i, int j) {
-        float td = d_[i]; d_[i] = d_[j]; d_[j] = td;
-        for (int r = 0; r < 3; ++r) {
-            float tv = V_[r*3 + i];
-            V_[r*3 + i] = V_[r*3 + j];
-            V_[r*3 + j] = tv;
-        }
-    };
-    if (fabsf(d[0]) < fabsf(d[1])) swap_pair(V, d, 0, 1);
-    if (fabsf(d[0]) < fabsf(d[2])) swap_pair(V, d, 0, 2);
-    if (fabsf(d[1]) < fabsf(d[2])) swap_pair(V, d, 1, 2);
-
-    // Sanity check: the largest |off-diagonal| must be below threshold.
-    const float a01 = fabsf(A[0*3 + 1]);
-    const float a02 = fabsf(A[0*3 + 2]);
-    const float a12 = fabsf(A[1*3 + 2]);
-    const float worst = (a01 > a02) ? ((a01 > a12) ? a01 : a12)
-                                    : ((a02 > a12) ? a02 : a12);
-    if (worst > 1e-3f * (fabsf(d[0]) + fabsf(d[1]) + fabsf(d[2]) + 1e-12f)) {
-        return -1;   // did not converge to tolerance
-    }
-    return 0;
-}
-
-// =========================================================================
-// SVD of a 3x3 matrix via H^T*H eigen-decomp.
-//   H = U * diag(s) * V^T
-// Caller receives U (3x3, row-major), s (3 floats, descending), Vt (3x3).
-// Handles degenerate (near-zero) singular values by deriving the
-// corresponding left singular vector as the cross product of the
-// other two, keeping det(U) positive.
-// =========================================================================
-static int svd3(const float H[9], float U[9], float s[3], float Vt[9]) {
-    // A = H^T * H  (3x3 symmetric).
-    float A[9];
-    mat3_mul_T_left(H, H, A);
-
-    float V[9];
-    float d[3];
-    if (jacobi_sym3(A, V, d) != 0) return -1;
-
-    // Singular values.
-    for (int i = 0; i < 3; ++i) {
-        if (d[i] < 0.0f) d[i] = 0.0f;   // numerical safety
-        s[i] = sqrtf(d[i]);
-    }
-
-    // U columns: u_i = H * v_i / s_i, with degeneracy handling.
-    int   zero_count = 0;
-    int   zero_idx   = -1;
-    const float s_max  = s[0];
-    const float s_tol  = (s_max > 1e-6f) ? (1e-6f * s_max) : 1e-9f;
-    for (int i = 0; i < 3; ++i) {
-        if (s[i] < s_tol) {
-            zero_count++;
-            zero_idx = i;
-            continue;
-        }
-        float v[3] = { V[0*3 + i], V[1*3 + i], V[2*3 + i] };
-        float u[3];
-        u[0] = H[0]*v[0] + H[1]*v[1] + H[2]*v[2];
-        u[1] = H[3]*v[0] + H[4]*v[1] + H[5]*v[2];
-        u[2] = H[6]*v[0] + H[7]*v[1] + H[8]*v[2];
-        const float inv = 1.0f / s[i];
-        U[0*3 + i] = u[0] * inv;
-        U[1*3 + i] = u[1] * inv;
-        U[2*3 + i] = u[2] * inv;
-    }
-    if (zero_count == 1) {
-        // Fill the missing column as the cross product of the other two
-        // (keeps U orthonormal; sign chosen to make det(U)=+1).
-        int i0 = (zero_idx + 1) % 3;
-        int i1 = (zero_idx + 2) % 3;
-        float u0[3] = { U[0*3 + i0], U[1*3 + i0], U[2*3 + i0] };
-        float u1[3] = { U[0*3 + i1], U[1*3 + i1], U[2*3 + i1] };
-        float cr[3];
-        vec3_cross(u0, u1, cr);
-        // det(U) = sign(cr_z) when columns ordered (i0, i1, zero_idx)
-        // becomes the orientation of the third column.  Match positive
-        // orientation for cyclic ordering (i0, i1, zero_idx) = parity ±1.
-        const int parity = ((zero_idx == 0) || (zero_idx == 2)) ? 1 : -1;
-        const float sgn = (parity > 0) ? 1.0f : -1.0f;
-        U[0*3 + zero_idx] = sgn * cr[0];
-        U[1*3 + zero_idx] = sgn * cr[1];
-        U[2*3 + zero_idx] = sgn * cr[2];
-    } else if (zero_count >= 2) {
-        // Severely degenerate (rank 0 or 1); fall back to identity to
-        // keep the contract that U is always orthonormal on return.
-        mat3_identity(U);
-    }
-
-    // Vt = V^T (V has eigenvectors as columns, Vt has them as rows).
-    mat3_transpose(V, Vt);
-    return 0;
-}
 
 // =========================================================================
 // Internal: yaw -> R_W_B (rotation about Z, body axes aligned with W
@@ -301,7 +75,7 @@ extern "C" float sentai_calib_rotation_angle_deg(const float R1[9],
                                                   const float R2[9]) {
     // M = R1^T * R2; angle = acos((tr(M) - 1) / 2)
     float M[9];
-    mat3_mul_T_left(R1, R2, M);
+    sentai_mat3_mul_AtB(R1, R2, M);
     float tr  = M[0] + M[4] + M[8];
     float cos_t = (tr - 1.0f) * 0.5f;
     if (cos_t > 1.0f) cos_t = 1.0f;
@@ -320,7 +94,7 @@ extern "C" int sentai_calib_run_kabsch(
 
     // Initialise outputs to identity + rejected state — any early return
     // leaves a defined state for the caller.
-    mat3_identity(R_out);
+    sentai_mat3_identity(R_out);
     q_out->n_samples                  = n;
     q_out->det_R                      = 1.0f;
     q_out->mean_residual_deg          = 180.0f;
@@ -404,7 +178,7 @@ extern "C" int sentai_calib_run_kabsch(
     }
 
     float U[9], s[3], Vt[9];
-    if (svd3(H, U, s, Vt) != 0) {
+    if (sentai_svd3(H, U, s, Vt) != 0) {
         q_out->reject_code = SENTAI_CALIB_REJ_SVD_NO_CV;
         return -SENTAI_CALIB_REJ_SVD_NO_CV;
     }
@@ -412,8 +186,8 @@ extern "C" int sentai_calib_run_kabsch(
     // d = sign(det(U * Vt)) — controls the reflection-vs-rotation flip
     // applied to the smallest singular value (column 2 after sorting).
     float UVt[9];
-    mat3_mul(U, Vt, UVt);
-    const float det_UVt = det3(UVt);
+    sentai_mat3_mul(U, Vt, UVt);
+    const float det_UVt = sentai_mat3_det(UVt);
     const float dflip   = (det_UVt >= 0.0f) ? 1.0f : -1.0f;
 
     // R = U * diag(1, 1, dflip) * Vt.
@@ -425,9 +199,9 @@ extern "C" int sentai_calib_run_kabsch(
     U2[2*3 + 2] *= dflip;
 
     float R[9];
-    mat3_mul(U2, Vt, R);
+    sentai_mat3_mul(U2, Vt, R);
     memcpy(R_out, R, sizeof(R));
-    const float det_R = det3(R);
+    const float det_R = sentai_mat3_det(R);
     q_out->det_R = det_R;
 
     // Residuals: per-sample angle between R*cam_i and body_i (uncentered).
@@ -454,10 +228,10 @@ extern "C" int sentai_calib_run_kabsch(
             R[3]*cam_raw[0] + R[4]*cam_raw[1] + R[5]*cam_raw[2],
             R[6]*cam_raw[0] + R[7]*cam_raw[1] + R[8]*cam_raw[2],
         };
-        const float na = vec3_norm(Rcam);
-        const float nb = vec3_norm(body_raw);
+        const float na = sentai_vec3_norm(Rcam);
+        const float nb = sentai_vec3_norm(body_raw);
         if (na < 1e-6f || nb < 1e-6f) continue;
-        float cos_t = vec3_dot(Rcam, body_raw) / (na * nb);
+        float cos_t = sentai_vec3_dot(Rcam, body_raw) / (na * nb);
         if (cos_t > 1.0f) cos_t = 1.0f;
         if (cos_t < -1.0f) cos_t = -1.0f;
         const float deg = acosf(cos_t) * 180.0f / (float)M_PI;

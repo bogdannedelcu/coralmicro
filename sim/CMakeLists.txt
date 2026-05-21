@@ -208,6 +208,10 @@ add_executable_sim(sentai_sim
     # math; SIM uses scalar fallback (no CMSIS-DSP).  Validated against
     # experiments/s131_lifter_replay/lifter_proto.py.
     ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_object_lifter.cc
+    # Shared 3x3 lin-alg + Jacobi/SVD + rigid-Kabsch aligner.  Extracted
+    # from sentai_calib.cc on 2026-05-21 for OP-S10-W19-T6 (sentai.markers
+    # multi-marker pose reuses it).  Pure float math, no platform deps.
+    ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_svd3.cc
     # ObjectsPlan OP-S6-W1 — sentai.calib (camera-to-body Kabsch).  Pure
     # float math; SIM build skips FxUser (HOST stdio fallback in .cc).
     ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_calib.cc

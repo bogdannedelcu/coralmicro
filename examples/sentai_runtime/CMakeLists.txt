@@ -207,6 +207,10 @@ add_executable_m7(sentai_runtime
     slam_task.cc
     sentai_servo.cc
     sentai_object_lifter.cc
+    # Shared 3x3 lin-alg + Jacobi/SVD + rigid-Kabsch aligner.
+    # Extracted from sentai_calib.cc on 2026-05-21 (OP-S10-W19-T6
+    # prerequisite — sentai.markers multi-marker pose reuses it).
+    sentai_svd3.cc
     # ObjectsPlan OP-S6-W1 — sentai.calib Kabsch.  ARM build enables
     # FxUser persistence via SENTAI_HAVE_FXUSER (set below); SIM build
     # falls back to host stdio in the cwd.  See Sim.md §2 rule 2 — we
