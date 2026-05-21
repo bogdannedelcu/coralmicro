@@ -177,6 +177,25 @@ static mp_obj_t markers_detect_from_camera_(void) {
 static MP_DEFINE_CONST_FUN_OBJ_0(markers_detect_from_camera_obj,
                                    markers_detect_from_camera_);
 
+// Bench-test entry point: run the active backend's detector on a
+// caller-supplied grayscale buffer.  Useful for replay / unit tests
+// without a live camera.
+static mp_obj_t markers_detect_buffer_(size_t n_args, const mp_obj_t* args) {
+    mp_buffer_info_t bi;
+    if (!mp_get_buffer(args[0], &bi, MP_BUFFER_READ)) {
+        mp_raise_TypeError(MP_ERROR_TEXT("gray must be bytes/bytearray"));
+    }
+    const int w = mp_obj_get_int(args[1]);
+    const int h = mp_obj_get_int(args[2]);
+    if ((size_t)w * (size_t)h > bi.len) {
+        mp_raise_ValueError(MP_ERROR_TEXT("gray too small for w*h"));
+    }
+    return mp_obj_new_int(
+        sentai_markers_detect_frame((const uint8_t*)bi.buf, w, h, 0, 0));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(markers_detect_buffer_obj, 3, 3,
+                                            markers_detect_buffer_);
+
 static mp_obj_t markers_get_count_(void) {
     return mp_obj_new_int(sentai_markers_get_count());
 }
@@ -367,6 +386,7 @@ static const mp_rom_map_elem_t sentai_markers_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_set_marker_size),   MP_ROM_PTR(&markers_set_marker_size_obj) },
     { MP_ROM_QSTR(MP_QSTR_detect_from_camera),
                                                 MP_ROM_PTR(&markers_detect_from_camera_obj) },
+    { MP_ROM_QSTR(MP_QSTR_detect_buffer),     MP_ROM_PTR(&markers_detect_buffer_obj) },
     { MP_ROM_QSTR(MP_QSTR_get_count),         MP_ROM_PTR(&markers_get_count_obj) },
     { MP_ROM_QSTR(MP_QSTR_get_pose),          MP_ROM_PTR(&markers_get_pose_obj) },
     { MP_ROM_QSTR(MP_QSTR_get_pose_tuple),    MP_ROM_PTR(&markers_get_pose_tuple_obj) },

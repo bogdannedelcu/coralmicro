@@ -2448,10 +2448,20 @@ static int s_whycon_concentric_check = 0;  // 0 = WhyCon-lite, 1 = full WhyCon
 // fill OR accept annulus by topology.  Decision: lower min_fill to
 // 0.40 to include annulus markers, then rely on min_area + W3 to
 // reject false positives.
-static int   s_whycon_min_area     = 100;    // pixels (≥ 11 px diameter blob)
+static int   s_whycon_min_area     = 40;     // s187 iter-20: was 100; lowered
+                                                // to ≥ 7 px diameter so partial
+                                                // /perspective-shrunken markers
+                                                // on a 6-marker pad still pass.
+                                                // World-floor texture noise is
+                                                // small enough that fill ratio
+                                                // + axis_ratio still filter it.
 static int   s_whycon_max_area     = 4000;   // pixels (~70 px diameter)
 static float s_whycon_min_fill     = 0.40f;  // annulus ≈ 0.50, disc ≈ 0.79
-static float s_whycon_max_bbox_ar  = 1.5f;   // bbox w/h ratio: circle ≈ 1.0
+static float s_whycon_max_bbox_ar  = 2.0f;   // bbox w/h ratio: circle ≈ 1.0
+                                              // (raised from 1.5 in s187 iter-21
+                                              // — perspective on a 6-marker pad
+                                              // can give 1.7 aspect for outer
+                                              // markers near image corner)
 static float s_whycon_max_axis_ratio = 2.0f; // a/b axis ratio: circle ≈ 1.0
 
 // W17-T5: Phase W3 concentric-validation knobs.  WhyCon markers
@@ -2647,6 +2657,14 @@ static void whycon_pnp_inplace_(sentai_whycon_marker_t* m) {
     m->rvec_cam[2] = 0.0f;
     m->reproj_err_px = 0.0f;
     m->pose_valid = 0;
+    static int diag_n = 0;
+    if (diag_n < 5) {
+        fprintf(stderr,
+            "[whycon_pnp] s_fx=%.2f s_fy=%.2f diam=%.4f axis_a=%.4f axis_b=%.4f\n",
+            (double)s_fx, (double)s_fy, (double)s_whycon_diameter_m,
+            (double)m->axis_a, (double)m->axis_b);
+        ++diag_n;
+    }
     if (s_fx <= 0.0f || s_fy <= 0.0f) return;
     if (s_whycon_diameter_m <= 0.0f) return;
     if (m->axis_a <= 0.001f) return;
@@ -2699,22 +2717,26 @@ static int whycon_filter_and_moments_(const uint8_t* gray,
     s_whycon_n_markers = 0;
     uint32_t cyc_w3  = 0;
     uint32_t cyc_pnp = 0;
+    static int filter_diag = 0;
+    int reject_border = 0, reject_min_area = 0, reject_max_area = 0;
+    int reject_ar = 0, reject_fill = 0, reject_axis = 0, reject_w3 = 0;
+    int accepted = 0;
     for (int ci = 0; ci < n_comp; ++ci) {
         if (s_whycon_n_markers >= SENTAI_WHYCON_MAX_DETS) break;
         const aruco_comp_t* c = &s_components[ci];
-        if (c->touches_border) continue;
-        if (c->n_pix < s_whycon_min_area) continue;
-        if (c->n_pix > s_whycon_max_area) continue;
+        if (c->touches_border) { ++reject_border; continue; }
+        if (c->n_pix < s_whycon_min_area) { ++reject_min_area; continue; }
+        if (c->n_pix > s_whycon_max_area) { ++reject_max_area; continue; }
         const int bw = c->x1 - c->x0 + 1;
         const int bh = c->y1 - c->y0 + 1;
         // bbox aspect — reject elongated rectangles.
         float ar = (bw > bh)
                      ? (float)bw / (float)bh
                      : (float)bh / (float)bw;
-        if (ar > s_whycon_max_bbox_ar) continue;
+        if (ar > s_whycon_max_bbox_ar) { ++reject_ar; continue; }
         // Fill ratio — reject hollow / sparse shapes.
         float fill = (float)c->n_pix / (float)(bw * bh);
-        if (fill < s_whycon_min_fill) continue;
+        if (fill < s_whycon_min_fill) { ++reject_fill; continue; }
 
         // OP-S10-W17-T2: 2nd-order moments are pre-accumulated by the
         // flood-fill in aruco_label_components, so this stage no longer
@@ -2735,9 +2757,9 @@ static int whycon_filter_and_moments_(const uint8_t* gray,
         const float l2   = tr * 0.5f - sq;
         const float a    = (l1 > 0.0f) ? 2.0f * __builtin_sqrtf(l1) : 0.0f;
         const float b    = (l2 > 0.0f) ? 2.0f * __builtin_sqrtf(l2) : 0.0f;
-        if (b < 0.001f) continue;
+        if (b < 0.001f) { ++reject_axis; continue; }
         const float ax_ratio = a / b;
-        if (ax_ratio > s_whycon_max_axis_ratio) continue;
+        if (ax_ratio > s_whycon_max_axis_ratio) { ++reject_axis; continue; }
         // Orientation of major axis.
         const float theta = 0.5f * __builtin_atan2f(2.0f * mu11, mu20 - mu02);
 
@@ -2749,9 +2771,10 @@ static int whycon_filter_and_moments_(const uint8_t* gray,
             const uint32_t t_w3_0 = aruco_dwt_cyc();
             const int accept = whycon_w3_check_(gray, W, H, cx, cy, bbox_R);
             cyc_w3 += aruco_dwt_cyc() - t_w3_0;
-            if (!accept) continue;
+            if (!accept) { ++reject_w3; continue; }
         }
 
+        ++accepted;
         sentai_whycon_marker_t* m = &s_whycon_markers[s_whycon_n_markers++];
         m->cx = cx; m->cy = cy;
         m->axis_a = a; m->axis_b = b; m->angle = theta;
@@ -2761,6 +2784,18 @@ static int whycon_filter_and_moments_(const uint8_t* gray,
         const uint32_t t_pnp_0 = aruco_dwt_cyc();
         whycon_pnp_inplace_(m);
         cyc_pnp += aruco_dwt_cyc() - t_pnp_0;
+    }
+    if (filter_diag++ < 3) {
+        fprintf(stderr,
+            "[whycon_filter] n_comp=%d accepted=%d  rejects: "
+            "border=%d min_area=%d max_area=%d ar=%d fill=%d axis=%d w3=%d "
+            "min_a=%d max_a=%d max_ar=%.2f min_fill=%.2f max_axis=%.2f\n",
+            n_comp, accepted,
+            reject_border, reject_min_area, reject_max_area,
+            reject_ar, reject_fill, reject_axis, reject_w3,
+            s_whycon_min_area, s_whycon_max_area,
+            (double)s_whycon_max_bbox_ar, (double)s_whycon_min_fill,
+            (double)s_whycon_max_axis_ratio);
     }
     s_whycon_t_w3  = cyc_w3;
     s_whycon_t_pnp = cyc_pnp;

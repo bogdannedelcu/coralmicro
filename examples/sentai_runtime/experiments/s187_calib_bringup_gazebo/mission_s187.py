@@ -23,10 +23,22 @@ import sentai
 JOURNAL_NAME = "mission_s187_journal.txt"
 SUMMARY_NAME = "mission_s187_summary.json"
 
-# ---- WhyCon pad geometry (must match SDF + s182 iter-11) -------------
+# ---- Flight Recorder channels (per [[op-s10-w13-shipped]] pattern).
+# On SIM, sentai.fr uses POSIX fopen with literal host paths.  The
+# "frames" channel captures the gray buffer alongside each
+# sentai_markers_detect_frame call (via sentai_fr_push_frame hook in
+# sentai_markers.cc:310).  Operator-suggested 2026-05-21 for s187 to
+# enable post-mortem replay of what the camera actually sees.
+FR_DIR           = ("/home/bogdan/work/coralmicro/examples/sentai_runtime/"
+                    "experiments/s187_calib_bringup_gazebo/fr_current")
+FR_FRAMES_DIR    = FR_DIR + "/frames"
+FR_EVENTS_FILE   = FR_DIR + "/events.csv"
+FR_SCALARS_FILE  = FR_DIR + "/scalars.csv"
+
+# ---- WhyCon pad geometry (must match sentai_whycon.sdf, iter-11 square).
 # 6 markers: 4 corners at ±0.16 m, 2 mid-bars at ±0.12 m, all at
 # z=0.005 (top of mount box).  Operator-specified square layout
-# 2026-05-21 (proportions 1:1:0.75 with unit 0.16 m).
+# (proportions 1:1:0.75 with unit 0.16 m).
 MARKER_WORLD = (
     (-0.16, +0.16, 0.005),
     (+0.16, +0.16, 0.005),
@@ -38,11 +50,11 @@ MARKER_WORLD = (
 
 # ---- Camera intrinsics — bridge downsamples to 320x240 -------------
 FX, FY, CX, CY     = 288.3, 288.3, 160.0, 120.0
-MARKER_DIAMETER_M  = 0.1088
+MARKER_DIAMETER_M  = 0.1088   # WhyCon outer ring
 
 # ---- Bringup envelope ------------------------------------------------
-Z_HOLD             = 0.78    # design-doc default
-SWEEP_RADIUS_M     = 0.10
+Z_HOLD             = 0.78    # baro drift over 14s SAMPLE phase < 0.1 m
+SWEEP_RADIUS_M     = 0.05    # small offset → markers stay near image center
 SETTLE_S           = 2.0
 VMAX_M_S           = 0.10
 DUR_RELAY_S        = 30.0
@@ -91,10 +103,16 @@ def _write_summary(summary):
 
 
 def _setup_markers():
+    # No set_marker_world here — the bringup orchestrator owns the
+    # registered-pad layout (passed via run_bringup arg) and does its
+    # own forward-projection-based detection→world association,
+    # independent of any mk.id field.  WhyCon multi-marker IDs are
+    # scan-order per frame and not stable, so direct ID lookup would
+    # fail; the orchestrator's spatial assoc handles that backend-
+    # agnostically.
     sentai.markers.init("whycon")
     sentai.markers.set_intrinsics(FX, FY, CX, CY)
     sentai.markers.set_marker_size(MARKER_DIAMETER_M)
-    sentai.markers.set_marker_world(MARKER_WORLD)
 
 
 def _poll_bringup(timeout_s):
@@ -119,7 +137,9 @@ def _poll_bringup(timeout_s):
 def run():
     """Operator entry point.  Returns a dict matching mission_s187_summary
     so the host run.sh can grep status without parsing journal lines."""
-    sentai.sim.journal_open("/tmp/s187_calib_bringup_gazebo/journal.txt")
+    # Journal path is resolved relative to FS_ROOT (per sim_fs_resolve);
+    # bare filename only — absolute paths fail the resolver.
+    sentai.sim.journal_open(JOURNAL_NAME)
     _j("mission_start", {"wbs": "OP-S10-W21-T4"})
 
     summary = {
@@ -139,28 +159,52 @@ def run():
         "ext_quality":    None,
     }
 
-    # ── Stack init ────────────────────────────────────────────────────
+    # ── Stack init (mirrors s182 robust sequence) ─────────────────────
     _j("setup", "start")
     try:
         sentai.calib.init()           # load /system/calib.ini if present
-        sentai.crazy.init()
-        sentai.crazy.pose_subscribe(50)
+        # Markers FIRST so detection backend is live before takeoff (s182).
         _setup_markers()
+        sentai.crazy.init()
     except Exception as e:
         _j("setup_fail", {"err": str(e)})
         summary["status"] = "SETUP_FAIL"
         _write_summary(summary); return summary
     _j("setup", "ok")
 
-    # ── Arm + takeoff ─────────────────────────────────────────────────
+    # ── Flight Recorder — open channels so detect_frame auto-saves
+    # gray buffers + per-tick scalars.  Operator-suggested for s187.
+    _j("fr_init",         {"rc": sentai.fr.init()})
+    _j("fr_open_frames",  {"rc": sentai.fr.open("frames",  FR_FRAMES_DIR)})
+    _j("fr_open_events",  {"rc": sentai.fr.open("events",  FR_EVENTS_FILE)})
+    _j("fr_open_scalars", {"rc": sentai.fr.open("scalars", FR_SCALARS_FILE)})
+    _j("fr_task_start",   {"rc": sentai.fr.task_start()})
+
+    # ── Arm + retry pose_subscribe + takeoff ─────────────────────────
+    # pose_subscribe at arm+300ms returns -3 (cf2 TOC not ready, 1-3s
+    # post-link).  Retry 30×200ms.  Pattern from s182 iter-5 (2026-05-20).
     _j("arm", "start")
     sentai.crazy.arm()
+    sentai.rtos.sleep_ms(300)
+    sub_rc = -3
+    for _try in range(30):
+        try:
+            sub_rc = sentai.crazy.pose_subscribe(50)
+        except (AttributeError, RuntimeError):
+            sub_rc = -99
+        if sub_rc == 0:
+            break
+        sentai.rtos.sleep_ms(200)
+    _j("pose_subscribe", {"rc": sub_rc, "tries": _try + 1})
     sentai.rtos.sleep_ms(500)
+
     _j("takeoff", {"z": Z_HOLD, "dur": TAKEOFF_DUR})
-    sentai.crazy.hl_takeoff(Z_HOLD, TAKEOFF_DUR)
-    sentai.rtos.sleep_ms(int((TAKEOFF_DUR + 1.0) * 1000))
+    sentai.crazy.takeoff(Z_HOLD, TAKEOFF_DUR)
+    # Long settle: takeoff_dur + 0.5s + 4s soak (s174/s182 pattern).
+    sentai.rtos.sleep_ms(int(TAKEOFF_DUR * 1000) + 500)
+    sentai.rtos.sleep_ms(4000)
+    _j("takeoff_settled", {})
     sentai.crazy.hl_stop()
-    # Pre-prime hover so cf2 doesn't drop on the first orchestrator tick.
     for _ in range(5):
         sentai.crazy.hover(0.0, 0.0, 0.0, Z_HOLD)
         sentai.rtos.sleep_ms(30)
@@ -190,7 +234,7 @@ def run():
         _j("bringup_fail", "spawn rc != 0")
         summary["status"] = "SPAWN_FAIL"
         # Land anyway — keep cf2 controlled.
-        sentai.crazy.hl_land(LAND_DUR)
+        sentai.crazy.land(LAND_DUR)
         sentai.rtos.sleep_ms(int((LAND_DUR + 1.0) * 1000))
         sentai.crazy.disarm()
         _write_summary(summary); return summary
@@ -236,7 +280,7 @@ def run():
 
     # ── Land + disarm ─────────────────────────────────────────────────
     _j("land", {"dur": LAND_DUR})
-    sentai.crazy.hl_land(LAND_DUR)
+    sentai.crazy.land(LAND_DUR)
     sentai.rtos.sleep_ms(int((LAND_DUR + 1.0) * 1000))
     sentai.crazy.disarm()
 

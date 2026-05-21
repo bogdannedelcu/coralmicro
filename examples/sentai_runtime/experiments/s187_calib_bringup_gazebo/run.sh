@@ -99,6 +99,12 @@ sleep 2
 
 # ---- 5. stage mission + run inside sentai_sim ------------------------
 mkdir -p "$FS_ROOT"
+# Pre-create FR output tree (mkdir_p in sentai_fr.cc is single-level).
+# FR persists inside the experiment folder so frames+scalars survive
+# in git as durable thesis artefacts.
+FR_DIR="$SCRIPT_DIR/fr_current"
+rm -rf "$FR_DIR"
+mkdir -p "$FR_DIR/frames"
 cp "$MISSION_SRC" "$FS_ROOT/mission_s187.py"
 echo "[s187] running mission inside sentai_sim (budget 240s)"
 (echo "import mission_s187; r = mission_s187.run(); print('FINAL:', r['status'])" \
@@ -114,7 +120,7 @@ distrobox enter crazysim-garden -- \
     2>/dev/null || true
 
 # ---- 7. snapshot artifacts + verdict ---------------------------------
-JOURNAL="/tmp/s187_calib_bringup_gazebo/journal.txt"
+JOURNAL="$FS_ROOT/mission_s187_journal.txt"
 SUMMARY="$FS_ROOT/mission_s187_summary.json"
 cp -f "$JOURNAL" "$SCRIPT_DIR/journal.txt" 2>/dev/null || true
 cp -f "$SUMMARY" "$SCRIPT_DIR/summary.json" 2>/dev/null || true

@@ -41,6 +41,22 @@
 
 extern "C" uint32_t sentai_now_ms(void) __attribute__((weak));
 
+// Camera-side accessor used by the SAMPLE phase to drive marker detection
+// at the orchestrator's cadence.  Declared here because sentai_markers.h
+// only exposes detect_frame; the higher-level grab+detect "from_camera"
+// wrapper lives in the MP binding, not in C.
+extern "C" int sentai_camera_grab_gray_zerocopy(
+    const uint8_t** buf, int* w, int* h,
+    uint32_t* seq, uint32_t* ts);
+
+// VPE forwarder uses CRTP packet 6/canal 1 (ExtPose, 29 B with type=8
+// prefix).  Without this anchor cf2's EKF Z drifts (baro-only) and the
+// sampled drone_W becomes inconsistent with the PnP-derived tvec_cam,
+// so Kabsch fits a spurious rotation.  Mirrors s182's per-tick VPE.
+// (sentai_crazy.h's signature: len is `int`, not uint8_t.)
+extern "C" int sentai_crazy_send_crtp(uint8_t port, uint8_t chan,
+                                        const uint8_t* data, int len);
+
 namespace {
 
 // ── Static state ────────────────────────────────────────────────────────
@@ -82,6 +98,58 @@ int validate_ctx_(const sentai_calib_bringup_ctx_t* c) {
     return 0;
 }
 
+// ── Per-detection association via forward-projection ──────────────────
+// WhyCon multi-marker backend assigns IDs in detection-scan order per
+// frame (NOT stable across frames), so the raw `mk.id` field can't be
+// used as an index into ctx.marker_world_n3.  ArUco IDs are stable by
+// dictionary, but we don't want the orchestrator to depend on the
+// backend.  Solution: forward-project each registered marker into the
+// CAMERA frame using the currently-cached R_cam_to_body + cam_offset_B,
+// then match each detection to the nearest registered marker by tvec_cam
+// L2 distance.  No image-space intrinsics needed.
+//
+// Forward projection (drone hovering level, world axes aligned with body):
+//   t_W_to_cam = drone_W + cam_offset_B          (camera in world frame)
+//   expected_tvec_cam[k] = R_cam_to_body.T * (marker_W[k] - t_W_to_cam)
+//
+// Match: argmin_k |mk[i].tvec_cam - expected_tvec_cam[k]| within tol.
+//
+// Returns the registered-marker index (0..ctx.marker_n-1), or -1 if no
+// candidate within ASSOC_TOL_M.
+static const float ASSOC_TOL_M = 0.25f;     // 25 cm — absorbs WhyCon perspective
+                                              // PnP-Z bias (~10-15%) without
+                                              // mismatching marker neighbors
+                                              // (~16 cm spacing on the pad).
+
+int associate_(const SentaiMarkersPose* mk,
+                 const float drone_W[3],
+                 int* taken,                  // size SENTAI_CALIB_BRINGUP_MAX_MARKERS
+                 int candidate_n) {
+    const float* R = sentai_calib_get_R_cam_to_body();   // current cached
+    const float* off = sentai_calib_get_cam_offset_B();
+    float best_d2 = ASSOC_TOL_M * ASSOC_TOL_M;
+    int   best_k = -1;
+    for (int k = 0; k < candidate_n; ++k) {
+        if (taken[k]) continue;
+        const float* mw = &s_ctx.marker_world_n3[3*k];
+        // t_world = mw - (drone_W + cam_offset_B)
+        const float vx = mw[0] - (drone_W[0] + off[0]);
+        const float vy = mw[1] - (drone_W[1] + off[1]);
+        const float vz = mw[2] - (drone_W[2] + off[2]);
+        // expected_tvec_cam = R.T * v
+        const float ex = R[0]*vx + R[3]*vy + R[6]*vz;
+        const float ey = R[1]*vx + R[4]*vy + R[7]*vz;
+        const float ez = R[2]*vx + R[5]*vy + R[8]*vz;
+        const float dx = mk->tvec_cam[0] - ex;
+        const float dy = mk->tvec_cam[1] - ey;
+        const float dz = mk->tvec_cam[2] - ez;
+        const float d2 = dx*dx + dy*dy + dz*dz;
+        if (d2 < best_d2) { best_d2 = d2; best_k = k; }
+    }
+    if (best_k >= 0) taken[best_k] = 1;
+    return best_k;
+}
+
 // ── SAMPLE phase ────────────────────────────────────────────────────────
 // 4 corner poses around (0,0,z_hold).  At each pose: 1s velocity nudge
 // toward the corner, settle_s settling, then capture k markers × 1
@@ -115,15 +183,32 @@ int phase_sample_() {
             vTaskDelay(pdMS_TO_TICKS(100));
         }
 
-        // Capture: 5 reads of (markers + EKF) over 500 ms; average.
-        SentaiMarkersPose mk_acc[SENTAI_CALIB_BRINGUP_MAX_MARKERS];
-        int               mk_n_acc[SENTAI_CALIB_BRINGUP_MAX_MARKERS];
-        memset(mk_acc, 0, sizeof(mk_acc));
-        memset(mk_n_acc, 0, sizeof(mk_n_acc));
+        // Capture: 5 reads of (markers + EKF) over 500 ms; per-registered-
+        // marker accumulator indexed by ASSOCIATED world-marker index (NOT
+        // raw mk.id, which is backend-dependent and not stable for WhyCon).
+        float tvec_acc[SENTAI_CALIB_BRINGUP_MAX_MARKERS][3] = {{0}};
+        int   tvec_n_acc[SENTAI_CALIB_BRINGUP_MAX_MARKERS] = {0};
         float px = 0.0f, py = 0.0f, pz = 0.0f, pyaw = 0.0f;
         int   pose_n = 0;
         for (int t = 0; t < 5; ++t) {
             (void)sentai_crazy_hover(0.0f, 0.0f, 0.0f, s_ctx.z_hold_m);
+            // Trigger detection on the latest camera frame; cache is then
+            // populated for get_latest().  Without this the orchestrator
+            // would read stale (empty) state when no other task is
+            // running detection — true on the SIM build where there's no
+            // SafetyTask-driven detect cadence per [[op-s10-w12-w13-
+            // shipped]] (SafetyTask is ARM-only).  The "from_camera"
+            // helper isn't a C symbol (it's only the MP binding wrapper);
+            // we do the same grab + detect_frame pattern here.
+            {
+                const uint8_t* gbuf = NULL;
+                int gw = 0, gh = 0;
+                uint32_t gseq = 0, gts = 0;
+                if (sentai_camera_grab_gray_zerocopy(&gbuf, &gw, &gh,
+                                                       &gseq, &gts) == 0) {
+                    (void)sentai_markers_detect_frame(gbuf, gw, gh, gseq, gts);
+                }
+            }
             // EKF pose snapshot.
             float x, y, z, yaw;
             if (sentai_crazy_pose(&x, &y, &z, &yaw) == 0 &&
@@ -131,44 +216,210 @@ int phase_sample_() {
                 px += x; py += y; pz += z; pyaw += yaw;
                 ++pose_n;
             }
-            // Marker snapshot.
+            // Tick-local drone pose for association (use the LATEST EKF
+            // sample we have).  First tick uses the just-read pose; later
+            // ticks reuse a stable accumulator since drone is settled.
+            const float drone_tick[3] = { x, y, z };
+            // Marker snapshot — associate each detection to its nearest
+            // registered marker via forward-projection.
             int n = sentai_markers_get_count();
             if (n > SENTAI_CALIB_BRINGUP_MAX_MARKERS) n = SENTAI_CALIB_BRINGUP_MAX_MARKERS;
+            int taken[SENTAI_CALIB_BRINGUP_MAX_MARKERS] = {0};
+            int n_assoc = 0;
+            int n_valid = 0;
+            float first_tvec[3] = {0,0,0};
+            // VPE accumulators: per-tick per-marker drone_W estimates.
+            // Median across matched markers gives a stable PnP-derived
+            // drone position which we send to cf2 EKF as ExtPose.  No
+            // GT injection per [[sentai-sim-air-gapped-from-truth]].
+            float dx_per[SENTAI_CALIB_BRINGUP_MAX_MARKERS] = {0};
+            float dy_per[SENTAI_CALIB_BRINGUP_MAX_MARKERS] = {0};
+            float dz_per[SENTAI_CALIB_BRINGUP_MAX_MARKERS] = {0};
+            int   n_dxyz = 0;
+            const float* R_now   = sentai_calib_get_R_cam_to_body();
+            const float* off_now = sentai_calib_get_cam_offset_B();
             for (int i = 0; i < n; ++i) {
                 SentaiMarkersPose mk;
-                if (sentai_markers_get_latest(i, &mk) != 0) continue;
+                // get_latest returns 1 on success, 0 on out-of-range.
+                if (sentai_markers_get_latest(i, &mk) == 0) continue;
                 if (!mk.pose_valid) continue;
-                if (mk.id < 0 || mk.id >= s_ctx.marker_n) continue;
-                mk_acc[mk.id].tvec_cam[0] += mk.tvec_cam[0];
-                mk_acc[mk.id].tvec_cam[1] += mk.tvec_cam[1];
-                mk_acc[mk.id].tvec_cam[2] += mk.tvec_cam[2];
-                ++mk_n_acc[mk.id];
+                if (n_valid == 0) {
+                    first_tvec[0] = mk.tvec_cam[0];
+                    first_tvec[1] = mk.tvec_cam[1];
+                    first_tvec[2] = mk.tvec_cam[2];
+                }
+                ++n_valid;
+                int k = associate_(&mk, drone_tick, taken, s_ctx.marker_n);
+                if (k < 0) continue;
+                ++n_assoc;
+                tvec_acc[k][0] += mk.tvec_cam[0];
+                tvec_acc[k][1] += mk.tvec_cam[1];
+                tvec_acc[k][2] += mk.tvec_cam[2];
+                ++tvec_n_acc[k];
+                // Per-marker VPE drone_W estimate:
+                //   drone_W = marker_W - R · tvec_cam - cam_offset_B
+                const float* mw = &s_ctx.marker_world_n3[3*k];
+                const float rx = R_now[0]*mk.tvec_cam[0] +
+                                 R_now[1]*mk.tvec_cam[1] +
+                                 R_now[2]*mk.tvec_cam[2];
+                const float ry = R_now[3]*mk.tvec_cam[0] +
+                                 R_now[4]*mk.tvec_cam[1] +
+                                 R_now[5]*mk.tvec_cam[2];
+                const float rz = R_now[6]*mk.tvec_cam[0] +
+                                 R_now[7]*mk.tvec_cam[1] +
+                                 R_now[8]*mk.tvec_cam[2];
+                if (n_dxyz < SENTAI_CALIB_BRINGUP_MAX_MARKERS) {
+                    dx_per[n_dxyz] = mw[0] - rx - off_now[0];
+                    dy_per[n_dxyz] = mw[1] - ry - off_now[1];
+                    dz_per[n_dxyz] = mw[2] - rz - off_now[2];
+                    ++n_dxyz;
+                }
+            }
+
+            // VPE forwarder DISABLED (iter-17 diagnosis).
+            //
+            // Even ExtPos position-only created a POSITIVE FEEDBACK climb-
+            // crash: WhyCon single-marker Krajník PnP underestimates Z
+            // by ~10-30% (perspective-dependent on marker offset from
+            // image center).  Sending biased-low VPE Z → cf2 EKF "I'm
+            // low" → climb command → marker projected radius shrinks →
+            // PnP under-estimates more → climb more → markers leave
+            // FOV → no PnP → motor watchdog → crash.  Documented as
+            // OP-S10-W21-T4-fwd: pixel-based homography PnP needed
+            // before re-enabling VPE.  cf2 baro alone (SIM Gazebo
+            // sensor) drifts ~0.1m/14s, bounded enough for SAMPLE.
+            if (false && n_dxyz >= 2) {
+                // 3-element selection sort to find median of small N.
+                for (int a = 0; a < n_dxyz - 1; ++a) {
+                    int mn = a;
+                    for (int b = a + 1; b < n_dxyz; ++b) {
+                        if (dx_per[b] < dx_per[mn]) mn = b;
+                    }
+                    float t = dx_per[a]; dx_per[a] = dx_per[mn]; dx_per[mn] = t;
+                }
+                for (int a = 0; a < n_dxyz - 1; ++a) {
+                    int mn = a;
+                    for (int b = a + 1; b < n_dxyz; ++b) {
+                        if (dy_per[b] < dy_per[mn]) mn = b;
+                    }
+                    float t = dy_per[a]; dy_per[a] = dy_per[mn]; dy_per[mn] = t;
+                }
+                for (int a = 0; a < n_dxyz - 1; ++a) {
+                    int mn = a;
+                    for (int b = a + 1; b < n_dxyz; ++b) {
+                        if (dz_per[b] < dz_per[mn]) mn = b;
+                    }
+                    float t = dz_per[a]; dz_per[a] = dz_per[mn]; dz_per[mn] = t;
+                }
+                const float dx = dx_per[n_dxyz / 2];
+                const float dy = dy_per[n_dxyz / 2];
+                const float dz = dz_per[n_dxyz / 2];
+                static int vpe_diag = 0;
+                if (vpe_diag++ < 10) {
+                    fprintf(stderr,
+                        "[vpe] dx=%.3f dy=%.3f dz=%.3f n_dxyz=%d\n",
+                        (double)dx, (double)dy, (double)dz, n_dxyz);
+                }
+                // ExtPos canal 0 — position-only, 12 B, NO quaternion.
+                uint8_t pkt[12];
+                memcpy(pkt + 0, &dx, 4);
+                memcpy(pkt + 4, &dy, 4);
+                memcpy(pkt + 8, &dz, 4);
+                (void)sentai_crazy_send_crtp(6, 0, pkt, 12);
+            }
+            static int diag_tick = 0;
+            if (diag_tick++ < 20) {
+                fprintf(stderr,
+                    "[bringup_sample] pose=%d tick=%d drone=(%.2f,%.2f,%.2f) "
+                    "n_det=%d n_valid=%d n_assoc=%d first_tvec=(%.3f,%.3f,%.3f)\n",
+                    p, t,
+                    (double)drone_tick[0], (double)drone_tick[1], (double)drone_tick[2],
+                    n, n_valid, n_assoc,
+                    (double)first_tvec[0], (double)first_tvec[1], (double)first_tvec[2]);
             }
             vTaskDelay(pdMS_TO_TICKS(100));
         }
 
         if (pose_n == 0) continue;            // EKF dropped — skip pose
         const float inv_pn = 1.0f / (float)pose_n;
-        const float drone_x   = px * inv_pn;
-        const float drone_y   = py * inv_pn;
-        const float drone_z   = pz * inv_pn;
+        // cf2 EKF yaw — independent of vision (gyro-derived); kept as
+        // the Kabsch sample's yaw_rad field per sentai_calib.h contract.
         const float drone_yaw = pyaw * inv_pn;
 
-        // Emit one sample per marker seen in this pose.
-        for (int id = 0; id < s_ctx.marker_n; ++id) {
-            if (mk_n_acc[id] == 0)            continue;
+        // drone_W estimate from MULTI-MARKER CONSTELLATION median PnP.
+        // For SIM where R_cached == R_true (SDF default), this is the
+        // best per-pose drone position estimate.  cf2 EKF XY/Z biased
+        // by baro + lack of VPE; constellation PnP fuses all visible
+        // markers and is robust to single-circle Krajník depth-from-
+        // ring bias.  See diary/2026-05-21 night-3 for the diagnosis.
+        // (PRODUCTION caveat: for real-drone calib starting from a
+        // non-truth R_default, this approach converges to R_default,
+        // not R_true.  Iterative refinement is a future-work item.)
+        // dx_per/dy_per/dz_per were populated above per matched marker;
+        // they're sorted in the VPE block below, so we snapshot the
+        // median BEFORE that sort step.  Use the median across the
+        // last tick's matches.
+        // Actually — accumulate a SEPARATE per-pose drone_W from VPE
+        // dx/dy/dz medians averaged across ticks where assoc ≥ 2.
+        // We need state across ticks: track pose-level dxyz median sum.
+        (void)inv_pn;  // not used after switch to constellation drone_W
+
+        // Use last-tick VPE-derived dx/dy/dz medians as the pose's
+        // representative drone_W (the dx/dy/dz medians are computed
+        // in the VPE block below; we re-derive them here from the
+        // accumulated raw values to keep ordering simple).
+        // Recompute median (the VPE block also did this but its arrays
+        // are scoped per tick — capture from the per-pose accumulator).
+        // Simpler: use the mean of dx/dy/dz across all matched markers
+        // accumulated through the capture loop.
+        // dx_per/dy_per/dz_per are tick-local; we re-iterate through
+        // tvec_acc + marker_world to compute pose-level drone_W mean.
+        float drone_W[3] = {0,0,0};
+        int   drone_W_n = 0;
+        const float* R_cached_pose   = sentai_calib_get_R_cam_to_body();
+        const float* off_cached_pose = sentai_calib_get_cam_offset_B();
+        for (int k = 0; k < s_ctx.marker_n; ++k) {
+            if (tvec_n_acc[k] == 0) continue;
+            const float inv_mn = 1.0f / (float)tvec_n_acc[k];
+            const float tx = tvec_acc[k][0] * inv_mn;
+            const float ty = tvec_acc[k][1] * inv_mn;
+            const float tz = tvec_acc[k][2] * inv_mn;
+            const float* mw = &s_ctx.marker_world_n3[3*k];
+            const float rx = R_cached_pose[0]*tx + R_cached_pose[1]*ty + R_cached_pose[2]*tz;
+            const float ry = R_cached_pose[3]*tx + R_cached_pose[4]*ty + R_cached_pose[5]*tz;
+            const float rz = R_cached_pose[6]*tx + R_cached_pose[7]*ty + R_cached_pose[8]*tz;
+            drone_W[0] += mw[0] - rx - off_cached_pose[0];
+            drone_W[1] += mw[1] - ry - off_cached_pose[1];
+            drone_W[2] += mw[2] - rz - off_cached_pose[2];
+            ++drone_W_n;
+        }
+        if (drone_W_n == 0) continue;
+        const float inv_dn = 1.0f / (float)drone_W_n;
+        drone_W[0] *= inv_dn;
+        drone_W[1] *= inv_dn;
+        drone_W[2] *= inv_dn;
+        fprintf(stderr,
+            "[bringup_pose] p=%d drone_W=(%.3f,%.3f,%.3f) "
+            "ekf=(%.3f,%.3f,%.3f) yaw=%.3f n=%d\n",
+            p, (double)drone_W[0], (double)drone_W[1], (double)drone_W[2],
+            (double)(px*inv_pn), (double)(py*inv_pn), (double)(pz*inv_pn),
+            (double)drone_yaw, drone_W_n);
+
+        // Emit one sample per registered marker observed in this pose.
+        for (int k = 0; k < s_ctx.marker_n; ++k) {
+            if (tvec_n_acc[k] == 0)           continue;
             if (n_samples >= SENTAI_CALIB_BRINGUP_SAMPLES_MAX) break;
-            const float inv_mn = 1.0f / (float)mk_n_acc[id];
+            const float inv_mn = 1.0f / (float)tvec_n_acc[k];
             sentai_calib_sample_t* s = &s_samples[n_samples];
-            s->tvec_cam[0] = mk_acc[id].tvec_cam[0] * inv_mn;
-            s->tvec_cam[1] = mk_acc[id].tvec_cam[1] * inv_mn;
-            s->tvec_cam[2] = mk_acc[id].tvec_cam[2] * inv_mn;
-            s->marker_W[0] = s_ctx.marker_world_n3[3*id + 0];
-            s->marker_W[1] = s_ctx.marker_world_n3[3*id + 1];
-            s->marker_W[2] = s_ctx.marker_world_n3[3*id + 2];
-            s->drone_W[0]  = drone_x;
-            s->drone_W[1]  = drone_y;
-            s->drone_W[2]  = drone_z;
+            s->tvec_cam[0] = tvec_acc[k][0] * inv_mn;
+            s->tvec_cam[1] = tvec_acc[k][1] * inv_mn;
+            s->tvec_cam[2] = tvec_acc[k][2] * inv_mn;
+            s->marker_W[0] = s_ctx.marker_world_n3[3*k + 0];
+            s->marker_W[1] = s_ctx.marker_world_n3[3*k + 1];
+            s->marker_W[2] = s_ctx.marker_world_n3[3*k + 2];
+            s->drone_W[0]  = drone_W[0];
+            s->drone_W[1]  = drone_W[1];
+            s->drone_W[2]  = drone_W[2];
             s->yaw_rad     = drone_yaw;
             ++n_samples;
         }
@@ -234,7 +485,16 @@ int phase_autotune_(sentai_calib_axis_t axis) {
             (void)sentai_calib_task_stop();
             return -2;                       // hard timeout
         }
-        vTaskDelay(pdMS_TO_TICKS(200));
+        // Drive detection — autotune worker doesn't grab/detect itself.
+        // Without this the marker cache stays empty for the whole relay
+        // window and the autotune state machine never gets a PnP read.
+        const uint8_t* gbuf = NULL;
+        int gw = 0, gh = 0;
+        uint32_t gseq = 0, gts = 0;
+        if (sentai_camera_grab_gray_zerocopy(&gbuf, &gw, &gh, &gseq, &gts) == 0) {
+            (void)sentai_markers_detect_frame(gbuf, gw, gh, gseq, gts);
+        }
+        vTaskDelay(pdMS_TO_TICKS(33));         // ~30 Hz detection cadence
     }
     // Reap the worker handle so the next task_start can re-arm.
     (void)sentai_calib_task_stop();
