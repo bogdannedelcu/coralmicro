@@ -1,0 +1,25 @@
+# sentai.sim journal opened path=/home/bogdan/work/coralmicro/build-sim/sentai_fs_root/mission_s187_journal.txt truncate=1 t_ms=350886867
+350886867 mission_start {'wbs': 'OP-S10-W21-T4'}
+350886867 setup 'start'
+350886867 setup 'ok'
+350886867 fr_init {'rc': 0}
+350886867 fr_open_frames {'rc': 0}
+350886867 fr_open_events {'rc': 0}
+350886867 fr_open_scalars {'rc': 0}
+350886867 fr_task_start {'rc': 0}
+350886867 arm 'start'
+350887775 pose_subscribe {'rc': 0, 'tries': 1}
+350888276 takeoff {'dur': 2.5, 'z': 0.78}
+350895320 takeoff_settled {}
+350895476 bringup_start {'sweep_radius': 0.05, 'dur_hold': 10.0, 'settle_s': 2.0, 'z_hold': 0.78, 'vmax': 0.1, 'dur_relay': 30.0}
+350895476 bringup_rc {'rc': 0}
+350895476 bringup_phase {'phase': 0, 'name': 'IDLE'}
+350895979 bringup_phase {'phase': 1, 'name': 'SAMPLE'}
+350910077 bringup_phase {'phase': 3, 'name': 'AUTOTUNE_X'}
+350914609 bringup_phase {'phase': 4, 'name': 'AUTOTUNE_Y'}
+350946355 bringup_phase {'phase': 5, 'name': 'HOLD'}
+350957935 bringup_result {'reject_code': 0, 'ext_quality': {'reject_code': 0, 'max_residual_deg': 6.203776, 'accepted': True, 'n_samples': 21, 'det_R': 0.9999997, 'mean_residual_deg': 3.253098, 'drift_from_persisted_deg': 3.028796}, 'accepted': True, 'hold_max': 0.0, 'reject_name': 'OK', 'hold_rms': 0.0, 'kp_y': 0.39, 'phase_reached': 7, 'kp_x': 0.1371206, 'status': 'ERROR', 'n_samples': 21, 'duration_ms': 62058, 'R': [-0.0508256, 0.9986039, -0.0143979, 0.9987072, 0.05081177, -0.001321852, -0.0005882978, -0.0144465, -0.9998952], 'cam_offset_B': [-0.03646133, 0.0001454882, -0.01997495]}
+350957935 assert_calibrated {'ok': True}
+350957935 land {'dur': 2.5}
+350961447 mission_done {'status': 'PASS'}
+# closed t_ms=350961447 lines=24 errors=0

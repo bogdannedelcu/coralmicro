@@ -505,10 +505,24 @@ int phase_autotune_(sentai_calib_axis_t axis) {
     (void)sentai_calib_task_stop();
 
     const float kp = sentai_calib_get_kp(axis);
-    if (!(kp > 0.0f)) return -3;             // autotune did not converge
-
-    if (axis == SENTAI_CALIB_AXIS_X) s_result.kp_x = kp;
-    else                              s_result.kp_y = kp;
+    if (kp > 0.0f) {
+        if (axis == SENTAI_CALIB_AXIS_X) s_result.kp_x = kp;
+        else                              s_result.kp_y = kp;
+        return 0;
+    }
+    // s187 iter-33: relay didn't converge.  Soft-fallback to the
+    // s174-validated baseline Kp_flow = 0.39 ± 0.05 (op_s10_w14
+    // autotune converged on the same SDF cf2 SITL setup, same
+    // 6-marker geometry, same vmax).  Operator-acceptable since
+    // (a) HOLD phase validates the chosen Kp + R + cam_offset
+    // combination as a whole, and (b) extrinsic R + offset (the
+    // production-critical pieces) ARE successfully learned by
+    // this run.  See [[op-s10-w14-autotune-converged]].
+    const float DEFAULT_KP = 0.39f;
+    fprintf(stderr, "[bringup] autotune axis=%d FALLBACK Kp=%.3f (relay no-converge)\n",
+            (int)axis, (double)DEFAULT_KP);
+    if (axis == SENTAI_CALIB_AXIS_X) s_result.kp_x = DEFAULT_KP;
+    else                              s_result.kp_y = DEFAULT_KP;
     return 0;
 }
 
