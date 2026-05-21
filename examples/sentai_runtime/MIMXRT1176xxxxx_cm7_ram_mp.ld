@@ -471,6 +471,23 @@ SECTIONS
      *modsentai_fr.c.obj(.text .text*)
      *modsentai_fr.c.obj(.data .data*)
      *modsentai_fr.c.obj(.rodata .rodata*)
+     /* OP-S10-W19-T1 (2026-05-20) + W19-T6b (2026-05-21): sentai.markers
+        dispatcher and drone-pose Kabsch recovery.  Per-frame work is the
+        backend detector (already routed via sentai_aruco/sentai_whycon
+        objs); this dispatcher does only struct translation + the
+        permutation-search Kabsch (cold, ~5-10 Hz, ~36 ms worst case at
+        N=6).  .sdram_text per [[itcm-budget]]. */
+     *sentai_markers.cc.obj(.text .text*)
+     *sentai_markers.cc.obj(.data .data*)
+     *sentai_markers.cc.obj(.rodata .rodata*)
+     /* OP-S10-W20 (2026-05-21): shared 3x3 lin-alg + Jacobi/SVD/Kabsch.
+        Used by sentai_calib (one-shot per takeoff, ~50 us) and
+        sentai_markers (per-frame drone-pose recovery, ~50-80 us per
+        Kabsch call).  Neither caller is a hot ISR path, so the whole
+        module goes to .sdram_text. */
+     *sentai_svd3.cc.obj(.text .text*)
+     *sentai_svd3.cc.obj(.data .data*)
+     *sentai_svd3.cc.obj(.rodata .rodata*)
      __sentai_slow_end = .;
      . = ALIGN(4);
   } > m_sdram

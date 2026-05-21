@@ -57,6 +57,12 @@ extern uint32_t sentai_markers_detect_cyc_last(void);
 extern int      sentai_markers_synth_one_whycon(int cx_px, int cy_px,
                                                   int radius_px);
 
+extern int      sentai_markers_set_marker_world(int n, const float* xyz_n3);
+extern int      sentai_markers_get_marker_world_count(void);
+extern int      sentai_markers_get_drone_pose(float cf2_yaw_rad,
+                                                SentaiMarkersDronePose* out);
+extern int      sentai_markers_test_inject_obs(int n, const float* tvec_n3);
+
 extern int sentai_camera_grab_gray_zerocopy(const uint8_t** out_buf,
                                               int* out_w, int* out_h,
                                               uint32_t* out_seq,
@@ -253,6 +259,97 @@ static mp_obj_t markers_synth_one_whycon_(size_t n_args, const mp_obj_t* args) {
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(markers_synth_one_whycon_obj,
                                              3, 3, markers_synth_one_whycon_);
 
+// W19-T6b: drone-pose recovery (Kabsch + yaw-anchor).
+// sentai.markers.set_marker_world(xyz_buf) where xyz_buf is a bytes /
+// bytearray containing 3 * N float32 values (row-major, N markers).
+// N is inferred from the buffer length; pass an empty buffer to clear.
+static mp_obj_t markers_set_marker_world_(mp_obj_t buf_obj) {
+    mp_buffer_info_t bi;
+    if (!mp_get_buffer(buf_obj, &bi, MP_BUFFER_READ)) {
+        mp_raise_TypeError(MP_ERROR_TEXT(
+            "xyz_buf must be bytes/bytearray of N*12 bytes"));
+    }
+    const size_t bytes_per_marker = 3 * sizeof(float);
+    if (bi.len % bytes_per_marker != 0) {
+        mp_raise_ValueError(MP_ERROR_TEXT(
+            "xyz_buf len must be multiple of 12 (3 float32 per marker)"));
+    }
+    const int n = (int)(bi.len / bytes_per_marker);
+    return mp_obj_new_int(
+        sentai_markers_set_marker_world(n, (const float*)bi.buf));
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(markers_set_marker_world_obj,
+                                   markers_set_marker_world_);
+
+static mp_obj_t markers_get_marker_world_count_(void) {
+    return mp_obj_new_int(sentai_markers_get_marker_world_count());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(markers_get_marker_world_count_obj,
+                                   markers_get_marker_world_count_);
+
+static mp_obj_t markers_get_drone_pose_(mp_obj_t yaw_obj, mp_obj_t buf_obj) {
+    const float yaw = (float)mp_obj_get_float(yaw_obj);
+    mp_buffer_info_t bi;
+    if (!mp_get_buffer(buf_obj, &bi, MP_BUFFER_WRITE)) {
+        mp_raise_TypeError(MP_ERROR_TEXT(
+            "out_buf must be writable bytearray(28)"));
+    }
+    if (bi.len < (mp_int_t)sizeof(SentaiMarkersDronePose)) {
+        mp_raise_ValueError(MP_ERROR_TEXT("out_buf too small (need 28)"));
+    }
+    return mp_obj_new_int(
+        sentai_markers_get_drone_pose(yaw, (SentaiMarkersDronePose*)bi.buf));
+}
+static MP_DEFINE_CONST_FUN_OBJ_2(markers_get_drone_pose_obj,
+                                   markers_get_drone_pose_);
+
+// SIM-convenience tuple variant for embed REPL (no bytearray builtin).
+// Returns (ok, x, y, z, yaw_rad, res_max, n_used, flip_x, flip_y, flip_z)
+// or None if no fit was produced.
+static mp_obj_t markers_get_drone_pose_tuple_(mp_obj_t yaw_obj) {
+    const float yaw = (float)mp_obj_get_float(yaw_obj);
+    SentaiMarkersDronePose p;
+    if (!sentai_markers_get_drone_pose(yaw, &p)) {
+        return mp_const_none;
+    }
+    mp_obj_t t[9] = {
+        mp_obj_new_float(p.x),
+        mp_obj_new_float(p.y),
+        mp_obj_new_float(p.z),
+        mp_obj_new_float(p.yaw_rad),
+        mp_obj_new_float(p.res_max),
+        mp_obj_new_int(p.n_used),
+        mp_obj_new_int(p.flip_x),
+        mp_obj_new_int(p.flip_y),
+        mp_obj_new_int(p.flip_z),
+    };
+    return mp_obj_new_tuple(9, t);
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(markers_get_drone_pose_tuple_obj,
+                                   markers_get_drone_pose_tuple_);
+
+// Test-only: inject synthetic body-frame tvecs into the marker cache.
+// Used by s184 to validate the Kabsch+yaw-anchor pipeline against
+// analytic ground truth.  buf is bytes/bytearray of N*12 bytes (3 *
+// float32 per marker).
+static mp_obj_t markers_test_inject_obs_(mp_obj_t buf_obj) {
+    mp_buffer_info_t bi;
+    if (!mp_get_buffer(buf_obj, &bi, MP_BUFFER_READ)) {
+        mp_raise_TypeError(MP_ERROR_TEXT(
+            "tvec_buf must be bytes/bytearray of N*12 bytes"));
+    }
+    const size_t bytes_per = 3 * sizeof(float);
+    if (bi.len % bytes_per != 0) {
+        mp_raise_ValueError(MP_ERROR_TEXT(
+            "tvec_buf len must be multiple of 12 (3 float32 per marker)"));
+    }
+    const int n = (int)(bi.len / bytes_per);
+    return mp_obj_new_int(
+        sentai_markers_test_inject_obs(n, (const float*)bi.buf));
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(markers_test_inject_obs_obj,
+                                   markers_test_inject_obs_);
+
 // =====================================================================
 // Module table.
 // =====================================================================
@@ -276,6 +373,13 @@ static const mp_rom_map_elem_t sentai_markers_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_get_stats),         MP_ROM_PTR(&markers_get_stats_obj) },
     { MP_ROM_QSTR(MP_QSTR_detect_cyc_last),   MP_ROM_PTR(&markers_detect_cyc_last_obj) },
     { MP_ROM_QSTR(MP_QSTR_synth_one_whycon),  MP_ROM_PTR(&markers_synth_one_whycon_obj) },
+    { MP_ROM_QSTR(MP_QSTR_set_marker_world),  MP_ROM_PTR(&markers_set_marker_world_obj) },
+    { MP_ROM_QSTR(MP_QSTR_get_marker_world_count),
+                                                MP_ROM_PTR(&markers_get_marker_world_count_obj) },
+    { MP_ROM_QSTR(MP_QSTR_get_drone_pose),     MP_ROM_PTR(&markers_get_drone_pose_obj) },
+    { MP_ROM_QSTR(MP_QSTR_get_drone_pose_tuple),
+                                                MP_ROM_PTR(&markers_get_drone_pose_tuple_obj) },
+    { MP_ROM_QSTR(MP_QSTR_test_inject_obs),    MP_ROM_PTR(&markers_test_inject_obs_obj) },
 };
 static MP_DEFINE_CONST_DICT(sentai_markers_globals, sentai_markers_globals_table);
 

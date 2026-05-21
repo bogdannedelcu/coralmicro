@@ -81,14 +81,49 @@ typedef struct {
     uint8_t  _pad[3];
 } SentaiMarkersStats;
 
+// =====================================================================
+// W19-T6b: drone-pose recovery from multi-marker Kabsch + yaw-anchor.
+//
+// Sits on top of sentai_kabsch_align (libs/.../sentai_svd3.h).  The
+// mission registers known world-frame marker positions once via
+// set_marker_world, then per-frame calls get_drone_pose(cf2_yaw) to
+// recover the drone's pose in world frame.  The picker tries all P(N,K)
+// permutations to find the best assignment of K observed markers to N
+// registered ones, applies a Z-plane reflection if the unconstrained
+// Kabsch put the drone below the marker plane, then applies the yaw-
+// anchored sign-of-diagonal X/Y flip from memory entry
+// `feedback_yaw_anchor_mirror_picker.md` to disambiguate the N-fold
+// rotational symmetry that symmetric pads exhibit.
+//
+// Tvec source: post-T5 cam extrinsics are applied to s_cache[*].tvec_cam
+// at the marker-detection step, so the cached tvecs are already in
+// BODY frame.  Kabsch fits BODY -> WORLD, t is drone position in world.
+// =====================================================================
+typedef struct {
+    float    x, y, z;       // drone position in world frame (m), NaN if invalid
+    float    yaw_rad;       // recovered yaw (atan2(R[3], R[0])), radians
+    float    res_max;       // worst per-marker residual (m)
+    int32_t  n_used;        // markers fused (>= 3 for valid fit, 0 otherwise)
+    uint8_t  flip_x;        // 1 if yaw-anchor disambiguator flipped X
+    uint8_t  flip_y;        // 1 if it flipped Y
+    uint8_t  flip_z;        // 1 if Z-plane reflection kicked in
+    uint8_t  _pad;
+} SentaiMarkersDronePose;
+
 #ifdef __cplusplus
 // Compile-time ABI guards.  When this changes, the MP binding's
 // mirror typedefs MUST be updated in lockstep.
-static_assert(sizeof(SentaiMarkersPose)  == 48,
-              "SentaiMarkersPose ABI broken — update modsentai_markers.c too");
-static_assert(sizeof(SentaiMarkersStats) == 20,
-              "SentaiMarkersStats ABI broken — update modsentai_markers.c too");
+static_assert(sizeof(SentaiMarkersPose)      == 48,
+              "SentaiMarkersPose ABI broken -- update modsentai_markers.c too");
+static_assert(sizeof(SentaiMarkersStats)     == 20,
+              "SentaiMarkersStats ABI broken -- update modsentai_markers.c too");
+static_assert(sizeof(SentaiMarkersDronePose) == 28,
+              "SentaiMarkersDronePose ABI broken -- update modsentai_markers.c too");
 #endif
+
+// Upper bound for registered world markers (P(N,K) permutation search
+// at N=8: 8! = 40320, ~2 s on M7 - so 8 is the practical ceiling here).
+#define SENTAI_MARKERS_MAX_WORLD  8
 
 // =====================================================================
 // Lifecycle.
@@ -193,6 +228,30 @@ int  sentai_markers_get_stats(SentaiMarkersStats* out);
 // returns the latest pose snapshot directly, without re-running
 // detection.  Same buffer convention as get_pose.
 int  sentai_markers_get_latest(int i, SentaiMarkersPose* out);
+
+// =====================================================================
+// W19-T6b: drone-pose recovery (see SentaiMarkersDronePose).
+// =====================================================================
+
+// Register N marker world-frame positions.  xyz_n3 is a flat
+// N*3-floats array (row-major: marker i at xyz_n3[3*i + {0,1,2}]).
+// Returns 0 on success, -1 if n is out of range or xyz_n3 is NULL.
+// Calling with n=0 clears the registry.
+int  sentai_markers_set_marker_world(int n, const float* xyz_n3);
+
+// Number of currently-registered world markers.
+int  sentai_markers_get_marker_world_count(void);
+
+// Per-frame drone pose recovery.  Runs Kabsch with permutation
+// assignment search on the cached observations (body-frame tvecs)
+// vs the registered world markers, applies Z-plane reflection
+// (coplanar-pad safety) and the yaw-anchored X/Y mirror flip.
+// cf2_yaw_rad is the body-frame yaw from cf2's EKF (CRTP LOG); it
+// MUST be independent of the marker observations themselves.
+// Returns 1 on success, 0 if n_obs < 3 or no world markers
+// registered (out is left untouched on failure).
+int  sentai_markers_get_drone_pose(float cf2_yaw_rad,
+                                   SentaiMarkersDronePose* out);
 
 // =====================================================================
 // Diagnostics — used by W17 perf-instrumentation paths.

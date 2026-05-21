@@ -150,6 +150,38 @@ OP — ObjectsPlan thesis
 │   ├── OP-S10-W8 — L7 indoor integrated demo (§23.1 north star) ⬜ TODO
 │   ├── OP-S10-W9 — Outdoor PX4 experiments (2-3 runs)           ⬜ TODO
 │   ├── OP-S10-W10 — Evaluation chapter writeup                  ⬜ TODO
+│   │   ├── OP-S10-W10-T1 — Positioning vs ROS2                  ⬜ TODO (defense narrative, 2026-05-21)
+│   │   │   Frame the thesis engineering against ROS2 (rclcpp / DDS /
+│   │   │   nav2 / message_filters / TF2 / launch).  Defense committee
+│   │   │   will ask "why not just ROS2?" — we must answer crisply.
+│   │   │   Angles:
+│   │   │     (a) MCU-class target (RT1176, 800 MHz, 32 MB SDRAM, no
+│   │   │         MMU, no Linux) — ROS2 client libs need a POSIX OS
+│   │   │         with shared memory + DDS discovery; closest fit is
+│   │   │         micro-ROS, which still pulls in 200 KB+ rmw / XRCE-
+│   │   │         DDS and gives no compute primitives (PXP, CMSIS-DSP,
+│   │   │         CSI ISR routing, etc).  We're an order of magnitude
+│   │   │         below micro-ROS's bring-up footprint.
+│   │   │     (b) Air-gap discipline ([[sentai-sim-air-gapped-from-truth]])
+│   │   │         — ROS2 conflates "topic" + "service" + "GT replay"
+│   │   │         on the same bus; our SIM and ARM share zero IPC, so
+│   │   │         GT poisoning is structurally impossible.  Defensible
+│   │   │         claim against a ROS-trained committee.
+│   │   │     (c) Hot-path discipline (.ramfunc + ITCM placement, SIMD
+│   │   │         inner loops, cycle-counted SLOT pipeline) — ROS2's
+│   │   │         executor / callback queue / DDS heap allocation
+│   │   │         pattern is incompatible with hard-real-time CSI ISR
+│   │   │         hooks.  Numbers: flow SAD 1 ms M7 SIMD vs ROS2 pub-
+│   │   │         sub round-trip 100 µs+ on Linux x86.
+│   │   │     (d) Where we DID adopt ROS conventions: REP-103 frame
+│   │   │         IDs (body / camera_link / world), Rodrigues / quat
+│   │   │         conventions, sentai.markers tvec_body semantics.
+│   │   │         Defensive — committee can map our work onto their
+│   │   │         mental model without translation tax.
+│   │   │   Output: 1-2 page subsection in evaluation chapter +
+│   │   │   single-slide table for defense.  Cite micro-ROS papers (Belsare
+│   │   │   et al. 2023, Casini et al. 2022 executor analysis).
+│   │   │   Drives discussion of FW item "ROS2 bridge over CRTP" if any.
 │   ├── OP-S10-W11 — sentai_prep frame slot pipeline              🟡 IN PROGRESS (2026-05-17)
 │   │                Spec: ideas/objects_plan/OP-S10-W11_sentai_prep.md
 │   │                (cadence, refcount, ARM/SIM differences, design
@@ -743,19 +775,28 @@ OP — ObjectsPlan thesis
 │   │    │   verdict_sota.py disambiguates the square-pad 4-fold
 │   │    │   Kabsch ambiguity by checking sign of R[0,0]/R[1,1] vs
 │   │    │   cos(cf2_yaw).  X/Y MAE went from ~4 cm → 2 mm.
-│   │    └── OP-S10-W19-T6b — Yaw-anchor picker runtime port (C)     ⬜ TODO (2026-05-21)
-│   │        Prereq: extract jacobi_sym3+svd3+Kabsch from
-│   │        sentai_calib.cc to shared libs/sentai/sentai_svd3.{h,cc}.
+│   │    └── OP-S10-W19-T6b — Yaw-anchor picker runtime port (C)     ✅ SHIPPED (2026-05-21 eve)
+│   │        C-side `sentai_markers_get_drone_pose` on top of
+│   │        [[op-s10-w20]]'s sentai_kabsch_align.  Handles 3 SVD
+│   │        ambiguities on coplanar + 180-Z-symmetric pads:
+│   │          (1) permutation assignment search over P(N,K),
+│   │          (2) Z-plane reflection (drone-above-pad assumption),
+│   │          (3) yaw-anchored X/Y mirror flip via sign(R diagonal)
+│   │              vs cos(cf2_yaw), with flip-aware atan2 yaw extract.
+│   │        ARM build #1421 + SIM build clean.  s184 smoke 6/6 PASS
+│   │        (mirror-deployment T6 = 6-marker symmetric + scramble).
+│   │        Dead code `cache_from_aruco_` removed (NASA discipline).
+│   │        Memory entry [[yaw-anchor-mirror-picker]] already captures
+│   │        the algorithm; runtime port references it.
 │   │
-│   └── OP-S10-W20 — SVD/Kabsch shared module refactor               ⬜ TODO (2026-05-21)
-│        │ Operator-flagged today: extract the static jacobi_sym3 +
-│        │ svd3 + Kabsch composition out of sentai_calib.cc to a
-│        │ shared utility.  Load-bearing for:
-│        │   - W19-T6b runtime port (drone-pose Kabsch in C)
-│        │   - W19-T3 multi-marker yaw (uses Kabsch)
-│        │   - sentai_calib_autotune (potential future user)
-│        │ Mechanical: rename + un-`static` + add header.  Should land
-│        │ BEFORE W19-T6b runtime so the port can reuse.
+│   └── OP-S10-W20 — SVD/Kabsch shared module refactor               ✅ SHIPPED (2026-05-21)
+│        │ Commit f1bc9850.  jacobi_sym3 + svd3 + reflection-safe
+│        │ Kabsch composition extracted from sentai_calib.cc into
+│        │ sentai_svd3.{h,cc} + new sentai_kabsch_align (full SE(3)
+│        │ 3D-3D Procrustes).  sentai_calib.cc shrank 677->451 LoC,
+│        │ public API unchanged.  s157 calib smoke 6/6 PASS pre- and
+│        │ post-commit (Kabsch numerics bit-identical).  Unblocks
+│        │ W19-T6b and W19-T3.
 │
 └── Milestones
     ├── OP-M1 — Thesis MVP (SIM): 4 descriptors + L1 + calib working end-to-end
