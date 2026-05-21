@@ -298,21 +298,18 @@ extern "C" void sentai_calib_clear(void) {
 }
 
 // =========================================================================
-// Persistence — schema v1 JSON.  Tiny hand-rolled parser/serializer; the
-// file is < 256 bytes and we control both ends.
+// Persistence — schema v2 INI (OP-S10-W21-T2).  Newline-separated
+// key=value, ASCII, < 512 bytes.  Forward-compatible: unknown keys are
+// silently ignored, so adding kp_x / kp_y / intrinsics in T3+ does not
+// require a schema bump.  The schema= key is here as a tripwire for
+// future incompatible layout changes, not for additive features.
 // =========================================================================
-static int format_json(char* buf, size_t cap,
-                       const float R[9], const float cam_off[3]) {
+static int format_ini(char* buf, size_t cap,
+                      const float R[9], const float cam_off[3]) {
     int n = snprintf(buf, cap,
-        "{\n"
-        "  \"schema\": %d,\n"
-        "  \"R_B_C\": [\n"
-        "    [%.9f, %.9f, %.9f],\n"
-        "    [%.9f, %.9f, %.9f],\n"
-        "    [%.9f, %.9f, %.9f]\n"
-        "  ],\n"
-        "  \"cam_offset_B\": [%.9f, %.9f, %.9f]\n"
-        "}\n",
+        "schema=%d\n"
+        "R_B_C=%.9f,%.9f,%.9f,%.9f,%.9f,%.9f,%.9f,%.9f,%.9f\n"
+        "cam_offset_B=%.9f,%.9f,%.9f\n",
         SENTAI_CALIB_SCHEMA_VERSION,
         R[0], R[1], R[2],
         R[3], R[4], R[5],
@@ -321,34 +318,19 @@ static int format_json(char* buf, size_t cap,
     return n;
 }
 
-// Scan past one JSON key like "schema": ... and return a pointer to the
-// value character; nullptr if not found.  Caller has already null-terminated.
-static const char* find_key(const char* s, const char* key) {
-    char needle[64];
-    int n = snprintf(needle, sizeof(needle), "\"%s\"", key);
-    if (n <= 0 || (size_t)n >= sizeof(needle)) return NULL;
-    const char* p = strstr(s, needle);
-    if (!p) return NULL;
-    p += n;
-    while (*p && (*p == ' ' || *p == '\t' || *p == ':' || *p == '\n' ||
-                  *p == '\r')) p++;
-    return p;
-}
-
-// Read N floats from a "[a, b, c]"-style array starting at p.  Skips
-// nested brackets so "[[1,2,3],[4,5,6]]" feeds a flat 6-vector.
-static int read_floats(const char* p, float* out, int N) {
+// Parse N comma-separated floats from a NUL- or newline-terminated
+// value string.  Returns count parsed (may be < N if value runs out),
+// or -1 on any non-finite float.
+static int parse_csv_floats(const char* val, float* out, int N) {
     int i = 0;
-    while (*p && i < N) {
-        if (*p == '[' || *p == ',' || *p == ' ' || *p == '\t' ||
-            *p == '\n' || *p == '\r') {
-            p++;
-            continue;
-        }
-        if (*p == ']') { p++; continue; }
-        char*  end = NULL;
-        double v   = strtod(p, &end);
-        if (end == p) return i;
+    const char* p = val;
+    while (*p && *p != '\n' && i < N) {
+        // Skip leading whitespace + commas.
+        while (*p == ' ' || *p == '\t' || *p == ',') p++;
+        if (!*p || *p == '\n') break;
+        char* end = NULL;
+        double v  = strtod(p, &end);
+        if (end == p) break;
         if (!isfinite((float)v)) return -1;
         out[i++] = (float)v;
         p = end;
@@ -356,24 +338,63 @@ static int read_floats(const char* p, float* out, int N) {
     return i;
 }
 
-static int parse_json(const char* buf, float R_out[9], float cam_off_out[3]) {
-    const char* p = find_key(buf, "schema");
-    if (!p) return -1;
+// Parse a single decimal integer from a NUL- or newline-terminated
+// value string.  Returns 0 if no digits.
+static long parse_long(const char* val) {
     char* end = NULL;
-    long  schema = strtol(p, &end, 10);
-    if (end == p || schema != SENTAI_CALIB_SCHEMA_VERSION) return -1;
+    long v = strtol(val, &end, 10);
+    if (end == val) return 0;
+    return v;
+}
 
-    p = find_key(buf, "R_B_C");
+// Scan the INI buffer line by line for `key=...` (skipping blank lines
+// and `#` comments).  On hit, returns a pointer to the first char of the
+// value (just past `=`), still inside the same buffer.  Returns NULL if
+// the key is absent.  Tolerant of trailing whitespace, LF/CRLF line ends.
+static const char* ini_find_value(const char* buf, const char* key) {
+    const size_t klen = strlen(key);
+    const char* p = buf;
+    while (*p) {
+        // Skip blank lines + leading whitespace.
+        while (*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n') p++;
+        if (!*p) break;
+        if (*p == '#' || *p == ';') {
+            while (*p && *p != '\n') p++;
+            continue;
+        }
+        // Compare key prefix.
+        if (strncmp(p, key, klen) == 0) {
+            const char* q = p + klen;
+            while (*q == ' ' || *q == '\t') q++;
+            if (*q == '=') {
+                q++;
+                while (*q == ' ' || *q == '\t') q++;
+                return q;
+            }
+        }
+        // Skip to end of line.
+        while (*p && *p != '\n') p++;
+    }
+    return NULL;
+}
+
+static int parse_ini(const char* buf, float R_out[9], float cam_off_out[3]) {
+    const char* p = ini_find_value(buf, "schema");
+    if (!p) return -1;
+    const long schema = parse_long(p);
+    if (schema != SENTAI_CALIB_SCHEMA_VERSION) return -1;
+
+    p = ini_find_value(buf, "R_B_C");
     if (!p) return -1;
     float Rtmp[9];
-    if (read_floats(p, Rtmp, 9) != 9) return -1;
+    if (parse_csv_floats(p, Rtmp, 9) != 9) return -1;
     for (int i = 0; i < 9; ++i) if (!isfinite(Rtmp[i])) return -1;
     memcpy(R_out, Rtmp, sizeof(Rtmp));
 
-    p = find_key(buf, "cam_offset_B");
+    p = ini_find_value(buf, "cam_offset_B");
     if (p) {
         float otmp[3];
-        if (read_floats(p, otmp, 3) == 3 &&
+        if (parse_csv_floats(p, otmp, 3) == 3 &&
             isfinite(otmp[0]) && isfinite(otmp[1]) && isfinite(otmp[2])) {
             memcpy(cam_off_out, otmp, sizeof(otmp));
         }
@@ -396,7 +417,7 @@ static int read_calib_file(char* buf, size_t cap) {
     if (!f) {
         // SIM-side fallback to a local cwd file so smoke tests can run
         // without /system being mounted.
-        f = fopen("./cam_calib.json", "rb");
+        f = fopen("./calib.ini", "rb");
         if (!f) return 0;
     }
     size_t n = fread(buf, 1, cap - 1, f);
@@ -413,7 +434,7 @@ static int write_calib_file(const char* buf, size_t n) {
 #else
     FILE* f = fopen(SENTAI_CALIB_PATH, "wb");
     if (!f) {
-        f = fopen("./cam_calib.json", "wb");
+        f = fopen("./calib.ini", "wb");
         if (!f) return 0;
     }
     const size_t w = fwrite(buf, 1, n, f);
@@ -424,7 +445,7 @@ static int write_calib_file(const char* buf, size_t n) {
 
 extern "C" int sentai_calib_save(void) {
     char buf[512];
-    const int n = format_json(buf, sizeof(buf), s_R, s_cam_offset_B);
+    const int n = format_ini(buf, sizeof(buf), s_R, s_cam_offset_B);
     if (n <= 0 || (size_t)n >= sizeof(buf)) return 0;
     return write_calib_file(buf, (size_t)n);
 }
@@ -436,7 +457,7 @@ extern "C" int sentai_calib_load(void) {
     float cam_off[3];
     memcpy(R,       s_R,            sizeof(R));
     memcpy(cam_off, s_cam_offset_B, sizeof(cam_off));
-    if (parse_json(buf, R, cam_off) != 0) return 0;
+    if (parse_ini(buf, R, cam_off) != 0) return 0;
     if (sentai_calib_commit_R(R, cam_off) != 0) return 0;
     return 1;
 }

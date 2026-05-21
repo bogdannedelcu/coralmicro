@@ -808,8 +808,17 @@ OP — ObjectsPlan thesis
 │        │ never autoruns at boot (anti-brick).  Validated in Gazebo
 │        │ as digital twin of bench bringup (s187).  See memory entry
 │        │ [[sentai-calib-is-production-bringup]] for framing.
-│        ├── OP-S10-W21-T1 — sentai.markers refactor in calib_task    ⬜ TODO
-│        ├── OP-S10-W21-T2 — INI persistence (replaces cam_calib.json) ⬜ TODO
+│        ├── OP-S10-W21-T1 — sentai.markers refactor in calib_task    ✅ SHIPPED (2026-05-21, commit 13b6d7be)
+│        │   Discovery: code was already using sentai_markers_*;
+│        │   only doc comments were stale.  4-comment refactor.
+│        ├── OP-S10-W21-T2 — INI persistence (replaces cam_calib.json) ✅ SHIPPED (2026-05-21 eve)
+│        │   Schema v1 JSON -> v2 INI.  Path /system/cam_calib.json
+│        │   -> /system/calib.ini.  format_json/parse_json swapped
+│        │   for format_ini/parse_ini.  Forward-compat parser
+│        │   (unknown keys silently ignored).  s157 + s186 regress
+│        │   green; new s188 5/5 PASS (on-disk format, schema reject,
+│        │   forward-compat, corruption handling, comment tolerance).
+│        │   ARM build #1424 + SIM build clean.
 │        ├── OP-S10-W21-T3 — Schema v2 + Kp persist in calib.ini      ⬜ TODO
 │        ├── OP-S10-W21-T4 — `sentai_calib_run_bringup()` orchestrator ⬜ TODO
 │        ├── OP-S10-W21-T5 — Camera intrinsics auto-cal (DEFERRED)    ⬜ FW

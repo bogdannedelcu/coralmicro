@@ -57,12 +57,14 @@
 //     default N_MAX=32 this is < 600 bytes).
 //   - Zero heap, zero per-call malloc.
 //
-// Persistence (cam_calib.json schema v1):
-//   {
-//     "schema": 1,
-//     "R_B_C": [[r11,r12,r13],[r21,r22,r23],[r31,r32,r33]],
-//     "cam_offset_B": [x, y, z]   // optional
-//   }
+// Persistence (calib.ini schema v2 — OP-S10-W21-T2):
+//   schema=2
+//   R_B_C=r11,r12,r13,r21,r22,r23,r31,r32,r33
+//   cam_offset_B=x,y,z
+//   # Future T3 keys (forward-compat — unknown keys are silently ignored):
+//   # kp_x=0.39
+//   # kp_y=0.39
+//   # kp_yaw=0.0
 // =========================================================================
 
 #pragma once
@@ -76,8 +78,17 @@ extern "C" {
 // ---- Constants ---------------------------------------------------------
 #define SENTAI_CALIB_SAMPLES_MAX        32      // upper bound for kabsch run
 #define SENTAI_CALIB_SAMPLES_MIN        3       // hard minimum (degenerate < 3)
-#define SENTAI_CALIB_SCHEMA_VERSION     1
-#define SENTAI_CALIB_PATH               "/system/cam_calib.json"
+// Schema v2 — OP-S10-W21-T2 (2026-05-21) — INI persistence replaces
+// the legacy JSON schema v1.  Reasoning: INI is parse-trivial on ARM
+// (no JSON dependency), inspectable with `cat` over USB CDC-ACM, and
+// forward-compatible (unknown keys are silently ignored, so future
+// kp_x / kp_y / intrinsics keys can be added without breaking old
+// firmware).  See ideas/objects_plan/OP-S10-W21_calib_unified_bringup.md
+// for the schema rationale.  v1 readers are deliberately DROPPED:
+// any cam_calib.json on disk is ignored (anti-brick fallback to
+// default identity on load() miss), forcing a re-bringup.
+#define SENTAI_CALIB_SCHEMA_VERSION     2
+#define SENTAI_CALIB_PATH               "/system/calib.ini"
 #define SENTAI_CALIB_JACOBI_MAX_SWEEPS  16      // 3x3 converges in ~3-5
 #define SENTAI_CALIB_JACOBI_EPS         1e-9f   // off-diagonal threshold
 #define SENTAI_CALIB_QUALITY_DET_THR    0.99f
