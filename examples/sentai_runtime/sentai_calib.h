@@ -190,7 +190,9 @@ float sentai_calib_rotation_angle_deg(const float R1[9], const float R2[9]);
 //   - sentai_calib_autotune.cc — state machine + relay + Ziegler-Nichols
 //   - sentai_calib_task.cc      — FreeRTOS worker driving the relay
 //                                 via sentai_crazy_hover, reading PnP
-//                                 via sentai_aruco_get_latest, pushing
+//                                 via sentai_markers_get_latest
+//                                 (active backend = ArUco or WhyCon),
+//                                 pushing
 //                                 samples to sentai.fr, watching
 //                                 sentai.safety.aborted.
 // MP API (minimal per operator 2026-05-18 "MP doar comanda start/stop"):

@@ -1,7 +1,8 @@
 // sentai_calib_task.h — OP-S10-W14 worker side of the Flow autotuner.
 //
 // Owns the FreeRTOS task that drives sentai_calib_autotune_tick() at
-// camera FPS, reads PnP via sentai_aruco_get_latest(), and writes
+// camera FPS, reads PnP via sentai_markers_get_latest() (active
+// backend = whichever sentai.markers.init selected), and writes
 // velocity commands via sentai_crazy_hover().  Mirror of
 // sentai.safety / sentai_safety_task split — the state machine is in
 // sentai_calib_autotune.{h,cc} and pure-compute; this file is the

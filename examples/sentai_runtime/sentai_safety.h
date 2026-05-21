@@ -207,11 +207,12 @@ int sentai_safety_disable(sentai_safety_check_t check);
 // idempotent vs duplicate seq (no double-counting if called twice with
 // same frame_seq).  Returns 0 (no error path — feeders never fail safety).
 //
-// REUSE NOTE: SafetyTask invokes the EXISTING sentai_aruco_detect()
+// REUSE NOTE: SafetyTask invokes the EXISTING marker detect path
 // (which uses the EXISTING sentai_camera_grab_gray_zerocopy()) and
 // passes the resulting count + frame_seq + ts_ms here.  No detection
-// pipeline is duplicated — sentai_aruco's cache is shared with any
-// other consumer (mission, etc.) via sentai_aruco_get_latest().
+// pipeline is duplicated — the active marker backend's cache is
+// shared with any other consumer (mission, etc.) via
+// sentai_markers_get_latest().
 int sentai_safety_on_aruco_result(int n_dets, uint32_t frame_seq, uint32_t ts_ms);
 
 // (Future stubs — ABI placeholder; no-op in T2 implementation.)

@@ -4,7 +4,10 @@
 // the algorithm derivation.
 //
 // REUSE ONLY (no duplicate compute):
-//   - sentai_aruco_get_latest() : cached PnP markers (camera frame)
+//   - sentai_markers_get_count() + sentai_markers_get_latest() :
+//       cached PnP markers from the active backend (ArUco / WhyCon).
+//       Backend is whichever sentai_markers_init() selected; calib
+//       never knew which one and never needs to.
 //   - sentai_calib_get_R_cam_to_body() : SIM bring-up identity-like
 //   - sentai_crazy_hover()      : body-frame velocity command
 //   - sentai_crazy_get_altitude() : current altitude (for z hold)

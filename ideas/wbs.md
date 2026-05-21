@@ -789,14 +789,31 @@ OP — ObjectsPlan thesis
 │   │        Memory entry [[yaw-anchor-mirror-picker]] already captures
 │   │        the algorithm; runtime port references it.
 │   │
-│   └── OP-S10-W20 — SVD/Kabsch shared module refactor               ✅ SHIPPED (2026-05-21)
-│        │ Commit f1bc9850.  jacobi_sym3 + svd3 + reflection-safe
-│        │ Kabsch composition extracted from sentai_calib.cc into
-│        │ sentai_svd3.{h,cc} + new sentai_kabsch_align (full SE(3)
-│        │ 3D-3D Procrustes).  sentai_calib.cc shrank 677->451 LoC,
-│        │ public API unchanged.  s157 calib smoke 6/6 PASS pre- and
-│        │ post-commit (Kabsch numerics bit-identical).  Unblocks
-│        │ W19-T6b and W19-T3.
+│   ├── OP-S10-W20 — SVD/Kabsch shared module refactor               ✅ SHIPPED (2026-05-21)
+│   │    │ Commit f1bc9850.  jacobi_sym3 + svd3 + reflection-safe
+│   │    │ Kabsch composition extracted from sentai_calib.cc into
+│   │    │ sentai_svd3.{h,cc} + new sentai_kabsch_align (full SE(3)
+│   │    │ 3D-3D Procrustes).  sentai_calib.cc shrank 677->451 LoC,
+│   │    │ public API unchanged.  s157 calib smoke 6/6 PASS pre- and
+│   │    │ post-commit (Kabsch numerics bit-identical).  Unblocks
+│   │    │ W19-T6b and W19-T3.
+│   │
+│   └── OP-S10-W21 — Unified calib bringup (extrinsics+PID+INI)      ⬜ DESIGN (2026-05-21)
+│        │ Spec: ideas/objects_plan/OP-S10-W21_calib_unified_bringup.md
+│        │ Operator request 2026-05-21: sentai.calib is the PRODUCTION
+│        │ BRINGUP method for every shipped drone — auto-discovers
+│        │ R_cam_to_body + cam_offset + Kp_x/y/yaw (+ future intrinsics)
+│        │ and persists to /system/calib.ini.  One C-side orchestrator
+│        │ `sentai_calib_run_bringup(ctx)` callable from REPL ONE-LINER;
+│        │ never autoruns at boot (anti-brick).  Validated in Gazebo
+│        │ as digital twin of bench bringup (s187).  See memory entry
+│        │ [[sentai-calib-is-production-bringup]] for framing.
+│        ├── OP-S10-W21-T1 — sentai.markers refactor in calib_task    ⬜ TODO
+│        ├── OP-S10-W21-T2 — INI persistence (replaces cam_calib.json) ⬜ TODO
+│        ├── OP-S10-W21-T3 — Schema v2 + Kp persist in calib.ini      ⬜ TODO
+│        ├── OP-S10-W21-T4 — `sentai_calib_run_bringup()` orchestrator ⬜ TODO
+│        ├── OP-S10-W21-T5 — Camera intrinsics auto-cal (DEFERRED)    ⬜ FW
+│        └── OP-S10-W21-T6 — SUBSYS_CALIB state + REPL-only trigger   ⬜ TODO
 │
 └── Milestones
     ├── OP-M1 — Thesis MVP (SIM): 4 descriptors + L1 + calib working end-to-end
