@@ -53,17 +53,19 @@ FX, FY, CX, CY     = 288.3, 288.3, 160.0, 120.0
 MARKER_DIAMETER_M  = 0.1088   # WhyCon outer ring
 
 # ---- Bringup envelope ------------------------------------------------
-Z_HOLD             = 0.78    # baro drift over 14s SAMPLE phase < 0.1 m
+Z_HOLD             = 0.78    # iter-20-baseline (replicable Kabsch convergence)
 SWEEP_RADIUS_M     = 0.05    # small offset → markers stay near image center
 SETTLE_S           = 2.0
-VMAX_M_S           = 0.10
-DUR_RELAY_S        = 30.0
+VMAX_M_S           = 0.10    # iter-29 baseline (Kabsch drift 0.33° PASS)
+                              # Lower (0.04) tested in iter-30: didn't help
+                              # autotune convergence; reverted.
+DUR_RELAY_S        = 30.0   # s174 baseline (autotune-validated)
 DUR_HOLD_S         = 10.0
 HOLD_RMS_MAX_M     = 0.030
 TAKEOFF_DUR        = 2.5
 LAND_DUR           = 2.5
 PHASE_POLL_MS      = 500
-PHASE_TIMEOUT_S    = 180.0   # generous: 4×10s sweep + 2×30s relay + 10s hold + slack
+PHASE_TIMEOUT_S    = 180.0   # generous: sweep + 2×30s relay + 10s hold + slack
 
 PHASE_NAMES = {
     0: "IDLE", 1: "SAMPLE", 2: "KABSCH", 3: "AUTOTUNE_X",

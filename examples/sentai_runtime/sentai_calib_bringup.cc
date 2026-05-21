@@ -276,18 +276,12 @@ int phase_sample_() {
                 }
             }
 
-            // VPE forwarder DISABLED (iter-17 diagnosis).
-            //
-            // Even ExtPos position-only created a POSITIVE FEEDBACK climb-
-            // crash: WhyCon single-marker Krajník PnP underestimates Z
-            // by ~10-30% (perspective-dependent on marker offset from
-            // image center).  Sending biased-low VPE Z → cf2 EKF "I'm
-            // low" → climb command → marker projected radius shrinks →
-            // PnP under-estimates more → climb more → markers leave
-            // FOV → no PnP → motor watchdog → crash.  Documented as
-            // OP-S10-W21-T4-fwd: pixel-based homography PnP needed
-            // before re-enabling VPE.  cf2 baro alone (SIM Gazebo
-            // sensor) drifts ~0.1m/14s, bounded enough for SAMPLE.
+            // VPE forwarder DISABLED in SAMPLE (iter-25 reset to iter-20
+            // baseline that converged).  Even with C=30 detection clean,
+            // PnP-Z bias at z=0.78 creates feedback loops in cf2 EKF
+            // (iter-23/24 diverged).  Without VPE in SAMPLE: cf2 baro
+            // drifts ~10cm in 14s — bounded enough.  VPE re-enabled in
+            // AUTOTUNE via sentai_calib_task.cc (ExtPos canal 0 fix).
             if (false && n_dxyz >= 2) {
                 // 3-element selection sort to find median of small N.
                 for (int a = 0; a < n_dxyz - 1; ++a) {
@@ -493,6 +487,17 @@ int phase_autotune_(sentai_calib_axis_t axis) {
         uint32_t gseq = 0, gts = 0;
         if (sentai_camera_grab_gray_zerocopy(&gbuf, &gw, &gh, &gseq, &gts) == 0) {
             (void)sentai_markers_detect_frame(gbuf, gw, gh, gseq, gts);
+            static int at_poll_diag = 0;
+            if (at_poll_diag++ < 5) {
+                fprintf(stderr,
+                    "[at_poll] tick=%d n_det=%d\n",
+                    at_poll_diag, sentai_markers_get_count());
+            }
+        } else {
+            static int at_grab_diag = 0;
+            if (at_grab_diag++ < 5) {
+                fprintf(stderr, "[at_poll] grab FAIL tick=%d\n", at_grab_diag);
+            }
         }
         vTaskDelay(pdMS_TO_TICKS(33));         // ~30 Hz detection cadence
     }

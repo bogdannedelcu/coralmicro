@@ -196,6 +196,35 @@ static mp_obj_t markers_detect_buffer_(size_t n_args, const mp_obj_t* args) {
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(markers_detect_buffer_obj, 3, 3,
                                             markers_detect_buffer_);
 
+// s187 diagnostic — copy post-threshold binary buffer into caller's
+// bytearray.  Buffer must be ≥ 320*240 = 76800 bytes.  Output is
+// 1=foreground (dark), 0=background.  Used to diagnose detector
+// mis-thresholding offline.
+extern int sentai_whycon_get_binary(uint8_t* out_buf, int out_capacity,
+                                       int* out_w, int* out_h);
+static mp_obj_t markers_get_binary_(mp_obj_t buf_obj) {
+    mp_buffer_info_t bi;
+    if (!mp_get_buffer(buf_obj, &bi, MP_BUFFER_WRITE)) {
+        mp_raise_TypeError(MP_ERROR_TEXT("out must be writable bytearray"));
+    }
+    int w = 0, h = 0;
+    const int rc = sentai_whycon_get_binary((uint8_t*)bi.buf, (int)bi.len,
+                                               &w, &h);
+    if (rc < 0) {
+        mp_raise_ValueError(MP_ERROR_TEXT("buffer too small (need ≥ 76800 B)"));
+    }
+    return mp_obj_new_tuple(2, ((mp_obj_t[]){mp_obj_new_int(w), mp_obj_new_int(h)}));
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(markers_get_binary_obj, markers_get_binary_);
+
+extern int sentai_whycon_dump_binary_pgm(const char* path);
+static mp_obj_t markers_dump_binary_pgm_(mp_obj_t path_obj) {
+    const char* path = mp_obj_str_get_str(path_obj);
+    return mp_obj_new_int(sentai_whycon_dump_binary_pgm(path));
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(markers_dump_binary_pgm_obj,
+                                   markers_dump_binary_pgm_);
+
 static mp_obj_t markers_get_count_(void) {
     return mp_obj_new_int(sentai_markers_get_count());
 }
@@ -387,6 +416,8 @@ static const mp_rom_map_elem_t sentai_markers_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_detect_from_camera),
                                                 MP_ROM_PTR(&markers_detect_from_camera_obj) },
     { MP_ROM_QSTR(MP_QSTR_detect_buffer),     MP_ROM_PTR(&markers_detect_buffer_obj) },
+    { MP_ROM_QSTR(MP_QSTR_get_binary),        MP_ROM_PTR(&markers_get_binary_obj) },
+    { MP_ROM_QSTR(MP_QSTR_dump_binary_pgm),   MP_ROM_PTR(&markers_dump_binary_pgm_obj) },
     { MP_ROM_QSTR(MP_QSTR_get_count),         MP_ROM_PTR(&markers_get_count_obj) },
     { MP_ROM_QSTR(MP_QSTR_get_pose),          MP_ROM_PTR(&markers_get_pose_obj) },
     { MP_ROM_QSTR(MP_QSTR_get_pose_tuple),    MP_ROM_PTR(&markers_get_pose_tuple_obj) },

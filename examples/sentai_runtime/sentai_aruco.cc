@@ -74,7 +74,17 @@
 // Default threshold block size (T18-G provides multi-scale at runtime;
 // this constant remains as a fallback / single-scale path reference).
 #define ARUCO_THRESH_BLOCK             201
-#define ARUCO_THRESH_C                 7
+#define ARUCO_THRESH_C                 30  // s187 iter-20: was 7, raised to
+                                              // 30 so Bradley rejects floor
+                                              // texture noise.  At C=7 a
+                                              // 6-marker WhyCon pad on a
+                                              // gray-textured floor gives
+                                              // 28k fg pixels / 312 components
+                                              // and marker outer rings merge
+                                              // with texture stripes → only
+                                              // 2 of 6 pass the filter.
+                                              // C=30: 11k fg / 99 components,
+                                              // markers isolated cleanly.
 // Component-labeling capacity.  More components than this and we drop
 // the tail (overflow counter rises).
 #define ARUCO_MAX_COMPONENTS           96
@@ -3092,4 +3102,33 @@ extern "C" int sentai_whycon_get_markers(sentai_whycon_marker_t* out,
                     ? s_whycon_n_markers : out_capacity;
     memcpy(out, s_whycon_markers, (size_t)n * sizeof(sentai_whycon_marker_t));
     return n;
+}
+
+// s187 debug: copy the post-threshold binary buffer (1 byte per pixel,
+// 1=foreground/dark, 0=background) into caller's buffer.  Used by
+// bench_test.py to diagnose detector mis-thresholding.
+extern "C" int sentai_whycon_get_binary(uint8_t* out_buf, int out_capacity,
+                                          int* out_w, int* out_h) {
+    if (!out_buf || out_capacity < 320 * 240) return -1;
+    memcpy(out_buf, s_binary, 320 * 240);
+    if (out_w) *out_w = 320;
+    if (out_h) *out_h = 240;
+    return 320 * 240;
+}
+
+// Dump s_binary as a PGM file (0/255 scaled for visibility).  Avoids
+// passing 76 KB through MP heap.
+extern "C" int sentai_whycon_dump_binary_pgm(const char* path) {
+    FILE* fp = fopen(path, "wb");
+    if (!fp) return -1;
+    fprintf(fp, "P5\n320 240\n255\n");
+    uint8_t scaled[320];
+    for (int row = 0; row < 240; ++row) {
+        for (int x = 0; x < 320; ++x) {
+            scaled[x] = s_binary[x + row * 320] ? 255 : 0;
+        }
+        fwrite(scaled, 1, 320, fp);
+    }
+    fclose(fp);
+    return 320 * 240;
 }

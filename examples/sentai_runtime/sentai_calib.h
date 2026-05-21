@@ -99,7 +99,11 @@ extern "C" {
 // has to accommodate the per-sample noise floor.  Drop back to 3°
 // once IPPE PnP + Douglas-Peucker quad upgrades land (s159 SOTA
 // gaps).
-#define SENTAI_CALIB_QUALITY_RES_DEG    8.0f
+#define SENTAI_CALIB_QUALITY_RES_DEG    15.0f
+// s187 iter-26: was 8°; raised to 15° because WhyCon single-marker
+// Krajník PnP-Z has perspective-dependent bias up to ~30% (markers at
+// image edges).  Per-sample residual can hit ~10-12° even when the
+// fitted R is within 1° of truth; the gate was rejecting good fits.
 #define SENTAI_CALIB_QUALITY_DRIFT_DEG  10.0f
 
 // ---- Default R_B_C for SIM bring-up (per s130 image-only nav) ---------

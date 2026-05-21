@@ -223,7 +223,13 @@ void worker_loop_() {
         for (int i = 0; i < n; ++i) {
             (void)sentai_markers_get_latest(i, &mk[i]);
         }
-        int pnp_valid = (n >= 4) ? 1 : 0;
+        // s187 iter-28: relaxed from n>=4 to n>=2.  During autotune
+        // relay sweep, drone offset → typically 2-3 markers visible
+        // (vs 6 at hover).  Centroid-based drift still works with 2
+        // markers.  The 4-marker minimum is from FlowBaseline2 mission
+        // abort rule [[flowbaseline2-4markers-abort]] which is too
+        // strict for the autotune inner loop.
+        int pnp_valid = (n >= 2) ? 1 : 0;
         if (pnp_valid) ++s_n_valid_pnp; else ++s_n_no_pnp;
 
         // Compute drift along tuned axis (body frame approx).
@@ -333,19 +339,18 @@ void worker_loop_() {
                     memcpy(p + 8, &dz, 4);
                     (void)sentai_crazy_send_crtp(6, 0, p, 12);
                 } else {
-                    // ExtPose canal 1 GENERIC — identity quaternion
-                    // (locks yaw to world +X), 29 bytes with type=8 prefix.
-                    uint8_t p[29];
-                    float qx = 0.0f, qy = 0.0f, qz = 0.0f, qw = 1.0f;
-                    p[0] = 8;
-                    memcpy(p +  1, &dx, 4);
-                    memcpy(p +  5, &dy, 4);
-                    memcpy(p +  9, &dz, 4);
-                    memcpy(p + 13, &qx, 4);
-                    memcpy(p + 17, &qy, 4);
-                    memcpy(p + 21, &qz, 4);
-                    memcpy(p + 25, &qw, 4);
-                    (void)sentai_crazy_send_crtp(6, 1, p, 29);
+                    // s187 fix (OP-S10-W21-T4 iter-21): ExtPos canal 0
+                    // POSITION-ONLY, 12 B.  ExtPose canal 1 with identity
+                    // quaternion forces drone to yaw=0 vs actual yaw →
+                    // motor command violence + crash (iter-13 diagnosis).
+                    // Position-only lets cf2 EKF anchor altitude while
+                    // gyro drives yaw independently.  Same packet as the
+                    // yaw_rate>0 branch above.
+                    uint8_t p[12];
+                    memcpy(p + 0, &dx, 4);
+                    memcpy(p + 4, &dy, 4);
+                    memcpy(p + 8, &dz, 4);
+                    (void)sentai_crazy_send_crtp(6, 0, p, 12);
                 }
                 sentai_fr_push_scalar("at_vpe_x", dx, ts);
                 sentai_fr_push_scalar("at_vpe_y", dy, ts);
