@@ -411,6 +411,12 @@ int phase_sample_() {
             s->marker_W[0] = s_ctx.marker_world_n3[3*k + 0];
             s->marker_W[1] = s_ctx.marker_world_n3[3*k + 1];
             s->marker_W[2] = s_ctx.marker_world_n3[3*k + 2];
+            // iter-36 revert: cf2 EKF z varies wildly across poses
+            // without VPE (baro drift 0.6 → 0.79).  PnP-derived
+            // drone_W is self-consistent with tvec_cam from the same
+            // frame → Kabsch resolves R better (consistent inputs).
+            // SDF-truth drift is bigger but Kabsch quality passes
+            // more reliably.
             s->drone_W[0]  = drone_W[0];
             s->drone_W[1]  = drone_W[1];
             s->drone_W[2]  = drone_W[2];

@@ -165,6 +165,11 @@ def run():
     _j("setup", "start")
     try:
         sentai.calib.init()           # load /system/calib.ini if present
+        # iter-37: clear prior persisted calib so Kabsch's
+        # drift_from_persisted check uses SDF defaults (not a prior
+        # run's possibly-stochastically-off R).  In production this
+        # would be conditional on operator's "fresh-calib" gesture.
+        sentai.calib.clear()
         # Markers FIRST so detection backend is live before takeoff (s182).
         _setup_markers()
         sentai.crazy.init()
