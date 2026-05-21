@@ -230,11 +230,26 @@ static MP_DEFINE_CONST_FUN_OBJ_2(calib_rotation_angle_obj, calib_rotation_angle)
 // + task_stop + is_done + get_kp.  All math + state machine in C++.
 
 static int calib_parse_axis_(mp_obj_t obj, sentai_calib_axis_t* out) {
-    if (!mp_obj_is_str(obj)) return -1;
-    size_t n;
-    const char* s = mp_obj_str_get_data(obj, &n);
-    if (n == 1 && (s[0] == 'x' || s[0] == 'X')) { *out = SENTAI_CALIB_AXIS_X; return 0; }
-    if (n == 1 && (s[0] == 'y' || s[0] == 'Y')) { *out = SENTAI_CALIB_AXIS_Y; return 0; }
+    if (mp_obj_is_str(obj)) {
+        size_t n;
+        const char* s = mp_obj_str_get_data(obj, &n);
+        if (n == 1 && (s[0] == 'x' || s[0] == 'X')) { *out = SENTAI_CALIB_AXIS_X; return 0; }
+        if (n == 1 && (s[0] == 'y' || s[0] == 'Y')) { *out = SENTAI_CALIB_AXIS_Y; return 0; }
+        if (n == 3 && (s[0] == 'y' || s[0] == 'Y') &&
+                      (s[1] == 'a' || s[1] == 'A') &&
+                      (s[2] == 'w' || s[2] == 'W')) {
+            *out = SENTAI_CALIB_AXIS_YAW; return 0;
+        }
+        return -1;
+    }
+    // Integer alias 0/1/2 — convenient for the bringup orchestrator
+    // which iterates over axes by index.
+    const int v = mp_obj_get_int(obj);
+    if (v == SENTAI_CALIB_AXIS_X || v == SENTAI_CALIB_AXIS_Y ||
+        v == SENTAI_CALIB_AXIS_YAW) {
+        *out = (sentai_calib_axis_t)v;
+        return 0;
+    }
     return -1;
 }
 
@@ -273,11 +288,34 @@ static MP_DEFINE_CONST_FUN_OBJ_0(calib_is_done_obj, calib_is_done);
 static mp_obj_t calib_get_kp(mp_obj_t axis_obj) {
     sentai_calib_axis_t axis;
     if (calib_parse_axis_(axis_obj, &axis) != 0) {
-        mp_raise_ValueError(MP_ERROR_TEXT("axis must be 'x' or 'y'"));
+        mp_raise_ValueError(MP_ERROR_TEXT("axis must be 'x', 'y', 'yaw' or int 0..2"));
     }
     return mp_obj_new_float(sentai_calib_get_kp(axis));
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(calib_get_kp_obj, calib_get_kp);
+
+// OP-S10-W21-T3 — persisted Kp commit / read.
+//   sentai.calib.commit_kp(axis, kp)        -> int (0 ok, -1 invalid)
+//   sentai.calib.get_persisted_kp(axis)     -> float (-1.0 if not set)
+static mp_obj_t calib_commit_kp(mp_obj_t axis_obj, mp_obj_t kp_obj) {
+    sentai_calib_axis_t axis;
+    if (calib_parse_axis_(axis_obj, &axis) != 0) {
+        mp_raise_ValueError(MP_ERROR_TEXT("axis must be 'x', 'y', 'yaw' or int 0..2"));
+    }
+    const float kp = (float)mp_obj_get_float(kp_obj);
+    return mp_obj_new_int(sentai_calib_commit_kp(axis, kp));
+}
+static MP_DEFINE_CONST_FUN_OBJ_2(calib_commit_kp_obj, calib_commit_kp);
+
+static mp_obj_t calib_get_persisted_kp(mp_obj_t axis_obj) {
+    sentai_calib_axis_t axis;
+    if (calib_parse_axis_(axis_obj, &axis) != 0) {
+        mp_raise_ValueError(MP_ERROR_TEXT("axis must be 'x', 'y', 'yaw' or int 0..2"));
+    }
+    return mp_obj_new_float(sentai_calib_get_persisted_kp(axis));
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(calib_get_persisted_kp_obj,
+                                  calib_get_persisted_kp);
 
 static mp_obj_t calib_get_td_ms(void) {
     return mp_obj_new_int_from_uint(sentai_calib_get_td_ms());
@@ -344,6 +382,8 @@ static const mp_rom_map_elem_t sentai_calib_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_task_stop),         MP_ROM_PTR(&calib_task_stop_obj) },
     { MP_ROM_QSTR(MP_QSTR_is_done),           MP_ROM_PTR(&calib_is_done_obj) },
     { MP_ROM_QSTR(MP_QSTR_get_kp),            MP_ROM_PTR(&calib_get_kp_obj) },
+    { MP_ROM_QSTR(MP_QSTR_commit_kp),         MP_ROM_PTR(&calib_commit_kp_obj) },
+    { MP_ROM_QSTR(MP_QSTR_get_persisted_kp),  MP_ROM_PTR(&calib_get_persisted_kp_obj) },
     { MP_ROM_QSTR(MP_QSTR_get_td_ms),         MP_ROM_PTR(&calib_get_td_ms_obj) },
     // OP-S10-W14-T12 — HOLD validation
     { MP_ROM_QSTR(MP_QSTR_hold_start),        MP_ROM_PTR(&calib_hold_start_obj) },

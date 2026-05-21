@@ -36,6 +36,11 @@ static float s_R[9]            = { 0.0f, 1.0f, 0.0f,
                                    0.0f, 0.0f, -1.0f };
 static float s_cam_offset_B[3] = { -0.04f, 0.0f, -0.02f };
 static int   s_is_calibrated   = 0;
+// OP-S10-W21-T3: persisted PID gains.  -1.0f sentinel = "not calibrated"
+// (the autotune writes its converged value; bringup orchestrator commits
+// the result to this slot; save() persists to /system/calib.ini).
+// Indexed by sentai_calib_axis_t {X=0, Y=1, YAW=2}.
+static float s_kp_persisted[SENTAI_CALIB_AXIS_COUNT] = { -1.0f, -1.0f, -1.0f };
 
 // Defaults exposed for external use (e.g., tests that need to compare
 // against the sim baseline without touching the cached state).
@@ -290,11 +295,37 @@ extern "C" const float* sentai_calib_get_R_cam_to_body(void) { return s_R; }
 extern "C" const float* sentai_calib_get_cam_offset_B(void)   { return s_cam_offset_B; }
 extern "C" int          sentai_calib_is_calibrated(void)      { return s_is_calibrated; }
 
+// OP-S10-W21-T3 — persisted Kp API.
+extern "C" int sentai_calib_commit_kp(sentai_calib_axis_t axis, float kp) {
+    if (axis < SENTAI_CALIB_AXIS_X || axis >= SENTAI_CALIB_AXIS_COUNT) {
+        return -1;
+    }
+    // Accept exactly -1.0f as the "uncalibrated" sentinel, OR a finite
+    // positive gain.  Reject NaN / inf / negative-other / zero.
+    if (kp == -1.0f) {
+        s_kp_persisted[axis] = -1.0f;
+        return 0;
+    }
+    if (!isfinite(kp) || kp <= 0.0f) return -1;
+    s_kp_persisted[axis] = kp;
+    return 0;
+}
+
+extern "C" float sentai_calib_get_persisted_kp(sentai_calib_axis_t axis) {
+    if (axis < SENTAI_CALIB_AXIS_X || axis >= SENTAI_CALIB_AXIS_COUNT) {
+        return -1.0f;
+    }
+    return s_kp_persisted[axis];
+}
+
 extern "C" void sentai_calib_clear(void) {
     memcpy(s_R, SENTAI_CALIB_DEFAULT_R_SIM, sizeof(s_R));
     memcpy(s_cam_offset_B, SENTAI_CALIB_DEFAULT_CAM_OFFSET_SIM,
            sizeof(s_cam_offset_B));
     s_is_calibrated = 0;
+    for (int i = 0; i < SENTAI_CALIB_AXIS_COUNT; ++i) {
+        s_kp_persisted[i] = -1.0f;
+    }
 }
 
 // =========================================================================
@@ -305,16 +336,26 @@ extern "C" void sentai_calib_clear(void) {
 // future incompatible layout changes, not for additive features.
 // =========================================================================
 static int format_ini(char* buf, size_t cap,
-                      const float R[9], const float cam_off[3]) {
+                      const float R[9], const float cam_off[3],
+                      const float kp[SENTAI_CALIB_AXIS_COUNT]) {
+    // Always write all 3 kp keys: a -1.0f value tells future loads
+    // "not calibrated", and explicit presence is friendlier to cat
+    // inspection than silently-omitted keys.
     int n = snprintf(buf, cap,
         "schema=%d\n"
         "R_B_C=%.9f,%.9f,%.9f,%.9f,%.9f,%.9f,%.9f,%.9f,%.9f\n"
-        "cam_offset_B=%.9f,%.9f,%.9f\n",
+        "cam_offset_B=%.9f,%.9f,%.9f\n"
+        "kp_x=%.6f\n"
+        "kp_y=%.6f\n"
+        "kp_yaw=%.6f\n",
         SENTAI_CALIB_SCHEMA_VERSION,
         R[0], R[1], R[2],
         R[3], R[4], R[5],
         R[6], R[7], R[8],
-        cam_off[0], cam_off[1], cam_off[2]);
+        cam_off[0], cam_off[1], cam_off[2],
+        kp[SENTAI_CALIB_AXIS_X],
+        kp[SENTAI_CALIB_AXIS_Y],
+        kp[SENTAI_CALIB_AXIS_YAW]);
     return n;
 }
 
@@ -378,7 +419,8 @@ static const char* ini_find_value(const char* buf, const char* key) {
     return NULL;
 }
 
-static int parse_ini(const char* buf, float R_out[9], float cam_off_out[3]) {
+static int parse_ini(const char* buf, float R_out[9], float cam_off_out[3],
+                     float kp_out[SENTAI_CALIB_AXIS_COUNT]) {
     const char* p = ini_find_value(buf, "schema");
     if (!p) return -1;
     const long schema = parse_long(p);
@@ -397,6 +439,20 @@ static int parse_ini(const char* buf, float R_out[9], float cam_off_out[3]) {
         if (parse_csv_floats(p, otmp, 3) == 3 &&
             isfinite(otmp[0]) && isfinite(otmp[1]) && isfinite(otmp[2])) {
             memcpy(cam_off_out, otmp, sizeof(otmp));
+        }
+    }
+
+    // Kp keys — optional (forward-compat: a schema-v2 file written by
+    // T2 firmware lacks them; treat as -1.0f = "not calibrated").
+    static const char* const kp_keys[SENTAI_CALIB_AXIS_COUNT] = {
+        "kp_x", "kp_y", "kp_yaw"
+    };
+    for (int i = 0; i < SENTAI_CALIB_AXIS_COUNT; ++i) {
+        const char* kp_p = ini_find_value(buf, kp_keys[i]);
+        if (!kp_p) continue;   // leave caller's default in place
+        float v;
+        if (parse_csv_floats(kp_p, &v, 1) == 1 && isfinite(v)) {
+            kp_out[i] = v;
         }
     }
     return 0;
@@ -445,7 +501,8 @@ static int write_calib_file(const char* buf, size_t n) {
 
 extern "C" int sentai_calib_save(void) {
     char buf[512];
-    const int n = format_ini(buf, sizeof(buf), s_R, s_cam_offset_B);
+    const int n = format_ini(buf, sizeof(buf), s_R, s_cam_offset_B,
+                              s_kp_persisted);
     if (n <= 0 || (size_t)n >= sizeof(buf)) return 0;
     return write_calib_file(buf, (size_t)n);
 }
@@ -455,10 +512,15 @@ extern "C" int sentai_calib_load(void) {
     if (!read_calib_file(buf, sizeof(buf))) return 0;
     float R[9];
     float cam_off[3];
+    float kp[SENTAI_CALIB_AXIS_COUNT];
     memcpy(R,       s_R,            sizeof(R));
     memcpy(cam_off, s_cam_offset_B, sizeof(cam_off));
-    if (parse_ini(buf, R, cam_off) != 0) return 0;
+    memcpy(kp,      s_kp_persisted, sizeof(kp));
+    if (parse_ini(buf, R, cam_off, kp) != 0) return 0;
     if (sentai_calib_commit_R(R, cam_off) != 0) return 0;
+    // Commit Kp atomically AFTER commit_R succeeds, so a failed R
+    // parse never leaks a partial Kp restore.
+    memcpy(s_kp_persisted, kp, sizeof(s_kp_persisted));
     return 1;
 }
 

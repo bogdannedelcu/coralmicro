@@ -819,7 +819,15 @@ OP — ObjectsPlan thesis
 │        │   green; new s188 5/5 PASS (on-disk format, schema reject,
 │        │   forward-compat, corruption handling, comment tolerance).
 │        │   ARM build #1424 + SIM build clean.
-│        ├── OP-S10-W21-T3 — Schema v2 + Kp persist in calib.ini      ⬜ TODO
+│        ├── OP-S10-W21-T3 — Schema v2 + Kp persist in calib.ini      ✅ SHIPPED (2026-05-21 eve)
+│        │   SENTAI_CALIB_AXIS_YAW=2 added; s_kp_persisted[3] state;
+│        │   commit_kp/get_persisted_kp API; format_ini/parse_ini
+│        │   include kp_x, kp_y, kp_yaw lines.  MP bindings:
+│        │   sentai.calib.commit_kp(axis, kp), get_persisted_kp(axis).
+│        │   Axis parser accepts "x", "y", "yaw", or int 0/1/2.
+│        │   Smokes 4/4: s157, s186, s188 regress green + new s189
+│        │   5/5 PASS (round-trip, defaults, invalid reject, sentinel
+│        │   accept, on-disk format).  ARM #1425 clean.
 │        ├── OP-S10-W21-T4 — `sentai_calib_run_bringup()` orchestrator ⬜ TODO
 │        ├── OP-S10-W21-T5 — Camera intrinsics auto-cal (DEFERRED)    ⬜ FW
 │        └── OP-S10-W21-T6 — SUBSYS_CALIB state + REPL-only trigger   ⬜ TODO

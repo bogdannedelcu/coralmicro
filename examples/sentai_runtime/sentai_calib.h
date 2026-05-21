@@ -214,11 +214,18 @@ float sentai_calib_rotation_angle_deg(const float R1[9], const float R2[9]);
 //   sentai.calib.get_kp(axis_str) -> float (-1.0f if not converged)
 // =========================================================================
 
-// Axis selector for autotune endpoints.
+// Axis selector for autotune endpoints + persisted Kp gains.
+// SENTAI_CALIB_AXIS_YAW added in OP-S10-W21-T3; current autotune
+// implementation supports X and Y only — YAW is a slot for the
+// future yaw-rate autotune + an INI-persisted gain useable by hold
+// validators today.
 typedef enum {
-    SENTAI_CALIB_AXIS_X = 0,
-    SENTAI_CALIB_AXIS_Y = 1,
+    SENTAI_CALIB_AXIS_X   = 0,
+    SENTAI_CALIB_AXIS_Y   = 1,
+    SENTAI_CALIB_AXIS_YAW = 2,
 } sentai_calib_axis_t;
+
+#define SENTAI_CALIB_AXIS_COUNT 3
 
 // AUTOTUNE_RELAY sub-states (returned by sentai_calib_autotune_get_state).
 typedef enum {
@@ -241,8 +248,30 @@ int sentai_calib_set_context(float z_hold_m,
                               float marker_size_m);
 
 // Read-side accessors for the learned Flow gains (-1.0f if not set).
+// Reads the LIVE autotune state — the value set by the most recent
+// task_start convergence.  For values restored from /system/calib.ini
+// after a reboot, use sentai_calib_get_persisted_kp instead.
 float    sentai_calib_get_kp(sentai_calib_axis_t axis);
 uint32_t sentai_calib_get_td_ms(void);
+
+// =========================================================================
+// OP-S10-W21-T3 — persisted Kp state.
+// =========================================================================
+// Separate from sentai_calib_get_kp (which mirrors the autotune's
+// live result and goes back to -1 on the next task_start).  The
+// persisted Kp is the one written to /system/calib.ini and survives
+// reboot — the value the bringup orchestrator commits after autotune
+// converges, and the value the mission code reads at flight start.
+//
+//   sentai_calib_commit_kp(axis, kp) -> 0 on success, -1 on invalid
+//                                       (kp must be finite + positive,
+//                                       or exactly -1.0f to mark
+//                                       "not calibrated").
+//   sentai_calib_get_persisted_kp(axis) -> kp or -1.0f.
+//
+// commit_kp + save() persists; commit_kp alone updates RAM only.
+int   sentai_calib_commit_kp(sentai_calib_axis_t axis, float kp);
+float sentai_calib_get_persisted_kp(sentai_calib_axis_t axis);
 
 // Worker task lifecycle (full impl in sentai_calib_task.cc).
 //   axis      ∈ {SENTAI_CALIB_AXIS_X, SENTAI_CALIB_AXIS_Y}
