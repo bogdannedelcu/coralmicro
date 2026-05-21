@@ -223,6 +223,10 @@ add_executable_m7(sentai_runtime
     # mirror the sentai.safety split.  See objects_plan/16_*.
     sentai_calib_autotune.cc
     sentai_calib_task.cc
+    # OP-S10-W21-T4 — unified bringup orchestrator.  Single FreeRTOS
+    # task that walks SAMPLE -> KABSCH -> AUTOTUNE_X/Y -> HOLD -> SAVE.
+    # All heavy lifting via existing primitives; this file is plumbing.
+    sentai_calib_bringup.cc
     # ObjectsPlan OP-S6-W3 — sentai.aruco fiducial detector + PnP.
     # Compute-heavy work (adaptive threshold, contour finder, PnP)
     # stays in C/C++; MP binding returns small scalars only.

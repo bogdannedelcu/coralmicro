@@ -23,6 +23,7 @@
 // the SENTAI_HAVE_FXUSER ifdef shim in sentai_calib.cc.
 
 #include "sentai_calib.h"
+#include "sentai_calib_bringup.h"
 
 #include <stdint.h>
 #include <string.h>
@@ -361,6 +362,137 @@ static mp_obj_t calib_get_hold_rms(void) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(calib_get_hold_rms_obj, calib_get_hold_rms);
 
+// ===================== OP-S10-W21-T4 bringup orchestrator =====================
+//
+//   sentai.calib.run_bringup(marker_world, marker_size_m=0.094,
+//                              z_hold=0.78, sweep_radius=0.10,
+//                              settle_s=2.0, vmax=0.10,
+//                              dur_relay=30.0, dur_hold=10.0,
+//                              hold_rms_max=0.030)
+//      marker_world: list of (x, y, z) tuples (1..8), indexed by ID.
+//      Returns int: 0 on spawn, -1 invalid, -2 busy, -3 task-create fail.
+//
+//   sentai.calib.bringup_is_done()       -> bool
+//   sentai.calib.bringup_get_phase()     -> int (0..8)
+//   sentai.calib.bringup_get_result()    -> dict (see below)
+//   sentai.calib.bringup_abort()         -> 0
+
+static mp_obj_t calib_run_bringup(size_t n_args, const mp_obj_t* pos_args,
+                                    mp_map_t* kw_args) {
+    if (n_args < 1) {
+        mp_raise_TypeError(MP_ERROR_TEXT("marker_world required"));
+    }
+    sentai_calib_bringup_ctx_t ctx;
+    memset(&ctx, 0, sizeof(ctx));
+
+    // marker_world: list of N (x, y, z) tuples.
+    size_t mw_n; mp_obj_t* mw_items;
+    mp_obj_get_array(pos_args[0], &mw_n, &mw_items);
+    if ((int)mw_n < 1 || (int)mw_n > SENTAI_CALIB_BRINGUP_MAX_MARKERS) {
+        mp_raise_ValueError(MP_ERROR_TEXT("marker_world len must be 1..8"));
+    }
+    ctx.marker_n = (int32_t)mw_n;
+    for (size_t i = 0; i < mw_n; ++i) {
+        float xyz[3];
+        if (calib_parse_vec3(mw_items[i], xyz) != 0) {
+            mp_raise_ValueError(MP_ERROR_TEXT("marker_world[i] must be 3-tuple"));
+        }
+        ctx.marker_world_n3[3*i + 0] = xyz[0];
+        ctx.marker_world_n3[3*i + 1] = xyz[1];
+        ctx.marker_world_n3[3*i + 2] = xyz[2];
+    }
+
+    // Defaults — tuned per OP-S10-W14 + design doc target acceptance.
+    ctx.marker_size_m   = 0.094f;
+    ctx.z_hold_m        = 0.78f;
+    ctx.sweep_radius_m  = 0.10f;
+    ctx.settle_s        = 2.0f;
+    ctx.vmax_m_s        = 0.10f;
+    ctx.dur_relay_s     = 30.0f;
+    ctx.dur_hold_s      = 10.0f;
+    ctx.hold_rms_max_m  = 0.030f;
+
+    // Override via kwargs.
+    static const mp_obj_t key_marker_size = MP_OBJ_NEW_QSTR(MP_QSTR_marker_size_m);
+    static const mp_obj_t key_z_hold      = MP_OBJ_NEW_QSTR(MP_QSTR_z_hold);
+    static const mp_obj_t key_sweep_r     = MP_OBJ_NEW_QSTR(MP_QSTR_sweep_radius);
+    static const mp_obj_t key_settle_s    = MP_OBJ_NEW_QSTR(MP_QSTR_settle_s);
+    static const mp_obj_t key_vmax        = MP_OBJ_NEW_QSTR(MP_QSTR_vmax);
+    static const mp_obj_t key_dur_relay   = MP_OBJ_NEW_QSTR(MP_QSTR_dur_relay);
+    static const mp_obj_t key_dur_hold    = MP_OBJ_NEW_QSTR(MP_QSTR_dur_hold);
+    static const mp_obj_t key_hold_rms    = MP_OBJ_NEW_QSTR(MP_QSTR_hold_rms_max);
+    mp_map_elem_t* el;
+    if ((el = mp_map_lookup(kw_args, (mp_obj_t)key_marker_size, MP_MAP_LOOKUP)))
+        ctx.marker_size_m = mp_obj_get_float(el->value);
+    if ((el = mp_map_lookup(kw_args, (mp_obj_t)key_z_hold, MP_MAP_LOOKUP)))
+        ctx.z_hold_m = mp_obj_get_float(el->value);
+    if ((el = mp_map_lookup(kw_args, (mp_obj_t)key_sweep_r, MP_MAP_LOOKUP)))
+        ctx.sweep_radius_m = mp_obj_get_float(el->value);
+    if ((el = mp_map_lookup(kw_args, (mp_obj_t)key_settle_s, MP_MAP_LOOKUP)))
+        ctx.settle_s = mp_obj_get_float(el->value);
+    if ((el = mp_map_lookup(kw_args, (mp_obj_t)key_vmax, MP_MAP_LOOKUP)))
+        ctx.vmax_m_s = mp_obj_get_float(el->value);
+    if ((el = mp_map_lookup(kw_args, (mp_obj_t)key_dur_relay, MP_MAP_LOOKUP)))
+        ctx.dur_relay_s = mp_obj_get_float(el->value);
+    if ((el = mp_map_lookup(kw_args, (mp_obj_t)key_dur_hold, MP_MAP_LOOKUP)))
+        ctx.dur_hold_s = mp_obj_get_float(el->value);
+    if ((el = mp_map_lookup(kw_args, (mp_obj_t)key_hold_rms, MP_MAP_LOOKUP)))
+        ctx.hold_rms_max_m = mp_obj_get_float(el->value);
+
+    return mp_obj_new_int(sentai_calib_bringup_start(&ctx));
+}
+static MP_DEFINE_CONST_FUN_OBJ_KW(calib_run_bringup_obj, 1, calib_run_bringup);
+
+static mp_obj_t calib_bringup_is_done(void) {
+    return mp_obj_new_bool(sentai_calib_bringup_is_done());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(calib_bringup_is_done_obj, calib_bringup_is_done);
+
+static mp_obj_t calib_bringup_get_phase(void) {
+    return mp_obj_new_int((int)sentai_calib_bringup_get_phase());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(calib_bringup_get_phase_obj, calib_bringup_get_phase);
+
+static mp_obj_t calib_bringup_abort(void) {
+    return mp_obj_new_int(sentai_calib_bringup_abort());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(calib_bringup_abort_obj, calib_bringup_abort);
+
+static mp_obj_t calib_bringup_get_result(void) {
+    sentai_calib_bringup_result_t r;
+    if (sentai_calib_bringup_get_result(&r) != 0) {
+        return mp_const_none;
+    }
+    mp_obj_t d = mp_obj_new_dict(0);
+    mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_accepted),
+                       mp_obj_new_bool(r.accepted));
+    mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_reject_code),
+                       mp_obj_new_int(r.reject_code));
+    mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_last_phase),
+                       mp_obj_new_int(r.last_phase));
+    mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_R_cam_to_body),
+                       calib_R_to_tuple(r.R_cam_to_body));
+    mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_cam_offset_B),
+                       calib_vec3_to_tuple(r.cam_offset_B));
+    mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_kp_x),
+                       mp_obj_new_float(r.kp_x));
+    mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_kp_y),
+                       mp_obj_new_float(r.kp_y));
+    mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_hold_max_drift_m),
+                       mp_obj_new_float(r.hold_max_drift_m));
+    mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_hold_rms_drift_m),
+                       mp_obj_new_float(r.hold_rms_drift_m));
+    mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_n_samples_used),
+                       mp_obj_new_int(r.n_samples_used));
+    mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_total_duration_ms),
+                       mp_obj_new_int(r.total_duration_ms));
+    mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_ext_quality),
+                       calib_quality_to_dict(&r.ext_quality));
+    return d;
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(calib_bringup_get_result_obj,
+                                  calib_bringup_get_result);
+
 // ===================== Module table =====================
 
 static const mp_rom_map_elem_t sentai_calib_globals_table[] = {
@@ -390,6 +522,12 @@ static const mp_rom_map_elem_t sentai_calib_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_hold_yaw_start),    MP_ROM_PTR(&calib_hold_yaw_start_obj) },
     { MP_ROM_QSTR(MP_QSTR_get_hold_max),      MP_ROM_PTR(&calib_get_hold_max_obj) },
     { MP_ROM_QSTR(MP_QSTR_get_hold_rms),      MP_ROM_PTR(&calib_get_hold_rms_obj) },
+    // OP-S10-W21-T4 bringup orchestrator
+    { MP_ROM_QSTR(MP_QSTR_run_bringup),         MP_ROM_PTR(&calib_run_bringup_obj) },
+    { MP_ROM_QSTR(MP_QSTR_bringup_is_done),     MP_ROM_PTR(&calib_bringup_is_done_obj) },
+    { MP_ROM_QSTR(MP_QSTR_bringup_get_phase),   MP_ROM_PTR(&calib_bringup_get_phase_obj) },
+    { MP_ROM_QSTR(MP_QSTR_bringup_get_result),  MP_ROM_PTR(&calib_bringup_get_result_obj) },
+    { MP_ROM_QSTR(MP_QSTR_bringup_abort),       MP_ROM_PTR(&calib_bringup_abort_obj) },
 };
 static MP_DEFINE_CONST_DICT(sentai_calib_globals, sentai_calib_globals_table);
 

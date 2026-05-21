@@ -403,6 +403,13 @@ SECTIONS
      *sentai_calib_task.cc.obj(.text .text*)
      *sentai_calib_task.cc.obj(.data .data*)
      *sentai_calib_task.cc.obj(.rodata .rodata*)
+     /* OP-S10-W21-T4 — bringup orchestrator.  Cold-path FreeRTOS task
+        that runs ONCE per drone bringup (~60-90 s wall).  No camera
+        ISR, no hot loops.  Route to .sdram_text alongside the inner
+        autotune worker. */
+     *sentai_calib_bringup.cc.obj(.text .text*)
+     *sentai_calib_bringup.cc.obj(.data .data*)
+     *sentai_calib_bringup.cc.obj(.rodata .rodata*)
      /* Track A places (s139+, 2026-05-16): PHOG descriptor compute.
         Cold-path ~1 Hz, ~10 ms on M7; .sdram_text per [[itcm-budget]]. */
      *sentai_phog.cc.obj(.text .text*)
