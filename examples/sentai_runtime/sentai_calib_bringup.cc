@@ -474,8 +474,8 @@ int phase_sample_() {
             if (pnp_diag <= 3) {
                 fprintf(stderr,
                     "[pnp_result] rc=%d drone_W=(%.3f,%.3f,%.3f) reproj=%.2f px\n",
-                    rc, (double)drone_W[0], (double)drone_W[1], (double)drone_W[2],
-                    (double)reproj_max);
+                    rc, (double)drone_W[0], (double)drone_W[1],
+                    (double)drone_W[2], (double)reproj_max);
             }
             if (rc != 0) { drone_W_n = 0; }
             else {

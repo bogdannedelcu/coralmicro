@@ -282,7 +282,11 @@ void worker_loop_() {
         //    correction, on par with cf2's baro update rate.
         //    Anti-cheat compliant: PnP-derived, not GT-injected.
         static uint32_t s_vpe_last_ms = 0;
-        if (pnp_valid && (ts - s_vpe_last_ms) >= 33) {  // 30 Hz
+        // s187 iter-52 (operator): keep 30 Hz VPE but CLAMP per-update
+        // delta to ±5 cm so cf2 EKF doesn't see big step → no overshoot.
+        // After ~1 s of consecutive clamped updates, total correction
+        // reaches 1.5 m — plenty to catch up to PnP truth gradually.
+        if (pnp_valid && (ts - s_vpe_last_ms) >= 33) {   // 30 Hz
             // drone_world[i] = marker_world[i] - R_cam_to_body * tvec_cam[i]
             // Per-marker (dx, dy, dz) then coord-wise median + 5cm
             // outlier reject — see median_robust_ comment above.
@@ -309,6 +313,41 @@ void worker_loop_() {
                 float dx = median_robust_(dx_per, dn_used, 0.05f);
                 float dy = median_robust_(dy_per, dn_used, 0.05f);
                 float dz = median_robust_(dz_per, dn_used, 0.05f);
+
+                // s187 iter-52 (operator): clamp per-VPE-tick delta to
+                // ±5 cm so cf2 EKF doesn't see big steps → no overshoot.
+                // VPE_target is the SMOOTHED z we send; PnP z provides
+                // ground truth that VPE_target chases gradually.
+                static float s_vpe_dx_sent = 0.0f;
+                static float s_vpe_dy_sent = 0.0f;
+                static float s_vpe_dz_sent = 0.0f;
+                static int   s_vpe_inited  = 0;
+                const float VPE_MAX_STEP = 0.05f;
+                if (!s_vpe_inited) {
+                    // First tick — seed with PnP values directly
+                    s_vpe_dx_sent = dx;
+                    s_vpe_dy_sent = dy;
+                    s_vpe_dz_sent = dz;
+                    s_vpe_inited  = 1;
+                } else {
+                    // Clamp |delta| to VPE_MAX_STEP per axis.
+                    float ex = dx - s_vpe_dx_sent;
+                    float ey = dy - s_vpe_dy_sent;
+                    float ez = dz - s_vpe_dz_sent;
+                    if (ex >  VPE_MAX_STEP) ex =  VPE_MAX_STEP;
+                    if (ex < -VPE_MAX_STEP) ex = -VPE_MAX_STEP;
+                    if (ey >  VPE_MAX_STEP) ey =  VPE_MAX_STEP;
+                    if (ey < -VPE_MAX_STEP) ey = -VPE_MAX_STEP;
+                    if (ez >  VPE_MAX_STEP) ez =  VPE_MAX_STEP;
+                    if (ez < -VPE_MAX_STEP) ez = -VPE_MAX_STEP;
+                    s_vpe_dx_sent += ex;
+                    s_vpe_dy_sent += ey;
+                    s_vpe_dz_sent += ez;
+                }
+                // Overwrite dx/dy/dz with clamped values for VPE send.
+                dx = s_vpe_dx_sent;
+                dy = s_vpe_dy_sent;
+                dz = s_vpe_dz_sent;
                 // T13/T16 VPE format — ALWAYS send ExtPose so cf2
                 // EKF gets full pose correction (altitude stays
                 // anchored).  Quaternion source:

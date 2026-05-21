@@ -61,9 +61,11 @@ VMAX_M_S           = 0.06    # s172 baseline (operator iter #17: 0.06 is
 DUR_RELAY_S        = 30.0   # s174 baseline (autotune-validated)
 DUR_HOLD_S         = 10.0
 HOLD_RMS_MAX_M     = 0.030
-TAKEOFF_DUR        = 2.5    # s172 baseline — works WITH SafetyTask driving
-                              # detection during takeoff (VPE flows → cf2 reaches
-                              # commanded altitude in 6.5 s)
+TAKEOFF_DUR        = 2.5    # iter-57: back to iter-53 baseline (best so far:
+                              # R 0.38°, hold 39mm/62mm).  z_stabilize wait
+                              # + slow takeoff = best stability.  Faster
+                              # takeoff degrades quality more than it saves
+                              # time.
 LAND_DUR           = 2.5
 PHASE_POLL_MS      = 500
 PHASE_TIMEOUT_S    = 180.0   # generous: sweep + 2×30s relay + 10s hold + slack
@@ -222,16 +224,13 @@ def run():
         sentai.crazy.hover(0.0, 0.0, 0.0, Z_HOLD)
         sentai.rtos.sleep_ms(30)
 
-    # iter-48 ADAPTIVE ASCENT (operator suggestion): instead of guessing
-    # how long cf2 SITL takes to reach Z_HOLD, climb until ≥4 markers
-    # visible for 30 consecutive frames.  Then stop ascent; that's the
-    # working altitude for calibration.
+    # iter-56 ADAPTIVE ASCENT: climb until ≥4 markers visible 30 frames.
+    # Removed Z_AGGR (iter-55 caused 6° yaw drift); just hover at Z_HOLD.
     _j("adaptive_ascent", "start")
     consec_ok = 0
     ascent_ticks = 0
-    ASCENT_TIMEOUT_TICKS = 300       # 30 s at 100 ms tick
+    ASCENT_TIMEOUT_TICKS = 200       # 20 s
     while ascent_ticks < ASCENT_TIMEOUT_TICKS:
-        # Drive detection.  Mission owns cadence (no SafetyTask).
         n = sentai.markers.detect_from_camera()
         if n >= 4:
             consec_ok += 1
@@ -241,9 +240,6 @@ def run():
                 break
         else:
             consec_ok = 0
-        # Gentle climb command via hover with small +z velocity setpoint.
-        # cf2 hover z_absolute holds; using Z_HOLD as the target keeps
-        # cf2 climbing toward it via its altitude controller.
         sentai.crazy.hover(0.0, 0.0, 0.0, Z_HOLD)
         sentai.rtos.sleep_ms(100)
         ascent_ticks += 1
@@ -258,10 +254,18 @@ def run():
     # Now that drone is at altitude with markers visible, arm SafetyTask.
     # It drives detection at 30 Hz throughout SAMPLE + AUTOTUNE so the
     # orchestrator's inner workers see fresh markers each tick.
-    # Backend already set to WhyCon by _setup_markers; iter-47 fix in
-    # sentai_safety_task.cc preserves it (no longer overrides to ARUCO).
     _j("safety_enable",      {"rc": sentai.safety.enable_aruco(4, 4.0)})
     _j("safety_task_start",  {"rc": sentai.safety.task_start()})
+
+    # iter-58: drop the EKF-based z_stabilize (cf2 EKF z is biased
+    # without VPE — declares "stable" when actually stuck).  Replace
+    # with a fixed 5s soak hover at Z_HOLD; the orchestrator's per-pose
+    # settle handles fine-grained stabilization.
+    _j("post_ascent_soak", "start")
+    for _ in range(50):           # 5 s @ 100 ms
+        sentai.crazy.hover(0.0, 0.0, 0.0, Z_HOLD)
+        sentai.rtos.sleep_ms(100)
+    _j("post_ascent_soak", "done")
 
     # ── Run bringup ───────────────────────────────────────────────────
     _j("bringup_start", {
