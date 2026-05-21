@@ -46,19 +46,31 @@ Orchestrator consumes only:
 ## Files
 
 - `README.md` (this) — scope + acceptance gate
-- `mission_s187.py` — MP orchestration: takeoff + run_bringup() + poll + land
-- `smoke_phase1.py` — host-runnable REPL smoke (no Gazebo) that validates
-  the binding surface (run_bringup spawn / phase polling / abort / result
-  shape).  Useful for sanity checks during T4 iteration.
-- `run.sh` — launcher stub (TBD)
-- `verdict_s187.py` — post-mortem comparison vs SDF ground truth (TBD)
+- `mission_s187.py` — MP orchestration: setup → takeoff → run_bringup()
+  → poll-with-phase-logging → assert_calibrated → land → summary.json
+- `smoke_phase1.py` — REPL smoke (no Gazebo) for binding-surface PASS
+- `run.sh` — host launcher: cleanup → SIM rebuild → SITL stack (cf2 +
+  Gazebo + gz_to_uds_bridge) → gt_recorder → mission inside sentai_sim
+  → verdict.  Mirrors s182 launch (reuses `sentai_whycon` world; pad
+  geometry already iter-11 square).
+- `verdict_s187.py` — host post-mortem: compares summary.json against
+  SDF ground truth (R_GT from sentai_calib.cc DEFAULT_R_SIM, offset_GT
+  = (-0.04, 0, -0.02)), prints PASS/FAIL per the 7 acceptance checks.
 
 ## Status
 
-- Phase 1 (binding smoke): PASS — see `smoke_phase1.py` output.
-- Phase 2 (Gazebo end-to-end): TBD — depends on `whycon_square_pad.sdf`
-  pad geometry matching `mission_s187.py` `MARKER_WORLD`.  Plan to share
-  the MARKER_WORLD constant with the s182 fork once that lands.
+- **Phase 1** (binding smoke): PASS — `smoke_phase1.py` 10/10 asserts.
+- **Phase 2** (Gazebo end-to-end): scaffolded.  Operator triggers via:
+
+  ```
+  cd examples/sentai_runtime/experiments/s187_calib_bringup_gazebo
+  bash run.sh
+  ```
+
+  Smoke-tested mission_s187.py syntax (imports in SIM); verdict_s187.py
+  validated with mock PASS+FAIL summaries (discriminates correctly per
+  all 7 gates).  Awaiting an operator-driven SITL run to capture the
+  first real bringup numbers.
 
 ## Known limitations of T4 v1
 
