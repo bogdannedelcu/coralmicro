@@ -1,22 +1,29 @@
-# sentai.sim journal opened path=/home/bogdan/work/coralmicro/build-sim/sentai_fs_root/mission_s187_journal.txt truncate=1 t_ms=354656203
-354656203 mission_start {'wbs': 'OP-S10-W21-T4'}
-354656203 setup 'start'
-354656203 setup 'ok'
-354656203 fr_init {'rc': 0}
-354656203 fr_open_frames {'rc': 0}
-354656204 fr_open_events {'rc': 0}
-354656206 fr_open_scalars {'rc': 0}
-354656206 fr_task_start {'rc': 0}
-354656206 arm 'start'
-354657545 pose_subscribe {'rc': 0, 'tries': 1}
-354658046 takeoff {'dur': 2.5, 'z': 0.78}
-354665070 takeoff_settled {}
-354665225 bringup_start {'sweep_radius': 0.05, 'dur_hold': 10.0, 'settle_s': 2.0, 'z_hold': 0.78, 'vmax': 0.1, 'dur_relay': 30.0}
-354665225 bringup_rc {'rc': 0}
-354665225 bringup_phase {'phase': 0, 'name': 'IDLE'}
-354665726 bringup_phase {'phase': 1, 'name': 'SAMPLE'}
-354679782 bringup_result {'reject_code': 2, 'ext_quality': {'reject_code': 0, 'max_residual_deg': 0.0, 'accepted': False, 'n_samples': 0, 'det_R': 0.0, 'mean_residual_deg': 0.0, 'drift_from_persisted_deg': 0.0}, 'accepted': False, 'hold_max': 0.0, 'reject_name': 'FEW_SAMPLES', 'hold_rms': 0.0, 'kp_y': -1.0, 'phase_reached': 1, 'kp_x': -1.0, 'status': 'ERROR', 'n_samples': 0, 'duration_ms': 14224, 'R': [0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, -1.0], 'cam_offset_B': [-0.04, 0.0, -0.02]}
-354679782 assert_calibrated {'ok': False}
-354679782 land {'dur': 2.5}
-354683291 mission_done {'status': 'FAIL'}
-# closed t_ms=354683294 lines=21 errors=0
+# sentai.sim journal opened path=/home/bogdan/work/coralmicro/build-sim/sentai_fs_root/mission_s187_journal.txt truncate=1 t_ms=356148358
+356148358 mission_start {'wbs': 'OP-S10-W21-T4'}
+356148358 setup 'start'
+356148358 setup 'ok'
+356148358 fr_init {'rc': 0}
+356148358 fr_open_frames {'rc': 0}
+356148358 fr_open_events {'rc': 0}
+356148358 fr_open_scalars {'rc': 0}
+356148358 fr_task_start {'rc': 0}
+356148358 arm 'start'
+356149513 pose_subscribe {'rc': 0, 'tries': 1}
+356150014 takeoff {'dur': 2.5, 'z': 0.9}
+356153176 adaptive_ascent 'start'
+356172307 adaptive_ascent_ok {'n_last': 4, 'ticks': 183}
+356172307 takeoff_settled {}
+356172464 safety_enable {'rc': 0}
+356172464 safety_task_start {'rc': 0}
+356172464 bringup_start {'sweep_radius': 0.05, 'dur_hold': 10.0, 'settle_s': 2.0, 'z_hold': 0.9, 'vmax': 0.06, 'dur_relay': 30.0}
+356172464 bringup_rc {'rc': 0}
+356172464 bringup_phase {'phase': 0, 'name': 'IDLE'}
+356172966 bringup_phase {'phase': 1, 'name': 'SAMPLE'}
+356187016 bringup_phase {'phase': 3, 'name': 'AUTOTUNE_X'}
+356198558 bringup_phase {'phase': 4, 'name': 'AUTOTUNE_Y'}
+356207094 bringup_phase {'phase': 5, 'name': 'HOLD'}
+356208598 bringup_result {'reject_code': 8, 'ext_quality': {'reject_code': 0, 'max_residual_deg': 1.160115, 'accepted': True, 'n_samples': 24, 'det_R': 1.0, 'mean_residual_deg': 0.8425438, 'drift_from_persisted_deg': 0.5278605}, 'accepted': False, 'hold_max': 0.0, 'reject_name': 'SAFETY', 'hold_rms': 0.0, 'kp_y': 0.39, 'phase_reached': 5, 'kp_x': 0.05177104, 'status': 'ERROR', 'n_samples': 24, 'duration_ms': 35804, 'R': [0.001908876, 0.9999974, 0.001276852, 0.9999581, -0.001920201, 0.008923859, 0.008926317, 0.001259893, -0.9999596], 'cam_offset_B': [-9.230276e-05, -0.005993905, 0.002882806]}
+356208598 assert_calibrated {'ok': False}
+356208598 land {'dur': 2.5}
+356212105 mission_done {'status': 'FAIL'}
+# closed t_ms=356212105 lines=28 errors=0

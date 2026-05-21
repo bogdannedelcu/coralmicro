@@ -53,16 +53,17 @@ FX, FY, CX, CY     = 288.3, 288.3, 160.0, 120.0
 MARKER_DIAMETER_M  = 0.1088   # WhyCon outer ring
 
 # ---- Bringup envelope ------------------------------------------------
-Z_HOLD             = 0.78    # iter-20-baseline (replicable Kabsch convergence)
+Z_HOLD             = 0.90    # s172 autotune-validated (operator: "loc de manevră")
 SWEEP_RADIUS_M     = 0.05    # small offset → markers stay near image center
 SETTLE_S           = 2.0
-VMAX_M_S           = 0.10    # iter-29 baseline (Kabsch drift 0.33° PASS)
-                              # Lower (0.04) tested in iter-30: didn't help
-                              # autotune convergence; reverted.
+VMAX_M_S           = 0.06    # s172 baseline (operator iter #17: 0.06 is
+                              # the empirical ZN SNR sweet spot)
 DUR_RELAY_S        = 30.0   # s174 baseline (autotune-validated)
 DUR_HOLD_S         = 10.0
 HOLD_RMS_MAX_M     = 0.030
-TAKEOFF_DUR        = 2.5
+TAKEOFF_DUR        = 2.5    # s172 baseline — works WITH SafetyTask driving
+                              # detection during takeoff (VPE flows → cf2 reaches
+                              # commanded altitude in 6.5 s)
 LAND_DUR           = 2.5
 PHASE_POLL_MS      = 500
 PHASE_TIMEOUT_S    = 180.0   # generous: sweep + 2×30s relay + 10s hold + slack
@@ -161,17 +162,19 @@ def run():
         "ext_quality":    None,
     }
 
-    # ── Stack init (mirrors s182 robust sequence) ─────────────────────
+    # ── Stack init.  SafetyTask is backend-agnostic (per
+    # sentai_safety_task.cc:194 "the safety task is backend-agnostic")
+    # — the "aruco" suffix in enable_aruco is historical naming; the
+    # check just counts markers via sentai_markers_get_count which
+    # respects whichever backend was init'd.  W21-T4d iter-47 patch
+    # ensures safety_task_start doesn't override a mission-set backend.
     _j("setup", "start")
     try:
-        sentai.calib.init()           # load /system/calib.ini if present
-        # iter-37: clear prior persisted calib so Kabsch's
-        # drift_from_persisted check uses SDF defaults (not a prior
-        # run's possibly-stochastically-off R).  In production this
-        # would be conditional on operator's "fresh-calib" gesture.
+        sentai.calib.init()
         sentai.calib.clear()
-        # Markers FIRST so detection backend is live before takeoff (s182).
-        _setup_markers()
+        sentai.camera.init()
+        _setup_markers()                 # WhyCon backend init + intrinsics
+        sentai.safety.init()
         sentai.crazy.init()
     except Exception as e:
         _j("setup_fail", {"err": str(e)})
@@ -206,15 +209,59 @@ def run():
     sentai.rtos.sleep_ms(500)
 
     _j("takeoff", {"z": Z_HOLD, "dur": TAKEOFF_DUR})
+    # iter-45: start SafetyTask AFTER takeoff_settled.  Pre-takeoff
+    # arming → no markers visible → immediate SAFETY abort.  s172
+    # tolerated 4s no-marker; our takeoff takes longer so we delay
+    # safety arm until drone is at altitude AND has marker FOV.
+    # (Future-work [[task-9-detectortask-refactor]]: separate detection
+    # cadence from safety so we don't need this dance.)
     sentai.crazy.takeoff(Z_HOLD, TAKEOFF_DUR)
-    # Long settle: takeoff_dur + 0.5s + 4s soak (s174/s182 pattern).
     sentai.rtos.sleep_ms(int(TAKEOFF_DUR * 1000) + 500)
-    sentai.rtos.sleep_ms(4000)
+    sentai.crazy.hl_stop()
+    for _ in range(5):
+        sentai.crazy.hover(0.0, 0.0, 0.0, Z_HOLD)
+        sentai.rtos.sleep_ms(30)
+
+    # iter-48 ADAPTIVE ASCENT (operator suggestion): instead of guessing
+    # how long cf2 SITL takes to reach Z_HOLD, climb until ≥4 markers
+    # visible for 30 consecutive frames.  Then stop ascent; that's the
+    # working altitude for calibration.
+    _j("adaptive_ascent", "start")
+    consec_ok = 0
+    ascent_ticks = 0
+    ASCENT_TIMEOUT_TICKS = 300       # 30 s at 100 ms tick
+    while ascent_ticks < ASCENT_TIMEOUT_TICKS:
+        # Drive detection.  Mission owns cadence (no SafetyTask).
+        n = sentai.markers.detect_from_camera()
+        if n >= 4:
+            consec_ok += 1
+            if consec_ok >= 30:
+                _j("adaptive_ascent_ok",
+                   {"ticks": ascent_ticks, "n_last": n})
+                break
+        else:
+            consec_ok = 0
+        # Gentle climb command via hover with small +z velocity setpoint.
+        # cf2 hover z_absolute holds; using Z_HOLD as the target keeps
+        # cf2 climbing toward it via its altitude controller.
+        sentai.crazy.hover(0.0, 0.0, 0.0, Z_HOLD)
+        sentai.rtos.sleep_ms(100)
+        ascent_ticks += 1
+    if consec_ok < 30:
+        _j("adaptive_ascent_timeout", {"consec_ok": consec_ok})
     _j("takeoff_settled", {})
     sentai.crazy.hl_stop()
     for _ in range(5):
         sentai.crazy.hover(0.0, 0.0, 0.0, Z_HOLD)
         sentai.rtos.sleep_ms(30)
+
+    # Now that drone is at altitude with markers visible, arm SafetyTask.
+    # It drives detection at 30 Hz throughout SAMPLE + AUTOTUNE so the
+    # orchestrator's inner workers see fresh markers each tick.
+    # Backend already set to WhyCon by _setup_markers; iter-47 fix in
+    # sentai_safety_task.cc preserves it (no longer overrides to ARUCO).
+    _j("safety_enable",      {"rc": sentai.safety.enable_aruco(4, 4.0)})
+    _j("safety_task_start",  {"rc": sentai.safety.task_start()})
 
     # ── Run bringup ───────────────────────────────────────────────────
     _j("bringup_start", {

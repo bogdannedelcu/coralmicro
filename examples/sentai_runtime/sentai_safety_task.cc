@@ -267,14 +267,13 @@ extern "C" int sentai_safety_task_start(void) {
     s.last_seq_processed       = 0;
     s.camera_consecutive_fails = 0;
     set_health(SENTAI_SAFETY_TASK_HEALTHY);   // optimistic; tick will flip if bad
-    // Ensure ArUco detector is initialised — SafetyTask is the only
-    // continuous caller in MP missions that don't otherwise call
-    // sentai.aruco.init().  Idempotent; uses built-in defaults
-    // (fx=fy=240, cx=160, cy=120 for 320×240 — SIM downward_cam matches).
-    // W19-T1: init the unified marker dispatcher with the ArUco
-    // backend by default.  Mission setup may switch to WhyCon via
-    // sentai.markers.init('whycon') before SafetyTask starts.
-    sentai_markers_init(SENTAI_MARKERS_BACKEND_ARUCO);
+    // iter-47 fix: only init markers backend if NOT already set by
+    // mission.  The previous unconditional init(ARUCO) was destroying
+    // the WhyCon backend that calibration missions set up — silently
+    // breaking detection on WhyCon pads.  Respect prior init.
+    if (sentai_markers_get_backend() == SENTAI_MARKERS_BACKEND_NONE) {
+        sentai_markers_init(SENTAI_MARKERS_BACKEND_ARUCO);
+    }
     // Frame journal moved to sentai.fr (OP-S10-W13): mission MP calls
     // `sentai.fr.open("frames", "/tmp/.../frames")` + `task_start()`.
 

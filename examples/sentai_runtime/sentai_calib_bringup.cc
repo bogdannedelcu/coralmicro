@@ -161,7 +161,10 @@ int associate_(const SentaiMarkersPose* mk,
 // snapshot (mean of 5 reads) as samples.  Limited to SAMPLES_MAX overall.
 int phase_sample_() {
     const float r = s_ctx.sweep_radius_m;
-    const float vmove = 0.10f;              // 1-sec travel ≈ 10 cm
+    const float vmove = 0.05f;              // iter-50: pași mici — 1-sec
+                                              // travel ≈ 5 cm so drone stays
+                                              // within marker FOV throughout
+                                              // sweep (operator preference)
     // 4 corners — short-axis sweep keeps drone in marker FOV.
     const float corners[4][2] = {
         { +r, +r }, { -r, +r }, { -r, -r }, { +r, -r },
@@ -287,13 +290,15 @@ int phase_sample_() {
                 }
             }
 
-            // VPE forwarder DISABLED in SAMPLE (iter-25 reset to iter-20
-            // baseline that converged).  Even with C=30 detection clean,
-            // PnP-Z bias at z=0.78 creates feedback loops in cf2 EKF
-            // (iter-23/24 diverged).  Without VPE in SAMPLE: cf2 baro
-            // drifts ~10cm in 14s — bounded enough.  VPE re-enabled in
-            // AUTOTUNE via sentai_calib_task.cc (ExtPos canal 0 fix).
-            if (false && n_dxyz >= 2) {
+            // VPE RE-ENABLED (iter-42) — coplanar PnP now gives accurate
+            // drone_W (iter-41: reproj 0.06 px on n=6 markers, drone z
+            // recovered 0.9 m matching GT).  Without VPE in SAMPLE the
+            // cf2 EKF baro drifts → drone drifts on all axes despite
+            // hover() commands → calibration sweep meaningless.  With
+            // VPE position-only (ExtPos canal 0) + accurate PnP drone_W,
+            // cf2 EKF anchors on real position and hover() commands
+            // become effective.
+            if (n_dxyz >= 2) {
                 // 3-element selection sort to find median of small N.
                 for (int a = 0; a < n_dxyz - 1; ++a) {
                     int mn = a;
@@ -438,16 +443,12 @@ int phase_sample_() {
             }
             pnp_n = 6;
         } else {
-            // Fall through with associate-mapped pairs (less reliable
-            // but better than nothing for n<6).
-            for (int i = 0; i < all_n; ++i) {
-                int k = all_pixels[i].k;
-                pnp_img[2*pnp_n + 0] = all_pixels[i].x;
-                pnp_img[2*pnp_n + 1] = all_pixels[i].y;
-                pnp_wld[2*pnp_n + 0] = s_ctx.marker_world_n3[3*k + 0];
-                pnp_wld[2*pnp_n + 1] = s_ctx.marker_world_n3[3*k + 1];
-                ++pnp_n;
-            }
+            // iter-43: skip poses with n<6.  associate_ fallback gives
+            // garbage drone_W (reproj 69 px observed iter-42 p=0)
+            // because cf2-EKF-biased forward projection mismatches
+            // pixel ↔ world pairs.  Better to discard pose than poison
+            // Kabsch with 5 bad samples.
+            continue;
         }
         float drone_W[3] = {0,0,0};
         int   drone_W_n = pnp_n;

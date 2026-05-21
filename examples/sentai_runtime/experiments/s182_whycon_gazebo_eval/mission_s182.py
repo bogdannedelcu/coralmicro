@@ -89,15 +89,17 @@ VPE_MIN_DETS    = 4      # require both columns' worth of markers
 # stabilised on Z without the host doing any vision work.
 # Per [[missions-run-in-sentai-only]] this is THE pattern (the old
 # host-side aruco_to_vision_estimate.py is deprecated).
-# iter-8: east column shifted from +0.16 → +0.12 to break the
-# X-mirror symmetry of the H pattern.  See verdict_sota.py header.
+# iter-11: operator-specified square layout, proportions 1:1:0.75 with
+# unit = 0.16 m (matches prior X span).  4 corners at (±0.16, ±0.16),
+# 2 mid-bar markers at (±0.12, 0).  Reverts the iter-8 X-asymmetry to
+# a symmetric pattern per operator preference.
 MARKER_WORLD = (
-    (-0.16, +0.20, 0.005),   # NW
-    (+0.12, +0.20, 0.005),   # NE
-    (-0.16,  0.00, 0.005),   # W   ← cross-bar (left)
-    (+0.12,  0.00, 0.005),   # E   ← cross-bar (right)
-    (-0.16, -0.14, 0.005),   # SW
-    (+0.12, -0.14, 0.005),   # SE
+    (-0.16, +0.16, 0.005),   # NW  ← corner
+    (+0.16, +0.16, 0.005),   # NE  ← corner
+    (-0.12,  0.00, 0.005),   # W   ← mid-bar (left, 0.75 × corner X)
+    (+0.12,  0.00, 0.005),   # E   ← mid-bar (right)
+    (-0.16, -0.16, 0.005),   # SW  ← corner
+    (+0.16, -0.16, 0.005),   # SE  ← corner
 )
 MARKER_NAMES = ("NW", "NE", "W", "E", "SW", "SE")
 

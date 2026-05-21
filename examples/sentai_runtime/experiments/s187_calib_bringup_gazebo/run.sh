@@ -108,7 +108,7 @@ mkdir -p "$FR_DIR/frames"
 cp "$MISSION_SRC" "$FS_ROOT/mission_s187.py"
 echo "[s187] running mission inside sentai_sim (budget 240s)"
 (echo "import mission_s187; r = mission_s187.run(); print('FINAL:', r['status'])" \
-    | timeout 240 "$SIM_BIN" > "$WORKDIR/sentai_repl.log" 2>&1) || true
+    | timeout 280 "$SIM_BIN" > "$WORKDIR/sentai_repl.log" 2>&1) || true
 
 # ---- 6. stop recorders ----------------------------------------------
 echo "[s187] stopping gt_recorder + bridge"
