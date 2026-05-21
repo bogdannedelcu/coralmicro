@@ -37,6 +37,10 @@ typedef enum {
     SUBSYS_REPL     = 5,   // MicroPython REPL
     SUBSYS_AUDIO    = 6,   // Audio service
     SUBSYS_SLAM     = 7,   // SlamTask perception loop (OP-S10-W11-T3)
+    SUBSYS_CALIB    = 8,   // sentai.calib bringup state (OP-S10-W21-T6).
+                           // HEALTHY iff is_calibrated()==1; UNAVAILABLE
+                           // pre-bringup.  Missions consult this (or the
+                           // is_calibrated() shortcut) before takeoff.
     SUBSYS_COUNT            // Must be last
 } SubsystemId_t;
 

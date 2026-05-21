@@ -3,7 +3,20 @@
 
 #include "sentai_calib.h"
 
+#include "sentai_health.h"
 #include "sentai_svd3.h"
+
+// OP-S10-W21-T6 — health hooks.  sentai_health.cc is ARM-only (it
+// pulls fsl_soc_src.h), so on SIM these resolve to NULL at link
+// time.  Guard each call against the function pointer being null.
+extern "C" void sentai_health_success(SubsystemId_t) __attribute__((weak));
+extern "C" void sentai_health_set_unavailable(SubsystemId_t) __attribute__((weak));
+static inline void calib_health_healthy_(void) {
+    if (&sentai_health_success) sentai_health_success(SUBSYS_CALIB);
+}
+static inline void calib_health_unavailable_(void) {
+    if (&sentai_health_set_unavailable) sentai_health_set_unavailable(SUBSYS_CALIB);
+}
 
 #include <math.h>
 #include <stdio.h>
@@ -288,6 +301,7 @@ extern "C" int sentai_calib_commit_R(const float R[9],
     memcpy(s_R, R, sizeof(s_R));
     if (cam_offset_B) memcpy(s_cam_offset_B, cam_offset_B, sizeof(s_cam_offset_B));
     s_is_calibrated = 1;
+    calib_health_healthy_();                 // OP-S10-W21-T6
     return 0;
 }
 
@@ -326,6 +340,7 @@ extern "C" void sentai_calib_clear(void) {
     for (int i = 0; i < SENTAI_CALIB_AXIS_COUNT; ++i) {
         s_kp_persisted[i] = -1.0f;
     }
+    calib_health_unavailable_();             // OP-S10-W21-T6
 }
 
 // =========================================================================
@@ -531,4 +546,10 @@ extern "C" void sentai_calib_init(void) {
         // Loaded from disk — already committed by load().
         s_is_calibrated = 1;
     }
+    // OP-S10-W21-T6 — surface calibration state via the health subsystem.
+    // HEALTHY iff calib loaded successfully; UNAVAILABLE pre-bringup
+    // ([[sentai-calib-is-production-bringup]]: missions must refuse to
+    // take off when uncalibrated, but the boot path NEVER auto-flies).
+    if (s_is_calibrated) calib_health_healthy_();
+    else                 calib_health_unavailable_();
 }

@@ -215,6 +215,21 @@ static mp_obj_t calib_is_calib(void) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(calib_is_calib_obj, calib_is_calib);
 
+// OP-S10-W21-T6 — takeoff-refusal guard helper.  Mission code calls
+// this before issuing hl_takeoff; raises RuntimeError when the drone
+// has not been brought up.  Per [[sentai-calib-is-production-bringup]]:
+// uncalibrated drones never auto-fly — the operator (or production
+// technician) must trigger sentai.calib.run_bringup() first.
+static mp_obj_t calib_assert_calibrated(void) {
+    if (!sentai_calib_is_calibrated()) {
+        mp_raise_msg(&mp_type_RuntimeError,
+            MP_ERROR_TEXT("sentai.calib not ready — run sentai.calib.run_bringup() first"));
+    }
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(calib_assert_calibrated_obj,
+                                   calib_assert_calibrated);
+
 // ===================== rotation_angle_deg(R1, R2) =====================
 
 static mp_obj_t calib_rotation_angle(mp_obj_t a, mp_obj_t b) {
@@ -506,6 +521,7 @@ static const mp_rom_map_elem_t sentai_calib_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_get_R_cam_to_body), MP_ROM_PTR(&calib_get_R_obj) },
     { MP_ROM_QSTR(MP_QSTR_get_cam_offset_B),  MP_ROM_PTR(&calib_get_off_obj) },
     { MP_ROM_QSTR(MP_QSTR_is_calibrated),     MP_ROM_PTR(&calib_is_calib_obj) },
+    { MP_ROM_QSTR(MP_QSTR_assert_calibrated), MP_ROM_PTR(&calib_assert_calibrated_obj) },
     { MP_ROM_QSTR(MP_QSTR_rotation_angle_deg),
                                               MP_ROM_PTR(&calib_rotation_angle_obj) },
     // OP-S10-W14 autotuner surface
