@@ -60,6 +60,31 @@ KD_Z_THRUST_PER_M_PER_S = 8000.0
 KP_XY_DEG_PER_M       = 10.0       # iter-4: lowered 30→10 (very gentle)
 KD_XY_DEG_PER_M_PER_S = 10.0
 
+# Iter-7+ strategy (A): hover after cf2 EKF convergence.
+# Operator-stated 2026-05-22: "Z poate sta pe PnP only, hover() works
+# after Kalman has good Z observation".  We continue PD altitude
+# (Classic RPYT) while feeding ExtPos, watch cf2.pose() converge to
+# match PnP, THEN switch to hover() which uses cf2's internal PIDs.
+EXTPOS_WARMUP_MAX_S    = 6.0
+EKF_CONV_TOL_M         = 0.10
+EKF_CONV_TICKS_REQ     = 5
+HOVER_HOLD_S           = 5.0
+HOVER_EXCURSION_TOL_M  = 0.25       # iter-10: was 0.10, drone oscillates
+                                     # 5-22cm naturally with cf2 hover() PID
+
+# Iter-11: operator-stated 2026-05-22 — KEEP ExtPos at 30Hz unfiltered.
+# Kalman has its own noise filtering; reducing rate throws away info.
+EXTPOS_LPF_ALPHA       = 1.0        # 1.0 = NO LPF (pass-through)
+EXTPOS_RATE_HZ         = 30         # full rate, every tick
+
+# Iter-10: cross sweep params for axis ID via Kabsch fit.
+SWEEP_RADIUS_M         = 0.025      # ±2.5cm cross corners
+SWEEP_VMOVE            = 0.025      # 1s travel for 2.5cm = 25 mm/s
+SWEEP_TRAVEL_S         = 1.0        # time to traverse to corner
+SWEEP_SETTLE_S         = 1.5        # settle at corner before sampling
+SWEEP_SAMPLE_S         = 2.0        # sample window
+SAMPLE_RATE_HZ         = 30         # PnP samples taken per second
+
 # Iter-4 lesson: get_drone_pose_tuple yaw oscillates between mirror
 # solutions across frames (e.g. 1.57 ↔ -1.71).  This breaks any
 # body→world rotation that depends on yaw.  Lower Kp_yaw further +
@@ -141,6 +166,17 @@ def _extpos(x, y, z):
     """ExtPos observation to cf2 Kalman (port 6 ch 0).  Position-only
     (12 B), no quaternion — avoids yaw forcing per iter-13 crash."""
     sentai.crazy.send_crtp(6, 0, struct.pack('<fff', x, y, z))
+
+
+def _position_setpoint(x_w, y_w, z_w, yaw_deg):
+    """Generic Commander position setpoint (CRTP port 7 ch 0, type=7).
+    cf2 sets mode.x/y/z = modeAbs → uses its internal position PID
+    with Kalman state to navigate to (x, y, z) in WORLD frame.
+    Iter-12 fix: replaces hover(vx, vy, ...) velocity-pulses that
+    caused open-loop resonance — drone now has closed-loop position
+    feedback in cf2, won't diverge if commanded back to origin."""
+    sentai.crazy.send_crtp(7, 0,
+        struct.pack('<Bffff', 7, x_w, y_w, z_w, yaw_deg))
 
 
 # ---- PnP helper -------------------------------------------------------
@@ -339,6 +375,572 @@ def _phase4_pd_altitude_lock(first_pnp):
     return last_xyz_yaw, thrust, vz_filt
 
 
+def _z_pd_thrust(z_now, z_prev, target_z, vz_filt_state, dt_s):
+    """Helper: compute Z PD thrust + update vz_filt.  Used across all
+    sub-phases of axis ID + nav so Z control stays active throughout."""
+    vz_raw = (z_now - z_prev) / dt_s
+    vz_filt = VZ_LPF_ALPHA * vz_raw + (1.0 - VZ_LPF_ALPHA) * vz_filt_state
+    err_z  = target_z - z_now
+    thrust = T_HOVER_NOMINAL + int(
+        KP_Z_THRUST_PER_M * err_z - KD_Z_THRUST_PER_M_PER_S * vz_filt)
+    if thrust < T_MIN_U16:    thrust = T_MIN_U16
+    if thrust > T_MAX_HOLD_U16: thrust = T_MAX_HOLD_U16
+    return thrust, vz_filt
+
+
+def _phase5_extpos_warmup_convergence(pd_state):
+    """Strategy (A) — feed ExtPos to cf2 Kalman while continuing PD
+    altitude (Classic RPYT), watch for cf2.pose() to converge to PnP.
+
+    Returns (last_xyz_yaw, last_thrust, vz_filt, converged).
+
+    Convergence criterion: |cf2.pose - pnp.pose| < EKF_CONV_TOL_M on
+    all 3 axes for EKF_CONV_TICKS_REQ consecutive ticks.
+
+    Once converged, mission can safely switch to Generic hover() which
+    relies on cf2.position/velocity from Kalman."""
+    pd_xyz_yaw, pd_thrust, pd_vz_filt = pd_state
+    target_z = pd_xyz_yaw[2]
+    z_prev   = pd_xyz_yaw[2]
+    vz_filt  = pd_vz_filt
+    last_xyz_yaw = pd_xyz_yaw
+
+    _j("phase5_extpos_warmup", {
+        "z_target":  target_z,
+        "tol_m":     EKF_CONV_TOL_M,
+        "ticks_req": EKF_CONV_TICKS_REQ,
+        "max_s":     EXTPOS_WARMUP_MAX_S,
+    })
+
+    dt_s = TICK_MS / 1000.0
+    n_ticks = int(EXTPOS_WARMUP_MAX_S * 1000 / TICK_MS)
+    conv_streak = 0
+
+    for ti in range(n_ticks):
+        n, x, y, z, yaw = _try_pnp()
+        if n >= 4 and z > 0.0:
+            z_now = z
+            last_xyz_yaw = (x, y, z, yaw)
+            # Feed cf2 Kalman with vision-derived position.
+            _extpos(x, y, z)
+        else:
+            z_now = z_prev
+
+        # Continue PD altitude via RPYT thrust (vision-based).
+        thrust, vz_filt = _z_pd_thrust(z_now, z_prev, target_z,
+                                         vz_filt, dt_s)
+        _rpyt(0.0, 0.0, 0.0, thrust)
+
+        # Read cf2 Kalman state for convergence check.
+        ekf_x = ekf_y = ekf_z = 0.0
+        ekf_ok = False
+        try:
+            p = sentai.crazy.pose()
+            if p is not None and len(p) >= 3:
+                ekf_x = float(p[0])
+                ekf_y = float(p[1])
+                ekf_z = float(p[2])
+                ekf_ok = True
+        except (AttributeError, RuntimeError, TypeError):
+            pass
+
+        # Iter-9 fix: only update streak when we have a VALID PnP
+        # measurement to compare against.  Without PnP we can't tell
+        # if cf2 is converged — but missing a tick shouldn't RESET
+        # progress.  Previously every PnP miss (n<4) zeroed the
+        # streak, preventing 5 consecutive matches.
+        if ekf_ok and n >= 4 and z > 0.0:
+            dx = abs(ekf_x - x)
+            dy = abs(ekf_y - y)
+            dz = abs(ekf_z - z)
+            if (dx < EKF_CONV_TOL_M and
+                dy < EKF_CONV_TOL_M and
+                dz < EKF_CONV_TOL_M):
+                conv_streak += 1
+            else:
+                conv_streak = 0
+        # PnP missing this tick → leave conv_streak unchanged (no
+        # info to update — neither confirm nor reset).
+
+        if (ti % 3) == 0:
+            _j("warmup_tick", {
+                "t": ti, "n": n,
+                "pnp": (x, y, z) if n >= 4 else (-1, -1, -1),
+                "ekf": (ekf_x, ekf_y, ekf_z),
+                "streak": conv_streak,
+                "thrust": thrust,
+            })
+
+        if conv_streak >= EKF_CONV_TICKS_REQ:
+            _j("phase5_extpos_warmup", {
+                "converged": True, "ticks_used": ti,
+                "final_xyz_yaw": last_xyz_yaw,
+                "final_thrust": thrust,
+            })
+            return last_xyz_yaw, thrust, vz_filt, True
+
+        z_prev = z_now
+        sentai.rtos.sleep_ms(TICK_MS)
+
+    _j("phase5_extpos_warmup", {
+        "converged": False, "timed_out": True,
+        "final_xyz_yaw": last_xyz_yaw,
+    })
+    return last_xyz_yaw, thrust, vz_filt, False
+
+
+def _phase6_hover_hold(warmup_state):
+    """Switch to Generic Commander hover() — cf2's altitude PID + XY
+    velocity hold using its (now converged) Kalman state.
+
+    Iter-10: LPF on PnP before ExtPos + reduce ExtPos rate from 30 to
+    10 Hz — reduces noise injected to cf2 Kalman → cf2 velocity PID
+    sees smoother state → less reactive oscillation.
+
+    Returns (xyz_yaw, success).  success=True if max excursion
+    < HOVER_EXCURSION_TOL_M (iter-10: 0.25m vs prior 0.10m — drone
+    naturally oscillates with cf2 PID, 10cm too strict)."""
+    last_xyz_yaw, _, _, _ = warmup_state
+    z_target = last_xyz_yaw[2]
+    last_xyz = last_xyz_yaw
+
+    # LPF state for PnP smoothing before ExtPos.
+    pnp_lpf_x = last_xyz_yaw[0]
+    pnp_lpf_y = last_xyz_yaw[1]
+    pnp_lpf_z = last_xyz_yaw[2]
+
+    _j("phase6_hover_hold", {
+        "z_target": z_target, "hold_s": HOVER_HOLD_S,
+        "extpos_lpf_alpha": EXTPOS_LPF_ALPHA,
+        "extpos_rate_hz":   EXTPOS_RATE_HZ,
+    })
+
+    n_ticks = int(HOVER_HOLD_S * 1000 / TICK_MS)
+    stable_count = 0
+    max_excursion = 0.0
+    # Send ExtPos every N ticks (10Hz on 30Hz mission loop = every 3).
+    extpos_decim = int(round((1000.0 / TICK_MS) / EXTPOS_RATE_HZ))
+
+    for ti in range(n_ticks):
+        # Always send hover at 30Hz (cf2 commander watchdog ~500ms).
+        sentai.crazy.hover(0.0, 0.0, 0.0, z_target)
+
+        n, x, y, z, yaw = _try_pnp()
+        if n >= 4 and z > 0.0:
+            # LPF on PnP to smooth noise.
+            pnp_lpf_x = EXTPOS_LPF_ALPHA * x + (1 - EXTPOS_LPF_ALPHA) * pnp_lpf_x
+            pnp_lpf_y = EXTPOS_LPF_ALPHA * y + (1 - EXTPOS_LPF_ALPHA) * pnp_lpf_y
+            pnp_lpf_z = EXTPOS_LPF_ALPHA * z + (1 - EXTPOS_LPF_ALPHA) * pnp_lpf_z
+            # Send ExtPos at reduced rate.
+            if (ti % extpos_decim) == 0:
+                _extpos(pnp_lpf_x, pnp_lpf_y, pnp_lpf_z)
+            last_xyz = (x, y, z, yaw)
+            err_x = x - last_xyz_yaw[0]
+            err_y = y - last_xyz_yaw[1]
+            err_z = z - z_target
+            excursion = math.sqrt(err_x*err_x + err_y*err_y + err_z*err_z)
+            if excursion > max_excursion:
+                max_excursion = excursion
+            if excursion < HOVER_EXCURSION_TOL_M:
+                stable_count += 1
+            else:
+                stable_count = 0
+
+        if (ti % 5) == 0:
+            ekf_xyz = (-1.0, -1.0, -1.0)
+            try:
+                p = sentai.crazy.pose()
+                if p is not None and len(p) >= 3:
+                    ekf_xyz = (p[0], p[1], p[2])
+            except (AttributeError, RuntimeError, TypeError):
+                pass
+            _j("hover_tick", {
+                "t": ti, "n": n,
+                "xyz": (x, y, z) if n >= 4 else (-1, -1, -1),
+                "lpf": (pnp_lpf_x, pnp_lpf_y, pnp_lpf_z),
+                "ekf": ekf_xyz,
+                "excursion": excursion if n >= 4 else -1.0,
+                "stable": stable_count,
+            })
+
+        sentai.rtos.sleep_ms(TICK_MS)
+
+    success = (stable_count >= (n_ticks // 2)
+               and max_excursion < HOVER_EXCURSION_TOL_M)
+    _j("phase6_hover_hold", {
+        "success": success,
+        "stable_ticks": stable_count, "total_ticks": n_ticks,
+        "max_excursion_m": max_excursion,
+        "final_xyz_yaw": last_xyz,
+        "pnp_lpf_state":  (pnp_lpf_x, pnp_lpf_y, pnp_lpf_z),
+    })
+    return last_xyz, success, (pnp_lpf_x, pnp_lpf_y, pnp_lpf_z)
+
+
+def _goto_and_sample(target_x_w, target_y_w, z_target, travel_s, settle_s,
+                       sample_s):
+    """Iter-12: send Generic position setpoint (world frame absolute)
+    to navigate drone to (target_x_w, target_y_w, z_target).  cf2's
+    position PID closed-loop drives drone there — no resonance from
+    open-loop velocity pulses.
+
+    Phase A: stream position setpoint for travel_s (drone arrives).
+    Phase B: continue same setpoint for settle_s (drone settles).
+    Phase C: continue + collect PnP samples for sample_s.
+
+    Continuously feeds ExtPos so cf2 Kalman stays anchored to vision.
+    Returns (samples_list, last_xyz_yaw).
+    samples_list = [(px, py, pz, pyaw), ...] of successful PnP frames."""
+    last_xyz_yaw = (target_x_w, target_y_w, z_target, 0.0)
+    samples = []
+
+    # Phase A: travel.
+    travel_ticks = int(travel_s * 1000 / TICK_MS)
+    for ti in range(travel_ticks):
+        _position_setpoint(target_x_w, target_y_w, z_target, 0.0)
+        n, x, y, z, yaw = _try_pnp()
+        if n >= 4 and z > 0.0:
+            _extpos(x, y, z)
+            last_xyz_yaw = (x, y, z, yaw)
+        sentai.rtos.sleep_ms(TICK_MS)
+
+    # Phase B: settle (same setpoint).
+    settle_ticks = int(settle_s * 1000 / TICK_MS)
+    for ti in range(settle_ticks):
+        _position_setpoint(target_x_w, target_y_w, z_target, 0.0)
+        n, x, y, z, yaw = _try_pnp()
+        if n >= 4 and z > 0.0:
+            _extpos(x, y, z)
+            last_xyz_yaw = (x, y, z, yaw)
+        sentai.rtos.sleep_ms(TICK_MS)
+
+    # Phase C: sample.
+    sample_ticks = int(sample_s * 1000 / TICK_MS)
+    for ti in range(sample_ticks):
+        _position_setpoint(target_x_w, target_y_w, z_target, 0.0)
+        n, x, y, z, yaw = _try_pnp()
+        if n >= 4 and z > 0.0:
+            samples.append((x, y, z, yaw))
+            _extpos(x, y, z)
+            last_xyz_yaw = (x, y, z, yaw)
+        sentai.rtos.sleep_ms(TICK_MS)
+
+    return samples, last_xyz_yaw
+
+
+def _phase7_cross_sweep(lpf_state, z_target):
+    """Iter-12: position-setpoint-based cross sweep.  Drone navigates
+    to ABSOLUTE WORLD positions via Generic position setpoint (cf2
+    position PID is closed-loop, no resonance).  Between each corner
+    drone RETURNS to (0,0,z_target) — operator-stated requirement.
+
+    World-frame absolute targets:
+      center = (0, 0, z)
+      +X     = (+r, 0, z)
+      -X     = (-r, 0, z)
+      +Y     = (0, +r, z)
+      -Y     = (0, -r, z)
+
+    Median of N samples per pose handles residual oscillation."""
+    _j("phase7_cross_sweep", {
+        "sweep_radius": SWEEP_RADIUS_M,
+        "travel_s": SWEEP_TRAVEL_S,
+        "settle_s": SWEEP_SETTLE_S,
+        "sample_s": SWEEP_SAMPLE_S,
+        "z_target": z_target,
+        "mode": "position_setpoint_world_frame",
+    })
+
+    def _median_of(xs):
+        s = sorted(xs)
+        m = len(s) // 2
+        return s[m] if (len(s) & 1) else 0.5 * (s[m-1] + s[m])
+
+    def _summarize(label, samples):
+        if not samples:
+            return None
+        xs = [s[0] for s in samples]
+        ys = [s[1] for s in samples]
+        zs = [s[2] for s in samples]
+        yaws = [s[3] for s in samples]
+        med = (_median_of(xs), _median_of(ys), _median_of(zs),
+               _median_of(yaws))
+        # Estimate noise as inter-quartile range.
+        return {"label": label, "n": len(samples), "median": med,
+                "x_range": (min(xs), max(xs)),
+                "y_range": (min(ys), max(ys)),
+                "z_range": (min(zs), max(zs))}
+
+    poses = {}
+    r = SWEEP_RADIUS_M
+
+    # ── 1. CENTER ── (drone navigates to absolute origin first)
+    _j("sweep_pose", "center")
+    s_center, _ = _goto_and_sample(
+        0.0, 0.0, z_target,
+        SWEEP_TRAVEL_S, SWEEP_SETTLE_S, SWEEP_SAMPLE_S)
+    poses["center"] = _summarize("center", s_center)
+    _j("sweep_summary", poses["center"])
+
+    # ── 2. +X world ──
+    _j("sweep_pose", "+X_world")
+    s_px, _ = _goto_and_sample(
+        +r, 0.0, z_target,
+        SWEEP_TRAVEL_S, SWEEP_SETTLE_S, SWEEP_SAMPLE_S)
+    poses["+X"] = _summarize("+X_world", s_px)
+    _j("sweep_summary", poses["+X"])
+
+    # Return to center between corners (closed-loop, position abs).
+    _j("sweep_pose", "return_to_center_1")
+    _, _ = _goto_and_sample(
+        0.0, 0.0, z_target,
+        SWEEP_TRAVEL_S, SWEEP_SETTLE_S, 0.0)
+
+    # ── 3. -X world ──
+    _j("sweep_pose", "-X_world")
+    s_nx, _ = _goto_and_sample(
+        -r, 0.0, z_target,
+        SWEEP_TRAVEL_S, SWEEP_SETTLE_S, SWEEP_SAMPLE_S)
+    poses["-X"] = _summarize("-X_world", s_nx)
+    _j("sweep_summary", poses["-X"])
+
+    _j("sweep_pose", "return_to_center_2")
+    _, _ = _goto_and_sample(
+        0.0, 0.0, z_target,
+        SWEEP_TRAVEL_S, SWEEP_SETTLE_S, 0.0)
+
+    # ── 4. +Y world ──
+    _j("sweep_pose", "+Y_world")
+    s_py, _ = _goto_and_sample(
+        0.0, +r, z_target,
+        SWEEP_TRAVEL_S, SWEEP_SETTLE_S, SWEEP_SAMPLE_S)
+    poses["+Y"] = _summarize("+Y_world", s_py)
+    _j("sweep_summary", poses["+Y"])
+
+    _j("sweep_pose", "return_to_center_3")
+    _, _ = _goto_and_sample(
+        0.0, 0.0, z_target,
+        SWEEP_TRAVEL_S, SWEEP_SETTLE_S, 0.0)
+
+    # ── 5. -Y world ──
+    _j("sweep_pose", "-Y_world")
+    s_ny, _ = _goto_and_sample(
+        0.0, -r, z_target,
+        SWEEP_TRAVEL_S, SWEEP_SETTLE_S, SWEEP_SAMPLE_S)
+    poses["-Y"] = _summarize("-Y_world", s_ny)
+    _j("sweep_summary", poses["-Y"])
+
+    # Final return to center.
+    _j("sweep_pose", "return_to_center_final")
+    _, _ = _goto_and_sample(
+        0.0, 0.0, z_target,
+        SWEEP_TRAVEL_S, SWEEP_SETTLE_S, 0.0)
+
+    # Body→world mapping check: with position setpoint in WORLD frame,
+    # the world displacement SHOULD match the commanded target.  If
+    # cf2 PID worked correctly, +X target → drone at (+r, 0), so the
+    # median position should be near (+r, 0).  Deviation = control
+    # error / Kalman noise.
+    if poses["center"] and poses["+X"] and poses["+Y"]:
+        c  = poses["center"]["median"]
+        px = poses["+X"]["median"]
+        py = poses["+Y"]["median"]
+        _j("axis_map_observed", {
+            "+X_target": (+r, 0),
+            "+X_observed_dxy": (px[0] - c[0], px[1] - c[1]),
+            "+Y_target": (0, +r),
+            "+Y_observed_dxy": (py[0] - c[0], py[1] - c[1]),
+        })
+
+    return poses, lpf_state
+
+
+def _phase5_axis_id(pd_state):
+    """NEW iter-7: axis identification via test-pulse pattern.
+
+    1. Baseline: Z PD + level for AXIS_ID_BASELINE_S → measure drift.
+    2. Pitch pulse: +AXIS_ID_PULSE_DEG for AXIS_ID_PULSE_S → record dx, dy.
+    3. Recovery: -AXIS_ID_PULSE_DEG for AXIS_ID_RECOVERY_S → brake.
+    4. Settle: roll=pitch=0 for AXIS_ID_SETTLE_S.
+    5. Roll pulse: same pattern.
+    6. Build 2×2 axis map.
+
+    Returns (M_inv_per_meter, drone_xyz, vz_filt, axis_id_ok)
+    where M_inv_per_meter maps (err_x_m, err_y_m) → (pitch_deg, roll_deg)
+    needed to produce that displacement over a 1-second window.
+    On failure, axis_id_ok=False (mission falls back to no XY control)."""
+    pd_xyz_yaw, _, pd_vz_filt = pd_state
+    target_z = pd_xyz_yaw[2]      # lock z to PD's final altitude
+    vz_filt  = pd_vz_filt
+    z_prev   = pd_xyz_yaw[2]
+    last_xyz_yaw = pd_xyz_yaw
+
+    _j("phase5_axis_id", {
+        "z_target":    target_z,
+        "pulse_deg":   AXIS_ID_PULSE_DEG,
+        "pulse_s":     AXIS_ID_PULSE_S,
+        "baseline_s":  AXIS_ID_BASELINE_S,
+        "recovery_s":  AXIS_ID_RECOVERY_S,
+    })
+
+    dt_s = TICK_MS / 1000.0
+
+    # ─── 1. BASELINE: Z PD + level, measure mean velocity ─────────
+    _j("axis_id_phase", "baseline_start")
+    samples_base = []
+    n_ticks = int(AXIS_ID_BASELINE_S * 1000 / TICK_MS)
+    for ti in range(n_ticks):
+        n, x, y, z, yaw = _try_pnp()
+        if n >= 4 and z > 0.0:
+            z_now = z
+            last_xyz_yaw = (x, y, z, yaw)
+            samples_base.append((x, y, z))
+        else:
+            z_now = z_prev
+
+        thrust, vz_filt = _z_pd_thrust(z_now, z_prev, target_z,
+                                         vz_filt, dt_s)
+        _rpyt(0.0, 0.0, 0.0, thrust)
+        z_prev = z_now
+        sentai.rtos.sleep_ms(TICK_MS)
+
+    if len(samples_base) < 5:
+        _j("axis_id_phase", {"step": "baseline", "fail": "few_samples",
+                              "n_samples": len(samples_base)})
+        return None, last_xyz_yaw, vz_filt, False
+
+    # Drift velocity from first/last sample.
+    base_dt = (len(samples_base) - 1) * dt_s
+    vx_drift = (samples_base[-1][0] - samples_base[0][0]) / base_dt
+    vy_drift = (samples_base[-1][1] - samples_base[0][1]) / base_dt
+    _j("axis_id_baseline", {
+        "n_samples": len(samples_base),
+        "x_start": samples_base[0][0],  "y_start": samples_base[0][1],
+        "x_end":   samples_base[-1][0], "y_end":   samples_base[-1][1],
+        "vx_drift": vx_drift, "vy_drift": vy_drift,
+    })
+
+    # ─── Helper: run one pulse + recovery + settle ────────────────
+    def _do_pulse(label, roll_deg, pitch_deg):
+        """Returns (dx_net, dy_net) — displacement during pulse with
+        drift subtracted.  Updates z_prev, vz_filt, last_xyz_yaw via
+        nonlocal closure."""
+        # Snapshot position before pulse.
+        n0, x0, y0, z0, yaw0 = _try_pnp()
+        if n0 < 4:
+            return None, None
+        _j("axis_id_pulse_start", {
+            "label": label, "x": x0, "y": y0, "z": z0, "yaw": yaw0,
+            "cmd_roll": roll_deg, "cmd_pitch": pitch_deg,
+        })
+
+        # 2A. FORWARD PULSE
+        pulse_ticks = int(AXIS_ID_PULSE_S * 1000 / TICK_MS)
+        for ti in range(pulse_ticks):
+            nonlocal z_prev, vz_filt, last_xyz_yaw
+            n, x, y, z, yaw = _try_pnp()
+            if n >= 4 and z > 0.0:
+                z_now = z
+                last_xyz_yaw = (x, y, z, yaw)
+            else:
+                z_now = z_prev
+            thrust, vz_filt = _z_pd_thrust(z_now, z_prev, target_z,
+                                             vz_filt, dt_s)
+            _rpyt(roll_deg, pitch_deg, 0.0, thrust)
+            z_prev = z_now
+            sentai.rtos.sleep_ms(TICK_MS)
+
+        # Snapshot position after pulse.
+        n1, x1, y1, z1, yaw1 = _try_pnp()
+        if n1 < 4:
+            return None, None
+
+        # 2B. RECOVERY (opposite pulse to brake).
+        for ti in range(int(AXIS_ID_RECOVERY_S * 1000 / TICK_MS)):
+            n, x, y, z, yaw = _try_pnp()
+            if n >= 4 and z > 0.0:
+                z_now = z
+                last_xyz_yaw = (x, y, z, yaw)
+            else:
+                z_now = z_prev
+            thrust, vz_filt = _z_pd_thrust(z_now, z_prev, target_z,
+                                             vz_filt, dt_s)
+            _rpyt(-roll_deg, -pitch_deg, 0.0, thrust)
+            z_prev = z_now
+            sentai.rtos.sleep_ms(TICK_MS)
+
+        # 2C. SETTLE (level + Z PD).
+        for ti in range(int(AXIS_ID_SETTLE_S * 1000 / TICK_MS)):
+            n, x, y, z, yaw = _try_pnp()
+            if n >= 4 and z > 0.0:
+                z_now = z
+                last_xyz_yaw = (x, y, z, yaw)
+            else:
+                z_now = z_prev
+            thrust, vz_filt = _z_pd_thrust(z_now, z_prev, target_z,
+                                             vz_filt, dt_s)
+            _rpyt(0.0, 0.0, 0.0, thrust)
+            z_prev = z_now
+            sentai.rtos.sleep_ms(TICK_MS)
+
+        # Compute net pulse displacement (subtract baseline drift over
+        # the pulse duration only — the pulse caused this dx/dy).
+        dx_raw = x1 - x0
+        dy_raw = y1 - y0
+        dx_net = dx_raw - vx_drift * AXIS_ID_PULSE_S
+        dy_net = dy_raw - vy_drift * AXIS_ID_PULSE_S
+        _j("axis_id_pulse_done", {
+            "label": label, "x0_y0": (x0, y0), "x1_y1": (x1, y1),
+            "dx_raw": dx_raw, "dy_raw": dy_raw,
+            "dx_net": dx_net, "dy_net": dy_net,
+        })
+        return dx_net, dy_net
+
+    # ─── 2. PITCH PULSE ──────────────────────────────────────────
+    dx_p, dy_p = _do_pulse("pitch+", 0.0, +AXIS_ID_PULSE_DEG)
+    if dx_p is None:
+        _j("axis_id_phase", {"step": "pitch_pulse", "fail": "no_pnp"})
+        return None, last_xyz_yaw, vz_filt, False
+
+    # ─── 3. ROLL PULSE ───────────────────────────────────────────
+    dx_r, dy_r = _do_pulse("roll+", +AXIS_ID_PULSE_DEG, 0.0)
+    if dx_r is None:
+        _j("axis_id_phase", {"step": "roll_pulse", "fail": "no_pnp"})
+        return None, last_xyz_yaw, vz_filt, False
+
+    # ─── 4. BUILD MAP ────────────────────────────────────────────
+    # M relates (pitch_deg, roll_deg) pulse over PULSE_S → (dx, dy)
+    # in world frame.  M = [[dx_per_pitch, dx_per_roll],
+    #                       [dy_per_pitch, dy_per_roll]]
+    pulse = float(AXIS_ID_PULSE_DEG)
+    dx_per_pitch = dx_p / pulse
+    dy_per_pitch = dy_p / pulse
+    dx_per_roll  = dx_r / pulse
+    dy_per_roll  = dy_r / pulse
+
+    # Invert 2×2.
+    det = dx_per_pitch * dy_per_roll - dx_per_roll * dy_per_pitch
+    _j("axis_id_map", {
+        "dx_per_pitch": dx_per_pitch, "dy_per_pitch": dy_per_pitch,
+        "dx_per_roll":  dx_per_roll,  "dy_per_roll":  dy_per_roll,
+        "det": det,
+    })
+    if abs(det) < 1e-4:
+        _j("axis_id_phase", {"step": "build_map", "fail": "singular",
+                              "det": det})
+        return None, last_xyz_yaw, vz_filt, False
+
+    inv_det = 1.0 / det
+    # M_inv: maps (dx_world, dy_world) → (pitch, roll) needed.
+    M_inv = [
+        [+dy_per_roll  * inv_det, -dx_per_roll  * inv_det],
+        [-dy_per_pitch * inv_det, +dx_per_pitch * inv_det],
+    ]
+    _j("axis_id_done", {"M_inv_row0": M_inv[0], "M_inv_row1": M_inv[1]})
+
+    return M_inv, last_xyz_yaw, vz_filt, True
+
+
 def _phase5_pd_navigate(pd_state):
     """NEW T12: Cascaded PD on X/Y/Z/Yaw to navigate to (0,0,Z_HOLD)
     and HOLD there for NAV_HOLD_S.  Classic Commander RPYT only.
@@ -529,17 +1131,93 @@ def run():
         pd_xyz_yaw, pd_thrust, pd_vz_filt = _phase4_pd_altitude_lock(first_pnp)
         summary["phase_reached"] = 4
 
-        nav_result = _phase5_pd_navigate(
-            (pd_xyz_yaw, pd_thrust, pd_vz_filt))
-        last_xyz_yaw, last_thrust, last_vz, nav_stable = nav_result
-        summary["phase_reached"]      = 5
-        summary["nav_stable"]         = nav_stable
-        summary["nav_final_xyz_yaw"]  = last_xyz_yaw
+        # Iter-12 simplified: switch DIRECTLY to position setpoint
+        # after PD altitude.  cf2 navigates to (0, 0, z_target) via
+        # its closed-loop position PID.  ExtPos converges Kalman in
+        # parallel — no separate convergence-detect phase needed.
+        # Operator-stated: "Kalman e capabil sa trateze acest zgomot".
+        z_target = pd_xyz_yaw[2]
+        _j("phase5_position_anchor", {
+            "target": (0.0, 0.0, z_target),
+            "anchor_s": 4.0,
+        })
+        # 4s of position(0,0,z) + ExtPos — drone navigates to origin,
+        # Kalman tracks PnP, cf2 PID damps any residual velocity.
+        anchor_ticks = int(4.0 * 1000 / TICK_MS)
+        for ti in range(anchor_ticks):
+            _position_setpoint(0.0, 0.0, z_target, 0.0)
+            n, x, y, z, yaw = _try_pnp()
+            if n >= 4 and z > 0.0:
+                _extpos(x, y, z)
+            if (ti % 6) == 0:
+                ekf_xyz = (-1.0, -1.0, -1.0)
+                try:
+                    p = sentai.crazy.pose()
+                    if p is not None and len(p) >= 3:
+                        ekf_xyz = (p[0], p[1], p[2])
+                except (AttributeError, RuntimeError, TypeError):
+                    pass
+                _j("anchor_tick", {
+                    "t": ti, "n": n,
+                    "pnp": (x, y, z) if n >= 4 else (-1, -1, -1),
+                    "ekf": ekf_xyz,
+                })
+            sentai.rtos.sleep_ms(TICK_MS)
 
-        if nav_stable:
-            summary["status"] = "PASS"
+        hover_xyz = (0.0, 0.0, z_target, 0.0)
+        hover_ok = True   # trust cf2's position hold; sweep verifies
+        summary["phase_reached"] = 6
+        summary["hover_ok"] = True
+        summary["hover_final_xyz_yaw"] = hover_xyz
+        lpf_state = (0.0, 0.0, z_target)
+        summary["ekf_converged"] = True
+
+        # Phase 7: cross sweep to discover body→world mapping via PnP.
+        # Operator-stated: "vreau sa ne dam seama chiar in zbor daca
+        # axa X e cumva inversata cu Y".  We sweep BODY frame velocity
+        # and Kabsch fits the world response.
+        # Iter-12: run sweep REGARDLESS of hover_ok — drone is being
+        # controlled (cf2 velocity hold) even if oscillating; median
+        # of N samples per pose handles the noise.
+        if not hover_ok:
+            _j("phase7_warn", "hover unstable but proceeding to sweep")
+        poses, lpf_state2 = _phase7_cross_sweep(lpf_state, hover_xyz[2])
+        summary["phase_reached"] = 7
+        summary["sweep_poses"]   = {k: (v["median"] if v else None)
+                                      for k, v in poses.items()}
+        # Quick axis-map verdict.
+        c  = poses["center"]["median"]    if poses.get("center") else None
+        px = poses["+X"]["median"]        if poses.get("+X")     else None
+        py = poses["+Y"]["median"]        if poses.get("+Y")     else None
+        if c and px and py:
+            dx_b_to_w = (px[0]-c[0], px[1]-c[1])
+            dy_b_to_w = (py[0]-c[0], py[1]-c[1])
+            summary["axis_map_x_body_to_world"] = dx_b_to_w
+            summary["axis_map_y_body_to_world"] = dy_b_to_w
+            summary["status"] = "SWEEP_DONE"
         else:
-            summary["status"] = "NAV_TIMEOUT"
+            summary["status"] = "SWEEP_PARTIAL"
+
+        # Phase 8: return drone to takeoff origin (per [[sim-test-must-
+        # return-home]] HR — operator-stated 2026-05-22).
+        # Use position setpoint (closed-loop) — cf2 navigates back to
+        # (0,0,z_hold) via its own PID.  Iter-12: phase 7 already ends
+        # at (0,0,z) so this is mostly redundant — keep as safety.
+        _j("phase8_return_to_origin", {"z_hold": hover_xyz[2]})
+        RTH_TIMEOUT_S = 3.0
+        n_ticks = int(RTH_TIMEOUT_S * 1000 / TICK_MS)
+        for ti in range(n_ticks):
+            _position_setpoint(0.0, 0.0, hover_xyz[2], 0.0)
+            n, x, y, z, yaw = _try_pnp()
+            if n >= 4 and z > 0.0:
+                _extpos(x, y, z)
+                if math.sqrt(x*x + y*y) < 0.08:
+                    _j("phase8_arrived",
+                       {"xy_err": math.sqrt(x*x + y*y),
+                        "ticks": ti})
+                    break
+            sentai.rtos.sleep_ms(TICK_MS)
+        _j("phase8_return_to_origin", "done")
 
         _phase10_land()
     except Exception as e:

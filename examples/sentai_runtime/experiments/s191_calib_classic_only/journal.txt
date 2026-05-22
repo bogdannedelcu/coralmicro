@@ -96,3 +96,46 @@ of 5cm in 2s = 0.025 m/s → during 0.3s = 7.5mm.  Signal:Noise ≈ 1:1.
 TINY margin.  May need larger pulse (+2°) or longer (0.5s).
 
 Need to commit progress + continue in next session.
+
+## iter-7..9  Strategy A: hover() after EKF convergence
+
+iter-7  added EKF convergence detection (cf2.pose vs PnP).
+iter-8  relaxed tol 5→10cm, ticks 10→5.
+iter-9  PnP-miss tolerance (don't reset streak on n<4).
+        → converged in 21 ticks (700ms).  hover() ran 5s.
+        Max excursion 22cm.  Status HOVER_UNSTABLE due to threshold.
+        OPERATOR CONFIRM: switch happened, drona stable cu oscilații.
+
+## iter-10..12  added phase 7 cross sweep + return-to-origin
+
+iter-10/11 EKF convergence FLAKY across runs (iter-10 fail, iter-11
+        pass with 0.65m excursion in hover).  LPF removed per operator.
+
+iter-12  position setpoint replacing hover() velocity pulses (closed
+        loop instead of open-loop resonance).
+
+## iter-13  FRAME MISMATCH discovered (critical finding)
+
+params: position setpoint world frame at (0,0,z)
+
+result: drone DRIFTS in -Y per PnP, ends up +Y per GT.  **PnP frame
+≠ Gazebo world frame**.  cf2 navigating in PnP frame which is flipped
+vs Gazebo.  Drone goes wrong direction physically.
+
+KEY INSIGHT: this IS the calibration problem.  R_cam_to_body in
+sentai.calib is exactly the frame offset between vision PnP and
+body/world.  Using cf2 position setpoint with PnP-fed ExtPos hides
+the problem at a higher level but doesn't solve it.
+
+For axis ID:
+- Can't use position setpoint (depends on frame which we're calibrating)
+- Must use hover() body-frame velocity pulses + Kabsch on world response
+- This IS what we tried in iter-7 axis_id branch — should revisit
+
+NEXT (deferred): rewrite phase 5 with hover()-based axis ID:
+1. hover(0,0,0,z) to settle drone in body frame
+2. hover(+v, 0, 0, z) pulse for 0.3s + opposite recovery → measure
+   (dx_w, dy_w) world response per pitch+ body command
+3. hover(0, +v, 0, z) pulse + recovery → (dx_w, dy_w) per roll+
+4. Build 2×2 axis map → R_body_to_world
+5. After axis ID, commit_R + sweep using world frame INTERPRETED via R

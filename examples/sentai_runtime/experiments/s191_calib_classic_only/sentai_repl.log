@@ -1,0 +1,70 @@
+[sim] sentai_sim build #517 (2026-05-22 16:10:04)
+[sim] FreeRTOS POSIX port: tick=1000 Hz, heap=4194304 bytes
+[sim] MicroPython heap: 524288 bytes
+[sim] sentai.fr auto-start: dir=/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s191_calib_classic_only/fr_current init=0 events=0 scalars=0 task=0
+[sim] FS root: /home/bogdan/work/coralmicro/build-sim/sentai_fs_root
+0
+
+MicroPython on SentAI SIM (FreeRTOS POSIX port + MicroPython embed)
+Type expressions, end with Enter.  Ctrl-D or 'exit' to quit.
+Try: sentai.version(), sentai.fs.write(...), help()
+
+>>> [sentai_fr] worker START
+sentai.crazy: init OK (UDP 127.0.0.1:19850)
+sentai.crazy: rx task started (sock=6, 127.0.0.1:19850)
+[whycon_filter] n_comp=6 accepted=0  rejects: border=0 min_area=6 max_area=0 ar=0 fill=0 axis=0 w3=0 min_a=40 max_a=4000 max_ar=2.00 min_fill=0.40 max_axis=2.00
+[whycon_filter] n_comp=6 accepted=0  rejects: border=0 min_area=6 max_area=0 ar=0 fill=0 axis=0 w3=0 min_a=40 max_a=4000 max_ar=2.00 min_fill=0.40 max_axis=2.00
+[whycon_filter] n_comp=6 accepted=0  rejects: border=0 min_area=6 max_area=0 ar=0 fill=0 axis=0 w3=0 min_a=40 max_a=4000 max_ar=2.00 min_fill=0.40 max_axis=2.00
+[whycon_pnp] s_fx=288.30 s_fy=288.30 diam=0.0544 axis_a=51.4684 axis_b=48.3016
+[whycon_pnp] s_fx=288.30 s_fy=288.30 diam=0.0544 axis_a=50.4093 axis_b=50.2395
+[whycon_pnp] s_fx=288.30 s_fy=288.30 diam=0.0544 axis_a=51.4684 axis_b=48.3016
+[whycon_pnp] s_fx=288.30 s_fy=288.30 diam=0.0544 axis_a=50.4093 axis_b=50.2395
+[whycon_pnp] s_fx=288.30 s_fy=288.30 diam=0.0544 axis_a=47.3717 axis_b=47.1732
+camera_bridge: listening on /tmp/sentai_cam.sock (waiting for Gazebo bridge)
+[camera] init() (virt_gazebo stub - Phase 4 will connect to Gazebo)
+camera_bridge: client connected
+camera_bridge: rgb_crc=0x92fb2bf3 (prev=0x00000000, CHANGED)
+camera_bridge: rgb_crc=0x69445a51 (prev=0x9ea84ed8, CHANGED)
+camera_bridge: rgb_crc=0x7b9494a0 (prev=0x57e5e985, CHANGED)
+camera_bridge: rgb_crc=0x6a361ef4 (prev=0x18474420, CHANGED)
+camera_bridge: rgb_crc=0xaf8f1f1e (prev=0x36494bd7, CHANGED)
+camera_bridge: rgb_crc=0x03c4757d (prev=0x8bd5017d, CHANGED)
+camera_bridge: rgb_crc=0xad9d5aad (prev=0xeeb4c20b, CHANGED)
+camera_bridge: rgb_crc=0x846155b2 (prev=0x736dc0a4, CHANGED)
+camera_bridge: rgb_crc=0xc3d2f661 (prev=0x69430b35, CHANGED)
+camera_bridge: rgb_crc=0x5c9cdd15 (prev=0x69060b03, CHANGED)
+camera_bridge: rgb_crc=0x12c73094 (prev=0x66329752, CHANGED)
+camera_bridge: rgb_crc=0xe0300762 (prev=0x2dbd9bb0, CHANGED)
+camera_bridge: rgb_crc=0x80eeef3b (prev=0x97bb939b, CHANGED)
+camera_bridge: rgb_crc=0xff5e6ad4 (prev=0x29fb417e, CHANGED)
+camera_bridge: rgb_crc=0x09aef023 (prev=0x3de0ca5c, CHANGED)
+camera_bridge: rgb_crc=0x4c75d868 (prev=0x4c75d868, STATIC)
+camera_bridge: rgb_crc=0x4c75d868 (prev=0x4c75d868, STATIC)
+camera_bridge: rgb_crc=0x4c75d868 (prev=0x4c75d868, STATIC)
+camera_bridge: rgb_crc=0x4c75d868 (prev=0x4c75d868, STATIC)
+camera_bridge: rgb_crc=0x4c75d868 (prev=0x4c75d868, STATIC)
+camera_bridge: rgb_crc=0x4c75d868 (prev=0x4c75d868, STATIC)
+camera_bridge: rgb_crc=0x4c75d868 (prev=0x4c75d868, STATIC)
+camera_bridge: rgb_crc=0x4c75d868 (prev=0x4c75d868, STATIC)
+camera_bridge: rgb_crc=0x4c75d868 (prev=0x4c75d868, STATIC)
+camera_bridge: rgb_crc=0x4c75d868 (prev=0x4c75d868, STATIC)
+camera_bridge: rgb_crc=0x4c75d868 (prev=0x4c75d868, STATIC)
+camera_bridge: rgb_crc=0x4c75d868 (prev=0x4c75d868, STATIC)
+camera_bridge: rgb_crc=0x4c75d868 (prev=0x4c75d868, STATIC)
+camera_bridge: rgb_crc=0x4c75d868 (prev=0x4c75d868, STATIC)
+camera_bridge: rgb_crc=0x4c75d868 (prev=0x4c75d868, STATIC)
+camera_bridge: rgb_crc=0x4c75d868 (prev=0x4c75d868, STATIC)
+camera_bridge: rgb_crc=0x4c75d868 (prev=0x4c75d868, STATIC)
+camera_bridge: rgb_crc=0x4c75d868 (prev=0x4c75d868, STATIC)
+camera_bridge: rgb_crc=0x4c75d868 (prev=0x4c75d868, STATIC)
+camera_bridge: rgb_crc=0x4c75d868 (prev=0x4c75d868, STATIC)
+camera_bridge: rgb_crc=0x4c75d868 (prev=0x4c75d868, STATIC)
+camera_bridge: rgb_crc=0x4c75d868 (prev=0x4c75d868, STATIC)
+camera_bridge: rgb_crc=0x4c75d868 (prev=0x4c75d868, STATIC)
+camera_bridge: rgb_crc=0x4c75d868 (prev=0x4c75d868, STATIC)
+camera_bridge: rgb_crc=0x4c75d868 (prev=0x4c75d868, STATIC)
+camera_bridge: rgb_crc=0x4c75d868 (prev=0x4c75d868, STATIC)
+FINAL: SWEEP_PARTIAL
+>>> 
+[sim] EOF on stdin, exiting
+[sim] REPL task done, terminating process

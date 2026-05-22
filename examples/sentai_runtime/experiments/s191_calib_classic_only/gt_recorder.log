@@ -1,0 +1,3 @@
+[gt_recorder] world=sentai_whycon_small model=crazyflie_0 distrobox=crazysim-garden
+[gt_recorder] subscribing to /world/sentai_whycon_small/dynamic_pose/info
+[gt_recorder] out → /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s191_calib_classic_only/fr_current/gt.jsonl
