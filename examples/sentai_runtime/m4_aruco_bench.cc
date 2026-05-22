@@ -145,7 +145,7 @@ static void synth_frame_(void) {
 }
 
 // OP-S10-W17-T2 M4 ablation — WhyCon synth + rolling-integral threshold.
-// Mirrors the M7 path (whycon_synth_frame_ + aruco_adaptive_threshold_rolling)
+// Mirrors the M7 path (whycon_synth_frame_ + markers_adaptive_threshold_rolling)
 // but stays plain scalar (M4F single-issue; SIMD-pack attempt earlier
 // measured 2.5× slower than scalar — kept).  All buffers in OCRAM.
 //
@@ -432,7 +432,7 @@ typedef struct {
 static m4_whycon_marker_t s_m4_whycon_markers[M4_WHYCON_MAX_DETS];
 
 // Phase B — 8-conn flood-fill labeling with inline moments.
-// Algorithm identical to sentai_aruco.cc:aruco_label_components.
+// Algorithm identical to sentai_aruco.cc:markers_label_components.
 static int m4_aruco_label_components(int w, int h) {
     memset(s_m4_labels, 0, (size_t)w * (size_t)h);
     int next_label = 1;

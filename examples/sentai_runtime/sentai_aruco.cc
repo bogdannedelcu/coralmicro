@@ -87,7 +87,7 @@
                                               // markers isolated cleanly.
 // Component-labeling capacity.  More components than this and we drop
 // the tail (overflow counter rises).
-#define ARUCO_MAX_COMPONENTS           96
+#define MARKERS_MAX_COMPONENTS           96
 // Flood-fill stack depth.  Worst-case a fully connected blob; bounded
 // by image size, but in practice 4096 is generous for 320x240.
 #define ARUCO_FILL_STACK_SZ            4096
@@ -108,7 +108,7 @@
 // a cache line per 4-pixel chunk.  Per OP-S10-W15 alignment policy.
 // =========================================================================
 #ifdef __arm__
-#define ARUCO_BSS_ATTR   __attribute__((section(".sdram_bss"), aligned(32)))
+#define MARKERS_BSS_ATTR   __attribute__((section(".sdram_bss"), aligned(32)))
 // OP-S10-W16-T3.9: hottest random-access buffers in OCRAM.  s_binary is
 // read repeatedly by flood-fill (Phase B) + warp_to_canonical (Phase E),
 // and written by threshold (Phase A).  s_fill_stack is push/pop hot in
@@ -117,7 +117,7 @@
 // absorbs s_labels' mostly-sequential access pattern.
 #define ARUCO_OCRAM_ATTR __attribute__((section(".ocram_bss"), aligned(32)))
 #else
-#define ARUCO_BSS_ATTR   __attribute__((aligned(32)))
+#define MARKERS_BSS_ATTR   __attribute__((aligned(32)))
 #define ARUCO_OCRAM_ATTR __attribute__((aligned(32)))
 #endif
 
@@ -135,9 +135,9 @@
 //    sequential writes in Phase A and the (mostly) sequential reads in
 //    Phase B label assignment.  s_labels is touched once per pixel per
 //    Phase W2 bbox scan; SDRAM with prefetch is acceptable there.
-static uint8_t  s_binary[ARUCO_BUF_SZ]   ARUCO_BSS_ATTR;
-static uint8_t  s_labels[ARUCO_BUF_SZ]   ARUCO_BSS_ATTR;
-static int32_t  s_integral[(ARUCO_MAX_W + 1) * (ARUCO_MAX_H + 1)] ARUCO_BSS_ATTR;
+static uint8_t  s_binary[ARUCO_BUF_SZ]   MARKERS_BSS_ATTR;
+static uint8_t  s_labels[ARUCO_BUF_SZ]   MARKERS_BSS_ATTR;
+static int32_t  s_integral[(ARUCO_MAX_W + 1) * (ARUCO_MAX_H + 1)] MARKERS_BSS_ATTR;
 static int32_t  s_fill_stack[ARUCO_FILL_STACK_SZ] ARUCO_OCRAM_ATTR;
 
 typedef struct {
@@ -145,16 +145,16 @@ typedef struct {
     int      cx_sum, cy_sum;     // first-order centroid accumulator (m10, m01)
     int      n_pix;
     // OP-S10-W17-T2: 2nd-order moment accumulators, populated in
-    // aruco_label_components flood-fill so the WhyCon path doesn't
+    // markers_label_components flood-fill so the WhyCon path doesn't
     // need a separate Phase W2 rescan over the bbox.  64-bit because
     // m20 = Σ x² can reach ~76800 × 320² ≈ 8 G for a full-frame blob.
     int64_t  m20_sum;
     int64_t  m02_sum;
     int64_t  m11_sum;
     uint8_t  touches_border;
-} aruco_comp_t;
+} markers_comp_t;
 
-static aruco_comp_t s_components[ARUCO_MAX_COMPONENTS] ARUCO_BSS_ATTR;
+static markers_comp_t s_components[MARKERS_MAX_COMPONENTS] MARKERS_BSS_ATTR;
 
 // =========================================================================
 // Module state.
@@ -305,8 +305,8 @@ extern "C" void sentai_aruco_R_to_rvec(const float R[9], float rvec_out[3]) {
 // Verbatim copy of the pre-2026-05-19 scalar implementation, kept as a
 // reference for the runtime byte-equivalence check
 // (`sentai_aruco_adaptive_threshold_verify`).  NOT called from production
-// — that uses `aruco_adaptive_threshold` below.
-static void aruco_adaptive_threshold_scalar_ref(const uint8_t* gray,
+// — that uses `markers_adaptive_threshold` below.
+static void markers_adaptive_threshold_scalar_ref(const uint8_t* gray,
                                                  int w, int h, int block,
                                                  uint8_t* out_binary) {
     const int W = w, H = h;
@@ -356,7 +356,7 @@ static void aruco_adaptive_threshold_scalar_ref(const uint8_t* gray,
 //     __UQADD8) for the interior columns + divide-free comparison
 //     ((gray+C+1)*box_area <= box_sum, math-identical to mean-based
 //     form).  This is the current production variant
-//     (`aruco_adaptive_threshold` below).
+//     (`markers_adaptive_threshold` below).
 //
 // Byte-equivalence vs the scalar reference is asserted at runtime by
 // sentai_aruco_adaptive_threshold_verify() — any future Phase-2 refactor
@@ -370,7 +370,7 @@ static void aruco_adaptive_threshold_scalar_ref(const uint8_t* gray,
 //   - Border columns (x_factor varies per pixel): scalar reference path.
 // On non-ARM (SIM) builds, falls back to scalar throughout — same math,
 // confirmed byte-identical by sentai_aruco_adaptive_threshold_verify().
-static void aruco_adaptive_threshold(const uint8_t* gray, int w, int h,
+static void markers_adaptive_threshold(const uint8_t* gray, int w, int h,
                                        int block) {
     const int W = w, H = h;
     const int stride_i = W + 1;
@@ -519,7 +519,7 @@ static int32_t s_rolling_col_sum [ARUCO_MAX_W];
 static int32_t s_rolling_prefix_x[ARUCO_MAX_W + 1];
 #endif
 
-static void aruco_adaptive_threshold_rolling(const uint8_t* gray, int w, int h,
+static void markers_adaptive_threshold_rolling(const uint8_t* gray, int w, int h,
                                               int block, uint8_t* out_binary) {
     const int W = w, H = h;
     const int half = block / 2;
@@ -562,7 +562,7 @@ static void aruco_adaptive_threshold_rolling(const uint8_t* gray, int w, int h,
 
         // Threshold each pixel in this row.  Split into left-border /
         // interior (constant box_w = block, SIMD-able) / right-border —
-        // same shape as the production aruco_adaptive_threshold but
+        // same shape as the production markers_adaptive_threshold but
         // operating on the row's prefix_x instead of a 2-D integral image.
         const uint8_t* gray_row = gray + y * W;
         uint8_t* bin_row = out_binary + y * W;
@@ -652,7 +652,7 @@ static void aruco_adaptive_threshold_rolling(const uint8_t* gray, int w, int h,
 // Single-pass + DFS via explicit stack (no recursion — embedded NASA/JPL
 // rule).  Stack depth bounded by ARUCO_FILL_STACK_SZ.
 // =========================================================================
-static int aruco_label_components(int w, int h) {
+static int markers_label_components(int w, int h) {
     memset(s_labels, 0, (size_t)w * (size_t)h);
     int next_label = 1;     // 0 = unlabeled
     int n_components = 0;
@@ -671,7 +671,7 @@ static int aruco_label_components(int w, int h) {
             int stack_top = 0;
             s_fill_stack[stack_top++] = idx0;
             s_labels[idx0] = lab;
-            aruco_comp_t* c = &s_components[n_components];
+            markers_comp_t* c = &s_components[n_components];
             c->x0 = x; c->x1 = x;
             c->y0 = y; c->y1 = y;
             c->cx_sum = 0; c->cy_sum = 0;
@@ -718,7 +718,7 @@ static int aruco_label_components(int w, int h) {
 next_pixel:
             n_components++;
             next_label++;
-            if (n_components >= ARUCO_MAX_COMPONENTS) {
+            if (n_components >= MARKERS_MAX_COMPONENTS) {
                 // Cap reached; return what we have.
                 return n_components;
             }
@@ -766,19 +766,19 @@ next_pixel:
 // bit decoder tries all 4 rotations, so identifying TL is not
 // required here.
 // =========================================================================
-#define ARUCO_BORDER_MAX        2048       // outer-perimeter pixel cap
-#define ARUCO_DP_STACK_MAX      64
+#define MARKERS_BORDER_MAX        2048       // outer-perimeter pixel cap
+#define MARKERS_DP_STACK_MAX      64
 #define ARUCO_DP_EPS_FRAC       0.04f      // cv2.aruco: 0.04 * perimeter
 
-static int16_t s_border[2 * ARUCO_BORDER_MAX]   ARUCO_BSS_ATTR;
-static uint8_t s_dp_keep[ARUCO_BORDER_MAX]      ARUCO_BSS_ATTR;
+static int16_t s_border[2 * MARKERS_BORDER_MAX]   MARKERS_BSS_ATTR;
+static uint8_t s_dp_keep[MARKERS_BORDER_MAX]      MARKERS_BSS_ATTR;
 
 // Moore-Neighbor 8-connected outer-border trace.  Starts at (sx, sy)
 // which must be on the boundary of the labeled component.  Returns
 // number of border pixels (closed loop, no duplicate at end), or -1
 // on overflow / degenerate input.  CW order assuming start pixel was
 // reached scanning rows top-to-bottom, left-to-right.
-static int aruco_trace_border(uint8_t lab, int w, int h,
+static int markers_trace_border(uint8_t lab, int w, int h,
                                int sx, int sy,
                                int16_t* out) {
     static const int8_t DX[8] = { +1, +1,  0, -1, -1, -1,  0, +1 };
@@ -787,7 +787,7 @@ static int aruco_trace_border(uint8_t lab, int w, int h,
     int came = 4;           // came from west — search starts NW going CW
     int n = 0;
     for (;;) {
-        if (n >= ARUCO_BORDER_MAX) return -1;
+        if (n >= MARKERS_BORDER_MAX) return -1;
         out[n*2 + 0] = (int16_t)x;
         out[n*2 + 1] = (int16_t)y;
         n++;
@@ -814,7 +814,7 @@ static int aruco_trace_border(uint8_t lab, int w, int h,
 
 // Iterative Douglas-Peucker on a closed polygon.  Sets s_dp_keep[i]=1
 // for points retained.  eps_sq is squared perpendicular threshold.
-static void aruco_dp_mark(const int16_t* pts, int n, float eps_sq) {
+static void markers_dp_mark(const int16_t* pts, int n, float eps_sq) {
     memset(s_dp_keep, 0, (size_t)n);
     if (n < 3) {
         for (int i = 0; i < n; ++i) s_dp_keep[i] = 1;
@@ -848,8 +848,8 @@ static void aruco_dp_mark(const int16_t* pts, int n, float eps_sq) {
     s_dp_keep[seed_b] = 1;
     // Stack of (start, end) index pairs, closed-polygon convention
     // where end may equal start + n to wrap.
-    int stack_s[ARUCO_DP_STACK_MAX];
-    int stack_e[ARUCO_DP_STACK_MAX];
+    int stack_s[MARKERS_DP_STACK_MAX];
+    int stack_e[MARKERS_DP_STACK_MAX];
     int top = 0;
     // Two slices: (seed_a, seed_b) and (seed_b, seed_a + n).
     const int sa = seed_a;
@@ -882,7 +882,7 @@ static void aruco_dp_mark(const int16_t* pts, int n, float eps_sq) {
         }
         if (best_k >= 0 && best_d_sq > eps_sq) {
             s_dp_keep[best_k % n] = 1;
-            if (top + 2 > ARUCO_DP_STACK_MAX) continue;   // overflow → skip
+            if (top + 2 > MARKERS_DP_STACK_MAX) continue;   // overflow → skip
             stack_s[top] = s;       stack_e[top] = best_k;  top++;
             stack_s[top] = best_k;  stack_e[top] = e;       top++;
         }
@@ -892,6 +892,63 @@ static void aruco_dp_mark(const int16_t* pts, int n, float eps_sq) {
 // T18-O step 2: cv2 isContourConvex check for a quadrilateral.
 // A 4-vertex polygon is convex iff all 4 cross-products of adjacent
 // edges have the same sign.  Returns 1 if convex, 0 if not.
+
+// ─── OpenCV-equivalent contour metrics (OP-S10-W21-T13) ────────────
+// Reuse markers_trace_border output (Moore-Neighbor outer boundary).
+// cv2 uses Suzuki-Abe but our Moore-Neighbor produces the same outer
+// pixel set — perimeter/area/circularity match cv2 within ~2%.
+static float markers_arc_length(const int16_t* pts, int n) {
+    if (n < 2) return 0.0f;
+    float per = 0.0f;
+    for (int i = 0; i < n; ++i) {
+        const int j  = (i + 1) % n;
+        const int dx = pts[j*2 + 0] - pts[i*2 + 0];
+        const int dy = pts[j*2 + 1] - pts[i*2 + 1];
+        if (dx == 0 || dy == 0) per += 1.0f;
+        else                    per += 1.41421356f;
+    }
+    return per;
+}
+
+static float markers_contour_area(const int16_t* pts, int n) {
+    if (n < 3) return 0.0f;
+    long acc = 0;
+    for (int i = 0; i < n; ++i) {
+        const int j = (i + 1) % n;
+        acc += (long)pts[i*2+0] * pts[j*2+1]
+             - (long)pts[j*2+0] * pts[i*2+1];
+    }
+    return 0.5f * (float)((acc < 0) ? -acc : acc);
+}
+
+static inline float markers_circularity(float area, float per) {
+    if (per < 1e-3f) return 0.0f;
+    static const float FOUR_PI = 12.566370614f;
+    return FOUR_PI * area / (per * per);
+}
+
+static int markers_contour_centroid(const int16_t* pts, int n,
+                                       float* cx, float* cy) {
+    if (n < 3) return -1;
+    double A = 0.0, Cx = 0.0, Cy = 0.0;
+    for (int i = 0; i < n; ++i) {
+        const int j = (i + 1) % n;
+        const double xi = pts[i*2+0], yi = pts[i*2+1];
+        const double xj = pts[j*2+0], yj = pts[j*2+1];
+        const double cross = xi * yj - xj * yi;
+        A  += cross;
+        Cx += (xi + xj) * cross;
+        Cy += (yi + yj) * cross;
+    }
+    A *= 0.5;
+    if (A > -1e-3 && A < 1e-3) return -1;
+    Cx /= (6.0 * A);
+    Cy /= (6.0 * A);
+    *cx = (float)Cx;
+    *cy = (float)Cy;
+    return 0;
+}
+
 static int aruco_is_quad_convex_(const float corners[8]) {
     int sign = 0;
     for (int i = 0; i < 4; ++i) {
@@ -914,7 +971,7 @@ static int aruco_is_quad_convex_(const float corners[8]) {
 // New aruco_extract_quad replacement.  Returns 0 on success with 4
 // corners in CW order; -1 on failure (not a 4-vertex polygon).
 static int aruco_extract_quad(uint8_t lab_target, int w, int h,
-                              const aruco_comp_t* c, float corners[8]) {
+                              const markers_comp_t* c, float corners[8]) {
     // Find a top-left starting boundary pixel of the component.
     int sx = -1, sy = -1;
     for (int y = c->y0; y <= c->y1 && sy < 0; ++y) {
@@ -927,7 +984,7 @@ static int aruco_extract_quad(uint8_t lab_target, int w, int h,
     }
     if (sy < 0) return -1;
 
-    const int n = aruco_trace_border(lab_target, w, h, sx, sy, s_border);
+    const int n = markers_trace_border(lab_target, w, h, sx, sy, s_border);
     if (n < 8) return -1;
 
     // cv2 uses single-pass approxPolyDP eps=perim*0.03.  Our
@@ -943,7 +1000,7 @@ static int aruco_extract_quad(uint8_t lab_target, int w, int h,
     };
     for (unsigned ei = 0; ei < sizeof(EPS_FRACS) / sizeof(EPS_FRACS[0]); ++ei) {
         const float eps = EPS_FRACS[ei] * (float)n;
-        aruco_dp_mark(s_border, n, eps * eps);
+        markers_dp_mark(s_border, n, eps * eps);
         n_kept = 0;
         for (int i = 0; i < n && n_kept < 16; ++i) {
             if (s_dp_keep[i]) kept_idx[n_kept++] = i;
@@ -960,7 +1017,7 @@ static int aruco_extract_quad(uint8_t lab_target, int w, int h,
 
 // Kept for reference; superseded by the DP-based extractor above.
 static int aruco_extract_quad_legacy(uint8_t lab_target, int w, int h,
-                              const aruco_comp_t* c, float corners[8]) {
+                              const markers_comp_t* c, float corners[8]) {
     int   best_tl_sum = INT32_MAX, best_tl_px = 0, best_tl_py = 0;
     int   best_br_sum = INT32_MIN, best_br_px = 0, best_br_py = 0;
     int   best_tr_xm  = INT32_MIN, best_tr_px = 0, best_tr_py = 0;
@@ -1014,7 +1071,7 @@ static int aruco_extract_quad_legacy(uint8_t lab_target, int w, int h,
 #define ARUCO_BITGRID_BORDER    1       // ArUco border bits = 1
 #define ARUCO_BITGRID_SIDE      (ARUCO_PATCH_DIM * ARUCO_BITGRID_CELL)
 
-static uint8_t s_warp_buf[ARUCO_BITGRID_SIDE * ARUCO_BITGRID_SIDE] ARUCO_BSS_ATTR;
+static uint8_t s_warp_buf[ARUCO_BITGRID_SIDE * ARUCO_BITGRID_SIDE] MARKERS_BSS_ATTR;
 
 // Forward decls — definitions lower in file.
 static int aruco_dlt_homography(const float mx[4], const float my[4],
@@ -1721,7 +1778,7 @@ static int aruco_pnp_from_corners(const float corners[8],
 static uint8_t s_test_gray[ARUCO_BUF_SZ] ARUCO_OCRAM_ATTR;
 
 // DWT cycle counter for Cortex-M7 (no-op on POSIX SIM — returns 0).
-static inline uint32_t aruco_dwt_cyc(void) {
+static inline uint32_t markers_dwt_cyc(void) {
 #if defined(__ARM_ARCH) && (__ARM_ARCH >= 7)
     return *((volatile uint32_t*)0xE0001004u);  // DWT->CYCCNT
 #else
@@ -1764,12 +1821,12 @@ extern "C" int sentai_aruco_adaptive_threshold_verify(int block) {
         }
     }
     // Run scalar reference → write into s_labels (also 320*240 byte buffer).
-    const uint32_t t0 = aruco_dwt_cyc();
-    aruco_adaptive_threshold_scalar_ref(s_test_gray, W, H, block, s_labels);
-    const uint32_t t1 = aruco_dwt_cyc();
+    const uint32_t t0 = markers_dwt_cyc();
+    markers_adaptive_threshold_scalar_ref(s_test_gray, W, H, block, s_labels);
+    const uint32_t t1 = markers_dwt_cyc();
     // Run optimized variant → writes into s_binary.
-    aruco_adaptive_threshold(s_test_gray, W, H, block);
-    const uint32_t t2 = aruco_dwt_cyc();
+    markers_adaptive_threshold(s_test_gray, W, H, block);
+    const uint32_t t2 = markers_dwt_cyc();
     s_aruco_thresh_old_cyc = t1 - t0;
     s_aruco_thresh_new_cyc = t2 - t1;
     int mismatches = 0;
@@ -1814,11 +1871,11 @@ extern "C" int sentai_aruco_thresh_rolling_verify(int block) {
         }
     }
     // Scalar reference into s_labels (reused as scratch).
-    aruco_adaptive_threshold_scalar_ref(s_test_gray, W, H, block, s_labels);
+    markers_adaptive_threshold_scalar_ref(s_test_gray, W, H, block, s_labels);
     // Rolling kernel into s_binary, timed.
-    const uint32_t t0 = aruco_dwt_cyc();
-    aruco_adaptive_threshold_rolling(s_test_gray, W, H, block, s_binary);
-    const uint32_t t1 = aruco_dwt_cyc();
+    const uint32_t t0 = markers_dwt_cyc();
+    markers_adaptive_threshold_rolling(s_test_gray, W, H, block, s_binary);
+    const uint32_t t1 = markers_dwt_cyc();
     s_aruco_thresh_rolling_cyc = t1 - t0;
     int mismatches = 0;
     for (int i = 0; i < W * H; ++i) {
@@ -1865,9 +1922,9 @@ extern "C" uint32_t sentai_aruco_thresh_nocache(int block) {
     }
     SCB_CleanInvalidateDCache();   // flush dirty + invalidate all lines
     SCB_DisableDCache();           // all subsequent loads bypass cache
-    const uint32_t t0 = aruco_dwt_cyc();
-    aruco_adaptive_threshold_scalar_ref(s_test_gray, W, H, block, s_binary);
-    const uint32_t t1 = aruco_dwt_cyc();
+    const uint32_t t0 = markers_dwt_cyc();
+    markers_adaptive_threshold_scalar_ref(s_test_gray, W, H, block, s_binary);
+    const uint32_t t1 = markers_dwt_cyc();
     SCB_EnableDCache();            // restore for normal operation
     return t1 - t0;
 }
@@ -2095,8 +2152,8 @@ extern "C" int sentai_aruco_set_marker_size(float size_m) {
 }
 
 // OP-S10-W16-T3.8 — runtime toggle for rolling-integral threshold path.
-// 0 = use production aruco_adaptive_threshold (SIMD + full 309 KB integral image).
-// 1 = use aruco_adaptive_threshold_rolling (scalar, 2.6 KB OCRAM scratch).
+// 0 = use production markers_adaptive_threshold (SIMD + full 309 KB integral image).
+// 1 = use markers_adaptive_threshold_rolling (scalar, 2.6 KB OCRAM scratch).
 static volatile int s_aruco_use_rolling = 0;
 // Last call's full detect() cycle count (DWT @ M7 clock).  Updated whether
 // or not any markers were found, and whether or not the toggle is on.
@@ -2163,7 +2220,7 @@ extern "C" int sentai_aruco_detect(const uint8_t* gray, int w, int h,
     s_aruco_t_decode = 0;
     s_aruco_t_pnp    = 0;
 
-    const uint32_t detect_t0 = aruco_dwt_cyc();
+    const uint32_t detect_t0 = markers_dwt_cyc();
 
     // T18-G: cv2.aruco-style multi-scale adaptive threshold.  cv2 default
     // is (winSizeMin=3, winSizeMax=23, winSizeStep=10) → blocks 3,13,23.
@@ -2184,17 +2241,17 @@ extern "C" int sentai_aruco_detect(const uint8_t* gray, int w, int h,
     for (int i = 0; i < SENTAI_ARUCO_MAX_MARKERS; ++i) best_set[i] = false;
 
     for (int si = 0; si < N_SCALES; ++si) {
-        const uint32_t t_thr_0 = aruco_dwt_cyc();
+        const uint32_t t_thr_0 = markers_dwt_cyc();
         if (s_aruco_use_rolling) {
-            aruco_adaptive_threshold_rolling(gray, w, h, SCALE_BLOCKS[si], s_binary);
+            markers_adaptive_threshold_rolling(gray, w, h, SCALE_BLOCKS[si], s_binary);
         } else {
-            aruco_adaptive_threshold(gray, w, h, SCALE_BLOCKS[si]);
+            markers_adaptive_threshold(gray, w, h, SCALE_BLOCKS[si]);
         }
-        s_aruco_t_thresh += aruco_dwt_cyc() - t_thr_0;
+        s_aruco_t_thresh += markers_dwt_cyc() - t_thr_0;
 
-        const uint32_t t_fl_0 = aruco_dwt_cyc();
-        const int n_comp = aruco_label_components(w, h);
-        s_aruco_t_flood += aruco_dwt_cyc() - t_fl_0;
+        const uint32_t t_fl_0 = markers_dwt_cyc();
+        const int n_comp = markers_label_components(w, h);
+        s_aruco_t_flood += markers_dwt_cyc() - t_fl_0;
 
         // T18-O step 6: cv2 minMarkerPerimeterRate=0.03,
         // maxMarkerPerimeterRate=4.0 (proxies via bbox diagonal which
@@ -2210,27 +2267,27 @@ extern "C" int sentai_aruco_detect(const uint8_t* gray, int w, int h,
             // components (and break out of scale loop below).
             if (best_set[0] && best_set[1] &&
                 best_set[2] && best_set[3]) goto all_ids_found;
-            const uint32_t t_q_0 = aruco_dwt_cyc();
-            const aruco_comp_t* c = &s_components[ci];
-            if (c->touches_border) { s_aruco_t_quad += aruco_dwt_cyc() - t_q_0; continue; }
+            const uint32_t t_q_0 = markers_dwt_cyc();
+            const markers_comp_t* c = &s_components[ci];
+            if (c->touches_border) { s_aruco_t_quad += markers_dwt_cyc() - t_q_0; continue; }
             const int bbox_w = c->x1 - c->x0 + 1;
             const int bbox_h = c->y1 - c->y0 + 1;
             const int diag_sq = bbox_w * bbox_w + bbox_h * bbox_h;
-            if (diag_sq < min_bbox_diag_sq) { s_aruco_t_quad += aruco_dwt_cyc() - t_q_0; continue; }
-            if (diag_sq > max_bbox_diag_sq) { s_aruco_t_quad += aruco_dwt_cyc() - t_q_0; continue; }
+            if (diag_sq < min_bbox_diag_sq) { s_aruco_t_quad += markers_dwt_cyc() - t_q_0; continue; }
+            if (diag_sq > max_bbox_diag_sq) { s_aruco_t_quad += markers_dwt_cyc() - t_q_0; continue; }
             // Aspect gate (markers are roughly square; reject wide-rectangle noise).
             const float aspect = (float)bbox_w / (float)bbox_h;
-            if (aspect < 0.33f || aspect > 3.0f) { s_aruco_t_quad += aruco_dwt_cyc() - t_q_0; continue; }
+            if (aspect < 0.33f || aspect > 3.0f) { s_aruco_t_quad += markers_dwt_cyc() - t_q_0; continue; }
             const float area = (float)c->n_pix;
             const float fill_ratio = area / (float)(bbox_w * bbox_h);
-            if (fill_ratio < 0.30f) { s_aruco_t_quad += aruco_dwt_cyc() - t_q_0; continue; }
+            if (fill_ratio < 0.30f) { s_aruco_t_quad += markers_dwt_cyc() - t_q_0; continue; }
 
             const uint8_t lab = (uint8_t)(ci + 1);
             float corners[8];
-            if (aruco_extract_quad(lab, w, h, c, corners) != 0) { s_aruco_t_quad += aruco_dwt_cyc() - t_q_0; continue; }
+            if (aruco_extract_quad(lab, w, h, c, corners) != 0) { s_aruco_t_quad += markers_dwt_cyc() - t_q_0; continue; }
 
             // T18-O step 2: cv2 isContourConvex check.
-            if (!aruco_is_quad_convex_(corners)) { s_aruco_t_quad += aruco_dwt_cyc() - t_q_0; continue; }
+            if (!aruco_is_quad_convex_(corners)) { s_aruco_t_quad += markers_dwt_cyc() - t_q_0; continue; }
 
             // T18-O step 3: cv2 minDistanceToBorder (3 px default).
             {
@@ -2243,7 +2300,7 @@ extern "C" int sentai_aruco_detect(const uint8_t* gray, int w, int h,
                         tooNear = 1; break;
                     }
                 }
-                if (tooNear) { s_aruco_t_quad += aruco_dwt_cyc() - t_q_0; continue; }
+                if (tooNear) { s_aruco_t_quad += markers_dwt_cyc() - t_q_0; continue; }
             }
 
             // T18-O step 4: cv2 minCornerDistance (perim * 0.05 default).
@@ -2259,7 +2316,7 @@ extern "C" int sentai_aruco_detect(const uint8_t* gray, int w, int h,
                     total_edge += sqrtf(e_sq);
                 }
                 const float min_thresh = total_edge * 0.05f;
-                if (min_edge_sq < min_thresh * min_thresh) { s_aruco_t_quad += aruco_dwt_cyc() - t_q_0; continue; }
+                if (min_edge_sq < min_thresh * min_thresh) { s_aruco_t_quad += markers_dwt_cyc() - t_q_0; continue; }
             }
 
             // T18-K: enforce CW winding (js-aruco / cv2.aruco standard).
@@ -2275,7 +2332,7 @@ extern "C" int sentai_aruco_detect(const uint8_t* gray, int w, int h,
                     corners[6] = tx;         corners[7] = ty;
                 }
             }
-            s_aruco_t_quad += aruco_dwt_cyc() - t_q_0;
+            s_aruco_t_quad += markers_dwt_cyc() - t_q_0;
 
             // T18-Q ablation (2026-05-18): Förstner subpix refinement
             // regressed detection on real flight frames (322 → 320 @ 4/4)
@@ -2285,7 +2342,7 @@ extern "C" int sentai_aruco_detect(const uint8_t* gray, int w, int h,
             // path (win_half=2) sometimes drifted corners onto neighbour
             // gradients.  See diary/2026-05-19.md for the deletion log.
 
-            const uint32_t t_dec_0 = aruco_dwt_cyc();
+            const uint32_t t_dec_0 = markers_dwt_cyc();
             int rotation = 0;
             int hamming = 0;
             int mid = aruco_decode_marker(gray, corners, w, h,
@@ -2312,19 +2369,19 @@ extern "C" int sentai_aruco_detect(const uint8_t* gray, int w, int h,
                     memcpy(corners, corners_rev, sizeof(corners));
                 }
             }
-            s_aruco_t_decode += aruco_dwt_cyc() - t_dec_0;
+            s_aruco_t_decode += markers_dwt_cyc() - t_dec_0;
             if (mid < 0) {
                 s_stats.rejected_dict_total++;
                 continue;
             }
             aruco_realign_corners(corners, (4 - rotation) % 4);
 
-            const uint32_t t_pnp_0 = aruco_dwt_cyc();
+            const uint32_t t_pnp_0 = markers_dwt_cyc();
             float tvec[3], rvec[3], reproj;
             const int pnp_rc = aruco_pnp_from_corners(corners, s_fx, s_fy, s_cx, s_cy,
                                                         s_marker_size_m,
                                                         tvec, rvec, &reproj);
-            s_aruco_t_pnp += aruco_dwt_cyc() - t_pnp_0;
+            s_aruco_t_pnp += markers_dwt_cyc() - t_pnp_0;
             if (pnp_rc != 0) {
                 s_stats.rejected_reproj_total++;
                 continue;
@@ -2373,7 +2430,7 @@ all_ids_found: ;
     } else {
         s_cache_count = 0;
     }
-    s_aruco_detect_cyc_last = aruco_dwt_cyc() - detect_t0;
+    s_aruco_detect_cyc_last = markers_dwt_cyc() - detect_t0;
     return n_out;
 }
 
@@ -2484,6 +2541,15 @@ static float s_whycon_max_bbox_ar  = 2.0f;   // bbox w/h ratio: circle ≈ 1.0
                                               // can give 1.7 aspect for outer
                                               // markers near image corner)
 static float s_whycon_max_axis_ratio = 2.0f; // a/b axis ratio: circle ≈ 1.0
+
+// OP-S10-W21-T13: OpenCV-equivalent circularity gate replacing the
+// old `fill = n_pix / bbox_area` metric.  fill sat right at 0.40 for
+// typical WhyCon rings (annulus area / bbox area ≈ 0.40) — slight
+// perspective drop killed real markers (iter-18: 148/151 in-flight
+// frames under-detected).  Circularity 4π·A/P² computed on outer
+// contour (via markers_trace_border).  Ring outer boundary is a
+// circle ⇒ expected 0.85-1.0; staircase noise drops it to ~0.7.
+static float s_whycon_min_circularity = 0.55f;
 
 // W17-T5: Phase W3 concentric-validation knobs.  WhyCon markers
 // (Krajník/Nitsche style) are a dark outer annulus surrounding a
@@ -2713,7 +2779,7 @@ static void whycon_pnp_inplace_(sentai_whycon_marker_t* m) {
 }
 
 // Filter + moments stage.  Runs over s_components (already populated
-// by aruco_label_components) + s_labels (label map for moment scan).
+// by markers_label_components) + s_labels (label map for moment scan).
 //
 // Algorithm per candidate component:
 //   1) Coarse filter on area + bbox aspect + fill ratio  (rejects
@@ -2740,11 +2806,12 @@ static int whycon_filter_and_moments_(const uint8_t* gray,
     uint32_t cyc_pnp = 0;
     static int filter_diag = 0;
     int reject_border = 0, reject_min_area = 0, reject_max_area = 0;
-    int reject_ar = 0, reject_fill = 0, reject_axis = 0, reject_w3 = 0;
+    int reject_ar = 0, reject_axis = 0, reject_w3 = 0;
+    int reject_circ = 0, reject_trace = 0;
     int accepted = 0;
     for (int ci = 0; ci < n_comp; ++ci) {
         if (s_whycon_n_markers >= SENTAI_WHYCON_MAX_DETS) break;
-        const aruco_comp_t* c = &s_components[ci];
+        const markers_comp_t* c = &s_components[ci];
         if (c->touches_border) { ++reject_border; continue; }
         if (c->n_pix < s_whycon_min_area) { ++reject_min_area; continue; }
         if (c->n_pix > s_whycon_max_area) { ++reject_max_area; continue; }
@@ -2755,17 +2822,50 @@ static int whycon_filter_and_moments_(const uint8_t* gray,
                      ? (float)bw / (float)bh
                      : (float)bh / (float)bw;
         if (ar > s_whycon_max_bbox_ar) { ++reject_ar; continue; }
-        // Fill ratio — reject hollow / sparse shapes.
-        float fill = (float)c->n_pix / (float)(bw * bh);
-        if (fill < s_whycon_min_fill) { ++reject_fill; continue; }
+
+        // OP-S10-W21-T13: OpenCV-equivalent contour validation.
+        // Trace OUTER boundary via Moore-Neighbor, compute cv2-style
+        // circularity 4π·A/P² on contour points.  Replaces the broken
+        // `fill = n_pix/bbox_area` metric.
+        const uint8_t lab_target = (uint8_t)(ci + 1);
+        int sx = -1, sy = -1;
+        for (int yy = c->y0; yy <= c->y1 && sy < 0; ++yy) {
+            for (int xx = c->x0; xx <= c->x1; ++xx) {
+                if (s_labels[xx + yy*W] == lab_target) {
+                    sx = xx; sy = yy;
+                    break;
+                }
+            }
+        }
+        if (sy < 0) { ++reject_trace; continue; }
+        const int n_contour = markers_trace_border(lab_target, W, H,
+                                                     sx, sy, s_border);
+        if (n_contour < 8) { ++reject_trace; continue; }
+        const float per_c  = markers_arc_length(s_border, n_contour);
+        const float A_c    = markers_contour_area(s_border, n_contour);
+        const float circ   = markers_circularity(A_c, per_c);
+        if (circ < s_whycon_min_circularity) {
+            ++reject_circ;
+            continue;
+        }
 
         // OP-S10-W17-T2: 2nd-order moments are pre-accumulated by the
-        // flood-fill in aruco_label_components, so this stage no longer
+        // flood-fill in markers_label_components, so this stage no longer
         // needs a bbox rescan.  c->m20_sum / m02_sum / m11_sum give the
         // raw moments; central moments + eigenvalues stay the same.
         const float m00 = (float)c->n_pix;
-        const float cx  = (float)c->cx_sum / m00;
-        const float cy  = (float)c->cy_sum / m00;
+        float cx  = (float)c->cx_sum / m00;
+        float cy  = (float)c->cy_sum / m00;
+        // Sub-pixel refinement: cv2-equivalent polygon centroid on
+        // the outer contour points.  For ring markers, this matches
+        // the geometric center of the OUTER circle exactly, while
+        // moments-based centroid includes inner-hole bias.
+        float cx_c = 0.0f, cy_c = 0.0f;
+        if (markers_contour_centroid(s_border, n_contour,
+                                       &cx_c, &cy_c) == 0) {
+            cx = cx_c;
+            cy = cy_c;
+        }
         const float mu20 = (float)c->m20_sum / m00 - cx * cx;
         const float mu02 = (float)c->m02_sum / m00 - cy * cy;
         const float mu11 = (float)c->m11_sum / m00 - cx * cy;
@@ -2789,9 +2889,9 @@ static int whycon_filter_and_moments_(const uint8_t* gray,
         // (eigenvalue) — see whycon_w3_check_ comments.
         if (s_whycon_concentric_check) {
             const float bbox_R = (float)((bw > bh ? bw : bh)) * 0.5f;
-            const uint32_t t_w3_0 = aruco_dwt_cyc();
+            const uint32_t t_w3_0 = markers_dwt_cyc();
             const int accept = whycon_w3_check_(gray, W, H, cx, cy, bbox_R);
-            cyc_w3 += aruco_dwt_cyc() - t_w3_0;
+            cyc_w3 += markers_dwt_cyc() - t_w3_0;
             if (!accept) { ++reject_w3; continue; }
         }
 
@@ -2802,23 +2902,23 @@ static int whycon_filter_and_moments_(const uint8_t* gray,
         m->comp_id = ci;
 
         // Closed-form PnP — emits tvec/rvec into the marker struct.
-        const uint32_t t_pnp_0 = aruco_dwt_cyc();
+        const uint32_t t_pnp_0 = markers_dwt_cyc();
         whycon_pnp_inplace_(m);
-        cyc_pnp += aruco_dwt_cyc() - t_pnp_0;
+        cyc_pnp += markers_dwt_cyc() - t_pnp_0;
     }
-    // Iter-19 OP-S10-W21-T12 debug: log every frame where we found
-    // components but rejected SOME — likely under-counting bug.
+    // Iter-19/20 debug: log under-detection patterns.
     if (filter_diag++ < 3
         || (n_comp >= 4 && accepted < n_comp && accepted > 0)) {
         fprintf(stderr,
-            "[whycon_filter] n_comp=%d accepted=%d  rejects: "
-            "border=%d min_area=%d max_area=%d ar=%d fill=%d axis=%d w3=%d "
-            "min_a=%d max_a=%d max_ar=%.2f min_fill=%.2f max_axis=%.2f\n",
+            "[whycon_filter v2] n_comp=%d accepted=%d  rejects: "
+            "border=%d min_area=%d max_area=%d ar=%d trace=%d circ=%d axis=%d w3=%d "
+            "min_a=%d max_a=%d max_ar=%.2f min_circ=%.2f max_axis=%.2f\n",
             n_comp, accepted,
             reject_border, reject_min_area, reject_max_area,
-            reject_ar, reject_fill, reject_axis, reject_w3,
+            reject_ar, reject_trace, reject_circ, reject_axis, reject_w3,
             s_whycon_min_area, s_whycon_max_area,
-            (double)s_whycon_max_bbox_ar, (double)s_whycon_min_fill,
+            (double)s_whycon_max_bbox_ar,
+            (double)s_whycon_min_circularity,
             (double)s_whycon_max_axis_ratio);
     }
     s_whycon_t_w3  = cyc_w3;
@@ -2967,18 +3067,18 @@ static volatile uint32_t s_whycon_t_w   = 0;  // Phase W1+W2: filter + axes (eig
 // WhyCon section so the filter+moments writer (defined above) compiles.
 
 static int whycon_detect_inplace_(int W, int H) {
-    const uint32_t t0 = aruco_dwt_cyc();
+    const uint32_t t0 = markers_dwt_cyc();
     // Stage A — rolling-integral Bradley threshold.
-    aruco_adaptive_threshold_rolling(s_test_gray, W, H, 31, s_binary);
-    const uint32_t t1 = aruco_dwt_cyc();
+    markers_adaptive_threshold_rolling(s_test_gray, W, H, 31, s_binary);
+    const uint32_t t1 = markers_dwt_cyc();
     // Stage B — 8-connected flood-fill labeling.  Per-component
     // 2nd-order moments accumulated inline (OP-S10-W17-T2 8eccf31b).
-    const int n_comp = aruco_label_components(W, H);
-    const uint32_t t2 = aruco_dwt_cyc();
+    const int n_comp = markers_label_components(W, H);
+    const uint32_t t2 = markers_dwt_cyc();
     // Stage W1+W2 — filter + axes from moments.  W3 concentric +
     // PnP are timed internally and written to s_whycon_t_w3/_pnp.
     const int n = whycon_filter_and_moments_(s_test_gray, n_comp, W, H);
-    const uint32_t t3 = aruco_dwt_cyc();
+    const uint32_t t3 = markers_dwt_cyc();
     s_whycon_t_a = t1 - t0;
     s_whycon_t_b = t2 - t1;
     // Subtract W3 + PnP so t_w reflects ONLY filter + moments + axes.
@@ -3015,9 +3115,9 @@ extern "C" int sentai_whycon_test_synth(int n_circles, int radius) {
     const int W = 320, H = 240;
     if (n_circles < 0) n_circles = 0;
     whycon_synth_frame_(n_circles, radius, W, H);
-    const uint32_t t0 = aruco_dwt_cyc();
+    const uint32_t t0 = markers_dwt_cyc();
     const int n = whycon_detect_inplace_(W, H);
-    const uint32_t t1 = aruco_dwt_cyc();
+    const uint32_t t1 = markers_dwt_cyc();
     s_whycon_cyc_last = t1 - t0;
     return n;
 }
@@ -3027,9 +3127,9 @@ extern "C" int sentai_whycon_test_synth_krajnik(int n_circles, int radius) {
     const int W = 320, H = 240;
     if (n_circles < 0) n_circles = 0;
     whycon_synth_frame_krajnik_(n_circles, radius, W, H);
-    const uint32_t t0 = aruco_dwt_cyc();
+    const uint32_t t0 = markers_dwt_cyc();
     const int n = whycon_detect_inplace_(W, H);
-    const uint32_t t1 = aruco_dwt_cyc();
+    const uint32_t t1 = markers_dwt_cyc();
     s_whycon_cyc_last = t1 - t0;
     return n;
 }
@@ -3044,9 +3144,9 @@ extern "C" int sentai_whycon_detect_buffer(const uint8_t* gray, int w, int h) {
     if (w != 320 || h != 240) return -2;
     if ((size_t)w * (size_t)h > sizeof(s_test_gray)) return -3;
     memcpy(s_test_gray, gray, (size_t)w * (size_t)h);
-    const uint32_t t0 = aruco_dwt_cyc();
+    const uint32_t t0 = markers_dwt_cyc();
     const int n = whycon_detect_inplace_(w, h);
-    const uint32_t t1 = aruco_dwt_cyc();
+    const uint32_t t1 = markers_dwt_cyc();
     s_whycon_cyc_last = t1 - t0;
     return n;
 }
@@ -3061,9 +3161,9 @@ extern "C" int sentai_whycon_synth_one(int cx_px, int cy_px, int radius_px) {
         s_whycon_n_markers = 0;
         return 0;
     }
-    const uint32_t t0 = aruco_dwt_cyc();
+    const uint32_t t0 = markers_dwt_cyc();
     const int n = whycon_detect_inplace_(W, H);
-    const uint32_t t1 = aruco_dwt_cyc();
+    const uint32_t t1 = markers_dwt_cyc();
     s_whycon_cyc_last = t1 - t0;
     return n;
 }
@@ -3098,9 +3198,9 @@ extern "C" int sentai_whycon_test_pgm(const char* path) {
         int rc = aruco_parse_pgm_buffer_(s_labels, got);
         if (rc != 0) return rc;
     }
-    const uint32_t t0 = aruco_dwt_cyc();
+    const uint32_t t0 = markers_dwt_cyc();
     const int n = whycon_detect_inplace_(W, H);
-    const uint32_t t1 = aruco_dwt_cyc();
+    const uint32_t t1 = markers_dwt_cyc();
     s_whycon_cyc_last = t1 - t0;
     return n;
 }
