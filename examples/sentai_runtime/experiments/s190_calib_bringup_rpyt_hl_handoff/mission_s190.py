@@ -90,7 +90,13 @@ ZERO_UNLOCK_S    = 1.5             # zero-thrust packets before ramp (unlock cf2
 EXTPOS_WARMUP_S  = 1.0             # Kalman convergence time after ExtPos starts
 
 # ---- Bringup envelope (orchestrator args) ----------------------------
-Z_HOLD             = 0.60          # bringup hover altitude
+Z_HOLD             = 0.78          # bringup hover altitude.  Iter-26:
+                                    # PD+warmup land drone at ~0.85-0.95m
+                                    # consistently; Z_HOLD=0.6 forced HL
+                                    # to descend 0.3m+ which destabilized
+                                    # cf2 commander.  Match Z_HOLD to where
+                                    # the drone actually settles → HL go_to
+                                    # is a small XY correction, no descent.
 SWEEP_RADIUS_M     = 0.025
 SETTLE_S           = 2.0
 VMAX_M_S           = 0.06
