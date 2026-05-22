@@ -508,23 +508,55 @@ def _phase4_extpos_warmup(pd_state):
 
 
 def _phase5_handoff_to_hl(last_xyz):
-    """STOP RPYT stream; send notifySetpointsStop; switch to HL go_to
-    smoothing to (0, 0, Z_HOLD).  ExtPos continues streaming as anchor."""
+    """STOP RPYT stream; engage HL planner BEFORE relaxing priority;
+    smoothly hand off to HL go_to.
+
+    Iter-26 firmware-analysis fix: previous order (relax → sleep → go_to)
+    created a ~30-100ms nullSetpoint gap during which HL task wrote
+    nullSetpoint (motors off) at priority=1, accepted because priority
+    just dropped to 1.  cf2 motors cut briefly → drone destabilizes →
+    bringup never recovers.
+
+    Insight from crtp_commander_high_level.c source:
+    - `go_to` (CRTP port 8 ch 0) is a META-COMMAND that calls
+      `plan_go_to_from()` directly — it modifies planner.state to
+      FLYING WITHOUT going through commanderSetSetpoint/priority queue.
+    - So we can engage HL planner FIRST while RPYT priority=2 is still
+      active.  HL writes setpoints with priority=1 but they're rejected
+      (1 < 2), so the previous RPYT setpoint stays in queue (drone
+      continues last commanded thrust).
+    - Once priority is relaxed (notifySetpointsStop), HL's setpoints
+      (now valid because planner.state=FLYING evaluates the trajectory)
+      are accepted (1 >= 1).  No gap, no nullSetpoint.
+    """
     _j("phase5_handoff", {"last_xyz": last_xyz, "target_z": Z_HOLD})
 
-    # Relax priority — HL can now write setpoints.
-    _relax_priority()
-    sentai.rtos.sleep_ms(50)
-
-    # HL go_to to home + bringup altitude.  Duration generous so the
-    # planner has time to smooth.
+    # Step 1: send go_to FIRST.  Changes planner.state to FLYING,
+    # builds trajectory from HL's cached pos (refreshed each HL tick
+    # while RPYT was driving).  This is a meta-command — does NOT
+    # write to the commander setpoint queue.
     try:
         sentai.crazy.go_to(0.0, 0.0, Z_HOLD, 0.0, 2.0)
+        _j("go_to_engage", {"target": (0.0, 0.0, Z_HOLD)})
     except (AttributeError, RuntimeError) as e:
         _j("go_to_fail", {"err": str(e)})
 
-    # Pump ExtPos at 30 Hz while go_to executes.  HL setpoints run at
-    # ~100 Hz from cf2 firmware side; we don't compete for priority.
+    # Step 2: wait one HL tick (~10ms is the HL period in firmware).
+    # During this, HL evaluates the trajectory and tries to write the
+    # first setpoint at priority=1 — STILL REJECTED because mission's
+    # RPYT priority=2 is current.  No harm: last RPYT setpoint still
+    # holds drone.  Mainly ensures HL has time to compute the
+    # trajectory's first sample.
+    sentai.rtos.sleep_ms(15)
+
+    # Step 3: NOW relax priority.  HL's already-pending valid setpoint
+    # (next tick) writes with priority=1 → 1 >= 1 → ACCEPTED.  Smooth
+    # transition with no nullSetpoint gap.
+    _relax_priority()
+    _j("relax_priority", "sent")
+
+    # Step 4: pump ExtPos at 30 Hz while go_to executes.  HL writes
+    # its setpoints at ~100 Hz from cf2 firmware side; we don't compete.
     n_ticks = int(2.5 * 1000 / TICK_MS)
     for ti in range(n_ticks):
         n, px, py, pz = _try_pnp()
