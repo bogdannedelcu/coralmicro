@@ -19,73 +19,73 @@
     {
       "frame": "t420042978_n3_f000123.pgm",
       "alg_n": 6,
-      "cv_n": 1,
+      "cv_n": 0,
       "matched": 0,
       "alg_extra": 6,
-      "we_missed_cv": 1
+      "we_missed_cv": 0
     },
     {
       "frame": "t420043055_n3_f000125.pgm",
-      "alg_n": 6,
-      "cv_n": 4,
-      "matched": 3,
-      "alg_extra": 3,
-      "we_missed_cv": 1
+      "alg_n": 3,
+      "cv_n": 1,
+      "matched": 1,
+      "alg_extra": 2,
+      "we_missed_cv": 0
     },
     {
       "frame": "t420043816_n6_f000142.pgm",
       "alg_n": 6,
-      "cv_n": 7,
+      "cv_n": 8,
       "matched": 6,
-      "alg_extra": 0,
-      "we_missed_cv": 1
-    },
-    {
-      "frame": "t420044120_n6_f000148.pgm",
-      "alg_n": 6,
-      "cv_n": 7,
-      "matched": 6,
-      "alg_extra": 0,
-      "we_missed_cv": 1
-    },
-    {
-      "frame": "t420044158_n6_f000149.pgm",
-      "alg_n": 6,
-      "cv_n": 6,
-      "matched": 6,
-      "alg_extra": 0,
-      "we_missed_cv": 0
-    },
-    {
-      "frame": "t420044349_n3_f000154.pgm",
-      "alg_n": 6,
-      "cv_n": 7,
-      "matched": 6,
-      "alg_extra": 0,
-      "we_missed_cv": 1
-    },
-    {
-      "frame": "t420044501_n3_f000157.pgm",
-      "alg_n": 4,
-      "cv_n": 6,
-      "matched": 4,
       "alg_extra": 0,
       "we_missed_cv": 2
     },
     {
-      "frame": "t420045647_n1_f000181.pgm",
-      "alg_n": 2,
-      "cv_n": 6,
-      "matched": 2,
-      "alg_extra": 0,
+      "frame": "t420044120_n6_f000148.pgm",
+      "alg_n": 6,
+      "cv_n": 9,
+      "matched": 5,
+      "alg_extra": 1,
       "we_missed_cv": 4
+    },
+    {
+      "frame": "t420044158_n6_f000149.pgm",
+      "alg_n": 6,
+      "cv_n": 9,
+      "matched": 5,
+      "alg_extra": 1,
+      "we_missed_cv": 4
+    },
+    {
+      "frame": "t420044349_n3_f000154.pgm",
+      "alg_n": 6,
+      "cv_n": 12,
+      "matched": 6,
+      "alg_extra": 0,
+      "we_missed_cv": 6
+    },
+    {
+      "frame": "t420044501_n3_f000157.pgm",
+      "alg_n": 4,
+      "cv_n": 13,
+      "matched": 4,
+      "alg_extra": 0,
+      "we_missed_cv": 9
+    },
+    {
+      "frame": "t420045647_n1_f000181.pgm",
+      "alg_n": 1,
+      "cv_n": 2,
+      "matched": 0,
+      "alg_extra": 1,
+      "we_missed_cv": 2
     }
   ],
   "totals": {
-    "alg": 46,
-    "cv": 44,
-    "match": 33,
-    "we_missed_cv": 11,
-    "alg_extra": 13
+    "alg": 42,
+    "cv": 54,
+    "match": 27,
+    "we_missed_cv": 27,
+    "alg_extra": 15
   }
 }

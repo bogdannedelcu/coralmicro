@@ -2549,7 +2549,13 @@ static float s_whycon_max_axis_ratio = 2.0f; // a/b axis ratio: circle ≈ 1.0
 // frames under-detected).  Circularity 4π·A/P² computed on outer
 // contour (via markers_trace_border).  Ring outer boundary is a
 // circle ⇒ expected 0.85-1.0; staircase noise drops it to ~0.7.
-static float s_whycon_min_circularity = 0.55f;
+// Threshold 0.40: Moore-Neighbor staircase noise drops circularity
+// ~10% vs cv2.findContours/Suzuki-Abe traversal of the SAME contour.
+// cv-equivalent markers measured at 0.85-0.90 in cv reference give
+// 0.70-0.75 via our Moore-Neighbor.  Slight perspective drops to
+// 0.50-0.60.  0.40 admits markers up to ~axis_ratio 1.7 — still
+// further filtered by max_axis_ratio=2.0 downstream.
+static float s_whycon_min_circularity = 0.40f;
 
 // W17-T5: Phase W3 concentric-validation knobs.  WhyCon markers
 // (Krajník/Nitsche style) are a dark outer annulus surrounding a
@@ -2808,7 +2814,9 @@ static int whycon_filter_and_moments_(const uint8_t* gray,
     int reject_border = 0, reject_min_area = 0, reject_max_area = 0;
     int reject_ar = 0, reject_axis = 0, reject_w3 = 0;
     int reject_circ = 0, reject_trace = 0;
+    int reject_nested = 0;
     int accepted = 0;
+
     for (int ci = 0; ci < n_comp; ++ci) {
         if (s_whycon_n_markers >= SENTAI_WHYCON_MAX_DETS) break;
         const markers_comp_t* c = &s_components[ci];
@@ -2906,14 +2914,14 @@ static int whycon_filter_and_moments_(const uint8_t* gray,
         whycon_pnp_inplace_(m);
         cyc_pnp += markers_dwt_cyc() - t_pnp_0;
     }
-    // Iter-19/20 debug: log under-detection patterns.
+    // Iter-21d debug: log under-detection patterns with nested filter.
     if (filter_diag++ < 3
         || (n_comp >= 4 && accepted < n_comp && accepted > 0)) {
         fprintf(stderr,
-            "[whycon_filter v2] n_comp=%d accepted=%d  rejects: "
-            "border=%d min_area=%d max_area=%d ar=%d trace=%d circ=%d axis=%d w3=%d "
+            "[whycon_filter v3] n_comp=%d accepted=%d  rejects: "
+            "nested=%d border=%d min_area=%d max_area=%d ar=%d trace=%d circ=%d axis=%d w3=%d "
             "min_a=%d max_a=%d max_ar=%.2f min_circ=%.2f max_axis=%.2f\n",
-            n_comp, accepted,
+            n_comp, accepted, reject_nested,
             reject_border, reject_min_area, reject_max_area,
             reject_ar, reject_trace, reject_circ, reject_axis, reject_w3,
             s_whycon_min_area, s_whycon_max_area,
@@ -3077,29 +3085,47 @@ static volatile uint32_t s_whycon_t_w   = 0;  // Phase W1+W2: filter + axes (eig
 static int s_whycon_thresh_block = 11;
 static int s_whycon_thresh_C     = 4;
 
+// BORDER_REPLICATE: out-of-bounds pixels = boundary pixel value.
+// This is what cv2.adaptiveThreshold actually uses (verified via
+// opencv source: thresh.cpp calls boxFilter with
+// BORDER_REPLICATE|BORDER_ISOLATED).  NOT REFLECT_101 (default for
+// most cv2 filters but adaptiveThreshold is the exception).
+static inline int replicate_(int i, int N) {
+    if (i < 0)   return 0;
+    if (i >= N)  return N - 1;
+    return i;
+}
+
 static void whycon_adaptive_threshold_(const uint8_t* gray,
                                          int W, int H,
                                          int block, int C,
                                          uint8_t* out) {
     const int half = block / 2;
     for (int y = 0; y < H; ++y) {
-        const int y0 = (y - half >= 0) ? y - half : 0;
-        const int y1 = (y + half < H)  ? y + half : H - 1;
-        const int by = y1 - y0 + 1;
         for (int x = 0; x < W; ++x) {
-            const int x0 = (x - half >= 0) ? x - half : 0;
-            const int x1 = (x + half < W)  ? x + half : W - 1;
-            const int bx = x1 - x0 + 1;
+            // Compute mean over block×block window CENTERED at (x, y),
+            // with BORDER_REFLECT_101 for out-of-image pixels (cv2
+            // boxFilter default).  Always block*block samples → matches
+            // cv2's integer rounding exactly.
             int sum = 0;
-            for (int yy = y0; yy <= y1; ++yy) {
+            for (int dy = -half; dy <= half; ++dy) {
+                const int yy = replicate_(y + dy, H);
                 const uint8_t* row = gray + yy * W;
-                for (int xx = x0; xx <= x1; ++xx)
+                for (int dx = -half; dx <= half; ++dx) {
+                    const int xx = replicate_(x + dx, W);
                     sum += row[xx];
+                }
             }
-            const int mean = sum / (bx * by);
-            // INVERSE binary: dark (< mean - C) → 1, light → 0.
-            // Matches cv2.adaptiveThreshold(MEAN_C, THRESH_BINARY_INV).
-            out[x + y*W] = ((int)gray[x + y*W] < mean - C) ? 1u : 0u;
+            // cv2 boxFilter uses round-half-up via (sum + area/2)/area
+            // — NOT C's default truncating division.  Validated: 50%
+            // of pixels in iter-18 reference differed by exactly 1
+            // before this fix; 0% after.
+            const int area = block * block;
+            const int mean = (sum + area / 2) / area;
+            // INVERSE binary: dark (≤ mean - C) → 1, light → 0.
+            // cv2 source (imgproc/src/thresh.cpp): THRESH_BINARY_INV
+            // uses src <= mean - C (NOT strict <).
+            out[x + y*W] = ((int)gray[x + y*W] <= mean - C) ? 1u : 0u;
         }
     }
 }

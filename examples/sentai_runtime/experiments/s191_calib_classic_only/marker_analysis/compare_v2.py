@@ -60,7 +60,11 @@ def run_our(pgm):
 def run_cv(pgm):
     img = cv2.imread(pgm, cv2.IMREAD_GRAYSCALE)
     if img is None: return None, None
-    _, thr = cv2.threshold(img, 80, 255, cv2.THRESH_BINARY_INV)
+    # SAME threshold as our detector: cv2.adaptiveThreshold MEAN_C,
+    # THRESH_BINARY_INV, block=11, C=4 (verified byte-identical to
+    # our whycon_adaptive_threshold_ output).
+    thr = cv2.adaptiveThreshold(img, 255, cv2.ADAPTIVE_THRESH_MEAN_C,
+                                  cv2.THRESH_BINARY_INV, 11, 4)
     cnts, _ = cv2.findContours(thr, cv2.RETR_EXTERNAL,
                                  cv2.CHAIN_APPROX_NONE)
     out = []
