@@ -104,6 +104,12 @@ static const mp_rom_map_elem_t sentai_safety_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_clear),          MP_ROM_PTR(&mod_safety_clear_obj) },
     { MP_ROM_QSTR(MP_QSTR_enable_aruco),   MP_ROM_PTR(&mod_safety_enable_aruco_obj) },
     { MP_ROM_QSTR(MP_QSTR_disable_aruco),  MP_ROM_PTR(&mod_safety_disable_aruco_obj) },
+    // OP-S10-W21-T7 (2026-05-22): backend-agnostic aliases.  The check
+    // operates on whichever backend `sentai.markers.init()` chose
+    // (ArUco / WhyCon) — see sentai_safety_task.cc:194.  `enable_aruco`
+    // is the legacy name kept for compatibility.
+    { MP_ROM_QSTR(MP_QSTR_enable_markers), MP_ROM_PTR(&mod_safety_enable_aruco_obj) },
+    { MP_ROM_QSTR(MP_QSTR_disable_markers),MP_ROM_PTR(&mod_safety_disable_aruco_obj) },
     { MP_ROM_QSTR(MP_QSTR_task_start),     MP_ROM_PTR(&mod_safety_task_start_obj) },
     { MP_ROM_QSTR(MP_QSTR_task_stop),      MP_ROM_PTR(&mod_safety_task_stop_obj) },
     { MP_ROM_QSTR(MP_QSTR_aborted),        MP_ROM_PTR(&mod_safety_aborted_obj) },
