@@ -146,6 +146,51 @@ static void repl_task(void *param) {
      * On firmware this is set up by the LFS-init path. */
     mp_embed_exec_str("import sys\nsys.path.append('/')\nsys.path.append('')\n");
 
+    /* ---- Auto-start observability (OP-S10-W21-T10): sentai.fr + journal.
+     * Every SIM session writes events.csv + scalars.csv under
+     * $SENTAI_FR_DIR (or $SENTAI_SIM_ROOT/fr/ by default), and opens a
+     * startup_journal.txt for sentai.sim.journal_write calls.  Missions
+     * may still re-open channels with experiment-specific paths.
+     *
+     * frames channel left mission-controlled to avoid filling disk with
+     * frames during non-FR sessions. */
+    {
+        extern int sentai_fr_init(void);
+        extern int sentai_fr_open(int ch, const char* path);
+        extern int sentai_fr_task_start(void);
+
+        const char *fr_dir = getenv("SENTAI_FR_DIR");
+        char fr_dir_buf[512];
+        if (fr_dir == NULL) {
+            snprintf(fr_dir_buf, sizeof fr_dir_buf, "%s/fr", sim_fs_root());
+            fr_dir = fr_dir_buf;
+        }
+        struct stat st;
+        if (stat(fr_dir, &st) != 0) {
+            if (mkdir(fr_dir, 0755) != 0) {
+                fprintf(stderr, "[sim] WARN: mkdir %s failed: %s\n",
+                        fr_dir, strerror(errno));
+            }
+        }
+
+        char events_path[600];
+        char scalars_path[600];
+        snprintf(events_path,  sizeof events_path,  "%s/events.csv",  fr_dir);
+        snprintf(scalars_path, sizeof scalars_path, "%s/scalars.csv", fr_dir);
+
+        int rc_init     = sentai_fr_init();
+        int rc_events   = sentai_fr_open(2 /* SENTAI_FR_CH_EVENTS  */, events_path);
+        int rc_scalars  = sentai_fr_open(3 /* SENTAI_FR_CH_SCALARS */, scalars_path);
+        int rc_task     = sentai_fr_task_start();
+        printf("[sim] sentai.fr auto-start: dir=%s init=%d events=%d "
+               "scalars=%d task=%d\n",
+               fr_dir, rc_init, rc_events, rc_scalars, rc_task);
+
+        /* Journal_open is MP-side (sim-only).  Bare filename per
+         * sim_fs_resolve contract — absolute paths fail silently. */
+        mp_embed_exec_str("sentai.sim.journal_open('startup_journal.txt')\n");
+    }
+
     printf("\n");
     printf("MicroPython on SentAI SIM (FreeRTOS POSIX port + MicroPython embed)\n");
     printf("Type expressions, end with Enter.  Ctrl-D or 'exit' to quit.\n");

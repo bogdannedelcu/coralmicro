@@ -44,7 +44,7 @@ DISPLAY=:99 stdbuf -oL -eL gz sim -s -r -v 3 \
     > /tmp/gz_server.log 2>&1 &
 SERVER_PID=$!
 echo $SERVER_PID > /tmp/gz_server.pid
-sleep 4
+sleep 8       # 2026-05-22: bumped 4→8 for spawn-service readiness
 
 # Spawn the drone
 WORKING_DIR="$BUILD_PATH/0"
@@ -57,10 +57,24 @@ python3 \
     --cffirm_udp_port 19950 --cflib_udp_port 19850 --cf_id 0 --cf_name cf \
     --output-file /tmp/crazyflie_0.sdf
 
-echo "[hybrid] spawning crazyflie_0 at (0, 0, 0.5)"
-gz service -s /world/${WORLD}/create \
-    --reqtype gz.msgs.EntityFactory --reptype gz.msgs.Boolean --timeout 300 \
-    --req 'sdf_filename: "/tmp/crazyflie_0.sdf", pose: {position: {x:0, y:0, z: 0.5}}, name: "crazyflie_0", allow_renaming: 1'
+echo "[hybrid] spawning crazyflie_0 at (0, 0, 0.0) — retry up to 3× / 5s timeout"
+SPAWN_OK=0
+for spawn_try in 1 2 3; do
+    if gz service -s /world/${WORLD}/create \
+        --reqtype gz.msgs.EntityFactory --reptype gz.msgs.Boolean --timeout 5000 \
+        --req 'sdf_filename: "/tmp/crazyflie_0.sdf", pose: {position: {x:0, y:0, z: 0.0}}, name: "crazyflie_0", allow_renaming: 1' \
+        2>&1 | grep -q "data: true"; then
+        echo "[hybrid] spawn attempt $spawn_try → OK"
+        SPAWN_OK=1
+        break
+    fi
+    echo "[hybrid] spawn attempt $spawn_try → retry in 2 s"
+    sleep 2
+done
+if [ "$SPAWN_OK" != "1" ]; then
+    echo "[hybrid] ABORT — spawn failed after 3 retries.  See /tmp/gz_server.log."
+    exit 2
+fi
 
 echo "[hybrid] starting cf2 SITL"
 stdbuf -oL -eL "$BUILD_PATH/cf2" 19950 > /tmp/cf2.log 2> /tmp/cf2.err &
