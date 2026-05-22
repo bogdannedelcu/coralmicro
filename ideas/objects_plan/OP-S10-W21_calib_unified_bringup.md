@@ -16,6 +16,14 @@ discovers everything that varies unit-to-unit:
    battery age)
 3. (Future / W21-T5) Camera intrinsics — `fx, fy, cx, cy` (lens / focus
    variance)
+4. (Future) **Manual-takeoff thrust ramp rate** — `thrust_base`,
+   `thrust_max`, `ramp_seconds` for the pre-airborne RPYT climb until
+   markers come into view.  Drone-to-drone mass varies (battery age,
+   payload, frame trim), so the same ramp profile lifts heavier drones
+   too slowly (marker-acquisition timeout) or lighter drones too fast
+   (overshoot, FOV loss).  W21-T7 (s190) hard-codes a ramp for the
+   reference drone; auto-learn deferred until we have repeatable iter
+   data to derive the search policy.
 
 All discovered parameters PERSIST on-board (`/system/calib.ini`), so the
 drone boots fully calibrated forever after.  Same C code runs in

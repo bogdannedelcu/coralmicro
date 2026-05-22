@@ -828,9 +828,60 @@ OP — ObjectsPlan thesis
 │        │   Smokes 4/4: s157, s186, s188 regress green + new s189
 │        │   5/5 PASS (round-trip, defaults, invalid reject, sentinel
 │        │   accept, on-disk format).  ARM #1425 clean.
-│        ├── OP-S10-W21-T4 — `sentai_calib_run_bringup()` orchestrator ⬜ TODO
+│        ├── OP-S10-W21-T4 — `sentai_calib_run_bringup()` orchestrator ✅ SHIPPED (2026-05-21, 29a9f92f)
+│        │   ~350 LoC FreeRTOS task.  Phase FSM SAMPLE → KABSCH →
+│        │   AUTOTUNE_X → AUTOTUNE_Y → HOLD → SAVE.  T4a-d phases
+│        │   chased Gazebo end-to-end on original WhyCon pad —
+│        │   reached reproducible PASS via clear() + THRESH_C=30 +
+│        │   autotune VPE/canal fixes + soft-fallback Kp.  Phase-2
+│        │   on smaller 0.5× pad blocked by cf2 SITL no-baro
+│        │   positioning → superseded by T7 (clean rewrite).
 │        ├── OP-S10-W21-T5 — Camera intrinsics auto-cal (DEFERRED)    ⬜ FW
-│        └── OP-S10-W21-T6 — SUBSYS_CALIB state + REPL-only trigger   ⬜ TODO
+│        ├── OP-S10-W21-T6 — SUBSYS_CALIB state + REPL-only trigger   ✅ SHIPPED (2026-05-21, 8454b713)
+│        │   sentai.calib.assert_calibrated() takeoff-refusal guard.
+│        ├── OP-S10-W21-T7 — Calib bringup via RPYT→HL handoff       ⬜ IN-PROGRESS (2026-05-22, s190)
+│        │   Clean rewrite of T4 phase-2 path.  Operator-stated:
+│        │   we DO NOT inject GT into cf2 SITL.  Instead:
+│        │     1. pre-airborne + climb via Classic Commander RPYT
+│        │        (CRTP port 3 ch 0, IMU-stabilized attitude+thrust,
+│        │        no positioning needed) — same as XBox controller
+│        │        flight per UART_RPYT_AGENT_PROMPT.md
+│        │     2. ramp thrust gradually until markers visible (n≥4
+│        │        + valid PnP stable 5 frames)
+│        │     3. switch to ExtPos (port 6 ch 0) via
+│        │        crtp_localization_service with PnP-derived (x,y,z)
+│        │        — HW-parity, vision-only, anti-cheat clean
+│        │     4. relax commander priority via meta-cmd
+│        │        `notifySetpointsStop` (port 7 ch 1, byte 0)
+│        │     5. transition to HL `go_to` (priority=HIGHLEVEL=1)
+│        │     6. run sentai_calib_run_bringup() as normal
+│        │   Pre-work: backout iter-85+ SENSOR_TOF_SIM cheat patches
+│        │   (done); FR + journal auto-start at sentai_sim boot
+│        │   (done as T10); gt_recorder auto-start via
+│        │   sim/scripts/launch_sim.sh (done as T11).
+│        │   Iter sweep: T_BASE / T_MAX / RAMP_S tuning per
+│        │   drone mass — future FW-C: auto-learn ramp.
+│        ├── OP-S10-W21-T8 — coplanar multi-marker PnP (vision Z)    ⬜ FW
+│        │   Replace single-marker Krajník depth-from-ring (perspective
+│        │   biased) with DLT/homography-on-plane PnP using all 6
+│        │   pixel positions + marker_world.  Unblocks: unbiased Z →
+│        │   ExtPos doesn't poison cf2 EKF (iter-13 positive-feedback
+│        │   crash).  Sized at ~100-200 LoC C++.
+│        ├── OP-S10-W21-T9 — sentai.flow Z-from-vision rewrite       ⬜ FW
+│        │   Current sentai.flow assumes cf2 EKF provides altitude
+│        │   for metric scaling — circular dependency.  Rewrite to
+│        │   estimate Z from image scale (object size change) or
+│        │   monocular SLAM-lite.  Required if we want flow as the
+│        │   real-HW XY anchor independently of vision PnP.
+│        ├── OP-S10-W21-T10 — sentai.fr + journal auto-start at boot ✅ SHIPPED (2026-05-22)
+│        │   sim/main_sim.c: events.csv + scalars.csv auto-opened at
+│        │   $SENTAI_FR_DIR or $SENTAI_SIM_ROOT/fr/.
+│        │   Journal_open via mp_embed_exec_str("...").
+│        │   Missions can still re-open with per-experiment paths.
+│        └── OP-S10-W21-T11 — gt_recorder auto-start in launch       ✅ SHIPPED (2026-05-22)
+│            sim/scripts/launch_sim.sh — host-side wrapper that calls
+│            launch_hybrid_cf2.sh (distrobox) + camera bridge +
+│            gt_recorder.  Companion launch_sim_cleanup.sh.
 │
 └── Milestones
     ├── OP-M1 — Thesis MVP (SIM): 4 descriptors + L1 + calib working end-to-end
