@@ -1,0 +1,98 @@
+# s191 — Calib RPYT-only cascaded PD (OP-S10-W21-T12)
+# Iteration log (append-only, English).
+
+## iter-1 (2026-05-22 12:30)  NAV_TIMEOUT — first full run
+
+params: Kp_xy=30 Kd_xy=30 Kp_yaw=150 yaw_target=0
+result: phase 1-5 all ran end-to-end!  Drone climbed via PD altitude
+to z=0.749, then NAV phase tried to spin yaw to 0 from +1.57 rad
+(yaw saturated at -60°/s).  Drone yawed + drifted to (0.13, 0.029,
+0.92).  GT confirmed climb to 0.97m.
+
+Key finding: yaw=1.57 at handoff is a FRAME CONVENTION OFFSET in
+get_drone_pose_tuple (pad geometry + camera mount), NOT actual cf2
+yaw drift.  Locking to 0 makes drone spin.
+
+## iter-2  yaw target = INITIAL yaw
+
+fix: target_yaw = pd_xyz_yaw[3] (snapshot at phase5 start), wrap
+angle into [-π, π].
+result: yaw stayed near 1.57-1.62 (stable lock to initial) BUT drone
+still overshoot, crashed off-pad.
+
+## iter-3  add world→body frame rotation
+
+fix: rotate world err by -yaw before PD, applied "FLU pitch/roll"
+sign conventions.
+result: MUCH WORSE — drone diverged to (-1.18, +0.68, 0.015).
+yaw flipped ±1.5 across frames (Kabsch mirror picker chaos).
+World→body rotation amplifies any yaw error → divergence.
+
+## iter-4  lower gains 30→10, no body rotation
+
+fix: KP_XY=10, KD_XY=10, KP_YAW=20.
+result: drone went to (0.76, 1.06, 0.011), GT peak 5.14m!  yaw_rate
+saturated at +60°/s because yaw flipped 1.57→-1.71 → false 3 rad err.
+
+## iter-5  yaw_rate=0 (disabled)
+
+fix: yaw_rate command = 0 regardless of PnP yaw.
+result: drone STILL drifted to (-0.20, -1.42, 0.015).  Roll/pitch
+PD with unknown sign convention destabilized.  cmd reached ±35° at
+peak — saturating, oscillating.
+
+## iter-6  Z PD only, roll=pitch=yaw=0
+
+fix: disabled XY PD entirely.  Only Z PD via thrust.
+result: drone STILL drifted — but slower.  Climbed to 1.10m
+(Z PD reduced thrust to 30k but drone had upward momentum from
+phase4 transition that Kd couldn't damp fast enough).  Drifted
+xy because cf2 stabilizer holds ATTITUDE not POSITION — with
+roll=pitch=0 drone is level but residual velocity from phase4
+continues unchecked.  Eventually crashed at (-1.42, -0.36).
+
+Key observations:
+- vxyz at t=15: (-0.20, +0.51, +0.17) — significant momentum
+- Sim has minimal drag — drone glides
+- WITHOUT active XY damping, drone drifts indefinitely
+
+## What we LEARNED across iter-1..6
+
+1. **PnP yaw is unreliable** — flips between mirror solutions per
+   frame.  Cannot use for yaw lock or for body→world rotation.
+   Future: use cf2 gyro yaw (sentai.crazy.pose()[3]) OR add hysteresis.
+
+2. **Axis identification is REQUIRED** — pitch/roll → X/Y mapping
+   is NOT identity.  May be swapped, may have wrong sign.
+   Calibration must DETERMINE this in-flight via test pulses.
+
+3. **Gentle gains AT FIRST** — operator-stated: "miscari foarte mici"
+   for axis ID, otherwise destabilize.  Recovery requires OPPOSITE
+   pulse to return drone to start.
+
+4. **Phase4 → Phase5 transition has residual velocity** — drone
+   carries momentum into XY hold.  Need to damp velocity BEFORE
+   testing axis sign.
+
+## Open: iter-7+ approach (NOT IMPLEMENTED YET)
+
+State machine:
+  5a. Z PD + roll=pitch=0 for ~2s → let drone drift naturally,
+      sample (x_drift_y_drift) baseline.
+  5b. Tiny pitch test pulse (+1° for 0.3s) + Z PD → measure dx, dy
+      vs baseline.  Apply opposite pulse to return.
+  5c. Tiny roll test pulse → measure dx, dy.  Opposite.
+  5d. Build 2x2 mapping matrix [pitch_x roll_x; pitch_y roll_y]
+  5e. Invert mapping → from desired (dx, dy) compute required
+      (pitch, roll).
+  5f. Apply XY PD with LEARNED axis map.
+
+Risk: drift during pulse may swamp the test signal.  Need pulse
+magnitude > drift over pulse duration.
+
+Test pulse: pitch=+1° for 0.3s → drone accel ≈ g·sin(1°) = 0.17 m/s²
+→ over 0.3s velocity grows to 0.05 m/s, displacement 8mm.  Drift
+of 5cm in 2s = 0.025 m/s → during 0.3s = 7.5mm.  Signal:Noise ≈ 1:1.
+TINY margin.  May need larger pulse (+2°) or longer (0.5s).
+
+Need to commit progress + continue in next session.

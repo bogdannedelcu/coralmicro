@@ -839,7 +839,7 @@ OP — ObjectsPlan thesis
 │        ├── OP-S10-W21-T5 — Camera intrinsics auto-cal (DEFERRED)    ⬜ FW
 │        ├── OP-S10-W21-T6 — SUBSYS_CALIB state + REPL-only trigger   ✅ SHIPPED (2026-05-21, 8454b713)
 │        │   sentai.calib.assert_calibrated() takeoff-refusal guard.
-│        ├── OP-S10-W21-T7 — Calib bringup via RPYT→HL handoff       ⬜ IN-PROGRESS (2026-05-22, s190)
+│        ├── OP-S10-W21-T7 — Calib bringup via RPYT→HL handoff       ⚠️ SUPERSEDED-BY-T12 (2026-05-22)
 │        │   Clean rewrite of T4 phase-2 path.  Operator-stated:
 │        │   we DO NOT inject GT into cf2 SITL.  Instead:
 │        │     1. pre-airborne + climb via Classic Commander RPYT
@@ -878,10 +878,26 @@ OP — ObjectsPlan thesis
 │        │   $SENTAI_FR_DIR or $SENTAI_SIM_ROOT/fr/.
 │        │   Journal_open via mp_embed_exec_str("...").
 │        │   Missions can still re-open with per-experiment paths.
-│        └── OP-S10-W21-T11 — gt_recorder auto-start in launch       ✅ SHIPPED (2026-05-22)
-│            sim/scripts/launch_sim.sh — host-side wrapper that calls
-│            launch_hybrid_cf2.sh (distrobox) + camera bridge +
-│            gt_recorder.  Companion launch_sim_cleanup.sh.
+│        ├── OP-S10-W21-T11 — gt_recorder auto-start in launch       ✅ SHIPPED (2026-05-22)
+│        │   sim/scripts/launch_sim.sh — host-side wrapper that calls
+│        │   launch_hybrid_cf2.sh (distrobox) + camera bridge +
+│        │   gt_recorder.  Companion launch_sim_cleanup.sh.
+│        └── OP-S10-W21-T12 — Calib RPYT-only cascaded PD            ⬜ IN-PROGRESS (2026-05-22, s191)
+│            Replaces T7.  T7's RPYT→HL handoff bug was solved
+│            (commit e0d5a67b) but bringup orchestrator's
+│            hover()/HL commands still cause HELICAL DRIFT (operator
+│            visual: 'incepe un drift ciudat elicoidal') because cf2
+│            without mag/lighthouse has ~1°/s yaw drift — over 7s
+│            bringup that's ~7° spiral.
+│            New approach: STAY ON CLASSIC COMMANDER (CRTP 3/0) for
+│            the entire calibration.  Mission-side cascaded PD on
+│            X/Y/Z/Yaw using PnP feedback.  YAW LOCK eliminates
+│            helical drift.  Implementation strategy: MP-FIRST then
+│            promote to C++ in sentai.calib namespace once tuned.
+│            Pre-condition: T7's PD takeoff (iter-21 GT peak 0.91m
+│            stable) is REUSED — only the post-handoff path changes.
+│            Reuses existing primitives: sentai.calib.commit_R,
+│            commit_kp, save.  Adds: X-PD, Y-PD, Yaw-PD in mission.
 │
 └── Milestones
     ├── OP-M1 — Thesis MVP (SIM): 4 descriptors + L1 + calib working end-to-end
