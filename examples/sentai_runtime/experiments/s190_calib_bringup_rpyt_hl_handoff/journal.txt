@@ -1,0 +1,304 @@
+# s190 — RPYT→HL handoff calibration bringup
+# Iteration log (append-only, English).  Format:
+#   ## iter-N (YYYY-MM-DD HH:MM)  <PASS/FAIL/blocker>
+#   params: T_BASE=… T_MAX=… RAMP_S=… MAX_RAMP_S=…
+#   result: <one-liner>
+#   notes:  <details, links to fr/journal/gt files>
+
+## iter-1 (2026-05-22 10:21)  RAMP_TIMEOUT
+
+params: T_BASE=30000 T_MAX=45000 RAMP_S=3.0 MAX_RAMP_S=12.0 N_STABLE=5
+
+result: ramp timed out — 0 markers detected over 12 s.  Drone DID
+take off (ekf_z 0 → 35 m over the ramp, IMU accel integration
+drift since no Z source).  RPYT path validated.
+
+root cause: `gz_to_uds_bridge` not found at
+`build-sim/sim/gazebo/gz_to_uds_bridge` — wrong path in
+launch_sim.sh.  Actual binary at `build-sim/sim/gz_to_uds_bridge`.
+Without bridge → sentai_sim camera task gets 0 frames → 0 PnP →
+mission can't detect handoff trigger.
+
+fix: launch_sim.sh path corrected.  Re-run as iter-2.
+
+artifacts: fr_current/ (events.csv with init line only),
+mission_s190_journal.txt (50 ramp_tick rows), gt_recorder.log
+(subscribed but no GT received — Gazebo server may have died early).
+
+## iter-2 (2026-05-22 10:26)  RAMP_TIMEOUT (spawn flake)
+
+params: same as iter-1
+
+result: spawn failed ("Service call timed out") → cf2 never connected
+to Gazebo → no pose, no camera frames.
+
+root cause: launch_hybrid_cf2.sh `sleep 4` after gz sim -s + `--timeout
+300` ms on the spawn `gz service` call were too tight.  Gazebo wasn't
+ready to process service calls when the spawn was attempted.
+
+fix: bumped sleep 4 → 8 s + retry spawn up to 3× with 5 s timeout each.
+Also bumped launch_sim.sh wait 6 → 12 s for margin.
+
+## iter-3 (2026-05-22 10:29)  FAIL (SAFETY abort during SAMPLE)
+
+params: T_BASE=30000 T_MAX=45000 RAMP_S=3.0 MAX_RAMP_S=12.0 N_STABLE=5
+
+result: end-to-end pipeline ran.  Drone lifted, markers detected,
+ExtPos engaged, HL handoff happened, bringup SAMPLE started.
+Aborted at phase=SAMPLE after 7s with reject_code=8 (SAFETY).
+
+key observations:
+- Spawn retry worked first attempt (3× was over-engineered, kept).
+- Camera bridge frames flowed (gt.jsonl 318 KB).
+- Drone HAS lift profile: ekf_z 0 → 0.18 → 0.50 → 0.84 → 1.5 → 2.3 →
+  3.2 → 4.2 → 5.5 → 6.7 → 7.66 m over the ramp (note: ekf_z is IMU
+  accel integration, NOT real — Kalman has no Z source).
+- PnP detected markers starting at ekf_z=4.2 m (n=3) then 4 markers
+  at ekf_z=6.7 m.
+- Handoff fired at ekf_z=7.66 m with PnP-z=0.003 m — PERSPECTIVE BIAS
+  catastrophic: drone REALLY at 7+ m, PnP says 0 m.
+- ExtPos with z=0.003 fed cf2 EKF → ekf_z dropped 7.66 → 0.94 in 8
+  ticks (Kalman believes ExtPos over IMU).
+- Then bringup SAMPLE phase: markers must be near, but drone is up
+  high → markers tiny → unstable PnP → SAFETY abort.
+
+root cause: T_MAX=45000 is way above hover thrust.  Drone accelerates
+upward continuously through the ramp.  By the time N_STABLE=5 PnP
+frames accumulate, drone is at 7 m altitude — far outside the band
+(0.4-0.8 m) where markers are large enough for accurate PnP.
+
+fix (iter-4):
+- T_MAX 45000 → 40000 (just above hover)
+- RAMP_S 3.0 → 6.0 (slower)
+- N_STABLE 5 → 2 (relaxed — handoff sooner)
+- new safety: MAX_EKF_Z_M=1.5 — abort if drone goes higher without
+  handoff (catches PnP-blind runaway)
+- MAX_RAMP_S 12 → 15 s
+
+## iter-4 (2026-05-22 10:31)  RAMP_SAFETY_ABORT
+
+params: T_BASE=30000 T_MAX=40000 RAMP_S=6.0 MAX_RAMP_S=15.0 N_STABLE=2 MAX_EKF_Z=1.5
+
+result: drone climbed to ekf_z=1.58 m → MAX_EKF_Z safety abort.
+0 markers detected throughout.  Surprising — at 1.5 m altitude the
+pad should be in FOV.
+
+hypothesis: markers below detection threshold (n_pixel < min_area)
+at low altitudes due to OV5640 perspective + downward cam offset?
+Or detection just doesn't fire reliably until z > 2 m in this setup.
+
+fix (iter-5): raise MAX_EKF_Z to 3.0 to gather data on at what
+altitude markers first appear.
+
+## iter-5 (2026-05-22 10:32)  FAIL (SAFETY abort during SAMPLE, again)
+
+params: T_BASE=30000 T_MAX=40000 RAMP_S=6.0 MAX_RAMP_S=15.0 N_STABLE=2 MAX_EKF_Z=3.0
+
+result: same end-state as iter-3 — bringup SAMPLE → SAFETY abort
+in 7 s.  BUT progression cleaner:
+- Markers (n=3) first appeared at ekf_z=1.47 m
+- n=6 + PnP valid at ekf_z=2.18 m
+- Handoff at ekf_z=2.31 m (NOT 7.66 m like iter-3 — tuning worked)
+- PnP_xyz = (-0.070, 0.085, 0.008)
+
+KEY FINDING — PnP-Z perspective bias is a HARD blocker:
+
+Drone is at REAL altitude ~2 m (ekf_z reads 2.31, GT not captured this
+run but iter-3 GT confirmed ~7 m when ekf said 7.66 — consistent).
+But PnP says z=0.008 m.  ~290× off.
+
+This is the Krajník depth-from-ring perspective bias — the formula
+`z = fx * D / (2 * axis_a) * ANNULUS_FACTOR` is very sensitive to
+measured `axis_a` (semi-major of ring), which is affected by perspective
+when marker is off image center.
+
+Feeding ExtPos with biased z=0.008 to cf2 → Kalman believes drone is
+~0 m → controller commands extreme thrust to "reach Z_HOLD=0.6 m" from
+"current 0" → drone climbs more → markers shrink → PnP gets worse →
+runaway loop → SAFETY abort by orchestrator.
+
+NEXT STEP: W21-T8 (coplanar multi-marker pixel PnP) is now the
+critical path — without unbiased PnP-z, no further iteration on
+ramp parameters helps.  Either implement coplanar pixel-PnP
+(DLT/homography on plane, ~100-200 LoC C++), OR use a different
+position-injection strategy (e.g., XY-only).
+
+artifacts: mission_s190_journal.txt (170 ramp_tick rows + handoff +
+bringup phases), gt.jsonl empty (gt_recorder bug — to investigate
+separately), fr_current/ events+scalars CSVs.
+
+## What's validated end-to-end by iter-3 + iter-5
+
+- Anti-cheat: zero GT injected into cf2 (audit + plugin disabled + baro off)
+- RPYT path: drone lifts open-loop via Classic Commander
+- Markers: WhyCon detection works once drone is high enough
+- ExtPos: crtp_localization_service accepts our (x,y,z)
+- Priority handoff: notifySetpointsStop → HL go_to engages
+- Bringup orchestrator: runs through SAMPLE phase
+
+## What's blocked
+
+- PnP-Z accuracy on Krajník depth-from-ring (W21-T8 needed)
+
+## iter-6..9 (2026-05-22 10:50-11:03)  iterating bug fixes
+
+iter-6: `bytearray` not in MicroPython embed → use bytes concat with struct.pack
+iter-7: sentai.fr.open takes channel NAME (string) not int → `"frames"` not `1`
+iter-8: fr_current/frames dir not created by run.sh cleanup → mkdir -p added
+iter-9: visualized frames!  Confirmed:
+  - frame_first/mid: drone sees FLOOR TEXTURE only (no pad in FOV)
+  - frame_last (n=3): pad with WhyCon markers, 3-4 visible, marker pixel
+    diameter ~50px → REAL altitude ≈ 288*0.0544/50 = 0.31 m
+  - ekf_z reported 3.24m at this moment (10× inflation)
+  - User's claim "markers visible at 0.5-0.9m" CONFIRMED
+  - ekf_z is IMU integration drift, NOT trustworthy
+
+## iter-10 (2026-05-22 11:08)  BREAKTHROUGH — full pipeline runs
+
+params: T_BASE=30000 T_MAX=40000 RAMP_S=6.0 MAX_RAMP_S=15.0 N_STABLE=1
+        MAX_EKF_Z=disabled
+
+result: status=FAIL (SAFETY abort), but EVERY pipeline phase ran:
+  Phase 1 setup     OK (set_marker_world n=6, fr_open frames OK)
+  Phase 2 zero-thrust unlock  OK
+  Phase 3 thrust ramp  OK (n=4 markers @ t=238)
+  Phase 4 ExtPos warmup  OK (cf2 EKF converged in 8 ticks!)
+  Phase 5 HL handoff  OK (go_to to (0,0,0.6) executed, drone at 0.566m)
+  Phase 6 bringup orchestrator  RAN — SAMPLE phase 7s → SAFETY abort
+
+KEY WINS:
+- PnP-z=0.339m at handoff (vs 0.005 in iter-3..7).  Kabsch via
+  get_drone_pose_tuple (with set_marker_world registered) does
+  proper association + per-marker Kabsch fit → unbiased Z.
+- ExtPos warmup converged cf2 EKF: (−0.14, 0.12, 7.11) → (0.04,
+  0.003, 0.40) in ONE 30ms update.
+- notifySetpointsStop meta-cmd + go_to engaged HL — drone reached
+  0.566 m target.
+- Bringup orchestrator entered SAMPLE phase.
+
+Remaining blocker: bringup SAMPLE → SAFETY in 7s.  Likely causes:
+- Markers lost during SAMPLE sweep (drone deviates laterally)
+- Bringup's own VPE forwarder conflicts with mission's stream
+- z=0.566 + sweep takes drone above marker-visible band
+
+Next: investigate the SAMPLE phase abort.  Could be that bringup
+orchestrator was tuned for the bigger pad / different scenario;
+need to either retune SAMPLE parameters or simplify the orchestrator.
+
+## Mid-arc cleanup (2026-05-22 11:15)  100+ ORPHANS FOUND + KILLED
+
+Operator noticed SIM running slowly.  Investigation:
+- ps revealed 100+ orphan `gz topic -e -t .../dynamic_pose/info` +
+  `gz-transport-topic` processes from 2026-05-20/21 sessions still
+  alive, each at 1-4% CPU.
+- gz comm="ruby" (gz is a Ruby wrapper) — `pkill -x gz` did NOT match.
+- launch_sim_cleanup.sh patched: use `pkill -f "gz sim"` not `pkill -x gz`.
+- Added trap EXIT INT TERM in run.sh → cleanup_on_exit hooks.
+
+After cleanup: orphan count 0.
+
+Operator's hypothesis confirmed: CPU contention from orphans was
+slowing Gazebo → fewer camera frames → mission's
+sentai.rtos.sleep_ms(33) decoupled from Gazebo sim-time → physics
+loop nondeterministic.  Iter-10 (with orphans) handoff at thrust=40000;
+iter-12 (clean) handoff at thrust=36353 — drone more responsive.
+
+## iter-12 (2026-05-22 11:17)  FAIL, same SAMPLE→SAFETY pattern
+
+After full cleanup of orphans:
+- handoff_xyz = (-0.045, -0.005, 0.342)
+- handoff_thrust = 36353 (vs 40000 in iter-10) — LIGHTER lift
+- Bringup SAMPLE → SAFETY in 7s (SAME as iter-10)
+
+CPU slowness was real but NOT the root cause of SAMPLE failure.
+The bringup orchestrator itself aborts SAMPLE — separate problem.
+
+Next debug step: instrument bringup SAMPLE phase to see what triggers
+the SAFETY condition.  Probably markers lost during the sweep ±2.5cm
+(at z=0.6m, sweep takes drone to corners 8cm offset → camera + cam
+offset mount means pad may go partly out of FOV).
+
+## iter-14..20 (2026-05-22 11:30-12:00)  PD ALTITUDE HOLD via vision
+
+User-stated direction: "cumva redu thrust co cresterea lui Z asa incat
+cu cat creste mai mult cu atat sa ii scazi acceleratia. Pana cand Z
+nu mai creste".  This is the classic quadrotor PD altitude controller
+(Bouabdallah 2004, Mahony/Kumar/Corke 2012).
+
+Mass + motor pulled from SDF:
+- m = 0.025 (base) + 4·0.0008 (props) = 0.0282 kg
+- F_max = 4·motorConstant·maxRotVelocity² = 4·1.8145e-8·3052² = 0.676 N
+- F_hover = m·g = 0.277 N
+- T_hover_predicted = 65535·sqrt(0.277/0.676) ≈ 41900 thrust units
+- Empirical T_hover ≈ 36000 (CrazySim plugin diverges from formula 15%)
+- dF/dT @ hover (linear) ≈ 1.1e-5 N/unit
+
+Physics-tuned PD (ω_n=1.5 rad/s, ζ=0.8 critically damped):
+  Kp = m·ω_n²/(dF/dT) ≈ 6000 units/m
+  Kd = 1.6·m·ω_n/(dF/dT) ≈ 6000 units/(m/s)
+
+Iter sweep:
+| iter | Kp     | Kd     | extras       | GT peak | observation             |
+| ---- | ------ | ------ | ------------ | ------- | ----------------------- |
+| 13   | none   | none   | open-loop    | 1.51 m  | drone runs away         |
+| 14   | brake  | brake  | T=28000/0.5s | 1.47 m  | brake helps             |
+| 15   | hold   | hold   | T=35500/1s   | 2.52 m  | soft hold lets it climb |
+| 16   | sample | sample | median Z     | -       | superseded by PD        |
+| 17   | 20000  | 10000  | no LPF       | 1.16 m  | oscillates, overdamped  |
+| 18   | 6000   | 6000   | physics-only | 1.80 m  | too soft                |
+| 19   | 10000  | 8000   | vz LPF α=0.25| 1.72 m  | better damping          |
+| 20   | 10000  | 8000   | vz-only stable | 1.47 m | stable detected!        |
+
+Iter-20 RESULTS:
+- handoff_xyz (0.040, -0.004, 0.330)  ← good
+- PD stabilized: vz_filt reached -0.002 m/s (drone STOPPED accelerating)
+- ExtPos warmup: cf2 EKF tracked PnP (0.94→0.67→0.83 over 1 sec)
+- HL go_to(0,0,0.6) handoff executed
+- Bringup orchestrator engaged
+
+**Operator visual confirm**: "e perfecta decolarea, se stabilizeaza
+foarte bine, doar ca dupa o ia razna" — takeoff perfect, post-handoff
+the orchestrator goes off.
+
+Bringup SAMPLE → SAFETY in 7s remains the next blocker (SEPARATE
+issue from the lift control we just solved).
+
+## iter-21 (2026-05-22 12:08)  PD CONTINUES THROUGH WARMUP — peak 0.91m!
+
+Bug iter-20: warmup phase had `_rpyt(0,0,0, T_HOVER_U16=36500)` which
+was +4000 thrust units above PD's stable thrust (~32500) → drone
+re-accelerated upward → z drifted 0.66 → 0.83 m during warmup →
+bringup saw wrong altitude → 'o ia razna' (operator visual).
+
+Fix: phase3b_pd_hold returns (xyz, thrust, vz_filt).  phase4_extpos
+warmup CONTINUES PD using inherited state.  Thrust no longer steps up.
+
+GT iter-21: peak z = 0.909 m at t=9.17s.  Vs:
+  iter-13 open-loop:  peak 1.51 m
+  iter-15 soft hold:  peak 2.52 m
+  iter-17 strong PD:  peak 1.16 m
+  iter-19 LPF:        peak 1.72 m
+  iter-20 vz-stable:  peak 1.47 m
+  iter-21 PD+warmup:  peak 0.91 m  ← OPERATOR-CONFIRMED 'perfect takeoff'
+
+Pipeline status:
+  Phase 1 setup            ✅ markers + crazy + arm + pose_subscribe
+  Phase 2 zero-unlock      ✅ thrust unlock
+  Phase 3 thrust ramp      ✅ open-loop until first valid PnP frame
+  Phase 3b PD altitude     ✅ vz_filt → 0, drone stops accelerating
+  Phase 4 ExtPos warmup    ✅ cf2 EKF tracks PnP (continued PD)
+  Phase 5 HL handoff       ✅ notifySetpointsStop + go_to
+  Phase 6 BRINGUP          ❌ SAMPLE → SAFETY in 7s — next blocker
+
+Operator visual: 'e perfecta decolarea, se stabilizeaza foarte bine,
+doar ca dupa o ia razna... dupa o secunda de stabilizare peste markeri
+incepe sa driftuiasca pe z foarte mult, ca si cum datele de calibrare
+sunt gresite'.
+
+Hypothesis for SAFETY abort: bringup orchestrator (sentai_calib_bringup.cc)
+runs its own VPE forwarder + sweep commands.  Conflict with mission's
+ExtPos stream and stabilized cf2 EKF state.  Drone goes off during
+SAMPLE sweep → markers lost → SAFETY trigger.
+
+Next: investigate sentai_calib_bringup.cc SAMPLE phase, either disable
+its internal VPE (rely on mission's ExtPos) or sync the two.
