@@ -2806,7 +2806,10 @@ static int whycon_filter_and_moments_(const uint8_t* gray,
         whycon_pnp_inplace_(m);
         cyc_pnp += aruco_dwt_cyc() - t_pnp_0;
     }
-    if (filter_diag++ < 3) {
+    // Iter-19 OP-S10-W21-T12 debug: log every frame where we found
+    // components but rejected SOME — likely under-counting bug.
+    if (filter_diag++ < 3
+        || (n_comp >= 4 && accepted < n_comp && accepted > 0)) {
         fprintf(stderr,
             "[whycon_filter] n_comp=%d accepted=%d  rejects: "
             "border=%d min_area=%d max_area=%d ar=%d fill=%d axis=%d w3=%d "

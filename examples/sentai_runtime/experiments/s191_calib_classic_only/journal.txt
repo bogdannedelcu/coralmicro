@@ -218,3 +218,55 @@ Phase 1-4 takeoff is rock-solid; phase 5 axis ID is the open problem.
 Next iter direction: fix PnP stability before re-attempting axis ID.
 Likely need to investigate yaw_anchor_mirror_picker behavior in s191's
 hover/pad geometry.
+
+## iter-19 (2026-05-22 18:30)  DETECTOR UNDER-COUNT — root cause found
+
+Operator-stated: "verifica pe cateva frames random din zbor, cati
+markeri a detectat algoritmul si cati sunt de fapt in poza".
+
+Method:
+1. PGM frames saved by sentai.fr at 30Hz during iter-18 (242 frames).
+2. Filename encodes algorithm's n_dets: `t<ms>_n<n_dets>_f<seq>.pgm`.
+3. Independent OpenCV blob-count (threshold 80, circularity > 0.4)
+   on 15 random in-flight frames.
+4. Visual inspection of representative frames per n_dets bucket.
+
+Findings:
+- Algorithm reports n_dets ∈ {0, 2, 3, 4, 5, 6} across iter-18 flight.
+- 131/242 frames had n_dets=0 (drone landed or markers OOF — verified
+  cv_count=0 on all sampled n=0 frames).
+- 2 of 15 random in-flight samples showed CONFIRMED under-count:
+  algorithm 4, OpenCV 6.  Visual inspection: all 6 markers clearly
+  visible.
+
+Instrumented detector (sentai_aruco.cc line 2809) to log per-frame
+reject distribution on under-count cases.  Iter-19 re-run:
+- 148/151 in-flight frames have n_comp ≥ 4 with accepted < n_comp.
+- Reject reason ranking (per-frame frequency, descending):
+  * min_area: dominant (~60% — mostly noise blobs, OK to reject)
+  * border:   ~50% — markers near frame edge (drone tilt during
+              axis ID pulses shifts FOV → markers clipped)
+  * axis:     ~50% — eigenvalue ratio > 2.0
+  * ar:       ~30% — bbox aspect > 2.0
+  * fill:     ~25% — fill ratio < 0.40
+  * w3:       ~10% — concentric check rejects (somehow enabled?)
+
+Most common pattern: n_comp=96 acc=5 border=13 ar=6 fill=4 axis=2 w3=3.
+6 markers visible → algorithm gets 5 → PnP solves on 5-marker subset.
+Different frame: same scene, same 6 markers → algorithm gets 4 →
+PnP solves on different 4-marker subset → different X/Y solution.
+
+This IS the "PnP bimodal" root cause — not yaw_anchor mirror picker,
+but UNSTABLE DETECTION COUNT.  Marker SET varies per-frame, PnP
+rebuilds each frame on different subset.
+
+Saved 5 sample frames + 2 OpenCV-annotated mismatches under
+marker_analysis/.
+
+Fix plan iter-20:
+1. min_area 40→20 (allow distant markers).
+2. border rule: instead of rejecting touch, only reject if blob's
+   bbox extends > N pixels beyond detection region (i.e., we have a
+   FULL view of the blob).  Markers WITHIN the frame but adjacent
+   to its boundary are still valid.
+3. max_bbox_ar 2.0→2.5 (slightly elongated due to perspective).
