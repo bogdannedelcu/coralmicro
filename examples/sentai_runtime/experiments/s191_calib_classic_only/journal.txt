@@ -139,3 +139,39 @@ NEXT (deferred): rewrite phase 5 with hover()-based axis ID:
 3. hover(0, +v, 0, z) pulse + recovery → (dx_w, dy_w) per roll+
 4. Build 2×2 axis map → R_body_to_world
 5. After axis ID, commit_R + sweep using world frame INTERPRETED via R
+
+## iter-14 (2026-05-22 16:30)  AXIS ID PULSE MEASURED — first concrete data
+
+reverted from position setpoint to hover() body-frame pulses (per
+operator's frame-mismatch insight).
+
+Approach:
+- Phase 5a settle: hover(0,0,0,z) for 2s → baseline samples
+- Phase 5b pulse: hover(+V_body, 0, 0, z) for 0.8s → sample after
+- Recovery: hover(-V_body, 0, 0, z)
+- Repeat for +Y body
+
+Results:
+- baseline median (after settle): (+0.057, -0.018, +0.766)
+- after +X body pulse: (-0.021, -0.051, +0.759)
+- DELTA: (-0.078, -0.033, -0.007)
+  → body +X command produces WORLD displacement (-0.078, -0.033)
+  → normalized direction: (-0.92, -0.39)
+  → inferred drone yaw in PnP frame = atan2(-0.033, -0.078) ≈ -157°
+- +Y body pulse: FAILED (few samples) — drone drifted off pad between
+  pulses, markers lost.  Need stronger return-to-origin between
+  pulses.
+
+GT validation: drone went to +1.46m X in Gazebo while PnP showed -X.
+Confirms 180°-rotated PnP frame vs Gazebo.
+
+KEY INSIGHT: this pulse measurement IS the calibration!  The vector
+(-0.078, -0.033) per +X body pulse tells us the drone yaw in PnP
+frame.  Once we know R, we can:
+- Rotate PnP coords by +R before sending ExtPos
+- cf2 Kalman now operates in body/Gazebo frame consistently
+- Position setpoints work correctly
+
+Next iter (15): use iter-14's measured R to FIX ExtPos feeding —
+drone should hold position.  Then re-pulse +Y to get second column
+of R.  Then Kabsch refines.

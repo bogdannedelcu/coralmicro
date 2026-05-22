@@ -30,3 +30,18 @@ venv*/
 **/.pytest_cache/
 **/.mypy_cache/
 **/*.egg-info/
+
+# Project cache (operator-stated 2026-05-22 — don't commit)
+/cache/
+
+# Experiment runtime artifacts (regenerated each run; journal.txt
+# stays — that's the HUMAN-MAINTAINED iter log).
+**/experiments/s*/fr_current/
+**/experiments/s*/mission_*_journal.txt
+**/experiments/s*/mission_*_summary.json
+**/experiments/s*/sentai_repl.log
+**/experiments/s*/launch_hybrid.log
+**/experiments/s*/launch_sim.pids
+**/experiments/s*/gt_recorder.log
+**/experiments/s*/gz_to_uds_bridge.log
+**/experiments/s*/verdict.log
