@@ -175,3 +175,46 @@ frame.  Once we know R, we can:
 Next iter (15): use iter-14's measured R to FIX ExtPos feeding —
 drone should hold position.  Then re-pulse +Y to get second column
 of R.  Then Kabsch refines.
+
+## iter-15..18 (2026-05-22 16:30-18:00)  AXIS ID — DEEPER ISSUE FOUND
+
+Iter-15: hover-based local-baseline pulses → CATASTROPHIC divergence
+(drone climbed to 25m).  Root cause: hover(0,0,0,z) uses cf2 Kalman
+position, which is fed by ExtPos in PnP frame.  Frame mismatch → cf2
+commands wrong direction → drone drifts off pad → no markers → Kalman
+Z diverges → uncontrolled climb.  **NEVER use hover() while PnP frame
+unknown.**
+
+Iter-16: pivot to RPYT pitch/roll degree pulses (cf2 attitude PID only,
+no Kalman position dependency).  Z PD altitude lock retained.
+Result: axis_id_ok=True but x1/y1 contaminated by `_try_pnp` returning
+n>=4 with pose=None sentinel (-1,-1).  M_inv garbage.
+
+Iter-17: sample-window fix (median over 0.4s pre/post, filter
+sentinels).  Pitch+ produced clean (-0.106, -0.067) m in world frame
+(drift-subtracted).  Roll+ produced ONLY (0.021, -0.007) m — same
+magnitude as baseline drift.  M det = 8.6e-5 → singular.
+
+Iter-18: pulse 5°→10° for better SNR.  Baseline measured vx_drift =
+-25 cm/s, vy_drift = -12 cm/s.  BUT GT shows drone XY range only
+1 cm during baseline.  Conclusion: **PnP itself is bimodal** —
+yaw_anchor_mirror_picker flips between mirror solutions on
+near-symmetric WhyCon pad, producing 12cm jumps with stationary
+drone.
+
+KEY FINDING: axis ID requires STABLE PnP first.  Mirror picker is the
+upstream problem.  Either:
+- Disable mirror picker during axis ID phase (commit to one mirror)
+- Use cf2 gyro yaw as the picker disambiguator
+- Add hysteresis on picker — once chosen, stick unless yaw rotates
+  > 45°
+- Use ONLY canonical 4-marker subset to avoid bimodal subset choice
+
+DRONE BEHAVIOR: even with axis_id_failed, drone stays bounded on pad
+and lands within 5cm of origin (FINAL (-0.029, +0.043) iter-18).
+[[sim-test-must-return-home]] is satisfied — that's a real win.
+Phase 1-4 takeoff is rock-solid; phase 5 axis ID is the open problem.
+
+Next iter direction: fix PnP stability before re-attempting axis ID.
+Likely need to investigate yaw_anchor_mirror_picker behavior in s191's
+hover/pad geometry.

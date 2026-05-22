@@ -95,6 +95,21 @@ KP_YAW_RATE_PER_RAD   = 20.0
 # Roll/pitch safety limits (degrees) — cap to prevent flips.
 MAX_ROLL_DEG          = 15.0
 MAX_PITCH_DEG         = 15.0
+
+# Axis ID via direct RPYT tilt pulses (NOT hover/velocity setpoints).
+# Pure body-frame open-loop: cf2 only uses IMU, no Kalman position
+# involvement → safe even when markers transiently out of FOV.
+# Operator-stated 2026-05-22: "don't touch yaw until X/Y is clean"
+# — pulses use yaw_rate=0 throughout.
+# Iter-18: bump pulse 5°→10° — iter-17 showed roll response (~2cm)
+# same magnitude as baseline drift (~6cm over 0.8s), bad SNR → det
+# 8.6e-5 singular.  10° doubles displacement to ~28 cm theoretical
+# (tan(10°)·g·t²/2 = 0.176·9.8·0.16/2), reality probably ~15-20cm.
+AXIS_ID_BASELINE_S    = 1.0
+AXIS_ID_PULSE_DEG     = 10.0
+AXIS_ID_PULSE_S       = 0.4
+AXIS_ID_RECOVERY_S    = 0.5
+AXIS_ID_SETTLE_S      = 2.0
 MAX_YAW_RATE_DEG      = 60.0
 
 VZ_LPF_ALPHA          = 0.25
@@ -821,23 +836,59 @@ def _phase5_axis_id(pd_state):
     })
 
     # ─── Helper: run one pulse + recovery + settle ────────────────
+    # Iter-16 fix: use SAMPLE WINDOWS (median over multiple frames)
+    # for pre/post snapshots — single-frame snapshots are fragile
+    # because _try_pnp can return n>=4 with pose=None sentinel (-1,-1).
+    PRE_POST_WIN_S = 0.4   # ~12 frames @ 30Hz
+    def _median(xs):
+        s = sorted(xs)
+        m = len(s) // 2
+        return s[m] if (len(s) & 1) else 0.5 * (s[m-1] + s[m])
+
     def _do_pulse(label, roll_deg, pitch_deg):
-        """Returns (dx_net, dy_net) — displacement during pulse with
-        drift subtracted.  Updates z_prev, vz_filt, last_xyz_yaw via
-        nonlocal closure."""
-        # Snapshot position before pulse.
-        n0, x0, y0, z0, yaw0 = _try_pnp()
-        if n0 < 4:
+        """Returns (dx_net, dy_net) — pulse-induced world displacement,
+        baseline-drift subtracted.  Uses sample windows pre/post."""
+        nonlocal z_prev, vz_filt, last_xyz_yaw
+
+        def _level_window_collect(dur_s):
+            """Hold level with Z PD for dur_s, collect valid PnP
+            (x,y,z) samples (n>=4 AND z>0 → not sentinel)."""
+            nonlocal z_prev, vz_filt, last_xyz_yaw
+            collected = []
+            for ti in range(int(dur_s * 1000 / TICK_MS)):
+                n, x, y, z, yaw = _try_pnp()
+                if n >= 4 and z > 0.0:
+                    z_now = z
+                    last_xyz_yaw = (x, y, z, yaw)
+                    collected.append((x, y, z))
+                else:
+                    z_now = z_prev
+                thrust, vz_filt = _z_pd_thrust(z_now, z_prev, target_z,
+                                                 vz_filt, dt_s)
+                _rpyt(0.0, 0.0, 0.0, thrust)
+                z_prev = z_now
+                sentai.rtos.sleep_ms(TICK_MS)
+            return collected
+
+        # ── PRE: sample window with level Z PD ─────────────────────
+        pre_samples = _level_window_collect(PRE_POST_WIN_S)
+        if len(pre_samples) < 4:
+            _j("axis_id_pulse_done", {"label": label,
+                                        "fail": "no_pre_samples",
+                                        "n_pre": len(pre_samples)})
             return None, None
+        x0 = _median([s[0] for s in pre_samples])
+        y0 = _median([s[1] for s in pre_samples])
+        z0 = _median([s[2] for s in pre_samples])
         _j("axis_id_pulse_start", {
-            "label": label, "x": x0, "y": y0, "z": z0, "yaw": yaw0,
+            "label": label, "pre_xyz": (x0, y0, z0),
+            "n_pre": len(pre_samples),
             "cmd_roll": roll_deg, "cmd_pitch": pitch_deg,
         })
 
-        # 2A. FORWARD PULSE
+        # ── FORWARD PULSE ─────────────────────────────────────────
         pulse_ticks = int(AXIS_ID_PULSE_S * 1000 / TICK_MS)
         for ti in range(pulse_ticks):
-            nonlocal z_prev, vz_filt, last_xyz_yaw
             n, x, y, z, yaw = _try_pnp()
             if n >= 4 and z > 0.0:
                 z_now = z
@@ -850,12 +901,21 @@ def _phase5_axis_id(pd_state):
             z_prev = z_now
             sentai.rtos.sleep_ms(TICK_MS)
 
-        # Snapshot position after pulse.
-        n1, x1, y1, z1, yaw1 = _try_pnp()
-        if n1 < 4:
+        # ── POST: sample window with level Z PD ─────────────────────
+        # Drone now has body-frame velocity from pulse + displaced
+        # position.  Level Z PD halts further tilt accel; momentum
+        # carries drone to settled displaced position during window.
+        post_samples = _level_window_collect(PRE_POST_WIN_S)
+        if len(post_samples) < 4:
+            _j("axis_id_pulse_done", {"label": label,
+                                        "fail": "no_post_samples",
+                                        "n_post": len(post_samples)})
             return None, None
+        x1 = _median([s[0] for s in post_samples])
+        y1 = _median([s[1] for s in post_samples])
+        z1 = _median([s[2] for s in post_samples])
 
-        # 2B. RECOVERY (opposite pulse to brake).
+        # ── RECOVERY (opposite pulse to brake body velocity) ───────
         for ti in range(int(AXIS_ID_RECOVERY_S * 1000 / TICK_MS)):
             n, x, y, z, yaw = _try_pnp()
             if n >= 4 and z > 0.0:
@@ -869,28 +929,21 @@ def _phase5_axis_id(pd_state):
             z_prev = z_now
             sentai.rtos.sleep_ms(TICK_MS)
 
-        # 2C. SETTLE (level + Z PD).
-        for ti in range(int(AXIS_ID_SETTLE_S * 1000 / TICK_MS)):
-            n, x, y, z, yaw = _try_pnp()
-            if n >= 4 and z > 0.0:
-                z_now = z
-                last_xyz_yaw = (x, y, z, yaw)
-            else:
-                z_now = z_prev
-            thrust, vz_filt = _z_pd_thrust(z_now, z_prev, target_z,
-                                             vz_filt, dt_s)
-            _rpyt(0.0, 0.0, 0.0, thrust)
-            z_prev = z_now
-            sentai.rtos.sleep_ms(TICK_MS)
+        # ── SETTLE (level + Z PD, longer for return to near baseline) ─
+        _level_window_collect(AXIS_ID_SETTLE_S)
 
-        # Compute net pulse displacement (subtract baseline drift over
-        # the pulse duration only — the pulse caused this dx/dy).
+        # Compute pulse-induced displacement.  Subtract baseline drift
+        # over (PRE_WIN/2 + PULSE_S + POST_WIN/2) — time from pre-window
+        # median to post-window median.
+        elapsed_s = AXIS_ID_PULSE_S + PRE_POST_WIN_S
         dx_raw = x1 - x0
         dy_raw = y1 - y0
-        dx_net = dx_raw - vx_drift * AXIS_ID_PULSE_S
-        dy_net = dy_raw - vy_drift * AXIS_ID_PULSE_S
+        dx_net = dx_raw - vx_drift * elapsed_s
+        dy_net = dy_raw - vy_drift * elapsed_s
         _j("axis_id_pulse_done", {
-            "label": label, "x0_y0": (x0, y0), "x1_y1": (x1, y1),
+            "label": label, "ok": True,
+            "n_pre": len(pre_samples), "n_post": len(post_samples),
+            "pre_xyz": (x0, y0, z0), "post_xyz": (x1, y1, z1),
             "dx_raw": dx_raw, "dy_raw": dy_raw,
             "dx_net": dx_net, "dy_net": dy_net,
         })
@@ -1131,32 +1184,88 @@ def run():
         pd_xyz_yaw, pd_thrust, pd_vz_filt = _phase4_pd_altitude_lock(first_pnp)
         summary["phase_reached"] = 4
 
-        # Iter-14: axis ID via HOVER() body-frame velocity pulses.
-        # Position setpoint was a dead-end — depended on frame
-        # alignment (R_cam_to_body) which is EXACTLY what calibration
-        # produces.  Now: hover(±v, 0) body pulses, observe world
-        # response via PnP, derive R.
+        # Iter-16: axis ID via DIRECT RPYT tilt pulses (NOT hover()).
+        # Iter-15 used hover() which depends on cf2 Kalman position.
+        # Kalman is fed by ExtPos in PnP frame, which has unknown
+        # rotation vs cf2 body frame → feedback loop divergent →
+        # drone flew to 25m.
+        #
+        # RPYT pulses bypass Kalman: cf2 applies pitch/roll DEG via
+        # IMU-only attitude controller.  Z stays controlled via mission
+        # PD (PnP-derived z, falls back to last-known when n<4).
+        # Operator-stated 2026-05-22: "don't touch yaw until X/Y is
+        # clean" — pulses use yaw_rate=0 throughout.
         z_target = pd_xyz_yaw[2]
+        pd_state_for_axis = (pd_xyz_yaw, pd_thrust, pd_vz_filt)
 
-        # 5a. SETTLE: hover(0,0,0,z) for 2s — let cf2 stabilize via
-        # its Kalman + ExtPos.  Drone holds bounded ±20cm.
-        _j("phase5a_settle", {"z_target": z_target, "dur_s": 2.0})
-        for ti in range(int(2.0 * 1000 / TICK_MS)):
-            sentai.crazy.hover(0.0, 0.0, 0.0, z_target)
-            n, x, y, z, yaw = _try_pnp()
-            if n >= 4 and z > 0.0:
-                _extpos(x, y, z)
-            sentai.rtos.sleep_ms(TICK_MS)
+        M_inv, last_xyz, vz_filt_after_axis, axis_id_ok = \
+            _phase5_axis_id(pd_state_for_axis)
+        if axis_id_ok:
+            summary["axis_id_M_inv_row0"] = M_inv[0]
+            summary["axis_id_M_inv_row1"] = M_inv[1]
+            summary["status"] = "AXIS_ID_OK"
+        else:
+            summary["status"] = "AXIS_ID_FAILED"
+        summary["axis_id_ok"] = axis_id_ok
+        summary["phase_reached"] = 5
 
-        # Sample baseline pose.
-        baseline_samples = []
-        for ti in range(int(1.0 * 1000 / TICK_MS)):
-            sentai.crazy.hover(0.0, 0.0, 0.0, z_target)
-            n, x, y, z, yaw = _try_pnp()
-            if n >= 4 and z > 0.0:
-                _extpos(x, y, z)
-                baseline_samples.append((x, y, z))
-            sentai.rtos.sleep_ms(TICK_MS)
+        # Iter-16: STOP HERE — land cleanly after axis ID, skip
+        # sweep+nav (which used divergent hover()).  Sweep + Kabsch
+        # comes in iter-17+ once axis ID is validated.
+        _phase10_land()
+        _j("mission_done", {"status": summary["status"],
+                              "axis_id_ok": axis_id_ok})
+        _write_summary(summary); sentai.sim.journal_close()
+        return summary
+
+        # ─── UNREACHABLE legacy phase 7+ (kept for iter-17 re-enable) ─
+        def _settle_and_sample(label, settle_s, sample_s):
+            """Hold hover(0,0,0,z) for settle_s + sample_s.  Return
+            median (x, y, z) over sample_s window."""
+            _j("settle_start", {"label": label,
+                                  "settle_s": settle_s,
+                                  "sample_s": sample_s})
+            # Settle: stream hover, no sampling.
+            for ti in range(int(settle_s * 1000 / TICK_MS)):
+                sentai.crazy.hover(0.0, 0.0, 0.0, z_target)
+                n, x, y, z, yaw = _try_pnp()
+                if n >= 4 and z > 0.0:
+                    _extpos(x, y, z)
+                sentai.rtos.sleep_ms(TICK_MS)
+            # Sample window.
+            samples = []
+            for ti in range(int(sample_s * 1000 / TICK_MS)):
+                sentai.crazy.hover(0.0, 0.0, 0.0, z_target)
+                n, x, y, z, yaw = _try_pnp()
+                if n >= 4 and z > 0.0:
+                    _extpos(x, y, z)
+                    samples.append((x, y, z))
+                sentai.rtos.sleep_ms(TICK_MS)
+            return samples
+
+        def _median(xs):
+            s = sorted(xs)
+            m = len(s) // 2
+            return s[m] if (len(s) & 1) else 0.5 * (s[m-1] + s[m])
+
+        def _mxyz(samples):
+            return (_median([s[0] for s in samples]),
+                    _median([s[1] for s in samples]),
+                    _median([s[2] for s in samples]))
+
+        # 5a. Initial settle + baseline sample.
+        base_samples_0 = _settle_and_sample("baseline_0", 2.5, 1.0)
+        if len(base_samples_0) < 5:
+            summary["status"] = "AXIS_ID_NO_BASELINE_0"
+            _phase10_land()
+            _j("mission_done", {"status": summary["status"]})
+            _write_summary(summary); sentai.sim.journal_close()
+            return summary
+        baseline_0 = _mxyz(base_samples_0)
+        _j("axis_id_baseline_0", {"n": len(base_samples_0),
+                                    "median": baseline_0})
+        bx, by, bz = baseline_0
+        baseline_samples = base_samples_0   # alias for old code below
 
         def _median(xs):
             s = sorted(xs)
@@ -1176,16 +1285,55 @@ def run():
         _j("axis_id_baseline", {"n": len(baseline_samples),
                                   "median": (bx, by, bz)})
 
-        # 5b. Axis ID via body-frame velocity pulses.
-        def _pulse_and_sample(label, vx_body, vy_body,
-                                pulse_s=0.8, recovery_s=0.8,
-                                settle_s=1.0, sample_s=1.0):
-            """Pulse hover(vx, vy) for pulse_s, opposite for recovery,
-            settle, then sample.  Returns median (x, y, z) of samples."""
-            _j("pulse_start", {"label": label,
-                                "vx": vx_body, "vy": vy_body,
-                                "pulse_s": pulse_s})
-            # Pulse forward.
+        # 5b. Iter-15: axis ID via pulses with LOCAL baseline before
+        # each axis (cancels drift accumulated between pulses, which
+        # broke iter-14 +Y pulse — drone off-pad → markers lost).
+        # Operator-stated 2026-05-22: "don't touch yaw until X/Y is
+        # clean" — hover() with yaw_rate=0 throughout.
+        def _pulse_with_local_baseline(label, vx_body, vy_body,
+                                          pre_settle_s=2.0,
+                                          base_s=0.8,
+                                          pulse_s=0.6,
+                                          sample_s=0.5,
+                                          recovery_s=0.8,
+                                          post_settle_s=1.5):
+            """Fresh local baseline → pulse → during-sample → recovery.
+            Returns (dx_world, dy_world, dz_world) of pulse-induced
+            displacement, or None on insufficient samples."""
+            _j("pulse_v2_start", {
+                "label": label, "vx": vx_body, "vy": vy_body,
+                "pulse_s": pulse_s, "sample_s": sample_s,
+            })
+
+            # 1. Pre-settle.
+            for ti in range(int(pre_settle_s * 1000 / TICK_MS)):
+                sentai.crazy.hover(0.0, 0.0, 0.0, z_target)
+                n, x, y, z, yaw = _try_pnp()
+                if n >= 4 and z > 0.0:
+                    _extpos(x, y, z)
+                sentai.rtos.sleep_ms(TICK_MS)
+
+            # 2. Local baseline samples.
+            base_samples = []
+            for ti in range(int(base_s * 1000 / TICK_MS)):
+                sentai.crazy.hover(0.0, 0.0, 0.0, z_target)
+                n, x, y, z, yaw = _try_pnp()
+                if n >= 4 and z > 0.0:
+                    _extpos(x, y, z)
+                    base_samples.append((x, y, z))
+                sentai.rtos.sleep_ms(TICK_MS)
+
+            if len(base_samples) < 4:
+                _j("pulse_v2_done", {"label": label,
+                                       "fail": "no_local_baseline",
+                                       "n_base": len(base_samples)})
+                return None
+
+            bx_l = _median([s[0] for s in base_samples])
+            by_l = _median([s[1] for s in base_samples])
+            bz_l = _median([s[2] for s in base_samples])
+
+            # 3. Pulse.
             for ti in range(int(pulse_s * 1000 / TICK_MS)):
                 sentai.crazy.hover(vx_body, vy_body, 0.0, z_target)
                 n, x, y, z, yaw = _try_pnp()
@@ -1193,9 +1341,9 @@ def run():
                     _extpos(x, y, z)
                 sentai.rtos.sleep_ms(TICK_MS)
 
-            # Sample DURING pulse end (drone is at displaced position).
+            # 4. During-sample (hover vel=0 at displaced position).
             during_samples = []
-            for ti in range(int(0.5 * 1000 / TICK_MS)):
+            for ti in range(int(sample_s * 1000 / TICK_MS)):
                 sentai.crazy.hover(0.0, 0.0, 0.0, z_target)
                 n, x, y, z, yaw = _try_pnp()
                 if n >= 4 and z > 0.0:
@@ -1203,7 +1351,7 @@ def run():
                     during_samples.append((x, y, z))
                 sentai.rtos.sleep_ms(TICK_MS)
 
-            # Recovery: opposite pulse.
+            # 5. Recovery (opposite pulse).
             for ti in range(int(recovery_s * 1000 / TICK_MS)):
                 sentai.crazy.hover(-vx_body, -vy_body, 0.0, z_target)
                 n, x, y, z, yaw = _try_pnp()
@@ -1211,8 +1359,8 @@ def run():
                     _extpos(x, y, z)
                 sentai.rtos.sleep_ms(TICK_MS)
 
-            # Settle.
-            for ti in range(int(settle_s * 1000 / TICK_MS)):
+            # 6. Post-settle.
+            for ti in range(int(post_settle_s * 1000 / TICK_MS)):
                 sentai.crazy.hover(0.0, 0.0, 0.0, z_target)
                 n, x, y, z, yaw = _try_pnp()
                 if n >= 4 and z > 0.0:
@@ -1220,39 +1368,63 @@ def run():
                 sentai.rtos.sleep_ms(TICK_MS)
 
             if len(during_samples) < 3:
-                _j("pulse_done", {"label": label, "fail": "few_samples"})
+                _j("pulse_v2_done", {"label": label,
+                                       "fail": "few_during_samples",
+                                       "n_during": len(during_samples),
+                                       "local_baseline": (bx_l,
+                                                          by_l,
+                                                          bz_l)})
                 return None
 
-            px = _median([s[0] for s in during_samples])
-            py = _median([s[1] for s in during_samples])
-            pz = _median([s[2] for s in during_samples])
-            _j("pulse_done", {
-                "label": label, "n": len(during_samples),
-                "median": (px, py, pz),
-                "delta_from_baseline": (px - bx, py - by, pz - bz),
+            dx_m = _median([s[0] for s in during_samples])
+            dy_m = _median([s[1] for s in during_samples])
+            dz_m = _median([s[2] for s in during_samples])
+
+            delta = (dx_m - bx_l, dy_m - by_l, dz_m - bz_l)
+
+            _j("pulse_v2_done", {
+                "label": label, "ok": True,
+                "n_base": len(base_samples),
+                "n_during": len(during_samples),
+                "local_baseline": (bx_l, by_l, bz_l),
+                "during_median": (dx_m, dy_m, dz_m),
+                "delta_world": delta,
             })
-            return (px, py, pz)
+            return delta
 
-        PULSE_V = 0.10        # 10 cm/s body-frame velocity
-        result_px = _pulse_and_sample("+X_body", +PULSE_V, 0.0)
-        result_py = _pulse_and_sample("+Y_body", 0.0, +PULSE_V)
+        # Pulse mag: 0.08 m/s × 0.6s = 4.8 cm (>4× PnP noise ~1cm).
+        PULSE_V = 0.08
+        delta_X = _pulse_with_local_baseline("+X_body", +PULSE_V, 0.0)
+        delta_Y = _pulse_with_local_baseline("+Y_body", 0.0, +PULSE_V)
 
-        # Axis map from pulses.
-        if result_px and result_py:
-            dx_per_x_body = (result_px[0] - bx, result_px[1] - by)
-            dy_per_y_body = (result_py[0] - bx, result_py[1] - by)
-            # Yaw inferred from +X body pulse direction in world.
-            yaw_observed_rad = math.atan2(dx_per_x_body[1],
-                                           dx_per_x_body[0])
-            _j("axis_id_map", {
-                "dx_per_x_body": dx_per_x_body,
-                "dy_per_y_body": dy_per_y_body,
+        # 2x2 mapping: body axes → world response.
+        if (delta_X is not None) and (delta_Y is not None):
+            pulse_mag = PULSE_V * 0.6   # m commanded per pulse
+            R_norm = (
+                (delta_X[0] / pulse_mag, delta_Y[0] / pulse_mag),
+                (delta_X[1] / pulse_mag, delta_Y[1] / pulse_mag),
+            )
+            yaw_observed_rad = math.atan2(delta_X[1], delta_X[0])
+            ortho = (R_norm[0][0]*R_norm[0][1]
+                     + R_norm[1][0]*R_norm[1][1])
+            _j("axis_id_map_v2", {
+                "delta_X_body":     delta_X,
+                "delta_Y_body":     delta_Y,
+                "R_norm_row0":      R_norm[0],
+                "R_norm_row1":      R_norm[1],
                 "inferred_yaw_rad": yaw_observed_rad,
                 "inferred_yaw_deg": math.degrees(yaw_observed_rad),
+                "orthogonality":    ortho,
             })
-            summary["axis_id_dx_per_x_body"]   = dx_per_x_body
-            summary["axis_id_dy_per_y_body"]   = dy_per_y_body
-            summary["axis_id_inferred_yaw"]    = yaw_observed_rad
+            summary["axis_id_delta_X"]       = delta_X
+            summary["axis_id_delta_Y"]       = delta_Y
+            summary["axis_id_R_norm"]        = (R_norm[0], R_norm[1])
+            summary["axis_id_inferred_yaw"]  = yaw_observed_rad
+            summary["axis_id_orthogonality"] = ortho
+        else:
+            _j("axis_id_map_v2", {"fail": True,
+                                   "delta_X": delta_X,
+                                   "delta_Y": delta_Y})
 
         hover_xyz = (0.0, 0.0, z_target, 0.0)
         hover_ok = True
