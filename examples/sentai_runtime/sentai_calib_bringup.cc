@@ -161,13 +161,20 @@ int associate_(const SentaiMarkersPose* mk,
 // snapshot (mean of 5 reads) as samples.  Limited to SAMPLES_MAX overall.
 int phase_sample_() {
     const float r = s_ctx.sweep_radius_m;
-    const float vmove = 0.05f;              // iter-50: pași mici — 1-sec
-                                              // travel ≈ 5 cm so drone stays
-                                              // within marker FOV throughout
-                                              // sweep (operator preference)
-    // 4 corners — short-axis sweep keeps drone in marker FOV.
+    // iter-66: vmove scales with sweep_radius — 1-sec travel matches
+    // corner distance.  At sweep_radius=0.025 m (small pad scenario),
+    // open-loop vmove=0.05 caused drone to overshoot to 5cm vs corner
+    // at 2.5cm → markers off FOV → SAFETY abort.
+    const float vmove = r;
+    // s187 iter-60: cross pattern (4 pose extrema along PURE axes) —
+    // not corners (which moved drone diagonally and obscured axis
+    // identification).  Operator iter-59 observation: "oscillations
+    // were diagonal, not on X or Y — was expecting axis detection at
+    // start".  Cross gives 4 non-collinear points (Kabsch needs ≥3
+    // non-collinear, satisfied), and pure-axis motion lets the user
+    // observe sign convention directly.
     const float corners[4][2] = {
-        { +r, +r }, { -r, +r }, { -r, -r }, { +r, -r },
+        { +r, 0.0f }, { 0.0f, +r }, { -r, 0.0f }, { 0.0f, -r },
     };
     int n_samples = 0;
 
@@ -175,9 +182,14 @@ int phase_sample_() {
         if (aborted_())                      return SENTAI_CALIB_BRINGUP_REJ_ABORTED;
         if (sentai_safety_is_aborted())     return SENTAI_CALIB_BRINGUP_REJ_SAFETY;
 
-        // Nudge toward the corner (1 s @ ±vmove m/s) — open-loop.
-        const float vx = (corners[p][0] >= 0.0f) ? +vmove : -vmove;
-        const float vy = (corners[p][1] >= 0.0f) ? +vmove : -vmove;
+        // Nudge toward the cross pose (1 s @ ±vmove m/s) — open-loop.
+        // iter-60: corners are pure-axis (one coord is 0), so vx/vy
+        // must carry the sign of the non-zero coord only.  Diagonal
+        // motion is intentionally avoided to expose axis identification.
+        const float vx = (corners[p][0] > 0.0f) ? +vmove :
+                         (corners[p][0] < 0.0f) ? -vmove : 0.0f;
+        const float vy = (corners[p][1] > 0.0f) ? +vmove :
+                         (corners[p][1] < 0.0f) ? -vmove : 0.0f;
         for (int k = 0; k < 10; ++k) {       // 10 × 100 ms = 1 s
             if (aborted_()) return SENTAI_CALIB_BRINGUP_REJ_ABORTED;
             (void)sentai_crazy_hover(vx, vy, 0.0f, s_ctx.z_hold_m);

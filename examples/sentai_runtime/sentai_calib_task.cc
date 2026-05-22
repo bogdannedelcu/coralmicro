@@ -379,12 +379,12 @@ void worker_loop_() {
                     (void)sentai_crazy_send_crtp(6, 0, p, 12);
                 } else {
                     // s187 fix (OP-S10-W21-T4 iter-21): ExtPos canal 0
-                    // POSITION-ONLY, 12 B.  ExtPose canal 1 with identity
-                    // quaternion forces drone to yaw=0 vs actual yaw →
-                    // motor command violence + crash (iter-13 diagnosis).
-                    // Position-only lets cf2 EKF anchor altitude while
-                    // gyro drives yaw independently.  Same packet as the
-                    // yaw_rate>0 branch above.
+                    // POSITION-ONLY, 12 B.  Operator iter-59: drone yaw
+                    // physically stable; journal "232°" was parsing/wrap
+                    // artifact (cf2 reports yaw rad/deg confusion).
+                    // ExtPose canal 1 with identity quat would FORCE
+                    // rotation if cf2 yaw drifted → crash.  Keep position-
+                    // only; rely on cf2 gyro integration for yaw.
                     uint8_t p[12];
                     memcpy(p + 0, &dx, 4);
                     memcpy(p + 4, &dy, 4);
