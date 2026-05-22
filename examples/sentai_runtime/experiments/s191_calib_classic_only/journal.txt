@@ -270,3 +270,68 @@ Fix plan iter-20:
    FULL view of the blob).  Markers WITHIN the frame but adjacent
    to its boundary are still valid.
 3. max_bbox_ar 2.0→2.5 (slightly elongated due to perspective).
+
+## iter-21 (2026-05-22 20:40)  OpenCV-EQUIVALENT WhyCon DETECTOR
+
+Operator-stated: "algoritmul asta de detectie e flawed, revizuieste
+codul, trebuie sa fie perfect, openCV style ... implementeaza-l unu
+la unu".
+
+### Phase 1 — Refactor
+Generic helpers renamed from `aruco_*` to `markers_*` (shared between
+ArUco + WhyCon detectors).  ArUco-specific code (extract_quad,
+decode, ippe_*) stays `aruco_*`.
+
+### Phase 2 — OpenCV-equivalent metrics
+Added in sentai_aruco.cc:
+  - `markers_arc_length`        — chain-code perimeter
+                                   (cv2.arcLength equivalent)
+  - `markers_contour_area`      — shoelace formula on contour
+                                   (cv2.contourArea equivalent)
+  - `markers_circularity`       — 4π·A/P²
+                                   (cv2 standard ring metric)
+  - `markers_contour_centroid`  — polygon centroid (Green's theorem)
+                                   on outer contour (sub-pixel)
+  - `whycon_adaptive_threshold_` — cv2.adaptiveThreshold with
+                                    MEAN_C, THRESH_BINARY_INV
+                                    semantics; block=11, C=4 default
+                                    (cv2 standard for ring markers).
+
+`whycon_filter_and_moments_` updated:
+  - REMOVED: `fill = n_pix/bbox_area` metric (sat at 0.40 threshold
+              for typical rings — slight perspective dropped real
+              markers).
+  - ADDED:   Moore-Neighbor outer-contour trace + circularity check
+              + contour-based sub-pixel centroid.
+
+### Phase 3 — 1:1 verification harness
+`marker_analysis/compare_v2.py` runs our detector via REPL
+(sentai.markers.detect_buffer) and cv2.findContours side-by-side
+on 10 random PGM frames.  Frame copied into fs_root as
+`_test_frame.pgm`, detected via `import detect_pgm; detect_pgm.run()`.
+
+### Results
+| Iter | match | cv-only (we_miss) | alg-only (extras) |
+|------|-------|---------------------|---------------------|
+| baseline (Bradley C=30 + fill) | 0/0 | n/a | n/a |
+| iter-21a (Bradley + circularity) | 28/44 (64%) | 16 | 6 |
+| iter-21b (cv-tuned thresh + circ) | **33/44 (75%)** | 11 | 13 |
+
+iter-21b changed threshold to cv2-equivalent params (block=11, C=4).
++5 matches, -5 misses.  Trade-off: +7 false positives (we catch noise
+that cv with circularity 0.55 also catches, but cv has max_area 4000
+that rejects them when too close to camera).
+
+### Frame analysis
+- Low-altitude (~0.8m), 6-marker view: 6/6 to 6/7 match — close to perfect.
+- High-altitude (~2.5m), 6 markers visible: 2/6 — Moore-Neighbor
+  staircase noise on 10-15px blobs drops circularity below 0.55.
+- Close range (markers > 60px each): cv rejects all but 1 via
+  max_area=4000 — we catch them all because our threshold splits
+  rings into smaller blobs.
+
+### Open improvements (iter-22+)
+1. Altitude-adaptive max_area / min_area
+2. Hierarchical contour for proper concentric verification
+3. Fitzgibbon ellipse fit instead of moment eigenvalues
+4. Lower circularity threshold for small components (staircase-dominated)

@@ -3066,10 +3066,56 @@ static volatile uint32_t s_whycon_t_w   = 0;  // Phase W1+W2: filter + axes (eig
 // s_whycon_t_w3 / s_whycon_t_pnp forward-declared near the top of the
 // WhyCon section so the filter+moments writer (defined above) compiles.
 
+// OP-S10-W21-T13: WhyCon-specific adaptive threshold with cv2-tuned
+// defaults (block=11, C=4).  ArUco's shared rolling threshold uses
+// block=31 + C=30 — empirically too aggressive for ring markers
+// (iter-19/20: drone-pad frames at 0.8m altitude had n_dets vary
+// 0..6 per frame, with diag showing markers rejected at threshold
+// stage).  cv2 uses block 11, C 4 for ring markers in all reference
+// implementations.  Naive O(N·B²) scalar implementation; ARM port
+// can swap in integral-image O(N) later.
+static int s_whycon_thresh_block = 11;
+static int s_whycon_thresh_C     = 4;
+
+static void whycon_adaptive_threshold_(const uint8_t* gray,
+                                         int W, int H,
+                                         int block, int C,
+                                         uint8_t* out) {
+    const int half = block / 2;
+    for (int y = 0; y < H; ++y) {
+        const int y0 = (y - half >= 0) ? y - half : 0;
+        const int y1 = (y + half < H)  ? y + half : H - 1;
+        const int by = y1 - y0 + 1;
+        for (int x = 0; x < W; ++x) {
+            const int x0 = (x - half >= 0) ? x - half : 0;
+            const int x1 = (x + half < W)  ? x + half : W - 1;
+            const int bx = x1 - x0 + 1;
+            int sum = 0;
+            for (int yy = y0; yy <= y1; ++yy) {
+                const uint8_t* row = gray + yy * W;
+                for (int xx = x0; xx <= x1; ++xx)
+                    sum += row[xx];
+            }
+            const int mean = sum / (bx * by);
+            // INVERSE binary: dark (< mean - C) → 1, light → 0.
+            // Matches cv2.adaptiveThreshold(MEAN_C, THRESH_BINARY_INV).
+            out[x + y*W] = ((int)gray[x + y*W] < mean - C) ? 1u : 0u;
+        }
+    }
+}
+
 static int whycon_detect_inplace_(int W, int H) {
     const uint32_t t0 = markers_dwt_cyc();
-    // Stage A — rolling-integral Bradley threshold.
-    markers_adaptive_threshold_rolling(s_test_gray, W, H, 31, s_binary);
+    // Stage A — WhyCon-specific Bradley threshold (cv2-equivalent
+    // params).  Falls back to ArUco shared path if user disabled
+    // via s_whycon_thresh_block = 0.
+    if (s_whycon_thresh_block > 0) {
+        whycon_adaptive_threshold_(s_test_gray, W, H,
+                                     s_whycon_thresh_block,
+                                     s_whycon_thresh_C, s_binary);
+    } else {
+        markers_adaptive_threshold_rolling(s_test_gray, W, H, 31, s_binary);
+    }
     const uint32_t t1 = markers_dwt_cyc();
     // Stage B — 8-connected flood-fill labeling.  Per-component
     // 2nd-order moments accumulated inline (OP-S10-W17-T2 8eccf31b).
