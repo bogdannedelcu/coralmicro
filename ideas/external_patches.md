@@ -54,6 +54,31 @@ strategy: RPYT thrust ramp (port 3 ch 0) for pre-airborne climb, then
 ExtPos (port 6 ch 0) with vision-PnP-derived position once markers are
 visible.  See `s190_calib_bringup_rpyt_hl_handoff/README.md`.
 
+## 2026-05-22 OP-S10-W21-T7 — disable baro subscription in gz_crazysim_plugin
+
+**Repo**: `/home/bogdan/work/crazyflie/CrazySim/crazyflie-firmware/tools/crazyflie-simulation/simulator_files/gazebo/plugins/CrazySim`
+**File**: `crazysim_plugin.cpp`
+**Reason**: cf2 SITL was dropping 13k+ packets per s190 run.
+Plugin subscribes to Gazebo baro topic and pushes ~50 pkt/s into
+cf2's socketlink queue (depth 2000) even though cf2 firmware has
+`KALMAN_USE_BARO_UPDATE` commented out (per the no-baro HR).  Wasted
+queue capacity contributed to overflow when other packets surged.
+HW-parity: real CF Brushless has baro on the chip but firmware
+ignores it — matching SIM behaviour requires either disabling baro
+at sensor level (this patch) or wasting CRTP bandwidth.
+**Patch type**: edit (comment out one Subscribe call in initializeSubsAndPub)
+**Backup**: `crazysim_plugin.cpp.pre_baro_disable_20260522`
+**Revert command**:
+```bash
+cp /home/bogdan/work/crazyflie/CrazySim/crazyflie-firmware/tools/crazyflie-simulation/simulator_files/gazebo/plugins/CrazySim/crazysim_plugin.cpp.pre_baro_disable_20260522 \
+   /home/bogdan/work/crazyflie/CrazySim/crazyflie-firmware/tools/crazyflie-simulation/simulator_files/gazebo/plugins/CrazySim/crazysim_plugin.cpp
+distrobox enter crazysim-garden -- cmake --build /home/bogdan/work/crazyflie/CrazySim/crazyflie-firmware/sitl_make/build/build_crazysim_gz --target gz_crazysim_plugin
+```
+**Status**: applied + plugin .so rebuilt (libgz_crazysim_plugin.so)
+**Notes**: Pairs with KALMAN_USE_BARO_UPDATE disable below — together
+they remove baro from the SIM data path entirely.  cf2 then has
+ONLY IMU as native sensor (matches real flow_deck-less CF Brushless).
+
 ## 2026-05-XX — cf2 firmware Kalman: KALMAN_USE_BARO_UPDATE disabled
 
 **Repo**: `/home/bogdan/work/crazyflie/CrazySim/crazyflie-firmware`
