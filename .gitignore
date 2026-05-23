@@ -37,6 +37,7 @@ venv*/
 
 # Experiment runtime artifacts (regenerated each run; journal.txt
 # stays — that's the HUMAN-MAINTAINED iter log).
+# Top-level (sNNN_*/fr_current/) layout used pre-iter convention.
 **/experiments/s*/fr_current/
 **/experiments/s*/mission_*_journal.txt
 **/experiments/s*/mission_*_summary.json
@@ -46,6 +47,18 @@ venv*/
 **/experiments/s*/gt_recorder.log
 **/experiments/s*/gz_to_uds_bridge.log
 **/experiments/s*/verdict.log
+
+# iter-folder convention (post-2026-05-21).  Per-iter heavy runtime
+# data lives under sNNN_*/iter*/fr_current/ etc.  Drop the heavy
+# binaries but KEEP the iter README + journal.txt + verdict_*.json
+# (small text artefacts that document each iter's outcome).
+**/experiments/s*/iter*/fr_current/
+**/experiments/s*/iter*/sentai_repl.log
+**/experiments/s*/iter*/launch_hybrid.log
+**/experiments/s*/iter*/launch_sim.pids
+**/experiments/s*/iter*/gt_recorder.log
+**/experiments/s*/iter*/gz_to_uds_bridge.log
+**/experiments/s*/iter*/verdict.log
 
 # WhyCon synthetic perception bench (TD-S10) — only the canonical
 # 368-frame run 20260523_133537 is kept in git.  Smaller smoke/30/100

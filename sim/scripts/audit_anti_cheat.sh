@@ -74,6 +74,13 @@ EXCLUDES=(
     'examples/sentai_runtime/experiments/s173_flow_hold_validation/'    # GT post-mortem only
     'sim/scripts/README.md'
     'examples/sentai_runtime/Sim.md'    # documentation
+    # Host-side TD-S10 WhyCon validator — uses GT from manifest.jsonl
+    # ONLY in report-table column names + post-mortem error metrics.
+    # Never feeds GT to sentai_sim.  See OP-S10-W17-T10 commit b4eb37ce.
+    'sim/scripts/validate_whycon_synthetic_dataset.py'
+    # s190 journal narrative documents a REVERTED GT-injection patch
+    # (operator instruction 2026-05-22 morning).  No active code path.
+    'examples/sentai_runtime/experiments/s190_calib_bringup_rpyt_hl_handoff/journal.txt'
 )
 
 EXCLUDE_GREP=""

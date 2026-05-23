@@ -1,0 +1,1 @@
+{"assert_calibrated": false, "handoff_xyz": null, "handoff_thrust": 0, "status": "RAMP_TIMEOUT", "accepted": false, "reject_code": -1, "n_samples": 0, "kp_y": 0.0, "kp_x": 0.0, "phase_reached": -1, "R": null, "hold_rms": 0.0, "hold_max": 0.0, "reject_name": "", "duration_ms": 0, "cam_offset_B": null, "ext_quality": null}

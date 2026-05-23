@@ -98,3 +98,37 @@ git checkout -- src/modules/src/estimator/estimator_kalman.c
 **Notes**: Pair with the OdometryPublisher disable above — together
 they leave cf2 with ONLY IMU + (optional) vision-derived ExtPos as
 state sources, which matches the real flow_deck-less CF Brushless.
+
+## 2026-05-23 OP-S10-W17-T10 — add asymmetric 7th WhyCon marker `N`
+
+**Repo**: `/home/bogdan/work/crazyflie/CrazySim/crazyflie-firmware`
+**File**: `tools/crazyflie-simulation/simulator_files/gazebo/worlds/sentai_whycon_small.sdf`
+**Reason**: The small WhyCon pad originally has 6 markers in a
+rectangular symmetric layout (NW/NE/W/E/SW/SE).  Symmetric layouts
+produce a dual-solution PnP problem — for any frame, there exists a
+mirror-branch camera pose that fits the projection equations with
+near-identical reprojection error but yaw flipped 180°.  Per the
+T10 offline ablation (368-frame Gazebo dataset, see
+`dataset/TD-S10-B2/.../validation_20260523_141003/`), this caused
+~6 OpenCV pose outliers of ~1 m in the validator's exhaustive
+permutation path.  Adding one asymmetric marker breaks the symmetry
+and constrains the correspondence solver to a single branch.
+**Patch type**: addition (insert `<model name="whycon_N">` after
+`<model name="whycon_SE">`, before camera-mount section)
+**Marker position**: `+0.02 +0.10 0.005` (matches the position the
+B1 dataset generator already injects into its run-local world copy,
+so flight uses the SAME 7-marker layout that the offline ablation
+validated)
+**Backup**: `sentai_whycon_small.sdf.pre_marker_N_20260523`
+**Revert command**:
+```bash
+cp /home/bogdan/work/crazyflie/CrazySim/crazyflie-firmware/tools/crazyflie-simulation/simulator_files/gazebo/worlds/sentai_whycon_small.sdf.pre_marker_N_20260523 \
+   /home/bogdan/work/crazyflie/CrazySim/crazyflie-firmware/tools/crazyflie-simulation/simulator_files/gazebo/worlds/sentai_whycon_small.sdf
+```
+**Status**: applied (canonical for flight tests as of 2026-05-23 evening)
+**Notes**: Layout now 7 markers — `NW, NE, W, E, SW, SE, N`.  Any
+mission using this world MUST register all 7 in `MARKER_WORLD` and
+pass marker_n=7 to `sentai.calib.run_bringup(...)`.  Pre-existing
+experiments that still register only 6 markers (s187, s190, s191)
+will detect the 7th marker as a "false positive" relative to their
+hardcoded layout and may need updating before re-running.

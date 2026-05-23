@@ -1,0 +1,59 @@
+# sentai.sim journal opened path=/home/bogdan/work/coralmicro/build-sim/sentai_fs_root/mission_s193_journal.txt truncate=1 t_ms=466590491
+466590491 mission_start {'iter': 2, 'wbs': 'OP-S10-W21-T4-phase3'}
+466590491 phase1_setup 'start'
+466590491 set_marker_world {'rc': 0, 'n': 7}
+466590491 fr_open_frames {'rc': 0, 'path': '/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s193_calib_full_postT10/iter2/fr_current/frames'}
+466590491 arm 'start'
+466592430 pose_subscribe {'rc': 0, 'tries': 2}
+466592947 phase1_setup 'done'
+466592947 phase2_zero_unlock {'dur_s': 1.5}
+466594510 phase2_zero_unlock 'done'
+466594510 phase3_thrust_ramp {'T_MAX': 37000, 'T_BASE': 30000, 'MAX_RAMP_S': 12.0, 'N_STABLE': 2, 'RAMP_S': 6.0}
+466594526 ramp_tick {'t': 0, 'ekf_z': 0.0, 'thrust': 30000, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 0}
+466594858 ramp_tick {'t': 8, 'ekf_z': 0.0, 'thrust': 30309, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 0}
+466595182 ramp_tick {'t': 16, 'ekf_z': -4.963882e-05, 'thrust': 30618, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 0}
+466595512 ramp_tick {'t': 24, 'ekf_z': -0.000457212, 'thrust': 30928, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 0}
+466595848 ramp_tick {'t': 32, 'ekf_z': -0.001418665, 'thrust': 31237, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 0}
+466596198 ramp_tick {'t': 40, 'ekf_z': -0.003491187, 'thrust': 31546, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 0}
+466596536 ramp_tick {'t': 48, 'ekf_z': -0.006797362, 'thrust': 31856, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 0}
+466596874 ramp_tick {'t': 56, 'ekf_z': -0.01008659, 'thrust': 32165, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 0}
+466597214 ramp_tick {'t': 64, 'ekf_z': -0.01332002, 'thrust': 32475, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 0}
+466597547 ramp_tick {'t': 72, 'ekf_z': -0.01715813, 'thrust': 32784, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 0}
+466597880 ramp_tick {'t': 80, 'ekf_z': -0.01994112, 'thrust': 33093, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 0}
+466598220 ramp_tick {'t': 88, 'ekf_z': -0.01627684, 'thrust': 33403, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 0}
+466598558 ramp_tick {'t': 96, 'ekf_z': 0.003002691, 'thrust': 33712, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 0}
+466598894 ramp_tick {'t': 104, 'ekf_z': 0.03858408, 'thrust': 34022, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 0}
+466599265 ramp_tick {'t': 112, 'ekf_z': 0.09604955, 'thrust': 34331, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 0}
+466599647 ramp_tick {'t': 120, 'ekf_z': 0.1922669, 'thrust': 34640, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 0}
+466600021 ramp_tick {'t': 128, 'ekf_z': 0.3263974, 'thrust': 34950, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 3}
+466600417 ramp_tick {'t': 136, 'ekf_z': 0.5119458, 'thrust': 35259, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 5}
+466600854 ramp_tick {'t': 144, 'ekf_z': 0.5128159, 'thrust': 35569, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 7}
+466601296 ramp_tick {'t': 152, 'ekf_z': 0.5118847, 'thrust': 35878, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 7}
+466601747 ramp_tick {'t': 160, 'ekf_z': 0.5123678, 'thrust': 36187, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 7}
+466602195 ramp_tick {'t': 168, 'ekf_z': 0.5118024, 'thrust': 36497, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 8}
+466602635 ramp_tick {'t': 176, 'ekf_z': 0.5141604, 'thrust': 36806, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 5}
+466603049 ramp_tick {'t': 184, 'ekf_z': 0.5561469, 'thrust': 37000, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 0}
+466603447 ramp_tick {'t': 192, 'ekf_z': 0.6373806, 'thrust': 37000, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 0}
+466603847 ramp_tick {'t': 200, 'ekf_z': 0.7513447, 'thrust': 37000, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 0}
+466604250 ramp_tick {'t': 208, 'ekf_z': 0.8892341, 'thrust': 37000, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 0}
+466604648 ramp_tick {'t': 216, 'ekf_z': 1.045407, 'thrust': 37000, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 0}
+466605043 ramp_tick {'t': 224, 'ekf_z': 1.220817, 'thrust': 37000, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 0}
+466605430 ramp_tick {'t': 232, 'ekf_z': 1.397974, 'thrust': 37000, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 0}
+466605824 ramp_tick {'t': 240, 'ekf_z': 1.585164, 'thrust': 37000, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 0}
+466606202 ramp_tick {'t': 248, 'ekf_z': 1.778394, 'thrust': 37000, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 0}
+466606576 ramp_tick {'t': 256, 'ekf_z': 1.947993, 'thrust': 37000, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 0}
+466606949 ramp_tick {'t': 264, 'ekf_z': 2.152857, 'thrust': 37000, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 0}
+466607311 ramp_tick {'t': 272, 'ekf_z': 2.337854, 'thrust': 37000, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 0}
+466607681 ramp_tick {'t': 280, 'ekf_z': 2.544536, 'thrust': 37000, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 0}
+466608037 ramp_tick {'t': 288, 'ekf_z': 2.751302, 'thrust': 37000, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 0}
+466608410 ramp_tick {'t': 296, 'ekf_z': 2.933978, 'thrust': 37000, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 0}
+466608782 ramp_tick {'t': 304, 'ekf_z': 3.146853, 'thrust': 37000, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 0}
+466609167 ramp_tick {'t': 312, 'ekf_z': 3.367255, 'thrust': 37000, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 0}
+466609540 ramp_tick {'t': 320, 'ekf_z': 3.58244, 'thrust': 37000, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 0}
+466609890 ramp_tick {'t': 328, 'ekf_z': 3.764519, 'thrust': 37000, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 0}
+466610259 ramp_tick {'t': 336, 'ekf_z': 3.978847, 'thrust': 37000, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 0}
+466610609 ramp_tick {'t': 344, 'ekf_z': 4.161002, 'thrust': 37000, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 0}
+466610982 ramp_tick {'t': 352, 'ekf_z': 4.376372, 'thrust': 37000, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 0}
+466611322 ramp_tick {'t': 360, 'ekf_z': 4.562647, 'thrust': 37000, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 0}
+466611446 ramp_timeout {'final_thrust': 37000, 'last_pnp': None}
+# closed t_ms=466611790 lines=58 errors=0

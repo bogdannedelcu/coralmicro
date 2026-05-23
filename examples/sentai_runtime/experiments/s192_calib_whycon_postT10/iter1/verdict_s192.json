@@ -1,0 +1,42 @@
+{
+  "status": "PASS",
+  "phase_reached": 10,
+  "pd_alt_stable": true,
+  "ramp_handoff_z_m": 0.363023,
+  "n_total_ticks": 151,
+  "n_ticks_n_ge_4": 151,
+  "n_ticks_n_ge_6": 151,
+  "n_pnp_valid_ticks": 65,
+  "frac_n_ge_4": 1.0,
+  "frac_n_ge_6": 1.0,
+  "n_histogram": {
+    "0": 0,
+    "1": 0,
+    "2": 0,
+    "3": 0,
+    "4": 0,
+    "5": 0,
+    "6": 128,
+    "7": 23,
+    "8": 0
+  },
+  "pnp_mean": [
+    -0.00777975,
+    -0.0117943,
+    0.9193865
+  ],
+  "pnp_x_range": [
+    -0.1813316,
+    0.1764561
+  ],
+  "pnp_y_range": [
+    -0.09593421,
+    0.09193619
+  ],
+  "pnp_z_range": [
+    0.6659133,
+    1.011583
+  ],
+  "land_err_m": null,
+  "pass": true
+}

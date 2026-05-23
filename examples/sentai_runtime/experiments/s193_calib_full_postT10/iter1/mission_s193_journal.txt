@@ -1,0 +1,46 @@
+# sentai.sim journal opened path=/home/bogdan/work/coralmicro/build-sim/sentai_fs_root/mission_s193_journal.txt truncate=1 t_ms=455675676
+455675676 mission_start {'marker_n': 7, 'wbs': 'OP-S10-W21-T4-phase3'}
+455675676 setup 'start'
+455675676 setup 'ok'
+455675676 extpos_warmup_pre_arm 'start'
+455677539 extpos_warmup_pre_arm 'done'
+455677539 arm 'start'
+455678367 pose_subscribe {'rc': 0, 'tries': 1}
+455678896 takeoff {'dur': 2.5, 'z': 0.6}
+455681706 takeoff_done {'z_target': 0.6}
+455681706 climb_seen 'start'
+455681724 climb_tick {'ekf_z': 0.0, 't': 0, 'z_pnp': -1.0, 'n': 0}
+455682108 climb_tick {'ekf_z': 0.09858068, 't': 8, 'z_pnp': -1.0, 'n': 0}
+455682461 climb_tick {'ekf_z': 0.5623381, 't': 16, 'z_pnp': -1.0, 'n': 0}
+455682807 climb_tick {'ekf_z': 0.631916, 't': 24, 'z_pnp': -1.0, 'n': 0}
+455683161 climb_tick {'ekf_z': 0.6606143, 't': 32, 'z_pnp': -1.0, 'n': 0}
+455683548 climb_tick {'ekf_z': 0.6710021, 't': 40, 'z_pnp': -1.0, 'n': 0}
+455683866 climb_tick {'ekf_z': 0.6717819, 't': 48, 'z_pnp': -1.0, 'n': 0}
+455684238 climb_tick {'ekf_z': 0.6938613, 't': 56, 'z_pnp': -1.0, 'n': 0}
+455684617 climb_tick {'ekf_z': 0.7256694, 't': 64, 'z_pnp': -1.0, 'n': 0}
+455685034 climb_tick {'ekf_z': 0.7669148, 't': 72, 'z_pnp': -1.0, 'n': 0}
+455685471 climb_tick {'ekf_z': 0.8248521, 't': 80, 'z_pnp': -1.0, 'n': 0}
+455685856 climb_tick {'ekf_z': 0.8764787, 't': 88, 'z_pnp': -1.0, 'n': 0}
+455686215 climb_tick {'ekf_z': 0.9449574, 't': 96, 'z_pnp': -1.0, 'n': 0}
+455686589 climb_tick {'ekf_z': 1.011659, 't': 104, 'z_pnp': -1.0, 'n': 0}
+455686915 climb_tick {'ekf_z': 1.083764, 't': 112, 'z_pnp': -1.0, 'n': 0}
+455687274 climb_tick {'ekf_z': 1.178246, 't': 120, 'z_pnp': -1.0, 'n': 0}
+455687687 climb_tick {'ekf_z': 1.28397, 't': 128, 'z_pnp': -1.0, 'n': 0}
+455688003 climb_tick {'ekf_z': 1.379441, 't': 136, 'z_pnp': -1.0, 'n': 0}
+455688402 climb_tick {'ekf_z': 1.495564, 't': 144, 'z_pnp': -1.0, 'n': 0}
+455688803 climb_tick {'ekf_z': 1.605788, 't': 152, 'z_pnp': -1.0, 'n': 0}
+455689217 climb_tick {'ekf_z': 1.742522, 't': 160, 'z_pnp': -1.0, 'n': 0}
+455689583 climb_tick {'ekf_z': 1.864681, 't': 168, 'z_pnp': -1.0, 'n': 0}
+455689932 climb_tick {'ekf_z': 2.016342, 't': 176, 'z_pnp': -1.0, 'n': 0}
+455690320 climb_tick {'ekf_z': 2.156636, 't': 184, 'z_pnp': -1.0, 'n': 0}
+455690681 climb_tick {'ekf_z': 2.298962, 't': 192, 'z_pnp': -1.0, 'n': 0}
+455691033 climb_tick {'ekf_z': 2.476547, 't': 200, 'z_pnp': -1.0, 'n': 0}
+455691357 climb_tick {'ekf_z': 2.638371, 't': 208, 'z_pnp': -1.0, 'n': 0}
+455691693 climb_tick {'ekf_z': 2.801756, 't': 216, 'z_pnp': -1.0, 'n': 0}
+455692087 climb_tick {'ekf_z': 3.003818, 't': 224, 'z_pnp': -1.0, 'n': 0}
+455692477 climb_tick {'ekf_z': 3.20945, 't': 232, 'z_pnp': -1.0, 'n': 0}
+455692862 climb_tick {'ekf_z': 3.405876, 't': 240, 'z_pnp': -1.0, 'n': 0}
+455693217 climb_tick {'ekf_z': 3.599324, 't': 248, 'z_pnp': -1.0, 'n': 0}
+455693607 climb_tick {'ekf_z': 3.837749, 't': 256, 'z_pnp': -1.0, 'n': 0}
+455693989 climb_tick {'ekf_z': 4.078589, 't': 264, 'z_pnp': -1.0, 'n': 0}
+455694069 climb_seen_timeout {'pnp_seen': 0}

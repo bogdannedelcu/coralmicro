@@ -1,0 +1,82 @@
+# sentai.sim journal opened path=/home/bogdan/work/coralmicro/build-sim/sentai_fs_root/mission_s192_journal.txt truncate=1 t_ms=454418820
+454418820 mission_start {'wbs': 'OP-S10-W21-T12-regression', 'n_markers_world': 6, 'iter': 1}
+454418820 phase1_setup 'start'
+454418820 set_marker_world {'rc': 0, 'n': 6}
+454422552 pose_subscribe {'rc': 0, 'tries': 3}
+454423064 phase1_setup 'done'
+454423064 phase2_zero_unlock {'dur_s': 1.5}
+454424603 phase2_zero_unlock 'done'
+454424603 phase3_thrust_ramp {'T_MAX': 37000, 'T_BASE': 30000, 'MAX_RAMP_S': 12.0, 'N_STABLE': 2, 'RAMP_S': 6.0}
+454424615 ramp_tick {'pnp_xyz': (-1.0, -1.0, -1.0), 't': 0, 'thrust': 30000, 'n': 0}
+454424949 ramp_tick {'pnp_xyz': (-1.0, -1.0, -1.0), 't': 8, 'thrust': 30309, 'n': 0}
+454425277 ramp_tick {'pnp_xyz': (-1.0, -1.0, -1.0), 't': 16, 'thrust': 30618, 'n': 0}
+454425607 ramp_tick {'pnp_xyz': (-1.0, -1.0, -1.0), 't': 24, 'thrust': 30928, 'n': 0}
+454425931 ramp_tick {'pnp_xyz': (-1.0, -1.0, -1.0), 't': 32, 'thrust': 31237, 'n': 0}
+454426250 ramp_tick {'pnp_xyz': (-1.0, -1.0, -1.0), 't': 40, 'thrust': 31546, 'n': 0}
+454426575 ramp_tick {'pnp_xyz': (-1.0, -1.0, -1.0), 't': 48, 'thrust': 31856, 'n': 0}
+454426893 ramp_tick {'pnp_xyz': (-1.0, -1.0, -1.0), 't': 56, 'thrust': 32165, 'n': 0}
+454427231 ramp_tick {'pnp_xyz': (-1.0, -1.0, -1.0), 't': 64, 'thrust': 32475, 'n': 0}
+454427571 ramp_tick {'pnp_xyz': (-1.0, -1.0, -1.0), 't': 72, 'thrust': 32784, 'n': 0}
+454427899 ramp_tick {'pnp_xyz': (-1.0, -1.0, -1.0), 't': 80, 'thrust': 33093, 'n': 0}
+454428228 ramp_tick {'pnp_xyz': (-1.0, -1.0, -1.0), 't': 88, 'thrust': 33403, 'n': 0}
+454428561 ramp_tick {'pnp_xyz': (-1.0, -1.0, -1.0), 't': 96, 'thrust': 33712, 'n': 0}
+454428885 ramp_tick {'pnp_xyz': (-1.0, -1.0, -1.0), 't': 104, 'thrust': 34022, 'n': 0}
+454429230 ramp_tick {'pnp_xyz': (-1.0, -1.0, -1.0), 't': 112, 'thrust': 34331, 'n': 0}
+454429578 ramp_tick {'pnp_xyz': (-1.0, -1.0, -1.0), 't': 120, 'thrust': 34640, 'n': 0}
+454429951 ramp_tick {'pnp_xyz': (-1.0, -1.0, -1.0), 't': 128, 'thrust': 34950, 'n': 0}
+454430313 ramp_tick {'pnp_xyz': (-1.0, -1.0, -1.0), 't': 136, 'thrust': 35259, 'n': 3}
+454430449 ramp_handoff {'t': 139, 'yaw_rad': -1.570064, 'thrust': 35375, 'stable_streak': 2, 'pnp_xyz': (0.02692283, -0.001540437, 0.363023)}
+454430449 phase4_pd_alt {'Kp_z': 10000.0, 'Kd_z': 8000.0, 'z_target': 0.363023}
+454430455 pd_alt_tick {'thrust': 34845, 'vz_filt': 0.1239555, 'stable': 0, 't': 0, 'n': 4, 'z_now': 0.3793852}
+454430581 pd_alt_tick {'thrust': 33601, 'vz_filt': 0.2397032, 'stable': 0, 't': 3, 'n': 6, 'z_now': 0.4112254}
+454430713 pd_alt_tick {'thrust': 31115, 'vz_filt': 0.4867515, 'stable': 0, 't': 6, 'n': 6, 'z_now': 0.4621281}
+454430846 pd_alt_tick {'thrust': 30622, 'vz_filt': 0.4877281, 'stable': 0, 't': 9, 'n': 6, 'z_now': 0.5106618}
+454430975 pd_alt_tick {'thrust': 32878, 'vz_filt': 0.2057603, 'stable': 0, 't': 12, 'n': 6, 'z_now': 0.5106618}
+454431111 pd_alt_tick {'thrust': 29119, 'vz_filt': 0.5737695, 'stable': 0, 't': 15, 'n': 6, 'z_now': 0.5921754}
+454431245 pd_alt_tick {'thrust': 31281, 'vz_filt': 0.2895336, 'stable': 0, 't': 18, 'n': 7, 'z_now': 0.6033161}
+454431379 pd_alt_tick {'thrust': 30415, 'vz_filt': 0.3452436, 'stable': 0, 't': 21, 'n': 6, 'z_now': 0.6454231}
+454431513 pd_alt_tick {'thrust': 31460, 'vz_filt': 0.202662, 'stable': 0, 't': 24, 'n': 6, 'z_now': 0.6549806}
+454431645 pd_alt_tick {'thrust': 32061, 'vz_filt': 0.1199485, 'stable': 0, 't': 27, 'n': 6, 'z_now': 0.6610439}
+454431777 pd_alt_tick {'thrust': 32159, 'vz_filt': 0.09785229, 'stable': 0, 't': 30, 'n': 6, 'z_now': 0.6689112}
+454431909 pd_alt_tick {'thrust': 32850, 'vz_filt': 0.01571194, 'stable': 0, 't': 33, 'n': 6, 'z_now': 0.665536}
+454432042 pd_alt_tick {'thrust': 32943, 'vz_filt': 0.004663555, 'stable': 0, 't': 36, 'n': 6, 'z_now': 0.6650749}
+454432167 pd_alt_tick {'thrust': 33011, 'vz_filt': -0.003286662, 'stable': 2, 't': 39, 'n': 6, 'z_now': 0.6646054}
+454432298 pd_alt_tick {'thrust': 33072, 'vz_filt': -0.009852113, 'stable': 1, 't': 42, 'n': 6, 'z_now': 0.6637902}
+454432384 phase4_pd_alt {'stable': True, 'final_thrust': 32893, 'final_xyz_yaw': (-0.07086493, -0.02481273, 0.6659133, -1.569031)}
+454432385 phase5_detect_window {'window_s': 5.0, 'pass_frac': 0.8, 'z_target': 0.6659133}
+454432399 measure_tick {'t': 0, 'n': 6, 'pnp': (-0.07086493, -0.02481273, 0.6659133)}
+454432633 measure_tick {'t': 5, 'n': 6, 'pnp': (-1.0, -1.0, -1.0)}
+454432850 measure_tick {'t': 10, 'n': 6, 'pnp': (0.08253012, 0.01333134, 0.7097291)}
+454433068 measure_tick {'t': 15, 'n': 6, 'pnp': (-1.0, -1.0, -1.0)}
+454433288 measure_tick {'t': 20, 'n': 6, 'pnp': (-1.0, -1.0, -1.0)}
+454433509 measure_tick {'t': 25, 'n': 6, 'pnp': (-1.0, -1.0, -1.0)}
+454433728 measure_tick {'t': 30, 'n': 6, 'pnp': (0.07988677, 0.03251424, 0.8859976)}
+454433949 measure_tick {'t': 35, 'n': 6, 'pnp': (-0.105856, -0.0572272, 0.9110338)}
+454434170 measure_tick {'t': 40, 'n': 6, 'pnp': (-1.0, -1.0, -1.0)}
+454434389 measure_tick {'t': 45, 'n': 6, 'pnp': (-1.0, -1.0, -1.0)}
+454434630 measure_tick {'t': 50, 'n': 6, 'pnp': (0.08682819, 0.001103192, 0.951397)}
+454434849 measure_tick {'t': 55, 'n': 6, 'pnp': (0.07793159, 0.00383499, 0.9551129)}
+454435073 measure_tick {'t': 60, 'n': 6, 'pnp': (-0.0717252, -0.02809901, 0.9593852)}
+454435291 measure_tick {'t': 65, 'n': 7, 'pnp': (-1.0, -1.0, -1.0)}
+454435510 measure_tick {'t': 70, 'n': 6, 'pnp': (-0.1813316, 0.05181641, 0.9559017)}
+454435729 measure_tick {'t': 75, 'n': 6, 'pnp': (-1.0, -1.0, -1.0)}
+454435965 measure_tick {'t': 80, 'n': 6, 'pnp': (-1.0, -1.0, -1.0)}
+454436196 measure_tick {'t': 85, 'n': 6, 'pnp': (-0.09255146, 0.004074829, 0.9953169)}
+454436421 measure_tick {'t': 90, 'n': 6, 'pnp': (-1.0, -1.0, -1.0)}
+454436637 measure_tick {'t': 95, 'n': 7, 'pnp': (-1.0, -1.0, -1.0)}
+454436857 measure_tick {'t': 100, 'n': 6, 'pnp': (0.09227537, 0.007130552, 0.9926543)}
+454437073 measure_tick {'t': 105, 'n': 7, 'pnp': (-1.0, -1.0, -1.0)}
+454437296 measure_tick {'t': 110, 'n': 6, 'pnp': (-0.02321161, -0.003050756, 1.001066)}
+454437510 measure_tick {'t': 115, 'n': 6, 'pnp': (-1.0, -1.0, -1.0)}
+454437731 measure_tick {'t': 120, 'n': 6, 'pnp': (-1.0, -1.0, -1.0)}
+454437949 measure_tick {'t': 125, 'n': 6, 'pnp': (-1.0, -1.0, -1.0)}
+454438174 measure_tick {'t': 130, 'n': 6, 'pnp': (-1.0, -1.0, -1.0)}
+454438420 measure_tick {'t': 135, 'n': 6, 'pnp': (-0.05872106, -0.01979145, 1.006369)}
+454438644 measure_tick {'t': 140, 'n': 6, 'pnp': (0.06102495, -0.05671764, 1.011204)}
+454438861 measure_tick {'t': 145, 'n': 6, 'pnp': (-1.0, -1.0, -1.0)}
+454439080 measure_tick {'t': 150, 'n': 7, 'pnp': (-1.0, -1.0, -1.0)}
+454439114 phase5_detect_window_done {'n_histogram': {0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 128, 7: 23, 8: 0}, 'pnp_mean': (-0.00777975, -0.0117943, 0.9193865), 'n_total': 151, 'pnp_y_range': (-0.09593421, 0.09193619), 'pnp_x_range': (-0.1813316, 0.1764561), 'pass_ge4': True, 'n_ge6': 151, 'frac_ge6': 1.0, 'n_ge4': 151, 'frac_ge4': 1.0, 'pnp_z_range': (0.6659133, 1.011583), 'pass_full': True, 'pass': True, 'n_pnp_valid': 65}
+454439114 phase10_land 'start'
+454442035 phase10_land 'done'
+454442035 mission_end {'pd_alt_stable': True, 'phase_reached': 10, 'detect_window': {'n_histogram': {0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 128, 7: 23, 8: 0}, 'pnp_mean': (-0.00777975, -0.0117943, 0.9193865), 'n_total': 151, 'pnp_y_range': (-0.09593421, 0.09193619), 'pnp_x_range': (-0.1813316, 0.1764561), 'pass_ge4': True, 'n_ge6': 151, 'frac_ge6': 1.0, 'n_ge4': 151, 'frac_ge4': 1.0, 'pnp_z_range': (0.6659133, 1.011583), 'pass_full': True, 'pass': True, 'n_pnp_valid': 65}, 'pass': True, 'ramp_handoff': {'pnp': (0.02692283, -0.001540437, 0.363023, -1.570064), 'thrust': 35375}, 'status': 'PASS'}
+# closed t_ms=454442035 lines=81 errors=0
