@@ -1,0 +1,22 @@
+[sim] sentai_sim build #558 (2026-05-23 11:27:12)
+[sim] FreeRTOS POSIX port: tick=1000 Hz, heap=4194304 bytes
+[sim] MicroPython heap: 524288 bytes
+[sim] FS root: /home/bogdan/work/coralmicro/build-sim/sentai_fs_root
+[sim] sentai.fr auto-start: dir=/home/bogdan/work/coralmicro/build-sim/sentai_fs_root/fr init=0 events=0 scalars=0 task=0
+0
+
+MicroPython on SentAI SIM (FreeRTOS POSIX port + MicroPython embed)
+Type expressions, end with Enter.  Ctrl-D or 'exit' to quit.
+Try: sentai.version(), sentai.fs.write(...), help()
+
+>>> [sentai_fr] worker START
+[whycon_pnp] s_fx=288.30 s_fy=288.30 diam=0.0544 axis_a=31.4002 axis_b=31.3843
+[whycon_pnp] s_fx=288.30 s_fy=288.30 diam=0.0544 axis_a=31.4570 axis_b=31.3378
+[whycon_pnp] s_fx=288.30 s_fy=288.30 diam=0.0544 axis_a=31.5150 axis_b=31.2904
+[whycon_pnp] s_fx=288.30 s_fy=288.30 diam=0.0544 axis_a=31.5197 axis_b=31.2565
+[whycon_pnp] s_fx=288.30 s_fy=288.30 diam=0.0544 axis_a=31.4940 axis_b=31.2711
+camera_bridge: listening on /tmp/sentai_cam.sock (waiting for Gazebo bridge)
+TD-S10-B2_SENTAI_SIM_DONE 368 2251
+>>> 
+[sim] EOF on stdin, exiting
+[sim] REPL task done, terminating process

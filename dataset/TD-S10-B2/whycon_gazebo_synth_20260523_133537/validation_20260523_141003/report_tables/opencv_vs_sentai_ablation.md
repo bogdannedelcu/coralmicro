@@ -1,0 +1,3 @@
+| comparable_frames | count_disagreement_frames | marker_delta_count | centroid_delta_p95_px | axis_a_delta_p95_px | axis_b_delta_p95_px | angle_delta_p95_deg | angle_stable_count | angle_stable_p95_deg | pose_delta_count | translation_delta_mean_m | translation_delta_p95_m | translation_delta_max_m | yaw_delta_mean_deg | yaw_delta_p95_deg | yaw_delta_max_deg |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 368 | 21 | 2185 | 0.363643 | 0.000459749 | 0.252221 | 67.1951 | 11 | 5.15105 | 363 | 0.027878 | 0.0396604 | 1.04283 | -0.0173326 | 0.20013 | 7.32147 |

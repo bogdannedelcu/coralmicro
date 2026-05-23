@@ -741,7 +741,23 @@ OP — ObjectsPlan thesis
 │   │    ├── OP-S10-W17-T6 — ArUco per-stage timing instrumentation  ✅ SHIPPED
 │   │    ├── OP-S10-W17-T7 — Apples-to-apples bench + §4 fair table  ✅ SHIPPED
 │   │    ├── OP-S10-W17-T8 — Fix W3 sample geometry + W1 selection   ✅ SHIPPED
-│   │    └── OP-S10-W17-T9 — BUG #74 (synth detect returns 0 post-T18) ⬜ TODO
+│   │    ├── OP-S10-W17-T9 — BUG #74 (synth detect returns 0 post-T18) ⬜ TODO
+│   │    └── OP-S10-W17-T10 — Synth perception bench + OpenCV-parity port ✅ SHIPPED (2026-05-23)
+│   │        Air-gapped Gazebo dataset bench (todo/TD-S10-A1/A2 specs,
+│   │        sim/scripts/generate_whycon_synthetic_dataset.py +
+│   │        validate_whycon_synthetic_dataset.py +
+│   │        run_sentai_sim_whycon_dataset.py).  Frame-by-frame OpenCV
+│   │        ↔ sentai_sim ablation over 368 frames, 7-marker asymmetric
+│   │        pad.  Replaced sentai_aruco.cc WhyCon path with OpenCV-
+│   │        parity port (threshold sweep + 8-CC + concentric dot
+│   │        pairing, W3 retired).  New `SentaiMarkersDetection` ABI
+│   │        + `sentai.markers.detect_pgm` / `get_detection_tuple` /
+│   │        `set_marker_world` bindings.  Headline numbers on
+│   │        368-frame run: OpenCV recall 1.000, sentai recall 0.998,
+│   │        centroid Δ p95 0.36 px, sentai pose translation RMSE
+│   │        16 mm, yaw p95 0.22°.  Closes T9 (detect-0 post-T18
+│   │        bug — the parity port fixed the underlying CC pairing
+│   │        semantic).
 │   │
 │   ├── OP-S10-W18 — Diamond search Flow (M7 + M4) + WhyCon M4 bench ✅ SHIPPED
 │   │    │ (2026-05-19/20)

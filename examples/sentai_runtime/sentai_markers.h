@@ -81,6 +81,27 @@ typedef struct {
     uint8_t  _pad[3];
 } SentaiMarkersStats;
 
+typedef struct {
+    int32_t  id;             // dictionary ID (ArUco) or sequence index (WhyCon)
+    float    pixel_cx;       // centroid x (sub-pixel)
+    float    pixel_cy;       // centroid y (sub-pixel)
+    float    axis_a;         // WhyCon fitted semi-major axis in pixels
+                             // (0 for backends that do not expose it)
+    float    axis_b;         // WhyCon fitted semi-minor axis in pixels
+    float    angle_rad;      // WhyCon major-axis orientation in radians
+    int32_t  comp_id;        // backend component id, or -1 if unavailable
+    float    tvec_cam[3];    // pose payload, same convention as
+                             // SentaiMarkersPose
+    float    rvec_cam[3];
+    float    reproj_err_px;
+    uint8_t  backend;        // sentai_markers_backend_t enum value
+    uint8_t  pose_valid;     // 1 iff tvec/rvec/reproj populated
+    uint8_t  geometry_valid; // 1 iff axis_a/axis_b/angle are populated
+    uint8_t  _pad;
+    float    radius_outer;   // WhyCon bbox-derived outer radius in pixels
+                             // (0 for backends that do not expose it)
+} SentaiMarkersDetection;
+
 // =====================================================================
 // W19-T6b: drone-pose recovery from multi-marker Kabsch + yaw-anchor.
 //
@@ -117,6 +138,8 @@ static_assert(sizeof(SentaiMarkersPose)      == 48,
               "SentaiMarkersPose ABI broken -- update modsentai_markers.c too");
 static_assert(sizeof(SentaiMarkersStats)     == 20,
               "SentaiMarkersStats ABI broken -- update modsentai_markers.c too");
+static_assert(sizeof(SentaiMarkersDetection) == 64,
+              "SentaiMarkersDetection ABI broken -- update modsentai_markers.c too");
 static_assert(sizeof(SentaiMarkersDronePose) == 28,
               "SentaiMarkersDronePose ABI broken -- update modsentai_markers.c too");
 #endif
@@ -212,6 +235,12 @@ int  sentai_markers_detect_frame(const uint8_t* gray, int w, int h,
                                     uint32_t frame_seq,
                                     uint32_t src_ts_ms);
 
+// Run detection on a canonical grayscale P5 PGM file path.  Used by SIM
+// REPL/dataset tests to keep image parsing inside the marker subsystem.
+// Returns n_detected or negative on hard error.  Backend must already be
+// initialised.
+int  sentai_markers_detect_pgm(const char* path);
+
 // Count of markers from the most recent detect call.
 int  sentai_markers_get_count(void);
 
@@ -219,6 +248,11 @@ int  sentai_markers_get_count(void);
 // Buffer MUST be at least sizeof(SentaiMarkersPose) bytes.
 // Returns 1 on success, 0 if i is out of range.
 int  sentai_markers_get_pose(int i, SentaiMarkersPose* out);
+
+// Copy the i-th detection geometry into the caller-provided buffer.
+// Buffer MUST be at least sizeof(SentaiMarkersDetection) bytes.
+// Returns 1 on success, 0 if i is out of range.
+int  sentai_markers_get_detection(int i, SentaiMarkersDetection* out);
 
 // Copy the cumulative stats into the caller-provided buffer.
 // Returns 1 on success.

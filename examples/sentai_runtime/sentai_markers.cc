@@ -131,6 +131,7 @@ extern "C" {
 typedef struct {
     float    cx, cy, axis_a, axis_b, angle;
     int      comp_id;
+    float    radius_outer;
     float    tvec_cam[3];
     float    rvec_cam[3];
     float    reproj_err_px;
@@ -157,6 +158,7 @@ uint32_t sentai_aruco_detect_cyc_last(void);
 
 static sentai_markers_backend_t s_backend = SENTAI_MARKERS_BACKEND_NONE;
 static SentaiMarkersPose        s_cache[SENTAI_MARKERS_MAX_DETS];
+static SentaiMarkersDetection   s_det_cache[SENTAI_MARKERS_MAX_DETS];
 static int                      s_cache_n = 0;
 static SentaiMarkersStats       s_stats   = {};
 
@@ -169,8 +171,15 @@ static inline void zero_pose_(SentaiMarkersPose* p) {
     p->id = -1;
 }
 
+static inline void zero_detection_(SentaiMarkersDetection* d) {
+    memset(d, 0, sizeof(*d));
+    d->id = -1;
+    d->comp_id = -1;
+}
+
 static void aruco_to_unified_(const sentai_aruco_marker_t* in,
-                                SentaiMarkersPose* out) {
+                                SentaiMarkersPose* out,
+                                SentaiMarkersDetection* det) {
     zero_pose_(out);
     out->id       = (int32_t)in->marker_id;
     float cx = 0.0f, cy = 0.0f;
@@ -186,10 +195,25 @@ static void aruco_to_unified_(const sentai_aruco_marker_t* in,
     out->reproj_err_px = in->reproj_err_px;
     out->backend       = (uint8_t)SENTAI_MARKERS_BACKEND_ARUCO;
     out->pose_valid    = 1;
+
+    if (det) {
+        zero_detection_(det);
+        det->id = out->id;
+        det->pixel_cx = out->pixel_cx;
+        det->pixel_cy = out->pixel_cy;
+        memcpy(det->tvec_cam, out->tvec_cam, sizeof(det->tvec_cam));
+        memcpy(det->rvec_cam, out->rvec_cam, sizeof(det->rvec_cam));
+        det->reproj_err_px = out->reproj_err_px;
+        det->backend = (uint8_t)SENTAI_MARKERS_BACKEND_ARUCO;
+        det->pose_valid = 1;
+        det->geometry_valid = 0;
+    }
 }
 
 static void whycon_to_unified_(const sentai_whycon_marker_internal_t* in,
-                                 int seq, SentaiMarkersPose* out) {
+                                 int seq,
+                                 SentaiMarkersPose* out,
+                                 SentaiMarkersDetection* det) {
     zero_pose_(out);
     out->id            = (int32_t)seq;
     out->pixel_cx      = in->cx;
@@ -200,6 +224,24 @@ static void whycon_to_unified_(const sentai_whycon_marker_internal_t* in,
     out->reproj_err_px = in->reproj_err_px;
     out->backend       = (uint8_t)SENTAI_MARKERS_BACKEND_WHYCON;
     out->pose_valid    = in->pose_valid;
+
+    if (det) {
+        zero_detection_(det);
+        det->id = (int32_t)seq;
+        det->pixel_cx = in->cx;
+        det->pixel_cy = in->cy;
+        det->axis_a = in->axis_a;
+        det->axis_b = in->axis_b;
+        det->angle_rad = in->angle;
+        det->comp_id = (int32_t)in->comp_id;
+        det->radius_outer = in->radius_outer;
+        memcpy(det->tvec_cam, out->tvec_cam, sizeof(det->tvec_cam));
+        memcpy(det->rvec_cam, out->rvec_cam, sizeof(det->rvec_cam));
+        det->reproj_err_px = in->reproj_err_px;
+        det->backend = (uint8_t)SENTAI_MARKERS_BACKEND_WHYCON;
+        det->pose_valid = in->pose_valid;
+        det->geometry_valid = 1;
+    }
 }
 
 static void cache_from_whycon_(int n) {
@@ -207,7 +249,7 @@ static void cache_from_whycon_(int n) {
     const int got = sentai_whycon_get_markers(arr, SENTAI_MARKERS_MAX_DETS);
     const int m = (got < n) ? got : n;
     for (int i = 0; i < m && i < SENTAI_MARKERS_MAX_DETS; ++i) {
-        whycon_to_unified_(&arr[i], i, &s_cache[i]);
+        whycon_to_unified_(&arr[i], i, &s_cache[i], &s_det_cache[i]);
     }
     s_cache_n = (m > SENTAI_MARKERS_MAX_DETS) ? SENTAI_MARKERS_MAX_DETS : m;
 }
@@ -222,6 +264,8 @@ extern "C" int sentai_markers_init(sentai_markers_backend_t backend) {
         return -1;
     }
     memset(&s_stats, 0, sizeof(s_stats));
+    memset(s_cache, 0, sizeof(s_cache));
+    memset(s_det_cache, 0, sizeof(s_det_cache));
     s_cache_n = 0;
     s_backend = backend;
     s_stats.backend = (uint8_t)backend;
@@ -243,6 +287,8 @@ extern "C" int sentai_markers_init(sentai_markers_backend_t backend) {
 extern "C" void sentai_markers_clear(void) {
     sentai_aruco_clear();
     memset(&s_stats, 0, sizeof(s_stats));
+    memset(s_cache, 0, sizeof(s_cache));
+    memset(s_det_cache, 0, sizeof(s_det_cache));
     s_cache_n = 0;
     s_stats.backend = (uint8_t)s_backend;
 }
@@ -276,13 +322,15 @@ extern "C" int sentai_markers_detect_frame(const uint8_t* gray, int w, int h,
                                              uint32_t frame_seq,
                                              uint32_t src_ts_ms) {
     s_cache_n = 0;
+    memset(s_cache, 0, sizeof(s_cache));
+    memset(s_det_cache, 0, sizeof(s_det_cache));
     if (s_backend == SENTAI_MARKERS_BACKEND_ARUCO) {
         sentai_aruco_marker_t arr[SENTAI_MARKERS_MAX_DETS];
         const int n = sentai_aruco_detect(gray, w, h, frame_seq, src_ts_ms,
                                             arr, SENTAI_MARKERS_MAX_DETS);
         if (n < 0) return n;
         for (int i = 0; i < n && i < SENTAI_MARKERS_MAX_DETS; ++i) {
-            aruco_to_unified_(&arr[i], &s_cache[i]);
+            aruco_to_unified_(&arr[i], &s_cache[i], &s_det_cache[i]);
         }
         s_cache_n = (n > SENTAI_MARKERS_MAX_DETS)
                       ? SENTAI_MARKERS_MAX_DETS : n;
@@ -312,6 +360,26 @@ extern "C" int sentai_markers_detect_frame(const uint8_t* gray, int w, int h,
     return s_cache_n;
 }
 
+extern "C" int sentai_markers_detect_pgm(const char* path) {
+    if (!path) return -1;
+    s_cache_n = 0;
+    memset(s_cache, 0, sizeof(s_cache));
+    memset(s_det_cache, 0, sizeof(s_det_cache));
+    int n = 0;
+    if (s_backend == SENTAI_MARKERS_BACKEND_WHYCON) {
+        extern int sentai_whycon_test_pgm(const char* path_);
+        n = sentai_whycon_test_pgm(path);
+        if (n < 0) return n;
+        cache_from_whycon_(n);
+    } else {
+        return -2;
+    }
+    s_stats.frames_total++;
+    s_stats.markers_total += (uint32_t)s_cache_n;
+    if (s_cache_n > 0) s_stats.frames_with_detect++;
+    return s_cache_n;
+}
+
 extern "C" int sentai_markers_get_count(void) {
     return s_cache_n;
 }
@@ -319,6 +387,13 @@ extern "C" int sentai_markers_get_count(void) {
 extern "C" int sentai_markers_get_pose(int i, SentaiMarkersPose* out) {
     if (!out || i < 0 || i >= s_cache_n) return 0;
     memcpy(out, &s_cache[i], sizeof(*out));
+    return 1;
+}
+
+extern "C" int sentai_markers_get_detection(int i,
+                                              SentaiMarkersDetection* out) {
+    if (!out || i < 0 || i >= s_cache_n) return 0;
+    memcpy(out, &s_det_cache[i], sizeof(*out));
     return 1;
 }
 

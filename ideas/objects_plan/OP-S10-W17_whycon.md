@@ -350,7 +350,144 @@ C-side (`sentai_aruco.cc`):
 8. **M4 full WhyCon port** (Phase B + W1 + W2) to complete the
    sibling-of-OP-S10-W16 chart for the thesis.
 
-## 9. Cross-refs
+## 10. T10 — Synthetic perception bench + OpenCV-parity port (2026-05-23)
+
+### Motivation
+
+Through W17-T5 (W3 concentric), W17-T8 (W3 + W1 fix), and the W21-T13
+"cv2-tuned threshold" iter-21 grind on real flights (s187/s190/s191),
+the WhyCon detector was tested only **inside closed-loop flight**
+where detector failure was indistinguishable from EKF / PnP /
+RPYT→HL handoff / control coupling.  T13 iter-21d (commit
+`6381b7e7`) localized the issue to a contour/RETR_EXTERNAL gap but
+could not isolate it because the test rig was a 3D flight.
+
+T10 builds an **air-gapped perception bench** that consumes only
+camera frames + manifest metadata, so detector behavior is measurable
+independently of flight dynamics.  It also resolves the long-running
+semantic mismatch between the Python OpenCV reference baseline and
+the embedded C++ implementation by porting both onto the same
+documented WhyCon family (Krajník 2013/2014, Nitsche 2015,
+`lrse/whycon`).
+
+### Deliverables
+
+| Artefact | Purpose |
+|---|---|
+| `todo/TD-S10-A1_create_synthetic_dataset_whycon.md` | Stable spec: dataset format, manifest schema, visibility classes, sampling policy |
+| `todo/TD-S10-A2_validate_synthetic_whycon.md` | Stable spec: validation methodology, OpenCV ↔ sentai_sim ablation, 16+ report tables, pose-ambiguity diagnostic |
+| `todo/TD-S10-B1_*.md` | Implementation log of B1 (dataset generator) with dead-ends kept |
+| `todo/TD-S10-B2_*.md` | Implementation log of B2 (validator + sentai_sim port) with iter-by-iter results |
+| `sim/scripts/generate_whycon_synthetic_dataset.py` | Gazebo-only renderer; injects asymmetric 7-marker pad into a run-local world copy (upstream `_small.sdf` untouched); writes P5 PGM + manifest.jsonl + config.json |
+| `sim/scripts/validate_whycon_synthetic_dataset.py` | Two OpenCV variants (`paper`, `edge_partial`); reproj-gated pose; IPPE + correspondence-permutation ambiguity diagnostic; 16 report tables |
+| `sim/scripts/run_sentai_sim_whycon_dataset.py` | Drives `sentai.markers` through `sentai_sim` REPL + `sentai.fs`, no flight simulator |
+| `sentai_aruco.cc` rewrite | OpenCV-parity WhyCon: threshold sweep (100/130/150) + 8-CC + concentric dark-dot pairing via bbox/moment, dedupe, W3 retired |
+| `sentai_markers.{cc,h}` ABI | New `SentaiMarkersDetection` (cx, cy, axis_a, axis_b, angle_rad, radius_outer, tvec, rvec, reproj_err, pose_valid); `sentai_markers_detect_pgm`, `sentai_markers_get_detection`, `sentai_markers_set_marker_world` |
+| `bindings/modsentai_markers.c` | MicroPython exposure: `detect_pgm`, `get_detection`, `get_detection_tuple` |
+| `dataset/TD-S10-B1/whycon_gazebo_synth_20260523_133537/` | Canonical 368-frame dataset (only this run kept; smaller smoke runs in `.gitignore`) |
+| `dataset/TD-S10-B2/whycon_gazebo_synth_20260523_133537/validation_20260523_141003/` | Canonical ablation result (results.jsonl + summary.json + report_tables/; overlay PNGs in `.gitignore`) |
+
+### Canonical 368-frame ablation result (build #558+)
+
+Source: `dataset/TD-S10-B1/whycon_gazebo_synth_20260523_133537/`.
+
+Frame distribution: `{4:73, 5:56, 6:56, 7:183}` evaluation-visible
+markers, `z ∈ {0.30, 0.50, 0.75, 1.00 m}`, yaw 0–315° in 45° bins,
+roll/pitch `{(0,0): 200, (4,-3): 168}`.
+
+Detection (fully visible markers only — `partial_crop` excluded):
+
+| backend | recall | FP/frame | complete-frame | centroid p95 |
+|---|---|---|---|---|
+| opencv `paper` | 1.0000 | 0.005 | 0.995 | 1.51 px |
+| sentai_sim    | 0.9982 | 0.052 | 0.938 | 1.51 px |
+
+Geometry parity OpenCV ↔ sentai_sim (matched markers):
+
+| metric | value |
+|---|---|
+| centroid Δ p95 | 0.36 px |
+| axis_a Δ p95 | 0.0004 px |
+| axis_b Δ p95 | 0.16 px |
+| angle (all) p95 | (high, near-circular ill-conditioned) |
+| angle (stable, axis ratio ≥ 1.10) p95 | 2–4° |
+
+Pose vs ground truth:
+
+| backend | pose frames | translation RMSE | translation p95 | yaw MAE | yaw p95 |
+|---|---|---|---|---|---|
+| opencv     | 364 | 0.128 m\* | 0.041 m | 0.20° | 0.22° |
+| sentai_sim | 367 | **0.016 m** | 0.029 m | 0.09° | 0.22° |
+
+\* OpenCV RMSE inflated by ~6 mirrored-branch ~1 m pose outliers
+on 4-marker weak-geometry frames at z=1.00 m, with reprojection
+RMSE *below* the 0.5 px gate — so a reproj-only gate cannot reject
+all of them.  sentai_sim is more robust on this batch because the
+production drone-pose path uses prior-guided correspondence
+(`get_drone_pose_tuple` does internal permutation + Kabsch +
+yaw-anchor mirror picker per `[[feedback-yaw-anchor-mirror-picker]]`),
+whereas the OpenCV validation path runs exhaustive correspondence
+permutations and is more vulnerable to mirror branches.
+
+### Algorithmic alignment
+
+Both implementations now follow the **connected-component concentric
+ring/dot** family:
+
+1. Global inverse threshold sweep (100/130/150).
+2. 8-connected component extraction.
+3. Outer-component circular gate (area, radius, circularity).
+4. Concentric dark-dot pairing via bbox/moment centre (NOT strict
+   OpenCV contour hierarchy parent→child→grandchild — that strict
+   variant under-detects at high z/edge where the dot is too small
+   to survive as a fully-traceable contour).
+5. Center-offset + dot/outer-radius gates.
+6. Duplicate suppression across threshold passes.
+
+The old W3 concentric check (W17-T5/T8) is retired from the active
+result.  The new pairing rule supersedes it.
+
+`edge_partial` is kept as a **labeled variant** for cropped-marker
+recovery: it adds `cv2.minEnclosingCircle` over the visible arc.
++11 matched markers on the smoke 30 set, but +12 false positives.
+Per A2 §"Non-goals" this is not folded into the parity baseline.
+
+### Anti-cheat status
+
+Clean per `[[feedback-sentai-sim-air-gapped-from-truth]]`:
+
+- Dataset frames are camera-only Gazebo renders (`/dataset_cam/image`).
+- Manifest GT consumed only by host-side validator; never piped into
+  `sentai_sim`.
+- `set_marker_world(...)` provides the *known pad layout* (config,
+  same set exists on real HW from calibration) — not the *camera/drone
+  pose ground truth*.  Distinction matches the rule.
+- Upstream `sentai_whycon_small.sdf` is unmodified; the 7th asymmetric
+  marker is injected only into the run-local world copy.
+
+### Remaining work after T10
+
+- **Pose ambiguity on 4-marker weak geometry** is the next real
+  blocker, not detector recall.  The validator exposes it as a
+  diagnostic; production `get_drone_pose_tuple` must hold the
+  prior-guided assignment line.  Fold the assignment recipe from
+  TD-S10-B2 §"Runtime Pose Assignment Options" into a regression
+  test under this same bench.
+- **19 sentai_sim false positives across 368 frames** + 4 missed
+  markers at z=1.00 m — inspect via existing
+  `sentai_detection_contact_sheet.png` artefacts.
+- **ARM build verification** of the new ABI per `[[sim-arm-parity-check]]`.
+  SIM build is at #558+ uncommitted; arm-builder should compile the
+  same source to confirm no `m_text` / ITCM placement regression.
+- **s191 / OP-S10-W21-T12 / T13 rerun** against the committed
+  detector.  Open question: does T13 iter-21d's "33/44 match (75%)"
+  go to ~98% with the new CC + pairing path?  If yes, T13 closes
+  cleanly; the flight blocker becomes pose-side, not detection-side.
+- **Promote `edge_partial` to sentai_sim** as a separately named
+  variant if cropped-marker recall is needed for flight at z > 0.75 m
+  (anchor-forward turns the camera into a heavily cropped FOV).
+
+## 11. Cross-refs
 
 - `[[op-s10-w14-t18-simd-threshold-2026-05-19]]` — origin of
   the USUB8/SEL + divide-elim trick reused in §3.2.
@@ -358,6 +495,10 @@ C-side (`sentai_aruco.cc`):
   rolling threshold kernel (lives in `sentai_aruco.cc`).
 - `[[op-s10-w16-ablation-findings-2026-05-19]]` — sibling
   M7-vs-M4 ablation on ArUco; same architectural verdict.
+- `[[feedback-sentai-sim-air-gapped-from-truth]]` — anti-cheat
+  rule that constrains the bench architecture.
+- `[[feedback-yaw-anchor-mirror-picker]]` — production-side
+  ambiguity tie-breaker reused by `get_drone_pose_tuple`.
 - WhyCon SOTA papers:
   - Nitsche, Krajník, Faigl 2013 — original (JINT).
   - Lightbody, Krajník, Hanheide 2017 — WhyCode (SAC best paper).
@@ -367,3 +508,5 @@ C-side (`sentai_aruco.cc`):
   - c694cee5 — OCRAM placement + SIMD (T2).
   - 8eccf31b — inline 2nd-order moments (T2).
   - e1b1f598 — M4 Phase-A ablation (T2).
+  - 9d01aa43 / 60e7a62f / 6381b7e7 — W21-T13 threshold gap
+    iter-21 (precursor to T10).

@@ -49,8 +49,10 @@ extern void     sentai_markers_clear_cam_extrinsics(void);
 extern int      sentai_markers_detect_frame(const uint8_t* gray, int w, int h,
                                               uint32_t frame_seq,
                                               uint32_t src_ts_ms);
+extern int      sentai_markers_detect_pgm(const char* path);
 extern int      sentai_markers_get_count(void);
 extern int      sentai_markers_get_pose(int i, SentaiMarkersPose* out);
+extern int      sentai_markers_get_detection(int i, SentaiMarkersDetection* out);
 extern int      sentai_markers_get_stats(SentaiMarkersStats* out);
 extern int      sentai_markers_get_latest(int i, SentaiMarkersPose* out);
 extern uint32_t sentai_markers_detect_cyc_last(void);
@@ -196,6 +198,25 @@ static mp_obj_t markers_detect_buffer_(size_t n_args, const mp_obj_t* args) {
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(markers_detect_buffer_obj, 3, 3,
                                             markers_detect_buffer_);
 
+// Bench-test entry point: run the active backend on a canonical P5 PGM path.
+// In SIM, incoming paths are sentai.fs board paths, so resolve them to the
+// Linux backing path before calling the C++ detector.
+static mp_obj_t markers_detect_pgm_(mp_obj_t path_obj) {
+    const char* bpath = mp_obj_str_get_str(path_obj);
+#ifdef SENTAI_PLATFORM_SIM
+    extern int sim_fs_resolve(const char* bpath, char* out, size_t outsz);
+    char host_path[512 + 1];
+    if (sim_fs_resolve(bpath, host_path, sizeof(host_path)) != 0) {
+        return mp_obj_new_int(-10);
+    }
+    return mp_obj_new_int(sentai_markers_detect_pgm(host_path));
+#else
+    return mp_obj_new_int(sentai_markers_detect_pgm(bpath));
+#endif
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(markers_detect_pgm_obj,
+                                  markers_detect_pgm_);
+
 // s187 diagnostic — copy post-threshold binary buffer into caller's
 // bytearray.  Buffer must be ≥ 320*240 = 76800 bytes.  Output is
 // 1=foreground (dark), 0=background.  Used to diagnose detector
@@ -332,6 +353,57 @@ static mp_obj_t markers_get_pose_tuple_(mp_obj_t idx_obj) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(markers_get_pose_tuple_obj,
                                    markers_get_pose_tuple_);
+
+static mp_obj_t markers_get_detection_(mp_obj_t idx_obj, mp_obj_t buf_obj) {
+    const int idx = mp_obj_get_int(idx_obj);
+    mp_buffer_info_t bi;
+    if (!mp_get_buffer(buf_obj, &bi, MP_BUFFER_WRITE)) {
+        mp_raise_TypeError(MP_ERROR_TEXT(
+            "out_buf must be writable bytearray(64)"));
+    }
+    if (bi.len < (mp_int_t)sizeof(SentaiMarkersDetection)) {
+        mp_raise_ValueError(MP_ERROR_TEXT("out_buf too small"));
+    }
+    return mp_obj_new_int(
+        sentai_markers_get_detection(idx, (SentaiMarkersDetection*)bi.buf));
+}
+static MP_DEFINE_CONST_FUN_OBJ_2(markers_get_detection_obj,
+                                  markers_get_detection_);
+
+// SIM-convenience tuple variant:
+//   (id, pixel_cx, pixel_cy, axis_a, axis_b, angle_rad, comp_id,
+//    tx, ty, tz, rx, ry, rz, reproj_err, backend, pose_valid,
+//    geometry_valid, radius_outer)
+static mp_obj_t markers_get_detection_tuple_(mp_obj_t idx_obj) {
+    const int idx = mp_obj_get_int(idx_obj);
+    SentaiMarkersDetection d;
+    if (!sentai_markers_get_detection(idx, &d)) {
+        return mp_const_none;
+    }
+    mp_obj_t t[18] = {
+        mp_obj_new_int(d.id),
+        mp_obj_new_float(d.pixel_cx),
+        mp_obj_new_float(d.pixel_cy),
+        mp_obj_new_float(d.axis_a),
+        mp_obj_new_float(d.axis_b),
+        mp_obj_new_float(d.angle_rad),
+        mp_obj_new_int(d.comp_id),
+        mp_obj_new_float(d.tvec_cam[0]),
+        mp_obj_new_float(d.tvec_cam[1]),
+        mp_obj_new_float(d.tvec_cam[2]),
+        mp_obj_new_float(d.rvec_cam[0]),
+        mp_obj_new_float(d.rvec_cam[1]),
+        mp_obj_new_float(d.rvec_cam[2]),
+        mp_obj_new_float(d.reproj_err_px),
+        mp_obj_new_int(d.backend),
+        mp_obj_new_int(d.pose_valid),
+        mp_obj_new_int(d.geometry_valid),
+        mp_obj_new_float(d.radius_outer),
+    };
+    return mp_obj_new_tuple(18, t);
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(markers_get_detection_tuple_obj,
+                                  markers_get_detection_tuple_);
 
 static mp_obj_t markers_get_stats_(mp_obj_t buf_obj) {
     mp_buffer_info_t bi;
@@ -472,12 +544,16 @@ static const mp_rom_map_elem_t sentai_markers_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_detect_from_camera),
                                                 MP_ROM_PTR(&markers_detect_from_camera_obj) },
     { MP_ROM_QSTR(MP_QSTR_detect_buffer),     MP_ROM_PTR(&markers_detect_buffer_obj) },
+    { MP_ROM_QSTR(MP_QSTR_detect_pgm),        MP_ROM_PTR(&markers_detect_pgm_obj) },
     { MP_ROM_QSTR(MP_QSTR_get_binary),        MP_ROM_PTR(&markers_get_binary_obj) },
     { MP_ROM_QSTR(MP_QSTR_dump_binary_pgm),   MP_ROM_PTR(&markers_dump_binary_pgm_obj) },
     { MP_ROM_QSTR(MP_QSTR_coplanar_pnp),      MP_ROM_PTR(&markers_coplanar_pnp_obj) },
     { MP_ROM_QSTR(MP_QSTR_get_count),         MP_ROM_PTR(&markers_get_count_obj) },
     { MP_ROM_QSTR(MP_QSTR_get_pose),          MP_ROM_PTR(&markers_get_pose_obj) },
     { MP_ROM_QSTR(MP_QSTR_get_pose_tuple),    MP_ROM_PTR(&markers_get_pose_tuple_obj) },
+    { MP_ROM_QSTR(MP_QSTR_get_detection),     MP_ROM_PTR(&markers_get_detection_obj) },
+    { MP_ROM_QSTR(MP_QSTR_get_detection_tuple),
+                                                MP_ROM_PTR(&markers_get_detection_tuple_obj) },
     { MP_ROM_QSTR(MP_QSTR_get_stats),         MP_ROM_PTR(&markers_get_stats_obj) },
     { MP_ROM_QSTR(MP_QSTR_detect_cyc_last),   MP_ROM_PTR(&markers_detect_cyc_last_obj) },
     { MP_ROM_QSTR(MP_QSTR_synth_one_whycon),  MP_ROM_PTR(&markers_synth_one_whycon_obj) },

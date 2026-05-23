@@ -22,7 +22,7 @@
 #include "py/runtime.h"
 
 static const mp_rom_obj_tuple_t _sentai_sim_qstr_keepalive __attribute__((unused)) = {
-    {&mp_type_tuple}, 27, {
+    {&mp_type_tuple}, 30, {
         MP_ROM_QSTR(MP_QSTR_detections),
         MP_ROM_QSTR(MP_QSTR_tracker_update),
         MP_ROM_QSTR(MP_QSTR_tracker_enable),
@@ -54,6 +54,10 @@ static const mp_rom_obj_tuple_t _sentai_sim_qstr_keepalive __attribute__((unused
         // tuple-returning methods avoid needing dict-key QSTRs.
         MP_ROM_QSTR(MP_QSTR_is_running),
         MP_ROM_QSTR(MP_QSTR_recv_crtp),
+        // sentai.markers SIM dataset validation helpers.
+        MP_ROM_QSTR(MP_QSTR_detect_pgm),
+        MP_ROM_QSTR(MP_QSTR_get_detection),
+        MP_ROM_QSTR(MP_QSTR_get_detection_tuple),
     }
 };
 

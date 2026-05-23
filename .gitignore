@@ -45,3 +45,17 @@ venv*/
 **/experiments/s*/gt_recorder.log
 **/experiments/s*/gz_to_uds_bridge.log
 **/experiments/s*/verdict.log
+
+# WhyCon synthetic perception bench (TD-S10) — only the canonical
+# 368-frame run 20260523_133537 is kept in git.  Smaller smoke/30/100
+# iterations are regenerable via
+# sim/scripts/generate_whycon_synthetic_dataset.py.  Preview PNGs and
+# validator overlays are derived from canonical PGM frames + manifest
+# via sim/scripts/validate_whycon_synthetic_dataset.py.
+dataset/TD-S10-B*/whycon_gazebo_synth_*/preview/
+dataset/TD-S10-B*/whycon_gazebo_synth_*/_work/
+dataset/TD-S10-B*/whycon_gazebo_synth_*/validation_*/overlays/
+dataset/TD-S10-B*/whycon_gazebo_synth_*/validation_*/detected_overlays/
+dataset/TD-S10-B*/whycon_gazebo_synth_*/validation_*/sentai_detected_overlays/
+dataset/TD-S10-B*/whycon_gazebo_synth_*/validation_*/*_contact_sheet*.png
+dataset/TD-S10-B*/whycon_gazebo_synth_*/validation_*/debug_*.png

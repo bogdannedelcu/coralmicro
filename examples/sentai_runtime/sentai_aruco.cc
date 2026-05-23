@@ -87,7 +87,7 @@
                                               // markers isolated cleanly.
 // Component-labeling capacity.  More components than this and we drop
 // the tail (overflow counter rises).
-#define MARKERS_MAX_COMPONENTS           96
+#define MARKERS_MAX_COMPONENTS          240
 // Flood-fill stack depth.  Worst-case a fully connected blob; bounded
 // by image size, but in practice 4096 is generous for 320x240.
 #define ARUCO_FILL_STACK_SZ            4096
@@ -725,6 +725,104 @@ next_pixel:
         }
     }
     return n_components;
+}
+
+// =========================================================================
+// OP-S10-W21-T13: Background-component labeling for RETR_EXTERNAL-style
+// nesting filter.  cv2.findContours RETR_EXTERNAL returns only the
+// outermost contours (those whose nearest enclosing parent is the
+// image frame).  For WhyCon markers (ring with center dot), this
+// rejects the center dot (nested inside ring's hole) and keeps only
+// the outer ring contour.
+//
+// Implementation: flood-fill the BACKGROUND (binary == 0) pixels into
+// s_labels_bg.  The "outer frame" gets label 1 (pixels at image edge
+// reach via flood-fill from corner).  Inner holes (e.g., the white
+// disc inside a marker ring) get labels 2, 3, ...  A foreground
+// component is "outermost" iff a pixel adjacent to its bbox is in
+// background label 1 (the frame); otherwise it's nested inside some
+// hole.
+// =========================================================================
+static uint8_t s_labels_bg[ARUCO_BUF_SZ] MARKERS_BSS_ATTR;
+
+// Returns number of background components labelled (1-based; the
+// frame component is always label 1 if any image-edge pixel is bg).
+static int markers_label_background(int w, int h) {
+    memset(s_labels_bg, 0, (size_t)w * (size_t)h);
+    int next_label = 1;
+    int n_components = 0;
+
+    // Start with image-edge pixels first so the "outer frame"
+    // background gets label 1 deterministically.
+    auto try_seed = [&](int sx, int sy) {
+        const int sidx = sx + sy * w;
+        if (s_binary[sidx] != 0 || s_labels_bg[sidx] != 0) return;
+        const uint8_t lab = (next_label <= 254)
+                                ? (uint8_t)next_label : 255u;
+        if (next_label > 254) {
+            s_labels_bg[sidx] = 255u;
+            return;
+        }
+        int stack_top = 0;
+        s_fill_stack[stack_top++] = sidx;
+        s_labels_bg[sidx] = lab;
+        while (stack_top > 0) {
+            const int idx = s_fill_stack[--stack_top];
+            const int px = idx % w;
+            const int py = idx / w;
+            static const int dx[8] = { -1, +1,  0, 0, -1, -1, +1, +1 };
+            static const int dy[8] = {  0,  0, -1, +1, -1, +1, -1, +1 };
+            for (int k = 0; k < 8; ++k) {
+                const int nx = px + dx[k];
+                const int ny = py + dy[k];
+                if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
+                const int nidx = nx + ny * w;
+                if (s_binary[nidx] != 0 || s_labels_bg[nidx] != 0) continue;
+                if (stack_top >= ARUCO_FILL_STACK_SZ) {
+                    // Overflow — bail this component, keep what's labelled
+                    return;
+                }
+                s_labels_bg[nidx] = lab;
+                s_fill_stack[stack_top++] = nidx;
+            }
+        }
+        next_label++;
+        n_components++;
+    };
+
+    // Seed from all four edges so frame background is label 1.
+    for (int x = 0; x < w; ++x) try_seed(x, 0);
+    for (int x = 0; x < w; ++x) try_seed(x, h-1);
+    for (int y = 0; y < h; ++y) try_seed(0, y);
+    for (int y = 0; y < h; ++y) try_seed(w-1, y);
+    // Then sweep interior for inner-hole components (white inner discs).
+    for (int y = 1; y < h-1; ++y) {
+        for (int x = 1; x < w-1; ++x) {
+            try_seed(x, y);
+        }
+    }
+    return n_components;
+}
+
+// Determine if a foreground component is "outermost" (cv2 RETR_
+// EXTERNAL).  Returns 1 if the component's bbox is adjacent to the
+// outer frame background (label 1), 0 if surrounded by an inner
+// hole background (label >= 2).
+static int markers_is_outermost(const markers_comp_t* c, int W, int H) {
+    // Sample 4 pixels JUST OUTSIDE the bbox (one in each cardinal
+    // direction).  If any sampled pixel is in BG label 1, the
+    // component is reachable from the frame → outermost.
+    auto check = [&](int x, int y) -> int {
+        if (x < 0 || x >= W || y < 0 || y >= H) return 1;  // frame
+        return (s_labels_bg[x + y * W] == 1) ? 1 : 0;
+    };
+    const int cx_mid = (c->x0 + c->x1) / 2;
+    const int cy_mid = (c->y0 + c->y1) / 2;
+    if (check(c->x0 - 1, cy_mid)) return 1;
+    if (check(c->x1 + 1, cy_mid)) return 1;
+    if (check(cx_mid, c->y0 - 1)) return 1;
+    if (check(cx_mid, c->y1 + 1)) return 1;
+    return 0;
 }
 
 // =========================================================================
@@ -2480,10 +2578,11 @@ typedef struct {
     float cx;      // centroid x sub-pixel
     float cy;      // centroid y sub-pixel
     float axis_a;  // semi-major axis length (pixels)
-    float axis_b;  // semi-minor axis length (pixels)
-    float angle;   // orientation of major axis (radians, [-π/2, π/2])
-    int   comp_id; // index in s_components
-    // ---- W17-T5 / W19-T2 trailing fields ----
+	    float axis_b;  // semi-minor axis length (pixels)
+	    float angle;   // orientation of major axis (radians, [-π/2, π/2])
+	    int   comp_id; // index in s_components
+	    float radius_outer; // bbox-derived physical outer radius (pixels)
+	    // ---- W17-T5 / W19-T2 trailing fields ----
     float tvec_cam[3];     // (x, y, z) in camera frame, metres.  All
                            // 0 if !pose_valid (intrinsics or diameter
                            // unset, or W3 disabled and caller still
@@ -2820,6 +2919,16 @@ static int whycon_filter_and_moments_(const uint8_t* gray,
     for (int ci = 0; ci < n_comp; ++ci) {
         if (s_whycon_n_markers >= SENTAI_WHYCON_MAX_DETS) break;
         const markers_comp_t* c = &s_components[ci];
+        // Do not apply the RETR_EXTERNAL-style nesting reject here.
+        //
+        // The background flood-fill uses the shared embedded DFS stack, which
+        // is intentionally small for M7.  On textured Gazebo frames the outer
+        // background component is much larger than that stack, so the label-1
+        // "outer frame" map can be incomplete and real marker rings are
+        // misclassified as nested.  WhyCon's W3 concentric pattern check is
+        // the stronger marker-specific gate anyway: it rejects centre dots and
+        // non-annular blobs after the cheap area/shape filters.
+        (void)markers_is_outermost;
         if (c->touches_border) { ++reject_border; continue; }
         if (c->n_pix < s_whycon_min_area) { ++reject_min_area; continue; }
         if (c->n_pix > s_whycon_max_area) { ++reject_max_area; continue; }
@@ -2864,17 +2973,7 @@ static int whycon_filter_and_moments_(const uint8_t* gray,
         const float m00 = (float)c->n_pix;
         float cx  = (float)c->cx_sum / m00;
         float cy  = (float)c->cy_sum / m00;
-        // Sub-pixel refinement: cv2-equivalent polygon centroid on
-        // the outer contour points.  For ring markers, this matches
-        // the geometric center of the OUTER circle exactly, while
-        // moments-based centroid includes inner-hole bias.
-        float cx_c = 0.0f, cy_c = 0.0f;
-        if (markers_contour_centroid(s_border, n_contour,
-                                       &cx_c, &cy_c) == 0) {
-            cx = cx_c;
-            cy = cy_c;
-        }
-        const float mu20 = (float)c->m20_sum / m00 - cx * cx;
+	        const float mu20 = (float)c->m20_sum / m00 - cx * cx;
         const float mu02 = (float)c->m02_sum / m00 - cy * cy;
         const float mu11 = (float)c->m11_sum / m00 - cx * cy;
         // Eigenvalues of the covariance [[mu20, mu11],[mu11, mu02]].
@@ -2905,9 +3004,10 @@ static int whycon_filter_and_moments_(const uint8_t* gray,
 
         ++accepted;
         sentai_whycon_marker_t* m = &s_whycon_markers[s_whycon_n_markers++];
-        m->cx = cx; m->cy = cy;
-        m->axis_a = a; m->axis_b = b; m->angle = theta;
-        m->comp_id = ci;
+	        m->cx = cx; m->cy = cy;
+	        m->axis_a = a; m->axis_b = b; m->angle = theta;
+	        m->comp_id = ci;
+	        m->radius_outer = (float)((bw > bh ? bw : bh)) * 0.5f;
 
         // Closed-form PnP — emits tvec/rvec into the marker struct.
         const uint32_t t_pnp_0 = markers_dwt_cyc();
@@ -2931,6 +3031,154 @@ static int whycon_filter_and_moments_(const uint8_t* gray,
     }
     s_whycon_t_w3  = cyc_w3;
     s_whycon_t_pnp = cyc_pnp;
+    return s_whycon_n_markers;
+}
+
+static int whycon_component_geometry_(int ci, int W, int H,
+                                      float* cx_out, float* cy_out,
+                                      float* radius_out,
+                                      float* axis_a_out, float* axis_b_out,
+                                      float* angle_out,
+                                      float* circularity_out,
+                                      float* area_out) {
+    const markers_comp_t* c = &s_components[ci];
+    const uint8_t lab_target = (uint8_t)(ci + 1);
+    int sx = -1, sy = -1;
+    for (int yy = c->y0; yy <= c->y1 && sy < 0; ++yy) {
+        for (int xx = c->x0; xx <= c->x1; ++xx) {
+            if (s_labels[xx + yy * W] == lab_target) {
+                sx = xx; sy = yy;
+                break;
+            }
+        }
+    }
+    if (sy < 0) return -1;
+
+    const int n_contour = markers_trace_border(lab_target, W, H, sx, sy, s_border);
+    if (n_contour < 8) return -1;
+
+    const float per = markers_arc_length(s_border, n_contour);
+    const float area = markers_contour_area(s_border, n_contour);
+    const float circ = markers_circularity(area, per);
+    float cx = (float)c->cx_sum / (float)c->n_pix;
+    float cy = (float)c->cy_sum / (float)c->n_pix;
+	    const int bw = c->x1 - c->x0 + 1;
+    const int bh = c->y1 - c->y0 + 1;
+    const float radius = (float)((bw > bh) ? bw : bh) * 0.5f;
+
+    const float m00 = (float)c->n_pix;
+    const float mu20 = (float)c->m20_sum / m00 - cx * cx;
+    const float mu02 = (float)c->m02_sum / m00 - cy * cy;
+    const float mu11 = (float)c->m11_sum / m00 - cx * cy;
+    const float tr = mu20 + mu02;
+    const float det = mu20 * mu02 - mu11 * mu11;
+    const float disc = tr * tr * 0.25f - det;
+    const float sq = disc > 0.0f ? __builtin_sqrtf(disc) : 0.0f;
+    const float l1 = tr * 0.5f + sq;
+    const float l2 = tr * 0.5f - sq;
+    float a = (l1 > 0.0f) ? 2.0f * __builtin_sqrtf(l1) : radius;
+    float b = (l2 > 0.0f) ? 2.0f * __builtin_sqrtf(l2) : radius;
+    if (a < b) {
+        const float tmp = a; a = b; b = tmp;
+    }
+    const float theta = 0.5f * __builtin_atan2f(2.0f * mu11, mu20 - mu02);
+
+    if (cx_out) *cx_out = cx;
+    if (cy_out) *cy_out = cy;
+    if (radius_out) *radius_out = radius;
+    if (axis_a_out) *axis_a_out = a;
+    if (axis_b_out) *axis_b_out = b;
+    if (angle_out) *angle_out = theta;
+    if (circularity_out) *circularity_out = circ;
+    if (area_out) *area_out = area;
+    return 0;
+}
+
+static void whycon_add_deduped_(const sentai_whycon_marker_t* cand) {
+    for (int i = 0; i < s_whycon_n_markers; ++i) {
+        sentai_whycon_marker_t* cur = &s_whycon_markers[i];
+        const float dx = cand->cx - cur->cx;
+        const float dy = cand->cy - cur->cy;
+        const float dist = __builtin_sqrtf(dx * dx + dy * dy);
+        const float gate = (cand->axis_a > 16.0f) ? (0.25f * cand->axis_a) : 4.0f;
+        if (dist < gate) {
+            if (cand->axis_a > cur->axis_a) {
+                *cur = *cand;
+            }
+            return;
+        }
+    }
+    if (s_whycon_n_markers < SENTAI_WHYCON_MAX_DETS) {
+        s_whycon_markers[s_whycon_n_markers++] = *cand;
+    }
+}
+
+// OpenCV-baseline parity detector for A2/B2.
+//
+// Mirrors sim/scripts/validate_whycon_synthetic_dataset.py:
+// - global inverse thresholds 100, 130, 150;
+// - outer dark circular component with a smaller concentric dark dot;
+// - min/max outer radius, circularity, center offset, dot/ring ratio;
+// - dedupe detections across threshold passes.
+static int whycon_filter_opencv_parity_(int n_comp, int W, int H) {
+    for (int ci = 0; ci < n_comp; ++ci) {
+        if (s_whycon_n_markers >= SENTAI_WHYCON_MAX_DETS) break;
+        const markers_comp_t* c = &s_components[ci];
+        if (c->n_pix < 30) continue;
+        float cx = 0.0f, cy = 0.0f, radius = 0.0f;
+        float axis_a = 0.0f, axis_b = 0.0f, angle = 0.0f;
+        float circ = 0.0f, area = 0.0f;
+        if (whycon_component_geometry_(ci, W, H, &cx, &cy, &radius,
+                                       &axis_a, &axis_b, &angle,
+                                       &circ, &area) != 0) {
+            continue;
+        }
+        if (area < 30.0f) continue;
+        if (radius < 4.0f || radius > 36.0f) continue;
+        if (circ < 0.55f) continue;
+
+        int best_dot = -1;
+        float best_dot_dist = 1e9f;
+        float best_dot_r = 0.0f;
+        for (int di = 0; di < n_comp; ++di) {
+            if (di == ci) continue;
+            const markers_comp_t* d = &s_components[di];
+            if (d->n_pix < 3) continue;
+            const float dcx = (float)d->cx_sum / (float)d->n_pix;
+            const float dcy = (float)d->cy_sum / (float)d->n_pix;
+            const int dbw = d->x1 - d->x0 + 1;
+            const int dbh = d->y1 - d->y0 + 1;
+            const float dr = (float)((dbw > dbh) ? dbw : dbh) * 0.5f;
+            const float dot_ratio = (radius > 0.0f) ? (dr / radius) : 0.0f;
+            if (dot_ratio < 0.12f || dot_ratio > 0.45f) continue;
+            const float dx = dcx - cx;
+            const float dy = dcy - cy;
+            const float dist = __builtin_sqrtf(dx * dx + dy * dy);
+            const float max_offset = (0.25f * radius > 4.0f) ? 0.25f * radius : 4.0f;
+            if (dist > max_offset) continue;
+            // Dot must sit inside the candidate outer bbox.
+            if (dcx < c->x0 || dcx > c->x1 || dcy < c->y0 || dcy > c->y1) continue;
+            if (dist < best_dot_dist) {
+                best_dot = di;
+                best_dot_dist = dist;
+                best_dot_r = dr;
+            }
+        }
+        if (best_dot < 0) continue;
+        (void)best_dot_r;
+
+        sentai_whycon_marker_t cand;
+        memset(&cand, 0, sizeof(cand));
+        cand.cx = cx;
+        cand.cy = cy;
+	        cand.axis_a = axis_a;
+	        cand.axis_b = axis_b;
+	        cand.angle = angle;
+	        cand.comp_id = ci;
+	        cand.radius_outer = radius;
+        whycon_pnp_inplace_(&cand);
+        whycon_add_deduped_(&cand);
+    }
     return s_whycon_n_markers;
 }
 
@@ -3082,9 +3330,6 @@ static volatile uint32_t s_whycon_t_w   = 0;  // Phase W1+W2: filter + axes (eig
 // stage).  cv2 uses block 11, C 4 for ring markers in all reference
 // implementations.  Naive O(N·B²) scalar implementation; ARM port
 // can swap in integral-image O(N) later.
-static int s_whycon_thresh_block = 11;
-static int s_whycon_thresh_C     = 4;
-
 // BORDER_REPLICATE: out-of-bounds pixels = boundary pixel value.
 // This is what cv2.adaptiveThreshold actually uses (verified via
 // opencv source: thresh.cpp calls boxFilter with
@@ -3130,34 +3375,38 @@ static void whycon_adaptive_threshold_(const uint8_t* gray,
     }
 }
 
-static int whycon_detect_inplace_(int W, int H) {
-    const uint32_t t0 = markers_dwt_cyc();
-    // Stage A — WhyCon-specific Bradley threshold (cv2-equivalent
-    // params).  Falls back to ArUco shared path if user disabled
-    // via s_whycon_thresh_block = 0.
-    if (s_whycon_thresh_block > 0) {
-        whycon_adaptive_threshold_(s_test_gray, W, H,
-                                     s_whycon_thresh_block,
-                                     s_whycon_thresh_C, s_binary);
-    } else {
-        markers_adaptive_threshold_rolling(s_test_gray, W, H, 31, s_binary);
+static void whycon_global_threshold_(const uint8_t* gray, int W, int H,
+                                       int threshold, uint8_t* out) {
+    const int n = W * H;
+    for (int i = 0; i < n; ++i) {
+        out[i] = (gray[i] <= threshold) ? 1u : 0u;
     }
-    const uint32_t t1 = markers_dwt_cyc();
-    // Stage B — 8-connected flood-fill labeling.  Per-component
-    // 2nd-order moments accumulated inline (OP-S10-W17-T2 8eccf31b).
-    const int n_comp = markers_label_components(W, H);
-    const uint32_t t2 = markers_dwt_cyc();
-    // Stage W1+W2 — filter + axes from moments.  W3 concentric +
-    // PnP are timed internally and written to s_whycon_t_w3/_pnp.
-    const int n = whycon_filter_and_moments_(s_test_gray, n_comp, W, H);
-    const uint32_t t3 = markers_dwt_cyc();
-    s_whycon_t_a = t1 - t0;
-    s_whycon_t_b = t2 - t1;
-    // Subtract W3 + PnP so t_w reflects ONLY filter + moments + axes.
-    const uint32_t span_w = t3 - t2;
-    const uint32_t inner  = s_whycon_t_w3 + s_whycon_t_pnp;
-    s_whycon_t_w = (span_w > inner) ? (span_w - inner) : 0;
-    return n;
+}
+
+static int whycon_detect_inplace_(int W, int H) {
+    s_whycon_n_markers = 0;
+    const int thresholds[3] = {100, 130, 150};
+    uint32_t t_thresh = 0;
+    uint32_t t_label = 0;
+    uint32_t t_filter = 0;
+    for (int ti = 0; ti < 3; ++ti) {
+        const uint32_t ta0 = markers_dwt_cyc();
+        whycon_global_threshold_(s_test_gray, W, H, thresholds[ti], s_binary);
+        const uint32_t ta1 = markers_dwt_cyc();
+        const int n_comp = markers_label_components(W, H);
+        const uint32_t ta2 = markers_dwt_cyc();
+        (void)whycon_filter_opencv_parity_(n_comp, W, H);
+        const uint32_t ta3 = markers_dwt_cyc();
+        t_thresh += ta1 - ta0;
+        t_label += ta2 - ta1;
+        t_filter += ta3 - ta2;
+    }
+    s_whycon_t_a = t_thresh;
+    s_whycon_t_b = t_label;
+    s_whycon_t_w = t_filter;
+    s_whycon_t_w3 = 0;
+    s_whycon_t_pnp = 0;
+    return s_whycon_n_markers;
 }
 
 extern "C" void sentai_whycon_stage_cyc(uint32_t* t_a, uint32_t* t_b,

@@ -1,0 +1,3 @@
+backend,frames,expected_markers,matched_markers,recall,false_positives_per_frame,complete_frame_success,centroid_p95_px
+opencv,368,2189,2189,1.0,0.005434782608695652,0.9945652173913043,1.5111810113661337
+sentai_sim,368,2189,2185,0.998172681589767,0.051630434782608696,0.9375,1.5077117621573595
