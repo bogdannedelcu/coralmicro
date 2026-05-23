@@ -49,13 +49,15 @@ venv*/
 # WhyCon synthetic perception bench (TD-S10) — only the canonical
 # 368-frame run 20260523_133537 is kept in git.  Smaller smoke/30/100
 # iterations are regenerable via
-# sim/scripts/generate_whycon_synthetic_dataset.py.  Preview PNGs and
-# validator overlays are derived from canonical PGM frames + manifest
-# via sim/scripts/validate_whycon_synthetic_dataset.py.
+# sim/scripts/generate_whycon_synthetic_dataset.py.  Per-frame overlay
+# PNGs are derived from canonical PGM frames + manifest via
+# sim/scripts/validate_whycon_synthetic_dataset.py.
+#
+# Paper-grade figures are NOT gitignored: the 2 contact sheets
+# (opencv_detection_contact_sheet.png, sentai_detection_contact_sheet.png)
+# and small failure overlays remain in git for thesis figure use.
 dataset/TD-S10-B*/whycon_gazebo_synth_*/preview/
 dataset/TD-S10-B*/whycon_gazebo_synth_*/_work/
-dataset/TD-S10-B*/whycon_gazebo_synth_*/validation_*/overlays/
 dataset/TD-S10-B*/whycon_gazebo_synth_*/validation_*/detected_overlays/
 dataset/TD-S10-B*/whycon_gazebo_synth_*/validation_*/sentai_detected_overlays/
-dataset/TD-S10-B*/whycon_gazebo_synth_*/validation_*/*_contact_sheet*.png
 dataset/TD-S10-B*/whycon_gazebo_synth_*/validation_*/debug_*.png
