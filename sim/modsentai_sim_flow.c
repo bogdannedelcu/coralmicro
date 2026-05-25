@@ -28,6 +28,9 @@ typedef struct {
     volatile uint32_t dz_conf;
 } _sim_flow_snapshot_t;
 extern const _sim_flow_snapshot_t* sim_camera_flow_snapshot(void);
+extern void sentai_markers_get_cam_extrinsics_matrix(float t_body[3],
+                                                     float R[9],
+                                                     int* is_set);
 
 static mp_obj_t sentai_flow_read(void) {
     const _sim_flow_snapshot_t* s = sim_camera_flow_snapshot();
@@ -67,9 +70,57 @@ static mp_obj_t sentai_flow_read(void) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(sentai_flow_read_obj, sentai_flow_read);
 
+static mp_obj_t sentai_flow_body_read(void) {
+    const _sim_flow_snapshot_t* s = sim_camera_flow_snapshot();
+    uint32_t seq0 = s->seq;
+    int32_t  dx   = s->dx_q1000;
+    int32_t  dy   = s->dy_q1000;
+    uint32_t cf   = s->conf;
+    uint32_t seq1 = s->seq;
+    if (seq1 != seq0) {
+        dx = s->dx_q1000;
+        dy = s->dy_q1000;
+        cf = s->conf;
+        seq0 = seq1;
+    }
+
+    float t_body[3];
+    float R[9];
+    int extrinsics_set = 0;
+    sentai_markers_get_cam_extrinsics_matrix(t_body, R, &extrinsics_set);
+    (void)t_body;
+
+    int32_t body_fw = -dx;
+    int32_t body_left = +dy;
+    if (extrinsics_set) {
+        const float fw = R[0] * (float)dx + R[1] * (float)dy;
+        const float lf = R[3] * (float)dx + R[4] * (float)dy;
+        body_fw = (int32_t)(fw >= 0.0f ? fw + 0.5f : fw - 0.5f);
+        body_left = (int32_t)(lf >= 0.0f ? lf + 0.5f : lf - 0.5f);
+    }
+
+    mp_obj_t d = mp_obj_new_dict(7);
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_alive),
+                      mp_obj_new_bool(seq0 != 0));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_body_fw),
+                      mp_obj_new_int(body_fw));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_body_left),
+                      mp_obj_new_int(body_left));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_dx), mp_obj_new_int(dx));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_dy), mp_obj_new_int(dy));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_confidence),
+                      mp_obj_new_int_from_uint(cf));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_frame_seq),
+                      mp_obj_new_int_from_uint(seq0));
+    return d;
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(sentai_flow_body_read_obj,
+                                  sentai_flow_body_read);
+
 static const mp_rom_map_elem_t sentai_flow_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_flow) },
     { MP_ROM_QSTR(MP_QSTR_read),     MP_ROM_PTR(&sentai_flow_read_obj) },
+    { MP_ROM_QSTR(MP_QSTR_body_read), MP_ROM_PTR(&sentai_flow_body_read_obj) },
 };
 static MP_DEFINE_CONST_DICT(sentai_flow_globals, sentai_flow_globals_table);
 static const mp_obj_module_t sentai_flow_module = {

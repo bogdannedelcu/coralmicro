@@ -117,6 +117,29 @@ extern "C" void sentai_markers_set_cam_extrinsics(float tx, float ty, float tz,
     s_extrinsics_set = 1;
 }
 
+extern "C" void sentai_markers_set_cam_extrinsics_matrix(
+        float tx, float ty, float tz, const float R_opt_to_body[9]) {
+    if (!R_opt_to_body) return;
+    s_cam_t_body[0] = tx;
+    s_cam_t_body[1] = ty;
+    s_cam_t_body[2] = tz;
+    memcpy(s_R_opt_to_body, R_opt_to_body, 9 * sizeof(float));
+    s_extrinsics_set = 1;
+}
+
+extern "C" void sentai_markers_get_cam_extrinsics_matrix(
+        float t_body_out[3], float R_opt_to_body_out[9], int* is_set_out) {
+    if (t_body_out) {
+        memcpy(t_body_out, s_cam_t_body, 3 * sizeof(float));
+    }
+    if (R_opt_to_body_out) {
+        memcpy(R_opt_to_body_out, s_R_opt_to_body, 9 * sizeof(float));
+    }
+    if (is_set_out) {
+        *is_set_out = (int)s_extrinsics_set;
+    }
+}
+
 extern "C" void sentai_markers_clear_cam_extrinsics(void) {
     for (int i = 0; i < 9; ++i) s_R_opt_to_body[i] = (i % 4 == 0) ? 1.0f : 0.0f;
     s_cam_t_body[0] = s_cam_t_body[1] = s_cam_t_body[2] = 0.0f;
@@ -155,12 +178,37 @@ uint32_t sentai_aruco_detect_cyc_last(void);
 // =====================================================================
 
 #define SENTAI_MARKERS_MAX_DETS  16
+#define SENTAI_MARKERS_WINDOW_SLOTS 4
+#define SENTAI_MARKERS_WINDOW_MAX   32
+
+typedef struct {
+    int size;
+    int values[SENTAI_MARKERS_WINDOW_MAX];
+    int idx;
+    int count;
+    int min_full;
+    float sum;
+} marker_window_t;
 
 static sentai_markers_backend_t s_backend = SENTAI_MARKERS_BACKEND_NONE;
 static SentaiMarkersPose        s_cache[SENTAI_MARKERS_MAX_DETS];
 static SentaiMarkersDetection   s_det_cache[SENTAI_MARKERS_MAX_DETS];
 static int                      s_cache_n = 0;
 static SentaiMarkersStats       s_stats   = {};
+static uint32_t                 s_last_frame_seq = 0;
+static uint32_t                 s_last_src_ts_ms = 0;
+static uint8_t                  s_have_detect = 0;
+static marker_window_t          s_windows[SENTAI_MARKERS_WINDOW_SLOTS] = {};
+
+static void window_stats_(const marker_window_t& w,
+                          SentaiMarkersWindowStats* out) {
+    memset(out, 0, sizeof(*out));
+    out->count = w.count;
+    out->size = w.size;
+    out->min_full = (w.count == 0 || w.min_full == 99) ? 0 : w.min_full;
+    out->avg_full = (w.count > 0) ? (w.sum / (float)w.count) : 0.0f;
+    out->ready = (w.size > 0 && w.count >= w.size) ? 1 : 0;
+}
 
 // =====================================================================
 // Backend → unified struct translation.
@@ -267,6 +315,9 @@ extern "C" int sentai_markers_init(sentai_markers_backend_t backend) {
     memset(s_cache, 0, sizeof(s_cache));
     memset(s_det_cache, 0, sizeof(s_det_cache));
     s_cache_n = 0;
+    s_last_frame_seq = 0;
+    s_last_src_ts_ms = 0;
+    s_have_detect = 0;
     s_backend = backend;
     s_stats.backend = (uint8_t)backend;
     if (backend == SENTAI_MARKERS_BACKEND_ARUCO) {
@@ -290,6 +341,9 @@ extern "C" void sentai_markers_clear(void) {
     memset(s_cache, 0, sizeof(s_cache));
     memset(s_det_cache, 0, sizeof(s_det_cache));
     s_cache_n = 0;
+    s_last_frame_seq = 0;
+    s_last_src_ts_ms = 0;
+    s_have_detect = 0;
     s_stats.backend = (uint8_t)s_backend;
 }
 
@@ -349,6 +403,9 @@ extern "C" int sentai_markers_detect_frame(const uint8_t* gray, int w, int h,
     s_stats.frames_total++;
     s_stats.markers_total += (uint32_t)s_cache_n;
     if (s_cache_n > 0) s_stats.frames_with_detect++;
+    s_last_frame_seq = frame_seq;
+    s_last_src_ts_ms = src_ts_ms;
+    s_have_detect = 1;
 
     // OP-S10-W19-T4 iter-6: forward the grayscale frame + n_dets to
     // the Flight Recorder.  Silent no-op if the mission hasn't opened
@@ -377,6 +434,9 @@ extern "C" int sentai_markers_detect_pgm(const char* path) {
     s_stats.frames_total++;
     s_stats.markers_total += (uint32_t)s_cache_n;
     if (s_cache_n > 0) s_stats.frames_with_detect++;
+    s_last_frame_seq = 0;
+    s_last_src_ts_ms = 0;
+    s_have_detect = 1;
     return s_cache_n;
 }
 
@@ -405,6 +465,126 @@ extern "C" int sentai_markers_get_stats(SentaiMarkersStats* out) {
 
 extern "C" int sentai_markers_get_latest(int i, SentaiMarkersPose* out) {
     return sentai_markers_get_pose(i, out);
+}
+
+extern "C" int sentai_markers_get_observation(int img_w, int img_h,
+                                                float margin_px,
+                                                SentaiMarkersObservation* out) {
+    if (!out || img_w <= 0 || img_h <= 0) return 0;
+    memset(out, 0, sizeof(*out));
+    const float nanv = NAN;
+    out->n_raw = s_cache_n;
+    out->centroid_x = nanv;
+    out->centroid_y = nanv;
+    out->bbox_min_x = nanv;
+    out->bbox_min_y = nanv;
+    out->bbox_max_x = nanv;
+    out->bbox_max_y = nanv;
+    out->frame_seq = s_last_frame_seq;
+    out->src_ts_ms = s_last_src_ts_ms;
+    out->valid = s_have_detect ? 1 : 0;
+    out->backend = (uint8_t)s_backend;
+
+    float cx_sum = 0.0f;
+    float cy_sum = 0.0f;
+    float radius_sum = 0.0f;
+    float z_sum = 0.0f;
+    int n_full = 0;
+    int n_pose_valid = 0;
+    float bx0 = 0.0f, by0 = 0.0f, bx1 = 0.0f, by1 = 0.0f;
+
+    for (int i = 0; i < s_cache_n; ++i) {
+        const SentaiMarkersDetection& d = s_det_cache[i];
+        if (!d.geometry_valid || d.radius_outer <= 0.0f) continue;
+        const float r = d.radius_outer;
+        const float x0 = d.pixel_cx - r;
+        const float y0 = d.pixel_cy - r;
+        const float x1 = d.pixel_cx + r;
+        const float y1 = d.pixel_cy + r;
+        const int full = (x0 >= margin_px &&
+                          y0 >= margin_px &&
+                          x1 < ((float)img_w - margin_px) &&
+                          y1 < ((float)img_h - margin_px));
+        if (!full) continue;
+        if (n_full == 0) {
+            bx0 = x0; by0 = y0; bx1 = x1; by1 = y1;
+        } else {
+            if (x0 < bx0) bx0 = x0;
+            if (y0 < by0) by0 = y0;
+            if (x1 > bx1) bx1 = x1;
+            if (y1 > by1) by1 = y1;
+        }
+        n_full++;
+        cx_sum += d.pixel_cx;
+        cy_sum += d.pixel_cy;
+        radius_sum += r;
+        if (d.pose_valid && d.tvec_cam[2] > 0.0f) {
+            z_sum += d.tvec_cam[2];
+            n_pose_valid++;
+        }
+    }
+
+    out->n_full = n_full;
+    out->n_pose_valid = n_pose_valid;
+    if (n_full > 0) {
+        const float inv = 1.0f / (float)n_full;
+        out->centroid_x = cx_sum * inv;
+        out->centroid_y = cy_sum * inv;
+        out->radius_mean_px = radius_sum * inv;
+        out->bbox_min_x = bx0;
+        out->bbox_min_y = by0;
+        out->bbox_max_x = bx1;
+        out->bbox_max_y = by1;
+    }
+    if (n_pose_valid > 0) {
+        out->z_cam_mean_m = z_sum / (float)n_pose_valid;
+    }
+    return 1;
+}
+
+extern "C" int sentai_markers_window_reset(int slot, int size) {
+    if (slot < 0 || slot >= SENTAI_MARKERS_WINDOW_SLOTS) return 0;
+    if (size < 1) size = 1;
+    if (size > SENTAI_MARKERS_WINDOW_MAX) size = SENTAI_MARKERS_WINDOW_MAX;
+    marker_window_t& w = s_windows[slot];
+    memset(&w, 0, sizeof(w));
+    w.size = size;
+    w.min_full = 99;
+    return 1;
+}
+
+extern "C" int sentai_markers_window_push(int slot,
+                                           int n_full,
+                                           SentaiMarkersWindowStats* out) {
+    if (slot < 0 || slot >= SENTAI_MARKERS_WINDOW_SLOTS || !out) return 0;
+    marker_window_t& w = s_windows[slot];
+    if (w.size < 1) {
+        (void)sentai_markers_window_reset(slot, 1);
+    }
+    if (n_full < 0) n_full = 0;
+    const int idx = w.idx;
+    if (w.count >= w.size) {
+        w.sum -= (float)w.values[idx];
+    } else {
+        w.count++;
+    }
+    w.values[idx] = n_full;
+    w.sum += (float)n_full;
+    w.idx = (idx + 1) % w.size;
+    w.min_full = 99;
+    for (int i = 0; i < w.count; ++i) {
+        if (w.values[i] < w.min_full) w.min_full = w.values[i];
+    }
+    window_stats_(w, out);
+    return 1;
+}
+
+extern "C" int sentai_markers_window_get(int slot,
+                                          SentaiMarkersWindowStats* out) {
+    if (slot < 0 || slot >= SENTAI_MARKERS_WINDOW_SLOTS || !out) return 0;
+    marker_window_t& w = s_windows[slot];
+    window_stats_(w, out);
+    return 1;
 }
 
 extern "C" uint32_t sentai_markers_detect_cyc_last(void) {
@@ -459,6 +639,9 @@ extern "C" int sentai_markers_test_inject_obs(int n, const float* tvec_n3) {
     if (n < 0 || n > SENTAI_MARKERS_MAX_DETS) return -1;
     if (n > 0 && !tvec_n3) return -1;
     s_cache_n = n;
+    s_last_frame_seq = 0;
+    s_last_src_ts_ms = 0;
+    s_have_detect = 1;
     for (int i = 0; i < n; ++i) {
         zero_pose_(&s_cache[i]);
         s_cache[i].id            = i;

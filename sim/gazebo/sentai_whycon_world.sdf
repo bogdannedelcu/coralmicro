@@ -398,7 +398,7 @@
         <linear>0.01</linear>
         <quadratic>0.001</quadratic>
       </attenuation>
-      <direction>-0.3 0.2 -0.9</direction>
+      <direction>0 0 -1</direction>
     </light>
   </world>
 </sdf>

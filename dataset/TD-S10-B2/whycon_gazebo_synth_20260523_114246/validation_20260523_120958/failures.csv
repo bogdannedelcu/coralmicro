@@ -1,0 +1,16 @@
+frame_id,image_path,backend,status,expected_count,detected_count,matched_count,max_centroid_error_px,z_m,roll_deg,pitch_deg,yaw_deg
+33,frames/frame_000033_x+0.000_y-0.250_z0.500_r+0.0_p+0.0_yaw180_n4.pgm,sentai_sim,false_positive,2,5,2,1.7739439932232386,0.5,0.0,0.0,180.0
+47,frames/frame_000047_x-0.500_y+0.000_z1.000_r+4.0_p-3.0_yaw315_n6.pgm,opencv,false_positive,5,6,5,0.4156586458188718,1.0,4.0,-3.0,315.0
+49,frames/frame_000049_x+0.000_y+0.000_z0.500_r+0.0_p+0.0_yaw045_n6.pgm,opencv,false_positive,6,7,6,1.46367523000595,0.5,0.0,0.0,45.0
+53,frames/frame_000053_x+0.000_y+0.000_z0.500_r+4.0_p-3.0_yaw045_n6.pgm,opencv,false_positive,6,7,6,1.4831049414220252,0.5,4.0,-3.0,45.0
+59,frames/frame_000059_x-0.500_y+0.250_z1.000_r+4.0_p-3.0_yaw225_n5.pgm,opencv,false_positive,5,6,5,0.8676464136076386,1.0,4.0,-3.0,225.0
+64,frames/frame_000064_x+0.000_y+0.000_z0.500_r+0.0_p+0.0_yaw135_n6.pgm,opencv,false_positive,6,7,6,1.4336373934173616,0.5,0.0,0.0,135.0
+67,frames/frame_000067_x+0.000_y+0.000_z0.500_r+4.0_p-3.0_yaw135_n6.pgm,opencv,false_positive,6,7,6,1.3773193548878566,0.5,4.0,-3.0,135.0
+68,frames/frame_000068_x-0.250_y+0.000_z0.750_r+0.0_p+0.0_yaw135_n6.pgm,opencv,false_positive,5,7,5,1.7343340862467829,0.75,0.0,0.0,135.0
+76,frames/frame_000076_x+0.000_y+0.000_z0.500_r+0.0_p+0.0_yaw225_n6.pgm,opencv,false_positive,6,7,6,1.4336373934173734,0.5,0.0,0.0,225.0
+77,frames/frame_000077_x-0.250_y+0.000_z0.750_r+0.0_p+0.0_yaw225_n6.pgm,sentai_sim,false_positive,5,7,5,1.136786116525246,0.75,0.0,0.0,225.0
+79,frames/frame_000079_x+0.000_y+0.000_z0.500_r+4.0_p-3.0_yaw225_n6.pgm,opencv,false_positive,6,7,6,1.5057986070373937,0.5,4.0,-3.0,225.0
+80,frames/frame_000080_x-0.250_y+0.000_z0.750_r+4.0_p-3.0_yaw225_n5.pgm,sentai_sim,false_positive,5,6,5,1.1841841563468598,0.75,4.0,-3.0,225.0
+88,frames/frame_000088_x+0.000_y+0.000_z0.500_r+0.0_p+0.0_yaw315_n6.pgm,opencv,false_positive,6,7,6,1.4636752300059546,0.5,0.0,0.0,315.0
+89,frames/frame_000089_x-0.250_y+0.000_z0.750_r+0.0_p+0.0_yaw315_n6.pgm,opencv,false_positive,5,7,5,0.37226925975031194,0.75,0.0,0.0,315.0
+91,frames/frame_000091_x+0.000_y+0.000_z0.500_r+4.0_p-3.0_yaw315_n6.pgm,opencv,false_positive,6,7,6,1.508431506938547,0.5,4.0,-3.0,315.0

@@ -45,6 +45,12 @@ extern void     sentai_markers_set_marker_size(float meters);
 extern void     sentai_markers_set_cam_extrinsics(float tx, float ty,
                                                      float tz, float roll,
                                                      float pitch, float yaw);
+extern void     sentai_markers_set_cam_extrinsics_matrix(float tx, float ty,
+                                                         float tz,
+                                                         const float R[9]);
+extern void     sentai_markers_get_cam_extrinsics_matrix(float t_body[3],
+                                                         float R[9],
+                                                         int* is_set);
 extern void     sentai_markers_clear_cam_extrinsics(void);
 extern int      sentai_markers_detect_frame(const uint8_t* gray, int w, int h,
                                               uint32_t frame_seq,
@@ -55,6 +61,9 @@ extern int      sentai_markers_get_pose(int i, SentaiMarkersPose* out);
 extern int      sentai_markers_get_detection(int i, SentaiMarkersDetection* out);
 extern int      sentai_markers_get_stats(SentaiMarkersStats* out);
 extern int      sentai_markers_get_latest(int i, SentaiMarkersPose* out);
+extern int      sentai_markers_get_observation(int img_w, int img_h,
+                                               float margin_px,
+                                               SentaiMarkersObservation* out);
 extern uint32_t sentai_markers_detect_cyc_last(void);
 extern int      sentai_markers_synth_one_whycon(int cx_px, int cy_px,
                                                   int radius_px);
@@ -158,6 +167,30 @@ static mp_obj_t markers_set_cam_extrinsics_(size_t n_args,
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(markers_set_cam_extrinsics_obj,
                                              6, 6, markers_set_cam_extrinsics_);
+
+// sentai.markers.set_cam_extrinsics_matrix(tx, ty, tz, R9)
+// R9 is body<-camera-optical row-major, usually from sentai.calib.load().
+static mp_obj_t markers_set_cam_extrinsics_matrix_(size_t n_args,
+                                                   const mp_obj_t* args) {
+    (void)n_args;
+    const float tx = (float)mp_obj_get_float(args[0]);
+    const float ty = (float)mp_obj_get_float(args[1]);
+    const float tz = (float)mp_obj_get_float(args[2]);
+    size_t len = 0;
+    mp_obj_t* items = NULL;
+    mp_obj_get_array(args[3], &len, &items);
+    if (len != 9) {
+        mp_raise_ValueError(MP_ERROR_TEXT("R must have 9 floats"));
+    }
+    float R[9];
+    for (size_t i = 0; i < 9; ++i) {
+        R[i] = (float)mp_obj_get_float(items[i]);
+    }
+    sentai_markers_set_cam_extrinsics_matrix(tx, ty, tz, R);
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(markers_set_cam_extrinsics_matrix_obj,
+                                             4, 4, markers_set_cam_extrinsics_matrix_);
 
 static mp_obj_t markers_clear_cam_extrinsics_(void) {
     sentai_markers_clear_cam_extrinsics();
@@ -405,6 +438,104 @@ static mp_obj_t markers_get_detection_tuple_(mp_obj_t idx_obj) {
 static MP_DEFINE_CONST_FUN_OBJ_1(markers_get_detection_tuple_obj,
                                   markers_get_detection_tuple_);
 
+static mp_obj_t markers_get_observation_(size_t n_args, const mp_obj_t* args) {
+    const int img_w = mp_obj_get_int(args[0]);
+    const int img_h = mp_obj_get_int(args[1]);
+    const float margin = (float)mp_obj_get_float(args[2]);
+    mp_buffer_info_t bi;
+    if (!mp_get_buffer(args[3], &bi, MP_BUFFER_WRITE)) {
+        mp_raise_TypeError(MP_ERROR_TEXT(
+            "out_buf must be writable bytearray(56)"));
+    }
+    if (bi.len < (mp_int_t)sizeof(SentaiMarkersObservation)) {
+        mp_raise_ValueError(MP_ERROR_TEXT("out_buf too small"));
+    }
+    return mp_obj_new_int(
+        sentai_markers_get_observation(img_w, img_h, margin,
+                                       (SentaiMarkersObservation*)bi.buf));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(markers_get_observation_obj,
+                                             4, 4, markers_get_observation_);
+
+// SIM-convenience tuple:
+// (n_raw, n_full, n_pose_valid, cx, cy, radius_mean, z_mean,
+//  bbox_min_x, bbox_min_y, bbox_max_x, bbox_max_y,
+//  frame_seq, src_ts_ms, valid, backend)
+static mp_obj_t markers_get_observation_tuple_(size_t n_args,
+                                               const mp_obj_t* args) {
+    const int img_w = mp_obj_get_int(args[0]);
+    const int img_h = mp_obj_get_int(args[1]);
+    const float margin = (float)mp_obj_get_float(args[2]);
+    SentaiMarkersObservation o;
+    if (!sentai_markers_get_observation(img_w, img_h, margin, &o)) {
+        return mp_const_none;
+    }
+    mp_obj_t t[15] = {
+        mp_obj_new_int(o.n_raw),
+        mp_obj_new_int(o.n_full),
+        mp_obj_new_int(o.n_pose_valid),
+        mp_obj_new_float(o.centroid_x),
+        mp_obj_new_float(o.centroid_y),
+        mp_obj_new_float(o.radius_mean_px),
+        mp_obj_new_float(o.z_cam_mean_m),
+        mp_obj_new_float(o.bbox_min_x),
+        mp_obj_new_float(o.bbox_min_y),
+        mp_obj_new_float(o.bbox_max_x),
+        mp_obj_new_float(o.bbox_max_y),
+        mp_obj_new_int_from_uint(o.frame_seq),
+        mp_obj_new_int_from_uint(o.src_ts_ms),
+        mp_obj_new_int(o.valid),
+        mp_obj_new_int(o.backend),
+    };
+    return mp_obj_new_tuple(15, t);
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(markers_get_observation_tuple_obj,
+                                             3, 3,
+                                             markers_get_observation_tuple_);
+
+static mp_obj_t markers_window_reset_(mp_obj_t slot_obj, mp_obj_t size_obj) {
+    return mp_obj_new_bool(sentai_markers_window_reset(
+        mp_obj_get_int(slot_obj), mp_obj_get_int(size_obj)));
+}
+static MP_DEFINE_CONST_FUN_OBJ_2(markers_window_reset_obj,
+                                  markers_window_reset_);
+
+static mp_obj_t markers_window_push_tuple_(mp_obj_t slot_obj,
+                                           mp_obj_t n_full_obj) {
+    SentaiMarkersWindowStats s;
+    if (!sentai_markers_window_push(mp_obj_get_int(slot_obj),
+                                    mp_obj_get_int(n_full_obj), &s)) {
+        return mp_const_none;
+    }
+    mp_obj_t t[5] = {
+        mp_obj_new_int(s.count),
+        mp_obj_new_int(s.size),
+        mp_obj_new_float(s.avg_full),
+        mp_obj_new_int(s.min_full),
+        mp_obj_new_int(s.ready),
+    };
+    return mp_obj_new_tuple(5, t);
+}
+static MP_DEFINE_CONST_FUN_OBJ_2(markers_window_push_tuple_obj,
+                                  markers_window_push_tuple_);
+
+static mp_obj_t markers_window_get_tuple_(mp_obj_t slot_obj) {
+    SentaiMarkersWindowStats s;
+    if (!sentai_markers_window_get(mp_obj_get_int(slot_obj), &s)) {
+        return mp_const_none;
+    }
+    mp_obj_t t[5] = {
+        mp_obj_new_int(s.count),
+        mp_obj_new_int(s.size),
+        mp_obj_new_float(s.avg_full),
+        mp_obj_new_int(s.min_full),
+        mp_obj_new_int(s.ready),
+    };
+    return mp_obj_new_tuple(5, t);
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(markers_window_get_tuple_obj,
+                                  markers_window_get_tuple_);
+
 static mp_obj_t markers_get_stats_(mp_obj_t buf_obj) {
     mp_buffer_info_t bi;
     if (!mp_get_buffer(buf_obj, &bi, MP_BUFFER_WRITE)) {
@@ -538,6 +669,8 @@ static const mp_rom_map_elem_t sentai_markers_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_set_intrinsics),    MP_ROM_PTR(&markers_set_intrinsics_obj) },
     { MP_ROM_QSTR(MP_QSTR_set_cam_extrinsics),
                                                 MP_ROM_PTR(&markers_set_cam_extrinsics_obj) },
+    { MP_ROM_QSTR(MP_QSTR_set_cam_extrinsics_matrix),
+                                                MP_ROM_PTR(&markers_set_cam_extrinsics_matrix_obj) },
     { MP_ROM_QSTR(MP_QSTR_clear_cam_extrinsics),
                                                 MP_ROM_PTR(&markers_clear_cam_extrinsics_obj) },
     { MP_ROM_QSTR(MP_QSTR_set_marker_size),   MP_ROM_PTR(&markers_set_marker_size_obj) },
@@ -554,6 +687,12 @@ static const mp_rom_map_elem_t sentai_markers_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_get_detection),     MP_ROM_PTR(&markers_get_detection_obj) },
     { MP_ROM_QSTR(MP_QSTR_get_detection_tuple),
                                                 MP_ROM_PTR(&markers_get_detection_tuple_obj) },
+    { MP_ROM_QSTR(MP_QSTR_get_observation),    MP_ROM_PTR(&markers_get_observation_obj) },
+    { MP_ROM_QSTR(MP_QSTR_get_observation_tuple),
+                                                MP_ROM_PTR(&markers_get_observation_tuple_obj) },
+    { MP_ROM_QSTR(MP_QSTR_window_reset),       MP_ROM_PTR(&markers_window_reset_obj) },
+    { MP_ROM_QSTR(MP_QSTR_window_push_tuple),  MP_ROM_PTR(&markers_window_push_tuple_obj) },
+    { MP_ROM_QSTR(MP_QSTR_window_get_tuple),   MP_ROM_PTR(&markers_window_get_tuple_obj) },
     { MP_ROM_QSTR(MP_QSTR_get_stats),         MP_ROM_PTR(&markers_get_stats_obj) },
     { MP_ROM_QSTR(MP_QSTR_detect_cyc_last),   MP_ROM_PTR(&markers_detect_cyc_last_obj) },
     { MP_ROM_QSTR(MP_QSTR_synth_one_whycon),  MP_ROM_PTR(&markers_synth_one_whycon_obj) },

@@ -1,4 +1,7 @@
-// sentai_calib_autotune.cc — OP-S10-W14-T3 state machine implementation.
+// sentai_calib_autotune.cc — LEGACY OP-S10-W14-T3 state machine implementation.
+//
+// B5 note: old Flow relay autotune family.  Keep for compatibility only;
+// delete after B5 migrates B3/B4 to the new C++ task architecture.
 //
 // Pure compute.  See sentai_calib_autotune.h for the API contract.
 // Algorithm: Åström-Hägglund relay autotune driving the velocity-

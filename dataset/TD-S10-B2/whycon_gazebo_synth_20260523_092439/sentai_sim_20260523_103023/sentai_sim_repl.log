@@ -1,0 +1,26 @@
+[sim] sentai_sim build #548 (2026-05-23 10:20:31)
+[sim] FreeRTOS POSIX port: tick=1000 Hz, heap=4194304 bytes
+[sim] MicroPython heap: 524288 bytes
+[sim] FS root: /home/bogdan/work/coralmicro/build-sim/sentai_fs_root
+[sim] sentai.fr auto-start: dir=/home/bogdan/work/coralmicro/build-sim/sentai_fs_root/fr init=0 events=0 scalars=0 task=0
+0
+
+MicroPython on SentAI SIM (FreeRTOS POSIX port + MicroPython embed)
+Type expressions, end with Enter.  Ctrl-D or 'exit' to quit.
+Try: sentai.version(), sentai.fs.write(...), help()
+
+>>> [sentai_fr] worker START
+[whycon_filter v3] n_comp=36 accepted=0  rejects: nested=29 border=7 min_area=0 max_area=0 ar=0 trace=0 circ=0 axis=0 w3=0 min_a=40 max_a=4000 max_ar=2.00 min_circ=0.40 max_axis=2.00
+[whycon_filter v3] n_comp=96 accepted=0  rejects: nested=70 border=17 min_area=9 max_area=0 ar=0 trace=0 circ=0 axis=0 w3=0 min_a=40 max_a=4000 max_ar=2.00 min_circ=0.40 max_axis=2.00
+[whycon_filter v3] n_comp=54 accepted=0  rejects: nested=27 border=27 min_area=0 max_area=0 ar=0 trace=0 circ=0 axis=0 w3=0 min_a=40 max_a=4000 max_ar=2.00 min_circ=0.40 max_axis=2.00
+[whycon_pnp] s_fx=288.30 s_fy=288.30 diam=0.0544 axis_a=19.5465 axis_b=18.0427
+[whycon_filter v3] n_comp=96 accepted=1  rejects: nested=65 border=18 min_area=12 max_area=0 ar=0 trace=0 circ=0 axis=0 w3=0 min_a=40 max_a=4000 max_ar=2.00 min_circ=0.40 max_axis=2.00
+[whycon_pnp] s_fx=288.30 s_fy=288.30 diam=0.0544 axis_a=9.4135 axis_b=7.8680
+[whycon_filter v3] n_comp=61 accepted=1  rejects: nested=26 border=27 min_area=3 max_area=0 ar=0 trace=0 circ=1 axis=0 w3=3 min_a=40 max_a=4000 max_ar=2.00 min_circ=0.40 max_axis=2.00
+[whycon_pnp] s_fx=288.30 s_fy=288.30 diam=0.0544 axis_a=32.2726 axis_b=31.0571
+[whycon_filter v3] n_comp=42 accepted=1  rejects: nested=24 border=15 min_area=1 max_area=0 ar=0 trace=0 circ=1 axis=0 w3=0 min_a=40 max_a=4000 max_ar=2.00 min_circ=0.40 max_axis=2.00
+camera_bridge: listening on /tmp/sentai_cam.sock (waiting for Gazebo bridge)
+TD-S10-B2_SENTAI_SIM_DONE 30 3
+>>> 
+[sim] EOF on stdin, exiting
+[sim] REPL task done, terminating process

@@ -1,4 +1,7 @@
-// sentai_calib_bringup.cc — OP-S10-W21-T4 orchestrator worker.
+// sentai_calib_bringup.cc — LEGACY OP-S10-W21-T4 orchestrator worker.
+//
+// B5 note: old Flow-autotune bringup family.  Do not extend for s205/s203;
+// new work belongs in the B3/B4 image-frame calibration/servo tasks.
 //
 // Header sentai_calib_bringup.h documents the contract + fault model.
 // This file is plumbing: a single FreeRTOS task that walks the phase

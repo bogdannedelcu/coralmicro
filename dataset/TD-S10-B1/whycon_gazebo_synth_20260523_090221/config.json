@@ -1,0 +1,81 @@
+{
+  "dataset_id": "whycon_gazebo_synth_20260523_090221",
+  "created_utc": "2026-05-23T06:02:21Z",
+  "source_world": "/home/bogdan/work/crazyflie/CrazySim/crazyflie-firmware/tools/crazyflie-simulation/simulator_files/gazebo/worlds/sentai_whycon_small.sdf",
+  "render_world": "/home/bogdan/work/coralmicro/dataset/whycon_gazebo_synth_20260523_090221/_work/sentai_whycon_small_dataset.sdf",
+  "scene_id": "sentai_whycon_small_dataset",
+  "camera_topic": "/dataset_cam/image",
+  "camera_model": "dataset_camera",
+  "image": {
+    "width": 320,
+    "height": 240,
+    "format": "P5_PGM"
+  },
+  "camera": {
+    "fx": 288.3,
+    "fy": 288.3,
+    "cx": 160.0,
+    "cy": 120.0,
+    "horizontal_fov_rad": 1.013313278321082,
+    "zero_pose_convention": "image+x->world+Y, image+y->world+X, optical+z->world-Z"
+  },
+  "marker_diameter_m": 0.0544,
+  "markers": [
+    {
+      "marker_id": "NW",
+      "world_xyz": [
+        -0.08,
+        0.08,
+        0.005
+      ]
+    },
+    {
+      "marker_id": "NE",
+      "world_xyz": [
+        0.08,
+        0.08,
+        0.005
+      ]
+    },
+    {
+      "marker_id": "W",
+      "world_xyz": [
+        -0.06,
+        0.0,
+        0.005
+      ]
+    },
+    {
+      "marker_id": "E",
+      "world_xyz": [
+        0.06,
+        0.0,
+        0.005
+      ]
+    },
+    {
+      "marker_id": "SW",
+      "world_xyz": [
+        -0.08,
+        -0.08,
+        0.005
+      ]
+    },
+    {
+      "marker_id": "SE",
+      "world_xyz": [
+        0.08,
+        -0.08,
+        0.005
+      ]
+    }
+  ],
+  "sampling": {
+    "mode": "smoke",
+    "frame_count": 3
+  },
+  "gazebo": {
+    "distrobox": "crazysim-garden",
+    "gui_enabled": true
+  }
+}

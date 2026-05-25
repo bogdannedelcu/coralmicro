@@ -66,7 +66,7 @@
 // Memory (SIM):
 //   - frames channel: 16-slot pool × 76800 B (320×240 gray) = 1.2 MB,
 //     static SDRAM.
-//   - events channel: 256 slots × 96 B (timestamp + label + payload) = 24 KB.
+//   - events channel: 256 slots × 672 B (timestamp + label + payload) = 168 KB.
 //   - scalars channel: 1024 slots × 24 B = 24 KB.
 //   - Total static BSS ≈ 1.3 MB.
 //   - Zero heap, zero per-call malloc.
@@ -143,8 +143,8 @@ typedef enum {
 #ifndef SENTAI_FR_EVENTS_SLOTS
 #define SENTAI_FR_EVENTS_SLOTS    256
 #endif
-#define  SENTAI_FR_EVENT_TYPE_LEN     20    // short tag like "abort"
-#define  SENTAI_FR_EVENT_TEXT_LEN     96    // free-form text
+#define  SENTAI_FR_EVENT_TYPE_LEN     32    // short tag like "abort"
+#define  SENTAI_FR_EVENT_TEXT_LEN     640   // free-form text
 
 #ifndef SENTAI_FR_SCALARS_SLOTS
 #define SENTAI_FR_SCALARS_SLOTS   1024

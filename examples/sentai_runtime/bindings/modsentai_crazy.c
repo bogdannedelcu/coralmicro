@@ -192,6 +192,16 @@ static mp_obj_t mod_sentai_crazy_attitude(size_t n_args, const mp_obj_t *args) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_crazy_attitude_obj, 0, 4, mod_sentai_crazy_attitude);
 
+// sentai.crazy.attitude_release_no_disarm() -> int
+// Stop RPYT streaming without disarming.  Caller must immediately stream a
+// replacement commander such as hover().
+static mp_obj_t mod_sentai_crazy_attitude_release_no_disarm(void) {
+    return mp_obj_new_int(sentai_crazy_attitude_release_no_disarm());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(
+    mod_sentai_crazy_attitude_release_no_disarm_obj,
+    mod_sentai_crazy_attitude_release_no_disarm);
+
 // sentai.crazy.fly_stop() -> int
 // Stop flying and disarm. Non-blocking, safe from any state.
 static mp_obj_t mod_sentai_crazy_fly_stop(void) {
@@ -816,6 +826,7 @@ static const mp_rom_map_elem_t sentai_crazy_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_test_fly),      MP_ROM_PTR(&mod_sentai_crazy_test_fly_obj) },
     { MP_ROM_QSTR(MP_QSTR_fly),           MP_ROM_PTR(&mod_sentai_crazy_fly_obj) },
     { MP_ROM_QSTR(MP_QSTR_attitude),      MP_ROM_PTR(&mod_sentai_crazy_attitude_obj) },
+    { MP_ROM_QSTR(MP_QSTR_attitude_release_no_disarm), MP_ROM_PTR(&mod_sentai_crazy_attitude_release_no_disarm_obj) },
     { MP_ROM_QSTR(MP_QSTR_fly_stop),      MP_ROM_PTR(&mod_sentai_crazy_fly_stop_obj) },
     { MP_ROM_QSTR(MP_QSTR_altitude),       MP_ROM_PTR(&mod_sentai_crazy_altitude_obj) },
     { MP_ROM_QSTR(MP_QSTR_baro),           MP_ROM_PTR(&mod_sentai_crazy_baro_obj) },

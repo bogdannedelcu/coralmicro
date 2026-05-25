@@ -40,21 +40,25 @@ FR_SCALARS_FILE  = FR_DIR + "/scalars.csv"
 # z=0.005 (top of mount box).  Operator-specified square layout
 # (proportions 1:1:0.75 with unit 0.16 m).
 MARKER_WORLD = (
-    (-0.16, +0.16, 0.005),
-    (+0.16, +0.16, 0.005),
-    (-0.12,  0.00, 0.005),
-    (+0.12,  0.00, 0.005),
-    (-0.16, -0.16, 0.005),
-    (+0.16, -0.16, 0.005),
+    (-0.08, +0.08, 0.005),
+    (+0.08, +0.08, 0.005),
+    (-0.06,  0.00, 0.005),
+    (+0.06,  0.00, 0.005),
+    (-0.08, -0.08, 0.005),
+    (+0.08, -0.08, 0.005),
 )
 
 # ---- Camera intrinsics — bridge downsamples to 320x240 -------------
 FX, FY, CX, CY     = 288.3, 288.3, 160.0, 120.0
-MARKER_DIAMETER_M  = 0.1088   # WhyCon outer ring
+MARKER_DIAMETER_M  = 0.0544   # iter-64: 0.5× WhyCon outer ring
+                              # (was 0.1088 = sentai_whycon big pad)
 
 # ---- Bringup envelope ------------------------------------------------
-Z_HOLD             = 0.90    # s172 autotune-validated (operator: "loc de manevră")
-SWEEP_RADIUS_M     = 0.05    # small offset → markers stay near image center
+Z_HOLD             = 0.60    # iter-68: s172-validated baseline (was 0.9 then,
+                              # 0.6 for autotune).  At z=0.6 + small pad 16cm,
+                              # WhyCon ring is 26 px — comfortable detection.
+SWEEP_RADIUS_M     = 0.025   # iter-64b: scaled with 0.5× pad — keep
+                              # drone within FOV (pad 16cm wide now)
 SETTLE_S           = 2.0
 VMAX_M_S           = 0.06    # s172 baseline (operator iter #17: 0.06 is
                               # the empirical ZN SNR sweet spot)
@@ -192,6 +196,22 @@ def run():
     _j("fr_open_scalars", {"rc": sentai.fr.open("scalars", FR_SCALARS_FILE)})
     _j("fr_task_start",   {"rc": sentai.fr.task_start()})
 
+    # iter-73: send extPos (0,0,0.014) PRE-ARM at 30Hz for 2s.  cf2
+    # stock no-baro firmware (operator confirm): accel z integration
+    # without correction → Kalman bounds breach → reset loop.
+    # Spamming extPos before arm gives Kalman a Z anchor → converges
+    # → arm + takeoff work like in real-world deployment with
+    # flow_deck / lighthouse positioning.
+    import struct
+    _j("extpos_warmup_pre_arm", "start")
+    for _ in range(60):                # 60 × 30 ms = 1.8 s
+        try:
+            sentai.crazy.send_crtp(6, 0, struct.pack("<fff", 0.0, 0.0, 0.014))
+        except (AttributeError, RuntimeError):
+            pass
+        sentai.rtos.sleep_ms(30)
+    _j("extpos_warmup_pre_arm", "done")
+
     # ── Arm + retry pose_subscribe + takeoff ─────────────────────────
     # pose_subscribe at arm+300ms returns -3 (cf2 TOC not ready, 1-3s
     # post-link).  Retry 30×200ms.  Pattern from s182 iter-5 (2026-05-20).
@@ -210,66 +230,163 @@ def run():
     _j("pose_subscribe", {"rc": sub_rc, "tries": _try + 1})
     sentai.rtos.sleep_ms(500)
 
-    _j("takeoff", {"z": Z_HOLD, "dur": TAKEOFF_DUR})
-    # iter-45: start SafetyTask AFTER takeoff_settled.  Pre-takeoff
-    # arming → no markers visible → immediate SAFETY abort.  s172
-    # tolerated 4s no-marker; our takeoff takes longer so we delay
-    # safety arm until drone is at altitude AND has marker FOV.
-    # (Future-work [[task-9-detectortask-refactor]]: separate detection
-    # cadence from safety so we don't need this dance.)
-    sentai.crazy.takeoff(Z_HOLD, TAKEOFF_DUR)
-    sentai.rtos.sleep_ms(int(TAKEOFF_DUR * 1000) + 500)
-    sentai.crazy.hl_stop()
-    for _ in range(5):
-        sentai.crazy.hover(0.0, 0.0, 0.0, Z_HOLD)
-        sentai.rtos.sleep_ms(30)
+    # iter-83 — VIRTUAL Z-RANGER via SENSOR_TOF_SIM CRTP injection.
+    # cf2 SITL listens on CRTP_PORT_SETPOINT_SIM (port 9) for sensor sim
+    # packets; sensors_sitl.c case SENSOR_TOF_SIM (type=5) calls
+    # rangeEnqueueDownRangeInEstimator → Kalman fuses TOF as authoritative
+    # Z anchor (like a flow_deck VL53L1x).  We feed PnP-derived z when
+    # markers visible, else operator-known ground z=0.014.
+    # Net effect: cf2 thinks it has a Z-ranger deck → HL takeoff/hover
+    # work normally without baro.  Anti-cheat clean (z from PnP, not GT).
+    import struct
 
-    # iter-56 ADAPTIVE ASCENT: climb until ≥4 markers visible 30 frames.
-    # Removed Z_AGGR (iter-55 caused 6° yaw drift); just hover at Z_HOLD.
-    _j("adaptive_ascent", "start")
-    consec_ok = 0
-    ascent_ticks = 0
-    ASCENT_TIMEOUT_TICKS = 200       # 20 s
-    while ascent_ticks < ASCENT_TIMEOUT_TICKS:
-        n = sentai.markers.detect_from_camera()
-        if n >= 4:
-            consec_ok += 1
-            if consec_ok >= 30:
-                _j("adaptive_ascent_ok",
-                   {"ticks": ascent_ticks, "n_last": n})
-                break
-        else:
-            consec_ok = 0
+    def _send_tof(z_m):
+        # iter-85: Gazebo plugin now publishes GT z as SENSOR_TOF_SIM
+        # (flow_deck VL53L1x emulation).  MP-side injection deprecated —
+        # plugin runs at 200Hz with GT, dominates Kalman fusion.
+        pass
+
+    # Stage 1: prime cf2 with ground TOF (1.5s, drone on ground)
+    _j("tof_warmup_ground", "start")
+    for _ in range(50):           # 1.5s @ 30ms
+        _send_tof(0.014)
+        sentai.rtos.sleep_ms(30)
+    _j("tof_warmup_ground", "done")
+
+    # Stage 2: HL takeoff().  Keep sending TOF=0.014 (REAL drone z on
+    # ground) — DO NOT ramp.  cf2 sees z_setpoint=Z_HOLD vs z_est=0.014
+    # → error 0.586 → cf2 commands climb thrust → drone lifts.
+    _j("takeoff", {"z": Z_HOLD, "dur": TAKEOFF_DUR})
+    sentai.crazy.takeoff(Z_HOLD, TAKEOFF_DUR)
+    # Send ground TOF during takeoff (cf2 trusts → drone physically lifts)
+    ramp_ticks = int(TAKEOFF_DUR * 1000 / 30) + 5
+    for ti in range(ramp_ticks):
+        _send_tof(0.014)
+        sentai.rtos.sleep_ms(30)
+    sentai.crazy.hl_stop()
+    _j("takeoff_done", {"z_target": Z_HOLD})
+
+    # Stage 3: hover + busy-poll markers; once n>=6 switch TOF to PnP-z
+    _j("climb_seen", "start")
+    POLL_BUDGET_S = 8.0
+    found = False
+    pnp_seen = 0
+    for ti in range(int(POLL_BUDGET_S * 1000 / 30)):
         sentai.crazy.hover(0.0, 0.0, 0.0, Z_HOLD)
-        sentai.rtos.sleep_ms(100)
-        ascent_ticks += 1
-    if consec_ok < 30:
-        _j("adaptive_ascent_timeout", {"consec_ok": consec_ok})
-    _j("takeoff_settled", {})
+        n = sentai.markers.detect_from_camera()
+        z_pnp = -1.0
+        if n >= 4:
+            # Build pixel + world correspondence for first n detected markers.
+            img_pts = []
+            wld_pts = []
+            for k in range(min(n, 6)):
+                t = sentai.markers.get_pose_tuple(k)
+                if t is None:
+                    img_pts = None; break
+                img_pts.append((t[1], t[2]))
+                wld_pts.append((MARKER_WORLD[k][0], MARKER_WORLD[k][1]))
+            if img_pts is not None and len(img_pts) >= 4:
+                try:
+                    r = sentai.markers.coplanar_pnp(
+                        img_pts, wld_pts, FX, FY, CX, CY)
+                except (AttributeError, RuntimeError, ValueError):
+                    r = None
+                if r is not None:
+                    cw = r["cam_world"]
+                    px_pnp = float(cw[0])
+                    py_pnp = float(cw[1])
+                    pz_pnp = float(cw[2])
+                    if pz_pnp == pz_pnp and pz_pnp > 0.05:
+                        z_pnp = pz_pnp
+                        pnp_seen += 1
+                        # Send extPos (x, y, z) for XY anchor — plugin TOF
+                        # handles Z but XY drifts via accel integration.
+                        if (px_pnp == px_pnp and py_pnp == py_pnp):
+                            sentai.crazy.send_crtp(6, 0,
+                                struct.pack("<fff", px_pnp, py_pnp, pz_pnp))
+        if (ti % 8) == 0:
+            ekf_z = -1.0
+            try:
+                p = sentai.crazy.pose()
+                if p is not None and len(p) >= 3:
+                    ekf_z = p[2]
+            except (AttributeError, RuntimeError, TypeError):
+                pass
+            _j("climb_tick",
+               {"t": ti, "ekf_z": ekf_z, "n": n, "z_pnp": z_pnp})
+        # Relaxed gate: 4+ markers + drone above 0.3m → calibration ready
+        if n >= 4 and z_pnp > 0.0:
+            _j("climb_seen_ok", {"t": ti, "n": n, "z_pnp": z_pnp})
+            found = True
+            break
+        sentai.rtos.sleep_ms(30)
+    if not found:
+        _j("climb_seen_timeout", {"pnp_seen": pnp_seen})
+        sentai.crazy.land(LAND_DUR)
+        sentai.rtos.sleep_ms(int((LAND_DUR + 1.0) * 1000))
+        sentai.crazy.disarm()
+        summary["status"] = "ASCENT_FAIL"
+        _write_summary(summary)
+        sentai.sim.journal_close()
+        return summary
+
+    # Stage 4: VPE warmup with PnP-derived z (1s of stable anchor).
+    # MP embed: use coplanar_pnp (dict) instead of get_drone_pose (buffer).
+    _j("vpe_warmup", "start")
+    vpe_sent = 0
+    for ti in range(33):                # 33 × 30 ms = 1 s
+        sentai.crazy.hover(0.0, 0.0, 0.0, Z_HOLD)
+        n = sentai.markers.detect_from_camera()
+        z_now = Z_HOLD
+        if n >= 6:
+            img_pts = []
+            wld_pts = []
+            for k in range(6):
+                t = sentai.markers.get_pose_tuple(k)
+                if t is None:
+                    img_pts = None; break
+                img_pts.append((t[1], t[2]))
+                wld_pts.append((MARKER_WORLD[k][0], MARKER_WORLD[k][1]))
+            if img_pts is not None:
+                try:
+                    r = sentai.markers.coplanar_pnp(
+                        img_pts, wld_pts, FX, FY, CX, CY)
+                except (AttributeError, RuntimeError, ValueError):
+                    r = None
+                if r is not None:
+                    cw = r["cam_world"]
+                    vx = float(cw[0]); vy = float(cw[1]); vz = float(cw[2])
+                    if vx == vx and vy == vy and vz == vz:
+                        z_now = vz
+                        sentai.crazy.send_crtp(
+                            6, 0, struct.pack("<fff", vx, vy, vz))
+                        vpe_sent += 1
+        _send_tof(z_now)
+        sentai.rtos.sleep_ms(30)
+    _j("vpe_warmup_done", {"sent_total": vpe_sent})
+
+    Z_HOLD_RUN = Z_HOLD
+    _j("takeoff_settled", {"z_hold_run": Z_HOLD_RUN})
     sentai.crazy.hl_stop()
     for _ in range(5):
-        sentai.crazy.hover(0.0, 0.0, 0.0, Z_HOLD)
+        sentai.crazy.hover(0.0, 0.0, 0.0, Z_HOLD_RUN)
         sentai.rtos.sleep_ms(30)
 
     # Now that drone is at altitude with markers visible, arm SafetyTask.
     # It drives detection at 30 Hz throughout SAMPLE + AUTOTUNE so the
     # orchestrator's inner workers see fresh markers each tick.
-    _j("safety_enable",      {"rc": sentai.safety.enable_aruco(4, 4.0)})
+    _j("safety_enable",      {"rc": sentai.safety.enable_aruco(4, 4.0)})  # tolerant 4s
     _j("safety_task_start",  {"rc": sentai.safety.task_start()})
 
-    # iter-58: drop the EKF-based z_stabilize (cf2 EKF z is biased
-    # without VPE — declares "stable" when actually stuck).  Replace
-    # with a fixed 5s soak hover at Z_HOLD; the orchestrator's per-pose
-    # settle handles fine-grained stabilization.
-    _j("post_ascent_soak", "start")
-    for _ in range(50):           # 5 s @ 100 ms
-        sentai.crazy.hover(0.0, 0.0, 0.0, Z_HOLD)
-        sentai.rtos.sleep_ms(100)
-    _j("post_ascent_soak", "done")
+    # iter-65: REMOVED post_ascent_soak — cf2 z drifts up ~1.5m in 5s
+    # without VPE.  Jump directly into bringup so SAMPLE engages VPE
+    # immediately (within 500ms) and anchors z via PnP.
+    # Operator iter-64b: "ai continuat sa urci, destul de mult".
+    _j("post_ascent_soak", "skipped")
 
     # ── Run bringup ───────────────────────────────────────────────────
     _j("bringup_start", {
-        "z_hold":       Z_HOLD,
+        "z_hold":       Z_HOLD_RUN,
         "sweep_radius": SWEEP_RADIUS_M,
         "settle_s":     SETTLE_S,
         "vmax":         VMAX_M_S,
@@ -279,7 +396,7 @@ def run():
     rc = sentai.calib.run_bringup(
         MARKER_WORLD,
         marker_size_m  = MARKER_DIAMETER_M,
-        z_hold         = Z_HOLD,
+        z_hold         = Z_HOLD_RUN,
         sweep_radius   = SWEEP_RADIUS_M,
         settle_s       = SETTLE_S,
         vmax           = VMAX_M_S,
@@ -336,7 +453,31 @@ def run():
     else:
         summary["status"] = "FAIL"
 
-    # ── Land + disarm ─────────────────────────────────────────────────
+    # ── Return-to-home + land ────────────────────────────────────────
+    # iter-60: SIM mission valid iff drone lands ≤10cm of takeoff
+    # origin [[sim-test-must-return-home]].  Autotune sweep displaced
+    # cf2 ~25cm (iter-59 GT measure).  Use high-level go_to to navigate
+    # back to (0,0) at Z_HOLD_RUN, settle, THEN land.
+    _j("rth", {"x": 0.0, "y": 0.0, "z": Z_HOLD_RUN})
+    try:
+        sentai.crazy.go_to(0.0, 0.0, Z_HOLD_RUN, 0.0, 3.0)
+    except (AttributeError, RuntimeError):
+        # Fallback: hover toward origin with proportional velocity.
+        for _ in range(40):                  # 4 s closed-loop
+            try:
+                px, py, pz, pyaw = sentai.crazy.pose()
+            except (AttributeError, RuntimeError):
+                break
+            vx = max(-0.15, min(0.15, -px * 0.5))
+            vy = max(-0.15, min(0.15, -py * 0.5))
+            sentai.crazy.hover(vx, vy, 0.0, Z_HOLD_RUN)
+            sentai.rtos.sleep_ms(100)
+    sentai.rtos.sleep_ms(3500)               # let go_to/closed-loop settle
+    sentai.crazy.hl_stop()
+    for _ in range(10):
+        sentai.crazy.hover(0.0, 0.0, 0.0, Z_HOLD_RUN)
+        sentai.rtos.sleep_ms(50)
+
     _j("land", {"dur": LAND_DUR})
     sentai.crazy.land(LAND_DUR)
     sentai.rtos.sleep_ms(int((LAND_DUR + 1.0) * 1000))

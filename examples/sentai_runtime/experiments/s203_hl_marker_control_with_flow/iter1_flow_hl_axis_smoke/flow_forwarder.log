@@ -1,0 +1,9 @@
+Traceback (most recent call last):
+  File "/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s203_hl_marker_control_with_flow/flow_forwarder_s203.py", line 23, in <module>
+    import aruco_hover  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^
+  File "/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s091_aruco_lowalt/aruco_hover.py", line 37, in <module>
+    from aruco_detector import (detect_in_ppm, latest_ppm,
+  File "/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s090_hover_over_cat/aruco_detector.py", line 29, in <module>
+    import cv2
+ModuleNotFoundError: No module named 'cv2'

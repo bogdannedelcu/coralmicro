@@ -1,0 +1,7 @@
+frame_id,image_path,backend,status,expected_count,detected_count,matched_count,max_centroid_error_px,z_m,roll_deg,pitch_deg,yaw_deg
+1,frames/frame_000001_x-0.250_y+0.000_z0.500_r+4.0_p-3.0_yaw045_n4.pgm,opencv,missed_marker,4,3,3,1.7231420456450095,0.5,4.0,-3.0,45.0
+5,frames/frame_000005_x-0.250_y+0.000_z0.500_r+4.0_p-3.0_yaw225_n4.pgm,opencv,missed_marker,4,2,2,1.4213042176800859,0.5,4.0,-3.0,225.0
+8,frames/frame_000008_x+0.000_y+0.000_z0.300_r+0.0_p+0.0_yaw045_n6.pgm,opencv,missed_marker,6,4,4,2.4949251080915165,0.3,0.0,0.0,45.0
+19,frames/frame_000019_x-0.500_y+0.000_z1.000_r+0.0_p+0.0_yaw045_n5.pgm,opencv,missed_marker,5,4,4,1.170575716677628,1.0,0.0,0.0,45.0
+24,frames/frame_000024_x+0.000_y+0.000_z0.300_r+0.0_p+0.0_yaw135_n6.pgm,opencv,missed_marker,6,4,4,2.468816002572493,0.3,0.0,0.0,135.0
+27,frames/frame_000027_x-0.500_y+0.000_z1.000_r+0.0_p+0.0_yaw135_n5.pgm,opencv,missed_marker,5,4,4,1.540858100283675,1.0,0.0,0.0,135.0

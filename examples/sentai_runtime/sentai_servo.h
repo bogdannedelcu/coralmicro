@@ -224,6 +224,36 @@ int sentai_servo_pose(float* out_x, float* out_y, float* out_z, float* out_yaw);
 // True iff pose snapshot is current (at least one frame consumed since init).
 int sentai_servo_pose_ready(void);
 
+// Image-frame IBVS primitive used by B3/B4 calibration/validation missions.
+// It maps a marker-centroid error in pixels to bounded roll/pitch commands
+// using the measured local image response of roll/pitch.  This is pure
+// compute: no transport bytes, no global FSM state.
+int sentai_servo_ibvs_centroid_command(float cur_cx,
+                                       float cur_cy,
+                                       float z_m,
+                                       float target_cx,
+                                       float target_cy,
+                                       const float roll_vec_px[2],
+                                       const float pitch_vec_px[2],
+                                       float gain,
+                                       float max_deg,
+                                       float deadband_px,
+                                       float damping_px_per_deg,
+                                       float sustained_response_sign,
+                                       float z_ref_m,
+                                       float z_gain_min,
+                                       float z_gain_max,
+                                       float* roll_deg_out,
+                                       float* pitch_deg_out,
+                                       float* err_x_px_out,
+                                       float* err_y_px_out,
+                                       float* err_px_out,
+                                       float target_delta_px_out[2],
+                                       float response_roll_px_per_deg_out[2],
+                                       float response_pitch_px_per_deg_out[2],
+                                       float* z_gain_out,
+                                       float* dls_det_out);
+
 #ifdef __cplusplus
 }
 #endif

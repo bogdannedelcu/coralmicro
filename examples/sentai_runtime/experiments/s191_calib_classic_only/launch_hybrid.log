@@ -6,7 +6,5 @@
 [hybrid] spawn attempt 1 → OK
 [hybrid] starting cf2 SITL
 [hybrid] starting GUI on REAL display=:1 with sentai_gui.config
-Gtk-Message: 17:26:36.411: Failed to load module "canberra-gtk-module"
-Gtk-Message: 17:26:36.411: Failed to load module "canberra-gtk-module"
-
-** (sentai_gui.config:1272470): WARNING **: 17:27:03.959: atk-bridge: get_device_events_reply: unknown signature
+Gtk-Message: 20:10:11.121: Failed to load module "canberra-gtk-module"
+Gtk-Message: 20:10:11.122: Failed to load module "canberra-gtk-module"

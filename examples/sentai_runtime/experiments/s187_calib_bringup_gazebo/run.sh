@@ -29,7 +29,8 @@ VERDICT="$SCRIPT_DIR/verdict_s187.py"
 MISSION_SRC="$SCRIPT_DIR/mission_s187.py"
 FS_ROOT="$REPO_ROOT/build-sim/sentai_fs_root"
 
-WORLD=sentai_whycon
+WORLD=sentai_whycon_small         # iter-64: 0.5× pad — markers fit FOV
+                                  # at GT z=0.5m (cf2 no-baro ceiling).
 
 is_cf2_up()    { ss -lun 2>/dev/null | grep -q ":19850"; }
 cleanup_socks(){ rm -f /tmp/sentai_cam.sock /tmp/sentai_flow_out.sock 2>/dev/null; }

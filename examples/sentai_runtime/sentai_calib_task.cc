@@ -1,7 +1,11 @@
-// sentai_calib_task.cc — OP-S10-W14 worker that drives the relay
+// sentai_calib_task.cc — LEGACY OP-S10-W14 worker that drives the relay
 // autotuner.  See sentai_calib_task.h + sentai_calib_autotune.h for
 // the contract; ideas/objects_plan/16_sentai_calib_autotune.md for
 // the algorithm derivation.
+//
+// B5 note: do not extend this worker for B3/B4.  It remains only so old
+// experiments can be replayed until the new image-frame calibration and
+// validation tasks fully replace it.
 //
 // REUSE ONLY (no duplicate compute):
 //   - sentai_markers_get_count() + sentai_markers_get_latest() :

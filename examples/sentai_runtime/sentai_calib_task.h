@@ -1,4 +1,9 @@
-// sentai_calib_task.h — OP-S10-W14 worker side of the Flow autotuner.
+// sentai_calib_task.h — LEGACY OP-S10-W14 worker side of the Flow autotuner.
+//
+// B5 note: this file belongs to the old Flow-autotune/bringup family.  Keep
+// it only for old experiment compatibility while s205/s203 are migrated to
+// the new sentai.calib + sentai.servo image-frame task split.  Delete after
+// the B5 final migration proves the new tasks on SIM and ARM.
 //
 // Owns the FreeRTOS task that drives sentai_calib_autotune_tick() at
 // camera FPS, reads PnP via sentai_markers_get_latest() (active

@@ -1,0 +1,4 @@
+| backend | matched_markers_with_geometry | radius_error_mean_px | radius_error_median_px | radius_error_p95_px | axis_a_error_mean_px | axis_a_error_median_px | axis_a_error_p95_px | axis_b_error_mean_px | axis_b_error_median_px | axis_b_error_p95_px | axis_ratio_mean | axis_ratio_median | axis_ratio_p95 | orientation_angle_mean_deg | orientation_angle_median_deg | orientation_angle_p95_deg | orientation_error_available |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| opencv | 483 | 0.0942495 | 0.118834 | 0.595931 | 2.578 | 2.03388 | 5.11753 | 2.08654 | 1.63439 | 4.78346 | 1.03599 | 1.02139 | 1.12816 | -0.513631 | -0.587275 | 89.3877 | False |
+| sentai_sim | 483 | 0.0424896 | -0.0115554 | 0.579283 | 2.61925 | 2.08763 | 5.16424 | 2.0914 | 1.63312 | 4.82265 | 1.03889 | 1.02529 | 1.13875 | -3.80069 | -1.54515 | 89.7287 | False |

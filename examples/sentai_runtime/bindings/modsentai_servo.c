@@ -216,6 +216,69 @@ static mp_obj_t mod_servo_pose_ready(void) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(mod_servo_pose_ready_obj, mod_servo_pose_ready);
 
+// sentai.servo.ibvs_centroid_command_tuple(
+//   cur_cx, cur_cy, z_m, target_cx, target_cy,
+//   roll_x, roll_y, pitch_x, pitch_y,
+//   gain, max_deg, deadband_px, damping_px_per_deg,
+//   sustained_response_sign, z_ref_m, z_gain_min, z_gain_max)
+// -> (roll_deg,pitch_deg,err_x,err_y,err,target_x,target_y,z_gain,det,rx,ry,px,py)
+static mp_obj_t mod_servo_ibvs_centroid_command_tuple(size_t n_args,
+                                                       const mp_obj_t* args) {
+    (void)n_args;
+    const float roll_vec[2] = {
+        (float)mp_obj_get_float(args[5]),
+        (float)mp_obj_get_float(args[6]),
+    };
+    const float pitch_vec[2] = {
+        (float)mp_obj_get_float(args[7]),
+        (float)mp_obj_get_float(args[8]),
+    };
+    float roll = 0.0f, pitch = 0.0f;
+    float ex = 0.0f, ey = 0.0f, err = 0.0f;
+    float target[2] = {0.0f, 0.0f};
+    float resp_r[2] = {0.0f, 0.0f};
+    float resp_p[2] = {0.0f, 0.0f};
+    float z_gain = 1.0f;
+    float det = 0.0f;
+    const int ok = sentai_servo_ibvs_centroid_command(
+        (float)mp_obj_get_float(args[0]),
+        (float)mp_obj_get_float(args[1]),
+        (float)mp_obj_get_float(args[2]),
+        (float)mp_obj_get_float(args[3]),
+        (float)mp_obj_get_float(args[4]),
+        roll_vec,
+        pitch_vec,
+        (float)mp_obj_get_float(args[9]),
+        (float)mp_obj_get_float(args[10]),
+        (float)mp_obj_get_float(args[11]),
+        (float)mp_obj_get_float(args[12]),
+        (float)mp_obj_get_float(args[13]),
+        (float)mp_obj_get_float(args[14]),
+        (float)mp_obj_get_float(args[15]),
+        (float)mp_obj_get_float(args[16]),
+        &roll, &pitch, &ex, &ey, &err, target, resp_r, resp_p, &z_gain, &det);
+    if (!ok) return mp_const_none;
+    mp_obj_t t[13] = {
+        mp_obj_new_float(roll),
+        mp_obj_new_float(pitch),
+        mp_obj_new_float(ex),
+        mp_obj_new_float(ey),
+        mp_obj_new_float(err),
+        mp_obj_new_float(target[0]),
+        mp_obj_new_float(target[1]),
+        mp_obj_new_float(z_gain),
+        mp_obj_new_float(det),
+        mp_obj_new_float(resp_r[0]),
+        mp_obj_new_float(resp_r[1]),
+        mp_obj_new_float(resp_p[0]),
+        mp_obj_new_float(resp_p[1]),
+    };
+    return mp_obj_new_tuple(13, t);
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
+    mod_servo_ibvs_centroid_command_tuple_obj, 17, 17,
+    mod_servo_ibvs_centroid_command_tuple);
+
 // ===================== Module table ====================================
 
 static const mp_rom_map_elem_t sentai_servo_globals_table[] = {
@@ -235,6 +298,8 @@ static const mp_rom_map_elem_t sentai_servo_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_pose),         MP_ROM_PTR(&mod_servo_pose_obj) },
     { MP_ROM_QSTR(MP_QSTR_pose_ready),   MP_ROM_PTR(&mod_servo_pose_ready_obj) },
     { MP_ROM_QSTR(MP_QSTR_set_durations),MP_ROM_PTR(&mod_servo_set_durations_obj) },
+    { MP_ROM_QSTR(MP_QSTR_ibvs_centroid_command_tuple),
+                                           MP_ROM_PTR(&mod_servo_ibvs_centroid_command_tuple_obj) },
 
     // Backend ids
     { MP_ROM_QSTR(MP_QSTR_NONE),         MP_ROM_INT(SERVO_BACKEND_NONE) },

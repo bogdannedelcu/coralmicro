@@ -1,0 +1,1 @@
+{"name": "mission_s185", "z_hold": 0.78, "status": "OK", "phases_done": ["markers_init", "takeoff", "yaw_sweep", "land"], "errors": [], "ticks_logged": 420, "version": "SentAI SIM v1.0 build 323 (2026-05-21 08:58:31) - FreeRTOS POSIX + MicroPython embed"}

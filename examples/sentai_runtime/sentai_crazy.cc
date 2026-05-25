@@ -1757,6 +1757,34 @@ extern "C" int sentai_crazy_attitude(float roll, float pitch,
     return 0;
 }
 
+// attitude_release_no_disarm() — stop the manual RPYT streaming loop without
+// sending zero-thrust packets and without disarming.  This is for in-flight
+// commander handoff only: the caller must already be ready to stream generic
+// hover or issue a trusted HL command immediately.
+extern "C" int sentai_crazy_attitude_release_no_disarm(void) {
+    if (!g_crazy_running) return -1;
+
+    if (g_crazy_debug >= 1)
+        printf("[crazy] ATTITUDE_RELEASE_NO_DISARM requested\r\n");
+
+    g_cmd_state = CMD_IDLE;
+    g_cmd_thrust = 0;
+    g_cmd_roll = 0.0f;
+    g_cmd_pitch = 0.0f;
+    g_cmd_yawrate = 0.0f;
+    g_cmd_cts_fails = 0;
+
+    // Match the existing s196 REPL handoff experiment: notify the commander
+    // stack that setpoint ownership is changing.  Failure is non-fatal because
+    // the critical part here is stopping our RPYT task without disarm.
+    uint8_t notify_stop[5] = {0x00, 0x00, 0x00, 0x00, 0x00};
+    (void)crtp_send(CRTP_PORT_SETPOINT_GEN, 1, notify_stop,
+                    sizeof(notify_stop));
+
+    if (g_cmd_done_sem) xSemaphoreGive(g_cmd_done_sem);
+    return 0;
+}
+
 // ===================== Altitude Reading (Log System) =====================
 // Get altitude from CF Kalman estimator (stateEstimate.z).
 // On first call: discovers log var ID + starts streaming block (~2-5s).

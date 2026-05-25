@@ -1,5 +1,8 @@
-// sentai_calib_autotune.h — internal-ish API for the Flow autotuner
+// sentai_calib_autotune.h — LEGACY internal-ish API for the Flow autotuner
 // state machine (OP-S10-W14-T3).
+//
+// B5 note: old Flow relay autotune family.  Keep for compatibility only;
+// delete after B5 migrates B3/B4 to the new C++ task architecture.
 //
 // Pure compute — no FreeRTOS, no I/O.  The worker in
 // sentai_calib_task.cc drives this each tick by pushing the latest

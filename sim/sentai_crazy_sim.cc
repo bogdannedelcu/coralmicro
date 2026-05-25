@@ -70,6 +70,7 @@
 #define HL_CMD_GO_TO           4
 #define HL_CMD_TAKEOFF_2       7
 #define HL_CMD_LAND_2          8
+#define HL_CMD_GO_TO_2         12
 
 /* Supervisor sub-commands (cflib/crazyflie/supervisor.py) */
 #define SUPERVISOR_CMD_ARM     1     /* CMD_ARM_SYSTEM */
@@ -381,17 +382,17 @@ extern "C" int sentai_crazy_hl_stop(uint8_t group_mask) {
 extern "C" int sentai_crazy_go_to(float x, float y, float z, float yaw,
                                    float duration, int relative, int linear,
                                    uint8_t group_mask) {
-    (void)linear;   /* legacy GO_TO does not carry this flag */
-    uint8_t p[23];
-    p[0] = HL_CMD_GO_TO;
+    uint8_t p[24];
+    p[0] = HL_CMD_GO_TO_2;
     p[1] = group_mask;
     p[2] = relative ? 1 : 0;
-    pack_f32(p + 3,  x);
-    pack_f32(p + 7,  y);
-    pack_f32(p + 11, z);
-    pack_f32(p + 15, yaw);
-    pack_f32(p + 19, duration);
-    return send_crtp_raw(CRTP_PORT_SETPOINT_HL, 0, p, 23);
+    p[3] = linear ? 1 : 0;
+    pack_f32(p + 4,  x);
+    pack_f32(p + 8,  y);
+    pack_f32(p + 12, z);
+    pack_f32(p + 16, yaw);
+    pack_f32(p + 20, duration);
+    return send_crtp_raw(CRTP_PORT_SETPOINT_HL, 0, p, 24);
 }
 
 /* ---------- Generic Commander: hover (typeHover=5) ----------

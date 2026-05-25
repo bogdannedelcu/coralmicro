@@ -57,15 +57,15 @@ REGULAR_MIN_EXPECTED_MARKERS = 4
 STRESS_MIN_EXPECTED_MARKERS = 3
 
 MARKERS = [
-    ("NW", -0.08, +0.08, 0.005),
-    ("NE", +0.08, +0.08, 0.005),
-    ("W",  -0.06, +0.00, 0.005),
-    ("E",  +0.06, +0.00, 0.005),
-    ("SW", -0.08, -0.08, 0.005),
-    ("SE", +0.08, -0.08, 0.005),
+    ("NW", -0.082857143, +0.065714286, 0.005),
+    ("NE", +0.077142857, +0.065714286, 0.005),
+    ("W",  -0.062857143, -0.014285714, 0.005),
+    ("E",  +0.057142857, -0.014285714, 0.005),
+    ("SW", -0.082857143, -0.094285714, 0.005),
+    ("SE", +0.077142857, -0.094285714, 0.005),
     # Asymmetric marker: conceptual (0.25, 1.25) with the small-world scale
     # where conceptual +/-1 maps to +/-0.08 m.
-    ("N", +0.02, +0.10, 0.005),
+    ("N", +0.017142857, +0.085714286, 0.005),
 ]
 
 
@@ -272,7 +272,7 @@ def insert_dataset_camera(src_world: Path, dst_world: Path) -> None:
     <!-- TD-S10-B1 asymmetric WhyCon marker, proportional conceptual (0.25, 1.25). -->
     <model name="whycon_N">
       <static>true</static>
-      <pose>+0.02 +0.10 0.005  0 0 0</pose>
+      <pose>+0.017142857 +0.085714286 0.005  0 0 0</pose>
       <link name="link"><visual name="v">
         <geometry><box><size>0.06 0.06 0.01</size></box></geometry>
         <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse>

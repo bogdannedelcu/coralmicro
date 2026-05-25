@@ -1,28 +1,54 @@
-# sentai.sim journal opened path=/home/bogdan/work/coralmicro/build-sim/sentai_fs_root/mission_s187_journal.txt truncate=1 t_ms=357699179
-357699179 mission_start {'wbs': 'OP-S10-W21-T4'}
-357699179 setup 'start'
-357699179 setup 'ok'
-357699179 fr_init {'rc': 0}
-357699179 fr_open_frames {'rc': 0}
-357699179 fr_open_events {'rc': 0}
-357699182 fr_open_scalars {'rc': 0}
-357699182 fr_task_start {'rc': 0}
-357699182 arm 'start'
-357700377 pose_subscribe {'rc': 0, 'tries': 1}
-357700879 takeoff {'dur': 2.5, 'z': 0.9}
-357704037 adaptive_ascent 'start'
-357719325 adaptive_ascent_ok {'n_last': 4, 'ticks': 146}
-357719325 takeoff_settled {}
-357719480 safety_enable {'rc': 0}
-357719481 safety_task_start {'rc': 0}
-357719481 post_ascent_soak 'start'
-357724534 post_ascent_soak 'done'
-357724534 bringup_start {'sweep_radius': 0.05, 'dur_hold': 10.0, 'settle_s': 2.0, 'z_hold': 0.9, 'vmax': 0.06, 'dur_relay': 30.0}
-357724534 bringup_rc {'rc': 0}
-357724534 bringup_phase {'phase': 0, 'name': 'IDLE'}
-357725035 bringup_phase {'phase': 1, 'name': 'SAMPLE'}
-357735566 bringup_result {'reject_code': 8, 'ext_quality': {'reject_code': 0, 'max_residual_deg': 0.0, 'accepted': False, 'n_samples': 0, 'det_R': 0.0, 'mean_residual_deg': 0.0, 'drift_from_persisted_deg': 0.0}, 'accepted': False, 'hold_max': 0.0, 'reject_name': 'SAFETY', 'hold_rms': 0.0, 'kp_y': -1.0, 'phase_reached': 1, 'kp_x': -1.0, 'status': 'ERROR', 'n_samples': 0, 'duration_ms': 10639, 'R': [0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, -1.0], 'cam_offset_B': [-0.04, 0.0, -0.02]}
-357735566 assert_calibrated {'ok': False}
-357735566 land {'dur': 2.5}
-357739069 mission_done {'status': 'FAIL'}
-# closed t_ms=357739070 lines=27 errors=0
+# sentai.sim journal opened path=/home/bogdan/work/coralmicro/build-sim/sentai_fs_root/mission_s187_journal.txt truncate=1 t_ms=366467612
+366467612 mission_start {'wbs': 'OP-S10-W21-T4'}
+366467612 setup 'start'
+366467612 setup 'ok'
+366467612 fr_init {'rc': 0}
+366467612 fr_open_frames {'rc': 0}
+366467612 fr_open_events {'rc': 0}
+366467612 fr_open_scalars {'rc': 0}
+366467613 fr_task_start {'rc': 0}
+366467613 extpos_warmup_pre_arm 'start'
+366469474 extpos_warmup_pre_arm 'done'
+366469474 arm 'start'
+366470678 pose_subscribe {'rc': 0, 'tries': 1}
+366471180 tof_warmup_ground 'start'
+366472733 tof_warmup_ground 'done'
+366472733 takeoff {'dur': 2.5, 'z': 0.6}
+366475462 takeoff_done {'z_target': 0.6}
+366475462 climb_seen 'start'
+366475462 climb_tick {'ekf_z': 0.01401812, 't': 0, 'z_pnp': -1.0, 'n': 0}
+366475710 climb_tick {'ekf_z': 0.01403392, 't': 8, 'z_pnp': -1.0, 'n': 0}
+366475958 climb_tick {'ekf_z': 0.5821268, 't': 16, 'z_pnp': -1.0, 'n': 0}
+366476208 climb_tick {'ekf_z': 0.7037467, 't': 24, 'z_pnp': -1.0, 'n': 0}
+366476455 climb_tick {'ekf_z': 0.7735283, 't': 32, 'z_pnp': -1.0, 'n': 0}
+366476703 climb_tick {'ekf_z': 0.8243563, 't': 40, 'z_pnp': -1.0, 'n': 0}
+366476951 climb_tick {'ekf_z': 0.8706758, 't': 48, 'z_pnp': -1.0, 'n': 0}
+366477199 climb_tick {'ekf_z': 0.8849455, 't': 56, 'z_pnp': -1.0, 'n': 0}
+366477447 climb_tick {'ekf_z': 0.8841189, 't': 64, 'z_pnp': -1.0, 'n': 0}
+366477695 climb_tick {'ekf_z': 0.8668506, 't': 72, 'z_pnp': -1.0, 'n': 0}
+366477943 climb_tick {'ekf_z': 0.8369998, 't': 80, 'z_pnp': -1.0, 'n': 0}
+366478191 climb_tick {'ekf_z': 0.7999594, 't': 88, 'z_pnp': -1.0, 'n': 0}
+366478439 climb_tick {'ekf_z': 0.7661483, 't': 96, 'z_pnp': -1.0, 'n': 0}
+366478687 climb_tick {'ekf_z': 0.7230099, 't': 104, 'z_pnp': -1.0, 'n': 0}
+366478935 climb_tick {'ekf_z': 0.6751634, 't': 112, 'z_pnp': -1.0, 'n': 0}
+366479183 climb_tick {'ekf_z': 0.6332719, 't': 120, 'z_pnp': -1.0, 'n': 0}
+366479431 climb_tick {'ekf_z': 0.5994927, 't': 128, 'z_pnp': -1.0, 'n': 0}
+366479679 climb_tick {'ekf_z': 0.5637536, 't': 136, 'z_pnp': -1.0, 'n': 0}
+366479927 climb_tick {'ekf_z': 0.5560157, 't': 144, 'z_pnp': -1.0, 'n': 0}
+366480175 climb_tick {'ekf_z': 0.539291, 't': 152, 'z_pnp': -1.0, 'n': 0}
+366480423 climb_tick {'ekf_z': 0.5317199, 't': 160, 'z_pnp': -1.0, 'n': 0}
+366480671 climb_tick {'ekf_z': 0.5282311, 't': 168, 'z_pnp': -1.0, 'n': 0}
+366480919 climb_tick {'ekf_z': 0.5202775, 't': 176, 'z_pnp': -1.0, 'n': 0}
+366481167 climb_tick {'ekf_z': 0.5065864, 't': 184, 'z_pnp': -1.0, 'n': 0}
+366481415 climb_tick {'ekf_z': 0.4880518, 't': 192, 'z_pnp': -1.0, 'n': 0}
+366481663 climb_tick {'ekf_z': 0.5273342, 't': 200, 'z_pnp': -1.0, 'n': 0}
+366481911 climb_tick {'ekf_z': 0.5276308, 't': 208, 'z_pnp': -1.0, 'n': 0}
+366482159 climb_tick {'ekf_z': 0.4741665, 't': 216, 'z_pnp': -1.0, 'n': 0}
+366482407 climb_tick {'ekf_z': 0.4803236, 't': 224, 'z_pnp': -1.0, 'n': 0}
+366482655 climb_tick {'ekf_z': 0.510453, 't': 232, 'z_pnp': -1.0, 'n': 0}
+366482903 climb_tick {'ekf_z': 0.6400001, 't': 240, 'z_pnp': -1.0, 'n': 0}
+366483151 climb_tick {'ekf_z': 0.6920333, 't': 248, 'z_pnp': -1.0, 'n': 0}
+366483399 climb_tick {'ekf_z': 0.7190959, 't': 256, 'z_pnp': -1.0, 'n': 0}
+366483647 climb_tick {'ekf_z': 0.7368224, 't': 264, 'z_pnp': -1.0, 'n': 0}
+366483709 climb_seen_timeout {'pnp_seen': 0}
+# closed t_ms=366487211 lines=53 errors=0

@@ -1,0 +1,437 @@
+<?xml version="1.0" ?>
+<!--
+  sim/gazebo/sentai_crazysim_world.sdf
+  ====================================
+  Custom Gazebo Harmonic world for SentAI optical-flow + Crazyflie SITL
+  testing.  Based on CrazySim's crazysim_default.sdf, with:
+
+    1. A ground plane painted with a HIGH-CONTRAST CHECKERBOARD texture
+       (alternating 1 m black/white squares).  Optical flow needs visible
+       features under the camera; a uniform ground gives zero flow.
+
+    2. A grid of colored cubes (red/green/blue/yellow) scattered on the
+       ground at varied heights and positions.  Provides corner / edge
+       features that survive any camera angle.
+
+    3. Same physics + lighting as crazysim_default so the SITL drone +
+       crazysim plugin behave identically to the default world.
+
+  Launch (replaces -w crazysim_default with this file):
+
+    bash $CRAZYSIM/tools/.../sitl_singleagent.sh -w sentai_crazysim
+
+  After Phase 4 lands the camera-socket bridge, point sentai_sim's
+  camera input at the Gazebo image topic from the drone's down-cam (added
+  in a follow-up world).
+-->
+<sdf version="1.9">
+  <world name="sentai_whycon_small_dataset">
+    <physics type="ode">
+      <!-- Slow-time experiment 2026-05-11 — REVERTED.  RTF=0.5 broke
+           cf2 EKF: firmware tick rate runs wall-time (1 kHz) while gz
+           publishes sensors in sim_time @ 2× slower, so the EKF predict
+           steps decoupled from observation arrivals.  Result: ekf_z went
+           negative (drone "under ground"), position garbage.  Keep
+           RTF=1, accept the 16 fps camera cap, and live with it. -->
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+      <real_time_update_rate>1000</real_time_update_rate>
+    </physics>
+    <plugin name='gz::sim::systems::Physics' filename='libgz-sim-physics-system.so'/>
+    <plugin name='gz::sim::systems::UserCommands' filename='libgz-sim-user-commands-system.so'/>
+    <plugin name='gz::sim::systems::SceneBroadcaster' filename='libgz-sim-scene-broadcaster-system.so'/>
+    <plugin name='gz::sim::systems::Contact' filename='libgz-sim-contact-system.so'/>
+    <plugin name='gz::sim::systems::Imu' filename='libgz-sim-imu-system.so'/>
+    <plugin name='gz::sim::systems::AirPressure' filename='libgz-sim-air-pressure-system.so'/>
+    <plugin name='gz::sim::systems::Sensors' filename='libgz-sim-sensors-system.so'>
+      <render_engine>ogre2</render_engine>
+    </plugin>
+
+    <!-- ====================================================== -->
+    <!--  Wind disturbance — perturbs X/Y so we can see whether   -->
+    <!--  flow stabilizes the drone (with bridge --send-flow) or  -->
+    <!--  the drone drifts away (no flow source).                 -->
+    <!--  Constant 0.5 m/s in +X world (~5 km/h, mild breeze).    -->
+    <!--  WindEffects plugin applies this to any model with a     -->
+    <!--  <wind> element (Crazyflie model gets one in              -->
+    <!--  model.sdf.jinja so this actually pushes the drone).     -->
+    <!-- ====================================================== -->
+    <plugin filename="gz-sim-wind-effects-system" name="gz::sim::systems::WindEffects">
+      <!-- 2026-05-11: punched up the noise on all three components per
+           user request "vreau mai mult zgomot pe toate cele 3 coordonate".
+           Magnitude noise σ raised 0.05→0.30 m/s (≈ peak gust 1 m/s = stiff
+           breeze), direction noise σ 2°→10° (so gusts swing direction
+           noticeably), vertical noise σ 0.03→0.15 m/s.  Sin oscillation
+           gives a 10s ±30% modulation envelope so the drone sees gusts
+           rather than steady wind.  All from the Gazebo WindEffects
+           plugin — NO Python-side noise injection. -->
+      <!-- 2026-05-11: combined disturbance — wind RE-ENABLED at moderate
+           level + motor asymmetry + IMU noise.  Motor asymmetry alone
+           is absorbed by cf2 controller's I-term (auto-trim of constant
+           bias); wind provides the STOCHASTIC perturbation that cannot
+           be predicted by an integrator.  This is the realistic profile
+           for indoor flight: small constant build bias + random air
+           motion + sensor noise. -->
+      <!-- NO WIND (s127 isolation test 2026-05-13: zero base + zero stochastic
+           to determine if -X drift survives without atmospheric perturbation) -->
+      <horizontal>
+        <magnitude>
+          <time_for_rise>2</time_for_rise>
+          <sin>
+            <amplitude_percent>0.0</amplitude_percent>
+            <period>8</period>
+          </sin>
+          <noise type="gaussian"><mean>0</mean><stddev>0.0</stddev></noise>
+        </magnitude>
+        <direction>
+          <time_for_rise>2</time_for_rise>
+          <sin>
+            <amplitude>0</amplitude>
+            <period>15</period>
+          </sin>
+          <noise type="gaussian"><mean>0</mean><stddev>0.0</stddev></noise>
+        </direction>
+      </horizontal>
+      <vertical>
+        <noise type="gaussian"><mean>0</mean><stddev>0.0</stddev></noise>
+      </vertical>
+    </plugin>
+    <wind>
+      <linear_velocity>0 0 0</linear_velocity>
+    </wind>
+
+    <gravity>0 0 -9.80665</gravity>
+    <magnetic_field>6e-06 2.3e-05 -4.2e-05</magnetic_field>
+    <atmosphere type='adiabatic'/>
+
+    <scene>
+      <grid>false</grid>
+      <!-- 2026-05-10: bright red sky so the PiP camera widget makes it
+           obvious when the drone-attached cam is pointing UP (red) vs
+           DOWN at the ground (checker + colored cubes).  Red doesn't
+           appear in the ground textures so any red in the PiP = sky bleed
+           or wrong camera orientation. -->
+      <background>1.0 0.1 0.1 1</background>
+      <ambient>0.5 0.5 0.5 1</ambient>
+      <background>0.7 0.85 1.0 1</background>
+      <shadows>true</shadows>
+    </scene>
+
+    <!-- ===================================================== -->
+    <!--  GROUND PLANE — checkerboard, 4x4 m, 5 cm squares     -->
+    <!--                                                       -->
+    <!-- Drone hovers at ~1 m, cam FOV ~60° → footprint ~1.2x  -->
+    <!-- 1.2 m on ground.  Squares of 5 cm (0.05 m) give ~24   -->
+    <!-- visible per axis: dense feature texture, no aliasing. -->
+    <!-- World scale 4x4 m so we see "infinite floor" in any   -->
+    <!-- 1-2 m flight envelope.                                -->
+    <!-- ===================================================== -->
+    <!-- 2026-05-17: ground_plane uses a suburbs aerial photo
+         (rugs4less Suburbs 160x200 cm rug, repurposed as a top-down
+         orthographic texture).  Provides realistic outdoor-flight look:
+         houses, roads, lawns visible from the downward camera; has rich
+         features for optical-flow tracking similar to the prior checker
+         but with natural scene variation.  ground_plane_deep below
+         keeps the checker pattern as a far fallback. -->
+    <model name="ground_plane">
+      <static>true</static>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <plane>
+              <normal>0 0 1</normal>
+              <size>4 4</size>
+            </plane>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <plane>
+              <normal>0 0 1</normal>
+              <size>4 4</size>
+            </plane>
+          </geometry>
+          <material>
+            <diffuse>0.9 0.9 0.9 1</diffuse>
+            <specular>0.5 0.5 0.5 1</specular>
+            <pbr>
+              <metal>
+                <albedo_map>materials/textures/suburbs_bg.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+
+    <!-- 2026-05-10: deep checkerboard fallback at z=-10m.
+         Visible only to a downward-pointing camera; provides feature
+         texture even if the drone is positioned right above an empty
+         spot of the primary ground plane.  Larger area + bigger checker
+         tiles so the perspective from 11 m up still has decent contrast. -->
+    <model name="ground_plane_deep">
+      <static>true</static>
+      <pose>0 0 -10 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <plane>
+              <normal>0 0 1</normal>
+              <size>40 40</size>
+            </plane>
+          </geometry>
+          <material>
+            <diffuse>1 1 1 1</diffuse>
+            <pbr>
+              <metal>
+                <albedo_map>materials/textures/checker.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ===================================================== -->
+    <!--  TINY COLORED MARKERS — feature grid for optical flow -->
+    <!--                                                       -->
+    <!-- Drone hovers at ~1 m above origin.  Markers are 5 cm  -->
+    <!-- cubes within ±0.6 m of origin so they stay in-frame   -->
+    <!-- the whole flight.  Tiny (5 cm) so they don't dominate -->
+    <!-- the scene; checkerboard ground does most feature work,-->
+    <!-- markers add color/landmark anchors.                   -->
+    <!-- ===================================================== -->
+    <!-- Iter-8b: removed 6 colored cube landmarks (red/green/blue/
+         yellow/magenta/cyan) that lived here in earlier iterations.
+         At cf2 hover altitude they project as 30 px dark squares on
+         the checkerboard ground and trip the WhyCon flood-fill into
+         spurious detections — every iter-7+ frame had 9-10 detections
+         instead of the expected 6.  Removed to clean up the SDF and
+         get a noise-free Kabsch baseline. -->
+
+    <!-- ArUco calibration markers — 4x4_50 dict.
+         OP-S10-W14 layout (2026-05-18): doubled from the original 6 cm
+         A4 layout so each marker projects ~58 px (was ~29 px) at the
+         autotune hover altitude z=0.9 m — operator-spec ("imaginea
+         RGB e prea mica, markerii nu se vad bine ... hai sa ii facem
+         de 2 ori mai mari").  4 markers, 12x12 cm face, FLAT on the
+         ground (5 mm thick, top at z=0.005).  Layout centered at
+         world origin:
+            id0 at (+0.12, +0.20)      id1 at (-0.12, +0.20)
+            id2 at (-0.12, -0.20)      id3 at (+0.12, -0.20)
+         Total marker spread 24x40 cm (was 12x20 cm).  At z=0.9 m
+         the camera FOV is ~1.20 x 0.90 m (320x240 image, fx=240),
+         so the 40-cm-tall marker grid fits with ~25 cm vertical
+         margin on each side — comfortable for the ±5 cm relay.
+         POSITIONS keep parity with aruco_detector.py
+         KNOWN_POSITIONS_M (updated alongside SDF). -->
+    <!-- OP-S10-W19-T4 / s182 iter-5: 6 Krajník markers in an H
+         layout (canonical helipad pattern; Kim, Yang, Kim 2013
+         IROS — "A monocular vision based landing approach for
+         autonomous UAVs"; ICAO Annex 14 helipad H marking).
+
+         Asymmetric Y (top arm 0.20 m, bottom arm 0.14 m) breaks
+         the X-axis symmetry so yaw 180° is unambiguous WITHOUT
+         needing WhyCode bit-decode.  Y-axis symmetry (left↔right
+         mirror) preserved.
+
+         Layout (origin = takeoff point):
+           NW (-0.16, +0.20)    NE (+0.16, +0.20)
+           W  (-0.16,  0.00)    E  (+0.16,  0.00)    ← cross-bar
+           SW (-0.16, -0.14)    SE (+0.16, -0.14)
+
+         Properties:
+         - Lever arm X = 0.32 m, Y = 0.34 m (balanced for Kabsch)
+         - 3 distinct Y values, 2 distinct X values
+         - All 6 visible at z ≥ 0.5 m (FOV radius 0.30 m at z=0.5,
+           max marker distance 0.255 m).
+         - Drone center clear for fine touchdown — markers form
+           the H letter outline, drone descends into the H gap.
+
+         Marker physical outer diameter ≈ 0.108 m (PNG 24 px margin
+         on 256 px half-frame mapped to 0.12 m box face).  Use
+         sentai.markers.set_marker_size(0.1088). -->
+    <model name="whycon_NW">
+      <static>true</static>
+      <pose>-0.08 +0.08 0.005  0 0 0</pose>
+      <link name="link"><visual name="v">
+        <geometry><box><size>0.06 0.06 0.01</size></box></geometry>
+        <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse>
+          <pbr><metal>
+            <albedo_map>materials/textures/whycon_krajnik.png</albedo_map>
+            <metalness>0</metalness><roughness>1</roughness>
+          </metal></pbr></material>
+      </visual></link>
+    </model>
+    <model name="whycon_NE">
+      <static>true</static>
+      <pose>+0.08 +0.08 0.005  0 0 0</pose>
+      <link name="link"><visual name="v">
+        <geometry><box><size>0.06 0.06 0.01</size></box></geometry>
+        <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse>
+          <pbr><metal>
+            <albedo_map>materials/textures/whycon_krajnik.png</albedo_map>
+            <metalness>0</metalness><roughness>1</roughness>
+          </metal></pbr></material>
+      </visual></link>
+    </model>
+    <model name="whycon_W">
+      <static>true</static>
+      <pose>-0.06 0.00 0.005  0 0 0</pose>
+      <link name="link"><visual name="v">
+        <geometry><box><size>0.06 0.06 0.01</size></box></geometry>
+        <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse>
+          <pbr><metal>
+            <albedo_map>materials/textures/whycon_krajnik.png</albedo_map>
+            <metalness>0</metalness><roughness>1</roughness>
+          </metal></pbr></material>
+      </visual></link>
+    </model>
+    <model name="whycon_E">
+      <static>true</static>
+      <pose>+0.06 0.00 0.005  0 0 0</pose>
+      <!-- iter-11: mid-bars at ±0.12 m = 0.75 × ±0.16 m corner span -->
+      <link name="link"><visual name="v">
+        <geometry><box><size>0.06 0.06 0.01</size></box></geometry>
+        <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse>
+          <pbr><metal>
+            <albedo_map>materials/textures/whycon_krajnik.png</albedo_map>
+            <metalness>0</metalness><roughness>1</roughness>
+          </metal></pbr></material>
+      </visual></link>
+    </model>
+    <model name="whycon_SW">
+      <static>true</static>
+      <pose>-0.08 -0.08 0.005  0 0 0</pose>
+      <link name="link"><visual name="v">
+        <geometry><box><size>0.06 0.06 0.01</size></box></geometry>
+        <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse>
+          <pbr><metal>
+            <albedo_map>materials/textures/whycon_krajnik.png</albedo_map>
+            <metalness>0</metalness><roughness>1</roughness>
+          </metal></pbr></material>
+      </visual></link>
+    </model>
+    <model name="whycon_SE">
+      <static>true</static>
+      <pose>+0.08 -0.08 0.005  0 0 0</pose>
+      <link name="link"><visual name="v">
+        <geometry><box><size>0.06 0.06 0.01</size></box></geometry>
+        <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse>
+          <pbr><metal>
+            <albedo_map>materials/textures/whycon_krajnik.png</albedo_map>
+            <metalness>0</metalness><roughness>1</roughness>
+          </metal></pbr></material>
+      </visual></link>
+    </model>
+
+    <!-- ====================================================== -->
+    <!--  Fixed downward-facing camera at z=1.5m looking down  -->
+    <!--  (proxy for "what the drone sees at 1m hover" since   -->
+    <!--   attaching camera to imported model is fragile in    -->
+    <!--   Gazebo Garden).  Drone hovers at z=1m, so it appears -->
+    <!--   in the cadru when in flight.                         -->
+    <!-- ====================================================== -->
+    <!-- Camera mount conventions (MUST match firmware — see Sim.md §10b
+         and examples/sentai_runtime/paper/flow_body_frame.md):
+           - 640x480, 30 fps                                    (sensor native)
+           - horizontal FOV = 58° = 1.0123 rad                  (lens calibrated)
+           - vertical   FOV = 45°                               (derived from 4:3)
+           - mount yaw 180° (after pitch 90°) -> image LEFT axis aligns with
+             body FORWARD (+x_body), image TOP -> body RIGHT (-y_body),
+             matching cam0 with vflip=1 on hardware.
+         For Phase 4a (camera fixed in world @ z=1.5m) the convention is
+         only used for sign-of-flow validation; once Phase 4b attaches the
+         camera to the drone link, this exact yaw is what makes flow output
+         feed back correctly into the cf2 EKF.  The on-drone offset (-4cm
+         back, -2cm down) is applied at the drone-link mount, not here. -->
+    <!-- 2026-05-10: world-fixed downward_cam DELETED.
+         The downward camera now lives on the drone link (added to
+         CrazySim's model.sdf.jinja under base_link), so what the flow
+         algorithm sees actually changes when the drone moves.  The
+         fixed camera was a temporary Phase 4a proxy that produced
+         dx/dy=0 at all times because the scene below it was static. -->
+    <!-- (no camera model here — see model.sdf.jinja sensor "downward_cam") -->
+
+    <!-- ====================== -->
+    <!--  4 walls around the arena (3 m × 3 m × 1.5 m tall)        -->
+    <!--  Reason: when the drone tilts during X/Y drift the camera   -->
+    <!--  catches the wall edges, which gives phase-correlation a    -->
+    <!--  reliable feature even at low altitude.  Walls are coloured -->
+    <!--  uniquely (north=blue, south=yellow, east=green, west=cyan) -->
+    <!--  so the operator can tell orientation from the PiP.         -->
+    <!-- ====================== -->
+    <model name="wall_north">
+      <static>true</static><pose>1.5 0 0.75 0 0 0</pose>
+      <link name="link"><visual name="v"><geometry><box><size>0.05 3.0 1.5</size></box></geometry>
+        <material><ambient>0 0 0.6 1</ambient><diffuse>0.1 0.1 1 1</diffuse></material></visual>
+        <collision name="c"><geometry><box><size>0.05 3.0 1.5</size></box></geometry></collision></link>
+    </model>
+    <model name="wall_south">
+      <static>true</static><pose>-1.5 0 0.75 0 0 0</pose>
+      <link name="link"><visual name="v"><geometry><box><size>0.05 3.0 1.5</size></box></geometry>
+        <material><ambient>0.6 0.6 0 1</ambient><diffuse>1 1 0.1 1</diffuse></material></visual>
+        <collision name="c"><geometry><box><size>0.05 3.0 1.5</size></box></geometry></collision></link>
+    </model>
+    <model name="wall_east">
+      <static>true</static><pose>0 1.5 0.75 0 0 0</pose>
+      <link name="link"><visual name="v"><geometry><box><size>3.0 0.05 1.5</size></box></geometry>
+        <material><ambient>0 0.6 0 1</ambient><diffuse>0.1 1 0.1 1</diffuse></material></visual>
+        <collision name="c"><geometry><box><size>3.0 0.05 1.5</size></box></geometry></collision></link>
+    </model>
+    <model name="wall_west">
+      <static>true</static><pose>0 -1.5 0.75 0 0 0</pose>
+      <link name="link"><visual name="v"><geometry><box><size>3.0 0.05 1.5</size></box></geometry>
+        <material><ambient>0 0.6 0.6 1</ambient><diffuse>0.1 1 1 1</diffuse></material></visual>
+        <collision name="c"><geometry><box><size>3.0 0.05 1.5</size></box></geometry></collision></link>
+    </model>
+
+    <!-- ====================== -->
+    <!--  Sun + sky lights      -->
+    <!-- ====================== -->
+    <light type="directional" name="sun">
+      <cast_shadows>true</cast_shadows>
+      <pose>0 0 10 0 0 0</pose>
+      <diffuse>0.95 0.95 0.95 1</diffuse>
+      <specular>0.3 0.3 0.3 1</specular>
+      <attenuation>
+        <range>1000</range>
+        <constant>0.9</constant>
+        <linear>0.01</linear>
+        <quadratic>0.001</quadratic>
+      </attenuation>
+      <direction>-0.3 0.2 -0.9</direction>
+    </light>
+  
+
+    <!-- TD-S10-B1 camera-only dataset capture model. -->
+    <model name="dataset_camera">
+      <static>false</static>
+      <pose>0 0 0.5 0 0 0</pose>
+      <link name="link">
+        <gravity>false</gravity>
+        <kinematic>true</kinematic>
+        <sensor name="dataset_cam" type="camera">
+          <always_on>true</always_on>
+          <update_rate>30</update_rate>
+          <pose>0 0 0 0 1.5707963 3.1415927</pose>
+          <camera>
+            <horizontal_fov>1.013313278</horizontal_fov>
+            <image>
+              <width>320</width>
+              <height>240</height>
+              <format>R8G8B8</format>
+            </image>
+            <clip>
+              <near>0.01</near>
+              <far>20</far>
+            </clip>
+          </camera>
+          <topic>/dataset_cam/image</topic>
+        </sensor>
+      </link>
+    </model>
+
+  </world>
+</sdf>

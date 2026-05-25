@@ -1,0 +1,3 @@
+backend,matched_markers_with_geometry,radius_error_mean_px,radius_error_median_px,radius_error_p95_px,axis_a_error_mean_px,axis_a_error_median_px,axis_a_error_p95_px,axis_b_error_mean_px,axis_b_error_median_px,axis_b_error_p95_px,axis_ratio_mean,axis_ratio_median,axis_ratio_p95,orientation_angle_mean_deg,orientation_angle_median_deg,orientation_angle_p95_deg,orientation_error_available
+opencv,139,0.12044898426835204,0.04493022011672121,0.8098596695389726,3.0143766109692796,2.6316162072970926,5.59927242796595,1.9568008192364337,1.6088346335977057,4.822725563344933,1.1028211545910258,1.0311553323998284,1.4884910121672328,-6.980786402501301,-6.967877324059657,89.69365202024109,False
+sentai_sim,0,,,,,,,,,,,,,,,,False

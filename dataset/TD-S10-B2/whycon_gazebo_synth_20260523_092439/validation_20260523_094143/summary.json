@@ -1,0 +1,111 @@
+{
+  "source_dataset": "/home/bogdan/work/coralmicro/dataset/TD-S10-B1/whycon_gazebo_synth_20260523_092439",
+  "dataset_id": "whycon_gazebo_synth_20260523_092439",
+  "created_utc": "2026-05-23T06:41:43+00:00",
+  "validator": "validate_whycon_synthetic_dataset.py",
+  "opencv": {
+    "available": true,
+    "version": "4.13.0",
+    "params": {
+      "threshold_values": [
+        100,
+        130,
+        150
+      ],
+      "threshold_type": "THRESH_BINARY_INV",
+      "contour_retrieval": "RETR_TREE",
+      "min_outer_radius_px": 4.0,
+      "max_outer_radius_px": 36.0,
+      "min_outer_area_px2": 30.0,
+      "min_outer_circularity": 0.55,
+      "max_center_offset_px": 4.0,
+      "max_center_offset_radius_frac": 0.25,
+      "min_dot_outer_radius_ratio": 0.12,
+      "max_dot_outer_radius_ratio": 0.45
+    },
+    "frame_count": 30,
+    "expected_markers": 148,
+    "matched_markers": 119,
+    "marker_recall": 0.8040540540540541,
+    "false_positives_total": 0,
+    "false_positives_per_frame": 0.0,
+    "complete_frame_success_rate": 0.5,
+    "centroid_error_px": {
+      "mean": 1.1587329849108388,
+      "median": 1.0628123603032265,
+      "p95": 2.461791578262498,
+      "max": 2.92175425199717
+    },
+    "by_z": {
+      "0.30": {
+        "frames": 8,
+        "expected": 46,
+        "matched": 42
+      },
+      "0.50": {
+        "frames": 8,
+        "expected": 34,
+        "matched": 28
+      },
+      "0.75": {
+        "frames": 7,
+        "expected": 33,
+        "matched": 27
+      },
+      "1.00": {
+        "frames": 7,
+        "expected": 35,
+        "matched": 22
+      }
+    },
+    "by_expected_count": {
+      "6": {
+        "frames": 10,
+        "expected": 60,
+        "matched": 53
+      },
+      "4": {
+        "frames": 12,
+        "expected": 48,
+        "matched": 38
+      },
+      "5": {
+        "frames": 8,
+        "expected": 40,
+        "matched": 28
+      }
+    }
+  },
+  "sentai_sim": {
+    "available": false,
+    "reason": "B2 phase 1 runs OpenCV baseline only"
+  },
+  "dataset_config": {
+    "scene_id": "sentai_whycon_small_dataset",
+    "image": {
+      "width": 320,
+      "height": 240,
+      "format": "P5_PGM"
+    },
+    "camera": {
+      "fx": 288.3,
+      "fy": 288.3,
+      "cx": 160.0,
+      "cy": 120.0,
+      "horizontal_fov_rad": 1.013313278321082,
+      "zero_pose_convention": "image+x->world+Y, image+y->world+X, optical+z->world-Z"
+    },
+    "visibility_policy": {
+      "regular_min_expected_markers": 4,
+      "stress_min_expected_markers": 3,
+      "edge_cases_with_3_to_5_markers": true,
+      "regular_dataset_allows_3_marker_frames": false,
+      "stress_dataset_allows_3_marker_frames": true,
+      "occlusion_modeled": false,
+      "occlusion_note": "Visibility is geometric from projection and image bounds; Gazebo occlusion is not modeled in manifest classification."
+    }
+  },
+  "output_dir": "/home/bogdan/work/coralmicro/dataset/TD-S10-B2/whycon_gazebo_synth_20260523_092439/validation_20260523_094143",
+  "overlay_count": 15,
+  "detected_overlay_count": 30
+}

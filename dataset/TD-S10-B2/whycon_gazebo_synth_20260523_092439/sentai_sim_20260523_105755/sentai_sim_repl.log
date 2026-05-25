@@ -1,0 +1,46 @@
+[sim] sentai_sim build #549 (2026-05-23 10:57:44)
+[sim] FreeRTOS POSIX port: tick=1000 Hz, heap=4194304 bytes
+[sim] MicroPython heap: 524288 bytes
+[sim] FS root: /home/bogdan/work/coralmicro/build-sim/sentai_fs_root
+[sim] sentai.fr auto-start: dir=/home/bogdan/work/coralmicro/build-sim/sentai_fs_root/fr init=0 events=0 scalars=0 task=0
+0
+
+MicroPython on SentAI SIM (FreeRTOS POSIX port + MicroPython embed)
+Type expressions, end with Enter.  Ctrl-D or 'exit' to quit.
+Try: sentai.version(), sentai.fs.write(...), help()
+
+>>> [sentai_fr] worker START
+[whycon_pnp] s_fx=288.30 s_fy=288.30 diam=0.0544 axis_a=31.3954 axis_b=30.9280
+[whycon_pnp] s_fx=288.30 s_fy=288.30 diam=0.0544 axis_a=31.5345 axis_b=31.4025
+[whycon_pnp] s_fx=288.30 s_fy=288.30 diam=0.0544 axis_a=32.3203 axis_b=31.3103
+[whycon_pnp] s_fx=288.30 s_fy=288.30 diam=0.0544 axis_a=32.7945 axis_b=31.4753
+[whycon_pnp] s_fx=288.30 s_fy=288.30 diam=0.0544 axis_a=32.2703 axis_b=31.2617
+[whycon_filter v3] n_comp=36 accepted=6  rejects: nested=0 border=7 min_area=15 max_area=0 ar=2 trace=0 circ=0 axis=2 w3=4 min_a=40 max_a=4000 max_ar=2.00 min_circ=0.40 max_axis=2.00
+[whycon_filter v3] n_comp=96 accepted=3  rejects: nested=0 border=17 min_area=68 max_area=0 ar=0 trace=0 circ=2 axis=3 w3=3 min_a=40 max_a=4000 max_ar=2.00 min_circ=0.40 max_axis=2.00
+[whycon_filter v3] n_comp=54 accepted=0  rejects: nested=0 border=27 min_area=14 max_area=0 ar=2 trace=0 circ=3 axis=5 w3=3 min_a=40 max_a=4000 max_ar=2.00 min_circ=0.40 max_axis=2.00
+[whycon_filter v3] n_comp=44 accepted=1  rejects: nested=0 border=26 min_area=13 max_area=0 ar=0 trace=0 circ=3 axis=0 w3=1 min_a=40 max_a=4000 max_ar=2.00 min_circ=0.40 max_axis=2.00
+[whycon_filter v3] n_comp=62 accepted=4  rejects: nested=0 border=18 min_area=32 max_area=0 ar=2 trace=0 circ=0 axis=2 w3=4 min_a=40 max_a=4000 max_ar=2.00 min_circ=0.40 max_axis=2.00
+[whycon_filter v3] n_comp=96 accepted=2  rejects: nested=0 border=21 min_area=65 max_area=0 ar=0 trace=0 circ=2 axis=1 w3=5 min_a=40 max_a=4000 max_ar=2.00 min_circ=0.40 max_axis=2.00
+[whycon_filter v3] n_comp=47 accepted=4  rejects: nested=0 border=11 min_area=23 max_area=0 ar=0 trace=0 circ=3 axis=2 w3=4 min_a=40 max_a=4000 max_ar=2.00 min_circ=0.40 max_axis=2.00
+[whycon_filter v3] n_comp=96 accepted=3  rejects: nested=0 border=20 min_area=67 max_area=0 ar=3 trace=0 circ=0 axis=1 w3=2 min_a=40 max_a=4000 max_ar=2.00 min_circ=0.40 max_axis=2.00
+[whycon_filter v3] n_comp=59 accepted=2  rejects: nested=0 border=18 min_area=16 max_area=0 ar=0 trace=0 circ=3 axis=9 w3=11 min_a=40 max_a=4000 max_ar=2.00 min_circ=0.40 max_axis=2.00
+[whycon_filter v3] n_comp=43 accepted=1  rejects: nested=0 border=25 min_area=13 max_area=0 ar=0 trace=0 circ=3 axis=1 w3=0 min_a=40 max_a=4000 max_ar=2.00 min_circ=0.40 max_axis=2.00
+[whycon_filter v3] n_comp=67 accepted=3  rejects: nested=0 border=18 min_area=37 max_area=0 ar=0 trace=0 circ=3 axis=0 w3=6 min_a=40 max_a=4000 max_ar=2.00 min_circ=0.40 max_axis=2.00
+[whycon_filter v3] n_comp=96 accepted=1  rejects: nested=0 border=20 min_area=63 max_area=0 ar=0 trace=0 circ=3 axis=2 w3=7 min_a=40 max_a=4000 max_ar=2.00 min_circ=0.40 max_axis=2.00
+[whycon_filter v3] n_comp=60 accepted=1  rejects: nested=0 border=27 min_area=19 max_area=0 ar=0 trace=0 circ=2 axis=6 w3=5 min_a=40 max_a=4000 max_ar=2.00 min_circ=0.40 max_axis=2.00
+[whycon_filter v3] n_comp=46 accepted=6  rejects: nested=0 border=9 min_area=22 max_area=0 ar=3 trace=0 circ=0 axis=1 w3=5 min_a=40 max_a=4000 max_ar=2.00 min_circ=0.40 max_axis=2.00
+[whycon_filter v3] n_comp=96 accepted=2  rejects: nested=0 border=18 min_area=71 max_area=0 ar=1 trace=0 circ=1 axis=2 w3=1 min_a=40 max_a=4000 max_ar=2.00 min_circ=0.40 max_axis=2.00
+[whycon_filter v3] n_comp=57 accepted=2  rejects: nested=0 border=26 min_area=17 max_area=0 ar=1 trace=0 circ=3 axis=4 w3=4 min_a=40 max_a=4000 max_ar=2.00 min_circ=0.40 max_axis=2.00
+[whycon_filter v3] n_comp=67 accepted=1  rejects: nested=0 border=29 min_area=27 max_area=0 ar=1 trace=0 circ=5 axis=0 w3=4 min_a=40 max_a=4000 max_ar=2.00 min_circ=0.40 max_axis=2.00
+[whycon_filter v3] n_comp=46 accepted=4  rejects: nested=0 border=15 min_area=20 max_area=0 ar=1 trace=0 circ=0 axis=2 w3=4 min_a=40 max_a=4000 max_ar=2.00 min_circ=0.40 max_axis=2.00
+[whycon_filter v3] n_comp=96 accepted=4  rejects: nested=0 border=14 min_area=73 max_area=0 ar=2 trace=0 circ=1 axis=1 w3=1 min_a=40 max_a=4000 max_ar=2.00 min_circ=0.40 max_axis=2.00
+[whycon_filter v3] n_comp=70 accepted=1  rejects: nested=0 border=33 min_area=25 max_area=0 ar=0 trace=0 circ=5 axis=5 w3=1 min_a=40 max_a=4000 max_ar=2.00 min_circ=0.40 max_axis=2.00
+[whycon_filter v3] n_comp=51 accepted=4  rejects: nested=0 border=18 min_area=21 max_area=0 ar=0 trace=0 circ=2 axis=2 w3=4 min_a=40 max_a=4000 max_ar=2.00 min_circ=0.40 max_axis=2.00
+[whycon_filter v3] n_comp=56 accepted=3  rejects: nested=0 border=25 min_area=14 max_area=0 ar=1 trace=0 circ=2 axis=6 w3=5 min_a=40 max_a=4000 max_ar=2.00 min_circ=0.40 max_axis=2.00
+[whycon_filter v3] n_comp=61 accepted=1  rejects: nested=0 border=27 min_area=21 max_area=0 ar=1 trace=0 circ=7 axis=0 w3=4 min_a=40 max_a=4000 max_ar=2.00 min_circ=0.40 max_axis=2.00
+[whycon_filter v3] n_comp=42 accepted=3  rejects: nested=0 border=15 min_area=18 max_area=0 ar=0 trace=0 circ=1 axis=2 w3=3 min_a=40 max_a=4000 max_ar=2.00 min_circ=0.40 max_axis=2.00
+camera_bridge: listening on /tmp/sentai_cam.sock (waiting for Gazebo bridge)
+TD-S10-B2_SENTAI_SIM_DONE 30 62
+>>> 
+[sim] EOF on stdin, exiting
+[sim] REPL task done, terminating process

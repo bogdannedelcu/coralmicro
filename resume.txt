@@ -1,0 +1,4 @@
+Resume this session with:
+claude --resume 6abc7162-91c9-4f89-bfa0-2542359ba6c2
+bogdan@bogdan-tp:~/work/coralmicro$ 
+

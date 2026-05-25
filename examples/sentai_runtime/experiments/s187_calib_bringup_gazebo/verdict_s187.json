@@ -1,0 +1,25 @@
+{
+  "overall": "FAIL",
+  "R_drift_deg": null,
+  "cam_offset_inf_err_m": null,
+  "kp_x": 0.0,
+  "kp_y": 0.0,
+  "hold_rms": 0.0,
+  "hold_max": 0.0,
+  "summary": {
+    "reject_code": -1,
+    "ext_quality": null,
+    "accepted": false,
+    "hold_max": 0.0,
+    "reject_name": "",
+    "hold_rms": 0.0,
+    "kp_y": 0.0,
+    "phase_reached": -1,
+    "kp_x": 0.0,
+    "status": "ASCENT_FAIL",
+    "n_samples": 0,
+    "duration_ms": 0,
+    "R": null,
+    "cam_offset_B": null
+  }
+}

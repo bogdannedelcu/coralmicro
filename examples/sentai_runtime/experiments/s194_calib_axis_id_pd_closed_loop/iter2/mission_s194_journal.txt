@@ -1,0 +1,137 @@
+# sentai.sim journal opened path=/home/bogdan/work/coralmicro/build-sim/sentai_fs_root/mission_s194_journal.txt truncate=1 t_ms=479866620
+479866620 mission_start {'experiment': 's194', 'wbs': 'OP-S10-W21-T15'}
+479866620 phase1_setup 'start'
+479866620 set_marker_world {'rc': 0, 'n': 7}
+479866620 fr_open_frames {'rc': 0, 'path': '/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s193_calib_full_postT10/iter2/fr_current/frames'}
+479866620 arm 'start'
+479868561 pose_subscribe {'rc': 0, 'tries': 2}
+479869070 phase1_setup 'done'
+479869070 phase2_zero_unlock {'dur_s': 1.5}
+479870624 phase2_zero_unlock 'done'
+479870625 phase3_thrust_ramp {'T_MAX': 37000, 'T_BASE': 30000, 'MAX_RAMP_S': 12.0, 'N_STABLE': 2, 'RAMP_S': 6.0}
+479870640 ramp_tick {'t': 0, 'ekf_z': 0.0, 'thrust': 30000, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 0}
+479870976 ramp_tick {'t': 8, 'ekf_z': 0.0, 'thrust': 30309, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 0}
+479871318 ramp_tick {'t': 16, 'ekf_z': -1.449481e-05, 'thrust': 30618, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 0}
+479871645 ramp_tick {'t': 24, 'ekf_z': -0.0004782742, 'thrust': 30928, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 0}
+479871982 ramp_tick {'t': 32, 'ekf_z': -0.001150393, 'thrust': 31237, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 0}
+479872326 ramp_tick {'t': 40, 'ekf_z': -0.002217925, 'thrust': 31546, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 0}
+479872675 ramp_tick {'t': 48, 'ekf_z': -0.004132121, 'thrust': 31856, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 0}
+479873024 ramp_tick {'t': 56, 'ekf_z': -0.006603416, 'thrust': 32165, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 0}
+479873357 ramp_tick {'t': 64, 'ekf_z': -0.009519853, 'thrust': 32475, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 0}
+479873694 ramp_tick {'t': 72, 'ekf_z': -0.01286133, 'thrust': 32784, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 0}
+479874033 ramp_tick {'t': 80, 'ekf_z': -0.01547086, 'thrust': 33093, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 0}
+479874375 ramp_tick {'t': 88, 'ekf_z': -0.01207234, 'thrust': 33403, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 0}
+479874709 ramp_tick {'t': 96, 'ekf_z': 0.004510116, 'thrust': 33712, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 0}
+479875043 ramp_tick {'t': 104, 'ekf_z': 0.04642905, 'thrust': 34022, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 0}
+479875412 ramp_tick {'t': 112, 'ekf_z': 0.1029457, 'thrust': 34331, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 0}
+479875768 ramp_tick {'t': 120, 'ekf_z': 0.1860928, 'thrust': 34640, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 0}
+479876152 ramp_tick {'t': 128, 'ekf_z': 0.3144123, 'thrust': 34950, 'pnp_xyz': (-1.0, -1.0, -1.0), 'n': 4}
+479876251 ramp_handoff {'t': 130, 'ekf_z': 0.5333369, 'thrust': 35027, 'stable_streak': 2, 'pnp_xyz': (-0.051405, 0.04082303, 0.2469242)}
+479876251 phase3b_pd_hold {'T_HOVER': 36000, 'z_target': 0.2469242, 'Kp': 10000.0, 'Kd': 8000.0}
+479876263 pd_tick {'n': 4, 'thrust': 36000, 'ekf_z': 0.5333369, 'stable': 0, 'vz_raw': 0.0, 'err_z': 0.0, 't': 0, 'z_now': 0.2469242, 'vz_filt': 0.0}
+479876412 pd_tick {'n': 4, 'thrust': 33819, 'ekf_z': 0.5753267, 'stable': 0, 'vz_raw': 0.0, 'err_z': -0.03934471, 't': 3, 'z_now': 0.2862689, 'vz_filt': 0.2235495}
+479876570 pd_tick {'n': 5, 'thrust': 31425, 'ekf_z': 0.6578976, 'stable': 0, 'vz_raw': 0.4639933, 'err_z': -0.09696751, 't': 6, 'z_now': 0.3438917, 'vz_filt': 0.4507118}
+479876727 pd_tick {'n': 7, 'thrust': 31992, 'ekf_z': 0.7290699, 'stable': 0, 'vz_raw': 0.0, 'err_z': -0.1243317, 't': 9, 'z_now': 0.3712559, 'vz_filt': 0.3456226}
+479876887 pd_tick {'n': 7, 'thrust': 30344, 'ekf_z': 0.7699738, 'stable': 0, 'vz_raw': 0.3443134, 'err_z': -0.1881014, 't': 12, 'z_now': 0.4350256, 'vz_filt': 0.4719878}
+479877040 pd_tick {'n': 7, 'thrust': 32097, 'ekf_z': 0.8185985, 'stable': 0, 'vz_raw': 0.0, 'err_z': -0.1978434, 't': 15, 'z_now': 0.4447676, 'vz_filt': 0.2406338}
+479877209 pd_tick {'n': 7, 'thrust': 31178, 'ekf_z': 0.848012, 'stable': 0, 'vz_raw': 0.3058098, 'err_z': -0.2378656, 't': 18, 'z_now': 0.4847898, 'vz_filt': 0.3055146}
+479877365 pd_tick {'n': 7, 'thrust': 31913, 'ekf_z': 0.8606964, 'stable': 0, 'vz_raw': 0.09621905, 'err_z': -0.2492211, 't': 21, 'z_now': 0.4961453, 'vz_filt': 0.1994225}
+479877526 pd_tick {'n': 7, 'thrust': 32427, 'ekf_z': 0.8714407, 'stable': 0, 'vz_raw': 0.03868522, 'err_z': -0.2570999, 't': 24, 'z_now': 0.5040241, 'vz_filt': 0.1253226}
+479877678 pd_tick {'n': 7, 'thrust': 32687, 'ekf_z': 0.8764074, 'stable': 0, 'vz_raw': 0.1371069, 'err_z': -0.2616245, 't': 27, 'z_now': 0.5085487, 'vz_filt': 0.08714723}
+479877841 pd_tick {'n': 7, 'thrust': 33045, 'ekf_z': 0.8797983, 'stable': 0, 'vz_raw': 0.006961101, 'err_z': -0.2624987, 't': 30, 'z_now': 0.509423, 'vz_filt': 0.04125223}
+479877994 pd_tick {'n': 7, 'thrust': 33026, 'ekf_z': 0.8820096, 'stable': 0, 'vz_raw': 0.07239074, 'err_z': -0.2658334, 't': 33, 'z_now': 0.5127577, 'vz_filt': 0.0395314}
+479878161 pd_tick {'n': 7, 'thrust': 33155, 'ekf_z': 0.887286, 'stable': 3, 'vz_raw': 0.0, 'err_z': -0.2671077, 't': 36, 'z_now': 0.5140319, 'vz_filt': 0.0217592}
+479878314 pd_tick {'n': 7, 'thrust': 33170, 'ekf_z': 0.8940456, 'stable': 0, 'vz_raw': 0.0, 'err_z': -0.2690624, 't': 39, 'z_now': 0.5159866, 'vz_filt': 0.01750924}
+479878474 pd_tick {'n': 7, 'thrust': 32911, 'ekf_z': 0.9021503, 'stable': 2, 'vz_raw': 0.0, 'err_z': -0.2764289, 't': 42, 'z_now': 0.5233531, 'vz_filt': 0.04059183}
+479878646 pd_tick {'n': 7, 'thrust': 32597, 'ekf_z': 0.9103747, 'stable': 0, 'vz_raw': 0.1629645, 'err_z': -0.2845825, 't': 45, 'z_now': 0.5315067, 'vz_filt': 0.06969445}
+479878807 pd_tick {'n': 7, 'thrust': 32563, 'ekf_z': 0.9188652, 'stable': 3, 'vz_raw': 0.0541156, 'err_z': -0.291149, 't': 48, 'z_now': 0.5380733, 'vz_filt': 0.06579327}
+479878807 phase3b_pd_hold {'final_vz_filt': 0.06579327, 'stable': True, 'final_xyz': (-0.03848984, 0.002894422, 0.5380733), 'z_target': 0.2469242, 'final_thrust': 32563}
+479878807 phase4_extpos_warmup {'max_s': 0.3, 'vz_stable_tol': 0.1, 'start_thrust': 32563, 'ticks_req': 3, 'mode': 'smart_convergence', 'z_target': 0.5380733}
+479878852 warmup_tick {'t': 0, 'ekf_xyz': (-0.1410844, 0.1003958, 0.9188652), 'streak': 0, 'pnp_xyz': (-0.03849356, 0.003846371, 0.5395256), 'n': 7}
+479879462 warmup_tick {'t': 8, 'ekf_xyz': (-0.1473255, 0.1085723, 0.5437132), 'streak': 0, 'pnp_xyz': (0.04422323, 0.01858756, 0.6040401), 'n': 7}
+479879495 phase4_extpos_warmup {'final_streak': 0, 'timed_out': True, 'max_s': 0.3, 'last_xyz': (0.04422323, 0.01858756, 0.6040401)}
+479879496 phase4_5_axis_id_pd {'kp_att': 6.0, 'park_timeout_s': 4.0, 'level_settle_s': 0.15, 'capture_dur_s': 0.4, 'explore_dur_s': 0.12, 'explore_deg': 2.0, 'disp_m': 0.03, 'att_max_deg': 3.0, 'kd_att': 18.0, 'park_vel_tol': 0.04, 'park_stable_ticks': 5, 'park_tol_m': 0.01}
+479879496 z_stability_gate {'req_ticks': 10, 'timeout_s': 4.0, 'z_target': 0.5380733, 'tol_m': 0.04, 'vel_tol': 0.03}
+479885965 z_stability_gate {'vz_filt': 0.05331423, 'last_xyz': (0.007061789, -0.0443146, 0.865452), 'timeout': True}
+479885965 axis_id_pitch 'FAIL_z_not_stable'
+479885965 phase5_handoff {'target_z': 0.78, 'last_xyz': (0.04422323, 0.01858756, 0.6040401)}
+479885965 takeoff_engage {'height': 0.78, 'dur': 0.8}
+479885980 relax_priority 'sent'
+479885997 goto_tick {'pnp_xyz': (-0.00567782, -0.05315839, 0.8679989), 't': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'n': 7}
+479886421 goto_tick {'pnp_xyz': (0.01433862, -0.03925516, 0.8650749), 't': 8, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'n': 7}
+479886861 goto_tick {'pnp_xyz': (0.07970428, 0.1673904, 0.786227), 't': 16, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'n': 7}
+479887211 goto_tick {'pnp_xyz': (-1.0, -1.0, -1.0), 't': 24, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'n': 0}
+479887464 phase5_handoff 'done'
+479887465 safety_enable {'rc': 0}
+479887465 safety_task_start {'rc': 0}
+479887465 bringup_start {'sweep_radius': 0.025, 'dur_hold': 10.0, 'settle_s': 2.0, 'z_hold': 0.78, 'vmax': 0.06, 'dur_relay': 30.0}
+479887465 bringup_rc {'rc': 0}
+479887465 bringup_phase {'phase': 0, 'name': 'IDLE'}
+479887512 bringup_phase {'phase': 1, 'name': 'SAMPLE'}
+479887604 bringup_tick {'safety_aborted': False, 't_ms': 99, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479887731 bringup_tick {'safety_aborted': False, 't_ms': 198, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479887860 bringup_tick {'safety_aborted': False, 't_ms': 297, 'n_pnp': 1, 'pnp_xyz': (-1, -1, -1), 'n_cache': 1, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479887976 bringup_tick {'safety_aborted': False, 't_ms': 396, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479888089 bringup_tick {'safety_aborted': False, 't_ms': 495, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479888205 bringup_tick {'safety_aborted': False, 't_ms': 594, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479888316 bringup_tick {'safety_aborted': False, 't_ms': 693, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479888428 bringup_tick {'safety_aborted': False, 't_ms': 792, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479888541 bringup_tick {'safety_aborted': False, 't_ms': 891, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479888653 bringup_tick {'safety_aborted': False, 't_ms': 990, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479888766 bringup_tick {'safety_aborted': False, 't_ms': 1089, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479888877 bringup_tick {'safety_aborted': False, 't_ms': 1188, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479888992 bringup_tick {'safety_aborted': False, 't_ms': 1287, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479889103 bringup_tick {'safety_aborted': False, 't_ms': 1386, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479889214 bringup_tick {'safety_aborted': False, 't_ms': 1485, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479889328 bringup_tick {'safety_aborted': False, 't_ms': 1584, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479889443 bringup_tick {'safety_aborted': False, 't_ms': 1683, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479889558 bringup_tick {'safety_aborted': False, 't_ms': 1782, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479889675 bringup_tick {'safety_aborted': False, 't_ms': 1881, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479889790 bringup_tick {'safety_aborted': False, 't_ms': 1980, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479889901 bringup_tick {'safety_aborted': False, 't_ms': 2079, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479890013 bringup_tick {'safety_aborted': False, 't_ms': 2178, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479890130 bringup_tick {'safety_aborted': False, 't_ms': 2277, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479890249 bringup_tick {'safety_aborted': False, 't_ms': 2376, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479890363 bringup_tick {'safety_aborted': False, 't_ms': 2475, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479890479 bringup_tick {'safety_aborted': False, 't_ms': 2574, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479890591 bringup_tick {'safety_aborted': False, 't_ms': 2673, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479890703 bringup_tick {'safety_aborted': False, 't_ms': 2772, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479890816 bringup_tick {'safety_aborted': False, 't_ms': 2871, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479890935 bringup_tick {'safety_aborted': False, 't_ms': 2970, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479891047 bringup_tick {'safety_aborted': False, 't_ms': 3069, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479891163 bringup_tick {'safety_aborted': False, 't_ms': 3168, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479891277 bringup_tick {'safety_aborted': False, 't_ms': 3267, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479891388 bringup_tick {'safety_aborted': False, 't_ms': 3366, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479891504 bringup_tick {'safety_aborted': True, 't_ms': 3465, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479891618 bringup_tick {'safety_aborted': True, 't_ms': 3564, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479891732 bringup_tick {'safety_aborted': True, 't_ms': 3663, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479891845 bringup_tick {'safety_aborted': True, 't_ms': 3762, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479891959 bringup_tick {'safety_aborted': True, 't_ms': 3861, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479892070 bringup_tick {'safety_aborted': True, 't_ms': 3960, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479892181 bringup_tick {'safety_aborted': True, 't_ms': 4059, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479892294 bringup_tick {'safety_aborted': True, 't_ms': 4158, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479892405 bringup_tick {'safety_aborted': True, 't_ms': 4257, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479892521 bringup_tick {'safety_aborted': True, 't_ms': 4356, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479892632 bringup_tick {'safety_aborted': True, 't_ms': 4455, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479892745 bringup_tick {'safety_aborted': True, 't_ms': 4554, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479892856 bringup_tick {'safety_aborted': True, 't_ms': 4653, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479892964 bringup_tick {'safety_aborted': True, 't_ms': 4752, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479893079 bringup_tick {'safety_aborted': True, 't_ms': 4851, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479893193 bringup_tick {'safety_aborted': True, 't_ms': 4950, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479893305 bringup_tick {'safety_aborted': True, 't_ms': 5049, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479893413 bringup_tick {'safety_aborted': True, 't_ms': 5148, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479893525 bringup_tick {'safety_aborted': True, 't_ms': 5247, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479893636 bringup_tick {'safety_aborted': True, 't_ms': 5346, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479893747 bringup_tick {'safety_aborted': True, 't_ms': 5445, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479893858 bringup_tick {'safety_aborted': True, 't_ms': 5544, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479893972 bringup_tick {'safety_aborted': True, 't_ms': 5643, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479894084 bringup_tick {'safety_aborted': True, 't_ms': 5742, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479894196 bringup_tick {'safety_aborted': True, 't_ms': 5841, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479894307 bringup_tick {'safety_aborted': True, 't_ms': 5940, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479894420 bringup_tick {'safety_aborted': True, 't_ms': 6039, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479894532 bringup_tick {'safety_aborted': True, 't_ms': 6138, 'n_pnp': 0, 'pnp_xyz': (-1, -1, -1), 'n_cache': 0, 'ekf_xyz': (-0.1576974, 0.1037508, 0.8630734), 'phase': 1}
+479894640 bringup_result {'n_samples': 0, 'hold_rms': 0.0, 'assert_calibrated': False, 'status': 'ERROR', 'reject_name': 'SAFETY', 'handoff_xyz': (-0.051405, 0.04082303, 0.2469242), 'kp_y': -1.0, 'kp_x': -1.0, 'R': [0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, -1.0], 'phase_reached': 1, 'duration_ms': 7113, 'axis_id_ok': False, 'reject_code': 8, 'handoff_thrust': 35027, 'accepted': False, 'cam_offset_B': [-0.04, 0.0, -0.02], 'ext_quality': {'reject_code': 0, 'max_residual_deg': 0.0, 'accepted': False, 'n_samples': 0, 'det_R': 0.0, 'mean_residual_deg': 0.0, 'drift_from_persisted_deg': 0.0}, 'hold_max': 0.0}
+479894641 phase7_land 'start'
+479900691 phase7_land 'done'
+479900691 mission_done {'status': 'FAIL'}
+# closed t_ms=479900691 lines=136 errors=0

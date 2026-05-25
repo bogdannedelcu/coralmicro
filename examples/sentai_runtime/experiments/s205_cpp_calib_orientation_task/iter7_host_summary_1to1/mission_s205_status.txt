@@ -1,0 +1,5 @@
+experiment=s205_sota_calib_orientation_guarded
+task=TD-S10-B3
+status=FINAL_VALIDATION_FAIL
+phase=post_acquisition
+abort_reason=final_candidate_validation_failed

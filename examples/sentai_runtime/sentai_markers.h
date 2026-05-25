@@ -102,6 +102,34 @@ typedef struct {
                              // (0 for backends that do not expose it)
 } SentaiMarkersDetection;
 
+typedef struct {
+    int32_t  n_raw;          // raw detections from most recent detect call
+    int32_t  n_full;         // detections fully inside image bounds
+    int32_t  n_pose_valid;   // full-visible detections with valid positive Z
+    float    centroid_x;     // mean full-visible centroid x, NaN if n_full == 0
+    float    centroid_y;     // mean full-visible centroid y, NaN if n_full == 0
+    float    radius_mean_px; // mean full-visible outer radius
+    float    z_cam_mean_m;   // mean valid positive Z over full-visible markers
+    float    bbox_min_x;     // full-visible marker envelope, NaN if n_full == 0
+    float    bbox_min_y;
+    float    bbox_max_x;
+    float    bbox_max_y;
+    uint32_t frame_seq;      // source frame sequence from last detect_frame
+    uint32_t src_ts_ms;      // source timestamp from last detect_frame
+    uint8_t  valid;          // 1 when observation is based on a detect call
+    uint8_t  backend;        // sentai_markers_backend_t enum value
+    uint16_t _pad;
+} SentaiMarkersObservation;
+
+typedef struct {
+    int32_t count;           // samples currently stored in the rolling window
+    int32_t size;            // configured window size
+    int32_t min_full;        // minimum observed n_full in the current fill
+    float   avg_full;        // mean n_full over the current fill
+    uint8_t ready;           // count >= size
+    uint8_t _pad[3];
+} SentaiMarkersWindowStats;
+
 // =====================================================================
 // W19-T6b: drone-pose recovery from multi-marker Kabsch + yaw-anchor.
 //
@@ -142,6 +170,10 @@ static_assert(sizeof(SentaiMarkersDetection) == 64,
               "SentaiMarkersDetection ABI broken -- update modsentai_markers.c too");
 static_assert(sizeof(SentaiMarkersDronePose) == 28,
               "SentaiMarkersDronePose ABI broken -- update modsentai_markers.c too");
+static_assert(sizeof(SentaiMarkersObservation) == 56,
+              "SentaiMarkersObservation ABI broken -- update modsentai_markers.c too");
+static_assert(sizeof(SentaiMarkersWindowStats) == 20,
+              "SentaiMarkersWindowStats ABI broken -- update modsentai_markers.c too");
 #endif
 
 // Upper bound for registered world markers (P(N,K) permutation search
@@ -210,6 +242,21 @@ void sentai_markers_set_marker_size(float meters);
 void sentai_markers_set_cam_extrinsics(float tx, float ty, float tz,
                                           float roll, float pitch, float yaw);
 
+// Direct calibrated extrinsics setter.  This is the runtime path after
+// sentai.calib.load(): R_opt_to_body is the persisted body<-camera-optical
+// rotation, and (tx,ty,tz) is the camera origin in body frame.  It avoids
+// reconstructing an SDF RPY convention when the on-flight calibration has
+// already discovered the true axis/sign mapping.
+void sentai_markers_set_cam_extrinsics_matrix(float tx, float ty, float tz,
+                                               const float R_opt_to_body[9]);
+
+// Return the currently configured camera extrinsics used by sentai.markers.
+// `R_opt_to_body_out` is row-major body<-camera-optical.  `is_set_out` is 0
+// when the default identity passthrough is active.
+void sentai_markers_get_cam_extrinsics_matrix(float t_body_out[3],
+                                               float R_opt_to_body_out[9],
+                                               int* is_set_out);
+
 // Reset extrinsics to identity (default state).  After this call, tvec
 // is in cam optical frame again.
 void sentai_markers_clear_cam_extrinsics(void);
@@ -262,6 +309,24 @@ int  sentai_markers_get_stats(SentaiMarkersStats* out);
 // returns the latest pose snapshot directly, without re-running
 // detection.  Same buffer convention as get_pose.
 int  sentai_markers_get_latest(int i, SentaiMarkersPose* out);
+
+// Aggregate observation over the most recent detection cache.  This is the C++
+// equivalent of the B3/B4 MP `_detect_features()` helper: it computes
+// full-visible count, centroid, radius mean, positive-Z mean, and image
+// envelope using caller-provided image bounds and margin.  Returns 1 on
+// success, 0 on invalid arguments.  It does NOT run detection.
+int  sentai_markers_get_observation(int img_w, int img_h, float margin_px,
+                                    SentaiMarkersObservation* out);
+
+// Small fixed rolling windows for marker-count policies.  These are generic
+// marker-observation utilities, not calibration logic.  C++ tasks use them to
+// avoid MP-side arrays/sums in camera-rate loops.
+int  sentai_markers_window_reset(int slot, int size);
+int  sentai_markers_window_push(int slot,
+                                int n_full,
+                                SentaiMarkersWindowStats* out);
+int  sentai_markers_window_get(int slot,
+                               SentaiMarkersWindowStats* out);
 
 // =====================================================================
 // W19-T6b: drone-pose recovery (see SentaiMarkersDronePose).

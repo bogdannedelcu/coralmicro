@@ -1,0 +1,62 @@
+# sentai.sim journal opened path=/home/bogdan/work/coralmicro/build-sim/sentai_fs_root/mission_s203_journal.txt truncate=1 t_ms=530489244
+530489244 phase_transition {'reason': '', 'from': 'start', 'to': 'setup'}
+530489244 phase_setup 'start'
+530489244 flow_start {'mode': 'sim_camera_bridge_read_only', 'read': (0, 0, 0, 0, 0, 0, 0)}
+530491104 phase_setup {'layout_ok': True, 'ok': True, 'load_ok': True}
+530491104 phase_transition {'reason': '', 'from': 'setup', 'to': 'acquire'}
+530491104 phase_acquire 'start'
+530492719 acquire_tick {'n_avg': 0.0, 'thrust': 30000, 'k': 0, 'feature': {'cy': None, 'n_full': 0, 'z_cam_mean_m': 0.0, 'radius_mean_px': 0.0, 'cx': None}}
+530493143 acquire_tick {'n_avg': 0.0, 'thrust': 30124, 'k': 10, 'feature': {'cy': None, 'n_full': 0, 'z_cam_mean_m': 0.0, 'radius_mean_px': 0.0, 'cx': None}}
+530493582 acquire_tick {'n_avg': 0.0, 'thrust': 30248, 'k': 20, 'feature': {'cy': None, 'n_full': 0, 'z_cam_mean_m': 0.0, 'radius_mean_px': 0.0, 'cx': None}}
+530493990 acquire_tick {'n_avg': 0.0, 'thrust': 30372, 'k': 30, 'feature': {'cy': None, 'n_full': 0, 'z_cam_mean_m': 0.0, 'radius_mean_px': 0.0, 'cx': None}}
+530494408 acquire_tick {'n_avg': 0.0, 'thrust': 30497, 'k': 40, 'feature': {'cy': None, 'n_full': 0, 'z_cam_mean_m': 0.0, 'radius_mean_px': 0.0, 'cx': None}}
+530494817 acquire_tick {'n_avg': 0.0, 'thrust': 30621, 'k': 50, 'feature': {'cy': None, 'n_full': 0, 'z_cam_mean_m': 0.0, 'radius_mean_px': 0.0, 'cx': None}}
+530495225 acquire_tick {'n_avg': 0.0, 'thrust': 30745, 'k': 60, 'feature': {'cy': None, 'n_full': 0, 'z_cam_mean_m': 0.0, 'radius_mean_px': 0.0, 'cx': None}}
+530495645 acquire_tick {'n_avg': 0.0, 'thrust': 30870, 'k': 70, 'feature': {'cy': None, 'n_full': 0, 'z_cam_mean_m': 0.0, 'radius_mean_px': 0.0, 'cx': None}}
+530496063 acquire_tick {'n_avg': 0.0, 'thrust': 30994, 'k': 80, 'feature': {'cy': None, 'n_full': 0, 'z_cam_mean_m': 0.0, 'radius_mean_px': 0.0, 'cx': None}}
+530496478 acquire_tick {'n_avg': 0.0, 'thrust': 31118, 'k': 90, 'feature': {'cy': None, 'n_full': 0, 'z_cam_mean_m': 0.0, 'radius_mean_px': 0.0, 'cx': None}}
+530496929 acquire_tick {'n_avg': 0.0, 'thrust': 31243, 'k': 100, 'feature': {'cy': None, 'n_full': 0, 'z_cam_mean_m': 0.0, 'radius_mean_px': 0.0, 'cx': None}}
+530497351 acquire_tick {'n_avg': 0.0, 'thrust': 31367, 'k': 110, 'feature': {'cy': None, 'n_full': 0, 'z_cam_mean_m': 0.0, 'radius_mean_px': 0.0, 'cx': None}}
+530497788 acquire_tick {'n_avg': 0.0, 'thrust': 31491, 'k': 120, 'feature': {'cy': None, 'n_full': 0, 'z_cam_mean_m': 0.0, 'radius_mean_px': 0.0, 'cx': None}}
+530498218 acquire_tick {'n_avg': 0.0, 'thrust': 31616, 'k': 130, 'feature': {'cy': None, 'n_full': 0, 'z_cam_mean_m': 0.0, 'radius_mean_px': 0.0, 'cx': None}}
+530498662 acquire_tick {'n_avg': 0.0, 'thrust': 31740, 'k': 140, 'feature': {'cy': None, 'n_full': 0, 'z_cam_mean_m': 0.0, 'radius_mean_px': 0.0, 'cx': None}}
+530499073 acquire_tick {'n_avg': 0.0, 'thrust': 31864, 'k': 150, 'feature': {'cy': None, 'n_full': 0, 'z_cam_mean_m': 0.0, 'radius_mean_px': 0.0, 'cx': None}}
+530499489 acquire_tick {'n_avg': 0.0, 'thrust': 31988, 'k': 160, 'feature': {'cy': None, 'n_full': 0, 'z_cam_mean_m': 0.0, 'radius_mean_px': 0.0, 'cx': None}}
+530499909 acquire_tick {'n_avg': 0.0, 'thrust': 32113, 'k': 170, 'feature': {'cy': None, 'n_full': 0, 'z_cam_mean_m': 0.0, 'radius_mean_px': 0.0, 'cx': None}}
+530500339 acquire_tick {'n_avg': 0.0, 'thrust': 32237, 'k': 180, 'feature': {'cy': None, 'n_full': 0, 'z_cam_mean_m': 0.0, 'radius_mean_px': 0.0, 'cx': None}}
+530500777 acquire_tick {'n_avg': 0.0, 'thrust': 32361, 'k': 190, 'feature': {'cy': None, 'n_full': 0, 'z_cam_mean_m': 0.0, 'radius_mean_px': 0.0, 'cx': None}}
+530501207 acquire_tick {'n_avg': 0.0, 'thrust': 32486, 'k': 200, 'feature': {'cy': None, 'n_full': 0, 'z_cam_mean_m': 0.0, 'radius_mean_px': 0.0, 'cx': None}}
+530501631 acquire_tick {'n_avg': 0.0, 'thrust': 32610, 'k': 210, 'feature': {'cy': None, 'n_full': 0, 'z_cam_mean_m': 0.0, 'radius_mean_px': 0.0, 'cx': None}}
+530502046 acquire_tick {'n_avg': 0.0, 'thrust': 32734, 'k': 220, 'feature': {'cy': None, 'n_full': 0, 'z_cam_mean_m': 0.0, 'radius_mean_px': 0.0, 'cx': None}}
+530502474 acquire_tick {'n_avg': 0.0, 'thrust': 32859, 'k': 230, 'feature': {'cy': None, 'n_full': 0, 'z_cam_mean_m': 0.0, 'radius_mean_px': 0.0, 'cx': None}}
+530502883 acquire_tick {'n_avg': 0.0, 'thrust': 32983, 'k': 240, 'feature': {'cy': None, 'n_full': 0, 'z_cam_mean_m': 0.0, 'radius_mean_px': 0.0, 'cx': None}}
+530503305 acquire_tick {'n_avg': 0.0, 'thrust': 33107, 'k': 250, 'feature': {'cy': None, 'n_full': 0, 'z_cam_mean_m': 0.0, 'radius_mean_px': 0.0, 'cx': None}}
+530503719 acquire_tick {'n_avg': 0.0, 'thrust': 33232, 'k': 260, 'feature': {'cy': None, 'n_full': 0, 'z_cam_mean_m': 0.0, 'radius_mean_px': 0.0, 'cx': None}}
+530504127 acquire_tick {'n_avg': 0.0, 'thrust': 33356, 'k': 270, 'feature': {'cy': None, 'n_full': 0, 'z_cam_mean_m': 0.0, 'radius_mean_px': 0.0, 'cx': None}}
+530504591 acquire_tick {'n_avg': 0.0, 'thrust': 33480, 'k': 280, 'feature': {'cy': None, 'n_full': 0, 'z_cam_mean_m': 0.0, 'radius_mean_px': 0.0, 'cx': None}}
+530505067 acquire_tick {'n_avg': 0.0, 'thrust': 33604, 'k': 290, 'feature': {'cy': None, 'n_full': 0, 'z_cam_mean_m': 0.0, 'radius_mean_px': 0.0, 'cx': None}}
+530505553 acquire_tick {'n_avg': 0.0, 'thrust': 33729, 'k': 300, 'feature': {'cy': None, 'n_full': 0, 'z_cam_mean_m': 0.0, 'radius_mean_px': 0.0, 'cx': None}}
+530505995 acquire_tick {'n_avg': 1.8, 'thrust': 33853, 'k': 310, 'feature': {'cy': 140.8327, 'n_full': 3, 'z_cam_mean_m': 0.2571069, 'radius_mean_px': 30.5, 'cx': 149.8666}}
+530506439 acquire_tick {'n_avg': 3.0, 'thrust': 33977, 'k': 320, 'feature': {'cy': 142.9013, 'n_full': 3, 'z_cam_mean_m': 0.3409461, 'radius_mean_px': 23.0, 'cx': 150.6467}}
+530506884 acquire_tick {'n_avg': 3.8, 'thrust': 34102, 'k': 330, 'feature': {'cy': 158.652, 'n_full': 4, 'z_cam_mean_m': 0.4386998, 'radius_mean_px': 17.875, 'cx': 167.6059}}
+530507367 acquire_tick {'n_avg': 5.1, 'thrust': 34226, 'k': 340, 'feature': {'cy': 181.8659, 'n_full': 7, 'z_cam_mean_m': 0.5601257, 'radius_mean_px': 14.0, 'cx': 159.045}}
+530507849 acquire_tick {'n_avg': 7.0, 'thrust': 34350, 'k': 350, 'feature': {'cy': 173.3212, 'n_full': 7, 'z_cam_mean_m': 0.6948395, 'radius_mean_px': 11.28571, 'cx': 158.1566}}
+530507987 phase_acquire {'z_lock_m': 0.7417881, 'z_target_m': 1.112682, 'ok': True, 'best': {'n_full_avg': 7.0, 'feature': {'cy': 174.6794, 'n_full': 7, 'z_cam_mean_m': 0.6818922, 'radius_mean_px': 11.5, 'cx': 158.2052}}, 'thrust_last': 34388, 'z_target_scale': 1.5, 'k': 353}
+530507987 phase_transition {'reason': '', 'from': 'acquire', 'to': 'center_hold'}
+530507987 phase_center_hold {'z_target_m': 1.112682}
+530507999 center_hold_tick {'k': 0, 'roll': -0.01408207, 'feature': {'cy': 170.6238, 'n_full': 7, 'z_cam_mean_m': 0.7468343, 'radius_mean_px': 10.5, 'cx': 157.834}, 'pitch': -0.45, 'thrust': 34500, 'err_px': 50.67013}
+530508491 center_hold_tick {'k': 10, 'roll': -0.004213095, 'feature': {'cy': 166.948, 'n_full': 7, 'z_cam_mean_m': 0.88536, 'radius_mean_px': 8.857142, 'cx': 157.4969}, 'pitch': -0.45, 'thrust': 32363, 'err_px': 47.01472}
+530508980 center_hold_tick {'k': 20, 'roll': 0.007643372, 'feature': {'cy': 162.5276, 'n_full': 7, 'z_cam_mean_m': 0.9890508, 'radius_mean_px': 7.928571, 'cx': 157.2126}, 'pitch': -0.45, 'thrust': 32572, 'err_px': 42.61887}
+530509436 center_hold_tick {'k': 30, 'roll': 0.04306728, 'feature': {'cy': 159.688, 'n_full': 7, 'z_cam_mean_m': 1.055622, 'radius_mean_px': 7.428571, 'cx': 155.7683}, 'pitch': -0.45, 'thrust': 32426, 'err_px': 39.91298}
+530509923 center_hold_tick {'k': 40, 'roll': 0.09585617, 'feature': {'cy': 157.5603, 'n_full': 7, 'z_cam_mean_m': 1.055622, 'radius_mean_px': 7.428571, 'cx': 153.4953}, 'pitch': -0.45, 'thrust': 30000, 'err_px': 38.1194}
+530510407 center_hold_tick {'k': 50, 'roll': -0.1266823, 'feature': {'cy': 161.7616, 'n_full': 8, 'z_cam_mean_m': 0.8147283, 'radius_mean_px': 9.625, 'cx': 163.6988}, 'pitch': -0.45, 'thrust': 34500, 'err_px': 41.92511}
+530510870 phase_center_hold {'err_last_px': 36.78323, 'ok': True, 'z_target_m': 1.112682, 'attitude_stats': {'samples': 0, 'last': None, 'roll_rms_deg': None, 'pitch_rms_deg': None, 'roll_abs_max_deg': 0.0, 'pitch_abs_max_deg': 0.0, 'tilt_abs_max_deg': 0.0}, 'n_full_min': 7, 'thrust_last': 31559}
+530510870 phase_transition {'reason': '', 'from': 'center_hold', 'to': 'extpos_warmup'}
+530510870 phase_extpos_warmup {'max_s': 12.0, 'min_s': 2.5}
+530512972 kalman_reset_before_extpos {'reset_0_rc': 0, 'kalman_reset_id': 71, 'ok': True, 'supported': True, 'stabilizer_estimator_id': 64, 'reset_1_rc': 0, 'stabilizer_estimator_reason': 'ok', 'set_estimator_rc': 0, 'kalman_reset_reason': 'ok'}
+530513737 extpos_stddev {'write_rc': 0, 'ok': True, 'param_id': 59, 'requested_m': 0.04, 'param_reason': 'ok'}
+530513749 extpos_warmup_tick {'extpos': None, 'est_pose': (0.002826078, -0.00286658, -0.7338476), 'send_ok': 0, 'converged': False, 'n_avg': 0.0, 'pose_valid': False, 'pose_candidate': None, 'pose_reject_reason': 'no_pose', 'est_minus_pnp_m': None, 'est_velocity': None, 'extpos_candidate': None, 'est_attitude_deg': None, 'pose': None, 'feature': {'cy': None, 'n_full': 0, 'z_cam_mean_m': 0.0, 'radius_mean_px': 0.0, 'cx': None}, 'k': 0, 'diverged': False}
+530514134 extpos_warmup_marker_abort {'n_recent_avg': 0.0, 'window': 10, 'k': 9, 'min_full_markers': 4}
+530514134 phase_extpos_warmup {'thrust_last': 32700, 'ok': False, 'last_extpos': None, 'kalman_crosscheck': {'samples': 0, 'err_mean_m': None, 'err_max_m': 0.0, 'err_recent10_mean_m': None, 'trend_improving': False, 'err_first_m': None, 'velocity_last_m_s': None, 'err_last_m': None, 'attitude_last_deg': None, 'err_min_m': None}, 'n_full_min': 0, 'send_ok': 0, 'pose_reject_reasons': {'no_pose': 10}, 'marker_visibility_lost': True, 'converged': False, 'ticks': 10, 'convergence_reason': 'marker_visibility_lost', 'extpos_signs': (-1.0, -1.0, 1.0), 'last_est_pose': (0.07068803, -0.001116269, -1.9843), 'last_pose': None, 'pose_rejects': 10, 'last_pose_reject_reason': 'no_pose', 'n_full_recent_avg': 0.0, 'diverged': False}
+530514134 safe_stop {'reason': 'extpos_warmup_fail'}
+# closed t_ms=530514644 lines=61 errors=0

@@ -164,6 +164,12 @@ int sentai_crazy_fly(float height_m, int hold_ms,
 int sentai_crazy_attitude(float roll, float pitch,
                           float yawrate, uint16_t thrust);
 
+// Release the attitude/RPYT streaming task without disarming.  Caller must
+// immediately stream a replacement commander (for example hover()) or the
+// Crazyflie commander watchdog will cut motors after about 1 second.
+// Returns 0=ok, -1=not running.
+int sentai_crazy_attitude_release_no_disarm(void);
+
 // Stop flying and disarm. Non-blocking, safe from any state.
 // Returns 0=ok, -1=not running.
 int sentai_crazy_fly_stop(void);

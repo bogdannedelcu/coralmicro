@@ -515,3 +515,105 @@ SENTAI_SRV_SDRAM_TEXT int sentai_servo_clear_trace(void) {
     // Lifetime counters + FSM state preserved (per concurrency contract).
     return n;
 }
+
+SENTAI_SRV_SDRAM_TEXT int sentai_servo_ibvs_centroid_command(
+        float cur_cx,
+        float cur_cy,
+        float z_m,
+        float target_cx,
+        float target_cy,
+        const float roll_vec_px[2],
+        const float pitch_vec_px[2],
+        float gain,
+        float max_deg,
+        float deadband_px,
+        float damping_px_per_deg,
+        float sustained_response_sign,
+        float z_ref_m,
+        float z_gain_min,
+        float z_gain_max,
+        float* roll_deg_out,
+        float* pitch_deg_out,
+        float* err_x_px_out,
+        float* err_y_px_out,
+        float* err_px_out,
+        float target_delta_px_out[2],
+        float response_roll_px_per_deg_out[2],
+        float response_pitch_px_per_deg_out[2],
+        float* z_gain_out,
+        float* dls_det_out) {
+    if (!roll_vec_px || !pitch_vec_px || !roll_deg_out || !pitch_deg_out ||
+        !err_x_px_out || !err_y_px_out || !err_px_out ||
+        !target_delta_px_out || !response_roll_px_per_deg_out ||
+        !response_pitch_px_per_deg_out || !z_gain_out || !dls_det_out) {
+        return 0;
+    }
+    if (!isfinite(cur_cx) || !isfinite(cur_cy) || !isfinite(z_m) ||
+        !isfinite(target_cx) || !isfinite(target_cy) ||
+        !isfinite(roll_vec_px[0]) || !isfinite(roll_vec_px[1]) ||
+        !isfinite(pitch_vec_px[0]) || !isfinite(pitch_vec_px[1]) ||
+        !isfinite(gain) || !isfinite(max_deg) || !isfinite(deadband_px) ||
+        !isfinite(damping_px_per_deg) ||
+        !isfinite(sustained_response_sign) || !isfinite(z_ref_m) ||
+        !isfinite(z_gain_min) || !isfinite(z_gain_max)) {
+        return 0;
+    }
+    if (max_deg < 0.0f) max_deg = -max_deg;
+    if (deadband_px < 0.0f) deadband_px = 0.0f;
+    if (damping_px_per_deg < 0.0f) damping_px_per_deg = -damping_px_per_deg;
+    if (z_gain_max < z_gain_min) z_gain_max = z_gain_min;
+
+    const float err_x = target_cx - cur_cx;
+    const float err_y = target_cy - cur_cy;
+    const float err = sqrtf(err_x * err_x + err_y * err_y);
+    const float cmd_err_x = (fabsf(err_x) > deadband_px) ? err_x : 0.0f;
+    const float cmd_err_y = (fabsf(err_y) > deadband_px) ? err_y : 0.0f;
+
+    float z_gain = 1.0f;
+    if (z_m > 0.0f && z_ref_m > 0.0f) {
+        z_gain = z_m / z_ref_m;
+        if (z_gain < z_gain_min) z_gain = z_gain_min;
+        if (z_gain > z_gain_max) z_gain = z_gain_max;
+    }
+
+    const float rx = sustained_response_sign * roll_vec_px[0];
+    const float ry = sustained_response_sign * roll_vec_px[1];
+    const float px = sustained_response_sign * pitch_vec_px[0];
+    const float py = sustained_response_sign * pitch_vec_px[1];
+
+    const float target_x = gain * z_gain * cmd_err_x;
+    const float target_y = gain * z_gain * cmd_err_y;
+    const float lam2 = damping_px_per_deg * damping_px_per_deg;
+    const float a11 = rx * rx + px * px + lam2;
+    const float a12 = rx * ry + px * py;
+    const float a22 = ry * ry + py * py + lam2;
+    const float det = a11 * a22 - a12 * a12;
+
+    float roll_cmd = 0.0f;
+    float pitch_cmd = 0.0f;
+    if (fabsf(det) > 0.0001f) {
+        const float y0 = (a22 * target_x - a12 * target_y) / det;
+        const float y1 = (-a12 * target_x + a11 * target_y) / det;
+        roll_cmd = rx * y0 + ry * y1;
+        pitch_cmd = px * y0 + py * y1;
+    }
+    if (roll_cmd < -max_deg) roll_cmd = -max_deg;
+    if (roll_cmd > +max_deg) roll_cmd = +max_deg;
+    if (pitch_cmd < -max_deg) pitch_cmd = -max_deg;
+    if (pitch_cmd > +max_deg) pitch_cmd = +max_deg;
+
+    *roll_deg_out = roll_cmd;
+    *pitch_deg_out = pitch_cmd;
+    *err_x_px_out = err_x;
+    *err_y_px_out = err_y;
+    *err_px_out = err;
+    target_delta_px_out[0] = target_x;
+    target_delta_px_out[1] = target_y;
+    response_roll_px_per_deg_out[0] = rx;
+    response_roll_px_per_deg_out[1] = ry;
+    response_pitch_px_per_deg_out[0] = px;
+    response_pitch_px_per_deg_out[1] = py;
+    *z_gain_out = z_gain;
+    *dls_det_out = det;
+    return 1;
+}

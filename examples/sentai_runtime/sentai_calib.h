@@ -71,6 +71,8 @@
 
 #include <stdint.h>
 
+#include "sentai_markers.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -148,6 +150,55 @@ typedef struct {
     int   reject_code;               // sentai_calib_reject_t
 } sentai_calib_quality_t;
 
+typedef struct {
+    uint8_t present;
+    uint8_t schema_ok;
+    uint8_t accepted_ok;
+    uint8_t status_ok;
+    uint8_t task_ok;
+    uint8_t layout_ok;
+    uint8_t required_ok;
+    uint8_t strict_lines_ok;
+    uint32_t missing_mask;
+    char status[32];
+    char layout_id[64];
+} sentai_calib_ini_status_t;
+
+typedef struct {
+    int ok;
+    int best_idx;
+    float best_score;
+    float second_score;
+    float margin;
+    float det;
+    float R_cam_to_body[9];
+} sentai_calib_axis_candidate_t;
+
+typedef struct {
+    int img_w;
+    int img_h;
+    float fx;
+    float fy;
+    float cx;
+    float cy;
+    float marker_diameter_m;
+    int marker_world_count;
+    float full_vis_margin_px;
+} sentai_calib_defaults_t;
+
+typedef struct {
+    int min_full_markers;
+    int acq_full_markers;
+    float marker_avg_full_lock;
+    int marker_count_avg_window;
+    float min_lock_radius_px;
+    int axis_hard_min_full_markers;
+    float axis_min_avg_full_markers;
+    float response_min_px;
+    float axis_dominance_ratio_min;
+    float axis_orthogonal_dot_max_norm;
+} sentai_calib_limits_t;
+
 // ---- API --------------------------------------------------------------
 
 // Self-healing init.  Loads cam_calib.json (via FxUser if available;
@@ -179,8 +230,14 @@ int sentai_calib_commit_R(const float R[9], const float cam_offset_B[3]);
 // FxUser.  Returns 1 on success, 0 on failure.  Caller normally chains
 // commit_R + save() after a quality.accepted Kabsch run.
 int sentai_calib_save(void);
+int sentai_calib_save_contract(const char* status,
+                               int accepted,
+                               float axis_roll_sign,
+                               const float axis_roll_vec_px[2],
+                               float axis_pitch_sign,
+                               const float axis_pitch_vec_px[2]);
 
-// Force a reload from cam_calib.json.  Returns 1 on success (R updated),
+// Force a reload from /system/calib.ini.  Returns 1 on success (R updated),
 // 0 if the file is missing / corrupt (R stays at current cached value).
 int sentai_calib_load(void);
 
@@ -191,12 +248,94 @@ int sentai_calib_load(void);
 const float* sentai_calib_get_R_cam_to_body(void);  // 9 floats, row-major
 const float* sentai_calib_get_cam_offset_B(void);   // 3 floats, body-frame m
 int          sentai_calib_is_calibrated(void);      // 0/1
+const float* sentai_calib_get_extpos_signs(void);   // x,y,z
+int          sentai_calib_get_axis_seed(float roll_vec_px[2],
+                                        float* roll_sign,
+                                        float pitch_vec_px[2],
+                                        float* pitch_sign);
+int          sentai_calib_get_ini_status(sentai_calib_ini_status_t* out);
+int          sentai_calib_get_defaults(sentai_calib_defaults_t* out);
+int          sentai_calib_get_limits(sentai_calib_limits_t* out);
+int          sentai_calib_setup_defaults(void);
+int          sentai_calib_score_axis_candidate(const char* roll_axis,
+                                               int roll_sign,
+                                               const char* pitch_axis,
+                                               int pitch_sign,
+                                               sentai_calib_axis_candidate_t* out);
+int          sentai_calib_expected_from_row(float r0,
+                                            float r1,
+                                            float r2,
+                                            int* axis_code_out,
+                                            int* sign_out);
+int          sentai_calib_axis_observation_from_delta(float dx,
+                                                      float dy,
+                                                      int* axis_code_out,
+                                                      int* sign_out,
+                                                      float* dominance_out,
+                                                      float* strength_out);
+int          sentai_calib_marker_avg_lock_ok(int ready,
+                                             float avg_full,
+                                             float threshold);
+int          sentai_calib_marker_avg_unsafe(int ready,
+                                            float avg_full,
+                                            float threshold);
+int          sentai_calib_feature_has_lock(int n_full,
+                                           float radius_mean_px,
+                                           int centroid_valid,
+                                           int avg_ready,
+                                           float avg_full);
+int          sentai_calib_marker_lock_ok(int min_full,
+                                         float avg_full);
+int          sentai_calib_sample_observation(int img_w,
+                                             int img_h,
+                                             float margin_px,
+                                             SentaiMarkersObservation* out);
+int          sentai_calib_vertical_rate_thrust(float z_m,
+                                               float z_prev_m,
+                                               float vz_filt_m_s,
+                                               int base_thrust_u16,
+                                               float target_vz_m_s,
+                                               float dt_s,
+                                               float lpf_alpha,
+                                               float kd_thrust_per_m_s,
+                                               int thrust_floor_u16,
+                                               int thrust_ceil_u16,
+                                               int* thrust_out_u16,
+                                               float* z_prev_out_m,
+                                               float* vz_filt_out_m_s);
+int          sentai_calib_z_hold_thrust(float z_m,
+                                         float z_prev_m,
+                                         float vz_filt_m_s,
+                                         float target_z_m,
+                                         int base_thrust_u16,
+                                         float kp_thrust_per_m,
+                                         float kd_thrust_per_m_s,
+                                         float dt_s,
+                                         float lpf_alpha,
+                                         int thrust_floor_u16,
+                                         int thrust_ceil_u16,
+                                         int* thrust_out_u16,
+                                         float* z_prev_out_m,
+                                         float* vz_filt_out_m_s);
 
 // Geodesic angle between two rotations (deg).  Public so tests + the
 // mission FSM can use it for drift gates.
 float sentai_calib_rotation_angle_deg(const float R1[9], const float R2[9]);
 
 // =========================================================================
+// LEGACY/FOLLOW-UP DELETE CANDIDATE after B5 migration:
+// OP-S10-W14 / OP-S10-W21 Flow autotuner + bringup family.
+//
+// This family predates the A3/B3 + A4/B4 image-frame strategy and is kept
+// temporarily so old experiments still run while s205/s203 are migrated.
+// Do not extend this API for the new B5 path.  New B5 work should land in:
+//   - sentai.markers for synchronous marker observations,
+//   - sentai.calib for B3 orientation calibration + calib.ini,
+//   - sentai.servo for image-frame navigation/landing primitives.
+// Once B3/B4 are covered by the new C++ tasks and old experiments are
+// archived, remove: sentai_calib_autotune.*, sentai_calib_task.*,
+// sentai_calib_bringup.*, and the MP bindings marked LEGACY below.
+//
 // OP-S10-W14 — in-flight Flow autotuner extension.
 // =========================================================================
 // Adds a long-running C++ task (sentai_calib_task) that drives a

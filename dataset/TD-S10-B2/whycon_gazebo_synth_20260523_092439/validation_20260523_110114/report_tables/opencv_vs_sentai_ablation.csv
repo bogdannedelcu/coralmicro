@@ -1,0 +1,2 @@
+comparable_frames,count_disagreement_frames,marker_delta_count,centroid_delta_p95_px,axis_a_delta_p95_px,axis_b_delta_p95_px,angle_delta_p95_deg,pose_delta_count,translation_delta_mean_m,translation_delta_p95_m,translation_delta_max_m,yaw_delta_mean_deg,yaw_delta_p95_deg,yaw_delta_max_deg
+30,19,74,0.4895845177290723,42.946244681860335,6.273392154144284,86.14475133804604,7,0.0022955035738936084,0.00774997590871797,0.009694055186097846,-0.04756684930953676,-0.0016507533482268857,-0.0015073573479753577

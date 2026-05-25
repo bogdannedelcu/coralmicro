@@ -1,0 +1,832 @@
+{
+  "source_dataset": "/home/bogdan/work/coralmicro/dataset/TD-S10-B1/whycon_gazebo_synth_20260523_114246",
+  "dataset_id": "whycon_gazebo_synth_20260523_114246",
+  "created_utc": "2026-05-23T09:07:07+00:00",
+  "validator": "validate_whycon_synthetic_dataset.py",
+  "git_commit_short": "6381b7e7",
+  "opencv": {
+    "available": true,
+    "frame_count": 100,
+    "expected_markers": 444,
+    "matched_markers": 444,
+    "marker_recall": 1.0,
+    "false_positives_total": 39,
+    "false_positives_per_frame": 0.39,
+    "complete_frame_success_rate": 0.73,
+    "centroid_error_px": {
+      "mean": 0.9414132937572981,
+      "median": 0.9345030264135112,
+      "p95": 1.8942948301882088,
+      "max": 2.738212913553198
+    },
+    "by_z": {
+      "0.30": {
+        "frames": 16,
+        "expected": 76,
+        "matched": 76
+      },
+      "0.50": {
+        "frames": 28,
+        "expected": 128,
+        "matched": 128
+      },
+      "0.75": {
+        "frames": 28,
+        "expected": 121,
+        "matched": 121
+      },
+      "1.00": {
+        "frames": 28,
+        "expected": 119,
+        "matched": 119
+      }
+    },
+    "by_expected_count": {
+      "6": {
+        "frames": 34,
+        "expected": 204,
+        "matched": 204
+      },
+      "3": {
+        "frames": 9,
+        "expected": 27,
+        "matched": 27
+      },
+      "2": {
+        "frames": 16,
+        "expected": 32,
+        "matched": 32
+      },
+      "5": {
+        "frames": 17,
+        "expected": 85,
+        "matched": 85
+      },
+      "4": {
+        "frames": 24,
+        "expected": 96,
+        "matched": 96
+      }
+    },
+    "by_yaw_bin": {
+      "000-045": {
+        "frames": 17,
+        "expected": 76,
+        "matched": 76
+      },
+      "045-090": {
+        "frames": 13,
+        "expected": 57,
+        "matched": 57
+      },
+      "315-360": {
+        "frames": 17,
+        "expected": 71,
+        "matched": 71
+      },
+      "135-180": {
+        "frames": 12,
+        "expected": 46,
+        "matched": 46
+      },
+      "225-270": {
+        "frames": 11,
+        "expected": 45,
+        "matched": 45
+      },
+      "270-315": {
+        "frames": 12,
+        "expected": 62,
+        "matched": 62
+      },
+      "090-135": {
+        "frames": 10,
+        "expected": 52,
+        "matched": 52
+      },
+      "180-225": {
+        "frames": 8,
+        "expected": 35,
+        "matched": 35
+      }
+    },
+    "by_roll_pitch_bin": {
+      "00-05": {
+        "frames": 49,
+        "expected": 209,
+        "matched": 209
+      },
+      "05-10": {
+        "frames": 51,
+        "expected": 235,
+        "matched": 235
+      }
+    },
+    "by_edge_category": {
+      "interior": {
+        "frames": 41,
+        "expected": 232,
+        "matched": 232
+      },
+      "cropped": {
+        "frames": 57,
+        "expected": 200,
+        "matched": 200
+      },
+      "near_edge": {
+        "frames": 2,
+        "expected": 12,
+        "matched": 12
+      }
+    },
+    "geometry": {
+      "matched_markers_with_geometry": 444,
+      "radius_error_px": {
+        "n": 444,
+        "mean": 0.10047135043440579,
+        "median": 0.11883417085427173,
+        "p95": 0.5703336592168696,
+        "max": 1.1882039295318556,
+        "mae": 0.2377088521726131,
+        "bias": 0.10047135043440579,
+        "rmse": 0.3181632703992412
+      },
+      "axis_a_error_px": {
+        "n": 444,
+        "mean": 2.5206375722146555,
+        "median": 1.9827574315700005,
+        "p95": 4.983638746886925,
+        "max": 5.713208271424989,
+        "mae": 2.5206375722146555,
+        "bias": 2.5206375722146555,
+        "rmse": 2.8320679582411796
+      },
+      "axis_b_error_px": {
+        "n": 444,
+        "mean": 2.1780924089566653,
+        "median": 1.665937242546983,
+        "p95": 4.798322369233695,
+        "max": 4.978799905913192,
+        "mae": 2.1780924089566653,
+        "bias": 2.1780924089566653,
+        "rmse": 2.515077147566173
+      },
+      "axis_ratio": {
+        "n": 444,
+        "mean": 1.0247841220195015,
+        "median": 1.0196726537263934,
+        "p95": 1.0656602226391225,
+        "max": 1.1127159797399568,
+        "mae": 1.0247841220195015,
+        "bias": 1.0247841220195015,
+        "rmse": 1.0249872147551835
+      },
+      "orientation_angle_deg": {
+        "n": 444,
+        "mean": -2.946176883919546,
+        "median": -1.5830256580088637,
+        "p95": 88.16148401074057,
+        "max": 90.0,
+        "mae": 44.853939471889596,
+        "bias": -2.946176883919546,
+        "rmse": 54.04837901272766
+      },
+      "orientation_error_deg": {
+        "n": 0,
+        "mean": null,
+        "median": null,
+        "p95": null,
+        "max": null,
+        "mae": null,
+        "bias": null,
+        "rmse": null,
+        "available": false,
+        "reason": "manifest has no expected per-marker ellipse orientation"
+      }
+    },
+    "version": "4.13.0",
+    "params": {
+      "algorithm": "connected_component_concentric_whycon",
+      "reference_notes": [
+        "WhyCon/Krajnik-Nitsche-style concentric black-white circular marker detector",
+        "Algorithm is aligned with the published WhyCon family: thresholding, connected components, concentric circular marker validation, and marker pose estimation",
+        "OpenCV is used for image-processing primitives; OpenCV does not provide an official cv2.whycon module"
+      ],
+      "literature_references": [
+        "Krajnik et al., External Localization System for Mobile Robotics, ICAR 2013",
+        "Krajnik et al., A Practical Multirobot Localization System, JINT 2014",
+        "Nitsche et al., WhyCon: An Efficient, Marker-based Localization System, 2015",
+        "lrse/whycon open-source implementation and documentation"
+      ],
+      "threshold_values": [
+        100,
+        130,
+        150
+      ],
+      "threshold_type": "THRESH_BINARY_INV",
+      "component_connectivity": 8,
+      "outer_geometry": "connected component moments + external contour circularity",
+      "dot_geometry": "small dark connected component inside outer bbox",
+      "min_outer_radius_px": 4.0,
+      "max_outer_radius_px": 36.0,
+      "min_outer_area_px2": 30.0,
+      "min_outer_circularity": 0.55,
+      "max_center_offset_px": 4.0,
+      "max_center_offset_radius_frac": 0.25,
+      "min_dot_outer_radius_ratio": 0.12,
+      "max_dot_outer_radius_ratio": 0.45,
+      "angle_stability_min_axis_ratio": 1.1,
+      "partial_edge_circle_fit": false,
+      "partial_edge_circle_fit_below_circularity": 0.55,
+      "partial_edge_circle_fit_min_radius_scale": 0.5,
+      "partial_edge_circle_fit_max_radius_scale": 3.0,
+      "variant": "paper"
+    },
+    "pose": {
+      "available": true,
+      "pose_valid_frames": 75,
+      "translation_error_m": {
+        "n": 75,
+        "mean": 0.009093538158329457,
+        "median": 0.00687889306727394,
+        "p95": 0.017641528390274847,
+        "max": 0.0432319876704558,
+        "mae": 0.009093538158329457,
+        "bias": 0.009093538158329457,
+        "rmse": 0.011379413052047073
+      },
+      "x_error_m": {
+        "n": 75,
+        "mean": 0.0012613599336242602,
+        "median": -5.525448096677099e-05,
+        "p95": 0.008082567804679867,
+        "max": 0.039162829825351575,
+        "mae": 0.003834416800212211,
+        "bias": 0.0012613599336242602,
+        "rmse": 0.0073736826031361264
+      },
+      "y_error_m": {
+        "n": 75,
+        "mean": -0.0003874296532159348,
+        "median": -0.000251076376656785,
+        "p95": 0.010594174014363885,
+        "max": 0.013957680336625176,
+        "mae": 0.004238718495733073,
+        "bias": -0.0003874296532159348,
+        "rmse": 0.006203780608624128
+      },
+      "z_error_m": {
+        "n": 75,
+        "mean": -0.004915152686820274,
+        "median": -0.005027626918707118,
+        "p95": 0.0019414177109729977,
+        "max": 0.0038968654641506895,
+        "mae": 0.005368931118552591,
+        "bias": -0.004915152686820274,
+        "rmse": 0.00605251620711305
+      },
+      "roll_error_deg": {
+        "n": 75,
+        "mean": 0.017678500518625243,
+        "median": 0.015089995042188775,
+        "p95": 0.5341286943453525,
+        "max": 1.2291004919225372,
+        "mae": 0.24375659224376098,
+        "bias": 0.017678500518625243,
+        "rmse": 0.3531821185429882
+      },
+      "pitch_error_deg": {
+        "n": 75,
+        "mean": -0.019126332109306834,
+        "median": 0.013922006601518433,
+        "p95": 0.5619003248387002,
+        "max": 1.7953900010448365,
+        "mae": 0.276326191405971,
+        "bias": -0.019126332109306834,
+        "rmse": 0.44010893038701787
+      },
+      "yaw_error_deg": {
+        "n": 75,
+        "mean": 0.03733646040593878,
+        "median": 0.00595839388205377,
+        "p95": 0.17190906463038683,
+        "max": 0.9997396020578435,
+        "mae": 0.06905070671422246,
+        "bias": 0.03733646040593878,
+        "rmse": 0.17697542487631754
+      }
+    }
+  },
+  "sentai_sim": {
+    "available": true,
+    "frame_count": 100,
+    "expected_markers": 444,
+    "matched_markers": 444,
+    "marker_recall": 1.0,
+    "false_positives_total": 42,
+    "false_positives_per_frame": 0.42,
+    "complete_frame_success_rate": 0.72,
+    "centroid_error_px": {
+      "mean": 0.9351177120718296,
+      "median": 0.9197119426312605,
+      "p95": 1.9534568386688,
+      "max": 2.716632344154513
+    },
+    "by_z": {
+      "0.30": {
+        "frames": 16,
+        "expected": 76,
+        "matched": 76
+      },
+      "0.50": {
+        "frames": 28,
+        "expected": 128,
+        "matched": 128
+      },
+      "0.75": {
+        "frames": 28,
+        "expected": 121,
+        "matched": 121
+      },
+      "1.00": {
+        "frames": 28,
+        "expected": 119,
+        "matched": 119
+      }
+    },
+    "by_expected_count": {
+      "6": {
+        "frames": 34,
+        "expected": 204,
+        "matched": 204
+      },
+      "3": {
+        "frames": 9,
+        "expected": 27,
+        "matched": 27
+      },
+      "2": {
+        "frames": 16,
+        "expected": 32,
+        "matched": 32
+      },
+      "5": {
+        "frames": 17,
+        "expected": 85,
+        "matched": 85
+      },
+      "4": {
+        "frames": 24,
+        "expected": 96,
+        "matched": 96
+      }
+    },
+    "by_yaw_bin": {
+      "000-045": {
+        "frames": 17,
+        "expected": 76,
+        "matched": 76
+      },
+      "045-090": {
+        "frames": 13,
+        "expected": 57,
+        "matched": 57
+      },
+      "315-360": {
+        "frames": 17,
+        "expected": 71,
+        "matched": 71
+      },
+      "135-180": {
+        "frames": 12,
+        "expected": 46,
+        "matched": 46
+      },
+      "225-270": {
+        "frames": 11,
+        "expected": 45,
+        "matched": 45
+      },
+      "270-315": {
+        "frames": 12,
+        "expected": 62,
+        "matched": 62
+      },
+      "090-135": {
+        "frames": 10,
+        "expected": 52,
+        "matched": 52
+      },
+      "180-225": {
+        "frames": 8,
+        "expected": 35,
+        "matched": 35
+      }
+    },
+    "by_roll_pitch_bin": {
+      "00-05": {
+        "frames": 49,
+        "expected": 209,
+        "matched": 209
+      },
+      "05-10": {
+        "frames": 51,
+        "expected": 235,
+        "matched": 235
+      }
+    },
+    "by_edge_category": {
+      "interior": {
+        "frames": 41,
+        "expected": 232,
+        "matched": 232
+      },
+      "cropped": {
+        "frames": 57,
+        "expected": 200,
+        "matched": 200
+      },
+      "near_edge": {
+        "frames": 2,
+        "expected": 12,
+        "matched": 12
+      }
+    },
+    "geometry": {
+      "matched_markers_with_geometry": 444,
+      "radius_error_px": {
+        "n": 444,
+        "mean": 0.04416504412809948,
+        "median": -0.005111586963060688,
+        "p95": 0.5182681034778346,
+        "max": 1.1882039295318556,
+        "mae": 0.23743223374516076,
+        "bias": 0.04416504412809948,
+        "rmse": 0.3168363677334267
+      },
+      "axis_a_error_px": {
+        "n": 444,
+        "mean": 2.5635167603443154,
+        "median": 2.031043451211672,
+        "p95": 5.018658011864405,
+        "max": 5.714500942553855,
+        "mae": 2.5635167603443154,
+        "bias": 2.5635167603443154,
+        "rmse": 2.8717423156697532
+      },
+      "axis_b_error_px": {
+        "n": 444,
+        "mean": 2.1840860711551264,
+        "median": 1.6585204705916983,
+        "p95": 4.822766811864405,
+        "max": 4.988412591865206,
+        "mae": 2.1840860711551264,
+        "bias": 2.1840860711551264,
+        "rmse": 2.5265553710962774
+      },
+      "axis_ratio": {
+        "n": 444,
+        "mean": 1.0277224775682976,
+        "median": 1.0225562671353137,
+        "p95": 1.06934026732936,
+        "max": 1.112797670181772,
+        "mae": 1.0277224775682976,
+        "bias": 1.0277224775682976,
+        "rmse": 1.0279455517234788
+      },
+      "orientation_angle_deg": {
+        "n": 444,
+        "mean": -5.720416562635367,
+        "median": -4.386736766860122,
+        "p95": 89.06714868977916,
+        "max": 89.99998127603166,
+        "mae": 45.47501626723666,
+        "bias": -5.720416562635367,
+        "rmse": 54.40655492611627
+      },
+      "orientation_error_deg": {
+        "n": 0,
+        "mean": null,
+        "median": null,
+        "p95": null,
+        "max": null,
+        "mae": null,
+        "bias": null,
+        "rmse": null,
+        "available": false,
+        "reason": "manifest has no expected per-marker ellipse orientation"
+      }
+    },
+    "pose": {
+      "available": true,
+      "pose_valid_frames": 75,
+      "translation_error_m": {
+        "n": 75,
+        "mean": 0.008435129399369372,
+        "median": 0.0056295320910447234,
+        "p95": 0.01684637109690361,
+        "max": 0.039081000856636,
+        "mae": 0.008435129399369372,
+        "bias": 0.008435129399369372,
+        "rmse": 0.010330475698651214
+      },
+      "x_error_m": {
+        "n": 75,
+        "mean": 0.0013071036354043047,
+        "median": 8.957910090670249e-05,
+        "p95": 0.00923557429111605,
+        "max": 0.034584021056022485,
+        "mae": 0.0037160193398363983,
+        "bias": 0.0013071036354043047,
+        "rmse": 0.006735718663498688
+      },
+      "y_error_m": {
+        "n": 75,
+        "mean": 0.0007408820346921506,
+        "median": 0.00010176292753836024,
+        "p95": 0.010718989737203598,
+        "max": 0.014758438464196662,
+        "mae": 0.0037104232906203113,
+        "bias": 0.0007408820346921506,
+        "rmse": 0.005357161332768799
+      },
+      "z_error_m": {
+        "n": 75,
+        "mean": -0.0037839164094932666,
+        "median": -0.0047969534041250594,
+        "p95": 0.0017309355741830863,
+        "max": 0.015776131301505014,
+        "mae": 0.004918712249789565,
+        "bias": -0.0037839164094932666,
+        "rmse": 0.005713986760686935
+      },
+      "roll_error_deg": {
+        "n": 75,
+        "mean": 0.007848146165199145,
+        "median": -0.006560347816417789,
+        "p95": 0.5887109512621747,
+        "max": 0.7725239572646387,
+        "mae": 0.22884426477001965,
+        "bias": 0.007848146165199145,
+        "rmse": 0.3153081015391736
+      },
+      "pitch_error_deg": {
+        "n": 75,
+        "mean": 0.003646525622441838,
+        "median": 0.007597604893874177,
+        "p95": 0.5667167326170583,
+        "max": 1.6792742591777028,
+        "mae": 0.2919991629858043,
+        "bias": 0.003646525622441838,
+        "rmse": 0.4332323157891896
+      },
+      "yaw_error_deg": {
+        "n": 75,
+        "mean": 0.01924705151609904,
+        "median": -0.0016114903768311706,
+        "p95": 0.18446200741155938,
+        "max": 0.694549262294629,
+        "mae": 0.06628858933132847,
+        "bias": 0.01924705151609904,
+        "rmse": 0.141730943079096
+      }
+    },
+    "run_metadata": {
+      "available": true,
+      "results_path": "dataset/TD-S10-B2/whycon_gazebo_synth_20260523_114246/sentai_sim_20260523_114846/sentai_sim_results.jsonl",
+      "run_dir": "/home/bogdan/work/coralmicro/dataset/TD-S10-B2/whycon_gazebo_synth_20260523_114246/sentai_sim_20260523_114846",
+      "summary_path": "/home/bogdan/work/coralmicro/dataset/TD-S10-B2/whycon_gazebo_synth_20260523_114246/sentai_sim_20260523_114846/sentai_sim_summary.json",
+      "summary": {
+        "backend": "sentai_sim.markers.whycon",
+        "init_rc": 0,
+        "fx": 288.299988,
+        "fy": 288.299988,
+        "cx": 160.0,
+        "cy": 120.0,
+        "marker_diameter_m": 0.0544,
+        "frames": 100,
+        "frames_with_detections": 100,
+        "detections_total": 486
+      },
+      "repl_log_path": "/home/bogdan/work/coralmicro/dataset/TD-S10-B2/whycon_gazebo_synth_20260523_114246/sentai_sim_20260523_114846/sentai_sim_repl.log",
+      "sim_build_line": "[sim] sentai_sim build #558 (2026-05-23 11:27:12)"
+    }
+  },
+  "backend_disagreement": {
+    "frames_with_count_or_match_disagreement": 3,
+    "examples": [
+      {
+        "frame_id": 33,
+        "image_path": "frames/frame_000033_x+0.000_y-0.250_z0.500_r+0.0_p+0.0_yaw180_n4.pgm",
+        "expected_count": 2,
+        "opencv_detected": 4,
+        "opencv_matched": 2,
+        "sentai_detected": 5,
+        "sentai_matched": 2
+      },
+      {
+        "frame_id": 77,
+        "image_path": "frames/frame_000077_x-0.250_y+0.000_z0.750_r+0.0_p+0.0_yaw225_n6.pgm",
+        "expected_count": 5,
+        "opencv_detected": 6,
+        "opencv_matched": 5,
+        "sentai_detected": 7,
+        "sentai_matched": 5
+      },
+      {
+        "frame_id": 80,
+        "image_path": "frames/frame_000080_x-0.250_y+0.000_z0.750_r+4.0_p-3.0_yaw225_n5.pgm",
+        "expected_count": 5,
+        "opencv_detected": 5,
+        "opencv_matched": 5,
+        "sentai_detected": 6,
+        "sentai_matched": 5
+      }
+    ]
+  },
+  "backend_delta_stats": {
+    "count_delta": {
+      "n": 100,
+      "mean": -0.03,
+      "median": 0.0,
+      "p95": 0.0,
+      "max": 0.0,
+      "mae": 0.03,
+      "bias": -0.03,
+      "rmse": 0.17320508075688773
+    },
+    "matched_delta": {
+      "n": 100,
+      "mean": 0.0,
+      "median": 0.0,
+      "p95": 0.0,
+      "max": 0.0,
+      "mae": 0.0,
+      "bias": 0.0,
+      "rmse": 0.0
+    },
+    "marker_delta_count": 444,
+    "centroid_delta_px": {
+      "n": 444,
+      "mean": 0.0751859908644496,
+      "median": 0.0357177610877809,
+      "p95": 0.2783834709087327,
+      "max": 0.5187992179303216,
+      "mae": 0.0751859908644496,
+      "bias": 0.0751859908644496,
+      "rmse": 0.127937987459261
+    },
+    "radius_delta_px": {
+      "n": 444,
+      "mean": 0.05630630630630631,
+      "median": 0.0,
+      "p95": 0.5,
+      "max": 0.5,
+      "mae": 0.05855855855855856,
+      "bias": 0.05630630630630631,
+      "rmse": 0.17111189111011332
+    },
+    "axis_a_delta_px": {
+      "n": 444,
+      "mean": -0.04287918812966039,
+      "median": -0.007918325291881523,
+      "p95": 0.0004010656033924129,
+      "max": 0.05935953278021877,
+      "mae": 0.04380550365370503,
+      "bias": -0.04287918812966039,
+      "rmse": 0.07281374982345905
+    },
+    "axis_b_delta_px": {
+      "n": 444,
+      "mean": -0.0059936621984612234,
+      "median": -3.3168085267654135e-05,
+      "p95": 0.17249409396039905,
+      "max": 0.37432767963569624,
+      "mae": 0.050204034881811174,
+      "bias": -0.0059936621984612234,
+      "rmse": 0.0866790628708886
+    },
+    "angle_delta_deg": {
+      "n": 444,
+      "mean": -0.4690035645274218,
+      "median": 0.0,
+      "p95": 70.60521054316041,
+      "max": 89.9999906379436,
+      "mae": 18.605887490394096,
+      "bias": -0.4690035645274218,
+      "rmse": 34.7770544277673
+    },
+    "angle_delta_stable_count": 3,
+    "angle_delta_stable_deg": {
+      "n": 3,
+      "mean": 3.4220078011706456,
+      "median": 0.0004916815115620921,
+      "p95": 9.238763326763536,
+      "max": 10.265237954013756,
+      "mae": 3.4220078011706456,
+      "bias": 3.4220078011706456,
+      "rmse": 5.926637905270713
+    },
+    "pose_delta_count": 75,
+    "translation_delta_m": {
+      "n": 75,
+      "mean": 0.005492381580196309,
+      "median": 0.0023502420287308877,
+      "p95": 0.024054922121980113,
+      "max": 0.030579843885494035,
+      "mae": 0.005492381580196309,
+      "bias": 0.005492381580196309,
+      "rmse": 0.00935322145835288
+    },
+    "x_delta_m": {
+      "n": 75,
+      "mean": -4.574370178004457e-05,
+      "median": -0.00014232079917723408,
+      "p95": 0.005411370325150084,
+      "max": 0.011699949611654714,
+      "mae": 0.0024225574689480662,
+      "bias": -4.574370178004457e-05,
+      "rmse": 0.004339258989569183
+    },
+    "y_delta_m": {
+      "n": 75,
+      "mean": -0.0011283116879080854,
+      "median": -7.509330393096723e-06,
+      "p95": 0.010155455649871966,
+      "max": 0.021069740531666825,
+      "mae": 0.0038329164995566786,
+      "bias": -0.0011283116879080854,
+      "rmse": 0.007033356624544706
+    },
+    "z_delta_m": {
+      "n": 75,
+      "mean": -0.001131236277327008,
+      "median": -2.9853045408478884e-05,
+      "p95": 0.003159403264218105,
+      "max": 0.00736789674824001,
+      "mae": 0.0021533932369434423,
+      "bias": -0.001131236277327008,
+      "rmse": 0.004380123019095344
+    },
+    "roll_delta_deg": {
+      "n": 75,
+      "mean": 0.009830354353428751,
+      "median": 0.0006561295436711134,
+      "p95": 0.5964798020077828,
+      "max": 1.4795720118258089,
+      "mae": 0.25828683569285504,
+      "bias": 0.009830354353428751,
+      "rmse": 0.45420176925732275
+    },
+    "pitch_delta_deg": {
+      "n": 75,
+      "mean": -0.02277285773174943,
+      "median": -0.0005837994482931208,
+      "p95": 0.487340255427,
+      "max": 0.9185280721139577,
+      "mae": 0.20757449293315594,
+      "bias": -0.02277285773174943,
+      "rmse": 0.3271571834185863
+    },
+    "yaw_delta_deg": {
+      "n": 75,
+      "mean": 0.018089408889840872,
+      "median": 0.0028251006549737667,
+      "p95": 0.11671969992922579,
+      "max": 0.44816533918611867,
+      "mae": 0.03797062886626274,
+      "bias": 0.018089408889840872,
+      "rmse": 0.08196807694128018
+    }
+  },
+  "dataset_config": {
+    "scene_id": "sentai_whycon_small_dataset",
+    "image": {
+      "width": 320,
+      "height": 240,
+      "format": "P5_PGM"
+    },
+    "camera": {
+      "fx": 288.3,
+      "fy": 288.3,
+      "cx": 160.0,
+      "cy": 120.0,
+      "horizontal_fov_rad": 1.013313278321082,
+      "zero_pose_convention": "image+x->world+Y, image+y->world+X, optical+z->world-Z"
+    },
+    "visibility_policy": {
+      "regular_min_expected_markers": 4,
+      "stress_min_expected_markers": 3,
+      "edge_cases_with_3_to_5_markers": true,
+      "regular_dataset_allows_3_marker_frames": false,
+      "stress_dataset_allows_3_marker_frames": true,
+      "occlusion_modeled": false,
+      "occlusion_note": "Visibility is geometric from projection and image bounds; Gazebo occlusion is not modeled in manifest classification."
+    },
+    "include_partial_crop": false
+  },
+  "output_dir": "/home/bogdan/work/coralmicro/dataset/TD-S10-B2/whycon_gazebo_synth_20260523_114246/validation_20260523_120706",
+  "overlay_count": 0,
+  "detected_overlay_count": 100,
+  "sentai_detected_overlay_count": 100
+}

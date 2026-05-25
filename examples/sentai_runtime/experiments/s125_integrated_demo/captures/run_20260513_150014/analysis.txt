@@ -1,0 +1,13 @@
+
+=== run_20260513_150014 ===
+frames: 149
+  gradient sum: min= 6,611,661  max= 6,667,986  range=    56,325
+  mean luma:    min=  49.9    max=  49.9    range=   0.0
+  unique colors: min= 1932    max= 2042    range=  110
+
+VERDICT (visual): SCENE ESSENTIALLY STATIC across all frames.
+                  → drone likely never left the ground.
+
+=== pose ===
+  z range: 0.013 → 0.873 m (Δ=0.860 m)
+VERDICT (pose): drone reached 0.87 m altitude.

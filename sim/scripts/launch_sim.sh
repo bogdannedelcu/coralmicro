@@ -101,11 +101,35 @@ done
 if [[ $WAIT_S -ge 15 ]]; then
     echo "[launch_sim] WARN: no camera frames after 15 s — bridge or Gazebo stalled"
 else
-    # Measure FPS over 2 s window — counts seq=N lines in bridge log.
+    # Measure FPS over a short window.  Prefer bridge_recv seq/timestamps
+    # because [bridge] seq= lines are diagnostic and may be sparse before the
+    # scene starts moving, which made healthy 30 Hz streams look like 2-3 Hz.
     COUNT_BEFORE=$(grep -c "^\[bridge\] seq=" "$WORKDIR/gz_to_uds_bridge.log" 2>/dev/null || echo 0)
-    sleep 2
+    sleep 4
     COUNT_AFTER=$(grep -c "^\[bridge\] seq=" "$WORKDIR/gz_to_uds_bridge.log" 2>/dev/null || echo 0)
-    FPS=$(( (COUNT_AFTER - COUNT_BEFORE) / 2 ))
+    FPS=$(awk '
+        /^\[bridge_recv\] seq=/ {
+            split($2, seq_kv, "=");
+            split($3, stamp_kv, "=");
+            seq = seq_kv[2] + 0;
+            stamp = stamp_kv[2] + 0.0;
+            if (n == 0) {
+                seq0 = seq;
+                stamp0 = stamp;
+            }
+            seq1 = seq;
+            stamp1 = stamp;
+            n += 1;
+        }
+        END {
+            if (n >= 2 && stamp1 > stamp0) {
+                printf "%.1f", (seq1 - seq0) / (stamp1 - stamp0);
+            }
+        }
+    ' "$WORKDIR/gz_to_uds_bridge.log" 2>/dev/null || true)
+    if [[ -z "$FPS" ]]; then
+        FPS=$(( (COUNT_AFTER - COUNT_BEFORE) / 4 ))
+    fi
     echo "[launch_sim] camera FPS ≈ $FPS Hz (target 30 Hz; <15 → CPU contention)"
 
     # Also probe Gazebo real-time factor (single sample, best-effort).

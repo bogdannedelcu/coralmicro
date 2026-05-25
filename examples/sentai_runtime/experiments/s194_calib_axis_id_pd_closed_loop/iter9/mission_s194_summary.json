@@ -1,0 +1,1 @@
+{"n_samples": 0, "hold_rms": 0.0, "assert_calibrated": false, "status": "AXIS_ID_OK", "reject_name": "", "handoff_xyz": [-0.05536447, 0.04962721, 0.252766], "kp_y": 0.0, "kp_x": 0.0, "R": null, "phase_reached": -1, "duration_ms": 0, "axis_id_ok": true, "reject_code": -1, "handoff_thrust": 34000, "accepted": false, "cam_offset_B": null, "ext_quality": null, "hold_max": 0.0}

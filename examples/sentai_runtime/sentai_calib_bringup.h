@@ -1,4 +1,8 @@
-// sentai_calib_bringup.h — OP-S10-W21-T4 unified bringup orchestrator.
+// sentai_calib_bringup.h — LEGACY OP-S10-W21-T4 unified bringup orchestrator.
+//
+// B5 note: this is from the old Flow-autotune bringup family.  It is not the
+// target architecture for A3/B3 or A4/B4.  Keep temporarily for experiment
+// replay; delete after the new sentai.calib/sentai.servo tasks replace it.
 //
 // Single on-board entry point that auto-discovers everything that varies
 // drone-to-drone, persists the result, and leaves the drone hovering at

@@ -1,0 +1,12 @@
+| frame_id | image_path | backend | expected_count | primary_reprojection_rmse_px | candidate_count | near_ambiguous_count | best_kind | best_reprojection_rmse_px | best_reprojection_delta_px | best_translation_delta_m | best_yaw_delta_deg |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 11 | frames/frame_000011_x-0.500_y-0.250_z1.000_r+4.0_p-3.0_yaw270_n6.pgm | opencv | 6 | 0.128175 | 197 | 1 | correspondence_permutation | 0.128175 | -9.02056e-15 | 1.1202 | 180 |
+| 11 | frames/frame_000011_x-0.500_y-0.250_z1.000_r+4.0_p-3.0_yaw270_n6.pgm | sentai_sim | 6 | 0.0750733 | 188 | 1 | correspondence_permutation | 0.0750733 | -8.35443e-15 | 1.10491 | 180 |
+| 16 | frames/frame_000016_x+0.000_y+0.000_z0.300_r+0.0_p+0.0_yaw090_n6.pgm | opencv | 6 | 0.0432431 | 261 | 1 | correspondence_permutation | 0.0432431 | -3.67067e-15 | 0.001463 | 180 |
+| 16 | frames/frame_000016_x+0.000_y+0.000_z0.300_r+0.0_p+0.0_yaw090_n6.pgm | sentai_sim | 6 | 0.0307042 | 265 | 1 | correspondence_permutation | 0.0307042 | -2.48759e-15 | 0.0017645 | 180 |
+| 19 | frames/frame_000019_x-0.500_y+0.000_z1.000_r+0.0_p+0.0_yaw045_n4.pgm | opencv | 4 | 0.0528683 | 12 | 1 | ippe_solution | 0.301831 | 0.248963 | 0.0506967 | 0.52336 |
+| 23 | frames/frame_000023_x-0.500_y+0.000_z1.000_r+4.0_p-3.0_yaw045_n5.pgm | opencv | 5 | 0.119412 | 32 | 1 | ippe_solution | 1.04185 | 0.922438 | 0.960918 | 10.6964 |
+| 23 | frames/frame_000023_x-0.500_y+0.000_z1.000_r+4.0_p-3.0_yaw045_n5.pgm | sentai_sim | 5 | 0.0558886 | 32 | 1 | ippe_solution | 1.02745 | 0.971557 | 0.980434 | 11.1581 |
+| 26 | frames/frame_000026_x-0.250_y-0.250_z0.750_r+0.0_p+0.0_yaw315_n4.pgm | opencv | 4 | 0.149931 | 11 | 2 | ippe_solution | 0.56734 | 0.417409 | 0.546976 | 0.46713 |
+| 27 | frames/frame_000027_x-0.500_y+0.000_z1.000_r+0.0_p+0.0_yaw090_n4.pgm | opencv | 4 | 0.0538378 | 11 | 2 | ippe_solution | 0.373789 | 0.319952 | 0.0820825 | 1.51961 |
+| 27 | frames/frame_000027_x-0.500_y+0.000_z1.000_r+0.0_p+0.0_yaw090_n4.pgm | sentai_sim | 4 | 0.0107449 | 12 | 1 | ippe_solution | 0.806607 | 0.795862 | 0.915405 | 0.732568 |

@@ -1,0 +1,429 @@
+{
+  "source_dataset": "/home/bogdan/work/coralmicro/dataset/TD-S10-B1/whycon_gazebo_synth_20260523_092439",
+  "dataset_id": "whycon_gazebo_synth_20260523_092439",
+  "created_utc": "2026-05-23T07:19:00+00:00",
+  "validator": "validate_whycon_synthetic_dataset.py",
+  "opencv": {
+    "available": true,
+    "frame_count": 30,
+    "expected_markers": 148,
+    "matched_markers": 119,
+    "marker_recall": 0.8040540540540541,
+    "false_positives_total": 0,
+    "false_positives_per_frame": 0.0,
+    "complete_frame_success_rate": 0.5,
+    "centroid_error_px": {
+      "mean": 1.1587329849108388,
+      "median": 1.0628123603032265,
+      "p95": 2.461791578262498,
+      "max": 2.92175425199717
+    },
+    "by_z": {
+      "0.30": {
+        "frames": 8,
+        "expected": 46,
+        "matched": 42
+      },
+      "0.50": {
+        "frames": 8,
+        "expected": 34,
+        "matched": 28
+      },
+      "0.75": {
+        "frames": 7,
+        "expected": 33,
+        "matched": 27
+      },
+      "1.00": {
+        "frames": 7,
+        "expected": 35,
+        "matched": 22
+      }
+    },
+    "by_expected_count": {
+      "6": {
+        "frames": 10,
+        "expected": 60,
+        "matched": 53
+      },
+      "4": {
+        "frames": 12,
+        "expected": 48,
+        "matched": 38
+      },
+      "5": {
+        "frames": 8,
+        "expected": 40,
+        "matched": 28
+      }
+    },
+    "version": "4.13.0",
+    "params": {
+      "threshold_values": [
+        100,
+        130,
+        150
+      ],
+      "threshold_type": "THRESH_BINARY_INV",
+      "contour_retrieval": "RETR_TREE",
+      "min_outer_radius_px": 4.0,
+      "max_outer_radius_px": 36.0,
+      "min_outer_area_px2": 30.0,
+      "min_outer_circularity": 0.55,
+      "max_center_offset_px": 4.0,
+      "max_center_offset_radius_frac": 0.25,
+      "min_dot_outer_radius_ratio": 0.12,
+      "max_dot_outer_radius_ratio": 0.45
+    }
+  },
+  "sentai_sim": {
+    "available": true,
+    "frame_count": 30,
+    "expected_markers": 148,
+    "matched_markers": 3,
+    "marker_recall": 0.02027027027027027,
+    "false_positives_total": 0,
+    "false_positives_per_frame": 0.0,
+    "complete_frame_success_rate": 0.0,
+    "centroid_error_px": {
+      "mean": 1.2266533066147194,
+      "median": 1.2618241255698308,
+      "p95": 1.855348323265619,
+      "max": 1.9212954563429288
+    },
+    "by_z": {
+      "0.30": {
+        "frames": 8,
+        "expected": 46,
+        "matched": 1
+      },
+      "0.50": {
+        "frames": 8,
+        "expected": 34,
+        "matched": 1
+      },
+      "0.75": {
+        "frames": 7,
+        "expected": 33,
+        "matched": 0
+      },
+      "1.00": {
+        "frames": 7,
+        "expected": 35,
+        "matched": 1
+      }
+    },
+    "by_expected_count": {
+      "6": {
+        "frames": 10,
+        "expected": 60,
+        "matched": 0
+      },
+      "4": {
+        "frames": 12,
+        "expected": 48,
+        "matched": 1
+      },
+      "5": {
+        "frames": 8,
+        "expected": 40,
+        "matched": 2
+      }
+    }
+  },
+  "backend_disagreement": {
+    "frames_with_count_or_match_disagreement": 29,
+    "examples": [
+      {
+        "frame_id": 0,
+        "image_path": "frames/frame_000000_x+0.000_y+0.000_z0.300_r+0.0_p+0.0_yaw000_n6.pgm",
+        "expected_count": 6,
+        "opencv_detected": 6,
+        "opencv_matched": 6,
+        "sentai_detected": 0,
+        "sentai_matched": 0
+      },
+      {
+        "frame_id": 1,
+        "image_path": "frames/frame_000001_x-0.250_y+0.000_z0.500_r+4.0_p-3.0_yaw045_n4.pgm",
+        "expected_count": 4,
+        "opencv_detected": 3,
+        "opencv_matched": 3,
+        "sentai_detected": 0,
+        "sentai_matched": 0
+      },
+      {
+        "frame_id": 2,
+        "image_path": "frames/frame_000002_x-0.500_y+0.000_z0.750_r+4.0_p-3.0_yaw315_n4.pgm",
+        "expected_count": 4,
+        "opencv_detected": 2,
+        "opencv_matched": 2,
+        "sentai_detected": 0,
+        "sentai_matched": 0
+      },
+      {
+        "frame_id": 3,
+        "image_path": "frames/frame_000003_x-0.500_y-0.250_z1.000_r+0.0_p+0.0_yaw135_n4.pgm",
+        "expected_count": 4,
+        "opencv_detected": 4,
+        "opencv_matched": 4,
+        "sentai_detected": 0,
+        "sentai_matched": 0
+      },
+      {
+        "frame_id": 4,
+        "image_path": "frames/frame_000004_x+0.000_y+0.000_z0.300_r+4.0_p-3.0_yaw000_n6.pgm",
+        "expected_count": 6,
+        "opencv_detected": 6,
+        "opencv_matched": 6,
+        "sentai_detected": 0,
+        "sentai_matched": 0
+      },
+      {
+        "frame_id": 5,
+        "image_path": "frames/frame_000005_x-0.250_y+0.000_z0.500_r+4.0_p-3.0_yaw225_n4.pgm",
+        "expected_count": 4,
+        "opencv_detected": 2,
+        "opencv_matched": 2,
+        "sentai_detected": 0,
+        "sentai_matched": 0
+      },
+      {
+        "frame_id": 6,
+        "image_path": "frames/frame_000006_x-0.250_y-0.250_z0.750_r+0.0_p+0.0_yaw000_n4.pgm",
+        "expected_count": 4,
+        "opencv_detected": 3,
+        "opencv_matched": 3,
+        "sentai_detected": 0,
+        "sentai_matched": 0
+      },
+      {
+        "frame_id": 7,
+        "image_path": "frames/frame_000007_x-0.500_y-0.250_z1.000_r+4.0_p-3.0_yaw270_n6.pgm",
+        "expected_count": 6,
+        "opencv_detected": 6,
+        "opencv_matched": 6,
+        "sentai_detected": 0,
+        "sentai_matched": 0
+      },
+      {
+        "frame_id": 8,
+        "image_path": "frames/frame_000008_x+0.000_y+0.000_z0.300_r+0.0_p+0.0_yaw045_n6.pgm",
+        "expected_count": 6,
+        "opencv_detected": 4,
+        "opencv_matched": 4,
+        "sentai_detected": 0,
+        "sentai_matched": 0
+      },
+      {
+        "frame_id": 9,
+        "image_path": "frames/frame_000009_x-0.250_y+0.000_z0.500_r+4.0_p-3.0_yaw270_n4.pgm",
+        "expected_count": 4,
+        "opencv_detected": 3,
+        "opencv_matched": 3,
+        "sentai_detected": 0,
+        "sentai_matched": 0
+      },
+      {
+        "frame_id": 10,
+        "image_path": "frames/frame_000010_x-0.250_y-0.250_z0.750_r+4.0_p-3.0_yaw000_n6.pgm",
+        "expected_count": 6,
+        "opencv_detected": 6,
+        "opencv_matched": 6,
+        "sentai_detected": 0,
+        "sentai_matched": 0
+      },
+      {
+        "frame_id": 11,
+        "image_path": "frames/frame_000011_x-0.500_y-0.250_z1.000_r+0.0_p+0.0_yaw315_n4.pgm",
+        "expected_count": 4,
+        "opencv_detected": 4,
+        "opencv_matched": 4,
+        "sentai_detected": 0,
+        "sentai_matched": 0
+      },
+      {
+        "frame_id": 12,
+        "image_path": "frames/frame_000012_x+0.000_y+0.000_z0.300_r+4.0_p-3.0_yaw045_n5.pgm",
+        "expected_count": 5,
+        "opencv_detected": 5,
+        "opencv_matched": 5,
+        "sentai_detected": 0,
+        "sentai_matched": 0
+      },
+      {
+        "frame_id": 13,
+        "image_path": "frames/frame_000013_x-0.250_y+0.000_z0.500_r+4.0_p-3.0_yaw315_n5.pgm",
+        "expected_count": 5,
+        "opencv_detected": 5,
+        "opencv_matched": 5,
+        "sentai_detected": 0,
+        "sentai_matched": 0
+      },
+      {
+        "frame_id": 14,
+        "image_path": "frames/frame_000014_x-0.250_y-0.250_z0.750_r+0.0_p+0.0_yaw090_n4.pgm",
+        "expected_count": 4,
+        "opencv_detected": 4,
+        "opencv_matched": 4,
+        "sentai_detected": 0,
+        "sentai_matched": 0
+      },
+      {
+        "frame_id": 15,
+        "image_path": "frames/frame_000015_x-0.500_y-0.250_z1.000_r+4.0_p-3.0_yaw315_n6.pgm",
+        "expected_count": 6,
+        "opencv_detected": 4,
+        "opencv_matched": 4,
+        "sentai_detected": 0,
+        "sentai_matched": 0
+      },
+      {
+        "frame_id": 16,
+        "image_path": "frames/frame_000016_x+0.000_y+0.000_z0.300_r+0.0_p+0.0_yaw090_n6.pgm",
+        "expected_count": 6,
+        "opencv_detected": 6,
+        "opencv_matched": 6,
+        "sentai_detected": 0,
+        "sentai_matched": 0
+      },
+      {
+        "frame_id": 17,
+        "image_path": "frames/frame_000017_x+0.000_y-0.250_z0.500_r+0.0_p+0.0_yaw000_n4.pgm",
+        "expected_count": 4,
+        "opencv_detected": 4,
+        "opencv_matched": 4,
+        "sentai_detected": 1,
+        "sentai_matched": 1
+      },
+      {
+        "frame_id": 18,
+        "image_path": "frames/frame_000018_x-0.250_y-0.250_z0.750_r+4.0_p-3.0_yaw090_n6.pgm",
+        "expected_count": 6,
+        "opencv_detected": 5,
+        "opencv_matched": 5,
+        "sentai_detected": 0,
+        "sentai_matched": 0
+      },
+      {
+        "frame_id": 19,
+        "image_path": "frames/frame_000019_x-0.500_y+0.000_z1.000_r+0.0_p+0.0_yaw045_n5.pgm",
+        "expected_count": 5,
+        "opencv_detected": 1,
+        "opencv_matched": 1,
+        "sentai_detected": 0,
+        "sentai_matched": 0
+      },
+      {
+        "frame_id": 20,
+        "image_path": "frames/frame_000020_x+0.000_y+0.000_z0.300_r+4.0_p-3.0_yaw090_n6.pgm",
+        "expected_count": 6,
+        "opencv_detected": 6,
+        "opencv_matched": 6,
+        "sentai_detected": 0,
+        "sentai_matched": 0
+      },
+      {
+        "frame_id": 21,
+        "image_path": "frames/frame_000021_x+0.000_y-0.250_z0.500_r+4.0_p-3.0_yaw000_n4.pgm",
+        "expected_count": 4,
+        "opencv_detected": 4,
+        "opencv_matched": 4,
+        "sentai_detected": 0,
+        "sentai_matched": 0
+      },
+      {
+        "frame_id": 22,
+        "image_path": "frames/frame_000022_x-0.250_y-0.250_z0.750_r+0.0_p+0.0_yaw135_n5.pgm",
+        "expected_count": 5,
+        "opencv_detected": 4,
+        "opencv_matched": 4,
+        "sentai_detected": 0,
+        "sentai_matched": 0
+      },
+      {
+        "frame_id": 23,
+        "image_path": "frames/frame_000023_x-0.500_y+0.000_z1.000_r+4.0_p-3.0_yaw045_n5.pgm",
+        "expected_count": 5,
+        "opencv_detected": 2,
+        "opencv_matched": 2,
+        "sentai_detected": 0,
+        "sentai_matched": 0
+      },
+      {
+        "frame_id": 24,
+        "image_path": "frames/frame_000024_x+0.000_y+0.000_z0.300_r+0.0_p+0.0_yaw135_n6.pgm",
+        "expected_count": 6,
+        "opencv_detected": 4,
+        "opencv_matched": 4,
+        "sentai_detected": 0,
+        "sentai_matched": 0
+      },
+      {
+        "frame_id": 25,
+        "image_path": "frames/frame_000025_x+0.000_y-0.250_z0.500_r+4.0_p-3.0_yaw045_n5.pgm",
+        "expected_count": 5,
+        "opencv_detected": 5,
+        "opencv_matched": 5,
+        "sentai_detected": 0,
+        "sentai_matched": 0
+      },
+      {
+        "frame_id": 26,
+        "image_path": "frames/frame_000026_x-0.250_y-0.250_z0.750_r+0.0_p+0.0_yaw180_n4.pgm",
+        "expected_count": 4,
+        "opencv_detected": 3,
+        "opencv_matched": 3,
+        "sentai_detected": 0,
+        "sentai_matched": 0
+      },
+      {
+        "frame_id": 28,
+        "image_path": "frames/frame_000028_x+0.000_y+0.000_z0.300_r+4.0_p-3.0_yaw135_n5.pgm",
+        "expected_count": 5,
+        "opencv_detected": 5,
+        "opencv_matched": 5,
+        "sentai_detected": 1,
+        "sentai_matched": 1
+      },
+      {
+        "frame_id": 29,
+        "image_path": "frames/frame_000029_x+0.000_y-0.250_z0.500_r+4.0_p-3.0_yaw135_n4.pgm",
+        "expected_count": 4,
+        "opencv_detected": 2,
+        "opencv_matched": 2,
+        "sentai_detected": 0,
+        "sentai_matched": 0
+      }
+    ]
+  },
+  "dataset_config": {
+    "scene_id": "sentai_whycon_small_dataset",
+    "image": {
+      "width": 320,
+      "height": 240,
+      "format": "P5_PGM"
+    },
+    "camera": {
+      "fx": 288.3,
+      "fy": 288.3,
+      "cx": 160.0,
+      "cy": 120.0,
+      "horizontal_fov_rad": 1.013313278321082,
+      "zero_pose_convention": "image+x->world+Y, image+y->world+X, optical+z->world-Z"
+    },
+    "visibility_policy": {
+      "regular_min_expected_markers": 4,
+      "stress_min_expected_markers": 3,
+      "edge_cases_with_3_to_5_markers": true,
+      "regular_dataset_allows_3_marker_frames": false,
+      "stress_dataset_allows_3_marker_frames": true,
+      "occlusion_modeled": false,
+      "occlusion_note": "Visibility is geometric from projection and image bounds; Gazebo occlusion is not modeled in manifest classification."
+    }
+  },
+  "output_dir": "/home/bogdan/work/coralmicro/dataset/TD-S10-B2/whycon_gazebo_synth_20260523_092439/validation_20260523_101900",
+  "overlay_count": 15,
+  "detected_overlay_count": 30,
+  "sentai_detected_overlay_count": 30
+}

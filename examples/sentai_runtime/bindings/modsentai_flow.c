@@ -27,6 +27,9 @@ extern void     sentai_flow_deadband_state(uint32_t* period_ms_x10,
                                             uint32_t* deadband_mgp,
                                             uint32_t* velocity_mgp_per_s);
 extern int      sentai_fs_cache_write(const uint8_t* data, int size);
+extern void     sentai_markers_get_cam_extrinsics_matrix(float t_body[3],
+                                                         float R[9],
+                                                         int* is_set);
 
 // sentai.flow.enable() -> int (0 on success, -1 if no compute backend)
 static mp_obj_t mod_sentai_flow_enable(void) {
@@ -91,8 +94,15 @@ static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_flow_read_obj,
                                   mod_sentai_flow_read);
 
 // sentai.flow.body_read() -> dict with body-frame conversion.
-// cam0:  body_fw = -dx,  body_left = +dy
-// cam1:  body_fw = +dx,  body_left = -dy
+//
+// Uses the same body<-camera-optical extrinsics configured in sentai.markers
+// so flow and marker/PnP code share one camera convention.  For small optical
+// flow displacements the image-plane vector is mapped with the first two
+// columns of R_B_C:
+//   body_fw   = R[0] * dx + R[1] * dy
+//   body_left = R[3] * dx + R[4] * dy
+// If sentai.markers has not configured extrinsics yet, keep the legacy
+// cam_id fallback for diagnostics/backward compatibility.
 static mp_obj_t mod_sentai_flow_body_read(void) {
     volatile flow_shared_t* sh = &FLOW_SHARED();
     int alive = (sh->magic == FLOW_SHARED_MAGIC);
@@ -100,8 +110,21 @@ static mp_obj_t mod_sentai_flow_body_read(void) {
     int32_t dy = sh->last_dy;
     int cam_id = sh->frame_cam_id;
     int32_t body_fw, body_left;
-    if (cam_id == 0) { body_fw = -dx; body_left = +dy; }
-    else             { body_fw = +dx; body_left = -dy; }
+    float t_body[3];
+    float R[9];
+    int extrinsics_set = 0;
+    sentai_markers_get_cam_extrinsics_matrix(t_body, R, &extrinsics_set);
+    (void)t_body;
+    if (extrinsics_set) {
+        const float fw = R[0] * (float)dx + R[1] * (float)dy;
+        const float lf = R[3] * (float)dx + R[4] * (float)dy;
+        body_fw = (int32_t)(fw >= 0.0f ? fw + 0.5f : fw - 0.5f);
+        body_left = (int32_t)(lf >= 0.0f ? lf + 0.5f : lf - 0.5f);
+    } else if (cam_id == 0) {
+        body_fw = -dx; body_left = +dy;
+    } else {
+        body_fw = +dx; body_left = -dy;
+    }
     mp_obj_t d = mp_obj_new_dict(7);
     mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_alive), mp_obj_new_bool(alive));
     mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_body_fw),   mp_obj_new_int(body_fw));

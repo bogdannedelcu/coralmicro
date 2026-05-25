@@ -1,0 +1,14 @@
+{
+  "status": "FAIL",
+  "phase_reached": 1,
+  "reject_name": "SAFETY",
+  "R_drift_deg": 0.0,
+  "cam_offset_inf_err_m": 0.0,
+  "kp_x": -1.0,
+  "kp_y": -1.0,
+  "hold_rms": 0.0,
+  "hold_max": 0.0,
+  "n_samples": 0,
+  "land_err_m": 0.7455018566021451,
+  "pass": false
+}
