@@ -1,0 +1,5 @@
+experiment=s207_cpp_marker_control_task
+task=TD-S10-B4
+status=POST_LOCK_BRAKE_FAIL
+phase=post_acquisition
+abort_reason=post_lock_brake_failed

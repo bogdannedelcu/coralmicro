@@ -126,6 +126,16 @@ inline void wake_post() {}
 
 struct MuGuard { MuGuard(){ mu_lock(); } ~MuGuard(){ mu_unlock(); } };
 
+static uint32_t fr_now_ms_() {
+#if defined(__arm__)
+    return (uint32_t)(xTaskGetTickCount() * (1000U / configTICK_RATE_HZ));
+#else
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (uint32_t)(ts.tv_sec * 1000ULL + ts.tv_nsec / 1000000ULL);
+#endif
+}
+
 // Recorder thread lives in sentai_fr_task.cc (split for clarity,
 // mirrors sentai_safety / sentai_safety_task).  Public callers reach
 // it via sentai_fr_task_start / sentai_fr_task_stop declared in
@@ -280,14 +290,7 @@ extern "C" int sentai_fr_push_event(const char* type, const char* text) {
         return SENTAI_FR_ERR_FULL;
     }
     EventSlot& slot = s_event_pool[c.head % SENTAI_FR_EVENTS_SLOTS];
-    // Use the FreeRTOS tick / monotonic clock for ts.
-#if FR_HAVE_FREERTOS
-    slot.ts_ms = (uint32_t)(xTaskGetTickCount() * (1000U / configTICK_RATE_HZ));
-#else
-    struct timespec ts;
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    slot.ts_ms = (uint32_t)(ts.tv_sec * 1000ULL + ts.tv_nsec / 1000000ULL);
-#endif
+    slot.ts_ms = fr_now_ms_();
     copy_str_(slot.type, sizeof(slot.type), type);
     copy_str_(slot.text, sizeof(slot.text), text);
     sanitise_csv_(slot.type);
@@ -314,7 +317,7 @@ extern "C" int sentai_fr_push_scalar(const char* label, double value,
         return SENTAI_FR_ERR_FULL;
     }
     ScalarSlot& slot = s_scalar_pool[c.head % SENTAI_FR_SCALARS_SLOTS];
-    slot.ts_ms = ts_ms;
+    slot.ts_ms = ts_ms ? ts_ms : fr_now_ms_();
     copy_str_(slot.label, sizeof(slot.label), label);
     sanitise_csv_(slot.label);
     slot.value = value;

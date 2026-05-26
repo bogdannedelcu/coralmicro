@@ -2883,6 +2883,14 @@ extern "C" int sentai_calib_orientation_task_result(int* ok_out,
     return 1;
 }
 
+extern "C" int sentai_calib_orientation_current_thrust(void) {
+    return s.current_thrust_u16;
+}
+
+extern "C" float sentai_calib_orientation_runtime_z_target_m(void) {
+    return s.zhold_target_z_m > 0.0f ? s.zhold_target_z_m : kZHoldTargetM;
+}
+
 extern "C" int sentai_calib_orientation_task_get_status(
         sentai_calib_orientation_status_t* out) {
     if (!out) return 0;

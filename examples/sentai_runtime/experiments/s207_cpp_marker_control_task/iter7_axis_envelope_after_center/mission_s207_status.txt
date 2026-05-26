@@ -1,0 +1,5 @@
+experiment=s207_cpp_marker_control_task
+task=TD-S10-B4
+status=MARKER_ACQ_TIMEOUT
+phase=post_acquisition
+abort_reason=marker_acquisition_timeout

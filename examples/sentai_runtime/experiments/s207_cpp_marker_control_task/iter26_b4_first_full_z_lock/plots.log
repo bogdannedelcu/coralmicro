@@ -1,0 +1,4 @@
+wrote /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s207_cpp_marker_control_task/iter26_b4_first_full_z_lock/s207_xy_gt_vs_est.png
+wrote /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s207_cpp_marker_control_task/iter26_b4_first_full_z_lock/s207_z_gt_vs_est.png
+gt_rows=5080 est_rows=891
+time_alignment=host_monotonic

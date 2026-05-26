@@ -1,0 +1,32 @@
+{
+  "abort_reason": "center_hold_failed",
+  "acquire": {
+    "first_seen_tick": 250,
+    "n_full_max": 7,
+    "ok": true,
+    "radius_max_px": 28.0,
+    "thrust_last": 30500,
+    "z_cam_last_m": 0.971,
+    "z_target_m": null
+  },
+  "calib_ini_layout_id": "A3_SMALL",
+  "calib_layout_ok": true,
+  "calib_load_ok": true,
+  "center_hold": {
+    "err_initial_px": null,
+    "err_last_px": null,
+    "err_max_px": null,
+    "n_full_min": null,
+    "n_full_recent_avg": null,
+    "ok": false,
+    "thrust_last": null,
+    "ticks": null
+  },
+  "experiment": "s207_cpp_marker_control_task",
+  "goal": "B3 RPYT bootstrap -> load strict calib.ini -> sentai.flow consumer -> ExtPos warmup -> Generic hover handoff -> image-frame envelope motion -> land",
+  "phase": "post_acquisition",
+  "source": "sentai.fr events.csv",
+  "status": "CENTER_HOLD_FAIL",
+  "task": "TD-S10-B4",
+  "visual_z_hold_skipped": true
+}

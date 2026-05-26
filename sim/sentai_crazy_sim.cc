@@ -80,6 +80,11 @@
  * src/modules/src/crtp_commander_generic.c — typeHover=5) */
 #define GENERIC_HOVER_TYPE     5
 
+#define PARAM_TOC_CH             0
+#define PARAM_WRITE_CH           2
+#define PARAM_TOC_GET_ITEM_V2    2
+#define PARAM_TOC_GET_INFO_V2    3
+
 /* ===================== Module state ===================== */
 struct rx_pkt_t {
     uint8_t  port;
@@ -435,6 +440,116 @@ extern "C" int sentai_crazy_recv_pop(uint8_t* port, uint8_t* ch,
     *out_len = n;
     s_rx_r.store((r + 1) % RX_RING_SZ, std::memory_order_release);
     return 1;
+}
+
+static int crtp_param_send_and_wait(uint8_t ch,
+                                     const uint8_t* data, int len,
+                                     uint8_t* resp, int* resp_len,
+                                     int timeout_ms) {
+    uint8_t port = 0;
+    uint8_t pkt_ch = 0;
+    uint8_t buf[CRTP_MAX_PAYLOAD];
+    int out_len = 0;
+    while (sentai_crazy_recv_pop(&port, &pkt_ch, buf, sizeof(buf), &out_len)) {
+    }
+    int rc = send_crtp_raw(CRTP_PORT_PARAM, ch, data, len);
+    if (rc != 0) return -1;
+
+    const int ticks = timeout_ms > 0 ? (timeout_ms + 9) / 10 : 1;
+    for (int i = 0; i < ticks; ++i) {
+        if (sentai_crazy_recv_pop(&port, &pkt_ch, buf, sizeof(buf), &out_len)) {
+            if (port == CRTP_PORT_PARAM && pkt_ch == ch) {
+                if (resp && resp_len) {
+                    int n = out_len;
+                    if (n > CRTP_MAX_PAYLOAD) n = CRTP_MAX_PAYLOAD;
+                    memcpy(resp, buf, (size_t)n);
+                    *resp_len = n;
+                }
+                return 0;
+            }
+        }
+        vTaskDelay(pdMS_TO_TICKS(10));
+    }
+    return -2;
+}
+
+static int param_find_by_name(const char* group_want, const char* name_want,
+                              uint16_t* id_out) {
+    if (!group_want || !name_want || !id_out) return -10;
+    *id_out = 0;
+
+    uint8_t cmd = PARAM_TOC_GET_INFO_V2;
+    uint8_t resp[32];
+    int rlen = 0;
+    int rc = crtp_param_send_and_wait(PARAM_TOC_CH, &cmd, 1, resp, &rlen, 1000);
+    if (rc != 0) return -1;
+    if (rlen < 3 || resp[0] != PARAM_TOC_GET_INFO_V2) return -2;
+
+    const uint16_t count = resp[1] | (resp[2] << 8);
+    for (uint16_t id = 0; id < count; ++id) {
+        uint8_t req[3] = {PARAM_TOC_GET_ITEM_V2,
+                          (uint8_t)(id & 0xFF), (uint8_t)(id >> 8)};
+        rlen = 0;
+        if (crtp_param_send_and_wait(PARAM_TOC_CH, req, 3, resp, &rlen, 500) != 0)
+            continue;
+        if (rlen < 6 || resp[0] != PARAM_TOC_GET_ITEM_V2) continue;
+
+        const char* group = (const char*)&resp[4];
+        const int group_len = (int)strnlen(group, (size_t)(rlen - 4));
+        if (group_len <= 0 || 4 + group_len + 1 >= rlen) continue;
+        const char* name = group + group_len + 1;
+        const int name_len =
+            (int)strnlen(name, (size_t)(rlen - (4 + group_len + 1)));
+        if (name_len <= 0) continue;
+        if (strcmp(group, group_want) == 0 && strcmp(name, name_want) == 0) {
+            *id_out = id;
+            return 0;
+        }
+    }
+    return -3;
+}
+
+extern "C" int sentai_crazy_param_find(const char* group, const char* name,
+                                        uint16_t* id_out) {
+    return param_find_by_name(group, name, id_out);
+}
+
+extern "C" int sentai_crazy_param_write_u8(uint16_t id, uint8_t value) {
+    uint8_t data[3] = {(uint8_t)(id & 0xFF), (uint8_t)(id >> 8), value};
+    return crtp_param_send_and_wait(PARAM_WRITE_CH, data, 3, nullptr, nullptr, 700);
+}
+
+extern "C" int sentai_crazy_param_write_float(uint16_t id, float value) {
+    uint8_t data[6];
+    data[0] = id & 0xFF;
+    data[1] = id >> 8;
+    pack_f32(data + 2, value);
+    return crtp_param_send_and_wait(PARAM_WRITE_CH, data, 6, nullptr, nullptr, 700);
+}
+
+extern "C" int sentai_crazy_set_extpos_stddev(float stddev_m) {
+    uint16_t id = 0;
+    int rc = param_find_by_name("locSrv", "extPosStdDev", &id);
+    if (rc != 0) return rc;
+    return sentai_crazy_param_write_float(id, stddev_m);
+}
+
+extern "C" int sentai_crazy_kalman_reset_before_extpos(void) {
+    uint16_t est_id = 0;
+    uint16_t reset_id = 0;
+    int est_rc = param_find_by_name("stabilizer", "estimator", &est_id);
+    int reset_rc = param_find_by_name("kalman", "resetEstimation", &reset_id);
+    if (est_rc == 0) {
+        est_rc = sentai_crazy_param_write_u8(est_id, 2);
+    }
+    if (reset_rc != 0) return reset_rc;
+    int rc1 = sentai_crazy_param_write_u8(reset_id, 1);
+    vTaskDelay(pdMS_TO_TICKS(100));
+    int rc0 = sentai_crazy_param_write_u8(reset_id, 0);
+    if (est_rc != 0) return -20 + est_rc;
+    if (rc1 != 0) return -30 + rc1;
+    if (rc0 != 0) return -40 + rc0;
+    return 0;
 }
 
 /* ---------- Diagnostics ----------

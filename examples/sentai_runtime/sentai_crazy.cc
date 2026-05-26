@@ -1511,6 +1511,89 @@ static int param_write_u16(uint16_t id, uint16_t value) {
     return crtp_param_send_and_wait(PARAM_WRITE_CH, data, 4, nullptr, nullptr, 500);
 }
 
+static int param_write_float(uint16_t id, float value) {
+    uint8_t data[6];
+    data[0] = id & 0xFF;
+    data[1] = id >> 8;
+    memcpy(data + 2, &value, 4);
+    return crtp_param_send_and_wait(PARAM_WRITE_CH, data, 6, nullptr, nullptr, 700);
+}
+
+static int param_find_by_name(const char* group_want, const char* name_want,
+                              uint16_t* id_out) {
+    if (!group_want || !name_want || !id_out) return -10;
+    *id_out = 0;
+
+    uint8_t cmd = PARAM_TOC_GET_INFO_V2;
+    uint8_t resp[32];
+    int rlen = 0;
+    int rc = crtp_param_send_and_wait(PARAM_TOC_CH, &cmd, 1, resp, &rlen, 1000);
+    if (rc != 0) return -1;
+    if (rlen < 3 || resp[0] != PARAM_TOC_GET_INFO_V2) return -2;
+
+    const uint16_t count = resp[1] | (resp[2] << 8);
+    for (uint16_t id = 0; id < count; ++id) {
+        uint8_t req[3] = {PARAM_TOC_GET_ITEM_V2,
+                          (uint8_t)(id & 0xFF), (uint8_t)(id >> 8)};
+        rlen = 0;
+        if (crtp_param_send_and_wait(PARAM_TOC_CH, req, 3, resp, &rlen, 500) != 0)
+            continue;
+        if (rlen < 6 || resp[0] != PARAM_TOC_GET_ITEM_V2) continue;
+
+        const char* group = (const char*)&resp[4];
+        const int group_len = (int)strnlen(group, (size_t)(rlen - 4));
+        if (group_len <= 0 || 4 + group_len + 1 >= rlen) continue;
+        const char* name = group + group_len + 1;
+        const int name_len =
+            (int)strnlen(name, (size_t)(rlen - (4 + group_len + 1)));
+        if (name_len <= 0) continue;
+
+        if (strcmp(group, group_want) == 0 && strcmp(name, name_want) == 0) {
+            *id_out = id;
+            return 0;
+        }
+    }
+    return -3;
+}
+
+extern "C" int sentai_crazy_param_find(const char* group, const char* name,
+                                        uint16_t* id_out) {
+    return param_find_by_name(group, name, id_out);
+}
+
+extern "C" int sentai_crazy_param_write_u8(uint16_t id, uint8_t value) {
+    return param_write_u8(id, value);
+}
+
+extern "C" int sentai_crazy_param_write_float(uint16_t id, float value) {
+    return param_write_float(id, value);
+}
+
+extern "C" int sentai_crazy_set_extpos_stddev(float stddev_m) {
+    uint16_t id = 0;
+    int rc = param_find_by_name("locSrv", "extPosStdDev", &id);
+    if (rc != 0) return rc;
+    return param_write_float(id, stddev_m);
+}
+
+extern "C" int sentai_crazy_kalman_reset_before_extpos(void) {
+    uint16_t est_id = 0;
+    uint16_t reset_id = 0;
+    int est_rc = param_find_by_name("stabilizer", "estimator", &est_id);
+    int reset_rc = param_find_by_name("kalman", "resetEstimation", &reset_id);
+    if (est_rc == 0) {
+        est_rc = param_write_u8(est_id, 2);
+    }
+    if (reset_rc != 0) return reset_rc;
+    int rc1 = param_write_u8(reset_id, 1);
+    vTaskDelay(pdMS_TO_TICKS(100));
+    int rc0 = param_write_u8(reset_id, 0);
+    if (est_rc != 0) return -20 + est_rc;
+    if (rc1 != 0) return -30 + rc1;
+    if (rc0 != 0) return -40 + rc0;
+    return 0;
+}
+
 // Scan the CF param TOC to discover motorPowerSet.{m1,m2,m3,m4,enable} IDs.
 // Stores IDs in g_param_motor_* statics.  Returns 0 if all 5 found.
 static int param_discover_motors(void) {

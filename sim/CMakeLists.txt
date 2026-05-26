@@ -221,6 +221,7 @@ add_executable_sim(sentai_sim
     ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_calib_autotune.cc
     ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_calib_task.cc
     ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_calib_orientation_task.cc
+    ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_servo_marker_task.cc
     # OP-S10-W21-T4 — bringup orchestrator (SAMPLE → KABSCH → AUTOTUNE
     # X/Y → HOLD → SAVE).  Mirrors ARM build.
     ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_calib_bringup.cc

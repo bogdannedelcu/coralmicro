@@ -1,0 +1,233 @@
+{
+  "abort_reason": "image_axis_motion_failed",
+  "acquire": {
+    "n_full_avg_best": 7.0,
+    "n_full_max": 7,
+    "ok": true,
+    "radius_max_px": 35.5,
+    "thrust_last": 34238,
+    "ticks": 342,
+    "z_cam_lock_m": 0.584,
+    "z_target_m": 0.876
+  },
+  "calib_ini_layout_id": "A3_SMALL",
+  "calib_layout_ok": true,
+  "calib_load_ok": true,
+  "center_hold": {
+    "err_initial_px": 49.79,
+    "err_last_px": 26.75,
+    "err_max_px": 49.79,
+    "n_full_min": 7,
+    "n_full_recent_avg": 7.0,
+    "ok": true,
+    "thrust_last": 32454,
+    "ticks": 60
+  },
+  "experiment": "s207_cpp_marker_control_task",
+  "extpos_stddev": {
+    "ok": true,
+    "requested_m": 0.04,
+    "write_rc": 0
+  },
+  "extpos_stddev_flow_assisted": {
+    "ok": true,
+    "requested_m": 0.12,
+    "write_rc": 0
+  },
+  "extpos_warmup": {
+    "converged": true,
+    "diverged": false,
+    "flow": {
+      "read_errors": 0,
+      "send_ok": 76
+    },
+    "kalman_crosscheck": {
+      "err_first_m": 0.808,
+      "err_last_m": 0.025,
+      "err_max_m": 0.808,
+      "err_min_m": 0.01,
+      "err_recent10_mean_m": 0.029,
+      "trend_improving": true
+    },
+    "last_pose_reject_reason_code": 0,
+    "marker_visibility_lost": false,
+    "n_full_min": 6,
+    "n_full_recent_avg": 7.0,
+    "ok": true,
+    "pose_rejects": 36,
+    "send_ok": 40,
+    "ticks": 76
+  },
+  "generic_axis_motion": {
+    "abort_reason": "segment_not_reached",
+    "edge_margin_px": 10.0,
+    "extpos_send_ok": 242,
+    "flow": {
+      "read_errors": 0,
+      "send_ok": 492
+    },
+    "hover_default_timeout_s": 10.0,
+    "image_envelope": {
+      "frame": "image_centroid_symmetric_safe_envelope",
+      "max_x_cx": 269.5,
+      "max_y_cy": 193.26,
+      "min_x_cx": 50.5,
+      "min_y_cy": 46.74
+    },
+    "last_err_px": 20.31,
+    "mode": "generic_hover_image_frame",
+    "n_full_min": 6,
+    "n_full_recent_avg": 7.0,
+    "ok": false,
+    "perp_tol_frac": 0.05,
+    "perp_tol_px_xy": [
+      16.0,
+      12.0
+    ],
+    "pose_rejects": 252,
+    "segments": [
+      {
+        "extpos_send_ok_total": 43,
+        "flow_read_errors_total": 0,
+        "flow_send_ok_total": 98,
+        "hover_rc_last": 0,
+        "image_envelope": {
+          "frame": "image_centroid_symmetric_safe_envelope",
+          "max_x_cx": 269.5,
+          "max_y_cy": 193.26,
+          "min_x_cx": 50.5,
+          "min_y_cy": 46.74
+        },
+        "image_err_last_px": 11.35,
+        "label": "pre_axis_center",
+        "max_s": 6.0,
+        "n_full_min": 7,
+        "n_full_recent_avg": 7.0,
+        "perp_tol_frac": 0.05,
+        "perp_tol_px_xy": [
+          16.0,
+          12.0
+        ],
+        "pose_rejects_total": 55,
+        "reached": true,
+        "reached_k": 79,
+        "target": [
+          "center"
+        ],
+        "target_frame": "image",
+        "target_tol_frac": 0.05,
+        "target_tol_px_xy": [
+          16.0,
+          12.0
+        ],
+        "timeout_s": 6.6
+      },
+      {
+        "extpos_send_ok_total": 106,
+        "flow_read_errors_total": 0,
+        "flow_send_ok_total": 234,
+        "hover_rc_last": 0,
+        "image_envelope": {
+          "frame": "image_centroid_symmetric_safe_envelope",
+          "max_x_cx": 269.5,
+          "max_y_cy": 193.26,
+          "min_x_cx": 50.5,
+          "min_y_cy": 46.74
+        },
+        "image_err_last_px": 7.09,
+        "label": "image_min_x",
+        "max_s": 8.0,
+        "n_full_min": 6,
+        "n_full_recent_avg": 7.0,
+        "perp_tol_frac": 0.05,
+        "perp_tol_px_xy": [
+          16.0,
+          12.0
+        ],
+        "pose_rejects_total": 128,
+        "reached": true,
+        "reached_k": 117,
+        "target": [
+          "min_x"
+        ],
+        "target_frame": "image",
+        "target_tol_frac": 0.05,
+        "target_tol_px_xy": [
+          16.0,
+          12.0
+        ],
+        "timeout_s": 8.6
+      },
+      {
+        "extpos_send_ok_total": 242,
+        "flow_read_errors_total": 0,
+        "flow_send_ok_total": 492,
+        "hover_rc_last": 0,
+        "image_envelope": {
+          "frame": "image_centroid_symmetric_safe_envelope",
+          "max_x_cx": 269.5,
+          "max_y_cy": 193.26,
+          "min_x_cx": 50.5,
+          "min_y_cy": 46.74
+        },
+        "image_err_last_px": 20.31,
+        "label": "image_max_x",
+        "max_s": 8.0,
+        "n_full_min": 6,
+        "n_full_recent_avg": 7.0,
+        "perp_tol_frac": 0.05,
+        "perp_tol_px_xy": [
+          16.0,
+          12.0
+        ],
+        "pose_rejects_total": 252,
+        "reached": false,
+        "reached_k": -1,
+        "target": [
+          "max_x"
+        ],
+        "target_frame": "image",
+        "target_tol_frac": 0.05,
+        "target_tol_px_xy": [
+          16.0,
+          12.0
+        ],
+        "timeout_s": 8.6
+      }
+    ],
+    "target_tol_frac": 0.05,
+    "target_tol_px_xy": [
+      16.0,
+      12.0
+    ],
+    "vmax_m_s": 0.08
+  },
+  "goal": "load strict calib.ini -> B4 marker acquire -> center hold -> sentai.flow consumer -> ExtPos warmup -> Generic hover handoff -> image-frame envelope motion -> land",
+  "handoff_hover": {
+    "extpos_send_ok": 56,
+    "flow": {
+      "read_errors": 0,
+      "send_ok": 120
+    },
+    "hover_rc_last": 0,
+    "hover_z": 0.889,
+    "hover_z_source": "cf_state_estimate_z_or_visual_pose",
+    "mode": "generic_hover_after_rpyt_release",
+    "n_full_min": 7,
+    "n_full_recent_avg": 7.0,
+    "ok": true,
+    "pose_rejects": 65,
+    "release_rc": 0,
+    "ticks": 121
+  },
+  "kalman_reset_before_extpos": {
+    "bootstrap_hold_rc": 0,
+    "bootstrap_hold_ticks": 58,
+    "ok": true,
+    "reset_rc": 0
+  },
+  "phase": "post_acquisition",
+  "source": "sentai.fr events.csv",
+  "status": "IMAGE_AXIS_MOTION_FAIL",
+  "task": "TD-S10-B4"
+}

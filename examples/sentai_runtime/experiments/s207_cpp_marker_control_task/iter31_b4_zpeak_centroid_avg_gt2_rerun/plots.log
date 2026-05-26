@@ -1,0 +1,4 @@
+wrote /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s207_cpp_marker_control_task/iter31_b4_zpeak_centroid_avg_gt2_rerun/s207_xy_gt_vs_est.png
+wrote /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s207_cpp_marker_control_task/iter31_b4_zpeak_centroid_avg_gt2_rerun/s207_z_gt_vs_est.png
+gt_rows=6627 est_rows=1163
+time_alignment=host_monotonic

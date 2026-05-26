@@ -1,0 +1,27 @@
+{
+  "abort_reason": "marker_acquisition_timeout",
+  "acquire": {
+    "flow": {
+      "read_errors": 0,
+      "send_ok": 368
+    },
+    "n_full_avg_best": 7.0,
+    "n_full_max": 7,
+    "ok": false,
+    "radius_max_px": 35.25,
+    "thrust_last": 34500,
+    "ticks": 363,
+    "z_cam_lock_m": 0.713,
+    "z_cam_peak_m": 0.878,
+    "z_target_m": 1.069
+  },
+  "calib_ini_layout_id": "A3_SMALL",
+  "calib_layout_ok": true,
+  "calib_load_ok": true,
+  "experiment": "s207_cpp_marker_control_task",
+  "goal": "load strict calib.ini -> B4 marker acquire -> center hold -> sentai.flow consumer -> ExtPos warmup -> Generic hover handoff -> image-frame envelope motion -> land",
+  "phase": "post_acquisition",
+  "source": "sentai.fr events.csv",
+  "status": "MARKER_ACQ_TIMEOUT",
+  "task": "TD-S10-B4"
+}

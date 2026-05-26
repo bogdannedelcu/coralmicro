@@ -249,8 +249,10 @@ int sentai_calib_orientation_task_is_done(void);
 int sentai_calib_orientation_task_result(int* ok_out,
                                          int* thrust_last_out,
                                          int* disarmed_out);
+int sentai_calib_orientation_current_thrust(void);
+float sentai_calib_orientation_runtime_z_target_m(void);
 int sentai_calib_orientation_task_get_status(
-        sentai_calib_orientation_status_t* out);
+    sentai_calib_orientation_status_t* out);
 
 #ifdef __cplusplus
 }

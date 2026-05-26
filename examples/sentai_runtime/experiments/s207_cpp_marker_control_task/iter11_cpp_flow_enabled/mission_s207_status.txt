@@ -1,0 +1,5 @@
+experiment=s207_cpp_marker_control_task
+task=TD-S10-B4
+status=EXTPOS_WARMUP_PENDING
+phase=post_acquisition
+abort_reason=extpos_warmup_not_migrated

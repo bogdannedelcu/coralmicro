@@ -122,6 +122,16 @@ int sentai_crazy_hover(float vx, float vy, float yaw_rate, float z_distance);
 int sentai_crazy_send_crtp(uint8_t port, uint8_t channel,
                            const uint8_t* data, int len);
 
+// ===================== CRTP Parameters =====================
+// Small public helpers for task code that must configure CF firmware state
+// without reimplementing the parameter TOC scanner in MicroPython.
+int sentai_crazy_param_find(const char* group, const char* name,
+                            uint16_t* id_out);
+int sentai_crazy_param_write_u8(uint16_t id, uint8_t value);
+int sentai_crazy_param_write_float(uint16_t id, float value);
+int sentai_crazy_set_extpos_stddev(float stddev_m);
+int sentai_crazy_kalman_reset_before_extpos(void);
+
 // ===================== Status / Ping =====================
 // Ping CrazyFlie via CRTP echo (LINK port 0x0F, channel 0).
 // Sends 4 bytes, waits for echo response.

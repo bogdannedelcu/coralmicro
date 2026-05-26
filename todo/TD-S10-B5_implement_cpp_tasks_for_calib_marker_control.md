@@ -991,8 +991,70 @@ calibration logic.
 - [x] Phase 1 strict `calib.ini` parser/writer in C++.
 - [x] Phase 2 shared marker observation support sufficient for B3/s205.
 - [x] Phase 3 A3/B3 orientation calibration task.
-- [ ] Phase 4 estimator feed service.
-- [ ] Phase 5 A4 marker-control task.
+- [x] Created isolated B4 migration harness:
+  `examples/sentai_runtime/experiments/s207_cpp_marker_control_task/`.
+- [x] Added first `sentai.servo` B4 marker-control task slice:
+  strict calibrated setup plus image-frame center hold in C++.
+- [x] Replaced the temporary B3 takeoff/bootstrap reuse in s207 with a B4
+  `sentai.servo.marker_acquire_start()` task phase.
+  - The C++ acquire phase keeps the s203 ramp/10-frame marker-average
+    confirmation, uses marker apparent size for visual-Z, and records both
+    first-full-lock Z and confirmation-window peak Z in `sentai.fr`.
+  - The target-Z handoff now uses the first 7-marker full-constellation Z so
+    the 10-frame confirmation window does not lift the mission out of the
+    accepted s203/B4 altitude band.
+- [x] SIM run `s207/iter2_bootstrap_then_marker_setup`: B3 bootstrap,
+  calibrated marker setup, and B4 C++ center-hold passed; mission now stops at
+  `EXTPOS_WARMUP_PENDING`, which is the next unmigrated B4 phase.
+- [x] Phase 4 estimator feed service.
+  - B4 ExtPos warmup, flow packet pumping, Kalman reset, and ExtPos stddev
+    writes now run inside the C++ marker-control task.
+  - A short C++ prep-hold worker keeps visual centering/thrust active while the
+    Crazyflie parameter TOC and estimator reset are prepared, avoiding the
+    uncommanded drift window seen during early s207 runs.
+- [x] Phase 5 A4 marker-control task.
+  - `s207_cpp_marker_control_task` now runs setup, center hold, ExtPos warmup,
+    Generic Hover handoff, seven image-frame axis-motion segments, and land
+    through `sentai.servo.marker_*` C++ task entry points.
+  - The B4 mission skips the B3 calibration visual-Z climb; original s203/B4
+    marker control continues from the acquisition/post-lock altitude band.
+  - Host-side `verdict_s207.py` reconstructs the B4 forensic summary from
+    `sentai.fr`, keeping MP runtime limited to state orchestration and status.
+- [x] SIM run `s207/iter18_marker_setup_state_split`: accepted B4 C++ task
+  recertification.
+  - Verdict: `MARKER_CONTROL_OK`.
+  - Runtime status: `phase=post_acquisition`, empty `abort_reason`.
+  - `calib_load_ok`, strict layout validation, center hold, ExtPos warmup,
+    Generic Hover handoff, seven image-frame marker-control segments, and land
+    all passed.
+  - Flow stayed active in C++: axis motion `send_ok=828`, `read_errors=0`;
+    land `send_ok=112`, `read_errors=0`.
+  - Kalman/ExtPos preparation was journaled host-side with
+    `extpos_stddev.ok=true` at 0.04 m and
+    `extpos_stddev_flow_assisted.ok=true` at 0.12 m.
+- [x] SIM run `s207/iter21_plots_green`: accepted B4 C++ task run with
+  host-side GT-vs-estimator plots.
+  - Verdict: `MARKER_CONTROL_OK`.
+  - Generated `s207_xy_gt_vs_est.png` and `s207_z_gt_vs_est.png`.
+  - Fixed estimator scalar timestamps so the CF estimator trace has a real
+    time axis instead of collapsing at `t=0`.
+- [x] SIM run `s207/iter26_b4_first_full_z_lock`: B4 C++ acquire + full
+  marker-control recertification.
+  - Verdict: `MARKER_CONTROL_OK`.
+  - Runtime status: `phase=post_acquisition`, empty `abort_reason`.
+  - Seven image-frame motion segments and land passed.
+  - Host-side plots regenerated with `time_alignment=host_monotonic`.
+  - Flow stayed active in C++: axis motion `send_ok=615`, `read_errors=0`;
+    land `send_ok=113`, `read_errors=0`.
+- [x] SIM run `s207/iter27_flow_during_acquire`: negative-control experiment
+  for injecting flow packets during the raw RPYT acquire ramp.
+  - Verdict: `MARKER_ACQ_TIMEOUT`.
+  - Acquire sent `368` flow packets with `read_errors=0`, but marker lock was
+    delayed until the top of the ramp (`z_target_m=1.069`) and did not satisfy
+    the 10-frame lock gate before timeout.
+  - Decision: keep `iter26` as the stable migrated B4 baseline.  Do not inject
+    flow into CF during raw acquire until the estimator has an absolute
+    height/ExtPos seed or a separate gated design is proven.
 - [ ] Phase 6 compatibility cleanup.
 - [ ] Phase 7 end-to-end recertification.
 - [ ] Final ARM build and memory/section review after SIM B5 is accepted.

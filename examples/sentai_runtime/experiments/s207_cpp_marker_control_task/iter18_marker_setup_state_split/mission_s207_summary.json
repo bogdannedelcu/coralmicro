@@ -1,0 +1,395 @@
+{
+  "abort_reason": "",
+  "acquire": {
+    "first_seen_tick": 244,
+    "n_full_max": 7,
+    "ok": true,
+    "radius_max_px": 36.0,
+    "thrust_last": 30500,
+    "z_cam_last_m": 0.522,
+    "z_target_m": null
+  },
+  "calib_ini_layout_id": "A3_SMALL",
+  "calib_layout_ok": true,
+  "calib_load_ok": true,
+  "center_hold": {
+    "err_initial_px": 33.14,
+    "err_last_px": 17.33,
+    "err_max_px": 37.12,
+    "n_full_min": 7,
+    "n_full_recent_avg": 7.0,
+    "ok": true,
+    "thrust_last": 32714,
+    "ticks": 60
+  },
+  "experiment": "s207_cpp_marker_control_task",
+  "extpos_stddev": {
+    "ok": true,
+    "requested_m": 0.04,
+    "write_rc": 0
+  },
+  "extpos_stddev_flow_assisted": {
+    "ok": true,
+    "requested_m": 0.12,
+    "write_rc": 0
+  },
+  "extpos_warmup": {
+    "converged": true,
+    "diverged": false,
+    "flow": {
+      "read_errors": 0,
+      "send_ok": 76
+    },
+    "kalman_crosscheck": {
+      "err_first_m": 0.548,
+      "err_last_m": 0.011,
+      "err_max_m": 0.548,
+      "err_min_m": 0.003,
+      "err_recent10_mean_m": 0.017,
+      "trend_improving": true
+    },
+    "last_pose_reject_reason_code": 0,
+    "marker_visibility_lost": false,
+    "n_full_min": 6,
+    "n_full_recent_avg": 7.0,
+    "ok": true,
+    "pose_rejects": 37,
+    "send_ok": 39,
+    "ticks": 76
+  },
+  "generic_axis_motion": {
+    "abort_reason": "",
+    "edge_margin_px": 10.0,
+    "extpos_send_ok": 407,
+    "flow": {
+      "read_errors": 0,
+      "send_ok": 828
+    },
+    "hover_default_timeout_s": 10.0,
+    "image_envelope": {
+      "frame": "image_centroid_symmetric_safe_envelope",
+      "max_x_cx": 254.94,
+      "max_y_cy": 180.2,
+      "min_x_cx": 65.06,
+      "min_y_cy": 59.8
+    },
+    "last_err_px": 7.89,
+    "mode": "generic_hover_image_frame",
+    "n_full_min": 7,
+    "n_full_recent_avg": 7.0,
+    "ok": true,
+    "perp_tol_frac": 0.05,
+    "perp_tol_px_xy": [
+      16.0,
+      12.0
+    ],
+    "pose_rejects": 424,
+    "segments": [
+      {
+        "extpos_send_ok_total": 55,
+        "flow_read_errors_total": 0,
+        "flow_send_ok_total": 92,
+        "hover_rc_last": 0,
+        "image_envelope": {
+          "frame": "image_centroid_symmetric_safe_envelope",
+          "max_x_cx": 254.94,
+          "max_y_cy": 180.2,
+          "min_x_cx": 65.06,
+          "min_y_cy": 59.8
+        },
+        "image_err_last_px": 6.89,
+        "label": "pre_axis_center",
+        "max_s": 6.0,
+        "n_full_min": 7,
+        "n_full_recent_avg": 7.0,
+        "perp_tol_frac": 0.05,
+        "perp_tol_px_xy": [
+          16.0,
+          12.0
+        ],
+        "pose_rejects_total": 37,
+        "reached": true,
+        "reached_k": 73,
+        "target": [
+          "center"
+        ],
+        "target_frame": "image",
+        "target_tol_frac": 0.05,
+        "target_tol_px_xy": [
+          16.0,
+          12.0
+        ],
+        "timeout_s": 6.6
+      },
+      {
+        "extpos_send_ok_total": 103,
+        "flow_read_errors_total": 0,
+        "flow_send_ok_total": 205,
+        "hover_rc_last": 0,
+        "image_envelope": {
+          "frame": "image_centroid_symmetric_safe_envelope",
+          "max_x_cx": 254.94,
+          "max_y_cy": 180.2,
+          "min_x_cx": 65.06,
+          "min_y_cy": 59.8
+        },
+        "image_err_last_px": 7.37,
+        "label": "image_min_x",
+        "max_s": 8.0,
+        "n_full_min": 7,
+        "n_full_recent_avg": 7.0,
+        "perp_tol_frac": 0.05,
+        "perp_tol_px_xy": [
+          16.0,
+          12.0
+        ],
+        "pose_rejects_total": 102,
+        "reached": true,
+        "reached_k": 94,
+        "target": [
+          "min_x"
+        ],
+        "target_frame": "image",
+        "target_tol_frac": 0.05,
+        "target_tol_px_xy": [
+          16.0,
+          12.0
+        ],
+        "timeout_s": 8.6
+      },
+      {
+        "extpos_send_ok_total": 199,
+        "flow_read_errors_total": 0,
+        "flow_send_ok_total": 376,
+        "hover_rc_last": 0,
+        "image_envelope": {
+          "frame": "image_centroid_symmetric_safe_envelope",
+          "max_x_cx": 254.94,
+          "max_y_cy": 180.2,
+          "min_x_cx": 65.06,
+          "min_y_cy": 59.8
+        },
+        "image_err_last_px": 12.3,
+        "label": "image_max_x",
+        "max_s": 8.0,
+        "n_full_min": 7,
+        "n_full_recent_avg": 7.0,
+        "perp_tol_frac": 0.05,
+        "perp_tol_px_xy": [
+          16.0,
+          12.0
+        ],
+        "pose_rejects_total": 177,
+        "reached": true,
+        "reached_k": 152,
+        "target": [
+          "max_x"
+        ],
+        "target_frame": "image",
+        "target_tol_frac": 0.05,
+        "target_tol_px_xy": [
+          16.0,
+          12.0
+        ],
+        "timeout_s": 8.6
+      },
+      {
+        "extpos_send_ok_total": 268,
+        "flow_read_errors_total": 0,
+        "flow_send_ok_total": 489,
+        "hover_rc_last": 0,
+        "image_envelope": {
+          "frame": "image_centroid_symmetric_safe_envelope",
+          "max_x_cx": 254.94,
+          "max_y_cy": 180.2,
+          "min_x_cx": 65.06,
+          "min_y_cy": 59.8
+        },
+        "image_err_last_px": 7.6,
+        "label": "center_after_x",
+        "max_s": 6.0,
+        "n_full_min": 7,
+        "n_full_recent_avg": 7.0,
+        "perp_tol_frac": 0.05,
+        "perp_tol_px_xy": [
+          16.0,
+          12.0
+        ],
+        "pose_rejects_total": 221,
+        "reached": true,
+        "reached_k": 94,
+        "target": [
+          "center"
+        ],
+        "target_frame": "image",
+        "target_tol_frac": 0.05,
+        "target_tol_px_xy": [
+          16.0,
+          12.0
+        ],
+        "timeout_s": 6.6
+      },
+      {
+        "extpos_send_ok_total": 322,
+        "flow_read_errors_total": 0,
+        "flow_send_ok_total": 582,
+        "hover_rc_last": 0,
+        "image_envelope": {
+          "frame": "image_centroid_symmetric_safe_envelope",
+          "max_x_cx": 254.94,
+          "max_y_cy": 180.2,
+          "min_x_cx": 65.06,
+          "min_y_cy": 59.8
+        },
+        "image_err_last_px": 5.75,
+        "label": "image_min_y",
+        "max_s": 8.0,
+        "n_full_min": 7,
+        "n_full_recent_avg": 7.0,
+        "perp_tol_frac": 0.05,
+        "perp_tol_px_xy": [
+          16.0,
+          12.0
+        ],
+        "pose_rejects_total": 260,
+        "reached": true,
+        "reached_k": 74,
+        "target": [
+          "min_y"
+        ],
+        "target_frame": "image",
+        "target_tol_frac": 0.05,
+        "target_tol_px_xy": [
+          16.0,
+          12.0
+        ],
+        "timeout_s": 8.6
+      },
+      {
+        "extpos_send_ok_total": 391,
+        "flow_read_errors_total": 0,
+        "flow_send_ok_total": 706,
+        "hover_rc_last": 0,
+        "image_envelope": {
+          "frame": "image_centroid_symmetric_safe_envelope",
+          "max_x_cx": 254.94,
+          "max_y_cy": 180.2,
+          "min_x_cx": 65.06,
+          "min_y_cy": 59.8
+        },
+        "image_err_last_px": 4.47,
+        "label": "image_max_y",
+        "max_s": 8.0,
+        "n_full_min": 7,
+        "n_full_recent_avg": 7.0,
+        "perp_tol_frac": 0.05,
+        "perp_tol_px_xy": [
+          16.0,
+          12.0
+        ],
+        "pose_rejects_total": 316,
+        "reached": true,
+        "reached_k": 106,
+        "target": [
+          "max_y"
+        ],
+        "target_frame": "image",
+        "target_tol_frac": 0.05,
+        "target_tol_px_xy": [
+          16.0,
+          12.0
+        ],
+        "timeout_s": 8.6
+      },
+      {
+        "extpos_send_ok_total": 407,
+        "flow_read_errors_total": 0,
+        "flow_send_ok_total": 828,
+        "hover_rc_last": 0,
+        "image_envelope": {
+          "frame": "image_centroid_symmetric_safe_envelope",
+          "max_x_cx": 254.94,
+          "max_y_cy": 180.2,
+          "min_x_cx": 65.06,
+          "min_y_cy": 59.8
+        },
+        "image_err_last_px": 7.89,
+        "label": "center_after_y",
+        "max_s": 6.0,
+        "n_full_min": 7,
+        "n_full_recent_avg": 7.0,
+        "perp_tol_frac": 0.05,
+        "perp_tol_px_xy": [
+          16.0,
+          12.0
+        ],
+        "pose_rejects_total": 424,
+        "reached": true,
+        "reached_k": 105,
+        "target": [
+          "center"
+        ],
+        "target_frame": "image",
+        "target_tol_frac": 0.05,
+        "target_tol_px_xy": [
+          16.0,
+          12.0
+        ],
+        "timeout_s": 6.6
+      }
+    ],
+    "target_tol_frac": 0.05,
+    "target_tol_px_xy": [
+      16.0,
+      12.0
+    ],
+    "vmax_m_s": 0.08
+  },
+  "goal": "B3 RPYT bootstrap -> load strict calib.ini -> sentai.flow consumer -> ExtPos warmup -> Generic hover handoff -> image-frame envelope motion -> land",
+  "handoff_hover": {
+    "extpos_send_ok": 66,
+    "flow": {
+      "read_errors": 0,
+      "send_ok": 120
+    },
+    "hover_rc_last": 0,
+    "hover_z": 0.663,
+    "hover_z_source": "cf_state_estimate_z_or_visual_pose",
+    "mode": "generic_hover_after_rpyt_release",
+    "n_full_min": 7,
+    "n_full_recent_avg": 7.0,
+    "ok": true,
+    "pose_rejects": 55,
+    "release_rc": 0,
+    "ticks": 121
+  },
+  "kalman_reset_before_extpos": {
+    "bootstrap_hold_rc": 0,
+    "bootstrap_hold_ticks": 57,
+    "ok": true,
+    "reset_rc": 0
+  },
+  "land": {
+    "disarm_rc": 0,
+    "extpos_send_ok": 33,
+    "flow": {
+      "read_errors": 0,
+      "send_ok": 112
+    },
+    "hover_rc_last": 0,
+    "land_timeout_s": 3.8,
+    "last_z_cmd_m": 0.05,
+    "n_full_min": 0,
+    "n_full_recent_avg": 0.0,
+    "ok": true,
+    "pose_rejects": 82,
+    "pre_land_relax_rc": 0,
+    "start_z_m": 0.664,
+    "ticks": 115
+  },
+  "phase": "post_acquisition",
+  "source": "sentai.fr events.csv",
+  "status": "MARKER_CONTROL_OK",
+  "task": "TD-S10-B4",
+  "visual_z_hold_skipped": true
+}

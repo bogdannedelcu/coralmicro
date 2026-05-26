@@ -1,0 +1,4 @@
+wrote /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s207_cpp_marker_control_task/iter24_b4_acquire_parity/s207_xy_gt_vs_est.png
+wrote /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s207_cpp_marker_control_task/iter24_b4_acquire_parity/s207_z_gt_vs_est.png
+gt_rows=5066 est_rows=785
+time_alignment=host_monotonic

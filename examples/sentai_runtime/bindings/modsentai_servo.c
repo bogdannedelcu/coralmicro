@@ -29,6 +29,7 @@
 //   sentai.servo.{ACT_NONE..ACT_LAND}           -- action ids
 
 #include "sentai_servo.h"
+#include "sentai_servo_marker_task.h"
 
 #include <string.h>
 
@@ -279,6 +280,75 @@ static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
     mod_servo_ibvs_centroid_command_tuple_obj, 17, 17,
     mod_servo_ibvs_centroid_command_tuple);
 
+// ===================== B4 marker-control task ==========================
+
+static mp_obj_t mod_servo_marker_setup_start(void) {
+    return mp_obj_new_int(sentai_servo_marker_setup_start());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_servo_marker_setup_start_obj,
+                                  mod_servo_marker_setup_start);
+
+static mp_obj_t mod_servo_marker_acquire_start(void) {
+    return mp_obj_new_int(sentai_servo_marker_acquire_start());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_servo_marker_acquire_start_obj,
+                                  mod_servo_marker_acquire_start);
+
+static mp_obj_t mod_servo_marker_center_hold_start(void) {
+    return mp_obj_new_int(sentai_servo_marker_center_hold_start());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_servo_marker_center_hold_start_obj,
+                                  mod_servo_marker_center_hold_start);
+
+static mp_obj_t mod_servo_marker_extpos_warmup_start(void) {
+    return mp_obj_new_int(sentai_servo_marker_extpos_warmup_start());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_servo_marker_extpos_warmup_start_obj,
+                                  mod_servo_marker_extpos_warmup_start);
+
+static mp_obj_t mod_servo_marker_handoff_hover_start(void) {
+    return mp_obj_new_int(sentai_servo_marker_handoff_hover_start());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_servo_marker_handoff_hover_start_obj,
+                                  mod_servo_marker_handoff_hover_start);
+
+static mp_obj_t mod_servo_marker_axis_motion_start(void) {
+    return mp_obj_new_int(sentai_servo_marker_axis_motion_start());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_servo_marker_axis_motion_start_obj,
+                                  mod_servo_marker_axis_motion_start);
+
+static mp_obj_t mod_servo_marker_land_start(void) {
+    return mp_obj_new_int(sentai_servo_marker_land_start());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_servo_marker_land_start_obj,
+                                  mod_servo_marker_land_start);
+
+static mp_obj_t mod_servo_marker_task_stop(void) {
+    return mp_obj_new_int(sentai_servo_marker_task_stop());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_servo_marker_task_stop_obj,
+                                  mod_servo_marker_task_stop);
+
+static mp_obj_t mod_servo_marker_task_is_done(void) {
+    return mp_obj_new_bool(sentai_servo_marker_task_is_done());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_servo_marker_task_is_done_obj,
+                                  mod_servo_marker_task_is_done);
+
+static mp_obj_t mod_servo_marker_result_tuple(void) {
+    int ok = 0;
+    int phase = 0;
+    if (!sentai_servo_marker_task_result(&ok, &phase)) return mp_const_none;
+    mp_obj_t t[2] = {
+        mp_obj_new_bool(ok),
+        mp_obj_new_int(phase),
+    };
+    return mp_obj_new_tuple(2, t);
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_servo_marker_result_tuple_obj,
+                                  mod_servo_marker_result_tuple);
+
 // ===================== Module table ====================================
 
 static const mp_rom_map_elem_t sentai_servo_globals_table[] = {
@@ -300,6 +370,26 @@ static const mp_rom_map_elem_t sentai_servo_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_set_durations),MP_ROM_PTR(&mod_servo_set_durations_obj) },
     { MP_ROM_QSTR(MP_QSTR_ibvs_centroid_command_tuple),
                                            MP_ROM_PTR(&mod_servo_ibvs_centroid_command_tuple_obj) },
+    { MP_ROM_QSTR(MP_QSTR_marker_setup_start),
+                                           MP_ROM_PTR(&mod_servo_marker_setup_start_obj) },
+    { MP_ROM_QSTR(MP_QSTR_marker_acquire_start),
+                                           MP_ROM_PTR(&mod_servo_marker_acquire_start_obj) },
+    { MP_ROM_QSTR(MP_QSTR_marker_center_hold_start),
+                                           MP_ROM_PTR(&mod_servo_marker_center_hold_start_obj) },
+    { MP_ROM_QSTR(MP_QSTR_marker_extpos_warmup_start),
+                                           MP_ROM_PTR(&mod_servo_marker_extpos_warmup_start_obj) },
+    { MP_ROM_QSTR(MP_QSTR_marker_handoff_hover_start),
+                                           MP_ROM_PTR(&mod_servo_marker_handoff_hover_start_obj) },
+    { MP_ROM_QSTR(MP_QSTR_marker_axis_motion_start),
+                                           MP_ROM_PTR(&mod_servo_marker_axis_motion_start_obj) },
+    { MP_ROM_QSTR(MP_QSTR_marker_land_start),
+                                           MP_ROM_PTR(&mod_servo_marker_land_start_obj) },
+    { MP_ROM_QSTR(MP_QSTR_marker_task_stop),
+                                           MP_ROM_PTR(&mod_servo_marker_task_stop_obj) },
+    { MP_ROM_QSTR(MP_QSTR_marker_task_is_done),
+                                           MP_ROM_PTR(&mod_servo_marker_task_is_done_obj) },
+    { MP_ROM_QSTR(MP_QSTR_marker_result_tuple),
+                                           MP_ROM_PTR(&mod_servo_marker_result_tuple_obj) },
 
     // Backend ids
     { MP_ROM_QSTR(MP_QSTR_NONE),         MP_ROM_INT(SERVO_BACKEND_NONE) },

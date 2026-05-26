@@ -1,0 +1,96 @@
+{
+  "abort_reason": "handoff_hover_failed",
+  "acquire": {
+    "centroid_cmd_ticks": 40,
+    "centroid_err_last_px": 16.35,
+    "centroid_err_max_px": 75.81,
+    "centroid_seen_ticks": 40,
+    "first_full_tick": 334,
+    "first_seen_tick": 308,
+    "n_full_avg_best": 7.0,
+    "n_full_max": 7,
+    "ok": true,
+    "radius_max_px": 36.0,
+    "thrust_last": 34313,
+    "ticks": 348,
+    "z_cam_lock_m": 0.436,
+    "z_cam_peak_m": 0.603,
+    "z_target_m": 0.653
+  },
+  "calib_ini_layout_id": "A3_SMALL",
+  "calib_layout_ok": true,
+  "calib_load_ok": true,
+  "center_hold": {
+    "err_initial_px": 65.02,
+    "err_last_px": 60.23,
+    "err_max_px": 65.02,
+    "n_full_min": 7,
+    "n_full_recent_avg": 7.0,
+    "ok": true,
+    "thrust_last": 32772,
+    "ticks": 60
+  },
+  "experiment": "s207_cpp_marker_control_task",
+  "extpos_stddev": {
+    "ok": true,
+    "requested_m": 0.04,
+    "write_rc": 0
+  },
+  "extpos_stddev_flow_assisted": {
+    "ok": true,
+    "requested_m": 0.12,
+    "write_rc": 0
+  },
+  "extpos_warmup": {
+    "converged": true,
+    "diverged": false,
+    "flow": {
+      "read_errors": 0,
+      "send_ok": 75
+    },
+    "kalman_crosscheck": {
+      "err_first_m": 0.603,
+      "err_last_m": 0.015,
+      "err_max_m": 0.603,
+      "err_min_m": 0.002,
+      "err_recent10_mean_m": 0.013,
+      "trend_improving": true
+    },
+    "last_pose_reject_reason_code": 0,
+    "marker_visibility_lost": false,
+    "n_full_min": 7,
+    "n_full_recent_avg": 7.0,
+    "ok": true,
+    "pose_rejects": 39,
+    "send_ok": 37,
+    "ticks": 76
+  },
+  "goal": "load strict calib.ini -> B4 marker acquire -> center hold -> sentai.flow consumer -> ExtPos warmup -> Generic hover handoff -> image-frame envelope motion -> land",
+  "handoff_hover": {
+    "extpos_send_ok": 54,
+    "flow": {
+      "read_errors": 0,
+      "send_ok": 104
+    },
+    "hover_rc_last": 0,
+    "hover_z": 0.666,
+    "hover_z_source": "cf_state_estimate_z_or_visual_pose",
+    "mode": "generic_hover_after_rpyt_release",
+    "n_full_min": 3,
+    "n_full_recent_avg": 3.8,
+    "ok": false,
+    "pose_rejects": 50,
+    "release_rc": 0,
+    "ticks": 104
+  },
+  "kalman_reset_before_extpos": {
+    "bootstrap_hold_rc": 0,
+    "bootstrap_hold_ticks": 57,
+    "ok": true,
+    "reset_rc": 0
+  },
+  "phase": "post_acquisition",
+  "source": "sentai.fr events.csv",
+  "status": "HANDOFF_HOVER_FAIL",
+  "task": "TD-S10-B4"
+}

@@ -219,8 +219,8 @@ int sentai_fr_push_frame(const uint8_t* gray, int w, int h,
 int sentai_fr_push_event(const char* type, const char* text);
 
 // Scalar trace — single label + double per push.  Recorder emits
-// `<ts_ms>,<label>,<value>\n`.  Caller provides ts_ms; FR does not
-// timestamp internally (lets producers correlate across channels).
+// `<ts_ms>,<label>,<value>\n`.  Caller may provide ts_ms; passing 0 asks FR
+// to stamp with its recorder clock.
 int sentai_fr_push_scalar(const char* label, double value, uint32_t ts_ms);
 
 // ── Read-side ──────────────────────────────────────────────────────

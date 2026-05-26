@@ -227,6 +227,7 @@ add_executable_m7(sentai_runtime
     # replacement home for s205 phases that run over time; the older
     # sentai_calib_task.* above remains legacy Flow-autotune only.
     sentai_calib_orientation_task.cc
+    sentai_servo_marker_task.cc
     # OP-S10-W21-T4 — unified bringup orchestrator.  Single FreeRTOS
     # task that walks SAMPLE -> KABSCH -> AUTOTUNE_X/Y -> HOLD -> SAVE.
     # All heavy lifting via existing primitives; this file is plumbing.
