@@ -1,0 +1,21 @@
+[sim] FS root: /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter05_virtual_camera_tpu_cat/fs_root
+[sim] sentai_sim build #853 (2026-05-30 09:55:49)
+[sim] FreeRTOS POSIX port: tick=1000 Hz, heap=4194304 bytes
+[sim] MicroPython heap: 2097152 bytes
+[sim] sentai.fr auto-start: dir=/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter05_virtual_camera_tpu_cat/fs_root/fr init=0 events=0 scalars=0 debug=0 task=0
+0
+
+MicroPython on SentAI SIM (FreeRTOS POSIX port + MicroPython embed)
+Type expressions, end with Enter.  Ctrl-D or 'exit' to quit.
+Try: sentai.version(), sentai.fs.write(...), help()
+
+>>> >>> IMG_SIZE 921654
+>>> camera_bridge: listening on /tmp/sentai_cam.sock (waiting for Gazebo bridge)
+MODEL_SIZE 7077792
+>>> [camera] select(-1, /images/cat_640x480.bmp) rc=0
+CAM_SELECT 0
+>>> TPU_LOAD 0
+>>> TPU_READY True
+>>> PIPE_STEP 28
+>>> TPU_OUTPUTS 4
+>>> DETECTIONS ((49, 65, 203, 252, 828, 16), (16, 32, 287, 280, 324, 64), (58, 41, 264, 154, 293, 64), (29, 48, 110, 124, 250, 61), (96, 48, 267, 230, 211, 16), (39, 112, 244, 260, 172, 66), (166, 62, 272, 237, 156, 16), (168, 68, 187, 109, 148, 74), (83, 48, 93, 99, 145, 83), (108, 72, 197, 241, 145, 16), (67, 49, 76, 105, 133, 83), (32, 43, 85, 121, 133, 61), (87, 87, 280, 275, 117, 66), (12, 151, 296, 289, 113, 66), (247, 116, 271, 207, 109, 0), (52, 45, 107, 114, 105, 61), (27, 56, 114, 216, 105, 61), (35, 43, 62, 133, 105, 61), (50, 49, 60, 106, 105, [sentai_fr] worker START

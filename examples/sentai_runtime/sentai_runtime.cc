@@ -75,6 +75,8 @@ int      sentai_storage_mode_active(void);
 #include "sentai_fault.h"
 #include "sentai_health.h"
 #include "sentai_fs_task.h"
+#include "sentai_virtual_camera.h"
+#include "sentai_fr.h"
 
 // ===================== Camera pipeline optimizations ========================
 // Set to 1 to enable, 0 to disable (safe revert).  Build #197+
@@ -784,14 +786,6 @@ extern "C" int _write(int handle, char* buffer, int size) {
         return -1;
     }
 
-    // Silent kill-switch: when verbose=0 (e.g. while the detection pipeline
-    // is running), drop every printf at the earliest point.  Nothing reaches
-    // ConsoleM7::Write — this prevents ~200 lines/s of per-frame output from
-    // saturating the CDC-ACM bulk-IN endpoint and stalling tx_task (which in
-    // turn would block mp_repl's own prints → REPL appears dead).
-    // Return size so printf's caller still thinks the write succeeded.
-    if (!g_sentai_frame_verbose) return size;
-
     // Convert bare \n to \r\n for USB/UART terminals.
     char stack_buf[512];
     char* out = buffer;
@@ -816,6 +810,17 @@ extern "C" int _write(int handle, char* buffer, int size) {
         out = stack_buf;
         out_len = j;
     }
+
+    // FR debug is a bounded, best-effort ring drained by sentai_fr_task.
+    // Keep it before the verbose gate so missions can silence USB console
+    // spam while still preserving the debug trace in /fr/debug.log if opened.
+    sentai_fr_push_debug(out, out_len);
+
+    // Silent kill-switch for the USB console only.  When verbose=0 (e.g.
+    // while the detection pipeline is running), nothing reaches
+    // ConsoleM7::Write — this prevents the CDC-ACM bulk-IN endpoint from
+    // stalling tx_task and the REPL.  FR debug above remains best-effort.
+    if (!g_sentai_frame_verbose) return size;
 
     // Write to console
     coralmicro::ConsoleM7::GetSingleton()->Write(out, out_len);
@@ -2170,6 +2175,7 @@ extern "C" int sentai_cam_peek_first_row(uint8_t* dst, int len) {
   // 0x501F bit 7 is set.
   if (len > 4096) len = 4096;  // sanity cap
   memcpy(dst, raw, (size_t)len);
+  if (idx == SENTAI_VIRTUAL_CAMERA_FRAME_IDX) return len;
   auto* cam = coralmicro::CameraTask::GetSingleton();
   cam->ReturnRawFrame(idx);
   return len;
@@ -2207,12 +2213,14 @@ extern "C" int sentai_cam_peek5_b40(uint8_t* dst5) {
     dst5[i] = raw[(size_t)kRows[i] * pitch + (size_t)40 * 4];
   }
   int tag = g_cam_grabbed_id;
+  if (idx == SENTAI_VIRTUAL_CAMERA_FRAME_IDX) return tag;
   auto* cam = coralmicro::CameraTask::GetSingleton();
   cam->ReturnRawFrame(idx);
   return tag;
 }
 
 extern "C" void sentai_cam_return_raw(int idx) {
+  if (idx == SENTAI_VIRTUAL_CAMERA_FRAME_IDX) return;
   coralmicro::CameraTask::GetSingleton()->ReturnRawFrame(idx);
 }
 
@@ -2226,7 +2234,10 @@ static int g_cam_height = DEMO_CAMERA_HEIGHT;
 // auto-alternate scheduler (future) triggers a flip.  Single 32-bit
 // aligned write → atomic on Cortex-M7; no lock needed.
 volatile int g_cam_current_id = 0;
-extern "C" int sentai_cam_current_id(void) { return g_cam_current_id; }
+extern "C" int sentai_cam_current_id(void) {
+  if (sentai_virtual_camera_active()) return SENTAI_VIRTUAL_CAMERA_ID;
+  return g_cam_current_id;
+}
 
 /* Source camera that wrote the most recently COMPLETED buffer (NOT the
  * current MUX state).  Set by CSI ISR at FB2-done before the MUX flip.
@@ -2363,6 +2374,7 @@ extern "C" void sentai_cam_ratio_get(uint32_t* a, uint32_t* b) {
 // Uses the existing mic implementation in modsentai_hal.cc
 
 extern "C" int sentai_cam_is_initialized(void) {
+  if (sentai_virtual_camera_active()) return 1;
   return g_cam_initialized ? 1 : 0;
 }
 
@@ -2653,6 +2665,14 @@ extern "C" int sentai_cam_stop(void) {
 // So each call either succeeds quickly (~1ms) or blocks up to 4s.
 // We try ONCE per attempt, then do recovery if it fails.
 static int sentai_cam_get_raw_with_recovery(uint8_t** raw_out) {
+  if (sentai_virtual_camera_active()) {
+    int idx = sentai_virtual_camera_grab_xrgb(raw_out);
+    if (idx >= 0) {
+      g_cam_grabbed_id = SENTAI_VIRTUAL_CAMERA_ID;
+      return idx;
+    }
+  }
+
   auto* cam = coralmicro::CameraTask::GetSingleton();
   const int kMaxRecoveries = 2;
 
@@ -2843,18 +2863,23 @@ static int sentai_cam_get_raw_with_recovery(uint8_t** raw_out) {
 // Capture RGB frame via PXP hardware scaler. Returns 0 on success.
 extern "C" int sentai_cam_capture_rgb(uint8_t* buf, int width, int height) {
   if (sentai_detection_is_running()) return -10;  // pipeline owns PXP
-  if (!g_cam_initialized) return -1;
+  if (!g_cam_initialized && !sentai_virtual_camera_active()) return -1;
   uint8_t* raw = nullptr;
   TickType_t t0 = xTaskGetTickCount();
   int idx = sentai_cam_get_raw_with_recovery(&raw);
   TickType_t t1 = xTaskGetTickCount();
   if (idx < 0 || !raw) return -2;
 
-  auto* cam = coralmicro::CameraTask::GetSingleton();
-  int rc = pxp_scale_xrgb_to_rgb(raw, DEMO_CAMERA_WIDTH, DEMO_CAMERA_HEIGHT,
+  int src_w = sentai_virtual_camera_active()
+                  ? sentai_virtual_camera_width()
+                  : DEMO_CAMERA_WIDTH;
+  int src_h = sentai_virtual_camera_active()
+                  ? sentai_virtual_camera_height()
+                  : DEMO_CAMERA_HEIGHT;
+  int rc = pxp_scale_xrgb_to_rgb(raw, src_w, src_h,
                                   buf, width, height);
   TickType_t t2 = xTaskGetTickCount();
-  cam->ReturnRawFrame(idx);
+  sentai_cam_return_raw(idx);
   printf("  [capture_rgb] drain=%ldms pxp=%ldms\r\n",
          (long)(t1 - t0), (long)(t2 - t1));
   return rc;
@@ -2870,8 +2895,14 @@ static uint8_t s_jpeg_rgb_buf[DEMO_CAMERA_WIDTH * DEMO_CAMERA_HEIGHT * 3]
 extern "C" int sentai_cam_capture_jpeg(uint8_t* jpeg_buf, int jpeg_buf_size,
                                       int width, int height, int quality) {
   if (sentai_detection_is_running()) return -10;  // pipeline owns PXP
-  if (!g_cam_initialized) return -1;
-  if (width > DEMO_CAMERA_WIDTH || height > DEMO_CAMERA_HEIGHT) return -5;
+  if (!g_cam_initialized && !sentai_virtual_camera_active()) return -1;
+  int src_w = sentai_virtual_camera_active()
+                  ? sentai_virtual_camera_width()
+                  : DEMO_CAMERA_WIDTH;
+  int src_h = sentai_virtual_camera_active()
+                  ? sentai_virtual_camera_height()
+                  : DEMO_CAMERA_HEIGHT;
+  if (width > src_w || height > src_h) return -5;
 
   uint8_t* raw = nullptr;
   TickType_t t0 = xTaskGetTickCount();
@@ -2880,11 +2911,10 @@ extern "C" int sentai_cam_capture_jpeg(uint8_t* jpeg_buf, int jpeg_buf_size,
   if (idx < 0 || !raw) return -2;
 
   // PXP hardware: XRGB8888 → packed RGB888 (with optional scaling)
-  int rc = pxp_scale_xrgb_to_rgb(raw, DEMO_CAMERA_WIDTH, DEMO_CAMERA_HEIGHT,
+  int rc = pxp_scale_xrgb_to_rgb(raw, src_w, src_h,
                                   s_jpeg_rgb_buf, width, height);
   TickType_t t2 = xTaskGetTickCount();
-  auto* cam = coralmicro::CameraTask::GetSingleton();
-  cam->ReturnRawFrame(idx);
+  sentai_cam_return_raw(idx);
   if (rc != 0) return rc;
 
   // JPEG encode the RGB888 buffer
@@ -2903,7 +2933,7 @@ extern "C" int sentai_cam_capture_jpeg(uint8_t* jpeg_buf, int jpeg_buf_size,
 // If save_path is non-NULL, save a JPEG of the scaled frame before int8 quant.
 extern "C" int sentai_cam_to_tensor_ex(const char* save_path, int quality) {
   if (sentai_detection_is_running()) return -10;  // pipeline owns PXP+tensor
-  if (!g_cam_initialized) return -1;
+  if (!g_cam_initialized && !sentai_virtual_camera_active()) return -1;
   if (!coralmicro::g_tpu_ready || !coralmicro::g_interpreter) return -3;
   auto* input = coralmicro::g_interpreter->input_tensor(0);
   if (!input || input->dims->size < 4) return -4;
@@ -2918,10 +2948,15 @@ extern "C" int sentai_cam_to_tensor_ex(const char* save_path, int quality) {
   int idx = sentai_cam_get_raw_with_recovery(&raw);
   TickType_t t_frame = xTaskGetTickCount();
   if (idx < 0 || !raw) return -2;
-  auto* cam = coralmicro::CameraTask::GetSingleton();
-  int rc = pxp_scale_xrgb_to_rgb(raw, DEMO_CAMERA_WIDTH, DEMO_CAMERA_HEIGHT,
+  int src_w = sentai_virtual_camera_active()
+                  ? sentai_virtual_camera_width()
+                  : DEMO_CAMERA_WIDTH;
+  int src_h = sentai_virtual_camera_active()
+                  ? sentai_virtual_camera_height()
+                  : DEMO_CAMERA_HEIGHT;
+  int rc = pxp_scale_xrgb_to_rgb(raw, src_w, src_h,
                                   tensor_buf, w, h);
-  cam->ReturnRawFrame(idx);
+  sentai_cam_return_raw(idx);
   TickType_t t_pxp = xTaskGetTickCount();
   if (rc != 0) return rc;
 
@@ -3320,14 +3355,17 @@ extern "C" int sentai_cam_rotate(int cam_id, int degrees) {
 }
 
 extern "C" int sentai_cam_get_width(void) {
+  if (sentai_virtual_camera_active()) return sentai_virtual_camera_width();
   return g_cam_width;
 }
 
 extern "C" int sentai_cam_get_height(void) {
+  if (sentai_virtual_camera_active()) return sentai_virtual_camera_height();
   return g_cam_height;
 }
 
 extern "C" uint32_t sentai_cam_get_frame_seq(void) {
+  if (sentai_virtual_camera_active()) return sentai_virtual_camera_seq();
   return g_camera_frame_seq;
 }
 
@@ -3336,10 +3374,12 @@ extern "C" uint32_t sentai_cam_get_sensor_frames(void) {
 }
 
 extern "C" int sentai_cam_get_native_width(void) {
+  if (sentai_virtual_camera_active()) return sentai_virtual_camera_width();
   return coralmicro::CameraTask::kWidth;
 }
 
 extern "C" int sentai_cam_get_native_height(void) {
+  if (sentai_virtual_camera_active()) return sentai_virtual_camera_height();
   return coralmicro::CameraTask::kHeight;
 }
 
@@ -3348,24 +3388,28 @@ extern "C" int sentai_cam_get_native_height(void) {
 // Capture camera frame for AIfES, resize to w×h, output as RGB or grayscale
 // Returns: bytes written, or negative on error
 extern "C" int sentai_aifes_capture_camera(uint8_t* out, int w, int h, int grayscale) {
-  if (!g_cam_initialized) return -1;
+  if (!g_cam_initialized && !sentai_virtual_camera_active()) return -1;
   if (!out || w <= 0 || h <= 0) return -3;
-  if (w > DEMO_CAMERA_WIDTH || h > DEMO_CAMERA_HEIGHT) return -5;
+  int src_w = sentai_virtual_camera_active()
+                  ? sentai_virtual_camera_width()
+                  : DEMO_CAMERA_WIDTH;
+  int src_h = sentai_virtual_camera_active()
+                  ? sentai_virtual_camera_height()
+                  : DEMO_CAMERA_HEIGHT;
+  if (w > src_w || h > src_h) return -5;
   
   // Capture raw frame
   uint8_t* raw = nullptr;
   int idx = sentai_cam_get_raw_with_recovery(&raw);
   if (idx < 0 || !raw) return -2;
   
-  auto* cam = coralmicro::CameraTask::GetSingleton();
-  
   if (grayscale) {
     // For grayscale: capture RGB, then convert
     // Use temporary RGB buffer
     std::vector<uint8_t> rgb_buf(w * h * 3);
-    int rc = pxp_scale_xrgb_to_rgb(raw, DEMO_CAMERA_WIDTH, DEMO_CAMERA_HEIGHT,
+    int rc = pxp_scale_xrgb_to_rgb(raw, src_w, src_h,
                                     rgb_buf.data(), w, h);
-    cam->ReturnRawFrame(idx);
+    sentai_cam_return_raw(idx);
     if (rc != 0) return rc;
     
     // Convert RGB to grayscale: Y = 0.299R + 0.587G + 0.114B
@@ -3378,9 +3422,9 @@ extern "C" int sentai_aifes_capture_camera(uint8_t* out, int w, int h, int grays
     return w * h;
   } else {
     // RGB: direct PXP output
-    int rc = pxp_scale_xrgb_to_rgb(raw, DEMO_CAMERA_WIDTH, DEMO_CAMERA_HEIGHT,
+    int rc = pxp_scale_xrgb_to_rgb(raw, src_w, src_h,
                                     out, w, h);
-    cam->ReturnRawFrame(idx);
+    sentai_cam_return_raw(idx);
     if (rc != 0) return rc;
     return w * h * 3;
   }

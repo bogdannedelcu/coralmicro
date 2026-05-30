@@ -43,6 +43,11 @@
 #include <time.h>
 #define FR_HAVE_FREERTOS 1
 
+#ifdef __arm__
+extern int sentai_fs_write(const char* path, const uint8_t* buf, int size);
+extern int sentai_fs_append(const char* path, const uint8_t* buf, int size);
+#endif
+
 // ============================================================================
 // Per-channel slot pools (static, .sdram_bss when on ARM).
 // ============================================================================
@@ -87,6 +92,12 @@ struct ScalarSlot {
 };
 static ScalarSlot s_scalar_pool[SENTAI_FR_SCALARS_SLOTS] SENTAI_FR_POOL_ATTR;
 
+struct DebugSlot {
+    uint16_t len;
+    char     text[SENTAI_FR_DEBUG_TEXT_LEN];
+};
+static DebugSlot s_debug_pool[SENTAI_FR_DEBUG_SLOTS] SENTAI_FR_POOL_ATTR;
+
 // ── Per-channel runtime state (mutex-protected) ────────────────────────
 struct ChanState {
     sentai_fr_channel_stats_t stats{};
@@ -101,6 +112,7 @@ inline uint32_t pool_size_for(sentai_fr_channel_t c) {
     case SENTAI_FR_CH_FRAMES:  return SENTAI_FR_FRAMES_SLOTS;
     case SENTAI_FR_CH_EVENTS:  return SENTAI_FR_EVENTS_SLOTS;
     case SENTAI_FR_CH_SCALARS: return SENTAI_FR_SCALARS_SLOTS;
+    case SENTAI_FR_CH_DEBUG:   return SENTAI_FR_DEBUG_SLOTS;
     default: return 0;
     }
 }
@@ -143,6 +155,7 @@ static uint32_t fr_now_ms_() {
 
 static FILE* s_events_fp  = nullptr;
 static FILE* s_scalars_fp = nullptr;
+static FILE* s_debug_fp   = nullptr;
 
 // ── Helpers ────────────────────────────────────────────────────────────
 // mkdir is a POSIX-only call.  ARM build uses FileX / NXP HAL — caller
@@ -228,6 +241,15 @@ extern "C" int sentai_fr_open(sentai_fr_channel_t ch, const char* path) {
         if (s_scalars_fp) { fclose(s_scalars_fp); s_scalars_fp = nullptr; }
         s_scalars_fp = open_append_(path, "# sentai.fr scalars  ts_ms,label,value");
         if (!s_scalars_fp) return SENTAI_FR_ERR_IO;
+    } else if (ch == SENTAI_FR_CH_DEBUG) {
+#ifdef __arm__
+        uint8_t empty = 0;
+        (void)sentai_fs_write(path, &empty, 0);
+#else
+        if (s_debug_fp) { fclose(s_debug_fp); s_debug_fp = nullptr; }
+        s_debug_fp = open_append_(path, nullptr);
+        if (!s_debug_fp) return SENTAI_FR_ERR_IO;
+#endif
     } else if (ch == SENTAI_FR_CH_KERNEL) {
         // Stub T1 — kernel mirror added later.
     }
@@ -246,6 +268,9 @@ extern "C" int sentai_fr_close(sentai_fr_channel_t ch) {
     }
     if (ch == SENTAI_FR_CH_SCALARS && s_scalars_fp) {
         fflush(s_scalars_fp); fclose(s_scalars_fp); s_scalars_fp = nullptr;
+    }
+    if (ch == SENTAI_FR_CH_DEBUG && s_debug_fp) {
+        fflush(s_debug_fp); fclose(s_debug_fp); s_debug_fp = nullptr;
     }
     return SENTAI_FR_OK;
 }
@@ -321,6 +346,31 @@ extern "C" int sentai_fr_push_scalar(const char* label, double value,
     copy_str_(slot.label, sizeof(slot.label), label);
     sanitise_csv_(slot.label);
     slot.value = value;
+    c.head++;
+    depth = c.head - c.tail;
+    if (depth > c.stats.worst_queue_depth) c.stats.worst_queue_depth = depth;
+    c.stats.queue_depth = depth;
+    c.stats.pushes_accepted++;
+    wake_post();
+    return SENTAI_FR_OK;
+}
+
+extern "C" int sentai_fr_push_debug(const char* data, int len) {
+    if (!data || len <= 0) return SENTAI_FR_ERR_PARAMS;
+    MuGuard g;
+    ChanState& c = s_chans[SENTAI_FR_CH_DEBUG];
+    if (!c.stats.enabled) return SENTAI_FR_OK;
+    c.stats.pushes_total++;
+    uint32_t depth = c.head - c.tail;
+    if (depth >= SENTAI_FR_DEBUG_SLOTS) {
+        c.stats.drops_full++;
+        return SENTAI_FR_ERR_FULL;
+    }
+    DebugSlot& slot = s_debug_pool[c.head % SENTAI_FR_DEBUG_SLOTS];
+    int n = len;
+    if (n > SENTAI_FR_DEBUG_TEXT_LEN) n = SENTAI_FR_DEBUG_TEXT_LEN;
+    memcpy(slot.text, data, (size_t)n);
+    slot.len = (uint16_t)n;
     c.head++;
     depth = c.head - c.tail;
     if (depth > c.stats.worst_queue_depth) c.stats.worst_queue_depth = depth;
@@ -431,6 +481,44 @@ bool drain_one_scalar_() {
     return true;
 }
 
+bool drain_one_debug_() {
+    DebugSlot snap;
+#ifdef __arm__
+    char path[128];
+#else
+    FILE* fp;
+#endif
+    {
+        MuGuard g;
+        ChanState& c = s_chans[SENTAI_FR_CH_DEBUG];
+        if (c.tail == c.head || !c.stats.enabled) return false;
+        snap = s_debug_pool[c.tail % SENTAI_FR_DEBUG_SLOTS];
+        c.tail++;
+        c.stats.queue_depth = c.head - c.tail;
+#ifdef __arm__
+        copy_str_(path, sizeof(path), c.stats.path);
+#else
+        fp = s_debug_fp;
+#endif
+    }
+    bool ok = false;
+#ifdef __arm__
+    if (snap.len > 0) {
+        ok = (sentai_fs_append(path, (const uint8_t*)snap.text,
+                               (int)snap.len) > 0);
+    }
+#else
+    if (fp && snap.len > 0) {
+        ok = (fwrite(snap.text, 1, snap.len, fp) == snap.len);
+        fflush(fp);
+    }
+#endif
+    MuGuard g;
+    if (ok) s_chans[SENTAI_FR_CH_DEBUG].stats.writes_ok++;
+    else    s_chans[SENTAI_FR_CH_DEBUG].stats.writes_fail++;
+    return true;
+}
+
 }  // namespace
 
 // Public drain primitive — called by the worker task in
@@ -442,6 +530,7 @@ extern "C" uint32_t sentai_fr_drain_round(void) {
     for (int i = 0; i < 8 && drain_one_frame_();  ++i) ++n;
     for (int i = 0; i < 8 && drain_one_event_();  ++i) ++n;
     for (int i = 0; i < 8 && drain_one_scalar_(); ++i) ++n;
+    for (int i = 0; i < 32 && drain_one_debug_(); ++i) ++n;
     return n;
 }
 

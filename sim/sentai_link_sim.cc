@@ -795,13 +795,6 @@ extern "C" void sentai_link_get_stats(uint32_t out[9]) {
 
 
 /* ---- Stubs for unused-in-SIM bits referenced by modsentai_link.c ---- */
-extern "C" int sentai_console_get_target(void) {
-    /* SIM has stdin/stdout REPL only — no USB/UART switching.  Return 0
-     * (= "REPL on USB") so the precondition check in modsentai_link.c
-     * passes. */
-    return 0;
-}
-
 extern "C" int sentai_mesh_is_running(void) {
     /* No mesh in SIM. */
     return 0;

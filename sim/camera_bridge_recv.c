@@ -80,6 +80,7 @@
 
 #include "examples/sentai_runtime/sentai_pxp_shim.h"
 #include "examples/sentai_runtime/sentai_prep.h"     // W11-T4: SLOT_RGB_64 producer
+#include "examples/sentai_runtime/sentai_virtual_camera.h"
 #include "examples/sentai_runtime/slam_task.h"       // W11-T4: publish helper
 
 // flow_phase_corr public entry — defined in flow_phase_corr.cc.
@@ -150,6 +151,10 @@ static volatile uint32_t s_rgb_full_seq = 0;
 
 size_t sim_camera_latest_rgb(uint8_t* dst, size_t max_bytes,
                               int* out_w, int* out_h, uint32_t* out_seq) {
+    size_t vgot = sentai_virtual_camera_get_rgb(dst, max_bytes,
+                                                out_w, out_h, out_seq);
+    if (vgot > 0) return vgot;
+
     if (out_w) *out_w = EXPECT_W;
     if (out_h) *out_h = EXPECT_H;
     const size_t need = EXPECT_W * EXPECT_H * 3u;

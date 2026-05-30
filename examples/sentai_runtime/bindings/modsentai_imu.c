@@ -1,6 +1,12 @@
 // ============== sentai.imu — LIS2DU12 accelerometer ==============
 // This file is #include'd from modsentai.c — do NOT compile separately.
 
+#include <math.h>
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 // sentai.imu.init() -> int
 // Returns 0 on success, -1 on failure
 static mp_obj_t mod_sentai_imu_init(void) {

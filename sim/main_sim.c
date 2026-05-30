@@ -18,6 +18,7 @@
 #include <signal.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <pthread.h>
 
 #include "FreeRTOS.h"
 #include "task.h"
@@ -51,6 +52,122 @@ static char s_mp_heap[MP_HEAP_SIZE];
 /* ---- REPL line buffer ---- */
 #define REPL_LINE_MAX  1024
 static char s_line[REPL_LINE_MAX];
+
+/* ---- SIM debug tee -----------------------------------------------------
+ *
+ * SIM stdout/stderr are the closest equivalent to firmware printf debug.
+ * Keep them visible to the host console, but also tee the same bytes into
+ * $SENTAI_FR_DIR/debug.log or $SENTAI_SIM_ROOT/fr/debug.log so each
+ * experiment has a reproducible debug trace next to events.csv/scalars.csv.
+ */
+typedef struct {
+    int read_fd;
+    int console_fd;
+    int debug_fd;
+} sim_debug_tee_t;
+
+static pthread_mutex_t s_debug_log_mu = PTHREAD_MUTEX_INITIALIZER;
+static int s_debug_log_fd = -1;
+static sim_debug_tee_t s_stdout_tee = {-1, -1, -1};
+static sim_debug_tee_t s_stderr_tee = {-1, -1, -1};
+
+static void sim_write_all(int fd, const char *buf, ssize_t n) {
+    ssize_t off = 0;
+    while (off < n) {
+        ssize_t w = write(fd, buf + off, (size_t)(n - off));
+        if (w < 0) {
+            if (errno == EINTR) continue;
+            break;
+        }
+        if (w == 0) break;
+        off += w;
+    }
+}
+
+static void *sim_debug_tee_thread(void *arg) {
+    sim_debug_tee_t *tee = (sim_debug_tee_t *)arg;
+    char buf[512];
+    for (;;) {
+        ssize_t n = read(tee->read_fd, buf, sizeof buf);
+        if (n < 0) {
+            if (errno == EINTR) continue;
+            break;
+        }
+        if (n == 0) break;
+        sim_write_all(tee->console_fd, buf, n);
+        pthread_mutex_lock(&s_debug_log_mu);
+        if (tee->debug_fd >= 0) {
+            sim_write_all(tee->debug_fd, buf, n);
+        }
+        pthread_mutex_unlock(&s_debug_log_mu);
+    }
+    return NULL;
+}
+
+static int sim_debug_tee_one(int stream_fd, sim_debug_tee_t *tee) {
+    int p[2];
+    if (pipe(p) != 0) return -1;
+    tee->console_fd = dup(stream_fd);
+    if (tee->console_fd < 0) {
+        close(p[0]);
+        close(p[1]);
+        return -1;
+    }
+    if (dup2(p[1], stream_fd) < 0) {
+        close(tee->console_fd);
+        close(p[0]);
+        close(p[1]);
+        return -1;
+    }
+    close(p[1]);
+    tee->read_fd = p[0];
+    tee->debug_fd = s_debug_log_fd;
+    pthread_t th;
+    if (pthread_create(&th, NULL, sim_debug_tee_thread, tee) != 0) {
+        return -1;
+    }
+    pthread_detach(th);
+    return 0;
+}
+
+static void sim_debug_tee_start(void) {
+    const char *fr_dir = getenv("SENTAI_FR_DIR");
+    char fr_dir_buf[512];
+    if (fr_dir == NULL) {
+        snprintf(fr_dir_buf, sizeof fr_dir_buf, "%s/fr", sim_fs_root());
+        fr_dir = fr_dir_buf;
+    }
+    struct stat st;
+    if (stat(fr_dir, &st) != 0) {
+        if (mkdir(fr_dir, 0755) != 0) {
+            fprintf(stderr, "[sim] WARN: mkdir %s failed: %s\n",
+                    fr_dir, strerror(errno));
+            return;
+        }
+    }
+
+    char debug_path[600];
+    snprintf(debug_path, sizeof debug_path, "%s/debug.log", fr_dir);
+    s_debug_log_fd = open(debug_path, O_CREAT | O_WRONLY | O_TRUNC, 0644);
+    if (s_debug_log_fd < 0) {
+        fprintf(stderr, "[sim] WARN: open %s failed: %s\n",
+                debug_path, strerror(errno));
+        return;
+    }
+    if (sim_debug_tee_one(STDOUT_FILENO, &s_stdout_tee) != 0 ||
+        sim_debug_tee_one(STDERR_FILENO, &s_stderr_tee) != 0) {
+        fprintf(stderr, "[sim] WARN: debug tee setup failed: %s\n",
+                strerror(errno));
+    }
+    setvbuf(stdout, NULL, _IONBF, 0);
+    setvbuf(stderr, NULL, _IONBF, 0);
+}
+
+static void sim_debug_tee_flush(void) {
+    fflush(stdout);
+    fflush(stderr);
+    if (s_debug_log_fd >= 0) fsync(s_debug_log_fd);
+}
 
 /* ---- Ctrl-C / SIGINT handler ---- */
 static volatile int g_got_sigint = 0;
@@ -177,16 +294,19 @@ static void repl_task(void *param) {
 
         char events_path[600];
         char scalars_path[600];
+        char debug_path[600];
         snprintf(events_path,  sizeof events_path,  "%s/events.csv",  fr_dir);
         snprintf(scalars_path, sizeof scalars_path, "%s/scalars.csv", fr_dir);
+        snprintf(debug_path,   sizeof debug_path,   "%s/debug.log",   fr_dir);
 
         int rc_init     = sentai_fr_init();
         int rc_events   = sentai_fr_open(2 /* SENTAI_FR_CH_EVENTS  */, events_path);
         int rc_scalars  = sentai_fr_open(3 /* SENTAI_FR_CH_SCALARS */, scalars_path);
+        int rc_debug    = sentai_fr_open(5 /* SENTAI_FR_CH_DEBUG   */, debug_path);
         int rc_task     = sentai_fr_task_start();
         printf("[sim] sentai.fr auto-start: dir=%s init=%d events=%d "
-               "scalars=%d task=%d\n",
-               fr_dir, rc_init, rc_events, rc_scalars, rc_task);
+               "scalars=%d debug=%d task=%d\n",
+               fr_dir, rc_init, rc_events, rc_scalars, rc_debug, rc_task);
 
         /* Journal_open is MP-side (sim-only).  Bare filename per
          * sim_fs_resolve contract — absolute paths fail silently. */
@@ -238,6 +358,8 @@ static void repl_task(void *param) {
      * so CI can capture the return code. */
     printf("[sim] REPL task done, terminating process\n");
     fflush(stdout);
+    vTaskDelay(pdMS_TO_TICKS(100));
+    sim_debug_tee_flush();
     exit(0);
 }
 
@@ -246,6 +368,8 @@ int main(void) {
     /* Catch Ctrl-C cleanly so the user can interrupt long-running scripts.
      * Default would terminate immediately. */
     signal(SIGINT, sigint_handler);
+
+    sim_debug_tee_start();
 
     printf("[sim] sentai_sim build #%d (%s)\n", BUILD_VERSION, BUILD_TIMESTAMP);
     printf("[sim] FreeRTOS POSIX port: tick=%u Hz, heap=%u bytes\n",

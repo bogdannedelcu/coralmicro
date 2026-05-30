@@ -15,6 +15,8 @@
 // board and call init(streaming, new_fps) again.
 extern int sentai_cam_init_fps(int streaming, int fps);
 extern int sentai_cam_init_full(int streaming, int fps, int hflip, int vflip);
+extern int sentai_virtual_camera_select(const char* path);
+extern void sentai_virtual_camera_disable(void);
 extern volatile uint32_t g_runtime_fps;
 // sentai.camera.init(streaming=1, fps=<runtime>, hflip=0, vflip=1)
 //   Defaults reflect the FLOW BASELINE established 2026-05-07:
@@ -149,12 +151,20 @@ static mp_obj_t mod_sentai_cam_native_res(void) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_cam_native_res_obj, mod_sentai_cam_native_res);
 
-// sentai.camera.select(id) -> int (0=ok). id: 0=front, 1=back
-static mp_obj_t mod_sentai_cam_select(mp_obj_t id_obj) {
-    int id = mp_obj_get_int(id_obj);
+// sentai.camera.select(id[, path]) -> int (0=ok).
+// id: 0=front, 1=back, -1=virtual static image from FS.
+static mp_obj_t mod_sentai_cam_select(size_t n_args, const mp_obj_t *args) {
+    int id = mp_obj_get_int(args[0]);
+    if (id == -1) {
+        if (n_args < 2) return mp_obj_new_int(-10);
+        const char* path = mp_obj_str_get_str(args[1]);
+        return mp_obj_new_int(sentai_virtual_camera_select(path));
+    }
+    sentai_virtual_camera_disable();
     return mp_obj_new_int(sentai_cam_switch(id));
 }
-static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_cam_select_obj, mod_sentai_cam_select);
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_cam_select_obj,
+                                            1, 2, mod_sentai_cam_select);
 
 // sentai.camera.current_id() -> 0 (front) or 1 (back).
 // MUX state for the NEXT capture (post-flip).

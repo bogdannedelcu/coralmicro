@@ -23,10 +23,11 @@
 //   - channel `scalars` — CSV append.  Format per line:
 //       `<ts_ms>,<label>,<value>` — single scalar per push.
 //   - channel `kernel`  — mirror of sentai_dmesg ring (stub T1)
+//   - channel `debug`   — raw printf/debug stream chunks to debug.log
 //
-// ARM port is OUT OF SCOPE for this WP — `__ARM_ARCH` paths exist for
-// thread/mutex but the disk-backend sinks are SIM-only initially.
-// On ARM, FxUser will replace the host stdio fopen path in a later T.
+// ARM port note: frames/events/scalars still use the original staged sinks,
+// while the debug channel has an ARM append sink so firmware printf traces can
+// be captured through FR without writing flash from _write().
 //
 // =========================================================================
 // SYSTEM MODEL (per agent/embeded.md §A) — KEY DECISIONS
@@ -97,6 +98,7 @@ typedef enum {
     SENTAI_FR_CH_EVENTS  = 2,   // JSONL append (stub T1)
     SENTAI_FR_CH_SCALARS = 3,   // CSV append (stub T1)
     SENTAI_FR_CH_KERNEL  = 4,   // sentai_dmesg mirror (stub T1)
+    SENTAI_FR_CH_DEBUG   = 5,   // raw printf/debug stream append
     SENTAI_FR_CH__COUNT          // sentinel
 } sentai_fr_channel_t;
 
@@ -150,6 +152,15 @@ typedef enum {
 #define SENTAI_FR_SCALARS_SLOTS   1024
 #endif
 #define  SENTAI_FR_SCALAR_LABEL_LEN  16
+
+#ifndef SENTAI_FR_DEBUG_SLOTS
+#  ifdef __arm__
+#    define SENTAI_FR_DEBUG_SLOTS  96
+#  else
+#    define SENTAI_FR_DEBUG_SLOTS  256
+#  endif
+#endif
+#define  SENTAI_FR_DEBUG_TEXT_LEN  256
 
 // ---- Per-channel stats (for sentai_fr_get_stats) ----------------------
 typedef struct {
@@ -222,6 +233,11 @@ int sentai_fr_push_event(const char* type, const char* text);
 // `<ts_ms>,<label>,<value>\n`.  Caller may provide ts_ms; passing 0 asks FR
 // to stamp with its recorder clock.
 int sentai_fr_push_scalar(const char* label, double value, uint32_t ts_ms);
+
+// Raw debug stream chunk.  Used by firmware _write() and SIM stdout/stderr
+// tee paths.  Best-effort and bounded; safe to call before the debug channel
+// is opened, in which case it is a no-op.
+int sentai_fr_push_debug(const char* data, int len);
 
 // ── Read-side ──────────────────────────────────────────────────────
 int sentai_fr_get_stats(sentai_fr_channel_t ch,

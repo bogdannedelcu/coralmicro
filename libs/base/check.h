@@ -21,6 +21,17 @@
 
 #include "third_party/freertos_kernel/include/FreeRTOS.h"
 #include "third_party/freertos_kernel/include/task.h"
+
+#ifdef SENTAI_PLATFORM_SIM
+#include <cstdio>
+#define CHECK(a)                                                   \
+  do {                                                             \
+    if (!(a)) {                                                    \
+      std::printf("%s:%d %s was not true.\n", __FILE__, __LINE__, #a); \
+      return false;                                                \
+    }                                                              \
+  } while (0)
+#else
 #include "third_party/nxp/rt1176-sdk/devices/MIMXRT1176/fsl_device_registers.h"
 
 #if (__CORTEX_M == 7)
@@ -45,6 +56,7 @@
   } while (0)
 #else
 #error "Unsupported platform"
+#endif
 #endif
 
 #endif  // LIBS_BASE_CHECK_H_

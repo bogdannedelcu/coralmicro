@@ -21,6 +21,7 @@ static sentai_fr_channel_t parse_chan_(mp_obj_t name_obj) {
     if (len == 6 && memcmp(s, "events", 6) == 0)   return SENTAI_FR_CH_EVENTS;
     if (len == 7 && memcmp(s, "scalars", 7) == 0)  return SENTAI_FR_CH_SCALARS;
     if (len == 6 && memcmp(s, "kernel", 6) == 0)   return SENTAI_FR_CH_KERNEL;
+    if (len == 5 && memcmp(s, "debug", 5) == 0)    return SENTAI_FR_CH_DEBUG;
     return SENTAI_FR_CH_NONE;
 }
 

@@ -35,6 +35,7 @@ extern size_t sim_camera_latest_rgb(uint8_t* dst, size_t max_bytes,
 
 static uint8_t  s_pipe_cam_buf[PIPE_CAM_SZ];
 static uint8_t  s_pipe_resized[1024 * 1024];   // up to ~1 MB resized tensor
+static uint8_t  s_pipe_bmp_out[54 + PIPE_CAM_SZ];
 static volatile int     s_pipe_running = 0;
 static TaskHandle_t     s_pipe_task = NULL;
 static volatile uint32_t s_pipe_frames = 0;
@@ -412,6 +413,134 @@ static mp_obj_t sentai_pipeline_detections_mp(size_t n_args, const mp_obj_t* arg
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(sentai_pipeline_detections_obj, 0, 1, sentai_pipeline_detections_mp);
 
+static void put_le16_(uint8_t* p, uint16_t v) {
+    p[0] = (uint8_t)(v & 0xff);
+    p[1] = (uint8_t)(v >> 8);
+}
+
+static void put_le32_(uint8_t* p, uint32_t v) {
+    p[0] = (uint8_t)(v & 0xff);
+    p[1] = (uint8_t)((v >> 8) & 0xff);
+    p[2] = (uint8_t)((v >> 16) & 0xff);
+    p[3] = (uint8_t)((v >> 24) & 0xff);
+}
+
+static void draw_rect_rgb_(uint8_t* img, int w, int h,
+                           int x1, int y1, int x2, int y2,
+                           uint8_t r, uint8_t g, uint8_t b) {
+    if (x1 < 0) x1 = 0;
+    if (y1 < 0) y1 = 0;
+    if (x2 >= w) x2 = w - 1;
+    if (y2 >= h) y2 = h - 1;
+    if (x2 <= x1 || y2 <= y1) return;
+    for (int t = 0; t < 3; ++t) {
+        int yy1 = y1 + t;
+        int yy2 = y2 - t;
+        int xx1 = x1 + t;
+        int xx2 = x2 - t;
+        if (yy1 >= 0 && yy1 < h) {
+            for (int x = xx1; x <= xx2; ++x) {
+                uint8_t* p = img + (yy1 * w + x) * 3;
+                p[0] = r; p[1] = g; p[2] = b;
+            }
+        }
+        if (yy2 >= 0 && yy2 < h) {
+            for (int x = xx1; x <= xx2; ++x) {
+                uint8_t* p = img + (yy2 * w + x) * 3;
+                p[0] = r; p[1] = g; p[2] = b;
+            }
+        }
+        if (xx1 >= 0 && xx1 < w) {
+            for (int y = yy1; y <= yy2; ++y) {
+                uint8_t* p = img + (y * w + xx1) * 3;
+                p[0] = r; p[1] = g; p[2] = b;
+            }
+        }
+        if (xx2 >= 0 && xx2 < w) {
+            for (int y = yy1; y <= yy2; ++y) {
+                uint8_t* p = img + (y * w + xx2) * 3;
+                p[0] = r; p[1] = g; p[2] = b;
+            }
+        }
+    }
+}
+
+static int write_overlay_bmp_(const char* path) {
+    if (!path || !*path) return -1;
+    const int w = PIPE_CAM_W;
+    const int h = PIPE_CAM_H;
+    const int row_bytes = w * 3;
+    const int image_bytes = row_bytes * h;
+    const int file_bytes = 54 + image_bytes;
+    uint8_t* hdr = s_pipe_bmp_out;
+    uint8_t* pix = s_pipe_bmp_out + 54;
+    memset(hdr, 0, 54);
+    hdr[0] = 'B'; hdr[1] = 'M';
+    put_le32_(hdr + 2, (uint32_t)file_bytes);
+    put_le32_(hdr + 10, 54);
+    put_le32_(hdr + 14, 40);
+    put_le32_(hdr + 18, (uint32_t)w);
+    put_le32_(hdr + 22, (uint32_t)h);
+    put_le16_(hdr + 26, 1);
+    put_le16_(hdr + 28, 24);
+    put_le32_(hdr + 34, (uint32_t)image_bytes);
+
+    for (int y = 0; y < h; ++y) {
+        const uint8_t* src = s_pipe_cam_buf + y * row_bytes;
+        uint8_t* dst = pix + y * row_bytes;
+        memcpy(dst, src, row_bytes);
+    }
+
+    int best_cat = -1;
+    int best_cat_conf = -1;
+    for (int i = 0; i < s_n_dets; ++i) {
+        int cls = s_dets[i].class_id;
+        int conf = s_dets[i].conf_permil;
+        if ((cls == 16 || cls == 17) && conf > best_cat_conf) {
+            best_cat = i;
+            best_cat_conf = conf;
+        }
+    }
+
+    if (best_cat >= 0) {
+        Detection* d = &s_dets[best_cat];
+        draw_rect_rgb_(pix, w, h,
+                       d->x1 * w / SIM_SSD_INPUT_W,
+                       d->y1 * h / SIM_SSD_INPUT_H,
+                       d->x2 * w / SIM_SSD_INPUT_W,
+                       d->y2 * h / SIM_SSD_INPUT_H,
+                       255, 32, 32);
+    }
+
+    /* BMP rows are bottom-up and BGR.  Flip+swap in place into the output. */
+    for (int y = 0; y < h / 2; ++y) {
+        uint8_t* a = pix + y * row_bytes;
+        uint8_t* b = pix + (h - 1 - y) * row_bytes;
+        for (int x = 0; x < row_bytes; ++x) {
+            uint8_t tmp = a[x];
+            a[x] = b[x];
+            b[x] = tmp;
+        }
+    }
+    for (int y = 0; y < h; ++y) {
+        uint8_t* row = pix + y * row_bytes;
+        for (int x = 0; x < w; ++x) {
+            uint8_t* p = row + x * 3;
+            uint8_t r = p[0];
+            p[0] = p[2];
+            p[2] = r;
+        }
+    }
+
+    return sentai_fs_write(path, s_pipe_bmp_out, file_bytes);
+}
+
+static mp_obj_t sentai_pipeline_save_mp(mp_obj_t path_obj) {
+    const char* path = mp_obj_str_get_str(path_obj);
+    return mp_obj_new_int(write_overlay_bmp_(path));
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(sentai_pipeline_save_obj, sentai_pipeline_save_mp);
+
 /* sentai.pipeline.tracker_update(thresh_permil=300) — decodes detections
  * from current TPU output then feeds them to SentAI-SORT.  Returns the
  * number of confirmed tracks after update. */
@@ -530,6 +659,7 @@ static const mp_rom_map_elem_t sentai_pipeline_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_infer_reset), MP_ROM_PTR(&sentai_pipeline_track_reset_obj) },
     /* SSD + SORT bindings */
     { MP_ROM_QSTR(MP_QSTR_detections),     MP_ROM_PTR(&sentai_pipeline_detections_obj) },
+    { MP_ROM_QSTR(MP_QSTR_save),           MP_ROM_PTR(&sentai_pipeline_save_obj) },
     { MP_ROM_QSTR(MP_QSTR_tracker_update), MP_ROM_PTR(&sentai_pipeline_tracker_update_obj) },
     { MP_ROM_QSTR(MP_QSTR_tracker_enable), MP_ROM_PTR(&sentai_pipeline_tracker_enable_obj) },
     { MP_ROM_QSTR(MP_QSTR_tracker_reset),  MP_ROM_PTR(&sentai_pipeline_tracker_reset_obj) },

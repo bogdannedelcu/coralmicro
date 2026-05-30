@@ -17,6 +17,7 @@
 #include "libs/tpu/edgetpu_driver.h"
 
 #include <cassert>
+#include <cstring>
 
 #include "libs/base/check.h"
 #include "libs/tpu/darwinn/driver/config/beagle/beagle_chip_config.h"
@@ -24,8 +25,10 @@
 #include "libs/tpu/darwinn/driver/config/common_csr_helper.h"
 #include "third_party/freertos_kernel/include/FreeRTOS.h"
 #include "third_party/freertos_kernel/include/semphr.h"
+#ifndef SENTAI_PLATFORM_SIM
 #include "third_party/nxp/rt1176-sdk/components/osa/fsl_os_abstraction.h"
 #include "third_party/nxp/rt1176-sdk/middleware/usb/include/usb_spec.h"
+#endif
 
 namespace coralmicro {
 namespace {
@@ -81,8 +84,12 @@ constexpr uint32_t kMaxBulkBufferSize = 32 * 1024;
 // during overlapped Invoke.  32 KB easily fits in OCRAM alongside the
 // existing MicroPython / audio / aifes sections (~300 KB headroom).
 uint8_t BulkTransferBuffer[kMaxBulkBufferSize]
+#ifdef SENTAI_PLATFORM_SIM
+    __attribute__((aligned(32)));
+#else
     __attribute__((section(".ocram_bss,\"aw\",%nobits @")))
     __attribute__((aligned(32)));
+#endif
 
 struct UsbTransferMetadata {
   SemaphoreHandle_t sema;
@@ -318,7 +325,11 @@ bool TpuDriver::Initialize(usb_host_edgetpu_instance_t *usb_instance,
   CHECK(Write32(chip_config_.GetApexCsrOffsets().omc0_d8, omc0_d8.raw()));
 
   // Wait 100 us before enabling tempsense flow.
+#ifdef SENTAI_PLATFORM_SIM
+  vTaskDelay(pdMS_TO_TICKS(1));
+#else
   SDK_DelayAtLeastUs(100, CLOCK_GetFreq(kCLOCK_CpuClk));
+#endif
 
   // Enables tempsense flow.
   CHECK(Read32(chip_config_.GetApexCsrOffsets().omc0_dc, &omc0_dc_reg));

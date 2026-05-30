@@ -51,6 +51,9 @@
 // ship is yolo_5_256 at ~256 KB; double for headroom.
 #define MAX_OUTPUT_BYTES (640 * 1024)
 #define MAX_OUTPUTS      8
+#define SIM_TPU_MAXPATH  512
+
+extern int sim_fs_resolve(const char* bpath, char* out, size_t outsz);
 
 // ── Single persistent connection ────────────────────────────────────
 static int           s_fd = -1;
@@ -213,7 +216,17 @@ static int refresh_output_meta(void) {
 // ────────────────────────────────────────────────────────────────────
 int sentai_tpu_load_model(const char* path) {
     if (!path) return -1;
-    int rc = call_helper(OP_LOAD, path, (uint32_t)strlen(path), NULL, 0, NULL);
+    char resolved[SIM_TPU_MAXPATH + 1];
+    const char* load_path = path;
+    if (path[0] == '/') {
+        if (sim_fs_resolve(path, resolved, sizeof(resolved)) != 0) {
+            s_loaded = 0;
+            return -4;
+        }
+        load_path = resolved;
+    }
+    int rc = call_helper(OP_LOAD, load_path, (uint32_t)strlen(load_path),
+                         NULL, 0, NULL);
     if (rc < 0) { s_loaded = 0; return rc; }
 
     // Refresh input metadata.

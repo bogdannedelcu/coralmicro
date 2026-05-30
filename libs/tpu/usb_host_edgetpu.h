@@ -17,10 +17,73 @@
 #ifndef LIBS_TPU_USB_HOST_EDGETPU_H_
 #define LIBS_TPU_USB_HOST_EDGETPU_H_
 
+#ifdef SENTAI_PLATFORM_SIM
+#include <stdbool.h>
+#include <stdint.h>
+#include <libusb-1.0/libusb.h>
+
+typedef enum _usb_status {
+  kStatus_USB_Success = 0x00U,
+  kStatus_USB_Error,
+  kStatus_USB_Busy,
+  kStatus_USB_InvalidHandle,
+  kStatus_USB_InvalidParameter,
+  kStatus_USB_InvalidRequest,
+  kStatus_USB_ControllerNotFound,
+  kStatus_USB_InvalidControllerInterface,
+  kStatus_USB_NotSupported,
+  kStatus_USB_Retry,
+  kStatus_USB_TransferStall,
+  kStatus_USB_TransferFailed,
+  kStatus_USB_AllocFail,
+  kStatus_USB_LackSwapBuffer,
+  kStatus_USB_TransferCancel,
+  kStatus_USB_BandwidthFail,
+  kStatus_USB_MSDStatusFail,
+  kStatus_USB_EHCIAttached,
+  kStatus_USB_EHCIDetached,
+  kStatus_USB_DataOverRun,
+} usb_status_t;
+
+typedef void *usb_host_handle;
+typedef void *usb_device_handle;
+typedef void *usb_host_configuration_handle;
+typedef void *usb_host_interface_handle;
+typedef void *usb_host_class_handle;
+typedef void *usb_host_pipe_handle;
+typedef void usb_host_transfer_t;
+
+typedef struct _usb_setup_struct {
+  uint8_t bmRequestType;
+  uint8_t bRequest;
+  uint16_t wValue;
+  uint16_t wIndex;
+  uint16_t wLength;
+} usb_setup_struct_t;
+
+typedef void (*transfer_callback_t)(void *param, uint8_t *data,
+                                    uint32_t dataLen, usb_status_t status);
+
+#define USB_ENDPOINT_CONTROL (0x00U)
+#define USB_ENDPOINT_ISOCHRONOUS (0x01U)
+#define USB_ENDPOINT_BULK (0x02U)
+#define USB_ENDPOINT_INTERRUPT (0x03U)
+#define USB_OUT (0U)
+#define USB_IN (1U)
+#define USB_REQUEST_TYPE_DIR_OUT (0x00U)
+#define USB_REQUEST_TYPE_DIR_IN (0x80U)
+#define USB_REQUEST_TYPE_TYPE_STANDARD (0U)
+#define USB_REQUEST_TYPE_TYPE_CLASS (0x20U)
+#define USB_REQUEST_TYPE_TYPE_VENDOR (0x40U)
+#define USB_REQUEST_TYPE_RECIPIENT_DEVICE (0x00U)
+#define USB_REQUEST_TYPE_RECIPIENT_INTERFACE (0x01U)
+#define USB_REQUEST_STANDARD_SET_INTERFACE (0x0BU)
+#else
 #include "usb.h"
 #include "usb_host_config.h" // Must be above "usb_host.h"
 #include "usb_host.h"
 #include "usb_spec.h"
+#endif
 
 #define USB_HOST_EDGETPU_CLASS_CODE (0xFF)
 #define USB_HOST_EDGETPU_SUBCLASS_CODE (0xFF)
@@ -76,6 +139,15 @@ typedef struct _usb_host_edgetpu_pipe {
 } usb_host_edgetpu_pipe_t;
 
 typedef struct _usb_host_edgetpu_instance {
+#ifdef SENTAI_PLATFORM_SIM
+  libusb_context *usb_ctx;
+  libusb_device_handle *dev;
+  int interface_number;
+  uint8_t bulk_out_ep[4];
+  uint8_t bulk_in_ep[3];
+  uint8_t interrupt_in_ep;
+  bool kernel_detached;
+#endif
   usb_host_handle hostHandle;     /*!< This instance's related host handle*/
   usb_device_handle deviceHandle; /*!< This instance's related device handle*/
   usb_host_interface_handle
@@ -149,6 +221,11 @@ usb_status_t USB_HostEdgeTpuControl(usb_host_edgetpu_instance_t *tpuInstance,
                                     uint8_t *buffer,
                                     transfer_callback_t callbackFn,
                                     void *callbackParam);
+
+#ifdef SENTAI_PLATFORM_SIM
+usb_status_t USB_HostEdgeTpuOpenPosix(usb_host_edgetpu_instance_t **instance);
+usb_status_t USB_HostEdgeTpuClosePosix(usb_host_edgetpu_instance_t *instance);
+#endif
 
 #ifdef __cplusplus
 }

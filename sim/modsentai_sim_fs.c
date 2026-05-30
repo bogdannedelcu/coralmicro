@@ -69,15 +69,11 @@ int sim_fs_resolve(const char *bpath, char *out, size_t outsz) {
     return 0;
 }
 
-static mp_obj_t sentai_fs_write(mp_obj_t path_obj, mp_obj_t buf_obj) {
-    const char *bpath = mp_obj_str_get_str(path_obj);
-    mp_buffer_info_t bi;
-    mp_get_buffer_raise(buf_obj, &bi, MP_BUFFER_READ);
-
+int sentai_fs_write(const char* bpath, const uint8_t* data, int size) {
+    if (!bpath || !data || size < 0) return -1;
     char fp[SIM_FS_MAXPATH + 1];
-    if (sim_fs_resolve(bpath, fp, sizeof(fp)) != 0) return mp_obj_new_bool(0);
+    if (sim_fs_resolve(bpath, fp, sizeof(fp)) != 0) return -1;
 
-    /* Auto-mkdir parent (mirror FxUserWriteFile -p semantics) */
     char *slash = strrchr(fp, '/');
     if (slash && slash != fp) {
         *slash = '\0';
@@ -90,12 +86,39 @@ static mp_obj_t sentai_fs_write(mp_obj_t path_obj, mp_obj_t buf_obj) {
     }
 
     int fd = open(fp, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-    if (fd < 0) return mp_obj_new_bool(0);
-    ssize_t w = write(fd, bi.buf, bi.len);
+    if (fd < 0) return -1;
+    ssize_t w = write(fd, data, (size_t)size);
     close(fd);
-    return mp_obj_new_bool(w == (ssize_t) bi.len);
+    return w == (ssize_t)size ? size : -1;
 }
-static MP_DEFINE_CONST_FUN_OBJ_2(sentai_fs_write_obj, sentai_fs_write);
+
+int sentai_fs_size(const char* bpath) {
+    char fp[SIM_FS_MAXPATH + 1];
+    if (sim_fs_resolve(bpath, fp, sizeof(fp)) != 0) return -1;
+    struct stat st;
+    if (stat(fp, &st) != 0 || !S_ISREG(st.st_mode)) return -1;
+    return (int)st.st_size;
+}
+
+int sentai_fs_read(const char* bpath, uint8_t* buf, int max_size) {
+    if (!bpath || !buf || max_size < 0) return -1;
+    char fp[SIM_FS_MAXPATH + 1];
+    if (sim_fs_resolve(bpath, fp, sizeof(fp)) != 0) return -1;
+    int fd = open(fp, O_RDONLY);
+    if (fd < 0) return -1;
+    ssize_t r = read(fd, buf, (size_t)max_size);
+    close(fd);
+    return r < 0 ? -1 : (int)r;
+}
+
+static mp_obj_t sim_mp_fs_write(mp_obj_t path_obj, mp_obj_t buf_obj) {
+    const char *bpath = mp_obj_str_get_str(path_obj);
+    mp_buffer_info_t bi;
+    mp_get_buffer_raise(buf_obj, &bi, MP_BUFFER_READ);
+    int w = sentai_fs_write(bpath, (const uint8_t*)bi.buf, (int)bi.len);
+    return mp_obj_new_bool(w == (int)bi.len);
+}
+static MP_DEFINE_CONST_FUN_OBJ_2(sentai_fs_write_obj, sim_mp_fs_write);
 
 static mp_obj_t sentai_fs_append(mp_obj_t path_obj, mp_obj_t buf_obj) {
     const char *bpath = mp_obj_str_get_str(path_obj);
@@ -112,7 +135,7 @@ static mp_obj_t sentai_fs_append(mp_obj_t path_obj, mp_obj_t buf_obj) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_2(sentai_fs_append_obj, sentai_fs_append);
 
-static mp_obj_t sentai_fs_read(mp_obj_t path_obj) {
+static mp_obj_t sim_mp_fs_read(mp_obj_t path_obj) {
     const char *bpath = mp_obj_str_get_str(path_obj);
     char fp[SIM_FS_MAXPATH + 1];
     if (sim_fs_resolve(bpath, fp, sizeof(fp)) != 0) {
@@ -134,7 +157,7 @@ static mp_obj_t sentai_fs_read(mp_obj_t path_obj) {
     }
     return mp_obj_new_bytes_from_vstr(&vstr);
 }
-static MP_DEFINE_CONST_FUN_OBJ_1(sentai_fs_read_obj, sentai_fs_read);
+static MP_DEFINE_CONST_FUN_OBJ_1(sentai_fs_read_obj, sim_mp_fs_read);
 
 static mp_obj_t sentai_fs_read_str(mp_obj_t path_obj) {
     /* Same as read but return str (decoded UTF-8). */
@@ -163,7 +186,7 @@ static mp_obj_t sentai_fs_exists(mp_obj_t path_obj) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(sentai_fs_exists_obj, sentai_fs_exists);
 
-static mp_obj_t sentai_fs_size(mp_obj_t path_obj) {
+static mp_obj_t sim_mp_fs_size(mp_obj_t path_obj) {
     const char *bpath = mp_obj_str_get_str(path_obj);
     char fp[SIM_FS_MAXPATH + 1];
     if (sim_fs_resolve(bpath, fp, sizeof(fp)) != 0) return mp_obj_new_int(-1);
@@ -171,7 +194,7 @@ static mp_obj_t sentai_fs_size(mp_obj_t path_obj) {
     if (stat(fp, &st) != 0 || !S_ISREG(st.st_mode)) return mp_obj_new_int(-1);
     return mp_obj_new_int_from_uint((unsigned) st.st_size);
 }
-static MP_DEFINE_CONST_FUN_OBJ_1(sentai_fs_size_obj, sentai_fs_size);
+static MP_DEFINE_CONST_FUN_OBJ_1(sentai_fs_size_obj, sim_mp_fs_size);
 
 static mp_obj_t sentai_fs_ls(mp_obj_t path_obj) {
     const char *bpath = mp_obj_str_get_str(path_obj);
@@ -187,7 +210,12 @@ static mp_obj_t sentai_fs_ls(mp_obj_t path_obj) {
         if (strcmp(de->d_name, ".") == 0) continue;
         if (strcmp(de->d_name, "..") == 0) continue;
         char child[SIM_FS_MAXPATH + 1];
-        snprintf(child, sizeof(child), "%s/%s", fp, de->d_name);
+        size_t fp_len = strlen(fp);
+        size_t name_len = strlen(de->d_name);
+        if (fp_len + 1 + name_len >= sizeof(child)) continue;
+        memcpy(child, fp, fp_len);
+        child[fp_len] = '/';
+        memcpy(child + fp_len + 1, de->d_name, name_len + 1);
         struct stat st;
         if (stat(child, &st) != 0) continue;
         int type = S_ISDIR(st.st_mode) ? 2 : (S_ISREG(st.st_mode) ? 1 : 0);

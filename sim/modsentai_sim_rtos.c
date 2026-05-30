@@ -4,13 +4,17 @@
  * organisation" for the layout rules. */
 
 /* ===== sentai.rtos ===== */
+void sentai_sleep_ms(uint32_t ms) {
+    vTaskDelay(pdMS_TO_TICKS((TickType_t) ms));
+}
+
 static mp_obj_t sentai_rtos_sleep_ms(mp_obj_t ms_obj) {
     mp_int_t ms = mp_obj_get_int(ms_obj);
     if (ms < 0) ms = 0;
     /* vTaskDelay is the real FreeRTOS API — same as on board.  Schedules
      * other tasks for the duration.  No EINTR concern: vTaskDelay is
      * implemented inside the kernel's signal mask. */
-    vTaskDelay(pdMS_TO_TICKS((TickType_t) ms));
+    sentai_sleep_ms((uint32_t)ms);
     return mp_const_none;
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(sentai_rtos_sleep_ms_obj,

@@ -24,6 +24,11 @@
  * once QSTRs are regenerated. */
 static const char SIM_CAMERA_BACKEND[] = "virt_gazebo";
 
+extern int sentai_virtual_camera_select(const char* path);
+extern void sentai_virtual_camera_disable(void);
+extern int sentai_virtual_camera_active(void);
+extern unsigned int sentai_virtual_camera_seq(void);
+
 static mp_obj_t sentai_camera_init(size_t n_args, const mp_obj_t *args) {
     /* On firmware: init(num_frames[, w, h, fps]) -> int rc.  In Phase 1.5
      * stub: returns 0 ("ok") without actually opening a Gazebo
@@ -35,22 +40,35 @@ static mp_obj_t sentai_camera_init(size_t n_args, const mp_obj_t *args) {
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(sentai_camera_init_obj, 0, 4, sentai_camera_init);
 
 static mp_obj_t sentai_camera_frame_count(void) {
+    if (sentai_virtual_camera_active()) {
+        return mp_obj_new_int_from_uint(sentai_virtual_camera_seq());
+    }
     /* Phase 1.5 stub: no real frames yet, always 0. */
     return mp_obj_new_int(0);
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(sentai_camera_frame_count_obj, sentai_camera_frame_count);
 
 static mp_obj_t sentai_camera_grabbed_id(void) {
+    if (sentai_virtual_camera_active()) return mp_obj_new_int(-1);
     return mp_obj_new_int(0);
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(sentai_camera_grabbed_id_obj, sentai_camera_grabbed_id);
 
-static mp_obj_t sentai_camera_select(mp_obj_t cam_id_obj) {
-    mp_int_t cam = mp_obj_get_int(cam_id_obj);
+static mp_obj_t sentai_camera_select(size_t n_args, const mp_obj_t* args) {
+    mp_int_t cam = mp_obj_get_int(args[0]);
+    if (cam == -1) {
+        if (n_args < 2) return mp_obj_new_int(-10);
+        const char* path = mp_obj_str_get_str(args[1]);
+        int rc = sentai_virtual_camera_select(path);
+        if (s_verbose) printf("[camera] select(-1, %s) rc=%d\n", path, rc);
+        return mp_obj_new_int(rc);
+    }
+    sentai_virtual_camera_disable();
     if (s_verbose) printf("[camera] select(%d) (virt_gazebo stub)\n", (int) cam);
     return mp_obj_new_int(0);
 }
-static MP_DEFINE_CONST_FUN_OBJ_1(sentai_camera_select_obj, sentai_camera_select);
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(sentai_camera_select_obj,
+                                           1, 2, sentai_camera_select);
 
 /* ===== sentai.camera.grab_gray(w, h) — return latest cam frame as gray bytes.
  *

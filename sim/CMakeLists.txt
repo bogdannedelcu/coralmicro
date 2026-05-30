@@ -76,6 +76,33 @@ target_link_libraries(sentai_sim_kernel_only PRIVATE
 )
 
 # ---------------------------------------------------------------------------
+# tpu_posix_smoke — B7 direct Coral USB transport smoke.
+#
+# Verifies the POSIX/libusb backend can drive the same low-level
+# libs/tpu/edgetpu_driver.cc initialization path as ARM, without the Python
+# pycoral helper.  This is a transport smoke only; model load/invoke parity is
+# a follow-up slice after the direct USB path is stable.
+# ---------------------------------------------------------------------------
+add_executable_sim(tpu_posix_smoke
+    tpu_posix_smoke.cc
+    tpu_posix_smoke_freertos_hooks.c
+    usb_host_edgetpu_posix.c
+    ${CMAKE_SOURCE_DIR}/libs/tpu/edgetpu_driver.cc
+    ${CMAKE_SOURCE_DIR}/libs/tpu/apex_latest_single_ep_bin.c
+)
+target_include_directories(tpu_posix_smoke PRIVATE
+    ${CMAKE_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+target_compile_definitions(tpu_posix_smoke PRIVATE
+    SENTAI_PLATFORM_SIM=1
+)
+target_link_libraries(tpu_posix_smoke PRIVATE
+    libfreertos_posix
+    usb-1.0
+)
+
+# ---------------------------------------------------------------------------
 # libmicropython_embed_sim — MicroPython embed sources, host build.
 #
 # Reuses the SAME generated sources as the ARM build
@@ -174,6 +201,7 @@ add_executable_sim(sentai_sim
     fx_user_stubs.c               # W17-T8 — FxUserSize/ReadFile no-op stubs
                                   # so SIM-side PGM loaders compile.
     sentai_uart_serial_udp.c      # Phase 6 — sentai.link UART→UDP bridge for SIM
+    sentai_platform_sim_backend.c # SIM backend for shared sentai_runtime bindings
     sentai_link_sim.cc            # Phase 6 — slim MAVLink bridge (heartbeat/statustext)
     sentai_crazy_sim.cc           # Task #39 — sentai.crazy CRTP-over-UDP to cf2 SITL
     # Task #44 — CRTP LOG (TOC scan + block subscribe + pose cache) in C.
@@ -194,6 +222,7 @@ add_executable_sim(sentai_sim
     ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_hsv.cc
     # Camera-frame slot infrastructure (Phase 1a — storage only).
     ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_prep.cc
+    ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_virtual_camera.cc
     # OP-S10-W11-T3 — SlamTask perception loop (shared with ARM).
     # SIM compiles + runs the task; real frames land once Phase 1d
     # wires camera_bridge_recv as the SLOT_RGB_64 producer.
@@ -253,6 +282,10 @@ add_executable_sim(sentai_sim
     ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/flow_phase_corr.cc
     ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_fft_shim_sim.c
     ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/sentai_pxp_shim_sim.c
+    ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/generated/visionmesh.pb.c
+    ${CMAKE_SOURCE_DIR}/third_party/nanopb/pb_common.c
+    ${CMAKE_SOURCE_DIR}/third_party/nanopb/pb_encode.c
+    ${CMAKE_SOURCE_DIR}/third_party/nanopb/pb_decode.c
 )
 target_link_libraries(sentai_sim PRIVATE
     libfreertos_posix
@@ -271,6 +304,8 @@ target_include_directories(sentai_sim PRIVATE
     # Used to work because the includer was at examples/sentai_runtime/; now
     # it lives at .../bindings/, so we add the parent dir to the search path.
     ${CMAKE_SOURCE_DIR}/examples/sentai_runtime
+    ${CMAKE_SOURCE_DIR}/examples/sentai_runtime/generated
+    ${CMAKE_SOURCE_DIR}/third_party/nanopb
     ${CMAKE_SOURCE_DIR}/third_party/mavlink  # Phase 6 — sentai_link_sim.cc
 )
 # Force build_version.h to refresh on every build.
