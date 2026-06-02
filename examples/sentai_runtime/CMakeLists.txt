@@ -253,6 +253,7 @@ add_executable_m7(sentai_runtime
     # objects_plan/15_sentai_fr.md.
     sentai_fr.cc
     sentai_fr_task.cc
+    sentai_log.c
     sentai_explore.cc
     modsentai_hal.cc
     sentai_mesh.cc

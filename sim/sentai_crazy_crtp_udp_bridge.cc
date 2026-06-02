@@ -1,5 +1,5 @@
 /*
- * sentai_crazy_sim.cc — SIM-only Crazyflie bridge over CRTP-UDP.
+ * sentai_crazy_crtp_udp_bridge.cc — SIM-only Crazyflie CRTP-over-UDP bridge.
  *
  * Implements the same C ABI as examples/sentai_runtime/sentai_crazy.h so
  * MicroPython missions written for the ARM target can run unchanged in
@@ -590,6 +590,8 @@ extern "C" int sentai_crazy_attitude(float roll, float pitch,
     return -99;
 }
 
+extern "C" int sentai_crazy_attitude_release_no_disarm(void) { return -99; }
+
 extern "C" int sentai_crazy_fly_stop(void) { return -99; }
 
 extern "C" float sentai_crazy_get_altitude(void) { return -999.0f; }
@@ -605,4 +607,49 @@ extern "C" int sentai_crazy_set_telem(uint8_t cmd, float value,
                                        float* out_readback, int timeout_ms) {
     (void)cmd; (void)value; (void)out_readback; (void)timeout_ms;
     return -99;
+}
+
+extern "C" int sentai_crazy_link_send(int channel, const uint8_t* data,
+                                       int len) {
+    if (!s_open.load()) return -1;
+    if (!data && len > 0) return -2;
+    if (channel < 0 || channel > 3 || len < 0) return -2;
+
+    const uint8_t ch = (uint8_t)channel;
+    constexpr uint8_t kLinkPort = 0x0e;
+    constexpr int kMaxPayload = 30;
+    constexpr int kReplChunk = kMaxPayload - 1;
+
+    if (ch != 0) {
+        if (len > kMaxPayload) return -2;
+        return sentai_crazy_send_crtp(kLinkPort, ch, data, len);
+    }
+
+    int off = 0;
+    do {
+        const int left = len - off;
+        const int take = left > kReplChunk ? kReplChunk : left;
+        uint8_t pkt[kMaxPayload];
+        pkt[0] = (off + take < len) ? 1u : 0u;
+        if (take > 0) memcpy(pkt + 1, data + off, (size_t)take);
+        int rc = sentai_crazy_send_crtp(kLinkPort, ch, pkt, take + 1);
+        if (rc != 0) return rc;
+        off += take;
+    } while (off < len);
+    return 0;
+}
+
+extern "C" int sentai_crazy_dispatch_pop(uint8_t* kind, uint8_t* channel,
+                                          uint8_t* buf, int max,
+                                          int* out_len) {
+    if (!kind || !channel || !buf || !out_len || max < 0) return -2;
+    uint8_t port = 0;
+    uint8_t ch = 0;
+    int len = 0;
+    if (!sentai_crazy_recv_pop(&port, &ch, buf, max, &len)) return -1;
+    if (port != 0x0e) return -1;
+    *kind = 2u;
+    *channel = ch;
+    *out_len = len;
+    return 0;
 }

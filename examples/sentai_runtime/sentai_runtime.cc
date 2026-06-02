@@ -2175,7 +2175,10 @@ extern "C" int sentai_cam_peek_first_row(uint8_t* dst, int len) {
   // 0x501F bit 7 is set.
   if (len > 4096) len = 4096;  // sanity cap
   memcpy(dst, raw, (size_t)len);
-  if (idx == SENTAI_VIRTUAL_CAMERA_FRAME_IDX) return len;
+  if (sentai_virtual_camera_is_frame_idx(idx)) {
+    sentai_virtual_camera_return_raw(idx);
+    return len;
+  }
   auto* cam = coralmicro::CameraTask::GetSingleton();
   cam->ReturnRawFrame(idx);
   return len;
@@ -2213,14 +2216,20 @@ extern "C" int sentai_cam_peek5_b40(uint8_t* dst5) {
     dst5[i] = raw[(size_t)kRows[i] * pitch + (size_t)40 * 4];
   }
   int tag = g_cam_grabbed_id;
-  if (idx == SENTAI_VIRTUAL_CAMERA_FRAME_IDX) return tag;
+  if (sentai_virtual_camera_is_frame_idx(idx)) {
+    sentai_virtual_camera_return_raw(idx);
+    return tag;
+  }
   auto* cam = coralmicro::CameraTask::GetSingleton();
   cam->ReturnRawFrame(idx);
   return tag;
 }
 
 extern "C" void sentai_cam_return_raw(int idx) {
-  if (idx == SENTAI_VIRTUAL_CAMERA_FRAME_IDX) return;
+  if (sentai_virtual_camera_is_frame_idx(idx)) {
+    sentai_virtual_camera_return_raw(idx);
+    return;
+  }
   coralmicro::CameraTask::GetSingleton()->ReturnRawFrame(idx);
 }
 
@@ -2235,7 +2244,7 @@ static int g_cam_height = DEMO_CAMERA_HEIGHT;
 // aligned write → atomic on Cortex-M7; no lock needed.
 volatile int g_cam_current_id = 0;
 extern "C" int sentai_cam_current_id(void) {
-  if (sentai_virtual_camera_active()) return SENTAI_VIRTUAL_CAMERA_ID;
+  if (sentai_virtual_camera_active()) return sentai_virtual_camera_current_id();
   return g_cam_current_id;
 }
 
@@ -2668,7 +2677,7 @@ static int sentai_cam_get_raw_with_recovery(uint8_t** raw_out) {
   if (sentai_virtual_camera_active()) {
     int idx = sentai_virtual_camera_grab_xrgb(raw_out);
     if (idx >= 0) {
-      g_cam_grabbed_id = SENTAI_VIRTUAL_CAMERA_ID;
+      g_cam_grabbed_id = sentai_virtual_camera_grabbed_id();
       return idx;
     }
   }

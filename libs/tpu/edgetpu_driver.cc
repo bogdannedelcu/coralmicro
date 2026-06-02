@@ -28,10 +28,23 @@
 #ifndef SENTAI_PLATFORM_SIM
 #include "third_party/nxp/rt1176-sdk/components/osa/fsl_os_abstraction.h"
 #include "third_party/nxp/rt1176-sdk/middleware/usb/include/usb_spec.h"
+#else
+#include <sched.h>
+#include <time.h>
 #endif
 
 namespace coralmicro {
 namespace {
+
+#ifdef SENTAI_PLATFORM_SIM
+void sentai_sim_host_sleep_1ms() {
+  struct timespec ts;
+  ts.tv_sec = 0;
+  ts.tv_nsec = 1000000L;
+  while (nanosleep(&ts, &ts) != 0) {}
+}
+#endif
+
 // EdgeTPU USB endpoint layout (observed identically on both single_ep and
 // multi_ep firmware variants, per sentai_usb_edgetpu_dump_eps):
 //   OUT 1, 2, 3 — bulk OUT, 512-byte packets
@@ -126,6 +139,22 @@ static void InitBulkSema() {
     }
     xTaskResumeAll();
 }
+
+#ifdef SENTAI_PLATFORM_SIM
+static void SimSleepUs(long us) {
+  struct timespec ts;
+  ts.tv_sec = us / 1000000L;
+  ts.tv_nsec = (us % 1000000L) * 1000L;
+  nanosleep(&ts, nullptr);
+}
+
+static void SimInitTrace(const char* msg) {
+  printf("[TPU init] %s\r\n", msg);
+  fflush(stdout);
+}
+#else
+static void SimInitTrace(const char*) {}
+#endif
 }  // namespace
 
 namespace registers = platforms::darwinn::driver::config::registers;
@@ -138,21 +167,33 @@ bool TpuDriver::Initialize(usb_host_edgetpu_instance_t *usb_instance,
   usb_instance_ = usb_instance;
 
   // Check chip id and test write
+  SimInitTrace("read omc0_00");
   uint32_t omc0_00_reg;
-  CHECK(Read32(chip_config_.GetApexCsrOffsets().omc0_00, &omc0_00_reg));
+  if (!Read32(chip_config_.GetApexCsrOffsets().omc0_00, &omc0_00_reg)) {
+    printf("[TPU init] failed: read omc0_00\r\n");
+    return false;
+  }
 
   registers::Omc000 omc0_00(omc0_00_reg);
-  CHECK(0x89A == omc0_00.chip_id());
+  SimInitTrace("check chip id");
+  if (0x89A != omc0_00.chip_id()) {
+    printf("[TPU init] failed: chip_id=0x%x\r\n",
+           (unsigned)omc0_00.chip_id());
+    return false;
+  }
 
   omc0_00.set_test_reg0(0xAA);
+  SimInitTrace("write test reg");
   CHECK(Write32(chip_config_.GetApexCsrOffsets().omc0_00, omc0_00.raw()));
 
   omc0_00_reg = 0;
+  SimInitTrace("read test reg");
   CHECK(Read32(chip_config_.GetApexCsrOffsets().omc0_00, &omc0_00_reg));
   omc0_00.set_raw(omc0_00_reg);
   CHECK(0xAA == omc0_00.test_reg0());
 
   // Disable inactive mode
+  SimInitTrace("disable inactive mode");
   uint32_t scu_ctrl_0_reg;
   CHECK(Read32(chip_config_.GetScuCsrOffsets().scu_ctrl_0, &scu_ctrl_0_reg));
   registers::ScuCtrl0 scu_ctrl_0(scu_ctrl_0_reg);
@@ -162,6 +203,7 @@ bool TpuDriver::Initialize(usb_host_edgetpu_instance_t *usb_instance,
   CHECK(Read32(chip_config_.GetScuCsrOffsets().scu_ctrl_0, &scu_ctrl_0_reg));
 
   // Disable clock gating
+  SimInitTrace("disable clock gating");
   uint32_t scu_ctrl_2_reg;
   CHECK(Read32(chip_config_.GetScuCsrOffsets().scu_ctrl_2, &scu_ctrl_2_reg));
   registers::ScuCtrl2 scu_ctrl_2(scu_ctrl_2_reg);
@@ -178,6 +220,7 @@ bool TpuDriver::Initialize(usb_host_edgetpu_instance_t *usb_instance,
   constexpr int kMaxPollIter = 10000;
 
   // Go into reset, if we're not there
+  SimInitTrace("enter reset");
   uint32_t scu_ctrl_3_reg;
   CHECK(Read32(chip_config_.GetScuCsrOffsets().scu_ctrl_3, &scu_ctrl_3_reg));
   registers::ScuCtrl3 scu_ctrl_3(scu_ctrl_3_reg);
@@ -201,6 +244,7 @@ bool TpuDriver::Initialize(usb_host_edgetpu_instance_t *usb_instance,
   }
 
   // Set performance mode and exit reset.
+  SimInitTrace("exit reset");
   CHECK(Read32(chip_config_.GetScuCsrOffsets().scu_ctrl_3, &scu_ctrl_3_reg));
   scu_ctrl_3.set_raw(scu_ctrl_3_reg);
   scu_ctrl_3.set_rg_force_sleep(0x2);
@@ -246,6 +290,7 @@ bool TpuDriver::Initialize(usb_host_edgetpu_instance_t *usb_instance,
   }
 
   // Check a known register to verify reset exit.
+  SimInitTrace("check scalar run control");
   uint64_t scalar_core_run_control;
   {
     int iter = 0;
@@ -260,11 +305,13 @@ bool TpuDriver::Initialize(usb_host_edgetpu_instance_t *usb_instance,
     } while (scalar_core_run_control != 0);
   }
 
+  SimInitTrace("write idle register");
   registers::IdleRegister idle_reg;
   idle_reg.set_enable();
   idle_reg.set_counter(1);
   CHECK(Write64(chip_config_.GetMiscCsrOffsets().idleRegister, idle_reg.raw()));
 
+  SimInitTrace("write tile config");
   registers::TileConfig<7> tile_config;
   tile_config.set_broadcast();
   CHECK(Write64(chip_config_.GetTileConfigCsrOffsets().tileconfig0,
@@ -283,6 +330,7 @@ bool TpuDriver::Initialize(usb_host_edgetpu_instance_t *usb_instance,
     } while (tile_config.raw() != tile_config_reg);
   }
 
+  SimInitTrace("write deep sleep");
   registers::DeepSleep deep_sleep_reg;
   deep_sleep_reg.set_to_sleep_delay(2);
   deep_sleep_reg.set_to_wake_delay(30);
@@ -290,11 +338,13 @@ bool TpuDriver::Initialize(usb_host_edgetpu_instance_t *usb_instance,
                 deep_sleep_reg.raw()));
 
   // Enable clock gating
+  SimInitTrace("enable clock gating");
   CHECK(Read32(chip_config_.GetScuCsrOffsets().scu_ctrl_2, &scu_ctrl_2_reg));
   scu_ctrl_2.set_raw(scu_ctrl_2_reg);
   scu_ctrl_2.set_rg_gated_gcb(1);
   CHECK(Write32(chip_config_.GetScuCsrOffsets().scu_ctrl_2, scu_ctrl_2.raw()));
 
+  SimInitTrace("configure usb csr");
   CHECK(Write64(chip_config_.GetUsbCsrOffsets().descr_ep, 0xF0));
   CHECK(Write64(chip_config_.GetUsbCsrOffsets().multi_bo_ep, 0));
   // NB: 0x20 (256 B) is required on NXP RT1176 EHCI — empirically tested
@@ -307,6 +357,7 @@ bool TpuDriver::Initialize(usb_host_edgetpu_instance_t *usb_instance,
   uint32_t omc0_d0_reg, omc0_d8_reg, omc0_dc_reg;
 
   // Enables tempsense clock.
+  SimInitTrace("enable tempsense clock");
   CHECK(Read32(chip_config_.GetApexCsrOffsets().omc0_d0, &omc0_d0_reg));
   registers::Omc0D0 omc0_d0(omc0_d0_reg);
   omc0_d0.set_clk_en(0x1);
@@ -317,6 +368,7 @@ bool TpuDriver::Initialize(usb_host_edgetpu_instance_t *usb_instance,
   CHECK(Write32(chip_config_.GetApexCsrOffsets().omc0_d0, omc0_d0.raw()));
 
   // Enables tempsense input ports.
+  SimInitTrace("enable tempsense input ports");
   CHECK(Read32(chip_config_.GetApexCsrOffsets().omc0_d8, &omc0_d8_reg));
   registers::Omc0D8 omc0_d8(omc0_d8_reg);
   omc0_d8.set_enbg(0x1);
@@ -326,19 +378,22 @@ bool TpuDriver::Initialize(usb_host_edgetpu_instance_t *usb_instance,
 
   // Wait 100 us before enabling tempsense flow.
 #ifdef SENTAI_PLATFORM_SIM
-  vTaskDelay(pdMS_TO_TICKS(1));
+  SimSleepUs(100);
 #else
   SDK_DelayAtLeastUs(100, CLOCK_GetFreq(kCLOCK_CpuClk));
 #endif
 
   // Enables tempsense flow.
+  SimInitTrace("enable tempsense flow");
   CHECK(Read32(chip_config_.GetApexCsrOffsets().omc0_dc, &omc0_dc_reg));
   registers::Omc0DC omc0_dc(omc0_dc_reg);
   omc0_dc.set_enthmc(0x1);
   CHECK(Write32(chip_config_.GetApexCsrOffsets().omc0_dc, omc0_dc.raw()));
 
+  SimInitTrace("move to run");
   CHECK(DoRunControl(platforms::darwinn::driver::RunControl::kMoveToRun));
 
+  SimInitTrace("done");
   return true;
 }
 
@@ -365,6 +420,11 @@ bool TpuDriver::CSRTransfer(uint64_t reg, void *data, bool read,
   setup_packet.wValue = 0xFFFF & reg;
   setup_packet.wIndex = 0xFFFF & (reg >> 16);
 
+#ifdef SENTAI_PLATFORM_SIM
+  control_status = USB_HostEdgeTpuControl(
+      usb_instance_, &setup_packet, (uint8_t *)data, nullptr, nullptr);
+  return control_status == kStatus_USB_Success;
+#else
   SemaphoreHandle_t sema = xSemaphoreCreateBinary();
 
   control_status = USB_HostEdgeTpuControl(
@@ -391,6 +451,7 @@ bool TpuDriver::CSRTransfer(uint64_t reg, void *data, bool read,
 exit:
   vSemaphoreDelete(sema);
   return ret;
+#endif
 }
 
 bool TpuDriver::SendData(DescriptorTag tag, const uint8_t *data,
@@ -526,7 +587,11 @@ static uint8_t s_bulk_staging[32 * 1024] __attribute__((aligned(32)));
 // Cliff still at 36→40 KB (drops to ~27 FPS), confirming the TPU
 // bulk-OUT FIFO is ~36 KB.  36 KB is the largest URB that still
 // fits the FIFO without back-pressure.
+#ifdef SENTAI_PLATFORM_SIM
+extern "C" volatile uint32_t g_sentai_tpu_chunk_size = 16 * 1024;
+#else
 extern "C" volatile uint32_t g_sentai_tpu_chunk_size = 36 * 1024;
+#endif
 extern "C" uint32_t sentai_tpu_chunk_size_get(void) { return g_sentai_tpu_chunk_size; }
 extern "C" void     sentai_tpu_chunk_size_set(uint32_t n) {
     if (n < 4096) n = 4096;
@@ -677,30 +742,47 @@ static bool BulkOutTransferStaged(usb_host_edgetpu_instance_t *usb,
     // BulkOutTransferInternal uses persistent sema + legacy NXP
     // send (the staging buf is unmoving so no race with legacy
     // pipe state).
+#ifndef SENTAI_PLATFORM_SIM
     InitBulkSema();
+#endif
     UsbTransferMetadata meta;
+#ifdef SENTAI_PLATFORM_SIM
+    meta.sema = nullptr;
+#else
     meta.sema = s_bulk_sema;
+#endif
     meta.status = kStatus_USB_Error;
     meta.bytes_transferred = 0;
+#ifndef SENTAI_PLATFORM_SIM
     (void)xSemaphoreTake(s_bulk_sema, 0);
+#endif
     usb_status_t st = USB_HostEdgeTpuBulkOutSend(
         usb, endpoint, s_bulk_staging, nn,
         [](void *param, uint8_t *, uint32_t len, usb_status_t s) {
             UsbTransferMetadata *m = static_cast<UsbTransferMetadata *>(param);
             m->bytes_transferred = len;
             m->status = s;
+#ifndef SENTAI_PLATFORM_SIM
             xSemaphoreGive(m->sema);
+#endif
         },
         &meta);
     if (st != kStatus_USB_Success) {
         printf("BulkOutStaged submit failed (%d)\r\n", st);
         return false;
     }
+#ifdef SENTAI_PLATFORM_SIM
+    if (meta.status != kStatus_USB_Success || meta.bytes_transferred != nn) {
+        printf("BulkOutStaged bad sync result\r\n");
+        return false;
+    }
+#else
     if (xSemaphoreTake(meta.sema, pdMS_TO_TICKS(2000)) == pdFALSE ||
         meta.status != kStatus_USB_Success) {
         printf("BulkOutStaged bad result\r\n");
         return false;
     }
+#endif
     src    += nn;
     remain -= nn;
   }
@@ -856,10 +938,41 @@ extern "C" void     sentai_tpu_urb_timeout_ms_set(uint32_t n) {
 // often the fault-tolerance path fires.
 extern "C" volatile uint32_t g_sentai_tpu_urb_cancelled = 0;
 extern "C" volatile uint32_t g_sentai_tpu_urb_cancel_no_cb = 0;
+extern "C" volatile uint8_t g_sentai_tpu_trace;
+
+__attribute__((noinline, cold, section(".sdram_text")))
+static void trace_bulkout(char where, uint32_t v1, uint32_t v2) {
+  printf("[bulkout] %c v1=%lu v2=%lu\r\n", where,
+         (unsigned long)v1, (unsigned long)v2);
+}
 
 ssize_t TpuDriver::BulkOutTransferInternal(uint8_t endpoint,
                                            const uint8_t *data,
                                            uint32_t data_length) const {
+#ifdef SENTAI_PLATFORM_SIM
+  UsbTransferMetadata meta;
+  meta.sema = nullptr;
+  meta.status = kStatus_USB_Error;
+  meta.bytes_transferred = 0;
+  usb_status_t bulk_status = USB_HostEdgeTpuBulkOutSend(
+      usb_instance_, endpoint, (uint8_t *)data, data_length,
+      [](void *param, uint8_t *, uint32_t data_length,
+         usb_status_t status) {
+        g_sentai_tpu_lambda_entered++;
+        UsbTransferMetadata *meta = static_cast<UsbTransferMetadata *>(param);
+        if (!meta) return;
+        meta->bytes_transferred = data_length;
+        meta->status = status;
+        g_sentai_tpu_lambda_gave++;
+      },
+      &meta);
+  if (bulk_status != kStatus_USB_Success) return -(ssize_t)bulk_status;
+  if (meta.status == kStatus_USB_Success) {
+    g_sentai_tpu_take_succeeded++;
+    return meta.bytes_transferred;
+  }
+  return -meta.status;
+#else
   InitBulkSema();
   UsbTransferMetadata meta;
   meta.sema   = s_bulk_sema;
@@ -919,6 +1032,7 @@ ssize_t TpuDriver::BulkOutTransferInternal(uint8_t endpoint,
   } else {
     return -meta.status;
   }
+#endif
 }
 
 // Zero-copy bulk OUT.  Old code memcpy'd each 32 KB chunk from the
@@ -952,11 +1066,29 @@ bool TpuDriver::BulkOutTransfer(uint8_t endpoint,
 
   while (bytes_left > 0) {
     uint32_t chunk_size = std::min<uint32_t>(kChunk, bytes_left);
+    if (g_sentai_tpu_trace) {
+      trace_bulkout('B', chunk_size, bytes_left);
+    }
     ssize_t bytes_sent = BulkOutTransferInternal(
         endpoint, current_chunk, chunk_size);
     if (bytes_sent > 0) {
+      if (g_sentai_tpu_trace) {
+        trace_bulkout('b', (uint32_t)bytes_sent, bytes_left - (uint32_t)bytes_sent);
+      }
       current_chunk += bytes_sent;
       bytes_left    -= bytes_sent;
+#ifdef SENTAI_PLATFORM_SIM
+      /*
+       * POSIX/libusb can complete consecutive bulk OUT URBs faster than the
+       * FreeRTOS POSIX scheduler and Coral USB app stay balanced during the
+       * first multi-megabyte parameter upload.  The real ARM path is paced by
+       * the USB host stack/interrupt task; in SIM we explicitly yield one tick
+       * between chunks so libusb event handling and lower-priority runtime
+       * tasks keep making progress.  POSIX TPU throughput is diagnostic, not a
+       * flight-performance target.
+       */
+      sentai_sim_host_sleep_1ms();
+#endif
     } else {
       return false;  // printf removed: CDC-ACM feedback loop
     }
@@ -973,6 +1105,36 @@ static void trace_bulkin(char where, uint32_t v1, uint32_t v2) {
 
 ssize_t TpuDriver::BulkInTransferInternal(uint8_t endpoint, uint8_t *data,
                                           uint32_t data_length) const {
+#ifdef SENTAI_PLATFORM_SIM
+  UsbTransferMetadata meta;
+  meta.sema = nullptr;
+  meta.status = kStatus_USB_Error;
+  meta.bytes_transferred = 0;
+  if (g_sentai_tpu_trace) trace_bulkin('S', endpoint, data_length);
+  usb_status_t bulk_status = USB_HostEdgeTpuBulkInRecv(
+      usb_instance_, endpoint, data, data_length,
+      [](void *param, uint8_t *, uint32_t data_length,
+         usb_status_t status) {
+        UsbTransferMetadata *meta = static_cast<UsbTransferMetadata *>(param);
+        if (!meta) return;
+        meta->bytes_transferred = data_length;
+        meta->status = status;
+      },
+      &meta);
+  if (bulk_status != kStatus_USB_Success) {
+    if (g_sentai_tpu_trace) trace_bulkin('e', (uint32_t)bulk_status, 0);
+    return -(ssize_t)bulk_status;
+  }
+  if (g_sentai_tpu_trace)
+    trace_bulkin('D', meta.bytes_transferred, (uint32_t)meta.status);
+  if (meta.status == kStatus_USB_Success) return meta.bytes_transferred;
+  if (meta.status == kStatus_USB_TransferFailed &&
+      meta.bytes_transferred > 0 &&
+      meta.bytes_transferred < data_length) {
+    return meta.bytes_transferred;
+  }
+  return -meta.status;
+#else
   InitBulkSema();
   UsbTransferMetadata meta;
   meta.sema   = s_bulk_sema;
@@ -1031,6 +1193,7 @@ ssize_t TpuDriver::BulkInTransferInternal(uint8_t endpoint, uint8_t *data,
     return meta.bytes_transferred;
   }
   return -meta.status;
+#endif
 }
 
 // Zero-copy bulk IN.  Old code received into DTCM staging, memcpy'd
@@ -1053,12 +1216,17 @@ bool TpuDriver::BulkInTransfer(uint8_t *data, uint32_t data_length) const {
     if (bytes_received > 0) {
       current_chunk += bytes_received;
       bytes_left    -= (uint32_t)bytes_received;
+#ifdef SENTAI_PLATFORM_SIM
+      sentai_sim_host_sleep_1ms();
+#endif
+#ifndef SENTAI_PLATFORM_SIM
       /* Short transfer = device terminated stream.  Don't issue
        * another URB; remaining buffer stays as caller initialised
        * (zero from arena init or prior content).  Output activations
        * smaller than the dma_hint padded size are valid; OutputLayer
        * Relayout extracts only the real tensor bytes. */
       if ((uint32_t)bytes_received < chunk_size) break;
+#endif
     } else {
       return false;  // printf removed: CDC-ACM feedback loop
     }
@@ -1101,6 +1269,12 @@ bool TpuDriver::ReadEvent() const {
   constexpr size_t kEventSizeBytes = 16;
   static uint8_t s_event_buf[kEventSizeBytes]
       __attribute__((aligned(32), section(".sdram_bss")));
+#ifdef SENTAI_PLATFORM_SIM
+  usb_status_t bulk_status = USB_HostEdgeTpuBulkInRecv(
+      usb_instance_, kEventInEndpoint, s_event_buf, kEventSizeBytes,
+      nullptr, nullptr);
+  return bulk_status == kStatus_USB_Success;
+#else
   static StaticSemaphore_t s_event_sema_mem;
   static SemaphoreHandle_t s_event_sema = nullptr;
   if (!s_event_sema) {
@@ -1120,6 +1294,7 @@ bool TpuDriver::ReadEvent() const {
       s_event_sema);
   if (bulk_status != kStatus_USB_Success) return false;
   return xSemaphoreTake(s_event_sema, pdMS_TO_TICKS(2000)) == pdTRUE;
+#endif
 }
 
 bool TpuDriver::DoRunControl(platforms::darwinn::driver::RunControl run_state) {

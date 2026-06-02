@@ -10,15 +10,72 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <errno.h>
+#include <sched.h>
+#include <time.h>
+
+#include "FreeRTOS.h"
+#include "task.h"
 
 #include "sentai_mesh.h"
+#include "sentai_health.h"
 
 extern const char sentai_help_builtin_text[];
 
-void sentai_sleep_ms(uint32_t ms);
-
 static int s_console_target = 0;
 int g_audio_debug = 0;
+volatile uint32_t g_sentai_uptime_ms = 0;
+
+void sentai_health_init(void) {}
+void sentai_health_success(SubsystemId_t subsys) { (void)subsys; }
+void sentai_health_fail(SubsystemId_t subsys) { (void)subsys; }
+void sentai_health_timeout(SubsystemId_t subsys) { (void)subsys; }
+
+void sentai_led_set(int on) {
+    printf("[LED] %s\n", on ? "ON" : "OFF");
+    fflush(stdout);
+}
+
+void sentai_sleep_ms(uint32_t ms) {
+    /*
+     * This is called from MicroPython as sentai.rtos.sleep_ms().  Keep it in
+     * the FreeRTOS scheduler, not host nanosleep(), otherwise the POSIX task can
+     * remain "running" from the kernel's point of view while detection/flow
+     * tasks are waiting for a cooperative yield.
+     */
+    while (ms > 0) {
+        uint32_t chunk = ms > 100u ? 100u : ms;
+        vTaskDelay(pdMS_TO_TICKS(chunk));
+        ms -= chunk;
+    }
+}
+
+uint32_t sentai_ticks_ms(void) {
+    uint32_t now = (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS);
+    g_sentai_uptime_ms = now;
+    return now;
+}
+
+void sentai_repl_activity(void) {
+    sched_yield();
+}
+
+bool sentai_is_recovery_mode(void) {
+    return false;
+}
+
+unsigned int sentai_get_boot_attempts(void) {
+    return 0;
+}
+
+void sentai_sys_do_reset(void) {
+    printf("[sim] sentai.sys.reset() called -- exiting\n");
+    fflush(stdout);
+    exit(0);
+}
 
 int sentai_console_set_target(int target) {
     if (target != 0 && target != 1) return -1;
@@ -28,6 +85,12 @@ int sentai_console_set_target(int target) {
 
 int sentai_console_get_target(void) {
     return s_console_target;
+}
+
+void sentai_console_write(const char* buf, int size) {
+    if (!buf || size <= 0) return;
+    fwrite(buf, 1, (size_t)size, stdout);
+    fflush(stdout);
 }
 
 int sentai_help_read(char* buf, int max_size) {
@@ -344,6 +407,7 @@ int aifes_get_output_count(void) {
     return 0;
 }
 
+#ifndef SENTAI_SIM_TFL_REAL
 int sentai_tfl_load(const char* path, int arena_kb) {
     (void)path;
     (void)arena_kb;
@@ -444,3 +508,4 @@ int sentai_tfl_save_output(const char* path) {
 int sentai_tfl_info(void) {
     return -1;
 }
+#endif  // SENTAI_SIM_TFL_REAL

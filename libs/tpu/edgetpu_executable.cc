@@ -17,6 +17,10 @@
 #include "libs/tpu/edgetpu_executable.h"
 
 #include "tensorflow/lite/micro/kernels/kernel_util.h"
+#ifdef SENTAI_PLATFORM_SIM
+#include "third_party/freertos_kernel/include/FreeRTOS.h"
+#include "third_party/freertos_kernel/include/task.h"
+#endif
 
 // ---------------------------------------------------------------------------
 // sentai: per-Invoke USB wire-byte counters.
@@ -92,11 +96,17 @@ extern "C" void sentai_tpu_perf_reset(void) {
   g_sentai_tpu_by_input   = g_sentai_tpu_by_output = 0;
 }
 
-// DWT cycle counter is already enabled elsewhere (flow_task_m4); fall
-// back to 0 if not available.  Reading DWT->CYCCNT is 1-2 cycles.
+// DWT cycle counter is already enabled elsewhere (flow_task_m4); SIM uses
+// coarse FreeRTOS ticks because the POSIX backend has no Cortex DWT counter.
+#ifndef SENTAI_PLATFORM_SIM
 #include "fsl_common.h"
+#endif
 static inline uint32_t tpu_cyc(void) {
+#ifdef SENTAI_PLATFORM_SIM
+    return (uint32_t)xTaskGetTickCount();
+#else
     return DWT->CYCCNT;
+#endif
 }
 
 namespace {
@@ -319,7 +329,7 @@ TfLiteStatus EdgeTpuExecutable::Invoke(const TpuDriver& tpu_driver,
 
   {
     uint32_t t0 = tpu_cyc();
-    tpu_driver.ReadEvent();
+    RETURN_IF_ERROR_S(tpu_driver.ReadEvent(), 0x0B64);
     g_sentai_tpu_cyc_event += (tpu_cyc() - t0);
     g_sentai_tpu_n_event   += 1;
   }

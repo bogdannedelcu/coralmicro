@@ -7,14 +7,99 @@
 
 // Extern declarations for detection_task.cc functions
 extern int sentai_detection_start(int conf_permil, int iou_permil, int max_dets);
+extern int sentai_detection_start_one_shot(int conf_permil,
+                                           int iou_permil,
+                                           int max_dets);
+extern int sentai_prep_task_start_only(void);
+extern int sentai_prep_task_stop_only(void);
 extern int sentai_detection_stop(void);
 extern int sentai_detection_get(DetectionFrame* frame, int timeout_ms);
+extern int sentai_detection_get_after(DetectionFrame* frame,
+                                      int timeout_ms,
+                                      uint32_t after_frame_seq);
+extern uint32_t sentai_detection_event_count(void);
+extern int sentai_detection_wait_event(uint32_t after_count, int timeout_ms);
 extern int sentai_detection_is_running(void);
 extern void sentai_detection_stats(uint32_t* frames_processed,
                                    uint32_t* frames_dropped,
                                    uint32_t* avg_fps_x10);
 extern void sentai_detection_task_stall_ms(uint32_t* prep_stall_ms,
                                            uint32_t* infer_stall_ms);
+extern int sentai_tpu_detect(int conf_permil, int iou_permil,
+                             int max_dets, int16_t* out_buf, int* out_count);
+extern int sentai_tpu_draw(const char* path,
+                           const int16_t* dets, int n_dets, int quality);
+
+// sentai.pipeline.on_detection(callback|None) — async observer dispatch.
+//
+// InferTask publishes compact detection events from a non-MP FreeRTOS task.
+// The callback is scheduled through MicroPython's scheduler and therefore
+// runs only in MP context.  It must stay lightweight; use get_ex/detections or
+// task-owned history for larger payloads.
+//
+// Callback signature: fn((event_count, frame_seq, det_count, cam_id)) -> None
+MP_REGISTER_ROOT_POINTER(mp_obj_t pipeline_detection_handler);
+static volatile uint32_t s_pipeline_evt_count;
+static volatile uint32_t s_pipeline_evt_frame_seq;
+static volatile uint32_t s_pipeline_evt_det_count;
+static volatile int32_t  s_pipeline_evt_cam_id;
+
+static mp_obj_t pipeline_detection_drain(mp_obj_t arg) {
+    (void)arg;
+    mp_obj_t handler = MP_STATE_VM(pipeline_detection_handler);
+    if (handler == MP_OBJ_NULL) return mp_const_none;
+
+    mp_obj_t evt_items[4] = {
+        mp_obj_new_int_from_uint(
+            __atomic_load_n(&s_pipeline_evt_count, __ATOMIC_ACQUIRE)),
+        mp_obj_new_int_from_uint(
+            __atomic_load_n(&s_pipeline_evt_frame_seq, __ATOMIC_ACQUIRE)),
+        mp_obj_new_int_from_uint(
+            __atomic_load_n(&s_pipeline_evt_det_count, __ATOMIC_ACQUIRE)),
+        mp_obj_new_int(
+            __atomic_load_n(&s_pipeline_evt_cam_id, __ATOMIC_ACQUIRE)),
+    };
+    mp_obj_t evt = mp_obj_new_tuple(4, evt_items);
+
+    nlr_buf_t nlr;
+    if (nlr_push(&nlr) == 0) {
+        mp_call_function_1(handler, evt);
+        nlr_pop();
+    } else {
+        mp_obj_print_exception(&mp_plat_print, (mp_obj_t)nlr.ret_val);
+    }
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(
+    pipeline_detection_drain_obj, pipeline_detection_drain);
+
+void sentai_pipeline_detection_event(uint32_t event_count,
+                                     uint32_t frame_seq,
+                                     uint32_t det_count,
+                                     int cam_id) {
+    __atomic_store_n(&s_pipeline_evt_count, event_count, __ATOMIC_RELEASE);
+    __atomic_store_n(&s_pipeline_evt_frame_seq, frame_seq, __ATOMIC_RELEASE);
+    __atomic_store_n(&s_pipeline_evt_det_count, det_count, __ATOMIC_RELEASE);
+    __atomic_store_n(&s_pipeline_evt_cam_id, cam_id, __ATOMIC_RELEASE);
+    if (MP_STATE_VM(pipeline_detection_handler) == MP_OBJ_NULL) return;
+    (void)mp_sched_schedule(MP_OBJ_FROM_PTR(&pipeline_detection_drain_obj),
+                            mp_const_none);
+}
+
+static mp_obj_t mod_sentai_pipeline_on_detection(mp_obj_t cb_obj) {
+    if (cb_obj == mp_const_none) {
+        MP_STATE_VM(pipeline_detection_handler) = MP_OBJ_NULL;
+    } else {
+        if (!mp_obj_is_callable(cb_obj)) {
+            mp_raise_TypeError(MP_ERROR_TEXT("on_detection: callable or None required"));
+        }
+        MP_STATE_VM(pipeline_detection_handler) = cb_obj;
+    }
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(
+    mod_sentai_pipeline_on_detection_obj,
+    mod_sentai_pipeline_on_detection);
 
 // sentai.pipeline.dma_memcpy([flag]) -> int (previous value)
 // Toggle the eDMA-accelerated staging->tensor memcpy in InferTask on/off at
@@ -156,6 +241,26 @@ static mp_obj_t mod_sentai_pipeline_prep_reset(void) {
 static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_pipeline_prep_reset_obj,
                                   mod_sentai_pipeline_prep_reset);
 
+// sentai.pipeline.prep_start() / prep_stop()
+// Run only PrepTask: consume camera frames and publish enabled sentai_prep
+// aux slots without requiring a TPU model or starting InferTask.
+static mp_obj_t mod_sentai_pipeline_prep_start(void) {
+    int rc = sentai_prep_task_start_only();
+    if (rc < 0) {
+        mp_raise_msg_varg(&mp_type_RuntimeError,
+            MP_ERROR_TEXT("pipeline prep_start failed (%d)"), rc);
+    }
+    return mp_obj_new_int(rc);
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_pipeline_prep_start_obj,
+                                  mod_sentai_pipeline_prep_start);
+
+static mp_obj_t mod_sentai_pipeline_prep_stop(void) {
+    return mp_obj_new_int(sentai_prep_task_stop_only());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_pipeline_prep_stop_obj,
+                                  mod_sentai_pipeline_prep_stop);
+
 // sentai.pipeline.start([conf[, iou[, max[, track]]]]) -> int
 // Start continuous detection pipeline.
 // conf/iou: float 0.0-1.0 (default 0.5 / 0.45).  max: int (default 50).
@@ -182,6 +287,25 @@ static mp_obj_t mod_sentai_pipeline_start(size_t n_args, const mp_obj_t *args) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_pipeline_start_obj,
                                             0, 4, mod_sentai_pipeline_start);
+
+// sentai.pipeline.start_once([conf[, iou[, max]]]) -> int
+// Start PrepTask/InferTask for exactly one camera frame.  The tasks publish
+// one result and self-stop, which keeps radio/REPL control responsive for
+// command-driven tests and short host-side sequences.
+static mp_obj_t mod_sentai_pipeline_start_once(size_t n_args,
+                                               const mp_obj_t *args) {
+    int conf = (n_args >= 1) ? (int)(mp_obj_get_float(args[0]) * 1000.0f) : 500;
+    int iou  = (n_args >= 2) ? (int)(mp_obj_get_float(args[1]) * 1000.0f) : 450;
+    int maxd = (n_args >= 3) ? mp_obj_get_int(args[2]) : 50;
+    int rc = sentai_detection_start_one_shot(conf, iou, maxd);
+    if (rc < 0) {
+        mp_raise_msg_varg(&mp_type_RuntimeError,
+            MP_ERROR_TEXT("pipeline start_once failed (%d)"), rc);
+    }
+    return mp_obj_new_int(rc);
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_pipeline_start_once_obj,
+                                            0, 3, mod_sentai_pipeline_start_once);
 
 // sentai.pipeline.stop() -> int
 static mp_obj_t mod_sentai_pipeline_stop(void) {
@@ -221,6 +345,35 @@ static mp_obj_t mod_sentai_pipeline_get(size_t n_args, const mp_obj_t *args) {
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_pipeline_get_obj,
                                             0, 1, mod_sentai_pipeline_get);
 
+static mp_obj_t mod_sentai_pipeline_frame_tuple(const DetectionFrame* frame) {
+    mp_obj_list_t *list = MP_OBJ_TO_PTR(mp_obj_new_list(frame->count, NULL));
+    for (int i = 0; i < frame->count; i++) {
+        mp_obj_t items[6] = {
+            mp_obj_new_int(frame->dets[i].x1),
+            mp_obj_new_int(frame->dets[i].y1),
+            mp_obj_new_int(frame->dets[i].x2),
+            mp_obj_new_int(frame->dets[i].y2),
+            mp_obj_new_float(frame->dets[i].conf_permil / 1000.0f),
+            mp_obj_new_int(frame->dets[i].class_id),
+        };
+        list->items[i] = mp_obj_new_tuple(6, items);
+    }
+
+    // Tuple: (dets, invoke_ms, total_ms, frame_seq, memcpy_ms, nms_ms, cam_id)
+    // cam_id (added 2026-04-25) is the source camera tag from per-buffer
+    // ISR tagging — 0/1 for cam0/cam1, or -1 if unknown.
+    mp_obj_t tup[7] = {
+        MP_OBJ_FROM_PTR(list),
+        mp_obj_new_int_from_uint(frame->inference_ms),
+        mp_obj_new_int_from_uint(frame->total_ms),
+        mp_obj_new_int_from_uint(frame->frame_seq),
+        mp_obj_new_int_from_uint(frame->memcpy_ms),
+        mp_obj_new_int_from_uint(frame->nms_ms),
+        mp_obj_new_int(frame->cam_id),
+    };
+    return mp_obj_new_tuple(7, tup);
+}
+
 // sentai.pipeline.get_ex([timeout_ms]) -> (dets, inference_ms, total_ms, frame_seq) or None
 // Same as get() but also returns the firmware-measured InferTask timing:
 //   inference_ms  — time spent inside tpu.invoke()
@@ -232,39 +385,128 @@ static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_pipeline_get_obj,
 //   if total_ms << frame_interval → Python/IPC overhead dominates
 static mp_obj_t mod_sentai_pipeline_get_ex(size_t n_args, const mp_obj_t *args) {
     int timeout = (n_args >= 1) ? mp_obj_get_int(args[0]) : 1000;
+    int after_seq = (n_args >= 2) ? mp_obj_get_int(args[1]) : -1;
     DetectionFrame frame;
-    int rc = sentai_detection_get(&frame, timeout);
+    int rc = (after_seq >= 0)
+        ? sentai_detection_get_after(&frame, timeout, (uint32_t)after_seq)
+        : sentai_detection_get(&frame, timeout);
     if (rc < 0) return mp_const_none;
-
-    mp_obj_list_t *list = MP_OBJ_TO_PTR(mp_obj_new_list(frame.count, NULL));
-    for (int i = 0; i < frame.count; i++) {
-        mp_obj_t items[6] = {
-            mp_obj_new_int(frame.dets[i].x1),
-            mp_obj_new_int(frame.dets[i].y1),
-            mp_obj_new_int(frame.dets[i].x2),
-            mp_obj_new_int(frame.dets[i].y2),
-            mp_obj_new_float(frame.dets[i].conf_permil / 1000.0f),
-            mp_obj_new_int(frame.dets[i].class_id),
-        };
-        list->items[i] = mp_obj_new_tuple(6, items);
-    }
-
-    // Tuple: (dets, invoke_ms, total_ms, frame_seq, memcpy_ms, nms_ms, cam_id)
-    // cam_id (added 2026-04-25) is the source camera tag from per-buffer
-    // ISR tagging — 0/1 for cam0/cam1, or -1 if unknown.
-    mp_obj_t tup[7] = {
-        MP_OBJ_FROM_PTR(list),
-        mp_obj_new_int_from_uint(frame.inference_ms),
-        mp_obj_new_int_from_uint(frame.total_ms),
-        mp_obj_new_int_from_uint(frame.frame_seq),
-        mp_obj_new_int_from_uint(frame.memcpy_ms),
-        mp_obj_new_int_from_uint(frame.nms_ms),
-        mp_obj_new_int(frame.cam_id),
-    };
-    return mp_obj_new_tuple(7, tup);
+    return mod_sentai_pipeline_frame_tuple(&frame);
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_pipeline_get_ex_obj,
-                                            0, 1, mod_sentai_pipeline_get_ex);
+                                            0, 2, mod_sentai_pipeline_get_ex);
+
+// sentai.pipeline.frame_count([after_count[, timeout_ms]]) -> int
+//
+// No args: return the number of DetectionFrame events published by InferTask
+// since pipeline.start().
+// With args: sleep until the counter becomes > after_count, then return the
+// new counter.  Returns -1 on timeout, -2 if the pipeline stops first.
+// This lets MP/REPL observe detection events without consuming the result
+// queue or scheduling frame production.
+static mp_obj_t mod_sentai_pipeline_frame_count(size_t n_args,
+                                                const mp_obj_t *args) {
+    if (n_args == 0) {
+        return mp_obj_new_int_from_uint(sentai_detection_event_count());
+    }
+    uint32_t after = (uint32_t)mp_obj_get_int(args[0]);
+    int timeout = (n_args >= 2) ? mp_obj_get_int(args[1]) : 1000;
+    return mp_obj_new_int(sentai_detection_wait_event(after, timeout));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
+    mod_sentai_pipeline_frame_count_obj, 0, 2,
+    mod_sentai_pipeline_frame_count);
+
+// sentai.pipeline.once([timeout_ms[, conf[, iou[, max]]]]) -> get_ex tuple or None
+// Bounded one-shot wrapper around the same PrepTask/InferTask pipeline:
+// start if needed, wait for one InferTask result, then stop if this call started it.
+static mp_obj_t mod_sentai_pipeline_once(size_t n_args, const mp_obj_t *args) {
+    int timeout = (n_args >= 1) ? mp_obj_get_int(args[0]) : 2000;
+    int conf = (n_args >= 2) ? (int)(mp_obj_get_float(args[1]) * 1000.0f) : 500;
+    int iou = (n_args >= 3) ? (int)(mp_obj_get_float(args[2]) * 1000.0f) : 450;
+    int maxd = (n_args >= 4) ? mp_obj_get_int(args[3]) : 50;
+    int started_here = 0;
+    if (!sentai_detection_is_running()) {
+        int rc = sentai_detection_start(conf, iou, maxd);
+        if (rc < 0) {
+            mp_raise_msg_varg(&mp_type_RuntimeError,
+                MP_ERROR_TEXT("pipeline once start failed (%d)"), rc);
+        }
+        started_here = 1;
+    }
+
+    DetectionFrame frame;
+    int rc = sentai_detection_get(&frame, timeout);
+    if (started_here) {
+        sentai_detection_stop();
+    }
+    if (rc < 0) return mp_const_none;
+    return mod_sentai_pipeline_frame_tuple(&frame);
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_pipeline_once_obj,
+                                            0, 4, mod_sentai_pipeline_once);
+
+// sentai.pipeline.detections([conf_permil]) -> tuple of
+// (x1, y1, x2, y2, conf_permil, class_id)
+//
+// Decode the current TPU outputs through the platform C postprocessor.
+// This is intentionally a thin common wrapper: ARM and SIM provide the
+// backend-specific tensor/output access, not separate Python semantics.
+static mp_obj_t mod_sentai_pipeline_detections(size_t n_args,
+                                               const mp_obj_t *args) {
+    int conf = (n_args >= 1) ? mp_obj_get_int(args[0]) : 300;
+    if (conf < 0) conf = 0;
+    if (conf > 1000) conf = 1000;
+    int16_t det_buf[DETECTION_MAX_DETS * 6];
+    int det_count = 0;
+    int rc = sentai_tpu_detect(conf, 450, DETECTION_MAX_DETS,
+                               det_buf, &det_count);
+    if (rc != 0 || det_count <= 0) return mp_obj_new_tuple(0, NULL);
+    if (det_count > DETECTION_MAX_DETS) det_count = DETECTION_MAX_DETS;
+
+    mp_obj_t out[DETECTION_MAX_DETS];
+    for (int i = 0; i < det_count; ++i) {
+        const int16_t* d = det_buf + i * 6;
+        mp_obj_t item[6] = {
+            mp_obj_new_int(d[0]),
+            mp_obj_new_int(d[1]),
+            mp_obj_new_int(d[2]),
+            mp_obj_new_int(d[3]),
+            mp_obj_new_int(d[4]),
+            mp_obj_new_int(d[5]),
+        };
+        out[i] = mp_obj_new_tuple(6, item);
+    }
+    return mp_obj_new_tuple(det_count, out);
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
+    mod_sentai_pipeline_detections_obj, 0, 1,
+    mod_sentai_pipeline_detections);
+
+// sentai.pipeline.save(path[, quality[, conf_permil]]) -> int
+//
+// Debug artifact writer.  On ARM this routes to the existing C-side draw
+// helper; on SIM it writes a BMP over the PrepTask TPU input view.
+static mp_obj_t mod_sentai_pipeline_save(size_t n_args,
+                                         const mp_obj_t *args) {
+    const char* path = mp_obj_str_get_str(args[0]);
+    int quality = (n_args >= 2) ? mp_obj_get_int(args[1]) : 90;
+    int conf = (n_args >= 3) ? mp_obj_get_int(args[2]) : 300;
+    if (quality < 1) quality = 1;
+    if (quality > 100) quality = 100;
+    if (conf < 0) conf = 0;
+    if (conf > 1000) conf = 1000;
+
+    int16_t det_buf[DETECTION_MAX_DETS * 6];
+    int det_count = 0;
+    int rc = sentai_tpu_detect(conf, 450, DETECTION_MAX_DETS,
+                               det_buf, &det_count);
+    if (rc != 0) return mp_obj_new_int(rc);
+    if (det_count > DETECTION_MAX_DETS) det_count = DETECTION_MAX_DETS;
+    return mp_obj_new_int(sentai_tpu_draw(path, det_buf, det_count, quality));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
+    mod_sentai_pipeline_save_obj, 1, 3, mod_sentai_pipeline_save);
 
 // sentai.pipeline.running() -> bool
 static mp_obj_t mod_sentai_pipeline_running(void) {
@@ -1091,9 +1333,16 @@ static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_pipeline_loop_delay_obj,
 static const mp_rom_map_elem_t sentai_pipeline_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__),      MP_ROM_QSTR(MP_QSTR_pipeline) },
     { MP_ROM_QSTR(MP_QSTR_start),         MP_ROM_PTR(&mod_sentai_pipeline_start_obj) },
+    { MP_ROM_QSTR(MP_QSTR_start_once),    MP_ROM_PTR(&mod_sentai_pipeline_start_once_obj) },
     { MP_ROM_QSTR(MP_QSTR_stop),          MP_ROM_PTR(&mod_sentai_pipeline_stop_obj) },
     { MP_ROM_QSTR(MP_QSTR_get),           MP_ROM_PTR(&mod_sentai_pipeline_get_obj) },
     { MP_ROM_QSTR(MP_QSTR_get_ex),        MP_ROM_PTR(&mod_sentai_pipeline_get_ex_obj) },
+    { MP_ROM_QSTR(MP_QSTR_count),         MP_ROM_PTR(&mod_sentai_pipeline_frame_count_obj) },
+    { MP_ROM_QSTR(MP_QSTR_frame_count),   MP_ROM_PTR(&mod_sentai_pipeline_frame_count_obj) },
+    { MP_ROM_QSTR(MP_QSTR_on_detection),  MP_ROM_PTR(&mod_sentai_pipeline_on_detection_obj) },
+    { MP_ROM_QSTR(MP_QSTR_once),          MP_ROM_PTR(&mod_sentai_pipeline_once_obj) },
+    { MP_ROM_QSTR(MP_QSTR_detections),    MP_ROM_PTR(&mod_sentai_pipeline_detections_obj) },
+    { MP_ROM_QSTR(MP_QSTR_save),          MP_ROM_PTR(&mod_sentai_pipeline_save_obj) },
     { MP_ROM_QSTR(MP_QSTR_dma_memcpy),    MP_ROM_PTR(&mod_sentai_pipeline_dma_memcpy_obj) },
     { MP_ROM_QSTR(MP_QSTR_direct_tensor), MP_ROM_PTR(&mod_sentai_pipeline_direct_tensor_obj) },
     { MP_ROM_QSTR(MP_QSTR_direct_stats),  MP_ROM_PTR(&mod_sentai_pipeline_direct_stats_obj) },
@@ -1101,6 +1350,8 @@ static const mp_rom_map_elem_t sentai_pipeline_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_prep_fps),      MP_ROM_PTR(&mod_sentai_pipeline_prep_fps_obj) },
     { MP_ROM_QSTR(MP_QSTR_prep_stats),    MP_ROM_PTR(&mod_sentai_pipeline_prep_stats_obj) },
     { MP_ROM_QSTR(MP_QSTR_prep_reset),    MP_ROM_PTR(&mod_sentai_pipeline_prep_reset_obj) },
+    { MP_ROM_QSTR(MP_QSTR_prep_start),    MP_ROM_PTR(&mod_sentai_pipeline_prep_start_obj) },
+    { MP_ROM_QSTR(MP_QSTR_prep_stop),     MP_ROM_PTR(&mod_sentai_pipeline_prep_stop_obj) },
     { MP_ROM_QSTR(MP_QSTR_running),       MP_ROM_PTR(&mod_sentai_pipeline_running_obj) },
     { MP_ROM_QSTR(MP_QSTR_stats),         MP_ROM_PTR(&mod_sentai_pipeline_stats_obj) },
     { MP_ROM_QSTR(MP_QSTR_tracks),        MP_ROM_PTR(&mod_sentai_pipeline_tracks_obj) },

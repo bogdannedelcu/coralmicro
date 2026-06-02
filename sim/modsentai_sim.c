@@ -12,12 +12,10 @@
  *   sentai.io.led_on()     -> printf "[LED] ON"  (no real LED in SIM)
  *   sentai.io.led_off()    -> printf "[LED] OFF"
  *   sentai.rtos.sleep_ms(ms) -> vTaskDelay (real FreeRTOS, EINTR-safe)
- *   sentai.diag.dmesg()    -> last ~4 KB of stdout, ring-buffered
  *   sentai.sys.reset()     -> exit(0) — clean SIM exit
  *
- * Phase 2+ will add sentai.fs.* (FileX/LevelX), sentai.crazy.* (UART
- * socket → CrazySim), sentai.flow.* (camera socket → Gazebo), sentai.tpu.*
- * (libedgetpu Linux).  Same API contract as ARM firmware.
+ * Same API contract as ARM firmware; SIM-only code is limited to platform
+ * backends/bridges injected under the shared sentai_runtime bindings.
  */
 
 #include <stdio.h>
@@ -38,16 +36,22 @@
 #include "py/lexer.h"
 #include "py/parse.h"
 #include "py/compile.h"
+#include "py/gc.h"
 
 #include "FreeRTOS.h"
 #include "task.h"
 
 #include "build_version.h"
 #include "sentai_mesh.h"
+#include "sentai_crazy.h"
+#include "sentai_tpu_shim.h"
+#include "detection_task.h"
+#include "sentai_tracker.h"
 
 /* SIM platform backend ABIs used by shared bindings. */
 int sentai_console_get_target(void);
 int sentai_console_set_target(int target);
+void sentai_console_write(const char* buf, int size);
 void sentai_uart_set_baudrate(uint32_t baudrate);
 void sentai_uart_restore_baudrate(void);
 int sentai_uart_serial_open(void);
@@ -67,6 +71,29 @@ int sentai_usb_serial_available(void);
 int sentai_usb_ip_set(int on);
 int sentai_usb_ip_get(void);
 void sentai_httpd_start(void);
+void sentai_led_set(int on);
+void sentai_sleep_ms(uint32_t ms);
+uint32_t sentai_ticks_ms(void);
+void sentai_repl_activity(void);
+bool sentai_is_recovery_mode(void);
+unsigned int sentai_get_boot_attempts(void);
+void sentai_sys_do_reset(void);
+int sentai_fs_lock(void);
+void sentai_fs_unlock(void);
+int sentai_fs_read(const char* path, uint8_t* buf, int max_size);
+int sentai_fs_size(const char* path);
+int sentai_fs_file_exists(const char* path);
+int sentai_fs_dir_exists(const char* path);
+int sentai_fs_write(const char* path, const uint8_t* buf, int size);
+int sentai_fs_append(const char* path, const uint8_t* buf, int size);
+int sentai_fs_remove(const char* path);
+int sentai_fs_makedirs(const char* path);
+int sentai_fs_listdir(const char* path,
+                      void (*callback)(const char* name, int type, int size,
+                                       void* ud),
+                      void* user_data);
+int sentai_fs_sync(void);
+int sentai_fs_format(void);
 int sentai_imu_init(void);
 int sentai_imu_read_accel(float* x_mg, float* y_mg, float* z_mg, float* temp_c);
 int sentai_imu_tap_start(void);
@@ -101,6 +128,87 @@ void* sentai_tfl_get_input_data(void);
 int sentai_tfl_load_image(const char* path);
 int sentai_tfl_save_output(const char* path);
 int sentai_tfl_info(void);
+
+typedef struct { uint8_t _opaque[296]; } link_rx_msg_t;
+int sentai_link_init(uint32_t baudrate, uint8_t sysid, uint8_t compid);
+int sentai_link_stop(void);
+int sentai_link_is_running(void);
+int sentai_link_available(void);
+int sentai_link_receive(link_rx_msg_t* msg);
+int sentai_link_receive_wait(link_rx_msg_t* msg, int timeout_ms);
+int sentai_link_send_heartbeat(uint8_t type);
+int sentai_link_send_statustext(uint8_t severity, const char* text);
+int sentai_link_send_vision(
+    uint32_t sensor_id, uint32_t track_id, uint32_t alarm_type,
+    uint32_t timestamp_utc, uint32_t seq,
+    uint8_t x, uint8_t y, uint8_t w, uint8_t h,
+    uint32_t conf, uint32_t class_id,
+    int32_t gx_cm, int32_t gy_cm, int16_t width_cm,
+    uint8_t severity);
+int sentai_link_send_vision_update(
+    uint32_t sensor_id, uint32_t track_id, uint32_t alarm_type,
+    uint32_t timestamp_utc, uint32_t seq,
+    uint8_t x, uint8_t y, uint8_t w, uint8_t h,
+    uint32_t conf, uint32_t age,
+    int32_t gx_cm, int32_t gy_cm,
+    uint8_t severity);
+int sentai_link_send_vision_delete(
+    uint32_t sensor_id, uint32_t track_id, uint32_t alarm_type,
+    uint32_t timestamp_utc, uint32_t seq,
+    uint32_t reason, uint32_t age, uint32_t total_hits,
+    int32_t last_gx_cm, int32_t last_gy_cm,
+    uint8_t severity);
+int sentai_link_send_command_long(
+    uint8_t target_sys, uint8_t target_comp,
+    uint16_t command, uint8_t confirmation,
+    float param1, float param2, float param3, float param4,
+    float param5, float param6, float param7);
+int sentai_link_send_obstacle_distance(
+    const uint16_t* distances_cm,
+    uint8_t increment_deg,
+    uint16_t min_distance_cm,
+    uint16_t max_distance_cm,
+    float increment_f_deg,
+    float angle_offset_deg,
+    uint8_t sensor_type,
+    uint8_t frame);
+int sentai_link_send_obstacles_from_tracker(
+    uint16_t max_distance_cm,
+    uint16_t min_distance_cm,
+    float horizontal_fov_deg,
+    uint8_t increment_deg,
+    uint8_t include_lost,
+    float angle_offset_deg,
+    uint8_t sensor_type,
+    uint8_t frame);
+int sentai_link_send_obstacles_from_points(
+    const int32_t* points_xy_cm,
+    const uint16_t* radii_cm,
+    int count,
+    uint16_t max_distance_cm,
+    uint16_t min_distance_cm,
+    uint8_t increment_deg,
+    float angle_offset_deg,
+    uint8_t sensor_type,
+    uint8_t frame);
+uint32_t sentai_link_rx_msgid(const link_rx_msg_t* m);
+uint8_t sentai_link_rx_sysid(const link_rx_msg_t* m);
+uint8_t sentai_link_rx_compid(const link_rx_msg_t* m);
+uint8_t sentai_link_rx_seq(const link_rx_msg_t* m);
+uint8_t sentai_link_rx_len(const link_rx_msg_t* m);
+void sentai_link_rx_local_pos(
+    const link_rx_msg_t* m,
+    uint32_t* time_boot_ms,
+    float* x, float* y, float* z,
+    float* vx, float* vy, float* vz);
+void sentai_link_rx_global_pos(
+    const link_rx_msg_t* m,
+    uint32_t* time_boot_ms,
+    int32_t* lat, int32_t* lon,
+    int32_t* alt, int32_t* relative_alt,
+    int16_t* vx, int16_t* vy, int16_t* vz,
+    uint16_t* hdg);
+void sentai_link_set_debug(int level);
 
 static void _fs_check_usb(void) {
     if (sentai_usb_drive_get()) {
@@ -139,20 +247,15 @@ static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(sentai_verbose_obj, 0, 1,
 /* ============================================================
  * SIM SENTAI MODULE BINDINGS — fragment includes (refactor T0)
  *
- * Each subsystem lives in its own .c file but they are #include'd
- * here so the whole thing stays a single translation unit.  That
- * preserves the original `static` linkage between sections (helpers
- * like sim_dmesg_append + verbose flag stay file-private without
- * needing a shared header).
- *
- * Ordering matters: later sections may reference helpers/state
- * defined earlier (e.g. fs uses sim_dmesg_append from diag, journal
- * uses io for verbose printf).  Don't reorder casually — match the
- * ordering documented in Sim.md §10y.
+ * Each subsystem binding is #include'd here so the whole thing stays a
+ * single MicroPython module translation unit.  Platform-specific SIM
+ * behavior lives in backend/bridge files, not in duplicate namespace
+ * fragments.
  *
  * To add a new SIM subsystem:
- *   1. drop a `modsentai_sim_<name>.c` fragment file in `sim/`,
- *   2. add a `#include` line below,
+ *   1. prefer the shared `examples/sentai_runtime/bindings/modsentai_<name>.c`,
+ *   2. add only a `sentai_<name>_sim_backend.c` or `*_bridge.c` if the
+ *      platform implementation differs,
  *   3. add a `{ MP_ROM_QSTR(MP_QSTR_<name>), MP_ROM_PTR(&sentai_<name>_module) }`
  *      entry to `sentai_globals_table` at the bottom,
  *   4. if any SIM-only QSTR is used, append it to
@@ -160,17 +263,15 @@ static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(sentai_verbose_obj, 0, 1,
  *      (see CLAUDE.md §QSTR regen).
  * ============================================================ */
 
-#include "modsentai_sim_io.c"
-#include "modsentai_sim_rtos.c"
-#include "modsentai_sim_diag.c"
-#include "modsentai_sim_sys.c"
-#include "modsentai_sim_fs.c"
-#include "modsentai_sim_journal.c"      /* sentai.sim.journal_*  */
-#include "modsentai_sim_camera.c"
-#include "modsentai_sim_flow.c"
-#include "modsentai_sim_tpu.c"
-#include "modsentai_sim_pipeline.c"
-#include "modsentai_sim_link.c"
+#include "../examples/sentai_runtime/bindings/modsentai_io.c"
+#include "../examples/sentai_runtime/bindings/modsentai_rtos.c"
+#include "../examples/sentai_runtime/bindings/modsentai_sys.c"
+#include "../examples/sentai_runtime/bindings/modsentai_fs.c"
+#include "../examples/sentai_runtime/bindings/modsentai_camera_sim.c"
+#include "../examples/sentai_runtime/bindings/modsentai_flow.c"
+#include "bindings/modsentai_tpu.c"
+#include "../examples/sentai_runtime/bindings/modsentai_pipeline.c"
+#include "../examples/sentai_runtime/bindings/modsentai_link.c"
 #include "../examples/sentai_runtime/bindings/modsentai_uart.c"
 #include "../examples/sentai_runtime/bindings/modsentai_usb.c"
 #include "../examples/sentai_runtime/bindings/modsentai_mesh.c"
@@ -233,7 +334,7 @@ static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(sentai_verbose_obj, 0, 1,
 // uses examples/sentai_runtime/modsentai_crazy.c (CPX-over-UART); this
 // is the SIM-flavor binding with the same Python surface (arm /
 // takeoff / land / go_to / hover / send_crtp / recv_crtp / stats).
-#include "modsentai_sim_crazy.c"
+#include "../examples/sentai_runtime/bindings/modsentai_crazy.c"
 
 
 static const mp_rom_map_elem_t sentai_globals_table[] = {
@@ -246,7 +347,6 @@ static const mp_rom_map_elem_t sentai_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_run),      MP_ROM_PTR(&mod_sentai_run_obj) },
     { MP_ROM_QSTR(MP_QSTR_io),       MP_ROM_PTR(&sentai_io_module) },
     { MP_ROM_QSTR(MP_QSTR_rtos),     MP_ROM_PTR(&sentai_rtos_module) },
-    { MP_ROM_QSTR(MP_QSTR_diag),     MP_ROM_PTR(&sentai_diag_module) },
     { MP_ROM_QSTR(MP_QSTR_sys),      MP_ROM_PTR(&sentai_sys_module) },
     { MP_ROM_QSTR(MP_QSTR_fs),       MP_ROM_PTR(&sentai_fs_module) },
     { MP_ROM_QSTR(MP_QSTR_camera),   MP_ROM_PTR(&sentai_camera_module) },
@@ -281,7 +381,6 @@ static const mp_rom_map_elem_t sentai_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_explore),  MP_ROM_PTR(&sentai_explore_module) },
     { MP_ROM_QSTR(MP_QSTR_tfl),      MP_ROM_PTR(&sentai_tfl_module) },
     { MP_ROM_QSTR(MP_QSTR_crazy),    MP_ROM_PTR(&sentai_crazy_module) },
-    { MP_ROM_QSTR(MP_QSTR_sim),      MP_ROM_PTR(&sentai_sim_module) },
 };
 static MP_DEFINE_CONST_DICT(sentai_globals, sentai_globals_table);
 

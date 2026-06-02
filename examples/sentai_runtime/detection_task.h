@@ -49,6 +49,13 @@ typedef struct DetectionFrame {
 // Returns 0 on success, negative on error.
 int sentai_detection_start(int conf_permil, int iou_permil, int max_dets);
 
+// Start only PrepTask.  This is a diagnostic/runtime-alignment path: camera
+// frames are consumed through the same queue as the full pipeline and enabled
+// sentai_prep slots are published, but no TPU model/tensor is required and
+// InferTask is not created.
+int sentai_prep_task_start_only(void);
+int sentai_prep_task_stop_only(void);
+
 // Stop the detection pipeline.  Waits for both tasks to exit (up to 2 s).
 // Returns 0 on success.
 int sentai_detection_stop(void);
@@ -58,6 +65,17 @@ int sentai_detection_stop(void);
 // Fills *frame with detection data.
 // Returns detection count (>=0) on success, -1 on timeout, -2 if not running.
 int sentai_detection_get(DetectionFrame* frame, int timeout_ms);
+
+// Detection event counter.
+// Incremented by InferTask whenever it publishes a DetectionFrame.  This is
+// intentionally independent from the consumer queue so a REPL/MP caller can
+// observe pipeline progress without becoming the scheduler.
+uint32_t sentai_detection_event_count(void);
+
+// Wait until the detection event counter is greater than after_count.
+// Returns the current counter on success, -1 on timeout, -2 if the pipeline is
+// stopped before a newer event is observed.
+int sentai_detection_wait_event(uint32_t after_count, int timeout_ms);
 
 // 1 if pipeline is running, 0 otherwise.
 int sentai_detection_is_running(void);

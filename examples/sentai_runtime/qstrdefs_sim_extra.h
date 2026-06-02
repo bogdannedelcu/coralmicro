@@ -22,7 +22,7 @@
 #include "py/runtime.h"
 
 static const mp_rom_obj_tuple_t _sentai_sim_qstr_keepalive __attribute__((unused)) = {
-    {&mp_type_tuple}, 32, {
+    {&mp_type_tuple}, 43, {
         MP_ROM_QSTR(MP_QSTR_detections),
         MP_ROM_QSTR(MP_QSTR_tracker_update),
         MP_ROM_QSTR(MP_QSTR_tracker_enable),
@@ -31,25 +31,35 @@ static const mp_rom_obj_tuple_t _sentai_sim_qstr_keepalive __attribute__((unused
         MP_ROM_QSTR(MP_QSTR_tracker_camera),
         MP_ROM_QSTR(MP_QSTR_tracker_pose),
         MP_ROM_QSTR(MP_QSTR_tracker_event),
-        MP_ROM_QSTR(MP_QSTR_step),         // pipeline.step (also for QSTR scan)
         MP_ROM_QSTR(MP_QSTR_predict),
+        MP_ROM_QSTR(MP_QSTR_once),
+        MP_ROM_QSTR(MP_QSTR_on_detection),
+        MP_ROM_QSTR(MP_QSTR_start_once),
         MP_ROM_QSTR(MP_QSTR_pipeline),
         MP_ROM_QSTR(MP_QSTR_flow),
         MP_ROM_QSTR(MP_QSTR_camera),
         MP_ROM_QSTR(MP_QSTR_dz_q1000),
         MP_ROM_QSTR(MP_QSTR_dz_conf),
         MP_ROM_QSTR(MP_QSTR_set_input),
-        // sentai.sim (SIM-only diagnostic utilities — journal API)
-        MP_ROM_QSTR(MP_QSTR_sim),
-        MP_ROM_QSTR(MP_QSTR_journal_open),
-        MP_ROM_QSTR(MP_QSTR_journal_close),
-        MP_ROM_QSTR(MP_QSTR_journal_write),
-        MP_ROM_QSTR(MP_QSTR_journal_status),
-        MP_ROM_QSTR(MP_QSTR_lines),
-        MP_ROM_QSTR(MP_QSTR_errors),
         // s144: sentai.camera.grab_gray return dict keys + method
         MP_ROM_QSTR(MP_QSTR_grab_gray),
         MP_ROM_QSTR(MP_QSTR_data),
+        MP_ROM_QSTR(MP_QSTR_w),
+        MP_ROM_QSTR(MP_QSTR_h),
+        MP_ROM_QSTR(MP_QSTR_play),
+        MP_ROM_QSTR(MP_QSTR_replay),
+        MP_ROM_QSTR(MP_QSTR_play_stop),
+        MP_ROM_QSTR(MP_QSTR_playing),
+        MP_ROM_QSTR(MP_QSTR_prep_enable),
+        MP_ROM_QSTR(MP_QSTR_prep_disable),
+        MP_ROM_QSTR(MP_QSTR_prep_once),
+        MP_ROM_QSTR(MP_QSTR_prep_reset),
+        MP_ROM_QSTR(MP_QSTR_prep_stats),
+        MP_ROM_QSTR(MP_QSTR_frames_total),
+        MP_ROM_QSTR(MP_QSTR_frames_with_aux),
+        MP_ROM_QSTR(MP_QSTR_producer_overruns),
+        MP_ROM_QSTR(MP_QSTR_slot_refcount),
+        MP_ROM_QSTR(MP_QSTR_slot_seq),
         // sentai.crazy SIM bindings (Task #39 gap-fill, 2026-05-16):
         // tuple-returning methods avoid needing dict-key QSTRs.
         MP_ROM_QSTR(MP_QSTR_is_running),

@@ -24,11 +24,12 @@
 
 #ifdef SENTAI_PLATFORM_SIM
 #include <cstdio>
+#include <cstdlib>
 #define CHECK(a)                                                   \
   do {                                                             \
     if (!(a)) {                                                    \
       std::printf("%s:%d %s was not true.\n", __FILE__, __LINE__, #a); \
-      return false;                                                \
+      std::abort();                                                \
     }                                                              \
   } while (0)
 #else

@@ -20,10 +20,15 @@
 
 #include "libs/base/check.h"
 #include "libs/base/mutex.h"
+#ifndef SENTAI_PLATFORM_SIM
 #include "libs/tpu/edgetpu_task.h"
 #include "third_party/flatbuffers/include/flatbuffers/flatbuffers.h"
 #include "third_party/flatbuffers/include/flatbuffers/flexbuffers.h"
 #include "third_party/nxp/rt1176-sdk/components/osa/fsl_os_abstraction.h"
+#else
+#include "third_party/flatbuffers/include/flatbuffers/flatbuffers.h"
+#include "third_party/flatbuffers/include/flatbuffers/flexbuffers.h"
+#endif
 
 namespace coralmicro {
 namespace {
@@ -34,13 +39,17 @@ constexpr char kKeyExecutable[] = "4";
 }  // namespace
 
 EdgeTpuContext::EdgeTpuContext() {
+#ifndef SENTAI_PLATFORM_SIM
   EdgeTpuTask::GetSingleton()->SetPower(true);
+#endif
 }
 
 EdgeTpuContext::~EdgeTpuContext() {
+#ifndef SENTAI_PLATFORM_SIM
   EdgeTpuTask::GetSingleton()->SetPower(false);
   // Small delay ensuring usb instance is released.
   vTaskDelay(pdMS_TO_TICKS(30));
+#endif
 }
 
 EdgeTpuManager::EdgeTpuManager() : mutex_(xSemaphoreCreateMutex()) {
@@ -61,11 +70,14 @@ void EdgeTpuManager::NotifyError() { usb_error_ = true; }
 
 std::shared_ptr<EdgeTpuContext> EdgeTpuManager::OpenDevice(
     PerformanceMode mode) {
+#ifndef SENTAI_PLATFORM_SIM
   MutexLock lock(mutex_);
+#endif
 
   auto context = context_.lock();
   if (context) return context;
 
+  printf("[EdgeTPU mgr] creating context\r\n");
   context = std::make_shared<EdgeTpuContext>();
 
   while (!usb_instance_) {
@@ -79,17 +91,22 @@ std::shared_ptr<EdgeTpuContext> EdgeTpuManager::OpenDevice(
   }
 
   // Got tpu usb instance, init the tpu driver.
+  printf("[EdgeTPU mgr] initializing driver\r\n");
   if (!tpu_driver_.Initialize(usb_instance_, mode)) {
+    printf("[EdgeTPU mgr] driver initialize failed\r\n");
     return nullptr;
   }
 
+  printf("[EdgeTPU mgr] driver initialized\r\n");
   context_ = context;
   return context;
 }
 
 EdgeTpuPackage* EdgeTpuManager::RegisterPackage(const char* package_content,
                                                 size_t length) {
+#ifndef SENTAI_PLATFORM_SIM
   MutexLock lock(mutex_);
+#endif
   auto package_ptr = (uintptr_t)package_content;
 
   if (packages_.find(package_ptr) != packages_.end()) {
@@ -182,12 +199,16 @@ EdgeTpuPackage* EdgeTpuManager::RegisterPackage(const char* package_content,
 
 TfLiteStatus EdgeTpuManager::Invoke(EdgeTpuPackage* package,
                                     TfLiteContext* context, TfLiteNode* node) {
+#ifndef SENTAI_PLATFORM_SIM
   MutexLock lock(mutex_);
+#endif
   if (package->parameter_caching_exe()) {
     auto token = package->parameter_caching_exe()->ParameterCachingToken();
     if (token != current_parameter_caching_token_) {
       cached_packages_.fill(nullptr);
-      package->parameter_caching_exe()->Invoke(tpu_driver_, context, node);
+      TfLiteStatus st =
+          package->parameter_caching_exe()->Invoke(tpu_driver_, context, node);
+      if (st != kTfLiteOk) return st;
       current_parameter_caching_token_ = token;
       cached_packages_[0] = package;
     } else {
@@ -195,7 +216,9 @@ TfLiteStatus EdgeTpuManager::Invoke(EdgeTpuPackage* package,
         if (cached_package == package) {
           break;
         } else if (cached_package == nullptr) {
-          package->parameter_caching_exe()->Invoke(tpu_driver_, context, node);
+          TfLiteStatus st = package->parameter_caching_exe()->Invoke(
+              tpu_driver_, context, node);
+          if (st != kTfLiteOk) return st;
           cached_package = package;
         }
       }
@@ -208,7 +231,9 @@ TfLiteStatus EdgeTpuManager::Invoke(EdgeTpuPackage* package,
 }
 
 std::optional<float> EdgeTpuManager::GetTemperature() {
+#ifndef SENTAI_PLATFORM_SIM
   MutexLock lock(mutex_);
+#endif
   // Only attempt to read the temperature if the device has been opened.
   auto context = context_.lock();
   if (context) return tpu_driver_.GetTemperature();

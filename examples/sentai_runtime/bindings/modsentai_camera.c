@@ -16,6 +16,10 @@
 extern int sentai_cam_init_fps(int streaming, int fps);
 extern int sentai_cam_init_full(int streaming, int fps, int hflip, int vflip);
 extern int sentai_virtual_camera_select(const char* path);
+extern int sentai_virtual_camera_play(const char* dir, int fps, int count);
+extern int sentai_virtual_camera_replay(int fps, int count);
+extern int sentai_virtual_camera_play_stop(void);
+extern int sentai_virtual_camera_playing(void);
 extern void sentai_virtual_camera_disable(void);
 extern volatile uint32_t g_runtime_fps;
 // sentai.camera.init(streaming=1, fps=<runtime>, hflip=0, vflip=1)
@@ -166,6 +170,45 @@ static mp_obj_t mod_sentai_cam_select(size_t n_args, const mp_obj_t *args) {
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_cam_select_obj,
                                             1, 2, mod_sentai_cam_select);
 
+// sentai.camera.play(dir, fps=10, count=0) -> number of BMP frames loaded.
+// Starts VirtualCameraTask.  Files are read from dir in lexicographic order;
+// convention for deterministic missions: frame_000.bmp, frame_001.bmp, ...
+// count=0 loops forever, count>0 publishes exactly count frames and leaves
+// the last frame active.
+static mp_obj_t mod_sentai_cam_play(size_t n_args, const mp_obj_t *args) {
+    const char* dir = mp_obj_str_get_str(args[0]);
+    int fps = (n_args > 1) ? mp_obj_get_int(args[1]) : 10;
+    int count = (n_args > 2) ? mp_obj_get_int(args[2]) : 0;
+    return mp_obj_new_int(sentai_virtual_camera_play(dir, fps, count));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_cam_play_obj,
+                                            1, 3, mod_sentai_cam_play);
+
+// sentai.camera.replay(fps=10, count=0) -> 1 if replay task started.
+// Re-publishes the already-selected virtual frame from RAM.  This avoids
+// filesystem reads during deterministic scheduler/prep diagnostics.
+static mp_obj_t mod_sentai_cam_replay(size_t n_args, const mp_obj_t *args) {
+    int fps = (n_args > 0) ? mp_obj_get_int(args[0]) : 10;
+    int count = (n_args > 1) ? mp_obj_get_int(args[1]) : 0;
+    return mp_obj_new_int(sentai_virtual_camera_replay(fps, count));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_cam_replay_obj,
+                                            0, 2, mod_sentai_cam_replay);
+
+// sentai.camera.play_stop() -> int
+static mp_obj_t mod_sentai_cam_play_stop(void) {
+    return mp_obj_new_int(sentai_virtual_camera_play_stop());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_cam_play_stop_obj,
+                                  mod_sentai_cam_play_stop);
+
+// sentai.camera.playing() -> bool
+static mp_obj_t mod_sentai_cam_playing(void) {
+    return mp_obj_new_bool(sentai_virtual_camera_playing() != 0);
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_cam_playing_obj,
+                                  mod_sentai_cam_playing);
+
 // sentai.camera.current_id() -> 0 (front) or 1 (back).
 // MUX state for the NEXT capture (post-flip).
 extern int sentai_cam_current_id(void);
@@ -182,6 +225,35 @@ static mp_obj_t mod_sentai_cam_last_capture_id(void) {
     return mp_obj_new_int(sentai_cam_last_capture_id());
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_cam_last_capture_id_obj, mod_sentai_cam_last_capture_id);
+
+// sentai.camera.stats() -> dict of camera-switch fault counters.
+//
+// These were historically exposed as sentai.diag.cam_stats().  They belong
+// with the camera owner: persistent monotonic breadcrumbs for switch/grab
+// degraded paths since boot.
+extern void sentai_cam_stats_get(uint32_t* ok_eof, uint32_t* fallback,
+                                 uint32_t* drain_timeout,
+                                 uint32_t* grab_retry, uint32_t* grab_fatal);
+static mp_obj_t mod_sentai_cam_stats(void) {
+    uint32_t ok_eof = 0, fallback = 0, drain_timeout = 0,
+             grab_retry = 0, grab_fatal = 0;
+    sentai_cam_stats_get(&ok_eof, &fallback, &drain_timeout,
+                         &grab_retry, &grab_fatal);
+    mp_obj_t d = mp_obj_new_dict(5);
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_switch_ok_eof),
+                      mp_obj_new_int_from_uint(ok_eof));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_switch_fallback),
+                      mp_obj_new_int_from_uint(fallback));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_drain_timeout),
+                      mp_obj_new_int_from_uint(drain_timeout));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_grab_retry),
+                      mp_obj_new_int_from_uint(grab_retry));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_grab_fatal),
+                      mp_obj_new_int_from_uint(grab_fatal));
+    return d;
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_cam_stats_obj,
+                                  mod_sentai_cam_stats);
 
 // Build #980: sentai.camera.set_fps() removed — runtime fps switch
 // is blocked by the second-init wedge in CAMERA_RECEIVER_Init.
@@ -501,11 +573,73 @@ static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_cam_switch_drain_obj,
 extern int sentai_cam_grab_latest(uint8_t** raw);
 extern int sentai_cam_get_width(void);
 extern int sentai_cam_get_height(void);
+extern int sentai_camera_backend_publish_prep_once(void);
 extern int sentai_pxp_xrgb_to_y8(const uint8_t* src, int src_w, int src_h,
                                   uint8_t* dst, int dst_w, int dst_h);
 extern volatile int g_cam_grabbed_id;
 
 #include "sentai_prep.h"
+
+// sentai.camera.prep_enable(slot_id) -> new refcount.
+// Debug/experiment hook: enables a shared prep slot without starting the TPU
+// detection pipeline.  Slot ids are sentai_prep_slot_id_t values.
+static mp_obj_t mod_sentai_cam_prep_enable(mp_obj_t slot_obj) {
+    int slot = mp_obj_get_int(slot_obj);
+    return mp_obj_new_int(sentai_prep_slot_enable((sentai_prep_slot_id_t)slot));
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_cam_prep_enable_obj,
+                                  mod_sentai_cam_prep_enable);
+
+// sentai.camera.prep_disable(slot_id) -> new refcount.
+static mp_obj_t mod_sentai_cam_prep_disable(mp_obj_t slot_obj) {
+    int slot = mp_obj_get_int(slot_obj);
+    return mp_obj_new_int(sentai_prep_slot_disable((sentai_prep_slot_id_t)slot));
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_cam_prep_disable_obj,
+                                  mod_sentai_cam_prep_disable);
+
+// sentai.camera.prep_once() -> int.
+// Publishes enabled prep slots from the latest camera/virtual-camera frame.
+// No TPU model, no InferTask, no detection queue.
+static mp_obj_t mod_sentai_cam_prep_once(void) {
+    return mp_obj_new_int(sentai_camera_backend_publish_prep_once());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_cam_prep_once_obj,
+                                  mod_sentai_cam_prep_once);
+
+// sentai.camera.prep_reset() -> None.
+static mp_obj_t mod_sentai_cam_prep_reset(void) {
+    sentai_prep_reset_stats();
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_cam_prep_reset_obj,
+                                  mod_sentai_cam_prep_reset);
+
+// sentai.camera.prep_stats() -> dict.
+static mp_obj_t mod_sentai_cam_prep_stats(void) {
+    sentai_prep_stats_t st;
+    sentai_prep_get_stats(&st);
+    mp_obj_t d = mp_obj_new_dict(6);
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_frames_total),
+                      mp_obj_new_int_from_uint(st.frames_total));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_frames_with_aux),
+                      mp_obj_new_int_from_uint(st.frames_with_aux));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_producer_overruns),
+                      mp_obj_new_int_from_uint(st.producer_overruns));
+    mp_obj_t refs[SENTAI_PREP_SLOT_COUNT];
+    mp_obj_t seqs[SENTAI_PREP_SLOT_COUNT];
+    for (int i = 0; i < SENTAI_PREP_SLOT_COUNT; ++i) {
+        refs[i] = mp_obj_new_int(st.slot_refcount[i]);
+        seqs[i] = mp_obj_new_int_from_uint(st.slot_seq[i]);
+    }
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_slot_refcount),
+                      mp_obj_new_tuple(SENTAI_PREP_SLOT_COUNT, refs));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_slot_seq),
+                      mp_obj_new_tuple(SENTAI_PREP_SLOT_COUNT, seqs));
+    return d;
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_cam_prep_stats_obj,
+                                  mod_sentai_cam_prep_stats);
 
 #define SENTAI_ARUCO_GRAY_W 320
 #define SENTAI_ARUCO_GRAY_H 240
@@ -573,8 +707,18 @@ static const mp_rom_map_elem_t sentai_camera_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_set_resolution), MP_ROM_PTR(&mod_sentai_cam_set_resolution_obj) },
     { MP_ROM_QSTR(MP_QSTR_native_res), MP_ROM_PTR(&mod_sentai_cam_native_res_obj) },
     { MP_ROM_QSTR(MP_QSTR_select),     MP_ROM_PTR(&mod_sentai_cam_select_obj) },
+    { MP_ROM_QSTR(MP_QSTR_play),       MP_ROM_PTR(&mod_sentai_cam_play_obj) },
+    { MP_ROM_QSTR(MP_QSTR_replay),     MP_ROM_PTR(&mod_sentai_cam_replay_obj) },
+    { MP_ROM_QSTR(MP_QSTR_play_stop),  MP_ROM_PTR(&mod_sentai_cam_play_stop_obj) },
+    { MP_ROM_QSTR(MP_QSTR_playing),    MP_ROM_PTR(&mod_sentai_cam_playing_obj) },
+    { MP_ROM_QSTR(MP_QSTR_prep_enable),  MP_ROM_PTR(&mod_sentai_cam_prep_enable_obj) },
+    { MP_ROM_QSTR(MP_QSTR_prep_disable), MP_ROM_PTR(&mod_sentai_cam_prep_disable_obj) },
+    { MP_ROM_QSTR(MP_QSTR_prep_once),    MP_ROM_PTR(&mod_sentai_cam_prep_once_obj) },
+    { MP_ROM_QSTR(MP_QSTR_prep_reset),   MP_ROM_PTR(&mod_sentai_cam_prep_reset_obj) },
+    { MP_ROM_QSTR(MP_QSTR_prep_stats),   MP_ROM_PTR(&mod_sentai_cam_prep_stats_obj) },
     { MP_ROM_QSTR(MP_QSTR_current_id),      MP_ROM_PTR(&mod_sentai_cam_current_id_obj) },
     { MP_ROM_QSTR(MP_QSTR_last_capture_id), MP_ROM_PTR(&mod_sentai_cam_last_capture_id_obj) },
+    { MP_ROM_QSTR(MP_QSTR_stats),           MP_ROM_PTR(&mod_sentai_cam_stats_obj) },
     { MP_ROM_QSTR(MP_QSTR_grabbed_id),      MP_ROM_PTR(&mod_sentai_cam_grabbed_id_obj) },
     { MP_ROM_QSTR(MP_QSTR_buf_id_dump),     MP_ROM_PTR(&mod_sentai_cam_buf_id_dump_obj) },
     { MP_ROM_QSTR(MP_QSTR_dirty_skip_n),    MP_ROM_PTR(&mod_sentai_cam_dirty_skip_n_obj) },

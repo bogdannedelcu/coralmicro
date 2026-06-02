@@ -3,11 +3,10 @@
 // Same pattern as sentai_pxp_shim.h / sentai_fft_shim.h:
 //   ARM target: implementations live in sentai_runtime.cc and drive the
 //               on-board Apex EdgeTPU over USB via libedgetpu+tflite-micro.
-//   SIM target: implementations live in sim/sim_tpu_shim.c and forward
-//               to a host-side pycoral helper daemon over a Unix socket
-//               (/tmp/sentai_tpu.sock).  When a Coral USB stick is
-//               plugged in, pycoral uses it; otherwise it falls back to
-//               CPU TFLite Runtime (slower but fully functional).
+//   SIM target: implementations live in sim/sentai_tpu_posix_backend.cc and
+//               drive a Coral USB EdgeTPU directly through the POSIX/libusb
+//               USB_HostEdgeTpu backend.  PyCoral is host-side only for
+//               independent baselines, never in sentai_sim.
 //
 // MicroPython REPL contract is identical on both targets: the same
 // modsentai_tpu globals_table maps the same MP_QSTRs to the same C
@@ -44,15 +43,18 @@ int   sentai_tpu_invoke(void);
 int   sentai_tpu_invoke_with_input(uint8_t* input_buf);
 
 // ── Model load (SIM-only entry point — ARM uses a different path) ───
-// path is a host filesystem path on SIM (e.g.,
-// "/home/bogdan/work/coralmicro/models/mobilenet_v2_324_quant_bayered_3channel_edgetpu.tflite").
+// path is a SentAI virtual-FS path on SIM or ARM.
 // Returns 0 on success.
 int   sentai_tpu_load_model(const char* path);
+int   sentai_load_model(const char* path);
+int   sentai_load_image(const char* path);
+int   sentai_save_output(const char* path);
 
 // ── Multi-slot (Phase 1 multi-EP firmware on ARM) ───────────────────
 int   sentai_tpu_slot_count(void);
 int   sentai_tpu_slot_ready(int slot);
 int   sentai_tpu_load_model_slot(int slot, const char* path);
+int   sentai_load_model_slot(int slot, const char* path);
 int   sentai_tpu_invoke_slot(int slot);
 int   sentai_tpu_invoke_slot_with_input(int slot, uint8_t* buf);
 int   sentai_tpu_num_outputs_slot(int slot);
@@ -64,7 +66,7 @@ int   sentai_tpu_get_output_type_slot(int slot, int idx);
 int   sentai_tpu_output_quant_slot(int slot, int idx,
                                     float* scale, int32_t* zero_point);
 int   sentai_tpu_set_input_slot(int slot,
-                                 const uint8_t* data, size_t bytes);
+                                 const uint8_t* data, int bytes);
 uint32_t sentai_tpu_output_hash_slot(int slot);
 
 // ── Tensor metadata + camera→tensor pipeline glue ───────────────────

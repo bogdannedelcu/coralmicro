@@ -30,8 +30,8 @@
 // ---------------------------------------------------------------------------
 #define DMESG_BUF_SIZE   (16U * 1024U)
 #define DMESG_BUF_MASK   (DMESG_BUF_SIZE - 1U)
-_Static_assert((DMESG_BUF_SIZE & DMESG_BUF_MASK) == 0,
-               "DMESG_BUF_SIZE must be a power of two");
+static_assert((DMESG_BUF_SIZE & DMESG_BUF_MASK) == 0,
+              "DMESG_BUF_SIZE must be a power of two");
 
 #define DMESG_LINE_MAX   256U
 
@@ -51,7 +51,11 @@ static inline uint32_t dmesg_now_ms(void) {
     // Fallback to xTaskGetTickCount (task context) if the hint is zero.
     uint32_t hint = g_sentai_uptime_ms;
     if (hint != 0U) return hint;
+#if defined(SENTAI_PLATFORM_SIM)
+    if (true) {
+#else
     if (xPortIsInsideInterrupt() == pdFALSE) {
+#endif
         return (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS);
     }
     return 0U;

@@ -19,6 +19,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <pthread.h>
+#include <time.h>
 
 #include "FreeRTOS.h"
 #include "task.h"
@@ -34,10 +35,10 @@
 #include "port/micropython_embed.h"
 
 /* Provided by modsentai_sim.c — same path resolver `sentai.fs.*` uses. */
-extern const char *sim_fs_root(void);
-extern int sim_fs_resolve(const char *bpath, char *out, size_t outsz);
+#include "sentai_fs_sim_backend.h"
 
 #include "build_version.h"
+#include "examples/sentai_runtime/sentai_log.h"
 
 /* ---- Heap for MicroPython ---- */
 #define MP_HEAP_SIZE  (2 * 1024 * 1024)  /* 2 MB — s197 calibration missions
@@ -63,13 +64,10 @@ static char s_line[REPL_LINE_MAX];
 typedef struct {
     int read_fd;
     int console_fd;
-    int debug_fd;
 } sim_debug_tee_t;
 
-static pthread_mutex_t s_debug_log_mu = PTHREAD_MUTEX_INITIALIZER;
-static int s_debug_log_fd = -1;
-static sim_debug_tee_t s_stdout_tee = {-1, -1, -1};
-static sim_debug_tee_t s_stderr_tee = {-1, -1, -1};
+static sim_debug_tee_t s_stdout_tee = {-1, -1};
+static sim_debug_tee_t s_stderr_tee = {-1, -1};
 
 static void sim_write_all(int fd, const char *buf, ssize_t n) {
     ssize_t off = 0;
@@ -85,6 +83,12 @@ static void sim_write_all(int fd, const char *buf, ssize_t n) {
 }
 
 static void *sim_debug_tee_thread(void *arg) {
+    sigset_t blocked;
+    sigemptyset(&blocked);
+    sigaddset(&blocked, SIGALRM);  /* FreeRTOS POSIX scheduler tick. */
+    sigaddset(&blocked, SIGUSR1);  /* FreeRTOS POSIX task resume signal. */
+    (void)pthread_sigmask(SIG_BLOCK, &blocked, NULL);
+
     sim_debug_tee_t *tee = (sim_debug_tee_t *)arg;
     char buf[512];
     for (;;) {
@@ -95,11 +99,7 @@ static void *sim_debug_tee_thread(void *arg) {
         }
         if (n == 0) break;
         sim_write_all(tee->console_fd, buf, n);
-        pthread_mutex_lock(&s_debug_log_mu);
-        if (tee->debug_fd >= 0) {
-            sim_write_all(tee->debug_fd, buf, n);
-        }
-        pthread_mutex_unlock(&s_debug_log_mu);
+        (void)sentai_log_write(buf, (int)n);
     }
     return NULL;
 }
@@ -121,7 +121,6 @@ static int sim_debug_tee_one(int stream_fd, sim_debug_tee_t *tee) {
     }
     close(p[1]);
     tee->read_fd = p[0];
-    tee->debug_fd = s_debug_log_fd;
     pthread_t th;
     if (pthread_create(&th, NULL, sim_debug_tee_thread, tee) != 0) {
         return -1;
@@ -131,29 +130,13 @@ static int sim_debug_tee_one(int stream_fd, sim_debug_tee_t *tee) {
 }
 
 static void sim_debug_tee_start(void) {
-    const char *fr_dir = getenv("SENTAI_FR_DIR");
-    char fr_dir_buf[512];
-    if (fr_dir == NULL) {
-        snprintf(fr_dir_buf, sizeof fr_dir_buf, "%s/fr", sim_fs_root());
-        fr_dir = fr_dir_buf;
-    }
-    struct stat st;
-    if (stat(fr_dir, &st) != 0) {
-        if (mkdir(fr_dir, 0755) != 0) {
-            fprintf(stderr, "[sim] WARN: mkdir %s failed: %s\n",
-                    fr_dir, strerror(errno));
-            return;
-        }
-    }
-
-    char debug_path[600];
-    snprintf(debug_path, sizeof debug_path, "%s/debug.log", fr_dir);
-    s_debug_log_fd = open(debug_path, O_CREAT | O_WRONLY | O_TRUNC, 0644);
-    if (s_debug_log_fd < 0) {
-        fprintf(stderr, "[sim] WARN: open %s failed: %s\n",
-                debug_path, strerror(errno));
+    const char *no_tee = getenv("SENTAI_SIM_NO_DEBUG_TEE");
+    if (no_tee && no_tee[0] != '\0' && strcmp(no_tee, "0") != 0) {
+        setvbuf(stdout, NULL, _IONBF, 0);
+        setvbuf(stderr, NULL, _IONBF, 0);
         return;
     }
+
     if (sim_debug_tee_one(STDOUT_FILENO, &s_stdout_tee) != 0 ||
         sim_debug_tee_one(STDERR_FILENO, &s_stderr_tee) != 0) {
         fprintf(stderr, "[sim] WARN: debug tee setup failed: %s\n",
@@ -166,7 +149,6 @@ static void sim_debug_tee_start(void) {
 static void sim_debug_tee_flush(void) {
     fflush(stdout);
     fflush(stderr);
-    if (s_debug_log_fd >= 0) fsync(s_debug_log_fd);
 }
 
 /* ---- Ctrl-C / SIGINT handler ---- */
@@ -207,18 +189,10 @@ static int sim_read_line(char *buf, size_t max_len) {
             continue;
         }
 
-        /* 2. Otherwise wait briefly for stdin or signal. */
-        fd_set rfds;
-        FD_ZERO(&rfds);
-        FD_SET(STDIN_FILENO, &rfds);
-        struct timeval tv = {0, 50000};   /* 50 ms — polls FIFO @ 20 Hz */
-        int sel = select(STDIN_FILENO + 1, &rfds, NULL, NULL, &tv);
-        if (sel < 0) {
-            if (errno == EINTR) continue;   /* SIGALRM tick — retry */
-            return -1;
-        }
-        if (sel == 0) continue;     /* timeout — go check FIFO again */
-
+        /* 2. Poll stdin without blocking the FreeRTOS POSIX task.  A raw
+         * blocking read()/select() keeps this pthread "running" from the
+         * scheduler's perspective and can starve lower-priority SIM tasks
+         * while the host is quiet. */
         ssize_t n;
         do {
             n = read(STDIN_FILENO, &c, 1);
@@ -227,7 +201,14 @@ static int sim_read_line(char *buf, size_t max_len) {
             if (pos == 0) return 0;     /* true EOF on empty line */
             break;
         }
-        if (n < 0) return -1;
+        if (n < 0) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                struct timespec ts = {0, 1000000L};
+                while (nanosleep(&ts, &ts) != 0 && errno == EINTR) {}
+                continue;
+            }
+            return -1;
+        }
         if (c == '\n') break;
         if (c == '\r') continue;
         buf[pos++] = c;
@@ -265,10 +246,9 @@ static void repl_task(void *param) {
      * On firmware this is set up by the LFS-init path. */
     mp_embed_exec_str("import sys\nsys.path.append('/')\nsys.path.append('')\n");
 
-    /* ---- Auto-start observability (OP-S10-W21-T10): sentai.fr + journal.
+    /* ---- Auto-start observability (OP-S10-W21-T10): sentai.fr.
      * Every SIM session writes events.csv + scalars.csv under
-     * $SENTAI_FR_DIR (or $SENTAI_SIM_ROOT/fr/ by default), and opens a
-     * startup_journal.txt for sentai.sim.journal_write calls.  Missions
+     * $SENTAI_FR_DIR (or $SENTAI_SIM_ROOT/fr/ by default).  Missions
      * may still re-open channels with experiment-specific paths.
      *
      * frames channel left mission-controlled to avoid filling disk with
@@ -278,6 +258,10 @@ static void repl_task(void *param) {
         extern int sentai_fr_open(int ch, const char* path);
         extern int sentai_fr_task_start(void);
 
+        const char *no_fr = getenv("SENTAI_SIM_NO_FR");
+        if (no_fr && no_fr[0] != '\0' && strcmp(no_fr, "0") != 0) {
+            printf("[sim] sentai.fr auto-start disabled by SENTAI_SIM_NO_FR\n");
+        } else {
         const char *fr_dir = getenv("SENTAI_FR_DIR");
         char fr_dir_buf[512];
         if (fr_dir == NULL) {
@@ -307,10 +291,7 @@ static void repl_task(void *param) {
         printf("[sim] sentai.fr auto-start: dir=%s init=%d events=%d "
                "scalars=%d debug=%d task=%d\n",
                fr_dir, rc_init, rc_events, rc_scalars, rc_debug, rc_task);
-
-        /* Journal_open is MP-side (sim-only).  Bare filename per
-         * sim_fs_resolve contract — absolute paths fail silently. */
-        mp_embed_exec_str("sentai.sim.journal_open('startup_journal.txt')\n");
+        }
     }
 
     printf("\n");
@@ -358,9 +339,11 @@ static void repl_task(void *param) {
      * so CI can capture the return code. */
     printf("[sim] REPL task done, terminating process\n");
     fflush(stdout);
-    vTaskDelay(pdMS_TO_TICKS(100));
     sim_debug_tee_flush();
-    exit(0);
+    /* exit(0) can run POSIX/libusb/stdio cleanup from inside a FreeRTOS task
+     * pthread and leave the simulator process alive after the REPL finished.
+     * We flushed the debug tee above, so terminate the whole SIM process now. */
+    _Exit(0);
 }
 
 /* ---- Main ---- */
@@ -370,6 +353,11 @@ int main(void) {
     signal(SIGINT, sigint_handler);
 
     sim_debug_tee_start();
+
+    int flags = fcntl(STDIN_FILENO, F_GETFL, 0);
+    if (flags >= 0) {
+        (void)fcntl(STDIN_FILENO, F_SETFL, flags | O_NONBLOCK);
+    }
 
     printf("[sim] sentai_sim build #%d (%s)\n", BUILD_VERSION, BUILD_TIMESTAMP);
     printf("[sim] FreeRTOS POSIX port: tick=%u Hz, heap=%u bytes\n",
@@ -388,7 +376,7 @@ int main(void) {
         repl_task, "repl",
         configMINIMAL_STACK_SIZE * 8,    /* generous: MP can recurse */
         NULL,
-        tskIDLE_PRIORITY + 2,
+        tskIDLE_PRIORITY,
         NULL);
     configASSERT(ok == pdPASS);
 
@@ -398,7 +386,13 @@ int main(void) {
      * ARM firmware.  Safe to start before the scheduler — it's just an
      * xTaskCreateStatic that returns immediately. */
     extern void sim_camera_bridge_start(void);
-    sim_camera_bridge_start();
+    const char *no_cam_bridge = getenv("SENTAI_SIM_NO_CAMERA_BRIDGE");
+    if (no_cam_bridge && no_cam_bridge[0] != '\0' &&
+        strcmp(no_cam_bridge, "0") != 0) {
+        printf("[sim] camera bridge disabled by SENTAI_SIM_NO_CAMERA_BRIDGE\n");
+    } else {
+        sim_camera_bridge_start();
+    }
 
     vTaskStartScheduler();
 
@@ -469,7 +463,7 @@ const char sentai_help_builtin_text[] =
     "  sentai.verbose([on])       - silence/restore [SIM] log output\n"
     "  sentai.io.led_on/off()     - LED stub (printf to stdout)\n"
     "  sentai.rtos.sleep_ms(ms)   - vTaskDelay\n"
-    "  sentai.diag.dmesg()        - in-memory log ring (4 KB)\n"
+    "  sentai.rtos.dmesg()        - in-memory runtime log ring\n"
     "  sentai.sys.reset()         - clean exit\n"
     "  sentai.fs.write/append/read/read_str(path[, bytes])\n"
     "  sentai.fs.exists/size/ls/mkdir/remove/sync()\n"

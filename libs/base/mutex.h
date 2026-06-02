@@ -20,8 +20,10 @@
 #include "libs/base/check.h"
 #include "third_party/freertos_kernel/include/FreeRTOS.h"
 #include "third_party/freertos_kernel/include/semphr.h"
+#ifndef SENTAI_PLATFORM_SIM
 #include "third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_sema4.h"
 #include "third_party/nxp/rt1176-sdk/devices/MIMXRT1176/fsl_device_registers.h"
+#endif
 
 namespace coralmicro {
 // Defines a mutex lock for the active MCU core, ensuring safe handling of
@@ -74,6 +76,9 @@ class MulticoreMutexLock {
   // Must be within range of the maximum number of gates available on the
   // hardware (16).
   explicit MulticoreMutexLock(uint8_t gate) : gate_(gate) {
+#ifdef SENTAI_PLATFORM_SIM
+    (void)gate_;
+#else
     assert(gate < SEMA4_GATE_COUNT);
 #if (__CORTEX_M == 7)
     core_ = 0;
@@ -83,9 +88,14 @@ class MulticoreMutexLock {
 #error "Unknown __CORTEX_M"
 #endif
     SEMA4_Lock(SEMA4, gate_, core_);
+#endif
   }
   // @cond
-  ~MulticoreMutexLock() { SEMA4_Unlock(SEMA4, gate_); }
+  ~MulticoreMutexLock() {
+#ifndef SENTAI_PLATFORM_SIM
+    SEMA4_Unlock(SEMA4, gate_);
+#endif
+  }
 
   MulticoreMutexLock(const MutexLock&) = delete;
   MulticoreMutexLock& operator=(const MutexLock&) = delete;
@@ -93,7 +103,9 @@ class MulticoreMutexLock {
 
  private:
   uint8_t gate_;
+#ifndef SENTAI_PLATFORM_SIM
   uint8_t core_;
+#endif
 };
 
 }  // namespace coralmicro

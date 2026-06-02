@@ -31,6 +31,8 @@
 
 #include <stdint.h>
 
+#include "sentai_log.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -244,12 +246,14 @@ extern "C" {
 
 // Compact error logging: "E:MMEE:val" format (12 chars max)
 // Example: "E:0101:3" = Link TX timeout, retry 3
-#define SERR_LOG(code, val) printf("E:%04X:%lu\r\n", (unsigned)(code), (unsigned long)(val))
+#define SERR_LOG(code, val) \
+    sentai_logf(NULL, "E:%04X:%lu", (unsigned)(code), (unsigned long)(val))
 
 // Log with context (for crash log): includes timestamp
 #define SERR_LOG_TS(code, val) do { \
     uint32_t _ts = xTaskGetTickCount() * portTICK_PERIOD_MS; \
-    printf("E:%04X:%lu@%lu\r\n", (unsigned)(code), (unsigned long)(val), (unsigned long)_ts); \
+    sentai_logf(NULL, "E:%04X:%lu@%lu", (unsigned)(code), \
+                (unsigned long)(val), (unsigned long)_ts); \
 } while(0)
 
 #ifdef __cplusplus

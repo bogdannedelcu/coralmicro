@@ -33,8 +33,15 @@
 #define FLOW_BENCH_GRAY_H      60
 #define FLOW_BENCH_GRAY_PIX    (FLOW_BENCH_GRAY_W * FLOW_BENCH_GRAY_H)
 
+#if defined(SENTAI_PLATFORM_SIM)
+extern uint8_t g_sentai_flow_bench_curr[FLOW_BENCH_GRAY_PIX];
+extern uint8_t g_sentai_flow_bench_prev[FLOW_BENCH_GRAY_PIX];
+#define FLOW_BENCH_CURR_PTR    (g_sentai_flow_bench_curr)
+#define FLOW_BENCH_PREV_PTR    (g_sentai_flow_bench_prev)
+#else
 #define FLOW_BENCH_CURR_PTR    ((uint8_t*)(FLOW_BENCH_OCRAM_BASE + 0))
 #define FLOW_BENCH_PREV_PTR    ((uint8_t*)(FLOW_BENCH_OCRAM_BASE + FLOW_BENCH_GRAY_PIX))
+#endif
 
 /* SAD block + search range — match flow_task.cc kBlockW / kSearchRange.
  * Hardcoded here so the M4 port doesn't need to include flow_task.cc. */

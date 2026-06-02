@@ -55,6 +55,8 @@ typedef enum {
     SENTAI_PREP_SLOT_GRAY_NATIVE = 0,    // Y8,   320×240 (or native scaled)
     SENTAI_PREP_SLOT_RGB_64      = 1,    // RGB888 packed, 64×64
     SENTAI_PREP_SLOT_GRAY_64     = 2,    // Y8,   64×64
+    SENTAI_PREP_SLOT_TPU_RGB     = 3,    // RGB888 packed, model input dims
+    SENTAI_PREP_SLOT_FLOW_GRAY_80x60 = 4, // Y8,  80×60 for optical flow
     SENTAI_PREP_SLOT_COUNT
 } sentai_prep_slot_id_t;
 
@@ -153,6 +155,16 @@ int sentai_prep_slot_set_div(sentai_prep_slot_id_t id, int n);
 uint8_t* sentai_prep_slot_begin_write(sentai_prep_slot_id_t id,
                                        int* out_w, int* out_h);
 void     sentai_prep_slot_commit(sentai_prep_slot_id_t id);
+void     sentai_prep_slot_commit_dims(sentai_prep_slot_id_t id, int w, int h);
+
+// Consumer-side event wait.  Producers publish a generic "slot updated"
+// event on every commit; consumers decide whether to wait for it.
+// Returns 0 when slot.seq changed from last_seq, -1 on invalid/cold slot,
+// -2 on timeout.  timeout_ms < 0 waits forever.
+int sentai_prep_slot_wait_update(sentai_prep_slot_id_t id,
+                                  uint32_t last_seq,
+                                  int timeout_ms,
+                                  uint32_t* out_seq);
 
 // Producer-side: increment frames_total counter (called by PrepTask
 // once per camera frame regardless of slot state).  Sets up the

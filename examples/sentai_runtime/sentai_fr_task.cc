@@ -42,6 +42,7 @@
 
 #include "sentai_fr.h"
 #include "sentai_fr_task.h"
+#include "sentai_log.h"
 
 #include <stdio.h>
 #include <stdint.h>
@@ -70,7 +71,7 @@ void worker_main_loop_() {
     // One-shot start / end markers so operators can confirm in stderr
     // that the recorder task was actually scheduled.  Per-tick prints
     // were used during s170 bring-up but are noise once stable.
-    fprintf(stderr, "[sentai_fr] worker START\n");
+    sentai_logf("sentai_fr", "worker START");
     uint32_t round         = 0;
     uint32_t total_drained = 0;
     while (!s_stop_flag) {
@@ -84,9 +85,8 @@ void worker_main_loop_() {
     for (uint32_t i = 0; i < FR_FINAL_DRAINS; ++i) {
         if (sentai_fr_drain_round() == 0) break;
     }
-    fprintf(stderr,
-            "[sentai_fr] worker STOP rounds=%u drained=%u\n",
-            (unsigned)round, (unsigned)total_drained);
+    sentai_logf("sentai_fr", "worker STOP rounds=%u drained=%u",
+                (unsigned)round, (unsigned)total_drained);
 }
 
 void worker_task_entry(void*) {
@@ -111,7 +111,7 @@ extern "C" int sentai_fr_task_start(void) {
         tskIDLE_PRIORITY + 2,
         &s_task_handle);
     if (ok != pdPASS || !s_task_handle) {             // F2
-        fprintf(stderr, "[sentai_fr] xTaskCreate FAIL ok=%ld\n", (long)ok);
+        sentai_logf("sentai_fr", "xTaskCreate FAIL ok=%ld", (long)ok);
         return -1;
     }
     s_started = true;

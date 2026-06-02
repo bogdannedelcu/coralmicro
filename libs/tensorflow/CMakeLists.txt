@@ -54,6 +54,7 @@ set(libs_tensorflow_SOURCES
     ${PROJECT_SOURCE_DIR}/third_party/tflite-micro/tensorflow/lite/micro/flatbuffer_utils.cc
     ${PROJECT_SOURCE_DIR}/third_party/tflite-micro/tensorflow/lite/micro/kernels/activations.cc
     ${PROJECT_SOURCE_DIR}/third_party/tflite-micro/tensorflow/lite/micro/kernels/activations_common.cc
+    ${PROJECT_SOURCE_DIR}/third_party/tflite-micro/tensorflow/lite/micro/kernels/add.cc
     ${PROJECT_SOURCE_DIR}/third_party/tflite-micro/tensorflow/lite/micro/kernels/add_common.cc
     ${PROJECT_SOURCE_DIR}/third_party/tflite-micro/tensorflow/lite/micro/kernels/add_n.cc
     ${PROJECT_SOURCE_DIR}/third_party/tflite-micro/tensorflow/lite/micro/kernels/arg_min_max.cc
@@ -76,9 +77,11 @@ set(libs_tensorflow_SOURCES
     ${PROJECT_SOURCE_DIR}/third_party/tflite-micro/tensorflow/lite/micro/kernels/cmsis_nn/svdf.cc
     ${PROJECT_SOURCE_DIR}/third_party/tflite-micro/tensorflow/lite/micro/kernels/comparisons.cc
     ${PROJECT_SOURCE_DIR}/third_party/tflite-micro/tensorflow/lite/micro/kernels/concatenation.cc
+    ${PROJECT_SOURCE_DIR}/third_party/tflite-micro/tensorflow/lite/micro/kernels/conv.cc
     ${PROJECT_SOURCE_DIR}/third_party/tflite-micro/tensorflow/lite/micro/kernels/conv_common.cc
     ${PROJECT_SOURCE_DIR}/third_party/tflite-micro/tensorflow/lite/micro/kernels/cumsum.cc
     ${PROJECT_SOURCE_DIR}/third_party/tflite-micro/tensorflow/lite/micro/kernels/depth_to_space.cc
+    ${PROJECT_SOURCE_DIR}/third_party/tflite-micro/tensorflow/lite/micro/kernels/depthwise_conv.cc
     ${PROJECT_SOURCE_DIR}/third_party/tflite-micro/tensorflow/lite/micro/kernels/depthwise_conv_common.cc
     ${PROJECT_SOURCE_DIR}/third_party/tflite-micro/tensorflow/lite/micro/kernels/dequantize.cc
     ${PROJECT_SOURCE_DIR}/third_party/tflite-micro/tensorflow/lite/micro/kernels/dequantize_common.cc
@@ -93,6 +96,7 @@ set(libs_tensorflow_SOURCES
     ${PROJECT_SOURCE_DIR}/third_party/tflite-micro/tensorflow/lite/micro/kernels/floor.cc
     ${PROJECT_SOURCE_DIR}/third_party/tflite-micro/tensorflow/lite/micro/kernels/floor_div.cc
     ${PROJECT_SOURCE_DIR}/third_party/tflite-micro/tensorflow/lite/micro/kernels/floor_mod.cc
+    ${PROJECT_SOURCE_DIR}/third_party/tflite-micro/tensorflow/lite/micro/kernels/fully_connected.cc
     ${PROJECT_SOURCE_DIR}/third_party/tflite-micro/tensorflow/lite/micro/kernels/fully_connected_common.cc
     ${PROJECT_SOURCE_DIR}/third_party/tflite-micro/tensorflow/lite/micro/kernels/gather.cc
     ${PROJECT_SOURCE_DIR}/third_party/tflite-micro/tensorflow/lite/micro/kernels/gather_nd.cc
@@ -114,6 +118,7 @@ set(libs_tensorflow_SOURCES
     ${PROJECT_SOURCE_DIR}/third_party/tflite-micro/tensorflow/lite/micro/kernels/maximum_minimum.cc
     ${PROJECT_SOURCE_DIR}/third_party/tflite-micro/tensorflow/lite/micro/kernels/micro_tensor_utils.cc
     ${PROJECT_SOURCE_DIR}/third_party/tflite-micro/tensorflow/lite/micro/kernels/mirror_pad.cc
+    ${PROJECT_SOURCE_DIR}/third_party/tflite-micro/tensorflow/lite/micro/kernels/mul.cc
     ${PROJECT_SOURCE_DIR}/third_party/tflite-micro/tensorflow/lite/micro/kernels/mul_common.cc
     ${PROJECT_SOURCE_DIR}/third_party/tflite-micro/tensorflow/lite/micro/kernels/neg.cc
     ${PROJECT_SOURCE_DIR}/third_party/tflite-micro/tensorflow/lite/micro/kernels/pack.cc
@@ -132,6 +137,7 @@ set(libs_tensorflow_SOURCES
     ${PROJECT_SOURCE_DIR}/third_party/tflite-micro/tensorflow/lite/micro/kernels/round.cc
     ${PROJECT_SOURCE_DIR}/third_party/tflite-micro/tensorflow/lite/micro/kernels/shape.cc
     ${PROJECT_SOURCE_DIR}/third_party/tflite-micro/tensorflow/lite/micro/kernels/slice.cc
+    ${PROJECT_SOURCE_DIR}/third_party/tflite-micro/tensorflow/lite/micro/kernels/softmax.cc
     ${PROJECT_SOURCE_DIR}/third_party/tflite-micro/tensorflow/lite/micro/kernels/softmax_common.cc
     ${PROJECT_SOURCE_DIR}/third_party/tflite-micro/tensorflow/lite/micro/kernels/space_to_batch_nd.cc
     ${PROJECT_SOURCE_DIR}/third_party/tflite-micro/tensorflow/lite/micro/kernels/space_to_depth.cc
@@ -171,6 +177,35 @@ set(libs_tensorflow_SOURCES
     ${PROJECT_SOURCE_DIR}/third_party/tflite-micro/tensorflow/lite/micro/system_setup.cc
     ${PROJECT_SOURCE_DIR}/third_party/tflite-micro/tensorflow/lite/schema/schema_utils.cc
 )
+
+if(SENTAI_SIM)
+    set(libs_tensorflow_sim_SOURCES ${libs_tensorflow_SOURCES})
+    list(FILTER libs_tensorflow_sim_SOURCES EXCLUDE REGEX "/cmsis_nn/")
+    list(FILTER libs_tensorflow_sim_SOURCES EXCLUDE REGEX "/arc_mli/")
+    list(FILTER libs_tensorflow_sim_SOURCES EXCLUDE REGEX "/ceva/")
+
+    add_library_sim(libs_tensorflow_sim STATIC
+        ${libs_tensorflow_sim_SOURCES}
+        ${PROJECT_SOURCE_DIR}/third_party/flatbuffers/src/util.cpp
+    )
+    target_compile_definitions(libs_tensorflow_sim PUBLIC
+        TF_LITE_STRIP_ERROR_STRINGS
+    )
+    target_include_directories(libs_tensorflow_sim PUBLIC
+        ${PROJECT_SOURCE_DIR}/third_party/tflite-micro
+        ${PROJECT_SOURCE_DIR}/third_party/flatbuffers/include
+        ${PROJECT_SOURCE_DIR}/third_party/gemmlowp
+        ${PROJECT_SOURCE_DIR}/third_party/ruy
+        ${PROJECT_SOURCE_DIR}/third_party/kissfft
+    )
+    target_compile_options(libs_tensorflow_sim PRIVATE
+        -Wno-sign-compare
+        -Wno-missing-field-initializers
+        -Wno-unused-variable
+        -Wno-unused-but-set-variable
+    )
+    return()
+endif()
 
 add_library_m7(libs_tensorflow-m7 STATIC
     classification.cc

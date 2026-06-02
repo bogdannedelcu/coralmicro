@@ -60,7 +60,7 @@
 // the weak stub below lets ARM builds link.  When ARM proper LOG routing
 // lands, drop the weak attribute and forward to the real ring.
 //
-// Signature mirrors sim/sentai_crazy_sim.cc:
+// Signature mirrors sim/sentai_crazy_crtp_udp_bridge.cc:
 //   int sentai_crazy_recv_pop(uint8_t* port, uint8_t* ch,
 //                              uint8_t* data, int max_len, int* out_len);
 //   returns 1 if a packet was popped, 0 if empty.

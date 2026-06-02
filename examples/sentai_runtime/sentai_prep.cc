@@ -9,6 +9,12 @@
 #include "sentai_prep.h"
 #include "sentai_error.h"
 
+#include <FreeRTOS.h>
+#if !defined(SENTAI_PLATFORM_SIM)
+#include <semphr.h>
+#endif
+#include <task.h>
+
 #include <stdint.h>
 #include <stdio.h>     // SERR_LOG → printf
 #include <string.h>
@@ -35,6 +41,10 @@
 #define RGB_64_H         64
 #define GRAY_64_W        64
 #define GRAY_64_H        64
+#define TPU_RGB_W       640
+#define TPU_RGB_H       480
+#define FLOW_GRAY_W      80
+#define FLOW_GRAY_H      60
 
 typedef struct {
     sentai_prep_fmt_t fmt;
@@ -55,6 +65,14 @@ static const slot_desc_t s_desc[SENTAI_PREP_SLOT_COUNT] = {
     [SENTAI_PREP_SLOT_GRAY_64] = {
         SENTAI_PREP_FMT_Y8,     GRAY_64_W,     GRAY_64_H,
         GRAY_64_W * GRAY_64_H,
+    },
+    [SENTAI_PREP_SLOT_TPU_RGB] = {
+        SENTAI_PREP_FMT_RGB888, TPU_RGB_W,     TPU_RGB_H,
+        TPU_RGB_W * TPU_RGB_H * 3,
+    },
+    [SENTAI_PREP_SLOT_FLOW_GRAY_80x60] = {
+        SENTAI_PREP_FMT_Y8,     FLOW_GRAY_W,   FLOW_GRAY_H,
+        FLOW_GRAY_W * FLOW_GRAY_H,
     },
 };
 
@@ -80,11 +98,15 @@ static slot_state_t s_state[SENTAI_PREP_SLOT_COUNT];
 static uint8_t s_buf_gray_native[GRAY_NATIVE_W * GRAY_NATIVE_H] SENTAI_PREP_BSS;
 static uint8_t s_buf_rgb_64     [RGB_64_W * RGB_64_H * 3]       SENTAI_PREP_BSS;
 static uint8_t s_buf_gray_64    [GRAY_64_W * GRAY_64_H]         SENTAI_PREP_BSS;
+static uint8_t s_buf_tpu_rgb    [TPU_RGB_W * TPU_RGB_H * 3]     SENTAI_PREP_BSS;
+static uint8_t s_buf_flow_gray  [FLOW_GRAY_W * FLOW_GRAY_H]      SENTAI_PREP_BSS;
 
 static uint8_t* const s_buf[SENTAI_PREP_SLOT_COUNT] = {
     [SENTAI_PREP_SLOT_GRAY_NATIVE] = s_buf_gray_native,
     [SENTAI_PREP_SLOT_RGB_64]      = s_buf_rgb_64,
     [SENTAI_PREP_SLOT_GRAY_64]     = s_buf_gray_64,
+    [SENTAI_PREP_SLOT_TPU_RGB]     = s_buf_tpu_rgb,
+    [SENTAI_PREP_SLOT_FLOW_GRAY_80x60] = s_buf_flow_gray,
 };
 
 // =========================================================================
@@ -93,6 +115,10 @@ static uint8_t* const s_buf[SENTAI_PREP_SLOT_COUNT] = {
 static uint32_t s_frames_total      = 0;
 static uint32_t s_frames_with_aux   = 0;
 static uint32_t s_producer_overruns = 0;
+#if !defined(SENTAI_PLATFORM_SIM)
+static StaticSemaphore_t s_update_sem_buf[SENTAI_PREP_SLOT_COUNT];
+static SemaphoreHandle_t s_update_sem[SENTAI_PREP_SLOT_COUNT];
+#endif
 
 // Bitmask: bit i = SERR_PREP_TORN_READ was already logged for slot i
 // in this session.  Defined here (before init/reset functions that
@@ -106,6 +132,27 @@ static int slot_id_ok(sentai_prep_slot_id_t id) {
     return (id >= 0) && (id < SENTAI_PREP_SLOT_COUNT);
 }
 
+#if !defined(SENTAI_PLATFORM_SIM)
+static SemaphoreHandle_t slot_update_sem(sentai_prep_slot_id_t id) {
+    if (!slot_id_ok(id)) return NULL;
+    if (!s_update_sem[id]) {
+        s_update_sem[id] = xSemaphoreCreateBinaryStatic(&s_update_sem_buf[id]);
+    }
+    return s_update_sem[id];
+}
+
+static void publish_slot_update(sentai_prep_slot_id_t id) {
+    SemaphoreHandle_t sem = slot_update_sem(id);
+    if (sem) {
+        xSemaphoreGive(sem);
+    }
+}
+#else
+static void publish_slot_update(sentai_prep_slot_id_t id) {
+    (void)id;
+}
+#endif
+
 // =========================================================================
 // Public API
 // =========================================================================
@@ -114,6 +161,11 @@ extern "C" void sentai_prep_init(void) {
     memset(s_state, 0, sizeof(s_state));
     for (int i = 0; i < SENTAI_PREP_SLOT_COUNT; ++i) {
         s_state[i].frame_div = 1;     // default = every frame
+#if !defined(SENTAI_PLATFORM_SIM)
+        (void)slot_update_sem((sentai_prep_slot_id_t)i);
+        while (s_update_sem[i] && xSemaphoreTake(s_update_sem[i], 0) == pdTRUE) {
+        }
+#endif
     }
     s_frames_total      = 0;
     s_frames_with_aux   = 0;
@@ -235,6 +287,72 @@ extern "C" void sentai_prep_slot_commit(sentai_prep_slot_id_t id) {
     s_state[id].cur_h = s_desc[id].max_h;
     SENTAI_PREP_DMB();
     s_state[id].seq++;
+    publish_slot_update(id);
+}
+
+extern "C" void sentai_prep_slot_commit_dims(sentai_prep_slot_id_t id,
+                                             int w, int h) {
+    if (!slot_id_ok(id)) return;
+    if (w <= 0 || h <= 0 || w > s_desc[id].max_w || h > s_desc[id].max_h) {
+        SERR_LOG(SERR_PREP_BAD_SLOT, (uint32_t)id);
+        return;
+    }
+    s_state[id].cur_w = w;
+    s_state[id].cur_h = h;
+    SENTAI_PREP_DMB();
+    s_state[id].seq++;
+    publish_slot_update(id);
+}
+
+extern "C" int sentai_prep_slot_wait_update(sentai_prep_slot_id_t id,
+                                             uint32_t last_seq,
+                                             int timeout_ms,
+                                             uint32_t* out_seq) {
+    if (!slot_id_ok(id)) return -1;
+#if defined(SENTAI_PLATFORM_SIM)
+    const TickType_t start = xTaskGetTickCount();
+    const TickType_t total = (timeout_ms < 0) ? portMAX_DELAY :
+                             pdMS_TO_TICKS((uint32_t)timeout_ms);
+    for (;;) {
+        const uint32_t seq = s_state[id].seq;
+        if (seq != 0 && seq != last_seq) {
+            if (out_seq) *out_seq = seq;
+            return 0;
+        }
+        if (timeout_ms == 0) return -2;
+        if (timeout_ms >= 0 && (xTaskGetTickCount() - start) >= total) {
+            return -2;
+        }
+        taskYIELD();
+    }
+#else
+    SemaphoreHandle_t sem = slot_update_sem(id);
+    if (!sem) return -1;
+
+    const TickType_t start = xTaskGetTickCount();
+    TickType_t wait_ticks = (timeout_ms < 0) ? portMAX_DELAY :
+                            pdMS_TO_TICKS((uint32_t)timeout_ms);
+    for (;;) {
+        const uint32_t seq = s_state[id].seq;
+        if (seq != 0 && seq != last_seq) {
+            if (out_seq) *out_seq = seq;
+            return 0;
+        }
+        if (xSemaphoreTake(sem, wait_ticks) != pdTRUE) {
+            return -2;
+        }
+        if (timeout_ms < 0) {
+            wait_ticks = portMAX_DELAY;
+            continue;
+        }
+        const TickType_t elapsed = xTaskGetTickCount() - start;
+        const TickType_t total = pdMS_TO_TICKS((uint32_t)timeout_ms);
+        if (elapsed >= total) {
+            return -2;
+        }
+        wait_ticks = total - elapsed;
+    }
+#endif
 }
 
 extern "C" uint32_t sentai_prep_tick_frame(void) {

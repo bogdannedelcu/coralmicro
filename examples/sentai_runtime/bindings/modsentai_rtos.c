@@ -1,6 +1,10 @@
 // ============== sentai.rtos — FreeRTOS system ==============
 // This file is #include'd from modsentai.c — do NOT compile separately.
 
+#include "sentai_dmesg.h"
+
+extern void sentai_repl_activity(void);
+
 // sentai.rtos.sleep_ms(ms)
 // Chunked + drains the MicroPython scheduler queue every 10 ms so
 // async callbacks (e.g. sentai.crazy.on_message dispatch trampoline)
@@ -244,6 +248,52 @@ static mp_obj_t mod_sentai_uptime(void) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_uptime_obj, mod_sentai_uptime);
 
+// ===================== Runtime log / REPL supervision =====================
+
+// sentai.rtos.dmesg([max_bytes]) -> str
+// Runtime-owned in-RAM ring log.  Kept here instead of sentai.diag so REPL
+// supervision and task diagnostics stay with the RTOS namespace.
+static mp_obj_t mod_sentai_rtos_dmesg(size_t n_args, const mp_obj_t *args) {
+    int max_bytes = (n_args >= 1) ? mp_obj_get_int(args[0]) : 16384;
+    if (max_bytes < 64)    max_bytes = 64;
+    if (max_bytes > 65536) max_bytes = 65536;
+
+    char* buf = m_new(char, max_bytes);
+    size_t n = sentai_dmesg_read(buf, (size_t)max_bytes);
+    mp_obj_t result = mp_obj_new_str(buf, n);
+    m_del(char, buf, max_bytes);
+    return result;
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_rtos_dmesg_obj,
+                                            0, 1, mod_sentai_rtos_dmesg);
+
+// sentai.rtos.dmesg_clear() -> None
+static mp_obj_t mod_sentai_rtos_dmesg_clear(void) {
+    sentai_dmesg_clear();
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_rtos_dmesg_clear_obj,
+                                  mod_sentai_rtos_dmesg_clear);
+
+// sentai.rtos.dmesg_stats() -> (bytes_used, bytes_dropped)
+static mp_obj_t mod_sentai_rtos_dmesg_stats(void) {
+    mp_obj_t items[2] = {
+        mp_obj_new_int_from_uint((uint32_t)sentai_dmesg_used()),
+        mp_obj_new_int_from_uint(sentai_dmesg_dropped()),
+    };
+    return mp_obj_new_tuple(2, items);
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_rtos_dmesg_stats_obj,
+                                  mod_sentai_rtos_dmesg_stats);
+
+// sentai.rtos.repl_kick() -> None
+static mp_obj_t mod_sentai_rtos_repl_kick(void) {
+    sentai_repl_activity();
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_rtos_repl_kick_obj,
+                                  mod_sentai_rtos_repl_kick);
+
 // ===================== Crash/Hang stats =====================
 // Get network/HTTP health stats for debugging hangs
 
@@ -271,6 +321,10 @@ static const mp_rom_map_elem_t sentai_rtos_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_heap_info),    MP_ROM_PTR(&mod_sentai_heap_info_obj) },
     { MP_ROM_QSTR(MP_QSTR_cpu_usage),    MP_ROM_PTR(&mod_sentai_cpu_usage_obj) },
     { MP_ROM_QSTR(MP_QSTR_uptime),       MP_ROM_PTR(&mod_sentai_uptime_obj) },
+    { MP_ROM_QSTR(MP_QSTR_dmesg),        MP_ROM_PTR(&mod_sentai_rtos_dmesg_obj) },
+    { MP_ROM_QSTR(MP_QSTR_dmesg_clear),  MP_ROM_PTR(&mod_sentai_rtos_dmesg_clear_obj) },
+    { MP_ROM_QSTR(MP_QSTR_dmesg_stats),  MP_ROM_PTR(&mod_sentai_rtos_dmesg_stats_obj) },
+    { MP_ROM_QSTR(MP_QSTR_repl_kick),    MP_ROM_PTR(&mod_sentai_rtos_repl_kick_obj) },
     { MP_ROM_QSTR(MP_QSTR_suspend),      MP_ROM_PTR(&mod_sentai_task_suspend_obj) },
     { MP_ROM_QSTR(MP_QSTR_resume),       MP_ROM_PTR(&mod_sentai_task_resume_obj) },
     { MP_ROM_QSTR(MP_QSTR_suspend_all),  MP_ROM_PTR(&mod_sentai_task_suspend_all_obj) },

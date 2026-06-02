@@ -1,5 +1,5 @@
 /*
- * sentai_link_sim.cc — SIM-only slim MAVLink bridge (replaces the ARM
+ * sentai_mavlink_udp_bridge.cc — SIM-only MAVLink-over-UDP bridge (replaces the ARM
  * sentai_link.cc which depends on tracker/mesh/health/nanopb).
  *
  * Implements the SAME public C ABI as sentai_link.cc so that
@@ -431,6 +431,10 @@ extern "C" int sentai_link_stop(void) {
     return 1;
 }
 
+extern "C" int sentai_link_is_running(void) {
+    return s_open.load() ? 1 : 0;
+}
+
 
 extern "C" void sentai_link_set_debug(int level) {
     if (level < 0) level = 0;
@@ -492,6 +496,18 @@ static int link_send_command_long(uint16_t command,
                 command, (double)p1, w);
     }
     return (w > 0) ? 1 : 0;
+}
+
+extern "C" int sentai_link_send_command_long(
+    uint8_t target_sys, uint8_t target_comp,
+    uint16_t command, uint8_t confirmation,
+    float param1, float param2, float param3, float param4,
+    float param5, float param6, float param7) {
+    (void)target_sys;
+    (void)target_comp;
+    (void)confirmation;
+    return link_send_command_long(command, param1, param2, param3, param4,
+                                  param5, param6, param7);
 }
 
 
@@ -822,4 +838,76 @@ extern "C" int sentai_link_send_vision_update(
     uint32_t, uint32_t,
     int32_t, int32_t, uint8_t) {
     return 0;
+}
+
+extern "C" int sentai_link_send_vision_delete(
+    uint32_t, uint32_t, uint32_t, uint32_t, uint32_t,
+    uint32_t, uint32_t, uint32_t,
+    int32_t, int32_t, uint8_t) {
+    return 0;
+}
+
+extern "C" int sentai_link_send_obstacle_distance(
+    const uint16_t*, uint8_t, uint16_t, uint16_t,
+    float, float, uint8_t, uint8_t) {
+    return 0;
+}
+
+extern "C" int sentai_link_send_obstacles_from_tracker(
+    uint16_t, uint16_t, float, uint8_t, uint8_t, float, uint8_t, uint8_t) {
+    return 0;
+}
+
+extern "C" int sentai_link_send_obstacles_from_points(
+    const int32_t*, const uint16_t*, int,
+    uint16_t, uint16_t, uint8_t, float, uint8_t, uint8_t) {
+    return 0;
+}
+
+typedef struct { uint8_t _opaque[296]; } link_rx_msg_t;
+
+extern "C" int sentai_link_available(void) {
+    return 0;
+}
+
+extern "C" int sentai_link_receive(link_rx_msg_t*) {
+    return 0;
+}
+
+extern "C" int sentai_link_receive_wait(link_rx_msg_t*, int timeout_ms) {
+    if (timeout_ms > 0) vTaskDelay(pdMS_TO_TICKS((TickType_t)timeout_ms));
+    return 0;
+}
+
+extern "C" uint32_t sentai_link_rx_msgid(const link_rx_msg_t*) { return 0; }
+extern "C" uint8_t sentai_link_rx_sysid(const link_rx_msg_t*) { return 0; }
+extern "C" uint8_t sentai_link_rx_compid(const link_rx_msg_t*) { return 0; }
+extern "C" uint8_t sentai_link_rx_seq(const link_rx_msg_t*) { return 0; }
+extern "C" uint8_t sentai_link_rx_len(const link_rx_msg_t*) { return 0; }
+
+extern "C" void sentai_link_rx_local_pos(
+    const link_rx_msg_t*, uint32_t* time_boot_ms,
+    float* x, float* y, float* z, float* vx, float* vy, float* vz) {
+    if (time_boot_ms) *time_boot_ms = 0;
+    if (x) *x = 0.0f;
+    if (y) *y = 0.0f;
+    if (z) *z = 0.0f;
+    if (vx) *vx = 0.0f;
+    if (vy) *vy = 0.0f;
+    if (vz) *vz = 0.0f;
+}
+
+extern "C" void sentai_link_rx_global_pos(
+    const link_rx_msg_t*, uint32_t* time_boot_ms,
+    int32_t* lat, int32_t* lon, int32_t* alt, int32_t* relative_alt,
+    int16_t* vx, int16_t* vy, int16_t* vz, uint16_t* hdg) {
+    if (time_boot_ms) *time_boot_ms = 0;
+    if (lat) *lat = 0;
+    if (lon) *lon = 0;
+    if (alt) *alt = 0;
+    if (relative_alt) *relative_alt = 0;
+    if (vx) *vx = 0;
+    if (vy) *vy = 0;
+    if (vz) *vz = 0;
+    if (hdg) *hdg = 0;
 }

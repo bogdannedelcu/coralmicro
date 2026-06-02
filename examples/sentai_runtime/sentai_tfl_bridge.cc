@@ -14,6 +14,12 @@
 #include "third_party/tflite-micro/tensorflow/lite/micro/micro_error_reporter.h"
 #include "third_party/tflite-micro/tensorflow/lite/micro/micro_interpreter.h"
 #include "third_party/tflite-micro/tensorflow/lite/micro/micro_mutable_op_resolver.h"
+#include "examples/sentai_runtime/sentai_virtual_camera.h"
+
+#ifdef SENTAI_PLATFORM_SIM
+extern "C" int sentai_fs_size(const char* path);
+extern "C" int sentai_fs_read(const char* path, uint8_t* buf, int max_size);
+#endif
 
 // TFL state — owned by this file, accessible via extern "C" bridge functions.
 namespace coralmicro {
@@ -70,22 +76,42 @@ static int tfl_load_impl(const char* path, int arena_kb) {
     tfl_cleanup();
     return -6;
   }
+#ifdef SENTAI_PLATFORM_SIM
+  int model_size = sentai_fs_size(path);
+  if (model_size <= 0) {
+    SERR_LOG(SERR_TPU_MODEL_LOAD, 0);
+    tfl_cleanup();
+    return -2;
+  }
+  coralmicro::g_tfl_model_data->resize((size_t)model_size);
+  int model_read = sentai_fs_read(path, coralmicro::g_tfl_model_data->data(),
+                                  model_size);
+  if (model_read != model_size) {
+    SERR_LOG(SERR_TPU_MODEL_LOAD, 0);
+    tfl_cleanup();
+    return -2;
+  }
+#else
   if (!coralmicro::LfsUserReadFile(path, coralmicro::g_tfl_model_data)) {
     SERR_LOG(SERR_TPU_MODEL_LOAD, 0);
     tfl_cleanup();
     return -2;
   }
+#endif
   printf("TFL model loaded: %lu bytes\r\n",
          (unsigned long)coralmicro::g_tfl_model_data->size());
 
   // MicroMutableOpResolver with CPU-only ops (no EdgeTPU custom op).
   // Covers FC-based models (hello_world, keyword detection, classifiers).
   // For CNN models, use sentai.tpu (EdgeTPU) instead — much faster.
-  static tflite::MicroMutableOpResolver<14> tfl_resolver;
+  static tflite::MicroMutableOpResolver<18> tfl_resolver;
   static tflite::MicroErrorReporter tfl_error_reporter;
   static bool tfl_resolver_init = false;
   if (!tfl_resolver_init) {
     tfl_resolver.AddFullyConnected();
+    tfl_resolver.AddConv2D();
+    tfl_resolver.AddDepthwiseConv2D();
+    tfl_resolver.AddDetectionPostprocess();
     tfl_resolver.AddSoftmax();
     tfl_resolver.AddLogistic();
     tfl_resolver.AddRelu();
@@ -265,8 +291,59 @@ extern "C" void* sentai_tfl_get_input_data(void) {
   return coralmicro::g_tfl_interpreter->input_tensor(0)->data.data;
 }
 
-extern "C" int sentai_tfl_load_image(const char* /* path */) {
-  return -99;  // not implemented — use set_input() with fs.read()
+extern "C" int sentai_tfl_load_image(const char* path) {
+  if (!path || !coralmicro::g_tfl_ready || !coralmicro::g_tfl_interpreter) {
+    return -1;
+  }
+  TfLiteTensor* input = coralmicro::g_tfl_interpreter->input_tensor(0);
+  if (!input || !input->dims || input->dims->size != 4) return -2;
+  const int batch = input->dims->data[0];
+  const int in_h = input->dims->data[1];
+  const int in_w = input->dims->data[2];
+  const int in_c = input->dims->data[3];
+  if (batch != 1 || in_h <= 0 || in_w <= 0 || in_c != 3) return -3;
+  if (input->type != kTfLiteUInt8 && input->type != kTfLiteInt8) return -4;
+  if (input->bytes < (size_t)(in_w * in_h * in_c)) return -5;
+
+  if (sentai_virtual_camera_select(path) != 0) return -6;
+  if (sentai_virtual_camera_publish_loaded() != 0) return -7;
+  uint8_t* xrgb = nullptr;
+  int frame_idx = sentai_virtual_camera_grab_xrgb(&xrgb);
+  if (!sentai_virtual_camera_is_frame_idx(frame_idx) || !xrgb) {
+    return -8;
+  }
+  const int src_w = sentai_virtual_camera_width();
+  const int src_h = sentai_virtual_camera_height();
+  if (src_w <= 0 || src_h <= 0) {
+    sentai_virtual_camera_return_raw(frame_idx);
+    return -9;
+  }
+
+  uint8_t* dst = (uint8_t*)input->data.data;
+  for (int y = 0; y < in_h; ++y) {
+    int sy = (y * src_h) / in_h;
+    if (sy >= src_h) sy = src_h - 1;
+    for (int x = 0; x < in_w; ++x) {
+      int sx = (x * src_w) / in_w;
+      if (sx >= src_w) sx = src_w - 1;
+      const uint8_t* p = xrgb + ((size_t)sy * (size_t)src_w + (size_t)sx) * 4u;
+      const int di = (y * in_w + x) * 3;
+      const int r = p[2];
+      const int g = p[1];
+      const int b = p[0];
+      if (input->type == kTfLiteInt8) {
+        dst[di + 0] = (uint8_t)(r - 128);
+        dst[di + 1] = (uint8_t)(g - 128);
+        dst[di + 2] = (uint8_t)(b - 128);
+      } else {
+        dst[di + 0] = (uint8_t)r;
+        dst[di + 1] = (uint8_t)g;
+        dst[di + 2] = (uint8_t)b;
+      }
+    }
+  }
+  sentai_virtual_camera_return_raw(frame_idx);
+  return 0;
 }
 
 extern "C" int sentai_tfl_save_output(const char* /* path */) {

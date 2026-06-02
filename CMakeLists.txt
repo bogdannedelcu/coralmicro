@@ -105,6 +105,7 @@ if (SENTAI_SIM)
     # compiled in Phase 1 (FreeRTOS POSIX kernel + standalone smoke test).
     # Future phases will incrementally pull in subsets of libs/ and
     # examples/sentai_runtime/ once HAL shims are in place.
+    add_subdirectory(libs/tensorflow)
     add_subdirectory(sim)
 else()
     # ARM build: original layout.

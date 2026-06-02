@@ -7,10 +7,17 @@
 #include "libs/tpu/usb_host_edgetpu.h"
 #include "libs/tpu/apex_firmware.h"
 
+#include "FreeRTOS.h"
+#include "semphr.h"
+#include "task.h"
+#include "examples/sentai_runtime/sentai_log.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <errno.h>
+#include <sys/time.h>
 
 #define EDGETPU_VID 0x1a6e
 #define EDGETPU_PID_DFU 0x089a
@@ -18,6 +25,9 @@
 #define EDGETPU_PID_APP 0x9302
 #define EDGETPU_TIMEOUT_MS 2000
 #define EDGETPU_DFU_TRANSFER_SIZE 256
+#define EDGETPU_ASYNC_POOL_SIZE 8
+#define EDGETPU_EVENT_STACK_WORDS 4096
+#define EDGETPU_CONTROL_MAX_DATA 4096
 
 #define DFU_DNLOAD 1
 #define DFU_UPLOAD 2
@@ -34,6 +44,216 @@ static usb_status_t usb_status_from_libusb(int rc) {
   if (rc == LIBUSB_ERROR_BUSY) return kStatus_USB_Busy;
   if (rc == LIBUSB_ERROR_NO_MEM) return kStatus_USB_AllocFail;
   return kStatus_USB_Error;
+}
+
+typedef struct {
+  volatile int in_use;
+  transfer_callback_t cb;
+  void *cb_param;
+  uint8_t *buffer;
+  SemaphoreHandle_t done;
+  volatile int completed;
+  volatile usb_status_t status;
+  volatile uint32_t transferred;
+} posix_transfer_ctx_t;
+
+static posix_transfer_ctx_t s_async_pool[EDGETPU_ASYNC_POOL_SIZE];
+static StaticTask_t s_event_task_tcb;
+static StackType_t s_event_task_stack[EDGETPU_EVENT_STACK_WORDS];
+static TaskHandle_t s_event_task;
+static libusb_context *s_event_usb_ctx;
+static volatile int s_event_task_running;
+static uint8_t s_control_buf[LIBUSB_CONTROL_SETUP_SIZE + EDGETPU_CONTROL_MAX_DATA];
+extern volatile uint8_t g_sentai_tpu_trace;
+
+static void posix_sleep_ms(unsigned ms);
+
+static posix_transfer_ctx_t *alloc_async_ctx(void) {
+  for (int i = 0; i < EDGETPU_ASYNC_POOL_SIZE; ++i) {
+    if (__sync_bool_compare_and_swap(&s_async_pool[i].in_use, 0, 1)) {
+      memset((void *)&s_async_pool[i], 0, sizeof(s_async_pool[i]));
+      s_async_pool[i].in_use = 1;
+      return &s_async_pool[i];
+    }
+  }
+  return NULL;
+}
+
+static void free_async_ctx(posix_transfer_ctx_t *ctx) {
+  if (!ctx) return;
+  __sync_synchronize();
+  ctx->in_use = 0;
+}
+
+static void posix_libusb_event_task(void *arg) {
+  (void)arg;
+  while (s_event_task_running && s_event_usb_ctx) {
+    struct timeval tv;
+    tv.tv_sec = 0;
+    tv.tv_usec = 0;
+    (void)libusb_handle_events_timeout_completed(s_event_usb_ctx, &tv, NULL);
+    vTaskDelay(pdMS_TO_TICKS(1));
+  }
+  vTaskDelete(NULL);
+}
+
+static void ensure_event_task(libusb_context *ctx) {
+  if (s_event_task) return;
+  s_event_usb_ctx = ctx;
+  s_event_task_running = 1;
+  s_event_task = xTaskCreateStatic(
+      posix_libusb_event_task, "tpu_usb_evt", EDGETPU_EVENT_STACK_WORDS,
+      NULL, tskIDLE_PRIORITY + 2, s_event_task_stack, &s_event_task_tcb);
+}
+
+static void posix_transfer_cb(struct libusb_transfer *transfer) {
+  posix_transfer_ctx_t *ctx = (posix_transfer_ctx_t *)transfer->user_data;
+  usb_status_t st = usb_status_from_libusb(transfer->status);
+  if (transfer->status == LIBUSB_TRANSFER_COMPLETED) st = kStatus_USB_Success;
+  if (transfer->status == LIBUSB_TRANSFER_TIMED_OUT) st = kStatus_USB_TransferFailed;
+  if (transfer->status == LIBUSB_TRANSFER_CANCELLED) st = kStatus_USB_Error;
+  if (ctx) {
+    ctx->status = st;
+    ctx->transferred = (uint32_t)transfer->actual_length;
+    ctx->completed = 1;
+    if (ctx->cb) ctx->cb(ctx->cb_param, ctx->buffer, ctx->transferred, st);
+    if (ctx->done) {
+      xSemaphoreGive(ctx->done);
+    } else {
+      free_async_ctx(ctx);
+    }
+  }
+  libusb_free_transfer(transfer);
+}
+
+static void pump_libusb_once(libusb_context *ctx) {
+  if (!ctx) return;
+  struct timeval tv;
+  tv.tv_sec = 0;
+  tv.tv_usec = 100;
+  (void)libusb_handle_events_timeout_completed(ctx, &tv, NULL);
+}
+
+static uint64_t monotonic_us(void) {
+  struct timespec ts;
+  clock_gettime(CLOCK_MONOTONIC, &ts);
+  return (uint64_t)ts.tv_sec * 1000000ULL + (uint64_t)ts.tv_nsec / 1000ULL;
+}
+
+static usb_status_t submit_transfer(usb_host_edgetpu_instance_t *inst,
+                                    uint8_t ep,
+                                    uint8_t *buffer,
+                                    uint32_t length,
+                                    transfer_callback_t callbackFn,
+                                    void *callbackParam,
+                                    int sync,
+                                    usb_status_t *sync_status,
+                                    uint32_t *sync_transferred) {
+  if (!inst || !inst->dev) return kStatus_USB_InvalidHandle;
+
+  struct libusb_transfer *transfer = libusb_alloc_transfer(0);
+  if (!transfer) return kStatus_USB_AllocFail;
+
+  StaticSemaphore_t sema_buf;
+  SemaphoreHandle_t sema = NULL;
+  posix_transfer_ctx_t *ctx = NULL;
+  if (sync) {
+    sema = xSemaphoreCreateBinaryStatic(&sema_buf);
+    if (!sema) {
+      libusb_free_transfer(transfer);
+      return kStatus_USB_AllocFail;
+    }
+    ctx = alloc_async_ctx();
+    if (!ctx) {
+      libusb_free_transfer(transfer);
+      return kStatus_USB_Busy;
+    }
+    ctx->done = sema;
+  } else {
+    ctx = alloc_async_ctx();
+    if (!ctx) {
+      libusb_free_transfer(transfer);
+      return kStatus_USB_Busy;
+    }
+  }
+  ctx->cb = callbackFn;
+  ctx->cb_param = callbackParam;
+  ctx->buffer = buffer;
+  ctx->status = kStatus_USB_Error;
+  ctx->transferred = 0;
+  ctx->completed = 0;
+
+  if (inst->interrupt_in_ep && ep == inst->interrupt_in_ep) {
+    libusb_fill_interrupt_transfer(transfer, inst->dev, ep, buffer,
+                                   (int)length, posix_transfer_cb, ctx,
+                                   EDGETPU_TIMEOUT_MS);
+  } else if (ep & LIBUSB_ENDPOINT_IN) {
+    libusb_fill_bulk_transfer(transfer, inst->dev, ep, buffer, (int)length,
+                              posix_transfer_cb, ctx, EDGETPU_TIMEOUT_MS);
+  } else {
+    libusb_fill_bulk_transfer(transfer, inst->dev, ep, buffer, (int)length,
+                              posix_transfer_cb, ctx, EDGETPU_TIMEOUT_MS);
+  }
+
+  if (sync && !(ep & LIBUSB_ENDPOINT_IN) && length > 8) {
+    posix_sleep_ms(1);
+  }
+  if (g_sentai_tpu_trace) {
+    sentai_logf("usb-xfer", "submit ep=%02x len=%lu sync=%d",
+                ep, (unsigned long)length, sync);
+  }
+  int rc = libusb_submit_transfer(transfer);
+  if (g_sentai_tpu_trace) {
+    sentai_logf("usb-xfer", "submit rc=%d ep=%02x len=%lu",
+                rc, ep, (unsigned long)length);
+  }
+  if (rc != 0) {
+    free_async_ctx(ctx);
+    libusb_free_transfer(transfer);
+    return usb_status_from_libusb(rc);
+  }
+  if (!sync) {
+    ensure_event_task(inst->usb_ctx);
+    return kStatus_USB_Success;
+  }
+  uint64_t deadline_us = monotonic_us() +
+                         (uint64_t)(EDGETPU_TIMEOUT_MS + 500) * 1000ULL;
+  if (g_sentai_tpu_trace) {
+    sentai_logf("usb-xfer", "wait ep=%02x len=%lu",
+                ep, (unsigned long)length);
+  }
+  while (!ctx->completed) {
+    pump_libusb_once(inst->usb_ctx);
+    (void)xSemaphoreTake(sema, 0);
+    if (monotonic_us() >= deadline_us) break;
+    posix_sleep_ms(1);
+  }
+  if (!ctx->completed) {
+    sentai_logf("tpu-posix", "usb timeout ep=%02x len=%lu sync=%d",
+                ep, (unsigned long)length, sync);
+    libusb_cancel_transfer(transfer);
+    deadline_us = monotonic_us() + 250000ULL;
+    while (!ctx->completed) {
+      pump_libusb_once(inst->usb_ctx);
+      (void)xSemaphoreTake(sema, 0);
+      if (monotonic_us() >= deadline_us) break;
+      posix_sleep_ms(1);
+    }
+  }
+  if (!ctx->completed) {
+    ctx->cb = NULL;
+    ctx->cb_param = NULL;
+    ctx->done = NULL;
+    if (sync_status) *sync_status = kStatus_USB_TransferFailed;
+    if (sync_transferred) *sync_transferred = 0;
+    return kStatus_USB_TransferFailed;
+  }
+  usb_status_t final_status = ctx->status;
+  uint32_t final_transferred = ctx->transferred;
+  free_async_ctx(ctx);
+  if (sync_status) *sync_status = final_status;
+  if (sync_transferred) *sync_transferred = final_transferred;
+  return final_status;
 }
 
 static int dfu_get_status(libusb_device_handle *dev, int iface,
@@ -63,7 +283,7 @@ static void posix_sleep_ms(unsigned ms) {
   struct timespec ts;
   ts.tv_sec = ms / 1000U;
   ts.tv_nsec = (long)(ms % 1000U) * 1000000L;
-  nanosleep(&ts, NULL);
+  while (nanosleep(&ts, &ts) != 0 && errno == EINTR) {}
 }
 
 static void dfu_sleep_status_poll(const uint8_t status[6]) {
@@ -93,6 +313,16 @@ static int open_dfu_device(libusb_context *ctx, libusb_device_handle **out,
   return 0;
 }
 
+static libusb_device_handle *open_app_device_with_retry(libusb_context *ctx) {
+  for (int i = 0; i < 30; ++i) {
+    libusb_device_handle *dev =
+        libusb_open_device_with_vid_pid(ctx, EDGETPU_APP_VID, EDGETPU_PID_APP);
+    if (dev) return dev;
+    posix_sleep_ms(100);
+  }
+  return NULL;
+}
+
 static usb_status_t edgetpu_dfu_load_if_needed(libusb_context *ctx) {
   libusb_device_handle *app =
       libusb_open_device_with_vid_pid(ctx, EDGETPU_APP_VID, EDGETPU_PID_APP);
@@ -106,8 +336,8 @@ static usb_status_t edgetpu_dfu_load_if_needed(libusb_context *ctx) {
   int rc = open_dfu_device(ctx, &dfu, &iface);
   if (rc != 0) return usb_status_from_libusb(rc);
 
-  printf("[tpu-posix] DFU loading EdgeTPU firmware len=%u\n",
-         apex_firmware_bin_len);
+  sentai_logf("tpu-posix", "DFU loading EdgeTPU firmware len=%u",
+              apex_firmware_bin_len);
 
   uint32_t offset = 0;
   uint16_t block = 0;
@@ -118,7 +348,7 @@ static usb_status_t edgetpu_dfu_load_if_needed(libusb_context *ctx) {
                            : NULL;
     rc = dfu_download_block(dfu, iface, block, src, n);
     if (rc < 0 || rc != n) {
-      printf("[tpu-posix] DFU_DNLOAD failed block=%u rc=%d\n", block, rc);
+      sentai_logf("tpu-posix", "DFU_DNLOAD failed block=%u rc=%d", block, rc);
       libusb_release_interface(dfu, iface);
       libusb_close(dfu);
       return usb_status_from_libusb(rc < 0 ? rc : LIBUSB_ERROR_IO);
@@ -127,7 +357,8 @@ static usb_status_t edgetpu_dfu_load_if_needed(libusb_context *ctx) {
     uint8_t status[6];
     rc = dfu_get_status(dfu, iface, status);
     if (rc != 6) {
-      printf("[tpu-posix] DFU_GETSTATUS failed block=%u rc=%d\n", block, rc);
+      sentai_logf("tpu-posix", "DFU_GETSTATUS failed block=%u rc=%d",
+                  block, rc);
       libusb_release_interface(dfu, iface);
       libusb_close(dfu);
       return usb_status_from_libusb(rc < 0 ? rc : LIBUSB_ERROR_IO);
@@ -136,8 +367,9 @@ static usb_status_t edgetpu_dfu_load_if_needed(libusb_context *ctx) {
     if (status[0] != 0 ||
         (n > 0 && status[4] != DFU_STATE_DNLOAD_IDLE) ||
         (n == 0 && status[4] != DFU_STATE_DFU_IDLE)) {
-      printf("[tpu-posix] DFU status unexpected block=%u err=%u state=%u\n",
-             block, status[0], status[4]);
+      sentai_logf("tpu-posix",
+                  "DFU status unexpected block=%u err=%u state=%u",
+                  block, status[0], status[4]);
       libusb_release_interface(dfu, iface);
       libusb_close(dfu);
       return kStatus_USB_Error;
@@ -155,8 +387,8 @@ static usb_status_t edgetpu_dfu_load_if_needed(libusb_context *ctx) {
     if (n > EDGETPU_DFU_TRANSFER_SIZE) n = EDGETPU_DFU_TRANSFER_SIZE;
     rc = dfu_upload_block(dfu, iface, block, verify, EDGETPU_DFU_TRANSFER_SIZE);
     if (rc < (int)n || memcmp(verify, apex_firmware_bin + offset, n) != 0) {
-      printf("[tpu-posix] DFU_UPLOAD verify failed block=%u rc=%d\n",
-             block, rc);
+      sentai_logf("tpu-posix", "DFU_UPLOAD verify failed block=%u rc=%d",
+                  block, rc);
       libusb_release_interface(dfu, iface);
       libusb_close(dfu);
       return usb_status_from_libusb(rc < 0 ? rc : LIBUSB_ERROR_IO);
@@ -165,7 +397,7 @@ static usb_status_t edgetpu_dfu_load_if_needed(libusb_context *ctx) {
     ++block;
   }
 
-  printf("[tpu-posix] DFU firmware verified; resetting USB device\n");
+  sentai_logf("tpu-posix", "DFU firmware verified; resetting USB device");
   libusb_release_interface(dfu, iface);
   libusb_reset_device(dfu);
   libusb_close(dfu);
@@ -240,19 +472,21 @@ usb_status_t USB_HostEdgeTpuOpenPosix(usb_host_edgetpu_instance_t **out) {
   if (!inst) return kStatus_USB_AllocFail;
   inst->interface_number = 0;
 
+  sentai_logf("tpu-posix", "libusb_init");
   int rc = libusb_init(&inst->usb_ctx);
   if (rc != 0) {
     free(inst);
     return usb_status_from_libusb(rc);
   }
+  sentai_logf("tpu-posix", "dfu/app probe");
   usb_status_t dfu_st = edgetpu_dfu_load_if_needed(inst->usb_ctx);
   if (dfu_st != kStatus_USB_Success) {
     libusb_exit(inst->usb_ctx);
     free(inst);
     return dfu_st;
   }
-  inst->dev = libusb_open_device_with_vid_pid(
-      inst->usb_ctx, EDGETPU_APP_VID, EDGETPU_PID_APP);
+  sentai_logf("tpu-posix", "open app device");
+  inst->dev = open_app_device_with_retry(inst->usb_ctx);
   if (!inst->dev) {
     libusb_exit(inst->usb_ctx);
     free(inst);
@@ -273,10 +507,12 @@ usb_status_t USB_HostEdgeTpuOpenPosix(usb_host_edgetpu_instance_t **out) {
     return usb_status_from_libusb(rc);
   }
 
-  printf("[tpu-posix] opened Coral USB interface=%d out=%02x,%02x,%02x in=%02x,%02x irq=%02x\n",
-         inst->interface_number, inst->bulk_out_ep[1], inst->bulk_out_ep[2],
-         inst->bulk_out_ep[3], inst->bulk_in_ep[1], inst->bulk_in_ep[2],
-         inst->interrupt_in_ep);
+  sentai_logf("tpu-posix",
+              "opened Coral USB interface=%d out=%02x,%02x,%02x in=%02x,%02x irq=%02x",
+              inst->interface_number, inst->bulk_out_ep[1],
+              inst->bulk_out_ep[2], inst->bulk_out_ep[3],
+              inst->bulk_in_ep[1], inst->bulk_in_ep[2],
+              inst->interrupt_in_ep);
   *out = inst;
   return kStatus_USB_Success;
 }
@@ -299,13 +535,13 @@ usb_status_t USB_HostEdgeTpuBulkOutSend(
     usb_host_edgetpu_instance_t *inst, uint8_t endPoint, uint8_t *buffer,
     uint32_t length, transfer_callback_t callbackFn, void *callbackParam) {
   if (!inst || !inst->dev) return kStatus_USB_InvalidHandle;
-  int transferred = 0;
-  int rc = libusb_bulk_transfer(inst->dev, posix_out_ep(inst, endPoint),
-                                buffer, (int)length, &transferred,
-                                EDGETPU_TIMEOUT_MS);
-  usb_status_t st = usb_status_from_libusb(rc);
-  if (rc == 0 && transferred != (int)length) st = kStatus_USB_TransferFailed;
-  if (callbackFn) callbackFn(callbackParam, buffer, (uint32_t)transferred, st);
+  usb_status_t cb_st = kStatus_USB_Error;
+  uint32_t transferred = 0;
+  usb_status_t st = submit_transfer(inst, posix_out_ep(inst, endPoint),
+                                    buffer, length, callbackFn, callbackParam,
+                                    1, &cb_st, &transferred);
+  (void)transferred;
+  if (st == kStatus_USB_Success && cb_st != kStatus_USB_Success) st = cb_st;
   return st;
 }
 
@@ -315,33 +551,30 @@ usb_status_t USB_HostEdgeTpuBulkInRecv(usb_host_edgetpu_instance_t *inst,
                                        transfer_callback_t callbackFn,
                                        void *callbackParam) {
   if (!inst || !inst->dev) return kStatus_USB_InvalidHandle;
-  int transferred = 0;
   uint8_t ep = posix_in_ep(inst, endPoint);
-  int rc;
-  if (inst->interrupt_in_ep && ep == inst->interrupt_in_ep) {
-    rc = libusb_interrupt_transfer(inst->dev, ep, buffer, (int)bufferLength,
-                                   &transferred, EDGETPU_TIMEOUT_MS);
-  } else {
-    rc = libusb_bulk_transfer(inst->dev, ep, buffer, (int)bufferLength,
-                              &transferred, EDGETPU_TIMEOUT_MS);
-  }
-  usb_status_t st = usb_status_from_libusb(rc);
-  if (callbackFn) callbackFn(callbackParam, buffer, (uint32_t)transferred, st);
+  usb_status_t cb_st = kStatus_USB_Error;
+  uint32_t transferred = 0;
+  usb_status_t st = submit_transfer(inst, ep, buffer, bufferLength,
+                                    callbackFn, callbackParam, 1,
+                                    &cb_st, &transferred);
+  if (st == kStatus_USB_Success && cb_st != kStatus_USB_Success) st = cb_st;
   return st;
 }
 
 usb_status_t USB_HostEdgeTpuBulkOutSendAsync(
     usb_host_edgetpu_instance_t *inst, uint8_t endPoint, uint8_t *buffer,
     uint32_t length, transfer_callback_t callbackFn, void *callbackParam) {
-  return USB_HostEdgeTpuBulkOutSend(inst, endPoint, buffer, length, callbackFn,
-                                    callbackParam);
+  if (!inst || !inst->dev) return kStatus_USB_InvalidHandle;
+  return submit_transfer(inst, posix_out_ep(inst, endPoint), buffer, length,
+                         callbackFn, callbackParam, 0, NULL, NULL);
 }
 
 usb_status_t USB_HostEdgeTpuBulkInRecvAsync(
     usb_host_edgetpu_instance_t *inst, uint8_t endPoint, uint8_t *buffer,
     uint32_t length, transfer_callback_t callbackFn, void *callbackParam) {
-  return USB_HostEdgeTpuBulkInRecv(inst, endPoint, buffer, length, callbackFn,
-                                   callbackParam);
+  if (!inst || !inst->dev) return kStatus_USB_InvalidHandle;
+  return submit_transfer(inst, posix_in_ep(inst, endPoint), buffer, length,
+                         callbackFn, callbackParam, 0, NULL, NULL);
 }
 
 usb_status_t USB_HostEdgeTpuCancelInFlight(
@@ -358,12 +591,101 @@ usb_status_t USB_HostEdgeTpuControl(usb_host_edgetpu_instance_t *inst,
                                     transfer_callback_t callbackFn,
                                     void *callbackParam) {
   if (!inst || !inst->dev || !setupPacket) return kStatus_USB_InvalidHandle;
-  int rc = libusb_control_transfer(
-      inst->dev, setupPacket->bmRequestType, setupPacket->bRequest,
-      setupPacket->wValue, setupPacket->wIndex, buffer, setupPacket->wLength,
-      EDGETPU_TIMEOUT_MS);
-  usb_status_t st = usb_status_from_libusb(rc);
-  uint32_t n = rc > 0 ? (uint32_t)rc : 0;
+  if (setupPacket->wLength > EDGETPU_CONTROL_MAX_DATA) {
+    return kStatus_USB_InvalidParameter;
+  }
+
+  struct libusb_transfer *transfer = libusb_alloc_transfer(0);
+  if (!transfer) return kStatus_USB_AllocFail;
+
+  StaticSemaphore_t sema_buf;
+  SemaphoreHandle_t sema = xSemaphoreCreateBinaryStatic(&sema_buf);
+  posix_transfer_ctx_t *ctx = alloc_async_ctx();
+  if (!sema || !ctx) {
+    if (ctx) free_async_ctx(ctx);
+    libusb_free_transfer(transfer);
+    return kStatus_USB_AllocFail;
+  }
+
+  libusb_fill_control_setup(s_control_buf, setupPacket->bmRequestType,
+                            setupPacket->bRequest, setupPacket->wValue,
+                            setupPacket->wIndex, setupPacket->wLength);
+  if (!(setupPacket->bmRequestType & LIBUSB_ENDPOINT_IN) &&
+      setupPacket->wLength > 0 && buffer) {
+    memcpy(s_control_buf + LIBUSB_CONTROL_SETUP_SIZE, buffer,
+           setupPacket->wLength);
+  }
+
+  ctx->cb = NULL;
+  ctx->cb_param = NULL;
+  ctx->buffer = s_control_buf;
+  ctx->done = sema;
+  ctx->status = kStatus_USB_Error;
+  ctx->transferred = 0;
+  ctx->completed = 0;
+
+  libusb_fill_control_transfer(transfer, inst->dev, s_control_buf,
+                               posix_transfer_cb, ctx, EDGETPU_TIMEOUT_MS);
+
+  if (g_sentai_tpu_trace) {
+    sentai_logf("usb-ctrl", "submit bm=%02x req=%u val=%04x idx=%04x len=%u",
+                setupPacket->bmRequestType, setupPacket->bRequest,
+                setupPacket->wValue, setupPacket->wIndex,
+                setupPacket->wLength);
+  }
+
+  int rc = libusb_submit_transfer(transfer);
+  if (rc != 0) {
+    free_async_ctx(ctx);
+    libusb_free_transfer(transfer);
+    sentai_logf("tpu-posix",
+                "ctrl fail bm=%02x req=%u val=%04x idx=%04x len=%u rc=%d",
+                setupPacket->bmRequestType, setupPacket->bRequest,
+                setupPacket->wValue, setupPacket->wIndex,
+                setupPacket->wLength, rc);
+    return usb_status_from_libusb(rc);
+  }
+
+  uint64_t deadline_us = monotonic_us() +
+                         (uint64_t)(EDGETPU_TIMEOUT_MS + 500) * 1000ULL;
+  while (!ctx->completed) {
+    pump_libusb_once(inst->usb_ctx);
+    (void)xSemaphoreTake(sema, 0);
+    if (monotonic_us() >= deadline_us) break;
+    posix_sleep_ms(1);
+  }
+  if (!ctx->completed) {
+    sentai_logf("tpu-posix",
+                "ctrl timeout bm=%02x req=%u val=%04x idx=%04x len=%u",
+                setupPacket->bmRequestType, setupPacket->bRequest,
+                setupPacket->wValue, setupPacket->wIndex,
+                setupPacket->wLength);
+    libusb_cancel_transfer(transfer);
+    deadline_us = monotonic_us() + 250000ULL;
+    while (!ctx->completed) {
+      pump_libusb_once(inst->usb_ctx);
+      (void)xSemaphoreTake(sema, 0);
+      if (monotonic_us() >= deadline_us) break;
+      posix_sleep_ms(1);
+    }
+  }
+
+  if (!ctx->completed) {
+    ctx->done = NULL;
+    usb_status_t st = kStatus_USB_TransferFailed;
+    if (callbackFn) callbackFn(callbackParam, buffer, 0, st);
+    return st;
+  }
+
+  usb_status_t st = ctx->status;
+  uint32_t n = ctx->transferred;
+  if ((setupPacket->bmRequestType & LIBUSB_ENDPOINT_IN) &&
+      buffer && setupPacket->wLength > 0 && st == kStatus_USB_Success) {
+    uint32_t copy_n = n;
+    if (copy_n > setupPacket->wLength) copy_n = setupPacket->wLength;
+    memcpy(buffer, s_control_buf + LIBUSB_CONTROL_SETUP_SIZE, copy_n);
+  }
+  free_async_ctx(ctx);
   if (callbackFn) callbackFn(callbackParam, buffer, n, st);
   return st;
 }

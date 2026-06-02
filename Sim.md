@@ -255,7 +255,8 @@ Out of 66 source files in `examples/sentai_runtime/`, only **9 include NXP SDK d
 - `sentai_runtime.cc` (boot orchestration, WDOG)
 - `modsentai_hal.cc` (catch-all hardware bindings)
 - `modsentai_camera.c` (PXP scaling)
-- `modsentai_diag.c` (some MMIO)
+- historical `modsentai_diag.c` (removed in B7; old MMIO helpers should move
+  to owner namespaces if they are revived)
 - `flow_task.cc`, `flow_task_m4.cc` (PXP, IMU)
 - `sentai_fault.cc` (NVIC/SCB exception handlers)
 - `sentai_health.cc` (WDOG)
@@ -2970,9 +2971,11 @@ For real 1-2 ms threshold on M7, need ONE of:
 ### Files added in this session
 
 - `examples/sentai_runtime/aruco_bench.cc` — 3 kernels measured
-- `examples/sentai_runtime/modsentai_diag.c` — `sentai.diag.aruco_bench()`
-  binding returns dict with `thresh_us`, `thresh_bradley_us`,
-  `thresh_separable_us`, `edge_us`, cycle-count counterparts.
+- historical `examples/sentai_runtime/modsentai_diag.c` —
+  `sentai.diag.aruco_bench()` binding returned dict with `thresh_us`,
+  `thresh_bradley_us`, `thresh_separable_us`, `edge_us`, cycle-count
+  counterparts.  B7 removed the active `sentai.diag` namespace; revive this
+  as `sentai.markers.bench()` if needed.
 
 ### Decision for ArUco-on-M7 path
 
@@ -3376,116 +3379,23 @@ This recipe should be reused for every SIM test from L2 onwards — see
 `examples/sentai_runtime/experiments/s127_flowbaseline/` and any
 `diag/_t_*.py` driver.
 
-## 10x. SIM-only journal API — `sentai.sim.journal_*` (2026-05-14)
+## 10x. Historical SIM-only journal API removed (B7, 2026-05-31)
 
-Added when s128 L4.1Baseline grew complex enough that "test silently
-hung and I can't tell why" started biting.  The journal is a structured
-append-mode log file under the SIM virtual FS that captures every
-significant step + state snapshot, so a crash mid-mission leaves the
-last-known-good state and the failing step on disk.
+`sentai.sim.journal_*` used to provide a SIM-only structured journal for older
+experiments.  B7 removed that namespace completely.  Runtime observability now
+goes through the shared `sentai.fr` subsystem, with `events.csv`,
+`scalars.csv`, frame channels, and `debug.log` under the per-run FS root.
 
-### API surface
+Current rule:
 
-```python
-sentai.sim.journal_open(path[, truncate=True])  # -> 0 ok, -1 fail
-sentai.sim.journal_close()                       # -> 0
-sentai.sim.journal_write(label[, value=None])    # -> 0 ok, -1 not open
-sentai.sim.journal_status()                      # -> dict
-```
+- mission/runtime evidence: use `sentai.fr`;
+- mission-owned compact artifacts: use `sentai.fs.write/append`;
+- host transcript and verdict artifacts: keep host-side, outside the runtime;
+- do not add new `sentai.sim.*` APIs for runtime behavior.
 
-The `value` argument can be any Python object — its `repr()` is written.
-`None` (the default) writes a `-` placeholder.  Errors are local: a
-failed `journal_write` does NOT raise; the test continues.
-
-### Line format
-
-```
-# sentai.sim journal opened path=/.../journal.txt truncate=1 t_ms=727622661
-727622662 mission_begin -
-727622665 servo_init {'last_result': 0, ..., 'actions_ok': 1, 'armed': 0}
-727622676 servo_arm {'last_result': 0, ..., 'actions_ok': 2, 'armed': 1}
-...
-# closed t_ms=727641004 lines=11 errors=0
-```
-
-- Field 1: monotonic ms timestamp.
-- Field 2: caller-supplied label (1 word).
-- Field 3+: `repr(value)` or `-`.
-
-Header line and footer line begin with `#` (skip in parsers).
-
-### Host-side parser pattern
-
-```python
-import ast, re
-for line in Path("/tmp/.../journal.txt").read_text().splitlines():
-    if line.startswith("#"):
-        continue
-    m = re.match(r"(\d+)\s+(\S+)\s+(.*)", line)
-    t_ms, label, rest = int(m[1]), m[2], m[3]
-    value = ast.literal_eval(rest) if rest != "-" else None
-```
-
-### When to use it
-
-- Multi-step integration tests (e.g. s128, future s129) where a crash
-  needs to be localised quickly.
-- Any test where the operator wants to inspect "what was the system
-  state at step N" post-mortem without re-running.
-- NOT a replacement for `print()` debugging or `sentai.diag.dmesg` —
-  the journal is for structured, queryable, machine-parseable history.
-
-### Programming idiom (mission script side)
-
-```python
-import sentai
-sentai.verbose(0)                               # silence stdout chatter
-sentai.sim.journal_open('my_test.txt')          # truncate=True by default
-sentai.sim.journal_write('start', None)
-
-# After every meaningful action, snapshot state:
-rc = sentai.servo.arm()
-sentai.sim.journal_write('arm', {'rc': rc, 'st': sentai.servo.status()})
-
-# … or just pass the live status dict; it'll be repr'd:
-sentai.sim.journal_write('post_takeoff', sentai.servo.status())
-
-sentai.sim.journal_close()                      # writes footer + flushes
-```
-
-### Programming idiom (host runner side)
-
-When the host drives REPL over `ReplDriver`, wrap every action in a
-helper that issues both the action and the journal write:
-
-```python
-def j_int(repl, label, cmd):
-    rc = repl.exec_int(cmd)
-    repl.exec_int(f"sentai.sim.journal_write('{label}', sentai.servo.status())")
-    return rc
-```
-
-The journal file lives at `${SENTAI_SIM_ROOT}/<name>` — typically
-`build-sim/sentai_fs_root/<name>` — so the host reads it directly with
-`Path(...).read_text()` once the mission ends (or crashes).
-
-### What it is NOT
-
-- It is NOT a hook on the REPL parser — only what you explicitly write
-  ends up in the journal.  For exhaustive command capture, the host-
-  side `repl.transcript` (line-by-line stdin/stdout) is the complement.
-- It is SIM-only.  ARM build does not expose `sentai.sim` (the module
-  registers in `sim/modsentai_sim.c`, not in `examples/sentai_runtime/`).
-  When/if an ARM equivalent is needed, file lifetime + FileX semantics
-  differ enough that a separate `sentai.diag.journal_*` is the right
-  surface, not lifting `sentai.sim` to the device.
-
-### Example: see `s128_l41baseline_seeded`
-
-`examples/sentai_runtime/experiments/s128_l41baseline_seeded/mission_l41.py`
-is the canonical user — every servo.* call goes through `j_int()`, and
-the journal copy at `/tmp/s128_l41baseline/journal.txt` is the primary
-post-mortem artifact when `verdict.py` fails.
+Older experiments that call `sentai.sim.journal_*` should be updated when they
+are rerun.  Keeping a second journal path would recreate the exact namespace
+split B7 is removing.
 
 
 ## 10y. SIM + ARM file organisation (refactor 2026-05-16)
@@ -3495,26 +3405,23 @@ post-mortem artifact when `verdict.py` fails.
 ```
 sim/                                   # SIM-only (POSIX host build)
 ├── modsentai_sim.c                    # dispatcher (~160 LoC): includes + top-level table
-├── modsentai_sim_io.c                 # one fragment per subsystem,
-├── modsentai_sim_rtos.c               # all #include'd into modsentai_sim.c
-├── modsentai_sim_diag.c               # so they share one translation unit
-├── modsentai_sim_sys.c
-├── modsentai_sim_fs.c
-├── modsentai_sim_journal.c            # sentai.sim.journal_*
 ├── modsentai_sim_camera.c
 ├── modsentai_sim_flow.c
-├── modsentai_sim_tpu.c
-├── modsentai_sim_pipeline.c
 ├── modsentai_sim_link.c               # MAVLink ↔ PX4 SITL
 ├── modsentai_sim_crazy.c              # CRTP-UDP ↔ cf2 SITL  (Task #39)
-└── sentai_crazy_sim.cc, sentai_link_sim.cc, ...   # SIM-only impls
+└── sentai_platform_sim_backend.c, sentai_fs_sim_backend.c, sim_tpu_shim.c,
+    sentai_crazy_sim.cc, sentai_link_sim.cc, ...   # SIM-only backend impls
 
 examples/sentai_runtime/               # ARM firmware (Cortex-M7 deliverable)
 ├── modsentai.c                        # dispatcher: includes bindings/* + top-level
-├── bindings/                          # 31× modsentai_<subsystem>.c (MP bindings)
+├── bindings/                          # shared modsentai_<subsystem>.c MP bindings
 │   ├── modsentai_camera.c
 │   ├── modsentai_crazy.c              # CPX-over-UART
 │   ├── modsentai_flow.c
+│   ├── modsentai_io.c                 # also used by SIM
+│   ├── modsentai_rtos.c               # also used by SIM
+│   ├── modsentai_fs.c                 # also used by SIM
+│   ├── modsentai_sys.c                # also used by SIM
 │   ├── ... (28 more)
 ├── sentai_<subsystem>.{cc,h}          # impl + header at top level (flat for now)
 └── (vendored) micropython_embed/, generated/, h3_gen/, modules/
@@ -3528,22 +3435,45 @@ examples/sentai_runtime/               # ARM firmware (Cortex-M7 deliverable)
    `static` linkage between sections stays intact — no header files
    need to be added when one fragment uses a helper defined earlier.
 
-2. **One implementation file owns each subsystem; bindings only call
-   into it.**  The MP binding is a thin facade.  Hot code lives in
-   `sentai_<name>.{cc,h}` (ARM) or `sentai_<name>_sim.cc` (SIM).
-   When ARM and SIM share the impl, the file lives at
-   `examples/sentai_runtime/sentai_<name>.cc` and is added to BOTH the
-   ARM and SIM CMakeLists.
+2. **One shared binding owns each namespace whenever possible.**  The MP
+   binding is a thin facade under `examples/sentai_runtime/bindings`.
+   SIM should include the same binding file and provide only backend hooks
+   for POSIX/x86 differences.
+
+3. **One implementation file owns each subsystem.**  Hot shared code lives in
+   `examples/sentai_runtime/sentai_<name>.{cc,h}` and is added to BOTH the
+   ARM and SIM CMakeLists.  SIM-specific files are ports/backends/adapters,
+   not alternate algorithms.
 
 ### File-naming convention
 
 | Pattern | Where | Owner |
 |---|---|---|
-| `modsentai_<name>.c` | `examples/sentai_runtime/bindings/` | ARM MicroPython binding |
-| `modsentai_sim_<name>.c` | `sim/` | SIM MicroPython binding |
-| `sentai_<name>.cc` + `.h` | `examples/sentai_runtime/` | shared impl (ARM + SIM via #ifdef) |
-| `sentai_<name>_sim.cc` | `sim/` | SIM-only impl (no ARM counterpart) |
-| `<feature>_task.cc` | `examples/sentai_runtime/` | FreeRTOS task body (ARM) |
+| `modsentai_<name>.c` | `examples/sentai_runtime/bindings/` | shared MicroPython binding, used by ARM and SIM unless the namespace is truly platform-only |
+| `modsentai_sim_<name>.c` | `sim/` | legacy SIM binding fragment; avoid for new work and remove/rename during B7 cleanup |
+| `sentai_<name>.cc` + `.h` | `examples/sentai_runtime/` | shared impl (ARM + SIM via backend hooks or explicit platform ifdefs) |
+| `sentai_<name>_sim_backend.*` | `sim/` | SIM implementation injected behind a shared C ABI |
+| `sentai_<name>_sim_bridge.*` | `sim/` | adapter to an external simulator/helper/socket/device |
+| `sentai_<name>_sim_stub.*` | `sim/` | explicit not-ready parity backend |
+| `<feature>_task.cc` | `examples/sentai_runtime/` | shared FreeRTOS/POSIX task body where possible |
+
+The naming model is the same idea as a FreeRTOS port: the runtime owns the
+behavior; the platform directory supplies the port layer.  In `sim/`, file
+names should say **backend**, **bridge**, or **stub** when that is what they
+are.  Names like `sentai_detection_sim.c` are a smell because detection should
+be shared logic consuming injected camera/TPU backends.
+
+Camera naming is deliberately split:
+
+- file-backed virtual camera: shared runtime source, available to ARM and SIM
+  through `sentai.camera.select(-1, path)`;
+- Gazebo camera: SIM bridge/provider, e.g. `gazebo_camera_bridge.*` or
+  `sentai_camera_gazebo_bridge.*`;
+- future AirSim camera: another bridge/provider, e.g.
+  `sentai_camera_airsim_bridge.*`.
+
+The camera pipeline should consume the common camera/prep contracts regardless
+of which provider produced the frame.
 
 ### Include-path consequences
 
@@ -3572,8 +3502,9 @@ QSTR pre-pass (`make … micropython-embed-package`, host gcc):
 3. Binding:
    - ARM: drop `bindings/modsentai_<name>.c`, add `#include
      "bindings/modsentai_<name>.c"` to `examples/sentai_runtime/modsentai.c`.
-   - SIM: drop `sim/modsentai_sim_<name>.c`, add `#include
-     "modsentai_sim_<name>.c"` to `sim/modsentai_sim.c`.
+   - SIM: include the same `bindings/modsentai_<name>.c` from
+     `sim/modsentai_sim.c` and add/extend a backend file only for the
+     platform-specific hooks.
    - Add a `{ MP_ROM_QSTR(MP_QSTR_<name>), MP_ROM_PTR(&sentai_<name>_module) }`
      entry to the top-level `sentai_globals_table`.
 4. QSTRs: if introducing any `MP_QSTR_xxx` not already in
@@ -3638,11 +3569,11 @@ run.sh launcher                            Gazebo Garden server
   │    │    └─ mission_sNNN.run()  ←─── mission logic lives here
   │    │         ├─ crtp_log.py  (TOC scan, pose subscribe)
   │    │         ├─ hex_helpers.py (descriptor compute)
-  │    │         └─ sentai.crazy.*, sentai.places.*, sentai.sim.journal_*
+  │    │         └─ sentai.crazy.*, sentai.places.*, sentai.fr.*, sentai.fs.*
   │    └─ Virtual FS root: build-sim/sentai_fs_root/
   │         ├── *.py  (imported by mission)
   │         ├── *_summary.json  (mission writes via sentai.fs)
-  │         └── *_journal.txt   (sentai.sim.journal_*)
+  │         └── fr/             (events.csv, scalars.csv, debug.log)
   │
   ├─ echo "import mission_sNNN; mission_sNNN.run()" │ stdin
   ├─ (wait for sentai_sim to exit)
@@ -3670,7 +3601,7 @@ run.sh launcher                            Gazebo Garden server
 | sentai_sim ↔ cf2 SITL | CRTP-over-UDP `127.0.0.1:19850` | `sentai.crazy.*` |
 | sentai_sim ↔ Gazebo | UDS `/tmp/sentai_cam.sock` | camera_bridge_recv → `sentai.camera.grab_gray()` |
 | (PX4 missions only) sentai_sim ↔ PX4 | MAVLink UDP `127.0.0.1:14540` | `sentai.link.*` |
-| mission → fs | C `fopen/fwrite` in `build-sim/sentai_fs_root/` | `sentai.fs.write()`, `sentai.sim.journal_write()` |
+| mission → fs | C `fopen/fwrite` in `build-sim/sentai_fs_root/` | `sentai.fs.write()`, `sentai.fr.*` |
 
 ### Canonical run command
 

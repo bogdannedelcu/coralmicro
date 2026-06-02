@@ -110,16 +110,30 @@ typedef struct {
     volatile uint8_t  m4_curr_gray[FLOW_GRAY_PIXELS];
 } flow_shared_t;
 
-// Physical address.  Inside the 16 KB rpmsg_sh_mem window (2026-04-21
-// the region was bumped from 8 KB to 16 KB in all 5 RT1176 linker
-// scripts to host the 80×60 gray buffer; MPU region 15 re-sizes
-// automatically via BOARD_ConfigMPU's log2-of-symbol calculation).
-// Window is 0x202C0000..0x202C3FFF; offset 0x1000 leaves 4 KB of
-// head-room below for the RPMsg queues and 12 KB above for the
-// flow struct (80×60 gray + 96 B header = 4896 B, plenty of margin).
+// Physical address on RT1176.  Inside the 16 KB rpmsg_sh_mem window
+// (2026-04-21 the region was bumped from 8 KB to 16 KB in all 5
+// RT1176 linker scripts to host the 80×60 gray buffer; MPU region 15
+// re-sizes automatically via BOARD_ConfigMPU's log2-of-symbol
+// calculation).  Window is 0x202C0000..0x202C3FFF; offset 0x1000 leaves
+// 4 KB of head-room below for the RPMsg queues and 12 KB above for the
+// flow struct.
+//
+// SIM cannot dereference a board physical address, so the simulator
+// provides a static flow_shared_t symbol and keeps the same macro shape.
+// The bindings and consumers still read FLOW_SHARED().
+#if defined(SENTAI_PLATFORM_SIM)
+#ifdef __cplusplus
+extern "C" {
+#endif
+extern volatile flow_shared_t g_sentai_flow_shared;
+#ifdef __cplusplus
+}
+#endif
+#define FLOW_SHARED() (g_sentai_flow_shared)
+#else
 #define FLOW_SHARED_ADDR 0x202C1000u
-
 #define FLOW_SHARED() (*(volatile flow_shared_t*)FLOW_SHARED_ADDR)
+#endif
 
 // Sanity: the layout must fit into the 12 KB that the RPMsg window
 // gives us past offset 0x1000 (16 KB total − 4 KB queue head-room).
@@ -131,13 +145,17 @@ typedef struct {
 #ifdef __cplusplus
 static_assert(sizeof(flow_shared_t) <= 0x3000,
               "flow_shared_t exceeds the 12 KB allocation past FLOW_SHARED_ADDR");
+#if !defined(SENTAI_PLATFORM_SIM)
 static_assert((FLOW_SHARED_ADDR & 0x3) == 0,
               "FLOW_SHARED_ADDR must be 4-byte aligned for atomic 32-bit volatile fields");
+#endif
 #else
 _Static_assert(sizeof(flow_shared_t) <= 0x3000,
                "flow_shared_t exceeds the 12 KB allocation past FLOW_SHARED_ADDR");
+#if !defined(SENTAI_PLATFORM_SIM)
 _Static_assert((FLOW_SHARED_ADDR & 0x3) == 0,
                "FLOW_SHARED_ADDR must be 4-byte aligned for atomic 32-bit volatile fields");
+#endif
 #endif
 
 #endif  // FLOW_SHARED_H_

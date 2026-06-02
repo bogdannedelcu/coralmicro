@@ -26,6 +26,9 @@ extern void     sentai_flow_perf_cyc(uint32_t* pxp, uint32_t* rgb2y,
 extern void     sentai_flow_deadband_state(uint32_t* period_ms_x10,
                                             uint32_t* deadband_mgp,
                                             uint32_t* velocity_mgp_per_s);
+#if defined(SENTAI_PLATFORM_SIM)
+extern void     sentai_flow_poll_once(void);
+#endif
 extern int      sentai_fs_cache_write(const uint8_t* data, int size);
 extern void     sentai_markers_get_cam_extrinsics_matrix(float t_body[3],
                                                          float R[9],
@@ -72,6 +75,8 @@ static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_flow_stop_obj,
 static mp_obj_t mod_sentai_flow_read(void) {
     volatile flow_shared_t* sh = &FLOW_SHARED();
     int alive = (sh->magic == FLOW_SHARED_MAGIC);
+    int cam_id = sh->frame_cam_id;
+    if (cam_id == 255) cam_id = -1;
     mp_obj_t d = mp_obj_new_dict(8);
     mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_alive), mp_obj_new_bool(alive));
     mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_state),
@@ -87,11 +92,30 @@ static mp_obj_t mod_sentai_flow_read(void) {
     mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_frame_seq),
                       mp_obj_new_int_from_uint(sh->last_frame_seq));
     mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_cam_id),
-                      mp_obj_new_int(sh->frame_cam_id));
+                      mp_obj_new_int(cam_id));
     return d;
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_flow_read_obj,
                                   mod_sentai_flow_read);
+
+// sentai.flow.read_tuple() -> (alive, state, dx, dy, confidence, frame_seq, cam_id)
+static mp_obj_t mod_sentai_flow_read_tuple(void) {
+    volatile flow_shared_t* sh = &FLOW_SHARED();
+    int cam_id = sh->frame_cam_id;
+    if (cam_id == 255) cam_id = -1;
+    mp_obj_t items[7] = {
+        mp_obj_new_bool(sh->magic == FLOW_SHARED_MAGIC),
+        mp_obj_new_int_from_uint(sh->m4_state),
+        mp_obj_new_int(sh->last_dx),
+        mp_obj_new_int(sh->last_dy),
+        mp_obj_new_int(sh->last_confidence),
+        mp_obj_new_int_from_uint(sh->last_frame_seq),
+        mp_obj_new_int(cam_id),
+    };
+    return mp_obj_new_tuple(7, items);
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_flow_read_tuple_obj,
+                                  mod_sentai_flow_read_tuple);
 
 // sentai.flow.body_read() -> dict with body-frame conversion.
 //
@@ -109,6 +133,7 @@ static mp_obj_t mod_sentai_flow_body_read(void) {
     int32_t dx = sh->last_dx;
     int32_t dy = sh->last_dy;
     int cam_id = sh->frame_cam_id;
+    if (cam_id == 255) cam_id = -1;
     int32_t body_fw, body_left;
     float t_body[3];
     float R[9];
@@ -286,6 +311,7 @@ static const mp_rom_map_elem_t sentai_flow_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_start),          MP_ROM_PTR(&mod_sentai_flow_start_obj) },
     { MP_ROM_QSTR(MP_QSTR_stop),           MP_ROM_PTR(&mod_sentai_flow_stop_obj) },
     { MP_ROM_QSTR(MP_QSTR_read),           MP_ROM_PTR(&mod_sentai_flow_read_obj) },
+    { MP_ROM_QSTR(MP_QSTR_read_tuple),     MP_ROM_PTR(&mod_sentai_flow_read_tuple_obj) },
     { MP_ROM_QSTR(MP_QSTR_body_read),      MP_ROM_PTR(&mod_sentai_flow_body_read_obj) },
     { MP_ROM_QSTR(MP_QSTR_gray_snap),      MP_ROM_PTR(&mod_sentai_flow_gray_snap_obj) },
     { MP_ROM_QSTR(MP_QSTR_gray_to_cache),  MP_ROM_PTR(&mod_sentai_flow_gray_to_cache_obj) },

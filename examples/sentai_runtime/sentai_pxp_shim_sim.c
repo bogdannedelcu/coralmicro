@@ -76,3 +76,37 @@ int sentai_pxp_scale(const uint8_t* src, int src_w, int src_h,
     }
     return 0;
 }
+
+int sentai_pxp_xrgb_to_y8(const uint8_t* src, int src_w, int src_h,
+                          uint8_t* dst, int dst_w, int dst_h) {
+    if (!src || !dst || src_w <= 0 || src_h <= 0 || dst_w <= 0 || dst_h <= 0) {
+        return -1;
+    }
+    if (dst_w > src_w || dst_h > src_h) return -2;
+
+    const int src_stride = src_w * 4;
+    for (int oy = 0; oy < dst_h; ++oy) {
+        const int y0 = (oy * src_h) / dst_h;
+        const int y1 = ((oy + 1) * src_h) / dst_h;
+        const int yh = (y1 > y0) ? (y1 - y0) : 1;
+        uint8_t* drow = dst + oy * dst_w;
+        for (int ox = 0; ox < dst_w; ++ox) {
+            const int x0 = (ox * src_w) / dst_w;
+            const int x1 = ((ox + 1) * src_w) / dst_w;
+            const int xw = (x1 > x0) ? (x1 - x0) : 1;
+            const int n = xw * yh;
+            uint32_t sum = 0;
+            for (int y = y0; y < y1; ++y) {
+                const uint8_t* srow = src + y * src_stride + x0 * 4;
+                for (int x = 0; x < xw; ++x) {
+                    const uint8_t b = srow[x * 4 + 0];
+                    const uint8_t g = srow[x * 4 + 1];
+                    const uint8_t r = srow[x * 4 + 2];
+                    sum += (uint32_t)((77u * r + 150u * g + 29u * b) >> 8);
+                }
+            }
+            drow[ox] = (uint8_t)((sum + (uint32_t)n / 2u) / (uint32_t)n);
+        }
+    }
+    return 0;
+}

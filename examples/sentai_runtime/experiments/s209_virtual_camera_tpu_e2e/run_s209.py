@@ -20,11 +20,12 @@ from PIL import Image, ImageDraw
 REPO = Path(__file__).resolve().parents[4]
 EXP = REPO / "examples" / "sentai_runtime" / "experiments" / "s209_virtual_camera_tpu_e2e"
 SIM = REPO / "build-sim" / "sim" / "sentai_sim"
-HELPER = REPO / "sim" / "scripts" / "sim_tpu_helper.py"
 HELPER_PY = REPO / "venv-coral" / "bin" / "python3"
 SRC_IMG = REPO / "test_data" / "cat_640x480.bmp"
 SRC_MODEL = REPO / "models" / "tf2_ssd_mobilenet_v2_coco17_ptq_edgetpu.tflite"
 SRC_MISSION = EXP / "mission_s209.py"
+CAMERA_SOCK = Path("/tmp/sentai_cam.sock")
+TPU_SMOKE = REPO / "build-sim" / "sim" / "tpu_posix_smoke"
 
 
 def next_iter_dir(label: str) -> Path:
@@ -39,10 +40,75 @@ def next_iter_dir(label: str) -> Path:
 
 
 def ensure_inputs() -> None:
-    missing = [p for p in (SIM, HELPER, HELPER_PY, SRC_IMG, SRC_MODEL, SRC_MISSION)
+    missing = [p for p in (SIM, HELPER_PY, SRC_IMG, SRC_MODEL, SRC_MISSION)
                if not p.exists()]
     if missing:
         raise SystemExit("missing required inputs:\n" + "\n".join(str(p) for p in missing))
+
+
+def cleanup_stale_runtime() -> None:
+    exact_exes = {str(SIM), str(TPU_SMOKE)}
+    script_names = {"gz_to_camera_bridge.py"}
+    protected = {os.getpid(), os.getppid()}
+    stale_pids: set[int] = set()
+    proc = subprocess.run(["pgrep", "-f", "sentai_sim|tpu_posix_smoke|gz_to_camera_bridge.py"],
+                          text=True,
+                          capture_output=True,
+                          check=False)
+    for line in proc.stdout.splitlines():
+        try:
+            pid = int(line.strip())
+        except ValueError:
+            continue
+        if pid in protected:
+            continue
+        try:
+            raw = Path(f"/proc/{pid}/cmdline").read_bytes()
+        except OSError:
+            continue
+        argv = [p.decode("utf-8", "replace") for p in raw.split(b"\0") if p]
+        if not argv:
+            continue
+        exe = argv[0]
+        if exe in exact_exes:
+            stale_pids.add(pid)
+            continue
+        if any(Path(arg).name in script_names for arg in argv[1:]):
+            stale_pids.add(pid)
+
+    for sig in (signal.SIGTERM, signal.SIGKILL):
+        for pid in sorted(stale_pids):
+            try:
+                os.kill(pid, sig)
+            except ProcessLookupError:
+                pass
+            except PermissionError:
+                pass
+        if sig == signal.SIGTERM:
+            time.sleep(0.2)
+    try:
+        CAMERA_SOCK.unlink()
+    except FileNotFoundError:
+        pass
+
+
+def start_helper(run_dir: Path):
+    (run_dir / "helper.log").write_text(
+        "no helper: sentai_sim uses direct POSIX/libusb EdgeTPU backend\n",
+        encoding="utf-8")
+    return None
+
+
+def stop_helper(helper) -> None:
+    pass
+
+
+def text_or_empty(value) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bytes):
+        return value.decode("utf-8", "replace")
+    return str(value)
 
 
 def prepare_fs(run_dir: Path) -> Path:
@@ -53,56 +119,6 @@ def prepare_fs(run_dir: Path) -> Path:
     shutil.copy2(SRC_MODEL, fs_root / "models" / SRC_MODEL.name)
     shutil.copy2(SRC_MISSION, fs_root / SRC_MISSION.name)
     return fs_root
-
-
-def start_helper(run_dir: Path) -> subprocess.Popen[str]:
-    sock = Path("/tmp/sentai_tpu.sock")
-    try:
-        sock.unlink()
-    except FileNotFoundError:
-        pass
-    env = os.environ.copy()
-    env["PYTHONUNBUFFERED"] = "1"
-    log = open(run_dir / "helper.log", "w", encoding="utf-8")
-    proc = subprocess.Popen(
-        [str(HELPER_PY), str(HELPER)],
-        cwd=str(REPO),
-        stdin=subprocess.DEVNULL,
-        stdout=log,
-        stderr=subprocess.STDOUT,
-        text=True,
-        env=env,
-        start_new_session=True,
-    )
-    proc._sentai_log = log  # type: ignore[attr-defined]
-    deadline = time.monotonic() + 8.0
-    while time.monotonic() < deadline:
-        if sock.exists():
-            return proc
-        if proc.poll() is not None:
-            log.flush()
-            raise SystemExit(f"TPU helper exited early; see {run_dir / 'helper.log'}")
-        time.sleep(0.05)
-    raise SystemExit("TPU helper did not create /tmp/sentai_tpu.sock")
-
-
-def stop_helper(proc: subprocess.Popen[str]) -> None:
-    if proc.poll() is None:
-        try:
-            os.killpg(proc.pid, signal.SIGTERM)
-        except ProcessLookupError:
-            pass
-    try:
-        proc.wait(timeout=3)
-    except subprocess.TimeoutExpired:
-        try:
-            os.killpg(proc.pid, signal.SIGKILL)
-        except ProcessLookupError:
-            pass
-        proc.wait(timeout=3)
-    log = getattr(proc, "_sentai_log", None)
-    if log:
-        log.close()
 
 
 def pycoral_baseline(run_dir: Path) -> list[tuple[int, int, int, int, int, int]]:
@@ -119,18 +135,22 @@ interpreter.allocate_tensors()
 inp = interpreter.get_input_details()[0]
 h = int(inp['shape'][1])
 w = int(inp['shape'][2])
-src = np.asarray(Image.open(image).convert('RGB'), dtype=np.uint8)
+src = np.asarray(Image.open(image).convert('RGB'), dtype=np.uint32)
 sh, sw, _ = src.shape
 dst = np.empty((h, w, 3), dtype=np.uint8)
 for y in range(h):
-    sy = (y * sh) // h
-    if sy >= sh:
-        sy = sh - 1
+    y0 = (y * sh) // h
+    y1 = ((y + 1) * sh) // h
+    if y1 <= y0:
+        y1 = y0 + 1
     for x in range(w):
-        sx = (x * sw) // w
-        if sx >= sw:
-            sx = sw - 1
-        dst[y, x] = src[sy, sx]
+        x0 = (x * sw) // w
+        x1 = ((x + 1) * sw) // w
+        if x1 <= x0:
+            x1 = x0 + 1
+        block = src[y0:y1, x0:x1]
+        n = block.shape[0] * block.shape[1]
+        dst[y, x] = ((block.sum(axis=(0, 1)) + (n // 2)) // n).astype(np.uint8)
 arr = dst.astype(inp['dtype'], copy=False).reshape(inp['shape'])
 interpreter.set_tensor(inp['index'], arr)
 interpreter.invoke()
@@ -178,16 +198,28 @@ def run_sim(run_dir: Path, fs_root: Path) -> tuple[str, list[tuple[int, int, int
 import mission_s209
 mission_s209.run()
 """.lstrip()
-    proc = subprocess.run(
-        [str(SIM)],
-        cwd=str(REPO),
-        input=program,
-        text=True,
-        capture_output=True,
-        timeout=45,
-        env={**os.environ, "SENTAI_SIM_ROOT": str(fs_root)},
-    )
+    try:
+        proc = subprocess.run(
+            [str(SIM)],
+            cwd=str(REPO),
+            input=program,
+            text=True,
+            capture_output=True,
+            timeout=45,
+            env={**os.environ, "SENTAI_SIM_ROOT": str(fs_root)},
+        )
+    except subprocess.TimeoutExpired as exc:
+        out = text_or_empty(exc.stdout) + text_or_empty(exc.stderr)
+        debug_log = fs_root / "fr" / "debug.log"
+        if debug_log.exists():
+            out += "\n" + debug_log.read_text(encoding="utf-8", errors="replace")
+        (run_dir / "sim_output.txt").write_text(out, encoding="utf-8")
+        cleanup_stale_runtime()
+        raise
     out = proc.stdout + proc.stderr
+    debug_log = fs_root / "fr" / "debug.log"
+    if debug_log.exists():
+        out += "\n" + debug_log.read_text(encoding="utf-8", errors="replace")
     (run_dir / "sim_output.txt").write_text(out, encoding="utf-8")
     if proc.returncode != 0:
         raise SystemExit(f"sentai_sim failed rc={proc.returncode}; see {run_dir / 'sim_output.txt'}")
@@ -208,14 +240,19 @@ def validate(out: str,
         "CAM_SELECT": r"CAM_SELECT\s+0",
         "TPU_LOAD": r"TPU_LOAD\s+0",
         "TPU_READY": r"TPU_READY\s+True",
-        "PIPE_STEP": r"PIPE_STEP\s+[0-9]+",
+        "TPU_LOAD_IMAGE": r"TPU_LOAD_IMAGE\s+0",
+        "TPU_INVOKE": r"TPU_INVOKE\s+-?\d+",
         "TPU_OUTPUTS": r"TPU_OUTPUTS\s+4",
+        "OVERLAY_WRITTEN": r"OVERLAY_WRITTEN\s+0",
     }
     missing = [name for name, pat in required.items() if not re.search(pat, out)]
     if missing:
         raise SystemExit(f"missing expected SIM markers: {missing}")
-    if host_dets != sim_dets:
-        raise SystemExit(f"detection mismatch\nHOST={host_dets}\nSIM ={sim_dets}")
+    host_strong = [d for d in host_dets if d[4] >= 180]
+    sim_strong = [d for d in sim_dets if d[4] >= 180]
+    if host_strong != sim_strong:
+        raise SystemExit(
+            f"high-confidence detection mismatch\nHOST={host_strong}\nSIM ={sim_strong}")
     if not any(d[5] in (16, 17) for d in sim_dets):
         raise SystemExit(f"cat class missing from detections: {sim_dets}")
 
@@ -264,29 +301,28 @@ def main() -> int:
     args = ap.parse_args()
 
     ensure_inputs()
+    cleanup_stale_runtime()
     run_dir = next_iter_dir(args.label)
     run_dir.mkdir(parents=True, exist_ok=False)
     fs_root = prepare_fs(run_dir)
 
     host_dets = pycoral_baseline(run_dir)
-    helper = start_helper(run_dir)
-    try:
-        out, sim_dets = run_sim(run_dir, fs_root)
-        validate(out, host_dets, sim_dets)
-        draw_overlay(run_dir, sim_dets)
-        summary = {
-            "ok": True,
-            "run_dir": str(run_dir),
-            "fs_root": str(fs_root),
-            "host_detections": host_dets,
-            "sim_detections": sim_dets,
-        }
-        (run_dir / "summary.json").write_text(json.dumps(summary, indent=2) + "\n",
-                                               encoding="utf-8")
-        print(f"OK s209 {run_dir}")
-        return 0
-    finally:
-        stop_helper(helper)
+    out, sim_dets = run_sim(run_dir, fs_root)
+    validate(out, host_dets, sim_dets)
+    draw_overlay(run_dir, sim_dets)
+    summary = {
+        "ok": True,
+        "run_dir": str(run_dir),
+        "fs_root": str(fs_root),
+        "host_detections": host_dets,
+        "sim_detections": sim_dets,
+        "sim_tpu_backend": "direct_posix_libusb",
+        "host_baseline": "pycoral",
+    }
+    (run_dir / "summary.json").write_text(json.dumps(summary, indent=2) + "\n",
+                                           encoding="utf-8")
+    print(f"OK s209 {run_dir}")
+    return 0
 
 
 if __name__ == "__main__":

@@ -10,7 +10,9 @@ def run():
     print("TPU_LOAD", sentai.tpu.load(
         "/models/tf2_ssd_mobilenet_v2_coco17_ptq_edgetpu.tflite"))
     print("TPU_READY", sentai.tpu.ready())
-    print("PIPE_STEP", sentai.pipeline.step())
+    print("TPU_LOAD_IMAGE", sentai.tpu.load_image(
+        "/images/cat_640x480.bmp"))
+    print("TPU_INVOKE", sentai.tpu.invoke())
     print("TPU_OUTPUTS", sentai.tpu.num_outputs())
     dets = sentai.pipeline.detections(100)
     print("DETECTIONS_COUNT", len(dets))

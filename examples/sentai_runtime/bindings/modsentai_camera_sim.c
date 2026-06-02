@@ -1,7 +1,7 @@
-/* modsentai_sim_camera.c — extracted from modsentai_sim.c (refactor T0, 2026-05-16).
- * Part of the SIM sentai MP bindings, #include'd from modsentai_sim.c
- * inside the single translation unit.  See Sim.md §10y "SIM file
- * organisation" for the layout rules. */
+/* modsentai_camera_sim.c — temporary SIM branch for the shared camera binding.
+ * This file is included from sim/modsentai_sim.c while B7 folds the SIM camera
+ * surface into bindings/modsentai_camera.c and leaves only camera providers in
+ * sim/. */
 
 
 /* ===== sentai.camera — virtGazebo backend (Phase 1.5 stub, Phase 4 real) =====
@@ -25,9 +25,15 @@
 static const char SIM_CAMERA_BACKEND[] = "virt_gazebo";
 
 extern int sentai_virtual_camera_select(const char* path);
+extern int sentai_virtual_camera_play(const char* dir, int fps, int count);
+extern int sentai_virtual_camera_replay(int fps, int count);
+extern int sentai_virtual_camera_play_stop(void);
+extern int sentai_virtual_camera_playing(void);
 extern void sentai_virtual_camera_disable(void);
 extern int sentai_virtual_camera_active(void);
 extern unsigned int sentai_virtual_camera_seq(void);
+extern int sentai_cam_grabbed_id(void);
+extern int sentai_cam_last_capture_id(void);
 
 static mp_obj_t sentai_camera_init(size_t n_args, const mp_obj_t *args) {
     /* On firmware: init(num_frames[, w, h, fps]) -> int rc.  In Phase 1.5
@@ -49,10 +55,39 @@ static mp_obj_t sentai_camera_frame_count(void) {
 static MP_DEFINE_CONST_FUN_OBJ_0(sentai_camera_frame_count_obj, sentai_camera_frame_count);
 
 static mp_obj_t sentai_camera_grabbed_id(void) {
-    if (sentai_virtual_camera_active()) return mp_obj_new_int(-1);
-    return mp_obj_new_int(0);
+    return mp_obj_new_int(sentai_cam_grabbed_id());
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(sentai_camera_grabbed_id_obj, sentai_camera_grabbed_id);
+
+static mp_obj_t sentai_camera_last_capture_id(void) {
+    return mp_obj_new_int(sentai_cam_last_capture_id());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(sentai_camera_last_capture_id_obj,
+                                  sentai_camera_last_capture_id);
+
+static mp_obj_t sentai_camera_stats(void) {
+    mp_obj_t d = mp_obj_new_dict(0);
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_backend),
+                      mp_obj_new_str(SIM_CAMERA_BACKEND,
+                                     strlen(SIM_CAMERA_BACKEND)));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_frame_count),
+                      mp_obj_new_int_from_uint(sentai_virtual_camera_seq()));
+    mp_obj_dict_store(d, mp_obj_new_str("virtual_active", 14),
+                      mp_obj_new_bool(sentai_virtual_camera_active()));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_switch_ok_eof),
+                      mp_obj_new_int(0));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_switch_fallback),
+                      mp_obj_new_int(0));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_drain_timeout),
+                      mp_obj_new_int(0));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_grab_retry),
+                      mp_obj_new_int(0));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_grab_fatal),
+                      mp_obj_new_int(0));
+    return d;
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(sentai_camera_stats_obj,
+                                  sentai_camera_stats);
 
 static mp_obj_t sentai_camera_select(size_t n_args, const mp_obj_t* args) {
     mp_int_t cam = mp_obj_get_int(args[0]);
@@ -60,7 +95,6 @@ static mp_obj_t sentai_camera_select(size_t n_args, const mp_obj_t* args) {
         if (n_args < 2) return mp_obj_new_int(-10);
         const char* path = mp_obj_str_get_str(args[1]);
         int rc = sentai_virtual_camera_select(path);
-        if (s_verbose) printf("[camera] select(-1, %s) rc=%d\n", path, rc);
         return mp_obj_new_int(rc);
     }
     sentai_virtual_camera_disable();
@@ -69,6 +103,35 @@ static mp_obj_t sentai_camera_select(size_t n_args, const mp_obj_t* args) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(sentai_camera_select_obj,
                                            1, 2, sentai_camera_select);
+
+static mp_obj_t sentai_camera_play(size_t n_args, const mp_obj_t* args) {
+    const char* dir = mp_obj_str_get_str(args[0]);
+    int fps = (n_args > 1) ? mp_obj_get_int(args[1]) : 10;
+    int count = (n_args > 2) ? mp_obj_get_int(args[2]) : 0;
+    return mp_obj_new_int(sentai_virtual_camera_play(dir, fps, count));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(sentai_camera_play_obj,
+                                           1, 3, sentai_camera_play);
+
+static mp_obj_t sentai_camera_replay(size_t n_args, const mp_obj_t* args) {
+    int fps = (n_args > 0) ? mp_obj_get_int(args[0]) : 10;
+    int count = (n_args > 1) ? mp_obj_get_int(args[1]) : 0;
+    return mp_obj_new_int(sentai_virtual_camera_replay(fps, count));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(sentai_camera_replay_obj,
+                                           0, 2, sentai_camera_replay);
+
+static mp_obj_t sentai_camera_play_stop(void) {
+    return mp_obj_new_int(sentai_virtual_camera_play_stop());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(sentai_camera_play_stop_obj,
+                                  sentai_camera_play_stop);
+
+static mp_obj_t sentai_camera_playing(void) {
+    return mp_obj_new_bool(sentai_virtual_camera_playing() != 0);
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(sentai_camera_playing_obj,
+                                  sentai_camera_playing);
 
 /* ===== sentai.camera.grab_gray(w, h) — return latest cam frame as gray bytes.
  *
@@ -109,9 +172,24 @@ static uint8_t s_grab_rgb_src[CAM_GRAB_RGB_SZ];
 static uint8_t s_grab_rgb_dst[CAM_GRAB_RGB_SZ];
 static uint8_t s_grab_gray[CAM_GRAB_GRAY_SZ];
 
-/* Forward decl — defined below in pipeline section. */
 static int sim_resize_rgb888_nearest(const uint8_t* src, int sw, int sh,
-                                      uint8_t* dst, int dw, int dh);
+                                      uint8_t* dst, int dw, int dh) {
+    if (!src || !dst) return -1;
+    for (int y = 0; y < dh; ++y) {
+        int sy = (y * sh) / dh;
+        if (sy >= sh) sy = sh - 1;
+        const uint8_t* srow = src + sy * sw * 3;
+        uint8_t* drow = dst + y * dw * 3;
+        for (int x = 0; x < dw; ++x) {
+            int sx = (x * sw) / dw;
+            if (sx >= sw) sx = sw - 1;
+            drow[x*3+0] = srow[sx*3+0];
+            drow[x*3+1] = srow[sx*3+1];
+            drow[x*3+2] = srow[sx*3+2];
+        }
+    }
+    return 0;
+}
 
 static mp_obj_t sentai_camera_grab_gray(size_t n_args, const mp_obj_t* args) {
     /* Args: (w=320, h=240) — both optional. */
@@ -171,6 +249,62 @@ static mp_obj_t sentai_camera_grab_gray(size_t n_args, const mp_obj_t* args) {
     return MP_OBJ_FROM_PTR(d);
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(sentai_camera_grab_gray_obj, 0, 2, sentai_camera_grab_gray);
+
+#include "sentai_prep.h"
+
+extern int sentai_camera_backend_publish_prep_once(void);
+
+static mp_obj_t sentai_camera_prep_enable(mp_obj_t slot_obj) {
+    int slot = mp_obj_get_int(slot_obj);
+    return mp_obj_new_int(sentai_prep_slot_enable((sentai_prep_slot_id_t)slot));
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(sentai_camera_prep_enable_obj,
+                                 sentai_camera_prep_enable);
+
+static mp_obj_t sentai_camera_prep_disable(mp_obj_t slot_obj) {
+    int slot = mp_obj_get_int(slot_obj);
+    return mp_obj_new_int(sentai_prep_slot_disable((sentai_prep_slot_id_t)slot));
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(sentai_camera_prep_disable_obj,
+                                 sentai_camera_prep_disable);
+
+static mp_obj_t sentai_camera_prep_once(void) {
+    return mp_obj_new_int(sentai_camera_backend_publish_prep_once());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(sentai_camera_prep_once_obj,
+                                 sentai_camera_prep_once);
+
+static mp_obj_t sentai_camera_prep_reset(void) {
+    sentai_prep_reset_stats();
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(sentai_camera_prep_reset_obj,
+                                 sentai_camera_prep_reset);
+
+static mp_obj_t sentai_camera_prep_stats(void) {
+    sentai_prep_stats_t st;
+    sentai_prep_get_stats(&st);
+    mp_obj_t d = mp_obj_new_dict(6);
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_frames_total),
+                      mp_obj_new_int_from_uint(st.frames_total));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_frames_with_aux),
+                      mp_obj_new_int_from_uint(st.frames_with_aux));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_producer_overruns),
+                      mp_obj_new_int_from_uint(st.producer_overruns));
+    mp_obj_t refs[SENTAI_PREP_SLOT_COUNT];
+    mp_obj_t seqs[SENTAI_PREP_SLOT_COUNT];
+    for (int i = 0; i < SENTAI_PREP_SLOT_COUNT; ++i) {
+        refs[i] = mp_obj_new_int(st.slot_refcount[i]);
+        seqs[i] = mp_obj_new_int_from_uint(st.slot_seq[i]);
+    }
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_slot_refcount),
+                      mp_obj_new_tuple(SENTAI_PREP_SLOT_COUNT, refs));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_slot_seq),
+                      mp_obj_new_tuple(SENTAI_PREP_SLOT_COUNT, seqs));
+    return d;
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(sentai_camera_prep_stats_obj,
+                                 sentai_camera_prep_stats);
 
 /* Zero-copy gray-frame hook for C consumers (sentai_aruco, future
  * sentai_phog, ...).  Returns a pointer into the static s_grab_gray
@@ -249,7 +383,18 @@ static const mp_rom_map_elem_t sentai_camera_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_init),        MP_ROM_PTR(&sentai_camera_init_obj) },
     { MP_ROM_QSTR(MP_QSTR_frame_count), MP_ROM_PTR(&sentai_camera_frame_count_obj) },
     { MP_ROM_QSTR(MP_QSTR_grabbed_id),  MP_ROM_PTR(&sentai_camera_grabbed_id_obj) },
+    { MP_ROM_QSTR(MP_QSTR_last_capture_id), MP_ROM_PTR(&sentai_camera_last_capture_id_obj) },
     { MP_ROM_QSTR(MP_QSTR_select),      MP_ROM_PTR(&sentai_camera_select_obj) },
+    { MP_ROM_QSTR(MP_QSTR_play),        MP_ROM_PTR(&sentai_camera_play_obj) },
+    { MP_ROM_QSTR(MP_QSTR_replay),      MP_ROM_PTR(&sentai_camera_replay_obj) },
+    { MP_ROM_QSTR(MP_QSTR_play_stop),   MP_ROM_PTR(&sentai_camera_play_stop_obj) },
+    { MP_ROM_QSTR(MP_QSTR_playing),     MP_ROM_PTR(&sentai_camera_playing_obj) },
+    { MP_ROM_QSTR(MP_QSTR_prep_enable), MP_ROM_PTR(&sentai_camera_prep_enable_obj) },
+    { MP_ROM_QSTR(MP_QSTR_prep_disable), MP_ROM_PTR(&sentai_camera_prep_disable_obj) },
+    { MP_ROM_QSTR(MP_QSTR_prep_once),   MP_ROM_PTR(&sentai_camera_prep_once_obj) },
+    { MP_ROM_QSTR(MP_QSTR_prep_reset),  MP_ROM_PTR(&sentai_camera_prep_reset_obj) },
+    { MP_ROM_QSTR(MP_QSTR_prep_stats),  MP_ROM_PTR(&sentai_camera_prep_stats_obj) },
+    { MP_ROM_QSTR(MP_QSTR_stats),       MP_ROM_PTR(&sentai_camera_stats_obj) },
     { MP_ROM_QSTR(MP_QSTR_grab_gray),   MP_ROM_PTR(&sentai_camera_grab_gray_obj) },
     /* "backend" is a SIM-only diagnostic — no need for a stable QSTR; use
      * an inline string literal with hashing via mp_obj_new_str.  We

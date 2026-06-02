@@ -2,5 +2,6 @@
 
 mp_obj_list_t mp_sys_argv_obj;
 mp_obj_t crazy_msg_handler;
+mp_obj_t pipeline_detection_handler;
 mp_obj_t sys_mutable[MP_SYS_MUTABLE_NUM];
 mp_sched_item_t sched_queue[(4)];

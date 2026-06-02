@@ -14,6 +14,7 @@ research follow-ups.
 | A5 | [TD-S10-A5_migrate_calib_marker_control_to_cpp_tasks.md](TD-S10-A5_migrate_calib_marker_control_to_cpp_tasks.md) | Define migration of calibration and marker control into C++ runtime tasks. |
 | A6 | [TD-S10-A6_define_mission_level_robot_primitives.md](TD-S10-A6_define_mission_level_robot_primitives.md) | Define SentAI primitive taxonomy, REPL/radio grammar, and mission vocabulary. |
 | A7 | [TD-S10-A7_runtime_namespace_alignment.md](TD-S10-A7_runtime_namespace_alignment.md) | Define runtime namespace alignment with the A6/B6 taxonomy, without breaking B5. |
+| A8 | [TD-S10-A8_research_arm_emulator_runtime.md](TD-S10-A8_research_arm_emulator_runtime.md) | Research moving SIM proof work from FreeRTOS POSIX/x86 toward ARM firmware emulation. |
 
 ## Implementation / Research Documents
 
@@ -26,9 +27,11 @@ research follow-ups.
 | B5 | [TD-S10-B5_implement_cpp_tasks_for_calib_marker_control.md](TD-S10-B5_implement_cpp_tasks_for_calib_marker_control.md) | Implement A5 C++ runtime tasks for calibration and marker control. |
 | B6 | [TD-S10-B6_research_sentai_prime_command_dictionary.md](TD-S10-B6_research_sentai_prime_command_dictionary.md) | Research A6 against SOTA and define D1-D8 conclusions for command taxonomy. |
 | B7 | [TD-S10-B7_implement_runtime_namespace_alignment.md](TD-S10-B7_implement_runtime_namespace_alignment.md) | Implement A7 runtime namespace inventory, SIM/ARM parity checks, and safe introspection. |
+| B8 | [TD-S10-B8_research_arm_emulator_runtime.md](TD-S10-B8_research_arm_emulator_runtime.md) | Research and spike ARM/Cortex-M emulator runtime path for SentAI. |
 
 ## Current Position
 
-A6/B6 establish the language and architecture.  A7/B7 align the real
-`sentai.*` runtime namespaces with that taxonomy through safe inventory, naming,
-parity checks, and introspection, with B5/s207 kept as the regression mission.
+A6/B6 establish the language and architecture.  A7/B7 aligned much of the real
+`sentai.*` runtime namespace surface, but B7 is paused after the POSIX/x86 SIM
+path hit task/peripheral-fidelity limits.  A8/B8 now research a closer ARM
+emulator path that can run the ARM FreeRTOS/task/ISR model on the host.
