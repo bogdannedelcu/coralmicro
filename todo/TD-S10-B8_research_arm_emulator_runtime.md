@@ -40,8 +40,11 @@ Coral USB parity              -> likely not first-slice emulator work
 
 Current host state:
 
-- `renode` is not installed in the local PATH.
+- `renode` is not installed in the local PATH, but source was cloned locally at
+  `/home/bogdan/work/renode` (`ac18b5a`, branch `master`).
 - `qemu-system-arm` is not installed in the local PATH.
+- Zephyr source was cloned locally at `/home/bogdan/work/zephyrOS`
+  (`0570f6d6b`, branch `main`) to mine RT1176 board/devicetree/platform data.
 - no ready `sentai_runtime.elf` was found in the current build directories; the
   current tree has SIM builds and ARM build definitions, but the B8 spike must
   first produce or locate a CM7 ELF.
@@ -67,6 +70,31 @@ SDRAM, flash, USB connectors, PXP, CSI/MIPI camera-related nodes, clocks, and
 other peripherals.  This is useful evidence that the RT1176 platform is well
 described in modern embedded tooling.
 
+Local Zephyr files of immediate interest:
+
+```text
+/home/bogdan/work/zephyrOS/boards/nxp/mimxrt1170_evk/
+  mimxrt1170_evk_mimxrt1176_cm7.dts
+  mimxrt1170_evk.dtsi
+  mimxrt1170_evk-pinctrl.dtsi
+  xip/*flexspi_nor_config*
+
+/home/bogdan/work/zephyrOS/dts/arm/nxp/imxrt/nxp_rt1170*.dtsi
+```
+
+The CM7 DTS confirms useful anchors for our emulator profile:
+
+- `compatible = "nxp,mimxrt1176"`;
+- `zephyr,sram = &sdram0`;
+- `zephyr,dtcm = &dtcm`;
+- `zephyr,itcm = &itcm`;
+- `zephyr,console = &lpuart1`;
+- `zephyr,flash-controller = &ext_flash_ctrl`;
+- `zephyr,flash = &is25wp128`;
+- `sdram0` at `0x80000000`, size `64M`;
+- enabled `systick`, `gpt_hw_timer`, `wdog1`, `lpuart1`, `usdhc1`,
+  `usb1`/`usbphy1`, `mipi_csi2rx`, and `csi` references.
+
 The important caveat is that **Zephyr board support is not emulator support**.
 It gives us:
 
@@ -83,6 +111,44 @@ It does not give us, by itself:
 
 So B8 should use Zephyr as a platform map and sanity reference, not as proof
 that the SentAI ELF can boot in an emulator out of the box.
+
+Local Renode findings:
+
+```text
+/home/bogdan/work/renode/platforms/boards/mimxrt1064_evk.repl
+/home/bogdan/work/renode/platforms/cpus/imxrt1064.repl
+/home/bogdan/work/renode/platforms/boards/mimxrt700_evk.repl
+/home/bogdan/work/renode/scripts/single-node/mimxrt700_evk.resc
+```
+
+Renode does not currently show an RT1170/RT1176 board platform in the cloned
+tree.  It does have useful NXP/i.MX RT material:
+
+- `CPU.CortexM` with `cpuType: "cortex-m7"` in `imxrt1064.repl`;
+- `IRQControllers.NVIC` with SysTick frequency and priority mask;
+- `UART.NXP_LPUART` model for LPUART instances;
+- `GPIOPort.IMXRT_GPIO`;
+- `SPI.IMXRT_FlexSPI`;
+- `Timers.IMX_GPTimer`;
+- broad MMIO tags for SEMC, USB, CSI, PXP, USDHC, FlexSPI FIFOs, etc.
+
+This makes RT1064 the best local Renode starting template, while Zephyr/SDK
+RT1176 sources provide the address map and board-specific deltas.
+
+## B8 Objective Shift
+
+We are pausing the POSIX SIM path as the primary proof vehicle.  B8's objective
+is now:
+
+```text
+Boot a SentAI/RT1176-like ARM firmware image in an emulator, using the ARM
+FreeRTOS port and ARM exception/task model, then incrementally add enough
+peripheral models to reach REPL, FS, camera-provider frames, PrepTask, Flow,
+and later Crazyflie transport.
+```
+
+The POSIX SIM remains a historical/auxiliary tool, not the direction of record
+for B8.
 
 ## Direction Decision For B8
 

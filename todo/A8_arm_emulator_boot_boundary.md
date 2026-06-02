@@ -13,6 +13,13 @@ trust task/ISR behavior.
 
 - Current working tree has no `renode` or `qemu-system-arm` in PATH.
 - No ready `sentai_runtime.elf` was found in the current build directories.
+- External research repos are now local:
+
+```text
+/home/bogdan/work/zephyrOS  # Zephyr main, 0570f6d6b
+/home/bogdan/work/renode    # Renode master, ac18b5a
+```
+
 - ARM build is selected when `SENTAI_SIM=OFF`; `examples/sentai_runtime`
   defines `sentai_runtime` as a CM7 executable linked with
   `examples/sentai_runtime/MIMXRT1176xxxxx_cm7_ram_mp.ld`.
@@ -21,6 +28,9 @@ trust task/ISR behavior.
   runtime tasks.
 - Zephyr has a maintained `mimxrt1170_evk@A/mimxrt1176/cm7` target that can be
   used as a platform-map reference, but it is not an emulator target by itself.
+- Renode has `mimxrt1064_evk` and `mimxrt700_evk` platforms locally, but not an
+  RT1170/RT1176 platform.  Use RT1064 as the closest Cortex-M7/i.MX RT template
+  and Zephyr/SDK RT1176 files for the deltas.
 
 ## Local ARM Workflow Notes
 
