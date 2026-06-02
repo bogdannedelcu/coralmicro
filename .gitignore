@@ -5,6 +5,7 @@
 /arduino-cli.yaml
 /build
 /build-*
+/build_emu
 /docs/_build
 /third_party/arduino-cli
 /third_party/toolchain-*

@@ -1,0 +1,48 @@
+{
+  "experiment": "s213_arm_emulator_idle",
+  "iter": "iter04_renode_repl_oneplusone",
+  "target_kind": "repl",
+  "started_at": "2026-06-02T10:10:18+0300",
+  "commands": {
+    "configure": [
+      "cmake",
+      "-S",
+      ".",
+      "-B",
+      "build_emu",
+      "-DSENTAI_ARM_EMU=ON",
+      "-DSENTAI_SKIP_SDK_PATCHES=ON"
+    ],
+    "build": [
+      "cmake",
+      "--build",
+      "build_emu",
+      "--target",
+      "sentai_emu_repl",
+      "-j16"
+    ],
+    "renode": [
+      "/home/bogdan/work/renode_portable/renode",
+      "--plain",
+      "--console",
+      "--disable-xwt",
+      "emu/renode/sentai_emu_repl.resc"
+    ]
+  },
+  "target": "build_emu/emu/sentai_emu_repl",
+  "renode_script": "emu/renode/sentai_emu_repl.resc",
+  "returncodes": {
+    "configure": 0,
+    "build": 0,
+    "renode": 0
+  },
+  "boot_state": 1280,
+  "heartbeat": 1,
+  "last_tick": 2114,
+  "repl_lines": 1,
+  "uart_log_contains_boot": false,
+  "uart_log_contains_heartbeat": false,
+  "uart_log_contains_repl_banner": true,
+  "uart_log_contains_repl_answer": false,
+  "pass": false
+}

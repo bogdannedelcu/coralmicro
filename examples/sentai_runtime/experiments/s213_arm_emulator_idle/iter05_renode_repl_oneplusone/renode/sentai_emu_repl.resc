@@ -1,0 +1,45 @@
+:name: SentAI B8.3 ARM MicroPython REPL on LPUART6
+:description: Boots sentai_emu_repl, captures LPUART6 TX to file, injects `1+1\r` into LPUART6 RX, and verifies the REPL prints `2`.
+
+i @emu/renode/sentai_rt1176.repl
+
+$bin?=@build_emu/emu/sentai_emu_repl
+$uart_log?=@/home/bogdan/work/coralmicro/emu/output/sentai_emu_repl.log
+
+macro reset
+"""
+    sysbus LoadELF $bin
+    cpu VectorTableOffset 0x800
+"""
+
+lpuart6 CreateFileBackend $uart_log
+runMacro $reset
+
+# Boot + mp_embed_init + REPL banner. The emu target prints the banner before
+# setting boot_state=0x500, so 2s of emulated time is enough margin even with
+# the slow GC heap initialisation under Renode.
+emulation RunFor "2s"
+
+# Inject `1+1\r` one byte at a time, giving the REPL VM enough emulated time
+# between bytes to process each character through mp_hal_stdin_rx_chr.
+lpuart6 WriteChar 0x31
+emulation RunFor "0.05s"
+lpuart6 WriteChar 0x2B
+emulation RunFor "0.05s"
+lpuart6 WriteChar 0x31
+emulation RunFor "0.05s"
+lpuart6 WriteChar 0x0D
+emulation RunFor "1s"
+
+lpuart6 CloseFileBackend $uart_log
+
+echo "sentai_emu_repl PC:"
+cpu PC
+echo "sentai_emu_repl boot_state:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_boot_state"`
+echo "sentai_emu_repl heartbeat:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_heartbeat"`
+echo "sentai_emu_repl repl_lines:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_repl_lines"`
+echo "sentai_emu_repl last_tick:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_last_tick"`

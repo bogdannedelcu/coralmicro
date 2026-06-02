@@ -1,0 +1,27 @@
+:name: SentAI B8.2 ARM UART smoke
+:description: Loads the minimal ARM emulator target with LPUART6 output.
+
+i @emu/renode/sentai_rt1176.repl
+
+$bin?=@build_emu/emu/sentai_emu_uart
+$uart_log?=@/home/bogdan/work/coralmicro/emu/output/sentai_emu_uart.log
+
+macro reset
+"""
+    sysbus LoadELF $bin
+    cpu VectorTableOffset 0x800
+"""
+
+lpuart6 CreateFileBackend $uart_log
+runMacro $reset
+emulation RunFor "0.5s"
+lpuart6 CloseFileBackend $uart_log
+
+echo "sentai_emu_uart PC:"
+cpu PC
+echo "sentai_emu_uart boot_state:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_boot_state"`
+echo "sentai_emu_uart heartbeat:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_heartbeat"`
+echo "sentai_emu_uart last_tick:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_last_tick"`

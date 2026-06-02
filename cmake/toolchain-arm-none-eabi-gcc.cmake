@@ -58,6 +58,11 @@ get_filename_component(CMAKE_CXX_COMPILER ${TOOLCHAIN_DIR}/gcc-arm-none-eabi-9-2
 get_filename_component(CMAKE_OBJCOPY ${TOOLCHAIN_DIR}/gcc-arm-none-eabi-9-2020-q2-update/bin/arm-none-eabi-objcopy${TOOLCHAIN_EXE_EXTENSION} REALPATH CACHE)
 get_filename_component(CMAKE_STRIP ${TOOLCHAIN_DIR}/gcc-arm-none-eabi-9-2020-q2-update/bin/arm-none-eabi-strip${TOOLCHAIN_EXE_EXTENSION} REALPATH CACHE)
 
+set(CMAKE_ASM_COMPILE_OBJECT
+    "<CMAKE_ASM_COMPILER> <DEFINES> <INCLUDES> <FLAGS> -o <OBJECT> -c <SOURCE>"
+    CACHE STRING "ASM compile rule for arm-none-eabi-gcc" FORCE)
+set(CMAKE_INCLUDE_FLAG_ASM "-I" CACHE STRING "ASM include flag" FORCE)
+
 execute_process(
     COMMAND ${CMAKE_C_COMPILER} -print-libgcc-file-name
     OUTPUT_VARIABLE CMAKE_FIND_ROOT_PATH

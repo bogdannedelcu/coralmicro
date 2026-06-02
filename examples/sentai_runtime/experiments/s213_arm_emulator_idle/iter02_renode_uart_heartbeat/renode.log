@@ -1,0 +1,36 @@
+09:47:57.4976 [INFO] Loaded monitor commands from: /home/bogdan/work/renode_portable/scripts/monitor.py
+Renode, version 1.16.1 (ac18b5ac-202606020225)
+
+
+(monitor) i $CWD/emu/renode/sentai_emu_uart.resc
+
+09:47:57.6157 [INFO] Including script(s): /home/bogdan/work/coralmicro/emu/renode/sentai_emu_uart.resc
+09:47:57.6310 [INFO] System bus created.
+09:47:58.3988 [INFO] Old file /home/bogdan/work/coralmicro/emu/output/sentai_emu_uart.log moved to /home/bogdan/work/coralmicro/emu/output/sentai_emu_uart.log.1
+09:47:58.4142 [INFO] sysbus: Loading block of 3072 bytes length at 0x0.
+09:47:58.4248 [INFO] sysbus: Loading block of 23740 bytes length at 0xC00.
+09:47:58.4249 [INFO] sysbus: Loading block of 480 bytes length at 0x68BC.
+09:47:58.4249 [INFO] sysbus: Loading block of 4208 bytes length at 0x6AA0.
+09:47:58.4249 [INFO] sysbus: Loading block of 16777216 bytes length at 0x80000000.
+09:47:58.8698 [INFO] cpu: Setting initial values: PC = 0xCBD, SP = 0x20040000.
+09:47:58.8723 [INFO] machine-0: Machine started.
+09:47:58.9484 [WARNING] nvic: Unhandled write to offset 0xF50 (ICacheInvalidateAllToPoUaIgnored), value 0x0.
+09:47:58.9771 [WARNING] nvic: Trying to set the priority for interrupt 16 to 0xFF, but it should be maskable with 0xF0
+09:47:59.5462 [INFO] machine-0: Machine paused.
+sentai_emu_uart PC:
+
+0x2168
+
+sentai_emu_uart boot_state:
+
+0x00000300
+
+sentai_emu_uart heartbeat:
+
+0x0000002F
+
+sentai_emu_uart last_tick:
+
+0x000001CC
+
+(machine-0) 09:47:59.6199 [INFO] machine-0: Disposed.

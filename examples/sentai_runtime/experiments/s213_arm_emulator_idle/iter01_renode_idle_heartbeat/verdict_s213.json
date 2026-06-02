@@ -1,0 +1,42 @@
+{
+  "experiment": "s213_arm_emulator_idle",
+  "iter": "iter01_renode_idle_heartbeat",
+  "started_at": "2026-06-02T09:44:46+0300",
+  "commands": {
+    "configure": [
+      "cmake",
+      "-S",
+      ".",
+      "-B",
+      "build_emu",
+      "-DSENTAI_ARM_EMU=ON",
+      "-DSENTAI_SKIP_SDK_PATCHES=ON"
+    ],
+    "build": [
+      "cmake",
+      "--build",
+      "build_emu",
+      "--target",
+      "sentai_emu_idle",
+      "-j16"
+    ],
+    "renode": [
+      "/home/bogdan/work/renode_portable/renode",
+      "--plain",
+      "--console",
+      "--disable-xwt",
+      "emu/renode/sentai_emu_idle.resc"
+    ]
+  },
+  "target": "build_emu/emu/sentai_emu_idle",
+  "renode_script": "emu/renode/sentai_emu_idle.resc",
+  "returncodes": {
+    "configure": 0,
+    "build": 0,
+    "renode": 0
+  },
+  "boot_state": 768,
+  "heartbeat": 47,
+  "last_tick": 460,
+  "pass": true
+}

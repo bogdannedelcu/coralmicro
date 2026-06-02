@@ -1,0 +1,24 @@
+:name: SentAI B8.1 ARM FreeRTOS idle smoke
+:description: Loads the minimal ARM emulator FreeRTOS heartbeat target.
+
+i @emu/renode/sentai_rt1176.repl
+
+$bin?=@build_emu/emu/sentai_emu_idle
+
+macro reset
+"""
+    sysbus LoadELF $bin
+    cpu VectorTableOffset 0x800
+"""
+
+runMacro $reset
+emulation RunFor "0.5s"
+
+echo "sentai_emu_idle PC:"
+cpu PC
+echo "sentai_emu_idle boot_state:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_boot_state"`
+echo "sentai_emu_idle heartbeat:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_heartbeat"`
+echo "sentai_emu_idle last_tick:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_last_tick"`

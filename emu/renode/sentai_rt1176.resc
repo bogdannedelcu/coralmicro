@@ -1,0 +1,16 @@
+:name: SentAI RT1176 CM7 provisional bring-up
+:description: Loads the current ARM sentai_runtime RAM image on a provisional RT1176-like Renode platform.
+
+i @emu/renode/sentai_rt1176.repl
+
+$bin?=@build/examples/sentai_runtime/sentai_runtime.stripped
+
+macro reset
+"""
+    sysbus LoadELF $bin
+    cpu VectorTableOffset 0x800
+"""
+
+runMacro $reset
+lpuart6 CreateFileBackend @/home/bogdan/work/coralmicro/emu/output/sentai_rt1176_uart.log
+emulation RunFor "1s"

@@ -1,0 +1,132 @@
+# SentAI ARM Emulator Bring-Up
+
+This directory holds host-side emulator configuration for B8.  The goal is to
+boot the ARM `sentai_runtime` firmware model, not to extend the POSIX SIM path.
+
+Current first milestone:
+
+1. build and boot `sentai_emu_idle`, a minimal CM7/ARM-FreeRTOS heartbeat
+   image;
+2. prove startup, scheduler, SysTick, and `vTaskDelay()` under Renode;
+3. build and boot `sentai_emu_uart` to prove LPUART6 output capture;
+4. build and boot `sentai_emu_repl` to prove MicroPython embed runs on the
+   ARM emulator and evaluates `1+1 -> 2` over LPUART6;
+5. only then add filesystem/mission/camera.
+
+Production-image inventory milestone:
+
+1. load the existing CM7 RAM ELF/stripped ELF;
+2. map the SentAI linker memory regions correctly;
+3. expose the firmware debug console on LPUART6;
+4. identify the first missing board peripheral model with evidence.
+
+The first interactive target is UART REPL.  USB CDC REPL, filesystem-backed
+missions, camera provider, and EdgeTPU are later milestones.
+
+## Source Anchors
+
+- Linker: `examples/sentai_runtime/MIMXRT1176xxxxx_cm7_ram_mp.ld`
+- Board init: `libs/nxp/rt1176-sdk/board_hardware.c`
+- Main boot: `libs/base/main_freertos_m7.cc`
+- App boot: `examples/sentai_runtime/sentai_runtime.cc`
+- Debug UART: `third_party/modified/nxp/rt1176-sdk/board.h`
+
+Important local facts:
+
+- vector table is at `0x00000800`;
+- reset vector currently points to `0x00000ecd`;
+- MSP starts at `0x20040000`;
+- SentAI debug console uses **LPUART6**, not Zephyr's LPUART1;
+- LPUART6 base is `0x40090000`, IRQ `25`;
+- SDRAM starts at `0x80000000` and must cover heap, SDRAM code/data, and the
+  camera no-cache area at `0x82000000`.
+
+## Layout
+
+- `renode/sentai_rt1176.repl` - provisional RT1176-like platform.
+- `renode/sentai_rt1176.resc` - loads the current SentAI firmware artifact.
+- `renode/sentai_emu_idle.resc` - loads the minimal B8.1 heartbeat target.
+- `renode/sentai_emu_uart.resc` - loads the minimal B8.2 LPUART6 target.
+- `renode/sentai_emu_repl.resc` - loads the B8.3 MicroPython REPL target.
+- `mp_inc/mpconfigport.h` - emu-only MicroPython config (deliberately split
+  from `examples/sentai_runtime/mpconfigport.h` to avoid production FreeRTOS
+  critical sections and sentai-binding deps).
+- `sentai_emu_repl.cc` / `sentai_emu_mphalport.c` / `sentai_emu_stub_modules.c`
+  - B8.3 REPL implementation, LPUART6 mphal port, and empty `sentai` module
+  stub that satisfies the shared `genhdr/moduledefs.h`.
+
+The `.repl` intentionally uses Renode host-side stub peripherals for early MMIO
+that the NXP SDK touches during boot.  These are not firmware filesystem code
+and do not change the SentAI runtime; they are emulator-only board models.
+
+## Run
+
+Build and run the minimal B8.1 heartbeat target:
+
+```sh
+cmake -S . -B build_emu -DSENTAI_ARM_EMU=ON -DSENTAI_SKIP_SDK_PATCHES=ON
+cmake --build build_emu --target sentai_emu_idle -j$(nproc)
+/home/bogdan/work/renode_portable/renode --plain --console --disable-xwt \
+  emu/renode/sentai_emu_idle.resc
+```
+
+Expected B8.1 proof:
+
+```text
+boot_state = 0x00000300
+heartbeat  > 1
+last_tick  > 0
+```
+
+Build and run the B8.2 UART target:
+
+```sh
+cmake --build build_emu --target sentai_emu_uart -j$(nproc)
+/home/bogdan/work/renode_portable/renode --plain --console --disable-xwt \
+  emu/renode/sentai_emu_uart.resc
+sed -n '1,80p' emu/output/sentai_emu_uart.log
+```
+
+Expected UART proof:
+
+```text
+SentAI EMU UART boot
+SentAI EMU UART task online
+SentAI EMU UART heartbeat
+```
+
+Build and run the B8.3 MicroPython REPL target:
+
+```sh
+cmake --build build_emu --target sentai_emu_repl -j$(nproc)
+/home/bogdan/work/renode_portable/renode --plain --console --disable-xwt \
+  emu/renode/sentai_emu_repl.resc
+xxd emu/output/sentai_emu_repl.log | head
+```
+
+Expected REPL proof:
+
+```text
+SentAI EMU REPL B8.3
+MicroPython embed ready
+>>> 1+1
+2
+>>>
+```
+
+For experiment-style archived runs:
+
+```sh
+python3 examples/sentai_runtime/experiments/s213_arm_emulator_idle/run_s213.py
+python3 examples/sentai_runtime/experiments/s213_arm_emulator_idle/run_s213.py --target uart
+python3 examples/sentai_runtime/experiments/s213_arm_emulator_idle/run_s213.py --target repl
+```
+
+Run the current production artifact inventory script:
+
+```sh
+/home/bogdan/work/renode_portable/renode --console --disable-xwt emu/renode/sentai_rt1176.resc
+```
+
+Expected early blockers are SEMC/NAND/LFS/USB peripheral fidelity, not the
+ARM CPU model itself.

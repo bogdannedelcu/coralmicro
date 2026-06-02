@@ -18,6 +18,7 @@ cmake_minimum_required(VERSION 3.18)
 # instead of the ARM firmware.  Must be set BEFORE project() so the
 # toolchain selection below picks the right compiler.
 option(SENTAI_SIM "Build the x86/Linux SIM target instead of ARM firmware" OFF)
+option(SENTAI_ARM_EMU "Build ARM emulator spike targets" OFF)
 
 # Toolchain must be set before project() call.
 if (NOT DEFINED CMAKE_TOOLCHAIN_FILE)
@@ -117,4 +118,7 @@ else()
     endif()
 
     add_subdirectory(libs)
+    if(SENTAI_ARM_EMU)
+        add_subdirectory(emu)
+    endif()
 endif()

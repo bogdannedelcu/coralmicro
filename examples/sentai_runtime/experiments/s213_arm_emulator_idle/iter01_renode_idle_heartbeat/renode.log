@@ -1,0 +1,35 @@
+09:44:48.5788 [INFO] Loaded monitor commands from: /home/bogdan/work/renode_portable/scripts/monitor.py
+Renode, version 1.16.1 (ac18b5ac-202606020225)
+
+
+(monitor) i $CWD/emu/renode/sentai_emu_idle.resc
+
+09:44:48.7196 [INFO] Including script(s): /home/bogdan/work/coralmicro/emu/renode/sentai_emu_idle.resc
+09:44:48.7356 [INFO] System bus created.
+09:44:49.4367 [INFO] sysbus: Loading block of 3072 bytes length at 0x0.
+09:44:49.4479 [INFO] sysbus: Loading block of 23556 bytes length at 0xC00.
+09:44:49.4480 [INFO] sysbus: Loading block of 480 bytes length at 0x6804.
+09:44:49.4480 [INFO] sysbus: Loading block of 4208 bytes length at 0x69E8.
+09:44:49.4480 [INFO] sysbus: Loading block of 16777216 bytes length at 0x80000000.
+09:44:49.9269 [INFO] cpu: Setting initial values: PC = 0xCBD, SP = 0x20040000.
+09:44:49.9294 [INFO] machine-0: Machine started.
+09:44:50.0066 [WARNING] nvic: Unhandled write to offset 0xF50 (ICacheInvalidateAllToPoUaIgnored), value 0x0.
+09:44:50.0271 [WARNING] nvic: Trying to set the priority for interrupt 16 to 0xFF, but it should be maskable with 0xF0
+09:44:50.6257 [INFO] machine-0: Machine paused.
+sentai_emu_idle PC:
+
+0x20f0
+
+sentai_emu_idle boot_state:
+
+0x00000300
+
+sentai_emu_idle heartbeat:
+
+0x0000002F
+
+sentai_emu_idle last_tick:
+
+0x000001CC
+
+(machine-0) 09:44:50.6985 [INFO] machine-0: Disposed.
