@@ -1,0 +1,56 @@
+:name: SentAI B8.5 ARM emulator camera frame provider
+:description: Boots sentai_emu_camera, then triggers 5 frame deliveries via the VCam Renode peripheral.  Each CONTROL.ARM=1 write makes VCam DMA the next frame into the guest buffer, increment FRAME_SEQ, set STATUS.frame_ready, and pend NVIC IRQ 94.  The firmware ISR signals the consumer task, which validates the frame bytes and writes a marker line per frame to LPUART6.
+
+i @emu/renode/sentai_rt1176.repl
+
+$bin?=@build_emu/emu/sentai_emu_camera
+$uart_log?=@/home/bogdan/work/coralmicro/emu/output/sentai_emu_camera.log
+
+macro reset
+"""
+    sysbus LoadELF $bin
+    cpu VectorTableOffset 0x800
+"""
+
+lpuart6 CreateFileBackend $uart_log
+runMacro $reset
+
+# Boot + consumer task ready + NVIC IRQ 94 enabled.
+emulation RunFor "3s"
+
+# Frame 1
+sysbus WriteDoubleWord 0x40900010 0x1
+emulation RunFor "0.3s"
+
+# Frame 2
+sysbus WriteDoubleWord 0x40900010 0x1
+emulation RunFor "0.3s"
+
+# Frame 3
+sysbus WriteDoubleWord 0x40900010 0x1
+emulation RunFor "0.3s"
+
+# Frame 4
+sysbus WriteDoubleWord 0x40900010 0x1
+emulation RunFor "0.3s"
+
+# Frame 5
+sysbus WriteDoubleWord 0x40900010 0x1
+emulation RunFor "0.5s"
+
+lpuart6 CloseFileBackend $uart_log
+
+echo "sentai_emu_camera PC:"
+cpu PC
+echo "sentai_emu_camera boot_state:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_boot_state"`
+echo "sentai_emu_camera heartbeat:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_heartbeat"`
+echo "sentai_emu_camera frames_consumed:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_frames_consumed"`
+echo "sentai_emu_camera frames_valid:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_frames_valid"`
+echo "sentai_emu_camera irq_count:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_irq_count"`
+echo "sentai_emu_camera last_tick:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_last_tick"`

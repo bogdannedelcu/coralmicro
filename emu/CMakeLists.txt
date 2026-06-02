@@ -142,3 +142,35 @@ target_compile_options(sentai_emu_mission PRIVATE
     -Wno-error -Wno-unused-parameter -Wno-sign-compare
     -Wno-old-style-definition -Wno-missing-prototypes
 )
+
+# --- B8.5 ARM camera frame provider via NVIC IRQ ---------------------------
+#
+# Mirrors the SENTAI_EMU_MINIMAL_SOURCES set (no MicroPython needed for B8.5
+# — the test is on ISR + scheduler fidelity at the camera-frame-ready
+# boundary, not on Python).  Adds sentai_emu_camera.cc, which provides the
+# strong Reserved110_IRQHandler override and the consumer FreeRTOS task.
+
+set(SENTAI_EMU_CAMERA_SOURCES
+    sentai_emu_camera.cc
+    sentai_emu_freertos_hooks.c
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/gcc/startup_MIMXRT1176_cm7.S
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/system_MIMXRT1176_cm7.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/event_groups.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/list.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/portable/GCC/ARM_CM4F/port.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/queue.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/stream_buffer.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/tasks.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/timers.c
+    ${PROJECT_SOURCE_DIR}/third_party/FreeRTOS_helpers/heap_useNewlib_NXP.c
+)
+
+add_executable_m7(sentai_emu_camera
+    LINKER_SCRIPT ${PROJECT_SOURCE_DIR}/libs/nxp/rt1176-sdk/MIMXRT1176xxxxx_cm7_ram.ld
+    ${SENTAI_EMU_CAMERA_SOURCES}
+)
+configure_sentai_emu_target(sentai_emu_camera)
+target_compile_options(sentai_emu_camera PRIVATE
+    -Wno-error -Wno-unused-parameter -Wno-sign-compare
+    -Wno-old-style-definition -Wno-missing-prototypes
+)

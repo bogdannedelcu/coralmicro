@@ -1,0 +1,54 @@
+{
+  "experiment": "s213_arm_emulator_idle",
+  "iter": "iter07_renode_camera_5frames",
+  "target_kind": "camera",
+  "started_at": "2026-06-02T12:00:52+0300",
+  "commands": {
+    "configure": [
+      "cmake",
+      "-S",
+      ".",
+      "-B",
+      "build_emu",
+      "-DSENTAI_ARM_EMU=ON",
+      "-DSENTAI_SKIP_SDK_PATCHES=ON"
+    ],
+    "build": [
+      "cmake",
+      "--build",
+      "build_emu",
+      "--target",
+      "sentai_emu_camera",
+      "-j16"
+    ],
+    "renode": [
+      "/home/bogdan/work/renode_portable/renode",
+      "--plain",
+      "--console",
+      "--disable-xwt",
+      "emu/renode/sentai_emu_camera.resc"
+    ]
+  },
+  "target": "build_emu/emu/sentai_emu_camera",
+  "renode_script": "emu/renode/sentai_emu_camera.resc",
+  "returncodes": {
+    "configure": 0,
+    "build": 0,
+    "renode": 0
+  },
+  "boot_state": 1536,
+  "heartbeat": 5,
+  "last_tick": 4167,
+  "repl_lines": null,
+  "uart_log_contains_boot": false,
+  "uart_log_contains_heartbeat": false,
+  "uart_log_contains_repl_banner": false,
+  "uart_log_contains_repl_answer": false,
+  "uart_log_contains_mission_marker": false,
+  "frames_consumed": 5,
+  "frames_valid": 5,
+  "irq_count": 5,
+  "uart_log_contains_camera_first": true,
+  "uart_log_contains_camera_last": true,
+  "pass": true
+}

@@ -786,6 +786,144 @@ Next gate: B8.5 should add the first virtual camera frame provider feeding
 the same camera-frame event boundary used by ARM PrepTask, still without
 modeling MIPI-CSI or PXP register-level state.
 
+## B8.5 VCam Renode Peripheral + Real NVIC IRQ Frame Boundary
+
+`sentai_emu_camera` proves the full ARM camera ISR path under Renode, end to
+end, without modeling MIPI-CSI/PXP/OV5640.  A new `vcam` Python peripheral
+implements a "host-triggered DMA + IRQ" model that exercises:
+
+```text
+host  ──CONTROL.ARM=1──►  Renode vcam
+                            │
+                            ├─ DMA: WriteBytes(frame_seq, FRAME_PTR..+FRAME_LEN)
+                            ├─ FRAME_SEQ++
+                            ├─ STATUS.frame_ready = 1
+                            └─ sysbus.WriteDoubleWord(NVIC_ISPR2, bit 30)
+                                                │
+                                                ▼
+                                       Cortex-M IRQ entry
+                                       (vector table @ 0x800 + (16+94)*4)
+                                                │
+                                                ▼
+                                Reserved110_IRQHandler (strong override)
+                                       │
+                                       ├─ STATUS = 1 (W1C ack)
+                                       └─ vTaskNotifyGiveFromISR
+                                                │
+                                                ▼
+                                        Consumer FreeRTOS task
+                                       (validate bytes, log marker, ack)
+```
+
+Files added:
+
+```text
+emu/sentai_emu_camera.cc      # consumer task + strong IRQ handler
+emu/renode/sentai_emu_camera.resc
+emu/renode/sentai_rt1176.repl # vcam peripheral block (mapped 0x40900000)
+```
+
+Critical design points:
+
+- **VCam is at `0x40900000`, NOT the real RT1176 CSI base `0x40800000`.**
+  Mapping it at the real CSI address would have invited "is this modeling
+  CSI?" confusion and clashed with the existing CSI-region placeholder used
+  by board init code.  Putting VCam at an unused MMIO region keeps it
+  obviously emu-only test scaffolding, consistent with the SentAI air-gap
+  rule.
+- **IRQ 94 = `Reserved110_IRQn`** is unused in production firmware.  The
+  startup ASM declares `Reserved110_IRQHandler` as a `def_irq_handler` weak
+  alias to `DefaultISR`; the B8.5 build supplies a strong override and the
+  linker resolves to it without changes to the vector table layout.
+- **The peripheral itself raises the IRQ**, not the host script.  After
+  filling the frame buffer, the inline Python in the `.repl` block does
+  `sysbus.WriteDoubleWord(0xE000E208, 0x40000000)` (NVIC ISPR2, bit 30 =
+  IRQ 94).  CONTROL.ARM and the NVIC pend are atomic from the guest's
+  point of view, matching real peripheral semantics.
+- **ISR uses `vTaskNotifyGiveFromISR` + `portYIELD_FROM_ISR`**.  The
+  NVIC priority for IRQ 94 is set to 8 (numeric value 0x80 after the
+  4-bit shift), well below `configMAX_SYSCALL_INTERRUPT_PRIORITY`
+  (numeric 0x20), so FromISR APIs are safe.
+- **Frame validation in the consumer** is `g_frame_buffer[0] == (seq & 0xFF)`
+  AND `g_frame_buffer[kFrameBytes-1] == (seq & 0xFF)`.  Checking only the
+  head would not catch a partial DMA; checking both head and tail proves
+  the peripheral wrote the entire `FRAME_LEN` window.
+
+Validated result (`iter07_renode_camera_5frames`):
+
+```text
+boot_state                            = 0x00000600  (kBootConsumerReady)
+frames_consumed                       = 5
+frames_valid                          = 5
+irq_count                             = 5
+last_tick                             > 0
+uart_log raw bytes                   ⊃ "SentAI EMU CAMERA B8.5"
+                                       "Consumer ready, awaiting frames"
+                                       "FRAME 1 seq=1 byte=0x01 ok=1"
+                                       "FRAME 2 seq=2 byte=0x02 ok=1"
+                                       "FRAME 3 seq=3 byte=0x03 ok=1"
+                                       "FRAME 4 seq=4 byte=0x04 ok=1"
+                                       "FRAME 5 seq=5 byte=0x05 ok=1"
+uart_log_contains_camera_first        = true
+uart_log_contains_camera_last         = true
+pass                                  = true
+```
+
+What this proves:
+
+- Renode Python peripherals can pend NVIC IRQs by writing the ISPR register
+  from inline scripts (verified: `frames_valid == irq_count == 5`).
+- The Cortex-M exception entry path, vector lookup, register stacking,
+  ISR execution, ACK, and exception return all run through the real ARM
+  FreeRTOS port.  No part of this path is faked in C; only the trigger
+  source is host-driven.
+- The consumer task wakes from `ulTaskNotifyTake(portMAX_DELAY)` on
+  every IRQ, validates the entire frame window, and re-arms the next
+  cycle without missing or doubling frames.
+- The boundary at which a real CameraTask would consume a CSI-DMA'd
+  buffer is unchanged: a task blocked on a queue/notification, woken
+  from ISR with the frame metadata available in MMIO.  Future B8.6+
+  PrepTask work can plug in at exactly this boundary.
+
+Notes and gotchas captured by B8.5:
+
+- Inline Python peripherals (`script: '''...'''`) do NOT bind `self.SystemBus`
+  the way file-backed peripherals do.  The working pattern is to grab the
+  bus at init via `emulationManager.Instance.CurrentEmulation.Machines[0].SystemBus`
+  and call `sysbus.WriteBytes(arr, addr)` / `sysbus.WriteDoubleWord(addr, val)`.
+  Trying `self.SystemBus...` from an inline script fails with
+  "'PythonPeripheral' object has no attribute 'SystemBus'".  This caught us
+  on the first run; check
+  `platforms/cpus/mimxrt798s.repl` (rstctl1_i3c0) for the canonical
+  inline-bus-access pattern.
+- IronPython 2 needs `System.Array.CreateInstance(System.Byte, n)` to build
+  the byte array passed to `WriteBytes`.  Plain `bytes([...])` does not
+  marshal correctly to the .NET `System.Byte[]` signature.
+- The B8.5 frame size is 64 bytes — enough to prove the DMA wrote the whole
+  buffer (head and tail bytes are validated) without making the inline
+  Python loop slow.  640x480 RGB24 frames (~900 KB) would be impractical
+  in IronPython; for B8.6+ the bytes should either be pre-computed at init
+  and `WriteBytes` called once, or the peripheral should be rewritten as
+  a C# plugin.
+- `Reserved110_IRQn` (= 94) was picked because it has a vector slot in the
+  RT1176 CM7 startup file but no production code uses it.  Future emu
+  milestones that touch real IRQs (e.g. real LPI2C/SDMA via Renode models)
+  must verify the chosen IRQ does not collide.
+
+Open caveats inherited from earlier gates:
+
+- Renode `nvic` priority-mask warning persists.  Not affecting IRQ delivery
+  (verified: irq_count == frames_consumed == 5).
+- VCam is NOT MIPI-CSI: it does not test pixel format conversion, line/frame
+  sync semantics, PXP-driven RGB→Y8, or backpressure under sustained
+  high-rate frames.  All of those are explicitly deferred per the B8
+  peripheral fidelity matrix.
+
+Next gate: B8.6 should wire a PrepTask consumer to the same VCam frame
+boundary (perhaps as a second consumer task pulling from a shared queue
+the ISR posts to) and validate that PrepTask scalars/counters move on each
+emulated frame, the same way they do on the real camera.
+
 ## Crazyflie / UART Strategy
 
 The whole Crazyflie experiment needs at least two communication channels:

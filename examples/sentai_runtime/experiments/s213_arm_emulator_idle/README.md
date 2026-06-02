@@ -40,3 +40,7 @@ Targets:
 - `mission` - B8.4 `import mission; mission.run()` against in-firmware VFS.
   Asserts `MISSION OK from B8.4 5` (the `5` proves the function body ran,
   not just the import side effect).
+- `camera` - B8.5 VCam Renode peripheral DMA + NVIC IRQ 94 + consumer
+  task.  Triggers 5 frame deliveries and asserts
+  `FRAME N seq=N byte=0x0N ok=1` for N=1..5 plus
+  `frames_consumed == frames_valid == irq_count == 5`.

@@ -13,7 +13,11 @@ Current first milestone:
    ARM emulator and evaluates `1+1 -> 2` over LPUART6;
 5. build and boot `sentai_emu_mission` to prove `import mission;
    mission.run()` against an in-firmware VFS;
-6. only then add camera frame provider.
+6. build and boot `sentai_emu_camera` to prove the full ARM camera ISR
+   path: VCam Renode peripheral DMA + NVIC IRQ → strong override of
+   `Reserved110_IRQHandler` → `vTaskNotifyGiveFromISR` → consumer task
+   validates frame bytes;
+7. only then add PrepTask / Flow / markers consumers.
 
 Caveat (operator note 2026-06-02): production REPL is USB CDC ACM, not
 LPUART6.  The emu uses LPUART6 because Renode has no CDC ACM endpoint, but
@@ -57,6 +61,8 @@ Important local facts:
 - `renode/sentai_emu_uart.resc` - loads the minimal B8.2 LPUART6 target.
 - `renode/sentai_emu_repl.resc` - loads the B8.3 MicroPython REPL target.
 - `renode/sentai_emu_mission.resc` - loads the B8.4 mission import target.
+- `renode/sentai_emu_camera.resc` - loads the B8.5 camera frame provider
+  target and triggers 5 frame deliveries via the VCam peripheral.
 - `mp_inc/mpconfigport.h` - B8.3 emu MicroPython config.
 - `mp_inc_mission/mpconfigport.h` - B8.4 config (adds external import +
   `sys.path` attribute delegation on top of B8.3).
@@ -65,6 +71,9 @@ Important local facts:
   stub that satisfies the shared `genhdr/moduledefs.h`.
 - `sentai_emu_fs.c` - B8.4 in-firmware VFS (mission.py baked into .rodata,
   exposed through `mp_import_stat` + `mp_lexer_new_from_file`).
+- `sentai_emu_camera.cc` - B8.5 consumer task + strong override of
+  `Reserved110_IRQHandler` driven by VCam Renode peripheral writes to
+  the NVIC ISPR2 register.
 
 The `.repl` intentionally uses Renode host-side stub peripherals for early MMIO
 that the NXP SDK touches during boot.  These are not firmware filesystem code

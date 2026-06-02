@@ -42,6 +42,12 @@ TARGETS = {
         "iter_suffix": "renode_mission_import",
         "uart_log": ROOT / "emu" / "output" / "sentai_emu_mission.log",
     },
+    "camera": {
+        "cmake_target": "sentai_emu_camera",
+        "renode_script": ROOT / "emu" / "renode" / "sentai_emu_camera.resc",
+        "iter_suffix": "renode_camera_5frames",
+        "uart_log": ROOT / "emu" / "output" / "sentai_emu_camera.log",
+    },
 }
 
 
@@ -130,6 +136,9 @@ def main() -> int:
     heartbeat = parse_hex(f"{renode_label} heartbeat", renode_log)
     last_tick = parse_hex(f"{renode_label} last_tick", renode_log)
     repl_lines = parse_hex(f"{renode_label} repl_lines", renode_log)
+    frames_consumed = parse_hex(f"{renode_label} frames_consumed", renode_log)
+    frames_valid = parse_hex(f"{renode_label} frames_valid", renode_log)
+    irq_count = parse_hex(f"{renode_label} irq_count", renode_log)
 
     if args.target == "repl":
         # REPL target reuses heartbeat as "completed mp_embed_exec_str count";
@@ -148,6 +157,16 @@ def main() -> int:
             and boot_state == 0x500
             and repl_lines is not None
             and repl_lines >= 2
+            and last_tick is not None
+            and last_tick > 0
+        )
+    elif args.target == "camera":
+        passed = (
+            all(result.returncode == 0 for result in logs.values())
+            and boot_state == 0x600
+            and frames_consumed == 5
+            and frames_valid == 5
+            and irq_count == 5
             and last_tick is not None
             and last_tick > 0
         )
@@ -195,6 +214,14 @@ def main() -> int:
         passed = passed and b"MicroPython embed ready" in uart_log_bytes
         passed = passed and b"MISSION OK from B8.4 5" in uart_log_bytes
 
+    if args.target == "camera":
+        # Verdict for B8.5: every triggered frame must show up in the UART log
+        # with ok=1.  The last marker line proves the consumer task processed
+        # the 5th frame after the 5th IRQ.
+        passed = passed and b"Consumer ready" in uart_log_bytes
+        passed = passed and b"FRAME 1 seq=1 byte=0x01 ok=1" in uart_log_bytes
+        passed = passed and b"FRAME 5 seq=5 byte=0x05 ok=1" in uart_log_bytes
+
     verdict = {
         "experiment": "s213_arm_emulator_idle",
         "iter": iter_dir.name,
@@ -217,6 +244,11 @@ def main() -> int:
         "uart_log_contains_repl_banner": b"MicroPython embed ready" in uart_log_bytes,
         "uart_log_contains_repl_answer": b"\r\n2\r\n" in uart_log_bytes,
         "uart_log_contains_mission_marker": b"MISSION OK from B8.4 5" in uart_log_bytes,
+        "frames_consumed": frames_consumed,
+        "frames_valid": frames_valid,
+        "irq_count": irq_count,
+        "uart_log_contains_camera_first": b"FRAME 1 seq=1 byte=0x01 ok=1" in uart_log_bytes,
+        "uart_log_contains_camera_last": b"FRAME 5 seq=5 byte=0x05 ok=1" in uart_log_bytes,
         "pass": passed,
     }
     (iter_dir / "verdict_s213.json").write_text(json.dumps(verdict, indent=2) + "\n")
