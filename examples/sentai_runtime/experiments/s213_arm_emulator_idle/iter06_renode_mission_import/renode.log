@@ -1,0 +1,97 @@
+11:39:47.8399 [INFO] Loaded monitor commands from: /home/bogdan/work/renode_portable/scripts/monitor.py
+Renode, version 1.16.1 (ac18b5ac-202606020225)
+
+
+(monitor) i $CWD/emu/renode/sentai_emu_mission.resc
+
+11:39:47.9704 [INFO] Including script(s): /home/bogdan/work/coralmicro/emu/renode/sentai_emu_mission.resc
+11:39:47.9871 [INFO] System bus created.
+11:39:48.8044 [INFO] Old file /home/bogdan/work/coralmicro/emu/output/sentai_emu_mission.log moved to /home/bogdan/work/coralmicro/emu/output/sentai_emu_mission.log.1
+11:39:48.8248 [INFO] sysbus: Loading block of 3072 bytes length at 0x0.
+11:39:48.8363 [INFO] sysbus: Loading block of 189040 bytes length at 0xC00.
+11:39:48.8366 [INFO] sysbus: Loading block of 135752 bytes length at 0x2EE70.
+11:39:48.8368 [INFO] sysbus: Loading block of 16777216 bytes length at 0x80000000.
+11:39:49.2799 [INFO] cpu: Setting initial values: PC = 0xCBD, SP = 0x20040000.
+11:39:49.2825 [INFO] machine-0: Machine started.
+11:39:49.3629 [WARNING] nvic: Unhandled write to offset 0xF50 (ICacheInvalidateAllToPoUaIgnored), value 0x0.
+11:39:49.3862 [WARNING] nvic: Trying to set the priority for interrupt 16 to 0xFF, but it should be maskable with 0xF0
+11:40:53.6042 [INFO] machine-0: Machine paused.
+11:40:53.6221 [INFO] machine-0: Machine resumed.
+11:40:54.7066 [INFO] machine-0: Machine paused.
+11:40:54.7080 [INFO] machine-0: Machine resumed.
+11:40:55.7884 [INFO] machine-0: Machine paused.
+11:40:55.7896 [INFO] machine-0: Machine resumed.
+11:40:56.8971 [INFO] machine-0: Machine paused.
+11:40:56.8987 [INFO] machine-0: Machine resumed.
+11:40:58.0225 [INFO] machine-0: Machine paused.
+11:40:58.0239 [INFO] machine-0: Machine resumed.
+11:40:59.1810 [INFO] machine-0: Machine paused.
+11:40:59.1823 [INFO] machine-0: Machine resumed.
+11:41:00.2774 [INFO] machine-0: Machine paused.
+11:41:00.2789 [INFO] machine-0: Machine resumed.
+11:41:01.4136 [INFO] machine-0: Machine paused.
+11:41:01.4151 [INFO] machine-0: Machine resumed.
+11:41:02.5441 [INFO] machine-0: Machine paused.
+11:41:02.5457 [INFO] machine-0: Machine resumed.
+11:41:03.6323 [INFO] machine-0: Machine paused.
+11:41:03.6333 [INFO] machine-0: Machine resumed.
+11:41:04.7015 [INFO] machine-0: Machine paused.
+11:41:04.7026 [INFO] machine-0: Machine resumed.
+11:41:05.7478 [INFO] machine-0: Machine paused.
+11:41:05.7489 [INFO] machine-0: Machine resumed.
+11:41:06.7787 [INFO] machine-0: Machine paused.
+11:41:06.7797 [INFO] machine-0: Machine resumed.
+11:41:07.8385 [INFO] machine-0: Machine paused.
+11:41:07.8397 [INFO] machine-0: Machine resumed.
+11:41:08.9456 [INFO] machine-0: Machine paused.
+11:41:08.9473 [INFO] machine-0: Machine resumed.
+11:41:50.7553 [INFO] machine-0: Machine paused.
+11:41:50.7566 [INFO] machine-0: Machine resumed.
+11:41:51.7754 [INFO] machine-0: Machine paused.
+11:41:51.7762 [INFO] machine-0: Machine resumed.
+11:41:52.8244 [INFO] machine-0: Machine paused.
+11:41:52.8252 [INFO] machine-0: Machine resumed.
+11:41:53.9072 [INFO] machine-0: Machine paused.
+11:41:53.9084 [INFO] machine-0: Machine resumed.
+11:41:54.9638 [INFO] machine-0: Machine paused.
+11:41:54.9649 [INFO] machine-0: Machine resumed.
+11:41:56.0196 [INFO] machine-0: Machine paused.
+11:41:56.0208 [INFO] machine-0: Machine resumed.
+11:41:57.0703 [INFO] machine-0: Machine paused.
+11:41:57.0712 [INFO] machine-0: Machine resumed.
+11:41:58.2380 [INFO] machine-0: Machine paused.
+11:41:58.2390 [INFO] machine-0: Machine resumed.
+11:41:59.4186 [INFO] machine-0: Machine paused.
+11:41:59.4194 [INFO] machine-0: Machine resumed.
+11:42:00.4444 [INFO] machine-0: Machine paused.
+11:42:00.4452 [INFO] machine-0: Machine resumed.
+11:42:01.4914 [INFO] machine-0: Machine paused.
+11:42:01.4921 [INFO] machine-0: Machine resumed.
+11:42:02.5200 [INFO] machine-0: Machine paused.
+11:42:02.5210 [INFO] machine-0: Machine resumed.
+11:42:03.5650 [INFO] machine-0: Machine paused.
+11:42:03.5659 [INFO] machine-0: Machine resumed.
+11:42:04.6040 [INFO] machine-0: Machine paused.
+11:42:04.6053 [INFO] machine-0: Machine resumed.
+11:42:46.1342 [INFO] machine-0: Machine paused.
+sentai_emu_mission PC:
+
+0x1cb8
+
+sentai_emu_mission boot_state:
+
+0x00000500
+
+sentai_emu_mission heartbeat:
+
+0x00000002
+
+sentai_emu_mission repl_lines:
+
+0x00000002
+
+sentai_emu_mission last_tick:
+
+0x000018A7
+
+(machine-0) 11:42:46.2046 [INFO] machine-0: Disposed.

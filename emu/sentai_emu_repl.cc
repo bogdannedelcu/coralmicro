@@ -47,7 +47,11 @@ constexpr uint32_t kBootCreateTaskFailed = 0xEF00;
 
 constexpr size_t kReplStackWords = 8 * 1024;        // 32 KiB stack
 constexpr size_t kReplLineMax = 256;
-constexpr size_t kGcHeapBytes = 32 * 1024;          // 32 KiB GC heap
+#if SENTAI_EMU_MISSION
+constexpr size_t kGcHeapBytes = 96 * 1024;          // larger heap for import
+#else
+constexpr size_t kGcHeapBytes = 32 * 1024;          // B8.3 minimum
+#endif
 
 StaticTask_t g_repl_tcb;
 StackType_t g_repl_stack[kReplStackWords] __attribute__((aligned(8)));
@@ -96,6 +100,13 @@ void ReplTask(void *) {
     mp_stack_set_top(&stack_top_marker);
     mp_stack_set_limit((kReplStackWords - 256) * sizeof(StackType_t));
     mp_embed_init(g_gc_heap, sizeof(g_gc_heap), &stack_top_marker);
+
+#if SENTAI_EMU_MISSION
+    // B8.4: make the import machinery look at the in-firmware VFS at
+    // emu/sentai_emu_fs.c.  The default sys.path is empty under the embed
+    // port, so without this no `import` would ever call mp_import_stat.
+    mp_embed_exec_str("import sys\nsys.path.append('')\n");
+#endif
 
     ReplPutString("MicroPython embed ready\r\n");
     g_sentai_emu_boot_state = kBootReplBanner;

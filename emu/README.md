@@ -11,7 +11,15 @@ Current first milestone:
 3. build and boot `sentai_emu_uart` to prove LPUART6 output capture;
 4. build and boot `sentai_emu_repl` to prove MicroPython embed runs on the
    ARM emulator and evaluates `1+1 -> 2` over LPUART6;
-5. only then add filesystem/mission/camera.
+5. build and boot `sentai_emu_mission` to prove `import mission;
+   mission.run()` against an in-firmware VFS;
+6. only then add camera frame provider.
+
+Caveat (operator note 2026-06-02): production REPL is USB CDC ACM, not
+LPUART6.  The emu uses LPUART6 because Renode has no CDC ACM endpoint, but
+LPUART6 will eventually carry CRTP for Crazyflie — at that point the
+emulator should either model USB CDC ACM or drop the interactive REPL and
+drive missions only through `import + run` from a baked/staged file.
 
 Production-image inventory milestone:
 
@@ -48,12 +56,15 @@ Important local facts:
 - `renode/sentai_emu_idle.resc` - loads the minimal B8.1 heartbeat target.
 - `renode/sentai_emu_uart.resc` - loads the minimal B8.2 LPUART6 target.
 - `renode/sentai_emu_repl.resc` - loads the B8.3 MicroPython REPL target.
-- `mp_inc/mpconfigport.h` - emu-only MicroPython config (deliberately split
-  from `examples/sentai_runtime/mpconfigport.h` to avoid production FreeRTOS
-  critical sections and sentai-binding deps).
+- `renode/sentai_emu_mission.resc` - loads the B8.4 mission import target.
+- `mp_inc/mpconfigport.h` - B8.3 emu MicroPython config.
+- `mp_inc_mission/mpconfigport.h` - B8.4 config (adds external import +
+  `sys.path` attribute delegation on top of B8.3).
 - `sentai_emu_repl.cc` / `sentai_emu_mphalport.c` / `sentai_emu_stub_modules.c`
   - B8.3 REPL implementation, LPUART6 mphal port, and empty `sentai` module
   stub that satisfies the shared `genhdr/moduledefs.h`.
+- `sentai_emu_fs.c` - B8.4 in-firmware VFS (mission.py baked into .rodata,
+  exposed through `mp_import_stat` + `mp_lexer_new_from_file`).
 
 The `.repl` intentionally uses Renode host-side stub peripherals for early MMIO
 that the NXP SDK touches during boot.  These are not firmware filesystem code
@@ -114,12 +125,31 @@ MicroPython embed ready
 >>>
 ```
 
+Build and run the B8.4 mission import target:
+
+```sh
+cmake --build build_emu --target sentai_emu_mission -j$(nproc)
+/home/bogdan/work/renode_portable/renode --plain --console --disable-xwt \
+  emu/renode/sentai_emu_mission.resc
+xxd emu/output/sentai_emu_mission.log | head
+```
+
+Expected B8.4 proof:
+
+```text
+>>> import mission
+>>> mission.run()
+MISSION OK from B8.4 5
+>>>
+```
+
 For experiment-style archived runs:
 
 ```sh
 python3 examples/sentai_runtime/experiments/s213_arm_emulator_idle/run_s213.py
 python3 examples/sentai_runtime/experiments/s213_arm_emulator_idle/run_s213.py --target uart
 python3 examples/sentai_runtime/experiments/s213_arm_emulator_idle/run_s213.py --target repl
+python3 examples/sentai_runtime/experiments/s213_arm_emulator_idle/run_s213.py --target mission
 ```
 
 Run the current production artifact inventory script:

@@ -37,3 +37,6 @@ Targets:
   USB CDC, or MicroPython REPL.
 - `repl` - B8.3 MicroPython embed REPL on LPUART6 RX+TX.  Injects `1+1\r`
   via `lpuart6 WriteChar` and asserts the VM prints `2`.
+- `mission` - B8.4 `import mission; mission.run()` against in-firmware VFS.
+  Asserts `MISSION OK from B8.4 5` (the `5` proves the function body ran,
+  not just the import side effect).

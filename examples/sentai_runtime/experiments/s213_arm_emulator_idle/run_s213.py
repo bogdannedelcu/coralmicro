@@ -36,6 +36,12 @@ TARGETS = {
         "iter_suffix": "renode_repl_oneplusone",
         "uart_log": ROOT / "emu" / "output" / "sentai_emu_repl.log",
     },
+    "mission": {
+        "cmake_target": "sentai_emu_mission",
+        "renode_script": ROOT / "emu" / "renode" / "sentai_emu_mission.resc",
+        "iter_suffix": "renode_mission_import",
+        "uart_log": ROOT / "emu" / "output" / "sentai_emu_mission.log",
+    },
 }
 
 
@@ -136,6 +142,15 @@ def main() -> int:
             and last_tick is not None
             and last_tick > 0
         )
+    elif args.target == "mission":
+        passed = (
+            all(result.returncode == 0 for result in logs.values())
+            and boot_state == 0x500
+            and repl_lines is not None
+            and repl_lines >= 2
+            and last_tick is not None
+            and last_tick > 0
+        )
     else:
         passed = (
             all(result.returncode == 0 for result in logs.values())
@@ -173,6 +188,13 @@ def main() -> int:
         passed = passed and b"MicroPython embed ready" in uart_log_bytes
         passed = passed and b"\r\n2\r\n" in uart_log_bytes
 
+    if args.target == "mission":
+        # Verdict for B8.4: mission.run() must reach LPUART6 TX with the marker
+        # AND the arithmetic result (proves the function body executed, not
+        # just the import-time print path).
+        passed = passed and b"MicroPython embed ready" in uart_log_bytes
+        passed = passed and b"MISSION OK from B8.4 5" in uart_log_bytes
+
     verdict = {
         "experiment": "s213_arm_emulator_idle",
         "iter": iter_dir.name,
@@ -194,6 +216,7 @@ def main() -> int:
         "uart_log_contains_heartbeat": b"SentAI EMU UART heartbeat" in uart_log_bytes,
         "uart_log_contains_repl_banner": b"MicroPython embed ready" in uart_log_bytes,
         "uart_log_contains_repl_answer": b"\r\n2\r\n" in uart_log_bytes,
+        "uart_log_contains_mission_marker": b"MISSION OK from B8.4 5" in uart_log_bytes,
         "pass": passed,
     }
     (iter_dir / "verdict_s213.json").write_text(json.dumps(verdict, indent=2) + "\n")

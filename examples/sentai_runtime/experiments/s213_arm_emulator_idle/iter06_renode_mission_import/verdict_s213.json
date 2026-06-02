@@ -1,0 +1,49 @@
+{
+  "experiment": "s213_arm_emulator_idle",
+  "iter": "iter06_renode_mission_import",
+  "target_kind": "mission",
+  "started_at": "2026-06-02T11:39:45+0300",
+  "commands": {
+    "configure": [
+      "cmake",
+      "-S",
+      ".",
+      "-B",
+      "build_emu",
+      "-DSENTAI_ARM_EMU=ON",
+      "-DSENTAI_SKIP_SDK_PATCHES=ON"
+    ],
+    "build": [
+      "cmake",
+      "--build",
+      "build_emu",
+      "--target",
+      "sentai_emu_mission",
+      "-j16"
+    ],
+    "renode": [
+      "/home/bogdan/work/renode_portable/renode",
+      "--plain",
+      "--console",
+      "--disable-xwt",
+      "emu/renode/sentai_emu_mission.resc"
+    ]
+  },
+  "target": "build_emu/emu/sentai_emu_mission",
+  "renode_script": "emu/renode/sentai_emu_mission.resc",
+  "returncodes": {
+    "configure": 0,
+    "build": 0,
+    "renode": 0
+  },
+  "boot_state": 1280,
+  "heartbeat": 2,
+  "last_tick": 6311,
+  "repl_lines": 2,
+  "uart_log_contains_boot": false,
+  "uart_log_contains_heartbeat": false,
+  "uart_log_contains_repl_banner": true,
+  "uart_log_contains_repl_answer": false,
+  "uart_log_contains_mission_marker": true,
+  "pass": true
+}

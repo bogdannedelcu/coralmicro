@@ -112,3 +112,33 @@ target_compile_options(sentai_emu_repl PRIVATE
     -Wno-error -Wno-unused-parameter -Wno-sign-compare
     -Wno-old-style-definition -Wno-missing-prototypes
 )
+
+# --- B8.4 MicroPython mission import on top of B8.3 REPL --------------------
+#
+# Same binary shape as sentai_emu_repl plus emu/sentai_emu_fs.c, with the
+# import machinery turned on in emu/mp_inc_mission/mpconfigport.h.  A separate
+# CMake target is used (rather than reusing sentai_emu_repl) so the B8.3 proof
+# binary stays byte-for-byte stable as gates accumulate.
+
+set(SENTAI_EMU_MISSION_SOURCES
+    ${SENTAI_EMU_REPL_SOURCES}
+    sentai_emu_fs.c
+)
+
+add_executable_m7(sentai_emu_mission
+    LINKER_SCRIPT ${PROJECT_SOURCE_DIR}/libs/nxp/rt1176-sdk/MIMXRT1176xxxxx_cm7_ram.ld
+    ${SENTAI_EMU_MISSION_SOURCES}
+)
+configure_sentai_emu_target(sentai_emu_mission)
+target_compile_definitions(sentai_emu_mission PRIVATE SENTAI_EMU_MISSION=1)
+
+target_include_directories(sentai_emu_mission PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/mp_inc_mission
+    ${SENTAI_EMU_MP_EMBED_DIR}
+    ${SENTAI_EMU_MP_EMBED_DIR}/port
+)
+
+target_compile_options(sentai_emu_mission PRIVATE
+    -Wno-error -Wno-unused-parameter -Wno-sign-compare
+    -Wno-old-style-definition -Wno-missing-prototypes
+)

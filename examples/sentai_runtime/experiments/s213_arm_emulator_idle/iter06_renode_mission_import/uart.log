@@ -1,0 +1,7 @@
+
+SentAI EMU REPL B8.3
+MicroPython embed ready
+>>> import mission
+>>> mission.run()
+MISSION OK from B8.4 5
+>>> 

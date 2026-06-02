@@ -1,0 +1,219 @@
+// Provisional SentAI/MIMXRT1176 CM7 Renode platform.
+//
+// This is a B8 bring-up scaffold, not a complete EVK model.  The memory map
+// follows examples/sentai_runtime/MIMXRT1176xxxxx_cm7_ram_mp.ld and the UART
+// follows third_party/modified/nxp/rt1176-sdk/board.h.
+
+nvic: IRQControllers.NVIC @ sysbus 0xE000E000
+    systickFrequency: 528000000
+    priorityMask: 0xF0
+    IRQ -> cpu@0
+
+cpu: CPU.CortexM @ sysbus
+    cpuType: "cortex-m7"
+    nvic: nvic
+    numberOfMPURegions: 16
+
+dwt: Miscellaneous.DWT @ sysbus 0xE0001000
+    frequency: 792000000
+
+// ITCM/DTCM/OCRAM/SDRAM regions required by the RAM linker script.
+itcm: Memory.MappedMemory @ sysbus 0x00000000
+    size: 0x80000
+
+dtcm: Memory.MappedMemory @ sysbus 0x20000000
+    size: 0x80000
+
+ocram: Memory.MappedMemory @ sysbus 0x20200000
+    size: 0x200000
+
+sdram: Memory.MappedMemory @ sysbus 0x80000000
+    size: 0x4000000
+
+// SentAI debug console is LPUART6 on the modified Coral/NXP board config.
+lpuart6: UART.NXP_LPUART @ sysbus 0x40090000
+    IRQ -> nvic@25
+
+// Early SDK boot MMIO.  These stubs let us discover the next real modeling
+// boundary without failing on unmapped access noise.
+wdog1: Python.PythonPeripheral @ sysbus 0x40030000
+    size: 0x4000
+    initable: true
+    filename: "scripts/pydev/ticker.py"
+
+wdog2: Python.PythonPeripheral @ sysbus 0x40034000
+    size: 0x4000
+    initable: true
+    filename: "scripts/pydev/ticker.py"
+
+rtwdog3: Python.PythonPeripheral @ sysbus 0x40038000
+    size: 0x4000
+    initable: true
+    filename: "scripts/pydev/ticker.py"
+
+rtwdog4: Python.PythonPeripheral @ sysbus 0x40C10000
+    size: 0x4000
+    initable: true
+    filename: "scripts/pydev/ticker.py"
+
+ccm: Python.PythonPeripheral @ sysbus 0x40CC0000
+    size: 0x8000
+    initable: true
+    filename: "scripts/pydev/flipflop.py"
+
+ccm_obs: Python.PythonPeripheral @ sysbus 0x40150000
+    size: 0x4000
+    initable: true
+    filename: "scripts/pydev/flipflop.py"
+
+src: Python.PythonPeripheral @ sysbus 0x40C04000
+    size: 0x4000
+    initable: true
+    filename: "scripts/pydev/flipflop.py"
+
+iomuxc_gpr: Python.PythonPeripheral @ sysbus 0x400E4000
+    size: 0x4000
+    initable: true
+    filename: "scripts/pydev/flipflop.py"
+
+iomuxc: Python.PythonPeripheral @ sysbus 0x400E8000
+    size: 0x4000
+    initable: true
+    filename: "scripts/pydev/flipflop.py"
+
+iomuxc_lpsr: Python.PythonPeripheral @ sysbus 0x40C08000
+    size: 0x4000
+    initable: true
+    filename: "scripts/pydev/flipflop.py"
+
+iomuxc_lpsr_gpr: Python.PythonPeripheral @ sysbus 0x40C0C000
+    size: 0x4000
+    initable: true
+    filename: "scripts/pydev/flipflop.py"
+
+anadig: Python.PythonPeripheral @ sysbus 0x40C84000
+    size: 0x4000
+    initable: true
+    filename: "scripts/pydev/flipflop.py"
+
+snvs: Python.PythonPeripheral @ sysbus 0x40C90000
+    size: 0x4000
+    initable: true
+    filename: "scripts/pydev/flipflop.py"
+
+iomuxc_snvs: Python.PythonPeripheral @ sysbus 0x40C94000
+    size: 0x4000
+    initable: true
+    filename: "scripts/pydev/flipflop.py"
+
+iomuxc_snvs_gpr: Python.PythonPeripheral @ sysbus 0x40C98000
+    size: 0x4000
+    initable: true
+    filename: "scripts/pydev/flipflop.py"
+
+dcdc: Python.PythonPeripheral @ sysbus 0x40CA8000
+    size: 0x8000
+    initable: true
+    filename: "scripts/pydev/flipflop.py"
+
+semc: Python.PythonPeripheral @ sysbus 0x400D4000
+    size: 0x4000
+    initable: true
+    filename: "scripts/pydev/flipflop.py"
+
+flexspi1: Python.PythonPeripheral @ sysbus 0x400CC000
+    size: 0x4000
+    initable: true
+    filename: "scripts/pydev/flipflop.py"
+
+caam: Python.PythonPeripheral @ sysbus 0x40440000
+    size: 0x10000
+    initable: true
+    filename: "scripts/pydev/flipflop.py"
+
+sema4: Python.PythonPeripheral @ sysbus 0x40CC8000
+    size: 0x4000
+    initable: true
+    filename: "scripts/pydev/flipflop.py"
+
+mua: Python.PythonPeripheral @ sysbus 0x40C48000
+    size: 0x4000
+    initable: true
+    filename: "scripts/pydev/flipflop.py"
+
+gpt1: Timers.IMX_GPTimer @ sysbus 0x400EC000
+    IRQ -> nvic@119
+
+lpi2c5: Python.PythonPeripheral @ sysbus 0x40C34000
+    size: 0x4000
+    initable: true
+    filename: "scripts/pydev/flipflop.py"
+
+lpi2c6: Python.PythonPeripheral @ sysbus 0x40C38000
+    size: 0x4000
+    initable: true
+    filename: "scripts/pydev/flipflop.py"
+
+usb_otg1: Python.PythonPeripheral @ sysbus 0x40430000
+    size: 0x4000
+    initable: true
+    filename: "scripts/pydev/flipflop.py"
+
+usb_otg2: Python.PythonPeripheral @ sysbus 0x4042C000
+    size: 0x4000
+    initable: true
+    filename: "scripts/pydev/flipflop.py"
+
+usbphy1: Python.PythonPeripheral @ sysbus 0x40434000
+    size: 0x4000
+    initable: true
+    filename: "scripts/pydev/flipflop.py"
+
+usbphy2: Python.PythonPeripheral @ sysbus 0x40438000
+    size: 0x4000
+    initable: true
+    filename: "scripts/pydev/flipflop.py"
+
+csi: Python.PythonPeripheral @ sysbus 0x40800000
+    size: 0x4000
+    initable: true
+    filename: "scripts/pydev/flipflop.py"
+
+mipi_csi2rx: Python.PythonPeripheral @ sysbus 0x40810000
+    size: 0x4000
+    initable: true
+    filename: "scripts/pydev/flipflop.py"
+
+pxp: Python.PythonPeripheral @ sysbus 0x40814000
+    size: 0x4000
+    initable: true
+    filename: "scripts/pydev/flipflop.py"
+
+gpio1: GPIOPort.IMXRT_GPIO @ sysbus 0x4012C000
+gpio2: GPIOPort.IMXRT_GPIO @ sysbus 0x40130000
+gpio3: GPIOPort.IMXRT_GPIO @ sysbus 0x40134000
+gpio4: GPIOPort.IMXRT_GPIO @ sysbus 0x40138000
+gpio5: GPIOPort.IMXRT_GPIO @ sysbus 0x4013C000
+gpio6: GPIOPort.IMXRT_GPIO @ sysbus 0x40140000
+gpio7: GPIOPort.IMXRT_GPIO @ sysbus 0x40C5C000
+gpio8: GPIOPort.IMXRT_GPIO @ sysbus 0x40C60000
+gpio9: GPIOPort.IMXRT_GPIO @ sysbus 0x40C64000
+gpio10: GPIOPort.IMXRT_GPIO @ sysbus 0x40C68000
+gpio11: GPIOPort.IMXRT_GPIO @ sysbus 0x40C6C000
+gpio12: GPIOPort.IMXRT_GPIO @ sysbus 0x40C70000
+gpio13: GPIOPort.IMXRT_GPIO @ sysbus 0x40CA0000
+
+sysbus:
+    init:
+        Tag <0x00000000, 0x0007FFFF> "ITCM"
+        Tag <0x20000000, 0x2007FFFF> "DTCM"
+        Tag <0x20200000, 0x203FFFFF> "OCRAM"
+        Tag <0x80000000, 0x83FFFFFF> "SDRAM"
+        Tag <0x40030000, 0x4003BFFF> "WDOG1/2/RTWDOG3"
+        Tag <0x400D4000, 0x400D7FFF> "SEMC"
+        Tag <0x400CC000, 0x400CFFFF> "FLEXSPI1"
+        Tag <0x40090000, 0x40093FFF> "LPUART6"
+        Tag <0x40C84000, 0x40C87FFF> "ANADIG/OSC/PLL/PMU"
+        Tag <0x40C90000, 0x40C9BFFF> "SNVS/IOMUXC_SNVS"
+        Tag <0x4042C000, 0x40433FFF> "USB OTG"
+        Tag <0x40800000, 0x40817FFF> "CSI/MIPI/PXP"

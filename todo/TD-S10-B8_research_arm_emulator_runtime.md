@@ -664,6 +664,128 @@ Open caveats:
 Next gate: B8.4 should mount a RAM-backed or host-bridged filesystem fixture
 so `import mission; mission.run()` works without USB/NAND/FileX.
 
+## B8.4 In-Firmware VFS + import mission; mission.run()
+
+`sentai_emu_mission` extends the B8.3 REPL target with a tiny in-firmware
+virtual filesystem: `mission.py` is baked into `.rodata` as a C string array
+and exposed to the MicroPython import machinery through a custom
+`mp_import_stat` + `mp_lexer_new_from_file` pair.
+
+Files added:
+
+```text
+emu/sentai_emu_fs.c               # in-firmware mission.py + table lookup
+emu/mp_inc_mission/mpconfigport.h # B8.3 config + MICROPY_ENABLE_EXTERNAL_IMPORT
+                                  # + MICROPY_PY_SYS_PATH + delegation
+emu/renode/sentai_emu_mission.resc
+```
+
+The REPL source `emu/sentai_emu_repl.cc` is reused with two guarded
+additions when `SENTAI_EMU_MISSION=1`:
+
+- 96 KiB GC heap instead of 32 KiB (import allocates a parse tree + module
+  dict; the smaller heap hits `MemoryError` partway through `import`);
+- a one-shot `mp_embed_exec_str("import sys\nsys.path.append('')\n")` runs
+  right after `mp_embed_init` so the import machinery has at least one
+  prefix to combine with `mission.py` before calling `mp_import_stat`.
+
+The mission fixture is intentionally non-trivial:
+
+```python
+def run():
+    print('MISSION OK from B8.4', 2 + 3)
+```
+
+`mission.run()` prints the marker AND the arithmetic result.  The verdict
+script asserts on `MISSION OK from B8.4 5` (not just `MISSION OK`) so that
+a passing run actually proves the function body executed, rather than just
+catching an import-time side effect.
+
+Validated result (`iter06_renode_mission_import`):
+
+```text
+boot_state                          = 0x00000500
+repl_lines                          = 2
+heartbeat                           = 2
+uart_log raw bytes                 ⊃ "\r\nSentAI EMU REPL B8.3\r\n"
+                                     "MicroPython embed ready\r\n"
+                                     ">>> import mission\r\n"
+                                     ">>> mission.run()\r\n"
+                                     "MISSION OK from B8.4 5\r\n"
+                                     ">>> "
+uart_log_contains_repl_banner       = true
+uart_log_contains_mission_marker    = true
+pass                                = true
+```
+
+What this proves:
+
+- `mp_embed_exec_str` survives the larger `sys.path.append('')` trampoline;
+- the embed import machinery routes `import mission` through our custom
+  `mp_import_stat("mission.py")` and `mp_lexer_new_from_file(MP_QSTR_mission)`;
+- the in-firmware lexer reads bytes out of `.rodata` (`mp_reader_new_mem`
+  with `free_len = 0`) without touching FileX/LevelX/USB MSC;
+- the compiled bytecode runs and the `print()` reaches LPUART6 TX.
+
+Notes and gotchas captured by B8.4:
+
+- The B8.3 build kept a stub `mp_module_sentai` to satisfy
+  `genhdr/moduledefs.h`.  Once `MICROPY_ENABLE_EXTERNAL_IMPORT=1`, that stub
+  is still required because the import machinery still pulls in the registered
+  module table at link time.  Both stub and import-by-name coexist cleanly.
+- `mp_reader_new_mem(reader, buf, size, free_len)` with `free_len = 0`
+  prevents the GC from trying to `m_del` the `.rodata`-resident buffer when
+  the lexer finishes.  Setting `free_len = size` (as the production
+  LittleFS-backed reader does) would corrupt the heap.
+- Path matching has to strip leading `/` and `.` so `mp_import_stat` accepts
+  both `mission.py` (with `sys.path = [""]`) and the longer `./mission.py`
+  /`/mission.py` forms the import code may construct internally.
+- 32 KiB GC heap is enough for `1+1` but not for `import` — the parse tree
+  and module dict push us over.  Bumped to 96 KiB for the mission target;
+  later milestones with multi-module imports will need more.
+- The mission marker assertion intentionally includes the `5` digit
+  (= 2+3) so a regression that imports the module but fails to execute the
+  function body cannot pass.  Pure `print("MISSION OK")` would not catch
+  this class of failure.
+
+### Operator caveat: REPL transport is UART, real board's REPL is USB CDC ACM
+
+Captured 2026-06-02: production SentAI runtime exposes the MicroPython REPL
+over **USB CDC ACM** (`/dev/ttyACM0`), not over LPUART6.  LPUART6 is the
+debug console, and `sentai.console("uart")` is the operator-driven switch.
+The B8.x emulator targets use LPUART6 for REPL because Renode's RT1176 model
+has a working `UART.NXP_LPUART` but no USB device controller / CDC ACM
+endpoint.
+
+The follow-on constraint matters for B8.5+ and for the Crazyflie integration:
+
+- once UART becomes the Crazyflie CRTP bridge transport (operator note
+  2026-06-02), the same LPUART can no longer multiplex an interactive REPL.
+- B8.4's interactive REPL injection (`lpuart6 WriteChar`) is therefore a
+  development convenience, not the production REPL contract.  Treat it as
+  test scaffolding.
+- Two options open for later milestones, ordered by fidelity to the real
+  board:
+  1. model USB CDC ACM in Renode (likely a custom peripheral; the upstream
+     Renode RT1064/700 platforms do not give us one out of the box);
+  2. drop interactive REPL entirely once a CRTP UART is wired and run the
+     mission in `import + run` form from a baked or host-staged file,
+     using the UART only for CRTP frames.
+- Until then, every emu milestone that needs Python input should drive it
+  through `mission.py` (baked or staged) and not assume a long-lived
+  interactive REPL.
+
+Open caveats inherited from earlier gates:
+
+- Renode `nvic` priority-mask warning persists.
+- Single-line REPL only.
+- Mission GC heap is 96 KiB; large enough for the smoke, not sized for
+  importing a real flight mission.
+
+Next gate: B8.5 should add the first virtual camera frame provider feeding
+the same camera-frame event boundary used by ARM PrepTask, still without
+modeling MIPI-CSI or PXP register-level state.
+
 ## Crazyflie / UART Strategy
 
 The whole Crazyflie experiment needs at least two communication channels:

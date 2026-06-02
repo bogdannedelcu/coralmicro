@@ -1,0 +1,97 @@
+:name: SentAI B8.4 ARM emulator import mission
+:description: Boots sentai_emu_mission, injects `import mission` + `mission.run()` over LPUART6, and verifies the in-firmware mission.py prints its marker.
+
+i @emu/renode/sentai_rt1176.repl
+
+$bin?=@build_emu/emu/sentai_emu_mission
+$uart_log?=@/home/bogdan/work/coralmicro/emu/output/sentai_emu_mission.log
+
+macro reset
+"""
+    sysbus LoadELF $bin
+    cpu VectorTableOffset 0x800
+"""
+
+lpuart6 CreateFileBackend $uart_log
+runMacro $reset
+
+# Boot + mp_embed_init + sys.path.append('') + REPL banner. Larger margin
+# than B8.3 because the import path needs the GC to allocate the module
+# dict + a parse tree.
+emulation RunFor "3s"
+
+# Step 1: `import mission\r` — line-by-line injection so the REPL VM can
+# read each byte through the polled mp_hal_stdin_rx_chr.
+lpuart6 WriteChar 0x69    # i
+emulation RunFor "0.05s"
+lpuart6 WriteChar 0x6D    # m
+emulation RunFor "0.05s"
+lpuart6 WriteChar 0x70    # p
+emulation RunFor "0.05s"
+lpuart6 WriteChar 0x6F    # o
+emulation RunFor "0.05s"
+lpuart6 WriteChar 0x72    # r
+emulation RunFor "0.05s"
+lpuart6 WriteChar 0x74    # t
+emulation RunFor "0.05s"
+lpuart6 WriteChar 0x20    # space
+emulation RunFor "0.05s"
+lpuart6 WriteChar 0x6D    # m
+emulation RunFor "0.05s"
+lpuart6 WriteChar 0x69    # i
+emulation RunFor "0.05s"
+lpuart6 WriteChar 0x73    # s
+emulation RunFor "0.05s"
+lpuart6 WriteChar 0x73    # s
+emulation RunFor "0.05s"
+lpuart6 WriteChar 0x69    # i
+emulation RunFor "0.05s"
+lpuart6 WriteChar 0x6F    # o
+emulation RunFor "0.05s"
+lpuart6 WriteChar 0x6E    # n
+emulation RunFor "0.05s"
+lpuart6 WriteChar 0x0D    # CR
+emulation RunFor "2s"
+
+# Step 2: `mission.run()\r`.
+lpuart6 WriteChar 0x6D    # m
+emulation RunFor "0.05s"
+lpuart6 WriteChar 0x69    # i
+emulation RunFor "0.05s"
+lpuart6 WriteChar 0x73    # s
+emulation RunFor "0.05s"
+lpuart6 WriteChar 0x73    # s
+emulation RunFor "0.05s"
+lpuart6 WriteChar 0x69    # i
+emulation RunFor "0.05s"
+lpuart6 WriteChar 0x6F    # o
+emulation RunFor "0.05s"
+lpuart6 WriteChar 0x6E    # n
+emulation RunFor "0.05s"
+lpuart6 WriteChar 0x2E    # .
+emulation RunFor "0.05s"
+lpuart6 WriteChar 0x72    # r
+emulation RunFor "0.05s"
+lpuart6 WriteChar 0x75    # u
+emulation RunFor "0.05s"
+lpuart6 WriteChar 0x6E    # n
+emulation RunFor "0.05s"
+lpuart6 WriteChar 0x28    # (
+emulation RunFor "0.05s"
+lpuart6 WriteChar 0x29    # )
+emulation RunFor "0.05s"
+lpuart6 WriteChar 0x0D    # CR
+emulation RunFor "2s"
+
+lpuart6 CloseFileBackend $uart_log
+
+echo "sentai_emu_mission PC:"
+cpu PC
+echo "sentai_emu_mission boot_state:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_boot_state"`
+echo "sentai_emu_mission heartbeat:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_heartbeat"`
+echo "sentai_emu_mission repl_lines:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_repl_lines"`
+echo "sentai_emu_mission last_tick:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_last_tick"`
