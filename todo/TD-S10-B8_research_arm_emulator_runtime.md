@@ -1199,6 +1199,131 @@ peripheral vs HIL vs USB pass-through) now that the rest of the
 pipeline topology — REPL, FS, camera ISR, prep + fan-out consumers
 — is proved end-to-end under the ARM emulator.
 
+## B8.7c Flow-Offset Detection From Host-Fed Cat Scenes
+
+`sentai_emu_flowest` revives the B7 cat-flow regression test on the
+ARM emulator.  Operator note 2026-06-02 mentions B7 had an equivalent
+test running on the POSIX SIM that returned wildly wrong results
+(`dx=243` and `dx=-129` for a 2-px shift; recovered from
+`s209_virtual_camera_tpu_e2e/iter78` and `/iter195` flow_results.txt).
+The emulator gate here checks whether the closer-to-real-board
+execution model produces the expected answer.
+
+Test setup:
+
+- One single cat photo (`s209/.../cat_640x480.bmp`) is read on host,
+  center-cropped, downsampled to 32x32 grayscale.
+- `emu/scripts/prepare_cat_scenes.py` generates six variants
+  `scene_off_0.bin` .. `scene_off_5.bin`, each shifted by +1, +2, ..,
+  +5 pixels in X relative to the BASE crop (vacated columns filled
+  with the left-edge column so the apparent motion is a clean
+  translation rather than a black-band injection that would dominate
+  SAD).
+- Renode `.resc` injects each scene into guest SDRAM at
+  `g_frame_buffer` using `sysbus LoadBinary`, then writes
+  `CONTROL.ARM=1` on the VCam peripheral to fire IRQ 94.
+- `sentai_emu_flowest` Stage1Task runs a brute-force SAD block-match
+  estimator over a search window `[-5, +5]` in dx and dy, on the
+  inner 22x22 region of the 32x32 frame.  It publishes
+  `(dx, dy, sad)` per frame into a shared slot; Stage2Task logs a
+  `FLOWEST N frame_seq=N dx=D dy=D sad=S` marker to LPUART6.
+
+VCam peripheral change:
+
+- A new register `FILL_MODE` (`0x18`) gates whether VCam overwrites
+  the frame buffer with its synthetic byte pattern on
+  `CONTROL.ARM=1`.  Default `1` preserves the B8.5/6/7 behavior.
+  B8.7c writes `0` at Stage1 init so the host-injected scene
+  survives.  The fix was load-bearing: without it, VCam stomped on
+  every cat scene immediately after `LoadBinary` and SAD compared
+  uniform images, returning `dx=-5, dy=-5, sad=484` (= 22*22 *
+  1-byte-diff between successive synthetic patterns).
+
+Pixel-format caveat (operator note 2026-06-02, saved as memory
+entry `feedback_emu_pixel_format_caveat.md`):
+
+- Production camera path: OV5640/CSI delivers XRGB8888, PrepTask
+  converts to Y8 and publishes a `FLOW_GRAY_80x60` slot, FlowTask
+  reads Y8.
+- B8.7c skips the camera/PrepTask format conversion stage: VCam
+  DMAs Y8 bytes directly at 32x32.  This validates the downstream
+  flow consumer's ability to detect offset in Y8 frames, **not**
+  the full camera/PrepTask/FLOW format pipeline.  Modelling
+  XRGB8888 + PrepTask + the 80x60 grid is a later gate.
+
+Validated result (`iter12_renode_flowest_cat_pan_1px`):
+
+```text
+boot_state                            = 0x00000900  (kBootBothReady)
+irq_count                             = 6
+stage1_processed                      = 6
+stage2_consumed                       = 6
+pipeline_errors                       = 0
+last_dx                               = 1
+last_dy                               = 0
+last_sad                              = 0
+flowest_detected_dx_per_frame         = [0, 1, 1, 1, 1, 1]
+flowest_expected_dx_per_frame         = [0, 1, 1, 1, 1, 1]
+uart_log raw bytes                   ⊃ "FLOWEST 1 frame_seq=1 dx=0 dy=0 sad=0"
+                                       "FLOWEST 2 frame_seq=2 dx=1 dy=0 sad=0"
+                                       "FLOWEST 3 frame_seq=3 dx=1 dy=0 sad=0"
+                                       "FLOWEST 4 frame_seq=4 dx=1 dy=0 sad=0"
+                                       "FLOWEST 5 frame_seq=5 dx=1 dy=0 sad=0"
+                                       "FLOWEST 6 frame_seq=6 dx=1 dy=0 sad=0"
+pass                                  = true
+```
+
+What this proves:
+
+- the brute-force SAD block matcher running under ARM CM7
+  emulation, fed real cat-photo pixels through `sysbus LoadBinary`
+  per frame, recovers the injected 1-pixel X translation exactly
+  (`sad = 0` = perfect block match);
+- the camera-frame-ready boundary (VCam IRQ → Stage1Task) carries
+  arbitrary host-fed image bytes intact; the FILL_MODE gate cleanly
+  separates "VCam owns the pattern" (B8.5/6/7) from "host owns the
+  pattern" (B8.7c) without breaking earlier gates;
+- the same emulator path that B7 reported failing on POSIX SIM
+  produces the textbook-correct answer here.  This does not prove
+  the production FlowTask phase-correlation algorithm is correct —
+  B8.7c uses a different algorithm and a different frame format
+  from production — but it does prove the emulator pipeline carries
+  pixel data faithfully and a downstream consumer that does block
+  matching gets the right answer.
+
+Notes captured by B8.7c:
+
+- The cat is small after 32x32 downsampling but has enough variance
+  to drive SAD to a unique minimum at the correct offset (verified
+  on host: SAD at `dx=+1` is 0, at `dx=0` is 6339, at `dx=-5,-5`
+  is 26455).  Uniformly-coloured frames would give SAD ties and the
+  block matcher would have multiple winners; the cat avoids that.
+- `shift_x` repeats the edge column for vacated pixels.  A
+  zero-fill would have introduced a black band at the left that
+  would dominate SAD and pull the winner toward `dx=0` or smaller,
+  masking the actual motion.
+- Anonymous-namespace globals do NOT export ELF symbols that
+  `sysbus GetSymbolAddress` can resolve.  `g_frame_buffer` /
+  `g_prev_buffer` had to be moved to `extern "C"` linkage so the
+  `.resc` script could write into them.  This is a general rule for
+  any future emu test that wants Renode-side data injection.
+- The verdict reads per-frame `dx` values from the UART log via
+  regex rather than from peripheral counters, because counters only
+  carry the LAST result.  This is the first emu gate where the
+  per-frame sequence (not just final state) is part of the contract;
+  later gates that test trajectories should follow the same pattern.
+
+Open caveats inherited from earlier gates:
+
+- Renode `nvic` priority-mask warning persists.
+- 32x32 Y8 is NOT production format; see pixel-format caveat above.
+- SAD brute-force is NOT production phase correlation / USADA8.
+- Search range `[-5, +5]` covers only small motions; large jumps
+  would clip and report the edge candidate.
+
+Next gate: same as before — B8.8 TPU strategy.  B8.7c is an
+extra validation of the camera-ISR-to-flow chain, not a TPU step.
+
 ## Crazyflie / UART Strategy
 
 The whole Crazyflie experiment needs at least two communication channels:

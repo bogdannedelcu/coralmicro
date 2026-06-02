@@ -78,6 +78,11 @@ Important local facts:
   task chain.
 - `renode/sentai_emu_fanout.resc` - loads the B8.7 Stage1Task +
   Stage2ATask + Stage2BTask multi-reader fan-out target.
+- `renode/sentai_emu_flowest.resc` - loads the B8.7c flow-offset
+  target and feeds 6 cat scenes panned by 1 px/frame via
+  `sysbus LoadBinary`.
+- `scripts/prepare_cat_scenes.py` - preprocesses the B7 reference
+  cat BMP into 32x32 Y8 scene .bin files under `output/scenes/`.
 - `mp_inc/mpconfigport.h` - B8.3 emu MicroPython config.
 - `mp_inc_mission/mpconfigport.h` - B8.4 config (adds external import +
   `sys.path` attribute delegation on top of B8.3).
@@ -97,6 +102,12 @@ Important local facts:
   with a real seqlock (`version++` odd-then-even writer; `v1 == v2`
   reader retry loop).  Same B8.5 VCam IRQ feeding three FreeRTOS
   tasks now.
+- `sentai_emu_flowest.cc` - B8.7c brute-force SAD block-match flow
+  estimator over host-fed cat scenes.  Disables VCam FILL_MODE so
+  the bytes loaded by Renode into `g_frame_buffer` survive between
+  IRQs.  NOT a production-format-equivalent flow path: production
+  is XRGB8888 → PrepTask → Y8 80x60 → FlowTask USADA8 / phase
+  correlation; B8.7c is Y8 32x32 → SAD brute force.
 
 The `.repl` intentionally uses Renode host-side stub peripherals for early MMIO
 that the NXP SDK touches during boot.  These are not firmware filesystem code

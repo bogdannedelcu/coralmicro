@@ -1,0 +1,80 @@
+:name: SentAI B8.7c ARM Flow-offset detection from host-fed cat scenes
+:description: Boots sentai_emu_flowest and drives 6 frames into g_frame_buffer using `sysbus LoadBinary` of the pre-processed cat scenes from emu/output/scenes/.  One single cat photo, panned by 1 px per frame in X.  Expected detected dx sequence: 0 (prime), +1, +1, +1, +1, +1.  This is the B7 cat-flow test moved to the ARM emulator path; the equivalent SIM run previously reported dx = 243 / -129 for a 2-px shift, which the verdict here flags as failure.
+
+i @emu/renode/sentai_rt1176.repl
+
+$bin?=@build_emu/emu/sentai_emu_flowest
+$uart_log?=@/home/bogdan/work/coralmicro/emu/output/sentai_emu_flowest.log
+
+$scene_off_0?=@emu/output/scenes/scene_off_0.bin
+$scene_off_1?=@emu/output/scenes/scene_off_1.bin
+$scene_off_2?=@emu/output/scenes/scene_off_2.bin
+$scene_off_3?=@emu/output/scenes/scene_off_3.bin
+$scene_off_4?=@emu/output/scenes/scene_off_4.bin
+$scene_off_5?=@emu/output/scenes/scene_off_5.bin
+
+macro reset
+"""
+    sysbus LoadELF $bin
+    cpu VectorTableOffset 0x800
+"""
+
+lpuart6 CreateFileBackend $uart_log
+runMacro $reset
+
+# Boot + both tasks ready.
+emulation RunFor "3s"
+
+# Per-frame: write the next scene at g_frame_buffer, fire CONTROL.ARM, wait
+# for Stage1Task to finish the SAD brute force and Stage2Task to log.
+# 1.0s of emulated time per frame is comfortably above the SAD compute
+# budget (121 candidates * 484 pixels * 2 ops ~ 120 kops/frame).
+
+sysbus LoadBinary $scene_off_0 `sysbus GetSymbolAddress "g_frame_buffer"`
+sysbus WriteDoubleWord 0x40900010 0x1
+emulation RunFor "1.0s"
+
+sysbus LoadBinary $scene_off_1 `sysbus GetSymbolAddress "g_frame_buffer"`
+sysbus WriteDoubleWord 0x40900010 0x1
+emulation RunFor "1.0s"
+
+sysbus LoadBinary $scene_off_2 `sysbus GetSymbolAddress "g_frame_buffer"`
+sysbus WriteDoubleWord 0x40900010 0x1
+emulation RunFor "1.0s"
+
+sysbus LoadBinary $scene_off_3 `sysbus GetSymbolAddress "g_frame_buffer"`
+sysbus WriteDoubleWord 0x40900010 0x1
+emulation RunFor "1.0s"
+
+sysbus LoadBinary $scene_off_4 `sysbus GetSymbolAddress "g_frame_buffer"`
+sysbus WriteDoubleWord 0x40900010 0x1
+emulation RunFor "1.0s"
+
+sysbus LoadBinary $scene_off_5 `sysbus GetSymbolAddress "g_frame_buffer"`
+sysbus WriteDoubleWord 0x40900010 0x1
+emulation RunFor "1.5s"
+
+lpuart6 CloseFileBackend $uart_log
+
+echo "sentai_emu_flowest PC:"
+cpu PC
+echo "sentai_emu_flowest boot_state:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_boot_state"`
+echo "sentai_emu_flowest heartbeat:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_heartbeat"`
+echo "sentai_emu_flowest irq_count:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_irq_count"`
+echo "sentai_emu_flowest stage1_processed:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_stage1_processed"`
+echo "sentai_emu_flowest stage2_consumed:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_stage2_consumed"`
+echo "sentai_emu_flowest pipeline_errors:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_pipeline_errors"`
+echo "sentai_emu_flowest last_dx:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_last_dx"`
+echo "sentai_emu_flowest last_dy:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_last_dy"`
+echo "sentai_emu_flowest last_sad:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_last_sad"`
+echo "sentai_emu_flowest last_tick:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_last_tick"`

@@ -60,6 +60,13 @@ TARGETS = {
         "iter_suffix": "renode_fanout_stage1_2a_2b",
         "uart_log": ROOT / "emu" / "output" / "sentai_emu_fanout.log",
     },
+    "flowest": {
+        "cmake_target": "sentai_emu_flowest",
+        "renode_script": ROOT / "emu" / "renode" / "sentai_emu_flowest.resc",
+        "iter_suffix": "renode_flowest_cat_pan_1px",
+        "uart_log": ROOT / "emu" / "output" / "sentai_emu_flowest.log",
+        "pre_hook": "prepare_cat_scenes",
+    },
 }
 
 
@@ -131,6 +138,22 @@ def main() -> int:
     ]
 
     logs: dict[str, subprocess.CompletedProcess[str]] = {}
+
+    if cfg.get("pre_hook") == "prepare_cat_scenes":
+        # Regenerate emu/output/scenes/*.bin from the B7 reference cat
+        # before Renode tries to LoadBinary them.  Deterministic; no
+        # randomness, so re-running is a no-op other than file mtimes.
+        prep_cmd = [
+            sys.executable,
+            str((ROOT / "emu" / "scripts" / "prepare_cat_scenes.py").relative_to(ROOT)),
+        ]
+        prep_result = run_cmd(prep_cmd, ROOT)
+        logs["pre_hook"] = prep_result
+        (iter_dir / "pre_hook.log").write_text(prep_result.stdout)
+        if prep_result.returncode != 0:
+            print(prep_result.stdout)
+            return 1
+
     for name, cmd in (
         ("configure", configure_cmd),
         ("build", build_cmd),
@@ -158,6 +181,20 @@ def main() -> int:
     seqlock_torn_reads = parse_hex(f"{renode_label} seqlock_torn_reads", renode_log)
     pipeline_errors = parse_hex(f"{renode_label} pipeline_errors", renode_log)
     last_sum = parse_hex(f"{renode_label} last_sum", renode_log)
+    # B8.7c flowest: signed dx/dy can be negative; Renode echoes them as
+    # 32-bit two's complement hex.  parse_hex returns the raw unsigned int;
+    # we convert to signed below.
+    last_dx_raw = parse_hex(f"{renode_label} last_dx", renode_log)
+    last_dy_raw = parse_hex(f"{renode_label} last_dy", renode_log)
+    last_sad = parse_hex(f"{renode_label} last_sad", renode_log)
+
+    def _u32_to_i32(v):
+        if v is None:
+            return None
+        return v - 0x1_0000_0000 if v >= 0x8000_0000 else v
+
+    last_dx = _u32_to_i32(last_dx_raw)
+    last_dy = _u32_to_i32(last_dy_raw)
 
     if args.target == "repl":
         # REPL target reuses heartbeat as "completed mp_embed_exec_str count";
@@ -203,6 +240,32 @@ def main() -> int:
             and stage2b_consumed == 5
             and pipeline_errors == 0
             and last_sum == 320
+            and last_tick is not None
+            and last_tick > 0
+        )
+    elif args.target == "flowest":
+        # B8.7c: Stage1Task block-matcher must report the expected per-frame
+        # offset sequence for a single cat photo panned by 1 px / frame.
+        # Frame 1 is prime (no prev) -> dx=0; frames 2..6 each detect dx=+1
+        # with sad=0 (perfect match because the shift is a clean translation).
+        expected_dx_per_frame = [0, 1, 1, 1, 1, 1]
+        seen_lines = re.findall(
+            rb"FLOWEST (\d+) frame_seq=(\d+) dx=(-?\d+) dy=(-?\d+) sad=(\d+)",
+            (cfg["uart_log"].read_bytes() if cfg["uart_log"].exists() else b""),
+        )
+        detected_dx_per_frame = [int(ln[2]) for ln in seen_lines]
+        detected_dy_per_frame = [int(ln[3]) for ln in seen_lines]
+        flowest_dx_ok = detected_dx_per_frame == expected_dx_per_frame
+        flowest_dy_ok = all(v == 0 for v in detected_dy_per_frame)
+        passed = (
+            all(result.returncode == 0 for result in logs.values())
+            and boot_state == 0x900
+            and irq_count == 6
+            and stage1_processed == 6
+            and stage2_consumed == 6
+            and pipeline_errors == 0
+            and flowest_dx_ok
+            and flowest_dy_ok
             and last_tick is not None
             and last_tick > 0
         )
@@ -341,6 +404,17 @@ def main() -> int:
         "uart_log_contains_fanout_first_b": b"STAGE2B 1 frame_seq=1 sum=64 avg=1" in uart_log_bytes,
         "uart_log_contains_fanout_last_a": b"STAGE2A 5 frame_seq=5 sum=320 avg=5" in uart_log_bytes,
         "uart_log_contains_fanout_last_b": b"STAGE2B 5 frame_seq=5 sum=320 avg=5" in uart_log_bytes,
+        "last_dx": last_dx,
+        "last_dy": last_dy,
+        "last_sad": last_sad,
+        "flowest_detected_dx_per_frame": (
+            [int(ln[2]) for ln in re.findall(
+                rb"FLOWEST (\d+) frame_seq=(\d+) dx=(-?\d+) dy=(-?\d+) sad=(\d+)",
+                uart_log_bytes)] if args.target == "flowest" else None
+        ),
+        "flowest_expected_dx_per_frame": (
+            [0, 1, 1, 1, 1, 1] if args.target == "flowest" else None
+        ),
         "pass": passed,
     }
     (iter_dir / "verdict_s213.json").write_text(json.dumps(verdict, indent=2) + "\n")

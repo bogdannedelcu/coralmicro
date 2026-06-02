@@ -1,0 +1,10 @@
+
+SentAI EMU FLOWEST B8.7c
+Stage1Task ready
+Stage2Task ready
+FLOWEST 1 frame_seq=1 dx=0 dy=0 sad=0
+FLOWEST 2 frame_seq=2 dx=1 dy=0 sad=0
+FLOWEST 3 frame_seq=3 dx=1 dy=0 sad=0
+FLOWEST 4 frame_seq=4 dx=1 dy=0 sad=0
+FLOWEST 5 frame_seq=5 dx=1 dy=0 sad=0
+FLOWEST 6 frame_seq=6 dx=1 dy=0 sad=0
