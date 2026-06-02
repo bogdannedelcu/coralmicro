@@ -54,3 +54,10 @@ Targets:
   do real algorithm work that this spike does not implement.
   InferTask/TPU is explicitly out of scope for the emulator path
   (EdgeTPU USB stays deferred).
+- `fanout` - B8.7 Stage1Task → {Stage2ATask, Stage2BTask} multi-reader
+  fan-out via a real seqlock.  Both consumers read the same scalar
+  slot on every IRQ and emit matching `STAGE2A` / `STAGE2B` UART
+  marker pairs with identical arithmetic per frame.  Verdict asserts
+  `irq_count == stage1_processed == stage2a_consumed == stage2b_consumed
+  == 5`, `pipeline_errors == 0`, `seqlock_torn_reads == 0`, and
+  `last_sum == 320`.

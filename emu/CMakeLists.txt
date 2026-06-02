@@ -205,3 +205,34 @@ target_compile_options(sentai_emu_pipeline PRIVATE
     -Wno-error -Wno-unused-parameter -Wno-sign-compare
     -Wno-old-style-definition -Wno-missing-prototypes
 )
+
+# --- B8.7 ARM fan-out spike: Stage1 -> {Stage2A, Stage2B} with seqlock ----
+#
+# Two parallel consumers reading the same scalar slot.  Exercises the
+# seqlock writer / reader primitive that production uses for multi-reader
+# fan-out around the prep slot.  Stand-in stage names per B8.6 rule.
+
+set(SENTAI_EMU_FANOUT_SOURCES
+    sentai_emu_fanout.cc
+    sentai_emu_freertos_hooks.c
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/gcc/startup_MIMXRT1176_cm7.S
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/system_MIMXRT1176_cm7.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/event_groups.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/list.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/portable/GCC/ARM_CM4F/port.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/queue.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/stream_buffer.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/tasks.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/timers.c
+    ${PROJECT_SOURCE_DIR}/third_party/FreeRTOS_helpers/heap_useNewlib_NXP.c
+)
+
+add_executable_m7(sentai_emu_fanout
+    LINKER_SCRIPT ${PROJECT_SOURCE_DIR}/libs/nxp/rt1176-sdk/MIMXRT1176xxxxx_cm7_ram.ld
+    ${SENTAI_EMU_FANOUT_SOURCES}
+)
+configure_sentai_emu_target(sentai_emu_fanout)
+target_compile_options(sentai_emu_fanout PRIVATE
+    -Wno-error -Wno-unused-parameter -Wno-sign-compare
+    -Wno-old-style-definition -Wno-missing-prototypes
+)

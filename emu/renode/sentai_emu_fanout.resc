@@ -1,0 +1,57 @@
+:name: SentAI B8.7 ARM fan-out spike Stage1 -> {Stage2A, Stage2B} with seqlock
+:description: Triggers 5 frames via VCam.  Stage1Task scans + reduces each frame, publishes via seqlock, notifies BOTH Stage2A and Stage2B.  Verdict asserts irq_count == stage1_processed == stage2a_consumed == stage2b_consumed == 5, pipeline_errors == 0, last_sum == 320.  Names are deliberately neutral; production PrepTask / InferTask / FlowTask / CameraTask symbols are reserved for the real algorithms.
+
+i @emu/renode/sentai_rt1176.repl
+
+$bin?=@build_emu/emu/sentai_emu_fanout
+$uart_log?=@/home/bogdan/work/coralmicro/emu/output/sentai_emu_fanout.log
+
+macro reset
+"""
+    sysbus LoadELF $bin
+    cpu VectorTableOffset 0x800
+"""
+
+lpuart6 CreateFileBackend $uart_log
+runMacro $reset
+
+# Boot + all three tasks reach their "ready" state.
+emulation RunFor "3s"
+
+# 5 frame deliveries.  0.5s per cycle leaves slack for both readers to
+# finish their seqlock loop and log to UART before the next IRQ.
+sysbus WriteDoubleWord 0x40900010 0x1
+emulation RunFor "0.5s"
+sysbus WriteDoubleWord 0x40900010 0x1
+emulation RunFor "0.5s"
+sysbus WriteDoubleWord 0x40900010 0x1
+emulation RunFor "0.5s"
+sysbus WriteDoubleWord 0x40900010 0x1
+emulation RunFor "0.5s"
+sysbus WriteDoubleWord 0x40900010 0x1
+emulation RunFor "0.7s"
+
+lpuart6 CloseFileBackend $uart_log
+
+echo "sentai_emu_fanout PC:"
+cpu PC
+echo "sentai_emu_fanout boot_state:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_boot_state"`
+echo "sentai_emu_fanout heartbeat:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_heartbeat"`
+echo "sentai_emu_fanout irq_count:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_irq_count"`
+echo "sentai_emu_fanout stage1_processed:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_stage1_processed"`
+echo "sentai_emu_fanout stage2a_consumed:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_stage2a_consumed"`
+echo "sentai_emu_fanout stage2b_consumed:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_stage2b_consumed"`
+echo "sentai_emu_fanout pipeline_errors:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_pipeline_errors"`
+echo "sentai_emu_fanout seqlock_torn_reads:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_seqlock_torn_reads"`
+echo "sentai_emu_fanout last_sum:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_last_sum"`
+echo "sentai_emu_fanout last_tick:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_last_tick"`

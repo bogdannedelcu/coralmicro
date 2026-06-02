@@ -1,0 +1,15 @@
+
+SentAI EMU FANOUT B8.7
+Stage1Task ready
+Stage2ATask ready
+Stage2BTask ready
+STAGE2A 1 frame_seq=1 sum=64 avg=1
+STAGE2B 1 frame_seq=1 sum=64 avg=1
+STAGE2A 2 frame_seq=2 sum=128 avg=2
+STAGE2B 2 frame_seq=2 sum=128 avg=2
+STAGE2A 3 frame_seq=3 sum=192 avg=3
+STAGE2B 3 frame_seq=3 sum=192 avg=3
+STAGE2A 4 frame_seq=4 sum=256 avg=4
+STAGE2B 4 frame_seq=4 sum=256 avg=4
+STAGE2A 5 frame_seq=5 sum=320 avg=5
+STAGE2B 5 frame_seq=5 sum=320 avg=5

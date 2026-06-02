@@ -1,0 +1,75 @@
+12:49:04.8074 [INFO] Loaded monitor commands from: /home/bogdan/work/renode_portable/scripts/monitor.py
+Renode, version 1.16.1 (ac18b5ac-202606020225)
+
+
+(monitor) i $CWD/emu/renode/sentai_emu_fanout.resc
+
+12:49:04.9268 [INFO] Including script(s): /home/bogdan/work/coralmicro/emu/renode/sentai_emu_fanout.resc
+12:49:04.9427 [INFO] System bus created.
+12:49:05.7359 [INFO] Old file /home/bogdan/work/coralmicro/emu/output/sentai_emu_fanout.log moved to /home/bogdan/work/coralmicro/emu/output/sentai_emu_fanout.log.1
+12:49:05.7527 [INFO] sysbus: Loading block of 3072 bytes length at 0x0.
+12:49:05.7632 [INFO] sysbus: Loading block of 25732 bytes length at 0xC00.
+12:49:05.7632 [INFO] sysbus: Loading block of 480 bytes length at 0x7084.
+12:49:05.7632 [INFO] sysbus: Loading block of 64 bytes length at 0x7264.
+12:49:05.7633 [INFO] sysbus: Loading block of 53144 bytes length at 0x7268.
+12:49:05.7633 [INFO] sysbus: Loading block of 16777216 bytes length at 0x80000000.
+12:49:06.2038 [INFO] cpu: Setting initial values: PC = 0xCBD, SP = 0x20040000.
+12:49:06.2064 [INFO] machine-0: Machine started.
+12:49:06.2832 [WARNING] nvic: Unhandled write to offset 0xF50 (ICacheInvalidateAllToPoUaIgnored), value 0x0.
+12:49:06.3041 [WARNING] nvic: Trying to set the priority for interrupt 16 to 0xFF, but it should be maskable with 0xF0
+12:49:11.7450 [INFO] machine-0: Machine paused.
+12:49:11.8013 [INFO] machine-0: Machine resumed.
+12:49:12.6224 [INFO] machine-0: Machine paused.
+12:49:12.6281 [INFO] machine-0: Machine resumed.
+12:49:13.4756 [INFO] machine-0: Machine paused.
+12:49:13.4770 [INFO] machine-0: Machine resumed.
+12:49:14.2824 [INFO] machine-0: Machine paused.
+12:49:14.2842 [INFO] machine-0: Machine resumed.
+12:49:15.0929 [INFO] machine-0: Machine paused.
+12:49:15.0942 [INFO] machine-0: Machine resumed.
+12:49:16.2485 [INFO] machine-0: Machine paused.
+sentai_emu_fanout PC:
+
+0x1800
+
+sentai_emu_fanout boot_state:
+
+0x00000A00
+
+sentai_emu_fanout heartbeat:
+
+0x00000005
+
+sentai_emu_fanout irq_count:
+
+0x00000005
+
+sentai_emu_fanout stage1_processed:
+
+0x00000005
+
+sentai_emu_fanout stage2a_consumed:
+
+0x00000005
+
+sentai_emu_fanout stage2b_consumed:
+
+0x00000005
+
+sentai_emu_fanout pipeline_errors:
+
+0x00000000
+
+sentai_emu_fanout seqlock_torn_reads:
+
+0x00000000
+
+sentai_emu_fanout last_sum:
+
+0x00000140
+
+sentai_emu_fanout last_tick:
+
+0x00001364
+
+(machine-0) 12:49:16.3176 [INFO] machine-0: Disposed.

@@ -54,6 +54,12 @@ TARGETS = {
         "iter_suffix": "renode_pipeline_stage1_stage2",
         "uart_log": ROOT / "emu" / "output" / "sentai_emu_pipeline.log",
     },
+    "fanout": {
+        "cmake_target": "sentai_emu_fanout",
+        "renode_script": ROOT / "emu" / "renode" / "sentai_emu_fanout.resc",
+        "iter_suffix": "renode_fanout_stage1_2a_2b",
+        "uart_log": ROOT / "emu" / "output" / "sentai_emu_fanout.log",
+    },
 }
 
 
@@ -147,6 +153,9 @@ def main() -> int:
     irq_count = parse_hex(f"{renode_label} irq_count", renode_log)
     stage1_processed = parse_hex(f"{renode_label} stage1_processed", renode_log)
     stage2_consumed = parse_hex(f"{renode_label} stage2_consumed", renode_log)
+    stage2a_consumed = parse_hex(f"{renode_label} stage2a_consumed", renode_log)
+    stage2b_consumed = parse_hex(f"{renode_label} stage2b_consumed", renode_log)
+    seqlock_torn_reads = parse_hex(f"{renode_label} seqlock_torn_reads", renode_log)
     pipeline_errors = parse_hex(f"{renode_label} pipeline_errors", renode_log)
     last_sum = parse_hex(f"{renode_label} last_sum", renode_log)
 
@@ -177,6 +186,23 @@ def main() -> int:
             and frames_consumed == 5
             and frames_valid == 5
             and irq_count == 5
+            and last_tick is not None
+            and last_tick > 0
+        )
+    elif args.target == "fanout":
+        # B8.7: every IRQ must propagate to Stage1Task and then BOTH parallel
+        # consumers (Stage2A + Stage2B).  seqlock_torn_reads is 0 on the
+        # happy path; non-zero would indicate the reader retry loop was
+        # exercised, which is OK but worth surfacing in the verdict.
+        passed = (
+            all(result.returncode == 0 for result in logs.values())
+            and boot_state == 0xA00
+            and irq_count == 5
+            and stage1_processed == 5
+            and stage2a_consumed == 5
+            and stage2b_consumed == 5
+            and pipeline_errors == 0
+            and last_sum == 320
             and last_tick is not None
             and last_tick > 0
         )
@@ -251,6 +277,19 @@ def main() -> int:
         passed = passed and b"FRAME 1 seq=1 byte=0x01 ok=1" in uart_log_bytes
         passed = passed and b"FRAME 5 seq=5 byte=0x05 ok=1" in uart_log_bytes
 
+    if args.target == "fanout":
+        # B8.7: assert all three tasks ready, and every frame produces a
+        # matching pair of STAGE2A + STAGE2B marker lines in order.  The
+        # arithmetic must agree across both consumers (proves the seqlock
+        # delivers consistent reads).
+        passed = passed and b"Stage1Task ready" in uart_log_bytes
+        passed = passed and b"Stage2ATask ready" in uart_log_bytes
+        passed = passed and b"Stage2BTask ready" in uart_log_bytes
+        passed = passed and b"STAGE2A 1 frame_seq=1 sum=64 avg=1" in uart_log_bytes
+        passed = passed and b"STAGE2B 1 frame_seq=1 sum=64 avg=1" in uart_log_bytes
+        passed = passed and b"STAGE2A 5 frame_seq=5 sum=320 avg=5" in uart_log_bytes
+        passed = passed and b"STAGE2B 5 frame_seq=5 sum=320 avg=5" in uart_log_bytes
+
     if args.target == "pipeline":
         # B8.6: assert Stage1Task and Stage2Task both reached "ready" state
         # AND the per-frame STAGE2 lines carry the exact sum/avg arithmetic.
@@ -291,10 +330,17 @@ def main() -> int:
         "uart_log_contains_camera_last": b"FRAME 5 seq=5 byte=0x05 ok=1" in uart_log_bytes,
         "stage1_processed": stage1_processed,
         "stage2_consumed": stage2_consumed,
+        "stage2a_consumed": stage2a_consumed,
+        "stage2b_consumed": stage2b_consumed,
+        "seqlock_torn_reads": seqlock_torn_reads,
         "pipeline_errors": pipeline_errors,
         "last_sum": last_sum,
         "uart_log_contains_pipeline_first": b"STAGE2 1 frame_seq=1 sum=64 avg=1" in uart_log_bytes,
         "uart_log_contains_pipeline_last": b"STAGE2 5 frame_seq=5 sum=320 avg=5" in uart_log_bytes,
+        "uart_log_contains_fanout_first_a": b"STAGE2A 1 frame_seq=1 sum=64 avg=1" in uart_log_bytes,
+        "uart_log_contains_fanout_first_b": b"STAGE2B 1 frame_seq=1 sum=64 avg=1" in uart_log_bytes,
+        "uart_log_contains_fanout_last_a": b"STAGE2A 5 frame_seq=5 sum=320 avg=5" in uart_log_bytes,
+        "uart_log_contains_fanout_last_b": b"STAGE2B 5 frame_seq=5 sum=320 avg=5" in uart_log_bytes,
         "pass": passed,
     }
     (iter_dir / "verdict_s213.json").write_text(json.dumps(verdict, indent=2) + "\n")

@@ -1063,6 +1063,142 @@ tasks reading the same prep slot concurrently, exercising the real
 seqlock contract and validating that all consumers see consistent
 data when Stage1Task is faster than they are.
 
+## B8.7 Fan-out Stage1Task → {Stage2ATask, Stage2BTask} With Seqlock
+
+`sentai_emu_fanout` adds a second parallel consumer to the B8.6
+pipeline.  Stage1Task remains the sole writer of the scalar slot.
+Both Stage2ATask and Stage2BTask read the slot independently through
+a real seqlock retry loop:
+
+```text
+Renode vcam ─CONTROL.ARM=1─► IRQ 94 ─FromISR notify─► Stage1Task
+                                                       │
+                                                       ├─ scan + reduce
+                                                       ├─ SeqlockPublish:
+                                                       │    version++ (odd)
+                                                       │    write fields
+                                                       │    DMB
+                                                       │    version++ (even)
+                                                       ├─ notify Stage2A
+                                                       └─ notify Stage2B
+                                                              │      │
+                                                              ▼      ▼
+                                                         Stage2A   Stage2B
+                                                         │           │
+                                                         └─ SeqlockRead:
+                                                              loop:
+                                                                v1 = version
+                                                                if v1 odd: retry
+                                                                DMB
+                                                                load fields
+                                                                DMB
+                                                                v2 = version
+                                                                if v1 != v2: retry
+```
+
+Files added:
+
+```text
+emu/sentai_emu_fanout.cc
+emu/renode/sentai_emu_fanout.resc
+```
+
+Naming discipline:
+
+- The two parallel consumers are `Stage2ATask` and `Stage2BTask`, not
+  `MarkersTask` / `FlowTask` / `InferTask`.  Same HARD RULE as B8.6:
+  production sentai_runtime owns the algorithm-bearing names; emu
+  scaffolding must not pretend to be them.
+
+Design points:
+
+- **Three real FreeRTOS tasks** — Stage1Task at `tskIDLE_PRIORITY + 3`,
+  Stage2ATask and Stage2BTask both at `tskIDLE_PRIORITY + 2`.  Stage1
+  always runs to completion before either reader because of the
+  priority delta, so the seqlock retry loop is NOT actually contended
+  in the B8.7 happy path.  This is intentional: the topology proof is
+  the goal, and the seqlock primitive is exercised as `SeqlockPublish`
+  + `SeqlockRead` even when the retry counter stays at zero.
+- **Two notifications per IRQ**.  Stage1Task calls
+  `xTaskNotifyGive(stage2a_handle)` then `xTaskNotifyGive(stage2b_handle)`.
+  Both consumers wake on the same frame and each reads the slot once.
+- **Per-reader counters** (`g_sentai_emu_stage2a_consumed`,
+  `_stage2b_consumed`).  A starvation regression would show as
+  `stage2a_consumed != stage2b_consumed`.
+- **`seqlock_torn_reads`** captures retry attempts inside
+  `SeqlockRead`.  Stays zero under B8.7's non-contended setup but the
+  counter is wired up so a later stress mode (back-to-back IRQs, or
+  Stage1 running at the same priority as the readers) can observe
+  the retry path firing without changing the firmware.
+- **Boot state ladder**.  Each task transitions
+  `g_sentai_emu_boot_state` from its predecessor's "ready" state to
+  the next, ending at `kBootAllReady = 0xA00` once all three tasks
+  have stored their handles and registered for notifications.
+
+Validated result (`iter11_renode_fanout_stage1_2a_2b`):
+
+```text
+boot_state              = 0x00000A00  (kBootAllReady)
+irq_count               = 5
+stage1_processed        = 5
+stage2a_consumed        = 5
+stage2b_consumed        = 5
+seqlock_torn_reads      = 0
+pipeline_errors         = 0
+last_sum                = 320  (= 5 * 64)
+uart_log raw bytes     ⊃ "Stage1Task ready"
+                         "Stage2ATask ready"
+                         "Stage2BTask ready"
+                         "STAGE2A 1 frame_seq=1 sum=64 avg=1"
+                         "STAGE2B 1 frame_seq=1 sum=64 avg=1"
+                         ...
+                         "STAGE2A 5 frame_seq=5 sum=320 avg=5"
+                         "STAGE2B 5 frame_seq=5 sum=320 avg=5"
+pass                    = true
+```
+
+What this proves over B8.6:
+
+- the same camera-frame-ready boundary scales to multiple downstream
+  consumers without one consumer starving the other;
+- the seqlock writer / reader pair compiles and runs correctly on
+  ARM CM7 FreeRTOS under Renode, with `__DMB()` barriers on both
+  sides of every payload access;
+- both readers see identical data per frame — the arithmetic
+  (`sum=N*64`, `avg=N`) matches between STAGE2A and STAGE2B for
+  every frame_seq, proving the seqlock delivers consistent reads
+  even though contention was not exercised here.
+
+Notes captured by B8.7:
+
+- `seqlock_torn_reads == 0` is expected on the happy path because
+  Stage1 has higher priority and runs to completion before either
+  reader wakes.  To actually exercise the retry loop, a later gate
+  should either lower Stage1's priority equal to the readers'
+  (forces interleaving) or fire IRQs back-to-back inside a single
+  reader window.  The counter is already wired so that variant only
+  needs a `.resc` change, not a firmware change.
+- `kSeqlockMaxRetries = 100` is the bail-out bound.  If reached the
+  reader logs a `pipeline_errors` increment and skips that frame.
+  Under B8.7 conditions this can never happen, but a stress mode
+  needs to know when to give up rather than spin forever.
+- `xTaskNotifyGive` is used twice per frame (once per consumer).  An
+  event group would be a more natural primitive for "many readers
+  wait on one event" — production may pick a different mechanism
+  later; the choice here was kept identical to B8.6 to isolate the
+  fan-out change.
+
+Open caveats inherited from earlier gates:
+
+- Renode `nvic` priority-mask warning persists.
+- Reduction is `sum of bytes`, not real prep / flow / markers work.
+- VCam is single-shot per host write; no continuous frame source yet.
+
+Next gate: B8.8 should re-evaluate the TPU strategy (host mailbox
+peripheral vs HIL vs USB pass-through) now that the rest of the
+pipeline topology — REPL, FS, camera ISR, prep + fan-out consumers
+— is proved end-to-end under the ARM emulator.
+
 ## Crazyflie / UART Strategy
 
 The whole Crazyflie experiment needs at least two communication channels:

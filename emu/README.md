@@ -23,8 +23,11 @@ Current first milestone:
    `PrepTask` / `InferTask` / `FlowTask` / `CameraTask` symbols are
    reserved for the real algorithms.  No TPU/InferTask in this gate —
    EdgeTPU USB is still explicitly deferred;
-8. then add multi-reader fan-out (markers), and only later evaluate
-   the TPU strategy.
+8. build and boot `sentai_emu_fanout` to prove the multi-reader
+   fan-out topology (`Stage1Task` → {`Stage2ATask`, `Stage2BTask`})
+   driven by a real seqlock.  Both readers see identical data per
+   frame on every IRQ;
+9. only then re-evaluate the TPU strategy.
 
 Caveat (operator note 2026-06-02): production REPL is USB CDC ACM, not
 LPUART6.  The emu uses LPUART6 because Renode has no CDC ACM endpoint, but
@@ -73,6 +76,8 @@ Important local facts:
 - `renode/sentai_emu_pipeline.resc` - loads the B8.6 Stage1Task +
   Stage2Task pipeline target and triggers 5 frames through the full
   task chain.
+- `renode/sentai_emu_fanout.resc` - loads the B8.7 Stage1Task +
+  Stage2ATask + Stage2BTask multi-reader fan-out target.
 - `mp_inc/mpconfigport.h` - B8.3 emu MicroPython config.
 - `mp_inc_mission/mpconfigport.h` - B8.4 config (adds external import +
   `sys.path` attribute delegation on top of B8.3).
@@ -88,6 +93,10 @@ Important local facts:
   scalar slot.  Same VCam IRQ as B8.5; the ISR now wakes a multi-stage
   chain via `vTaskNotifyGiveFromISR` + `xTaskNotifyGive`.  Stage names
   are deliberately distinct from production `PrepTask` / `FlowTask`.
+- `sentai_emu_fanout.cc` - B8.7 Stage1Task + Stage2ATask + Stage2BTask
+  with a real seqlock (`version++` odd-then-even writer; `v1 == v2`
+  reader retry loop).  Same B8.5 VCam IRQ feeding three FreeRTOS
+  tasks now.
 
 The `.repl` intentionally uses Renode host-side stub peripherals for early MMIO
 that the NXP SDK touches during boot.  These are not firmware filesystem code

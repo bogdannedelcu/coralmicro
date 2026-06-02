@@ -1,0 +1,67 @@
+{
+  "experiment": "s213_arm_emulator_idle",
+  "iter": "iter11_renode_fanout_stage1_2a_2b",
+  "target_kind": "fanout",
+  "started_at": "2026-06-02T12:49:02+0300",
+  "commands": {
+    "configure": [
+      "cmake",
+      "-S",
+      ".",
+      "-B",
+      "build_emu",
+      "-DSENTAI_ARM_EMU=ON",
+      "-DSENTAI_SKIP_SDK_PATCHES=ON"
+    ],
+    "build": [
+      "cmake",
+      "--build",
+      "build_emu",
+      "--target",
+      "sentai_emu_fanout",
+      "-j16"
+    ],
+    "renode": [
+      "/home/bogdan/work/renode_portable/renode",
+      "--plain",
+      "--console",
+      "--disable-xwt",
+      "emu/renode/sentai_emu_fanout.resc"
+    ]
+  },
+  "target": "build_emu/emu/sentai_emu_fanout",
+  "renode_script": "emu/renode/sentai_emu_fanout.resc",
+  "returncodes": {
+    "configure": 0,
+    "build": 0,
+    "renode": 0
+  },
+  "boot_state": 2560,
+  "heartbeat": 5,
+  "last_tick": 4964,
+  "repl_lines": null,
+  "uart_log_contains_boot": false,
+  "uart_log_contains_heartbeat": false,
+  "uart_log_contains_repl_banner": false,
+  "uart_log_contains_repl_answer": false,
+  "uart_log_contains_mission_marker": false,
+  "frames_consumed": null,
+  "frames_valid": null,
+  "irq_count": 5,
+  "uart_log_contains_camera_first": false,
+  "uart_log_contains_camera_last": false,
+  "stage1_processed": 5,
+  "stage2_consumed": null,
+  "stage2a_consumed": 5,
+  "stage2b_consumed": 5,
+  "seqlock_torn_reads": 0,
+  "pipeline_errors": 0,
+  "last_sum": 320,
+  "uart_log_contains_pipeline_first": false,
+  "uart_log_contains_pipeline_last": false,
+  "uart_log_contains_fanout_first_a": true,
+  "uart_log_contains_fanout_first_b": true,
+  "uart_log_contains_fanout_last_a": true,
+  "uart_log_contains_fanout_last_b": true,
+  "pass": true
+}
