@@ -1,0 +1,189 @@
+
+This GDB supports auto-downloading debuginfo from the following URLs:
+  <https://debuginfod.ubuntu.com>
+Enable debuginfod for this session? (y or [n]) [answered N; input not from terminal]
+Debuginfod has been disabled.
+To make this setting permanent, add 'set debuginfod enabled off' to .gdbinit.
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib/x86_64-linux-gnu/libthread_db.so.1".
+[New Thread 0x7ffff73ff6c0 (LWP 322548)]
+[New Thread 0x7ffff6bfe6c0 (LWP 322549)]
+[sim] FS root: /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/gdb_run_flow_tpu/fs_root
+[sim] sentai_sim build #1015 (2026-05-31 23:51:32)
+[sim] FreeRTOS POSIX port: tick=1000 Hz, heap=4194304 bytes
+[sim] MicroPython heap: 2097152 bytes
+[New Thread 0x555559b95a80 (LWP 322550)]
+[New Thread 0x555555d67e00 (LWP 322551)]
+[New Thread 0x7ffff63fd6c0 (LWP 322552)]
+[New Thread 0x7ffff5bfc6c0 (LWP 322553)]
+[New Thread 0x555559b9db80 (LWP 322554)]
+[sim] sentai.fr auto-start: dir=/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/gdb_run_flow_tpu/fs_root/fr init=0 events=0 scalars=0 debug=0 task=0
+
+MicroPython on SentAI SIM (FreeRTOS POSIX port + MicroPython embed)
+Type expressions, end with Enter.  Ctrl-D or 'exit' to quit.
+Try: sentai.version(), sentai.fs.write(...), help()
+
+>>> camera_bridge: listening on /tmp/sentai_cam.sock (waiting for Gazebo bridge)
+>>> MODEL_SIZE 7077792
+IMG0_SIZE 921654
+IMGN_SIZE 921654
+[New Thread 0x555555da7e80 (LWP 322555)]
+[sentai_fr] worker START
+[tpu-posix] call begin kind=load slot=0
+[tpu-posix] load slot=0 path=/models/tf2_ssd_mobilenet_v2_coco17_ptq_edgetpu.tflite
+[tpu-posix] opening Coral USB via POSIX/libusb backend
+[tpu-posix] libusb_init...
+[New Thread 0x7ffff53fb6c0 (LWP 322556)]
+[tpu-posix] dfu/app probe...
+[tpu-posix] open app device...
+[Thread 0x7ffff53fb6c0 (LWP 322556) exited]
+[tpu-posix] USB_HostEdgeTpuOpenPosix failed status=2
+[New Thread 0x555559badc80 (LWP 322557)]
+[tpu-posix] call done kind=load slot=0 rc=-1
+TPU_LOAD -1
+TPU_READY False
+FLOW_START 0
+[virtcam] select begin /images/cat_shift_00.bmp
+[virtcam] size 921654
+
+Thread 1 "sentai_sim" received signal SIGINT, Interrupt.
+0x00007ffff7445fc8 in __GI___sigtimedwait (set=set@entry=0x7fffffffde20, info=info@entry=0x7fffffffdd30, timeout=timeout@entry=0x0) at ../sysdeps/unix/sysv/linux/sigtimedwait.c:31
+warning: 31	../sysdeps/unix/sysv/linux/sigtimedwait.c: No such file or directory
+
+Thread 11 (Thread 0x555559badc80 (LWP 322557) "sentai_sim"):
+#0  0x00007ffff7498d71 in __futex_abstimed_wait_common64 (private=-512155421, cancel=true, abstime=0x0, op=393, expected=0, futex_word=0x7ffff0004534) at ./nptl/futex-internal.c:57
+#1  __futex_abstimed_wait_common (cancel=true, private=-512155421, abstime=0x0, clockid=0, expected=0, futex_word=0x7ffff0004534) at ./nptl/futex-internal.c:87
+#2  __GI___futex_abstimed_wait_cancelable64 (futex_word=futex_word@entry=0x7ffff0004534, expected=expected@entry=0, clockid=clockid@entry=0, abstime=abstime@entry=0x0, private=private@entry=0) at ./nptl/futex-internal.c:139
+#3  0x00007ffff749b7ed in __pthread_cond_wait_common (abstime=0x0, clockid=0, mutex=0x7ffff00044e0, cond=0x7ffff0004508) at ./nptl/pthread_cond_wait.c:503
+#4  ___pthread_cond_wait (cond=0x7ffff0004508, mutex=0x7ffff00044e0) at ./nptl/pthread_cond_wait.c:627
+#5  0x000055555561adab in event_wait ()
+#6  0x000055555561abe6 in vPortYield ()
+#7  0x00005555556157d2 in ulTaskGenericNotifyTake ()
+#8  0x00005555555f99d1 in publisher_task_fn(void*) ()
+#9  0x000055555561a546 in prvWaitForStart ()
+#10 0x00007ffff749caa4 in start_thread (arg=<optimized out>) at ./nptl/pthread_create.c:447
+#11 0x00007ffff7529c6c in clone3 () at ../sysdeps/unix/sysv/linux/x86_64/clone3.S:78
+
+Thread 9 (Thread 0x555555da7e80 (LWP 322555) "sentai_sim"):
+#0  0x00007ffff7498d71 in __futex_abstimed_wait_common64 (private=32767, cancel=true, abstime=0x0, op=393, expected=0, futex_word=0x7ffff0004360) at ./nptl/futex-internal.c:57
+#1  __futex_abstimed_wait_common (cancel=true, private=32767, abstime=0x0, clockid=0, expected=0, futex_word=0x7ffff0004360) at ./nptl/futex-internal.c:87
+#2  __GI___futex_abstimed_wait_cancelable64 (futex_word=futex_word@entry=0x7ffff0004360, expected=expected@entry=0, clockid=clockid@entry=0, abstime=abstime@entry=0x0, private=private@entry=0) at ./nptl/futex-internal.c:139
+#3  0x00007ffff749b7ed in __pthread_cond_wait_common (abstime=0x0, clockid=0, mutex=0x7ffff0004310, cond=0x7ffff0004338) at ./nptl/pthread_cond_wait.c:503
+#4  ___pthread_cond_wait (cond=0x7ffff0004338, mutex=0x7ffff0004310) at ./nptl/pthread_cond_wait.c:627
+#5  0x000055555561adab in event_wait ()
+#6  0x000055555561abe6 in vPortYield ()
+#7  0x0000555555617a15 in xQueueSemaphoreTake ()
+#8  0x00005555555a4063 in (anonymous namespace)::tpu_task_fn(void*) ()
+#9  0x000055555561a546 in prvWaitForStart ()
+#10 0x00007ffff749caa4 in start_thread (arg=<optimized out>) at ./nptl/pthread_create.c:447
+#11 0x00007ffff7529c6c in clone3 () at ../sysdeps/unix/sysv/linux/x86_64/clone3.S:78
+
+Thread 8 (Thread 0x555559b9db80 (LWP 322554) "sentai_sim"):
+#0  0x00007ffff7498d71 in __futex_abstimed_wait_common64 (private=21845, cancel=true, abstime=0x0, op=393, expected=0, futex_word=0x7ffff0004190) at ./nptl/futex-internal.c:57
+#1  __futex_abstimed_wait_common (cancel=true, private=21845, abstime=0x0, clockid=0, expected=0, futex_word=0x7ffff0004190) at ./nptl/futex-internal.c:87
+#2  __GI___futex_abstimed_wait_cancelable64 (futex_word=futex_word@entry=0x7ffff0004190, expected=expected@entry=0, clockid=clockid@entry=0, abstime=abstime@entry=0x0, private=private@entry=0) at ./nptl/futex-internal.c:139
+#3  0x00007ffff749b7ed in __pthread_cond_wait_common (abstime=0x0, clockid=0, mutex=0x7ffff0004140, cond=0x7ffff0004168) at ./nptl/pthread_cond_wait.c:503
+#4  ___pthread_cond_wait (cond=0x7ffff0004168, mutex=0x7ffff0004140) at ./nptl/pthread_cond_wait.c:627
+#5  0x000055555561adab in event_wait ()
+#6  0x000055555561abe6 in vPortYield ()
+#7  0x00005555555f759d in (anonymous namespace)::worker_task_entry(void*) ()
+#8  0x000055555561a546 in prvWaitForStart ()
+#9  0x00007ffff749caa4 in start_thread (arg=<optimized out>) at ./nptl/pthread_create.c:447
+#10 0x00007ffff7529c6c in clone3 () at ../sysdeps/unix/sysv/linux/x86_64/clone3.S:78
+
+Thread 7 (Thread 0x7ffff5bfc6c0 (LWP 322553) "sentai_sim"):
+#0  0x00007ffff7498d71 in __futex_abstimed_wait_common64 (private=32767, cancel=true, abstime=0x0, op=393, expected=0, futex_word=0x555559f99874) at ./nptl/futex-internal.c:57
+#1  __futex_abstimed_wait_common (cancel=true, private=32767, abstime=0x0, clockid=0, expected=0, futex_word=0x555559f99874) at ./nptl/futex-internal.c:87
+#2  __GI___futex_abstimed_wait_cancelable64 (futex_word=futex_word@entry=0x555559f99874, expected=expected@entry=0, clockid=clockid@entry=0, abstime=abstime@entry=0x0, private=private@entry=0) at ./nptl/futex-internal.c:139
+#3  0x00007ffff749b7ed in __pthread_cond_wait_common (abstime=0x0, clockid=0, mutex=0x555559f99820, cond=0x555559f99848) at ./nptl/pthread_cond_wait.c:503
+#4  ___pthread_cond_wait (cond=0x555559f99848, mutex=0x555559f99820) at ./nptl/pthread_cond_wait.c:627
+#5  0x000055555561adab in event_wait ()
+#6  0x000055555561abe6 in vPortYield ()
+#7  0x0000555555618dce in prvTimerTask ()
+#8  0x000055555561a546 in prvWaitForStart ()
+#9  0x00007ffff749caa4 in start_thread (arg=<optimized out>) at ./nptl/pthread_create.c:447
+#10 0x00007ffff7529c6c in clone3 () at ../sysdeps/unix/sysv/linux/x86_64/clone3.S:78
+
+Thread 6 (Thread 0x7ffff63fd6c0 (LWP 322552) "sentai_sim"):
+#0  0x00007ffff7498d71 in __futex_abstimed_wait_common64 (private=0, cancel=true, abstime=0x0, op=393, expected=0, futex_word=0x555559f996a0) at ./nptl/futex-internal.c:57
+#1  __futex_abstimed_wait_common (cancel=true, private=0, abstime=0x0, clockid=0, expected=0, futex_word=0x555559f996a0) at ./nptl/futex-internal.c:87
+#2  __GI___futex_abstimed_wait_cancelable64 (futex_word=futex_word@entry=0x555559f996a0, expected=expected@entry=0, clockid=clockid@entry=0, abstime=abstime@entry=0x0, private=private@entry=0) at ./nptl/futex-internal.c:139
+#3  0x00007ffff749b7ed in __pthread_cond_wait_common (abstime=0x0, clockid=0, mutex=0x555559f99650, cond=0x555559f99678) at ./nptl/pthread_cond_wait.c:503
+#4  ___pthread_cond_wait (cond=0x555559f99678, mutex=0x555559f99650) at ./nptl/pthread_cond_wait.c:627
+#5  0x000055555561adab in event_wait ()
+#6  0x000055555561a521 in prvWaitForStart ()
+#7  0x00007ffff749caa4 in start_thread (arg=<optimized out>) at ./nptl/pthread_create.c:447
+#8  0x00007ffff7529c6c in clone3 () at ../sysdeps/unix/sysv/linux/x86_64/clone3.S:78
+
+Thread 5 (Thread 0x555555d67e00 (LWP 322551) "sentai_sim"):
+#0  0x00007ffff7498d71 in __futex_abstimed_wait_common64 (private=-1515870811, cancel=true, abstime=0x0, op=393, expected=0, futex_word=0x555559f99304) at ./nptl/futex-internal.c:57
+#1  __futex_abstimed_wait_common (cancel=true, private=-1515870811, abstime=0x0, clockid=0, expected=0, futex_word=0x555559f99304) at ./nptl/futex-internal.c:87
+#2  __GI___futex_abstimed_wait_cancelable64 (futex_word=futex_word@entry=0x555559f99304, expected=expected@entry=0, clockid=clockid@entry=0, abstime=abstime@entry=0x0, private=private@entry=0) at ./nptl/futex-internal.c:139
+#3  0x00007ffff749b7ed in __pthread_cond_wait_common (abstime=0x0, clockid=0, mutex=0x555559f992b0, cond=0x555559f992d8) at ./nptl/pthread_cond_wait.c:503
+#4  ___pthread_cond_wait (cond=0x555559f992d8, mutex=0x555559f992b0) at ./nptl/pthread_cond_wait.c:627
+#5  0x000055555561adab in event_wait ()
+#6  0x000055555561a72b in vPortSystemTickHandler ()
+#7  <signal handler called>
+#8  0x00007ffff752b86d in __libc_accept (fd=12, addr=..., len=0x0) at ../sysdeps/unix/sysv/linux/accept.c:26
+#9  0x00005555555a0615 in camera_bridge_task ()
+#10 0x000055555561a546 in prvWaitForStart ()
+#11 0x00007ffff749caa4 in start_thread (arg=<optimized out>) at ./nptl/pthread_create.c:447
+#12 0x00007ffff7529c6c in clone3 () at ../sysdeps/unix/sysv/linux/x86_64/clone3.S:78
+
+Thread 4 (Thread 0x555559b95a80 (LWP 322550) "sentai_sim"):
+#0  0x00007ffff7498d71 in __futex_abstimed_wait_common64 (private=32767, cancel=true, abstime=0x0, op=393, expected=0, futex_word=0x555559f994d0) at ./nptl/futex-internal.c:57
+#1  __futex_abstimed_wait_common (cancel=true, private=32767, abstime=0x0, clockid=0, expected=0, futex_word=0x555559f994d0) at ./nptl/futex-internal.c:87
+#2  __GI___futex_abstimed_wait_cancelable64 (futex_word=futex_word@entry=0x555559f994d0, expected=expected@entry=0, clockid=clockid@entry=0, abstime=abstime@entry=0x0, private=private@entry=0) at ./nptl/futex-internal.c:139
+#3  0x00007ffff749b7ed in __pthread_cond_wait_common (abstime=0x0, clockid=0, mutex=0x555559f99480, cond=0x555559f994a8) at ./nptl/pthread_cond_wait.c:503
+#4  ___pthread_cond_wait (cond=0x555559f994a8, mutex=0x555559f99480) at ./nptl/pthread_cond_wait.c:627
+#5  0x000055555561adab in event_wait ()
+#6  0x000055555561a72b in vPortSystemTickHandler ()
+#7  <signal handler called>
+#8  __memset_avx2_unaligned_erms () at ../sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S:328
+#9  0x00005555555bcc79 in sentai_virtual_camera_select ()
+#10 0x0000555555596866 in sentai_camera_select ()
+#11 0x00005555556310b8 in mp_execute_bytecode ()
+#12 0x0000555555624f07 in fun_bc_call ()
+#13 0x00005555556310b8 in mp_execute_bytecode ()
+#14 0x0000555555624f07 in fun_bc_call ()
+#15 0x0000555555631b64 in mp_embed_exec_str ()
+#16 0x0000555555576f35 in repl_task ()
+#17 0x000055555561a546 in prvWaitForStart ()
+#18 0x00007ffff749caa4 in start_thread (arg=<optimized out>) at ./nptl/pthread_create.c:447
+#19 0x00007ffff7529c6c in clone3 () at ../sysdeps/unix/sysv/linux/x86_64/clone3.S:78
+
+Thread 3 (Thread 0x7ffff6bfe6c0 (LWP 322549) "sentai_sim"):
+#0  0x00007ffff7498d71 in __futex_abstimed_wait_common64 (private=0, cancel=true, abstime=0x0, op=393, expected=0, futex_word=0x555559f99304) at ./nptl/futex-internal.c:57
+#1  __futex_abstimed_wait_common (cancel=true, private=0, abstime=0x0, clockid=0, expected=0, futex_word=0x555559f99304) at ./nptl/futex-internal.c:87
+#2  __GI___futex_abstimed_wait_cancelable64 (futex_word=futex_word@entry=0x555559f99304, expected=expected@entry=0, clockid=clockid@entry=0, abstime=abstime@entry=0x0, private=private@entry=0) at ./nptl/futex-internal.c:139
+#3  0x00007ffff749b7ed in __pthread_cond_wait_common (abstime=0x0, clockid=0, mutex=0x555559f992b0, cond=0x555559f992d8) at ./nptl/pthread_cond_wait.c:503
+#4  ___pthread_cond_wait (cond=0x555559f992d8, mutex=0x555559f992b0) at ./nptl/pthread_cond_wait.c:627
+#5  0x000055555561adab in event_wait ()
+#6  0x000055555561a72b in vPortSystemTickHandler ()
+#7  <signal handler called>
+#8  0x00007ffff751baca in __GI___libc_read (nbytes=512, buf=0x7ffff6bfdc40, fd=5) at ../sysdeps/unix/sysv/linux/read.c:26
+#9  __GI___libc_read (fd=5, buf=0x7ffff6bfdc40, nbytes=512) at ../sysdeps/unix/sysv/linux/read.c:24
+#10 0x0000555555577186 in sim_debug_tee_thread ()
+#11 0x00007ffff749caa4 in start_thread (arg=<optimized out>) at ./nptl/pthread_create.c:447
+#12 0x00007ffff7529c6c in clone3 () at ../sysdeps/unix/sysv/linux/x86_64/clone3.S:78
+
+Thread 2 (Thread 0x7ffff73ff6c0 (LWP 322548) "sentai_sim"):
+#0  0x00007ffff7498d71 in __futex_abstimed_wait_common64 (private=0, cancel=true, abstime=0x0, op=393, expected=0, futex_word=0x555559f994d4) at ./nptl/futex-internal.c:57
+#1  __futex_abstimed_wait_common (cancel=true, private=0, abstime=0x0, clockid=0, expected=0, futex_word=0x555559f994d4) at ./nptl/futex-internal.c:87
+#2  __GI___futex_abstimed_wait_cancelable64 (futex_word=futex_word@entry=0x555559f994d4, expected=expected@entry=0, clockid=clockid@entry=0, abstime=abstime@entry=0x0, private=private@entry=0) at ./nptl/futex-internal.c:139
+#3  0x00007ffff749b7ed in __pthread_cond_wait_common (abstime=0x0, clockid=0, mutex=0x555559f99480, cond=0x555559f994a8) at ./nptl/pthread_cond_wait.c:503
+#4  ___pthread_cond_wait (cond=0x555559f994a8, mutex=0x555559f99480) at ./nptl/pthread_cond_wait.c:627
+#5  0x000055555561adab in event_wait ()
+#6  0x000055555561a72b in vPortSystemTickHandler ()
+#7  <signal handler called>
+#8  0x00007ffff751baca in __GI___libc_read (nbytes=512, buf=0x7ffff73fec40, fd=4) at ../sysdeps/unix/sysv/linux/read.c:26
+#9  __GI___libc_read (fd=4, buf=0x7ffff73fec40, nbytes=512) at ../sysdeps/unix/sysv/linux/read.c:24
+#10 0x0000555555577186 in sim_debug_tee_thread ()
+#11 0x00007ffff749caa4 in start_thread (arg=<optimized out>) at ./nptl/pthread_create.c:447
+#12 0x00007ffff7529c6c in clone3 () at ../sysdeps/unix/sysv/linux/x86_64/clone3.S:78
+
+Thread 1 (Thread 0x7ffff7e56780 (LWP 322545) "sentai_sim"):
+#0  0x00007ffff7445fc8 in __GI___sigtimedwait (set=set@entry=0x7fffffffde20, info=info@entry=0x7fffffffdd30, timeout=timeout@entry=0x0) at ../sysdeps/unix/sysv/linux/sigtimedwait.c:31
+#1  0x00007ffff7445694 in __GI___sigwait (set=0x7fffffffde20, sig=0x7fffffffde00) at ../sysdeps/unix/sysv/linux/sigwait.c:28
+#2  0x000055555561a963 in xPortStartScheduler ()
+#3  0x00005555555767f6 in main ()

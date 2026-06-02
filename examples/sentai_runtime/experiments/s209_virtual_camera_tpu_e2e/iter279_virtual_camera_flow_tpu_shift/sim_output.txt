@@ -1,0 +1,61 @@
+[sim] FS root: /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter279_virtual_camera_flow_tpu_shift/fs_root
+[sim] sentai_sim build #1100 (2026-06-01 17:59:42)
+[sim] FreeRTOS POSIX port: tick=1000 Hz, heap=4194304 bytes
+[sim] MicroPython heap: 2097152 bytes
+[sim] sentai.fr auto-start: dir=/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter279_virtual_camera_flow_tpu_shift/fs_root/fr init=0 events=0 scalars=0 debug=0 task=0
+
+MicroPython on SentAI SIM (FreeRTOS POSIX port + MicroPython embed)
+Type expressions, end with Enter.  Ctrl-D or 'exit' to quit.
+Try: sentai.version(), sentai.fs.write(...), help()
+
+>>> [sentai_fr] worker START
+camera_bridge: listening on /tmp/sentai_cam.sock (waiting for Gazebo bridge)
+>>> MODEL_SIZE 7077792
+IMG0_SIZE 921654
+IMGN_SIZE 921654
+[tpu-posix] call begin kind=load slot=0
+[tpu-posix] call TIMEOUT kind=load slot=0
+TPU_LOAD -95
+TPU_READY False
+FLOW_START 0
+PIPE_DIRECT_TENSOR_PREV 1
+PIPE_TARGET_FPS 0
+PIPE_PREP_FPS 0
+E:0442:0
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+  File "mission_s209_flow_tpu.py", line 103, in run
+RuntimeError: pipeline start failed (-2)
+>>> [sim] user exit
+[sim] REPL task done, terminating process
+
+[sim] FS root: /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter279_virtual_camera_flow_tpu_shift/fs_root
+[sim] sentai_sim build #1100 (2026-06-01 17:59:42)
+[sim] FreeRTOS POSIX port: tick=1000 Hz, heap=4194304 bytes
+[sim] MicroPython heap: 2097152 bytes
+[sim] sentai.fr auto-start: dir=/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter279_virtual_camera_flow_tpu_shift/fs_root/fr init=0 events=0 scalars=0 debug=0 task=0
+
+MicroPython on SentAI SIM (FreeRTOS POSIX port + MicroPython embed)
+Type expressions, end with Enter.  Ctrl-D or 'exit' to quit.
+Try: sentai.version(), sentai.fs.write(...), help()
+
+>>> [sentai_fr] worker START
+camera_bridge: listening on /tmp/sentai_cam.sock (waiting for Gazebo bridge)
+>>> MODEL_SIZE 7077792
+IMG0_SIZE 921654
+IMGN_SIZE 921654
+[tpu-posix] call begin kind=load slot=0
+[tpu-posix] call TIMEOUT kind=load slot=0
+TPU_LOAD -95
+TPU_READY False
+FLOW_START 0
+PIPE_DIRECT_TENSOR_PREV 1
+PIPE_TARGET_FPS 0
+PIPE_PREP_FPS 0
+E:0442:0
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+  File "mission_s209_flow_tpu.py", line 103, in run
+RuntimeError: pipeline start failed (-2)
+>>> [sim] user exit
+[sim] REPL task done, terminating process

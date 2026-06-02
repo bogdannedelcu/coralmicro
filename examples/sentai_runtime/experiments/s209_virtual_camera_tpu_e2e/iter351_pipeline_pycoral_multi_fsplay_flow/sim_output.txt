@@ -1,0 +1,74 @@
+[sim] sentai_sim build #1162 (2026-06-02 08:12:09)
+[sim] FreeRTOS POSIX port: tick=1000 Hz, heap=4194304 bytes
+[sim] MicroPython heap: 2097152 bytes
+[sim] FS root: /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter351_pipeline_pycoral_multi_fsplay_flow/fs_root
+[sim] sentai.fr auto-start: dir=/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter351_pipeline_pycoral_multi_fsplay_flow/fs_root/fr init=0 events=0 scalars=0 debug=0 task=0
+
+MicroPython on SentAI SIM (FreeRTOS POSIX port + MicroPython embed)
+Type expressions, end with Enter.  Ctrl-D or 'exit' to quit.
+Try: sentai.version(), sentai.fs.write(...), help()
+
+>>> >>> MODEL_SIZE 7077792
+READY
+CMD LOAD slot=0 path=/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter351_pipeline_pycoral_multi_fsplay_flow/fs_root/models/tf2_ssd_mobilenet_v2_coco17_ptq_edgetpu.tflite
+CMD LOAD made_interpreter slot=0
+CMD LOAD allocated slot=0
+CMD LOAD done slot=0 outputs=4
+TPU_LOAD 0
+TPU_READY True
+FLOW_START 0
+CAM_SELECT 0
+PIPE_DIRECT_TENSOR_PREV 1
+PIPE_TARGET_FPS 0
+PIPE_PREP_FPS 0
+PIPE_START 0
+CMD INVOKE slot=0 nbytes=270000
+CMD INVOKE done slot=0 ms=29 outputs=4 total=484
+CAM_PLAY 30 DIR /images/shift FPS 10 COUNT 30
+[SIM configASSERT] /home/bogdan/work/coralmicro/third_party/freertos_kernel/queue.c:1479  !( ( xTaskGetSchedulerState() == taskSCHEDULER_SUSPENDED ) && ( xTicksToWait != 0 ) ) was not true
+
+[sentai_fr] worker START
+[sim] sentai.fr auto-start: dir=/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter351_pipeline_pycoral_multi_fsplay_flow/fs_root/fr init=0 events=0 scalars=0 debug=0 task=0
+
+MicroPython on SentAI SIM (FreeRTOS POSIX port + MicroPython embed)
+Type expressions, end with Enter.  Ctrl-D or 'exit' to quit.
+Try: sentai.version(), sentai.fs.write(...), help()
+
+>>> >>> MODEL_SIZE 7077792
+READY
+[tpu-pycoral] connected helper pid=496994 sock=/tmp/sentai_tpu_pycoral_496986.sock
+CMD LOAD slot=0 path=/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter351_pipeline_pycoral_multi_fsplay_flow/fs_root/models/tf2_ssd_mobilenet_v2_coco17_ptq_edgetpu.tflite
+CMD LOAD made_interpreter slot=0
+CMD LOAD allocated slot=0
+CMD LOAD done slot=0 outputs=4
+[tpu-pycoral] LOAD reply: OK LOAD 0 3 270000 4 1 300 300 3 0.00784313772 127 4
+[tpu-pycoral] OUT[0]: bytes=80 shape=1x20x0x0
+[tpu-pycoral] OUT[1]: bytes=320 shape=1x20x4x0
+[tpu-pycoral] OUT[2]: bytes=4 shape=1x0x0x0
+[tpu-pycoral] OUT[3]: bytes=80 shape=1x20x0x0
+[tpu-pycoral] loaded slot=0 input=300x300x3 outputs=4
+TPU_LOAD 0
+TPU_READY True
+FLOW_START 0
+CAM_SELECT 0
+PIPE_DIRECT_TENSOR_PREV 1
+PIPE_TARGET_FPS 0
+PIPE_PREP_FPS 0
+[det_prep] start
+[det_prep] grab idx=-2 raw=(nil)
+[det_infer] start
+E:0480:100
+PIPE_START 0
+[virt_cam] START mode=fs dir=/images/shift frames=30 fps=10 limit=30
+[det_prep] grab idx=32767 raw=0x5e9a58f80c80
+[det_prep] fire_mask=0x00000010
+[det_prep] pxp begin 300x300
+[det_prep] pxp rc=0 ms=1
+[det_prep] flow publish begin
+[det_prep] flow publish done
+[det_infer] frame ready direct=1
+CMD INVOKE slot=0 nbytes=270000
+CMD INVOKE done slot=0 ms=29 outputs=4 total=484
+[det_infer] invoke_ms=29
+[det_infer] nms det_count=20
+[det_infer] queued frame=1 dets=20

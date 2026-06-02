@@ -1,0 +1,31 @@
+[sentai_fr] worker START
+[sim] sentai.fr auto-start: dir=/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter340_pipeline_5s_replay_pycoral/fs_root/fr init=0 events=0 scalars=0 debug=0 task=0
+
+MicroPython on SentAI SIM (FreeRTOS POSIX port + MicroPython embed)
+Type expressions, end with Enter.  Ctrl-D or 'exit' to quit.
+Try: sentai.version(), sentai.fs.write(...), help()
+
+>>> >>> MODEL_SIZE 7077792
+READY
+[tpu-pycoral] connected helper pid=486095 sock=/tmp/sentai_tpu_pycoral_486087.sock
+CMD LOAD slot=0 path=/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter340_pipeline_5s_replay_pycoral/fs_root/models/tf2_ssd_mobilenet_v2_coco17_ptq_edgetpu.tflite
+CMD LOAD made_interpreter slot=0
+[tpu-pycoral] LOAD reply: OK LOAD 0 3 270000 4 1 300 300 3 0.00784313772 127 4
+[tpu-pycoral] OUT[0]: bytes=80 shape=1x20x0x0
+[tpu-pycoral] OUT[1]: bytes=320 shape=1x20x4x0
+[tpu-pycoral] OUT[2]: bytes=4 shape=1x0x0x0
+[tpu-pycoral] OUT[3]: bytes=80 shape=1x20x0x0
+[tpu-pycoral] loaded slot=0 input=300x300x3 outputs=4
+CMD LOAD allocated slot=0
+CMD LOAD done slot=0 outputs=4
+TPU_LOAD 0
+TPU_READY True
+FLOW_START 0
+[det_prep] start
+[det_prep] grab idx=0 raw=0x593d117f8800
+[det_prep] fire_mask=0x00000010
+[det_prep] pxp begin 300x300
+[det_prep] pxp rc=0 ms=0
+[det_prep] flow publish begin
+[det_prep] flow publish done
+[det_prep] frame signaled seq=1

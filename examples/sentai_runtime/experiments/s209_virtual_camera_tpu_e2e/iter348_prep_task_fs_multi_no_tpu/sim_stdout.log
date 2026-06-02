@@ -1,0 +1,17 @@
+[sim] sentai_sim build #1162 (2026-06-02 08:12:09)
+[sim] FreeRTOS POSIX port: tick=1000 Hz, heap=4194304 bytes
+[sim] MicroPython heap: 2097152 bytes
+[sim] FS root: /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter348_prep_task_fs_multi_no_tpu/fs_root
+[sim] sentai.fr auto-start: dir=/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter348_prep_task_fs_multi_no_tpu/fs_root/fr init=0 events=0 scalars=0 debug=0 task=0
+
+MicroPython on SentAI SIM (FreeRTOS POSIX port + MicroPython embed)
+Type expressions, end with Enter.  Ctrl-D or 'exit' to quit.
+Try: sentai.version(), sentai.fs.write(...), help()
+
+>>> >>> CAM_PREP_RESET None
+PIPE_PREP_RESET None
+PREP_ENABLE_FLOW 1
+CAM_SELECT 0
+PREP_BEFORE {'slot_seq': (0, 0, 0, 0, 0), 'producer_overruns': 0, 'slot_refcount': (0, 0, 0, 0, 1), 'frames_total': 0, 'frames_with_aux': 0} PIPE {'pxp_ms_sum': 0, 'total_ms_sum': 0, 'cam_grab_ms_sum': 0, 'frames': 0}
+PIPE_PREP_START 0
+CAM_PLAY 30 DIR /images/shift FPS 10 COUNT 30

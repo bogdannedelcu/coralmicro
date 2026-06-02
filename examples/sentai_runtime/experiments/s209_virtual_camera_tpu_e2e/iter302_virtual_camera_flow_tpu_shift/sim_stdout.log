@@ -1,0 +1,45 @@
+[sim] FS root: /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter302_virtual_camera_flow_tpu_shift/fs_root
+[sim] sentai_sim build #1124 (2026-06-01 21:12:34)
+[sim] FreeRTOS POSIX port: tick=1000 Hz, heap=4194304 bytes
+[sim] MicroPython heap: 2097152 bytes
+camera_bridge: listening on /tmp/sentai_cam.sock (waiting for Gazebo bridge)
+[sim] sentai.fr auto-start: dir=/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter302_virtual_camera_flow_tpu_shift/fs_root/fr init=0 events=0 scalars=0 debug=0 task=0
+
+MicroPython on SentAI SIM (FreeRTOS POSIX port + MicroPython embed)
+Type expressions, end with Enter.  Ctrl-D or 'exit' to quit.
+Try: sentai.version(), sentai.fs.write(...), help()
+
+>>> [sentai_fr] worker START
+>>> MODEL_SIZE 7077792
+IMG0_SIZE 921654
+IMGN_SIZE 921654
+READY
+[tpu-pycoral] connected helper pid=436321 sock=/tmp/sentai_tpu_pycoral_436313.sock
+CMD LOAD slot=0 path=/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter302_virtual_camera_flow_tpu_shift/fs_root/models/tf2_ssd_mobilenet_v2_coco17_ptq_edgetpu.tflite
+CMD LOAD made_interpreter slot=0
+CMD LOAD allocated slot=0
+CMD LOAD done slot=0 outputs=4
+[tpu-pycoral] LOAD reply: OK LOAD 0 3 270000 4 1 300 300 3 0.00784313772 127 4
+[tpu-pycoral] OUT[0]: bytes=80 shape=1x20x0x0
+[tpu-pycoral] OUT[1]: bytes=320 shape=1x20x4x0
+[tpu-pycoral] OUT[2]: bytes=4 shape=1x0x0x0
+[tpu-pycoral] OUT[3]: bytes=80 shape=1x20x0x0
+[tpu-pycoral] loaded slot=0 input=300x300x3 outputs=4
+TPU_LOAD 0
+TPU_READY True
+FLOW_START 0
+PIPE_DIRECT_TENSOR_PREV 1
+PIPE_TARGET_FPS 0
+PIPE_PREP_FPS 0
+[det_prep] start
+[det_prep] grab idx=-2 raw=(nil)
+[det_infer] start
+E:0480:100
+PIPE_START 0
+FRAME 0 SELECT_BEGIN
+[det_prep] grab idx=-2 raw=(nil)
+FRAME 0 SELECT_RC 0
+FRAME 0 PIPE_GET_BEGIN
+[det_prep] grab idx=0 raw=0x5bb9f9c49680
+[det_prep] fire_mask=0x00000010
+E:0E30:500

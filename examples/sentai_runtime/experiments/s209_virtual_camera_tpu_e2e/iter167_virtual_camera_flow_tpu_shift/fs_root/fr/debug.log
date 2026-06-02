@@ -1,0 +1,18 @@
+[sim] FS root: /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter167_virtual_camera_flow_tpu_shift/fs_root
+[sim] sentai_sim build #1029 (2026-06-01 00:26:23)
+[sim] FreeRTOS POSIX port: tick=1000 Hz, heap=4194304 bytes
+[sim] MicroPython heap: 2097152 bytes
+[sim] sentai.fr auto-start: dir=/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter167_virtual_camera_flow_tpu_shift/fs_root/fr init=0 events=0 scalars=0 debug=0 task=0
+
+MicroPython on SentAI SIM (FreeRTOS POSIX port + MicroPython embed)
+Type expressions, end with Enter.  Ctrl-D or 'exit' to quit.
+Try: sentai.version(), sentai.fs.write(...), help()
+
+>>> camera_bridge: listening on /tmp/sentai_cam.sock (waiting for Gazebo bridge)
+>>> MODEL_SIZE 7077792
+IMG0_SIZE 921654
+IMGN_SIZE 921654
+[tpu-posix] call begin kind=load slot=0
+[tpu-posix] load slot=0 path=/models/tf2_ssd_mobilenet_v2_coco17_ptq_edgetpu.tflite
+[tpu-posix] opening Coral USB via POSIX/libusb backend
+[tpu-posix] libusb_init...

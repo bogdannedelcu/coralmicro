@@ -1,0 +1,1916 @@
+[sim] FS root: /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter172_virtual_camera_flow_tpu_shift/fs_root
+[sim] sentai_sim build #1033 (2026-06-01 00:32:48)
+[sim] FreeRTOS POSIX port: tick=1000 Hz, heap=4194304 bytes
+[sim] MicroPython heap: 2097152 bytes
+[sim] sentai.fr auto-start: dir=/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter172_virtual_camera_flow_tpu_shift/fs_root/fr init=0 events=0 scalars=0 debug=0 task=0
+
+MicroPython on SentAI SIM (FreeRTOS POSIX port + MicroPython embed)
+Type expressions, end with Enter.  Ctrl-D or 'exit' to quit.
+Try: sentai.version(), sentai.fs.write(...), help()
+
+>>> camera_bridge: listening on /tmp/sentai_cam.sock (waiting for Gazebo bridge)
+>>> MODEL_SIZE 7077792
+IMG0_SIZE 921654
+IMGN_SIZE 921654
+[tpu-posix] call begin kind=load slot=0
+[tpu-posix] load slot=0 path=/models/tf2_ssd_mobilenet_v2_coco17_ptq_edgetpu.tflite
+[tpu-posix] opening Coral USB via POSIX/libusb backend
+[tpu-posix] libusb_init...
+[tpu-posix] dfu/app probe...
+[tpu-posix] open app device...
+[tpu-posix] opened Coral USB interface=0 out=01,02,03 in=81,82 irq=83
+[tpu-posix] opening EdgeTpuManager context
+[EdgeTPU mgr] creating context
+[EdgeTPU mgr] initializing driver
+[TPU init] read omc0_00
+[TPU init] check chip id
+[TPU init] write test reg
+[TPU init] read test reg
+[TPU init] disable inactive mode
+[TPU init] disable clock gating
+[TPU init] enter reset
+[TPU init] exit reset
+[TPU init] check scalar run control
+[TPU init] write idle register
+[TPU init] write tile config
+[TPU init] write deep sleep
+[TPU init] enable clock gating
+[TPU init] configure usb csr
+[TPU init] enable tempsense clock
+[TPU init] enable tempsense input ports
+[TPU init] enable tempsense flow
+[TPU init] move to run
+[TPU init] done
+[EdgeTPU mgr] driver initialized
+[tpu-posix] EdgeTPU ready via direct libusb backend
+[tpu-posix] reading model from SentAI FS
+[tpu-posix] model size=7077792
+[tpu-posix] reading model bytes into static storage
+[tpu-posix] model read got=7077792
+[tpu-posix] model loaded from FS: /models/tf2_ssd_mobilenet_v2_coco17_ptq_edgetpu.tflite (7077792 bytes)
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x05701716d04676e6
+TPU Input[0]: uint8[1,300,300,3] 270000 B scale=0.00784314 zp=127
+TPU Out[0]: float32[1,20] 80 B scale=0.00000000 zp=0
+TPU Out[1]: float32[1,20,4] 320 B scale=0.00000000 zp=0
+TPU Out[2]: float32[1] 4 B scale=0.00000000 zp=0
+TPU Out[3]: float32[1,20] 80 B scale=0.00000000 zp=0
+[tpu-posix] arena used: 2722 / 8192 KB
+[tpu-posix] publish slot0 begin
+[tpu-posix] publish slot0 done
+[tpu-posix] worker result kind=load slot=0 rc=0
+[tpu-posix] worker done_seq=1
+[tpu-posix] worker sem given
+[sentai_fr] worker START
+[tpu-posix] call done kind=load slot=0 rc=0
+TPU_LOAD 0
+TPU_READY True
+FLOW_START 0
+[tpu-posix] load_image begin path=/images/cat_shift_00.bmp
+[virtcam] select begin /images/cat_shift_00.bmp
+[virtcam] size 921654
+[virtcam] read ok
+[virtcam] load rc=0
+[virtcam] after_select begin
+[camera-backend] publish_prep_once begin
+[camera-backend] virtual xrgb direct seq=1
+[camera-prep] tpu slot begin
+[camera-prep] tpu dims model=300x300 slot=640x480
+[camera-prep] tpu slot committed
+[camera-backend] flow prep begin mask=24
+[camera-backend] flow notify begin
+[flow] poll begin
+[flow] poll slot ticket=1 last=0
+[flow] poll compute begin
+[flow] poll compute done
+[flow] poll end
+[virtcam] after_select end
+[tpu-posix] load_image selected
+[tpu-posix] load_image prep slot 300x300 seq=1
+[tpu-posix] load_image set_input rc=0
+[flow] poll begin
+[flow] poll slot ticket=1 last=1
+[flow] poll end
+[tpu-posix] call begin kind=invoke slot=0
+[tpu] N v1=0 v2=10448
+[bulkout] B v1=8 v2=8
+[usb-sync] start ep=01 len=8
+[usb-sync] done ep=01 rc=0 actual=8
+[bulkout] b v1=8 v2=0
+[bulkout] B v1=10448 v2=10448
+[usb-sync] start ep=01 len=10448
+[usb-sync] done ep=01 rc=0 actual=10448
+[bulkout] b v1=10448 v2=0
+[tpu] P name= bytes=6703232 off=0
+[bulkout] B v1=8 v2=8
+[usb-sync] start ep=01 len=8
+[usb-sync] done ep=01 rc=0 actual=8
+[bulkout] b v1=8 v2=0
+[bulkout] B v1=16384 v2=6703232
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=6686848
+[bulkout] B v1=16384 v2=6686848
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=6670464
+[bulkout] B v1=16384 v2=6670464
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=6654080
+[bulkout] B v1=16384 v2=6654080
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=6637696
+[bulkout] B v1=16384 v2=6637696
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=6621312
+[bulkout] B v1=16384 v2=6621312
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=6604928
+[bulkout] B v1=16384 v2=6604928
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=6588544
+[bulkout] B v1=16384 v2=6588544
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=6572160
+[bulkout] B v1=16384 v2=6572160
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=6555776
+[bulkout] B v1=16384 v2=6555776
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=6539392
+[bulkout] B v1=16384 v2=6539392
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=6523008
+[bulkout] B v1=16384 v2=6523008
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=6506624
+[bulkout] B v1=16384 v2=6506624
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=6490240
+[bulkout] B v1=16384 v2=6490240
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=6473856
+[bulkout] B v1=16384 v2=6473856
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=6457472
+[bulkout] B v1=16384 v2=6457472
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=6441088
+[bulkout] B v1=16384 v2=6441088
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=6424704
+[bulkout] B v1=16384 v2=6424704
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=6408320
+[bulkout] B v1=16384 v2=6408320
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=6391936
+[bulkout] B v1=16384 v2=6391936
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=6375552
+[bulkout] B v1=16384 v2=6375552
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=6359168
+[bulkout] B v1=16384 v2=6359168
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=6342784
+[bulkout] B v1=16384 v2=6342784
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=6326400
+[bulkout] B v1=16384 v2=6326400
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=6310016
+[bulkout] B v1=16384 v2=6310016
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=6293632
+[bulkout] B v1=16384 v2=6293632
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=6277248
+[bulkout] B v1=16384 v2=6277248
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=6260864
+[bulkout] B v1=16384 v2=6260864
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=6244480
+[bulkout] B v1=16384 v2=6244480
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=6228096
+[bulkout] B v1=16384 v2=6228096
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=6211712
+[bulkout] B v1=16384 v2=6211712
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=6195328
+[bulkout] B v1=16384 v2=6195328
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=6178944
+[bulkout] B v1=16384 v2=6178944
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=6162560
+[bulkout] B v1=16384 v2=6162560
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=6146176
+[bulkout] B v1=16384 v2=6146176
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=6129792
+[bulkout] B v1=16384 v2=6129792
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=6113408
+[bulkout] B v1=16384 v2=6113408
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=6097024
+[bulkout] B v1=16384 v2=6097024
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=6080640
+[bulkout] B v1=16384 v2=6080640
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=6064256
+[bulkout] B v1=16384 v2=6064256
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=6047872
+[bulkout] B v1=16384 v2=6047872
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=6031488
+[bulkout] B v1=16384 v2=6031488
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=6015104
+[bulkout] B v1=16384 v2=6015104
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5998720
+[bulkout] B v1=16384 v2=5998720
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5982336
+[bulkout] B v1=16384 v2=5982336
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5965952
+[bulkout] B v1=16384 v2=5965952
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5949568
+[bulkout] B v1=16384 v2=5949568
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5933184
+[bulkout] B v1=16384 v2=5933184
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5916800
+[bulkout] B v1=16384 v2=5916800
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5900416
+[bulkout] B v1=16384 v2=5900416
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5884032
+[bulkout] B v1=16384 v2=5884032
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5867648
+[bulkout] B v1=16384 v2=5867648
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5851264
+[bulkout] B v1=16384 v2=5851264
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5834880
+[bulkout] B v1=16384 v2=5834880
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5818496
+[bulkout] B v1=16384 v2=5818496
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5802112
+[bulkout] B v1=16384 v2=5802112
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5785728
+[bulkout] B v1=16384 v2=5785728
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5769344
+[bulkout] B v1=16384 v2=5769344
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5752960
+[bulkout] B v1=16384 v2=5752960
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5736576
+[bulkout] B v1=16384 v2=5736576
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5720192
+[bulkout] B v1=16384 v2=5720192
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5703808
+[bulkout] B v1=16384 v2=5703808
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5687424
+[bulkout] B v1=16384 v2=5687424
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5671040
+[bulkout] B v1=16384 v2=5671040
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5654656
+[bulkout] B v1=16384 v2=5654656
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5638272
+[bulkout] B v1=16384 v2=5638272
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5621888
+[bulkout] B v1=16384 v2=5621888
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5605504
+[bulkout] B v1=16384 v2=5605504
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5589120
+[bulkout] B v1=16384 v2=5589120
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5572736
+[bulkout] B v1=16384 v2=5572736
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5556352
+[bulkout] B v1=16384 v2=5556352
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5539968
+[bulkout] B v1=16384 v2=5539968
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5523584
+[bulkout] B v1=16384 v2=5523584
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5507200
+[bulkout] B v1=16384 v2=5507200
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5490816
+[bulkout] B v1=16384 v2=5490816
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5474432
+[bulkout] B v1=16384 v2=5474432
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5458048
+[bulkout] B v1=16384 v2=5458048
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5441664
+[bulkout] B v1=16384 v2=5441664
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5425280
+[bulkout] B v1=16384 v2=5425280
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5408896
+[bulkout] B v1=16384 v2=5408896
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5392512
+[bulkout] B v1=16384 v2=5392512
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5376128
+[bulkout] B v1=16384 v2=5376128
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5359744
+[bulkout] B v1=16384 v2=5359744
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5343360
+[bulkout] B v1=16384 v2=5343360
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5326976
+[bulkout] B v1=16384 v2=5326976
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5310592
+[bulkout] B v1=16384 v2=5310592
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5294208
+[bulkout] B v1=16384 v2=5294208
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5277824
+[bulkout] B v1=16384 v2=5277824
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5261440
+[bulkout] B v1=16384 v2=5261440
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5245056
+[bulkout] B v1=16384 v2=5245056
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5228672
+[bulkout] B v1=16384 v2=5228672
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5212288
+[bulkout] B v1=16384 v2=5212288
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5195904
+[bulkout] B v1=16384 v2=5195904
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5179520
+[bulkout] B v1=16384 v2=5179520
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5163136
+[bulkout] B v1=16384 v2=5163136
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5146752
+[bulkout] B v1=16384 v2=5146752
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5130368
+[bulkout] B v1=16384 v2=5130368
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5113984
+[bulkout] B v1=16384 v2=5113984
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5097600
+[bulkout] B v1=16384 v2=5097600
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5081216
+[bulkout] B v1=16384 v2=5081216
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5064832
+[bulkout] B v1=16384 v2=5064832
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5048448
+[bulkout] B v1=16384 v2=5048448
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5032064
+[bulkout] B v1=16384 v2=5032064
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=5015680
+[bulkout] B v1=16384 v2=5015680
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4999296
+[bulkout] B v1=16384 v2=4999296
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4982912
+[bulkout] B v1=16384 v2=4982912
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4966528
+[bulkout] B v1=16384 v2=4966528
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4950144
+[bulkout] B v1=16384 v2=4950144
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4933760
+[bulkout] B v1=16384 v2=4933760
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4917376
+[bulkout] B v1=16384 v2=4917376
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4900992
+[bulkout] B v1=16384 v2=4900992
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4884608
+[bulkout] B v1=16384 v2=4884608
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4868224
+[bulkout] B v1=16384 v2=4868224
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4851840
+[bulkout] B v1=16384 v2=4851840
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4835456
+[bulkout] B v1=16384 v2=4835456
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4819072
+[bulkout] B v1=16384 v2=4819072
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4802688
+[bulkout] B v1=16384 v2=4802688
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4786304
+[bulkout] B v1=16384 v2=4786304
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4769920
+[bulkout] B v1=16384 v2=4769920
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4753536
+[bulkout] B v1=16384 v2=4753536
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4737152
+[bulkout] B v1=16384 v2=4737152
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4720768
+[bulkout] B v1=16384 v2=4720768
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4704384
+[bulkout] B v1=16384 v2=4704384
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4688000
+[bulkout] B v1=16384 v2=4688000
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4671616
+[bulkout] B v1=16384 v2=4671616
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4655232
+[bulkout] B v1=16384 v2=4655232
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4638848
+[bulkout] B v1=16384 v2=4638848
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4622464
+[bulkout] B v1=16384 v2=4622464
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4606080
+[bulkout] B v1=16384 v2=4606080
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4589696
+[bulkout] B v1=16384 v2=4589696
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4573312
+[bulkout] B v1=16384 v2=4573312
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4556928
+[bulkout] B v1=16384 v2=4556928
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4540544
+[bulkout] B v1=16384 v2=4540544
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4524160
+[bulkout] B v1=16384 v2=4524160
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4507776
+[bulkout] B v1=16384 v2=4507776
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4491392
+[bulkout] B v1=16384 v2=4491392
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4475008
+[bulkout] B v1=16384 v2=4475008
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4458624
+[bulkout] B v1=16384 v2=4458624
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4442240
+[bulkout] B v1=16384 v2=4442240
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4425856
+[bulkout] B v1=16384 v2=4425856
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4409472
+[bulkout] B v1=16384 v2=4409472
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4393088
+[bulkout] B v1=16384 v2=4393088
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4376704
+[bulkout] B v1=16384 v2=4376704
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4360320
+[bulkout] B v1=16384 v2=4360320
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4343936
+[bulkout] B v1=16384 v2=4343936
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4327552
+[bulkout] B v1=16384 v2=4327552
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4311168
+[bulkout] B v1=16384 v2=4311168
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4294784
+[bulkout] B v1=16384 v2=4294784
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4278400
+[bulkout] B v1=16384 v2=4278400
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4262016
+[bulkout] B v1=16384 v2=4262016
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4245632
+[bulkout] B v1=16384 v2=4245632
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4229248
+[bulkout] B v1=16384 v2=4229248
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4212864
+[bulkout] B v1=16384 v2=4212864
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4196480
+[bulkout] B v1=16384 v2=4196480
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4180096
+[bulkout] B v1=16384 v2=4180096
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4163712
+[bulkout] B v1=16384 v2=4163712
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4147328
+[bulkout] B v1=16384 v2=4147328
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4130944
+[bulkout] B v1=16384 v2=4130944
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4114560
+[bulkout] B v1=16384 v2=4114560
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4098176
+[bulkout] B v1=16384 v2=4098176
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4081792
+[bulkout] B v1=16384 v2=4081792
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4065408
+[bulkout] B v1=16384 v2=4065408
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4049024
+[bulkout] B v1=16384 v2=4049024
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4032640
+[bulkout] B v1=16384 v2=4032640
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=4016256
+[bulkout] B v1=16384 v2=4016256
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3999872
+[bulkout] B v1=16384 v2=3999872
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3983488
+[bulkout] B v1=16384 v2=3983488
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3967104
+[bulkout] B v1=16384 v2=3967104
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3950720
+[bulkout] B v1=16384 v2=3950720
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3934336
+[bulkout] B v1=16384 v2=3934336
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3917952
+[bulkout] B v1=16384 v2=3917952
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3901568
+[bulkout] B v1=16384 v2=3901568
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3885184
+[bulkout] B v1=16384 v2=3885184
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3868800
+[bulkout] B v1=16384 v2=3868800
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3852416
+[bulkout] B v1=16384 v2=3852416
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3836032
+[bulkout] B v1=16384 v2=3836032
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3819648
+[bulkout] B v1=16384 v2=3819648
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3803264
+[bulkout] B v1=16384 v2=3803264
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3786880
+[bulkout] B v1=16384 v2=3786880
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3770496
+[bulkout] B v1=16384 v2=3770496
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3754112
+[bulkout] B v1=16384 v2=3754112
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3737728
+[bulkout] B v1=16384 v2=3737728
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3721344
+[bulkout] B v1=16384 v2=3721344
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3704960
+[bulkout] B v1=16384 v2=3704960
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3688576
+[bulkout] B v1=16384 v2=3688576
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3672192
+[bulkout] B v1=16384 v2=3672192
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3655808
+[bulkout] B v1=16384 v2=3655808
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3639424
+[bulkout] B v1=16384 v2=3639424
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3623040
+[bulkout] B v1=16384 v2=3623040
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3606656
+[bulkout] B v1=16384 v2=3606656
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3590272
+[bulkout] B v1=16384 v2=3590272
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3573888
+[bulkout] B v1=16384 v2=3573888
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3557504
+[bulkout] B v1=16384 v2=3557504
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3541120
+[bulkout] B v1=16384 v2=3541120
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3524736
+[bulkout] B v1=16384 v2=3524736
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3508352
+[bulkout] B v1=16384 v2=3508352
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3491968
+[bulkout] B v1=16384 v2=3491968
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3475584
+[bulkout] B v1=16384 v2=3475584
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3459200
+[bulkout] B v1=16384 v2=3459200
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3442816
+[bulkout] B v1=16384 v2=3442816
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3426432
+[bulkout] B v1=16384 v2=3426432
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3410048
+[bulkout] B v1=16384 v2=3410048
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3393664
+[bulkout] B v1=16384 v2=3393664
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3377280
+[bulkout] B v1=16384 v2=3377280
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3360896
+[bulkout] B v1=16384 v2=3360896
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3344512
+[bulkout] B v1=16384 v2=3344512
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3328128
+[bulkout] B v1=16384 v2=3328128
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3311744
+[bulkout] B v1=16384 v2=3311744
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3295360
+[bulkout] B v1=16384 v2=3295360
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3278976
+[bulkout] B v1=16384 v2=3278976
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3262592
+[bulkout] B v1=16384 v2=3262592
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3246208
+[bulkout] B v1=16384 v2=3246208
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3229824
+[bulkout] B v1=16384 v2=3229824
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3213440
+[bulkout] B v1=16384 v2=3213440
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3197056
+[bulkout] B v1=16384 v2=3197056
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3180672
+[bulkout] B v1=16384 v2=3180672
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3164288
+[bulkout] B v1=16384 v2=3164288
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3147904
+[bulkout] B v1=16384 v2=3147904
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3131520
+[bulkout] B v1=16384 v2=3131520
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3115136
+[bulkout] B v1=16384 v2=3115136
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3098752
+[bulkout] B v1=16384 v2=3098752
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3082368
+[bulkout] B v1=16384 v2=3082368
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3065984
+[bulkout] B v1=16384 v2=3065984
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3049600
+[bulkout] B v1=16384 v2=3049600
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3033216
+[bulkout] B v1=16384 v2=3033216
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3016832
+[bulkout] B v1=16384 v2=3016832
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=3000448
+[bulkout] B v1=16384 v2=3000448
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2984064
+[bulkout] B v1=16384 v2=2984064
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2967680
+[bulkout] B v1=16384 v2=2967680
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2951296
+[bulkout] B v1=16384 v2=2951296
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2934912
+[bulkout] B v1=16384 v2=2934912
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2918528
+[bulkout] B v1=16384 v2=2918528
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2902144
+[bulkout] B v1=16384 v2=2902144
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2885760
+[bulkout] B v1=16384 v2=2885760
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2869376
+[bulkout] B v1=16384 v2=2869376
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2852992
+[bulkout] B v1=16384 v2=2852992
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2836608
+[bulkout] B v1=16384 v2=2836608
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2820224
+[bulkout] B v1=16384 v2=2820224
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2803840
+[bulkout] B v1=16384 v2=2803840
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2787456
+[bulkout] B v1=16384 v2=2787456
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2771072
+[bulkout] B v1=16384 v2=2771072
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2754688
+[bulkout] B v1=16384 v2=2754688
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2738304
+[bulkout] B v1=16384 v2=2738304
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2721920
+[bulkout] B v1=16384 v2=2721920
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2705536
+[bulkout] B v1=16384 v2=2705536
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2689152
+[bulkout] B v1=16384 v2=2689152
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2672768
+[bulkout] B v1=16384 v2=2672768
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2656384
+[bulkout] B v1=16384 v2=2656384
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2640000
+[bulkout] B v1=16384 v2=2640000
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2623616
+[bulkout] B v1=16384 v2=2623616
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2607232
+[bulkout] B v1=16384 v2=2607232
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2590848
+[bulkout] B v1=16384 v2=2590848
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2574464
+[bulkout] B v1=16384 v2=2574464
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2558080
+[bulkout] B v1=16384 v2=2558080
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2541696
+[bulkout] B v1=16384 v2=2541696
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2525312
+[bulkout] B v1=16384 v2=2525312
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2508928
+[bulkout] B v1=16384 v2=2508928
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2492544
+[bulkout] B v1=16384 v2=2492544
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2476160
+[bulkout] B v1=16384 v2=2476160
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2459776
+[bulkout] B v1=16384 v2=2459776
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2443392
+[bulkout] B v1=16384 v2=2443392
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2427008
+[bulkout] B v1=16384 v2=2427008
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2410624
+[bulkout] B v1=16384 v2=2410624
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2394240
+[bulkout] B v1=16384 v2=2394240
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2377856
+[bulkout] B v1=16384 v2=2377856
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2361472
+[bulkout] B v1=16384 v2=2361472
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2345088
+[bulkout] B v1=16384 v2=2345088
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2328704
+[bulkout] B v1=16384 v2=2328704
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2312320
+[bulkout] B v1=16384 v2=2312320
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2295936
+[bulkout] B v1=16384 v2=2295936
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2279552
+[bulkout] B v1=16384 v2=2279552
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2263168
+[bulkout] B v1=16384 v2=2263168
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2246784
+[bulkout] B v1=16384 v2=2246784
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2230400
+[bulkout] B v1=16384 v2=2230400
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2214016
+[bulkout] B v1=16384 v2=2214016
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2197632
+[bulkout] B v1=16384 v2=2197632
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2181248
+[bulkout] B v1=16384 v2=2181248
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2164864
+[bulkout] B v1=16384 v2=2164864
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2148480
+[bulkout] B v1=16384 v2=2148480
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2132096
+[bulkout] B v1=16384 v2=2132096
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2115712
+[bulkout] B v1=16384 v2=2115712
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2099328
+[bulkout] B v1=16384 v2=2099328
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2082944
+[bulkout] B v1=16384 v2=2082944
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2066560
+[bulkout] B v1=16384 v2=2066560
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2050176
+[bulkout] B v1=16384 v2=2050176
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2033792
+[bulkout] B v1=16384 v2=2033792
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2017408
+[bulkout] B v1=16384 v2=2017408
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2001024
+[bulkout] B v1=16384 v2=2001024
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1984640
+[bulkout] B v1=16384 v2=1984640
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1968256
+[bulkout] B v1=16384 v2=1968256
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1951872
+[bulkout] B v1=16384 v2=1951872
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1935488
+[bulkout] B v1=16384 v2=1935488
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1919104
+[bulkout] B v1=16384 v2=1919104
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1902720
+[bulkout] B v1=16384 v2=1902720
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1886336
+[bulkout] B v1=16384 v2=1886336
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1869952
+[bulkout] B v1=16384 v2=1869952
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1853568
+[bulkout] B v1=16384 v2=1853568
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1837184
+[bulkout] B v1=16384 v2=1837184
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1820800
+[bulkout] B v1=16384 v2=1820800
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1804416
+[bulkout] B v1=16384 v2=1804416
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1788032
+[bulkout] B v1=16384 v2=1788032
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1771648
+[bulkout] B v1=16384 v2=1771648
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1755264
+[bulkout] B v1=16384 v2=1755264
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1738880
+[bulkout] B v1=16384 v2=1738880
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1722496
+[bulkout] B v1=16384 v2=1722496
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1706112
+[bulkout] B v1=16384 v2=1706112
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1689728
+[bulkout] B v1=16384 v2=1689728
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1673344
+[bulkout] B v1=16384 v2=1673344
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1656960
+[bulkout] B v1=16384 v2=1656960
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1640576
+[bulkout] B v1=16384 v2=1640576
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1624192
+[bulkout] B v1=16384 v2=1624192
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1607808
+[bulkout] B v1=16384 v2=1607808
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1591424
+[bulkout] B v1=16384 v2=1591424
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1575040
+[bulkout] B v1=16384 v2=1575040
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1558656
+[bulkout] B v1=16384 v2=1558656
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1542272
+[bulkout] B v1=16384 v2=1542272
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1525888
+[bulkout] B v1=16384 v2=1525888
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1509504
+[bulkout] B v1=16384 v2=1509504
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1493120
+[bulkout] B v1=16384 v2=1493120
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1476736
+[bulkout] B v1=16384 v2=1476736
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1460352
+[bulkout] B v1=16384 v2=1460352
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1443968
+[bulkout] B v1=16384 v2=1443968
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1427584
+[bulkout] B v1=16384 v2=1427584
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1411200
+[bulkout] B v1=16384 v2=1411200
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1394816
+[bulkout] B v1=16384 v2=1394816
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1378432
+[bulkout] B v1=16384 v2=1378432
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1362048
+[bulkout] B v1=16384 v2=1362048
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1345664
+[bulkout] B v1=16384 v2=1345664
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1329280
+[bulkout] B v1=16384 v2=1329280
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1312896
+[bulkout] B v1=16384 v2=1312896
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1296512
+[bulkout] B v1=16384 v2=1296512
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1280128
+[bulkout] B v1=16384 v2=1280128
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1263744
+[bulkout] B v1=16384 v2=1263744
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1247360
+[bulkout] B v1=16384 v2=1247360
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1230976
+[bulkout] B v1=16384 v2=1230976
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1214592
+[bulkout] B v1=16384 v2=1214592
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1198208
+[bulkout] B v1=16384 v2=1198208
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1181824
+[bulkout] B v1=16384 v2=1181824
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1165440
+[bulkout] B v1=16384 v2=1165440
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1149056
+[bulkout] B v1=16384 v2=1149056
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1132672
+[bulkout] B v1=16384 v2=1132672
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1116288
+[bulkout] B v1=16384 v2=1116288
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1099904
+[bulkout] B v1=16384 v2=1099904
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1083520
+[bulkout] B v1=16384 v2=1083520
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1067136
+[bulkout] B v1=16384 v2=1067136
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1050752
+[bulkout] B v1=16384 v2=1050752
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1034368
+[bulkout] B v1=16384 v2=1034368
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1017984
+[bulkout] B v1=16384 v2=1017984
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=1001600
+[bulkout] B v1=16384 v2=1001600
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=985216
+[bulkout] B v1=16384 v2=985216
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=968832
+[bulkout] B v1=16384 v2=968832
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=952448
+[bulkout] B v1=16384 v2=952448
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=936064
+[bulkout] B v1=16384 v2=936064
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=919680
+[bulkout] B v1=16384 v2=919680
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=903296
+[bulkout] B v1=16384 v2=903296
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=886912
+[bulkout] B v1=16384 v2=886912
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=870528
+[bulkout] B v1=16384 v2=870528
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=854144
+[bulkout] B v1=16384 v2=854144
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=837760
+[bulkout] B v1=16384 v2=837760
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=821376
+[bulkout] B v1=16384 v2=821376
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=804992
+[bulkout] B v1=16384 v2=804992
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=788608
+[bulkout] B v1=16384 v2=788608
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=772224
+[bulkout] B v1=16384 v2=772224
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=755840
+[bulkout] B v1=16384 v2=755840
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=739456
+[bulkout] B v1=16384 v2=739456
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=723072
+[bulkout] B v1=16384 v2=723072
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=706688
+[bulkout] B v1=16384 v2=706688
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=690304
+[bulkout] B v1=16384 v2=690304
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=673920
+[bulkout] B v1=16384 v2=673920
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=657536
+[bulkout] B v1=16384 v2=657536
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=641152
+[bulkout] B v1=16384 v2=641152
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=624768
+[bulkout] B v1=16384 v2=624768
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=608384
+[bulkout] B v1=16384 v2=608384
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=592000
+[bulkout] B v1=16384 v2=592000
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=575616
+[bulkout] B v1=16384 v2=575616
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=559232
+[bulkout] B v1=16384 v2=559232
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=542848
+[bulkout] B v1=16384 v2=542848
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=526464
+[bulkout] B v1=16384 v2=526464
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=510080
+[bulkout] B v1=16384 v2=510080
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=493696
+[bulkout] B v1=16384 v2=493696
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=477312
+[bulkout] B v1=16384 v2=477312
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=460928
+[bulkout] B v1=16384 v2=460928
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=444544
+[bulkout] B v1=16384 v2=444544
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=428160
+[bulkout] B v1=16384 v2=428160
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=411776
+[bulkout] B v1=16384 v2=411776
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=395392
+[bulkout] B v1=16384 v2=395392
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=379008
+[bulkout] B v1=16384 v2=379008
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=362624
+[bulkout] B v1=16384 v2=362624
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=346240
+[bulkout] B v1=16384 v2=346240
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=329856
+[bulkout] B v1=16384 v2=329856
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=313472
+[bulkout] B v1=16384 v2=313472
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=297088
+[bulkout] B v1=16384 v2=297088
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=280704
+[bulkout] B v1=16384 v2=280704
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=264320
+[bulkout] B v1=16384 v2=264320
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=247936
+[bulkout] B v1=16384 v2=247936
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=231552
+[bulkout] B v1=16384 v2=231552
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=215168
+[bulkout] B v1=16384 v2=215168
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=198784
+[bulkout] B v1=16384 v2=198784
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=182400
+[bulkout] B v1=16384 v2=182400
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=166016
+[bulkout] B v1=16384 v2=166016
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=149632
+[bulkout] B v1=16384 v2=149632
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=133248
+[bulkout] B v1=16384 v2=133248
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=116864
+[bulkout] B v1=16384 v2=116864
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=100480
+[bulkout] B v1=16384 v2=100480
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=84096
+[bulkout] B v1=16384 v2=84096
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=67712
+[bulkout] B v1=16384 v2=67712
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=51328
+[bulkout] B v1=16384 v2=51328
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=34944
+[bulkout] B v1=16384 v2=34944
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=18560
+[bulkout] B v1=16384 v2=18560
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=2176
+[bulkout] B v1=2176 v2=2176
+[usb-sync] start ep=01 len=2176
+[usb-sync] done ep=01 rc=0 actual=2176
+[bulkout] b v1=2176 v2=0
+[usb-sync] start ep=82 len=16
+[usb-sync] done ep=82 rc=0 actual=16
+[tpu] N v1=0 v2=254304
+[bulkout] B v1=8 v2=8
+[usb-sync] start ep=01 len=8
+[usb-sync] done ep=01 rc=0 actual=8
+[bulkout] b v1=8 v2=0
+[bulkout] B v1=16384 v2=254304
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=237920
+[bulkout] B v1=16384 v2=237920
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=221536
+[bulkout] B v1=16384 v2=221536
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=205152
+[bulkout] B v1=16384 v2=205152
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=188768
+[bulkout] B v1=16384 v2=188768
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=172384
+[bulkout] B v1=16384 v2=172384
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=156000
+[bulkout] B v1=16384 v2=156000
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=139616
+[bulkout] B v1=16384 v2=139616
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=123232
+[bulkout] B v1=16384 v2=123232
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=106848
+[bulkout] B v1=16384 v2=106848
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=90464
+[bulkout] B v1=16384 v2=90464
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=74080
+[bulkout] B v1=16384 v2=74080
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=57696
+[bulkout] B v1=16384 v2=57696
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=41312
+[bulkout] B v1=16384 v2=41312
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=24928
+[bulkout] B v1=16384 v2=24928
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=8544
+[bulkout] B v1=8544 v2=8544
+[usb-sync] start ep=01 len=8544
+[usb-sync] done ep=01 rc=0 actual=8544
+[bulkout] b v1=8544 v2=0
+[tpu] I name=serving_default_input:0 bytes=270000 off=0
+[bulkout] B v1=8 v2=8
+[usb-sync] start ep=01 len=8
+[usb-sync] done ep=01 rc=0 actual=8
+[bulkout] b v1=8 v2=0
+[bulkout] B v1=16384 v2=270000
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=253616
+[bulkout] B v1=16384 v2=253616
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=237232
+[bulkout] B v1=16384 v2=237232
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=220848
+[bulkout] B v1=16384 v2=220848
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=204464
+[bulkout] B v1=16384 v2=204464
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=188080
+[bulkout] B v1=16384 v2=188080
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=171696
+[bulkout] B v1=16384 v2=171696
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=155312
+[bulkout] B v1=16384 v2=155312
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=138928
+[bulkout] B v1=16384 v2=138928
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=122544
+[bulkout] B v1=16384 v2=122544
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=106160
+[bulkout] B v1=16384 v2=106160
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=89776
+[bulkout] B v1=16384 v2=89776
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=73392
+[bulkout] B v1=16384 v2=73392
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=57008
+[bulkout] B v1=16384 v2=57008
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=40624
+[bulkout] B v1=16384 v2=40624
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=24240
+[bulkout] B v1=16384 v2=24240
+[usb-sync] start ep=01 len=16384
+[usb-sync] done ep=01 rc=0 actual=16384
+[bulkout] b v1=16384 v2=7856
+[bulkout] B v1=7856 v2=7856
+[usb-sync] start ep=01 len=7856
+[usb-sync] done ep=01 rc=0 actual=7856
+[bulkout] b v1=7856 v2=0
+[tpu] O name=Squeeze1 bytes=7672 off=0
+[bulkin] S v1=1 v2=7672
+[usb-sync] start ep=81 len=7672
+[usb-sync] done ep=81 rc=0 actual=256
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=7416
+[usb-sync] start ep=81 len=7416
+[usb-sync] done ep=81 rc=0 actual=256
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=7160
+[usb-sync] start ep=81 len=7160
+[usb-sync] done ep=81 rc=0 actual=256
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=6904
+[usb-sync] start ep=81 len=6904
+[usb-sync] done ep=81 rc=0 actual=256
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=6648
+[usb-sync] start ep=81 len=6648
+[usb-sync] done ep=81 rc=-7 actual=0
+[bulkin] e v1=11 v2=0
+E:0B63:0
+[tpu-posix] worker result kind=invoke slot=0 rc=-2
+[tpu-posix] worker done_seq=2
+[tpu-posix] worker sem given

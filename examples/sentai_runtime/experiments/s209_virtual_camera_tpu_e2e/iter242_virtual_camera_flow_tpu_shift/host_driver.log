@@ -1,0 +1,4 @@
+   0.001 SEND import mission_s209_flow_tpu as m
+   0.001 SEND m.run(2)
+   0.001 SEND exit
+   0.001 WAIT

@@ -1,0 +1,52 @@
+[sim] FS root: /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter54_virtual_camera_flow_pipeline_shift/fs_root
+[sim] sentai_sim build #910 (2026-05-31 13:04:19)
+[sim] FreeRTOS POSIX port: tick=1000 Hz, heap=4194304 bytes
+[sim] MicroPython heap: 2097152 bytes
+[sim] sentai.fr auto-start: dir=/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter54_virtual_camera_flow_pipeline_shift/fs_root/fr init=0 events=0 scalars=0 debug=0 task=0
+
+MicroPython on SentAI SIM (FreeRTOS POSIX port + MicroPython embed)
+Type expressions, end with Enter.  Ctrl-D or 'exit' to quit.
+Try: sentai.version(), sentai.fs.write(...), help()
+
+>>> camera_bridge: listening on /tmp/sentai_cam.sock (waiting for Gazebo bridge)
+>>> TRACE start
+MODEL_SIZE 7077792
+IMG0_SIZE 921654
+IMGN_SIZE 921654
+TRACE before_tpu_load
+[sentai_fr] worker START
+TPU_LOAD 0
+TRACE after_tpu_load
+[virtcam] select begin /images/cat_shift_00.bmp
+[virtcam] size 921654
+[virtcam] read ok
+[virtcam] load rc=0
+[virtcam] after_select begin
+[virtcam] after_select end
+[camera] select(-1, /images/cat_shift_00.bmp) rc=0
+CAM_SELECT0 0
+TRACE after_cam_select0
+FLOW_START 0
+TRACE after_flow_start
+PIPE_TARGET_FPS 12
+PIPE_PREP_FPS 12
+TRACE before_pipe_start
+E:0480:100
+PIPE_START 0
+TRACE after_pipe_start
+TRACE frame_00_select
+[virtcam] select begin /images/cat_shift_00.bmp
+[virtcam] size 921654
+[virtcam] read ok
+[virtcam] load rc=0
+[virtcam] after_select begin
+camera_bridge: flow_once begin
+camera_bridge: flow_once got rgb seq=2
+camera_bridge: flow_once scaled
+camera_bridge: flow_once phase begin
+camera_bridge: flow_once dz begin
+camera_bridge: flow_once publish dx=0 dy=0
+camera_bridge: flow_once end
+[virtcam] after_select end
+[camera] select(-1, /images/cat_shift_00.bmp) rc=0
+TRACE frame_00_after_select

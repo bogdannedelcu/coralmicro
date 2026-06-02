@@ -1,0 +1,29 @@
+{
+  "result": {
+    "flow_pub_stats": {
+      "frames": 1,
+      "grab_fail_streak": 0,
+      "grab_fail_total": 0,
+      "running": false
+    },
+    "records": [
+      [
+        0,
+        0,
+        [
+          true,
+          1,
+          0,
+          0,
+          0,
+          1,
+          -1
+        ],
+        0,
+        -2,
+        []
+      ]
+    ]
+  },
+  "step_px": 2
+}

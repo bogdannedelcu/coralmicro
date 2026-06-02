@@ -1,0 +1,25 @@
+[sim] FS root: /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter327_virtual_camera_flow_tpu_shift/fs_root
+[sim] sentai_sim build #1150 (2026-06-02 06:57:17)
+[sim] FreeRTOS POSIX port: tick=1000 Hz, heap=4194304 bytes
+[sim] MicroPython heap: 2097152 bytes
+camera_bridge: listening on /tmp/sentai_cam.sock (waiting for Gazebo bridge)
+[sentai_fr] worker START
+[sim] sentai.fr auto-start: dir=/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter327_virtual_camera_flow_tpu_shift/fs_root/fr init=0 events=0 scalars=0 debug=0 task=0
+
+MicroPython on SentAI SIM (FreeRTOS POSIX port + MicroPython embed)
+Type expressions, end with Enter.  Ctrl-D or 'exit' to quit.
+Try: sentai.version(), sentai.fs.write(...), help()
+
+>>> >>> LOOKUP True True
+>>> Traceback (most recent call last):
+  File "<stdin>", line 2
+SyntaxError: invalid syntax
+>>> Traceback (most recent call last):
+  File "<stdin>", line 1
+IndentationError: unexpected indent
+>>> Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 'cb' isn't defined
+>>> UNREG None
+>>> [sim] user exit
+[sim] REPL task done, terminating process

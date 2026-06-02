@@ -1,0 +1,17 @@
+[sim] FS root: /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter55_virtual_camera_flow_pipeline_shift/fs_root
+[sim] sentai_sim build #911 (2026-05-31 13:07:16)
+[sim] FreeRTOS POSIX port: tick=1000 Hz, heap=4194304 bytes
+[sim] MicroPython heap: 2097152 bytes
+[sim] sentai.fr auto-start: dir=/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter55_virtual_camera_flow_pipeline_shift/fs_root/fr init=0 events=0 scalars=0 debug=0 task=0
+
+MicroPython on SentAI SIM (FreeRTOS POSIX port + MicroPython embed)
+Type expressions, end with Enter.  Ctrl-D or 'exit' to quit.
+Try: sentai.version(), sentai.fs.write(...), help()
+
+>>> camera_bridge: listening on /tmp/sentai_cam.sock (waiting for Gazebo bridge)
+>>> TRACE start
+MODEL_SIZE 7077792
+IMG0_SIZE 921654
+IMGN_SIZE 921654
+TRACE before_tpu_load
+[sentai_fr] worker START

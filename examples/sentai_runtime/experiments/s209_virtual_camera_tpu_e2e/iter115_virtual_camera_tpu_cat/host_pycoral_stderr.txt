@@ -1,0 +1,19 @@
+Traceback (most recent call last):
+  File "/home/bogdan/work/coralmicro/venv-coral/lib/python3.9/site-packages/tflite_runtime/interpreter.py", line 160, in load_delegate
+    delegate = Delegate(library, options)
+  File "/home/bogdan/work/coralmicro/venv-coral/lib/python3.9/site-packages/tflite_runtime/interpreter.py", line 119, in __init__
+    raise ValueError(capture.message)
+ValueError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "<string>", line 9, in <module>
+  File "/home/bogdan/work/coralmicro/venv-coral/lib/python3.9/site-packages/pycoral/utils/edgetpu.py", line 87, in make_interpreter
+    delegates = [load_edgetpu_delegate({'device': device} if device else {})]
+  File "/home/bogdan/work/coralmicro/venv-coral/lib/python3.9/site-packages/pycoral/utils/edgetpu.py", line 52, in load_edgetpu_delegate
+    return tflite.load_delegate(_EDGETPU_SHARED_LIB, options or {})
+  File "/home/bogdan/work/coralmicro/venv-coral/lib/python3.9/site-packages/tflite_runtime/interpreter.py", line 162, in load_delegate
+    raise ValueError('Failed to load delegate from {}\n{}'.format(
+ValueError: Failed to load delegate from libedgetpu.so.1
+

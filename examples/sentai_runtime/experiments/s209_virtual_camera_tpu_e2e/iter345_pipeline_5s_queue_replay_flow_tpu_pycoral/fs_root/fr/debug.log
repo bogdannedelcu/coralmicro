@@ -1,0 +1,323 @@
+[sentai_fr] worker START
+[sim] sentai.fr auto-start: dir=/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter345_pipeline_5s_queue_replay_flow_tpu_pycoral/fs_root/fr init=0 events=0 scalars=0 debug=0 task=0
+
+MicroPython on SentAI SIM (FreeRTOS POSIX port + MicroPython embed)
+Type expressions, end with Enter.  Ctrl-D or 'exit' to quit.
+Try: sentai.version(), sentai.fs.write(...), help()
+
+>>> >>> MODEL_SIZE 7077792
+READY
+[tpu-pycoral] connected helper pid=492218 sock=/tmp/sentai_tpu_pycoral_492210.sock
+CMD LOAD slot=0 path=/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter345_pipeline_5s_queue_replay_flow_tpu_pycoral/fs_root/models/tf2_ssd_mobilenet_v2_coco17_ptq_edgetpu.tflite
+CMD LOAD made_interpreter slot=0
+CMD LOAD allocated slot=0
+CMD LOAD done slot=0 outputs=4
+[tpu-pycoral] LOAD reply: OK LOAD 0 3 270000 4 1 300 300 3 0.00784313772 127 4
+[tpu-pycoral] OUT[0]: bytes=80 shape=1x20x0x0
+[tpu-pycoral] OUT[1]: bytes=320 shape=1x20x4x0
+[tpu-pycoral] OUT[2]: bytes=4 shape=1x0x0x0
+[tpu-pycoral] OUT[3]: bytes=80 shape=1x20x0x0
+[tpu-pycoral] loaded slot=0 input=300x300x3 outputs=4
+TPU_LOAD 0
+TPU_READY True
+FLOW_START 0
+CAM_SELECT 0
+PIPE_DIRECT_TENSOR_PREV 1
+PIPE_TARGET_FPS 0
+PIPE_PREP_FPS 0
+[det_prep] start
+[det_prep] grab idx=-2 raw=(nil)
+[det_infer] start
+E:0480:100
+PIPE_START 0
+[virt_cam] START mode=memory dir=<memory> frames=1 fps=10 limit=30
+[det_prep] grab idx=32767 raw=0x5dac689a7c80
+[det_prep] fire_mask=0x00000010
+[det_prep] pxp begin 300x300
+[det_prep] pxp rc=0 ms=1
+[det_prep] flow publish begin
+[det_prep] flow publish done
+[det_infer] frame ready direct=1
+CMD INVOKE slot=0 nbytes=270000
+CMD INVOKE done slot=0 ms=29 outputs=4 total=484
+[det_infer] invoke_ms=29
+[det_infer] nms det_count=20
+[det_infer] queued frame=1 dets=20
+[det_prep] frame signaled seq=1
+[det_prep] grab idx=-2 raw=(nil)
+[virt_cam] publish idx=0 rc=0 path=/images/shift/frame_000.bmp
+CAM_REPLAY 1 FRAME /images/shift/frame_000.bmp FPS 10 COUNT 30
+[det_prep] grab idx=32768 raw=0x5dac68ad3c80
+[det_prep] fire_mask=0x00000010
+[det_prep] pxp begin 300x300
+[det_prep] pxp rc=0 ms=1
+[det_prep] flow publish begin
+[det_prep] flow publish done
+[det_infer] frame ready direct=1
+[det_infer] invoke_ms=13
+[det_infer] nms det_count=20
+[det_infer] queued frame=2 dets=20
+[det_prep] frame signaled seq=2
+[det_prep] grab idx=-2 raw=(nil)
+[virt_cam] publish idx=0 rc=0 path=/images/shift/frame_000.bmp
+CMD INVOKE slot=0 nbytes=270000
+CMD INVOKE done slot=0 ms=13 outputs=4 total=484
+[det_prep] grab idx=32769 raw=0x5dac68bffc80
+[det_prep] fire_mask=0x00000010
+[det_prep] pxp begin 300x300
+[det_prep] pxp rc=0 ms=1
+[det_prep] flow publish begin
+[det_prep] flow publish done
+[det_infer] frame ready direct=1
+[det_infer] invoke_ms=12
+[det_infer] nms det_count=20
+[det_infer] queued frame=3 dets=20
+[det_prep] frame signaled seq=3
+[det_prep] grab idx=-2 raw=(nil)
+[virt_cam] publish idx=0 rc=0 path=/images/shift/frame_000.bmp
+CMD INVOKE slot=0 nbytes=270000
+CMD INVOKE done slot=0 ms=12 outputs=4 total=484
+[det_prep] grab idx=32770 raw=0x5dac68d2bc80
+[det_prep] fire_mask=0x00000010
+[det_prep] pxp begin 300x300
+[det_prep] pxp rc=0 ms=1
+[det_prep] flow publish begin
+[det_prep] flow publish done
+[det_infer] frame ready direct=1
+[det_infer] invoke_ms=13
+[det_infer] nms det_count=20
+[det_infer] queued frame=4 dets=20
+[det_prep] frame signaled seq=4
+[virt_cam] publish idx=0 rc=0 path=/images/shift/frame_000.bmp
+CMD INVOKE slot=0 nbytes=270000
+CMD INVOKE done slot=0 ms=13 outputs=4 total=484
+[det_prep] fire_mask=0x00000010
+[det_prep] pxp begin 300x300
+[det_prep] pxp rc=0 ms=1
+[det_prep] flow publish begin
+[det_prep] flow publish done
+[det_infer] frame ready direct=1
+[det_infer] invoke_ms=12
+[det_infer] nms det_count=20
+[det_infer] queued frame=5 dets=20
+[det_prep] frame signaled seq=5
+[virt_cam] publish idx=0 rc=0 path=/images/shift/frame_000.bmp
+CMD INVOKE slot=0 nbytes=270000
+CMD INVOKE done slot=0 ms=12 outputs=4 total=484
+[det_prep] fire_mask=0x00000010
+[det_prep] pxp begin 300x300
+[det_prep] pxp rc=0 ms=1
+[det_prep] flow publish begin
+[det_prep] flow publish done
+[det_infer] frame ready direct=1
+[det_infer] invoke_ms=12
+[det_infer] nms det_count=20
+[det_infer] queued frame=6 dets=20
+[det_prep] frame signaled seq=6
+[virt_cam] publish idx=0 rc=0 path=/images/shift/frame_000.bmp
+CMD INVOKE slot=0 nbytes=270000
+CMD INVOKE done slot=0 ms=12 outputs=4 total=484
+[det_prep] fire_mask=0x00000010
+[det_prep] pxp begin 300x300
+[det_prep] pxp rc=0 ms=2
+[det_prep] flow publish begin
+[det_prep] flow publish done
+[det_infer] frame ready direct=1
+[det_infer] invoke_ms=12
+[det_infer] nms det_count=20
+[det_infer] queued frame=7 dets=20
+[det_prep] frame signaled seq=7
+[virt_cam] publish idx=0 rc=0 path=/images/shift/frame_000.bmp
+CMD INVOKE slot=0 nbytes=270000
+CMD INVOKE done slot=0 ms=12 outputs=4 total=484
+[det_prep] fire_mask=0x00000010
+[det_prep] pxp begin 300x300
+[det_prep] pxp rc=0 ms=1
+[det_prep] flow publish begin
+[det_prep] flow publish done
+[det_infer] frame ready direct=1
+[det_infer] invoke_ms=12
+[det_infer] nms det_count=20
+[det_infer] queued frame=8 dets=20
+[det_prep] frame signaled seq=8
+[virt_cam] publish idx=0 rc=0 path=/images/shift/frame_000.bmp
+CMD INVOKE slot=0 nbytes=270000
+CMD INVOKE done slot=0 ms=12 outputs=4 total=484
+[det_prep] fire_mask=0x00000010
+[det_prep] pxp begin 300x300
+[det_prep] pxp rc=0 ms=1
+[det_prep] flow publish begin
+[det_prep] flow publish done
+[det_prep] frame signaled seq=9
+CMD INVOKE slot=0 nbytes=270000
+CMD INVOKE done slot=0 ms=12 outputs=4 total=484
+[det_prep] fire_mask=0x00000010
+[det_prep] pxp begin 300x300
+[det_prep] pxp rc=0 ms=1
+[det_prep] flow publish begin
+[det_prep] flow publish done
+[det_prep] frame signaled seq=10
+CMD INVOKE slot=0 nbytes=270000
+CMD INVOKE done slot=0 ms=12 outputs=4 total=484
+[det_prep] fire_mask=0x00000010
+[det_prep] pxp begin 300x300
+[det_prep] pxp rc=0 ms=1
+[det_prep] flow publish begin
+[det_prep] flow publish done
+[det_prep] frame signaled seq=11
+CMD INVOKE slot=0 nbytes=270000
+CMD INVOKE done slot=0 ms=12 outputs=4 total=484
+[det_prep] fire_mask=0x00000010
+[det_prep] pxp begin 300x300
+[det_prep] pxp rc=0 ms=1
+[det_prep] flow publish begin
+[det_prep] flow publish done
+[det_prep] frame signaled seq=12
+CMD INVOKE slot=0 nbytes=270000
+CMD INVOKE done slot=0 ms=12 outputs=4 total=484
+[det_prep] fire_mask=0x00000010
+[det_prep] pxp begin 300x300
+[det_prep] pxp rc=0 ms=1
+[det_prep] flow publish begin
+[det_prep] flow publish done
+[det_prep] frame signaled seq=13
+CMD INVOKE slot=0 nbytes=270000
+CMD INVOKE done slot=0 ms=13 outputs=4 total=484
+[det_prep] fire_mask=0x00000010
+[det_prep] pxp begin 300x300
+[det_prep] pxp rc=0 ms=1
+[det_prep] flow publish begin
+[det_prep] flow publish done
+[det_prep] frame signaled seq=14
+CMD INVOKE slot=0 nbytes=270000
+CMD INVOKE done slot=0 ms=12 outputs=4 total=484
+[det_prep] fire_mask=0x00000010
+[det_prep] pxp begin 300x300
+[det_prep] pxp rc=0 ms=1
+[det_prep] flow publish begin
+[det_prep] flow publish done
+[det_prep] frame signaled seq=15
+CMD INVOKE slot=0 nbytes=270000
+CMD INVOKE done slot=0 ms=13 outputs=4 total=484
+[det_prep] fire_mask=0x00000010
+[det_prep] pxp begin 300x300
+[det_prep] pxp rc=0 ms=1
+[det_prep] flow publish begin
+[det_prep] flow publish done
+[det_prep] frame signaled seq=16
+CMD INVOKE slot=0 nbytes=270000
+CMD INVOKE done slot=0 ms=13 outputs=4 total=484
+[det_prep] fire_mask=0x00000010
+[det_prep] pxp begin 300x300
+[det_prep] pxp rc=0 ms=1
+[det_prep] flow publish begin
+[det_prep] flow publish done
+[det_prep] frame signaled seq=17
+CMD INVOKE slot=0 nbytes=270000
+CMD INVOKE done slot=0 ms=13 outputs=4 total=484
+[det_prep] fire_mask=0x00000010
+[det_prep] pxp begin 300x300
+[det_prep] pxp rc=0 ms=1
+[det_prep] flow publish begin
+[det_prep] flow publish done
+[det_prep] frame signaled seq=18
+CMD INVOKE slot=0 nbytes=270000
+CMD INVOKE done slot=0 ms=12 outputs=4 total=484
+[det_prep] fire_mask=0x00000010
+[det_prep] pxp begin 300x300
+[det_prep] pxp rc=0 ms=1
+[det_prep] flow publish begin
+[det_prep] flow publish done
+[det_prep] frame signaled seq=19
+CMD INVOKE slot=0 nbytes=270000
+CMD INVOKE done slot=0 ms=12 outputs=4 total=484
+[det_prep] fire_mask=0x00000010
+[det_prep] pxp begin 300x300
+[det_prep] pxp rc=0 ms=1
+[det_prep] flow publish begin
+[det_prep] flow publish done
+[det_prep] frame signaled seq=20
+CMD INVOKE slot=0 nbytes=270000
+CMD INVOKE done slot=0 ms=13 outputs=4 total=484
+[det_prep] fire_mask=0x00000010
+[det_prep] pxp begin 300x300
+[det_prep] pxp rc=0 ms=0
+[det_prep] flow publish begin
+[det_prep] flow publish done
+[det_prep] frame signaled seq=21
+CMD INVOKE slot=0 nbytes=270000
+CMD INVOKE done slot=0 ms=11 outputs=4 total=484
+[det_prep] fire_mask=0x00000010
+[det_prep] pxp begin 300x300
+[det_prep] pxp rc=0 ms=2
+[det_prep] flow publish begin
+[det_prep] flow publish done
+[det_prep] frame signaled seq=22
+CMD INVOKE slot=0 nbytes=270000
+CMD INVOKE done slot=0 ms=12 outputs=4 total=484
+[det_prep] fire_mask=0x00000010
+[det_prep] pxp begin 300x300
+[det_prep] pxp rc=0 ms=0
+[det_prep] flow publish begin
+[det_prep] flow publish done
+[det_prep] frame signaled seq=23
+CMD INVOKE slot=0 nbytes=270000
+CMD INVOKE done slot=0 ms=12 outputs=4 total=484
+[det_prep] fire_mask=0x00000010
+[det_prep] pxp begin 300x300
+[det_prep] pxp rc=0 ms=0
+[det_prep] flow publish begin
+[det_prep] flow publish done
+[det_prep] frame signaled seq=24
+CMD INVOKE slot=0 nbytes=270000
+CMD INVOKE done slot=0 ms=12 outputs=4 total=484
+[det_prep] fire_mask=0x00000010
+[det_prep] pxp begin 300x300
+[det_prep] pxp rc=0 ms=0
+[det_prep] flow publish begin
+[det_prep] flow publish done
+[det_prep] frame signaled seq=25
+CMD INVOKE slot=0 nbytes=270000
+CMD INVOKE done slot=0 ms=12 outputs=4 total=484
+[det_prep] fire_mask=0x00000010
+[det_prep] pxp begin 300x300
+[det_prep] pxp rc=0 ms=1
+[det_prep] flow publish begin
+[det_prep] flow publish done
+[det_prep] frame signaled seq=26
+CMD INVOKE slot=0 nbytes=270000
+CMD INVOKE done slot=0 ms=12 outputs=4 total=484
+[det_prep] fire_mask=0x00000010
+[det_prep] pxp begin 300x300
+[det_prep] pxp rc=0 ms=0
+[det_prep] flow publish begin
+[det_prep] flow publish done
+[det_prep] frame signaled seq=27
+CMD INVOKE slot=0 nbytes=270000
+CMD INVOKE done slot=0 ms=12 outputs=4 total=484
+[det_prep] fire_mask=0x00000010
+[det_prep] pxp begin 300x300
+[det_prep] pxp rc=0 ms=1
+[det_prep] flow publish begin
+[det_prep] flow publish done
+[det_prep] frame signaled seq=28
+CMD INVOKE slot=0 nbytes=270000
+CMD INVOKE done slot=0 ms=12 outputs=4 total=484
+[det_prep] fire_mask=0x00000010
+[det_prep] pxp begin 300x300
+[det_prep] pxp rc=0 ms=1
+[det_prep] flow publish begin
+[det_prep] flow publish done
+[det_prep] frame signaled seq=29
+CMD INVOKE slot=0 nbytes=270000
+CMD INVOKE done slot=0 ms=12 outputs=4 total=484
+[det_prep] fire_mask=0x00000010
+[det_prep] pxp begin 300x300
+[det_prep] pxp rc=0 ms=0
+[det_prep] flow publish begin
+[det_prep] flow publish done
+[det_prep] frame signaled seq=30
+CMD INVOKE slot=0 nbytes=270000
+CMD INVOKE done slot=0 ms=12 outputs=4 total=484
+[virt_cam] STOP published=30 last_rc=0
+E:0E30:501

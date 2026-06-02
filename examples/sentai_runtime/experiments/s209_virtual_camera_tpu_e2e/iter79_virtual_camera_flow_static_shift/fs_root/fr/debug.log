@@ -1,0 +1,43 @@
+[sim] FS root: /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter79_virtual_camera_flow_static_shift/fs_root
+[sim] sentai_sim build #930 (2026-05-31 13:52:38)
+[sim] FreeRTOS POSIX port: tick=1000 Hz, heap=4194304 bytes
+[sim] MicroPython heap: 2097152 bytes
+[sim] sentai.fr auto-start: dir=/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter79_virtual_camera_flow_static_shift/fs_root/fr init=0 events=0 scalars=0 debug=0 task=0
+
+MicroPython on SentAI SIM (FreeRTOS POSIX port + MicroPython embed)
+Type expressions, end with Enter.  Ctrl-D or 'exit' to quit.
+Try: sentai.version(), sentai.fs.write(...), help()
+
+>>> >>> IMG_SIZE 921654
+SHIFT_SIZE 921654
+camera_bridge: listening on /tmp/sentai_cam.sock (waiting for Gazebo bridge)
+FLOW_START 0
+[virtcam] select begin /images/cat_640x480.bmp
+[virtcam] size 921654
+[virtcam] read ok
+[sentai_fr] worker START
+[virtcam] load rc=0
+[virtcam] after_select begin
+[virtcam] after_select end
+[camera] select(-1, /images/cat_640x480.bmp) rc=0
+[virtcam] select begin /images/cat_640x480.bmp
+[virtcam] size 921654
+[virtcam] read ok
+[virtcam] load rc=0
+[virtcam] after_select begin
+[virtcam] after_select end
+[camera] select(-1, /images/cat_640x480.bmp) rc=0
+[virtcam] select begin /images/cat_640x480_shift_x2.bmp
+[virtcam] size 921654
+[virtcam] read ok
+[virtcam] load rc=0
+[virtcam] after_select begin
+[virtcam] after_select end
+[camera] select(-1, /images/cat_640x480_shift_x2.bmp) rc=0
+FLOW_STOP 0
+FLOW_RESULTS {'shifted': (0, (True, 1, 243, 19, 255, 3, -1)), 'static_same': (0, (True, 1, 0, 0, 255, 2, -1)), 'prime': (0, (True, 1, 0, 0, 0, 1, -1))}
+FLOW_RESULTS_WRITTEN True
+0
+>>> 
+[sim] EOF on stdin, exiting
+[sim] REPL task done, terminating process

@@ -1,0 +1,57 @@
+{
+  "after": {
+    "frames_total": 30,
+    "frames_with_aux": 30,
+    "producer_overruns": 0,
+    "slot_refcount": [
+      0,
+      0,
+      0,
+      0,
+      1
+    ],
+    "slot_seq": [
+      0,
+      0,
+      0,
+      0,
+      30
+    ]
+  },
+  "before": {
+    "frames_total": 0,
+    "frames_with_aux": 0,
+    "producer_overruns": 0,
+    "slot_refcount": [
+      0,
+      0,
+      0,
+      0,
+      1
+    ],
+    "slot_seq": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  "delta_aux": 30,
+  "delta_frames": 30,
+  "flow_refcount_after": 1,
+  "flow_slot_seq_delta": 30,
+  "mode": "play",
+  "pipe_after": {
+    "cam_grab_ms_sum": 0,
+    "frames": 30,
+    "pxp_ms_sum": 0,
+    "total_ms_sum": 27
+  },
+  "pipe_before": {
+    "cam_grab_ms_sum": 0,
+    "frames": 0,
+    "pxp_ms_sum": 0,
+    "total_ms_sum": 0
+  }
+}

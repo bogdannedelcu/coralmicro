@@ -1,0 +1,45 @@
+[sim] FS root: /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/manual_debug_flow_pipeline/fs_root
+[sim] sentai_sim build #1012 (2026-05-31 23:38:11)
+[sim] FreeRTOS POSIX port: tick=1000 Hz, heap=4194304 bytes
+[sim] MicroPython heap: 2097152 bytes
+[sim] sentai.fr auto-start: dir=/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/manual_debug_flow_pipeline/fs_root/fr init=0 events=0 scalars=0 debug=0 task=0
+
+MicroPython on SentAI SIM (FreeRTOS POSIX port + MicroPython embed)
+Type expressions, end with Enter.  Ctrl-D or 'exit' to quit.
+Try: sentai.version(), sentai.fs.write(...), help()
+
+>>> camera_bridge: listening on /tmp/sentai_cam.sock (waiting for Gazebo bridge)
+>>> TRACE start
+MODEL_SIZE 7077792
+IMG0_SIZE 921654
+IMGN_SIZE 921654
+TRACE before_tpu_load
+[sentai_fr] worker START
+[tpu-posix] call begin kind=load slot=0
+[tpu-posix] load slot=0 path=/models/tf2_ssd_mobilenet_v2_coco17_ptq_edgetpu.tflite
+[tpu-posix] opening Coral USB via POSIX/libusb backend
+[tpu-posix] libusb_init...
+[tpu-posix] dfu/app probe...
+[tpu-posix] open app device...
+[tpu-posix] opened Coral USB interface=0 out=01,02,03 in=81,82 irq=83
+[tpu-posix] opening EdgeTpuManager context
+[EdgeTPU mgr] creating context
+[EdgeTPU mgr] initializing driver
+[TPU init] read omc0_00
+[TPU init] check chip id
+[TPU init] write test reg
+[TPU init] read test reg
+[TPU init] disable inactive mode
+[TPU init] disable clock gating
+[TPU init] enter reset
+[TPU init] exit reset
+[TPU init] check scalar run control
+[TPU init] write idle register
+[TPU init] write tile config
+[TPU init] write deep sleep
+[TPU init] enable clock gating
+[TPU init] configure usb csr
+[TPU init] enable tempsense clock
+[TPU init] enable tempsense input ports
+[TPU init] enable tempsense flow
+[TPU init] move to run

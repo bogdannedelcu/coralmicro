@@ -1,0 +1,39 @@
+[sim] FS root: /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter285_virtual_camera_flow_tpu_shift/fs_root
+[sim] sentai_sim build #1116 (2026-06-01 19:31:35)
+[sim] FreeRTOS POSIX port: tick=1000 Hz, heap=4194304 bytes
+[sim] MicroPython heap: 2097152 bytes
+[sim] sentai.fr auto-start: dir=/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter285_virtual_camera_flow_tpu_shift/fs_root/fr init=0 events=0 scalars=0 debug=0 task=0
+
+MicroPython on SentAI SIM (FreeRTOS POSIX port + MicroPython embed)
+Type expressions, end with Enter.  Ctrl-D or 'exit' to quit.
+Try: sentai.version(), sentai.fs.write(...), help()
+
+>>> >>> camera_bridge: listening on /tmp/sentai_cam.sock (waiting for Gazebo bridge)
+[sentai_fr] worker START
+READY
+[tpu-pycoral] connected helper pid=418800 sock=/tmp/sentai_tpu_pycoral_418792.sock
+CMD LOAD slot=0 path=/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter285_virtual_camera_flow_tpu_shift/fs_root/models/tf2_ssd_mobilenet_v2_coco17_ptq_edgetpu.tflite
+CMD LOAD made_interpreter slot=0
+CMD LOAD allocated slot=0
+CMD LOAD done slot=0 outputs=4
+[tpu-pycoral] LOAD reply: OK LOAD 0 3 270000 4 1 300 300 3 0.00784313772 127 4
+[tpu-pycoral] OUT[0]: bytes=80 shape=1x20x0x0
+[tpu-pycoral] OUT[1]: bytes=320 shape=1x20x4x0
+[tpu-pycoral] OUT[2]: bytes=4 shape=1x0x0x0
+[tpu-pycoral] OUT[3]: bytes=80 shape=1x20x0x0
+[tpu-pycoral] loaded slot=0 input=300x300x3 outputs=4
+LOAD 0
+>>> READY True
+>>> INQ (0.007843137, 127)
+>>> LOAD_IMAGE 0
+>>> CMD INVOKE slot=0 nbytes=270000
+CMD INVOKE done slot=0 ms=29 outputs=4 total=484
+INVOKE1 29
+>>> HASH1 332282989
+>>> DETS ((25, 95, 145, 204, 758, 71), (33, 108, 113, 191, 500, 16), (8, 72, 153, 239, 313, 71), (52, 96, 135, 145, 293, 62), (65, 99, 111, 178, 293, 16), (30, 109, 81, 190, 285, 61), (69, 103, 101, 131, 234, 74), (43, 104, 126, 156, 215, 62), (87, 94, 140, 166, 203, 69), (28, 96, 75, 161, 195, 61), (8, 44, 275, 271, 172, 71), (25, 119, 66, 197, 172, 61), (36, 95, 50, 135, 168, 83), (66, 110, 81, 131, 160, 74), (5, 82, 243, 229, 156, 71), (107, 116, 138, 150, 156, 50), (31, 94, 94, 142, 148, 61), (38, 153, 136, 196, 145, 61), (100, 31, 299, 300, 145, 0), (73, 113, 100, 155, 145, 16))
+>>> CMD INVOKE slot=0 nbytes=270000
+CMD INVOKE done slot=0 ms=12 outputs=4 total=484
+INVOKE2 12
+>>> HASH2 332282989
+>>> [sim] user exit
+[sim] REPL task done, terminating process

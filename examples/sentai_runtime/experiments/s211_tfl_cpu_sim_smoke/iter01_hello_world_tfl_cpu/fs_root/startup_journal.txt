@@ -1,0 +1,1 @@
+# sentai.sim journal opened path=/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s211_tfl_cpu_sim_smoke/iter01_hello_world_tfl_cpu/fs_root/startup_journal.txt truncate=1 t_ms=52826726

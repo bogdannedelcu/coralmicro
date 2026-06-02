@@ -1,0 +1,33 @@
+[sim] FS root: /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s211_tfl_cpu_sim_smoke/iter02_hello_world_tfl_cpu/fs_root
+[sim] sentai_sim build #858 (2026-05-30 11:09:44)
+[sim] FreeRTOS POSIX port: tick=1000 Hz, heap=4194304 bytes
+[sim] MicroPython heap: 2097152 bytes
+[sim] sentai.fr auto-start: dir=/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s211_tfl_cpu_sim_smoke/iter02_hello_world_tfl_cpu/fs_root/fr init=0 events=0 scalars=0 debug=0 task=0
+0
+
+MicroPython on SentAI SIM (FreeRTOS POSIX port + MicroPython embed)
+Type expressions, end with Enter.  Ctrl-D or 'exit' to quit.
+Try: sentai.version(), sentai.fs.write(...), help()
+
+>>> >>> TFL model loaded: 2312 bytes
+TFL Input: type=9 [1,1] 1 B  scale=0.024574 zp=-128
+TFL Out[0]: type=9 [1,1] 1 B  scale=0.008472 zp=4
+TFL Arena used: 1 / 64 KB
+[sentai_fr] worker START
+load_rc=0
+ready=True
+input_size=1
+input_dims=(1, 1)
+num_outputs_before=1
+set_input_rc=0
+invoke_ms=0
+num_outputs=1
+output0_size=1
+output0_dims=(1, 1)
+value0=4
+
+0
+>>> 
+[sim] EOF on stdin, exiting
+[sim] REPL task done, terminating process
+camera_bridge: listening on /tmp/sentai_cam.sock (waiting for Gazebo bridge)

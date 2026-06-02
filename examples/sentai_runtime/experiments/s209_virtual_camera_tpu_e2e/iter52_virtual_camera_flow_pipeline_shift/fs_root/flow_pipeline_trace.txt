@@ -1,0 +1,8 @@
+start
+before_tpu_load
+after_tpu_load
+after_cam_select0
+after_flow_start
+before_pipe_start
+after_pipe_start
+frame_00_select

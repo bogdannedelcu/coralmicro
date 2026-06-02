@@ -1,0 +1,23 @@
+[sim] FS root: /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter14_tpu_shared_load_image_smoke/fs_root
+[sim] sentai_sim build #865 (2026-05-30 15:37:00)
+[sim] FreeRTOS POSIX port: tick=1000 Hz, heap=4194304 bytes
+[sim] MicroPython heap: 2097152 bytes
+[sim] sentai.fr auto-start: dir=/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter14_tpu_shared_load_image_smoke/fs_root/fr init=0 events=0 scalars=0 debug=0 task=0
+0
+
+MicroPython on SentAI SIM (FreeRTOS POSIX port + MicroPython embed)
+Type expressions, end with Enter.  Ctrl-D or 'exit' to quit.
+Try: sentai.version(), sentai.fs.write(...), help()
+
+>>> >>> camera_bridge: listening on /tmp/sentai_cam.sock (waiting for Gazebo bridge)
+[sentai_fr] worker START
+LOAD 0
+>>> READY True
+>>> LOAD_IMAGE 0
+>>> INVOKE 0
+>>> NOUT 4
+>>> SAVE 0
+>>> OUT_EXISTS True 1657
+>>> 
+[sim] EOF on stdin, exiting
+[sim] REPL task done, terminating process

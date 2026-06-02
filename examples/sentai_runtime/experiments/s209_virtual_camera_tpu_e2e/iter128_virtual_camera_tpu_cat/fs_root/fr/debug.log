@@ -1,0 +1,4725 @@
+[sim] FS root: /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter128_virtual_camera_tpu_cat/fs_root
+[sim] sentai_sim build #1006 (2026-05-31 23:24:31)
+[sim] FreeRTOS POSIX port: tick=1000 Hz, heap=4194304 bytes
+[sim] MicroPython heap: 2097152 bytes
+[sim] sentai.fr auto-start: dir=/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter128_virtual_camera_tpu_cat/fs_root/fr init=0 events=0 scalars=0 debug=0 task=0
+
+MicroPython on SentAI SIM (FreeRTOS POSIX port + MicroPython embed)
+Type expressions, end with Enter.  Ctrl-D or 'exit' to quit.
+Try: sentai.version(), sentai.fs.write(...), help()
+
+>>> >>> IMG_SIZE 921654
+MODEL_SIZE 7077792
+[virtcam] select begin /images/cat_640x480.bmp
+[virtcam] size 921654
+camera_bridge: listening on /tmp/sentai_cam.sock (waiting for Gazebo bridge)
+[virtcam] read ok
+[virtcam] load rc=0
+[virtcam] after_select begin
+[sentai_fr] worker START
+[virtcam] after_select end
+[camera] select(-1, /images/cat_640x480.bmp) rc=0
+CAM_SELECT 0
+[tpu-posix] call begin kind=load slot=0
+[tpu-posix] load slot=0 path=/models/tf2_ssd_mobilenet_v2_coco17_ptq_edgetpu.tflite
+[tpu-posix] opening Coral USB via POSIX/libusb backend
+[tpu-posix] libusb_init...
+[tpu-posix] dfu/app probe...
+[tpu-posix] open app device...
+[tpu-posix] opened Coral USB interface=0 out=01,02,03 in=81,82 irq=83
+[tpu-posix] opening EdgeTpuManager context
+[EdgeTPU mgr] creating context
+[EdgeTPU mgr] initializing driver
+[TPU init] read omc0_00
+[TPU init] check chip id
+[TPU init] write test reg
+[TPU init] read test reg
+[TPU init] disable inactive mode
+[TPU init] disable clock gating
+[TPU init] enter reset
+[TPU init] exit reset
+[TPU init] check scalar run control
+[TPU init] write idle register
+[TPU init] write tile config
+[TPU init] write deep sleep
+[TPU init] enable clock gating
+[TPU init] configure usb csr
+[TPU init] enable tempsense clock
+[TPU init] enable tempsense input ports
+[TPU init] enable tempsense flow
+[TPU init] move to run
+[TPU init] done
+[EdgeTPU mgr] driver initialized
+[tpu-posix] EdgeTPU ready via direct libusb backend
+[tpu-posix] reading model from SentAI FS
+[tpu-posix] model size=7077792
+[tpu-posix] reading model bytes into static storage
+[tpu-posix] model read got=7077792
+[tpu-posix] model loaded from FS: /models/tf2_ssd_mobilenet_v2_coco17_ptq_edgetpu.tflite (7077792 bytes)
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x05701716d04676e6
+TPU Input[0]: uint8[1,300,300,3] 270000 B scale=0.00784314 zp=127
+TPU Out[0]: float32[1,20] 80 B scale=0.00000000 zp=0
+TPU Out[1]: float32[1,20,4] 320 B scale=0.00000000 zp=0
+TPU Out[2]: float32[1] 4 B scale=0.00000000 zp=0
+TPU Out[3]: float32[1,20] 80 B scale=0.00000000 zp=0
+[tpu-posix] arena used: 2722 / 8192 KB
+[tpu-posix] call done kind=load slot=0 rc=0
+TPU_LOAD 0
+TPU_READY True
+[tpu-posix] load_image begin path=/images/cat_640x480.bmp
+[virtcam] select begin /images/cat_640x480.bmp
+[virtcam] size 921654
+[virtcam] read ok
+[virtcam] load rc=0
+[virtcam] after_select begin
+[camera-prep] tpu slot begin
+[camera-prep] tpu dims model=300x300 slot=640x480
+[camera-prep] tpu slot committed
+[virtcam] after_select end
+[tpu-posix] load_image selected
+[tpu-posix] load_image prep slot 300x300 seq=1
+[tpu-posix] load_image set_input rc=0
+TPU_LOAD_IMAGE 0
+[tpu-posix] call begin kind=invoke slot=0
+[tpu] N v1=0 v2=10448
+[bulkout] B v1=8 v2=8
+[usb-xfer] submit ep=01 len=8 sync=1
+[usb-xfer] submit rc=0 ep=01 len=8
+[usb-xfer] wait ep=01 len=8
+[bulkout] b v1=8 v2=0
+[bulkout] B v1=10448 v2=10448
+[usb-xfer] submit ep=01 len=10448 sync=1
+[usb-xfer] submit rc=0 ep=01 len=10448
+[usb-xfer] wait ep=01 len=10448
+[bulkout] b v1=10448 v2=0
+[tpu] P name= bytes=6703232 off=0
+[bulkout] B v1=8 v2=8
+[usb-xfer] submit ep=01 len=8 sync=1
+[usb-xfer] submit rc=0 ep=01 len=8
+[usb-xfer] wait ep=01 len=8
+[bulkout] b v1=8 v2=0
+[bulkout] B v1=36864 v2=6703232
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=6666368
+[bulkout] B v1=36864 v2=6666368
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=6629504
+[bulkout] B v1=36864 v2=6629504
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=6592640
+[bulkout] B v1=36864 v2=6592640
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=6555776
+[bulkout] B v1=36864 v2=6555776
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=6518912
+[bulkout] B v1=36864 v2=6518912
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=6482048
+[bulkout] B v1=36864 v2=6482048
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=6445184
+[bulkout] B v1=36864 v2=6445184
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=6408320
+[bulkout] B v1=36864 v2=6408320
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=6371456
+[bulkout] B v1=36864 v2=6371456
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=6334592
+[bulkout] B v1=36864 v2=6334592
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=6297728
+[bulkout] B v1=36864 v2=6297728
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=6260864
+[bulkout] B v1=36864 v2=6260864
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=6224000
+[bulkout] B v1=36864 v2=6224000
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=6187136
+[bulkout] B v1=36864 v2=6187136
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=6150272
+[bulkout] B v1=36864 v2=6150272
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=6113408
+[bulkout] B v1=36864 v2=6113408
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=6076544
+[bulkout] B v1=36864 v2=6076544
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=6039680
+[bulkout] B v1=36864 v2=6039680
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=6002816
+[bulkout] B v1=36864 v2=6002816
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=5965952
+[bulkout] B v1=36864 v2=5965952
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=5929088
+[bulkout] B v1=36864 v2=5929088
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=5892224
+[bulkout] B v1=36864 v2=5892224
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=5855360
+[bulkout] B v1=36864 v2=5855360
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=5818496
+[bulkout] B v1=36864 v2=5818496
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=5781632
+[bulkout] B v1=36864 v2=5781632
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=5744768
+[bulkout] B v1=36864 v2=5744768
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=5707904
+[bulkout] B v1=36864 v2=5707904
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=5671040
+[bulkout] B v1=36864 v2=5671040
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=5634176
+[bulkout] B v1=36864 v2=5634176
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=5597312
+[bulkout] B v1=36864 v2=5597312
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=5560448
+[bulkout] B v1=36864 v2=5560448
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=5523584
+[bulkout] B v1=36864 v2=5523584
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=5486720
+[bulkout] B v1=36864 v2=5486720
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=5449856
+[bulkout] B v1=36864 v2=5449856
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=5412992
+[bulkout] B v1=36864 v2=5412992
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=5376128
+[bulkout] B v1=36864 v2=5376128
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=5339264
+[bulkout] B v1=36864 v2=5339264
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=5302400
+[bulkout] B v1=36864 v2=5302400
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=5265536
+[bulkout] B v1=36864 v2=5265536
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=5228672
+[bulkout] B v1=36864 v2=5228672
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=5191808
+[bulkout] B v1=36864 v2=5191808
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=5154944
+[bulkout] B v1=36864 v2=5154944
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=5118080
+[bulkout] B v1=36864 v2=5118080
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=5081216
+[bulkout] B v1=36864 v2=5081216
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=5044352
+[bulkout] B v1=36864 v2=5044352
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=5007488
+[bulkout] B v1=36864 v2=5007488
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=4970624
+[bulkout] B v1=36864 v2=4970624
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=4933760
+[bulkout] B v1=36864 v2=4933760
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=4896896
+[bulkout] B v1=36864 v2=4896896
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=4860032
+[bulkout] B v1=36864 v2=4860032
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=4823168
+[bulkout] B v1=36864 v2=4823168
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=4786304
+[bulkout] B v1=36864 v2=4786304
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=4749440
+[bulkout] B v1=36864 v2=4749440
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=4712576
+[bulkout] B v1=36864 v2=4712576
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=4675712
+[bulkout] B v1=36864 v2=4675712
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=4638848
+[bulkout] B v1=36864 v2=4638848
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=4601984
+[bulkout] B v1=36864 v2=4601984
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=4565120
+[bulkout] B v1=36864 v2=4565120
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=4528256
+[bulkout] B v1=36864 v2=4528256
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=4491392
+[bulkout] B v1=36864 v2=4491392
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=4454528
+[bulkout] B v1=36864 v2=4454528
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=4417664
+[bulkout] B v1=36864 v2=4417664
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=4380800
+[bulkout] B v1=36864 v2=4380800
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=4343936
+[bulkout] B v1=36864 v2=4343936
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=4307072
+[bulkout] B v1=36864 v2=4307072
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=4270208
+[bulkout] B v1=36864 v2=4270208
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=4233344
+[bulkout] B v1=36864 v2=4233344
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=4196480
+[bulkout] B v1=36864 v2=4196480
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=4159616
+[bulkout] B v1=36864 v2=4159616
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=4122752
+[bulkout] B v1=36864 v2=4122752
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=4085888
+[bulkout] B v1=36864 v2=4085888
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=4049024
+[bulkout] B v1=36864 v2=4049024
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=4012160
+[bulkout] B v1=36864 v2=4012160
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=3975296
+[bulkout] B v1=36864 v2=3975296
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=3938432
+[bulkout] B v1=36864 v2=3938432
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=3901568
+[bulkout] B v1=36864 v2=3901568
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=3864704
+[bulkout] B v1=36864 v2=3864704
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=3827840
+[bulkout] B v1=36864 v2=3827840
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=3790976
+[bulkout] B v1=36864 v2=3790976
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=3754112
+[bulkout] B v1=36864 v2=3754112
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=3717248
+[bulkout] B v1=36864 v2=3717248
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=3680384
+[bulkout] B v1=36864 v2=3680384
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=3643520
+[bulkout] B v1=36864 v2=3643520
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=3606656
+[bulkout] B v1=36864 v2=3606656
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=3569792
+[bulkout] B v1=36864 v2=3569792
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=3532928
+[bulkout] B v1=36864 v2=3532928
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=3496064
+[bulkout] B v1=36864 v2=3496064
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=3459200
+[bulkout] B v1=36864 v2=3459200
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=3422336
+[bulkout] B v1=36864 v2=3422336
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=3385472
+[bulkout] B v1=36864 v2=3385472
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=3348608
+[bulkout] B v1=36864 v2=3348608
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=3311744
+[bulkout] B v1=36864 v2=3311744
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=3274880
+[bulkout] B v1=36864 v2=3274880
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=3238016
+[bulkout] B v1=36864 v2=3238016
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=3201152
+[bulkout] B v1=36864 v2=3201152
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=3164288
+[bulkout] B v1=36864 v2=3164288
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=3127424
+[bulkout] B v1=36864 v2=3127424
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=3090560
+[bulkout] B v1=36864 v2=3090560
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=3053696
+[bulkout] B v1=36864 v2=3053696
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=3016832
+[bulkout] B v1=36864 v2=3016832
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=2979968
+[bulkout] B v1=36864 v2=2979968
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=2943104
+[bulkout] B v1=36864 v2=2943104
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=2906240
+[bulkout] B v1=36864 v2=2906240
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=2869376
+[bulkout] B v1=36864 v2=2869376
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=2832512
+[bulkout] B v1=36864 v2=2832512
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=2795648
+[bulkout] B v1=36864 v2=2795648
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=2758784
+[bulkout] B v1=36864 v2=2758784
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=2721920
+[bulkout] B v1=36864 v2=2721920
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=2685056
+[bulkout] B v1=36864 v2=2685056
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=2648192
+[bulkout] B v1=36864 v2=2648192
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=2611328
+[bulkout] B v1=36864 v2=2611328
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=2574464
+[bulkout] B v1=36864 v2=2574464
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=2537600
+[bulkout] B v1=36864 v2=2537600
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=2500736
+[bulkout] B v1=36864 v2=2500736
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=2463872
+[bulkout] B v1=36864 v2=2463872
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=2427008
+[bulkout] B v1=36864 v2=2427008
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=2390144
+[bulkout] B v1=36864 v2=2390144
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=2353280
+[bulkout] B v1=36864 v2=2353280
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=2316416
+[bulkout] B v1=36864 v2=2316416
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=2279552
+[bulkout] B v1=36864 v2=2279552
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=2242688
+[bulkout] B v1=36864 v2=2242688
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=2205824
+[bulkout] B v1=36864 v2=2205824
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=2168960
+[bulkout] B v1=36864 v2=2168960
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=2132096
+[bulkout] B v1=36864 v2=2132096
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=2095232
+[bulkout] B v1=36864 v2=2095232
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=2058368
+[bulkout] B v1=36864 v2=2058368
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=2021504
+[bulkout] B v1=36864 v2=2021504
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=1984640
+[bulkout] B v1=36864 v2=1984640
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=1947776
+[bulkout] B v1=36864 v2=1947776
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=1910912
+[bulkout] B v1=36864 v2=1910912
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=1874048
+[bulkout] B v1=36864 v2=1874048
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=1837184
+[bulkout] B v1=36864 v2=1837184
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=1800320
+[bulkout] B v1=36864 v2=1800320
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=1763456
+[bulkout] B v1=36864 v2=1763456
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=1726592
+[bulkout] B v1=36864 v2=1726592
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=1689728
+[bulkout] B v1=36864 v2=1689728
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=1652864
+[bulkout] B v1=36864 v2=1652864
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=1616000
+[bulkout] B v1=36864 v2=1616000
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=1579136
+[bulkout] B v1=36864 v2=1579136
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=1542272
+[bulkout] B v1=36864 v2=1542272
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=1505408
+[bulkout] B v1=36864 v2=1505408
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=1468544
+[bulkout] B v1=36864 v2=1468544
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=1431680
+[bulkout] B v1=36864 v2=1431680
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=1394816
+[bulkout] B v1=36864 v2=1394816
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=1357952
+[bulkout] B v1=36864 v2=1357952
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=1321088
+[bulkout] B v1=36864 v2=1321088
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=1284224
+[bulkout] B v1=36864 v2=1284224
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=1247360
+[bulkout] B v1=36864 v2=1247360
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=1210496
+[bulkout] B v1=36864 v2=1210496
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=1173632
+[bulkout] B v1=36864 v2=1173632
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=1136768
+[bulkout] B v1=36864 v2=1136768
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=1099904
+[bulkout] B v1=36864 v2=1099904
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=1063040
+[bulkout] B v1=36864 v2=1063040
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=1026176
+[bulkout] B v1=36864 v2=1026176
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=989312
+[bulkout] B v1=36864 v2=989312
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=952448
+[bulkout] B v1=36864 v2=952448
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=915584
+[bulkout] B v1=36864 v2=915584
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=878720
+[bulkout] B v1=36864 v2=878720
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=841856
+[bulkout] B v1=36864 v2=841856
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=804992
+[bulkout] B v1=36864 v2=804992
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=768128
+[bulkout] B v1=36864 v2=768128
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=731264
+[bulkout] B v1=36864 v2=731264
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=694400
+[bulkout] B v1=36864 v2=694400
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=657536
+[bulkout] B v1=36864 v2=657536
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=620672
+[bulkout] B v1=36864 v2=620672
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=583808
+[bulkout] B v1=36864 v2=583808
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=546944
+[bulkout] B v1=36864 v2=546944
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=510080
+[bulkout] B v1=36864 v2=510080
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=473216
+[bulkout] B v1=36864 v2=473216
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=436352
+[bulkout] B v1=36864 v2=436352
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=399488
+[bulkout] B v1=36864 v2=399488
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=362624
+[bulkout] B v1=36864 v2=362624
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=325760
+[bulkout] B v1=36864 v2=325760
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=288896
+[bulkout] B v1=36864 v2=288896
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=252032
+[bulkout] B v1=36864 v2=252032
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=215168
+[bulkout] B v1=36864 v2=215168
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=178304
+[bulkout] B v1=36864 v2=178304
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=141440
+[bulkout] B v1=36864 v2=141440
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=104576
+[bulkout] B v1=36864 v2=104576
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=67712
+[bulkout] B v1=36864 v2=67712
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=30848
+[bulkout] B v1=30848 v2=30848
+[usb-xfer] submit ep=01 len=30848 sync=1
+[usb-xfer] submit rc=0 ep=01 len=30848
+[usb-xfer] wait ep=01 len=30848
+[bulkout] b v1=30848 v2=0
+[usb-xfer] submit ep=82 len=16 sync=1
+[usb-xfer] submit rc=0 ep=82 len=16
+[usb-xfer] wait ep=82 len=16
+[tpu] N v1=0 v2=254304
+[bulkout] B v1=8 v2=8
+[usb-xfer] submit ep=01 len=8 sync=1
+[usb-xfer] submit rc=0 ep=01 len=8
+[usb-xfer] wait ep=01 len=8
+[bulkout] b v1=8 v2=0
+[bulkout] B v1=36864 v2=254304
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=217440
+[bulkout] B v1=36864 v2=217440
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=180576
+[bulkout] B v1=36864 v2=180576
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=143712
+[bulkout] B v1=36864 v2=143712
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=106848
+[bulkout] B v1=36864 v2=106848
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=69984
+[bulkout] B v1=36864 v2=69984
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=33120
+[bulkout] B v1=33120 v2=33120
+[usb-xfer] submit ep=01 len=33120 sync=1
+[usb-xfer] submit rc=0 ep=01 len=33120
+[usb-xfer] wait ep=01 len=33120
+[bulkout] b v1=33120 v2=0
+[tpu] I name=serving_default_input:0 bytes=270000 off=0
+[bulkout] B v1=8 v2=8
+[usb-xfer] submit ep=01 len=8 sync=1
+[usb-xfer] submit rc=0 ep=01 len=8
+[usb-xfer] wait ep=01 len=8
+[bulkout] b v1=8 v2=0
+[bulkout] B v1=36864 v2=270000
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=233136
+[bulkout] B v1=36864 v2=233136
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=196272
+[bulkout] B v1=36864 v2=196272
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=159408
+[bulkout] B v1=36864 v2=159408
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=122544
+[bulkout] B v1=36864 v2=122544
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=85680
+[bulkout] B v1=36864 v2=85680
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=48816
+[bulkout] B v1=36864 v2=48816
+[usb-xfer] submit ep=01 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=01 len=36864
+[usb-xfer] wait ep=01 len=36864
+[bulkout] b v1=36864 v2=11952
+[bulkout] B v1=11952 v2=11952
+[usb-xfer] submit ep=01 len=11952 sync=1
+[usb-xfer] submit rc=0 ep=01 len=11952
+[usb-xfer] wait ep=01 len=11952
+[bulkout] b v1=11952 v2=0
+[tpu] O name=Squeeze1 bytes=7672 off=0
+[bulkin] S v1=1 v2=7672
+[usb-xfer] submit ep=81 len=7672 sync=1
+[usb-xfer] submit rc=0 ep=81 len=7672
+[usb-xfer] wait ep=81 len=7672
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=7416
+[usb-xfer] submit ep=81 len=7416 sync=1
+[usb-xfer] submit rc=0 ep=81 len=7416
+[usb-xfer] wait ep=81 len=7416
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=7160
+[usb-xfer] submit ep=81 len=7160 sync=1
+[usb-xfer] submit rc=0 ep=81 len=7160
+[usb-xfer] wait ep=81 len=7160
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=6904
+[usb-xfer] submit ep=81 len=6904 sync=1
+[usb-xfer] submit rc=0 ep=81 len=6904
+[usb-xfer] wait ep=81 len=6904
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=6648
+[usb-xfer] submit ep=81 len=6648 sync=1
+[usb-xfer] submit rc=0 ep=81 len=6648
+[usb-xfer] wait ep=81 len=6648
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=6392
+[usb-xfer] submit ep=81 len=6392 sync=1
+[usb-xfer] submit rc=0 ep=81 len=6392
+[usb-xfer] wait ep=81 len=6392
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=6136
+[usb-xfer] submit ep=81 len=6136 sync=1
+[usb-xfer] submit rc=0 ep=81 len=6136
+[usb-xfer] wait ep=81 len=6136
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=5880
+[usb-xfer] submit ep=81 len=5880 sync=1
+[usb-xfer] submit rc=0 ep=81 len=5880
+[usb-xfer] wait ep=81 len=5880
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=5624
+[usb-xfer] submit ep=81 len=5624 sync=1
+[usb-xfer] submit rc=0 ep=81 len=5624
+[usb-xfer] wait ep=81 len=5624
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=5368
+[usb-xfer] submit ep=81 len=5368 sync=1
+[usb-xfer] submit rc=0 ep=81 len=5368
+[usb-xfer] wait ep=81 len=5368
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=5112
+[usb-xfer] submit ep=81 len=5112 sync=1
+[usb-xfer] submit rc=0 ep=81 len=5112
+[usb-xfer] wait ep=81 len=5112
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=4856
+[usb-xfer] submit ep=81 len=4856 sync=1
+[usb-xfer] submit rc=0 ep=81 len=4856
+[usb-xfer] wait ep=81 len=4856
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=4600
+[usb-xfer] submit ep=81 len=4600 sync=1
+[usb-xfer] submit rc=0 ep=81 len=4600
+[usb-xfer] wait ep=81 len=4600
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=4344
+[usb-xfer] submit ep=81 len=4344 sync=1
+[usb-xfer] submit rc=0 ep=81 len=4344
+[usb-xfer] wait ep=81 len=4344
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=4088
+[usb-xfer] submit ep=81 len=4088 sync=1
+[usb-xfer] submit rc=0 ep=81 len=4088
+[usb-xfer] wait ep=81 len=4088
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=3832
+[usb-xfer] submit ep=81 len=3832 sync=1
+[usb-xfer] submit rc=0 ep=81 len=3832
+[usb-xfer] wait ep=81 len=3832
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=3576
+[usb-xfer] submit ep=81 len=3576 sync=1
+[usb-xfer] submit rc=0 ep=81 len=3576
+[usb-xfer] wait ep=81 len=3576
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=3320
+[usb-xfer] submit ep=81 len=3320 sync=1
+[usb-xfer] submit rc=0 ep=81 len=3320
+[usb-xfer] wait ep=81 len=3320
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=3064
+[usb-xfer] submit ep=81 len=3064 sync=1
+[usb-xfer] submit rc=0 ep=81 len=3064
+[usb-xfer] wait ep=81 len=3064
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=2808
+[usb-xfer] submit ep=81 len=2808 sync=1
+[usb-xfer] submit rc=0 ep=81 len=2808
+[usb-xfer] wait ep=81 len=2808
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=2552
+[usb-xfer] submit ep=81 len=2552 sync=1
+[usb-xfer] submit rc=0 ep=81 len=2552
+[usb-xfer] wait ep=81 len=2552
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=2296
+[usb-xfer] submit ep=81 len=2296 sync=1
+[usb-xfer] submit rc=0 ep=81 len=2296
+[usb-xfer] wait ep=81 len=2296
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=2040
+[usb-xfer] submit ep=81 len=2040 sync=1
+[usb-xfer] submit rc=0 ep=81 len=2040
+[usb-xfer] wait ep=81 len=2040
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=1784
+[usb-xfer] submit ep=81 len=1784 sync=1
+[usb-xfer] submit rc=0 ep=81 len=1784
+[usb-xfer] wait ep=81 len=1784
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=1528
+[usb-xfer] submit ep=81 len=1528 sync=1
+[usb-xfer] submit rc=0 ep=81 len=1528
+[usb-xfer] wait ep=81 len=1528
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=1272
+[usb-xfer] submit ep=81 len=1272 sync=1
+[usb-xfer] submit rc=0 ep=81 len=1272
+[usb-xfer] wait ep=81 len=1272
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=1016
+[usb-xfer] submit ep=81 len=1016 sync=1
+[usb-xfer] submit rc=0 ep=81 len=1016
+[usb-xfer] wait ep=81 len=1016
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=760
+[usb-xfer] submit ep=81 len=760 sync=1
+[usb-xfer] submit rc=0 ep=81 len=760
+[usb-xfer] wait ep=81 len=760
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=504
+[usb-xfer] submit ep=81 len=504 sync=1
+[usb-xfer] submit rc=0 ep=81 len=504
+[usb-xfer] wait ep=81 len=504
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=248
+[usb-xfer] submit ep=81 len=248 sync=1
+[usb-xfer] submit rc=0 ep=81 len=248
+[usb-xfer] wait ep=81 len=248
+[bulkin] D v1=248 v2=0
+[tpu] O name=convert_scores bytes=176368 off=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=128 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=32 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36864
+[usb-xfer] submit ep=81 len=36864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36864
+[usb-xfer] wait ep=81 len=36864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36688
+[usb-xfer] submit ep=81 len=36688 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36688
+[usb-xfer] wait ep=81 len=36688
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36432
+[usb-xfer] submit ep=81 len=36432 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36432
+[usb-xfer] wait ep=81 len=36432
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=36176
+[usb-xfer] submit ep=81 len=36176 sync=1
+[usb-xfer] submit rc=0 ep=81 len=36176
+[usb-xfer] wait ep=81 len=36176
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=35920
+[usb-xfer] submit ep=81 len=35920 sync=1
+[usb-xfer] submit rc=0 ep=81 len=35920
+[usb-xfer] wait ep=81 len=35920
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=35664
+[usb-xfer] submit ep=81 len=35664 sync=1
+[usb-xfer] submit rc=0 ep=81 len=35664
+[usb-xfer] wait ep=81 len=35664
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=35408
+[usb-xfer] submit ep=81 len=35408 sync=1
+[usb-xfer] submit rc=0 ep=81 len=35408
+[usb-xfer] wait ep=81 len=35408
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=35152
+[usb-xfer] submit ep=81 len=35152 sync=1
+[usb-xfer] submit rc=0 ep=81 len=35152
+[usb-xfer] wait ep=81 len=35152
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=34896
+[usb-xfer] submit ep=81 len=34896 sync=1
+[usb-xfer] submit rc=0 ep=81 len=34896
+[usb-xfer] wait ep=81 len=34896
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=34640
+[usb-xfer] submit ep=81 len=34640 sync=1
+[usb-xfer] submit rc=0 ep=81 len=34640
+[usb-xfer] wait ep=81 len=34640
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=34384
+[usb-xfer] submit ep=81 len=34384 sync=1
+[usb-xfer] submit rc=0 ep=81 len=34384
+[usb-xfer] wait ep=81 len=34384
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=34128
+[usb-xfer] submit ep=81 len=34128 sync=1
+[usb-xfer] submit rc=0 ep=81 len=34128
+[usb-xfer] wait ep=81 len=34128
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=33872
+[usb-xfer] submit ep=81 len=33872 sync=1
+[usb-xfer] submit rc=0 ep=81 len=33872
+[usb-xfer] wait ep=81 len=33872
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=33616
+[usb-xfer] submit ep=81 len=33616 sync=1
+[usb-xfer] submit rc=0 ep=81 len=33616
+[usb-xfer] wait ep=81 len=33616
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=33360
+[usb-xfer] submit ep=81 len=33360 sync=1
+[usb-xfer] submit rc=0 ep=81 len=33360
+[usb-xfer] wait ep=81 len=33360
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=33104
+[usb-xfer] submit ep=81 len=33104 sync=1
+[usb-xfer] submit rc=0 ep=81 len=33104
+[usb-xfer] wait ep=81 len=33104
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=32848
+[usb-xfer] submit ep=81 len=32848 sync=1
+[usb-xfer] submit rc=0 ep=81 len=32848
+[usb-xfer] wait ep=81 len=32848
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=32592
+[usb-xfer] submit ep=81 len=32592 sync=1
+[usb-xfer] submit rc=0 ep=81 len=32592
+[usb-xfer] wait ep=81 len=32592
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=32336
+[usb-xfer] submit ep=81 len=32336 sync=1
+[usb-xfer] submit rc=0 ep=81 len=32336
+[usb-xfer] wait ep=81 len=32336
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=32080
+[usb-xfer] submit ep=81 len=32080 sync=1
+[usb-xfer] submit rc=0 ep=81 len=32080
+[usb-xfer] wait ep=81 len=32080
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=31824
+[usb-xfer] submit ep=81 len=31824 sync=1
+[usb-xfer] submit rc=0 ep=81 len=31824
+[usb-xfer] wait ep=81 len=31824
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=31568
+[usb-xfer] submit ep=81 len=31568 sync=1
+[usb-xfer] submit rc=0 ep=81 len=31568
+[usb-xfer] wait ep=81 len=31568
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=31312
+[usb-xfer] submit ep=81 len=31312 sync=1
+[usb-xfer] submit rc=0 ep=81 len=31312
+[usb-xfer] wait ep=81 len=31312
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=31056
+[usb-xfer] submit ep=81 len=31056 sync=1
+[usb-xfer] submit rc=0 ep=81 len=31056
+[usb-xfer] wait ep=81 len=31056
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=30800
+[usb-xfer] submit ep=81 len=30800 sync=1
+[usb-xfer] submit rc=0 ep=81 len=30800
+[usb-xfer] wait ep=81 len=30800
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=30544
+[usb-xfer] submit ep=81 len=30544 sync=1
+[usb-xfer] submit rc=0 ep=81 len=30544
+[usb-xfer] wait ep=81 len=30544
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=30288
+[usb-xfer] submit ep=81 len=30288 sync=1
+[usb-xfer] submit rc=0 ep=81 len=30288
+[usb-xfer] wait ep=81 len=30288
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=30032
+[usb-xfer] submit ep=81 len=30032 sync=1
+[usb-xfer] submit rc=0 ep=81 len=30032
+[usb-xfer] wait ep=81 len=30032
+[bulkin] D v1=32 v2=0
+[bulkin] S v1=1 v2=30000
+[usb-xfer] submit ep=81 len=30000 sync=1
+[usb-xfer] submit rc=0 ep=81 len=30000
+[usb-xfer] wait ep=81 len=30000
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=29744
+[usb-xfer] submit ep=81 len=29744 sync=1
+[usb-xfer] submit rc=0 ep=81 len=29744
+[usb-xfer] wait ep=81 len=29744
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=29488
+[usb-xfer] submit ep=81 len=29488 sync=1
+[usb-xfer] submit rc=0 ep=81 len=29488
+[usb-xfer] wait ep=81 len=29488
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=29232
+[usb-xfer] submit ep=81 len=29232 sync=1
+[usb-xfer] submit rc=0 ep=81 len=29232
+[usb-xfer] wait ep=81 len=29232
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=28976
+[usb-xfer] submit ep=81 len=28976 sync=1
+[usb-xfer] submit rc=0 ep=81 len=28976
+[usb-xfer] wait ep=81 len=28976
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=28720
+[usb-xfer] submit ep=81 len=28720 sync=1
+[usb-xfer] submit rc=0 ep=81 len=28720
+[usb-xfer] wait ep=81 len=28720
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=28464
+[usb-xfer] submit ep=81 len=28464 sync=1
+[usb-xfer] submit rc=0 ep=81 len=28464
+[usb-xfer] wait ep=81 len=28464
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=28208
+[usb-xfer] submit ep=81 len=28208 sync=1
+[usb-xfer] submit rc=0 ep=81 len=28208
+[usb-xfer] wait ep=81 len=28208
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=27952
+[usb-xfer] submit ep=81 len=27952 sync=1
+[usb-xfer] submit rc=0 ep=81 len=27952
+[usb-xfer] wait ep=81 len=27952
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=27696
+[usb-xfer] submit ep=81 len=27696 sync=1
+[usb-xfer] submit rc=0 ep=81 len=27696
+[usb-xfer] wait ep=81 len=27696
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=27440
+[usb-xfer] submit ep=81 len=27440 sync=1
+[usb-xfer] submit rc=0 ep=81 len=27440
+[usb-xfer] wait ep=81 len=27440
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=27184
+[usb-xfer] submit ep=81 len=27184 sync=1
+[usb-xfer] submit rc=0 ep=81 len=27184
+[usb-xfer] wait ep=81 len=27184
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=26928
+[usb-xfer] submit ep=81 len=26928 sync=1
+[usb-xfer] submit rc=0 ep=81 len=26928
+[usb-xfer] wait ep=81 len=26928
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=26672
+[usb-xfer] submit ep=81 len=26672 sync=1
+[usb-xfer] submit rc=0 ep=81 len=26672
+[usb-xfer] wait ep=81 len=26672
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=26416
+[usb-xfer] submit ep=81 len=26416 sync=1
+[usb-xfer] submit rc=0 ep=81 len=26416
+[usb-xfer] wait ep=81 len=26416
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=26160
+[usb-xfer] submit ep=81 len=26160 sync=1
+[usb-xfer] submit rc=0 ep=81 len=26160
+[usb-xfer] wait ep=81 len=26160
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=25904
+[usb-xfer] submit ep=81 len=25904 sync=1
+[usb-xfer] submit rc=0 ep=81 len=25904
+[usb-xfer] wait ep=81 len=25904
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=25648
+[usb-xfer] submit ep=81 len=25648 sync=1
+[usb-xfer] submit rc=0 ep=81 len=25648
+[usb-xfer] wait ep=81 len=25648
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=25392
+[usb-xfer] submit ep=81 len=25392 sync=1
+[usb-xfer] submit rc=0 ep=81 len=25392
+[usb-xfer] wait ep=81 len=25392
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=25136
+[usb-xfer] submit ep=81 len=25136 sync=1
+[usb-xfer] submit rc=0 ep=81 len=25136
+[usb-xfer] wait ep=81 len=25136
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=24880
+[usb-xfer] submit ep=81 len=24880 sync=1
+[usb-xfer] submit rc=0 ep=81 len=24880
+[usb-xfer] wait ep=81 len=24880
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=24624
+[usb-xfer] submit ep=81 len=24624 sync=1
+[usb-xfer] submit rc=0 ep=81 len=24624
+[usb-xfer] wait ep=81 len=24624
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=24368
+[usb-xfer] submit ep=81 len=24368 sync=1
+[usb-xfer] submit rc=0 ep=81 len=24368
+[usb-xfer] wait ep=81 len=24368
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=24112
+[usb-xfer] submit ep=81 len=24112 sync=1
+[usb-xfer] submit rc=0 ep=81 len=24112
+[usb-xfer] wait ep=81 len=24112
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=23856
+[usb-xfer] submit ep=81 len=23856 sync=1
+[usb-xfer] submit rc=0 ep=81 len=23856
+[usb-xfer] wait ep=81 len=23856
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=23600
+[usb-xfer] submit ep=81 len=23600 sync=1
+[usb-xfer] submit rc=0 ep=81 len=23600
+[usb-xfer] wait ep=81 len=23600
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=23344
+[usb-xfer] submit ep=81 len=23344 sync=1
+[usb-xfer] submit rc=0 ep=81 len=23344
+[usb-xfer] wait ep=81 len=23344
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=23088
+[usb-xfer] submit ep=81 len=23088 sync=1
+[usb-xfer] submit rc=0 ep=81 len=23088
+[usb-xfer] wait ep=81 len=23088
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=22832
+[usb-xfer] submit ep=81 len=22832 sync=1
+[usb-xfer] submit rc=0 ep=81 len=22832
+[usb-xfer] wait ep=81 len=22832
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=22576
+[usb-xfer] submit ep=81 len=22576 sync=1
+[usb-xfer] submit rc=0 ep=81 len=22576
+[usb-xfer] wait ep=81 len=22576
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=22320
+[usb-xfer] submit ep=81 len=22320 sync=1
+[usb-xfer] submit rc=0 ep=81 len=22320
+[usb-xfer] wait ep=81 len=22320
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=22064
+[usb-xfer] submit ep=81 len=22064 sync=1
+[usb-xfer] submit rc=0 ep=81 len=22064
+[usb-xfer] wait ep=81 len=22064
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=21808
+[usb-xfer] submit ep=81 len=21808 sync=1
+[usb-xfer] submit rc=0 ep=81 len=21808
+[usb-xfer] wait ep=81 len=21808
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=21552
+[usb-xfer] submit ep=81 len=21552 sync=1
+[usb-xfer] submit rc=0 ep=81 len=21552
+[usb-xfer] wait ep=81 len=21552
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=21296
+[usb-xfer] submit ep=81 len=21296 sync=1
+[usb-xfer] submit rc=0 ep=81 len=21296
+[usb-xfer] wait ep=81 len=21296
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=21040
+[usb-xfer] submit ep=81 len=21040 sync=1
+[usb-xfer] submit rc=0 ep=81 len=21040
+[usb-xfer] wait ep=81 len=21040
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=20784
+[usb-xfer] submit ep=81 len=20784 sync=1
+[usb-xfer] submit rc=0 ep=81 len=20784
+[usb-xfer] wait ep=81 len=20784
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=20528
+[usb-xfer] submit ep=81 len=20528 sync=1
+[usb-xfer] submit rc=0 ep=81 len=20528
+[usb-xfer] wait ep=81 len=20528
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=20272
+[usb-xfer] submit ep=81 len=20272 sync=1
+[usb-xfer] submit rc=0 ep=81 len=20272
+[usb-xfer] wait ep=81 len=20272
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=20016
+[usb-xfer] submit ep=81 len=20016 sync=1
+[usb-xfer] submit rc=0 ep=81 len=20016
+[usb-xfer] wait ep=81 len=20016
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=19760
+[usb-xfer] submit ep=81 len=19760 sync=1
+[usb-xfer] submit rc=0 ep=81 len=19760
+[usb-xfer] wait ep=81 len=19760
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=19504
+[usb-xfer] submit ep=81 len=19504 sync=1
+[usb-xfer] submit rc=0 ep=81 len=19504
+[usb-xfer] wait ep=81 len=19504
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=19248
+[usb-xfer] submit ep=81 len=19248 sync=1
+[usb-xfer] submit rc=0 ep=81 len=19248
+[usb-xfer] wait ep=81 len=19248
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=18992
+[usb-xfer] submit ep=81 len=18992 sync=1
+[usb-xfer] submit rc=0 ep=81 len=18992
+[usb-xfer] wait ep=81 len=18992
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=18736
+[usb-xfer] submit ep=81 len=18736 sync=1
+[usb-xfer] submit rc=0 ep=81 len=18736
+[usb-xfer] wait ep=81 len=18736
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=18480
+[usb-xfer] submit ep=81 len=18480 sync=1
+[usb-xfer] submit rc=0 ep=81 len=18480
+[usb-xfer] wait ep=81 len=18480
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=18224
+[usb-xfer] submit ep=81 len=18224 sync=1
+[usb-xfer] submit rc=0 ep=81 len=18224
+[usb-xfer] wait ep=81 len=18224
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=17968
+[usb-xfer] submit ep=81 len=17968 sync=1
+[usb-xfer] submit rc=0 ep=81 len=17968
+[usb-xfer] wait ep=81 len=17968
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=17712
+[usb-xfer] submit ep=81 len=17712 sync=1
+[usb-xfer] submit rc=0 ep=81 len=17712
+[usb-xfer] wait ep=81 len=17712
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=17456
+[usb-xfer] submit ep=81 len=17456 sync=1
+[usb-xfer] submit rc=0 ep=81 len=17456
+[usb-xfer] wait ep=81 len=17456
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=17200
+[usb-xfer] submit ep=81 len=17200 sync=1
+[usb-xfer] submit rc=0 ep=81 len=17200
+[usb-xfer] wait ep=81 len=17200
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=16944
+[usb-xfer] submit ep=81 len=16944 sync=1
+[usb-xfer] submit rc=0 ep=81 len=16944
+[usb-xfer] wait ep=81 len=16944
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=16688
+[usb-xfer] submit ep=81 len=16688 sync=1
+[usb-xfer] submit rc=0 ep=81 len=16688
+[usb-xfer] wait ep=81 len=16688
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=16432
+[usb-xfer] submit ep=81 len=16432 sync=1
+[usb-xfer] submit rc=0 ep=81 len=16432
+[usb-xfer] wait ep=81 len=16432
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=16176
+[usb-xfer] submit ep=81 len=16176 sync=1
+[usb-xfer] submit rc=0 ep=81 len=16176
+[usb-xfer] wait ep=81 len=16176
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=15920
+[usb-xfer] submit ep=81 len=15920 sync=1
+[usb-xfer] submit rc=0 ep=81 len=15920
+[usb-xfer] wait ep=81 len=15920
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=15664
+[usb-xfer] submit ep=81 len=15664 sync=1
+[usb-xfer] submit rc=0 ep=81 len=15664
+[usb-xfer] wait ep=81 len=15664
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=15408
+[usb-xfer] submit ep=81 len=15408 sync=1
+[usb-xfer] submit rc=0 ep=81 len=15408
+[usb-xfer] wait ep=81 len=15408
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=15152
+[usb-xfer] submit ep=81 len=15152 sync=1
+[usb-xfer] submit rc=0 ep=81 len=15152
+[usb-xfer] wait ep=81 len=15152
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=14896
+[usb-xfer] submit ep=81 len=14896 sync=1
+[usb-xfer] submit rc=0 ep=81 len=14896
+[usb-xfer] wait ep=81 len=14896
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=14640
+[usb-xfer] submit ep=81 len=14640 sync=1
+[usb-xfer] submit rc=0 ep=81 len=14640
+[usb-xfer] wait ep=81 len=14640
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=14384
+[usb-xfer] submit ep=81 len=14384 sync=1
+[usb-xfer] submit rc=0 ep=81 len=14384
+[usb-xfer] wait ep=81 len=14384
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=14128
+[usb-xfer] submit ep=81 len=14128 sync=1
+[usb-xfer] submit rc=0 ep=81 len=14128
+[usb-xfer] wait ep=81 len=14128
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=13872
+[usb-xfer] submit ep=81 len=13872 sync=1
+[usb-xfer] submit rc=0 ep=81 len=13872
+[usb-xfer] wait ep=81 len=13872
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=13616
+[usb-xfer] submit ep=81 len=13616 sync=1
+[usb-xfer] submit rc=0 ep=81 len=13616
+[usb-xfer] wait ep=81 len=13616
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=13360
+[usb-xfer] submit ep=81 len=13360 sync=1
+[usb-xfer] submit rc=0 ep=81 len=13360
+[usb-xfer] wait ep=81 len=13360
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=13104
+[usb-xfer] submit ep=81 len=13104 sync=1
+[usb-xfer] submit rc=0 ep=81 len=13104
+[usb-xfer] wait ep=81 len=13104
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=12848
+[usb-xfer] submit ep=81 len=12848 sync=1
+[usb-xfer] submit rc=0 ep=81 len=12848
+[usb-xfer] wait ep=81 len=12848
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=12592
+[usb-xfer] submit ep=81 len=12592 sync=1
+[usb-xfer] submit rc=0 ep=81 len=12592
+[usb-xfer] wait ep=81 len=12592
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=12336
+[usb-xfer] submit ep=81 len=12336 sync=1
+[usb-xfer] submit rc=0 ep=81 len=12336
+[usb-xfer] wait ep=81 len=12336
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=12080
+[usb-xfer] submit ep=81 len=12080 sync=1
+[usb-xfer] submit rc=0 ep=81 len=12080
+[usb-xfer] wait ep=81 len=12080
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=11824
+[usb-xfer] submit ep=81 len=11824 sync=1
+[usb-xfer] submit rc=0 ep=81 len=11824
+[usb-xfer] wait ep=81 len=11824
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=11568
+[usb-xfer] submit ep=81 len=11568 sync=1
+[usb-xfer] submit rc=0 ep=81 len=11568
+[usb-xfer] wait ep=81 len=11568
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=11312
+[usb-xfer] submit ep=81 len=11312 sync=1
+[usb-xfer] submit rc=0 ep=81 len=11312
+[usb-xfer] wait ep=81 len=11312
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=11056
+[usb-xfer] submit ep=81 len=11056 sync=1
+[usb-xfer] submit rc=0 ep=81 len=11056
+[usb-xfer] wait ep=81 len=11056
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=10800
+[usb-xfer] submit ep=81 len=10800 sync=1
+[usb-xfer] submit rc=0 ep=81 len=10800
+[usb-xfer] wait ep=81 len=10800
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=10544
+[usb-xfer] submit ep=81 len=10544 sync=1
+[usb-xfer] submit rc=0 ep=81 len=10544
+[usb-xfer] wait ep=81 len=10544
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=10288
+[usb-xfer] submit ep=81 len=10288 sync=1
+[usb-xfer] submit rc=0 ep=81 len=10288
+[usb-xfer] wait ep=81 len=10288
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=10032
+[usb-xfer] submit ep=81 len=10032 sync=1
+[usb-xfer] submit rc=0 ep=81 len=10032
+[usb-xfer] wait ep=81 len=10032
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=9776
+[usb-xfer] submit ep=81 len=9776 sync=1
+[usb-xfer] submit rc=0 ep=81 len=9776
+[usb-xfer] wait ep=81 len=9776
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=9520
+[usb-xfer] submit ep=81 len=9520 sync=1
+[usb-xfer] submit rc=0 ep=81 len=9520
+[usb-xfer] wait ep=81 len=9520
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=9264
+[usb-xfer] submit ep=81 len=9264 sync=1
+[usb-xfer] submit rc=0 ep=81 len=9264
+[usb-xfer] wait ep=81 len=9264
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=9008
+[usb-xfer] submit ep=81 len=9008 sync=1
+[usb-xfer] submit rc=0 ep=81 len=9008
+[usb-xfer] wait ep=81 len=9008
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=8752
+[usb-xfer] submit ep=81 len=8752 sync=1
+[usb-xfer] submit rc=0 ep=81 len=8752
+[usb-xfer] wait ep=81 len=8752
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=8496
+[usb-xfer] submit ep=81 len=8496 sync=1
+[usb-xfer] submit rc=0 ep=81 len=8496
+[usb-xfer] wait ep=81 len=8496
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=8240
+[usb-xfer] submit ep=81 len=8240 sync=1
+[usb-xfer] submit rc=0 ep=81 len=8240
+[usb-xfer] wait ep=81 len=8240
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=7984
+[usb-xfer] submit ep=81 len=7984 sync=1
+[usb-xfer] submit rc=0 ep=81 len=7984
+[usb-xfer] wait ep=81 len=7984
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=7728
+[usb-xfer] submit ep=81 len=7728 sync=1
+[usb-xfer] submit rc=0 ep=81 len=7728
+[usb-xfer] wait ep=81 len=7728
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=7472
+[usb-xfer] submit ep=81 len=7472 sync=1
+[usb-xfer] submit rc=0 ep=81 len=7472
+[usb-xfer] wait ep=81 len=7472
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=7216
+[usb-xfer] submit ep=81 len=7216 sync=1
+[usb-xfer] submit rc=0 ep=81 len=7216
+[usb-xfer] wait ep=81 len=7216
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=6960
+[usb-xfer] submit ep=81 len=6960 sync=1
+[usb-xfer] submit rc=0 ep=81 len=6960
+[usb-xfer] wait ep=81 len=6960
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=6704
+[usb-xfer] submit ep=81 len=6704 sync=1
+[usb-xfer] submit rc=0 ep=81 len=6704
+[usb-xfer] wait ep=81 len=6704
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=6448
+[usb-xfer] submit ep=81 len=6448 sync=1
+[usb-xfer] submit rc=0 ep=81 len=6448
+[usb-xfer] wait ep=81 len=6448
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=6192
+[usb-xfer] submit ep=81 len=6192 sync=1
+[usb-xfer] submit rc=0 ep=81 len=6192
+[usb-xfer] wait ep=81 len=6192
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=5936
+[usb-xfer] submit ep=81 len=5936 sync=1
+[usb-xfer] submit rc=0 ep=81 len=5936
+[usb-xfer] wait ep=81 len=5936
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=5680
+[usb-xfer] submit ep=81 len=5680 sync=1
+[usb-xfer] submit rc=0 ep=81 len=5680
+[usb-xfer] wait ep=81 len=5680
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=5424
+[usb-xfer] submit ep=81 len=5424 sync=1
+[usb-xfer] submit rc=0 ep=81 len=5424
+[usb-xfer] wait ep=81 len=5424
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=5168
+[usb-xfer] submit ep=81 len=5168 sync=1
+[usb-xfer] submit rc=0 ep=81 len=5168
+[usb-xfer] wait ep=81 len=5168
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=4912
+[usb-xfer] submit ep=81 len=4912 sync=1
+[usb-xfer] submit rc=0 ep=81 len=4912
+[usb-xfer] wait ep=81 len=4912
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=4656
+[usb-xfer] submit ep=81 len=4656 sync=1
+[usb-xfer] submit rc=0 ep=81 len=4656
+[usb-xfer] wait ep=81 len=4656
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=4400
+[usb-xfer] submit ep=81 len=4400 sync=1
+[usb-xfer] submit rc=0 ep=81 len=4400
+[usb-xfer] wait ep=81 len=4400
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=4144
+[usb-xfer] submit ep=81 len=4144 sync=1
+[usb-xfer] submit rc=0 ep=81 len=4144
+[usb-xfer] wait ep=81 len=4144
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=3888
+[usb-xfer] submit ep=81 len=3888 sync=1
+[usb-xfer] submit rc=0 ep=81 len=3888
+[usb-xfer] wait ep=81 len=3888
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=3632
+[usb-xfer] submit ep=81 len=3632 sync=1
+[usb-xfer] submit rc=0 ep=81 len=3632
+[usb-xfer] wait ep=81 len=3632
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=3376
+[usb-xfer] submit ep=81 len=3376 sync=1
+[usb-xfer] submit rc=0 ep=81 len=3376
+[usb-xfer] wait ep=81 len=3376
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=3120
+[usb-xfer] submit ep=81 len=3120 sync=1
+[usb-xfer] submit rc=0 ep=81 len=3120
+[usb-xfer] wait ep=81 len=3120
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=2864
+[usb-xfer] submit ep=81 len=2864 sync=1
+[usb-xfer] submit rc=0 ep=81 len=2864
+[usb-xfer] wait ep=81 len=2864
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=2608
+[usb-xfer] submit ep=81 len=2608 sync=1
+[usb-xfer] submit rc=0 ep=81 len=2608
+[usb-xfer] wait ep=81 len=2608
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=2352
+[usb-xfer] submit ep=81 len=2352 sync=1
+[usb-xfer] submit rc=0 ep=81 len=2352
+[usb-xfer] wait ep=81 len=2352
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=2096
+[usb-xfer] submit ep=81 len=2096 sync=1
+[usb-xfer] submit rc=0 ep=81 len=2096
+[usb-xfer] wait ep=81 len=2096
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=1840
+[usb-xfer] submit ep=81 len=1840 sync=1
+[usb-xfer] submit rc=0 ep=81 len=1840
+[usb-xfer] wait ep=81 len=1840
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=1584
+[usb-xfer] submit ep=81 len=1584 sync=1
+[usb-xfer] submit rc=0 ep=81 len=1584
+[usb-xfer] wait ep=81 len=1584
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=1328
+[usb-xfer] submit ep=81 len=1328 sync=1
+[usb-xfer] submit rc=0 ep=81 len=1328
+[usb-xfer] wait ep=81 len=1328
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=1072
+[usb-xfer] submit ep=81 len=1072 sync=1
+[usb-xfer] submit rc=0 ep=81 len=1072
+[usb-xfer] wait ep=81 len=1072
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=816
+[usb-xfer] submit ep=81 len=816 sync=1
+[usb-xfer] submit rc=0 ep=81 len=816
+[usb-xfer] wait ep=81 len=816
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=560
+[usb-xfer] submit ep=81 len=560 sync=1
+[usb-xfer] submit rc=0 ep=81 len=560
+[usb-xfer] wait ep=81 len=560
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=304
+[usb-xfer] submit ep=81 len=304 sync=1
+[usb-xfer] submit rc=0 ep=81 len=304
+[usb-xfer] wait ep=81 len=304
+[bulkin] D v1=256 v2=0
+[bulkin] S v1=1 v2=48
+[usb-xfer] submit ep=81 len=48 sync=1
+[usb-xfer] submit rc=0 ep=81 len=48
+[usb-xfer] wait ep=81 len=48
+[bulkin] D v1=48 v2=0
+[usb-xfer] submit ep=82 len=16 sync=1
+[usb-xfer] submit rc=0 ep=82 len=16
+[usb-xfer] wait ep=82 len=16
+[tpu-posix] call done kind=invoke slot=0 rc=955
+TPU_INVOKE 955
+TPU_OUTPUTS 4
+DETECTIONS_COUNT 18
+DETECTIONS_WRITTEN True
+OVERLAY_WRITTEN 0
+18
+>>> 
+[sim] EOF on stdin, exiting
+[sim] REPL task done, terminating process

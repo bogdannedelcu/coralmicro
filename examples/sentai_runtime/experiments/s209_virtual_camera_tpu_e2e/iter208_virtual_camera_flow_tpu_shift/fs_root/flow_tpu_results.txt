@@ -1,0 +1,1 @@
+{'flow_pub_stats': {'grab_fail_total': 0, 'grab_fail_streak': 0, 'running': False, 'frames': 2}, 'records': [(0, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ()), (1, 0, (True, 1, -129, 5, 240, 2, -1), -1, -1, ())]}

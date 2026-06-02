@@ -1,0 +1,118 @@
+[sim] FS root: /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter211_virtual_camera_flow_tpu_shift/fs_root
+[sim] sentai_sim build #1056 (2026-06-01 08:33:38)
+[sim] FreeRTOS POSIX port: tick=1000 Hz, heap=4194304 bytes
+[sim] MicroPython heap: 2097152 bytes
+[sim] sentai.fr auto-start: dir=/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter211_virtual_camera_flow_tpu_shift/fs_root/fr init=0 events=0 scalars=0 debug=0 task=0
+
+MicroPython on SentAI SIM (FreeRTOS POSIX port + MicroPython embed)
+Type expressions, end with Enter.  Ctrl-D or 'exit' to quit.
+Try: sentai.version(), sentai.fs.write(...), help()
+
+>>> [sentai_fr] worker START
+camera_bridge: listening on /tmp/sentai_cam.sock (waiting for Gazebo bridge)
+>>> MODEL_SIZE 7077792
+IMG0_SIZE 921654
+IMGN_SIZE 921654
+[tpu-posix] call begin kind=load slot=0
+[tpu-posix] load slot=0 path=/models/tf2_ssd_mobilenet_v2_coco17_ptq_edgetpu.tflite
+[tpu-posix] opening Coral USB via POSIX/libusb backend
+[tpu-posix] libusb_init...
+[tpu-posix] dfu/app probe...
+[tpu-posix] open app device...
+[tpu-posix] opened Coral USB interface=0 out=01,02,03 in=81,82 irq=83
+[tpu-posix] opening EdgeTpuManager context
+[EdgeTPU mgr] creating context
+[EdgeTPU mgr] initializing driver
+[TPU init] read omc0_00
+[TPU init] check chip id
+[TPU init] write test reg
+[TPU init] read test reg
+[TPU init] disable inactive mode
+[TPU init] disable clock gating
+[TPU init] enter reset
+[TPU init] exit reset
+[TPU init] check scalar run control
+[TPU init] write idle register
+[TPU init] write tile config
+[TPU init] write deep sleep
+[TPU init] enable clock gating
+[TPU init] configure usb csr
+[TPU init] enable tempsense clock
+[TPU init] enable tempsense input ports
+[TPU init] enable tempsense flow
+[TPU init] move to run
+[TPU init] done
+[EdgeTPU mgr] driver initialized
+[tpu-posix] EdgeTPU ready via direct libusb backend
+[tpu-posix] reading model from SentAI FS
+[tpu-posix] model size=7077792
+[tpu-posix] reading model bytes into static storage
+[tpu-posix] model read got=7077792
+[tpu-posix] model loaded from FS: /models/tf2_ssd_mobilenet_v2_coco17_ptq_edgetpu.tflite (7077792 bytes)
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x05701716d04676e6
+TPU Input[0]: uint8[1,300,300,3] 270000 B scale=0.00784314 zp=127
+TPU Out[0]: float32[1,20] 80 B scale=0.00000000 zp=0
+TPU Out[1]: float32[1,20,4] 320 B scale=0.00000000 zp=0
+TPU Out[2]: float32[1] 4 B scale=0.00000000 zp=0
+TPU Out[3]: float32[1,20] 80 B scale=0.00000000 zp=0
+[tpu-posix] arena used: 2722 / 8192 KB
+[tpu-posix] publish slot0 begin
+[tpu-posix] publish slot0 done
+[tpu-posix] worker result kind=load slot=0 rc=0
+[tpu-posix] worker done_seq=1
+[tpu-posix] worker sem given
+[tpu-posix] call done kind=load slot=0 rc=0
+TPU_LOAD 0
+TPU_READY True
+FLOW_START 0
+E:0480:100
+PIPE_START 0
+[det_prep] start
+[det_prep] grab idx=-2 raw=(nil)
+[det_infer] start
+FRAME 0 SELECT_BEGIN
+[camera] select(-1, /images/cat_shift_00.bmp) rc=0
+FRAME 0 SELECT_RC 0
+FRAME 0 PIPE_GET_BEGIN
+[det_prep] grab idx=0 raw=0x559f6e457180
+[det_infer] frame ready direct=1
+[tpu-posix] call begin kind=invoke_input slot=0
+[tpu-posix] worker result kind=invoke_input slot=0 rc=1964
+[tpu-posix] worker done_seq=2
+[tpu-posix] worker sem given
+[tpu-posix] call done kind=invoke_input slot=0 rc=1964
+[det_infer] invoke_ms=1964
+[det_infer] nms det_count=20
+[det_infer] queued frame=1 dets=20
+FRAME 0 PIPE_DONE True
+FRAME 0 FLOW_BEGIN
+[det_prep] grab idx=0 raw=0x559f6e457180
+FRAME 0 FLOW (True, 1, 0, 0, 0, 1, -1)
+FRAME 1 SELECT_BEGIN
+[camera] select(-1, /images/cat_shift_01.bmp) rc=0
+FRAME 1 SELECT_RC 0
+FRAME 1 PIPE_GET_BEGIN
+[det_infer] frame ready direct=1
+[tpu-posix] call begin kind=invoke_input slot=0
+[tpu-posix] worker result kind=invoke_input slot=0 rc=947
+[tpu-posix] worker done_seq=3
+[tpu-posix] worker sem given
+[tpu-posix] call done kind=invoke_input slot=0 rc=947
+[det_infer] invoke_ms=947
+[det_infer] nms det_count=20
+[det_infer] queued frame=2 dets=20
+FRAME 1 PIPE_DONE True
+FRAME 1 FLOW_BEGIN
+FRAME 1 FLOW (True, 1, -129, 5, 240, 2, -1)
+[det_prep] grab idx=0 raw=0x559f6e457180
+[det_infer] frame ready direct=1
+E:0481:2
+PIPE_STOP 0
+FLOW_STOP 0
+OVERLAY_WRITTEN 0
+FLOW_TPU_RESULTS {'flow_pub_stats': {'grab_fail_total': 0, 'grab_fail_streak': 0, 'running': False, 'frames': 2}, 'records': [(0, 0, (True, 1, 0, 0, 0, 1, -1), 0, 1964, ((0, 5, 299, 294, 477, 71), (1, 1, 298, 116, 266, 0), (32, 1, 289, 178, 195, 0), (16, 0, 34, 5, 180, 0), (3, 0, 15, 5, 168, 0), (135, 15, 302, 306, 160, 0), (3, 1, 135, 290, 148, 0), (272, 0, 286, 5, 145, 0), (131, 1, 140, 5, 137, 0), (146, 1, 156, 5, 137, 0), (162, 1, 171, 5, 137, 0), (257, 0, 268, 5, 137, 0), (1, 4, 217, 196, 137, 0), (177, 1, 187, 5, 133, 0), (3, 3, 294, 27, 133, 0), (35, 0, 48, 5, 129, 0), (115, 0, 125, 4, 129, 0), (194, 0, 204, 4, 129, 0), (209, 1, 220, 5, 129, 0), (225, 0, 236, 4, 129, 0))), (1, 0, (True, 1, -129, 5, 240, 2, -1), 0, 947, ((0, 5, 299, 294, 477, 71), (1, 1, 298, 116, 266, 0), (32, 1, 289, 178, 195, 0), (16, 0, 34, 5, 180, 0), (3, 0, 15, 5, 168, 0), (135, 15, 302, 306, 160, 0), (3, 1, 135, 290, 148, 0), (272, 0, 286, 5, 145, 0), (131, 1, 140, 5, 137, 0), (146, 1, 156, 5, 137, 0), (162, 1, 171, 5, 137, 0), (257, 0, 268, 5, 137, 0), (1, 4, 217, 196, 137, 0), (177, 1, 187, 5, 133, 0), (3, 3, 294, 27, 133, 0), (35, 0, 48, 5, 129, 0), (115, 0, 125, 4, 129, 0), (194, 0, 204, 4, 129, 0), (209, 1, 220, 5, 129, 0), (225, 0, 236, 4, 129, 0)))]}
+FLOW_TPU_RESULTS_WRITTEN True
+0
+>>> 
+[sim] EOF on stdin, exiting
+[sim] REPL task done, terminating process

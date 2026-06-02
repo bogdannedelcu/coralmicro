@@ -1,0 +1,11 @@
+load_rc=0
+ready=True
+input_size=1
+input_dims=(1, 1)
+num_outputs_before=1
+set_input_rc=0
+invoke_ms=0
+num_outputs=1
+output0_size=1
+output0_dims=(1, 1)
+value0=4

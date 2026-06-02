@@ -1,0 +1,85 @@
+{
+  "after": {
+    "frames_total": 30,
+    "frames_with_aux": 30,
+    "producer_overruns": 0,
+    "slot_refcount": [
+      0,
+      0,
+      0,
+      0,
+      1
+    ],
+    "slot_seq": [
+      0,
+      0,
+      0,
+      0,
+      30
+    ]
+  },
+  "before": {
+    "frames_total": 0,
+    "frames_with_aux": 0,
+    "producer_overruns": 0,
+    "slot_refcount": [
+      0,
+      0,
+      0,
+      0,
+      2
+    ],
+    "slot_seq": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  "delta_aux": 30,
+  "delta_frames": 30,
+  "flow_before": [
+    true,
+    1,
+    0,
+    0,
+    0,
+    0,
+    -1
+  ],
+  "flow_mid": [
+    true,
+    1,
+    0,
+    0,
+    255,
+    30,
+    -1
+  ],
+  "flow_pub_stats": {
+    "frames": 30,
+    "grab_fail_streak": 0,
+    "grab_fail_total": 0,
+    "running": false
+  },
+  "flow_refcount_after": 1,
+  "flow_slot_seq_delta": 30,
+  "flow_start_rc": 0,
+  "flow_stop_rc": 0,
+  "mode": "replay",
+  "pipe_after": {
+    "cam_grab_ms_sum": 0,
+    "frames": 30,
+    "pxp_ms_sum": 0,
+    "total_ms_sum": 41
+  },
+  "pipe_before": {
+    "cam_grab_ms_sum": 0,
+    "frames": 0,
+    "pxp_ms_sum": 0,
+    "total_ms_sum": 0
+  },
+  "prep_stop_rc": 0,
+  "use_flow": true
+}

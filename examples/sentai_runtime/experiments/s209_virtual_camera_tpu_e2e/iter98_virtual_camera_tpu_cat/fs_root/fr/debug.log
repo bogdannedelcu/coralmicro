@@ -1,0 +1,1906 @@
+[sim] FS root: /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter98_virtual_camera_tpu_cat/fs_root
+[sim] sentai_sim build #980 (2026-05-31 15:43:19)
+[sim] FreeRTOS POSIX port: tick=1000 Hz, heap=4194304 bytes
+[sim] MicroPython heap: 2097152 bytes
+[sim] sentai.fr auto-start: dir=/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter98_virtual_camera_tpu_cat/fs_root/fr init=0 events=0 scalars=0 debug=0 task=0
+
+MicroPython on SentAI SIM (FreeRTOS POSIX port + MicroPython embed)
+Type expressions, end with Enter.  Ctrl-D or 'exit' to quit.
+Try: sentai.version(), sentai.fs.write(...), help()
+
+>>> >>> IMG_SIZE 921654
+MODEL_SIZE 7077792
+[virtcam] select begin /images/cat_640x480.bmp
+[virtcam] size 921654
+camera_bridge: listening on /tmp/sentai_cam.sock (waiting for Gazebo bridge)
+[virtcam] read ok
+[virtcam] load rc=0
+[virtcam] after_select begin
+[sentai_fr] worker START
+[virtcam] after_select end
+[camera] select(-1, /images/cat_640x480.bmp) rc=0
+CAM_SELECT 0
+[tpu-posix] load slot=0 path=/models/tf2_ssd_mobilenet_v2_coco17_ptq_edgetpu.tflite
+[tpu-posix] opening Coral USB via POSIX/libusb backend
+[tpu-posix] libusb_init...
+[tpu-posix] dfu/app probe...
+[tpu-posix] open app device...
+[tpu-posix] opened Coral USB interface=0 out=01,02,03 in=81,82 irq=83
+[tpu-posix] opening EdgeTpuManager context
+[EdgeTPU mgr] creating context
+[EdgeTPU mgr] initializing driver
+[TPU init] read omc0_00
+[TPU init] check chip id
+[TPU init] write test reg
+[TPU init] read test reg
+[TPU init] disable inactive mode
+[TPU init] disable clock gating
+[TPU init] enter reset
+[TPU init] exit reset
+[TPU init] check scalar run control
+[TPU init] write idle register
+[TPU init] write tile config
+[TPU init] write deep sleep
+[TPU init] enable clock gating
+[TPU init] configure usb csr
+[TPU init] enable tempsense clock
+[TPU init] enable tempsense input ports
+[TPU init] enable tempsense flow
+[TPU init] move to run
+[TPU init] done
+[EdgeTPU mgr] driver initialized
+[tpu-posix] EdgeTPU ready via direct libusb backend
+[tpu-posix] reading model from SentAI FS
+[tpu-posix] model size=7077792
+[tpu-posix] reading model bytes into static storage
+[tpu-posix] model read got=7077792
+[tpu-posix] model loaded from FS: /models/tf2_ssd_mobilenet_v2_coco17_ptq_edgetpu.tflite (7077792 bytes)
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x05701716d04676e6
+TPU Input[0]: uint8[1,300,300,3] 270000 B scale=0.00784314 zp=127
+TPU Out[0]: float32[1,20] 80 B scale=0.00000000 zp=0
+TPU Out[1]: float32[1,20,4] 320 B scale=0.00000000 zp=0
+TPU Out[2]: float32[1] 4 B scale=0.00000000 zp=0
+TPU Out[3]: float32[1,20] 80 B scale=0.00000000 zp=0
+[tpu-posix] arena used: 2722 / 8192 KB
+TPU_LOAD 0
+TPU_READY True
+[virtcam] select begin /images/cat_640x480.bmp
+[virtcam] size 921654
+[virtcam] read ok
+[virtcam] load rc=0
+[virtcam] after_select begin
+[virtcam] after_select end
+TPU_LOAD_IMAGE 0
+[tpu-usb] submit ep=01 len=10448
+[tpu-usb] done ep=01 st=0 bytes=10448 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=30848
+[tpu-usb] done ep=01 st=0 bytes=30848 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=33120
+[tpu-usb] done ep=01 st=0 bytes=33120 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=36864
+[tpu-usb] done ep=01 st=0 bytes=36864 completed=1
+[tpu-usb] submit ep=01 len=11952
+[tpu-usb] done ep=01 st=0 bytes=11952 completed=1
+[tpu-usb] submit ep=81 len=7672
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=7416
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=7160
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=6904
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=6648
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=6392
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=6136
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=5880
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=5624
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=5368
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=5112
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=4856
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=4600
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=4344
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=4088
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=3832
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=3576
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=3320
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=3064
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=2808
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=2552
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=2296
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=2040
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=1784
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=1528
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=1272
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=128 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=32 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36688
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36432
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=36176
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=35920
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=35664
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=35408
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=35152
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=34896
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=34640
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=34384
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=34128
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=33872
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=33616
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=33360
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=33104
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=32848
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=32592
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=32336
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=32080
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=31824
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=31568
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=31312
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=31056
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=30800
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=30544
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=30288
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=30032
+[tpu-usb] done ep=81 st=0 bytes=32 completed=1
+[tpu-usb] submit ep=81 len=30000
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=29744
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=29488
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=29232
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=28976
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=28720
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=28464
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=28208
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=27952
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=27696
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=27440
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=27184
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=26928
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=26672
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=26416
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=26160
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=25904
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=25648
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=25392
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=25136
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=24880
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=24624
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=24368
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=24112
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=23856
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=23600
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=23344
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=23088
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=22832
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=22576
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=22320
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=22064
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=21808
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=21552
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=21296
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=21040
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=20784
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=20528
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=20272
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=20016
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=19760
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=19504
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=19248
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=18992
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=18736
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=18480
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=18224
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=17968
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=17712
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=17456
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=17200
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=16944
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=16688
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=16432
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=16176
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=15920
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=15664
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=15408
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=15152
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=14896
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=14640
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=14384
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=14128
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=13872
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=13616
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=13360
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=13104
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=12848
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=12592
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=12336
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=12080
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=11824
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=11568
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=11312
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=11056
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=10800
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=10544
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=10288
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=10032
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=9776
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=9520
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=9264
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=9008
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=8752
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=8496
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=8240
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=7984
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=7728
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=7472
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=7216
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=6960
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=6704
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=6448
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=6192
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=5936
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=5680
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=5424
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=5168
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=4912
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=4656
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=4400
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=4144
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=3888
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=3632
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=3376
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=3120
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=2864
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=2608
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=2352
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=2096
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=1840
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=1584
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=1328
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+[tpu-usb] submit ep=81 len=1072
+[tpu-usb] done ep=81 st=0 bytes=256 completed=1
+TPU_INVOKE 79
+TPU_OUTPUTS 4
+DETECTIONS_COUNT 18
+DETECTIONS_WRITTEN True
+OVERLAY_WRITTEN 0
+18
+>>> 
+[sim] EOF on stdin, exiting
+[sim] REPL task done, terminating process

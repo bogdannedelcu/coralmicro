@@ -1,0 +1,1 @@
+# sentai.sim journal opened path=/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter20_virtual_camera_tpu_cat/fs_root/startup_journal.txt truncate=1 t_ms=70532687

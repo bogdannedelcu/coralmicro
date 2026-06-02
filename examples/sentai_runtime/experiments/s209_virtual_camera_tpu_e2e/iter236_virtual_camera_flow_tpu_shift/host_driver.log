@@ -1,0 +1,12 @@
+   0.001 SEND import mission_s209_flow_tpu as m
+   0.001 SEND m.setup(2)
+   0.001 SLEEP setup
+  10.001 SEND m.collect_frame(0)
+  10.001 SLEEP collect0
+  12.002 SEND m.select_frame(1)
+  12.002 SLEEP frame 1
+  16.003 SEND m.collect_frame(1)
+  16.003 SLEEP collect 1
+  18.010 SEND m.finish()
+  18.010 SEND exit
+  18.010 WAIT

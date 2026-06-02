@@ -1,0 +1,52 @@
+[sim] FS root: /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter173_virtual_camera_flow_tpu_shift/fs_root
+[sim] sentai_sim build #1034 (2026-06-01 00:34:16)
+[sim] FreeRTOS POSIX port: tick=1000 Hz, heap=4194304 bytes
+[sim] MicroPython heap: 2097152 bytes
+[sim] sentai.fr auto-start: dir=/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter173_virtual_camera_flow_tpu_shift/fs_root/fr init=0 events=0 scalars=0 debug=0 task=0
+
+MicroPython on SentAI SIM (FreeRTOS POSIX port + MicroPython embed)
+Type expressions, end with Enter.  Ctrl-D or 'exit' to quit.
+Try: sentai.version(), sentai.fs.write(...), help()
+
+>>> [sentai_fr] worker START
+camera_bridge: listening on /tmp/sentai_cam.sock (waiting for Gazebo bridge)
+>>> MODEL_SIZE 7077792
+IMG0_SIZE 921654
+IMGN_SIZE 921654
+[tpu-posix] call begin kind=load slot=0
+[tpu-posix] load slot=0 path=/models/tf2_ssd_mobilenet_v2_coco17_ptq_edgetpu.tflite
+[tpu-posix] opening Coral USB via POSIX/libusb backend
+[tpu-posix] libusb_init...
+[tpu-posix] dfu/app probe...
+[tpu-posix] open app device...
+[tpu-posix] opened Coral USB interface=0 out=01,02,03 in=81,82 irq=83
+[tpu-posix] opening EdgeTpuManager context
+[EdgeTPU mgr] creating context
+[EdgeTPU mgr] initializing driver
+[TPU init] read omc0_00
+[tpu-posix] ctrl fail bm=c0 req=1 val=a000 idx=0001 len=4 rc=-7
+[TPU init] failed: read omc0_00
+[EdgeTPU mgr] driver initialize failed
+[tpu-posix] EdgeTpuManager::OpenDevice failed
+[tpu-posix] worker result kind=load slot=0 rc=-1
+[tpu-posix] worker done_seq=1
+[tpu-posix] worker sem given
+[tpu-posix] call done kind=load slot=0 rc=-1
+TPU_LOAD -1
+TPU_READY False
+FLOW_START 0
+[flow] poll begin
+[flow] poll no slot
+[tpu-posix] call begin kind=invoke slot=0
+[tpu-posix] worker result kind=invoke slot=0 rc=-1
+[tpu-posix] worker done_seq=2
+[tpu-posix] worker sem given
+[tpu-posix] call done kind=invoke slot=0 rc=-1
+FLOW_STOP 0
+OVERLAY_WRITTEN -1
+FLOW_TPU_RESULTS {'flow_pub_stats': {'grab_fail_total': 0, 'grab_fail_streak': 0, 'running': False, 'frames': 0}, 'records': [(0, 0, (True, 1, 0, 0, 0, 0, -1), -1, -1, ())]}
+FLOW_TPU_RESULTS_WRITTEN True
+0
+>>> 
+[sim] EOF on stdin, exiting
+[sim] REPL task done, terminating process

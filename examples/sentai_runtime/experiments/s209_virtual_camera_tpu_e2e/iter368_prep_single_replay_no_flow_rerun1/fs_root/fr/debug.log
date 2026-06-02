@@ -1,0 +1,28 @@
+[sentai_fr] worker START
+[sim] sentai.fr auto-start: dir=/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter368_prep_single_replay_no_flow_rerun1/fs_root/fr init=0 events=0 scalars=0 debug=0 task=0
+
+MicroPython on SentAI SIM (FreeRTOS POSIX port + MicroPython embed)
+Type expressions, end with Enter.  Ctrl-D or 'exit' to quit.
+Try: sentai.version(), sentai.fs.write(...), help()
+
+>>> >>> CAM_PREP_RESET None
+PIPE_PREP_RESET None
+PREP_ENABLE_FLOW 1
+FLOW_START SKIP
+CAM_SELECT 0
+PREP_BEFORE {'slot_seq': (0, 0, 0, 0, 0), 'producer_overruns': 0, 'slot_refcount': (0, 0, 0, 0, 1), 'frames_total': 0, 'frames_with_aux': 0} PIPE {'pxp_ms_sum': 0, 'total_ms_sum': 0, 'cam_grab_ms_sum': 0, 'frames': 0}
+[det_prep] start
+[det_prep] start_only
+E:0480:0
+PIPE_PREP_START 0
+[virt_cam] START mode=memory dir=<memory> frames=1 fps=10 limit=30
+[virt_cam] publish idx=0 rc=0 path=/images/shift/frame_000.bmp
+CAM_REPLAY 1 FRAME /images/shift/frame_000.bmp FPS 10 COUNT 30
+[virt_cam] publish idx=0 rc=0 path=/images/shift/frame_000.bmp
+[virt_cam] publish idx=0 rc=0 path=/images/shift/frame_000.bmp
+[virt_cam] publish idx=0 rc=0 path=/images/shift/frame_000.bmp
+[virt_cam] publish idx=0 rc=0 path=/images/shift/frame_000.bmp
+[virt_cam] publish idx=0 rc=0 path=/images/shift/frame_000.bmp
+[virt_cam] publish idx=0 rc=0 path=/images/shift/frame_000.bmp
+[virt_cam] publish idx=0 rc=0 path=/images/shift/frame_000.bmp
+[virt_cam] STOP published=30 last_rc=0

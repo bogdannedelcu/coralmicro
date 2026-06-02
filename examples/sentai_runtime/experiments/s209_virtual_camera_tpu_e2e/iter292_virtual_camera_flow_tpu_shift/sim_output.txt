@@ -1,0 +1,387 @@
+[sim] FS root: /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter292_virtual_camera_flow_tpu_shift/fs_root
+[sim] sentai_sim build #1118 (2026-06-01 19:40:55)
+[sim] FreeRTOS POSIX port: tick=1000 Hz, heap=4194304 bytes
+[sim] MicroPython heap: 2097152 bytes
+[sim] sentai.fr auto-start: dir=/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter292_virtual_camera_flow_tpu_shift/fs_root/fr init=0 events=0 scalars=0 debug=0 task=0
+
+MicroPython on SentAI SIM (FreeRTOS POSIX port + MicroPython embed)
+Type expressions, end with Enter.  Ctrl-D or 'exit' to quit.
+Try: sentai.version(), sentai.fs.write(...), help()
+
+>>> [sentai_fr] worker START
+camera_bridge: listening on /tmp/sentai_cam.sock (waiting for Gazebo bridge)
+>>> MODEL_SIZE 7077792
+IMG0_SIZE 921654
+IMGN_SIZE 921654
+READY
+[tpu-pycoral] connected helper pid=421280 sock=/tmp/sentai_tpu_pycoral_421272.sock
+CMD LOAD slot=0 path=/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter292_virtual_camera_flow_tpu_shift/fs_root/models/tf2_ssd_mobilenet_v2_coco17_ptq_edgetpu.tflite
+CMD LOAD made_interpreter slot=0
+CMD LOAD allocated slot=0
+CMD LOAD done slot=0 outputs=4
+[tpu-pycoral] LOAD reply: OK LOAD 0 3 270000 4 1 300 300 3 0.00784313772 127 4
+[tpu-pycoral] OUT[0]: bytes=80 shape=1x20x0x0
+[tpu-pycoral] OUT[1]: bytes=320 shape=1x20x4x0
+[tpu-pycoral] OUT[2]: bytes=4 shape=1x0x0x0
+[tpu-pycoral] OUT[3]: bytes=80 shape=1x20x0x0
+[tpu-pycoral] loaded slot=0 input=300x300x3 outputs=4
+TPU_LOAD 0
+TPU_READY True
+FLOW_START 0
+PIPE_DIRECT_TENSOR_PREV 1
+PIPE_TARGET_FPS 0
+PIPE_PREP_FPS 0
+[det_prep] start
+[det_prep] grab idx=-2 raw=(nil)
+[det_prep] grab idx=-2 raw=(nil)
+[det_infer] start
+E:0480:100
+PIPE_START 0
+FRAME 0 SELECT_BEGIN
+[det_prep] grab idx=-2 raw=(nil)
+FRAME 0 SELECT_RC 0
+FRAME 0 PIPE_GET_BEGIN
+[det_prep] grab idx=0 raw=0x602262b67680
+[det_prep] fire_mask=0x00000010
+[det_prep] pxp begin 300x300
+[det_prep] pxp rc=0 ms=2
+[det_prep] flow publish begin
+[det_prep] flow publish done
+[det_prep] frame signaled seq=1
+[det_infer] frame ready direct=0
+CMD INVOKE slot=0 nbytes=270000
+[det_prep] grab idx=-2 raw=(nil)
+[det_prep] grab idx=-2 raw=(nil)
+[det_prep] grab idx=-2 raw=(nil)
+[det_prep] grab idx=-2 raw=(nil)
+CMD INVOKE done slot=0 ms=29 outputs=4 total=484
+[det_infer] invoke_ms=29
+[det_infer] nms det_count=20
+[det_infer] queued frame=1 dets=20
+FRAME 0 PIPE_DONE True
+FRAME 0 FLOW (True, 1, 0, 0, 0, 1, -1)
+FRAME_RECORD (0, 0, (True, 1, 0, 0, 0, 1, -1), 0, 29, ((25, 95, 145, 204, 758, 71), (33, 108, 113, 191, 500, 16), (8, 72, 153, 239, 313, 71), (52, 96, 135, 145, 293, 62), (65, 99, 111, 178, 293, 16), (30, 109, 81, 190, 285, 61), (69, 103, 101, 131, 234, 74), (43, 104, 126, 156, 215, 62), (87, 94, 140, 166, 203, 69), (28, 96, 75, 161, 195, 61), (8, 44, 275, 271, 172, 71), (25, 119, 66, 197, 172, 61), (36, 95, 50, 135, 168, 83), (66, 110, 81, 131, 160, 74), (5, 82, 243, 229, 156, 71), (107, 116, 138, 150, 156, 50), (31, 94, 94, 142, 148, 61), (38, 153, 136, 196, 145, 61), (100, 31, 299, 300, 145, 0), (73, 113, 100, 155, 145, 16)))
+FRAME 1 SELECT_BEGIN
+FRAME 1 SELECT_RC 0
+FRAME 1 PIPE_GET_BEGIN
+PIPE_TIMEOUT_AFTER 1 LAST None
+FRAME 1 PIPE_DONE False
+FLOW_TIMEOUT_AFTER 1 LAST (True, 1, 0, 0, 0, 1, -1)
+FRAME 1 FLOW (True, 1, 0, 0, 0, 1, -1)
+FRAME_RECORD (1, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ())
+FRAME 2 SELECT_BEGIN
+FRAME 2 SELECT_RC 0
+FRAME 2 PIPE_GET_BEGIN
+PIPE_TIMEOUT_AFTER 1 LAST None
+FRAME 2 PIPE_DONE False
+FLOW_TIMEOUT_AFTER 1 LAST (True, 1, 0, 0, 0, 1, -1)
+FRAME 2 FLOW (True, 1, 0, 0, 0, 1, -1)
+FRAME_RECORD (2, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ())
+FRAME 3 SELECT_BEGIN
+FRAME 3 SELECT_RC 0
+FRAME 3 PIPE_GET_BEGIN
+PIPE_TIMEOUT_AFTER 1 LAST None
+FRAME 3 PIPE_DONE False
+FLOW_TIMEOUT_AFTER 1 LAST (True, 1, 0, 0, 0, 1, -1)
+FRAME 3 FLOW (True, 1, 0, 0, 0, 1, -1)
+FRAME_RECORD (3, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ())
+FRAME 4 SELECT_BEGIN
+FRAME 4 SELECT_RC 0
+FRAME 4 PIPE_GET_BEGIN
+PIPE_TIMEOUT_AFTER 1 LAST None
+FRAME 4 PIPE_DONE False
+FLOW_TIMEOUT_AFTER 1 LAST (True, 1, 0, 0, 0, 1, -1)
+FRAME 4 FLOW (True, 1, 0, 0, 0, 1, -1)
+FRAME_RECORD (4, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ())
+FRAME 5 SELECT_BEGIN
+FRAME 5 SELECT_RC 0
+FRAME 5 PIPE_GET_BEGIN
+PIPE_TIMEOUT_AFTER 1 LAST None
+FRAME 5 PIPE_DONE False
+FLOW_TIMEOUT_AFTER 1 LAST (True, 1, 0, 0, 0, 1, -1)
+FRAME 5 FLOW (True, 1, 0, 0, 0, 1, -1)
+FRAME_RECORD (5, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ())
+FRAME 6 SELECT_BEGIN
+FRAME 6 SELECT_RC 0
+FRAME 6 PIPE_GET_BEGIN
+PIPE_TIMEOUT_AFTER 1 LAST None
+FRAME 6 PIPE_DONE False
+FLOW_TIMEOUT_AFTER 1 LAST (True, 1, 0, 0, 0, 1, -1)
+FRAME 6 FLOW (True, 1, 0, 0, 0, 1, -1)
+FRAME_RECORD (6, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ())
+FRAME 7 SELECT_BEGIN
+FRAME 7 SELECT_RC 0
+FRAME 7 PIPE_GET_BEGIN
+PIPE_TIMEOUT_AFTER 1 LAST None
+FRAME 7 PIPE_DONE False
+FLOW_TIMEOUT_AFTER 1 LAST (True, 1, 0, 0, 0, 1, -1)
+FRAME 7 FLOW (True, 1, 0, 0, 0, 1, -1)
+FRAME_RECORD (7, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ())
+FRAME 8 SELECT_BEGIN
+FRAME 8 SELECT_RC 0
+FRAME 8 PIPE_GET_BEGIN
+PIPE_TIMEOUT_AFTER 1 LAST None
+FRAME 8 PIPE_DONE False
+FLOW_TIMEOUT_AFTER 1 LAST (True, 1, 0, 0, 0, 1, -1)
+FRAME 8 FLOW (True, 1, 0, 0, 0, 1, -1)
+FRAME_RECORD (8, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ())
+FRAME 9 SELECT_BEGIN
+FRAME 9 SELECT_RC 0
+FRAME 9 PIPE_GET_BEGIN
+PIPE_TIMEOUT_AFTER 1 LAST None
+FRAME 9 PIPE_DONE False
+FLOW_TIMEOUT_AFTER 1 LAST (True, 1, 0, 0, 0, 1, -1)
+FRAME 9 FLOW (True, 1, 0, 0, 0, 1, -1)
+FRAME_RECORD (9, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ())
+FRAME 10 SELECT_BEGIN
+FRAME 10 SELECT_RC 0
+FRAME 10 PIPE_GET_BEGIN
+PIPE_TIMEOUT_AFTER 1 LAST None
+FRAME 10 PIPE_DONE False
+FLOW_TIMEOUT_AFTER 1 LAST (True, 1, 0, 0, 0, 1, -1)
+FRAME 10 FLOW (True, 1, 0, 0, 0, 1, -1)
+FRAME_RECORD (10, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ())
+FRAME 11 SELECT_BEGIN
+FRAME 11 SELECT_RC 0
+FRAME 11 PIPE_GET_BEGIN
+PIPE_TIMEOUT_AFTER 1 LAST None
+FRAME 11 PIPE_DONE False
+FLOW_TIMEOUT_AFTER 1 LAST (True, 1, 0, 0, 0, 1, -1)
+FRAME 11 FLOW (True, 1, 0, 0, 0, 1, -1)
+FRAME_RECORD (11, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ())
+FRAME 12 SELECT_BEGIN
+FRAME 12 SELECT_RC 0
+FRAME 12 PIPE_GET_BEGIN
+PIPE_TIMEOUT_AFTER 1 LAST None
+FRAME 12 PIPE_DONE False
+FLOW_TIMEOUT_AFTER 1 LAST (True, 1, 0, 0, 0, 1, -1)
+FRAME 12 FLOW (True, 1, 0, 0, 0, 1, -1)
+FRAME_RECORD (12, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ())
+FRAME 13 SELECT_BEGIN
+FRAME 13 SELECT_RC 0
+FRAME 13 PIPE_GET_BEGIN
+PIPE_TIMEOUT_AFTER 1 LAST None
+FRAME 13 PIPE_DONE False
+FLOW_TIMEOUT_AFTER 1 LAST (True, 1, 0, 0, 0, 1, -1)
+FRAME 13 FLOW (True, 1, 0, 0, 0, 1, -1)
+FRAME_RECORD (13, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ())
+FRAME 14 SELECT_BEGIN
+FRAME 14 SELECT_RC 0
+FRAME 14 PIPE_GET_BEGIN
+PIPE_TIMEOUT_AFTER 1 LAST None
+FRAME 14 PIPE_DONE False
+FLOW_TIMEOUT_AFTER 1 LAST (True, 1, 0, 0, 0, 1, -1)
+FRAME 14 FLOW (True, 1, 0, 0, 0, 1, -1)
+FRAME_RECORD (14, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ())
+FRAME 15 SELECT_BEGIN
+FRAME 15 SELECT_RC 0
+FRAME 15 PIPE_GET_BEGIN
+PIPE_TIMEOUT_AFTER 1 LAST None
+FRAME 15 PIPE_DONE False
+FLOW_TIMEOUT_AFTER 1 LAST (True, 1, 0, 0, 0, 1, -1)
+FRAME 15 FLOW (True, 1, 0, 0, 0, 1, -1)
+FRAME_RECORD (15, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ())
+OVERLAY_WRITTEN 0
+E:0481:1
+PIPE_STOP 0
+FLOW_STOP 0
+FLOW_TPU_RESULTS {'flow_pub_stats': {'grab_fail_total': 0, 'grab_fail_streak': 0, 'running': False, 'frames': 1}, 'records': [(0, 0, (True, 1, 0, 0, 0, 1, -1), 0, 29, ((25, 95, 145, 204, 758, 71), (33, 108, 113, 191, 500, 16), (8, 72, 153, 239, 313, 71), (52, 96, 135, 145, 293, 62), (65, 99, 111, 178, 293, 16), (30, 109, 81, 190, 285, 61), (69, 103, 101, 131, 234, 74), (43, 104, 126, 156, 215, 62), (87, 94, 140, 166, 203, 69), (28, 96, 75, 161, 195, 61), (8, 44, 275, 271, 172, 71), (25, 119, 66, 197, 172, 61), (36, 95, 50, 135, 168, 83), (66, 110, 81, 131, 160, 74), (5, 82, 243, 229, 156, 71), (107, 116, 138, 150, 156, 50), (31, 94, 94, 142, 148, 61), (38, 153, 136, 196, 145, 61), (100, 31, 299, 300, 145, 0), (73, 113, 100, 155, 145, 16))), (1, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ()), (2, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ()), (3, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ()), (4, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ()), (5, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ()), (6, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ()), (7, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ()), (8, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ()), (9, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ()), (10, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ()), (11, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ()), (12, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ()), (13, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ()), (14, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ()), (15, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ())]}
+FLOW_TPU_RESULTS_WRITTEN True
+0
+>>> [sim] user exit
+[sim] REPL task done, terminating process
+[det_infer] frame ready direct=0
+
+[sim] FS root: /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter292_virtual_camera_flow_tpu_shift/fs_root
+[sim] sentai_sim build #1118 (2026-06-01 19:40:55)
+[sim] FreeRTOS POSIX port: tick=1000 Hz, heap=4194304 bytes
+[sim] MicroPython heap: 2097152 bytes
+[sim] sentai.fr auto-start: dir=/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter292_virtual_camera_flow_tpu_shift/fs_root/fr init=0 events=0 scalars=0 debug=0 task=0
+
+MicroPython on SentAI SIM (FreeRTOS POSIX port + MicroPython embed)
+Type expressions, end with Enter.  Ctrl-D or 'exit' to quit.
+Try: sentai.version(), sentai.fs.write(...), help()
+
+>>> [sentai_fr] worker START
+camera_bridge: listening on /tmp/sentai_cam.sock (waiting for Gazebo bridge)
+>>> MODEL_SIZE 7077792
+IMG0_SIZE 921654
+IMGN_SIZE 921654
+READY
+[tpu-pycoral] connected helper pid=421280 sock=/tmp/sentai_tpu_pycoral_421272.sock
+CMD LOAD slot=0 path=/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter292_virtual_camera_flow_tpu_shift/fs_root/models/tf2_ssd_mobilenet_v2_coco17_ptq_edgetpu.tflite
+CMD LOAD made_interpreter slot=0
+CMD LOAD allocated slot=0
+CMD LOAD done slot=0 outputs=4
+[tpu-pycoral] LOAD reply: OK LOAD 0 3 270000 4 1 300 300 3 0.00784313772 127 4
+[tpu-pycoral] OUT[0]: bytes=80 shape=1x20x0x0
+[tpu-pycoral] OUT[1]: bytes=320 shape=1x20x4x0
+[tpu-pycoral] OUT[2]: bytes=4 shape=1x0x0x0
+[tpu-pycoral] OUT[3]: bytes=80 shape=1x20x0x0
+[tpu-pycoral] loaded slot=0 input=300x300x3 outputs=4
+TPU_LOAD 0
+TPU_READY True
+FLOW_START 0
+PIPE_DIRECT_TENSOR_PREV 1
+PIPE_TARGET_FPS 0
+PIPE_PREP_FPS 0
+[det_prep] start
+[det_prep] grab idx=-2 raw=(nil)
+[det_prep] grab idx=-2 raw=(nil)
+[det_infer] start
+E:0480:100
+PIPE_START 0
+FRAME 0 SELECT_BEGIN
+[det_prep] grab idx=-2 raw=(nil)
+FRAME 0 SELECT_RC 0
+FRAME 0 PIPE_GET_BEGIN
+[det_prep] grab idx=0 raw=0x602262b67680
+[det_prep] fire_mask=0x00000010
+[det_prep] pxp begin 300x300
+[det_prep] pxp rc=0 ms=2
+[det_prep] flow publish begin
+[det_prep] flow publish done
+[det_prep] frame signaled seq=1
+[det_infer] frame ready direct=0
+CMD INVOKE slot=0 nbytes=270000
+[det_prep] grab idx=-2 raw=(nil)
+[det_prep] grab idx=-2 raw=(nil)
+[det_prep] grab idx=-2 raw=(nil)
+[det_prep] grab idx=-2 raw=(nil)
+CMD INVOKE done slot=0 ms=29 outputs=4 total=484
+[det_infer] invoke_ms=29
+[det_infer] nms det_count=20
+[det_infer] queued frame=1 dets=20
+FRAME 0 PIPE_DONE True
+FRAME 0 FLOW (True, 1, 0, 0, 0, 1, -1)
+FRAME_RECORD (0, 0, (True, 1, 0, 0, 0, 1, -1), 0, 29, ((25, 95, 145, 204, 758, 71), (33, 108, 113, 191, 500, 16), (8, 72, 153, 239, 313, 71), (52, 96, 135, 145, 293, 62), (65, 99, 111, 178, 293, 16), (30, 109, 81, 190, 285, 61), (69, 103, 101, 131, 234, 74), (43, 104, 126, 156, 215, 62), (87, 94, 140, 166, 203, 69), (28, 96, 75, 161, 195, 61), (8, 44, 275, 271, 172, 71), (25, 119, 66, 197, 172, 61), (36, 95, 50, 135, 168, 83), (66, 110, 81, 131, 160, 74), (5, 82, 243, 229, 156, 71), (107, 116, 138, 150, 156, 50), (31, 94, 94, 142, 148, 61), (38, 153, 136, 196, 145, 61), (100, 31, 299, 300, 145, 0), (73, 113, 100, 155, 145, 16)))
+FRAME 1 SELECT_BEGIN
+FRAME 1 SELECT_RC 0
+FRAME 1 PIPE_GET_BEGIN
+PIPE_TIMEOUT_AFTER 1 LAST None
+FRAME 1 PIPE_DONE False
+FLOW_TIMEOUT_AFTER 1 LAST (True, 1, 0, 0, 0, 1, -1)
+FRAME 1 FLOW (True, 1, 0, 0, 0, 1, -1)
+FRAME_RECORD (1, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ())
+FRAME 2 SELECT_BEGIN
+FRAME 2 SELECT_RC 0
+FRAME 2 PIPE_GET_BEGIN
+PIPE_TIMEOUT_AFTER 1 LAST None
+FRAME 2 PIPE_DONE False
+FLOW_TIMEOUT_AFTER 1 LAST (True, 1, 0, 0, 0, 1, -1)
+FRAME 2 FLOW (True, 1, 0, 0, 0, 1, -1)
+FRAME_RECORD (2, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ())
+FRAME 3 SELECT_BEGIN
+FRAME 3 SELECT_RC 0
+FRAME 3 PIPE_GET_BEGIN
+PIPE_TIMEOUT_AFTER 1 LAST None
+FRAME 3 PIPE_DONE False
+FLOW_TIMEOUT_AFTER 1 LAST (True, 1, 0, 0, 0, 1, -1)
+FRAME 3 FLOW (True, 1, 0, 0, 0, 1, -1)
+FRAME_RECORD (3, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ())
+FRAME 4 SELECT_BEGIN
+FRAME 4 SELECT_RC 0
+FRAME 4 PIPE_GET_BEGIN
+PIPE_TIMEOUT_AFTER 1 LAST None
+FRAME 4 PIPE_DONE False
+FLOW_TIMEOUT_AFTER 1 LAST (True, 1, 0, 0, 0, 1, -1)
+FRAME 4 FLOW (True, 1, 0, 0, 0, 1, -1)
+FRAME_RECORD (4, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ())
+FRAME 5 SELECT_BEGIN
+FRAME 5 SELECT_RC 0
+FRAME 5 PIPE_GET_BEGIN
+PIPE_TIMEOUT_AFTER 1 LAST None
+FRAME 5 PIPE_DONE False
+FLOW_TIMEOUT_AFTER 1 LAST (True, 1, 0, 0, 0, 1, -1)
+FRAME 5 FLOW (True, 1, 0, 0, 0, 1, -1)
+FRAME_RECORD (5, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ())
+FRAME 6 SELECT_BEGIN
+FRAME 6 SELECT_RC 0
+FRAME 6 PIPE_GET_BEGIN
+PIPE_TIMEOUT_AFTER 1 LAST None
+FRAME 6 PIPE_DONE False
+FLOW_TIMEOUT_AFTER 1 LAST (True, 1, 0, 0, 0, 1, -1)
+FRAME 6 FLOW (True, 1, 0, 0, 0, 1, -1)
+FRAME_RECORD (6, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ())
+FRAME 7 SELECT_BEGIN
+FRAME 7 SELECT_RC 0
+FRAME 7 PIPE_GET_BEGIN
+PIPE_TIMEOUT_AFTER 1 LAST None
+FRAME 7 PIPE_DONE False
+FLOW_TIMEOUT_AFTER 1 LAST (True, 1, 0, 0, 0, 1, -1)
+FRAME 7 FLOW (True, 1, 0, 0, 0, 1, -1)
+FRAME_RECORD (7, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ())
+FRAME 8 SELECT_BEGIN
+FRAME 8 SELECT_RC 0
+FRAME 8 PIPE_GET_BEGIN
+PIPE_TIMEOUT_AFTER 1 LAST None
+FRAME 8 PIPE_DONE False
+FLOW_TIMEOUT_AFTER 1 LAST (True, 1, 0, 0, 0, 1, -1)
+FRAME 8 FLOW (True, 1, 0, 0, 0, 1, -1)
+FRAME_RECORD (8, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ())
+FRAME 9 SELECT_BEGIN
+FRAME 9 SELECT_RC 0
+FRAME 9 PIPE_GET_BEGIN
+PIPE_TIMEOUT_AFTER 1 LAST None
+FRAME 9 PIPE_DONE False
+FLOW_TIMEOUT_AFTER 1 LAST (True, 1, 0, 0, 0, 1, -1)
+FRAME 9 FLOW (True, 1, 0, 0, 0, 1, -1)
+FRAME_RECORD (9, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ())
+FRAME 10 SELECT_BEGIN
+FRAME 10 SELECT_RC 0
+FRAME 10 PIPE_GET_BEGIN
+PIPE_TIMEOUT_AFTER 1 LAST None
+FRAME 10 PIPE_DONE False
+FLOW_TIMEOUT_AFTER 1 LAST (True, 1, 0, 0, 0, 1, -1)
+FRAME 10 FLOW (True, 1, 0, 0, 0, 1, -1)
+FRAME_RECORD (10, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ())
+FRAME 11 SELECT_BEGIN
+FRAME 11 SELECT_RC 0
+FRAME 11 PIPE_GET_BEGIN
+PIPE_TIMEOUT_AFTER 1 LAST None
+FRAME 11 PIPE_DONE False
+FLOW_TIMEOUT_AFTER 1 LAST (True, 1, 0, 0, 0, 1, -1)
+FRAME 11 FLOW (True, 1, 0, 0, 0, 1, -1)
+FRAME_RECORD (11, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ())
+FRAME 12 SELECT_BEGIN
+FRAME 12 SELECT_RC 0
+FRAME 12 PIPE_GET_BEGIN
+PIPE_TIMEOUT_AFTER 1 LAST None
+FRAME 12 PIPE_DONE False
+FLOW_TIMEOUT_AFTER 1 LAST (True, 1, 0, 0, 0, 1, -1)
+FRAME 12 FLOW (True, 1, 0, 0, 0, 1, -1)
+FRAME_RECORD (12, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ())
+FRAME 13 SELECT_BEGIN
+FRAME 13 SELECT_RC 0
+FRAME 13 PIPE_GET_BEGIN
+PIPE_TIMEOUT_AFTER 1 LAST None
+FRAME 13 PIPE_DONE False
+FLOW_TIMEOUT_AFTER 1 LAST (True, 1, 0, 0, 0, 1, -1)
+FRAME 13 FLOW (True, 1, 0, 0, 0, 1, -1)
+FRAME_RECORD (13, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ())
+FRAME 14 SELECT_BEGIN
+FRAME 14 SELECT_RC 0
+FRAME 14 PIPE_GET_BEGIN
+PIPE_TIMEOUT_AFTER 1 LAST None
+FRAME 14 PIPE_DONE False
+FLOW_TIMEOUT_AFTER 1 LAST (True, 1, 0, 0, 0, 1, -1)
+FRAME 14 FLOW (True, 1, 0, 0, 0, 1, -1)
+FRAME_RECORD (14, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ())
+FRAME 15 SELECT_BEGIN
+FRAME 15 SELECT_RC 0
+FRAME 15 PIPE_GET_BEGIN
+PIPE_TIMEOUT_AFTER 1 LAST None
+FRAME 15 PIPE_DONE False
+FLOW_TIMEOUT_AFTER 1 LAST (True, 1, 0, 0, 0, 1, -1)
+FRAME 15 FLOW (True, 1, 0, 0, 0, 1, -1)
+FRAME_RECORD (15, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ())
+OVERLAY_WRITTEN 0
+E:0481:1
+PIPE_STOP 0
+FLOW_STOP 0
+FLOW_TPU_RESULTS {'flow_pub_stats': {'grab_fail_total': 0, 'grab_fail_streak': 0, 'running': False, 'frames': 1}, 'records': [(0, 0, (True, 1, 0, 0, 0, 1, -1), 0, 29, ((25, 95, 145, 204, 758, 71), (33, 108, 113, 191, 500, 16), (8, 72, 153, 239, 313, 71), (52, 96, 135, 145, 293, 62), (65, 99, 111, 178, 293, 16), (30, 109, 81, 190, 285, 61), (69, 103, 101, 131, 234, 74), (43, 104, 126, 156, 215, 62), (87, 94, 140, 166, 203, 69), (28, 96, 75, 161, 195, 61), (8, 44, 275, 271, 172, 71), (25, 119, 66, 197, 172, 61), (36, 95, 50, 135, 168, 83), (66, 110, 81, 131, 160, 74), (5, 82, 243, 229, 156, 71), (107, 116, 138, 150, 156, 50), (31, 94, 94, 142, 148, 61), (38, 153, 136, 196, 145, 61), (100, 31, 299, 300, 145, 0), (73, 113, 100, 155, 145, 16))), (1, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ()), (2, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ()), (3, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ()), (4, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ()), (5, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ()), (6, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ()), (7, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ()), (8, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ()), (9, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ()), (10, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ()), (11, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ()), (12, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ()), (13, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ()), (14, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ()), (15, 0, (True, 1, 0, 0, 0, 1, -1), -1, -1, ())]}
+FLOW_TPU_RESULTS_WRITTEN True
+0
+>>> [sim] user exit
+[sim] REPL task done, terminating process
+[det_infer] frame ready direct=0

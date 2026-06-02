@@ -1,0 +1,86 @@
+[sim] FS root: /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter24_virtual_camera_tpu_cat/fs_root
+[sim] sentai_sim build #876 (2026-05-30 16:40:08)
+[sim] FreeRTOS POSIX port: tick=1000 Hz, heap=4194304 bytes
+[sim] MicroPython heap: 2097152 bytes
+[sim] sentai.fr auto-start: dir=/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter24_virtual_camera_tpu_cat/fs_root/fr init=0 events=0 scalars=0 debug=0 task=0
+0
+
+MicroPython on SentAI SIM (FreeRTOS POSIX port + MicroPython embed)
+Type expressions, end with Enter.  Ctrl-D or 'exit' to quit.
+Try: sentai.version(), sentai.fs.write(...), help()
+
+>>> >>> IMG_SIZE 921654
+MODEL_SIZE 7077792
+camera_bridge: listening on /tmp/sentai_cam.sock (waiting for Gazebo bridge)
+[camera] select(-1, /images/cat_640x480.bmp) rc=0
+CAM_SELECT 0
+[tpu] op 1 req=184
+[sentai_fr] worker START
+[tpu] op 1 status=0 plen=0
+[tpu] op 4 req=0
+[tpu] op 4 status=0 plen=28
+[tpu] op 8 req=0
+[tpu] op 8 status=0 plen=4
+[tpu] op 6 req=4
+[tpu] op 6 status=0 plen=16
+[tpu] op 7 req=4
+[tpu] op 7 status=0 plen=8
+[tpu] op 9 req=4
+[tpu] op 9 status=0 plen=4
+[tpu] op 6 req=4
+[tpu] op 6 status=0 plen=16
+[tpu] op 7 req=4
+[tpu] op 7 status=0 plen=8
+[tpu] op 9 req=4
+[tpu] op 9 status=0 plen=4
+[tpu] op 6 req=4
+[tpu] op 6 status=0 plen=16
+[tpu] op 7 req=4
+[tpu] op 7 status=0 plen=8
+[tpu] op 9 req=4
+[tpu] op 9 status=0 plen=4
+[tpu] op 6 req=4
+[tpu] op 6 status=0 plen=16
+[tpu] op 7 req=4
+[tpu] op 7 status=0 plen=8
+[tpu] op 9 req=4
+[tpu] op 9 status=0 plen=4
+TPU_LOAD 0
+TPU_READY True
+E:0480:100
+PIPE_START 0
+[tpu] op 5 req=270000
+[tpu] op 5 status=0 plen=0
+[tpu] op 2 req=0
+[tpu] op 2 status=0 plen=0
+[tpu] op 3 req=4
+[tpu] op 3 status=0 plen=80
+[tpu] op 3 req=4
+[tpu] op 3 status=0 plen=320
+[tpu] op 3 req=4
+[tpu] op 3 status=0 plen=4
+[tpu] op 3 req=4
+[tpu] op 3 status=0 plen=80
+[tpu] op 5 req=270000
+[tpu] op 5 status=0 plen=0
+[tpu] op 2 req=0
+[tpu] op 2 status=0 plen=0
+[tpu] op 3 req=4
+[tpu] op 3 status=0 plen=80
+[tpu] op 3 req=4
+[tpu] op 3 status=0 plen=320
+[tpu] op 3 req=4
+[tpu] op 3 status=0 plen=4
+[tpu] op 3 req=4
+[tpu] op 3 status=0 plen=80
+PIPE_FRAME True
+TPU_OUTPUTS 4
+DETECTIONS_COUNT 17
+DETECTIONS_WRITTEN True
+OVERLAY_WRITTEN 270054
+E:0481:2
+PIPE_STOP 0
+17
+>>> 
+[sim] EOF on stdin, exiting
+[sim] REPL task done, terminating process

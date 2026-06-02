@@ -1,0 +1,5 @@
+[tpu] listening on /tmp/sentai_tpu.sock
+[tpu] client connected
+[tpu] LOADED /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter25_virtual_camera_tpu_cat/fs_root/models/tf2_ssd_mobilenet_v2_coco17_ptq_edgetpu.tflite
+[tpu] mode=pycoral  input shape=[1, 300, 300, 3] dtype=uint8
+F driver/usb/usb_driver.cc:1148] HandleQueuedBulkIn transfer in failed. Not found: USB transfer error 5 [LibUsbDataInCallback]

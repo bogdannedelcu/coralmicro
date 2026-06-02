@@ -1,0 +1,28 @@
+[sim] sentai_sim build #1162 (2026-06-02 08:12:09)
+[sim] FreeRTOS POSIX port: tick=1000 Hz, heap=4194304 bytes
+[sim] MicroPython heap: 2097152 bytes
+[sim] FS root: /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter351_pipeline_pycoral_multi_fsplay_flow/fs_root
+[sim] sentai.fr auto-start: dir=/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter351_pipeline_pycoral_multi_fsplay_flow/fs_root/fr init=0 events=0 scalars=0 debug=0 task=0
+
+MicroPython on SentAI SIM (FreeRTOS POSIX port + MicroPython embed)
+Type expressions, end with Enter.  Ctrl-D or 'exit' to quit.
+Try: sentai.version(), sentai.fs.write(...), help()
+
+>>> >>> MODEL_SIZE 7077792
+READY
+CMD LOAD slot=0 path=/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter351_pipeline_pycoral_multi_fsplay_flow/fs_root/models/tf2_ssd_mobilenet_v2_coco17_ptq_edgetpu.tflite
+CMD LOAD made_interpreter slot=0
+CMD LOAD allocated slot=0
+CMD LOAD done slot=0 outputs=4
+TPU_LOAD 0
+TPU_READY True
+FLOW_START 0
+CAM_SELECT 0
+PIPE_DIRECT_TENSOR_PREV 1
+PIPE_TARGET_FPS 0
+PIPE_PREP_FPS 0
+PIPE_START 0
+CMD INVOKE slot=0 nbytes=270000
+CMD INVOKE done slot=0 ms=29 outputs=4 total=484
+CAM_PLAY 30 DIR /images/shift FPS 10 COUNT 30
+[SIM configASSERT] /home/bogdan/work/coralmicro/third_party/freertos_kernel/queue.c:1479  !( ( xTaskGetSchedulerState() == taskSCHEDULER_SUSPENDED ) && ( xTicksToWait != 0 ) ) was not true

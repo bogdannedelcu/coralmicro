@@ -1,0 +1,171 @@
+[sim] FS root: /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter184_virtual_camera_flow_tpu_shift/fs_root
+[sim] sentai_sim build #1039 (2026-06-01 07:34:11)
+[sim] FreeRTOS POSIX port: tick=1000 Hz, heap=4194304 bytes
+[sim] MicroPython heap: 2097152 bytes
+[sim] sentai.fr auto-start: dir=/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter184_virtual_camera_flow_tpu_shift/fs_root/fr init=0 events=0 scalars=0 debug=0 task=0
+
+MicroPython on SentAI SIM (FreeRTOS POSIX port + MicroPython embed)
+Type expressions, end with Enter.  Ctrl-D or 'exit' to quit.
+Try: sentai.version(), sentai.fs.write(...), help()
+
+>>> camera_bridge: listening on /tmp/sentai_cam.sock (waiting for Gazebo bridge)
+>>> MODEL_SIZE 7077792
+IMG0_SIZE 921654
+IMGN_SIZE 921654
+[sentai_fr] worker START
+[tpu-posix] call begin kind=load slot=0
+[tpu-posix] load slot=0 path=/models/tf2_ssd_mobilenet_v2_coco17_ptq_edgetpu.tflite
+[tpu-posix] opening Coral USB via POSIX/libusb backend
+[tpu-posix] libusb_init...
+[tpu-posix] dfu/app probe...
+[tpu-posix] open app device...
+[tpu-posix] opened Coral USB interface=0 out=01,02,03 in=81,82 irq=83
+[tpu-posix] opening EdgeTpuManager context
+[EdgeTPU mgr] creating context
+[EdgeTPU mgr] initializing driver
+[TPU init] read omc0_00
+[TPU init] check chip id
+[TPU init] write test reg
+[TPU init] read test reg
+[TPU init] disable inactive mode
+[TPU init] disable clock gating
+[TPU init] enter reset
+[TPU init] exit reset
+[TPU init] check scalar run control
+[TPU init] write idle register
+[TPU init] write tile config
+[TPU init] write deep sleep
+[TPU init] enable clock gating
+[TPU init] configure usb csr
+[TPU init] enable tempsense clock
+[TPU init] enable tempsense input ports
+[TPU init] enable tempsense flow
+[TPU init] move to run
+[TPU init] done
+[EdgeTPU mgr] driver initialized
+[tpu-posix] EdgeTPU ready via direct libusb backend
+[tpu-posix] reading model from SentAI FS
+[tpu-posix] model size=7077792
+[tpu-posix] reading model bytes into static storage
+[tpu-posix] model read got=7077792
+[tpu-posix] model loaded from FS: /models/tf2_ssd_mobilenet_v2_coco17_ptq_edgetpu.tflite (7077792 bytes)
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x05701716d04676e6
+TPU Input[0]: uint8[1,300,300,3] 270000 B scale=0.00784314 zp=127
+TPU Out[0]: float32[1,20] 80 B scale=0.00000000 zp=0
+TPU Out[1]: float32[1,20,4] 320 B scale=0.00000000 zp=0
+TPU Out[2]: float32[1] 4 B scale=0.00000000 zp=0
+TPU Out[3]: float32[1,20] 80 B scale=0.00000000 zp=0
+[tpu-posix] arena used: 2722 / 8192 KB
+[tpu-posix] publish slot0 begin
+[tpu-posix] publish slot0 done
+[tpu-posix] worker result kind=load slot=0 rc=0
+[tpu-posix] worker done_seq=1
+[tpu-posix] worker sem given
+[tpu-posix] call done kind=load slot=0 rc=0
+TPU_LOAD 0
+TPU_READY True
+FLOW_ENABLE 0
+[tpu-posix] load_image begin path=/images/cat_shift_00.bmp
+[virtcam] select begin /images/cat_shift_00.bmp
+[virtcam] size 921654
+[virtcam] read ok
+[virtcam] load rc=0
+[virtcam] after_select begin
+[camera-backend] publish_prep_once begin
+[camera-backend] virtual xrgb direct seq=1
+[camera-prep] tpu slot begin
+[camera-prep] tpu dims model=300x300 slot=640x480
+[camera-prep] tpu slot committed
+[camera-backend] flow prep begin mask=24
+[camera-backend] flow notify begin
+[flow] poll begin
+[virtcam] after_select end
+[tpu-posix] load_image selected
+[tpu-posix] load_image prep slot 300x300 seq=1
+[tpu-posix] load_image set_input rc=0
+[flow] poll begin
+[tpu-posix] call begin kind=invoke slot=0
+[tpu-posix] worker result kind=invoke slot=0 rc=1857
+[tpu-posix] worker done_seq=2
+[tpu-posix] worker sem given
+[tpu-posix] call done kind=invoke slot=0 rc=1857
+[tpu-posix] load_image begin path=/images/cat_shift_01.bmp
+[virtcam] select begin /images/cat_shift_01.bmp
+[virtcam] size 921654
+[virtcam] read ok
+[virtcam] load rc=0
+[virtcam] after_select begin
+[camera-backend] publish_prep_once begin
+[camera-backend] virtual xrgb direct seq=2
+[camera-prep] tpu slot begin
+[camera-prep] tpu dims model=300x300 slot=640x480
+[camera-prep] tpu slot committed
+[camera-backend] flow prep begin mask=24
+[camera-backend] flow notify begin
+[flow] poll begin
+[virtcam] after_select end
+[tpu-posix] load_image selected
+[tpu-posix] load_image prep slot 300x300 seq=2
+[tpu-posix] load_image set_input rc=0
+[flow] poll begin
+[tpu-posix] call begin kind=invoke slot=0
+[tpu-posix] worker result kind=invoke slot=0 rc=924
+[tpu-posix] worker done_seq=3
+[tpu-posix] worker sem given
+[tpu-posix] call done kind=invoke slot=0 rc=924
+[tpu-posix] load_image begin path=/images/cat_shift_02.bmp
+[virtcam] select begin /images/cat_shift_02.bmp
+[virtcam] size 921654
+[virtcam] read ok
+[virtcam] load rc=0
+[virtcam] after_select begin
+[camera-backend] publish_prep_once begin
+[camera-backend] virtual xrgb direct seq=3
+[camera-prep] tpu slot begin
+[camera-prep] tpu dims model=300x300 slot=640x480
+[camera-prep] tpu slot committed
+[camera-backend] flow prep begin mask=24
+[camera-backend] flow notify begin
+[flow] poll begin
+[virtcam] after_select end
+[tpu-posix] load_image selected
+[tpu-posix] load_image prep slot 300x300 seq=3
+[tpu-posix] load_image set_input rc=0
+[flow] poll begin
+[tpu-posix] call begin kind=invoke slot=0
+[tpu-posix] worker result kind=invoke slot=0 rc=968
+[tpu-posix] worker done_seq=4
+[tpu-posix] worker sem given
+[tpu-posix] call done kind=invoke slot=0 rc=968
+[tpu-posix] load_image begin path=/images/cat_shift_03.bmp
+[virtcam] select begin /images/cat_shift_03.bmp
+[virtcam] size 921654
+[virtcam] read ok
+[virtcam] load rc=0
+[virtcam] after_select begin
+[camera-backend] publish_prep_once begin
+[camera-backend] virtual xrgb direct seq=4
+[camera-prep] tpu slot begin
+[camera-prep] tpu dims model=300x300 slot=640x480
+[camera-prep] tpu slot committed
+[camera-backend] flow prep begin mask=24
+[camera-backend] flow notify begin
+[flow] poll begin
+[virtcam] after_select end
+[tpu-posix] load_image selected
+[tpu-posix] load_image prep slot 300x300 seq=4
+[tpu-posix] load_image set_input rc=0
+[flow] poll begin
+[tpu-posix] call begin kind=invoke slot=0
+[tpu-posix] worker result kind=invoke slot=0 rc=974
+[tpu-posix] worker done_seq=5
+[tpu-posix] worker sem given
+[tpu-posix] call done kind=invoke slot=0 rc=974
+FLOW_STOP 0
+OVERLAY_WRITTEN 0
+FLOW_TPU_RESULTS {'flow_pub_stats': {'grab_fail_total': 0, 'grab_fail_streak': 0, 'running': False, 'frames': 0}, 'records': [(0, 0, (True, 0, 0, 0, 0, 0, 0), 0, 1857, ((52, 65, 203, 252, 832, 16), (18, 32, 289, 280, 336, 64), (58, 42, 264, 155, 293, 64), (29, 47, 111, 124, 258, 61), (25, 138, 274, 261, 188, 66), (124, 58, 272, 220, 172, 16), (95, 65, 228, 227, 168, 16), (119, 62, 202, 222, 145, 16), (32, 41, 86, 122, 133, 61), (82, 48, 92, 98, 133, 83), (76, 94, 281, 278, 129, 66), (247, 116, 271, 207, 121, 0), (182, 71, 269, 238, 117, 16), (20, 81, 283, 219, 117, 64), (9, 161, 300, 292, 113, 66), (67, 49, 77, 104, 109, 83), (52, 43, 106, 114, 109, 61), (61, 123, 195, 260, 109, 16))), (1, 0, (True, 0, 0, 0, 0, 0, 0), 0, 924, ((50, 68, 202, 252, 820, 16), (30, 48, 111, 124, 285, 61), (50, 41, 265, 154, 285, 64), (18, 36, 289, 280, 285, 64), (127, 59, 272, 226, 215, 16), (25, 136, 274, 261, 203, 66), (100, 64, 227, 229, 180, 16), (123, 63, 202, 224, 160, 16), (246, 104, 272, 201, 145, 62), (74, 93, 283, 277, 145, 66), (182, 73, 272, 238, 137, 16), (52, 44, 107, 115, 129, 61), (169, 68, 187, 107, 129, 74), (28, 56, 116, 229, 129, 61), (82, 48, 93, 98, 121, 83), (173, 206, 258, 255, 117, 66), (120, 41, 270, 174, 117, 64), (20, 81, 279, 222, 109, 64), (99, 40, 270, 127, 105, 8))), (2, 0, (True, 0, 0, 0, 0, 0, 0), 0, 968, ((50, 66, 202, 253, 832, 16), (48, 40, 267, 151, 313, 64), (16, 32, 292, 280, 258, 64), (31, 47, 112, 124, 242, 61), (88, 48, 272, 227, 203, 16), (25, 137, 270, 261, 188, 66), (33, 47, 87, 137, 172, 61), (121, 63, 201, 224, 172, 16), (247, 104, 272, 201, 168, 62), (64, 95, 285, 280, 148, 66), (160, 67, 272, 242, 137, 16), (120, 40, 270, 167, 133, 64), (172, 205, 258, 256, 121, 66), (170, 68, 188, 109, 117, 74), (81, 47, 92, 98, 105, 83), (29, 57, 115, 227, 105, 61), (20, 83, 279, 221, 105, 64))), (3, 0, (True, 0, 0, 0, 0, 0, 0), 0, 974, ((52, 62, 199, 253, 813, 16), (37, 40, 269, 156, 285, 64), (32, 41, 112, 132, 250, 61), (20, 35, 288, 277, 242, 71), (117, 62, 200, 213, 234, 16), (83, 44, 274, 229, 227, 16), (40, 116, 246, 260, 188, 66), (35, 47, 84, 137, 160, 61), (117, 58, 243, 157, 156, 16), (165, 66, 275, 238, 137, 16), (171, 68, 188, 108, 129, 74), (247, 104, 272, 205, 129, 62), (173, 206, 257, 256, 121, 66), (30, 56, 117, 229, 121, 61), (133, 54, 272, 196, 121, 16), (50, 44, 108, 115, 117, 61), (16, 145, 300, 289, 113, 66), (81, 46, 91, 98, 109, 83), (22, 79, 281, 220, 109, 64), (68, 48, 78, 103, 105, 83)))]}
+FLOW_TPU_RESULTS_WRITTEN True
+0
+>>> 
+[sim] EOF on stdin, exiting
+[sim] REPL task done, terminating process

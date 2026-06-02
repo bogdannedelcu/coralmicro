@@ -1,0 +1,1 @@
+{'delta_frames': 10, 'delta_aux': 10, 'before': {'slot_seq': (0, 0, 0, 0, 1), 'producer_overruns': 0, 'slot_refcount': (0, 0, 0, 0, 1), 'frames_total': 1, 'frames_with_aux': 1}, 'after': {'slot_seq': (0, 0, 0, 0, 11), 'producer_overruns': 0, 'slot_refcount': (0, 0, 0, 0, 1), 'frames_total': 11, 'frames_with_aux': 11}, 'flow_slot_seq_delta': 10, 'flow_refcount_after': 1}

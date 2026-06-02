@@ -1,0 +1,151 @@
+[sim] FS root: /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter185_virtual_camera_flow_tpu_shift/fs_root
+[sim] sentai_sim build #1040 (2026-06-01 07:35:36)
+[sim] FreeRTOS POSIX port: tick=1000 Hz, heap=4194304 bytes
+[sim] MicroPython heap: 2097152 bytes
+[sim] sentai.fr auto-start: dir=/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/iter185_virtual_camera_flow_tpu_shift/fs_root/fr init=0 events=0 scalars=0 debug=0 task=0
+
+MicroPython on SentAI SIM (FreeRTOS POSIX port + MicroPython embed)
+Type expressions, end with Enter.  Ctrl-D or 'exit' to quit.
+Try: sentai.version(), sentai.fs.write(...), help()
+
+>>> [sentai_fr] worker START
+>>> camera_bridge: listening on /tmp/sentai_cam.sock (waiting for Gazebo bridge)
+MODEL_SIZE 7077792
+IMG0_SIZE 921654
+IMGN_SIZE 921654
+[tpu-posix] call begin kind=load slot=0
+[tpu-posix] load slot=0 path=/models/tf2_ssd_mobilenet_v2_coco17_ptq_edgetpu.tflite
+[tpu-posix] opening Coral USB via POSIX/libusb backend
+[tpu-posix] libusb_init...
+[tpu-posix] dfu/app probe...
+[tpu-posix] open app device...
+[tpu-posix] opened Coral USB interface=0 out=01,02,03 in=81,82 irq=83
+[tpu-posix] opening EdgeTpuManager context
+[EdgeTPU mgr] creating context
+[EdgeTPU mgr] initializing driver
+[TPU init] read omc0_00
+[TPU init] check chip id
+[TPU init] write test reg
+[TPU init] read test reg
+[TPU init] disable inactive mode
+[TPU init] disable clock gating
+[TPU init] enter reset
+[TPU init] exit reset
+[TPU init] check scalar run control
+[TPU init] write idle register
+[TPU init] write tile config
+[TPU init] write deep sleep
+[TPU init] enable clock gating
+[TPU init] configure usb csr
+[TPU init] enable tempsense clock
+[TPU init] enable tempsense input ports
+[TPU init] enable tempsense flow
+[TPU init] move to run
+[TPU init] done
+[EdgeTPU mgr] driver initialized
+[tpu-posix] EdgeTPU ready via direct libusb backend
+[tpu-posix] reading model from SentAI FS
+[tpu-posix] model size=7077792
+[tpu-posix] reading model bytes into static storage
+[tpu-posix] model read got=7077792
+[tpu-posix] model loaded from FS: /models/tf2_ssd_mobilenet_v2_coco17_ptq_edgetpu.tflite (7077792 bytes)
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x05701716d04676e6
+TPU Input[0]: uint8[1,300,300,3] 270000 B scale=0.00784314 zp=127
+TPU Out[0]: float32[1,20] 80 B scale=0.00000000 zp=0
+TPU Out[1]: float32[1,20,4] 320 B scale=0.00000000 zp=0
+TPU Out[2]: float32[1] 4 B scale=0.00000000 zp=0
+TPU Out[3]: float32[1,20] 80 B scale=0.00000000 zp=0
+[tpu-posix] arena used: 2722 / 8192 KB
+[tpu-posix] publish slot0 begin
+[tpu-posix] publish slot0 done
+[tpu-posix] worker result kind=load slot=0 rc=0
+[tpu-posix] worker done_seq=1
+[tpu-posix] worker sem given
+[tpu-posix] call done kind=load slot=0 rc=0
+TPU_LOAD 0
+TPU_READY True
+FLOW_START 0
+[flow] poll begin
+[flow] poll no slot
+[tpu-posix] load_image begin path=/images/cat_shift_00.bmp
+[virtcam] select begin /images/cat_shift_00.bmp
+[virtcam] size 921654
+[virtcam] read ok
+[virtcam] load rc=0
+[virtcam] after_select begin
+[camera-backend] publish_prep_once begin
+[camera-backend] virtual xrgb direct seq=1
+[camera-prep] tpu slot begin
+[camera-prep] tpu dims model=300x300 slot=640x480
+[camera-prep] tpu slot committed
+[camera-backend] flow prep begin mask=24
+[camera-backend] flow notify begin
+[virtcam] after_select end
+[tpu-posix] load_image selected
+[tpu-posix] load_image prep slot 300x300 seq=1
+[tpu-posix] load_image set_input rc=0
+[flow] poll begin
+[flow] poll slot ticket=1 last=0
+[flow] poll compute begin
+[flow] poll compute done
+[flow] poll end
+[flow] poll begin
+[flow] poll slot ticket=1 last=1
+[flow] poll end
+[tpu-posix] call begin kind=invoke slot=0
+[tpu-posix] worker result kind=invoke slot=0 rc=1904
+[tpu-posix] worker done_seq=2
+[tpu-posix] worker sem given
+[tpu-posix] call done kind=invoke slot=0 rc=1904
+[tpu-posix] load_image begin path=/images/cat_shift_01.bmp
+[virtcam] select begin /images/cat_shift_01.bmp
+[virtcam] size 921654
+[virtcam] read ok
+[virtcam] load rc=0
+[virtcam] after_select begin
+[camera-backend] publish_prep_once begin
+[camera-backend] virtual xrgb direct seq=2
+[camera-prep] tpu slot begin
+[camera-prep] tpu dims model=300x300 slot=640x480
+[camera-prep] tpu slot committed
+[camera-backend] flow prep begin mask=24
+[camera-backend] flow notify begin
+[virtcam] after_select end
+[tpu-posix] load_image selected
+[tpu-posix] load_image prep slot 300x300 seq=2
+[tpu-posix] load_image set_input rc=0
+[flow] poll begin
+[flow] poll slot ticket=2 last=1
+[flow] poll compute begin
+[flow] poll compute done
+[flow] poll end
+[flow] poll begin
+[flow] poll slot ticket=2 last=2
+[flow] poll end
+[tpu-posix] call begin kind=invoke slot=0
+[tpu-posix] worker result kind=invoke slot=0 rc=927
+[tpu-posix] worker done_seq=3
+[tpu-posix] worker sem given
+[tpu-posix] call done kind=invoke slot=0 rc=927
+[tpu-posix] load_image begin path=/images/cat_shift_02.bmp
+[virtcam] select begin /images/cat_shift_02.bmp
+[virtcam] size 921654
+[virtcam] read ok
+[virtcam] load rc=0
+[virtcam] after_select begin
+[camera-backend] publish_prep_once begin
+[camera-backend] virtual xrgb direct seq=3
+[camera-prep] tpu slot begin
+[camera-prep] tpu dims model=300x300 slot=640x480
+[camera-prep] tpu slot committed
+[camera-backend] flow prep begin mask=24
+[camera-backend] flow notify begin
+[virtcam] after_select end
+[tpu-posix] load_image selected
+[tpu-posix] load_image prep slot 300x300 seq=3
+[tpu-posix] load_image set_input rc=0
+[flow] poll begin
+[flow] poll slot ticket=3 last=2
+[flow] poll compute begin
+[flow] poll compute done
+[flow] poll end
