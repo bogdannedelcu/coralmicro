@@ -175,7 +175,7 @@ target_compile_options(sentai_emu_camera PRIVATE
     -Wno-old-style-definition -Wno-missing-prototypes
 )
 
-# --- B8.6 ARM PrepTask + FlowTask pipeline behind VCam IRQ ----------------
+# --- B8.6 ARM two-stage pipeline-topology spike behind VCam IRQ ----------
 #
 # Reuses the B8.5 VCam peripheral.  Adds a two-stage pipeline inside the
 # firmware so the verdict can prove the camera-frame-ready boundary feeds a

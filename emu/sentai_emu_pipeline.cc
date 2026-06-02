@@ -1,22 +1,38 @@
-// B8.6 ARM emulator prep + flow pipeline spike.
+// B8.6 ARM emulator pipeline-topology spike.
 //
 // Builds on the B8.5 VCam IRQ path by inserting a two-stage task pipeline
 // behind the same camera-frame-ready boundary:
 //
-//   Renode vcam ─CONTROL.ARM=1─► IRQ 94 ─► PrepTask ─notify─► FlowTask
+//   Renode vcam ─CONTROL.ARM=1─► IRQ 94 ─► Stage1Task ─notify─► Stage2Task
 //                                            │                    │
 //                                            └─ scalar publish ───┘
 //
-// PrepTask wakes from the VCam IRQ, scans the raw frame bytes, computes
+// IMPORTANT NAMING NOTE.  Production sentai_runtime already owns the
+// symbols `PrepTask`, `InferTask`, `FlowTask`, and `CameraTask`:
+//   - `PrepTask` / `InferTask` live in examples/sentai_runtime/detection_task.cc
+//     and run PXP + RGB->Y8 + INT8 quantisation, then EdgeTPU invoke.
+//   - `FlowTask` lives in examples/sentai_runtime/flow_task.cc and runs
+//     USADA8 / phase correlation on the prep output.
+//   - `CameraTask` is a class in libs/camera/camera.cc that owns the CSI
+//     receiver queue and ISR.
+// This emu spike does NOT implement any of those algorithms; it only
+// exercises the ISR -> task-A -> task-B notification topology.  The
+// scaffolding tasks below are therefore deliberately named `Stage1Task`
+// and `Stage2Task` so a future reader greppping the codebase for
+// `PrepTask` or `FlowTask` does not land here by mistake.  Real
+// production tasks will plug into this same boundary at a later gate
+// once they can be built against the emulator profile.
+//
+// Stage1Task wakes from the VCam IRQ, scans the raw frame bytes, computes
 // `sum` and `avg`, and publishes them into a shared slot before notifying
-// FlowTask.  FlowTask reads the slot, increments its own counter, and
+// Stage2Task.  Stage2Task reads the slot, increments its own counter, and
 // writes a per-frame marker line to LPUART6.  Each marker reports the
 // frame sequence number, sum, and average so a downstream verdict can
-// detect a partial pipeline failure (e.g. PrepTask runs but FlowTask
+// detect a partial pipeline failure (e.g. Stage1Task runs but Stage2Task
 // is starved) cleanly.
 //
-// The contract mirrors the production sentai_runtime W11 pipeline:
-//   ISR  ─FromISR notify─► PrepTask ─task notify─► FlowTask
+// The contract mirrors the production sentai_runtime W11 pipeline shape:
+//   ISR  ─FromISR notify─► Stage1Task ─task notify─► Stage2Task
 // No queues, no event groups; the simplest pattern that exercises the
 // real Cortex-M scheduler hand-offs the ARM build relies on.
 
@@ -32,8 +48,8 @@ extern "C" volatile uint32_t g_sentai_emu_boot_state;
 extern "C" volatile uint32_t g_sentai_emu_heartbeat;
 extern "C" volatile uint32_t g_sentai_emu_last_tick;
 extern "C" volatile uint32_t g_sentai_emu_irq_count;
-extern "C" volatile uint32_t g_sentai_emu_prep_processed;
-extern "C" volatile uint32_t g_sentai_emu_flow_consumed;
+extern "C" volatile uint32_t g_sentai_emu_stage1_processed;
+extern "C" volatile uint32_t g_sentai_emu_stage2_consumed;
 extern "C" volatile uint32_t g_sentai_emu_pipeline_errors;
 extern "C" volatile uint32_t g_sentai_emu_last_sum;
 
@@ -41,8 +57,8 @@ namespace {
 
 constexpr uint32_t kBootEnteredMain = 0x0100;
 constexpr uint32_t kBootTasksCreated = 0x0200;
-constexpr uint32_t kBootPrepReady = 0x0700;
-constexpr uint32_t kBootFlowReady = 0x0800;
+constexpr uint32_t kBootStage1Ready = 0x0700;
+constexpr uint32_t kBootStage2Ready = 0x0800;
 constexpr uint32_t kBootBothReady = 0x0900;
 constexpr uint32_t kBootSchedulerReturned = 0xEE00;
 constexpr uint32_t kBootCreateTaskFailed = 0xEF00;
@@ -60,21 +76,21 @@ constexpr size_t kTaskStackWords = 4 * 1024;       // 16 KiB per task
 
 uint8_t g_frame_buffer[kFrameBytes] __attribute__((aligned(8), section(".sdram_data")));
 
-struct PrepSlot {
+struct ScalarSlot {
     uint32_t seq;
     uint32_t sum;
     uint32_t avg;
     volatile uint32_t valid;  // writer sets last, reader clears
 };
-PrepSlot g_prep_slot __attribute__((aligned(8))) = {0, 0, 0, 0};
+ScalarSlot g_scalar_slot __attribute__((aligned(8))) = {0, 0, 0, 0};
 
-StaticTask_t g_prep_tcb;
-StackType_t g_prep_stack[kTaskStackWords] __attribute__((aligned(8)));
-TaskHandle_t g_prep_handle = nullptr;
+StaticTask_t g_stage1_tcb;
+StackType_t g_stage1_stack[kTaskStackWords] __attribute__((aligned(8)));
+TaskHandle_t g_stage1_handle = nullptr;
 
-StaticTask_t g_flow_tcb;
-StackType_t g_flow_stack[kTaskStackWords] __attribute__((aligned(8)));
-TaskHandle_t g_flow_handle = nullptr;
+StaticTask_t g_stage2_tcb;
+StackType_t g_stage2_stack[kTaskStackWords] __attribute__((aligned(8)));
+TaskHandle_t g_stage2_handle = nullptr;
 
 volatile uint32_t &VcamReg(uint32_t offset) {
     return *reinterpret_cast<volatile uint32_t *>(kVcamBase + offset);
@@ -118,18 +134,18 @@ void UartDec(uint32_t v) {
     }
 }
 
-void PrepTask(void *) {
-    g_prep_handle = xTaskGetCurrentTaskHandle();
+void Stage1Task(void *) {
+    g_stage1_handle = xTaskGetCurrentTaskHandle();
     UartInit();
     UartWrite("\r\nSentAI EMU PIPELINE B8.6\r\n");
-    UartWrite("PrepTask ready\r\n");
+    UartWrite("Stage1Task ready\r\n");
 
     VcamReg(kVcamFramePtrOffset) = reinterpret_cast<uint32_t>(g_frame_buffer);
     VcamReg(kVcamFrameLenOffset) = static_cast<uint32_t>(kFrameBytes);
     NVIC_SetPriority(kVcamIrqn, 8);
     NVIC_EnableIRQ(kVcamIrqn);
 
-    g_sentai_emu_boot_state = kBootPrepReady;
+    g_sentai_emu_boot_state = kBootStage1Ready;
 
     while (true) {
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
@@ -142,47 +158,47 @@ void PrepTask(void *) {
         uint32_t seq = VcamReg(kVcamFrameSeqOffset);
 
         // Publish: fields first, valid flag last.  A trailing __DMB() makes
-        // the writes observable to FlowTask before the notification arrives.
-        g_prep_slot.seq = seq;
-        g_prep_slot.sum = sum;
-        g_prep_slot.avg = sum / kFrameBytes;
+        // the writes observable to Stage2Task before the notification arrives.
+        g_scalar_slot.seq = seq;
+        g_scalar_slot.sum = sum;
+        g_scalar_slot.avg = sum / kFrameBytes;
         __DMB();
-        g_prep_slot.valid = 1;
+        g_scalar_slot.valid = 1;
         g_sentai_emu_last_sum = sum;
-        ++g_sentai_emu_prep_processed;
+        ++g_sentai_emu_stage1_processed;
 
-        if (g_flow_handle != nullptr) {
-            xTaskNotifyGive(g_flow_handle);
+        if (g_stage2_handle != nullptr) {
+            xTaskNotifyGive(g_stage2_handle);
         }
     }
 }
 
-void FlowTask(void *) {
-    g_flow_handle = xTaskGetCurrentTaskHandle();
-    UartWrite("FlowTask ready\r\n");
+void Stage2Task(void *) {
+    g_stage2_handle = xTaskGetCurrentTaskHandle();
+    UartWrite("Stage2Task ready\r\n");
     g_sentai_emu_boot_state =
-        (g_sentai_emu_boot_state == kBootPrepReady) ? kBootBothReady
-                                                    : kBootFlowReady;
+        (g_sentai_emu_boot_state == kBootStage1Ready) ? kBootBothReady
+                                                      : kBootStage2Ready;
 
     while (true) {
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-        if (!g_prep_slot.valid) {
+        if (!g_scalar_slot.valid) {
             ++g_sentai_emu_pipeline_errors;
             continue;
         }
 
         __DMB();
-        uint32_t seq = g_prep_slot.seq;
-        uint32_t sum = g_prep_slot.sum;
-        uint32_t avg = g_prep_slot.avg;
-        g_prep_slot.valid = 0;
+        uint32_t seq = g_scalar_slot.seq;
+        uint32_t sum = g_scalar_slot.sum;
+        uint32_t avg = g_scalar_slot.avg;
+        g_scalar_slot.valid = 0;
 
-        ++g_sentai_emu_flow_consumed;
+        ++g_sentai_emu_stage2_consumed;
         ++g_sentai_emu_heartbeat;
 
-        UartWrite("FLOW ");
-        UartDec(g_sentai_emu_flow_consumed);
-        UartWrite(" prep_seq=");
+        UartWrite("STAGE2 ");
+        UartDec(g_sentai_emu_stage2_consumed);
+        UartWrite(" frame_seq=");
         UartDec(seq);
         UartWrite(" sum=");
         UartDec(sum);
@@ -199,8 +215,8 @@ volatile uint32_t g_sentai_emu_boot_state = 0;
 volatile uint32_t g_sentai_emu_heartbeat = 0;
 volatile uint32_t g_sentai_emu_last_tick = 0;
 volatile uint32_t g_sentai_emu_irq_count = 0;
-volatile uint32_t g_sentai_emu_prep_processed = 0;
-volatile uint32_t g_sentai_emu_flow_consumed = 0;
+volatile uint32_t g_sentai_emu_stage1_processed = 0;
+volatile uint32_t g_sentai_emu_stage2_consumed = 0;
 volatile uint32_t g_sentai_emu_pipeline_errors = 0;
 volatile uint32_t g_sentai_emu_last_sum = 0;
 }
@@ -209,9 +225,9 @@ extern "C" void Reserved110_IRQHandler(void) {
     ++g_sentai_emu_irq_count;
     VcamReg(kVcamStatusOffset) = 1u;
 
-    if (g_prep_handle != nullptr) {
+    if (g_stage1_handle != nullptr) {
         BaseType_t higher = pdFALSE;
-        vTaskNotifyGiveFromISR(g_prep_handle, &higher);
+        vTaskNotifyGiveFromISR(g_stage1_handle, &higher);
         portYIELD_FROM_ISR(higher);
     }
 }
@@ -222,15 +238,15 @@ extern "C" int main(int argc, char **argv) {
 
     g_sentai_emu_boot_state = kBootEnteredMain;
 
-    TaskHandle_t prep = xTaskCreateStatic(PrepTask, "emu_prep",
-                                          kTaskStackWords, nullptr,
-                                          tskIDLE_PRIORITY + 3,
-                                          g_prep_stack, &g_prep_tcb);
-    TaskHandle_t flow = xTaskCreateStatic(FlowTask, "emu_flow",
-                                           kTaskStackWords, nullptr,
-                                           tskIDLE_PRIORITY + 2,
-                                           g_flow_stack, &g_flow_tcb);
-    if (!prep || !flow) {
+    TaskHandle_t stage1 = xTaskCreateStatic(Stage1Task, "emu_stage1",
+                                            kTaskStackWords, nullptr,
+                                            tskIDLE_PRIORITY + 3,
+                                            g_stage1_stack, &g_stage1_tcb);
+    TaskHandle_t stage2 = xTaskCreateStatic(Stage2Task, "emu_stage2",
+                                            kTaskStackWords, nullptr,
+                                            tskIDLE_PRIORITY + 2,
+                                            g_stage2_stack, &g_stage2_tcb);
+    if (!stage1 || !stage2) {
         g_sentai_emu_boot_state = kBootCreateTaskFailed;
         while (true) {
         }

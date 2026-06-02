@@ -143,7 +143,7 @@ is now:
 ```text
 Boot a SentAI/RT1176-like ARM firmware image in an emulator, using the ARM
 FreeRTOS port and ARM exception/task model, then incrementally add enough
-peripheral models to reach REPL, FS, camera-provider frames, PrepTask, Flow,
+peripheral models to reach REPL, FS, camera-provider frames, Stage1Task, Flow,
 and later Crazyflie transport.
 ```
 
@@ -198,11 +198,11 @@ It requires all of:
 The current B8 first milestone should keep `sentai.tpu` present but not use it
 as the gate.  TPU returns as one of these later tracks:
 
-1. **host mailbox peripheral**: guest FlowTask writes tensors/commands to a
+1. **host mailbox peripheral**: guest Stage2Task writes tensors/commands to a
    modeled peripheral; host runs PyCoral/libedgetpu and writes outputs back.
    This tests SentAI scheduling and parsing, but it is not USB parity.
 2. **hardware-in-loop Coral**: run the EdgeTPU path on the physical board or
-   the existing host baseline while the emulator validates camera/PrepTask/Flow.
+   the existing host baseline while the emulator validates camera/Stage1Task/Flow.
 3. **USB model/pass-through**: later research only, after basic ARM-emulated
    SentAI reaches REPL and camera/FS are stable.
 
@@ -215,7 +215,7 @@ as the gate.  TPU returns as one of these later tracks:
 | Filesystem | first: host bridge or RAM-backed image; later: flash/SD image | We need reproducible per-run mission + FR artifacts. |
 | Camera | virtual provider -> guest frame buffers + ISR/event/queue boundary | Do not emulate MIPI-CSI first. Preserve ARM producer/consumer shape. |
 | PXP | stub/bypass only if boot requires it; real prep code later | Avoid modeling PXP registers before boot/REPL. |
-| Flow/Markers | real ARM tasks after PrepTask output exists | Consumer fidelity matters after camera works. |
+| Flow/Markers | real ARM tasks after Stage1Task output exists | Consumer fidelity matters after camera works. |
 | Crazyflie UART/CRTP | emulated UART/socket bridge after REPL | Lets emulator drive a real/simulated radio bridge. |
 | EdgeTPU USB | deferred | Too much protocol + controller fidelity for first slice. |
 
@@ -375,14 +375,14 @@ B8.2  add UART/debug-console output, still no storage/camera/USB
 B8.3  add MicroPython REPL task over UART, no filesystem mission yet
 B8.4  add emulator filesystem fixture and import mission; mission.run()
 B8.5  add virtual camera provider -> common frame-ready boundary
-B8.6  add PrepTask consumers
+B8.6  add Stage1Task consumers
 B8.7  add Flow/markers consumers
 B8.8  decide EdgeTPU path: host mailbox, HIL, or USB model
 ```
 
 The first camera milestone in emulator is **not** MIPI-CSI emulation.  It is a
 runtime virtual camera provider that writes frames into the same frame-ready
-boundary consumed by PrepTask/Flow/FlowTask.  This can be implemented with a
+boundary consumed by Stage1Task/Flow/Stage2Task.  This can be implemented with a
 provider interface:
 
 ```text
@@ -783,7 +783,7 @@ Open caveats inherited from earlier gates:
   importing a real flight mission.
 
 Next gate: B8.5 should add the first virtual camera frame provider feeding
-the same camera-frame event boundary used by ARM PrepTask, still without
+the same camera-frame event boundary used by ARM Stage1Task, still without
 modeling MIPI-CSI or PXP register-level state.
 
 ## B8.5 VCam Renode Peripheral + Real NVIC IRQ Frame Boundary
@@ -883,7 +883,7 @@ What this proves:
 - The boundary at which a real CameraTask would consume a CSI-DMA'd
   buffer is unchanged: a task blocked on a queue/notification, woken
   from ISR with the frame metadata available in MMIO.  Future B8.6+
-  PrepTask work can plug in at exactly this boundary.
+  Stage1Task work can plug in at exactly this boundary.
 
 Notes and gotchas captured by B8.5:
 
@@ -919,28 +919,28 @@ Open caveats inherited from earlier gates:
   high-rate frames.  All of those are explicitly deferred per the B8
   peripheral fidelity matrix.
 
-Next gate: B8.6 should wire a PrepTask consumer to the same VCam frame
+Next gate: B8.6 should wire a Stage1Task consumer to the same VCam frame
 boundary (perhaps as a second consumer task pulling from a shared queue
-the ISR posts to) and validate that PrepTask scalars/counters move on each
+the ISR posts to) and validate that Stage1Task scalars/counters move on each
 emulated frame, the same way they do on the real camera.
 
-## B8.6 PrepTask + FlowTask Pipeline Behind VCam IRQ
+## B8.6 Stage1Task + Stage2Task Pipeline Behind VCam IRQ
 
 `sentai_emu_pipeline` reuses the B8.5 VCam peripheral and the same IRQ 94
 boundary, then inserts a real two-stage FreeRTOS pipeline on the firmware
 side.  The contract mirrors the production W11 pipeline almost verbatim:
 
 ```text
-Renode vcam ─CONTROL.ARM=1─► IRQ 94 ─FromISR notify─► PrepTask
+Renode vcam ─CONTROL.ARM=1─► IRQ 94 ─FromISR notify─► Stage1Task
                                                        │
                                                        ├─ scan g_frame_buffer
                                                        ├─ sum, avg
-                                                       ├─ publish g_prep_slot
+                                                       ├─ publish g_scalar_slot
                                                        │  (fields → __DMB → valid=1)
-                                                       └─ xTaskNotifyGive(flow)
+                                                       └─ xTaskNotifyGive(stage2)
                                                                 │
                                                                 ▼
-                                                          FlowTask
+                                                          Stage2Task
                                                           ├─ read slot (DMB)
                                                           ├─ clear valid
                                                           └─ UART marker line
@@ -949,55 +949,59 @@ Renode vcam ─CONTROL.ARM=1─► IRQ 94 ─FromISR notify─► PrepTask
 Files added:
 
 ```text
-emu/sentai_emu_pipeline.cc      # PrepTask + FlowTask + shared slot
+emu/sentai_emu_pipeline.cc      # Stage1Task + Stage2Task + shared slot
 emu/renode/sentai_emu_pipeline.resc
 ```
 
 Design points specific to B8.6:
 
-- **Two real FreeRTOS tasks**, not one consumer wearing two hats.  PrepTask
-  runs at `tskIDLE_PRIORITY + 3` (higher than FlowTask) so the wakeup
-  ordering ISR → Prep → Flow matches production scheduling intent: prep
-  runs first, flow runs after.
-- **Shared slot publish/observe contract**.  PrepTask writes the data
-  fields, runs `__DMB()`, then sets `valid = 1`.  FlowTask reads
+- **Two real FreeRTOS tasks**, not one consumer wearing two hats.  Stage1Task
+  runs at `tskIDLE_PRIORITY + 3` (higher than Stage2Task) so the wakeup
+  ordering ISR → Stage1 → Stage2 matches the production W11 scheduling
+  intent shape (Stage1 runs first, Stage2 runs after).  The emu does NOT
+  reuse the production task names — production `PrepTask` and `FlowTask`
+  do PXP / quant / USADA8 work that this spike deliberately does not
+  attempt.  Stand-in stage names keep the emu visibly separate from the
+  production symbols.
+- **Shared slot publish/observe contract**.  Stage1Task writes the data
+  fields, runs `__DMB()`, then sets `valid = 1`.  Stage2Task reads
   `valid`, runs `__DMB()`, then consumes the fields.  This is a
   single-writer / single-reader version of the production seqlock and
   is the minimum that survives ARM CM7 store reordering.  No seqlock
   counter is needed because the task notification provides the wake-up
   signal and serialises the two sides.
 - **Per-stage counters in C globals** (`g_sentai_emu_irq_count`,
-  `_prep_processed`, `_flow_consumed`, `_pipeline_errors`).  The
+  `_stage1_processed`, `_stage2_consumed`, `_pipeline_errors`).  The
   verdict reads them post-run and asserts equality.  A partial pipeline
-  failure (PrepTask runs but FlowTask is starved) would show as
-  `prep_processed > flow_consumed`.
+  failure (Stage1Task runs but Stage2Task is starved) would show as
+  `stage1_processed > stage2_consumed`.
 - **Arithmetic verdict on `last_sum`**.  The frame body is `frame_seq`
   bytes repeated 64 times, so the last reduction must equal `5 * 64 =
   320 = 0x140`.  The runner asserts on the exact value, not just
   monotonic progress.  A regression that drops half the bytes
   (e.g. a misaligned cache invalidate) would produce a different sum
   and fail the gate.
-- **Per-frame UART marker** (`FLOW N prep_seq=N sum=S avg=A`).  Lines
+- **Per-frame UART marker** (`STAGE2 N frame_seq=N sum=S avg=A`).  Lines
   carry both the running stage counter (`N`) and the source frame
-  sequence (`prep_seq`), so a duplicate-delivery bug would print the
-  same `prep_seq` twice and fail the per-line assertion.
+  sequence (`frame_seq`), so a duplicate-delivery bug would print the
+  same `frame_seq` twice and fail the per-line assertion.
 
-Validated result (`iter09_renode_pipeline_prep_flow`):
+Validated result (`iter09_renode_pipeline_stage1_stage2`):
 
 ```text
 boot_state                                = 0x00000900  (kBootBothReady)
 irq_count                                 = 5
-prep_processed                            = 5
-flow_consumed                            = 5
+stage1_processed                            = 5
+stage2_consumed                          = 5
 pipeline_errors                           = 0
 last_sum                                  = 320          (= 0x140)
-uart_log raw bytes                       ⊃ "PrepTask ready"
-                                           "FlowTask ready"
-                                           "FLOW 1 prep_seq=1 sum=64 avg=1"
-                                           "FLOW 2 prep_seq=2 sum=128 avg=2"
-                                           "FLOW 3 prep_seq=3 sum=192 avg=3"
-                                           "FLOW 4 prep_seq=4 sum=256 avg=4"
-                                           "FLOW 5 prep_seq=5 sum=320 avg=5"
+uart_log raw bytes                       ⊃ "Stage1Task ready"
+                                           "Stage2Task ready"
+                                           "STAGE2 1 frame_seq=1 sum=64 avg=1"
+                                           "STAGE2 2 frame_seq=2 sum=128 avg=2"
+                                           "STAGE2 3 frame_seq=3 sum=192 avg=3"
+                                           "STAGE2 4 frame_seq=4 sum=256 avg=4"
+                                           "STAGE2 5 frame_seq=5 sum=320 avg=5"
 uart_log_contains_pipeline_first          = true
 uart_log_contains_pipeline_last           = true
 pass                                      = true
@@ -1008,7 +1012,7 @@ What this proves:
 - the camera-frame-ready boundary at IRQ 94 feeds a real downstream
   consumer, not just an ISR-side counter;
 - ARM CM7 FreeRTOS schedules the two-stage notification chain
-  ISR → PrepTask → FlowTask in the right order on every frame;
+  ISR → Stage1Task → Stage2Task in the right order on every frame;
 - shared-slot publish/observe through `__DMB()` survives across task
   context switches;
 - the consumer reduction (sum of bytes) reproduces exactly under
@@ -1020,15 +1024,25 @@ Notes captured by B8.6:
 - Production sentai_prep uses a seqlock + multiple readers.  B8.6
   uses a single-reader equivalent because there is only one consumer
   in this slice.  The full seqlock + multi-reader pattern is a B8.7+
-  concern when adding a flow/marker consumer pulling from the same
-  slot in parallel.
+  concern when adding a markers consumer pulling from the same slot
+  in parallel.
+- HARD RULE established 2026-06-02 (operator note): emu scaffolding
+  MUST NOT name its tasks `PrepTask`, `InferTask`, `FlowTask`, or
+  `CameraTask` — those names belong to production symbols in
+  `examples/sentai_runtime/detection_task.cc`,
+  `examples/sentai_runtime/flow_task.cc`, and
+  `libs/camera/camera.cc` respectively.  Stand-in scaffolding uses
+  neutral names (`Stage1Task` / `Stage2Task`) so a grep for the
+  production names does not land in emu test code by mistake.
+  Recorded in auto-memory as
+  `feedback-emu-must-not-reuse-production-task-names`.
 - `__DMB()` is sufficient on CM7 single-core; no `__DSB()` needed
   because we are not touching DMA-coherency boundaries (the slot
   lives in SDRAM but is purely CPU-written and CPU-read).
 - Task creation order matters only weakly: both handles are set
   inside their tasks before the first `ulTaskNotifyTake`.  Spawning
-  the higher-priority PrepTask first happens to make Prep set its
-  handle before Flow in practice, but the design tolerates either
+  the higher-priority Stage1Task first happens to make Stage1 set its
+  handle before Stage2 in practice, but the design tolerates either
   order because the 3s boot RunFor gives both tasks time to reach
   their first block before any host frame is triggered.
 - The build re-uses VCam from `sentai_rt1176.repl` (no changes to the
@@ -1039,15 +1053,15 @@ Open caveats inherited from earlier gates:
 
 - Renode `nvic` priority-mask warning persists.
 - The reduction is `sum of bytes`, not real preprocessing (RGB→Y8,
-  resize, normalise).  Real PrepTask work belongs in a later gate
+  resize, normalise).  Real Stage1Task work belongs in a later gate
   once an actual frame format is locked in.
 - Only one downstream consumer.  Multi-reader fan-out (Flow + ArUco
-  + FlowTask reading the same prep slot) is deferred.
+  + Stage2Task reading the same prep slot) is deferred.
 
 Next gate: B8.7 should split the consumer side into Flow + markers
 tasks reading the same prep slot concurrently, exercising the real
 seqlock contract and validating that all consumers see consistent
-data when PrepTask is faster than they are.
+data when Stage1Task is faster than they are.
 
 ## Crazyflie / UART Strategy
 
@@ -1228,7 +1242,7 @@ This is still ARM FreeRTOS, not POSIX SIM.
 - implement modeled camera frame delivery at the ARM camera receiver boundary;
 - support one 640x480 BMP repeated from memory;
 - then support a deterministic frame sequence;
-- verify PrepTask frame counters and FR artifacts.
+- verify Stage1Task frame counters and FR artifacts.
 
 ### Step 5 - Drone Transport
 
@@ -1238,7 +1252,7 @@ This is still ARM FreeRTOS, not POSIX SIM.
 
 ### Step 6 - TPU Choice Gate
 
-After REPL + FS + camera + PrepTask are stable, decide between:
+After REPL + FS + camera + Stage1Task are stable, decide between:
 
 - mailbox EdgeTPU host bridge;
 - hardware-in-loop TPU validation;
@@ -1327,12 +1341,12 @@ Once REPL boots, add the first camera provider model:
 - load one 640x480 BMP from host or emulated FS;
 - write XRGB8888 into the same guest frame-buffer contract used by ARM;
 - trigger the same camera ISR/notification path;
-- verify PrepTask consumes frames without needing MP to schedule them.
+- verify Stage1Task consumes frames without needing MP to schedule them.
 
 Initial tests:
 
 ```text
-camera only -> PrepTask RGB/gray slot increments
+camera only -> Stage1Task RGB/gray slot increments
 camera repeated static frame -> Flow reports zero motion
 camera shifted sequence -> Flow reports non-zero motion
 ```
@@ -1382,8 +1396,8 @@ Candidate later options:
 | Filesystem | FS image or host bridge | production-like block device |
 | Camera | frame-buffer producer + ISR trigger | CSI/PXP register model if useful |
 | PXP | initially bypassed or coarse modeled effect | register-level model only if needed |
-| FlowTask | real ARM task consuming PrepTask output | same |
-| Markers | real ARM task consuming PrepTask/camera output | same |
+| Stage2Task | real ARM task consuming Stage1Task output | same |
+| Markers | real ARM task consuming Stage1Task/camera output | same |
 | USB host | disabled/stubbed | maybe USB/IP/model later |
 | Coral EdgeTPU | disabled/stubbed | mailbox or USB model later |
 
@@ -1394,7 +1408,7 @@ The first B8 milestone should be:
 ```text
 ARM-emulated SentAI boots, starts FreeRTOS + MP REPL,
 loads a mission from staged FS, starts virtual/emulated camera frames,
-PrepTask consumes N frames, FR artifacts are exported.
+Stage1Task consumes N frames, FR artifacts are exported.
 ```
 
 This gives us the key thing B7 lacked: the ARM task/ISR model, without getting

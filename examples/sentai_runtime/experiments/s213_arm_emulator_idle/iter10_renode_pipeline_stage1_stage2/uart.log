@@ -1,0 +1,9 @@
+
+SentAI EMU PIPELINE B8.6
+Stage1Task ready
+Stage2Task ready
+STAGE2 1 frame_seq=1 sum=64 avg=1
+STAGE2 2 frame_seq=2 sum=128 avg=2
+STAGE2 3 frame_seq=3 sum=192 avg=3
+STAGE2 4 frame_seq=4 sum=256 avg=4
+STAGE2 5 frame_seq=5 sum=320 avg=5
