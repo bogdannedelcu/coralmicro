@@ -1,0 +1,9 @@
+
+SentAI EMU PIPELINE B8.6
+PrepTask ready
+FlowTask ready
+FLOW 1 prep_seq=1 sum=64 avg=1
+FLOW 2 prep_seq=2 sum=128 avg=2
+FLOW 3 prep_seq=3 sum=192 avg=3
+FLOW 4 prep_seq=4 sum=256 avg=4
+FLOW 5 prep_seq=5 sum=320 avg=5

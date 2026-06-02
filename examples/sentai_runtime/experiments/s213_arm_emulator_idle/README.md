@@ -44,3 +44,9 @@ Targets:
   task.  Triggers 5 frame deliveries and asserts
   `FRAME N seq=N byte=0x0N ok=1` for N=1..5 plus
   `frames_consumed == frames_valid == irq_count == 5`.
+- `pipeline` - B8.6 PrepTask → FlowTask chain behind the VCam IRQ.
+  PrepTask scans the frame, publishes `sum` + `avg` into a shared slot,
+  notifies FlowTask.  Asserts `irq_count == prep_processed ==
+  flow_consumed == 5`, `pipeline_errors == 0`, `last_sum == 320`,
+  and that the UART contains `FLOW 1..5 prep_seq=1..5 sum=64..320`.
+  InferTask/TPU is explicitly out of scope (EdgeTPU USB stays deferred).

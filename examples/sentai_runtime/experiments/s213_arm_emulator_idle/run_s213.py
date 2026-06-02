@@ -48,6 +48,12 @@ TARGETS = {
         "iter_suffix": "renode_camera_5frames",
         "uart_log": ROOT / "emu" / "output" / "sentai_emu_camera.log",
     },
+    "pipeline": {
+        "cmake_target": "sentai_emu_pipeline",
+        "renode_script": ROOT / "emu" / "renode" / "sentai_emu_pipeline.resc",
+        "iter_suffix": "renode_pipeline_prep_flow",
+        "uart_log": ROOT / "emu" / "output" / "sentai_emu_pipeline.log",
+    },
 }
 
 
@@ -139,6 +145,10 @@ def main() -> int:
     frames_consumed = parse_hex(f"{renode_label} frames_consumed", renode_log)
     frames_valid = parse_hex(f"{renode_label} frames_valid", renode_log)
     irq_count = parse_hex(f"{renode_label} irq_count", renode_log)
+    prep_processed = parse_hex(f"{renode_label} prep_processed", renode_log)
+    flow_consumed = parse_hex(f"{renode_label} flow_consumed", renode_log)
+    pipeline_errors = parse_hex(f"{renode_label} pipeline_errors", renode_log)
+    last_sum = parse_hex(f"{renode_label} last_sum", renode_log)
 
     if args.target == "repl":
         # REPL target reuses heartbeat as "completed mp_embed_exec_str count";
@@ -167,6 +177,24 @@ def main() -> int:
             and frames_consumed == 5
             and frames_valid == 5
             and irq_count == 5
+            and last_tick is not None
+            and last_tick > 0
+        )
+    elif args.target == "pipeline":
+        # B8.6: every IRQ must propagate to PrepTask and then FlowTask.
+        # last_sum = 5 * 64 = 320 = 0x140 proves the 5th frame body actually
+        # reached the reduction stage.  TPU/InferTask (which would imply the
+        # USB EdgeTPU dependency) is deferred to a later
+        # gate (it carries USB/EdgeTPU dependencies that are still on the
+        # explicit defer list for the emulator).
+        passed = (
+            all(result.returncode == 0 for result in logs.values())
+            and boot_state == 0x900
+            and irq_count == 5
+            and prep_processed == 5
+            and flow_consumed == 5
+            and pipeline_errors == 0
+            and last_sum == 320
             and last_tick is not None
             and last_tick > 0
         )
@@ -222,6 +250,15 @@ def main() -> int:
         passed = passed and b"FRAME 1 seq=1 byte=0x01 ok=1" in uart_log_bytes
         passed = passed and b"FRAME 5 seq=5 byte=0x05 ok=1" in uart_log_bytes
 
+    if args.target == "pipeline":
+        # B8.6: assert PrepTask and FlowTask both reached "ready" state AND
+        # the per-frame FLOW lines carry the exact sum/avg arithmetic.  The
+        # last FLOW line catches starvation/dropped-frame regressions.
+        passed = passed and b"PrepTask ready" in uart_log_bytes
+        passed = passed and b"FlowTask ready" in uart_log_bytes
+        passed = passed and b"FLOW 1 prep_seq=1 sum=64 avg=1" in uart_log_bytes
+        passed = passed and b"FLOW 5 prep_seq=5 sum=320 avg=5" in uart_log_bytes
+
     verdict = {
         "experiment": "s213_arm_emulator_idle",
         "iter": iter_dir.name,
@@ -249,6 +286,12 @@ def main() -> int:
         "irq_count": irq_count,
         "uart_log_contains_camera_first": b"FRAME 1 seq=1 byte=0x01 ok=1" in uart_log_bytes,
         "uart_log_contains_camera_last": b"FRAME 5 seq=5 byte=0x05 ok=1" in uart_log_bytes,
+        "prep_processed": prep_processed,
+        "flow_consumed": flow_consumed,
+        "pipeline_errors": pipeline_errors,
+        "last_sum": last_sum,
+        "uart_log_contains_pipeline_first": b"FLOW 1 prep_seq=1 sum=64 avg=1" in uart_log_bytes,
+        "uart_log_contains_pipeline_last": b"FLOW 5 prep_seq=5 sum=320 avg=5" in uart_log_bytes,
         "pass": passed,
     }
     (iter_dir / "verdict_s213.json").write_text(json.dumps(verdict, indent=2) + "\n")

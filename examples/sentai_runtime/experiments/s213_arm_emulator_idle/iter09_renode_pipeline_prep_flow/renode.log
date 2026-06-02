@@ -1,0 +1,67 @@
+12:28:31.4002 [INFO] Loaded monitor commands from: /home/bogdan/work/renode_portable/scripts/monitor.py
+Renode, version 1.16.1 (ac18b5ac-202606020225)
+
+
+(monitor) i $CWD/emu/renode/sentai_emu_pipeline.resc
+
+12:28:31.5226 [INFO] Including script(s): /home/bogdan/work/coralmicro/emu/renode/sentai_emu_pipeline.resc
+12:28:31.5384 [INFO] System bus created.
+12:28:32.3366 [INFO] Old file /home/bogdan/work/coralmicro/emu/output/sentai_emu_pipeline.log moved to /home/bogdan/work/coralmicro/emu/output/sentai_emu_pipeline.log.2
+12:28:32.3538 [INFO] sysbus: Loading block of 3072 bytes length at 0x0.
+12:28:32.3641 [INFO] sysbus: Loading block of 25356 bytes length at 0xC00.
+12:28:32.3641 [INFO] sysbus: Loading block of 480 bytes length at 0x6F0C.
+12:28:32.3641 [INFO] sysbus: Loading block of 64 bytes length at 0x70EC.
+12:28:32.3642 [INFO] sysbus: Loading block of 36520 bytes length at 0x70F0.
+12:28:32.3642 [INFO] sysbus: Loading block of 16777216 bytes length at 0x80000000.
+12:28:32.7946 [INFO] cpu: Setting initial values: PC = 0xCBD, SP = 0x20040000.
+12:28:32.7969 [INFO] machine-0: Machine started.
+12:28:32.8724 [WARNING] nvic: Unhandled write to offset 0xF50 (ICacheInvalidateAllToPoUaIgnored), value 0x0.
+12:28:32.8936 [WARNING] nvic: Trying to set the priority for interrupt 16 to 0xFF, but it should be maskable with 0xF0
+12:28:38.7940 [INFO] machine-0: Machine paused.
+12:28:38.8504 [INFO] machine-0: Machine resumed.
+12:28:39.4038 [INFO] machine-0: Machine paused.
+12:28:39.4097 [INFO] machine-0: Machine resumed.
+12:28:39.9558 [INFO] machine-0: Machine paused.
+12:28:39.9573 [INFO] machine-0: Machine resumed.
+12:28:40.4820 [INFO] machine-0: Machine paused.
+12:28:40.4843 [INFO] machine-0: Machine resumed.
+12:28:41.0129 [INFO] machine-0: Machine paused.
+12:28:41.0143 [INFO] machine-0: Machine resumed.
+12:28:41.9067 [INFO] machine-0: Machine paused.
+sentai_emu_pipeline PC:
+
+0x174c
+
+sentai_emu_pipeline boot_state:
+
+0x00000900
+
+sentai_emu_pipeline heartbeat:
+
+0x00000005
+
+sentai_emu_pipeline irq_count:
+
+0x00000005
+
+sentai_emu_pipeline prep_processed:
+
+0x00000005
+
+sentai_emu_pipeline flow_consumed:
+
+0x00000005
+
+sentai_emu_pipeline pipeline_errors:
+
+0x00000000
+
+sentai_emu_pipeline last_sum:
+
+0x00000140
+
+sentai_emu_pipeline last_tick:
+
+0x00001046
+
+(machine-0) 12:28:41.9801 [INFO] machine-0: Disposed.

@@ -198,7 +198,7 @@ It requires all of:
 The current B8 first milestone should keep `sentai.tpu` present but not use it
 as the gate.  TPU returns as one of these later tracks:
 
-1. **host mailbox peripheral**: guest InferTask writes tensors/commands to a
+1. **host mailbox peripheral**: guest FlowTask writes tensors/commands to a
    modeled peripheral; host runs PyCoral/libedgetpu and writes outputs back.
    This tests SentAI scheduling and parsing, but it is not USB parity.
 2. **hardware-in-loop Coral**: run the EdgeTPU path on the physical board or
@@ -382,7 +382,7 @@ B8.8  decide EdgeTPU path: host mailbox, HIL, or USB model
 
 The first camera milestone in emulator is **not** MIPI-CSI emulation.  It is a
 runtime virtual camera provider that writes frames into the same frame-ready
-boundary consumed by PrepTask/Flow/InferTask.  This can be implemented with a
+boundary consumed by PrepTask/Flow/FlowTask.  This can be implemented with a
 provider interface:
 
 ```text
@@ -923,6 +923,131 @@ Next gate: B8.6 should wire a PrepTask consumer to the same VCam frame
 boundary (perhaps as a second consumer task pulling from a shared queue
 the ISR posts to) and validate that PrepTask scalars/counters move on each
 emulated frame, the same way they do on the real camera.
+
+## B8.6 PrepTask + FlowTask Pipeline Behind VCam IRQ
+
+`sentai_emu_pipeline` reuses the B8.5 VCam peripheral and the same IRQ 94
+boundary, then inserts a real two-stage FreeRTOS pipeline on the firmware
+side.  The contract mirrors the production W11 pipeline almost verbatim:
+
+```text
+Renode vcam ─CONTROL.ARM=1─► IRQ 94 ─FromISR notify─► PrepTask
+                                                       │
+                                                       ├─ scan g_frame_buffer
+                                                       ├─ sum, avg
+                                                       ├─ publish g_prep_slot
+                                                       │  (fields → __DMB → valid=1)
+                                                       └─ xTaskNotifyGive(flow)
+                                                                │
+                                                                ▼
+                                                          FlowTask
+                                                          ├─ read slot (DMB)
+                                                          ├─ clear valid
+                                                          └─ UART marker line
+```
+
+Files added:
+
+```text
+emu/sentai_emu_pipeline.cc      # PrepTask + FlowTask + shared slot
+emu/renode/sentai_emu_pipeline.resc
+```
+
+Design points specific to B8.6:
+
+- **Two real FreeRTOS tasks**, not one consumer wearing two hats.  PrepTask
+  runs at `tskIDLE_PRIORITY + 3` (higher than FlowTask) so the wakeup
+  ordering ISR → Prep → Flow matches production scheduling intent: prep
+  runs first, flow runs after.
+- **Shared slot publish/observe contract**.  PrepTask writes the data
+  fields, runs `__DMB()`, then sets `valid = 1`.  FlowTask reads
+  `valid`, runs `__DMB()`, then consumes the fields.  This is a
+  single-writer / single-reader version of the production seqlock and
+  is the minimum that survives ARM CM7 store reordering.  No seqlock
+  counter is needed because the task notification provides the wake-up
+  signal and serialises the two sides.
+- **Per-stage counters in C globals** (`g_sentai_emu_irq_count`,
+  `_prep_processed`, `_flow_consumed`, `_pipeline_errors`).  The
+  verdict reads them post-run and asserts equality.  A partial pipeline
+  failure (PrepTask runs but FlowTask is starved) would show as
+  `prep_processed > flow_consumed`.
+- **Arithmetic verdict on `last_sum`**.  The frame body is `frame_seq`
+  bytes repeated 64 times, so the last reduction must equal `5 * 64 =
+  320 = 0x140`.  The runner asserts on the exact value, not just
+  monotonic progress.  A regression that drops half the bytes
+  (e.g. a misaligned cache invalidate) would produce a different sum
+  and fail the gate.
+- **Per-frame UART marker** (`FLOW N prep_seq=N sum=S avg=A`).  Lines
+  carry both the running stage counter (`N`) and the source frame
+  sequence (`prep_seq`), so a duplicate-delivery bug would print the
+  same `prep_seq` twice and fail the per-line assertion.
+
+Validated result (`iter09_renode_pipeline_prep_flow`):
+
+```text
+boot_state                                = 0x00000900  (kBootBothReady)
+irq_count                                 = 5
+prep_processed                            = 5
+flow_consumed                            = 5
+pipeline_errors                           = 0
+last_sum                                  = 320          (= 0x140)
+uart_log raw bytes                       ⊃ "PrepTask ready"
+                                           "FlowTask ready"
+                                           "FLOW 1 prep_seq=1 sum=64 avg=1"
+                                           "FLOW 2 prep_seq=2 sum=128 avg=2"
+                                           "FLOW 3 prep_seq=3 sum=192 avg=3"
+                                           "FLOW 4 prep_seq=4 sum=256 avg=4"
+                                           "FLOW 5 prep_seq=5 sum=320 avg=5"
+uart_log_contains_pipeline_first          = true
+uart_log_contains_pipeline_last           = true
+pass                                      = true
+```
+
+What this proves:
+
+- the camera-frame-ready boundary at IRQ 94 feeds a real downstream
+  consumer, not just an ISR-side counter;
+- ARM CM7 FreeRTOS schedules the two-stage notification chain
+  ISR → PrepTask → FlowTask in the right order on every frame;
+- shared-slot publish/observe through `__DMB()` survives across task
+  context switches;
+- the consumer reduction (sum of bytes) reproduces exactly under
+  emulation, with no per-byte drift between Renode RAM writes and
+  CPU reads.
+
+Notes captured by B8.6:
+
+- Production sentai_prep uses a seqlock + multiple readers.  B8.6
+  uses a single-reader equivalent because there is only one consumer
+  in this slice.  The full seqlock + multi-reader pattern is a B8.7+
+  concern when adding a flow/marker consumer pulling from the same
+  slot in parallel.
+- `__DMB()` is sufficient on CM7 single-core; no `__DSB()` needed
+  because we are not touching DMA-coherency boundaries (the slot
+  lives in SDRAM but is purely CPU-written and CPU-read).
+- Task creation order matters only weakly: both handles are set
+  inside their tasks before the first `ulTaskNotifyTake`.  Spawning
+  the higher-priority PrepTask first happens to make Prep set its
+  handle before Flow in practice, but the design tolerates either
+  order because the 3s boot RunFor gives both tasks time to reach
+  their first block before any host frame is triggered.
+- The build re-uses VCam from `sentai_rt1176.repl` (no changes to the
+  `.repl` were required for B8.6).  The same Renode peripheral can
+  feed any number of consumer pipelines built on top.
+
+Open caveats inherited from earlier gates:
+
+- Renode `nvic` priority-mask warning persists.
+- The reduction is `sum of bytes`, not real preprocessing (RGB→Y8,
+  resize, normalise).  Real PrepTask work belongs in a later gate
+  once an actual frame format is locked in.
+- Only one downstream consumer.  Multi-reader fan-out (Flow + ArUco
+  + FlowTask reading the same prep slot) is deferred.
+
+Next gate: B8.7 should split the consumer side into Flow + markers
+tasks reading the same prep slot concurrently, exercising the real
+seqlock contract and validating that all consumers see consistent
+data when PrepTask is faster than they are.
 
 ## Crazyflie / UART Strategy
 

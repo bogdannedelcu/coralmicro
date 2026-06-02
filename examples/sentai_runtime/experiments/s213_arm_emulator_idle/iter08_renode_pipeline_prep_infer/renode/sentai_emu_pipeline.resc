@@ -1,0 +1,54 @@
+:name: SentAI B8.6 ARM PrepTask + InferTask pipeline behind VCam IRQ
+:description: Triggers 5 frames via VCam.  PrepTask scans + reduces each frame, publishes scalar slot, notifies InferTask.  Verdict asserts irq_count == prep_processed == infer_consumed == 5 AND the UART INFER lines carry the expected per-frame sum/avg.
+
+i @emu/renode/sentai_rt1176.repl
+
+$bin?=@build_emu/emu/sentai_emu_pipeline
+$uart_log?=@/home/bogdan/work/coralmicro/emu/output/sentai_emu_pipeline.log
+
+macro reset
+"""
+    sysbus LoadELF $bin
+    cpu VectorTableOffset 0x800
+"""
+
+lpuart6 CreateFileBackend $uart_log
+runMacro $reset
+
+# Boot + both tasks reach their "ready" state and block on
+# ulTaskNotifyTake(portMAX_DELAY).
+emulation RunFor "3s"
+
+# 5 frame deliveries.  0.3s of emulated time per cycle is enough for both
+# PrepTask and InferTask to wake, run, log, and re-block.
+sysbus WriteDoubleWord 0x40900010 0x1
+emulation RunFor "0.3s"
+sysbus WriteDoubleWord 0x40900010 0x1
+emulation RunFor "0.3s"
+sysbus WriteDoubleWord 0x40900010 0x1
+emulation RunFor "0.3s"
+sysbus WriteDoubleWord 0x40900010 0x1
+emulation RunFor "0.3s"
+sysbus WriteDoubleWord 0x40900010 0x1
+emulation RunFor "0.5s"
+
+lpuart6 CloseFileBackend $uart_log
+
+echo "sentai_emu_pipeline PC:"
+cpu PC
+echo "sentai_emu_pipeline boot_state:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_boot_state"`
+echo "sentai_emu_pipeline heartbeat:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_heartbeat"`
+echo "sentai_emu_pipeline irq_count:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_irq_count"`
+echo "sentai_emu_pipeline prep_processed:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_prep_processed"`
+echo "sentai_emu_pipeline infer_consumed:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_infer_consumed"`
+echo "sentai_emu_pipeline pipeline_errors:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_pipeline_errors"`
+echo "sentai_emu_pipeline last_sum:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_last_sum"`
+echo "sentai_emu_pipeline last_tick:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_last_tick"`

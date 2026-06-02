@@ -17,7 +17,11 @@ Current first milestone:
    path: VCam Renode peripheral DMA + NVIC IRQ → strong override of
    `Reserved110_IRQHandler` → `vTaskNotifyGiveFromISR` → consumer task
    validates frame bytes;
-7. only then add PrepTask / Flow / markers consumers.
+7. build and boot `sentai_emu_pipeline` to prove the PrepTask → FlowTask
+   chain behind the same VCam IRQ (no TPU/InferTask in this gate —
+   EdgeTPU USB is still explicitly deferred);
+8. then add multi-reader fan-out (markers), and only later evaluate
+   the TPU strategy.
 
 Caveat (operator note 2026-06-02): production REPL is USB CDC ACM, not
 LPUART6.  The emu uses LPUART6 because Renode has no CDC ACM endpoint, but
@@ -63,6 +67,8 @@ Important local facts:
 - `renode/sentai_emu_mission.resc` - loads the B8.4 mission import target.
 - `renode/sentai_emu_camera.resc` - loads the B8.5 camera frame provider
   target and triggers 5 frame deliveries via the VCam peripheral.
+- `renode/sentai_emu_pipeline.resc` - loads the B8.6 PrepTask + FlowTask
+  pipeline target and triggers 5 frames through the full task chain.
 - `mp_inc/mpconfigport.h` - B8.3 emu MicroPython config.
 - `mp_inc_mission/mpconfigport.h` - B8.4 config (adds external import +
   `sys.path` attribute delegation on top of B8.3).
@@ -74,6 +80,9 @@ Important local facts:
 - `sentai_emu_camera.cc` - B8.5 consumer task + strong override of
   `Reserved110_IRQHandler` driven by VCam Renode peripheral writes to
   the NVIC ISPR2 register.
+- `sentai_emu_pipeline.cc` - B8.6 PrepTask + FlowTask + shared scalar
+  slot.  Same VCam IRQ as B8.5; the ISR now wakes a multi-stage chain
+  via `vTaskNotifyGiveFromISR` + `xTaskNotifyGive`.
 
 The `.repl` intentionally uses Renode host-side stub peripherals for early MMIO
 that the NXP SDK touches during boot.  These are not firmware filesystem code

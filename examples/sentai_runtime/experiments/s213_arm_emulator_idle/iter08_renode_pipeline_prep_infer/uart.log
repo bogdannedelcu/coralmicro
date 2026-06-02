@@ -1,0 +1,9 @@
+
+SentAI EMU PIPELINE B8.6
+PrepTask ready
+InferTask ready
+INFER 1 prep_seq=1 sum=64 avg=1
+INFER 2 prep_seq=2 sum=128 avg=2
+INFER 3 prep_seq=3 sum=192 avg=3
+INFER 4 prep_seq=4 sum=256 avg=4
+INFER 5 prep_seq=5 sum=320 avg=5
