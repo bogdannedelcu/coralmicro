@@ -268,3 +268,70 @@ target_compile_options(sentai_emu_flowest PRIVATE
     -Wno-error -Wno-unused-parameter -Wno-sign-compare
     -Wno-old-style-definition -Wno-missing-prototypes
 )
+
+# --- B8.8 Phase 1 USB host stack probe ------------------------------------
+#
+# Links the production libs/usb/usb_host_task.cc plus the minimum NXP USB
+# middleware + clock_config files into an emu image so we can SEE how far
+# the production stack compiles and links against the emu profile.  No
+# Renode-side USB model is required to build; running comes in Phase 2.
+
+set(SENTAI_EMU_TPU_PROBE_SOURCES
+    sentai_emu_usbhost_probe.cc
+    sentai_emu_freertos_hooks.c
+    ${PROJECT_SOURCE_DIR}/libs/usb/usb_host_task.cc
+    ${PROJECT_SOURCE_DIR}/libs/nxp/rt1176-sdk/clock_config.c
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/host/usb_host_hci.c
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/host/usb_host_ehci.c
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/host/usb_host_devices.c
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/host/usb_host_framework.c
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/host/class/usb_host_hub.c
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/host/class/usb_host_hub_app.c
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/phy/usb_phy.c
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/components/osa/fsl_os_abstraction_free_rtos.c
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/components/lists/fsl_component_generic_list.c
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_clock.c
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_anatop_ai.c
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_common.c
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_common_arm.c
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_pmu.c
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_dcdc.c
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/gcc/startup_MIMXRT1176_cm7.S
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/system_MIMXRT1176_cm7.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/event_groups.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/list.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/portable/GCC/ARM_CM4F/port.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/queue.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/stream_buffer.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/tasks.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/timers.c
+    ${PROJECT_SOURCE_DIR}/third_party/FreeRTOS_helpers/heap_useNewlib_NXP.c
+)
+
+add_executable_m7(sentai_emu_usbhost_probe
+    LINKER_SCRIPT ${PROJECT_SOURCE_DIR}/libs/nxp/rt1176-sdk/MIMXRT1176xxxxx_cm7_ram.ld
+    ${SENTAI_EMU_TPU_PROBE_SOURCES}
+)
+configure_sentai_emu_target(sentai_emu_usbhost_probe)
+target_compile_definitions(sentai_emu_usbhost_probe PRIVATE
+    FSL_RTOS_FREE_RTOS
+)
+target_include_directories(sentai_emu_usbhost_probe PRIVATE
+    ${PROJECT_SOURCE_DIR}/libs/nxp/rt1176-sdk
+    ${PROJECT_SOURCE_DIR}/third_party/modified/nxp/rt1176-sdk
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/host
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/host/class
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/include
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/phy
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/output/source/host
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/utilities/debug_console
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/utilities/str
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/components/osa
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/components/lists
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/components/serial_manager
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/cm7
+)
+target_compile_options(sentai_emu_usbhost_probe PRIVATE
+    -Wno-error -Wno-unused-parameter -Wno-sign-compare
+    -Wno-old-style-definition -Wno-missing-prototypes
+)

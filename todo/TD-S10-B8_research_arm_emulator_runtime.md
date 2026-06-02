@@ -12,8 +12,9 @@
 | B8.6 | Stage1Task -> Stage2Task chain behind VCam IRQ                   | iter10_renode_pipeline_stage1_stage2             | 6e8be311 + eb1420bd |
 | B8.7 | Stage1Task -> {Stage2A, Stage2B} fan-out with seqlock            | iter11_renode_fanout_stage1_2a_2b                | 64575739   |
 | B8.7c| Brute-force SAD flow on a 1-px/frame cat pan (B7 regression)     | iter12_renode_flowest_cat_pan_1px                | abbc7202   |
-| B8.7d| Brute-force SAD flow on varied 2D motion across both axes        | iter13_renode_flowest_cat_2d_varied              | _next_     |
-| B8.8 | TPU strategy decision                                            | open                                             | _open_     |
+| B8.7d| Brute-force SAD flow on varied 2D motion across both axes        | iter13_renode_flowest_cat_2d_varied              | 68f86d7a   |
+| B8.8 | Transparent USB Coral via real `edgetpu_manager` (phased)        | open — Phase 1 in progress                       | _open_     |
+| B8.9 | Crazyflie CRTP via real UART + cf2-SITL TCP bridge (planned)     | not started                                      | _open_     |
 
 Run any gate via:
 
@@ -1350,6 +1351,107 @@ Open caveats inherited from earlier gates:
 
 Next gate: same as before — B8.8 TPU strategy.  B8.7c is an
 extra validation of the camera-ISR-to-flow chain, not a TPU step.
+
+## B8.8 Transparent USB Coral via Real `edgetpu_manager` (open, phased)
+
+Operator decision 2026-06-02: the emulator TPU gate must run the
+**real** `libs/tpu/edgetpu_manager.cc` + `libs/usb/usb_host_task.cc`
+on the emulated CM7, with USB transfers bridged through to the
+host's physical Google Coral USB Edge TPU.  A pycoral host-mailbox
+bridge (early attempt) was reverted because it bypasses the entire
+production driver stack and breaks the emulator's predictive value.
+HARD RULE saved as `feedback_emu_tpu_must_run_real_edgetpu_manager`.
+
+Architectural pattern (saved as
+`project_emu_transport_bridge_pattern`):
+
+```text
+emulated CM7 firmware (real code)
+  └── libs/tpu/edgetpu_manager.cc + libs/usb/usb_host_task.cc
+       └── NXP RT1176 SDK usb_host_ehci.c
+            └── MMIO writes at 0x4042C000 (USB_OTG2)
+                 └── Renode peripheral (NXP EHCI model — TBD)
+                      └── host bridge (libusb / USB/IP — TBD)
+                           └── physical USB Coral plugged into host
+```
+
+The same pattern applies to B8.9 Crazyflie (UART/CRTP -> TCP socket
+-> cf2-SITL in CrazySim/Gazebo).  B8.9 is structurally simpler
+because Renode's `UART.NXP_LPUART` model already exists and TCP
+bridging is supported out-of-the-box.
+
+Production transport inventory (collected during planning):
+
+| Subsystem        | Source                                            | MMIO base    | IRQ                       |
+| ---------------- | ------------------------------------------------- | ------------ | ------------------------- |
+| USB OTG1         | NXP SDK + libs/usb/usb_device_task.cc             | 0x40430000   | USB_OTG1_IRQn = 136       |
+| USB OTG2 (Coral) | NXP SDK + libs/usb/usb_host_task.cc               | 0x4042C000   | USB_OTG2_IRQn = 135       |
+| USBNC OTG2       | NXP non-core registers                            | 0x4042C200   | (shares OTG2 IRQ)         |
+| USB PHY1         | NXP `usb_phy.c` low-power init                    | 0x40434000   | (none)                    |
+| CCM (clocks)     | `clock_config.c` `CLOCK_EnableUsbhs1*`           | 0x40CC0000   | (none)                    |
+
+Coral is wired to USB OTG2 on the SentAI board.  `kUSBControllerId
+= kUSB_ControllerEhci1` in `usb_host_task.cc` (the SDK enums
+EHCI0/EHCI1 are NXP-style 0-indexed so EHCI1 = OTG2 = controller
+id 3 in the `USB_BASE_ADDRS` table).
+
+### Renode capability gap (assessment 2026-06-02)
+
+| Component                              | What Renode portable ships             |
+| -------------------------------------- | -------------------------------------- |
+| Generic EHCI register model            | `USBDeprecated.EHCIHostController`     |
+| Generic USB hub child                  | `USBDeprecated.UsbHub`                 |
+| NXP RT1176-specific EHCI               | **none** — would need a fork/plugin    |
+| USB device passthrough to host (libusb/USB-IP) | **none** in portable plugins      |
+| New `USB.*` namespace (changelog 1.15.3) | exists but no NXP RT1176 models       |
+
+So delivering "transparent USB Coral" end-to-end requires at minimum:
+
+1. A Renode platform model that responds correctly to the NXP-specific
+   register set (capability + operational + USBPHY + USBNC) at the
+   addresses listed above.
+2. A USB device backend that forwards URBs to the host's libusb so
+   the real Coral receives them.
+
+Both are real engineering work; the most likely path is a Renode
+fork that adds an NXP-RT1176-EHCI peripheral and a libusb-backed
+USB device, kept under `patches/coralmicro-renode/`.
+
+### Phased plan
+
+| Phase  | Goal                                                                       | Output                                                       |
+| ------ | -------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| **P1** | Link a minimal probe target (`sentai_emu_tpu_probe`) that calls `UsbHostTask::UsbHostTask()` and nothing else from the production USB host chain. Just **compile + link**, no run yet. | Build proof that the production USB code can target the emu profile, plus a complete list of every SDK file that gets pulled in transitively. |
+| **P2** | Map RT1176 USB OTG2 / USBPHY1 / USBNC2 / CCM at the correct addresses in `emu/renode/sentai_rt1176.repl` using whatever Renode primitives are available (generic EHCI + Python stubs as fallback).  Boot the probe under Renode and **log the first MMIO address that returns a value the driver rejects**.  No success expected. | Concrete failure trace: which register, which value, which driver expectation.  This is the input to P3. |
+| **P3** | Decide route. Options:                                                     | Decision recorded in B8 doc + first-step commit.            |
+|        | a. fork Renode, add `NXP.RT1176_EHCI` peripheral that matches the SDK driver expectations                                                                                                  |                                                              |
+|        | b. fork Renode, add `USB.LibusbDevice` backend that forwards URBs to a host libusb device                                                                                                  |                                                              |
+|        | c. write a Renode-native "fake Coral" USB device that responds to the Coral protocol so the SDK driver completes enumeration (no real silicon, but proves the entire driver path runs)     |                                                              |
+|        | d. pause B8.8 if effort exceeds budget and ship Crazyflie B8.9 first (smaller engineering, immediate value)                                                                                  |                                                              |
+| **P4** | Execute the chosen route to first concrete milestone (enumeration complete, or DFU descriptor exchange, etc.).                                                                              | First UART log line proving the production driver code completed something against an emulator-bridged Coral / fake-Coral.  Verdict iter under s213. |
+| **P5** | If P3 picked path (b) or actual silicon, demonstrate one real Coral inference invoked from inside the emulator with the production code path.  Determinism check (same input -> same output bit-identical to host pycoral).  This is the user's "transparent" goal. | Verdict iter, B8.8 SHIPPED.                                  |
+
+### Open caveats
+
+- Estimation: P2 may take a few hours, P3 + P4 may take a few days
+  of focused C# / Renode work, P5 depends entirely on which route P3
+  picks.  If route (b) — libusb passthrough — is feasible, B8.8 is
+  the most valuable B8 gate and worth the investment.  If only route
+  (c) — fake Coral protocol — is realistic, B8.8 stays research-only
+  and the operator decides whether to invest.
+- Renode fork policy: if a fork happens, the patch/branch lives in a
+  separate repo, NOT inside `third_party/`.  See
+  `external-repo-patch-log` skill.
+- No production firmware regression: every B8.8 build target is
+  isolated under `emu/`, and the ARM `sentai_runtime` build must
+  remain unaffected.
+
+### Status as of this doc update
+
+- HARD RULE saved.
+- Pycoral mailbox attempt reverted (no artefacts left on disk).
+- B8.7d is the last shipped gate (commit 68f86d7a).
+- P1 of B8.8 is the next concrete step.
 
 ## B8.7d Varied 2D Motion Across Both Axes
 
