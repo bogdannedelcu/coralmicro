@@ -63,7 +63,7 @@ TARGETS = {
     "flowest": {
         "cmake_target": "sentai_emu_flowest",
         "renode_script": ROOT / "emu" / "renode" / "sentai_emu_flowest.resc",
-        "iter_suffix": "renode_flowest_cat_pan_1px",
+        "iter_suffix": "renode_flowest_cat_2d_varied",
         "uart_log": ROOT / "emu" / "output" / "sentai_emu_flowest.log",
         "pre_hook": "prepare_cat_scenes",
     },
@@ -244,19 +244,24 @@ def main() -> int:
             and last_tick > 0
         )
     elif args.target == "flowest":
-        # B8.7c: Stage1Task block-matcher must report the expected per-frame
-        # offset sequence for a single cat photo panned by 1 px / frame.
-        # Frame 1 is prime (no prev) -> dx=0; frames 2..6 each detect dx=+1
-        # with sad=0 (perfect match because the shift is a clean translation).
-        expected_dx_per_frame = [0, 1, 1, 1, 1, 1]
+        # B8.7d: Stage1Task block-matcher must recover the per-frame motion
+        # delta of a single cat photo panned along a varied 2D trajectory.
+        # Frame 1 is prime (no prev) -> (0, 0); frames 2..6 each have a
+        # known (dx, dy) computed from the absolute offsets in
+        # emu/scripts/prepare_cat_scenes.py.  All deltas have sad=0 because
+        # the per-frame shift is a clean translation of the same image.
+        expected_dx_per_frame = [0, +2,  0, -3,  0, +4]
+        expected_dy_per_frame = [0,  0, +2, -1, -3,  0]
         seen_lines = re.findall(
             rb"FLOWEST (\d+) frame_seq=(\d+) dx=(-?\d+) dy=(-?\d+) sad=(\d+)",
             (cfg["uart_log"].read_bytes() if cfg["uart_log"].exists() else b""),
         )
         detected_dx_per_frame = [int(ln[2]) for ln in seen_lines]
         detected_dy_per_frame = [int(ln[3]) for ln in seen_lines]
+        detected_sad_per_frame = [int(ln[4]) for ln in seen_lines]
         flowest_dx_ok = detected_dx_per_frame == expected_dx_per_frame
-        flowest_dy_ok = all(v == 0 for v in detected_dy_per_frame)
+        flowest_dy_ok = detected_dy_per_frame == expected_dy_per_frame
+        flowest_sad_ok = all(v == 0 for v in detected_sad_per_frame)
         passed = (
             all(result.returncode == 0 for result in logs.values())
             and boot_state == 0x900
@@ -266,6 +271,7 @@ def main() -> int:
             and pipeline_errors == 0
             and flowest_dx_ok
             and flowest_dy_ok
+            and flowest_sad_ok
             and last_tick is not None
             and last_tick > 0
         )
@@ -412,8 +418,21 @@ def main() -> int:
                 rb"FLOWEST (\d+) frame_seq=(\d+) dx=(-?\d+) dy=(-?\d+) sad=(\d+)",
                 uart_log_bytes)] if args.target == "flowest" else None
         ),
+        "flowest_detected_dy_per_frame": (
+            [int(ln[3]) for ln in re.findall(
+                rb"FLOWEST (\d+) frame_seq=(\d+) dx=(-?\d+) dy=(-?\d+) sad=(\d+)",
+                uart_log_bytes)] if args.target == "flowest" else None
+        ),
+        "flowest_detected_sad_per_frame": (
+            [int(ln[4]) for ln in re.findall(
+                rb"FLOWEST (\d+) frame_seq=(\d+) dx=(-?\d+) dy=(-?\d+) sad=(\d+)",
+                uart_log_bytes)] if args.target == "flowest" else None
+        ),
         "flowest_expected_dx_per_frame": (
-            [0, 1, 1, 1, 1, 1] if args.target == "flowest" else None
+            [0, +2,  0, -3,  0, +4] if args.target == "flowest" else None
+        ),
+        "flowest_expected_dy_per_frame": (
+            [0,  0, +2, -1, -3,  0] if args.target == "flowest" else None
         ),
         "pass": passed,
     }

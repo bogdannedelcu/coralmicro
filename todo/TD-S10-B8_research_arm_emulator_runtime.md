@@ -1,5 +1,32 @@
 # TD-S10-B8 - Research And Spike ARM Emulator Runtime
 
+## Status As Of 2026-06-02
+
+| Gate | Topology / proof                                                 | Verdict iter (s213)                              | Commit     |
+| ---- | ---------------------------------------------------------------- | ------------------------------------------------ | ---------- |
+| B8.1 | CM7 startup -> ARM FreeRTOS scheduler -> heartbeat task          | iter01_renode_idle_heartbeat                     | b314edb2   |
+| B8.2 | LPUART6 polled TX file backend                                   | iter03_renode_uart_heartbeat                     | b314edb2   |
+| B8.3 | MicroPython embed REPL on LPUART6, `1+1 -> 2`                    | iter05_renode_repl_oneplusone                    | b314edb2   |
+| B8.4 | In-firmware VFS + `import mission; mission.run()`                | iter06_renode_mission_import                     | 2400995f   |
+| B8.5 | VCam Renode peripheral + NVIC IRQ 94 + frame-bytes consumer      | iter07_renode_camera_5frames                     | 5dd31da4   |
+| B8.6 | Stage1Task -> Stage2Task chain behind VCam IRQ                   | iter10_renode_pipeline_stage1_stage2             | 6e8be311 + eb1420bd |
+| B8.7 | Stage1Task -> {Stage2A, Stage2B} fan-out with seqlock            | iter11_renode_fanout_stage1_2a_2b                | 64575739   |
+| B8.7c| Brute-force SAD flow on a 1-px/frame cat pan (B7 regression)     | iter12_renode_flowest_cat_pan_1px                | abbc7202   |
+| B8.7d| Brute-force SAD flow on varied 2D motion across both axes        | iter13_renode_flowest_cat_2d_varied              | _next_     |
+| B8.8 | TPU strategy decision                                            | open                                             | _open_     |
+
+Run any gate via:
+
+```sh
+python3 examples/sentai_runtime/experiments/s213_arm_emulator_idle/run_s213.py \
+    --target {idle,uart,repl,mission,camera,pipeline,fanout,flowest}
+```
+
+The runner produces an `iterNN_*/verdict_s213.json` with per-gate
+assertions (counter equalities, UART byte matches, per-frame
+detection sequences).  `pass: true` requires every assertion to
+hold; partial PASS is not accepted.
+
 ## Purpose
 
 Execute the A8 research path: decide how SentAI should run closer to the ARM
@@ -1323,6 +1350,94 @@ Open caveats inherited from earlier gates:
 
 Next gate: same as before — B8.8 TPU strategy.  B8.7c is an
 extra validation of the camera-ISR-to-flow chain, not a TPU step.
+
+## B8.7d Varied 2D Motion Across Both Axes
+
+Operator follow-up 2026-06-02: the constant +1 X pan from B8.7c is
+not enough — a passing constant test could come from a block matcher
+that always reports `(+1, 0)` for any input, regardless of content.
+B8.7d feeds a varied 2D motion sequence to rule that out and to
+cover both axes and both signs.
+
+Setup change:
+
+- `emu/scripts/prepare_cat_scenes.py` gains `shift_y(...)` and
+  `shift_xy(...)` helpers, plus a `motion_2d` table of six absolute
+  offsets `[(0,0), (+2,0), (+2,+2), (-1,+1), (-1,-2), (+3,-2)]`
+  written as `scene_2d_0.bin` .. `scene_2d_5.bin`.
+- `emu/renode/sentai_emu_flowest.resc` now loads the `scene_2d_*.bin`
+  series and lists each absolute offset and per-frame delta in
+  comments so the test intent is obvious from the script alone.
+- No firmware change required: Stage1Task already iterates over a
+  dx,dy search window of `[-5, +5]` so all the deltas below fit.
+
+Per-frame expected motion deltas (curr - prev):
+
+| Frame | Abs (X, Y) | Delta (dx, dy) | What it covers                |
+| ----- | ---------- | -------------- | ----------------------------- |
+| 1     | (0, 0)     | (0, 0)         | prime, no prev                |
+| 2     | (+2, 0)    | (+2, 0)        | pure +X                       |
+| 3     | (+2, +2)   | (0, +2)        | pure +Y                       |
+| 4     | (-1, +1)   | (-3, -1)       | both axes negative (diagonal) |
+| 5     | (-1, -2)   | (0, -3)        | pure -Y                       |
+| 6     | (+3, -2)   | (+4, 0)        | pure +X near search edge      |
+
+Independent host-side SAD with the same convention used by the
+firmware (inner 22x22, search `[-5, +5]`) confirms each expected
+delta has `sad = 0`, i.e., perfect block match.  This pre-flight
+sanity check lives in the prep script's docstring and runs as a
+single Python one-liner.
+
+Validated result (`iter13_renode_flowest_cat_2d_varied`):
+
+```text
+boot_state                            = 0x00000900
+irq_count                             = 6
+stage1_processed                      = 6
+stage2_consumed                       = 6
+pipeline_errors                       = 0
+flowest_detected_dx_per_frame         = [0, +2,  0, -3,  0, +4]
+flowest_detected_dy_per_frame         = [0,  0, +2, -1, -3,  0]
+flowest_detected_sad_per_frame        = [0,  0,  0,  0,  0,  0]
+flowest_expected_dx_per_frame         = [0, +2,  0, -3,  0, +4]
+flowest_expected_dy_per_frame         = [0,  0, +2, -1, -3,  0]
+pass                                  = true
+```
+
+What this proves over B8.7c v1:
+
+- The block matcher is not stuck on any single axis or sign.  It
+  recovers pure-X positive, pure-X positive-near-edge, pure-Y
+  positive, pure-Y negative, and diagonal-negative motions in the
+  same run.
+- The verdict's per-frame contract (`flowest_detected_dx_per_frame
+  == expected`, `flowest_detected_dy_per_frame == expected`) makes
+  a generic "always reports the same thing" implementation
+  impossible to slip through.
+- The earlier `sad = 0` proof carries over: every frame is a clean
+  translation of the same image, so the correct candidate gives an
+  exact match.
+
+The constant-+1 v1 test in iter12 is preserved on disk as the
+predecessor; iter13 is the canonical B8.7c/d PASS.
+
+Notes captured by B8.7d:
+
+- Search window `[-5, +5]` has 1 pixel of headroom past the largest
+  delta in the sequence (`+4`).  A larger jump like `+5` or `+6`
+  would clip and report the edge candidate; future tests that want
+  to exercise larger motions should widen the search range or
+  shrink the inner region.
+- Edge-pixel replication on both axes (top/bottom row for Y, left/
+  right column for X) keeps the SAD residual at 0 even in vacated
+  bands.  Without that, the vacated band's content would differ
+  from the corresponding band in the previous frame and the SAD
+  minimum would shift, producing a small but nonzero `sad` and
+  potentially a 1-pixel error.
+- The host-side SAD pre-flight check is load-bearing: if it
+  disagrees with the firmware's answer, the bug is in the firmware
+  (or the SAD convention is mismatched).  Both checks use the same
+  convention (`curr[y, x] vs prev[y - dy, x - dx]`).
 
 ## Crazyflie / UART Strategy
 

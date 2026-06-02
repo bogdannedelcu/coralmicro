@@ -1,0 +1,111 @@
+{
+  "experiment": "s213_arm_emulator_idle",
+  "iter": "iter13_renode_flowest_cat_2d_varied",
+  "target_kind": "flowest",
+  "started_at": "2026-06-02T13:12:50+0300",
+  "commands": {
+    "configure": [
+      "cmake",
+      "-S",
+      ".",
+      "-B",
+      "build_emu",
+      "-DSENTAI_ARM_EMU=ON",
+      "-DSENTAI_SKIP_SDK_PATCHES=ON"
+    ],
+    "build": [
+      "cmake",
+      "--build",
+      "build_emu",
+      "--target",
+      "sentai_emu_flowest",
+      "-j16"
+    ],
+    "renode": [
+      "/home/bogdan/work/renode_portable/renode",
+      "--plain",
+      "--console",
+      "--disable-xwt",
+      "emu/renode/sentai_emu_flowest.resc"
+    ]
+  },
+  "target": "build_emu/emu/sentai_emu_flowest",
+  "renode_script": "emu/renode/sentai_emu_flowest.resc",
+  "returncodes": {
+    "pre_hook": 0,
+    "configure": 0,
+    "build": 0,
+    "renode": 0
+  },
+  "boot_state": 2304,
+  "heartbeat": 6,
+  "last_tick": 7964,
+  "repl_lines": null,
+  "uart_log_contains_boot": false,
+  "uart_log_contains_heartbeat": false,
+  "uart_log_contains_repl_banner": false,
+  "uart_log_contains_repl_answer": false,
+  "uart_log_contains_mission_marker": false,
+  "frames_consumed": null,
+  "frames_valid": null,
+  "irq_count": 6,
+  "uart_log_contains_camera_first": false,
+  "uart_log_contains_camera_last": false,
+  "stage1_processed": 6,
+  "stage2_consumed": 6,
+  "stage2a_consumed": null,
+  "stage2b_consumed": null,
+  "seqlock_torn_reads": null,
+  "pipeline_errors": 0,
+  "last_sum": null,
+  "uart_log_contains_pipeline_first": false,
+  "uart_log_contains_pipeline_last": false,
+  "uart_log_contains_fanout_first_a": false,
+  "uart_log_contains_fanout_first_b": false,
+  "uart_log_contains_fanout_last_a": false,
+  "uart_log_contains_fanout_last_b": false,
+  "last_dx": 4,
+  "last_dy": 0,
+  "last_sad": 0,
+  "flowest_detected_dx_per_frame": [
+    0,
+    2,
+    0,
+    -3,
+    0,
+    4
+  ],
+  "flowest_detected_dy_per_frame": [
+    0,
+    0,
+    2,
+    -1,
+    -3,
+    0
+  ],
+  "flowest_detected_sad_per_frame": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "flowest_expected_dx_per_frame": [
+    0,
+    2,
+    0,
+    -3,
+    0,
+    4
+  ],
+  "flowest_expected_dy_per_frame": [
+    0,
+    0,
+    2,
+    -1,
+    -3,
+    0
+  ],
+  "pass": true
+}

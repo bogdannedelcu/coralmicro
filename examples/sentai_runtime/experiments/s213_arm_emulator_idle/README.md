@@ -61,14 +61,18 @@ Targets:
   `irq_count == stage1_processed == stage2a_consumed == stage2b_consumed
   == 5`, `pipeline_errors == 0`, `seqlock_torn_reads == 0`, and
   `last_sum == 320`.
-- `flowest` - B8.7c cat-flow offset detection.  Host preprocesses
+- `flowest` - B8.7c/d cat-flow offset detection.  Host preprocesses
   `cat_640x480.bmp` from the B7 s209 reference into 6 Y8 32x32
-  scenes, each shifted by +1 px in X.  Renode `LoadBinary`s them
-  into `g_frame_buffer` between IRQs; VCam runs with `FILL_MODE = 0`
-  so the host bytes survive.  Firmware brute-force SAD block matcher
-  detects motion.  Verdict asserts
-  `detected_dx_per_frame == [0, 1, 1, 1, 1, 1]` (frame 1 is prime,
-  no prev).  The equivalent B7 SIM run reported `dx = 243 / -129`
+  scenes panned along a varied 2D trajectory.  Renode `LoadBinary`s
+  them into `g_frame_buffer` between IRQs; VCam runs with
+  `FILL_MODE = 0` so the host bytes survive.  Firmware brute-force
+  SAD block matcher detects per-frame motion.  Verdict asserts the
+  full per-frame sequence:
+  `detected_dx == [0, +2, 0, -3, 0, +4]` and
+  `detected_dy == [0, 0, +2, -1, -3, 0]` with `sad == 0` for every
+  frame.  Mixes pure-X, pure-Y, diagonal-negative, and positive
+  motions so the matcher cannot fake-pass by always reporting the
+  same value.  The equivalent B7 SIM run reported `dx = 243 / -129`
   — broken; the emulator returns the textbook answer.  Note: 32x32
   Y8 is NOT production format (production is XRGB8888 from CSI
   → PrepTask Y8 80x60 → FlowTask USADA8 phase correlation).  This

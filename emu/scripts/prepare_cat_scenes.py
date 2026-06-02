@@ -67,6 +67,27 @@ def shift_x(base: np.ndarray, dx: int) -> np.ndarray:
     return shifted
 
 
+def shift_y(base: np.ndarray, dy: int) -> np.ndarray:
+    """Shift the image by `dy` pixels along Y (positive = down).  Edge-row
+    replication mirrors `shift_x` so a 2D pan is symmetric on both axes."""
+    h, w = base.shape
+    shifted = np.empty_like(base)
+    if dy == 0:
+        return base.copy()
+    if dy > 0:
+        shifted[dy:, :] = base[: h - dy, :]
+        shifted[:dy, :] = base[:1, :]  # repeat top row
+    else:
+        n = -dy
+        shifted[: h - n, :] = base[n:, :]
+        shifted[h - n :, :] = base[-1:, :]  # repeat bottom row
+    return shifted
+
+
+def shift_xy(base: np.ndarray, dx: int, dy: int) -> np.ndarray:
+    return shift_y(shift_x(base, dx), dy)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--src", type=pathlib.Path, default=DEFAULT_SRC)
@@ -82,18 +103,34 @@ def main() -> int:
     base = load_grayscale_centered(args.src)
     assert base.shape == (FRAME_H, FRAME_W), base.shape
 
-    # B8.7c operator model: a single cat photo, panned by 1 px per frame.
-    # Six frames means a clean constant-velocity test: frame 1 is prime
-    # (no prev), frames 2..6 should each detect dx=+1.
+    # B8.7c v1 (constant +1 X pan).  Kept for the original test.
     scenes = {
         f"scene_off_{i}.bin": shift_x(base, i) for i in range(6)
     }
-    # Keep a couple of named variants on disk too, for ad-hoc tests that
-    # want known larger jumps (history: B7 cat-flow test used these).
     scenes["scene_base.bin"] = base
     scenes["scene_shift_x_p2.bin"] = shift_x(base, +2)
     scenes["scene_shift_x_p4.bin"] = shift_x(base, +4)
     scenes["scene_shift_x_n2.bin"] = shift_x(base, -2)
+
+    # B8.7d operator request: varied 2D motion.  Each frame has an absolute
+    # offset (X, Y) from the BASE cat; flow should detect per-frame deltas
+    # (X_N - X_{N-1}, Y_N - Y_{N-1}).  Deltas were chosen to mix:
+    #   - pure X motion (frame 2)
+    #   - pure Y motion (frame 3)
+    #   - both-axis negative motion (frame 4)
+    #   - pure Y negative (frame 5)
+    #   - pure X positive (frame 6)
+    # All deltas fit inside the firmware search window [-5, +5].
+    motion_2d = [
+        (0, 0),    # F1 - prime, base position
+        (+2, 0),   # F2 - delta (+2, 0)
+        (+2, +2),  # F3 - delta (0, +2)
+        (-1, +1),  # F4 - delta (-3, -1)
+        (-1, -2),  # F5 - delta (0, -3)
+        (+3, -2),  # F6 - delta (+4, 0)
+    ]
+    for idx, (ox, oy) in enumerate(motion_2d):
+        scenes[f"scene_2d_{idx}.bin"] = shift_xy(base, ox, oy)
 
     for name, arr in scenes.items():
         out_path = args.out / name

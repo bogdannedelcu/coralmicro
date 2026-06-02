@@ -1,0 +1,83 @@
+13:12:52.7911 [INFO] Loaded monitor commands from: /home/bogdan/work/renode_portable/scripts/monitor.py
+Renode, version 1.16.1 (ac18b5ac-202606020225)
+
+
+(monitor) i $CWD/emu/renode/sentai_emu_flowest.resc
+
+13:12:52.9121 [INFO] Including script(s): /home/bogdan/work/coralmicro/emu/renode/sentai_emu_flowest.resc
+13:12:52.9275 [INFO] System bus created.
+13:12:53.7193 [INFO] Old file /home/bogdan/work/coralmicro/emu/output/sentai_emu_flowest.log moved to /home/bogdan/work/coralmicro/emu/output/sentai_emu_flowest.log.4
+13:12:53.7355 [INFO] sysbus: Loading block of 3072 bytes length at 0x0.
+13:12:53.7464 [INFO] sysbus: Loading block of 25580 bytes length at 0xC00.
+13:12:53.7464 [INFO] sysbus: Loading block of 480 bytes length at 0x6FEC.
+13:12:53.7464 [INFO] sysbus: Loading block of 2048 bytes length at 0x71CC.
+13:12:53.7464 [INFO] sysbus: Loading block of 52920 bytes length at 0x71D0.
+13:12:53.7464 [INFO] sysbus: Loading block of 16777216 bytes length at 0x80000000.
+13:12:54.2088 [INFO] cpu: Setting initial values: PC = 0xCBD, SP = 0x20040000.
+13:12:54.2114 [INFO] machine-0: Machine started.
+13:12:54.2926 [WARNING] nvic: Unhandled write to offset 0xF50 (ICacheInvalidateAllToPoUaIgnored), value 0x0.
+13:12:54.3145 [WARNING] nvic: Trying to set the priority for interrupt 16 to 0xFF, but it should be maskable with 0xF0
+13:13:00.4080 [INFO] machine-0: Machine paused.
+13:13:00.4261 [INFO] sysbus: Loading block of 1024 bytes length at 0x81000000.
+13:13:00.4520 [INFO] machine-0: Machine resumed.
+13:13:02.0962 [INFO] machine-0: Machine paused.
+13:13:02.0973 [INFO] sysbus: Loading block of 1024 bytes length at 0x81000000.
+13:13:02.1018 [INFO] machine-0: Machine resumed.
+13:13:03.7459 [INFO] machine-0: Machine paused.
+13:13:03.7467 [INFO] sysbus: Loading block of 1024 bytes length at 0x81000000.
+13:13:03.7478 [INFO] machine-0: Machine resumed.
+13:13:05.4010 [INFO] machine-0: Machine paused.
+13:13:05.4019 [INFO] sysbus: Loading block of 1024 bytes length at 0x81000000.
+13:13:05.4028 [INFO] machine-0: Machine resumed.
+13:13:07.0286 [INFO] machine-0: Machine paused.
+13:13:07.0298 [INFO] sysbus: Loading block of 1024 bytes length at 0x81000000.
+13:13:07.0309 [INFO] machine-0: Machine resumed.
+13:13:08.6278 [INFO] machine-0: Machine paused.
+13:13:08.6288 [INFO] sysbus: Loading block of 1024 bytes length at 0x81000000.
+13:13:08.6310 [INFO] machine-0: Machine resumed.
+13:13:11.0912 [INFO] machine-0: Machine paused.
+sentai_emu_flowest PC:
+
+0x2428
+
+sentai_emu_flowest boot_state:
+
+0x00000900
+
+sentai_emu_flowest heartbeat:
+
+0x00000006
+
+sentai_emu_flowest irq_count:
+
+0x00000006
+
+sentai_emu_flowest stage1_processed:
+
+0x00000006
+
+sentai_emu_flowest stage2_consumed:
+
+0x00000006
+
+sentai_emu_flowest pipeline_errors:
+
+0x00000000
+
+sentai_emu_flowest last_dx:
+
+0x00000004
+
+sentai_emu_flowest last_dy:
+
+0x00000000
+
+sentai_emu_flowest last_sad:
+
+0x00000000
+
+sentai_emu_flowest last_tick:
+
+0x00001F1C
+
+(machine-0) 13:13:11.1515 [INFO] machine-0: Disposed.
