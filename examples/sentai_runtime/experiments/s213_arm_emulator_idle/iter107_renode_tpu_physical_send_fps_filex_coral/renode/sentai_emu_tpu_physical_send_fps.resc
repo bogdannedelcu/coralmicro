@@ -1,0 +1,57 @@
+:name: SentAI B8 physical Coral Send* FPS
+:description: Benchmark guest-side EdgeTpuManager invokes through the physical Coral TpuDriver Send*/GetOutputs/ReadEvent MMIO bridge.
+
+i @emu/renode/sentai_rt1176.repl
+
+$bin?=@build_emu/emu/sentai_emu_tpu_physical_send_fps
+$uart_log?=@/home/bogdan/work/coralmicro/emu/output/sentai_emu_tpu_physical_send_fps.log
+
+macro reset
+"""
+    sysbus LoadELF $bin
+    cpu VectorTableOffset 0x800
+"""
+
+lpuart6 CreateFileBackend $uart_log
+runMacro $reset
+emulation RunFor "12s"
+lpuart6 CloseFileBackend $uart_log
+
+echo "sentai_emu_tpu_physical_send_fps PC:"
+cpu PC
+echo "sentai_emu_tpu_physical_send_fps boot_state:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_boot_state"`
+echo "sentai_emu_tpu_physical_send_fps heartbeat:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_heartbeat"`
+echo "sentai_emu_tpu_physical_send_fps last_tick:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_last_tick"`
+echo "sentai_emu_tpu_physical_send_fps model_bytes:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_tpu_model_bytes"`
+echo "sentai_emu_tpu_physical_send_fps image_bytes:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_tpu_image_bytes"`
+echo "sentai_emu_tpu_physical_send_fps input_bytes:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_tpu_input_bytes"`
+echo "sentai_emu_tpu_physical_send_fps output_bytes:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_tpu_output_bytes"`
+echo "sentai_emu_tpu_physical_send_fps completed:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_tpu_completed"`
+echo "sentai_emu_tpu_physical_send_fps fail_code:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_tpu_fail_code"`
+echo "sentai_emu_tpu_physical_send_fps first_ms:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_tpu_first_ms"`
+echo "sentai_emu_tpu_physical_send_fps steady_ms:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_tpu_steady_ms"`
+echo "sentai_emu_tpu_physical_send_fps output_sum:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_tpu_output_sum"`
+echo "sentai_emu_tpu_physical_send_fps tpu_bridge_params_calls:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_tpu_bridge_params_calls"`
+echo "sentai_emu_tpu_physical_send_fps tpu_bridge_input_calls:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_tpu_bridge_input_calls"`
+echo "sentai_emu_tpu_physical_send_fps tpu_bridge_ins_calls:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_tpu_bridge_ins_calls"`
+echo "sentai_emu_tpu_physical_send_fps tpu_bridge_output_calls:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_tpu_bridge_output_calls"`
+echo "sentai_emu_tpu_physical_send_fps tpu_bridge_event_calls:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_tpu_bridge_event_calls"`
+echo "sentai_emu_tpu_physical_send_fps tpu_bridge_last_result:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_tpu_bridge_last_result"`

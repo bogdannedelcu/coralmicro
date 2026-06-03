@@ -33,7 +33,7 @@
 | B8.10c| Lower-level TPU transport optimization plan / A/B matrix         | documented after iter60                          | _open_     |
 | B8.10d| Low-level timing at SendParameters/SendInputs boundary            | iter83_renode_tpu_timing_repl_filex_physical_coral | _open_   |
 | B8.10e| Guest `EdgeTpuManager` -> `TpuDriver::Send*` -> physical USB Coral | iter91_renode_tpu_physical_send_smoke_filex_coral | _open_    |
-| B8.10f| Host wall-clock FPS for guest `Send*` -> physical USB Coral       | iter92_renode_tpu_physical_send_fps_filex_coral  | _open_    |
+| B8.10f| Host wall-clock FPS for guest `Send*` -> physical USB Coral       | iter107_renode_tpu_physical_send_fps_filex_coral | _open_    |
 | B8.10g| POSIX/libusb bulk-IN outfeed optimization (`0x80` / 1024B)        | iter98_renode_tpu_physical_send_fps_filex_coral  | _open_    |
 | B8.12| Crazyflie CRTP via real UART + cf2-SITL TCP bridge (planned)     | not started                                      | _open_     |
 
@@ -3138,6 +3138,78 @@ shows host/USB jitter, so small differences among 160 KB / 256 KB / 512 KB /
   output bridge time), not by bulk-out once chunks are at least ~160 KB.
 - ARM defaults are unchanged; the 1 MB path is SIM/POSIX/host-bridge only.
 
+Post-commit reproducibility check (`iter107`) after the WIP checkpoint push:
+
+```text
+setup wall: 212 ms
+first invoke wall: 76 ms
+10 invokes measured wall: 786 ms
+FPS including first invoke: 12.72
+steady invokes: 9
+steady wall: 697 ms
+steady FPS: 12.91
+steady avg wall per invoke: 65.78 ms
+steady avg bridge command sum: 63.33 ms
+steady avg server/TpuDriver sum: 39.22 ms
+steady avg SendInstructions bridge/server: 11.89 / 6.56 ms
+steady avg SendInputs bridge/server: 11.00 / 6.44 ms
+steady avg GetOutputs bridge/server: 35.11 / 26.22 ms
+steady avg USB out/in/event: 4.88 / 26.03 / 0.05 ms
+usb_failed=0
+usb_timeouts=0
+```
+
+This reproduces the B8 physical Coral bridge result after commit/push.  The
+stable ceiling for the current low-level guest `Send*` -> host POSIX/libusb ->
+physical USB Coral path is now about `12-13 FPS` on the host wall clock.
+
+### 2026-06-03 - B7 FlowTask end-to-end retest from B8 checkpoint
+
+Goal: rerun the failed S209/B7-style SIM experiment with VirtualCameraTask,
+PrepTask, InferTask/TPU, and FlowTask active after the B8 physical Coral bridge
+checkpoint.
+
+Runs:
+
+```text
+iter374_pipeline_5s_flow_tpu_retest
+  command: run_s209_pipeline_5s.py --duration-ms 5000 --frames 80
+  result : manual stop; trace stopped at after_pipe_start
+  note   : pre-fix harness used subprocess stdout=PIPE
+
+iter375_pipeline_3s_replay_flow_tpu_retest
+  command: run_s209_pipeline_5s.py --duration-ms 3000 --frames 16 --replay
+  result : manual stop; trace stopped at after_pipe_start
+  note   : single-frame replay reproduced the same pre-fix blockage
+
+iter376_pipeline_5s_flow_tpu_stdout_file
+  command: run_s209_pipeline_5s.py --duration-ms 5000 --frames 80
+  change : harness writes sentai_sim stdout directly to sim_stdout.log
+  result : manual stop; trace reached after_cam_play and before_sleep
+  note   : old CAM_PLAY blockage is gone; MP did not return from sleep_ms
+
+iter377_pipeline_3s_replay_tpu_only_stdout_file
+  command: run_s209_pipeline_5s.py --duration-ms 3000 --frames 16 --replay --no-flow
+  result : manual stop; trace reached after_cam_replay and before_sleep
+  note   : same sleep_ms blockage without FlowTask
+```
+
+Important observations:
+
+- The pre-fix B7 retests were almost certainly affected by a harness-level
+  stdout pipe deadlock: the runner captured `sentai_sim` stdout with an unread
+  `subprocess.PIPE` while TPU/flight-recorder output was verbose.  The harness
+  now streams stdout directly to `sim_stdout.log`.
+- After that fix, the camera playback API returns: `after_cam_play` /
+  `after_cam_replay` appear in the mission trace.
+- VirtualCameraTask publishes frames, PrepTask consumes them, FlowTask publishes
+  flow snapshots when enabled, and InferTask queues detections.  The logs prove
+  the background tasks are alive.
+- The remaining SIM blockage is later: MP does not reliably return from
+  `sentai.rtos.sleep_ms()` under pipeline+TPU load.
+- The TPU-only control (`--no-flow`) reproduces the post-fix `sleep_ms`
+  blockage, so the current blocker is not FlowTask-specific.
+
 Current B8 checkpoint conclusion:
 
 - We have a working Renode guest -> host bridge -> physical USB Coral path at
@@ -3148,7 +3220,11 @@ Current B8 checkpoint conclusion:
   Coral through the POSIX/libusb backend.
 - The validated stable default is `perf=low`, bulk-out `1 MB`,
   `outfeed_chunk_length=0x80`, and bulk-IN request `1024`.
-- Latest reproducible checkpoint before commit: `iter106`, pass=true,
-  `12.10 FPS` steady by host wall-clock, `usb_failed=0`, `usb_timeouts=0`.
-- Next B8 step is to reuse this physical Coral bridge while bringing back the
-  B7-style end-to-end runtime test with FlowTask enabled.
+- Latest reproducible checkpoint after commit/push: `iter107`, pass=true,
+  `12.91 FPS` steady by host wall-clock, `usb_failed=0`, `usb_timeouts=0`.
+- The B7-style FlowTask end-to-end retest is still not a PASS in SIM.  We
+  fixed the first harness deadlock (`stdout=PIPE`), but the next blocker is
+  `sentai.rtos.sleep_ms()` not returning under pipeline+TPU load.  Since the
+  no-Flow control reproduces it, the next debugging step should focus on the
+  SIM scheduler/sleep/host-IO interaction around InferTask rather than
+  FlowTask startup.

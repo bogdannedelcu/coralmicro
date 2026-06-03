@@ -1,0 +1,10 @@
+run_start
+before_tpu_load
+after_tpu_load
+before_flow_start
+after_flow_start
+after_cam_select
+before_pipe_start
+after_pipe_start
+after_cam_play
+before_sleep

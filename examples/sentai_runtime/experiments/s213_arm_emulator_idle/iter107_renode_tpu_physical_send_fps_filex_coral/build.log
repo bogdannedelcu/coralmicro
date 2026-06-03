@@ -1,0 +1,7 @@
+[ 14%] Built target libs_levelx
+[100%] Built target libs_filex
+[100%] Building CXX object emu/CMakeFiles/sentai_emu_tpu_physical_send_fps.dir/sentai_emu_lfs_stubs.cc.obj
+cc1plus: warning: command line option '-Wno-old-style-definition' is valid for C/ObjC but not for C++
+cc1plus: warning: command line option '-Wno-missing-prototypes' is valid for C/ObjC but not for C++
+[100%] Linking CXX executable sentai_emu_tpu_physical_send_fps
+[100%] Built target sentai_emu_tpu_physical_send_fps

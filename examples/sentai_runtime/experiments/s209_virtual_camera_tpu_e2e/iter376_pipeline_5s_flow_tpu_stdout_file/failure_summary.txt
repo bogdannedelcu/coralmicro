@@ -1,0 +1,24 @@
+S209 Flow+TPU retest after stdout-file fix.
+
+Command:
+python3 examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/run_s209_pipeline_5s.py --duration-ms 5000 --frames 80 --label pipeline_5s_flow_tpu_stdout_file
+
+Harness change:
+run_s209_pipeline_5s.py now writes sentai_sim stdout directly to sim_stdout.log
+instead of capturing an unread subprocess PIPE.
+
+Result:
+Manual stop required. The mission trace reached after_cam_play and before_sleep,
+then did not reach after_sleep.
+
+Evidence:
+- The old CAM_PLAY blockage is gone.
+- VirtualCameraTask, PrepTask, FlowTask publication, and InferTask all ran.
+- Flow+TPU activity was visible in fr/debug.log.
+- /proc showed the remaining sentai_sim threads sleeping on futex/pipe waits,
+  not spinning.
+
+Interpretation:
+The stdout-pipe deadlock is fixed for this harness, but the B7 end-to-end SIM
+path still has a second blocker: MP does not reliably return from
+sentai.rtos.sleep_ms() under the active pipeline+TPU load.

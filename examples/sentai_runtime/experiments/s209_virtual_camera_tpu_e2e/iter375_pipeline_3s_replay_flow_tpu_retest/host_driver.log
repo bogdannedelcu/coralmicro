@@ -1,0 +1,4 @@
+   0.000 SEND import mission_s209_pipeline_5s as m
+   0.000 SEND m.run(3000, 16, True, True, 1)
+   0.000 SEND exit
+   0.000 WAIT

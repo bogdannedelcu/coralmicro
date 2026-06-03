@@ -100,21 +100,24 @@ def run_sim(run_dir: Path, fs_root: Path, duration_ms: int,
     host_log("SEND exit")
     host_log("WAIT")
     try:
-        proc = subprocess.run(
-            [str(SIM)],
-            cwd=str(REPO),
-            input=program,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            env={**os.environ, "SENTAI_SIM_ROOT": str(fs_root)},
-            timeout=max(180, duration_ms // 1000 + 60),
-        )
-        stdout_path.write_text(proc.stdout, encoding="utf-8")
-        out = proc.stdout
+        with stdout_path.open("w+", encoding="utf-8") as stdout_file:
+            proc = subprocess.run(
+                [str(SIM)],
+                cwd=str(REPO),
+                input=program,
+                stdout=stdout_file,
+                stderr=subprocess.STDOUT,
+                text=True,
+                env={**os.environ, "SENTAI_SIM_ROOT": str(fs_root)},
+                timeout=max(180, duration_ms // 1000 + 60),
+            )
+            stdout_file.seek(0)
+            out = stdout_file.read()
     except subprocess.TimeoutExpired as exc:
         out = text_or_empty(exc.stdout) + text_or_empty(exc.stderr)
-        stdout_path.write_text(out, encoding="utf-8")
+        if out:
+            with stdout_path.open("a", encoding="utf-8") as f:
+                f.write(out)
         cleanup_extra()
         raise
 

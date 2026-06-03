@@ -1,0 +1,20 @@
+S209 Flow+TPU retest before stdout-file fix.
+
+Command:
+python3 examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/run_s209_pipeline_5s.py --duration-ms 5000 --frames 80 --label pipeline_5s_flow_tpu_retest
+
+Result:
+Manual stop required. The mission trace stopped at after_pipe_start and never
+reached after_cam_play.
+
+Evidence:
+- VirtualCameraTask started and published frames from /images/shift.
+- PrepTask consumed camera frames and ran PXP.
+- FlowTask was enabled; det_prep logged flow publish begin/done.
+- InferTask invoked the physical Coral path through SIM and queued detections.
+
+Interpretation:
+The SIM process blocked before the MP mission returned from the camera.play
+section. This run still used subprocess stdout=PIPE in the Python harness, so
+the likely immediate blocker was a full stdout pipe rather than FlowTask startup
+itself.

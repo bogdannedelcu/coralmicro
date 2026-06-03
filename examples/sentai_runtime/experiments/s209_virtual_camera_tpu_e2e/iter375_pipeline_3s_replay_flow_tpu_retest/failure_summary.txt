@@ -1,0 +1,19 @@
+S209 replay Flow+TPU retest before stdout-file fix.
+
+Command:
+python3 examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/run_s209_pipeline_5s.py --duration-ms 3000 --frames 16 --replay --min-delta 1 --label pipeline_3s_replay_flow_tpu_retest
+
+Result:
+Manual stop required. The mission trace stopped at after_pipe_start and never
+reached after_cam_replay.
+
+Evidence:
+- VirtualCameraTask started in memory replay mode and published frame_000.bmp.
+- PrepTask consumed frames and ran PXP.
+- FlowTask was enabled; det_prep logged flow publish begin/done.
+- InferTask invoked the physical Coral path through SIM and queued detections.
+
+Interpretation:
+Single-frame replay reproduced the same pre-fix blockage as multi-image FS
+playback, so the old hang was not caused by directory iteration or disk reads.
+This run also used subprocess stdout=PIPE in the harness.

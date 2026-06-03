@@ -1,0 +1,17 @@
+S209 TPU-only control after stdout-file fix.
+
+Command:
+python3 examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/run_s209_pipeline_5s.py --duration-ms 3000 --frames 16 --replay --no-flow --min-delta 1 --label pipeline_3s_replay_tpu_only_stdout_file
+
+Result:
+Manual stop required. The mission trace reached after_cam_replay and
+before_sleep, then did not reach after_sleep.
+
+Evidence:
+- Flow was explicitly skipped by the mission.
+- VirtualCameraTask, PrepTask, and InferTask still ran and queued detections.
+
+Interpretation:
+The post-fix sleep_ms blockage is not FlowTask-specific. FlowTask is no longer
+the primary suspect for the current SIM deadlock; the remaining issue is common
+to the pipeline+TPU SIM path when MP sleeps while background work is active.
