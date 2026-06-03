@@ -86,6 +86,7 @@ target_link_libraries(sentai_sim_kernel_only PRIVATE
 add_executable_sim(tpu_posix_smoke
     tpu_posix_smoke.cc
     tpu_posix_smoke_freertos_hooks.c
+    sentai_log_smoke_stub.c
     usb_host_edgetpu_posix.c
     ${CMAKE_SOURCE_DIR}/libs/tpu/edgetpu_driver.cc
     ${CMAKE_SOURCE_DIR}/libs/tpu/apex_latest_single_ep_bin.c
@@ -98,6 +99,57 @@ target_compile_definitions(tpu_posix_smoke PRIVATE
     SENTAI_PLATFORM_SIM=1
 )
 target_link_libraries(tpu_posix_smoke PRIVATE
+    libfreertos_posix
+    usb-1.0
+)
+
+add_executable_sim(tpu_posix_invoke_smoke
+    tpu_posix_invoke_smoke.cc
+    tpu_posix_smoke_freertos_hooks.c
+    sentai_log_smoke_stub.c
+    usb_host_edgetpu_posix.c
+    ${CMAKE_SOURCE_DIR}/libs/tpu/edgetpu_driver.cc
+    ${CMAKE_SOURCE_DIR}/libs/tpu/edgetpu_executable.cc
+    ${CMAKE_SOURCE_DIR}/libs/tpu/edgetpu_manager.cc
+    ${CMAKE_SOURCE_DIR}/libs/tpu/apex_latest_single_ep_bin.c
+    ${CMAKE_SOURCE_DIR}/third_party/tflite-micro/tensorflow/lite/c/common.cc
+    ${CMAKE_SOURCE_DIR}/third_party/tflite-micro/tensorflow/lite/micro/memory_helpers.cc
+    ${CMAKE_SOURCE_DIR}/third_party/tflite-micro/tensorflow/lite/micro/micro_utils.cc
+    ${CMAKE_SOURCE_DIR}/third_party/tflite-micro/tensorflow/lite/micro/kernels/kernel_util.cc
+    ${CMAKE_SOURCE_DIR}/third_party/tflite-micro/tensorflow/lite/micro/kernels/detection_postprocess.cc
+)
+target_include_directories(tpu_posix_invoke_smoke PRIVATE
+    ${CMAKE_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/third_party/flatbuffers/include
+    ${CMAKE_SOURCE_DIR}/third_party/gemmlowp
+    ${CMAKE_SOURCE_DIR}/third_party/tflite-micro
+)
+target_compile_definitions(tpu_posix_invoke_smoke PRIVATE
+    SENTAI_PLATFORM_SIM=1
+    FLATBUFFERS_LOCALE_INDEPENDENT=0
+)
+target_link_libraries(tpu_posix_invoke_smoke PRIVATE
+    libfreertos_posix
+    usb-1.0
+)
+
+add_executable_sim(tpu_posix_send_server
+    tpu_posix_send_server.cc
+    tpu_posix_smoke_freertos_hooks.c
+    sentai_log_smoke_stub.c
+    usb_host_edgetpu_posix.c
+    ${CMAKE_SOURCE_DIR}/libs/tpu/edgetpu_driver.cc
+    ${CMAKE_SOURCE_DIR}/libs/tpu/apex_latest_single_ep_bin.c
+)
+target_include_directories(tpu_posix_send_server PRIVATE
+    ${CMAKE_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+target_compile_definitions(tpu_posix_send_server PRIVATE
+    SENTAI_PLATFORM_SIM=1
+)
+target_link_libraries(tpu_posix_send_server PRIVATE
     libfreertos_posix
     usb-1.0
 )

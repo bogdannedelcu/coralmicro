@@ -1,0 +1,5 @@
+-- Toolchain prefix: /home/bogdan/work/coralmicro/third_party/toolchain-linux/gcc-arm-none-eabi-9-2020-q2-update/lib/gcc/arm-none-eabi
+-- sentai: EdgeTPU firmware = single_ep (default)
+-- Configuring done (0.1s)
+-- Generating done (0.5s)
+-- Build files have been written to: /home/bogdan/work/coralmicro/build_emu

@@ -1,0 +1,140 @@
+07:30:18.9604 [INFO] Loaded monitor commands from: /home/bogdan/work/renode_portable/scripts/monitor.py
+Renode, version 1.16.1 (ac18b5ac-202606020225)
+
+
+(monitor) i $CWD/emu/renode/sentai_emu_tpu_cat_repl.resc
+
+07:30:19.0837 [INFO] Including script(s): /home/bogdan/work/coralmicro/emu/renode/sentai_emu_tpu_cat_repl.resc
+07:30:19.0991 [INFO] System bus created.
+07:30:19.9060 [INFO] Old file /home/bogdan/work/coralmicro/emu/output/sentai_emu_tpu_cat_repl.log moved to /home/bogdan/work/coralmicro/emu/output/sentai_emu_tpu_cat_repl.log.1
+07:30:19.9249 [INFO] sysbus: Loading block of 3072 bytes length at 0x0.
+07:30:19.9356 [INFO] sysbus: Loading block of 227952 bytes length at 0xC00.
+07:30:19.9359 [INFO] sysbus: Loading block of 202432 bytes length at 0x38670.
+07:30:19.9363 [INFO] sysbus: Loading block of 16777216 bytes length at 0x80000000.
+07:30:19.9564 [INFO] sysbus: Loading block of 54680 bytes length at 0x81000000.
+07:30:20.3996 [INFO] cpu: Setting initial values: PC = 0xCBD, SP = 0x20040000.
+07:30:20.4022 [INFO] machine-0: Machine started.
+07:30:20.4775 [WARNING] nvic: Unhandled write to offset 0xF50 (ICacheInvalidateAllToPoUaIgnored), value 0x0.
+07:30:20.5017 [WARNING] nvic: Trying to set the priority for interrupt 16 to 0xFF, but it should be maskable with 0xF0
+07:32:07.4657 [INFO] machine-0: Machine paused.
+07:32:07.4758 [INFO] machine-0: Machine resumed.
+07:32:08.5954 [INFO] machine-0: Machine paused.
+07:32:08.5967 [INFO] machine-0: Machine resumed.
+07:32:09.7435 [INFO] machine-0: Machine paused.
+07:32:09.7455 [INFO] machine-0: Machine resumed.
+07:32:10.9327 [INFO] machine-0: Machine paused.
+07:32:10.9340 [INFO] machine-0: Machine resumed.
+07:32:12.0538 [INFO] machine-0: Machine paused.
+07:32:12.0553 [INFO] machine-0: Machine resumed.
+07:32:13.1263 [INFO] machine-0: Machine paused.
+07:32:13.1281 [INFO] machine-0: Machine resumed.
+07:32:14.2665 [INFO] machine-0: Machine paused.
+07:32:14.2678 [INFO] machine-0: Machine resumed.
+07:32:15.4225 [INFO] machine-0: Machine paused.
+07:32:15.4240 [INFO] machine-0: Machine resumed.
+07:32:16.5735 [INFO] machine-0: Machine paused.
+07:32:16.5737 [INFO] machine-0: Machine resumed.
+07:32:17.6940 [INFO] machine-0: Machine paused.
+07:32:17.6950 [INFO] machine-0: Machine resumed.
+07:32:18.8211 [INFO] machine-0: Machine paused.
+07:32:18.8225 [INFO] machine-0: Machine resumed.
+07:32:19.9515 [INFO] machine-0: Machine paused.
+07:32:19.9525 [INFO] machine-0: Machine resumed.
+07:32:21.0339 [INFO] machine-0: Machine paused.
+07:32:21.0352 [INFO] machine-0: Machine resumed.
+07:32:22.1855 [INFO] machine-0: Machine paused.
+07:32:22.1868 [INFO] machine-0: Machine resumed.
+07:32:23.3194 [INFO] machine-0: Machine paused.
+07:32:23.3208 [INFO] machine-0: Machine resumed.
+07:34:13.8718 [INFO] machine-0: Machine paused.
+07:34:13.8731 [INFO] machine-0: Machine resumed.
+07:34:14.9713 [INFO] machine-0: Machine paused.
+07:34:14.9726 [INFO] machine-0: Machine resumed.
+07:34:16.1174 [INFO] machine-0: Machine paused.
+07:34:16.1184 [INFO] machine-0: Machine resumed.
+07:34:17.2044 [INFO] machine-0: Machine paused.
+07:34:17.2052 [INFO] machine-0: Machine resumed.
+07:34:18.3321 [INFO] machine-0: Machine paused.
+07:34:18.3331 [INFO] machine-0: Machine resumed.
+07:34:19.4277 [INFO] machine-0: Machine paused.
+07:34:19.4290 [INFO] machine-0: Machine resumed.
+07:34:20.5539 [INFO] machine-0: Machine paused.
+07:34:20.5548 [INFO] machine-0: Machine resumed.
+07:34:21.6641 [INFO] machine-0: Machine paused.
+07:34:21.6651 [INFO] machine-0: Machine resumed.
+07:34:22.7230 [INFO] machine-0: Machine paused.
+07:34:22.7239 [INFO] machine-0: Machine resumed.
+07:34:23.8194 [INFO] machine-0: Machine paused.
+07:34:23.8205 [INFO] machine-0: Machine resumed.
+07:34:24.9244 [INFO] machine-0: Machine paused.
+07:34:24.9256 [INFO] machine-0: Machine resumed.
+07:34:26.0659 [INFO] machine-0: Machine paused.
+07:34:26.0670 [INFO] machine-0: Machine resumed.
+07:34:27.1743 [INFO] machine-0: Machine paused.
+07:34:27.1754 [INFO] machine-0: Machine resumed.
+07:34:28.4286 [INFO] machine-0: Machine paused.
+07:34:28.4295 [INFO] machine-0: Machine resumed.
+Fatal error:
+No module named RegularExpressions
+   at IronPython.Runtime.Importer.ImportModuleFrom(CodeContext context, Object from, String[] parts, Int32 current)
+   at IronPython.Runtime.Importer.ImportModule(CodeContext context, Object globals, String modName, Boolean bottom, Int32 level)
+   at IronPython.Modules.Builtin.__import__(CodeContext context, String name, Object globals, Object locals, Object fromlist, Int32 level)
+   at IronPython.Runtime.Importer.ImportLightThrow(CodeContext context, String fullName, PythonTuple from, Int32 level)
+   at IronPython.Runtime.Operations.PythonOps.ImportWithNames(CodeContext context, String fullName, String[] names, Int32 level)
+   at Microsoft.Scripting.Interpreter.FuncCallInstruction`5.Run(InterpretedFrame frame)
+   at Microsoft.Scripting.Interpreter.Interpreter.Run(InterpretedFrame frame)
+   at Microsoft.Scripting.Interpreter.LightLambda.Run2[T0,T1,TRet](T0 arg0, T1 arg1)
+   at IronPython.Compiler.PythonScriptCode.RunWorker(CodeContext ctx)
+   at IronPython.Compiler.PythonScriptCode.Run(Scope scope)
+   at IronPython.Compiler.RuntimeScriptCode.InvokeTarget(Scope scope)
+   at IronPython.Compiler.RuntimeScriptCode.Run(Scope scope)
+   at Microsoft.Scripting.Hosting.CompiledCode.Execute(ScriptScope scope)
+   at Antmicro.Renode.Core.PythonEngine.Execute(CompiledCode code, Action`1 errorCallback)
+   at Antmicro.Renode.Core.PythonEngine.Execute(CompiledCode code)
+   at Antmicro.Renode.Peripherals.Python.PeripheralPythonEngine.ExecuteCode()
+   at Antmicro.Renode.Peripherals.Python.PythonPeripheral.Execute()
+   at Antmicro.Renode.Peripherals.Python.PythonPeripheral.Init()
+   at Antmicro.Renode.Peripherals.Python.PythonPeripheral.EnsureInit()
+   at Antmicro.Renode.Peripherals.Python.PythonPeripheral.HandleWrite(Int64 offset, UInt64 value)
+   at Antmicro.Renode.Peripherals.Python.PythonPeripheral.WriteDoubleWord(Int64 offset, UInt32 value)
+   at Antmicro.Renode.Peripherals.Bus.SystemBus.WriteDoubleWord(UInt64 address, UInt32 value, IPeripheral context, Nullable`1 cpuState)
+   at Antmicro.Renode.Peripherals.CPU.TranslationCPU.WriteDoubleWordToBus(UInt64 offset, UInt64 value, UInt64 cpuState)
+   at WriteDoubleWordToBusWrapper(CortexMWrappers, UInt64, UInt64, UInt64)
+--- End of stack trace from previous location ---
+   at Antmicro.Renode.Utilities.Binding.ExceptionKeeper.ThrowExceptions()
+   at TlibExecute(CortexMWrappers, Int32)
+   at Antmicro.Renode.Peripherals.CPU.TranslationCPU.ExecuteInstructions(UInt64 numberOfInstructionsToExecute, UInt64& numberOfExecutedInstructions)
+   at Antmicro.Renode.Peripherals.CPU.BaseCPU.CpuThreadBodyInner(Boolean singleStep, Boolean skipThisRound)
+   at Antmicro.Renode.Peripherals.CPU.BaseCPU.CpuThreadBody()
+
+Unhandled exception. IronPython.Runtime.Exceptions.ImportException: No module named RegularExpressions
+   at IronPython.Runtime.Importer.ImportModuleFrom(CodeContext context, Object from, String[] parts, Int32 current)
+   at IronPython.Runtime.Importer.ImportModule(CodeContext context, Object globals, String modName, Boolean bottom, Int32 level)
+   at IronPython.Modules.Builtin.__import__(CodeContext context, String name, Object globals, Object locals, Object fromlist, Int32 level)
+   at IronPython.Runtime.Importer.ImportLightThrow(CodeContext context, String fullName, PythonTuple from, Int32 level)
+   at IronPython.Runtime.Operations.PythonOps.ImportWithNames(CodeContext context, String fullName, String[] names, Int32 level)
+   at Microsoft.Scripting.Interpreter.FuncCallInstruction`5.Run(InterpretedFrame frame)
+   at Microsoft.Scripting.Interpreter.Interpreter.Run(InterpretedFrame frame)
+   at Microsoft.Scripting.Interpreter.LightLambda.Run2[T0,T1,TRet](T0 arg0, T1 arg1)
+   at IronPython.Compiler.PythonScriptCode.RunWorker(CodeContext ctx)
+   at IronPython.Compiler.PythonScriptCode.Run(Scope scope)
+   at IronPython.Compiler.RuntimeScriptCode.InvokeTarget(Scope scope)
+   at IronPython.Compiler.RuntimeScriptCode.Run(Scope scope)
+   at Microsoft.Scripting.Hosting.CompiledCode.Execute(ScriptScope scope)
+   at Antmicro.Renode.Core.PythonEngine.Execute(CompiledCode code, Action`1 errorCallback)
+   at Antmicro.Renode.Core.PythonEngine.Execute(CompiledCode code)
+   at Antmicro.Renode.Peripherals.Python.PeripheralPythonEngine.ExecuteCode()
+   at Antmicro.Renode.Peripherals.Python.PythonPeripheral.Execute()
+   at Antmicro.Renode.Peripherals.Python.PythonPeripheral.Init()
+   at Antmicro.Renode.Peripherals.Python.PythonPeripheral.EnsureInit()
+   at Antmicro.Renode.Peripherals.Python.PythonPeripheral.HandleWrite(Int64 offset, UInt64 value)
+   at Antmicro.Renode.Peripherals.Python.PythonPeripheral.WriteDoubleWord(Int64 offset, UInt32 value)
+   at Antmicro.Renode.Peripherals.Bus.SystemBus.WriteDoubleWord(UInt64 address, UInt32 value, IPeripheral context, Nullable`1 cpuState)
+   at Antmicro.Renode.Peripherals.CPU.TranslationCPU.WriteDoubleWordToBus(UInt64 offset, UInt64 value, UInt64 cpuState)
+   at WriteDoubleWordToBusWrapper(CortexMWrappers, UInt64, UInt64, UInt64)
+--- End of stack trace from previous location ---
+   at Antmicro.Renode.Utilities.Binding.ExceptionKeeper.ThrowExceptions()
+   at TlibExecute(CortexMWrappers, Int32)
+   at Antmicro.Renode.Peripherals.CPU.TranslationCPU.ExecuteInstructions(UInt64 numberOfInstructionsToExecute, UInt64& numberOfExecutedInstructions)
+   at Antmicro.Renode.Peripherals.CPU.BaseCPU.CpuThreadBodyInner(Boolean singleStep, Boolean skipThisRound)
+   at Antmicro.Renode.Peripherals.CPU.BaseCPU.CpuThreadBody()

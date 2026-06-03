@@ -1,0 +1,14 @@
+07:22:17.4993 [INFO] Loaded monitor commands from: /home/bogdan/work/renode_portable/scripts/monitor.py
+Renode, version 1.16.1 (ac18b5ac-202606020225)
+
+
+(monitor) i $CWD/emu/renode/sentai_emu_tpu_cat_repl.resc
+
+07:22:17.6162 [INFO] Including script(s): /home/bogdan/work/coralmicro/emu/renode/sentai_emu_tpu_cat_repl.resc
+07:22:17.6319 [INFO] System bus created.
+There was an error executing command 'i @/home/bogdan/work/coralmicro/emu/renode/sentai_rt1176.repl'
+Error E00: Syntax error, unexpected 's'; expected attribute list end
+At /home/bogdan/work/coralmicro/emu/renode/sentai_rt1176.repl:491:5:
+    script: '''
+    ^
+(machine-0) 07:22:17.8878 [INFO] machine-0: Disposed.

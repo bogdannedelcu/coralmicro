@@ -1,0 +1,9 @@
+t=100ms server start argv=/home/bogdan/work/coralmicro/build-sim/sim/tpu_posix_send_server --server-cmd /tmp/sentai_emu_tpu_send_server.cmd --perf low --chunk-size 163840 --bulkin-chunk-size 1024 --outfeed-chunk-length 0x80
+t=131ms server [tpu-posix] libusb_init
+t=131ms server [tpu-posix] dfu/app probe
+t=131ms server [tpu-posix] open app device
+t=131ms server [tpu-posix] opened Coral USB interface=0 out=01,02,03 in=81,82 irq=83
+t=131ms server [TPU init] read omc0_00
+t=2120ms server [TPU init] failed: read omc0_00
+t=2120ms server SEND_SERVER_FAIL driver_initialize
+t=2132ms bridge cmd=ins seq=1 data_len=10448 out_len=0 ok=False ms=2049

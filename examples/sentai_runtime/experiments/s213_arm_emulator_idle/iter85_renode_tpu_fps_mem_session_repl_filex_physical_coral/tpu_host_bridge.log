@@ -1,0 +1,245 @@
+t=7ms file begin kind=1 expected_size=7077792 path=/tmp/sentai_emu_tpu_model.tflite
+t=1492ms file done kind=1 bytes=7077792 chunks=216 total_ms=1485 guest_read_ms=5 host_write_ms=12
+t=1730ms file begin kind=2 expected_size=921654 path=/tmp/sentai_emu_tpu_image.bmp
+t=1735ms file done kind=2 bytes=921654 chunks=29 total_ms=7 guest_read_ms=0 host_write_ms=2
+t=1738ms server start argv=/home/bogdan/work/coralmicro/build-sim/sim/tpu_posix_invoke_smoke --server --server-cmd /tmp/sentai_emu_tpu_server.cmd /tmp/sentai_emu_tpu_model.tflite /tmp/sentai_emu_tpu_image.bmp
+t=1785ms server TPU_BENCH_CONFIG perf=low desc_cache=0 chunk_size=163840 bulkin_chunk_size=256 bulkin_queue_depth=0 sleep_after_bulkin=0 async_input=0 zero_copy_input=1 multi_ep=0 break_short_bulkin=0 fast_sync_wait=0 runs=1 warmup=0
+t=1785ms server [tpu-posix] libusb_init
+t=1785ms server [tpu-posix] dfu/app probe
+t=1785ms server [tpu-posix] open app device
+t=1785ms server [tpu-posix] opened Coral USB interface=0 out=01,02,03 in=81,82 irq=83
+t=1785ms server [EdgeTPU mgr] creating context
+t=1785ms server [EdgeTPU mgr] initializing driver
+t=1785ms server [TPU init] read omc0_00
+t=1785ms server [TPU init] check chip id
+t=1785ms server [TPU init] write test reg
+t=1785ms server [TPU init] read test reg
+t=1785ms server [TPU init] disable inactive mode
+t=1789ms server [TPU init] disable clock gating
+t=1793ms server [TPU init] enter reset
+t=1800ms server [TPU init] exit reset
+t=1805ms server [TPU init] check scalar run control
+t=1806ms server [TPU init] write idle register
+t=1808ms server [TPU init] write tile config
+t=1811ms server [TPU init] write deep sleep
+t=1813ms server [TPU init] enable clock gating
+t=1816ms server [TPU init] configure usb csr
+t=1820ms server [TPU init] enable tempsense clock
+t=1823ms server [TPU init] enable tempsense input ports
+t=1825ms server [TPU init] enable tempsense flow
+t=1828ms server [TPU init] move to run
+t=1853ms server [TPU init] done
+t=1855ms server [EdgeTPU mgr] driver initialized
+t=1855ms server [EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x05701716d04676e6
+t=1855ms server SERVER_READY
+t=1862ms server command invoke
+t=1864ms server SERVER_INVOKE_BEGIN
+t=2129ms server DETECTIONS n=20
+t=2130ms server DET[0] class=16 score=0.828 box=[0.218 0.166 0.842 0.679]
+t=2130ms server DET[1] class=64 score=0.324 box=[0.109 0.055 0.935 0.959]
+t=2130ms server DET[2] class=64 score=0.293 box=[0.139 0.194 0.514 0.880]
+t=2130ms server DET[3] class=61 score=0.250 box=[0.161 0.097 0.416 0.368]
+t=2130ms server DET[4] class=16 score=0.211 box=[0.196 0.420 0.751 0.905]
+t=2130ms server DET[5] class=66 score=0.172 box=[0.376 0.130 0.869 0.816]
+t=2130ms server DET[6] class=74 score=0.148 box=[0.229 0.563 0.364 0.625]
+t=2130ms server DET[7] class=16 score=0.148 box=[0.238 0.608 0.780 0.900]
+t=2130ms server DET[8] class=83 score=0.145 box=[0.162 0.278 0.331 0.310]
+t=2130ms server DET[9] class=16 score=0.145 box=[0.241 0.361 0.804 0.660]
+t=2131ms server DET[10] class=61 score=0.133 box=[0.144 0.110 0.406 0.284]
+t=2131ms server DET[11] class=83 score=0.133 box=[0.164 0.225 0.353 0.255]
+t=2131ms server DET[12] class=66 score=0.117 box=[0.293 0.292 0.917 0.936]
+t=2131ms server DET[13] class=66 score=0.113 box=[0.506 0.040 0.966 0.988]
+t=2131ms server DET[14] class=0 score=0.109 box=[0.390 0.824 0.690 0.904]
+t=2131ms server DET[15] class=83 score=0.105 box=[0.166 0.168 0.355 0.200]
+t=2131ms server DET[16] class=61 score=0.105 box=[0.151 0.175 0.383 0.357]
+t=2131ms server DET[17] class=61 score=0.105 box=[0.146 0.117 0.446 0.210]
+t=2131ms server DET[18] class=8 score=0.105 box=[0.134 0.341 0.433 0.904]
+t=2131ms server DET[19] class=61 score=0.105 box=[0.187 0.091 0.721 0.383]
+t=2131ms server OK tpu_posix_invoke invoke_ms=263 custom_options=7045204 input_bytes=270000 output_bytes=182115 output_checksum=877b9c24 outputs=2 post=0
+t=2131ms server TPU_STAGE_STATS params_calls=1 params_bytes=6703232 params_ticks=184 ins_calls=2 ins_bytes=264752 ins_ticks=17 input_calls=1 input_bytes=270000 input_ticks=12 output_calls=2 output_bytes=184040 output_ticks=50 event_calls=2 event_ticks=0
+t=2131ms server TPU_CALL_STATS send_params_calls=1 send_params_bytes=6703232 send_ins_calls=2 send_ins_bytes=264752 send_inputs_calls=1 send_inputs_bytes=270000
+t=2131ms server TPU_USB_STATS out_calls=50 out_req=7238016 out_done=7238016 out_us=98722 out_short=0 in_calls=722 in_req=184616 in_done=184040 in_us=47091 in_short=3 event_calls=2 event_req=32 event_done=32 event_us=145 event_short=0 intr_calls=0 intr_req=0 intr_done=0 intr_us=0 intr_short=0 timeouts=0 failed=0
+t=2131ms server TPU_DESC_CACHE_STATS sent_params=1 sent_ins=2 skip_params=0 skip_ins=0
+t=2132ms server SERVER_DONE cmd=invoke rc=0 invoke_ms=263 detections=20
+t=2134ms smoke OK tpu_posix_invoke invoke_ms=263 custom_options=7045204 input_bytes=270000 output_bytes=182115 output_checksum=877b9c24 outputs=2 post=0
+t=2134ms smoke TPU_STAGE_STATS params_calls=1 params_bytes=6703232 params_ticks=184 ins_calls=2 ins_bytes=264752 ins_ticks=17 input_calls=1 input_bytes=270000 input_ticks=12 output_calls=2 output_bytes=184040 output_ticks=50 event_calls=2 event_ticks=0
+t=2134ms smoke TPU_CALL_STATS send_params_calls=1 send_params_bytes=6703232 send_ins_calls=2 send_ins_bytes=264752 send_inputs_calls=1 send_inputs_bytes=270000
+t=2135ms smoke TPU_USB_STATS out_calls=50 out_req=7238016 out_done=7238016 out_us=98722 out_short=0 in_calls=722 in_req=184616 in_done=184040 in_us=47091 in_short=3 event_calls=2 event_req=32 event_done=32 event_us=145 event_short=0 intr_calls=0 intr_req=0 intr_done=0 intr_us=0 intr_short=0 timeouts=0 failed=0
+t=2135ms smoke TPU_DESC_CACHE_STATS sent_params=1 sent_ins=2 skip_params=0 skip_ins=0
+t=2157ms session invoke ok=True detection_count=20 parsed_detections=20 host_ms=271 smoke_invoke_ms=263
+t=2158ms server command invoke
+t=2159ms server SERVER_INVOKE_BEGIN
+t=2232ms server DETECTIONS n=20
+t=2233ms server DET[0] class=16 score=0.828 box=[0.218 0.166 0.842 0.679]
+t=2233ms server DET[1] class=64 score=0.324 box=[0.109 0.055 0.935 0.959]
+t=2233ms server DET[2] class=64 score=0.293 box=[0.139 0.194 0.514 0.880]
+t=2233ms server DET[3] class=61 score=0.250 box=[0.161 0.097 0.416 0.368]
+t=2233ms server DET[4] class=16 score=0.211 box=[0.196 0.420 0.751 0.905]
+t=2233ms server DET[5] class=66 score=0.172 box=[0.376 0.130 0.869 0.816]
+t=2233ms server DET[6] class=74 score=0.148 box=[0.229 0.563 0.364 0.625]
+t=2233ms server DET[7] class=16 score=0.148 box=[0.238 0.608 0.780 0.900]
+t=2233ms server DET[8] class=83 score=0.145 box=[0.162 0.278 0.331 0.310]
+t=2233ms server DET[9] class=16 score=0.145 box=[0.241 0.361 0.804 0.660]
+t=2233ms server DET[10] class=61 score=0.133 box=[0.144 0.110 0.406 0.284]
+t=2233ms server DET[11] class=83 score=0.133 box=[0.164 0.225 0.353 0.255]
+t=2233ms server DET[12] class=66 score=0.117 box=[0.293 0.292 0.917 0.936]
+t=2233ms server DET[13] class=66 score=0.113 box=[0.506 0.040 0.966 0.988]
+t=2233ms server DET[14] class=0 score=0.109 box=[0.390 0.824 0.690 0.904]
+t=2233ms server DET[15] class=83 score=0.105 box=[0.166 0.168 0.355 0.200]
+t=2233ms server DET[16] class=61 score=0.105 box=[0.151 0.175 0.383 0.357]
+t=2233ms server DET[17] class=61 score=0.105 box=[0.146 0.117 0.446 0.210]
+t=2234ms server DET[18] class=8 score=0.105 box=[0.134 0.341 0.433 0.904]
+t=2234ms server DET[19] class=61 score=0.105 box=[0.187 0.091 0.721 0.383]
+t=2234ms server OK tpu_posix_invoke invoke_ms=71 custom_options=7045204 input_bytes=270000 output_bytes=182115 output_checksum=877b9c24 outputs=2 post=0
+t=2234ms server TPU_STAGE_STATS params_calls=0 params_bytes=0 params_ticks=0 ins_calls=1 ins_bytes=254304 ins_ticks=9 input_calls=1 input_bytes=270000 input_ticks=10 output_calls=2 output_bytes=184040 output_ticks=52 event_calls=1 event_ticks=0
+t=2234ms server TPU_CALL_STATS send_params_calls=0 send_params_bytes=0 send_ins_calls=1 send_ins_bytes=254304 send_inputs_calls=1 send_inputs_bytes=270000
+t=2234ms server TPU_USB_STATS out_calls=6 out_req=524320 out_done=524320 out_us=6356 out_short=0 in_calls=722 in_req=184616 in_done=184040 in_us=48183 in_short=3 event_calls=1 event_req=16 event_done=16 event_us=29 event_short=0 intr_calls=0 intr_req=0 intr_done=0 intr_us=0 intr_short=0 timeouts=0 failed=0
+t=2234ms server TPU_DESC_CACHE_STATS sent_params=0 sent_ins=1 skip_params=0 skip_ins=0
+t=2234ms server SERVER_DONE cmd=invoke rc=0 invoke_ms=71 detections=20
+t=2235ms smoke OK tpu_posix_invoke invoke_ms=71 custom_options=7045204 input_bytes=270000 output_bytes=182115 output_checksum=877b9c24 outputs=2 post=0
+t=2235ms smoke TPU_STAGE_STATS params_calls=0 params_bytes=0 params_ticks=0 ins_calls=1 ins_bytes=254304 ins_ticks=9 input_calls=1 input_bytes=270000 input_ticks=10 output_calls=2 output_bytes=184040 output_ticks=52 event_calls=1 event_ticks=0
+t=2235ms smoke TPU_CALL_STATS send_params_calls=0 send_params_bytes=0 send_ins_calls=1 send_ins_bytes=254304 send_inputs_calls=1 send_inputs_bytes=270000
+t=2235ms smoke TPU_USB_STATS out_calls=6 out_req=524320 out_done=524320 out_us=6356 out_short=0 in_calls=722 in_req=184616 in_done=184040 in_us=48183 in_short=3 event_calls=1 event_req=16 event_done=16 event_us=29 event_short=0 intr_calls=0 intr_req=0 intr_done=0 intr_us=0 intr_short=0 timeouts=0 failed=0
+t=2235ms smoke TPU_DESC_CACHE_STATS sent_params=0 sent_ins=1 skip_params=0 skip_ins=0
+t=2237ms session invoke ok=True detection_count=20 parsed_detections=20 host_ms=77 smoke_invoke_ms=71
+t=2237ms server command invoke
+t=2238ms server SERVER_INVOKE_BEGIN
+t=2310ms server DETECTIONS n=20
+t=2310ms server DET[0] class=16 score=0.828 box=[0.218 0.166 0.842 0.679]
+t=2310ms server DET[1] class=64 score=0.324 box=[0.109 0.055 0.935 0.959]
+t=2310ms server DET[2] class=64 score=0.293 box=[0.139 0.194 0.514 0.880]
+t=2310ms server DET[3] class=61 score=0.250 box=[0.161 0.097 0.416 0.368]
+t=2311ms server DET[4] class=16 score=0.211 box=[0.196 0.420 0.751 0.905]
+t=2311ms server DET[5] class=66 score=0.172 box=[0.376 0.130 0.869 0.816]
+t=2311ms server DET[6] class=74 score=0.148 box=[0.229 0.563 0.364 0.625]
+t=2311ms server DET[7] class=16 score=0.148 box=[0.238 0.608 0.780 0.900]
+t=2311ms server DET[8] class=83 score=0.145 box=[0.162 0.278 0.331 0.310]
+t=2311ms server DET[9] class=16 score=0.145 box=[0.241 0.361 0.804 0.660]
+t=2311ms server DET[10] class=61 score=0.133 box=[0.144 0.110 0.406 0.284]
+t=2311ms server DET[11] class=83 score=0.133 box=[0.164 0.225 0.353 0.255]
+t=2311ms server DET[12] class=66 score=0.117 box=[0.293 0.292 0.917 0.936]
+t=2312ms server DET[13] class=66 score=0.113 box=[0.506 0.040 0.966 0.988]
+t=2312ms server DET[14] class=0 score=0.109 box=[0.390 0.824 0.690 0.904]
+t=2312ms server DET[15] class=83 score=0.105 box=[0.166 0.168 0.355 0.200]
+t=2312ms server DET[16] class=61 score=0.105 box=[0.151 0.175 0.383 0.357]
+t=2312ms server DET[17] class=61 score=0.105 box=[0.146 0.117 0.446 0.210]
+t=2312ms server DET[18] class=8 score=0.105 box=[0.134 0.341 0.433 0.904]
+t=2312ms server DET[19] class=61 score=0.105 box=[0.187 0.091 0.721 0.383]
+t=2312ms server OK tpu_posix_invoke invoke_ms=71 custom_options=7045204 input_bytes=270000 output_bytes=182115 output_checksum=877b9c24 outputs=2 post=0
+t=2313ms server TPU_STAGE_STATS params_calls=0 params_bytes=0 params_ticks=0 ins_calls=1 ins_bytes=254304 ins_ticks=10 input_calls=1 input_bytes=270000 input_ticks=9 output_calls=2 output_bytes=184040 output_ticks=52 event_calls=1 event_ticks=0
+t=2313ms server TPU_CALL_STATS send_params_calls=0 send_params_bytes=0 send_ins_calls=1 send_ins_bytes=254304 send_inputs_calls=1 send_inputs_bytes=270000
+t=2313ms server TPU_USB_STATS out_calls=6 out_req=524320 out_done=524320 out_us=5932 out_short=0 in_calls=722 in_req=184616 in_done=184040 in_us=48266 in_short=3 event_calls=1 event_req=16 event_done=16 event_us=29 event_short=0 intr_calls=0 intr_req=0 intr_done=0 intr_us=0 intr_short=0 timeouts=0 failed=0
+t=2313ms server TPU_DESC_CACHE_STATS sent_params=0 sent_ins=1 skip_params=0 skip_ins=0
+t=2313ms server SERVER_DONE cmd=invoke rc=0 invoke_ms=71 detections=20
+t=2316ms smoke OK tpu_posix_invoke invoke_ms=71 custom_options=7045204 input_bytes=270000 output_bytes=182115 output_checksum=877b9c24 outputs=2 post=0
+t=2316ms smoke TPU_STAGE_STATS params_calls=0 params_bytes=0 params_ticks=0 ins_calls=1 ins_bytes=254304 ins_ticks=10 input_calls=1 input_bytes=270000 input_ticks=9 output_calls=2 output_bytes=184040 output_ticks=52 event_calls=1 event_ticks=0
+t=2316ms smoke TPU_CALL_STATS send_params_calls=0 send_params_bytes=0 send_ins_calls=1 send_ins_bytes=254304 send_inputs_calls=1 send_inputs_bytes=270000
+t=2316ms smoke TPU_USB_STATS out_calls=6 out_req=524320 out_done=524320 out_us=5932 out_short=0 in_calls=722 in_req=184616 in_done=184040 in_us=48266 in_short=3 event_calls=1 event_req=16 event_done=16 event_us=29 event_short=0 intr_calls=0 intr_req=0 intr_done=0 intr_us=0 intr_short=0 timeouts=0 failed=0
+t=2316ms smoke TPU_DESC_CACHE_STATS sent_params=0 sent_ins=1 skip_params=0 skip_ins=0
+t=2321ms session invoke ok=True detection_count=20 parsed_detections=20 host_ms=79 smoke_invoke_ms=71
+t=2321ms server command invoke
+t=2322ms server SERVER_INVOKE_BEGIN
+t=2394ms server DETECTIONS n=20
+t=2394ms server DET[0] class=16 score=0.828 box=[0.218 0.166 0.842 0.679]
+t=2394ms server DET[1] class=64 score=0.324 box=[0.109 0.055 0.935 0.959]
+t=2394ms server DET[2] class=64 score=0.293 box=[0.139 0.194 0.514 0.880]
+t=2395ms server DET[3] class=61 score=0.250 box=[0.161 0.097 0.416 0.368]
+t=2395ms server DET[4] class=16 score=0.211 box=[0.196 0.420 0.751 0.905]
+t=2395ms server DET[5] class=66 score=0.172 box=[0.376 0.130 0.869 0.816]
+t=2395ms server DET[6] class=74 score=0.148 box=[0.229 0.563 0.364 0.625]
+t=2395ms server DET[7] class=16 score=0.148 box=[0.238 0.608 0.780 0.900]
+t=2395ms server DET[8] class=83 score=0.145 box=[0.162 0.278 0.331 0.310]
+t=2395ms server DET[9] class=16 score=0.145 box=[0.241 0.361 0.804 0.660]
+t=2395ms server DET[10] class=61 score=0.133 box=[0.144 0.110 0.406 0.284]
+t=2395ms server DET[11] class=83 score=0.133 box=[0.164 0.225 0.353 0.255]
+t=2395ms server DET[12] class=66 score=0.117 box=[0.293 0.292 0.917 0.936]
+t=2395ms server DET[13] class=66 score=0.113 box=[0.506 0.040 0.966 0.988]
+t=2395ms server DET[14] class=0 score=0.109 box=[0.390 0.824 0.690 0.904]
+t=2395ms server DET[15] class=83 score=0.105 box=[0.166 0.168 0.355 0.200]
+t=2395ms server DET[16] class=61 score=0.105 box=[0.151 0.175 0.383 0.357]
+t=2395ms server DET[17] class=61 score=0.105 box=[0.146 0.117 0.446 0.210]
+t=2395ms server DET[18] class=8 score=0.105 box=[0.134 0.341 0.433 0.904]
+t=2395ms server DET[19] class=61 score=0.105 box=[0.187 0.091 0.721 0.383]
+t=2395ms server OK tpu_posix_invoke invoke_ms=70 custom_options=7045204 input_bytes=270000 output_bytes=182115 output_checksum=877b9c24 outputs=2 post=0
+t=2395ms server TPU_STAGE_STATS params_calls=0 params_bytes=0 params_ticks=0 ins_calls=1 ins_bytes=254304 ins_ticks=9 input_calls=1 input_bytes=270000 input_ticks=10 output_calls=2 output_bytes=184040 output_ticks=51 event_calls=1 event_ticks=0
+t=2395ms server TPU_CALL_STATS send_params_calls=0 send_params_bytes=0 send_ins_calls=1 send_ins_bytes=254304 send_inputs_calls=1 send_inputs_bytes=270000
+t=2395ms server TPU_USB_STATS out_calls=6 out_req=524320 out_done=524320 out_us=6304 out_short=0 in_calls=722 in_req=184616 in_done=184040 in_us=47511 in_short=3 event_calls=1 event_req=16 event_done=16 event_us=38 event_short=0 intr_calls=0 intr_req=0 intr_done=0 intr_us=0 intr_short=0 timeouts=0 failed=0
+t=2396ms server TPU_DESC_CACHE_STATS sent_params=0 sent_ins=1 skip_params=0 skip_ins=0
+t=2396ms server SERVER_DONE cmd=invoke rc=0 invoke_ms=70 detections=20
+t=2399ms smoke OK tpu_posix_invoke invoke_ms=70 custom_options=7045204 input_bytes=270000 output_bytes=182115 output_checksum=877b9c24 outputs=2 post=0
+t=2399ms smoke TPU_STAGE_STATS params_calls=0 params_bytes=0 params_ticks=0 ins_calls=1 ins_bytes=254304 ins_ticks=9 input_calls=1 input_bytes=270000 input_ticks=10 output_calls=2 output_bytes=184040 output_ticks=51 event_calls=1 event_ticks=0
+t=2399ms smoke TPU_CALL_STATS send_params_calls=0 send_params_bytes=0 send_ins_calls=1 send_ins_bytes=254304 send_inputs_calls=1 send_inputs_bytes=270000
+t=2399ms smoke TPU_USB_STATS out_calls=6 out_req=524320 out_done=524320 out_us=6304 out_short=0 in_calls=722 in_req=184616 in_done=184040 in_us=47511 in_short=3 event_calls=1 event_req=16 event_done=16 event_us=38 event_short=0 intr_calls=0 intr_req=0 intr_done=0 intr_us=0 intr_short=0 timeouts=0 failed=0
+t=2399ms smoke TPU_DESC_CACHE_STATS sent_params=0 sent_ins=1 skip_params=0 skip_ins=0
+t=2400ms session invoke ok=True detection_count=20 parsed_detections=20 host_ms=77 smoke_invoke_ms=70
+t=2400ms server command invoke
+t=2401ms server SERVER_INVOKE_BEGIN
+t=2473ms server DETECTIONS n=20
+t=2473ms server DET[0] class=16 score=0.828 box=[0.218 0.166 0.842 0.679]
+t=2473ms server DET[1] class=64 score=0.324 box=[0.109 0.055 0.935 0.959]
+t=2474ms server DET[2] class=64 score=0.293 box=[0.139 0.194 0.514 0.880]
+t=2474ms server DET[3] class=61 score=0.250 box=[0.161 0.097 0.416 0.368]
+t=2474ms server DET[4] class=16 score=0.211 box=[0.196 0.420 0.751 0.905]
+t=2474ms server DET[5] class=66 score=0.172 box=[0.376 0.130 0.869 0.816]
+t=2474ms server DET[6] class=74 score=0.148 box=[0.229 0.563 0.364 0.625]
+t=2474ms server DET[7] class=16 score=0.148 box=[0.238 0.608 0.780 0.900]
+t=2474ms server DET[8] class=83 score=0.145 box=[0.162 0.278 0.331 0.310]
+t=2474ms server DET[9] class=16 score=0.145 box=[0.241 0.361 0.804 0.660]
+t=2474ms server DET[10] class=61 score=0.133 box=[0.144 0.110 0.406 0.284]
+t=2474ms server DET[11] class=83 score=0.133 box=[0.164 0.225 0.353 0.255]
+t=2474ms server DET[12] class=66 score=0.117 box=[0.293 0.292 0.917 0.936]
+t=2474ms server DET[13] class=66 score=0.113 box=[0.506 0.040 0.966 0.988]
+t=2474ms server DET[14] class=0 score=0.109 box=[0.390 0.824 0.690 0.904]
+t=2474ms server DET[15] class=83 score=0.105 box=[0.166 0.168 0.355 0.200]
+t=2474ms server DET[16] class=61 score=0.105 box=[0.151 0.175 0.383 0.357]
+t=2474ms server DET[17] class=61 score=0.105 box=[0.146 0.117 0.446 0.210]
+t=2474ms server DET[18] class=8 score=0.105 box=[0.134 0.341 0.433 0.904]
+t=2475ms server DET[19] class=61 score=0.105 box=[0.187 0.091 0.721 0.383]
+t=2475ms server OK tpu_posix_invoke invoke_ms=71 custom_options=7045204 input_bytes=270000 output_bytes=182115 output_checksum=877b9c24 outputs=2 post=0
+t=2475ms server TPU_STAGE_STATS params_calls=0 params_bytes=0 params_ticks=0 ins_calls=1 ins_bytes=254304 ins_ticks=10 input_calls=1 input_bytes=270000 input_ticks=10 output_calls=2 output_bytes=184040 output_ticks=51 event_calls=1 event_ticks=0
+t=2475ms server TPU_CALL_STATS send_params_calls=0 send_params_bytes=0 send_ins_calls=1 send_ins_bytes=254304 send_inputs_calls=1 send_inputs_bytes=270000
+t=2475ms server TPU_USB_STATS out_calls=6 out_req=524320 out_done=524320 out_us=6299 out_short=0 in_calls=722 in_req=184616 in_done=184040 in_us=47392 in_short=3 event_calls=1 event_req=16 event_done=16 event_us=37 event_short=0 intr_calls=0 intr_req=0 intr_done=0 intr_us=0 intr_short=0 timeouts=0 failed=0
+t=2475ms server TPU_DESC_CACHE_STATS sent_params=0 sent_ins=1 skip_params=0 skip_ins=0
+t=2475ms server SERVER_DONE cmd=invoke rc=0 invoke_ms=71 detections=20
+t=2478ms smoke OK tpu_posix_invoke invoke_ms=71 custom_options=7045204 input_bytes=270000 output_bytes=182115 output_checksum=877b9c24 outputs=2 post=0
+t=2478ms smoke TPU_STAGE_STATS params_calls=0 params_bytes=0 params_ticks=0 ins_calls=1 ins_bytes=254304 ins_ticks=10 input_calls=1 input_bytes=270000 input_ticks=10 output_calls=2 output_bytes=184040 output_ticks=51 event_calls=1 event_ticks=0
+t=2478ms smoke TPU_CALL_STATS send_params_calls=0 send_params_bytes=0 send_ins_calls=1 send_ins_bytes=254304 send_inputs_calls=1 send_inputs_bytes=270000
+t=2478ms smoke TPU_USB_STATS out_calls=6 out_req=524320 out_done=524320 out_us=6299 out_short=0 in_calls=722 in_req=184616 in_done=184040 in_us=47392 in_short=3 event_calls=1 event_req=16 event_done=16 event_us=37 event_short=0 intr_calls=0 intr_req=0 intr_done=0 intr_us=0 intr_short=0 timeouts=0 failed=0
+t=2478ms smoke TPU_DESC_CACHE_STATS sent_params=0 sent_ins=1 skip_params=0 skip_ins=0
+t=2479ms session invoke ok=True detection_count=20 parsed_detections=20 host_ms=78 smoke_invoke_ms=71
+t=2479ms server command invoke
+t=2480ms server SERVER_INVOKE_BEGIN
+t=2552ms server DETECTIONS n=20
+t=2552ms server DET[0] class=16 score=0.828 box=[0.218 0.166 0.842 0.679]
+t=2552ms server DET[1] class=64 score=0.324 box=[0.109 0.055 0.935 0.959]
+t=2552ms server DET[2] class=64 score=0.293 box=[0.139 0.194 0.514 0.880]
+t=2552ms server DET[3] class=61 score=0.250 box=[0.161 0.097 0.416 0.368]
+t=2552ms server DET[4] class=16 score=0.211 box=[0.196 0.420 0.751 0.905]
+t=2552ms server DET[5] class=66 score=0.172 box=[0.376 0.130 0.869 0.816]
+t=2552ms server DET[6] class=74 score=0.148 box=[0.229 0.563 0.364 0.625]
+t=2552ms server DET[7] class=16 score=0.148 box=[0.238 0.608 0.780 0.900]
+t=2553ms server DET[8] class=83 score=0.145 box=[0.162 0.278 0.331 0.310]
+t=2553ms server DET[9] class=16 score=0.145 box=[0.241 0.361 0.804 0.660]
+t=2553ms server DET[10] class=61 score=0.133 box=[0.144 0.110 0.406 0.284]
+t=2553ms server DET[11] class=83 score=0.133 box=[0.164 0.225 0.353 0.255]
+t=2553ms server DET[12] class=66 score=0.117 box=[0.293 0.292 0.917 0.936]
+t=2553ms server DET[13] class=66 score=0.113 box=[0.506 0.040 0.966 0.988]
+t=2553ms server DET[14] class=0 score=0.109 box=[0.390 0.824 0.690 0.904]
+t=2553ms server DET[15] class=83 score=0.105 box=[0.166 0.168 0.355 0.200]
+t=2553ms server DET[16] class=61 score=0.105 box=[0.151 0.175 0.383 0.357]
+t=2553ms server DET[17] class=61 score=0.105 box=[0.146 0.117 0.446 0.210]
+t=2553ms server DET[18] class=8 score=0.105 box=[0.134 0.341 0.433 0.904]
+t=2553ms server DET[19] class=61 score=0.105 box=[0.187 0.091 0.721 0.383]
+t=2553ms server OK tpu_posix_invoke invoke_ms=70 custom_options=7045204 input_bytes=270000 output_bytes=182115 output_checksum=877b9c24 outputs=2 post=0
+t=2553ms server TPU_STAGE_STATS params_calls=0 params_bytes=0 params_ticks=0 ins_calls=1 ins_bytes=254304 ins_ticks=10 input_calls=1 input_bytes=270000 input_ticks=10 output_calls=2 output_bytes=184040 output_ticks=50 event_calls=1 event_ticks=0
+t=2553ms server TPU_CALL_STATS send_params_calls=0 send_params_bytes=0 send_ins_calls=1 send_ins_bytes=254304 send_inputs_calls=1 send_inputs_bytes=270000
+t=2553ms server TPU_USB_STATS out_calls=6 out_req=524320 out_done=524320 out_us=6356 out_short=0 in_calls=722 in_req=184616 in_done=184040 in_us=47184 in_short=3 event_calls=1 event_req=16 event_done=16 event_us=29 event_short=0 intr_calls=0 intr_req=0 intr_done=0 intr_us=0 intr_short=0 timeouts=0 failed=0
+t=2553ms server TPU_DESC_CACHE_STATS sent_params=0 sent_ins=1 skip_params=0 skip_ins=0
+t=2553ms server SERVER_DONE cmd=invoke rc=0 invoke_ms=70 detections=20
+t=2557ms smoke OK tpu_posix_invoke invoke_ms=70 custom_options=7045204 input_bytes=270000 output_bytes=182115 output_checksum=877b9c24 outputs=2 post=0
+t=2557ms smoke TPU_STAGE_STATS params_calls=0 params_bytes=0 params_ticks=0 ins_calls=1 ins_bytes=254304 ins_ticks=10 input_calls=1 input_bytes=270000 input_ticks=10 output_calls=2 output_bytes=184040 output_ticks=50 event_calls=1 event_ticks=0
+t=2557ms smoke TPU_CALL_STATS send_params_calls=0 send_params_bytes=0 send_ins_calls=1 send_ins_bytes=254304 send_inputs_calls=1 send_inputs_bytes=270000
+t=2557ms smoke TPU_USB_STATS out_calls=6 out_req=524320 out_done=524320 out_us=6356 out_short=0 in_calls=722 in_req=184616 in_done=184040 in_us=47184 in_short=3 event_calls=1 event_req=16 event_done=16 event_us=29 event_short=0 intr_calls=0 intr_req=0 intr_done=0 intr_us=0 intr_short=0 timeouts=0 failed=0
+t=2558ms smoke TPU_DESC_CACHE_STATS sent_params=0 sent_ins=1 skip_params=0 skip_ins=0
+t=2558ms session invoke ok=True detection_count=20 parsed_detections=20 host_ms=78 smoke_invoke_ms=70
+t=2580ms server SERVER_STOPPED

@@ -1,0 +1,35 @@
+t=7ms file begin kind=1 expected_size=7077792 path=/tmp/sentai_emu_tpu_model.tflite
+t=1578ms file done kind=1 bytes=7077792 chunks=216 total_ms=1572 guest_read_ms=7 host_write_ms=17
+t=1820ms file begin kind=2 expected_size=921654 path=/tmp/sentai_emu_tpu_image.bmp
+t=1824ms file done kind=2 bytes=921654 chunks=29 total_ms=6 guest_read_ms=0 host_write_ms=1
+t=1827ms server start argv=/home/bogdan/work/coralmicro/build-sim/sim/tpu_posix_invoke_smoke --server /tmp/sentai_emu_tpu_model.tflite /tmp/sentai_emu_tpu_image.bmp
+t=1868ms server TPU_BENCH_CONFIG perf=low desc_cache=0 chunk_size=163840 bulkin_chunk_size=256 bulkin_queue_depth=0 sleep_after_bulkin=0 async_input=0 zero_copy_input=1 multi_ep=0 break_short_bulkin=0 fast_sync_wait=0 runs=1 warmup=0
+t=1869ms server [tpu-posix] libusb_init
+t=1872ms server [tpu-posix] dfu/app probe
+t=1872ms server [tpu-posix] open app device
+t=1872ms server [tpu-posix] opened Coral USB interface=0 out=01,02,03 in=81,82 irq=83
+t=1872ms server [EdgeTPU mgr] creating context
+t=1872ms server [EdgeTPU mgr] initializing driver
+t=1872ms server [TPU init] read omc0_00
+t=1874ms server [TPU init] check chip id
+t=1874ms server [TPU init] write test reg
+t=1876ms server [TPU init] read test reg
+t=1877ms server [TPU init] disable inactive mode
+t=1882ms server [TPU init] disable clock gating
+t=1887ms server [TPU init] enter reset
+t=1895ms server [TPU init] exit reset
+t=1899ms server [TPU init] check scalar run control
+t=1901ms server [TPU init] write idle register
+t=1902ms server [TPU init] write tile config
+t=1905ms server [TPU init] write deep sleep
+t=1906ms server [TPU init] enable clock gating
+t=1909ms server [TPU init] configure usb csr
+t=1913ms server [TPU init] enable tempsense clock
+t=1916ms server [TPU init] enable tempsense input ports
+t=1919ms server [TPU init] enable tempsense flow
+t=1921ms server [TPU init] move to run
+t=1945ms server [TPU init] done
+t=1947ms server [EdgeTPU mgr] driver initialized
+t=1947ms server [EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x05701716d04676e6
+t=1948ms server SERVER_READY
+t=1957ms session invoke ok=False detection_count=0 parsed_detections=0 host_ms=1 smoke_invoke_ms=0

@@ -22,7 +22,7 @@
 #include "py/runtime.h"
 
 static const mp_rom_obj_tuple_t _sentai_sim_qstr_keepalive __attribute__((unused)) = {
-    {&mp_type_tuple}, 43, {
+    {&mp_type_tuple}, 46, {
         MP_ROM_QSTR(MP_QSTR_detections),
         MP_ROM_QSTR(MP_QSTR_tracker_update),
         MP_ROM_QSTR(MP_QSTR_tracker_enable),
@@ -70,6 +70,10 @@ static const mp_rom_obj_tuple_t _sentai_sim_qstr_keepalive __attribute__((unused
         MP_ROM_QSTR(MP_QSTR_get_detection_tuple),
         MP_ROM_QSTR(MP_QSTR_get_observation),
         MP_ROM_QSTR(MP_QSTR_get_observation_tuple),
+        // B8 emulator TPU helpers.
+        MP_ROM_QSTR(MP_QSTR_load_image_mem),
+        MP_ROM_QSTR(MP_QSTR_image_mem_size),
+        MP_ROM_QSTR(MP_QSTR_fps_invoke),
     }
 };
 

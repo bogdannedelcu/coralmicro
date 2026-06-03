@@ -1,0 +1,17 @@
+
+SentAI EMU USBHOST PROBE B8.8 P1
+step 1: about to construct UsbHostTask
+step 2: UsbHostTask constructor returned
+step 3: about to call UsbHostTask::Init
+step 4: UsbHostTask::Init returned
+step 6: about to construct EdgeTpuManager
+step 7: EdgeTpuManager singleton returned
+step 9: about to init EdgeTpuTask
+step 10: EdgeTpuTask::Init returned
+step 5: starting scheduler
+step 12: OpenDevice task calling manager
+heartbeat task online
+step 18: Renode Coral MMIO attach
+step 19: Renode Coral MMIO enum done
+step 22: OpenDevice returned context after MMIO enum
+step 30: TpuDriver Send* MMIO bridge smoke passed

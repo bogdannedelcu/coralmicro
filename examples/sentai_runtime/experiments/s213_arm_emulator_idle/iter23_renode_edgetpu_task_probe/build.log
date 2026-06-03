@@ -1,0 +1,3 @@
+[  0%] Building C object emu/CMakeFiles/sentai_emu_edgetpu_task_probe.dir/sentai_emu_usb_stubs.c.obj
+[ 50%] Linking CXX executable sentai_emu_edgetpu_task_probe
+[100%] Built target sentai_emu_edgetpu_task_probe

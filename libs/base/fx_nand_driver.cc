@@ -26,15 +26,52 @@
 
 #include "examples/sentai_runtime/sentai_error.h"
 #include "libs/base/filesystem.h"
+
+#ifndef SENTAI_ARM_EMU_NAND_BRIDGE
+#define SENTAI_ARM_EMU_NAND_BRIDGE 0
+#endif
+
+#if !SENTAI_ARM_EMU_NAND_BRIDGE
 #include "third_party/nxp/rt1176-sdk/components/flash/nand/fsl_nand_flash.h"
 
 extern "C" nand_handle_t* BOARD_GetNANDHandle(void);
+#endif
 
 namespace {
 
+#if SENTAI_ARM_EMU_NAND_BRIDGE
+constexpr uintptr_t kEmuNandBridgeBase = 0x40900C00u;
+constexpr uint32_t kEmuNandCmdReadPage = 1;
+constexpr uint32_t kEmuNandCmdProgramPage = 2;
+constexpr uint32_t kEmuNandCmdEraseBlock = 3;
+constexpr uint32_t kEmuNandStatusOk = 1;
+constexpr uint32_t kEmuNandStatusError = 2;
+constexpr int kEmuNandPollLimit = 100000;
+
+static inline volatile uint32_t& emu_nand_reg(uint32_t offset) {
+    return *reinterpret_cast<volatile uint32_t*>(kEmuNandBridgeBase + offset);
+}
+
+static bool emu_nand_request(uint32_t command, uint32_t arg0,
+                             void* buffer, uint32_t length) {
+    emu_nand_reg(0x04) = arg0;
+    emu_nand_reg(0x08) = static_cast<uint32_t>(
+        reinterpret_cast<uintptr_t>(buffer));
+    emu_nand_reg(0x0C) = length;
+    emu_nand_reg(0x10) = 0;
+    emu_nand_reg(0x00) = command;
+    for (int i = 0; i < kEmuNandPollLimit; ++i) {
+        const uint32_t status = emu_nand_reg(0x10);
+        if (status == kEmuNandStatusOk) return true;
+        if (status == kEmuNandStatusError) return false;
+    }
+    return false;
+}
+#else
 /* Cached NAND handle; resolved on first call (BOARD_GetNANDHandle is
  * cheap but we cache to keep the hot path tight). */
 nand_handle_t* g_nand_handle = nullptr;
+#endif
 
 /* RAM block-status table.  Loaded from /system/.nand_bbt at mount and
  * persisted on every change. 448 bytes total. */
@@ -116,12 +153,14 @@ UCHAR g_page_scratch[FX_NAND_PAGE_RAW_BYTES]
 
 /* Helpers ---------------------------------------------------------------- */
 
+#if !SENTAI_ARM_EMU_NAND_BRIDGE
 static inline nand_handle_t* nand_handle_get() {
     if (g_nand_handle == nullptr) {
         g_nand_handle = BOARD_GetNANDHandle();
     }
     return g_nand_handle;
 }
+#endif
 
 /* Translate a LevelX-relative block index to a physical NAND block
  * index (offset by FX_NAND_USER_BASE_BLOCK).  Bounds-checked. */
@@ -141,6 +180,20 @@ static inline bool to_physical_block(ULONG block, uint32_t* phys_block) {
  * (not just an internal counter) so post-mortem can trace which
  * physical page was unreadable.  Bounded loop count = kMaxRetries. */
 static bool nand_read_page_raw(uint32_t phys_block, ULONG page) {
+#if SENTAI_ARM_EMU_NAND_BRIDGE
+    const uint32_t page_index = phys_block * FX_NAND_PAGES_PER_BLOCK + page;
+    if (emu_nand_request(kEmuNandCmdReadPage, page_index, g_page_scratch,
+                         FX_NAND_PAGE_RAW_BYTES)) {
+        const uint32_t logical = phys_block - FX_NAND_USER_BASE_BLOCK;
+        if (logical < FX_NAND_USER_BLOCK_COUNT) {
+            g_block_read_fails[logical] = 0;
+        }
+        return true;
+    }
+    g_stats.read_errors++;
+    SERR_LOG(SERR_LFX_NAND_READ, page_index);
+    return false;
+#else
     nand_handle_t* h = nand_handle_get();
     if (h == nullptr) {
         SERR_LOG(SERR_LFX_NAND_READ, 0xFFFFFFFFu);
@@ -182,6 +235,7 @@ static bool nand_read_page_raw(uint32_t phys_block, ULONG page) {
         }
     }
     return false;
+#endif
 }
 
 /* Program one physical NAND page from g_page_scratch.  Single shot — NAND
@@ -189,6 +243,16 @@ static bool nand_read_page_raw(uint32_t phys_block, ULONG page) {
  * Page_Program failure cannot recover.  Logs persistent failure for
  * post-mortem (embeded.md §I). */
 static bool nand_write_page_raw(uint32_t phys_block, ULONG page) {
+#if SENTAI_ARM_EMU_NAND_BRIDGE
+    const uint32_t page_index = phys_block * FX_NAND_PAGES_PER_BLOCK + page;
+    if (!emu_nand_request(kEmuNandCmdProgramPage, page_index, g_page_scratch,
+                          FX_NAND_PAGE_RAW_BYTES)) {
+        g_stats.write_errors++;
+        SERR_LOG(SERR_LFX_NAND_PROG, page_index);
+        return false;
+    }
+    return true;
+#else
     nand_handle_t* h = nand_handle_get();
     if (h == nullptr) {
         SERR_LOG(SERR_LFX_NAND_PROG, 0xFFFFFFFFu);
@@ -203,6 +267,7 @@ static bool nand_write_page_raw(uint32_t phys_block, ULONG page) {
         return false;
     }
     return true;
+#endif
 }
 
 /* LevelX BD callbacks ----------------------------------------------------- */
@@ -346,6 +411,15 @@ fx_nand_driver_block_erase(ULONG block, ULONG /*erase_count*/) {
         SERR_LOG(SERR_LFX_NAND_ERASE, block);
         return LX_ERROR;
     }
+#if SENTAI_ARM_EMU_NAND_BRIDGE
+    if (!emu_nand_request(kEmuNandCmdEraseBlock, phys_block, nullptr, 0)) {
+        g_stats.erase_errors++;
+        SERR_LOG(SERR_LFX_NAND_ERASE, phys_block);
+        return LX_ERROR;
+    }
+    g_stats.erases++;
+    return LX_SUCCESS;
+#else
     nand_handle_t* h = nand_handle_get();
     if (h == nullptr) {
         SERR_LOG(SERR_LFX_NAND_ERASE, 0xFFFFFFFFu);
@@ -359,6 +433,7 @@ fx_nand_driver_block_erase(ULONG block, ULONG /*erase_count*/) {
     }
     g_stats.erases++;
     return LX_SUCCESS;
+#endif
 }
 
 extern "C" UINT

@@ -1,0 +1,57 @@
+:name: SentAI B8.11 physical Coral Send* smoke
+:description: Boot a guest-side EdgeTpuManager smoke that reads model/image from FileX and invokes the physical Coral through the TpuDriver Send*/GetOutputs/ReadEvent MMIO bridge.
+
+i @emu/renode/sentai_rt1176.repl
+
+$bin?=@build_emu/emu/sentai_emu_tpu_physical_send_smoke
+$uart_log?=@/home/bogdan/work/coralmicro/emu/output/sentai_emu_tpu_physical_send_smoke.log
+
+macro reset
+"""
+    sysbus LoadELF $bin
+    cpu VectorTableOffset 0x800
+"""
+
+lpuart6 CreateFileBackend $uart_log
+runMacro $reset
+emulation RunFor "8s"
+lpuart6 CloseFileBackend $uart_log
+
+echo "sentai_emu_tpu_physical_send_smoke PC:"
+cpu PC
+echo "sentai_emu_tpu_physical_send_smoke boot_state:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_boot_state"`
+echo "sentai_emu_tpu_physical_send_smoke heartbeat:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_heartbeat"`
+echo "sentai_emu_tpu_physical_send_smoke last_tick:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_last_tick"`
+echo "sentai_emu_tpu_physical_send_smoke model_bytes:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_tpu_model_bytes"`
+echo "sentai_emu_tpu_physical_send_smoke image_bytes:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_tpu_image_bytes"`
+echo "sentai_emu_tpu_physical_send_smoke input_bytes:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_tpu_input_bytes"`
+echo "sentai_emu_tpu_physical_send_smoke output_bytes:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_tpu_output_bytes"`
+echo "sentai_emu_tpu_physical_send_smoke completed:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_tpu_completed"`
+echo "sentai_emu_tpu_physical_send_smoke fail_code:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_tpu_fail_code"`
+echo "sentai_emu_tpu_physical_send_smoke first_ms:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_tpu_first_ms"`
+echo "sentai_emu_tpu_physical_send_smoke steady_ms:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_tpu_steady_ms"`
+echo "sentai_emu_tpu_physical_send_smoke output_sum:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_tpu_output_sum"`
+echo "sentai_emu_tpu_physical_send_smoke tpu_bridge_params_calls:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_tpu_bridge_params_calls"`
+echo "sentai_emu_tpu_physical_send_smoke tpu_bridge_input_calls:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_tpu_bridge_input_calls"`
+echo "sentai_emu_tpu_physical_send_smoke tpu_bridge_ins_calls:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_tpu_bridge_ins_calls"`
+echo "sentai_emu_tpu_physical_send_smoke tpu_bridge_output_calls:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_tpu_bridge_output_calls"`
+echo "sentai_emu_tpu_physical_send_smoke tpu_bridge_event_calls:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_tpu_bridge_event_calls"`
+echo "sentai_emu_tpu_physical_send_smoke tpu_bridge_last_result:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_tpu_bridge_last_result"`

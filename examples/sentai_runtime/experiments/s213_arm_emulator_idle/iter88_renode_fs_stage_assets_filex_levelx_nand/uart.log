@@ -1,0 +1,12 @@
+SentAI EMU FS asset staging boot
+SentAI EMU FS asset staging start
+FS_STAGE SKIP index=0 size=7077792 path=/models/tf2_ssd_mobilenet_v2_coco17_ptq_edgetpu.tflite
+FS_STAGE SKIP index=1 size=921654 path=/images/cat_640x480.bmp
+FS_STAGE FILE index=2 size=15456 path=/mission.py
+FS_STAGE PASS
+FS_STAGE files=0x00000003
+FS_STAGE bytes=0x00003C60
+FS_STAGE checksum=0x0011FE3C
+FS_STAGE reads=0x00000EB7
+FS_STAGE writes=0x00000211
+FS_STAGE erases=0x00000007

@@ -1,0 +1,2 @@
+[ 50%] Built target libfreertos_posix
+[100%] Built target tpu_posix_send_server

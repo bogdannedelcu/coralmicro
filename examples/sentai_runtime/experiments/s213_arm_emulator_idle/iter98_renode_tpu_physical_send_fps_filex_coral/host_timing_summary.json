@@ -1,0 +1,48 @@
+{
+  "command_count": 53,
+  "invoke_count": 10,
+  "measured_wall_ms": 857,
+  "measured_fps_including_first": 11.668611435239207,
+  "setup": {
+    "wall_ms": 1243,
+    "bridge_sum_ms": 1240,
+    "server_sum_ms": 198,
+    "params_bytes": 6703232,
+    "ins_bytes": 10448,
+    "event_calls": 1
+  },
+  "first_invoke": {
+    "wall_ms": 82,
+    "bridge_sum_ms": 75,
+    "server_sum_ms": 44,
+    "ins_bridge_ms": 17,
+    "inputs_bridge_ms": 16,
+    "output_bridge_ms": 36,
+    "event_bridge_ms": 6,
+    "ins_server_ms": 10,
+    "inputs_server_ms": 10,
+    "output_server_ms": 24,
+    "event_server_ms": 0
+  },
+  "steady": {
+    "count": 9,
+    "wall_ms": 762,
+    "fps": 11.811023622047244,
+    "avg_wall_ms": 71.44444444444444,
+    "avg_bridge_sum_ms": 69.22222222222223,
+    "avg_server_sum_ms": 42.888888888888886,
+    "avg_ins_bridge_ms": 15.555555555555555,
+    "avg_inputs_bridge_ms": 15.444444444444445,
+    "avg_output_bridge_ms": 32.77777777777778,
+    "avg_event_bridge_ms": 5.444444444444445,
+    "avg_ins_server_ms": 9.222222222222221,
+    "avg_inputs_server_ms": 9.333333333333334,
+    "avg_output_server_ms": 24.333333333333332,
+    "avg_event_server_ms": 0.0,
+    "avg_usb_out_ms": 6.330444444444445,
+    "avg_usb_in_ms": 23.85377777777778,
+    "avg_usb_event_ms": 0.04877777777777778
+  },
+  "usb_failed": 0,
+  "usb_timeouts": 0
+}

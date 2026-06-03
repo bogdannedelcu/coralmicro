@@ -1,0 +1,40 @@
+16:10:11.4619 [INFO] Loaded monitor commands from: /home/bogdan/work/renode_portable/scripts/monitor.py
+Renode, version 1.16.1 (ac18b5ac-202606020225)
+
+
+(monitor) i $CWD/emu/renode/sentai_emu_edgetpu_mmio_opendevice_probe.resc
+
+16:10:11.6002 [INFO] Including script(s): /home/bogdan/work/coralmicro/emu/renode/sentai_emu_edgetpu_mmio_opendevice_probe.resc
+16:10:11.6175 [INFO] System bus created.
+16:10:12.4921 [INFO] sysbus: Loading block of 3072 bytes length at 0x0.
+16:10:12.5028 [INFO] sysbus: Loading block of 56144 bytes length at 0xC00.
+16:10:12.5029 [INFO] sysbus: Loading block of 484 bytes length at 0xE750.
+16:10:12.5029 [INFO] sysbus: Loading block of 10608 bytes length at 0xE960.
+16:10:12.5029 [INFO] sysbus: Loading block of 8192 bytes length at 0x20000000.
+16:10:12.5029 [INFO] sysbus: Loading block of 16777216 bytes length at 0x80000000.
+16:10:12.9779 [INFO] cpu: Setting initial values: PC = 0xCBD, SP = 0x20040000.
+16:10:12.9805 [INFO] machine-0: Machine started.
+16:10:13.0579 [WARNING] nvic: Unhandled write to offset 0xF50 (ICacheInvalidateAllToPoUaIgnored), value 0x0.
+16:10:13.0918 [WARNING] nvic: Trying to set the priority for interrupt 16 to 0xFF, but it should be maskable with 0xF0
+16:10:15.9840 [INFO] machine-0: Machine paused.
+sentai_emu_edgetpu_mmio_opendevice_probe PC:
+
+0x677e
+
+sentai_emu_edgetpu_mmio_opendevice_probe boot_state:
+
+0x00000600
+
+sentai_emu_edgetpu_mmio_opendevice_probe step:
+
+0x00000016
+
+sentai_emu_edgetpu_mmio_opendevice_probe heartbeat:
+
+0x00000129
+
+sentai_emu_edgetpu_mmio_opendevice_probe last_tick:
+
+0x00000B90
+
+(machine-0) 16:10:16.0667 [INFO] machine-0: Disposed.

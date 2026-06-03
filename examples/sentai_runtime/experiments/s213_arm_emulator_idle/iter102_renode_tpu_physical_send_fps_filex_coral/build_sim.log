@@ -1,0 +1,88 @@
+[ 50%] Built target libfreertos_posix
+[ 50%] Building CXX object sim/CMakeFiles/tpu_posix_send_server.dir/tpu_posix_send_server.cc.o
+[ 50%] Building CXX object sim/CMakeFiles/tpu_posix_send_server.dir/__/libs/tpu/edgetpu_driver.cc.o
+/home/bogdan/work/coralmicro/libs/tpu/edgetpu_driver.cc:70:25: warning: ‘g_sentai_tpu_multi_ep_routing’ initialized and declared ‘extern’
+   70 | extern "C" volatile int g_sentai_tpu_multi_ep_routing = 0;
+      |                         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/libs/tpu/edgetpu_driver.cc: In member function ‘bool coralmicro::TpuDriver::CSRTransfer(uint64_t, void*, bool, RegisterSize)’:
+/home/bogdan/work/coralmicro/libs/tpu/edgetpu_driver.cc:415:8: warning: unused variable ‘ret’ [-Wunused-variable]
+  415 |   bool ret = false;
+      |        ^~~
+/home/bogdan/work/coralmicro/libs/tpu/edgetpu_driver.cc: At global scope:
+/home/bogdan/work/coralmicro/libs/tpu/edgetpu_driver.cc:517:30: warning: ‘g_sentai_tpu_send_params_calls’ initialized and declared ‘extern’
+  517 | extern "C" volatile uint32_t g_sentai_tpu_send_params_calls   = 0;
+      |                              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/libs/tpu/edgetpu_driver.cc:518:30: warning: ‘g_sentai_tpu_send_params_bytes’ initialized and declared ‘extern’
+  518 | extern "C" volatile uint32_t g_sentai_tpu_send_params_bytes   = 0;
+      |                              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/libs/tpu/edgetpu_driver.cc:519:30: warning: ‘g_sentai_tpu_send_ins_calls’ initialized and declared ‘extern’
+  519 | extern "C" volatile uint32_t g_sentai_tpu_send_ins_calls      = 0;
+      |                              ^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/libs/tpu/edgetpu_driver.cc:520:30: warning: ‘g_sentai_tpu_send_ins_bytes’ initialized and declared ‘extern’
+  520 | extern "C" volatile uint32_t g_sentai_tpu_send_ins_bytes      = 0;
+      |                              ^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/libs/tpu/edgetpu_driver.cc:521:30: warning: ‘g_sentai_tpu_send_inputs_calls’ initialized and declared ‘extern’
+  521 | extern "C" volatile uint32_t g_sentai_tpu_send_inputs_calls   = 0;
+      |                              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/libs/tpu/edgetpu_driver.cc:522:30: warning: ‘g_sentai_tpu_send_inputs_bytes’ initialized and declared ‘extern’
+  522 | extern "C" volatile uint32_t g_sentai_tpu_send_inputs_bytes   = 0;
+      |                              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/libs/tpu/edgetpu_driver.cc:573:25: warning: ‘g_sentai_tpu_zero_copy_input’ initialized and declared ‘extern’
+  573 | extern "C" volatile int g_sentai_tpu_zero_copy_input = 1;
+      |                         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/libs/tpu/edgetpu_driver.cc:591:30: warning: ‘g_sentai_tpu_chunk_size’ initialized and declared ‘extern’
+  591 | extern "C" volatile uint32_t g_sentai_tpu_chunk_size =
+      |                              ^~~~~~~~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/libs/tpu/edgetpu_driver.cc:613:25: warning: ‘g_sentai_tpu_async_input_enabled’ initialized and declared ‘extern’
+  613 | extern "C" volatile int g_sentai_tpu_async_input_enabled = 0;
+      |                         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/libs/tpu/edgetpu_driver.cc:806:39: warning: ‘g_sentai_tpu_input_done_sema’ initialized and declared ‘extern’
+  806 | extern "C" volatile SemaphoreHandle_t g_sentai_tpu_input_done_sema = nullptr;
+      |                                       ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/libs/tpu/edgetpu_driver.cc:807:39: warning: ‘g_sentai_tpu_input_done_count’ initialized and declared ‘extern’
+  807 | extern "C" volatile uint32_t          g_sentai_tpu_input_done_count = 0;
+      |                                       ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/libs/tpu/edgetpu_driver.cc:913:30: warning: ‘g_sentai_tpu_lambda_entered’ initialized and declared ‘extern’
+  913 | extern "C" volatile uint32_t g_sentai_tpu_lambda_entered = 0;
+      |                              ^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/libs/tpu/edgetpu_driver.cc:914:30: warning: ‘g_sentai_tpu_lambda_gave’ initialized and declared ‘extern’
+  914 | extern "C" volatile uint32_t g_sentai_tpu_lambda_gave = 0;
+      |                              ^~~~~~~~~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/libs/tpu/edgetpu_driver.cc:915:30: warning: ‘g_sentai_tpu_lambda_null_sema’ initialized and declared ‘extern’
+  915 | extern "C" volatile uint32_t g_sentai_tpu_lambda_null_sema = 0;
+      |                              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/libs/tpu/edgetpu_driver.cc:916:30: warning: ‘g_sentai_tpu_take_failed’ initialized and declared ‘extern’
+  916 | extern "C" volatile uint32_t g_sentai_tpu_take_failed = 0;
+      |                              ^~~~~~~~~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/libs/tpu/edgetpu_driver.cc:917:30: warning: ‘g_sentai_tpu_take_succeeded’ initialized and declared ‘extern’
+  917 | extern "C" volatile uint32_t g_sentai_tpu_take_succeeded = 0;
+      |                              ^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/libs/tpu/edgetpu_driver.cc:934:30: warning: ‘g_sentai_tpu_urb_timeout_ms’ initialized and declared ‘extern’
+  934 | extern "C" volatile uint32_t g_sentai_tpu_urb_timeout_ms = 200;
+      |                              ^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/libs/tpu/edgetpu_driver.cc:944:30: warning: ‘g_sentai_tpu_urb_cancelled’ initialized and declared ‘extern’
+  944 | extern "C" volatile uint32_t g_sentai_tpu_urb_cancelled = 0;
+      |                              ^~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/libs/tpu/edgetpu_driver.cc:945:30: warning: ‘g_sentai_tpu_urb_cancel_no_cb’ initialized and declared ‘extern’
+  945 | extern "C" volatile uint32_t g_sentai_tpu_urb_cancel_no_cb = 0;
+      |                              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/libs/tpu/edgetpu_driver.cc:947:25: warning: ‘g_sentai_tpu_sim_break_on_short_bulkin’ initialized and declared ‘extern’
+  947 | extern "C" volatile int g_sentai_tpu_sim_break_on_short_bulkin = 0;
+      |                         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/libs/tpu/edgetpu_driver.cc:948:30: warning: ‘g_sentai_tpu_sim_bulkin_chunk_size’ initialized and declared ‘extern’
+  948 | extern "C" volatile uint32_t g_sentai_tpu_sim_bulkin_chunk_size = 256;
+      |                              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/libs/tpu/edgetpu_driver.cc:949:30: warning: ‘g_sentai_tpu_sim_outfeed_chunk_length’ initialized and declared ‘extern’
+  949 | extern "C" volatile uint32_t g_sentai_tpu_sim_outfeed_chunk_length = 0x20;
+      |                              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/libs/tpu/edgetpu_driver.cc:950:25: warning: ‘g_sentai_tpu_sim_sleep_after_bulkin’ initialized and declared ‘extern’
+  950 | extern "C" volatile int g_sentai_tpu_sim_sleep_after_bulkin = 0;
+      |                         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/libs/tpu/edgetpu_driver.cc:951:30: warning: ‘g_sentai_tpu_sim_bulkin_queue_depth’ initialized and declared ‘extern’
+  951 | extern "C" volatile uint32_t g_sentai_tpu_sim_bulkin_queue_depth = 0;
+      |                              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/libs/tpu/edgetpu_driver.cc:100:9: warning: ‘coralmicro::{anonymous}::BulkTransferBuffer’ defined but not used [-Wunused-variable]
+  100 | uint8_t BulkTransferBuffer[kMaxBulkBufferSize]
+      |         ^~~~~~~~~~~~~~~~~~
+[ 75%] Linking CXX executable tpu_posix_send_server
+[100%] Built target tpu_posix_send_server

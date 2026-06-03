@@ -1,0 +1,237 @@
+t=102ms server start argv=/home/bogdan/work/coralmicro/build-sim/sim/tpu_posix_send_server --server-cmd /tmp/sentai_emu_tpu_send_server.cmd --perf low --chunk-size 1048576 --bulkin-chunk-size 1024 --outfeed-chunk-length 0x80
+t=134ms server [tpu-posix] libusb_init
+t=134ms server [tpu-posix] dfu/app probe
+t=134ms server [tpu-posix] open app device
+t=134ms server [tpu-posix] opened Coral USB interface=0 out=01,02,03 in=81,82 irq=83
+t=134ms server [TPU init] read omc0_00
+t=134ms server [TPU init] check chip id
+t=135ms server [TPU init] write test reg
+t=135ms server [TPU init] read test reg
+t=135ms server [TPU init] disable inactive mode
+t=135ms server [TPU init] disable clock gating
+t=135ms server [TPU init] enter reset
+t=142ms server [TPU init] exit reset
+t=147ms server [TPU init] check scalar run control
+t=148ms server [TPU init] write idle register
+t=149ms server [TPU init] write tile config
+t=152ms server [TPU init] write deep sleep
+t=153ms server [TPU init] enable clock gating
+t=156ms server [TPU init] configure usb csr
+t=159ms server [TPU init] enable tempsense clock
+t=162ms server [TPU init] enable tempsense input ports
+t=165ms server [TPU init] enable tempsense flow
+t=167ms server [TPU init] move to run
+t=190ms server [TPU init] done
+t=190ms server SEND_SERVER_READY perf=low chunk_size=1048576 bulkin_chunk_size=1024 outfeed_chunk_length=0x80 bulkin_queue_depth=0
+t=193ms server command ins /tmp/sentai_emu_tpu_send_payloads/payload_1_ins.bin
+t=202ms server SEND_STATS cmd=ins ok=1 ms=6 params_calls=0 params_bytes=0 input_calls=0 input_bytes=0 ins_calls=1 ins_bytes=10448 usb_out_calls=2 usb_out_req=10456 usb_out_done=10456 usb_out_us=2367 usb_in_calls=0 usb_in_req=0 usb_in_done=0 usb_in_us=0 usb_event_calls=0 usb_event_req=0 usb_event_done=0 usb_event_us=0 usb_intr_calls=0 usb_intr_req=0 usb_intr_done=0 usb_intr_us=0 usb_timeouts=0 usb_failed=0
+t=202ms server SEND_SERVER_DONE cmd=ins rc=0 bytes=10448 ms=6
+t=206ms bridge cmd=ins seq=1 data_len=10448 out_len=0 ok=True ms=120
+t=214ms server command params /tmp/sentai_emu_tpu_send_payloads/payload_2_params.bin
+t=271ms server SEND_STATS cmd=params ok=1 ms=56 params_calls=1 params_bytes=6703232 input_calls=0 input_bytes=0 ins_calls=0 ins_bytes=0 usb_out_calls=8 usb_out_req=6703240 usb_out_done=6703240 usb_out_us=31471 usb_in_calls=0 usb_in_req=0 usb_in_done=0 usb_in_us=0 usb_event_calls=0 usb_event_req=0 usb_event_done=0 usb_event_us=0 usb_intr_calls=0 usb_intr_req=0 usb_intr_done=0 usb_intr_us=0 usb_timeouts=0 usb_failed=0
+t=271ms server SEND_SERVER_DONE cmd=params rc=0 bytes=6703232 ms=56
+t=276ms bridge cmd=params seq=2 data_len=6703232 out_len=0 ok=True ms=69
+t=277ms server command event
+t=279ms server SEND_STATS cmd=event ok=1 ms=0 params_calls=0 params_bytes=0 input_calls=0 input_bytes=0 ins_calls=0 ins_bytes=0 usb_out_calls=0 usb_out_req=0 usb_out_done=0 usb_out_us=0 usb_in_calls=0 usb_in_req=0 usb_in_done=0 usb_in_us=0 usb_event_calls=1 usb_event_req=16 usb_event_done=16 usb_event_us=97 usb_intr_calls=0 usb_intr_req=0 usb_intr_done=0 usb_intr_us=0 usb_timeouts=0 usb_failed=0
+t=280ms server SEND_SERVER_DONE cmd=event rc=0 bytes=0 ms=0
+t=283ms bridge cmd=event seq=3 data_len=0 out_len=0 ok=True ms=6
+t=284ms server command ins /tmp/sentai_emu_tpu_send_payloads/payload_4_ins.bin
+t=292ms server SEND_STATS cmd=ins ok=1 ms=7 params_calls=0 params_bytes=0 input_calls=0 input_bytes=0 ins_calls=1 ins_bytes=254304 usb_out_calls=2 usb_out_req=254312 usb_out_done=254312 usb_out_us=2509 usb_in_calls=0 usb_in_req=0 usb_in_done=0 usb_in_us=0 usb_event_calls=0 usb_event_req=0 usb_event_done=0 usb_event_us=0 usb_intr_calls=0 usb_intr_req=0 usb_intr_done=0 usb_intr_us=0 usb_timeouts=0 usb_failed=0
+t=292ms server SEND_SERVER_DONE cmd=ins rc=0 bytes=254304 ms=7
+t=294ms bridge cmd=ins seq=4 data_len=254304 out_len=0 ok=True ms=11
+t=296ms server command inputs /tmp/sentai_emu_tpu_send_payloads/payload_5_inputs.bin
+t=304ms server SEND_STATS cmd=inputs ok=1 ms=7 params_calls=0 params_bytes=0 input_calls=1 input_bytes=270000 ins_calls=0 ins_bytes=0 usb_out_calls=2 usb_out_req=270008 usb_out_done=270008 usb_out_us=2728 usb_in_calls=0 usb_in_req=0 usb_in_done=0 usb_in_us=0 usb_event_calls=0 usb_event_req=0 usb_event_done=0 usb_event_us=0 usb_intr_calls=0 usb_intr_req=0 usb_intr_done=0 usb_intr_us=0 usb_timeouts=0 usb_failed=0
+t=305ms server SEND_SERVER_DONE cmd=inputs rc=0 bytes=270000 ms=7
+t=309ms bridge cmd=inputs seq=5 data_len=270000 out_len=0 ok=True ms=14
+t=310ms server command output 7672 /tmp/sentai_emu_tpu_send_payloads/output_6.bin
+t=329ms server SEND_STATS cmd=output ok=1 ms=16 params_calls=0 params_bytes=0 input_calls=0 input_bytes=0 ins_calls=0 ins_bytes=0 usb_out_calls=0 usb_out_req=0 usb_out_done=0 usb_out_us=0 usb_in_calls=8 usb_in_req=7672 usb_in_done=7672 usb_in_us=16429 usb_event_calls=0 usb_event_req=0 usb_event_done=0 usb_event_us=0 usb_intr_calls=0 usb_intr_req=0 usb_intr_done=0 usb_intr_us=0 usb_timeouts=0 usb_failed=0
+t=329ms server SEND_SERVER_DONE cmd=output rc=0 bytes=7672 ms=16
+t=335ms bridge cmd=output seq=6 data_len=0 out_len=7672 ok=True ms=25
+t=341ms server command output 176368 /tmp/sentai_emu_tpu_send_payloads/output_7.bin
+t=349ms server SEND_STATS cmd=output ok=1 ms=7 params_calls=0 params_bytes=0 input_calls=0 input_bytes=0 ins_calls=0 ins_bytes=0 usb_out_calls=0 usb_out_req=0 usb_out_done=0 usb_out_us=0 usb_in_calls=174 usb_in_req=177712 usb_in_done=176368 usb_in_us=6308 usb_event_calls=0 usb_event_req=0 usb_event_done=0 usb_event_us=0 usb_intr_calls=0 usb_intr_req=0 usb_intr_done=0 usb_intr_us=0 usb_timeouts=0 usb_failed=0
+t=349ms server SEND_SERVER_DONE cmd=output rc=0 bytes=176368 ms=7
+t=353ms bridge cmd=output seq=7 data_len=0 out_len=176368 ok=True ms=13
+t=354ms server command event
+t=355ms server SEND_STATS cmd=event ok=1 ms=0 params_calls=0 params_bytes=0 input_calls=0 input_bytes=0 ins_calls=0 ins_bytes=0 usb_out_calls=0 usb_out_req=0 usb_out_done=0 usb_out_us=0 usb_in_calls=0 usb_in_req=0 usb_in_done=0 usb_in_us=0 usb_event_calls=1 usb_event_req=16 usb_event_done=16 usb_event_us=56 usb_intr_calls=0 usb_intr_req=0 usb_intr_done=0 usb_intr_us=0 usb_timeouts=0 usb_failed=0
+t=355ms server SEND_SERVER_DONE cmd=event rc=0 bytes=0 ms=0
+t=360ms bridge cmd=event seq=8 data_len=0 out_len=0 ok=True ms=7
+t=376ms server command ins /tmp/sentai_emu_tpu_send_payloads/payload_9_ins.bin
+t=383ms server SEND_STATS cmd=ins ok=1 ms=6 params_calls=0 params_bytes=0 input_calls=0 input_bytes=0 ins_calls=1 ins_bytes=254304 usb_out_calls=2 usb_out_req=254312 usb_out_done=254312 usb_out_us=1910 usb_in_calls=0 usb_in_req=0 usb_in_done=0 usb_in_us=0 usb_event_calls=0 usb_event_req=0 usb_event_done=0 usb_event_us=0 usb_intr_calls=0 usb_intr_req=0 usb_intr_done=0 usb_intr_us=0 usb_timeouts=0 usb_failed=0
+t=383ms server SEND_SERVER_DONE cmd=ins rc=0 bytes=254304 ms=6
+t=387ms bridge cmd=ins seq=9 data_len=254304 out_len=0 ok=True ms=13
+t=388ms server command inputs /tmp/sentai_emu_tpu_send_payloads/payload_10_inputs.bin
+t=395ms server SEND_STATS cmd=inputs ok=1 ms=6 params_calls=0 params_bytes=0 input_calls=1 input_bytes=270000 ins_calls=0 ins_bytes=0 usb_out_calls=2 usb_out_req=270008 usb_out_done=270008 usb_out_us=1949 usb_in_calls=0 usb_in_req=0 usb_in_done=0 usb_in_us=0 usb_event_calls=0 usb_event_req=0 usb_event_done=0 usb_event_us=0 usb_intr_calls=0 usb_intr_req=0 usb_intr_done=0 usb_intr_us=0 usb_timeouts=0 usb_failed=0
+t=395ms server SEND_SERVER_DONE cmd=inputs rc=0 bytes=270000 ms=6
+t=399ms bridge cmd=inputs seq=10 data_len=270000 out_len=0 ok=True ms=12
+t=399ms server command output 7672 /tmp/sentai_emu_tpu_send_payloads/output_11.bin
+t=419ms server SEND_STATS cmd=output ok=1 ms=18 params_calls=0 params_bytes=0 input_calls=0 input_bytes=0 ins_calls=0 ins_bytes=0 usb_out_calls=0 usb_out_req=0 usb_out_done=0 usb_out_us=0 usb_in_calls=8 usb_in_req=7672 usb_in_done=7672 usb_in_us=18102 usb_event_calls=0 usb_event_req=0 usb_event_done=0 usb_event_us=0 usb_intr_calls=0 usb_intr_req=0 usb_intr_done=0 usb_intr_us=0 usb_timeouts=0 usb_failed=0
+t=419ms server SEND_SERVER_DONE cmd=output rc=0 bytes=7672 ms=18
+t=420ms bridge cmd=output seq=11 data_len=0 out_len=7672 ok=True ms=21
+t=421ms server command output 176368 /tmp/sentai_emu_tpu_send_payloads/output_12.bin
+t=429ms server SEND_STATS cmd=output ok=1 ms=7 params_calls=0 params_bytes=0 input_calls=0 input_bytes=0 ins_calls=0 ins_bytes=0 usb_out_calls=0 usb_out_req=0 usb_out_done=0 usb_out_us=0 usb_in_calls=174 usb_in_req=177712 usb_in_done=176368 usb_in_us=5918 usb_event_calls=0 usb_event_req=0 usb_event_done=0 usb_event_us=0 usb_intr_calls=0 usb_intr_req=0 usb_intr_done=0 usb_intr_us=0 usb_timeouts=0 usb_failed=0
+t=429ms server SEND_SERVER_DONE cmd=output rc=0 bytes=176368 ms=7
+t=432ms bridge cmd=output seq=12 data_len=0 out_len=176368 ok=True ms=11
+t=433ms server command event
+t=434ms server SEND_STATS cmd=event ok=1 ms=0 params_calls=0 params_bytes=0 input_calls=0 input_bytes=0 ins_calls=0 ins_bytes=0 usb_out_calls=0 usb_out_req=0 usb_out_done=0 usb_out_us=0 usb_in_calls=0 usb_in_req=0 usb_in_done=0 usb_in_us=0 usb_event_calls=1 usb_event_req=16 usb_event_done=16 usb_event_us=79 usb_intr_calls=0 usb_intr_req=0 usb_intr_done=0 usb_intr_us=0 usb_timeouts=0 usb_failed=0
+t=434ms server SEND_SERVER_DONE cmd=event rc=0 bytes=0 ms=0
+t=438ms bridge cmd=event seq=13 data_len=0 out_len=0 ok=True ms=5
+t=457ms server command ins /tmp/sentai_emu_tpu_send_payloads/payload_14_ins.bin
+t=465ms server SEND_STATS cmd=ins ok=1 ms=6 params_calls=0 params_bytes=0 input_calls=0 input_bytes=0 ins_calls=1 ins_bytes=254304 usb_out_calls=2 usb_out_req=254312 usb_out_done=254312 usb_out_us=1967 usb_in_calls=0 usb_in_req=0 usb_in_done=0 usb_in_us=0 usb_event_calls=0 usb_event_req=0 usb_event_done=0 usb_event_us=0 usb_intr_calls=0 usb_intr_req=0 usb_intr_done=0 usb_intr_us=0 usb_timeouts=0 usb_failed=0
+t=465ms server SEND_SERVER_DONE cmd=ins rc=0 bytes=254304 ms=6
+t=472ms bridge cmd=ins seq=14 data_len=254304 out_len=0 ok=True ms=16
+t=473ms server command inputs /tmp/sentai_emu_tpu_send_payloads/payload_15_inputs.bin
+t=480ms server SEND_STATS cmd=inputs ok=1 ms=6 params_calls=0 params_bytes=0 input_calls=1 input_bytes=270000 ins_calls=0 ins_bytes=0 usb_out_calls=2 usb_out_req=270008 usb_out_done=270008 usb_out_us=1942 usb_in_calls=0 usb_in_req=0 usb_in_done=0 usb_in_us=0 usb_event_calls=0 usb_event_req=0 usb_event_done=0 usb_event_us=0 usb_intr_calls=0 usb_intr_req=0 usb_intr_done=0 usb_intr_us=0 usb_timeouts=0 usb_failed=0
+t=480ms server SEND_SERVER_DONE cmd=inputs rc=0 bytes=270000 ms=6
+t=484ms bridge cmd=inputs seq=15 data_len=270000 out_len=0 ok=True ms=11
+t=484ms server command output 7672 /tmp/sentai_emu_tpu_send_payloads/output_16.bin
+t=504ms server SEND_STATS cmd=output ok=1 ms=18 params_calls=0 params_bytes=0 input_calls=0 input_bytes=0 ins_calls=0 ins_bytes=0 usb_out_calls=0 usb_out_req=0 usb_out_done=0 usb_out_us=0 usb_in_calls=8 usb_in_req=7672 usb_in_done=7672 usb_in_us=18244 usb_event_calls=0 usb_event_req=0 usb_event_done=0 usb_event_us=0 usb_intr_calls=0 usb_intr_req=0 usb_intr_done=0 usb_intr_us=0 usb_timeouts=0 usb_failed=0
+t=504ms server SEND_SERVER_DONE cmd=output rc=0 bytes=7672 ms=18
+t=506ms bridge cmd=output seq=16 data_len=0 out_len=7672 ok=True ms=22
+t=506ms server command output 176368 /tmp/sentai_emu_tpu_send_payloads/output_17.bin
+t=515ms server SEND_STATS cmd=output ok=1 ms=7 params_calls=0 params_bytes=0 input_calls=0 input_bytes=0 ins_calls=0 ins_bytes=0 usb_out_calls=0 usb_out_req=0 usb_out_done=0 usb_out_us=0 usb_in_calls=174 usb_in_req=177712 usb_in_done=176368 usb_in_us=6339 usb_event_calls=0 usb_event_req=0 usb_event_done=0 usb_event_us=0 usb_intr_calls=0 usb_intr_req=0 usb_intr_done=0 usb_intr_us=0 usb_timeouts=0 usb_failed=0
+t=515ms server SEND_SERVER_DONE cmd=output rc=0 bytes=176368 ms=7
+t=517ms bridge cmd=output seq=17 data_len=0 out_len=176368 ok=True ms=11
+t=518ms server command event
+t=519ms server SEND_STATS cmd=event ok=1 ms=0 params_calls=0 params_bytes=0 input_calls=0 input_bytes=0 ins_calls=0 ins_bytes=0 usb_out_calls=0 usb_out_req=0 usb_out_done=0 usb_out_us=0 usb_in_calls=0 usb_in_req=0 usb_in_done=0 usb_in_us=0 usb_event_calls=1 usb_event_req=16 usb_event_done=16 usb_event_us=52 usb_intr_calls=0 usb_intr_req=0 usb_intr_done=0 usb_intr_us=0 usb_timeouts=0 usb_failed=0
+t=519ms server SEND_SERVER_DONE cmd=event rc=0 bytes=0 ms=0
+t=525ms bridge cmd=event seq=18 data_len=0 out_len=0 ok=True ms=7
+t=540ms server command ins /tmp/sentai_emu_tpu_send_payloads/payload_19_ins.bin
+t=547ms server SEND_STATS cmd=ins ok=1 ms=6 params_calls=0 params_bytes=0 input_calls=0 input_bytes=0 ins_calls=1 ins_bytes=254304 usb_out_calls=2 usb_out_req=254312 usb_out_done=254312 usb_out_us=1945 usb_in_calls=0 usb_in_req=0 usb_in_done=0 usb_in_us=0 usb_event_calls=0 usb_event_req=0 usb_event_done=0 usb_event_us=0 usb_intr_calls=0 usb_intr_req=0 usb_intr_done=0 usb_intr_us=0 usb_timeouts=0 usb_failed=0
+t=548ms server SEND_SERVER_DONE cmd=ins rc=0 bytes=254304 ms=6
+t=550ms bridge cmd=ins seq=19 data_len=254304 out_len=0 ok=True ms=11
+t=556ms server command inputs /tmp/sentai_emu_tpu_send_payloads/payload_20_inputs.bin
+t=564ms server SEND_STATS cmd=inputs ok=1 ms=6 params_calls=0 params_bytes=0 input_calls=1 input_bytes=270000 ins_calls=0 ins_bytes=0 usb_out_calls=2 usb_out_req=270008 usb_out_done=270008 usb_out_us=2005 usb_in_calls=0 usb_in_req=0 usb_in_done=0 usb_in_us=0 usb_event_calls=0 usb_event_req=0 usb_event_done=0 usb_event_us=0 usb_intr_calls=0 usb_intr_req=0 usb_intr_done=0 usb_intr_us=0 usb_timeouts=0 usb_failed=0
+t=564ms server SEND_SERVER_DONE cmd=inputs rc=0 bytes=270000 ms=6
+t=567ms bridge cmd=inputs seq=20 data_len=270000 out_len=0 ok=True ms=16
+t=567ms server command output 7672 /tmp/sentai_emu_tpu_send_payloads/output_21.bin
+t=588ms server SEND_STATS cmd=output ok=1 ms=19 params_calls=0 params_bytes=0 input_calls=0 input_bytes=0 ins_calls=0 ins_bytes=0 usb_out_calls=0 usb_out_req=0 usb_out_done=0 usb_out_us=0 usb_in_calls=8 usb_in_req=7672 usb_in_done=7672 usb_in_us=19587 usb_event_calls=0 usb_event_req=0 usb_event_done=0 usb_event_us=0 usb_intr_calls=0 usb_intr_req=0 usb_intr_done=0 usb_intr_us=0 usb_timeouts=0 usb_failed=0
+t=588ms server SEND_SERVER_DONE cmd=output rc=0 bytes=7672 ms=19
+t=588ms bridge cmd=output seq=21 data_len=0 out_len=7672 ok=True ms=21
+t=589ms server command output 176368 /tmp/sentai_emu_tpu_send_payloads/output_22.bin
+t=597ms server SEND_STATS cmd=output ok=1 ms=6 params_calls=0 params_bytes=0 input_calls=0 input_bytes=0 ins_calls=0 ins_bytes=0 usb_out_calls=0 usb_out_req=0 usb_out_done=0 usb_out_us=0 usb_in_calls=174 usb_in_req=177712 usb_in_done=176368 usb_in_us=5517 usb_event_calls=0 usb_event_req=0 usb_event_done=0 usb_event_us=0 usb_intr_calls=0 usb_intr_req=0 usb_intr_done=0 usb_intr_us=0 usb_timeouts=0 usb_failed=0
+t=597ms server SEND_SERVER_DONE cmd=output rc=0 bytes=176368 ms=6
+t=600ms bridge cmd=output seq=22 data_len=0 out_len=176368 ok=True ms=11
+t=601ms server command event
+t=602ms server SEND_STATS cmd=event ok=1 ms=0 params_calls=0 params_bytes=0 input_calls=0 input_bytes=0 ins_calls=0 ins_bytes=0 usb_out_calls=0 usb_out_req=0 usb_out_done=0 usb_out_us=0 usb_in_calls=0 usb_in_req=0 usb_in_done=0 usb_in_us=0 usb_event_calls=1 usb_event_req=16 usb_event_done=16 usb_event_us=50 usb_intr_calls=0 usb_intr_req=0 usb_intr_done=0 usb_intr_us=0 usb_timeouts=0 usb_failed=0
+t=603ms server SEND_SERVER_DONE cmd=event rc=0 bytes=0 ms=0
+t=607ms bridge cmd=event seq=23 data_len=0 out_len=0 ok=True ms=6
+t=625ms server command ins /tmp/sentai_emu_tpu_send_payloads/payload_24_ins.bin
+t=632ms server SEND_STATS cmd=ins ok=1 ms=6 params_calls=0 params_bytes=0 input_calls=0 input_bytes=0 ins_calls=1 ins_bytes=254304 usb_out_calls=2 usb_out_req=254312 usb_out_done=254312 usb_out_us=2038 usb_in_calls=0 usb_in_req=0 usb_in_done=0 usb_in_us=0 usb_event_calls=0 usb_event_req=0 usb_event_done=0 usb_event_us=0 usb_intr_calls=0 usb_intr_req=0 usb_intr_done=0 usb_intr_us=0 usb_timeouts=0 usb_failed=0
+t=632ms server SEND_SERVER_DONE cmd=ins rc=0 bytes=254304 ms=6
+t=635ms bridge cmd=ins seq=24 data_len=254304 out_len=0 ok=True ms=11
+t=637ms server command inputs /tmp/sentai_emu_tpu_send_payloads/payload_25_inputs.bin
+t=644ms server SEND_STATS cmd=inputs ok=1 ms=6 params_calls=0 params_bytes=0 input_calls=1 input_bytes=270000 ins_calls=0 ins_bytes=0 usb_out_calls=2 usb_out_req=270008 usb_out_done=270008 usb_out_us=2027 usb_in_calls=0 usb_in_req=0 usb_in_done=0 usb_in_us=0 usb_event_calls=0 usb_event_req=0 usb_event_done=0 usb_event_us=0 usb_intr_calls=0 usb_intr_req=0 usb_intr_done=0 usb_intr_us=0 usb_timeouts=0 usb_failed=0
+t=644ms server SEND_SERVER_DONE cmd=inputs rc=0 bytes=270000 ms=6
+t=647ms bridge cmd=inputs seq=25 data_len=270000 out_len=0 ok=True ms=11
+t=648ms server command output 7672 /tmp/sentai_emu_tpu_send_payloads/output_26.bin
+t=667ms server SEND_STATS cmd=output ok=1 ms=18 params_calls=0 params_bytes=0 input_calls=0 input_bytes=0 ins_calls=0 ins_bytes=0 usb_out_calls=0 usb_out_req=0 usb_out_done=0 usb_out_us=0 usb_in_calls=8 usb_in_req=7672 usb_in_done=7672 usb_in_us=18116 usb_event_calls=0 usb_event_req=0 usb_event_done=0 usb_event_us=0 usb_intr_calls=0 usb_intr_req=0 usb_intr_done=0 usb_intr_us=0 usb_timeouts=0 usb_failed=0
+t=668ms server SEND_SERVER_DONE cmd=output rc=0 bytes=7672 ms=18
+t=669ms bridge cmd=output seq=26 data_len=0 out_len=7672 ok=True ms=21
+t=669ms server command output 176368 /tmp/sentai_emu_tpu_send_payloads/output_27.bin
+t=680ms server SEND_STATS cmd=output ok=1 ms=6 params_calls=0 params_bytes=0 input_calls=0 input_bytes=0 ins_calls=0 ins_bytes=0 usb_out_calls=0 usb_out_req=0 usb_out_done=0 usb_out_us=0 usb_in_calls=174 usb_in_req=177712 usb_in_done=176368 usb_in_us=5447 usb_event_calls=0 usb_event_req=0 usb_event_done=0 usb_event_us=0 usb_intr_calls=0 usb_intr_req=0 usb_intr_done=0 usb_intr_us=0 usb_timeouts=0 usb_failed=0
+t=681ms server SEND_SERVER_DONE cmd=output rc=0 bytes=176368 ms=6
+t=685ms bridge cmd=output seq=27 data_len=0 out_len=176368 ok=True ms=16
+t=686ms server command event
+t=687ms server SEND_STATS cmd=event ok=1 ms=0 params_calls=0 params_bytes=0 input_calls=0 input_bytes=0 ins_calls=0 ins_bytes=0 usb_out_calls=0 usb_out_req=0 usb_out_done=0 usb_out_us=0 usb_in_calls=0 usb_in_req=0 usb_in_done=0 usb_in_us=0 usb_event_calls=1 usb_event_req=16 usb_event_done=16 usb_event_us=75 usb_intr_calls=0 usb_intr_req=0 usb_intr_done=0 usb_intr_us=0 usb_timeouts=0 usb_failed=0
+t=687ms server SEND_SERVER_DONE cmd=event rc=0 bytes=0 ms=0
+t=692ms bridge cmd=event seq=28 data_len=0 out_len=0 ok=True ms=6
+t=733ms server command ins /tmp/sentai_emu_tpu_send_payloads/payload_29_ins.bin
+t=740ms server SEND_STATS cmd=ins ok=1 ms=6 params_calls=0 params_bytes=0 input_calls=0 input_bytes=0 ins_calls=1 ins_bytes=254304 usb_out_calls=2 usb_out_req=254312 usb_out_done=254312 usb_out_us=1962 usb_in_calls=0 usb_in_req=0 usb_in_done=0 usb_in_us=0 usb_event_calls=0 usb_event_req=0 usb_event_done=0 usb_event_us=0 usb_intr_calls=0 usb_intr_req=0 usb_intr_done=0 usb_intr_us=0 usb_timeouts=0 usb_failed=0
+t=740ms server SEND_SERVER_DONE cmd=ins rc=0 bytes=254304 ms=6
+t=744ms bridge cmd=ins seq=29 data_len=254304 out_len=0 ok=True ms=12
+t=745ms server command inputs /tmp/sentai_emu_tpu_send_payloads/payload_30_inputs.bin
+t=752ms server SEND_STATS cmd=inputs ok=1 ms=6 params_calls=0 params_bytes=0 input_calls=1 input_bytes=270000 ins_calls=0 ins_bytes=0 usb_out_calls=2 usb_out_req=270008 usb_out_done=270008 usb_out_us=2004 usb_in_calls=0 usb_in_req=0 usb_in_done=0 usb_in_us=0 usb_event_calls=0 usb_event_req=0 usb_event_done=0 usb_event_us=0 usb_intr_calls=0 usb_intr_req=0 usb_intr_done=0 usb_intr_us=0 usb_timeouts=0 usb_failed=0
+t=752ms server SEND_SERVER_DONE cmd=inputs rc=0 bytes=270000 ms=6
+t=756ms bridge cmd=inputs seq=30 data_len=270000 out_len=0 ok=True ms=11
+t=756ms server command output 7672 /tmp/sentai_emu_tpu_send_payloads/output_31.bin
+t=776ms server SEND_STATS cmd=output ok=1 ms=18 params_calls=0 params_bytes=0 input_calls=0 input_bytes=0 ins_calls=0 ins_bytes=0 usb_out_calls=0 usb_out_req=0 usb_out_done=0 usb_out_us=0 usb_in_calls=8 usb_in_req=7672 usb_in_done=7672 usb_in_us=18058 usb_event_calls=0 usb_event_req=0 usb_event_done=0 usb_event_us=0 usb_intr_calls=0 usb_intr_req=0 usb_intr_done=0 usb_intr_us=0 usb_timeouts=0 usb_failed=0
+t=776ms server SEND_SERVER_DONE cmd=output rc=0 bytes=7672 ms=18
+t=777ms bridge cmd=output seq=31 data_len=0 out_len=7672 ok=True ms=21
+t=778ms server command output 176368 /tmp/sentai_emu_tpu_send_payloads/output_32.bin
+t=788ms server SEND_STATS cmd=output ok=1 ms=8 params_calls=0 params_bytes=0 input_calls=0 input_bytes=0 ins_calls=0 ins_bytes=0 usb_out_calls=0 usb_out_req=0 usb_out_done=0 usb_out_us=0 usb_in_calls=174 usb_in_req=177712 usb_in_done=176368 usb_in_us=6769 usb_event_calls=0 usb_event_req=0 usb_event_done=0 usb_event_us=0 usb_intr_calls=0 usb_intr_req=0 usb_intr_done=0 usb_intr_us=0 usb_timeouts=0 usb_failed=0
+t=788ms server SEND_SERVER_DONE cmd=output rc=0 bytes=176368 ms=8
+t=789ms bridge cmd=output seq=32 data_len=0 out_len=176368 ok=True ms=11
+t=789ms server command event
+t=791ms server SEND_STATS cmd=event ok=1 ms=0 params_calls=0 params_bytes=0 input_calls=0 input_bytes=0 ins_calls=0 ins_bytes=0 usb_out_calls=0 usb_out_req=0 usb_out_done=0 usb_out_us=0 usb_in_calls=0 usb_in_req=0 usb_in_done=0 usb_in_us=0 usb_event_calls=1 usb_event_req=16 usb_event_done=16 usb_event_us=68 usb_intr_calls=0 usb_intr_req=0 usb_intr_done=0 usb_intr_us=0 usb_timeouts=0 usb_failed=0
+t=791ms server SEND_SERVER_DONE cmd=event rc=0 bytes=0 ms=0
+t=795ms bridge cmd=event seq=33 data_len=0 out_len=0 ok=True ms=6
+t=815ms server command ins /tmp/sentai_emu_tpu_send_payloads/payload_34_ins.bin
+t=822ms server SEND_STATS cmd=ins ok=1 ms=6 params_calls=0 params_bytes=0 input_calls=0 input_bytes=0 ins_calls=1 ins_bytes=254304 usb_out_calls=2 usb_out_req=254312 usb_out_done=254312 usb_out_us=1993 usb_in_calls=0 usb_in_req=0 usb_in_done=0 usb_in_us=0 usb_event_calls=0 usb_event_req=0 usb_event_done=0 usb_event_us=0 usb_intr_calls=0 usb_intr_req=0 usb_intr_done=0 usb_intr_us=0 usb_timeouts=0 usb_failed=0
+t=823ms server SEND_SERVER_DONE cmd=ins rc=0 bytes=254304 ms=6
+t=827ms bridge cmd=ins seq=34 data_len=254304 out_len=0 ok=True ms=12
+t=828ms server command inputs /tmp/sentai_emu_tpu_send_payloads/payload_35_inputs.bin
+t=835ms server SEND_STATS cmd=inputs ok=1 ms=6 params_calls=0 params_bytes=0 input_calls=1 input_bytes=270000 ins_calls=0 ins_bytes=0 usb_out_calls=2 usb_out_req=270008 usb_out_done=270008 usb_out_us=2003 usb_in_calls=0 usb_in_req=0 usb_in_done=0 usb_in_us=0 usb_event_calls=0 usb_event_req=0 usb_event_done=0 usb_event_us=0 usb_intr_calls=0 usb_intr_req=0 usb_intr_done=0 usb_intr_us=0 usb_timeouts=0 usb_failed=0
+t=835ms server SEND_SERVER_DONE cmd=inputs rc=0 bytes=270000 ms=6
+t=839ms bridge cmd=inputs seq=35 data_len=270000 out_len=0 ok=True ms=12
+t=840ms server command output 7672 /tmp/sentai_emu_tpu_send_payloads/output_36.bin
+t=859ms server SEND_STATS cmd=output ok=1 ms=18 params_calls=0 params_bytes=0 input_calls=0 input_bytes=0 ins_calls=0 ins_bytes=0 usb_out_calls=0 usb_out_req=0 usb_out_done=0 usb_out_us=0 usb_in_calls=8 usb_in_req=7672 usb_in_done=7672 usb_in_us=18103 usb_event_calls=0 usb_event_req=0 usb_event_done=0 usb_event_us=0 usb_intr_calls=0 usb_intr_req=0 usb_intr_done=0 usb_intr_us=0 usb_timeouts=0 usb_failed=0
+t=859ms server SEND_SERVER_DONE cmd=output rc=0 bytes=7672 ms=18
+t=861ms bridge cmd=output seq=36 data_len=0 out_len=7672 ok=True ms=22
+t=861ms server command output 176368 /tmp/sentai_emu_tpu_send_payloads/output_37.bin
+t=870ms server SEND_STATS cmd=output ok=1 ms=7 params_calls=0 params_bytes=0 input_calls=0 input_bytes=0 ins_calls=0 ins_bytes=0 usb_out_calls=0 usb_out_req=0 usb_out_done=0 usb_out_us=0 usb_in_calls=174 usb_in_req=177712 usb_in_done=176368 usb_in_us=5975 usb_event_calls=0 usb_event_req=0 usb_event_done=0 usb_event_us=0 usb_intr_calls=0 usb_intr_req=0 usb_intr_done=0 usb_intr_us=0 usb_timeouts=0 usb_failed=0
+t=870ms server SEND_SERVER_DONE cmd=output rc=0 bytes=176368 ms=7
+t=872ms bridge cmd=output seq=37 data_len=0 out_len=176368 ok=True ms=11
+t=873ms server command event
+t=874ms server SEND_STATS cmd=event ok=1 ms=0 params_calls=0 params_bytes=0 input_calls=0 input_bytes=0 ins_calls=0 ins_bytes=0 usb_out_calls=0 usb_out_req=0 usb_out_done=0 usb_out_us=0 usb_in_calls=0 usb_in_req=0 usb_in_done=0 usb_in_us=0 usb_event_calls=1 usb_event_req=16 usb_event_done=16 usb_event_us=50 usb_intr_calls=0 usb_intr_req=0 usb_intr_done=0 usb_intr_us=0 usb_timeouts=0 usb_failed=0
+t=874ms server SEND_SERVER_DONE cmd=event rc=0 bytes=0 ms=0
+t=878ms bridge cmd=event seq=38 data_len=0 out_len=0 ok=True ms=5
+t=896ms server command ins /tmp/sentai_emu_tpu_send_payloads/payload_39_ins.bin
+t=902ms server SEND_STATS cmd=ins ok=1 ms=6 params_calls=0 params_bytes=0 input_calls=0 input_bytes=0 ins_calls=1 ins_bytes=254304 usb_out_calls=2 usb_out_req=254312 usb_out_done=254312 usb_out_us=1971 usb_in_calls=0 usb_in_req=0 usb_in_done=0 usb_in_us=0 usb_event_calls=0 usb_event_req=0 usb_event_done=0 usb_event_us=0 usb_intr_calls=0 usb_intr_req=0 usb_intr_done=0 usb_intr_us=0 usb_timeouts=0 usb_failed=0
+t=902ms server SEND_SERVER_DONE cmd=ins rc=0 bytes=254304 ms=6
+t=906ms bridge cmd=ins seq=39 data_len=254304 out_len=0 ok=True ms=11
+t=908ms server command inputs /tmp/sentai_emu_tpu_send_payloads/payload_40_inputs.bin
+t=915ms server SEND_STATS cmd=inputs ok=1 ms=6 params_calls=0 params_bytes=0 input_calls=1 input_bytes=270000 ins_calls=0 ins_bytes=0 usb_out_calls=2 usb_out_req=270008 usb_out_done=270008 usb_out_us=1955 usb_in_calls=0 usb_in_req=0 usb_in_done=0 usb_in_us=0 usb_event_calls=0 usb_event_req=0 usb_event_done=0 usb_event_us=0 usb_intr_calls=0 usb_intr_req=0 usb_intr_done=0 usb_intr_us=0 usb_timeouts=0 usb_failed=0
+t=915ms server SEND_SERVER_DONE cmd=inputs rc=0 bytes=270000 ms=6
+t=918ms bridge cmd=inputs seq=40 data_len=270000 out_len=0 ok=True ms=11
+t=919ms server command output 7672 /tmp/sentai_emu_tpu_send_payloads/output_41.bin
+t=939ms server SEND_STATS cmd=output ok=1 ms=19 params_calls=0 params_bytes=0 input_calls=0 input_bytes=0 ins_calls=0 ins_bytes=0 usb_out_calls=0 usb_out_req=0 usb_out_done=0 usb_out_us=0 usb_in_calls=8 usb_in_req=7672 usb_in_done=7672 usb_in_us=19459 usb_event_calls=0 usb_event_req=0 usb_event_done=0 usb_event_us=0 usb_intr_calls=0 usb_intr_req=0 usb_intr_done=0 usb_intr_us=0 usb_timeouts=0 usb_failed=0
+t=939ms server SEND_SERVER_DONE cmd=output rc=0 bytes=7672 ms=19
+t=940ms bridge cmd=output seq=41 data_len=0 out_len=7672 ok=True ms=21
+t=941ms server command output 176368 /tmp/sentai_emu_tpu_send_payloads/output_42.bin
+t=949ms server SEND_STATS cmd=output ok=1 ms=7 params_calls=0 params_bytes=0 input_calls=0 input_bytes=0 ins_calls=0 ins_bytes=0 usb_out_calls=0 usb_out_req=0 usb_out_done=0 usb_out_us=0 usb_in_calls=174 usb_in_req=177712 usb_in_done=176368 usb_in_us=6073 usb_event_calls=0 usb_event_req=0 usb_event_done=0 usb_event_us=0 usb_intr_calls=0 usb_intr_req=0 usb_intr_done=0 usb_intr_us=0 usb_timeouts=0 usb_failed=0
+t=949ms server SEND_SERVER_DONE cmd=output rc=0 bytes=176368 ms=7
+t=952ms bridge cmd=output seq=42 data_len=0 out_len=176368 ok=True ms=11
+t=952ms server command event
+t=953ms server SEND_STATS cmd=event ok=1 ms=0 params_calls=0 params_bytes=0 input_calls=0 input_bytes=0 ins_calls=0 ins_bytes=0 usb_out_calls=0 usb_out_req=0 usb_out_done=0 usb_out_us=0 usb_in_calls=0 usb_in_req=0 usb_in_done=0 usb_in_us=0 usb_event_calls=1 usb_event_req=16 usb_event_done=16 usb_event_us=76 usb_intr_calls=0 usb_intr_req=0 usb_intr_done=0 usb_intr_us=0 usb_timeouts=0 usb_failed=0
+t=954ms server SEND_SERVER_DONE cmd=event rc=0 bytes=0 ms=0
+t=958ms bridge cmd=event seq=43 data_len=0 out_len=0 ok=True ms=6
+t=975ms server command ins /tmp/sentai_emu_tpu_send_payloads/payload_44_ins.bin
+t=983ms server SEND_STATS cmd=ins ok=1 ms=6 params_calls=0 params_bytes=0 input_calls=0 input_bytes=0 ins_calls=1 ins_bytes=254304 usb_out_calls=2 usb_out_req=254312 usb_out_done=254312 usb_out_us=2088 usb_in_calls=0 usb_in_req=0 usb_in_done=0 usb_in_us=0 usb_event_calls=0 usb_event_req=0 usb_event_done=0 usb_event_us=0 usb_intr_calls=0 usb_intr_req=0 usb_intr_done=0 usb_intr_us=0 usb_timeouts=0 usb_failed=0
+t=983ms server SEND_SERVER_DONE cmd=ins rc=0 bytes=254304 ms=6
+t=986ms bridge cmd=ins seq=44 data_len=254304 out_len=0 ok=True ms=12
+t=987ms server command inputs /tmp/sentai_emu_tpu_send_payloads/payload_45_inputs.bin
+t=995ms server SEND_STATS cmd=inputs ok=1 ms=6 params_calls=0 params_bytes=0 input_calls=1 input_bytes=270000 ins_calls=0 ins_bytes=0 usb_out_calls=2 usb_out_req=270008 usb_out_done=270008 usb_out_us=2024 usb_in_calls=0 usb_in_req=0 usb_in_done=0 usb_in_us=0 usb_event_calls=0 usb_event_req=0 usb_event_done=0 usb_event_us=0 usb_intr_calls=0 usb_intr_req=0 usb_intr_done=0 usb_intr_us=0 usb_timeouts=0 usb_failed=0
+t=995ms server SEND_SERVER_DONE cmd=inputs rc=0 bytes=270000 ms=6
+t=998ms bridge cmd=inputs seq=45 data_len=270000 out_len=0 ok=True ms=12
+t=998ms server command output 7672 /tmp/sentai_emu_tpu_send_payloads/output_46.bin
+t=1019ms server SEND_STATS cmd=output ok=1 ms=19 params_calls=0 params_bytes=0 input_calls=0 input_bytes=0 ins_calls=0 ins_bytes=0 usb_out_calls=0 usb_out_req=0 usb_out_done=0 usb_out_us=0 usb_in_calls=8 usb_in_req=7672 usb_in_done=7672 usb_in_us=19580 usb_event_calls=0 usb_event_req=0 usb_event_done=0 usb_event_us=0 usb_intr_calls=0 usb_intr_req=0 usb_intr_done=0 usb_intr_us=0 usb_timeouts=0 usb_failed=0
+t=1019ms server SEND_SERVER_DONE cmd=output rc=0 bytes=7672 ms=19
+t=1019ms bridge cmd=output seq=46 data_len=0 out_len=7672 ok=True ms=21
+t=1020ms server command output 176368 /tmp/sentai_emu_tpu_send_payloads/output_47.bin
+t=1029ms server SEND_STATS cmd=output ok=1 ms=7 params_calls=0 params_bytes=0 input_calls=0 input_bytes=0 ins_calls=0 ins_bytes=0 usb_out_calls=0 usb_out_req=0 usb_out_done=0 usb_out_us=0 usb_in_calls=174 usb_in_req=177712 usb_in_done=176368 usb_in_us=5997 usb_event_calls=0 usb_event_req=0 usb_event_done=0 usb_event_us=0 usb_intr_calls=0 usb_intr_req=0 usb_intr_done=0 usb_intr_us=0 usb_timeouts=0 usb_failed=0
+t=1029ms server SEND_SERVER_DONE cmd=output rc=0 bytes=176368 ms=7
+t=1031ms bridge cmd=output seq=47 data_len=0 out_len=176368 ok=True ms=11
+t=1032ms server command event
+t=1033ms server SEND_STATS cmd=event ok=1 ms=0 params_calls=0 params_bytes=0 input_calls=0 input_bytes=0 ins_calls=0 ins_bytes=0 usb_out_calls=0 usb_out_req=0 usb_out_done=0 usb_out_us=0 usb_in_calls=0 usb_in_req=0 usb_in_done=0 usb_in_us=0 usb_event_calls=1 usb_event_req=16 usb_event_done=16 usb_event_us=60 usb_intr_calls=0 usb_intr_req=0 usb_intr_done=0 usb_intr_us=0 usb_timeouts=0 usb_failed=0
+t=1033ms server SEND_SERVER_DONE cmd=event rc=0 bytes=0 ms=0
+t=1037ms bridge cmd=event seq=48 data_len=0 out_len=0 ok=True ms=5
+t=1055ms server command ins /tmp/sentai_emu_tpu_send_payloads/payload_49_ins.bin
+t=1063ms server SEND_STATS cmd=ins ok=1 ms=6 params_calls=0 params_bytes=0 input_calls=0 input_bytes=0 ins_calls=1 ins_bytes=254304 usb_out_calls=2 usb_out_req=254312 usb_out_done=254312 usb_out_us=1962 usb_in_calls=0 usb_in_req=0 usb_in_done=0 usb_in_us=0 usb_event_calls=0 usb_event_req=0 usb_event_done=0 usb_event_us=0 usb_intr_calls=0 usb_intr_req=0 usb_intr_done=0 usb_intr_us=0 usb_timeouts=0 usb_failed=0
+t=1063ms server SEND_SERVER_DONE cmd=ins rc=0 bytes=254304 ms=6
+t=1066ms bridge cmd=ins seq=49 data_len=254304 out_len=0 ok=True ms=11
+t=1068ms server command inputs /tmp/sentai_emu_tpu_send_payloads/payload_50_inputs.bin
+t=1075ms server SEND_STATS cmd=inputs ok=1 ms=6 params_calls=0 params_bytes=0 input_calls=1 input_bytes=270000 ins_calls=0 ins_bytes=0 usb_out_calls=2 usb_out_req=270008 usb_out_done=270008 usb_out_us=2089 usb_in_calls=0 usb_in_req=0 usb_in_done=0 usb_in_us=0 usb_event_calls=0 usb_event_req=0 usb_event_done=0 usb_event_us=0 usb_intr_calls=0 usb_intr_req=0 usb_intr_done=0 usb_intr_us=0 usb_timeouts=0 usb_failed=0
+t=1075ms server SEND_SERVER_DONE cmd=inputs rc=0 bytes=270000 ms=6
+t=1078ms bridge cmd=inputs seq=50 data_len=270000 out_len=0 ok=True ms=11
+t=1079ms server command output 7672 /tmp/sentai_emu_tpu_send_payloads/output_51.bin
+t=1099ms server SEND_STATS cmd=output ok=1 ms=19 params_calls=0 params_bytes=0 input_calls=0 input_bytes=0 ins_calls=0 ins_bytes=0 usb_out_calls=0 usb_out_req=0 usb_out_done=0 usb_out_us=0 usb_in_calls=8 usb_in_req=7672 usb_in_done=7672 usb_in_us=19627 usb_event_calls=0 usb_event_req=0 usb_event_done=0 usb_event_us=0 usb_intr_calls=0 usb_intr_req=0 usb_intr_done=0 usb_intr_us=0 usb_timeouts=0 usb_failed=0
+t=1100ms server SEND_SERVER_DONE cmd=output rc=0 bytes=7672 ms=19
+t=1100ms bridge cmd=output seq=51 data_len=0 out_len=7672 ok=True ms=21
+t=1101ms server command output 176368 /tmp/sentai_emu_tpu_send_payloads/output_52.bin
+t=1109ms server SEND_STATS cmd=output ok=1 ms=7 params_calls=0 params_bytes=0 input_calls=0 input_bytes=0 ins_calls=0 ins_bytes=0 usb_out_calls=0 usb_out_req=0 usb_out_done=0 usb_out_us=0 usb_in_calls=174 usb_in_req=177712 usb_in_done=176368 usb_in_us=6198 usb_event_calls=0 usb_event_req=0 usb_event_done=0 usb_event_us=0 usb_intr_calls=0 usb_intr_req=0 usb_intr_done=0 usb_intr_us=0 usb_timeouts=0 usb_failed=0
+t=1109ms server SEND_SERVER_DONE cmd=output rc=0 bytes=176368 ms=7
+t=1112ms bridge cmd=output seq=52 data_len=0 out_len=176368 ok=True ms=11
+t=1112ms server command event
+t=1113ms server SEND_STATS cmd=event ok=1 ms=0 params_calls=0 params_bytes=0 input_calls=0 input_bytes=0 ins_calls=0 ins_bytes=0 usb_out_calls=0 usb_out_req=0 usb_out_done=0 usb_out_us=0 usb_in_calls=0 usb_in_req=0 usb_in_done=0 usb_in_us=0 usb_event_calls=1 usb_event_req=16 usb_event_done=16 usb_event_us=37 usb_intr_calls=0 usb_intr_req=0 usb_intr_done=0 usb_intr_us=0 usb_timeouts=0 usb_failed=0
+t=1114ms server SEND_SERVER_DONE cmd=event rc=0 bytes=0 ms=0
+t=1118ms bridge cmd=event seq=53 data_len=0 out_len=0 ok=True ms=6

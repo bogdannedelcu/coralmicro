@@ -1,0 +1,15 @@
+
+SentAI EMU REPL B8.3
+MicroPython embed ready
+FS_REPL_BEGIN
+FS_FORMAT True
+FS_MKDIR True
+FS_WRITE True
+FS_APPEND True
+FS_SYNC True
+FS_SIZE 11
+FS_READ hello world
+FS_EXISTS True
+FS_LS [('a.txt', 1, 11)]
+FS_REPL_DONE
+>>>

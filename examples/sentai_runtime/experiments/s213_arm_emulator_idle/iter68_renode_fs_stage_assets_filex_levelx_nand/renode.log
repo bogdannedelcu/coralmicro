@@ -1,0 +1,69 @@
+13:52:34.2576 [INFO] Loaded monitor commands from: /home/bogdan/work/renode_portable/scripts/monitor.py
+Renode, version 1.16.1 (ac18b5ac-202606020225)
+
+
+(monitor) i $CWD/emu/renode/sentai_emu_fs_stage_assets.resc
+
+13:52:34.4002 [INFO] Including script(s): /home/bogdan/work/coralmicro/emu/renode/sentai_emu_fs_stage_assets.resc
+13:52:34.4193 [INFO] System bus created.
+13:52:35.3999 [INFO] Old file /home/bogdan/work/coralmicro/emu/output/sentai_emu_fs_stage_assets.log moved to /home/bogdan/work/coralmicro/emu/output/sentai_emu_fs_stage_assets.log.5
+13:52:35.4198 [INFO] sysbus: Loading block of 3072 bytes length at 0x0.
+13:52:35.4325 [INFO] sysbus: Loading block of 59524 bytes length at 0xC00.
+13:52:35.4326 [INFO] sysbus: Loading block of 604 bytes length at 0xF484.
+13:52:35.4326 [INFO] sysbus: Loading block of 87328 bytes length at 0xF6E8.
+13:52:35.4326 [INFO] sysbus: Loading block of 16777216 bytes length at 0x80000000.
+13:52:35.4575 [INFO] sysbus: Loading block of 54680 bytes length at 0x81000000.
+13:52:36.0002 [INFO] cpu: Setting initial values: PC = 0xCBD, SP = 0x20040000.
+13:52:36.0030 [INFO] machine-0: Machine started.
+13:52:36.0963 [WARNING] nvic: Unhandled write to offset 0xF50 (ICacheInvalidateAllToPoUaIgnored), value 0x0.
+13:52:36.1309 [WARNING] nvic: Trying to set the priority for interrupt 16 to 0xFF, but it should be maskable with 0xF0
+13:52:44.2428 [INFO] machine-0: Machine paused.
+sentai_emu_fs_stage_assets PC:
+
+0x392c
+
+sentai_emu_fs_stage_assets boot_state:
+
+0x00000700
+
+sentai_emu_fs_stage_assets heartbeat:
+
+0x000000C2
+
+sentai_emu_fs_stage_assets last_tick:
+
+0x0000134D
+
+sentai_emu_fs_stage_assets stage_files:
+
+0x00000003
+
+sentai_emu_fs_stage_assets stage_bytes:
+
+0x00000E18
+
+sentai_emu_fs_stage_assets stage_errors:
+
+0x00000000
+
+sentai_emu_fs_stage_assets stage_checksum:
+
+0x000449AF
+
+sentai_emu_fs_stage_assets fx_reads:
+
+0x00000675
+
+sentai_emu_fs_stage_assets fx_writes:
+
+0x000001BC
+
+sentai_emu_fs_stage_assets fx_erases:
+
+0x00000006
+
+sentai_emu_fs_stage_assets fx_errors:
+
+0x00000000
+
+(machine-0) 13:52:44.3229 [INFO] machine-0: Disposed.

@@ -1,0 +1,12 @@
+t=9ms file begin kind=1 expected_size=7077792 path=/tmp/sentai_emu_tpu_model.tflite
+t=2411ms file done kind=1 bytes=7077792 chunks=216 total_ms=2403 guest_read_ms=8 host_write_ms=32
+t=2415ms file begin kind=2 expected_size=921654 path=/tmp/sentai_emu_tpu_image.bmp
+t=2762ms file done kind=2 bytes=921654 chunks=29 total_ms=350 guest_read_ms=1 host_write_ms=1
+t=2765ms fps begin runs=5 warmup=1
+t=3538ms smoke TPU_BENCH_CONFIG perf=low desc_cache=0 chunk_size=163840 bulkin_chunk_size=256 bulkin_queue_depth=0 sleep_after_bulkin=0 async_input=0 zero_copy_input=1 multi_ep=0 break_short_bulkin=0 fast_sync_wait=0 runs=5 warmup=1
+t=3538ms smoke OK tpu_posix_invoke invoke_ms=74 custom_options=7045204 input_bytes=270000 output_bytes=182115 output_checksum=877b9c24 outputs=2 post=0
+t=3538ms smoke FPS_BENCH runs=5 warmup=1 completed=5 measured_ms=388 fps_x100=1288 invoke_ms_sum=374 invoke_ms_min=72 invoke_ms_max=79 detections=20
+t=3539ms smoke TPU_STAGE_STATS params_calls=0 params_bytes=0 params_ticks=0 ins_calls=5 ins_bytes=1271520 ins_ticks=47 input_calls=5 input_bytes=1350000 input_ticks=46 output_calls=10 output_bytes=920200 output_ticks=281 event_calls=5 event_ticks=0
+t=3539ms smoke TPU_CALL_STATS send_params_calls=0 send_params_bytes=0 send_ins_calls=5 send_ins_bytes=1271520 send_inputs_calls=5 send_inputs_bytes=1350000
+t=3539ms smoke TPU_DESC_CACHE_STATS sent_params=0 sent_ins=5 skip_params=0 skip_ins=0
+t=3559ms fps ok completed_runs=5 fps_x100=1288 detection_count=20 parsed_detections=20 host_ms=770 measured_ms=388 invoke_ms_sum=374

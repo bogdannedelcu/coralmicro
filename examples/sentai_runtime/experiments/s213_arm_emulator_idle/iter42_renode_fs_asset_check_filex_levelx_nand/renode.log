@@ -1,0 +1,44 @@
+07:07:56.1103 [INFO] Loaded monitor commands from: /home/bogdan/work/renode_portable/scripts/monitor.py
+Renode, version 1.16.1 (ac18b5ac-202606020225)
+
+
+(monitor) i $CWD/emu/renode/sentai_emu_fs_asset_check.resc
+
+07:07:56.2457 [INFO] Including script(s): /home/bogdan/work/coralmicro/emu/renode/sentai_emu_fs_asset_check.resc
+07:07:56.2630 [INFO] System bus created.
+07:07:57.1562 [INFO] sysbus: Loading block of 3072 bytes length at 0x0.
+07:07:57.1675 [INFO] sysbus: Loading block of 225936 bytes length at 0xC00.
+07:07:57.1677 [INFO] sysbus: Loading block of 169640 bytes length at 0x37E90.
+07:07:57.1680 [INFO] sysbus: Loading block of 16777216 bytes length at 0x80000000.
+07:07:57.1888 [INFO] sysbus: Loading block of 54680 bytes length at 0x81000000.
+07:07:57.6646 [INFO] cpu: Setting initial values: PC = 0xCBD, SP = 0x20040000.
+07:07:57.6672 [INFO] machine-0: Machine started.
+07:07:57.7503 [WARNING] nvic: Unhandled write to offset 0xF50 (ICacheInvalidateAllToPoUaIgnored), value 0x0.
+07:07:57.7750 [WARNING] nvic: Trying to set the priority for interrupt 16 to 0xFF, but it should be maskable with 0xF0
+07:09:43.3804 [INFO] machine-0: Machine paused.
+sentai_emu_fs_asset_check PC:
+
+0x1ce6
+
+sentai_emu_fs_asset_check boot_state:
+
+0x00000500
+
+sentai_emu_fs_asset_check heartbeat:
+
+0x00000001
+
+sentai_emu_fs_asset_check repl_lines:
+
+0x00000001
+
+sentai_emu_fs_asset_check last_tick:
+
+0x00000024
+
+sentai_emu_fs_asset_check fs_smoke_ok:
+
+There was an error executing command 'sysbus GetSymbolAddress "g_sentai_emu_fs_smoke_ok"'
+Could not find any address for symbol: g_sentai_emu_fs_smoke_ok
+
+(machine-0) 07:09:43.4486 [INFO] machine-0: Disposed.

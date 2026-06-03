@@ -1,0 +1,7 @@
+SentAI EMU FX storage boot
+SentAI EMU FX storage smoke start
+FX_STORAGE PASS
+FX_STORAGE size=0x00000029
+FX_STORAGE reads=0x000000CC
+FX_STORAGE writes=0x00000096
+FX_STORAGE erases=0x000001C0

@@ -1,0 +1,10 @@
+
+SentAI EMU USBHOST PROBE B8.8 P1
+step 1: about to construct UsbHostTask
+step 2: UsbHostTask constructor returned
+step 3: about to call UsbHostTask::Init
+step 4: UsbHostTask::Init returned
+step 6: about to construct EdgeTpuManager
+step 7: EdgeTpuManager singleton returned
+step 5: starting scheduler
+heartbeat task online

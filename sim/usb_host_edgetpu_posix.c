@@ -51,11 +51,22 @@ typedef struct {
   transfer_callback_t cb;
   void *cb_param;
   uint8_t *buffer;
+  uint8_t ep;
+  uint8_t kind;
+  uint32_t requested;
+  uint64_t started_us;
   SemaphoreHandle_t done;
   volatile int completed;
   volatile usb_status_t status;
   volatile uint32_t transferred;
 } posix_transfer_ctx_t;
+
+enum {
+  kPosixXferOut = 0,
+  kPosixXferIn = 1,
+  kPosixXferEvent = 2,
+  kPosixXferIntr = 3,
+};
 
 static posix_transfer_ctx_t s_async_pool[EDGETPU_ASYNC_POOL_SIZE];
 static StaticTask_t s_event_task_tcb;
@@ -65,8 +76,130 @@ static libusb_context *s_event_usb_ctx;
 static volatile int s_event_task_running;
 static uint8_t s_control_buf[LIBUSB_CONTROL_SETUP_SIZE + EDGETPU_CONTROL_MAX_DATA];
 extern volatile uint8_t g_sentai_tpu_trace;
+volatile int g_sentai_tpu_posix_fast_sync_wait = 0;
+volatile uint32_t g_sentai_tpu_posix_usb_out_calls = 0;
+volatile uint64_t g_sentai_tpu_posix_usb_out_req = 0;
+volatile uint64_t g_sentai_tpu_posix_usb_out_done = 0;
+volatile uint64_t g_sentai_tpu_posix_usb_out_us = 0;
+volatile uint32_t g_sentai_tpu_posix_usb_out_short = 0;
+volatile uint32_t g_sentai_tpu_posix_usb_in_calls = 0;
+volatile uint64_t g_sentai_tpu_posix_usb_in_req = 0;
+volatile uint64_t g_sentai_tpu_posix_usb_in_done = 0;
+volatile uint64_t g_sentai_tpu_posix_usb_in_us = 0;
+volatile uint32_t g_sentai_tpu_posix_usb_in_short = 0;
+volatile uint32_t g_sentai_tpu_posix_usb_event_calls = 0;
+volatile uint64_t g_sentai_tpu_posix_usb_event_req = 0;
+volatile uint64_t g_sentai_tpu_posix_usb_event_done = 0;
+volatile uint64_t g_sentai_tpu_posix_usb_event_us = 0;
+volatile uint32_t g_sentai_tpu_posix_usb_event_short = 0;
+volatile uint32_t g_sentai_tpu_posix_usb_intr_calls = 0;
+volatile uint64_t g_sentai_tpu_posix_usb_intr_req = 0;
+volatile uint64_t g_sentai_tpu_posix_usb_intr_done = 0;
+volatile uint64_t g_sentai_tpu_posix_usb_intr_us = 0;
+volatile uint32_t g_sentai_tpu_posix_usb_intr_short = 0;
+volatile uint32_t g_sentai_tpu_posix_usb_timeouts = 0;
+volatile uint32_t g_sentai_tpu_posix_usb_failed = 0;
 
 static void posix_sleep_ms(unsigned ms);
+static uint64_t monotonic_us(void);
+
+void sentai_tpu_posix_usb_stats_reset(void) {
+  g_sentai_tpu_posix_usb_out_calls = 0;
+  g_sentai_tpu_posix_usb_out_req = 0;
+  g_sentai_tpu_posix_usb_out_done = 0;
+  g_sentai_tpu_posix_usb_out_us = 0;
+  g_sentai_tpu_posix_usb_out_short = 0;
+  g_sentai_tpu_posix_usb_in_calls = 0;
+  g_sentai_tpu_posix_usb_in_req = 0;
+  g_sentai_tpu_posix_usb_in_done = 0;
+  g_sentai_tpu_posix_usb_in_us = 0;
+  g_sentai_tpu_posix_usb_in_short = 0;
+  g_sentai_tpu_posix_usb_event_calls = 0;
+  g_sentai_tpu_posix_usb_event_req = 0;
+  g_sentai_tpu_posix_usb_event_done = 0;
+  g_sentai_tpu_posix_usb_event_us = 0;
+  g_sentai_tpu_posix_usb_event_short = 0;
+  g_sentai_tpu_posix_usb_intr_calls = 0;
+  g_sentai_tpu_posix_usb_intr_req = 0;
+  g_sentai_tpu_posix_usb_intr_done = 0;
+  g_sentai_tpu_posix_usb_intr_us = 0;
+  g_sentai_tpu_posix_usb_intr_short = 0;
+  g_sentai_tpu_posix_usb_timeouts = 0;
+  g_sentai_tpu_posix_usb_failed = 0;
+}
+
+static void add_u32(volatile uint32_t *dst, uint32_t value) {
+  __sync_fetch_and_add(dst, value);
+}
+
+static void add_u64(volatile uint64_t *dst, uint64_t value) {
+  __sync_fetch_and_add(dst, value);
+}
+
+static uint8_t transfer_kind(const usb_host_edgetpu_instance_t *inst,
+                             uint8_t ep) {
+  if (!(ep & LIBUSB_ENDPOINT_IN)) return kPosixXferOut;
+  if (inst && inst->interrupt_in_ep && ep == inst->interrupt_in_ep) {
+    return kPosixXferIntr;
+  }
+  if ((ep & 0x0f) == 2) return kPosixXferEvent;
+  return kPosixXferIn;
+}
+
+static void stats_submit(uint8_t kind, uint32_t requested) {
+  switch (kind) {
+    case kPosixXferOut:
+      add_u32(&g_sentai_tpu_posix_usb_out_calls, 1);
+      add_u64(&g_sentai_tpu_posix_usb_out_req, requested);
+      break;
+    case kPosixXferEvent:
+      add_u32(&g_sentai_tpu_posix_usb_event_calls, 1);
+      add_u64(&g_sentai_tpu_posix_usb_event_req, requested);
+      break;
+    case kPosixXferIntr:
+      add_u32(&g_sentai_tpu_posix_usb_intr_calls, 1);
+      add_u64(&g_sentai_tpu_posix_usb_intr_req, requested);
+      break;
+    case kPosixXferIn:
+    default:
+      add_u32(&g_sentai_tpu_posix_usb_in_calls, 1);
+      add_u64(&g_sentai_tpu_posix_usb_in_req, requested);
+      break;
+  }
+}
+
+static void stats_complete(uint8_t kind, uint32_t requested, uint32_t actual,
+                           usb_status_t status, uint64_t elapsed_us) {
+  const int short_xfer = status == kStatus_USB_Success && actual < requested;
+  if (status == kStatus_USB_TransferFailed) {
+    add_u32(&g_sentai_tpu_posix_usb_timeouts, 1);
+  } else if (status != kStatus_USB_Success) {
+    add_u32(&g_sentai_tpu_posix_usb_failed, 1);
+  }
+  switch (kind) {
+    case kPosixXferOut:
+      add_u64(&g_sentai_tpu_posix_usb_out_done, actual);
+      add_u64(&g_sentai_tpu_posix_usb_out_us, elapsed_us);
+      if (short_xfer) add_u32(&g_sentai_tpu_posix_usb_out_short, 1);
+      break;
+    case kPosixXferEvent:
+      add_u64(&g_sentai_tpu_posix_usb_event_done, actual);
+      add_u64(&g_sentai_tpu_posix_usb_event_us, elapsed_us);
+      if (short_xfer) add_u32(&g_sentai_tpu_posix_usb_event_short, 1);
+      break;
+    case kPosixXferIntr:
+      add_u64(&g_sentai_tpu_posix_usb_intr_done, actual);
+      add_u64(&g_sentai_tpu_posix_usb_intr_us, elapsed_us);
+      if (short_xfer) add_u32(&g_sentai_tpu_posix_usb_intr_short, 1);
+      break;
+    case kPosixXferIn:
+    default:
+      add_u64(&g_sentai_tpu_posix_usb_in_done, actual);
+      add_u64(&g_sentai_tpu_posix_usb_in_us, elapsed_us);
+      if (short_xfer) add_u32(&g_sentai_tpu_posix_usb_in_short, 1);
+      break;
+  }
+}
 
 static posix_transfer_ctx_t *alloc_async_ctx(void) {
   for (int i = 0; i < EDGETPU_ASYNC_POOL_SIZE; ++i) {
@@ -113,6 +246,9 @@ static void posix_transfer_cb(struct libusb_transfer *transfer) {
   if (transfer->status == LIBUSB_TRANSFER_TIMED_OUT) st = kStatus_USB_TransferFailed;
   if (transfer->status == LIBUSB_TRANSFER_CANCELLED) st = kStatus_USB_Error;
   if (ctx) {
+    stats_complete(ctx->kind, ctx->requested,
+                   (uint32_t)transfer->actual_length, st,
+                   monotonic_us() - ctx->started_us);
     ctx->status = st;
     ctx->transferred = (uint32_t)transfer->actual_length;
     ctx->completed = 1;
@@ -179,9 +315,14 @@ static usb_status_t submit_transfer(usb_host_edgetpu_instance_t *inst,
   ctx->cb = callbackFn;
   ctx->cb_param = callbackParam;
   ctx->buffer = buffer;
+  ctx->ep = ep;
+  ctx->kind = transfer_kind(inst, ep);
+  ctx->requested = length;
+  ctx->started_us = monotonic_us();
   ctx->status = kStatus_USB_Error;
   ctx->transferred = 0;
   ctx->completed = 0;
+  stats_submit(ctx->kind, length);
 
   if (inst->interrupt_in_ep && ep == inst->interrupt_in_ep) {
     libusb_fill_interrupt_transfer(transfer, inst->dev, ep, buffer,
@@ -208,6 +349,7 @@ static usb_status_t submit_transfer(usb_host_edgetpu_instance_t *inst,
                 rc, ep, (unsigned long)length);
   }
   if (rc != 0) {
+    add_u32(&g_sentai_tpu_posix_usb_failed, 1);
     free_async_ctx(ctx);
     libusb_free_transfer(transfer);
     return usb_status_from_libusb(rc);
@@ -225,6 +367,10 @@ static usb_status_t submit_transfer(usb_host_edgetpu_instance_t *inst,
   while (!ctx->completed) {
     pump_libusb_once(inst->usb_ctx);
     (void)xSemaphoreTake(sema, 0);
+    if (ctx->completed &&
+        (g_sentai_tpu_posix_fast_sync_wait || (ep & LIBUSB_ENDPOINT_IN))) {
+      break;
+    }
     if (monotonic_us() >= deadline_us) break;
     posix_sleep_ms(1);
   }

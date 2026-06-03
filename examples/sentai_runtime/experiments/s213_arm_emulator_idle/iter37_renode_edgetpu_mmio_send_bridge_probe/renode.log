@@ -1,0 +1,68 @@
+22:37:43.9000 [INFO] Loaded monitor commands from: /home/bogdan/work/renode_portable/scripts/monitor.py
+Renode, version 1.16.1 (ac18b5ac-202606020225)
+
+
+(monitor) i $CWD/emu/renode/sentai_emu_edgetpu_mmio_send_bridge_probe.resc
+
+22:37:44.0205 [INFO] Including script(s): /home/bogdan/work/coralmicro/emu/renode/sentai_emu_edgetpu_mmio_send_bridge_probe.resc
+22:37:44.0359 [INFO] System bus created.
+22:37:44.8409 [INFO] sysbus: Loading block of 3072 bytes length at 0x0.
+22:37:44.8529 [INFO] sysbus: Loading block of 56824 bytes length at 0xC00.
+22:37:44.8530 [INFO] sysbus: Loading block of 488 bytes length at 0xE9F8.
+22:37:44.8530 [INFO] sysbus: Loading block of 10624 bytes length at 0xEC00.
+22:37:44.8530 [INFO] sysbus: Loading block of 8192 bytes length at 0x20000000.
+22:37:44.8530 [INFO] sysbus: Loading block of 16777216 bytes length at 0x80000000.
+22:37:45.4254 [INFO] cpu: Setting initial values: PC = 0xCBD, SP = 0x20040000.
+22:37:45.4279 [INFO] machine-0: Machine started.
+22:37:45.5230 [WARNING] nvic: Unhandled write to offset 0xF50 (ICacheInvalidateAllToPoUaIgnored), value 0x0.
+22:37:45.5594 [WARNING] nvic: Trying to set the priority for interrupt 16 to 0xFF, but it should be maskable with 0xF0
+22:37:48.4307 [INFO] machine-0: Machine paused.
+sentai_emu_edgetpu_mmio_send_bridge_probe PC:
+
+0x70dc
+
+sentai_emu_edgetpu_mmio_send_bridge_probe boot_state:
+
+0x00000600
+
+sentai_emu_edgetpu_mmio_send_bridge_probe step:
+
+0x0000001E
+
+sentai_emu_edgetpu_mmio_send_bridge_probe heartbeat:
+
+0x00000129
+
+sentai_emu_edgetpu_mmio_send_bridge_probe last_tick:
+
+0x00000B90
+
+sentai_emu_edgetpu_mmio_send_bridge_probe tpu_bridge_params_calls:
+
+0x00000001
+
+sentai_emu_edgetpu_mmio_send_bridge_probe tpu_bridge_input_calls:
+
+0x00000001
+
+sentai_emu_edgetpu_mmio_send_bridge_probe tpu_bridge_ins_calls:
+
+0x00000001
+
+sentai_emu_edgetpu_mmio_send_bridge_probe tpu_bridge_output_calls:
+
+0x00000001
+
+sentai_emu_edgetpu_mmio_send_bridge_probe tpu_bridge_event_calls:
+
+0x00000001
+
+sentai_emu_edgetpu_mmio_send_bridge_probe tpu_bridge_last_result:
+
+0x00000000
+
+sentai_emu_edgetpu_mmio_send_bridge_probe tpu_bridge_output_sum:
+
+0x00000A78
+
+(machine-0) 22:37:48.5067 [INFO] machine-0: Disposed.

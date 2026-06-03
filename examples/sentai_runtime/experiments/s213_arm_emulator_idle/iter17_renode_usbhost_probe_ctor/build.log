@@ -1,0 +1,12 @@
+[  0%] Building CXX object emu/CMakeFiles/sentai_emu_usbhost_probe.dir/sentai_emu_usbhost_probe.cc.obj
+[  0%] Building C object emu/CMakeFiles/sentai_emu_usbhost_probe.dir/sentai_emu_usb_stubs.c.obj
+cc1plus: warning: command line option '-Wno-old-style-definition' is valid for C/ObjC but not for C++
+cc1plus: warning: command line option '-Wno-missing-prototypes' is valid for C/ObjC but not for C++
+/home/bogdan/work/coralmicro/emu/sentai_emu_usbhost_probe.cc:51:13: warning: '{anonymous}::g_heartbeat_stack' defined but not used [-Wunused-variable]
+   51 | StackType_t g_heartbeat_stack[kHeartbeatStackWords] __attribute__((aligned(8)));
+      |             ^~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/emu/sentai_emu_usbhost_probe.cc:50:14: warning: '{anonymous}::g_heartbeat_tcb' defined but not used [-Wunused-variable]
+   50 | StaticTask_t g_heartbeat_tcb;
+      |              ^~~~~~~~~~~~~~~
+[  0%] Linking CXX executable sentai_emu_usbhost_probe
+[100%] Built target sentai_emu_usbhost_probe

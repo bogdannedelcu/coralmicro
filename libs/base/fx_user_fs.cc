@@ -588,6 +588,30 @@ extern "C" size_t FxUserReadFile(const char* path, uint8_t* buf, size_t size) {
     return (size_t)actual;
 }
 
+extern "C" size_t FxUserReadFileAt(const char* path, uint32_t offset,
+                                    uint8_t* buf, size_t size) {
+    if (!g_mounted || path == nullptr || buf == nullptr || size == 0) return 0;
+    LockGuard guard;
+    if (!guard.held) return 0;
+
+    FX_FILE f;
+    UINT fx = fx_file_open(&g_fx_media, &f, (CHAR*)path, FX_OPEN_FOR_READ);
+    if (fx != FX_SUCCESS) return 0;
+    fx = fx_file_seek(&f, (ULONG)offset);
+    if (fx != FX_SUCCESS) {
+        (void)fx_file_close(&f);
+        return 0;
+    }
+    ULONG actual = 0;
+    fx = fx_file_read(&f, buf, (ULONG)size, &actual);
+    (void)fx_file_close(&f);
+    if (fx != FX_SUCCESS && fx != FX_END_OF_FILE) {
+        SERR_LOG(SERR_LFX_FILE_READ, fx);
+        return 0;
+    }
+    return (size_t)actual;
+}
+
 extern "C" int FxUserWriteFile(const char* path, const uint8_t* buf,
                                 size_t size) {
     if (!g_mounted || path == nullptr) return 0;

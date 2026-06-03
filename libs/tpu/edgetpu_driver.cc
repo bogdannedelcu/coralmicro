@@ -51,8 +51,9 @@ void sentai_sim_host_sleep_1ms() {
 //   IN  1, 2    — bulk IN , 512-byte packets
 //   IN  3       — interrupt, 64-byte packets
 // The default driver path sends ALL bulk OUT traffic (params, instructions,
-// inputs) on a single endpoint and reads outputs + events on EP 2.  When
-// per-tag routing is enabled (g_sentai_tpu_multi_ep_routing=1) we spread
+// inputs) on a single endpoint, reads output activations on bulk-IN EP1, and
+// reads events on bulk-IN EP2.  When per-tag routing is enabled
+// (g_sentai_tpu_multi_ep_routing=1) we spread
 // the OUT queues across EP 1..3 and let the TPU's multi_bo_ep=1 CSR route
 // each to its matching on-chip FIFO — this is the precondition for later
 // concurrent URB submission.
@@ -141,6 +142,8 @@ static void InitBulkSema() {
 }
 
 #ifdef SENTAI_PLATFORM_SIM
+extern "C" volatile uint32_t g_sentai_tpu_sim_outfeed_chunk_length;
+
 static void SimSleepUs(long us) {
   struct timespec ts;
   ts.tv_sec = us / 1000000L;
@@ -350,9 +353,19 @@ bool TpuDriver::Initialize(usb_host_edgetpu_instance_t *usb_instance,
   // NB: 0x20 (256 B) is required on NXP RT1176 EHCI — empirically tested
   // 0x80 (1 KB) which broke bulk-in reads entirely (0 frames through
   // pipeline).  libedgetpu (driver/usb/usb_driver.cc:349-374) documents
-  // this as a b/73181174 "short packet" workaround; our host controller
-  // evidently needs it.  Keeping 0x20 matches the shipped behaviour.
+  // this as a b/73181174 "short packet" workaround.  The POSIX/libusb bridge
+  // can opt into libedgetpu's forced-largest chunk path for host-side sweeps,
+  // while ARM keeps the conservative shipped value.
+#ifdef SENTAI_PLATFORM_SIM
+  uint32_t outfeed_chunk_length = g_sentai_tpu_sim_outfeed_chunk_length;
+  if (outfeed_chunk_length != 0x20 && outfeed_chunk_length != 0x80) {
+    outfeed_chunk_length = 0x20;
+  }
+  CHECK(Write64(chip_config_.GetUsbCsrOffsets().outfeed_chunk_length,
+                outfeed_chunk_length));
+#else
   CHECK(Write64(chip_config_.GetUsbCsrOffsets().outfeed_chunk_length, 0x20));
+#endif
 
   uint32_t omc0_d0_reg, omc0_d8_reg, omc0_dc_reg;
 
@@ -567,35 +580,27 @@ extern "C" void sentai_tpu_zero_copy_input_set(int v) { g_sentai_tpu_zero_copy_i
 // DMA + cache-line boundary.
 static uint8_t s_bulk_staging[32 * 1024] __attribute__((aligned(32)));
 
-// sentai: runtime-tunable bulk chunk size for fast A/B sweeps
-// without reflashing.  Default 64 KB (empirical V11 sweet spot).
-// Range enforced at the use site: clamped to [4 KB, 160 KB].  160 KB
-// is the hard ceiling from USB_HOST_CONFIG_EHCI_MAX_QTD=16 × 16 KB
-// data-per-QTD (see NXP fsl_usb_host_ehci.c:2052 and our
-// usb_host_config.h comment).
-// 33 KB default — empirical sweet spot found 2026-04-22 via a sweep
-// of 4..160 KB on this YOLO 512 workload.  Below ~36 KB the invoke
-// completes in ~14 ms; at 38 KB and above it jumps to ~37 ms (a
-// ~2.5× cliff).  Hypothesis: the EdgeTPU's bulk-OUT receive FIFO
-// is ~32-36 KB; URBs that fit inside let the TPU stream them into
-// its inference pipe without back-pressure, while larger URBs
-// stall the USB while the FIFO drains.  33 KB (33792 B) was the
-// specific minimum in the sweep — see agent/experiment.md for the
-// full table.
-// 2026-04-22 re-sweep with OCRAM tensor: 36 KB (36864 B) slightly
-// beats the old 33 KB sweet spot — 76 FPS vs 73 FPS on yolo_1.
-// Cliff still at 36→40 KB (drops to ~27 FPS), confirming the TPU
-// bulk-OUT FIFO is ~36 KB.  36 KB is the largest URB that still
-// fits the FIFO without back-pressure.
+// sentai: runtime-tunable bulk-OUT chunk size for fast A/B sweeps without
+// reflashing.  ARM keeps the 36 KB value found by the 2026-04-22 hardware
+// sweep.  SIM/POSIX uses a larger libusb-friendly default, validated on the
+// COCO cat smoke at 19+ FPS after parameter warmup.
+// Range is clamped to [4 KB, 160 KB] on ARM.  SIM/POSIX can sweep up to the
+// libedgetpu default 1 MB bulk-out transfer size because it uses libusb
+// zero-copy buffers rather than the ARM EHCI/OCRAM staging constraints.
 #ifdef SENTAI_PLATFORM_SIM
-extern "C" volatile uint32_t g_sentai_tpu_chunk_size = 16 * 1024;
+extern "C" volatile uint32_t g_sentai_tpu_chunk_size =
+    160 * 1024;
 #else
 extern "C" volatile uint32_t g_sentai_tpu_chunk_size = 36 * 1024;
 #endif
 extern "C" uint32_t sentai_tpu_chunk_size_get(void) { return g_sentai_tpu_chunk_size; }
 extern "C" void     sentai_tpu_chunk_size_set(uint32_t n) {
     if (n < 4096) n = 4096;
+#ifdef SENTAI_PLATFORM_SIM
+    if (n > 1024 * 1024) n = 1024 * 1024;
+#else
     if (n > 160 * 1024) n = 160 * 1024;
+#endif
     g_sentai_tpu_chunk_size = n;
 }
 
@@ -939,6 +944,131 @@ extern "C" void     sentai_tpu_urb_timeout_ms_set(uint32_t n) {
 extern "C" volatile uint32_t g_sentai_tpu_urb_cancelled = 0;
 extern "C" volatile uint32_t g_sentai_tpu_urb_cancel_no_cb = 0;
 extern "C" volatile uint8_t g_sentai_tpu_trace;
+extern "C" volatile int g_sentai_tpu_sim_break_on_short_bulkin = 0;
+extern "C" volatile uint32_t g_sentai_tpu_sim_bulkin_chunk_size = 256;
+extern "C" volatile uint32_t g_sentai_tpu_sim_outfeed_chunk_length = 0x20;
+extern "C" volatile int g_sentai_tpu_sim_sleep_after_bulkin = 0;
+extern "C" volatile uint32_t g_sentai_tpu_sim_bulkin_queue_depth = 0;
+
+#ifdef SENTAI_PLATFORM_SIM
+constexpr int kSimBulkInMaxQueueDepth = 32;
+constexpr uint32_t kSimBulkInMaxChunkSize = 1024;
+
+struct SimBulkInSlot {
+  StaticSemaphore_t sema_mem;
+  SemaphoreHandle_t sema;
+  volatile usb_status_t status;
+  volatile uint32_t requested;
+  volatile uint32_t actual;
+};
+
+static SimBulkInSlot s_sim_bulkin_slots[kSimBulkInMaxQueueDepth];
+static uint8_t s_sim_bulkin_buffers[kSimBulkInMaxQueueDepth]
+                                   [kSimBulkInMaxChunkSize]
+    __attribute__((aligned(32)));
+static volatile int s_sim_bulkin_slots_ready = 0;
+
+static void InitSimBulkInSlots(void) {
+  if (s_sim_bulkin_slots_ready) return;
+  for (int i = 0; i < kSimBulkInMaxQueueDepth; ++i) {
+    s_sim_bulkin_slots[i].sema =
+        xSemaphoreCreateBinaryStatic(&s_sim_bulkin_slots[i].sema_mem);
+    s_sim_bulkin_slots[i].status = kStatus_USB_Error;
+    s_sim_bulkin_slots[i].requested = 0;
+    s_sim_bulkin_slots[i].actual = 0;
+  }
+  s_sim_bulkin_slots_ready = 1;
+}
+
+static void SimBulkInCallback(void *param, uint8_t *, uint32_t data_length,
+                              usb_status_t status) {
+  SimBulkInSlot *slot = static_cast<SimBulkInSlot *>(param);
+  if (!slot) return;
+  slot->actual = data_length;
+  slot->status = status;
+  if (slot->sema) xSemaphoreGive(slot->sema);
+}
+
+static bool SimBulkInTransferQueued(usb_host_edgetpu_instance_t *usb,
+                                    uint8_t endpoint,
+                                    uint8_t *dst,
+                                    uint32_t data_length,
+                                    uint32_t chunk_size,
+                                    uint32_t queue_depth) {
+  if (!usb || !dst || data_length == 0) return data_length == 0;
+  if (chunk_size == 0 || chunk_size > kSimBulkInMaxChunkSize) return false;
+  if (queue_depth > kSimBulkInMaxQueueDepth) {
+    queue_depth = kSimBulkInMaxQueueDepth;
+  }
+  if (queue_depth < 2) return false;
+  InitSimBulkInSlots();
+
+  uint32_t completed = 0;
+  uint32_t inflight_requested = 0;
+  uint32_t active = 0;
+  uint32_t submit_idx = 0;
+  uint32_t consume_idx = 0;
+
+  auto submit_one = [&]() -> bool {
+    if (completed + inflight_requested >= data_length) return true;
+    SimBulkInSlot *slot = &s_sim_bulkin_slots[submit_idx];
+    if (!slot->sema) return false;
+    while (xSemaphoreTake(slot->sema, 0) == pdTRUE) {}
+    const uint32_t remaining = data_length - completed - inflight_requested;
+    const uint32_t request = std::min<uint32_t>(chunk_size, remaining);
+    slot->requested = request;
+    slot->actual = 0;
+    slot->status = kStatus_USB_Error;
+    usb_status_t st = USB_HostEdgeTpuBulkInRecvAsync(
+        usb, endpoint, s_sim_bulkin_buffers[submit_idx], request,
+        SimBulkInCallback, slot);
+    if (st != kStatus_USB_Success) return false;
+    inflight_requested += request;
+    ++active;
+    submit_idx = (submit_idx + 1) % queue_depth;
+    return true;
+  };
+
+  while (active < queue_depth && completed + inflight_requested < data_length) {
+    if (!submit_one()) return false;
+  }
+
+  while (completed < data_length) {
+    if (active == 0) {
+      if (!submit_one()) return false;
+      continue;
+    }
+    SimBulkInSlot *slot = &s_sim_bulkin_slots[consume_idx];
+    if (xSemaphoreTake(slot->sema, pdMS_TO_TICKS(2000)) == pdFALSE) {
+      return false;
+    }
+    --active;
+    if (inflight_requested >= slot->requested) {
+      inflight_requested -= slot->requested;
+    } else {
+      inflight_requested = 0;
+    }
+    const usb_status_t status = slot->status;
+    const uint32_t actual = slot->actual;
+    if (actual == 0) return false;
+    if (status != kStatus_USB_Success &&
+        !(status == kStatus_USB_TransferFailed &&
+          actual > 0 && actual < slot->requested)) {
+      return false;
+    }
+    const uint32_t copy_n =
+        std::min<uint32_t>(actual, data_length - completed);
+    memcpy(dst + completed, s_sim_bulkin_buffers[consume_idx], copy_n);
+    completed += copy_n;
+    consume_idx = (consume_idx + 1) % queue_depth;
+    while (active < queue_depth &&
+           completed + inflight_requested < data_length) {
+      if (!submit_one()) return false;
+    }
+  }
+  return true;
+}
+#endif
 
 __attribute__((noinline, cold, section(".sdram_text")))
 static void trace_bulkout(char where, uint32_t v1, uint32_t v2) {
@@ -1047,20 +1177,14 @@ ssize_t TpuDriver::BulkOutTransferInternal(uint8_t endpoint,
 // so cache coherency is handled for arbitrary source regions —
 // we can submit directly from the flatbuffer in SDRAM (cacheable).
 //
-// Chunk cap is now the legacy uint16_t length arg = 64 KB - 1.
-// (A later pass can widen USB_HostEdgeTpuBulkOutSend to uint32_t to
-// push chunks even higher.)  At 40 MB/s effective wire rate and
-// ~100 µs per-URB submit overhead, going from 32 KB → 64 KB chunks
-// halves the number of URBs for the ~786 KB input transfer: 24 →
-// 12 submissions, shaving ~12 × 100 µs = 1.2 ms extra.
+// Larger chunks reduce per-URB host overhead on the POSIX/libusb bridge.  ARM
+// remains tuned separately via g_sentai_tpu_chunk_size's non-SIM default.
 bool TpuDriver::BulkOutTransfer(uint8_t endpoint,
                                 const uint8_t *data,
                                 uint32_t data_length) const {
   const uint8_t *current_chunk = data;
   uint32_t bytes_left = data_length;
-  // Runtime-tunable chunk size via g_sentai_tpu_chunk_size (MP:
-  // sentai.diag.tpu_chunk_size(n)).  Default 64 KB.  Snapshot once
-  // at loop entry so mid-transfer reconfiguration can't split a
+  // Snapshot once at loop entry so mid-transfer reconfiguration cannot split a
   // URB unevenly.
   uint32_t kChunk = g_sentai_tpu_chunk_size;
 
@@ -1204,11 +1328,21 @@ ssize_t TpuDriver::BulkInTransferInternal(uint8_t endpoint, uint8_t *data,
 bool TpuDriver::BulkInTransfer(uint8_t *data, uint32_t data_length) const {
   uint8_t *current_chunk = data;
   uint32_t bytes_left = data_length;
-  // Runtime-tunable chunk size via g_sentai_tpu_chunk_size (MP:
-  // sentai.diag.tpu_chunk_size(n)).  Default 64 KB.  Snapshot once
-  // at loop entry so mid-transfer reconfiguration can't split a
-  // URB unevenly.
+  // Snapshot once at loop entry so mid-transfer reconfiguration cannot split a
+  // URB unevenly.  SIM overrides bulk-IN to 256B by default, matching the
+  // libedgetpu USB2 policy.
   uint32_t kChunk = g_sentai_tpu_chunk_size;  // see BulkOutTransfer
+#ifdef SENTAI_PLATFORM_SIM
+  if (g_sentai_tpu_sim_bulkin_chunk_size > 0) {
+    kChunk = g_sentai_tpu_sim_bulkin_chunk_size;
+  }
+  if (g_sentai_tpu_sim_bulkin_queue_depth > 1 &&
+      kChunk <= kSimBulkInMaxChunkSize) {
+    return SimBulkInTransferQueued(
+        usb_instance_, kSingleBulkOutEndpoint, data, data_length, kChunk,
+        g_sentai_tpu_sim_bulkin_queue_depth);
+  }
+#endif
   while (bytes_left > 0) {
     uint32_t chunk_size = std::min<uint32_t>(kChunk, bytes_left);
     ssize_t bytes_received = BulkInTransferInternal(
@@ -1217,16 +1351,23 @@ bool TpuDriver::BulkInTransfer(uint8_t *data, uint32_t data_length) const {
       current_chunk += bytes_received;
       bytes_left    -= (uint32_t)bytes_received;
 #ifdef SENTAI_PLATFORM_SIM
-      sentai_sim_host_sleep_1ms();
+      if (g_sentai_tpu_sim_sleep_after_bulkin) {
+        sentai_sim_host_sleep_1ms();
+      }
+      if ((uint32_t)bytes_received < chunk_size &&
+          g_sentai_tpu_sim_break_on_short_bulkin == 0) {
+        continue;
+      }
 #endif
-#ifndef SENTAI_PLATFORM_SIM
       /* Short transfer = device terminated stream.  Don't issue
        * another URB; remaining buffer stays as caller initialised
        * (zero from arena init or prior content).  Output activations
        * smaller than the dma_hint padded size are valid; OutputLayer
-       * Relayout extracts only the real tensor bytes. */
+       * Relayout extracts only the real tensor bytes.  POSIX/libusb keeps
+       * the historical continue-by-default behavior because it can surface
+       * short successful transfers before the whole TPU output stream has
+       * been drained. */
       if ((uint32_t)bytes_received < chunk_size) break;
-#endif
     } else {
       return false;  // printf removed: CDC-ACM feedback loop
     }

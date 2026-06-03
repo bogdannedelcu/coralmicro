@@ -1,0 +1,40 @@
+20:49:13.5517 [INFO] Loaded monitor commands from: /home/bogdan/work/renode_portable/scripts/monitor.py
+Renode, version 1.16.1 (ac18b5ac-202606020225)
+
+
+(monitor) i $CWD/emu/renode/sentai_emu_tpu_fps_mem_session_repl.resc
+
+20:49:13.6734 [INFO] Including script(s): /home/bogdan/work/coralmicro/emu/renode/sentai_emu_tpu_fps_mem_session_repl.resc
+20:49:13.6894 [INFO] System bus created.
+20:49:14.5485 [INFO] Old file /home/bogdan/work/coralmicro/emu/output/sentai_emu_tpu_fps_mem_session_repl.log moved to /home/bogdan/work/coralmicro/emu/output/sentai_emu_tpu_fps_mem_session_repl.log.5
+20:49:14.5673 [INFO] sysbus: Loading block of 3072 bytes length at 0x0.
+20:49:14.5789 [INFO] sysbus: Loading block of 231488 bytes length at 0xC00.
+20:49:14.5791 [INFO] sysbus: Loading block of 202736 bytes length at 0x39440.
+20:49:14.5794 [INFO] sysbus: Loading block of 16777216 bytes length at 0x80000000.
+20:49:14.6000 [INFO] sysbus: Loading block of 54680 bytes length at 0x81000000.
+20:49:15.0627 [INFO] cpu: Setting initial values: PC = 0xCBD, SP = 0x20040000.
+20:49:15.0655 [INFO] machine-0: Machine started.
+20:49:15.1443 [WARNING] nvic: Unhandled write to offset 0xF50 (ICacheInvalidateAllToPoUaIgnored), value 0x0.
+20:49:15.1700 [WARNING] nvic: Trying to set the priority for interrupt 16 to 0xFF, but it should be maskable with 0xF0
+20:50:23.8106 [INFO] machine-0: Machine paused.
+sentai_emu_tpu_fps_mem_session_repl PC:
+
+0x1cf2
+
+sentai_emu_tpu_fps_mem_session_repl boot_state:
+
+0x00000500
+
+sentai_emu_tpu_fps_mem_session_repl heartbeat:
+
+0x00000001
+
+sentai_emu_tpu_fps_mem_session_repl repl_lines:
+
+0x00000001
+
+sentai_emu_tpu_fps_mem_session_repl last_tick:
+
+0x00000831
+
+(machine-0) 20:50:23.8820 [INFO] machine-0: Disposed.

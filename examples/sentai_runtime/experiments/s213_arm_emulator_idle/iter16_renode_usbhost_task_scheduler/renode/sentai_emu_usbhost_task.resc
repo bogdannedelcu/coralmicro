@@ -1,0 +1,31 @@
+:name: SentAI B8.8 P2 USB host task scheduler smoke
+:description: Boot the USB-host-stack task target.  This calls the production UsbHostTask constructor, UsbHostTask::Init(), then starts the ARM FreeRTOS scheduler.  No Renode USB device is attached yet; expected success is "USB host task blocks/waits cleanly and a lower-priority heartbeat task still runs".
+
+i @emu/renode/sentai_rt1176.repl
+
+$bin?=@build_emu/emu/sentai_emu_usbhost_task
+$uart_log?=@/home/bogdan/work/coralmicro/emu/output/sentai_emu_usbhost_task.log
+
+macro reset
+"""
+    sysbus LoadELF $bin
+    cpu VectorTableOffset 0x800
+"""
+
+lpuart6 CreateFileBackend $uart_log
+runMacro $reset
+
+emulation RunFor "3s"
+
+lpuart6 CloseFileBackend $uart_log
+
+echo "sentai_emu_usbhost_task PC:"
+cpu PC
+echo "sentai_emu_usbhost_task boot_state:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_boot_state"`
+echo "sentai_emu_usbhost_task step:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_step"`
+echo "sentai_emu_usbhost_task heartbeat:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_heartbeat"`
+echo "sentai_emu_usbhost_task last_tick:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_last_tick"`

@@ -1,0 +1,43 @@
+[  0%] Building C object emu/CMakeFiles/sentai_emu_edgetpu_manager_probe.dir/__/libs/nxp/rt1176-sdk/clock_config.c.obj
+[  0%] Building C object emu/CMakeFiles/sentai_emu_edgetpu_manager_probe.dir/sentai_emu_usb_stubs.c.obj
+[  0%] Building C object emu/CMakeFiles/sentai_emu_edgetpu_manager_probe.dir/sentai_emu_freertos_hooks.c.obj
+[  0%] Building C object emu/CMakeFiles/sentai_emu_edgetpu_manager_probe.dir/__/third_party/nxp/rt1176-sdk/middleware/usb/host/usb_host_ehci.c.obj
+[  0%] Building CXX object emu/CMakeFiles/sentai_emu_edgetpu_manager_probe.dir/sentai_emu_usbhost_probe.cc.obj
+[  0%] Building C object emu/CMakeFiles/sentai_emu_edgetpu_manager_probe.dir/__/third_party/nxp/rt1176-sdk/middleware/usb/host/usb_host_hci.c.obj
+[  0%] Building CXX object emu/CMakeFiles/sentai_emu_edgetpu_manager_probe.dir/__/libs/usb/usb_host_task.cc.obj
+[  0%] Building C object emu/CMakeFiles/sentai_emu_edgetpu_manager_probe.dir/__/third_party/nxp/rt1176-sdk/middleware/usb/host/usb_host_devices.c.obj
+[  0%] Building C object emu/CMakeFiles/sentai_emu_edgetpu_manager_probe.dir/__/third_party/nxp/rt1176-sdk/middleware/usb/host/usb_host_framework.c.obj
+[  0%] Building C object emu/CMakeFiles/sentai_emu_edgetpu_manager_probe.dir/__/third_party/nxp/rt1176-sdk/middleware/usb/host/class/usb_host_hub.c.obj
+[  0%] Building C object emu/CMakeFiles/sentai_emu_edgetpu_manager_probe.dir/__/third_party/nxp/rt1176-sdk/middleware/usb/host/class/usb_host_hub_app.c.obj
+[  0%] Building C object emu/CMakeFiles/sentai_emu_edgetpu_manager_probe.dir/__/third_party/nxp/rt1176-sdk/middleware/usb/phy/usb_phy.c.obj
+[100%] Building C object emu/CMakeFiles/sentai_emu_edgetpu_manager_probe.dir/__/third_party/nxp/rt1176-sdk/components/osa/fsl_os_abstraction_free_rtos.c.obj
+[100%] Building C object emu/CMakeFiles/sentai_emu_edgetpu_manager_probe.dir/__/third_party/nxp/rt1176-sdk/components/lists/fsl_component_generic_list.c.obj
+[100%] Building C object emu/CMakeFiles/sentai_emu_edgetpu_manager_probe.dir/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_clock.c.obj
+[100%] Building C object emu/CMakeFiles/sentai_emu_edgetpu_manager_probe.dir/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_anatop_ai.c.obj
+cc1plus: warning: command line option '-Wno-old-style-definition' is valid for C/ObjC but not for C++
+cc1plus: warning: command line option '-Wno-old-style-definition' is valid for C/ObjC but not for C++
+cc1plus: warning: command line option '-Wno-missing-prototypes' is valid for C/ObjC but not for C++
+cc1plus: warning: command line option '-Wno-missing-prototypes' is valid for C/ObjC but not for C++
+[100%] Building C object emu/CMakeFiles/sentai_emu_edgetpu_manager_probe.dir/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_common.c.obj
+[100%] Building C object emu/CMakeFiles/sentai_emu_edgetpu_manager_probe.dir/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_common_arm.c.obj
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/usb/host/usb_host_hci.c:30:2: warning: #warning USB_HOST_CONFIG_BUFFER_PROPERTY_CACHEABLE is not supported. [-Wcpp]
+   30 | #warning USB_HOST_CONFIG_BUFFER_PROPERTY_CACHEABLE is not supported.
+      |  ^~~~~~~
+[100%] Building C object emu/CMakeFiles/sentai_emu_edgetpu_manager_probe.dir/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_pmu.c.obj
+[100%] Building C object emu/CMakeFiles/sentai_emu_edgetpu_manager_probe.dir/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_dcdc.c.obj
+[100%] Building ASM object emu/CMakeFiles/sentai_emu_edgetpu_manager_probe.dir/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/gcc/startup_MIMXRT1176_cm7.S.obj
+[100%] Building C object emu/CMakeFiles/sentai_emu_edgetpu_manager_probe.dir/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/system_MIMXRT1176_cm7.c.obj
+In file included from /home/bogdan/work/coralmicro/./libs/tpu/edgetpu_executable.h:26,
+                 from /home/bogdan/work/coralmicro/./libs/tpu/edgetpu_manager.h:26,
+                 from /home/bogdan/work/coralmicro/emu/sentai_emu_usbhost_probe.cc:27:
+/home/bogdan/work/coralmicro/./third_party/tflite-micro/tensorflow/lite/c/common.h:43:10: fatal error: tensorflow/lite/c/c_api_types.h: No such file or directory
+   43 | #include "tensorflow/lite/c/c_api_types.h"  // IWYU pragma: export
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+compilation terminated.
+gmake[3]: *** [emu/CMakeFiles/sentai_emu_edgetpu_manager_probe.dir/build.make:76: emu/CMakeFiles/sentai_emu_edgetpu_manager_probe.dir/sentai_emu_usbhost_probe.cc.obj] Error 1
+gmake[3]: *** Waiting for unfinished jobs....
+[100%] Building C object emu/CMakeFiles/sentai_emu_edgetpu_manager_probe.dir/__/third_party/freertos_kernel/event_groups.c.obj
+[100%] Building C object emu/CMakeFiles/sentai_emu_edgetpu_manager_probe.dir/__/third_party/freertos_kernel/list.c.obj
+gmake[2]: *** [CMakeFiles/Makefile2:3457: emu/CMakeFiles/sentai_emu_edgetpu_manager_probe.dir/all] Error 2
+gmake[1]: *** [CMakeFiles/Makefile2:3464: emu/CMakeFiles/sentai_emu_edgetpu_manager_probe.dir/rule] Error 2
+gmake: *** [Makefile:1255: sentai_emu_edgetpu_manager_probe] Error 2

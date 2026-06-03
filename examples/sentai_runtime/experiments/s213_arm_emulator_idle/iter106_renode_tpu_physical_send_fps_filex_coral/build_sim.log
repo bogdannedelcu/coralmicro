@@ -1,0 +1,4 @@
+[ 50%] Built target libfreertos_posix
+[ 50%] Building CXX object sim/CMakeFiles/tpu_posix_send_server.dir/tpu_posix_send_server.cc.o
+[ 75%] Linking CXX executable tpu_posix_send_server
+[100%] Built target tpu_posix_send_server

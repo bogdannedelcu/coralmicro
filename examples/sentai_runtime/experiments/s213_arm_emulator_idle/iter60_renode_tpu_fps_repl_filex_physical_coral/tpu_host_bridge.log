@@ -1,0 +1,2 @@
+fps begin runs=5 warmup=1
+fps ok completed_runs=5 fps_x100=58 detection_count=20 parsed_detections=20

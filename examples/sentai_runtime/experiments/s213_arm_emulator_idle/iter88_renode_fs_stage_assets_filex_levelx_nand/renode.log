@@ -1,0 +1,14 @@
+21:11:26.9011 [INFO] Loaded monitor commands from: /home/bogdan/work/renode_portable/scripts/monitor.py
+Renode, version 1.16.1 (ac18b5ac-202606020225)
+
+
+(monitor) i $CWD/emu/renode/sentai_emu_fs_stage_assets.resc
+
+21:11:27.0231 [INFO] Including script(s): /home/bogdan/work/coralmicro/emu/renode/sentai_emu_fs_stage_assets.resc
+21:11:27.0387 [INFO] System bus created.
+There was an error executing command 'i @/home/bogdan/work/coralmicro/emu/renode/sentai_rt1176.repl'
+Error E00: Syntax error, unexpected '0'; expected end of input
+At /home/bogdan/work/coralmicro/emu/renode/sentai_rt1176.repl:263:12:
+	    size: 0x100
+           ^
+(machine-0) 21:11:27.2943 [INFO] machine-0: Disposed.

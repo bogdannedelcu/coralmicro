@@ -1,0 +1,31 @@
+13:58:03.2767 [INFO] Loaded monitor commands from: /home/bogdan/work/renode_portable/scripts/monitor.py
+Renode, version 1.16.1 (ac18b5ac-202606020225)
+
+
+(monitor) i $CWD/emu/renode/sentai_emu_usbhost_probe.resc
+
+13:58:03.3941 [INFO] Including script(s): /home/bogdan/work/coralmicro/emu/renode/sentai_emu_usbhost_probe.resc
+13:58:03.4093 [INFO] System bus created.
+13:58:04.1859 [INFO] Old file /home/bogdan/work/coralmicro/emu/output/sentai_emu_usbhost_probe.log moved to /home/bogdan/work/coralmicro/emu/output/sentai_emu_usbhost_probe.log.3
+13:58:04.2009 [INFO] sysbus: Loading block of 3072 bytes length at 0x0.
+13:58:04.2114 [INFO] sysbus: Loading block of 29600 bytes length at 0xC00.
+13:58:04.2115 [INFO] sysbus: Loading block of 3192 bytes length at 0x7FA0.
+13:58:04.2115 [INFO] sysbus: Loading block of 8192 bytes length at 0x20000000.
+13:58:04.2115 [INFO] sysbus: Loading block of 16777216 bytes length at 0x80000000.
+13:58:04.6895 [INFO] cpu: Setting initial values: PC = 0xCBD, SP = 0x20040000.
+13:58:04.6921 [INFO] machine-0: Machine started.
+13:58:04.7831 [WARNING] nvic: Unhandled write to offset 0xF50 (ICacheInvalidateAllToPoUaIgnored), value 0x0.
+13:58:07.6952 [INFO] machine-0: Machine paused.
+sentai_emu_usbhost_probe PC:
+
+0x110c
+
+sentai_emu_usbhost_probe boot_state:
+
+0x0000CAFE
+
+sentai_emu_usbhost_probe step:
+
+0x00000002
+
+(machine-0) 13:58:07.7702 [INFO] machine-0: Disposed.

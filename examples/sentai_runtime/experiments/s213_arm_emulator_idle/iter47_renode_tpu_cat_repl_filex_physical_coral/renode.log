@@ -1,0 +1,82 @@
+07:38:51.2352 [INFO] Loaded monitor commands from: /home/bogdan/work/renode_portable/scripts/monitor.py
+Renode, version 1.16.1 (ac18b5ac-202606020225)
+
+
+(monitor) i $CWD/emu/renode/sentai_emu_tpu_cat_repl.resc
+
+07:38:51.3550 [INFO] Including script(s): /home/bogdan/work/coralmicro/emu/renode/sentai_emu_tpu_cat_repl.resc
+07:38:51.3705 [INFO] System bus created.
+07:38:52.1716 [INFO] Old file /home/bogdan/work/coralmicro/emu/output/sentai_emu_tpu_cat_repl.log moved to /home/bogdan/work/coralmicro/emu/output/sentai_emu_tpu_cat_repl.log.2
+07:38:52.1904 [INFO] sysbus: Loading block of 3072 bytes length at 0x0.
+07:38:52.2008 [INFO] sysbus: Loading block of 228032 bytes length at 0xC00.
+07:38:52.2011 [INFO] sysbus: Loading block of 202432 bytes length at 0x386C0.
+07:38:52.2013 [INFO] sysbus: Loading block of 16777216 bytes length at 0x80000000.
+07:38:52.2239 [INFO] sysbus: Loading block of 54680 bytes length at 0x81000000.
+07:38:52.6584 [INFO] cpu: Setting initial values: PC = 0xCBD, SP = 0x20040000.
+07:38:52.6610 [INFO] machine-0: Machine started.
+07:38:52.7372 [WARNING] nvic: Unhandled write to offset 0xF50 (ICacheInvalidateAllToPoUaIgnored), value 0x0.
+07:38:52.7616 [WARNING] nvic: Trying to set the priority for interrupt 16 to 0xFF, but it should be maskable with 0xF0
+Fatal error:
+No module named RegularExpressions
+   at IronPython.Runtime.Importer.ImportModuleFrom(CodeContext context, Object from, String[] parts, Int32 current)
+   at IronPython.Runtime.Importer.ImportModule(CodeContext context, Object globals, String modName, Boolean bottom, Int32 level)
+   at IronPython.Modules.Builtin.__import__(CodeContext context, String name, Object globals, Object locals, Object fromlist, Int32 level)
+   at IronPython.Runtime.Importer.ImportLightThrow(CodeContext context, String fullName, PythonTuple from, Int32 level)
+   at IronPython.Runtime.Operations.PythonOps.ImportWithNames(CodeContext context, String fullName, String[] names, Int32 level)
+   at Microsoft.Scripting.Interpreter.FuncCallInstruction`5.Run(InterpretedFrame frame)
+   at Microsoft.Scripting.Interpreter.Interpreter.Run(InterpretedFrame frame)
+   at Microsoft.Scripting.Interpreter.LightLambda.Run2[T0,T1,TRet](T0 arg0, T1 arg1)
+   at IronPython.Compiler.PythonScriptCode.RunWorker(CodeContext ctx)
+   at IronPython.Compiler.PythonScriptCode.Run(Scope scope)
+   at IronPython.Compiler.RuntimeScriptCode.InvokeTarget(Scope scope)
+   at IronPython.Compiler.RuntimeScriptCode.Run(Scope scope)
+   at Microsoft.Scripting.Hosting.CompiledCode.Execute(ScriptScope scope)
+   at Antmicro.Renode.Core.PythonEngine.Execute(CompiledCode code, Action`1 errorCallback)
+   at Antmicro.Renode.Core.PythonEngine.Execute(CompiledCode code)
+   at Antmicro.Renode.Peripherals.Python.PeripheralPythonEngine.ExecuteCode()
+   at Antmicro.Renode.Peripherals.Python.PythonPeripheral.Execute()
+   at Antmicro.Renode.Peripherals.Python.PythonPeripheral.Init()
+   at Antmicro.Renode.Peripherals.Python.PythonPeripheral.EnsureInit()
+   at Antmicro.Renode.Peripherals.Python.PythonPeripheral.HandleWrite(Int64 offset, UInt64 value)
+   at Antmicro.Renode.Peripherals.Python.PythonPeripheral.WriteDoubleWord(Int64 offset, UInt32 value)
+   at Antmicro.Renode.Peripherals.Bus.SystemBus.WriteDoubleWord(UInt64 address, UInt32 value, IPeripheral context, Nullable`1 cpuState)
+   at Antmicro.Renode.Peripherals.CPU.TranslationCPU.WriteDoubleWordToBus(UInt64 offset, UInt64 value, UInt64 cpuState)
+   at WriteDoubleWordToBusWrapper(CortexMWrappers, UInt64, UInt64, UInt64)
+--- End of stack trace from previous location ---
+   at Antmicro.Renode.Utilities.Binding.ExceptionKeeper.ThrowExceptions()
+   at TlibExecute(CortexMWrappers, Int32)
+   at Antmicro.Renode.Peripherals.CPU.TranslationCPU.ExecuteInstructions(UInt64 numberOfInstructionsToExecute, UInt64& numberOfExecutedInstructions)
+   at Antmicro.Renode.Peripherals.CPU.BaseCPU.CpuThreadBodyInner(Boolean singleStep, Boolean skipThisRound)
+   at Antmicro.Renode.Peripherals.CPU.BaseCPU.CpuThreadBody()
+
+Unhandled exception. IronPython.Runtime.Exceptions.ImportException: No module named RegularExpressions
+   at IronPython.Runtime.Importer.ImportModuleFrom(CodeContext context, Object from, String[] parts, Int32 current)
+   at IronPython.Runtime.Importer.ImportModule(CodeContext context, Object globals, String modName, Boolean bottom, Int32 level)
+   at IronPython.Modules.Builtin.__import__(CodeContext context, String name, Object globals, Object locals, Object fromlist, Int32 level)
+   at IronPython.Runtime.Importer.ImportLightThrow(CodeContext context, String fullName, PythonTuple from, Int32 level)
+   at IronPython.Runtime.Operations.PythonOps.ImportWithNames(CodeContext context, String fullName, String[] names, Int32 level)
+   at Microsoft.Scripting.Interpreter.FuncCallInstruction`5.Run(InterpretedFrame frame)
+   at Microsoft.Scripting.Interpreter.Interpreter.Run(InterpretedFrame frame)
+   at Microsoft.Scripting.Interpreter.LightLambda.Run2[T0,T1,TRet](T0 arg0, T1 arg1)
+   at IronPython.Compiler.PythonScriptCode.RunWorker(CodeContext ctx)
+   at IronPython.Compiler.PythonScriptCode.Run(Scope scope)
+   at IronPython.Compiler.RuntimeScriptCode.InvokeTarget(Scope scope)
+   at IronPython.Compiler.RuntimeScriptCode.Run(Scope scope)
+   at Microsoft.Scripting.Hosting.CompiledCode.Execute(ScriptScope scope)
+   at Antmicro.Renode.Core.PythonEngine.Execute(CompiledCode code, Action`1 errorCallback)
+   at Antmicro.Renode.Core.PythonEngine.Execute(CompiledCode code)
+   at Antmicro.Renode.Peripherals.Python.PeripheralPythonEngine.ExecuteCode()
+   at Antmicro.Renode.Peripherals.Python.PythonPeripheral.Execute()
+   at Antmicro.Renode.Peripherals.Python.PythonPeripheral.Init()
+   at Antmicro.Renode.Peripherals.Python.PythonPeripheral.EnsureInit()
+   at Antmicro.Renode.Peripherals.Python.PythonPeripheral.HandleWrite(Int64 offset, UInt64 value)
+   at Antmicro.Renode.Peripherals.Python.PythonPeripheral.WriteDoubleWord(Int64 offset, UInt32 value)
+   at Antmicro.Renode.Peripherals.Bus.SystemBus.WriteDoubleWord(UInt64 address, UInt32 value, IPeripheral context, Nullable`1 cpuState)
+   at Antmicro.Renode.Peripherals.CPU.TranslationCPU.WriteDoubleWordToBus(UInt64 offset, UInt64 value, UInt64 cpuState)
+   at WriteDoubleWordToBusWrapper(CortexMWrappers, UInt64, UInt64, UInt64)
+--- End of stack trace from previous location ---
+   at Antmicro.Renode.Utilities.Binding.ExceptionKeeper.ThrowExceptions()
+   at TlibExecute(CortexMWrappers, Int32)
+   at Antmicro.Renode.Peripherals.CPU.TranslationCPU.ExecuteInstructions(UInt64 numberOfInstructionsToExecute, UInt64& numberOfExecutedInstructions)
+   at Antmicro.Renode.Peripherals.CPU.BaseCPU.CpuThreadBodyInner(Boolean singleStep, Boolean skipThisRound)
+   at Antmicro.Renode.Peripherals.CPU.BaseCPU.CpuThreadBody()

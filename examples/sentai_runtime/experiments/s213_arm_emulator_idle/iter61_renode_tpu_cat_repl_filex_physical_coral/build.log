@@ -1,0 +1,8 @@
+[ 14%] Built target libs_levelx
+[ 64%] Built target libs_filex
+[ 64%] Building CXX object emu/CMakeFiles/sentai_emu_tpu_cat_repl.dir/sentai_emu_repl.cc.obj
+[ 64%] Building C object emu/CMakeFiles/sentai_emu_tpu_cat_repl.dir/sentai_emu_tpu_host_module.c.obj
+cc1plus: warning: command line option '-Wno-old-style-definition' is valid for C/ObjC but not for C++
+cc1plus: warning: command line option '-Wno-missing-prototypes' is valid for C/ObjC but not for C++
+[ 71%] Linking CXX executable sentai_emu_tpu_cat_repl
+[100%] Built target sentai_emu_tpu_cat_repl

@@ -1,0 +1,31 @@
+:name: SentAI B8.8 P4b synthetic EdgeTPU enumeration probe
+:description: Boot the EdgeTPU synthetic-enumeration probe target.  This starts UsbHostTask, EdgeTpuManager, EdgeTpuTask, then injects synthetic Coral attach/enumeration events through UsbHostTask::HostEvent using NXP USB host descriptor structs.
+
+i @emu/renode/sentai_rt1176.repl
+
+$bin?=@build_emu/emu/sentai_emu_edgetpu_synth_enum_probe
+$uart_log?=@/home/bogdan/work/coralmicro/emu/output/sentai_emu_edgetpu_synth_enum_probe.log
+
+macro reset
+"""
+    sysbus LoadELF $bin
+    cpu VectorTableOffset 0x800
+"""
+
+lpuart6 CreateFileBackend $uart_log
+runMacro $reset
+
+emulation RunFor "3s"
+
+lpuart6 CloseFileBackend $uart_log
+
+echo "sentai_emu_edgetpu_synth_enum_probe PC:"
+cpu PC
+echo "sentai_emu_edgetpu_synth_enum_probe boot_state:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_boot_state"`
+echo "sentai_emu_edgetpu_synth_enum_probe step:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_step"`
+echo "sentai_emu_edgetpu_synth_enum_probe heartbeat:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_heartbeat"`
+echo "sentai_emu_edgetpu_synth_enum_probe last_tick:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_last_tick"`

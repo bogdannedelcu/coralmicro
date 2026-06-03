@@ -1,0 +1,43 @@
+:name: SentAI B8.8 P5a Renode Coral MMIO enumeration probe
+:description: Boot the EdgeTPU MMIO enumeration probe.  The Renode `coral_usb` provider exposes Coral descriptors and raises IRQ 95; firmware consumes the MMIO event and routes it through UsbHostTask -> EdgeTpuTask.
+
+i @emu/renode/sentai_rt1176.repl
+
+$bin?=@build_emu/emu/sentai_emu_edgetpu_mmio_enum_probe
+$uart_log?=@/home/bogdan/work/coralmicro/emu/output/sentai_emu_edgetpu_mmio_enum_probe.log
+
+macro reset
+"""
+    sysbus LoadELF $bin
+    cpu VectorTableOffset 0x800
+"""
+
+lpuart6 CreateFileBackend $uart_log
+runMacro $reset
+
+# Coral descriptor block (emu/renode/sentai_rt1176.repl `coral_usb`).
+# 0x00 STATUS, 0x04 VID/PID, 0x08 iface, 0x0c..0x14 endpoints,
+# 0x18 max packets, 0x1c sequence.
+sysbus WriteDoubleWord 0x40900400 0x1
+sysbus WriteDoubleWord 0x40900404 0x18D19302
+sysbus WriteDoubleWord 0x40900408 0x000003FF
+sysbus WriteDoubleWord 0x4090040C 0x01020081
+sysbus WriteDoubleWord 0x40900410 0x01020202
+sysbus WriteDoubleWord 0x40900414 0x01034083
+sysbus WriteDoubleWord 0x40900418 0x00400200
+sysbus WriteDoubleWord 0x4090041C 0x1
+
+emulation RunFor "3s"
+
+lpuart6 CloseFileBackend $uart_log
+
+echo "sentai_emu_edgetpu_mmio_enum_probe PC:"
+cpu PC
+echo "sentai_emu_edgetpu_mmio_enum_probe boot_state:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_boot_state"`
+echo "sentai_emu_edgetpu_mmio_enum_probe step:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_step"`
+echo "sentai_emu_edgetpu_mmio_enum_probe heartbeat:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_heartbeat"`
+echo "sentai_emu_edgetpu_mmio_enum_probe last_tick:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_last_tick"`

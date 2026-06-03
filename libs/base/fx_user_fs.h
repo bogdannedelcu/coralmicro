@@ -136,6 +136,13 @@ ssize_t FxUserSize(const char* path);
  * of bytes actually read, or 0 on failure. */
 size_t FxUserReadFile(const char* path, uint8_t* buf, size_t size);
 
+/* Read up to `size` bytes starting at `offset` into `buf`.  Returns number
+ * of bytes actually read, or 0 on failure / EOF.  This is the streaming
+ * variant for large model/image transfers where callers must not allocate the
+ * whole file in RAM. */
+size_t FxUserReadFileAt(const char* path, uint32_t offset,
+                        uint8_t* buf, size_t size);
+
 /* Write the entire `buf` to `path`, creating or truncating as needed.
  * Returns 1 on success, 0 on failure. */
 int  FxUserWriteFile(const char* path, const uint8_t* buf, size_t size);

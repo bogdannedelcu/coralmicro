@@ -1,0 +1,131 @@
+07:25:09.6924 [INFO] Loaded monitor commands from: /home/bogdan/work/renode_portable/scripts/monitor.py
+Renode, version 1.16.1 (ac18b5ac-202606020225)
+
+
+(monitor) i $CWD/emu/renode/sentai_emu_tpu_cat_repl.resc
+
+07:25:09.8107 [INFO] Including script(s): /home/bogdan/work/coralmicro/emu/renode/sentai_emu_tpu_cat_repl.resc
+07:25:09.8259 [INFO] System bus created.
+07:25:10.6559 [INFO] sysbus: Loading block of 3072 bytes length at 0x0.
+07:25:10.6667 [INFO] sysbus: Loading block of 227952 bytes length at 0xC00.
+07:25:10.6670 [INFO] sysbus: Loading block of 202432 bytes length at 0x38670.
+07:25:10.6673 [INFO] sysbus: Loading block of 16777216 bytes length at 0x80000000.
+07:25:10.6875 [INFO] sysbus: Loading block of 54680 bytes length at 0x81000000.
+07:25:11.1217 [INFO] cpu: Setting initial values: PC = 0xCBD, SP = 0x20040000.
+07:25:11.1246 [INFO] machine-0: Machine started.
+07:25:11.2007 [WARNING] nvic: Unhandled write to offset 0xF50 (ICacheInvalidateAllToPoUaIgnored), value 0x0.
+07:25:11.2255 [WARNING] nvic: Trying to set the priority for interrupt 16 to 0xFF, but it should be maskable with 0xF0
+07:26:57.0411 [INFO] machine-0: Machine paused.
+07:26:57.0513 [INFO] machine-0: Machine resumed.
+07:26:58.2363 [INFO] machine-0: Machine paused.
+07:26:58.2380 [INFO] machine-0: Machine resumed.
+07:26:59.4239 [INFO] machine-0: Machine paused.
+07:26:59.4251 [INFO] machine-0: Machine resumed.
+07:27:00.5009 [INFO] machine-0: Machine paused.
+07:27:00.5020 [INFO] machine-0: Machine resumed.
+07:27:01.5952 [INFO] machine-0: Machine paused.
+07:27:01.5967 [INFO] machine-0: Machine resumed.
+07:27:02.6796 [INFO] machine-0: Machine paused.
+07:27:02.6811 [INFO] machine-0: Machine resumed.
+07:27:03.7663 [INFO] machine-0: Machine paused.
+07:27:03.7673 [INFO] machine-0: Machine resumed.
+07:27:04.8515 [INFO] machine-0: Machine paused.
+07:27:04.8527 [INFO] machine-0: Machine resumed.
+07:27:05.9613 [INFO] machine-0: Machine paused.
+07:27:05.9629 [INFO] machine-0: Machine resumed.
+07:27:07.0544 [INFO] machine-0: Machine paused.
+07:27:07.0554 [INFO] machine-0: Machine resumed.
+07:27:08.1619 [INFO] machine-0: Machine paused.
+07:27:08.1627 [INFO] machine-0: Machine resumed.
+07:27:09.2812 [INFO] machine-0: Machine paused.
+07:27:09.2825 [INFO] machine-0: Machine resumed.
+07:27:10.3857 [INFO] machine-0: Machine paused.
+07:27:10.3868 [INFO] machine-0: Machine resumed.
+07:27:11.4837 [INFO] machine-0: Machine paused.
+07:27:11.4851 [INFO] machine-0: Machine resumed.
+07:27:12.5758 [INFO] machine-0: Machine paused.
+07:27:12.5773 [INFO] machine-0: Machine resumed.
+07:29:00.0602 [INFO] machine-0: Machine paused.
+07:29:00.0614 [INFO] machine-0: Machine resumed.
+07:29:01.1480 [INFO] machine-0: Machine paused.
+07:29:01.1489 [INFO] machine-0: Machine resumed.
+07:29:02.2081 [INFO] machine-0: Machine paused.
+07:29:02.2089 [INFO] machine-0: Machine resumed.
+07:29:03.2494 [INFO] machine-0: Machine paused.
+07:29:03.2503 [INFO] machine-0: Machine resumed.
+07:29:04.2875 [INFO] machine-0: Machine paused.
+07:29:04.2883 [INFO] machine-0: Machine resumed.
+07:29:05.3777 [INFO] machine-0: Machine paused.
+07:29:05.3786 [INFO] machine-0: Machine resumed.
+07:29:06.4669 [INFO] machine-0: Machine paused.
+07:29:06.4679 [INFO] machine-0: Machine resumed.
+07:29:07.5528 [INFO] machine-0: Machine paused.
+07:29:07.5538 [INFO] machine-0: Machine resumed.
+07:29:08.6595 [INFO] machine-0: Machine paused.
+07:29:08.6604 [INFO] machine-0: Machine resumed.
+07:29:09.7793 [INFO] machine-0: Machine paused.
+07:29:09.7804 [INFO] machine-0: Machine resumed.
+07:29:10.8594 [INFO] machine-0: Machine paused.
+07:29:10.8605 [INFO] machine-0: Machine resumed.
+07:29:11.9253 [INFO] machine-0: Machine paused.
+07:29:11.9264 [INFO] machine-0: Machine resumed.
+07:29:13.0283 [INFO] machine-0: Machine paused.
+07:29:13.0295 [INFO] machine-0: Machine resumed.
+07:29:14.1213 [INFO] machine-0: Machine paused.
+07:29:14.1225 [INFO] machine-0: Machine resumed.
+Fatal error:
+Cannot import name Process
+   at IronPython.Runtime.Importer.ImportFrom(CodeContext context, Object from, String name)
+   at Microsoft.Scripting.Interpreter.FuncCallInstruction`4.Run(InterpretedFrame frame)
+   at Microsoft.Scripting.Interpreter.Interpreter.Run(InterpretedFrame frame)
+   at Microsoft.Scripting.Interpreter.LightLambda.Run2[T0,T1,TRet](T0 arg0, T1 arg1)
+   at IronPython.Compiler.PythonScriptCode.RunWorker(CodeContext ctx)
+   at IronPython.Compiler.PythonScriptCode.Run(Scope scope)
+   at IronPython.Compiler.RuntimeScriptCode.InvokeTarget(Scope scope)
+   at IronPython.Compiler.RuntimeScriptCode.Run(Scope scope)
+   at Microsoft.Scripting.Hosting.CompiledCode.Execute(ScriptScope scope)
+   at Antmicro.Renode.Core.PythonEngine.Execute(CompiledCode code, Action`1 errorCallback)
+   at Antmicro.Renode.Core.PythonEngine.Execute(CompiledCode code)
+   at Antmicro.Renode.Peripherals.Python.PeripheralPythonEngine.ExecuteCode()
+   at Antmicro.Renode.Peripherals.Python.PythonPeripheral.Execute()
+   at Antmicro.Renode.Peripherals.Python.PythonPeripheral.Init()
+   at Antmicro.Renode.Peripherals.Python.PythonPeripheral.EnsureInit()
+   at Antmicro.Renode.Peripherals.Python.PythonPeripheral.HandleWrite(Int64 offset, UInt64 value)
+   at Antmicro.Renode.Peripherals.Python.PythonPeripheral.WriteDoubleWord(Int64 offset, UInt32 value)
+   at Antmicro.Renode.Peripherals.Bus.SystemBus.WriteDoubleWord(UInt64 address, UInt32 value, IPeripheral context, Nullable`1 cpuState)
+   at Antmicro.Renode.Peripherals.CPU.TranslationCPU.WriteDoubleWordToBus(UInt64 offset, UInt64 value, UInt64 cpuState)
+   at WriteDoubleWordToBusWrapper(CortexMWrappers, UInt64, UInt64, UInt64)
+--- End of stack trace from previous location ---
+   at Antmicro.Renode.Utilities.Binding.ExceptionKeeper.ThrowExceptions()
+   at TlibExecute(CortexMWrappers, Int32)
+   at Antmicro.Renode.Peripherals.CPU.TranslationCPU.ExecuteInstructions(UInt64 numberOfInstructionsToExecute, UInt64& numberOfExecutedInstructions)
+   at Antmicro.Renode.Peripherals.CPU.BaseCPU.CpuThreadBodyInner(Boolean singleStep, Boolean skipThisRound)
+   at Antmicro.Renode.Peripherals.CPU.BaseCPU.CpuThreadBody()
+
+Unhandled exception. IronPython.Runtime.Exceptions.ImportException: Cannot import name Process
+   at IronPython.Runtime.Importer.ImportFrom(CodeContext context, Object from, String name)
+   at Microsoft.Scripting.Interpreter.FuncCallInstruction`4.Run(InterpretedFrame frame)
+   at Microsoft.Scripting.Interpreter.Interpreter.Run(InterpretedFrame frame)
+   at Microsoft.Scripting.Interpreter.LightLambda.Run2[T0,T1,TRet](T0 arg0, T1 arg1)
+   at IronPython.Compiler.PythonScriptCode.RunWorker(CodeContext ctx)
+   at IronPython.Compiler.PythonScriptCode.Run(Scope scope)
+   at IronPython.Compiler.RuntimeScriptCode.InvokeTarget(Scope scope)
+   at IronPython.Compiler.RuntimeScriptCode.Run(Scope scope)
+   at Microsoft.Scripting.Hosting.CompiledCode.Execute(ScriptScope scope)
+   at Antmicro.Renode.Core.PythonEngine.Execute(CompiledCode code, Action`1 errorCallback)
+   at Antmicro.Renode.Core.PythonEngine.Execute(CompiledCode code)
+   at Antmicro.Renode.Peripherals.Python.PeripheralPythonEngine.ExecuteCode()
+   at Antmicro.Renode.Peripherals.Python.PythonPeripheral.Execute()
+   at Antmicro.Renode.Peripherals.Python.PythonPeripheral.Init()
+   at Antmicro.Renode.Peripherals.Python.PythonPeripheral.EnsureInit()
+   at Antmicro.Renode.Peripherals.Python.PythonPeripheral.HandleWrite(Int64 offset, UInt64 value)
+   at Antmicro.Renode.Peripherals.Python.PythonPeripheral.WriteDoubleWord(Int64 offset, UInt32 value)
+   at Antmicro.Renode.Peripherals.Bus.SystemBus.WriteDoubleWord(UInt64 address, UInt32 value, IPeripheral context, Nullable`1 cpuState)
+   at Antmicro.Renode.Peripherals.CPU.TranslationCPU.WriteDoubleWordToBus(UInt64 offset, UInt64 value, UInt64 cpuState)
+   at WriteDoubleWordToBusWrapper(CortexMWrappers, UInt64, UInt64, UInt64)
+--- End of stack trace from previous location ---
+   at Antmicro.Renode.Utilities.Binding.ExceptionKeeper.ThrowExceptions()
+   at TlibExecute(CortexMWrappers, Int32)
+   at Antmicro.Renode.Peripherals.CPU.TranslationCPU.ExecuteInstructions(UInt64 numberOfInstructionsToExecute, UInt64& numberOfExecutedInstructions)
+   at Antmicro.Renode.Peripherals.CPU.BaseCPU.CpuThreadBodyInner(Boolean singleStep, Boolean skipThisRound)
+   at Antmicro.Renode.Peripherals.CPU.BaseCPU.CpuThreadBody()

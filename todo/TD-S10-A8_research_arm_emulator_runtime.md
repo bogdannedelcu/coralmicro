@@ -187,6 +187,12 @@ Preferred first path:
 - build a deterministic FS image per experiment;
 - attach it as emulated flash/SD/block storage;
 - export the image or mounted artifact directory after the emulator exits.
+- B8 confirmed the preferred path as production FileX/LevelX over an emulated
+  raw-NAND image.  For the first emulator milestones it is acceptable to stage
+  host files into that NAND image before boot, then let the guest read them
+  through normal `sentai.fs` APIs.  USB/MSC is useful later for board-parity
+  workflows, but it is not required to unblock model/image/mission loading in
+  the emulator.
 
 Fallback:
 

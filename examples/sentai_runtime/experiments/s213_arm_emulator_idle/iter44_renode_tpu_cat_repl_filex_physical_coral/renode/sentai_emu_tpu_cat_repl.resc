@@ -1,0 +1,93 @@
+:name: SentAI B8 ARM REPL TPU cat over staged FileX
+:description: Boots the staged FileX NAND image, imports /mission.py from guest FS, and runs one physical USB Coral cat detection through the emu host bridge.
+
+i @emu/renode/sentai_rt1176.repl
+
+$bin?=@build_emu/emu/sentai_emu_tpu_cat_repl
+$uart_log?=@/home/bogdan/work/coralmicro/emu/output/sentai_emu_tpu_cat_repl.log
+
+macro reset
+"""
+    sysbus LoadELF $bin
+    cpu VectorTableOffset 0x800
+"""
+
+lpuart6 CreateFileBackend $uart_log
+runMacro $reset
+
+emulation RunFor "5s"
+
+# import mission\r
+lpuart6 WriteChar 0x69
+emulation RunFor "0.05s"
+lpuart6 WriteChar 0x6D
+emulation RunFor "0.05s"
+lpuart6 WriteChar 0x70
+emulation RunFor "0.05s"
+lpuart6 WriteChar 0x6F
+emulation RunFor "0.05s"
+lpuart6 WriteChar 0x72
+emulation RunFor "0.05s"
+lpuart6 WriteChar 0x74
+emulation RunFor "0.05s"
+lpuart6 WriteChar 0x20
+emulation RunFor "0.05s"
+lpuart6 WriteChar 0x6D
+emulation RunFor "0.05s"
+lpuart6 WriteChar 0x69
+emulation RunFor "0.05s"
+lpuart6 WriteChar 0x73
+emulation RunFor "0.05s"
+lpuart6 WriteChar 0x73
+emulation RunFor "0.05s"
+lpuart6 WriteChar 0x69
+emulation RunFor "0.05s"
+lpuart6 WriteChar 0x6F
+emulation RunFor "0.05s"
+lpuart6 WriteChar 0x6E
+emulation RunFor "0.05s"
+lpuart6 WriteChar 0x0D
+emulation RunFor "5s"
+
+# mission.run()\r
+lpuart6 WriteChar 0x6D
+emulation RunFor "0.05s"
+lpuart6 WriteChar 0x69
+emulation RunFor "0.05s"
+lpuart6 WriteChar 0x73
+emulation RunFor "0.05s"
+lpuart6 WriteChar 0x73
+emulation RunFor "0.05s"
+lpuart6 WriteChar 0x69
+emulation RunFor "0.05s"
+lpuart6 WriteChar 0x6F
+emulation RunFor "0.05s"
+lpuart6 WriteChar 0x6E
+emulation RunFor "0.05s"
+lpuart6 WriteChar 0x2E
+emulation RunFor "0.05s"
+lpuart6 WriteChar 0x72
+emulation RunFor "0.05s"
+lpuart6 WriteChar 0x75
+emulation RunFor "0.05s"
+lpuart6 WriteChar 0x6E
+emulation RunFor "0.05s"
+lpuart6 WriteChar 0x28
+emulation RunFor "0.05s"
+lpuart6 WriteChar 0x29
+emulation RunFor "0.05s"
+lpuart6 WriteChar 0x0D
+emulation RunFor "30s"
+
+lpuart6 CloseFileBackend $uart_log
+
+echo "sentai_emu_tpu_cat_repl PC:"
+cpu PC
+echo "sentai_emu_tpu_cat_repl boot_state:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_boot_state"`
+echo "sentai_emu_tpu_cat_repl heartbeat:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_heartbeat"`
+echo "sentai_emu_tpu_cat_repl repl_lines:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_repl_lines"`
+echo "sentai_emu_tpu_cat_repl last_tick:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_last_tick"`

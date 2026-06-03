@@ -1,0 +1,47 @@
+
+SentAI EMU REPL B8.3
+MicroPython embed ready
+MISSION_TPU_TIMING_BEGIN
+FR_OPEN_EVENTS 0
+FR_OPEN_SCALARS 0
+FR_TASK_START 0
+MODEL_SIZE 7077792
+IMAGE_SIZE 921654
+TPU_LOAD 0
+MODEL_STAGE_MS 1834
+TPU_IMAGE_FS_TO_MEM 0
+TPU_IMAGE_FS_TO_MEM_MS 72
+IMAGE_MEM_SIZE 921654
+HOST_PRELOAD_IMAGE 0
+HOST_PRELOAD_IMAGE_MS 0
+TPU_START 0
+TPU_START_MS 0
+TPU_FIRST_INVOKE 250
+TPU_FIRST_INVOKE_REPL_MS 0
+TPU_STATS_FIRST params_calls 1 params_bytes 6703232 input_calls 1 input_bytes 270000 ins_calls 2 ins_bytes 264752 output_calls 2 output_bytes 184040 event_calls 2 usb_out_us 84887 usb_in_us 46819 usb_event_us 72
+TPU_STEADY_INVOKE 0 70
+TPU_STEADY_INVOKE_REPL_MS 0 0
+TPU_STATS_STEADY_0 params_calls 0 params_bytes 0 input_calls 1 input_bytes 270000 ins_calls 1 ins_bytes 254304 output_calls 2 output_bytes 184040 event_calls 1 usb_out_us 6262 usb_in_us 47571 usb_event_us 30
+TPU_STEADY_INVOKE 1 71
+TPU_STEADY_INVOKE_REPL_MS 1 0
+TPU_STATS_STEADY_1 params_calls 0 params_bytes 0 input_calls 1 input_bytes 270000 ins_calls 1 ins_bytes 254304 output_calls 2 output_bytes 184040 event_calls 1 usb_out_us 6197 usb_in_us 48128 usb_event_us 30
+TPU_STEADY_INVOKE 2 71
+TPU_STEADY_INVOKE_REPL_MS 2 0
+TPU_STATS_STEADY_2 params_calls 0 params_bytes 0 input_calls 1 input_bytes 270000 ins_calls 1 ins_bytes 254304 output_calls 2 output_bytes 184040 event_calls 1 usb_out_us 6457 usb_in_us 47492 usb_event_us 29
+TPU_STEADY_COMPLETED 3
+TPU_STEADY_TOTAL_MS 212
+TPU_STEADY_FPS_X100 1415
+TPU_STEADY_FPS 14.15
+TPU_STEADY_INVOKE_MS_SUM 212
+DETECTIONS_COUNT 20
+TPU_STOP 0
+FR_EVENTS_SIZE 1245
+FR_SCALARS_SIZE 1314
+TIMING_SUMMARY_WRITTEN True
+FR_TASK_STOP 0
+FR_EVENTS_PATH /fr/events.csv
+FR_SCALARS_PATH /fr/scalars.csv
+TIMING_SUMMARY_PATH /tpu_timing_summary.txt
+MISSION_TPU_TIMING_DONE
+{'image_fs_to_mem_ms': 72, 'tpu_start_ms': 0, 'image_size': 921654, 'first_output_bytes': 184040, 'first_input_bytes': 270000, 'steady_output_bytes_last': 184040, 'detections_count': 20, 'steady_input_bytes_last': 270000, 'status': 'OK', 'steady_fps_x100': 1415, 'fr_scalars_size': 1314, 'host_preload_image_ms': 0, 'first_params_bytes': 6703232, 'steady_fps': 14.15, 'tpu_stop_rc': 0, 'steady_invoke_ms_sum': 212, 'model_size': 7077792, 'first_invoke_ms': 250, 'image_mem_size': 921654, 'fr_events_size': 1245, 'steady_completed': 3, 'steady_total_ms': 212, 'model_stage_ms': 1834, 'first_invoke_repl_ms': 0}
+>>>

@@ -1,0 +1,39 @@
+13:56:28.2053 [INFO] Loaded monitor commands from: /home/bogdan/work/renode_portable/scripts/monitor.py
+Renode, version 1.16.1 (ac18b5ac-202606020225)
+
+
+(monitor) i $CWD/emu/renode/sentai_emu_usbhost_task.resc
+
+13:56:28.3246 [INFO] Including script(s): /home/bogdan/work/coralmicro/emu/renode/sentai_emu_usbhost_task.resc
+13:56:28.3399 [INFO] System bus created.
+13:56:29.1554 [INFO] sysbus: Loading block of 3072 bytes length at 0x0.
+13:56:29.1668 [INFO] sysbus: Loading block of 43360 bytes length at 0xC00.
+13:56:29.1669 [INFO] sysbus: Loading block of 6080 bytes length at 0xB560.
+13:56:29.1669 [INFO] sysbus: Loading block of 8192 bytes length at 0x20000000.
+13:56:29.1670 [INFO] sysbus: Loading block of 16777216 bytes length at 0x80000000.
+13:56:29.6608 [INFO] cpu: Setting initial values: PC = 0xCBD, SP = 0x20040000.
+13:56:29.6638 [INFO] machine-0: Machine started.
+13:56:29.7530 [WARNING] nvic: Unhandled write to offset 0xF50 (ICacheInvalidateAllToPoUaIgnored), value 0x0.
+13:56:29.7893 [WARNING] nvic: Trying to set the priority for interrupt 16 to 0xFF, but it should be maskable with 0xF0
+13:56:32.6666 [INFO] machine-0: Machine paused.
+sentai_emu_usbhost_task PC:
+
+0x683c
+
+sentai_emu_usbhost_task boot_state:
+
+0x00000600
+
+sentai_emu_usbhost_task step:
+
+0x00000005
+
+sentai_emu_usbhost_task heartbeat:
+
+0x00000129
+
+sentai_emu_usbhost_task last_tick:
+
+0x00000B90
+
+(machine-0) 13:56:32.7528 [INFO] machine-0: Disposed.

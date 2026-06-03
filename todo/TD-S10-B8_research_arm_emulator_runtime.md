@@ -1,6 +1,6 @@
 # TD-S10-B8 - Research And Spike ARM Emulator Runtime
 
-## Status As Of 2026-06-02
+## Status As Of 2026-06-03
 
 | Gate | Topology / proof                                                 | Verdict iter (s213)                              | Commit     |
 | ---- | ---------------------------------------------------------------- | ------------------------------------------------ | ---------- |
@@ -13,20 +13,430 @@
 | B8.7 | Stage1Task -> {Stage2A, Stage2B} fan-out with seqlock            | iter11_renode_fanout_stage1_2a_2b                | 64575739   |
 | B8.7c| Brute-force SAD flow on a 1-px/frame cat pan (B7 regression)     | iter12_renode_flowest_cat_pan_1px                | abbc7202   |
 | B8.7d| Brute-force SAD flow on varied 2D motion across both axes        | iter13_renode_flowest_cat_2d_varied              | 68f86d7a   |
-| B8.8 | Transparent USB Coral via real `edgetpu_manager` (phased)        | open — Phase 1 in progress                       | _open_     |
-| B8.9 | Crazyflie CRTP via real UART + cf2-SITL TCP bridge (planned)     | not started                                      | _open_     |
+| B8.8a| Production `UsbHostTask` constructor links + returns             | iter17_renode_usbhost_probe_ctor                 | _open_     |
+| B8.8b| Production `UsbHostTask::Init()` + scheduler heartbeat           | iter16_renode_usbhost_task_scheduler             | _open_     |
+| B8.8c| Production `EdgeTpuManager` singleton over USB host task         | iter21_renode_edgetpu_manager_probe              | _open_     |
+| B8.8d| Production `EdgeTpuTask` QueueTask registers on USB host         | iter23_renode_edgetpu_task_probe                 | _open_     |
+| B8.8e| `OpenDevice()` no-device/error path from FreeRTOS task           | iter25_renode_edgetpu_opendevice_probe           | _open_     |
+| B8.8f| Synthetic Coral attach/enumeration through real callback chain   | iter26_renode_edgetpu_synth_enum_probe           | _open_     |
+| B8.8g| Renode MMIO Coral descriptor block through real callback chain    | iter35_renode_edgetpu_mmio_enum_probe            | _open_     |
+| B8.8h| `OpenDevice()` after Renode MMIO enum reaches driver init         | iter36_renode_edgetpu_mmio_opendevice_probe      | _open_     |
+| B8.8i| `TpuDriver::Send*` MMIO bridge boundary smoke                    | iter37_renode_edgetpu_mmio_send_bridge_probe     | _open_     |
+| B8.8j| Physical USB Coral via SIM POSIX/libusb + COCO postprocess       | `build-sim/sim/tpu_posix_invoke_smoke` PASS x3   | _open_     |
+| B8.8 | Transparent USB Coral via real `edgetpu_manager` (phased)        | open — host Coral bridge behind Send* next       | _open_     |
+| B8.9 | Production FileX/LevelX over Renode raw-NAND bridge              | iter38_renode_fx_storage_filex_levelx_nand       | _open_     |
+| B8.9b| MicroPython `sentai.fs` over FileX/LevelX raw-NAND bridge        | iter40_renode_fs_repl_filex_levelx_nand          | _open_     |
+| B8.9c| Idempotent pre-boot asset staging into FileX/LevelX raw-NAND image| iter54_renode_fs_stage_assets_filex_levelx_nand  | _open_     |
+| B8.9d| Post-boot `sentai.fs` readback of staged model/image/mission      | iter43_renode_fs_asset_check_filex_levelx_nand   | _open_     |
+| B8.10| Guest FS -> `sentai.tpu` -> host bridge -> physical USB Coral     | iter55_renode_tpu_cat_repl_filex_physical_coral  | _open_     |
+| B8.10b| Guest FS -> persistent host bridge -> physical USB Coral FPS      | iter87_renode_tpu_fps_mem_session_repl_filex_physical_coral | _open_ |
+| B8.10c| Lower-level TPU transport optimization plan / A/B matrix         | documented after iter60                          | _open_     |
+| B8.10d| Low-level timing at SendParameters/SendInputs boundary            | iter83_renode_tpu_timing_repl_filex_physical_coral | _open_   |
+| B8.10e| Guest `EdgeTpuManager` -> `TpuDriver::Send*` -> physical USB Coral | iter91_renode_tpu_physical_send_smoke_filex_coral | _open_    |
+| B8.10f| Host wall-clock FPS for guest `Send*` -> physical USB Coral       | iter92_renode_tpu_physical_send_fps_filex_coral  | _open_    |
+| B8.10g| POSIX/libusb bulk-IN outfeed optimization (`0x80` / 1024B)        | iter98_renode_tpu_physical_send_fps_filex_coral  | _open_    |
+| B8.12| Crazyflie CRTP via real UART + cf2-SITL TCP bridge (planned)     | not started                                      | _open_     |
 
 Run any gate via:
 
 ```sh
 python3 examples/sentai_runtime/experiments/s213_arm_emulator_idle/run_s213.py \
-    --target {idle,uart,repl,mission,camera,pipeline,fanout,flowest}
+    --target {idle,uart,repl,mission,camera,pipeline,fanout,flowest,usbhost_task,edgetpu_manager_probe,edgetpu_task_probe,edgetpu_opendevice_probe,edgetpu_synth_enum_probe,edgetpu_mmio_enum_probe,edgetpu_mmio_opendevice_probe,edgetpu_mmio_send_bridge_probe,fx_storage,fs_repl,fs_stage_assets,fs_asset_check,tpu_cat_repl,tpu_fps_repl,tpu_fps_mem_repl,tpu_fps_mem_invoke_repl,tpu_fps_mem_session_repl,tpu_timing_repl,tpu_physical_send_smoke,tpu_physical_send_fps}
 ```
 
 The runner produces an `iterNN_*/verdict_s213.json` with per-gate
 assertions (counter equalities, UART byte matches, per-frame
 detection sequences).  `pass: true` requires every assertion to
 hold; partial PASS is not accepted.
+
+Latest B8.8 USB/TPU emulator slice:
+
+- `iter22_renode_edgetpu_task_probe` intentionally remains as failed
+  build-history.  It exposed the endpoint-log hooks pulled in by
+  `libs/tpu/usb_host_edgetpu.c`.
+- `iter23_renode_edgetpu_task_probe` is the passing P3b verdict:
+  production `UsbHostTask::Init()`, production `EdgeTpuManager` singleton,
+  and production `EdgeTpuTask::Init()` all return before the ARM FreeRTOS
+  scheduler starts; the lower-priority heartbeat continues running
+  (`boot_state == 0x600`, `usbhost_step == 11`, `heartbeat == 297` over 3 s).
+- `iter24_renode_edgetpu_opendevice_probe` intentionally remains as failed
+  build-history.  It exposed that `OpenDevice()` pulls the `TpuDriver`
+  initialize symbol even on a no-device probe.
+- `iter25_renode_edgetpu_opendevice_probe` is the passing P4a verdict:
+  `EdgeTpuManager::OpenDevice()` runs from a FreeRTOS task, sees a controlled
+  USB error/no-device state, returns `nullptr`, and the scheduler heartbeat
+  stays alive (`boot_state == 0x600`, `usbhost_step == 13`).
+- `iter26_renode_edgetpu_synth_enum_probe` is the passing P4b verdict:
+  a FreeRTOS task creates a synthetic `usb_host_device_instance_t` with Coral
+  VID/PID `18d1:9302`, a vendor-class interface, and the minimum three
+  endpoints (bulk IN, bulk OUT, interrupt IN), then injects attach and
+  enumeration-done through the real `UsbHostTask::HostEvent()` ->
+  `EdgeTpuTask::USBHostEvent()` callback chain.  Scheduler heartbeat remains
+  alive (`boot_state == 0x600`, `usbhost_step == 16`).
+- `iter27..34_renode_edgetpu_mmio_enum_probe` intentionally remain as failed
+  bring-up history for P5a.  They exposed Renode MMIO alignment rules
+  (`MappedMemory` base and size must be 0x400-aligned), a brittle
+  PythonPeripheral/IRQ path for this Coral scaffold, and a descriptor packing
+  bug (`ep_count` must live in bits 16..23 of the interface word).
+- `iter35_renode_edgetpu_mmio_enum_probe` is the passing P5a verdict:
+  Coral-like VID/PID, vendor-class interface, and endpoint descriptors are now
+  stored in a Renode-side MMIO descriptor block at `0x40900400`.  Firmware reads
+  that block, constructs NXP USB host descriptor structs, and injects
+  attach/enumeration through the real `UsbHostTask::HostEvent()` ->
+  `EdgeTpuTask::USBHostEvent()` callback chain.  Scheduler heartbeat remains
+  alive (`boot_state == 0x600`, `usbhost_step == 19`).  This is still a
+  descriptor-block proof, not an EHCI device model and not physical Coral
+  passthrough.
+- `iter36_renode_edgetpu_mmio_opendevice_probe` is the passing P5b verdict:
+  after the Renode-side MMIO descriptor block is consumed and enumeration is
+  routed through the real `UsbHostTask`/`EdgeTpuTask` callback path,
+  `EdgeTpuManager::OpenDevice()` runs from a FreeRTOS task, waits for the
+  connected class instance, calls the emu-scoped `TpuDriver::Initialize()`
+  success stub, and returns a context (`usbhost_step == 22`).  This proves
+  manager/task sequencing after an emulator-provided Coral descriptor, but does
+  not model real TPU bulk transfers yet.
+- `iter37_renode_edgetpu_mmio_send_bridge_probe` is the passing P6a verdict:
+  after P5b `OpenDevice()` succeeds, firmware calls the real `TpuDriver`
+  transfer boundary methods once each:
+  `SendParameters`, `SendInputs`, `SendInstructions`, `GetOutputs`, and
+  `ReadEvent`.  Renode's `coral_tpu_bridge` MMIO peripheral at `0x40900800`
+  acks the mailbox, reads guest bytes for OUT phases, writes a deterministic
+  output pattern for `GetOutputs`, and the ARM FreeRTOS heartbeat remains live
+  (`boot_state == 0x600`, `usbhost_step == 30`, all five bridge call counters
+  equal 1, output sum `2680`).  This proves the chosen injection point is
+  exactly the `TpuDriver::Send*` boundary requested by the operator.  It is
+  still not a physical Coral USB transfer and not a COCO-model invoke.
+- `build-sim/sim/tpu_posix_invoke_smoke` is the passing physical-Coral smoke
+  for P6b/P6c research.  It uses the shared ARM-like TPU path
+  (`EdgeTpuManager` -> `EdgeTpuExecutable` -> `TpuDriver`) and injects the
+  existing SIM POSIX/libusb transport at `USB_HostEdgeTpu*`; it does not use
+  PyCoral.  The smoke parses the COCO EdgeTPU `.tflite`, sends the real
+  `edgetpu-custom-op` package to the physical USB Coral, dequantizes the two
+  builtin outputs, and runs the bundled TFLite Micro
+  `TFLite_Detection_PostProcess` custom op.  On 2026-06-02 it passed three
+  consecutive runs with deterministic output checksum `877b9c24` and top
+  detection `class=16 score=0.828 box=[0.218 0.166 0.842 0.679]` on the
+  COCO cat baseline.  This proves the physical USB Coral path and custom-op
+  postprocess are usable without Python; it is not yet wired into the Renode
+  MMIO guest/host bridge.
+- The P3b stubs are emu-scoped only: cache maintenance, debug-console,
+  endpoint-log recording, GPIO/PMIC, and the P4a no-device `TpuDriver` link
+  stub are not real peripheral models.  P4b is a firmware-side synthetic
+  attach/enumeration proof; P5a/P5b move descriptor data into Renode MMIO and
+  reach `OpenDevice()`; P6a moves from driver-init to the `TpuDriver::Send*`
+  transfer boundary.  None of these are a Renode EHCI device model or physical
+  Coral passthrough yet.  The POSIX SIM libusb branch in `usb_host_edgetpu.h`
+  remains distinct from the ARM-emulator NXP USB path via `SENTAI_ARM_EMU`.
+
+Latest B8.9 filesystem/storage slice:
+
+- `iter38_renode_fx_storage_filex_levelx_nand` is the passing storage verdict.
+  The firmware target links the production `FxUser*` stack, production
+  FileX/LevelX libraries, and production `fx_nand_driver` callbacks.  The only
+  emulator-specific injection is below the NAND driver:
+  `SENTAI_ARM_EMU_NAND_BRIDGE` redirects raw page read, raw page program, and
+  block erase operations to a Renode MMIO peripheral at `0x40900C00`, backed by
+  `emu/output/sentai_emu_nand.bin`.
+- This intentionally rejects a FileX-in-RAM fixture.  It preserves the ARM
+  layering:
+
+  ```text
+  sentai.fs / FxUser* -> FileX -> LevelX -> fx_nand_driver -> raw NAND bridge
+  ```
+
+  so later REPL uploads, USB MSC behavior, model loading, and image loading can
+  use the same runtime APIs and storage semantics as the physical board.
+- The smoke performs `FxUserInit(force_format=1)`, `FxUserMakeDirs("/models")`,
+  `FxUserWriteFile("/models/smoke.txt")`, `FxUserSync()`, `FxUserSize()`, and
+  `FxUserReadFile()`.  Verdict: `boot_state == 0x600`, `fs_size == 41`,
+  `fs_read_ok == 1`, `fx_reads == 204`, `fx_writes == 150`,
+  `fx_erases == 448`, `fx_errors == 0`, UART contains `FX_STORAGE PASS`.
+- Next storage gates should build on this exact block-device layer:
+  test the documented small-file REPL uploader (`sentai.fs.append`) and the
+  large-file USB-MSC path (`sentai.usb.drive`) without replacing FileX/LevelX.
+- `iter39_renode_fs_repl_filex_levelx_nand` remains as bring-up history: the
+  MicroPython smoke reached `FS_REPL_DONE`, but the Renode runner was stopped
+  manually while the script still had an overly long `RunFor` window.
+- `iter40_renode_fs_repl_filex_levelx_nand` is the passing B8.9b verdict:
+  the emulator REPL exposes `sentai.fs` over `FxUser*` and executes, inside the
+  MicroPython VM:
+  `format`, `mkdir`, `write`, `append`, `sync`, `size`, `read_str`, `exists`,
+  and `ls`.  UART proves `FS_READ hello world` and
+  `FS_LS [('a.txt', 1, 11)]`; Renode symbols report `boot_state == 0x500`,
+  `fs_smoke_ok == 1`, `fs_smoke_size == 11`, and `pass: true`.
+- `iter41_renode_fs_stage_assets_filex_levelx_nand` is the first passing
+  B8.9c full-write verdict: a host-backed Renode asset bridge stages three
+  files into the emulated production FileX/LevelX NAND image before the later
+  runtime boot: the COCO EdgeTPU model, `cat_640x480.bmp`, and `/mission.py`.
+  The firmware writer still uses `FxUser*` and the FileX/LevelX NAND stack;
+  only the source bytes come from a Renode MMIO host bridge.  Verdict:
+  `boot_state == 0x700`, `stage_files == 3`, `stage_bytes == 8000205`,
+  `stage_errors == 0`, `fx_errors == 0`, and `pass: true`.
+- `iter54_renode_fs_stage_assets_filex_levelx_nand` is the current B8.9c
+  idempotent reboot verdict.  The staging firmware now mounts the existing
+  FileX/LevelX NAND image with `FxUserInit(0)` and formats only if mount
+  fails.  For each asset it compares the existing guest file size with the
+  host asset size; if they match, it logs `FS_STAGE SKIP` and does not rewrite
+  the file.  UART proves:
+
+  ```text
+  FS_STAGE SKIP index=0 size=7077792 path=/models/tf2_ssd_mobilenet_v2_coco17_ptq_edgetpu.tflite
+  FS_STAGE SKIP index=1 size=921654 path=/images/cat_640x480.bmp
+  FS_STAGE SKIP index=2 size=759 path=/mission.py
+  ```
+
+  Verdict: `stage_files == 3`, `stage_bytes == 0`, `fx_writes == 0`,
+  `fx_erases == 0`, `fx_errors == 0`, and `pass: true`.  This is the desired
+  reboot behavior: if the model and cat image already exist at the expected
+  sizes, boot-time staging verifies them and skips the expensive rewrite.
+- `iter43_renode_fs_asset_check_filex_levelx_nand` is the passing B8.9d
+  verdict: a separate boot mounts the existing NAND image without formatting
+  and verifies staged guest paths through `sentai.fs`: model size `7077792`,
+  image size `921654`, mission size `759`, and mission head `import sentai`.
+  Verdict: `boot_state == 0x500`, UART contains `FS_ASSET_CHECK_DONE`, and
+  `pass: true`.
+- Current B8 FS policy: it is acceptable, for now, to write/read host files
+  into the emulated FileX/LevelX NAND image before boot.  We do not need to
+  bring up USB MSC just to load model/image/mission assets.  This preserves the
+  guest runtime contract (`sentai.fs` sees normal files) while keeping the
+  first emulator path simpler than physical-board USB-drive copy.
+
+Latest B8.10 physical Coral bridge slice:
+
+- `iter52_renode_tpu_cat_repl_filex_physical_coral` is the first passing B8.10
+  verdict.  The guest firmware boots the ARM emulator target, mounts the
+  staged FileX/LevelX NAND image, imports `/mission.py`, and runs:
+
+  ```python
+  sentai.tpu.load("/models/tf2_ssd_mobilenet_v2_coco17_ptq_edgetpu.tflite")
+  sentai.tpu.load_image("/images/cat_640x480.bmp")
+  sentai.tpu.invoke()
+  sentai.pipeline.detections(100)
+  ```
+
+- The guest `sentai.tpu` module streams model/image bytes from guest FS to a
+  Renode host bridge at the emulator boundary.  The host bridge invokes the
+  existing no-PyCoral C++/libusb physical-Coral smoke
+  `build-sim/sim/tpu_posix_invoke_smoke`, parses the COCO postprocess
+  detections, and returns them to the guest.  This is intentionally a
+  guest/host bridge, not a fake `detect_cat()` shortcut and not a Renode EHCI
+  USB-device model.
+- UART proof from iter52:
+
+  ```text
+  MODEL_SIZE 7077792
+  IMAGE_SIZE 921654
+  TPU_LOAD 0
+  TPU_READY True
+  TPU_LOAD_IMAGE 0
+  TPU_INVOKE 3171
+  TPU_OUTPUTS 2
+  DETECTIONS_COUNT 5
+  DETECTIONS [(16, 0.828, 0.218, 0.166, 0.842, 0.679), ...]
+  DETECTIONS_WRITTEN True
+  MISSION_TPU_CAT_DONE
+  ```
+
+- Verdict: `returncodes.renode == 0`, `boot_state == 0x500`, `heartbeat == 1`,
+  `repl_lines == 1`, UART contains all `TPU_*` and detection markers, and
+  `pass: true`.  The target Renode script uses `RunFor "5.0s"` because a long
+  `RunFor "60s"` window is unnecessary and slow once the synchronous host
+  bridge has completed.
+- `iter55_renode_tpu_cat_repl_filex_physical_coral` is the current passing
+  B8.10 rerun after idempotent staging.  No asset rewrite was needed first;
+  the model and image already present in guest FS were loaded by
+  `sentai.tpu.load()` / `sentai.tpu.load_image()`, `sentai.tpu.invoke()`
+  completed through the physical USB Coral bridge (`TPU_INVOKE 3442`), and the
+  mission again returned 5 COCO detections with top `class=16 score=0.828`.
+- `iter60_renode_tpu_fps_repl_filex_physical_coral` is the current passing
+  B8.10b benchmark.  The FPS window starts after guest `sentai.tpu.load()`,
+  `sentai.tpu.load_image()`, and one warmup invoke.  The measured path keeps
+  one host C++/libusb smoke process open for the benchmark call and runs 5
+  measured invokes against the physical USB Coral:
+
+  ```text
+  TPU_FPS_RESULT (5, 1, 8609, 58, 8597, 20)
+  TPU_FPS_COMPLETED 5
+  TPU_FPS_WARMUP 1
+  TPU_FPS_MEASURED_MS 8609
+  TPU_FPS_X100 58
+  TPU_FPS 0.58
+  TPU_FPS_INVOKE_MS_SUM 8597
+  DETECTIONS_COUNT 20
+  ```
+
+  Bridge proof:
+
+  ```text
+  fps begin runs=5 warmup=1
+  fps ok completed_runs=5 fps_x100=58 detection_count=20 parsed_detections=20
+  ```
+
+  Important interpretation: `TPU_FPS_X100 58` means **0.58 FPS**, not 58 FPS.
+  `completed_runs=5` means five measured invoke calls; `detection_count=20`
+  means the final invoke produced the model's 20 COCO detections.  Earlier logs
+  that said `detections=5` were counting only the top-five `DET[...]` lines
+  printed by the smoke, not the model's total detections.
+- Performance interpretation after iter60:
+
+  - Renode/emulator throughput is host-PC dependent in general.  However, this
+    specific TPU FPS number is not primarily a Renode CPU-speed artifact: the
+    host-only `build-sim/sim/tpu_posix_invoke_smoke --runs 5 --warmup 1 ...`
+    run measured the same order of magnitude (`~0.56 FPS`) without Renode.
+  - Hardware ARM target history is **10 FPS minimum**, so `0.58 FPS` is a clear
+    sign that the current POSIX/libusb/smoke path is not equivalent to the
+    optimized ARM hot path.
+  - The current smoke opens the EdgeTPU in `PerformanceMode::kLow`, while the
+    SIM POSIX backend uses `PerformanceMode::kHigh`.  This is the first easy
+    A/B axis.
+  - The ARM TPU path already contains performance toggles that the smoke
+    benchmark does not yet expose:
+    `g_sentai_tpu_desc_cache_enabled`,
+    `g_sentai_tpu_multi_ep_routing`,
+    `g_sentai_tpu_async_input_enabled`,
+    `g_sentai_tpu_zero_copy_input`, and
+    `g_sentai_tpu_chunk_size`.
+  - There are also existing counters in `edgetpu_executable.cc` /
+    `edgetpu_driver.cc` for parameter/instruction/input/output/event timing and
+    bytes.  B8 should reuse those instead of guessing where time goes.
+- Remaining B8.10 gaps: make the bridge less specific to the smoke binary,
+  decide whether `sentai.tpu.load_image()` should stay in TPU namespace or move
+  behind camera/prep buffers later, and decide how much of this host bridge is
+  acceptable as a long-term emulator fixture versus a temporary physical-Coral
+  proof.
+- Next lower-level B8.10 step: keep the guest contract the same, but move the
+  host bridge from "launch a complete smoke executable per guest command" to a
+  persistent host-side EdgeTPU session with explicit commands for model/package
+  load, input upload, invoke, and output/postprocess retrieval.  That is the
+  right level below the current smoke bridge before attempting real Renode EHCI
+  USB passthrough/device modeling.
+- B8.10c concrete optimization plan:
+
+  1. Extend `tpu_posix_invoke_smoke` with benchmark flags for performance mode
+     (`low/high/max`), descriptor cache, chunk size, async input, zero-copy
+     input, and multi-endpoint routing.
+  2. Print per-benchmark counters: completed invokes, FPS, per-invoke
+     params/instructions/input/output/event calls and bytes, plus skip counters
+     for descriptor-cache hits.
+  3. Run host-only A/B first; only rerun Renode after the host-only path moves
+     materially toward the ARM baseline.
+  4. If host-only remains far below 10 FPS, build a persistent host bridge
+     process/session so model/package/device setup is not repeated across guest
+     commands and so the bridge boundary is closer to
+     `SendParameters`/`SendInputs`/`SendInstructions`/`GetOutputs`.
+  5. Only after that consider a lower Renode USB/EHCI model; do not spend time
+     modeling bus details while the standalone host transport is still slow.
+- B8.10c progress on 2026-06-03:
+
+  - `tpu_posix_invoke_smoke` now exposes the planned A/B knobs:
+    `--perf low|medium|high|max`, `--desc-cache`, `--async-input`,
+    `--multi-ep`, `--zero-copy-input`, `--chunk-size`, `--chunk-kb`,
+    `--break-short-bulkin`, and `--fast-sync-wait`.
+    It also prints `TPU_BENCH_CONFIG`, `TPU_STAGE_STATS`,
+    `TPU_CALL_STATS`, and `TPU_DESC_CACHE_STATS`.
+  - The Renode host bridge now timestamps model/image staging and physical
+    Coral invoke/FPS calls, and copies the smoke benchmark summary lines into
+    `/tmp/sentai_emu_tpu_bridge.log`.
+  - Host-only baseline after instrumentation:
+
+    ```text
+    --runs 3 --warmup 1 --perf low
+    FPS_BENCH completed=3 measured_ms=5434 fps_x100=55
+    TPU_STAGE_STATS ins_calls=3 ins_bytes=762912 ins_ticks=174
+                    input_calls=3 input_bytes=810000 input_ticks=185
+                    output_calls=6 output_bytes=552120 output_ticks=5059
+    ```
+
+    `--perf high` before the low-level fix was essentially unchanged:
+    `fps_x100=56`, with output still dominating (`output_ticks=4915`).
+  - Descriptor-cache is **not safe yet** on this physical-Coral smoke path:
+    `--perf high --desc-cache` failed with `completed=0`, `skip_ins=1`, and
+    left the USB Coral in a bad state where subsequent `OpenDevice()` failed at
+    `read omc0_00`.  Treat descriptor-cache as disabled until its state machine
+    is fixed and covered by a replug-safe test.
+  - Short Bulk-IN is **not equivalent** across ARM/NXP and POSIX/libusb.  ARM
+    treats a short Bulk-IN as stream termination for padded outputs.  A POSIX
+    experiment that enabled the same break by default failed the COCO smoke
+    (`completed=0`, changed output checksum, no detections).  Therefore POSIX
+    keeps the historical continue-by-default behavior, and the break is exposed
+    only as diagnostic `--break-short-bulkin`.
+  - Similarly, skipping the final 1 ms sync-transfer pacing delay after libusb
+    completion caused a failed invoke on this path.  The old pacing remains the
+    default; the faster behavior is diagnostic-only via `--fast-sync-wait`.
+  - Validation is blocked until USB Coral is replugged/restarted again: after
+    the failed aggressive Bulk-IN / fast-sync experiment, the device still
+    enumerates as `18d1:9302`, but subsequent `OpenDevice()` fails at
+    `read omc0_00`.  No Renode, smoke, or `usbreset` processes are left
+    running.
+  - After physical replug, the safe low-level USB smoke passed end-to-end:
+
+    ```text
+    ./build-sim/sim/tpu_posix_invoke_smoke \
+      --runs 1 --warmup 0 --perf high \
+      --no-desc-cache --no-break-short-bulkin --no-fast-sync-wait
+
+    DFU loading EdgeTPU firmware len=10783
+    OK tpu_posix_invoke invoke_ms=3144
+    output_checksum=877b9c24
+    DETECTIONS n=20
+    DET[0] class=16 score=0.828 box=[0.218 0.166 0.842 0.679]
+    TPU_STAGE_STATS params_calls=1 params_bytes=6703232 params_ticks=1410
+                    ins_calls=2 ins_bytes=264752 ins_ticks=61
+                    input_calls=1 input_bytes=270000 input_ticks=59
+                    output_calls=2 output_bytes=184040 output_ticks=1612
+    ```
+
+    This proves the no-PyCoral low-level USB path can load firmware, initialize
+    the physical Coral, send the COCO model package/parameters/instructions,
+    send the BMP-derived input tensor, read TPU outputs, and run COCO detection
+    postprocess.
+  - Safe repeated low-level benchmark after warmup:
+
+    ```text
+    --runs 3 --warmup 1 --perf high --no-desc-cache \
+      --no-break-short-bulkin --no-fast-sync-wait
+    FPS_BENCH completed=3 measured_ms=5160 fps_x100=58
+    TPU_STAGE_STATS ins_calls=3 ins_bytes=762912 ins_ticks=167
+                    input_calls=3 input_bytes=810000 input_ticks=175
+                    output_calls=6 output_bytes=552120 output_ticks=4802
+    ```
+
+    Chunk-size A/B with `--chunk-kb 36` stayed correct and improved only
+    slightly:
+
+    ```text
+    FPS_BENCH completed=3 measured_ms=4999 fps_x100=60
+    TPU_STAGE_STATS ins_ticks=77 input_ticks=87 output_ticks=4825
+    ```
+
+    Interpretation: larger chunks reduce instruction/input transfer overhead,
+    but steady-state invoke time is still dominated by the output/compute read
+    phase, not by parameter upload or Python/Renode overhead.
+  - Host-only PyCoral control benchmark on the same physical USB Coral, same
+    COCO EdgeTPU model, and same `cat_640x480.bmp` proves the silicon and
+    host libedgetpu path are fast:
+
+    ```text
+    venv-coral/bin/python
+    PYCORAL_LOAD_MS 2641.863
+    PYCORAL_WARMUP_MS min=11.266 avg=14.873 max=27.968
+    PYCORAL_FPS runs=50 measured_ms=580.388 fps=86.149
+                invoke_ms_min=11.127 invoke_ms_avg=11.600 invoke_ms_max=12.260
+    OBJECTS n=20
+    OBJ[0] id=16 score=0.844 bbox=BBox(xmin=53, ymin=65, xmax=202, ymax=252)
+    ```
+
+    This resolves the ambiguity around the low-level benchmark: the Coral can
+    process this model at far above the hardware target's 20 FPS claim when
+    driven by libedgetpu/PyCoral.  The `~0.6 FPS` no-PyCoral smoke bottleneck
+    is therefore in our low-level `TpuDriver` / POSIX libusb transaction model
+    (descriptor replay, output/event sequencing, polling/pacing, or protocol
+    mismatch), not in Renode and not in EdgeTPU compute capability.
+- Production runtime note: the real ARM MicroPython task already auto-runs
+  `/main.py` from the user FS with safe-mode and timeout guards.  The current
+  B8 emu REPL target still uses a minimal embed autorun of `/mission.py` for
+  deterministic experiments.  Aligning the emu with `/main.py` auto-run is a
+  follow-up once the TPU bridge/FPS path is stable.
 
 ## Purpose
 
@@ -1421,15 +1831,19 @@ USB device, kept under `patches/coralmicro-renode/`.
 
 | Phase  | Goal                                                                       | Output                                                       |
 | ------ | -------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| **P1** | Link a minimal probe target (`sentai_emu_tpu_probe`) that calls `UsbHostTask::UsbHostTask()` and nothing else from the production USB host chain. Just **compile + link**, no run yet. | Build proof that the production USB code can target the emu profile, plus a complete list of every SDK file that gets pulled in transitively. |
-| **P2** | Map RT1176 USB OTG2 / USBPHY1 / USBNC2 / CCM at the correct addresses in `emu/renode/sentai_rt1176.repl` using whatever Renode primitives are available (generic EHCI + Python stubs as fallback).  Boot the probe under Renode and **log the first MMIO address that returns a value the driver rejects**.  No success expected. | Concrete failure trace: which register, which value, which driver expectation.  This is the input to P3. |
-| **P3** | Decide route. Options:                                                     | Decision recorded in B8 doc + first-step commit.            |
+| **P1** | Link and run a minimal probe target (`sentai_emu_usbhost_probe`) that calls the production `UsbHostTask::UsbHostTask()` and nothing else from the USB host chain. | `iter14_renode_usbhost_probe_ctor`, PASS: constructor returned under Renode with current CCM/USBPHY/USB OTG2 stubs. |
+| **P2** | Call the production `UsbHostTask::Init()`, start the ARM FreeRTOS scheduler, and verify a lower-priority heartbeat task still runs while no USB model/device is attached. | `iter16_renode_usbhost_task_scheduler`, PASS: `UsbHostTask::Init()` returned, scheduler heartbeat advanced. |
+| **P3a** | Pull in the production `EdgeTpuManager` singleton one level above USB host without calling `OpenDevice()`. | `iter21_renode_edgetpu_manager_probe`, PASS: manager constructs, scheduler heartbeat remains healthy. |
+| **P3b** | Pull in `EdgeTpuTask` / EdgeTPU USB class registration and identify the first missing link/MMIO/model gap.  Then decide route. Options: | Decision recorded in B8 doc + first-step commit.            |
 |        | a. fork Renode, add `NXP.RT1176_EHCI` peripheral that matches the SDK driver expectations                                                                                                  |                                                              |
 |        | b. fork Renode, add `USB.LibusbDevice` backend that forwards URBs to a host libusb device                                                                                                  |                                                              |
 |        | c. write a Renode-native "fake Coral" USB device that responds to the Coral protocol so the SDK driver completes enumeration (no real silicon, but proves the entire driver path runs)     |                                                              |
 |        | d. pause B8.8 if effort exceeds budget and ship Crazyflie B8.9 first (smaller engineering, immediate value)                                                                                  |                                                              |
 | **P4** | Execute the chosen route to first concrete milestone (enumeration complete, or DFU descriptor exchange, etc.).                                                                              | First UART log line proving the production driver code completed something against an emulator-bridged Coral / fake-Coral.  Verdict iter under s213. |
 | **P5** | If P3 picked path (b) or actual silicon, demonstrate one real Coral inference invoked from inside the emulator with the production code path.  Determinism check (same input -> same output bit-identical to host pycoral).  This is the user's "transparent" goal. | Verdict iter, B8.8 SHIPPED.                                  |
+| **P6a** | Inject at the exact `TpuDriver::SendParameters` / `SendInputs` / `SendInstructions` / `GetOutputs` / `ReadEvent` boundary, with a Renode MMIO responder. | `iter37_renode_edgetpu_mmio_send_bridge_probe`, PASS: every transfer-boundary method is called once and Renode writes output bytes back into guest memory. |
+| **P6b** | Attach the P6a mailbox to a host-side physical Coral service.  Fastest practical route: host PyCoral/libedgetpu performs the actual COCO invoke while the guest still exercises the `TpuDriver::Send*` boundary. | One COCO/cat invoke from emulated CM7 with physical Coral-backed outputs; explicitly marked "host libedgetpu compute", not raw USB protocol fidelity. |
+| **P6c** | Replace P6b's high-level host helper with a raw USB/libedgetpu-low-level bridge so guest `SendParameters`/`SendInstructions`/`SendInputs` are transported as Coral protocol bytes to the physical USB device. | Raw bridge or clear blocker report against local libedgetpu/coralmicro sources. |
 
 ### Open caveats
 
@@ -1450,8 +1864,37 @@ USB device, kept under `patches/coralmicro-renode/`.
 
 - HARD RULE saved.
 - Pycoral mailbox attempt reverted (no artefacts left on disk).
-- B8.7d is the last shipped gate (commit 68f86d7a).
-- P1 of B8.8 is the next concrete step.
+- B8.8 P1 shipped as `iter14_renode_usbhost_probe_ctor` and revalidated after
+  P2 stubs in `iter17_renode_usbhost_probe_ctor`:
+  `boot_state = 0xCAFE`, `usbhost_step = 2`, UART contains
+  `UsbHostTask constructor returned`.
+- B8.8 P2 shipped as `iter16_renode_usbhost_task_scheduler`:
+  `boot_state = 0x0600`, `usbhost_step = 5`, `heartbeat = 297`,
+  `last_tick = 2960`, UART contains `UsbHostTask::Init returned` and
+  `heartbeat task online`.
+- `iter15_renode_usbhost_task_scheduler` is intentionally preserved as the
+  failed-link history.  It exposed the missing emu-only stubs for `CHECK`
+  pulling `ConsoleM7`, SDK cache maintenance, and SDK debug-console printf.
+  The fix is scoped to `emu/` (`sentai_emu_usb_stubs.c` plus
+  `SENTAI_PLATFORM_SIM` for the P2 target) and does not touch production
+  firmware.
+- B8.8 P3a shipped as `iter21_renode_edgetpu_manager_probe`:
+  production `EdgeTpuManager` constructs above `UsbHostTask`, `usbhost_step
+  = 8`, `heartbeat = 297`, `last_tick = 2960`.
+- `iter18_renode_edgetpu_manager_probe` and
+  `iter20_renode_edgetpu_manager_probe` are intentionally preserved as
+  failed-build history.  They exposed two architecture/header gaps:
+  `usb_host_edgetpu.h` treated every `SENTAI_PLATFORM_SIM` build as POSIX
+  libusb, and the manager target needed production FlatBuffers/TFLite include
+  paths.
+- The `usb_host_edgetpu.h` fix is important: POSIX SIM still uses libusb, but
+  ARM emulator builds now take the NXP USB-host header path even when a target
+  uses `SENTAI_PLATFORM_SIM` narrowly to avoid pulling `ConsoleM7` through
+  `CHECK`.
+- Next concrete step: B8.8 P3b, bring in `EdgeTpuTask` / EdgeTPU USB class
+  registration, then decide whether to invest in RT1176 EHCI + libusb
+  passthrough, a fake-Coral USB model, or pause TPU and move to B8.9
+  Crazyflie UART/CRTP.
 
 ## B8.7d Varied 2D Motion Across Both Axes
 
@@ -1561,12 +2004,16 @@ would hide the exact class of coupling we are trying to uncover.
 
 ## Filesystem Strategy
 
-First development option:
+Chosen B8.9 direction: keep the production FileX/LevelX user partition in the
+guest and inject only the raw NAND page/program/erase backend in Renode.  This
+matches the ARM board's storage layering and avoids a FileX-in-RAM fixture.
+
+Experiment artifact layout remains:
 
 ```text
 iterNNN/
-  fs_root/              # host-side staging directory
-  fs.img or fs_bridge/  # emulator-visible storage fixture
+  fs_root/              # optional host-side staging directory
+  nand.img              # emulator-visible raw NAND image, if copied for audit
   fr/                   # exported/decoded artifacts
   uart.log
   emulator.log
@@ -1833,12 +2280,11 @@ Do not add TPU yet.
 
 ### 5. Filesystem Strategy
 
-Choose one:
+Chosen after B8.9: production FileX/LevelX remains inside the guest; the
+emulator supplies a persistent raw-NAND backend below `fx_nand_driver`.
 
-- preferred: prebuilt per-experiment FS image attached to emulated flash/SD;
-- acceptable spike: Renode/semihosted host-file bridge documented as a test
-  fixture;
-- avoid: MP reading large host files into heap.
+Do not use FileX-in-RAM for SentAI emulator validation.  It differs from the ARM
+board in the exact place where model/image transfer semantics matter.
 
 Artifacts must land beside the experiment run exactly as B7 wanted:
 
@@ -1928,3 +2374,781 @@ Every B8 run should record:
 - which peripheral models were real, stubbed, or bypassed.
 
 No "it probably ran" results.
+
+## B8.11 Low-Level Coral USB Alignment
+
+2026-06-03 update: keep the Coral path low-level USB.  PyCoral is allowed only
+as a host-side control benchmark, not as a SentAI implementation backend.
+
+Comparison target:
+
+- Coral Micro path: `EdgeTpuManager -> EdgeTpuExecutable -> TpuDriver`.
+- libedgetpu path: `UsbDriver -> UsbIoRequest -> UsbMlCommands`.
+
+Important libedgetpu behavior to mirror:
+
+- single-endpoint mode uses bulk-out EP1 for parameters, inputs, and
+  instructions;
+- output activations use bulk-in EP1, events use bulk-in EP2, interrupt uses
+  interrupt-in EP3;
+- USB2 bulk-in is intentionally handled as small chunks, commonly 256B;
+- libedgetpu keeps queued bulk-in readers installed in the worker thread
+  (`usb_enable_queued_bulk_in_requests`, default queue capacity 32);
+- bulk-in and bulk-out may overlap, but single-endpoint mode prevents unsafe
+  bulk-out after an incomplete bulk-in.
+
+Measured before the bulk-in cleanup:
+
+```text
+one-shot high, no desc-cache:
+invoke_ms=3290
+output_ticks=1706
+TPU_USB_STATS in_calls=722 in_req=10927120 in_done=184040 in_us=65701 in_short=720
+```
+
+Measured after aligning SIM bulk-in to 256B and removing the artificial
+post-bulk-in 1ms sleep:
+
+```text
+one-shot high, no desc-cache:
+invoke_ms=1611
+output_ticks=33
+TPU_USB_STATS in_calls=722 in_req=184616 in_done=184040 in_us=27870 in_short=3
+```
+
+This proves the old slowdown was mostly host-side transport policy, not TPU
+compute.  The next low-level step is to add a small queued bulk-in path, shaped
+after libedgetpu's worker model, so those ~722 reads do not serialize through a
+sync submit/wait loop.
+
+Implemented but pending physical validation after Coral replug:
+
+```text
+--bulkin-queue-depth N
+```
+
+The queued path is SIM-only and changes only the POSIX USB transport policy for
+output activations; it keeps Coral Micro `EdgeTpuManager`/`TpuDriver` as the
+call path.  Default remains `queue_depth=0`.
+
+Physical validation after Coral reboot:
+
+```text
+sync bulk-IN, 16KB OUT chunk:
+runs=20 warmup=1 completed=20 fps_x100=680
+invoke_ms_min=142 invoke_ms_max=151
+timeouts=0 failed=0
+
+sync bulk-IN, 64KB OUT chunk:
+runs=10 warmup=1 completed=10 fps_x100=1479
+invoke_ms_min=64 invoke_ms_max=68
+timeouts=0 failed=0
+
+sync bulk-IN, 160KB OUT chunk:
+runs=20 warmup=1 completed=20 fps_x100=1930
+invoke_ms_min=48 invoke_ms_max=55
+timeouts=0 failed=0
+
+sync bulk-IN, 160KB OUT chunk, longer confirmation:
+runs=50 warmup=1 completed=50 fps_x100=1965
+invoke_ms_min=47 invoke_ms_max=51
+timeouts=0 failed=0
+```
+
+Decision: keep the ARM bulk-OUT chunk default unchanged and set only the
+SIM/POSIX default to 160KB.  This keeps the low-level USB path and reaches
+roughly 19 FPS after weights are loaded, above the 10 FPS hardware floor.
+
+Queued bulk-IN with `--bulkin-queue-depth 4` was attempted but hung in the POSIX
+async/event-pump path and was killed manually.  The Coral remained usable
+afterward.  Do not enable queued bulk-IN by default; the validated path is sync
+bulk-IN at 256B chunks with no post-IN sleep.
+
+Do not use the current SentAI descriptor-cache shortcut as a benchmark source of
+truth.  It skipped `InstructionHint` after warmup, but that is not equivalent to
+libedgetpu's request scheduler for this COCO executable:
+
+```text
+--desc-cache --warmup 1 failed on first measured invoke
+TPU_USB_STATS out_calls=4 out_req=49160 out_done=32776 timeouts=1
+```
+
+After that failure the Coral app device stopped responding to CSR read until USB
+reset/replug, so desc-cache remains diagnostic-only.  FPS after weights should
+be measured with normal `EdgeTpuManager` parameter caching and the low-level USB
+transport fixes, not with skipped inference instructions.
+
+### 2026-06-03 - simple REPL mission over physical Coral
+
+Validated the simple mission path in emulator target `tpu_cat_repl`:
+
+```text
+python3 examples/sentai_runtime/experiments/s213_arm_emulator_idle/run_s213.py --target tpu_cat_repl
+iter61_renode_tpu_cat_repl_filex_physical_coral
+pass=true
+```
+
+This exercises the intended B8 chain:
+
+```text
+FileX guest FS -> MicroPython import mission -> sentai.tpu.load/load_image/invoke
+-> emu host bridge -> low-level POSIX/libusb Coral path -> physical USB Coral
+-> detections returned to MicroPython
+```
+
+Mission UART markers:
+
+```text
+MODEL_SIZE 7077792
+IMAGE_SIZE 921654
+TPU_LOAD 0
+TPU_READY True
+TPU_LOAD_IMAGE 0
+TPU_INVOKE 259
+TPU_OUTPUTS 2
+DETECTIONS_COUNT 20
+MISSION_TPU_CAT_DONE
+```
+
+Host bridge timing for this one-shot mission:
+
+```text
+model stream: bytes=7077792 chunks=216 total_ms=2013 guest_read_ms=11 host_write_ms=31
+image stream: bytes=921654 chunks=29 total_ms=303 guest_read_ms=0 host_write_ms=6
+invoke: host_ms=418 smoke_invoke_ms=259 detection_count=20 parsed_detections=20
+```
+
+Conclusion: the simple REPL mission is now end-to-end functional from emulated
+guest FS/MP code to the physical USB Coral.  The slower wall time is dominated
+by Renode/emulated-time execution and staging, not by the physical TPU invoke.
+
+### 2026-06-03 - corrected REPL FPS after low-level USB optimization
+
+The older `tpu_fps_repl` result (`iter60`, `0.58 FPS`) was stale relative to
+the current low-level USB transport and also used a too-short Renode run window
+for the current boot/autorun timing.  `sentai_emu_tpu_fps_repl.resc` now runs
+for the same 5s emulate-time window as `tpu_cat_repl`.
+
+Fresh run:
+
+```text
+python3 examples/sentai_runtime/experiments/s213_arm_emulator_idle/run_s213.py --target tpu_fps_repl
+iter63_renode_tpu_fps_repl_filex_physical_coral
+pass=true
+```
+
+Measured after `sentai.tpu.load()` and `sentai.tpu.load_image()`:
+
+```text
+TPU_FPS_COMPLETED 5
+TPU_FPS_WARMUP 1
+TPU_FPS_MEASURED_MS 388
+TPU_FPS_X100 1288
+TPU_FPS 12.88
+TPU_FPS_INVOKE_MS_SUM 374
+DETECTIONS_COUNT 20
+```
+
+Bridge log:
+
+```text
+model stream: bytes=7077792 chunks=216 total_ms=2403
+image stream: bytes=921654 chunks=29 total_ms=350
+fps bench: host_ms=770 measured_ms=388 fps_x100=1288 invoke_ms_sum=374
+```
+
+Conclusion: REPL/MP is not the steady-state invoke bottleneck in this target.
+The measured FPS command crosses from MP into the host bridge once, then the
+host bridge runs the native low-level POSIX/libusb TPU benchmark.  The slow
+parts outside the FPS window are Renode wall time and guest FS/MMIO asset
+staging; steady-state invoke currently measures about 12.9 FPS on this run.
+
+### 2026-06-03 - FPS with cat image preloaded in emulated guest memory
+
+Added `sentai.tpu.load_image_mem(path)` for the emulator TPU host module.  It
+loads the BMP from the guest FileX FS into runtime memory once, then the FPS
+path streams that resident buffer to the host bridge and benchmarks repeated
+physical Coral invokes.  This approximates the "camera already prepared the
+input image in memory" case.
+
+Fresh run:
+
+```text
+python3 examples/sentai_runtime/experiments/s213_arm_emulator_idle/run_s213.py --target fs_stage_assets
+iter66_renode_fs_stage_assets_filex_levelx_nand
+pass=true
+
+python3 examples/sentai_runtime/experiments/s213_arm_emulator_idle/run_s213.py --target tpu_fps_mem_repl
+iter67_renode_tpu_fps_mem_repl_filex_physical_coral
+pass=true
+```
+
+UART markers:
+
+```text
+TPU_LOAD 0
+TPU_READY True
+TPU_LOAD_IMAGE_MEM 0
+IMAGE_MEM_SIZE 921654
+TPU_FPS_MEM_COMPLETED 5
+TPU_FPS_MEM_WARMUP 1
+TPU_FPS_MEM_MEASURED_MS 369
+TPU_FPS_MEM_X100 1355
+TPU_FPS_MEM 13.55
+TPU_FPS_MEM_INVOKE_MS_SUM 357
+DETECTIONS_COUNT 20
+MISSION_TPU_FPS_MEM_DONE
+```
+
+Bridge log:
+
+```text
+model stream: bytes=7077792 chunks=216 total_ms=1764 guest_read_ms=8 host_write_ms=17
+resident image stream: bytes=921654 chunks=29 total_ms=8 guest_read_ms=0 host_write_ms=1
+fps bench: completed=5 measured_ms=369 fps_x100=1355 invoke_ms_sum=357
+stage stats: input_calls=5 input_bytes=1350000 output_calls=10 output_bytes=920200 output_ticks=260
+```
+
+Conclusion: preloading the image into guest memory works and gives the same
+steady-state class as the earlier REPL FPS run, slightly higher on this run
+(13.55 FPS vs 12.88 FPS).  Reading the cat BMP from guest FS is not the main
+steady-state bottleneck once the image has been loaded; the repeated invoke
+window is dominated by the low-level Coral transaction, especially output/read
+time on this profile.
+
+### 2026-06-03 - guest-side invoke loop with resident image
+
+Added a second measurement path: `sentai.tpu.fps_invoke(runs)`.  This keeps the
+BMP resident in emulated guest memory and then calls the normal synchronous
+`Invoke` bridge command once per frame from C runtime code, rather than using
+the host-side batch FPS command.
+
+Fresh run:
+
+```text
+python3 examples/sentai_runtime/experiments/s213_arm_emulator_idle/run_s213.py --target tpu_fps_mem_invoke_repl
+iter70_renode_tpu_fps_mem_invoke_repl_filex_physical_coral
+pass=true
+```
+
+UART markers:
+
+```text
+TPU_LOAD 0
+TPU_READY True
+TPU_LOAD_IMAGE_MEM 0
+IMAGE_MEM_SIZE 921654
+TPU_FPS_MEM_LOOP_COMPLETED 5
+TPU_FPS_MEM_LOOP_WARMUP 1
+TPU_FPS_MEM_LOOP_MEASURED_MS 1248
+TPU_FPS_MEM_LOOP_X100 400
+TPU_FPS_MEM_LOOP 4.0
+TPU_FPS_MEM_LOOP_INVOKE_MS_SUM 1248
+DETECTIONS_COUNT 20
+MISSION_TPU_FPS_MEM_LOOP_DONE
+```
+
+Important limitation: this path currently uses the bridge's single-invoke
+command, which launches the low-level host smoke for each frame.  The bridge
+log shows every individual invoke resends parameters/instructions:
+
+```text
+params_calls=1 params_bytes=6703232 ins_calls=2 ins_bytes=264752 input_calls=1 input_bytes=270000
+```
+
+Conclusion: the `4.0 FPS` figure is a diagnostic for the current synchronous
+single-invoke bridge shape, not the final target architecture.  The stronger
+baseline for "model loaded once, frame already prepared" remains the resident
+image + host batch path at `13.55 FPS`.  The next useful low-level step is a
+persistent host-side Coral session/bridge command that loads the model once and
+then accepts per-frame input/invoke/output requests from the emulated guest,
+instead of spawning the smoke process and retransmitting params per frame.
+
+### 2026-06-03 - persistent host-side Coral session from guest REPL
+
+Implemented a persistent host bridge session so `sentai.tpu.start()` launches
+one long-lived low-level Coral host process, `sentai.tpu.fps_invoke(runs)` sends
+per-frame invoke commands into that existing process, and `sentai.tpu.stop()`
+shuts it down.  This keeps the `EdgeTpuManager`, executable package, model
+state, and input/output tensors alive across frames.
+
+Fresh run:
+
+```text
+python3 examples/sentai_runtime/experiments/s213_arm_emulator_idle/run_s213.py --target tpu_fps_mem_session_repl
+iter74_renode_tpu_fps_mem_session_repl_filex_physical_coral
+pass=true
+```
+
+UART markers:
+
+```text
+TPU_LOAD 0
+TPU_READY True
+TPU_LOAD_IMAGE_MEM 0
+IMAGE_MEM_SIZE 921654
+TPU_START 0
+TPU_FPS_MEM_SESSION_COMPLETED 5
+TPU_FPS_MEM_SESSION_WARMUP 1
+TPU_FPS_MEM_SESSION_MEASURED_MS 349
+TPU_FPS_MEM_SESSION_X100 1432
+TPU_FPS_MEM_SESSION 14.32
+TPU_FPS_MEM_SESSION_INVOKE_MS_SUM 349
+DETECTIONS_COUNT 20
+TPU_STOP 0
+MISSION_TPU_FPS_MEM_SESSION_DONE
+```
+
+Bridge log confirms the important behavior.  The first session invoke uploads
+the model parameters:
+
+```text
+params_calls=1 params_bytes=6703232 ins_calls=2 ins_bytes=264752
+```
+
+All measured invokes then reuse the loaded state and do not retransmit weights:
+
+```text
+params_calls=0 params_bytes=0 ins_calls=1 ins_bytes=254304 input_calls=1 input_bytes=270000
+```
+
+Conclusion: the per-invoke process restart / model reload bottleneck is fixed
+for the emulated REPL path.  With the image already resident in guest memory,
+the full REPL -> emulated runtime -> host bridge -> physical USB Coral path is
+now `14.32 FPS` for five measured invokes after one warmup, with 20 parsed
+detections per frame.  No Renode or `tpu_posix_invoke_smoke` process remained
+after the run.
+
+### 2026-06-03 - low-level timing log at SendParameters / SendInputs boundary
+
+Added `tpu_timing_repl`, a REPL autorun mission that:
+
+- loads `/models/tf2_ssd_mobilenet_v2_coco17_ptq_edgetpu.tflite` from the
+  emulated FileX FS;
+- loads `/images/cat_640x480.bmp` from FileX into guest memory;
+- starts the persistent host Coral session;
+- measures the first invoke separately from steady-state invokes;
+- records compact FlightRecorder files in the emulated FS at
+  `/fr/events.csv` and `/fr/scalars.csv`;
+- exposes bridge stats from the exact low-level boundaries:
+  `SendParameters`, `SendInputs`, `SendInstructions`, `GetOutputs`,
+  `ReadEvent`, plus POSIX/libusb byte/time counters.
+
+Fresh run:
+
+```text
+python3 examples/sentai_runtime/experiments/s213_arm_emulator_idle/run_s213.py --target tpu_timing_repl
+iter82_renode_tpu_timing_repl_filex_physical_coral
+pass=true
+```
+
+UART/timing summary:
+
+```text
+MODEL_STAGE_MS 1834
+TPU_IMAGE_FS_TO_MEM_MS 72
+IMAGE_MEM_SIZE 921654
+TPU_FIRST_INVOKE 250
+TPU_STEADY_INVOKE 0 70
+TPU_STEADY_INVOKE 1 71
+TPU_STEADY_INVOKE 2 71
+TPU_STEADY_COMPLETED 3
+TPU_STEADY_TOTAL_MS 212
+TPU_STEADY_FPS 14.15
+DETECTIONS_COUNT 20
+FR_EVENTS_SIZE 1245
+FR_SCALARS_SIZE 1314
+```
+
+First invoke, as expected, loads weights/parameters:
+
+```text
+TPU_STAGE_STATS params_calls=1 params_bytes=6703232
+TPU_CALL_STATS send_params_calls=1 send_params_bytes=6703232
+TPU_USB_STATS out_req=7238016 out_done=7238016 out_us=84887
+```
+
+Steady-state invokes reuse the loaded model and send only per-frame work:
+
+```text
+TPU_STAGE_STATS params_calls=0 params_bytes=0 ins_calls=1 ins_bytes=254304 input_calls=1 input_bytes=270000 output_calls=2 output_bytes=184040 event_calls=1
+TPU_CALL_STATS send_params_calls=0 send_params_bytes=0 send_ins_calls=1 send_ins_bytes=254304 send_inputs_calls=1 send_inputs_bytes=270000
+TPU_USB_STATS out_req=524320 out_done=524320 in_req=184616 in_done=184040 event_req=16 event_done=16 timeouts=0 failed=0
+```
+
+Important interpretation:
+
+- `TPU_IMAGE_FS_TO_MEM_MS` is guest FileX -> guest memory staging.
+- `HOST_PRELOAD_IMAGE_MS` is diagnostic bridge staging for the current
+  emulator host process, not TPU wire time.
+- The real TPU wire work is the `TPU_STAGE_STATS` / `TPU_CALL_STATS` /
+  `TPU_USB_STATS` split above.
+- This is not PyCoral.  The host bridge still uses the SentAI ARM-like
+  `EdgeTpuManager -> EdgeTpuExecutable -> TpuDriver` path and the POSIX/libusb
+  `USB_HostEdgeTpu*` backend.
+
+While developing this target, a 5-invoke timing run exposed an intermittent
+host-side server/USB stall on a later invoke.  The Renode bridge now has a
+watchdog around persistent server commands and kills the host process by PID if
+it stops producing `SERVER_DONE`, preventing dead Renode runs.  The clean
+instrumented run above uses three steady invokes and leaves no lingering
+Renode or `tpu_posix_invoke_smoke` processes.
+
+### 2026-06-03 - persistent server polling fix and aggregate session FPS
+
+The host-side `tpu_posix_invoke_smoke --server` command loop no longer uses
+`vTaskDelay()` while idling on the command file.  That process is a host bridge
+worker, not firmware being scheduled by the ARM emulator, so the idle polling
+now uses a host sleep and prints explicit `SERVER_INVOKE_BEGIN` /
+`SERVER_FPS_BEGIN` markers.  This keeps any future stall easy to classify:
+before dispatch, inside one invoke, or inside an aggregate FPS run.
+
+Direct host-only persistent smoke after the change:
+
+```text
+tpu_posix_invoke_smoke --server ... 10 x invoke
+HOST_TEST_PASS completed 10 rc 0
+first invoke: 266 ms, params_calls=1 params_bytes=6703232
+steady invokes: 71..76 ms, params_calls=0, input_bytes=270000 each
+USB timeouts=0 failed=0
+```
+
+Fresh emulator timing run:
+
+```text
+python3 examples/sentai_runtime/experiments/s213_arm_emulator_idle/run_s213.py --target tpu_timing_repl
+iter83_renode_tpu_timing_repl_filex_physical_coral
+pass=true
+```
+
+Key timings:
+
+```text
+MODEL_STAGE_MS 1834
+TPU_IMAGE_FS_TO_MEM_MS 72
+TPU_FIRST_INVOKE 258
+TPU_STEADY_INVOKE 0 76
+TPU_STEADY_INVOKE 1 71
+TPU_STEADY_INVOKE 2 72
+TPU_STEADY_FPS 13.69
+DETECTIONS_COUNT 20
+```
+
+The `tpu_fps_mem_session_repl` mission was then moved from a guest-side loop of
+`sentai.tpu.invoke()` calls to the aggregate persistent-session command:
+
+```text
+sentai.tpu.start()
+sentai.tpu.fps(5)
+sentai.tpu.stop()
+```
+
+After restaging `/mission.py` into the FileX/LevelX NAND image:
+
+```text
+python3 examples/sentai_runtime/experiments/s213_arm_emulator_idle/run_s213.py --target fs_stage_assets
+iter86_renode_fs_stage_assets_filex_levelx_nand
+pass=true, stage_bytes=15456
+
+python3 examples/sentai_runtime/experiments/s213_arm_emulator_idle/run_s213.py --target tpu_fps_mem_session_repl
+iter87_renode_tpu_fps_mem_session_repl_filex_physical_coral
+pass=true
+```
+
+Bridge proof for iter87:
+
+```text
+server command fps 5 1
+SERVER_FPS_BEGIN runs=5 warmup=1
+FPS_BENCH runs=5 warmup=1 completed=5 measured_ms=376 fps_x100=1329 invoke_ms_sum=368
+TPU_STAGE_STATS params_calls=0 params_bytes=0 ins_calls=5 ins_bytes=1271520 input_calls=5 input_bytes=1350000 output_calls=10 output_bytes=920200 event_calls=5
+TPU_CALL_STATS send_params_calls=0 send_params_bytes=0 send_ins_calls=5 send_ins_bytes=1271520 send_inputs_calls=5 send_inputs_bytes=1350000
+TPU_USB_STATS out_req=2621600 out_done=2621600 in_req=923080 in_done=920200 event_req=80 event_done=80 timeouts=0 failed=0
+```
+
+Conclusion: B8 currently has a complete REPL/FileX/emulator/host bridge/
+physical USB Coral path for a COCO cat model.  The model is loaded once, then
+steady-state detection sends per-frame instructions/input and reads output at
+the `SendInstructions` / `SendInputs` / `GetOutputs` / `ReadEvent` boundary.
+The latest aggregate session benchmark is `13.29 FPS` for five measured frames
+after one warmup on the current host, with 20 parsed detections per measured
+frame and no PyCoral in the bridge path.
+
+### 2026-06-03 - guest EdgeTpuManager through physical USB Coral Send* bridge
+
+Added and verified the lower-level guest-owned TPU path requested for B8.
+Unlike the earlier `sentai.tpu` REPL bridge, this target keeps model parsing,
+package registration, and invoke ownership inside the emulated ARM firmware:
+
+```text
+FileX guest FS
+  -> guest EdgeTpuManager / EdgeTpuExecutable
+  -> guest TpuDriver::SendParameters / SendInputs / SendInstructions /
+     GetOutputs / ReadEvent
+  -> Renode MMIO mailbox
+  -> host tpu_posix_send_server
+  -> POSIX/libusb USB_HostEdgeTpu* backend
+  -> physical USB Coral
+```
+
+Fresh run:
+
+```text
+python3 examples/sentai_runtime/experiments/s213_arm_emulator_idle/run_s213.py --target tpu_physical_send_smoke
+iter91_renode_tpu_physical_send_smoke_filex_coral
+pass=true
+```
+
+Guest UART proof:
+
+```text
+MODEL_BYTES=7077792
+IMAGE_BYTES=921654
+INPUT_BYTES=270000
+OUTPUT_BYTES=182115
+INVOKE 1 ms=26
+INVOKE 2 ms=25
+COMPLETED=2
+OUTPUT_CHECKSUM=2273025060
+BRIDGE_PARAMS_CALLS=1
+BRIDGE_INPUT_CALLS=2
+BRIDGE_INS_CALLS=3
+BRIDGE_OUTPUT_CALLS=4
+BRIDGE_EVENT_CALLS=3
+BRIDGE_LAST_RESULT=0
+TPU_PHYSICAL_SEND PASS
+```
+
+Host bridge proof from `tpu_send_bridge.log`:
+
+```text
+opened Coral USB interface=0 out=01,02,03 in=81,82 irq=83
+SEND_SERVER_READY perf=low chunk_size=163840
+cmd=ins    bytes=10448
+cmd=params bytes=6703232
+cmd=event
+cmd=ins    bytes=254304
+cmd=inputs bytes=270000
+cmd=output bytes=7672
+cmd=output bytes=176368
+cmd=event
+cmd=ins    bytes=254304
+cmd=inputs bytes=270000
+cmd=output bytes=7672
+cmd=output bytes=176368
+cmd=event
+```
+
+Conclusion: we now have a cap-to-cap guest-to-physical-USB-Coral smoke at the
+same boundary as the ARM TPU driver.  The guest sends the real EdgeTPU package,
+parameters, frame input, instructions, output reads, and events through the
+physical Coral; the host side only forwards those `TpuDriver` boundary calls.
+This path does not use PyCoral and does not run a high-level host invoke.
+
+### 2026-06-03 - host wall-clock FPS for guest-to-physical Send* bridge
+
+Added `tpu_physical_send_fps`, a 10-invoke guest-side benchmark using the same
+low-level path as `tpu_physical_send_smoke`.  The runner now parses
+`tpu_send_bridge.log` and writes `host_timing_summary.json` from real host
+wall-clock timestamps, not from FreeRTOS/Renode guest ticks.
+
+Fresh run:
+
+```text
+python3 examples/sentai_runtime/experiments/s213_arm_emulator_idle/run_s213.py --target tpu_physical_send_fps
+iter92_renode_tpu_physical_send_fps_filex_coral
+pass=true
+```
+
+Guest sanity:
+
+```text
+tpu_physical_completed=10
+tpu_bridge_params_calls=1
+tpu_bridge_input_calls=10
+tpu_bridge_ins_calls=11
+tpu_bridge_output_calls=20
+tpu_bridge_event_calls=11
+tpu_bridge_last_result=0
+```
+
+Host wall-clock timing from the physical bridge:
+
+```text
+setup wall: 358 ms
+setup params bytes: 6703232
+first invoke wall: 110 ms
+10 invokes measured wall: 1063 ms
+FPS including first invoke: 9.41
+steady invokes: 9
+steady wall: 938 ms
+steady FPS: 9.59
+steady avg wall per invoke: 90.44 ms
+steady avg bridge command sum: 88.22 ms
+steady avg server/TpuDriver sum: 61.67 ms
+steady avg ins bridge/server: 15.00 / 9.11 ms
+steady avg inputs bridge/server: 15.44 / 9.00 ms
+steady avg outputs bridge/server: 52.11 / 43.56 ms
+steady avg event bridge/server: 5.67 / 0.00 ms
+steady avg USB out/in/event: 6.32 / 41.88 / 0.06 ms
+usb_failed=0
+usb_timeouts=0
+```
+
+Interpretation:
+
+- The reliable guest-to-physical-Coral FPS for this low-level bridge is
+  `9.59 FPS` steady-state by host wall-clock, after weights are loaded once.
+- The dominant steady-state cost is output readback: about `52 ms` bridge
+  round-trip per frame, of which about `42 ms` is measured USB IN time.
+- Guest tick timings still print in UART for smoke sanity, but they are not
+  used for the FPS conclusion.
+
+### 2026-06-03 - bulk-IN outfeed optimization
+
+Investigated the low-level output-read bottleneck.  The initial physical Send*
+benchmark used:
+
+```text
+outfeed_chunk_length = 0x20
+bulkin_chunk_size = 256
+```
+
+That matches libedgetpu's USB2 High Speed short-packet workaround and ARM's
+conservative RT1176/EHCI configuration, but it caused the 176368-byte output
+tensor to be read as 692 bulk-IN transfers.
+
+Two A/B runs:
+
+```text
+iter93: bulkin_chunk_size=32768, outfeed_chunk_length=0x20, pass=true
+       steady FPS 8.33
+       still 692 USB IN calls for the large output; worse due to oversized
+       host requests against a device still outfeeding 256B chunks.
+
+iter94: bulkin_chunk_size=1024, outfeed_chunk_length=0x80, pass=true
+       steady FPS 11.75
+       large output USB IN calls drop from 692 to 174.
+
+iter98: same stable configuration after physical Coral replug from DFU mode,
+       pass=true, steady FPS 11.81.  The setup wall time is longer because the
+       host server performs DFU/app transition first; the steady FPS window is
+       measured after params are loaded.
+```
+
+`iter94` host wall-clock summary:
+
+```text
+setup wall: 334 ms
+first invoke wall: 83 ms
+10 invokes measured wall: 864 ms
+FPS including first invoke: 11.57
+steady invokes: 9
+steady wall: 766 ms
+steady FPS: 11.75
+steady avg wall per invoke: 71.44 ms
+steady avg bridge command sum: 68.56 ms
+steady avg server/TpuDriver sum: 42.44 ms
+steady avg output bridge/server: 32.33 / 24.22 ms
+steady avg USB out/in/event: 6.25 / 23.73 / 0.05 ms
+usb_failed=0
+usb_timeouts=0
+```
+
+Post-replug clean validation (`iter98`) is nearly identical:
+
+```text
+steady FPS: 11.81
+steady avg wall per invoke: 71.44 ms
+steady avg output bridge/server: 32.78 / 24.33 ms
+steady avg USB out/in/event: 6.33 / 23.85 / 0.05 ms
+usb_failed=0
+usb_timeouts=0
+```
+
+The code now keeps ARM on `outfeed_chunk_length=0x20`, but lets the
+POSIX/libusb server opt into libedgetpu's forced-largest bulk-IN path with:
+
+```text
+--outfeed-chunk-length 0x80 --bulkin-chunk-size 1024
+```
+
+Important failed candidates:
+
+- `bulkin_queue_depth=4` hangs at the first output read.  Do not use it in this
+  bridge yet.
+- `perf=high` with `outfeed=0x80` destabilized the physical Coral after the
+  first invoke; subsequent driver initialization failed at `read omc0_00`.
+  The USB reset attempt also blocked, so a physical replug/restart is required
+  before more Coral tests.
+- The Renode bridge was fixed so `SEND_SERVER_DONE ... rc=1` is treated as
+  failure instead of success.  Before this fix, a failed host command could be
+  falsely acknowledged to the guest.
+
+### 2026-06-03 - bulk-OUT chunk sweep against libedgetpu constants
+
+Source constants checked:
+
+- `coralmicro/libs/tpu/edgetpu_driver.cc` had `kMaxBulkBufferSize=32 KB`,
+  ARM default `g_sentai_tpu_chunk_size=36 KB`, and SIM/POSIX default
+  `160 KB`.
+- `/home/bogdan/work/libedgetpu/driver/beagle/beagle_usb_driver_provider.cc`
+  defaults `USB_MAX_BULK_OUT_TRANSFER=1 MB`, `USB_MAX_NUM_ASYNC_TRANSFERS=3`,
+  `USB_BULK_IN_QUEUE_CAPACITY=32`, and has
+  `USB_FORCE_LARGEST_BULK_IN_CHUNK_SIZE`.
+- `/home/bogdan/work/libedgetpu/driver/usb/usb_driver.h` confirms the USB
+  options: max bulk-out transfer, 1024-byte max bulk-IN chunk, queued bulk-IN,
+  and overlapping bulk-in/out.
+
+The B8 physical-send bridge is now environment-configurable:
+
+```text
+SENTAI_TPU_SEND_PERF
+SENTAI_TPU_SEND_CHUNK_SIZE
+SENTAI_TPU_SEND_BULKIN_CHUNK_SIZE
+SENTAI_TPU_SEND_OUTFEED_CHUNK_LENGTH
+SENTAI_TPU_SEND_BULKIN_QUEUE_DEPTH
+```
+
+Sweep setup: `perf=low`, `outfeed_chunk_length=0x80`,
+`bulkin_chunk_size=1024`, 10 invokes after one parameter load.
+
+```text
+iter99   chunk=32 KB    setup=925 ms  steady= 7.60 FPS  usb_out=21.34 ms  usb_in=25.71 ms
+iter100  chunk=64 KB    setup=578 ms  steady= 9.11 FPS  usb_out=13.51 ms  usb_in=25.57 ms
+iter101  chunk=128 KB   setup=394 ms  steady=10.44 FPS  usb_out= 7.76 ms  usb_in=25.35 ms
+iter105  chunk=160 KB   setup=356 ms  steady=10.99 FPS  usb_out= 6.28 ms  usb_in=23.77 ms
+iter103  chunk=256 KB   setup=295 ms  steady=11.00 FPS  usb_out= 5.21 ms  usb_in=22.36 ms
+iter104  chunk=512 KB   setup=247 ms  steady=11.14 FPS  usb_out= 4.11 ms  usb_in=23.11 ms
+iter102  chunk=1 MB     setup=244 ms  steady=11.34 FPS  usb_out= 4.09 ms  usb_in=25.53 ms
+iter106  chunk=1 MB     setup=197 ms  steady=12.10 FPS  usb_out= 3.98 ms  usb_in=24.79 ms
+```
+
+Earlier `iter98` with the old 160 KB default measured `11.81 FPS`; the rerun
+shows host/USB jitter, so small differences among 160 KB / 256 KB / 512 KB /
+1 MB are not decisive from a single pass.  The robust conclusions are:
+
+- 32 KB and 64 KB are too small for the guest-to-host-to-physical-Coral bridge.
+- 128 KB is acceptable but still pays avoidable bulk-out overhead.
+- 1 MB matches libedgetpu, is stable in the physical test, and gives the
+  fastest model setup plus the lowest bulk-out time.  The validated default
+  run (`iter106`) reached `12.10 FPS` steady by host wall-clock, so the
+  bridge/server default now uses 1 MB for SIM-only bulk-out sweeps.
+- Steady FPS is still mostly limited by output readback (`usb_in` /
+  output bridge time), not by bulk-out once chunks are at least ~160 KB.
+- ARM defaults are unchanged; the 1 MB path is SIM/POSIX/host-bridge only.
+
+Current B8 checkpoint conclusion:
+
+- We have a working Renode guest -> host bridge -> physical USB Coral path at
+  the `TpuDriver::SendParameters/SendInputs/SendInstructions/GetOutputs/
+  ReadEvent` boundary.
+- The path is not a PyCoral shortcut: the guest still emits EdgeTPU driver
+  send/read operations, and the host process executes them against the physical
+  Coral through the POSIX/libusb backend.
+- The validated stable default is `perf=low`, bulk-out `1 MB`,
+  `outfeed_chunk_length=0x80`, and bulk-IN request `1024`.
+- Latest reproducible checkpoint before commit: `iter106`, pass=true,
+  `12.10 FPS` steady by host wall-clock, `usb_failed=0`, `usb_timeouts=0`.
+- Next B8 step is to reuse this physical Coral bridge while bringing back the
+  B7-style end-to-end runtime test with FlowTask enabled.

@@ -1,0 +1,48 @@
+t=7ms file begin kind=1 expected_size=7077792 path=/tmp/sentai_emu_tpu_model.tflite
+t=1629ms file done kind=1 bytes=7077792 chunks=216 total_ms=1623 guest_read_ms=3 host_write_ms=17
+t=1912ms file begin kind=2 expected_size=921654 path=/tmp/sentai_emu_tpu_image.bmp
+t=1918ms file done kind=2 bytes=921654 chunks=29 total_ms=8 guest_read_ms=1 host_write_ms=0
+t=1921ms server start argv=/home/bogdan/work/coralmicro/build-sim/sim/tpu_posix_invoke_smoke --server /tmp/sentai_emu_tpu_model.tflite /tmp/sentai_emu_tpu_image.bmp
+t=1938ms exception Cannont redirect stderr to stdout yet.
+t=1939ms invoke begin
+t=2314ms smoke TPU_BENCH_CONFIG perf=low desc_cache=0 chunk_size=163840 bulkin_chunk_size=256 bulkin_queue_depth=0 sleep_after_bulkin=0 async_input=0 zero_copy_input=1 multi_ep=0 break_short_bulkin=0 fast_sync_wait=0 runs=1 warmup=0
+t=2314ms smoke OK tpu_posix_invoke invoke_ms=246 custom_options=7045204 input_bytes=270000 output_bytes=182115 output_checksum=877b9c24 outputs=2 post=0
+t=2314ms smoke TPU_STAGE_STATS params_calls=1 params_bytes=6703232 params_ticks=168 ins_calls=2 ins_bytes=264752 ins_ticks=17 input_calls=1 input_bytes=270000 input_ticks=11 output_calls=2 output_bytes=184040 output_ticks=50 event_calls=2 event_ticks=0
+t=2314ms smoke TPU_CALL_STATS send_params_calls=1 send_params_bytes=6703232 send_ins_calls=2 send_ins_bytes=264752 send_inputs_calls=1 send_inputs_bytes=270000
+t=2314ms smoke TPU_DESC_CACHE_STATS sent_params=1 sent_ins=2 skip_params=0 skip_ins=0
+t=2335ms invoke ok detection_count=20 parsed_detections=20 host_ms=372 smoke_invoke_ms=246
+t=2336ms invoke begin
+t=2681ms smoke TPU_BENCH_CONFIG perf=low desc_cache=0 chunk_size=163840 bulkin_chunk_size=256 bulkin_queue_depth=0 sleep_after_bulkin=0 async_input=0 zero_copy_input=1 multi_ep=0 break_short_bulkin=0 fast_sync_wait=0 runs=1 warmup=0
+t=2682ms smoke OK tpu_posix_invoke invoke_ms=249 custom_options=7045204 input_bytes=270000 output_bytes=182115 output_checksum=877b9c24 outputs=2 post=0
+t=2682ms smoke TPU_STAGE_STATS params_calls=1 params_bytes=6703232 params_ticks=169 ins_calls=2 ins_bytes=264752 ins_ticks=17 input_calls=1 input_bytes=270000 input_ticks=10 output_calls=2 output_bytes=184040 output_ticks=53 event_calls=2 event_ticks=0
+t=2682ms smoke TPU_CALL_STATS send_params_calls=1 send_params_bytes=6703232 send_ins_calls=2 send_ins_bytes=264752 send_inputs_calls=1 send_inputs_bytes=270000
+t=2682ms smoke TPU_DESC_CACHE_STATS sent_params=1 sent_ins=2 skip_params=0 skip_ins=0
+t=2687ms invoke ok detection_count=20 parsed_detections=20 host_ms=345 smoke_invoke_ms=249
+t=2687ms invoke begin
+t=3030ms smoke TPU_BENCH_CONFIG perf=low desc_cache=0 chunk_size=163840 bulkin_chunk_size=256 bulkin_queue_depth=0 sleep_after_bulkin=0 async_input=0 zero_copy_input=1 multi_ep=0 break_short_bulkin=0 fast_sync_wait=0 runs=1 warmup=0
+t=3030ms smoke OK tpu_posix_invoke invoke_ms=250 custom_options=7045204 input_bytes=270000 output_bytes=182115 output_checksum=877b9c24 outputs=2 post=0
+t=3030ms smoke TPU_STAGE_STATS params_calls=1 params_bytes=6703232 params_ticks=172 ins_calls=2 ins_bytes=264752 ins_ticks=16 input_calls=1 input_bytes=270000 input_ticks=11 output_calls=2 output_bytes=184040 output_ticks=51 event_calls=2 event_ticks=0
+t=3031ms smoke TPU_CALL_STATS send_params_calls=1 send_params_bytes=6703232 send_ins_calls=2 send_ins_bytes=264752 send_inputs_calls=1 send_inputs_bytes=270000
+t=3031ms smoke TPU_DESC_CACHE_STATS sent_params=1 sent_ins=2 skip_params=0 skip_ins=0
+t=3031ms invoke ok detection_count=20 parsed_detections=20 host_ms=343 smoke_invoke_ms=250
+t=3032ms invoke begin
+t=3384ms smoke TPU_BENCH_CONFIG perf=low desc_cache=0 chunk_size=163840 bulkin_chunk_size=256 bulkin_queue_depth=0 sleep_after_bulkin=0 async_input=0 zero_copy_input=1 multi_ep=0 break_short_bulkin=0 fast_sync_wait=0 runs=1 warmup=0
+t=3384ms smoke OK tpu_posix_invoke invoke_ms=252 custom_options=7045204 input_bytes=270000 output_bytes=182115 output_checksum=877b9c24 outputs=2 post=0
+t=3384ms smoke TPU_STAGE_STATS params_calls=1 params_bytes=6703232 params_ticks=172 ins_calls=2 ins_bytes=264752 ins_ticks=17 input_calls=1 input_bytes=270000 input_ticks=11 output_calls=2 output_bytes=184040 output_ticks=52 event_calls=2 event_ticks=0
+t=3384ms smoke TPU_CALL_STATS send_params_calls=1 send_params_bytes=6703232 send_ins_calls=2 send_ins_bytes=264752 send_inputs_calls=1 send_inputs_bytes=270000
+t=3384ms smoke TPU_DESC_CACHE_STATS sent_params=1 sent_ins=2 skip_params=0 skip_ins=0
+t=3384ms invoke ok detection_count=20 parsed_detections=20 host_ms=352 smoke_invoke_ms=252
+t=3384ms invoke begin
+t=3738ms smoke TPU_BENCH_CONFIG perf=low desc_cache=0 chunk_size=163840 bulkin_chunk_size=256 bulkin_queue_depth=0 sleep_after_bulkin=0 async_input=0 zero_copy_input=1 multi_ep=0 break_short_bulkin=0 fast_sync_wait=0 runs=1 warmup=0
+t=3738ms smoke OK tpu_posix_invoke invoke_ms=259 custom_options=7045204 input_bytes=270000 output_bytes=182115 output_checksum=877b9c24 outputs=2 post=0
+t=3738ms smoke TPU_STAGE_STATS params_calls=1 params_bytes=6703232 params_ticks=178 ins_calls=2 ins_bytes=264752 ins_ticks=17 input_calls=1 input_bytes=270000 input_ticks=11 output_calls=2 output_bytes=184040 output_ticks=53 event_calls=2 event_ticks=0
+t=3738ms smoke TPU_CALL_STATS send_params_calls=1 send_params_bytes=6703232 send_ins_calls=2 send_ins_bytes=264752 send_inputs_calls=1 send_inputs_bytes=270000
+t=3738ms smoke TPU_DESC_CACHE_STATS sent_params=1 sent_ins=2 skip_params=0 skip_ins=0
+t=3739ms invoke ok detection_count=20 parsed_detections=20 host_ms=354 smoke_invoke_ms=259
+t=3739ms invoke begin
+t=4063ms smoke TPU_BENCH_CONFIG perf=low desc_cache=0 chunk_size=163840 bulkin_chunk_size=256 bulkin_queue_depth=0 sleep_after_bulkin=0 async_input=0 zero_copy_input=1 multi_ep=0 break_short_bulkin=0 fast_sync_wait=0 runs=1 warmup=0
+t=4063ms smoke OK tpu_posix_invoke invoke_ms=231 custom_options=7045204 input_bytes=270000 output_bytes=182115 output_checksum=877b9c24 outputs=2 post=0
+t=4063ms smoke TPU_STAGE_STATS params_calls=1 params_bytes=6703232 params_ticks=155 ins_calls=2 ins_bytes=264752 ins_ticks=15 input_calls=1 input_bytes=270000 input_ticks=9 output_calls=2 output_bytes=184040 output_ticks=52 event_calls=2 event_ticks=0
+t=4063ms smoke TPU_CALL_STATS send_params_calls=1 send_params_bytes=6703232 send_ins_calls=2 send_ins_bytes=264752 send_inputs_calls=1 send_inputs_bytes=270000
+t=4063ms smoke TPU_DESC_CACHE_STATS sent_params=1 sent_ins=2 skip_params=0 skip_ins=0
+t=4064ms invoke ok detection_count=20 parsed_detections=20 host_ms=324 smoke_invoke_ms=231

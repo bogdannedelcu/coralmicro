@@ -29,12 +29,20 @@ extern "C" {
 #include "third_party/freertos_kernel/include/FreeRTOS.h"
 #include "third_party/freertos_kernel/include/task.h"
 
+#if SENTAI_EMU_FX_FS
+#include "libs/base/fx_user_fs.h"
+#endif
+
 extern "C" void sentai_emu_uart_init(void);
 
 extern "C" volatile uint32_t g_sentai_emu_boot_state;
 extern "C" volatile uint32_t g_sentai_emu_heartbeat;
 extern "C" volatile uint32_t g_sentai_emu_last_tick;
 extern "C" volatile uint32_t g_sentai_emu_repl_lines;
+#if SENTAI_EMU_FX_FS
+extern "C" volatile uint32_t g_sentai_emu_fs_smoke_ok;
+extern "C" volatile uint32_t g_sentai_emu_fs_smoke_size;
+#endif
 
 namespace {
 
@@ -47,7 +55,9 @@ constexpr uint32_t kBootCreateTaskFailed = 0xEF00;
 
 constexpr size_t kReplStackWords = 8 * 1024;        // 32 KiB stack
 constexpr size_t kReplLineMax = 256;
-#if SENTAI_EMU_MISSION
+#if SENTAI_EMU_FX_FS
+constexpr size_t kGcHeapBytes = 128 * 1024;         // FS script + list/bytes
+#elif SENTAI_EMU_MISSION
 constexpr size_t kGcHeapBytes = 96 * 1024;          // larger heap for import
 #else
 constexpr size_t kGcHeapBytes = 32 * 1024;          // B8.3 minimum
@@ -108,7 +118,101 @@ void ReplTask(void *) {
     mp_embed_exec_str("import sys\nsys.path.append('')\n");
 #endif
 
+#if SENTAI_EMU_FX_FS && !SENTAI_EMU_FS_REPL_SMOKE
+    // Mount an existing emulated user partition if present. The smoke script
+    // below deliberately calls sentai.fs.format() to prove the destructive
+    // path too; this mount keeps the interactive REPL usable without a format
+    // when SENTAI_EMU_FS_REPL_SMOKE is disabled.
+    (void)FxUserInit(0);
+#endif
+
     ReplPutString("MicroPython embed ready\r\n");
+
+#if SENTAI_EMU_FS_REPL_SMOKE
+    mp_embed_exec_str(
+        "import sentai\n"
+        "print('FS_REPL_BEGIN')\n"
+        "print('FS_FORMAT', sentai.fs.format())\n"
+        "print('FS_MKDIR', sentai.fs.mkdir('/models'))\n"
+        "print('FS_WRITE', sentai.fs.write('/models/a.txt', b'hello '))\n"
+        "print('FS_APPEND', sentai.fs.append('/models/a.txt', b'world'))\n"
+        "print('FS_SYNC', sentai.fs.sync())\n"
+        "print('FS_SIZE', sentai.fs.size('/models/a.txt'))\n"
+        "print('FS_READ', sentai.fs.read_str('/models/a.txt'))\n"
+        "print('FS_EXISTS', sentai.fs.exists('/models/a.txt'))\n"
+        "print('FS_LS', sentai.fs.ls('/models'))\n"
+        "print('FS_REPL_DONE')\n");
+    const ssize_t smoke_size = FxUserSize("/models/a.txt");
+    g_sentai_emu_fs_smoke_size =
+        smoke_size < 0 ? 0xFFFFFFFFu : static_cast<uint32_t>(smoke_size);
+    g_sentai_emu_fs_smoke_ok =
+        (smoke_size == 11 &&
+         FxUserFileExists("/models/a.txt") &&
+         FxUserDirExists("/models"))
+            ? 1u
+            : 0u;
+    ++g_sentai_emu_repl_lines;
+    ++g_sentai_emu_heartbeat;
+    g_sentai_emu_last_tick = xTaskGetTickCount();
+#endif
+
+#if SENTAI_EMU_FS_ASSET_CHECK
+    mp_embed_exec_str(
+        "import sentai\n"
+        "print('FS_ASSET_CHECK_BEGIN')\n"
+        "print('MODEL_SIZE', sentai.fs.size('/models/"
+        "tf2_ssd_mobilenet_v2_coco17_ptq_edgetpu.tflite'))\n"
+        "print('IMAGE_SIZE', sentai.fs.size('/images/cat_640x480.bmp'))\n"
+        "print('MISSION_SIZE', sentai.fs.size('/mission.py'))\n"
+        "print('MISSION_HEAD', sentai.fs.read_str('/mission.py')[:20])\n"
+        "print('FS_ASSET_CHECK_DONE')\n");
+    ++g_sentai_emu_repl_lines;
+    ++g_sentai_emu_heartbeat;
+    g_sentai_emu_last_tick = xTaskGetTickCount();
+#endif
+
+#if SENTAI_EMU_TPU_CAT_AUTORUN
+    mp_embed_exec_str("import mission\nmission.run()\n");
+    ++g_sentai_emu_repl_lines;
+    ++g_sentai_emu_heartbeat;
+    g_sentai_emu_last_tick = xTaskGetTickCount();
+#endif
+
+#if SENTAI_EMU_TPU_FPS_AUTORUN
+    mp_embed_exec_str("import mission\nmission.fps(5)\n");
+    ++g_sentai_emu_repl_lines;
+    ++g_sentai_emu_heartbeat;
+    g_sentai_emu_last_tick = xTaskGetTickCount();
+#endif
+
+#if SENTAI_EMU_TPU_FPS_MEM_AUTORUN
+    mp_embed_exec_str("import mission\nmission.fps_mem(5)\n");
+    ++g_sentai_emu_repl_lines;
+    ++g_sentai_emu_heartbeat;
+    g_sentai_emu_last_tick = xTaskGetTickCount();
+#endif
+
+#if SENTAI_EMU_TPU_FPS_MEM_INVOKE_AUTORUN
+    mp_embed_exec_str("import mission\nmission.fps_mem_invoke(5)\n");
+    ++g_sentai_emu_repl_lines;
+    ++g_sentai_emu_heartbeat;
+    g_sentai_emu_last_tick = xTaskGetTickCount();
+#endif
+
+#if SENTAI_EMU_TPU_FPS_MEM_SESSION_AUTORUN
+    mp_embed_exec_str("import mission\nmission.fps_mem_session(5)\n");
+    ++g_sentai_emu_repl_lines;
+    ++g_sentai_emu_heartbeat;
+    g_sentai_emu_last_tick = xTaskGetTickCount();
+#endif
+
+#if SENTAI_EMU_TPU_TIMING_AUTORUN
+    mp_embed_exec_str("import mission\nmission.timing_mem_session(3)\n");
+    ++g_sentai_emu_repl_lines;
+    ++g_sentai_emu_heartbeat;
+    g_sentai_emu_last_tick = xTaskGetTickCount();
+#endif
+
     g_sentai_emu_boot_state = kBootReplBanner;
 
     while (true) {
@@ -131,6 +235,10 @@ volatile uint32_t g_sentai_emu_boot_state = 0;
 volatile uint32_t g_sentai_emu_heartbeat = 0;
 volatile uint32_t g_sentai_emu_last_tick = 0;
 volatile uint32_t g_sentai_emu_repl_lines = 0;
+#if SENTAI_EMU_FX_FS
+volatile uint32_t g_sentai_emu_fs_smoke_ok = 0;
+volatile uint32_t g_sentai_emu_fs_smoke_size = 0;
+#endif
 }
 
 extern "C" int main(int argc, char **argv) {

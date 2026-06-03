@@ -1,0 +1,5 @@
+[  0%] Building CXX object emu/CMakeFiles/sentai_emu_edgetpu_mmio_enum_probe.dir/sentai_emu_usbhost_probe.cc.obj
+cc1plus: warning: command line option '-Wno-old-style-definition' is valid for C/ObjC but not for C++
+cc1plus: warning: command line option '-Wno-missing-prototypes' is valid for C/ObjC but not for C++
+[  0%] Linking CXX executable sentai_emu_edgetpu_mmio_enum_probe
+[100%] Built target sentai_emu_edgetpu_mmio_enum_probe

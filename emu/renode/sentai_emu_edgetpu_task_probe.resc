@@ -1,0 +1,31 @@
+:name: SentAI B8.8 P3b EdgeTPU task probe smoke
+:description: Boot the EdgeTPU-task probe target.  This starts the production UsbHostTask, constructs EdgeTpuManager, starts the production EdgeTpuTask QueueTask, then verifies the ARM FreeRTOS scheduler heartbeat remains live without a USB device attached.
+
+i @emu/renode/sentai_rt1176.repl
+
+$bin?=@build_emu/emu/sentai_emu_edgetpu_task_probe
+$uart_log?=@/home/bogdan/work/coralmicro/emu/output/sentai_emu_edgetpu_task_probe.log
+
+macro reset
+"""
+    sysbus LoadELF $bin
+    cpu VectorTableOffset 0x800
+"""
+
+lpuart6 CreateFileBackend $uart_log
+runMacro $reset
+
+emulation RunFor "3s"
+
+lpuart6 CloseFileBackend $uart_log
+
+echo "sentai_emu_edgetpu_task_probe PC:"
+cpu PC
+echo "sentai_emu_edgetpu_task_probe boot_state:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_boot_state"`
+echo "sentai_emu_edgetpu_task_probe step:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_step"`
+echo "sentai_emu_edgetpu_task_probe heartbeat:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_heartbeat"`
+echo "sentai_emu_edgetpu_task_probe last_tick:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_last_tick"`

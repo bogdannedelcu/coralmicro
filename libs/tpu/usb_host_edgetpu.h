@@ -17,7 +17,7 @@
 #ifndef LIBS_TPU_USB_HOST_EDGETPU_H_
 #define LIBS_TPU_USB_HOST_EDGETPU_H_
 
-#ifdef SENTAI_PLATFORM_SIM
+#if defined(SENTAI_PLATFORM_SIM) && !defined(SENTAI_ARM_EMU)
 #include <stdbool.h>
 #include <stdint.h>
 #include <libusb-1.0/libusb.h>
@@ -139,7 +139,7 @@ typedef struct _usb_host_edgetpu_pipe {
 } usb_host_edgetpu_pipe_t;
 
 typedef struct _usb_host_edgetpu_instance {
-#ifdef SENTAI_PLATFORM_SIM
+#if defined(SENTAI_PLATFORM_SIM) && !defined(SENTAI_ARM_EMU)
   libusb_context *usb_ctx;
   libusb_device_handle *dev;
   int interface_number;
@@ -222,7 +222,7 @@ usb_status_t USB_HostEdgeTpuControl(usb_host_edgetpu_instance_t *tpuInstance,
                                     transfer_callback_t callbackFn,
                                     void *callbackParam);
 
-#ifdef SENTAI_PLATFORM_SIM
+#if defined(SENTAI_PLATFORM_SIM) && !defined(SENTAI_ARM_EMU)
 usb_status_t USB_HostEdgeTpuOpenPosix(usb_host_edgetpu_instance_t **instance);
 usb_status_t USB_HostEdgeTpuClosePosix(usb_host_edgetpu_instance_t *instance);
 #endif

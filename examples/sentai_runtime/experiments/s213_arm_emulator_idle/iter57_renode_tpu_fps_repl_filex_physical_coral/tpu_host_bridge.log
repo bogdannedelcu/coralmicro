@@ -1,0 +1,2 @@
+fps begin runs=5 warmup=1
+fps ok runs=5 fps_x100=57 detections=5

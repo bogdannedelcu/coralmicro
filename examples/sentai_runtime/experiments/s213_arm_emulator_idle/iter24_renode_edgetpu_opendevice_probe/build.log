@@ -1,0 +1,58 @@
+[  0%] Building C object emu/CMakeFiles/sentai_emu_edgetpu_opendevice_probe.dir/sentai_emu_usb_stubs.c.obj
+[  0%] Building CXX object emu/CMakeFiles/sentai_emu_edgetpu_opendevice_probe.dir/sentai_emu_usbhost_probe.cc.obj
+[  0%] Building C object emu/CMakeFiles/sentai_emu_edgetpu_opendevice_probe.dir/__/third_party/nxp/rt1176-sdk/middleware/usb/host/usb_host_ehci.c.obj
+[  0%] Building C object emu/CMakeFiles/sentai_emu_edgetpu_opendevice_probe.dir/sentai_emu_freertos_hooks.c.obj
+[  0%] Building CXX object emu/CMakeFiles/sentai_emu_edgetpu_opendevice_probe.dir/sentai_emu_usb_cpp_stubs.cc.obj
+[  0%] Building C object emu/CMakeFiles/sentai_emu_edgetpu_opendevice_probe.dir/__/third_party/nxp/rt1176-sdk/middleware/usb/host/usb_host_hci.c.obj
+[  0%] Building CXX object emu/CMakeFiles/sentai_emu_edgetpu_opendevice_probe.dir/__/libs/usb/usb_host_task.cc.obj
+[  0%] Building C object emu/CMakeFiles/sentai_emu_edgetpu_opendevice_probe.dir/__/third_party/nxp/rt1176-sdk/middleware/usb/host/usb_host_devices.c.obj
+[  0%] Building C object emu/CMakeFiles/sentai_emu_edgetpu_opendevice_probe.dir/__/third_party/nxp/rt1176-sdk/middleware/usb/host/usb_host_framework.c.obj
+[  0%] Building C object emu/CMakeFiles/sentai_emu_edgetpu_opendevice_probe.dir/__/third_party/nxp/rt1176-sdk/middleware/usb/host/class/usb_host_hub.c.obj
+[  0%] Building C object emu/CMakeFiles/sentai_emu_edgetpu_opendevice_probe.dir/__/third_party/nxp/rt1176-sdk/middleware/usb/host/class/usb_host_hub_app.c.obj
+[  0%] Building C object emu/CMakeFiles/sentai_emu_edgetpu_opendevice_probe.dir/__/third_party/nxp/rt1176-sdk/middleware/usb/phy/usb_phy.c.obj
+[  0%] Building C object emu/CMakeFiles/sentai_emu_edgetpu_opendevice_probe.dir/__/third_party/nxp/rt1176-sdk/components/osa/fsl_os_abstraction_free_rtos.c.obj
+[  0%] Building C object emu/CMakeFiles/sentai_emu_edgetpu_opendevice_probe.dir/__/third_party/nxp/rt1176-sdk/components/lists/fsl_component_generic_list.c.obj
+[100%] Building C object emu/CMakeFiles/sentai_emu_edgetpu_opendevice_probe.dir/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_clock.c.obj
+[100%] Building C object emu/CMakeFiles/sentai_emu_edgetpu_opendevice_probe.dir/__/libs/nxp/rt1176-sdk/clock_config.c.obj
+cc1plus: warning: command line option '-Wno-old-style-definition' is valid for C/ObjC but not for C++
+cc1plus: warning: command line option '-Wno-missing-prototypes' is valid for C/ObjC but not for C++
+cc1plus: warning: command line option '-Wno-old-style-definition' is valid for C/ObjC but not for C++
+cc1plus: warning: command line option '-Wno-missing-prototypes' is valid for C/ObjC but not for C++
+cc1plus: warning: command line option '-Wno-old-style-definition' is valid for C/ObjC but not for C++
+cc1plus: warning: command line option '-Wno-missing-prototypes' is valid for C/ObjC but not for C++
+[100%] Building C object emu/CMakeFiles/sentai_emu_edgetpu_opendevice_probe.dir/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_anatop_ai.c.obj
+[100%] Building C object emu/CMakeFiles/sentai_emu_edgetpu_opendevice_probe.dir/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_common.c.obj
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/usb/host/usb_host_hci.c:30:2: warning: #warning USB_HOST_CONFIG_BUFFER_PROPERTY_CACHEABLE is not supported. [-Wcpp]
+   30 | #warning USB_HOST_CONFIG_BUFFER_PROPERTY_CACHEABLE is not supported.
+      |  ^~~~~~~
+[100%] Building C object emu/CMakeFiles/sentai_emu_edgetpu_opendevice_probe.dir/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_pmu.c.obj
+[100%] Building C object emu/CMakeFiles/sentai_emu_edgetpu_opendevice_probe.dir/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_common_arm.c.obj
+[100%] Building C object emu/CMakeFiles/sentai_emu_edgetpu_opendevice_probe.dir/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_dcdc.c.obj
+[100%] Building ASM object emu/CMakeFiles/sentai_emu_edgetpu_opendevice_probe.dir/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/gcc/startup_MIMXRT1176_cm7.S.obj
+[100%] Building C object emu/CMakeFiles/sentai_emu_edgetpu_opendevice_probe.dir/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/system_MIMXRT1176_cm7.c.obj
+[100%] Building C object emu/CMakeFiles/sentai_emu_edgetpu_opendevice_probe.dir/__/third_party/freertos_kernel/list.c.obj
+[100%] Building C object emu/CMakeFiles/sentai_emu_edgetpu_opendevice_probe.dir/__/third_party/freertos_kernel/event_groups.c.obj
+[100%] Building C object emu/CMakeFiles/sentai_emu_edgetpu_opendevice_probe.dir/__/third_party/freertos_kernel/queue.c.obj
+[100%] Building C object emu/CMakeFiles/sentai_emu_edgetpu_opendevice_probe.dir/__/third_party/freertos_kernel/portable/GCC/ARM_CM4F/port.c.obj
+[100%] Building C object emu/CMakeFiles/sentai_emu_edgetpu_opendevice_probe.dir/__/third_party/freertos_kernel/stream_buffer.c.obj
+[100%] Building C object emu/CMakeFiles/sentai_emu_edgetpu_opendevice_probe.dir/__/third_party/freertos_kernel/tasks.c.obj
+[100%] Building C object emu/CMakeFiles/sentai_emu_edgetpu_opendevice_probe.dir/__/third_party/FreeRTOS_helpers/heap_useNewlib_NXP.c.obj
+[100%] Building C object emu/CMakeFiles/sentai_emu_edgetpu_opendevice_probe.dir/__/third_party/freertos_kernel/timers.c.obj
+/home/bogdan/work/coralmicro/third_party/FreeRTOS_helpers/heap_useNewlib_NXP.c:68:4: warning: #warning "This wrapper was verified for newlib versions 2.5 - 3.1; please ensure newlib's external requirements for malloc-family are unchanged!" [-Wcpp]
+   68 |   #warning "This wrapper was verified for newlib versions 2.5 - 3.1; please ensure newlib's external requirements for malloc-family are unchanged!"
+      |    ^~~~~~~
+[100%] Building CXX object emu/CMakeFiles/sentai_emu_edgetpu_opendevice_probe.dir/__/libs/tpu/edgetpu_manager.cc.obj
+cc1plus: warning: command line option '-Wno-old-style-definition' is valid for C/ObjC but not for C++
+cc1plus: warning: command line option '-Wno-missing-prototypes' is valid for C/ObjC but not for C++
+[100%] Building CXX object emu/CMakeFiles/sentai_emu_edgetpu_opendevice_probe.dir/__/libs/tpu/edgetpu_task.cc.obj
+[100%] Building C object emu/CMakeFiles/sentai_emu_edgetpu_opendevice_probe.dir/__/libs/tpu/usb_host_edgetpu.c.obj
+cc1plus: warning: command line option '-Wno-old-style-definition' is valid for C/ObjC but not for C++
+cc1plus: warning: command line option '-Wno-missing-prototypes' is valid for C/ObjC but not for C++
+[100%] Linking CXX executable sentai_emu_edgetpu_opendevice_probe
+/home/bogdan/work/coralmicro/third_party/toolchain-linux/gcc-arm-none-eabi-9-2020-q2-update/bin/../lib/gcc/arm-none-eabi/9.3.1/../../../../arm-none-eabi/bin/ld: CMakeFiles/sentai_emu_edgetpu_opendevice_probe.dir/__/libs/tpu/edgetpu_manager.cc.obj: in function `coralmicro::EdgeTpuManager::OpenDevice(coralmicro::PerformanceMode)':
+/libs/tpu/edgetpu_manager.cc:95: undefined reference to `coralmicro::TpuDriver::Initialize(_usb_host_edgetpu_instance*, coralmicro::PerformanceMode)'
+collect2: error: ld returned 1 exit status
+gmake[3]: *** [emu/CMakeFiles/sentai_emu_edgetpu_opendevice_probe.dir/build.make:624: emu/sentai_emu_edgetpu_opendevice_probe] Error 1
+gmake[2]: *** [CMakeFiles/Makefile2:3513: emu/CMakeFiles/sentai_emu_edgetpu_opendevice_probe.dir/all] Error 2
+gmake[1]: *** [CMakeFiles/Makefile2:3520: emu/CMakeFiles/sentai_emu_edgetpu_opendevice_probe.dir/rule] Error 2
+gmake: *** [Makefile:1281: sentai_emu_edgetpu_opendevice_probe] Error 2

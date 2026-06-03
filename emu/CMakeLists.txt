@@ -279,6 +279,8 @@ target_compile_options(sentai_emu_flowest PRIVATE
 set(SENTAI_EMU_TPU_PROBE_SOURCES
     sentai_emu_usbhost_probe.cc
     sentai_emu_freertos_hooks.c
+    sentai_emu_usb_stubs.c
+    sentai_emu_usb_cpp_stubs.cc
     ${PROJECT_SOURCE_DIR}/libs/usb/usb_host_task.cc
     ${PROJECT_SOURCE_DIR}/libs/nxp/rt1176-sdk/clock_config.c
     ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/host/usb_host_hci.c
@@ -330,8 +332,767 @@ target_include_directories(sentai_emu_usbhost_probe PRIVATE
     ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/components/lists
     ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/components/serial_manager
     ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/cm7
+    ${PROJECT_SOURCE_DIR}/third_party/flatbuffers/include
 )
 target_compile_options(sentai_emu_usbhost_probe PRIVATE
+    -Wno-error -Wno-unused-parameter -Wno-sign-compare
+    -Wno-old-style-definition -Wno-missing-prototypes
+)
+
+# B8.8 Phase 2: same production USB host stack probe, but also calls
+# UsbHostTask::Init() and starts the ARM FreeRTOS scheduler.  A low-priority
+# heartbeat task verifies that the production USB host task blocks in
+# OSA_EventWait instead of monopolizing the scheduler when no USB model/device
+# is present.
+add_executable_m7(sentai_emu_usbhost_task
+    LINKER_SCRIPT ${PROJECT_SOURCE_DIR}/libs/nxp/rt1176-sdk/MIMXRT1176xxxxx_cm7_ram.ld
+    ${SENTAI_EMU_TPU_PROBE_SOURCES}
+)
+configure_sentai_emu_target(sentai_emu_usbhost_task)
+target_compile_definitions(sentai_emu_usbhost_task PRIVATE
+    FSL_RTOS_FREE_RTOS
+    SENTAI_PLATFORM_SIM
+    SENTAI_EMU_USBHOST_PROBE_START_TASK=1
+)
+target_include_directories(sentai_emu_usbhost_task PRIVATE
+    ${PROJECT_SOURCE_DIR}/libs/nxp/rt1176-sdk
+    ${PROJECT_SOURCE_DIR}/third_party/modified/nxp/rt1176-sdk
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/host
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/host/class
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/include
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/phy
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/output/source/host
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/utilities/debug_console
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/utilities/str
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/components/osa
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/components/lists
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/components/serial_manager
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/cm7
+    ${PROJECT_SOURCE_DIR}/third_party/flatbuffers/include
+)
+target_compile_options(sentai_emu_usbhost_task PRIVATE
+    -Wno-error -Wno-unused-parameter -Wno-sign-compare
+    -Wno-old-style-definition -Wno-missing-prototypes
+)
+
+# B8.8 Phase 3a: add the production EdgeTpuManager singleton above the P2
+# USB-host-task scheduler smoke.  This still does not call OpenDevice() or
+# start a Coral enumeration path; it proves the manager layer itself links and
+# can be constructed in the emulator profile.
+add_executable_m7(sentai_emu_edgetpu_manager_probe
+    LINKER_SCRIPT ${PROJECT_SOURCE_DIR}/libs/nxp/rt1176-sdk/MIMXRT1176xxxxx_cm7_ram.ld
+    ${SENTAI_EMU_TPU_PROBE_SOURCES}
+    ${PROJECT_SOURCE_DIR}/libs/tpu/edgetpu_manager.cc
+)
+configure_sentai_emu_target(sentai_emu_edgetpu_manager_probe)
+target_compile_definitions(sentai_emu_edgetpu_manager_probe PRIVATE
+    FSL_RTOS_FREE_RTOS
+    SENTAI_PLATFORM_SIM
+    SENTAI_EMU_USBHOST_PROBE_START_TASK=1
+    SENTAI_EMU_EDGETPU_MANAGER_PROBE=1
+)
+target_include_directories(sentai_emu_edgetpu_manager_probe PRIVATE
+    ${PROJECT_SOURCE_DIR}/libs/nxp/rt1176-sdk
+    ${PROJECT_SOURCE_DIR}/third_party/modified/nxp/rt1176-sdk
+    ${PROJECT_SOURCE_DIR}/third_party/flatbuffers/include
+    ${PROJECT_SOURCE_DIR}/third_party/tflite-micro
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/host
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/host/class
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/include
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/phy
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/output/source/host
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/utilities/debug_console
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/utilities/str
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/components/osa
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/components/lists
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/components/serial_manager
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/cm7
+)
+target_compile_options(sentai_emu_edgetpu_manager_probe PRIVATE
+    -Wno-error -Wno-unused-parameter -Wno-sign-compare
+    -Wno-old-style-definition -Wno-missing-prototypes
+)
+
+# B8.8 Phase 3b: start the production EdgeTpuTask as a QueueTask and let it
+# register the Coral VID/PID callback with the production UsbHostTask.  No USB
+# device is attached yet; success means the task init path does not deadlock
+# the ARM scheduler and the heartbeat still runs.
+add_executable_m7(sentai_emu_edgetpu_task_probe
+    LINKER_SCRIPT ${PROJECT_SOURCE_DIR}/libs/nxp/rt1176-sdk/MIMXRT1176xxxxx_cm7_ram.ld
+    ${SENTAI_EMU_TPU_PROBE_SOURCES}
+    ${PROJECT_SOURCE_DIR}/libs/tpu/edgetpu_manager.cc
+    ${PROJECT_SOURCE_DIR}/libs/tpu/edgetpu_task.cc
+    ${PROJECT_SOURCE_DIR}/libs/tpu/usb_host_edgetpu.c
+)
+configure_sentai_emu_target(sentai_emu_edgetpu_task_probe)
+target_compile_definitions(sentai_emu_edgetpu_task_probe PRIVATE
+    FSL_RTOS_FREE_RTOS
+    SENTAI_PLATFORM_SIM
+    SENTAI_EMU_USBHOST_PROBE_START_TASK=1
+    SENTAI_EMU_EDGETPU_MANAGER_PROBE=1
+    SENTAI_EMU_EDGETPU_TASK_PROBE=1
+)
+target_include_directories(sentai_emu_edgetpu_task_probe PRIVATE
+    ${PROJECT_SOURCE_DIR}/libs/nxp/rt1176-sdk
+    ${PROJECT_SOURCE_DIR}/third_party/modified/nxp/rt1176-sdk
+    ${PROJECT_SOURCE_DIR}/third_party/flatbuffers/include
+    ${PROJECT_SOURCE_DIR}/third_party/tflite-micro
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/host
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/host/class
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/include
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/phy
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/output/source/host
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/utilities/debug_console
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/utilities/str
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/components/osa
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/components/lists
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/components/serial_manager
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/cm7
+)
+target_compile_options(sentai_emu_edgetpu_task_probe PRIVATE
+    -Wno-error -Wno-unused-parameter -Wno-sign-compare
+    -Wno-old-style-definition -Wno-missing-prototypes
+)
+
+# B8.8 Phase 4a: call EdgeTpuManager::OpenDevice() from a FreeRTOS task after
+# the scheduler starts, with the manager pre-marked in an error/no-device
+# state.  This proves the high-level OpenDevice error path returns instead of
+# wedging the ARM scheduler while real USB attach modeling is still absent.
+add_executable_m7(sentai_emu_edgetpu_opendevice_probe
+    LINKER_SCRIPT ${PROJECT_SOURCE_DIR}/libs/nxp/rt1176-sdk/MIMXRT1176xxxxx_cm7_ram.ld
+    ${SENTAI_EMU_TPU_PROBE_SOURCES}
+    sentai_emu_tpu_driver_stubs.cc
+    ${PROJECT_SOURCE_DIR}/libs/tpu/edgetpu_manager.cc
+    ${PROJECT_SOURCE_DIR}/libs/tpu/edgetpu_task.cc
+    ${PROJECT_SOURCE_DIR}/libs/tpu/usb_host_edgetpu.c
+)
+configure_sentai_emu_target(sentai_emu_edgetpu_opendevice_probe)
+target_compile_definitions(sentai_emu_edgetpu_opendevice_probe PRIVATE
+    FSL_RTOS_FREE_RTOS
+    SENTAI_PLATFORM_SIM
+    SENTAI_EMU_USBHOST_PROBE_START_TASK=1
+    SENTAI_EMU_EDGETPU_MANAGER_PROBE=1
+    SENTAI_EMU_EDGETPU_TASK_PROBE=1
+    SENTAI_EMU_EDGETPU_OPENDEVICE_PROBE=1
+)
+target_include_directories(sentai_emu_edgetpu_opendevice_probe PRIVATE
+    ${PROJECT_SOURCE_DIR}/libs/nxp/rt1176-sdk
+    ${PROJECT_SOURCE_DIR}/third_party/modified/nxp/rt1176-sdk
+    ${PROJECT_SOURCE_DIR}/third_party/flatbuffers/include
+    ${PROJECT_SOURCE_DIR}/third_party/tflite-micro
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/host
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/host/class
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/include
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/phy
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/output/source/host
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/utilities/debug_console
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/utilities/str
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/components/osa
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/components/lists
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/components/serial_manager
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/cm7
+)
+target_compile_options(sentai_emu_edgetpu_opendevice_probe PRIVATE
+    -Wno-error -Wno-unused-parameter -Wno-sign-compare
+    -Wno-old-style-definition -Wno-missing-prototypes
+)
+
+# B8.8 Phase 4b: synthesize a Coral attach + enumeration-done event from an
+# emu FreeRTOS task, using NXP usb_host_* descriptor structs and the real
+# UsbHostTask -> EdgeTpuTask callback path.  This is not an EHCI model yet; it
+# proves the registered callback chain and minimal EdgeTPU descriptors.
+add_executable_m7(sentai_emu_edgetpu_synth_enum_probe
+    LINKER_SCRIPT ${PROJECT_SOURCE_DIR}/libs/nxp/rt1176-sdk/MIMXRT1176xxxxx_cm7_ram.ld
+    ${SENTAI_EMU_TPU_PROBE_SOURCES}
+    sentai_emu_tpu_driver_stubs.cc
+    ${PROJECT_SOURCE_DIR}/libs/tpu/edgetpu_manager.cc
+    ${PROJECT_SOURCE_DIR}/libs/tpu/edgetpu_task.cc
+    ${PROJECT_SOURCE_DIR}/libs/tpu/usb_host_edgetpu.c
+)
+configure_sentai_emu_target(sentai_emu_edgetpu_synth_enum_probe)
+target_compile_definitions(sentai_emu_edgetpu_synth_enum_probe PRIVATE
+    FSL_RTOS_FREE_RTOS
+    SENTAI_PLATFORM_SIM
+    SENTAI_EMU_USBHOST_PROBE_START_TASK=1
+    SENTAI_EMU_EDGETPU_MANAGER_PROBE=1
+    SENTAI_EMU_EDGETPU_TASK_PROBE=1
+    SENTAI_EMU_EDGETPU_SYNTH_ENUM_PROBE=1
+)
+target_include_directories(sentai_emu_edgetpu_synth_enum_probe PRIVATE
+    ${PROJECT_SOURCE_DIR}/libs/nxp/rt1176-sdk
+    ${PROJECT_SOURCE_DIR}/third_party/modified/nxp/rt1176-sdk
+    ${PROJECT_SOURCE_DIR}/third_party/flatbuffers/include
+    ${PROJECT_SOURCE_DIR}/third_party/tflite-micro
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/host
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/host/class
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/include
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/phy
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/output/source/host
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/utilities/debug_console
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/utilities/str
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/components/osa
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/components/lists
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/components/serial_manager
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/cm7
+)
+target_compile_options(sentai_emu_edgetpu_synth_enum_probe PRIVATE
+    -Wno-error -Wno-unused-parameter -Wno-sign-compare
+    -Wno-old-style-definition -Wno-missing-prototypes
+)
+
+# B8.8 Phase 5a: Renode-side Coral MMIO provider.  The device descriptor is
+# now exposed by emu/renode/sentai_rt1176.repl (`coral_usb`) and delivered via
+# IRQ 95; firmware consumes that provider and routes through the real
+# UsbHostTask -> EdgeTpuTask callback chain.
+add_executable_m7(sentai_emu_edgetpu_mmio_enum_probe
+    LINKER_SCRIPT ${PROJECT_SOURCE_DIR}/libs/nxp/rt1176-sdk/MIMXRT1176xxxxx_cm7_ram.ld
+    ${SENTAI_EMU_TPU_PROBE_SOURCES}
+    sentai_emu_tpu_driver_stubs.cc
+    ${PROJECT_SOURCE_DIR}/libs/tpu/edgetpu_manager.cc
+    ${PROJECT_SOURCE_DIR}/libs/tpu/edgetpu_task.cc
+    ${PROJECT_SOURCE_DIR}/libs/tpu/usb_host_edgetpu.c
+)
+configure_sentai_emu_target(sentai_emu_edgetpu_mmio_enum_probe)
+target_compile_definitions(sentai_emu_edgetpu_mmio_enum_probe PRIVATE
+    FSL_RTOS_FREE_RTOS
+    SENTAI_PLATFORM_SIM
+    SENTAI_EMU_USBHOST_PROBE_START_TASK=1
+    SENTAI_EMU_EDGETPU_MANAGER_PROBE=1
+    SENTAI_EMU_EDGETPU_TASK_PROBE=1
+    SENTAI_EMU_EDGETPU_MMIO_ENUM_PROBE=1
+)
+target_include_directories(sentai_emu_edgetpu_mmio_enum_probe PRIVATE
+    ${PROJECT_SOURCE_DIR}/libs/nxp/rt1176-sdk
+    ${PROJECT_SOURCE_DIR}/third_party/modified/nxp/rt1176-sdk
+    ${PROJECT_SOURCE_DIR}/third_party/flatbuffers/include
+    ${PROJECT_SOURCE_DIR}/third_party/tflite-micro
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/host
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/host/class
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/include
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/phy
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/output/source/host
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/utilities/debug_console
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/utilities/str
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/components/osa
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/components/lists
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/components/serial_manager
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/cm7
+)
+target_compile_options(sentai_emu_edgetpu_mmio_enum_probe PRIVATE
+    -Wno-error -Wno-unused-parameter -Wno-sign-compare
+    -Wno-old-style-definition -Wno-missing-prototypes
+)
+
+# B8.8 Phase 5b: after the Renode-side MMIO descriptor block is consumed and
+# routed through the real UsbHostTask -> EdgeTpuTask callback chain, call the
+# production EdgeTpuManager::OpenDevice() from a FreeRTOS task.  The emu-scoped
+# TpuDriver stub returns success so this gate proves manager/task sequencing,
+# not real TPU transfers.
+add_executable_m7(sentai_emu_edgetpu_mmio_opendevice_probe
+    LINKER_SCRIPT ${PROJECT_SOURCE_DIR}/libs/nxp/rt1176-sdk/MIMXRT1176xxxxx_cm7_ram.ld
+    ${SENTAI_EMU_TPU_PROBE_SOURCES}
+    sentai_emu_tpu_driver_stubs.cc
+    ${PROJECT_SOURCE_DIR}/libs/tpu/edgetpu_manager.cc
+    ${PROJECT_SOURCE_DIR}/libs/tpu/edgetpu_task.cc
+    ${PROJECT_SOURCE_DIR}/libs/tpu/usb_host_edgetpu.c
+)
+configure_sentai_emu_target(sentai_emu_edgetpu_mmio_opendevice_probe)
+target_compile_definitions(sentai_emu_edgetpu_mmio_opendevice_probe PRIVATE
+    FSL_RTOS_FREE_RTOS
+    SENTAI_PLATFORM_SIM
+    SENTAI_EMU_USBHOST_PROBE_START_TASK=1
+    SENTAI_EMU_EDGETPU_MANAGER_PROBE=1
+    SENTAI_EMU_EDGETPU_TASK_PROBE=1
+    SENTAI_EMU_EDGETPU_OPENDEVICE_PROBE=1
+    SENTAI_EMU_EDGETPU_MMIO_ENUM_PROBE=1
+    SENTAI_EMU_EDGETPU_MMIO_OPENDEVICE_PROBE=1
+    SENTAI_EMU_TPU_DRIVER_INIT_OK=1
+)
+target_include_directories(sentai_emu_edgetpu_mmio_opendevice_probe PRIVATE
+    ${PROJECT_SOURCE_DIR}/libs/nxp/rt1176-sdk
+    ${PROJECT_SOURCE_DIR}/third_party/modified/nxp/rt1176-sdk
+    ${PROJECT_SOURCE_DIR}/third_party/flatbuffers/include
+    ${PROJECT_SOURCE_DIR}/third_party/tflite-micro
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/host
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/host/class
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/include
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/phy
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/output/source/host
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/utilities/debug_console
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/utilities/str
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/components/osa
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/components/lists
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/components/serial_manager
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/cm7
+)
+target_compile_options(sentai_emu_edgetpu_mmio_opendevice_probe PRIVATE
+    -Wno-error -Wno-unused-parameter -Wno-sign-compare
+    -Wno-old-style-definition -Wno-missing-prototypes
+)
+
+# B8.8 Phase 6a: keep the emulator injection exactly at the production
+# TpuDriver transfer boundary.  After P5b OpenDevice succeeds, firmware calls
+# SendParameters/SendInputs/SendInstructions/GetOutputs/ReadEvent.  Renode's
+# `coral_tpu_bridge` MMIO peripheral acks those calls and writes a deterministic
+# output pattern into guest memory.  This is the transport seam for the later
+# physical host-Coral bridge.
+add_executable_m7(sentai_emu_edgetpu_mmio_send_bridge_probe
+    LINKER_SCRIPT ${PROJECT_SOURCE_DIR}/libs/nxp/rt1176-sdk/MIMXRT1176xxxxx_cm7_ram.ld
+    ${SENTAI_EMU_TPU_PROBE_SOURCES}
+    sentai_emu_tpu_driver_stubs.cc
+    ${PROJECT_SOURCE_DIR}/libs/tpu/edgetpu_manager.cc
+    ${PROJECT_SOURCE_DIR}/libs/tpu/edgetpu_task.cc
+    ${PROJECT_SOURCE_DIR}/libs/tpu/usb_host_edgetpu.c
+)
+configure_sentai_emu_target(sentai_emu_edgetpu_mmio_send_bridge_probe)
+target_compile_definitions(sentai_emu_edgetpu_mmio_send_bridge_probe PRIVATE
+    FSL_RTOS_FREE_RTOS
+    SENTAI_PLATFORM_SIM
+    SENTAI_EMU_USBHOST_PROBE_START_TASK=1
+    SENTAI_EMU_EDGETPU_MANAGER_PROBE=1
+    SENTAI_EMU_EDGETPU_TASK_PROBE=1
+    SENTAI_EMU_EDGETPU_OPENDEVICE_PROBE=1
+    SENTAI_EMU_EDGETPU_MMIO_ENUM_PROBE=1
+    SENTAI_EMU_EDGETPU_MMIO_OPENDEVICE_PROBE=1
+    SENTAI_EMU_EDGETPU_MMIO_SEND_BRIDGE_PROBE=1
+    SENTAI_EMU_TPU_DRIVER_MMIO_SEND_BRIDGE=1
+)
+target_include_directories(sentai_emu_edgetpu_mmio_send_bridge_probe PRIVATE
+    ${PROJECT_SOURCE_DIR}/libs/nxp/rt1176-sdk
+    ${PROJECT_SOURCE_DIR}/third_party/modified/nxp/rt1176-sdk
+    ${PROJECT_SOURCE_DIR}/third_party/flatbuffers/include
+    ${PROJECT_SOURCE_DIR}/third_party/tflite-micro
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/host
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/host/class
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/include
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/phy
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/output/source/host
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/utilities/debug_console
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/utilities/str
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/components/osa
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/components/lists
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/components/serial_manager
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/cm7
+)
+target_compile_options(sentai_emu_edgetpu_mmio_send_bridge_probe PRIVATE
+    -Wno-error -Wno-unused-parameter -Wno-sign-compare
+    -Wno-old-style-definition -Wno-missing-prototypes
+)
+
+# --- B8.9 ARM FileX/LevelX user storage over emulated raw NAND ----------
+#
+# This is not a RAM filesystem.  The guest firmware runs the production
+# FxUser* stack and fx_nand_driver callbacks.  Only the physical NAND
+# read/program/erase operations are redirected to Renode's `nand_bridge`
+# host-backed raw NAND image.
+
+set(SENTAI_EMU_FX_STORAGE_SOURCES
+    sentai_emu_fx_storage_smoke.cc
+    sentai_emu_freertos_hooks.c
+    sentai_emu_lfs_stubs.cc
+    ${PROJECT_SOURCE_DIR}/libs/base/fx_user_fs.cc
+    ${PROJECT_SOURCE_DIR}/libs/base/fx_nand_driver.cc
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/gcc/startup_MIMXRT1176_cm7.S
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/system_MIMXRT1176_cm7.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/event_groups.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/list.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/portable/GCC/ARM_CM4F/port.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/queue.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/stream_buffer.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/tasks.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/timers.c
+    ${PROJECT_SOURCE_DIR}/third_party/FreeRTOS_helpers/heap_useNewlib_NXP.c
+)
+
+add_executable_m7(sentai_emu_fx_storage
+    LINKER_SCRIPT ${PROJECT_SOURCE_DIR}/libs/nxp/rt1176-sdk/MIMXRT1176xxxxx_cm7_ram.ld
+    ${SENTAI_EMU_FX_STORAGE_SOURCES}
+)
+configure_sentai_emu_target(sentai_emu_fx_storage)
+target_compile_definitions(sentai_emu_fx_storage PRIVATE
+    SENTAI_ARM_EMU_NAND_BRIDGE=1
+)
+target_link_libraries(sentai_emu_fx_storage
+    libs_filex
+    libs_levelx
+)
+target_compile_options(sentai_emu_fx_storage PRIVATE
+    -Wno-error -Wno-unused-parameter -Wno-sign-compare
+    -Wno-old-style-definition -Wno-missing-prototypes
+)
+
+# B8.9c: stage host-side experiment assets into the same raw NAND image
+# before booting a REPL/inference target.  The host bridge only supplies
+# bytes; all file creation/truncation/appending is done by FxUser* in guest.
+set(SENTAI_EMU_FS_STAGE_ASSETS_SOURCES
+    sentai_emu_fs_stage_assets.cc
+    sentai_emu_freertos_hooks.c
+    sentai_emu_lfs_stubs.cc
+    ${PROJECT_SOURCE_DIR}/libs/base/fx_user_fs.cc
+    ${PROJECT_SOURCE_DIR}/libs/base/fx_nand_driver.cc
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/gcc/startup_MIMXRT1176_cm7.S
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/system_MIMXRT1176_cm7.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/event_groups.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/list.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/portable/GCC/ARM_CM4F/port.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/queue.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/stream_buffer.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/tasks.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/timers.c
+    ${PROJECT_SOURCE_DIR}/third_party/FreeRTOS_helpers/heap_useNewlib_NXP.c
+)
+
+add_executable_m7(sentai_emu_fs_stage_assets
+    LINKER_SCRIPT ${PROJECT_SOURCE_DIR}/libs/nxp/rt1176-sdk/MIMXRT1176xxxxx_cm7_ram.ld
+    ${SENTAI_EMU_FS_STAGE_ASSETS_SOURCES}
+)
+configure_sentai_emu_target(sentai_emu_fs_stage_assets)
+target_compile_definitions(sentai_emu_fs_stage_assets PRIVATE
+    SENTAI_ARM_EMU_NAND_BRIDGE=1
+)
+target_link_libraries(sentai_emu_fs_stage_assets
+    libs_filex
+    libs_levelx
+)
+target_compile_options(sentai_emu_fs_stage_assets PRIVATE
+    -Wno-error -Wno-unused-parameter -Wno-sign-compare
+    -Wno-old-style-definition -Wno-missing-prototypes
+)
+
+# --- B8.9b MicroPython sentai.fs over FileX/LevelX raw NAND -------------
+#
+# Same VM/REPL shape as B8.3, but the `sentai` module exposes `sentai.fs`
+# directly over FxUser*.  This validates the path we need for uploading and
+# loading models/images in the ARM-emulator runtime without inventing a RAM FS.
+
+set(SENTAI_EMU_FS_REPL_SOURCES ${SENTAI_EMU_REPL_SOURCES})
+list(REMOVE_ITEM SENTAI_EMU_FS_REPL_SOURCES sentai_emu_stub_modules.c)
+list(APPEND SENTAI_EMU_FS_REPL_SOURCES
+    sentai_emu_fs_module.c
+    sentai_emu_lfs_stubs.cc
+    ${PROJECT_SOURCE_DIR}/libs/base/fx_user_fs.cc
+    ${PROJECT_SOURCE_DIR}/libs/base/fx_nand_driver.cc
+)
+
+add_executable_m7(sentai_emu_fs_repl
+    LINKER_SCRIPT ${PROJECT_SOURCE_DIR}/libs/nxp/rt1176-sdk/MIMXRT1176xxxxx_cm7_ram.ld
+    ${SENTAI_EMU_FS_REPL_SOURCES}
+)
+configure_sentai_emu_target(sentai_emu_fs_repl)
+target_compile_definitions(sentai_emu_fs_repl PRIVATE
+    SENTAI_EMU_FX_FS=1
+    SENTAI_EMU_FS_REPL_SMOKE=1
+    SENTAI_ARM_EMU_NAND_BRIDGE=1
+)
+target_include_directories(sentai_emu_fs_repl PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/mp_inc
+    ${SENTAI_EMU_MP_EMBED_DIR}
+    ${SENTAI_EMU_MP_EMBED_DIR}/port
+)
+target_link_libraries(sentai_emu_fs_repl
+    libs_filex
+    libs_levelx
+)
+target_compile_options(sentai_emu_fs_repl PRIVATE
+    -Wno-error -Wno-unused-parameter -Wno-sign-compare
+    -Wno-old-style-definition -Wno-missing-prototypes
+)
+
+add_executable_m7(sentai_emu_fs_asset_check
+    LINKER_SCRIPT ${PROJECT_SOURCE_DIR}/libs/nxp/rt1176-sdk/MIMXRT1176xxxxx_cm7_ram.ld
+    ${SENTAI_EMU_FS_REPL_SOURCES}
+)
+configure_sentai_emu_target(sentai_emu_fs_asset_check)
+target_compile_definitions(sentai_emu_fs_asset_check PRIVATE
+    SENTAI_EMU_FX_FS=1
+    SENTAI_EMU_FS_ASSET_CHECK=1
+    SENTAI_ARM_EMU_NAND_BRIDGE=1
+)
+target_include_directories(sentai_emu_fs_asset_check PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/mp_inc
+    ${SENTAI_EMU_MP_EMBED_DIR}
+    ${SENTAI_EMU_MP_EMBED_DIR}/port
+)
+target_link_libraries(sentai_emu_fs_asset_check
+    libs_filex
+    libs_levelx
+)
+target_compile_options(sentai_emu_fs_asset_check PRIVATE
+    -Wno-error -Wno-unused-parameter -Wno-sign-compare
+    -Wno-old-style-definition -Wno-missing-prototypes
+)
+
+# --- B8.10 MicroPython mission from FileX + physical Coral host bridge ---
+#
+# This target boots the staged NAND image, imports /mission.py from FxUser, and
+# exposes emu-scoped sentai.tpu/pipeline modules.  sentai.tpu.load/load_image
+# stream the guest FS bytes to Renode; invoke delegates to the host C++ Coral
+# smoke that talks to the physical USB TPU.
+set(SENTAI_EMU_TPU_CAT_REPL_SOURCES ${SENTAI_EMU_FS_REPL_SOURCES})
+list(APPEND SENTAI_EMU_TPU_CAT_REPL_SOURCES
+    sentai_emu_fx_import.c
+    sentai_emu_tpu_host_module.c
+)
+
+add_executable_m7(sentai_emu_tpu_cat_repl
+    LINKER_SCRIPT ${PROJECT_SOURCE_DIR}/libs/nxp/rt1176-sdk/MIMXRT1176xxxxx_cm7_ram.ld
+    ${SENTAI_EMU_TPU_CAT_REPL_SOURCES}
+)
+configure_sentai_emu_target(sentai_emu_tpu_cat_repl)
+target_compile_definitions(sentai_emu_tpu_cat_repl PRIVATE
+    SENTAI_EMU_FX_FS=1
+    SENTAI_EMU_MISSION=1
+    SENTAI_EMU_TPU_HOST_BRIDGE=1
+    SENTAI_EMU_TPU_CAT_AUTORUN=1
+    SENTAI_ARM_EMU_NAND_BRIDGE=1
+)
+target_include_directories(sentai_emu_tpu_cat_repl PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/mp_inc_mission
+    ${SENTAI_EMU_MP_EMBED_DIR}
+    ${SENTAI_EMU_MP_EMBED_DIR}/port
+)
+target_link_libraries(sentai_emu_tpu_cat_repl
+    libs_filex
+    libs_levelx
+)
+target_compile_options(sentai_emu_tpu_cat_repl PRIVATE
+    -Wno-error -Wno-unused-parameter -Wno-sign-compare
+    -Wno-old-style-definition -Wno-missing-prototypes
+)
+
+add_executable_m7(sentai_emu_tpu_fps_repl
+    LINKER_SCRIPT ${PROJECT_SOURCE_DIR}/libs/nxp/rt1176-sdk/MIMXRT1176xxxxx_cm7_ram.ld
+    ${SENTAI_EMU_TPU_CAT_REPL_SOURCES}
+)
+configure_sentai_emu_target(sentai_emu_tpu_fps_repl)
+target_compile_definitions(sentai_emu_tpu_fps_repl PRIVATE
+    SENTAI_EMU_FX_FS=1
+    SENTAI_EMU_MISSION=1
+    SENTAI_EMU_TPU_HOST_BRIDGE=1
+    SENTAI_EMU_TPU_FPS_AUTORUN=1
+    SENTAI_ARM_EMU_NAND_BRIDGE=1
+)
+target_include_directories(sentai_emu_tpu_fps_repl PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/mp_inc_mission
+    ${SENTAI_EMU_MP_EMBED_DIR}
+    ${SENTAI_EMU_MP_EMBED_DIR}/port
+)
+target_link_libraries(sentai_emu_tpu_fps_repl
+    libs_filex
+    libs_levelx
+)
+target_compile_options(sentai_emu_tpu_fps_repl PRIVATE
+    -Wno-error -Wno-unused-parameter -Wno-sign-compare
+    -Wno-old-style-definition -Wno-missing-prototypes
+)
+
+add_executable_m7(sentai_emu_tpu_fps_mem_repl
+    LINKER_SCRIPT ${PROJECT_SOURCE_DIR}/libs/nxp/rt1176-sdk/MIMXRT1176xxxxx_cm7_ram.ld
+    ${SENTAI_EMU_TPU_CAT_REPL_SOURCES}
+)
+configure_sentai_emu_target(sentai_emu_tpu_fps_mem_repl)
+target_compile_definitions(sentai_emu_tpu_fps_mem_repl PRIVATE
+    SENTAI_EMU_FX_FS=1
+    SENTAI_EMU_MISSION=1
+    SENTAI_EMU_TPU_HOST_BRIDGE=1
+    SENTAI_EMU_TPU_FPS_MEM_AUTORUN=1
+    SENTAI_ARM_EMU_NAND_BRIDGE=1
+)
+target_include_directories(sentai_emu_tpu_fps_mem_repl PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/mp_inc_mission
+    ${SENTAI_EMU_MP_EMBED_DIR}
+    ${SENTAI_EMU_MP_EMBED_DIR}/port
+)
+target_link_libraries(sentai_emu_tpu_fps_mem_repl
+    libs_filex
+    libs_levelx
+)
+target_compile_options(sentai_emu_tpu_fps_mem_repl PRIVATE
+    -Wno-error -Wno-unused-parameter -Wno-sign-compare
+    -Wno-old-style-definition -Wno-missing-prototypes
+)
+
+add_executable_m7(sentai_emu_tpu_fps_mem_invoke_repl
+    LINKER_SCRIPT ${PROJECT_SOURCE_DIR}/libs/nxp/rt1176-sdk/MIMXRT1176xxxxx_cm7_ram.ld
+    ${SENTAI_EMU_TPU_CAT_REPL_SOURCES}
+)
+configure_sentai_emu_target(sentai_emu_tpu_fps_mem_invoke_repl)
+target_compile_definitions(sentai_emu_tpu_fps_mem_invoke_repl PRIVATE
+    SENTAI_EMU_FX_FS=1
+    SENTAI_EMU_MISSION=1
+    SENTAI_EMU_TPU_HOST_BRIDGE=1
+    SENTAI_EMU_TPU_FPS_MEM_INVOKE_AUTORUN=1
+    SENTAI_ARM_EMU_NAND_BRIDGE=1
+)
+target_include_directories(sentai_emu_tpu_fps_mem_invoke_repl PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/mp_inc_mission
+    ${SENTAI_EMU_MP_EMBED_DIR}
+    ${SENTAI_EMU_MP_EMBED_DIR}/port
+)
+target_link_libraries(sentai_emu_tpu_fps_mem_invoke_repl
+    libs_filex
+    libs_levelx
+)
+target_compile_options(sentai_emu_tpu_fps_mem_invoke_repl PRIVATE
+    -Wno-error -Wno-unused-parameter -Wno-sign-compare
+    -Wno-old-style-definition -Wno-missing-prototypes
+)
+
+add_executable_m7(sentai_emu_tpu_fps_mem_session_repl
+    LINKER_SCRIPT ${PROJECT_SOURCE_DIR}/libs/nxp/rt1176-sdk/MIMXRT1176xxxxx_cm7_ram.ld
+    ${SENTAI_EMU_TPU_CAT_REPL_SOURCES}
+)
+configure_sentai_emu_target(sentai_emu_tpu_fps_mem_session_repl)
+target_compile_definitions(sentai_emu_tpu_fps_mem_session_repl PRIVATE
+    SENTAI_EMU_FX_FS=1
+    SENTAI_EMU_MISSION=1
+    SENTAI_EMU_TPU_HOST_BRIDGE=1
+    SENTAI_EMU_TPU_FPS_MEM_SESSION_AUTORUN=1
+    SENTAI_ARM_EMU_NAND_BRIDGE=1
+)
+target_include_directories(sentai_emu_tpu_fps_mem_session_repl PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/mp_inc_mission
+    ${SENTAI_EMU_MP_EMBED_DIR}
+    ${SENTAI_EMU_MP_EMBED_DIR}/port
+)
+target_link_libraries(sentai_emu_tpu_fps_mem_session_repl
+    libs_filex
+    libs_levelx
+)
+target_compile_options(sentai_emu_tpu_fps_mem_session_repl PRIVATE
+    -Wno-error -Wno-unused-parameter -Wno-sign-compare
+    -Wno-old-style-definition -Wno-missing-prototypes
+)
+
+add_executable_m7(sentai_emu_tpu_timing_repl
+    LINKER_SCRIPT ${PROJECT_SOURCE_DIR}/libs/nxp/rt1176-sdk/MIMXRT1176xxxxx_cm7_ram.ld
+    ${SENTAI_EMU_TPU_CAT_REPL_SOURCES}
+)
+configure_sentai_emu_target(sentai_emu_tpu_timing_repl)
+target_compile_definitions(sentai_emu_tpu_timing_repl PRIVATE
+    SENTAI_EMU_FX_FS=1
+    SENTAI_EMU_MISSION=1
+    SENTAI_EMU_TPU_HOST_BRIDGE=1
+    SENTAI_EMU_TPU_TIMING_AUTORUN=1
+    SENTAI_ARM_EMU_NAND_BRIDGE=1
+)
+target_include_directories(sentai_emu_tpu_timing_repl PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/mp_inc_mission
+    ${SENTAI_EMU_MP_EMBED_DIR}
+    ${SENTAI_EMU_MP_EMBED_DIR}/port
+)
+target_link_libraries(sentai_emu_tpu_timing_repl
+    libs_filex
+    libs_levelx
+)
+target_compile_options(sentai_emu_tpu_timing_repl PRIVATE
+    -Wno-error -Wno-unused-parameter -Wno-sign-compare
+    -Wno-old-style-definition -Wno-missing-prototypes
+)
+
+# B8.11 low-level physical Coral bridge smoke.  This is the next step below
+# B8.10's high-level sentai.tpu host-invoke bridge: the guest owns
+# EdgeTpuManager/EdgeTpuExecutable and Renode forwards only the real
+# TpuDriver SendParameters/SendInputs/SendInstructions/GetOutputs/ReadEvent
+# calls to a host POSIX/libusb server.
+set(SENTAI_EMU_TPU_PHYSICAL_SEND_SMOKE_SOURCES
+    sentai_emu_tpu_physical_send_smoke.cc
+    sentai_emu_freertos_hooks.c
+    sentai_emu_lfs_stubs.cc
+    sentai_emu_tpu_driver_stubs.cc
+    ${PROJECT_SOURCE_DIR}/libs/base/fx_user_fs.cc
+    ${PROJECT_SOURCE_DIR}/libs/base/fx_nand_driver.cc
+    ${PROJECT_SOURCE_DIR}/libs/tpu/edgetpu_executable.cc
+    ${PROJECT_SOURCE_DIR}/libs/tpu/edgetpu_manager.cc
+    ${PROJECT_SOURCE_DIR}/third_party/tflite-micro/tensorflow/lite/c/common.cc
+    ${PROJECT_SOURCE_DIR}/third_party/tflite-micro/tensorflow/lite/micro/kernels/kernel_util.cc
+    ${PROJECT_SOURCE_DIR}/third_party/tflite-micro/tensorflow/lite/micro/memory_helpers.cc
+    ${PROJECT_SOURCE_DIR}/third_party/tflite-micro/tensorflow/lite/micro/micro_utils.cc
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/gcc/startup_MIMXRT1176_cm7.S
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/system_MIMXRT1176_cm7.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/event_groups.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/list.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/portable/GCC/ARM_CM4F/port.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/queue.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/stream_buffer.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/tasks.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/timers.c
+    ${PROJECT_SOURCE_DIR}/third_party/FreeRTOS_helpers/heap_useNewlib_NXP.c
+)
+
+add_executable_m7(sentai_emu_tpu_physical_send_smoke
+    LINKER_SCRIPT ${PROJECT_SOURCE_DIR}/libs/nxp/rt1176-sdk/MIMXRT1176xxxxx_cm7_ram.ld
+    ${SENTAI_EMU_TPU_PHYSICAL_SEND_SMOKE_SOURCES}
+)
+configure_sentai_emu_target(sentai_emu_tpu_physical_send_smoke)
+target_compile_definitions(sentai_emu_tpu_physical_send_smoke PRIVATE
+    SENTAI_PLATFORM_SIM=1
+    SENTAI_ARM_EMU_NAND_BRIDGE=1
+    SENTAI_EMU_TPU_DRIVER_PHYSICAL_SEND_BRIDGE=1
+    FLATBUFFERS_LOCALE_INDEPENDENT=0
+)
+target_include_directories(sentai_emu_tpu_physical_send_smoke PRIVATE
+    ${PROJECT_SOURCE_DIR}/libs/nxp/rt1176-sdk
+    ${PROJECT_SOURCE_DIR}/third_party/modified/nxp/rt1176-sdk
+    ${PROJECT_SOURCE_DIR}/third_party/flatbuffers/include
+    ${PROJECT_SOURCE_DIR}/third_party/gemmlowp
+    ${PROJECT_SOURCE_DIR}/third_party/tflite-micro
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/host
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/host/class
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/include
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/phy
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/output/source/host
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/utilities/debug_console
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/utilities/str
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/components/osa
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/components/lists
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/components/serial_manager
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/cm7
+)
+target_link_libraries(sentai_emu_tpu_physical_send_smoke
+    libs_filex
+    libs_levelx
+)
+target_compile_options(sentai_emu_tpu_physical_send_smoke PRIVATE
+    -Wno-error -Wno-unused-parameter -Wno-sign-compare
+    -Wno-old-style-definition -Wno-missing-prototypes
+)
+
+add_executable_m7(sentai_emu_tpu_physical_send_fps
+    LINKER_SCRIPT ${PROJECT_SOURCE_DIR}/libs/nxp/rt1176-sdk/MIMXRT1176xxxxx_cm7_ram.ld
+    ${SENTAI_EMU_TPU_PHYSICAL_SEND_SMOKE_SOURCES}
+)
+configure_sentai_emu_target(sentai_emu_tpu_physical_send_fps)
+target_compile_definitions(sentai_emu_tpu_physical_send_fps PRIVATE
+    SENTAI_PLATFORM_SIM=1
+    SENTAI_ARM_EMU_NAND_BRIDGE=1
+    SENTAI_EMU_TPU_DRIVER_PHYSICAL_SEND_BRIDGE=1
+    SENTAI_EMU_TPU_PHYSICAL_SEND_RUNS=10
+    FLATBUFFERS_LOCALE_INDEPENDENT=0
+)
+target_include_directories(sentai_emu_tpu_physical_send_fps PRIVATE
+    ${PROJECT_SOURCE_DIR}/libs/nxp/rt1176-sdk
+    ${PROJECT_SOURCE_DIR}/third_party/modified/nxp/rt1176-sdk
+    ${PROJECT_SOURCE_DIR}/third_party/flatbuffers/include
+    ${PROJECT_SOURCE_DIR}/third_party/gemmlowp
+    ${PROJECT_SOURCE_DIR}/third_party/tflite-micro
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/host
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/host/class
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/include
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/phy
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/output/source/host
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/utilities/debug_console
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/utilities/str
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/components/osa
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/components/lists
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/components/serial_manager
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/cm7
+)
+target_link_libraries(sentai_emu_tpu_physical_send_fps
+    libs_filex
+    libs_levelx
+)
+target_compile_options(sentai_emu_tpu_physical_send_fps PRIVATE
     -Wno-error -Wno-unused-parameter -Wno-sign-compare
     -Wno-old-style-definition -Wno-missing-prototypes
 )

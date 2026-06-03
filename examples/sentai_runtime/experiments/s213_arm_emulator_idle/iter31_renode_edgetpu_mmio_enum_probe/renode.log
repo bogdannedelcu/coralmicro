@@ -1,0 +1,15 @@
+14:43:25.8534 [INFO] Loaded monitor commands from: /home/bogdan/work/renode_portable/scripts/monitor.py
+Renode, version 1.16.1 (ac18b5ac-202606020225)
+
+
+(monitor) i $CWD/emu/renode/sentai_emu_edgetpu_mmio_enum_probe.resc
+
+14:43:25.9711 [INFO] Including script(s): /home/bogdan/work/coralmicro/emu/renode/sentai_emu_edgetpu_mmio_enum_probe.resc
+14:43:25.9866 [INFO] System bus created.
+There was an error executing command 'i @/home/bogdan/work/coralmicro/emu/renode/sentai_rt1176.repl'
+Error E39: Exception was thrown during registration of 'coral_usb' in 'sysbus':
+Could not register memory at offset 0x40900100 and size 0x100 - the registration address has to be aligned to guest page size 0x400.
+At /home/bogdan/work/coralmicro/emu/renode/sentai_rt1176.repl:254:34:
+coral_usb: Memory.MappedMemory @ sysbus 0x40900100
+                                 ^
+(machine-0) 14:43:26.5983 [INFO] machine-0: Disposed.

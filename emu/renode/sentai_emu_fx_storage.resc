@@ -1,0 +1,39 @@
+:name: SentAI B8 ARM FileX/LevelX storage smoke
+:description: Runs production FileX/LevelX over an emulated raw NAND backend.
+
+i @emu/renode/sentai_rt1176.repl
+
+$bin?=@build_emu/emu/sentai_emu_fx_storage
+$uart_log?=@/home/bogdan/work/coralmicro/emu/output/sentai_emu_fx_storage.log
+
+macro reset
+"""
+    sysbus LoadELF $bin
+    cpu VectorTableOffset 0x800
+"""
+
+lpuart6 CreateFileBackend $uart_log
+runMacro $reset
+emulation RunFor "6.0s"
+lpuart6 CloseFileBackend $uart_log
+
+echo "sentai_emu_fx_storage PC:"
+cpu PC
+echo "sentai_emu_fx_storage boot_state:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_boot_state"`
+echo "sentai_emu_fx_storage heartbeat:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_heartbeat"`
+echo "sentai_emu_fx_storage last_tick:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_last_tick"`
+echo "sentai_emu_fx_storage fs_size:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_fs_size"`
+echo "sentai_emu_fx_storage fs_read_ok:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_fs_read_ok"`
+echo "sentai_emu_fx_storage fx_reads:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_fx_reads"`
+echo "sentai_emu_fx_storage fx_writes:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_fx_writes"`
+echo "sentai_emu_fx_storage fx_erases:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_fx_erases"`
+echo "sentai_emu_fx_storage fx_errors:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_fx_errors"`
