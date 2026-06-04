@@ -1,8 +1,8 @@
 # TD-S10-B8 - Research And Spike ARM Emulator Runtime
 
-## Status As Of 2026-06-03
+## Status As Of 2026-06-04
 
-| Gate | Topology / proof                                                 | Verdict iter (s213)                              | Commit     |
+| Gate | Topology / proof                                                 | Verdict iter / experiment                        | Commit     |
 | ---- | ---------------------------------------------------------------- | ------------------------------------------------ | ---------- |
 | B8.1 | CM7 startup -> ARM FreeRTOS scheduler -> heartbeat task          | iter01_renode_idle_heartbeat                     | b314edb2   |
 | B8.2 | LPUART6 polled TX file backend                                   | iter03_renode_uart_heartbeat                     | b314edb2   |
@@ -23,7 +23,7 @@
 | B8.8h| `OpenDevice()` after Renode MMIO enum reaches driver init         | iter36_renode_edgetpu_mmio_opendevice_probe      | _open_     |
 | B8.8i| `TpuDriver::Send*` MMIO bridge boundary smoke                    | iter37_renode_edgetpu_mmio_send_bridge_probe     | _open_     |
 | B8.8j| Physical USB Coral via SIM POSIX/libusb + COCO postprocess       | `build-sim/sim/tpu_posix_invoke_smoke` PASS x3   | _open_     |
-| B8.8 | Transparent USB Coral via real `edgetpu_manager` (phased)        | open — host Coral bridge behind Send* next       | _open_     |
+| B8.8 | Transparent USB Coral via real `edgetpu_manager` (phased)        | Send* host bridge passed; EHCI passthrough deferred | _open_  |
 | B8.9 | Production FileX/LevelX over Renode raw-NAND bridge              | iter38_renode_fx_storage_filex_levelx_nand       | _open_     |
 | B8.9b| MicroPython `sentai.fs` over FileX/LevelX raw-NAND bridge        | iter40_renode_fs_repl_filex_levelx_nand          | _open_     |
 | B8.9c| Idempotent pre-boot asset staging into FileX/LevelX raw-NAND image| iter54_renode_fs_stage_assets_filex_levelx_nand  | _open_     |
@@ -35,6 +35,8 @@
 | B8.10e| Guest `EdgeTpuManager` -> `TpuDriver::Send*` -> physical USB Coral | iter91_renode_tpu_physical_send_smoke_filex_coral | _open_    |
 | B8.10f| Host wall-clock FPS for guest `Send*` -> physical USB Coral       | iter107_renode_tpu_physical_send_fps_filex_coral | _open_    |
 | B8.10g| POSIX/libusb bulk-IN outfeed optimization (`0x80` / 1024B)        | iter98_renode_tpu_physical_send_fps_filex_coral  | _open_    |
+| S214 | Production `FlowTask` ARM phase-corr over prep slot              | s214 iter02, PASS, 47.61 FPS                     | _open_     |
+| S215 | Production `FlowTask` + guest Send* -> physical USB Coral        | s215 iter01/iter02, PASS x2, TPU ~13.2 FPS       | _open_     |
 | B8.12| Crazyflie CRTP via real UART + cf2-SITL TCP bridge (planned)     | not started                                      | _open_     |
 
 Run any gate via:
@@ -48,6 +50,13 @@ The runner produces an `iterNN_*/verdict_s213.json` with per-gate
 assertions (counter equalities, UART byte matches, per-frame
 detection sequences).  `pass: true` requires every assertion to
 hold; partial PASS is not accepted.
+
+Run the newer standalone emulator experiments via:
+
+```sh
+python3 examples/sentai_runtime/experiments/s214_arm_emulator_flow_task/run_s214.py
+python3 examples/sentai_runtime/experiments/s215_arm_emulator_flow_tpu_parallel/run_s215.py
+```
 
 Latest B8.8 USB/TPU emulator slice:
 
@@ -3329,3 +3338,171 @@ Conclusion for B8:
   failure.
 - Future FlowTask end-to-end work should build on this B8 emulator path rather
   than the B7 SIM harness.
+
+### 2026-06-04 - S214 production FlowTask-only benchmark in ARM emulator
+
+Created a new experiment:
+
+```bash
+python3 examples/sentai_runtime/experiments/s214_arm_emulator_flow_task/run_s214.py
+```
+
+This is the production FlowTask path, not the earlier B8.7c/d toy estimator:
+
+- binary: `sentai_emu_flow_task_runtime`
+- linked runtime code:
+  - `examples/sentai_runtime/flow_task.cc`
+  - `examples/sentai_runtime/flow_phase_corr.cc`
+  - `examples/sentai_runtime/sentai_prep.cc`
+- data boundary: guest task publishes into
+  `SENTAI_PREP_SLOT_FLOW_GRAY_80x60`, and FlowTask consumes that slot.
+- algorithm: ARM phase-correlation/CMSIS-DSP path, not the SIM SAD fallback.
+- frame source for this isolated gate: host prepares one 80x60 grayscale cat
+  asset and Renode loads it into guest SDRAM; the guest generates shifted
+  frames from that in memory.  This isolates FlowTask before reintroducing
+  VirtualCameraTask/PrepTask/FS.
+
+Implementation notes:
+
+- `flow_task.cc` now uses a common `SENTAI_FLOW_USE_PREP_SLOT` macro for
+  `SENTAI_PLATFORM_SIM || SENTAI_ARM_EMU`, so ARM-EMU can consume prep slots
+  without enabling the SIM algorithm path.
+- The ARM-EMU build still uses inline ARM `usada8` and `dmb`, matching the
+  Cortex-M code shape.
+- The harness stops FlowTask after the benchmark, avoiding a false
+  `SERR_FLOW_NOTIFY_TIMEOUT` after no more frames are published.
+
+Reproducible passing run:
+
+```text
+examples/sentai_runtime/experiments/s214_arm_emulator_flow_task/
+  iter02_renode_flow_task_runtime
+pass=true
+flow_detect_ok=1
+flow_fail_code=0
+flow_completed=24
+FLOW_FPS frames=24 elapsed_ms=504 fps_x100=4761
+FlowTask-only FPS = 47.61
+```
+
+Strict offset validation, including unequal X/Y motion:
+
+```text
+frame  exp_dx exp_dy   got dx_q1000 dy_q1000  conf  match
+1      0      0        0            0         0     1
+2     +2      0        2001         9         255   1
+3      0     +2       -23           2004      255   1
+4     -3     -1       -3037        -992       255   1
+5      0     -3       -24          -2995      255   1
+6     +4      0        4032        -26        255   1
+7     -2     +3       -2019         3007      255   1
+8     -3     +2       -3027         2018      255   1
+9     +2     -4        2024        -4005      255   1
+```
+
+What this proves:
+
+- Production FlowTask, running as a FreeRTOS task in ARM emulation, correctly
+  detects varied 2D cat-frame offsets rather than producing random/non-zero
+  motion.
+- FlowTask-only throughput in this isolated slot-fed benchmark is about
+  `47.61 FPS` by guest FreeRTOS tick time.
+
+Next gate:
+
+- Wire `VirtualCameraTask -> PrepTask -> SENTAI_PREP_SLOT_FLOW_GRAY_80x60 ->
+  FlowTask` in ARM-EMU, so the next measurement is camera/prep/flow end-to-end
+  instead of direct slot injection.
+
+### 2026-06-04 - S215 FlowTask + physical Coral Send* path in parallel
+
+Created a new experiment:
+
+```bash
+python3 examples/sentai_runtime/experiments/s215_arm_emulator_flow_tpu_parallel/run_s215.py
+```
+
+New ARM-emulator target:
+
+```text
+build_emu/emu/sentai_emu_flow_tpu_parallel
+emu/renode/sentai_emu_flow_tpu_parallel.resc
+```
+
+This is the B8 emulator path, not the B7 POSIX SIM path.  The guest binary runs:
+
+- production `FlowTask`, consuming `SENTAI_PREP_SLOT_FLOW_GRAY_80x60`;
+- guest-owned `EdgeTpuManager -> TpuDriver::SendParameters/SendInputs/
+  SendInstructions/GetOutputs/ReadEvent`;
+- Renode MMIO bridge to the host POSIX/libusb `tpu_posix_send_server`;
+- physical USB Coral plugged into the host.
+
+The emu profile defines `SENTAI_ARM_EMU_TPU_HOST_BRIDGE=1` so
+`EdgeTpuManager` skips real-board `EdgeTpuTask` power toggling and the
+ConsoleM7-backed mutex `CHECK()` path.  ARM hardware builds keep the real
+power/USB task path.
+
+Two consecutive runs passed:
+
+```text
+iter01_renode_flow_tpu_parallel_filex_coral
+pass=True
+boot_state=0x0B00
+parallel_done=1
+tpu_completed=5
+tpu_fail_code=0
+flow_completed=24
+flow_detect_ok=1
+flow_fail_code=0
+flow_fps_x100=4761
+physical_host_steady_fps=13.245
+usb_failed=0
+usb_timeouts=0
+
+iter02_renode_flow_tpu_parallel_filex_coral
+pass=True
+boot_state=0x0B00
+parallel_done=1
+tpu_completed=5
+tpu_fail_code=0
+flow_completed=24
+flow_detect_ok=1
+flow_fail_code=0
+flow_fps_x100=4761
+physical_host_steady_fps=13.158
+usb_failed=0
+usb_timeouts=0
+```
+
+Representative UART evidence:
+
+```text
+TPU_PHYSICAL_SEND_PARALLEL BEGIN
+RUNS=5
+MODEL_BYTES=7077792
+INPUT_BYTES=270000
+INVOKE 1 ms=26
+INVOKE 2 ms=25
+INVOKE 3 ms=26
+INVOKE 4 ms=26
+INVOKE 5 ms=25
+TPU_PHYSICAL_SEND PASS
+FLOW_PARALLEL BEGIN
+FLOW_VALIDATE_PASS
+FLOW_FPS frames=24 elapsed_ms=504 fps_x100=4761 ...
+FLOW_DONE
+FLOW_STOP rc=0
+```
+
+Host wall-clock bridge timing stayed in the same range as B8.10f/g:
+
+- steady physical Coral invoke rate: `~13.2 FPS`;
+- average steady `SendInstructions` bridge time: `~11-13 ms`;
+- average steady `SendInputs` bridge time: `~11 ms`;
+- average steady `GetOutputs` bridge time: `~35-36 ms`;
+- no USB failed transfers or timeouts.
+
+Conclusion: FlowTask and the guest-to-physical-USB-Coral detection path now run
+simultaneously in the ARM emulator without errors, across two consecutive runs.
+This verifies the B8 direction for concurrent Flow + TPU in emulator and avoids
+the B7 POSIX SIM dead end.

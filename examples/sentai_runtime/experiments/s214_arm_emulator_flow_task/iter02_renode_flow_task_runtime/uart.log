@@ -1,0 +1,19 @@
+
+SentAI EMU RUNTIME FLOWTASK S214
+FLOW_WAIT_BASE
+FLOW_BASE_READY
+FLOW_START rc=0
+FLOW_VALIDATE frame=1 exp_dx=0 exp_dy=0 dx_q1000=0 dy_q1000=0 conf=0 match=1
+FLOW_VALIDATE frame=2 exp_dx=2 exp_dy=0 dx_q1000=2001 dy_q1000=9 conf=255 match=1
+FLOW_VALIDATE frame=3 exp_dx=0 exp_dy=2 dx_q1000=-23 dy_q1000=2004 conf=255 match=1
+FLOW_VALIDATE frame=4 exp_dx=-3 exp_dy=-1 dx_q1000=-3037 dy_q1000=-992 conf=255 match=1
+FLOW_VALIDATE frame=5 exp_dx=0 exp_dy=-3 dx_q1000=-24 dy_q1000=-2995 conf=255 match=1
+FLOW_VALIDATE frame=6 exp_dx=4 exp_dy=0 dx_q1000=4032 dy_q1000=-26 conf=255 match=1
+FLOW_VALIDATE frame=7 exp_dx=-2 exp_dy=3 dx_q1000=-2019 dy_q1000=3007 conf=255 match=1
+FLOW_VALIDATE frame=8 exp_dx=-3 exp_dy=2 dx_q1000=-3027 dy_q1000=2018 conf=255 match=1
+FLOW_VALIDATE frame=9 exp_dx=2 exp_dy=-4 dx_q1000=2024 dy_q1000=-4005 conf=255 match=1
+FLOW_VALIDATE_PASS
+FLOW_FPS frames=24 elapsed_ms=504 fps_x100=4761 last_dx_q1000=4032 last_dy_q1000=-26 conf=255
+FLOW_DONE
+FLOW_STATS frames=33 grab_fail=0 grab_streak=0 running=1
+FLOW_STOP rc=0

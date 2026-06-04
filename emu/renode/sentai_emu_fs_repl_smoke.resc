@@ -1,0 +1,33 @@
+:name: SentAI B8 ARM MicroPython sentai.fs smoke over FileX/LevelX
+:description: Boots sentai_emu_fs_repl_smoke and runs the destructive MicroPython sentai.fs smoke against production FileX/LevelX over the emulated raw NAND backend.
+
+i @emu/renode/sentai_rt1176.repl
+
+$bin?=@build_emu/emu/sentai_emu_fs_repl_smoke
+$uart_log?=@/home/bogdan/work/coralmicro/emu/output/sentai_emu_fs_repl_smoke.log
+
+macro reset
+"""
+    sysbus LoadELF $bin
+    cpu VectorTableOffset 0x800
+"""
+
+lpuart6 CreateFileBackend $uart_log
+runMacro $reset
+emulation RunFor "3.0s"
+lpuart6 CloseFileBackend $uart_log
+
+echo "sentai_emu_fs_repl_smoke PC:"
+cpu PC
+echo "sentai_emu_fs_repl_smoke boot_state:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_boot_state"`
+echo "sentai_emu_fs_repl_smoke heartbeat:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_heartbeat"`
+echo "sentai_emu_fs_repl_smoke repl_lines:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_repl_lines"`
+echo "sentai_emu_fs_repl_smoke last_tick:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_last_tick"`
+echo "sentai_emu_fs_repl_smoke fs_smoke_ok:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_fs_smoke_ok"`
+echo "sentai_emu_fs_repl_smoke fs_smoke_size:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_fs_smoke_size"`

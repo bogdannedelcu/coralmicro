@@ -1,0 +1,68 @@
+09:30:50.0102 [INFO] Loaded monitor commands from: /home/bogdan/work/renode_portable/scripts/monitor.py
+Renode, version 1.16.1 (ac18b5ac-202606020225)
+
+(monitor) i $CWD/emu/renode/sentai_emu_flow_tpu_parallel.resc
+09:30:50.1309 [INFO] Including script(s): /home/bogdan/work/coralmicro/emu/renode/sentai_emu_flow_tpu_parallel.resc
+09:30:50.1471 [INFO] System bus created.
+09:30:51.0316 [INFO] sysbus: Loading block of 3072 bytes length at 0x0.
+09:30:51.0428 [INFO] sysbus: Loading block of 96520 bytes length at 0xC00.
+09:30:51.0428 [INFO] sysbus: Loading block of 41816 bytes length at 0x18508.
+09:30:51.0429 [INFO] sysbus: Loading block of 16777216 bytes length at 0x80000000.
+09:30:51.0653 [INFO] sysbus: Loading block of 1720088 bytes length at 0x81000000.
+09:30:51.6023 [INFO] cpu: Setting initial values: PC = 0xCBD, SP = 0x20040000.
+09:30:51.6050 [INFO] machine-0: Machine started.
+09:30:51.6956 [WARNING] nvic: Unhandled write to offset 0xF50 (ICacheInvalidateAllToPoUaIgnored), value 0x0.
+09:30:51.7317 [WARNING] nvic: Trying to set the priority for interrupt 16 to 0xFF, but it should be maskable with 0xF0
+09:30:54.8765 [INFO] machine-0: Machine paused.
+09:30:54.8951 [INFO] sysbus: Loading block of 4800 bytes length at 0x81000000.
+09:30:54.8997 [INFO] machine-0: Machine resumed.
+09:31:11.6302 [INFO] machine-0: Machine paused.
+sentai_emu_flow_tpu_parallel PC:
+0xa090
+sentai_emu_flow_tpu_parallel boot_state:
+0x00000B00
+sentai_emu_flow_tpu_parallel heartbeat:
+0x000003A8
+sentai_emu_flow_tpu_parallel last_tick:
+0x00004DEB
+sentai_emu_flow_tpu_parallel parallel_done:
+0x00000001
+sentai_emu_flow_tpu_parallel tpu_completed:
+0x00000005
+sentai_emu_flow_tpu_parallel tpu_fail_code:
+0x00000000
+sentai_emu_flow_tpu_parallel tpu_first_ms:
+0x0000001A
+sentai_emu_flow_tpu_parallel tpu_steady_ms:
+0x00000019
+sentai_emu_flow_tpu_parallel tpu_output_sum:
+0x877B9C24
+sentai_emu_flow_tpu_parallel tpu_bridge_params_calls:
+0x00000001
+sentai_emu_flow_tpu_parallel tpu_bridge_input_calls:
+0x00000005
+sentai_emu_flow_tpu_parallel tpu_bridge_ins_calls:
+0x00000006
+sentai_emu_flow_tpu_parallel tpu_bridge_output_calls:
+0x0000000A
+sentai_emu_flow_tpu_parallel tpu_bridge_event_calls:
+0x00000006
+sentai_emu_flow_tpu_parallel tpu_bridge_last_result:
+0x00000000
+sentai_emu_flow_tpu_parallel flow_completed:
+0x00000018
+sentai_emu_flow_tpu_parallel flow_detect_ok:
+0x00000001
+sentai_emu_flow_tpu_parallel flow_fail_code:
+0x00000000
+sentai_emu_flow_tpu_parallel flow_elapsed_ms:
+0x000001F8
+sentai_emu_flow_tpu_parallel flow_fps_x100:
+0x00001299
+sentai_emu_flow_tpu_parallel flow_last_dx_q1000:
+0x00000FC0
+sentai_emu_flow_tpu_parallel flow_last_dy_q1000:
+0xFFFFFFE6
+sentai_emu_flow_tpu_parallel flow_last_conf:
+0x000000FF
+(machine-0) 09:31:11.6985 [INFO] machine-0: Disposed.

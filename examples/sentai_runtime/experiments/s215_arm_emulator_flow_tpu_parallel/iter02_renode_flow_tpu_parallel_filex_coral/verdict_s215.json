@@ -1,0 +1,152 @@
+{
+  "started_at": "2026-06-04T09:30:36+0300",
+  "target": "sentai_emu_flow_tpu_parallel",
+  "commands": {
+    "ensure_nand": [
+      "/usr/bin/python3",
+      "emu/scripts/init_emu_nand.py"
+    ],
+    "configure_emu": [
+      "cmake",
+      "-S",
+      ".",
+      "-B",
+      "build_emu",
+      "-DSENTAI_ARM_EMU=ON",
+      "-DSENTAI_SKIP_SDK_PATCHES=ON"
+    ],
+    "build_stage": [
+      "cmake",
+      "--build",
+      "build_emu",
+      "--target",
+      "sentai_emu_fs_stage_assets",
+      "-j16"
+    ],
+    "build_target": [
+      "cmake",
+      "--build",
+      "build_emu",
+      "--target",
+      "sentai_emu_flow_tpu_parallel",
+      "-j16"
+    ],
+    "configure_sim": [
+      "cmake",
+      "-S",
+      ".",
+      "-B",
+      "build-sim",
+      "-DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-x86-sim.cmake",
+      "-DSENTAI_SIM=ON",
+      "-DCMAKE_BUILD_TYPE=Release"
+    ],
+    "build_sim": [
+      "cmake",
+      "--build",
+      "build-sim",
+      "--target",
+      "tpu_posix_send_server",
+      "-j16"
+    ],
+    "prepare_flow_asset": [
+      "/usr/bin/python3",
+      "examples/sentai_runtime/experiments/s214_arm_emulator_flow_task/prepare_cat80.py"
+    ],
+    "stage_assets": [
+      "/home/bogdan/work/renode_portable/renode",
+      "--plain",
+      "--console",
+      "--disable-xwt",
+      "emu/renode/sentai_emu_fs_stage_assets.resc"
+    ],
+    "renode": [
+      "/home/bogdan/work/renode_portable/renode",
+      "--plain",
+      "--console",
+      "--disable-xwt",
+      "emu/renode/sentai_emu_flow_tpu_parallel.resc"
+    ]
+  },
+  "ensure_nand_rc": 0,
+  "configure_emu_rc": 0,
+  "build_stage_rc": 0,
+  "build_target_rc": 0,
+  "configure_sim_rc": 0,
+  "build_sim_rc": 0,
+  "stage_assets_rc": 0,
+  "stage_symbols": {
+    "stage_files": 3,
+    "stage_errors": 0,
+    "stage_bytes": 0,
+    "fx_errors": 0
+  },
+  "stage_uart_copied": true,
+  "renode_rc": 0,
+  "physical_host_timing": {
+    "command_count": 28,
+    "invoke_count": 5,
+    "measured_wall_ms": 389,
+    "measured_fps_including_first": 12.853470437017995,
+    "first_invoke_wall_ms": 74,
+    "steady": {
+      "count": 4,
+      "wall_ms": 304,
+      "fps": 13.157894736842104,
+      "avg_wall_ms": 67.75,
+      "avg_ins_bridge_ms": 12.75,
+      "avg_inputs_bridge_ms": 11.0,
+      "avg_output_bridge_ms": 35.25,
+      "avg_event_bridge_ms": 5.75,
+      "avg_usb_out_ms": 4.7045,
+      "avg_usb_in_ms": 25.298,
+      "avg_usb_event_ms": 0.046
+    },
+    "usb_failed": 0,
+    "usb_timeouts": 0
+  },
+  "symbols": {
+    "boot_state": 2816,
+    "heartbeat": 936,
+    "last_tick": 19947,
+    "parallel_done": 1,
+    "tpu_completed": 5,
+    "tpu_fail_code": 0,
+    "tpu_first_ms": 26,
+    "tpu_steady_ms": 25,
+    "tpu_output_sum": 2273025060,
+    "tpu_bridge_last_result": 0,
+    "flow_completed": 24,
+    "flow_detect_ok": 1,
+    "flow_fail_code": 0,
+    "flow_elapsed_ms": 504,
+    "flow_fps_x100": 4761,
+    "flow_last_dx_q1000": 4032,
+    "flow_last_dy_q1000": 4294967270,
+    "flow_last_conf": 255,
+    "flow_last_dx_q1000_signed": 4032,
+    "flow_last_dy_q1000_signed": -26
+  },
+  "uart": {
+    "flow_validate_pass": true,
+    "flow_done": true,
+    "tpu_pass": true,
+    "flow_fps": {
+      "frames": 24,
+      "elapsed_ms": 504,
+      "fps_x100": 4761,
+      "fps": 47.61,
+      "last_dx_q1000": 4032,
+      "last_dy_q1000": -26,
+      "last_conf": 255
+    },
+    "tpu_invoke_ms": [
+      26,
+      25,
+      26,
+      26,
+      25
+    ]
+  },
+  "pass": true
+}

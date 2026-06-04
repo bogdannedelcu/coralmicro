@@ -1,5 +1,5 @@
-:name: SentAI B8 ARM MicroPython sentai.fs over FileX/LevelX
-:description: Boots sentai_emu_fs_repl, runs a MicroPython sentai.fs smoke against production FileX/LevelX over the emulated raw NAND backend.
+:name: SentAI B8 ARM MicroPython sentai.fs REPL over FileX/LevelX
+:description: Boots sentai_emu_fs_repl and mounts the existing emulated raw-NAND FileX/LevelX filesystem without formatting it.
 
 i @emu/renode/sentai_rt1176.repl
 
@@ -27,7 +27,3 @@ echo "sentai_emu_fs_repl repl_lines:"
 sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_repl_lines"`
 echo "sentai_emu_fs_repl last_tick:"
 sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_last_tick"`
-echo "sentai_emu_fs_repl fs_smoke_ok:"
-sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_fs_smoke_ok"`
-echo "sentai_emu_fs_repl fs_smoke_size:"
-sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_fs_smoke_size"`

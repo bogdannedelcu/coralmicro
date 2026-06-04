@@ -1,0 +1,54 @@
+:name: SentAI S214 ARM-emulator production FlowTask FPS
+:description: Boots sentai_emu_flow_task_runtime, injects a host-prepared 80x60 cat grayscale frame into guest SDRAM, then lets production FlowTask consume SENTAI_PREP_SLOT_FLOW_GRAY_80x60 and report offset/FPS.
+
+i @emu/renode/sentai_rt1176.repl
+
+$bin?=@build_emu/emu/sentai_emu_flow_task_runtime
+$uart_log?=@/home/bogdan/work/coralmicro/emu/output/sentai_emu_flow_task_runtime.log
+$base?=@examples/sentai_runtime/experiments/s214_arm_emulator_flow_task/assets/cat80_base.bin
+
+macro reset
+"""
+    sysbus LoadELF $bin
+    cpu VectorTableOffset 0x800
+"""
+
+lpuart6 CreateFileBackend $uart_log
+runMacro $reset
+
+# Boot until BenchmarkTask is waiting for the host-fed base image.
+emulation RunFor "2.0s"
+
+sysbus LoadBinary $base `sysbus GetSymbolAddress "g_sentai_emu_flow_base_y80x60"`
+sysbus WriteDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_flow_base_ready"` 0x1
+
+# Flow phase-correlation is intentionally production code; Renode can be much
+# slower than real RT1176, so give the benchmark enough emulated time.
+emulation RunFor "60.0s"
+
+lpuart6 CloseFileBackend $uart_log
+
+echo "sentai_emu_flow_task_runtime PC:"
+cpu PC
+echo "sentai_emu_flow_task_runtime boot_state:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_boot_state"`
+echo "sentai_emu_flow_task_runtime heartbeat:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_heartbeat"`
+echo "sentai_emu_flow_task_runtime last_tick:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_last_tick"`
+echo "sentai_emu_flow_task_runtime flow_completed:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_flow_completed"`
+echo "sentai_emu_flow_task_runtime flow_detect_ok:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_flow_detect_ok"`
+echo "sentai_emu_flow_task_runtime flow_fail_code:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_flow_fail_code"`
+echo "sentai_emu_flow_task_runtime flow_elapsed_ms:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_flow_elapsed_ms"`
+echo "sentai_emu_flow_task_runtime flow_fps_x100:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_flow_fps_x100"`
+echo "sentai_emu_flow_task_runtime flow_last_dx_q1000:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_flow_last_dx_q1000"`
+echo "sentai_emu_flow_task_runtime flow_last_dy_q1000:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_flow_last_dy_q1000"`
+echo "sentai_emu_flow_task_runtime flow_last_conf:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_flow_last_conf"`

@@ -1,0 +1,76 @@
+:name: SentAI S215 ARM-emulator FlowTask + physical Coral parallel
+:description: Boots sentai_emu_flow_tpu_parallel, injects a host-prepared 80x60 cat grayscale frame for FlowTask, and runs guest-owned EdgeTpuManager invokes through the physical USB Coral Send* bridge at the same time.
+
+i @emu/renode/sentai_rt1176.repl
+
+$bin?=@build_emu/emu/sentai_emu_flow_tpu_parallel
+$uart_log?=@/home/bogdan/work/coralmicro/emu/output/sentai_emu_flow_tpu_parallel.log
+$base?=@examples/sentai_runtime/experiments/s214_arm_emulator_flow_task/assets/cat80_base.bin
+
+macro reset
+"""
+    sysbus LoadELF $bin
+    cpu VectorTableOffset 0x800
+"""
+
+lpuart6 CreateFileBackend $uart_log
+runMacro $reset
+
+# Boot both tasks.  Flow waits for this host-fed base image; TPU proceeds into
+# FileX/model setup and then the physical Coral Send* bridge.
+emulation RunFor "2.0s"
+sysbus LoadBinary $base `sysbus GetSymbolAddress "g_sentai_emu_flow_base_y80x60"`
+sysbus WriteDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_flow_base_ready"` 0x1
+
+emulation RunFor "18.0s"
+
+lpuart6 CloseFileBackend $uart_log
+
+echo "sentai_emu_flow_tpu_parallel PC:"
+cpu PC
+echo "sentai_emu_flow_tpu_parallel boot_state:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_boot_state"`
+echo "sentai_emu_flow_tpu_parallel heartbeat:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_heartbeat"`
+echo "sentai_emu_flow_tpu_parallel last_tick:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_last_tick"`
+echo "sentai_emu_flow_tpu_parallel parallel_done:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_parallel_done"`
+echo "sentai_emu_flow_tpu_parallel tpu_completed:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_tpu_completed"`
+echo "sentai_emu_flow_tpu_parallel tpu_fail_code:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_tpu_fail_code"`
+echo "sentai_emu_flow_tpu_parallel tpu_first_ms:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_tpu_first_ms"`
+echo "sentai_emu_flow_tpu_parallel tpu_steady_ms:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_tpu_steady_ms"`
+echo "sentai_emu_flow_tpu_parallel tpu_output_sum:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_tpu_output_sum"`
+echo "sentai_emu_flow_tpu_parallel tpu_bridge_params_calls:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_tpu_bridge_params_calls"`
+echo "sentai_emu_flow_tpu_parallel tpu_bridge_input_calls:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_tpu_bridge_input_calls"`
+echo "sentai_emu_flow_tpu_parallel tpu_bridge_ins_calls:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_tpu_bridge_ins_calls"`
+echo "sentai_emu_flow_tpu_parallel tpu_bridge_output_calls:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_tpu_bridge_output_calls"`
+echo "sentai_emu_flow_tpu_parallel tpu_bridge_event_calls:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_tpu_bridge_event_calls"`
+echo "sentai_emu_flow_tpu_parallel tpu_bridge_last_result:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_tpu_bridge_last_result"`
+echo "sentai_emu_flow_tpu_parallel flow_completed:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_flow_completed"`
+echo "sentai_emu_flow_tpu_parallel flow_detect_ok:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_flow_detect_ok"`
+echo "sentai_emu_flow_tpu_parallel flow_fail_code:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_flow_fail_code"`
+echo "sentai_emu_flow_tpu_parallel flow_elapsed_ms:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_flow_elapsed_ms"`
+echo "sentai_emu_flow_tpu_parallel flow_fps_x100:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_flow_fps_x100"`
+echo "sentai_emu_flow_tpu_parallel flow_last_dx_q1000:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_flow_last_dx_q1000"`
+echo "sentai_emu_flow_tpu_parallel flow_last_dy_q1000:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_flow_last_dy_q1000"`
+echo "sentai_emu_flow_tpu_parallel flow_last_conf:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_flow_last_conf"`

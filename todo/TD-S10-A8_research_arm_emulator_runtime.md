@@ -221,6 +221,26 @@ A8 should produce:
 4. a first B8 implementation slice;
 5. a clear "what not to emulate yet" list, especially USB Coral.
 
+## B8 Outcome Update
+
+As of 2026-06-04, B8 has validated the Renode-first recommendation:
+
+- CM7 startup, ARM FreeRTOS scheduling, UART/REPL, and guest mission execution
+  are working in the emulator.
+- Production FileX/LevelX is running over an emulated raw-NAND image, with
+  idempotent host asset staging for model/image/mission files.
+- The TPU path does not emulate an EHCI controller or Coral USB device.
+  Instead, the guest owns the `EdgeTpuManager` / `TpuDriver::Send*` boundary,
+  and Renode bridges those low-level SendParameters/SendInputs/
+  SendInstructions/GetOutputs/ReadEvent operations to a host POSIX/libusb
+  process talking to the physical USB Coral.
+- `S215` proved production `FlowTask` and the guest-to-physical-Coral TPU path
+  can run simultaneously in ARM emulation without the B7 POSIX SIM blockage.
+
+Remaining A8/B8 gap: camera/prep/flow should move from direct prep-slot
+injection to a VirtualCameraTask/PrepTask provider chain that matches the
+physical board's frame publication model more closely.
+
 ## Source Notes
 
 - QEMU Arm docs: M-profile architecture support includes Armv6-M, Armv7-M,

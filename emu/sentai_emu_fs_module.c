@@ -11,6 +11,7 @@
 
 #include "libs/base/fx_user_fs.h"
 #include "py/obj.h"
+#include "py/mpprint.h"
 #include "py/runtime.h"
 #include "third_party/freertos_kernel/include/FreeRTOS.h"
 #include "third_party/freertos_kernel/include/task.h"
@@ -19,6 +20,100 @@
 extern const mp_obj_module_t emu_tpu_module;
 extern const mp_obj_module_t emu_pipeline_module;
 #endif
+
+static void EmuHelpPrintLines(const char* text) {
+    const char* p = text;
+    while (*p) {
+        const char* nl = strchr(p, '\n');
+        size_t n = nl ? (size_t)(nl - p) : strlen(p);
+        mp_printf(MP_PYTHON_PRINTER, "%.*s\r\n", (int)n, p);
+        if (!nl) break;
+        p = nl + 1;
+    }
+}
+
+static const char kSentaiEmuHelpOverview[] =
+    "SentAI ARM emulator module (B8)\n"
+    "Compiled namespaces: sentai.fs, sentai.rtos, sentai.fr"
+#if SENTAI_EMU_TPU_HOST_BRIDGE
+    ", sentai.tpu, sentai.pipeline"
+#endif
+    "\n"
+    "This is an emulator bring-up subset, not the full production "
+    "examples/sentai_runtime/modsentai.c module yet.\n"
+    "Useful commands:\n"
+    "  sentai.help('fs')\n"
+    "  sentai.fs.ls('/')\n"
+    "  sentai.fs.size('/path')\n"
+    "  sentai.rtos.ticks_ms()\n";
+
+static const char kSentaiEmuHelpFs[] =
+    "sentai.fs: FileX-backed emulator filesystem\n"
+    "  ls(path) -> list of (name, type, size)\n"
+    "  size(path) -> bytes or -1\n"
+    "  exists(path) -> bool\n"
+    "  read(path) -> bytes\n"
+    "  read_str(path) -> str\n"
+    "  write(path, bytes) -> bool\n"
+    "  append(path, bytes) -> bool\n"
+    "  mkdir(path) -> bool\n"
+    "  sync() -> bool\n";
+
+static const char kSentaiEmuHelpRtos[] =
+    "sentai.rtos: minimal emulator timing helpers\n"
+    "  ticks_ms() -> FreeRTOS tick count in ms\n"
+    "  sleep_ms(ms) -> vTaskDelay wrapper\n";
+
+static const char kSentaiEmuHelpFr[] =
+    "sentai.fr: FileX-backed flight-recorder subset\n"
+    "  init(), open(channel), close(channel)\n"
+    "  task_start(name), task_stop(name)\n"
+    "  push_event(label[, ts_ms])\n"
+    "  push_scalar(label, value[, ts_ms])\n"
+    "  stats(channel)\n";
+
+#if SENTAI_EMU_TPU_HOST_BRIDGE
+static const char kSentaiEmuHelpTpu[] =
+    "sentai.tpu / sentai.pipeline: B8 emulator TPU bridge surface\n"
+    "Guest-side calls are bridged to the host-side physical Coral path used "
+    "by the emulator smoke and timing tests.\n";
+#endif
+
+static mp_obj_t emu_sentai_help(size_t n_args, const mp_obj_t* args) {
+    const char* topic = (n_args > 0) ? mp_obj_str_get_str(args[0]) : NULL;
+    const char* text = kSentaiEmuHelpOverview;
+    if (topic) {
+        if (strcmp(topic, "fs") == 0) {
+            text = kSentaiEmuHelpFs;
+        } else if (strcmp(topic, "rtos") == 0) {
+            text = kSentaiEmuHelpRtos;
+        } else if (strcmp(topic, "fr") == 0) {
+            text = kSentaiEmuHelpFr;
+#if SENTAI_EMU_TPU_HOST_BRIDGE
+        } else if (strcmp(topic, "tpu") == 0 ||
+                   strcmp(topic, "pipeline") == 0) {
+            text = kSentaiEmuHelpTpu;
+#endif
+        } else if (strcmp(topic, "all") != 0) {
+            mp_print_str(MP_PYTHON_PRINTER,
+                         "Unknown emulator help topic. Available: fs, rtos, fr"
+#if SENTAI_EMU_TPU_HOST_BRIDGE
+                         ", tpu, pipeline"
+#endif
+                         ", all\r\n");
+            return mp_const_none;
+        }
+    }
+    EmuHelpPrintLines(text);
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(emu_sentai_help_obj, 0, 1,
+                                           emu_sentai_help);
+
+static mp_obj_t emu_sentai_version(void) {
+    return mp_obj_new_str("SentAI EMU B8", 13);
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(emu_sentai_version_obj, emu_sentai_version);
 
 static mp_obj_t emu_fs_read(mp_obj_t path_obj) {
     const char* path = mp_obj_str_get_str(path_obj);
@@ -405,6 +500,8 @@ static const mp_obj_module_t emu_fr_module = {
 
 static const mp_rom_map_elem_t emu_sentai_globals_table[] = {
     {MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_sentai)},
+    {MP_ROM_QSTR(MP_QSTR_version), MP_ROM_PTR(&emu_sentai_version_obj)},
+    {MP_ROM_QSTR(MP_QSTR_help), MP_ROM_PTR(&emu_sentai_help_obj)},
     {MP_ROM_QSTR(MP_QSTR_fs), MP_ROM_PTR(&emu_fs_module)},
     {MP_ROM_QSTR(MP_QSTR_rtos), MP_ROM_PTR(&emu_rtos_module)},
     {MP_ROM_QSTR(MP_QSTR_fr), MP_ROM_PTR(&emu_fr_module)},

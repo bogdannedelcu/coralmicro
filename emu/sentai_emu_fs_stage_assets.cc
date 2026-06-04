@@ -245,7 +245,7 @@ void StageTask(void*) {
   g_sentai_emu_boot_state = kBootStageRunning;
   UartWrite("SentAI EMU FS asset staging start\r\n");
 
-  if (!FxUserInit(0)) {
+  if (!FxUserInit(0) || !FxUserMakeDirs("/models")) {
     UartWrite("FS_STAGE FORMAT\r\n");
     if (!FxUserInit(1)) {
       Fail(kBootFxFormatFailed);

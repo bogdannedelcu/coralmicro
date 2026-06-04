@@ -1,0 +1,115 @@
+{
+  "started_at": "2026-06-04T09:06:29+0300",
+  "target": "sentai_emu_flow_task_runtime",
+  "commands": {
+    "prepare": [
+      "/usr/bin/python3",
+      "examples/sentai_runtime/experiments/s214_arm_emulator_flow_task/prepare_cat80.py"
+    ],
+    "configure": [
+      "cmake",
+      "-S",
+      ".",
+      "-B",
+      "build_emu",
+      "-DSENTAI_ARM_EMU=ON",
+      "-DSENTAI_SKIP_SDK_PATCHES=ON"
+    ],
+    "build": [
+      "cmake",
+      "--build",
+      "build_emu",
+      "--target",
+      "sentai_emu_flow_task_runtime",
+      "-j16"
+    ],
+    "renode": [
+      "/home/bogdan/work/renode_portable/renode",
+      "--plain",
+      "--console",
+      "--disable-xwt",
+      "emu/renode/sentai_emu_flow_task_runtime.resc"
+    ]
+  },
+  "prepare_rc": 0,
+  "configure_rc": 0,
+  "build_rc": 0,
+  "renode_rc": 0,
+  "symbols": {
+    "boot_state": 1536,
+    "heartbeat": 594,
+    "last_tick": 61910,
+    "flow_completed": 24,
+    "flow_detect_ok": 1,
+    "flow_fail_code": 0,
+    "flow_elapsed_ms": 504,
+    "flow_fps_x100": 4761,
+    "flow_last_dx_q1000": 4032,
+    "flow_last_dy_q1000": 4294967270,
+    "flow_last_conf": 255,
+    "flow_last_dx_q1000_signed": 4032,
+    "flow_last_dy_q1000_signed": -26
+  },
+  "uart": {
+    "validate_pass": true,
+    "done": true,
+    "frames": 24,
+    "elapsed_ms": 504,
+    "fps_x100": 4761,
+    "fps": 47.61,
+    "last_dx_q1000": 4032,
+    "last_dy_q1000": -26,
+    "last_conf": 255,
+    "validations": [
+      {
+        "frame": 1,
+        "expected_dx_px": 0,
+        "expected_dy_px": 0,
+        "dx_q1000": 0,
+        "dy_q1000": 0,
+        "confidence": 0
+      },
+      {
+        "frame": 2,
+        "expected_dx_px": 2,
+        "expected_dy_px": 0,
+        "dx_q1000": 2001,
+        "dy_q1000": 9,
+        "confidence": 255
+      },
+      {
+        "frame": 3,
+        "expected_dx_px": 0,
+        "expected_dy_px": 2,
+        "dx_q1000": -23,
+        "dy_q1000": 2004,
+        "confidence": 255
+      },
+      {
+        "frame": 4,
+        "expected_dx_px": -3,
+        "expected_dy_px": -1,
+        "dx_q1000": -3037,
+        "dy_q1000": -992,
+        "confidence": 255
+      },
+      {
+        "frame": 5,
+        "expected_dx_px": 0,
+        "expected_dy_px": -3,
+        "dx_q1000": -24,
+        "dy_q1000": -2995,
+        "confidence": 255
+      },
+      {
+        "frame": 6,
+        "expected_dx_px": 4,
+        "expected_dy_px": 0,
+        "dx_q1000": 4032,
+        "dy_q1000": -26,
+        "confidence": 255
+      }
+    ]
+  },
+  "pass": true
+}

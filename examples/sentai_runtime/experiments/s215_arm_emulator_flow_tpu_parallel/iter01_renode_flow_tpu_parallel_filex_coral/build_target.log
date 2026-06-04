@@ -1,0 +1,4 @@
+[ 12%] Built target libs_levelx
+[ 25%] Built target libs_CMSIS-m7
+[100%] Built target libs_filex
+[100%] Built target sentai_emu_flow_tpu_parallel

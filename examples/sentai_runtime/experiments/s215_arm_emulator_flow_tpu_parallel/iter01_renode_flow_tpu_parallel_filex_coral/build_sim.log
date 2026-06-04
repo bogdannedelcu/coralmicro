@@ -1,0 +1,3 @@
+[ 50%] Built target libfreertos_posix
+[ 75%] Linking CXX executable tpu_posix_send_server
+[100%] Built target tpu_posix_send_server

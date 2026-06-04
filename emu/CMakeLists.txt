@@ -269,6 +269,54 @@ target_compile_options(sentai_emu_flowest PRIVATE
     -Wno-old-style-definition -Wno-missing-prototypes
 )
 
+# --- S214/B8 production FlowTask benchmark ---------------------------------
+#
+# Unlike sentai_emu_flowest, this target links the runtime FlowTask and
+# phase-correlation matcher.  The emu harness feeds the production prep
+# FLOW_GRAY_80x60 slot directly so we can measure FlowTask in isolation before
+# reintroducing VirtualCameraTask/PrepTask/InferTask.
+
+set(SENTAI_EMU_FLOW_TASK_RUNTIME_SOURCES
+    sentai_emu_flow_task_runtime.cc
+    sentai_emu_freertos_hooks.c
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/flow_task.cc
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/flow_phase_corr.cc
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/sentai_prep.cc
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/gcc/startup_MIMXRT1176_cm7.S
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/system_MIMXRT1176_cm7.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/event_groups.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/list.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/portable/GCC/ARM_CM4F/port.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/queue.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/stream_buffer.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/tasks.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/timers.c
+    ${PROJECT_SOURCE_DIR}/third_party/FreeRTOS_helpers/heap_useNewlib_NXP.c
+)
+
+add_executable_m7(sentai_emu_flow_task_runtime
+    LINKER_SCRIPT ${PROJECT_SOURCE_DIR}/libs/nxp/rt1176-sdk/MIMXRT1176xxxxx_cm7_ram.ld
+    ${SENTAI_EMU_FLOW_TASK_RUNTIME_SOURCES}
+)
+configure_sentai_emu_target(sentai_emu_flow_task_runtime)
+target_include_directories(sentai_emu_flow_task_runtime PRIVATE
+    ${PROJECT_SOURCE_DIR}/third_party/CMSIS
+    ${PROJECT_SOURCE_DIR}/third_party/CMSIS/CMSIS/DSP/Include
+)
+target_compile_definitions(sentai_emu_flow_task_runtime PRIVATE
+    ARM_DSP_CONFIG_TABLES
+    ARM_FFT_ALLOW_TABLES
+    ARM_TABLE_TWIDDLECOEF_F32_64
+    ARM_TABLE_BITREVIDX_FLT_64
+)
+target_compile_options(sentai_emu_flow_task_runtime PRIVATE
+    -Wno-error -Wno-unused-parameter -Wno-sign-compare
+    -Wno-old-style-definition -Wno-missing-prototypes
+)
+target_link_libraries(sentai_emu_flow_task_runtime
+    libs_CMSIS-m7
+)
+
 # --- B8.8 Phase 1 USB host stack probe ------------------------------------
 #
 # Links the production libs/usb/usb_host_task.cc plus the minimum NXP USB
@@ -687,7 +735,7 @@ target_compile_options(sentai_emu_edgetpu_mmio_send_bridge_probe PRIVATE
 # host-backed raw NAND image.
 
 set(SENTAI_EMU_FX_STORAGE_SOURCES
-    sentai_emu_fx_storage_smoke.cc
+    smoke/sentai_emu_fx_storage_smoke.cc
     sentai_emu_freertos_hooks.c
     sentai_emu_lfs_stubs.cc
     ${PROJECT_SOURCE_DIR}/libs/base/fx_user_fs.cc
@@ -781,7 +829,6 @@ add_executable_m7(sentai_emu_fs_repl
 configure_sentai_emu_target(sentai_emu_fs_repl)
 target_compile_definitions(sentai_emu_fs_repl PRIVATE
     SENTAI_EMU_FX_FS=1
-    SENTAI_EMU_FS_REPL_SMOKE=1
     SENTAI_ARM_EMU_NAND_BRIDGE=1
 )
 target_include_directories(sentai_emu_fs_repl PRIVATE
@@ -794,6 +841,30 @@ target_link_libraries(sentai_emu_fs_repl
     libs_levelx
 )
 target_compile_options(sentai_emu_fs_repl PRIVATE
+    -Wno-error -Wno-unused-parameter -Wno-sign-compare
+    -Wno-old-style-definition -Wno-missing-prototypes
+)
+
+add_executable_m7(sentai_emu_fs_repl_smoke
+    LINKER_SCRIPT ${PROJECT_SOURCE_DIR}/libs/nxp/rt1176-sdk/MIMXRT1176xxxxx_cm7_ram.ld
+    ${SENTAI_EMU_FS_REPL_SOURCES}
+)
+configure_sentai_emu_target(sentai_emu_fs_repl_smoke)
+target_compile_definitions(sentai_emu_fs_repl_smoke PRIVATE
+    SENTAI_EMU_FX_FS=1
+    SENTAI_EMU_FS_REPL_SMOKE=1
+    SENTAI_ARM_EMU_NAND_BRIDGE=1
+)
+target_include_directories(sentai_emu_fs_repl_smoke PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/mp_inc
+    ${SENTAI_EMU_MP_EMBED_DIR}
+    ${SENTAI_EMU_MP_EMBED_DIR}/port
+)
+target_link_libraries(sentai_emu_fs_repl_smoke
+    libs_filex
+    libs_levelx
+)
+target_compile_options(sentai_emu_fs_repl_smoke PRIVATE
     -Wno-error -Wno-unused-parameter -Wno-sign-compare
     -Wno-old-style-definition -Wno-missing-prototypes
 )
@@ -831,7 +902,7 @@ target_compile_options(sentai_emu_fs_asset_check PRIVATE
 set(SENTAI_EMU_TPU_CAT_REPL_SOURCES ${SENTAI_EMU_FS_REPL_SOURCES})
 list(APPEND SENTAI_EMU_TPU_CAT_REPL_SOURCES
     sentai_emu_fx_import.c
-    sentai_emu_tpu_host_module.c
+    sentai_emu_tpu_bridge_module.c
 )
 
 add_executable_m7(sentai_emu_tpu_cat_repl
@@ -996,7 +1067,7 @@ target_compile_options(sentai_emu_tpu_timing_repl PRIVATE
 # TpuDriver SendParameters/SendInputs/SendInstructions/GetOutputs/ReadEvent
 # calls to a host POSIX/libusb server.
 set(SENTAI_EMU_TPU_PHYSICAL_SEND_SMOKE_SOURCES
-    sentai_emu_tpu_physical_send_smoke.cc
+    smoke/sentai_emu_tpu_physical_send_smoke.cc
     sentai_emu_freertos_hooks.c
     sentai_emu_lfs_stubs.cc
     sentai_emu_tpu_driver_stubs.cc
@@ -1093,6 +1164,84 @@ target_link_libraries(sentai_emu_tpu_physical_send_fps
     libs_levelx
 )
 target_compile_options(sentai_emu_tpu_physical_send_fps PRIVATE
+    -Wno-error -Wno-unused-parameter -Wno-sign-compare
+    -Wno-old-style-definition -Wno-missing-prototypes
+)
+
+# S215/B8: run production FlowTask in parallel with the guest-owned
+# EdgeTpuManager -> TpuDriver::Send* -> physical USB Coral path.  This target
+# intentionally does NOT define SENTAI_PLATFORM_SIM so FlowTask keeps the ARM
+# phase-correlation/CMSIS algorithm.
+set(SENTAI_EMU_FLOW_TPU_PARALLEL_SOURCES
+    sentai_emu_flow_tpu_parallel.cc
+    sentai_emu_freertos_hooks.c
+    sentai_emu_lfs_stubs.cc
+    sentai_emu_tpu_driver_stubs.cc
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/flow_task.cc
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/flow_phase_corr.cc
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/sentai_prep.cc
+    ${PROJECT_SOURCE_DIR}/libs/base/fx_user_fs.cc
+    ${PROJECT_SOURCE_DIR}/libs/base/fx_nand_driver.cc
+    ${PROJECT_SOURCE_DIR}/libs/tpu/edgetpu_executable.cc
+    ${PROJECT_SOURCE_DIR}/libs/tpu/edgetpu_manager.cc
+    ${PROJECT_SOURCE_DIR}/third_party/tflite-micro/tensorflow/lite/c/common.cc
+    ${PROJECT_SOURCE_DIR}/third_party/tflite-micro/tensorflow/lite/micro/kernels/kernel_util.cc
+    ${PROJECT_SOURCE_DIR}/third_party/tflite-micro/tensorflow/lite/micro/memory_helpers.cc
+    ${PROJECT_SOURCE_DIR}/third_party/tflite-micro/tensorflow/lite/micro/micro_utils.cc
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/gcc/startup_MIMXRT1176_cm7.S
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/system_MIMXRT1176_cm7.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/event_groups.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/list.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/portable/GCC/ARM_CM4F/port.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/queue.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/stream_buffer.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/tasks.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/timers.c
+    ${PROJECT_SOURCE_DIR}/third_party/FreeRTOS_helpers/heap_useNewlib_NXP.c
+)
+
+add_executable_m7(sentai_emu_flow_tpu_parallel
+    LINKER_SCRIPT ${PROJECT_SOURCE_DIR}/libs/nxp/rt1176-sdk/MIMXRT1176xxxxx_cm7_ram.ld
+    ${SENTAI_EMU_FLOW_TPU_PARALLEL_SOURCES}
+)
+configure_sentai_emu_target(sentai_emu_flow_tpu_parallel)
+target_compile_definitions(sentai_emu_flow_tpu_parallel PRIVATE
+    SENTAI_ARM_EMU_NAND_BRIDGE=1
+    SENTAI_ARM_EMU_TPU_HOST_BRIDGE=1
+    SENTAI_EMU_TPU_DRIVER_PHYSICAL_SEND_BRIDGE=1
+    SENTAI_EMU_TPU_PHYSICAL_SEND_RUNS=5
+    FLATBUFFERS_LOCALE_INDEPENDENT=0
+    ARM_DSP_CONFIG_TABLES
+    ARM_FFT_ALLOW_TABLES
+    ARM_TABLE_TWIDDLECOEF_F32_64
+    ARM_TABLE_BITREVIDX_FLT_64
+)
+target_include_directories(sentai_emu_flow_tpu_parallel PRIVATE
+    ${PROJECT_SOURCE_DIR}/libs/nxp/rt1176-sdk
+    ${PROJECT_SOURCE_DIR}/third_party/modified/nxp/rt1176-sdk
+    ${PROJECT_SOURCE_DIR}/third_party/flatbuffers/include
+    ${PROJECT_SOURCE_DIR}/third_party/gemmlowp
+    ${PROJECT_SOURCE_DIR}/third_party/tflite-micro
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/host
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/host/class
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/include
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/phy
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/output/source/host
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/utilities/debug_console
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/utilities/str
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/components/osa
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/components/lists
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/components/serial_manager
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/cm7
+    ${PROJECT_SOURCE_DIR}/third_party/CMSIS
+    ${PROJECT_SOURCE_DIR}/third_party/CMSIS/CMSIS/DSP/Include
+)
+target_link_libraries(sentai_emu_flow_tpu_parallel
+    libs_filex
+    libs_levelx
+    libs_CMSIS-m7
+)
+target_compile_options(sentai_emu_flow_tpu_parallel PRIVATE
     -Wno-error -Wno-unused-parameter -Wno-sign-compare
     -Wno-old-style-definition -Wno-missing-prototypes
 )

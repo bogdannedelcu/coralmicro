@@ -20,7 +20,7 @@
 
 #include "libs/base/check.h"
 #include "libs/base/mutex.h"
-#ifndef SENTAI_PLATFORM_SIM
+#if !defined(SENTAI_PLATFORM_SIM) && !defined(SENTAI_ARM_EMU_TPU_HOST_BRIDGE)
 #include "libs/tpu/edgetpu_task.h"
 #include "third_party/flatbuffers/include/flatbuffers/flatbuffers.h"
 #include "third_party/flatbuffers/include/flatbuffers/flexbuffers.h"
@@ -39,13 +39,13 @@ constexpr char kKeyExecutable[] = "4";
 }  // namespace
 
 EdgeTpuContext::EdgeTpuContext() {
-#ifndef SENTAI_PLATFORM_SIM
+#if !defined(SENTAI_PLATFORM_SIM) && !defined(SENTAI_ARM_EMU_TPU_HOST_BRIDGE)
   EdgeTpuTask::GetSingleton()->SetPower(true);
 #endif
 }
 
 EdgeTpuContext::~EdgeTpuContext() {
-#ifndef SENTAI_PLATFORM_SIM
+#if !defined(SENTAI_PLATFORM_SIM) && !defined(SENTAI_ARM_EMU_TPU_HOST_BRIDGE)
   EdgeTpuTask::GetSingleton()->SetPower(false);
   // Small delay ensuring usb instance is released.
   vTaskDelay(pdMS_TO_TICKS(30));
@@ -53,7 +53,13 @@ EdgeTpuContext::~EdgeTpuContext() {
 }
 
 EdgeTpuManager::EdgeTpuManager() : mutex_(xSemaphoreCreateMutex()) {
+#if defined(SENTAI_ARM_EMU_TPU_HOST_BRIDGE)
+  if (!mutex_) {
+    printf("EdgeTpuManager mutex allocation failed.\r\n");
+  }
+#else
   CHECK(mutex_);
+#endif
 }
 
 void EdgeTpuManager::NotifyConnected(
@@ -70,7 +76,7 @@ void EdgeTpuManager::NotifyError() { usb_error_ = true; }
 
 std::shared_ptr<EdgeTpuContext> EdgeTpuManager::OpenDevice(
     PerformanceMode mode) {
-#ifndef SENTAI_PLATFORM_SIM
+#if !defined(SENTAI_PLATFORM_SIM) && !defined(SENTAI_ARM_EMU_TPU_HOST_BRIDGE)
   MutexLock lock(mutex_);
 #endif
 
@@ -104,7 +110,7 @@ std::shared_ptr<EdgeTpuContext> EdgeTpuManager::OpenDevice(
 
 EdgeTpuPackage* EdgeTpuManager::RegisterPackage(const char* package_content,
                                                 size_t length) {
-#ifndef SENTAI_PLATFORM_SIM
+#if !defined(SENTAI_PLATFORM_SIM) && !defined(SENTAI_ARM_EMU_TPU_HOST_BRIDGE)
   MutexLock lock(mutex_);
 #endif
   auto package_ptr = (uintptr_t)package_content;
@@ -199,7 +205,7 @@ EdgeTpuPackage* EdgeTpuManager::RegisterPackage(const char* package_content,
 
 TfLiteStatus EdgeTpuManager::Invoke(EdgeTpuPackage* package,
                                     TfLiteContext* context, TfLiteNode* node) {
-#ifndef SENTAI_PLATFORM_SIM
+#if !defined(SENTAI_PLATFORM_SIM) && !defined(SENTAI_ARM_EMU_TPU_HOST_BRIDGE)
   MutexLock lock(mutex_);
 #endif
   if (package->parameter_caching_exe()) {
@@ -231,7 +237,7 @@ TfLiteStatus EdgeTpuManager::Invoke(EdgeTpuPackage* package,
 }
 
 std::optional<float> EdgeTpuManager::GetTemperature() {
-#ifndef SENTAI_PLATFORM_SIM
+#if !defined(SENTAI_PLATFORM_SIM) && !defined(SENTAI_ARM_EMU_TPU_HOST_BRIDGE)
   MutexLock lock(mutex_);
 #endif
   // Only attempt to read the temperature if the device has been opened.

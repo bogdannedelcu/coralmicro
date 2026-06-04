@@ -1,9 +1,9 @@
-// B8.10 emulator sentai.tpu/sentai.pipeline bridge.
+// B8.10 emulator guest-side sentai.tpu/sentai.pipeline bridge.
 //
 // This is an emulator platform backend, not a replacement for the ARM TPU
 // driver.  The guest reads model/image bytes from FxUser/FileX and streams
-// them to a Renode MMIO bridge; the host bridge invokes the existing C++
-// physical-Coral smoke against those streamed temp files.
+// them to a Renode MMIO bridge.  The actual host-side code lives under
+// emu/host or emu/renode; this file is compiled into the ARM-emulated guest.
 
 #include <stdint.h>
 #include <stddef.h>

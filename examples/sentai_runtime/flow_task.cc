@@ -45,6 +45,10 @@
 #include <cstdint>
 #include <cstring>
 
+#if defined(SENTAI_PLATFORM_SIM) || defined(SENTAI_ARM_EMU)
+#define SENTAI_FLOW_USE_PREP_SLOT 1
+#endif
+
 #if defined(SENTAI_PLATFORM_SIM)
 static inline uint32_t sentai_usada8_sim(uint32_t a, uint32_t b,
                                          uint32_t acc) {
@@ -59,7 +63,16 @@ static inline uint32_t sentai_usada8_sim(uint32_t a, uint32_t b,
 #define __USADA8(a, b, acc) sentai_usada8_sim((a), (b), (acc))
 #define __DMB() __sync_synchronize()
 #else
-#include <arm_acle.h>     // __USADA8 (Cortex-M7 DSP-extension SIMD intrinsic)
+static inline uint32_t sentai_usada8_arm(uint32_t a, uint32_t b,
+                                         uint32_t acc) {
+    uint32_t r;
+    __asm volatile ("usada8 %0, %1, %2, %3"
+                    : "=r"(r)
+                    : "r"(a), "r"(b), "r"(acc));
+    return r;
+}
+#define __USADA8(a, b, acc) sentai_usada8_arm((a), (b), (acc))
+#define __DMB() __asm volatile ("dmb" ::: "memory")
 #endif
 
 // Unaligned 32-bit read as a single LDR instruction.  GCC inlined
@@ -72,7 +85,7 @@ static inline uint32_t sentai_usada8_sim(uint32_t a, uint32_t b,
 typedef struct { uint32_t v; } __attribute__((packed, aligned(1))) u32_unaligned;
 #define LD32U(p) (((const u32_unaligned*)(p))->v)
 
-#if defined(SENTAI_PLATFORM_SIM)
+#if defined(SENTAI_PLATFORM_SIM) || defined(SENTAI_ARM_EMU)
 #define DEMO_CAMERA_WIDTH  640
 #define DEMO_CAMERA_HEIGHT 480
 #else
@@ -80,7 +93,7 @@ typedef struct { uint32_t v; } __attribute__((packed, aligned(1))) u32_unaligned
 #endif
 #include "examples/sentai_runtime/flow_shared.h"
 #include "examples/sentai_runtime/sentai_error.h"
-#if defined(SENTAI_PLATFORM_SIM)
+#if defined(SENTAI_FLOW_USE_PREP_SLOT)
 #include "examples/sentai_runtime/sentai_prep.h"
 #endif
 
@@ -599,7 +612,7 @@ extern "C" void sentai_flow_notify_frame(void) {
 static volatile uint32_t s_pub_notify_timeouts = 0;  // bumped per take=0
 static volatile uint32_t s_pub_notify_overruns = 0;  // ISR notified while we were still computing previous frame
 static volatile uint32_t s_pub_last_take_ms    = 0;
-#if defined(SENTAI_PLATFORM_SIM)
+#if defined(SENTAI_FLOW_USE_PREP_SLOT)
 static volatile uint32_t s_sim_last_prep_seq = 0;
 #endif
 
@@ -648,8 +661,8 @@ static void publisher_task_fn(void* /*arg*/) {
     uint32_t db_window_seq0  = sentai_cam_get_sensor_frames();
     uint32_t db_window_iters = 0;
 
-#if defined(SENTAI_PLATFORM_SIM)
-    // SIM has no real CSI ISR for virtual frames.  FlowTask is a lossy
+#if defined(SENTAI_FLOW_USE_PREP_SLOT)
+    // SIM/ARM-EMU have no real CSI ISR for virtual frames. FlowTask is a lossy
     // consumer of PrepTask's FLOW_GRAY_80x60 slot: last-frame-wins, no
     // producer-side dependency on whether flow is enabled or caught up.
     g_flow_pub_isr_task = nullptr;
@@ -668,7 +681,7 @@ static void publisher_task_fn(void* /*arg*/) {
     }
 #endif
 
-#if defined(SENTAI_PLATFORM_SIM)
+#if defined(SENTAI_FLOW_USE_PREP_SLOT)
     for (;;) {
         if (!s_pub_running) {
             vTaskDelay(pdMS_TO_TICKS(10));
@@ -678,7 +691,7 @@ static void publisher_task_fn(void* /*arg*/) {
 #else
     while (s_pub_running && iters++ < kPubMaxIter) {
 #endif
-#if defined(SENTAI_PLATFORM_SIM)
+#if defined(SENTAI_FLOW_USE_PREP_SLOT)
         uint32_t next_seq = 0;
         const int wait_rc = sentai_prep_slot_wait_update(
             SENTAI_PREP_SLOT_FLOW_GRAY_80x60,
@@ -715,7 +728,7 @@ static void publisher_task_fn(void* /*arg*/) {
         }
 #endif
         if (!s_pub_running) {
-#if defined(SENTAI_PLATFORM_SIM)
+#if defined(SENTAI_FLOW_USE_PREP_SLOT)
             continue;
 #else
             break;
@@ -723,7 +736,7 @@ static void publisher_task_fn(void* /*arg*/) {
         }
         timeout_streak = 0;
         s_pub_last_take_ms = (uint32_t)xTaskGetTickCount();
-#if !defined(SENTAI_PLATFORM_SIM)
+#if !defined(SENTAI_FLOW_USE_PREP_SLOT)
         if (pending > 1) {
             // ISR fired while we were still processing the previous
             // frame.  Diagnostic only: we always grab the LATEST below,
@@ -739,7 +752,7 @@ static void publisher_task_fn(void* /*arg*/) {
 #endif
 
         const uint32_t loop_t0 = dwt_now();
-#if defined(SENTAI_PLATFORM_SIM)
+#if defined(SENTAI_FLOW_USE_PREP_SLOT)
         const uint8_t* gray = nullptr;
         int gray_w = 0;
         int gray_h = 0;
@@ -819,7 +832,7 @@ static void publisher_task_fn(void* /*arg*/) {
         }
     }
 
-#if defined(SENTAI_PLATFORM_SIM)
+#if defined(SENTAI_FLOW_USE_PREP_SLOT)
     // Persistent SIM worker: start/stop only toggles s_pub_running.
     // This point is intentionally unreachable.
 #else
@@ -832,7 +845,7 @@ static void publisher_task_fn(void* /*arg*/) {
 }
 
 extern "C" void sentai_flow_poll_once(void) {
-#if defined(SENTAI_PLATFORM_SIM)
+#if defined(SENTAI_FLOW_USE_PREP_SLOT)
     if (s_pub_running) {
         taskYIELD();
         return;
@@ -1095,7 +1108,7 @@ extern "C" int sentai_flow_enable(void) {
     sh->frames_processed = 0;
     sh->frames_dropped   = 0;
     sh->m4_heartbeat     = 0xFFFFFFFFu;   // sentinel: M4 NOT used
-#if defined(SENTAI_PLATFORM_SIM)
+#if defined(SENTAI_FLOW_USE_PREP_SLOT)
     (void)sentai_prep_slot_enable(SENTAI_PREP_SLOT_FLOW_GRAY_80x60);
     s_cam_id = -1;
     s_pub_frames = 0;
@@ -1107,7 +1120,7 @@ extern "C" int sentai_flow_enable(void) {
 }
 extern "C" int sentai_flow_m4_enable(void) { return sentai_flow_enable(); }
 
-#if defined(SENTAI_PLATFORM_SIM)
+#if defined(SENTAI_FLOW_USE_PREP_SLOT)
 extern "C" int sentai_flow_task_init(void) {
     if (s_pub_task) {
         return 0;
@@ -1127,7 +1140,7 @@ extern "C" int sentai_flow_task_init(void) {
 #endif
 
 extern "C" int sentai_flow_start(int cam_id) {
-#if defined(SENTAI_PLATFORM_SIM)
+#if defined(SENTAI_FLOW_USE_PREP_SLOT)
     if (cam_id != -1 && cam_id != 0 && cam_id != 1) {
 #else
     if (cam_id != 0 && cam_id != 1) {
@@ -1151,7 +1164,7 @@ extern "C" int sentai_flow_start(int cam_id) {
     // produce bogus motion against an unrelated previous run.
     sentai_flow_phase_corr_reset();
     s_have_prev = 0;
-#if defined(SENTAI_PLATFORM_SIM)
+#if defined(SENTAI_FLOW_USE_PREP_SLOT)
     if (!s_pub_task) {
         int init_rc = sentai_flow_task_init();
         if (init_rc != 0) {
@@ -1170,7 +1183,7 @@ extern "C" int sentai_flow_start(int cam_id) {
         // (code 0x0FF1, BFAR=0x666C6F77 "flow"); bumped to 4 KB
         // (* 8) with measured headroom; add uxTaskGetStackHighWaterMark
         // probe via flow.pub_health() to track in steady state.
-#if defined(SENTAI_PLATFORM_SIM)
+#if defined(SENTAI_FLOW_USE_PREP_SLOT)
         // SIM FlowTask is a lossy consumer of PrepTask slots, not an ISR
         // surrogate.  Keep it below MP/Prep/virtual-camera tasks so waiting
         // for frames cannot starve command progress on the POSIX port.
@@ -1203,7 +1216,7 @@ extern "C" int sentai_flow_stop(void) {
 
     if (s_pub_running) {
         s_pub_running = false;
-#if !defined(SENTAI_PLATFORM_SIM)
+#if !defined(SENTAI_FLOW_USE_PREP_SLOT)
         if (s_pub_task) {
             xTaskNotifyGive(s_pub_task);
         }
@@ -1212,7 +1225,7 @@ extern "C" int sentai_flow_stop(void) {
         }
 #endif
     }
-#if defined(SENTAI_PLATFORM_SIM)
+#if defined(SENTAI_FLOW_USE_PREP_SLOT)
     (void)sentai_prep_slot_disable(SENTAI_PREP_SLOT_FLOW_GRAY_80x60);
 #endif
     return 0;

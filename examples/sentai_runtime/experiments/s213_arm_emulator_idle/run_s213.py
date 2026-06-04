@@ -129,10 +129,10 @@ TARGETS = {
         "pre_hook": "init_emu_nand",
     },
     "fs_repl": {
-        "cmake_target": "sentai_emu_fs_repl",
-        "renode_script": ROOT / "emu" / "renode" / "sentai_emu_fs_repl.resc",
+        "cmake_target": "sentai_emu_fs_repl_smoke",
+        "renode_script": ROOT / "emu" / "renode" / "sentai_emu_fs_repl_smoke.resc",
         "iter_suffix": "renode_fs_repl_filex_levelx_nand",
-        "uart_log": ROOT / "emu" / "output" / "sentai_emu_fs_repl.log",
+        "uart_log": ROOT / "emu" / "output" / "sentai_emu_fs_repl_smoke.log",
         "pre_hook": "init_emu_nand",
     },
     "fs_stage_assets": {
