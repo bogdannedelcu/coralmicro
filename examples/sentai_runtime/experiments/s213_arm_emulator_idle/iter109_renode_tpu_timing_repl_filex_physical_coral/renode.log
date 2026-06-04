@@ -1,0 +1,21 @@
+07:17:13.5105 [INFO] Loaded monitor commands from: /home/bogdan/work/renode_portable/scripts/monitor.py
+Renode, version 1.16.1 (ac18b5ac-202606020225)
+
+
+(monitor) i $CWD/emu/renode/sentai_emu_tpu_timing_repl.resc
+
+07:17:13.6493 [INFO] Including script(s): /home/bogdan/work/coralmicro/emu/renode/sentai_emu_tpu_timing_repl.resc
+07:17:13.6681 [INFO] System bus created.
+07:17:14.6346 [INFO] Old file /home/bogdan/work/coralmicro/emu/output/sentai_emu_tpu_timing_repl.log moved to /home/bogdan/work/coralmicro/emu/output/sentai_emu_tpu_timing_repl.log.7
+07:17:14.6556 [INFO] sysbus: Loading block of 3072 bytes length at 0x0.
+07:17:14.6689 [INFO] sysbus: Loading block of 231496 bytes length at 0xC00.
+07:17:14.6692 [INFO] sysbus: Loading block of 202736 bytes length at 0x39448.
+07:17:14.6695 [INFO] sysbus: Loading block of 16777216 bytes length at 0x80000000.
+07:17:14.6931 [INFO] sysbus: Loading block of 54680 bytes length at 0x81000000.
+07:17:15.2195 [INFO] cpu: Setting initial values: PC = 0xCBD, SP = 0x20040000.
+07:17:15.2226 [INFO] machine-0: Machine started.
+07:17:15.3138 [WARNING] nvic: Unhandled write to offset 0xF50 (ICacheInvalidateAllToPoUaIgnored), value 0x0.
+07:17:15.3429 [WARNING] nvic: Trying to set the priority for interrupt 16 to 0xFF, but it should be maskable with 0xF0
+07:19:11.8611 [INFO] machine-0: Machine paused.
+
+[TIMEOUT] command exceeded 120s

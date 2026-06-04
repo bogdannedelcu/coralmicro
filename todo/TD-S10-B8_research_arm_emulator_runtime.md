@@ -3228,3 +3228,104 @@ Current B8 checkpoint conclusion:
   no-Flow control reproduces it, the next debugging step should focus on the
   SIM scheduler/sleep/host-IO interaction around InferTask rather than
   FlowTask startup.
+
+### 2026-06-04 - B8 end-to-end REPL mission through physical USB Coral
+
+The B8 path to run the full emulator/REPL/guest-driver/physical-Coral timing
+test is:
+
+```bash
+python3 examples/sentai_runtime/experiments/s213_arm_emulator_idle/run_s213.py --target tpu_timing_repl
+```
+
+This target is the B8 emulator path, not the B7 POSIX simulator path:
+
+- Renode boots the ARM emulator target `sentai_emu_tpu_timing_repl`.
+- The guest mounts the staged FileX/LevelX NAND image.
+- MicroPython starts the REPL environment and autoruns `/mission.py` from the
+  emulated filesystem.
+- The mission loads the model and cat BMP from guest FS, loads the image into
+  guest memory, starts the persistent TPU host session, then invokes through
+  `sentai.tpu`.
+- The guest-side driver boundary remains the EdgeTPU-style
+  `SendParameters`, `SendInputs`, `SendInstructions`, `GetOutputs`, and
+  `ReadEvent` flow.
+- The host bridge forwards those calls to the physical USB Coral through the
+  POSIX/libusb backend.  It is not a PyCoral shortcut.
+
+`iter109_renode_tpu_timing_repl_filex_physical_coral` proved that the mission
+completed (`MISSION_TPU_TIMING_DONE`) and the physical Coral returned cat
+detections, but the runner still reported `pass=false` because Renode was
+killed by the generic 120s timeout after the mission had already finished.  The
+cause was host wall-clock time: `emulation RunFor "7.0s"` can take nearly two
+minutes on the host with the TPU bridge and FileX/REPL workload.
+
+The runner now streams Renode stdout/stderr to `renode.log` instead of keeping
+Renode attached to an unread pipe, and `tpu_timing_repl` uses a 240s timeout.
+The clean repro is:
+
+```text
+iter110_renode_tpu_timing_repl_filex_physical_coral
+pass=true
+renode returncode=0
+boot_state=0x500
+heartbeat=1
+repl_lines=1
+last_tick=2545
+```
+
+Guest/UART timing:
+
+```text
+MODEL_SIZE                 7077792 bytes
+IMAGE_SIZE                  921654 bytes
+MODEL_STAGE_MS                1835
+TPU_IMAGE_FS_TO_MEM_MS          72
+HOST_PRELOAD_IMAGE_MS            0
+TPU_START_MS                     0
+TPU_FIRST_INVOKE               243
+TPU_STEADY_COMPLETED             3
+TPU_STEADY_TOTAL_MS            212
+TPU_STEADY_FPS_X100           1415
+TPU_STEADY_FPS                14.15
+DETECTIONS_COUNT                20
+FR_EVENTS_SIZE                1245
+FR_SCALARS_SIZE               1314
+```
+
+Host bridge timing for the first invoke:
+
+```text
+params_calls=1   params_bytes=6703232
+input_calls=1    input_bytes=270000
+ins_calls=2      ins_bytes=264752
+output_calls=2   output_bytes=184040
+event_calls=2
+usb_out_us=79553
+usb_in_us=46401
+usb_event_us=66
+usb_failed=0
+usb_timeouts=0
+```
+
+Steady invokes no longer resend parameters:
+
+```text
+params_calls=0
+input_calls=1    input_bytes=270000
+ins_calls=1      ins_bytes=254304
+output_calls=2   output_bytes=184040
+event_calls=1
+steady invoke times: 71 ms, 71 ms, 70 ms
+```
+
+Conclusion for B8:
+
+- The end-to-end emulator path is now functional from REPL mission on guest FS
+  to the physical USB Coral.
+- The measured steady rate for this REPL/FileX/guest-memory/physical-Coral
+  timing target is about `14.15 FPS`.
+- The earlier `iter109` failure was a harness timeout, not a TPU communication
+  failure.
+- Future FlowTask end-to-end work should build on this B8 emulator path rather
+  than the B7 SIM harness.

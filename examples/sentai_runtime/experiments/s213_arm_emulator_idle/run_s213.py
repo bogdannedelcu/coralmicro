@@ -183,6 +183,7 @@ TARGETS = {
         "renode_script": ROOT / "emu" / "renode" / "sentai_emu_tpu_timing_repl.resc",
         "iter_suffix": "renode_tpu_timing_repl_filex_physical_coral",
         "uart_log": ROOT / "emu" / "output" / "sentai_emu_tpu_timing_repl.log",
+        "renode_timeout_s": 240,
     },
     "tpu_physical_send_smoke": {
         "cmake_target": "sentai_emu_tpu_physical_send_smoke",
@@ -224,6 +225,36 @@ def run_cmd(cmd: list[str], cwd: pathlib.Path) -> subprocess.CompletedProcess[st
         stderr=subprocess.STDOUT,
         check=False,
     )
+
+
+def run_cmd_to_file(cmd: list[str],
+                    cwd: pathlib.Path,
+                    log_path: pathlib.Path,
+                    timeout_s: int) -> subprocess.CompletedProcess[str]:
+    with log_path.open("w+", encoding="utf-8") as log:
+        proc = subprocess.Popen(
+            cmd,
+            cwd=str(cwd),
+            text=True,
+            stdout=log,
+            stderr=subprocess.STDOUT,
+        )
+        timed_out = False
+        try:
+            rc = proc.wait(timeout=timeout_s)
+        except subprocess.TimeoutExpired:
+            timed_out = True
+            proc.terminate()
+            try:
+                rc = proc.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                rc = proc.wait()
+        if timed_out:
+            log.write(f"\n[TIMEOUT] command exceeded {timeout_s}s\n")
+        log.seek(0)
+        stdout = log.read()
+    return subprocess.CompletedProcess(cmd, rc, stdout)
 
 
 def parse_hex(label: str, text: str) -> int | None:
@@ -495,7 +526,12 @@ def main() -> int:
     cmd_sequence.append(("renode", renode_cmd))
 
     for name, cmd in cmd_sequence:
-        result = run_cmd(cmd, ROOT)
+        if name == "renode":
+            result = run_cmd_to_file(
+                cmd, ROOT, iter_dir / f"{name}.log",
+                int(cfg.get("renode_timeout_s", 120)))
+        else:
+            result = run_cmd(cmd, ROOT)
         logs[name] = result
         (iter_dir / f"{name}.log").write_text(result.stdout)
         if result.returncode != 0:
