@@ -82,6 +82,46 @@ static volatile int s_grabbed_id = -1;
 static StaticSemaphore_t s_frame_sem_buf;
 static SemaphoreHandle_t s_frame_sem;
 
+#if defined(SENTAI_ARM_EMU)
+#define SENTAI_CAMERA_RGB_FRAME_IDX \
+    (SENTAI_VIRTUAL_CAMERA_FRAME_IDX + SENTAI_VIRTUAL_CAMERA_FRAME_SLOTS)
+
+typedef struct {
+    volatile uint32_t seq;
+    volatile int cam_id;
+    volatile uint8_t full;
+    volatile uint8_t held;
+} rgb_frame_slot_t;
+
+static uint8_t s_rgb_frame[SENTAI_VIRTUAL_CAMERA_FRAME_SLOTS]
+                           [SENTAI_CAMERA_FRAME_W * SENTAI_CAMERA_FRAME_H * 3]
+    SENTAI_CAMERA_FRAME_BSS;
+static rgb_frame_slot_t s_rgb_slots[SENTAI_VIRTUAL_CAMERA_FRAME_SLOTS];
+static int s_rgb_next_slot;
+static volatile uint32_t s_rgb_frame_seq;
+static volatile int s_rgb_current_id = SENTAI_VIRTUAL_CAMERA_ID;
+static volatile int s_rgb_grabbed_id = SENTAI_VIRTUAL_CAMERA_ID;
+
+static int rgb_slot_from_idx(int idx) {
+    int slot = idx - SENTAI_CAMERA_RGB_FRAME_IDX;
+    if (slot < 0 || slot >= SENTAI_VIRTUAL_CAMERA_FRAME_SLOTS) return -1;
+    return slot;
+}
+
+static int choose_rgb_write_slot(void) {
+    for (int pass = 0; pass < 2; ++pass) {
+        for (int i = 0; i < SENTAI_VIRTUAL_CAMERA_FRAME_SLOTS; ++i) {
+            int slot = (s_rgb_next_slot + i) % SENTAI_VIRTUAL_CAMERA_FRAME_SLOTS;
+            if (s_rgb_slots[slot].held) continue;
+            if (pass == 0 && s_rgb_slots[slot].full) continue;
+            s_rgb_next_slot = (slot + 1) % SENTAI_VIRTUAL_CAMERA_FRAME_SLOTS;
+            return slot;
+        }
+    }
+    return -1;
+}
+#endif
+
 static SemaphoreHandle_t frame_sem(void) {
     if (!s_frame_sem) {
         s_frame_sem = xSemaphoreCreateBinaryStatic(&s_frame_sem_buf);
@@ -154,6 +194,78 @@ static void publish_prep_flow_gray80x60(const uint8_t* gray) {
     sentai_prep_slot_commit(SENTAI_PREP_SLOT_FLOW_GRAY_80x60);
 }
 
+#if defined(SENTAI_ARM_EMU)
+static int rgb888_scale_to_rgb888(const uint8_t* src, int src_w, int src_h,
+                                  uint8_t* dst, int dst_w, int dst_h) {
+    if (!src || !dst || src_w <= 0 || src_h <= 0 || dst_w <= 0 || dst_h <= 0) {
+        return -1;
+    }
+    if (dst_w > src_w || dst_h > src_h) return -2;
+
+    for (int oy = 0; oy < dst_h; ++oy) {
+        int y0 = (oy * src_h) / dst_h;
+        int y1 = ((oy + 1) * src_h) / dst_h;
+        int yh = (y1 > y0) ? (y1 - y0) : 1;
+        uint8_t* drow = dst + oy * dst_w * 3;
+        for (int ox = 0; ox < dst_w; ++ox) {
+            int x0 = (ox * src_w) / dst_w;
+            int x1 = ((ox + 1) * src_w) / dst_w;
+            int xw = (x1 > x0) ? (x1 - x0) : 1;
+            int n = xw * yh;
+            uint32_t sum_r = 0;
+            uint32_t sum_g = 0;
+            uint32_t sum_b = 0;
+            for (int y = y0; y < y1; ++y) {
+                const uint8_t* srow = src + y * src_w * 3 + x0 * 3;
+                for (int x = 0; x < xw; ++x) {
+                    sum_r += srow[x * 3 + 0];
+                    sum_g += srow[x * 3 + 1];
+                    sum_b += srow[x * 3 + 2];
+                }
+            }
+            uint32_t half = (uint32_t)n / 2u;
+            drow[ox * 3 + 0] = (uint8_t)((sum_r + half) / (uint32_t)n);
+            drow[ox * 3 + 1] = (uint8_t)((sum_g + half) / (uint32_t)n);
+            drow[ox * 3 + 2] = (uint8_t)((sum_b + half) / (uint32_t)n);
+        }
+    }
+    return 0;
+}
+
+static int rgb888_scale_to_y8(const uint8_t* src, int src_w, int src_h,
+                              uint8_t* dst, int dst_w, int dst_h) {
+    if (!src || !dst || src_w <= 0 || src_h <= 0 || dst_w <= 0 || dst_h <= 0) {
+        return -1;
+    }
+    if (dst_w > src_w || dst_h > src_h) return -2;
+
+    for (int oy = 0; oy < dst_h; ++oy) {
+        int y0 = (oy * src_h) / dst_h;
+        int y1 = ((oy + 1) * src_h) / dst_h;
+        int yh = (y1 > y0) ? (y1 - y0) : 1;
+        uint8_t* drow = dst + oy * dst_w;
+        for (int ox = 0; ox < dst_w; ++ox) {
+            int x0 = (ox * src_w) / dst_w;
+            int x1 = ((ox + 1) * src_w) / dst_w;
+            int xw = (x1 > x0) ? (x1 - x0) : 1;
+            int n = xw * yh;
+            uint32_t sum_y = 0;
+            for (int y = y0; y < y1; ++y) {
+                const uint8_t* srow = src + y * src_w * 3 + x0 * 3;
+                for (int x = 0; x < xw; ++x) {
+                    uint8_t r = srow[x * 3 + 0];
+                    uint8_t g = srow[x * 3 + 1];
+                    uint8_t b = srow[x * 3 + 2];
+                    sum_y += (uint32_t)((77u * r + 150u * g + 29u * b) >> 8);
+                }
+            }
+            drow[ox] = (uint8_t)((sum_y + (uint32_t)n / 2u) / (uint32_t)n);
+        }
+    }
+    return 0;
+}
+#endif
+
 static void publish_xrgb_frame(uint32_t seq, const uint8_t* xrgb) {
     s_rgb_full_seq = seq ? seq : (s_rgb_full_seq + 1);
     publish_prep_slots_from_xrgb(xrgb);
@@ -197,6 +309,142 @@ extern int sentai_camera_backend_publish_rgb888(uint32_t seq,
     return sentai_virtual_camera_publish_xrgb(s_rgb_full_seq, s_current_id,
                                               s_xrgb_buf);
 }
+
+#if defined(SENTAI_ARM_EMU)
+extern int sentai_camera_backend_reserve_rgb888(uint8_t** out_raw,
+                                                size_t* out_bytes) {
+    if (!out_raw) return -1;
+    int slot = choose_rgb_write_slot();
+    if (slot < 0) return -2;
+    s_rgb_slots[slot].seq = 0;
+    s_rgb_slots[slot].cam_id = SENTAI_VIRTUAL_CAMERA_ID;
+    s_rgb_slots[slot].full = 0;
+    s_rgb_slots[slot].held = 1;
+    *out_raw = s_rgb_frame[slot];
+    if (out_bytes) {
+        *out_bytes = SENTAI_CAMERA_FRAME_W * SENTAI_CAMERA_FRAME_H * 3u;
+    }
+    return SENTAI_CAMERA_RGB_FRAME_IDX + slot;
+}
+
+extern int sentai_camera_backend_commit_rgb888(int idx, uint32_t seq,
+                                               int cam_id) {
+    int slot = rgb_slot_from_idx(idx);
+    if (slot < 0) return -1;
+    uint32_t out_seq = seq ? seq : (s_rgb_frame_seq + 1u);
+    s_rgb_frame_seq = out_seq;
+    s_rgb_full_seq = out_seq;
+    s_last_capture_id = cam_id;
+    s_rgb_current_id = cam_id;
+    s_rgb_slots[slot].seq = out_seq;
+    s_rgb_slots[slot].cam_id = cam_id;
+    s_rgb_slots[slot].full = 1;
+    s_rgb_slots[slot].held = 0;
+    SemaphoreHandle_t sem = frame_sem();
+    if (sem) {
+        xSemaphoreGive(sem);
+    }
+    return 0;
+}
+
+extern void sentai_camera_backend_abort_rgb888(int idx) {
+    int slot = rgb_slot_from_idx(idx);
+    if (slot < 0) return;
+    s_rgb_slots[slot].held = 0;
+    s_rgb_slots[slot].full = 0;
+}
+
+extern int sentai_cam_grab_latest_rgb888(uint8_t** raw, uint32_t* seq,
+                                         int* cam_id) {
+    if (!raw) return -1;
+    int best = -1;
+    uint32_t best_seq = 0;
+    for (int i = 0; i < SENTAI_VIRTUAL_CAMERA_FRAME_SLOTS; ++i) {
+        if (!s_rgb_slots[i].full || s_rgb_slots[i].held) continue;
+        if (best < 0 || s_rgb_slots[i].seq > best_seq) {
+            best = i;
+            best_seq = s_rgb_slots[i].seq;
+        }
+    }
+    if (best < 0) return -2;
+    for (int i = 0; i < SENTAI_VIRTUAL_CAMERA_FRAME_SLOTS; ++i) {
+        if (i != best && !s_rgb_slots[i].held) {
+            s_rgb_slots[i].full = 0;
+        }
+    }
+    s_rgb_slots[best].held = 1;
+    s_rgb_grabbed_id = s_rgb_slots[best].cam_id;
+    s_grabbed_id = s_rgb_grabbed_id;
+    s_rgb_full_seq = best_seq;
+    s_last_grab_seq = best_seq;
+    *raw = s_rgb_frame[best];
+    if (seq) *seq = best_seq;
+    if (cam_id) *cam_id = s_rgb_slots[best].cam_id;
+    return SENTAI_CAMERA_RGB_FRAME_IDX + best;
+}
+
+extern void sentai_cam_return_rgb888(int idx) {
+    int slot = rgb_slot_from_idx(idx);
+    if (slot < 0) return;
+    s_rgb_slots[slot].held = 0;
+    s_rgb_slots[slot].full = 0;
+}
+
+extern int sentai_camera_backend_publish_prep_slots_rgb888(const uint8_t* rgb) {
+    if (!rgb) return -1;
+    uint32_t fire_mask = sentai_prep_tick_frame();
+    s_prep_fire_mask = fire_mask;
+    if (fire_mask & (1u << SENTAI_PREP_SLOT_GRAY_NATIVE)) {
+        int sw = 0, sh = 0;
+        uint8_t* sbuf = sentai_prep_slot_begin_write(
+            SENTAI_PREP_SLOT_GRAY_NATIVE, &sw, &sh);
+        if (sbuf && rgb888_scale_to_y8(rgb, SENTAI_CAMERA_FRAME_W,
+                                       SENTAI_CAMERA_FRAME_H,
+                                       sbuf, sw, sh) == 0) {
+            sentai_prep_slot_commit(SENTAI_PREP_SLOT_GRAY_NATIVE);
+        }
+    }
+    if (fire_mask & (1u << SENTAI_PREP_SLOT_RGB_64)) {
+        int sw = 0, sh = 0;
+        uint8_t* sbuf = sentai_prep_slot_begin_write(
+            SENTAI_PREP_SLOT_RGB_64, &sw, &sh);
+        if (sbuf && rgb888_scale_to_rgb888(rgb, SENTAI_CAMERA_FRAME_W,
+                                           SENTAI_CAMERA_FRAME_H,
+                                           sbuf, sw, sh) == 0) {
+            sentai_prep_slot_commit(SENTAI_PREP_SLOT_RGB_64);
+        }
+    }
+    if (fire_mask & (1u << SENTAI_PREP_SLOT_FLOW_GRAY_80x60)) {
+        int sw = 0, sh = 0;
+        uint8_t* sbuf = sentai_prep_slot_begin_write(
+            SENTAI_PREP_SLOT_FLOW_GRAY_80x60, &sw, &sh);
+        if (sbuf && sw == SENTAI_CAMERA_FLOW_W && sh == SENTAI_CAMERA_FLOW_H &&
+                rgb888_scale_to_y8(rgb, SENTAI_CAMERA_FRAME_W,
+                                   SENTAI_CAMERA_FRAME_H,
+                                   sbuf, sw, sh) == 0) {
+            sentai_prep_slot_commit(SENTAI_PREP_SLOT_FLOW_GRAY_80x60);
+        }
+    }
+    return 0;
+}
+#else
+extern int sentai_cam_grab_latest_rgb888(uint8_t** raw, uint32_t* seq,
+                                         int* cam_id) {
+    (void)raw;
+    (void)seq;
+    (void)cam_id;
+    return -1;
+}
+
+extern void sentai_cam_return_rgb888(int idx) {
+    (void)idx;
+}
+
+extern int sentai_camera_backend_publish_prep_slots_rgb888(const uint8_t* rgb) {
+    (void)rgb;
+    return -1;
+}
+#endif
 
 extern size_t sim_camera_latest_rgb(uint8_t* dst, size_t max_bytes,
                                     int* out_w, int* out_h,

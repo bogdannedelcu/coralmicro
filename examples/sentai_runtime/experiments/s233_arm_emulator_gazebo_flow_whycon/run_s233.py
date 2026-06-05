@@ -333,7 +333,7 @@ def main() -> int:
         help="Max Gazebo camera frames/sec forwarded into Renode.")
     parser.add_argument("--camera-out-width", type=int, default=640)
     parser.add_argument("--camera-out-height", type=int, default=480)
-    parser.add_argument("--camera-out-format", default="xrgb8888",
+    parser.add_argument("--camera-out-format", default="rgb888",
                         choices=("rgb888", "xrgb8888"))
     args = parser.parse_args()
 
@@ -488,6 +488,7 @@ def main() -> int:
             "cam_publish_fail": f"{SYMBOL_PREFIX} cam_publish_fail",
             "cam_last_seq": f"{SYMBOL_PREFIX} cam_last_seq",
             "cam_last_rc": f"{SYMBOL_PREFIX} cam_last_rc",
+            "cam_last_format": f"{SYMBOL_PREFIX} cam_last_format",
             "bridge_seen": f"{SYMBOL_PREFIX} bridge_seen",
             "bridge_served": f"{SYMBOL_PREFIX} bridge_served",
             "bridge_dropped": f"{SYMBOL_PREFIX} bridge_dropped",
@@ -536,6 +537,8 @@ def main() -> int:
             f"pass_flow={results['pass_flow']}",
             f"pass_whycon={results['pass_whycon']}",
             f"cam_frames={symbols.get('cam_frames')}",
+            f"cam_last_rc={symbols.get('cam_last_rc')}",
+            f"cam_last_format={symbols.get('cam_last_format')}",
             f"bridge_seen={symbols.get('bridge_seen')}",
             f"bridge_served={symbols.get('bridge_served')}",
             f"bridge_read_ms_sum={symbols.get('bridge_read_ms_sum')}",

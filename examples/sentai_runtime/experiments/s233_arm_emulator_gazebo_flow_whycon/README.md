@@ -18,14 +18,21 @@ Latest verified run:
 ```bash
 python3 examples/sentai_runtime/experiments/s233_arm_emulator_gazebo_flow_whycon/run_s233.py \
   --camera-forward-fps 15 --camera-out-width 640 --camera-out-height 480 \
-  --camera-out-format xrgb8888
+  --camera-out-format rgb888
 ```
 
-`iter25_gazebo_flow_whycon` passed FlowBaseline + WhyconBaseline with VGA
-camera ingress: `cam_last_rc=1228800` (`640*480*4` XRGB8888), `cam_frames=546`,
-`prep_frames=85`, `flow_frames=79`, `prep_fps_x100=454`,
-`flow_fps_x100=422`, `marker_hits=1`, and `crazy_takeoff=0` /
+`iter31_gazebo_flow_whycon` passed FlowBaseline + WhyconBaseline with the
+emulator RGB888 fast path: `cam_last_format=0`, `cam_last_rc=921600`
+(`640*480*3` RGB888), `cam_frames=644`, `prep_frames=110`,
+`flow_frames=102`, `prep_fps_x100=517`, `flow_fps_x100=479`,
+`marker_hits=1`, and `crazy_takeoff=0` /
 `crazy_land=0`.  The verdict requires at least one real WhyCon hit.
+
+`iter29_gazebo_flow_whycon` validated the same CameraTask bridge in XRGB mode:
+`cam_last_format=1`, `cam_last_rc=1228800`, `prep_fps_x100=454`,
+`flow_fps_x100=422`, and `pass=True`.  This keeps an ARM-like XRGB path
+available while allowing emulator-only RGB input when profiling CPU-emulated
+PrepTask.
 
 `iter24_gazebo_flow_whycon` measured the previous guest-side RGB888 publish
 path at `publish_ms_sum=37859` for `210` camera frames.  `iter25` moved
@@ -44,6 +51,6 @@ publication into the shared camera backend, then PrepTask publishes
 validated the earlier 320x240 host-downsampled path, with `iter22` also proving
 the `--renode-ui` UART analyzer path.
 
-TODO(B9/EMU): evaluate an emulator-only RGB888 camera fast path to avoid the
-remaining VGA XRGB->RGB/PXP-style conversion in PrepTask.  ARM should keep the
-physical-camera XRGB path.
+The emulator CameraTask is format-aware: Renode only serves a frame when the
+guest-reserved slot format matches the host relay payload.  RGB888 avoids the
+VGA XRGB conversion in PrepTask; XRGB8888 remains the ARM-like fallback.

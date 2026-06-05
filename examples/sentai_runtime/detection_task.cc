@@ -89,6 +89,11 @@ extern "C" {
     int  sentai_get_tensor_info(int* w, int* h, int* ch,
                                 uint8_t** buf, int* type, int* zp);
     int  sentai_cam_grab_latest(uint8_t** raw);
+    int  sentai_cam_grab_latest_rgb888(uint8_t** raw, uint32_t* seq,
+                                       int* cam_id) __attribute__((weak));
+    void sentai_cam_return_rgb888(int idx) __attribute__((weak));
+    int  sentai_camera_backend_publish_prep_slots_rgb888(
+            const uint8_t* rgb) __attribute__((weak));
     // Flow-offload hook (flow_task.cc).  Early-returns cheaply when the
     // M4 publish flag is off; otherwise CPU-decimates a 80×60 gray frame
     // into shared OCRAM for the M4 to consume.
@@ -598,6 +603,11 @@ static uint32_t publish_aux_slots_from_raw(uint8_t* raw) {
     return fire_mask;
 }
 
+static int publish_aux_slots_from_rgb888(uint8_t* rgb) {
+    if (!rgb || !sentai_camera_backend_publish_prep_slots_rgb888) return -1;
+    return sentai_camera_backend_publish_prep_slots_rgb888(rgb);
+}
+
 // ---------------------------------------------------------------------------
 // PrepTask: Camera → PXP → int8 quant → staging buffer
 // ---------------------------------------------------------------------------
@@ -616,8 +626,19 @@ static void prep_task_fn(void* /*param*/) {
             TickType_t t_iter_start = xTaskGetTickCount();
             TickType_t t_cam_start = t_iter_start;
             uint8_t* raw = nullptr;
-            int idx = sentai_cam_grab_latest(&raw);
-            int prep_cam_id = sentai_cam_grabbed_id();
+            uint32_t rgb_seq = 0;
+            int prep_cam_id = -1;
+            int rgb_idx = -1;
+            if (sentai_cam_grab_latest_rgb888) {
+                rgb_idx = sentai_cam_grab_latest_rgb888(&raw, &rgb_seq,
+                                                        &prep_cam_id);
+            }
+            int idx = rgb_idx;
+            if (idx < 0 || !raw) {
+                raw = nullptr;
+                idx = sentai_cam_grab_latest(&raw);
+                prep_cam_id = sentai_cam_grabbed_id();
+            }
             TickType_t t_cam_end = xTaskGetTickCount();
 
             if (idx < 0 || !raw) {
@@ -634,8 +655,14 @@ static void prep_task_fn(void* /*param*/) {
             }
             cam_miss_streak = 0;
 
-            publish_aux_slots_from_raw(raw);
-            sentai_cam_return_raw(idx);
+            const int used_rgb_fast_path = (rgb_idx >= 0);
+            if (used_rgb_fast_path) {
+                (void)publish_aux_slots_from_rgb888(raw);
+                sentai_cam_return_rgb888(idx);
+            } else {
+                publish_aux_slots_from_raw(raw);
+                sentai_cam_return_raw(idx);
+            }
 
             s_prep_stage_frames++;
             s_prep_stage_cam_grab_ms += (uint32_t)(t_cam_end - t_cam_start);
@@ -643,9 +670,11 @@ static void prep_task_fn(void* /*param*/) {
                 (uint32_t)(xTaskGetTickCount() - t_iter_start);
             s_stg_w = DEMO_CAMERA_WIDTH;
             s_stg_h = DEMO_CAMERA_HEIGHT;
-            s_stg_ch = 4;
-            s_stg_total = DEMO_CAMERA_WIDTH * DEMO_CAMERA_HEIGHT * 4;
-            s_stg_frame_seq = sentai_cam_get_frame_seq();
+            s_stg_ch = used_rgb_fast_path ? 3 : 4;
+            s_stg_total = DEMO_CAMERA_WIDTH * DEMO_CAMERA_HEIGHT *
+                          (used_rgb_fast_path ? 3 : 4);
+            s_stg_frame_seq = used_rgb_fast_path ? rgb_seq :
+                              sentai_cam_get_frame_seq();
             s_stg_cam_id = prep_cam_id;
             s_last_grabbed_cam_id = prep_cam_id;
             s_last_prep_frame_tick = xTaskGetTickCount();

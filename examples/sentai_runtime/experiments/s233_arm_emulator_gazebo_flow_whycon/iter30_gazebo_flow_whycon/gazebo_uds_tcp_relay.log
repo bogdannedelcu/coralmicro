@@ -1,0 +1,56 @@
+$ /usr/bin/python3 emu/host/sentai_gazebo_uds_to_tcp_bridge.py --uds /tmp/sentai_emu_cam.sock --tcp-host 127.0.0.1 --tcp-port 30233 --max-fps 15.0 --out-width 640 --out-height 480 --out-format rgb888
+[uds-tcp] pull server 127.0.0.1:30233
+[uds-tcp] listening /tmp/sentai_emu_cam.sock
+[uds-tcp] renode client connected
+[uds-tcp] renode client disconnected
+[uds-tcp] gz client connected
+[uds-tcp] frames=30 seq=30 kept=26 dropped=4 bad=0 latest=30
+[uds-tcp] frames=60 seq=60 kept=55 dropped=5 bad=0 latest=60
+[uds-tcp] frames=90 seq=90 kept=84 dropped=6 bad=0 latest=90
+[uds-tcp] frames=120 seq=120 kept=114 dropped=6 bad=0 latest=120
+[uds-tcp] frames=150 seq=150 kept=144 dropped=6 bad=0 latest=150
+[uds-tcp] renode client connected
+[uds-tcp] frames=180 seq=180 kept=174 dropped=6 bad=0 latest=180
+[uds-tcp] frames=210 seq=210 kept=204 dropped=6 bad=0 latest=210
+[uds-tcp] frames=240 seq=240 kept=234 dropped=6 bad=0 latest=240
+[uds-tcp] frames=270 seq=270 kept=263 dropped=7 bad=0 latest=270
+[uds-tcp] frames=300 seq=300 kept=293 dropped=7 bad=0 latest=300
+[uds-tcp] frames=330 seq=330 kept=322 dropped=8 bad=0 latest=330
+[uds-tcp] frames=360 seq=360 kept=352 dropped=8 bad=0 latest=360
+[uds-tcp] frames=390 seq=390 kept=382 dropped=8 bad=0 latest=390
+[uds-tcp] frames=420 seq=420 kept=412 dropped=8 bad=0 latest=420
+[uds-tcp] frames=450 seq=450 kept=438 dropped=12 bad=0 latest=450
+[uds-tcp] frames=480 seq=480 kept=463 dropped=17 bad=0 latest=480
+[uds-tcp] frames=510 seq=510 kept=489 dropped=21 bad=0 latest=510
+[uds-tcp] frames=540 seq=540 kept=516 dropped=24 bad=0 latest=540
+[uds-tcp] frames=570 seq=570 kept=542 dropped=28 bad=0 latest=570
+[uds-tcp] frames=600 seq=600 kept=568 dropped=32 bad=0 latest=600
+[uds-tcp] frames=630 seq=630 kept=594 dropped=36 bad=0 latest=630
+[uds-tcp] frames=660 seq=660 kept=622 dropped=38 bad=0 latest=660
+[uds-tcp] frames=690 seq=690 kept=647 dropped=43 bad=0 latest=690
+[uds-tcp] frames=720 seq=720 kept=673 dropped=47 bad=0 latest=720
+[uds-tcp] frames=750 seq=750 kept=697 dropped=53 bad=0 latest=749
+[uds-tcp] frames=780 seq=780 kept=722 dropped=58 bad=0 latest=779
+[uds-tcp] frames=810 seq=810 kept=750 dropped=60 bad=0 latest=810
+[uds-tcp] frames=840 seq=840 kept=776 dropped=64 bad=0 latest=840
+[uds-tcp] frames=870 seq=870 kept=802 dropped=68 bad=0 latest=870
+[uds-tcp] frames=900 seq=900 kept=826 dropped=74 bad=0 latest=900
+[uds-tcp] frames=930 seq=930 kept=850 dropped=80 bad=0 latest=930
+[uds-tcp] frames=960 seq=960 kept=875 dropped=85 bad=0 latest=960
+[uds-tcp] frames=990 seq=990 kept=902 dropped=88 bad=0 latest=990
+[uds-tcp] frames=1020 seq=1020 kept=927 dropped=93 bad=0 latest=1020
+[uds-tcp] frames=1050 seq=1050 kept=954 dropped=96 bad=0 latest=1050
+[uds-tcp] frames=1080 seq=1080 kept=977 dropped=103 bad=0 latest=1080
+[uds-tcp] frames=1110 seq=1110 kept=1003 dropped=107 bad=0 latest=1110
+[uds-tcp] frames=1140 seq=1140 kept=1031 dropped=109 bad=0 latest=1140
+[uds-tcp] frames=1170 seq=1170 kept=1057 dropped=113 bad=0 latest=1170
+[uds-tcp] frames=1200 seq=1200 kept=1083 dropped=117 bad=0 latest=1200
+[uds-tcp] frames=1230 seq=1230 kept=1110 dropped=120 bad=0 latest=1230
+[uds-tcp] frames=1260 seq=1260 kept=1136 dropped=124 bad=0 latest=1260
+[uds-tcp] frames=1290 seq=1290 kept=1163 dropped=127 bad=0 latest=1290
+[uds-tcp] frames=1320 seq=1320 kept=1188 dropped=132 bad=0 latest=1320
+[uds-tcp] frames=1350 seq=1350 kept=1212 dropped=138 bad=0 latest=1349
+[uds-tcp] frames=1380 seq=1380 kept=1237 dropped=143 bad=0 latest=1379
+[uds-tcp] frames=1410 seq=1410 kept=1262 dropped=148 bad=0 latest=1409
+[uds-tcp] frames=1440 seq=1440 kept=1287 dropped=153 bad=0 latest=1439
+[uds-tcp] renode client disconnected

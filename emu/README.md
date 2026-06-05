@@ -245,17 +245,15 @@ Current checkpoints:
   emulator FileX, verifies `sentai.markers.detect_pgm()`, then selects a
   staged BMP through `sentai.camera`, runs `prep_once()`, and verifies
   `sentai.markers.detect_from_camera()` plus a 10-frame repeated loop.
-- S233 `iter25_gazebo_flow_whycon`: PASS, feeds live Gazebo VGA
-  `640x480` frames into the ARM emulator, converts RGB888 to XRGB8888 in the
-  host relay, writes directly into a reserved virtual-camera slot, then
-  verifies PrepTask, FlowTask, WhyCon, and cf2 commands together.  FlowTask
-  consumes PrepTask's `FLOW_GRAY_80x60` slot; it does not process the VGA frame
-  directly.  This moved `cam_frames` from `210` to `546` and Prep/Flow from
-  about `2.55 FPS` to `4.54/4.22 FPS` versus the earlier guest-side
-  RGB888-publish path.
-  TODO(B9/EMU): consider an emulator-only RGB888 camera fast path so PrepTask
-  can avoid the remaining VGA XRGB->RGB/PXP-style conversion while ARM keeps
-  the physical-camera XRGB contract.
+- S233 `iter31_gazebo_flow_whycon`: PASS, feeds live Gazebo VGA
+  `640x480` RGB888 frames into the ARM emulator through a format-aware
+  CameraTask bridge, then verifies PrepTask, FlowTask, WhyCon, and cf2 commands
+  together.  FlowTask consumes PrepTask's `FLOW_GRAY_80x60` slot; it does not
+  process the VGA frame directly.  RGB888 fast path result:
+  `cam_last_format=0`, `cam_frames=644`, Prep/Flow `5.17/4.79 FPS`.
+  `iter29_gazebo_flow_whycon` validates the same bridge in ARM-like XRGB mode
+  (`cam_last_format=1`, Prep/Flow `4.54/4.22 FPS`).  ARM keeps the physical
+  camera XRGB contract; RGB is an emulator-only profiling/throughput path.
 
 Run the S230 camera + WhyCon marker smoke:
 

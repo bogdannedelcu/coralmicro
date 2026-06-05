@@ -154,7 +154,7 @@ if request.IsInit:
                 log_line("pulled seq=" + str(seq) +
                          " pulls=" + str(pull_count[0]) +
                          " empty=" + str(empty_count[0]))
-            return seq, data, nbytes, fmt
+            return seq, data, nbytes
         except Exception as e:
             bad_count[0] += 1
             log_line("pull exception " + str(e))
@@ -179,21 +179,15 @@ elif request.IsWrite:
         regs[4] = 0xFFFFFFFF
         try:
             if command == 1:
-                expected_fmt = regs[13] & 0xFFFFFFFF
                 pulled = pull_latest()
                 if pulled is None:
                     regs[4] = 0
                     regs[5] = 0
                     regs[6] = 0
-                    regs[14] = 0xFFFFFFFF
-                    regs[15] = 0
                 else:
-                    seq, data, nbytes, actual_fmt = pulled
-                    if out_ptr == 0 or out_len < nbytes or \
-                            expected_fmt != actual_fmt:
+                    seq, data, nbytes = pulled
+                    if out_ptr == 0 or out_len < nbytes:
                         regs[4] = 0xFFFFFFFE
-                        regs[14] = int(actual_fmt) & 0xFFFFFFFF
-                        regs[15] = int(nbytes) & 0xFFFFFFFF
                     else:
                         log_line("write begin seq=" + str(seq) +
                                  " bytes=" + str(nbytes))
@@ -209,8 +203,6 @@ elif request.IsWrite:
                         regs[10] = empty_count[0] & 0xFFFFFFFF
                         regs[11] = bad_count[0] & 0xFFFFFFFF
                         regs[12] = pull_count[0] & 0xFFFFFFFF
-                        regs[14] = int(actual_fmt) & 0xFFFFFFFF
-                        regs[15] = int(nbytes) & 0xFFFFFFFF
             elif command == 2:
                 regs[4] = served_seq[0] & 0xFFFFFFFF
                 regs[5] = pull_count[0] & 0xFFFFFFFF

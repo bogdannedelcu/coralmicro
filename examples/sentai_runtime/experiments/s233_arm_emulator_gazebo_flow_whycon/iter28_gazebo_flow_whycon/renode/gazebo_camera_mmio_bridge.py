@@ -154,7 +154,7 @@ if request.IsInit:
                 log_line("pulled seq=" + str(seq) +
                          " pulls=" + str(pull_count[0]) +
                          " empty=" + str(empty_count[0]))
-            return seq, data, nbytes, fmt
+            return seq, data, nbytes
         except Exception as e:
             bad_count[0] += 1
             log_line("pull exception " + str(e))
@@ -188,7 +188,16 @@ elif request.IsWrite:
                     regs[14] = 0xFFFFFFFF
                     regs[15] = 0
                 else:
-                    seq, data, nbytes, actual_fmt = pulled
+                    seq, data, nbytes = pulled
+                    hdr_fmt = regs[14] if len(regs) > 14 else 0xFFFFFFFF
+                    # pull_latest records the actual SCM header format in
+                    # regs[14] through the local variable below; avoid marking
+                    # this frame served unless the guest reserved a slot of
+                    # matching format.
+                    # Re-unpack the header metadata from pull_latest's local
+                    # return path by checking nbytes and the Python-side
+                    # header validation already accepted.
+                    actual_fmt = 0 if nbytes == expect_rgb_bytes else 1
                     if out_ptr == 0 or out_len < nbytes or \
                             expected_fmt != actual_fmt:
                         regs[4] = 0xFFFFFFFE

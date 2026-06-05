@@ -1,0 +1,552 @@
+// Provisional SentAI/MIMXRT1176 CM7 Renode platform.
+//
+// This is a B8 bring-up scaffold, not a complete EVK model.  The memory map
+// follows examples/sentai_runtime/MIMXRT1176xxxxx_cm7_ram_mp.ld and the UART
+// follows third_party/modified/nxp/rt1176-sdk/board.h.
+
+nvic: IRQControllers.NVIC @ sysbus 0xE000E000
+    systickFrequency: 528000000
+    priorityMask: 0xF0
+    IRQ -> cpu@0
+
+cpu: CPU.CortexM @ sysbus
+    cpuType: "cortex-m7"
+    nvic: nvic
+    numberOfMPURegions: 16
+
+dwt: Miscellaneous.DWT @ sysbus 0xE0001000
+    frequency: 792000000
+
+// ITCM/DTCM/OCRAM/SDRAM regions required by the RAM linker script.
+itcm: Memory.MappedMemory @ sysbus 0x00000000
+    size: 0x80000
+
+dtcm: Memory.MappedMemory @ sysbus 0x20000000
+    size: 0x80000
+
+ocram: Memory.MappedMemory @ sysbus 0x20200000
+    size: 0x200000
+
+sdram: Memory.MappedMemory @ sysbus 0x80000000
+    size: 0x4000000
+
+// SentAI debug console is LPUART6 on the modified Coral/NXP board config.
+lpuart6: UART.NXP_LPUART @ sysbus 0x40090000
+    IRQ -> nvic@25
+
+// Early SDK boot MMIO.  These stubs let us discover the next real modeling
+// boundary without failing on unmapped access noise.
+wdog1: Python.PythonPeripheral @ sysbus 0x40030000
+    size: 0x4000
+    initable: true
+    filename: "scripts/pydev/ticker.py"
+
+wdog2: Python.PythonPeripheral @ sysbus 0x40034000
+    size: 0x4000
+    initable: true
+    filename: "scripts/pydev/ticker.py"
+
+rtwdog3: Python.PythonPeripheral @ sysbus 0x40038000
+    size: 0x4000
+    initable: true
+    filename: "scripts/pydev/ticker.py"
+
+rtwdog4: Python.PythonPeripheral @ sysbus 0x40C10000
+    size: 0x4000
+    initable: true
+    filename: "scripts/pydev/ticker.py"
+
+ccm: Python.PythonPeripheral @ sysbus 0x40CC0000
+    size: 0x8000
+    initable: true
+    filename: "scripts/pydev/flipflop.py"
+
+ccm_obs: Python.PythonPeripheral @ sysbus 0x40150000
+    size: 0x4000
+    initable: true
+    filename: "scripts/pydev/flipflop.py"
+
+src: Python.PythonPeripheral @ sysbus 0x40C04000
+    size: 0x4000
+    initable: true
+    filename: "scripts/pydev/flipflop.py"
+
+iomuxc_gpr: Python.PythonPeripheral @ sysbus 0x400E4000
+    size: 0x4000
+    initable: true
+    filename: "scripts/pydev/flipflop.py"
+
+iomuxc: Python.PythonPeripheral @ sysbus 0x400E8000
+    size: 0x4000
+    initable: true
+    filename: "scripts/pydev/flipflop.py"
+
+iomuxc_lpsr: Python.PythonPeripheral @ sysbus 0x40C08000
+    size: 0x4000
+    initable: true
+    filename: "scripts/pydev/flipflop.py"
+
+iomuxc_lpsr_gpr: Python.PythonPeripheral @ sysbus 0x40C0C000
+    size: 0x4000
+    initable: true
+    filename: "scripts/pydev/flipflop.py"
+
+anadig: Python.PythonPeripheral @ sysbus 0x40C84000
+    size: 0x4000
+    initable: true
+    filename: "scripts/pydev/flipflop.py"
+
+snvs: Python.PythonPeripheral @ sysbus 0x40C90000
+    size: 0x4000
+    initable: true
+    filename: "scripts/pydev/flipflop.py"
+
+iomuxc_snvs: Python.PythonPeripheral @ sysbus 0x40C94000
+    size: 0x4000
+    initable: true
+    filename: "scripts/pydev/flipflop.py"
+
+iomuxc_snvs_gpr: Python.PythonPeripheral @ sysbus 0x40C98000
+    size: 0x4000
+    initable: true
+    filename: "scripts/pydev/flipflop.py"
+
+dcdc: Python.PythonPeripheral @ sysbus 0x40CA8000
+    size: 0x8000
+    initable: true
+    filename: "scripts/pydev/flipflop.py"
+
+semc: Python.PythonPeripheral @ sysbus 0x400D4000
+    size: 0x4000
+    initable: true
+    filename: "scripts/pydev/flipflop.py"
+
+flexspi1: Python.PythonPeripheral @ sysbus 0x400CC000
+    size: 0x4000
+    initable: true
+    filename: "scripts/pydev/flipflop.py"
+
+caam: Python.PythonPeripheral @ sysbus 0x40440000
+    size: 0x10000
+    initable: true
+    filename: "scripts/pydev/flipflop.py"
+
+sema4: Python.PythonPeripheral @ sysbus 0x40CC8000
+    size: 0x4000
+    initable: true
+    filename: "scripts/pydev/flipflop.py"
+
+mua: Python.PythonPeripheral @ sysbus 0x40C48000
+    size: 0x4000
+    initable: true
+    filename: "scripts/pydev/flipflop.py"
+
+gpt1: Timers.IMX_GPTimer @ sysbus 0x400EC000
+    IRQ -> nvic@119
+
+lpi2c5: Python.PythonPeripheral @ sysbus 0x40C34000
+    size: 0x4000
+    initable: true
+    filename: "scripts/pydev/flipflop.py"
+
+lpi2c6: Python.PythonPeripheral @ sysbus 0x40C38000
+    size: 0x4000
+    initable: true
+    filename: "scripts/pydev/flipflop.py"
+
+usb_otg1: Python.PythonPeripheral @ sysbus 0x40430000
+    size: 0x4000
+    initable: true
+    filename: "scripts/pydev/flipflop.py"
+
+usb_otg2: Python.PythonPeripheral @ sysbus 0x4042C000
+    size: 0x4000
+    initable: true
+    filename: "scripts/pydev/flipflop.py"
+
+usbphy1: Python.PythonPeripheral @ sysbus 0x40434000
+    size: 0x4000
+    initable: true
+    filename: "scripts/pydev/flipflop.py"
+
+usbphy2: Python.PythonPeripheral @ sysbus 0x40438000
+    size: 0x4000
+    initable: true
+    filename: "scripts/pydev/flipflop.py"
+
+csi: Python.PythonPeripheral @ sysbus 0x40800000
+    size: 0x4000
+    initable: true
+    filename: "scripts/pydev/flipflop.py"
+
+mipi_csi2rx: Python.PythonPeripheral @ sysbus 0x40810000
+    size: 0x4000
+    initable: true
+    filename: "scripts/pydev/flipflop.py"
+
+pxp: Python.PythonPeripheral @ sysbus 0x40814000
+    size: 0x4000
+    initable: true
+    filename: "scripts/pydev/flipflop.py"
+
+// B8.5 VCam test peripheral.  Deliberately mapped at an unused RT1176 MMIO
+// address (NOT the real CSI base at 0x40800000) so it is unmistakably emu
+// test scaffolding, not a pretend-CSI model.  IRQ 94 maps to the existing
+// Reserved110_IRQn weak vector in startup_MIMXRT1176_cm7.S — the emu_camera
+// build supplies a strong override.
+vcam: Python.PythonPeripheral @ sysbus 0x40900000
+    size: 0x100
+    initable: true
+    script: '''
+import System
+if request.IsInit:
+    sysbus = emulationManager.Instance.CurrentEmulation.Machines[0].SystemBus
+    status = 0
+    frame_ptr = 0
+    frame_len = 0
+    frame_seq = 0
+    fill_mode = 1   # 1 = peripheral writes pattern bytes on ARM (B8.5/6/7);
+                    # 0 = peripheral only fires IRQ + seq, buffer kept intact
+                    # (B8.7c host-fed scenes).
+elif request.IsRead:
+    off = request.Offset
+    if off == 0x00:
+        request.Value = status
+    elif off == 0x04:
+        request.Value = frame_ptr
+    elif off == 0x08:
+        request.Value = frame_len
+    elif off == 0x0C:
+        request.Value = frame_seq
+    elif off == 0x18:
+        request.Value = fill_mode
+    else:
+        request.Value = 0
+elif request.IsWrite:
+    off = request.Offset
+    if off == 0x00:
+        if request.Value & 1:
+            status = status & 0xFFFFFFFE
+    elif off == 0x04:
+        frame_ptr = request.Value
+    elif off == 0x08:
+        frame_len = request.Value
+    elif off == 0x10:
+        if request.Value & 1:
+            frame_seq = (frame_seq + 1) & 0xFFFFFFFF
+            if fill_mode and frame_ptr != 0 and frame_len > 0:
+                byte = frame_seq & 0xFF
+                arr = System.Array.CreateInstance(System.Byte, frame_len)
+                for i in range(frame_len):
+                    arr[i] = byte
+                sysbus.WriteBytes(arr, frame_ptr)
+            status = status | 1
+            sysbus.WriteDoubleWord(0xE000E208, 0x40000000)
+    elif off == 0x18:
+        fill_mode = request.Value & 1
+'''
+
+// B8.8 Coral USB model scaffold.  This is not an EHCI controller yet: it is
+// a Renode-side MMIO descriptor block.  The `.resc` script writes Coral-like
+// descriptors into this memory and flips STATUS when a synthetic device is
+// attached.  The firmware-side probe reads these registers and injects the
+// event through the real UsbHostTask -> EdgeTpuTask callback chain.
+coral_usb: Memory.MappedMemory @ sysbus 0x40900400
+    size: 0x400
+
+// B8.8 TPU transport bridge scaffold.  This is deliberately below
+// EdgeTpuManager and exactly at TpuDriver::Send*/GetOutputs/ReadEvent.  The
+// first gate is a controlled Renode responder that acks transfer requests and
+// writes a deterministic output pattern into guest memory.  The physical
+// host-Coral bridge will attach to the same register contract.
+coral_tpu_bridge: Python.PythonPeripheral @ sysbus 0x40900800
+    size: 0x100
+    initable: true
+    script: '''
+import System
+if request.IsInit:
+    sysbus = emulationManager.Instance.CurrentEmulation.Machines[0].SystemBus
+    regs = [0] * 16
+    checksum = 0
+elif request.IsRead:
+    idx = request.Offset // 4
+    request.Value = regs[idx] if idx < len(regs) else 0
+elif request.IsWrite:
+    idx = request.Offset // 4
+    if idx < len(regs):
+        regs[idx] = request.Value & 0xFFFFFFFF
+    if request.Offset == 0x00 and request.Value == 1:
+        command = regs[1]
+        data_ptr = regs[2]
+        data_len = regs[3]
+        out_ptr = regs[4]
+        out_len = regs[5]
+        checksum = 0
+        if data_ptr != 0 and data_len != 0:
+            data = sysbus.ReadBytes(data_ptr, data_len)
+            for b in data:
+                checksum = (checksum + int(b)) & 0xFFFFFFFF
+        if command == 4 and out_ptr != 0 and out_len != 0:
+            out = System.Array.CreateInstance(System.Byte, out_len)
+            for i in range(out_len):
+                out[i] = (0xA0 + (i & 0x0F)) & 0xFF
+            sysbus.WriteBytes(out, out_ptr)
+        regs[6] = 0
+        regs[8] = checksum
+        regs[9] = (regs[9] + 1) & 0xFFFFFFFF
+        regs[0] = 2
+'''
+
+// B8.11 physical Coral bridge at the same logical TpuDriver boundary as
+// `coral_tpu_bridge`, but backed by a host POSIX/libusb TpuDriver process.
+// The guest owns EdgeTpuManager/EdgeTpuExecutable and sends only
+// SendParameters/SendInputs/SendInstructions/GetOutputs/ReadEvent payloads.
+physical_tpu_send_bridge: Python.PythonPeripheral @ sysbus 0x40901800
+    size: 0x100
+    initable: true
+    filename: "/home/bogdan/work/coralmicro/emu/renode/tpu_send_physical_bridge.py"
+
+// B9/s219 Crazyflie transport bridge.  Guest firmware keeps the shared
+// `sentai.crazy` CRTP-over-CPX implementation, but emulator builds can route
+// sentai_uart_serial_* calls to this MMIO endpoint instead of LPUART6.
+crazy_cpx_udp_bridge: Python.PythonPeripheral @ sysbus 0x40902400
+    size: 0x100
+    initable: true
+    filename: "/home/bogdan/work/coralmicro/emu/renode/crazy_cpx_udp_mmio_bridge.py"
+
+// B9/s233 Gazebo camera ingress bridge.  gz_to_uds_bridge sends live
+// /downward_cam/image RGB888 frames to /tmp/sentai_emu_cam.sock; guest
+// firmware polls this MMIO doorbell and injects frames into the shared
+// sentai_runtime camera backend.
+gazebo_camera_bridge: Python.PythonPeripheral @ sysbus 0x40902800
+    size: 0x100
+    initable: true
+    filename: "/home/bogdan/work/coralmicro/emu/renode/gazebo_camera_mmio_bridge.py"
+
+// B8.9 user-storage bridge.  This models only raw NAND page/program/erase
+// below the production fx_nand_driver.  FileX, LevelX, sentai.fs, and the
+// USB-MSC LBA path remain guest firmware code, matching the ARM board stack.
+nand_bridge: Python.PythonPeripheral @ sysbus 0x40900C00
+    size: 0x100
+    initable: true
+    script: '''
+import System
+from System.IO import Directory, File, FileMode, FileAccess, Path, SeekOrigin
+
+if request.IsInit:
+    sysbus = emulationManager.Instance.CurrentEmulation.Machines[0].SystemBus
+    regs = [0] * 16
+    page_raw = 2112
+    pages_per_block = 64
+    total_blocks = 1024
+    image_path = "/home/bogdan/work/coralmicro/emu/output/sentai_emu_nand.bin"
+    image_size = page_raw * pages_per_block * total_blocks
+    image_dir = Path.GetDirectoryName(image_path)
+    if image_dir and not Directory.Exists(image_dir):
+        Directory.CreateDirectory(image_dir)
+    if not File.Exists(image_path):
+        fs_init = File.Open(image_path, FileMode.CreateNew, FileAccess.Write)
+        chunk_len = 1024 * 1024
+        ff = System.Array.CreateInstance(System.Byte, chunk_len)
+        for i in range(chunk_len):
+            ff[i] = 0xFF
+        remaining = image_size
+        while remaining > 0:
+            n = chunk_len if remaining >= chunk_len else remaining
+            fs_init.Write(ff, 0, n)
+            remaining -= n
+        fs_init.Close()
+    fs = File.Open(image_path, FileMode.OpenOrCreate, FileAccess.ReadWrite)
+    read_count = 0
+    write_count = 0
+    erase_count = 0
+
+    def set_status(ok):
+        regs[4] = 1 if ok else 2
+
+    def read_exact_or_ff(offset, length):
+        arr = System.Array.CreateInstance(System.Byte, length)
+        fs.Seek(offset, SeekOrigin.Begin)
+        got = fs.Read(arr, 0, length)
+        if got < length:
+            for i in range(got, length):
+                arr[i] = 0xFF
+        return arr
+
+    def write_ff(offset, length):
+        ff_len = 4096
+        ff = System.Array.CreateInstance(System.Byte, ff_len)
+        for i in range(ff_len):
+            ff[i] = 0xFF
+        fs.Seek(offset, SeekOrigin.Begin)
+        remaining = length
+        while remaining > 0:
+            n = ff_len if remaining >= ff_len else remaining
+            fs.Write(ff, 0, n)
+            remaining -= n
+        fs.Flush()
+elif request.IsRead:
+    idx = request.Offset // 4
+    request.Value = regs[idx] if idx < len(regs) else 0
+elif request.IsWrite:
+    idx = request.Offset // 4
+    if idx < len(regs):
+        regs[idx] = request.Value & 0xFFFFFFFF
+    if request.Offset == 0x00:
+        cmd = regs[0]
+        arg0 = regs[1]
+        buf = regs[2]
+        length = regs[3]
+        regs[4] = 0
+        try:
+            if cmd == 1:
+                if length > page_raw:
+                    set_status(False)
+                else:
+                    off = arg0 * page_raw
+                    data = read_exact_or_ff(off, length)
+                    if buf != 0 and length != 0:
+                        sysbus.WriteBytes(data, buf)
+                    read_count = (read_count + 1) & 0xFFFFFFFF
+                    regs[5] = read_count
+                    set_status(True)
+            elif cmd == 2:
+                if length > page_raw or buf == 0:
+                    set_status(False)
+                else:
+                    off = arg0 * page_raw
+                    data = sysbus.ReadBytes(buf, length)
+                    fs.Seek(off, SeekOrigin.Begin)
+                    fs.Write(data, 0, length)
+                    fs.Flush()
+                    write_count = (write_count + 1) & 0xFFFFFFFF
+                    regs[6] = write_count
+                    set_status(True)
+            elif cmd == 3:
+                off = arg0 * pages_per_block * page_raw
+                write_ff(off, pages_per_block * page_raw)
+                erase_count = (erase_count + 1) & 0xFFFFFFFF
+                regs[7] = erase_count
+                set_status(True)
+            else:
+                set_status(False)
+        except Exception:
+            set_status(False)
+'''
+
+// B8.9c host asset staging bridge.  This is a pre-boot convenience path for
+// experiments: firmware still writes files through FxUser* -> FileX -> LevelX
+// -> raw NAND, while Renode only supplies byte chunks from known host files.
+// It deliberately does not model USB-MSC yet.
+asset_bridge: Python.PythonPeripheral @ sysbus 0x40901000
+    size: 0x100
+    initable: true
+    script: '''
+import System
+from System.IO import File, FileMode, FileAccess, SeekOrigin
+
+if request.IsInit:
+    sysbus = emulationManager.Instance.CurrentEmulation.Machines[0].SystemBus
+    regs = [0] * 16
+    paths = [
+        "/home/bogdan/work/coralmicro/models/tf2_ssd_mobilenet_v2_coco17_ptq_edgetpu.tflite",
+        "/home/bogdan/work/coralmicro/test_data/cat_640x480.bmp",
+        "/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s213_arm_emulator_idle/mission_s213_tpu_cat.py",
+        "/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s230_arm_emulator_camera_markers/assets/whycon_320x240.pgm",
+        "/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s230_arm_emulator_camera_markers/assets/whycon_640x480.bmp",
+    ]
+
+    def set_status(ok):
+        regs[5] = 1 if ok else 2
+
+    def valid_index(index):
+        return index >= 0 and index < len(paths) and File.Exists(paths[index])
+
+elif request.IsRead:
+    idx = request.Offset // 4
+    request.Value = regs[idx] if idx < len(regs) else 0
+elif request.IsWrite:
+    idx = request.Offset // 4
+    if idx < len(regs):
+        regs[idx] = request.Value & 0xFFFFFFFF
+    if request.Offset == 0x00:
+        cmd = regs[0]
+        file_index = regs[1]
+        offset = regs[2]
+        guest_ptr = regs[3]
+        length = regs[4]
+        regs[5] = 0
+        regs[7] = 0
+        regs[8] = 0
+        try:
+            if not valid_index(file_index):
+                set_status(False)
+            elif cmd == 1:
+                info = File.Open(paths[file_index], FileMode.Open, FileAccess.Read)
+                regs[6] = int(info.Length) & 0xFFFFFFFF
+                info.Close()
+                set_status(True)
+            elif cmd == 2:
+                if guest_ptr == 0 or length == 0:
+                    set_status(False)
+                else:
+                    fs = File.Open(paths[file_index], FileMode.Open, FileAccess.Read)
+                    fs.Seek(offset, SeekOrigin.Begin)
+                    arr = System.Array.CreateInstance(System.Byte, length)
+                    got = fs.Read(arr, 0, length)
+                    fs.Close()
+                    if got > 0:
+                        sysbus.WriteBytes(arr, guest_ptr)
+                    checksum = 0
+                    for i in range(got):
+                        checksum = (checksum + int(arr[i])) & 0xFFFFFFFF
+                    regs[7] = got & 0xFFFFFFFF
+                    regs[8] = checksum
+                    set_status(True)
+            else:
+                set_status(False)
+        except Exception:
+            set_status(False)
+'''
+
+// B8.10 high-level physical EdgeTPU host bridge.  Guest firmware streams the
+// model/image bytes it read from FxUser/FileX; the host writes those bytes to
+// temp files and runs the existing C++ libusb/physical-Coral smoke.  This is
+// intentionally an emulator backend and does not replace ARM USB drivers.
+tpu_host_bridge: Python.PythonPeripheral @ sysbus 0x40901400
+    size: 0x100
+    initable: true
+    filename: "/home/bogdan/work/coralmicro/emu/renode/tpu_host_bridge.py"
+
+gpio1: GPIOPort.IMXRT_GPIO @ sysbus 0x4012C000
+gpio2: GPIOPort.IMXRT_GPIO @ sysbus 0x40130000
+gpio3: GPIOPort.IMXRT_GPIO @ sysbus 0x40134000
+gpio4: GPIOPort.IMXRT_GPIO @ sysbus 0x40138000
+gpio5: GPIOPort.IMXRT_GPIO @ sysbus 0x4013C000
+gpio6: GPIOPort.IMXRT_GPIO @ sysbus 0x40140000
+gpio7: GPIOPort.IMXRT_GPIO @ sysbus 0x40C5C000
+gpio8: GPIOPort.IMXRT_GPIO @ sysbus 0x40C60000
+gpio9: GPIOPort.IMXRT_GPIO @ sysbus 0x40C64000
+gpio10: GPIOPort.IMXRT_GPIO @ sysbus 0x40C68000
+gpio11: GPIOPort.IMXRT_GPIO @ sysbus 0x40C6C000
+gpio12: GPIOPort.IMXRT_GPIO @ sysbus 0x40C70000
+gpio13: GPIOPort.IMXRT_GPIO @ sysbus 0x40CA0000
+
+sysbus:
+    init:
+        Tag <0x00000000, 0x0007FFFF> "ITCM"
+        Tag <0x20000000, 0x2007FFFF> "DTCM"
+        Tag <0x20200000, 0x203FFFFF> "OCRAM"
+        Tag <0x80000000, 0x83FFFFFF> "SDRAM"
+        Tag <0x40030000, 0x4003BFFF> "WDOG1/2/RTWDOG3"
+        Tag <0x400D4000, 0x400D7FFF> "SEMC"
+        Tag <0x400CC000, 0x400CFFFF> "FLEXSPI1"
+        Tag <0x40090000, 0x40093FFF> "LPUART6"
+        Tag <0x40C84000, 0x40C87FFF> "ANADIG/OSC/PLL/PMU"
+        Tag <0x40C90000, 0x40C9BFFF> "SNVS/IOMUXC_SNVS"
+        Tag <0x4042C000, 0x40433FFF> "USB OTG"
+        Tag <0x40800000, 0x40817FFF> "CSI/MIPI/PXP"
+        Tag <0x40900C00, 0x40900CFF> "SentAI emu raw NAND bridge"
+        Tag <0x40901000, 0x409010FF> "SentAI emu host asset bridge"
+        Tag <0x40901400, 0x409014FF> "SentAI emu physical TPU host bridge"
+        Tag <0x40901800, 0x409018FF> "SentAI emu physical TPU Send bridge"
