@@ -18,11 +18,6 @@ import struct
 import threading
 import time
 
-try:
-    import numpy as np
-except Exception:  # pragma: no cover - runtime optional fast path
-    np = None
-
 
 SCM_MAGIC = 0x53434D31
 GET_MAGIC = 0x47455431
@@ -114,28 +109,6 @@ def downsample_rgb888(payload: bytes,
     return bytes(out)
 
 
-def rgb888_to_xrgb8888(payload: bytes) -> bytes:
-    if np is not None:
-        rgb = np.frombuffer(payload, dtype=np.uint8).reshape((-1, 3))
-        xrgb = np.empty((rgb.shape[0], 4), dtype=np.uint8)
-        xrgb[:, 0] = rgb[:, 2]
-        xrgb[:, 1] = rgb[:, 1]
-        xrgb[:, 2] = rgb[:, 0]
-        xrgb[:, 3] = 0
-        return xrgb.tobytes()
-
-    out = bytearray((len(payload) // 3) * 4)
-    src = memoryview(payload)
-    di = 0
-    for si in range(0, len(payload), 3):
-        out[di + 0] = src[si + 2]
-        out[di + 1] = src[si + 1]
-        out[di + 2] = src[si + 0]
-        out[di + 3] = 0
-        di += 4
-    return bytes(out)
-
-
 def tcp_server(latest: LatestFrame, host: str, port: int) -> None:
     srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -175,10 +148,6 @@ def main() -> int:
         help="Maximum Gazebo frames per second retained for Renode; 0 keeps all.")
     parser.add_argument("--out-width", type=int, default=640)
     parser.add_argument("--out-height", type=int, default=480)
-    parser.add_argument(
-        "--out-format", choices=("rgb888", "xrgb8888"),
-        default="xrgb8888",
-        help="Frame format retained for Renode pulls. xrgb8888 avoids a guest-side conversion.")
     args = parser.parse_args()
 
     try:
@@ -220,13 +189,9 @@ def main() -> int:
                 if min_period_s <= 0 or (now_s - last_keep_s) >= min_period_s:
                     out_payload = downsample_rgb888(
                         payload, w, h, args.out_width, args.out_height)
-                    out_fmt = 0
-                    if args.out_format == "xrgb8888":
-                        out_payload = rgb888_to_xrgb8888(out_payload)
-                        out_fmt = 1
                     out_hdr = struct.pack(
                         SCM_HDR, SCM_MAGIC, seq, args.out_width,
-                        args.out_height, out_fmt, len(out_payload))
+                        args.out_height, fmt, len(out_payload))
                     latest.store(out_hdr, out_payload, seq)
                     last_keep_s = now_s
                 else:

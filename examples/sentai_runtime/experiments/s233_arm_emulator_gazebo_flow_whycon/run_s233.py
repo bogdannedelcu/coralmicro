@@ -278,7 +278,8 @@ def start_gz_bridge(log_path: pathlib.Path) -> subprocess.Popen[str]:
 def start_host_relay(log_path: pathlib.Path,
                      max_fps: float,
                      out_width: int,
-                     out_height: int) -> subprocess.Popen[str]:
+                     out_height: int,
+                     out_format: str) -> subprocess.Popen[str]:
     cmd = [
         sys.executable,
         "emu/host/sentai_gazebo_uds_to_tcp_bridge.py",
@@ -288,6 +289,7 @@ def start_host_relay(log_path: pathlib.Path,
         "--max-fps", str(max_fps),
         "--out-width", str(out_width),
         "--out-height", str(out_height),
+        "--out-format", out_format,
     ]
     return start_to_file(cmd, ROOT, log_path)
 
@@ -331,6 +333,8 @@ def main() -> int:
         help="Max Gazebo camera frames/sec forwarded into Renode.")
     parser.add_argument("--camera-out-width", type=int, default=640)
     parser.add_argument("--camera-out-height", type=int, default=480)
+    parser.add_argument("--camera-out-format", default="xrgb8888",
+                        choices=("rgb888", "xrgb8888"))
     args = parser.parse_args()
 
     iter_dir = next_iter_dir()
@@ -374,6 +378,7 @@ def main() -> int:
         "camera_forward_fps": args.camera_forward_fps,
         "camera_out_width": args.camera_out_width,
         "camera_out_height": args.camera_out_height,
+        "camera_out_format": args.camera_out_format,
         "renode_script": str(renode_run_script.relative_to(ROOT)),
         "commands": commands,
     }
@@ -417,7 +422,8 @@ def main() -> int:
                 iter_dir / "gazebo_uds_tcp_relay.log",
                 args.camera_forward_fps,
                 args.camera_out_width,
-                args.camera_out_height)
+                args.camera_out_height,
+                args.camera_out_format)
             results["camera_tcp_ready"] = wait_tcp(
                 CAM_TCP_HOST, CAM_TCP_PORT, 10.0)
             if wait_path_socket(CAM_SOCK, 5.0):
@@ -486,6 +492,12 @@ def main() -> int:
             "bridge_served": f"{SYMBOL_PREFIX} bridge_served",
             "bridge_dropped": f"{SYMBOL_PREFIX} bridge_dropped",
             "bridge_bad": f"{SYMBOL_PREFIX} bridge_bad",
+            "bridge_read_ms_sum": f"{SYMBOL_PREFIX} bridge_read_ms_sum",
+            "bridge_read_ms_max": f"{SYMBOL_PREFIX} bridge_read_ms_max",
+            "publish_ms_sum": f"{SYMBOL_PREFIX} publish_ms_sum",
+            "publish_ms_max": f"{SYMBOL_PREFIX} publish_ms_max",
+            "loop_ms_sum": f"{SYMBOL_PREFIX} loop_ms_sum",
+            "loop_ms_max": f"{SYMBOL_PREFIX} loop_ms_max",
         }
         symbols = {
             key: parse_hex(label, renode_proc.stdout)
@@ -526,6 +538,12 @@ def main() -> int:
             f"cam_frames={symbols.get('cam_frames')}",
             f"bridge_seen={symbols.get('bridge_seen')}",
             f"bridge_served={symbols.get('bridge_served')}",
+            f"bridge_read_ms_sum={symbols.get('bridge_read_ms_sum')}",
+            f"bridge_read_ms_max={symbols.get('bridge_read_ms_max')}",
+            f"publish_ms_sum={symbols.get('publish_ms_sum')}",
+            f"publish_ms_max={symbols.get('publish_ms_max')}",
+            f"loop_ms_sum={symbols.get('loop_ms_sum')}",
+            f"loop_ms_max={symbols.get('loop_ms_max')}",
             f"prep_frames={uart.get('prep_frames')}",
             f"prep_fps_x100={uart.get('prep_fps_x100')}",
             f"flow_frames={uart.get('flow_frames')}",

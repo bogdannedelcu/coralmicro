@@ -20,8 +20,7 @@ if request.IsInit:
     get_magic = 0x47455431
     expect_w = 640
     expect_h = 480
-    expect_fmt = 1
-    expect_bytes = expect_w * expect_h * 4
+    expect_bytes = expect_w * expect_h * 3
     served_seq = [0]
     pull_count = [0]
     empty_count = [0]
@@ -134,7 +133,7 @@ if request.IsInit:
             if seq == 0 or nbytes == 0:
                 empty_count[0] += 1
                 return None
-            if w != expect_w or h != expect_h or fmt != expect_fmt or \
+            if w != expect_w or h != expect_h or fmt != 0 or \
                     nbytes != expect_bytes:
                 bad_count[0] += 1
                 log_line("bad frame seq=" + str(seq) +

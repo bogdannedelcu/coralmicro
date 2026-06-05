@@ -60,5 +60,17 @@ echo "sentai_emu_gazebo_flow_whycon bridge_dropped:"
 sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_gazebo_cam_bridge_dropped"`
 echo "sentai_emu_gazebo_flow_whycon bridge_bad:"
 sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_gazebo_cam_bridge_bad"`
+echo "sentai_emu_gazebo_flow_whycon bridge_read_ms_sum:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_gazebo_cam_bridge_read_ms_sum"`
+echo "sentai_emu_gazebo_flow_whycon bridge_read_ms_max:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_gazebo_cam_bridge_read_ms_max"`
+echo "sentai_emu_gazebo_flow_whycon publish_ms_sum:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_gazebo_cam_publish_ms_sum"`
+echo "sentai_emu_gazebo_flow_whycon publish_ms_max:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_gazebo_cam_publish_ms_max"`
+echo "sentai_emu_gazebo_flow_whycon loop_ms_sum:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_gazebo_cam_loop_ms_sum"`
+echo "sentai_emu_gazebo_flow_whycon loop_ms_max:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_gazebo_cam_loop_ms_max"`
 
 quit

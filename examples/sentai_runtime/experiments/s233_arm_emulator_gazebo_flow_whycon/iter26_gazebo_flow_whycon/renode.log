@@ -1,0 +1,74 @@
+$ /home/bogdan/work/renode_portable/renode --plain --console --disable-xwt emu/renode/sentai_emu_gazebo_flow_whycon.resc
+07:43:23.2514 [INFO] Loaded monitor commands from: /home/bogdan/work/renode_portable/scripts/monitor.py
+Renode, version 1.16.1 (ac18b5ac-202606020225)
+
+(monitor) i $CWD/emu/renode/sentai_emu_gazebo_flow_whycon.resc
+07:43:23.6126 [INFO] Including script(s): /home/bogdan/work/coralmicro/emu/renode/sentai_emu_gazebo_flow_whycon.resc
+07:43:23.6589 [INFO] System bus created.
+07:43:26.1536 [INFO] sysbus: Loading block of 3072 bytes length at 0x0.
+07:43:26.1806 [INFO] sysbus: Loading block of 228440 bytes length at 0xC00.
+07:43:26.1836 [INFO] sysbus: Loading block of 58624 bytes length at 0x38858.
+07:43:26.1837 [INFO] sysbus: Loading block of 1017376 bytes length at 0x20240000.
+07:43:26.1866 [INFO] sysbus: Loading block of 14680064 bytes length at 0x80000000.
+07:43:26.2256 [INFO] sysbus: Loading block of 12964288 bytes length at 0x80E00000.
+07:43:27.6168 [INFO] cpu: Setting initial values: PC = 0xCBD, SP = 0x20040000.
+07:43:27.6171 [INFO] machine-0: Machine started.
+07:43:27.8336 [WARNING] nvic: Unhandled write to offset 0xF50 (ICacheInvalidateAllToPoUaIgnored), value 0x0.
+07:43:27.9027 [WARNING] nvic: Trying to set the priority for interrupt 16 to 0xFF, but it should be maskable with 0xF0
+07:44:25.7149 [INFO] machine-0: Machine paused.
+sentai_emu_gazebo_flow_whycon PC:
+0x1be22
+sentai_emu_gazebo_flow_whycon boot_state:
+0x00000400
+sentai_emu_gazebo_flow_whycon heartbeat:
+0x00000000
+sentai_emu_gazebo_flow_whycon repl_lines:
+0x00000000
+sentai_emu_gazebo_flow_whycon last_tick:
+0x00000000
+sentai_emu_gazebo_flow_whycon serial_open_calls:
+0x00000001
+sentai_emu_gazebo_flow_whycon serial_write_calls:
+0x0000001E
+sentai_emu_gazebo_flow_whycon serial_read_calls:
+0x000000EB
+sentai_emu_gazebo_flow_whycon serial_bytes_tx:
+0x000000EB
+sentai_emu_gazebo_flow_whycon serial_bytes_rx:
+0x00000038
+sentai_emu_gazebo_flow_whycon serial_last_result:
+0x00000000
+sentai_emu_gazebo_flow_whycon cam_task_started:
+0x00000001
+sentai_emu_gazebo_flow_whycon cam_frames:
+0x000000ED
+sentai_emu_gazebo_flow_whycon cam_publish_fail:
+0x00000000
+sentai_emu_gazebo_flow_whycon cam_last_seq:
+0x000003C0
+sentai_emu_gazebo_flow_whycon cam_last_rc:
+0x0012C000
+sentai_emu_gazebo_flow_whycon bridge_seen:
+0x000000EE
+sentai_emu_gazebo_flow_whycon bridge_served:
+0x000000EE
+sentai_emu_gazebo_flow_whycon bridge_dropped:
+0x00000000
+sentai_emu_gazebo_flow_whycon bridge_bad:
+0x00000000
+sentai_emu_gazebo_flow_whycon bridge_read_ms_sum:
+0x00000000
+sentai_emu_gazebo_flow_whycon bridge_read_ms_max:
+0x00000000
+sentai_emu_gazebo_flow_whycon publish_ms_sum:
+0x0000AD59
+sentai_emu_gazebo_flow_whycon publish_ms_max:
+0x000000D6
+sentai_emu_gazebo_flow_whycon loop_ms_sum:
+0x0000AD59
+sentai_emu_gazebo_flow_whycon loop_ms_max:
+0x000000D6
+Renode is quitting
+07:44:25.9107 [INFO] machine-0: Disposed.
+
+[elapsed_s] 66.697

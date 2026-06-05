@@ -492,6 +492,62 @@ extern "C" int sentai_virtual_camera_publish_xrgb(uint32_t seq, int cam_id,
   return publish_xrgb(seq, cam_id, xrgb);
 }
 
+extern "C" int sentai_virtual_camera_reserve_xrgb(uint8_t** out_raw,
+                                                  size_t* out_bytes) {
+  if (!out_raw) return -1;
+  const int slot = choose_write_slot();
+  if (slot < 0) return -2;
+
+  taskENTER_CRITICAL();
+  s_slots[slot].seq = 0;
+  s_slots[slot].cam_id = SENTAI_VIRTUAL_CAMERA_ID;
+  s_slots[slot].full = 0;
+  s_slots[slot].held = 1;
+  if (s_w <= 0 || s_h <= 0) {
+    s_w = kMaxW;
+    s_h = kMaxH;
+  }
+  taskEXIT_CRITICAL();
+
+  *out_raw = s_frame_xrgb[slot];
+  if (out_bytes) {
+    *out_bytes = (size_t)kMaxW * (size_t)kMaxH * 4u;
+  }
+  return SENTAI_VIRTUAL_CAMERA_FRAME_IDX + slot;
+}
+
+extern "C" int sentai_virtual_camera_commit_xrgb(int idx,
+                                                 uint32_t seq,
+                                                 int cam_id) {
+  const int slot = slot_from_frame_idx(idx);
+  if (slot < 0) return -1;
+
+  taskENTER_CRITICAL();
+  const uint32_t out_seq = seq ? seq : (s_seq + 1u);
+  s_seq = out_seq;
+  s_current_cam_id = cam_id;
+  s_slots[slot].seq = out_seq;
+  s_slots[slot].cam_id = cam_id;
+  s_slots[slot].full = 1;
+  s_slots[slot].held = 0;
+  s_active = 1;
+  taskEXIT_CRITICAL();
+
+  if (sentai_virtual_camera_after_select) {
+    sentai_virtual_camera_after_select();
+  }
+  return 0;
+}
+
+extern "C" void sentai_virtual_camera_abort_xrgb(int idx) {
+  const int slot = slot_from_frame_idx(idx);
+  if (slot < 0) return;
+  taskENTER_CRITICAL();
+  s_slots[slot].held = 0;
+  s_slots[slot].full = 0;
+  taskEXIT_CRITICAL();
+}
+
 extern "C" size_t sentai_virtual_camera_get_rgb(uint8_t* dst, size_t max_bytes,
                                                  int* out_w, int* out_h,
                                                  uint32_t* out_seq) {

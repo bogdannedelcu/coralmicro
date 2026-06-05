@@ -31,6 +31,9 @@ int sentai_virtual_camera_grabbed_id(void);
 int sentai_virtual_camera_current_id(void);
 int sentai_virtual_camera_publish_xrgb(uint32_t seq, int cam_id,
                                        const uint8_t* xrgb);
+int sentai_virtual_camera_reserve_xrgb(uint8_t** out_raw, size_t* out_bytes);
+int sentai_virtual_camera_commit_xrgb(int idx, uint32_t seq, int cam_id);
+void sentai_virtual_camera_abort_xrgb(int idx);
 size_t sentai_virtual_camera_get_rgb(uint8_t* dst, size_t max_bytes,
                                      int* out_w, int* out_h,
                                      uint32_t* out_seq);
