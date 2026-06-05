@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//dev/**)",
+      "Bash(ip link *)",
+      "Bash(python3 diag/_host_upload_repl.py --file _t_camalt.py)",
+      "Bash(lsusb)",
+      "Bash(dmesg)",
+      "Bash(python3 *)",
+      "Bash(/home/bogdan/work/crazyflie/.venv/bin/python -c ' *)",
+      "*",
+      "Bash(pkill -9 -x cf2)",
+      "Bash(pkill -9 \"gz sim\")",
+      "Bash(distrobox enter *)",
+      "Bash(awk '{print $2}')",
+      "Bash(xargs -r kill -9)",
+      "Bash(mkdir -p /tmp/saver_test)",
+      "Bash(rm -f /tmp/saver_test/*)",
+      "Bash(git -C /home/bogdan/work/coralmicro show 2717bb27 --stat)",
+      "Bash(git -C /home/bogdan/work/coralmicro show feature/ov5640-camera-support:examples/sentai_runtime/sentai_places.h)",
+      "Bash(git -C /home/bogdan/work/coralmicro log --all --oneline --grep=\"places\\\\|HSV\")",
+      "Bash(curl * http://hpc.lan:11434/*)",
+      "Bash(curl http://hpc.lan:11434/*)",
+      "Bash(bash scripts/ai_distill.sh *)",
+      "Bash(scripts/ai_distill.sh *)"
+    ]
+  },
+  "autoMode": {
+    "allow": [
+      "$defaults",
+      "Allow `sudo apt-get update` and `sudo apt-get install/upgrade/remove` for this project's package needs (Gazebo, PX4, ROS 2, build deps). Operator approved 2026-05-10 to avoid re-prompts during sim setup.",
+      "Allow `sudo curl --output /usr/share/keyrings/*` and `sudo tee /etc/apt/sources.list.d/*` for adding the OSRF Gazebo apt repo (and similar future repos like PX4 / ROS 2)."
+    ]
+  }
+}
