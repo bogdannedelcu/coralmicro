@@ -757,12 +757,35 @@ Status:
   `SENTAI_PREP_SLOT_GRAY_NATIVE` (320x240 Y8) and
   `SENTAI_PREP_SLOT_FLOW_GRAY_80x60` (80x60 Y8).  FlowTask consumes only the
   80x60 slot; it does not process 640x480 directly.
+- PXP emulator research: Renode does not provide a functional NXP PXP model in
+  the local 1.16.1 tree.  The only matching built-in entry found is an
+  `imxrt1064.repl` `Tag <...> "PXP"`, which is a named/logged address region,
+  not an image-processing peripheral.  Our S233 firmware target currently links
+  `examples/sentai_runtime/sentai_pxp_shim_sim.c`, so `sentai_pxp_scale()` and
+  `sentai_pxp_xrgb_to_y8()` run as scalar C inside the emulated Cortex-M.  That
+  explains the VGA bottleneck: the RGB ingress optimization avoids XRGB->RGB
+  transfer/conversion overhead, but the gray/resize work still burns emulated
+  CPU cycles.
+- Official Renode direction: use a custom peripheral at the PXP semantic
+  boundary if this remains a bottleneck.  Renode documents Python peripherals
+  and system-bus hooks for simple MMIO-triggered logic, and C# peripheral models
+  for more advanced behavior; HDL co-simulation exists, but is not useful unless
+  we have an RTL PXP model.  Recommended next gate is an ARM-EMU-only
+  `sentai_pxp_shim_emu` that preserves the production API
+  (`sentai_pxp_scale`, `sentai_pxp_xrgb_to_y8`) while dispatching the resize/Y8
+  operation to a Renode host-side PXP bridge.  This is more faithful than
+  precomputing PrepTask slots in the camera bridge, because PrepTask still owns
+  the transform contract.
 
 Open design decision:
 
 - Prefer a host-to-guest MMIO/ring-buffer camera peripheral over FileX or REPL
   staging for live Gazebo frames.  FileX is acceptable for static fixtures, but
   the flight path must look like CameraTask/provider frame publication.
+- If the host-side PXP bridge is implemented, keep the boundary at
+  `sentai_pxp_*` first, not at WhyCon/Flow outputs.  Measure host wall-clock
+  transfer time separately from guest FreeRTOS ticks so we do not mistake
+  emulator timing for real throughput.
 
 ### s231 - Object/Place/SLAM/Explore Smokes
 
