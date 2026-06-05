@@ -1,0 +1,16 @@
+[ 20%] Built target libs_levelx
+[ 70%] Built target libs_filex
+[ 70%] Building CXX object emu/CMakeFiles/sentai_emu_namespace_inventory.dir/sentai_emu_repl.cc.obj
+[ 70%] Building C object emu/CMakeFiles/sentai_emu_namespace_inventory.dir/sentai_emu_fs_module.c.obj
+cc1plus: warning: command line option '-Wno-old-style-definition' is valid for C/ObjC but not for C++
+cc1plus: warning: command line option '-Wno-missing-prototypes' is valid for C/ObjC but not for C++
+[ 70%] Linking CXX executable sentai_emu_namespace_inventory
+/home/bogdan/work/coralmicro/third_party/toolchain-linux/gcc-arm-none-eabi-9-2020-q2-update/bin/../lib/gcc/arm-none-eabi/9.3.1/../../../../arm-none-eabi/bin/ld: region m_text overflowed with text and data
+collect2: error: ld returned 1 exit status
+gmake[3]: *** [emu/CMakeFiles/sentai_emu_namespace_inventory.dir/build.make:2402: emu/sentai_emu_namespace_inventory] Error 1
+gmake[2]: *** [CMakeFiles/Makefile2:4096: emu/CMakeFiles/sentai_emu_namespace_inventory.dir/all] Error 2
+gmake[1]: *** [CMakeFiles/Makefile2:4103: emu/CMakeFiles/sentai_emu_namespace_inventory.dir/rule] Error 2
+gmake: *** [Makefile:1541: sentai_emu_namespace_inventory] Error 2
+$ cmake --build build_emu --target sentai_emu_namespace_inventory -j16
+
+[elapsed_s] 0.666

@@ -1,0 +1,31 @@
+18:41:01.0340 [INFO] Loaded monitor commands from: /home/bogdan/work/renode_portable/scripts/monitor.py
+Renode, version 1.16.1 (ac18b5ac-202606020225)
+
+(monitor) i $CWD/emu/renode/sentai_emu_camera_markers.resc
+18:41:01.1602 [INFO] Including script(s): /home/bogdan/work/coralmicro/emu/renode/sentai_emu_camera_markers.resc
+18:41:01.1766 [INFO] System bus created.
+18:41:02.1052 [INFO] sysbus: Loading block of 3072 bytes length at 0x0.
+18:41:02.1168 [INFO] sysbus: Loading block of 204232 bytes length at 0xC00.
+18:41:02.1171 [INFO] sysbus: Loading block of 52768 bytes length at 0x329C8.
+18:41:02.1172 [INFO] sysbus: Loading block of 95776 bytes length at 0x20240000.
+18:41:02.1174 [INFO] sysbus: Loading block of 14680064 bytes length at 0x80000000.
+18:41:02.1385 [INFO] sysbus: Loading block of 12309216 bytes length at 0x80E00000.
+18:41:02.6072 [INFO] cpu: Setting initial values: PC = 0xCBD, SP = 0x20040000.
+18:41:02.6100 [INFO] machine-0: Machine started.
+18:41:02.6934 [WARNING] nvic: Unhandled write to offset 0xF50 (ICacheInvalidateAllToPoUaIgnored), value 0x0.
+18:41:02.7156 [WARNING] nvic: Trying to set the priority for interrupt 16 to 0xFF, but it should be maskable with 0xF0
+18:41:33.1977 [INFO] machine-0: Machine paused.
+sentai_emu_camera_markers PC:
+0x15eac
+sentai_emu_camera_markers boot_state:
+0x00000500
+sentai_emu_camera_markers heartbeat:
+0x0000009F
+sentai_emu_camera_markers last_tick:
+0x00004DA0
+sentai_emu_camera_markers repl_lines:
+0x00000001
+(machine-0) 18:41:33.2669 [INFO] machine-0: Disposed.
+$ /home/bogdan/work/renode_portable/renode --plain --console --disable-xwt emu/renode/sentai_emu_camera_markers.resc
+
+[elapsed_s] 33.700

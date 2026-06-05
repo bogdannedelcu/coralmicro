@@ -1,0 +1,21 @@
+$ /home/bogdan/work/renode_portable/renode --plain --console --disable-xwt emu/renode/sentai_emu_gazebo_flow_whycon.resc
+23:32:12.4049 [INFO] Loaded monitor commands from: /home/bogdan/work/renode_portable/scripts/monitor.py
+Renode, version 1.16.1 (ac18b5ac-202606020225)
+
+(monitor) i $CWD/emu/renode/sentai_emu_gazebo_flow_whycon.resc
+23:32:12.6766 [INFO] Including script(s): /home/bogdan/work/coralmicro/emu/renode/sentai_emu_gazebo_flow_whycon.resc
+23:32:12.7066 [INFO] System bus created.
+23:32:14.5840 [INFO] sysbus: Loading block of 3072 bytes length at 0x0.
+23:32:14.6065 [INFO] sysbus: Loading block of 225864 bytes length at 0xC00.
+23:32:14.6072 [INFO] sysbus: Loading block of 58600 bytes length at 0x37E48.
+23:32:14.6072 [INFO] sysbus: Loading block of 1017376 bytes length at 0x20240000.
+23:32:14.6091 [INFO] sysbus: Loading block of 14680064 bytes length at 0x80000000.
+23:32:14.6390 [INFO] sysbus: Loading block of 13885888 bytes length at 0x80E00000.
+23:32:15.6398 [INFO] cpu: Setting initial values: PC = 0xCBD, SP = 0x20040000.
+23:32:15.6434 [INFO] machine-0: Machine started.
+23:32:15.8035 [WARNING] nvic: Unhandled write to offset 0xF50 (ICacheInvalidateAllToPoUaIgnored), value 0x0.
+23:32:15.8440 [WARNING] nvic: Trying to set the priority for interrupt 16 to 0xFF, but it should be maskable with 0xF0
+
+[TIMEOUT] exceeded 180s
+
+[elapsed_s] 192.116

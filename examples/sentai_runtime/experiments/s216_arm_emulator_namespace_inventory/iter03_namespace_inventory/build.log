@@ -1,0 +1,6 @@
+[ 20%] Built target libs_levelx
+[ 70%] Built target libs_filex
+[100%] Built target sentai_emu_namespace_inventory
+$ cmake --build build_emu --target sentai_emu_namespace_inventory -j16
+
+[elapsed_s] 0.215

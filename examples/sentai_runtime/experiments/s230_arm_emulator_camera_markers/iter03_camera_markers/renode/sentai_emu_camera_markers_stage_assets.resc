@@ -1,0 +1,33 @@
+:name: SentAI S230 ARM-emulator stage camera/markers assets
+:description: Stages the WhyCon PGM/BMP assets into the emulated FileX/LevelX NAND image through the guest FxUser stack.
+
+i @emu/renode/sentai_rt1176.repl
+
+$bin?=@build_emu/emu/sentai_emu_camera_markers_stage_assets
+$uart_log?=@/home/bogdan/work/coralmicro/emu/output/sentai_emu_camera_markers_stage_assets.log
+
+macro reset
+"""
+    sysbus LoadELF $bin
+    cpu VectorTableOffset 0x800
+"""
+
+lpuart6 CreateFileBackend $uart_log
+runMacro $reset
+
+emulation RunFor "10s"
+
+lpuart6 CloseFileBackend $uart_log
+
+echo "sentai_emu_camera_markers_stage_assets PC:"
+cpu PC
+echo "sentai_emu_camera_markers_stage_assets boot_state:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_boot_state"`
+echo "sentai_emu_camera_markers_stage_assets stage_files:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_stage_files"`
+echo "sentai_emu_camera_markers_stage_assets stage_bytes:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_stage_bytes"`
+echo "sentai_emu_camera_markers_stage_assets stage_errors:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_stage_errors"`
+echo "sentai_emu_camera_markers_stage_assets stage_checksum:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_stage_checksum"`

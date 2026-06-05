@@ -1,0 +1,9 @@
+[ 16%] Built target libs_levelx
+[100%] Built target libs_filex
+[100%] Built target sentai_emu_camera_markers_stage_assets
+[ 11%] Built target libs_levelx
+[ 66%] Built target libs_filex
+[100%] Built target sentai_emu_camera_markers_repl
+$ cmake --build build_emu --target sentai_emu_camera_markers_stage_assets sentai_emu_camera_markers_repl -j16
+
+[elapsed_s] 0.315

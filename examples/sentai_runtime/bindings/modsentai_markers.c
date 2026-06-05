@@ -4,7 +4,10 @@
 // Surface (minimal, struct-only):
 //
 //   sentai.markers.init(backend)            -> int (0 ok, <0 err)
-//                                            backend ∈ {"aruco", "whycon"}
+//                                            backend ∈ {"whycon", "aruco"}
+//                                            "whycon" is the preferred
+//                                            circle-marker backend; "aruco"
+//                                            is legacy/diagnostic only.
 //                                            or int (1=ARUCO, 2=WHYCON).
 //   sentai.markers.clear()                  -> None
 //   sentai.markers.backend()                -> "none" | "aruco" | "whycon"

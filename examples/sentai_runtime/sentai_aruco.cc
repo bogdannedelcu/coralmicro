@@ -3513,10 +3513,12 @@ extern "C" int sentai_whycon_test_pgm(const char* path) {
     } else {
         ssize_t sz = FxUserSize(path);
         if (sz < 0) return -1;
-        if ((size_t)sz > sizeof(s_labels)) return -3;
-        size_t got = FxUserReadFile(path, s_labels, sizeof(s_labels));
+        uint8_t* stage = (uint8_t*)s_integral;
+        const size_t max_buf = sizeof(s_integral);
+        if ((size_t)sz > max_buf) return -3;
+        size_t got = FxUserReadFile(path, stage, max_buf);
         if (got == 0) return -1;
-        int rc = aruco_parse_pgm_buffer_(s_labels, got);
+        int rc = aruco_parse_pgm_buffer_(stage, got);
         if (rc != 0) return rc;
     }
     const uint32_t t0 = markers_dwt_cyc();

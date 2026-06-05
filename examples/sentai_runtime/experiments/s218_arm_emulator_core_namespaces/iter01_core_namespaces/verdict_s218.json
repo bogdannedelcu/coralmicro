@@ -1,0 +1,148 @@
+{
+  "started_at": "2026-06-04T17:01:09+0300",
+  "target": "sentai_emu_core_namespace_smoke",
+  "renode_script": "emu/renode/sentai_emu_core_namespace_smoke_ui.resc",
+  "renode_ui": true,
+  "commands": {
+    "configure": [
+      "cmake",
+      "-S",
+      ".",
+      "-B",
+      "build_emu",
+      "-DSENTAI_ARM_EMU=ON",
+      "-DSENTAI_SKIP_SDK_PATCHES=ON"
+    ],
+    "build": [
+      "cmake",
+      "--build",
+      "build_emu",
+      "--target",
+      "sentai_emu_core_namespace_smoke",
+      "-j16"
+    ],
+    "renode": [
+      "/home/bogdan/work/renode_portable/renode",
+      "--console",
+      "emu/renode/sentai_emu_core_namespace_smoke_ui.resc"
+    ]
+  },
+  "configure_rc": 0,
+  "build_rc": 0,
+  "renode_rc": 0,
+  "symbols": {
+    "boot_state": 1280,
+    "heartbeat": 28,
+    "repl_lines": 1,
+    "last_tick": 2882
+  },
+  "core": {
+    "saw_begin": true,
+    "saw_end": true,
+    "checks": {
+      "version": {
+        "status": "PASS",
+        "detail": "SentAI EMU B8"
+      },
+      "verbose_set": {
+        "status": "PASS",
+        "detail": "1"
+      },
+      "verbose_restore": {
+        "status": "PASS",
+        "detail": "0"
+      },
+      "debug": {
+        "status": "PASS",
+        "detail": "None"
+      },
+      "console_default": {
+        "status": "PASS",
+        "detail": "uart"
+      },
+      "console_uart": {
+        "status": "PASS",
+        "detail": "uart"
+      },
+      "io_led_on": {
+        "status": "PASS",
+        "detail": "None"
+      },
+      "io_led_off": {
+        "status": "PASS",
+        "detail": "None"
+      },
+      "sys_recovery": {
+        "status": "PASS",
+        "detail": "False"
+      },
+      "sys_boot_attempts": {
+        "status": "PASS",
+        "detail": "0"
+      },
+      "rtos_ticks_progress": {
+        "status": "PASS",
+        "detail": "55->80"
+      },
+      "rtos_uptime": {
+        "status": "PASS",
+        "detail": "0"
+      },
+      "fs_exists": {
+        "status": "PASS",
+        "detail": "11"
+      },
+      "fs_size": {
+        "status": "PASS",
+        "detail": "11"
+      },
+      "fs_read_str": {
+        "status": "PASS",
+        "detail": "hello world"
+      },
+      "fs_read_bytes": {
+        "status": "PASS",
+        "detail": "b'hello world'"
+      },
+      "fs_b64": {
+        "status": "PASS",
+        "detail": "aGVsbG8gd29ybGQ="
+      },
+      "fs_ls": {
+        "status": "PASS",
+        "detail": "[('s216_inventory.txt', 1, 1679), ('s218.txt', 1, 11)]"
+      },
+      "sentai_run": {
+        "status": "PASS",
+        "detail": "run-ok"
+      },
+      "fr_open_events": {
+        "status": "PASS",
+        "detail": "(0, 0, 0, 0, 0, 0, 0)"
+      },
+      "fr_open_scalars": {
+        "status": "PASS",
+        "detail": "(0, 0, 0, 0, 0, 0, 0)"
+      },
+      "fr_event": {
+        "status": "PASS",
+        "detail": "(1, 1, 0, 1, 0, 0, 0)"
+      },
+      "fr_scalar": {
+        "status": "PASS",
+        "detail": "(1, 1, 0, 1, 0, 0, 0)"
+      },
+      "fr_events_file": {
+        "status": "PASS",
+        "detail": "49"
+      },
+      "fr_scalars_file": {
+        "status": "PASS",
+        "detail": "52"
+      }
+    },
+    "fails": 0,
+    "fs_write_size": 869
+  },
+  "pass": true
+}

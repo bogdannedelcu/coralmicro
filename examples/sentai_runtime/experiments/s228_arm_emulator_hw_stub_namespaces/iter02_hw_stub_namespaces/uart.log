@@ -1,0 +1,63 @@
+
+SentAI EMU REPL B8.3
+MicroPython embed ready
+HW_BEGIN
+0
+0
+0
+0
+CHECK|usb_drive_off|PASS|
+CHECK|usb_drive_on_rejected|PASS|
+CHECK|usb_ip_unavailable|PASS|
+CHECK|usb_open_false|PASS|
+CHECK|usb_available_zero|PASS|
+CHECK|usb_read_empty|PASS|
+CHECK|uart_open_false|PASS|
+CHECK|uart_available_zero|PASS|
+CHECK|uart_read_empty|PASS|
+CHECK|imu_init|PASS|
+CHECK|imu_sample|PASS|{'y': 0.0, 'x': 0.0, 'temp': 25.0, 'z': 1000.0}
+CHECK|imu_degrees|PASS|{'pitch': 0.0, 'roll': 0.0, 'temp': 25.0}
+CHECK|imu_tap_start_rejected|PASS|
+CHECK|imu_tap_stop|PASS|
+CHECK|imu_poll_none|PASS|
+CHECK|mic_start_rejected|PASS|
+CHECK|mic_recording_false|PASS|
+CHECK|mic_samples_zero|PASS|
+CHECK|mic_level_zero|PASS|
+CHECK|mic_stop|PASS|
+CHECK|mic_save_none|PASS|
+CHECK|sleep_idle_timeout|PASS|145->150
+CHECK|servo_init_sim|PASS|
+CHECK|servo_arm_rejected|PASS|
+CHECK|servo_safe_status|PASS|{'last_result': -3, 'faults_oob': 0, 'trace_count': 1, 'trace_overwrites': 0, 'flight': 0, 'last_action': 2, 'faults_no_backend': 0, 'backend': 1, 'seq': 2, 'actions_ok': 0, 'faults_not_armed': 1, 'armed': 0}
+CHECK|servo_disarm|PASS|
+CHECK|servo_pose_none|PASS|
+CHECK|servo_pose_not_ready|PASS|
+CHECK|calib_identity_R|PASS|
+CHECK|calib_zero_offset|PASS|
+CHECK|calib_not_calibrated|PASS|
+CHECK|calib_kabsch_stub|PASS|((1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0), {'accepted': False, 'reject_code': -3, 'n_samples': 0})
+CHECK|lifter_count_zero|PASS|
+CHECK|lifter_list_empty|PASS|
+CHECK|lifter_stats_zero|PASS|
+CHECK|lifter_clear|PASS|
+CHECK|safety_init|PASS|
+CHECK|safety_clear|PASS|
+CHECK|safety_not_aborted|PASS|
+CHECK|safety_task_start_rejected|PASS|
+CHECK|safety_task_stop|PASS|
+CHECK|safety_enable_markers_rejected|PASS|
+0
+CHECK|safety_test_abort|PASS|
+0
+0
+0
+CHECK|fr_events_file|PASS|64
+CHECK|fr_scalars_file|PASS|55
+HW_FAILS|0
+True
+True
+True
+FS_WRITE|1733
+HW_END

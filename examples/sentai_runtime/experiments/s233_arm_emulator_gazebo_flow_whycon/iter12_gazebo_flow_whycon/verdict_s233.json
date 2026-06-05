@@ -1,0 +1,90 @@
+{
+  "started_at": "2026-06-04T23:39:08+0300",
+  "target": "sentai_emu_gazebo_flow_whycon_repl",
+  "world": "sentai_whycon_small",
+  "renode_ui": false,
+  "camera_forward_fps": 2.0,
+  "renode_script": "emu/renode/sentai_emu_gazebo_flow_whycon.resc",
+  "commands": {
+    "py_compile": [
+      "/usr/bin/python3",
+      "-m",
+      "py_compile",
+      "emu/renode/crazy_cpx_udp_mmio_bridge.py",
+      "emu/renode/gazebo_camera_mmio_bridge.py",
+      "emu/host/sentai_crazy_cpx_udp_bridge.py",
+      "emu/host/sentai_gazebo_uds_to_tcp_bridge.py"
+    ],
+    "configure": [
+      "cmake",
+      "-S",
+      ".",
+      "-B",
+      "build_emu",
+      "-DSENTAI_ARM_EMU=ON",
+      "-DSENTAI_SKIP_SDK_PATCHES=ON"
+    ],
+    "build": [
+      "cmake",
+      "--build",
+      "build_emu",
+      "--target",
+      "sentai_emu_gazebo_flow_whycon_repl",
+      "-j16"
+    ],
+    "respawn_sitl": [
+      "bash",
+      "sim/scripts/respawn_sitl.sh",
+      "sentai_whycon_small"
+    ],
+    "renode": [
+      "/home/bogdan/work/renode_portable/renode",
+      "--plain",
+      "--console",
+      "--disable-xwt",
+      "emu/renode/sentai_emu_gazebo_flow_whycon.resc"
+    ]
+  },
+  "py_compile_rc": 0,
+  "configure_rc": 0,
+  "build_rc": 0,
+  "respawn_sitl_rc": 0,
+  "camera_tcp_ready": true,
+  "renode_rc": -9,
+  "symbols": {
+    "boot_state": null,
+    "heartbeat": null,
+    "repl_lines": null,
+    "last_tick": null,
+    "serial_open_calls": null,
+    "serial_write_calls": null,
+    "serial_read_calls": null,
+    "serial_bytes_tx": null,
+    "serial_bytes_rx": null,
+    "serial_last_result": null,
+    "cam_task_started": null,
+    "cam_frames": null,
+    "cam_publish_fail": null,
+    "cam_last_seq": null,
+    "cam_last_rc": null,
+    "bridge_seen": null,
+    "bridge_served": null,
+    "bridge_dropped": null,
+    "bridge_bad": null
+  },
+  "uart": {
+    "begin": false,
+    "done": false,
+    "samples": 0,
+    "mark_errors": 0
+  },
+  "gazebo_camera_bridge": {
+    "connected": true,
+    "frames_logged": 8,
+    "bad_header": false,
+    "exceptions": 0
+  },
+  "pass_flow": false,
+  "pass_whycon": false,
+  "pass": false
+}

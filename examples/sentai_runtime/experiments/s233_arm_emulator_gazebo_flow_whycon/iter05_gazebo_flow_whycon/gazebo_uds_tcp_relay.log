@@ -1,0 +1,38 @@
+$ /usr/bin/python3 emu/host/sentai_gazebo_uds_to_tcp_bridge.py --uds /tmp/sentai_emu_cam.sock --tcp-host 127.0.0.1 --tcp-port 30233
+[uds-tcp] listening /tmp/sentai_emu_cam.sock
+[uds-tcp] gz client connected
+[uds-tcp] tcp connected 127.0.0.1:30233
+[uds-tcp] frames=30 seq=30
+[uds-tcp] frames=60 seq=60
+[uds-tcp] frames=90 seq=90
+[uds-tcp] frames=120 seq=120
+[uds-tcp] frames=150 seq=150
+[uds-tcp] frames=180 seq=180
+[uds-tcp] frames=210 seq=210
+[uds-tcp] frames=240 seq=240
+[uds-tcp] frames=270 seq=270
+[uds-tcp] frames=300 seq=300
+[uds-tcp] frames=330 seq=330
+[uds-tcp] frames=360 seq=360
+[uds-tcp] frames=390 seq=390
+[uds-tcp] frames=420 seq=420
+[uds-tcp] frames=450 seq=450
+[uds-tcp] frames=480 seq=480
+[uds-tcp] frames=510 seq=510
+[uds-tcp] frames=540 seq=540
+[uds-tcp] frames=570 seq=570
+[uds-tcp] frames=600 seq=600
+[uds-tcp] frames=630 seq=630
+[uds-tcp] frames=660 seq=660
+[uds-tcp] frames=690 seq=690
+[uds-tcp] frames=720 seq=720
+[uds-tcp] frames=750 seq=750
+[uds-tcp] frames=780 seq=780
+[uds-tcp] frames=810 seq=810
+[uds-tcp] frames=840 seq=840
+[uds-tcp] frames=870 seq=870
+[uds-tcp] frames=900 seq=900
+[uds-tcp] frames=930 seq=930
+[uds-tcp] frames=960 seq=960
+[uds-tcp] frames=990 seq=990
+[uds-tcp] client error: [Errno 32] Broken pipe

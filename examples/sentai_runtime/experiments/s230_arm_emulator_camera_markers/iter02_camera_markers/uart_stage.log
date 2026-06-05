@@ -1,0 +1,12 @@
+SentAI EMU FS asset staging boot
+SentAI EMU FS asset staging start
+FS_STAGE FORMAT
+FS_STAGE FILE index=3 size=76815 path=/markers/whycon_320x240.pgm
+FS_STAGE FILE index=4 size=921654 path=/images/whycon_640x480.bmp
+FS_STAGE PASS
+FS_STAGE files=0x00000002
+FS_STAGE bytes=0x000F3C45
+FS_STAGE checksum=0x0CC83B19
+FS_STAGE reads=0x00002DA7
+FS_STAGE writes=0x00001DE6
+FS_STAGE erases=0x0000022A

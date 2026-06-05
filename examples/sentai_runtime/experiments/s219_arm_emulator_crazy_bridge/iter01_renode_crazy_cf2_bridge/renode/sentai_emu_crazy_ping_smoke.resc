@@ -1,0 +1,45 @@
+:name: SentAI B9/s219 Crazyflie CPX UDP bridge smoke
+:description: Boots sentai_emu_crazy_ping_smoke. The guest runs shared sentai_crazy.cc through the emulator serial MMIO bridge. With cf2 running at 127.0.0.1:19850, ping should succeed; without cf2, init should still pass and ping should time out cleanly.
+
+i @emu/renode/sentai_rt1176.repl
+
+$bin?=@build_emu/emu/sentai_emu_crazy_ping_smoke
+$uart_log?=@/home/bogdan/work/coralmicro/emu/output/sentai_emu_crazy_ping_smoke.log
+
+macro reset
+"""
+    sysbus LoadELF $bin
+    cpu VectorTableOffset 0x800
+"""
+
+lpuart6 CreateFileBackend $uart_log
+runMacro $reset
+
+emulation RunFor "5.0s"
+
+lpuart6 CloseFileBackend $uart_log
+
+echo "sentai_emu_crazy_ping_smoke PC:"
+cpu PC
+echo "sentai_emu_crazy_ping_smoke boot_state:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_boot_state"`
+echo "sentai_emu_crazy_ping_smoke heartbeat:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_heartbeat"`
+echo "sentai_emu_crazy_ping_smoke last_tick:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_last_tick"`
+echo "sentai_emu_crazy_ping_smoke init_rc:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_crazy_init_rc"`
+echo "sentai_emu_crazy_ping_smoke ping_ms:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_crazy_ping_ms"`
+echo "sentai_emu_crazy_ping_smoke serial_open_calls:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_crazy_serial_open_calls"`
+echo "sentai_emu_crazy_ping_smoke serial_write_calls:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_crazy_serial_write_calls"`
+echo "sentai_emu_crazy_ping_smoke serial_read_calls:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_crazy_serial_read_calls"`
+echo "sentai_emu_crazy_ping_smoke serial_bytes_tx:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_crazy_serial_bytes_tx"`
+echo "sentai_emu_crazy_ping_smoke serial_bytes_rx:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_crazy_serial_bytes_rx"`
+echo "sentai_emu_crazy_ping_smoke serial_last_result:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_crazy_serial_last_result"`

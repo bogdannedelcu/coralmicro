@@ -1,0 +1,4 @@
+initialized emu NAND image: /home/bogdan/work/coralmicro/emu/output/sentai_emu_nand.bin (138412032 bytes)
+$ /usr/bin/python3 emu/scripts/init_emu_nand.py --reset
+
+[elapsed_s] 0.115

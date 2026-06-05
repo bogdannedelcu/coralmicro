@@ -1,0 +1,13 @@
+pass=False
+pass_flow=False
+pass_whycon=False
+cam_frames=420
+bridge_seen=420
+bridge_served=420
+prep_frames=None
+prep_fps_x100=None
+flow_frames=None
+flow_fps_x100=None
+marker_samples=None
+marker_hits=None
+marker_best=None

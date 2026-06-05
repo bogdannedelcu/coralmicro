@@ -1,0 +1,16 @@
+State  Recv-Q Send-Q Local Address:Port  Peer Address:PortProcess                            
+UNCONN 0      0         127.0.0.54:53         0.0.0.0:*                                      
+UNCONN 0      0      127.0.0.53%lo:53         0.0.0.0:*                                      
+UNCONN 0      0            0.0.0.0:19850      0.0.0.0:*    users:(("ruby",pid=810297,fd=27)) 
+UNCONN 0      0            0.0.0.0:19950      0.0.0.0:*    users:(("ruby",pid=810297,fd=26)) 
+UNCONN 0      0        224.0.0.251:5353       0.0.0.0:*    users:(("chrome",pid=4976,fd=338))
+UNCONN 0      0        224.0.0.251:5353       0.0.0.0:*    users:(("chrome",pid=5024,fd=126))
+UNCONN 0      0            0.0.0.0:5353       0.0.0.0:*                                      
+UNCONN 0      0            0.0.0.0:41332      0.0.0.0:*    users:(("cf2",pid=810374,fd=3))   
+UNCONN 0      0            0.0.0.0:58348      0.0.0.0:*                                      
+UNCONN 0      0            0.0.0.0:10317      0.0.0.0:*    users:(("ruby",pid=810375,fd=18)) 
+UNCONN 0      0            0.0.0.0:10317      0.0.0.0:*    users:(("ruby",pid=810297,fd=18)) 
+UNCONN 0      0            0.0.0.0:10318      0.0.0.0:*    users:(("ruby",pid=810375,fd=21)) 
+UNCONN 0      0            0.0.0.0:10318      0.0.0.0:*    users:(("ruby",pid=810297,fd=21)) 
+UNCONN 0      0               [::]:5353          [::]:*                                      
+UNCONN 0      0               [::]:44842         [::]:*                                      

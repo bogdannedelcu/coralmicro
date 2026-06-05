@@ -1,0 +1,23 @@
+pass=True
+pass_flow=True
+pass_whycon=True
+cam_frames=212
+bridge_seen=213
+bridge_served=213
+prep_frames=45
+prep_fps_x100=255
+flow_frames=45
+flow_fps_x100=255
+flow_base_frames=39
+flow_base_seq_last=10
+flow_base_nonzero=35
+marker_samples=7
+marker_hits=2
+marker_best=7
+crazy_init=0
+crazy_ping=2
+crazy_arm=0
+crazy_takeoff=0
+crazy_land=0
+crazy_stop=0
+S233_SAMPLE 46 42 0 0 255 0

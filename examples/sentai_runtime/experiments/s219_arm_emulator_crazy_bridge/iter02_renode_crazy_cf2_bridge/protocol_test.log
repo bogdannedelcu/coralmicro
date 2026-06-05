@@ -1,0 +1,4 @@
+OK sentai_crazy_cpx_udp_bridge
+$ /usr/bin/python3 emu/host/test_sentai_crazy_cpx_udp_bridge.py
+
+[elapsed_s] 0.065

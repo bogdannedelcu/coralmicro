@@ -1,0 +1,103 @@
+
+SentAI EMU REPL B8.3
+MicroPython embed ready
+INV_BEGIN
+VERSION|SentAI EMU B8
+ROOT|crazy,fr,fs,help,pipeline,rtos,tpu,version
+NS|fs|present|append,exists,format,ls,mkdir,read,read_base64,read_str,remove,size,sync,write
+NS|fr|present|close,init,open,push_event,push_scalar,stats,task_start,task_stop
+NS|rtos|present|sleep_ms,ticks_ms
+NS|sys|missing|
+NS|io|missing|
+NS|tpu|present|fps,fps_invoke,image_mem_size,invoke,load,load_image,load_image_mem,num_outputs,ready,start,stats,stop
+NS|pipeline|present|detections
+NS|crazy|present|altitude,arm,attitude,attitude_get,attitude_release_no_disarm,baro,battery,battery_pct,canfly,debug,disarm,flow_pred,flowdeck_pos,fly,fly_stop,go_to,hl_stop,hover,init,is_flying,is_tumbled,land,link_send,log_stats,on_message,ping,pose,pose_ready,pose_stop,pose_subscribe,pressure,send_crtp,send_extpos,send_extpose,send_flow,stop,stop_motors,takeoff,telem,temp,test_fly,velocity
+NS|camera|missing|
+NS|flow|missing|
+NS|markers|missing|
+NS|usb|missing|
+NS|uart|missing|
+NS|link|missing|
+NS|mesh|missing|
+NS|imu|missing|
+NS|mic|missing|
+NS|sleep|missing|
+NS|safety|missing|
+NS|objects|missing|
+NS|places|missing|
+NS|slam|missing|
+NS|explore|missing|
+NS|tfl|missing|
+NS|aifes|missing|
+NS|kmeans|missing|
+NS|pca|missing|
+NS|anomaly|missing|
+NS|dtw|missing|
+NS|hmm|missing|
+NS|rl|missing|
+NS|servo|missing|
+NS|object_lifter|missing|
+NS|calib|missing|
+HELP|all|begin
+SentAI ARM emulator module (B8)
+Compiled namespaces: sentai.fs, sentai.rtos, sentai.fr, sentai.tpu, sentai.pipeline, sentai.crazy
+This is an emulator bring-up subset, not the full production examples/sentai_runtime/modsentai.c module yet.
+Useful commands:
+  sentai.help('fs')
+  sentai.fs.ls('/')
+  sentai.fs.size('/path')
+  sentai.rtos.ticks_ms()
+HELP|all|ok
+HELP|fs|begin
+sentai.fs: FileX-backed emulator filesystem
+  ls(path) -> list of (name, type, size)
+  size(path) -> bytes or -1
+  exists(path) -> bool
+  read(path) -> bytes
+  read_str(path) -> str
+  write(path, bytes) -> bool
+  append(path, bytes) -> bool
+  mkdir(path) -> bool
+  sync() -> bool
+HELP|fs|ok
+HELP|fr|begin
+sentai.fr: FileX-backed flight-recorder subset
+  init(), open(channel), close(channel)
+  task_start(name), task_stop(name)
+  push_event(label[, ts_ms])
+  push_scalar(label, value[, ts_ms])
+  stats(channel)
+HELP|fr|ok
+HELP|rtos|begin
+sentai.rtos: minimal emulator timing helpers
+  ticks_ms() -> FreeRTOS tick count in ms
+  sleep_ms(ms) -> vTaskDelay wrapper
+HELP|rtos|ok
+HELP|tpu|begin
+sentai.tpu / sentai.pipeline: B8 emulator TPU bridge surface
+Guest-side calls are bridged to the host-side physical Coral path used by the emulator smoke and timing tests.
+HELP|tpu|ok
+HELP|pipeline|begin
+sentai.tpu / sentai.pipeline: B8 emulator TPU bridge surface
+Guest-side calls are bridged to the host-side physical Coral path used by the emulator smoke and timing tests.
+HELP|pipeline|ok
+HELP|crazy|begin
+sentai.crazy: shared Crazyflie CPX/CRTP binding
+  init([baud=576000]) -> int
+  ping([timeout_ms=1000]) -> int
+  canfly(), is_flying(), is_tumbled()
+  battery(), altitude(), attitude_get(), velocity()
+In the ARM emulator the UART transport is backed by the Renode CPX/UDP bridge to cf2.
+HELP|crazy|ok
+HELP|sys|begin
+Unknown emulator help topic. Available: fs, rtos, fr, tpu, pipeline, crazy, all
+HELP|sys|ok
+HELP|io|begin
+Unknown emulator help topic. Available: fs, rtos, fr, tpu, pipeline, crazy, all
+HELP|io|ok
+[('models', 2, 0), ('images', 2, 0), ('mission.py', 1, 15456), ('fr', 2, 0), ('b9', 2, 0)]
+True
+True
+True
+FS_WRITE|1582
+INV_END

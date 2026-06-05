@@ -1,0 +1,6 @@
+[ 12%] Built target libs_levelx
+[ 62%] Built target libs_filex
+[100%] Built target sentai_emu_crazy_calib_precursor_repl
+$ cmake --build build_emu --target sentai_emu_crazy_calib_precursor_repl -j16
+
+[elapsed_s] 0.215

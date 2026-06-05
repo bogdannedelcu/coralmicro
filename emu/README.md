@@ -83,6 +83,25 @@ Important local facts:
   `sysbus LoadBinary`.
 - `scripts/prepare_cat_scenes.py` - preprocesses the B7 reference
   cat BMP into 32x32 Y8 scene .bin files under `output/scenes/`.
+- `host/sentai_crazy_cpx_udp_bridge.py` - B9/s219 host bridge that
+  terminates emulator CPX-over-UART, acknowledges CPX CTS, forwards CRTP
+  datagrams to CrazySim/cf2 UDP `127.0.0.1:19850`, and wraps inbound CRTP
+  back into CPX frames for the guest.
+- `host/test_sentai_crazy_cpx_udp_bridge.py` - protocol-only smoke test for
+  the CPX/CRTP parser/wrapper.  It does not require Renode or cf2.
+- `sentai_emu_crazy_serial_bridge.cc` - guest-side `SENTAI_ARM_EMU` serial
+  backend for `sentai_uart_serial_*`.  It lets `sentai.crazy` use a dedicated
+  MMIO transport instead of sharing LPUART6 with the REPL.
+- `renode/crazy_cpx_udp_mmio_bridge.py` - Renode PythonPeripheral backing the
+  guest serial MMIO contract and forwarding CPX/CRTP to cf2 UDP.
+- `renode/sentai_emu_camera_markers_stage_assets.resc` - stages the S230
+  WhyCon PGM/BMP assets into the emulated FileX/LevelX NAND image through the
+  guest FxUser stack.
+- `renode/sentai_emu_camera_markers.resc` - boots the S230 MicroPython target
+  with shared `sentai.camera` and `sentai.markers`, then runs the camera +
+  WhyCon autorun smoke.
+- `renode/sentai_emu_camera_markers_ui.resc` - same S230 camera/markers target
+  with Renode UART analyzer enabled for interactive debugging.
 - `mp_inc/mpconfigport.h` - B8.3 emu MicroPython config.
 - `mp_inc_mission/mpconfigport.h` - B8.4 config (adds external import +
   `sys.path` attribute delegation on top of B8.3).
@@ -195,6 +214,75 @@ python3 examples/sentai_runtime/experiments/s213_arm_emulator_idle/run_s213.py -
 python3 examples/sentai_runtime/experiments/s213_arm_emulator_idle/run_s213.py --target mission
 ```
 
+## SentAI Namespace Verification (B9)
+
+B9 verifies the MicroPython-facing `sentai.*` surface in small emulator
+profiles.  Use `--renode-ui` when you want the Renode UART analyzer visible
+while the same file backend records artifacts:
+
+```sh
+python3 examples/sentai_runtime/experiments/s216_arm_emulator_namespace_inventory/run_s216.py --renode-ui
+python3 examples/sentai_runtime/experiments/s218_arm_emulator_core_namespaces/run_s218.py --renode-ui
+python3 examples/sentai_runtime/experiments/s228_arm_emulator_hw_stub_namespaces/run_s228.py --renode-ui
+python3 examples/sentai_runtime/experiments/s229_arm_emulator_gazebo_calib_precursor/run_s229.py --renode-ui
+```
+
+Current checkpoints:
+
+- S216 `iter05_namespace_inventory`: PASS, wide inventory profile with
+  `fs/fr/rtos/io/sys/tpu/pipeline/crazy`, 14 shared exports present, 26 still
+  missing, 0 unexpected.
+- S218 `iter01_core_namespaces`: PASS, 25/25 checks for top-level helpers,
+  `fs`, `fr`, `rtos`, `io`, and `sys`.
+- S228 `iter02_hw_stub_namespaces`: PASS, 45/45 checks for safe emulator
+  stubs under `usb`, `uart`, `imu`, `mic`, `sleep`, `servo`, `calib`,
+  `object_lifter`, and `safety`.
+- S229 `iter01_gazebo_whycon_calib_precursor`: PASS, boots Renode with UART UI,
+  starts CrazySim/cf2 in `sentai_whycon_small`, probes the current
+  `sentai.calib` stub boundary, and runs a conservative
+  `sentai.crazy.fly(0.35, 1800, 2200, 2200)` through the bridge.
+- S230 `iter03_camera_markers`: PASS, stages a synthetic WhyCon marker into
+  emulator FileX, verifies `sentai.markers.detect_pgm()`, then selects a
+  staged BMP through `sentai.camera`, runs `prep_once()`, and verifies
+  `sentai.markers.detect_from_camera()` plus a 10-frame repeated loop.
+- S233 `iter23_gazebo_flow_whycon`: PASS, feeds live Gazebo VGA
+  `640x480` RGB888 frames (`921600` bytes/frame) into the shared runtime camera
+  backend, then verifies PrepTask, FlowTask, WhyCon, and cf2 commands together.
+  FlowTask consumes PrepTask's `FLOW_GRAY_80x60` slot; it does not process the
+  VGA frame directly.
+
+Run the S230 camera + WhyCon marker smoke:
+
+```sh
+python3 examples/sentai_runtime/experiments/s230_arm_emulator_camera_markers/run_s230.py
+```
+
+Expected proof:
+
+```text
+pass=True
+pgm_n=1
+cam_n=1
+loop_ok=10/10
+loop_fps_x100=291
+```
+
+The S230 target uses the shared runtime camera and markers bindings.  The
+emulator-specific boundary is `emu/sentai_emu_camera_runtime_bridge.cc`, which
+supplies the board/HAL/filesystem callbacks needed by the shared runtime.  The
+experiment runner archives generated assets, Renode logs, UART logs, and
+`verdict_s230.json` under
+`examples/sentai_runtime/experiments/s230_arm_emulator_camera_markers/iterNN_*`.
+It removes the S230 UART files from `emu/output` after archiving, so persistent
+run artifacts stay under the `s230` experiment folder.
+
+S216 and S228 are intentionally separate profiles.  The wide inventory profile
+already includes TPU/Pipeline/Crazy bridge code; adding every hardware stub to
+the same binary overflows the 256 KiB RT1176 RAM text region used by this
+bring-up linker script.  The split keeps each behavior explicit without
+pretending the emulator has real USB MSC, UART serial, IMU, microphone, or
+actuator hardware.
+
 Run the current production artifact inventory script:
 
 ```sh
@@ -203,3 +291,112 @@ Run the current production artifact inventory script:
 
 Expected early blockers are SEMC/NAND/LFS/USB peripheral fidelity, not the
 ARM CPU model itself.
+
+## Crazyflie Bridge (B9/s219)
+
+`sentai.crazy` is the active drone-control priority for B9.  The intended
+guest path remains the shared ARM runtime path:
+
+```text
+sentai.crazy -> CRTP -> CPX -> UART
+```
+
+The emulator-specific part lives on the host side and translates that UART
+byte stream to cf2 CRTP UDP.  Run the bridge smoke test with:
+
+```sh
+python3 emu/host/test_sentai_crazy_cpx_udp_bridge.py
+```
+
+Once Renode exposes a second UART/PTY/socket for Crazyflie traffic, start the
+host bridge like:
+
+```sh
+python3 emu/host/sentai_crazy_cpx_udp_bridge.py \
+  --serial <renode-crazy-pty> \
+  --udp-host 127.0.0.1 \
+  --udp-port 19850 \
+  --verbose
+```
+
+Do not use LPUART6 for this while the interactive REPL is on LPUART6.  The
+Crazy bridge is for `sentai.crazy`/cf2.  `sentai.link`/PX4/MAVLink is a later
+B9 step and remains deferred until a PX4 simulator endpoint is installed.
+
+The current B9 implementation also has a lower-friction MMIO route for Renode:
+`sentai_emu_crazy_serial_bridge.cc` implements the guest serial ABI and
+`renode/crazy_cpx_udp_mmio_bridge.py` forwards those requests to cf2.  This is
+an emulator transport substitution at the serial boundary, not a new
+MicroPython API and not a replacement for the production `sentai.crazy` logic.
+The guest-side serial backend can be compile-checked with:
+
+```sh
+cmake -S . -B build_emu -DSENTAI_ARM_EMU=ON -DSENTAI_SKIP_SDK_PATCHES=ON
+cmake --build build_emu --target sentai_emu_crazy_serial_bridge_obj -j$(nproc)
+```
+
+The current end-to-end smoke is archived under experiment `s219`:
+
+```sh
+python3 examples/sentai_runtime/experiments/s219_arm_emulator_crazy_bridge/run_s219.py
+```
+
+That runner compile-checks the bridge code, respawns CrazySim/cf2 in the
+`sentai_whycon_small` world by default, boots
+`sentai_emu_crazy_ping_smoke` in Renode, and copies the logs into the next
+`s219/iterNN_*` directory.  The first archived PASS is:
+
+```text
+examples/sentai_runtime/experiments/s219_arm_emulator_crazy_bridge/iter01_renode_crazy_cf2_bridge
+boot_state=0x0B00 init_rc=0 ping_ms=5 serial_tx=54 serial_rx=22
+bridge: guest->udp crtp_len=5, udp->guest crtp_len=5
+```
+
+The first archived MicroPython `sentai.crazy` namespace PASS with Renode UI
+enabled is:
+
+```text
+examples/sentai_runtime/experiments/s219_arm_emulator_crazy_bridge/iter03_renode_crazy_mp_cf2_bridge
+boot_state=0x0500 CRAZY_MP_INIT=0 CRAZY_MP_PING_MS=1 CRAZY_MP_STOP=0
+serial_tx=56 serial_rx=22 bridge: guest->udp=1, udp->guest=1
+```
+
+Use `--world sentai_crazysim` only for CRTP-only bring-up where the visual
+marker pad is irrelevant.  For interactive debugging with Renode's UI/analyzer
+enabled:
+
+```sh
+python3 examples/sentai_runtime/experiments/s219_arm_emulator_crazy_bridge/run_s219.py \
+  --renode-ui
+```
+
+`--renode-ui` selects the matching `_ui.resc` script and opens
+`showAnalyzer lpuart6`, while still writing the UART file backend archived by
+the experiment runner.  Use `--mode mp --renode-ui` for the MicroPython
+`sentai.crazy` namespace smoke.
+
+This target is still primarily a C++ smoke harness.  The next B9 step is to
+broaden the MicroPython namespace target from `init`/`ping` to telemetry and
+safe arm/disarm commands, logging mission results through `sentai.fr`.
+
+The first Gazebo/WhyCon flight precursor is archived under `s229`:
+
+```sh
+python3 examples/sentai_runtime/experiments/s229_arm_emulator_gazebo_calib_precursor/run_s229.py \
+  --renode-ui
+```
+
+Archived PASS:
+
+```text
+examples/sentai_runtime/experiments/s229_arm_emulator_gazebo_calib_precursor/iter01_gazebo_whycon_calib_precursor
+CALIB_GZ_INIT=0 CALIB_GZ_PING_MS=2 CALIB_GZ_FLY_RC=0 CALIB_GZ_STOP=0
+serial_tx=131 serial_rx=50 bridge: guest->udp=5, udp->guest=3
+```
+
+`CALIB_GZ_ALT_AFTER=-999.0` is expected in this profile: the current
+`sentai.crazy.altitude()` binding uses the SentAI deck telemetry channel, not
+the cf2 standard log path exposed by the emulator bridge.  The visual
+calibration stack is also not complete yet; `sentai.calib` is only a stable
+emulator stub until `sentai.camera` and `sentai.markers` are ported into the
+same profile.

@@ -1,0 +1,31 @@
+:name: SentAI B9/s218 core namespace smoke
+:description: Boots sentai_emu_core_namespace_smoke and autoruns MicroPython checks for fs/fr/rtos/io/sys plus top-level helpers.
+
+i @emu/renode/sentai_rt1176.repl
+
+$bin?=@build_emu/emu/sentai_emu_core_namespace_smoke
+$uart_log?=@/home/bogdan/work/coralmicro/emu/output/sentai_emu_core_namespace_smoke.log
+
+macro reset
+"""
+    sysbus LoadELF $bin
+    cpu VectorTableOffset 0x800
+"""
+
+lpuart6 CreateFileBackend $uart_log
+runMacro $reset
+
+emulation RunFor "3.0s"
+
+lpuart6 CloseFileBackend $uart_log
+
+echo "sentai_emu_core_namespace_smoke PC:"
+cpu PC
+echo "sentai_emu_core_namespace_smoke boot_state:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_boot_state"`
+echo "sentai_emu_core_namespace_smoke heartbeat:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_heartbeat"`
+echo "sentai_emu_core_namespace_smoke repl_lines:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_repl_lines"`
+echo "sentai_emu_core_namespace_smoke last_tick:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_last_tick"`

@@ -1,0 +1,4 @@
+[100%] Built target sentai_emu_crazy_ping_smoke
+$ cmake --build build_emu --target sentai_emu_crazy_ping_smoke -j16
+
+[elapsed_s] 0.269

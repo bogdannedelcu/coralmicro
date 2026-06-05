@@ -1,0 +1,78 @@
+{
+  "started_at": "2026-06-04T18:40:40+0300",
+  "targets": [
+    "sentai_emu_camera_markers_stage_assets",
+    "sentai_emu_camera_markers_repl"
+  ],
+  "renode_script": "emu/renode/sentai_emu_camera_markers.resc",
+  "stage_script": "emu/renode/sentai_emu_camera_markers_stage_assets.resc",
+  "commands": {
+    "prepare_assets": [
+      "/usr/bin/python3",
+      "examples/sentai_runtime/experiments/s230_arm_emulator_camera_markers/prepare_s230_assets.py"
+    ],
+    "configure": [
+      "cmake",
+      "-S",
+      ".",
+      "-B",
+      "build_emu",
+      "-DSENTAI_ARM_EMU=ON",
+      "-DSENTAI_SKIP_SDK_PATCHES=ON"
+    ],
+    "build": [
+      "cmake",
+      "--build",
+      "build_emu",
+      "--target",
+      "sentai_emu_camera_markers_stage_assets",
+      "sentai_emu_camera_markers_repl",
+      "-j16"
+    ],
+    "reset_nand": [
+      "/usr/bin/python3",
+      "emu/scripts/init_emu_nand.py",
+      "--reset"
+    ],
+    "renode_stage": [
+      "/home/bogdan/work/renode_portable/renode",
+      "--plain",
+      "--console",
+      "--disable-xwt",
+      "emu/renode/sentai_emu_camera_markers_stage_assets.resc"
+    ],
+    "renode": [
+      "/home/bogdan/work/renode_portable/renode",
+      "--plain",
+      "--console",
+      "--disable-xwt",
+      "emu/renode/sentai_emu_camera_markers.resc"
+    ]
+  },
+  "prepare_assets_rc": 0,
+  "configure_rc": 0,
+  "build_rc": 0,
+  "reset_nand_rc": 0,
+  "renode_stage_rc": 0,
+  "renode_rc": 0,
+  "symbols": {
+    "stage_boot_state": 1792,
+    "stage_files": 2,
+    "stage_errors": 0,
+    "boot_state": 1280,
+    "heartbeat": 159,
+    "repl_lines": 1
+  },
+  "camera_markers": {
+    "done": true,
+    "pgm_n": 1,
+    "cam_n": 1,
+    "loop_frames": 10,
+    "loop_ok": 10,
+    "loop_dt_ms": 3428,
+    "loop_fps_x100": 291,
+    "camera_detection_line": "CAM_MARK_CAM_DET0 (0, 159.5, 119.5, 41.08918, 41.08918, 0.7853982, 0, -0.000567546, -0.000567546, 0.2724221, -0.0, 0.0, 0.0, 0.0, 2, 1, 1, 34.0)",
+    "observation_line": "CAM_MARK_OBS (1, 1, 1, 159.5, 119.5, 34.0, 0.2724221, 125.5, 85.5, 193.5, 153.5, 1, 532, 1, 2)"
+  },
+  "pass": true
+}

@@ -61,11 +61,18 @@ struct StageAsset {
   const char* parent_dir;
 };
 
+#if SENTAI_EMU_STAGE_CAMERA_MARKERS
+constexpr StageAsset kAssets[] = {
+    {3, "/markers/whycon_320x240.pgm", "/markers"},
+    {4, "/images/whycon_640x480.bmp", "/images"},
+};
+#else
 constexpr StageAsset kAssets[] = {
     {0, "/models/tf2_ssd_mobilenet_v2_coco17_ptq_edgetpu.tflite", "/models"},
     {1, "/images/cat_640x480.bmp", "/images"},
     {2, "/mission.py", nullptr},
 };
+#endif
 
 StaticTask_t g_stage_tcb;
 StackType_t g_stage_stack[configMINIMAL_STACK_SIZE * 48]

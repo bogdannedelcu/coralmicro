@@ -1,0 +1,92 @@
+{
+  "started_at": "2026-06-04T23:56:55+0300",
+  "target": "sentai_emu_gazebo_flow_whycon_repl",
+  "world": "sentai_whycon_small",
+  "renode_ui": false,
+  "camera_forward_fps": 15.0,
+  "camera_out_width": 320,
+  "camera_out_height": 240,
+  "renode_script": "emu/renode/sentai_emu_gazebo_flow_whycon.resc",
+  "commands": {
+    "py_compile": [
+      "/usr/bin/python3",
+      "-m",
+      "py_compile",
+      "emu/renode/crazy_cpx_udp_mmio_bridge.py",
+      "emu/renode/gazebo_camera_mmio_bridge.py",
+      "emu/host/sentai_crazy_cpx_udp_bridge.py",
+      "emu/host/sentai_gazebo_uds_to_tcp_bridge.py"
+    ],
+    "configure": [
+      "cmake",
+      "-S",
+      ".",
+      "-B",
+      "build_emu",
+      "-DSENTAI_ARM_EMU=ON",
+      "-DSENTAI_SKIP_SDK_PATCHES=ON"
+    ],
+    "build": [
+      "cmake",
+      "--build",
+      "build_emu",
+      "--target",
+      "sentai_emu_gazebo_flow_whycon_repl",
+      "-j16"
+    ],
+    "respawn_sitl": [
+      "bash",
+      "sim/scripts/respawn_sitl.sh",
+      "sentai_whycon_small"
+    ],
+    "renode": [
+      "/home/bogdan/work/renode_portable/renode",
+      "--plain",
+      "--console",
+      "--disable-xwt",
+      "emu/renode/sentai_emu_gazebo_flow_whycon.resc"
+    ]
+  },
+  "py_compile_rc": 0,
+  "configure_rc": 0,
+  "build_rc": 0,
+  "respawn_sitl_rc": 0,
+  "camera_tcp_ready": true,
+  "renode_rc": 0,
+  "symbols": {
+    "boot_state": 1024,
+    "heartbeat": 0,
+    "repl_lines": 0,
+    "last_tick": 0,
+    "serial_open_calls": 0,
+    "serial_write_calls": 0,
+    "serial_read_calls": 0,
+    "serial_bytes_tx": 0,
+    "serial_bytes_rx": 0,
+    "serial_last_result": 4294967295,
+    "cam_task_started": 1,
+    "cam_frames": 420,
+    "cam_publish_fail": 0,
+    "cam_last_seq": 982,
+    "cam_last_rc": 0,
+    "bridge_seen": 420,
+    "bridge_served": 420,
+    "bridge_dropped": 1967,
+    "bridge_bad": 0
+  },
+  "uart": {
+    "begin": true,
+    "done": false,
+    "samples": 0,
+    "mark_errors": 0
+  },
+  "gazebo_camera_bridge": {
+    "connected": false,
+    "frames_logged": 0,
+    "bad_header": false,
+    "exceptions": 0
+  },
+  "pass_flow": false,
+  "pass_whycon": false,
+  "pass": false
+}

@@ -1,0 +1,84 @@
+{
+  "started_at": "2026-06-04T18:07:12+0300",
+  "target": "sentai_emu_crazy_calib_precursor_repl",
+  "world": "sentai_whycon_small",
+  "renode_ui": true,
+  "renode_script": "emu/renode/sentai_emu_crazy_calib_precursor_ui.resc",
+  "commands": {
+    "py_compile": [
+      "/usr/bin/python3",
+      "-m",
+      "py_compile",
+      "emu/host/sentai_crazy_cpx_udp_bridge.py",
+      "emu/host/test_sentai_crazy_cpx_udp_bridge.py",
+      "emu/renode/crazy_cpx_udp_mmio_bridge.py"
+    ],
+    "protocol_test": [
+      "/usr/bin/python3",
+      "emu/host/test_sentai_crazy_cpx_udp_bridge.py"
+    ],
+    "configure": [
+      "cmake",
+      "-S",
+      ".",
+      "-B",
+      "build_emu",
+      "-DSENTAI_ARM_EMU=ON",
+      "-DSENTAI_SKIP_SDK_PATCHES=ON"
+    ],
+    "build": [
+      "cmake",
+      "--build",
+      "build_emu",
+      "--target",
+      "sentai_emu_crazy_calib_precursor_repl",
+      "-j16"
+    ],
+    "respawn_sitl": [
+      "bash",
+      "sim/scripts/respawn_sitl.sh",
+      "sentai_whycon_small"
+    ],
+    "renode": [
+      "/home/bogdan/work/renode_portable/renode",
+      "--console",
+      "emu/renode/sentai_emu_crazy_calib_precursor_ui.resc"
+    ]
+  },
+  "py_compile_rc": 0,
+  "protocol_test_rc": 0,
+  "configure_rc": 0,
+  "build_rc": 0,
+  "respawn_sitl_rc": 0,
+  "renode_rc": 0,
+  "symbols": {
+    "boot_state": 1280,
+    "heartbeat": 42,
+    "repl_lines": 1,
+    "last_tick": 13900,
+    "serial_open_calls": 1,
+    "serial_write_calls": 25,
+    "serial_read_calls": 197,
+    "serial_bytes_tx": 131,
+    "serial_bytes_rx": 50,
+    "serial_last_result": 0
+  },
+  "uart": {
+    "done": true,
+    "calib_stub_seen": true,
+    "calib_error_seen": false,
+    "init_rc": 0,
+    "ping_ms": 2,
+    "fly_rc": 0,
+    "stop_rc": 0,
+    "alt_after": -999.0
+  },
+  "bridge": {
+    "guest_to_udp": 5,
+    "udp_to_guest": 3,
+    "system_messages": 4,
+    "open_seen": true,
+    "close_seen": true
+  },
+  "pass": true
+}

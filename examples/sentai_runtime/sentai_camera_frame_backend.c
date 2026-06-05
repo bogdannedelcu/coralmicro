@@ -18,10 +18,23 @@
 #include <stdio.h>
 #include <string.h>
 
-#define SENTAI_CAMERA_FRAME_W 640
-#define SENTAI_CAMERA_FRAME_H 480
+#ifndef SENTAI_RUNTIME_CAMERA_W
+#define SENTAI_RUNTIME_CAMERA_W 640
+#endif
+#ifndef SENTAI_RUNTIME_CAMERA_H
+#define SENTAI_RUNTIME_CAMERA_H 480
+#endif
+
+#define SENTAI_CAMERA_FRAME_W SENTAI_RUNTIME_CAMERA_W
+#define SENTAI_CAMERA_FRAME_H SENTAI_RUNTIME_CAMERA_H
 #define SENTAI_CAMERA_FLOW_W  80
 #define SENTAI_CAMERA_FLOW_H  60
+
+#if defined(__arm__) && !defined(SENTAI_PLATFORM_SIM)
+#define SENTAI_CAMERA_FRAME_BSS __attribute__((section(".sdram_bss"), aligned(32)))
+#else
+#define SENTAI_CAMERA_FRAME_BSS
+#endif
 
 extern int sentai_get_tensor_info(int* w, int* h, int* ch,
                                   uint8_t** buf, int* type, int* zp);
@@ -49,14 +62,19 @@ typedef struct {
 
 static sim_flow_snapshot_t s_flow_snapshot;
 
-static uint8_t s_rgb_full_pub[SENTAI_CAMERA_FRAME_W * SENTAI_CAMERA_FRAME_H * 3];
+static uint8_t s_rgb_full_pub[SENTAI_CAMERA_FRAME_W * SENTAI_CAMERA_FRAME_H * 3]
+    SENTAI_CAMERA_FRAME_BSS;
 static volatile uint32_t s_rgb_full_seq;
 static uint32_t s_last_grab_seq;
 
-static uint8_t s_xrgb_buf[SENTAI_CAMERA_FRAME_W * SENTAI_CAMERA_FRAME_H * 4];
-static uint8_t s_prep_rgb_full[SENTAI_CAMERA_FRAME_W * SENTAI_CAMERA_FRAME_H * 3];
-static uint8_t s_rgb_small[SENTAI_CAMERA_FLOW_W * SENTAI_CAMERA_FLOW_H * 3];
-static uint8_t s_gray80x60[SENTAI_CAMERA_FLOW_W * SENTAI_CAMERA_FLOW_H];
+static uint8_t s_xrgb_buf[SENTAI_CAMERA_FRAME_W * SENTAI_CAMERA_FRAME_H * 4]
+    SENTAI_CAMERA_FRAME_BSS;
+static uint8_t s_prep_rgb_full[SENTAI_CAMERA_FRAME_W * SENTAI_CAMERA_FRAME_H * 3]
+    SENTAI_CAMERA_FRAME_BSS;
+static uint8_t s_rgb_small[SENTAI_CAMERA_FLOW_W * SENTAI_CAMERA_FLOW_H * 3]
+    SENTAI_CAMERA_FRAME_BSS;
+static uint8_t s_gray80x60[SENTAI_CAMERA_FLOW_W * SENTAI_CAMERA_FLOW_H]
+    SENTAI_CAMERA_FRAME_BSS;
 static uint32_t s_prep_fire_mask;
 static volatile int s_current_id = 0;
 static volatile int s_last_capture_id = -1;

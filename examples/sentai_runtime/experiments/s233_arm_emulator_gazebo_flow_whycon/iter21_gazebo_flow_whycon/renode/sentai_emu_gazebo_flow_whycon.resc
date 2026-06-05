@@ -1,0 +1,63 @@
+:name: SentAI B9/s233 Gazebo camera Flow + WhyCon
+:description: Boots sentai_emu_gazebo_flow_whycon_repl. Gazebo /downward_cam/image frames enter through the Renode camera MMIO bridge, then the shared sentai_runtime PrepTask feeds FlowTask and WhyCon markers.
+
+i @emu/renode/sentai_rt1176.repl
+
+$bin?=@build_emu/emu/sentai_emu_gazebo_flow_whycon_repl
+$uart_log?=@/home/bogdan/work/coralmicro/emu/output/sentai_emu_gazebo_flow_whycon.log
+
+macro reset
+"""
+    sysbus LoadELF $bin
+    cpu VectorTableOffset 0x800
+"""
+
+lpuart6 CreateFileBackend $uart_log
+runMacro $reset
+
+emulation RunFor "45.0s"
+
+lpuart6 CloseFileBackend $uart_log
+
+echo "sentai_emu_gazebo_flow_whycon PC:"
+cpu PC
+echo "sentai_emu_gazebo_flow_whycon boot_state:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_boot_state"`
+echo "sentai_emu_gazebo_flow_whycon heartbeat:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_heartbeat"`
+echo "sentai_emu_gazebo_flow_whycon repl_lines:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_repl_lines"`
+echo "sentai_emu_gazebo_flow_whycon last_tick:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_last_tick"`
+echo "sentai_emu_gazebo_flow_whycon serial_open_calls:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_crazy_serial_open_calls"`
+echo "sentai_emu_gazebo_flow_whycon serial_write_calls:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_crazy_serial_write_calls"`
+echo "sentai_emu_gazebo_flow_whycon serial_read_calls:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_crazy_serial_read_calls"`
+echo "sentai_emu_gazebo_flow_whycon serial_bytes_tx:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_crazy_serial_bytes_tx"`
+echo "sentai_emu_gazebo_flow_whycon serial_bytes_rx:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_crazy_serial_bytes_rx"`
+echo "sentai_emu_gazebo_flow_whycon serial_last_result:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_crazy_serial_last_result"`
+echo "sentai_emu_gazebo_flow_whycon cam_task_started:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_gazebo_cam_task_started"`
+echo "sentai_emu_gazebo_flow_whycon cam_frames:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_gazebo_cam_frames"`
+echo "sentai_emu_gazebo_flow_whycon cam_publish_fail:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_gazebo_cam_publish_fail"`
+echo "sentai_emu_gazebo_flow_whycon cam_last_seq:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_gazebo_cam_last_seq"`
+echo "sentai_emu_gazebo_flow_whycon cam_last_rc:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_gazebo_cam_last_rc"`
+echo "sentai_emu_gazebo_flow_whycon bridge_seen:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_gazebo_cam_bridge_seen"`
+echo "sentai_emu_gazebo_flow_whycon bridge_served:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_gazebo_cam_bridge_served"`
+echo "sentai_emu_gazebo_flow_whycon bridge_dropped:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_gazebo_cam_bridge_dropped"`
+echo "sentai_emu_gazebo_flow_whycon bridge_bad:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_gazebo_cam_bridge_bad"`
+
+quit

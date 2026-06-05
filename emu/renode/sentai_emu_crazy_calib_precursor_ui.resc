@@ -1,0 +1,44 @@
+:name: SentAI B9/s229 Gazebo WhyCon calib precursor with UART UI
+:description: Same as sentai_emu_crazy_calib_precursor.resc, but opens the LPUART6 analyzer so UART output is visible in Renode UI while still writing the file backend used by experiment artifacts.
+
+i @emu/renode/sentai_rt1176.repl
+
+$bin?=@build_emu/emu/sentai_emu_crazy_calib_precursor_repl
+$uart_log?=@/home/bogdan/work/coralmicro/emu/output/sentai_emu_crazy_calib_precursor.log
+
+macro reset
+"""
+    sysbus LoadELF $bin
+    cpu VectorTableOffset 0x800
+"""
+
+lpuart6 CreateFileBackend $uart_log
+showAnalyzer lpuart6
+runMacro $reset
+
+emulation RunFor "14.0s"
+
+lpuart6 CloseFileBackend $uart_log
+
+echo "sentai_emu_crazy_calib_precursor PC:"
+cpu PC
+echo "sentai_emu_crazy_calib_precursor boot_state:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_boot_state"`
+echo "sentai_emu_crazy_calib_precursor heartbeat:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_heartbeat"`
+echo "sentai_emu_crazy_calib_precursor repl_lines:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_repl_lines"`
+echo "sentai_emu_crazy_calib_precursor last_tick:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_last_tick"`
+echo "sentai_emu_crazy_calib_precursor serial_open_calls:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_crazy_serial_open_calls"`
+echo "sentai_emu_crazy_calib_precursor serial_write_calls:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_crazy_serial_write_calls"`
+echo "sentai_emu_crazy_calib_precursor serial_read_calls:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_crazy_serial_read_calls"`
+echo "sentai_emu_crazy_calib_precursor serial_bytes_tx:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_crazy_serial_bytes_tx"`
+echo "sentai_emu_crazy_calib_precursor serial_bytes_rx:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_crazy_serial_bytes_rx"`
+echo "sentai_emu_crazy_calib_precursor serial_last_result:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_crazy_serial_last_result"`

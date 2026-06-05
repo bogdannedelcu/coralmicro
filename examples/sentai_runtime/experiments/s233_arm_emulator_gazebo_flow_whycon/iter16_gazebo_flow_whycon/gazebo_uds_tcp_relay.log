@@ -1,0 +1,11 @@
+$ /usr/bin/python3 emu/host/sentai_gazebo_uds_to_tcp_bridge.py --uds /tmp/sentai_emu_cam.sock --tcp-host 127.0.0.1 --tcp-port 30233 --max-fps 15.0 --out-width 320 --out-height 240
+[uds-tcp] pull server 127.0.0.1:30233
+[uds-tcp] listening /tmp/sentai_emu_cam.sock
+[uds-tcp] renode client connected
+[uds-tcp] renode client disconnected
+[uds-tcp] gz client connected
+[uds-tcp] frames=30 seq=30 kept=15 dropped=15 bad=0 latest=30
+[uds-tcp] frames=60 seq=60 kept=30 dropped=30 bad=0 latest=59
+[uds-tcp] frames=90 seq=90 kept=45 dropped=45 bad=0 latest=89
+[uds-tcp] frames=120 seq=120 kept=60 dropped=60 bad=0 latest=119
+[uds-tcp] frames=150 seq=150 kept=75 dropped=75 bad=0 latest=149

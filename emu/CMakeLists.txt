@@ -45,6 +45,38 @@ function(configure_sentai_emu_target target)
   )
 endfunction()
 
+add_library(sentai_emu_crazy_serial_bridge_obj OBJECT
+    sentai_emu_crazy_serial_bridge.cc
+)
+configure_sentai_emu_target(sentai_emu_crazy_serial_bridge_obj)
+
+set(SENTAI_EMU_CRAZY_PING_SMOKE_SOURCES
+    smoke/sentai_emu_crazy_ping_smoke.cc
+    sentai_emu_crazy_serial_bridge.cc
+    sentai_emu_freertos_hooks.c
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/sentai_crazy.cc
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/gcc/startup_MIMXRT1176_cm7.S
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/system_MIMXRT1176_cm7.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/event_groups.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/list.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/portable/GCC/ARM_CM4F/port.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/queue.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/stream_buffer.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/tasks.c
+    ${PROJECT_SOURCE_DIR}/third_party/freertos_kernel/timers.c
+    ${PROJECT_SOURCE_DIR}/third_party/FreeRTOS_helpers/heap_useNewlib_NXP.c
+)
+
+add_executable_m7(sentai_emu_crazy_ping_smoke
+    LINKER_SCRIPT ${PROJECT_SOURCE_DIR}/libs/nxp/rt1176-sdk/MIMXRT1176xxxxx_cm7_ram.ld
+    ${SENTAI_EMU_CRAZY_PING_SMOKE_SOURCES}
+)
+configure_sentai_emu_target(sentai_emu_crazy_ping_smoke)
+target_compile_options(sentai_emu_crazy_ping_smoke PRIVATE
+    -Wno-error -Wno-unused-parameter -Wno-sign-compare
+    -Wno-old-style-definition -Wno-missing-prototypes
+)
+
 add_executable_m7(sentai_emu_idle
     LINKER_SCRIPT ${PROJECT_SOURCE_DIR}/libs/nxp/rt1176-sdk/MIMXRT1176xxxxx_cm7_ram.ld
     ${SENTAI_EMU_MINIMAL_SOURCES}
@@ -807,6 +839,24 @@ target_compile_options(sentai_emu_fs_stage_assets PRIVATE
     -Wno-old-style-definition -Wno-missing-prototypes
 )
 
+add_executable_m7(sentai_emu_camera_markers_stage_assets
+    LINKER_SCRIPT ${PROJECT_SOURCE_DIR}/libs/nxp/rt1176-sdk/MIMXRT1176xxxxx_cm7_ram.ld
+    ${SENTAI_EMU_FS_STAGE_ASSETS_SOURCES}
+)
+configure_sentai_emu_target(sentai_emu_camera_markers_stage_assets)
+target_compile_definitions(sentai_emu_camera_markers_stage_assets PRIVATE
+    SENTAI_ARM_EMU_NAND_BRIDGE=1
+    SENTAI_EMU_STAGE_CAMERA_MARKERS=1
+)
+target_link_libraries(sentai_emu_camera_markers_stage_assets
+    libs_filex
+    libs_levelx
+)
+target_compile_options(sentai_emu_camera_markers_stage_assets PRIVATE
+    -Wno-error -Wno-unused-parameter -Wno-sign-compare
+    -Wno-old-style-definition -Wno-missing-prototypes
+)
+
 # --- B8.9b MicroPython sentai.fs over FileX/LevelX raw NAND -------------
 #
 # Same VM/REPL shape as B8.3, but the `sentai` module exposes `sentai.fs`
@@ -1057,6 +1107,328 @@ target_link_libraries(sentai_emu_tpu_timing_repl
     libs_levelx
 )
 target_compile_options(sentai_emu_tpu_timing_repl PRIVATE
+    -Wno-error -Wno-unused-parameter -Wno-sign-compare
+    -Wno-old-style-definition -Wno-missing-prototypes
+)
+
+# --- B9/s219 MicroPython sentai.crazy namespace over cf2 bridge -----------
+#
+# This is the namespace-level follow-up to sentai_emu_crazy_ping_smoke.  The
+# Python binding is the shared examples/sentai_runtime/bindings/modsentai_crazy.c
+# included by sentai_emu_fs_module.c under SENTAI_EMU_CRAZY_BINDING.  The C++
+# runtime is the shared sentai_crazy.cc; only the serial transport and board
+# service dependencies are substituted by emulator files.
+set(SENTAI_EMU_CRAZY_REPL_SOURCES ${SENTAI_EMU_FS_REPL_SOURCES})
+list(APPEND SENTAI_EMU_CRAZY_REPL_SOURCES
+    sentai_emu_fx_import.c
+    sentai_emu_crazy_serial_bridge.cc
+    sentai_emu_crazy_runtime_stubs.cc
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/sentai_crazy.cc
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/sentai_crazy_log.cc
+)
+
+add_executable_m7(sentai_emu_crazy_repl
+    LINKER_SCRIPT ${PROJECT_SOURCE_DIR}/libs/nxp/rt1176-sdk/MIMXRT1176xxxxx_cm7_ram.ld
+    ${SENTAI_EMU_CRAZY_REPL_SOURCES}
+)
+configure_sentai_emu_target(sentai_emu_crazy_repl)
+target_compile_definitions(sentai_emu_crazy_repl PRIVATE
+    SENTAI_EMU_FX_FS=1
+    SENTAI_EMU_MISSION=1
+    SENTAI_EMU_CRAZY_BINDING=1
+    SENTAI_EMU_HW_STUB_MODULES=0
+    SENTAI_EMU_CRAZY_AUTORUN=1
+    SENTAI_EMU_AUTORUN_HALT_AFTER=1
+    SENTAI_ARM_EMU_NAND_BRIDGE=1
+)
+target_include_directories(sentai_emu_crazy_repl PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/mp_inc_crazy
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime
+    ${SENTAI_EMU_MP_EMBED_DIR}
+    ${SENTAI_EMU_MP_EMBED_DIR}/port
+)
+target_link_libraries(sentai_emu_crazy_repl
+    libs_filex
+    libs_levelx
+)
+target_compile_options(sentai_emu_crazy_repl PRIVATE
+    -Wno-error -Wno-unused-parameter -Wno-sign-compare
+    -Wno-old-style-definition -Wno-missing-prototypes
+)
+
+# --- B9/s229 Gazebo WhyCon calib precursor over sentai.crazy -----------
+#
+# Boots the same MicroPython + FileX + shared sentai.crazy profile as s219,
+# then runs a conservative WhyCon-world takeoff/hold/land smoke.  The actual
+# visual calibration stack still needs camera/markers/calib-task owners ported;
+# this target verifies that the emulator can command cf2 in Gazebo while also
+# exposing the documented calib stub boundary.
+add_executable_m7(sentai_emu_crazy_calib_precursor_repl
+    LINKER_SCRIPT ${PROJECT_SOURCE_DIR}/libs/nxp/rt1176-sdk/MIMXRT1176xxxxx_cm7_ram.ld
+    ${SENTAI_EMU_CRAZY_REPL_SOURCES}
+)
+configure_sentai_emu_target(sentai_emu_crazy_calib_precursor_repl)
+target_compile_definitions(sentai_emu_crazy_calib_precursor_repl PRIVATE
+    SENTAI_EMU_FX_FS=1
+    SENTAI_EMU_MISSION=1
+    SENTAI_EMU_CRAZY_BINDING=1
+    SENTAI_EMU_HW_STUB_MODULES=1
+    SENTAI_EMU_CRAZY_CALIB_PRECURSOR_AUTORUN=1
+    SENTAI_EMU_AUTORUN_HALT_AFTER=1
+    SENTAI_ARM_EMU_NAND_BRIDGE=1
+)
+target_include_directories(sentai_emu_crazy_calib_precursor_repl PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/mp_inc_crazy
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime
+    ${SENTAI_EMU_MP_EMBED_DIR}
+    ${SENTAI_EMU_MP_EMBED_DIR}/port
+)
+target_link_libraries(sentai_emu_crazy_calib_precursor_repl
+    libs_filex
+    libs_levelx
+)
+target_compile_options(sentai_emu_crazy_calib_precursor_repl PRIVATE
+    -Wno-error -Wno-unused-parameter -Wno-sign-compare
+    -Wno-old-style-definition -Wno-missing-prototypes
+)
+
+# --- B9/s216 MicroPython sentai.* namespace inventory ----------------------
+#
+# Baseline inventory target: expose the widest current emulator root without
+# starting host peripherals.  It lists fs/fr/rtos plus the already bridged
+# tpu/pipeline/crazy modules, writes the inventory to FileX, and prints it on
+# LPUART6 for the host runner.
+set(SENTAI_EMU_NAMESPACE_INVENTORY_SOURCES ${SENTAI_EMU_CRAZY_REPL_SOURCES})
+list(APPEND SENTAI_EMU_NAMESPACE_INVENTORY_SOURCES
+    sentai_emu_tpu_bridge_module.c
+)
+
+add_executable_m7(sentai_emu_namespace_inventory
+    LINKER_SCRIPT ${PROJECT_SOURCE_DIR}/libs/nxp/rt1176-sdk/MIMXRT1176xxxxx_cm7_ram.ld
+    ${SENTAI_EMU_NAMESPACE_INVENTORY_SOURCES}
+)
+configure_sentai_emu_target(sentai_emu_namespace_inventory)
+target_compile_definitions(sentai_emu_namespace_inventory PRIVATE
+    SENTAI_EMU_FX_FS=1
+    SENTAI_EMU_MISSION=1
+    SENTAI_EMU_TPU_HOST_BRIDGE=1
+    SENTAI_EMU_CRAZY_BINDING=1
+    SENTAI_EMU_HW_STUB_MODULES=0
+    SENTAI_EMU_NAMESPACE_INVENTORY_AUTORUN=1
+    SENTAI_EMU_AUTORUN_HALT_AFTER=1
+    SENTAI_ARM_EMU_NAND_BRIDGE=1
+)
+target_include_directories(sentai_emu_namespace_inventory PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/mp_inc_crazy
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime
+    ${SENTAI_EMU_MP_EMBED_DIR}
+    ${SENTAI_EMU_MP_EMBED_DIR}/port
+)
+target_link_libraries(sentai_emu_namespace_inventory
+    libs_filex
+    libs_levelx
+)
+target_compile_options(sentai_emu_namespace_inventory PRIVATE
+    -Wno-error -Wno-unused-parameter -Wno-sign-compare
+    -Wno-old-style-definition -Wno-missing-prototypes
+)
+
+# --- B9/s218 MicroPython core namespace behavior smoke ---------------------
+#
+# Exercises the low-risk core surface from MicroPython: fs/fr/rtos/io/sys and
+# top-level version/verbose/debug/console/run.  No TPU, camera, or CrazySim
+# bridge is required.
+add_executable_m7(sentai_emu_core_namespace_smoke
+    LINKER_SCRIPT ${PROJECT_SOURCE_DIR}/libs/nxp/rt1176-sdk/MIMXRT1176xxxxx_cm7_ram.ld
+    ${SENTAI_EMU_FS_REPL_SOURCES}
+)
+configure_sentai_emu_target(sentai_emu_core_namespace_smoke)
+target_compile_definitions(sentai_emu_core_namespace_smoke PRIVATE
+    SENTAI_EMU_FX_FS=1
+    SENTAI_EMU_CORE_SMOKE_AUTORUN=1
+    SENTAI_EMU_AUTORUN_HALT_AFTER=1
+    SENTAI_ARM_EMU_NAND_BRIDGE=1
+)
+target_include_directories(sentai_emu_core_namespace_smoke PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/mp_inc
+    ${SENTAI_EMU_MP_EMBED_DIR}
+    ${SENTAI_EMU_MP_EMBED_DIR}/port
+)
+target_link_libraries(sentai_emu_core_namespace_smoke
+    libs_filex
+    libs_levelx
+)
+target_compile_options(sentai_emu_core_namespace_smoke PRIVATE
+    -Wno-error -Wno-unused-parameter -Wno-sign-compare
+    -Wno-old-style-definition -Wno-missing-prototypes
+)
+
+# --- B9/s228 MicroPython hardware/safety stub namespace smoke -------------
+#
+# Makes hardware-dependent owner namespaces visible in emulator mode and
+# verifies that their stub behavior is deterministic and safe.  These calls do
+# not model real USB/UART/IMU/mic/actuator peripherals; they document the
+# emulator boundary before camera/flow/pipeline work resumes.
+add_executable_m7(sentai_emu_hw_stub_namespace_smoke
+    LINKER_SCRIPT ${PROJECT_SOURCE_DIR}/libs/nxp/rt1176-sdk/MIMXRT1176xxxxx_cm7_ram.ld
+    ${SENTAI_EMU_FS_REPL_SOURCES}
+)
+configure_sentai_emu_target(sentai_emu_hw_stub_namespace_smoke)
+target_compile_definitions(sentai_emu_hw_stub_namespace_smoke PRIVATE
+    SENTAI_EMU_FX_FS=1
+    SENTAI_EMU_HW_STUB_MODULES=1
+    SENTAI_EMU_HW_STUB_SMOKE_AUTORUN=1
+    SENTAI_EMU_AUTORUN_HALT_AFTER=1
+    SENTAI_ARM_EMU_NAND_BRIDGE=1
+)
+target_include_directories(sentai_emu_hw_stub_namespace_smoke PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/mp_inc
+    ${SENTAI_EMU_MP_EMBED_DIR}
+    ${SENTAI_EMU_MP_EMBED_DIR}/port
+)
+target_link_libraries(sentai_emu_hw_stub_namespace_smoke
+    libs_filex
+    libs_levelx
+)
+target_compile_options(sentai_emu_hw_stub_namespace_smoke PRIVATE
+    -Wno-error -Wno-unused-parameter -Wno-sign-compare
+    -Wno-old-style-definition -Wno-missing-prototypes
+)
+
+# --- B9/s230 MicroPython sentai.camera + sentai.markers smoke -------------
+#
+# Boots the shared runtime camera/markers namespaces in the ARM emulator.
+# Frames come from FileX through sentai_virtual_camera, then the normal
+# camera_frame_backend exposes them to sentai.markers.detect_from_camera().
+set(SENTAI_EMU_CAMERA_MARKERS_REPL_SOURCES ${SENTAI_EMU_FS_REPL_SOURCES})
+list(APPEND SENTAI_EMU_CAMERA_MARKERS_REPL_SOURCES
+    sentai_emu_camera_runtime_bridge.cc
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/sentai_virtual_camera.cc
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/sentai_camera_frame_backend.c
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/sentai_prep.cc
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/sentai_pxp_shim_sim.c
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/sentai_markers.cc
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/sentai_aruco.cc
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/sentai_svd3.cc
+)
+
+add_executable_m7(sentai_emu_camera_markers_repl
+    LINKER_SCRIPT ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/MIMXRT1176xxxxx_cm7_ram_mp.ld
+    ${SENTAI_EMU_CAMERA_MARKERS_REPL_SOURCES}
+)
+configure_sentai_emu_target(sentai_emu_camera_markers_repl)
+target_compile_definitions(sentai_emu_camera_markers_repl PRIVATE
+    SENTAI_EMU_FX_FS=1
+    SENTAI_EMU_CAMERA_BINDING=1
+    SENTAI_EMU_MARKERS_BINDING=1
+    SENTAI_EMU_LARGE_RUNTIME=1
+    SENTAI_EMU_CAMERA_MARKERS_AUTORUN=1
+    SENTAI_EMU_AUTORUN_HALT_AFTER=1
+    SENTAI_ARM_EMU_NAND_BRIDGE=1
+)
+target_include_directories(sentai_emu_camera_markers_repl PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/mp_inc
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime
+    ${SENTAI_EMU_MP_EMBED_DIR}
+    ${SENTAI_EMU_MP_EMBED_DIR}/port
+)
+target_link_libraries(sentai_emu_camera_markers_repl
+    libs_filex
+    libs_levelx
+    m
+)
+target_compile_options(sentai_emu_camera_markers_repl PRIVATE
+    -Os
+    -Wno-error -Wno-unused-parameter -Wno-sign-compare
+    -Wno-old-style-definition -Wno-missing-prototypes
+)
+
+# --- B9/s233 Gazebo camera -> PrepTask -> FlowTask + WhyCon smoke --------
+#
+# This target keeps the runtime path close to the physical board:
+# Gazebo provides camera frames, the guest publishes them through the shared
+# camera backend, PrepTask prepares the normal aux slots, FlowTask consumes the
+# 80x60 flow slot, and sentai.markers consumes the native grayscale slot.
+# Emulator-specific code is limited to the Renode MMIO camera bridge and
+# board/TPU stubs needed to link prep-only detection_task.cc.
+set(SENTAI_EMU_GAZEBO_FLOW_WHYCON_REPL_SOURCES
+    ${SENTAI_EMU_CRAZY_REPL_SOURCES}
+)
+list(APPEND SENTAI_EMU_GAZEBO_FLOW_WHYCON_REPL_SOURCES
+    sentai_emu_camera_runtime_bridge.cc
+    sentai_emu_detection_runtime_stubs.cc
+    sentai_emu_gazebo_camera_bridge.cc
+    sentai_emu_pipeline_prep_module.c
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/sentai_virtual_camera.cc
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/sentai_camera_frame_backend.c
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/sentai_prep.cc
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/sentai_pxp_shim_sim.c
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/detection_task.cc
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/flow_task.cc
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/flow_phase_corr.cc
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/sentai_markers.cc
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/sentai_aruco.cc
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/sentai_svd3.cc
+)
+
+add_executable_m7(sentai_emu_gazebo_flow_whycon_repl
+    LINKER_SCRIPT ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/MIMXRT1176xxxxx_cm7_ram_mp.ld
+    ${SENTAI_EMU_GAZEBO_FLOW_WHYCON_REPL_SOURCES}
+)
+configure_sentai_emu_target(sentai_emu_gazebo_flow_whycon_repl)
+target_compile_definitions(sentai_emu_gazebo_flow_whycon_repl PRIVATE
+    SENTAI_EMU_FX_FS=1
+    SENTAI_EMU_MISSION=1
+    SENTAI_EMU_CRAZY_BINDING=1
+    SENTAI_EMU_CAMERA_BINDING=1
+    SENTAI_EMU_MARKERS_BINDING=1
+    SENTAI_EMU_FLOW_BINDING=1
+    SENTAI_EMU_PIPELINE_PREP_BINDING=1
+    SENTAI_EMU_PREP_RUNTIME=1
+    SENTAI_EMU_GAZEBO_CAMERA_BRIDGE=1
+    SENTAI_EMU_GAZEBO_FLOW_WHYCON_AUTORUN=1
+    SENTAI_EMU_LARGE_RUNTIME=1
+    SENTAI_EMU_AUTORUN_HALT_AFTER=1
+    SENTAI_ARM_EMU_NAND_BRIDGE=1
+    SENTAI_RUNTIME_CAMERA_W=640
+    SENTAI_RUNTIME_CAMERA_H=480
+    SENTAI_EMU_GAZEBO_CAMERA_W=640
+    SENTAI_EMU_GAZEBO_CAMERA_H=480
+    ARM_DSP_CONFIG_TABLES
+    ARM_FFT_ALLOW_TABLES
+    ARM_TABLE_TWIDDLECOEF_F32_64
+    ARM_TABLE_BITREVIDX_FLT_64
+)
+target_include_directories(sentai_emu_gazebo_flow_whycon_repl PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/mp_inc_crazy
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime
+    ${SENTAI_EMU_MP_EMBED_DIR}
+    ${SENTAI_EMU_MP_EMBED_DIR}/port
+    ${PROJECT_SOURCE_DIR}/libs/nxp/rt1176-sdk
+    ${PROJECT_SOURCE_DIR}/third_party/modified/nxp/rt1176-sdk
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/host
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/host/class
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/device
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/include
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/phy
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/usb/output/source/host
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/utilities/debug_console
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/utilities/str
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/components/osa
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/components/lists
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/components/serial_manager
+    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/cm7
+    ${PROJECT_SOURCE_DIR}/third_party/CMSIS
+    ${PROJECT_SOURCE_DIR}/third_party/CMSIS/CMSIS/DSP/Include
+)
+target_link_libraries(sentai_emu_gazebo_flow_whycon_repl
+    libs_filex
+    libs_levelx
+    libs_CMSIS-m7
+    m
+)
+target_compile_options(sentai_emu_gazebo_flow_whycon_repl PRIVATE
+    -Os
     -Wno-error -Wno-unused-parameter -Wno-sign-compare
     -Wno-old-style-definition -Wno-missing-prototypes
 )

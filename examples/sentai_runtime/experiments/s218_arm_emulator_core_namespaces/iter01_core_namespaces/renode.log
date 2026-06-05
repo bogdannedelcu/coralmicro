@@ -1,0 +1,30 @@
+17:01:11.7300 [INFO] Loaded monitor commands from: /home/bogdan/work/renode_portable/scripts/monitor.py
+[0mRenode, version 1.16.1 (ac18b5ac-202606020225)
+
+[91m(monitor) [0mi $CWD/emu/renode/sentai_emu_core_namespace_smoke_ui.resc
+17:01:11.8574 [INFO] Including script(s): /home/bogdan/work/coralmicro/emu/renode/sentai_emu_core_namespace_smoke_ui.resc
+17:01:11.8742 [INFO] System bus created.
+17:01:12.9080 [INFO] sysbus: Loading block of 3072 bytes length at 0x0.
+17:01:12.9197 [INFO] sysbus: Loading block of 233208 bytes length at 0xC00.
+17:01:12.9200 [INFO] sysbus: Loading block of 169688 bytes length at 0x39AF8.
+17:01:12.9204 [INFO] sysbus: Loading block of 16777216 bytes length at 0x80000000.
+17:01:12.9439 [INFO] sysbus: Loading block of 54680 bytes length at 0x81000000.
+17:01:13.4302 [INFO] cpu: Setting initial values: PC = 0xCBD, SP = 0x20040000.
+17:01:13.4332 [INFO] machine-0: Machine started.
+17:01:13.5208 [WARNING] nvic: Unhandled write to offset 0xF50 (ICacheInvalidateAllToPoUaIgnored), value 0x0.
+17:01:13.5460 [WARNING] nvic: Trying to set the priority for interrupt 16 to 0xFF, but it should be maskable with 0xF0
+17:01:20.8971 [INFO] machine-0: Machine paused.
+sentai_emu_core_namespace_smoke PC:
+0x15c60
+sentai_emu_core_namespace_smoke boot_state:
+0x00000500
+sentai_emu_core_namespace_smoke heartbeat:
+0x0000001C
+sentai_emu_core_namespace_smoke repl_lines:
+0x00000001
+sentai_emu_core_namespace_smoke last_tick:
+0x00000B42
+[33m(machine-0) [0m17:01:20.9665 [INFO] machine-0: Disposed.
+$ /home/bogdan/work/renode_portable/renode --console emu/renode/sentai_emu_core_namespace_smoke_ui.resc
+
+[elapsed_s] 10.941

@@ -1,0 +1,15 @@
+t=62ms listening 127.0.0.1:30233
+t=136ms client connected
+t=145ms client disconnected
+t=518ms client connected
+t=31493ms frame seq=630 dropped=59
+t=37259ms frame seq=750 dropped=70
+t=58883ms frame seq=1200 dropped=111
+t=74667ms frame seq=1530 dropped=141
+t=89373ms frame seq=1830 dropped=169
+t=102487ms frame seq=2100 dropped=194
+t=114050ms frame seq=2340 dropped=216
+t=119830ms frame seq=2460 dropped=227
+t=125632ms frame seq=2580 dropped=238
+t=158855ms frame seq=3270 dropped=301
+t=180413ms frame seq=3720 dropped=342

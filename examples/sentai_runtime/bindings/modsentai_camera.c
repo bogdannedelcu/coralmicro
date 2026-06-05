@@ -1,6 +1,8 @@
 // ============== sentai.camera — Camera ==============
 // This file is #include'd from modsentai.c — do NOT compile separately.
 
+#include <stdlib.h>
+
 // sentai.camera.init(streaming=1, fps=<current g_runtime_fps>) -> int
 // streaming=1: continuous mode, streaming=0: trigger mode
 // fps: 15/30/45/60/90 (per fsl_ov5640.c VGA table).  When omitted,
@@ -15,6 +17,21 @@
 // board and call init(streaming, new_fps) again.
 extern int sentai_cam_init_fps(int streaming, int fps);
 extern int sentai_cam_init_full(int streaming, int fps, int hflip, int vflip);
+extern int sentai_cam_stop(void);
+extern int sentai_cam_capture_jpeg(uint8_t* jpeg_buf, int jpeg_buf_size,
+                                   int width, int height, int quality);
+extern int sentai_cam_to_tensor_ex(const char* save_path, int quality);
+extern int sentai_cam_get_width(void);
+extern int sentai_cam_get_height(void);
+extern int sentai_cam_set_res(int w, int h);
+extern int sentai_cam_get_native_width(void);
+extern int sentai_cam_get_native_height(void);
+extern int sentai_cam_switch(int id);
+extern int sentai_cam_rotate(int cam_id, int degrees);
+extern void sentai_cam_return_raw(int idx);
+extern uint32_t sentai_ticks_ms(void);
+extern int sentai_fs_write(const char* path, const uint8_t* data, int size);
+extern uint32_t sentai_cam_get_frame_seq(void);
 extern int sentai_virtual_camera_select(const char* path);
 extern int sentai_virtual_camera_play(const char* dir, int fps, int count);
 extern int sentai_virtual_camera_replay(int fps, int count);
@@ -576,7 +593,6 @@ extern int sentai_cam_get_height(void);
 extern int sentai_camera_backend_publish_prep_once(void);
 extern int sentai_pxp_xrgb_to_y8(const uint8_t* src, int src_w, int src_h,
                                   uint8_t* dst, int dst_w, int dst_h);
-extern volatile int g_cam_grabbed_id;
 
 #include "sentai_prep.h"
 
@@ -679,18 +695,22 @@ int sentai_camera_grab_gray_zerocopy(const uint8_t** out_buf,
     if (idx < 0 || !xrgb) return -1;
     const int W = sentai_cam_get_width();
     const int H = sentai_cam_get_height();
-    if (W <= 0 || H <= 0 ||
-        W > SENTAI_ARUCO_GRAY_W || H > SENTAI_ARUCO_GRAY_H) {
+    if (W <= 0 || H <= 0) {
+        sentai_cam_return_raw(idx);
         return -1;
     }
     if (sentai_pxp_xrgb_to_y8(xrgb, W, H,
-                                s_aruco_gray_buf, W, H) != 0) {
+                                s_aruco_gray_buf,
+                                SENTAI_ARUCO_GRAY_W,
+                                SENTAI_ARUCO_GRAY_H) != 0) {
+        sentai_cam_return_raw(idx);
         return -1;
     }
+    sentai_cam_return_raw(idx);
     *out_buf = s_aruco_gray_buf;
-    *out_w   = W;
-    *out_h   = H;
-    *out_seq = (uint32_t)g_cam_grabbed_id;
+    *out_w   = SENTAI_ARUCO_GRAY_W;
+    *out_h   = SENTAI_ARUCO_GRAY_H;
+    *out_seq = sentai_cam_get_frame_seq();
     if (out_ts_ms) *out_ts_ms = (uint32_t)xTaskGetTickCount();
     return 0;
 }

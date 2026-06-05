@@ -1,0 +1,1 @@
+$ /home/bogdan/work/renode_portable/renode --plain --console --disable-xwt emu/renode/sentai_emu_gazebo_flow_whycon.resc

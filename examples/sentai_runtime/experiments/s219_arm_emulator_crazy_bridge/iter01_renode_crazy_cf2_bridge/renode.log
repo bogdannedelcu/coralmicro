@@ -1,0 +1,43 @@
+14:21:20.6354 [INFO] Loaded monitor commands from: /home/bogdan/work/renode_portable/scripts/monitor.py
+Renode, version 1.16.1 (ac18b5ac-202606020225)
+
+(monitor) i $CWD/emu/renode/sentai_emu_crazy_ping_smoke.resc
+14:21:21.0425 [INFO] Including script(s): /home/bogdan/work/coralmicro/emu/renode/sentai_emu_crazy_ping_smoke.resc
+14:21:21.1042 [INFO] System bus created.
+14:21:24.4020 [INFO] sysbus: Loading block of 3072 bytes length at 0x0.
+14:21:24.4348 [INFO] sysbus: Loading block of 32944 bytes length at 0xC00.
+14:21:24.4350 [INFO] sysbus: Loading block of 17800 bytes length at 0x8CB0.
+14:21:24.4350 [INFO] sysbus: Loading block of 16777216 bytes length at 0x80000000.
+14:21:26.0445 [INFO] cpu: Setting initial values: PC = 0xCBD, SP = 0x20040000.
+14:21:26.0519 [INFO] machine-0: Machine started.
+14:21:26.3381 [WARNING] nvic: Unhandled write to offset 0xF50 (ICacheInvalidateAllToPoUaIgnored), value 0x0.
+14:21:26.4392 [WARNING] nvic: Trying to set the priority for interrupt 16 to 0xFF, but it should be maskable with 0xF0
+14:22:03.5327 [INFO] machine-0: Machine paused.
+sentai_emu_crazy_ping_smoke PC:
+0x38be
+sentai_emu_crazy_ping_smoke boot_state:
+0x00000B00
+sentai_emu_crazy_ping_smoke heartbeat:
+0x00000011
+sentai_emu_crazy_ping_smoke last_tick:
+0x00001275
+sentai_emu_crazy_ping_smoke init_rc:
+0x00000000
+sentai_emu_crazy_ping_smoke ping_ms:
+0x00000005
+sentai_emu_crazy_ping_smoke serial_open_calls:
+0x00000001
+sentai_emu_crazy_ping_smoke serial_write_calls:
+0x0000000D
+sentai_emu_crazy_ping_smoke serial_read_calls:
+0x00000010
+sentai_emu_crazy_ping_smoke serial_bytes_tx:
+0x00000036
+sentai_emu_crazy_ping_smoke serial_bytes_rx:
+0x00000016
+sentai_emu_crazy_ping_smoke serial_last_result:
+0x00000000
+(machine-0) 14:22:03.7962 [INFO] machine-0: Disposed.
+$ /home/bogdan/work/renode_portable/renode --plain --console --disable-xwt emu/renode/sentai_emu_crazy_ping_smoke.resc
+
+[elapsed_s] 48.219

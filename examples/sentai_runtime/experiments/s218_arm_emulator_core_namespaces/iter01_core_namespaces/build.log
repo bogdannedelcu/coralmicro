@@ -1,0 +1,6 @@
+[ 11%] Built target libs_levelx
+[ 66%] Built target libs_filex
+[100%] Built target sentai_emu_core_namespace_smoke
+$ cmake --build build_emu --target sentai_emu_core_namespace_smoke -j16
+
+[elapsed_s] 0.215

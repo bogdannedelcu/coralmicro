@@ -1,0 +1,32 @@
+{
+  "started_at": "2026-06-04T17:12:14+0300",
+  "target": "sentai_emu_namespace_inventory",
+  "renode_script": "emu/renode/sentai_emu_namespace_inventory_ui.resc",
+  "renode_ui": true,
+  "commands": {
+    "configure": [
+      "cmake",
+      "-S",
+      ".",
+      "-B",
+      "build_emu",
+      "-DSENTAI_ARM_EMU=ON",
+      "-DSENTAI_SKIP_SDK_PATCHES=ON"
+    ],
+    "build": [
+      "cmake",
+      "--build",
+      "build_emu",
+      "--target",
+      "sentai_emu_namespace_inventory",
+      "-j16"
+    ],
+    "renode": [
+      "/home/bogdan/work/renode_portable/renode",
+      "--console",
+      "emu/renode/sentai_emu_namespace_inventory_ui.resc"
+    ]
+  },
+  "configure_rc": 0,
+  "build_rc": 2
+}

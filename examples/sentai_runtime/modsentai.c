@@ -353,14 +353,15 @@ static void _fs_check_usb(void) {
 #include "bindings/modsentai_calib.c"
 // OP-S10-W19-T1 hard rename: the legacy modsentai_aruco.c +
 // modsentai_whycon.c binding tables are no longer compiled in.
-// Their C implementations (sentai_aruco.cc + the WhyCon helpers
-// living in the same TU) remain as backend code called by
-// sentai_markers_*.  Only the unified dispatcher binding is
-// included below.
+// Their C implementations (sentai_aruco.cc + the WhyCon circle-marker
+// helpers living in the same TU) remain as backend code called by
+// sentai_markers_*.  New missions should use sentai.markers with the
+// "whycon" backend; the ArUco backend is retained for legacy diagnostics.
+// Only the unified dispatcher binding is included below.
 #include "bindings/modsentai_markers.c"
 // ObjectsPlan OP-S10-W12 — sentai.safety (mission safety service).
 // See Safety.md for the architecture; state machine + SafetyTask
-// worker reuse sentai.aruco's detector + sentai.camera's zero-copy
+// worker reuse sentai.markers backend code + sentai.camera's zero-copy
 // hook — no detection pipeline duplicated.
 #include "bindings/modsentai_safety.c"
 // ObjectsPlan OP-S10-W13 — sentai.fr (Flight Recorder subsystem).
@@ -448,8 +449,10 @@ static const mp_rom_map_elem_t sentai_module_globals_table[] = {
     // OP-S10-W19-T1: sentai.markers is the canonical fiducial-marker
     // namespace.  The legacy sentai.aruco + sentai.whycon modules are
     // de-registered; their internal C functions remain as backend
-    // implementations called by sentai_markers_*.  Hard rename — no
-    // shim, no aliases (operator-stated 2026-05-20).
+    // implementations called by sentai_markers_*.  Prefer the "whycon"
+    // circle-marker backend for new missions.  ArUco remains legacy/
+    // diagnostic because it is too expensive for the current runtime path.
+    // Hard rename — no shim, no aliases (operator-stated 2026-05-20).
     { MP_ROM_QSTR(MP_QSTR_markers),   MP_ROM_PTR(&sentai_markers_module) },
     { MP_ROM_QSTR(MP_QSTR_safety),    MP_ROM_PTR(&sentai_safety_module) },
     { MP_ROM_QSTR(MP_QSTR_fr),        MP_ROM_PTR(&sentai_fr_module) },

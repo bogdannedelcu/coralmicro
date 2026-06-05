@@ -1,0 +1,7 @@
+[ 30%] Built target libs_levelx
+[ 30%] Built target libs_CMSIS-m7
+[ 70%] Built target libs_filex
+[100%] Built target sentai_emu_gazebo_flow_whycon_repl
+$ cmake --build build_emu --target sentai_emu_gazebo_flow_whycon_repl -j16
+
+[elapsed_s] 0.215

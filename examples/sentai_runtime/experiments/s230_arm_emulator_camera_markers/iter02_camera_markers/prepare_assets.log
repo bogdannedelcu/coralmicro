@@ -1,0 +1,5 @@
+wrote /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s230_arm_emulator_camera_markers/assets/whycon_320x240.pgm (76815 bytes)
+wrote /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s230_arm_emulator_camera_markers/assets/whycon_640x480.bmp (921654 bytes)
+$ /usr/bin/python3 examples/sentai_runtime/experiments/s230_arm_emulator_camera_markers/prepare_s230_assets.py
+
+[elapsed_s] 0.164

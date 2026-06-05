@@ -1,0 +1,228 @@
+{
+  "started_at": "2026-06-04T17:14:00+0300",
+  "target": "sentai_emu_hw_stub_namespace_smoke",
+  "renode_script": "emu/renode/sentai_emu_hw_stub_namespace_smoke_ui.resc",
+  "renode_ui": true,
+  "commands": {
+    "configure": [
+      "cmake",
+      "-S",
+      ".",
+      "-B",
+      "build_emu",
+      "-DSENTAI_ARM_EMU=ON",
+      "-DSENTAI_SKIP_SDK_PATCHES=ON"
+    ],
+    "build": [
+      "cmake",
+      "--build",
+      "build_emu",
+      "--target",
+      "sentai_emu_hw_stub_namespace_smoke",
+      "-j16"
+    ],
+    "renode": [
+      "/home/bogdan/work/renode_portable/renode",
+      "--console",
+      "emu/renode/sentai_emu_hw_stub_namespace_smoke_ui.resc"
+    ]
+  },
+  "configure_rc": 0,
+  "build_rc": 0,
+  "renode_rc": 0,
+  "symbols": {
+    "boot_state": 1280,
+    "heartbeat": 28,
+    "repl_lines": 1,
+    "last_tick": 2868
+  },
+  "hardware_stubs": {
+    "saw_begin": true,
+    "saw_end": true,
+    "checks": {
+      "usb_drive_off": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "usb_drive_on_rejected": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "usb_ip_unavailable": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "usb_open_false": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "usb_available_zero": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "usb_read_empty": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "uart_open_false": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "uart_available_zero": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "uart_read_empty": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "imu_init": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "imu_sample": {
+        "status": "PASS",
+        "detail": "{'y': 0.0, 'x': 0.0, 'temp': 25.0, 'z': 1000.0}"
+      },
+      "imu_degrees": {
+        "status": "PASS",
+        "detail": "{'pitch': 0.0, 'roll': 0.0, 'temp': 25.0}"
+      },
+      "imu_tap_start_rejected": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "imu_tap_stop": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "imu_poll_none": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "mic_start_rejected": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "mic_recording_false": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "mic_samples_zero": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "mic_level_zero": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "mic_stop": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "mic_save_none": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "sleep_idle_timeout": {
+        "status": "PASS",
+        "detail": "145->150"
+      },
+      "servo_init_sim": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "servo_arm_rejected": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "servo_safe_status": {
+        "status": "PASS",
+        "detail": "{'last_result': -3, 'faults_oob': 0, 'trace_count': 1, 'trace_overwrites': 0, 'flight': 0, 'last_action': 2, 'faults_no_backend': 0, 'backend': 1, 'seq': 2, 'actions_ok': 0, 'faults_not_armed': 1, 'armed': 0}"
+      },
+      "servo_disarm": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "servo_pose_none": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "servo_pose_not_ready": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "calib_identity_R": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "calib_zero_offset": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "calib_not_calibrated": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "calib_kabsch_stub": {
+        "status": "PASS",
+        "detail": "((1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0), {'accepted': False, 'reject_code': -3, 'n_samples': 0})"
+      },
+      "lifter_count_zero": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "lifter_list_empty": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "lifter_stats_zero": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "lifter_clear": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "safety_init": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "safety_clear": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "safety_not_aborted": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "safety_task_start_rejected": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "safety_task_stop": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "safety_enable_markers_rejected": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "safety_test_abort": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "fr_events_file": {
+        "status": "PASS",
+        "detail": "64"
+      },
+      "fr_scalars_file": {
+        "status": "PASS",
+        "detail": "55"
+      }
+    },
+    "fails": 0,
+    "fs_write_size": 1733
+  },
+  "pass": true
+}

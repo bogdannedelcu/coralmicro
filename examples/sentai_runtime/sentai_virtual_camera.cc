@@ -21,8 +21,14 @@ extern "C" void sentai_virtual_camera_after_select(void) __attribute__((weak));
 
 namespace {
 
-constexpr int kMaxW = 640;
-constexpr int kMaxH = 480;
+#ifndef SENTAI_RUNTIME_CAMERA_W
+#define SENTAI_RUNTIME_CAMERA_W 640
+#endif
+#ifndef SENTAI_RUNTIME_CAMERA_H
+#define SENTAI_RUNTIME_CAMERA_H 480
+#endif
+constexpr int kMaxW = SENTAI_RUNTIME_CAMERA_W;
+constexpr int kMaxH = SENTAI_RUNTIME_CAMERA_H;
 constexpr int kMaxPath = 128;
 constexpr int kMaxPlaybackFrames = 64;
 constexpr int kPlaybackStackWords = configMINIMAL_STACK_SIZE * 12;

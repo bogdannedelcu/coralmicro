@@ -1,0 +1,10 @@
+[respawn] stopping prior cf2 + gz + Xvfb
+sim/scripts/respawn_sitl.sh: line 21: 815179 Killed                  distrobox enter crazysim-garden -- pkill -9 -f gz_to_uds_bridge 2> /dev/null
+sim/scripts/respawn_sitl.sh: line 22: 815264 Killed                  distrobox enter crazysim-garden -- pkill -9 -f 'gz sim' 2> /dev/null
+sim/scripts/respawn_sitl.sh: line 23: 815368 Killed                  distrobox enter crazysim-garden -- pkill -9 -f sitl_make 2> /dev/null
+[respawn] launching fresh SITL stack (world=sentai_whycon_small)
+[respawn] waiting for cf2 UDP 19850...
+[respawn] cf2 respawned at world origin (UDP 19850 ready)
+$ bash sim/scripts/respawn_sitl.sh sentai_whycon_small
+
+[elapsed_s] 18.827

@@ -1,0 +1,10 @@
+[hybrid] killing prior cf2/gz/Xvfb
+[hybrid] starting Xvfb on :99 (drives server-side OGRE2 render)
+[hybrid] starting gz sim SERVER (world=sentai_whycon_small) on DISPLAY=:99
+/home/bogdan/work/crazyflie/CrazySim/crazyflie-firmware/tools/crazyflie-simulation/simulator_files/gazebo/models/crazyflie/model.sdf.jinja -> /tmp/crazyflie_0.sdf
+[hybrid] spawning crazyflie_0 body at (0.04, 0.0, 0.0); camera XY starts at (0, 0) — retry up to 3× / 5s timeout
+[hybrid] spawn attempt 1 → OK
+[hybrid] starting cf2 SITL
+[hybrid] starting GUI on REAL display=:1 with sentai_gui.config
+Gtk-Message: 23:39:24.896: Failed to load module "canberra-gtk-module"
+Gtk-Message: 23:39:24.897: Failed to load module "canberra-gtk-module"

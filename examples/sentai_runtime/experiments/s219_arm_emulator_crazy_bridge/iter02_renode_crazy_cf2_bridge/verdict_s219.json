@@ -1,0 +1,90 @@
+{
+  "started_at": "2026-06-04T14:54:00+0300",
+  "target": "sentai_emu_crazy_ping_smoke",
+  "commands": {
+    "py_compile": [
+      "/usr/bin/python3",
+      "-m",
+      "py_compile",
+      "emu/host/sentai_crazy_cpx_udp_bridge.py",
+      "emu/host/test_sentai_crazy_cpx_udp_bridge.py",
+      "emu/renode/crazy_cpx_udp_mmio_bridge.py"
+    ],
+    "protocol_test": [
+      "/usr/bin/python3",
+      "emu/host/test_sentai_crazy_cpx_udp_bridge.py"
+    ],
+    "configure": [
+      "cmake",
+      "-S",
+      ".",
+      "-B",
+      "build_emu",
+      "-DSENTAI_ARM_EMU=ON",
+      "-DSENTAI_SKIP_SDK_PATCHES=ON"
+    ],
+    "build": [
+      "cmake",
+      "--build",
+      "build_emu",
+      "--target",
+      "sentai_emu_crazy_ping_smoke",
+      "-j16"
+    ],
+    "respawn_sitl": [
+      "bash",
+      "sim/scripts/respawn_sitl.sh",
+      "sentai_whycon_small"
+    ],
+    "renode": [
+      "/home/bogdan/work/renode_portable/renode",
+      "--plain",
+      "--console",
+      "--disable-xwt",
+      "emu/renode/sentai_emu_crazy_ping_smoke.resc"
+    ]
+  },
+  "no_sitl": false,
+  "world": "sentai_whycon_small",
+  "renode_ui": false,
+  "py_compile_rc": 0,
+  "protocol_test_rc": 0,
+  "configure_rc": 0,
+  "build_rc": 0,
+  "respawn_sitl_rc": 0,
+  "renode_rc": 0,
+  "symbols": {
+    "boot_state": 2816,
+    "heartbeat": 17,
+    "last_tick": 4720,
+    "init_rc": 0,
+    "ping_ms": 1,
+    "serial_open_calls": 1,
+    "serial_write_calls": 13,
+    "serial_read_calls": 16,
+    "serial_bytes_tx": 54,
+    "serial_bytes_rx": 22,
+    "serial_last_result": 0,
+    "ping_ms_signed": 1
+  },
+  "uart": {
+    "crazy_init_rc": 0,
+    "crazy_ping_ms": 1,
+    "crazy_running": 1,
+    "serial_open_calls": 1,
+    "serial_write_calls": 9,
+    "serial_read_calls": 14,
+    "serial_bytes_tx": 36,
+    "serial_bytes_rx": 18,
+    "serial_last_result": 0,
+    "stopped": true
+  },
+  "bridge": {
+    "guest_to_udp": 1,
+    "udp_to_guest": 1,
+    "system_messages": 4,
+    "open_seen": true,
+    "close_seen": true
+  },
+  "pass": true
+}

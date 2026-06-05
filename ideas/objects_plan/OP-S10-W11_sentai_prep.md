@@ -68,22 +68,25 @@ Path A — TPU staging buffer (NOT a slot, special-case, OCRAM):
 |--------------------------|-----------|----------------------------------|-----------------------------|-----------|----------------------------|
 | `s_tpu_input_buf_single` | `uint8_t` | RGB888 raw (uint8); cast to int8 in-place iff model = `kTfLiteInt8` | model-input (640×480×3 max) | InferTask | **`.tpu_input` → m_ocram** |
 
-Path B — the three slots defined today (aux fan-out, SDRAM):
+Path B — aux fan-out slots (SDRAM):
 
 | ID                             | Format  | Size    | Consumer                       | Region          |
 |--------------------------------|---------|---------|--------------------------------|-----------------|
 | `SENTAI_PREP_SLOT_GRAY_NATIVE` | Y8      | 320×240 | `sentai.aruco` (geometry-grade) | `.sdram_bss`    |
 | `SENTAI_PREP_SLOT_RGB_64`      | RGB888  | 64×64   | HSV / PHOG / GIST descriptors   | `.sdram_bss`    |
 | `SENTAI_PREP_SLOT_GRAY_64`     | Y8      | 64×64   | FFT-mag log-polar (W5, planned) | `.sdram_bss`    |
+| `SENTAI_PREP_SLOT_FLOW_GRAY_80x60` | Y8  | 80×60   | `sentai.flow` / FlowTask        | `.sdram_bss`    |
 
 Slot IDs are **append-only** — never renumbered, consumers refer
 by enum.  New slot adds a row; existing rows are immutable.
 
 ## Cadence vs camera
 
-Camera runs at **30 FPS** in the default SentAI mode (OV5640 VGA
-320×240, configured by `sentai.camera.init()`).  PrepTask consumes
-every frame off the camera task's output queue:
+Camera ingress on the physical board and Gazebo provider is VGA-class
+`640×480` unless explicitly reconfigured.  PrepTask consumes every frame off
+the camera task's output queue and owns the downscales into consumer slots:
+`SLOT_GRAY_NATIVE` is `320×240` for marker geometry, while
+`SLOT_FLOW_GRAY_80x60` is `80×60` for optical flow.
 
 - **ARM** (`detection_task.cc:prep_task_fn`): wakes on
   `s_sem_prep_done` / camera buffer-available, runs until camera
@@ -262,8 +265,9 @@ Path B (aux slots — SDRAM):
 SLOT_GRAY_NATIVE   320×240×1 =  75 KB
 SLOT_RGB_64         64×64 ×3 =  12 KB
 SLOT_GRAY_64        64×64 ×1 =   4 KB
+SLOT_FLOW_GRAY      80×60 ×1 = 4.8 KB
                               ───────
-Total slots                   ~91 KB in .sdram_bss
+Total slots                   ~96 KB in .sdram_bss
 ```
 
 Plus ~1 KB of subsystem state (refcount table, seq counters,

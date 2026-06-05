@@ -1,0 +1,18 @@
+:name: SentAI S230 ARM-emulator sentai.camera + sentai.markers UI
+:description: Same as sentai_emu_camera_markers.resc, but opens the LPUART6 analyzer for live UART visibility in Renode UI.
+
+i @emu/renode/sentai_rt1176.repl
+
+$bin?=@build_emu/emu/sentai_emu_camera_markers_repl
+$uart_log?=@/home/bogdan/work/coralmicro/emu/output/sentai_emu_camera_markers.log
+
+macro reset
+"""
+    sysbus LoadELF $bin
+    cpu VectorTableOffset 0x800
+"""
+
+showAnalyzer lpuart6
+lpuart6 CreateFileBackend $uart_log
+runMacro $reset
+start

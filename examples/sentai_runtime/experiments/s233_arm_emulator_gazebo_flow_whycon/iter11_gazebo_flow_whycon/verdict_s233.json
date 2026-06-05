@@ -1,0 +1,106 @@
+{
+  "started_at": "2026-06-04T23:38:38+0300",
+  "target": "sentai_emu_gazebo_flow_whycon_repl",
+  "world": "sentai_whycon_small",
+  "renode_ui": false,
+  "camera_forward_fps": 0.0,
+  "renode_script": "emu/renode/sentai_emu_gazebo_flow_whycon.resc",
+  "commands": {
+    "py_compile": [
+      "/usr/bin/python3",
+      "-m",
+      "py_compile",
+      "emu/renode/crazy_cpx_udp_mmio_bridge.py",
+      "emu/renode/gazebo_camera_mmio_bridge.py",
+      "emu/host/sentai_crazy_cpx_udp_bridge.py",
+      "emu/host/sentai_gazebo_uds_to_tcp_bridge.py"
+    ],
+    "configure": [
+      "cmake",
+      "-S",
+      ".",
+      "-B",
+      "build_emu",
+      "-DSENTAI_ARM_EMU=ON",
+      "-DSENTAI_SKIP_SDK_PATCHES=ON"
+    ],
+    "build": [
+      "cmake",
+      "--build",
+      "build_emu",
+      "--target",
+      "sentai_emu_gazebo_flow_whycon_repl",
+      "-j16"
+    ],
+    "respawn_sitl": [
+      "bash",
+      "sim/scripts/respawn_sitl.sh",
+      "sentai_whycon_small"
+    ],
+    "renode": [
+      "/home/bogdan/work/renode_portable/renode",
+      "--plain",
+      "--console",
+      "--disable-xwt",
+      "emu/renode/sentai_emu_gazebo_flow_whycon.resc"
+    ]
+  },
+  "py_compile_rc": 0,
+  "configure_rc": 0,
+  "build_rc": 0,
+  "camera_tcp_ready": true,
+  "renode_rc": 0,
+  "symbols": {
+    "boot_state": 1280,
+    "heartbeat": 48,
+    "repl_lines": 1,
+    "last_tick": 11913,
+    "serial_open_calls": 0,
+    "serial_write_calls": 0,
+    "serial_read_calls": 0,
+    "serial_bytes_tx": 0,
+    "serial_bytes_rx": 0,
+    "serial_last_result": 4294967295,
+    "cam_task_started": 1,
+    "cam_frames": 0,
+    "cam_publish_fail": 0,
+    "cam_last_seq": 0,
+    "cam_last_rc": 0,
+    "bridge_seen": 0,
+    "bridge_served": 0,
+    "bridge_dropped": 0,
+    "bridge_bad": 0
+  },
+  "uart": {
+    "begin": true,
+    "done": true,
+    "samples": 28,
+    "mark_errors": 0,
+    "cam_rc": 0,
+    "gray_ref": 1,
+    "flow_ref": 1,
+    "prep_fps": 30,
+    "prep_rc": 0,
+    "flow_rc": 0,
+    "markers_rc": 0,
+    "dt_ms": 7000,
+    "prep_frames": 0,
+    "prep_fps_x100": 0,
+    "flow_frames": 0,
+    "flow_fps_x100": 0,
+    "marker_samples": 28,
+    "marker_hits": 0,
+    "marker_best": 0,
+    "flow_seq_last": 0,
+    "last_sample": "S233_SAMPLE 136 0 0 0 0 0"
+  },
+  "gazebo_camera_bridge": {
+    "connected": true,
+    "frames_logged": 0,
+    "bad_header": false,
+    "exceptions": 0
+  },
+  "pass_flow": false,
+  "pass_whycon": false,
+  "pass": false
+}

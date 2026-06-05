@@ -1,0 +1,43 @@
+
+SentAI EMU REPL B8.3
+MicroPython embed ready
+CORE_BEGIN
+CHECK|version|PASS|SentAI EMU B8
+CHECK|verbose_set|PASS|1
+CHECK|verbose_restore|PASS|0
+0
+CHECK|debug|PASS|None
+CHECK|console_default|PASS|uart
+CHECK|console_uart|PASS|uart
+CHECK|io_led_on|PASS|None
+CHECK|io_led_off|PASS|None
+CHECK|sys_recovery|PASS|False
+CHECK|sys_boot_attempts|PASS|0
+CHECK|rtos_ticks_progress|PASS|55->80
+CHECK|rtos_uptime|PASS|0
+True
+False
+True
+True
+CHECK|fs_exists|PASS|11
+CHECK|fs_size|PASS|11
+CHECK|fs_read_str|PASS|hello world
+CHECK|fs_read_bytes|PASS|b'hello world'
+CHECK|fs_b64|PASS|aGVsbG8gd29ybGQ=
+CHECK|fs_ls|PASS|[('s216_inventory.txt', 1, 1679), ('s218.txt', 1, 11)]
+True
+True
+CHECK|sentai_run|PASS|run-ok
+0
+CHECK|fr_open_events|PASS|(0, 0, 0, 0, 0, 0, 0)
+CHECK|fr_open_scalars|PASS|(0, 0, 0, 0, 0, 0, 0)
+CHECK|fr_event|PASS|(1, 1, 0, 1, 0, 0, 0)
+CHECK|fr_scalar|PASS|(1, 1, 0, 1, 0, 0, 0)
+0
+CHECK|fr_events_file|PASS|49
+CHECK|fr_scalars_file|PASS|52
+CORE_FAILS|0
+True
+True
+FS_WRITE|869
+CORE_END

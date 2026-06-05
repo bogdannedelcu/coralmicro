@@ -15,6 +15,7 @@ Sub-modules:
   sentai.tfl      TFLite Micro CPU inference (no EdgeTPU)
   sentai.fs       Filesystem (LittleFS)
   sentai.camera   Camera capture
+  sentai.markers  Circle/WhyCon marker detection + pose
   sentai.imu      LIS2DU12 accelerometer
   sentai.mic      PDM microphone recording
   sentai.usb      USB mass-storage & serial
@@ -210,6 +211,45 @@ sentai.camera - Camera
                         Use delta between readings to count frames.
                         Example: before=frame_count(); select(1);
                           sleep_ms(200); print(frame_count()-before)
+
+[markers]
+sentai.markers - Fiducial Markers
+=================================
+  Canonical runtime namespace for visual fiducials.
+  Use the WhyCon/circle backend for new missions:
+    sentai.markers.init('whycon')
+
+  The ArUco backend is retained for legacy diagnostics only.  Do not use
+  sentai.aruco or sentai.whycon namespaces in new mission code; those aliases
+  are deprecated/de-registered.
+
+  init(backend)         Select backend: 'whycon' preferred, 'aruco' legacy
+  clear()               Clear detections and stats
+  backend()             Current backend: 'none', 'aruco', or 'whycon'
+  set_intrinsics(fx, fy, cx, cy)
+                        Set camera intrinsics
+  set_marker_size(m)    Set marker diameter/size in metres
+  set_marker_world(buf) Set known marker-world layout from packed floats
+  detect_from_camera()  Detect markers from the active camera frame
+  detect_buffer(buf, w, h)
+                        Detect from grayscale buffer
+  detect_pgm(path)      Detect from a PGM file on flash
+  get_count()           Number of detections in the last frame
+  get_detection_tuple(i)
+                        Detection tuple for marker i
+  get_pose_tuple(i)     Pose tuple for marker i
+  get_drone_pose_tuple(yaw)
+                        Estimate drone pose from known marker layout
+  get_observation_tuple()
+                        Compact latest marker observation snapshot
+
+  Example:
+    sentai.camera.init()
+    sentai.markers.init('whycon')
+    sentai.markers.set_intrinsics(288.3, 288.3, 160.0, 120.0)
+    sentai.markers.set_marker_size(0.10)
+    n = sentai.markers.detect_from_camera()
+    print('markers:', n)
 
 [imu]
 sentai.imu - LIS2DU12 accelerometer

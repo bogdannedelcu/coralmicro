@@ -1,0 +1,483 @@
+    PID    PPID STAT CMD
+      1       0 Ss   /usr/lib/systemd/systemd --system --deserialize=35 splash
+      2       0 S    [kthreadd]
+      3       2 S    [pool_workqueue_release]
+      4       2 I<   [kworker/R-rcu_gp]
+      5       2 I<   [kworker/R-sync_wq]
+      6       2 I<   [kworker/R-kvfree_rcu_reclaim]
+      7       2 I<   [kworker/R-slub_flushwq]
+      8       2 I<   [kworker/R-netns]
+     11       2 I<   [kworker/0:0H-events_highpri]
+     13       2 I<   [kworker/R-mm_percpu_wq]
+     14       2 S    [ksoftirqd/0]
+     15       2 I    [rcu_preempt]
+     16       2 S    [rcu_exp_par_gp_kthread_worker/0]
+     17       2 S    [rcu_exp_gp_kthread_worker]
+     18       2 S    [migration/0]
+     19       2 S    [idle_inject/0]
+     20       2 S    [cpuhp/0]
+     21       2 S    [cpuhp/2]
+     22       2 S    [idle_inject/2]
+     23       2 S    [migration/2]
+     24       2 S    [ksoftirqd/2]
+     26       2 I<   [kworker/2:0H-events_highpri]
+     27       2 S    [cpuhp/4]
+     28       2 S    [idle_inject/4]
+     29       2 S    [migration/4]
+     30       2 S    [ksoftirqd/4]
+     32       2 I<   [kworker/4:0H-events_highpri]
+     33       2 S    [cpuhp/6]
+     34       2 S    [idle_inject/6]
+     35       2 S    [migration/6]
+     36       2 S    [ksoftirqd/6]
+     38       2 I<   [kworker/6:0H-events_highpri]
+     39       2 S    [cpuhp/8]
+     40       2 S    [idle_inject/8]
+     41       2 S    [migration/8]
+     42       2 S    [ksoftirqd/8]
+     44       2 I<   [kworker/8:0H-events_highpri]
+     45       2 S    [cpuhp/10]
+     46       2 S    [idle_inject/10]
+     47       2 S    [migration/10]
+     48       2 S    [ksoftirqd/10]
+     50       2 I<   [kworker/10:0H-events_highpri]
+     51       2 S    [cpuhp/12]
+     52       2 S    [idle_inject/12]
+     53       2 S    [migration/12]
+     54       2 S    [ksoftirqd/12]
+     56       2 I<   [kworker/12:0H-events_highpri]
+     57       2 S    [cpuhp/14]
+     58       2 S    [idle_inject/14]
+     59       2 S    [migration/14]
+     60       2 S    [ksoftirqd/14]
+     62       2 I<   [kworker/14:0H-events_highpri]
+     63       2 S    [cpuhp/1]
+     64       2 S    [idle_inject/1]
+     65       2 S    [migration/1]
+     66       2 S    [ksoftirqd/1]
+     68       2 I<   [kworker/1:0H-events_highpri]
+     69       2 S    [cpuhp/3]
+     70       2 S    [idle_inject/3]
+     71       2 S    [migration/3]
+     72       2 S    [ksoftirqd/3]
+     74       2 I<   [kworker/3:0H-events_highpri]
+     75       2 S    [cpuhp/5]
+     76       2 S    [idle_inject/5]
+     77       2 S    [migration/5]
+     78       2 S    [ksoftirqd/5]
+     80       2 I<   [kworker/5:0H-events_highpri]
+     81       2 S    [cpuhp/7]
+     82       2 S    [idle_inject/7]
+     83       2 S    [migration/7]
+     84       2 S    [ksoftirqd/7]
+     86       2 I<   [kworker/7:0H-events_highpri]
+     87       2 S    [cpuhp/9]
+     88       2 S    [idle_inject/9]
+     89       2 S    [migration/9]
+     90       2 S    [ksoftirqd/9]
+     92       2 I<   [kworker/9:0H-events_highpri]
+     93       2 S    [cpuhp/11]
+     94       2 S    [idle_inject/11]
+     95       2 S    [migration/11]
+     96       2 S    [ksoftirqd/11]
+     98       2 I<   [kworker/11:0H-events_highpri]
+     99       2 S    [cpuhp/13]
+    100       2 S    [idle_inject/13]
+    101       2 S    [migration/13]
+    102       2 S    [ksoftirqd/13]
+    104       2 I<   [kworker/13:0H-events_highpri]
+    105       2 S    [cpuhp/15]
+    106       2 S    [idle_inject/15]
+    107       2 S    [migration/15]
+    108       2 S    [ksoftirqd/15]
+    110       2 I<   [kworker/15:0H-events_highpri]
+    111       2 S    [kdevtmpfs]
+    112       2 I<   [kworker/R-inet_frag_wq]
+    113       2 I    [rcu_tasks_kthread]
+    114       2 I    [rcu_tasks_rude_kthread]
+    115       2 I    [rcu_tasks_trace_kthread]
+    116       2 S    [kauditd]
+    117       2 S    [khungtaskd]
+    119       2 S    [oom_reaper]
+    120       2 I<   [kworker/R-writeback]
+    121       2 S    [kcompactd0]
+    122       2 SN   [ksmd]
+    123       2 SN   [khugepaged]
+    124       2 I<   [kworker/R-kblockd]
+    125       2 I<   [kworker/R-blkcg_punt_bio]
+    126       2 I<   [kworker/R-kintegrityd]
+    128       2 S    [irq/9-acpi]
+    130       2 I<   [kworker/R-tpm_dev_wq]
+    131       2 I<   [kworker/R-ata_sff]
+    132       2 I<   [kworker/R-md]
+    133       2 I<   [kworker/R-md_bitmap]
+    134       2 I<   [kworker/R-edac-poller]
+    135       2 I<   [kworker/R-devfreq_wq]
+    136       2 S    [watchdogd]
+    137       2 I<   [kworker/R-quota_events_unbound]
+    138       2 I<   [kworker/1:1H-kblockd]
+    140       2 S    [irq/25-AMD-Vi]
+    142       2 S    [kswapd0]
+    143       2 S    [ecryptfs-kthread]
+    144       2 I<   [kworker/R-kthrotld]
+    146       2 I<   [kworker/R-acpi_thermal_pm]
+    147       2 S    [hwrng]
+    148       2 I<   [kworker/R-mld]
+    149       2 I<   [kworker/12:1H-kblockd]
+    150       2 I<   [kworker/R-ipv6_addrconf]
+    152       2 I<   [kworker/R-kstrp]
+    173       2 I<   [kworker/R-charger_manager]
+    174       2 I<   [kworker/0:1H-kblockd]
+    175       2 S    [irq/26-ACPI:Event]
+    183       2 S    [irq/27-ACPI:Event]
+    184       2 S    [irq/28-ACPI:Event]
+    185       2 S    [irq/29-ACPI:Event]
+    186       2 S    [irq/30-ACPI:Event]
+    187       2 S    [irq/31-ACPI:Event]
+    188       2 S    [irq/32-ACPI:Event]
+    212       2 I<   [kworker/11:1H-kblockd]
+    216       2 I<   [kworker/15:1H-kblockd]
+    217       2 I<   [kworker/7:1H-kblockd]
+    233       2 I<   [kworker/5:1H-kblockd]
+    235       2 I<   [kworker/10:1H-kblockd]
+    236       2 I<   [kworker/4:1H-kblockd]
+    237       2 I<   [kworker/8:1H-kblockd]
+    238       2 I<   [kworker/13:1H-kblockd]
+    239       2 I<   [kworker/14:1H-kblockd]
+    240       2 I<   [kworker/3:1H-kblockd]
+    241       2 I<   [kworker/6:1H-kblockd]
+    242       2 I<   [kworker/2:1H-kblockd]
+    246       2 I<   [kworker/9:1H-kblockd]
+    261       2 S    [irq/48-ELAN06C7:00]
+    341       2 I<   [kworker/R-nvme-wq]
+    342       2 I<   [kworker/R-nvme-reset-wq]
+    343       2 I<   [kworker/R-nvme-delete-wq]
+    344       2 I<   [kworker/R-nvme-auth-wq]
+    406       2 S    [jbd2/nvme0n1p2-8]
+    407       2 I<   [kworker/R-ext4-rsv-conversion]
+    496       2 S    [card1-crtc0]
+    497       2 S    [card2-crtc0]
+    498       2 S    [card3-crtc0]
+    499       2 S    [card4-crtc0]
+    945       2 I<   [kworker/R-ktpacpid]
+   1035       2 I<   [kworker/R-cfg80211]
+   1239       2 S    [irq/74-rtw89_pci]
+   1477       2 I<   [kworker/R-amdgpu-reset-dev]
+   1542       2 I<   [kworker/R-ttm]
+   1544       2 I<   [kworker/R-amdgpu_dm_hpd_rx_offload_wq]
+   1545       2 I<   [kworker/R-amdgpu_dm_hpd_rx_offload_wq]
+   1546       2 I<   [kworker/R-amdgpu_dm_hpd_rx_offload_wq]
+   1547       2 I<   [kworker/R-amdgpu_dm_hpd_rx_offload_wq]
+   1548       2 I<   [kworker/R-amdgpu_dm_hpd_rx_offload_wq]
+   1549       2 I<   [kworker/R-amdgpu_dm_hpd_rx_offload_wq]
+   1550       2 I<   [kworker/R-amdgpu_dm_hpd_rx_offload_wq]
+   1551       2 I<   [kworker/R-amdgpu_dm_hpd_rx_offload_wq]
+   1552       2 I<   [kworker/R-amdgpu_dm_hpd_rx_offload_wq]
+   1553       2 I<   [kworker/R-dm_vblank_control_workqueue]
+   1554       2 I<   [kworker/R-amdgpu_dm_hpd_wq]
+   1555       2 S    [card5-crtc0]
+   1556       2 S    [card5-crtc1]
+   1557       2 S    [card5-crtc2]
+   1558       2 S    [card5-crtc3]
+   1559       2 I<   [kworker/R-gfx_0.0.0]
+   1560       2 I<   [kworker/R-gfx_0.1.0]
+   1561       2 I<   [kworker/R-comp_1.0.0]
+   1562       2 I<   [kworker/R-comp_1.1.0]
+   1563       2 I<   [kworker/R-comp_1.2.0]
+   1564       2 I<   [kworker/R-comp_1.3.0]
+   1565       2 I<   [kworker/R-comp_1.0.1]
+   1566       2 I<   [kworker/R-comp_1.1.1]
+   1567       2 I<   [kworker/R-comp_1.2.1]
+   1568       2 I<   [kworker/R-comp_1.3.1]
+   1569       2 I<   [kworker/R-sdma0]
+   1570       2 I<   [kworker/R-vcn_dec_0]
+   1571       2 I<   [kworker/R-vcn_enc_0.0]
+   1572       2 I<   [kworker/R-vcn_enc_0.1]
+   1573       2 I<   [kworker/R-jpeg_dec]
+   1966       1 Ss   avahi-daemon: running [bogdan-tp.local]
+   1968       1 Ss   /usr/libexec/bluetooth/bluetoothd
+   1969       1 Ss   @dbus-daemon --system --address=systemd: --nofork --nopidfile --systemd-activation --syslog-only
+   1986       1 Ssl  /usr/libexec/power-profiles-daemon
+   2005       1 Ssl  /usr/libexec/accounts-daemon
+   2009       1 Ss   /usr/sbin/cron -f -P
+   2011       1 Ssl  /usr/libexec/switcheroo-control
+   2016       1 Ss   /usr/lib/systemd/systemd-logind
+   2021       1 Ssl  /usr/libexec/udisks2/udisksd
+   2058    1966 S    avahi-daemon: chroot helper
+   2061       1 Ss   /usr/sbin/wpa_supplicant -u -s -O DIR=/run/wpa_supplicant GROUP=netdev
+   2108       1 Ssl  /usr/lib/polkit-1/polkitd --no-debug
+   2362       1 Ssl  /usr/bin/python3 /usr/share/unattended-upgrades/unattended-upgrade-shutdown --wait-for-signal
+   2376       1 Ssl  /usr/libexec/colord
+   2388       1 Ssl  /usr/sbin/gdm3
+   2514       1 SNsl /usr/libexec/rtkit-daemon
+   2605       2 S<   [krfcommd]
+   3021       1 Ssl  /usr/libexec/upowerd
+   3506       1 Ss   /usr/sbin/kerneloops --test
+   3528       1 Ss   /usr/sbin/kerneloops
+   3535       1 Ssl  /opt/racertech/usb_render
+   3575    2388 Sl   gdm-session-worker [pam/gdm-password]
+   3615       1 Ss   /usr/lib/systemd/systemd --user --deserialize=8
+   3621    3615 S    (sd-pam)
+   3638    3615 Ssl  /usr/bin/pipewire
+   3639    3615 Ssl  /usr/bin/pipewire -c filter-chain.conf
+   3643    3615 Ssl  /usr/bin/wireplumber
+   3644    3615 Ssl  /usr/bin/pipewire-pulse
+   3646    3615 SLsl /usr/bin/gnome-keyring-daemon --foreground --components=pkcs11,secrets --control-directory=/run/user/1000/keyring
+   3656    3615 Ss   /usr/bin/dbus-daemon --session --address=systemd: --nofork --nopidfile --systemd-activation --syslog-only
+   3702    3615 Ssl  /usr/libexec/xdg-document-portal
+   3706    3615 Ssl  /usr/libexec/xdg-permission-store
+   3713    3702 Ss   fusermount3 -o rw,nosuid,nodev,fsname=portal,auto_unmount,subtype=portal -- /run/user/1000/doc
+   3752    3575 Ssl+ /usr/libexec/gdm-x-session --run-script env GNOME_SHELL_SESSION_MODE=ubuntu /usr/bin/gnome-session --session=ubuntu
+   3760    3752 Sl+  /usr/lib/xorg/Xorg vt2 -displayfd 3 -auth /run/user/1000/gdm/Xauthority -nolisten tcp -background none -noreset -keeptty -novtswitch -verbose 3
+   3927    3752 Sl+  /usr/libexec/gnome-session-binary --session=ubuntu
+   4015    3615 Ssl  /usr/libexec/at-spi-bus-launcher
+   4022    4015 S    /usr/bin/dbus-daemon --config-file=/usr/share/defaults/at-spi2/accessibility.conf --nofork --print-address 11 --address=unix:path=/run/user/1000/at-spi/bus_1
+   4037    3615 Ssl  /usr/libexec/gcr-ssh-agent --base-dir /run/user/1000/gcr
+   4038    3615 SLsl /usr/libexec/gnome-remote-desktop-daemon
+   4039    3615 Ssl  /usr/libexec/gnome-session-ctl --monitor
+   4053    3615 Ssl  /usr/libexec/gvfsd
+   4065    3615 Sl   /usr/libexec/gvfsd-fuse /run/user/1000/gvfs -f
+   4069    3615 Ssl  /usr/libexec/gnome-session-binary --systemd-service --session=ubuntu
+   4113    3615 Ssl  /usr/bin/gnome-shell
+   4143    4113 Sl   /usr/libexec/mutter-x11-frames
+   4146    3615 Sl   /usr/libexec/at-spi2-registryd --use-gnome-session
+   4182    3615 Sl   /usr/libexec/gnome-shell-calendar-server
+   4191    3615 Ssl  /usr/libexec/evolution-source-registry
+   4193    3615 Ssl  /usr/libexec/dconf-service
+   4206    3615 Sl   /usr/bin/gjs -m /usr/share/gnome-shell/org.gnome.Shell.Notifications
+   4237    3615 Ssl  /usr/bin/ibus-daemon --panel disable --xim
+   4240    3615 Sl   /usr/libexec/goa-daemon
+   4244    3615 Ssl  /usr/libexec/gsd-a11y-settings
+   4248    3615 Ssl  /usr/libexec/gsd-color
+   4252    3615 Ssl  /usr/libexec/gsd-datetime
+   4253    3615 Ssl  /usr/libexec/gsd-housekeeping
+   4256    3615 Ssl  /usr/libexec/gsd-keyboard
+   4257    3615 Ssl  /usr/libexec/gsd-media-keys
+   4259    3615 Ssl  /usr/libexec/gsd-power
+   4268    3615 Ssl  /usr/libexec/gsd-print-notifications
+   4270    3615 Ssl  /usr/libexec/gsd-rfkill
+   4275    3615 Ssl  /usr/libexec/gsd-screensaver-proxy
+   4277    3615 Ssl  /usr/libexec/gsd-sharing
+   4281    3615 Ssl  /usr/libexec/gsd-smartcard
+   4284    3615 Ssl  /usr/libexec/gsd-sound
+   4287    3615 Ssl  /usr/libexec/gsd-wacom
+   4292    3615 Ssl  /usr/libexec/gsd-xsettings
+   4308    3615 Ssl  /usr/libexec/gvfs-udisks2-volume-monitor
+   4312    4069 Sl   /usr/libexec/gsd-disk-utility-notify
+   4317    4069 Sl   /usr/libexec/evolution-data-server/evolution-alarm-notify
+   4353    3615 Sl   /usr/libexec/goa-identity-service
+   4355    3615 Ssl  /usr/libexec/evolution-calendar-factory
+   4363    4237 Sl   /usr/libexec/ibus-memconf
+   4364    4237 Sl   /usr/libexec/ibus-extension-gtk3
+   4370    3615 Sl   /usr/libexec/ibus-x11 --kill-daemon
+   4395    3615 Sl   /usr/libexec/ibus-portal
+   4512    3615 Ssl  /usr/libexec/gvfs-gphoto2-volume-monitor
+   4514    3615 Sl   /usr/libexec/gsd-printer
+   4532    3615 Ssl  /usr/libexec/evolution-addressbook-factory
+   4536    3615 Ssl  /usr/libexec/gvfs-afc-volume-monitor
+   4552    3615 Ssl  /usr/libexec/gvfs-goa-volume-monitor
+   4561    3615 Ssl  /usr/libexec/gvfs-mtp-volume-monitor
+   4599    3615 Sl   /usr/bin/gjs -m /usr/share/gnome-shell/org.gnome.ScreenSaver
+   4614    3615 SNsl /usr/libexec/tracker-miner-fs-3
+   4620    4237 Sl   /usr/libexec/ibus-engine-simple
+   4658    3615 Ss   /snap/snapd-desktop-integration/361/usr/bin/snapd-desktop-integration
+   4673    4053 Sl   /usr/libexec/gvfsd-trash --spawner :1.25 /org/gtk/gvfs/exec_spaw/0
+   4759    4658 Sl   /snap/snapd-desktop-integration/361/usr/bin/snapd-desktop-integration
+   4761    3615 Ssl  /usr/libexec/xdg-desktop-portal
+   4766    3615 Ssl  /usr/libexec/xdg-desktop-portal-gnome
+   4804    3615 Ssl  /usr/libexec/xdg-desktop-portal-gtk
+   4913    3615 Ssl  /usr/libexec/gvfsd-metadata
+   4976    4113 SLl  /opt/google/chrome/chrome
+   4982    4976 S    cat
+   4983    4976 S    cat
+   4985    3615 Sl   /opt/google/chrome/chrome_crashpad_handler --monitor-self --monitor-self-annotation=ptype=crashpad-handler --database=/home/bogdan/.config/google-chrome/Crash Reports --metrics-dir=/home/bogdan/.config/google-chrome --url=https://clients2.google.com/cr/report --annotation=channel= --annotation=lsb-release=Ubuntu 24.04.4 LTS --annotation=plat=Linux --annotation=prod=Chrome_Linux --annotation=ver=146.0.7680.164 --initial-client-fd=5 --shared-client-connection
+   4987    3615 Sl   /opt/google/chrome/chrome_crashpad_handler --no-periodic-tasks --monitor-self-annotation=ptype=crashpad-handler --database=/home/bogdan/.config/google-chrome/Crash Reports --url=https://clients2.google.com/cr/report --annotation=channel= --annotation=lsb-release=Ubuntu 24.04.4 LTS --annotation=plat=Linux --annotation=prod=Chrome_Linux --annotation=ver=146.0.7680.164 --initial-client-fd=4 --shared-client-connection
+   4993    4976 S    /opt/google/chrome/chrome --type=zygote --no-zygote-sandbox --crashpad-handler-pid=4985 --enable-crash-reporter=4985e47a-f05c-45be-9f77-7da28608de29, --change-stack-guard-on-fork=enable
+   4994    4976 S    /opt/google/chrome/chrome --type=zygote --crashpad-handler-pid=4985 --enable-crash-reporter=4985e47a-f05c-45be-9f77-7da28608de29, --change-stack-guard-on-fork=enable
+   4996    4994 S    /opt/google/chrome/chrome --type=zygote --crashpad-handler-pid=4985 --enable-crash-reporter=4985e47a-f05c-45be-9f77-7da28608de29, --change-stack-guard-on-fork=enable
+   5022    4993 Sl   /opt/google/chrome/chrome --type=gpu-process --ozone-platform=x11 --crashpad-handler-pid=4985 --enable-crash-reporter=4985e47a-f05c-45be-9f77-7da28608de29, --change-stack-guard-on-fork=enable --gpu-preferences=UAAAAAAAAAAgAQAEAAAAAAAAAAAAAGAAAQAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAAAAAAAAAAAYAAAAAAAAABgAAAAAAAAAAQAAAAAAAAAIAAAAAAAAAAgAAAAAAAAA --shared-files --metrics-shmem-handle=4,i,687510480699170259,5781067199611122048,262144 --field-trial-handle=3,i,7225693272410937758,12333477744411282237,262144 --variations-seed-version=20260524-030033.420000-production --pseudonymization-salt-handle=7,i,7827463296479551254,14388760758154751332,4 --trace-process-track-uuid=3190708988185955192
+   5024    4976 Sl   /opt/google/chrome/chrome --type=utility --utility-sub-type=network.mojom.NetworkService --lang=en-US --service-sandbox-type=none --crashpad-handler-pid=4985 --enable-crash-reporter=4985e47a-f05c-45be-9f77-7da28608de29, --change-stack-guard-on-fork=enable --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,9771897779218185240,7760291425742450062,524288 --field-trial-handle=3,i,7225693272410937758,12333477744411282237,262144 --variations-seed-version=20260524-030033.420000-production --pseudonymization-salt-handle=7,i,7827463296479551254,14388760758154751332,4 --trace-process-track-uuid=3190708989122997041
+   5036    4996 Sl   /opt/google/chrome/chrome --type=utility --utility-sub-type=storage.mojom.StorageService --lang=en-US --service-sandbox-type=utility --crashpad-handler-pid=4985 --enable-crash-reporter=4985e47a-f05c-45be-9f77-7da28608de29, --change-stack-guard-on-fork=enable --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,5609710180517529084,11761742873009863910,524288 --field-trial-handle=3,i,7225693272410937758,12333477744411282237,262144 --variations-seed-version=20260524-030033.420000-production --pseudonymization-salt-handle=7,i,7827463296479551254,14388760758154751332,4 --trace-process-track-uuid=3190708990060038890
+   5084    4996 Sl   /opt/google/chrome/chrome --type=renderer --crashpad-handler-pid=4985 --enable-crash-reporter=4985e47a-f05c-45be-9f77-7da28608de29, --change-stack-guard-on-fork=enable --ozone-platform=x11 --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=5 --time-ticks-at-unix-epoch=-1779801886892676 --launch-time-ticks=23722704 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,15366028549983078450,14822637310952683207,2097152 --field-trial-handle=3,i,7225693272410937758,12333477744411282237,262144 --variations-seed-version=20260524-030033.420000-production --pseudonymization-salt-handle=7,i,7827463296479551254,14388760758154751332,4 --trace-process-track-uuid=3190708990997080739
+   5213    4996 Sl   /opt/google/chrome/chrome --type=renderer --crashpad-handler-pid=4985 --enable-crash-reporter=4985e47a-f05c-45be-9f77-7da28608de29, --change-stack-guard-on-fork=enable --ozone-platform=x11 --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=8 --time-ticks-at-unix-epoch=-1779801886892676 --launch-time-ticks=23975310 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,4233683875377062433,3364954323995021904,2097152 --field-trial-handle=3,i,7225693272410937758,12333477744411282237,262144 --variations-seed-version=20260524-030033.420000-production --pseudonymization-salt-handle=7,i,7827463296479551254,14388760758154751332,4 --trace-process-track-uuid=3190708993808206286
+   5274    4996 Sl   /opt/google/chrome/chrome --type=renderer --crashpad-handler-pid=4985 --enable-crash-reporter=4985e47a-f05c-45be-9f77-7da28608de29, --change-stack-guard-on-fork=enable --ozone-platform=x11 --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=14 --time-ticks-at-unix-epoch=-1779801886892676 --launch-time-ticks=26014833 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,12110010241440197262,16037336873012688020,2097152 --field-trial-handle=3,i,7225693272410937758,12333477744411282237,262144 --variations-seed-version=20260524-030033.420000-production --pseudonymization-salt-handle=7,i,7827463296479551254,14388760758154751332,4 --trace-process-track-uuid=3190708999430457380
+   5454    4996 Sl   /opt/google/chrome/chrome --type=renderer --crashpad-handler-pid=4985 --enable-crash-reporter=4985e47a-f05c-45be-9f77-7da28608de29, --change-stack-guard-on-fork=enable --ozone-platform=x11 --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=54 --time-ticks-at-unix-epoch=-1779801886892676 --launch-time-ticks=31202836 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,13960554728331457753,15778192392814818793,2097152 --field-trial-handle=3,i,7225693272410937758,12333477744411282237,262144 --variations-seed-version=20260524-030033.420000-production --pseudonymization-salt-handle=7,i,7827463296479551254,14388760758154751332,4 --trace-process-track-uuid=3190709036912131340
+   5573    4996 Sl   /opt/google/chrome/chrome --type=renderer --crashpad-handler-pid=4985 --enable-crash-reporter=4985e47a-f05c-45be-9f77-7da28608de29, --change-stack-guard-on-fork=enable --ozone-platform=x11 --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=58 --time-ticks-at-unix-epoch=-1779801886892676 --launch-time-ticks=35013212 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,10523600228245165772,2751940278941183159,2097152 --field-trial-handle=3,i,7225693272410937758,12333477744411282237,262144 --variations-seed-version=20260524-030033.420000-production --pseudonymization-salt-handle=7,i,7827463296479551254,14388760758154751332,4 --trace-process-track-uuid=3190709040660298736
+   5633    4996 Sl   /opt/google/chrome/chrome --type=renderer --crashpad-handler-pid=4985 --enable-crash-reporter=4985e47a-f05c-45be-9f77-7da28608de29, --change-stack-guard-on-fork=enable --ozone-platform=x11 --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=59 --time-ticks-at-unix-epoch=-1779801886892676 --launch-time-ticks=39330358 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,13199362764840620596,2129999706459134920,2097152 --field-trial-handle=3,i,7225693272410937758,12333477744411282237,262144 --variations-seed-version=20260524-030033.420000-production --pseudonymization-salt-handle=7,i,7827463296479551254,14388760758154751332,4 --trace-process-track-uuid=3190709041597340585
+   5727    4976 Sl   /opt/google/chrome/chrome --type=utility --utility-sub-type=audio.mojom.AudioService --lang=en-US --service-sandbox-type=none --crashpad-handler-pid=4985 --enable-crash-reporter=4985e47a-f05c-45be-9f77-7da28608de29, --change-stack-guard-on-fork=enable --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,2684703451387334069,7984165672425616974,524288 --field-trial-handle=3,i,7225693272410937758,12333477744411282237,262144 --variations-seed-version=20260524-030033.420000-production --pseudonymization-salt-handle=7,i,7827463296479551254,14388760758154751332,4 --trace-process-track-uuid=3190709044408466132
+   5790    4996 Sl   /opt/google/chrome/chrome --type=renderer --crashpad-handler-pid=4985 --enable-crash-reporter=4985e47a-f05c-45be-9f77-7da28608de29, --change-stack-guard-on-fork=enable --ozone-platform=x11 --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=65 --time-ticks-at-unix-epoch=-1779801886892676 --launch-time-ticks=47741314 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,13585064931632264054,11802318971334991622,2097152 --field-trial-handle=3,i,7225693272410937758,12333477744411282237,262144 --variations-seed-version=20260524-030033.420000-production --pseudonymization-salt-handle=7,i,7827463296479551254,14388760758154751332,4 --trace-process-track-uuid=3190709047219591679
+   5813    4996 Sl   /opt/google/chrome/chrome --type=renderer --crashpad-handler-pid=4985 --enable-crash-reporter=4985e47a-f05c-45be-9f77-7da28608de29, --change-stack-guard-on-fork=enable --ozone-platform=x11 --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=66 --time-ticks-at-unix-epoch=-1779801886892676 --launch-time-ticks=48219522 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,12237506246471218352,6984773555104565285,2097152 --field-trial-handle=3,i,7225693272410937758,12333477744411282237,262144 --variations-seed-version=20260524-030033.420000-production --pseudonymization-salt-handle=7,i,7827463296479551254,14388760758154751332,4 --trace-process-track-uuid=3190709048156633528
+   5861    4996 Sl   /opt/google/chrome/chrome --type=renderer --crashpad-handler-pid=4985 --enable-crash-reporter=4985e47a-f05c-45be-9f77-7da28608de29, --change-stack-guard-on-fork=enable --ozone-platform=x11 --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=67 --time-ticks-at-unix-epoch=-1779801886892676 --launch-time-ticks=50047943 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,11711007804743831157,11418368232800595853,2097152 --field-trial-handle=3,i,7225693272410937758,12333477744411282237,262144 --variations-seed-version=20260524-030033.420000-production --pseudonymization-salt-handle=7,i,7827463296479551254,14388760758154751332,4 --trace-process-track-uuid=3190709049093675377
+   5892    4996 Sl   /opt/google/chrome/chrome --type=renderer --crashpad-handler-pid=4985 --enable-crash-reporter=4985e47a-f05c-45be-9f77-7da28608de29, --change-stack-guard-on-fork=enable --ozone-platform=x11 --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=68 --time-ticks-at-unix-epoch=-1779801886892676 --launch-time-ticks=52010274 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,14690778958469667596,2441635219659688319,2097152 --field-trial-handle=3,i,7225693272410937758,12333477744411282237,262144 --variations-seed-version=20260524-030033.420000-production --pseudonymization-salt-handle=7,i,7827463296479551254,14388760758154751332,4 --trace-process-track-uuid=3190709050030717226
+   5931    4996 Sl   /opt/google/chrome/chrome --type=renderer --crashpad-handler-pid=4985 --enable-crash-reporter=4985e47a-f05c-45be-9f77-7da28608de29, --change-stack-guard-on-fork=enable --ozone-platform=x11 --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=34 --time-ticks-at-unix-epoch=-1779801886892676 --launch-time-ticks=55223864 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,9054085530313830759,16542891577341629691,2097152 --field-trial-handle=3,i,7225693272410937758,12333477744411282237,262144 --variations-seed-version=20260524-030033.420000-production --pseudonymization-salt-handle=7,i,7827463296479551254,14388760758154751332,4 --trace-process-track-uuid=3190709018171294360
+   5946    4996 Sl   /opt/google/chrome/chrome --type=renderer --crashpad-handler-pid=4985 --enable-crash-reporter=4985e47a-f05c-45be-9f77-7da28608de29, --change-stack-guard-on-fork=enable --ozone-platform=x11 --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=69 --time-ticks-at-unix-epoch=-1779801886892676 --launch-time-ticks=55274092 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,13544829062357773326,12429242714142380835,2097152 --field-trial-handle=3,i,7225693272410937758,12333477744411282237,262144 --variations-seed-version=20260524-030033.420000-production --pseudonymization-salt-handle=7,i,7827463296479551254,14388760758154751332,4 --trace-process-track-uuid=3190709050967759075
+   6050    4069 Sl   /usr/bin/update-notifier
+   6127    3615 SNl  /usr/bin/python3 /usr/bin/update-manager --no-update --no-focus-on-map
+   6425    4996 Sl   /opt/google/chrome/chrome --type=renderer --crashpad-handler-pid=4985 --enable-crash-reporter=4985e47a-f05c-45be-9f77-7da28608de29, --change-stack-guard-on-fork=enable --ozone-platform=x11 --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=81 --time-ticks-at-unix-epoch=-1779801886892676 --launch-time-ticks=112384734 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,12101979016512220733,7454986016681887443,2097152 --field-trial-handle=3,i,7225693272410937758,12333477744411282237,262144 --variations-seed-version=20260524-030033.420000-production --pseudonymization-salt-handle=7,i,7827463296479551254,14388760758154751332,4 --trace-process-track-uuid=3190709062212261263
+   6462    4996 Sl   /opt/google/chrome/chrome --type=renderer --crashpad-handler-pid=4985 --enable-crash-reporter=4985e47a-f05c-45be-9f77-7da28608de29, --change-stack-guard-on-fork=enable --ozone-platform=x11 --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=82 --time-ticks-at-unix-epoch=-1779801886892676 --launch-time-ticks=153934039 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,3275335823526587668,14913360253605361267,2097152 --field-trial-handle=3,i,7225693272410937758,12333477744411282237,262144 --variations-seed-version=20260524-030033.420000-production --pseudonymization-salt-handle=7,i,7827463296479551254,14388760758154751332,4 --trace-process-track-uuid=3190709063149303112
+   7030    4113 SLl  /usr/share/code/code
+   7036    7030 S    /usr/share/code/code --type=zygote --no-zygote-sandbox
+   7037    7030 S    /usr/share/code/code --type=zygote
+   7039    7037 S    /usr/share/code/code --type=zygote
+   7054    3615 Sl   /usr/share/code/chrome_crashpad_handler --monitor-self-annotation=ptype=crashpad-handler --no-rate-limit --database=/home/bogdan/.config/Code/Crashpad --url=appcenter://code?aid=fba07a4d-84bd-4fc8-a125-9640fc8ce171&uid=98f7a2d4-babc-4f76-9d70-b9e744e2c74b&iid=98f7a2d4-babc-4f76-9d70-b9e744e2c74b&sid=98f7a2d4-babc-4f76-9d70-b9e744e2c74b --annotation=_companyName=Microsoft --annotation=_productName=VSCode --annotation=_version=1.113.0 --annotation=lsb-release=Ubuntu 24.04.4 LTS --annotation=plat=Linux --annotation=prod=Electron --annotation=ver=39.8.3 --initial-client-fd=49 --shared-client-connection
+   7067    7036 Sl   /usr/share/code/code --type=zygote --no-zygote-sandbox
+   7076    7030 Sl   /proc/self/exe --type=utility --utility-sub-type=network.mojom.NetworkService --lang=en-US --service-sandbox-type=none --crashpad-handler-pid=7054 --enable-crash-reporter=1dd68fc1-f3fa-44f5-afdf-1d8420ecdb64,no_channel --user-data-dir=/home/bogdan/.config/Code --standard-schemes=vscode-webview,vscode-file --enable-sandbox --secure-schemes=vscode-webview,vscode-file --cors-schemes=vscode-webview,vscode-file --fetch-schemes=vscode-webview,vscode-file --service-worker-schemes=vscode-webview --code-cache-schemes=vscode-webview,vscode-file --shared-files=v8_context_snapshot_data:100 --field-trial-handle=3,i,9388635621884097579,15261366603156746291,262144 --enable-features=DocumentPolicyIncludeJSCallStacksInCrashReports,EarlyEstablishGpuChannel,EstablishGpuChannelAsync --disable-features=CalculateNativeWinOcclusion,LocalNetworkAccessChecks,ScreenAIOCREnabled,SpareRendererForSitePerProcess,TraceSiteInstanceGetProcessCreation --variations-seed-version --trace-process-track-uuid=3190708989122997041
+   7142    7039 Sl   /usr/share/code/code --type=zygote
+   7175    7030 Sl   /proc/self/exe --type=utility --utility-sub-type=node.mojom.NodeService --lang=en-US --service-sandbox-type=none --dns-result-order=ipv4first --experimental-network-inspection --inspect-port=0 --js-flags=--nodecommit_pooled_pages --crashpad-handler-pid=7054 --enable-crash-reporter=1dd68fc1-f3fa-44f5-afdf-1d8420ecdb64,no_channel --user-data-dir=/home/bogdan/.config/Code --standard-schemes=vscode-webview,vscode-file --enable-sandbox --secure-schemes=vscode-webview,vscode-file --cors-schemes=vscode-webview,vscode-file --fetch-schemes=vscode-webview,vscode-file --service-worker-schemes=vscode-webview --code-cache-schemes=vscode-webview,vscode-file --shared-files=v8_context_snapshot_data:100 --field-trial-handle=3,i,9388635621884097579,15261366603156746291,262144 --enable-features=DocumentPolicyIncludeJSCallStacksInCrashReports,EarlyEstablishGpuChannel,EstablishGpuChannelAsync --disable-features=CalculateNativeWinOcclusion,LocalNetworkAccessChecks,ScreenAIOCREnabled,SpareRendererForSitePerProcess,TraceSiteInstanceGetProcessCreation --variations-seed-version --trace-process-track-uuid=3190708990997080739
+   7203    7039 Sl   /usr/share/code/code --type=zygote
+   7213    7175 Sl   /home/bogdan/.vscode/extensions/openai.chatgpt-26.519.32039-linux-x64/bin/linux-x86_64/codex app-server --analytics-default-enabled
+   7293    7030 Sl   /proc/self/exe --type=utility --utility-sub-type=node.mojom.NodeService --lang=en-US --service-sandbox-type=none --js-flags=--nodecommit_pooled_pages --crashpad-handler-pid=7054 --enable-crash-reporter=1dd68fc1-f3fa-44f5-afdf-1d8420ecdb64,no_channel --user-data-dir=/home/bogdan/.config/Code --standard-schemes=vscode-webview,vscode-file --enable-sandbox --secure-schemes=vscode-webview,vscode-file --cors-schemes=vscode-webview,vscode-file --fetch-schemes=vscode-webview,vscode-file --service-worker-schemes=vscode-webview --code-cache-schemes=vscode-webview,vscode-file --shared-files=v8_context_snapshot_data:100 --field-trial-handle=3,i,9388635621884097579,15261366603156746291,262144 --enable-features=DocumentPolicyIncludeJSCallStacksInCrashReports,EarlyEstablishGpuChannel,EstablishGpuChannelAsync --disable-features=CalculateNativeWinOcclusion,LocalNetworkAccessChecks,ScreenAIOCREnabled,SpareRendererForSitePerProcess,TraceSiteInstanceGetProcessCreation --variations-seed-version --trace-process-track-uuid=3190708993808206286
+   7297    7030 Sl   /proc/self/exe --type=utility --utility-sub-type=node.mojom.NodeService --lang=en-US --service-sandbox-type=none --js-flags=--nodecommit_pooled_pages --crashpad-handler-pid=7054 --enable-crash-reporter=1dd68fc1-f3fa-44f5-afdf-1d8420ecdb64,no_channel --user-data-dir=/home/bogdan/.config/Code --standard-schemes=vscode-webview,vscode-file --enable-sandbox --secure-schemes=vscode-webview,vscode-file --cors-schemes=vscode-webview,vscode-file --fetch-schemes=vscode-webview,vscode-file --service-worker-schemes=vscode-webview --code-cache-schemes=vscode-webview,vscode-file --shared-files=v8_context_snapshot_data:100 --field-trial-handle=3,i,9388635621884097579,15261366603156746291,262144 --enable-features=DocumentPolicyIncludeJSCallStacksInCrashReports,EarlyEstablishGpuChannel,EstablishGpuChannelAsync --disable-features=CalculateNativeWinOcclusion,LocalNetworkAccessChecks,ScreenAIOCREnabled,SpareRendererForSitePerProcess,TraceSiteInstanceGetProcessCreation --variations-seed-version --trace-process-track-uuid=3190708994745248135
+   7298    7030 Sl   /proc/self/exe --type=utility --utility-sub-type=node.mojom.NodeService --lang=en-US --service-sandbox-type=none --js-flags=--nodecommit_pooled_pages --crashpad-handler-pid=7054 --enable-crash-reporter=1dd68fc1-f3fa-44f5-afdf-1d8420ecdb64,no_channel --user-data-dir=/home/bogdan/.config/Code --standard-schemes=vscode-webview,vscode-file --enable-sandbox --secure-schemes=vscode-webview,vscode-file --cors-schemes=vscode-webview,vscode-file --fetch-schemes=vscode-webview,vscode-file --service-worker-schemes=vscode-webview --code-cache-schemes=vscode-webview,vscode-file --shared-files=v8_context_snapshot_data:100 --field-trial-handle=3,i,9388635621884097579,15261366603156746291,262144 --enable-features=DocumentPolicyIncludeJSCallStacksInCrashReports,EarlyEstablishGpuChannel,EstablishGpuChannelAsync --disable-features=CalculateNativeWinOcclusion,LocalNetworkAccessChecks,ScreenAIOCREnabled,SpareRendererForSitePerProcess,TraceSiteInstanceGetProcessCreation --variations-seed-version --trace-process-track-uuid=3190708995682289984
+   8196    7293 Ss+  /usr/bin/bash --init-file /usr/share/code/resources/app/out/vs/workbench/contrib/terminal/common/scripts/shellIntegration-bash.sh
+   8606    4053 Sl   /usr/libexec/gvfsd-http --spawner :1.25 /org/gtk/gvfs/exec_spaw/1
+  15025    7175 Sl   /usr/share/code/code /usr/share/code/resources/app/extensions/markdown-language-features/dist/serverWorkerMain --node-ipc --clientProcessId=7175
+  33303    4996 Sl   /opt/google/chrome/chrome --type=renderer --crashpad-handler-pid=4985 --enable-crash-reporter=4985e47a-f05c-45be-9f77-7da28608de29, --change-stack-guard-on-fork=enable --ozone-platform=x11 --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=238 --time-ticks-at-unix-epoch=-1779801886892676 --launch-time-ticks=11974753622 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,10036235088146745798,18362951339445278206,2097152 --field-trial-handle=3,i,7225693272410937758,12333477744411282237,262144 --variations-seed-version=20260524-030033.420000-production --pseudonymization-salt-handle=7,i,7827463296479551254,14388760758154751332,4 --trace-process-track-uuid=3190709209327831556
+  45445    4996 Sl   /opt/google/chrome/chrome --type=renderer --crashpad-handler-pid=4985 --enable-crash-reporter=4985e47a-f05c-45be-9f77-7da28608de29, --change-stack-guard-on-fork=enable --ozone-platform=x11 --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=294 --time-ticks-at-unix-epoch=-1779801886892676 --launch-time-ticks=15386575896 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,2425601907798565174,7687095221648894601,2097152 --field-trial-handle=3,i,7225693272410937758,12333477744411282237,262144 --variations-seed-version=20260524-030033.420000-production --pseudonymization-salt-handle=7,i,7827463296479551254,14388760758154751332,4 --trace-process-track-uuid=3190709261802175100
+  45455    4996 Sl   /opt/google/chrome/chrome --type=renderer --crashpad-handler-pid=4985 --enable-crash-reporter=4985e47a-f05c-45be-9f77-7da28608de29, --change-stack-guard-on-fork=enable --ozone-platform=x11 --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=295 --time-ticks-at-unix-epoch=-1779801886892676 --launch-time-ticks=15387028134 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,15101957683551073647,6199498955222590504,2097152 --field-trial-handle=3,i,7225693272410937758,12333477744411282237,262144 --variations-seed-version=20260524-030033.420000-production --pseudonymization-salt-handle=7,i,7827463296479551254,14388760758154751332,4 --trace-process-track-uuid=3190709262739216949
+  98229    4113 Sl   /snap/remmina/7392/usr/bin/remmina
+ 165658    4996 Sl   /opt/google/chrome/chrome --type=renderer --crashpad-handler-pid=4985 --enable-crash-reporter=4985e47a-f05c-45be-9f77-7da28608de29, --change-stack-guard-on-fork=enable --ozone-platform=x11 --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=869 --time-ticks-at-unix-epoch=-1779801886892676 --launch-time-ticks=69652672604 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,1642301857545637277,5354798026292621411,2097152 --field-trial-handle=3,i,7225693272410937758,12333477744411282237,262144 --variations-seed-version=20260524-030033.420000-production --pseudonymization-salt-handle=7,i,7827463296479551254,14388760758154751332,4 --trace-process-track-uuid=3190709800601238275
+ 180264    7175 Sl   /home/bogdan/.vscode/extensions/ms-vscode.cpptools-1.32.2-linux-x64/bin/cpptools
+ 267800    3615 Ssl  /usr/libexec/gnome-terminal-server
+ 267813  267800 Ss+  bash
+ 268005    3646 S    /usr/bin/ssh-agent -D -a /run/user/1000/keyring/.ssh
+ 271714    4996 Sl   /opt/google/chrome/chrome --type=renderer --crashpad-handler-pid=4985 --enable-crash-reporter=4985e47a-f05c-45be-9f77-7da28608de29, --change-stack-guard-on-fork=enable --ozone-platform=x11 --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=1179 --time-ticks-at-unix-epoch=-1779801886892676 --launch-time-ticks=87458450391 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,14783641325890730785,10657774088336823056,2097152 --field-trial-handle=3,i,7225693272410937758,12333477744411282237,262144 --variations-seed-version=20260524-030033.420000-production --pseudonymization-salt-handle=7,i,7827463296479551254,14388760758154751332,4 --trace-process-track-uuid=3190710091084211465
+ 276751  267800 Ss+  bash
+ 288264    4996 Sl   /opt/google/chrome/chrome --type=renderer --crashpad-handler-pid=4985 --enable-crash-reporter=4985e47a-f05c-45be-9f77-7da28608de29, --change-stack-guard-on-fork=enable --ozone-platform=x11 --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=1293 --time-ticks-at-unix-epoch=-1779801886892676 --launch-time-ticks=96692898253 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,10361109287427936999,17534423163530995569,2097152 --field-trial-handle=3,i,7225693272410937758,12333477744411282237,262144 --variations-seed-version=20260524-030033.420000-production --pseudonymization-salt-handle=7,i,7827463296479551254,14388760758154751332,4 --trace-process-track-uuid=3190710197906982251
+ 387276    4996 Sl   /opt/google/chrome/chrome --type=renderer --crashpad-handler-pid=4985 --enable-crash-reporter=4985e47a-f05c-45be-9f77-7da28608de29, --change-stack-guard-on-fork=enable --ozone-platform=x11 --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=1673 --time-ticks-at-unix-epoch=-1779801886892676 --launch-time-ticks=127384032218 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,6346508582799290507,12665417562303157564,2097152 --field-trial-handle=3,i,7225693272410937758,12333477744411282237,262144 --variations-seed-version=20260524-030033.420000-production --pseudonymization-salt-handle=7,i,7827463296479551254,14388760758154751332,4 --trace-process-track-uuid=3190710553982884871
+ 443961    4996 Sl   /opt/google/chrome/chrome --type=renderer --crashpad-handler-pid=4985 --enable-crash-reporter=4985e47a-f05c-45be-9f77-7da28608de29, --change-stack-guard-on-fork=enable --ozone-platform=x11 --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=2099 --time-ticks-at-unix-epoch=-1779801886892676 --launch-time-ticks=146205778157 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,1500881193768209344,7244181863943515060,2097152 --field-trial-handle=3,i,7225693272410937758,12333477744411282237,262144 --variations-seed-version=20260524-030033.420000-production --pseudonymization-salt-handle=7,i,7827463296479551254,14388760758154751332,4 --trace-process-track-uuid=3190710953162712545
+ 445057    4996 Sl   /opt/google/chrome/chrome --type=renderer --crashpad-handler-pid=4985 --enable-crash-reporter=4985e47a-f05c-45be-9f77-7da28608de29, --change-stack-guard-on-fork=enable --ozone-platform=x11 --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=2109 --time-ticks-at-unix-epoch=-1779801886892676 --launch-time-ticks=146447000697 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,17519868412866458458,11122282936318591233,2097152 --field-trial-handle=3,i,7225693272410937758,12333477744411282237,262144 --variations-seed-version=20260524-030033.420000-production --pseudonymization-salt-handle=7,i,7827463296479551254,14388760758154751332,4 --trace-process-track-uuid=3190710962533131035
+ 484685    4996 Sl   /opt/google/chrome/chrome --type=renderer --crashpad-handler-pid=4985 --enable-crash-reporter=4985e47a-f05c-45be-9f77-7da28608de29, --change-stack-guard-on-fork=enable --ozone-platform=x11 --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=2277 --time-ticks-at-unix-epoch=-1779801886892676 --launch-time-ticks=158202746855 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,5563916637291906953,5908042107251578387,2097152 --field-trial-handle=3,i,7225693272410937758,12333477744411282237,262144 --variations-seed-version=20260524-030033.420000-production --pseudonymization-salt-handle=7,i,7827463296479551254,14388760758154751332,4 --trace-process-track-uuid=3190711119956161667
+ 485626    4996 Sl   /opt/google/chrome/chrome --type=renderer --crashpad-handler-pid=4985 --enable-crash-reporter=4985e47a-f05c-45be-9f77-7da28608de29, --change-stack-guard-on-fork=enable --ozone-platform=x11 --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=2328 --time-ticks-at-unix-epoch=-1779801886892676 --launch-time-ticks=158282294616 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,4224228867589726349,16346386467433804114,2097152 --field-trial-handle=3,i,7225693272410937758,12333477744411282237,262144 --variations-seed-version=20260524-030033.420000-production --pseudonymization-salt-handle=7,i,7827463296479551254,14388760758154751332,4 --trace-process-track-uuid=3190711167745295966
+ 485648    4996 Sl   /opt/google/chrome/chrome --type=renderer --crashpad-handler-pid=4985 --enable-crash-reporter=4985e47a-f05c-45be-9f77-7da28608de29, --change-stack-guard-on-fork=enable --ozone-platform=x11 --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=2329 --time-ticks-at-unix-epoch=-1779801886892676 --launch-time-ticks=158282914202 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,14661408622570428632,7831371303507407896,2097152 --field-trial-handle=3,i,7225693272410937758,12333477744411282237,262144 --variations-seed-version=20260524-030033.420000-production --pseudonymization-salt-handle=7,i,7827463296479551254,14388760758154751332,4 --trace-process-track-uuid=3190711168682337815
+ 485668    4996 Sl   /opt/google/chrome/chrome --type=renderer --crashpad-handler-pid=4985 --enable-crash-reporter=4985e47a-f05c-45be-9f77-7da28608de29, --change-stack-guard-on-fork=enable --ozone-platform=x11 --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=2331 --time-ticks-at-unix-epoch=-1779801886892676 --launch-time-ticks=158283168041 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,4953472343668158873,5159959988792582321,2097152 --field-trial-handle=3,i,7225693272410937758,12333477744411282237,262144 --variations-seed-version=20260524-030033.420000-production --pseudonymization-salt-handle=7,i,7827463296479551254,14388760758154751332,4 --trace-process-track-uuid=3190711170556421513
+ 485677    4996 Sl   /opt/google/chrome/chrome --type=renderer --crashpad-handler-pid=4985 --enable-crash-reporter=4985e47a-f05c-45be-9f77-7da28608de29, --change-stack-guard-on-fork=enable --ozone-platform=x11 --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=2332 --time-ticks-at-unix-epoch=-1779801886892676 --launch-time-ticks=158283219641 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,9705583573729626123,3863511164954863549,2097152 --field-trial-handle=3,i,7225693272410937758,12333477744411282237,262144 --variations-seed-version=20260524-030033.420000-production --pseudonymization-salt-handle=7,i,7827463296479551254,14388760758154751332,4 --trace-process-track-uuid=3190711171493463362
+ 485695    4996 Sl   /opt/google/chrome/chrome --type=renderer --crashpad-handler-pid=4985 --enable-crash-reporter=4985e47a-f05c-45be-9f77-7da28608de29, --change-stack-guard-on-fork=enable --ozone-platform=x11 --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=2333 --time-ticks-at-unix-epoch=-1779801886892676 --launch-time-ticks=158284076673 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,1223358411389269848,8294500393463225559,2097152 --field-trial-handle=3,i,7225693272410937758,12333477744411282237,262144 --variations-seed-version=20260524-030033.420000-production --pseudonymization-salt-handle=7,i,7827463296479551254,14388760758154751332,4 --trace-process-track-uuid=3190711172430505211
+ 485709    4996 Sl   /opt/google/chrome/chrome --type=renderer --crashpad-handler-pid=4985 --enable-crash-reporter=4985e47a-f05c-45be-9f77-7da28608de29, --change-stack-guard-on-fork=enable --ozone-platform=x11 --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=2334 --time-ticks-at-unix-epoch=-1779801886892676 --launch-time-ticks=158284095027 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,13545776373614183044,4436283864294628154,2097152 --field-trial-handle=3,i,7225693272410937758,12333477744411282237,262144 --variations-seed-version=20260524-030033.420000-production --pseudonymization-salt-handle=7,i,7827463296479551254,14388760758154751332,4 --trace-process-track-uuid=3190711173367547060
+ 485731    4996 Sl   /opt/google/chrome/chrome --type=renderer --crashpad-handler-pid=4985 --enable-crash-reporter=4985e47a-f05c-45be-9f77-7da28608de29, --change-stack-guard-on-fork=enable --ozone-platform=x11 --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=2335 --time-ticks-at-unix-epoch=-1779801886892676 --launch-time-ticks=158284152476 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,4170201460777101614,4427820815494344855,2097152 --field-trial-handle=3,i,7225693272410937758,12333477744411282237,262144 --variations-seed-version=20260524-030033.420000-production --pseudonymization-salt-handle=7,i,7827463296479551254,14388760758154751332,4 --trace-process-track-uuid=3190711174304588909
+ 485842    4996 Sl   /opt/google/chrome/chrome --type=renderer --crashpad-handler-pid=4985 --enable-crash-reporter=4985e47a-f05c-45be-9f77-7da28608de29, --change-stack-guard-on-fork=enable --ozone-platform=x11 --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=2340 --time-ticks-at-unix-epoch=-1779801886892676 --launch-time-ticks=158286453697 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,16196565090371684002,1106958234358158641,2097152 --field-trial-handle=3,i,7225693272410937758,12333477744411282237,262144 --variations-seed-version=20260524-030033.420000-production --pseudonymization-salt-handle=7,i,7827463296479551254,14388760758154751332,4 --trace-process-track-uuid=3190711178989798154
+ 485852    4996 Sl   /opt/google/chrome/chrome --type=renderer --crashpad-handler-pid=4985 --enable-crash-reporter=4985e47a-f05c-45be-9f77-7da28608de29, --change-stack-guard-on-fork=enable --ozone-platform=x11 --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=2341 --time-ticks-at-unix-epoch=-1779801886892676 --launch-time-ticks=158286542287 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,5842678041100524018,17086308753576229668,2097152 --field-trial-handle=3,i,7225693272410937758,12333477744411282237,262144 --variations-seed-version=20260524-030033.420000-production --pseudonymization-salt-handle=7,i,7827463296479551254,14388760758154751332,4 --trace-process-track-uuid=3190711179926840003
+ 485858    4996 Sl   /opt/google/chrome/chrome --type=renderer --crashpad-handler-pid=4985 --enable-crash-reporter=4985e47a-f05c-45be-9f77-7da28608de29, --change-stack-guard-on-fork=enable --ozone-platform=x11 --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=2342 --time-ticks-at-unix-epoch=-1779801886892676 --launch-time-ticks=158286547960 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,16088473000107607704,17296572934666161510,2097152 --field-trial-handle=3,i,7225693272410937758,12333477744411282237,262144 --variations-seed-version=20260524-030033.420000-production --pseudonymization-salt-handle=7,i,7827463296479551254,14388760758154751332,4 --trace-process-track-uuid=3190711180863881852
+ 485864    4996 Sl   /opt/google/chrome/chrome --type=renderer --crashpad-handler-pid=4985 --enable-crash-reporter=4985e47a-f05c-45be-9f77-7da28608de29, --change-stack-guard-on-fork=enable --ozone-platform=x11 --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=2343 --time-ticks-at-unix-epoch=-1779801886892676 --launch-time-ticks=158286553080 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,7779444281047616950,2960348523147273325,2097152 --field-trial-handle=3,i,7225693272410937758,12333477744411282237,262144 --variations-seed-version=20260524-030033.420000-production --pseudonymization-salt-handle=7,i,7827463296479551254,14388760758154751332,4 --trace-process-track-uuid=3190711181800923701
+ 533976    7039 Sl   /usr/share/code/code --type=zygote
+ 534056    7175 Sl   /home/bogdan/.vscode/extensions/anthropic.claude-code-2.1.145-linux-x64/resources/native-binary/claude --output-format stream-json --verbose --input-format stream-json --max-thinking-tokens 31999 --permission-prompt-tool stdio --setting-sources=user,project,local --permission-mode auto --include-partial-messages --debug --debug-to-stderr --enable-auth-status --no-chrome --replay-user-messages
+ 614514    4996 Sl   /opt/google/chrome/chrome --type=renderer --crashpad-handler-pid=4985 --enable-crash-reporter=4985e47a-f05c-45be-9f77-7da28608de29, --change-stack-guard-on-fork=enable --ozone-platform=x11 --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=3004 --time-ticks-at-unix-epoch=-1779801886892676 --launch-time-ticks=205637189601 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,5778483818909015896,2430261614564037887,2097152 --field-trial-handle=3,i,7225693272410937758,12333477744411282237,262144 --variations-seed-version=20260524-030033.420000-production --pseudonymization-salt-handle=7,i,7827463296479551254,14388760758154751332,4 --trace-process-track-uuid=3190711801185585890
+ 644638    4113 Sl   /usr/bin/gnome-text-editor
+ 645377    4996 Sl   /opt/google/chrome/chrome --type=renderer --crashpad-handler-pid=4985 --enable-crash-reporter=4985e47a-f05c-45be-9f77-7da28608de29, --change-stack-guard-on-fork=enable --ozone-platform=x11 --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=37 --time-ticks-at-unix-epoch=-1779801886892676 --launch-time-ticks=213769875241 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,12167290899240613697,1861283465919250194,2097152 --field-trial-handle=3,i,7225693272410937758,12333477744411282237,262144 --variations-seed-version=20260524-030033.420000-production --pseudonymization-salt-handle=7,i,7827463296479551254,14388760758154751332,4 --trace-process-track-uuid=3190709020982419907
+ 648962       1 Ssl  /usr/sbin/rsyslogd -n -iNONE
+ 650273       1 S<s  /usr/lib/systemd/systemd-journald
+ 650480       1 Ssl  /usr/lib/systemd/systemd-timesyncd
+ 650648       1 Ss   /usr/lib/systemd/systemd-udevd
+ 650649       2 S    [psimon]
+ 650813       1 Ss   /usr/lib/systemd/systemd-oomd
+ 651359       1 Ss   /usr/lib/systemd/systemd-resolved
+ 652172       1 Ssl  /usr/lib/snapd/snapd
+ 653002       1 Ssl  /usr/sbin/NetworkManager --no-daemon
+ 653465       2 S    [psimon]
+ 660411       1 Ssl  /usr/libexec/fwupd/fwupd
+ 736699       1 Ss   /usr/sbin/cupsd -l
+ 736721       1 Ssl  /usr/sbin/cups-browsed
+ 736748  736699 S    /usr/lib/cups/notifier/dbus dbus://
+ 767323    4996 Sl   /opt/google/chrome/chrome --type=renderer --crashpad-handler-pid=4985 --enable-crash-reporter=4985e47a-f05c-45be-9f77-7da28608de29, --change-stack-guard-on-fork=enable --ozone-platform=x11 --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=3732 --time-ticks-at-unix-epoch=-1779801886892676 --launch-time-ticks=265541920875 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,11093301035970550333,2774987254483123440,2097152 --field-trial-handle=3,i,7225693272410937758,12333477744411282237,262144 --variations-seed-version=20260524-030033.420000-production --pseudonymization-salt-handle=7,i,7827463296479551254,14388760758154751332,4 --trace-process-track-uuid=3190712483352051962
+ 767696    4996 Sl   /opt/google/chrome/chrome --type=renderer --crashpad-handler-pid=4985 --enable-crash-reporter=4985e47a-f05c-45be-9f77-7da28608de29, --change-stack-guard-on-fork=enable --ozone-platform=x11 --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=3733 --time-ticks-at-unix-epoch=-1779801886892676 --launch-time-ticks=265657132521 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,17406450581524347096,16777115199839377037,2097152 --field-trial-handle=3,i,7225693272410937758,12333477744411282237,262144 --variations-seed-version=20260524-030033.420000-production --pseudonymization-salt-handle=7,i,7827463296479551254,14388760758154751332,4 --trace-process-track-uuid=3190712484289093811
+ 794728    3615 S    catatonit -P
+ 794770    3615 Ss   /usr/bin/conmon --api-version 1 -c 11731d8c05e9712d9393632c3d2dddc5c7d4f75bc34f0f20104f217c5107bae3 -u 11731d8c05e9712d9393632c3d2dddc5c7d4f75bc34f0f20104f217c5107bae3 -r /usr/bin/crun -b /home/bogdan/.local/share/containers/storage/overlay-containers/11731d8c05e9712d9393632c3d2dddc5c7d4f75bc34f0f20104f217c5107bae3/userdata -p /run/user/1000/containers/overlay-containers/11731d8c05e9712d9393632c3d2dddc5c7d4f75bc34f0f20104f217c5107bae3/userdata/pidfile -n crazysim-garden --exit-dir /run/user/1000/libpod/tmp/exits --full-attach -s -l journald --log-level warning --syslog --runtime-arg --log-format=json --runtime-arg --log --runtime-arg=/run/user/1000/containers/overlay-containers/11731d8c05e9712d9393632c3d2dddc5c7d4f75bc34f0f20104f217c5107bae3/userdata/oci-log --conmon-pidfile /run/user/1000/containers/overlay-containers/11731d8c05e9712d9393632c3d2dddc5c7d4f75bc34f0f20104f217c5107bae3/userdata/conmon.pid --exit-command /usr/bin/podman --exit-command-arg --root --exit-command-arg /home/bogdan/.local/share/containers/storage --exit-command-arg --runroot --exit-command-arg /run/user/1000/containers --exit-command-arg --log-level --exit-command-arg warning --exit-command-arg --cgroup-manager --exit-command-arg systemd --exit-command-arg --tmpdir --exit-command-arg /run/user/1000/libpod/tmp --exit-command-arg --network-config-dir --exit-command-arg  --exit-command-arg --network-backend --exit-command-arg netavark --exit-command-arg --volumepath --exit-command-arg /home/bogdan/.local/share/containers/storage/volumes --exit-command-arg --db-backend --exit-command-arg sqlite --exit-command-arg --transient-store=false --exit-command-arg --runtime --exit-command-arg crun --exit-command-arg --storage-driver --exit-command-arg overlay --exit-command-arg --events-backend --exit-command-arg journald --exit-command-arg container --exit-command-arg cleanup --exit-command-arg 11731d8c05e9712d9393632c3d2dddc5c7d4f75bc34f0f20104f217c5107bae3
+ 794772  794770 Ss   /bin/sh /usr/bin/entrypoint --verbose --name bogdan --user 1000 --group 1000 --home /home/bogdan --init 0 --nvidia 0 --pre-init-hooks  --additional-packages  --
+ 832685       2 I    [kworker/u64:3-ext4-rsv-conversion]
+ 833580       2 I    [kworker/2:4-events]
+ 834052       2 I    [kworker/3:8-events]
+ 834060       2 I    [kworker/6:6-events]
+ 834160       2 I    [kworker/1:3-events]
+ 834568       2 I    [kworker/9:6-events]
+ 834569       2 I    [kworker/9:7-events]
+ 835144       2 I    [kworker/u64:4-events_unbound]
+ 837898       2 I    [kworker/14:0-events]
+ 837944       2 I    [kworker/15:0-events]
+ 838010       2 I    [kworker/0:3-events]
+ 839154       2 I    [kworker/8:1-events]
+ 840252       2 I    [kworker/0:5-events]
+ 840469       2 I    [kworker/6:8-events]
+ 840470       2 I    [kworker/6:9-events]
+ 840471       2 I    [kworker/6:10-events]
+ 840472       2 I    [kworker/6:11-mm_percpu_wq]
+ 840478       2 I    [kworker/10:5-events]
+ 840479       2 I    [kworker/10:7-events]
+ 840675       2 I    [kworker/13:3-events]
+ 840847       2 I    [kworker/14:1-events]
+ 841184       2 I    [kworker/12:6-events]
+ 841580       2 I    [kworker/u64:6-flush-259:0]
+ 842794       2 I    [kworker/1:0-events]
+ 842860       2 I    [kworker/3:0-mm_percpu_wq]
+ 843024       2 I    [kworker/6:0-events]
+ 843210       2 I    [kworker/4:1-events]
+ 843350       2 I    [kworker/15:2-events]
+ 843405       2 I<   [kworker/u65:8-ttm]
+ 843642       2 I    [kworker/13:0-mm_percpu_wq]
+ 843790       2 I    [kworker/10:1-events]
+ 843792       2 I    [kworker/10:3-events]
+ 843882       2 I    [kworker/8:0-events]
+ 843883       2 I    [kworker/8:2-events]
+ 844226       2 I    [kworker/6:1-events]
+ 844468       2 I    [kworker/0:1-events]
+ 844618       2 I    [kworker/11:2-events]
+ 845730       2 I<   [kworker/u65:6-ttm]
+ 845773       2 I    [kworker/7:6-events]
+ 845848       2 I    [kworker/12:0-events]
+ 845858       2 I    [kworker/u64:1-events_unbound]
+ 845960       2 I    [kworker/2:0-events]
+ 845962       2 I    [kworker/2:2-events]
+ 846168       2 I<   [kworker/u65:7-ttm]
+ 846169       2 I<   [kworker/u65:9-ttm]
+ 846170       2 I<   [kworker/u65:10-rtw89_tx_wq]
+ 846172       2 I<   [kworker/u65:11-ttm]
+ 846174       2 I<   [kworker/u65:12-ttm]
+ 846176       2 I<   [kworker/u65:13-ttm]
+ 846178       2 I<   [kworker/u65:14-ttm]
+ 846188       2 I    [kworker/4:20-events]
+ 846189       2 I    [kworker/4:21-events]
+ 846190       2 I    [kworker/4:22-events]
+ 846191       2 I    [kworker/4:23-events]
+ 846192       2 I    [kworker/4:24-events]
+ 847317       2 I    [kworker/6:2-events]
+ 847318       2 I    [kworker/6:3-events]
+ 847319       2 I    [kworker/6:4-events]
+ 847320       2 I    [kworker/6:5-events]
+ 847681       2 I    [kworker/5:1-events]
+ 847682       2 I    [kworker/5:2-mm_percpu_wq]
+ 847834       2 I    [kworker/12:7-events]
+ 847947       2 I    [kworker/12:8-events]
+ 847948       2 I    [kworker/12:9-events]
+ 848009       2 I    [kworker/0:2-mm_percpu_wq]
+ 848164       2 I    [kworker/11:0-events]
+ 848237       2 I    [kworker/7:8-events]
+ 848408       2 I    [kworker/u64:0]
+ 848513       2 I    [kworker/9:0-events]
+ 848566       2 I    [kworker/14:2-events]
+ 848659       2 I    [kworker/6:7]
+ 848660       2 I    [kworker/6:12]
+ 848777       2 I    [kworker/8:3]
+ 848778       2 I    [kworker/8:4-events]
+ 848829       2 I    [kworker/2:1-events]
+ 848830       2 I    [kworker/2:3]
+ 848831       2 I    [kworker/8:5]
+ 848904       2 I    [kworker/0:0-events]
+ 848905       2 I    [kworker/0:4]
+ 848906       2 I    [kworker/0:6]
+ 848911    7213 Ss   python3 examples/sentai_runtime/experiments/s230_arm_emulator_camera_markers/run_s230.py
+ 849061    4996 Sl   /opt/google/chrome/chrome --type=renderer --crashpad-handler-pid=4985 --enable-crash-reporter=4985e47a-f05c-45be-9f77-7da28608de29, --extension-process --change-stack-guard-on-fork=enable --ozone-platform=x11 --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=4140 --time-ticks-at-unix-epoch=-1779801886892676 --launch-time-ticks=298378208844 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,14991687779999755876,3965290487876741839,2097152 --field-trial-handle=3,i,7225693272410937758,12333477744411282237,262144 --variations-seed-version=20260524-030033.420000-production --pseudonymization-salt-handle=7,i,7827463296479551254,14388760758154751332,4 --trace-process-track-uuid=3190712865665126354
+ 849071    4996 Sl   /opt/google/chrome/chrome --type=renderer --crashpad-handler-pid=4985 --enable-crash-reporter=4985e47a-f05c-45be-9f77-7da28608de29, --change-stack-guard-on-fork=enable --ozone-platform=x11 --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=4141 --time-ticks-at-unix-epoch=-1779801886892676 --launch-time-ticks=298378236088 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,13774621258556196956,9392224070691953618,2097152 --field-trial-handle=3,i,7225693272410937758,12333477744411282237,262144 --variations-seed-version=20260524-030033.420000-production --pseudonymization-salt-handle=7,i,7827463296479551254,14388760758154751332,4 --trace-process-track-uuid=3190712866602168203
+ 849088    4996 Sl   /opt/google/chrome/chrome --type=renderer --crashpad-handler-pid=4985 --enable-crash-reporter=4985e47a-f05c-45be-9f77-7da28608de29, --change-stack-guard-on-fork=enable --ozone-platform=x11 --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=4142 --time-ticks-at-unix-epoch=-1779801886892676 --launch-time-ticks=298380263985 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,2654627423101748720,6825326977074466540,2097152 --field-trial-handle=3,i,7225693272410937758,12333477744411282237,262144 --variations-seed-version=20260524-030033.420000-production --pseudonymization-salt-handle=7,i,7827463296479551254,14388760758154751332,4 --trace-process-track-uuid=3190712867539210052
+ 849103       2 I    [kworker/14:3]
+ 849126       2 I    [kworker/5:0]
+ 849127       2 I    [kworker/1:1-mm_percpu_wq]
+ 849128       2 I    [kworker/1:2]
+ 849129       2 I<   [kworker/u65:0-rtw89_tx_wq]
+ 849130       2 I<   [kworker/u65:1]
+ 849131       2 I    [kworker/9:1-events]
+ 849132       2 I    [kworker/9:2-events]
+ 849133       2 I    [kworker/9:3-events]
+ 849134       2 I    [kworker/9:4-events]
+ 849135       2 I    [kworker/9:5-mm_percpu_wq]
+ 849136       2 I    [kworker/9:8]
+ 849141  794772 S    sleep 15
+ 849156  848911 R    ps -eo pid,ppid,stat,cmd

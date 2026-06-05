@@ -1,0 +1,24 @@
+$ /usr/bin/python3 emu/host/sentai_gazebo_uds_to_tcp_bridge.py --uds /tmp/sentai_emu_cam.sock --tcp-host 127.0.0.1 --tcp-port 30233 --max-fps 15.0 --out-width 320 --out-height 240
+[uds-tcp] listening /tmp/sentai_emu_cam.sock
+[uds-tcp] pull server 127.0.0.1:30233
+[uds-tcp] renode client connected
+[uds-tcp] renode client disconnected
+[uds-tcp] gz client connected
+[uds-tcp] frames=30 seq=30 kept=14 dropped=16 bad=0 latest=29
+[uds-tcp] frames=60 seq=60 kept=29 dropped=31 bad=0 latest=59
+[uds-tcp] frames=90 seq=90 kept=44 dropped=46 bad=0 latest=89
+[uds-tcp] frames=120 seq=120 kept=59 dropped=61 bad=0 latest=119
+[uds-tcp] renode client connected
+[uds-tcp] frames=150 seq=150 kept=74 dropped=76 bad=0 latest=149
+[uds-tcp] frames=180 seq=180 kept=89 dropped=91 bad=0 latest=179
+[uds-tcp] frames=210 seq=210 kept=104 dropped=106 bad=0 latest=209
+[uds-tcp] frames=240 seq=240 kept=119 dropped=121 bad=0 latest=239
+[uds-tcp] frames=270 seq=270 kept=134 dropped=136 bad=0 latest=269
+[uds-tcp] frames=300 seq=300 kept=149 dropped=151 bad=0 latest=299
+[uds-tcp] frames=330 seq=330 kept=164 dropped=166 bad=0 latest=329
+[uds-tcp] frames=360 seq=360 kept=179 dropped=181 bad=0 latest=359
+[uds-tcp] frames=390 seq=390 kept=194 dropped=196 bad=0 latest=389
+[uds-tcp] frames=420 seq=420 kept=209 dropped=211 bad=0 latest=419
+[uds-tcp] frames=450 seq=450 kept=224 dropped=226 bad=0 latest=449
+[uds-tcp] frames=480 seq=480 kept=239 dropped=241 bad=0 latest=479
+[uds-tcp] renode client disconnected

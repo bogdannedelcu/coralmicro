@@ -35,9 +35,15 @@ extern "C" int sentai_pxp_xrgb_to_y8(const uint8_t* src, int src_w, int src_h,
 #include <cstdio>
 #include <cstring>
 
-#ifdef SENTAI_PLATFORM_SIM
-#define DEMO_CAMERA_WIDTH  640
-#define DEMO_CAMERA_HEIGHT 480
+#if defined(SENTAI_PLATFORM_SIM) || defined(SENTAI_ARM_EMU)
+#ifndef SENTAI_RUNTIME_CAMERA_W
+#define SENTAI_RUNTIME_CAMERA_W 640
+#endif
+#ifndef SENTAI_RUNTIME_CAMERA_H
+#define SENTAI_RUNTIME_CAMERA_H 480
+#endif
+#define DEMO_CAMERA_WIDTH  SENTAI_RUNTIME_CAMERA_W
+#define DEMO_CAMERA_HEIGHT SENTAI_RUNTIME_CAMERA_H
 #else
 #include "libs/camera/camera.h"
 #include "libs/camera/camera_support.h"
@@ -46,7 +52,7 @@ extern "C" int sentai_pxp_xrgb_to_y8(const uint8_t* src, int src_w, int src_h,
 #include "third_party/freertos_kernel/include/task.h"
 #include "third_party/freertos_kernel/include/semphr.h"
 #include "third_party/freertos_kernel/include/queue.h"
-#ifndef SENTAI_PLATFORM_SIM
+#if !defined(SENTAI_PLATFORM_SIM) && !defined(SENTAI_ARM_EMU)
 #if (__CORTEX_M == 7)
 #include "third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/cm7/fsl_cache.h"
 #endif
@@ -391,7 +397,7 @@ static StackType_t s_prep_stack [kPrepStackWords]
     __attribute__((aligned(8), section(".sdram_bss")));
 static StackType_t s_infer_stack[kInferStackWords]
     __attribute__((aligned(8), section(".sdram_bss")));
-#ifdef SENTAI_PLATFORM_SIM
+#if defined(SENTAI_PLATFORM_SIM) || defined(SENTAI_ARM_EMU)
 static constexpr UBaseType_t kDetectionTaskPriority = tskIDLE_PRIORITY + 3;
 #else
 static constexpr UBaseType_t kDetectionTaskPriority = tskIDLE_PRIORITY + 2;
@@ -597,7 +603,7 @@ static uint32_t publish_aux_slots_from_raw(uint8_t* raw) {
 // ---------------------------------------------------------------------------
 static void prep_task_fn(void* /*param*/) {
     // PrepTask started
-#ifdef SENTAI_PLATFORM_SIM
+#if defined(SENTAI_PLATFORM_SIM) || defined(SENTAI_ARM_EMU)
     sentai_logf("det_prep", "start");
 #endif
 
@@ -738,7 +744,7 @@ static void prep_task_fn(void* /*param*/) {
         TickType_t t_cam_start = xTaskGetTickCount();
         uint8_t* raw = nullptr;
         int idx = sentai_cam_grab_latest(&raw);
-#ifdef SENTAI_PLATFORM_SIM
+#if defined(SENTAI_PLATFORM_SIM) || defined(SENTAI_ARM_EMU)
         static int s_sim_prep_grab_logs = 0;
         if (s_sim_prep_grab_logs < 8) {
             sentai_logf("det_prep", "grab idx=%d raw=%p", idx, (void*)raw);
@@ -830,7 +836,7 @@ static void prep_task_fn(void* /*param*/) {
         // no consumer is active.
         {
             const uint32_t fire_mask = publish_aux_slots_from_raw(raw);
-#ifdef SENTAI_PLATFORM_SIM
+#if defined(SENTAI_PLATFORM_SIM) || defined(SENTAI_ARM_EMU)
             if (s_sim_prep_grab_logs <= 8) {
                 sentai_logf("det_prep", "fire_mask=0x%08lx",
                             (unsigned long)fire_mask);
@@ -868,7 +874,7 @@ static void prep_task_fn(void* /*param*/) {
         // In direct mode, dst_buf IS one of the tensor ping-pong buffers so
         // InferTask can read directly with a pointer swap (no memcpy).
         TickType_t t_pxp_start = xTaskGetTickCount();
-#ifdef SENTAI_PLATFORM_SIM
+#if defined(SENTAI_PLATFORM_SIM) || defined(SENTAI_ARM_EMU)
         if (s_sim_prep_grab_logs <= 8) {
             sentai_logf("det_prep", "pxp begin %dx%d", w, h);
         }
@@ -876,7 +882,7 @@ static void prep_task_fn(void* /*param*/) {
         int rc = sentai_pxp_scale(raw, DEMO_CAMERA_WIDTH, DEMO_CAMERA_HEIGHT,
                                   dst_buf, w, h);
         TickType_t t_pxp_end = xTaskGetTickCount();
-#ifdef SENTAI_PLATFORM_SIM
+#if defined(SENTAI_PLATFORM_SIM) || defined(SENTAI_ARM_EMU)
         if (s_sim_prep_grab_logs <= 8) {
             sentai_logf("det_prep", "pxp rc=%d ms=%lu", rc,
                         (unsigned long)(t_pxp_end - t_pxp_start));
@@ -885,7 +891,7 @@ static void prep_task_fn(void* /*param*/) {
         // Publish a downsampled frame to the M4 flow task (no-op when
         // sentai_flow.m4_start() hasn't been called).  Must happen
         // BEFORE sentai_cam_return_raw — `raw` goes invalid after.
-#ifdef SENTAI_PLATFORM_SIM
+#if defined(SENTAI_PLATFORM_SIM) || defined(SENTAI_ARM_EMU)
         if (s_sim_prep_grab_logs <= 8) {
             sentai_logf("det_prep", "flow publish begin");
         }
@@ -893,7 +899,7 @@ static void prep_task_fn(void* /*param*/) {
         sentai_flow_m4_publish_frame(raw, DEMO_CAMERA_WIDTH,
                                      DEMO_CAMERA_HEIGHT,
                                      sentai_cam_current_id());
-#ifdef SENTAI_PLATFORM_SIM
+#if defined(SENTAI_PLATFORM_SIM) || defined(SENTAI_ARM_EMU)
         if (s_sim_prep_grab_logs <= 8) {
             sentai_logf("det_prep", "flow publish done");
         }
@@ -948,7 +954,7 @@ static void prep_task_fn(void* /*param*/) {
             s_prep_count_dt--;
             xSemaphoreGive(s_sem_prep_done);
         }
-#ifdef SENTAI_PLATFORM_SIM
+#if defined(SENTAI_PLATFORM_SIM) || defined(SENTAI_ARM_EMU)
         if (s_sim_prep_grab_logs <= 8) {
             sentai_logf("det_prep", "frame signaled seq=%lu",
                         (unsigned long)s_stg_frame_seq);
@@ -991,7 +997,7 @@ static void prep_task_fn(void* /*param*/) {
 // use eDMA).  Polled completion — no ISR, no FreeRTOS semaphore needed —
 // so the helper is usable from any task without scheduler coupling.
 static constexpr uint32_t kSentaiDmaChannel = 31;
-#ifndef SENTAI_PLATFORM_SIM
+#if !defined(SENTAI_PLATFORM_SIM) && !defined(SENTAI_ARM_EMU)
 static edma_handle_t s_dma_memcpy_handle;
 static bool          s_dma_memcpy_inited = false;
 #endif
@@ -1002,7 +1008,7 @@ static volatile int s_dma_memcpy_enabled = 1;
 extern "C" int  sentai_dma_memcpy_get(void) { return s_dma_memcpy_enabled; }
 extern "C" void sentai_dma_memcpy_set(int v) { s_dma_memcpy_enabled = v ? 1 : 0; }
 
-#ifdef SENTAI_PLATFORM_SIM
+#if defined(SENTAI_PLATFORM_SIM) || defined(SENTAI_ARM_EMU)
 static bool sentai_dma_memcpy(void* dst, const void* src, uint32_t size) {
     (void)dst; (void)src; (void)size;
     return false;
@@ -1093,7 +1099,7 @@ static bool sentai_dma_memcpy(void* dst, const void* src, uint32_t size) {
 // ---------------------------------------------------------------------------
 static void infer_task_fn(void* /*param*/) {
     // InferTask started
-#ifdef SENTAI_PLATFORM_SIM
+#if defined(SENTAI_PLATFORM_SIM) || defined(SENTAI_ARM_EMU)
     sentai_logf("det_infer", "start");
 #endif
 
@@ -1108,7 +1114,7 @@ static void infer_task_fn(void* /*param*/) {
         if (!sem_prep || !sem_free) { vTaskDelay(pdMS_TO_TICKS(10)); continue; }
 
         // Wait for PrepTask to deliver a new frame
-#ifdef SENTAI_PLATFORM_SIM
+#if defined(SENTAI_PLATFORM_SIM) || defined(SENTAI_ARM_EMU)
         const TickType_t prep_wait_ticks = portMAX_DELAY;
 #else
         const TickType_t prep_wait_ticks = pdMS_TO_TICKS(100);
@@ -1117,7 +1123,7 @@ static void infer_task_fn(void* /*param*/) {
             if (direct) s_dt_infer_wait_timeout++;
             continue;  // timeout — recheck s_running
         }
-#ifdef SENTAI_PLATFORM_SIM
+#if defined(SENTAI_PLATFORM_SIM) || defined(SENTAI_ARM_EMU)
         static int s_sim_infer_logs = 0;
         if (s_sim_infer_logs < 8) {
             sentai_logf("det_infer", "frame ready direct=%d", direct);
@@ -1183,7 +1189,7 @@ static void infer_task_fn(void* /*param*/) {
                 ? sentai_tpu_invoke_with_input(buf_ptr) \
                 : sentai_tpu_invoke_slot_with_input(active_slot, buf_ptr))
 
-#ifdef SENTAI_PLATFORM_SIM
+#if defined(SENTAI_PLATFORM_SIM) || defined(SENTAI_ARM_EMU)
             // SIM keeps the same PrepTask/InferTask separation as ARM, but
             // does not use ARM's fine-grained SendInputs callback.  The POSIX
             // TPU backend may be a synchronous host helper, so release the
@@ -1275,7 +1281,7 @@ static void infer_task_fn(void* /*param*/) {
             invoke_ms = s_debug_no_invoke ? 0 : sentai_tpu_invoke_internal();
         }
         s_infer_last_rc = invoke_ms;
-#ifdef SENTAI_PLATFORM_SIM
+#if defined(SENTAI_PLATFORM_SIM) || defined(SENTAI_ARM_EMU)
         static int s_sim_after_invoke_logs = 0;
         if (s_sim_after_invoke_logs < 8) {
             sentai_logf("det_infer", "invoke_ms=%d", invoke_ms);
@@ -1310,7 +1316,7 @@ static void infer_task_fn(void* /*param*/) {
         int det_count = 0;
         sentai_tpu_detect(s_conf_permil, s_iou_permil, s_max_dets,
                           det_buf, &det_count);
-#ifdef SENTAI_PLATFORM_SIM
+#if defined(SENTAI_PLATFORM_SIM) || defined(SENTAI_ARM_EMU)
         static int s_sim_after_nms_logs = 0;
         if (s_sim_after_nms_logs < 8) {
             sentai_logf("det_infer", "nms det_count=%d", det_count);
@@ -1367,7 +1373,7 @@ static void infer_task_fn(void* /*param*/) {
             }
             __atomic_fetch_add(&s_frames_dropped, 1, __ATOMIC_RELAXED);
         }
-#ifdef SENTAI_PLATFORM_SIM
+#if defined(SENTAI_PLATFORM_SIM) || defined(SENTAI_ARM_EMU)
         static int s_sim_after_queue_logs = 0;
         if (s_sim_after_queue_logs < 8) {
             sentai_logf("det_infer", "queued frame=%lu dets=%d",
@@ -1382,7 +1388,7 @@ static void infer_task_fn(void* /*param*/) {
         s_last_infer_frame_tick = xTaskGetTickCount();
 
         if (s_stop_after_one_result) {
-#ifdef SENTAI_PLATFORM_SIM
+#if defined(SENTAI_PLATFORM_SIM) || defined(SENTAI_ARM_EMU)
             sentai_logf("det_infer", "one-shot stopping");
 #endif
             s_stop_after_one_result = false;
@@ -1529,7 +1535,7 @@ extern "C" int sentai_detection_start(int conf_permil, int iou_permil, int max_d
                                     kDetectionTaskPriority,
                                     s_prep_stack, &s_prep_tcb);
     s_infer_task = nullptr;
-#ifdef SENTAI_PLATFORM_SIM
+#if defined(SENTAI_PLATFORM_SIM) || defined(SENTAI_ARM_EMU)
     const UBaseType_t infer_prio = kDetectionTaskPriority + 1;
 #else
     const UBaseType_t infer_prio = kDetectionTaskPriority;
@@ -1598,7 +1604,7 @@ extern "C" int sentai_prep_task_start_only(void) {
         return -7;
     }
 
-#ifdef SENTAI_PLATFORM_SIM
+#if defined(SENTAI_PLATFORM_SIM) || defined(SENTAI_ARM_EMU)
     sentai_logf("det_prep", "start_only");
 #endif
     SERR_LOG(SERR_DET_STARTED, 0);
@@ -1629,7 +1635,7 @@ extern "C" int sentai_detection_start_one_shot(int conf_permil,
         return -1;
     }
     s_start_one_shot_request = true;
-#ifdef SENTAI_PLATFORM_SIM
+#if defined(SENTAI_PLATFORM_SIM) || defined(SENTAI_ARM_EMU)
     sentai_logf("det", "start_one_shot request");
 #endif
     int rc = sentai_detection_start(conf_permil, iou_permil, max_dets);
@@ -1653,7 +1659,7 @@ extern "C" int sentai_detection_stop(void) {
     if (s_sem_prep_done_c)  xSemaphoreGive(s_sem_prep_done_c);
     if (s_det_event_sem)    xSemaphoreGive(s_det_event_sem);
 
-#ifdef SENTAI_PLATFORM_SIM
+#if defined(SENTAI_PLATFORM_SIM) || defined(SENTAI_ARM_EMU)
     SERR_LOG(SERR_DET_STOPPED, s_frames_processed);
     return 0;
 #endif
@@ -1692,7 +1698,7 @@ extern "C" int sentai_detection_get_after(DetectionFrame* frame,
                                            uint32_t after_frame_seq) {
     if (timeout_ms == 0) {
         int rc = read_latest_result_after(frame, after_frame_seq);
-#ifdef SENTAI_PLATFORM_SIM
+#if defined(SENTAI_PLATFORM_SIM) || defined(SENTAI_ARM_EMU)
         static int s_sim_get_after_logs = 0;
         if (s_sim_get_after_logs < 24 && (rc >= 0 || (s_sim_get_after_logs < 8))) {
             sentai_logf("det_get_after",

@@ -1,0 +1,10 @@
+t=164ms baudrate 576000
+t=179ms open
+t=1118ms guest system dst=1 src=3 payload=2101
+t=1370ms guest system dst=1 src=3 payload=2001
+t=2435ms guest->udp crtp_len=5
+t=2464ms udp->guest crtp_len=5
+t=2475ms guest system dst=1 src=3 payload=2100
+t=2685ms guest system dst=1 src=3 payload=2000
+t=6235ms baudrate 115200
+t=6241ms close
