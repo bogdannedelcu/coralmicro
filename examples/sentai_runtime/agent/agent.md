@@ -2814,3 +2814,92 @@ with SyncCrazyflie(URI, cf=Crazyflie(rw_cache='/tmp/cf_cache')) as scf:
   ONLY after `eepromCommit` (no opcode for that yet on our bridge).
 - Keep `sentai.crazy.send_flow` calls in MP-context — there's a single
   CH response slot and concurrent callers race.
+
+## 19. External sim/emulator dependencies — `sim/vendor_patches/` (2026-06-05)
+
+The firmware build is fully in git, but the **sim + emulator
+environment** depends on four external git repos that live under
+`~/work/` outside the coralmicro tree.  Those repos carry
+SentAI-specific deviations from upstream that were applied by hand on
+the OLD PC.  Without harvesting, a fresh machine cannot reproduce the
+sim/emulator environment from git alone.
+
+`sim/vendor_patches/` solves this.  It is the single source of truth
+for: (a) pinned commits of every external repo we depend on,
+(b) `git diff` of the working-tree deltas vs upstream, and (c) the
+wholly-new SentAI asset files copied byte-for-byte.
+
+### Layout
+
+```
+sim/vendor_patches/
+├── README.md                     # apply recipe for a NEW PC
+├── manifest/
+│   ├── versions.txt              # pinned commits + tool versions (Renode, gz, cflib, ...)
+│   └── distrobox_recipe.md       # crazysim-garden Garden 7.9 bootstrap
+├── crazysim/                     # outer CrazySim repo (https://github.com/llanesc/CrazySim)
+├── crazyflie-firmware/           # cf2 firmware (canonical fork = sentai-flow-sim-support branch)
+├── crazyflie-simulation/         # gazebo worlds/models/plugins submodule
+│   └── files/                    # wholly-new SentAI assets ready to copy
+└── px4/                          # PX4-Autopilot
+    └── files/                    # x500_sentai model + airframes 4040-4043
+```
+
+Each external repo dir contains: `INFO.txt` (remote/HEAD/local
+commits), `delta_vs_upstream.patch` (working-tree diff), `status.txt`
+(`git status` snapshot).
+
+### Forks (canonical SentAI state on GitHub)
+
+All four external repos have a fork under `bogdannedelcu/...`:
+
+| Upstream                                    | Fork                                                                 | Branch                  |
+|---------------------------------------------|----------------------------------------------------------------------|-------------------------|
+| llanesc/CrazySim                            | bogdannedelcu/CrazySim                                               | main (mirror)           |
+| llanesc/crazyflie-firmware                  | bogdannedelcu/crazysim-crazyflie-firmware                            | sentai-flow-sim-support |
+| llanesc/crazyflie-simulation                | bogdannedelcu/crazysim-crazyflie-simulation                          | sentai-flow-sim-support |
+| PX4/PX4-Autopilot                           | bogdannedelcu/PX4-Autopilot                                          | release/1.14 (mirror)   |
+
+Two of the forks (CrazySim outer + PX4) currently mirror upstream
+with zero SentAI commits — the SentAI deltas for those live as new
+files under `sim/vendor_patches/.../files/`.  The other two
+(crazyflie-firmware + crazyflie-simulation) carry SentAI commits on
+the `sentai-flow-sim-support` branch and the fork is canonical.
+
+### Reproduce env on a NEW PC
+
+```
+1. clone coralmicro (recursive)
+2. bash sim/scripts/install_gazebo_harmonic.sh    # only if host needs Harmonic
+3. bash sim/scripts/install_crazysim.sh           # clones upstream
+4. bash sim/scripts/install_px4_sitl.sh           # clones upstream
+5. apply sim/vendor_patches/README.md "Apply on a NEW PC" recipe
+6. distrobox crazysim-garden bootstrap (see manifest/distrobox_recipe.md)
+```
+
+After step 5, every external repo has `fork` as a second remote
+pointing at the SentAI fork, and SentAI branches are checked out.
+
+### Cross-references
+
+- Patch log (chronological journal): `ideas/external_patches.md`.
+  Append-only — every new external-repo modification gets a fresh
+  entry there per the [[external-repo-patch-log]] skill.
+- Sim setup prose: `Sim.md`.  Long-form notes on Phase 1..N
+  sim bring-up, world layouts, x500_sentai airframe semantics.
+- HARD RULE: do NOT modify external repo working trees in place
+  without (a) committing to the fork, OR (b) adding to
+  `sim/vendor_patches/` AND logging in `ideas/external_patches.md`.
+
+### When to update `sim/vendor_patches/`
+
+Refresh the captures when you:
+- bump an external repo pin (new SentAI commit on a fork);
+- introduce a new SentAI asset file (world, model, plugin, airframe,
+  texture) outside coralmicro;
+- change which external repo is canonical (e.g. promote llanesc
+  upstream to a bogdannedelcu fork).
+
+The capture commands are in `sim/vendor_patches/README.md`; running
+them is a one-pass copy + diff + status snapshot, then `git commit -m
+"vendor_patches: refresh ..."`.
