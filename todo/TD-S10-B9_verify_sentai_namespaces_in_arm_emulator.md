@@ -776,6 +776,37 @@ Status:
   operation to a Renode host-side PXP bridge.  This is more faithful than
   precomputing PrepTask slots in the camera bridge, because PrepTask still owns
   the transform contract.
+- Current S233 checkpoint after RGB ingress work:
+  `s233/iter31_gazebo_flow_whycon` is the latest canonical PASS for live Gazebo
+  VGA input into the ARM emulator.  Gazebo/camera bridge publishes
+  `640x480 RGB888` (`cam_last_format=0`, `cam_last_rc=921600`) into the shared
+  SentAI camera backend.  The run reported `cam_frames=644`,
+  `bridge_seen=691`, `bridge_served=691`, `prep_frames=110`,
+  `prep_fps_x100=517` (5.17 FPS), `flow_frames=102`,
+  `flow_fps_x100=479` (4.79 FPS), `flow_base_nonzero=32`,
+  `marker_hits=1`, `marker_best=7`, and clean cf2 command results.
+- Baseline comparison: `s233/iter29_gazebo_flow_whycon` used VGA XRGB-style
+  ingress (`cam_last_format=1`, `cam_last_rc=1228800`) and passed at
+  `prep_fps_x100=454` (4.54 FPS) / `flow_fps_x100=422` (4.22 FPS).
+  The RGB888 fast path therefore removes 307200 bytes per VGA frame from the
+  bridge and improves end-to-end throughput, but does not remove the dominant
+  scalar resize/Y8 cost inside the emulated guest.
+- Throughput interpretation: isolated production FlowTask over already prepared
+  80x60 frames previously measured about 47.61 FPS in S214/S215, so the current
+  ~5 FPS S233 limit is not the flow algorithm itself.  It is the live
+  camera-to-PrepTask path: Gazebo bridge + guest camera publication +
+  `sentai_pxp_*` scalar resize/gray running under ARM emulation.
+- Current constraints:
+  - no functional PXP/CSI hardware model in Renode for this target;
+  - `sentai_pxp_scale()` / `sentai_pxp_xrgb_to_y8()` are functional shims, not
+    accelerated device operations;
+  - host wall-clock and guest FreeRTOS tick timing must be reported separately
+    for any future bridge optimization;
+  - emulator FPS depends on host CPU speed and the amount of scalar image work
+    left in the emulated Cortex-M;
+  - keep camera/PrepTask/FlowTask semantics production-like; emulator-only
+    shortcuts should live at explicit platform boundaries such as
+    `sentai_pxp_*`, not inside mission code.
 
 Open design decision:
 
