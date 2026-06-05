@@ -1,0 +1,433 @@
+<?xml version="1.0" ?>
+<sdf version="1.9">
+    <model name="crazyflie_{{ cf_id }}">
+        <!-- 2026-05-11: spawn @ z=0.2m so the drone clears the 10cm tall
+             ArUco marker posts even if it falls/tumbles briefly during
+             EKF settling. -->
+        <pose>0 0 0.2 0 0 0</pose>
+        <static>false</static>
+        <link name="base_link">
+            <!-- Enable wind force on this link (sentai world WindEffects). -->
+            <enable_wind>true</enable_wind>
+            <inertial>
+                <mass>0.025</mass>
+                <inertia>
+                    <ixx>0.000016572</ixx>
+                    <ixy>0.00</ixy>
+                    <ixz>0.00</ixz>
+                    <iyy>0.000016656</iyy>
+                    <iyz>0.00000</iyz>
+                    <izz>0.000029262</izz>
+                </inertia>
+            </inertial>
+        <collision name="body_collision">
+            <pose>0 0 0 0 0 0</pose>
+            <geometry>
+                <box>
+                    <size>0.10 0.10 0.03</size>
+                </box>
+            </geometry>
+        </collision>
+        <visual name="body_visual">
+            <pose>0 0 0 0 -0 0</pose>
+            <geometry>
+                <mesh>
+                    <scale>1 1 1</scale>
+                    <uri>model://crazyflie/../../../../meshes/collada_files/cf2_assembly.dae</uri>
+                </mesh>
+            </geometry>
+        </visual>
+        <!-- BAROMETER — modest noise (0.3 Pa ≈ 3cm Z error).  More than
+             default 0.01 Pa (which is unrealistic-perfect), less than
+             1.0 Pa which crashes Kalman.  Even Complementary estimator
+             will show visible Z wobble. -->
+        <sensor name="air_pressure_sensor" type="air_pressure">
+            <topic>/cf_{{ cf_id }}/baro</topic>
+            <always_on>1</always_on>
+            <update_rate>50</update_rate>
+            <air_pressure>
+            <pressure>
+                <noise type="gaussian">
+                <mean>0</mean>
+                <stddev>0.01</stddev>
+                </noise>
+            </pressure>
+            </air_pressure>
+        </sensor>
+        <sensor name="imu_sensor" type="imu">
+            <topic>/cf_{{ cf_id }}/imu</topic>
+            <always_on>1</always_on>
+            <!-- 2026-05-22 OP-S10-W21-T7: IMU rate sweep.
+                 - 1000Hz upstream default — drops 13k packets/run
+                 - 500Hz — drops 5k packets, drone lifts OK (iter-25)
+                 - 200Hz — ZERO drops but drone CAN'T LIFT (iter-28
+                   stabilizer needs >320Hz to maintain attitude with
+                   80Hz LPF cutoff + 1000Hz stabilizer loop)
+                 - 500Hz is the sweet spot: stabilizer works, drops
+                   are acceptable, and cf2 firmware hardcodes 1000Hz
+                   RATE_MAIN_LOOP regardless.
+                 Real HW IMU runs at 1000-3200Hz; this is a SIM-only
+                 perf knob, not HW-parity-violating for control.
+                 Backup: model.sdf.jinja.pre_imu500_20260522. -->
+            <update_rate>500</update_rate>
+            <!-- 2026-05-11: MPU9250-class noise injection (cf2's IMU chip).
+                 gyro σ ≈ 0.2°/s = 0.0035 rad/s ; bias slow drift 35 µrad/s/s.
+                 accel σ ≈ 0.05 m/s² ; bias slow drift 0.0001 m/s²/s.
+                 With these, the EKF — denied any optical correction —
+                 will integrate drift at ~5-15cm/s after warm-up.  sentai.flow
+                 must reject this internal disturbance just as PMW3901 does
+                 on real hardware.  No wind needed. -->
+            <imu>
+              <angular_velocity>
+                <x><noise type="gaussian">
+                  <mean>0</mean><stddev>0.0035</stddev>
+                  <bias_mean>0.0</bias_mean><bias_stddev>0.000035</bias_stddev>
+                </noise></x>
+                <y><noise type="gaussian">
+                  <mean>0</mean><stddev>0.0035</stddev>
+                  <bias_mean>0.0</bias_mean><bias_stddev>0.000035</bias_stddev>
+                </noise></y>
+                <z><noise type="gaussian">
+                  <mean>0</mean><stddev>0.0035</stddev>
+                  <bias_mean>0.0</bias_mean><bias_stddev>0.000035</bias_stddev>
+                </noise></z>
+              </angular_velocity>
+              <linear_acceleration>
+                <x><noise type="gaussian">
+                  <mean>0</mean><stddev>0.05</stddev>
+                  <bias_mean>0.0</bias_mean><bias_stddev>0.0001</bias_stddev>
+                </noise></x>
+                <y><noise type="gaussian">
+                  <mean>0</mean><stddev>0.05</stddev>
+                  <bias_mean>0.0</bias_mean><bias_stddev>0.0001</bias_stddev>
+                </noise></y>
+                <z><noise type="gaussian">
+                  <mean>0</mean><stddev>0.05</stddev>
+                  <bias_mean>0.0</bias_mean><bias_stddev>0.0001</bias_stddev>
+                </noise></z>
+              </linear_acceleration>
+            </imu>
+        </sensor>
+        <!-- SentAI downward camera attached to drone base_link.
+             Convention (matches firmware - see Sim.md Â§10b):
+               offset:   -4cm back, 0 left, -2cm down vs CoM
+               pitch +90Â° -> optical axis aligned with body -Z (looks down)
+               yaw   +180Â° -> image LEFT axis = body FORWARD (+x_body),
+                              matches cam0+vflip=1 on real hardware.
+             Topic kept as /downward_cam/image so the existing bridge
+             default works unchanged (single-drone Phase 4). -->
+        <sensor name="downward_cam" type="camera">
+            <!-- pitch=+pi/2 was the working value for the fixed-world
+                 camera in Phase 4a (s087 captured checker+cubes cleanly).
+                 Drone link is FLU-oriented (same as world) so the same
+                 pose should orient the optical axis at parent -Z = drone
+                 down = world down when drone is upright. -->
+            <pose>-0.04 0 -0.02 0 1.5707963 3.1415927</pose>
+            <camera>
+                <horizontal_fov>1.0123</horizontal_fov>
+                <image><width>640</width><height>480</height><format>R8G8B8</format></image>
+                <clip><near>0.05</near><far>30</far></clip>
+            </camera>
+            <!-- 2026-05-11: bumped 30→60 Hz to give cf2 EKF flow updates
+                 closer to PMW3901's native 100 Hz (the rate the firmware's
+                 mm_flow.c is tuned for).  In practice gz physics real-time
+                 factor caps effective rate ~40 Hz here, still 2× better
+                 than 30 Hz baseline for hold quality. -->
+            <!-- 2026-05-11: ogre2 caps actual camera publish at ~16 fps
+                 in headless mode regardless of update_rate (verified by
+                 measuring `gz topic -e` frame count for 30/60/120).
+                 update_rate is documentation here; effective rate
+                 capped upstream by render engine.  Don't try to slow
+                 sim time as workaround — it decouples cf2 firmware
+                 wall-clock ticks from sim_time observations and breaks
+                 the EKF (drone went "under ground" in test). -->
+            <update_rate>30</update_rate>
+            <topic>/downward_cam/image</topic>
+            <always_on>1</always_on>
+        </sensor>
+        </link>
+        <link name="m1_prop">
+            <gravity>true</gravity>
+            <self_collide>false</self_collide>
+            <velocity_decay/>
+            <pose>0.031 -0.031 0.021 0 0 0</pose>
+            <inertial>
+                <pose>0 0 0 0 -0 0</pose>
+                <mass>0.0008</mass>
+                <inertia>
+                    <ixx>0.000000002*70</ixx>
+                    <iyy>0.000000167*70</iyy>
+                    <izz>0.000000168*70</izz>
+                    <ixy>0</ixy>
+                    <ixz>0</ixz>
+                    <iyz>0</iyz>
+                </inertia>
+            </inertial>
+            <visual name="m1_visual">
+                <pose>0 0 0 0 -0 0</pose>
+                <geometry>
+                    <mesh>
+                        <scale>1 1 1</scale>
+                        <uri>model://crazyflie/../../../../meshes/collada_files/ccw_prop.dae</uri>
+                    </mesh>
+                </geometry>
+            </visual>
+        </link>
+        <link name="m2_prop">
+            <gravity>true</gravity>
+            <self_collide>false</self_collide>
+            <velocity_decay/>
+            <pose>-0.031 -0.031 0.021 0 0 0</pose>
+            <inertial>
+                <pose>0 0 0 0 -0 0</pose>
+                <mass>0.0008</mass>
+                <inertia>
+                    <ixx>0.000000002*50</ixx>
+                    <iyy>0.000000167*50</iyy>
+                    <izz>0.000000168*50</izz>
+                    <ixy>0</ixy>
+                    <ixz>0</ixz>
+                    <iyz>0</iyz>
+                </inertia>
+            </inertial>
+            <visual name="m2_visual">
+                <pose>0 0 0 0 -0 0</pose>
+                <geometry>
+                    <mesh>
+                        <scale>1 1 1</scale>
+                        <uri>model://crazyflie/../../../../meshes/collada_files/cw_prop.dae</uri>
+                    </mesh>
+                </geometry>
+            </visual>
+        </link>
+        <link name="m3_prop">
+            <gravity>true</gravity>
+            <self_collide>false</self_collide>
+            <velocity_decay/>
+            <pose >-0.031 0.031 0.021 0 0 0</pose>
+            <inertial>
+                <pose>0 0 0 0 -0 0</pose>
+                <mass>0.0008</mass>
+                <inertia>
+                    <ixx>0.000000002*50</ixx>
+                    <iyy>0.000000167*50</iyy>
+                    <izz>0.000000168*50</izz>
+                    <ixy>0</ixy>
+                    <ixz>0</ixz>
+                    <iyz>0</iyz>
+                </inertia>
+            </inertial>
+            <visual name="m3_visual">
+                <pose>0 0 0 0 -0 0</pose>
+                <geometry>
+                    <mesh>
+                        <scale>1 1 1</scale>
+                        <uri>model://crazyflie/../../../../meshes/collada_files/ccw_prop.dae</uri>
+                    </mesh>
+                </geometry>
+            </visual>
+        </link>
+        <link name="m4_prop">
+            <gravity>true</gravity>
+            <self_collide>false</self_collide>
+            <velocity_decay/>
+            <pose>0.031 0.031 0.021 0 0 0</pose>
+            <inertial>
+                <pose>0 0 0 0 -0 0</pose>
+                <mass>0.0008</mass>
+                <inertia>
+                    <ixx>0.000000002*50</ixx>
+                    <iyy>0.000000167*50</iyy>
+                    <izz>0.000000168*50</izz>
+                    <ixy>0</ixy>
+                    <ixz>0</ixz>
+                    <iyz>0</iyz>
+                </inertia>
+            </inertial>
+            <visual name="m4_visual">
+                <pose>0 0 0 0 -0 0</pose>
+                <geometry>
+                    <mesh>
+                        <scale>1 1 1</scale>
+                        <uri>model://crazyflie/../../../../meshes/collada_files/cw_prop.dae</uri>
+                    </mesh>
+                </geometry>
+            </visual>
+        </link>
+        <joint name="m1_joint" type="revolute">
+            <child>m1_prop</child>
+            <parent>base_link</parent>
+            <axis>
+                <xyz>0 0 1</xyz>
+                <limit>
+                    <lower>-1e+16</lower>
+                    <upper>1e+16</upper>
+                </limit>
+                <dynamics>
+                    <spring_reference>0</spring_reference>
+                    <spring_stiffness>0</spring_stiffness>
+                </dynamics>
+            </axis>
+        </joint>
+        <joint name="m2_joint" type="revolute">
+            <child>m2_prop</child>
+            <parent>base_link</parent>
+            <axis>
+                <xyz>0 0 1</xyz>
+                <limit>
+                    <lower>-1e+16</lower>
+                    <upper>1e+16</upper>
+                </limit>
+                <dynamics>
+                    <spring_reference>0</spring_reference>
+                    <spring_stiffness>0</spring_stiffness>
+                </dynamics>
+            </axis>
+        </joint>
+        <joint name="m3_joint" type="revolute">
+            <child>m3_prop</child>
+            <parent>base_link</parent>
+            <axis>
+                <xyz>0 0 1</xyz>
+                <limit>
+                    <lower>-1e+16</lower>
+                    <upper>1e+16</upper>
+                </limit>
+                <dynamics>
+                    <spring_reference>0</spring_reference>
+                    <spring_stiffness>0</spring_stiffness>
+                </dynamics>
+            </axis>
+        </joint>
+        <joint name="m4_joint" type="revolute">
+            <child>m4_prop</child>
+            <parent>base_link</parent>
+            <axis>
+                <xyz>0 0 1</xyz>
+                <limit>
+                    <lower>-1e+16</lower>
+                    <upper>1e+16</upper>
+                </limit>
+                <dynamics>
+                    <spring_reference>0</spring_reference>
+                    <spring_stiffness>0</spring_stiffness>
+                </dynamics>
+            </axis>
+        </joint>
+        <plugin
+            filename="gz-sim-multicopter-motor-model-system"
+            name="gz::sim::systems::MulticopterMotorModel">
+            <robotNamespace>cf_{{ cf_id }}</robotNamespace>
+            <jointName>m1_joint</jointName>
+            <linkName>m1_prop</linkName>
+            <turningDirection>ccw</turningDirection>
+            <timeConstantUp>0.0125</timeConstantUp>
+            <timeConstantDown>0.025</timeConstantDown>
+            <maxRotVelocity>3052</maxRotVelocity>
+            <!-- 2026-05-11: motor asymmetry — m1 +1.0% (real cf2 band).
+                 Cf2 controller I-term auto-trims any constant bias, so
+                 isolating motor asymmetry alone produces near-zero
+                 steady-state effect — the test confirmed this (5%
+                 asymmetry alone gave 6cm hover drift).  Kept at 1% for
+                 realism; the dominant perturbation source is now wind
+                 (stochastic, can't be integrator-cancelled). -->
+            <motorConstant>1.8145e-8</motorConstant>
+            <momentConstant>0.005964552</momentConstant>
+            <commandSubTopic>command/motor_speed</commandSubTopic>
+            <actuator_number>0</actuator_number>
+            <rotorDragCoefficient>9.1785e-7</rotorDragCoefficient>
+            <rollingMomentCoefficient>0.0000001</rollingMomentCoefficient>
+            <motorSpeedPubTopic>motor_speed/0</motorSpeedPubTopic>
+            <rotorVelocitySlowdownSim>120</rotorVelocitySlowdownSim>
+            <motorType>velocity</motorType>
+        </plugin>
+        <plugin
+            filename="gz-sim-multicopter-motor-model-system"
+            name="gz::sim::systems::MulticopterMotorModel">
+            <robotNamespace>cf_{{ cf_id }}</robotNamespace>
+            <jointName>m2_joint</jointName>
+            <linkName>m2_prop</linkName>
+            <turningDirection>cw</turningDirection>
+            <timeConstantUp>0.0125</timeConstantUp>
+            <timeConstantDown>0.025</timeConstantDown>
+            <maxRotVelocity>3052</maxRotVelocity>
+            <motorConstant>1.7965e-8</motorConstant>
+            <momentConstant>0.005964552</momentConstant>
+            <commandSubTopic>command/motor_speed</commandSubTopic>
+            <actuator_number>1</actuator_number>
+            <rotorDragCoefficient>9.1785e-7</rotorDragCoefficient>
+            <rollingMomentCoefficient>0.0000001</rollingMomentCoefficient>
+            <motorSpeedPubTopic>motor_speed/1</motorSpeedPubTopic>
+            <rotorVelocitySlowdownSim>120</rotorVelocitySlowdownSim>
+            <motorType>velocity</motorType>
+        </plugin>
+        <plugin
+            filename="gz-sim-multicopter-motor-model-system"
+            name="gz::sim::systems::MulticopterMotorModel">
+            <robotNamespace>cf_{{ cf_id }}</robotNamespace>
+            <jointName>m3_joint</jointName>
+            <linkName>m3_prop</linkName>
+            <turningDirection>ccw</turningDirection>
+            <timeConstantUp>0.0125</timeConstantUp>
+            <timeConstantDown>0.025</timeConstantDown>
+            <maxRotVelocity>3052</maxRotVelocity>
+            <!-- 2026-05-11: paired weak motor — -1.0%. -->
+            <motorConstant>1.7785e-8</motorConstant>
+            <momentConstant>0.005964552</momentConstant>
+            <commandSubTopic>command/motor_speed</commandSubTopic>
+            <actuator_number>2</actuator_number>
+            <rotorDragCoefficient>9.1785e-7</rotorDragCoefficient>
+            <rollingMomentCoefficient>0.0000001</rollingMomentCoefficient>
+            <motorSpeedPubTopic>motor_speed/2</motorSpeedPubTopic>
+            <rotorVelocitySlowdownSim>120</rotorVelocitySlowdownSim>
+            <motorType>velocity</motorType>
+        </plugin>
+        <plugin
+            filename="gz-sim-multicopter-motor-model-system"
+            name="gz::sim::systems::MulticopterMotorModel">
+            <robotNamespace>cf_{{ cf_id }}</robotNamespace>
+            <jointName>m4_joint</jointName>
+            <linkName>m4_prop</linkName>
+            <turningDirection>cw</turningDirection>
+            <timeConstantUp>0.0125</timeConstantUp>
+            <timeConstantDown>0.025</timeConstantDown>
+            <maxRotVelocity>3052</maxRotVelocity>
+            <motorConstant>1.7965e-8</motorConstant>
+            <momentConstant>0.005964552</momentConstant>
+            <commandSubTopic>command/motor_speed</commandSubTopic>
+            <actuator_number>3</actuator_number>
+            <rotorDragCoefficient>9.1785e-7</rotorDragCoefficient>
+            <rollingMomentCoefficient>0.000001</rollingMomentCoefficient>
+            <motorSpeedPubTopic>motor_speed/3</motorSpeedPubTopic>
+            <rotorVelocitySlowdownSim>120</rotorVelocitySlowdownSim>
+            <motorType>velocity</motorType>
+        </plugin>
+        <!-- DISABLED 2026-05-17 — anti-cheat ([[cf2-sitl-cheat-odom-gt]]).
+             Re-applied 2026-05-22 after iter-85+ TOF-injection backout (s190).
+             This plugin publishes Gazebo GT pose on /cf_X/odom; OdomCallback
+             in crazysim_plugin.cpp forwards it as CrtpExtPose → cf2 EKF gets
+             perfect pose, masking real drift.  Backup of original:
+             model.sdf.jinja.pre_no_cheat_20260517.
+        <plugin
+            filename="gz-sim-odometry-publisher-system"
+            name="gz::sim::systems::OdometryPublisher">
+            <dimensions>3</dimensions>
+            <odom_publish_frequency>200</odom_publish_frequency>
+            <odom_topic>/cf_{{ cf_id }}/odom</odom_topic>
+        </plugin>
+        -->
+        <plugin
+            filename="gz_crazysim_plugin"
+            name="crazyflie_interface::GzCrazyflieInterface">
+            <imuSubTopic>/imu</imuSubTopic>
+            <magSubTopic>/mag</magSubTopic>
+            <baroSubTopic>/baro</baroSubTopic>
+            <cffirm_addr>INADDR_ANY</cffirm_addr>
+            <cffirm_port>{{ cffirm_udp_port }}</cffirm_port>
+            <cflib_addr>INADDR_ANY</cflib_addr>
+            <cflib_port>{{ cflib_udp_port }}</cflib_port>
+            <cfPrefix>{{ cf_name }}</cfPrefix>
+            <cfId>{{ cf_id }}</cfId>
+        </plugin>
+    </model>
+</sdf>

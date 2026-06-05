@@ -1,0 +1,621 @@
+diff --git a/simulator_files/gazebo/materials/textures/checker.png b/simulator_files/gazebo/materials/textures/checker.png
+new file mode 100644
+index 0000000..ea835a0
+Binary files /dev/null and b/simulator_files/gazebo/materials/textures/checker.png differ
+diff --git a/simulator_files/gazebo/models/crazyflie/model.sdf.jinja b/simulator_files/gazebo/models/crazyflie/model.sdf.jinja
+index a434cc6..dbe2a4d 100644
+--- a/simulator_files/gazebo/models/crazyflie/model.sdf.jinja
++++ b/simulator_files/gazebo/models/crazyflie/model.sdf.jinja
+@@ -1,9 +1,14 @@
+ <?xml version="1.0" ?>
+ <sdf version="1.9">
+     <model name="crazyflie_{{ cf_id }}">
+-        <pose>0 0 0 0 0 0</pose>
++        <!-- 2026-05-11: spawn @ z=0.2m so the drone clears the 10cm tall
++             ArUco marker posts even if it falls/tumbles briefly during
++             EKF settling. -->
++        <pose>0 0 0.2 0 0 0</pose>
+         <static>false</static>
+         <link name="base_link">
++            <!-- Enable wind force on this link (sentai world WindEffects). -->
++            <enable_wind>true</enable_wind>
+             <inertial>
+                 <mass>0.025</mass>
+                 <inertia>
+@@ -32,6 +37,10 @@
+                 </mesh>
+             </geometry>
+         </visual>
++        <!-- BAROMETER — modest noise (0.3 Pa ≈ 3cm Z error).  More than
++             default 0.01 Pa (which is unrealistic-perfect), less than
++             1.0 Pa which crashes Kalman.  Even Complementary estimator
++             will show visible Z wobble. -->
+         <sensor name="air_pressure_sensor" type="air_pressure">
+             <topic>/cf_{{ cf_id }}/baro</topic>
+             <always_on>1</always_on>
+@@ -48,7 +57,93 @@
+         <sensor name="imu_sensor" type="imu">
+             <topic>/cf_{{ cf_id }}/imu</topic>
+             <always_on>1</always_on>
+-            <update_rate>1000</update_rate>
++            <!-- 2026-05-22 OP-S10-W21-T7: IMU rate sweep.
++                 - 1000Hz upstream default — drops 13k packets/run
++                 - 500Hz — drops 5k packets, drone lifts OK (iter-25)
++                 - 200Hz — ZERO drops but drone CAN'T LIFT (iter-28
++                   stabilizer needs >320Hz to maintain attitude with
++                   80Hz LPF cutoff + 1000Hz stabilizer loop)
++                 - 500Hz is the sweet spot: stabilizer works, drops
++                   are acceptable, and cf2 firmware hardcodes 1000Hz
++                   RATE_MAIN_LOOP regardless.
++                 Real HW IMU runs at 1000-3200Hz; this is a SIM-only
++                 perf knob, not HW-parity-violating for control.
++                 Backup: model.sdf.jinja.pre_imu500_20260522. -->
++            <update_rate>500</update_rate>
++            <!-- 2026-05-11: MPU9250-class noise injection (cf2's IMU chip).
++                 gyro σ ≈ 0.2°/s = 0.0035 rad/s ; bias slow drift 35 µrad/s/s.
++                 accel σ ≈ 0.05 m/s² ; bias slow drift 0.0001 m/s²/s.
++                 With these, the EKF — denied any optical correction —
++                 will integrate drift at ~5-15cm/s after warm-up.  sentai.flow
++                 must reject this internal disturbance just as PMW3901 does
++                 on real hardware.  No wind needed. -->
++            <imu>
++              <angular_velocity>
++                <x><noise type="gaussian">
++                  <mean>0</mean><stddev>0.0035</stddev>
++                  <bias_mean>0.0</bias_mean><bias_stddev>0.000035</bias_stddev>
++                </noise></x>
++                <y><noise type="gaussian">
++                  <mean>0</mean><stddev>0.0035</stddev>
++                  <bias_mean>0.0</bias_mean><bias_stddev>0.000035</bias_stddev>
++                </noise></y>
++                <z><noise type="gaussian">
++                  <mean>0</mean><stddev>0.0035</stddev>
++                  <bias_mean>0.0</bias_mean><bias_stddev>0.000035</bias_stddev>
++                </noise></z>
++              </angular_velocity>
++              <linear_acceleration>
++                <x><noise type="gaussian">
++                  <mean>0</mean><stddev>0.05</stddev>
++                  <bias_mean>0.0</bias_mean><bias_stddev>0.0001</bias_stddev>
++                </noise></x>
++                <y><noise type="gaussian">
++                  <mean>0</mean><stddev>0.05</stddev>
++                  <bias_mean>0.0</bias_mean><bias_stddev>0.0001</bias_stddev>
++                </noise></y>
++                <z><noise type="gaussian">
++                  <mean>0</mean><stddev>0.05</stddev>
++                  <bias_mean>0.0</bias_mean><bias_stddev>0.0001</bias_stddev>
++                </noise></z>
++              </linear_acceleration>
++            </imu>
++        </sensor>
++        <!-- SentAI downward camera attached to drone base_link.
++             Convention (matches firmware - see Sim.md Â§10b):
++               offset:   -4cm back, 0 left, -2cm down vs CoM
++               pitch +90Â° -> optical axis aligned with body -Z (looks down)
++               yaw   +180Â° -> image LEFT axis = body FORWARD (+x_body),
++                              matches cam0+vflip=1 on real hardware.
++             Topic kept as /downward_cam/image so the existing bridge
++             default works unchanged (single-drone Phase 4). -->
++        <sensor name="downward_cam" type="camera">
++            <!-- pitch=+pi/2 was the working value for the fixed-world
++                 camera in Phase 4a (s087 captured checker+cubes cleanly).
++                 Drone link is FLU-oriented (same as world) so the same
++                 pose should orient the optical axis at parent -Z = drone
++                 down = world down when drone is upright. -->
++            <pose>-0.04 0 -0.02 0 1.5707963 3.1415927</pose>
++            <camera>
++                <horizontal_fov>1.0123</horizontal_fov>
++                <image><width>640</width><height>480</height><format>R8G8B8</format></image>
++                <clip><near>0.05</near><far>30</far></clip>
++            </camera>
++            <!-- 2026-05-11: bumped 30→60 Hz to give cf2 EKF flow updates
++                 closer to PMW3901's native 100 Hz (the rate the firmware's
++                 mm_flow.c is tuned for).  In practice gz physics real-time
++                 factor caps effective rate ~40 Hz here, still 2× better
++                 than 30 Hz baseline for hold quality. -->
++            <!-- 2026-05-11: ogre2 caps actual camera publish at ~16 fps
++                 in headless mode regardless of update_rate (verified by
++                 measuring `gz topic -e` frame count for 30/60/120).
++                 update_rate is documentation here; effective rate
++                 capped upstream by render engine.  Don't try to slow
++                 sim time as workaround — it decouples cf2 firmware
++                 wall-clock ticks from sim_time observations and breaks
++                 the EKF (drone went "under ground" in test). -->
++            <update_rate>30</update_rate>
++            <topic>/downward_cam/image</topic>
++            <always_on>1</always_on>
+         </sensor>
+         </link>
+         <link name="m1_prop">
+@@ -229,7 +324,14 @@
+             <timeConstantUp>0.0125</timeConstantUp>
+             <timeConstantDown>0.025</timeConstantDown>
+             <maxRotVelocity>3052</maxRotVelocity>
+-            <motorConstant>1.7965e-8</motorConstant>
++            <!-- 2026-05-11: motor asymmetry — m1 +1.0% (real cf2 band).
++                 Cf2 controller I-term auto-trims any constant bias, so
++                 isolating motor asymmetry alone produces near-zero
++                 steady-state effect — the test confirmed this (5%
++                 asymmetry alone gave 6cm hover drift).  Kept at 1% for
++                 realism; the dominant perturbation source is now wind
++                 (stochastic, can't be integrator-cancelled). -->
++            <motorConstant>1.8145e-8</motorConstant>
+             <momentConstant>0.005964552</momentConstant>
+             <commandSubTopic>command/motor_speed</commandSubTopic>
+             <actuator_number>0</actuator_number>
+@@ -269,7 +371,8 @@
+             <timeConstantUp>0.0125</timeConstantUp>
+             <timeConstantDown>0.025</timeConstantDown>
+             <maxRotVelocity>3052</maxRotVelocity>
+-            <motorConstant>1.7965e-8</motorConstant>
++            <!-- 2026-05-11: paired weak motor — -1.0%. -->
++            <motorConstant>1.7785e-8</motorConstant>
+             <momentConstant>0.005964552</momentConstant>
+             <commandSubTopic>command/motor_speed</commandSubTopic>
+             <actuator_number>2</actuator_number>
+@@ -298,7 +401,13 @@
+             <motorSpeedPubTopic>motor_speed/3</motorSpeedPubTopic>
+             <rotorVelocitySlowdownSim>120</rotorVelocitySlowdownSim>
+             <motorType>velocity</motorType>
+-        </plugin> 
++        </plugin>
++        <!-- DISABLED 2026-05-17 — anti-cheat ([[cf2-sitl-cheat-odom-gt]]).
++             Re-applied 2026-05-22 after iter-85+ TOF-injection backout (s190).
++             This plugin publishes Gazebo GT pose on /cf_X/odom; OdomCallback
++             in crazysim_plugin.cpp forwards it as CrtpExtPose → cf2 EKF gets
++             perfect pose, masking real drift.  Backup of original:
++             model.sdf.jinja.pre_no_cheat_20260517.
+         <plugin
+             filename="gz-sim-odometry-publisher-system"
+             name="gz::sim::systems::OdometryPublisher">
+@@ -306,6 +415,7 @@
+             <odom_publish_frequency>200</odom_publish_frequency>
+             <odom_topic>/cf_{{ cf_id }}/odom</odom_topic>
+         </plugin>
++        -->
+         <plugin
+             filename="gz_crazysim_plugin"
+             name="crazyflie_interface::GzCrazyflieInterface">
+diff --git a/simulator_files/gazebo/plugins/CrazySim/crazysim_plugin.cpp b/simulator_files/gazebo/plugins/CrazySim/crazysim_plugin.cpp
+index a7cc95e..6be43a9 100644
+--- a/simulator_files/gazebo/plugins/CrazySim/crazysim_plugin.cpp
++++ b/simulator_files/gazebo/plugins/CrazySim/crazysim_plugin.cpp
+@@ -309,7 +309,12 @@ void GzCrazyflieInterface::sendCfLibThread() {
+ 
+ void GzCrazyflieInterface::initializeSubsAndPub() {
+ 	node_.Subscribe(cf_prefix + "_" + std::to_string(cf_id_) + imu_sub_topic_, &GzCrazyflieInterface::ImuCallback , this);
+-	node_.Subscribe(cf_prefix + "_" + std::to_string(cf_id_) + barometer_sub_topic_, &GzCrazyflieInterface::BarometerCallback, this );
++	// 2026-05-22 OP-S10-W21-T7: baro subscription DISABLED — cf2 brushless
++	// firmware ships baro-off (KALMAN_USE_BARO_UPDATE commented out in
++	// estimator_kalman.c).  Plugin was still pushing baro packets @50Hz
++	// → cf2 socketlink queue overflow + Kalman prediction rate dropped
++	// to 94% under load.  Backup: crazysim_plugin.cpp.pre_baro_disable_20260522.
++	// node_.Subscribe(cf_prefix + "_" + std::to_string(cf_id_) + barometer_sub_topic_, &GzCrazyflieInterface::BarometerCallback, this );
+ 	node_.Subscribe(cf_prefix + "_" + std::to_string(cf_id_) + odom_sub_topic_, &GzCrazyflieInterface::OdomCallback, this );
+ 	
+ 	motor_velocity_reference_pub_ = node_.Advertise<gz::msgs::Actuators>(cf_prefix + "_" + std::to_string(cf_id_) + motor_velocity_reference_pub_topic_);
+diff --git a/simulator_files/gazebo/worlds/materials/textures/checker.png b/simulator_files/gazebo/worlds/materials/textures/checker.png
+new file mode 100644
+index 0000000..ea835a0
+Binary files /dev/null and b/simulator_files/gazebo/worlds/materials/textures/checker.png differ
+diff --git a/simulator_files/gazebo/worlds/sentai_crazysim.sdf b/simulator_files/gazebo/worlds/sentai_crazysim.sdf
+new file mode 100644
+index 0000000..fef1799
+--- /dev/null
++++ b/simulator_files/gazebo/worlds/sentai_crazysim.sdf
+@@ -0,0 +1,414 @@
++<?xml version="1.0" ?>
++<!--
++  sim/gazebo/sentai_crazysim_world.sdf
++  ====================================
++  Custom Gazebo Harmonic world for SentAI optical-flow + Crazyflie SITL
++  testing.  Based on CrazySim's crazysim_default.sdf, with:
++
++    1. A ground plane painted with a HIGH-CONTRAST CHECKERBOARD texture
++       (alternating 1 m black/white squares).  Optical flow needs visible
++       features under the camera; a uniform ground gives zero flow.
++
++    2. A grid of colored cubes (red/green/blue/yellow) scattered on the
++       ground at varied heights and positions.  Provides corner / edge
++       features that survive any camera angle.
++
++    3. Same physics + lighting as crazysim_default so the SITL drone +
++       crazysim plugin behave identically to the default world.
++
++  Launch (replaces -w crazysim_default with this file):
++
++    bash $CRAZYSIM/tools/.../sitl_singleagent.sh -w sentai_crazysim
++
++  After Phase 4 lands the camera-socket bridge, point sentai_sim's
++  camera input at the Gazebo image topic from the drone's down-cam (added
++  in a follow-up world).
++-->
++<sdf version="1.9">
++  <world name="sentai_crazysim">
++    <physics type="ode">
++      <!-- Slow-time experiment 2026-05-11 — REVERTED.  RTF=0.5 broke
++           cf2 EKF: firmware tick rate runs wall-time (1 kHz) while gz
++           publishes sensors in sim_time @ 2× slower, so the EKF predict
++           steps decoupled from observation arrivals.  Result: ekf_z went
++           negative (drone "under ground"), position garbage.  Keep
++           RTF=1, accept the 16 fps camera cap, and live with it. -->
++      <max_step_size>0.001</max_step_size>
++      <real_time_factor>1.0</real_time_factor>
++      <real_time_update_rate>1000</real_time_update_rate>
++    </physics>
++    <plugin name='gz::sim::systems::Physics' filename='libgz-sim-physics-system.so'/>
++    <plugin name='gz::sim::systems::UserCommands' filename='libgz-sim-user-commands-system.so'/>
++    <plugin name='gz::sim::systems::SceneBroadcaster' filename='libgz-sim-scene-broadcaster-system.so'/>
++    <plugin name='gz::sim::systems::Contact' filename='libgz-sim-contact-system.so'/>
++    <plugin name='gz::sim::systems::Imu' filename='libgz-sim-imu-system.so'/>
++    <plugin name='gz::sim::systems::AirPressure' filename='libgz-sim-air-pressure-system.so'/>
++    <plugin name='gz::sim::systems::Sensors' filename='libgz-sim-sensors-system.so'>
++      <render_engine>ogre2</render_engine>
++    </plugin>
++
++    <!-- ====================================================== -->
++    <!--  Wind disturbance — perturbs X/Y so we can see whether   -->
++    <!--  flow stabilizes the drone (with bridge --send-flow) or  -->
++    <!--  the drone drifts away (no flow source).                 -->
++    <!--  Constant 0.5 m/s in +X world (~5 km/h, mild breeze).    -->
++    <!--  WindEffects plugin applies this to any model with a     -->
++    <!--  <wind> element (Crazyflie model gets one in              -->
++    <!--  model.sdf.jinja so this actually pushes the drone).     -->
++    <!-- ====================================================== -->
++    <plugin filename="gz-sim-wind-effects-system" name="gz::sim::systems::WindEffects">
++      <!-- 2026-05-11: punched up the noise on all three components per
++           user request "vreau mai mult zgomot pe toate cele 3 coordonate".
++           Magnitude noise σ raised 0.05→0.30 m/s (≈ peak gust 1 m/s = stiff
++           breeze), direction noise σ 2°→10° (so gusts swing direction
++           noticeably), vertical noise σ 0.03→0.15 m/s.  Sin oscillation
++           gives a 10s ±30% modulation envelope so the drone sees gusts
++           rather than steady wind.  All from the Gazebo WindEffects
++           plugin — NO Python-side noise injection. -->
++      <!-- 2026-05-11: combined disturbance — wind RE-ENABLED at moderate
++           level + motor asymmetry + IMU noise.  Motor asymmetry alone
++           is absorbed by cf2 controller's I-term (auto-trim of constant
++           bias); wind provides the STOCHASTIC perturbation that cannot
++           be predicted by an integrator.  This is the realistic profile
++           for indoor flight: small constant build bias + random air
++           motion + sensor noise. -->
++      <!-- NO WIND (s127 isolation test 2026-05-13: zero base + zero stochastic
++           to determine if -X drift survives without atmospheric perturbation) -->
++      <horizontal>
++        <magnitude>
++          <time_for_rise>2</time_for_rise>
++          <sin>
++            <amplitude_percent>0.0</amplitude_percent>
++            <period>8</period>
++          </sin>
++          <noise type="gaussian"><mean>0</mean><stddev>0.0</stddev></noise>
++        </magnitude>
++        <direction>
++          <time_for_rise>2</time_for_rise>
++          <sin>
++            <amplitude>0</amplitude>
++            <period>15</period>
++          </sin>
++          <noise type="gaussian"><mean>0</mean><stddev>0.0</stddev></noise>
++        </direction>
++      </horizontal>
++      <vertical>
++        <noise type="gaussian"><mean>0</mean><stddev>0.0</stddev></noise>
++      </vertical>
++    </plugin>
++    <wind>
++      <linear_velocity>0 0 0</linear_velocity>
++    </wind>
++
++    <gravity>0 0 -9.80665</gravity>
++    <magnetic_field>6e-06 2.3e-05 -4.2e-05</magnetic_field>
++    <atmosphere type='adiabatic'/>
++
++    <scene>
++      <grid>false</grid>
++      <!-- 2026-05-10: bright red sky so the PiP camera widget makes it
++           obvious when the drone-attached cam is pointing UP (red) vs
++           DOWN at the ground (checker + colored cubes).  Red doesn't
++           appear in the ground textures so any red in the PiP = sky bleed
++           or wrong camera orientation. -->
++      <background>1.0 0.1 0.1 1</background>
++      <ambient>0.5 0.5 0.5 1</ambient>
++      <background>0.7 0.85 1.0 1</background>
++      <shadows>true</shadows>
++    </scene>
++
++    <!-- ===================================================== -->
++    <!--  GROUND PLANE — checkerboard, 4x4 m, 5 cm squares     -->
++    <!--                                                       -->
++    <!-- Drone hovers at ~1 m, cam FOV ~60° → footprint ~1.2x  -->
++    <!-- 1.2 m on ground.  Squares of 5 cm (0.05 m) give ~24   -->
++    <!-- visible per axis: dense feature texture, no aliasing. -->
++    <!-- World scale 4x4 m so we see "infinite floor" in any   -->
++    <!-- 1-2 m flight envelope.                                -->
++    <!-- ===================================================== -->
++    <!-- 2026-05-17: ground_plane uses a suburbs aerial photo
++         (rugs4less Suburbs 160x200 cm rug, repurposed as a top-down
++         orthographic texture).  Provides realistic outdoor-flight look:
++         houses, roads, lawns visible from the downward camera; has rich
++         features for optical-flow tracking similar to the prior checker
++         but with natural scene variation.  ground_plane_deep below
++         keeps the checker pattern as a far fallback. -->
++    <model name="ground_plane">
++      <static>true</static>
++      <link name="link">
++        <collision name="collision">
++          <geometry>
++            <plane>
++              <normal>0 0 1</normal>
++              <size>4 4</size>
++            </plane>
++          </geometry>
++        </collision>
++        <visual name="visual">
++          <geometry>
++            <plane>
++              <normal>0 0 1</normal>
++              <size>4 4</size>
++            </plane>
++          </geometry>
++          <material>
++            <diffuse>0.9 0.9 0.9 1</diffuse>
++            <specular>0.5 0.5 0.5 1</specular>
++            <pbr>
++              <metal>
++                <albedo_map>materials/textures/suburbs_bg.png</albedo_map>
++              </metal>
++            </pbr>
++          </material>
++        </visual>
++      </link>
++    </model>
++
++
++    <!-- 2026-05-10: deep checkerboard fallback at z=-10m.
++         Visible only to a downward-pointing camera; provides feature
++         texture even if the drone is positioned right above an empty
++         spot of the primary ground plane.  Larger area + bigger checker
++         tiles so the perspective from 11 m up still has decent contrast. -->
++    <model name="ground_plane_deep">
++      <static>true</static>
++      <pose>0 0 -10 0 0 0</pose>
++      <link name="link">
++        <visual name="visual">
++          <geometry>
++            <plane>
++              <normal>0 0 1</normal>
++              <size>40 40</size>
++            </plane>
++          </geometry>
++          <material>
++            <diffuse>1 1 1 1</diffuse>
++            <pbr>
++              <metal>
++                <albedo_map>materials/textures/checker.png</albedo_map>
++              </metal>
++            </pbr>
++          </material>
++        </visual>
++      </link>
++    </model>
++
++    <!-- ===================================================== -->
++    <!--  TINY COLORED MARKERS — feature grid for optical flow -->
++    <!--                                                       -->
++    <!-- Drone hovers at ~1 m above origin.  Markers are 5 cm  -->
++    <!-- cubes within ±0.6 m of origin so they stay in-frame   -->
++    <!-- the whole flight.  Tiny (5 cm) so they don't dominate -->
++    <!-- the scene; checkerboard ground does most feature work,-->
++    <!-- markers add color/landmark anchors.                   -->
++    <!-- ===================================================== -->
++    <model name="marker_red">
++      <static>true</static>
++      <pose>0.4 0.3 0.025 0 0 0</pose>
++      <link name="link">
++        <visual name="v"><geometry><box><size>0.05 0.05 0.05</size></box></geometry>
++          <material><ambient>0.8 0.1 0.1 1</ambient><diffuse>0.9 0.1 0.1 1</diffuse></material></visual>
++      </link>
++    </model>
++    <model name="marker_green">
++      <static>true</static>
++      <pose>-0.4 0.3 0.025 0 0 0</pose>
++      <link name="link">
++        <visual name="v"><geometry><box><size>0.05 0.05 0.05</size></box></geometry>
++          <material><ambient>0.1 0.7 0.1 1</ambient><diffuse>0.1 0.9 0.1 1</diffuse></material></visual>
++      </link>
++    </model>
++    <model name="marker_blue">
++      <static>true</static>
++      <pose>0.3 -0.4 0.025 0 0 0</pose>
++      <link name="link">
++        <visual name="v"><geometry><box><size>0.05 0.05 0.05</size></box></geometry>
++          <material><ambient>0.1 0.1 0.8 1</ambient><diffuse>0.2 0.2 1.0 1</diffuse></material></visual>
++      </link>
++    </model>
++    <model name="marker_yellow">
++      <static>true</static>
++      <pose>-0.3 -0.4 0.025 0 0 0</pose>
++      <link name="link">
++        <visual name="v"><geometry><box><size>0.05 0.05 0.05</size></box></geometry>
++          <material><ambient>0.9 0.9 0.1 1</ambient><diffuse>1.0 1.0 0.1 1</diffuse></material></visual>
++      </link>
++    </model>
++    <model name="marker_magenta">
++      <static>true</static>
++      <pose>0.55 0 0.025 0 0 0</pose>
++      <link name="link">
++        <visual name="v"><geometry><box><size>0.05 0.05 0.05</size></box></geometry>
++          <material><ambient>0.8 0.2 0.8 1</ambient><diffuse>1.0 0.2 1.0 1</diffuse></material></visual>
++      </link>
++    </model>
++    <model name="marker_cyan">
++      <static>true</static>
++      <pose>-0.55 0 0.025 0 0 0</pose>
++      <link name="link">
++        <visual name="v"><geometry><box><size>0.05 0.05 0.05</size></box></geometry>
++          <material><ambient>0.1 0.7 0.7 1</ambient><diffuse>0.2 0.9 0.9 1</diffuse></material></visual>
++      </link>
++    </model>
++
++    <!-- ArUco calibration markers — 4x4_50 dict.
++         OP-S10-W14 layout (2026-05-18): doubled from the original 6 cm
++         A4 layout so each marker projects ~58 px (was ~29 px) at the
++         autotune hover altitude z=0.9 m — operator-spec ("imaginea
++         RGB e prea mica, markerii nu se vad bine ... hai sa ii facem
++         de 2 ori mai mari").  4 markers, 12x12 cm face, FLAT on the
++         ground (5 mm thick, top at z=0.005).  Layout centered at
++         world origin:
++            id0 at (+0.12, +0.20)      id1 at (-0.12, +0.20)
++            id2 at (-0.12, -0.20)      id3 at (+0.12, -0.20)
++         Total marker spread 24x40 cm (was 12x20 cm).  At z=0.9 m
++         the camera FOV is ~1.20 x 0.90 m (320x240 image, fx=240),
++         so the 40-cm-tall marker grid fits with ~25 cm vertical
++         margin on each side — comfortable for the ±5 cm relay.
++         POSITIONS keep parity with aruco_detector.py
++         KNOWN_POSITIONS_M (updated alongside SDF). -->
++    <model name="aruco_id0">
++      <static>true</static>
++      <pose>+0.12 +0.20 0.005  0 0 0</pose>
++      <link name="link">
++        <visual name="v">
++          <!-- 0.12 m square face, 5 mm thick (top at z=0.005). -->
++          <geometry><box><size>0.12 0.12 0.01</size></box></geometry>
++          <material>
++            <ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse>
++            <pbr><metal>
++              <albedo_map>materials/textures/aruco_4x4_50_id0.png</albedo_map>
++              <metalness>0</metalness><roughness>1</roughness>
++            </metal></pbr>
++          </material>
++        </visual>
++      </link>
++    </model>
++    <model name="aruco_id1">
++      <static>true</static>
++      <pose>-0.12 +0.20 0.005  0 0 0</pose>
++      <link name="link">
++        <visual name="v">
++          <geometry><box><size>0.12 0.12 0.01</size></box></geometry>
++          <material>
++            <ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse>
++            <pbr><metal>
++              <albedo_map>materials/textures/aruco_4x4_50_id1.png</albedo_map>
++              <metalness>0</metalness><roughness>1</roughness>
++            </metal></pbr>
++          </material>
++        </visual>
++      </link>
++    </model>
++    <model name="aruco_id2">
++      <static>true</static>
++      <pose>-0.12 -0.20 0.005  0 0 0</pose>
++      <link name="link">
++        <visual name="v">
++          <geometry><box><size>0.12 0.12 0.01</size></box></geometry>
++          <material>
++            <ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse>
++            <pbr><metal>
++              <albedo_map>materials/textures/aruco_4x4_50_id2.png</albedo_map>
++              <metalness>0</metalness><roughness>1</roughness>
++            </metal></pbr>
++          </material>
++        </visual>
++      </link>
++    </model>
++    <model name="aruco_id3">
++      <static>true</static>
++      <pose>+0.12 -0.20 0.005  0 0 0</pose>
++      <link name="link">
++        <visual name="v">
++          <geometry><box><size>0.12 0.12 0.01</size></box></geometry>
++          <material>
++            <ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse>
++            <pbr><metal>
++              <albedo_map>materials/textures/aruco_4x4_50_id3.png</albedo_map>
++              <metalness>0</metalness><roughness>1</roughness>
++            </metal></pbr>
++          </material>
++        </visual>
++      </link>
++    </model>
++
++    <!-- ====================================================== -->
++    <!--  Fixed downward-facing camera at z=1.5m looking down  -->
++    <!--  (proxy for "what the drone sees at 1m hover" since   -->
++    <!--   attaching camera to imported model is fragile in    -->
++    <!--   Gazebo Garden).  Drone hovers at z=1m, so it appears -->
++    <!--   in the cadru when in flight.                         -->
++    <!-- ====================================================== -->
++    <!-- Camera mount conventions (MUST match firmware — see Sim.md §10b
++         and examples/sentai_runtime/paper/flow_body_frame.md):
++           - 640x480, 30 fps                                    (sensor native)
++           - horizontal FOV = 58° = 1.0123 rad                  (lens calibrated)
++           - vertical   FOV = 45°                               (derived from 4:3)
++           - mount yaw 180° (after pitch 90°) -> image LEFT axis aligns with
++             body FORWARD (+x_body), image TOP -> body RIGHT (-y_body),
++             matching cam0 with vflip=1 on hardware.
++         For Phase 4a (camera fixed in world @ z=1.5m) the convention is
++         only used for sign-of-flow validation; once Phase 4b attaches the
++         camera to the drone link, this exact yaw is what makes flow output
++         feed back correctly into the cf2 EKF.  The on-drone offset (-4cm
++         back, -2cm down) is applied at the drone-link mount, not here. -->
++    <!-- 2026-05-10: world-fixed downward_cam DELETED.
++         The downward camera now lives on the drone link (added to
++         CrazySim's model.sdf.jinja under base_link), so what the flow
++         algorithm sees actually changes when the drone moves.  The
++         fixed camera was a temporary Phase 4a proxy that produced
++         dx/dy=0 at all times because the scene below it was static. -->
++    <!-- (no camera model here — see model.sdf.jinja sensor "downward_cam") -->
++
++    <!-- ====================== -->
++    <!--  4 walls around the arena (3 m × 3 m × 1.5 m tall)        -->
++    <!--  Reason: when the drone tilts during X/Y drift the camera   -->
++    <!--  catches the wall edges, which gives phase-correlation a    -->
++    <!--  reliable feature even at low altitude.  Walls are coloured -->
++    <!--  uniquely (north=blue, south=yellow, east=green, west=cyan) -->
++    <!--  so the operator can tell orientation from the PiP.         -->
++    <!-- ====================== -->
++    <model name="wall_north">
++      <static>true</static><pose>1.5 0 0.75 0 0 0</pose>
++      <link name="link"><visual name="v"><geometry><box><size>0.05 3.0 1.5</size></box></geometry>
++        <material><ambient>0 0 0.6 1</ambient><diffuse>0.1 0.1 1 1</diffuse></material></visual>
++        <collision name="c"><geometry><box><size>0.05 3.0 1.5</size></box></geometry></collision></link>
++    </model>
++    <model name="wall_south">
++      <static>true</static><pose>-1.5 0 0.75 0 0 0</pose>
++      <link name="link"><visual name="v"><geometry><box><size>0.05 3.0 1.5</size></box></geometry>
++        <material><ambient>0.6 0.6 0 1</ambient><diffuse>1 1 0.1 1</diffuse></material></visual>
++        <collision name="c"><geometry><box><size>0.05 3.0 1.5</size></box></geometry></collision></link>
++    </model>
++    <model name="wall_east">
++      <static>true</static><pose>0 1.5 0.75 0 0 0</pose>
++      <link name="link"><visual name="v"><geometry><box><size>3.0 0.05 1.5</size></box></geometry>
++        <material><ambient>0 0.6 0 1</ambient><diffuse>0.1 1 0.1 1</diffuse></material></visual>
++        <collision name="c"><geometry><box><size>3.0 0.05 1.5</size></box></geometry></collision></link>
++    </model>
++    <model name="wall_west">
++      <static>true</static><pose>0 -1.5 0.75 0 0 0</pose>
++      <link name="link"><visual name="v"><geometry><box><size>3.0 0.05 1.5</size></box></geometry>
++        <material><ambient>0 0.6 0.6 1</ambient><diffuse>0.1 1 1 1</diffuse></material></visual>
++        <collision name="c"><geometry><box><size>3.0 0.05 1.5</size></box></geometry></collision></link>
++    </model>
++
++    <!-- ====================== -->
++    <!--  Sun + sky lights      -->
++    <!-- ====================== -->
++    <light type="directional" name="sun">
++      <cast_shadows>true</cast_shadows>
++      <pose>0 0 10 0 0 0</pose>
++      <diffuse>0.95 0.95 0.95 1</diffuse>
++      <specular>0.3 0.3 0.3 1</specular>
++      <attenuation>
++        <range>1000</range>
++        <constant>0.9</constant>
++        <linear>0.01</linear>
++        <quadratic>0.001</quadratic>
++      </attenuation>
++      <direction>-0.3 0.2 -0.9</direction>
++    </light>
++  </world>
++</sdf>

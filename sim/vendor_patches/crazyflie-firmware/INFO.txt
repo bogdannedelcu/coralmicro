@@ -1,0 +1,30 @@
+## /home/bogdan/work/crazyflie/CrazySim/crazyflie-firmware
+
+### Remote
+fork	https://github.com/bogdannedelcu/crazysim-crazyflie-firmware.git (fetch)
+fork	https://github.com/bogdannedelcu/crazysim-crazyflie-firmware.git (push)
+origin	https://github.com/llanesc/crazyflie-firmware.git (fetch)
+origin	https://github.com/llanesc/crazyflie-firmware.git (push)
+
+### HEAD
+sentai-flow-sim-support @ e4374251d9988c5dd7378146022e57f42399ca18
+
+### Recent commits (last 15)
+e4374251 sensors_sitl: accept stdDev from SENSOR_FLOW_SIM packet (extended 17-byte form)
+6b8188da sentai-flow-sim: port stable-altitude patches from bogdannedelcu/crazyflie-firmware
+40d34708 socketlink: drop+count overflow instead of ASSERT (POSIX/SITL deadlock fix)
+aa6571dc Update crazyflie-simulation submodule (flowdeck simulation)
+a5257a08 Add flowdeck sensor simulation (TOF + optical flow) and fix SITL estimator selection
+e9c5ccf4 Update crazyflie-simulation submodule (remove CPX debug prints)
+1b2c497c Add SITL sensor noise, camera, and ext pose tuning
+b56a6152 Replace ledring_sitl with colorled_sitl for separate top/bottom LED control
+67d41ba3 Add LED and LED ring SITL stub implementations
+e650a260 Add Multi-ranger, LED ring, and ledseq support for SITL
+ac1a2a93 Fix yaw instability and update crazyflie-simulation with Multi-ranger
+1b3bc1c6 Update crazyflie-simulation with aero drag and gyroscopic precession
+50d929fa Update crazyflie-simulation submodule with MuJoCo improvements
+d9484a76 Update crazyflie-simulation with params.toml mass/inertia and mass override
+00105bdf Merge branch 'crazysim' of github.com:llanesc/crazyflie-firmware into crazysim
+
+### Local-only commits (vs upstream/HEAD)
+

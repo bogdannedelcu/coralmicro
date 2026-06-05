@@ -1,0 +1,19 @@
+## /home/bogdan/work/crazyflie/CrazySim/crazyflie-firmware/tools/crazyflie-simulation
+
+### Remote
+origin	https://github.com/llanesc/crazyflie-simulation.git (fetch)
+origin	https://github.com/llanesc/crazyflie-simulation.git (push)
+
+### HEAD (no current branch -> detached on submodule)
+235aa999ae368c6db33bccc05355fd987bb17d7e
+
+### Local commits ahead of origin/crazysim
+235aa99 sentai world: aperiodic ground texture (noise + blobs) replaces checker — L0 conf +50%
+65fd6d1 sentai world: kept full wind (×1.5 test confirmed drift scales w/ wind)
+8fde072 sentai world: restored full wind after half-wind validation
+aeb7ee6 sentai world: realistic disturbance — 1% motor + IMU noise + moderate wind
+0f9c9a7 sentai world: motor asymmetry to 1.0% — flow-correctable bias, drone wobble visible but bounded
+0b47146 sentai world: realistic drift sim — motor asymmetry + IMU noise, NO wind
+dfacf9b sentai world: drone spawn @ z=0.2 + revert slow-time experiment
+6360bee sentai world: compact ArUco layout (50cm hover) + stronger Gz WindEffects
+

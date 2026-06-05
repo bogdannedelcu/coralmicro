@@ -1,0 +1,33 @@
+## SentAI environment pinning (snapshot from OLD PC, 2026-06-05)
+
+### Tool versions
+renode: Renode v1.16.1.4546
+gz (host): 8.11.0
+
+### distrobox containers
+ID           | NAME                 | STATUS             | IMAGE                         
+11731d8c05e9 | crazysim-garden      | Up 27 hours        | docker.io/library/ubuntu:22.04
+
+### crazysim-garden distrobox gz version
+7.9.0
+
+### cflib
+cflib path: /home/bogdan/work/crazyflie/.venv/lib/python3.12/site-packages/cflib
+cflib version: Traceback (most recent call last):
+cflib version:   File "<string>", line 1, in <module>
+cflib version: AttributeError: module 'cflib' has no attribute '__version__'
+
+### PX4 source version
+
+### External repo pinned commits
+CrazySim: https://github.com/llanesc/CrazySim.git @ main (3ec8b55da4bff887da542a9f314da825460e65be)
+crazyflie-firmware: https://github.com/llanesc/crazyflie-firmware.git @ sentai-flow-sim-support (e4374251d9988c5dd7378146022e57f42399ca18)
+crazyflie-simulation: https://github.com/llanesc/crazyflie-simulation.git @  (235aa999ae368c6db33bccc05355fd987bb17d7e)
+PX4-Autopilot: https://github.com/PX4/PX4-Autopilot.git @ release/1.14 (1555f2bd2229544c43966ab5f94879c41d8e1e01)
+renode (src clone): https://github.com/renode/renode.git @ master (ac18b5acfd8ea82909cb2b6826cb4fa385ac1520)
+libedgetpu: https://github.com/google-coral/libedgetpu @ master (e35aed18fea2e2d25d98352e5a5bd357c170bd4d)
+edge/edgetpu: https://github.com/google-coral/edgetpu.git @ master (5020de9386ff370dcc1f63291a2d0f98eeb98adb)
+zephyrOS: https://github.com/zephyrproject-rtos/zephyr.git @ main (0570f6d6bc10aa9d185ed4aca7660b40a082bc0b)
+
+### libedgetpu apex firmware blob
+apex: -rw-rw-r-- 1 bogdan bogdan 10783 Apr 22 07:29 /home/bogdan/work/libedgetpu/driver/usb/apex_latest_single_ep.bin

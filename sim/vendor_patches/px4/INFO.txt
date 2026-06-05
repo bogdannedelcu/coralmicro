@@ -1,0 +1,14 @@
+## /home/bogdan/work/px4/PX4-Autopilot
+
+### Remote
+origin	https://github.com/PX4/PX4-Autopilot.git (fetch)
+origin	https://github.com/PX4/PX4-Autopilot.git (push)
+
+### HEAD
+release/1.14 @ 1555f2bd2229544c43966ab5f94879c41d8e1e01
+
+### Recent commits (last 15)
+1555f2b boards/px4/fmu-v5x: rc.board_sensors fix missing Split PAB ID and FMUM backport
+
+### Local-only commits (vs upstream/HEAD)
+

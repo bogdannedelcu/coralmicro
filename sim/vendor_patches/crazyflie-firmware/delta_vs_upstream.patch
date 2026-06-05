@@ -1,0 +1,21 @@
+diff --git a/src/modules/src/estimator/estimator_kalman.c b/src/modules/src/estimator/estimator_kalman.c
+index 9502eff7..75b38386 100644
+--- a/src/modules/src/estimator/estimator_kalman.c
++++ b/src/modules/src/estimator/estimator_kalman.c
+@@ -97,7 +97,8 @@
+ #include "cfassert.h"
+ 
+ 
+-#define KALMAN_USE_BARO_UPDATE
++// s187 anti-cheat (operator 2026-05-21): visual-only nav.  No baro.
++// #define KALMAN_USE_BARO_UPDATE
+ 
+ 
+ // Semaphore to signal that we got data from the stabilizer loop to process
+diff --git a/tools/crazyflie-simulation b/tools/crazyflie-simulation
+index 89d8cf79..235aa999 160000
+--- a/tools/crazyflie-simulation
++++ b/tools/crazyflie-simulation
+@@ -1 +1 @@
+-Subproject commit 89d8cf79fb722bf4bd7e363ade7d90d6c45d6d5d
++Subproject commit 235aa999ae368c6db33bccc05355fd987bb17d7e-dirty

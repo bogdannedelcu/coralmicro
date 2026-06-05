@@ -1,0 +1,28 @@
+## /home/bogdan/work/crazyflie/CrazySim
+
+### Remote
+origin	https://github.com/llanesc/CrazySim.git (fetch)
+origin	https://github.com/llanesc/CrazySim.git (push)
+
+### HEAD
+main @ 3ec8b55da4bff887da542a9f314da825460e65be
+
+### Recent commits (last 15)
+3ec8b55 Add flowdeck docs and replace ASCII diagram with architecture image in README
+d0ab82b Add .devcontainer and .claude to .gitignore
+94e395a Update crazyflie-firmware submodule (flowdeck simulation, SITL estimator selection)
+97d15d7 Update cflib installation instructions in README
+72f2e7b Update logo with 4 drones in top-down formation with motion blur
+c4f3ed1 Fix CrazySim logo text spacing and add social preview
+ffc8846 Add CrazySim logo with 3D rendered Crazyflie drone
+a9f451d Merge branch 'main' of github.com:gtfactslab/CrazySim
+9b8565d Update crazyflie-firmware submodule
+358f171 Add fpv camera example usage image from cflib fpv.py
+aca6617 Add simulation features docs, camera guide, and USB passthrough
+94bc1db Update section headers in README.md for consistency
+a49a0f2 Update README with color LEDs and multiranger details
+0c7da0d Update README to document color LED top/bottom decks instead of LED ring
+ce78cbf Merge branch 'main' of github.com:gtfactslab/CrazySim
+
+### Local-only commits (vs upstream/HEAD)
+

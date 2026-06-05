@@ -1,0 +1,5 @@
+<RCC>
+  <qresource prefix="/CrazySimDashboard">
+    <file>CrazySimDashboard.qml</file>
+  </qresource>
+</RCC>

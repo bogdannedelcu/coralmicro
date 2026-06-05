@@ -1,0 +1,295 @@
+<?xml version="1.0" ?>
+<!--
+  s125_integrated_demo — Gazebo Garden world for the takeoff / world-model
+  / landing demo.
+
+  Scale convention (Sim.md §10v):
+    - cf2 SITL 1/10 scale: 25 m physical plane represents 250 m PX4-equivalent
+    - sentai.places.init(..., scale=10.0) maps cf2 meters → PX4-equivalent
+      so the H3 cell ids line up with what a PX4-scale world would generate
+    - Harmonic 4K texture covers ~480 m of real terrain; mapped 1:1 over the
+      25 m plane so the drone flies "over a city" compressed for cf2 demo
+
+  Drone trajectory: 4×4 m square at z=1 m (cf2 SITL natural envelope) —
+  visible flight path in Gazebo; covers ~16 H3 cells at res=13 (~3.5 m edge)
+  under the scale=10 mapping.
+-->
+<sdf version="1.9">
+  <world name="s125_demo">
+    <physics type="ode">
+      <max_step_size>0.004</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+      <real_time_update_rate>250</real_time_update_rate>
+    </physics>
+    <plugin name='gz::sim::systems::Physics' filename='libgz-sim-physics-system.so'/>
+    <plugin name='gz::sim::systems::UserCommands' filename='libgz-sim-user-commands-system.so'/>
+    <plugin name='gz::sim::systems::SceneBroadcaster' filename='libgz-sim-scene-broadcaster-system.so'/>
+    <plugin name='gz::sim::systems::Contact' filename='libgz-sim-contact-system.so'/>
+    <plugin name='gz::sim::systems::Imu' filename='libgz-sim-imu-system.so'/>
+    <plugin name='gz::sim::systems::AirPressure' filename='libgz-sim-air-pressure-system.so'/>
+    <plugin name='gz::sim::systems::Sensors' filename='libgz-sim-sensors-system.so'>
+      <render_engine>ogre2</render_engine>
+    </plugin>
+
+    <gui fullscreen='0'>
+      <plugin name='3D View' filename='MinimalScene'>
+        <gz-gui>
+          <title>3D View</title>
+          <property type='bool' key='showTitleBar'>0</property>
+          <property type='string' key='state'>docked</property>
+        </gz-gui>
+        <engine>ogre2</engine>
+        <scene>scene</scene>
+        <ambient_light>0.4 0.4 0.4</ambient_light>
+        <background_color>0.8 0.85 1.0</background_color>
+        <!-- Bird's-eye 3rd-person camera; sees the drone + ground tile -->
+        <camera_pose>-6 -6 8 0 0.7 0.785</camera_pose>
+      </plugin>
+      <plugin filename='GzSceneManager'/>
+      <plugin filename='EntityContextMenuPlugin'/>
+      <plugin filename='InteractiveViewControl'/>
+      <plugin filename='CameraTracking'/>
+      <plugin filename='MarkerManager'/>
+      <plugin filename='SelectEntities'/>
+      <plugin filename='Spawn'/>
+      <plugin filename='VisualizationCapabilities'/>
+      <plugin filename='WorldControl'>
+        <gz-gui>
+          <title>World control</title>
+          <property type='bool' key='showTitleBar'>0</property>
+          <property type='bool' key='resizable'>0</property>
+          <property type='double' key='height'>72</property>
+          <property type='double' key='z'>1</property>
+          <property type='string' key='state'>floating</property>
+          <anchors target='3D View'>
+            <line own='left' target='left'/>
+            <line own='bottom' target='bottom'/>
+          </anchors>
+        </gz-gui>
+        <play_pause>1</play_pause>
+        <step>1</step>
+        <start_paused>0</start_paused>
+      </plugin>
+      <!-- PIP: drone's downward camera (cf2 crazyflie model publishes
+           /downward_cam/image at ~16 fps).  Operator uses this to verify
+           the drone sees the ArUco markers during pre-takeoff hold. -->
+      <plugin filename='ImageDisplay' name='Image Display'>
+        <gz-gui>
+          <title>cf2 downward_cam (PIP)</title>
+          <property type='bool' key='showTitleBar'>1</property>
+          <property type='string' key='state'>floating</property>
+          <property type='double' key='width'>320</property>
+          <property type='double' key='height'>240</property>
+          <property type='double' key='x'>10</property>
+          <property type='double' key='y'>10</property>
+        </gz-gui>
+        <topic>/downward_cam/image</topic>
+        <topic_picker>true</topic_picker>
+      </plugin>
+    </gui>
+
+    <wind><linear_velocity>0 0 0</linear_velocity></wind>
+    <gravity>0 0 -9.80665</gravity>
+    <magnetic_field>6e-06 2.3e-05 -4.2e-05</magnetic_field>
+    <atmosphere type='adiabatic'/>
+
+    <scene>
+      <grid>false</grid>
+      <ambient>0.6 0.6 0.6 1</ambient>
+      <background>0.7 0.85 1.0 1</background>
+      <shadows>true</shadows>
+    </scene>
+
+    <!-- Sun -->
+    <light type='directional' name='sun'>
+      <cast_shadows>true</cast_shadows>
+      <pose>0 0 20 0 0 0</pose>
+      <diffuse>0.9 0.9 0.85 1</diffuse>
+      <specular>0.2 0.2 0.2 1</specular>
+      <direction>-0.3 -0.5 -0.8</direction>
+    </light>
+
+    <!-- ====================================================== -->
+    <!--  GROUND PLANE — Harmonic 4K aerial texture, 25×25 m   -->
+    <!--                                                        -->
+    <!--  cf2 1/10 scale: 25 m physical ≈ 250 m PX4-equivalent  -->
+    <!--  Texture covers ~480 m of real terrain (compressed) —  -->
+    <!--  drone flying a 4 m square sees ~80 m PX4-eq of world  -->
+    <!-- ====================================================== -->
+    <model name="ground_plane">
+      <static>true</static>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <plane><normal>0 0 1</normal><size>25 25</size></plane>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <plane><normal>0 0 1</normal><size>25 25</size></plane>
+          </geometry>
+          <material>
+            <diffuse>1 1 1 1</diffuse>
+            <specular>0.1 0.1 0.1 1</specular>
+            <pbr>
+              <metal>
+                <albedo_map>materials/textures/harmonic_alt200_4k.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Wide green backdrop at the SAME ground level (z=0) so peripheral
+         vision sees green grass instead of a 10 m pit around the harmonic
+         square.  Tiny -1 mm offset on Z prevents z-fighting with the
+         textured plane on top. -->
+    <model name="ground_plane_backdrop">
+      <static>true</static>
+      <pose>0 0 -0.001 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <plane><normal>0 0 1</normal><size>200 200</size></plane>
+          </geometry>
+          <material>
+            <ambient>0.45 0.55 0.45 1</ambient>
+            <diffuse>0.55 0.65 0.55 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Bootstrap deep plane for the cf2 down-cam.
+         The cf2 model spawns the down-cam at offset (-0.04, 0, -0.02) m
+         from the drone link.  Drone link rests at z≈0.015 m (gravity
+         settles the body on the floor), so camera ends up at z=-0.005 m
+         — BELOW the harmonic floor.  Looking down it would see the
+         pastel-blue background through the floor, sentai.flow gets
+         conf=0, the cf2 Kalman EKF won't lock, takeoff is blocked.
+
+         A high-contrast textured plane 50 cm below the floor gives the
+         camera something to lock onto during the bootstrap second
+         (before the drone lifts above the harmonic floor).  At z=-0.5
+         m the plane is far below the operator's bird's-eye view
+         (harmonic z=0 plane is opaque), so it does NOT recreate the
+         "walls below" visual issue the operator caught with the prior
+         z=-10 deep plane.
+
+         Checker pattern reused from CrazySim's materials/textures
+         already symlinked into the worlds/materials dir (§10w.2). -->
+    <model name="bootstrap_deep_plane">
+      <static>true</static>
+      <pose>0 0 -0.5 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <plane><normal>0 0 1</normal><size>40 40</size></plane>
+          </geometry>
+          <material>
+            <ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse>
+            <pbr><metal>
+              <albedo_map>materials/textures/checker.png</albedo_map>
+              <metalness>0</metalness><roughness>1</roughness>
+            </metal></pbr>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- s091-style ultimate fallback plane at z=-10.  Solid black so
+         that ANY frame the cf2 camera produces while it's between the
+         floor and z=1 has SOMETHING below it (not the pastel-blue
+         background showing through).  Operator visible only at the
+         very edge of the harmonic floor if they look obliquely. -->
+    <model name="ground_plane_fallback_deep">
+      <static>true</static>
+      <pose>0 0 -10 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <plane><normal>0 0 1</normal><size>200 200</size></plane>
+          </geometry>
+          <material>
+            <ambient>0.05 0.05 0.05 1</ambient>
+            <diffuse>0.05 0.05 0.05 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ArUco markers around the takeoff origin so the drone has visual
+         anchors for pre-takeoff stabilization.  4×4_50 IDs 0..3 are the
+         CrazySim defaults (already in materials/textures/).  Each marker
+         is a 0.4 m × 0.4 m flat panel raised 6 mm above the ground so it
+         sits on top of the Harmonic texture.  Placed in a ~0.8 m square
+         pattern centred on (0,0) — drone spawns at (0,0,0.5) so the
+         downward camera (60° FOV) sees all four immediately. -->
+    <model name="aruco_id0">
+      <static>true</static>
+      <pose>0.4 0.4 0.006 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry><box><size>0.4 0.4 0.005</size></box></geometry>
+          <material>
+            <ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse>
+            <pbr><metal>
+              <albedo_map>materials/textures/aruco_4x4_50_id0.png</albedo_map>
+              <metalness>0</metalness><roughness>1</roughness>
+            </metal></pbr>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name="aruco_id1">
+      <static>true</static>
+      <pose>-0.4 0.4 0.006 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry><box><size>0.4 0.4 0.005</size></box></geometry>
+          <material>
+            <ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse>
+            <pbr><metal>
+              <albedo_map>materials/textures/aruco_4x4_50_id1.png</albedo_map>
+              <metalness>0</metalness><roughness>1</roughness>
+            </metal></pbr>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name="aruco_id2">
+      <static>true</static>
+      <pose>-0.4 -0.4 0.006 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry><box><size>0.4 0.4 0.005</size></box></geometry>
+          <material>
+            <ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse>
+            <pbr><metal>
+              <albedo_map>materials/textures/aruco_4x4_50_id2.png</albedo_map>
+              <metalness>0</metalness><roughness>1</roughness>
+            </metal></pbr>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name="aruco_id3">
+      <static>true</static>
+      <pose>0.4 -0.4 0.006 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry><box><size>0.4 0.4 0.005</size></box></geometry>
+          <material>
+            <ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse>
+            <pbr><metal>
+              <albedo_map>materials/textures/aruco_4x4_50_id3.png</albedo_map>
+              <metalness>0</metalness><roughness>1</roughness>
+            </metal></pbr>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+  </world>
+</sdf>

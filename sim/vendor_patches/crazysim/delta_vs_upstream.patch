@@ -1,0 +1,7 @@
+diff --git a/crazyflie-firmware b/crazyflie-firmware
+index aa6571d..e437425 160000
+--- a/crazyflie-firmware
++++ b/crazyflie-firmware
+@@ -1 +1 @@
+-Subproject commit aa6571dc465f06f7d1f9aaf7b0b861fbcd1b3d67
++Subproject commit e4374251d9988c5dd7378146022e57f42399ca18-dirty
