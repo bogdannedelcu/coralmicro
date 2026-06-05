@@ -183,3 +183,19 @@ Build counter on the board: `sentai.version()` returns `SentAI v1.0 build NNN (.
 - The repo carries multiple Python venvs (`venv/`, `venv-coral/`, `venv_coral/`, `venv_edgetpu/`) for host-side EdgeTPU testing — see `reference_host_coral_testing.md` in user memory if you need to run pycoral locally.
 - `setup.sh` installs Linux apt deps + the udev rule from `scripts/99-coral-micro.rules` (needed for non-root `flashtool.py`).
 - `error.log` at the repo root is a build artifact and can be ignored.
+
+## Claude project memory is tracked in this repo
+
+`.claude/memory/` holds the persistent cross-session memory (`MEMORY.md` index + per-topic `*.md` files). It is checked in so a fresh clone on a new machine recovers the full memory context.
+
+Claude Code loads memory from `~/.claude/projects/<slug>/memory/`, where `<slug>` is the repo's absolute path with `/` replaced by `-` (so `/home/bogdan/work/coralmicro` becomes `-home-bogdan-work-coralmicro`). That slug is host-specific, so the symlink from `~/.claude/projects/...` into the in-repo `.claude/memory/` is NOT checked in.
+
+**On a fresh clone (or a new machine), run once:**
+
+```bash
+bash scripts/setup_claude_memory.sh
+```
+
+The script derives the correct slug from `$PWD`, creates `~/.claude/projects/<slug>/memory` as a symlink to `<repo>/.claude/memory`, and is idempotent. After running it, Claude will read/write memory directly into the tracked tree — new memories show up as regular file changes in `git status` and can be committed alongside code.
+
+If `~/.claude/projects/<slug>/memory/` already exists as a real directory (e.g. from a prior session that ran before the symlink was set up), the script refuses to clobber it — merge its contents into `.claude/memory/` manually first, then remove the original and re-run.
