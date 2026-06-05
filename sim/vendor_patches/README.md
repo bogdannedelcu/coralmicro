@@ -47,24 +47,48 @@ sim/vendor_patches/
 
 ## Source of truth per external repo
 
-| Repo                    | Remote                                                         | Branch          | Pin commit    |
-|-------------------------|----------------------------------------------------------------|-----------------|---------------|
-| CrazySim (outer)        | https://github.com/llanesc/CrazySim.git                        | main            | `3ec8b55`     |
-| crazyflie-firmware      | https://github.com/bogdannedelcu/crazysim-crazyflie-firmware.git | sentai-flow-sim-support | `e437425` |
-| crazyflie-simulation    | https://github.com/llanesc/crazyflie-simulation.git            | (detached)      | `235aa99`     |
-| PX4-Autopilot           | https://github.com/PX4/PX4-Autopilot.git                       | release/1.14    | `1555f2b`     |
+All four external repos now have a corresponding fork under
+`bogdannedelcu/...` on GitHub (forked 2026-06-05).  The `origin` remote
+column shows where upstream lives; `fork` shows our SentAI-deviated
+copy.  For each repo, the SentAI canonical state is the **fork** at
+the listed branch/commit.
 
-`crazyflie-firmware` is already in our org fork — the working tree's
-extra `estimator_kalman.c` kalman-no-baro tweak is in
-`delta_vs_upstream.patch` and should either be applied at apply-time or
-pushed as a follow-up commit on `sentai-flow-sim-support`.
+| Repo                    | origin                                                         | fork (canonical for SentAI)                                          | Branch                 | Pin commit  |
+|-------------------------|----------------------------------------------------------------|----------------------------------------------------------------------|------------------------|-------------|
+| CrazySim (outer)        | https://github.com/llanesc/CrazySim.git                        | https://github.com/bogdannedelcu/CrazySim.git                        | main                   | `3ec8b55`   |
+| crazyflie-firmware      | https://github.com/llanesc/crazyflie-firmware.git              | https://github.com/bogdannedelcu/crazysim-crazyflie-firmware.git     | sentai-flow-sim-support| `e437425`   |
+| crazyflie-simulation    | https://github.com/llanesc/crazyflie-simulation.git            | https://github.com/bogdannedelcu/crazysim-crazyflie-simulation.git   | sentai-flow-sim-support| `235aa99`   |
+| PX4-Autopilot           | https://github.com/PX4/PX4-Autopilot.git                       | https://github.com/bogdannedelcu/PX4-Autopilot.git                   | release/1.14 (mirror)  | `1555f2b`   |
 
-`crazyflie-simulation` is **NOT** forked yet.  It carries 8 local
-SentAI-only commits + working-tree-only uncommitted edits.  Either:
-- fork it under `bogdannedelcu/crazysim-crazyflie-simulation` and push
-  `235aa99` + a follow-up commit for the uncommitted bits, then update
-  crazyflie-firmware's submodule pointer; **or**
-- treat the patch + files/ here as the canonical re-apply payload.
+Fork state at the time of this commit:
+
+- `crazysim-crazyflie-firmware` carries the 9 SentAI commits on the
+  `sentai-flow-sim-support` branch + an uncommitted working-tree
+  `estimator_kalman.c` no-baro patch (capture in
+  `crazyflie-firmware/delta_vs_upstream.patch`).
+- `crazysim-crazyflie-simulation` was created/refreshed in this commit:
+  the 8 SentAI commits ahead of `origin/crazysim` are now on the fork's
+  `sentai-flow-sim-support` branch.  The uncommitted working-tree edits
+  (model.sdf.jinja + crazysim_plugin.cpp + sentai_crazysim.sdf + new
+  assets) are NOT pushed yet — they live in
+  `crazyflie-simulation/delta_vs_upstream.patch` + `files/` here; pushing
+  them as a follow-up commit on the fork is a clean win.
+- `bogdannedelcu/PX4-Autopilot` mirrors PX4 release/1.14.  Source has
+  zero SentAI modifications; the assets + airframes live under
+  `px4/files/` in this vendor tree.  A future commit can stage the
+  airframes properly into `ROMFS/px4fmu_common/init.d-posix/airframes/`
+  on a SentAI branch of the PX4 fork; until then, see "Apply on a NEW
+  PC" below.
+- `bogdannedelcu/CrazySim` mirrors `llanesc/CrazySim` main.  The only
+  SentAI delta is the cf2 firmware submodule pointer + an untracked
+  agent-prompt note; both can be applied from this vendor tree.
+
+The crazyflie-firmware `.gitmodules` for `tools/crazyflie-simulation`
+still points to `llanesc/crazyflie-simulation`.  On a NEW PC, the
+submodule clone will land on upstream and the SentAI delta has to be
+applied via `git remote add fork ...` + `git fetch fork` +
+`git checkout fork/sentai-flow-sim-support`.  See the apply recipe
+below.
 
 ## Apply on a NEW PC
 
@@ -77,42 +101,46 @@ bash sim/scripts/install_crazysim.sh           # clones to ~/work/crazyflie/Craz
 bash sim/scripts/install_px4_sitl.sh           # clones to ~/work/px4/PX4-Autopilot
 ```
 
-Then apply the SentAI deltas:
+Then apply the SentAI deltas (REPO = path to coralmicro repo):
 
 ```bash
-# 1. CrazySim submodule pointer (just bumps to our cf2 fw fork pin)
+# 1. CrazySim outer: add fork remote (carry the SentAI cf2 fw pin via .gitmodules).
 cd ~/work/crazyflie/CrazySim
-git apply $REPO/sim/vendor_patches/crazysim/delta_vs_upstream.patch
+git remote add fork https://github.com/bogdannedelcu/CrazySim.git
+git fetch fork
+# Optional: keep origin = llanesc upstream; just track the fork remote.
+git apply $REPO/sim/vendor_patches/crazysim/delta_vs_upstream.patch  # bumps cf2 fw submodule pointer
 
 # 2. crazyflie-firmware: switch to our fork at the SentAI branch
 cd crazyflie-firmware
-git remote set-url origin https://github.com/bogdannedelcu/crazysim-crazyflie-firmware.git
-git fetch origin
-git checkout sentai-flow-sim-support
+git remote add fork https://github.com/bogdannedelcu/crazysim-crazyflie-firmware.git
+git fetch fork
+git checkout -B sentai-flow-sim-support fork/sentai-flow-sim-support
 # Working-tree kalman-no-baro patch:
 git apply $REPO/sim/vendor_patches/crazyflie-firmware/delta_vs_upstream.patch
 
-# 3. crazyflie-simulation submodule: check out the SentAI-aware commit
+# 3. crazyflie-simulation submodule: switch to our fork at the SentAI branch
 cd tools/crazyflie-simulation
-git fetch origin
-git checkout 235aa999ae368c6db33bccc05355fd987bb17d7e
-# Then drop the wholly-new asset files (gui/, worlds/, textures/) and apply
-# the working-tree patch on top of the checkout:
+git remote add fork https://github.com/bogdannedelcu/crazysim-crazyflie-simulation.git
+git fetch fork
+git checkout -B sentai-flow-sim-support fork/sentai-flow-sim-support
+# Working-tree edits + wholly-new asset files (gui/, worlds/, textures/):
 cp -rT $REPO/sim/vendor_patches/crazyflie-simulation/files/ ./
 git apply $REPO/sim/vendor_patches/crazyflie-simulation/delta_vs_upstream.patch
 
-# 4. PX4: drop x500_sentai model + airframes
+# 4. PX4: optionally add fork remote, then stage SentAI model + airframes
 cd ~/work/px4/PX4-Autopilot
+git remote add fork https://github.com/bogdannedelcu/PX4-Autopilot.git
+git fetch fork
+# Source files (model + assets):
 cp -rT $REPO/sim/vendor_patches/px4/files/Tools ./Tools
+# Airframes (NOT in ROMFS source on OLD PC; must be re-copied after every build):
 mkdir -p build/px4_sitl_default/etc/init.d-posix/airframes
 cp $REPO/sim/vendor_patches/px4/files/airframes-from-build/* \
    build/px4_sitl_default/etc/init.d-posix/airframes/
-# NOTE: the airframes are normally staged into build/ during a PX4
-# CMake build.  Because they were never added to ROMFS source on the
-# OLD PC, you need to recopy them after any `make px4_sitl_default`
-# rebuild.  A proper fix is to upstream them into
-# ROMFS/px4fmu_common/init.d-posix/airframes/ + CMakeLists.txt — see
-# manifest/distrobox_recipe.md "Notes on PX4 SentAI airframes".
+# NOTE: a future cleanup commit on the PX4 fork should stage the airframes
+# into ROMFS/px4fmu_common/init.d-posix/airframes/ + CMakeLists.txt so a
+# clean build produces them.  See manifest/distrobox_recipe.md.
 
 # 5. crazysim-garden distrobox (Gazebo Garden 7.9) — see
 # manifest/distrobox_recipe.md
