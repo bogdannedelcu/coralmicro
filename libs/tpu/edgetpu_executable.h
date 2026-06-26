@@ -31,11 +31,22 @@ class OutputLayer {
  public:
   explicit OutputLayer(const platforms::darwinn::Layer* layer)
       : output_layer_(layer),
-        output_buffer_(std::make_unique<uint8_t[]>(layer->size_bytes())),
+        output_buffer_(std::make_unique<uint8_t[]>(
+            layer->size_bytes() * layer->execution_count_per_inference())),
         active_tile_x_sizes_(std::make_unique<int[]>(x_dim())) {}
   OutputLayer(const OutputLayer&) = delete;
   OutputLayer& operator=(const OutputLayer&) = delete;
   uint8_t* output_buffer() { return output_buffer_.get(); }
+  // sentai diag: the size of the heap buffer actually allocated (must be >=
+  // the output bulk-IN DMA size or GetOutputs overflows it).
+  uint32_t alloc_size() const {
+    return output_layer_->size_bytes() *
+           output_layer_->execution_count_per_inference();
+  }
+  uint32_t raw_size_bytes() const { return output_layer_->size_bytes(); }
+  int exec_count() const {
+    return output_layer_->execution_count_per_inference();
+  }
 
   static bool SignedDataType(platforms::darwinn::DataType type);
   static void TransformSignedDataType(uint8_t* buffer, int buffer_size,
@@ -88,12 +99,24 @@ class EdgeTpuExecutable {
   TfLiteStatus Invoke(const TpuDriver& tpu_driver, TfLiteContext* context,
                       TfLiteNode* node);
 
+  // Reserve, via the TFLM tensor arena, the host scratch buffer this
+  // executable needs for activation spill (BASE_ADDRESS_SCRATCH DMAs).
+  // Must be called in the op Prepare stage (RequestScratchBufferInArena is
+  // Prepare-only); Invoke fetches the pointer with GetScratchBuffer.  A
+  // no-op for executables whose scratch_size_bytes() is 0 (the common case
+  // -- only models too wide to keep intermediate activations on-chip spill).
+  TfLiteStatus PrepareScratch(TfLiteContext* context);
+
   uint64_t ParameterCachingToken() const {
     return executable_->parameter_caching_token();
   }
 
  private:
   const platforms::darwinn::Executable* executable_;
+  // Arena scratch-buffer index from RequestScratchBufferInArena (Prepare),
+  // -1 when this executable needs no scratch.  Resolved to a pointer in
+  // Invoke via TfLiteContext::GetScratchBuffer.
+  int scratch_buffer_idx_ = -1;
 
   struct Less {
     bool operator()(const char* a, const char* b) const {

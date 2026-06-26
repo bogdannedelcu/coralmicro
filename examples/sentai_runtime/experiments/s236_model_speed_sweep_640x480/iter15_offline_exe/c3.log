@@ -1,0 +1,34 @@
+examples/sentai_runtime/experiments/s236_model_speed_sweep_640x480/iter15_offline_exe/dump_exe.cc: In function ‘void DumpExecutable(const platforms::darwinn::Executable*, const char*)’:
+examples/sentai_runtime/experiments/s236_model_speed_sweep_640x480/iter15_offline_exe/dump_exe.cc:47:42: warning: format ‘%u’ expects argument of type ‘unsigned int’, but argument 2 has type ‘size_t’ {aka ‘long unsigned int’} [-Wformat=]
+   47 |     printf("    instruction_bitstreams: %u chunk(s)\n",
+      |                                         ~^
+      |                                          |
+      |                                          unsigned int
+      |                                         %lu
+   48 |            flatbuffers::VectorLength(instr));
+      |            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      |                                     |
+      |                                     size_t {aka long unsigned int}
+examples/sentai_runtime/experiments/s236_model_speed_sweep_640x480/iter15_offline_exe/dump_exe.cc:65:29: warning: format ‘%u’ expects argument of type ‘unsigned int’, but argument 2 has type ‘size_t’ {aka ‘long unsigned int’} [-Wformat=]
+   65 |     printf("    dma_hints: %u\n", flatbuffers::VectorLength(hv));
+      |                            ~^     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      |                             |                              |
+      |                             unsigned int                   size_t {aka long unsigned int}
+      |                            %lu
+examples/sentai_runtime/experiments/s236_model_speed_sweep_640x480/iter15_offline_exe/dump_exe.cc:94:33: warning: format ‘%u’ expects argument of type ‘unsigned int’, but argument 2 has type ‘size_t’ {aka ‘long unsigned int’} [-Wformat=]
+   94 |     printf("    output_layers: %u\n", flatbuffers::VectorLength(outs));
+      |                                ~^     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      |                                 |                              |
+      |                                 unsigned int                   size_t {aka long unsigned int}
+      |                                %lu
+examples/sentai_runtime/experiments/s236_model_speed_sweep_640x480/iter15_offline_exe/dump_exe.cc: In function ‘void DumpTflite(const char*)’:
+examples/sentai_runtime/experiments/s236_model_speed_sweep_640x480/iter15_offline_exe/dump_exe.cc:142:32: warning: format ‘%u’ expects argument of type ‘unsigned int’, but argument 2 has type ‘size_t’ {aka ‘long unsigned int’} [-Wformat=]
+  142 |   printf("  multi_executable: %u executable(s)\n",
+      |                               ~^
+      |                                |
+      |                                unsigned int
+      |                               %lu
+  143 |          flatbuffers::VectorLength(execs));
+      |          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      |                                   |
+      |                                   size_t {aka long unsigned int}

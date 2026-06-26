@@ -93,6 +93,9 @@ class EdgeTpuManager {
   EdgeTpuPackage* RegisterPackage(const char* package_content, size_t length);
   TfLiteStatus Invoke(EdgeTpuPackage* package, TfLiteContext* context,
                       TfLiteNode* node);
+  // Reserve arena scratch for a package's executables.  Called from the
+  // custom-op Prepare stage (RequestScratchBufferInArena is Prepare-only).
+  TfLiteStatus PrepareScratch(EdgeTpuPackage* package, TfLiteContext* context);
   // @endcond
 
   // Gets the default Edge TPU device (and starts it if necessary).
@@ -126,6 +129,10 @@ class EdgeTpuManager {
   // @returns The temperature in Celcius, or `std::nullopt` if
   // `EdgeTpuContext` is empty.
   std::optional<float> GetTemperature();
+
+  // sentai: dump TPU HIB error-status + scalar-core run-status CSRs to stdout.
+  // Diagnostic for failed invokes (see TpuDriver::DumpErrorCsrs).
+  void DumpTpuErrorCsrs();
 
  private:
   TpuDriver tpu_driver_;

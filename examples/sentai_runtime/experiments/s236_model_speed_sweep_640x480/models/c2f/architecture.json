@@ -1,0 +1,23 @@
+{
+  "cfg": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/yolov5/models/yolov5n_p3p4_c2f.yaml",
+  "imgsz_hw": [
+    480,
+    640
+  ],
+  "nc": 1,
+  "act": "silu",
+  "strides": [
+    8.0,
+    16.0
+  ],
+  "anchors": [
+    [
+      16,
+      16
+    ],
+    [
+      32,
+      32
+    ]
+  ]
+}

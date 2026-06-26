@@ -1,0 +1,7 @@
+ver  : V SentAI v1.0 build 1550 (2026-06-26 17:14:33)
+mount: M True
+size : SZ 1102592
+load : LD 0
+ready: RDY True
+INVOKE: []
+=== CSR DURING ACTIVE FAULT ===

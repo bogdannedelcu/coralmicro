@@ -1,0 +1,8 @@
+# Fast local copy of curated_clean_cover_v1 (images on local XFS SSD, not NTFS/FUSE)
+path: /home/bogdan/sentai_fast/splits/curated_clean_cover_v1
+train: train.txt
+val: val.txt
+test: test.txt
+nc: 1
+names:
+  0: person

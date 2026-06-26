@@ -20,18 +20,27 @@
 #include <cstring>
 
 #include "libs/base/check.h"
+#include "libs/base/timer.h"
 #include "libs/tpu/darwinn/driver/config/beagle/beagle_chip_config.h"
 #include "libs/tpu/darwinn/driver/config/beagle_csr_helper.h"
 #include "libs/tpu/darwinn/driver/config/common_csr_helper.h"
 #include "third_party/freertos_kernel/include/FreeRTOS.h"
 #include "third_party/freertos_kernel/include/semphr.h"
+#include "third_party/freertos_kernel/include/task.h"
 #ifndef SENTAI_PLATFORM_SIM
+#include "fsl_common.h"
 #include "third_party/nxp/rt1176-sdk/components/osa/fsl_os_abstraction.h"
 #include "third_party/nxp/rt1176-sdk/middleware/usb/include/usb_spec.h"
 #else
 #include <sched.h>
 #include <time.h>
 #endif
+
+#ifdef SENTAI_PLATFORM_SIM
+extern "C" volatile uint32_t g_sentai_tpu_sim_outfeed_chunk_length;
+#endif
+
+extern "C" volatile int g_sentai_tpu_multi_ep_routing = 0;
 
 namespace coralmicro {
 namespace {
@@ -67,7 +76,6 @@ constexpr uint8_t kOutEpParameters       = 3;
 // multi_bo_ep CSR is written exactly once per boot the first time routing
 // is enabled, without racing with TpuDriver::Initialize (which runs
 // before the flag can be set by the user).
-extern "C" volatile int g_sentai_tpu_multi_ep_routing = 0;
 static volatile int     s_sentai_multi_bo_ep_applied  = 0;
 extern "C" int  sentai_tpu_multi_ep_routing_get(void) { return g_sentai_tpu_multi_ep_routing; }
 extern "C" void sentai_tpu_multi_ep_routing_set(int v) { g_sentai_tpu_multi_ep_routing = v ? 1 : 0; }
@@ -109,7 +117,167 @@ struct UsbTransferMetadata {
   SemaphoreHandle_t sema;
   usb_status_t status;
   size_t bytes_transferred;
+  DescriptorTag tag;
+  uint32_t bytes_requested;
+  uint32_t submit_start_cyc;
+  uint32_t submit_return_cyc;
+  volatile uint32_t callback_cyc;
+  uint32_t submit_start_us;
+  uint32_t submit_return_us;
+  volatile uint32_t callback_us;
 };
+
+enum TpuUrbStatIndex {
+  kUrbStatInstructions = 0,
+  kUrbStatInput = 1,
+  kUrbStatParameters = 2,
+  kUrbStatOutput = 3,
+  kUrbStatEvent = 4,
+  kUrbStatUnknown = 5,
+  kUrbStatCount = 6,
+};
+
+enum TpuUrbStatField {
+  kUrbFieldCalls = 0,
+  kUrbFieldCallbacks = 1,
+  kUrbFieldBytesRequested = 2,
+  kUrbFieldBytesDone = 3,
+  kUrbFieldSubmitCycles = 4,
+  kUrbFieldCallbackCycles = 5,
+  kUrbFieldWaitCycles = 6,
+  kUrbFieldErrors = 7,
+  kUrbFieldTimeouts = 8,
+  kUrbFieldSubmitFailures = 9,
+  kUrbFieldSubmitUs = 10,
+  kUrbFieldCallbackUs = 11,
+  kUrbFieldWaitUs = 12,
+  kUrbFieldCount = 13,
+};
+
+static uint64_t s_tpu_urb_stats[kUrbStatCount][kUrbFieldCount];
+
+static inline uint32_t TpuUrbCycleNow() {
+#ifdef SENTAI_PLATFORM_SIM
+  return (uint32_t)xTaskGetTickCount();
+#else
+  return DWT->CYCCNT;
+#endif
+}
+
+static inline uint32_t TpuUrbMicrosNow() {
+#ifdef SENTAI_PLATFORM_SIM
+  return (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS * 1000u);
+#else
+  return (uint32_t)coralmicro::TimerMicros();
+#endif
+}
+
+static inline uint32_t TpuUrbDelta(uint32_t end, uint32_t start) {
+  return end - start;
+}
+
+static int TpuUrbStatIndexForTag(DescriptorTag tag) {
+  switch (tag) {
+    case DescriptorTag::kInstructions:
+      return kUrbStatInstructions;
+    case DescriptorTag::kInputActivations:
+      return kUrbStatInput;
+    case DescriptorTag::kParameters:
+      return kUrbStatParameters;
+    case DescriptorTag::kOutputActivations:
+      return kUrbStatOutput;
+    case DescriptorTag::kInterrupt0:
+    case DescriptorTag::kInterrupt1:
+    case DescriptorTag::kInterrupt2:
+    case DescriptorTag::kInterrupt3:
+      return kUrbStatEvent;
+    default:
+      return kUrbStatUnknown;
+  }
+}
+
+static void TpuUrbStatAdd(int idx, int field, uint64_t value) {
+  if (idx < 0 || idx >= kUrbStatCount || field < 0 || field >= kUrbFieldCount) {
+    return;
+  }
+  taskENTER_CRITICAL();
+  s_tpu_urb_stats[idx][field] += value;
+  taskEXIT_CRITICAL();
+}
+
+static void TpuUrbRecordSubmitFailure(DescriptorTag tag, uint32_t bytes,
+                                      uint32_t submit_cycles,
+                                      uint32_t submit_us) {
+  const int idx = TpuUrbStatIndexForTag(tag);
+  TpuUrbStatAdd(idx, kUrbFieldCalls, 1);
+  TpuUrbStatAdd(idx, kUrbFieldBytesRequested, bytes);
+  TpuUrbStatAdd(idx, kUrbFieldSubmitCycles, submit_cycles);
+  TpuUrbStatAdd(idx, kUrbFieldSubmitUs, submit_us);
+  TpuUrbStatAdd(idx, kUrbFieldSubmitFailures, 1);
+}
+
+static void TpuUrbRecordDone(const UsbTransferMetadata& meta,
+                             uint32_t wait_end_cyc, uint32_t wait_end_us,
+                             bool timeout) {
+  const int idx = TpuUrbStatIndexForTag(meta.tag);
+  TpuUrbStatAdd(idx, kUrbFieldCalls, 1);
+  TpuUrbStatAdd(idx, kUrbFieldBytesRequested, meta.bytes_requested);
+  TpuUrbStatAdd(idx, kUrbFieldSubmitCycles,
+                TpuUrbDelta(meta.submit_return_cyc, meta.submit_start_cyc));
+  TpuUrbStatAdd(idx, kUrbFieldWaitCycles,
+                TpuUrbDelta(wait_end_cyc, meta.submit_start_cyc));
+  TpuUrbStatAdd(idx, kUrbFieldSubmitUs,
+                TpuUrbDelta(meta.submit_return_us, meta.submit_start_us));
+  TpuUrbStatAdd(idx, kUrbFieldWaitUs,
+                TpuUrbDelta(wait_end_us, meta.submit_start_us));
+  if (timeout) {
+    TpuUrbStatAdd(idx, kUrbFieldTimeouts, 1);
+    return;
+  }
+  TpuUrbStatAdd(idx, kUrbFieldCallbacks, 1);
+  TpuUrbStatAdd(idx, kUrbFieldBytesDone, meta.bytes_transferred);
+  TpuUrbStatAdd(idx, kUrbFieldCallbackCycles,
+                TpuUrbDelta(meta.callback_cyc, meta.submit_start_cyc));
+  TpuUrbStatAdd(idx, kUrbFieldCallbackUs,
+                TpuUrbDelta(meta.callback_us, meta.submit_start_us));
+  if (meta.status != kStatus_USB_Success) {
+    TpuUrbStatAdd(idx, kUrbFieldErrors, 1);
+  }
+}
+
+extern "C" void sentai_tpu_urb_stats_reset(void) {
+  taskENTER_CRITICAL();
+  for (int i = 0; i < kUrbStatCount; ++i) {
+    for (int j = 0; j < kUrbFieldCount; ++j) {
+      s_tpu_urb_stats[i][j] = 0;
+    }
+  }
+  taskEXIT_CRITICAL();
+}
+
+extern "C" uint32_t sentai_tpu_urb_cycle_hz(void) {
+#ifdef SENTAI_PLATFORM_SIM
+  return configTICK_RATE_HZ;
+#else
+  return SystemCoreClock;
+#endif
+}
+
+extern "C" uint32_t sentai_tpu_urb_stats(uint64_t* out, uint32_t max_words) {
+  const uint32_t need = kUrbStatCount * kUrbFieldCount;
+  if (!out || max_words < need) {
+    return need;
+  }
+  uint32_t k = 0;
+  taskENTER_CRITICAL();
+  for (int i = 0; i < kUrbStatCount; ++i) {
+    for (int j = 0; j < kUrbFieldCount; ++j) {
+      out[k++] = s_tpu_urb_stats[i][j];
+    }
+  }
+  taskEXIT_CRITICAL();
+  return need;
+}
 
 // One-time-init persistent semaphore for the bulk-transfer completion
 // handshake.  Old code used xSemaphoreCreateBinary + vSemaphoreDelete
@@ -142,8 +310,6 @@ static void InitBulkSema() {
 }
 
 #ifdef SENTAI_PLATFORM_SIM
-extern "C" volatile uint32_t g_sentai_tpu_sim_outfeed_chunk_length;
-
 static void SimSleepUs(long us) {
   struct timespec ts;
   ts.tv_sec = us / 1000000L;
@@ -357,7 +523,7 @@ bool TpuDriver::Initialize(usb_host_edgetpu_instance_t *usb_instance,
   // can opt into libedgetpu's forced-largest chunk path for host-side sweeps,
   // while ARM keeps the conservative shipped value.
 #ifdef SENTAI_PLATFORM_SIM
-  uint32_t outfeed_chunk_length = g_sentai_tpu_sim_outfeed_chunk_length;
+  uint32_t outfeed_chunk_length = ::g_sentai_tpu_sim_outfeed_chunk_length;
   if (outfeed_chunk_length != 0x20 && outfeed_chunk_length != 0x80) {
     outfeed_chunk_length = 0x20;
   }
@@ -504,7 +670,7 @@ bool TpuDriver::SendData(DescriptorTag tag, const uint8_t *data,
     }
   }
 
-  if (!BulkOutTransfer(out_ep, data, length)) {
+  if (!BulkOutTransfer(out_ep, data, length, tag)) {
     return false;
   }
   return true;
@@ -744,46 +910,63 @@ static bool BulkOutTransferStaged(usb_host_edgetpu_instance_t *usb,
   while (remain > 0) {
     uint32_t nn = std::min<uint32_t>(kChunk, remain);
     memcpy(s_bulk_staging, src, nn);  // M7 → DTCM, cache-coherent
-    // BulkOutTransferInternal uses persistent sema + legacy NXP
-    // send (the staging buf is unmoving so no race with legacy
-    // pipe state).
-#ifndef SENTAI_PLATFORM_SIM
-    InitBulkSema();
-#endif
     UsbTransferMetadata meta;
 #ifdef SENTAI_PLATFORM_SIM
     meta.sema = nullptr;
 #else
+    InitBulkSema();
     meta.sema = s_bulk_sema;
+    (void)xSemaphoreTake(s_bulk_sema, 0);
 #endif
     meta.status = kStatus_USB_Error;
     meta.bytes_transferred = 0;
-#ifndef SENTAI_PLATFORM_SIM
-    (void)xSemaphoreTake(s_bulk_sema, 0);
-#endif
+    meta.tag = DescriptorTag::kInputActivations;
+    meta.bytes_requested = nn;
+    meta.submit_start_cyc = TpuUrbCycleNow();
+    meta.submit_start_us = TpuUrbMicrosNow();
+    meta.submit_return_cyc = meta.submit_start_cyc;
+    meta.submit_return_us = meta.submit_start_us;
+    meta.callback_cyc = 0;
+    meta.callback_us = 0;
     usb_status_t st = USB_HostEdgeTpuBulkOutSend(
         usb, endpoint, s_bulk_staging, nn,
         [](void *param, uint8_t *, uint32_t len, usb_status_t s) {
             UsbTransferMetadata *m = static_cast<UsbTransferMetadata *>(param);
+            if (!m) return;
             m->bytes_transferred = len;
             m->status = s;
+            m->callback_cyc = TpuUrbCycleNow();
+            m->callback_us = TpuUrbMicrosNow();
 #ifndef SENTAI_PLATFORM_SIM
-            xSemaphoreGive(m->sema);
+            if (m->sema) xSemaphoreGive(m->sema);
 #endif
         },
         &meta);
+    meta.submit_return_cyc = TpuUrbCycleNow();
+    meta.submit_return_us = TpuUrbMicrosNow();
     if (st != kStatus_USB_Success) {
+        TpuUrbRecordSubmitFailure(DescriptorTag::kInputActivations, nn,
+                                  TpuUrbDelta(meta.submit_return_cyc,
+                                              meta.submit_start_cyc),
+                                  TpuUrbDelta(meta.submit_return_us,
+                                              meta.submit_start_us));
         printf("BulkOutStaged submit failed (%d)\r\n", st);
         return false;
     }
 #ifdef SENTAI_PLATFORM_SIM
+    TpuUrbRecordDone(meta, TpuUrbCycleNow(), TpuUrbMicrosNow(), false);
     if (meta.status != kStatus_USB_Success || meta.bytes_transferred != nn) {
         printf("BulkOutStaged bad sync result\r\n");
         return false;
     }
 #else
-    if (xSemaphoreTake(meta.sema, pdMS_TO_TICKS(2000)) == pdFALSE ||
-        meta.status != kStatus_USB_Success) {
+    if (xSemaphoreTake(meta.sema, pdMS_TO_TICKS(2000)) == pdFALSE) {
+        TpuUrbRecordDone(meta, TpuUrbCycleNow(), TpuUrbMicrosNow(), true);
+        printf("BulkOutStaged timeout\r\n");
+        return false;
+    }
+    TpuUrbRecordDone(meta, TpuUrbCycleNow(), TpuUrbMicrosNow(), false);
+    if (meta.status != kStatus_USB_Success) {
         printf("BulkOutStaged bad result\r\n");
         return false;
     }
@@ -820,7 +1003,10 @@ bool TpuDriver::SendInputs(const uint8_t *data, uint32_t length) const {
       if (g_sentai_tpu_multi_ep_routing == 0) {
           uint8_t header[8];
           PrepareHeaderInto(DescriptorTag::kInputActivations, length, header);
-          if (!BulkOutTransfer(kSingleBulkOutEndpoint, header, 8)) return false;
+          if (!BulkOutTransfer(kSingleBulkOutEndpoint, header, 8,
+                               DescriptorTag::kInputActivations)) {
+            return false;
+          }
           ok = BulkOutTransferStaged(usb_instance_,
                                      kSingleBulkOutEndpoint,
                                      data, length);
@@ -837,7 +1023,10 @@ bool TpuDriver::SendInputs(const uint8_t *data, uint32_t length) const {
       if (g_sentai_tpu_multi_ep_routing == 0) {
           uint8_t header[8];
           PrepareHeaderInto(DescriptorTag::kInputActivations, length, header);
-          if (!BulkOutTransfer(kSingleBulkOutEndpoint, header, 8)) return false;
+          if (!BulkOutTransfer(kSingleBulkOutEndpoint, header, 8,
+                               DescriptorTag::kInputActivations)) {
+            return false;
+          }
           ok = BulkOutTransferPipelined(
               usb_instance_, kSingleBulkOutEndpoint, data, length);
       } else {
@@ -891,7 +1080,26 @@ bool TpuDriver::SendInstructions(const uint8_t *data, uint32_t length) const {
 }
 
 bool TpuDriver::GetOutputs(uint8_t *data, uint32_t length) const {
-  return BulkInTransfer(data, length);
+  return BulkInTransfer(data, length, DescriptorTag::kOutputActivations);
+}
+
+// Wide-model activation spill: device->host (OUTFEED) leg.  Same bulk-IN
+// path as GetOutputs -- the DescriptorTag is host-side bookkeeping only (no
+// tag byte is sent on IN transfers).  Draining this transfer is what keeps
+// the bulk-IN stream in sync; skipping it (the original port's behaviour)
+// makes the next GetOutputs read spill bytes instead of the real output and
+// wedges the endpoint.
+bool TpuDriver::GetScratch(uint8_t *data, uint32_t length) const {
+  return BulkInTransfer(data, length, DescriptorTag::kOutputActivations);
+}
+
+// Wide-model activation spill: host->device (INFEED) leg.  The spilled bytes
+// drained earlier are handed back to the TPU's activation infeed DMA, so we
+// route them on the input-activation tag (single-EP: the 8-byte header's tag
+// nibble selects the on-chip destination FIFO; there is no dedicated scratch
+// tag in the USB protocol).
+bool TpuDriver::SendScratch(const uint8_t *data, uint32_t length) const {
+  return SendData(DescriptorTag::kInputActivations, data, length);
 }
 
 bool TpuDriver::Read32(uint64_t reg, uint32_t *val) {
@@ -1078,12 +1286,21 @@ static void trace_bulkout(char where, uint32_t v1, uint32_t v2) {
 
 ssize_t TpuDriver::BulkOutTransferInternal(uint8_t endpoint,
                                            const uint8_t *data,
-                                           uint32_t data_length) const {
+                                           uint32_t data_length,
+                                           DescriptorTag tag) const {
 #ifdef SENTAI_PLATFORM_SIM
   UsbTransferMetadata meta;
   meta.sema = nullptr;
   meta.status = kStatus_USB_Error;
   meta.bytes_transferred = 0;
+  meta.tag = tag;
+  meta.bytes_requested = data_length;
+  meta.submit_start_cyc = TpuUrbCycleNow();
+  meta.submit_start_us = TpuUrbMicrosNow();
+  meta.submit_return_cyc = meta.submit_start_cyc;
+  meta.submit_return_us = meta.submit_start_us;
+  meta.callback_cyc = 0;
+  meta.callback_us = 0;
   usb_status_t bulk_status = USB_HostEdgeTpuBulkOutSend(
       usb_instance_, endpoint, (uint8_t *)data, data_length,
       [](void *param, uint8_t *, uint32_t data_length,
@@ -1093,10 +1310,22 @@ ssize_t TpuDriver::BulkOutTransferInternal(uint8_t endpoint,
         if (!meta) return;
         meta->bytes_transferred = data_length;
         meta->status = status;
+        meta->callback_cyc = TpuUrbCycleNow();
+        meta->callback_us = TpuUrbMicrosNow();
         g_sentai_tpu_lambda_gave++;
       },
       &meta);
-  if (bulk_status != kStatus_USB_Success) return -(ssize_t)bulk_status;
+  meta.submit_return_cyc = TpuUrbCycleNow();
+  meta.submit_return_us = TpuUrbMicrosNow();
+  if (bulk_status != kStatus_USB_Success) {
+    TpuUrbRecordSubmitFailure(tag, data_length,
+                              TpuUrbDelta(meta.submit_return_cyc,
+                                          meta.submit_start_cyc),
+                              TpuUrbDelta(meta.submit_return_us,
+                                          meta.submit_start_us));
+    return -(ssize_t)bulk_status;
+  }
+  TpuUrbRecordDone(meta, TpuUrbCycleNow(), TpuUrbMicrosNow(), false);
   if (meta.status == kStatus_USB_Success) {
     g_sentai_tpu_take_succeeded++;
     return meta.bytes_transferred;
@@ -1107,6 +1336,15 @@ ssize_t TpuDriver::BulkOutTransferInternal(uint8_t endpoint,
   UsbTransferMetadata meta;
   meta.sema   = s_bulk_sema;
   meta.status = kStatus_USB_Error;
+  meta.bytes_transferred = 0;
+  meta.tag = tag;
+  meta.bytes_requested = data_length;
+  meta.submit_start_cyc = TpuUrbCycleNow();
+  meta.submit_start_us = TpuUrbMicrosNow();
+  meta.submit_return_cyc = meta.submit_start_cyc;
+  meta.submit_return_us = meta.submit_start_us;
+  meta.callback_cyc = 0;
+  meta.callback_us = 0;
   (void)xSemaphoreTake(s_bulk_sema, 0);
 
   usb_status_t bulk_status = USB_HostEdgeTpuBulkOutSend(
@@ -1118,20 +1356,30 @@ ssize_t TpuDriver::BulkOutTransferInternal(uint8_t endpoint,
         if (!meta || !meta->sema) { g_sentai_tpu_lambda_null_sema++; return; }
         meta->bytes_transferred = data_length;
         meta->status = status;
+        meta->callback_cyc = TpuUrbCycleNow();
+        meta->callback_us = TpuUrbMicrosNow();
         BaseType_t r = xSemaphoreGive(meta->sema);
         if (r == pdTRUE) g_sentai_tpu_lambda_gave++;
       },
       &meta);
+  meta.submit_return_cyc = TpuUrbCycleNow();
+  meta.submit_return_us = TpuUrbMicrosNow();
 
   if (bulk_status != kStatus_USB_Success) {
     // No printf — feedback loop through USB CDC-ACM.  Counters
     // (bo_send in async_stats) track submit failures.
+    TpuUrbRecordSubmitFailure(tag, data_length,
+                              TpuUrbDelta(meta.submit_return_cyc,
+                                          meta.submit_start_cyc),
+                              TpuUrbDelta(meta.submit_return_us,
+                                          meta.submit_start_us));
     return -(ssize_t)bulk_status;
   }
 
   if (xSemaphoreTake(meta.sema, pdMS_TO_TICKS(g_sentai_tpu_urb_timeout_ms))
         == pdFALSE) {
     g_sentai_tpu_take_failed++;
+    TpuUrbRecordDone(meta, TpuUrbCycleNow(), TpuUrbMicrosNow(), true);
     // NO CANCEL.  User theory: cancelling a partial bulk-OUT leaves
     // the TPU device in an undefined state (it expected a complete
     // block).  Confirmed empirically: after pipeline runs + cancels,
@@ -1156,6 +1404,7 @@ ssize_t TpuDriver::BulkOutTransferInternal(uint8_t endpoint,
   } else {
     g_sentai_tpu_take_succeeded++;
   }
+  TpuUrbRecordDone(meta, TpuUrbCycleNow(), TpuUrbMicrosNow(), false);
 
   if (meta.status == kStatus_USB_Success) {
     return meta.bytes_transferred;
@@ -1181,7 +1430,8 @@ ssize_t TpuDriver::BulkOutTransferInternal(uint8_t endpoint,
 // remains tuned separately via g_sentai_tpu_chunk_size's non-SIM default.
 bool TpuDriver::BulkOutTransfer(uint8_t endpoint,
                                 const uint8_t *data,
-                                uint32_t data_length) const {
+                                uint32_t data_length,
+                                DescriptorTag tag) const {
   const uint8_t *current_chunk = data;
   uint32_t bytes_left = data_length;
   // Snapshot once at loop entry so mid-transfer reconfiguration cannot split a
@@ -1194,7 +1444,7 @@ bool TpuDriver::BulkOutTransfer(uint8_t endpoint,
       trace_bulkout('B', chunk_size, bytes_left);
     }
     ssize_t bytes_sent = BulkOutTransferInternal(
-        endpoint, current_chunk, chunk_size);
+        endpoint, current_chunk, chunk_size, tag);
     if (bytes_sent > 0) {
       if (g_sentai_tpu_trace) {
         trace_bulkout('b', (uint32_t)bytes_sent, bytes_left - (uint32_t)bytes_sent);
@@ -1228,12 +1478,21 @@ static void trace_bulkin(char where, uint32_t v1, uint32_t v2) {
 }
 
 ssize_t TpuDriver::BulkInTransferInternal(uint8_t endpoint, uint8_t *data,
-                                          uint32_t data_length) const {
+                                          uint32_t data_length,
+                                          DescriptorTag tag) const {
 #ifdef SENTAI_PLATFORM_SIM
   UsbTransferMetadata meta;
   meta.sema = nullptr;
   meta.status = kStatus_USB_Error;
   meta.bytes_transferred = 0;
+  meta.tag = tag;
+  meta.bytes_requested = data_length;
+  meta.submit_start_cyc = TpuUrbCycleNow();
+  meta.submit_start_us = TpuUrbMicrosNow();
+  meta.submit_return_cyc = meta.submit_start_cyc;
+  meta.submit_return_us = meta.submit_start_us;
+  meta.callback_cyc = 0;
+  meta.callback_us = 0;
   if (g_sentai_tpu_trace) trace_bulkin('S', endpoint, data_length);
   usb_status_t bulk_status = USB_HostEdgeTpuBulkInRecv(
       usb_instance_, endpoint, data, data_length,
@@ -1243,12 +1502,24 @@ ssize_t TpuDriver::BulkInTransferInternal(uint8_t endpoint, uint8_t *data,
         if (!meta) return;
         meta->bytes_transferred = data_length;
         meta->status = status;
+        meta->callback_cyc = TpuUrbCycleNow();
+        meta->callback_us = TpuUrbMicrosNow();
       },
       &meta);
   if (bulk_status != kStatus_USB_Success) {
+    meta.submit_return_cyc = TpuUrbCycleNow();
+    meta.submit_return_us = TpuUrbMicrosNow();
+    TpuUrbRecordSubmitFailure(tag, data_length,
+                              TpuUrbDelta(meta.submit_return_cyc,
+                                          meta.submit_start_cyc),
+                              TpuUrbDelta(meta.submit_return_us,
+                                          meta.submit_start_us));
     if (g_sentai_tpu_trace) trace_bulkin('e', (uint32_t)bulk_status, 0);
     return -(ssize_t)bulk_status;
   }
+  meta.submit_return_cyc = TpuUrbCycleNow();
+  meta.submit_return_us = TpuUrbMicrosNow();
+  TpuUrbRecordDone(meta, TpuUrbCycleNow(), TpuUrbMicrosNow(), false);
   if (g_sentai_tpu_trace)
     trace_bulkin('D', meta.bytes_transferred, (uint32_t)meta.status);
   if (meta.status == kStatus_USB_Success) return meta.bytes_transferred;
@@ -1263,6 +1534,15 @@ ssize_t TpuDriver::BulkInTransferInternal(uint8_t endpoint, uint8_t *data,
   UsbTransferMetadata meta;
   meta.sema   = s_bulk_sema;
   meta.status = kStatus_USB_Error;
+  meta.bytes_transferred = 0;
+  meta.tag = tag;
+  meta.bytes_requested = data_length;
+  meta.submit_start_cyc = TpuUrbCycleNow();
+  meta.submit_start_us = TpuUrbMicrosNow();
+  meta.submit_return_cyc = meta.submit_start_cyc;
+  meta.submit_return_us = meta.submit_start_us;
+  meta.callback_cyc = 0;
+  meta.callback_us = 0;
   (void)xSemaphoreTake(s_bulk_sema, 0);
 
   if (g_sentai_tpu_trace) trace_bulkin('S', endpoint, data_length);
@@ -1274,11 +1554,20 @@ ssize_t TpuDriver::BulkInTransferInternal(uint8_t endpoint, uint8_t *data,
         UsbTransferMetadata *meta = static_cast<UsbTransferMetadata *>(param);
         meta->bytes_transferred = data_length;
         meta->status = status;
+        meta->callback_cyc = TpuUrbCycleNow();
+        meta->callback_us = TpuUrbMicrosNow();
         xSemaphoreGive(meta->sema);
       },
       &meta);
+  meta.submit_return_cyc = TpuUrbCycleNow();
+  meta.submit_return_us = TpuUrbMicrosNow();
 
   if (bulk_status != kStatus_USB_Success) {
+    TpuUrbRecordSubmitFailure(tag, data_length,
+                              TpuUrbDelta(meta.submit_return_cyc,
+                                          meta.submit_start_cyc),
+                              TpuUrbDelta(meta.submit_return_us,
+                                          meta.submit_start_us));
     if (g_sentai_tpu_trace) trace_bulkin('e', (uint32_t)bulk_status, 0);
     printf("USB_HostEdgeTpuBulkInRecv failed\r\n");
     return -(ssize_t)bulk_status;
@@ -1287,12 +1576,14 @@ ssize_t TpuDriver::BulkInTransferInternal(uint8_t endpoint, uint8_t *data,
   if (xSemaphoreTake(meta.sema, pdMS_TO_TICKS(g_sentai_tpu_urb_timeout_ms))
         == pdFALSE) {
     g_sentai_tpu_take_failed++;
+    TpuUrbRecordDone(meta, TpuUrbCycleNow(), TpuUrbMicrosNow(), true);
     if (g_sentai_tpu_trace)
       trace_bulkin('T', g_sentai_tpu_urb_timeout_ms, data_length);
     // Skip without cancel — see BulkOutTransferInternal for
     // rationale.  Cancel was corrupting TPU state.
     return -1;
   }
+  TpuUrbRecordDone(meta, TpuUrbCycleNow(), TpuUrbMicrosNow(), false);
 
   if (g_sentai_tpu_trace)
     trace_bulkin('D', meta.bytes_transferred, (uint32_t)meta.status);
@@ -1325,7 +1616,8 @@ ssize_t TpuDriver::BulkInTransferInternal(uint8_t endpoint, uint8_t *data,
 // USB_HostRecv (usb_host_hci.c:501) does DCACHE_CleanInvalidateByRange
 // on the transfer buffer around submission so the caller sees fresh
 // data without our memcpy.
-bool TpuDriver::BulkInTransfer(uint8_t *data, uint32_t data_length) const {
+bool TpuDriver::BulkInTransfer(uint8_t *data, uint32_t data_length,
+                               DescriptorTag tag) const {
   uint8_t *current_chunk = data;
   uint32_t bytes_left = data_length;
   // Snapshot once at loop entry so mid-transfer reconfiguration cannot split a
@@ -1346,7 +1638,7 @@ bool TpuDriver::BulkInTransfer(uint8_t *data, uint32_t data_length) const {
   while (bytes_left > 0) {
     uint32_t chunk_size = std::min<uint32_t>(kChunk, bytes_left);
     ssize_t bytes_received = BulkInTransferInternal(
-        kSingleBulkOutEndpoint, current_chunk, chunk_size);
+        kSingleBulkOutEndpoint, current_chunk, chunk_size, tag);
     if (bytes_received > 0) {
       current_chunk += bytes_received;
       bytes_left    -= (uint32_t)bytes_received;
@@ -1399,7 +1691,7 @@ bool TpuDriver::WriteHeader(DescriptorTag tag, uint32_t length,
                             uint8_t endpoint) const {
   uint8_t header[8];
   PrepareHeaderInto(tag, length, header);
-  return BulkOutTransfer(endpoint, header, 8);
+  return BulkOutTransfer(endpoint, header, 8, tag);
 }
 
 bool TpuDriver::ReadEvent() const {
@@ -1411,9 +1703,41 @@ bool TpuDriver::ReadEvent() const {
   static uint8_t s_event_buf[kEventSizeBytes]
       __attribute__((aligned(32), section(".sdram_bss")));
 #ifdef SENTAI_PLATFORM_SIM
+  UsbTransferMetadata meta;
+  meta.sema = nullptr;
+  meta.status = kStatus_USB_Error;
+  meta.bytes_transferred = 0;
+  meta.tag = DescriptorTag::kInterrupt0;
+  meta.bytes_requested = kEventSizeBytes;
+  meta.submit_start_cyc = TpuUrbCycleNow();
+  meta.submit_start_us = TpuUrbMicrosNow();
+  meta.submit_return_cyc = meta.submit_start_cyc;
+  meta.submit_return_us = meta.submit_start_us;
+  meta.callback_cyc = 0;
+  meta.callback_us = 0;
   usb_status_t bulk_status = USB_HostEdgeTpuBulkInRecv(
       usb_instance_, kEventInEndpoint, s_event_buf, kEventSizeBytes,
-      nullptr, nullptr);
+      [](void *param, uint8_t *, uint32_t data_length,
+         usb_status_t status) {
+        UsbTransferMetadata *meta = static_cast<UsbTransferMetadata *>(param);
+        if (!meta) return;
+        meta->bytes_transferred = data_length;
+        meta->status = status;
+        meta->callback_cyc = TpuUrbCycleNow();
+        meta->callback_us = TpuUrbMicrosNow();
+      },
+      &meta);
+  meta.submit_return_cyc = TpuUrbCycleNow();
+  meta.submit_return_us = TpuUrbMicrosNow();
+  if (bulk_status != kStatus_USB_Success) {
+    TpuUrbRecordSubmitFailure(DescriptorTag::kInterrupt0, kEventSizeBytes,
+                              TpuUrbDelta(meta.submit_return_cyc,
+                                          meta.submit_start_cyc),
+                              TpuUrbDelta(meta.submit_return_us,
+                                          meta.submit_start_us));
+    return false;
+  }
+  TpuUrbRecordDone(meta, TpuUrbCycleNow(), TpuUrbMicrosNow(), false);
   return bulk_status == kStatus_USB_Success;
 #else
   static StaticSemaphore_t s_event_sema_mem;
@@ -1423,18 +1747,49 @@ bool TpuDriver::ReadEvent() const {
   }
   // Drain any stale give from a prior timed-out call.
   (void)xSemaphoreTake(s_event_sema, 0);
+  UsbTransferMetadata meta;
+  meta.sema = s_event_sema;
+  meta.status = kStatus_USB_Error;
+  meta.bytes_transferred = 0;
+  meta.tag = DescriptorTag::kInterrupt0;
+  meta.bytes_requested = kEventSizeBytes;
+  meta.submit_start_cyc = TpuUrbCycleNow();
+  meta.submit_start_us = TpuUrbMicrosNow();
+  meta.submit_return_cyc = meta.submit_start_cyc;
+  meta.submit_return_us = meta.submit_start_us;
+  meta.callback_cyc = 0;
+  meta.callback_us = 0;
 
   usb_status_t bulk_status = USB_HostEdgeTpuBulkInRecv(
       usb_instance_, kEventInEndpoint, s_event_buf, kEventSizeBytes,
       [](void *param, uint8_t *data, uint32_t data_length,
          usb_status_t status) {
-        (void)data; (void)data_length; (void)status;
-        SemaphoreHandle_t sema = (SemaphoreHandle_t)param;
-        xSemaphoreGive(sema);
+        (void)data;
+        UsbTransferMetadata *meta = static_cast<UsbTransferMetadata *>(param);
+        if (!meta) return;
+        meta->bytes_transferred = data_length;
+        meta->status = status;
+        meta->callback_cyc = TpuUrbCycleNow();
+        meta->callback_us = TpuUrbMicrosNow();
+        xSemaphoreGive(meta->sema);
       },
-      s_event_sema);
-  if (bulk_status != kStatus_USB_Success) return false;
-  return xSemaphoreTake(s_event_sema, pdMS_TO_TICKS(2000)) == pdTRUE;
+      &meta);
+  meta.submit_return_cyc = TpuUrbCycleNow();
+  meta.submit_return_us = TpuUrbMicrosNow();
+  if (bulk_status != kStatus_USB_Success) {
+    TpuUrbRecordSubmitFailure(DescriptorTag::kInterrupt0, kEventSizeBytes,
+                              TpuUrbDelta(meta.submit_return_cyc,
+                                          meta.submit_start_cyc),
+                              TpuUrbDelta(meta.submit_return_us,
+                                          meta.submit_start_us));
+    return false;
+  }
+  if (xSemaphoreTake(s_event_sema, pdMS_TO_TICKS(2000)) != pdTRUE) {
+    TpuUrbRecordDone(meta, TpuUrbCycleNow(), TpuUrbMicrosNow(), true);
+    return false;
+  }
+  TpuUrbRecordDone(meta, TpuUrbCycleNow(), TpuUrbMicrosNow(), false);
+  return meta.status == kStatus_USB_Success;
 #endif
 }
 
@@ -1639,6 +1994,64 @@ float TpuDriver::GetTemperature() {
   float temperature = (662 - omc0_dc.data()) * 250 + 550;
   // temerature is currently in mC, divide by 1000 for C.
   return temperature / 1000;
+}
+
+// sentai: JTAG-readable snapshot of TPU error CSRs at the instant of an invoke
+// fault. Layout (uint32 words):
+//   [0] magic 0xFA17C500 | (code & 0xff)   (written LAST = "valid" marker)
+//   [1] hib_error_status        [2] hib_first_error_status
+//   [3] hib_first_error_tstamp  [4] top_level_int_status
+//   [5] sc_host_int_count       [6] dma_paused
+//   [7] scalarCoreRunControl    [8] currentPc
+//   [9] read-ok bitmask (bit i set => CSR i read returned ok)
+//   [10] invoke_fail_code
+extern "C" volatile uint32_t g_sentai_tpu_fault_csr[16] = {0};
+
+void TpuDriver::LatchErrorCsrs(uint16_t code) const {
+  const auto& hib = chip_config_.GetHibUserCsrOffsets();
+  const auto& dsc = chip_config_.GetDebugScalarCoreCsrOffsets();
+  uint32_t okmask = 0;
+  int idx = 1;
+  auto rd = [&](uint64_t off) {
+    uint64_t v = 0;
+    bool ok = const_cast<TpuDriver*>(this)->Read64(off, &v);
+    if (ok) okmask |= (1u << idx);
+    g_sentai_tpu_fault_csr[idx] = (uint32_t)(v & 0xffffffffu);
+    idx++;
+  };
+  rd(hib.hib_error_status);          // [1]
+  rd(hib.hib_first_error_status);    // [2]
+  rd(hib.hib_first_error_timestamp); // [3]
+  rd(hib.top_level_int_status);      // [4]
+  rd(hib.sc_host_int_count);         // [5]
+  rd(hib.dma_paused);                // [6]
+  rd(dsc.scalarCoreRunControl);      // [7]
+  rd(dsc.currentPc);                 // [8]
+  g_sentai_tpu_fault_csr[9]  = okmask;
+  g_sentai_tpu_fault_csr[10] = code;
+  // write the valid marker LAST so a JTAG reader can tell the snapshot is complete
+  g_sentai_tpu_fault_csr[0] = 0xFA17C500u | (code & 0xffu);
+}
+
+void TpuDriver::DumpErrorCsrs() const {
+  const auto& hib = chip_config_.GetHibUserCsrOffsets();
+  const auto& dsc = chip_config_.GetDebugScalarCoreCsrOffsets();
+  auto rd = [this](const char* name, uint64_t off) {
+    uint64_t v = 0;
+    bool ok = const_cast<TpuDriver*>(this)->Read64(off, &v);
+    printf("  %-26s off=0x%08lx ok=%d val=0x%08lx%08lx\r\n", name,
+           (unsigned long)off, ok ? 1 : 0,
+           (unsigned long)(v >> 32), (unsigned long)(v & 0xffffffffu));
+  };
+  printf("[tpu_csr] HIB + scalar-core status:\r\n");
+  rd("hib_error_status",        hib.hib_error_status);
+  rd("hib_first_error_status",  hib.hib_first_error_status);
+  rd("hib_first_error_tstamp",  hib.hib_first_error_timestamp);
+  rd("top_level_int_status",    hib.top_level_int_status);
+  rd("sc_host_int_count",       hib.sc_host_int_count);
+  rd("dma_paused",              hib.dma_paused);
+  rd("scalarCoreRunControl",    dsc.scalarCoreRunControl);
+  rd("currentPc",               dsc.currentPc);
 }
 
 }  // namespace coralmicro

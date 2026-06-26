@@ -45,7 +45,7 @@
 // a straight win — the TPU instruction FIFO holds the last uploaded
 // stream until explicitly invalidated (e.g. on model load).
 //
-// Enable via `sentai.diag.tpu_desc_cache(True)` (OFF by default so
+// Enable via a TPU runtime binding (OFF by default so
 // the behaviour is opt-in and easy to A/B).  sentai_tpu_desc_cache_
 // invalidate() is called from sentai_load_model (sentai_slow_bridge.cc)
 // to clear the cache key when a new model is loaded — a new
@@ -60,6 +60,29 @@ static const void* g_sentai_tpu_desc_cache_exe   = nullptr;
 extern "C" void sentai_tpu_desc_cache_invalidate(void) {
     g_sentai_tpu_desc_cache_token = 0;
     g_sentai_tpu_desc_cache_exe   = nullptr;
+}
+extern "C" int sentai_tpu_desc_cache_get(void) {
+    return g_sentai_tpu_desc_cache_enabled ? 1 : 0;
+}
+extern "C" void sentai_tpu_desc_cache_set(int enabled) {
+    g_sentai_tpu_desc_cache_enabled = enabled ? 1 : 0;
+    sentai_tpu_desc_cache_invalidate();
+}
+extern "C" void sentai_tpu_desc_cache_stats_reset(void) {
+    g_sentai_tpu_desc_cache_sent_params = 0;
+    g_sentai_tpu_desc_cache_sent_ins = 0;
+    g_sentai_tpu_desc_cache_skip_params = 0;
+    g_sentai_tpu_desc_cache_skip_ins = 0;
+}
+extern "C" uint32_t sentai_tpu_desc_cache_stats(uint32_t* out,
+                                                uint32_t max_words) {
+    if (!out || max_words < 5) return 5;
+    out[0] = (uint32_t)sentai_tpu_desc_cache_get();
+    out[1] = g_sentai_tpu_desc_cache_sent_params;
+    out[2] = g_sentai_tpu_desc_cache_sent_ins;
+    out[3] = g_sentai_tpu_desc_cache_skip_params;
+    out[4] = g_sentai_tpu_desc_cache_skip_ins;
+    return 5;
 }
 
 // ---------------------------------------------------------------------------
@@ -174,6 +197,14 @@ extern "C" volatile uint16_t g_sentai_tpu_invoke_fail_code = 0;
  * via sentai.diag.tpu_trace(0|1).  Trace helper lives in .sdram_text so
  * the diagnostic noise doesn't bloat ITCM. */
 extern "C" volatile uint8_t g_sentai_tpu_trace = 0;
+// sentai BISECTION TEST: default ON for this diagnostic build — redirect the
+// output bulk-IN DMA to a safe scratch buffer (see OutputHint case). Set to 0
+// to restore normal output writes.
+extern "C" volatile uint8_t g_sentai_tpu_discard_output = 0;
+// sentai: setter/getter so MicroPython (sentai.tpu.trace) can toggle the
+// per-invoke hint + bulk-IN chunk trace at runtime for output-readback debug.
+extern "C" void sentai_tpu_trace_set(int on) { g_sentai_tpu_trace = on ? 1 : 0; }
+extern "C" int  sentai_tpu_trace_get(void)   { return (int)g_sentai_tpu_trace; }
 __attribute__((noinline, cold, section(".sdram_text")))
 static void trace_hint(char tag, const char* name, uint32_t bytes,
                        uint32_t offset) {
@@ -188,9 +219,30 @@ static void trace_event(char tag, int32_t v1, int32_t v2) {
   do {                                \
     if (!(expr)) {                    \
       g_sentai_tpu_invoke_fail_code = (CODE); \
+      /* sentai: latch TPU error CSRs into RAM at the instant of fault, before \
+       * the USB transport fully wedges (the fault kills the CDC REPL, so this \
+       * snapshot is JTAG-readable from g_sentai_tpu_fault_csr afterward). */ \
+      tpu_driver.LatchErrorCsrs((uint16_t)(CODE)); \
       return kTfLiteError;            \
     }                                 \
   } while (0);
+
+// Reserve the host scratch buffer (activation spill) from the TFLM arena.
+// Prepare-only API; Invoke resolves the index back to a pointer.  Wide
+// models whose intermediate activations exceed on-chip SRAM carry a
+// non-zero scratch_size_bytes(); everyone else gets idx = -1 and no arena
+// cost.  RequestScratchBufferInArena auto-sizes the arena's scratch region,
+// so an over-large request fails cleanly in AllocateTensors rather than
+// corrupting memory at runtime.
+TfLiteStatus EdgeTpuExecutable::PrepareScratch(TfLiteContext* context) {
+  const uint32_t scratch_bytes = executable_->scratch_size_bytes();
+  if (scratch_bytes == 0) {
+    scratch_buffer_idx_ = -1;
+    return kTfLiteOk;
+  }
+  return context->RequestScratchBufferInArena(context, scratch_bytes,
+                                              &scratch_buffer_idx_);
+}
 
 /* Invoke is hot path but the SEMC fetch overhead (~few hundred ns once
  * the prefetch primes) is negligible against the 50-ms-class invoke
@@ -285,8 +337,33 @@ TfLiteStatus EdgeTpuExecutable::Invoke(const TpuDriver& tpu_driver,
               break;
             }
             output = output_layers_.at(name)->output_buffer();
-            if (g_sentai_tpu_trace) trace_hint('O', name,
-                dma_hint->size_in_bytes(), dma_hint->offset_in_bytes());
+            // sentai BISECTION TEST (g_sentai_tpu_discard_output): redirect the
+            // output bulk-IN DMA to a large safe scratch buffer instead of the
+            // real (heap) output buffer. If this makes c2f_thick stop crashing
+            // the board, the crash IS the output memory write (overflow /
+            // corruption). If it still crashes, the output write is NOT the
+            // cause. Big enough for any single output DMA on these models.
+            {
+              static uint8_t s_output_discard[256 * 1024]
+                  __attribute__((aligned(32), section(".sdram_bss")));
+              if (g_sentai_tpu_discard_output &&
+                  dma_hint->size_in_bytes() <= sizeof(s_output_discard)) {
+                output = s_output_discard;
+              }
+            }
+            if (g_sentai_tpu_trace) {
+              OutputLayer* ol = output_layers_.at(name);
+              // sentai diag: DMA write size vs allocated buffer size. If
+              // dma > alloc, GetOutputs overflows the heap buffer.
+              printf("[obuf] %s dma=%lu alloc=%lu raw=%lu exec=%d %s\r\n", name,
+                     (unsigned long)dma_hint->size_in_bytes(),
+                     (unsigned long)ol->alloc_size(),
+                     (unsigned long)ol->raw_size_bytes(), ol->exec_count(),
+                     dma_hint->size_in_bytes() > ol->alloc_size()
+                         ? "*** OVERFLOW ***" : "ok");
+              trace_hint('O', name, dma_hint->size_in_bytes(),
+                         dma_hint->offset_in_bytes());
+            }
             uint32_t t0 = tpu_cyc();
             RETURN_IF_ERROR_S(
                 tpu_driver.GetOutputs(output, dma_hint->size_in_bytes()),
@@ -294,6 +371,42 @@ TfLiteStatus EdgeTpuExecutable::Invoke(const TpuDriver& tpu_driver,
             g_sentai_tpu_cyc_output += (tpu_cyc() - t0);
             g_sentai_tpu_n_output   += 1;
             g_sentai_tpu_by_output  += dma_hint->size_in_bytes();
+            break;
+          }
+          case platforms::darwinn::Description_BASE_ADDRESS_SCRATCH: {
+            // Wide-model activation spill (e.g. c2f_thick): intermediate
+            // activations don't fit on-chip, so the compiler splits compute
+            // into two halves joined by a host round-trip -- OUTFEED drains
+            // the spill to M7 RAM, a FENCE orders it, INFEED feeds it back.
+            // The original coralmicro port had no case here (default: break),
+            // so the TPU's spill DMA had no host peer: the bulk-IN/-OUT
+            // streams desynced (the pending output read returned spill bytes)
+            // and the USB endpoint wedged -> watchdog reset.  Service the
+            // round-trip using the arena scratch buffer reserved in Prepare.
+            if (scratch_buffer_idx_ < 0) {
+              g_sentai_tpu_invoke_fail_code = 0x0B65;
+              return kTfLiteError;
+            }
+            uint8_t* scratch = static_cast<uint8_t*>(
+                context->GetScratchBuffer(context, scratch_buffer_idx_));
+            if (scratch == nullptr) {
+              g_sentai_tpu_invoke_fail_code = 0x0B65;
+              return kTfLiteError;
+            }
+            uint8_t* p = scratch + dma_hint->offset_in_bytes();
+            if (hint->direction() == platforms::darwinn::Direction_OUTFEED) {
+              if (g_sentai_tpu_trace)
+                trace_hint('S', nullptr, dma_hint->size_in_bytes(),
+                           dma_hint->offset_in_bytes());
+              RETURN_IF_ERROR_S(
+                  tpu_driver.GetScratch(p, dma_hint->size_in_bytes()), 0x0B65);
+            } else {
+              if (g_sentai_tpu_trace)
+                trace_hint('s', nullptr, dma_hint->size_in_bytes(),
+                           dma_hint->offset_in_bytes());
+              RETURN_IF_ERROR_S(
+                  tpu_driver.SendScratch(p, dma_hint->size_in_bytes()), 0x0B66);
+            }
             break;
           }
           default:

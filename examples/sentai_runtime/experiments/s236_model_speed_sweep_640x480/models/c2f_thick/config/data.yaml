@@ -1,0 +1,9 @@
+# Batch-grouped leakage-free split (policy=cover, seed=42)
+# Grouping key = batch{N} -> one batch per split. No frame/batch spans splits.
+path: /run/media/bogdan/3E4252C842528495/Data/sentai_human/review/splits/curated_clean_cover_v1
+train: train.txt
+val: val.txt
+test: test.txt
+nc: 1
+names:
+  0: person

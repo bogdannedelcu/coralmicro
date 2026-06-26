@@ -1,0 +1,245 @@
+
+===== segment 0 =====
+exec(sentai.fs.read_str("/lib/diag/_t_s236_speed.py"))
+=== fresh session: /diags/s001_s236_speed ===
+
+=== msblock ===
+Model loaded: 271104 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x60797ba589298774
+Input:  uint8[1,480,640,3] (921600 bytes)
+  quant: scale=0.00392157  zero_point=0
+Outputs: 2
+  [0] int8[1,30,40,6] (7200 bytes)
+      quant: scale=0.08880771  zero_point=69
+  [1] int8[1,60,80,6] (28800 bytes)
+      quant: scale=0.07301419  zero_point=59
+Arena used: 935 / 8192 KB
+Model name: msblock
+load=0 size=271104 ready=True
+[to_tensor] frame=2ms pxp=10ms quant=0ms total=12ms (640x480)
+[bbt] no persisted BBT, starting clean
+wall_us=2186343 ms/inv=43.727 fps=22.87 fails=0
+  instr=7129200B/4.03ms input=46080400B/32.44ms output=2400000B/5.30ms
+[bbt] no persisted BBT, starting clean
+--- 1/8 done; sys.reset() to clear TPU ---
+[bbt] no persisted BBT, starting clean
+
+[host] serial drop (reset)
+
+===== segment 1 =====
+exec(se.read_str(d.py"))
+CAMERA_DEVICE_Init = 0
+[CAM] sensor_fps=30 (1 s sample, target=30)
+
+=== c3 ===
+Model loaded: 332544 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x77886379049a3a17
+wall_us=1906070 ms/inv=38.121 fps=26.23 fails=0
+  instr=7935600B/4.46ms input=46080400B/25.64ms output=2400000B/6.07ms
+[bbt] no persisted BBT, starting clean
+[bbt] no persisted BBT, starting clean
+
+[host] serial drop (reset)
+
+===== segment 2 =====
+>>> exec(sentai.fsa/_t_s236")=== resume session: /diags/s001_s236_speed @ idx 2 ===
+[EdgeTPU mgr] initializing driver
+[EdgeTPU mgr] driver initialized
+[00:04:324] Edge TPU opened (mode 3)
+HandlePowerRequest: try I2C1: Success
+CAMERA_RECEIVER_Start = 0
+[CAM] sensor_fps=30 (1 s sample, target=30)
+[CAM1] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM1] W 0x3821=0x01 (0)
+[CAM0] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM0] W 0x3820=0x47 (0)
+[CAM0] W 0x3821=0x01 (0)
+wall_us=1906931 ms/inv=38.139 fps=26.22 fails=0
+  instr=7758800B/4.37ms input=46080400B/25.63ms output=2400000B/6.18ms
+[bbt] no persisted BBT, starting clean
+
+[host] serial drop (reset)
+
+===== segment 3 =====
+exec(sentai.fs.read_str("/lib/diag/_t_s236_speed.py"))
+=== resume session: /diags/s001_s236_speed @ idx 3 ===
+HandlePowerRequest: try I2C1: Success
+HandlePowerRequest: try I2C2: Success
+CAMERA_RECEIVER_Init = 0
+BOARD_PullCameraPowerDownPin:1
+BOARD_PullCameraResetPin:0
+BOARD_PullCameraPowerDownPin:0
+BOARD_PullCameraResetPin:1
+CAMERA_DEVICE_Init = 0
+CAMERA_DEVICE_Start = 0
+CAMERA_RECEIVER_Start = 0
+[CAM] sensor_fps=29 (1 s sample, target=30)
+[CAM1] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM1] W 0x3820=0x47 (0)
+[CAM1] W 0x3821=0x01 (0)
+[CAM0] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM0] W 0x3820=0x47 (0)
+[CAM0] W 0x3821=0x01 (0)
+
+=== c2f_pan2 ===
+Model loaded: 422656 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x470689b3407c1721
+Input:  uint8[1,480,640,3] (921600 bytes)
+  quant: scale=0.00392157  zero_point=0
+Outputs: 2
+  [0] int8[1,30,40,6] (7200 bytes)
+      quant: scale=0.18786392  zero_point=93
+  [1] int8[1,60,80,6] (28800 bytes)
+      quant: scale=0.08759007  zero_point=52
+Arena used: 935 / 8192 KB
+Model name: c2f_pan2
+load=0 size=422656 ready=True
+[to_tensor] frame=2ms pxp=10ms quant=0ms total=12ms (640x480)
+wall_us=2009722 ms/inv=40.194 fps=24.88 fails=0
+  instr=9938000B/5.60ms input=46080400B/25.63ms output=2400000B/7.00ms
+[bbt] no persisted BBT, starting clean
+--- 4/8 done; sys.reset() to clear TPU ---
+[bbt] no persisted BBT, starting clean
+
+[host] serial drop (reset)
+
+===== segment 4 =====
+exec(sentai.str("/lib/diag/_t_236_speed.py"
+HandlePowerRequest: try I2C2: Success
+CAMERA_RECEIVER_Init = 0
+BOARD_PullCameraPowerDownPin:1
+BOARD_PullCameraResetPin:0
+BOARD_PullCameraPowerDownPin:0
+CAMERA_RECEIVER_Start = 0
+[CAM] sensor_fps=30 (1 s sample, target=30)
+[CAM0] W 0x3820=0x47 (0)
+[CAM0] W 0x3821=0x01 (0)
+
+=== gelan ===
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0xa5c581545694e2e6
+wall_us=2049029 ms/inv=40.981 fps=24.40 fails=0
+  instr=10778800B/6.07ms input=46080400B/25.64ms output=2400000B/7.33ms
+[bbt] no persisted BBT, starting clean
+--- 5/8 done; sys.reset() to clear TPU ---
+[bbt] no persisted BBT, starting clean
+
+[host] serial drop (reset)
+
+===== segment 5 =====
+exec(sentai.fs.d_str("/b/iag/__s23_sped.py"))
+HandlePowerRequest: try I2C2: Success
+[CAM] sensor_fps=30 (1 s sample, target=30)
+[CAM1] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM1] W 0x3820=0x47 (0)
+[CAM1] W 0x3821=0x01 (0)
+[CAM0] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM0] W 0x3820=0x47 (0)
+[CAM0] W 0x3821=0x01 (0)
+
+=== gelan_pan2 ===
+Model loaded: 574208 bytes
+Input:  uint8[1,480,640,3] (921600 bytes)
+  quant: scale=0.00392157  zero_point=0
+Outputs: 2
+  [0] int8[1,30,40,6] (7200 bytes)
+      quant: scale=0.36082822  zero_point=112
+  [1] int8[1,60,80,6] (28800 bytes)
+      quant: scale=0.11149704  zero_point=29
+Arena used: 935 / 8192 KB
+Model name: gelan_pan2
+load=0 size=574208 ready=True
+wall_us=2191898 ms/inv=43.838 fps=22.81 fails=0
+  instr=13908000B/7.83ms input=46080400B/25.66ms output=2400000B/8.40ms
+[bbt] no persisted BBT, starting clean
+--- 6/8 done; sys.reset() to clear TPU ---
+[bbt] no persisted BBT, starting clean
+
+[host] serial drop (reset)
+
+===== segment 6 =====
+exec(sentai.fs.read_st/__s236_speed.)=== resume session: /diags/s001_s236_speed @ idx 6 ===
+HandlePowerRequest: try I2C1: Success
+HandlePowerRequest: try I2C2: Success
+CAMERA_RECEIVER_Init = 0
+BOARD_PullCameraPowerDownPin:1
+BOARD_PullCameraResetPin:0
+BOARD_PullCameraResetPin:1
+[CAM1] W 0x3820=0x47 (0)
+[CAM0] W 0x3820=0x47 (0)
+
+=== c2f_deep ===
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x0a8ee45f6dbbe0c5
+wall_us=2209122 ms/inv=44.182 fps=22.63 fails=0
+  instr=14182400B/7.98ms input=46080400B/25.65ms output=2400000B/8.59ms
+[bbt] no persisted BBT, starting clean
+
+[host] serial drop (reset)
+
+===== segment 7 =====
+exec(st_s236_speed.py"))
+BOARD_PullCameraResetPin:1
+CAMERA_DEVICE_Init = 0
+E:0B62:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+AT
+
+[host] serial drop (reset)
+
+===== segment 8 =====
+exec(sentead_str("/lib/diag/_t_seed.py")
+BOARD_PullCameraResetPin:1
+CAMERA_RECEIVER_Start = 0
+[CAM] sensor_fps=30 (1 s sample, target=30)
+[CAM0] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+Model loaded: 271104 bytes
+      quant: scale=0.07301419  zero_point=59
+Arena used: 935 / 8192 KB
+Model name: msblock
+[bbt] no persisted BBT, starting clean
+
+[host] serial drop (reset)
+
+===== segment 9 =====
+execfs.read_str("/lib/diag/_py"))BOARD_PullCameraResetPin:0
+[CAM] sensor_fps=29 (1 s sample, target=30)
+
+=== c3 ===
+Model loaded: 332544 bytes
+Input:  uint8[1,480,640,3] (921600 bytes)
+  quant: scale=0.00392157  zero_point=0
+Outputs: 2
+  [0] int8[1,30,40,6] (7200 bytes)
+      quant: scale=0.12969354  zero_point=84
+  [1] int8[1,60,80,6] (28800 bytes)
+      quant: scale=0.09447201  zero_point=69
+Arena used: 935 / 8192 KB
+Model name: c3
+load=0 size=332544 ready=True
+[to_tensor] frame=2ms pxp=10ms quant=0ms total=12ms (640x480)
+wall_us=1906676 ms/inv=38.134 fps=26.22 fails=0
+  instr=7935600B/4.47ms input=46080400B/25.65ms output=2400000B/6.07ms
+[bbt] no persisted BBT, starting clean
+--- 2/8 done; sys.reset() to clear TPU ---
+
+[host] serial drop (reset)
+
+===== segment 10 =====
+exec(sendiag/_d.py)CAMERA_DEVICE_Init = 0
+[CAM1] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+
+=== c2f ===
+wall_us=1907250 ms/inv=38.145 fps=26.22 fails=0
+  instr=7758800B/4.38ms input=46080400B/25.63ms output=2400000B/6.18ms
+--- 3/8 done; sys.reset() to clear TPU ---
+[bbt] no persisted BBT, starting clean
+
+[host] serial drop (reset)
+
+===== segment 11 =====
+exec_speed.[CAM] sensor_fps=30 (1 s sample, target=30)
+
+=== c2f_pan2 ===
+wall_us=2010264 ms/inv=40.205 fps=24.87 fails=0
+  instr=9938000B/5.61ms input=46080400B/25.64ms output=2400000B/7.01ms
+
+[host] serial drop (reset)

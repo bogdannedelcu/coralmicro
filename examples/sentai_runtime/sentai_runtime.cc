@@ -75,6 +75,7 @@ int      sentai_storage_mode_active(void);
 #include "sentai_fault.h"
 #include "sentai_health.h"
 #include "sentai_fs_task.h"
+#include "sentai_pxp_shim.h"
 #include "sentai_virtual_camera.h"
 #include "sentai_fr.h"
 
@@ -1201,40 +1202,29 @@ extern "C" void app_main(void* param) {
   coralmicro::logf("User button -> sentai.usb.drive(1)  [enter STORAGE mode]\r\n");
 
   // ---- STORAGE mode short-circuit ----
-  // In storage mode the firmware is a quiet host for /dev/sda only.
-  // No REPL, no LFS task, no HTTP, no detection pipeline — the host has
-  // exclusive NAND ownership and our app code must not touch it.
-  // Watchdog is still started (so a hang in MSC handler still recovers)
-  // and the user button does its usual thing (would re-enter storage,
-  // which is harmless: same magic, same reset).
+  // In storage mode the host owns the NAND volume through MSC. Keep the
+  // CDC REPL alive so the operator can explicitly call sentai.usb.drive(0)
+  // after unmounting the host drive, but do not start HTTP, FileX tasks, or
+  // the sensing pipeline. Filesystem-facing Python APIs reject access while
+  // sentai_usb_drive_get() is true.
   if (sentai_storage_mode_active()) {
     sentai_boot_progress_mark(0x13);
     coralmicro::logf(
-        "** STORAGE MODE active — REPL/IP disabled, /dev/sda is writable.\r\n"
-        "** Press the RESET button OR send any input on /dev/ttyACM0\r\n"
-        "** to return to default REPL+IP mode.\r\n");
-    start_network_watchdog();
+        "** STORAGE MODE active — MSC + REPL enabled, IP/pipeline disabled.\r\n"
+        "** Unmount/eject the host drive, then run sentai.usb.drive(0)\r\n"
+        "** from REPL to return to default mode.\r\n");
+    xTaskCreate(RecoveryWatchdogTask, "stg_wdog", 512, nullptr,
+                configMAX_PRIORITIES - 2, nullptr);
     sentai_health_boot_complete();
     // Reaching here means storage-mode boot survived all early init (USB
     // descriptor registration, MSC class init, FreeRTOS scheduler).  Clear
     // the crash-loop counter so the next drive(1) gets a fresh budget.
     sentai_storage_boot_succeeded();
 
-    // In-band exit: poll the USB CDC-ACM RX buffer for ANY input byte and
-    // call drive(0) when one arrives.  Lets host scripts return to default
-    // mode without physical reset.  Polling cadence is 200 ms — instant
-    // enough for a human-typed 'q' but doesn't churn the bus.
-    extern int sentai_usb_drive_set(int on);
-    char dummy[16];
+    coralmicro::logf("Starting MicroPython REPL task in storage mode...\r\n");
+    micropython_start_repl_task(16384, tskIDLE_PRIORITY + 1);
     for (;;) {
-      int n = coralmicro::ConsoleM7::GetSingleton()->Read(dummy, sizeof(dummy));
-      if (n > 0) {
-        coralmicro::logf("[storage] input received (%d byte%s) — exiting to default REPL+IP\r\n",
-                         n, n == 1 ? "" : "s");
-        vTaskDelay(pdMS_TO_TICKS(80));  // drain printf to host
-        sentai_usb_drive_set(0);  // never returns (warm reset)
-      }
-      vTaskDelay(pdMS_TO_TICKS(200));
+      vTaskDelay(pdMS_TO_TICKS(1000));
     }
   }
 
@@ -2133,9 +2123,41 @@ static int pxp_scale_xrgb_to_rgb(const uint8_t* src, int src_w, int src_h,
                                   uint8_t* dst, int dst_w, int dst_h);
 static int sentai_cam_get_raw_with_recovery(uint8_t** raw_out);
 
+extern "C" int sentai_pxp_xrgb_to_y8(const uint8_t* src, int src_w, int src_h,
+                                      uint8_t* dst, int dst_w, int dst_h);
+
 extern "C" int sentai_pxp_scale(const uint8_t* src, int sw, int sh,
                                  uint8_t* dst, int dw, int dh) {
   return pxp_scale_xrgb_to_rgb(src, sw, sh, dst, dw, dh);
+}
+
+extern "C" int sentai_pxp_transform(const uint8_t* src, int src_w, int src_h,
+                                     sentai_pxp_format_t src_format,
+                                     uint8_t* dst, int dst_w, int dst_h,
+                                     sentai_pxp_format_t dst_format) {
+  if (src_format == SENTAI_PXP_FORMAT_XRGB8888 &&
+      dst_format == SENTAI_PXP_FORMAT_RGB888) {
+    return sentai_pxp_scale(src, src_w, src_h, dst, dst_w, dst_h);
+  }
+  if (src_format == SENTAI_PXP_FORMAT_XRGB8888 &&
+      dst_format == SENTAI_PXP_FORMAT_Y8) {
+    return sentai_pxp_xrgb_to_y8(src, src_w, src_h, dst, dst_w, dst_h);
+  }
+  return -3;
+}
+
+extern "C" int sentai_pxp_rgb888_scale(const uint8_t* src, int src_w,
+                                        int src_h, uint8_t* dst,
+                                        int dst_w, int dst_h) {
+  return sentai_pxp_transform(src, src_w, src_h, SENTAI_PXP_FORMAT_RGB888,
+                              dst, dst_w, dst_h, SENTAI_PXP_FORMAT_RGB888);
+}
+
+extern "C" int sentai_pxp_rgb888_to_y8(const uint8_t* src, int src_w,
+                                        int src_h, uint8_t* dst,
+                                        int dst_w, int dst_h) {
+  return sentai_pxp_transform(src, src_w, src_h, SENTAI_PXP_FORMAT_RGB888,
+                              dst, dst_w, dst_h, SENTAI_PXP_FORMAT_Y8);
 }
 
 extern "C" int sentai_get_tensor_info(int* w, int* h, int* ch,

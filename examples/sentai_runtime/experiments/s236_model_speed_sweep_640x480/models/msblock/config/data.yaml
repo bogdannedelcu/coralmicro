@@ -1,0 +1,7 @@
+path: /root/data/splits/curated_clean_cover_v1
+train: train.txt
+val: val.txt
+test: test.txt
+nc: 1
+names:
+  0: person

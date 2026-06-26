@@ -1,0 +1,9 @@
+model,size_bytes,load_rc,invoke_ms,i_bytes,in_bytes,fails,note
+msblock,print('', sentai.fs.size('/msblock.tflite')),print('', sentai.tpu.load('/msblock.tflite')),-1,hz,r=sentai.tpu.urb_stats(0); print('IB', r[0][3], 'INB', r[1][3]),,5,ALL_FAIL
+c3,print('', sentai.fs.size('/c3.tflite')),print('', sentai.tpu.load('/c3.tflite')),-1,hz,r=sentai.tpu.urb_stats(0); print('IB', r[0][3], 'INB', r[1][3]),,5,ALL_FAIL
+c2f,print('', sentai.fs.size('/c2f.tflite')),print('', sentai.tpu.load('/c2f.tflite')),-1,hz,r=sentai.tpu.urb_stats(0); print('IB', r[0][3], 'INB', r[1][3]),,5,ALL_FAIL
+c2f_pan2,print('', sentai.fs.size('/c2f_pan2.tflite')),print('', sentai.tpu.load('/c2f_pan2.tflite')),-1,hz,r=sentai.tpu.urb_stats(0); print('IB', r[0][3], 'INB', r[1][3]),,5,ALL_FAIL
+gelan,print('', sentai.fs.size('/gelan.tflite')),print('', sentai.tpu.load('/gelan.tflite')),-1,hz,r=sentai.tpu.urb_stats(0); print('IB', r[0][3], 'INB', r[1][3]),,5,ALL_FAIL
+gelan_pan2,print('', sentai.fs.size('/gelan_pan2.tflite')),print('', sentai.tpu.load('/gelan_pan2.tflite')),-1,hz,r=sentai.tpu.urb_stats(0); print('IB', r[0][3], 'INB', r[1][3]),,5,ALL_FAIL
+c2f_deep,print('', sentai.fs.size('/c2f_deep.tflite')),print('', sentai.tpu.load('/c2f_deep.tflite')),-1,hz,r=sentai.tpu.urb_stats(0); print('IB', r[0][3], 'INB', r[1][3]),,5,ALL_FAIL
+c2f_thick,print('', sentai.fs.size('/c2f_thick.tflite')),print('', sentai.tpu.load('/c2f_thick.tflite')),-1,hz,r=sentai.tpu.urb_stats(0); print('IB', r[0][3], 'INB', r[1][3]),,5,ALL_FAIL

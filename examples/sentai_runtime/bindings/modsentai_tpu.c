@@ -385,6 +385,255 @@ static mp_obj_t mod_sentai_tpu_dump_eps(void) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_tpu_dump_eps_obj, mod_sentai_tpu_dump_eps);
 
+extern void sentai_tpu_urb_stats_reset(void);
+extern uint32_t sentai_tpu_urb_cycle_hz(void);
+extern uint32_t sentai_tpu_urb_stats(uint64_t* out, uint32_t max_words);
+extern uint32_t sentai_tpu_chunk_size_get(void);
+extern void sentai_tpu_chunk_size_set(uint32_t n);
+extern uint32_t sentai_tpu_urb_timeout_ms_get(void);
+extern void sentai_tpu_urb_timeout_ms_set(uint32_t n);
+extern int sentai_tpu_zero_copy_input_get(void);
+extern void sentai_tpu_zero_copy_input_set(int enabled);
+extern int sentai_tpu_async_input_get(void);
+extern void sentai_tpu_async_input_set(int enabled);
+extern int sentai_tpu_multi_ep_routing_get(void);
+extern void sentai_tpu_multi_ep_routing_set(int enabled);
+extern int sentai_tpu_desc_cache_get(void);
+extern void sentai_tpu_desc_cache_set(int enabled);
+extern void sentai_tpu_desc_cache_stats_reset(void);
+extern uint32_t sentai_tpu_desc_cache_stats(uint32_t* out, uint32_t max_words);
+
+// sentai.tpu.urb_stats([reset]) -> (cycle_hz, rows)
+// rows order: instructions, input, parameters, output, event, unknown.
+// each row: calls, callbacks, bytes_req, bytes_done, submit_cyc,
+// callback_cyc, wait_cyc, errors, timeouts, submit_fail,
+// submit_us, callback_us, wait_us.
+static mp_obj_t mod_sentai_tpu_urb_stats(size_t n_args,
+                                         const mp_obj_t* args) {
+    if (n_args > 0 && mp_obj_is_true(args[0])) {
+        sentai_tpu_urb_stats_reset();
+    }
+    enum { kRows = 6, kFields = 13, kWords = kRows * kFields };
+    uint64_t values[kWords] = {0};
+    uint32_t n = sentai_tpu_urb_stats(values, kWords);
+    if (n > kWords) n = kWords;
+
+    mp_obj_t rows[kRows];
+    for (int r = 0; r < kRows; ++r) {
+        mp_obj_t fields[kFields];
+        for (int f = 0; f < kFields; ++f) {
+            int idx = r * kFields + f;
+            fields[f] = (idx < (int)n)
+                            ? mp_obj_new_int_from_ull((unsigned long long)values[idx])
+                            : mp_obj_new_int(0);
+        }
+        rows[r] = mp_obj_new_tuple(kFields, fields);
+    }
+
+    mp_obj_t out[2] = {
+        mp_obj_new_int_from_uint(sentai_tpu_urb_cycle_hz()),
+        mp_obj_new_tuple(kRows, rows),
+    };
+    return mp_obj_new_tuple(2, out);
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
+    mod_sentai_tpu_urb_stats_obj, 0, 1, mod_sentai_tpu_urb_stats);
+
+// sentai.tpu.chunk_size([bytes]) -> bytes
+static mp_obj_t mod_sentai_tpu_chunk_size(size_t n_args,
+                                          const mp_obj_t* args) {
+    if (n_args > 0) {
+        sentai_tpu_chunk_size_set((uint32_t)mp_obj_get_int(args[0]));
+    }
+    return mp_obj_new_int_from_uint(sentai_tpu_chunk_size_get());
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
+    mod_sentai_tpu_chunk_size_obj, 0, 1, mod_sentai_tpu_chunk_size);
+
+// sentai.tpu.urb_timeout_ms([ms]) -> ms
+static mp_obj_t mod_sentai_tpu_urb_timeout_ms(size_t n_args,
+                                              const mp_obj_t* args) {
+    if (n_args > 0) {
+        sentai_tpu_urb_timeout_ms_set((uint32_t)mp_obj_get_int(args[0]));
+    }
+    return mp_obj_new_int_from_uint(sentai_tpu_urb_timeout_ms_get());
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
+    mod_sentai_tpu_urb_timeout_ms_obj, 0, 1, mod_sentai_tpu_urb_timeout_ms);
+
+// sentai.tpu.trace([on]) -> bool
+// Toggle per-invoke TPU trace: prints each DMA hint (param/instr/input/output
+// name + size) and each bulk-IN chunk outcome (S=submit, D=done, T=timeout,
+// s=short, e=submit-err) to dmesg. Used to debug output-readback stalls.
+extern void sentai_tpu_trace_set(int on);
+extern int  sentai_tpu_trace_get(void);
+static mp_obj_t mod_sentai_tpu_trace(size_t n_args, const mp_obj_t* args) {
+    if (n_args > 0) {
+        sentai_tpu_trace_set(mp_obj_is_true(args[0]) ? 1 : 0);
+    }
+    return mp_obj_new_bool(sentai_tpu_trace_get());
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
+    mod_sentai_tpu_trace_obj, 0, 1, mod_sentai_tpu_trace);
+
+// sentai.tpu.csr_errors() -> None
+// Dump TPU HIB error-status + scalar-core run-status CSRs to dmesg. Call right
+// after a failed invoke to see whether the TPU latched a hardware fault.
+extern void sentai_tpu_csr_errors(void);
+static mp_obj_t mod_sentai_tpu_csr_errors(void) {
+    sentai_tpu_csr_errors();
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_tpu_csr_errors_obj,
+                                 mod_sentai_tpu_csr_errors);
+
+// sentai.tpu.zero_copy_input([enabled]) -> bool
+static mp_obj_t mod_sentai_tpu_zero_copy_input(size_t n_args,
+                                               const mp_obj_t* args) {
+    if (n_args > 0) {
+        sentai_tpu_zero_copy_input_set(mp_obj_is_true(args[0]) ? 1 : 0);
+    }
+    return mp_obj_new_bool(sentai_tpu_zero_copy_input_get());
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
+    mod_sentai_tpu_zero_copy_input_obj, 0, 1,
+    mod_sentai_tpu_zero_copy_input);
+
+// sentai.tpu.async_input([enabled]) -> bool
+static mp_obj_t mod_sentai_tpu_async_input(size_t n_args,
+                                           const mp_obj_t* args) {
+    if (n_args > 0) {
+        sentai_tpu_async_input_set(mp_obj_is_true(args[0]) ? 1 : 0);
+    }
+    return mp_obj_new_bool(sentai_tpu_async_input_get());
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
+    mod_sentai_tpu_async_input_obj, 0, 1, mod_sentai_tpu_async_input);
+
+// sentai.tpu.multi_ep_routing([enabled]) -> bool
+static mp_obj_t mod_sentai_tpu_multi_ep_routing(size_t n_args,
+                                                const mp_obj_t* args) {
+    if (n_args > 0) {
+        sentai_tpu_multi_ep_routing_set(mp_obj_is_true(args[0]) ? 1 : 0);
+    }
+    return mp_obj_new_bool(sentai_tpu_multi_ep_routing_get());
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
+    mod_sentai_tpu_multi_ep_routing_obj, 0, 1,
+    mod_sentai_tpu_multi_ep_routing);
+
+// sentai.tpu.desc_cache([enabled]) -> bool
+static mp_obj_t mod_sentai_tpu_desc_cache(size_t n_args,
+                                          const mp_obj_t* args) {
+    if (n_args > 0) {
+        sentai_tpu_desc_cache_set(mp_obj_is_true(args[0]) ? 1 : 0);
+    }
+    return mp_obj_new_bool(sentai_tpu_desc_cache_get());
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
+    mod_sentai_tpu_desc_cache_obj, 0, 1, mod_sentai_tpu_desc_cache);
+
+// sentai.tpu.desc_cache_stats([reset]) -> (enabled, sent_params, sent_ins,
+// skip_params, skip_ins)
+static mp_obj_t mod_sentai_tpu_desc_cache_stats(size_t n_args,
+                                                const mp_obj_t* args) {
+    if (n_args > 0 && mp_obj_is_true(args[0])) {
+        sentai_tpu_desc_cache_stats_reset();
+    }
+    uint32_t values[5] = {0};
+    uint32_t n = sentai_tpu_desc_cache_stats(values, 5);
+    if (n > 5) n = 5;
+    mp_obj_t out[5];
+    for (uint32_t i = 0; i < n; ++i) {
+        out[i] = mp_obj_new_int_from_uint(values[i]);
+    }
+    return mp_obj_new_tuple(n, out);
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
+    mod_sentai_tpu_desc_cache_stats_obj, 0, 1,
+    mod_sentai_tpu_desc_cache_stats);
+
+#if SENTAI_EMU_TPU_HOST_BRIDGE
+extern int sentai_tpu_load_image_mem(const char* path, int stream_to_host);
+extern uint32_t sentai_tpu_image_mem_size(void);
+extern int sentai_tpu_bridge_stats(uint32_t* out, int max_words);
+extern int sentai_tpu_start(void);
+extern int sentai_tpu_stop(void);
+extern int sentai_tpu_fps_invoke(int runs, uint32_t out[6]);
+extern int sentai_tpu_fps(int runs, uint32_t out[6]);
+
+static mp_obj_t mod_sentai_load_image_mem(size_t n_args,
+                                          const mp_obj_t* args) {
+    _fs_check_usb();
+    size_t path_len = 0;
+    const char* path = mp_obj_str_get_data(args[0], &path_len);
+    int stream_to_host = (n_args < 2) ? 1 : (mp_obj_is_true(args[1]) ? 1 : 0);
+    if (path_len == 0) path = "";
+    return mp_obj_new_int(sentai_tpu_load_image_mem(path, stream_to_host));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
+    mod_sentai_load_image_mem_obj, 1, 2, mod_sentai_load_image_mem);
+
+static mp_obj_t mod_sentai_image_mem_size(void) {
+    return mp_obj_new_int_from_uint(sentai_tpu_image_mem_size());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_image_mem_size_obj,
+                                 mod_sentai_image_mem_size);
+
+static mp_obj_t mod_sentai_tpu_stats(void) {
+    uint32_t stats[28] = {0};
+    int n = sentai_tpu_bridge_stats(stats, 28);
+    if (n < 0) n = 0;
+    if (n > 28) n = 28;
+    mp_obj_t out[28];
+    for (int i = 0; i < n; ++i) {
+        out[i] = mp_obj_new_int_from_uint(stats[i]);
+    }
+    return mp_obj_new_tuple((size_t)n, out);
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_tpu_stats_obj,
+                                 mod_sentai_tpu_stats);
+
+static mp_obj_t mod_sentai_tpu_start(void) {
+    return mp_obj_new_int(sentai_tpu_start());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_tpu_start_obj,
+                                 mod_sentai_tpu_start);
+
+static mp_obj_t mod_sentai_tpu_stop(void) {
+    return mp_obj_new_int(sentai_tpu_stop());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_tpu_stop_obj,
+                                 mod_sentai_tpu_stop);
+
+static mp_obj_t mod_sentai_tpu_fps_invoke(size_t n_args,
+                                          const mp_obj_t* args) {
+    int runs = (n_args >= 1) ? mp_obj_get_int(args[0]) : 5;
+    uint32_t values[6] = {0};
+    (void)sentai_tpu_fps_invoke(runs, values);
+    mp_obj_t out[6];
+    for (int i = 0; i < 6; ++i) {
+        out[i] = mp_obj_new_int_from_uint(values[i]);
+    }
+    return mp_obj_new_tuple(6, out);
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
+    mod_sentai_tpu_fps_invoke_obj, 0, 1, mod_sentai_tpu_fps_invoke);
+
+static mp_obj_t mod_sentai_tpu_fps(size_t n_args, const mp_obj_t* args) {
+    int runs = (n_args >= 1) ? mp_obj_get_int(args[0]) : 5;
+    uint32_t values[6] = {0};
+    (void)sentai_tpu_fps(runs, values);
+    mp_obj_t out[6];
+    for (int i = 0; i < 6; ++i) {
+        out[i] = mp_obj_new_int_from_uint(values[i]);
+    }
+    return mp_obj_new_tuple(6, out);
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
+    mod_sentai_tpu_fps_obj, 0, 1, mod_sentai_tpu_fps);
+#endif
+
 // ---- module table ----
 static const mp_rom_map_elem_t sentai_tpu_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__),    MP_ROM_QSTR(MP_QSTR_tpu) },
@@ -408,6 +657,16 @@ static const mp_rom_map_elem_t sentai_tpu_globals_table[] = {
     // Post-processing (NMS, classify, etc.) will move to typed C++
     // helpers when needed — REPL only exposes raw output bytes + shape.
     { MP_ROM_QSTR(MP_QSTR_dump_eps),    MP_ROM_PTR(&mod_sentai_tpu_dump_eps_obj) },
+    { MP_ROM_QSTR(MP_QSTR_urb_stats),   MP_ROM_PTR(&mod_sentai_tpu_urb_stats_obj) },
+    { MP_ROM_QSTR(MP_QSTR_chunk_size),  MP_ROM_PTR(&mod_sentai_tpu_chunk_size_obj) },
+    { MP_ROM_QSTR(MP_QSTR_urb_timeout_ms), MP_ROM_PTR(&mod_sentai_tpu_urb_timeout_ms_obj) },
+    { MP_ROM_QSTR(MP_QSTR_trace),       MP_ROM_PTR(&mod_sentai_tpu_trace_obj) },
+    { MP_ROM_QSTR(MP_QSTR_csr_errors),  MP_ROM_PTR(&mod_sentai_tpu_csr_errors_obj) },
+    { MP_ROM_QSTR(MP_QSTR_zero_copy_input), MP_ROM_PTR(&mod_sentai_tpu_zero_copy_input_obj) },
+    { MP_ROM_QSTR(MP_QSTR_async_input), MP_ROM_PTR(&mod_sentai_tpu_async_input_obj) },
+    { MP_ROM_QSTR(MP_QSTR_multi_ep_routing), MP_ROM_PTR(&mod_sentai_tpu_multi_ep_routing_obj) },
+    { MP_ROM_QSTR(MP_QSTR_desc_cache),  MP_ROM_PTR(&mod_sentai_tpu_desc_cache_obj) },
+    { MP_ROM_QSTR(MP_QSTR_desc_cache_stats), MP_ROM_PTR(&mod_sentai_tpu_desc_cache_stats_obj) },
     // Multi-slot extension (Phase 1).
     { MP_ROM_QSTR(MP_QSTR_load_slot),    MP_ROM_PTR(&mod_sentai_load_model_slot_obj) },
     { MP_ROM_QSTR(MP_QSTR_invoke_slot),  MP_ROM_PTR(&mod_sentai_invoke_slot_obj) },
@@ -422,6 +681,15 @@ static const mp_rom_map_elem_t sentai_tpu_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_output_dims_slot), MP_ROM_PTR(&mod_sentai_output_dims_slot_obj) },
     { MP_ROM_QSTR(MP_QSTR_output_type_slot), MP_ROM_PTR(&mod_sentai_output_type_slot_obj) },
     { MP_ROM_QSTR(MP_QSTR_output_quant_slot),MP_ROM_PTR(&mod_sentai_output_quant_slot_obj) },
+#if SENTAI_EMU_TPU_HOST_BRIDGE
+    { MP_ROM_QSTR(MP_QSTR_load_image_mem), MP_ROM_PTR(&mod_sentai_load_image_mem_obj) },
+    { MP_ROM_QSTR(MP_QSTR_image_mem_size), MP_ROM_PTR(&mod_sentai_image_mem_size_obj) },
+    { MP_ROM_QSTR(MP_QSTR_stats),          MP_ROM_PTR(&mod_sentai_tpu_stats_obj) },
+    { MP_ROM_QSTR(MP_QSTR_start),          MP_ROM_PTR(&mod_sentai_tpu_start_obj) },
+    { MP_ROM_QSTR(MP_QSTR_stop),           MP_ROM_PTR(&mod_sentai_tpu_stop_obj) },
+    { MP_ROM_QSTR(MP_QSTR_fps_invoke),     MP_ROM_PTR(&mod_sentai_tpu_fps_invoke_obj) },
+    { MP_ROM_QSTR(MP_QSTR_fps),            MP_ROM_PTR(&mod_sentai_tpu_fps_obj) },
+#endif
 };
 static MP_DEFINE_CONST_DICT(sentai_tpu_globals, sentai_tpu_globals_table);
 static const mp_obj_module_t sentai_tpu_module = {

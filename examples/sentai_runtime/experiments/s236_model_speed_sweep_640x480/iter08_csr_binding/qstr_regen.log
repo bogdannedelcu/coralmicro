@@ -1,0 +1,23 @@
+Use make V=1 or set BUILD_VERBOSE in your environment to increase build verbosity.
+Including User C Module from /home/bogdan/work/coralmicro/examples/sentai_runtime/modules/sentai
+mkdir -p build-embed/genhdr
+GEN build-embed/genhdr/mpversion.h
+GEN build-embed/genhdr/qstr.i.last
+GEN build-embed/genhdr/moduledefs.split
+GEN build-embed/genhdr/moduledefs.collected
+Module registrations updated
+GEN build-embed/genhdr/moduledefs.h
+GEN build-embed/genhdr/qstr.split
+GEN build-embed/genhdr/qstrdefs.collected.h
+QSTR updated
+GEN build-embed/genhdr/qstrdefs.generated.h
+GEN build-embed/genhdr/root_pointers.split
+GEN build-embed/genhdr/root_pointers.collected
+Root pointer registrations updated
+GEN build-embed/genhdr/root_pointers.h
+Generate micropython_embed output:
+- py
+- extmod
+- shared
+- genhdr
+- port

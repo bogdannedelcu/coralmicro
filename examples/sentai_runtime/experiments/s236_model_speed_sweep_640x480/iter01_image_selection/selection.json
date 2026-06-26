@@ -1,0 +1,2462 @@
+[
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/5.Beach_batch38_img100_weather_Clear_Skies_boxes_6_polys_0_BL.png",
+    "gt": 6,
+    "n_models_detect": 8,
+    "min_matched": 4,
+    "sum_matched": 40,
+    "per_model": {
+      "c2f": {
+        "det": 10,
+        "matched": 6
+      },
+      "c2f_deep": {
+        "det": 4,
+        "matched": 4
+      },
+      "c2f_pan2": {
+        "det": 11,
+        "matched": 5
+      },
+      "c2f_thick": {
+        "det": 8,
+        "matched": 6
+      },
+      "c3": {
+        "det": 5,
+        "matched": 5
+      },
+      "gelan": {
+        "det": 6,
+        "matched": 5
+      },
+      "gelan_pan2": {
+        "det": 8,
+        "matched": 5
+      },
+      "msblock": {
+        "det": 6,
+        "matched": 4
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/5.Beach_batch38_img101_weather_Clear_Skies_boxes_6_polys_0_BL.png",
+    "gt": 6,
+    "n_models_detect": 8,
+    "min_matched": 4,
+    "sum_matched": 39,
+    "per_model": {
+      "c2f": {
+        "det": 8,
+        "matched": 5
+      },
+      "c2f_deep": {
+        "det": 6,
+        "matched": 5
+      },
+      "c2f_pan2": {
+        "det": 8,
+        "matched": 5
+      },
+      "c2f_thick": {
+        "det": 11,
+        "matched": 5
+      },
+      "c3": {
+        "det": 6,
+        "matched": 5
+      },
+      "gelan": {
+        "det": 5,
+        "matched": 4
+      },
+      "gelan_pan2": {
+        "det": 7,
+        "matched": 5
+      },
+      "msblock": {
+        "det": 6,
+        "matched": 5
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/7.Campus_batch54_img101_weather_Clear_Skies_boxes_4_polys_0_BR.png",
+    "gt": 4,
+    "n_models_detect": 8,
+    "min_matched": 4,
+    "sum_matched": 32,
+    "per_model": {
+      "c2f": {
+        "det": 5,
+        "matched": 4
+      },
+      "c2f_deep": {
+        "det": 6,
+        "matched": 4
+      },
+      "c2f_pan2": {
+        "det": 6,
+        "matched": 4
+      },
+      "c2f_thick": {
+        "det": 7,
+        "matched": 4
+      },
+      "c3": {
+        "det": 5,
+        "matched": 4
+      },
+      "gelan": {
+        "det": 6,
+        "matched": 4
+      },
+      "gelan_pan2": {
+        "det": 5,
+        "matched": 4
+      },
+      "msblock": {
+        "det": 4,
+        "matched": 4
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/4.Farm_batch32_img12_weather_Cloudy_boxes_6_polys_0_BL.png",
+    "gt": 6,
+    "n_models_detect": 8,
+    "min_matched": 3,
+    "sum_matched": 35,
+    "per_model": {
+      "c2f": {
+        "det": 9,
+        "matched": 6
+      },
+      "c2f_deep": {
+        "det": 3,
+        "matched": 3
+      },
+      "c2f_pan2": {
+        "det": 9,
+        "matched": 4
+      },
+      "c2f_thick": {
+        "det": 10,
+        "matched": 5
+      },
+      "c3": {
+        "det": 4,
+        "matched": 3
+      },
+      "gelan": {
+        "det": 6,
+        "matched": 5
+      },
+      "gelan_pan2": {
+        "det": 7,
+        "matched": 4
+      },
+      "msblock": {
+        "det": 6,
+        "matched": 5
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/9.CityModern_batch63_img103_weather_Snow_Light_boxes_5_polys_0_BL.png",
+    "gt": 5,
+    "n_models_detect": 8,
+    "min_matched": 3,
+    "sum_matched": 34,
+    "per_model": {
+      "c2f": {
+        "det": 14,
+        "matched": 5
+      },
+      "c2f_deep": {
+        "det": 12,
+        "matched": 5
+      },
+      "c2f_pan2": {
+        "det": 18,
+        "matched": 5
+      },
+      "c2f_thick": {
+        "det": 17,
+        "matched": 5
+      },
+      "c3": {
+        "det": 11,
+        "matched": 3
+      },
+      "gelan": {
+        "det": 13,
+        "matched": 4
+      },
+      "gelan_pan2": {
+        "det": 15,
+        "matched": 4
+      },
+      "msblock": {
+        "det": 10,
+        "matched": 3
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/7.Campus_batch54_img149_weather_Partly_Cloudy_boxes_4_polys_0_TR.png",
+    "gt": 4,
+    "n_models_detect": 8,
+    "min_matched": 3,
+    "sum_matched": 31,
+    "per_model": {
+      "c2f": {
+        "det": 7,
+        "matched": 4
+      },
+      "c2f_deep": {
+        "det": 4,
+        "matched": 4
+      },
+      "c2f_pan2": {
+        "det": 7,
+        "matched": 4
+      },
+      "c2f_thick": {
+        "det": 8,
+        "matched": 4
+      },
+      "c3": {
+        "det": 4,
+        "matched": 3
+      },
+      "gelan": {
+        "det": 7,
+        "matched": 4
+      },
+      "gelan_pan2": {
+        "det": 7,
+        "matched": 4
+      },
+      "msblock": {
+        "det": 6,
+        "matched": 4
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/9.CityModern_batch63_img101_weather_Clear_Skies_boxes_3_polys_0_BR.png",
+    "gt": 3,
+    "n_models_detect": 8,
+    "min_matched": 3,
+    "sum_matched": 24,
+    "per_model": {
+      "c2f": {
+        "det": 5,
+        "matched": 3
+      },
+      "c2f_deep": {
+        "det": 5,
+        "matched": 3
+      },
+      "c2f_pan2": {
+        "det": 5,
+        "matched": 3
+      },
+      "c2f_thick": {
+        "det": 6,
+        "matched": 3
+      },
+      "c3": {
+        "det": 5,
+        "matched": 3
+      },
+      "gelan": {
+        "det": 5,
+        "matched": 3
+      },
+      "gelan_pan2": {
+        "det": 5,
+        "matched": 3
+      },
+      "msblock": {
+        "det": 5,
+        "matched": 3
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/7.Campus_batch54_img131_weather_Partly_Cloudy_boxes_3_polys_0_TR.png",
+    "gt": 3,
+    "n_models_detect": 8,
+    "min_matched": 3,
+    "sum_matched": 24,
+    "per_model": {
+      "c2f": {
+        "det": 3,
+        "matched": 3
+      },
+      "c2f_deep": {
+        "det": 3,
+        "matched": 3
+      },
+      "c2f_pan2": {
+        "det": 4,
+        "matched": 3
+      },
+      "c2f_thick": {
+        "det": 4,
+        "matched": 3
+      },
+      "c3": {
+        "det": 3,
+        "matched": 3
+      },
+      "gelan": {
+        "det": 3,
+        "matched": 3
+      },
+      "gelan_pan2": {
+        "det": 3,
+        "matched": 3
+      },
+      "msblock": {
+        "det": 3,
+        "matched": 3
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/5.Beach_batch38_img103_weather_Partly_Cloudy_boxes_3_polys_0_BL.png",
+    "gt": 3,
+    "n_models_detect": 8,
+    "min_matched": 3,
+    "sum_matched": 24,
+    "per_model": {
+      "c2f": {
+        "det": 12,
+        "matched": 3
+      },
+      "c2f_deep": {
+        "det": 5,
+        "matched": 3
+      },
+      "c2f_pan2": {
+        "det": 10,
+        "matched": 3
+      },
+      "c2f_thick": {
+        "det": 9,
+        "matched": 3
+      },
+      "c3": {
+        "det": 7,
+        "matched": 3
+      },
+      "gelan": {
+        "det": 6,
+        "matched": 3
+      },
+      "gelan_pan2": {
+        "det": 7,
+        "matched": 3
+      },
+      "msblock": {
+        "det": 9,
+        "matched": 3
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/3.MilitaryUnit_batch28_img101_weather_Partly_Cloudy_boxes_5_polys_0_TL.png",
+    "gt": 5,
+    "n_models_detect": 8,
+    "min_matched": 2,
+    "sum_matched": 29,
+    "per_model": {
+      "c2f": {
+        "det": 5,
+        "matched": 5
+      },
+      "c2f_deep": {
+        "det": 2,
+        "matched": 2
+      },
+      "c2f_pan2": {
+        "det": 4,
+        "matched": 4
+      },
+      "c2f_thick": {
+        "det": 5,
+        "matched": 5
+      },
+      "c3": {
+        "det": 4,
+        "matched": 4
+      },
+      "gelan": {
+        "det": 4,
+        "matched": 4
+      },
+      "gelan_pan2": {
+        "det": 3,
+        "matched": 3
+      },
+      "msblock": {
+        "det": 3,
+        "matched": 2
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/2.CityWinter_batch22_img100_weather_Partly_Cloudy_boxes_4_polys_0_BL.png",
+    "gt": 4,
+    "n_models_detect": 8,
+    "min_matched": 2,
+    "sum_matched": 24,
+    "per_model": {
+      "c2f": {
+        "det": 4,
+        "matched": 4
+      },
+      "c2f_deep": {
+        "det": 2,
+        "matched": 2
+      },
+      "c2f_pan2": {
+        "det": 3,
+        "matched": 3
+      },
+      "c2f_thick": {
+        "det": 5,
+        "matched": 4
+      },
+      "c3": {
+        "det": 3,
+        "matched": 3
+      },
+      "gelan": {
+        "det": 2,
+        "matched": 2
+      },
+      "gelan_pan2": {
+        "det": 5,
+        "matched": 3
+      },
+      "msblock": {
+        "det": 3,
+        "matched": 3
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/1.Industrial_batch4_img101_weather_Partly_Cloudy_boxes_6_polys_0_TR.png",
+    "gt": 6,
+    "n_models_detect": 8,
+    "min_matched": 2,
+    "sum_matched": 23,
+    "per_model": {
+      "c2f": {
+        "det": 4,
+        "matched": 3
+      },
+      "c2f_deep": {
+        "det": 3,
+        "matched": 2
+      },
+      "c2f_pan2": {
+        "det": 4,
+        "matched": 3
+      },
+      "c2f_thick": {
+        "det": 6,
+        "matched": 4
+      },
+      "c3": {
+        "det": 4,
+        "matched": 3
+      },
+      "gelan": {
+        "det": 3,
+        "matched": 2
+      },
+      "gelan_pan2": {
+        "det": 3,
+        "matched": 2
+      },
+      "msblock": {
+        "det": 5,
+        "matched": 4
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/4.Farm_batch32_img12_weather_Cloudy_boxes_5_polys_0_TL.png",
+    "gt": 5,
+    "n_models_detect": 8,
+    "min_matched": 2,
+    "sum_matched": 21,
+    "per_model": {
+      "c2f": {
+        "det": 4,
+        "matched": 3
+      },
+      "c2f_deep": {
+        "det": 3,
+        "matched": 3
+      },
+      "c2f_pan2": {
+        "det": 4,
+        "matched": 3
+      },
+      "c2f_thick": {
+        "det": 9,
+        "matched": 4
+      },
+      "c3": {
+        "det": 2,
+        "matched": 2
+      },
+      "gelan": {
+        "det": 3,
+        "matched": 2
+      },
+      "gelan_pan2": {
+        "det": 3,
+        "matched": 2
+      },
+      "msblock": {
+        "det": 3,
+        "matched": 2
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/6.CityDirty_batch45_img101_weather_Overcast_boxes_4_polys_0_TL.png",
+    "gt": 4,
+    "n_models_detect": 8,
+    "min_matched": 2,
+    "sum_matched": 21,
+    "per_model": {
+      "c2f": {
+        "det": 3,
+        "matched": 3
+      },
+      "c2f_deep": {
+        "det": 2,
+        "matched": 2
+      },
+      "c2f_pan2": {
+        "det": 4,
+        "matched": 3
+      },
+      "c2f_thick": {
+        "det": 4,
+        "matched": 3
+      },
+      "c3": {
+        "det": 4,
+        "matched": 4
+      },
+      "gelan": {
+        "det": 2,
+        "matched": 2
+      },
+      "gelan_pan2": {
+        "det": 4,
+        "matched": 2
+      },
+      "msblock": {
+        "det": 2,
+        "matched": 2
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/10.VillageMountain_batch10_img106_weather_Overcast_boxes_4_polys_0_TL.png",
+    "gt": 4,
+    "n_models_detect": 8,
+    "min_matched": 2,
+    "sum_matched": 21,
+    "per_model": {
+      "c2f": {
+        "det": 3,
+        "matched": 3
+      },
+      "c2f_deep": {
+        "det": 2,
+        "matched": 2
+      },
+      "c2f_pan2": {
+        "det": 4,
+        "matched": 4
+      },
+      "c2f_thick": {
+        "det": 5,
+        "matched": 4
+      },
+      "c3": {
+        "det": 2,
+        "matched": 2
+      },
+      "gelan": {
+        "det": 2,
+        "matched": 2
+      },
+      "gelan_pan2": {
+        "det": 2,
+        "matched": 2
+      },
+      "msblock": {
+        "det": 2,
+        "matched": 2
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/8.Airport_batch59_img100_weather_Overcast_boxes_5_polys_0_BR.png",
+    "gt": 5,
+    "n_models_detect": 8,
+    "min_matched": 2,
+    "sum_matched": 20,
+    "per_model": {
+      "c2f": {
+        "det": 5,
+        "matched": 2
+      },
+      "c2f_deep": {
+        "det": 4,
+        "matched": 2
+      },
+      "c2f_pan2": {
+        "det": 7,
+        "matched": 3
+      },
+      "c2f_thick": {
+        "det": 11,
+        "matched": 3
+      },
+      "c3": {
+        "det": 6,
+        "matched": 3
+      },
+      "gelan": {
+        "det": 4,
+        "matched": 2
+      },
+      "gelan_pan2": {
+        "det": 5,
+        "matched": 2
+      },
+      "msblock": {
+        "det": 4,
+        "matched": 3
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/7.Campus_batch54_img132_weather_Partly_Cloudy_boxes_2_polys_0_TL.png",
+    "gt": 2,
+    "n_models_detect": 8,
+    "min_matched": 2,
+    "sum_matched": 16,
+    "per_model": {
+      "c2f": {
+        "det": 4,
+        "matched": 2
+      },
+      "c2f_deep": {
+        "det": 4,
+        "matched": 2
+      },
+      "c2f_pan2": {
+        "det": 4,
+        "matched": 2
+      },
+      "c2f_thick": {
+        "det": 9,
+        "matched": 2
+      },
+      "c3": {
+        "det": 4,
+        "matched": 2
+      },
+      "gelan": {
+        "det": 4,
+        "matched": 2
+      },
+      "gelan_pan2": {
+        "det": 5,
+        "matched": 2
+      },
+      "msblock": {
+        "det": 4,
+        "matched": 2
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/1.Industrial_batch4_img100_weather_Partly_Cloudy_boxes_6_polys_0_BR.png",
+    "gt": 6,
+    "n_models_detect": 8,
+    "min_matched": 1,
+    "sum_matched": 29,
+    "per_model": {
+      "c2f": {
+        "det": 4,
+        "matched": 4
+      },
+      "c2f_deep": {
+        "det": 1,
+        "matched": 1
+      },
+      "c2f_pan2": {
+        "det": 7,
+        "matched": 5
+      },
+      "c2f_thick": {
+        "det": 4,
+        "matched": 4
+      },
+      "c3": {
+        "det": 3,
+        "matched": 3
+      },
+      "gelan": {
+        "det": 4,
+        "matched": 4
+      },
+      "gelan_pan2": {
+        "det": 4,
+        "matched": 4
+      },
+      "msblock": {
+        "det": 4,
+        "matched": 4
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/10.VillageMountain_batch10_img104_weather_Overcast_boxes_4_polys_0_TL.png",
+    "gt": 4,
+    "n_models_detect": 8,
+    "min_matched": 1,
+    "sum_matched": 27,
+    "per_model": {
+      "c2f": {
+        "det": 3,
+        "matched": 3
+      },
+      "c2f_deep": {
+        "det": 3,
+        "matched": 3
+      },
+      "c2f_pan2": {
+        "det": 4,
+        "matched": 4
+      },
+      "c2f_thick": {
+        "det": 6,
+        "matched": 4
+      },
+      "c3": {
+        "det": 5,
+        "matched": 4
+      },
+      "gelan": {
+        "det": 4,
+        "matched": 4
+      },
+      "gelan_pan2": {
+        "det": 5,
+        "matched": 4
+      },
+      "msblock": {
+        "det": 1,
+        "matched": 1
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/3.MilitaryUnit_batch28_img104_weather_Clear_Skies_boxes_5_polys_0_TR.png",
+    "gt": 5,
+    "n_models_detect": 8,
+    "min_matched": 1,
+    "sum_matched": 26,
+    "per_model": {
+      "c2f": {
+        "det": 3,
+        "matched": 4
+      },
+      "c2f_deep": {
+        "det": 1,
+        "matched": 1
+      },
+      "c2f_pan2": {
+        "det": 3,
+        "matched": 4
+      },
+      "c2f_thick": {
+        "det": 3,
+        "matched": 4
+      },
+      "c3": {
+        "det": 3,
+        "matched": 4
+      },
+      "gelan": {
+        "det": 1,
+        "matched": 1
+      },
+      "gelan_pan2": {
+        "det": 3,
+        "matched": 4
+      },
+      "msblock": {
+        "det": 3,
+        "matched": 4
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/9.CityModern_batch63_img101_weather_Clear_Skies_boxes_6_polys_0_TR.png",
+    "gt": 6,
+    "n_models_detect": 8,
+    "min_matched": 1,
+    "sum_matched": 25,
+    "per_model": {
+      "c2f": {
+        "det": 7,
+        "matched": 4
+      },
+      "c2f_deep": {
+        "det": 2,
+        "matched": 1
+      },
+      "c2f_pan2": {
+        "det": 5,
+        "matched": 2
+      },
+      "c2f_thick": {
+        "det": 11,
+        "matched": 5
+      },
+      "c3": {
+        "det": 7,
+        "matched": 4
+      },
+      "gelan": {
+        "det": 5,
+        "matched": 3
+      },
+      "gelan_pan2": {
+        "det": 5,
+        "matched": 3
+      },
+      "msblock": {
+        "det": 6,
+        "matched": 3
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/7.Campus_batch54_img146_weather_Partly_Cloudy_boxes_5_polys_0_TR.png",
+    "gt": 5,
+    "n_models_detect": 8,
+    "min_matched": 1,
+    "sum_matched": 25,
+    "per_model": {
+      "c2f": {
+        "det": 6,
+        "matched": 5
+      },
+      "c2f_deep": {
+        "det": 2,
+        "matched": 2
+      },
+      "c2f_pan2": {
+        "det": 6,
+        "matched": 5
+      },
+      "c2f_thick": {
+        "det": 5,
+        "matched": 4
+      },
+      "c3": {
+        "det": 3,
+        "matched": 3
+      },
+      "gelan": {
+        "det": 1,
+        "matched": 1
+      },
+      "gelan_pan2": {
+        "det": 5,
+        "matched": 4
+      },
+      "msblock": {
+        "det": 1,
+        "matched": 1
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/8.Airport_batch59_img100_weather_Overcast_boxes_6_polys_0_BL.png",
+    "gt": 6,
+    "n_models_detect": 8,
+    "min_matched": 1,
+    "sum_matched": 22,
+    "per_model": {
+      "c2f": {
+        "det": 6,
+        "matched": 3
+      },
+      "c2f_deep": {
+        "det": 4,
+        "matched": 1
+      },
+      "c2f_pan2": {
+        "det": 9,
+        "matched": 3
+      },
+      "c2f_thick": {
+        "det": 12,
+        "matched": 4
+      },
+      "c3": {
+        "det": 14,
+        "matched": 3
+      },
+      "gelan": {
+        "det": 6,
+        "matched": 3
+      },
+      "gelan_pan2": {
+        "det": 10,
+        "matched": 2
+      },
+      "msblock": {
+        "det": 6,
+        "matched": 3
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/8.Airport_batch59_img100_weather_Overcast_boxes_3_polys_0_TL.png",
+    "gt": 3,
+    "n_models_detect": 8,
+    "min_matched": 1,
+    "sum_matched": 21,
+    "per_model": {
+      "c2f": {
+        "det": 9,
+        "matched": 3
+      },
+      "c2f_deep": {
+        "det": 5,
+        "matched": 3
+      },
+      "c2f_pan2": {
+        "det": 8,
+        "matched": 3
+      },
+      "c2f_thick": {
+        "det": 13,
+        "matched": 3
+      },
+      "c3": {
+        "det": 10,
+        "matched": 3
+      },
+      "gelan": {
+        "det": 6,
+        "matched": 2
+      },
+      "gelan_pan2": {
+        "det": 3,
+        "matched": 1
+      },
+      "msblock": {
+        "det": 8,
+        "matched": 3
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/5.Beach_batch38_img101_weather_Clear_Skies_boxes_3_polys_0_BR.png",
+    "gt": 3,
+    "n_models_detect": 8,
+    "min_matched": 1,
+    "sum_matched": 19,
+    "per_model": {
+      "c2f": {
+        "det": 7,
+        "matched": 3
+      },
+      "c2f_deep": {
+        "det": 2,
+        "matched": 2
+      },
+      "c2f_pan2": {
+        "det": 7,
+        "matched": 3
+      },
+      "c2f_thick": {
+        "det": 7,
+        "matched": 3
+      },
+      "c3": {
+        "det": 3,
+        "matched": 2
+      },
+      "gelan": {
+        "det": 4,
+        "matched": 3
+      },
+      "gelan_pan2": {
+        "det": 4,
+        "matched": 2
+      },
+      "msblock": {
+        "det": 2,
+        "matched": 1
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/8.Airport_batch59_img100_weather_Overcast_boxes_3_polys_0_TR.png",
+    "gt": 3,
+    "n_models_detect": 8,
+    "min_matched": 1,
+    "sum_matched": 14,
+    "per_model": {
+      "c2f": {
+        "det": 4,
+        "matched": 2
+      },
+      "c2f_deep": {
+        "det": 1,
+        "matched": 1
+      },
+      "c2f_pan2": {
+        "det": 3,
+        "matched": 2
+      },
+      "c2f_thick": {
+        "det": 2,
+        "matched": 2
+      },
+      "c3": {
+        "det": 4,
+        "matched": 2
+      },
+      "gelan": {
+        "det": 3,
+        "matched": 2
+      },
+      "gelan_pan2": {
+        "det": 2,
+        "matched": 1
+      },
+      "msblock": {
+        "det": 3,
+        "matched": 2
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/6.CityDirty_batch45_img101_weather_Overcast_boxes_2_polys_0_BR.png",
+    "gt": 2,
+    "n_models_detect": 8,
+    "min_matched": 1,
+    "sum_matched": 13,
+    "per_model": {
+      "c2f": {
+        "det": 2,
+        "matched": 2
+      },
+      "c2f_deep": {
+        "det": 1,
+        "matched": 1
+      },
+      "c2f_pan2": {
+        "det": 4,
+        "matched": 2
+      },
+      "c2f_thick": {
+        "det": 2,
+        "matched": 2
+      },
+      "c3": {
+        "det": 2,
+        "matched": 2
+      },
+      "gelan": {
+        "det": 1,
+        "matched": 1
+      },
+      "gelan_pan2": {
+        "det": 2,
+        "matched": 2
+      },
+      "msblock": {
+        "det": 1,
+        "matched": 1
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/2.CityWinter_batch22_img137_weather_Snow_boxes_6_polys_0_TR.png",
+    "gt": 6,
+    "n_models_detect": 8,
+    "min_matched": 1,
+    "sum_matched": 13,
+    "per_model": {
+      "c2f": {
+        "det": 4,
+        "matched": 2
+      },
+      "c2f_deep": {
+        "det": 2,
+        "matched": 1
+      },
+      "c2f_pan2": {
+        "det": 5,
+        "matched": 2
+      },
+      "c2f_thick": {
+        "det": 4,
+        "matched": 2
+      },
+      "c3": {
+        "det": 2,
+        "matched": 1
+      },
+      "gelan": {
+        "det": 4,
+        "matched": 2
+      },
+      "gelan_pan2": {
+        "det": 2,
+        "matched": 2
+      },
+      "msblock": {
+        "det": 1,
+        "matched": 1
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/2.CityWinter_batch22_img147_weather_Snow_Light_boxes_2_polys_0_TR.png",
+    "gt": 2,
+    "n_models_detect": 8,
+    "min_matched": 1,
+    "sum_matched": 13,
+    "per_model": {
+      "c2f": {
+        "det": 2,
+        "matched": 2
+      },
+      "c2f_deep": {
+        "det": 1,
+        "matched": 1
+      },
+      "c2f_pan2": {
+        "det": 1,
+        "matched": 1
+      },
+      "c2f_thick": {
+        "det": 2,
+        "matched": 2
+      },
+      "c3": {
+        "det": 2,
+        "matched": 2
+      },
+      "gelan": {
+        "det": 2,
+        "matched": 2
+      },
+      "gelan_pan2": {
+        "det": 2,
+        "matched": 2
+      },
+      "msblock": {
+        "det": 1,
+        "matched": 1
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/6.CityDirty_batch45_img100_weather_Partly_Cloudy_boxes_3_polys_0_BR.png",
+    "gt": 3,
+    "n_models_detect": 8,
+    "min_matched": 1,
+    "sum_matched": 12,
+    "per_model": {
+      "c2f": {
+        "det": 2,
+        "matched": 1
+      },
+      "c2f_deep": {
+        "det": 4,
+        "matched": 2
+      },
+      "c2f_pan2": {
+        "det": 3,
+        "matched": 1
+      },
+      "c2f_thick": {
+        "det": 5,
+        "matched": 2
+      },
+      "c3": {
+        "det": 3,
+        "matched": 2
+      },
+      "gelan": {
+        "det": 1,
+        "matched": 1
+      },
+      "gelan_pan2": {
+        "det": 4,
+        "matched": 2
+      },
+      "msblock": {
+        "det": 2,
+        "matched": 1
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/8.Airport_batch59_img101_weather_Partly_Cloudy_boxes_2_polys_0_BL.png",
+    "gt": 2,
+    "n_models_detect": 8,
+    "min_matched": 0,
+    "sum_matched": 7,
+    "per_model": {
+      "c2f": {
+        "det": 5,
+        "matched": 1
+      },
+      "c2f_deep": {
+        "det": 3,
+        "matched": 0
+      },
+      "c2f_pan2": {
+        "det": 6,
+        "matched": 2
+      },
+      "c2f_thick": {
+        "det": 11,
+        "matched": 2
+      },
+      "c3": {
+        "det": 5,
+        "matched": 1
+      },
+      "gelan": {
+        "det": 4,
+        "matched": 1
+      },
+      "gelan_pan2": {
+        "det": 4,
+        "matched": 0
+      },
+      "msblock": {
+        "det": 3,
+        "matched": 0
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/3.MilitaryUnit_batch28_img103_weather_Overcast_boxes_5_polys_0_TR.png",
+    "gt": 5,
+    "n_models_detect": 8,
+    "min_matched": 0,
+    "sum_matched": 2,
+    "per_model": {
+      "c2f": {
+        "det": 2,
+        "matched": 0
+      },
+      "c2f_deep": {
+        "det": 1,
+        "matched": 0
+      },
+      "c2f_pan2": {
+        "det": 6,
+        "matched": 0
+      },
+      "c2f_thick": {
+        "det": 1,
+        "matched": 0
+      },
+      "c3": {
+        "det": 2,
+        "matched": 0
+      },
+      "gelan": {
+        "det": 4,
+        "matched": 1
+      },
+      "gelan_pan2": {
+        "det": 2,
+        "matched": 1
+      },
+      "msblock": {
+        "det": 1,
+        "matched": 0
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/11.Downtown_batch15_img101_weather_Overcast_boxes_2_polys_0_TL.png",
+    "gt": 2,
+    "n_models_detect": 8,
+    "min_matched": 0,
+    "sum_matched": 0,
+    "per_model": {
+      "c2f": {
+        "det": 1,
+        "matched": 0
+      },
+      "c2f_deep": {
+        "det": 1,
+        "matched": 0
+      },
+      "c2f_pan2": {
+        "det": 1,
+        "matched": 0
+      },
+      "c2f_thick": {
+        "det": 1,
+        "matched": 0
+      },
+      "c3": {
+        "det": 1,
+        "matched": 0
+      },
+      "gelan": {
+        "det": 1,
+        "matched": 0
+      },
+      "gelan_pan2": {
+        "det": 1,
+        "matched": 0
+      },
+      "msblock": {
+        "det": 1,
+        "matched": 0
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/9.CityModern_batch63_img106_weather_Foggy_boxes_5_polys_0_BR.png",
+    "gt": 5,
+    "n_models_detect": 7,
+    "min_matched": 0,
+    "sum_matched": 23,
+    "per_model": {
+      "c2f": {
+        "det": 4,
+        "matched": 4
+      },
+      "c2f_deep": {
+        "det": 0,
+        "matched": 0
+      },
+      "c2f_pan2": {
+        "det": 4,
+        "matched": 4
+      },
+      "c2f_thick": {
+        "det": 4,
+        "matched": 4
+      },
+      "c3": {
+        "det": 3,
+        "matched": 3
+      },
+      "gelan": {
+        "det": 4,
+        "matched": 4
+      },
+      "gelan_pan2": {
+        "det": 4,
+        "matched": 3
+      },
+      "msblock": {
+        "det": 1,
+        "matched": 1
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/10.VillageMountain_batch10_img104_weather_Overcast_boxes_5_polys_0_BL.png",
+    "gt": 5,
+    "n_models_detect": 7,
+    "min_matched": 0,
+    "sum_matched": 22,
+    "per_model": {
+      "c2f": {
+        "det": 3,
+        "matched": 3
+      },
+      "c2f_deep": {
+        "det": 0,
+        "matched": 0
+      },
+      "c2f_pan2": {
+        "det": 5,
+        "matched": 3
+      },
+      "c2f_thick": {
+        "det": 5,
+        "matched": 4
+      },
+      "c3": {
+        "det": 5,
+        "matched": 5
+      },
+      "gelan": {
+        "det": 2,
+        "matched": 2
+      },
+      "gelan_pan2": {
+        "det": 2,
+        "matched": 2
+      },
+      "msblock": {
+        "det": 3,
+        "matched": 3
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/10.VillageMountain_batch10_img103_weather_Clear_Skies_boxes_6_polys_0_TR.png",
+    "gt": 6,
+    "n_models_detect": 7,
+    "min_matched": 0,
+    "sum_matched": 17,
+    "per_model": {
+      "c2f": {
+        "det": 2,
+        "matched": 1
+      },
+      "c2f_deep": {
+        "det": 1,
+        "matched": 1
+      },
+      "c2f_pan2": {
+        "det": 6,
+        "matched": 4
+      },
+      "c2f_thick": {
+        "det": 3,
+        "matched": 2
+      },
+      "c3": {
+        "det": 6,
+        "matched": 5
+      },
+      "gelan": {
+        "det": 2,
+        "matched": 2
+      },
+      "gelan_pan2": {
+        "det": 2,
+        "matched": 2
+      },
+      "msblock": {
+        "det": 0,
+        "matched": 0
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/4.Farm_batch32_img10_weather_Clear_Skies_boxes_6_polys_0_TR.png",
+    "gt": 6,
+    "n_models_detect": 7,
+    "min_matched": 0,
+    "sum_matched": 16,
+    "per_model": {
+      "c2f": {
+        "det": 6,
+        "matched": 5
+      },
+      "c2f_deep": {
+        "det": 0,
+        "matched": 0
+      },
+      "c2f_pan2": {
+        "det": 5,
+        "matched": 3
+      },
+      "c2f_thick": {
+        "det": 3,
+        "matched": 2
+      },
+      "c3": {
+        "det": 3,
+        "matched": 2
+      },
+      "gelan": {
+        "det": 2,
+        "matched": 1
+      },
+      "gelan_pan2": {
+        "det": 3,
+        "matched": 1
+      },
+      "msblock": {
+        "det": 4,
+        "matched": 2
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/1.Industrial_batch4_img101_weather_Partly_Cloudy_boxes_5_polys_0_TL.png",
+    "gt": 5,
+    "n_models_detect": 7,
+    "min_matched": 0,
+    "sum_matched": 16,
+    "per_model": {
+      "c2f": {
+        "det": 2,
+        "matched": 2
+      },
+      "c2f_deep": {
+        "det": 0,
+        "matched": 0
+      },
+      "c2f_pan2": {
+        "det": 2,
+        "matched": 2
+      },
+      "c2f_thick": {
+        "det": 2,
+        "matched": 2
+      },
+      "c3": {
+        "det": 3,
+        "matched": 3
+      },
+      "gelan": {
+        "det": 2,
+        "matched": 2
+      },
+      "gelan_pan2": {
+        "det": 3,
+        "matched": 3
+      },
+      "msblock": {
+        "det": 2,
+        "matched": 2
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/1.Industrial_batch4_img102_weather_Partly_Cloudy_boxes_5_polys_0_TL.png",
+    "gt": 5,
+    "n_models_detect": 7,
+    "min_matched": 0,
+    "sum_matched": 13,
+    "per_model": {
+      "c2f": {
+        "det": 2,
+        "matched": 2
+      },
+      "c2f_deep": {
+        "det": 0,
+        "matched": 0
+      },
+      "c2f_pan2": {
+        "det": 2,
+        "matched": 1
+      },
+      "c2f_thick": {
+        "det": 6,
+        "matched": 3
+      },
+      "c3": {
+        "det": 2,
+        "matched": 2
+      },
+      "gelan": {
+        "det": 3,
+        "matched": 2
+      },
+      "gelan_pan2": {
+        "det": 3,
+        "matched": 2
+      },
+      "msblock": {
+        "det": 1,
+        "matched": 1
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/2.CityWinter_batch22_img101_weather_Snow_boxes_5_polys_0_TL.png",
+    "gt": 5,
+    "n_models_detect": 7,
+    "min_matched": 0,
+    "sum_matched": 12,
+    "per_model": {
+      "c2f": {
+        "det": 2,
+        "matched": 2
+      },
+      "c2f_deep": {
+        "det": 1,
+        "matched": 1
+      },
+      "c2f_pan2": {
+        "det": 2,
+        "matched": 2
+      },
+      "c2f_thick": {
+        "det": 3,
+        "matched": 2
+      },
+      "c3": {
+        "det": 2,
+        "matched": 2
+      },
+      "gelan": {
+        "det": 1,
+        "matched": 1
+      },
+      "gelan_pan2": {
+        "det": 3,
+        "matched": 2
+      },
+      "msblock": {
+        "det": 0,
+        "matched": 0
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/6.CityDirty_batch45_img100_weather_Partly_Cloudy_boxes_2_polys_0_BL.png",
+    "gt": 2,
+    "n_models_detect": 7,
+    "min_matched": 0,
+    "sum_matched": 8,
+    "per_model": {
+      "c2f": {
+        "det": 1,
+        "matched": 1
+      },
+      "c2f_deep": {
+        "det": 1,
+        "matched": 1
+      },
+      "c2f_pan2": {
+        "det": 3,
+        "matched": 2
+      },
+      "c2f_thick": {
+        "det": 1,
+        "matched": 1
+      },
+      "c3": {
+        "det": 1,
+        "matched": 1
+      },
+      "gelan": {
+        "det": 1,
+        "matched": 1
+      },
+      "gelan_pan2": {
+        "det": 1,
+        "matched": 1
+      },
+      "msblock": {
+        "det": 0,
+        "matched": 0
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/3.MilitaryUnit_batch28_img100_weather_Foggy_boxes_5_polys_0_BR.png",
+    "gt": 5,
+    "n_models_detect": 6,
+    "min_matched": 0,
+    "sum_matched": 14,
+    "per_model": {
+      "c2f": {
+        "det": 4,
+        "matched": 4
+      },
+      "c2f_deep": {
+        "det": 0,
+        "matched": 0
+      },
+      "c2f_pan2": {
+        "det": 3,
+        "matched": 2
+      },
+      "c2f_thick": {
+        "det": 4,
+        "matched": 4
+      },
+      "c3": {
+        "det": 1,
+        "matched": 1
+      },
+      "gelan": {
+        "det": 0,
+        "matched": 0
+      },
+      "gelan_pan2": {
+        "det": 1,
+        "matched": 1
+      },
+      "msblock": {
+        "det": 2,
+        "matched": 2
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/10.VillageMountain_batch10_img103_weather_Clear_Skies_boxes_3_polys_0_BR.png",
+    "gt": 3,
+    "n_models_detect": 6,
+    "min_matched": 0,
+    "sum_matched": 12,
+    "per_model": {
+      "c2f": {
+        "det": 3,
+        "matched": 2
+      },
+      "c2f_deep": {
+        "det": 1,
+        "matched": 1
+      },
+      "c2f_pan2": {
+        "det": 2,
+        "matched": 2
+      },
+      "c2f_thick": {
+        "det": 4,
+        "matched": 3
+      },
+      "c3": {
+        "det": 3,
+        "matched": 3
+      },
+      "gelan": {
+        "det": 1,
+        "matched": 1
+      },
+      "gelan_pan2": {
+        "det": 0,
+        "matched": 0
+      },
+      "msblock": {
+        "det": 0,
+        "matched": 0
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/11.Downtown_batch15_img100_weather_Overcast_boxes_3_polys_0_TL.png",
+    "gt": 3,
+    "n_models_detect": 6,
+    "min_matched": 0,
+    "sum_matched": 10,
+    "per_model": {
+      "c2f": {
+        "det": 0,
+        "matched": 0
+      },
+      "c2f_deep": {
+        "det": 0,
+        "matched": 0
+      },
+      "c2f_pan2": {
+        "det": 1,
+        "matched": 1
+      },
+      "c2f_thick": {
+        "det": 3,
+        "matched": 2
+      },
+      "c3": {
+        "det": 2,
+        "matched": 2
+      },
+      "gelan": {
+        "det": 1,
+        "matched": 1
+      },
+      "gelan_pan2": {
+        "det": 3,
+        "matched": 2
+      },
+      "msblock": {
+        "det": 2,
+        "matched": 2
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/5.Beach_batch38_img103_weather_Partly_Cloudy_boxes_2_polys_0_TR.png",
+    "gt": 2,
+    "n_models_detect": 6,
+    "min_matched": 0,
+    "sum_matched": 6,
+    "per_model": {
+      "c2f": {
+        "det": 3,
+        "matched": 1
+      },
+      "c2f_deep": {
+        "det": 1,
+        "matched": 1
+      },
+      "c2f_pan2": {
+        "det": 2,
+        "matched": 1
+      },
+      "c2f_thick": {
+        "det": 1,
+        "matched": 1
+      },
+      "c3": {
+        "det": 0,
+        "matched": 0
+      },
+      "gelan": {
+        "det": 1,
+        "matched": 1
+      },
+      "gelan_pan2": {
+        "det": 1,
+        "matched": 1
+      },
+      "msblock": {
+        "det": 0,
+        "matched": 0
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/11.Downtown_batch15_img102_weather_Partly_Cloudy_boxes_3_polys_0_TR.png",
+    "gt": 3,
+    "n_models_detect": 6,
+    "min_matched": 0,
+    "sum_matched": 6,
+    "per_model": {
+      "c2f": {
+        "det": 0,
+        "matched": 0
+      },
+      "c2f_deep": {
+        "det": 1,
+        "matched": 1
+      },
+      "c2f_pan2": {
+        "det": 1,
+        "matched": 1
+      },
+      "c2f_thick": {
+        "det": 1,
+        "matched": 1
+      },
+      "c3": {
+        "det": 1,
+        "matched": 1
+      },
+      "gelan": {
+        "det": 1,
+        "matched": 1
+      },
+      "gelan_pan2": {
+        "det": 1,
+        "matched": 1
+      },
+      "msblock": {
+        "det": 0,
+        "matched": 0
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/9.CityModern_batch63_img105_weather_Rain_Light_boxes_2_polys_0_BL.png",
+    "gt": 2,
+    "n_models_detect": 6,
+    "min_matched": 0,
+    "sum_matched": 3,
+    "per_model": {
+      "c2f": {
+        "det": 2,
+        "matched": 0
+      },
+      "c2f_deep": {
+        "det": 0,
+        "matched": 0
+      },
+      "c2f_pan2": {
+        "det": 2,
+        "matched": 0
+      },
+      "c2f_thick": {
+        "det": 1,
+        "matched": 1
+      },
+      "c3": {
+        "det": 2,
+        "matched": 1
+      },
+      "gelan": {
+        "det": 1,
+        "matched": 1
+      },
+      "gelan_pan2": {
+        "det": 1,
+        "matched": 0
+      },
+      "msblock": {
+        "det": 0,
+        "matched": 0
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/4.Farm_batch32_img10_weather_Clear_Skies_boxes_6_polys_0_TL.png",
+    "gt": 6,
+    "n_models_detect": 5,
+    "min_matched": 0,
+    "sum_matched": 7,
+    "per_model": {
+      "c2f": {
+        "det": 3,
+        "matched": 2
+      },
+      "c2f_deep": {
+        "det": 0,
+        "matched": 0
+      },
+      "c2f_pan2": {
+        "det": 2,
+        "matched": 2
+      },
+      "c2f_thick": {
+        "det": 1,
+        "matched": 0
+      },
+      "c3": {
+        "det": 2,
+        "matched": 2
+      },
+      "gelan": {
+        "det": 1,
+        "matched": 1
+      },
+      "gelan_pan2": {
+        "det": 0,
+        "matched": 0
+      },
+      "msblock": {
+        "det": 0,
+        "matched": 0
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/6.CityDirty_batch45_img100_weather_Partly_Cloudy_boxes_3_polys_0_TL.png",
+    "gt": 3,
+    "n_models_detect": 5,
+    "min_matched": 0,
+    "sum_matched": 6,
+    "per_model": {
+      "c2f": {
+        "det": 1,
+        "matched": 1
+      },
+      "c2f_deep": {
+        "det": 0,
+        "matched": 0
+      },
+      "c2f_pan2": {
+        "det": 2,
+        "matched": 1
+      },
+      "c2f_thick": {
+        "det": 2,
+        "matched": 1
+      },
+      "c3": {
+        "det": 2,
+        "matched": 2
+      },
+      "gelan": {
+        "det": 0,
+        "matched": 0
+      },
+      "gelan_pan2": {
+        "det": 1,
+        "matched": 1
+      },
+      "msblock": {
+        "det": 0,
+        "matched": 0
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/3.MilitaryUnit_batch28_img105_weather_Partly_Cloudy_boxes_4_polys_0_BR.png",
+    "gt": 4,
+    "n_models_detect": 5,
+    "min_matched": 0,
+    "sum_matched": 5,
+    "per_model": {
+      "c2f": {
+        "det": 1,
+        "matched": 1
+      },
+      "c2f_deep": {
+        "det": 0,
+        "matched": 0
+      },
+      "c2f_pan2": {
+        "det": 1,
+        "matched": 1
+      },
+      "c2f_thick": {
+        "det": 4,
+        "matched": 2
+      },
+      "c3": {
+        "det": 0,
+        "matched": 0
+      },
+      "gelan": {
+        "det": 0,
+        "matched": 0
+      },
+      "gelan_pan2": {
+        "det": 1,
+        "matched": 1
+      },
+      "msblock": {
+        "det": 1,
+        "matched": 0
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/3.MilitaryUnit_batch28_img106_weather_Clear_Skies_boxes_3_polys_0_TR.png",
+    "gt": 3,
+    "n_models_detect": 5,
+    "min_matched": 0,
+    "sum_matched": 2,
+    "per_model": {
+      "c2f": {
+        "det": 2,
+        "matched": 1
+      },
+      "c2f_deep": {
+        "det": 0,
+        "matched": 0
+      },
+      "c2f_pan2": {
+        "det": 3,
+        "matched": 1
+      },
+      "c2f_thick": {
+        "det": 2,
+        "matched": 0
+      },
+      "c3": {
+        "det": 1,
+        "matched": 0
+      },
+      "gelan": {
+        "det": 2,
+        "matched": 0
+      },
+      "gelan_pan2": {
+        "det": 0,
+        "matched": 0
+      },
+      "msblock": {
+        "det": 0,
+        "matched": 0
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/1.Industrial_batch4_img103_weather_Clear_Skies_boxes_3_polys_0_TL.png",
+    "gt": 3,
+    "n_models_detect": 4,
+    "min_matched": 0,
+    "sum_matched": 7,
+    "per_model": {
+      "c2f": {
+        "det": 0,
+        "matched": 0
+      },
+      "c2f_deep": {
+        "det": 0,
+        "matched": 0
+      },
+      "c2f_pan2": {
+        "det": 1,
+        "matched": 2
+      },
+      "c2f_thick": {
+        "det": 1,
+        "matched": 2
+      },
+      "c3": {
+        "det": 1,
+        "matched": 2
+      },
+      "gelan": {
+        "det": 0,
+        "matched": 0
+      },
+      "gelan_pan2": {
+        "det": 0,
+        "matched": 0
+      },
+      "msblock": {
+        "det": 1,
+        "matched": 1
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/2.CityWinter_batch22_img125_weather_Cloudy_boxes_2_polys_0_TL.png",
+    "gt": 2,
+    "n_models_detect": 4,
+    "min_matched": 0,
+    "sum_matched": 5,
+    "per_model": {
+      "c2f": {
+        "det": 0,
+        "matched": 0
+      },
+      "c2f_deep": {
+        "det": 1,
+        "matched": 1
+      },
+      "c2f_pan2": {
+        "det": 0,
+        "matched": 0
+      },
+      "c2f_thick": {
+        "det": 3,
+        "matched": 2
+      },
+      "c3": {
+        "det": 1,
+        "matched": 1
+      },
+      "gelan": {
+        "det": 0,
+        "matched": 0
+      },
+      "gelan_pan2": {
+        "det": 1,
+        "matched": 1
+      },
+      "msblock": {
+        "det": 0,
+        "matched": 0
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/1.Industrial_batch4_img100_weather_Partly_Cloudy_boxes_2_polys_0_TL.png",
+    "gt": 2,
+    "n_models_detect": 4,
+    "min_matched": 0,
+    "sum_matched": 4,
+    "per_model": {
+      "c2f": {
+        "det": 1,
+        "matched": 1
+      },
+      "c2f_deep": {
+        "det": 0,
+        "matched": 0
+      },
+      "c2f_pan2": {
+        "det": 1,
+        "matched": 1
+      },
+      "c2f_thick": {
+        "det": 1,
+        "matched": 1
+      },
+      "c3": {
+        "det": 0,
+        "matched": 0
+      },
+      "gelan": {
+        "det": 0,
+        "matched": 0
+      },
+      "gelan_pan2": {
+        "det": 1,
+        "matched": 1
+      },
+      "msblock": {
+        "det": 0,
+        "matched": 0
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/4.Farm_batch32_img11_weather_Partly_Cloudy_boxes_6_polys_0_BL.png",
+    "gt": 6,
+    "n_models_detect": 4,
+    "min_matched": 0,
+    "sum_matched": 2,
+    "per_model": {
+      "c2f": {
+        "det": 1,
+        "matched": 0
+      },
+      "c2f_deep": {
+        "det": 0,
+        "matched": 0
+      },
+      "c2f_pan2": {
+        "det": 2,
+        "matched": 0
+      },
+      "c2f_thick": {
+        "det": 7,
+        "matched": 2
+      },
+      "c3": {
+        "det": 0,
+        "matched": 0
+      },
+      "gelan": {
+        "det": 1,
+        "matched": 0
+      },
+      "gelan_pan2": {
+        "det": 0,
+        "matched": 0
+      },
+      "msblock": {
+        "det": 0,
+        "matched": 0
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/10.VillageMountain_batch10_img101_weather_Clear_Skies_boxes_5_polys_0_BL.png",
+    "gt": 5,
+    "n_models_detect": 3,
+    "min_matched": 0,
+    "sum_matched": 4,
+    "per_model": {
+      "c2f": {
+        "det": 1,
+        "matched": 1
+      },
+      "c2f_deep": {
+        "det": 0,
+        "matched": 0
+      },
+      "c2f_pan2": {
+        "det": 1,
+        "matched": 1
+      },
+      "c2f_thick": {
+        "det": 3,
+        "matched": 2
+      },
+      "c3": {
+        "det": 0,
+        "matched": 0
+      },
+      "gelan": {
+        "det": 0,
+        "matched": 0
+      },
+      "gelan_pan2": {
+        "det": 0,
+        "matched": 0
+      },
+      "msblock": {
+        "det": 0,
+        "matched": 0
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/11.Downtown_batch15_img102_weather_Partly_Cloudy_boxes_2_polys_0_TL.png",
+    "gt": 2,
+    "n_models_detect": 3,
+    "min_matched": 0,
+    "sum_matched": 4,
+    "per_model": {
+      "c2f": {
+        "det": 0,
+        "matched": 0
+      },
+      "c2f_deep": {
+        "det": 1,
+        "matched": 1
+      },
+      "c2f_pan2": {
+        "det": 2,
+        "matched": 1
+      },
+      "c2f_thick": {
+        "det": 2,
+        "matched": 2
+      },
+      "c3": {
+        "det": 0,
+        "matched": 0
+      },
+      "gelan": {
+        "det": 0,
+        "matched": 0
+      },
+      "gelan_pan2": {
+        "det": 0,
+        "matched": 0
+      },
+      "msblock": {
+        "det": 0,
+        "matched": 0
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/11.Downtown_batch15_img101_weather_Overcast_boxes_2_polys_0_BL.png",
+    "gt": 2,
+    "n_models_detect": 2,
+    "min_matched": 0,
+    "sum_matched": 0,
+    "per_model": {
+      "c2f": {
+        "det": 0,
+        "matched": 0
+      },
+      "c2f_deep": {
+        "det": 1,
+        "matched": 0
+      },
+      "c2f_pan2": {
+        "det": 2,
+        "matched": 0
+      },
+      "c2f_thick": {
+        "det": 0,
+        "matched": 0
+      },
+      "c3": {
+        "det": 0,
+        "matched": 0
+      },
+      "gelan": {
+        "det": 0,
+        "matched": 0
+      },
+      "gelan_pan2": {
+        "det": 0,
+        "matched": 0
+      },
+      "msblock": {
+        "det": 0,
+        "matched": 0
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/2.CityWinter_batch22_img134_weather_Clear_Skies_boxes_2_polys_0_BR.png",
+    "gt": 2,
+    "n_models_detect": 2,
+    "min_matched": 0,
+    "sum_matched": 0,
+    "per_model": {
+      "c2f": {
+        "det": 0,
+        "matched": 0
+      },
+      "c2f_deep": {
+        "det": 0,
+        "matched": 0
+      },
+      "c2f_pan2": {
+        "det": 1,
+        "matched": 0
+      },
+      "c2f_thick": {
+        "det": 0,
+        "matched": 0
+      },
+      "c3": {
+        "det": 0,
+        "matched": 0
+      },
+      "gelan": {
+        "det": 0,
+        "matched": 0
+      },
+      "gelan_pan2": {
+        "det": 1,
+        "matched": 0
+      },
+      "msblock": {
+        "det": 0,
+        "matched": 0
+      }
+    }
+  },
+  {
+    "image": "/run/media/bogdan/3E4252C842528495/Data/sentai_human/dataset_curated_640_480_clean/images/11.Downtown_batch15_img100_weather_Overcast_boxes_2_polys_0_TR.png",
+    "gt": 2,
+    "n_models_detect": 0,
+    "min_matched": 0,
+    "sum_matched": 0,
+    "per_model": {
+      "c2f": {
+        "det": 0,
+        "matched": 0
+      },
+      "c2f_deep": {
+        "det": 0,
+        "matched": 0
+      },
+      "c2f_pan2": {
+        "det": 0,
+        "matched": 0
+      },
+      "c2f_thick": {
+        "det": 0,
+        "matched": 0
+      },
+      "c3": {
+        "det": 0,
+        "matched": 0
+      },
+      "gelan": {
+        "det": 0,
+        "matched": 0
+      },
+      "gelan_pan2": {
+        "det": 0,
+        "matched": 0
+      },
+      "msblock": {
+        "det": 0,
+        "matched": 0
+      }
+    }
+  }
+]

@@ -56,7 +56,24 @@ class TpuDriver {
   bool SendInputs(const uint8_t* data, uint32_t length) const;
   bool SendInstructions(const uint8_t* data, uint32_t length) const;
   bool GetOutputs(uint8_t* data, uint32_t length) const;
+  // Host-mediated activation spill for wide models (BASE_ADDRESS_SCRATCH).
+  // GetScratch drains an OUTFEED spill (device->host, bulk-IN, like
+  // GetOutputs); SendScratch returns it on the next INFEED (host->device,
+  // routed on the input-activation tag).  The host just parks the TPU's
+  // working set in M7 RAM between the two halves of a split compute.
+  bool GetScratch(uint8_t* data, uint32_t length) const;
+  bool SendScratch(const uint8_t* data, uint32_t length) const;
   bool ReadEvent() const;
+  // sentai: read + print the TPU HIB error-status + scalar-core run-status CSRs
+  // over USB. Use after a failed invoke to see whether the TPU latched a
+  // hardware fault (unsupported op / memory fault) and where its scalar core
+  // stopped. CSR path is independent of the wedged compute pipeline.
+  void DumpErrorCsrs() const;
+  // sentai: read TPU error CSRs and latch them into the RAM global
+  // g_sentai_tpu_fault_csr so they survive the USB-stack wedge that a failed
+  // invoke causes (CDC REPL dies, but M7 RAM is JTAG-readable). Called from
+  // the invoke fault path.
+  void LatchErrorCsrs(uint16_t code) const;
   float GetTemperature();
 
  private:
@@ -66,12 +83,16 @@ class TpuDriver {
   };
 
   bool BulkOutTransfer(uint8_t endpoint, const uint8_t* data,
-                       uint32_t data_length) const;
+                       uint32_t data_length,
+                       DescriptorTag tag = DescriptorTag::kUnknown) const;
   ssize_t BulkOutTransferInternal(uint8_t endpoint, const uint8_t* data,
-                                  uint32_t data_length) const;
-  bool BulkInTransfer(uint8_t* data, uint32_t data_length) const;
+                                  uint32_t data_length,
+                                  DescriptorTag tag) const;
+  bool BulkInTransfer(uint8_t* data, uint32_t data_length,
+                      DescriptorTag tag = DescriptorTag::kOutputActivations) const;
   ssize_t BulkInTransferInternal(uint8_t endpoint, uint8_t* data,
-                                 uint32_t data_length) const;
+                                 uint32_t data_length,
+                                 DescriptorTag tag) const;
 
   bool SendData(DescriptorTag tag, const uint8_t* data, uint32_t length) const;
   bool WriteHeader(DescriptorTag tag, uint32_t length,

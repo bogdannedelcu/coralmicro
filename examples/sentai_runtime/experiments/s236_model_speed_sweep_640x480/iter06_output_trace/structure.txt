@@ -1,0 +1,8 @@
+msblock     param_caching=YES seq=NPNIOO         multipass=no invoke=OK
+c3          param_caching=YES seq=NPNIOO         multipass=no invoke=OK
+c2f         param_caching=YES seq=NPNIOO         multipass=no invoke=OK
+c2f_pan2    param_caching=YES seq=NPNIOO         multipass=no invoke=OK
+gelan       param_caching=YES seq=NPNIOO         multipass=no invoke=OK
+gelan_pan2  param_caching=YES seq=NPNIONO        multipass=YES invoke=OK
+c2f_deep    param_caching=no  seq=NPNIONO        multipass=YES invoke=OK
+c2f_thick   param_caching=no  seq=               multipass=no invoke=OK

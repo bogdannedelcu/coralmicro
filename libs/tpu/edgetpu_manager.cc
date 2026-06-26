@@ -236,6 +236,16 @@ TfLiteStatus EdgeTpuManager::Invoke(EdgeTpuPackage* package,
   return package->inference_exe()->Invoke(tpu_driver_, context, node);
 }
 
+TfLiteStatus EdgeTpuManager::PrepareScratch(EdgeTpuPackage* package,
+                                            TfLiteContext* context) {
+  TfLiteStatus st = package->inference_exe()->PrepareScratch(context);
+  if (st != kTfLiteOk) return st;
+  if (package->parameter_caching_exe()) {
+    st = package->parameter_caching_exe()->PrepareScratch(context);
+  }
+  return st;
+}
+
 std::optional<float> EdgeTpuManager::GetTemperature() {
 #if !defined(SENTAI_PLATFORM_SIM) && !defined(SENTAI_ARM_EMU_TPU_HOST_BRIDGE)
   MutexLock lock(mutex_);
@@ -244,6 +254,18 @@ std::optional<float> EdgeTpuManager::GetTemperature() {
   auto context = context_.lock();
   if (context) return tpu_driver_.GetTemperature();
   return std::nullopt;
+}
+
+void EdgeTpuManager::DumpTpuErrorCsrs() {
+#if !defined(SENTAI_PLATFORM_SIM) && !defined(SENTAI_ARM_EMU_TPU_HOST_BRIDGE)
+  MutexLock lock(mutex_);
+#endif
+  tpu_driver_.DumpErrorCsrs();
+}
+
+// C bridge for the MicroPython sentai.tpu.csr_errors() diagnostic.
+extern "C" void sentai_tpu_csr_errors(void) {
+  EdgeTpuManager::GetSingleton()->DumpTpuErrorCsrs();
 }
 
 }  // namespace coralmicro
