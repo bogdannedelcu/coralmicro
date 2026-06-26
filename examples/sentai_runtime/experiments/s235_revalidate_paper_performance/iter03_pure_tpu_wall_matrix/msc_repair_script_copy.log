@@ -1,0 +1,13 @@
+TARGET                      SOURCE   FSTYPE OPTIONS
+/run/media/bogdan/0000-0001 /dev/sdc vfat   rw,nosuid,nodev,relatime,uid=1000,gid=1000,fmask=0022,dmask=0022,codepage=437,iocharset=iso8859-1,shortname=mixed,showexec,utf8,flush,errors=remount-ro
+total 5476
+drwxr-xr-x 5 bogdan bogdan    8192 Jan  1  1970 .
+drwxr-x---+5 root   root       100 Jun 24 10:53 ..
+drwxr-xr-x 3 bogdan bogdan    2048 Jan  1  2017 diags
+drwxr-xr-x 3 bogdan bogdan    2048 Jan  1  2017 lib
+drwxr-xr-x 2 bogdan bogdan    2048 Jan  1  2017 log
+-rw-r--r-- 1 bogdan bogdan 5591680 Jun 24 10:44 yolo_1_class_512_1_upsample_512_inloc_de_1024_la_P5_32.tflite
+0007750e78fe1b570f840f35f4d64ee881cbc4175ca4939f34dd9f0011120402  examples/sentai_runtime/diag/pure_tpu_wall_one_chunk.py
+0007750e78fe1b570f840f35f4d64ee881cbc4175ca4939f34dd9f0011120402  /run/media/bogdan/0000-0001/lib/diag/pure_tpu_wall_one_chunk.py
+97:    prev_chunk = sentai.tpu.chunk_size()
+98:    now_chunk = sentai.tpu.chunk_size(CHUNK_KB * 1024)

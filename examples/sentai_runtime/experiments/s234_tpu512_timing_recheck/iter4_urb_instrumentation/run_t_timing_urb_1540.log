@@ -1,0 +1,22 @@
+PORT /dev/ttyACM0
+
+KeyboardInterrupt
+>>> 
+>>> 
+>>> import sentai
+>>> xec(sentai.fs.read_str('/lib/diag/_t_timing_urb.py'))
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 'xec' isn't defined
+>>> 
+>>> 
+NO_OUTPUT_20S
+
+NO_OUTPUT_20S
+
+NO_OUTPUT_20S
+
+NO_OUTPUT_20S
+
+SERIAL_EXCEPTION SerialException('device reports readiness to read but returned no data (device disconnected or multiple access on port?)')
+RUN_DID_NOT_COMPLETE

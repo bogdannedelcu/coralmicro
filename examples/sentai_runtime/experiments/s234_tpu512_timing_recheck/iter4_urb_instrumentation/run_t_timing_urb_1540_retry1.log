@@ -1,0 +1,91 @@
+PORT /dev/ttyACM0
+
+KeyboardInterrupt
+>>> 
+>>> 
+>>> 
+>>> 
+>>> import sentai
+>>> exec(sentai.fs.read_str('/lib/diag/_t_timing_urb.py'))
+S234 iter4 URB timing
+model=/yolo_1_class_512_1_upsample_512_inloc_de_1024_la_P5_32.tflite
+runs=5 invokes_per_run=30
+Model loaded: 5591680 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x87d0eda232ac7cda
+Input:  uint8[1,512,512,3] (786432 bytes)
+  quant: scale=0.00392157  zero_point=0
+Outputs: 1
+  [0] uint8[1,1344,6] (8064 bytes)
+      quant: scale=0.00392150  zero_point=0
+Arena used: 776 / 8192 KB
+Model name: yolo_1_class_512_1_upsample_512_
+HandlePowerRequest: try I2C1: Success
+HandlePowerRequest: try I2C2: Success
+CAMERA_RECEIVER_Init = 0
+BOARD_PullCameraPowerDownPin:1
+BOARD_PullCameraResetPin:0
+BOARD_PullCameraPowerDownPin:0
+BOARD_PullCameraResetPin:1
+CAMERA_DEVICE_Init = 0
+CAMERA_DEVICE_Start = 0
+CAMERA_RECEIVER_Start = 0
+[CAM] sensor_fps=30 (1 s sample, target=30)
+[CAM1] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM1] W 0x3820=0x47 (0)
+[CAM1] W 0x3821=0x01 (0)
+[CAM0] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM0] W 0x3820=0x47 (0)
+[CAM0] W 0x3821=0x01 (0)
+[to_tensor] frame=2ms pxp=11ms quant=0ms total=13ms (512x512)
+warmed
+=== run 0 ===
+total_ms_per_invoke=14.533
+cycle_hz=792000000
+tag,calls,callbacks,bytes_req,bytes_done,submit_ms,callback_ms,wait_ms,errors,timeouts,submit_fail
+instructions,390,390,11150400,11150400,4.433596,104.765472,105.754631,0,0,0
+input,750,750,24330720,24330720,9.242097,133.997269,135.900360,0,0,0
+parameters,60,60,82800,82800,0.229494,2.865452,3.017458,0,0,0
+output,30,30,322560,322560,0.216552,18.914713,18.991394,0,0,0
+event,30,30,480,480,0.092778,0.703188,0.780158,0,0,0
+unknown,0,0,0,0,0.000000,0.000000,0.000000,0,0,0
+=== run 1 ===
+total_ms_per_invoke=14.367
+cycle_hz=792000000
+tag,calls,callbacks,bytes_req,bytes_done,submit_ms,callback_ms,wait_ms,errors,timeouts,submit_fail
+instructions,390,390,11150400,11150400,4.448965,96.425858,97.417961,0,0,0
+input,750,750,24330720,24330720,9.244054,137.589371,139.490524,0,0,0
+parameters,60,60,82800,82800,0.229050,2.822505,2.975405,0,0,0
+output,30,30,322560,322560,0.216365,18.376410,18.453007,0,0,0
+event,30,30,480,480,0.092985,0.729516,0.807865,0,0,0
+unknown,0,0,0,0,0.000000,0.000000,0.000000,0,0,0
+=== run 2 ===
+total_ms_per_invoke=14.400
+cycle_hz=792000000
+tag,calls,callbacks,bytes_req,bytes_done,submit_ms,callback_ms,wait_ms,errors,timeouts,submit_fail
+instructions,390,390,11150400,11150400,4.440091,103.370407,104.365768,0,0,0
+input,750,750,24330720,24330720,9.243459,134.903381,136.810211,0,0,0
+parameters,60,60,82800,82800,0.228018,2.857478,3.009691,0,0,0
+output,30,30,322560,322560,0.218619,19.960493,20.037916,0,0,0
+event,30,30,480,480,0.092746,0.735919,0.811705,0,0,0
+unknown,0,0,0,0,0.000000,0.000000,0.000000,0,0,0
+=== run 3 ===
+total_ms_per_invoke=15.233
+cycle_hz=792000000
+tag,calls,callbacks,bytes_req,bytes_done,submit_ms,callback_ms,wait_ms,errors,timeouts,submit_fail
+instructions,390,390,11150400,11150400,4.432990,99.237816,100.226997,0,0,0
+input,750,750,24330720,24330720,9.241979,149.596817,151.491028,0,0,0
+parameters,60,60,82800,82800,0.227013,2.838507,2.990001,0,0,0
+output,30,30,322560,322560,0.217232,17.319693,17.395977,0,0,0
+event,30,30,480,480,0.093663,0.519547,0.595587,0,0,0
+unknown,0,0,0,0,0.000000,0.000000,0.000000,0,0,0
+=== run 4 ===
+total_ms_per_invoke=15.533
+cycle_hz=792000000
+tag,calls,callbacks,bytes_req,bytes_done,submit_ms,callback_ms,wait_ms,errors,timeouts,submit_fail
+instructions,390,390,11150400,11150400,4.427722,103.783707,104.777077,0,0,0
+input,750,750,24330720,24330720,9.242357,156.698303,158.603592,0,0,0
+parameters,60,60,82800,82800,0.227936,2.832586,2.984381,0,0,0
+output,30,30,322560,322560,0.216215,18.396162,18.471354,0,0,0
+event,30,30,480,480,0.092801,0.746889,0.824705,0,0,0
+unknown,0,0,0,0,0.000000,0.000000,0.000000,0,0,0
+=== done ===

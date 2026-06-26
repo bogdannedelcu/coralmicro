@@ -603,6 +603,16 @@ static uint32_t publish_aux_slots_from_raw(uint8_t* raw) {
     return fire_mask;
 }
 
+extern "C" int sentai_camera_backend_publish_prep_once(void) {
+    if (!sentai_cam_is_initialized()) return -1;
+    uint8_t* raw = nullptr;
+    const int idx = sentai_cam_grab_latest(&raw);
+    if (idx < 0 || !raw) return -2;
+    (void)publish_aux_slots_from_raw(raw);
+    sentai_cam_return_raw(idx);
+    return 0;
+}
+
 static int publish_aux_slots_from_rgb888(uint8_t* rgb) {
     if (!rgb || !sentai_camera_backend_publish_prep_slots_rgb888) return -1;
     return sentai_camera_backend_publish_prep_slots_rgb888(rgb);

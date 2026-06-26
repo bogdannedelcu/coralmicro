@@ -1,0 +1,40 @@
+20:09:52.2710 [INFO] Loaded monitor commands from: /home/bogdan/work/renode_portable/scripts/monitor.py
+Renode, version 1.16.1 (d66b0c2a-202602160923)
+
+
+(monitor) i $CWD/emu/renode/sentai_emu_tpu_cat_repl.resc
+
+20:09:52.4152 [INFO] Including script(s): /home/bogdan/work/coralmicro/emu/renode/sentai_emu_tpu_cat_repl.resc
+20:09:52.4280 [INFO] System bus created.
+20:09:53.5652 [INFO] Old file /home/bogdan/work/coralmicro/emu/output/sentai_emu_tpu_cat_repl.log moved to /home/bogdan/work/coralmicro/emu/output/sentai_emu_tpu_cat_repl.log.2
+20:09:53.5801 [INFO] sysbus: Loading block of 3072 bytes length at 0x0.
+20:09:53.5880 [INFO] sysbus: Loading block of 246784 bytes length at 0xC00.
+20:09:53.5881 [INFO] sysbus: Loading block of 203328 bytes length at 0x3D000.
+20:09:53.5883 [INFO] sysbus: Loading block of 16777216 bytes length at 0x80000000.
+20:09:53.5987 [INFO] sysbus: Loading block of 54680 bytes length at 0x81000000.
+20:09:54.1441 [INFO] cpu: Setting initial values: PC = 0xCBD, SP = 0x20040000.
+20:09:54.1452 [INFO] machine-0: Machine started.
+20:09:54.2001 [WARNING] nvic: Unhandled write to offset 0xF50 (ICacheInvalidateAllToPoUaIgnored), value 0x0.
+20:09:54.2195 [WARNING] nvic: Trying to set the priority for interrupt 16 to 0xFF, but it should be maskable with 0xF0
+20:10:02.5537 [INFO] machine-0: Machine paused.
+sentai_emu_tpu_cat_repl PC:
+
+0x16050
+
+sentai_emu_tpu_cat_repl boot_state:
+
+0x00000500
+
+sentai_emu_tpu_cat_repl heartbeat:
+
+0x0000001E
+
+sentai_emu_tpu_cat_repl repl_lines:
+
+0x00000001
+
+sentai_emu_tpu_cat_repl last_tick:
+
+0x0000134D
+
+(machine-0) 20:10:02.6290 [INFO] machine-0: Disposed.

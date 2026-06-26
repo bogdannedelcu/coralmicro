@@ -1,0 +1,20 @@
+import sentai; exec(sentai.fs.read('/lib/diag/camera_drain_probe_once.py'))
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+  File "<string>", line 105
+SyntaxError: invalid syntax for integer with base 16
+>>> 
+KeyboardInterrupt
+>>> 
+KeyboardInterrupt
+>>> >>> 
+KeyboardInterrupt
+>>> 
+KeyboardInterrupt
+>>> 
+>>> 
+>>> 
+KeyboardInterrupt
+>>> 
+KeyboardInterrupt
+>>> 

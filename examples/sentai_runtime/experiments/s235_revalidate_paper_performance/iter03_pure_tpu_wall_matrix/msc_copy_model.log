@@ -1,0 +1,11 @@
+2026-06-24T10:44:43+03:00
+mount=/run/media/bogdan/0000-0001
+total 12
+drwxr-xr-x 4 bogdan bogdan 8192 Jan  1  1970 .
+drwxr-x---+5 root   root    100 Jun 24 10:43 ..
+drwxr-xr-x 2 bogdan bogdan 2048 Jan  1  2017 diags
+drwxr-xr-x 3 bogdan bogdan 2048 Jan  1  2017 lib
+-rw-r--r-- 1 bogdan bogdan 4.4K Jun 24 10:44 /run/media/bogdan/0000-0001/lib/diag/pure_tpu_wall_one_chunk.py
+-rw-r--r-- 1 bogdan bogdan 5.4M Jun 24 10:44 /run/media/bogdan/0000-0001/yolo_1_class_512_1_upsample_512_inloc_de_1024_la_P5_32.tflite
+49942d36335f1e09ee10d29b967bf413c8d449a3261d9d7bb9cb1d51a8a73e4f  /run/media/bogdan/0000-0001/yolo_1_class_512_1_upsample_512_inloc_de_1024_la_P5_32.tflite
+49942d36335f1e09ee10d29b967bf413c8d449a3261d9d7bb9cb1d51a8a73e4f  models/yolo_1_class_512_1_upsample_512_inloc_de_1024_la_P5_32.tflite

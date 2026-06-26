@@ -1,0 +1,24 @@
+:name: S213 iter113 short boot diagnostic
+:description: Run the TPU cat REPL ELF briefly and read early boot markers.
+
+i @/home/bogdan/work/coralmicro/emu/renode/sentai_rt1176.repl
+
+$bin=@/home/bogdan/work/coralmicro/build_emu/emu/sentai_emu_tpu_cat_repl
+$uart_log=@/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s213_arm_emulator_idle/iter113_renode_tpu_cat_repl_filex_physical_coral/diag_short_uart.log
+
+sysbus LoadELF $bin
+cpu VectorTableOffset 0x800
+lpuart6 CreateFileBackend $uart_log
+
+emulation RunFor "0.01s"
+
+lpuart6 CloseFileBackend $uart_log
+
+echo "diag_short PC:"
+cpu PC
+echo "diag_short boot_state:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_boot_state"`
+echo "diag_short heartbeat:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_heartbeat"`
+echo "diag_short repl_lines:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_repl_lines"`

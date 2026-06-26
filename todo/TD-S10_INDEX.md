@@ -15,6 +15,8 @@ research follow-ups.
 | A6 | [TD-S10-A6_define_mission_level_robot_primitives.md](TD-S10-A6_define_mission_level_robot_primitives.md) | Define SentAI primitive taxonomy, REPL/radio grammar, and mission vocabulary. |
 | A7 | [TD-S10-A7_runtime_namespace_alignment.md](TD-S10-A7_runtime_namespace_alignment.md) | Define runtime namespace alignment with the A6/B6 taxonomy, without breaking B5. |
 | A8 | [TD-S10-A8_research_arm_emulator_runtime.md](TD-S10-A8_research_arm_emulator_runtime.md) | Research moving SIM proof work from FreeRTOS POSIX/x86 toward ARM firmware emulation. |
+| A9 | [TD-S10-A9_emulator_runtime_namespace_completion.md](TD-S10-A9_emulator_runtime_namespace_completion.md) | Complete SentAI runtime namespace validation in the ARM emulator. |
+| A10 | [TD-S10-A10_revalidate_experiments.md](TD-S10-A10_revalidate_experiments.md) | Revalidate the paper performance experiments with board-valid wall-clock timing. |
 
 ## Implementation / Research Documents
 
@@ -28,10 +30,14 @@ research follow-ups.
 | B6 | [TD-S10-B6_research_sentai_prime_command_dictionary.md](TD-S10-B6_research_sentai_prime_command_dictionary.md) | Research A6 against SOTA and define D1-D8 conclusions for command taxonomy. |
 | B7 | [TD-S10-B7_implement_runtime_namespace_alignment.md](TD-S10-B7_implement_runtime_namespace_alignment.md) | Implement A7 runtime namespace inventory, SIM/ARM parity checks, and safe introspection. |
 | B8 | [TD-S10-B8_research_arm_emulator_runtime.md](TD-S10-B8_research_arm_emulator_runtime.md) | Research and spike ARM/Cortex-M emulator runtime path for SentAI. |
+| B9 | [TD-S10-B9_verify_sentai_namespaces_in_arm_emulator.md](TD-S10-B9_verify_sentai_namespaces_in_arm_emulator.md) | Verify SentAI namespaces in the ARM emulator with shared runtime bindings. |
+| B10 | [TD-S10-B10_revalidate_performance_chapter.md](TD-S10-B10_revalidate_performance_chapter.md) | Rerun the paper performance chapter table by table. |
 
 ## Current Position
 
 A6/B6 establish the language and architecture.  A7/B7 aligned much of the real
-`sentai.*` runtime namespace surface, but B7 is paused after the POSIX/x86 SIM
-path hit task/peripheral-fidelity limits.  A8/B8 now research a closer ARM
-emulator path that can run the ARM FreeRTOS/task/ISR model on the host.
+`sentai.*` runtime namespace surface, and A8/B8 moved the proof path toward ARM
+emulation.  A9/B9 continue namespace parity in the emulator.  A10/B10 are the
+current performance-paper revalidation track after S234 showed that the old
+DWT/tick-based TPU timing is not valid wall-clock timing for USB EdgeTPU
+throughput.

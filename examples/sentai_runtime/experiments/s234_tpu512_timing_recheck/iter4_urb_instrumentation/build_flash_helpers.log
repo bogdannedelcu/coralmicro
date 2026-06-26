@@ -1,0 +1,202 @@
+[  0%] Built target libs_littlefs
+[ 11%] Built target libs_FreeRTOS
+[ 33%] Built target libs_CMSIS-m7
+[ 77%] Built target libs_nxp_rt1176-sdk_freertos
+[100%] Built target libs_nxp_rt1176-sdk_lwip
+[100%] Building CXX object apps/elf_loader/CMakeFiles/elf_loader.dir/__/__/libs/usb/usb_device_task.cc.obj
+[100%] Building CXX object apps/elf_loader/CMakeFiles/elf_loader.dir/__/__/libs/base/utils.cc.obj
+[100%] Building CXX object apps/elf_loader/CMakeFiles/elf_loader.dir/elf_loader.cc.obj
+[100%] Building CXX object apps/elf_loader/CMakeFiles/elf_loader.dir/usb_data.cc.obj
+[100%] Building CXX object apps/elf_loader/CMakeFiles/elf_loader.dir/__/__/libs/base/filesystem.cc.obj
+[100%] Building CXX object apps/elf_loader/CMakeFiles/elf_loader.dir/__/__/libs/base/reset.cc.obj
+[100%] Linking CXX executable elf_loader
+[100%] Built target elf_loader
+[  0%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/boards/evkmimxrt1170/bootloader_examples/flashloader/cm7/usb_device_class.c.obj
+[  0%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/components/lists/fsl_component_generic_list.c.obj
+[  0%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/boards/evkmimxrt1170/bootloader_examples/flashloader/cm7/usb_device_hid.c.obj
+[  0%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/components/osa/fsl_os_abstraction_bm.c.obj
+[  0%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_anatop_ai.c.obj
+[  0%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/boards/evkmimxrt1170/bootloader_examples/flashloader/cm7/pin_mux.c.obj
+[  0%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/boards/evkmimxrt1170/bootloader_examples/flashloader/cm7/usb_device_ch9.c.obj
+[ 20%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_common.c.obj
+[ 20%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_gpio.c.obj
+[ 20%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_lpuart.c.obj
+[ 20%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_pmu.c.obj
+[ 20%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/autobaud/src/autobaud_irq.c.obj
+[ 20%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_clock.c.obj
+[ 20%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/bm_usb/hid_bootloader.c.obj
+[ 20%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_common_arm.c.obj
+[ 20%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_lpspi.c.obj
+[ 20%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/bm_usb/usb_descriptor.c.obj
+[ 20%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/bootloader/src/bl_context.c.obj
+[ 20%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/authentication/key_store_puf.c.obj
+[ 20%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/bm_usb/composite.c.obj
+[ 20%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/bootloader/src/bl_main.c.obj
+[ 20%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/bootloader/src/bl_exception_handler.c.obj
+[ 20%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/bootloader/src/bl_app_crc_check.c.obj
+[ 20%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/bootloader/src/bl_command.c.obj
+[ 20%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/bootloader/src/bl_misc.c.obj
+[ 20%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/bootloader/src/bl_shutdown_cleanup.c.obj
+[ 40%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/bootloader/src/bl_tree_root.c.obj
+[ 40%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/bootloader/src/lpuart_peripheral_interface.c.obj
+[ 40%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/bootloader/src/bl_user_entry.c.obj
+[ 40%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/bootloader/src/usb_hid_msc_peripheral_interface.c.obj
+[ 40%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/crc/src/crc32.c.obj
+[ 40%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/crc/src/crc16.c.obj
+[ 40%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/drivers/flexspi/bl_flexspi.c.obj
+[ 40%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/drivers/flexspi_nor/flexspi_nor_flash.c.obj
+[ 40%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/drivers/microseconds/src/microseconds_pit.c.obj
+[ 40%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/drivers/flexspi_nand/flexspi_nand_flash.c.obj
+[ 40%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/drivers/nand_ecc/nand_ecc.c.obj
+[ 40%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/drivers/ocotp/bl_ocotp.c.obj
+[ 40%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/drivers/sdmmc/port/usdhc/polling/fsl_sdmmc_host.c.obj
+[ 40%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/drivers/sdmmc/src/fsl_mmc.c.obj
+[ 40%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/drivers/sdmmc/src/fsl_sd.c.obj
+[ 40%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/drivers/sdmmc/src/fsl_sdmmc_common.c.obj
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/drivers/flexspi_nor/flexspi_nor_flash.c: In function 'flexspi_nor_generate_config_block_using_sfdp':
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/drivers/flexspi_nor/flexspi_nor_flash.c:2017:37: warning: missing braces around initializer [-Wmissing-braces]
+ 2017 |     const lut_seq_t k_sdfp_lut[4] = {
+      |                                     ^
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/drivers/flexspi_nor/flexspi_nor_flash.c:2017:37: warning: missing braces around initializer [-Wmissing-braces]
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/drivers/flexspi_nor/flexspi_nor_flash.c:2017:37: warning: missing braces around initializer [-Wmissing-braces]
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/drivers/flexspi_nor/flexspi_nor_flash.c:2017:37: warning: missing braces around initializer [-Wmissing-braces]
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/drivers/flexspi_nor/flexspi_nor_flash.c: In function 'flexspi_nor_generate_config_block_mxic_octalflash':
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/drivers/flexspi_nor/flexspi_nor_flash.c:2432:37: warning: missing braces around initializer [-Wmissing-braces]
+ 2432 |     const lut_seq_t k_rdid_lut[3] = {
+      |                                     ^
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/drivers/flexspi_nor/flexspi_nor_flash.c:2432:37: warning: missing braces around initializer [-Wmissing-braces]
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/drivers/flexspi_nor/flexspi_nor_flash.c:2432:37: warning: missing braces around initializer [-Wmissing-braces]
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/drivers/flexspi_nor/flexspi_nor_flash.c:2432:37: warning: missing braces around initializer [-Wmissing-braces]
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/drivers/flexspi_nor/flexspi_nor_flash.c: In function 'flexspi_nor_generate_config_block_micron_octalflash':
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/drivers/flexspi_nor/flexspi_nor_flash.c:2752:37: warning: missing braces around initializer [-Wmissing-braces]
+ 2752 |     const lut_seq_t k_sdfp_lut[2] = {
+      |                                     ^
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/drivers/flexspi_nor/flexspi_nor_flash.c:2752:37: warning: missing braces around initializer [-Wmissing-braces]
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/drivers/flexspi_nor/flexspi_nor_flash.c:2752:37: warning: missing braces around initializer [-Wmissing-braces]
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/drivers/flexspi_nor/flexspi_nor_flash.c: In function 'flexspi_nor_generate_config_block_adesto_octalflash':
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/drivers/flexspi_nor/flexspi_nor_flash.c:3004:37: warning: missing braces around initializer [-Wmissing-braces]
+ 3004 |     const lut_seq_t k_sdfp_lut[5] = {
+      |                                     ^
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/drivers/flexspi_nor/flexspi_nor_flash.c:3004:37: warning: missing braces around initializer [-Wmissing-braces]
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/drivers/flexspi_nor/flexspi_nor_flash.c:3004:37: warning: missing braces around initializer [-Wmissing-braces]
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/drivers/flexspi_nor/flexspi_nor_flash.c:3004:37: warning: missing braces around initializer [-Wmissing-braces]
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/drivers/flexspi_nor/flexspi_nor_flash.c:3004:37: warning: missing braces around initializer [-Wmissing-braces]
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/drivers/flexspi_nor/flexspi_nor_flash.c:3004:37: warning: missing braces around initializer [-Wmissing-braces]
+[ 40%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/drivers/semc/bl_semc.c.obj
+[ 40%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/drivers/semc_nand/semc_nand_flash.c.obj
+[ 40%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/drivers/serial_nor_eeprom/serial_nor_eeprom.c.obj
+[ 60%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/drivers/usdhc/bl_usdhc.c.obj
+[ 60%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/memory/src/flexspi_nor_memory.c.obj
+[ 60%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/memory/src/normal_memory.c.obj
+[ 60%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/memory/src/memory.c.obj
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/drivers/sdmmc/port/usdhc/polling/fsl_sdmmc_host.c:61:13: warning: 'SDMMCHOST_CardDetectDeinit' declared 'static' but never defined [-Wunused-function]
+   61 | static void SDMMCHOST_CardDetectDeinit(void);
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/drivers/sdmmc/port/usdhc/polling/fsl_sdmmc_host.c:180:17: warning: 'SDMMCHOST_CardDetectInit' defined but not used [-Wunused-function]
+  180 | static status_t SDMMCHOST_CardDetectInit(SDMMCHOST_TYPE *base, const sdmmchost_detect_card_t *cd)
+      |                 ^~~~~~~~~~~~~~~~~~~~~~~~
+[ 60%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/memory/src/mmc_memory.c.obj
+[ 60%] Building ASM object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/memory/src/pattern_fill_gcc.S.obj
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/drivers/sdmmc/src/fsl_mmc.c: In function 'MMC_BL_SelectBusWidth':
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/drivers/sdmmc/src/fsl_mmc.c:1453:10: warning: unused variable 'isDDR' [-Wunused-variable]
+ 1453 |     bool isDDR = false;
+      |          ^~~~~
+[ 60%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/memory/src/sd_memory.c.obj
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/drivers/sdmmc/src/fsl_mmc.c: In function 'MMC_BL_SelectBusTiming':
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/drivers/sdmmc/src/fsl_mmc.c:1859:10: warning: unused variable 'switchHS400' [-Wunused-variable]
+ 1859 |     bool switchHS400 = false, switchHighSpeed = false;
+      |          ^~~~~~~~~~~
+[ 60%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/memory/src/spi_nor_eeprom_memory.c.obj
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/drivers/nand_ecc/nand_ecc.c: In function 'nand_ecc_sec_verify_correct':
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/drivers/nand_ecc/nand_ecc.c:259:13: warning: 'singleErrorBit1Count' may be used uninitialized in this function [-Wmaybe-uninitialized]
+  259 |     else if (eccXorBit1Count == singleErrorBit1Count)
+      |             ^
+[ 60%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/memory/src/semc_nand_memory.c.obj
+[ 60%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/memory/src/spinand_memory.c.obj
+[ 60%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/packet/src/serial_packet.c.obj
+[ 60%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/property/src/property_imx.c.obj
+[ 60%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/sbloader/src/sbloader.c.obj
+[ 60%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/security/keyblob/src/keyblob.c.obj
+[ 60%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/security/keyblob/src/keyblob_caam.c.obj
+[ 60%] Building ASM object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/startup/crt0_gcc.S.obj
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/drivers/semc/bl_semc.c: In function 'semc_ipg_command_device_write':
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/drivers/semc/bl_semc.c:215:14: warning: unused variable 'status' [-Wunused-variable]
+  215 |     status_t status;
+      |              ^~~~~~
+[ 60%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/startup/startup.c.obj
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/drivers/semc_nand/semc_nand_flash.c: In function 'semc_nand_issue_read_page':
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/drivers/semc_nand/semc_nand_flash.c:1243:14: warning: unused variable 'readyCheckIntervalInUs' [-Wunused-variable]
+ 1243 |     uint32_t readyCheckIntervalInUs;
+      |              ^~~~~~~~~~~~~~~~~~~~~~
+At top level:
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/drivers/semc_nand/semc_nand_flash.c:573:13: warning: 'semc_nand_adjust_timing_parameter_ccs' defined but not used [-Wunused-function]
+  573 | static void semc_nand_adjust_timing_parameter_ccs(semc_nand_config_t *config)
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+[ 60%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/utilities/src/debug_util.c.obj
+In file included from /home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/memory/src/flexspi_nor_memory.c:16:
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/memory/src/flexspi_nor_memory.c: In function 'flexspi_nor_mem_config':
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/memory/src/flexspi_nor_memory.h:34:12: warning: suggest parentheses around arithmetic in operand of '|' [-Wparentheses]
+   34 |     (0xcf9 | (kSerialNorCfgOption_Tag << 8) & (kSerialNorCfgOption_Tag << 8))
+      |            ^
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/memory/src/flexspi_nor_memory.c:426:13: note: in expansion of macro 'MAGIC_NUMBER_FLEXSPI_NOR_PRECFG'
+  426 |         if (MAGIC_NUMBER_FLEXSPI_NOR_PRECFG == option->option0.P.magic)
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/memory/src/flexspi_nor_memory.c:419:25: warning: unused variable 'keyblob_info' [-Wunused-variable]
+  419 |         keyblob_info_t *keyblob_info = (keyblob_info_t *)config;
+      |                         ^~~~~~~~~~~~
+At top level:
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/memory/src/flexspi_nor_memory.c:1157:17: warning: 'flexspi_nor_memory_init' defined but not used [-Wunused-function]
+ 1157 | static status_t flexspi_nor_memory_init(void)
+      |                 ^~~~~~~~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/memory/src/flexspi_nor_memory.c:221:17: warning: 'check_update_keyblob_info' defined but not used [-Wunused-function]
+  221 | static status_t check_update_keyblob_info(void *config)
+      |                 ^~~~~~~~~~~~~~~~~~~~~~~~~
+[ 80%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/utilities/src/fsl_assert.c.obj
+[ 80%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/targets/MIMXRT1176/src/bl_lpuart_irq_config_MIMXRT1176.c.obj
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/property/src/property_imx.c: In function 'bootloader_property_set_uint32':
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/property/src/property_imx.c:362:23: warning: unused variable 'propertyStore' [-Wunused-variable]
+  362 |     property_store_t *propertyStore = g_bootloaderContext.propertyInterface->store;
+      |                       ^~~~~~~~~~~~~
+[ 80%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/utilities/src/fsl_rtos_abstraction.c.obj
+[ 80%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/targets/MIMXRT1176/src/clock_cfg_MIMXRT1176.c.obj
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/sbloader/src/sbloader.c: In function 'ldr_DoProgramCmd':
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/sbloader/src/sbloader.c:640:14: warning: unused variable 'status' [-Wunused-variable]
+  640 |     status_t status;
+      |              ^~~~~~
+[ 80%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/targets/MIMXRT1176/src/external_memory_property_map_MIMXRT1176.c.obj
+[ 80%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/targets/MIMXRT1176/src/flexspi_config_MIMXRT1176.c.obj
+[ 80%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/targets/MIMXRT1176/src/flexspi_nand_config_MIMXRT1176.c.obj
+[ 80%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/targets/MIMXRT1176/src/hardware_init_MIMXRT1176.c.obj
+[ 80%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/targets/MIMXRT1176/src/periph_MIMXRT1176.c.obj
+[ 80%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/targets/MIMXRT1176/src/memory_map_MIMXRT1176.c.obj
+[ 80%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/targets/MIMXRT1176/src/sdmmc_config_MIMXRT1176.c.obj
+[ 80%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/targets/MIMXRT1176/src/security_config_MIMXRT1176.c.obj
+[ 80%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/targets/MIMXRT1176/src/sdmmc_convert_MIMXRT1176.c.obj
+[ 80%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/targets/MIMXRT1176/src/semc_nand_config_MIMXRT1176.c.obj
+[ 80%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/targets/MIMXRT1176/src/sram_init_MIMXRT1176.c.obj
+[ 80%] Building ASM object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/targets/MIMXRT1176/src/startup/gcc/startup_MIMXRT1176_cm7.S.obj
+[ 80%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/targets/MIMXRT1176/src/startup/system_MIMXRT1176_cm7.c.obj
+[ 80%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/mcu-boot/targets/common/src/pinmux_utility_imxrt_series.c.obj
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/drivers/semc_nand/semc_nand_flash.c: In function 'semc_nand_flash_page_program':
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/drivers/semc_nand/semc_nand_flash.c:2227:28: warning: 'writeBytes' may be used uninitialized in this function [-Wmaybe-uninitialized]
+ 2227 |             payloadedBytes += writeBytes;
+      |             ~~~~~~~~~~~~~~~^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/mcu-boot/src/drivers/semc_nand/semc_nand_flash.c:2216:26: warning: 'writeSrc' may be used uninitialized in this function [-Wmaybe-uninitialized]
+ 2216 |                 status = semc_axi_memory_write(memoryAccessAddr + payloadedBytes, writeSrc, writeBytes);
+      |                          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+[ 80%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/usb/device/usb_device_dci.c.obj
+[100%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/usb/device/usb_device_ehci.c.obj
+[100%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/platform/drivers/puf/fsl_puf.c.obj
+[100%] Building C object libs/nxp/flashloader/CMakeFiles/flashloader.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/usb/phy/usb_phy.c.obj
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/mcu-boot/targets/MIMXRT1176/src/flexspi_config_MIMXRT1176.c:156:13: warning: 'flexspi_nor_jedec_hw_reset' declared 'static' but never defined [-Wunused-function]
+  156 | static void flexspi_nor_jedec_hw_reset(uint32_t instance);
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/mcu-boot/targets/MIMXRT1176/src/flexspi_config_MIMXRT1176.c:357:13: warning: 'flexspi_jedec_hw_reset' defined but not used [-Wunused-function]
+  357 | static void flexspi_jedec_hw_reset(volatile GPIO_Type *gpio, uint32_t cs_pin, uint32_t clk_pin, uint32_t sin_pin)
+      |             ^~~~~~~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/mcu-boot/targets/MIMXRT1176/src/hardware_init_MIMXRT1176.c: In function 'semc_iomux_config':
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/mcu-boot/targets/MIMXRT1176/src/hardware_init_MIMXRT1176.c:36:14: warning: unused variable 'addrInputPadCtlValue' [-Wunused-variable]
+   36 |     uint32_t addrInputPadCtlValue = SEMC_SW_PAD_CTL_VAL;
+      |              ^~~~~~~~~~~~~~~~~~~~
+[100%] Linking C executable flashloader
+[100%] Built target flashloader

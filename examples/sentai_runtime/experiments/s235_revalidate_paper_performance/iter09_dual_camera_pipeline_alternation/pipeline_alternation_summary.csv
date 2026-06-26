@@ -1,0 +1,3 @@
+run,ratio,drain,observed,cam0,cam1,wall_us,frame_fps,cam0_fps,cam1_fps,invoke_ok,invoke_fail,invoke_fps,timeouts
+0,1:1,1,100,50,50,6947936,14.392763,7.196382,7.196382,100,0,14.392763,0
+1,1:1,2,100,50,50,20076020,4.981067,2.490534,2.490534,100,0,4.981067,0

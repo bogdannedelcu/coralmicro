@@ -11,16 +11,26 @@
 #include <math.h>
 #include <string.h>
 
-// Stage 4.A transport headers.  These are declared even on platforms
-// where the backend is never exercised — the dispatcher needs the
-// prototypes to compile.  On SIM both crazy + link are available.  On
-// ARM crazy is available; link is the MAVLink bridge.
-#include "sentai_crazy.h"
-#include "sentai_crazy_log.h"
-// All link.* symbols are weak so ARM (which lacks the SIM MAVLink
-// bridge) still links — the PX4 backend stays unreachable on ARM until
-// sentai_link.cc gains these wrappers.  Calling a NULL weak symbol is
-// guarded inside srv_xport_* via explicit checks.
+// Stage 4.A transport hooks are optional so the servo FSM can be linked into
+// small emulator/runtime targets without pulling the whole vehicle transport.
+// Calling a NULL weak symbol is guarded inside srv_xport_* via explicit checks.
+extern "C" int sentai_crazy_arm(void) __attribute__((weak));
+extern "C" int sentai_crazy_disarm(void) __attribute__((weak));
+extern "C" int sentai_crazy_takeoff(float height, float duration,
+                                    float yaw, int use_current_yaw,
+                                    uint8_t group_mask) __attribute__((weak));
+extern "C" int sentai_crazy_land(float height, float duration,
+                                 float yaw, int use_current_yaw,
+                                 uint8_t group_mask) __attribute__((weak));
+extern "C" int sentai_crazy_go_to(float x, float y, float z, float yaw,
+                                  float duration, int relative, int linear,
+                                  uint8_t group_mask) __attribute__((weak));
+extern "C" int sentai_crazy_pose_subscribe(int period_ms)
+    __attribute__((weak));
+extern "C" int sentai_crazy_pose(float* out_x, float* out_y, float* out_z,
+                                 float* out_yaw) __attribute__((weak));
+extern "C" int sentai_crazy_pose_ready(void) __attribute__((weak));
+
 extern "C" int sentai_link_cmd_arm(int do_arm)             __attribute__((weak));
 extern "C" int sentai_link_cmd_takeoff(float altitude_m)   __attribute__((weak));
 extern "C" int sentai_link_cmd_land(void)                  __attribute__((weak));
@@ -137,7 +147,8 @@ static inline int srv_link_norm(int link_rc) {
 static SENTAI_SRV_SDRAM_TEXT int srv_xport_arm(void) {
     switch (g_fsm.s.backend) {
         case SERVO_BACKEND_SIM: return 0;
-        case SERVO_BACKEND_CF2: return sentai_crazy_arm();
+        case SERVO_BACKEND_CF2:
+            return sentai_crazy_arm ? sentai_crazy_arm() : -1;
         case SERVO_BACKEND_PX4:
             return sentai_link_cmd_arm ? srv_link_norm(sentai_link_cmd_arm(1)) : -1;
         default: return -1;
@@ -147,7 +158,8 @@ static SENTAI_SRV_SDRAM_TEXT int srv_xport_arm(void) {
 static SENTAI_SRV_SDRAM_TEXT int srv_xport_disarm(void) {
     switch (g_fsm.s.backend) {
         case SERVO_BACKEND_SIM: return 0;
-        case SERVO_BACKEND_CF2: return sentai_crazy_disarm();
+        case SERVO_BACKEND_CF2:
+            return sentai_crazy_disarm ? sentai_crazy_disarm() : -1;
         case SERVO_BACKEND_PX4:
             return sentai_link_cmd_arm ? srv_link_norm(sentai_link_cmd_arm(0)) : -1;
         default: return -1;
@@ -159,7 +171,8 @@ static SENTAI_SRV_SDRAM_TEXT int srv_xport_takeoff(float alt_m) {
         case SERVO_BACKEND_SIM: (void)alt_m; return 0;
         case SERVO_BACKEND_CF2:
             // height, duration, yaw=0, use_current_yaw=1, group=0
-            return sentai_crazy_takeoff(alt_m, g_fsm.takeoff_dur, 0.0f, 1, 0);
+            return sentai_crazy_takeoff ?
+                   sentai_crazy_takeoff(alt_m, g_fsm.takeoff_dur, 0.0f, 1, 0) : -1;
         case SERVO_BACKEND_PX4:
             return sentai_link_cmd_takeoff ?
                    srv_link_norm(sentai_link_cmd_takeoff(alt_m)) : -1;
@@ -174,10 +187,11 @@ static SENTAI_SRV_SDRAM_TEXT int srv_xport_move(float dx, float dy, float dz, fl
         case SERVO_BACKEND_CF2:
             // CF2 HL Commander GO_TO with relative=1 → polynomial trajectory
             // from current pose by (dx,dy,dz) with yaw delta dyaw over move_dur.
-            return sentai_crazy_go_to(dx, dy, dz, dyaw, g_fsm.move_dur,
+            return sentai_crazy_go_to ?
+                   sentai_crazy_go_to(dx, dy, dz, dyaw, g_fsm.move_dur,
                                        /* relative */ 1,
                                        /* linear   */ 0,
-                                       /* group    */ 0);
+                                       /* group    */ 0) : -1;
         case SERVO_BACKEND_PX4:
             return sentai_link_cmd_move ?
                    sentai_link_cmd_move(dx, dy, dz, dyaw) : -1;
@@ -194,10 +208,11 @@ static SENTAI_SRV_SDRAM_TEXT int srv_xport_go_to(float x, float y, float z, floa
         case SERVO_BACKEND_SIM:
             (void)x; (void)y; (void)z; (void)yaw; return 0;
         case SERVO_BACKEND_CF2:
-            return sentai_crazy_go_to(x, y, z, yaw, g_fsm.move_dur,
+            return sentai_crazy_go_to ?
+                   sentai_crazy_go_to(x, y, z, yaw, g_fsm.move_dur,
                                        /* relative */ 0,
                                        /* linear   */ 0,
-                                       /* group    */ 0);
+                                       /* group    */ 0) : -1;
         case SERVO_BACKEND_PX4: {
             if (!sentai_link_cmd_move || !sentai_link_pose) return -1;
             float cx=0, cy=0, cz=0, cyaw=0;
@@ -220,7 +235,8 @@ static SENTAI_SRV_SDRAM_TEXT int srv_xport_land(void) {
     switch (g_fsm.s.backend) {
         case SERVO_BACKEND_SIM: return 0;
         case SERVO_BACKEND_CF2:
-            return sentai_crazy_land(0.0f, g_fsm.land_dur, 0.0f, 1, 0);
+            return sentai_crazy_land ?
+                   sentai_crazy_land(0.0f, g_fsm.land_dur, 0.0f, 1, 0) : -1;
         case SERVO_BACKEND_PX4:
             return sentai_link_cmd_land ?
                    srv_link_norm(sentai_link_cmd_land()) : -1;
@@ -234,7 +250,9 @@ static SENTAI_SRV_SDRAM_TEXT int srv_xport_land(void) {
 static SENTAI_SRV_SDRAM_TEXT int srv_xport_pose_subscribe(int period_ms) {
     switch (g_fsm.s.backend) {
         case SERVO_BACKEND_SIM: (void)period_ms; return 0;
-        case SERVO_BACKEND_CF2: return sentai_crazy_pose_subscribe(period_ms);
+        case SERVO_BACKEND_CF2:
+            return sentai_crazy_pose_subscribe ?
+                   sentai_crazy_pose_subscribe(period_ms) : -1;
         case SERVO_BACKEND_PX4:
             return sentai_link_pose_subscribe ?
                    sentai_link_pose_subscribe(period_ms) : 0;
@@ -292,7 +310,9 @@ SENTAI_SRV_SDRAM_TEXT int sentai_servo_pose(float* out_x, float* out_y,
     switch (g_fsm.s.backend) {
         case SERVO_BACKEND_NONE: return -1;
         case SERVO_BACKEND_SIM:  return -2;   // no pose stream in SIM skeleton
-        case SERVO_BACKEND_CF2:  return sentai_crazy_pose(out_x, out_y, out_z, out_yaw);
+        case SERVO_BACKEND_CF2:
+            return sentai_crazy_pose ?
+                   sentai_crazy_pose(out_x, out_y, out_z, out_yaw) : -2;
         case SERVO_BACKEND_PX4:
             return sentai_link_pose ? sentai_link_pose(out_x, out_y, out_z, out_yaw) : -2;
         default: return -1;
@@ -301,7 +321,8 @@ SENTAI_SRV_SDRAM_TEXT int sentai_servo_pose(float* out_x, float* out_y,
 
 SENTAI_SRV_SDRAM_TEXT int sentai_servo_pose_ready(void) {
     switch (g_fsm.s.backend) {
-        case SERVO_BACKEND_CF2: return sentai_crazy_pose_ready();
+        case SERVO_BACKEND_CF2:
+            return sentai_crazy_pose_ready ? sentai_crazy_pose_ready() : 0;
         case SERVO_BACKEND_PX4: {
             // pose_ready() check is "have we ever received a frame?".  For
             // PX4 we approximate via a non-NULL out value from pose().

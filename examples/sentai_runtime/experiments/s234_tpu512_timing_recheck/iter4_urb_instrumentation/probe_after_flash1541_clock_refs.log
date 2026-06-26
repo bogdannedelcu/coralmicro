@@ -1,0 +1,23 @@
+PORT /dev/ttyACM0
+
+KeyboardInterrupt
+>>> 
+>>> 
+>>> import sentai
+>>> print('VER', sentai.version())
+VER SentAI v1.0 build 1541 (2026-06-24 10:15:37)
+>>> print('HAS_MICROS', hasattr(sentai.rtos,'micros'))
+HAS_MICROS True
+>>> print('HAS_CYCLES', hasattr(sentai.rtos,'cycles'))
+HAS_CYCLES True
+>>> print('MICROS', sentai.rtos.micros())
+MICROS 24917525
+>>> print('CYCLES', sentai.rtos.cycles())
+CYCLES 538478295
+>>> print('MODEL_SIZE', sentai.fs.size('/yolo_1_class_512_1_upsample_512_inloc_de_1024_la_P5_32.tflite'))
+MODEL_SIZE 5591680
+>>> print('SCRIPT_SIZE', sentai.fs.size('/lib/diag/_t_timing_urb.py'))
+SCRIPT_SIZE 2297
+>>> print('URB_HZ', sentai.tpu.urb_stats()[0])
+URB_HZ 792000000
+>>> 

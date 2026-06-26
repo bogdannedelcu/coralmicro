@@ -1,0 +1,12 @@
+import sentai; exec(sentai.fs.read('/lib/diag/camera_visual_seam_once.py'))
+S235 B10 visual seam
+version=SentAI v1.0 build 1544 (2026-06-24 11:07:59)
+run=0 frames=4 quality=55
+camera_init=0
+[CAM0] W 0x503D=0x80 (0)
+[CAM1] W 0x503D=0x88 (0)
+pattern0=0 pattern1=0
+  [capture_jpeg] drain=98ms pxp=10ms jpeg=78ms total=186ms (640x480)
+frame drain=1 i=0 tag=1 cur=1 bytes=10341 us=187031 path=/diags/s235_b10_visual_seam/run00_d1_00_tag1_cur1.jpg
+  [capture_jpeg] drain=65ms pxp=10ms jpeg=76ms total=151ms (640x480)
+frame drain=1 i=1 tag=0 cur=0 bytes=9955 us=152209 path=/diags/s235_b10_visual_seam/run00_d1_01_tag0_cur0.jpg

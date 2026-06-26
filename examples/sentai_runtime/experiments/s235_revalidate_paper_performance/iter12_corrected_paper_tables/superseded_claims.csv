@@ -1,0 +1,11 @@
+claim,old_value,corrected_value,status,source,reason
+standalone_tpu_512_yolo,73-75 FPS,24.50 FPS,superseded,iter03,DWT/tick timing was not wall-clock USB timing
+standalone_tpu_invoke_breakdown_total,14.19 ms,40.813641 ms,superseded,iter03,DWT table understated USB/EHCI wait time
+single_camera_pipeline_512,40-42 FPS,23.444330 FPS,superseded,iter06,old pipeline timing used invalid/tick-derived paths
+multi_patch_2_invokes,48.5 TPU FPS,24.016022 invoke FPS,superseded,iter07,invoke FPS must be wall-clock and separate from frame FPS
+multi_patch_4_invokes,56.0 TPU FPS,24.251953 invoke FPS,superseded,iter07,invoke throughput remains near corrected standalone ceiling
+chunk_size_best,33 KB best,128 KB slightly fastest in current matrix,superseded,iter03,old 33 KB optimum not reproduced
+desc_cache,possible optimization,invalid/failing optimization,rejected,iter04,descriptor-cache skip path produced SendInputs failures
+continuous_dual_camera_1_1,19.5-21 FPS,14.392763 FPS combined,corrected,iter09,current 512x512 pipeline wall-clock result
+continuous_dual_camera_drain2,conservative/clean,invalid for continuous ratio(1,1),corrected,iter08/iter10,tag/content phase errors under every-frame alternation
+latency_substage_tick_table,old per-stage ms,replace with update-period bounds,superseded,iter11,no same-frame wall-clock trace exists yet

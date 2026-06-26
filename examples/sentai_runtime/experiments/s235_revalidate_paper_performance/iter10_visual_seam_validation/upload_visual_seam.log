@@ -1,0 +1,24 @@
+Opening REPL on /dev/ttyACM0 …
+REPL ready.  Uploading 1 file(s):
+  camera_visual_seam_once.py → /lib/diag/camera_visual_seam_once.py  (2773 bytes)
+    … 960/2773 bytes OK
+    … 1920/2773 bytes OK
+    … 2773/2773 bytes OK
+    ✓ wrote 2773 bytes in 8.1s sync=ok
+Done.  On device:  import diag
+Opening REPL on /dev/ttyACM0 …
+REPL ready.  Uploading 1 file(s):
+  camera_visual_seam_once.py → /lib/diag/camera_visual_seam_once.py  (3003 bytes)
+    … 960/3003 bytes OK
+    … 1920/3003 bytes OK
+    … 2880/3003 bytes OK
+    ✓ wrote 3003 bytes in 11.6s sync=ok
+Done.  On device:  import diag
+Opening REPL on /dev/ttyACM0 …
+REPL ready.  Uploading 1 file(s):
+  camera_visual_seam_once.py → /lib/diag/camera_visual_seam_once.py  (3163 bytes)
+    … 960/3163 bytes OK
+    … 1920/3163 bytes OK
+    … 2880/3163 bytes OK
+    ✓ wrote 3163 bytes in 7.9s sync=ok
+Done.  On device:  import diag

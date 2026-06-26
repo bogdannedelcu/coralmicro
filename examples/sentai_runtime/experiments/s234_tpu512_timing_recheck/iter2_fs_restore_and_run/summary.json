@@ -1,0 +1,195 @@
+{
+  "board_version": "SentAI v1.0 build 1375 (2026-05-19 11:56:14)",
+  "bytes_per_invoke": {
+    "input": 811008,
+    "instructions": 371664,
+    "output": 10752
+  },
+  "date_local": "2026-06-24",
+  "input_tensor_reported": "uint8[1,512,512,3] (786432 bytes)",
+  "iteration": "iter2_fs_restore_and_run",
+  "mission": "s234_tpu512_timing_recheck",
+  "model_name_reported": "yolo_1_class_512_1_upsample_512_",
+  "model_path_on_board": "/yolo_1_class_512_1_upsample_512_inloc_de_1024_la_P5_32.tflite",
+  "model_sha256": "49942d36335f1e09ee10d29b967bf413c8d449a3261d9d7bb9cb1d51a8a73e4f",
+  "model_size_on_board_bytes": 5591680,
+  "output_tensor_reported": "uint8[1,1344,6] (8064 bytes)",
+  "pipeline_runs": [
+    {
+      "cam_ms": 0.6,
+      "fails": 0,
+      "infer_fps": 25.0,
+      "invoke_ms": 39.7,
+      "prep_fps": 25.2,
+      "pxp_ms": 8.0,
+      "quant_ms": 0.0,
+      "run": 0,
+      "total_prep_ms": 39.6,
+      "wait_ms": 30.8
+    },
+    {
+      "cam_ms": 0.5,
+      "fails": 0,
+      "infer_fps": 29.8,
+      "invoke_ms": 33.4,
+      "prep_fps": 30.2,
+      "pxp_ms": 8.1,
+      "quant_ms": 0.0,
+      "run": 1,
+      "total_prep_ms": 33.3,
+      "wait_ms": 24.3
+    },
+    {
+      "cam_ms": 0.4,
+      "fails": 0,
+      "infer_fps": 31.0,
+      "invoke_ms": 32.1,
+      "prep_fps": 31.2,
+      "pxp_ms": 8.1,
+      "quant_ms": 0.0,
+      "run": 2,
+      "total_prep_ms": 32.1,
+      "wait_ms": 23.1
+    },
+    {
+      "cam_ms": 0.5,
+      "fails": 0,
+      "infer_fps": 38.6,
+      "invoke_ms": 25.4,
+      "prep_fps": 38.8,
+      "pxp_ms": 8.3,
+      "quant_ms": 0.0,
+      "run": 3,
+      "total_prep_ms": 25.8,
+      "wait_ms": 16.4
+    },
+    {
+      "cam_ms": 0.5,
+      "fails": 0,
+      "infer_fps": 36.2,
+      "invoke_ms": 27.2,
+      "prep_fps": 36.4,
+      "pxp_ms": 8.2,
+      "quant_ms": 0.0,
+      "run": 4,
+      "total_prep_ms": 27.5,
+      "wait_ms": 18.3
+    }
+  ],
+  "pipeline_stats": {
+    "cam_ms": {
+      "avg": 0.5,
+      "stdev": 0.0707
+    },
+    "infer_fps": {
+      "avg": 32.12,
+      "stdev": 5.3844
+    },
+    "invoke_ms": {
+      "avg": 31.56,
+      "stdev": 5.6323
+    },
+    "prep_fps": {
+      "avg": 32.36,
+      "stdev": 5.3636
+    },
+    "pxp_ms": {
+      "avg": 8.14,
+      "stdev": 0.114
+    },
+    "quant_ms": {
+      "avg": 0.0,
+      "stdev": 0.0
+    },
+    "total_prep_ms": {
+      "avg": 31.66,
+      "stdev": 5.4215
+    },
+    "wait_ms": {
+      "avg": 22.58,
+      "stdev": 5.6415
+    }
+  },
+  "pure_tpu_runs": [
+    {
+      "event_ms": 0.024,
+      "input_ms": 5.02,
+      "instructions_ms": 3.26,
+      "output_ms": 0.66,
+      "params_ms": 0.09,
+      "run": 0,
+      "total_ms": 15.07
+    },
+    {
+      "event_ms": 0.022,
+      "input_ms": 5.07,
+      "instructions_ms": 3.33,
+      "output_ms": 0.66,
+      "params_ms": 0.09,
+      "run": 1,
+      "total_ms": 15.33
+    },
+    {
+      "event_ms": 0.023,
+      "input_ms": 4.43,
+      "instructions_ms": 3.74,
+      "output_ms": 0.72,
+      "params_ms": 0.09,
+      "run": 2,
+      "total_ms": 14.87
+    },
+    {
+      "event_ms": 0.023,
+      "input_ms": 4.97,
+      "instructions_ms": 3.55,
+      "output_ms": 0.54,
+      "params_ms": 0.09,
+      "run": 3,
+      "total_ms": 15.0
+    },
+    {
+      "event_ms": 0.022,
+      "input_ms": 5.13,
+      "instructions_ms": 2.94,
+      "output_ms": 0.56,
+      "params_ms": 0.09,
+      "run": 4,
+      "total_ms": 14.63
+    }
+  ],
+  "pure_tpu_stats": {
+    "event_ms": {
+      "avg": 0.0228,
+      "stdev": 0.0008
+    },
+    "input_ms": {
+      "avg": 4.924,
+      "stdev": 0.2825
+    },
+    "instructions_ms": {
+      "avg": 3.364,
+      "stdev": 0.3032
+    },
+    "output_ms": {
+      "avg": 0.628,
+      "stdev": 0.0756
+    },
+    "params_ms": {
+      "avg": 0.09,
+      "stdev": 0.0
+    },
+    "total_ms": {
+      "avg": 14.98,
+      "stdev": 0.2577
+    }
+  },
+  "script_path_on_board": "/lib/diag/_t_timing.py",
+  "script_sha256": "5bc6f29ae715675a6de3bd8110ee083d6d7b469a8efeddbe4bad2af5c04d03d7",
+  "script_size_on_board_bytes": 3386,
+  "source_logs": [
+    "board_probe_after_restore.log",
+    "run_t_timing.log",
+    "format_fs.log",
+    "msc_copy.log"
+  ]
+}

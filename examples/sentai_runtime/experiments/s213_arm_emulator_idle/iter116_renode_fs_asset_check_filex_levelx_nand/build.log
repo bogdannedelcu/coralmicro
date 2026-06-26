@@ -1,0 +1,157 @@
+[  0%] Incrementing build version...
+-- Build #1526 at 2026-06-11 20:09:29
+[ 22%] Built target libs_levelx
+[ 22%] Built target increment_build_version
+[ 66%] Built target libs_filex
+[ 66%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/argcheck.c.obj
+[ 66%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/asmbase.c.obj
+[ 66%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/asmarm.c.obj
+[ 66%] Building CXX object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/sentai_emu_repl.cc.obj
+[ 66%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/sentai_emu_freertos_hooks.c.obj
+[ 66%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/asmthumb.c.obj
+[ 66%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/asmxtensa.c.obj
+[ 66%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/sentai_emu_mphalport.c.obj
+[ 66%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/port/embed_util.c.obj
+[ 66%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/bc.c.obj
+[ 77%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/binary.c.obj
+[ 77%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/builtinevex.c.obj
+[ 77%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/builtinhelp.c.obj
+[ 77%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/builtinimport.c.obj
+[ 77%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/asmx86.c.obj
+[ 77%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/asmx64.c.obj
+[ 77%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/compile.c.obj
+[ 77%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/emitglue.c.obj
+[ 77%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/emitcommon.c.obj
+[ 77%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/emitinlinethumb.c.obj
+[ 77%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/emitnarm.c.obj
+[ 77%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/emitbc.c.obj
+[ 77%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/emitnative.c.obj
+cc1plus: warning: command line option '-Wno-old-style-definition' is valid for C/ObjC but not for C++
+cc1plus: warning: command line option '-Wno-missing-prototypes' is valid for C/ObjC but not for C++
+[ 77%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/emitinlinextensa.c.obj
+[ 77%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/emitnthumb.c.obj
+[ 77%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/emitnx86.c.obj
+[ 77%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/emitnx64.c.obj
+[ 77%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/emitnxtensawin.c.obj
+[ 77%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/emitnxtensa.c.obj
+[ 77%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/formatfloat.c.obj
+[ 77%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/frozenmod.c.obj
+[ 77%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/malloc.c.obj
+[ 77%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/lexer.c.obj
+[ 77%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/gc.c.obj
+[ 77%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/map.c.obj
+[ 77%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/modcmath.c.obj
+[ 77%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/modarray.c.obj
+[ 77%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/modbuiltins.c.obj
+[ 77%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/modcollections.c.obj
+[ 77%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/moderrno.c.obj
+[ 77%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/modgc.c.obj
+[ 77%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/modmath.c.obj
+[ 77%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/modio.c.obj
+[ 77%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/modmicropython.c.obj
+[ 77%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/modstruct.c.obj
+[ 77%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/modsys.c.obj
+[ 77%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/modthread.c.obj
+[ 77%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/mpstate.c.obj
+[ 77%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/mpprint.c.obj
+[ 77%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/nativeglue.c.obj
+[ 77%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/mpz.c.obj
+[ 77%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/nlr.c.obj
+[ 77%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/nlraarch64.c.obj
+[ 77%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/nlrpowerpc.c.obj
+[ 77%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/nlrsetjmp.c.obj
+[ 77%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/nlrmips.c.obj
+[ 77%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/nlrthumb.c.obj
+[ 77%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/nlrx64.c.obj
+[ 77%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/nlrxtensa.c.obj
+[ 77%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/obj.c.obj
+[ 77%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/nlrx86.c.obj
+[ 77%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/objarray.c.obj
+[ 88%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/objattrtuple.c.obj
+[ 88%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/objboundmeth.c.obj
+[ 88%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/objbool.c.obj
+[ 88%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/objcell.c.obj
+[ 88%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/objcomplex.c.obj
+[ 88%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/objclosure.c.obj
+[ 88%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/objdeque.c.obj
+[ 88%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/objdict.c.obj
+[ 88%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/objenumerate.c.obj
+[ 88%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/objexcept.c.obj
+[ 88%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/objfilter.c.obj
+[ 88%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/objfloat.c.obj
+[ 88%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/objfun.c.obj
+[ 88%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/objgenerator.c.obj
+[ 88%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/objgetitemiter.c.obj
+[ 88%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/objint.c.obj
+[ 88%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/objint_longlong.c.obj
+[ 88%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/objint_mpz.c.obj
+[ 88%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/objmap.c.obj
+[ 88%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/objmodule.c.obj
+[ 88%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/objlist.c.obj
+[ 88%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/objnamedtuple.c.obj
+[ 88%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/objnone.c.obj
+[ 88%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/objobject.c.obj
+[ 88%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/objpolyiter.c.obj
+[ 88%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/objrange.c.obj
+[ 88%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/objproperty.c.obj
+[ 88%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/objreversed.c.obj
+[ 88%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/objset.c.obj
+[ 88%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/objsingleton.c.obj
+[ 88%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/objslice.c.obj
+[ 88%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/objstr.c.obj
+[ 88%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/objstringio.c.obj
+[ 88%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/objstrunicode.c.obj
+[ 88%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/objtuple.c.obj
+[ 88%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/objtype.c.obj
+[ 88%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/objzip.c.obj
+[ 88%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/opmethods.c.obj
+[ 88%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/pairheap.c.obj
+[ 88%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/parsenum.c.obj
+[ 88%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/parse.c.obj
+[ 88%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/parsenumbase.c.obj
+[ 88%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/persistentcode.c.obj
+[ 88%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/profile.c.obj
+[ 88%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/repl.c.obj
+[ 88%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/qstr.c.obj
+[ 88%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/reader.c.obj
+[ 88%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/pystack.c.obj
+[ 88%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/ringbuf.c.obj
+[ 88%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/runtime_utils.c.obj
+[100%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/runtime.c.obj
+[100%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/scheduler.c.obj
+[100%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/scope.c.obj
+[100%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/sequence.c.obj
+[100%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/showbc.c.obj
+[100%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/stackctrl.c.obj
+[100%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/smallint.c.obj
+[100%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/stream.c.obj
+[100%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/vm.c.obj
+[100%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/unicode.c.obj
+[100%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/shared/runtime/gchelper_generic.c.obj
+[100%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/warning.c.obj
+[100%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/examples/sentai_runtime/micropython_embed/py/vstr.c.obj
+[100%] Building ASM object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/gcc/startup_MIMXRT1176_cm7.S.obj
+[100%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/system_MIMXRT1176_cm7.c.obj
+[100%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/third_party/freertos_kernel/event_groups.c.obj
+[100%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/third_party/freertos_kernel/list.c.obj
+[100%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/third_party/freertos_kernel/portable/GCC/ARM_CM4F/port.c.obj
+[100%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/third_party/freertos_kernel/stream_buffer.c.obj
+[100%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/third_party/freertos_kernel/queue.c.obj
+[100%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/third_party/freertos_kernel/tasks.c.obj
+[100%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/third_party/freertos_kernel/timers.c.obj
+[100%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/third_party/FreeRTOS_helpers/heap_useNewlib_NXP.c.obj
+[100%] Building C object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/sentai_emu_fs_module.c.obj
+[100%] Building CXX object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/sentai_emu_lfs_stubs.cc.obj
+[100%] Building CXX object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/libs/base/fx_user_fs.cc.obj
+cc1plus: warning: command line option '-Wno-old-style-definition' is valid for C/ObjC but not for C++
+cc1plus: warning: command line option '-Wno-missing-prototypes' is valid for C/ObjC but not for C++
+cc1plus: warning: command line option '-Wno-old-style-definition' is valid for C/ObjC but not for C++
+cc1plus: warning: command line option '-Wno-missing-prototypes' is valid for C/ObjC but not for C++
+[100%] Building CXX object emu/CMakeFiles/sentai_emu_fs_asset_check.dir/__/libs/base/fx_nand_driver.cc.obj
+/home/bogdan/work/coralmicro/third_party/FreeRTOS_helpers/heap_useNewlib_NXP.c:68:4: warning: #warning "This wrapper was verified for newlib versions 2.5 - 3.1; please ensure newlib's external requirements for malloc-family are unchanged!" [-Wcpp]
+   68 |   #warning "This wrapper was verified for newlib versions 2.5 - 3.1; please ensure newlib's external requirements for malloc-family are unchanged!"
+      |    ^~~~~~~
+cc1plus: warning: command line option '-Wno-old-style-definition' is valid for C/ObjC but not for C++
+cc1plus: warning: command line option '-Wno-missing-prototypes' is valid for C/ObjC but not for C++
+[100%] Linking CXX executable sentai_emu_fs_asset_check
+[100%] Built target sentai_emu_fs_asset_check

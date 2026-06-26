@@ -1,0 +1,20 @@
+
+>>> import sentai
+import sentai
+>>> 
+>>> print(sentai.version())
+print(sentai.version())
+SentAI v1.0 build 1546 (2026-06-24 15:09:50)
+>>> 
+>>> print('mkdir_lib', sentai.fs.mkdir('/lib'))
+print('mkdir_lib', sentai.fs.mkdir('/lib'))
+mkdir_lib False
+>>> 
+>>> print('mkdir_diag', sentai.fs.mkdir('/lib/diag'))
+print('mkdir_diag', sentai.fs.mkdir('/lib/diag'))
+mkdir_diag False
+>>> 
+>>> print('exists', sentai.fs.exists('/lib/diag'))
+print('exists', sentai.fs.exists('/lib/diag'))
+exists False
+>>> 

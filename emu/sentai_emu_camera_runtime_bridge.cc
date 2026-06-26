@@ -9,9 +9,6 @@
 #include <string.h>
 
 #include "examples/sentai_runtime/sentai_virtual_camera.h"
-#include "libs/base/fx_user_fs.h"
-#include "third_party/freertos_kernel/include/FreeRTOS.h"
-#include "third_party/freertos_kernel/include/task.h"
 
 extern "C" int sentai_camera_backend_publish_prep_once(void);
 extern "C" int sentai_cam_grab_latest(uint8_t** raw);
@@ -44,21 +41,6 @@ int g_cam_h = kDefaultH;
 int g_cam_running = 0;
 uint32_t g_switch_drain = 2;
 
-struct ListCtx {
-  char (*names)[96];
-  int max_entries;
-  int count;
-};
-
-int ListCb(const FxDirEntry* entry, void* user) {
-  ListCtx* ctx = static_cast<ListCtx*>(user);
-  if (!ctx || ctx->count >= ctx->max_entries) return 1;
-  strncpy(ctx->names[ctx->count], entry->name, 95);
-  ctx->names[ctx->count][95] = '\0';
-  ++ctx->count;
-  return 0;
-}
-
 int CopyLatestRow(uint8_t* dst, int len, int row) {
   if (!dst || len <= 0) return -1;
   uint8_t* raw = nullptr;
@@ -79,34 +61,6 @@ int CopyLatestRow(uint8_t* dst, int len, int row) {
 }
 
 }  // namespace
-
-extern "C" uint32_t sentai_ticks_ms(void) {
-  return static_cast<uint32_t>(xTaskGetTickCount() * portTICK_PERIOD_MS);
-}
-
-extern "C" int sentai_fs_size(const char* path) {
-  const ssize_t size = FxUserSize(path);
-  return size < 0 ? -1 : static_cast<int>(size);
-}
-
-extern "C" int sentai_fs_read(const char* path, uint8_t* buf, int max_size) {
-  if (!path || !buf || max_size < 0) return -1;
-  return static_cast<int>(FxUserReadFile(path, buf, static_cast<size_t>(max_size)));
-}
-
-extern "C" int sentai_fs_write(const char* path, const uint8_t* buf, int size) {
-  if (!path || size < 0) return 0;
-  return FxUserWriteFile(path, buf, static_cast<size_t>(size));
-}
-
-extern "C" int sentai_fs_listdir(const char* path,
-                                  char names[][96],
-                                  int max_entries) {
-  if (!path || !names || max_entries <= 0) return -1;
-  ListCtx ctx{names, max_entries, 0};
-  const int n = FxUserListDir(path, ListCb, &ctx);
-  return n < 0 ? -1 : ctx.count;
-}
 
 extern "C" int sentai_cam_init_full(int streaming, int fps,
                                      int hflip, int vflip) {
@@ -277,15 +231,3 @@ extern "C" int sentai_prep_publish_slot_rgb_64(const uint8_t* raw_xrgb,
 }
 
 extern "C" __attribute__((weak)) void sentai_flow_poll_once(void) {}
-
-extern "C" int sentai_fr_push_frame(const uint8_t* gray, int w, int h,
-                                     int markers, uint32_t frame_seq,
-                                     uint32_t ts_ms) {
-  (void)gray;
-  (void)w;
-  (void)h;
-  (void)markers;
-  (void)frame_seq;
-  (void)ts_ms;
-  return -3;
-}

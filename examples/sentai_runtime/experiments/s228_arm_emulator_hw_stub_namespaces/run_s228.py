@@ -17,9 +17,13 @@ EXP = pathlib.Path(__file__).resolve().parent
 RENODE = pathlib.Path("/home/bogdan/work/renode_portable/renode")
 BUILD_EMU = ROOT / "build_emu"
 TARGET = "sentai_emu_hw_stub_namespace_smoke"
+STORAGE_SETUP_TARGET = "sentai_emu_fx_storage"
 RENODE_SCRIPT = ROOT / "emu/renode/sentai_emu_hw_stub_namespace_smoke.resc"
 RENODE_UI_SCRIPT = ROOT / "emu/renode/sentai_emu_hw_stub_namespace_smoke_ui.resc"
+STORAGE_SETUP_SCRIPT = ROOT / "emu/renode/sentai_emu_fx_storage.resc"
 UART_LOG = ROOT / "emu/output/sentai_emu_hw_stub_namespace_smoke.log"
+STORAGE_SETUP_UART_LOG = ROOT / "emu/output/sentai_emu_fx_storage.log"
+NAND_IMAGE = ROOT / "emu/output/sentai_emu_nand.bin"
 
 
 def next_iter_dir() -> pathlib.Path:
@@ -128,16 +132,24 @@ def main() -> int:
     if not args.renode_ui:
         renode_cmd = [str(RENODE), "--plain", "--console", "--disable-xwt",
                       str(renode_script.relative_to(ROOT))]
+    storage_setup_cmd = [str(RENODE), "--plain", "--console", "--disable-xwt",
+                         str(STORAGE_SETUP_SCRIPT.relative_to(ROOT))]
 
     commands = {
         "configure": [
             "cmake", "-S", ".", "-B", str(BUILD_EMU.relative_to(ROOT)),
             "-DSENTAI_ARM_EMU=ON", "-DSENTAI_SKIP_SDK_PATCHES=ON",
         ],
+        "build_storage_setup": [
+            "cmake", "--build", str(BUILD_EMU.relative_to(ROOT)),
+            "--target", STORAGE_SETUP_TARGET,
+            f"-j{subprocess.os.cpu_count() or 1}",
+        ],
         "build": [
             "cmake", "--build", str(BUILD_EMU.relative_to(ROOT)),
             "--target", TARGET, f"-j{subprocess.os.cpu_count() or 1}",
         ],
+        "storage_setup": storage_setup_cmd,
         "renode": renode_cmd,
     }
     results: dict[str, object] = {
@@ -148,7 +160,7 @@ def main() -> int:
         "commands": commands,
     }
 
-    for name in ("configure", "build"):
+    for name in ("configure", "build_storage_setup", "build"):
         proc = run_to_file(commands[name], ROOT, iter_dir / f"{name}.log", 300)
         results[f"{name}_rc"] = proc.returncode
         if proc.returncode != 0:
@@ -156,6 +168,53 @@ def main() -> int:
                 json.dumps(results, indent=2) + "\n", encoding="utf-8")
             print(proc.stdout)
             return proc.returncode
+
+    NAND_IMAGE.parent.mkdir(parents=True, exist_ok=True)
+    nand_reset = {
+        "path": str(NAND_IMAGE.relative_to(ROOT)),
+        "existed": NAND_IMAGE.exists(),
+        "size_before": NAND_IMAGE.stat().st_size if NAND_IMAGE.exists() else 0,
+        "removed": False,
+    }
+    if NAND_IMAGE.exists():
+        NAND_IMAGE.unlink()
+        nand_reset["removed"] = True
+    results["nand_reset"] = nand_reset
+    (iter_dir / "nand_reset.log").write_text(
+        json.dumps(nand_reset, indent=2) + "\n", encoding="utf-8")
+
+    if STORAGE_SETUP_UART_LOG.exists():
+        STORAGE_SETUP_UART_LOG.unlink()
+
+    storage_proc = run_to_file(commands["storage_setup"], ROOT,
+                               iter_dir / "storage_setup.log", 120)
+    results["storage_setup_rc"] = storage_proc.returncode
+    storage_symbols = {
+        "boot_state": parse_hex("sentai_emu_fx_storage boot_state",
+                                storage_proc.stdout),
+        "heartbeat": parse_hex("sentai_emu_fx_storage heartbeat",
+                               storage_proc.stdout),
+        "last_tick": parse_hex("sentai_emu_fx_storage last_tick",
+                               storage_proc.stdout),
+        "fs_size": parse_hex("sentai_emu_fx_storage fs_size",
+                             storage_proc.stdout),
+        "fs_read_ok": parse_hex("sentai_emu_fx_storage fs_read_ok",
+                                storage_proc.stdout),
+        "fx_errors": parse_hex("sentai_emu_fx_storage fx_errors",
+                               storage_proc.stdout),
+    }
+    results["storage_setup"] = storage_symbols
+    if STORAGE_SETUP_UART_LOG.exists():
+        shutil.copy2(STORAGE_SETUP_UART_LOG, iter_dir / "storage_uart.log")
+    shutil.copy2(STORAGE_SETUP_SCRIPT, iter_dir / "renode" /
+                 STORAGE_SETUP_SCRIPT.name)
+    if (storage_proc.returncode != 0
+            or storage_symbols.get("boot_state") != 0x0600
+            or storage_symbols.get("fs_read_ok") != 1):
+        (iter_dir / "verdict_s228.json").write_text(
+            json.dumps(results, indent=2) + "\n", encoding="utf-8")
+        print(storage_proc.stdout)
+        return 1
 
     if UART_LOG.exists():
         UART_LOG.unlink()

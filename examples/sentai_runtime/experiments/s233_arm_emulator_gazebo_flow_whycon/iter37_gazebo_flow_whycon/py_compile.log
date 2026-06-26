@@ -1,0 +1,3 @@
+$ /usr/bin/python3 -m py_compile emu/renode/crazy_cpx_udp_mmio_bridge.py emu/renode/gazebo_camera_mmio_bridge.py emu/renode/pxp_accel_mmio_bridge.py emu/host/sentai_crazy_cpx_udp_bridge.py emu/host/sentai_gazebo_uds_to_tcp_bridge.py
+
+[elapsed_s] 0.064

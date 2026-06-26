@@ -18,6 +18,8 @@ set(SENTAI_EMU_MINIMAL_SOURCES
 )
 
 function(configure_sentai_emu_target target)
+  add_dependencies(${target} increment_build_version)
+
   target_compile_definitions(${target} PRIVATE
       SENTAI_ARM_EMU=1
       CPU_MIMXRT1176CVM8A_cm7
@@ -31,6 +33,7 @@ function(configure_sentai_emu_target target)
       USE_SDRAM
       SDK_OS_FREE_RTOS
       USE_RTOS=1
+      SENTAI_HAVE_FREERTOS=1
   )
 
   target_include_directories(${target} PRIVATE
@@ -903,6 +906,7 @@ configure_sentai_emu_target(sentai_emu_fs_repl_smoke)
 target_compile_definitions(sentai_emu_fs_repl_smoke PRIVATE
     SENTAI_EMU_FX_FS=1
     SENTAI_EMU_FS_REPL_SMOKE=1
+    SENTAI_EMU_AUTORUN_HALT_AFTER=1
     SENTAI_ARM_EMU_NAND_BRIDGE=1
 )
 target_include_directories(sentai_emu_fs_repl_smoke PRIVATE
@@ -927,6 +931,7 @@ configure_sentai_emu_target(sentai_emu_fs_asset_check)
 target_compile_definitions(sentai_emu_fs_asset_check PRIVATE
     SENTAI_EMU_FX_FS=1
     SENTAI_EMU_FS_ASSET_CHECK=1
+    SENTAI_EMU_AUTORUN_HALT_AFTER=1
     SENTAI_ARM_EMU_NAND_BRIDGE=1
 )
 target_include_directories(sentai_emu_fs_asset_check PRIVATE
@@ -952,6 +957,7 @@ target_compile_options(sentai_emu_fs_asset_check PRIVATE
 set(SENTAI_EMU_TPU_CAT_REPL_SOURCES ${SENTAI_EMU_FS_REPL_SOURCES})
 list(APPEND SENTAI_EMU_TPU_CAT_REPL_SOURCES
     sentai_emu_fx_import.c
+    sentai_emu_pipeline_unavailable_backend.c
     sentai_emu_tpu_bridge_module.c
 )
 
@@ -965,10 +971,12 @@ target_compile_definitions(sentai_emu_tpu_cat_repl PRIVATE
     SENTAI_EMU_MISSION=1
     SENTAI_EMU_TPU_HOST_BRIDGE=1
     SENTAI_EMU_TPU_CAT_AUTORUN=1
+    SENTAI_EMU_AUTORUN_HALT_AFTER=1
     SENTAI_ARM_EMU_NAND_BRIDGE=1
 )
 target_include_directories(sentai_emu_tpu_cat_repl PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/mp_inc_mission
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime
     ${SENTAI_EMU_MP_EMBED_DIR}
     ${SENTAI_EMU_MP_EMBED_DIR}/port
 )
@@ -991,10 +999,12 @@ target_compile_definitions(sentai_emu_tpu_fps_repl PRIVATE
     SENTAI_EMU_MISSION=1
     SENTAI_EMU_TPU_HOST_BRIDGE=1
     SENTAI_EMU_TPU_FPS_AUTORUN=1
+    SENTAI_EMU_AUTORUN_HALT_AFTER=1
     SENTAI_ARM_EMU_NAND_BRIDGE=1
 )
 target_include_directories(sentai_emu_tpu_fps_repl PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/mp_inc_mission
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime
     ${SENTAI_EMU_MP_EMBED_DIR}
     ${SENTAI_EMU_MP_EMBED_DIR}/port
 )
@@ -1017,10 +1027,12 @@ target_compile_definitions(sentai_emu_tpu_fps_mem_repl PRIVATE
     SENTAI_EMU_MISSION=1
     SENTAI_EMU_TPU_HOST_BRIDGE=1
     SENTAI_EMU_TPU_FPS_MEM_AUTORUN=1
+    SENTAI_EMU_AUTORUN_HALT_AFTER=1
     SENTAI_ARM_EMU_NAND_BRIDGE=1
 )
 target_include_directories(sentai_emu_tpu_fps_mem_repl PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/mp_inc_mission
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime
     ${SENTAI_EMU_MP_EMBED_DIR}
     ${SENTAI_EMU_MP_EMBED_DIR}/port
 )
@@ -1043,10 +1055,12 @@ target_compile_definitions(sentai_emu_tpu_fps_mem_invoke_repl PRIVATE
     SENTAI_EMU_MISSION=1
     SENTAI_EMU_TPU_HOST_BRIDGE=1
     SENTAI_EMU_TPU_FPS_MEM_INVOKE_AUTORUN=1
+    SENTAI_EMU_AUTORUN_HALT_AFTER=1
     SENTAI_ARM_EMU_NAND_BRIDGE=1
 )
 target_include_directories(sentai_emu_tpu_fps_mem_invoke_repl PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/mp_inc_mission
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime
     ${SENTAI_EMU_MP_EMBED_DIR}
     ${SENTAI_EMU_MP_EMBED_DIR}/port
 )
@@ -1069,10 +1083,12 @@ target_compile_definitions(sentai_emu_tpu_fps_mem_session_repl PRIVATE
     SENTAI_EMU_MISSION=1
     SENTAI_EMU_TPU_HOST_BRIDGE=1
     SENTAI_EMU_TPU_FPS_MEM_SESSION_AUTORUN=1
+    SENTAI_EMU_AUTORUN_HALT_AFTER=1
     SENTAI_ARM_EMU_NAND_BRIDGE=1
 )
 target_include_directories(sentai_emu_tpu_fps_mem_session_repl PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/mp_inc_mission
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime
     ${SENTAI_EMU_MP_EMBED_DIR}
     ${SENTAI_EMU_MP_EMBED_DIR}/port
 )
@@ -1095,10 +1111,12 @@ target_compile_definitions(sentai_emu_tpu_timing_repl PRIVATE
     SENTAI_EMU_MISSION=1
     SENTAI_EMU_TPU_HOST_BRIDGE=1
     SENTAI_EMU_TPU_TIMING_AUTORUN=1
+    SENTAI_EMU_AUTORUN_HALT_AFTER=1
     SENTAI_ARM_EMU_NAND_BRIDGE=1
 )
 target_include_directories(sentai_emu_tpu_timing_repl PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/mp_inc_mission
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime
     ${SENTAI_EMU_MP_EMBED_DIR}
     ${SENTAI_EMU_MP_EMBED_DIR}/port
 )
@@ -1162,10 +1180,15 @@ target_compile_options(sentai_emu_crazy_repl PRIVATE
 # then runs a conservative WhyCon-world takeoff/hold/land smoke.  The actual
 # visual calibration stack still needs camera/markers/calib-task owners ported;
 # this target verifies that the emulator can command cf2 in Gazebo while also
-# exposing the documented calib stub boundary.
+# exposing the shared calib boundary.
 add_executable_m7(sentai_emu_crazy_calib_precursor_repl
-    LINKER_SCRIPT ${PROJECT_SOURCE_DIR}/libs/nxp/rt1176-sdk/MIMXRT1176xxxxx_cm7_ram.ld
+    LINKER_SCRIPT ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/MIMXRT1176xxxxx_cm7_ram_mp.ld
     ${SENTAI_EMU_CRAZY_REPL_SOURCES}
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/sentai_svd3.cc
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/sentai_calib.cc
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/sentai_calib_task_unavailable.c
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/sentai_calib_bringup_unavailable.c
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/sentai_calib_orientation_task_unavailable.c
 )
 configure_sentai_emu_target(sentai_emu_crazy_calib_precursor_repl)
 target_compile_definitions(sentai_emu_crazy_calib_precursor_repl PRIVATE
@@ -1173,6 +1196,8 @@ target_compile_definitions(sentai_emu_crazy_calib_precursor_repl PRIVATE
     SENTAI_EMU_MISSION=1
     SENTAI_EMU_CRAZY_BINDING=1
     SENTAI_EMU_HW_STUB_MODULES=1
+    SENTAI_EMU_CALIB_BINDING=1
+    SENTAI_HAVE_FXUSER=1
     SENTAI_EMU_CRAZY_CALIB_PRECURSOR_AUTORUN=1
     SENTAI_EMU_AUTORUN_HALT_AFTER=1
     SENTAI_ARM_EMU_NAND_BRIDGE=1
@@ -1200,11 +1225,12 @@ target_compile_options(sentai_emu_crazy_calib_precursor_repl PRIVATE
 # LPUART6 for the host runner.
 set(SENTAI_EMU_NAMESPACE_INVENTORY_SOURCES ${SENTAI_EMU_CRAZY_REPL_SOURCES})
 list(APPEND SENTAI_EMU_NAMESPACE_INVENTORY_SOURCES
+    sentai_emu_pipeline_unavailable_backend.c
     sentai_emu_tpu_bridge_module.c
 )
 
 add_executable_m7(sentai_emu_namespace_inventory
-    LINKER_SCRIPT ${PROJECT_SOURCE_DIR}/libs/nxp/rt1176-sdk/MIMXRT1176xxxxx_cm7_ram.ld
+    LINKER_SCRIPT ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/MIMXRT1176xxxxx_cm7_ram_mp.ld
     ${SENTAI_EMU_NAMESPACE_INVENTORY_SOURCES}
 )
 configure_sentai_emu_target(sentai_emu_namespace_inventory)
@@ -1270,19 +1296,37 @@ target_compile_options(sentai_emu_core_namespace_smoke PRIVATE
 # not model real USB/UART/IMU/mic/actuator peripherals; they document the
 # emulator boundary before camera/flow/pipeline work resumes.
 add_executable_m7(sentai_emu_hw_stub_namespace_smoke
-    LINKER_SCRIPT ${PROJECT_SOURCE_DIR}/libs/nxp/rt1176-sdk/MIMXRT1176xxxxx_cm7_ram.ld
+    LINKER_SCRIPT ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/MIMXRT1176xxxxx_cm7_ram_mp.ld
     ${SENTAI_EMU_FS_REPL_SOURCES}
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/sentai_servo.cc
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/sentai_servo_marker_task_unavailable.c
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/sentai_svd3.cc
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/sentai_calib.cc
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/sentai_calib_task_unavailable.c
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/sentai_calib_bringup_unavailable.c
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/sentai_calib_orientation_task_unavailable.c
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/sentai_safety.cc
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/sentai_safety_task_unavailable.c
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/sentai_object_lifter.cc
 )
 configure_sentai_emu_target(sentai_emu_hw_stub_namespace_smoke)
 target_compile_definitions(sentai_emu_hw_stub_namespace_smoke PRIVATE
     SENTAI_EMU_FX_FS=1
     SENTAI_EMU_HW_STUB_MODULES=1
+    SENTAI_EMU_SAFETY_BINDING=1
+    SENTAI_EMU_SERVO_BINDING=1
+    SENTAI_EMU_CALIB_BINDING=1
+    SENTAI_EMU_USB_BINDING=1
+    SENTAI_EMU_UART_BINDING=1
+    SENTAI_EMU_OBJECT_LIFTER_BINDING=1
+    SENTAI_HAVE_FXUSER=1
     SENTAI_EMU_HW_STUB_SMOKE_AUTORUN=1
     SENTAI_EMU_AUTORUN_HALT_AFTER=1
     SENTAI_ARM_EMU_NAND_BRIDGE=1
 )
 target_include_directories(sentai_emu_hw_stub_namespace_smoke PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/mp_inc
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime
     ${SENTAI_EMU_MP_EMBED_DIR}
     ${SENTAI_EMU_MP_EMBED_DIR}/port
 )
@@ -1306,10 +1350,12 @@ list(APPEND SENTAI_EMU_CAMERA_MARKERS_REPL_SOURCES
     ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/sentai_virtual_camera.cc
     ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/sentai_camera_frame_backend.c
     ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/sentai_prep.cc
-    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/sentai_pxp_shim_sim.c
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/sentai_pxp_shim_emu.c
     ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/sentai_markers.cc
     ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/sentai_aruco.cc
     ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/sentai_svd3.cc
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/sentai_safety.cc
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/sentai_safety_task.cc
 )
 
 add_executable_m7(sentai_emu_camera_markers_repl
@@ -1321,6 +1367,7 @@ target_compile_definitions(sentai_emu_camera_markers_repl PRIVATE
     SENTAI_EMU_FX_FS=1
     SENTAI_EMU_CAMERA_BINDING=1
     SENTAI_EMU_MARKERS_BINDING=1
+    SENTAI_EMU_SAFETY_BINDING=1
     SENTAI_EMU_LARGE_RUNTIME=1
     SENTAI_EMU_CAMERA_MARKERS_AUTORUN=1
     SENTAI_EMU_AUTORUN_HALT_AFTER=1
@@ -1358,17 +1405,19 @@ list(APPEND SENTAI_EMU_GAZEBO_FLOW_WHYCON_REPL_SOURCES
     sentai_emu_camera_runtime_bridge.cc
     sentai_emu_detection_runtime_stubs.cc
     sentai_emu_gazebo_camera_bridge.cc
-    sentai_emu_pipeline_prep_module.c
     ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/sentai_virtual_camera.cc
     ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/sentai_camera_frame_backend.c
     ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/sentai_prep.cc
-    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/sentai_pxp_shim_sim.c
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/sentai_pxp_shim_emu.c
     ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/detection_task.cc
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/sentai_tracker.cc
     ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/flow_task.cc
     ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/flow_phase_corr.cc
     ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/sentai_markers.cc
     ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/sentai_aruco.cc
     ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/sentai_svd3.cc
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/sentai_safety.cc
+    ${PROJECT_SOURCE_DIR}/examples/sentai_runtime/sentai_safety_task.cc
 )
 
 add_executable_m7(sentai_emu_gazebo_flow_whycon_repl
@@ -1382,6 +1431,7 @@ target_compile_definitions(sentai_emu_gazebo_flow_whycon_repl PRIVATE
     SENTAI_EMU_CRAZY_BINDING=1
     SENTAI_EMU_CAMERA_BINDING=1
     SENTAI_EMU_MARKERS_BINDING=1
+    SENTAI_EMU_SAFETY_BINDING=1
     SENTAI_EMU_FLOW_BINDING=1
     SENTAI_EMU_PIPELINE_PREP_BINDING=1
     SENTAI_EMU_PREP_RUNTIME=1

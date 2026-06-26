@@ -1,0 +1,7 @@
+Opening REPL on /dev/ttyACM0 …
+REPL ready.  Uploading 1 file(s):
+  urb_wall_100invokes.py → /lib/diag/urb_wall_100invokes.py  (2459 bytes)
+    … 960/2459 bytes OK
+    … 1920/2459 bytes OK
+    ✓ wrote 2459 bytes in 26.3s sync=ok
+Done.  On device:  import diag

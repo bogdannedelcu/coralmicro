@@ -1,0 +1,824 @@
+{
+  "started_at": "2026-06-11T18:51:56+0300",
+  "target": "sentai_emu_namespace_inventory",
+  "renode_script": "emu/renode/sentai_emu_namespace_inventory.resc",
+  "renode_ui": false,
+  "commands": {
+    "configure": [
+      "cmake",
+      "-S",
+      ".",
+      "-B",
+      "build_emu",
+      "-DSENTAI_ARM_EMU=ON",
+      "-DSENTAI_SKIP_SDK_PATCHES=ON"
+    ],
+    "build": [
+      "cmake",
+      "--build",
+      "build_emu",
+      "--target",
+      "sentai_emu_namespace_inventory",
+      "-j24"
+    ],
+    "renode": [
+      "/home/bogdan/work/renode_portable/renode",
+      "--plain",
+      "--console",
+      "--disable-xwt",
+      "emu/renode/sentai_emu_namespace_inventory.resc"
+    ]
+  },
+  "configure_rc": 0,
+  "build_rc": 0,
+  "renode_rc": 0,
+  "symbols": {
+    "boot_state": 1280,
+    "heartbeat": 29,
+    "repl_lines": 1,
+    "last_tick": 2908
+  },
+  "inventory": {
+    "saw_begin": true,
+    "saw_end": true,
+    "version": "SentAI EMU B9 build 1507 (2026-06-11 18:51:57)",
+    "root": [
+      "console",
+      "crazy",
+      "debug",
+      "fr",
+      "fs",
+      "help",
+      "io",
+      "pipeline",
+      "rtos",
+      "run",
+      "sys",
+      "tpu",
+      "verbose",
+      "version"
+    ],
+    "namespaces": {
+      "fs": {
+        "status": "present",
+        "members": [
+          "append",
+          "exists",
+          "format",
+          "ls",
+          "mkdir",
+          "read",
+          "read_base64",
+          "read_str",
+          "remove",
+          "size",
+          "sync",
+          "write"
+        ]
+      },
+      "fr": {
+        "status": "present",
+        "members": [
+          "close",
+          "init",
+          "open",
+          "push_event",
+          "push_scalar",
+          "stats",
+          "task_start",
+          "task_stop"
+        ]
+      },
+      "rtos": {
+        "status": "present",
+        "members": [
+          "cpu_usage",
+          "dmesg",
+          "dmesg_clear",
+          "dmesg_stats",
+          "heap_info",
+          "repl_kick",
+          "resume",
+          "resume_all",
+          "sleep_ms",
+          "suspend",
+          "suspend_all",
+          "tasks",
+          "ticks_ms",
+          "uptime"
+        ]
+      },
+      "sys": {
+        "status": "present",
+        "members": [
+          "boot_attempts",
+          "recovery_mode",
+          "reset"
+        ]
+      },
+      "io": {
+        "status": "present",
+        "members": [
+          "led_off",
+          "led_on"
+        ]
+      },
+      "tpu": {
+        "status": "present",
+        "members": [
+          "dump_eps",
+          "fps",
+          "fps_invoke",
+          "image_mem_size",
+          "input_quant",
+          "input_type",
+          "invoke",
+          "invoke_slot",
+          "load",
+          "load_image",
+          "load_image_mem",
+          "load_slot",
+          "num_outputs",
+          "num_outputs_slot",
+          "output",
+          "output_dims",
+          "output_dims_slot",
+          "output_floats",
+          "output_hash",
+          "output_quant",
+          "output_quant_slot",
+          "output_size",
+          "output_size_slot",
+          "output_slot",
+          "output_type",
+          "output_type_slot",
+          "ready",
+          "row",
+          "save_output",
+          "set_input_slot",
+          "slot_count",
+          "slot_ready",
+          "start",
+          "stats",
+          "stop",
+          "value"
+        ]
+      },
+      "pipeline": {
+        "status": "present",
+        "members": [
+          "detections"
+        ]
+      },
+      "crazy": {
+        "status": "present",
+        "members": [
+          "altitude",
+          "arm",
+          "attitude",
+          "attitude_get",
+          "attitude_release_no_disarm",
+          "baro",
+          "battery",
+          "battery_pct",
+          "canfly",
+          "debug",
+          "disarm",
+          "flow_pred",
+          "flowdeck_pos",
+          "fly",
+          "fly_stop",
+          "go_to",
+          "hl_stop",
+          "hover",
+          "init",
+          "is_flying",
+          "is_tumbled",
+          "land",
+          "link_send",
+          "log_stats",
+          "on_message",
+          "ping",
+          "pose",
+          "pose_ready",
+          "pose_stop",
+          "pose_subscribe",
+          "pressure",
+          "send_crtp",
+          "send_extpos",
+          "send_extpose",
+          "send_flow",
+          "stop",
+          "stop_motors",
+          "takeoff",
+          "telem",
+          "temp",
+          "test_fly",
+          "velocity"
+        ]
+      },
+      "camera": {
+        "status": "missing",
+        "members": []
+      },
+      "flow": {
+        "status": "missing",
+        "members": []
+      },
+      "markers": {
+        "status": "missing",
+        "members": []
+      },
+      "usb": {
+        "status": "missing",
+        "members": []
+      },
+      "uart": {
+        "status": "missing",
+        "members": []
+      },
+      "link": {
+        "status": "missing",
+        "members": []
+      },
+      "mesh": {
+        "status": "missing",
+        "members": []
+      },
+      "imu": {
+        "status": "missing",
+        "members": []
+      },
+      "mic": {
+        "status": "missing",
+        "members": []
+      },
+      "sleep": {
+        "status": "missing",
+        "members": []
+      },
+      "safety": {
+        "status": "missing",
+        "members": []
+      },
+      "objects": {
+        "status": "missing",
+        "members": []
+      },
+      "places": {
+        "status": "missing",
+        "members": []
+      },
+      "slam": {
+        "status": "missing",
+        "members": []
+      },
+      "explore": {
+        "status": "missing",
+        "members": []
+      },
+      "tfl": {
+        "status": "missing",
+        "members": []
+      },
+      "aifes": {
+        "status": "missing",
+        "members": []
+      },
+      "kmeans": {
+        "status": "missing",
+        "members": []
+      },
+      "pca": {
+        "status": "missing",
+        "members": []
+      },
+      "anomaly": {
+        "status": "missing",
+        "members": []
+      },
+      "dtw": {
+        "status": "missing",
+        "members": []
+      },
+      "hmm": {
+        "status": "missing",
+        "members": []
+      },
+      "rl": {
+        "status": "missing",
+        "members": []
+      },
+      "servo": {
+        "status": "missing",
+        "members": []
+      },
+      "object_lifter": {
+        "status": "missing",
+        "members": []
+      },
+      "calib": {
+        "status": "missing",
+        "members": []
+      }
+    },
+    "help": {
+      "all": "ok",
+      "fs": "ok",
+      "fr": "ok",
+      "rtos": "ok",
+      "tpu": "ok",
+      "pipeline": "ok",
+      "crazy": "ok",
+      "sys": "ok",
+      "io": "ok"
+    },
+    "fs_write_size": 2099
+  },
+  "comparison": {
+    "shared_root_source": "examples/sentai_runtime/modsentai.c",
+    "shared_root_exports": [
+      "version",
+      "verbose",
+      "help",
+      "debug",
+      "console",
+      "run",
+      "io",
+      "rtos",
+      "tpu",
+      "fs",
+      "camera",
+      "usb",
+      "uart",
+      "mesh",
+      "link",
+      "crazy",
+      "imu",
+      "mic",
+      "pipeline",
+      "flow",
+      "aifes",
+      "kmeans",
+      "pca",
+      "anomaly",
+      "dtw",
+      "hmm",
+      "rl",
+      "slam",
+      "objects",
+      "places",
+      "servo",
+      "object_lifter",
+      "calib",
+      "markers",
+      "safety",
+      "fr",
+      "explore",
+      "tfl",
+      "sys"
+    ],
+    "present_shared": [
+      "version",
+      "verbose",
+      "help",
+      "debug",
+      "console",
+      "run",
+      "io",
+      "rtos",
+      "tpu",
+      "fs",
+      "crazy",
+      "pipeline",
+      "fr",
+      "sys"
+    ],
+    "missing_shared": [
+      "camera",
+      "usb",
+      "uart",
+      "mesh",
+      "link",
+      "imu",
+      "mic",
+      "flow",
+      "aifes",
+      "kmeans",
+      "pca",
+      "anomaly",
+      "dtw",
+      "hmm",
+      "rl",
+      "slam",
+      "objects",
+      "places",
+      "servo",
+      "object_lifter",
+      "calib",
+      "markers",
+      "safety",
+      "explore",
+      "tfl"
+    ],
+    "unexpected_emu": [],
+    "member_compare": {
+      "fs": {
+        "shared_source": "examples/sentai_runtime/bindings/modsentai_fs.c",
+        "shared_members": [
+          "read",
+          "read_str",
+          "read_base64",
+          "write",
+          "append",
+          "size",
+          "exists",
+          "format",
+          "remove",
+          "mkdir",
+          "sync",
+          "ls"
+        ],
+        "emu_members": [
+          "append",
+          "exists",
+          "format",
+          "ls",
+          "mkdir",
+          "read",
+          "read_base64",
+          "read_str",
+          "remove",
+          "size",
+          "sync",
+          "write"
+        ],
+        "emu_only": [],
+        "shared_only": []
+      },
+      "fr": {
+        "shared_source": "examples/sentai_runtime/bindings/modsentai_fr.c",
+        "shared_members": [
+          "init",
+          "open",
+          "close",
+          "task_start",
+          "task_stop",
+          "push_event",
+          "push_scalar",
+          "stats"
+        ],
+        "emu_members": [
+          "close",
+          "init",
+          "open",
+          "push_event",
+          "push_scalar",
+          "stats",
+          "task_start",
+          "task_stop"
+        ],
+        "emu_only": [],
+        "shared_only": []
+      },
+      "rtos": {
+        "shared_source": "examples/sentai_runtime/bindings/modsentai_rtos.c",
+        "shared_members": [
+          "sleep_ms",
+          "ticks_ms",
+          "tasks",
+          "heap_info",
+          "cpu_usage",
+          "uptime",
+          "dmesg",
+          "dmesg_clear",
+          "dmesg_stats",
+          "repl_kick",
+          "suspend",
+          "resume",
+          "suspend_all",
+          "resume_all"
+        ],
+        "emu_members": [
+          "cpu_usage",
+          "dmesg",
+          "dmesg_clear",
+          "dmesg_stats",
+          "heap_info",
+          "repl_kick",
+          "resume",
+          "resume_all",
+          "sleep_ms",
+          "suspend",
+          "suspend_all",
+          "tasks",
+          "ticks_ms",
+          "uptime"
+        ],
+        "emu_only": [],
+        "shared_only": []
+      },
+      "sys": {
+        "shared_source": "examples/sentai_runtime/bindings/modsentai_sys.c",
+        "shared_members": [
+          "reset",
+          "recovery_mode",
+          "boot_attempts"
+        ],
+        "emu_members": [
+          "boot_attempts",
+          "recovery_mode",
+          "reset"
+        ],
+        "emu_only": [],
+        "shared_only": []
+      },
+      "io": {
+        "shared_source": "examples/sentai_runtime/bindings/modsentai_io.c",
+        "shared_members": [
+          "led_on",
+          "led_off"
+        ],
+        "emu_members": [
+          "led_off",
+          "led_on"
+        ],
+        "emu_only": [],
+        "shared_only": []
+      },
+      "tpu": {
+        "shared_source": "examples/sentai_runtime/bindings/modsentai_tpu.c",
+        "shared_members": [
+          "load",
+          "load_image",
+          "invoke",
+          "ready",
+          "num_outputs",
+          "output_size",
+          "output",
+          "output_dims",
+          "output_type",
+          "row",
+          "value",
+          "save_output",
+          "input_quant",
+          "output_quant",
+          "output_floats",
+          "input_type",
+          "dump_eps",
+          "load_slot",
+          "invoke_slot",
+          "slot_ready",
+          "slot_count",
+          "set_input_slot",
+          "output_hash",
+          "output_slot",
+          "num_outputs_slot",
+          "output_size_slot",
+          "output_dims_slot",
+          "output_type_slot",
+          "output_quant_slot",
+          "load_image_mem",
+          "image_mem_size",
+          "stats",
+          "start",
+          "stop",
+          "fps_invoke",
+          "fps"
+        ],
+        "emu_members": [
+          "dump_eps",
+          "fps",
+          "fps_invoke",
+          "image_mem_size",
+          "input_quant",
+          "input_type",
+          "invoke",
+          "invoke_slot",
+          "load",
+          "load_image",
+          "load_image_mem",
+          "load_slot",
+          "num_outputs",
+          "num_outputs_slot",
+          "output",
+          "output_dims",
+          "output_dims_slot",
+          "output_floats",
+          "output_hash",
+          "output_quant",
+          "output_quant_slot",
+          "output_size",
+          "output_size_slot",
+          "output_slot",
+          "output_type",
+          "output_type_slot",
+          "ready",
+          "row",
+          "save_output",
+          "set_input_slot",
+          "slot_count",
+          "slot_ready",
+          "start",
+          "stats",
+          "stop",
+          "value"
+        ],
+        "emu_only": [],
+        "shared_only": []
+      },
+      "pipeline": {
+        "shared_source": "examples/sentai_runtime/bindings/modsentai_pipeline.c",
+        "shared_members": [
+          "start",
+          "start_once",
+          "stop",
+          "get",
+          "get_ex",
+          "count",
+          "frame_count",
+          "on_detection",
+          "once",
+          "detections",
+          "save",
+          "dma_memcpy",
+          "direct_tensor",
+          "direct_stats",
+          "target_fps",
+          "prep_fps",
+          "prep_stats",
+          "prep_reset",
+          "prep_start",
+          "prep_stop",
+          "running",
+          "stats",
+          "tracks",
+          "event",
+          "track_config",
+          "set_pose",
+          "camera_config",
+          "task_health",
+          "debug_prep_mode",
+          "debug_no_invoke",
+          "infer_stats",
+          "infer_reset",
+          "invokes_per_frame",
+          "multi_invoke_mode",
+          "force_parity",
+          "force_parity_stats",
+          "force_parity_reset",
+          "calibrate",
+          "probe_ratios",
+          "loop_delay",
+          "set_slot_for_cam",
+          "get_slot_for_cam",
+          "slot_stats",
+          "slot_stats_reset"
+        ],
+        "emu_members": [
+          "detections"
+        ],
+        "emu_only": [],
+        "shared_only": [
+          "calibrate",
+          "camera_config",
+          "count",
+          "debug_no_invoke",
+          "debug_prep_mode",
+          "direct_stats",
+          "direct_tensor",
+          "dma_memcpy",
+          "event",
+          "force_parity",
+          "force_parity_reset",
+          "force_parity_stats",
+          "frame_count",
+          "get",
+          "get_ex",
+          "get_slot_for_cam",
+          "infer_reset",
+          "infer_stats",
+          "invokes_per_frame",
+          "loop_delay",
+          "multi_invoke_mode",
+          "on_detection",
+          "once",
+          "prep_fps",
+          "prep_reset",
+          "prep_start",
+          "prep_stats",
+          "prep_stop",
+          "probe_ratios",
+          "running",
+          "save",
+          "set_pose",
+          "set_slot_for_cam",
+          "slot_stats",
+          "slot_stats_reset",
+          "start",
+          "start_once",
+          "stats",
+          "stop",
+          "target_fps",
+          "task_health",
+          "track_config",
+          "tracks"
+        ]
+      },
+      "crazy": {
+        "shared_source": "examples/sentai_runtime/bindings/modsentai_crazy.c",
+        "shared_members": [
+          "init",
+          "stop",
+          "debug",
+          "arm",
+          "disarm",
+          "takeoff",
+          "land",
+          "stop_motors",
+          "hl_stop",
+          "hover",
+          "go_to",
+          "send_crtp",
+          "ping",
+          "test_fly",
+          "fly",
+          "attitude",
+          "attitude_release_no_disarm",
+          "fly_stop",
+          "altitude",
+          "baro",
+          "battery",
+          "battery_pct",
+          "temp",
+          "pressure",
+          "telem",
+          "attitude_get",
+          "velocity",
+          "flow_pred",
+          "flowdeck_pos",
+          "canfly",
+          "is_flying",
+          "is_tumbled",
+          "on_message",
+          "link_send",
+          "send_flow",
+          "send_extpos",
+          "send_extpose",
+          "pose_subscribe",
+          "pose",
+          "pose_stop",
+          "pose_ready",
+          "log_stats"
+        ],
+        "emu_members": [
+          "altitude",
+          "arm",
+          "attitude",
+          "attitude_get",
+          "attitude_release_no_disarm",
+          "baro",
+          "battery",
+          "battery_pct",
+          "canfly",
+          "debug",
+          "disarm",
+          "flow_pred",
+          "flowdeck_pos",
+          "fly",
+          "fly_stop",
+          "go_to",
+          "hl_stop",
+          "hover",
+          "init",
+          "is_flying",
+          "is_tumbled",
+          "land",
+          "link_send",
+          "log_stats",
+          "on_message",
+          "ping",
+          "pose",
+          "pose_ready",
+          "pose_stop",
+          "pose_subscribe",
+          "pressure",
+          "send_crtp",
+          "send_extpos",
+          "send_extpose",
+          "send_flow",
+          "stop",
+          "stop_motors",
+          "takeoff",
+          "telem",
+          "temp",
+          "test_fly",
+          "velocity"
+        ],
+        "emu_only": [],
+        "shared_only": []
+      }
+    }
+  },
+  "pass": true
+}

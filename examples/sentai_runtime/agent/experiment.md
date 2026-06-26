@@ -6892,3 +6892,98 @@ anchor.
   the FLOW-bounded wind ceiling (expected ~0.4-1.0 m/s).  This is the
   real "outdoor flow only" answer.
 - Half-wind comparison vs cf2 s091 #14 (target 7.6 cm drift parity)
+
+---
+
+## Session 2026-06-26 — s236 cover_v1 detector speed sweep on board (build #1546)
+
+Goal: per-model standalone EdgeTPU invoke speed on the physical board for the
+8 `sentai_revision_cover_v1` architecture-sweep detectors (MLflow exp 5),
+deployed input size **480x640 (HxW) = 640x480 image** (NOT 512x512). Same
+methodology as s235/B10: `sentai.rtos.micros()` wall-clock around N=50 invokes
++ `sentai.tpu.urb_stats()` URB phase breakdown — NOT DWT, NOT ticks.
+
+Models are headless YOLOv5n p3p4: `uint8[1,480,640,3]` in, two raw heads
+`int8[1,30,40,6]`(stride16) + `int8[1,60,80,6]`(stride8) out (same layout as
+the 2026-04-28 iarna p3p4 family). Uploaded to board ROOT via USB MSC. Host
+detection decode validated on Coral USB (pycoral, py3.9 standalone venv) — all
+8 detect the test image `5.Beach_batch38_img100` (6 GT persons); decoder in
+`experiments/s236.../host_decode.py`.
+
+### Per-model board speed (build 1546, 640x480, N=50, chunk=64 KB, desc_cache OFF)
+
+| model | etpu KB | ms/invoke | fps | instr ms | input ms | output ms | fails |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| c3 | 325 | 38.12 | 26.23 | 4.46 | 25.64 | 6.07 | 0 |
+| c2f | 329 | 38.14 | 26.22 | 4.37 | 25.63 | 6.18 | 0 |
+| c2f_pan2 | 413 | 40.19 | 24.88 | 5.60 | 25.63 | 7.00 | 0 |
+| gelan | 445 | 40.98 | 24.40 | 6.07 | 25.64 | 7.33 | 0 |
+| gelan_pan2 | 561 | 43.84 | 22.81 | 7.83 | 25.66 | 8.40 | 0 |
+| c2f_deep | 585 | 44.18 | 22.63 | 7.98 | 25.65 | 8.59 | 0 |
+| msblock | 265 | 43.73* | 22.87* | 4.03 | 32.44* | 5.30 | 0 |
+| **c2f_thick** | 1077 | **FAIL** | — | — | — | — | **50** |
+
+\* msblock input is a first-model-post-boot warmup outlier (USB/camera not yet
+warm); its instruction time 4.03 ms (smallest model) is correct. Steady value
+~37 ms / ~27 fps if re-run in isolation.
+
+Per-invoke transfer sizes (constant input, model-varying instructions):
+input image 921,608 B (~25.6 ms, DOMINANT); instructions 142–284 KB
+(4.0–8.0 ms, scales with model width); output readback (2 heads) 48,000 B
+(5.3–8.6 ms); parameters 0 after warmup (cached on-chip).
+
+### Key result
+
+7/8 detectors run on the board EdgeTPU, **22.6–26.2 fps, zero invoke fails**.
+Throughput is **USB-input-bound**: the 921 KB image send (~25.6 ms) is ~60–65 %
+of every invoke; the per-model instruction stream (4–8 ms) is the only term
+that separates the architectures. Narrower nets (msblock/c3/c2f) are fastest
+because their instruction stream is shortest; the input send is a fixed floor.
+This matches the 2026-04-28 finding that the iarna p3p4 family was USB-input
+bound, but the absolute fps is lower here (~24 vs ~90) because those were
+1-epoch toy nets; these are full 100-epoch models with larger instruction
+streams, and chunk=64 KB / desc_cache OFF (vs the host single_ep path).
+
+### c2f_thick (champion) FAILS on board — root cause pinned
+
+load_rc=0, ready=True, but every invoke fails. The visible `0B62
+SendInstructions` is a RED HERRING — it only appears on the 2nd+ invoke after
+the 1st failure wedges the TPU. Clean-boot FIRST-invoke URB per-phase counters:
+
+| phase | bytes done | submit_fail | timeout |
+|---|---:|---:|---:|
+| parameters | 782,344 | 0 | 0 |
+| instructions | 287,208 | 0 | 0 |
+| input image | 927,376 | 0 | 0 |
+| **output (GetOutputs)** | **38,400** | 0 | **1** |
+
+Params + instructions + image all upload fine; the invoke fails at **`0B63
+GetOutputs` — the output bulk-IN stalls after ~38 KB and never completes**.
+Raising `sentai.tpu.urb_timeout_ms` 200 -> 2000 ms does NOT help => not a
+tunable-timeout issue; the TPU genuinely stops producing output mid-compute.
+The partial readback wedges the USB transport (driver does NOT cancel a partial
+bulk), so subsequent invokes fail at the next upload (0B62) and the device
+eventually re-enumerates.
+
+c2f_thick is the widest arch, the largest on-chip-param user (866.75 KiB) and
+most ops (188). The other 7 (<=585 KB / <=532 KiB params) read output back
+fine. Hypothesis: c2f_thick's runtime on-chip working set (cached params +
+widest-layer activation tiles) exceeds what the board single-EP apex firmware
+leaves free, so the TPU faults/hangs mid-compute. It runs perfectly on host
+pycoral (full libedgetpu USB transport, 7/7 GT) => valid model, board single-EP
+runtime interaction. Documented as a limitation (operator decision). Possible
+fixes if revisited: multi-EP firmware (`-DSENTAI_TPU_MULTI_EP=ON`) or recompile
+with a smaller on-chip param budget.
+
+### Artifacts / how to reproduce
+
+- driver: `examples/sentai_runtime/diag/_t_s236_speed.py` (self-contained,
+  resets+resumes between models via `/diags/.s236_state`).
+- host runner: `experiments/s236_model_speed_sweep_640x480/iter03_board_speed_sweep/run_sweep.py`
+- results: `.../iter03_board_speed_sweep/results.csv` + `per_phase_chart.png`
+- host decode + image selection: `.../host_decode.py`, `.../iter01_image_selection/`
+- MSC upload gotcha that cost a FileX reformat this session: models MUST go to
+  ROOT (a host-created subdir corrupts FileX -> SAFE_MODE) and MSC must be
+  exited with `sentai.usb.drive(0)`, NOT `q`. Reformat binding on 1546 is
+  `sentai.fs.format()` (the fx-reformat-dev skill's `sentai.diag.fx_format`
+  is stale). See memory `project_msc_upload_gotcha`.

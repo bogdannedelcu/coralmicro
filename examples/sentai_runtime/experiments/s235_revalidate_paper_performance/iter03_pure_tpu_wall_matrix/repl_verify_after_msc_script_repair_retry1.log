@@ -1,0 +1,11 @@
+
+>>> import sentai
+>>> print('VERSION', sentai.version())
+VERSION SentAI v1.0 build 1543 (2026-06-24 10:48:29)
+>>> print('SCRIPT_EXISTS', sentai.fs.exists('/lib/diag/pure_tpu_wall_one_chunk.py'))
+SCRIPT_EXISTS True
+>>> print('MODEL_EXISTS', sentai.fs.exists('/yolo_1_class_512_1_upsample_512_inloc_de_1024_la_P5_32.tflite'))
+MODEL_EXISTS True
+>>> print('TPU_API', sentai.tpu.chunk_size(), sentai.tpu.urb_timeout_ms())
+TPU_API 36864 200
+>>> 

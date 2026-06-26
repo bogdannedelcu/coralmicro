@@ -56,6 +56,22 @@ PASS:
 Status:
 
 - `s216/iter05_namespace_inventory` PASS with Renode UI/analyzer enabled.
+- `s216/iter06_namespace_inventory` PASS after unifying `sentai.tpu` onto the
+  shared `examples/sentai_runtime/bindings/modsentai_tpu.c` binding.  Root
+  export remains 14 shared names and `sentai.tpu` inventories the shared API
+  plus the deliberate `SENTAI_EMU_TPU_HOST_BRIDGE` helper calls
+  (`load_image_mem`, `image_mem_size`, `stats`, `start`, `stop`, `fps`,
+  `fps_invoke`).  ELF symbol check shows `sentai_tpu_module` present and no
+  linked `emu_tpu_module`.
+- `s216/iter07_namespace_inventory` PASS after unifying `sentai.pipeline` onto
+  the shared `examples/sentai_runtime/bindings/modsentai_pipeline.c` binding.
+  Inventory build #1520 reports `sentai.pipeline` present with the full shared
+  API (`start`, `get`, `once`, `detections`, `prep_*`, tracker config/events,
+  slot routing, calibration/probe helpers, and diagnostic knobs).  The
+  emulator-specific code is now limited to C backends: TPU-host targets use the
+  bridge-backed `sentai_tpu_detect`, camera-less targets link
+  `sentai_emu_pipeline_unavailable_backend.c`, and the Gazebo flow/WhyCon
+  target links the real `detection_task.cc` plus `sentai_tracker.cc`.
 - Wide inventory profile exports 14 shared names:
   `version`, `verbose`, `help`, `debug`, `console`, `run`, `io`, `rtos`,
   `tpu`, `fs`, `crazy`, `pipeline`, `fr`, `sys`.
@@ -240,7 +256,7 @@ What it does:
   enabled when `--renode-ui` is used;
 - runs MicroPython through the shared `sentai.crazy` binding:
   `init`, `ping`, `fly(0.35, 1800, 2200, 2200)`, `stop`;
-- probes the current `sentai.calib` emulator stub boundary
+- probes the current shared `sentai.calib` boundary
   (`get_R_cam_to_body`, `get_cam_offset_B`, `is_calibrated`);
 - logs through `sentai.fr` and writes a small `/b9/s229_status.txt` marker in
   FileX;
@@ -251,21 +267,23 @@ Status:
 
 - `s229/iter01_gazebo_whycon_calib_precursor` PASS.
 - Results: `CALIB_GZ_INIT=0`, `CALIB_GZ_PING_MS=2`,
-  `CALIB_GZ_CALIB_STUB 9 (0.0, 0.0, 0.0) False`,
-  `CALIB_GZ_FLY_RC=0`, `CALIB_GZ_STOP=0`.
+  prior run `CALIB_GZ_CALIB_STUB 9 (0.0, 0.0, 0.0) False`,
+  `CALIB_GZ_FLY_RC=0`, `CALIB_GZ_STOP=0`.  New builds print
+  `CALIB_GZ_CALIB_SHARED ...` from the shared runtime binding.
 - Bridge counters: `guest_to_udp=5`, `udp_to_guest=3`,
   `serial_tx=131`, `serial_rx=50`.
 - Cleanup check found no leftover Renode/Gazebo/cf2/bridge processes.
 
 Limitations:
 
-- This is not full visual calibration.  `sentai.calib` is currently the s228
-  deterministic stub in this target.
+- This is not full visual calibration.  `sentai.calib` now uses the shared
+  runtime binding in this target; camera/marker-dependent workers still need a
+  live visual backend before the full bringup can run.
 - `CALIB_GZ_ALT_AFTER=-999.0` is diagnostic only.  The current
   `sentai.crazy.altitude()` path expects the SentAI deck telemetry channel,
   while this bridge is validating CRTP/cf2 traffic.
-- Full calibration needs `sentai.camera`, `sentai.markers`/WhyCon, and the
-  real C++ calibration task ported into a shared emulator profile.
+- Full calibration needs `sentai.camera`, `sentai.markers`/WhyCon, and a live
+  calibration worker backend in the emulator/Gazebo profile.
 
 Remaining s219 work:
 
@@ -418,6 +436,47 @@ PASS:
 - physical USB Coral is used through the low-level bridge;
 - FPS is stable across at least two consecutive runs.
 
+Status:
+
+- `sentai.tpu` no longer uses a separate EMU MicroPython module.  The ARM
+  emulator root table points at shared `sentai_tpu_module` from
+  `modsentai_tpu.c`; emulator-specific behavior is now behind the C backend in
+  `emu/sentai_emu_tpu_bridge_module.c`, which reads FileX assets and forwards
+  semantic model/image/invoke/session commands to the Renode/host physical
+  Coral bridge.
+- Build validation on 2026-06-11: `sentai_emu_tpu_cat_repl`
+  build #1499, `sentai_emu_namespace_inventory` build #1500, and TPU FPS/mem
+  targets build #1501-#1505 all pass.
+- Runtime namespace validation: `s216/iter06_namespace_inventory` PASS,
+  build #1507, `sentai.tpu` present.
+- Runtime TPU-cat validation still needs follow-up: `s213/iter112_renode_tpu_cat_repl_filex_physical_coral`
+  built #1506 but timed out in Renode before any UART banner, so it is not a
+  Coral/invoke validation yet.
+- Fresh-PC TPU-cat follow-up on 2026-06-11:
+  `s213/iter113_renode_tpu_cat_repl_filex_physical_coral` reproduced the
+  apparent timeout, but short Renode diagnostics in the same iter showed the
+  firmware did reach `boot_state=0x500`; `/mission.py` was missing from FileX
+  and the one-shot target then fell into the interactive REPL stdin spin.
+  `s213/iter114_renode_fs_stage_assets_filex_levelx_nand` restaged the model,
+  cat image, and mission into the emulator NAND image (`stage_files=3`,
+  `stage_bytes=8014902`, `fx_errors=0`).  `s213/iter116_renode_fs_asset_check_filex_levelx_nand`
+  PASS confirmed the staged assets are visible from MicroPython after enabling
+  `SENTAI_EMU_AUTORUN_HALT_AFTER` on the older FS/TPU autorun targets.
+- `s213/iter117_renode_tpu_cat_repl_filex_physical_coral` then reached
+  `MISSION_TPU_CAT_DONE`, but the host bridge could not find
+  `build-sim/sim/tpu_posix_invoke_smoke`.  The local `build-sim` host tool
+  was rebuilt after fixing SIM linkage for the shared TPU counters
+  (`tpu_posix_invoke_smoke.cc` declarations moved out of the anonymous
+  namespace; `g_sentai_tpu_multi_ep_routing` moved to global C linkage).
+- Current TPU-cat blocker is host USB permission, not firmware or FileX:
+  `s213/iter118_renode_tpu_cat_repl_filex_physical_coral` streams the model
+  and image to the host bridge, launches the POSIX smoke, and exits with
+  `TPU_INVOKE -3` / host smoke `exit=4`.  Direct host execution reports
+  `FAIL open_posix status=1`; `lsusb` sees the Coral as `1a6e:089a`, but
+  `/dev/bus/usb/002/003` is owned by `root:root` with no user write access.
+  `sudo -n chmod a+rw /dev/bus/usb/002/003` could not run because interactive
+  authentication is required.
+
 ### s225 - Pipeline Namespace Mission
 
 Purpose: verify the real `sentai.pipeline` API in emulator mode.
@@ -443,6 +502,23 @@ PASS:
 - detections are produced from virtual camera frames;
 - `pipeline.stop` does not delete/recreate task topology incorrectly;
 - restart works in the same emulator boot.
+
+Status:
+
+- The `sentai.pipeline` MicroPython surface is now shared.  The ARM emulator
+  root table points at `sentai_pipeline_module` from
+  `examples/sentai_runtime/bindings/modsentai_pipeline.c`; no active
+  `emu_pipeline_module` remains in the root surface.
+- `s216/iter07_namespace_inventory` PASS confirms the shared pipeline API is
+  exported in the namespace inventory.
+- `s233/iter44_gazebo_flow_whycon` PASS confirms the shared pipeline binding
+  did not regress the live Gazebo camera -> PrepTask -> FlowTask -> WhyCon
+  path with PXP acceleration enabled.
+- Remaining S225 work is the TPU half of the pipeline contract: persistent
+  InferTask/`pipeline.detections()` over staged virtual camera frames with the
+  physical Coral USB bridge.  The previous S213 boot timeout is understood and
+  the FS/build-sim setup path is repaired; the active blocker is now host
+  permission to open the physical Coral USB node.
 
 ### s226 - Flow + Pipeline Parallel Mission
 
@@ -485,8 +561,10 @@ Namespaces:
 Tests:
 
 - document LPUART6 REPL console behavior;
-- expose `sentai.uart` with emulator-backed loopback or explicit stubs;
-- expose `sentai.usb` with clear unsupported/stub behavior for MSC/serial;
+- expose `sentai.uart` through the shared binding with an explicit emulator
+  backend;
+- expose `sentai.usb` through the shared binding with clear unsupported
+  backend behavior for MSC/serial/IP;
 - document how the s219 Crazy bridge differs from `sentai.link` and `mesh`;
 - make `sentai.link` fail predictably or remain absent until PX4/MAVLink SITL
   is installed.
@@ -529,7 +607,6 @@ Namespaces:
 
 - `sentai.imu`;
 - `sentai.mic`;
-- `sentai.sleep`;
 - `sentai.servo`;
 - `sentai.calib`;
 - `sentai.object_lifter`;
@@ -537,12 +614,23 @@ Namespaces:
 
 Tests:
 
-- `imu` deterministic sample/stub or unsupported error;
-- `mic` deterministic sample/stub or unsupported error;
-- `sleep` wake/sleep calls documented for emulator;
+- `imu` uses the shared `sentai_runtime` binding and raises
+  `NotImplementedError` in the ARM emulator;
+- `mic` uses the shared `sentai_runtime` binding and raises
+  `NotImplementedError` in the ARM emulator;
+- `uart` uses the shared `sentai_runtime` binding; the S228 backend is
+  unavailable, while Crazy/Gazebo targets can override the same ABI with the
+  emulator MMIO serial bridge;
+- `sleep` is not a separate namespace anymore; use `sentai.rtos.sleep_ms()`
+  for delays;
 - `servo` command/state API accepts safe no-motion values;
-- `calib` can load/save config and run non-flight math paths;
-- `object_lifter` and `safety` start/stop/status without flight hardware.
+- `calib` uses the shared runtime binding, can load/save config and run
+  non-flight math paths, while worker/task entrypoints report not-supported
+  through shared unavailable backends when the target has no camera/marker
+  worker;
+- `object_lifter` uses the shared inverse-depth EKF implementation and can run
+  deterministic math/state paths in the emulator;
+- `safety` starts/stops/reports status without flight hardware.
 
 PASS:
 
@@ -552,24 +640,69 @@ PASS:
 
 Implementation note:
 
-- `emu/sentai_emu_fs_module.c` now has a guarded
-  `SENTAI_EMU_HW_STUB_MODULES` profile exposing `usb`, `uart`, `imu`, `mic`,
-  `sleep`, `servo`, `calib`, `object_lifter`, and `safety` as emulator-safe
-  stubs.
+- `emu/sentai_emu_fs_module.c` now exposes `sentai.usb`, `sentai.uart`,
+  `sentai.imu`, `sentai.mic`, `sentai.safety`, `sentai.servo`,
+  `sentai.calib`, and `sentai.object_lifter` through the shared
+  `examples/sentai_runtime/bindings` code instead.
 - The default S228 behavior deliberately rejects or reports inactive for real
-  USB MSC/serial, UART serial, mic capture, IMU tap hardware, safety task
-  monitoring, and actuator-like servo actions.
-- `sentai.imu.read()` returns a deterministic level sample
-  `{x:0, y:0, z:1000, temp:25}`; `sentai.sleep.idle(..., timeout_ms, ...)`
-  is timeout-only; `sentai.safety._test_push_aruco()` remains available as a
-  test-only abort injector.
+  USB MSC/serial/IP and UART serial.  Shared `sentai.usb` keeps the production
+  `sentai.console('uart')` guard and calls an explicit unavailable EMU backend
+  for `sentai_usb_*`; shared `sentai.uart` keeps the production
+  `sentai.console('usb')` guard and calls weak unavailable
+  `sentai_uart_serial_*` backend functions in S228; Crazy/Gazebo targets can
+  override the same UART ABI with their Renode bridge.  IMU and microphone calls fail loudly with
+  `NotImplementedError` rather than returning fixture data.  `sentai.servo`
+  uses the shared FSM and shared MicroPython binding; the SIM backend remains
+  record-only/no-motion, while optional CF2/PX4 transports are weak-linked and
+  unavailable unless their bridge is present.  Only `servo.marker_*` is linked
+  to the shared unavailable backend in S228 because this target has no
+  camera/markers worker.
+- `sentai.safety` uses the shared state machine; only the continuous
+  SafetyTask worker is linked to the shared unavailable backend in S228
+  because this target has no camera/markers worker.
+- `sentai.calib` uses shared `modsentai_calib.c` and shared
+  `sentai_calib.cc`; only `sentai_calib_task`,
+  `sentai_calib_bringup`, and `sentai_calib_orientation_task` are linked to
+  shared unavailable backends in S228/precursor targets.  The S228 and S229
+  emulator binaries use the larger runtime linker profile because the complete
+  shared calibration surface no longer fits the tiny smoke linker layout.
+- `sentai.object_lifter` uses shared `modsentai_object_lifter.c` and shared
+  `sentai_object_lifter.cc`; no emulator-specific lifter module remains.
+- `sentai.rtos.sleep_ms()` remains the emulator-safe delay primitive;
+  `sentai.safety._test_push_aruco()` remains available as a test-only abort
+  injector.
+- Build-only follow-up after servo/calib/usb/uart/object_lifter unification:
+  `sentai_emu_hw_stub_namespace_smoke` links shared `sentai_servo.cc`,
+  `sentai_calib.cc`, `sentai_object_lifter.cc`, and the shared unavailable
+  worker backends; symbol checks confirm `sentai_servo_module`,
+  `sentai_calib_module`, `sentai_usb_module`, `sentai_uart_module`, and
+  `sentai_object_lifter_module` are present.  The legacy local
+  `emu_servo_module`, `emu_calib_module`, `emu_usb_module`,
+  `emu_uart_module`, and `emu_object_lifter_module` surfaces are not linked.
+- The S228 runner resets the host-backed Renode raw NAND image and runs the
+  existing `sentai_emu_fx_storage` setup before the namespace smoke.  This
+  keeps destructive storage preparation at the emulator flash boundary; S228
+  itself uses the normal shared `sentai.fs`/`sentai.fr` runtime surface.
 
 Status:
 
-- `s228/iter02_hw_stub_namespaces` PASS with Renode UI/analyzer enabled.
-- 45 checks passed, 0 failed.
+- `s228/iter07_hw_stub_namespaces` PASS with Renode UI/analyzer enabled on
+  2026-06-11.
+- Build #1496.
+- 69 checks passed, 0 failed.
+- Storage setup PASS: `sentai_emu_fx_storage` reported boot state `0x0600`,
+  `fs_read_ok=1`, and `fx_errors=0` before S228 booted.
 - FlightRecorder event/scalar files were written under `/fr` in the emulator
   FileX volume and copied into the experiment artifact folder.
+- Intermediate notes: `iter03` exposed the stricter shared UART behavior
+  (`sentai.uart.read()` raises `OSError` when the unavailable serial backend is
+  not open), so the smoke expectation was corrected.  `iter04` then reached
+  all namespace checks but failed FileX/FlightRecorder writes because the
+  shared emulator NAND image was not mounted/writable.  `iter05` proved that
+  explicit formatting fixed FileX but put setup logic in the runtime smoke, so
+  it was superseded.  `iter06` showed that deleting the raw NAND image alone is
+  not sufficient for this target.  `iter07` moves setup to the existing
+  emulator storage smoke and is the canonical post-unification artifact.
 
 ### s230 - Camera + WhyCon Marker Smoke
 
@@ -796,10 +929,64 @@ Status:
   ~5 FPS S233 limit is not the flow algorithm itself.  It is the live
   camera-to-PrepTask path: Gazebo bridge + guest camera publication +
   `sentai_pxp_*` scalar resize/gray running under ARM emulation.
+- Fresh-PC UI rerun on 2026-06-05:
+  `s233/iter35_gazebo_flow_whycon` and `s233/iter36_gazebo_flow_whycon`
+  both PASS with Gazebo GUI and Renode UI enabled.  `iter35` used
+  `--camera-forward-fps 10` and reported `cam_frames=430`,
+  `prep_fps_x100=521`, `flow_fps_x100=478`, `marker_hits=1`, and clean
+  cf2 command results.  `iter36` used `--camera-forward-fps 15` and reported
+  `cam_frames=529`, `prep_fps_x100=521`, `flow_fps_x100=473`,
+  `marker_hits=1`, and clean cf2 command results.  The forwarded-frame rate
+  changes bridge/camera frame counts, but not the current guest
+  PrepTask/FlowTask ceiling.  The fresh PC therefore reproduces the same
+  live-Gazebo VGA `rgb888` bottleneck: about 5.2 FPS prep and 4.7-4.8 FPS
+  flow while preserving the production-like camera/prep/flow boundary.
+- `s233/iter33_gazebo_flow_whycon` and `s233/iter34_gazebo_flow_whycon` are
+  setup failures, not algorithm results.  They were launched from the
+  restricted sandbox and failed before Renode because distrobox/podman could
+  not access `/run/user/<uid>/libpod`.  GUI S233 runs must be launched on the
+  host, where Gazebo can use the real display and Renode can open its UI.
+- PXP acceleration follow-up on 2026-06-05:
+  `s233/iter40_gazebo_flow_whycon` and
+  `s233/iter41_gazebo_flow_whycon` both PASS after adding the emulator-only
+  C# `SentaiPxpAccelerator` at `0x40902C00` and wiring
+  `sentai_pxp_*` through the MMIO shim.  `iter40` headless reports
+  `pxp_accel_calls=1078`, `pxp_accel_ok=1078`, `pxp_accel_fallback=0`,
+  `prep_fps_x100=2706`, `flow_fps_x100=2571`, and `marker_hits=1`.
+  `iter41` with Gazebo GUI and Renode UI reports `pxp_accel_calls=1090`,
+  `pxp_accel_ok=1090`, `pxp_accel_fallback=0`, `prep_fps_x100=2718`,
+  `flow_fps_x100=2578`, and `marker_hits=2`.  The valid accelerator uses
+  Renode C# bulk `ReadBytes`/`WriteBytes`; the aborted `iter37` IronPython
+  bridge proved the contract but was far too slow at roughly seconds per VGA
+  resize.  `iter39` also showed that Y8 semantics must match the scalar
+  fallback by averaging per-pixel luminance, not luminance of averaged RGB.
+  `s233/iter42_gazebo_flow_whycon` then refactored the guest bridge contract
+  to match the TPU `SendParameters` bridge style: a small
+  `STATUS/COMMAND/SEQ` request plus semantic transform arguments behind
+  `sentai_pxp_transform()`.  It remains PASS with `pxp_accel_calls=1092`,
+  `pxp_accel_ok=1092`, `pxp_accel_fallback=0`, `prep_fps_x100=2712`,
+  `flow_fps_x100=2567`, and `marker_hits=1`.
+- Post-`sentai.pipeline` shared-binding regression on 2026-06-11:
+  `s233/iter44_gazebo_flow_whycon` PASS with Gazebo GUI and Renode UI.  The
+  run used VGA `rgb888` at `--camera-forward-fps 15` after the
+  `sentai.pipeline` root surface was moved to the shared
+  `examples/sentai_runtime/bindings/modsentai_pipeline.c` binding.  Results:
+  `cam_frames=1042`, `bridge_seen=1163`, `bridge_served=1163`,
+  `cam_last_rc=921600`, `pxp_accel_calls=1124`, `pxp_accel_ok=1124`,
+  `pxp_accel_fallback=0`, `prep_fps_x100=2731`, `flow_fps_x100=2600`,
+  `marker_hits=2`, `marker_best=7`, and clean `sentai.crazy` command results
+  (`init=0`, `arm=0`, `takeoff=0`, `land=0`, `stop=0`).  This confirms the
+  shared pipeline binding did not regress the live Gazebo camera -> PrepTask ->
+  FlowTask -> WhyCon path.
+- `s233/iter43_gazebo_flow_whycon` is a setup failure only: `respawn_sitl`
+  failed before Renode due to the VS Code snap/podman storage mismatch between
+  snap revisions `244` and `247`.  The workaround used for `iter44` was to run
+  S233 with the old snap XDG storage variables and recreate the transient
+  podman runtime files under `/run/user/1000/.../userdata`.
 - Current constraints:
-  - no functional PXP/CSI hardware model in Renode for this target;
-  - `sentai_pxp_scale()` / `sentai_pxp_xrgb_to_y8()` are functional shims, not
-    accelerated device operations;
+  - no full functional PXP/CSI hardware model in Renode for this target;
+  - `sentai_pxp_*` is now accelerated only by an explicit emulator-only
+    semantic peripheral, not by a register-complete NXP PXP model;
   - host wall-clock and guest FreeRTOS tick timing must be reported separately
     for any future bridge optimization;
   - emulator FPS depends on host CPU speed and the amount of scalar image work
@@ -883,19 +1070,18 @@ PASS:
 | `sentai.camera` | s220/s221/s222 | Gazebo/virtual provider real runtime |
 | `sentai.pipeline` | s222/s225 | real persistent tasks |
 | `sentai.flow` | s223/s226 | production FlowTask |
-| `sentai.tpu` | s224/s225 | physical Coral via Send* bridge |
+| `sentai.tpu` | s224/s225 | shared binding; physical Coral via EMU bridge backend |
 | `sentai.tfl` | s232 | deferred until shared root stable |
-| `sentai.uart` | s219/s227/s232 | REPL plus separate Crazy/link transport |
-| `sentai.usb` | s227 | documented unsupported/stub for MSC/CDC |
+| `sentai.uart` | s219/s227/s232 | shared binding; backend ABI is board/SIM/EMU-specific |
+| `sentai.usb` | s227/s228 | shared binding; EMU backend unavailable for MSC/CDC/IP |
 | `sentai.mesh` | s227 | deferred/stub |
 | `sentai.link` | s232/deferred | wait for PX4/MAVLink simulator |
-| `sentai.imu` | s228 | deterministic stub or fixture |
-| `sentai.mic` | s228 | deterministic stub or fixture |
-| `sentai.sleep` | s228 | safe unsupported/stub |
+| `sentai.imu` | s228 | shared binding, board-only; raises `NotImplementedError` in emulator |
+| `sentai.mic` | s228 | shared binding, board-only; raises `NotImplementedError` in emulator |
 | `sentai.servo` | s228 | safe no-motion state |
-| `sentai.calib` | s228/s229 | stub boundary now; real visual path deferred |
-| `sentai.object_lifter` | s228 | safe state smoke |
-| `sentai.safety` | s228 | state/task smoke |
+| `sentai.calib` | s228/s229 | shared binding; worker backends unavailable until live visual calib path |
+| `sentai.object_lifter` | s228 | shared inverse-depth EKF math/state smoke |
+| `sentai.safety` | s228/s233 | shared state machine; unavailable task backend in S228, real task in Gazebo |
 | `sentai.markers` | s230 | real WhyCon algorithm smoke after camera provider |
 | `sentai.objects` | s231 | real state smoke |
 | `sentai.places` | s231 | real state smoke |

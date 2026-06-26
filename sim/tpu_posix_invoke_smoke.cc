@@ -62,17 +62,6 @@ TfLiteStatus ConvertTensorType(TensorType tensor_type, TfLiteType* type,
 
 }  // namespace tflite
 
-namespace {
-
-constexpr const char* kDefaultModel =
-    "examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/"
-    "iter01_virtual_camera_tpu_cat/fs_root/models/"
-    "tf2_ssd_mobilenet_v2_coco17_ptq_edgetpu.tflite";
-constexpr const char* kDefaultBmp =
-    "examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/"
-    "iter01_virtual_camera_tpu_cat/fs_root/images/cat_640x480.bmp";
-constexpr const char* kEdgeTpuCustomOp = "edgetpu-custom-op";
-
 extern "C" volatile int g_sentai_tpu_desc_cache_enabled;
 extern "C" volatile uint32_t g_sentai_tpu_desc_cache_sent_params;
 extern "C" volatile uint32_t g_sentai_tpu_desc_cache_sent_ins;
@@ -132,6 +121,17 @@ extern "C" volatile uint32_t g_sentai_tpu_posix_usb_failed;
 extern "C" void sentai_tpu_call_reset(void);
 extern "C" void sentai_tpu_perf_reset(void);
 extern "C" void sentai_tpu_posix_usb_stats_reset(void);
+
+namespace {
+
+constexpr const char* kDefaultModel =
+    "examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/"
+    "iter01_virtual_camera_tpu_cat/fs_root/models/"
+    "tf2_ssd_mobilenet_v2_coco17_ptq_edgetpu.tflite";
+constexpr const char* kDefaultBmp =
+    "examples/sentai_runtime/experiments/s209_virtual_camera_tpu_e2e/"
+    "iter01_virtual_camera_tpu_cat/fs_root/images/cat_640x480.bmp";
+constexpr const char* kEdgeTpuCustomOp = "edgetpu-custom-op";
 
 struct SmokeArgs {
   const char* model_path = kDefaultModel;

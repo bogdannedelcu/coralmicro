@@ -1,0 +1,489 @@
+[  1%] Built target libs_FreeRTOS
+[  4%] Built target libs_CMSIS-m7
+[ 10%] Built target libs_nxp_rt1176-sdk_freertos
+[ 10%] Built target libs_usb_host_task_freertos
+[ 10%] Incrementing build version...
+-- Build #1531 at 2026-06-24 09:37:06
+[ 10%] Built target increment_build_version
+[ 11%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/modsentai.c.obj
+In file included from /home/bogdan/work/coralmicro/examples/sentai_runtime/modsentai.c:334:
+/home/bogdan/work/coralmicro/examples/sentai_runtime/bindings/modsentai_crazy.c: In function 'mod_sentai_crazy_hl_stop':
+/home/bogdan/work/coralmicro/examples/sentai_runtime/bindings/modsentai_crazy.c:100:27: warning: implicit declaration of function 'sentai_crazy_hl_stop'; did you mean 'sentai_crazy_fly_stop'? [-Wimplicit-function-declaration]
+  100 |     return mp_obj_new_int(sentai_crazy_hl_stop(group));
+      |                           ^~~~~~~~~~~~~~~~~~~~
+      |                           sentai_crazy_fly_stop
+/home/bogdan/work/coralmicro/examples/sentai_runtime/bindings/modsentai_crazy.c: In function 'mod_sentai_crazy_attitude_release_no_disarm':
+/home/bogdan/work/coralmicro/examples/sentai_runtime/bindings/modsentai_crazy.c:199:27: warning: implicit declaration of function 'sentai_crazy_attitude_release_no_disarm'; did you mean 'mod_sentai_crazy_attitude_release_no_disarm'? [-Wimplicit-function-declaration]
+  199 |     return mp_obj_new_int(sentai_crazy_attitude_release_no_disarm());
+      |                           ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      |                           mod_sentai_crazy_attitude_release_no_disarm
+[ 11%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_task.c.obj
+[ 11%] Linking C static library liblibmicropython.a
+[ 20%] Built target libmicropython
+[ 20%] Built target nanopb
+[ 21%] Built target shine
+[ 23%] Built target meshtastic_pb
+[ 24%] Built target libh3_arm
+[ 26%] Built target libs_FreeRTOS-m4
+[ 30%] Built target libs_CMSIS-m4
+[ 37%] Built target libs_nxp_rt1176-sdk_freertos-m4
+[ 37%] Built target libs_pmic_freertos-m4
+[ 37%] Built target libs_littlefs-m4
+[ 39%] Built target libs_base-m4_freertos
+[ 39%] Built target libs_camera_freertos-m4
+[ 39%] Built target sentai_m4_aruco_bench
+[ 39%] Built target sentai_browser_html
+[ 42%] Built target libs_aifes_m7
+[ 43%] Built target libs_pmic_freertos
+[ 43%] Built target libs_audio_freertos
+[ 44%] Built target libs_kissfft-m7
+[ 44%] Built target libs_littlefs
+[ 49%] Built target libs_levelx
+[ 66%] Built target libs_filex
+[ 66%] Built target libs_nxp_rt1176-sdk-mcmgr_m7
+[ 69%] Built target libs_nxp_rt1176-sdk_lwip
+[ 69%] Built target libs_nxp_rt1176-sdk_lwip_httpd
+[ 73%] Built target libs_nxp_rt1176-sdk-mbedtls
+[ 73%] Built target libs_usb_host_edgetpu_freertos
+[ 73%] Built target libs_usb_device_task_freertos
+[ 75%] Built target libs_tpu_freertos
+[ 75%] Built target libs_tpu_task_freertos
+[ 75%] Built target libs_tpu_dfu_task_freertos
+[ 88%] Built target libs_tensorflow-m7
+[ 89%] Built target libs_base-m7_freertos
+[ 89%] Built target libs_msc_ums_freertos
+[ 91%] Built target libs_cdc_ncm_freertos
+[ 91%] Built target libs_cdc_eem_freertos
+[ 91%] Built target libs_cdc_acm_freertos
+[ 91%] Built target libs_camera_freertos
+[ 91%] Built target libs_aifes_task_m7
+[ 91%] Built target libs_t5838_freertos
+[ 91%] Built target libs_base-m7_http_server
+[ 92%] Built target libs_lis2du12_freertos
+[ 95%] Built target libs_libjpeg
+[ 95%] Built target libs_jpeg_m7
+[ 95%] Building CXX object examples/sentai_runtime/CMakeFiles/sentai_runtime.dir/sentai_runtime.cc.obj
+/tmp/cc64O2Rp.s: Assembler messages:
+/tmp/cc64O2Rp.s:18548: Warning: ignoring changed section type for .sdram_bss
+/tmp/cc64O2Rp.s:18548: Warning: ignoring changed section attributes for .sdram_bss
+[ 95%] Building CXX object examples/sentai_runtime/CMakeFiles/sentai_runtime.dir/flow_task.cc.obj
+/home/bogdan/work/coralmicro/examples/sentai_runtime/flow_task.cc:471:13: warning: 'void flow_publish_gray80x60(const uint8_t*, int)' defined but not used [-Wunused-function]
+  471 | static void flow_publish_gray80x60(const uint8_t* gray80x60, int cam_id) {
+      |             ^~~~~~~~~~~~~~~~~~~~~~
+[ 95%] Building CXX object examples/sentai_runtime/CMakeFiles/sentai_runtime.dir/flow_phase_corr.cc.obj
+/home/bogdan/work/coralmicro/examples/sentai_runtime/flow_phase_corr.cc: In function 'uint32_t {anonymous}::dwt_cyc()':
+/home/bogdan/work/coralmicro/examples/sentai_runtime/flow_phase_corr.cc:153:37: warning: unused variable '{anonymous}::_bc_dwt_addr' [-Wunused-variable]
+  153 |     extern volatile uint32_t* const _bc_dwt_addr;
+      |                                     ^~~~~~~~~~~~
+[ 95%] Building CXX object examples/sentai_runtime/CMakeFiles/sentai_runtime.dir/aruco_bench.cc.obj
+[ 95%] Building CXX object examples/sentai_runtime/CMakeFiles/sentai_runtime.dir/sentai_tracker.cc.obj
+[ 95%] Building CXX object examples/sentai_runtime/CMakeFiles/sentai_runtime.dir/sentai_objects.cc.obj
+[ 95%] Building CXX object examples/sentai_runtime/CMakeFiles/sentai_runtime.dir/sentai_places.cc.obj
+[ 95%] Building CXX object examples/sentai_runtime/CMakeFiles/sentai_runtime.dir/sentai_phog.cc.obj
+[ 95%] Building CXX object examples/sentai_runtime/CMakeFiles/sentai_runtime.dir/sentai_gist.cc.obj
+[ 95%] Building CXX object examples/sentai_runtime/CMakeFiles/sentai_runtime.dir/sentai_hsv.cc.obj
+[ 95%] Building CXX object examples/sentai_runtime/CMakeFiles/sentai_runtime.dir/sentai_prep.cc.obj
+[ 95%] Building CXX object examples/sentai_runtime/CMakeFiles/sentai_runtime.dir/slam_task.cc.obj
+[ 95%] Building CXX object examples/sentai_runtime/CMakeFiles/sentai_runtime.dir/sentai_servo.cc.obj
+[ 95%] Building CXX object examples/sentai_runtime/CMakeFiles/sentai_runtime.dir/sentai_object_lifter.cc.obj
+[ 95%] Building CXX object examples/sentai_runtime/CMakeFiles/sentai_runtime.dir/sentai_svd3.cc.obj
+[ 97%] Building CXX object examples/sentai_runtime/CMakeFiles/sentai_runtime.dir/sentai_calib.cc.obj
+[ 97%] Building CXX object examples/sentai_runtime/CMakeFiles/sentai_runtime.dir/sentai_calib_autotune.cc.obj
+[ 97%] Building CXX object examples/sentai_runtime/CMakeFiles/sentai_runtime.dir/sentai_calib_task.cc.obj
+[ 97%] Building CXX object examples/sentai_runtime/CMakeFiles/sentai_runtime.dir/sentai_calib_orientation_task.cc.obj
+/home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_calib_orientation_task.cc: In function 'void {anonymous}::sample_preflight_()':
+/home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_calib_orientation_task.cc:373:31: warning: format '%d' expects argument of type 'int', but argument 5 has type 'int32_t' {aka 'long int'} [-Wformat=]
+  373 |                  "k=%d n_raw=%d n_full=%d cx=%.2f cy=%.2f radius=%.2f z=%.3f",
+      |                              ~^
+      |                               |
+      |                               int
+      |                              %ld
+  374 |                  k, o.n_raw, o.n_full,
+      |                     ~~~~~~~    
+      |                       |
+      |                       int32_t {aka long int}
+/home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_calib_orientation_task.cc:373:41: warning: format '%d' expects argument of type 'int', but argument 6 has type 'int32_t' {aka 'long int'} [-Wformat=]
+  373 |                  "k=%d n_raw=%d n_full=%d cx=%.2f cy=%.2f radius=%.2f z=%.3f",
+      |                                        ~^
+      |                                         |
+      |                                         int
+      |                                        %ld
+  374 |                  k, o.n_raw, o.n_full,
+      |                              ~~~~~~~~    
+      |                                |
+      |                                int32_t {aka long int}
+/home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_calib_orientation_task.cc: In function 'void {anonymous}::marker_acquisition_()':
+/home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_calib_orientation_task.cc:547:54: warning: format '%d' expects argument of type 'int', but argument 7 has type 'int32_t' {aka 'long int'} [-Wformat=]
+  547 |                      "k=%d t_s=%.3f thrust=%d n_raw=%d n_full=%d avg=%.2f lock=%d radius=%.2f z=%.3f",
+      |                                                     ~^
+      |                                                      |
+      |                                                      int
+      |                                                     %ld
+  548 |                      k, (double)t_s, thrust, o.n_raw, o.n_full,
+      |                                              ~~~~~~~  
+      |                                                |
+      |                                                int32_t {aka long int}
+/home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_calib_orientation_task.cc:547:64: warning: format '%d' expects argument of type 'int', but argument 8 has type 'int32_t' {aka 'long int'} [-Wformat=]
+  547 |                      "k=%d t_s=%.3f thrust=%d n_raw=%d n_full=%d avg=%.2f lock=%d radius=%.2f z=%.3f",
+      |                                                               ~^
+      |                                                                |
+      |                                                                int
+      |                                                               %ld
+  548 |                      k, (double)t_s, thrust, o.n_raw, o.n_full,
+      |                                                       ~~~~~~~~  
+      |                                                         |
+      |                                                         int32_t {aka long int}
+/home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_calib_orientation_task.cc: In function 'void {anonymous}::post_lock_brake_()':
+/home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_calib_orientation_task.cc:651:46: warning: format '%d' expects argument of type 'int', but argument 6 has type 'int32_t' {aka 'long int'} [-Wformat=]
+  651 |                      "k=%d thrust=%d n_full=%d avg=%.2f z=%.3f vz=%.3f ok_vz=%d lost=%d",
+      |                                             ~^
+      |                                              |
+      |                                              int
+      |                                             %ld
+  652 |                      k, s.st.post_thrust_last_u16, o.n_full,
+      |                                                    ~~~~~~~~
+      |                                                      |
+      |                                                      int32_t {aka long int}
+/home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_calib_orientation_task.cc: In function 'void {anonymous}::visual_z_hold_()':
+/home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_calib_orientation_task.cc:778:46: warning: format '%d' expects argument of type 'int', but argument 6 has type 'int32_t' {aka 'long int'} [-Wformat=]
+  778 |                      "k=%d thrust=%d n_full=%d avg=%.2f z=%.3f vz=%.3f lost=%d",
+      |                                             ~^
+      |                                              |
+      |                                              int
+      |                                             %ld
+  779 |                      k, s.st.zhold_thrust_last_u16, o.n_full,
+      |                                                     ~~~~~~~~
+      |                                                       |
+      |                                                       int32_t {aka long int}
+/home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_calib_orientation_task.cc: In function '{anonymous}::AxisSegment {anonymous}::stream_axis_segment_(const char*, float, float, int, float*, float*)':
+/home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_calib_orientation_task.cc:874:76: warning: format '%d' expects argument of type 'int', but argument 9 has type 'int32_t' {aka 'long int'} [-Wformat=]
+  874 |                      "label=%s k=%d roll=%.2f pitch=%.2f thrust=%d n_full=%d cx=%.2f cy=%.2f z=%.3f vz=%.3f",
+      |                                                                           ~^
+      |                                                                            |
+      |                                                                            int
+      |                                                                           %ld
+  875 |                      label, k, (double)roll_deg, (double)pitch_deg,
+  876 |                      thrust, o.n_full, (double)o.centroid_x,
+      |                              ~~~~~~~~                                       
+      |                                |
+      |                                int32_t {aka long int}
+/home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_calib_orientation_task.cc: In function 'void {anonymous}::axis_response_smoke_()':
+/home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_calib_orientation_task.cc:974:81: warning: format '%d' expects argument of type 'int', but argument 5 has type 'int32_t' {aka 'long int'} [-Wformat=]
+  974 |                      "axis=%s reason=weak_marker_lock_before_axis_pulse n_full=%d",
+      |                                                                                ~^
+      |                                                                                 |
+      |                                                                                 int
+      |                                                                                %ld
+  975 |                      name, axis_base.n_full);
+      |                            ~~~~~~~~~~~~~~~~                                      
+      |                                      |
+      |                                      int32_t {aka long int}
+/home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_calib_orientation_task.cc: In function 'void {anonymous}::centroid_validation_()':
+/home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_calib_orientation_task.cc:1220:66: warning: format '%d' expects argument of type 'int', but argument 8 has type 'int32_t' {aka 'long int'} [-Wformat=]
+ 1220 |                      "k=%d roll=%.3f pitch=%.3f err=%.2f n_full=%d thrust=%d",
+      |                                                                 ~^
+      |                                                                  |
+      |                                                                  int
+      |                                                                 %ld
+ 1221 |                      k, (double)roll_cmd, (double)pitch_cmd, (double)err,
+ 1222 |                      o.n_full, s.st.centroid_thrust_last_u16);
+      |                      ~~~~~~~~                                     
+      |                        |
+      |                        int32_t {aka long int}
+/home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_calib_orientation_task.cc: In function '{anonymous}::NoiseEstimate {anonymous}::measure_noise_(const char*, float*, float*)':
+/home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_calib_orientation_task.cc:1322:45: warning: format '%d' expects argument of type 'int', but argument 6 has type 'int32_t' {aka 'long int'} [-Wformat=]
+ 1322 |                      "label=%s k=%d n_full=%d cx=%.2f cy=%.2f thrust=%d vz=%.3f",
+      |                                            ~^
+      |                                             |
+      |                                             int
+      |                                            %ld
+ 1323 |                      label, k, o.n_full, (double)o.centroid_x,
+      |                                ~~~~~~~~      
+      |                                  |
+      |                                  int32_t {aka long int}
+/home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_calib_orientation_task.cc: In function 'void {anonymous}::final_recenter_()':
+/home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_calib_orientation_task.cc:1695:66: warning: format '%d' expects argument of type 'int', but argument 8 has type 'int32_t' {aka 'long int'} [-Wformat=]
+ 1695 |                      "k=%d roll=%.3f pitch=%.3f err=%.2f n_full=%d thrust=%d",
+      |                                                                 ~^
+      |                                                                  |
+      |                                                                  int
+      |                                                                 %ld
+ 1696 |                      k, (double)roll_cmd, (double)pitch_cmd, (double)err,
+ 1697 |                      o.n_full, s.st.recenter_thrust_last_u16);
+      |                      ~~~~~~~~                                     
+      |                        |
+      |                        int32_t {aka long int}
+[ 97%] Building CXX object examples/sentai_runtime/CMakeFiles/sentai_runtime.dir/sentai_servo_marker_task.cc.obj
+/home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_servo_marker_task.cc: In function 'void {anonymous}::run_acquire_()':
+/home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_servo_marker_task.cc:487:57: warning: format '%d' expects argument of type 'int', but argument 7 has type 'int32_t' {aka 'long int'} [-Wformat=]
+  487 |                      "k=%d thrust=%d n_avg=%.2f n_full=%d radius=%.2f z=%.3f hold=%d err=%.2f filt_x=%.2f filt_y=%.2f roll=%.3f pitch=%.3f",
+      |                                                        ~^
+      |                                                         |
+      |                                                         int
+      |                                                        %ld
+  488 |                      k, thrust, (double)avg, o.n_full,
+      |                                              ~~~~~~~~    
+      |                                                |
+      |                                                int32_t {aka long int}
+/home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_servo_marker_task.cc: In function 'void {anonymous}::run_extpos_warmup_()':
+/home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_servo_marker_task.cc:805:31: warning: format '%d' expects argument of type 'int', but argument 5 has type 'int32_t' {aka 'long int'} [-Wformat=]
+  805 |                      "k=%d n=%d avg=%.2f send_ok=%d pose_rej=%d est_ok=%d err=%.3f conv=%d div=%d flow=%d",
+      |                              ~^
+      |                               |
+      |                               int
+      |                              %ld
+  806 |                      k, o.n_full, (double)win.avg_full, send_ok,
+      |                         ~~~~~~~~
+      |                           |
+      |                           int32_t {aka long int}
+/home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_servo_marker_task.cc: In function 'void {anonymous}::run_handoff_hover_()':
+/home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_servo_marker_task.cc:924:50: warning: format '%d' expects argument of type 'int', but argument 7 has type 'int32_t' {aka 'long int'} [-Wformat=]
+  924 |                      "k=%d z=%.3f hover_rc=%d n=%d avg=%.2f send_ok=%d pose_rej=%d flow=%d flow_err=%d",
+      |                                                 ~^
+      |                                                  |
+      |                                                  int
+      |                                                 %ld
+  925 |                      k, (double)hover_z, hover_rc_last, o.n_full,
+      |                                                         ~~~~~~~~
+      |                                                           |
+      |                                                           int32_t {aka long int}
+/home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_servo_marker_task.cc: In function 'void {anonymous}::run_axis_motion_()':
+/home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_servo_marker_task.cc:1124:129: warning: format '%d' expects argument of type 'int', but argument 16 has type 'int32_t' {aka 'long int'} [-Wformat=]
+ 1124 |                          "seg=%s k=%d target=%d vx=%.3f vy=%.3f err=%.2f cx=%.1f cy=%.1f bx0=%.1f by0=%.1f bx1=%.1f by1=%.1f n=%d avg=%.2f reached=%d rc=%d flow=%d flow_err=%d",
+      |                                                                                                                                ~^
+      |                                                                                                                                 |
+      |                                                                                                                                 int
+      |                                                                                                                                %ld
+......
+ 1129 |                          (double)o.bbox_max_y, o.n_full,
+      |                                                ~~~~~~~~                                                                          
+      |                                                  |
+      |                                                  int32_t {aka long int}
+/home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_servo_marker_task.cc: In function 'void {anonymous}::run_land_()':
+/home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_servo_marker_task.cc:1256:50: warning: format '%d' expects argument of type 'int', but argument 7 has type 'int32_t' {aka 'long int'} [-Wformat=]
+ 1256 |                      "k=%d z=%.3f hover_rc=%d n=%d avg=%.2f send_ok=%d pose_rej=%d flow=%d flow_err=%d",
+      |                                                 ~^
+      |                                                  |
+      |                                                  int
+      |                                                 %ld
+ 1257 |                      k, (double)z_cmd, hover_rc_last, o.n_full,
+      |                                                       ~~~~~~~~
+      |                                                         |
+      |                                                         int32_t {aka long int}
+[ 97%] Building CXX object examples/sentai_runtime/CMakeFiles/sentai_runtime.dir/sentai_calib_bringup.cc.obj
+[ 97%] Building CXX object examples/sentai_runtime/CMakeFiles/sentai_runtime.dir/sentai_aruco.cc.obj
+/home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_aruco.cc:3344:13: warning: 'void whycon_adaptive_threshold_(const uint8_t*, int, int, int, int, uint8_t*)' defined but not used [-Wunused-function]
+ 3344 | static void whycon_adaptive_threshold_(const uint8_t* gray,
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_aruco.cc:2907:12: warning: 'int whycon_filter_and_moments_(const uint8_t*, int, int, int)' defined but not used [-Wunused-function]
+ 2907 | static int whycon_filter_and_moments_(const uint8_t* gray,
+      |            ^~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_aruco.cc:2636:14: warning: 's_whycon_min_fill' defined but not used [-Wunused-variable]
+ 2636 | static float s_whycon_min_fill     = 0.40f;  // annulus ≈ 0.50, disc ≈ 0.79
+      |              ^~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_aruco.cc:1117:12: warning: 'int aruco_extract_quad_legacy(uint8_t, int, int, const markers_comp_t*, float*)' defined but not used [-Wunused-function]
+ 1117 | static int aruco_extract_quad_legacy(uint8_t lab_target, int w, int h,
+      |            ^~~~~~~~~~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_aruco.cc:1028:12: warning: 'int markers_contour_centroid(const int16_t*, int, float*, float*)' defined but not used [-Wunused-function]
+ 1028 | static int markers_contour_centroid(const int16_t* pts, int n,
+      |            ^~~~~~~~~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_aruco.cc:750:12: warning: 'int markers_label_background(int, int)' defined but not used [-Wunused-function]
+  750 | static int markers_label_background(int w, int h) {
+      |            ^~~~~~~~~~~~~~~~~~~~~~~~
+[ 97%] Building CXX object examples/sentai_runtime/CMakeFiles/sentai_runtime.dir/sentai_markers.cc.obj
+[ 97%] Building CXX object examples/sentai_runtime/CMakeFiles/sentai_runtime.dir/sentai_safety.cc.obj
+[ 97%] Building CXX object examples/sentai_runtime/CMakeFiles/sentai_runtime.dir/sentai_safety_task.cc.obj
+[ 97%] Building CXX object examples/sentai_runtime/CMakeFiles/sentai_runtime.dir/sentai_fr.cc.obj
+[ 97%] Building CXX object examples/sentai_runtime/CMakeFiles/sentai_runtime.dir/sentai_fr_task.cc.obj
+[ 97%] Building C object examples/sentai_runtime/CMakeFiles/sentai_runtime.dir/sentai_log.c.obj
+[ 97%] Building CXX object examples/sentai_runtime/CMakeFiles/sentai_runtime.dir/sentai_explore.cc.obj
+[ 97%] Building CXX object examples/sentai_runtime/CMakeFiles/sentai_runtime.dir/modsentai_hal.cc.obj
+[ 97%] Building CXX object examples/sentai_runtime/CMakeFiles/sentai_runtime.dir/sentai_mesh.cc.obj
+[ 97%] Building CXX object examples/sentai_runtime/CMakeFiles/sentai_runtime.dir/sentai_link.cc.obj
+In file included from /home/bogdan/work/coralmicro/third_party/mavlink/common/common.h:3003,
+                 from /home/bogdan/work/coralmicro/third_party/mavlink/common/mavlink.h:32,
+                 from /home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_link.h:25,
+                 from /home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_link.cc:9:
+/home/bogdan/work/coralmicro/third_party/mavlink/common/./mavlink_msg_set_attitude_target.h: In function 'uint16_t mavlink_msg_set_attitude_target_encode(uint8_t, uint8_t, mavlink_message_t*, const mavlink_set_attitude_target_t*)':
+/home/bogdan/work/coralmicro/third_party/mavlink/common/./mavlink_msg_set_attitude_target.h:241:242: warning: taking address of packed member of '__mavlink_set_attitude_target_t' may result in an unaligned pointer value [-Waddress-of-packed-member]
+  241 |     return mavlink_msg_set_attitude_target_pack(system_id, component_id, msg, set_attitude_target->time_boot_ms, set_attitude_target->target_system, set_attitude_target->target_component, set_attitude_target->type_mask, set_attitude_target->q, set_attitude_target->body_roll_rate, set_attitude_target->body_pitch_rate, set_attitude_target->body_yaw_rate, set_attitude_target->thrust, set_attitude_target->thrust_body);
+      |                                                                                                                                                                                                                             ~~~~~~~~~~~~~~~~~~~~~^
+In file included from /home/bogdan/work/coralmicro/third_party/mavlink/common/common.h:3003,
+                 from /home/bogdan/work/coralmicro/third_party/mavlink/common/mavlink.h:32,
+                 from /home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_link.h:25,
+                 from /home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_link.cc:9:
+/home/bogdan/work/coralmicro/third_party/mavlink/common/./mavlink_msg_set_attitude_target.h:241:406: warning: taking address of packed member of '__mavlink_set_attitude_target_t' may result in an unaligned pointer value [-Waddress-of-packed-member]
+  241 |     return mavlink_msg_set_attitude_target_pack(system_id, component_id, msg, set_attitude_target->time_boot_ms, set_attitude_target->target_system, set_attitude_target->target_component, set_attitude_target->type_mask, set_attitude_target->q, set_attitude_target->body_roll_rate, set_attitude_target->body_pitch_rate, set_attitude_target->body_yaw_rate, set_attitude_target->thrust, set_attitude_target->thrust_body);
+      |                                                                                                                                                                                                                                                                                                                                                                                                 ~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/mavlink/common/./mavlink_msg_set_attitude_target.h: In function 'uint16_t mavlink_msg_set_attitude_target_encode_chan(uint8_t, uint8_t, uint8_t, mavlink_message_t*, const mavlink_set_attitude_target_t*)':
+/home/bogdan/work/coralmicro/third_party/mavlink/common/./mavlink_msg_set_attitude_target.h:255:253: warning: taking address of packed member of '__mavlink_set_attitude_target_t' may result in an unaligned pointer value [-Waddress-of-packed-member]
+  255 |     return mavlink_msg_set_attitude_target_pack_chan(system_id, component_id, chan, msg, set_attitude_target->time_boot_ms, set_attitude_target->target_system, set_attitude_target->target_component, set_attitude_target->type_mask, set_attitude_target->q, set_attitude_target->body_roll_rate, set_attitude_target->body_pitch_rate, set_attitude_target->body_yaw_rate, set_attitude_target->thrust, set_attitude_target->thrust_body);
+      |                                                                                                                                                                                                                                        ~~~~~~~~~~~~~~~~~~~~~^
+/home/bogdan/work/coralmicro/third_party/mavlink/common/./mavlink_msg_set_attitude_target.h:255:417: warning: taking address of packed member of '__mavlink_set_attitude_target_t' may result in an unaligned pointer value [-Waddress-of-packed-member]
+  255 |     return mavlink_msg_set_attitude_target_pack_chan(system_id, component_id, chan, msg, set_attitude_target->time_boot_ms, set_attitude_target->target_system, set_attitude_target->target_component, set_attitude_target->type_mask, set_attitude_target->q, set_attitude_target->body_roll_rate, set_attitude_target->body_pitch_rate, set_attitude_target->body_yaw_rate, set_attitude_target->thrust, set_attitude_target->thrust_body);
+      |                                                                                                                                                                                                                                                                                                                                                                                                            ~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/mavlink/common/./mavlink_msg_set_attitude_target.h: In function 'uint16_t mavlink_msg_set_attitude_target_encode_status(uint8_t, uint8_t, mavlink_status_t*, mavlink_message_t*, const mavlink_set_attitude_target_t*)':
+/home/bogdan/work/coralmicro/third_party/mavlink/common/./mavlink_msg_set_attitude_target.h:269:259: warning: taking address of packed member of '__mavlink_set_attitude_target_t' may result in an unaligned pointer value [-Waddress-of-packed-member]
+  269 |     return mavlink_msg_set_attitude_target_pack_status(system_id, component_id, _status, msg,  set_attitude_target->time_boot_ms, set_attitude_target->target_system, set_attitude_target->target_component, set_attitude_target->type_mask, set_attitude_target->q, set_attitude_target->body_roll_rate, set_attitude_target->body_pitch_rate, set_attitude_target->body_yaw_rate, set_attitude_target->thrust, set_attitude_target->thrust_body);
+      |                                                                                                                                                                                                                                              ~~~~~~~~~~~~~~~~~~~~~^
+/home/bogdan/work/coralmicro/third_party/mavlink/common/./mavlink_msg_set_attitude_target.h:269:423: warning: taking address of packed member of '__mavlink_set_attitude_target_t' may result in an unaligned pointer value [-Waddress-of-packed-member]
+  269 |     return mavlink_msg_set_attitude_target_pack_status(system_id, component_id, _status, msg,  set_attitude_target->time_boot_ms, set_attitude_target->target_system, set_attitude_target->target_component, set_attitude_target->type_mask, set_attitude_target->q, set_attitude_target->body_roll_rate, set_attitude_target->body_pitch_rate, set_attitude_target->body_yaw_rate, set_attitude_target->thrust, set_attitude_target->thrust_body);
+      |                                                                                                                                                                                                                                                                                                                                                                                                                  ~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~
+In file included from /home/bogdan/work/coralmicro/third_party/mavlink/common/common.h:3046,
+                 from /home/bogdan/work/coralmicro/third_party/mavlink/common/mavlink.h:32,
+                 from /home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_link.h:25,
+                 from /home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_link.cc:9:
+/home/bogdan/work/coralmicro/third_party/mavlink/common/./mavlink_msg_distance_sensor.h: In function 'uint16_t mavlink_msg_distance_sensor_encode(uint8_t, uint8_t, mavlink_message_t*, const mavlink_distance_sensor_t*)':
+/home/bogdan/work/coralmicro/third_party/mavlink/common/./mavlink_msg_distance_sensor.h:264:387: warning: taking address of packed member of '__mavlink_distance_sensor_t' may result in an unaligned pointer value [-Waddress-of-packed-member]
+  264 |     return mavlink_msg_distance_sensor_pack(system_id, component_id, msg, distance_sensor->time_boot_ms, distance_sensor->min_distance, distance_sensor->max_distance, distance_sensor->current_distance, distance_sensor->type, distance_sensor->id, distance_sensor->orientation, distance_sensor->covariance, distance_sensor->horizontal_fov, distance_sensor->vertical_fov, distance_sensor->quaternion, distance_sensor->signal_quality);
+      |                                                                                                                                                                                                                                                                                                                                                                                  ~~~~~~~~~~~~~~~~~^~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/mavlink/common/./mavlink_msg_distance_sensor.h: In function 'uint16_t mavlink_msg_distance_sensor_encode_chan(uint8_t, uint8_t, uint8_t, mavlink_message_t*, const mavlink_distance_sensor_t*)':
+/home/bogdan/work/coralmicro/third_party/mavlink/common/./mavlink_msg_distance_sensor.h:278:398: warning: taking address of packed member of '__mavlink_distance_sensor_t' may result in an unaligned pointer value [-Waddress-of-packed-member]
+  278 |     return mavlink_msg_distance_sensor_pack_chan(system_id, component_id, chan, msg, distance_sensor->time_boot_ms, distance_sensor->min_distance, distance_sensor->max_distance, distance_sensor->current_distance, distance_sensor->type, distance_sensor->id, distance_sensor->orientation, distance_sensor->covariance, distance_sensor->horizontal_fov, distance_sensor->vertical_fov, distance_sensor->quaternion, distance_sensor->signal_quality);
+      |                                                                                                                                                                                                                                                                                                                                                                                             ~~~~~~~~~~~~~~~~~^~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/mavlink/common/./mavlink_msg_distance_sensor.h: In function 'uint16_t mavlink_msg_distance_sensor_encode_status(uint8_t, uint8_t, mavlink_status_t*, mavlink_message_t*, const mavlink_distance_sensor_t*)':
+/home/bogdan/work/coralmicro/third_party/mavlink/common/./mavlink_msg_distance_sensor.h:292:404: warning: taking address of packed member of '__mavlink_distance_sensor_t' may result in an unaligned pointer value [-Waddress-of-packed-member]
+  292 |     return mavlink_msg_distance_sensor_pack_status(system_id, component_id, _status, msg,  distance_sensor->time_boot_ms, distance_sensor->min_distance, distance_sensor->max_distance, distance_sensor->current_distance, distance_sensor->type, distance_sensor->id, distance_sensor->orientation, distance_sensor->covariance, distance_sensor->horizontal_fov, distance_sensor->vertical_fov, distance_sensor->quaternion, distance_sensor->signal_quality);
+      |                                                                                                                                                                                                                                                                                                                                                                                                   ~~~~~~~~~~~~~~~~~^~~~~~~~~~
+In file included from /home/bogdan/work/coralmicro/third_party/mavlink/common/common.h:3060,
+                 from /home/bogdan/work/coralmicro/third_party/mavlink/common/mavlink.h:32,
+                 from /home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_link.h:25,
+                 from /home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_link.cc:9:
+/home/bogdan/work/coralmicro/third_party/mavlink/common/./mavlink_msg_battery_status.h: In function 'uint16_t mavlink_msg_battery_status_encode(uint8_t, uint8_t, mavlink_message_t*, const mavlink_battery_status_t*)':
+/home/bogdan/work/coralmicro/third_party/mavlink/common/./mavlink_msg_battery_status.h:289:195: warning: taking address of packed member of '__mavlink_battery_status_t' may result in an unaligned pointer value [-Waddress-of-packed-member]
+  289 |     return mavlink_msg_battery_status_pack(system_id, component_id, msg, battery_status->id, battery_status->battery_function, battery_status->type, battery_status->temperature, battery_status->voltages, battery_status->current_battery, battery_status->current_consumed, battery_status->energy_consumed, battery_status->battery_remaining, battery_status->time_remaining, battery_status->charge_state, battery_status->voltages_ext, battery_status->mode, battery_status->fault_bitmask);
+      |                                                                                                                                                                                   ~~~~~~~~~~~~~~~~^~~~~~~~
+/home/bogdan/work/coralmicro/third_party/mavlink/common/./mavlink_msg_battery_status.h:289:418: warning: taking address of packed member of '__mavlink_battery_status_t' may result in an unaligned pointer value [-Waddress-of-packed-member]
+  289 |     return mavlink_msg_battery_status_pack(system_id, component_id, msg, battery_status->id, battery_status->battery_function, battery_status->type, battery_status->temperature, battery_status->voltages, battery_status->current_battery, battery_status->current_consumed, battery_status->energy_consumed, battery_status->battery_remaining, battery_status->time_remaining, battery_status->charge_state, battery_status->voltages_ext, battery_status->mode, battery_status->fault_bitmask);
+      |                                                                                                                                                                                                                                                                                                                                                                                                                  ~~~~~~~~~~~~~~~~^~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/mavlink/common/./mavlink_msg_battery_status.h: In function 'uint16_t mavlink_msg_battery_status_encode_chan(uint8_t, uint8_t, uint8_t, mavlink_message_t*, const mavlink_battery_status_t*)':
+/home/bogdan/work/coralmicro/third_party/mavlink/common/./mavlink_msg_battery_status.h:303:206: warning: taking address of packed member of '__mavlink_battery_status_t' may result in an unaligned pointer value [-Waddress-of-packed-member]
+  303 |     return mavlink_msg_battery_status_pack_chan(system_id, component_id, chan, msg, battery_status->id, battery_status->battery_function, battery_status->type, battery_status->temperature, battery_status->voltages, battery_status->current_battery, battery_status->current_consumed, battery_status->energy_consumed, battery_status->battery_remaining, battery_status->time_remaining, battery_status->charge_state, battery_status->voltages_ext, battery_status->mode, battery_status->fault_bitmask);
+      |                                                                                                                                                                                              ~~~~~~~~~~~~~~~~^~~~~~~~
+/home/bogdan/work/coralmicro/third_party/mavlink/common/./mavlink_msg_battery_status.h:303:429: warning: taking address of packed member of '__mavlink_battery_status_t' may result in an unaligned pointer value [-Waddress-of-packed-member]
+  303 |     return mavlink_msg_battery_status_pack_chan(system_id, component_id, chan, msg, battery_status->id, battery_status->battery_function, battery_status->type, battery_status->temperature, battery_status->voltages, battery_status->current_battery, battery_status->current_consumed, battery_status->energy_consumed, battery_status->battery_remaining, battery_status->time_remaining, battery_status->charge_state, battery_status->voltages_ext, battery_status->mode, battery_status->fault_bitmask);
+      |                                                                                                                                                                                                                                                                                                                                                                                                                             ~~~~~~~~~~~~~~~~^~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/mavlink/common/./mavlink_msg_battery_status.h: In function 'uint16_t mavlink_msg_battery_status_encode_status(uint8_t, uint8_t, mavlink_status_t*, mavlink_message_t*, const mavlink_battery_status_t*)':
+/home/bogdan/work/coralmicro/third_party/mavlink/common/./mavlink_msg_battery_status.h:317:212: warning: taking address of packed member of '__mavlink_battery_status_t' may result in an unaligned pointer value [-Waddress-of-packed-member]
+  317 |     return mavlink_msg_battery_status_pack_status(system_id, component_id, _status, msg,  battery_status->id, battery_status->battery_function, battery_status->type, battery_status->temperature, battery_status->voltages, battery_status->current_battery, battery_status->current_consumed, battery_status->energy_consumed, battery_status->battery_remaining, battery_status->time_remaining, battery_status->charge_state, battery_status->voltages_ext, battery_status->mode, battery_status->fault_bitmask);
+      |                                                                                                                                                                                                    ~~~~~~~~~~~~~~~~^~~~~~~~
+/home/bogdan/work/coralmicro/third_party/mavlink/common/./mavlink_msg_battery_status.h:317:435: warning: taking address of packed member of '__mavlink_battery_status_t' may result in an unaligned pointer value [-Waddress-of-packed-member]
+  317 |     return mavlink_msg_battery_status_pack_status(system_id, component_id, _status, msg,  battery_status->id, battery_status->battery_function, battery_status->type, battery_status->temperature, battery_status->voltages, battery_status->current_battery, battery_status->current_consumed, battery_status->energy_consumed, battery_status->battery_remaining, battery_status->time_remaining, battery_status->charge_state, battery_status->voltages_ext, battery_status->mode, battery_status->fault_bitmask);
+      |                                                                                                                                                                                                                                                                                                                                                                                                                                   ~~~~~~~~~~~~~~~~^~~~~~~~~~~~
+In file included from /home/bogdan/work/coralmicro/third_party/mavlink/common/common.h:3061,
+                 from /home/bogdan/work/coralmicro/third_party/mavlink/common/mavlink.h:32,
+                 from /home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_link.h:25,
+                 from /home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_link.cc:9:
+/home/bogdan/work/coralmicro/third_party/mavlink/common/./mavlink_msg_landing_target.h: In function 'uint16_t mavlink_msg_landing_target_encode(uint8_t, uint8_t, mavlink_message_t*, const mavlink_landing_target_t*)':
+/home/bogdan/work/coralmicro/third_party/mavlink/common/./mavlink_msg_landing_target.h:288:349: warning: taking address of packed member of '__mavlink_landing_target_t' may result in an unaligned pointer value [-Waddress-of-packed-member]
+  288 |     return mavlink_msg_landing_target_pack(system_id, component_id, msg, landing_target->time_usec, landing_target->target_num, landing_target->frame, landing_target->angle_x, landing_target->angle_y, landing_target->distance, landing_target->size_x, landing_target->size_y, landing_target->x, landing_target->y, landing_target->z, landing_target->q, landing_target->type, landing_target->position_valid);
+      |                                                                                                                                                                                                                                                                                                                                             ~~~~~~~~~~~~~~~~^
+/home/bogdan/work/coralmicro/third_party/mavlink/common/./mavlink_msg_landing_target.h: In function 'uint16_t mavlink_msg_landing_target_encode_chan(uint8_t, uint8_t, uint8_t, mavlink_message_t*, const mavlink_landing_target_t*)':
+/home/bogdan/work/coralmicro/third_party/mavlink/common/./mavlink_msg_landing_target.h:302:360: warning: taking address of packed member of '__mavlink_landing_target_t' may result in an unaligned pointer value [-Waddress-of-packed-member]
+  302 |     return mavlink_msg_landing_target_pack_chan(system_id, component_id, chan, msg, landing_target->time_usec, landing_target->target_num, landing_target->frame, landing_target->angle_x, landing_target->angle_y, landing_target->distance, landing_target->size_x, landing_target->size_y, landing_target->x, landing_target->y, landing_target->z, landing_target->q, landing_target->type, landing_target->position_valid);
+      |                                                                                                                                                                                                                                                                                                                                                        ~~~~~~~~~~~~~~~~^
+/home/bogdan/work/coralmicro/third_party/mavlink/common/./mavlink_msg_landing_target.h: In function 'uint16_t mavlink_msg_landing_target_encode_status(uint8_t, uint8_t, mavlink_status_t*, mavlink_message_t*, const mavlink_landing_target_t*)':
+/home/bogdan/work/coralmicro/third_party/mavlink/common/./mavlink_msg_landing_target.h:316:366: warning: taking address of packed member of '__mavlink_landing_target_t' may result in an unaligned pointer value [-Waddress-of-packed-member]
+  316 |     return mavlink_msg_landing_target_pack_status(system_id, component_id, _status, msg,  landing_target->time_usec, landing_target->target_num, landing_target->frame, landing_target->angle_x, landing_target->angle_y, landing_target->distance, landing_target->size_x, landing_target->size_y, landing_target->x, landing_target->y, landing_target->z, landing_target->q, landing_target->type, landing_target->position_valid);
+      |                                                                                                                                                                                                                                                                                                                                                              ~~~~~~~~~~~~~~~~^
+In file included from /home/bogdan/work/coralmicro/third_party/mavlink/common/common.h:3072,
+                 from /home/bogdan/work/coralmicro/third_party/mavlink/common/mavlink.h:32,
+                 from /home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_link.h:25,
+                 from /home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_link.cc:9:
+/home/bogdan/work/coralmicro/third_party/mavlink/common/./mavlink_msg_home_position.h: In function 'uint16_t mavlink_msg_home_position_encode(uint8_t, uint8_t, mavlink_message_t*, const mavlink_home_position_t*)':
+/home/bogdan/work/coralmicro/third_party/mavlink/common/./mavlink_msg_home_position.h:268:218: warning: taking address of packed member of '__mavlink_home_position_t' may result in an unaligned pointer value [-Waddress-of-packed-member]
+  268 |     return mavlink_msg_home_position_pack(system_id, component_id, msg, home_position->latitude, home_position->longitude, home_position->altitude, home_position->x, home_position->y, home_position->z, home_position->q, home_position->approach_x, home_position->approach_y, home_position->approach_z, home_position->time_usec);
+      |                                                                                                                                                                                                           ~~~~~~~~~~~~~~~^
+/home/bogdan/work/coralmicro/third_party/mavlink/common/./mavlink_msg_home_position.h: In function 'uint16_t mavlink_msg_home_position_encode_chan(uint8_t, uint8_t, uint8_t, mavlink_message_t*, const mavlink_home_position_t*)':
+/home/bogdan/work/coralmicro/third_party/mavlink/common/./mavlink_msg_home_position.h:282:229: warning: taking address of packed member of '__mavlink_home_position_t' may result in an unaligned pointer value [-Waddress-of-packed-member]
+  282 |     return mavlink_msg_home_position_pack_chan(system_id, component_id, chan, msg, home_position->latitude, home_position->longitude, home_position->altitude, home_position->x, home_position->y, home_position->z, home_position->q, home_position->approach_x, home_position->approach_y, home_position->approach_z, home_position->time_usec);
+      |                                                                                                                                                                                                                      ~~~~~~~~~~~~~~~^
+/home/bogdan/work/coralmicro/third_party/mavlink/common/./mavlink_msg_home_position.h: In function 'uint16_t mavlink_msg_home_position_encode_status(uint8_t, uint8_t, mavlink_status_t*, mavlink_message_t*, const mavlink_home_position_t*)':
+/home/bogdan/work/coralmicro/third_party/mavlink/common/./mavlink_msg_home_position.h:296:235: warning: taking address of packed member of '__mavlink_home_position_t' may result in an unaligned pointer value [-Waddress-of-packed-member]
+  296 |     return mavlink_msg_home_position_pack_status(system_id, component_id, _status, msg,  home_position->latitude, home_position->longitude, home_position->altitude, home_position->x, home_position->y, home_position->z, home_position->q, home_position->approach_x, home_position->approach_y, home_position->approach_z, home_position->time_usec);
+      |                                                                                                                                                                                                                            ~~~~~~~~~~~~~~~^
+In file included from /home/bogdan/work/coralmicro/third_party/mavlink/common/common.h:3073,
+                 from /home/bogdan/work/coralmicro/third_party/mavlink/common/mavlink.h:32,
+                 from /home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_link.h:25,
+                 from /home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_link.cc:9:
+/home/bogdan/work/coralmicro/third_party/mavlink/common/./mavlink_msg_set_home_position.h: In function 'uint16_t mavlink_msg_set_home_position_encode(uint8_t, uint8_t, mavlink_message_t*, const mavlink_set_home_position_t*)':
+/home/bogdan/work/coralmicro/third_party/mavlink/common/./mavlink_msg_set_home_position.h:264:284: warning: taking address of packed member of '__mavlink_set_home_position_t' may result in an unaligned pointer value [-Waddress-of-packed-member]
+  264 |     return mavlink_msg_set_home_position_pack(system_id, component_id, msg, set_home_position->target_system, set_home_position->latitude, set_home_position->longitude, set_home_position->altitude, set_home_position->x, set_home_position->y, set_home_position->z, set_home_position->q, set_home_position->approach_x, set_home_position->approach_y, set_home_position->approach_z, set_home_position->time_usec);
+      |                                                                                                                                                                                                                                                                         ~~~~~~~~~~~~~~~~~~~^
+/home/bogdan/work/coralmicro/third_party/mavlink/common/./mavlink_msg_set_home_position.h: In function 'uint16_t mavlink_msg_set_home_position_encode_chan(uint8_t, uint8_t, uint8_t, mavlink_message_t*, const mavlink_set_home_position_t*)':
+/home/bogdan/work/coralmicro/third_party/mavlink/common/./mavlink_msg_set_home_position.h:278:295: warning: taking address of packed member of '__mavlink_set_home_position_t' may result in an unaligned pointer value [-Waddress-of-packed-member]
+  278 |     return mavlink_msg_set_home_position_pack_chan(system_id, component_id, chan, msg, set_home_position->target_system, set_home_position->latitude, set_home_position->longitude, set_home_position->altitude, set_home_position->x, set_home_position->y, set_home_position->z, set_home_position->q, set_home_position->approach_x, set_home_position->approach_y, set_home_position->approach_z, set_home_position->time_usec);
+      |                                                                                                                                                                                                                                                                                    ~~~~~~~~~~~~~~~~~~~^
+/home/bogdan/work/coralmicro/third_party/mavlink/common/./mavlink_msg_set_home_position.h: In function 'uint16_t mavlink_msg_set_home_position_encode_status(uint8_t, uint8_t, mavlink_status_t*, mavlink_message_t*, const mavlink_set_home_position_t*)':
+/home/bogdan/work/coralmicro/third_party/mavlink/common/./mavlink_msg_set_home_position.h:292:301: warning: taking address of packed member of '__mavlink_set_home_position_t' may result in an unaligned pointer value [-Waddress-of-packed-member]
+  292 |     return mavlink_msg_set_home_position_pack_status(system_id, component_id, _status, msg,  set_home_position->target_system, set_home_position->latitude, set_home_position->longitude, set_home_position->altitude, set_home_position->x, set_home_position->y, set_home_position->z, set_home_position->q, set_home_position->approach_x, set_home_position->approach_y, set_home_position->approach_z, set_home_position->time_usec);
+      |                                                                                                                                                                                                                                                                                          ~~~~~~~~~~~~~~~~~~~^
+In file included from /home/bogdan/work/coralmicro/third_party/mavlink/common/common.h:3110,
+                 from /home/bogdan/work/coralmicro/third_party/mavlink/common/mavlink.h:32,
+                 from /home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_link.h:25,
+                 from /home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_link.cc:9:
+/home/bogdan/work/coralmicro/third_party/mavlink/common/./mavlink_msg_autopilot_state_for_gimbal_device.h: In function 'uint16_t mavlink_msg_autopilot_state_for_gimbal_device_encode(uint8_t, uint8_t, mavlink_message_t*, const mavlink_autopilot_state_for_gimbal_device_t*)':
+/home/bogdan/work/coralmicro/third_party/mavlink/common/./mavlink_msg_autopilot_state_for_gimbal_device.h:276:280: warning: taking address of packed member of '__mavlink_autopilot_state_for_gimbal_device_t' may result in an unaligned pointer value [-Waddress-of-packed-member]
+  276 |     return mavlink_msg_autopilot_state_for_gimbal_device_pack(system_id, component_id, msg, autopilot_state_for_gimbal_device->target_system, autopilot_state_for_gimbal_device->target_component, autopilot_state_for_gimbal_device->time_boot_us, autopilot_state_for_gimbal_device->q, autopilot_state_for_gimbal_device->q_estimated_delay_us, autopilot_state_for_gimbal_device->vx, autopilot_state_for_gimbal_device->vy, autopilot_state_for_gimbal_device->vz, autopilot_state_for_gimbal_device->v_estimated_delay_us, autopilot_state_for_gimbal_device->feed_forward_angular_velocity_z, autopilot_state_for_gimbal_device->estimator_status, autopilot_state_for_gimbal_device->landed_state, autopilot_state_for_gimbal_device->angular_velocity_z);
+      |                                                                                                                                                                                                                                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+In file included from /home/bogdan/work/coralmicro/third_party/mavlink/common/common.h:3110,
+                 from /home/bogdan/work/coralmicro/third_party/mavlink/common/mavlink.h:32,
+                 from /home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_link.h:25,
+                 from /home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_link.cc:9:
+/home/bogdan/work/coralmicro/third_party/mavlink/common/./mavlink_msg_autopilot_state_for_gimbal_device.h: In function 'uint16_t mavlink_msg_autopilot_state_for_gimbal_device_encode_chan(uint8_t, uint8_t, uint8_t, mavlink_message_t*, const mavlink_autopilot_state_for_gimbal_device_t*)':
+/home/bogdan/work/coralmicro/third_party/mavlink/common/./mavlink_msg_autopilot_state_for_gimbal_device.h:290:291: warning: taking address of packed member of '__mavlink_autopilot_state_for_gimbal_device_t' may result in an unaligned pointer value [-Waddress-of-packed-member]
+  290 |     return mavlink_msg_autopilot_state_for_gimbal_device_pack_chan(system_id, component_id, chan, msg, autopilot_state_for_gimbal_device->target_system, autopilot_state_for_gimbal_device->target_component, autopilot_state_for_gimbal_device->time_boot_us, autopilot_state_for_gimbal_device->q, autopilot_state_for_gimbal_device->q_estimated_delay_us, autopilot_state_for_gimbal_device->vx, autopilot_state_for_gimbal_device->vy, autopilot_state_for_gimbal_device->vz, autopilot_state_for_gimbal_device->v_estimated_delay_us, autopilot_state_for_gimbal_device->feed_forward_angular_velocity_z, autopilot_state_for_gimbal_device->estimator_status, autopilot_state_for_gimbal_device->landed_state, autopilot_state_for_gimbal_device->angular_velocity_z);
+      |                                                                                                                                                                                                                                                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+In file included from /home/bogdan/work/coralmicro/third_party/mavlink/common/common.h:3110,
+                 from /home/bogdan/work/coralmicro/third_party/mavlink/common/mavlink.h:32,
+                 from /home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_link.h:25,
+                 from /home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_link.cc:9:
+/home/bogdan/work/coralmicro/third_party/mavlink/common/./mavlink_msg_autopilot_state_for_gimbal_device.h: In function 'uint16_t mavlink_msg_autopilot_state_for_gimbal_device_encode_status(uint8_t, uint8_t, mavlink_status_t*, mavlink_message_t*, const mavlink_autopilot_state_for_gimbal_device_t*)':
+/home/bogdan/work/coralmicro/third_party/mavlink/common/./mavlink_msg_autopilot_state_for_gimbal_device.h:304:297: warning: taking address of packed member of '__mavlink_autopilot_state_for_gimbal_device_t' may result in an unaligned pointer value [-Waddress-of-packed-member]
+  304 |     return mavlink_msg_autopilot_state_for_gimbal_device_pack_status(system_id, component_id, _status, msg,  autopilot_state_for_gimbal_device->target_system, autopilot_state_for_gimbal_device->target_component, autopilot_state_for_gimbal_device->time_boot_us, autopilot_state_for_gimbal_device->q, autopilot_state_for_gimbal_device->q_estimated_delay_us, autopilot_state_for_gimbal_device->vx, autopilot_state_for_gimbal_device->vy, autopilot_state_for_gimbal_device->vz, autopilot_state_for_gimbal_device->v_estimated_delay_us, autopilot_state_for_gimbal_device->feed_forward_angular_velocity_z, autopilot_state_for_gimbal_device->estimator_status, autopilot_state_for_gimbal_device->landed_state, autopilot_state_for_gimbal_device->angular_velocity_z);
+      |                                                                                                                                                                                                                                                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+In file included from /home/bogdan/work/coralmicro/third_party/mavlink/common/common.h:3127,
+                 from /home/bogdan/work/coralmicro/third_party/mavlink/common/mavlink.h:32,
+                 from /home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_link.h:25,
+                 from /home/bogdan/work/coralmicro/examples/sentai_runtime/sentai_link.cc:9:
+/home/bogdan/work/coralmicro/third_party/mavlink/common/./mavlink_msg_obstacle_distance.h: In function 'uint16_t mavlink_msg_obstacle_distance_encode(uint8_t, uint8_t, mavlink_message_t*, const mavlink_obstacle_distance_t*)':
+/home/bogdan/work/coralmicro/third_party/mavlink/common/./mavlink_msg_obstacle_distance.h:228:158: warning: taking address of packed member of '__mavlink_obstacle_distance_t' may result in an unaligned pointer value [-Waddress-of-packed-member]
+  228 |     return mavlink_msg_obstacle_distance_pack(system_id, component_id, msg, obstacle_distance->time_usec, obstacle_distance->sensor_type, obstacle_distance->distances, obstacle_distance->increment, obstacle_distance->min_distance, obstacle_distance->max_distance, obstacle_distance->increment_f, obstacle_distance->angle_offset, obstacle_distance->frame);
+      |                                                                                                                                           ~~~~~~~~~~~~~~~~~~~^~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/mavlink/common/./mavlink_msg_obstacle_distance.h: In function 'uint16_t mavlink_msg_obstacle_distance_encode_chan(uint8_t, uint8_t, uint8_t, mavlink_message_t*, const mavlink_obstacle_distance_t*)':
+/home/bogdan/work/coralmicro/third_party/mavlink/common/./mavlink_msg_obstacle_distance.h:242:169: warning: taking address of packed member of '__mavlink_obstacle_distance_t' may result in an unaligned pointer value [-Waddress-of-packed-member]
+  242 |     return mavlink_msg_obstacle_distance_pack_chan(system_id, component_id, chan, msg, obstacle_distance->time_usec, obstacle_distance->sensor_type, obstacle_distance->distances, obstacle_distance->increment, obstacle_distance->min_distance, obstacle_distance->max_distance, obstacle_distance->increment_f, obstacle_distance->angle_offset, obstacle_distance->frame);
+      |                                                                                                                                                      ~~~~~~~~~~~~~~~~~~~^~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/mavlink/common/./mavlink_msg_obstacle_distance.h: In function 'uint16_t mavlink_msg_obstacle_distance_encode_status(uint8_t, uint8_t, mavlink_status_t*, mavlink_message_t*, const mavlink_obstacle_distance_t*)':
+/home/bogdan/work/coralmicro/third_party/mavlink/common/./mavlink_msg_obstacle_distance.h:256:175: warning: taking address of packed member of '__mavlink_obstacle_distance_t' may result in an unaligned pointer value [-Waddress-of-packed-member]
+  256 |     return mavlink_msg_obstacle_distance_pack_status(system_id, component_id, _status, msg,  obstacle_distance->time_usec, obstacle_distance->sensor_type, obstacle_distance->distances, obstacle_distance->increment, obstacle_distance->min_distance, obstacle_distance->max_distance, obstacle_distance->increment_f, obstacle_distance->angle_offset, obstacle_distance->frame);
+      |                                                                                                                                                            ~~~~~~~~~~~~~~~~~~~^~~~~~~~~
+[ 97%] Building CXX object examples/sentai_runtime/CMakeFiles/sentai_runtime.dir/sentai_crazy.cc.obj
+[ 98%] Building CXX object examples/sentai_runtime/CMakeFiles/sentai_runtime.dir/sentai_crazy_log.cc.obj
+[ 98%] Building CXX object examples/sentai_runtime/CMakeFiles/sentai_runtime.dir/sentai_httpd.cc.obj
+[ 98%] Building CXX object examples/sentai_runtime/CMakeFiles/sentai_runtime.dir/sentai_fs_task.cc.obj
+[ 98%] Building CXX object examples/sentai_runtime/CMakeFiles/sentai_runtime.dir/sentai_health.cc.obj
+[ 98%] Building CXX object examples/sentai_runtime/CMakeFiles/sentai_runtime.dir/sentai_dmesg.cc.obj
+[ 98%] Building CXX object examples/sentai_runtime/CMakeFiles/sentai_runtime.dir/sentai_fs_cache.cc.obj
+[ 98%] Building CXX object examples/sentai_runtime/CMakeFiles/sentai_runtime.dir/m4_bench_host.cc.obj
+[ 98%] Building CXX object examples/sentai_runtime/CMakeFiles/sentai_runtime.dir/help_txt_data.cc.obj
+[ 98%] Linking CXX executable sentai_runtime
+/home/bogdan/work/coralmicro/third_party/toolchain-linux/gcc-arm-none-eabi-9-2020-q2-update/bin/../lib/gcc/arm-none-eabi/9.3.1/../../../../arm-none-eabi/bin/ld: sentai_runtime section `.text' will not fit in region `m_text'
+/home/bogdan/work/coralmicro/third_party/toolchain-linux/gcc-arm-none-eabi-9-2020-q2-update/bin/../lib/gcc/arm-none-eabi/9.3.1/../../../../arm-none-eabi/bin/ld: sentai_runtime section `.sdram_bss' will not fit in region `m_sdram'
+/home/bogdan/work/coralmicro/third_party/toolchain-linux/gcc-arm-none-eabi-9-2020-q2-update/bin/../lib/gcc/arm-none-eabi/9.3.1/../../../../arm-none-eabi/bin/ld: region m_text overflowed with text and data
+/home/bogdan/work/coralmicro/third_party/toolchain-linux/gcc-arm-none-eabi-9-2020-q2-update/bin/../lib/gcc/arm-none-eabi/9.3.1/../../../../arm-none-eabi/bin/ld: section .ncamera VMA [0000000082000000,00000000824affff] overlaps section .sdram_bss VMA [0000000080eeb380,0000000082447343]
+/home/bogdan/work/coralmicro/third_party/toolchain-linux/gcc-arm-none-eabi-9-2020-q2-update/bin/../lib/gcc/arm-none-eabi/9.3.1/../../../../arm-none-eabi/bin/ld: region `m_text' overflowed by 34896 bytes
+/home/bogdan/work/coralmicro/third_party/toolchain-linux/gcc-arm-none-eabi-9-2020-q2-update/bin/../lib/gcc/arm-none-eabi/9.3.1/../../../../arm-none-eabi/bin/ld: region `m_sdram' overflowed by 4485956 bytes
+/home/bogdan/work/coralmicro/third_party/toolchain-linux/gcc-arm-none-eabi-9-2020-q2-update/bin/../lib/gcc/arm-none-eabi/9.3.1/../../../../arm-none-eabi/bin/ld: liblibmicropython.a(CMakeFiles/libmicropython.dir/modsentai.c.obj): in function `mod_sentai_cam_prep_once':
+/examples/sentai_runtime/bindings/modsentai_camera.c:621: undefined reference to `sentai_camera_backend_publish_prep_once'
+/home/bogdan/work/coralmicro/third_party/toolchain-linux/gcc-arm-none-eabi-9-2020-q2-update/bin/../lib/gcc/arm-none-eabi/9.3.1/../../../../arm-none-eabi/bin/ld: CMakeFiles/sentai_runtime.dir/sentai_fr.cc.obj: in function `(anonymous namespace)::drain_one_debug_()':
+/examples/sentai_runtime/sentai_fr.cc:507: undefined reference to `sentai_fs_append(char const*, unsigned char const*, int)'
+/home/bogdan/work/coralmicro/third_party/toolchain-linux/gcc-arm-none-eabi-9-2020-q2-update/bin/../lib/gcc/arm-none-eabi/9.3.1/../../../../arm-none-eabi/bin/ld: CMakeFiles/sentai_runtime.dir/sentai_fr.cc.obj: in function `sentai_fr_open':
+/examples/sentai_runtime/sentai_fr.cc:247: undefined reference to `sentai_fs_write(char const*, unsigned char const*, int)'
+/home/bogdan/work/coralmicro/third_party/toolchain-linux/gcc-arm-none-eabi-9-2020-q2-update/bin/../lib/gcc/arm-none-eabi/9.3.1/../../../../arm-none-eabi/bin/ld: CMakeFiles/sentai_runtime.dir/sentai_servo_marker_task.cc.obj: in function `(anonymous namespace)::send_extpos_from_current_markers_(SentaiMarkersObservation const&, float, float*, float*, float*, int*, int*, int*, int*)':
+/examples/sentai_runtime/sentai_servo_marker_task.cc:682: undefined reference to `sentai_crazy_send_extpos'
+collect2: error: ld returned 1 exit status
+gmake[3]: *** [examples/sentai_runtime/CMakeFiles/sentai_runtime.dir/build.make:1061: examples/sentai_runtime/sentai_runtime] Error 1
+gmake[2]: *** [CMakeFiles/Makefile2:1354: examples/sentai_runtime/CMakeFiles/sentai_runtime.dir/all] Error 2
+gmake[1]: *** [CMakeFiles/Makefile2:1361: examples/sentai_runtime/CMakeFiles/sentai_runtime.dir/rule] Error 2
+gmake: *** [Makefile:215: sentai_runtime] Error 2

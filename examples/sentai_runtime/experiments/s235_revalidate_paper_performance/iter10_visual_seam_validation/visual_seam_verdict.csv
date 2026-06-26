@@ -1,0 +1,5 @@
+file,drain,index,grabbed_id,current_id,jpeg_bytes,kind,expected,verdict,size,row_kinds
+frames/run01_d1_00.jpg,1,0,0,0,9580,BARS,BARS,correct,640x480,17/255/6;17/255/6;17/255/6;17/255/6;17/255/6
+frames/run01_d1_01.jpg,1,1,1,1,9883,BARS,HBAND,mismatch,640x480,16/238/4;14/238/4;16/228/4;12/238/4;17/238/4
+frames/run01_d2_00.jpg,2,0,0,0,9927,BARS,BARS,correct,640x480,18/238/4;14/238/4;15/226/4;13/238/4;17/238/4
+frames/run01_d2_01.jpg,2,1,1,1,9919,BARS,HBAND,mismatch,640x480,17/238/4;14/238/4;16/226/4;12/241/4;17/238/4

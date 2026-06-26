@@ -12,6 +12,20 @@ extern "C" int sentai_tpu_is_ready(void) {
   return 0;
 }
 
+extern "C" int sentai_load_model(const char* path) {
+  (void)path;
+  return -1;
+}
+
+extern "C" int sentai_tpu_slot_count(void) {
+  return 1;
+}
+
+extern "C" int sentai_tpu_slot_ready(int slot) {
+  (void)slot;
+  return 0;
+}
+
 extern "C" int sentai_tpu_invoke_internal(void) {
   return -1;
 }
@@ -42,19 +56,19 @@ extern "C" int sentai_tpu_detect(int conf_permil, int iou_permil,
   return -1;
 }
 
+extern "C" int sentai_tpu_draw(const char* path, const int16_t* dets,
+                                int n_dets, int quality) {
+  (void)path;
+  (void)dets;
+  (void)n_dets;
+  (void)quality;
+  return -1;
+}
+
 extern "C" void sentai_quant_uint8_to_int8(uint8_t* buf, int count, int zp) {
   (void)buf;
   (void)count;
   (void)zp;
-}
-
-extern "C" int sentai_imu_read_accel(float* x_mg, float* y_mg,
-                                      float* z_mg, float* temp_c) {
-  if (x_mg) *x_mg = 0.0f;
-  if (y_mg) *y_mg = 0.0f;
-  if (z_mg) *z_mg = 1000.0f;
-  if (temp_c) *temp_c = 25.0f;
-  return 0;
 }
 
 extern "C" int sentai_fs_cache_write(const uint8_t* data, int size) {

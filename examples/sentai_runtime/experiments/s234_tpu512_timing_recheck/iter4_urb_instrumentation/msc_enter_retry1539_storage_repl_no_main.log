@@ -1,0 +1,7 @@
+PORT /dev/ttyACM0
+
+KeyboardInterrupt
+>>> 
+>>> 
+>>> READ_EXCEPTION SerialException('device reports readiness to read but returned no data (device disconnected or multiple access on port?)')
+

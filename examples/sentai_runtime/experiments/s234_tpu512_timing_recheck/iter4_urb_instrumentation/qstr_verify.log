@@ -1,0 +1,1 @@
+examples/sentai_runtime/micropython_embed/genhdr/qstrdefs.generated.h:QDEF1(MP_QSTR_urb_stats, 56542, 9, "urb_stats")

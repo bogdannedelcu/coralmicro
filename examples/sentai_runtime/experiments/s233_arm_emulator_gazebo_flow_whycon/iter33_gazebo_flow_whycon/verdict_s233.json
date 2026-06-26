@@ -1,0 +1,55 @@
+{
+  "started_at": "2026-06-05T17:55:20+0300",
+  "target": "sentai_emu_gazebo_flow_whycon_repl",
+  "world": "sentai_whycon_small",
+  "renode_ui": false,
+  "camera_forward_fps": 10.0,
+  "camera_out_width": 640,
+  "camera_out_height": 480,
+  "camera_out_format": "rgb888",
+  "renode_script": "emu/renode/sentai_emu_gazebo_flow_whycon.resc",
+  "commands": {
+    "py_compile": [
+      "/usr/bin/python3",
+      "-m",
+      "py_compile",
+      "emu/renode/crazy_cpx_udp_mmio_bridge.py",
+      "emu/renode/gazebo_camera_mmio_bridge.py",
+      "emu/host/sentai_crazy_cpx_udp_bridge.py",
+      "emu/host/sentai_gazebo_uds_to_tcp_bridge.py"
+    ],
+    "configure": [
+      "cmake",
+      "-S",
+      ".",
+      "-B",
+      "build_emu",
+      "-DSENTAI_ARM_EMU=ON",
+      "-DSENTAI_SKIP_SDK_PATCHES=ON"
+    ],
+    "build": [
+      "cmake",
+      "--build",
+      "build_emu",
+      "--target",
+      "sentai_emu_gazebo_flow_whycon_repl",
+      "-j24"
+    ],
+    "respawn_sitl": [
+      "bash",
+      "sim/scripts/respawn_sitl.sh",
+      "sentai_whycon_small"
+    ],
+    "renode": [
+      "/home/bogdan/work/renode_portable/renode",
+      "--plain",
+      "--console",
+      "--disable-xwt",
+      "emu/renode/sentai_emu_gazebo_flow_whycon.resc"
+    ]
+  },
+  "py_compile_rc": 0,
+  "configure_rc": 0,
+  "build_rc": 0,
+  "respawn_sitl_rc": 1
+}

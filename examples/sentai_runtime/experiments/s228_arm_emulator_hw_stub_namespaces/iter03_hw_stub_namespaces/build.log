@@ -1,0 +1,11 @@
+[  0%] Incrementing build version...
+-- Build #1491 at 2026-06-11 18:26:44
+[  0%] Built target increment_build_version
+[ 22%] Built target libs_levelx
+[ 66%] Built target libs_filex
+[ 66%] Building C object emu/CMakeFiles/sentai_emu_hw_stub_namespace_smoke.dir/sentai_emu_fs_module.c.obj
+[ 66%] Linking CXX executable sentai_emu_hw_stub_namespace_smoke
+[100%] Built target sentai_emu_hw_stub_namespace_smoke
+$ cmake --build build_emu --target sentai_emu_hw_stub_namespace_smoke -j24
+
+[elapsed_s] 1.216

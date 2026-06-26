@@ -1,0 +1,78 @@
+[  1%] Built target libs_FreeRTOS
+[  4%] Built target libs_CMSIS-m7
+[ 10%] Built target libs_nxp_rt1176-sdk_freertos
+[ 10%] Built target libs_usb_host_task_freertos
+[ 10%] Incrementing build version...
+-- Build #1534 at 2026-06-24 09:40:07
+[ 10%] Built target increment_build_version
+[ 11%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/modsentai.c.obj
+In file included from /home/bogdan/work/coralmicro/examples/sentai_runtime/modsentai.c:334:
+/home/bogdan/work/coralmicro/examples/sentai_runtime/bindings/modsentai_crazy.c: In function 'mod_sentai_crazy_hl_stop':
+/home/bogdan/work/coralmicro/examples/sentai_runtime/bindings/modsentai_crazy.c:100:27: warning: implicit declaration of function 'sentai_crazy_hl_stop'; did you mean 'sentai_crazy_fly_stop'? [-Wimplicit-function-declaration]
+  100 |     return mp_obj_new_int(sentai_crazy_hl_stop(group));
+      |                           ^~~~~~~~~~~~~~~~~~~~
+      |                           sentai_crazy_fly_stop
+/home/bogdan/work/coralmicro/examples/sentai_runtime/bindings/modsentai_crazy.c: In function 'mod_sentai_crazy_attitude_release_no_disarm':
+/home/bogdan/work/coralmicro/examples/sentai_runtime/bindings/modsentai_crazy.c:199:27: warning: implicit declaration of function 'sentai_crazy_attitude_release_no_disarm'; did you mean 'mod_sentai_crazy_attitude_release_no_disarm'? [-Wimplicit-function-declaration]
+  199 |     return mp_obj_new_int(sentai_crazy_attitude_release_no_disarm());
+      |                           ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      |                           mod_sentai_crazy_attitude_release_no_disarm
+[ 11%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_task.c.obj
+[ 11%] Linking C static library liblibmicropython.a
+[ 20%] Built target libmicropython
+[ 20%] Built target nanopb
+[ 21%] Built target shine
+[ 23%] Built target meshtastic_pb
+[ 24%] Built target libh3_arm
+[ 26%] Built target libs_FreeRTOS-m4
+[ 30%] Built target libs_CMSIS-m4
+[ 37%] Built target libs_nxp_rt1176-sdk_freertos-m4
+[ 37%] Built target libs_pmic_freertos-m4
+[ 37%] Built target libs_littlefs-m4
+[ 39%] Built target libs_base-m4_freertos
+[ 39%] Built target libs_camera_freertos-m4
+[ 39%] Built target sentai_m4_aruco_bench
+[ 39%] Built target sentai_browser_html
+[ 42%] Built target libs_aifes_m7
+[ 43%] Built target libs_pmic_freertos
+[ 43%] Built target libs_audio_freertos
+[ 44%] Built target libs_kissfft-m7
+[ 44%] Built target libs_littlefs
+[ 49%] Built target libs_levelx
+[ 66%] Built target libs_filex
+[ 66%] Built target libs_nxp_rt1176-sdk-mcmgr_m7
+[ 69%] Built target libs_nxp_rt1176-sdk_lwip
+[ 69%] Built target libs_nxp_rt1176-sdk_lwip_httpd
+[ 73%] Built target libs_nxp_rt1176-sdk-mbedtls
+[ 73%] Built target libs_usb_host_edgetpu_freertos
+[ 73%] Built target libs_usb_device_task_freertos
+[ 75%] Built target libs_tpu_freertos
+[ 75%] Built target libs_tpu_task_freertos
+[ 75%] Built target libs_tpu_dfu_task_freertos
+[ 88%] Built target libs_tensorflow-m7
+[ 89%] Built target libs_base-m7_freertos
+[ 89%] Built target libs_msc_ums_freertos
+[ 91%] Built target libs_cdc_ncm_freertos
+[ 91%] Built target libs_cdc_eem_freertos
+[ 91%] Built target libs_cdc_acm_freertos
+[ 91%] Built target libs_camera_freertos
+[ 91%] Built target libs_aifes_task_m7
+[ 91%] Built target libs_t5838_freertos
+[ 91%] Built target libs_base-m7_http_server
+[ 92%] Built target libs_lis2du12_freertos
+[ 95%] Built target libs_libjpeg
+[ 95%] Built target libs_jpeg_m7
+[ 95%] Building CXX object examples/sentai_runtime/CMakeFiles/sentai_runtime.dir/sentai_runtime.cc.obj
+/tmp/ccfAdV9T.s: Assembler messages:
+/tmp/ccfAdV9T.s:18548: Warning: ignoring changed section type for .sdram_bss
+/tmp/ccfAdV9T.s:18548: Warning: ignoring changed section attributes for .sdram_bss
+[ 97%] Building CXX object examples/sentai_runtime/CMakeFiles/sentai_runtime.dir/sentai_virtual_camera.cc.obj
+[ 97%] Linking CXX executable sentai_runtime
+/home/bogdan/work/coralmicro/third_party/toolchain-linux/gcc-arm-none-eabi-9-2020-q2-update/bin/../lib/gcc/arm-none-eabi/9.3.1/../../../../arm-none-eabi/bin/ld: sentai_runtime section `.text' will not fit in region `m_text'
+/home/bogdan/work/coralmicro/third_party/toolchain-linux/gcc-arm-none-eabi-9-2020-q2-update/bin/../lib/gcc/arm-none-eabi/9.3.1/../../../../arm-none-eabi/bin/ld: region m_text overflowed with text and data
+/home/bogdan/work/coralmicro/third_party/toolchain-linux/gcc-arm-none-eabi-9-2020-q2-update/bin/../lib/gcc/arm-none-eabi/9.3.1/../../../../arm-none-eabi/bin/ld: region `m_text' overflowed by 34968 bytes
+collect2: error: ld returned 1 exit status
+gmake[3]: *** [examples/sentai_runtime/CMakeFiles/sentai_runtime.dir/build.make:1061: examples/sentai_runtime/sentai_runtime] Error 1
+gmake[2]: *** [CMakeFiles/Makefile2:1354: examples/sentai_runtime/CMakeFiles/sentai_runtime.dir/all] Error 2
+gmake[1]: *** [CMakeFiles/Makefile2:1361: examples/sentai_runtime/CMakeFiles/sentai_runtime.dir/rule] Error 2
+gmake: *** [Makefile:215: sentai_runtime] Error 2

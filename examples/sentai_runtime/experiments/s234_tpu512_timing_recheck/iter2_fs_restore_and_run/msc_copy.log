@@ -1,0 +1,8 @@
+MNT=/run/media/bogdan/0000-0001
+mounted contents:
+lib/diag/_probe.txt 2 bytes
+lib/diag/_t_timing.py 3386 bytes
+yolo_1_class_512_1_upsample_512_inloc_de_1024_la_P5_32.tflite 5591680 bytes
+sha256 on mounted files:
+49942d36335f1e09ee10d29b967bf413c8d449a3261d9d7bb9cb1d51a8a73e4f  /run/media/bogdan/0000-0001/yolo_1_class_512_1_upsample_512_inloc_de_1024_la_P5_32.tflite
+5bc6f29ae715675a6de3bd8110ee083d6d7b469a8efeddbe4bad2af5c04d03d7  /run/media/bogdan/0000-0001/lib/diag/_t_timing.py

@@ -1,0 +1,17 @@
+
+>>> 
+KeyboardInterrupt
+>>> 
+KeyboardInterrupt
+>>> 
+>>> 
+>>> exec("\nimport sentai\nprint('VERSION', sentai.version())\nprint('ROOT', sentai.fs.ls('/'))\nprint('LIB_DIAG', sentai.fs.ls('/lib/diag'))\nprint('MODEL_SIZE', sentai.fs.size('/yolo_1_class_512_1_upsample_512_inloc_de_1024_la_P5_32.tflite'))\nprint('SCRIPT_SIZE', sentai.fs.size('/lib/diag/_t_timing.py'))\ntry:\n    print('TPU_CHUNK', sentai.tpu.chunk_size())\nexcept Exception as e:\n    print('TPU_CHUNK_ERR', repr(e))\ntry:\n    print('TPU_DESC_CACHE', sentai.tpu.desc_cache())\nexcept Exception as e:\n    print('TPU_DESC_CACHE_ERR', repr(e))\ntry:\n    print('TPU_URB_TIMEOUT', sentai.tpu.urb_timeout_ms())\nexcept Exception as e:\n    print('TPU_URB_TIMEOUT_ERR', repr(e))\n")
+VERSION SentAI v1.0 build 1375 (2026-05-19 11:56:14)
+ROOT [('lib', 2, 0), ('diags', 2, 0), ('yolo_1_class_512_1_upsample_512_inloc_de_1024_la_P5_32.tflite', 1, 5591680), ('log', 2, 0)]
+LIB_DIAG [('_probe.txt', 1, 2), ('_t_timing.py', 1, 3386)]
+MODEL_SIZE 5591680
+SCRIPT_SIZE 3386
+TPU_CHUNK_ERR AttributeError("'module' object has no attribute 'chunk_size'",)
+TPU_DESC_CACHE_ERR AttributeError("'module' object has no attribute 'desc_cache'",)
+TPU_URB_TIMEOUT_ERR AttributeError("'module' object has no attribute 'urb_timeout_ms'",)
+>>> 

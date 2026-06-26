@@ -1,0 +1,41 @@
+<frozen site>:107: RuntimeWarning: Unexpected value in sys.prefix, expected /home/bogdan/work/coralmicro/.venv-flash, got /home/bogdan/work/coralmicro/examples/sentai_runtime/../../.venv-flash
+<frozen site>:107: RuntimeWarning: Unexpected value in sys.exec_prefix, expected /home/bogdan/work/coralmicro/.venv-flash, got /home/bogdan/work/coralmicro/examples/sentai_runtime/../../.venv-flash
+Opening REPL on /dev/ttyACM0 …
+Traceback (most recent call last):
+  File "/home/bogdan/work/coralmicro/.venv-flash/lib/python3.14/site-packages/serial/serialposix.py", line 322, in open
+    self.fd = os.open(self.portstr, os.O_RDWR | os.O_NOCTTY | os.O_NONBLOCK)
+              ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+OSError: [Errno 16] Device or resource busy: '/dev/ttyACM0'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/bogdan/work/coralmicro/examples/sentai_runtime/diag/_host_upload_repl.py", line 295, in <module>
+    main()
+    ~~~~^^
+  File "/home/bogdan/work/coralmicro/examples/sentai_runtime/diag/_host_upload_repl.py", line 273, in main
+    ser = _open_repl(args.port)
+  File "/home/bogdan/work/coralmicro/examples/sentai_runtime/diag/_host_upload_repl.py", line 126, in _open_repl
+    ser = serial.Serial(port, BAUD, timeout=0.1,
+                        rtscts=False, xonxoff=False, dsrdtr=False)
+  File "/home/bogdan/work/coralmicro/.venv-flash/lib/python3.14/site-packages/serial/serialutil.py", line 244, in __init__
+    self.open()
+    ~~~~~~~~~^^
+  File "/home/bogdan/work/coralmicro/.venv-flash/lib/python3.14/site-packages/serial/serialposix.py", line 325, in open
+    raise SerialException(msg.errno, "could not open port {}: {}".format(self._port, msg))
+serial.serialutil.SerialException: [Errno 16] could not open port /dev/ttyACM0: [Errno 16] Device or resource busy: '/dev/ttyACM0'
+Opening REPL on /dev/ttyACM0 …
+REPL ready.  Uploading 1 file(s):
+  pure_tpu_usb_knobs_once.py → /lib/diag/pure_tpu_usb_knobs_once.py  (4831 bytes)
+    ✗ pure_tpu_usb_knobs_once.py: append at offset 0 did not return True; resp='sentai.fs.append(\'/lib/diag/pure_tpu_usb_knobs_once.py\', b\'import sentai\\n\\nMODEL = "/yolo_1_class_512_1_upsample_512_inloc_de_1024_la_P5_32.tflite"\\nCHUNK_KB = int(globals().get("_chunk_kb", 128))\\nN_INVOKES = int(globals().get("_invokes", 50))\\nWARMUP = \')\r\nFalse\r\n>>> '
+1 file(s) failed.
+Opening REPL on /dev/ttyACM0 …
+REPL ready.  Uploading 1 file(s):
+  pure_tpu_usb_knobs_once.py → /lib/diag/pure_tpu_usb_knobs_once.py  (4831 bytes)
+    … 960/4831 bytes OK
+    … 1920/4831 bytes OK
+    … 2880/4831 bytes OK
+    … 3840/4831 bytes OK
+    … 4800/4831 bytes OK
+    ✓ wrote 4831 bytes in 9.9s sync=ok
+Done.  On device:  import diag

@@ -1,0 +1,6 @@
+run,prep_fps,ipf,multi_invoke_mode,observed_frames,wall_us,frame_fps,invoke_ok,invoke_fail,invoke_fps,invokes_per_observed_frame,timeouts,infer_ms_delta,latest_inv_ms,latest_total_ms,prep_frames_delta,prep_total_ms_delta,prep_pxp_ms_delta,prep_cam_grab_ms_delta,prep_quant_ms_delta,direct_frames_delta,direct_prep_buf_timeout_delta,direct_infer_wait_timeout_delta,direct_swap_fail_delta
+0,0,1,0,100,4235394,23.610554,100,0,23.610554,1.000000,0,3815,38,38,100,3825,815,47,0,100,0,0,0
+1,30,1,0,100,4234733,23.614239,100,0,23.614239,1.000000,0,3850,37,37,100,3860,814,43,0,100,0,0,0
+2,30,2,1,100,8327774,12.008011,200,0,24.016022,2.000000,0,7431,37,76,100,7441,838,83,0,100,0,0,0
+3,20,3,1,100,12409742,8.058186,300,0,24.174555,3.000000,0,11239,36,111,100,4424,844,143,0,100,50,0,0
+4,15,4,1,100,16493517,6.062988,400,0,24.251953,4.000000,0,14942,34,147,100,4980,856,158,0,100,75,0,0

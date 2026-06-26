@@ -1,0 +1,46 @@
+
+>>> 
+KeyboardInterrupt
+>>> 
+KeyboardInterrupt
+>>> 
+>>> 
+>>> 
+import sentai
+>>> 
+print('VERSION', sentai.version())
+VERSION SentAI v1.0 build 1375 (2026-05-19 11:56:14)
+>>> 
+print('LS_ROOT', sentai.fs.ls('/'))
+E:0D26:16
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+OSError: dir not found
+>>> 
+print('EX_ROOT', sentai.fs.exists('/'))
+EX_ROOT False
+>>> 
+print('LS_EMPTY', sentai.fs.ls(''))
+E:0D26:16
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+OSError: dir not found
+>>> 
+print('EX_EMPTY', sentai.fs.exists(''))
+EX_EMPTY False
+>>> 
+print('MK_LIB', sentai.fs.mkdir('/lib'))
+MK_LIB False
+>>> 
+print('MK_DIAG', sentai.fs.mkdir('/lib/diag'))
+MK_DIAG False
+>>> 
+print('WRITE_PROBE', sentai.fs.write('/lib/diag/_probe.txt','x'))
+WRITE_PROBE False
+>>> 
+print('APPEND_PROBE', sentai.fs.append('/lib/diag/_probe.txt','y'))
+APPEND_PROBE False
+>>> 
+print('SIZE_PROBE', sentai.fs.size('/lib/diag/_probe.txt'))
+SIZE_PROBE -1
+>>> 

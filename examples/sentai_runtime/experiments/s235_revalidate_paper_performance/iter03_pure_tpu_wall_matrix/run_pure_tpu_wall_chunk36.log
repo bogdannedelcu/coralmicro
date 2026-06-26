@@ -1,0 +1,30 @@
+
+KeyboardInterrupt
+>>> 
+KeyboardInterrupt
+>>> 
+>>> 
+>>> 
+### SEND: import sentai
+import sentai
+>>> 
+### SEND: print('HOST_RUN_START')
+print('HOST_RUN_START')
+HOST_RUN_START
+>>> 
+### SEND: exec(sentai.fs.read_str('/lib/diag/pure_tpu_wall_one_chunk.py'))
+exec(sentai.fs.read_str('/lib/diag/pure_tpu_wall_one_chunk.py'))
+S235 B10.2 pure TPU wall one chunk
+version=SentAI v1.0 build 1542 (2026-06-24 10:23:48)
+model=/yolo_1_class_512_1_upsample_512_inloc_de_1024_la_P5_32.tflite
+chunk_kb=36 invokes=50 warmup=5
+chunk_set failed AttributeError("'module' object has no attribute 'diag'",)
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+  File "<string>", line 97, in <module>
+AttributeError: 'module' object has no attribute 'diag'
+>>> 
+### SEND: print('HOST_RUN_AFTER')
+print('HOST_RUN_AFTER')
+HOST_RUN_AFTER
+>>> 

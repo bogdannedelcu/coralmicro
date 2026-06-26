@@ -1436,6 +1436,29 @@ extern "C" int sentai_crazy_send_crtp(uint8_t port, uint8_t channel,
     return crtp_send(port, channel, data, len);
 }
 
+extern "C" int sentai_crazy_send_extpos(float x, float y, float z) {
+    uint8_t data[12];
+    memcpy(data + 0, &x, 4);
+    memcpy(data + 4, &y, 4);
+    memcpy(data + 8, &z, 4);
+    return sentai_crazy_send_crtp(/*port=*/6, /*channel=*/0, data, 12);
+}
+
+extern "C" int sentai_crazy_send_extpose(float x, float y, float z,
+                                          float qx, float qy, float qz,
+                                          float qw) {
+    uint8_t data[29];
+    data[0] = 8;
+    memcpy(data + 1, &x, 4);
+    memcpy(data + 5, &y, 4);
+    memcpy(data + 9, &z, 4);
+    memcpy(data + 13, &qx, 4);
+    memcpy(data + 17, &qy, 4);
+    memcpy(data + 21, &qz, 4);
+    memcpy(data + 25, &qw, 4);
+    return sentai_crazy_send_crtp(/*port=*/6, /*channel=*/1, data, 29);
+}
+
 // ===================== Ping (CRTP Echo) =====================
 // Send CRTP echo on LINK port (0x0F), channel 0.
 // CrazyFlie echoes the payload back — we measure round-trip time.

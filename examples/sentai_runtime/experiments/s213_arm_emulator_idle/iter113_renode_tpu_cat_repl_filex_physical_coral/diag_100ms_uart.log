@@ -1,0 +1,7 @@
+
+SentAI EMU REPL B8.3
+MicroPython embed ready
+Traceback (most recent call last):
+  File "<stdin>", in <module>
+ImportError: module not found
+>>> 

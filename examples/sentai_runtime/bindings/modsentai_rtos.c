@@ -1,9 +1,14 @@
 // ============== sentai.rtos — FreeRTOS system ==============
 // This file is #include'd from modsentai.c — do NOT compile separately.
 
-#include "sentai_dmesg.h"
+#include "../sentai_dmesg.h"
 
 extern void sentai_repl_activity(void);
+extern uint32_t vPortGetRunTimeCounterValue(void);
+
+#ifndef SENTAI_PLATFORM_SIM
+#define SENTAI_DWT_CYCCNT_REG (*(volatile uint32_t*)0xE0001004u)
+#endif
 
 // sentai.rtos.sleep_ms(ms)
 // Chunked + drains the MicroPython scheduler queue every 10 ms so
@@ -28,6 +33,24 @@ static mp_obj_t mod_sentai_ticks_ms(void) {
     return mp_obj_new_int(sentai_ticks_ms());
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_ticks_ms_obj, mod_sentai_ticks_ms);
+
+// sentai.rtos.micros()
+// GPT1-backed monotonic microsecond counter used by FreeRTOS runtime stats.
+static mp_obj_t mod_sentai_micros(void) {
+    return mp_obj_new_int_from_uint(vPortGetRunTimeCounterValue());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_micros_obj, mod_sentai_micros);
+
+// sentai.rtos.cycles()
+// Raw Cortex-M DWT cycle counter. 32-bit, wraps quickly at M7 clock rates.
+static mp_obj_t mod_sentai_cycles(void) {
+#ifdef SENTAI_PLATFORM_SIM
+    return mp_obj_new_int_from_uint(sentai_ticks_ms());
+#else
+    return mp_obj_new_int_from_uint(SENTAI_DWT_CYCCNT_REG);
+#endif
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_cycles_obj, mod_sentai_cycles);
 
 // ===================== FreeRTOS task listing =====================
 
@@ -317,6 +340,8 @@ static const mp_rom_map_elem_t sentai_rtos_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__),     MP_ROM_QSTR(MP_QSTR_rtos) },
     { MP_ROM_QSTR(MP_QSTR_sleep_ms),     MP_ROM_PTR(&mod_sentai_sleep_ms_obj) },
     { MP_ROM_QSTR(MP_QSTR_ticks_ms),     MP_ROM_PTR(&mod_sentai_ticks_ms_obj) },
+    { MP_ROM_QSTR(MP_QSTR_micros),       MP_ROM_PTR(&mod_sentai_micros_obj) },
+    { MP_ROM_QSTR(MP_QSTR_cycles),       MP_ROM_PTR(&mod_sentai_cycles_obj) },
     { MP_ROM_QSTR(MP_QSTR_tasks),        MP_ROM_PTR(&mod_sentai_tasks_obj) },
     { MP_ROM_QSTR(MP_QSTR_heap_info),    MP_ROM_PTR(&mod_sentai_heap_info_obj) },
     { MP_ROM_QSTR(MP_QSTR_cpu_usage),    MP_ROM_PTR(&mod_sentai_cpu_usage_obj) },

@@ -1,0 +1,8 @@
+[  0%] Incrementing build version...
+-- Build #1506 at 2026-06-11 18:49:09
+[ 11%] Built target increment_build_version
+[ 22%] Built target libs_levelx
+[ 66%] Built target libs_filex
+[ 66%] Building C object emu/CMakeFiles/sentai_emu_tpu_cat_repl.dir/sentai_emu_fs_module.c.obj
+[ 66%] Linking CXX executable sentai_emu_tpu_cat_repl
+[100%] Built target sentai_emu_tpu_cat_repl

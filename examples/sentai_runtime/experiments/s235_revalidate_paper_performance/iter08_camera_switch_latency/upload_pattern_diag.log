@@ -1,0 +1,20 @@
+Opening REPL on /dev/ttyACM0 …
+REPL ready.  Uploading 1 file(s):
+  camera_pattern_integrity_once.py → /lib/diag/camera_pattern_integrity_once.py  (5515 bytes)
+    … 960/5515 bytes OK
+    … 1920/5515 bytes OK
+    … 2880/5515 bytes OK
+    … 3840/5515 bytes OK
+    … 4800/5515 bytes OK
+    ✓ wrote 5515 bytes in 14.2s sync=ok
+Done.  On device:  import diag
+Opening REPL on /dev/ttyACM0 …
+REPL ready.  Uploading 1 file(s):
+  camera_pattern_integrity_once.py → /lib/diag/camera_pattern_integrity_once.py  (5539 bytes)
+    … 960/5539 bytes OK
+    … 1920/5539 bytes OK
+    … 2880/5539 bytes OK
+    … 3840/5539 bytes OK
+    … 4800/5539 bytes OK
+    ✓ wrote 5539 bytes in 16.5s sync=ok
+Done.  On device:  import diag

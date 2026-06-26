@@ -1,0 +1,5 @@
+Opening REPL on /dev/ttyACM0 …
+REPL ready.  Uploading 1 file(s):
+  _t_timing_urb.py → /lib/diag/_t_timing_urb.py  (2297 bytes)
+    ✗ _t_timing_urb.py: append at offset 0 did not return True; resp='/lib/diag/_t_timing_urb.py\', b\'import sentai\\n\\nMODEL = "/yolo_1_class_512_1_upsample_512_inloc_de_1024_la_P5_32.tflite"\\nN_RUNS = 5\\nN_INVOKES = 30\\n\\nTAGS = ("instructions", "input", "parameters", "output", "event", "unknown")\\n\')\r\n[nand] READ FAIL page=21586 (block=337 sub=18) st=0x1\r\nFalse\r\n>>> '
+1 file(s) failed.

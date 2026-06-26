@@ -1,0 +1,24 @@
+[hybrid] killing prior cf2/gz/Xvfb
+[hybrid] starting Xvfb on :99 (drives server-side OGRE2 render)
+[hybrid] starting gz sim SERVER (world=sentai_whycon_small) on DISPLAY=:99
+/home/bogdan/work/crazyflie/CrazySim/crazyflie-firmware/tools/crazyflie-simulation/simulator_files/gazebo/models/crazyflie/model.sdf.jinja -> /tmp/crazyflie_0.sdf
+[hybrid] spawning crazyflie_0 body at (0.04, 0.0, 0.0); camera XY starts at (0, 0) — retry up to 3× / 5s timeout
+[hybrid] spawn attempt 1 → OK
+[hybrid] starting cf2 SITL
+[hybrid] starting GUI on REAL display=:0 with sentai_gui.config
+Warning: Ignoring XDG_SESSION_TYPE=wayland on Gnome. Use QT_QPA_PLATFORM=wayland to run on Wayland anyway.
+/home/bogdan/snap/code/common/.cache/gio-modules/libdconfsettings.so: cannot open shared object file: No such file or directory
+Failed to load module: /home/bogdan/snap/code/common/.cache/gio-modules/libdconfsettings.so
+/home/bogdan/snap/code/common/.cache/gio-modules/libgiognomeproxy.so: cannot open shared object file: No such file or directory
+Failed to load module: /home/bogdan/snap/code/common/.cache/gio-modules/libgiognomeproxy.so
+/home/bogdan/snap/code/common/.cache/gio-modules/libgiognutls.so: cannot open shared object file: No such file or directory
+Failed to load module: /home/bogdan/snap/code/common/.cache/gio-modules/libgiognutls.so
+/home/bogdan/snap/code/common/.cache/gio-modules/libgiolibproxy.so: cannot open shared object file: No such file or directory
+Failed to load module: /home/bogdan/snap/code/common/.cache/gio-modules/libgiolibproxy.so
+Gtk-Message: 23:53:02.068: Failed to load module "canberra-gtk-module"
+Gtk-Message: 23:53:02.069: Failed to load module "canberra-gtk-module"
+libGL error: glx: failed to create dri3 screen
+libGL error: failed to load driver: nouveau
+libEGL warning: egl: failed to create dri2 screen
+libEGL warning: failed to open /dev/dri/card2: Permission denied
+

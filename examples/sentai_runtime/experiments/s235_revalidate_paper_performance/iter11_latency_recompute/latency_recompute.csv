@@ -1,0 +1,14 @@
+quantity,measured_value,derived_value,source,note
+nominal_sensor_period_ms,,33.333,camera init logs,nominal 30 FPS; actual logs sampled 29-30 FPS
+single_camera_pipeline_output_period_ms,,42.654,iter06,100 outputs over wall micros; mean FPS 23.444330
+single_camera_pipeline_output_fps,23.444330,,iter06,authoritative corrected single-camera pipeline throughput
+pure_tpu_standalone_invoke_ms,40.813641,,iter03,128 KB chunk current-firmware best row
+pure_tpu_standalone_fps,24.501614,,iter03,corrected standalone ceiling
+alternating_ratio1_1_drain1_combined_period_ms,,69.479,iter09,combined cam0+cam1 output period
+alternating_ratio1_1_drain1_per_camera_period_ms,,138.959,iter09,per-camera update interval at balanced 50/50
+alternating_ratio1_1_drain1_combined_fps,14.392763,,iter09,valid continuous alternation
+alternating_ratio1_1_drain2_combined_fps,4.981067,,iter09,invalid for continuous alternation due visual/content mismatch
+manual_switch_to_tensor_drain1_ms,93.891,,iter08,"sequential select+to_tensor; useful for manual/batched switching, not continuous ratio"
+manual_switch_to_tensor_drain2_ms,131.085,,iter08,sequential select+to_tensor; drain2 invalid for continuous ratio
+multi_patch_ipf2_frame_period_ms,,83.278,iter07,2 invokes/frame mode; frame update period
+multi_patch_ipf2_invoke_period_ms,,41.639,iter07,2 invokes/frame mode; TPU invoke cadence

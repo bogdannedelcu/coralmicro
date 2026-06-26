@@ -1,0 +1,382 @@
+-- Toolchain prefix: /home/bogdan/work/coralmicro/third_party/toolchain-linux/gcc-arm-none-eabi-9-2020-q2-update/lib/gcc/arm-none-eabi
+-- sentai sdk-patches:
+[apply_sdk_patches] skip (already applied): 0001-ov5640-vga-30fps-pclkperiod.patch
+[apply_sdk_patches] skip (already applied): 0002-ehci-queue-depth-16.patch
+[apply_sdk_patches] skip (already applied): 0003-fsl-csi-coralmicro-irq-hooks.patch
+[apply_sdk_patches] skip (already applied): 0004-lwip-httpd-empty-body-post.patch
+[apply_sdk_patches] summary: applied=0 skipped=4 failed=0
+
+CMake Warning (dev) at cmake/toolchain-arm-none-eabi-gcc.cmake:216 (add_custom_command):
+  The following keywords are not supported when using
+  add_custom_command(TARGET): DEPENDS.
+
+  Policy CMP0175 is not set: add_custom_command() rejects invalid arguments.
+  Run "cmake --help-policy CMP0175" for policy details.  Use the cmake_policy
+  command to set the policy and suppress this warning.
+Call Stack (most recent call first):
+  apps/elf_loader/CMakeLists.txt:15 (add_executable_m7)
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+CMake Warning (dev) at cmake/toolchain-arm-none-eabi-gcc.cmake:220 (add_custom_command):
+  The following keywords are not supported when using
+  add_custom_command(TARGET): DEPENDS.
+
+  Policy CMP0175 is not set: add_custom_command() rejects invalid arguments.
+  Run "cmake --help-policy CMP0175" for policy details.  Use the cmake_policy
+  command to set the policy and suppress this warning.
+Call Stack (most recent call first):
+  apps/elf_loader/CMakeLists.txt:15 (add_executable_m7)
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+CMake Warning (dev) at cmake/toolchain-arm-none-eabi-gcc.cmake:224 (add_custom_command):
+  The following keywords are not supported when using
+  add_custom_command(TARGET): DEPENDS.
+
+  Policy CMP0175 is not set: add_custom_command() rejects invalid arguments.
+  Run "cmake --help-policy CMP0175" for policy details.  Use the cmake_policy
+  command to set the policy and suppress this warning.
+Call Stack (most recent call first):
+  apps/elf_loader/CMakeLists.txt:15 (add_executable_m7)
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+CMake Warning (dev) at cmake/toolchain-arm-none-eabi-gcc.cmake:216 (add_custom_command):
+  The following keywords are not supported when using
+  add_custom_command(TARGET): DEPENDS.
+
+  Policy CMP0175 is not set: add_custom_command() rejects invalid arguments.
+  Run "cmake --help-policy CMP0175" for policy details.  Use the cmake_policy
+  command to set the policy and suppress this warning.
+Call Stack (most recent call first):
+  examples/sentai_runtime/CMakeLists.txt:183 (add_executable_m7)
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+CMake Warning (dev) at cmake/toolchain-arm-none-eabi-gcc.cmake:220 (add_custom_command):
+  The following keywords are not supported when using
+  add_custom_command(TARGET): DEPENDS.
+
+  Policy CMP0175 is not set: add_custom_command() rejects invalid arguments.
+  Run "cmake --help-policy CMP0175" for policy details.  Use the cmake_policy
+  command to set the policy and suppress this warning.
+Call Stack (most recent call first):
+  examples/sentai_runtime/CMakeLists.txt:183 (add_executable_m7)
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+CMake Warning (dev) at cmake/toolchain-arm-none-eabi-gcc.cmake:224 (add_custom_command):
+  The following keywords are not supported when using
+  add_custom_command(TARGET): DEPENDS.
+
+  Policy CMP0175 is not set: add_custom_command() rejects invalid arguments.
+  Run "cmake --help-policy CMP0175" for policy details.  Use the cmake_policy
+  command to set the policy and suppress this warning.
+Call Stack (most recent call first):
+  examples/sentai_runtime/CMakeLists.txt:183 (add_executable_m7)
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+CMake Warning (dev) at cmake/toolchain-arm-none-eabi-gcc.cmake:254 (add_custom_command):
+  The following keywords are not supported when using
+  add_custom_command(TARGET): DEPENDS.
+
+  Policy CMP0175 is not set: add_custom_command() rejects invalid arguments.
+  Run "cmake --help-policy CMP0175" for policy details.  Use the cmake_policy
+  command to set the policy and suppress this warning.
+Call Stack (most recent call first):
+  examples/sentai_runtime/CMakeLists.txt:285 (add_executable_m4)
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+CMake Warning (dev) at cmake/toolchain-arm-none-eabi-gcc.cmake:216 (add_custom_command):
+  The following keywords are not supported when using
+  add_custom_command(TARGET): DEPENDS.
+
+  Policy CMP0175 is not set: add_custom_command() rejects invalid arguments.
+  Run "cmake --help-policy CMP0175" for policy details.  Use the cmake_policy
+  command to set the policy and suppress this warning.
+Call Stack (most recent call first):
+  libs/nxp/flashloader/CMakeLists.txt:17 (add_executable_m7)
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+CMake Warning (dev) at cmake/toolchain-arm-none-eabi-gcc.cmake:220 (add_custom_command):
+  The following keywords are not supported when using
+  add_custom_command(TARGET): DEPENDS.
+
+  Policy CMP0175 is not set: add_custom_command() rejects invalid arguments.
+  Run "cmake --help-policy CMP0175" for policy details.  Use the cmake_policy
+  command to set the policy and suppress this warning.
+Call Stack (most recent call first):
+  libs/nxp/flashloader/CMakeLists.txt:17 (add_executable_m7)
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+CMake Warning (dev) at cmake/toolchain-arm-none-eabi-gcc.cmake:224 (add_custom_command):
+  The following keywords are not supported when using
+  add_custom_command(TARGET): DEPENDS.
+
+  Policy CMP0175 is not set: add_custom_command() rejects invalid arguments.
+  Run "cmake --help-policy CMP0175" for policy details.  Use the cmake_policy
+  command to set the policy and suppress this warning.
+Call Stack (most recent call first):
+  libs/nxp/flashloader/CMakeLists.txt:17 (add_executable_m7)
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+-- sentai: EdgeTPU firmware = single_ep (default)
+-- Configuring done (0.1s)
+-- Generating done (0.5s)
+-- Build files have been written to: /home/bogdan/work/coralmicro/build
+[  1%] Built target libs_FreeRTOS
+[  4%] Built target libs_CMSIS-m7
+[ 10%] Built target libs_nxp_rt1176-sdk_freertos
+[ 10%] Built target libs_usb_host_task_freertos
+[ 10%] Incrementing build version...
+-- Build #1544 at 2026-06-24 11:07:59
+[ 10%] Built target increment_build_version
+[ 10%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/argcheck.c.obj
+[ 10%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/asmarm.c.obj
+[ 10%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/asmbase.c.obj
+[ 10%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/asmthumb.c.obj
+[ 10%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/asmx64.c.obj
+[ 10%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/asmx86.c.obj
+[ 10%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/asmxtensa.c.obj
+[ 10%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/bc.c.obj
+[ 10%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/binary.c.obj
+[ 10%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/builtinevex.c.obj
+[ 10%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/builtinhelp.c.obj
+[ 10%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/builtinimport.c.obj
+[ 11%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/compile.c.obj
+[ 11%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/emitbc.c.obj
+[ 11%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/emitcommon.c.obj
+[ 11%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/emitglue.c.obj
+[ 11%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/emitinlinethumb.c.obj
+[ 11%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/emitinlinextensa.c.obj
+[ 11%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/emitnarm.c.obj
+[ 11%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/emitnative.c.obj
+[ 11%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/emitnthumb.c.obj
+[ 11%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/emitnx64.c.obj
+[ 11%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/emitnx86.c.obj
+[ 11%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/emitnxtensa.c.obj
+[ 11%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/emitnxtensawin.c.obj
+[ 11%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/formatfloat.c.obj
+[ 11%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/frozenmod.c.obj
+[ 11%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/gc.c.obj
+[ 11%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/lexer.c.obj
+[ 11%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/malloc.c.obj
+[ 11%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/map.c.obj
+[ 13%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/modarray.c.obj
+[ 13%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/modbuiltins.c.obj
+[ 13%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/modcmath.c.obj
+[ 13%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/modcollections.c.obj
+[ 13%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/moderrno.c.obj
+[ 13%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/modgc.c.obj
+[ 13%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/modio.c.obj
+[ 13%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/modmath.c.obj
+[ 13%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/modmicropython.c.obj
+[ 13%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/modstruct.c.obj
+[ 13%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/modsys.c.obj
+[ 13%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/modthread.c.obj
+[ 13%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/mpprint.c.obj
+[ 13%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/mpstate.c.obj
+[ 13%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/mpz.c.obj
+[ 13%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/nativeglue.c.obj
+[ 13%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/nlr.c.obj
+[ 13%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/nlraarch64.c.obj
+[ 14%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/nlrmips.c.obj
+[ 14%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/nlrpowerpc.c.obj
+[ 14%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/nlrsetjmp.c.obj
+[ 14%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/nlrthumb.c.obj
+[ 14%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/nlrx64.c.obj
+[ 14%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/nlrx86.c.obj
+[ 14%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/nlrxtensa.c.obj
+[ 14%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/obj.c.obj
+[ 14%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objarray.c.obj
+[ 14%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objattrtuple.c.obj
+[ 14%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objbool.c.obj
+[ 14%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objboundmeth.c.obj
+[ 14%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objcell.c.obj
+[ 14%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objclosure.c.obj
+[ 14%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objcomplex.c.obj
+[ 14%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objdeque.c.obj
+[ 14%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objdict.c.obj
+[ 14%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objenumerate.c.obj
+[ 14%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objexcept.c.obj
+[ 15%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objfilter.c.obj
+[ 15%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objfloat.c.obj
+[ 15%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objfun.c.obj
+[ 15%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objgenerator.c.obj
+[ 15%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objgetitemiter.c.obj
+[ 15%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objint.c.obj
+[ 15%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objint_longlong.c.obj
+[ 15%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objint_mpz.c.obj
+[ 15%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objlist.c.obj
+[ 15%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objmap.c.obj
+[ 15%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objmodule.c.obj
+[ 15%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objnamedtuple.c.obj
+[ 15%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objnone.c.obj
+[ 15%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objobject.c.obj
+[ 15%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objpolyiter.c.obj
+[ 15%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objproperty.c.obj
+[ 15%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objrange.c.obj
+[ 15%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objreversed.c.obj
+[ 17%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objset.c.obj
+[ 17%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objsingleton.c.obj
+[ 17%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objslice.c.obj
+[ 17%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objstr.c.obj
+[ 17%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objstringio.c.obj
+[ 17%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objstrunicode.c.obj
+[ 17%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objtuple.c.obj
+[ 17%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objtype.c.obj
+[ 17%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objzip.c.obj
+[ 17%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/opmethods.c.obj
+[ 17%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/pairheap.c.obj
+[ 17%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/parse.c.obj
+[ 17%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/parsenum.c.obj
+[ 17%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/parsenumbase.c.obj
+[ 17%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/persistentcode.c.obj
+[ 17%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/profile.c.obj
+[ 17%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/pystack.c.obj
+[ 17%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/qstr.c.obj
+[ 18%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/reader.c.obj
+[ 18%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/repl.c.obj
+[ 18%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/ringbuf.c.obj
+[ 18%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/runtime.c.obj
+[ 18%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/runtime_utils.c.obj
+[ 18%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/scheduler.c.obj
+[ 18%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/scope.c.obj
+[ 18%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/sequence.c.obj
+[ 18%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/showbc.c.obj
+[ 18%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/smallint.c.obj
+[ 18%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/stackctrl.c.obj
+[ 18%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/stream.c.obj
+[ 18%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/unicode.c.obj
+[ 18%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/vm.c.obj
+[ 18%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/vstr.c.obj
+[ 18%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/warning.c.obj
+[ 18%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/port/embed_util.c.obj
+[ 18%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/port/mphalport.c.obj
+[ 18%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/shared/runtime/gchelper_generic.c.obj
+[ 20%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/modsentai.c.obj
+In file included from /home/bogdan/work/coralmicro/examples/sentai_runtime/modsentai.c:334:
+/home/bogdan/work/coralmicro/examples/sentai_runtime/bindings/modsentai_crazy.c: In function 'mod_sentai_crazy_hl_stop':
+/home/bogdan/work/coralmicro/examples/sentai_runtime/bindings/modsentai_crazy.c:100:27: warning: implicit declaration of function 'sentai_crazy_hl_stop'; did you mean 'sentai_crazy_fly_stop'? [-Wimplicit-function-declaration]
+  100 |     return mp_obj_new_int(sentai_crazy_hl_stop(group));
+      |                           ^~~~~~~~~~~~~~~~~~~~
+      |                           sentai_crazy_fly_stop
+/home/bogdan/work/coralmicro/examples/sentai_runtime/bindings/modsentai_crazy.c: In function 'mod_sentai_crazy_attitude_release_no_disarm':
+/home/bogdan/work/coralmicro/examples/sentai_runtime/bindings/modsentai_crazy.c:199:27: warning: implicit declaration of function 'sentai_crazy_attitude_release_no_disarm'; did you mean 'mod_sentai_crazy_attitude_release_no_disarm'? [-Wimplicit-function-declaration]
+  199 |     return mp_obj_new_int(sentai_crazy_attitude_release_no_disarm());
+      |                           ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      |                           mod_sentai_crazy_attitude_release_no_disarm
+[ 20%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_task.c.obj
+[ 20%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/mp_port_import.c.obj
+[ 20%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/mp_embed_safe.c.obj
+[ 20%] Linking C static library liblibmicropython.a
+[ 20%] Built target libmicropython
+[ 20%] Built target nanopb
+[ 21%] Built target shine
+[ 23%] Built target meshtastic_pb
+[ 24%] Built target libh3_arm
+[ 26%] Built target libs_FreeRTOS-m4
+[ 30%] Built target libs_CMSIS-m4
+[ 37%] Built target libs_nxp_rt1176-sdk_freertos-m4
+[ 37%] Built target libs_pmic_freertos-m4
+[ 37%] Built target libs_littlefs-m4
+[ 39%] Built target libs_base-m4_freertos
+[ 39%] Built target libs_camera_freertos-m4
+[ 39%] Built target sentai_m4_aruco_bench
+[ 39%] Built target sentai_browser_html
+[ 42%] Built target libs_aifes_m7
+[ 43%] Built target libs_pmic_freertos
+[ 43%] Built target libs_audio_freertos
+[ 44%] Built target libs_kissfft-m7
+[ 44%] Built target libs_littlefs
+[ 49%] Built target libs_levelx
+[ 66%] Built target libs_filex
+[ 66%] Built target libs_nxp_rt1176-sdk-mcmgr_m7
+[ 69%] Built target libs_nxp_rt1176-sdk_lwip
+[ 69%] Built target libs_nxp_rt1176-sdk_lwip_httpd
+[ 73%] Built target libs_nxp_rt1176-sdk-mbedtls
+[ 73%] Built target libs_usb_host_edgetpu_freertos
+[ 73%] Built target libs_usb_device_task_freertos
+[ 73%] Building CXX object libs/tpu/CMakeFiles/libs_tpu_freertos.dir/edgetpu_executable.cc.obj
+/home/bogdan/work/coralmicro/libs/tpu/edgetpu_executable.cc:53:25: warning: 'g_sentai_tpu_desc_cache_enabled' initialized and declared 'extern'
+   53 | extern "C" volatile int g_sentai_tpu_desc_cache_enabled = 0;   // default OFF
+      |                         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/libs/tpu/edgetpu_executable.cc:54:30: warning: 'g_sentai_tpu_desc_cache_sent_params' initialized and declared 'extern'
+   54 | extern "C" volatile uint32_t g_sentai_tpu_desc_cache_sent_params = 0;
+      |                              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/libs/tpu/edgetpu_executable.cc:55:30: warning: 'g_sentai_tpu_desc_cache_sent_ins' initialized and declared 'extern'
+   55 | extern "C" volatile uint32_t g_sentai_tpu_desc_cache_sent_ins    = 0;
+      |                              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/libs/tpu/edgetpu_executable.cc:56:30: warning: 'g_sentai_tpu_desc_cache_skip_params' initialized and declared 'extern'
+   56 | extern "C" volatile uint32_t g_sentai_tpu_desc_cache_skip_params = 0;
+      |                              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/libs/tpu/edgetpu_executable.cc:57:30: warning: 'g_sentai_tpu_desc_cache_skip_ins' initialized and declared 'extern'
+   57 | extern "C" volatile uint32_t g_sentai_tpu_desc_cache_skip_ins    = 0;
+      |                              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/libs/tpu/edgetpu_executable.cc:98:30: warning: 'g_sentai_tpu_cyc_params' initialized and declared 'extern'
+   98 | extern "C" volatile uint32_t g_sentai_tpu_cyc_params = 0;
+      |                              ^~~~~~~~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/libs/tpu/edgetpu_executable.cc:99:30: warning: 'g_sentai_tpu_cyc_ins' initialized and declared 'extern'
+   99 | extern "C" volatile uint32_t g_sentai_tpu_cyc_ins    = 0;
+      |                              ^~~~~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/libs/tpu/edgetpu_executable.cc:100:30: warning: 'g_sentai_tpu_cyc_input' initialized and declared 'extern'
+  100 | extern "C" volatile uint32_t g_sentai_tpu_cyc_input  = 0;
+      |                              ^~~~~~~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/libs/tpu/edgetpu_executable.cc:101:30: warning: 'g_sentai_tpu_cyc_output' initialized and declared 'extern'
+  101 | extern "C" volatile uint32_t g_sentai_tpu_cyc_output = 0;
+      |                              ^~~~~~~~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/libs/tpu/edgetpu_executable.cc:102:30: warning: 'g_sentai_tpu_cyc_event' initialized and declared 'extern'
+  102 | extern "C" volatile uint32_t g_sentai_tpu_cyc_event  = 0;
+      |                              ^~~~~~~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/libs/tpu/edgetpu_executable.cc:103:30: warning: 'g_sentai_tpu_n_params' initialized and declared 'extern'
+  103 | extern "C" volatile uint32_t g_sentai_tpu_n_params   = 0;
+      |                              ^~~~~~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/libs/tpu/edgetpu_executable.cc:104:30: warning: 'g_sentai_tpu_n_ins' initialized and declared 'extern'
+  104 | extern "C" volatile uint32_t g_sentai_tpu_n_ins      = 0;
+      |                              ^~~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/libs/tpu/edgetpu_executable.cc:105:30: warning: 'g_sentai_tpu_n_input' initialized and declared 'extern'
+  105 | extern "C" volatile uint32_t g_sentai_tpu_n_input    = 0;
+      |                              ^~~~~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/libs/tpu/edgetpu_executable.cc:106:30: warning: 'g_sentai_tpu_n_output' initialized and declared 'extern'
+  106 | extern "C" volatile uint32_t g_sentai_tpu_n_output   = 0;
+      |                              ^~~~~~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/libs/tpu/edgetpu_executable.cc:107:30: warning: 'g_sentai_tpu_n_event' initialized and declared 'extern'
+  107 | extern "C" volatile uint32_t g_sentai_tpu_n_event    = 0;
+      |                              ^~~~~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/libs/tpu/edgetpu_executable.cc:108:30: warning: 'g_sentai_tpu_by_params' initialized and declared 'extern'
+  108 | extern "C" volatile uint32_t g_sentai_tpu_by_params  = 0;  // bytes accumulator
+      |                              ^~~~~~~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/libs/tpu/edgetpu_executable.cc:109:30: warning: 'g_sentai_tpu_by_ins' initialized and declared 'extern'
+  109 | extern "C" volatile uint32_t g_sentai_tpu_by_ins     = 0;
+      |                              ^~~~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/libs/tpu/edgetpu_executable.cc:110:30: warning: 'g_sentai_tpu_by_input' initialized and declared 'extern'
+  110 | extern "C" volatile uint32_t g_sentai_tpu_by_input   = 0;
+      |                              ^~~~~~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/libs/tpu/edgetpu_executable.cc:111:30: warning: 'g_sentai_tpu_by_output' initialized and declared 'extern'
+  111 | extern "C" volatile uint32_t g_sentai_tpu_by_output  = 0;
+      |                              ^~~~~~~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/libs/tpu/edgetpu_executable.cc:193:30: warning: 'g_sentai_tpu_invoke_fail_code' initialized and declared 'extern'
+  193 | extern "C" volatile uint16_t g_sentai_tpu_invoke_fail_code = 0;
+      |                              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/libs/tpu/edgetpu_executable.cc:199:29: warning: 'g_sentai_tpu_trace' initialized and declared 'extern'
+  199 | extern "C" volatile uint8_t g_sentai_tpu_trace = 0;
+      |                             ^~~~~~~~~~~~~~~~~~
+[ 73%] Linking CXX static library liblibs_tpu_freertos.a
+[ 75%] Built target libs_tpu_freertos
+[ 75%] Built target libs_tpu_task_freertos
+[ 75%] Built target libs_tpu_dfu_task_freertos
+[ 88%] Built target libs_tensorflow-m7
+[ 89%] Built target libs_base-m7_freertos
+[ 89%] Built target libs_msc_ums_freertos
+[ 91%] Built target libs_cdc_ncm_freertos
+[ 91%] Built target libs_cdc_eem_freertos
+[ 91%] Built target libs_cdc_acm_freertos
+[ 91%] Built target libs_camera_freertos
+[ 91%] Built target libs_aifes_task_m7
+[ 91%] Built target libs_t5838_freertos
+[ 91%] Built target libs_base-m7_http_server
+[ 92%] Built target libs_lis2du12_freertos
+[ 95%] Built target libs_libjpeg
+[ 95%] Built target libs_jpeg_m7
+[ 95%] Building CXX object examples/sentai_runtime/CMakeFiles/sentai_runtime.dir/sentai_runtime.cc.obj
+/tmp/ccPkbPCe.s: Assembler messages:
+/tmp/ccPkbPCe.s:18449: Warning: ignoring changed section type for .sdram_bss
+/tmp/ccPkbPCe.s:18449: Warning: ignoring changed section attributes for .sdram_bss
+[ 95%] Linking CXX executable sentai_runtime
+[100%] Built target sentai_runtime

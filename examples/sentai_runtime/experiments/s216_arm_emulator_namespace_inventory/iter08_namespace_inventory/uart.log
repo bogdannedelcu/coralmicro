@@ -1,0 +1,73 @@
+
+SentAI EMU REPL B8.3
+MicroPython embed ready
+INV_BEGIN
+VERSION|SentAI EMU B9 build 1529 (2026-06-23 17:33:59)
+ROOT|console,crazy,debug,fr,fs,help,io,pipeline,rtos,run,sys,tpu,verbose,version
+NS|fs|present|append,exists,format,ls,mkdir,read,read_base64,read_str,remove,size,sync,write
+NS|fr|present|close,init,open,push_event,push_scalar,stats,task_start,task_stop
+NS|rtos|present|cpu_usage,dmesg,dmesg_clear,dmesg_stats,heap_info,repl_kick,resume,resume_all,sleep_ms,suspend,suspend_all,tasks,ticks_ms,uptime
+NS|sys|present|boot_attempts,recovery_mode,reset
+NS|io|present|led_off,led_on
+NS|tpu|present|dump_eps,fps,fps_invoke,image_mem_size,input_quant,input_type,invoke,invoke_slot,load,load_image,load_image_mem,load_slot,num_outputs,num_outputs_slot,output,output_dims,output_dims_slot,output_floats,output_hash,output_quant,output_quant_slot,output_size,output_size_slot,output_slot,output_type,output_type_slot,ready,row,save_output,set_input_slot,slot_count,slot_ready,start,stats,stop,value
+NS|pipeline|present|calibrate,camera_config,count,debug_no_invoke,debug_prep_mode,detections,direct_stats,direct_tensor,dma_memcpy,event,force_parity,force_parity_reset,force_parity_stats,frame_count,get,get_ex,get_slot_for_cam,infer_reset,infer_stats,invokes_per_frame,loop_delay,multi_invoke_mode,on_detection,once,prep_fps,prep_reset,prep_start,prep_stats,prep_stop,probe_ratios,running,save,set_pose,set_slot_for_cam,slot_stats,slot_stats_reset,start,start_once,stats,stop,target_fps,task_health,track_config,tracks
+NS|crazy|present|altitude,arm,attitude,attitude_get,attitude_release_no_disarm,baro,battery,battery_pct,canfly,debug,disarm,flow_pred,flowdeck_pos,fly,fly_stop,go_to,hl_stop,hover,init,is_flying,is_tumbled,land,link_send,log_stats,on_message,ping,pose,pose_ready,pose_stop,pose_subscribe,pressure,send_crtp,send_extpos,send_extpose,send_flow,stop,stop_motors,takeoff,telem,temp,test_fly,velocity
+NS|camera|missing|
+NS|flow|missing|
+NS|markers|missing|
+NS|usb|missing|
+NS|uart|missing|
+NS|link|missing|
+NS|mesh|missing|
+NS|imu|missing|
+NS|mic|missing|
+NS|sleep|missing|
+NS|safety|missing|
+NS|objects|missing|
+NS|places|missing|
+NS|slam|missing|
+NS|explore|missing|
+NS|tfl|missing|
+NS|aifes|missing|
+NS|kmeans|missing|
+NS|pca|missing|
+NS|anomaly|missing|
+NS|dtw|missing|
+NS|hmm|missing|
+NS|rl|missing|
+NS|servo|missing|
+NS|object_lifter|missing|
+NS|calib|missing|
+HELP|all|begin
+SentAI ARM emulator module. Core namespaces use shared sentai_runtime bindings; emulator-specific behavior lives in F
+HELP|all|ok
+HELP|fs|begin
+sentai.fs: FileX-backed filesystem: read, read_str, read_base64, write, append, size, exists, format, remove, mkdir, 
+HELP|fs|ok
+HELP|fr|begin
+sentai.fr: shared binding with FxUser-backed emulator recorder for events and scalars.
+HELP|fr|ok
+HELP|rtos|begin
+sentai.rtos: shared FreeRTOS binding: sleep_ms, ticks_ms, uptime, repl_kick, task/heap/cpu diagnostics, dmesg.
+HELP|rtos|ok
+HELP|tpu|begin
+Unknown topic. Available: io, rtos, tpu, fs, camera, imu, mic, usb, uart, console, mesh, link, crazy, pipeline, serial, all
+HELP|tpu|ok
+HELP|pipeline|begin
+Unknown topic. Available: io, rtos, tpu, fs, camera, imu, mic, usb, uart, console, mesh, link, crazy, pipeline, serial, all
+HELP|pipeline|ok
+HELP|crazy|begin
+Unknown topic. Available: io, rtos, tpu, fs, camera, imu, mic, usb, uart, console, mesh, link, crazy, pipeline, serial, all
+HELP|crazy|ok
+HELP|sys|begin
+sentai.sys: reset, recovery_mode, boot_attempts. Emulator reset records a request and flushes FileX.
+HELP|sys|ok
+HELP|io|begin
+sentai.io: led_on, led_off. Emulator backend updates in-memory LED state.
+HELP|io|ok
+[('models', 2, 0), ('fr', 2, 0), ('b9', 2, 0), ('images', 2, 0), ('mission.py', 1, 15456), ('detections.txt', 1, 2)]
+True
+True
+True
+FS_WRITE|2588
+INV_END

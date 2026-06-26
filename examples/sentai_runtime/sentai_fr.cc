@@ -44,8 +44,10 @@
 #define FR_HAVE_FREERTOS 1
 
 #ifdef __arm__
+extern "C" {
 extern int sentai_fs_write(const char* path, const uint8_t* buf, int size);
 extern int sentai_fs_append(const char* path, const uint8_t* buf, int size);
+}
 #endif
 
 // ============================================================================

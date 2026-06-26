@@ -1,0 +1,2 @@
+350:QDEF1(MP_QSTR_cycles, 63142, 6, "cycles")
+684:QDEF1(MP_QSTR_micros, 34988, 6, "micros")

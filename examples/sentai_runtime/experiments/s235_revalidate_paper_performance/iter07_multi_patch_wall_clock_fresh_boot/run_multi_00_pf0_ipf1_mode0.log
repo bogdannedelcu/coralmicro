@@ -1,0 +1,56 @@
+import sentai; exec(sentai.fs.read('/lib/diag/pipeline_multi_patch_once.py'))
+S235 B10.4 multi-patch wall-clock once
+version=SentAI v1.0 build 1544 (2026-06-24 11:07:59)
+run=0 prep_fps=0 ipf=1 mode=0 frames=100 warmup=5
+model=/yolo_1_class_512_1_upsample_512_inloc_de_1024_la_P5_32.tflite
+chunk_prev=36864 chunk_now=131072
+urb_timeout_ms=200
+model_size=5591680
+Model loaded: 5591680 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x87d0eda232ac7cda
+Input:  uint8[1,512,512,3] (786432 bytes)
+  quant: scale=0.00392157  zero_point=0
+Outputs: 1
+  [0] uint8[1,1344,6] (8064 bytes)
+      quant: scale=0.00392150  zero_point=0
+Arena used: 776 / 8192 KB
+Model name: yolo_1_class_512_1_upsample_512_
+tpu_load=0
+tpu_ready=True
+pipeline_stop_pre=0
+direct_tensor_prev=1
+target_fps_now=0
+prep_fps_now=0
+invokes_per_frame_now=1
+multi_invoke_mode_now=0
+debug_no_invoke_now=0
+camera_ratio=(0, 0)
+camera_select=-1
+camera_resolution=-1
+HandlePowerRequest: try I2C1: Success
+HandlePowerRequest: try I2C2: Success
+CAMERA_RECEIVER_Init = 0
+BOARD_PullCameraPowerDownPin:1
+BOARD_PullCameraResetPin:0
+BOARD_PullCameraPowerDownPin:0
+BOARD_PullCameraResetPin:1
+[bbt] no persisted BBT, starting clean
+CAMERA_DEVICE_Init = 0
+CAMERA_DEVICE_Start = 0
+CAMERA_RECEIVER_Start = 0
+[CAM] sensor_fps=31 (1 s sample, target=30)
+[CAM1] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM1] W 0x3820=0x47 (0)
+[CAM1] W 0x3821=0x01 (0)
+[CAM0] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM0] W 0x3820=0x47 (0)
+[CAM0] W 0x3821=0x01 (0)
+camera_init=0
+camera_frame_count=30
+pipeline_start=0
+result run=0 prep_fps=0 ipf=1 mode=0 observed=100 wall_us=4235394 frame_fps=23.610554 invoke_ok=100 invoke_fail=0 invoke_fps=23.610554 inv_per_frame=1.000 timeouts=0
+pipeline_stop=0
+[bbt] no persisted BBT, starting clean
+csv=/diags/s235_b10_multi_patch/run_00_pf0_ipf1_mode0.csv
+=== done ===
+>>> 

@@ -1,0 +1,9 @@
+=%d" % (str(prev_chunk), now_chunk))\nexcept Exception as e:\n    print("chunk_set failed", repr(e))\n    raise\n\ntry:\n    print("urb_timeout_ms=%s desc_cache=default_off_not_toggled')
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 'i' isn't defined
+>>> ntai.fs.append('/lib/diag/pure_tpu_wall_one_chunk.py', '" %\n          str(sentai.tpu.urb_timeout_ms()))\nexcept Exception as e:\n    print("tpu state failed", repr(e))\n\nrc = sentai.tpu.load(MODEL)\nprint("load_rc=%s" % str(rc))\nsentai.camera.init()\nse')
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 'ntai' isn't defined
+>>> ntai.fs.append('/lib/diag/pure_tpu_wall_one

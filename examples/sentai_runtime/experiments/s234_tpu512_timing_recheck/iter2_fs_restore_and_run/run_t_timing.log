@@ -1,0 +1,63 @@
+
+>>> 
+KeyboardInterrupt
+>>> 
+KeyboardInterrupt
+>>> 
+>>> 
+>>> import sentai; exec(sentai.fs.read_str("/lib/diag/_t_timing.py"))
+Model loaded: 5591680 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x87d0eda232ac7cda
+Input:  uint8[1,512,512,3] (786432 bytes)
+  quant: scale=0.00392157  zero_point=0
+Outputs: 1
+  [0] uint8[1,1344,6] (8064 bytes)
+      quant: scale=0.00392150  zero_point=0
+Arena used: 776 / 8192 KB
+Model name: yolo_1_class_512_1_upsample_512_
+HandlePowerRequest: try I2C1: Success
+HandlePowerRequest: try I2C2: Success
+CAMERA_RECEIVER_Init = 0
+BOARD_PullCameraPowerDownPin:1
+BOARD_PullCameraResetPin:0
+BOARD_PullCameraPowerDownPin:0
+BOARD_PullCameraResetPin:1
+CAMERA_DEVICE_Init = 0
+CAMERA_DEVICE_Start = 0
+CAMERA_RECEIVER_Start = 0
+[CAM] sensor_fps=29 (1 s sample, target=30)
+[CAM1] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM1] W 0x3820=0x47 (0)
+[CAM1] W 0x3821=0x01 (0)
+[CAM0] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM0] W 0x3820=0x47 (0)
+[CAM0] W 0x3821=0x01 (0)
+[to_tensor] frame=2ms pxp=11ms quant=0ms total=13ms (512x512)
+warmed
+
+=== PURE TPU variance (N=5, 30 invokes each) ===
+run 0: total=15.07ms  input=5.02  params=0.09  ins=3.26  output=0.66  event=0.024
+run 1: total=15.33ms  input=5.07  params=0.09  ins=3.33  output=0.66  event=0.022
+run 2: total=14.87ms  input=4.43  params=0.09  ins=3.74  output=0.72  event=0.023
+run 3: total=15.00ms  input=4.97  params=0.09  ins=3.55  output=0.54  event=0.023
+run 4: total=14.63ms  input=5.13  params=0.09  ins=2.94  output=0.56  event=0.022
+bytes/invoke: input=811008B ins=371664B output=10752B
+
+=== PIPELINE variance (N=5, 5s each) ===
+E:0480:250
+E:0481:126
+run 0: prep=25.2fps infer=25.0fps  cam=0.6 pxp=8.0 quant=0.0 wait=30.8 total_prep=39.6 invoke=39.7 fails=0
+E:0480:250
+E:0481:150
+run 1: prep=30.2fps infer=29.8fps  cam=0.5 pxp=8.1 quant=0.0 wait=24.3 total_prep=33.3 invoke=33.4 fails=0
+E:0480:250
+E:0481:156
+run 2: prep=31.2fps infer=31.0fps  cam=0.4 pxp=8.1 quant=0.0 wait=23.1 total_prep=32.1 invoke=32.1 fails=0
+E:0480:250
+E:0481:194
+run 3: prep=38.8fps infer=38.6fps  cam=0.5 pxp=8.3 quant=0.0 wait=16.4 total_prep=25.8 invoke=25.4 fails=0
+E:0480:250
+E:0481:181
+run 4: prep=36.4fps infer=36.2fps  cam=0.5 pxp=8.2 quant=0.0 wait=18.3 total_prep=27.5 invoke=27.2 fails=0
+=== done ===
+>>> 

@@ -1,0 +1,6 @@
++ udisksctl unmount -b /dev/sdc
+Unmounted /dev/sdc.
++ sync
++ lsblk -o NAME,PATH,TRAN,SIZE,MODEL,FSTYPE,LABEL,MOUNTPOINTS
++ rg 'FLASH STORAGE|0000-0001|usb'
+sdc         /dev/sdc       usb       55M FLASH STORAGE         vfat             

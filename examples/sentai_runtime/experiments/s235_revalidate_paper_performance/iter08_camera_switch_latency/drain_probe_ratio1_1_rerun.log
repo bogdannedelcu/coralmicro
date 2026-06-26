@@ -1,0 +1,49 @@
+import sentai; exec(sentai.fs.read('/lib/diag/camera_drain_probe_once.py'))
+S235 B10 drain probe
+version=SentAI v1.0 build 1544 (2026-06-24 11:07:59)
+run=1 frames=50 ratio=1:1
+HandlePowerRequest: try I2C1: Success
+HandlePowerRequest: try I2C2: Success
+CAMERA_RECEIVER_Init = 0
+BOARD_PullCameraPowerDownPin:1
+BOARD_PullCameraResetPin:0
+BOARD_PullCameraPowerDownPin:0
+BOARD_PullCameraResetPin:1
+CAMERA_DEVICE_Init = 0
+CAMERA_DEVICE_Start = 0
+CAMERA_RECEIVER_Start = 0
+[CAM] sensor_fps=30 (1 s sample, target=30)
+[CAM1] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM1] W 0x3820=0x47 (0)
+[CAM1] W 0x3821=0x01 (0)
+[CAM0] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM0] W 0x3820=0x47 (0)
+[CAM0] W 0x3821=0x01 (0)
+camera_init=0
+[CAM0] W 0x503D=0x80 (0)
+[CAM1] W 0x503D=0x88 (0)
+test_pattern0=0 test_pattern1=0
+case_start label=alt drain=1 ratio=1:1 frames=50
+progress label=alt i=0 tag=0 kind=BARS
+progress label=alt i=10 tag=0 kind=BARS
+progress label=alt i=20 tag=0 kind=BARS
+progress label=alt i=30 tag=0 kind=BARS
+progress label=alt i=40 tag=0 kind=BARS
+[bbt] no persisted BBT, starting clean
+case_result label=alt drain=1 ratio=1:1 frames=50 correct=50 wrong=0 scrambled=0 ambig=0 cam0=26 cam1=24 bars=26 hband=24 wall_us=3673294 fps=13.611761
+case_start label=alt drain=2 ratio=1:1 frames=50
+progress label=alt i=0 tag=0 kind=HBAND
+progress label=alt i=10 tag=0 kind=HBAND
+progress label=alt i=20 tag=0 kind=HBAND
+progress label=alt i=30 tag=0 kind=HBAND
+progress label=alt i=40 tag=0 kind=HBAND
+case_result label=alt drain=2 ratio=1:1 frames=50 correct=0 wrong=25 scrambled=25 ambig=0 cam0=50 cam1=0 bars=0 hband=25 wall_us=6681279 fps=7.483597
+[CAM0] W 0x503D=0x00 (0)
+[CAM0] W 0x3503=0x00 (0)
+[CAM1] W 0x503D=0x00 (0)
+[CAM1] W 0x3503=0x00 (0)
+[bbt] no persisted BBT, starting clean
+fs_sync=True
+csv=/diags/s235_b10_drain_probe/run_01_ratio1_1.csv
+=== done ===
+>>> 

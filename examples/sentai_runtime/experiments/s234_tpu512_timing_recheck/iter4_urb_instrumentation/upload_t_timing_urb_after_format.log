@@ -1,0 +1,7 @@
+Opening REPL on /dev/ttyACM0 …
+REPL ready.  Uploading 1 file(s):
+  _t_timing_urb.py → /lib/diag/_t_timing_urb.py  (2297 bytes)
+    … 960/2297 bytes OK
+    … 1920/2297 bytes OK
+    ✓ wrote 2297 bytes in 6.0s sync=ok
+Done.  On device:  import diag

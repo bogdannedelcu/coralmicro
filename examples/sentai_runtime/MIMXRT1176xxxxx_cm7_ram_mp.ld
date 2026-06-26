@@ -410,6 +410,20 @@ SECTIONS
      *sentai_calib_bringup.cc.obj(.text .text*)
      *sentai_calib_bringup.cc.obj(.data .data*)
      *sentai_calib_bringup.cc.obj(.rodata .rodata*)
+     /* OP-S10-W23 — takeoff camera-orientation calibration worker.
+        Mission calibration path, operator/flight-state driven, not an ISR
+        and not on the TPU USB/camera per-frame hot path.  Keep it with
+        sentai.calib cold-path modules instead of spending ITCM. */
+     *sentai_calib_orientation_task.cc.obj(.text .text*)
+     *sentai_calib_orientation_task.cc.obj(.data .data*)
+     *sentai_calib_orientation_task.cc.obj(.rodata .rodata*)
+     /* OP-S10-W24 — marker-control servo worker.  Mission-control loop,
+        bounded by marker observations / Crazy command cadence rather than
+        per-pixel processing; SDRAM matches the existing sentai.servo and
+        sentai.crazy placement policy. */
+     *sentai_servo_marker_task.cc.obj(.text .text*)
+     *sentai_servo_marker_task.cc.obj(.data .data*)
+     *sentai_servo_marker_task.cc.obj(.rodata .rodata*)
      /* Track A places (s139+, 2026-05-16): PHOG descriptor compute.
         Cold-path ~1 Hz, ~10 ms on M7; .sdram_text per [[itcm-budget]]. */
      *sentai_phog.cc.obj(.text .text*)
@@ -604,6 +618,66 @@ SECTIONS
      *fx_user_fs.cc.obj(.data .data*)
      *fx_user_fs.cc.obj(.rodata .rodata*)
      __fx_glue_end = .;
+     . = ALIGN(4);
+  } > m_sdram
+
+  /* s113 P2.5 / [[itcm-budget]]: LittleFS is retained for legacy/base
+     helpers but the user filesystem path is FileX.  It is not in the
+     camera/TPU invoke hot path, so route code+rodata to SDRAM. */
+  .littlefs :
+  {
+     . = ALIGN(4);
+     __littlefs_start = .;
+     *liblibs_littlefs.a:*(.text .text*)
+     *liblibs_littlefs.a:*(.data .data*)
+     *liblibs_littlefs.a:*(.rodata .rodata*)
+     __littlefs_end = .;
+     . = ALIGN(4);
+  } > m_sdram
+
+  /* s113 P2.5 / [[itcm-budget]]: EdgeTPU DFU is a one-shot maintenance
+     path and is dormant during normal inference. */
+  .tpu_dfu :
+  {
+     . = ALIGN(4);
+     __tpu_dfu_start = .;
+     *liblibs_tpu_dfu_task_freertos.a:*(.text .text*)
+     *liblibs_tpu_dfu_task_freertos.a:*(.data .data*)
+     *liblibs_tpu_dfu_task_freertos.a:*(.rodata .rodata*)
+     __tpu_dfu_end = .;
+     . = ALIGN(4);
+  } > m_sdram
+
+  /* s113 P2.5 / [[itcm-budget]]: LIS2DU12/IMU access is REPL/task
+     driven, not a camera/TPU hot-loop dependency. */
+  .imu :
+  {
+     . = ALIGN(4);
+     __imu_start = .;
+     *liblibs_lis2du12_freertos.a:*(.text .text*)
+     *liblibs_lis2du12_freertos.a:*(.data .data*)
+     *liblibs_lis2du12_freertos.a:*(.rodata .rodata*)
+     __imu_end = .;
+     . = ALIGN(4);
+  } > m_sdram
+
+  /* s113 P2.5 / [[itcm-budget]]: USB MSC runs only in storage mode.
+     Keep USB host/EdgeTPU and CDC console paths in their existing
+     sections; move only the mass-storage class/UMS pieces. */
+  .usb_msc :
+  {
+     . = ALIGN(4);
+     __usb_msc_start = .;
+     *liblibs_msc_ums_freertos.a:*(.text .text*)
+     *liblibs_msc_ums_freertos.a:*(.data .data*)
+     *liblibs_msc_ums_freertos.a:*(.rodata .rodata*)
+     *usb_device_msc.c.obj(.text .text*)
+     *usb_device_msc.c.obj(.data .data*)
+     *usb_device_msc.c.obj(.rodata .rodata*)
+     *usb_device_msc_ufi.c.obj(.text .text*)
+     *usb_device_msc_ufi.c.obj(.data .data*)
+     *usb_device_msc_ufi.c.obj(.rodata .rodata*)
+     __usb_msc_end = .;
      . = ALIGN(4);
   } > m_sdram
 

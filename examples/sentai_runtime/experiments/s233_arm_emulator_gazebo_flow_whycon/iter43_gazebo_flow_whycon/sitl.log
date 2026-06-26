@@ -1,0 +1,2 @@
+Error: database static dir "/home/bogdan/snap/code/244/.local/share/containers/storage/libpod" does not match our static dir "/home/bogdan/snap/code/247/.local/share/containers/storage/libpod": database configuration mismatch
+Create it now, out of image registry.fedoraproject.org/fedora-toolbox:latest? [Y/n]: 

@@ -1,0 +1,14 @@
+[  0%] Incrementing build version...
+-- Build #1492 at 2026-06-11 18:27:21
+[ 22%] Built target libs_levelx
+[ 22%] Built target increment_build_version
+[ 66%] Built target libs_filex
+[ 66%] Building CXX object emu/CMakeFiles/sentai_emu_hw_stub_namespace_smoke.dir/sentai_emu_repl.cc.obj
+[ 66%] Building C object emu/CMakeFiles/sentai_emu_hw_stub_namespace_smoke.dir/sentai_emu_fs_module.c.obj
+cc1plus: warning: command line option '-Wno-old-style-definition' is valid for C/ObjC but not for C++
+cc1plus: warning: command line option '-Wno-missing-prototypes' is valid for C/ObjC but not for C++
+[ 66%] Linking CXX executable sentai_emu_hw_stub_namespace_smoke
+[100%] Built target sentai_emu_hw_stub_namespace_smoke
+$ cmake --build build_emu --target sentai_emu_hw_stub_namespace_smoke -j24
+
+[elapsed_s] 0.815

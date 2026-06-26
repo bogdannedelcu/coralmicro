@@ -1,0 +1,14 @@
+metric,value,unit
+firmware_build,1542,
+input_tensor_bytes,786432,bytes
+model_sha256,49942d36335f1e09ee10d29b967bf413c8d449a3261d9d7bb9cb1d51a8a73e4f,
+invokes,100,count
+total_wall_us,4151435,us
+wall_ms_per_invoke,41.514351,ms
+throughput_fps,24.09,fps
+tick_ms_per_invoke,14.580000,ms
+urb_instructions_wait_ms_per_invoke,14.578890,ms
+urb_input_wait_ms_per_invoke,24.527719,ms
+urb_parameters_wait_ms_per_invoke,0.137420,ms
+urb_output_wait_ms_per_invoke,1.704270,ms
+urb_event_wait_ms_per_invoke,0.037780,ms

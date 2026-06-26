@@ -1,0 +1,45 @@
+
+>>> import sentai
+>>> sentai.fs.write('/lib/diag/pure_tpu_wall_one_chunk.py', '')
+True
+>>>  + "/pure_')
+Traceback (most recent call last):
+  File "<stdin>", line 1
+IndentationError: unexpected indent
+>>> entai.fs.append('/lib/diag/pure_tpu_wall_one_chunk.py', 'tpu_wall.csv"\n\nTAGS = ("instructions", "input", "parameters", "output", "event", "unknown")\nFIELDS = (\n    "calls", "callbacks", "bytes_req", "bytes_done",\n    "submit_cyc", "callback_cyc", "w')
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 'entai' isn't defined
+>>> entai.fs.append('/lib/diag/pure_tpu_wall_one_chunk.py', 'ait_cyc",\n    "errors", "timeouts", "submit_fail",\n    "submit_us", "callback_us", "wait_us",\n)\n\n\ndef du32(a, b):\n    return (int(b) - int(a)) & 0xffffffff\n\n\ndef ensure_out():\n    try:\n       ')
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 'entai' isn't defined
+>>> entai.fs.append('/lib/diag/pure_tpu_wall_one_chunk.py', ' sentai.fs.mkdir("/diags")\n    except Exception:\n        pass\n    try:\n        sentai.fs.mkdir(OUT_DIR)\n    except Exception:\n        pass\n    try:\n        if not sentai.fs.exists(OUT_CSV):\n  ')
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 'entai' isn't defined
+>>> entai.fs.append('/lib/diag/pure_tpu_wall_one_chunk.py', '          sentai.fs.write(\n                OUT_CSV,\n                "version,chunk_kb,invokes,wall_us,wall_ms_per_invoke,"\n                "fps,tick_ms_per_invoke,failures,"\n                "p')
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 'entai' isn't defined
+>>> entai.fs.append('/lib/diag/pure_tpu_wall_one_chunk.py', 'hase,calls,bytes_req,bytes_done,wait_ms_per_invoke,"\n                "errors,timeouts,submit_fail\\r\\n",\n            )\n    except Exception as e:\n        print("fs init failed", repr(e))\n\n\ndef ')
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 'entai' isn't defined
+>>> entai.fs.append('/lib/diag/pure_tpu_wall_one_chunk.py', 'urb(reset=False):\n    hz, rows = sentai.tpu.urb_stats(1 if reset else 0)\n    out = {}\n    for i, tag in enumerate(TAGS):\n        row = rows[i]\n        d = {}\n        for j, field in enumerate(')
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 'entai' isn't defined
+>>> entai.fs.append('/lib/diag/pure_tpu_wall_one_chunk.py', 'FIELDS):\n            d[field] = row[j]\n        out[tag] = d\n    return hz, out\n\n\ndef append_rows(version, chunk_kb, invokes, wall_us, tick_ms, failures, rows):\n    wall_ms_per = float(wall_us)')
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 'entai' isn't defined
+>>> entai.fs.append('/lib/diag/pure_tpu_wall_one_chunk.py', ' / (1000.0 * invokes)\n    fps = (1000000.0 * invokes) / float(wall_us) if wall_us else 0.0\n    tick_ms_per = float(tick_ms) / invokes\n    forSr\nsentaiu_wall_one_chu6f,%.6f,%d,%s,%d,%d,%d,%.6f,%d,%d,%d\\r\\n" % (\n            version,\n            chunk_kb,\n            invokes,\n            wall_us,\n            wall_ms_per,\n            fps,')
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 'entai' isn't defined
+>>> entai.fs.append('/lib/diag/pure_tpu_wall_one_chunk.py', '\n            tick_ms_per,\n            failures,\n            tag,\n            int(r["calls"]),\n            int(r["bytes_req"]),\n            int(r["bytes_done"]),\n            float(r["wait_us"])')
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 'entai' isn't defined
+>>> sentai.fs.append('/lib/diag/pure_tpu_wall_one_chunk.py', ' / (1000.0 * invokes),\n            int(r["errors"]),\n            int(r["timeouts"]),\n            int(r["submit_fail"]),\n        )\n        sentai.fs.append(OUpend('/lib/diag/pure_tpu_wall_

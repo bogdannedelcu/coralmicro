@@ -1,0 +1,33 @@
+[  0%] Incrementing build version...
+-- Build #1524 at 2026-06-11 20:06:10
+[  0%] Built target increment_build_version
+[ 33%] Built target libs_levelx
+[100%] Built target libs_filex
+[100%] Building CXX object emu/CMakeFiles/sentai_emu_fs_stage_assets.dir/sentai_emu_lfs_stubs.cc.obj
+[100%] Building ASM object emu/CMakeFiles/sentai_emu_fs_stage_assets.dir/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/gcc/startup_MIMXRT1176_cm7.S.obj
+[100%] Building C object emu/CMakeFiles/sentai_emu_fs_stage_assets.dir/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/system_MIMXRT1176_cm7.c.obj
+[100%] Building C object emu/CMakeFiles/sentai_emu_fs_stage_assets.dir/__/third_party/freertos_kernel/event_groups.c.obj
+[100%] Building C object emu/CMakeFiles/sentai_emu_fs_stage_assets.dir/__/third_party/freertos_kernel/list.c.obj
+[100%] Building C object emu/CMakeFiles/sentai_emu_fs_stage_assets.dir/__/third_party/freertos_kernel/queue.c.obj
+[100%] Building CXX object emu/CMakeFiles/sentai_emu_fs_stage_assets.dir/sentai_emu_fs_stage_assets.cc.obj
+[100%] Building C object emu/CMakeFiles/sentai_emu_fs_stage_assets.dir/__/third_party/freertos_kernel/tasks.c.obj
+[100%] Building C object emu/CMakeFiles/sentai_emu_fs_stage_assets.dir/sentai_emu_freertos_hooks.c.obj
+[100%] Building C object emu/CMakeFiles/sentai_emu_fs_stage_assets.dir/__/third_party/freertos_kernel/portable/GCC/ARM_CM4F/port.c.obj
+[100%] Building CXX object emu/CMakeFiles/sentai_emu_fs_stage_assets.dir/__/libs/base/fx_user_fs.cc.obj
+[100%] Building CXX object emu/CMakeFiles/sentai_emu_fs_stage_assets.dir/__/libs/base/fx_nand_driver.cc.obj
+[100%] Building C object emu/CMakeFiles/sentai_emu_fs_stage_assets.dir/__/third_party/FreeRTOS_helpers/heap_useNewlib_NXP.c.obj
+cc1plus: warning: command line option '-Wno-old-style-definition' is valid for C/ObjC but not for C++
+cc1plus: warning: command line option '-Wno-missing-prototypes' is valid for C/ObjC but not for C++
+[100%] Building C object emu/CMakeFiles/sentai_emu_fs_stage_assets.dir/__/third_party/freertos_kernel/stream_buffer.c.obj
+[100%] Building C object emu/CMakeFiles/sentai_emu_fs_stage_assets.dir/__/third_party/freertos_kernel/timers.c.obj
+cc1plus: warning: command line option '-Wno-old-style-definition' is valid for C/ObjC but not for C++
+cc1plus: warning: command line option '-Wno-missing-prototypes' is valid for C/ObjC but not for C++
+cc1plus: warning: command line option '-Wno-old-style-definition' is valid for C/ObjC but not for C++
+cc1plus: warning: command line option '-Wno-old-style-definition' is valid for C/ObjC but not for C++
+cc1plus: warning: command line option '-Wno-missing-prototypes' is valid for C/ObjC but not for C++
+cc1plus: warning: command line option '-Wno-missing-prototypes' is valid for C/ObjC but not for C++
+/home/bogdan/work/coralmicro/third_party/FreeRTOS_helpers/heap_useNewlib_NXP.c:68:4: warning: #warning "This wrapper was verified for newlib versions 2.5 - 3.1; please ensure newlib's external requirements for malloc-family are unchanged!" [-Wcpp]
+   68 |   #warning "This wrapper was verified for newlib versions 2.5 - 3.1; please ensure newlib's external requirements for malloc-family are unchanged!"
+      |    ^~~~~~~
+[100%] Linking CXX executable sentai_emu_fs_stage_assets
+[100%] Built target sentai_emu_fs_stage_assets

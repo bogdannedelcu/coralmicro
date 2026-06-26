@@ -1,0 +1,14 @@
+'/lib/diag/pure_tpu_wall_one_chunk.py', 'entai.rtos.micros()\nfailures = 0\nfor i in range(N_INVOKES):\n    r = sentai.tpu.invoke()\n    if r < 0:\n        failures += 1\nt1_us = sentai.rtos.micros()\nt1_ms = sentai.rtos.ticks_ms()\nhz, rows')
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 'i' isn't defined
+>>> ntai.fs.append('/lib/diag/pure_tpu_wall_one_chunk.py', ' 
+= urb(False)\n\nwall_us = du32(t0_us, t1_us)\ntick_ms = du32(t0_ms, t1_ms)\nwall_ms_per = float(wall_us) / (1000.0 * N_INVOKES)\nfps = (1000000.0 * N_INVOKES) / float(wall_us) if wall_us else 0.0\n')
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 'ntai' isn't defined
+>>> ntai.fs.append('/lib/diag/pure_tpu_wall_one_chunk.py', '\nprint("reported_hz=%d" % hz)\nprint("result chunk_kb=%d wall_us=%d wall_ms_per=%.6f fps=%.6f tick_ms_per=%.6f failures=%d" %\n      (CHUNK_KB, wall_us, wall_ms_per, fps, float(tick_ms) / N_INVO')
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 'ntai' isn't defined
+>>> ntai.fs.append('/lib/diag/pure

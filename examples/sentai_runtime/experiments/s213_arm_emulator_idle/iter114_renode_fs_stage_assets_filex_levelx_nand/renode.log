@@ -1,0 +1,68 @@
+20:06:12.2160 [INFO] Loaded monitor commands from: /home/bogdan/work/renode_portable/scripts/monitor.py
+Renode, version 1.16.1 (d66b0c2a-202602160923)
+
+
+(monitor) i $CWD/emu/renode/sentai_emu_fs_stage_assets.resc
+
+20:06:12.3580 [INFO] Including script(s): /home/bogdan/work/coralmicro/emu/renode/sentai_emu_fs_stage_assets.resc
+20:06:12.3705 [INFO] System bus created.
+20:06:13.4918 [INFO] sysbus: Loading block of 3072 bytes length at 0x0.
+20:06:13.4997 [INFO] sysbus: Loading block of 59540 bytes length at 0xC00.
+20:06:13.4998 [INFO] sysbus: Loading block of 604 bytes length at 0xF494.
+20:06:13.4998 [INFO] sysbus: Loading block of 87328 bytes length at 0xF6F8.
+20:06:13.4998 [INFO] sysbus: Loading block of 16777216 bytes length at 0x80000000.
+20:06:13.5105 [INFO] sysbus: Loading block of 54680 bytes length at 0x81000000.
+20:06:14.0371 [INFO] cpu: Setting initial values: PC = 0xCBD, SP = 0x20040000.
+20:06:14.0383 [INFO] machine-0: Machine started.
+20:06:14.0944 [WARNING] nvic: Unhandled write to offset 0xF50 (ICacheInvalidateAllToPoUaIgnored), value 0x0.
+20:06:14.1147 [WARNING] nvic: Trying to set the priority for interrupt 16 to 0xFF, but it should be maskable with 0xF0
+20:06:53.6100 [INFO] machine-0: Machine paused.
+sentai_emu_fs_stage_assets PC:
+
+0x3928
+
+sentai_emu_fs_stage_assets boot_state:
+
+0x00000700
+
+sentai_emu_fs_stage_assets heartbeat:
+
+0x0000002F
+
+sentai_emu_fs_stage_assets last_tick:
+
+0x00001350
+
+sentai_emu_fs_stage_assets stage_files:
+
+0x00000003
+
+sentai_emu_fs_stage_assets stage_bytes:
+
+0x007A4C36
+
+sentai_emu_fs_stage_assets stage_errors:
+
+0x00000000
+
+sentai_emu_fs_stage_assets stage_checksum:
+
+0x34899384
+
+sentai_emu_fs_stage_assets fx_reads:
+
+0x0000C093
+
+sentai_emu_fs_stage_assets fx_writes:
+
+0x0000E2FD
+
+sentai_emu_fs_stage_assets fx_erases:
+
+0x0000034D
+
+sentai_emu_fs_stage_assets fx_errors:
+
+0x00000000
+
+(machine-0) 20:06:53.7025 [INFO] machine-0: Disposed.

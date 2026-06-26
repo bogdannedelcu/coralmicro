@@ -1,0 +1,21 @@
+
+SentAI EMU REPL B8.3
+MicroPython embed ready
+HW_BEGIN
+0
+-5
+-5
+-5
+CHECK|usb_drive_off|PASS|
+CHECK|usb_drive_on_rejected|PASS|
+CHECK|usb_ip_unavailable|PASS|
+CHECK|usb_open_false|PASS|
+CHECK|usb_available_zero|PASS|
+CHECK|usb_read_requires_open|PASS|serial not open
+CHECK|uart_requires_usb_console|PASS|REPL must be on USB: call sentai.console('usb')
+'usb'
+CHECK|uart_open_false|PASS|
+CHECK|uart_available_zero|PASS|
+Traceback (most recent call last):
+  File "<stdin>", in <module>
+OSError: UART serial not open

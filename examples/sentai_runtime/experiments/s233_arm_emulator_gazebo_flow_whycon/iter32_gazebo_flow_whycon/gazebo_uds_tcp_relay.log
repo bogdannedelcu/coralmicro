@@ -1,0 +1,61 @@
+$ /usr/bin/python3 emu/host/sentai_gazebo_uds_to_tcp_bridge.py --uds /tmp/sentai_emu_cam.sock --tcp-host 127.0.0.1 --tcp-port 30233 --max-fps 10.0 --out-width 640 --out-height 480 --out-format rgb888
+[uds-tcp] pull server 127.0.0.1:30233
+[uds-tcp] listening /tmp/sentai_emu_cam.sock
+[uds-tcp] renode client connected
+[uds-tcp] renode client disconnected
+[uds-tcp] gz client connected
+[uds-tcp] frames=30 seq=30 kept=11 dropped=19 bad=0 latest=29
+[uds-tcp] frames=60 seq=60 kept=22 dropped=38 bad=0 latest=59
+[uds-tcp] frames=90 seq=90 kept=33 dropped=57 bad=0 latest=90
+[uds-tcp] frames=120 seq=120 kept=44 dropped=76 bad=0 latest=120
+[uds-tcp] frames=150 seq=150 kept=54 dropped=96 bad=0 latest=150
+[uds-tcp] renode client connected
+[uds-tcp] frames=180 seq=180 kept=64 dropped=116 bad=0 latest=178
+[uds-tcp] frames=210 seq=210 kept=75 dropped=135 bad=0 latest=210
+[uds-tcp] frames=240 seq=240 kept=85 dropped=155 bad=0 latest=240
+[uds-tcp] frames=270 seq=270 kept=95 dropped=175 bad=0 latest=269
+[uds-tcp] frames=300 seq=300 kept=106 dropped=194 bad=0 latest=299
+[uds-tcp] frames=330 seq=330 kept=118 dropped=212 bad=0 latest=330
+[uds-tcp] frames=360 seq=360 kept=128 dropped=232 bad=0 latest=359
+[uds-tcp] frames=390 seq=390 kept=138 dropped=252 bad=0 latest=388
+[uds-tcp] frames=420 seq=420 kept=149 dropped=271 bad=0 latest=420
+[uds-tcp] frames=450 seq=450 kept=159 dropped=291 bad=0 latest=449
+[uds-tcp] frames=480 seq=480 kept=170 dropped=310 bad=0 latest=480
+[uds-tcp] frames=510 seq=510 kept=180 dropped=330 bad=0 latest=508
+[uds-tcp] frames=540 seq=540 kept=191 dropped=349 bad=0 latest=540
+[uds-tcp] frames=570 seq=570 kept=201 dropped=369 bad=0 latest=570
+[uds-tcp] frames=600 seq=600 kept=211 dropped=389 bad=0 latest=600
+[uds-tcp] frames=630 seq=630 kept=221 dropped=409 bad=0 latest=630
+[uds-tcp] frames=660 seq=660 kept=231 dropped=429 bad=0 latest=659
+[uds-tcp] frames=690 seq=690 kept=242 dropped=448 bad=0 latest=688
+[uds-tcp] frames=720 seq=720 kept=253 dropped=467 bad=0 latest=720
+[uds-tcp] frames=750 seq=750 kept=263 dropped=487 bad=0 latest=750
+[uds-tcp] frames=780 seq=780 kept=273 dropped=507 bad=0 latest=779
+[uds-tcp] frames=810 seq=810 kept=284 dropped=526 bad=0 latest=809
+[uds-tcp] frames=840 seq=840 kept=295 dropped=545 bad=0 latest=840
+[uds-tcp] frames=870 seq=870 kept=305 dropped=565 bad=0 latest=870
+[uds-tcp] frames=900 seq=900 kept=315 dropped=585 bad=0 latest=900
+[uds-tcp] frames=930 seq=930 kept=325 dropped=605 bad=0 latest=929
+[uds-tcp] frames=960 seq=960 kept=335 dropped=625 bad=0 latest=958
+[uds-tcp] frames=990 seq=990 kept=345 dropped=645 bad=0 latest=988
+[uds-tcp] frames=1020 seq=1020 kept=356 dropped=664 bad=0 latest=1018
+[uds-tcp] frames=1050 seq=1050 kept=366 dropped=684 bad=0 latest=1048
+[uds-tcp] frames=1080 seq=1080 kept=377 dropped=703 bad=0 latest=1079
+[uds-tcp] frames=1110 seq=1110 kept=387 dropped=723 bad=0 latest=1109
+[uds-tcp] frames=1140 seq=1140 kept=397 dropped=743 bad=0 latest=1139
+[uds-tcp] frames=1170 seq=1170 kept=408 dropped=762 bad=0 latest=1170
+[uds-tcp] frames=1200 seq=1200 kept=419 dropped=781 bad=0 latest=1199
+[uds-tcp] frames=1230 seq=1230 kept=429 dropped=801 bad=0 latest=1229
+[uds-tcp] frames=1260 seq=1260 kept=439 dropped=821 bad=0 latest=1259
+[uds-tcp] frames=1290 seq=1290 kept=449 dropped=841 bad=0 latest=1289
+[uds-tcp] frames=1320 seq=1320 kept=459 dropped=861 bad=0 latest=1319
+[uds-tcp] frames=1350 seq=1350 kept=469 dropped=881 bad=0 latest=1349
+[uds-tcp] frames=1380 seq=1380 kept=479 dropped=901 bad=0 latest=1378
+[uds-tcp] frames=1410 seq=1410 kept=489 dropped=921 bad=0 latest=1408
+[uds-tcp] frames=1440 seq=1440 kept=499 dropped=941 bad=0 latest=1438
+[uds-tcp] frames=1470 seq=1470 kept=510 dropped=960 bad=0 latest=1470
+[uds-tcp] frames=1500 seq=1500 kept=520 dropped=980 bad=0 latest=1499
+[uds-tcp] frames=1530 seq=1530 kept=530 dropped=1000 bad=0 latest=1529
+[uds-tcp] frames=1560 seq=1560 kept=542 dropped=1018 bad=0 latest=1559
+[uds-tcp] frames=1590 seq=1590 kept=552 dropped=1038 bad=0 latest=1589
+[uds-tcp] renode client disconnected

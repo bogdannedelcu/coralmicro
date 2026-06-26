@@ -1,0 +1,78 @@
+ M emu/CMakeLists.txt
+ M emu/renode/sentai_emu_gazebo_flow_whycon.resc
+ M emu/renode/sentai_emu_gazebo_flow_whycon_ui.resc
+ M emu/renode/sentai_rt1176.repl
+ M emu/sentai_emu_camera_runtime_bridge.cc
+ M emu/sentai_emu_detection_runtime_stubs.cc
+ M emu/sentai_emu_fs_module.c
+ M emu/sentai_emu_repl.cc
+ M emu/sentai_emu_tpu_bridge_module.c
+ M examples/sentai_runtime/bindings/modsentai_fr.c
+ M examples/sentai_runtime/bindings/modsentai_imu.c
+ M examples/sentai_runtime/bindings/modsentai_mic.c
+ M examples/sentai_runtime/bindings/modsentai_rtos.c
+ D examples/sentai_runtime/bindings/modsentai_sleep_ns.c
+ M examples/sentai_runtime/bindings/modsentai_tpu.c
+ M examples/sentai_runtime/build_version.h
+ M examples/sentai_runtime/build_version.txt
+ M examples/sentai_runtime/experiments/s228_arm_emulator_hw_stub_namespaces/README.md
+ M examples/sentai_runtime/experiments/s228_arm_emulator_hw_stub_namespaces/run_s228.py
+ M examples/sentai_runtime/experiments/s233_arm_emulator_gazebo_flow_whycon/README.md
+ M examples/sentai_runtime/experiments/s233_arm_emulator_gazebo_flow_whycon/run_s233.py
+ M examples/sentai_runtime/modsentai.c
+ M examples/sentai_runtime/modsentai_hal.cc
+ M examples/sentai_runtime/sentai_calib.cc
+ M examples/sentai_runtime/sentai_camera_frame_backend.c
+ M examples/sentai_runtime/sentai_pxp_shim.h
+ M examples/sentai_runtime/sentai_pxp_shim_sim.c
+ M examples/sentai_runtime/sentai_runtime.cc
+ M examples/sentai_runtime/sentai_servo.cc
+ M libs/tpu/edgetpu_driver.cc
+ M libs/tpu/edgetpu_op.cc
+ M sim/build_version.h
+ M sim/build_version.txt
+ M sim/modsentai_sim.c
+ M sim/sentai_platform_sim_backend.c
+ M sim/tpu_posix_invoke_smoke.cc
+ M todo/TD-S10-A9_emulator_runtime_namespace_completion.md
+ M todo/TD-S10-B9_verify_sentai_namespaces_in_arm_emulator.md
+?? emu/renode/SentaiPxpAccelerator.cs
+?? emu/sentai_emu_pipeline_unavailable_backend.c
+?? examples/sentai_runtime/bindings/modsentai_version.c
+?? examples/sentai_runtime/experiments/s213_arm_emulator_idle/iter112_renode_tpu_cat_repl_filex_physical_coral/
+?? examples/sentai_runtime/experiments/s213_arm_emulator_idle/iter113_renode_tpu_cat_repl_filex_physical_coral/
+?? examples/sentai_runtime/experiments/s213_arm_emulator_idle/iter114_renode_fs_stage_assets_filex_levelx_nand/
+?? examples/sentai_runtime/experiments/s213_arm_emulator_idle/iter115_renode_fs_asset_check_filex_levelx_nand/
+?? examples/sentai_runtime/experiments/s213_arm_emulator_idle/iter116_renode_fs_asset_check_filex_levelx_nand/
+?? examples/sentai_runtime/experiments/s213_arm_emulator_idle/iter117_renode_tpu_cat_repl_filex_physical_coral/
+?? examples/sentai_runtime/experiments/s213_arm_emulator_idle/iter118_renode_tpu_cat_repl_filex_physical_coral/
+?? examples/sentai_runtime/experiments/s216_arm_emulator_namespace_inventory/iter06_namespace_inventory/
+?? examples/sentai_runtime/experiments/s216_arm_emulator_namespace_inventory/iter07_namespace_inventory/
+?? examples/sentai_runtime/experiments/s216_arm_emulator_namespace_inventory/iter08_namespace_inventory/
+?? examples/sentai_runtime/experiments/s228_arm_emulator_hw_stub_namespaces/iter03_hw_stub_namespaces/
+?? examples/sentai_runtime/experiments/s228_arm_emulator_hw_stub_namespaces/iter04_hw_stub_namespaces/
+?? examples/sentai_runtime/experiments/s228_arm_emulator_hw_stub_namespaces/iter05_hw_stub_namespaces/
+?? examples/sentai_runtime/experiments/s228_arm_emulator_hw_stub_namespaces/iter06_hw_stub_namespaces/
+?? examples/sentai_runtime/experiments/s228_arm_emulator_hw_stub_namespaces/iter07_hw_stub_namespaces/
+?? examples/sentai_runtime/experiments/s233_arm_emulator_gazebo_flow_whycon/iter32_gazebo_flow_whycon/
+?? examples/sentai_runtime/experiments/s233_arm_emulator_gazebo_flow_whycon/iter33_gazebo_flow_whycon/
+?? examples/sentai_runtime/experiments/s233_arm_emulator_gazebo_flow_whycon/iter34_gazebo_flow_whycon/
+?? examples/sentai_runtime/experiments/s233_arm_emulator_gazebo_flow_whycon/iter35_gazebo_flow_whycon/
+?? examples/sentai_runtime/experiments/s233_arm_emulator_gazebo_flow_whycon/iter36_gazebo_flow_whycon/
+?? examples/sentai_runtime/experiments/s233_arm_emulator_gazebo_flow_whycon/iter37_gazebo_flow_whycon/
+?? examples/sentai_runtime/experiments/s233_arm_emulator_gazebo_flow_whycon/iter38_gazebo_flow_whycon/
+?? examples/sentai_runtime/experiments/s233_arm_emulator_gazebo_flow_whycon/iter39_gazebo_flow_whycon/
+?? examples/sentai_runtime/experiments/s233_arm_emulator_gazebo_flow_whycon/iter40_gazebo_flow_whycon/
+?? examples/sentai_runtime/experiments/s233_arm_emulator_gazebo_flow_whycon/iter41_gazebo_flow_whycon/
+?? examples/sentai_runtime/experiments/s233_arm_emulator_gazebo_flow_whycon/iter42_gazebo_flow_whycon/
+?? examples/sentai_runtime/experiments/s233_arm_emulator_gazebo_flow_whycon/iter43_gazebo_flow_whycon/
+?? examples/sentai_runtime/experiments/s233_arm_emulator_gazebo_flow_whycon/iter44_gazebo_flow_whycon/
+?? examples/sentai_runtime/experiments/s234_tpu512_timing_recheck/
+?? examples/sentai_runtime/sentai_calib_bringup_unavailable.c
+?? examples/sentai_runtime/sentai_calib_orientation_task_unavailable.c
+?? examples/sentai_runtime/sentai_calib_task_unavailable.c
+?? examples/sentai_runtime/sentai_pxp_shim_emu.c
+?? examples/sentai_runtime/sentai_pxp_shim_scalar.h
+?? examples/sentai_runtime/sentai_safety_task_unavailable.c
+?? examples/sentai_runtime/sentai_servo_marker_task_unavailable.c
+?? ideas/old_pc_harvest_brief.md

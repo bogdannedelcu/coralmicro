@@ -9,8 +9,8 @@
 // sim/modsentai_sim.c (SIM); both pull py/runtime.h + string.h.
 // Don't re-include MP headers here.
 
-#include "sentai_fr.h"
-#include "sentai_fr_task.h"
+#include "../sentai_fr.h"
+#include "../sentai_fr_task.h"
 
 // ── Channel name string → enum dispatch ────────────────────────────────
 static sentai_fr_channel_t parse_chan_(mp_obj_t name_obj) {

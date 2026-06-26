@@ -1,0 +1,70 @@
+[  0%] Built target sentai_browser_html
+[  0%] Incrementing build version...
+[  1%] Built target libh3_arm
+[  1%] Built target libs_littlefs
+[  1%] Built target nanopb
+[  1%] Built target libs_littlefs-m4
+[  2%] Built target libs_kissfft-m7
+[  4%] Built target libs_FreeRTOS-m4
+[  5%] Built target shine
+[ 10%] Built target libs_levelx
+[ 13%] Built target libs_CMSIS-m7
+[ 15%] Built target libs_libjpeg
+[ 17%] Built target libs_FreeRTOS
+-- Build #1538 at 2026-06-24 09:59:38
+[ 20%] Built target libs_aifes_m7
+[ 24%] Built target libs_CMSIS-m4
+[ 24%] Built target increment_build_version
+[ 26%] Built target meshtastic_pb
+[ 43%] Built target libs_filex
+[ 50%] Built target libs_nxp_rt1176-sdk_freertos-m4
+[ 56%] Built target libs_nxp_rt1176-sdk_freertos
+[ 56%] Built target libs_nxp_rt1176-sdk-mcmgr_m7
+[ 56%] Built target libs_usb_host_edgetpu_freertos
+[ 56%] Built target libs_t5838_freertos
+[ 56%] Built target libs_pmic_freertos-m4
+[ 57%] Built target libs_pmic_freertos
+[ 57%] Built target libs_usb_host_task_freertos
+[ 60%] Built target libs_nxp_rt1176-sdk_lwip
+[ 62%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_task.c.obj
+[ 62%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/modsentai.c.obj
+[ 62%] Built target libs_nxp_rt1176-sdk_lwip_httpd
+[ 62%] Built target libs_audio_freertos
+[ 63%] Built target libs_base-m4_freertos
+[ 63%] Built target libs_base-m7_http_server
+[ 68%] Built target libs_nxp_rt1176-sdk-mbedtls
+In file included from /home/bogdan/work/coralmicro/examples/sentai_runtime/modsentai.c:334:
+/home/bogdan/work/coralmicro/examples/sentai_runtime/bindings/modsentai_crazy.c: In function 'mod_sentai_crazy_hl_stop':
+/home/bogdan/work/coralmicro/examples/sentai_runtime/bindings/modsentai_crazy.c:100:27: warning: implicit declaration of function 'sentai_crazy_hl_stop'; did you mean 'sentai_crazy_fly_stop'? [-Wimplicit-function-declaration]
+  100 |     return mp_obj_new_int(sentai_crazy_hl_stop(group));
+      |                           ^~~~~~~~~~~~~~~~~~~~
+      |                           sentai_crazy_fly_stop
+[ 68%] Built target libs_camera_freertos-m4
+/home/bogdan/work/coralmicro/examples/sentai_runtime/bindings/modsentai_crazy.c: In function 'mod_sentai_crazy_attitude_release_no_disarm':
+/home/bogdan/work/coralmicro/examples/sentai_runtime/bindings/modsentai_crazy.c:199:27: warning: implicit declaration of function 'sentai_crazy_attitude_release_no_disarm'; did you mean 'mod_sentai_crazy_attitude_release_no_disarm'? [-Wimplicit-function-declaration]
+  199 |     return mp_obj_new_int(sentai_crazy_attitude_release_no_disarm());
+      |                           ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      |                           mod_sentai_crazy_attitude_release_no_disarm
+[ 68%] Built target libs_usb_device_task_freertos
+[ 68%] Built target sentai_m4_aruco_bench
+[ 69%] Built target libs_tpu_freertos
+[ 69%] Built target libs_tpu_task_freertos
+[ 69%] Built target libs_tpu_dfu_task_freertos
+[ 82%] Built target libs_tensorflow-m7
+[ 84%] Built target libs_base-m7_freertos
+[ 84%] Built target libs_msc_ums_freertos
+[ 85%] Built target libs_cdc_ncm_freertos
+[ 85%] Built target libs_cdc_eem_freertos
+[ 85%] Built target libs_cdc_acm_freertos
+[ 85%] Built target libs_camera_freertos
+[ 86%] Built target libs_lis2du12_freertos
+[ 86%] Built target libs_aifes_task_m7
+[ 86%] Built target libs_jpeg_m7
+[ 86%] Linking C static library liblibmicropython.a
+[ 95%] Built target libmicropython
+[ 95%] Building CXX object examples/sentai_runtime/CMakeFiles/sentai_runtime.dir/sentai_runtime.cc.obj
+/tmp/cc7u4iSp.s: Assembler messages:
+/tmp/cc7u4iSp.s:18460: Warning: ignoring changed section type for .sdram_bss
+/tmp/cc7u4iSp.s:18460: Warning: ignoring changed section attributes for .sdram_bss
+[ 95%] Linking CXX executable sentai_runtime
+[100%] Built target sentai_runtime

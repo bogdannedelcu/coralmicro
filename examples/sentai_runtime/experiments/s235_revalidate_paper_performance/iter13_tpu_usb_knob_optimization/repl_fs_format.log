@@ -1,0 +1,22 @@
+
+>>> import sentai
+import sentai
+>>> 
+>>> print('format', sentai.fs.format())
+print('format', sentai.fs.format())
+[fx_user] force_format requested (operator confirmed)
+[bbt] no persisted BBT, starting clean
+[fx_user] lx_format ok in 381 ms
+[bbt] no persisted BBT, starting clean
+[fx_user] fx_media_format ok
+[fx_user] mounted (post-format)
+format True
+>>> 
+>>> print('exists_root', sentai.fs.exists('/'))
+print('exists_root', sentai.fs.exists('/'))
+exists_root True
+>>> 
+>>> print('ls_root', sentai.fs.ls('/'))
+print('ls_root', sentai.fs.ls('/'))
+ls_root []
+>>> 

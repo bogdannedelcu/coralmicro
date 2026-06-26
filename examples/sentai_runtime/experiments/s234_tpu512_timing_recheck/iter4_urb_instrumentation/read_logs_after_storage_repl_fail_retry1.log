@@ -1,0 +1,146 @@
+PORT /dev/ttyACM0
+
+KeyboardInterrupt
+>>> 
+>>> 
+>>> import sentai
+>>> print('BOOT_LOG_BEGIN')
+BOOT_LOG_BEGIN
+>>> print(sentai.fs.read_str('/log/boot.log'))
+[00:00:000] 
+SentAI build #1539 (2026-06-24 10:01:56)
+[00:00:000] Reset reason: 0x08000002 [00:00:000] 
+[flowpc] bc: no prior breadcrumbs (magic=00000000)
+[00:00:119] Boot logging to /log/boot.log
+[00:00:119] [boot-mode] storage=0 attempts=0 prev_progress=0x00 sram=00000000/00000000 GPR9=57500001 GPR10=57500001 GPR11=57500001 GPR12=57500001 GPR15=57500001 GPR16=57500001
+[00:00:120] User button -> sentai.usb.drive(1)  [enter STORAGE mode]
+[00:00:120] Starting MicroPython REPL task...
+[MicroPython] REPL task created (stack=16384, priority=1)
+[00:00:120] Watchdog started (auto-reset if HTTP+REPL dead for 2min)
+[00:00:120] Boot complete, system mode: NORMAL
+[00:00:120] M4 offload: disabled (flow runs on M7).
+[00:00:120] SentAI MicroPython Runtime
+[EdgeTPU mgr] creating context
+[MicroPython] REPL task started
+[crazy] RX task started
+[crazy] CMD task started
+[crazy] initialized at 576000 baud (CPX/CRTP)
+[boot] crazy bridge auto-init OK (radio surface up)
+
+>>> print('BOOT_LOG_END')
+BOOT_LOG_END
+>>> print('BOOT_OLD_BEGIN')
+BOOT_OLD_BEGIN
+>>> print(sentai.fs.read_str('/log/boot_old.log'))
+[00:00:000] 
+SentAI build #1539 (2026-06-24 10:01:56)
+[00:00:000] Reset reason: 0x08010003 [00:00:000] 
+[flowpc] bc: no prior breadcrumbs (magic=00000000)
+[00:01:964] Boot logging to /log/boot.log
+[00:01:964] [boot-mode] storage=0 attempts=0 prev_progress=0x00 sram=00000000/00000000 GPR9=00000000 GPR10=00000000 GPR11=00000000 GPR12=00000000 GPR15=00000000 GPR16=00000000
+[00:01:965] User button -> sentai.usb.drive(1)  [enter STORAGE mode]
+[00:01:965] Starting MicroPython REPL task...
+[MicroPython] REPL task created (stack=16384, priority=1)
+[00:01:965] Watchdog started (auto-reset if HTTP+REPL dead for 2min)
+[00:01:965] Boot complete, system mode: NORMAL
+[00:01:965] M4 offload: disabled (flow runs on M7).
+[00:01:965] SentAI MicroPython Runtime
+[EdgeTPU mgr] creating context
+[MicroPython] REPL task started
+[crazy] RX task started
+[crazy] CMD task started
+[crazy] initialized at 576000 baud (CPX/CRTP)
+[boot] crazy bridge auto-init OK (radio surface up)
+
+>>> print('BOOT_OLD_END')
+BOOT_OLD_END
+>>> print('CRASH000_BEGIN')
+CRASH000_BEGIN
+>>> print(sentai.fs.read_str('/log/crash_000.log')[-3000:])
+d       Blk prio=4 hwm=3832
+    m4_console_task    Blk prio=3 hwm=3260
+    camera_task        Blk prio=4 hwm=2568
+    btn_usb            Sus prio=1 hwm=1332
+    cdc_ncm_task       Blk prio=4 hwm=3216
+    edgetpu_dfu_task   Blk prio=3 hwm=756
+    edgetpu_task       Blk prio=3 hwm=612
+    app_main           Sus prio=3 hwm=8804
+    usb_device_task    Blk prio=4 hwm=2952
+    ipc_tx_task        Sus prio=4 hwm=3556
+    ipc_rx_task        Sus prio=4 hwm=3556
+    m7_console_task_tx Blk prio=3 hwm=3384
+    Tmr Svc            Blk prio=4 hwm=560
+    UsbHostTask        Blk prio=4 hwm=3144
+    pmic_task          Blk prio=4 hwm=3444
+    m7_console_task_rx Blk prio=3 hwm=3404
+[00:02:08.206] WDG_WARN: idle=110 H=124 R=110
+  HTTP: reqs=0 hangs=0 idle=125082ms
+  REPL: inputs=7 idle=110901ms
+  Network=1 FreeHeap=14576944
+
+  TASK_DUMP (WDG_WARN, t=128215ms, n=22):
+    hw_wdog            Run prio=3 hwm=5212
+    crazy_rx           Rdy prio=2 hwm=2944
+    crazy_cmd          Rdy prio=2 hwm=1048
+    mp_repl            Rdy prio=1 hwm=13916
+    IDLE               Rdy prio=0 hwm=212
+    DHCP thread        Blk prio=3 hwm=324
+    tcpip_thread       Blk prio=4 hwm=3832
+    camera_task        Blk prio=4 hwm=2568
+    btn_usb            Sus prio=1 hwm=1332
+    cdc_ncm_task       Blk prio=4 hwm=3216
+    edgetpu_dfu_task   Blk prio=3 hwm=756
+    edgetpu_task       Blk prio=3 hwm=612
+    app_main           Sus prio=3 hwm=8804
+    ipc_tx_task        Sus prio=4 hwm=3556
+    ipc_rx_task        Sus prio=4 hwm=3556
+    pmic_task          Blk prio=4 hwm=3444
+    usb_device_task    Blk prio=4 hwm=2952
+    m7_console_task_tx Blk prio=3 hwm=3384
+    Tmr Svc            Blk prio=4 hwm=560
+    UsbHostTask        Blk prio=4 hwm=3144
+    m7_console_task_rx Blk prio=3 hwm=3404
+    m4_console_task    Blk prio=3 hwm=3260
+[00:02:21.572] WDG_DEAD: idle=123 H=138 R=123
+  HTTP: reqs=0 hangs=0 idle=138448ms
+  REPL: inputs=7 idle=124267ms
+  Network=0 FreeHeap=14576944
+
+  TASK_DUMP (WDG_DEAD, t=141580ms, n=22):
+    hw_wdog            Run prio=3 hwm=5212
+    crazy_rx           Rdy prio=2 hwm=2944
+    crazy_cmd          Rdy prio=2 hwm=1048
+    mp_repl            Rdy prio=1 hwm=13916
+    IDLE               Rdy prio=0 hwm=212
+    DHCP thread        Blk prio=3 hwm=324
+    tcpip_thread       Blk prio=4 hwm=3832
+    btn_usb            Sus prio=1 hwm=1332
+    cdc_ncm_task       Blk prio=4 hwm=3216
+    edgetpu_dfu_task   Blk prio=3 hwm=756
+    edgetpu_task       Blk prio=3 hwm=612
+    app_main           Sus prio=3 hwm=8804
+    ipc_tx_task        Sus prio=4 hwm=3556
+    ipc_rx_task        Sus prio=4 hwm=3556
+    pmic_task          Blk prio=4 hwm=3444
+    usb_device_task    Blk prio=4 hwm=2952
+    m7_console_task_rx Blk prio=3 hwm=3404
+    m7_console_task_tx Blk prio=3 hwm=3384
+    Tmr Svc            Blk prio=4 hwm=560
+    UsbHostTask        Blk prio=4 hwm=3144
+    m4_console_task    Blk prio=3 hwm=3260
+    camera_task        Blk prio=4 hwm=2568
+
+>>> print('CRASH000_END')
+CRASH000_END
+>>> print('CRASH001_BEGIN')
+CRASH001_BEGIN
+>>> print(sentai.fs.read_str('/log/crash_001.log'))
+[00:00:00.013] BOOT_AFTER_WATCHDOG: Previous reset was watchdog timeout
+  HTTP: reqs=0 hangs=0 idle=13ms
+  REPL: inputs=1 idle=13ms
+  Network=1 FreeHeap=14617472
+
+
+>>> print('CRASH001_END')
+CRASH001_END
+>>> 

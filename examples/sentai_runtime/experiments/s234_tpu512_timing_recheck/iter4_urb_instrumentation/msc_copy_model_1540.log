@@ -1,0 +1,16 @@
++ test -d /run/media/bogdan/0000-0001
++ lsblk -o NAME,PATH,TRAN,SIZE,MODEL,FSTYPE,LABEL,MOUNTPOINTS
++ rg 'FLASH STORAGE|0000-0001|usb'
+sdc         /dev/sdc       usb       55M FLASH STORAGE         vfat             /run/media/bogdan/0000-0001
++ mkdir -p /run/media/bogdan/0000-0001/lib/diag
++ cp examples/sentai_runtime/diag/_t_timing_urb.py /run/media/bogdan/0000-0001/lib/diag/_t_timing_urb.py
++ cp models/yolo_1_class_512_1_upsample_512_inloc_de_1024_la_P5_32.tflite /run/media/bogdan/0000-0001/yolo_1_class_512_1_upsample_512_inloc_de_1024_la_P5_32.tflite
++ sync
++ ls -l /run/media/bogdan/0000-0001/yolo_1_class_512_1_upsample_512_inloc_de_1024_la_P5_32.tflite /run/media/bogdan/0000-0001/lib/diag/_t_timing_urb.py
+-rw-r--r-- 1 bogdan bogdan    2297 Jun 24 10:06 /run/media/bogdan/0000-0001/lib/diag/_t_timing_urb.py
+-rw-r--r-- 1 bogdan bogdan 5591680 Jun 24 10:06 /run/media/bogdan/0000-0001/yolo_1_class_512_1_upsample_512_inloc_de_1024_la_P5_32.tflite
++ sha256sum /run/media/bogdan/0000-0001/yolo_1_class_512_1_upsample_512_inloc_de_1024_la_P5_32.tflite models/yolo_1_class_512_1_upsample_512_inloc_de_1024_la_P5_32.tflite /run/media/bogdan/0000-0001/lib/diag/_t_timing_urb.py examples/sentai_runtime/diag/_t_timing_urb.py
+49942d36335f1e09ee10d29b967bf413c8d449a3261d9d7bb9cb1d51a8a73e4f  /run/media/bogdan/0000-0001/yolo_1_class_512_1_upsample_512_inloc_de_1024_la_P5_32.tflite
+49942d36335f1e09ee10d29b967bf413c8d449a3261d9d7bb9cb1d51a8a73e4f  models/yolo_1_class_512_1_upsample_512_inloc_de_1024_la_P5_32.tflite
+f8935884c5e0ae9f8f078b6554a718d72ac14599cf8926e5f01aa0629be7fb67  /run/media/bogdan/0000-0001/lib/diag/_t_timing_urb.py
+f8935884c5e0ae9f8f078b6554a718d72ac14599cf8926e5f01aa0629be7fb67  examples/sentai_runtime/diag/_t_timing_urb.py

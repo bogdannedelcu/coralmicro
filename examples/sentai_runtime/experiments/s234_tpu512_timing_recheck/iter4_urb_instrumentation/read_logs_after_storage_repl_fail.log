@@ -1,0 +1,43 @@
+PORT /dev/ttyACM0
+
+KeyboardInterrupt
+>>> 
+>>> 
+>>> import sentai
+>>> print('VER', sentai.version())
+VER SentAI v1.0 build 1539 (2026-06-24 10:01:56)
+>>> print('ROOT', sentai.fs.ls('/'))
+ROOT [('lib', 2, 0), ('diags', 2, 0), ('log', 2, 0)]
+>>> print('LOGDIR', sentai.fs.ls('/log'))
+LOGDIR [('boot.log', 1, 982), ('boot_old.log', 1, 982), ('crash_000.log', 1, 8074), ('crash_001.log', 1, 168)]
+>>> print('BOOT_SIZE', sentai.fs.size('/log/boot.log'))
+BOOT_SIZE 982
+>>> print('BOOT_OLD_SIZE', sentai.fs.size('/log/boot_old.log'))
+BOOT_OLD_SIZE 982
+>>> print('BOOT_PREV_SIZE', sentai.fs.size('/log/boot_prev.log'))
+BOOT_PREV_SIZE -1
+>>> print('CRASH0', sentai.fs.size('/log/crash.log'))
+CRASH0 -1
+>>> print('CRASHDIR', sentai.fs.ls('/log'))
+CRASHDIR [('boot.log', 1, 982), ('boot_old.log', 1, 982), ('crash_000.log', 1, 8074), ('crash_001.log', 1, 168)]
+>>> print('BOOT_TAIL_START')
+BOOT_TAIL_START
+>>> rint(sentai.fs.read_str('/log/boot.log')[-3000:])
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 'rint' isn't defined
+>>> rint('BOOT_TAIL_END')
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 'rint' isn't defined
+>>> print('BOOT_OLD_TAIL_START')
+BOOT_OLD_TAIL_START
+>>> rint(sentai.fs.read_str('/log/boot_old.log')[-3000:])
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 'rint' isn't defined
+>>> rint('BOOT_OLD_TAIL_END')
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 'rint' isn't defined
+>>> 

@@ -491,7 +491,7 @@ static void micropython_repl_task(void* param) {
     // power off, hardware fault), we log the error code and continue —
     // USB-side REPL stays fully functional, only the radio surface is
     // missing.  Embeded.md §F: degraded mode > silent failure.
-    {
+    if (!sentai_usb_drive_get()) {
         extern int sentai_crazy_init(uint32_t baudrate);
         int crc = sentai_crazy_init(576000);  /* CF deck UART baud */
         if (crc == 0) {
@@ -500,6 +500,8 @@ static void micropython_repl_task(void* param) {
             printf("[boot] crazy bridge auto-init failed: %d "
                    "(USB REPL still up; radio degraded)\r\n", crc);
         }
+    } else {
+        printf("[boot] storage mode: crazy bridge auto-init skipped\r\n");
     }
 
     // Auto-run /main.py if it exists on the user partition

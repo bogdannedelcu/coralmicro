@@ -1,0 +1,8 @@
+{
+  "status": "blocked",
+  "reason": "board user filesystem unavailable; sentai.fs.ls('/') raises OSError: dir not found and mkdir/write/append return False",
+  "board_build": "1375",
+  "experiment_driver": "examples/sentai_runtime/diag/_t_timing.py unchanged",
+  "first_failed_step": "upload unchanged _t_timing.py to /lib/diag/_t_timing.py",
+  "destructive_recovery_required": "likely sentai.fs.format() or flashtool data-files reflash before model/script can be staged"
+}

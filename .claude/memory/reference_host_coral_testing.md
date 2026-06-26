@@ -10,14 +10,29 @@ investigation.
 
 ## Setup (one-shot)
 
+UPDATE 2026-06-26: the box was upgraded — system python is now **3.12 / 3.14**,
+`python3.9` is GONE from apt. The legacy coral stack (pycoral + tflite_runtime
+2.5 + libedgetpu 16.0) needs py3.6–3.9. Do NOT try `ai-edge-litert` (invoke
+fails: "unresolved custom op EdgeTpuDelegateForCustomOp") or `tensorflow-cpu
+2.17` (hard segfault) — both are ABI-incompatible with apt libedgetpu 16.0.
+Working recipe = fetch a relocatable CPython 3.9 then install the legacy stack:
+
 ```bash
-# python3.9 is available on this box (Ubuntu 24.04 apt has libpython3.9)
-python3.9 -m venv /home/bogdan/work/coralmicro/venv-coral
-/home/bogdan/work/coralmicro/venv-coral/bin/pip install --upgrade pip
-/home/bogdan/work/coralmicro/venv-coral/bin/pip install --extra-index-url \
-    https://google-coral.github.io/py-repo/ pycoral
-/home/bogdan/work/coralmicro/venv-coral/bin/pip install "numpy<2"  # pybind built against numpy 1.x
+# relocatable python 3.9 (no apt, no conda/pyenv on this box)
+curl -skL https://github.com/astral-sh/python-build-standalone/releases/download/20240224/cpython-3.9.18+20240224-x86_64-unknown-linux-gnu-install_only.tar.gz | tar xz   # -> ./python/bin/python3.9
+./python/bin/python3.9 -m venv /home/bogdan/work/coralmicro/venv-coral39
+venv-coral39/bin/pip install --extra-index-url \
+    https://google-coral.github.io/py-repo/ pycoral tflite-runtime "numpy<2" pillow
+# verify: venv-coral39/bin/python -c "from pycoral.utils.edgetpu import list_edge_tpus; print(list_edge_tpus())"
 ```
+
+The Coral USB Accelerator can wedge in runtime state (stuck at `18d1:9302`,
+invoke fails even with a fresh interpreter); a USBDEVFS_RESET does NOT clear it
+— **physical replug** is the fix (drops to DFU `1a6e:089a`, firmware
+re-uploads cleanly on next pycoral open). Verified 2026-06-26 running the
+headless YOLOv5n p3p4 cover_v1 detectors (s236).
+
+Legacy (pre-2026-06): `python3.9` used to come from apt; venv was `venv-coral`.
 
 Device enumerates as `1a6e:089a` (DFU) pre-pycoral, `18d1:9302` (Google EdgeTPU)
 after pycoral auto-uploads apex.bin.  On this Ubuntu host it runs at **USB 3.0

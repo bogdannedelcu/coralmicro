@@ -1,0 +1,8 @@
+t=5ms file begin kind=1 expected_size=7077792 path=/tmp/sentai_emu_tpu_model.tflite
+t=1428ms file done kind=1 bytes=7077792 chunks=216 total_ms=1424 guest_read_ms=5 host_write_ms=13
+t=1430ms file begin kind=2 expected_size=921654 path=/tmp/sentai_emu_tpu_image.bmp
+t=1498ms file done kind=2 bytes=921654 chunks=29 total_ms=69 guest_read_ms=0 host_write_ms=3
+t=1498ms invoke begin
+t=1613ms smoke TPU_BENCH_CONFIG perf=low desc_cache=0 chunk_size=163840 bulkin_chunk_size=256 bulkin_queue_depth=0 sleep_after_bulkin=0 async_input=0 zero_copy_input=1 multi_ep=0 break_short_bulkin=0 fast_sync_wait=0 runs=1 warmup=0
+t=1616ms invoke exit=4 host_ms=112
+t=1616ms 

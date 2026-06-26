@@ -1,0 +1,40 @@
+
+>>> 
+KeyboardInterrupt
+>>> 
+KeyboardInterrupt
+>>> 
+
+>>> 
+>>> 
+>>> import sentai
+import sentai
+>>> 
+>>> print('VERSION', sentai.version())
+print('VERSION', sentai.version())
+VERSION SentAI v1.0 build 1535 (2026-06-24 09:43:33)
+>>> 
+>>> print('URB_STATS_ATTR', hasattr(sentai.tpu, 'urb_stats'))
+print('URB_STATS_ATTR', hasattr(sentai.tpu, 'urb_stats'))
+URB_STATS_ATTR True
+>>> 
+>>> print('URB_STATS', sentai.tpu.urb_stats())
+print('URB_STATS', sentai.tpu.urb_stats())
+URB_STATS (792000000, ((0, 0, 0, 0, 0, 0, 0, 0, 0, 0), (0, 0, 0, 0, 0, 0, 0, 0, 0, 0), (0, 0, 0, 0, 0, 0, 0, 0, 0, 0), (0, 0, 0, 0, 0, 0, 0, 0, 0, 0), (0, 0, 0, 0, 0, 0, 0, 0, 0, 0), (0, 0, 0, 0, 0, 0, 0, 0, 0, 0)))
+>>> 
+>>> print('FS_ROOT', sentai.fs.exists('/'))
+print('FS_ROOT', sentai.fs.exists('/'))
+FS_ROOT True
+>>> 
+>>> print('FS_MODEL', sentai.fs.size('/yolo_1_class_512_1_upsample_512_inloc_de_1024_la_P5_32.tflite'))
+print('FS_MODEL', sentai.fs.size('/yolo_1_class_512_1_upsample_512_inloc_de_1024_la_P5_32.tflite'))
+FS_MODEL 5591680
+>>> 
+>>> print('FS_LIB', sentai.fs.exists('/lib'))
+print('FS_LIB', sentai.fs.exists('/lib'))
+FS_LIB True
+>>> 
+>>> print('FS_DIAG', sentai.fs.exists('/lib/diag'))
+print('FS_DIAG', sentai.fs.exists('/lib/diag'))
+FS_DIAG True
+>>> 

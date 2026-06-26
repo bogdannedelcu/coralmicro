@@ -1,0 +1,78 @@
+Collecting progress
+  Downloading progress-1.6.1-py3-none-any.whl.metadata (4.3 kB)
+Collecting hexformat==0.2 (from -r scripts/requirements.txt (line 1))
+  Using cached hexformat-0.2-py3-none-any.whl
+Collecting hidapi==0.10.1 (from -r scripts/requirements.txt (line 2))
+  Using cached hidapi-0.10.1.tar.gz (60 kB)
+  Installing build dependencies: started
+  Installing build dependencies: finished with status 'done'
+  Getting requirements to build wheel: started
+  Getting requirements to build wheel: finished with status 'done'
+  Installing backend dependencies: started
+  Installing backend dependencies: finished with status 'done'
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Collecting progress
+  Using cached progress-1.5-py3-none-any.whl
+Collecting pyserial==3.5 (from -r scripts/requirements.txt (line 4))
+  Using cached pyserial-3.5-py2.py3-none-any.whl.metadata (1.6 kB)
+Collecting pyusb==1.2.0 (from -r scripts/requirements.txt (line 5))
+  Using cached pyusb-1.2.0-py3-none-any.whl.metadata (2.2 kB)
+Collecting setuptools>=19.0 (from hidapi==0.10.1->-r scripts/requirements.txt (line 2))
+  Using cached setuptools-82.0.1-py3-none-any.whl.metadata (6.5 kB)
+Using cached pyserial-3.5-py2.py3-none-any.whl (90 kB)
+Using cached pyusb-1.2.0-py3-none-any.whl (58 kB)
+Using cached setuptools-82.0.1-py3-none-any.whl (1.0 MB)
+Building wheels for collected packages: hidapi
+  Building wheel for hidapi (pyproject.toml): started
+  Building wheel for hidapi (pyproject.toml): finished with status 'error'
+  error: subprocess-exited-with-error
+  
+  × Building wheel for hidapi (pyproject.toml) did not run successfully.
+  │ exit code: 1
+  ╰─> [21 lines of output]
+      /tmp/pip-build-env-qrcyec8c/overlay/lib/python3.14/site-packages/setuptools/dist.py:765: SetuptoolsDeprecationWarning: License classifiers are deprecated.
+      !!
+      
+              ********************************************************************************
+              Please consider removing the following classifiers in favor of a SPDX license expression:
+      
+              License :: OSI Approved :: BSD License
+              License :: OSI Approved :: GNU General Public License v3 (GPLv3)
+      
+              See https://packaging.python.org/en/latest/guides/writing-pyproject-toml/#license for details.
+              ********************************************************************************
+      
+      !!
+        self._finalize_license_expression()
+      running bdist_wheel
+      running build
+      running build_ext
+      Compiling hid.pyx because it changed.
+      [1/1] Cythonizing hid.pyx
+      building 'hid' extension
+      error: unknown file type '.pxd' (from 'chid.pxd')
+      [end of output]
+  
+  note: This error originates from a subprocess, and is likely not a problem with pip.
+  ERROR: Failed building wheel for hidapi
+Failed to build hidapi
+ERROR: Failed to build installable wheels for some pyproject.toml based projects (hidapi)
+Collecting progress==1.5
+  Using cached progress-1.5-py3-none-any.whl
+Collecting pyserial==3.5
+  Using cached pyserial-3.5-py2.py3-none-any.whl.metadata (1.6 kB)
+Collecting pyusb==1.2.0
+  Using cached pyusb-1.2.0-py3-none-any.whl.metadata (2.2 kB)
+Collecting hexformat==0.2
+  Using cached hexformat-0.2-py3-none-any.whl
+Using cached pyserial-3.5-py2.py3-none-any.whl (90 kB)
+Using cached pyusb-1.2.0-py3-none-any.whl (58 kB)
+Installing collected packages: pyserial, progress, hexformat, pyusb
+
+Successfully installed hexformat-0.2 progress-1.5 pyserial-3.5 pyusb-1.2.0
+Collecting hidapi>=0.14
+  Using cached hidapi-0.15.0-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (3.7 kB)
+Using cached hidapi-0.15.0-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (1.1 MB)
+Installing collected packages: hidapi
+Successfully installed hidapi-0.15.0

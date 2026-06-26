@@ -1,0 +1,59 @@
+
+>>> import sentai
+>>> sentai.run('/lib/diag/pure_tpu_wall_one_chunk.py')
+1
+S235 B10.2 pure TPU wall one chunk
+version=SentAI v1.0 build 1543 (2026-06-24 10:48:29)
+model=/yolo_1_class_512_1_upsample_512_inloc_de_1024_la_P5_32.tflite
+chunk_kb=36 invokes=50 warmup=5
+chunk_set prev=36864 now=36864
+urb_timeout_ms=200 desc_cache=default_off_not_toggled
+Model loaded: 5591680 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x87d0eda232ac7cda
+Input:  uint8[1,512,512,3] (786432 bytes)
+  quant: scale=0.00392157  zero_point=0
+Outputs: 1
+  [0] uint8[1,1344,6] (8064 bytes)
+      quant: scale=0.00392150  zero_point=0
+Arena used: 776 / 8192 KB
+Model name: yolo_1_class_512_1_upsample_512_
+load_rc=0
+HandlePowerRequest: try I2C1: Success
+HandlePowerRequest: try I2C2: Success
+CAMERA_RECEIVER_Init = 0
+BOARD_PullCameraPowerDownPin:1
+BOARD_PullCameraResetPin:0
+BOARD_PullCameraPowerDownPin:0
+BOARD_PullCameraResetPin:1
+CAMERA_DEVICE_Init = 0
+CAMERA_DEVICE_Start = 0
+CAMERA_RECEIVER_Start = 0
+[CAM] sensor_fps=29 (1 s sample, target=30)
+[CAM1] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM1] W 0x3820=0x47 (0)
+[CAM1] W 0x3821=0x01 (0)
+[CAM0] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM0] W 0x3820=0x47 (0)
+[CAM0] W 0x3821=0x01 (0)
+0
+[to_tensor] frame=2ms pxp=11ms quant=0ms total=13ms (512x512)
+0
+warmup0=32
+warmup1=15
+warmup2=12
+warmup3=12
+warmup4=16
+yc': 0, 'bytes_done': 0, 'submit_fail': 0, 'wait_us': 0, 'wait_cyc': 0, 'callbacks': 0}, 'event': {'errors': 0, 'calls': 0, 'timeouts': 0, 'submit_us': 0, 'callback_us': 0, 'bytes_req': 0, 'submit_cyc': 0, 'callback_cyc': 0, 'bytes_done': 0, 'submit_fail': 0, 'wait_us': 0, 'wait_cyc': 0, 'callbacks': 0}})
+reported_hz=792000000
+result chunk_kb=36 wall_us=2071407 wall_ms_per=41.428139 fps=24.138182 tick_ms_per=15.220000 failures=0
+phase,calls,bytes_req,bytes_done,wait_ms_per_invoke,errors,timeouts,submit_fail
+instructions,650,18584000,18584000,14.572780,0,0,0
+input,1250,40551200,40551200,24.508600,0,0,0
+parameters,100,138000,138000,0.127820,0,0,0
+output,50,537600,537600,1.714700,0,0,0
+event,50,800,800,0.037600,0,0,0
+unknown,0,0,0,0.000000,0,0,0
+[bbt] no persisted BBT, starting clean
+csv=/diags/s235_b10_pure_tpu/pure_tpu_wall.csv
+=== s235_b10_pure_tpu_one_chunk_done ===
+>>> 

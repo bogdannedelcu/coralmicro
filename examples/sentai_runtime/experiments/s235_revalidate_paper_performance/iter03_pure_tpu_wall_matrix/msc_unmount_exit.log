@@ -1,0 +1,19 @@
+2026-06-24T10:45:01+03:00
+Unmounted /dev/sdc.
+sdc         usb       55M FLASH STORAGE         
+
+KeyboardInterrupt
+>>> 
+KeyboardInterrupt
+>>> 
+>>> 
+>>> 
+import sentai
+>>> 
+Traceback (most recent call last):
+  File "<stdin>", line 13, in <module>
+  File "/usr/lib/python3/dist-packages/serial/serialposix.py", line 595, in read
+    raise SerialException(
+        'device reports readiness to read but returned no data '
+        '(device disconnected or multiple access on port?)')
+serial.serialutil.SerialException: device reports readiness to read but returned no data (device disconnected or multiple access on port?)

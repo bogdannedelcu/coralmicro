@@ -1,0 +1,9 @@
+
+>>> import sentai
+>>> print('VERSION', sentai.version())
+VERSION SentAI v1.0 build 1544 (2026-06-24 11:07:59)
+>>> print('DESC_API', sentai.tpu.desc_cache(), sentai.tpu.desc_cache_stats(1))
+DESC_API False (0, 0, 0, 0, 0)
+>>> print('MODEL_EXISTS', sentai.fs.exists('/yolo_1_class_512_1_upsample_512_inloc_de_1024_la_P5_32.tflite'))
+MODEL_EXISTS True
+>>> 

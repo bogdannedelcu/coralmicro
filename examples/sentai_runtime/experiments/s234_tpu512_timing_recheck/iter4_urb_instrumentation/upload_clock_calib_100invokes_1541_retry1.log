@@ -1,0 +1,8 @@
+Opening REPL on /dev/ttyACM0 …
+REPL ready.  Uploading 1 file(s):
+  clock_calib_100invokes.py → /lib/diag/clock_calib_100invokes.py  (3073 bytes)
+    … 960/3073 bytes OK
+    … 1920/3073 bytes OK
+    … 2880/3073 bytes OK
+    ✓ wrote 3073 bytes in 11.1s sync=ok
+Done.  On device:  import diag

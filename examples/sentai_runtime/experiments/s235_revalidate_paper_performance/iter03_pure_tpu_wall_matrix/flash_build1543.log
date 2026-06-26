@@ -1,0 +1,4 @@
+Traceback (most recent call last):
+  File "/home/bogdan/work/coralmicro/scripts/flashtool.py", line 16, in <module>
+    from progress.bar import Bar, Progress
+ModuleNotFoundError: No module named 'progress'

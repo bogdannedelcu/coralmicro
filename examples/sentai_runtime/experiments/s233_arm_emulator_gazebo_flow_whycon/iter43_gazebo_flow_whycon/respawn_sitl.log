@@ -1,0 +1,7 @@
+[respawn] stopping prior cf2 + gz + Xvfb
+[respawn] launching fresh SITL stack (world=sentai_whycon_small)
+[respawn] waiting for cf2 UDP 19850...
+[respawn] FAIL — SITL never came up; see /tmp/respawn_sitl/sitl.log
+$ bash sim/scripts/respawn_sitl.sh sentai_whycon_small
+
+[elapsed_s] 153.864

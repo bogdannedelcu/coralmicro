@@ -139,6 +139,352 @@ static int ReloadSessionImageIfStarted(void) {
     return BridgeStatusOk() ? 0 : -8;
 }
 
+static int EmuTpuInvokeOnce(void) {
+    if (!g_model_loaded || !g_image_loaded) {
+        return -2;
+    }
+    RegWrite(0x00, g_tpu_session_started ? kCmdSessionInvoke : kCmdInvoke);
+    if (!BridgeStatusOk()) {
+        g_last_invoke_ms = -3;
+        g_last_detection_count = 0;
+        return g_last_invoke_ms;
+    }
+    g_last_invoke_ms = (int)RegRead(0x20);
+    g_last_detection_count = (int)RegRead(0x1C);
+    if (g_last_detection_count < 0) g_last_detection_count = 0;
+    if (g_last_detection_count > kMaxDetections) {
+        g_last_detection_count = kMaxDetections;
+    }
+    return g_last_invoke_ms;
+}
+
+int sentai_load_model(const char* path) {
+    int rc = StreamFileToHost(path, kFileModel);
+    g_model_loaded = (rc == 0) ? 1 : 0;
+    return rc;
+}
+
+int sentai_tpu_load_model(const char* path) {
+    return sentai_load_model(path);
+}
+
+int sentai_load_image(const char* path) {
+    int rc = StreamFileToHost(path, kFileImage);
+    if (rc == 0) rc = ReloadSessionImageIfStarted();
+    g_image_loaded = (rc == 0) ? 1 : 0;
+    return rc;
+}
+
+int sentai_tpu_load_image_mem(const char* path, int stream_to_host) {
+    int rc = 0;
+    if (path && path[0] != '\0') {
+        rc = LoadImageFileToMemory(path);
+        if (rc != 0) {
+            g_image_loaded = 0;
+            return rc;
+        }
+        if (!stream_to_host) {
+            g_image_loaded = 0;
+            return 0;
+        }
+    }
+
+    rc = StreamImageMemoryToHost(kFileImage);
+    if (rc == 0) rc = ReloadSessionImageIfStarted();
+    g_image_loaded = (rc == 0) ? 1 : 0;
+    return rc;
+}
+
+uint32_t sentai_tpu_image_mem_size(void) {
+    return g_image_mem_size;
+}
+
+int sentai_tpu_is_ready(void) {
+    return g_model_loaded != 0;
+}
+
+int sentai_tpu_invoke(void) {
+    return EmuTpuInvokeOnce();
+}
+
+int sentai_tpu_invoke_internal(void) {
+    return EmuTpuInvokeOnce();
+}
+
+int sentai_tpu_invoke_with_input(uint8_t* input_buf) {
+    (void)input_buf;
+    return EmuTpuInvokeOnce();
+}
+
+int sentai_tpu_num_outputs(void) {
+    return 2;
+}
+
+int sentai_tpu_get_output_size(int idx) {
+    (void)idx;
+    return 0;
+}
+
+const void* sentai_tpu_get_output_data(int idx) {
+    (void)idx;
+    return NULL;
+}
+
+int sentai_tpu_get_output_num_dims(int idx) {
+    (void)idx;
+    return 0;
+}
+
+int sentai_tpu_get_output_dim(int idx, int dim) {
+    (void)idx;
+    (void)dim;
+    return 0;
+}
+
+int sentai_tpu_get_output_type(int idx) {
+    (void)idx;
+    return 0;
+}
+
+int sentai_tpu_input_quant(float* scale, int32_t* zero_point) {
+    if (scale) *scale = 0.0f;
+    if (zero_point) *zero_point = 0;
+    return -1;
+}
+
+int sentai_tpu_output_quant(int idx, float* scale, int32_t* zero_point) {
+    (void)idx;
+    if (scale) *scale = 0.0f;
+    if (zero_point) *zero_point = 0;
+    return -1;
+}
+
+int sentai_tpu_input_type(void) {
+    return 0;
+}
+
+int sentai_save_output(const char* path) {
+    (void)path;
+    return -1;
+}
+
+int sentai_tpu_slot_count(void) {
+    return 1;
+}
+
+int sentai_tpu_slot_ready(int slot) {
+    return slot == 0 ? sentai_tpu_is_ready() : 0;
+}
+
+int sentai_tpu_load_model_slot(int slot, const char* path) {
+    return slot == 0 ? sentai_load_model(path) : -1;
+}
+
+int sentai_load_model_slot(int slot, const char* path) {
+    return sentai_tpu_load_model_slot(slot, path);
+}
+
+int sentai_tpu_invoke_slot(int slot) {
+    return slot == 0 ? EmuTpuInvokeOnce() : -1;
+}
+
+int sentai_tpu_invoke_slot_with_input(int slot, uint8_t* buf) {
+    (void)buf;
+    return slot == 0 ? EmuTpuInvokeOnce() : -1;
+}
+
+static int16_t ClampI32ToI16(int value) {
+    if (value < -32768) return -32768;
+    if (value > 32767) return 32767;
+    return (int16_t)value;
+}
+
+int sentai_tpu_detect(int conf_permil, int iou_permil,
+                      int max_dets, int16_t* out_buf, int* out_count) {
+    (void)iou_permil;
+    if (out_count) *out_count = 0;
+    if (!out_buf || !out_count || max_dets <= 0) return -1;
+    if (conf_permil < 0) conf_permil = 0;
+    if (conf_permil > 1000) conf_permil = 1000;
+
+    int n = 0;
+    for (int i = 0; i < g_last_detection_count && n < max_dets; ++i) {
+        RegWrite(0x04, (uint32_t)i);
+        RegWrite(0x00, kCmdGetDetection);
+        if (!BridgeStatusOk()) return n > 0 ? 0 : -2;
+
+        const int cls = (int)RegRead(0x28);
+        const int score_milli = (int)RegRead(0x2C);
+        if (score_milli < conf_permil) continue;
+
+        int16_t* d = out_buf + n * 6;
+        d[0] = ClampI32ToI16((int)RegRead(0x30));
+        d[1] = ClampI32ToI16((int)RegRead(0x34));
+        d[2] = ClampI32ToI16((int)RegRead(0x38));
+        d[3] = ClampI32ToI16((int)RegRead(0x3C));
+        d[4] = ClampI32ToI16(score_milli);
+        d[5] = ClampI32ToI16(cls);
+        ++n;
+    }
+    *out_count = n;
+    return 0;
+}
+
+int sentai_tpu_draw(const char* path, const int16_t* dets,
+                    int n_dets, int quality) {
+    (void)path;
+    (void)dets;
+    (void)n_dets;
+    (void)quality;
+    return -1;
+}
+
+int sentai_tpu_num_outputs_slot(int slot) {
+    return slot == 0 ? sentai_tpu_num_outputs() : 0;
+}
+
+int sentai_tpu_get_output_size_slot(int slot, int idx) {
+    return slot == 0 ? sentai_tpu_get_output_size(idx) : 0;
+}
+
+const void* sentai_tpu_get_output_data_slot(int slot, int idx) {
+    return slot == 0 ? sentai_tpu_get_output_data(idx) : NULL;
+}
+
+int sentai_tpu_get_output_num_dims_slot(int slot, int idx) {
+    return slot == 0 ? sentai_tpu_get_output_num_dims(idx) : 0;
+}
+
+int sentai_tpu_get_output_dim_slot(int slot, int idx, int dim) {
+    return slot == 0 ? sentai_tpu_get_output_dim(idx, dim) : 0;
+}
+
+int sentai_tpu_get_output_type_slot(int slot, int idx) {
+    return slot == 0 ? sentai_tpu_get_output_type(idx) : 0;
+}
+
+int sentai_tpu_output_quant_slot(int slot, int idx, float* scale,
+                                 int32_t* zp) {
+    return slot == 0 ? sentai_tpu_output_quant(idx, scale, zp) : -1;
+}
+
+int sentai_tpu_set_input_slot(int slot, const uint8_t* data, int len) {
+    (void)slot;
+    (void)data;
+    (void)len;
+    return -1;
+}
+
+uint32_t sentai_tpu_output_hash_slot(int slot) {
+    (void)slot;
+    return 0;
+}
+
+void sentai_usb_edgetpu_dump_eps(void) {}
+
+int sentai_tpu_bridge_stats(uint32_t* out, int max_words) {
+    if (!out || max_words <= 0) return 0;
+    int n = max_words < 28 ? max_words : 28;
+    for (int i = 0; i < n; ++i) {
+        out[i] = RegRead((uint32_t)(16 + i) * 4u);
+    }
+    return n;
+}
+
+int sentai_tpu_start(void) {
+    if (!g_model_loaded || !g_image_loaded) {
+        return -2;
+    }
+    RegWrite(0x00, kCmdSessionStart);
+    if (!BridgeStatusOk()) {
+        g_tpu_session_started = 0;
+        return -3;
+    }
+    g_tpu_session_started = 1;
+    return 0;
+}
+
+int sentai_tpu_stop(void) {
+    RegWrite(0x00, kCmdSessionStop);
+    g_tpu_session_started = 0;
+    return BridgeStatusOk() ? 0 : -3;
+}
+
+int sentai_tpu_fps_invoke(int runs, uint32_t out[6]) {
+    if (!out) return -1;
+    if (runs <= 0) runs = 1;
+    if (runs > 50) runs = 50;
+
+    const uint32_t warmup = 1;
+    for (uint32_t i = 0; i < warmup; ++i) {
+        if (EmuTpuInvokeOnce() < 0) {
+            out[0] = 0;
+            out[1] = warmup;
+            out[2] = (uint32_t)-1;
+            out[3] = 0;
+            out[4] = 0;
+            out[5] = 0;
+            return -1;
+        }
+    }
+
+    uint32_t completed = 0;
+    uint32_t invoke_ms_sum = 0;
+    const uint32_t start_ms = xTaskGetTickCount();
+    for (int i = 0; i < runs; ++i) {
+        const int rc = EmuTpuInvokeOnce();
+        if (rc < 0) break;
+        invoke_ms_sum += (uint32_t)rc;
+        ++completed;
+    }
+    uint32_t measured_ms = xTaskGetTickCount() - start_ms;
+    if (invoke_ms_sum > measured_ms) measured_ms = invoke_ms_sum;
+    if (measured_ms == 0) measured_ms = 1;
+    out[0] = completed;
+    out[1] = warmup;
+    out[2] = measured_ms;
+    out[3] = (completed * 100000u) / measured_ms;
+    out[4] = invoke_ms_sum;
+    out[5] = (uint32_t)g_last_detection_count;
+    return completed == (uint32_t)runs ? 0 : -1;
+}
+
+int sentai_tpu_fps(int runs, uint32_t out[6]) {
+    if (!out) return -1;
+    if (runs <= 0) runs = 1;
+    if (runs > 50) runs = 50;
+
+    const uint32_t warmup = 1;
+    RegWrite(0x04, (uint32_t)runs);
+    RegWrite(0x08, warmup);
+    RegWrite(0x00, g_tpu_session_started ? kCmdSessionBenchmark
+                                          : kCmdBenchmark);
+    if (!BridgeStatusOk()) {
+        out[0] = 0;
+        out[1] = warmup;
+        out[2] = (uint32_t)-1;
+        out[3] = 0;
+        out[4] = 0;
+        out[5] = 0;
+        return -1;
+    }
+
+    g_last_invoke_ms = (int)RegRead(0x20);
+    g_last_detection_count = (int)RegRead(0x1C);
+    if (g_last_detection_count < 0) g_last_detection_count = 0;
+    if (g_last_detection_count > kMaxDetections) {
+        g_last_detection_count = kMaxDetections;
+    }
+    out[0] = RegRead(0x28);
+    out[1] = RegRead(0x2C);
+    out[2] = RegRead(0x20);
+    out[3] = RegRead(0x30);
+    out[4] = RegRead(0x34);
+    out[5] = RegRead(0x1C);
+    return 0;
+}
+
+#if 0  // Legacy EMU-local sentai.tpu binding; shared modsentai_tpu.c is used.
 static mp_obj_t emu_tpu_load(mp_obj_t path_obj) {
     const char* path = mp_obj_str_get_str(path_obj);
     int rc = StreamFileToHost(path, kFileModel);
@@ -375,7 +721,9 @@ const mp_obj_module_t emu_tpu_module = {
     .base = {&mp_type_module},
     .globals = (mp_obj_dict_t*)&emu_tpu_globals,
 };
+#endif
 
+#if 0
 static mp_obj_t emu_pipeline_detections(size_t n_args,
                                         const mp_obj_t* args) {
     int threshold_milli = 0;
@@ -422,3 +770,4 @@ const mp_obj_module_t emu_pipeline_module = {
     .base = {&mp_type_module},
     .globals = (mp_obj_dict_t*)&emu_pipeline_globals,
 };
+#endif

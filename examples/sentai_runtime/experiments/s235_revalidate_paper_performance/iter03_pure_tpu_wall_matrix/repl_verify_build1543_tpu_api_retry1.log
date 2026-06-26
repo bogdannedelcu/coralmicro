@@ -1,0 +1,14 @@
+
+>>> 
+KeyboardInterrupt
+>>> 
+>>> import sentai
+>>> rint('VERSION', sentai.version())
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 'rint' isn't defined
+>>> rint('TPU_API', hasattr(sentai.tpu,'chunk_size'), hasattr(sentai.tpu,'urb_timeout_ms'), sentai.tpu.chunk_size(), sentai.tpu.urb_timeout_ms())
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 'rint' isn't defined
+>>> 

@@ -1,0 +1,31 @@
+import sentai; exec(sentai.fs.read('/lib/diag/camera_visual_seam_once.py'))
+S235 B10 visual seam
+version=SentAI v1.0 build 1544 (2026-06-24 11:07:59)
+run=2 frames=2 quality=50 pattern0=1 pattern1=0
+camera_init=0
+[CAM0] W 0x503D=0x80 (0)
+[CAM1] W 0x503D=0x00 (0)
+[CAM1] W 0x3503=0x00 (0)
+pattern0=0 pattern1=0
+  [capture_jpeg] drain=60ms pxp=10ms jpeg=83ms total=153ms (640x480)
+[save_jpeg] /diags/s235_b10_visual_seam/run02_d1_00.jpg: capture=153ms save=1792ms total=1945ms (25348 bytes, q=50)
+frame drain=1 i=0 tag=1 cur=0 bytes=25348 us=1945727 path=/diags/s235_b10_visual_seam/run02_d1_00.jpg
+  [capture_jpeg] drain=52ms pxp=10ms jpeg=75ms total=137ms (640x480)
+[bbt] no persisted BBT, starting clean
+[save_jpeg] /diags/s235_b10_visual_seam/run02_d1_01.jpg: capture=137ms save=3350ms total=3487ms (9580 bytes, q=50)
+frame drain=1 i=1 tag=0 cur=0 bytes=9580 us=3487009 path=/diags/s235_b10_visual_seam/run02_d1_01.jpg
+  [capture_jpeg] drain=126ms pxp=10ms jpeg=75ms total=211ms (640x480)
+[save_jpeg] /diags/s235_b10_visual_seam/run02_d2_00.jpg: capture=211ms save=700ms total=911ms (9580 bytes, q=50)
+frame drain=2 i=0 tag=1 cur=1 bytes=9580 us=911035 path=/diags/s235_b10_visual_seam/run02_d2_00.jpg
+  [capture_jpeg] drain=84ms pxp=10ms jpeg=75ms total=169ms (640x480)
+[save_jpeg] /diags/s235_b10_visual_seam/run02_d2_01.jpg: capture=169ms save=697ms total=866ms (10577 bytes, q=50)
+frame drain=2 i=1 tag=0 cur=0 bytes=10577 us=866313 path=/diags/s235_b10_visual_seam/run02_d2_01.jpg
+[CAM0] W 0x503D=0x00 (0)
+[CAM0] W 0x3503=0x00 (0)
+[CAM1] W 0x503D=0x00 (0)
+[CAM1] W 0x3503=0x00 (0)
+[bbt] no persisted BBT, starting clean
+fs_sync=True
+manifest=/diags/s235_b10_visual_seam/run02_manifest.csv
+=== done ===
+>>> 

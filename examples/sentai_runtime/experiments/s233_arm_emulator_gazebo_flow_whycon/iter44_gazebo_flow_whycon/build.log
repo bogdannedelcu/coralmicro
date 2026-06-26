@@ -1,0 +1,12 @@
+[  0%] Incrementing build version...
+-- Build #1522 at 2026-06-11 19:57:23
+[ 18%] Built target libs_levelx
+[ 27%] Built target libs_CMSIS-m7
+[ 27%] Built target increment_build_version
+[ 63%] Built target libs_filex
+[ 63%] Building C object emu/CMakeFiles/sentai_emu_gazebo_flow_whycon_repl.dir/sentai_emu_fs_module.c.obj
+[ 63%] Linking CXX executable sentai_emu_gazebo_flow_whycon_repl
+[100%] Built target sentai_emu_gazebo_flow_whycon_repl
+$ cmake --build build_emu --target sentai_emu_gazebo_flow_whycon_repl -j24
+
+[elapsed_s] 0.966

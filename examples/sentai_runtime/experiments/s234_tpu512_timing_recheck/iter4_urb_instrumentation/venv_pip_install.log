@@ -1,0 +1,79 @@
+Collecting hexformat==0.2 (from -r scripts/requirements.txt (line 1))
+  Downloading hexformat-0.2.zip (51 kB)
+  Installing build dependencies: started
+  Installing build dependencies: finished with status 'done'
+  Getting requirements to build wheel: started
+  Getting requirements to build wheel: finished with status 'done'
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Collecting hidapi==0.10.1 (from -r scripts/requirements.txt (line 2))
+  Downloading hidapi-0.10.1.tar.gz (60 kB)
+  Installing build dependencies: started
+  Installing build dependencies: finished with status 'done'
+  Getting requirements to build wheel: started
+  Getting requirements to build wheel: finished with status 'done'
+  Installing backend dependencies: started
+  Installing backend dependencies: finished with status 'done'
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Collecting progress==1.5 (from -r scripts/requirements.txt (line 3))
+  Downloading progress-1.5.tar.gz (5.8 kB)
+  Installing build dependencies: started
+  Installing build dependencies: finished with status 'done'
+  Getting requirements to build wheel: started
+  Getting requirements to build wheel: finished with status 'done'
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Collecting pyserial==3.5 (from -r scripts/requirements.txt (line 4))
+  Downloading pyserial-3.5-py2.py3-none-any.whl.metadata (1.6 kB)
+Collecting pyusb==1.2.0 (from -r scripts/requirements.txt (line 5))
+  Downloading pyusb-1.2.0-py3-none-any.whl.metadata (2.2 kB)
+Collecting setuptools>=19.0 (from hidapi==0.10.1->-r scripts/requirements.txt (line 2))
+  Using cached setuptools-82.0.1-py3-none-any.whl.metadata (6.5 kB)
+Downloading pyserial-3.5-py2.py3-none-any.whl (90 kB)
+Downloading pyusb-1.2.0-py3-none-any.whl (58 kB)
+Using cached setuptools-82.0.1-py3-none-any.whl (1.0 MB)
+Building wheels for collected packages: hexformat, hidapi, progress
+  Building wheel for hexformat (pyproject.toml): started
+  Building wheel for hexformat (pyproject.toml): finished with status 'done'
+  Created wheel for hexformat: filename=hexformat-0.2-py3-none-any.whl size=48706 sha256=e1104a1839a3885442d19940906edc6242060a56f90ecf64c924d0eb61dedd9d
+  Stored in directory: /home/bogdan/.cache/pip/wheels/58/8a/96/7d3bdfd07de7c3ca01f12a589d7c909c0c3599c5de88e2491d
+  Building wheel for hidapi (pyproject.toml): started
+  Building wheel for hidapi (pyproject.toml): finished with status 'error'
+  error: subprocess-exited-with-error
+  
+  × Building wheel for hidapi (pyproject.toml) did not run successfully.
+  │ exit code: 1
+  ╰─> [21 lines of output]
+      /tmp/pip-build-env-4eq9ch0y/overlay/lib/python3.14/site-packages/setuptools/dist.py:765: SetuptoolsDeprecationWarning: License classifiers are deprecated.
+      !!
+      
+              ********************************************************************************
+              Please consider removing the following classifiers in favor of a SPDX license expression:
+      
+              License :: OSI Approved :: BSD License
+              License :: OSI Approved :: GNU General Public License v3 (GPLv3)
+      
+              See https://packaging.python.org/en/latest/guides/writing-pyproject-toml/#license for details.
+              ********************************************************************************
+      
+      !!
+        self._finalize_license_expression()
+      running bdist_wheel
+      running build
+      running build_ext
+      Compiling hid.pyx because it changed.
+      [1/1] Cythonizing hid.pyx
+      building 'hid' extension
+      error: unknown file type '.pxd' (from 'chid.pxd')
+      [end of output]
+  
+  note: This error originates from a subprocess, and is likely not a problem with pip.
+  ERROR: Failed building wheel for hidapi
+  Building wheel for progress (pyproject.toml): started
+  Building wheel for progress (pyproject.toml): finished with status 'done'
+  Created wheel for progress: filename=progress-1.5-py3-none-any.whl size=8140 sha256=d828a0a0d4ee599699e7ebf631e4c9d067a13bb2a24468366b317aecd714ecf2
+  Stored in directory: /home/bogdan/.cache/pip/wheels/97/0a/0d/b56e88c665e338115d24eb30358bb86289e797e89e57d5c0cd
+Successfully built hexformat progress
+Failed to build hidapi
+ERROR: Failed to build installable wheels for some pyproject.toml based projects (hidapi)

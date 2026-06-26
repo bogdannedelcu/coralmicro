@@ -1,0 +1,29 @@
+:name: SentAI B8 ARM FileX staged asset check
+:description: Boots a MicroPython sentai.fs REPL over the existing emulated NAND image and verifies staged assets are readable.
+
+i @emu/renode/sentai_rt1176.repl
+
+$bin?=@build_emu/emu/sentai_emu_fs_asset_check
+$uart_log?=@/home/bogdan/work/coralmicro/emu/output/sentai_emu_fs_asset_check.log
+
+macro reset
+"""
+    sysbus LoadELF $bin
+    cpu VectorTableOffset 0x800
+"""
+
+lpuart6 CreateFileBackend $uart_log
+runMacro $reset
+emulation RunFor "5.0s"
+lpuart6 CloseFileBackend $uart_log
+
+echo "sentai_emu_fs_asset_check PC:"
+cpu PC
+echo "sentai_emu_fs_asset_check boot_state:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_boot_state"`
+echo "sentai_emu_fs_asset_check heartbeat:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_heartbeat"`
+echo "sentai_emu_fs_asset_check repl_lines:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_repl_lines"`
+echo "sentai_emu_fs_asset_check last_tick:"
+sysbus ReadDoubleWord `sysbus GetSymbolAddress "g_sentai_emu_last_tick"`

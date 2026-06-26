@@ -1,0 +1,40 @@
+PORT /dev/ttyACM0
+
+KeyboardInterrupt
+>>> 
+>>> 
+>>> READ_EXCEPTION SerialException('device reports readiness to read but returned no data (device disconnected or multiple access on port?)')
+DEFAULT_USB_SEEN 12
+NAME        PATH           TRAN     SIZE MODEL                 FSTYPE     LABEL MOUNTPOINTS
+loop0       /dev/loop0                4K                       squashfs         /snap/bare/5
+loop1       /dev/loop1            428.5M                       squashfs         /snap/code/244
+loop2       /dev/loop2            425.9M                       squashfs         /snap/code/247
+loop3       /dev/loop3             66.8M                       squashfs         /snap/core24/1587
+loop4       /dev/loop4             63.8M                       squashfs         /snap/core20/2866
+loop5       /dev/loop5             66.8M                       squashfs         /snap/core24/1643
+loop6       /dev/loop6             19.6M                       squashfs         /snap/desktop-security-center/150
+loop7       /dev/loop7               20M                       squashfs         /snap/desktop-security-center/151
+loop8       /dev/loop8              828K                       squashfs         /snap/snapd-desktop-integration/387
+loop10      /dev/loop10            16.5M                       squashfs         /snap/firmware-updater/226
+loop11      /dev/loop11           606.1M                       squashfs         /snap/gnome-46-2404/153
+loop12      /dev/loop12            91.7M                       squashfs         /snap/gtk-common-themes/1535
+loop13      /dev/loop13             395M                       squashfs         /snap/mesa-2404/1165
+loop14      /dev/loop14            18.8M                       squashfs         /snap/prompting-client/204
+loop15      /dev/loop15            18.8M                       squashfs         /snap/prompting-client/222
+loop16      /dev/loop16            15.7M                       squashfs         /snap/snap-store/1367
+loop17      /dev/loop17             580K                       squashfs         /snap/snapd-desktop-integration/361
+loop18      /dev/loop18            49.3M                       squashfs         /snap/snapd/26865
+loop19      /dev/loop19           252.4M                       squashfs         /snap/firefox/8504
+loop20      /dev/loop20           252.4M                       squashfs         /snap/firefox/8521
+sda         /dev/sda       sata   894.3G KINGSTON SA400S37960G                  
+├─sda1      /dev/sda1                 1G                       vfat             /boot/efi
+└─sda2      /dev/sda2             893.2G                       xfs              /
+sdb         /dev/sdb       sata   931.5G SPCC Solid State Disk zfs_member rpool 
+├─sdb1      /dev/sdb1               100M                       vfat             
+├─sdb2      /dev/sdb2                16M                                        
+├─sdb3      /dev/sdb3             930.7G                       ntfs             /run/media/bogdan/7012D7EB12D7B3F6
+└─sdb4      /dev/sdb4               682M                       ntfs             
+nvme0n1     /dev/nvme0n1   nvme     1.8T KINGSTON SNV2S2000G                    
+├─nvme0n1p1 /dev/nvme0n1p1 nvme      16M                                        
+└─nvme0n1p2 /dev/nvme0n1p2 nvme     1.8T                       ntfs             /run/media/bogdan/3E4252C842528495
+

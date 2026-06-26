@@ -1,0 +1,19 @@
+Opening REPL on /dev/ttyACM0 …
+REPL ready.  Uploading 2 file(s):
+  camera_switch_latency_once.py → /lib/diag/camera_switch_latency_once.py  (4044 bytes)
+    … 960/4044 bytes OK
+    … 1920/4044 bytes OK
+    … 2880/4044 bytes OK
+    … 3840/4044 bytes OK
+    ✓ wrote 4044 bytes in 10.3s sync=ok
+  pipeline_alternation_once.py → /lib/diag/pipeline_alternation_once.py  (8148 bytes)
+    … 960/8148 bytes OK
+    … 1920/8148 bytes OK
+    … 2880/8148 bytes OK
+    … 3840/8148 bytes OK
+    … 4800/8148 bytes OK
+    … 5760/8148 bytes OK
+    … 6720/8148 bytes OK
+    … 7680/8148 bytes OK
+    ✓ wrote 8148 bytes in 17.5s sync=ok
+Done.  On device:  import diag

@@ -1,0 +1,41 @@
+
+>>> 
+KeyboardInterrupt
+>>> 
+KeyboardInterrupt
+>>> 
+>>> 
+>>> 
+import sentai
+>>> 
+print('VERSION', sentai.version())
+VERSION SentAI v1.0 build 1375 (2026-05-19 11:56:14)
+>>> 
+print('FORMAT', sentai.fs.format())
+[fx_user] force_format requested (operator confirmed)
+[bbt] no persisted BBT, starting clean
+[fx_user] lx_format ok in 361 ms
+[bbt] no persisted BBT, starting clean
+[fx_user] fx_media_format ok
+[fx_user] mounted (post-format)
+FORMAT True
+>>> 
+print('MK_LIB', sentai.fs.mkdir('/lib'))
+MK_LIB True
+>>> 
+print('MK_DIAG', sentai.fs.mkdir('/lib/diag'))
+MK_DIAG True
+>>> 
+print('MK_DIAGS', sentai.fs.mkdir('/diags'))
+MK_DIAGS True
+>>> 
+print('WRITE_PROBE', sentai.fs.write('/lib/diag/_probe.txt','ok'))
+WRITE_PROBE True
+>>> 
+print('READ_PROBE', sentai.fs.read_str('/lib/diag/_probe.txt'))
+READ_PROBE ok
+>>> 
+print('SYNC', sentai.fs.sync())
+[bbt] no persisted BBT, starting clean
+SYNC True
+>>> 

@@ -6,6 +6,7 @@
 // producers inject RGB888 frames through sentai_camera_backend_publish_rgb888().
 
 #include "examples/sentai_runtime/sentai_prep.h"
+#include "examples/sentai_runtime/sentai_pxp_shim.h"
 #include "examples/sentai_runtime/sentai_virtual_camera.h"
 #include "examples/sentai_runtime/flow_shared.h"
 
@@ -38,8 +39,6 @@
 
 extern int sentai_get_tensor_info(int* w, int* h, int* ch,
                                   uint8_t** buf, int* type, int* zp);
-extern int sentai_pxp_scale(const uint8_t* src, int sw, int sh,
-                            uint8_t* dst, int dw, int dh);
 extern int sentai_prep_publish_slot_rgb_64(const uint8_t* raw_xrgb,
                                            int src_w, int src_h);
 extern void sentai_flow_poll_once(void);
@@ -194,78 +193,6 @@ static void publish_prep_flow_gray80x60(const uint8_t* gray) {
     sentai_prep_slot_commit(SENTAI_PREP_SLOT_FLOW_GRAY_80x60);
 }
 
-#if defined(SENTAI_ARM_EMU)
-static int rgb888_scale_to_rgb888(const uint8_t* src, int src_w, int src_h,
-                                  uint8_t* dst, int dst_w, int dst_h) {
-    if (!src || !dst || src_w <= 0 || src_h <= 0 || dst_w <= 0 || dst_h <= 0) {
-        return -1;
-    }
-    if (dst_w > src_w || dst_h > src_h) return -2;
-
-    for (int oy = 0; oy < dst_h; ++oy) {
-        int y0 = (oy * src_h) / dst_h;
-        int y1 = ((oy + 1) * src_h) / dst_h;
-        int yh = (y1 > y0) ? (y1 - y0) : 1;
-        uint8_t* drow = dst + oy * dst_w * 3;
-        for (int ox = 0; ox < dst_w; ++ox) {
-            int x0 = (ox * src_w) / dst_w;
-            int x1 = ((ox + 1) * src_w) / dst_w;
-            int xw = (x1 > x0) ? (x1 - x0) : 1;
-            int n = xw * yh;
-            uint32_t sum_r = 0;
-            uint32_t sum_g = 0;
-            uint32_t sum_b = 0;
-            for (int y = y0; y < y1; ++y) {
-                const uint8_t* srow = src + y * src_w * 3 + x0 * 3;
-                for (int x = 0; x < xw; ++x) {
-                    sum_r += srow[x * 3 + 0];
-                    sum_g += srow[x * 3 + 1];
-                    sum_b += srow[x * 3 + 2];
-                }
-            }
-            uint32_t half = (uint32_t)n / 2u;
-            drow[ox * 3 + 0] = (uint8_t)((sum_r + half) / (uint32_t)n);
-            drow[ox * 3 + 1] = (uint8_t)((sum_g + half) / (uint32_t)n);
-            drow[ox * 3 + 2] = (uint8_t)((sum_b + half) / (uint32_t)n);
-        }
-    }
-    return 0;
-}
-
-static int rgb888_scale_to_y8(const uint8_t* src, int src_w, int src_h,
-                              uint8_t* dst, int dst_w, int dst_h) {
-    if (!src || !dst || src_w <= 0 || src_h <= 0 || dst_w <= 0 || dst_h <= 0) {
-        return -1;
-    }
-    if (dst_w > src_w || dst_h > src_h) return -2;
-
-    for (int oy = 0; oy < dst_h; ++oy) {
-        int y0 = (oy * src_h) / dst_h;
-        int y1 = ((oy + 1) * src_h) / dst_h;
-        int yh = (y1 > y0) ? (y1 - y0) : 1;
-        uint8_t* drow = dst + oy * dst_w;
-        for (int ox = 0; ox < dst_w; ++ox) {
-            int x0 = (ox * src_w) / dst_w;
-            int x1 = ((ox + 1) * src_w) / dst_w;
-            int xw = (x1 > x0) ? (x1 - x0) : 1;
-            int n = xw * yh;
-            uint32_t sum_y = 0;
-            for (int y = y0; y < y1; ++y) {
-                const uint8_t* srow = src + y * src_w * 3 + x0 * 3;
-                for (int x = 0; x < xw; ++x) {
-                    uint8_t r = srow[x * 3 + 0];
-                    uint8_t g = srow[x * 3 + 1];
-                    uint8_t b = srow[x * 3 + 2];
-                    sum_y += (uint32_t)((77u * r + 150u * g + 29u * b) >> 8);
-                }
-            }
-            drow[ox] = (uint8_t)((sum_y + (uint32_t)n / 2u) / (uint32_t)n);
-        }
-    }
-    return 0;
-}
-#endif
-
 static void publish_xrgb_frame(uint32_t seq, const uint8_t* xrgb) {
     s_rgb_full_seq = seq ? seq : (s_rgb_full_seq + 1);
     publish_prep_slots_from_xrgb(xrgb);
@@ -398,9 +325,9 @@ extern int sentai_camera_backend_publish_prep_slots_rgb888(const uint8_t* rgb) {
         int sw = 0, sh = 0;
         uint8_t* sbuf = sentai_prep_slot_begin_write(
             SENTAI_PREP_SLOT_GRAY_NATIVE, &sw, &sh);
-        if (sbuf && rgb888_scale_to_y8(rgb, SENTAI_CAMERA_FRAME_W,
-                                       SENTAI_CAMERA_FRAME_H,
-                                       sbuf, sw, sh) == 0) {
+        if (sbuf && sentai_pxp_rgb888_to_y8(rgb, SENTAI_CAMERA_FRAME_W,
+                                            SENTAI_CAMERA_FRAME_H,
+                                            sbuf, sw, sh) == 0) {
             sentai_prep_slot_commit(SENTAI_PREP_SLOT_GRAY_NATIVE);
         }
     }
@@ -408,9 +335,9 @@ extern int sentai_camera_backend_publish_prep_slots_rgb888(const uint8_t* rgb) {
         int sw = 0, sh = 0;
         uint8_t* sbuf = sentai_prep_slot_begin_write(
             SENTAI_PREP_SLOT_RGB_64, &sw, &sh);
-        if (sbuf && rgb888_scale_to_rgb888(rgb, SENTAI_CAMERA_FRAME_W,
-                                           SENTAI_CAMERA_FRAME_H,
-                                           sbuf, sw, sh) == 0) {
+        if (sbuf && sentai_pxp_rgb888_scale(rgb, SENTAI_CAMERA_FRAME_W,
+                                            SENTAI_CAMERA_FRAME_H,
+                                            sbuf, sw, sh) == 0) {
             sentai_prep_slot_commit(SENTAI_PREP_SLOT_RGB_64);
         }
     }
@@ -419,9 +346,9 @@ extern int sentai_camera_backend_publish_prep_slots_rgb888(const uint8_t* rgb) {
         uint8_t* sbuf = sentai_prep_slot_begin_write(
             SENTAI_PREP_SLOT_FLOW_GRAY_80x60, &sw, &sh);
         if (sbuf && sw == SENTAI_CAMERA_FLOW_W && sh == SENTAI_CAMERA_FLOW_H &&
-                rgb888_scale_to_y8(rgb, SENTAI_CAMERA_FRAME_W,
-                                   SENTAI_CAMERA_FRAME_H,
-                                   sbuf, sw, sh) == 0) {
+                sentai_pxp_rgb888_to_y8(rgb, SENTAI_CAMERA_FRAME_W,
+                                        SENTAI_CAMERA_FRAME_H,
+                                        sbuf, sw, sh) == 0) {
             sentai_prep_slot_commit(SENTAI_PREP_SLOT_FLOW_GRAY_80x60);
         }
     }

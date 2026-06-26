@@ -1,0 +1,46 @@
+import sentai; exec(sentai.fs.read('/lib/diag/camera_visual_seam_once.py'))
+S235 B10 visual seam
+version=SentAI v1.0 build 1544 (2026-06-24 11:07:59)
+run=1 frames=2 quality=50
+HandlePowerRequest: try I2C1: Success
+HandlePowerRequest: try I2C2: Success
+CAMERA_RECEIVER_Init = 0
+BOARD_PullCameraPowerDownPin:1
+BOARD_PullCameraResetPin:0
+BOARD_PullCameraPowerDownPin:0
+BOARD_PullCameraResetPin:1
+CAMERA_DEVICE_Init = 0
+CAMERA_DEVICE_Start = 0
+CAMERA_RECEIVER_Start = 0
+[CAM] sensor_fps=30 (1 s sample, target=30)
+[CAM1] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM1] W 0x3820=0x47 (0)
+[CAM1] W 0x3821=0x01 (0)
+[CAM0] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM0] W 0x3820=0x47 (0)
+[CAM0] W 0x3821=0x01 (0)
+camera_init=0
+[CAM0] W 0x503D=0x80 (0)
+[CAM1] W 0x503D=0x88 (0)
+pattern0=0 pattern1=0
+  [capture_jpeg] drain=59ms pxp=10ms jpeg=75ms total=144ms (640x480)
+[save_jpeg] /diags/s235_b10_visual_seam/run01_d1_00.jpg: capture=144ms save=2295ms total=2439ms (9580 bytes, q=50)
+frame drain=1 i=0 tag=0 cur=0 bytes=9580 us=2439845 path=/diags/s235_b10_visual_seam/run01_d1_00.jpg
+  [capture_jpeg] drain=95ms pxp=10ms jpeg=78ms total=183ms (640x480)
+[save_jpeg] /diags/s235_b10_visual_seam/run01_d1_01.jpg: capture=183ms save=251ms total=434ms (9883 bytes, q=50)
+frame drain=1 i=1 tag=1 cur=1 bytes=9883 us=434261 path=/diags/s235_b10_visual_seam/run01_d1_01.jpg
+  [capture_jpeg] drain=127ms pxp=10ms jpeg=78ms total=215ms (640x480)
+[save_jpeg] /diags/s235_b10_visual_seam/run01_d2_00.jpg: capture=215ms save=156ms total=371ms (9927 bytes, q=50)
+frame drain=2 i=0 tag=0 cur=0 bytes=9927 us=371266 path=/diags/s235_b10_visual_seam/run01_d2_00.jpg
+  [capture_jpeg] drain=91ms pxp=10ms jpeg=77ms total=178ms (640x480)
+[save_jpeg] /diags/s235_b10_visual_seam/run01_d2_01.jpg: capture=178ms save=2025ms total=2203ms (9919 bytes, q=50)
+frame drain=2 i=1 tag=1 cur=1 bytes=9919 us=2202992 path=/diags/s235_b10_visual_seam/run01_d2_01.jpg
+[CAM0] W 0x503D=0x00 (0)
+[CAM0] W 0x3503=0x00 (0)
+[CAM1] W 0x503D=0x00 (0)
+[CAM1] W 0x3503=0x00 (0)
+[bbt] no persisted BBT, starting clean
+fs_sync=True
+manifest=/diags/s235_b10_visual_seam/run01_manifest.csv
+=== done ===
+>>> 

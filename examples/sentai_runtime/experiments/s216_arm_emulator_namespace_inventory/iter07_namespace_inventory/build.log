@@ -1,0 +1,11 @@
+[  0%] Incrementing build version...
+-- Build #1520 at 2026-06-11 19:00:16
+[ 22%] Built target libs_levelx
+[ 22%] Built target increment_build_version
+[ 66%] Built target libs_filex
+[ 66%] Building C object emu/CMakeFiles/sentai_emu_namespace_inventory.dir/sentai_emu_fs_module.c.obj
+[ 66%] Linking CXX executable sentai_emu_namespace_inventory
+[100%] Built target sentai_emu_namespace_inventory
+$ cmake --build build_emu --target sentai_emu_namespace_inventory -j24
+
+[elapsed_s] 0.766

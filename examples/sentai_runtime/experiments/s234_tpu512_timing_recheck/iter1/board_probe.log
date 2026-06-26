@@ -1,0 +1,19 @@
+
+>>> 
+KeyboardInterrupt
+>>> 
+KeyboardInterrupt
+>>> 
+>>> 
+>>> import sentai
+>>> sentai.verbose(1)
+1
+>>> print('VERSION', sentai.version())
+VERSION SentAI v1.0 build 1375 (2026-05-19 11:56:14)
+>>> print('TPU_CHUNK', sentai.diag.tpu_chunk_size())
+TPU_CHUNK 36864
+>>> print('TPU_URB_TIMEOUT', sentai.diag.tpu_urb_timeout())
+TPU_URB_TIMEOUT 200
+>>> print('TPU_DESC_CACHE', sentai.diag.tpu_desc_cache())
+TPU_DESC_CACHE {'sent_ins': 0, 'skip_ins': 0, 'enabled': False, 'skip_params': 0, 'sent_params': 0}
+>>> 

@@ -1,0 +1,551 @@
+    PID    PPID STAT CMD
+      1       0 Ss   /usr/lib/systemd/systemd --switched-root --system --deserialize=52 splash
+      2       0 S    [kthreadd]
+      3       2 S    [pool_workqueue_release]
+      4       2 I<   [kworker/R-rcu_gp]
+      5       2 I<   [kworker/R-sync_wq]
+      6       2 I<   [kworker/R-kvfree_rcu_reclaim]
+      7       2 I<   [kworker/R-slub_flushwq]
+      8       2 I<   [kworker/R-netns]
+     10       2 I<   [kworker/0:0H-kblockd]
+     11       2 I    [kworker/0:1-events]
+     12       2 I    [kworker/u96:0-iou_exit]
+     13       2 I<   [kworker/R-mm_percpu_wq]
+     14       2 S    [ksoftirqd/0]
+     15       2 I    [rcu_preempt]
+     16       2 S    [rcu_exp_par_gp_kthread_worker/1]
+     17       2 S    [rcu_exp_gp_kthread_worker]
+     18       2 S    [migration/0]
+     19       2 S    [kprobe-optimizer]
+     20       2 S    [idle_inject/0]
+     21       2 S    [cpuhp/0]
+     22       2 S    [cpuhp/2]
+     23       2 S    [idle_inject/2]
+     24       2 S    [migration/2]
+     25       2 S    [ksoftirqd/2]
+     27       2 I<   [kworker/2:0H-kblockd]
+     28       2 S    [cpuhp/4]
+     29       2 S    [idle_inject/4]
+     30       2 S    [migration/4]
+     31       2 S    [ksoftirqd/4]
+     33       2 I<   [kworker/4:0H-i915_cleanup]
+     34       2 S    [cpuhp/6]
+     35       2 S    [idle_inject/6]
+     36       2 S    [migration/6]
+     37       2 S    [ksoftirqd/6]
+     39       2 I<   [kworker/6:0H-kblockd]
+     40       2 S    [cpuhp/8]
+     41       2 S    [idle_inject/8]
+     42       2 S    [migration/8]
+     43       2 S    [ksoftirqd/8]
+     45       2 I<   [kworker/8:0H-kblockd]
+     46       2 S    [cpuhp/10]
+     47       2 S    [idle_inject/10]
+     48       2 S    [migration/10]
+     49       2 S    [ksoftirqd/10]
+     51       2 I<   [kworker/10:0H-kblockd]
+     52       2 S    [cpuhp/12]
+     53       2 S    [idle_inject/12]
+     54       2 S    [migration/12]
+     55       2 S    [ksoftirqd/12]
+     57       2 I<   [kworker/12:0H-kblockd]
+     58       2 S    [rcu_exp_par_gp_kthread_worker/2]
+     59       2 S    [cpuhp/14]
+     60       2 S    [idle_inject/14]
+     61       2 S    [migration/14]
+     62       2 S    [ksoftirqd/14]
+     64       2 I<   [kworker/14:0H-kblockd]
+     65       2 S    [cpuhp/16]
+     66       2 S    [idle_inject/16]
+     67       2 S    [migration/16]
+     68       2 S    [ksoftirqd/16]
+     70       2 I<   [kworker/16:0H-kblockd]
+     71       2 S    [cpuhp/17]
+     72       2 S    [idle_inject/17]
+     73       2 S    [migration/17]
+     74       2 S    [ksoftirqd/17]
+     76       2 I<   [kworker/17:0H-kblockd]
+     77       2 S    [cpuhp/18]
+     78       2 S    [idle_inject/18]
+     79       2 S    [migration/18]
+     80       2 S    [ksoftirqd/18]
+     82       2 I<   [kworker/18:0H-kblockd]
+     83       2 S    [cpuhp/19]
+     84       2 S    [idle_inject/19]
+     85       2 S    [migration/19]
+     86       2 S    [ksoftirqd/19]
+     87       2 I    [kworker/19:0-events]
+     88       2 I<   [kworker/19:0H-kblockd]
+     89       2 S    [cpuhp/20]
+     90       2 S    [idle_inject/20]
+     91       2 S    [migration/20]
+     92       2 S    [ksoftirqd/20]
+     94       2 I<   [kworker/20:0H-kblockd]
+     95       2 S    [cpuhp/21]
+     96       2 S    [idle_inject/21]
+     97       2 S    [migration/21]
+     98       2 S    [ksoftirqd/21]
+    100       2 I<   [kworker/21:0H-kblockd]
+    101       2 S    [cpuhp/22]
+    102       2 S    [idle_inject/22]
+    103       2 S    [migration/22]
+    104       2 S    [ksoftirqd/22]
+    106       2 I<   [kworker/22:0H-kblockd]
+    107       2 S    [cpuhp/23]
+    108       2 S    [idle_inject/23]
+    109       2 S    [migration/23]
+    110       2 S    [ksoftirqd/23]
+    111       2 I    [kworker/23:0-mm_percpu_wq]
+    112       2 I<   [kworker/23:0H-kblockd]
+    113       2 S    [cpuhp/1]
+    114       2 S    [idle_inject/1]
+    115       2 S    [migration/1]
+    116       2 S    [ksoftirqd/1]
+    118       2 I<   [kworker/1:0H-kblockd]
+    119       2 S    [cpuhp/3]
+    120       2 S    [idle_inject/3]
+    121       2 S    [migration/3]
+    122       2 S    [ksoftirqd/3]
+    123       2 I    [kworker/3:0-events]
+    124       2 I<   [kworker/3:0H-kblockd]
+    125       2 S    [cpuhp/5]
+    126       2 S    [idle_inject/5]
+    127       2 S    [migration/5]
+    128       2 S    [ksoftirqd/5]
+    130       2 I<   [kworker/5:0H-kblockd]
+    131       2 S    [cpuhp/7]
+    132       2 S    [idle_inject/7]
+    133       2 S    [migration/7]
+    134       2 S    [ksoftirqd/7]
+    136       2 I<   [kworker/7:0H-kblockd]
+    137       2 S    [cpuhp/9]
+    138       2 S    [idle_inject/9]
+    139       2 S    [migration/9]
+    140       2 S    [ksoftirqd/9]
+    142       2 I<   [kworker/9:0H-kblockd]
+    143       2 S    [cpuhp/11]
+    144       2 S    [idle_inject/11]
+    145       2 S    [migration/11]
+    146       2 S    [ksoftirqd/11]
+    148       2 I<   [kworker/11:0H-kblockd]
+    149       2 S    [cpuhp/13]
+    150       2 S    [idle_inject/13]
+    151       2 S    [migration/13]
+    152       2 S    [ksoftirqd/13]
+    154       2 I<   [kworker/13:0H-kblockd]
+    155       2 S    [cpuhp/15]
+    156       2 S    [idle_inject/15]
+    157       2 S    [migration/15]
+    158       2 S    [ksoftirqd/15]
+    159       2 I    [kworker/15:0-events]
+    160       2 I<   [kworker/15:0H-kblockd]
+    161       2 S    [kdevtmpfs]
+    162       2 I<   [kworker/R-inet_frag_wq]
+    163       2 I    [rcu_tasks_kthread]
+    164       2 I    [rcu_tasks_rude_kthread]
+    165       2 S    [kauditd]
+    166       2 S    [khungtaskd]
+    167       2 S    [oom_reaper]
+    170       2 I<   [kworker/R-writeback]
+    171       2 S    [kcompactd0]
+    172       2 SN   [ksmd]
+    173       2 SN   [khugepaged]
+    174       2 I<   [kworker/R-kblockd]
+    175       2 I<   [kworker/R-blkcg_punt_bio]
+    176       2 I<   [kworker/R-kintegrityd]
+    177       2 S    [irq/9-acpi]
+    178       2 I    [kworker/16:1-events]
+    179       2 I    [kworker/1:1-events]
+    180       2 I    [kworker/17:1-events]
+    181       2 I<   [kworker/R-tpm_dev_wq]
+    182       2 I<   [kworker/R-ata_sff]
+    183       2 I<   [kworker/R-md_bitmap]
+    184       2 I<   [kworker/R-md_llbitmap_io]
+    185       2 I<   [kworker/R-md_llbitmap_unplug]
+    186       2 I<   [kworker/R-md]
+    187       2 I<   [kworker/R-edac-poller]
+    188       2 I<   [kworker/R-devfreq_wq]
+    189       2 S    [watchdogd]
+    191       2 I<   [kworker/R-quota_events_unbound]
+    192       2 S    [kswapd0]
+    193       2 S    [ecryptfs-kthread]
+    194       2 I<   [kworker/R-kthrotld]
+    195       2 S    [irq/120-aerdrv]
+    196       2 S    [irq/121-aerdrv]
+    197       2 S    [irq/122-pciehp]
+    198       2 S    [irq/123-aerdrv]
+    199       2 I<   [kworker/R-acpi_thermal_pm]
+    202       2 S    [hwrng]
+    203       2 I<   [kworker/R-hfi-updates]
+    204       2 I    [kworker/3:1-events]
+    206       2 I    [kworker/6:1-mm_percpu_wq]
+    207       2 I    [kworker/7:1-events]
+    208       2 I    [kworker/11:1-events]
+    209       2 I    [kworker/14:1-mm_percpu_wq]
+    210       2 R    [kworker/9:1-events]
+    212       2 I    [kworker/15:1-events]
+    213       2 I    [kworker/5:1-events]
+    215       2 I    [kworker/13:1-events]
+    216       2 I    [kworker/12:1-events]
+    217       2 I    [kworker/21:1-events]
+    218       2 I    [kworker/22:1-events]
+    219       2 I    [kworker/23:1-events]
+    221       2 I<   [kworker/R-mld]
+    222       2 I<   [kworker/R-ipv6_addrconf]
+    223       2 I<   [kworker/R-kstrp]
+    225       2 I<   [kworker/u97:0]
+    236       2 I<   [kworker/R-charger_manager]
+    283       2 I    [kworker/17:2-events]
+    338       2 I    [kworker/u96:4-iou_exit]
+    404       2 I    [kworker/4:2-events]
+    405       2 I    [kworker/22:2-events]
+    478       2 I    [kworker/8:2-events]
+    537       2 I    [kworker/0:2-events]
+    551       2 I<   [kworker/R-nvme-wq]
+    552       2 I<   [kworker/R-nvme-reset-wq]
+    553       2 I<   [kworker/R-nvme-delete-wq]
+    554       2 I<   [kworker/R-nvme-auth-wq]
+    555       2 S    [scsi_eh_0]
+    556       2 I<   [kworker/R-scsi_tmf_0]
+    557       2 S    [scsi_eh_1]
+    558       2 I<   [kworker/R-scsi_tmf_1]
+    559       2 S    [scsi_eh_2]
+    560       2 I<   [kworker/R-scsi_tmf_2]
+    561       2 S    [scsi_eh_3]
+    562       2 I<   [kworker/R-scsi_tmf_3]
+    563       2 S    [scsi_eh_4]
+    564       2 I<   [kworker/R-scsi_tmf_4]
+    565       2 S    [scsi_eh_5]
+    566       2 I<   [kworker/R-scsi_tmf_5]
+    567       2 S    [scsi_eh_6]
+    568       2 I<   [kworker/R-scsi_tmf_6]
+    569       2 S    [scsi_eh_7]
+    570       2 I<   [kworker/R-scsi_tmf_7]
+    574       2 I    [kworker/u96:8-xfs-cil/sda2]
+    592       2 I    [kworker/7:2-events]
+    595       2 I<   [kworker/12:1H-kblockd]
+    599       2 I<   [kworker/2:1H-kblockd]
+    600       2 I<   [kworker/9:1H-kblockd]
+    601       2 I<   [kworker/20:1H-kblockd]
+    628       2 I    [kworker/6:2-events]
+    629       2 I<   [kworker/R-xfsalloc]
+    630       2 I<   [kworker/R-xfs_mru_cache]
+    631       2 I<   [kworker/R-xfs-buf/sda2]
+    632       2 I<   [kworker/R-xfs-conv/sda2]
+    633       2 I<   [kworker/R-xfs-reclaim/sda2]
+    634       2 I<   [kworker/R-xfs-blockgc/sda2]
+    635       2 I<   [kworker/R-xfs-inodegc/sda2]
+    636       2 I<   [kworker/R-xfs-log/sda2]
+    637       2 I<   [kworker/R-xfs-cil/sda2]
+    638       2 S    [xfsaild/sda2]
+    639       2 I<   [kworker/8:1H-kblockd]
+    640       2 I<   [kworker/10:1H-xfs-log/sda2]
+    675       2 I    [kworker/9:2-events]
+    843       2 I<   [kworker/22:1H-kblockd]
+    851       2 I<   [kworker/0:1H-kblockd]
+    858       2 S    [psimon]
+    864       1 S<s  /usr/lib/systemd/systemd-journald
+    877       2 I<   [kworker/14:1H-kblockd]
+    879       2 I<   [kworker/16:1H-kblockd]
+    902       1 Ss   /usr/lib/systemd/systemd-resolved
+    904       1 Ss   /usr/lib/systemd/systemd-oomd
+    906       1 Ss   /usr/lib/systemd/systemd-udevd
+    907       2 I<   [kworker/6:1H-kblockd]
+    908       2 I<   [kworker/18:1H-kblockd]
+    912       2 S    [psimon]
+    980       2 I    [kworker/5:2-cgroup_free]
+    981       2 S    [irq/135-mei_me]
+   1012       2 I<   [kworker/13:1H-kblockd]
+   1079       2 I<   [kworker/17:1H-kblockd]
+   1182       2 I<   [kworker/21:1H-kblockd]
+   1235       2 S    [nv_queue]
+   1236       2 S    [nv_mem_pool_scrubber_queue]
+   1237       2 S    [nv_mem_pool_scrubber_queue]
+   1238       2 S    [nv_mem_pool_scrubber_queue]
+   1239       2 S    [nv_queue]
+   1240       2 S    [nv_open_q]
+   1251       2 S    [nvidia-modeset/kthread_q]
+   1252       2 S    [nvidia-modeset/deferred_close_kthread_q]
+   1254       2 I<   [kworker/R-ttm]
+   1255       2 S    [card1-crtc0]
+   1256       2 S    [card1-crtc1]
+   1257       2 S    [card1-crtc2]
+   1258       2 S    [card1-crtc3]
+   1259       2 S    [irq/138-nvidia]
+   1260       2 S    [nvidia]
+   1261       2 S    [nv_queue]
+   1262       2 I    [kworker/13:2-events]
+   1265       2 I<   [kworker/4:1H-kblockd]
+   1266       2 I    [kworker/11:2]
+   1442       2 I<   [kworker/1:1H-kblockd]
+   1462       2 I    [kworker/u96:15-iou_exit]
+   1584       2 I<   [kworker/19:1H-kblockd]
+   1650       2 I<   [kworker/5:1H-kblockd]
+   1792       2 S    [UVM global queue]
+   1793       2 S    [UVM deferred release queue]
+   1794       2 S    [UVM Tools Event Queue]
+   2365       1 Ss   avahi-daemon: running [lhpc.local]
+   2366       1 Ss   /bin/sh /usr/lib/systemd/scripts/chronyd-starter.sh -n -F 1
+   2367       1 Ss   @dbus-daemon --system --address=systemd: --nofork --nopidfile --systemd-activation --syslog-only
+   2371       1 Ssl  /usr/libexec/gnome-remote-desktop-daemon --system
+   2377       1 Ss   /usr/bin/python3 /usr/bin/networkd-dispatcher --run-startup-triggers
+   2385       1 Ss   /usr/bin/nvidia-persistenced --user nvidia-persistenced --no-persistence-mode --verbose
+   2390       1 Ssl  /usr/lib/polkit-1/polkitd --no-debug --log-level=notice
+   2397       1 Ssl  /usr/lib/snapd/snapd
+   2398       1 Ssl  /usr/libexec/accounts-daemon
+   2399       1 Ss   /usr/sbin/cron -f -P
+   2404       1 Ssl  /usr/libexec/switcheroo-control
+   2433       1 Ss   /usr/lib/systemd/systemd-logind
+   2434       1 Ssl  /usr/sbin/thermald --systemd --dbus-enable --adaptive
+   2435       1 Ssl  /usr/libexec/udisks2/udisksd
+   2449    2365 S    avahi-daemon: chroot helper
+   2467    2366 S    /usr/sbin/chronyd -n -F 1
+   2527       1 Ssl  /usr/sbin/rsyslogd -n -iNONE
+   2532    2467 S    /usr/sbin/chronyd -n -F 1
+   2551       1 Ssl  /usr/sbin/NetworkManager --no-daemon
+   2552       1 Ss   /usr/sbin/wpa_supplicant -u -s -O DIR=/run/wpa_supplicant GROUP=netdev
+   2587       1 Ssl  /usr/sbin/ModemManager
+   2690       1 Ss   /usr/sbin/cupsd -l
+   2695       1 Ssl  /usr/bin/python3 /usr/share/unattended-upgrades/unattended-upgrade-shutdown --wait-for-signal
+   2737       1 Ssl  /usr/sbin/gdm3
+   2748    2737 Sl   gdm-session-worker [pam/gdm-launch-environment]
+   2797       1 Ss   /usr/lib/systemd/systemd --user
+   2818       2 I<   [kworker/3:1H-kblockd]
+   2854    2797 S    (sd-pam)
+   2903    2797 Ss   /usr/bin/dbus-daemon --session --address=systemd: --nofork --nopidfile --systemd-activation --syslog-only
+   2904    2797 S<sl /usr/bin/pipewire
+   2906    2748 Ssl+ /usr/libexec/gdm-wayland-session gnome-session
+   2916    2906 Sl+  /usr/libexec/gnome-session-init-worker gnome-login
+   2917    2797 Ss   /usr/bin/mpris-proxy
+   2918    2797 S<sl /usr/bin/wireplumber
+   2919       1 SNsl /usr/libexec/rtkit-daemon
+   2921    2797 Ssl  /usr/bin/pipewire -c filter-chain.conf
+   2922    2797 S<sl /usr/bin/pipewire-pulse
+   2950    2797 Ssl  /usr/libexec/gcr-ssh-agent --base-dir /run/user/60578/gcr
+   2951    2797 Ssl  /usr/bin/gnome-keyring-daemon --foreground --components=pkcs11,secrets --control-directory=/run/user/60578/keyring
+   2953    2797 Ssl  /usr/libexec/gnome-session-ctl --monitor
+   2954    2797 Ss   /usr/bin/ssh-agent -D
+   2957    2797 Ssl  /usr/libexec/xdg-document-portal
+   2971    2797 Ssl  /usr/libexec/xdg-permission-store
+   2978    2957 Ss   fusermount3 -o rw,nosuid,nodev,fsname=portal,auto_unmount,subtype=portal -- /run/user/60578/doc
+   3031    2797 Ssl  /usr/libexec/gnome-session-service --session=gnome-login
+   3045    2797 Ssl  /usr/bin/gnome-shell --mode=gdm
+   3065       2 I    [kworker/1:2]
+   3068       2 S    [nvidia-drm/timeline-16]
+   3093    2797 Ssl  /usr/libexec/at-spi-bus-launcher
+   3100    3093 S    /usr/bin/dbus-daemon --config-file=/usr/share/defaults/at-spi2/accessibility.conf --nofork --print-address 11 --address=unix:path=/run/user/60578/at-spi/bus
+   3102    2797 Sl   /usr/libexec/at-spi2-registryd --use-gnome-session
+   3103       1 Ssl  /usr/libexec/colord
+   3141    2797 Sl   /usr/bin/gjs -m /usr/share/gnome-shell/org.gnome.Shell.Notifications
+   3142       1 Ssl  /usr/libexec/upowerd
+   3161    2797 Ssl  /usr/bin/ibus-daemon --panel disable
+   3163    2797 Ssl  /usr/libexec/gsd-a11y-settings
+   3164    2797 Ssl  /usr/libexec/gsd-keyboard
+   3165    2797 Ssl  /usr/libexec/gsd-media-keys
+   3166    2797 Ssl  /usr/libexec/gsd-power
+   3167    2797 Ssl  /usr/libexec/gsd-rfkill
+   3168    2797 Ssl  /usr/libexec/gsd-sharing
+   3169    2797 Ssl  /usr/libexec/gsd-smartcard
+   3171    2797 Ssl  /usr/libexec/gsd-usb-protection
+   3214    2797 Sl   /usr/bin/gjs -m /usr/share/gnome-shell/org.gnome.ScreenSaver
+   3270    3161 Sl   /usr/libexec/ibus-dconf
+   3273    2797 Sl   /usr/libexec/ibus-portal
+   3617    2797 Ssl  /usr/libexec/xdg-desktop-portal
+   4266    2797 Ssl  /usr/libexec/xdg-desktop-portal-gnome
+   4272    3161 Sl   /usr/libexec/ibus-engine-simple
+   4629    2797 Ssl  /usr/libexec/xdg-desktop-portal-gtk
+   4719       2 I<   [kworker/15:1H-kblockd]
+   4739       1 Ssl  /usr/sbin/cups-browsed
+   4741       1 Ssl  /usr/local/bin/ollama serve
+   4743       1 Ssl  /usr/libexec/power-profiles-daemon
+   4885       2 I<   [kworker/11:1H-kblockd]
+   5034    2690 S    /usr/lib/cups/notifier/dbus dbus://
+   5995       2 S    [vidmem lazy free]
+   6005       2 S    [UVM GPU1 BH]
+   6006       2 S    [UVM GPU1 KC]
+   7338    2737 Sl   gdm-session-worker [pam/gdm-password]
+   7698       1 Ss   /usr/lib/systemd/systemd --user
+   7702    7698 S    (sd-pam)
+   7728    7698 Ss   /usr/bin/dbus-daemon --session --address=systemd: --nofork --nopidfile --systemd-activation --syslog-only
+   7729    7698 Ssl  /usr/bin/pipewire
+   7732    7698 Ss   /snap/snapd-desktop-integration/361/usr/bin/snapd-desktop-integration
+   7733    7698 SLsl /usr/bin/gnome-keyring-daemon --foreground --components=pkcs11,secrets --control-directory=/run/user/1000/keyring
+   7744    7698 Ss   /usr/bin/mpris-proxy
+   7745    7698 Ssl  /usr/bin/wireplumber
+   7746    7698 Ssl  /usr/bin/pipewire -c filter-chain.conf
+   7749    7698 Ssl  /usr/bin/pipewire-pulse
+   7815    7338 Ssl  /usr/libexec/gdm-wayland-session /usr/bin/gnome-session --session=ubuntu
+   7855    7815 Sl   /usr/libexec/gnome-session-init-worker ubuntu
+   7875    7698 Ssl  /usr/libexec/xdg-document-portal
+   7905    7698 Ssl  /usr/libexec/xdg-permission-store
+   7921    7875 Ss   fusermount3 -o rw,nosuid,nodev,fsname=portal,auto_unmount,subtype=portal -- /run/user/1000/doc
+   7984    7698 Ssl  /usr/libexec/gcr-ssh-agent --base-dir /run/user/1000/gcr
+   7985    7698 Ssl  /usr/libexec/gnome-session-ctl --monitor
+   7986    7698 Ss   /usr/bin/ssh-agent -D
+   7998    7698 Ssl  /usr/libexec/gvfsd
+   8005    7698 Sl   /usr/libexec/gvfsd-fuse /run/user/1000/gvfs -f
+   8007    7698 Ssl  /usr/libexec/gnome-session-service --session=ubuntu
+   8020    7698 SLsl /usr/bin/gnome-shell --mode=ubuntu
+   8068       2 S    [nvidia-drm/timeline-24]
+   8076       2 I<   [kworker/23:1H-kblockd]
+   8095    7698 Ssl  /usr/libexec/at-spi-bus-launcher
+   8102    8095 S    /usr/bin/dbus-daemon --config-file=/usr/share/defaults/at-spi2/accessibility.conf --nofork --print-address 11 --address=unix:path=/run/user/1000/at-spi/bus
+   8117       2 I<   [kworker/7:1H-kblockd]
+   8121    7698 Sl   /usr/libexec/at-spi2-registryd --use-gnome-session
+   8135    7732 Sl   /snap/snapd-desktop-integration/361/usr/bin/snapd-desktop-integration
+   8152    7698 Sl   /usr/libexec/gnome-shell-calendar-server
+   8172    7698 Ssl  /usr/libexec/evolution-source-registry
+   8178    7698 Sl   /usr/bin/gjs -m /usr/share/gnome-shell/org.gnome.Shell.Notifications
+   8200    7698 Ssl  /usr/bin/ibus-daemon --panel disable
+   8201    7698 Ssl  /usr/libexec/gsd-a11y-settings
+   8202    7698 Ssl  /usr/libexec/gsd-color
+   8203    7698 Ssl  /usr/libexec/gsd-datetime
+   8204    7698 Ssl  /usr/libexec/gsd-housekeeping
+   8205    7698 Ssl  /usr/libexec/gsd-keyboard
+   8206    7698 Ssl  /usr/libexec/gsd-media-keys
+   8207    7698 Ssl  /usr/libexec/gsd-power
+   8208    7698 Ssl  /usr/libexec/gsd-print-notifications
+   8209    7698 Ssl  /usr/libexec/gsd-rfkill
+   8210    7698 Ssl  /usr/libexec/gsd-screensaver-proxy
+   8212    7698 Ssl  /usr/libexec/gsd-sharing
+   8213    7698 Ssl  /usr/libexec/gsd-smartcard
+   8221    7698 Ssl  /usr/libexec/gsd-sound
+   8226    7698 Ssl  /usr/libexec/gsd-usb-protection
+   8233    7698 Ssl  /usr/libexec/gsd-wwan
+   8261    7698 Sl   /usr/libexec/gsd-disk-utility-notify
+   8262    7698 Ssl  /usr/libexec/gvfs-udisks2-volume-monitor
+   8268    7698 Sl   /usr/libexec/evolution-data-server/evolution-alarm-notify
+   8299    7698 Sl   /usr/bin/update-notifier
+   8325    7698 Sl   /usr/bin/gjs -m /usr/share/gnome-shell/org.gnome.ScreenSaver
+   8344    8200 Sl   /usr/libexec/ibus-dconf
+   8347    8200 Sl   /usr/libexec/ibus-extension-gtk3
+   8373    7698 Sl   /usr/libexec/ibus-portal
+   8423    7698 SLsl /usr/libexec/gnome-remote-desktop-daemon --handover
+   8428    7698 SNsl /usr/libexec/localsearch-3
+   8430    7698 Ssl  /usr/libexec/xdg-desktop-portal
+   8437    7698 Ssl  /usr/libexec/gvfs-mtp-volume-monitor
+   8439    7698 Ssl  /usr/libexec/xdg-desktop-portal-gnome
+   8449    7698 Sl   /usr/libexec/gsd-printer
+   8461    7698 Ssl  /usr/libexec/gvfs-gphoto2-volume-monitor
+   8471    7698 Ssl  /usr/libexec/gvfs-goa-volume-monitor
+   8476    7698 Sl   /usr/libexec/goa-daemon
+   8486    7698 Sl   /usr/libexec/goa-identity-service
+   8491    7698 Ssl  /usr/libexec/gvfs-afc-volume-monitor
+   8513    7698 Ssl  /usr/libexec/evolution-calendar-factory
+   8527    8200 Sl   /usr/libexec/ibus-engine-simple
+   8553    7698 Ssl  /usr/libexec/evolution-addressbook-factory
+   8572    7698 Ssl  /usr/libexec/dconf-service
+   8590    7998 Sl   /usr/libexec/gvfsd-trash --spawner :1.20 /org/gtk/gvfs/exec_spaw/0
+   8607       2 S    [nvidia-drm/timeline-29]
+   8645    7698 Ssl  /usr/libexec/xdg-desktop-portal-gtk
+   8945    7698 Ssl  /usr/libexec/gvfsd-metadata
+   9307    8020 Sl   gjs /usr/share/gnome-shell/extensions/ding@rastersoft.com/app/ding.js -E -P /usr/share/gnome-shell/extensions/ding@rastersoft.com/app
+   9361    8020 Sl   /opt/google/chrome/chrome
+   9366    9361 S    cat
+   9367    9361 S    cat
+   9372    7698 Sl   /opt/google/chrome/chrome_crashpad_handler --monitor-self --monitor-self-annotation=ptype=crashpad-handler --database=/home/bogdan/.config/google-chrome/Crash Reports --metrics-dir=/home/bogdan/.config/google-chrome --url=https://clients2.google.com/cr/report --annotation=channel= --annotation=lsb-release=Ubuntu 26.04 LTS --annotation=plat=Linux --annotation=prod=Chrome_Linux --annotation=ver=149.0.7827.53 --initial-client-fd=5 --shared-client-connection
+   9374    7698 Sl   /opt/google/chrome/chrome_crashpad_handler --no-periodic-tasks --monitor-self-annotation=ptype=crashpad-handler --database=/home/bogdan/.config/google-chrome/Crash Reports --url=https://clients2.google.com/cr/report --annotation=channel= --annotation=lsb-release=Ubuntu 26.04 LTS --annotation=plat=Linux --annotation=prod=Chrome_Linux --annotation=ver=149.0.7827.53 --initial-client-fd=4 --shared-client-connection
+   9382    9361 S    /opt/google/chrome/chrome --type=zygote --no-zygote-sandbox --crashpad-handler-pid=9372 --enable-crash-reporter=3155287b-7a00-49c5-ac71-cece3df78e60, --change-stack-guard-on-fork=enable
+   9383    9361 S    /opt/google/chrome/chrome --type=zygote --crashpad-handler-pid=9372 --enable-crash-reporter=3155287b-7a00-49c5-ac71-cece3df78e60, --change-stack-guard-on-fork=enable
+   9385    9383 S    /opt/google/chrome/chrome --type=zygote --crashpad-handler-pid=9372 --enable-crash-reporter=3155287b-7a00-49c5-ac71-cece3df78e60, --change-stack-guard-on-fork=enable
+   9509    9382 Sl   /opt/google/chrome/chrome --type=gpu-process --ozone-platform=wayland --render-node-override=/dev/dri/renderD129 --crashpad-handler-pid=9372 --enable-crash-reporter=3155287b-7a00-49c5-ac71-cece3df78e60, --subproc-heap-profiling --change-stack-guard-on-fork=enable --gpu-preferences=UAAAAAAAAAAgAQAEAAAAAAAAAAAAAGAAAQAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAAAAAAAAAAAYAAAAAAAAABgAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAgAAAAAAAAA --shared-files --metrics-shmem-handle=4,i,18381733552564155481,1083316623671684056,262144 --field-trial-handle=3,i,246125734429177422,8695387164347375286,262144 --disable-features=EyeDropper --variations-seed-version --pseudonymization-salt-handle=7,i,6441286087663582808,15021072476903923559,4 --trace-process-track-uuid=3190708988185955192
+   9513    8020 S    /usr/bin/Xwayland :0 -rootless -noreset -accessx -core -auth /run/user/1000/.mutter-Xwaylandauth.952IQ3 -listenfd 4 -listenfd 5 -displayfd 6 -initfd 7 -byteswappedclients -enable-ei-portal
+   9514    9361 Sl   /opt/google/chrome/chrome --type=utility --utility-sub-type=network.mojom.NetworkService --lang=en-US --service-sandbox-type=none --render-node-override=/dev/dri/renderD129 --crashpad-handler-pid=9372 --enable-crash-reporter=3155287b-7a00-49c5-ac71-cece3df78e60, --subproc-heap-profiling --change-stack-guard-on-fork=enable --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,18048511703864874180,4936728675490906621,524288 --field-trial-handle=3,i,246125734429177422,8695387164347375286,262144 --disable-features=EyeDropper --variations-seed-version --pseudonymization-salt-handle=7,i,6441286087663582808,15021072476903923559,4 --trace-process-track-uuid=3190708989122997041
+   9524       2 S    [nvidia-drm/timeline-2a]
+   9525    9385 Sl   /opt/google/chrome/chrome --type=utility --utility-sub-type=storage.mojom.StorageService --lang=en-US --service-sandbox-type=utility --render-node-override=/dev/dri/renderD129 --crashpad-handler-pid=9372 --enable-crash-reporter=3155287b-7a00-49c5-ac71-cece3df78e60, --subproc-heap-profiling --change-stack-guard-on-fork=enable --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,15684332433585680589,18295939252876871850,524288 --field-trial-handle=3,i,246125734429177422,8695387164347375286,262144 --disable-features=EyeDropper --variations-seed-version --pseudonymization-salt-handle=7,i,6441286087663582808,15021072476903923559,4 --trace-process-track-uuid=3190708990060038890
+   9537    7698 Ssl  /usr/libexec/gsd-xsettings
+   9545    8020 Sl   /usr/libexec/mutter-x11-frames
+   9564    7698 Sl   /usr/libexec/ibus-x11
+   9585       2 S    [nvidia-drm/timeline-2b]
+   9666       2 S    [nvidia-drm/timeline-2c]
+   9669       2 S    [nvidia-drm/timeline-2d]
+   9672       2 S    [nvidia-drm/timeline-2e]
+   9695    9385 Sl   /opt/google/chrome/chrome --type=renderer --crashpad-handler-pid=9372 --enable-crash-reporter=3155287b-7a00-49c5-ac71-cece3df78e60, --subproc-heap-profiling --change-stack-guard-on-fork=enable --ozone-platform=wayland --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=10 --time-ticks-at-unix-epoch=-1781189805842148 --launch-time-ticks=103841427 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,11931379510404654412,4252963242020822120,2097152 --field-trial-handle=3,i,246125734429177422,8695387164347375286,262144 --disable-features=EyeDropper --variations-seed-version --pseudonymization-salt-handle=7,i,6441286087663582808,15021072476903923559,4 --trace-process-track-uuid=3190708995682289984
+   9783    9385 Sl   /opt/google/chrome/chrome --type=renderer --crashpad-handler-pid=9372 --enable-crash-reporter=3155287b-7a00-49c5-ac71-cece3df78e60, --subproc-heap-profiling --change-stack-guard-on-fork=enable --ozone-platform=wayland --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=14 --time-ticks-at-unix-epoch=-1781189805842148 --launch-time-ticks=108043206 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,7294423168402559155,13208526970489177917,2097152 --field-trial-handle=3,i,246125734429177422,8695387164347375286,262144 --disable-features=EyeDropper --variations-seed-version --pseudonymization-salt-handle=7,i,6441286087663582808,15021072476903923559,4 --trace-process-track-uuid=3190708999430457380
+   9930    9361 Sl   /opt/google/chrome/chrome --type=utility --utility-sub-type=audio.mojom.AudioService --lang=en-US --service-sandbox-type=none --render-node-override=/dev/dri/renderD129 --crashpad-handler-pid=9372 --enable-crash-reporter=3155287b-7a00-49c5-ac71-cece3df78e60, --subproc-heap-profiling --change-stack-guard-on-fork=enable --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,7409898039540357975,8786289705431816656,524288 --field-trial-handle=3,i,246125734429177422,8695387164347375286,262144 --disable-features=EyeDropper --variations-seed-version --pseudonymization-salt-handle=7,i,6441286087663582808,15021072476903923559,4 --trace-process-track-uuid=3190709002241582927
+  10963    7698 SLl  /usr/bin/gnome-control-center --gapplication-service
+  11027       2 S    [nvidia-drm/timeline-67]
+  11030       2 S    [nvidia-drm/timeline-68]
+  11035       2 S    [nvidia-drm/timeline-69]
+  11379    7998 Sl   /usr/libexec/gvfsd-network --spawner :1.20 /org/gtk/gvfs/exec_spaw/1
+  11389    7998 Sl   /usr/libexec/gvfsd-dnssd --spawner :1.20 /org/gtk/gvfs/exec_spaw/2
+  11395    7998 Sl   /usr/libexec/gvfsd-wsdd --spawner :1.20 /org/gtk/gvfs/exec_spaw/3
+  11403   11395 S    python3 /usr/bin/wsdd --no-host --discovery --listen /run/user/1000/gvfsd/wsdd
+  11455    7998 Sl   /usr/libexec/gvfsd-recent --spawner :1.20 /org/gtk/gvfs/exec_spaw/4
+  11474       1 Ss   /usr/sbin/uuidd --socket-activation --cont-clock
+  11911    7698 Sl   /usr/bin/ptyxis --gapplication-service
+  11920   11911 Ssl  /usr/libexec/ptyxis-agent --socket-fd=3 --rlimit-nofile=1024
+  11943    7698 S    catatonit -P
+  12010       2 S    [nvidia-drm/timeline-9a]
+  12040       2 S    [nvidia-drm/timeline-9b]
+  12052       2 S    [nvidia-drm/timeline-9c]
+  12100   11920 Ss+  /usr/bin/bash
+  12115       1 Ssl  /usr/libexec/fwupd/fwupd
+  14321    7698 SLsl /snap/code/247/usr/share/code/code --no-sandbox --force-user-env --ozone-platform=x11
+  14323   14321 S    /snap/code/247/usr/share/code/code --type=zygote --no-zygote-sandbox --no-sandbox
+  14324   14321 S    /snap/code/247/usr/share/code/code --type=zygote --no-sandbox
+  14338    7698 Sl   /snap/code/247/usr/share/code/chrome_crashpad_handler --monitor-self-annotation=ptype=crashpad-handler --no-rate-limit --database=/home/bogdan/.config/Code/Crashpad --url=appcenter://code?aid=fba07a4d-84bd-4fc8-a125-9640fc8ce171&uid=fa5787aa-404a-457b-972b-7b13797fe482&iid=fa5787aa-404a-457b-972b-7b13797fe482&sid=fa5787aa-404a-457b-972b-7b13797fe482 --annotation=_companyName=Microsoft --annotation=_productName=VSCode --annotation=_version=1.124.0 --annotation=lsb-release=Ubuntu 26.04 LTS --annotation=plat=Linux --annotation=prod=Electron --annotation=ver=42.2.0 --initial-client-fd=48 --shared-client-connection
+  14350   14321 Sl   /snap/code/247/usr/share/code/code --type=gpu-process --disable-gpu-sandbox --no-sandbox --ozone-platform=x11 --crashpad-handler-pid=14338 --enable-crash-reporter=50d320f8-9312-416a-a81b-ac83f9d1b720,no_channel --user-data-dir=/home/bogdan/.config/Code --gpu-preferences=UAAAAAAAAAAgAQAEAAAAAAAAAAAAAGAAAQAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAAAAAAAAAAAYAAAAAAAAABgAAAAAAAAAAQAAAAAAAAAIAAAAAAAAAAgAAAAAAAAA --shared-files --field-trial-handle=3,i,4315662480133932358,9344095448469084459,262144 --enable-features=DocumentPolicyIncludeJSCallStacksInCrashReports,EarlyEstablishGpuChannel,EstablishGpuChannelAsync --disable-features=CalculateNativeWinOcclusion,DropInputEventsWhilePaintHolding,LocalNetworkAccessChecks,ScreenAIOCREnabled,SpareRendererForSitePerProcess,TraceSiteInstanceGetProcessCreation --variations-seed-version --pseudonymization-salt-handle=7,i,16915163586343146869,8334953305804062720,4 --trace-process-track-uuid=3190708988185955192
+  14356   14321 Sl   /snap/code/247/usr/share/code/code --type=utility --utility-sub-type=network.mojom.NetworkService --lang=en-US --service-sandbox-type=none --no-sandbox --crashpad-handler-pid=14338 --enable-crash-reporter=50d320f8-9312-416a-a81b-ac83f9d1b720,no_channel --user-data-dir=/home/bogdan/.config/Code --standard-schemes=vscode-webview,vscode-file --secure-schemes=vscode-webview,vscode-file,vscode-remote-resource,vscode-managed-remote-resource --cors-schemes=vscode-webview,vscode-file,vscode-remote-resource,vscode-managed-remote-resource --fetch-schemes=vscode-webview,vscode-file,vscode-remote-resource,vscode-managed-remote-resource --service-worker-schemes=vscode-webview --code-cache-schemes=vscode-webview,vscode-file --shared-files=v8_context_snapshot_data:100 --field-trial-handle=3,i,4315662480133932358,9344095448469084459,262144 --enable-features=DocumentPolicyIncludeJSCallStacksInCrashReports,EarlyEstablishGpuChannel,EstablishGpuChannelAsync --disable-features=CalculateNativeWinOcclusion,DropInputEventsWhilePaintHolding,LocalNetworkAccessChecks,ScreenAIOCREnabled,SpareRendererForSitePerProcess,TraceSiteInstanceGetProcessCreation --variations-seed-version --pseudonymization-salt-handle=7,i,16915163586343146869,8334953305804062720,4 --trace-process-track-uuid=3190708989122997041
+  14399       2 S    [nvidia-drm/timeline-a7]
+  14407   14324 Sl   /snap/code/247/usr/share/code/code --type=renderer --crashpad-handler-pid=14338 --enable-crash-reporter=50d320f8-9312-416a-a81b-ac83f9d1b720,no_channel --user-data-dir=/home/bogdan/.config/Code --standard-schemes=vscode-webview,vscode-file --secure-schemes=vscode-webview,vscode-file,vscode-remote-resource,vscode-managed-remote-resource --cors-schemes=vscode-webview,vscode-file,vscode-remote-resource,vscode-managed-remote-resource --fetch-schemes=vscode-webview,vscode-file,vscode-remote-resource,vscode-managed-remote-resource --service-worker-schemes=vscode-webview --code-cache-schemes=vscode-webview,vscode-file --app-path=/snap/code/247/usr/share/code/resources/app --enable-sandbox --enable-blink-features=HighlightAPI --no-sandbox --max-active-webgl-contexts=32 --ozone-platform=x11 --disable-blink-features=FontMatchingCTMigration,StandardizedBrowserZoom, --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=4 --time-ticks-at-unix-epoch=-1781189805842148 --launch-time-ticks=263561673 --shared-files=v8_context_snapshot_data:100 --field-trial-handle=3,i,4315662480133932358,9344095448469084459,262144 --enable-features=DocumentPolicyIncludeJSCallStacksInCrashReports,EarlyEstablishGpuChannel,EstablishGpuChannelAsync --disable-features=CalculateNativeWinOcclusion,DropInputEventsWhilePaintHolding,LocalNetworkAccessChecks,ScreenAIOCREnabled,SpareRendererForSitePerProcess,TraceSiteInstanceGetProcessCreation --variations-seed-version --pseudonymization-salt-handle=7,i,16915163586343146869,8334953305804062720,4 --trace-process-track-uuid=3190708990060038890 --vscode-window-config=vscode:941a0b39-8e76-4f12-8fa9-2763c2abe6c7
+  14527   14321 Sl   /snap/code/247/usr/share/code/code --type=utility --utility-sub-type=node.mojom.NodeService --lang=en-US --service-sandbox-type=none --no-sandbox --dns-result-order=ipv4first --experimental-network-inspection --inspect-port=0 --crashpad-handler-pid=14338 --enable-crash-reporter=50d320f8-9312-416a-a81b-ac83f9d1b720,no_channel --user-data-dir=/home/bogdan/.config/Code --standard-schemes=vscode-webview,vscode-file --secure-schemes=vscode-webview,vscode-file,vscode-remote-resource,vscode-managed-remote-resource --cors-schemes=vscode-webview,vscode-file,vscode-remote-resource,vscode-managed-remote-resource --fetch-schemes=vscode-webview,vscode-file,vscode-remote-resource,vscode-managed-remote-resource --service-worker-schemes=vscode-webview --code-cache-schemes=vscode-webview,vscode-file --shared-files=v8_context_snapshot_data:100 --field-trial-handle=3,i,4315662480133932358,9344095448469084459,262144 --enable-features=DocumentPolicyIncludeJSCallStacksInCrashReports,EarlyEstablishGpuChannel,EstablishGpuChannelAsync --disable-features=CalculateNativeWinOcclusion,DropInputEventsWhilePaintHolding,LocalNetworkAccessChecks,ScreenAIOCREnabled,SpareRendererForSitePerProcess,TraceSiteInstanceGetProcessCreation --variations-seed-version --pseudonymization-salt-handle=7,i,16915163586343146869,8334953305804062720,4 --trace-process-track-uuid=3190708990997080739
+  14560   14324 Sl   /snap/code/247/usr/share/code/code --type=renderer --crashpad-handler-pid=14338 --enable-crash-reporter=50d320f8-9312-416a-a81b-ac83f9d1b720,no_channel --user-data-dir=/home/bogdan/.config/Code --standard-schemes=vscode-webview,vscode-file --secure-schemes=vscode-webview,vscode-file,vscode-remote-resource,vscode-managed-remote-resource --cors-schemes=vscode-webview,vscode-file,vscode-remote-resource,vscode-managed-remote-resource --fetch-schemes=vscode-webview,vscode-file,vscode-remote-resource,vscode-managed-remote-resource --service-worker-schemes=vscode-webview --code-cache-schemes=vscode-webview,vscode-file --app-path=/snap/code/247/usr/share/code/resources/app --enable-sandbox --enable-blink-features=HighlightAPI --no-sandbox --max-active-webgl-contexts=32 --ozone-platform=x11 --disable-blink-features=FontMatchingCTMigration,StandardizedBrowserZoom, --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=6 --time-ticks-at-unix-epoch=-1781189805842148 --launch-time-ticks=264740149 --shared-files=v8_context_snapshot_data:100 --field-trial-handle=3,i,4315662480133932358,9344095448469084459,262144 --enable-features=DocumentPolicyIncludeJSCallStacksInCrashReports,EarlyEstablishGpuChannel,EstablishGpuChannelAsync --disable-features=CalculateNativeWinOcclusion,DropInputEventsWhilePaintHolding,LocalNetworkAccessChecks,ScreenAIOCREnabled,SpareRendererForSitePerProcess,TraceSiteInstanceGetProcessCreation --variations-seed-version --pseudonymization-salt-handle=7,i,16915163586343146869,8334953305804062720,4 --trace-process-track-uuid=3190708991934122588 --vscode-window-config=vscode:941a0b39-8e76-4f12-8fa9-2763c2abe6c7
+  14566   14321 Sl   /snap/code/247/usr/share/code/code --type=utility --utility-sub-type=node.mojom.NodeService --lang=en-US --service-sandbox-type=none --no-sandbox --crashpad-handler-pid=14338 --enable-crash-reporter=50d320f8-9312-416a-a81b-ac83f9d1b720,no_channel --user-data-dir=/home/bogdan/.config/Code --standard-schemes=vscode-webview,vscode-file --secure-schemes=vscode-webview,vscode-file,vscode-remote-resource,vscode-managed-remote-resource --cors-schemes=vscode-webview,vscode-file,vscode-remote-resource,vscode-managed-remote-resource --fetch-schemes=vscode-webview,vscode-file,vscode-remote-resource,vscode-managed-remote-resource --service-worker-schemes=vscode-webview --code-cache-schemes=vscode-webview,vscode-file --shared-files=v8_context_snapshot_data:100 --field-trial-handle=3,i,4315662480133932358,9344095448469084459,262144 --enable-features=DocumentPolicyIncludeJSCallStacksInCrashReports,EarlyEstablishGpuChannel,EstablishGpuChannelAsync --disable-features=CalculateNativeWinOcclusion,DropInputEventsWhilePaintHolding,LocalNetworkAccessChecks,ScreenAIOCREnabled,SpareRendererForSitePerProcess,TraceSiteInstanceGetProcessCreation --variations-seed-version --pseudonymization-salt-handle=7,i,16915163586343146869,8334953305804062720,4 --trace-process-track-uuid=3190708992871164437
+  14567   14321 Sl   /snap/code/247/usr/share/code/code --type=utility --utility-sub-type=node.mojom.NodeService --lang=en-US --service-sandbox-type=none --no-sandbox --crashpad-handler-pid=14338 --enable-crash-reporter=50d320f8-9312-416a-a81b-ac83f9d1b720,no_channel --user-data-dir=/home/bogdan/.config/Code --standard-schemes=vscode-webview,vscode-file --secure-schemes=vscode-webview,vscode-file,vscode-remote-resource,vscode-managed-remote-resource --cors-schemes=vscode-webview,vscode-file,vscode-remote-resource,vscode-managed-remote-resource --fetch-schemes=vscode-webview,vscode-file,vscode-remote-resource,vscode-managed-remote-resource --service-worker-schemes=vscode-webview --code-cache-schemes=vscode-webview,vscode-file --shared-files=v8_context_snapshot_data:100 --field-trial-handle=3,i,4315662480133932358,9344095448469084459,262144 --enable-features=DocumentPolicyIncludeJSCallStacksInCrashReports,EarlyEstablishGpuChannel,EstablishGpuChannelAsync --disable-features=CalculateNativeWinOcclusion,DropInputEventsWhilePaintHolding,LocalNetworkAccessChecks,ScreenAIOCREnabled,SpareRendererForSitePerProcess,TraceSiteInstanceGetProcessCreation --variations-seed-version --pseudonymization-salt-handle=7,i,16915163586343146869,8334953305804062720,4 --trace-process-track-uuid=3190708993808206286
+  14682   14527 Sl   /home/bogdan/.vscode/extensions/openai.chatgpt-26.602.71036-linux-x64/bin/linux-x86_64/codex app-server --analytics-default-enabled
+  15191   14324 Sl   /snap/code/247/usr/share/code/code --type=renderer --crashpad-handler-pid=14338 --enable-crash-reporter=50d320f8-9312-416a-a81b-ac83f9d1b720,no_channel --user-data-dir=/home/bogdan/.config/Code --standard-schemes=vscode-webview,vscode-file --secure-schemes=vscode-webview,vscode-file,vscode-remote-resource,vscode-managed-remote-resource --cors-schemes=vscode-webview,vscode-file,vscode-remote-resource,vscode-managed-remote-resource --fetch-schemes=vscode-webview,vscode-file,vscode-remote-resource,vscode-managed-remote-resource --service-worker-schemes=vscode-webview --code-cache-schemes=vscode-webview,vscode-file --app-path=/snap/code/247/usr/share/code/resources/app --enable-sandbox --enable-blink-features=HighlightAPI --no-sandbox --max-active-webgl-contexts=32 --ozone-platform=x11 --disable-blink-features=FontMatchingCTMigration,StandardizedBrowserZoom, --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=9 --time-ticks-at-unix-epoch=-1781189805842148 --launch-time-ticks=265814949 --shared-files=v8_context_snapshot_data:100 --field-trial-handle=3,i,4315662480133932358,9344095448469084459,262144 --enable-features=DocumentPolicyIncludeJSCallStacksInCrashReports,EarlyEstablishGpuChannel,EstablishGpuChannelAsync --disable-features=CalculateNativeWinOcclusion,DropInputEventsWhilePaintHolding,LocalNetworkAccessChecks,ScreenAIOCREnabled,SpareRendererForSitePerProcess,TraceSiteInstanceGetProcessCreation --variations-seed-version --pseudonymization-salt-handle=7,i,16915163586343146869,8334953305804062720,4 --trace-process-track-uuid=3190708994745248135 --vscode-window-config=vscode:941a0b39-8e76-4f12-8fa9-2763c2abe6c7
+  17914    9385 Sl   /opt/google/chrome/chrome --type=renderer --crashpad-handler-pid=9372 --enable-crash-reporter=3155287b-7a00-49c5-ac71-cece3df78e60, --subproc-heap-profiling --change-stack-guard-on-fork=enable --ozone-platform=wayland --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=85 --time-ticks-at-unix-epoch=-1781189805842148 --launch-time-ticks=321020881 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,12648911325890138409,2954261963724995585,2097152 --field-trial-handle=3,i,246125734429177422,8695387164347375286,262144 --disable-features=EyeDropper --variations-seed-version --pseudonymization-salt-handle=7,i,6441286087663582808,15021072476903923559,4 --trace-process-track-uuid=3190709065960428659
+  18230       2 I    [kworker/4:0-mm_percpu_wq]
+  18724    9385 Sl   /opt/google/chrome/chrome --type=renderer --crashpad-handler-pid=9372 --enable-crash-reporter=3155287b-7a00-49c5-ac71-cece3df78e60, --subproc-heap-profiling --change-stack-guard-on-fork=enable --ozone-platform=wayland --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=94 --time-ticks-at-unix-epoch=-1781189805842148 --launch-time-ticks=407491840 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,7676381480021341792,6115299876417688613,2097152 --field-trial-handle=3,i,246125734429177422,8695387164347375286,262144 --disable-features=EyeDropper --variations-seed-version --pseudonymization-salt-handle=7,i,6441286087663582808,15021072476903923559,4 --trace-process-track-uuid=3190709074393805300
+  18766    9385 Sl   /opt/google/chrome/chrome --type=renderer --crashpad-handler-pid=9372 --enable-crash-reporter=3155287b-7a00-49c5-ac71-cece3df78e60, --subproc-heap-profiling --change-stack-guard-on-fork=enable --ozone-platform=wayland --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=95 --time-ticks-at-unix-epoch=-1781189805842148 --launch-time-ticks=411497911 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,1241547947280895111,9258193292494289121,2097152 --field-trial-handle=3,i,246125734429177422,8695387164347375286,262144 --disable-features=EyeDropper --variations-seed-version --pseudonymization-salt-handle=7,i,6441286087663582808,15021072476903923559,4 --trace-process-track-uuid=3190709075330847149
+  18863       2 I    [kworker/18:0-mm_percpu_wq]
+  19829       2 S    [nvidia-drm/timeline-116]
+  19854   11920 Ss+  /usr/bin/bash
+  20344       2 I    [kworker/2:0-events]
+  23130   11920 Ss   /usr/bin/bash
+  24273       2 I    [kworker/8:0-mm_percpu_wq]
+  24998       2 I    [kworker/18:2-events]
+  25865    9385 Sl   /opt/google/chrome/chrome --type=renderer --crashpad-handler-pid=9372 --enable-crash-reporter=3155287b-7a00-49c5-ac71-cece3df78e60, --subproc-heap-profiling --change-stack-guard-on-fork=enable --ozone-platform=wayland --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=98 --time-ticks-at-unix-epoch=-1781189805842148 --launch-time-ticks=997698542 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,2140623294738793328,13402113821434551786,2097152 --field-trial-handle=3,i,246125734429177422,8695387164347375286,262144 --disable-features=EyeDropper --variations-seed-version --pseudonymization-salt-handle=7,i,6441286087663582808,15021072476903923559,4 --trace-process-track-uuid=3190709078141972696
+  26074       2 I    [kworker/12:0-mm_percpu_wq]
+  26145   11920 Ss+  /usr/bin/bash
+  26167       2 I    [kworker/20:2-mm_percpu_wq]
+  26811       2 I    [kworker/2:1-events]
+  27261   23130 Sl+  /home/bogdan/.venv/bin/python3.12 /home/bogdan/.venv/bin/aider --model ollama_chat/gemma4:12b
+  27977    7698 Sl   /usr/bin/nautilus --gapplication-service
+  28011       2 S    [nvidia-drm/timeline-1a0]
+  28014       2 S    [nvidia-drm/timeline-1a1]
+  28017       2 S    [nvidia-drm/timeline-1a2]
+  28037       2 I    [kworker/16:0-mm_percpu_wq]
+  28067    7698 Sl   /usr/bin/gnome-text-editor --gapplication-service
+  28107       2 S    [nvidia-drm/timeline-1a8]
+  28110       2 S    [nvidia-drm/timeline-1a9]
+  28113       2 S    [nvidia-drm/timeline-1aa]
+  28489       2 I    [kworker/19:2-events]
+  28606       2 I    [kworker/21:0-mm_percpu_wq]
+  28645       2 I    [kworker/0:0-events]
+  29565       2 I    [kworker/14:2-events]
+  29569    9385 Sl   /opt/google/chrome/chrome --type=renderer --crashpad-handler-pid=9372 --enable-crash-reporter=3155287b-7a00-49c5-ac71-cece3df78e60, --subproc-heap-profiling --change-stack-guard-on-fork=enable --ozone-platform=wayland --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=100 --time-ticks-at-unix-epoch=-1781189805842148 --launch-time-ticks=1399794558 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,5196726012035488575,3785157495589472346,2097152 --field-trial-handle=3,i,246125734429177422,8695387164347375286,262144 --disable-features=EyeDropper --variations-seed-version --pseudonymization-salt-handle=7,i,6441286087663582808,15021072476903923559,4 --trace-process-track-uuid=3190709080016056394
+  32017   14321 Sl   /snap/code/247/usr/share/code/code --type=utility --utility-sub-type=node.mojom.NodeService --lang=en-US --service-sandbox-type=none --no-sandbox --crashpad-handler-pid=14338 --enable-crash-reporter=50d320f8-9312-416a-a81b-ac83f9d1b720,no_channel --user-data-dir=/home/bogdan/.config/Code --standard-schemes=vscode-webview,vscode-file --secure-schemes=vscode-webview,vscode-file,vscode-remote-resource,vscode-managed-remote-resource --cors-schemes=vscode-webview,vscode-file,vscode-remote-resource,vscode-managed-remote-resource --fetch-schemes=vscode-webview,vscode-file,vscode-remote-resource,vscode-managed-remote-resource --service-worker-schemes=vscode-webview --code-cache-schemes=vscode-webview,vscode-file --shared-files=v8_context_snapshot_data:100 --field-trial-handle=3,i,4315662480133932358,9344095448469084459,262144 --enable-features=DocumentPolicyIncludeJSCallStacksInCrashReports,EarlyEstablishGpuChannel,EstablishGpuChannelAsync --disable-features=CalculateNativeWinOcclusion,DropInputEventsWhilePaintHolding,LocalNetworkAccessChecks,ScreenAIOCREnabled,SpareRendererForSitePerProcess,TraceSiteInstanceGetProcessCreation --variations-seed-version --pseudonymization-salt-handle=7,i,16915163586343146869,8334953305804062720,4 --trace-process-track-uuid=3190709000367499229
+  32100       2 I    [kworker/20:0-events]
+  32858       2 I    [kworker/10:4-mm_percpu_wq]
+  32859       2 I    [kworker/10:5-events]
+  33184       2 I    [kworker/4:1]
+  33293       2 I    [kworker/2:2-events]
+  33468    4741 Sl   /usr/local/lib/ollama/llama-server --model /usr/share/ollama/.ollama/models/blobs/sha256-1278394b693672ac2799eadc9a83fd98259a6a88a40acfb1dcaa6c6fc895a606 --port 37271 --host 127.0.0.1 --no-webui --offline -c 8192 -np 1 --log-verbosity 4 --no-log-prefix --no-log-timestamps --no-jinja --chat-template chatml --mmproj /usr/share/ollama/.ollama/models/blobs/sha256-675ad6e68101ca9413ec806855c452362f0213f2dfc5800996b086fdb8119842 --flash-attn auto -b 1024 -ub 1024
+  33581       2 I    [kworker/6:0]
+  33736       2 I    [kworker/3:2-events]
+  34034       2 I    [kworker/8:1]
+  34452       2 I    [kworker/9:0]
+  34764       2 I    [kworker/17:0-mm_percpu_wq]
+  34914       2 I    [kworker/23:2]
+  35032       2 I    [kworker/u96:1-events_unbound]
+  35033       2 I    [kworker/u96:2-flush-8:0]
+  35034       2 I    [kworker/u96:3-events_unbound]
+  35035       2 I    [kworker/u96:5]
+  36870       2 I    [kworker/16:2]
+  36981    9385 Sl   /opt/google/chrome/chrome --type=renderer --crashpad-handler-pid=9372 --enable-crash-reporter=3155287b-7a00-49c5-ac71-cece3df78e60, --subproc-heap-profiling --change-stack-guard-on-fork=enable --ozone-platform=wayland --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=106 --time-ticks-at-unix-epoch=-1781189805842148 --launch-time-ticks=1795873159 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,4077716179453294238,4104324776646848223,2097152 --field-trial-handle=3,i,246125734429177422,8695387164347375286,262144 --disable-features=EyeDropper --variations-seed-version --pseudonymization-salt-handle=7,i,6441286087663582808,15021072476903923559,4 --trace-process-track-uuid=3190709085638307488
+  36996   14682 Ss   python3 examples/sentai_runtime/experiments/s228_arm_emulator_hw_stub_namespaces/run_s228.py --renode-ui
+  37469   14527 S    git status -z -uall
+  37532   37469 S    /usr/lib/git-core/git status --porcelain=2
+  37583   36996 R    ps -eo pid,ppid,stat,cmd

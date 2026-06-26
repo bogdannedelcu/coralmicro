@@ -1,0 +1,9 @@
+Traceback (most recent call last):
+  File "/home/bogdan/work/coralmicro/scripts/flashtool.py", line 1205, in <module>
+    main()
+    ~~~~^^
+  File "/home/bogdan/work/coralmicro/scripts/flashtool.py", line 1033, in main
+    os.path.dirname(elfloader_path), 'elf_loader')
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^
+  File "<frozen posixpath>", line 178, in dirname
+TypeError: expected str, bytes or os.PathLike object, not NoneType

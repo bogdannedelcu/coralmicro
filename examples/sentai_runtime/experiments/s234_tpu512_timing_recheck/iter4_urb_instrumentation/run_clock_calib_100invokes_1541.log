@@ -1,0 +1,31 @@
+PORT /dev/ttyACM0
+
+KeyboardInterrupt
+>>> 
+>>> 
+>>> 
+>>> 
+>>> exec('import sentai\n\nMODEL = "/yolo_1_class_512_1_upsample_512_inloc_de_1024_la_P5_32.tflite"\nN_INVOKES = 100\nTAGS = ("instructions", "input", "parameters", "output", "event", "unknown")\nFIELDS = (\n    "calls", "callbacks", "bytes_req", "bytes_done", "submit_cyc",\n    "callback_cyc", "wait_cyc", "errors", "timeouts", "submit_fail",\n)\n\ndef du32(a, b):\n    return (int(b) - int(a)) & 0xffffffff\n\ndef snap_urb(reset=False):\n    hz, rows = sentai.tpu.urb_stats(1 if reset else 0)\n    out = {}\n    for i, tag in enumerate(TAGS):\n        row = rows[i]\n        out[tag] = {}\n        for j, field in enumerate(FIELDS):\n            out[tag][field] = row[j]\n    return hz, out\n\ndef ms_from_cyc(cyc, hz):\n    return (float(cyc) * 1000.0) / float(hz)\n\nprint("S234 iter4 clock calibration + 100 invokes")\nprint("version=%s" % sentai.version())\nprint("model=%s" % MODEL)\n\ncal = []\nfor sleep_ms in (100, 500, 1000, 2000):\n    c0 = sentai.rtos.cycles()\n    u0 = sentai.rtos.micros()\n    t0 = sentai.rtosTraceback (most recent call last):
+  File "<stdin>", line 1
+SyntaxError: invalid syntax
+>>> ticks_ms()\n    sentai.rtos.sleep_ms(sleep_ms)\n    c1 = sentai.rtos.cycles()\n    u1 = sentai.rtos.micros()\n    t1 = sentai.rtos.ticks_ms()\n    dc = du32(c0, c1)\n    du = du32(u0, u1)\n    dt = du32(t0, t1)\n    hz = (float(dc) * 1000000.0) / float(du) if du > 0 else 0.0\n    cal.append(hz)\n    print("cal_sleep_ms=%d ticks_ms=%d micros=%d cycles=%d hz=%.3f" %\n          (sleep_ms, dt, du, dc, hz))\n\ncal_hz = sum(cal) / len(cal)\nreported_hz = snap_urb(False)[0]\nprint("reported_hz=%d" % reported_hz)\nprint("calibrated_hz_avg=%.3f" % cal_hz)\nprint("reported_vs_calibrated_pct=%.6f" %\n      ((float(reported_hz) - cal_hz) * 100.0 / cal_hz))\n\nsentai.tpu.load(MODEL)\nsentai.camera.init()\nsentai.camera.to_tensor()\nsentai.rtos.sleep_ms(300)\nfor i in range(5):\n    sentai.tpu.invoke()\nprint("warmed")\n\nsnap_urb(True)\nt0 = sentai.rtos.ticks_ms()\nu0 = sentai.rtos.micros()\nc0 = sentai.rtos.cycles()\nfor i in range(N_INVOKES):\n    sentai.tpu.invoke()\nc1 = sentai.rtos.cycles()\nu1 = sentai.rtos.micros(Traceback (most recent call last):
+  File "<stdin>", line 1
+SyntaxError: invalid syntax
+>>> 
+NO_OUTPUT_30S
+
+KeyboardInterrupt
+>>> 
+KeyboardInterrupt
+>>> 
+>>> 
+>>> 
+KeyboardInterrupt
+>>> 
+KeyboardInterrupt
+>>> 
+>>> 
+>>> import sentai
+>>> print(sentai.version())
+SentAI v1.0 build 1541 (2026-06-24 10:15:37)
+>>> 

@@ -1,0 +1,14 @@
+Opening REPL on /dev/ttyACM0 …
+REPL ready.  Uploading 1 file(s):
+  pipeline_wall_clock_probe.py → /lib/diag/pipeline_wall_clock_probe.py  (8535 bytes)
+    … 960/8535 bytes OK
+    … 1920/8535 bytes OK
+    … 2880/8535 bytes OK
+    … 3840/8535 bytes OK
+    … 4800/8535 bytes OK
+    … 5760/8535 bytes OK
+    … 6720/8535 bytes OK
+    … 7680/8535 bytes OK
+    … 8535/8535 bytes OK
+    ✓ wrote 8535 bytes in 30.1s sync=ok
+Done.  On device:  import diag

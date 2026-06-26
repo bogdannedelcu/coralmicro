@@ -1,0 +1,1 @@
+Using model: models/yolo_1_class_512_1_upsample_512_inloc_de_1024_la_P5_32.tflite

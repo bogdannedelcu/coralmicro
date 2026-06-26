@@ -158,13 +158,6 @@ int sentai_mic_level(void) {
     return 0;
 }
 
-int sentai_sleep_idle(int threshold_db, int timeout_ms, int enable_tap) {
-    (void)threshold_db;
-    (void)enable_tap;
-    if (timeout_ms > 0) sentai_sleep_ms((uint32_t)timeout_ms);
-    return 0;
-}
-
 int sentai_usb_drive_set(int on) {
     (void)on;
     return -1;

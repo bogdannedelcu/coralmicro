@@ -1,0 +1,41 @@
+DEFAULT_PORT /dev/ttyACM0
+STORAGE_SEEN 5 1782284683.5232344
+STORAGE_PORT_OPENED /dev/ttyACM0 28
+[00:00:135] Boot logging to /log/boot.log
+[00:00:135] [boot-mode] storage=0 attempts=0 prev_progress=0x00 sram=00000000/00000000 GPR9=57500001 GPR10=57500001 GPR11=57500001 GPR12=57500001 GPR15=57500001 GPR16=57500001
+[00:00:136] User button -> sentai.usb.drive(1)  [enter STORAGE mode]
+[00:00:136] Starting MicroPython REPL task...
+[MicroPython] REPL task created (stack=16384, priority=1)
+[00:00:136] Watchdog started (auto-reset if HTTP+REPL dead for 2min)
+[00:00:136] Boot complete, system mode: NORMAL
+[00:00:136] M4 offload: disabled (flow runs on M7).
+[00:00:136] SentAI MicroPython Runtime
+[EdgeTPU mgr] creating context
+[MicroPython] REPL task started
+[crazy] RX task started
+[crazy] CMD task started
+[crazy] initialized at 576000 baud (CPX/CRTP)
+[boot] crazy bridge auto-init OK (radio surface up)
+[bbt] no persisted BBT, starting clean
+[MicroPython] Boot log saved to /log/boot.log
+
+MicroPython REPL on SentAI board v1.0  [build #1539  2026-06-24 10:01:56]
+Ctrl+C to interrupt running code or cancel input.
+
+>>> [EdgeTPU mgr] initializing driver
+[EdgeTPU mgr] driver initialized
+[00:01:336] Edge TPU opened (mode 3)
+>>> AT
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 'AT' isn't defined
+>>> 
+FINAL_LSUSB
+Bus 001 Device 001: ID 1d6b:0002 Linux Foundation 2.0 root hub
+Bus 001 Device 002: ID 046d:c33a Logitech, Inc. G413 Gaming Keyboard
+Bus 001 Device 003: ID 258a:0033 SINOWEALTH Wired Gaming Mouse
+Bus 001 Device 004: ID 05e3:0608 Genesys Logic, Inc. Hub
+Bus 001 Device 005: ID 048d:5702 Integrated Technology Express, Inc. RGB LED Controller
+Bus 001 Device 072: ID 1fc9:c0a1 NXP Semiconductors autonomous.ro SentAI build #1539
+Bus 002 Device 001: ID 1d6b:0003 Linux Foundation 3.0 root hub
+

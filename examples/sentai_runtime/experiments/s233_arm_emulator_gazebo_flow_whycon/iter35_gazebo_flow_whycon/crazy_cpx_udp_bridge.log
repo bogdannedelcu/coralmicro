@@ -1,0 +1,25 @@
+t=24ms baudrate 576000
+t=25ms open
+t=535ms guest system dst=1 src=3 payload=2101
+t=769ms guest system dst=1 src=3 payload=2001
+t=776ms guest->udp crtp_len=5
+t=784ms udp->guest crtp_len=5
+t=788ms guest->udp crtp_len=3
+t=1240ms guest->udp crtp_len=16
+t=1244ms udp->guest crtp_len=5
+t=5284ms guest->udp crtp_len=3
+t=5285ms udp->guest crtp_len=5
+t=5290ms guest->udp crtp_len=18
+t=5397ms guest->udp crtp_len=18
+t=5518ms guest->udp crtp_len=18
+t=5588ms guest->udp crtp_len=18
+t=5700ms guest->udp crtp_len=18
+t=5771ms guest->udp crtp_len=18
+t=10797ms guest->udp crtp_len=18
+t=15039ms guest->udp crtp_len=18
+t=19341ms guest->udp crtp_len=16
+t=19344ms udp->guest crtp_len=5
+t=21931ms guest system dst=1 src=3 payload=2100
+t=22154ms guest system dst=1 src=3 payload=2000
+t=22605ms baudrate 115200
+t=22606ms close

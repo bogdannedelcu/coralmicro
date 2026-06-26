@@ -1,0 +1,9 @@
+run,file,drain,index,grabbed_id,current_id,left_x,left_kind,expected,verdict,left_luma_samples
+bars_hband,frames/run01_d1_00.jpg,1,0,0,0,40,LEFT_WHITE,LEFT_WHITE,correct,255;255;255;255;255;255;255;255;255
+bars_hband,frames/run01_d1_01.jpg,1,1,1,1,40,LEFT_DARK,LEFT_DARK,correct,14;12;14;14;12;14;14;14;14
+bars_hband,frames/run01_d2_00.jpg,2,0,0,0,40,LEFT_DARK,LEFT_WHITE,mismatch,12;14;12;12;12;14;14;14;13
+bars_hband,frames/run01_d2_01.jpg,2,1,1,1,40,LEFT_DARK,LEFT_DARK,correct,15;12;14;14;12;12;14;14;15
+bars_real,frames/run02_d1_00.jpg,1,0,1,0,40,LEFT_MIXED,LEFT_DARK,mixed,211;249;122;109;43;63;67;24;41
+bars_real,frames/run02_d1_01.jpg,1,1,0,0,40,LEFT_WHITE,LEFT_WHITE,correct,255;255;255;255;255;255;255;255;255
+bars_real,frames/run02_d2_00.jpg,2,0,1,1,40,LEFT_WHITE,LEFT_DARK,mismatch,255;255;255;255;255;255;255;255;255
+bars_real,frames/run02_d2_01.jpg,2,1,0,0,40,LEFT_WHITE,LEFT_WHITE,correct,255;255;255;255;255;255;255;255;255

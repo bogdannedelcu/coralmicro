@@ -1,0 +1,54 @@
+[
+  {
+    "file": "frames/run01_d1_00.jpg",
+    "drain": "1",
+    "index": "0",
+    "grabbed_id": "0",
+    "current_id": "0",
+    "jpeg_bytes": "9580",
+    "kind": "BARS",
+    "expected": "BARS",
+    "verdict": "correct",
+    "size": "640x480",
+    "row_kinds": "17/255/6;17/255/6;17/255/6;17/255/6;17/255/6"
+  },
+  {
+    "file": "frames/run01_d1_01.jpg",
+    "drain": "1",
+    "index": "1",
+    "grabbed_id": "1",
+    "current_id": "1",
+    "jpeg_bytes": "9883",
+    "kind": "BARS",
+    "expected": "HBAND",
+    "verdict": "mismatch",
+    "size": "640x480",
+    "row_kinds": "16/238/4;14/238/4;16/228/4;12/238/4;17/238/4"
+  },
+  {
+    "file": "frames/run01_d2_00.jpg",
+    "drain": "2",
+    "index": "0",
+    "grabbed_id": "0",
+    "current_id": "0",
+    "jpeg_bytes": "9927",
+    "kind": "BARS",
+    "expected": "BARS",
+    "verdict": "correct",
+    "size": "640x480",
+    "row_kinds": "18/238/4;14/238/4;15/226/4;13/238/4;17/238/4"
+  },
+  {
+    "file": "frames/run01_d2_01.jpg",
+    "drain": "2",
+    "index": "1",
+    "grabbed_id": "1",
+    "current_id": "1",
+    "jpeg_bytes": "9919",
+    "kind": "BARS",
+    "expected": "HBAND",
+    "verdict": "mismatch",
+    "size": "640x480",
+    "row_kinds": "17/238/4;14/238/4;16/226/4;12/241/4;17/238/4"
+  }
+]

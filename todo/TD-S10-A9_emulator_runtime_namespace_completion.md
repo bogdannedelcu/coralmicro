@@ -192,7 +192,6 @@ tests, emulator stubs, or an explicit deferral:
 
 - `sentai.imu`;
 - `sentai.mic`;
-- `sentai.sleep`;
 - `sentai.servo`;
 - `sentai.calib`;
 - `sentai.object_lifter`;

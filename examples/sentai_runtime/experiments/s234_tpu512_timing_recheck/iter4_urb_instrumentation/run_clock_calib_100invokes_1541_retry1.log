@@ -1,0 +1,60 @@
+PORT /dev/ttyACM0
+
+KeyboardInterrupt
+>>> 
+>>> 
+>>> 
+>>> 
+>>> import sentai
+>>> exec(sentai.fs.read_str('/lib/diag/clock_calib_100invokes.py'))
+S234 iter4 clock calibration + 100 invokes
+version=SentAI v1.0 build 1541 (2026-06-24 10:15:37)
+model=/yolo_1_class_512_1_upsample_512_inloc_de_1024_la_P5_32.tflite
+cal_sleep_ms=100 ticks_ms=100 micros=101119 cycles=57366576 hz=567317504.000
+cal_sleep_ms=500 ticks_ms=500 micros=508082 cycles=288787342 hz=568387264.000
+cal_sleep_ms=1000 ticks_ms=1000 micros=1016380 cycles=577747306 hz=568436352.000
+cal_sleep_ms=2000 ticks_ms=2000 micros=2030404 cycles=1184001084 hz=583135680.000
+reported_hz=792000000
+calibrated_hz_avg=571819200.000
+reported_vs_calibrated_pct=38.505318
+Model loaded: 5591680 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x87d0eda232ac7cda
+Input:  uint8[1,512,512,3] (786432 bytes)
+  quant: scale=0.00392157  zero_point=0
+Outputs: 1
+  [0] uint8[1,1344,6] (8064 bytes)
+      quant: scale=0.00392150  zero_point=0
+Arena used: 776 / 8192 KB
+Model name: yolo_1_class_512_1_upsample_512_
+HandlePowerRequest: try I2C1: Success
+HandlePowerRequest: try I2C2: Success
+CAMERA_RECEIVER_Init = 0
+BOARD_PullCameraPowerDownPin:1
+BOARD_PullCameraResetPin:0
+BOARD_PullCameraPowerDownPin:0
+BOARD_PullCameraResetPin:1
+CAMERA_DEVICE_Init = 0
+CAMERA_DEVICE_Start = 0
+CAMERA_RECEIVER_Start = 0
+[CAM] sensor_fps=30 (1 s sample, target=30)
+[CAM1] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM1] W 0x3820=0x47 (0)
+[CAM1] W 0x3821=0x01 (0)
+[CAM0] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM0] W 0x3820=0x47 (0)
+[CAM0] W 0x3821=0x01 (0)
+[to_tensor] frame=2ms pxp=11ms quant=0ms total=13ms (512x512)
+warmed
+invoke_count=100
+invoke_ticks_ms_total=1673 per=16.730000
+invoke_micros_total=4138160 per=41381.601563
+invoke_raw_cycles_total=940095913 per=9400959.000 hz_from_micros=227177280.000
+tag,calls,bytes_req,wait_ms_reported_per_invoke,wait_ms_calibrated_per_invoke,submit_ms_reported_per_invoke,callback_ms_reported_per_invoke
+instructions,1300,37168000,4.389132,6.079182,0.147733,4.355740
+input,2500,81102400,6.180157,8.559846,0.308221,6.116462
+parameters,200,276000,0.101238,0.140220,0.007558,0.096157
+output,100,1075200,0.736723,1.020401,0.007086,0.734196
+event,100,1600,0.023996,0.033236,0.003090,0.021460
+unknown,0,0,0.000000,0.000000,0.000000,0.000000
+=== clock_calib_done ===
+>>> 

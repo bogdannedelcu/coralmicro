@@ -1,0 +1,9 @@
+Opening REPL on /dev/ttyACM0 …
+REPL ready.  Uploading 1 file(s):
+  pure_tpu_wall_one_chunk.py → /lib/diag/pure_tpu_wall_one_chunk.py  (4425 bytes)
+    … 960/4425 bytes OK
+    … 1920/4425 bytes OK
+    … 2880/4425 bytes OK
+    … 3840/4425 bytes OK
+    ✓ wrote 4425 bytes in 9.5s sync=ok
+Done.  On device:  import diag

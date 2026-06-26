@@ -1,0 +1,45 @@
+PORT /dev/ttyACM0
+
+KeyboardInterrupt
+>>> 
+>>> 
+>>> 
+>>> 
+>>> import sentai
+>>> exec(sentai.fs.read_str('/lib/diag/clock_calib_100invokes.py').replace('N_INVOKES = 100','N_INVOKES = 300'))
+S234 iter4 clock calibration + 100 invokes
+version=SentAI v1.0 build 1541 (2026-06-24 10:15:37)
+model=/yolo_1_class_512_1_upsample_512_inloc_de_1024_la_P5_32.tflite
+cal_sleep_ms=100 ticks_ms=100 micros=103836 cycles=39528321 hz=380680320.000
+cal_sleep_ms=500 ticks_ms=500 micros=517925 cycles=191443283 hz=369635136.000
+cal_sleep_ms=1000 ticks_ms=1000 micros=1030950 cycles=381539730 hz=370085568.000
+cal_sleep_ms=2000 ticks_ms=2000 micros=2069318 cycles=769428153 hz=371826944.000
+reported_hz=792000000
+calibrated_hz_avg=373056992.000
+reported_vs_calibrated_pct=112.300003
+Model loaded: 5591680 bytes
+Input:  uint8[1,512,512,3] (786432 bytes)
+  quant: scale=0.00392157  zero_point=0
+Outputs: 1
+  [0] uint8[1,1344,6] (8064 bytes)
+      quant: scale=0.00392150  zero_point=0
+Arena used: 776 / 8192 KB
+Model name: yolo_1_class_512_1_upsample_512_
+[to_tensor] frame=2ms pxp=12ms quant=0ms total=14ms (512x512)
+warmed
+
+HOST_MARK warmed 1782285610.547087
+invoke_count=300
+invoke_ticks_ms_total=4731 per=15.770000
+invoke_micros_total=12416603 per=41388.675781
+invoke_raw_cycles_total=2502616098 per=8342053.500 hz_from_micros=201554000.000
+tag,calls,bytes_req,wait_ms_reported_per_invoke,wait_ms_calibrated_per_invoke,submit_ms_reported_per_invoke,callback_ms_reported_per_invoke
+instructions,3900,111504000,4.447926,9.442946,0.148066,4.414485
+input,7500,243307200,4.964409,10.539441,0.308145,4.901226
+parameters,600,828000,0.098105,0.208276,0.007549,0.093031
+output,300,3225600,0.555408,1.179130,0.007076,0.552884
+event,300,4800,0.025027,0.053132,0.003097,0.022502
+unknown,0,0,0.000000,0.000000,0.000000,0.000000
+=== clock_calib_done ===
+>>> 
+HOST_DELTA_warmed_to_invoke_count_s 12.429867

@@ -1,0 +1,28 @@
+
+>>> 
+KeyboardInterrupt
+>>> 
+KeyboardInterrupt
+>>> 
+
+>>> 
+>>> 
+>>> import sentai
+import sentai
+>>> 
+>>> print('VERSION', sentai.version())
+print('VERSION', sentai.version())
+VERSION SentAI v1.0 build 1536 (2026-06-24 09:53:28)
+>>> 
+>>> print('ROOT', sentai.fs.ls('/'))
+print('ROOT', sentai.fs.ls('/'))
+ROOT [('lib', 2, 0), ('diags', 2, 0), ('log', 2, 0)]
+>>> 
+>>> print('MODEL_SIZE', sentai.fs.size('/yolo_1_class_512_1_upsample_512_inloc_de_1024_la_P5_32.tflite'))
+print('MODEL_SIZE', sentai.fs.size('/yolo_1_class_512_1_upsample_512_inloc_de_1024_la_P5_32.tflite'))
+MODEL_SIZE -1
+>>> 
+>>> print('SCRIPT_SIZE', sentai.fs.size('/lib/diag/_t_timing_urb.py'))
+print('SCRIPT_SIZE', sentai.fs.size('/lib/diag/_t_timing_urb.py'))
+SCRIPT_SIZE 2297
+>>> 

@@ -1,0 +1,13 @@
+
+>>> import sentai
+>>> print('ROOT', sentai.fs.ls('/'))
+ROOT [('lib', 2, 0), ('diags', 2, 0), ('yolo_1_class_512_1_upsample_512_inloc_de_1024_la_P5_32.tflite', 1, 5591680), ('log', 2, 0)]
+>>> print('LIB', sentai.fs.ls('/lib'))
+LIB [('diag', 2, 0)]
+>>> print('DIAG', sentai.fs.ls('/lib/diag'))
+DIAG [('pure_tpu_wall_one_chunk.py', 1, 4425)]
+>>> print('MODEL_EXISTS', sentai.fs.exists('/yolo_1_class_512_1_upsample_512_inloc_de_1024_la_P5_32.tflite'))
+MODEL_EXISTS True
+>>> print('SCRIPT_EXISTS', sentai.fs.exists('/lib/diag/pure_tpu_wall_one_chunk.py'))
+SCRIPT_EXISTS True
+>>> 

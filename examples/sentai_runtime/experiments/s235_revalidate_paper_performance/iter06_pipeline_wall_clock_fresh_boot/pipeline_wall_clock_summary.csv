@@ -1,0 +1,6 @@
+run,observed_frames,wall_us,wall_ms_per_frame,fps,timeouts,infer_ok,infer_fail,prep_frames,latest_inv_ms,latest_total_ms,prep_total_ms_sum,prep_pxp_ms_sum,prep_cam_grab_ms_sum,prep_quant_ms_sum,direct_frames,direct_prep_buf_timeout,direct_infer_wait_timeout,direct_swap_fail
+0,100,4390419,43.904190,22.776869,0,105,0,106,39,39,4053,861,73,0,105,2,0,0
+1,100,4235336,42.353360,23.610878,0,105,0,106,37,37,4089,860,59,0,105,1,0,0
+2,100,4235444,42.354440,23.610275,0,105,0,106,40,40,4068,861,55,0,105,1,0,0
+3,100,4235558,42.355580,23.609640,0,105,0,106,40,40,4086,865,43,0,105,1,0,0
+4,100,4234778,42.347780,23.613989,0,105,0,106,39,39,4067,855,50,0,105,1,0,0

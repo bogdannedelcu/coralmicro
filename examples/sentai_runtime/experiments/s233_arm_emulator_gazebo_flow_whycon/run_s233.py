@@ -25,6 +25,7 @@ RENODE_SCRIPT = ROOT / "emu/renode/sentai_emu_gazebo_flow_whycon.resc"
 RENODE_UI_SCRIPT = ROOT / "emu/renode/sentai_emu_gazebo_flow_whycon_ui.resc"
 UART_LOG = ROOT / "emu/output/sentai_emu_gazebo_flow_whycon.log"
 CAM_BRIDGE_LOG = pathlib.Path("/tmp/sentai_emu_gazebo_camera_bridge.log")
+PXP_ACCEL_LOG = pathlib.Path("/tmp/sentai_emu_pxp_accel.log")
 CRAZY_BRIDGE_LOG = pathlib.Path("/tmp/sentai_emu_crazy_cpx_udp_bridge.log")
 SITL_LOG = pathlib.Path("/tmp/respawn_sitl/sitl.log")
 CAM_SOCK = pathlib.Path("/tmp/sentai_emu_cam.sock")
@@ -406,7 +407,8 @@ def main() -> int:
                     json.dumps(results, indent=2) + "\n", encoding="utf-8")
                 return proc.returncode
 
-        for path in (UART_LOG, CAM_BRIDGE_LOG, CRAZY_BRIDGE_LOG):
+        for path in (UART_LOG, CAM_BRIDGE_LOG, PXP_ACCEL_LOG,
+                     CRAZY_BRIDGE_LOG):
             try:
                 if path.exists():
                     path.unlink()
@@ -457,6 +459,11 @@ def main() -> int:
         else:
             results["camera_bridge_log_missing"] = True
 
+        if maybe_copy(PXP_ACCEL_LOG, iter_dir / "pxp_accel_mmio_bridge.log"):
+            pass
+        else:
+            results["pxp_accel_log_missing"] = True
+
         if maybe_copy(CRAZY_BRIDGE_LOG,
                       iter_dir / "crazy_cpx_udp_bridge.log"):
             pass
@@ -467,6 +474,8 @@ def main() -> int:
                      iter_dir / "renode/sentai_rt1176.repl")
         shutil.copy2(ROOT / "emu/renode/gazebo_camera_mmio_bridge.py",
                      iter_dir / "renode/gazebo_camera_mmio_bridge.py")
+        shutil.copy2(ROOT / "emu/renode/SentaiPxpAccelerator.cs",
+                     iter_dir / "renode/SentaiPxpAccelerator.cs")
         shutil.copy2(ROOT / "emu/host/sentai_gazebo_uds_to_tcp_bridge.py",
                      iter_dir / "renode/sentai_gazebo_uds_to_tcp_bridge.py")
         shutil.copy2(ROOT / "emu/renode/crazy_cpx_udp_mmio_bridge.py",
@@ -499,6 +508,10 @@ def main() -> int:
             "publish_ms_max": f"{SYMBOL_PREFIX} publish_ms_max",
             "loop_ms_sum": f"{SYMBOL_PREFIX} loop_ms_sum",
             "loop_ms_max": f"{SYMBOL_PREFIX} loop_ms_max",
+            "pxp_accel_calls": f"{SYMBOL_PREFIX} pxp_accel_calls",
+            "pxp_accel_ok": f"{SYMBOL_PREFIX} pxp_accel_ok",
+            "pxp_accel_fallback": f"{SYMBOL_PREFIX} pxp_accel_fallback",
+            "pxp_accel_last_rc": f"{SYMBOL_PREFIX} pxp_accel_last_rc",
         }
         symbols = {
             key: parse_hex(label, renode_proc.stdout)
@@ -547,6 +560,10 @@ def main() -> int:
             f"publish_ms_max={symbols.get('publish_ms_max')}",
             f"loop_ms_sum={symbols.get('loop_ms_sum')}",
             f"loop_ms_max={symbols.get('loop_ms_max')}",
+            f"pxp_accel_calls={symbols.get('pxp_accel_calls')}",
+            f"pxp_accel_ok={symbols.get('pxp_accel_ok')}",
+            f"pxp_accel_fallback={symbols.get('pxp_accel_fallback')}",
+            f"pxp_accel_last_rc={symbols.get('pxp_accel_last_rc')}",
             f"prep_frames={uart.get('prep_frames')}",
             f"prep_fps_x100={uart.get('prep_fps_x100')}",
             f"flow_frames={uart.get('flow_frames')}",

@@ -1,0 +1,87 @@
+
+SentAI EMU REPL B8.3
+MicroPython embed ready
+HW_BEGIN
+CHECK|fs_mkdir_fr|PASS|
+0
+CHECK|fr_open_events|PASS|
+CHECK|fr_open_scalars|PASS|
+0
+CHECK|usb_drive_off|PASS|
+CHECK|usb_drive_on_rejected|PASS|
+CHECK|usb_ip_unavailable|PASS|
+CHECK|usb_open_false|PASS|
+CHECK|usb_available_zero|PASS|
+CHECK|usb_read_requires_open|PASS|serial not open
+CHECK|uart_requires_usb_console|PASS|REPL must be on USB: call sentai.console('usb')
+'usb'
+CHECK|uart_open_false|PASS|
+CHECK|uart_available_zero|PASS|
+CHECK|uart_read_requires_open|PASS|UART serial not open
+CHECK|imu_init_unsupported|PASS|sentai.imu is board-only; not available in emulator
+CHECK|imu_read_unsupported|PASS|sentai.imu is board-only; not available in emulator
+CHECK|imu_degrees_unsupported|PASS|sentai.imu is board-only; not available in emulator
+CHECK|imu_tap_start_unsupported|PASS|sentai.imu is board-only; not available in emulator
+CHECK|imu_poll_unsupported|PASS|sentai.imu is board-only; not available in emulator
+CHECK|mic_start_unsupported|PASS|sentai.mic is board-only; not available in emulator
+CHECK|mic_recording_unsupported|PASS|sentai.mic is board-only; not available in emulator
+CHECK|mic_level_unsupported|PASS|sentai.mic is board-only; not available in emulator
+CHECK|mic_stop_unsupported|PASS|sentai.mic is board-only; not available in emulator
+CHECK|mic_save_unsupported|PASS|sentai.mic is board-only; not available in emulator
+CHECK|sleep_namespace_absent|PASS|['__name__', 'calib', 'console', 'debug', 'fr', 'fs', 'help', 'imu', 'io', 'mic', 'object_lifter', 'rtos', 'run', 'safety', 'servo', 'sys', 'uart', 'usb', 'verbose', 'version']
+CHECK|rtos_sleep_ms_available|PASS|122->123
+CHECK|servo_init_sim|PASS|
+CHECK|servo_arm_sim|PASS|
+CHECK|servo_takeoff_sim|PASS|
+CHECK|servo_move_sim|PASS|
+CHECK|servo_hover_sim|PASS|
+CHECK|servo_land_sim|PASS|
+CHECK|servo_disarm|PASS|
+CHECK|servo_safe_status|PASS|{'last_result': 0, 'faults_not_armed': 0, 'trace_count': 7, 'faults_oob': 0, 'trace_overwrites': 0, 'flight': 0, 'last_action': 3, 'faults_no_backend': 0, 'backend': 1, 'seq': 7, 't_last_action_ms': 124, 'actions_ok': 7, 'armed': 0}
+CHECK|servo_trace_shared|PASS|[{'p1': 0.0, 'action': 1, 'seq': 1, 'flight': 0, 'p0': 1.0, 'backend': 1, 't_ms': 123, 'p2': 0.0, 'result': 0, 'p3': 0.0}, {'p1': 0.0, 'action': 2, 'seq': 2, 'flight': 0, 'p0': 0.0, 'backend': 1, 't_ms': 123, 'p2': 0.0, 'result': 0, 'p3': 0.0}, {'p1': 0.0, 'action': 4, 'seq': 3, 'flight': 1, 'p0': 0.5, 'backend': 1, 't_ms': 123, 'p2': 0.0, 'result': 0, 'p3': 0.0}, {'p1': 0.0, 'action': 5, 'seq': 4, 'flight': 1, 'p0': 0.01, 'backend': 1, 't_ms': 123, 'p2': 0.0, 'result': 0, 'p3': 0.0}, {'p1': 0.0, 'action': 6, 'seq': 5, 'flight': 1, 'p0': 0.0, 'backend': 1, 't_ms': 123, 'p2': 0.0, 'result': 0, 'p3': 0.0}, {'p1': 0.0, 'action': 7, 'seq': 6, 'flight': 0, 'p0': 0.0, 'backend': 1, 't_ms': 123, 'p2': 0.0, 'result': 0, 'p3': 0.0}, {'p1': 0.0, 'action': 3, 'seq': 7, 'flight': 0, 'p0': 0.0, 'backend': 1, 't_ms': 124, 'p2': 0.0, 'result': 0, 'p3': 0.0}]
+CHECK|servo_pose_none|PASS|
+CHECK|servo_pose_not_ready|PASS|
+CHECK|servo_marker_unavailable|PASS|
+CHECK|servo_marker_stop|PASS|
+CHECK|calib_default_R|PASS|
+CHECK|calib_default_offset|PASS|(-0.04, 0.0, -0.02)
+CHECK|calib_not_calibrated|PASS|
+CHECK|calib_kabsch_empty_rejected|PASS|((1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0), {'reject_code': 5, 'max_residual_deg': 180.0, 'accepted': False, 'n_samples': 0, 'det_R': 1.0, 'mean_residual_deg': 180.0, 'drift_from_persisted_deg': -1.0})
+CHECK|calib_commit_R_shared|PASS|
+CHECK|calib_is_calibrated_after_commit|PASS|
+CHECK|calib_clear_shared|PASS|
+CHECK|calib_setup_defaults_unavailable|PASS|
+CHECK|calib_orientation_task_unavailable|PASS|
+CHECK|calib_orientation_task_stop|PASS|
+CHECK|calib_task_start_unavailable|PASS|
+CHECK|calib_task_stop|PASS|
+CHECK|calib_bringup_unavailable|PASS|
+CHECK|lifter_count_zero|PASS|
+CHECK|lifter_list_empty|PASS|
+CHECK|lifter_stats_zero|PASS|
+CHECK|lifter_set_camera_shared|PASS|
+CHECK|lifter_init_shared|PASS|
+CHECK|lifter_count_one_shared|PASS|
+CHECK|lifter_world_pos_shared|PASS|
+CHECK|lifter_clear_shared|PASS|
+CHECK|safety_init|PASS|
+CHECK|safety_clear|PASS|
+CHECK|safety_not_aborted|PASS|
+CHECK|safety_task_start_rejected|PASS|
+CHECK|safety_task_stop|PASS|
+CHECK|safety_enable_markers|PASS|
+0
+CHECK|safety_low_marker_streak_pending|PASS|
+0
+CHECK|safety_test_abort|PASS|
+0
+0
+0
+CHECK|fr_events_file|PASS|102
+CHECK|fr_scalars_file|PASS|56
+HW_FAILS|0
+True
+True
+True
+FS_WRITE|4361
+HW_END

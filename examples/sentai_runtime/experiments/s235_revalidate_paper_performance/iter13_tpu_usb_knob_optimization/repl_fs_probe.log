@@ -1,0 +1,18 @@
+
+>>> import sentai
+import sentai
+>>> 
+>>> print(dir(sentai.fs))
+print(dir(sentai.fs))
+['__name__', 'append', 'format', 'read', 'remove', 'write', 'exists', 'ls', 'mkdir', 'read_base64', 'read_str', 'size', 'sync']
+>>> 
+>>> print(sentai.fs.exists('/'))
+print(sentai.fs.exists('/'))
+False
+>>> 
+>>> print(sentai.fs.ls('/'))
+print(sentai.fs.ls('/'))
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+OSError: dir not found
+>>> 

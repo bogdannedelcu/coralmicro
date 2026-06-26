@@ -1,0 +1,27 @@
+
+KeyboardInterrupt
+>>> 
+>>> 
+>>> 
+import sentai
+>>> 
+READ_EXCEPTION SerialException('device reports readiness to read but returned no data (device disconnected or multiple access on port?)')
+Bus 001 Device 048: ID 1fc9:9307 NXP Semiconductors - autonomous.ro SentAI board v1.0
+Bus 001 Device 048: ID 1fc9:9307 NXP Semiconductors - autonomous.ro SentAI board v1.0
+Bus 001 Device 049: ID 1fc9:c0a1 NXP Semiconductors autonomous.ro SentAI build #1536
+Bus 001 Device 049: ID 1fc9:c0a1 NXP Semiconductors autonomous.ro SentAI build #1536
+Bus 001 Device 049: ID 1fc9:c0a1 NXP Semiconductors autonomous.ro SentAI build #1536
+Bus 001 Device 049: ID 1fc9:c0a1 NXP Semiconductors autonomous.ro SentAI build #1536
+Bus 001 Device 049: ID 1fc9:c0a1 NXP Semiconductors autonomous.ro SentAI build #1536
+Bus 001 Device 049: ID 1fc9:c0a1 NXP Semiconductors autonomous.ro SentAI build #1536
+Bus 001 Device 049: ID 1fc9:c0a1 NXP Semiconductors autonomous.ro SentAI build #1536
+Bus 001 Device 049: ID 1fc9:c0a1 NXP Semiconductors autonomous.ro SentAI build #1536
+Bus 001 Device 049: ID 1fc9:c0a1 NXP Semiconductors autonomous.ro SentAI build #1536
+Bus 001 Device 049: ID 1fc9:c0a1 NXP Semiconductors autonomous.ro SentAI build #1536
+Bus 001 Device 049: ID 1fc9:c0a1 NXP Semiconductors autonomous.ro SentAI build #1536
+Bus 001 Device 049: ID 1fc9:c0a1 NXP Semiconductors autonomous.ro SentAI build #1536
+Bus 001 Device 049: ID 1fc9:c0a1 NXP Semiconductors autonomous.ro SentAI build #1536
+Bus 001 Device 049: ID 1fc9:c0a1 NXP Semiconductors autonomous.ro SentAI build #1536
+Bus 001 Device 049: ID 1fc9:c0a1 NXP Semiconductors autonomous.ro SentAI build #1536
+Bus 001 Device 049: ID 1fc9:c0a1 NXP Semiconductors autonomous.ro SentAI build #1536
+Bus 001 Device 049: ID 1fc9:c0a1 NXP Semiconductors autonomous.ro SentAI build #1536

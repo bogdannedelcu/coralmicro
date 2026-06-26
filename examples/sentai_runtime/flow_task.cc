@@ -60,8 +60,8 @@ static inline uint32_t sentai_usada8_sim(uint32_t a, uint32_t b,
     }
     return acc;
 }
-#define __USADA8(a, b, acc) sentai_usada8_sim((a), (b), (acc))
-#define __DMB() __sync_synchronize()
+#define SENTAI_USADA8(a, b, acc) sentai_usada8_sim((a), (b), (acc))
+#define SENTAI_DMB() __sync_synchronize()
 #else
 static inline uint32_t sentai_usada8_arm(uint32_t a, uint32_t b,
                                          uint32_t acc) {
@@ -71,8 +71,8 @@ static inline uint32_t sentai_usada8_arm(uint32_t a, uint32_t b,
                     : "r"(a), "r"(b), "r"(acc));
     return r;
 }
-#define __USADA8(a, b, acc) sentai_usada8_arm((a), (b), (acc))
-#define __DMB() __asm volatile ("dmb" ::: "memory")
+#define SENTAI_USADA8(a, b, acc) sentai_usada8_arm((a), (b), (acc))
+#define SENTAI_DMB() __asm volatile ("dmb" ::: "memory")
 #endif
 
 // Unaligned 32-bit read as a single LDR instruction.  GCC inlined
@@ -344,14 +344,14 @@ static void sad_match(const uint8_t* curr, const uint8_t* prev,
                 const uint8_t* c = curr + (by + y) * FLOW_GRAY_W + bx;
                 const uint8_t* p = prev + (by + y + dy) * FLOW_GRAY_W + (bx + dx);
                 // 32 bytes / row -> 8 USADA8 ops, single LDR per load.
-                sad = __USADA8(LD32U(c +  0), LD32U(p +  0), sad);
-                sad = __USADA8(LD32U(c +  4), LD32U(p +  4), sad);
-                sad = __USADA8(LD32U(c +  8), LD32U(p +  8), sad);
-                sad = __USADA8(LD32U(c + 12), LD32U(p + 12), sad);
-                sad = __USADA8(LD32U(c + 16), LD32U(p + 16), sad);
-                sad = __USADA8(LD32U(c + 20), LD32U(p + 20), sad);
-                sad = __USADA8(LD32U(c + 24), LD32U(p + 24), sad);
-                sad = __USADA8(LD32U(c + 28), LD32U(p + 28), sad);
+                sad = SENTAI_USADA8(LD32U(c +  0), LD32U(p +  0), sad);
+                sad = SENTAI_USADA8(LD32U(c +  4), LD32U(p +  4), sad);
+                sad = SENTAI_USADA8(LD32U(c +  8), LD32U(p +  8), sad);
+                sad = SENTAI_USADA8(LD32U(c + 12), LD32U(p + 12), sad);
+                sad = SENTAI_USADA8(LD32U(c + 16), LD32U(p + 16), sad);
+                sad = SENTAI_USADA8(LD32U(c + 20), LD32U(p + 20), sad);
+                sad = SENTAI_USADA8(LD32U(c + 24), LD32U(p + 24), sad);
+                sad = SENTAI_USADA8(LD32U(c + 28), LD32U(p + 28), sad);
             }
             *surf_at(s_surf, dy, dx) = sad;
             if (sad < best) { best = sad; bdx = dx; bdy = dy; }
@@ -461,7 +461,7 @@ extern "C" void sentai_flow_publish_frame(const uint8_t* raw,
     sh->last_confidence  = conf;
     sh->last_frame_seq   = s_publish_seq;
     sh->frames_processed = s_publish_seq;
-    __DMB();
+    SENTAI_DMB();
     sh->frame_seq   = s_publish_seq;
     sh->frame_valid = 1;          // legacy field, kept for any reader
 
@@ -536,7 +536,7 @@ static void flow_publish_gray80x60(const uint8_t* gray80x60, int cam_id) {
     sh->last_confidence = conf;
     sh->last_frame_seq = s_publish_seq;
     sh->frames_processed = s_publish_seq;
-    __DMB();
+    SENTAI_DMB();
     sh->frame_seq = s_publish_seq;
     sh->frame_valid = 1;
 
@@ -958,14 +958,14 @@ flow_sad_at_(const uint8_t* curr, const uint8_t* prev, int dx, int dy) {
     for (int y = 0; y < kBlockH; ++y) {
         const uint8_t* c = curr + (by + y) * FLOW_GRAY_W + bx;
         const uint8_t* p = prev + (by + y + dy) * FLOW_GRAY_W + (bx + dx);
-        sad = __USADA8(LD32U(c +  0), LD32U(p +  0), sad);
-        sad = __USADA8(LD32U(c +  4), LD32U(p +  4), sad);
-        sad = __USADA8(LD32U(c +  8), LD32U(p +  8), sad);
-        sad = __USADA8(LD32U(c + 12), LD32U(p + 12), sad);
-        sad = __USADA8(LD32U(c + 16), LD32U(p + 16), sad);
-        sad = __USADA8(LD32U(c + 20), LD32U(p + 20), sad);
-        sad = __USADA8(LD32U(c + 24), LD32U(p + 24), sad);
-        sad = __USADA8(LD32U(c + 28), LD32U(p + 28), sad);
+        sad = SENTAI_USADA8(LD32U(c +  0), LD32U(p +  0), sad);
+        sad = SENTAI_USADA8(LD32U(c +  4), LD32U(p +  4), sad);
+        sad = SENTAI_USADA8(LD32U(c +  8), LD32U(p +  8), sad);
+        sad = SENTAI_USADA8(LD32U(c + 12), LD32U(p + 12), sad);
+        sad = SENTAI_USADA8(LD32U(c + 16), LD32U(p + 16), sad);
+        sad = SENTAI_USADA8(LD32U(c + 20), LD32U(p + 20), sad);
+        sad = SENTAI_USADA8(LD32U(c + 24), LD32U(p + 24), sad);
+        sad = SENTAI_USADA8(LD32U(c + 28), LD32U(p + 28), sad);
     }
     return sad;
 }

@@ -1,0 +1,4 @@
+Unmounted /dev/sdc.
+Bus 001 Device 124: ID 1fc9:c0a1 NXP Semiconductors autonomous.ro SentAI build #1543
+crw-rw-rw- 1 root dialout 166, 0 Jun 24 10:53 /dev/ttyACM0
+sdc          1    55M FLASH STORAGE         usb    

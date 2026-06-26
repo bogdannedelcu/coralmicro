@@ -8,11 +8,19 @@
 #include <stddef.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
+#include <stdarg.h>
 
+#include "examples/sentai_runtime/build_version.h"
+#include "examples/sentai_runtime/sentai_dmesg.h"
+#include "examples/sentai_runtime/sentai_fr.h"
 #include "libs/base/fx_user_fs.h"
 #include "py/obj.h"
 #include "py/compile.h"
+#include "py/gc.h"
 #include "py/lexer.h"
+#include "py/mphal.h"
 #include "py/mpprint.h"
 #include "py/parse.h"
 #include "py/runtime.h"
@@ -20,16 +28,40 @@
 #include "third_party/freertos_kernel/include/FreeRTOS.h"
 #include "third_party/freertos_kernel/include/task.h"
 
-#if SENTAI_EMU_TPU_HOST_BRIDGE || SENTAI_EMU_PIPELINE_PREP_BINDING
-extern const mp_obj_module_t emu_pipeline_module;
+#if !MICROPY_ENABLE_SCHEDULER
+extern bool mp_sched_schedule(mp_obj_t function, mp_obj_t arg);
 #endif
 
-#if SENTAI_EMU_TPU_HOST_BRIDGE
-extern const mp_obj_module_t emu_tpu_module;
+#ifndef SENTAI_EMU_WEAK
+#define SENTAI_EMU_WEAK __attribute__((weak))
 #endif
 
 #ifndef SENTAI_EMU_HW_STUB_MODULES
 #define SENTAI_EMU_HW_STUB_MODULES 0
+#endif
+
+#ifndef SENTAI_EMU_SAFETY_BINDING
+#define SENTAI_EMU_SAFETY_BINDING 0
+#endif
+
+#ifndef SENTAI_EMU_SERVO_BINDING
+#define SENTAI_EMU_SERVO_BINDING 0
+#endif
+
+#ifndef SENTAI_EMU_CALIB_BINDING
+#define SENTAI_EMU_CALIB_BINDING 0
+#endif
+
+#ifndef SENTAI_EMU_UART_BINDING
+#define SENTAI_EMU_UART_BINDING 0
+#endif
+
+#ifndef SENTAI_EMU_OBJECT_LIFTER_BINDING
+#define SENTAI_EMU_OBJECT_LIFTER_BINDING 0
+#endif
+
+#ifndef SENTAI_EMU_USB_BINDING
+#define SENTAI_EMU_USB_BINDING 0
 #endif
 
 #if SENTAI_EMU_CRAZY_BINDING
@@ -69,9 +101,438 @@ extern float sentai_crazy_get_altitude(void);
 #include "examples/sentai_runtime/bindings/modsentai_crazy.c"
 #endif
 
-#if SENTAI_EMU_CAMERA_BINDING || SENTAI_EMU_MARKERS_BINDING
-static void _fs_check_usb(void) {}
-#endif
+static int g_sentai_emu_verbose = 1;
+static int g_sentai_emu_console_target = 1;  // 0 = usb, 1 = uart
+static int g_sentai_emu_led_state = 0;
+static int g_sentai_emu_reset_requested = 0;
+int g_audio_debug = 0;
+volatile uint32_t g_sentai_uptime_ms = 0;
+
+int sentai_verbose_get(void) { return g_sentai_emu_verbose; }
+
+void sentai_verbose_set(int v) {
+    g_sentai_emu_verbose = v ? 1 : 0;
+}
+
+SENTAI_EMU_WEAK int sentai_uart_serial_open(void) { return 0; }
+SENTAI_EMU_WEAK void sentai_uart_serial_close(void) {}
+SENTAI_EMU_WEAK int sentai_uart_serial_is_open(void) { return 0; }
+SENTAI_EMU_WEAK int sentai_uart_serial_write(const uint8_t* buf, int size) {
+    (void)buf;
+    (void)size;
+    return -1;
+}
+SENTAI_EMU_WEAK int sentai_uart_serial_read(uint8_t* buf, int max_size,
+                                            int timeout_ms) {
+    (void)buf;
+    (void)max_size;
+    (void)timeout_ms;
+    return 0;
+}
+SENTAI_EMU_WEAK int sentai_uart_serial_available(void) { return 0; }
+SENTAI_EMU_WEAK void sentai_uart_set_baudrate(uint32_t baudrate) {
+    (void)baudrate;
+}
+SENTAI_EMU_WEAK void sentai_uart_restore_baudrate(void) {}
+
+SENTAI_EMU_WEAK int sentai_console_set_target(int target) {
+    if (target != 0 && target != 1) return -1;
+    g_sentai_emu_console_target = target;
+    return 0;
+}
+
+SENTAI_EMU_WEAK int sentai_console_get_target(void) {
+    return g_sentai_emu_console_target;
+}
+
+void sentai_console_write(const char* buf, int size) {
+    if (!buf || size <= 0) return;
+    (void)mp_hal_stdout_tx_strn(buf, (size_t)size);
+}
+
+SENTAI_EMU_WEAK void sentai_link_set_debug(int level) {
+    (void)level;
+}
+
+SENTAI_EMU_WEAK void sentai_led_set(int on) {
+    g_sentai_emu_led_state = on ? 1 : 0;
+}
+
+int sentai_imu_init(void) { return -1; }
+
+int sentai_imu_read_accel(float* x_mg, float* y_mg, float* z_mg,
+                          float* temp_c) {
+    (void)x_mg;
+    (void)y_mg;
+    (void)z_mg;
+    (void)temp_c;
+    return -1;
+}
+
+int sentai_imu_tap_start(void) { return -1; }
+int sentai_imu_tap_stop(void) { return -1; }
+
+int sentai_imu_tap_poll(int timeout_ms, uint32_t* ev_out) {
+    (void)timeout_ms;
+    if (ev_out) *ev_out = 0;
+    return -1;
+}
+
+int sentai_mic_start(int max_seconds) {
+    (void)max_seconds;
+    return -1;
+}
+
+int sentai_mic_stop(void) { return -1; }
+int sentai_mic_busy(void) { return -1; }
+int sentai_mic_samples(void) { return -1; }
+int sentai_mic_level(void) { return -1; }
+
+int sentai_mic_save_l3(char* out_name, int name_size) {
+    if (out_name && name_size > 0) out_name[0] = '\0';
+    return -1;
+}
+
+void sentai_sleep_ms(uint32_t ms) {
+    while (ms > 0) {
+        uint32_t chunk = (ms > 100u) ? 100u : ms;
+        vTaskDelay(pdMS_TO_TICKS(chunk));
+        ms -= chunk;
+    }
+    if (ms == 0) {
+        taskYIELD();
+    }
+}
+
+uint32_t sentai_ticks_ms(void) {
+    uint32_t now = (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS);
+    g_sentai_uptime_ms = now;
+    return now;
+}
+
+SENTAI_EMU_WEAK void sentai_repl_activity(void) {}
+
+bool sentai_is_recovery_mode(void) { return false; }
+
+unsigned int sentai_get_boot_attempts(void) { return 0; }
+
+void sentai_sys_do_reset(void) {
+    g_sentai_emu_reset_requested = 1;
+    (void)FxUserSync();
+}
+
+uint32_t sentai_get_http_requests(void) { return 0; }
+uint32_t sentai_get_http_hangs(void) { return 0; }
+int sentai_get_network_healthy(void) { return 1; }
+
+const char* sentai_dmesg_basename(const char* path) {
+    if (!path) return "?";
+    const char* last = path;
+    for (const char* p = path; *p; ++p) {
+        if (*p == '/' || *p == '\\') last = p + 1;
+    }
+    return last;
+}
+
+void sentai_dmesg_v(dmesg_level_t level, const char* fmt, va_list ap) {
+    (void)level;
+    (void)fmt;
+    (void)ap;
+}
+
+void sentai_dmesg(dmesg_level_t level, const char* fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    sentai_dmesg_v(level, fmt, ap);
+    va_end(ap);
+}
+
+size_t sentai_dmesg_read(char* out, size_t out_size) {
+    if (!out || out_size == 0) return 0;
+    out[0] = '\0';
+    return 0;
+}
+
+void sentai_dmesg_clear(void) {}
+size_t sentai_dmesg_used(void) { return 0; }
+uint32_t sentai_dmesg_dropped(void) { return 0; }
+
+int sentai_usb_drive_get(void) { return 0; }
+int sentai_usb_drive_set(int on) {
+    return on ? -3 : 0;
+}
+int sentai_usb_serial_open(void) { return 0; }
+void sentai_usb_serial_close(void) {}
+int sentai_usb_serial_is_open(void) { return 0; }
+int sentai_usb_serial_write(const uint8_t* buf, int size) {
+    (void)buf;
+    (void)size;
+    return -1;
+}
+int sentai_usb_serial_read(uint8_t* buf, int max_size, int timeout_ms) {
+    (void)buf;
+    (void)max_size;
+    (void)timeout_ms;
+    return 0;
+}
+int sentai_usb_serial_available(void) { return 0; }
+int sentai_usb_ip_set(int on) {
+    (void)on;
+    return -1;
+}
+int sentai_usb_ip_get(void) { return -1; }
+void sentai_httpd_start(void) {}
+
+int sentai_fs_lock(void) { return 1; }
+void sentai_fs_unlock(void) {}
+
+int sentai_fs_size(const char* path) {
+    return (int)FxUserSize(path);
+}
+
+int sentai_fs_read(const char* path, uint8_t* buf, int max_size) {
+    if (!buf || max_size < 0) return 0;
+    return (int)FxUserReadFile(path, buf, (size_t)max_size);
+}
+
+int sentai_fs_write(const char* path, const uint8_t* buf, int size) {
+    if (size < 0) return 0;
+    return FxUserWriteFile(path, buf, (size_t)size);
+}
+
+int sentai_fs_append(const char* path, const uint8_t* buf, int size) {
+    if (size < 0) return 0;
+    return FxUserAppendFile(path, buf, (size_t)size);
+}
+
+int sentai_fs_file_exists(const char* path) { return FxUserFileExists(path); }
+int sentai_fs_dir_exists(const char* path) { return FxUserDirExists(path); }
+int sentai_fs_remove(const char* path) { return FxUserRemove(path); }
+int sentai_fs_makedirs(const char* path) { return FxUserMakeDirs(path); }
+int sentai_fs_sync(void) { return FxUserSync(); }
+int sentai_fs_format(void) { return FxUserInit(1); }
+
+typedef struct {
+    void (*callback)(const char* name, int type, int size, void* ud);
+    void* user_data;
+} sentai_emu_fs_list_ctx_t;
+
+static int sentai_emu_fs_list_cb(const FxDirEntry* entry, void* user) {
+    sentai_emu_fs_list_ctx_t* ctx = (sentai_emu_fs_list_ctx_t*)user;
+    ctx->callback(entry->name, entry->is_dir ? 2 : 1, (int)entry->size,
+                  ctx->user_data);
+    return 0;
+}
+
+int sentai_fs_listdir(const char* path,
+                      void (*callback)(const char* name, int type, int size,
+                                       void* ud),
+                      void* user_data) {
+    if (!callback) return -1;
+    sentai_emu_fs_list_ctx_t ctx = {
+        .callback = callback,
+        .user_data = user_data,
+    };
+    return FxUserListDir(path, sentai_emu_fs_list_cb, &ctx);
+}
+
+static void _fs_check_usb(void) {
+    if (sentai_usb_drive_get()) {
+        mp_raise_msg(&mp_type_OSError,
+                     MP_ERROR_TEXT("flash busy: call sentai.usb.drive(0) first"));
+    }
+}
+
+static const char kSentaiEmuSharedHelp[] =
+    "[overview]\n"
+    "SentAI ARM emulator module. Core namespaces use shared sentai_runtime "
+    "bindings; emulator-specific behavior lives in FxUser/Renode backends.\n"
+    "[fs]\n"
+    "sentai.fs: FileX-backed filesystem: read, read_str, read_base64, write, "
+    "append, size, exists, format, remove, mkdir, sync, ls.\n"
+    "[rtos]\n"
+    "sentai.rtos: shared FreeRTOS binding: sleep_ms, ticks_ms, uptime, "
+    "repl_kick, task/heap/cpu diagnostics, dmesg.\n"
+    "[io]\n"
+    "sentai.io: led_on, led_off. Emulator backend updates in-memory LED state.\n"
+    "[sys]\n"
+    "sentai.sys: reset, recovery_mode, boot_attempts. Emulator reset records "
+    "a request and flushes FileX.\n"
+    "[fr]\n"
+    "sentai.fr: shared binding with FxUser-backed emulator recorder for "
+    "events and scalars.\n";
+
+int sentai_help_read(char* buf, int max_size) {
+    if (!buf || max_size <= 0) return -1;
+    int len = (int)strlen(kSentaiEmuSharedHelp);
+    int n = (len < max_size - 1) ? len : max_size - 1;
+    memcpy(buf, kSentaiEmuSharedHelp, (size_t)n);
+    buf[n] = '\0';
+    return n;
+}
+
+typedef struct {
+    sentai_fr_channel_stats_t stats;
+} sentai_emu_fr_channel_t;
+
+static sentai_emu_fr_channel_t g_sentai_emu_fr[SENTAI_FR_CH__COUNT];
+
+static void sentai_emu_fr_parent_dir(const char* path) {
+    char parent[128];
+    size_t len = strlen(path);
+    if (len >= sizeof(parent)) return;
+    memcpy(parent, path, len + 1);
+    char* slash = strrchr(parent, '/');
+    if (!slash || slash == parent) return;
+    *slash = '\0';
+    (void)FxUserMakeDirs(parent);
+}
+
+static void sentai_emu_fr_copy_str(char* dst, size_t cap, const char* src) {
+    if (cap == 0) return;
+    if (!src) src = "";
+    size_t n = strlen(src);
+    if (n >= cap) n = cap - 1;
+    memcpy(dst, src, n);
+    dst[n] = '\0';
+}
+
+static void sentai_emu_fr_sanitize(char* s) {
+    for (; s && *s; ++s) {
+        if (*s == ',' || *s == '\n' || *s == '\r') *s = ' ';
+    }
+}
+
+int sentai_fr_init(void) {
+    memset(g_sentai_emu_fr, 0, sizeof(g_sentai_emu_fr));
+    return SENTAI_FR_OK;
+}
+
+int sentai_fr_open(sentai_fr_channel_t ch, const char* path) {
+    if (ch <= SENTAI_FR_CH_NONE || ch >= SENTAI_FR_CH__COUNT)
+        return SENTAI_FR_ERR_UNKNOWN;
+    if (!path || !*path) return SENTAI_FR_ERR_PARAMS;
+
+    sentai_emu_fr_channel_t* channel = &g_sentai_emu_fr[ch];
+    channel->stats.enabled = 1;
+    sentai_emu_fr_copy_str(channel->stats.path, sizeof(channel->stats.path),
+                           path);
+
+    if (ch == SENTAI_FR_CH_EVENTS || ch == SENTAI_FR_CH_SCALARS ||
+        ch == SENTAI_FR_CH_DEBUG || ch == SENTAI_FR_CH_KERNEL) {
+        sentai_emu_fr_parent_dir(path);
+        const char* header = "";
+        if (ch == SENTAI_FR_CH_EVENTS) {
+            header = "# sentai.fr events  ts_ms,type,text\n";
+        } else if (ch == SENTAI_FR_CH_SCALARS) {
+            header = "# sentai.fr scalars  ts_ms,label,value\n";
+        }
+        if (!FxUserWriteFile(path, (const uint8_t*)header, strlen(header))) {
+            channel->stats.writes_fail++;
+            return SENTAI_FR_ERR_IO;
+        }
+    } else if (ch == SENTAI_FR_CH_FRAMES) {
+        if (!FxUserMakeDirs(path)) return SENTAI_FR_ERR_IO;
+    }
+
+    return SENTAI_FR_OK;
+}
+
+int sentai_fr_close(sentai_fr_channel_t ch) {
+    if (ch <= SENTAI_FR_CH_NONE || ch >= SENTAI_FR_CH__COUNT)
+        return SENTAI_FR_ERR_UNKNOWN;
+    g_sentai_emu_fr[ch].stats.enabled = 0;
+    return SENTAI_FR_OK;
+}
+
+int sentai_fr_task_start(void) { return SENTAI_FR_OK; }
+
+int sentai_fr_task_stop(void) {
+    return FxUserSync() ? SENTAI_FR_OK : SENTAI_FR_ERR_IO;
+}
+
+static int sentai_emu_fr_append(sentai_fr_channel_t ch, const char* line) {
+    if (ch <= SENTAI_FR_CH_NONE || ch >= SENTAI_FR_CH__COUNT)
+        return SENTAI_FR_ERR_UNKNOWN;
+    sentai_emu_fr_channel_t* channel = &g_sentai_emu_fr[ch];
+    if (!channel->stats.enabled) return SENTAI_FR_OK;
+    channel->stats.pushes_total++;
+    if (!FxUserAppendFile(channel->stats.path, (const uint8_t*)line,
+                          strlen(line))) {
+        channel->stats.writes_fail++;
+        return SENTAI_FR_ERR_IO;
+    }
+    channel->stats.pushes_accepted++;
+    channel->stats.writes_ok++;
+    return SENTAI_FR_OK;
+}
+
+int sentai_fr_push_frame(const uint8_t* gray, int w, int h,
+                         int n_dets, uint32_t seq, uint32_t ts_ms) {
+    (void)gray;
+    (void)w;
+    (void)h;
+    (void)n_dets;
+    (void)seq;
+    (void)ts_ms;
+    if (SENTAI_FR_CH_FRAMES < SENTAI_FR_CH__COUNT)
+        g_sentai_emu_fr[SENTAI_FR_CH_FRAMES].stats.pushes_total++;
+    return SENTAI_FR_OK;
+}
+
+int sentai_fr_push_event(const char* type, const char* text) {
+    char safe_type[SENTAI_FR_EVENT_TYPE_LEN];
+    char safe_text[SENTAI_FR_EVENT_TEXT_LEN];
+    sentai_emu_fr_copy_str(safe_type, sizeof(safe_type), type);
+    sentai_emu_fr_copy_str(safe_text, sizeof(safe_text), text);
+    sentai_emu_fr_sanitize(safe_type);
+    sentai_emu_fr_sanitize(safe_text);
+    char line[256];
+    snprintf(line, sizeof(line), "%lu,%s,%s\n",
+             (unsigned long)sentai_ticks_ms(), safe_type, safe_text);
+    return sentai_emu_fr_append(SENTAI_FR_CH_EVENTS, line);
+}
+
+int sentai_fr_push_scalar(const char* label, double value, uint32_t ts_ms) {
+    char safe_label[SENTAI_FR_SCALAR_LABEL_LEN];
+    sentai_emu_fr_copy_str(safe_label, sizeof(safe_label), label);
+    sentai_emu_fr_sanitize(safe_label);
+    char line[160];
+    snprintf(line, sizeof(line), "%lu,%s,%.9g\n",
+             (unsigned long)(ts_ms ? ts_ms : sentai_ticks_ms()), safe_label,
+             value);
+    return sentai_emu_fr_append(SENTAI_FR_CH_SCALARS, line);
+}
+
+int sentai_fr_push_debug(const char* data, int len) {
+    if (!data || len <= 0) return SENTAI_FR_ERR_PARAMS;
+    char line[SENTAI_FR_DEBUG_TEXT_LEN + 1];
+    int n = len;
+    if (n > SENTAI_FR_DEBUG_TEXT_LEN) n = SENTAI_FR_DEBUG_TEXT_LEN;
+    memcpy(line, data, (size_t)n);
+    line[n] = '\0';
+    return sentai_emu_fr_append(SENTAI_FR_CH_DEBUG, line);
+}
+
+uint32_t sentai_fr_drain_round(void) { return 0; }
+
+int sentai_fr_get_stats(sentai_fr_channel_t ch,
+                        sentai_fr_channel_stats_t* out) {
+    if (!out) return SENTAI_FR_ERR_PARAMS;
+    if (ch <= SENTAI_FR_CH_NONE || ch >= SENTAI_FR_CH__COUNT)
+        return SENTAI_FR_ERR_UNKNOWN;
+    *out = g_sentai_emu_fr[ch].stats;
+    return SENTAI_FR_OK;
+}
+
+#define SENTAI_VERSION_PREFIX "SentAI EMU B9"
+#include "examples/sentai_runtime/bindings/modsentai_version.c"
+#include "examples/sentai_runtime/bindings/modsentai_top.c"
+#include "examples/sentai_runtime/bindings/modsentai_io.c"
+#include "examples/sentai_runtime/bindings/modsentai_rtos.c"
+#include "examples/sentai_runtime/bindings/modsentai_fs.c"
+#include "examples/sentai_runtime/bindings/modsentai_fr.c"
+#include "examples/sentai_runtime/bindings/modsentai_sys.c"
 
 #if SENTAI_EMU_CAMERA_BINDING
 #include "examples/sentai_runtime/bindings/modsentai_camera.c"
@@ -85,6 +546,55 @@ static void _fs_check_usb(void) {}
 #include "examples/sentai_runtime/bindings/modsentai_flow.c"
 #endif
 
+#if SENTAI_EMU_TPU_HOST_BRIDGE
+#include "examples/sentai_runtime/sentai_tpu_shim.h"
+extern int sentai_tpu_load_image_mem(const char* path, int stream_to_host);
+extern uint32_t sentai_tpu_image_mem_size(void);
+extern int sentai_tpu_bridge_stats(uint32_t* out, int max_words);
+extern int sentai_tpu_start(void);
+extern int sentai_tpu_stop(void);
+extern int sentai_tpu_fps_invoke(int runs, uint32_t out[6]);
+extern int sentai_tpu_fps(int runs, uint32_t out[6]);
+#include "examples/sentai_runtime/bindings/modsentai_tpu.c"
+#endif
+
+#if SENTAI_EMU_TPU_HOST_BRIDGE || SENTAI_EMU_PIPELINE_PREP_BINDING
+extern int sentai_tpu_is_ready(void);
+#include "examples/sentai_runtime/detection_task.h"
+#include "examples/sentai_runtime/sentai_tracker.h"
+#include "examples/sentai_runtime/bindings/modsentai_pipeline.c"
+#endif
+
+#if SENTAI_EMU_HW_STUB_MODULES
+#include "examples/sentai_runtime/bindings/modsentai_imu.c"
+#include "examples/sentai_runtime/bindings/modsentai_mic.c"
+#endif
+
+#if SENTAI_EMU_SAFETY_BINDING
+#include "examples/sentai_runtime/bindings/modsentai_safety.c"
+#endif
+
+#if SENTAI_EMU_SERVO_BINDING
+#include "examples/sentai_runtime/bindings/modsentai_servo.c"
+#endif
+
+#if SENTAI_EMU_CALIB_BINDING
+#include "examples/sentai_runtime/bindings/modsentai_calib.c"
+#endif
+
+#if SENTAI_EMU_UART_BINDING
+#include "examples/sentai_runtime/bindings/modsentai_uart.c"
+#endif
+
+#if SENTAI_EMU_OBJECT_LIFTER_BINDING
+#include "examples/sentai_runtime/bindings/modsentai_object_lifter.c"
+#endif
+
+#if SENTAI_EMU_USB_BINDING
+#include "examples/sentai_runtime/bindings/modsentai_usb.c"
+#endif
+
+#if 0  // Legacy EMU-local core namespace bindings; kept only for reference.
 static void EmuHelpPrintLines(const char* text) {
     const char* p = text;
     while (*p) {
@@ -102,8 +612,10 @@ static const char kSentaiEmuHelpOverview[] =
     "sentai.sys"
 #if SENTAI_EMU_HW_STUB_MODULES
     ", sentai.usb, sentai.uart, sentai.imu, sentai.mic, "
-    "sentai.sleep, sentai.servo, sentai.calib, sentai.object_lifter, "
-    "sentai.safety"
+    "sentai.servo, sentai.calib, sentai.object_lifter"
+#if SENTAI_EMU_SAFETY_BINDING
+    ", sentai.safety"
+#endif
 #endif
 #if SENTAI_EMU_TPU_HOST_BRIDGE
     ", sentai.tpu, sentai.pipeline"
@@ -177,10 +689,12 @@ static const char kSentaiEmuHelpFr[] =
 static const char kSentaiEmuHelpHardware[] =
     "sentai hardware namespaces in emulator:\n"
     "  usb, uart: present as safe closed transports; no host serial/MSC yet\n"
-    "  imu: deterministic level sample, no tap hardware\n"
-    "  mic: inactive no-audio stub\n"
-    "  sleep: timeout-only idle shim\n"
-    "  servo, object_lifter, calib, safety: safe no-motion/no-flight stubs\n";
+    "  imu, mic: shared board-only bindings; unavailable in emulator\n"
+    "  servo, object_lifter, calib: safe no-motion/no-flight stubs\n"
+#if SENTAI_EMU_SAFETY_BINDING
+    "  safety: shared sentai_runtime binding and state machine\n"
+#endif
+    ;
 #endif
 
 #if SENTAI_EMU_TPU_HOST_BRIDGE
@@ -315,7 +829,17 @@ static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(emu_sentai_help_obj, 0, 1,
                                            emu_sentai_help);
 
 static mp_obj_t emu_sentai_version(void) {
-    return mp_obj_new_str("SentAI EMU B8", 13);
+    char version[96];
+    int n = snprintf(version, sizeof(version),
+                     "SentAI EMU B9 build %d (%s)",
+                     BUILD_VERSION, BUILD_TIMESTAMP);
+    if (n < 0) {
+        return mp_obj_new_str("SentAI EMU B9 build unknown", 27);
+    }
+    if ((size_t)n >= sizeof(version)) {
+        n = (int)sizeof(version) - 1;
+    }
+    return mp_obj_new_str(version, (size_t)n);
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(emu_sentai_version_obj, emu_sentai_version);
 
@@ -657,254 +1181,9 @@ static const mp_obj_module_t emu_sys_module = {
     .base = {&mp_type_module},
     .globals = (mp_obj_dict_t*)&emu_sys_globals,
 };
+#endif  // Legacy EMU-local core namespace bindings.
 
-#if SENTAI_EMU_HW_STUB_MODULES
-static int g_emu_usb_drive = 0;
-
-static mp_obj_t emu_usb_drive(mp_obj_t on_obj) {
-    int on = mp_obj_get_int(on_obj);
-    if (on) return mp_obj_new_int(-3);
-    g_emu_usb_drive = 0;
-    return mp_obj_new_int(0);
-}
-static MP_DEFINE_CONST_FUN_OBJ_1(emu_usb_drive_obj, emu_usb_drive);
-
-static mp_obj_t emu_usb_ip(mp_obj_t on_obj) {
-    (void)on_obj;
-    return mp_obj_new_int(-1);
-}
-static MP_DEFINE_CONST_FUN_OBJ_1(emu_usb_ip_obj, emu_usb_ip);
-
-static mp_obj_t emu_usb_open(void) {
-    return mp_const_false;
-}
-static MP_DEFINE_CONST_FUN_OBJ_0(emu_usb_open_obj, emu_usb_open);
-
-static mp_obj_t emu_usb_close(void) {
-    return mp_const_none;
-}
-static MP_DEFINE_CONST_FUN_OBJ_0(emu_usb_close_obj, emu_usb_close);
-
-static mp_obj_t emu_usb_write(mp_obj_t data_obj) {
-    (void)data_obj;
-    return mp_obj_new_int(-1);
-}
-static MP_DEFINE_CONST_FUN_OBJ_1(emu_usb_write_obj, emu_usb_write);
-
-static mp_obj_t emu_usb_read(size_t n_args, const mp_obj_t* args) {
-    (void)n_args;
-    (void)args;
-    return mp_obj_new_bytes((const uint8_t*)"", 0);
-}
-static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(emu_usb_read_obj, 0, 2,
-                                           emu_usb_read);
-
-static mp_obj_t emu_usb_available(void) {
-    return mp_obj_new_int(0);
-}
-static MP_DEFINE_CONST_FUN_OBJ_0(emu_usb_available_obj, emu_usb_available);
-
-static const mp_rom_map_elem_t emu_usb_globals_table[] = {
-    {MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_usb)},
-    {MP_ROM_QSTR(MP_QSTR_drive), MP_ROM_PTR(&emu_usb_drive_obj)},
-    {MP_ROM_QSTR(MP_QSTR_ip), MP_ROM_PTR(&emu_usb_ip_obj)},
-    {MP_ROM_QSTR(MP_QSTR_open), MP_ROM_PTR(&emu_usb_open_obj)},
-    {MP_ROM_QSTR(MP_QSTR_close), MP_ROM_PTR(&emu_usb_close_obj)},
-    {MP_ROM_QSTR(MP_QSTR_write), MP_ROM_PTR(&emu_usb_write_obj)},
-    {MP_ROM_QSTR(MP_QSTR_read), MP_ROM_PTR(&emu_usb_read_obj)},
-    {MP_ROM_QSTR(MP_QSTR_available), MP_ROM_PTR(&emu_usb_available_obj)},
-};
-static MP_DEFINE_CONST_DICT(emu_usb_globals, emu_usb_globals_table);
-
-static const mp_obj_module_t emu_usb_module = {
-    .base = {&mp_type_module},
-    .globals = (mp_obj_dict_t*)&emu_usb_globals,
-};
-
-static mp_obj_t emu_uart_open(size_t n_args, const mp_obj_t* args) {
-    (void)n_args;
-    (void)args;
-    return mp_const_false;
-}
-static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(emu_uart_open_obj, 0, 1,
-                                           emu_uart_open);
-
-static mp_obj_t emu_uart_close(void) {
-    return mp_const_none;
-}
-static MP_DEFINE_CONST_FUN_OBJ_0(emu_uart_close_obj, emu_uart_close);
-
-static mp_obj_t emu_uart_write(mp_obj_t data_obj) {
-    (void)data_obj;
-    return mp_obj_new_int(-1);
-}
-static MP_DEFINE_CONST_FUN_OBJ_1(emu_uart_write_obj, emu_uart_write);
-
-static mp_obj_t emu_uart_read(size_t n_args, const mp_obj_t* args) {
-    (void)n_args;
-    (void)args;
-    return mp_obj_new_bytes((const uint8_t*)"", 0);
-}
-static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(emu_uart_read_obj, 0, 2,
-                                           emu_uart_read);
-
-static mp_obj_t emu_uart_available(void) {
-    return mp_obj_new_int(0);
-}
-static MP_DEFINE_CONST_FUN_OBJ_0(emu_uart_available_obj, emu_uart_available);
-
-static const mp_rom_map_elem_t emu_uart_globals_table[] = {
-    {MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_uart)},
-    {MP_ROM_QSTR(MP_QSTR_open), MP_ROM_PTR(&emu_uart_open_obj)},
-    {MP_ROM_QSTR(MP_QSTR_close), MP_ROM_PTR(&emu_uart_close_obj)},
-    {MP_ROM_QSTR(MP_QSTR_write), MP_ROM_PTR(&emu_uart_write_obj)},
-    {MP_ROM_QSTR(MP_QSTR_read), MP_ROM_PTR(&emu_uart_read_obj)},
-    {MP_ROM_QSTR(MP_QSTR_available), MP_ROM_PTR(&emu_uart_available_obj)},
-};
-static MP_DEFINE_CONST_DICT(emu_uart_globals, emu_uart_globals_table);
-
-static const mp_obj_module_t emu_uart_module = {
-    .base = {&mp_type_module},
-    .globals = (mp_obj_dict_t*)&emu_uart_globals,
-};
-
-static mp_obj_t emu_imu_init(void) {
-    return mp_obj_new_int(0);
-}
-static MP_DEFINE_CONST_FUN_OBJ_0(emu_imu_init_obj, emu_imu_init);
-
-static mp_obj_t emu_imu_read(void) {
-    mp_obj_dict_t* d = MP_OBJ_TO_PTR(mp_obj_new_dict(4));
-    mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_x), mp_obj_new_float(0.0f));
-    mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_y), mp_obj_new_float(0.0f));
-    mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_z), mp_obj_new_float(1000.0f));
-    mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_temp), mp_obj_new_float(25.0f));
-    return MP_OBJ_FROM_PTR(d);
-}
-static MP_DEFINE_CONST_FUN_OBJ_0(emu_imu_read_obj, emu_imu_read);
-
-static mp_obj_t emu_imu_degrees(void) {
-    mp_obj_dict_t* d = MP_OBJ_TO_PTR(mp_obj_new_dict(3));
-    mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_pitch), mp_obj_new_float(0.0f));
-    mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_roll), mp_obj_new_float(0.0f));
-    mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_temp), mp_obj_new_float(25.0f));
-    return MP_OBJ_FROM_PTR(d);
-}
-static MP_DEFINE_CONST_FUN_OBJ_0(emu_imu_degrees_obj, emu_imu_degrees);
-
-static mp_obj_t emu_imu_radians(void) {
-    return emu_imu_degrees();
-}
-static MP_DEFINE_CONST_FUN_OBJ_0(emu_imu_radians_obj, emu_imu_radians);
-
-static mp_obj_t emu_imu_tap_start(void) {
-    return mp_obj_new_int(-3);
-}
-static MP_DEFINE_CONST_FUN_OBJ_0(emu_imu_tap_start_obj, emu_imu_tap_start);
-
-static mp_obj_t emu_imu_tap_stop(void) {
-    return mp_obj_new_int(0);
-}
-static MP_DEFINE_CONST_FUN_OBJ_0(emu_imu_tap_stop_obj, emu_imu_tap_stop);
-
-static mp_obj_t emu_imu_poll_event(size_t n_args, const mp_obj_t* args) {
-    (void)n_args;
-    (void)args;
-    return mp_const_none;
-}
-static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(emu_imu_poll_event_obj, 0, 1,
-                                           emu_imu_poll_event);
-
-static const mp_rom_map_elem_t emu_imu_globals_table[] = {
-    {MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_imu)},
-    {MP_ROM_QSTR(MP_QSTR_init), MP_ROM_PTR(&emu_imu_init_obj)},
-    {MP_ROM_QSTR(MP_QSTR_read), MP_ROM_PTR(&emu_imu_read_obj)},
-    {MP_ROM_QSTR(MP_QSTR_degrees), MP_ROM_PTR(&emu_imu_degrees_obj)},
-    {MP_ROM_QSTR(MP_QSTR_radians), MP_ROM_PTR(&emu_imu_radians_obj)},
-    {MP_ROM_QSTR(MP_QSTR_tap_start), MP_ROM_PTR(&emu_imu_tap_start_obj)},
-    {MP_ROM_QSTR(MP_QSTR_tap_stop), MP_ROM_PTR(&emu_imu_tap_stop_obj)},
-    {MP_ROM_QSTR(MP_QSTR_poll_event), MP_ROM_PTR(&emu_imu_poll_event_obj)},
-};
-static MP_DEFINE_CONST_DICT(emu_imu_globals, emu_imu_globals_table);
-
-static const mp_obj_module_t emu_imu_module = {
-    .base = {&mp_type_module},
-    .globals = (mp_obj_dict_t*)&emu_imu_globals,
-};
-
-static mp_obj_t emu_mic_start(size_t n_args, const mp_obj_t* args) {
-    (void)n_args;
-    (void)args;
-    return mp_obj_new_int(-3);
-}
-static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(emu_mic_start_obj, 0, 1,
-                                           emu_mic_start);
-
-static mp_obj_t emu_mic_stop(void) {
-    return mp_obj_new_int(0);
-}
-static MP_DEFINE_CONST_FUN_OBJ_0(emu_mic_stop_obj, emu_mic_stop);
-
-static mp_obj_t emu_mic_recording(void) {
-    return mp_const_false;
-}
-static MP_DEFINE_CONST_FUN_OBJ_0(emu_mic_recording_obj, emu_mic_recording);
-
-static mp_obj_t emu_mic_samples(void) {
-    return mp_obj_new_int(0);
-}
-static MP_DEFINE_CONST_FUN_OBJ_0(emu_mic_samples_obj, emu_mic_samples);
-
-static mp_obj_t emu_mic_save_mp3(void) {
-    return mp_const_none;
-}
-static MP_DEFINE_CONST_FUN_OBJ_0(emu_mic_save_mp3_obj, emu_mic_save_mp3);
-
-static mp_obj_t emu_mic_level(void) {
-    return mp_obj_new_int(0);
-}
-static MP_DEFINE_CONST_FUN_OBJ_0(emu_mic_level_obj, emu_mic_level);
-
-static const mp_rom_map_elem_t emu_mic_globals_table[] = {
-    {MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_mic)},
-    {MP_ROM_QSTR(MP_QSTR_start), MP_ROM_PTR(&emu_mic_start_obj)},
-    {MP_ROM_QSTR(MP_QSTR_stop), MP_ROM_PTR(&emu_mic_stop_obj)},
-    {MP_ROM_QSTR(MP_QSTR_recording), MP_ROM_PTR(&emu_mic_recording_obj)},
-    {MP_ROM_QSTR(MP_QSTR_samples), MP_ROM_PTR(&emu_mic_samples_obj)},
-    {MP_ROM_QSTR(MP_QSTR_save_mp3), MP_ROM_PTR(&emu_mic_save_mp3_obj)},
-    {MP_ROM_QSTR(MP_QSTR_level), MP_ROM_PTR(&emu_mic_level_obj)},
-};
-static MP_DEFINE_CONST_DICT(emu_mic_globals, emu_mic_globals_table);
-
-static const mp_obj_module_t emu_mic_module = {
-    .base = {&mp_type_module},
-    .globals = (mp_obj_dict_t*)&emu_mic_globals,
-};
-
-static mp_obj_t emu_sleep_idle(size_t n_args, const mp_obj_t* args) {
-    int timeout_ms = (n_args > 1) ? mp_obj_get_int(args[1]) : 0;
-    if (timeout_ms > 0) {
-        if (timeout_ms > 100) timeout_ms = 100;
-        vTaskDelay(pdMS_TO_TICKS((uint32_t)timeout_ms));
-    } else {
-        taskYIELD();
-    }
-    return mp_obj_new_int(0);
-}
-static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(emu_sleep_idle_obj, 0, 3,
-                                           emu_sleep_idle);
-
-static const mp_rom_map_elem_t emu_sleep_globals_table[] = {
-    {MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_sleep)},
-    {MP_ROM_QSTR(MP_QSTR_idle), MP_ROM_PTR(&emu_sleep_idle_obj)},
-};
-static MP_DEFINE_CONST_DICT(emu_sleep_globals, emu_sleep_globals_table);
-
-static const mp_obj_module_t emu_sleep_module = {
-    .base = {&mp_type_module},
-    .globals = (mp_obj_dict_t*)&emu_sleep_globals,
-};
-
+#if 0  // Legacy EMU-local sentai.servo binding; shared binding is used instead.
 enum {
     kServoBackendNone = 0,
     kServoBackendSim = 1,
@@ -1112,309 +1391,9 @@ static const mp_obj_module_t emu_servo_module = {
     .base = {&mp_type_module},
     .globals = (mp_obj_dict_t*)&emu_servo_globals,
 };
+#endif
 
-static const float kIdentityR[9] = {
-    1.0f, 0.0f, 0.0f,
-    0.0f, 1.0f, 0.0f,
-    0.0f, 0.0f, 1.0f,
-};
-static const float kZero3[3] = {0.0f, 0.0f, 0.0f};
-
-static mp_obj_t EmuTupleFromFloats(const float* values, size_t n) {
-    mp_obj_t* items = m_new(mp_obj_t, n);
-    for (size_t i = 0; i < n; ++i) {
-        items[i] = mp_obj_new_float(values[i]);
-    }
-    mp_obj_t result = mp_obj_new_tuple(n, items);
-    m_del(mp_obj_t, items, n);
-    return result;
-}
-
-static mp_obj_t emu_calib_init(void) {
-    return mp_const_none;
-}
-static MP_DEFINE_CONST_FUN_OBJ_0(emu_calib_init_obj, emu_calib_init);
-
-static mp_obj_t emu_calib_clear(void) {
-    return mp_const_none;
-}
-static MP_DEFINE_CONST_FUN_OBJ_0(emu_calib_clear_obj, emu_calib_clear);
-
-static mp_obj_t emu_calib_run_kabsch(size_t n_args, const mp_obj_t* args) {
-    (void)n_args;
-    (void)args;
-    mp_obj_dict_t* q = MP_OBJ_TO_PTR(mp_obj_new_dict(3));
-    mp_obj_dict_store(q, MP_OBJ_NEW_QSTR(MP_QSTR_n_samples), mp_obj_new_int(0));
-    mp_obj_dict_store(q, MP_OBJ_NEW_QSTR(MP_QSTR_accepted), mp_const_false);
-    mp_obj_dict_store(q, MP_OBJ_NEW_QSTR(MP_QSTR_reject_code),
-                      mp_obj_new_int(-3));
-    mp_obj_t out[2] = {
-        EmuTupleFromFloats(kIdentityR, 9),
-        MP_OBJ_FROM_PTR(q),
-    };
-    return mp_obj_new_tuple(2, out);
-}
-static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(emu_calib_run_kabsch_obj, 1, 2,
-                                           emu_calib_run_kabsch);
-
-static mp_obj_t emu_calib_commit_R(size_t n_args, const mp_obj_t* args) {
-    (void)n_args;
-    (void)args;
-    return mp_obj_new_int(-3);
-}
-static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(emu_calib_commit_R_obj, 1, 2,
-                                           emu_calib_commit_R);
-
-static mp_obj_t emu_calib_save(void) {
-    return mp_const_false;
-}
-static MP_DEFINE_CONST_FUN_OBJ_0(emu_calib_save_obj, emu_calib_save);
-
-static mp_obj_t emu_calib_load(void) {
-    return mp_const_false;
-}
-static MP_DEFINE_CONST_FUN_OBJ_0(emu_calib_load_obj, emu_calib_load);
-
-static mp_obj_t emu_calib_get_R(void) {
-    return EmuTupleFromFloats(kIdentityR, 9);
-}
-static MP_DEFINE_CONST_FUN_OBJ_0(emu_calib_get_R_obj, emu_calib_get_R);
-
-static mp_obj_t emu_calib_get_off(void) {
-    return EmuTupleFromFloats(kZero3, 3);
-}
-static MP_DEFINE_CONST_FUN_OBJ_0(emu_calib_get_off_obj, emu_calib_get_off);
-
-static mp_obj_t emu_calib_is_calibrated(void) {
-    return mp_const_false;
-}
-static MP_DEFINE_CONST_FUN_OBJ_0(emu_calib_is_calibrated_obj,
-                                 emu_calib_is_calibrated);
-
-static const mp_rom_map_elem_t emu_calib_globals_table[] = {
-    {MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_calib)},
-    {MP_ROM_QSTR(MP_QSTR_init), MP_ROM_PTR(&emu_calib_init_obj)},
-    {MP_ROM_QSTR(MP_QSTR_clear), MP_ROM_PTR(&emu_calib_clear_obj)},
-    {MP_ROM_QSTR(MP_QSTR_run_kabsch), MP_ROM_PTR(&emu_calib_run_kabsch_obj)},
-    {MP_ROM_QSTR(MP_QSTR_commit_R), MP_ROM_PTR(&emu_calib_commit_R_obj)},
-    {MP_ROM_QSTR(MP_QSTR_save), MP_ROM_PTR(&emu_calib_save_obj)},
-    {MP_ROM_QSTR(MP_QSTR_load), MP_ROM_PTR(&emu_calib_load_obj)},
-    {MP_ROM_QSTR(MP_QSTR_get_R_cam_to_body),
-     MP_ROM_PTR(&emu_calib_get_R_obj)},
-    {MP_ROM_QSTR(MP_QSTR_get_cam_offset_B),
-     MP_ROM_PTR(&emu_calib_get_off_obj)},
-    {MP_ROM_QSTR(MP_QSTR_is_calibrated),
-     MP_ROM_PTR(&emu_calib_is_calibrated_obj)},
-};
-static MP_DEFINE_CONST_DICT(emu_calib_globals, emu_calib_globals_table);
-
-static const mp_obj_module_t emu_calib_module = {
-    .base = {&mp_type_module},
-    .globals = (mp_obj_dict_t*)&emu_calib_globals,
-};
-
-static mp_obj_t emu_lifter_init_from_bbox(size_t n_args,
-                                          const mp_obj_t* args) {
-    (void)n_args;
-    (void)args;
-    return mp_obj_new_int(-3);
-}
-static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(emu_lifter_init_from_bbox_obj, 8, 8,
-                                           emu_lifter_init_from_bbox);
-
-static mp_obj_t emu_lifter_update_bbox(size_t n_args,
-                                       const mp_obj_t* args) {
-    (void)n_args;
-    (void)args;
-    return mp_obj_new_int(-3);
-}
-static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(emu_lifter_update_bbox_obj, 6, 6,
-                                           emu_lifter_update_bbox);
-
-static mp_obj_t emu_lifter_get(mp_obj_t tid_obj) {
-    (void)tid_obj;
-    return mp_const_none;
-}
-static MP_DEFINE_CONST_FUN_OBJ_1(emu_lifter_get_obj, emu_lifter_get);
-
-static mp_obj_t emu_lifter_world_pos(mp_obj_t tid_obj) {
-    (void)tid_obj;
-    return mp_const_none;
-}
-static MP_DEFINE_CONST_FUN_OBJ_1(emu_lifter_world_pos_obj,
-                                 emu_lifter_world_pos);
-
-static mp_obj_t emu_lifter_list(void) {
-    return mp_obj_new_list(0, NULL);
-}
-static MP_DEFINE_CONST_FUN_OBJ_0(emu_lifter_list_obj, emu_lifter_list);
-
-static mp_obj_t emu_lifter_count(void) {
-    return mp_obj_new_int(0);
-}
-static MP_DEFINE_CONST_FUN_OBJ_0(emu_lifter_count_obj, emu_lifter_count);
-
-static mp_obj_t emu_lifter_mark_lost(mp_obj_t tid_obj) {
-    (void)tid_obj;
-    return mp_obj_new_int(-1);
-}
-static MP_DEFINE_CONST_FUN_OBJ_1(emu_lifter_mark_lost_obj,
-                                 emu_lifter_mark_lost);
-
-static mp_obj_t emu_lifter_clear(void) {
-    return mp_obj_new_int(0);
-}
-static MP_DEFINE_CONST_FUN_OBJ_0(emu_lifter_clear_obj, emu_lifter_clear);
-
-static mp_obj_t emu_lifter_stats(void) {
-    mp_obj_dict_t* d = MP_OBJ_TO_PTR(mp_obj_new_dict(3));
-    mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_used), mp_obj_new_int(0));
-    mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_hwm), mp_obj_new_int(0));
-    mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_capacity), mp_obj_new_int(0));
-    return MP_OBJ_FROM_PTR(d);
-}
-static MP_DEFINE_CONST_FUN_OBJ_0(emu_lifter_stats_obj, emu_lifter_stats);
-
-static mp_obj_t emu_lifter_set_camera(size_t n_args, const mp_obj_t* args) {
-    (void)n_args;
-    (void)args;
-    return mp_obj_new_int(0);
-}
-static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(emu_lifter_set_camera_obj, 6, 6,
-                                           emu_lifter_set_camera);
-
-static mp_obj_t emu_lifter_inject(size_t n_args, const mp_obj_t* args) {
-    (void)n_args;
-    (void)args;
-    return mp_obj_new_int(-3);
-}
-static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(emu_lifter_inject_obj, 5, 5,
-                                           emu_lifter_inject);
-
-static const mp_rom_map_elem_t emu_object_lifter_globals_table[] = {
-    {MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_object_lifter)},
-    {MP_ROM_QSTR(MP_QSTR_init_from_bbox),
-     MP_ROM_PTR(&emu_lifter_init_from_bbox_obj)},
-    {MP_ROM_QSTR(MP_QSTR_update_bbox),
-     MP_ROM_PTR(&emu_lifter_update_bbox_obj)},
-    {MP_ROM_QSTR(MP_QSTR_get), MP_ROM_PTR(&emu_lifter_get_obj)},
-    {MP_ROM_QSTR(MP_QSTR_world_pos), MP_ROM_PTR(&emu_lifter_world_pos_obj)},
-    {MP_ROM_QSTR(MP_QSTR_list), MP_ROM_PTR(&emu_lifter_list_obj)},
-    {MP_ROM_QSTR(MP_QSTR_count), MP_ROM_PTR(&emu_lifter_count_obj)},
-    {MP_ROM_QSTR(MP_QSTR_mark_lost), MP_ROM_PTR(&emu_lifter_mark_lost_obj)},
-    {MP_ROM_QSTR(MP_QSTR_clear), MP_ROM_PTR(&emu_lifter_clear_obj)},
-    {MP_ROM_QSTR(MP_QSTR_stats), MP_ROM_PTR(&emu_lifter_stats_obj)},
-    {MP_ROM_QSTR(MP_QSTR_set_camera), MP_ROM_PTR(&emu_lifter_set_camera_obj)},
-    {MP_ROM_QSTR(MP_QSTR_inject), MP_ROM_PTR(&emu_lifter_inject_obj)},
-    {MP_ROM_QSTR(MP_QSTR_FREE), MP_ROM_INT(0)},
-    {MP_ROM_QSTR(MP_QSTR_TRACKING), MP_ROM_INT(1)},
-    {MP_ROM_QSTR(MP_QSTR_LIFTED), MP_ROM_INT(2)},
-    {MP_ROM_QSTR(MP_QSTR_LOST), MP_ROM_INT(3)},
-};
-static MP_DEFINE_CONST_DICT(emu_object_lifter_globals,
-                            emu_object_lifter_globals_table);
-
-static const mp_obj_module_t emu_object_lifter_module = {
-    .base = {&mp_type_module},
-    .globals = (mp_obj_dict_t*)&emu_object_lifter_globals,
-};
-
-static int g_emu_safety_aborted = 0;
-static const char* g_emu_safety_reason = "";
-
-static mp_obj_t emu_safety_init(void) {
-    g_emu_safety_aborted = 0;
-    g_emu_safety_reason = "";
-    return mp_obj_new_int(0);
-}
-static MP_DEFINE_CONST_FUN_OBJ_0(emu_safety_init_obj, emu_safety_init);
-
-static mp_obj_t emu_safety_clear(void) {
-    g_emu_safety_aborted = 0;
-    g_emu_safety_reason = "";
-    return mp_obj_new_int(0);
-}
-static MP_DEFINE_CONST_FUN_OBJ_0(emu_safety_clear_obj, emu_safety_clear);
-
-static mp_obj_t emu_safety_enable_markers(size_t n_args, const mp_obj_t* pos,
-                                          mp_map_t* kw) {
-    (void)n_args;
-    (void)pos;
-    (void)kw;
-    return mp_obj_new_int(-3);
-}
-static MP_DEFINE_CONST_FUN_OBJ_KW(emu_safety_enable_markers_obj, 0,
-                                  emu_safety_enable_markers);
-
-static mp_obj_t emu_safety_disable_markers(void) {
-    return mp_obj_new_int(0);
-}
-static MP_DEFINE_CONST_FUN_OBJ_0(emu_safety_disable_markers_obj,
-                                 emu_safety_disable_markers);
-
-static mp_obj_t emu_safety_task_start(void) {
-    return mp_obj_new_int(-3);
-}
-static MP_DEFINE_CONST_FUN_OBJ_0(emu_safety_task_start_obj,
-                                 emu_safety_task_start);
-
-static mp_obj_t emu_safety_task_stop(void) {
-    return mp_obj_new_int(0);
-}
-static MP_DEFINE_CONST_FUN_OBJ_0(emu_safety_task_stop_obj,
-                                 emu_safety_task_stop);
-
-static mp_obj_t emu_safety_aborted(void) {
-    return mp_obj_new_bool(g_emu_safety_aborted);
-}
-static MP_DEFINE_CONST_FUN_OBJ_0(emu_safety_aborted_obj, emu_safety_aborted);
-
-static mp_obj_t emu_safety_reason(void) {
-    return mp_obj_new_str(g_emu_safety_reason, strlen(g_emu_safety_reason));
-}
-static MP_DEFINE_CONST_FUN_OBJ_0(emu_safety_reason_obj, emu_safety_reason);
-
-static mp_obj_t emu_safety_test_push_aruco(mp_obj_t n_obj, mp_obj_t seq_obj,
-                                           mp_obj_t ts_obj) {
-    (void)seq_obj;
-    (void)ts_obj;
-    int n = mp_obj_get_int(n_obj);
-    if (n < 4) {
-        g_emu_safety_aborted = 1;
-        g_emu_safety_reason = "markers";
-    }
-    return mp_obj_new_int(0);
-}
-static MP_DEFINE_CONST_FUN_OBJ_3(emu_safety_test_push_aruco_obj,
-                                 emu_safety_test_push_aruco);
-
-static const mp_rom_map_elem_t emu_safety_globals_table[] = {
-    {MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_safety)},
-    {MP_ROM_QSTR(MP_QSTR_init), MP_ROM_PTR(&emu_safety_init_obj)},
-    {MP_ROM_QSTR(MP_QSTR_clear), MP_ROM_PTR(&emu_safety_clear_obj)},
-    {MP_ROM_QSTR(MP_QSTR_enable_aruco),
-     MP_ROM_PTR(&emu_safety_enable_markers_obj)},
-    {MP_ROM_QSTR(MP_QSTR_disable_aruco),
-     MP_ROM_PTR(&emu_safety_disable_markers_obj)},
-    {MP_ROM_QSTR(MP_QSTR_enable_markers),
-     MP_ROM_PTR(&emu_safety_enable_markers_obj)},
-    {MP_ROM_QSTR(MP_QSTR_disable_markers),
-     MP_ROM_PTR(&emu_safety_disable_markers_obj)},
-    {MP_ROM_QSTR(MP_QSTR_task_start), MP_ROM_PTR(&emu_safety_task_start_obj)},
-    {MP_ROM_QSTR(MP_QSTR_task_stop), MP_ROM_PTR(&emu_safety_task_stop_obj)},
-    {MP_ROM_QSTR(MP_QSTR_aborted), MP_ROM_PTR(&emu_safety_aborted_obj)},
-    {MP_ROM_QSTR(MP_QSTR_reason), MP_ROM_PTR(&emu_safety_reason_obj)},
-    {MP_ROM_QSTR(MP_QSTR__test_push_aruco),
-     MP_ROM_PTR(&emu_safety_test_push_aruco_obj)},
-};
-static MP_DEFINE_CONST_DICT(emu_safety_globals, emu_safety_globals_table);
-
-static const mp_obj_module_t emu_safety_module = {
-    .base = {&mp_type_module},
-    .globals = (mp_obj_dict_t*)&emu_safety_globals,
-};
-#endif  // SENTAI_EMU_HW_STUB_MODULES
-
+#if 0  // Legacy EMU-local sentai.fr binding; shared binding is used above.
 enum {
     kFrEvents = 0,
     kFrScalars = 1,
@@ -1591,37 +1570,49 @@ static const mp_obj_module_t emu_fr_module = {
     .base = {&mp_type_module},
     .globals = (mp_obj_dict_t*)&emu_fr_globals,
 };
+#endif  // Legacy EMU-local sentai.fr binding.
 
 static const mp_rom_map_elem_t emu_sentai_globals_table[] = {
     {MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_sentai)},
-    {MP_ROM_QSTR(MP_QSTR_version), MP_ROM_PTR(&emu_sentai_version_obj)},
-    {MP_ROM_QSTR(MP_QSTR_verbose), MP_ROM_PTR(&emu_sentai_verbose_obj)},
-    {MP_ROM_QSTR(MP_QSTR_help), MP_ROM_PTR(&emu_sentai_help_obj)},
-    {MP_ROM_QSTR(MP_QSTR_debug), MP_ROM_PTR(&emu_sentai_debug_obj)},
-    {MP_ROM_QSTR(MP_QSTR_console), MP_ROM_PTR(&emu_sentai_console_obj)},
-    {MP_ROM_QSTR(MP_QSTR_run), MP_ROM_PTR(&emu_sentai_run_obj)},
-    {MP_ROM_QSTR(MP_QSTR_io), MP_ROM_PTR(&emu_io_module)},
-    {MP_ROM_QSTR(MP_QSTR_fs), MP_ROM_PTR(&emu_fs_module)},
-    {MP_ROM_QSTR(MP_QSTR_rtos), MP_ROM_PTR(&emu_rtos_module)},
-    {MP_ROM_QSTR(MP_QSTR_fr), MP_ROM_PTR(&emu_fr_module)},
-    {MP_ROM_QSTR(MP_QSTR_sys), MP_ROM_PTR(&emu_sys_module)},
+    {MP_ROM_QSTR(MP_QSTR_version), MP_ROM_PTR(&mod_sentai_version_obj)},
+    {MP_ROM_QSTR(MP_QSTR_verbose), MP_ROM_PTR(&mod_sentai_verbose_obj)},
+    {MP_ROM_QSTR(MP_QSTR_help), MP_ROM_PTR(&mod_sentai_help_obj)},
+    {MP_ROM_QSTR(MP_QSTR_debug), MP_ROM_PTR(&mod_sentai_debug_obj)},
+    {MP_ROM_QSTR(MP_QSTR_console), MP_ROM_PTR(&mod_sentai_console_obj)},
+    {MP_ROM_QSTR(MP_QSTR_run), MP_ROM_PTR(&mod_sentai_run_obj)},
+    {MP_ROM_QSTR(MP_QSTR_io), MP_ROM_PTR(&sentai_io_module)},
+    {MP_ROM_QSTR(MP_QSTR_fs), MP_ROM_PTR(&sentai_fs_module)},
+    {MP_ROM_QSTR(MP_QSTR_rtos), MP_ROM_PTR(&sentai_rtos_module)},
+    {MP_ROM_QSTR(MP_QSTR_fr), MP_ROM_PTR(&sentai_fr_module)},
+    {MP_ROM_QSTR(MP_QSTR_sys), MP_ROM_PTR(&sentai_sys_module)},
 #if SENTAI_EMU_HW_STUB_MODULES
-    {MP_ROM_QSTR(MP_QSTR_usb), MP_ROM_PTR(&emu_usb_module)},
-    {MP_ROM_QSTR(MP_QSTR_uart), MP_ROM_PTR(&emu_uart_module)},
-    {MP_ROM_QSTR(MP_QSTR_imu), MP_ROM_PTR(&emu_imu_module)},
-    {MP_ROM_QSTR(MP_QSTR_mic), MP_ROM_PTR(&emu_mic_module)},
-    {MP_ROM_QSTR(MP_QSTR_sleep), MP_ROM_PTR(&emu_sleep_module)},
-    {MP_ROM_QSTR(MP_QSTR_servo), MP_ROM_PTR(&emu_servo_module)},
-    {MP_ROM_QSTR(MP_QSTR_calib), MP_ROM_PTR(&emu_calib_module)},
+    {MP_ROM_QSTR(MP_QSTR_imu), MP_ROM_PTR(&sentai_imu_module)},
+    {MP_ROM_QSTR(MP_QSTR_mic), MP_ROM_PTR(&sentai_mic_module)},
+#endif
+#if SENTAI_EMU_USB_BINDING
+    {MP_ROM_QSTR(MP_QSTR_usb), MP_ROM_PTR(&sentai_usb_module)},
+#endif
+#if SENTAI_EMU_UART_BINDING
+    {MP_ROM_QSTR(MP_QSTR_uart), MP_ROM_PTR(&sentai_uart_module)},
+#endif
+#if SENTAI_EMU_OBJECT_LIFTER_BINDING
     {MP_ROM_QSTR(MP_QSTR_object_lifter),
-     MP_ROM_PTR(&emu_object_lifter_module)},
-    {MP_ROM_QSTR(MP_QSTR_safety), MP_ROM_PTR(&emu_safety_module)},
+     MP_ROM_PTR(&sentai_object_lifter_module)},
+#endif
+#if SENTAI_EMU_SAFETY_BINDING
+    {MP_ROM_QSTR(MP_QSTR_safety), MP_ROM_PTR(&sentai_safety_module)},
+#endif
+#if SENTAI_EMU_SERVO_BINDING
+    {MP_ROM_QSTR(MP_QSTR_servo), MP_ROM_PTR(&sentai_servo_module)},
+#endif
+#if SENTAI_EMU_CALIB_BINDING
+    {MP_ROM_QSTR(MP_QSTR_calib), MP_ROM_PTR(&sentai_calib_module)},
 #endif
 #if SENTAI_EMU_TPU_HOST_BRIDGE
-    {MP_ROM_QSTR(MP_QSTR_tpu), MP_ROM_PTR(&emu_tpu_module)},
+    {MP_ROM_QSTR(MP_QSTR_tpu), MP_ROM_PTR(&sentai_tpu_module)},
 #endif
 #if SENTAI_EMU_TPU_HOST_BRIDGE || SENTAI_EMU_PIPELINE_PREP_BINDING
-    {MP_ROM_QSTR(MP_QSTR_pipeline), MP_ROM_PTR(&emu_pipeline_module)},
+    {MP_ROM_QSTR(MP_QSTR_pipeline), MP_ROM_PTR(&sentai_pipeline_module)},
 #endif
 #if SENTAI_EMU_CRAZY_BINDING
     {MP_ROM_QSTR(MP_QSTR_crazy), MP_ROM_PTR(&sentai_crazy_module)},

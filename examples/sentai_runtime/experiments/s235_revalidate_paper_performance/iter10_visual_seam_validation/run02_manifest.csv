@@ -1,0 +1,5 @@
+drain,index,grabbed_id,current_id,jpeg_bytes,jpeg_artifact_time_us,path
+1,0,1,0,25348,1945727,/diags/s235_b10_visual_seam/run02_d1_00.jpg
+1,1,0,0,9580,3487009,/diags/s235_b10_visual_seam/run02_d1_01.jpg
+2,0,1,1,9580,911035,/diags/s235_b10_visual_seam/run02_d2_00.jpg
+2,1,0,0,10577,866313,/diags/s235_b10_visual_seam/run02_d2_01.jpg

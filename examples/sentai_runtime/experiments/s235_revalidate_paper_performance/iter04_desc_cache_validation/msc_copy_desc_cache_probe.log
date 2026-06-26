@@ -1,0 +1,21 @@
+8644f427bcf460f075d548304b0942f2d68e760db0607c078aeef8f03d771b3a  examples/sentai_runtime/diag/desc_cache_probe.py
+8644f427bcf460f075d548304b0942f2d68e760db0607c078aeef8f03d771b3a  /run/media/bogdan/0000-0001/lib/diag/desc_cache_probe.py
+-rw-r--r-- 1 bogdan bogdan    5676 Jun 24 11:10 /run/media/bogdan/0000-0001/lib/diag/desc_cache_probe.py
+-rw-r--r-- 1 bogdan bogdan 5591680 Jun 24 10:44 /run/media/bogdan/0000-0001/yolo_1_class_512_1_upsample_512_inloc_de_1024_la_P5_32.tflite
+7:OUT_DIR = "/diags/s235_b10_desc_cache"
+8:OUT_CSV = OUT_DIR + "/desc_cache_probe.csv"
+35:            "version,phase,desc_cache,chunk_kb,invokes,wall_us,"
+109:    sentai.tpu.desc_cache(1 if enabled else 0)
+110:    sentai.tpu.desc_cache_stats(1)
+128:    stats = sentai.tpu.desc_cache_stats()
+164:print("S235 B10 desc_cache validation")
+168:print("desc_cache_initial=%s stats=%s" %
+169:      (str(sentai.tpu.desc_cache()), str(sentai.tpu.desc_cache_stats(1))))
+172:sentai.tpu.desc_cache(0)
+189:print("enable_desc_cache")
+190:sentai.tpu.desc_cache(1)
+191:sentai.tpu.desc_cache_stats(1)
+195:      (str(prime), prime_hash, str(sentai.tpu.desc_cache_stats())))
+198:sentai.tpu.desc_cache(0)
+200:print("=== s235_b10_desc_cache_probe_done ===")
+Unmounted /dev/sdc.

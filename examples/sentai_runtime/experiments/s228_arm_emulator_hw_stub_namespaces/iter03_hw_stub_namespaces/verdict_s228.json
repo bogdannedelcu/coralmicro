@@ -1,0 +1,84 @@
+{
+  "started_at": "2026-06-11T18:26:42+0300",
+  "target": "sentai_emu_hw_stub_namespace_smoke",
+  "renode_script": "emu/renode/sentai_emu_hw_stub_namespace_smoke_ui.resc",
+  "renode_ui": true,
+  "commands": {
+    "configure": [
+      "cmake",
+      "-S",
+      ".",
+      "-B",
+      "build_emu",
+      "-DSENTAI_ARM_EMU=ON",
+      "-DSENTAI_SKIP_SDK_PATCHES=ON"
+    ],
+    "build": [
+      "cmake",
+      "--build",
+      "build_emu",
+      "--target",
+      "sentai_emu_hw_stub_namespace_smoke",
+      "-j24"
+    ],
+    "renode": [
+      "/home/bogdan/work/renode_portable/renode",
+      "--console",
+      "emu/renode/sentai_emu_hw_stub_namespace_smoke_ui.resc"
+    ]
+  },
+  "configure_rc": 0,
+  "build_rc": 0,
+  "renode_rc": 0,
+  "symbols": {
+    "boot_state": 1280,
+    "heartbeat": 28,
+    "repl_lines": 1,
+    "last_tick": 2875
+  },
+  "hardware_stubs": {
+    "saw_begin": true,
+    "saw_end": false,
+    "checks": {
+      "usb_drive_off": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "usb_drive_on_rejected": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "usb_ip_unavailable": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "usb_open_false": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "usb_available_zero": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "usb_read_requires_open": {
+        "status": "PASS",
+        "detail": "serial not open"
+      },
+      "uart_requires_usb_console": {
+        "status": "PASS",
+        "detail": "REPL must be on USB: call sentai.console('usb')"
+      },
+      "uart_open_false": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "uart_available_zero": {
+        "status": "PASS",
+        "detail": ""
+      }
+    },
+    "fails": null,
+    "fs_write_size": null
+  },
+  "pass": false
+}

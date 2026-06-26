@@ -1,0 +1,76 @@
+Traceback (most recent call last):
+  File "/usr/lib/python3/dist-packages/serial/serialposix.py", line 322, in open
+    self.fd = os.open(self.portstr, os.O_RDWR | os.O_NOCTTY | os.O_NONBLOCK)
+              ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+OSError: [Errno 16] Device or resource busy: '/dev/ttyACM0'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "<stdin>", line 2, in <module>
+  File "/usr/lib/python3/dist-packages/serial/serialutil.py", line 244, in __init__
+    self.open()
+    ~~~~~~~~~^^
+  File "/usr/lib/python3/dist-packages/serial/serialposix.py", line 325, in open
+    raise SerialException(msg.errno, "could not open port {}: {}".format(self._port, msg))
+serial.serialutil.SerialException: [Errno 16] could not open port /dev/ttyACM0: [Errno 16] Device or resource busy: '/dev/ttyACM0'
+--- poll 1 ---
+Bus 001 Device 054: ID 1fc9:c0a1 NXP Semiconductors autonomous.ro SentAI build #1537
+--- poll 2 ---
+Bus 001 Device 054: ID 1fc9:c0a1 NXP Semiconductors autonomous.ro SentAI build #1537
+--- poll 3 ---
+Bus 001 Device 054: ID 1fc9:c0a1 NXP Semiconductors autonomous.ro SentAI build #1537
+--- poll 4 ---
+Bus 001 Device 054: ID 1fc9:c0a1 NXP Semiconductors autonomous.ro SentAI build #1537
+--- poll 5 ---
+Bus 001 Device 054: ID 1fc9:c0a1 NXP Semiconductors autonomous.ro SentAI build #1537
+--- poll 6 ---
+Bus 001 Device 054: ID 1fc9:c0a1 NXP Semiconductors autonomous.ro SentAI build #1537
+--- poll 7 ---
+Bus 001 Device 054: ID 1fc9:c0a1 NXP Semiconductors autonomous.ro SentAI build #1537
+--- poll 8 ---
+Bus 001 Device 054: ID 1fc9:c0a1 NXP Semiconductors autonomous.ro SentAI build #1537
+--- poll 9 ---
+Bus 001 Device 054: ID 1fc9:c0a1 NXP Semiconductors autonomous.ro SentAI build #1537
+--- poll 10 ---
+Bus 001 Device 054: ID 1fc9:c0a1 NXP Semiconductors autonomous.ro SentAI build #1537
+--- poll 11 ---
+Bus 001 Device 054: ID 1fc9:c0a1 NXP Semiconductors autonomous.ro SentAI build #1537
+--- poll 12 ---
+Bus 001 Device 054: ID 1fc9:c0a1 NXP Semiconductors autonomous.ro SentAI build #1537
+--- poll 13 ---
+Bus 001 Device 054: ID 1fc9:c0a1 NXP Semiconductors autonomous.ro SentAI build #1537
+--- poll 14 ---
+Bus 001 Device 054: ID 1fc9:c0a1 NXP Semiconductors autonomous.ro SentAI build #1537
+--- poll 15 ---
+Bus 001 Device 054: ID 1fc9:c0a1 NXP Semiconductors autonomous.ro SentAI build #1537
+--- poll 16 ---
+Bus 001 Device 054: ID 1fc9:c0a1 NXP Semiconductors autonomous.ro SentAI build #1537
+--- poll 17 ---
+Bus 001 Device 054: ID 1fc9:c0a1 NXP Semiconductors autonomous.ro SentAI build #1537
+--- poll 18 ---
+Bus 001 Device 054: ID 1fc9:c0a1 NXP Semiconductors autonomous.ro SentAI build #1537
+--- poll 19 ---
+Bus 001 Device 054: ID 1fc9:c0a1 NXP Semiconductors autonomous.ro SentAI build #1537
+--- poll 20 ---
+Bus 001 Device 054: ID 1fc9:c0a1 NXP Semiconductors autonomous.ro SentAI build #1537
+--- poll 21 ---
+Bus 001 Device 054: ID 1fc9:c0a1 NXP Semiconductors autonomous.ro SentAI build #1537
+--- poll 22 ---
+Bus 001 Device 054: ID 1fc9:c0a1 NXP Semiconductors autonomous.ro SentAI build #1537
+--- poll 23 ---
+Bus 001 Device 054: ID 1fc9:c0a1 NXP Semiconductors autonomous.ro SentAI build #1537
+--- poll 24 ---
+Bus 001 Device 054: ID 1fc9:c0a1 NXP Semiconductors autonomous.ro SentAI build #1537
+--- poll 25 ---
+Bus 001 Device 054: ID 1fc9:c0a1 NXP Semiconductors autonomous.ro SentAI build #1537
+--- poll 26 ---
+Bus 001 Device 054: ID 1fc9:c0a1 NXP Semiconductors autonomous.ro SentAI build #1537
+--- poll 27 ---
+Bus 001 Device 054: ID 1fc9:c0a1 NXP Semiconductors autonomous.ro SentAI build #1537
+--- poll 28 ---
+Bus 001 Device 054: ID 1fc9:c0a1 NXP Semiconductors autonomous.ro SentAI build #1537
+--- poll 29 ---
+Bus 001 Device 054: ID 1fc9:c0a1 NXP Semiconductors autonomous.ro SentAI build #1537
+--- poll 30 ---
+Bus 001 Device 054: ID 1fc9:c0a1 NXP Semiconductors autonomous.ro SentAI build #1537

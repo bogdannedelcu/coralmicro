@@ -1,0 +1,58 @@
+PORT /dev/ttyACM0
+
+KeyboardInterrupt
+>>> 
+>>> 
+>>> 
+>>> 
+>>> import sentai
+>>> exec(sentai.fs.read_str('/lib/diag/urb_wall_100invokes.py'))
+S234 iter4 URB wall-clock timing
+version=SentAI v1.0 build 1542 (2026-06-24 10:23:48)
+model=/yolo_1_class_512_1_upsample_512_inloc_de_1024_la_P5_32.tflite
+invokes=100
+urb_row_len=13
+Model loaded: 5591680 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x87d0eda232ac7cda
+Input:  uint8[1,512,512,3] (786432 bytes)
+  quant: scale=0.00392157  zero_point=0
+Outputs: 1
+  [0] uint8[1,1344,6] (8064 bytes)
+      quant: scale=0.00392150  zero_point=0
+Arena used: 776 / 8192 KB
+Model name: yolo_1_class_512_1_upsample_512_
+HandlePowerRequest: try I2C1: Success
+HandlePowerRequest: try I2C2: Success
+CAMERA_RECEIVER_Init = 0
+BOARD_PullCameraPowerDownPin:1
+BOARD_PullCameraResetPin:0
+BOARD_PullCameraPowerDownPin:0
+BOARD_PullCameraResetPin:1
+CAMERA_DEVICE_Init = 0
+CAMERA_DEVICE_Start = 0
+CAMERA_RECEIVER_Start = 0
+[CAM] sensor_fps=30 (1 s sample, target=30)
+[CAM1] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM1] W 0x3820=0x47 (0)
+[CAM1] W 0x3821=0x01 (0)
+[CAM0] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM0] W 0x3820=0x47 (0)
+[CAM0] W 0x3821=0x01 (0)
+[to_tensor] frame=2ms pxp=11ms quant=0ms total=13ms (512x512)
+warmed
+
+HOST_MARK warmed 1782285956.246574
+reported_hz=792000000
+total_ticks_ms=1458 per=14.580000
+total_wall_us=4151435 per_ms=41.514351
+total_raw_cycles=769071116 cycles_per_invoke=7690711.000 hz_vs_wall=185254272.000
+tag,calls,bytes_req,bytes_done,submit_us_per_inv,callback_us_per_inv,wait_us_per_inv,wait_ms_per_inv,wait_dwt_ms_per_inv,errors,timeouts,submit_fail
+instructions,1300,37168000,37168000,147.770,14542.550,14578.890,14.578890,3.210363,0,0,0
+input,2500,81102400,81102400,308.340,24458.881,24527.721,24.527719,5.235916,0,0,0
+parameters,200,276000,276000,7.920,131.940,137.420,0.137420,0.101232,0,0,0
+output,100,1075200,1075200,7.440,1701.580,1704.270,1.704270,0.608198,0,0,0
+event,100,1600,1600,3.360,35.020,37.780,0.037780,0.037521,0,0,0
+unknown,0,0,0,0.000,0.000,0.000,0.000000,0.000000,0,0,0
+=== urb_wall_done ===
+>>> 
+HOST_DELTA_warmed_to_total_wall_s 4.209976

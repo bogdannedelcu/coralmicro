@@ -1,0 +1,7 @@
+
+>>> import sentai
+>>> print('VERSION', sentai.version())
+VERSION SentAI v1.0 build 1543 (2026-06-24 10:48:29)
+>>> print('TPU_API', hasattr(sentai.tpu,'chunk_size'), hasattr(sentai.tpu,'urb_timeout_ms'), sentai.tpu.chunk_size(), sentai.tpu.urb_timeout_ms())
+TPU_API True True 36864 200
+>>> 

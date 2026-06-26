@@ -1,0 +1,16 @@
+exec("\np = '/diags/s235_b10_pipeline_once/run_00.csv'\ntry:\n    d = sentai.fs.read(p)\n    print('HEX_BEGIN:' + p + ':' + str(len(d)))\n    for i in range(0, len(d), 64):\n        print(ubinascii.hexlify(d[i:i+64]).decode())\n    print('HEX_END:' + p)\nexcept Exception as e:\n    print('HEX_MISSING:' + p + ':' + repr(e))\n")
+HEX_BEGIN:/diags/s235_b10_pipeline_once/run_00.csv:897
+HEX_MISSING:/diags/s235_b10_pipeline_once/run_00.csv:NameError("name 'ubinascii' isn't defined",)
+>>> exec("\np = '/diags/s235_b10_pipeline_once/run_01.csv'\ntry:\n    d = sentai.fs.read(p)\n    print('HEX_BEGIN:' + p + ':' + str(len(d)))\n    for i in range(0, len(d), 64):\n        print(ubinascii.hexlify(d[i:i+64]).decode())\n    print('HEX_END:' + p)\nexcept Exception as e:\n    print('HEX_MISSING:' + p + ':' + repr(e))\n")
+HEX_BEGIN:/diags/s235_b10_pipeline_once/run_01.csv:897
+HEX_MISSING:/diags/s235_b10_pipeline_once/run_01.csv:NameError("name 'ubinascii' isn't defined",)
+>>> exec("\np = '/diags/s235_b10_pipeline_once/run_02.csv'\ntry:\n    d = sentai.fs.read(p)\n    print('HEX_BEGIN:' + p + ':' + str(len(d)))\n    for i in range(0, len(d), 64):\n        print(ubinascii.hexlify(d[i:i+64]).decode())\n    print('HEX_END:' + p)\nexcept Exception as e:\n    print('HEX_MISSING:' + p + ':' + repr(e))\n")
+HEX_BEGIN:/diags/s235_b10_pipeline_once/run_02.csv:897
+HEX_MISSING:/diags/s235_b10_pipeline_once/run_02.csv:NameError("name 'ubinascii' isn't defined",)
+>>> exec("\np = '/diags/s235_b10_pipeline_once/run_03.csv'\ntry:\n    d = sentai.fs.read(p)\n    print('HEX_BEGIN:' + p + ':' + str(len(d)))\n    for i in range(0, len(d), 64):\n        print(ubinascii.hexlify(d[i:i+64]).decode())\n    print('HEX_END:' + p)\nexcept Exception as e:\n    print('HEX_MISSING:' + p + ':' + repr(e))\n")
+HEX_BEGIN:/diags/s235_b10_pipeline_once/run_03.csv:897
+HEX_MISSING:/diags/s235_b10_pipeline_once/run_03.csv:NameError("name 'ubinascii' isn't defined",)
+>>> exec("\np = '/diags/s235_b10_pipeline_once/run_04.csv'\ntry:\n    d = sentai.fs.read(p)\n    print('HEX_BEGIN:' + p + ':' + str(len(d)))\n    for i in range(0, len(d), 64):\n        print(ubinascii.hexlify(d[i:i+64]).decode())\n    print('HEX_END:' + p)\nexcept Exception as e:\n    print('HEX_MISSING:' + p + ':' + repr(e))\n")
+HEX_BEGIN:/diags/s235_b10_pipeline_once/run_04.csv:897
+HEX_MISSING:/diags/s235_b10_pipeline_once/run_04.csv:NameError("name 'ubinascii' isn't defined",)
+>>> 

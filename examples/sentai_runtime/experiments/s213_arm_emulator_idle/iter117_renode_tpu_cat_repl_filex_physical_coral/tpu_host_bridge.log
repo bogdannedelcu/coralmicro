@@ -1,0 +1,6 @@
+t=4ms file begin kind=1 expected_size=7077792 path=/tmp/sentai_emu_tpu_model.tflite
+t=1452ms file done kind=1 bytes=7077792 chunks=216 total_ms=1448 guest_read_ms=5 host_write_ms=11
+t=1454ms file begin kind=2 expected_size=921654 path=/tmp/sentai_emu_tpu_image.bmp
+t=1521ms file done kind=2 bytes=921654 chunks=29 total_ms=68 guest_read_ms=0 host_write_ms=1
+t=1522ms invoke begin
+t=1551ms exception [Errno 22] ApplicationName='/home/bogdan/work/coralmicro/build-sim/sim/tpu_posix_invoke_smoke', CommandLine='/tmp/sentai_emu_tpu_model.tflite /tmp/sentai_emu_tpu_image.bmp', CurrentDirectory='/home/bogdan/work/coralmicro', Native error= Cannot find the specified file

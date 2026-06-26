@@ -1,0 +1,110 @@
+
+>>> import sentai
+>>> sentai.run('/lib/diag/desc_cache_probe.py')
+1
+S235 B10 desc_cache validation
+version=SentAI v1.0 build 1544 (2026-06-24 11:07:59)
+model=/yolo_1_class_512_1_upsample_512_inloc_de_1024_la_P5_32.tflite
+chunk_kb=128 invokes=20 warmup=3
+desc_cache_initial=False stats=(0, 0, 0, 0, 0)
+131072
+False
+Model loaded: 5591680 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x87d0eda232ac7cda
+Input:  uint8[1,512,512,3] (786432 bytes)
+  quant: scale=0.00392157  zero_point=0
+Outputs: 1
+  [0] uint8[1,1344,6] (8064 bytes)
+      quant: scale=0.00392150  zero_point=0
+Arena used: 776 / 8192 KB
+Model name: yolo_1_class_512_1_upsample_512_
+load_rc=0
+HandlePowerRequest: try I2C1: Success
+HandlePowerRequest: try I2C2: Success
+CAMERA_RECEIVER_Init = 0
+BOARD_PullCameraPowerDownPin:1
+BOARD_PullCameraResetPin:0
+BOARD_PullCameraPowerDownPin:0
+BOARD_PullCameraResetPin:1
+CAMERA_DEVICE_Init = 0
+CAMERA_DEVICE_Start = 0
+CAMERA_RECEIVER_Start = 0
+[CAM] sensor_fps=30 (1 s sample, target=30)
+[CAM1] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM1] W 0x3820=0x47 (0)
+[CAM1] W 0x3821=0x01 (0)
+[CAM0] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM0] W 0x3820=0x47 (0)
+[CAM0] W 0x3821=0x01 (0)
+0
+[to_tensor] frame=2ms pxp=11ms quant=0ms total=13ms (512x512)
+0
+[bbt] no persisted BBT, starting clean
+warmup0=459 hash=0b4b28d1
+warmup1=35 hash=0b4b28d1
+warmup2=36 hash=0b4b28d1
+[bbt] no persisted BBT, starting clean
+result phase=off enabled=0 wall_us=1384545 ms_per=69.227249 fps=14.445179 failures=0 hash=0b4b28d1 mismatches=0 stats=(0, 20, 40, 0, 0)
+phase,calls,bytes_req,bytes_done,wait_ms_per_invoke,errors,timeouts,submit_fail
+instructions,100,7433600,7433600,14.359500,0,0,0
+input,200,16220480,16220480,24.149300,0,0,0
+parameters,40,55200,55200,0.120050,0,0,0
+output,20,215040,215040,1.716200,0,0,0
+event,20,320,320,0.029000,0,0,0
+unknown,0,0,0,0.000000,0,0,0
+enable_desc_cache
+True
+(1, 0, 0, 0, 0)
+prime=35 hash=0b4b28d1 stats=(1, 1, 2, 0, 0)
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+[bbt] no persisted BBT, starting clean
+result phase=on_after_prime enabled=1 wall_us=278335 ms_per=13.916750 fps=71.855858 failures=19 hash=0b4b28d1 mismatches=0 stats=(1, 1, 2, 0, 19)
+phase,calls,bytes_req,bytes_done,wait_ms_per_invoke,errors,timeouts,submit_fail
+instructions,5,371680,371680,0.717550,0,0,0
+input,30,942248,811032,11.627300,0,1,18
+parameters,2,2760,2760,0.005300,0,0,0
+output,1,10752,10752,0.085950,0,0,0
+event,1,16,16,0.000700,0,0,0
+unknown,0,0,0,0.000000,0,0,0
+189475025
+False
+csv=/diags/s235_b10_desc_cache/desc_cache_probe.csv
+=== s235_b10_desc_cache_probe_done ===
+>>> 

@@ -1,0 +1,1364 @@
++ cmake -B /home/bogdan/work/coralmicro/build -G 'Unix Makefiles' -S /home/bogdan/work/coralmicro
+-- Toolchain prefix: /home/bogdan/work/coralmicro/third_party/toolchain-linux/gcc-arm-none-eabi-9-2020-q2-update/lib/gcc/arm-none-eabi
+-- sentai sdk-patches:
+[apply_sdk_patches] skip (already applied): 0001-ov5640-vga-30fps-pclkperiod.patch
+[apply_sdk_patches] skip (already applied): 0002-ehci-queue-depth-16.patch
+[apply_sdk_patches] skip (already applied): 0003-fsl-csi-coralmicro-irq-hooks.patch
+[apply_sdk_patches] skip (already applied): 0004-lwip-httpd-empty-body-post.patch
+[apply_sdk_patches] summary: applied=0 skipped=4 failed=0
+
+CMake Warning (dev) at cmake/toolchain-arm-none-eabi-gcc.cmake:216 (add_custom_command):
+  The following keywords are not supported when using
+  add_custom_command(TARGET): DEPENDS.
+
+  Policy CMP0175 is not set: add_custom_command() rejects invalid arguments.
+  Run "cmake --help-policy CMP0175" for policy details.  Use the cmake_policy
+  command to set the policy and suppress this warning.
+Call Stack (most recent call first):
+  apps/elf_loader/CMakeLists.txt:15 (add_executable_m7)
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+CMake Warning (dev) at cmake/toolchain-arm-none-eabi-gcc.cmake:220 (add_custom_command):
+  The following keywords are not supported when using
+  add_custom_command(TARGET): DEPENDS.
+
+  Policy CMP0175 is not set: add_custom_command() rejects invalid arguments.
+  Run "cmake --help-policy CMP0175" for policy details.  Use the cmake_policy
+  command to set the policy and suppress this warning.
+Call Stack (most recent call first):
+  apps/elf_loader/CMakeLists.txt:15 (add_executable_m7)
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+CMake Warning (dev) at cmake/toolchain-arm-none-eabi-gcc.cmake:224 (add_custom_command):
+  The following keywords are not supported when using
+  add_custom_command(TARGET): DEPENDS.
+
+  Policy CMP0175 is not set: add_custom_command() rejects invalid arguments.
+  Run "cmake --help-policy CMP0175" for policy details.  Use the cmake_policy
+  command to set the policy and suppress this warning.
+Call Stack (most recent call first):
+  apps/elf_loader/CMakeLists.txt:15 (add_executable_m7)
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+CMake Warning (dev) at cmake/toolchain-arm-none-eabi-gcc.cmake:216 (add_custom_command):
+  The following keywords are not supported when using
+  add_custom_command(TARGET): DEPENDS.
+
+  Policy CMP0175 is not set: add_custom_command() rejects invalid arguments.
+  Run "cmake --help-policy CMP0175" for policy details.  Use the cmake_policy
+  command to set the policy and suppress this warning.
+Call Stack (most recent call first):
+  examples/sentai_runtime/CMakeLists.txt:183 (add_executable_m7)
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+CMake Warning (dev) at cmake/toolchain-arm-none-eabi-gcc.cmake:220 (add_custom_command):
+  The following keywords are not supported when using
+  add_custom_command(TARGET): DEPENDS.
+
+  Policy CMP0175 is not set: add_custom_command() rejects invalid arguments.
+  Run "cmake --help-policy CMP0175" for policy details.  Use the cmake_policy
+  command to set the policy and suppress this warning.
+Call Stack (most recent call first):
+  examples/sentai_runtime/CMakeLists.txt:183 (add_executable_m7)
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+CMake Warning (dev) at cmake/toolchain-arm-none-eabi-gcc.cmake:224 (add_custom_command):
+  The following keywords are not supported when using
+  add_custom_command(TARGET): DEPENDS.
+
+  Policy CMP0175 is not set: add_custom_command() rejects invalid arguments.
+  Run "cmake --help-policy CMP0175" for policy details.  Use the cmake_policy
+  command to set the policy and suppress this warning.
+Call Stack (most recent call first):
+  examples/sentai_runtime/CMakeLists.txt:183 (add_executable_m7)
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+CMake Warning (dev) at cmake/toolchain-arm-none-eabi-gcc.cmake:254 (add_custom_command):
+  The following keywords are not supported when using
+  add_custom_command(TARGET): DEPENDS.
+
+  Policy CMP0175 is not set: add_custom_command() rejects invalid arguments.
+  Run "cmake --help-policy CMP0175" for policy details.  Use the cmake_policy
+  command to set the policy and suppress this warning.
+Call Stack (most recent call first):
+  examples/sentai_runtime/CMakeLists.txt:285 (add_executable_m4)
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+CMake Warning (dev) at cmake/toolchain-arm-none-eabi-gcc.cmake:216 (add_custom_command):
+  The following keywords are not supported when using
+  add_custom_command(TARGET): DEPENDS.
+
+  Policy CMP0175 is not set: add_custom_command() rejects invalid arguments.
+  Run "cmake --help-policy CMP0175" for policy details.  Use the cmake_policy
+  command to set the policy and suppress this warning.
+Call Stack (most recent call first):
+  libs/nxp/flashloader/CMakeLists.txt:17 (add_executable_m7)
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+CMake Warning (dev) at cmake/toolchain-arm-none-eabi-gcc.cmake:220 (add_custom_command):
+  The following keywords are not supported when using
+  add_custom_command(TARGET): DEPENDS.
+
+  Policy CMP0175 is not set: add_custom_command() rejects invalid arguments.
+  Run "cmake --help-policy CMP0175" for policy details.  Use the cmake_policy
+  command to set the policy and suppress this warning.
+Call Stack (most recent call first):
+  libs/nxp/flashloader/CMakeLists.txt:17 (add_executable_m7)
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+CMake Warning (dev) at cmake/toolchain-arm-none-eabi-gcc.cmake:224 (add_custom_command):
+  The following keywords are not supported when using
+  add_custom_command(TARGET): DEPENDS.
+
+  Policy CMP0175 is not set: add_custom_command() rejects invalid arguments.
+  Run "cmake --help-policy CMP0175" for policy details.  Use the cmake_policy
+  command to set the policy and suppress this warning.
+Call Stack (most recent call first):
+  libs/nxp/flashloader/CMakeLists.txt:17 (add_executable_m7)
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+-- sentai: EdgeTPU firmware = single_ep (default)
+-- Configuring done (0.1s)
+-- Generating done (0.5s)
+-- Build files have been written to: /home/bogdan/work/coralmicro/build
++ [[ -z '' ]]
++ [[ ! -z '' ]]
+++ nproc
++ make -C /home/bogdan/work/coralmicro/build -j 24
+make: Entering directory '/home/bogdan/work/coralmicro/build'
+[  0%] Built target sentai_browser_html
+[  0%] Incrementing build version...
+[  1%] Built target nanopb
+[  1%] Built target libs_kissfft-m7
+[  1%] Building C object libs/mjson/CMakeFiles/libs_mjson.dir/__/__/third_party/mjson/src/mjson.c.obj
+[  1%] Built target libs_littlefs
+[  1%] Building C object libs/kissfft/CMakeFiles/libs_kissfft-m4.dir/__/__/third_party/kissfft/tools/kiss_fftr.c.obj
+[  1%] Building C object libs/kissfft/CMakeFiles/libs_kissfft-m4.dir/__/__/third_party/kissfft/kiss_fft.c.obj
+[  1%] Built target libs_littlefs-m4
+[  2%] Built target libs_FreeRTOS-m4
+-- Build #1545 at 2026-06-24 15:09:27
+[  3%] Built target libs_FreeRTOS
+[  4%] Built target libh3_arm
+[  5%] Built target shine
+[  7%] Built target libs_aifes_m7
+[ 10%] Built target libs_CMSIS-m4
+[ 10%] Built target increment_build_version
+[ 12%] Built target libs_libjpeg
+[ 15%] Built target libs_levelx
+[ 17%] Built target libs_CMSIS-m7
+[ 18%] Built target meshtastic_pb
+[ 18%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/asmarm.c.obj
+[ 18%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/argcheck.c.obj
+[ 18%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/asmthumb.c.obj
+[ 18%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/asmx64.c.obj
+[ 23%] Built target flashloader
+[ 23%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/asmx86.c.obj
+[ 23%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/asmxtensa.c.obj
+[ 23%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/asmbase.c.obj
+[ 23%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/builtinevex.c.obj
+[ 23%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/binary.c.obj
+[ 23%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/builtinimport.c.obj
+[ 24%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/compile.c.obj
+[ 24%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/bc.c.obj
+[ 24%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/builtinhelp.c.obj
+[ 25%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/components/osa/fsl_os_abstraction_bm.c.obj
+[ 25%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/emitcommon.c.obj
+[ 25%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/emitbc.c.obj
+[ 25%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/components/osa/fsl_os_abstraction_bm.c.obj
+[ 26%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/cm4/fsl_cache.c.obj
+[ 37%] Built target libs_filex
+[ 38%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/cm7/fsl_cache.c.obj
+[ 43%] Built target libs_nxp_rt1176-sdk_freertos-m4
+[ 43%] Building ASM object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/gcc/startup_MIMXRT1176_cm4.S.obj
+[ 43%] Building ASM object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/gcc/startup_MIMXRT1176_cm7.S.obj
+[ 43%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/emitglue.c.obj
+[ 43%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/system_MIMXRT1176_cm4.c.obj
+[ 47%] Built target libs_nxp_rt1176-sdk_freertos
+[ 47%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/board_hardware.c.obj
+[ 47%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/clock_config.c.obj
+[ 47%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/system_MIMXRT1176_cm7.c.obj
+[ 47%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/emitinlinethumb.c.obj
+[ 47%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/board_hardware.c.obj
+[ 47%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/clock_config.c.obj
+[ 47%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/emitinlinextensa.c.obj
+[ 47%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/usb_device_cdc_eem.c.obj
+[ 47%] Built target libs_pmic_freertos-m4
+[ 47%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/usb/output/source/device/class/usb_device_msc.c.obj
+[ 47%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/usb/output/source/device/class/usb_device_msc_ufi.c.obj
+[ 47%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/emitnarm.c.obj
+[ 47%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/usb_device_cdc_eem.c.obj
+[ 47%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/usb/output/source/device/class/usb_device_msc.c.obj
+[ 47%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/usb/output/source/device/class/usb_device_msc_ufi.c.obj
+[ 48%] Built target libs_pmic_freertos
+[ 48%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/emitnative.c.obj
+[ 48%] Built target libs_nxp_rt1176-sdk-mcmgr_m7
+[ 48%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/emitnthumb.c.obj
+[ 48%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/modified/nxp/rt1176-sdk/board.c.obj
+[ 48%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/emitnx64.c.obj
+[ 48%] Linking C static library liblibs_kissfft-m4.a
+[ 48%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/modified/nxp/rt1176-sdk/board.c.obj
+[ 48%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/modified/nxp/rt1176-sdk/pin_mux.c.obj
+[ 48%] Built target libs_usb_host_edgetpu_freertos
+[ 48%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/modified/nxp/rt1176-sdk/pin_mux.c.obj
+[ 48%] Built target libs_kissfft-m4
+[ 48%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/modified/nxp/rt1176-sdk/usb_device_class.c.obj
+[ 48%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/modified/nxp/rt1176-sdk/usb_device_class.c.obj
+[ 48%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_sdmmc.dir/__/__/__/third_party/modified/nxp/rt1176-sdk/sdmmc_config.c.obj
+[ 48%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/components/flash/nand/flexspi/fsl_flexspi_nand_flash.c.obj
+[ 48%] Built target libs_t5838_freertos
+[ 48%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/emitnx86.c.obj
+[ 48%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/components/lists/fsl_component_generic_list.c.obj
+[ 48%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/components/flash/nand/flexspi/fsl_flexspi_nand_flash.c.obj
+[ 48%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/components/phy/device/phyrtl8211f/fsl_phyrtl8211f.c.obj
+[ 48%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/components/phy/mdio/enet/fsl_enet_mdio.c.obj
+[ 48%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_sdmmc.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/sdmmc/sdio/fsl_sdio.c.obj
+[ 48%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_sdmmc.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_usdhc.c.obj
+[ 48%] Built target libs_usb_host_task_freertos
+[ 48%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/components/serial_manager/fsl_component_serial_manager.c.obj
+[ 48%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_sdmmc.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/sdmmc/host/usdhc/non_blocking/fsl_sdmmc_host.c.obj
+[ 50%] Built target libs_nxp_rt1176-sdk_lwip
+[ 50%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/emitnxtensa.c.obj
+[ 50%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/components/lists/fsl_component_generic_list.c.obj
+[ 50%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/components/serial_manager/fsl_component_serial_port_uart.c.obj
+[ 50%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_sdmmc.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/sdmmc/osa/fsl_sdmmc_osa.c.obj
+[ 51%] Built target libs_base-m4_freertos
+[ 51%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/components/phy/device/phyrtl8211f/fsl_phyrtl8211f.c.obj
+[ 51%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/emitnxtensawin.c.obj
+[ 51%] Built target libs_audio_freertos
+[ 51%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/formatfloat.c.obj
+[ 51%] Built target libs_nxp_rt1176-sdk_lwip_httpd
+[ 51%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/components/phy/mdio/enet/fsl_enet_mdio.c.obj
+[ 51%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/components/uart/fsl_adapter_lpuart.c.obj
+[ 51%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/components/serial_manager/fsl_component_serial_manager.c.obj
+[ 51%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_lwip_httpsrv.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/lwip/src/apps/httpsrv/httpsrv.c.obj
+[ 51%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/frozenmod.c.obj
+[ 51%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/components/serial_manager/fsl_component_serial_port_uart.c.obj
+[ 52%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/components/uart/fsl_adapter_lpuart.c.obj
+[ 52%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_anatop_ai.c.obj
+[ 55%] Built target libs_nxp_rt1176-sdk-mbedtls
+[ 55%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_lwip_httpsrv.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/lwip/src/apps/httpsrv/httpsrv_base64.c.obj
+[ 55%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/gc.c.obj
+[ 55%] Linking C static library liblibs_mjson.a
+[ 56%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_caam.c.obj
+[ 56%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_lwip_mdns.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/lwip/src/apps/mdns/mdns.c.obj
+[ 56%] Built target libs_mjson
+[ 56%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_anatop_ai.c.obj
+[ 56%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_caam.c.obj
+[ 56%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_lwip_httpsrv.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/lwip/src/apps/httpsrv/httpsrv_fs.c.obj
+[ 56%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_lwip_mdns.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/lwip/src/apps/mdns/mdns_domain.c.obj
+[ 56%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_clock.c.obj
+[ 56%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_clock.c.obj
+[ 56%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_lwip_mdns.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/lwip/src/apps/mdns/mdns_out.c.obj
+[ 56%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_common.c.obj
+[ 56%] Building C object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/debug_log.c.obj
+[ 56%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_lwip_httpsrv.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/lwip/src/apps/httpsrv/httpsrv_script.c.obj
+[ 56%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/lexer.c.obj
+[ 56%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_common.c.obj
+[ 56%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/test_helpers.cc.obj
+[ 56%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_common_arm.c.obj
+[ 56%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_common_arm.c.obj
+[ 56%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_lwip_httpsrv.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/lwip/src/apps/httpsrv/httpsrv_supp.c.obj
+[ 56%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_csi.c.obj
+[ 56%] Built target libs_camera_freertos-m4
+[ 56%] Built target elf_loader
+[ 56%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/malloc.c.obj
+[ 56%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_csi.c.obj
+[ 56%] Built target libs_base-m7_http_server
+[ 56%] Built target libs_usb_device_task_freertos
+[ 56%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_dac12.c.obj
+[ 56%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/map.c.obj
+[ 56%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_dac12.c.obj
+[ 56%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/c/common.cc.obj
+[ 56%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_dcdc.c.obj
+[ 56%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_dcdc.c.obj
+[ 57%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_lwip_httpsrv.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/lwip/src/apps/httpsrv/httpsrv_task.c.obj
+[ 57%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/modarray.c.obj
+[ 57%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/core/api/error_reporter.cc.obj
+[ 57%] Linking C static library liblibs_nxp_rt1176-sdk_lwip_mdns.a
+[ 57%] Building CXX object libs/a71ch/CMakeFiles/libs_a71ch.dir/a71ch.cc.obj
+[ 57%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_dmamux.c.obj
+[ 57%] Building C object libs/a71ch/CMakeFiles/libs_a71ch.dir/entropy.c.obj
+[ 57%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/core/api/flatbuffer_conversions.cc.obj
+[ 57%] Building CXX object libs/libjpeg/CMakeFiles/libs_jpeg_m4.dir/jpeg.cc.obj
+[ 57%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_dmamux.c.obj
+[ 57%] Built target libs_nxp_rt1176-sdk_lwip_mdns
+[ 57%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/modbuiltins.c.obj
+[ 57%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_edma.c.obj
+[ 57%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_edma.c.obj
+[ 57%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_enet.c.obj
+[ 57%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_lwip_httpsrv.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/lwip/src/apps/httpsrv/httpsrv_utf8.c.obj
+[ 57%] Linking C static library liblibs_nxp_rt1176-sdk_sdmmc.a
+[ 57%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_flexspi.c.obj
+[ 57%] Building C object libs/a71ch/CMakeFiles/libs_a71ch.dir/__/__/third_party/modified/a71ch/i2c_imxrt.c.obj
+[ 57%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/modcmath.c.obj
+[ 57%] Built target libs_nxp_rt1176-sdk_sdmmc
+[ 57%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/core/api/op_resolver.cc.obj
+[ 57%] Building C object libs/a71ch/CMakeFiles/libs_a71ch.dir/__/__/third_party/modified/a71ch/sci2c.c.obj
+[ 57%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/core/api/tensor_utils.cc.obj
+[ 57%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/experimental/microfrontend/lib/fft.cc.obj
+[ 57%] Built target sentai_m4_aruco_bench
+[ 57%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_enet.c.obj
+[ 57%] Building C object libs/a71ch/CMakeFiles/libs_a71ch.dir/__/__/third_party/modified/a71ch/sm_timer.c.obj
+[ 57%] Building C object libs/a71ch/CMakeFiles/libs_a71ch.dir/__/__/third_party/a71ch-crypto-support/hostlib/hostLib/a71ch/src/a71ch_module.c.obj
+[ 57%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_gpio.c.obj
+[ 58%] Linking C static library liblibs_nxp_rt1176-sdk_lwip_httpsrv.a
+[ 58%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/modcollections.c.obj
+[ 58%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_gpc.c.obj
+[ 58%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_flexspi.c.obj
+[ 60%] Building C object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/experimental/microfrontend/lib/fft_io.c.obj
+[ 60%] Built target libs_tpu_freertos
+[ 60%] Building C object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/experimental/microfrontend/lib/filterbank.c.obj
+[ 60%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/experimental/microfrontend/lib/fft_util.cc.obj
+[ 60%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/moderrno.c.obj
+[ 60%] Building C object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/experimental/microfrontend/lib/filterbank_io.c.obj
+[ 60%] Built target libs_nxp_rt1176-sdk_lwip_httpsrv
+[ 60%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/modio.c.obj
+[ 60%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/modgc.c.obj
+[ 60%] Building C object libs/a71ch/CMakeFiles/libs_a71ch.dir/__/__/third_party/a71ch-crypto-support/hostlib/hostLib/api/src/ax_scp.c.obj
+[ 60%] Building C object libs/a71ch/CMakeFiles/libs_a71ch.dir/__/__/third_party/a71ch-crypto-support/hostlib/hostLib/api/src/ax_sss_scp.c.obj
+[ 60%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_gpt.c.obj
+[ 60%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_gpio.c.obj
+[ 60%] Building C object libs/a71ch/CMakeFiles/libs_a71ch.dir/__/__/third_party/a71ch-crypto-support/hostlib/hostLib/api/src/ax_util.c.obj
+[ 60%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/modmath.c.obj
+[ 60%] Building C object libs/a71ch/CMakeFiles/libs_a71ch.dir/__/__/third_party/a71ch-crypto-support/hostlib/hostLib/libCommon/hostCrypto/HostCryptoAPImbedtls.c.obj
+[ 60%] Building C object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/experimental/microfrontend/lib/filterbank_util.c.obj
+[ 60%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_gpc.c.obj
+[ 60%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_middleware_sdmmc_sd.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/sdmmc/sd/fsl_sd.c.obj
+[ 60%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/modmicropython.c.obj
+[ 60%] Building C object libs/coremark/CMakeFiles/libs_coremark-m4.dir/core_coral_micro.c.obj
+[ 60%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/modstruct.c.obj
+[ 60%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_gpt.c.obj
+[ 60%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_lpadc.c.obj
+[ 60%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_middleware_sdmmc_sd.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/sdmmc/common/fsl_sdmmc_common.c.obj
+[ 60%] Building C object libs/coremark/CMakeFiles/libs_coremark-m4.dir/__/__/third_party/coremark/core_list_join.c.obj
+[ 60%] Building C object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/experimental/microfrontend/lib/frontend.c.obj
+[ 60%] Building C object libs/coremark/CMakeFiles/libs_coremark-m4.dir/__/__/third_party/coremark/core_matrix.c.obj
+[ 60%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_lpadc.c.obj
+[ 60%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_lpi2c.c.obj
+[ 60%] Building C object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/experimental/microfrontend/lib/frontend_io.c.obj
+[ 60%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_lpi2c.c.obj
+[ 60%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/modsys.c.obj
+[ 60%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/modthread.c.obj
+[ 60%] Linking CXX static library liblibs_jpeg_m4.a
+[ 60%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_wiced.dir/WICED/WWD/internal/chips/43455/resources.c.obj
+[ 60%] Building C object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/experimental/microfrontend/lib/frontend_util.c.obj
+[ 60%] Building C object libs/coremark/CMakeFiles/libs_coremark-m4.dir/__/__/third_party/coremark/core_state.c.obj
+[ 60%] Built target libs_tpu_task_freertos
+[ 60%] Building C object libs/coremark/CMakeFiles/libs_coremark-m4.dir/__/__/third_party/coremark/core_util.c.obj
+[ 60%] Building CXX object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_wiced.dir/WICED/platform/MCU/LPC/WWD/wwd_platform.cc.obj
+[ 60%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_lpspi.c.obj
+[ 60%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/mpprint.c.obj
+[ 61%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_lpuart.c.obj
+[ 61%] Built target libs_jpeg_m4
+[ 61%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_mu.c.obj
+[ 61%] Building C object libs/coremark/CMakeFiles/libs_coremark-m4.dir/__/__/third_party/modified/coremark/core_main.c.obj
+[ 61%] Building C object libs/coremark/CMakeFiles/libs_coremark-m4.dir/__/__/third_party/modified/coremark/core_portme.c.obj
+[ 61%] Building C object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/experimental/microfrontend/lib/log_lut.c.obj
+[ 61%] Building CXX object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_wiced.dir/bluetooth.cc.obj
+[ 61%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_lpspi.c.obj
+[ 61%] Built target libs_tpu_dfu_task_freertos
+[ 61%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_ocotp.c.obj
+[ 61%] Building C object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/experimental/microfrontend/lib/log_scale.c.obj
+[ 61%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_lpuart.c.obj
+[ 61%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/mpstate.c.obj
+[ 61%] Building C object libs/a71ch/CMakeFiles/libs_a71ch.dir/__/__/third_party/a71ch-crypto-support/hostlib/hostLib/libCommon/infra/global_platf.c.obj
+[ 61%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_wiced.dir/bt_firmware_controller.c.obj
+[ 61%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/mpz.c.obj
+[ 61%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/nativeglue.c.obj
+[ 62%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_wiced.dir/__/__/__/third_party/modified/nxp/rt1176-sdk/wwd_SDIO.c.obj
+[ 62%] Linking CXX static library liblibs_coremark-m4.a
+[ 62%] Building C object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/experimental/microfrontend/lib/log_scale_io.c.obj
+[ 62%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_wiced.dir/__/__/__/third_party/modified/nxp/rt1176-sdk/wwd_platform.c.obj
+[ 62%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/nlr.c.obj
+[ 62%] Building C object libs/a71ch/CMakeFiles/libs_a71ch.dir/__/__/third_party/a71ch-crypto-support/hostlib/hostLib/libCommon/infra/nxLog.c.obj
+[ 62%] Building C object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/experimental/microfrontend/lib/log_scale_util.c.obj
+[ 62%] Building C object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/experimental/microfrontend/lib/noise_reduction.c.obj
+[ 62%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_pdm.c.obj
+[ 62%] Built target libs_coremark-m4
+[ 62%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/nlraarch64.c.obj
+[ 62%] Building C object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/experimental/microfrontend/lib/noise_reduction_io.c.obj
+[ 63%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_mu.c.obj
+[ 63%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_wiced.dir/__/__/__/third_party/modified/nxp/rt1176-sdk/rtos/freertos/vendors/nxp/wifi/wiced/iot_wifi.c.obj
+[ 63%] Building C object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/experimental/microfrontend/lib/noise_reduction_util.c.obj
+[ 64%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/nlrmips.c.obj
+[ 64%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/nlrpowerpc.c.obj
+[ 64%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_ocotp.c.obj
+[ 64%] Building C object libs/a71ch/CMakeFiles/libs_a71ch.dir/__/__/third_party/a71ch-crypto-support/hostlib/hostLib/libCommon/infra/sm_apdu.c.obj
+[ 64%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/nlrsetjmp.c.obj
+[ 64%] Building C object libs/a71ch/CMakeFiles/libs_a71ch.dir/__/__/third_party/a71ch-crypto-support/hostlib/hostLib/libCommon/infra/sm_connect.c.obj
+[ 64%] Building C object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/experimental/microfrontend/lib/pcan_gain_control.c.obj
+[ 64%] Building C object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/experimental/microfrontend/lib/pcan_gain_control_util.c.obj
+[ 64%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_pdm.c.obj
+[ 64%] Linking C static library liblibs_nxp_rt1176-sdk_middleware_sdmmc_sd.a
+[ 64%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/nlrthumb.c.obj
+[ 64%] Building C object libs/a71ch/CMakeFiles/libs_a71ch.dir/__/__/third_party/a71ch-crypto-support/hostlib/hostLib/libCommon/infra/sm_errors.c.obj
+[ 64%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/nlrx64.c.obj
+/home/bogdan/work/coralmicro/third_party/modified/nxp/rt1176-sdk/wwd_SDIO.c: In function 'host_platform_sdio_irq_callback':
+/home/bogdan/work/coralmicro/third_party/modified/nxp/rt1176-sdk/wwd_SDIO.c:500:5: warning: implicit declaration of function 'wwd_thread_notify_irq' [-Wimplicit-function-declaration]
+  500 |     wwd_thread_notify_irq();
+      |     ^~~~~~~~~~~~~~~~~~~~~
+[ 64%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_pdm_edma.c.obj
+[ 64%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_pdm_edma.c.obj
+[ 64%] Built target libs_nxp_rt1176-sdk_middleware_sdmmc_sd
+[ 64%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_pmu.c.obj
+/home/bogdan/work/coralmicro/third_party/modified/nxp/rt1176-sdk/rtos/freertos/vendors/nxp/wifi/wiced/iot_wifi.c: In function 'WIFI_On':
+/home/bogdan/work/coralmicro/third_party/modified/nxp/rt1176-sdk/rtos/freertos/vendors/nxp/wifi/wiced/iot_wifi.c:266:36: warning: implicit declaration of function 'wiced_init'; did you mean 'mem_init'? [-Wimplicit-function-declaration]
+  266 |             result = (wwd_result_t)wiced_init();
+      |                                    ^~~~~~~~~~
+      |                                    mem_init
+[ 64%] Building C object libs/a71ch/CMakeFiles/libs_a71ch.dir/__/__/third_party/a71ch-crypto-support/hostlib/hostLib/libCommon/infra/sm_printf.c.obj
+[ 73%] Built target libs_tensorflow-m7
+[ 73%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_pmu.c.obj
+[ 73%] Building C object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/experimental/microfrontend/lib/window.c.obj
+[ 73%] Building C object libs/a71ch/CMakeFiles/libs_a71ch.dir/__/__/third_party/a71ch-crypto-support/hostlib/hostLib/libCommon/scp/scp_a7x.c.obj
+[ 73%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_fatfs.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/fatfs/source/ff.c.obj
+[ 73%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_wiced.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/wiced/43xxx_Wi-Fi/WICED/RTOS/FreeRTOS/WICED/wiced_rtos.c.obj
+/home/bogdan/work/coralmicro/third_party/modified/nxp/rt1176-sdk/rtos/freertos/vendors/nxp/wifi/wiced/iot_wifi.c: In function 'WIFI_DisconnectInternal':
+/home/bogdan/work/coralmicro/third_party/modified/nxp/rt1176-sdk/rtos/freertos/vendors/nxp/wifi/wiced/iot_wifi.c:359:20: warning: implicit declaration of function 'wwd_wifi_leave' [-Wimplicit-function-declaration]
+  359 |       wwd_status = wwd_wifi_leave(WWD_STA_INTERFACE);
+      |                    ^~~~~~~~~~~~~~
+[ 73%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/nlrx86.c.obj
+[ 73%] Building C object libs/a71ch/CMakeFiles/libs_a71ch.dir/__/__/third_party/a71ch-crypto-support/hostlib/hostLib/libCommon/smCom/smCom.c.obj
+/home/bogdan/work/coralmicro/third_party/modified/nxp/rt1176-sdk/rtos/freertos/vendors/nxp/wifi/wiced/iot_wifi.c: In function 'WIFI_ConnectAP':
+/home/bogdan/work/coralmicro/third_party/modified/nxp/rt1176-sdk/rtos/freertos/vendors/nxp/wifi/wiced/iot_wifi.c:423:26: warning: implicit declaration of function 'wwd_wifi_join' [-Wimplicit-function-declaration]
+  423 |             wwd_result = wwd_wifi_join( &ssid, auth_mode, (uint8_t const *)t_pass, t_pass_len, NULL, WWD_STA_INTERFACE);
+      |                          ^~~~~~~~~~~~~
+[ 73%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_fatfs.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/fatfs/source/ffsystem.c.obj
+[ 73%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_wiced.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/wiced/43xxx_Wi-Fi/WICED/RTOS/FreeRTOS/WWD/wwd_rtos.c.obj
+[ 73%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_pwm.c.obj
+[ 73%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/nlrxtensa.c.obj
+[ 73%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_fatfs.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/fatfs/source/ffunicode.c.obj
+[ 73%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_pwm.c.obj
+[ 73%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_wiced.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/wiced/43xxx_Wi-Fi/WICED/RTOS/wiced_rtos_common.c.obj
+[ 74%] Built target libs_base-m7_freertos
+[ 75%] Building C object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/experimental/microfrontend/lib/window_io.c.obj
+[ 75%] Building C object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/experimental/microfrontend/lib/window_util.c.obj
+/home/bogdan/work/coralmicro/third_party/modified/nxp/rt1176-sdk/rtos/freertos/vendors/nxp/wifi/wiced/iot_wifi.c: In function 'WIFI_GetMAC':
+/home/bogdan/work/coralmicro/third_party/modified/nxp/rt1176-sdk/rtos/freertos/vendors/nxp/wifi/wiced/iot_wifi.c:636:24: warning: implicit declaration of function 'wwd_wifi_get_mac_address' [-Wimplicit-function-declaration]
+  636 |     if (WWD_SUCCESS != wwd_wifi_get_mac_address(&mac, WWD_STA_INTERFACE))
+      |                        ^~~~~~~~~~~~~~~~~~~~~~~~
+[ 75%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/obj.c.obj
+[ 75%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_fatfs.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/fatfs/source/diskio.c.obj
+[ 75%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/kernels/internal/quantization_util.cc.obj
+[ 75%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_pxp.c.obj
+[ 76%] Building C object libs/a71ch/CMakeFiles/libs_a71ch.dir/__/__/third_party/a71ch-crypto-support/hostlib/hostLib/libCommon/smCom/smComSCI2C.c.obj
+[ 76%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_wiced.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/wiced/43xxx_Wi-Fi/WICED/WWD/internal/bus_protocols/SDIO/wwd_bus_protocol.c.obj
+[ 76%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_wiced.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/wiced/43xxx_Wi-Fi/WICED/WWD/internal/bus_protocols/wwd_bus_common.c.obj
+[ 76%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objarray.c.obj
+[ 76%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_pxp.c.obj
+[ 76%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_fatfs.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/fatfs/source/fsl_sd_disk/fsl_sd_disk.c.obj
+/home/bogdan/work/coralmicro/third_party/modified/nxp/rt1176-sdk/rtos/freertos/vendors/nxp/wifi/wiced/iot_wifi.c: In function 'WIFI_Scan':
+/home/bogdan/work/coralmicro/third_party/modified/nxp/rt1176-sdk/rtos/freertos/vendors/nxp/wifi/wiced/iot_wifi.c:758:26: warning: implicit declaration of function 'wwd_wifi_set_scan_suppress' [-Wimplicit-function-declaration]
+  758 |             wwd_result = wwd_wifi_set_scan_suppress(WICED_FALSE);
+      |                          ^~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/modified/nxp/rt1176-sdk/rtos/freertos/vendors/nxp/wifi/wiced/iot_wifi.c:761:26: warning: implicit declaration of function 'wwd_wifi_scan' [-Wimplicit-function-declaration]
+  761 |             wwd_result = wwd_wifi_scan( WICED_SCAN_TYPE_ACTIVE, WICED_BSS_TYPE_ANY,
+      |                          ^~~~~~~~~~~~~
+[ 76%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/kernels/internal/reference/portable_tensor_utils.cc.obj
+In file included from /home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/wiced/43xxx_Wi-Fi/WICED/RTOS/FreeRTOS/WWD/wwd_rtos.c:50:
+/home/bogdan/work/coralmicro/third_party/freertos_kernel/include/StackMacros.h:29:6: warning: #warning The name of this file has changed to stack_macros.h. Please update your code accordingly. This source file (which has the original name) will be removed in future released. [-Wcpp]
+   29 |     #warning The name of this file has changed to stack_macros.h.  Please update your code accordingly.  This source file (which has the original name) will be removed in future released.
+      |      ^~~~~~~
+[ 76%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_romapi.c.obj
+In file included from /home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/wiced/43xxx_Wi-Fi/WICED/RTOS/FreeRTOS/WWD/wwd_rtos.c:51:
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/wiced/43xxx_Wi-Fi/include/wiced_utilities.h:128: warning: "ARRAY_SIZE" redefined
+  128 | #define ARRAY_SIZE(a)                                ( sizeof(a) / sizeof(a[0]) )
+      | 
+In file included from /home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/utilities/debug_console/fsl_debug_console.h:25,
+                 from /home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/lwip/port/arch/sys_arch.h:44,
+                 from /home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/lwip/port/arch/cc.h:110,
+                 from /home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/lwip/src/include/lwip/arch.h:48,
+                 from /home/bogdan/work/coralmicro/third_party/modified/nxp/rt1176-sdk/lwipopts.h:344,
+                 from /home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/lwip/src/include/lwip/opt.h:51,
+                 from /home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/lwip/src/include/lwip/memp.h:41,
+                 from /home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/wiced/43xxx_Wi-Fi/WICED/WWD/include/wwd_debug.h:42,
+                 from /home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/wiced/43xxx_Wi-Fi/WICED/WWD/include/wwd_assert.h:40,
+                 from /home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/wiced/43xxx_Wi-Fi/WICED/RTOS/FreeRTOS/WWD/wwd_rtos.c:47:
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_common.h:231: note: this is the location of the previous definition
+  231 | #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+      | 
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/wiced/43xxx_Wi-Fi/WICED/RTOS/FreeRTOS/WWD/wwd_rtos.c:62:13: error: conflicting types for 'vApplicationStackOverflowHook'
+   62 | extern void vApplicationStackOverflowHook( TaskHandle_t *pxTask, signed portCHAR *pcTaskName );
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from /home/bogdan/work/coralmicro/third_party/freertos_kernel/include/queue.h:41,
+                 from /home/bogdan/work/coralmicro/third_party/freertos_kernel/include/semphr.h:34,
+                 from /home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/wiced/43xxx_Wi-Fi/WICED/RTOS/FreeRTOS/WWD/wwd_rtos.h:44,
+                 from /home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/wiced/43xxx_Wi-Fi/WICED/RTOS/FreeRTOS/WWD/wwd_rtos.c:44:
+/home/bogdan/work/coralmicro/third_party/freertos_kernel/include/task.h:1600:11: note: previous declaration of 'vApplicationStackOverflowHook' was here
+ 1600 |      void vApplicationStackOverflowHook( TaskHandle_t xTask,
+      |           ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+[ 76%] Building C object libs/a71ch/CMakeFiles/libs_a71ch.dir/__/__/third_party/a71ch-crypto-support/sss/src/a71ch/fsl_sscp_a71ch.c.obj
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/wiced/43xxx_Wi-Fi/WICED/RTOS/FreeRTOS/WICED/wiced_rtos.c:171:13: warning: 'application_thread_main' defined but not used [-Wunused-function]
+  171 | static void application_thread_main( void *arg )
+      |             ^~~~~~~~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/wiced/43xxx_Wi-Fi/WICED/RTOS/FreeRTOS/WICED/wiced_rtos.c:130:22: warning: 'system_monitor_thread_handle' defined but not used [-Wunused-variable]
+  130 | static TaskHandle_t  system_monitor_thread_handle;
+      |                      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/wiced/43xxx_Wi-Fi/WICED/RTOS/FreeRTOS/WICED/wiced_rtos.c:128:22: warning: 'app_thread_handle' defined but not used [-Wunused-variable]
+  128 | static TaskHandle_t  app_thread_handle;
+      |                      ^~~~~~~~~~~~~~~~~
+[ 76%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objattrtuple.c.obj
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/wiced/43xxx_Wi-Fi/WICED/RTOS/FreeRTOS/WWD/wwd_rtos.c: In function 'host_rtos_join_thread':
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/wiced/43xxx_Wi-Fi/WICED/RTOS/FreeRTOS/WWD/wwd_rtos.c:141:13: warning: implicit declaration of function 'xTaskIsTaskFinished' [-Wimplicit-function-declaration]
+  141 |     while ( xTaskIsTaskFinished( *thread ) != pdTRUE )
+      |             ^~~~~~~~~~~~~~~~~~~
+make[2]: *** [libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_wiced.dir/build.make:191: libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_wiced.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/wiced/43xxx_Wi-Fi/WICED/RTOS/FreeRTOS/WWD/wwd_rtos.c.obj] Error 1
+make[2]: *** Waiting for unfinished jobs....
+[ 76%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_romapi.c.obj
+[ 76%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_sema4.c.obj
+/home/bogdan/work/coralmicro/third_party/modified/nxp/rt1176-sdk/rtos/freertos/vendors/nxp/wifi/wiced/iot_wifi.c: In function 'WIFI_IsConnected':
+/home/bogdan/work/coralmicro/third_party/modified/nxp/rt1176-sdk/rtos/freertos/vendors/nxp/wifi/wiced/iot_wifi.c:805:12: warning: implicit declaration of function 'wwd_wifi_sta_is_only_connected' [-Wimplicit-function-declaration]
+  805 |     return wwd_wifi_sta_is_only_connected() == WICED_TRUE;
+      |            ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+[ 76%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/kernels/kernel_util.cc.obj
+[ 76%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/all_ops_resolver.cc.obj
+[ 76%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/arena_allocator/non_persistent_arena_buffer_allocator.cc.obj
+[ 76%] Built target libs_msc_ums_freertos
+[ 76%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_sema4.c.obj
+[ 76%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/arena_allocator/persistent_arena_buffer_allocator.cc.obj
+[ 76%] Building C object libs/a71ch/CMakeFiles/libs_a71ch.dir/__/__/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c.obj
+[ 76%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/arena_allocator/recording_single_arena_buffer_allocator.cc.obj
+[ 76%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objbool.c.obj
+[ 76%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_semc.c.obj
+[ 76%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/arena_allocator/single_arena_buffer_allocator.cc.obj
+[ 77%] Built target libs_cdc_ncm_freertos
+[ 77%] Building C object libs/a71ch/CMakeFiles/libs_a71ch.dir/__/__/third_party/a71ch-crypto-support/sss/src/fsl_sss_util_asn1_der.c.obj
+[ 77%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/fake_micro_context.cc.obj
+[ 77%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_semc.c.obj
+[ 77%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objboundmeth.c.obj
+[ 77%] Built target libs_cdc_eem_freertos
+[ 77%] Building C object libs/a71ch/CMakeFiles/libs_a71ch.dir/__/__/third_party/a71ch-crypto-support/sss/src/mbedtls/fsl_sss_mbedtls_apis.c.obj
+[ 77%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_snvs_hp.c.obj
+[ 77%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_snvs_lp.c.obj
+In file included from /home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/inc/fsl_sss_policy.h:17,
+                 from /home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/inc/fsl_sss_api.h:16,
+                 from /home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c:6:
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c: In function 'sss_key_object_init':
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:36:31: note: in expansion of macro 'assert_static'
+   36 | #define SSS_ASSERT(condition) assert_static(condition)
+      |                               ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c:254:9: note: in expansion of macro 'SSS_ASSERT'
+  254 |         SSS_ASSERT(sizeof(*sscp_keyObject) <= sizeof(*keyObject));
+      |         ^~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:36:31: note: in expansion of macro 'assert_static'
+   36 | #define SSS_ASSERT(condition) assert_static(condition)
+      |                               ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c:255:9: note: in expansion of macro 'SSS_ASSERT'
+  255 |         SSS_ASSERT(sizeof(*sscp_keyStore) <= sizeof(*keyStore));
+      |         ^~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:36:31: note: in expansion of macro 'assert_static'
+   36 | #define SSS_ASSERT(condition) assert_static(condition)
+      |                               ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c:272:9: note: in expansion of macro 'SSS_ASSERT'
+  272 |         SSS_ASSERT(sizeof(*mbedtls_keyObject) <= sizeof(*keyObject));
+      |         ^~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:36:31: note: in expansion of macro 'assert_static'
+   36 | #define SSS_ASSERT(condition) assert_static(condition)
+      |                               ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c:273:9: note: in expansion of macro 'SSS_ASSERT'
+  273 |         SSS_ASSERT(sizeof(*mbedtls_keyStore) <= sizeof(*keyStore));
+      |         ^~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c: In function 'sss_derive_key_context_init':
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:36:31: note: in expansion of macro 'assert_static'
+   36 | #define SSS_ASSERT(condition) assert_static(condition)
+      |                               ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c:597:9: note: in expansion of macro 'SSS_ASSERT'
+  597 |         SSS_ASSERT(sizeof(*sscp_context) <= sizeof(*context));
+      |         ^~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:36:31: note: in expansion of macro 'assert_static'
+   36 | #define SSS_ASSERT(condition) assert_static(condition)
+      |                               ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c:598:9: note: in expansion of macro 'SSS_ASSERT'
+  598 |         SSS_ASSERT(sizeof(*sscp_session) <= sizeof(*session));
+      |         ^~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:36:31: note: in expansion of macro 'assert_static'
+   36 | #define SSS_ASSERT(condition) assert_static(condition)
+      |                               ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c:599:9: note: in expansion of macro 'SSS_ASSERT'
+  599 |         SSS_ASSERT(sizeof(*sscp_keyObject) <= sizeof(*keyObject));
+      |         ^~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:36:31: note: in expansion of macro 'assert_static'
+   36 | #define SSS_ASSERT(condition) assert_static(condition)
+      |                               ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c:619:9: note: in expansion of macro 'SSS_ASSERT'
+  619 |         SSS_ASSERT(sizeof(*mbedtls_context) <= sizeof(*context));
+      |         ^~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:36:31: note: in expansion of macro 'assert_static'
+   36 | #define SSS_ASSERT(condition) assert_static(condition)
+      |                               ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c:620:9: note: in expansion of macro 'SSS_ASSERT'
+  620 |         SSS_ASSERT(sizeof(*mbedtls_session) <= sizeof(*session));
+      |         ^~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:36:31: note: in expansion of macro 'assert_static'
+   36 | #define SSS_ASSERT(condition) assert_static(condition)
+      |                               ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c:621:9: note: in expansion of macro 'SSS_ASSERT'
+  621 |         SSS_ASSERT(sizeof(*mbedtls_keyObject) <= sizeof(*keyObject));
+      |         ^~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c: In function 'sss_key_store_context_init':
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:36:31: note: in expansion of macro 'assert_static'
+   36 | #define SSS_ASSERT(condition) assert_static(condition)
+      |                               ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c:878:9: note: in expansion of macro 'SSS_ASSERT'
+  878 |         SSS_ASSERT(sizeof(*sscp_keyStore) <= sizeof(*keyStore));
+      |         ^~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:36:31: note: in expansion of macro 'assert_static'
+   36 | #define SSS_ASSERT(condition) assert_static(condition)
+      |                               ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c:879:9: note: in expansion of macro 'SSS_ASSERT'
+  879 |         SSS_ASSERT(sizeof(*sscp_session) <= sizeof(*session));
+      |         ^~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:36:31: note: in expansion of macro 'assert_static'
+   36 | #define SSS_ASSERT(condition) assert_static(condition)
+      |                               ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c:896:9: note: in expansion of macro 'SSS_ASSERT'
+  896 |         SSS_ASSERT(sizeof(*mbedtls_keyStore) <= sizeof(*keyStore));
+      |         ^~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:36:31: note: in expansion of macro 'assert_static'
+   36 | #define SSS_ASSERT(condition) assert_static(condition)
+      |                               ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c:897:9: note: in expansion of macro 'SSS_ASSERT'
+  897 |         SSS_ASSERT(sizeof(*mbedtls_session) <= sizeof(*session));
+      |         ^~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c: In function 'sss_asymmetric_context_init':
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:36:31: note: in expansion of macro 'assert_static'
+   36 | #define SSS_ASSERT(condition) assert_static(condition)
+      |                               ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c:1256:9: note: in expansion of macro 'SSS_ASSERT'
+ 1256 |         SSS_ASSERT(sizeof(*sscp_context) <= sizeof(*context));
+      |         ^~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:36:31: note: in expansion of macro 'assert_static'
+   36 | #define SSS_ASSERT(condition) assert_static(condition)
+      |                               ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c:1257:9: note: in expansion of macro 'SSS_ASSERT'
+ 1257 |         SSS_ASSERT(sizeof(*sscp_session) <= sizeof(*session));
+      |         ^~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:36:31: note: in expansion of macro 'assert_static'
+   36 | #define SSS_ASSERT(condition) assert_static(condition)
+      |                               ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c:1258:9: note: in expansion of macro 'SSS_ASSERT'
+ 1258 |         SSS_ASSERT(sizeof(*sscp_keyObject) <= sizeof(*keyObject));
+      |         ^~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:36:31: note: in expansion of macro 'assert_static'
+   36 | #define SSS_ASSERT(condition) assert_static(condition)
+      |                               ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c:1278:9: note: in expansion of macro 'SSS_ASSERT'
+ 1278 |         SSS_ASSERT(sizeof(*mbedtls_context) <= sizeof(*context));
+      |         ^~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:36:31: note: in expansion of macro 'assert_static'
+   36 | #define SSS_ASSERT(condition) assert_static(condition)
+      |                               ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c:1279:9: note: in expansion of macro 'SSS_ASSERT'
+ 1279 |         SSS_ASSERT(sizeof(*mbedtls_session) <= sizeof(*session));
+      |         ^~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:36:31: note: in expansion of macro 'assert_static'
+   36 | #define SSS_ASSERT(condition) assert_static(condition)
+      |                               ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c:1280:9: note: in expansion of macro 'SSS_ASSERT'
+ 1280 |         SSS_ASSERT(sizeof(*mbedtls_keyObject) <= sizeof(*keyObject));
+      |         ^~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c: In function 'sss_symmetric_context_init':
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:36:31: note: in expansion of macro 'assert_static'
+   36 | #define SSS_ASSERT(condition) assert_static(condition)
+      |                               ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c:1463:9: note: in expansion of macro 'SSS_ASSERT'
+ 1463 |         SSS_ASSERT(sizeof(*sscp_context) <= sizeof(*context));
+      |         ^~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:36:31: note: in expansion of macro 'assert_static'
+   36 | #define SSS_ASSERT(condition) assert_static(condition)
+      |                               ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c:1464:9: note: in expansion of macro 'SSS_ASSERT'
+ 1464 |         SSS_ASSERT(sizeof(*sscp_session) <= sizeof(*session));
+      |         ^~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:36:31: note: in expansion of macro 'assert_static'
+   36 | #define SSS_ASSERT(condition) assert_static(condition)
+      |                               ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c:1465:9: note: in expansion of macro 'SSS_ASSERT'
+ 1465 |         SSS_ASSERT(sizeof(*sscp_keyObject) <= sizeof(*keyObject));
+      |         ^~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:36:31: note: in expansion of macro 'assert_static'
+   36 | #define SSS_ASSERT(condition) assert_static(condition)
+      |                               ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c:1485:9: note: in expansion of macro 'SSS_ASSERT'
+ 1485 |         SSS_ASSERT(sizeof(*mbedtls_context) <= sizeof(*context));
+      |         ^~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:36:31: note: in expansion of macro 'assert_static'
+   36 | #define SSS_ASSERT(condition) assert_static(condition)
+      |                               ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c:1486:9: note: in expansion of macro 'SSS_ASSERT'
+ 1486 |         SSS_ASSERT(sizeof(*mbedtls_session) <= sizeof(*session));
+      |         ^~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:36:31: note: in expansion of macro 'assert_static'
+   36 | #define SSS_ASSERT(condition) assert_static(condition)
+      |                               ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c:1487:9: note: in expansion of macro 'SSS_ASSERT'
+ 1487 |         SSS_ASSERT(sizeof(*mbedtls_keyObject) <= sizeof(*keyObject));
+      |         ^~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c: In function 'sss_cipher_init':
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:36:31: note: in expansion of macro 'assert_static'
+   36 | #define SSS_ASSERT(condition) assert_static(condition)
+      |                               ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c:1543:9: note: in expansion of macro 'SSS_ASSERT'
+ 1543 |         SSS_ASSERT(sizeof(*sscp_context) <= sizeof(*context));
+      |         ^~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:36:31: note: in expansion of macro 'assert_static'
+   36 | #define SSS_ASSERT(condition) assert_static(condition)
+      |                               ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c:1557:9: note: in expansion of macro 'SSS_ASSERT'
+ 1557 |         SSS_ASSERT(sizeof(*mbedtls_context) <= sizeof(*context));
+      |         ^~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c: In function 'sss_aead_context_init':
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:36:31: note: in expansion of macro 'assert_static'
+   36 | #define SSS_ASSERT(condition) assert_static(condition)
+      |                               ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c:1707:9: note: in expansion of macro 'SSS_ASSERT'
+ 1707 |         SSS_ASSERT(sizeof(*sscp_context) <= sizeof(*context));
+      |         ^~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:36:31: note: in expansion of macro 'assert_static'
+   36 | #define SSS_ASSERT(condition) assert_static(condition)
+      |                               ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c:1708:9: note: in expansion of macro 'SSS_ASSERT'
+ 1708 |         SSS_ASSERT(sizeof(*sscp_session) <= sizeof(*session));
+      |         ^~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:36:31: note: in expansion of macro 'assert_static'
+   36 | #define SSS_ASSERT(condition) assert_static(condition)
+      |                               ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c:1709:9: note: in expansion of macro 'SSS_ASSERT'
+ 1709 |         SSS_ASSERT(sizeof(*sscp_keyObject) <= sizeof(*keyObject));
+      |         ^~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:36:31: note: in expansion of macro 'assert_static'
+   36 | #define SSS_ASSERT(condition) assert_static(condition)
+      |                               ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c:1729:9: note: in expansion of macro 'SSS_ASSERT'
+ 1729 |         SSS_ASSERT(sizeof(*mbedtls_context) <= sizeof(*context));
+      |         ^~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:36:31: note: in expansion of macro 'assert_static'
+   36 | #define SSS_ASSERT(condition) assert_static(condition)
+      |                               ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c:1730:9: note: in expansion of macro 'SSS_ASSERT'
+ 1730 |         SSS_ASSERT(sizeof(*mbedtls_session) <= sizeof(*session));
+      |         ^~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:36:31: note: in expansion of macro 'assert_static'
+   36 | #define SSS_ASSERT(condition) assert_static(condition)
+      |                               ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c:1731:9: note: in expansion of macro 'SSS_ASSERT'
+ 1731 |         SSS_ASSERT(sizeof(*mbedtls_keyObject) <= sizeof(*keyObject));
+      |         ^~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c: In function 'sss_aead_init':
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:36:31: note: in expansion of macro 'assert_static'
+   36 | #define SSS_ASSERT(condition) assert_static(condition)
+      |                               ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c:1795:9: note: in expansion of macro 'SSS_ASSERT'
+ 1795 |         SSS_ASSERT(sizeof(*sscp_context) <= sizeof(*context));
+      |         ^~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:36:31: note: in expansion of macro 'assert_static'
+   36 | #define SSS_ASSERT(condition) assert_static(condition)
+      |                               ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c:1809:9: note: in expansion of macro 'SSS_ASSERT'
+ 1809 |         SSS_ASSERT(sizeof(*mbedtls_context) <= sizeof(*context));
+      |         ^~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c: In function 'sss_mac_context_init':
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:36:31: note: in expansion of macro 'assert_static'
+   36 | #define SSS_ASSERT(condition) assert_static(condition)
+      |                               ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c:1956:9: note: in expansion of macro 'SSS_ASSERT'
+ 1956 |         SSS_ASSERT(sizeof(*sscp_context) <= sizeof(*context));
+      |         ^~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:36:31: note: in expansion of macro 'assert_static'
+   36 | #define SSS_ASSERT(condition) assert_static(condition)
+      |                               ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c:1957:9: note: in expansion of macro 'SSS_ASSERT'
+ 1957 |         SSS_ASSERT(sizeof(*sscp_session) <= sizeof(*session));
+      |         ^~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:36:31: note: in expansion of macro 'assert_static'
+   36 | #define SSS_ASSERT(condition) assert_static(condition)
+      |                               ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c:1958:9: note: in expansion of macro 'SSS_ASSERT'
+ 1958 |         SSS_ASSERT(sizeof(*sscp_keyObject) <= sizeof(*keyObject));
+      |         ^~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:36:31: note: in expansion of macro 'assert_static'
+   36 | #define SSS_ASSERT(condition) assert_static(condition)
+      |                               ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c:1978:9: note: in expansion of macro 'SSS_ASSERT'
+ 1978 |         SSS_ASSERT(sizeof(*mbedtls_context) <= sizeof(*context));
+      |         ^~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:36:31: note: in expansion of macro 'assert_static'
+   36 | #define SSS_ASSERT(condition) assert_static(condition)
+      |                               ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c:1979:9: note: in expansion of macro 'SSS_ASSERT'
+ 1979 |         SSS_ASSERT(sizeof(*mbedtls_session) <= sizeof(*session));
+      |         ^~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:36:31: note: in expansion of macro 'assert_static'
+   36 | #define SSS_ASSERT(condition) assert_static(condition)
+      |                               ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c:1980:9: note: in expansion of macro 'SSS_ASSERT'
+ 1980 |         SSS_ASSERT(sizeof(*mbedtls_keyObject) <= sizeof(*keyObject));
+      |         ^~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c: In function 'sss_mac_init':
+[ 77%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/flatbuffer_utils.cc.obj
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:36:31: note: in expansion of macro 'assert_static'
+   36 | #define SSS_ASSERT(condition) assert_static(condition)
+      |                               ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c:2036:9: note: in expansion of macro 'SSS_ASSERT'
+ 2036 |         SSS_ASSERT(sizeof(*sscp_context) <= sizeof(*context));
+      |         ^~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:36:31: note: in expansion of macro 'assert_static'
+   36 | #define SSS_ASSERT(condition) assert_static(condition)
+      |                               ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c:2050:9: note: in expansion of macro 'SSS_ASSERT'
+ 2050 |         SSS_ASSERT(sizeof(*mbedtls_context) <= sizeof(*context));
+      |         ^~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c: In function 'sss_digest_context_init':
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:36:31: note: in expansion of macro 'assert_static'
+   36 | #define SSS_ASSERT(condition) assert_static(condition)
+      |                               ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c:2162:9: note: in expansion of macro 'SSS_ASSERT'
+ 2162 |         SSS_ASSERT(sizeof(*sscp_context) <= sizeof(*context));
+      |         ^~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:36:31: note: in expansion of macro 'assert_static'
+   36 | #define SSS_ASSERT(condition) assert_static(condition)
+      |                               ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c:2163:9: note: in expansion of macro 'SSS_ASSERT'
+ 2163 |         SSS_ASSERT(sizeof(*sscp_session) <= sizeof(*session));
+      |         ^~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:36:31: note: in expansion of macro 'assert_static'
+   36 | #define SSS_ASSERT(condition) assert_static(condition)
+      |                               ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c:2180:9: note: in expansion of macro 'SSS_ASSERT'
+ 2180 |         SSS_ASSERT(sizeof(*mbedtls_context) <= sizeof(*context));
+      |         ^~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:36:31: note: in expansion of macro 'assert_static'
+   36 | #define SSS_ASSERT(condition) assert_static(condition)
+      |                               ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c:2181:9: note: in expansion of macro 'SSS_ASSERT'
+ 2181 |         SSS_ASSERT(sizeof(*mbedtls_session) <= sizeof(*session));
+      |         ^~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c: In function 'sss_digest_init':
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:36:31: note: in expansion of macro 'assert_static'
+   36 | #define SSS_ASSERT(condition) assert_static(condition)
+      |                               ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c:2232:9: note: in expansion of macro 'SSS_ASSERT'
+ 2232 |         SSS_ASSERT(sizeof(*sscp_context) <= sizeof(*context));
+      |         ^~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:36:31: note: in expansion of macro 'assert_static'
+   36 | #define SSS_ASSERT(condition) assert_static(condition)
+      |                               ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c:2246:9: note: in expansion of macro 'SSS_ASSERT'
+ 2246 |         SSS_ASSERT(sizeof(*mbedtls_context) <= sizeof(*context));
+      |         ^~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c: In function 'sss_rng_context_init':
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:36:31: note: in expansion of macro 'assert_static'
+   36 | #define SSS_ASSERT(condition) assert_static(condition)
+      |                               ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c:2353:9: note: in expansion of macro 'SSS_ASSERT'
+ 2353 |         SSS_ASSERT(sizeof(*sscp_context) <= sizeof(*context));
+      |         ^~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:36:31: note: in expansion of macro 'assert_static'
+   36 | #define SSS_ASSERT(condition) assert_static(condition)
+      |                               ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c:2354:9: note: in expansion of macro 'SSS_ASSERT'
+ 2354 |         SSS_ASSERT(sizeof(*sscp_session) <= sizeof(*session));
+      |         ^~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:36:31: note: in expansion of macro 'assert_static'
+   36 | #define SSS_ASSERT(condition) assert_static(condition)
+      |                               ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c:2371:9: note: in expansion of macro 'SSS_ASSERT'
+ 2371 |         SSS_ASSERT(sizeof(*mbedtls_context) <= sizeof(*context));
+      |         ^~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:36:31: note: in expansion of macro 'assert_static'
+   36 | #define SSS_ASSERT(condition) assert_static(condition)
+      |                               ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/fsl_sss_apis.c:2372:9: note: in expansion of macro 'SSS_ASSERT'
+ 2372 |         SSS_ASSERT(sizeof(*mbedtls_session) <= sizeof(*session));
+      |         ^~~~~~~~~~
+[ 77%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objcell.c.obj
+make[1]: *** [CMakeFiles/Makefile2:3327: libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_wiced.dir/all] Error 2
+make[1]: *** Waiting for unfinished jobs....
+[ 77%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objclosure.c.obj
+[ 77%] Built target libs_cdc_acm_freertos
+[ 77%] Building C object libs/a71ch/CMakeFiles/libs_a71ch.dir/__/__/third_party/a71ch-crypto-support/sss/src/sscp/fsl_sss_sscp.c.obj
+[ 77%] Building C object libs/a71ch/CMakeFiles/libs_a71ch.dir/__/__/third_party/a71ch-crypto-support/hostlib/hostLib/a71ch/src/a71ch_sst.c.obj
+[ 77%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objcomplex.c.obj
+[ 77%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/activations.cc.obj
+[ 77%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/activations_common.cc.obj
+[ 77%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objdeque.c.obj
+[ 77%] Building C object libs/a71ch/CMakeFiles/libs_a71ch.dir/__/__/third_party/a71ch-crypto-support/hostlib/hostLib/a71ch/src/a71ch_crypto_ecc.c.obj
+[ 77%] Building C object libs/a71ch/CMakeFiles/libs_a71ch.dir/__/__/third_party/a71ch-crypto-support/hostlib/hostLib/libCommon/hostCrypto/hcAsn.c.obj
+In file included from /home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/inc/fsl_sss_policy.h:17,
+                 from /home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/inc/fsl_sss_api.h:16,
+                 from /home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/inc/fsl_sss_sscp.h:11,
+                 from /home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/sscp/fsl_sss_sscp.c:18:
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/sscp/fsl_sss_sscp.c: In function 'sss_sscp_key_object_allocate_handle':
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:39:43: note: in expansion of macro 'assert_static'
+   39 | #define SSCP_BUILD_ASSURE(condition, msg) assert_static(condition)
+      |                                           ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/sscp/fsl_sss_sscp.c:262:5: note: in expansion of macro 'SSCP_BUILD_ASSURE'
+  262 |     SSCP_BUILD_ASSURE(sizeof(sss_object_t) >= sizeof(sss_sscp_object_t), _sss_sscp_object_size);
+      |     ^~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/sscp/fsl_sss_sscp.c: In function 'sss_sscp_aead_one_go':
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:39:43: note: in expansion of macro 'assert_static'
+   39 | #define SSCP_BUILD_ASSURE(condition, msg) assert_static(condition)
+      |                                           ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/sscp/fsl_sss_sscp.c:1307:5: note: in expansion of macro 'SSCP_BUILD_ASSURE'
+ 1307 |     SSCP_BUILD_ASSURE(sizeof(sss_aead_t) >= sizeof(sss_sscp_aead_t), _sss_sscp_aead_size);
+      |     ^~~~~~~~~~~~~~~~~
+[ 77%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_snvs_hp.c.obj
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/sscp/fsl_sss_sscp.c: In function 'sss_sscp_mac_one_go':
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:39:43: note: in expansion of macro 'assert_static'
+   39 | #define SSCP_BUILD_ASSURE(condition, msg) assert_static(condition)
+      |                                           ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/sscp/fsl_sss_sscp.c:1469:5: note: in expansion of macro 'SSCP_BUILD_ASSURE'
+ 1469 |     SSCP_BUILD_ASSURE(sizeof(sss_mac_t) >= sizeof(sss_sscp_mac_t), _sss_sscp_mac_size);
+      |     ^~~~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/sscp/fsl_sss_sscp.c: In function 'sss_sscp_digest_one_go':
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:32:9: warning: statement with no effect [-Wunused-value]
+   32 |         assert_static__;                    \
+      |         ^~~~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/port/default/fsl_sss_types.h:39:43: note: in expansion of macro 'assert_static'
+   39 | #define SSCP_BUILD_ASSURE(condition, msg) assert_static(condition)
+      |                                           ^~~~~~~~~~~~~
+/home/bogdan/work/coralmicro/third_party/a71ch-crypto-support/sss/src/sscp/fsl_sss_sscp.c:1618:5: note: in expansion of macro 'SSCP_BUILD_ASSURE'
+ 1618 |     SSCP_BUILD_ASSURE(sizeof(sss_digest_t) >= sizeof(sss_sscp_digest_t), _sss_sscp_digest_size);
+      |     ^~~~~~~~~~~~~~~~~
+[ 77%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/add.cc.obj
+[ 77%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_soc_src.c.obj
+[ 77%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objdict.c.obj
+[ 77%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objenumerate.c.obj
+[ 77%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/add_common.cc.obj
+[ 77%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_tempsensor.c.obj
+[ 77%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_snvs_lp.c.obj
+[ 77%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/add_n.cc.obj
+[ 77%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_wdog.c.obj
+[ 77%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objexcept.c.obj
+[ 77%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/arg_min_max.cc.obj
+[ 77%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_soc_src.c.obj
+[ 78%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/assign_variable.cc.obj
+[ 78%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/batch_to_space_nd.cc.obj
+[ 78%] Linking CXX static library liblibs_a71ch.a
+[ 78%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_tempsensor.c.obj
+[ 78%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_xbara.c.obj
+[ 79%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objfilter.c.obj
+[ 79%] Built target libs_a71ch
+[ 79%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/broadcast_args.cc.obj
+[ 79%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/utilities/debug_console/fsl_debug_console.c.obj
+[ 79%] Linking C static library liblibs_nxp_rt1176-sdk_fatfs.a
+[ 79%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objfloat.c.obj
+[ 79%] Built target libs_nxp_rt1176-sdk_fatfs
+[ 79%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_wdog.c.obj
+[ 79%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_xbara.c.obj
+[ 79%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/utilities/str/fsl_str.c.obj
+[ 79%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/broadcast_to.cc.obj
+[ 79%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objfun.c.obj
+[ 79%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/call_once.cc.obj
+[ 79%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objgenerator.c.obj
+[ 79%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/utilities/debug_console/fsl_debug_console.c.obj
+[ 79%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/usb/device/usb_device_ehci.c.obj
+[ 80%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/usb/device/usb_device_dci.c.obj
+[ 80%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objgetitemiter.c.obj
+[ 80%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objint.c.obj
+[ 80%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/cast.cc.obj
+[ 81%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/utilities/str/fsl_str.c.obj
+[ 81%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objint_longlong.c.obj
+[ 81%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/usb/device/usb_device_dci.c.obj
+[ 81%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/ceil.cc.obj
+[ 81%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objint_mpz.c.obj
+[ 81%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/usb/host/class/usb_host_dfu.c.obj
+[ 81%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objlist.c.obj
+[ 81%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objmap.c.obj
+[ 81%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/usb/device/usb_device_ehci.c.obj
+[ 81%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/circular_buffer.cc.obj
+[ 81%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/usb/host/class/usb_host_hub.c.obj
+[ 81%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objmodule.c.obj
+[ 81%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/circular_buffer_common.cc.obj
+[ 81%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objnamedtuple.c.obj
+[ 81%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/usb/host/class/usb_host_hub_app.c.obj
+[ 81%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objnone.c.obj
+[ 81%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objobject.c.obj
+[ 81%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/usb/host/usb_host_devices.c.obj
+[ 81%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objpolyiter.c.obj
+[ 81%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/usb/host/class/usb_host_dfu.c.obj
+[ 81%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/cmsis_nn/add.cc.obj
+[ 81%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/usb/host/class/usb_host_hub.c.obj
+[ 81%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objproperty.c.obj
+[ 81%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objrange.c.obj
+[ 81%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/usb/host/usb_host_ehci.c.obj
+[ 81%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/usb/host/class/usb_host_hub_app.c.obj
+[ 81%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/usb/host/usb_host_devices.c.obj
+[ 81%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/cmsis_nn/conv.cc.obj
+[ 81%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objreversed.c.obj
+[ 81%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/usb/host/usb_host_ehci.c.obj
+[ 81%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/cmsis_nn/depthwise_conv.cc.obj
+[ 81%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/usb/host/usb_host_framework.c.obj
+[ 82%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objset.c.obj
+[ 82%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/usb/host/usb_host_framework.c.obj
+[ 82%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/usb/host/usb_host_hci.c.obj
+[ 82%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/cmsis_nn/fully_connected.cc.obj
+[ 82%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objsingleton.c.obj
+[ 82%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/modified/nxp/rt1176-sdk/usb_device_cdc_acm.c.obj
+[ 82%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objslice.c.obj
+[ 82%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/usb/output/source/device/class/usb_device_hid.c.obj
+[ 82%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/usb/output/source/device/usb_device_ch9.c.obj
+[ 82%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objstr.c.obj
+[ 82%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/cmsis_nn/mul.cc.obj
+[ 82%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objstringio.c.obj
+[ 82%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/usb/host/usb_host_hci.c.obj
+/home/bogdan/work/coralmicro/third_party/nxp/rt1176-sdk/middleware/usb/host/usb_host_hci.c:30:2: warning: #warning USB_HOST_CONFIG_BUFFER_PROPERTY_CACHEABLE is not supported. [-Wcpp]
+   30 | #warning USB_HOST_CONFIG_BUFFER_PROPERTY_CACHEABLE is not supported.
+      |  ^~~~~~~
+[ 82%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/cmsis_nn/pooling.cc.obj
+[ 82%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/usb/phy/usb_phy.c.obj
+[ 82%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/cmsis_nn/softmax.cc.obj
+[ 82%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/modified/nxp/rt1176-sdk/usb_device_cdc_acm.c.obj
+[ 82%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objstrunicode.c.obj
+[ 82%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/cmsis_nn/svdf.cc.obj
+[ 82%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/usb/output/source/device/class/usb_device_hid.c.obj
+[ 82%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objtuple.c.obj
+[ 82%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/usb/output/source/device/usb_device_ch9.c.obj
+[ 82%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/middleware/usb/phy/usb_phy.c.obj
+[ 82%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/comparisons.cc.obj
+[ 82%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_mipi_csi2rx.c.obj
+[ 82%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/concatenation.cc.obj
+[ 82%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objtype.c.obj
+[ 82%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_mipi_csi2rx.c.obj
+[ 82%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_soc_mipi_csi2rx.c.obj
+[ 82%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/objzip.c.obj
+[ 82%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/opmethods.c.obj
+[ 83%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/conv.cc.obj
+[ 83%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/components/video/camera/device/ov5640/fsl_ov5640.c.obj
+[ 83%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/pairheap.c.obj
+[ 83%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/components/video/camera/device/sccb/fsl_sccb.c.obj
+[ 83%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_soc_mipi_csi2rx.c.obj
+[ 83%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/components/video/fsl_video_common.c.obj
+[ 83%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/conv_common.cc.obj
+[ 83%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/parse.c.obj
+[ 83%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/components/video/camera/device/ov5640/fsl_ov5640.c.obj
+[ 83%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/cumsum.cc.obj
+[ 83%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/parsenum.c.obj
+[ 83%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/depth_to_space.cc.obj
+[ 83%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/depthwise_conv.cc.obj
+[ 83%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/components/video/camera/device/sccb/fsl_sccb.c.obj
+[ 83%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/parsenumbase.c.obj
+[ 83%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm.dir/__/__/__/third_party/nxp/rt1176-sdk/components/video/camera/receiver/csi/fsl_csi_camera_adapter.c.obj
+[ 83%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/depthwise_conv_common.cc.obj
+[ 84%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/components/video/fsl_video_common.c.obj
+[ 84%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/persistentcode.c.obj
+[ 84%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/profile.c.obj
+[ 84%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/dequantize.cc.obj
+[ 84%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/dequantize_common.cc.obj
+[ 84%] Building C object libs/nxp/rt1176-sdk/CMakeFiles/libs_nxp_rt1176-sdk_bm-m4.dir/__/__/__/third_party/nxp/rt1176-sdk/components/video/camera/receiver/csi/fsl_csi_camera_adapter.c.obj
+[ 84%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/pystack.c.obj
+[ 84%] Built target libs_nxp_rt1176-sdk_bm
+[ 84%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/qstr.c.obj
+[ 85%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/reader.c.obj
+[ 85%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/repl.c.obj
+[ 85%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/detection_postprocess.cc.obj
+[ 85%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/ringbuf.c.obj
+[ 85%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/div.cc.obj
+[ 85%] Built target libs_nxp_rt1176-sdk_bm-m4
+[ 85%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/elementwise.cc.obj
+[ 85%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/runtime.c.obj
+[ 85%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/elu.cc.obj
+[ 85%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/ethosu.cc.obj
+[ 85%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/runtime_utils.c.obj
+[ 85%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/exp.cc.obj
+[ 85%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/scheduler.c.obj
+[ 85%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/expand_dims.cc.obj
+[ 85%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/scope.c.obj
+[ 85%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/fill.cc.obj
+[ 85%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/sequence.c.obj
+[ 85%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/showbc.c.obj
+[ 85%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/floor.cc.obj
+[ 85%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/smallint.c.obj
+[ 85%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/stackctrl.c.obj
+[ 85%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/stream.c.obj
+[ 85%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/unicode.c.obj
+[ 85%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/vm.c.obj
+[ 85%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/vstr.c.obj
+[ 85%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/floor_div.cc.obj
+[ 86%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/floor_mod.cc.obj
+[ 86%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/fully_connected.cc.obj
+[ 86%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/py/warning.c.obj
+[ 86%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/port/embed_util.c.obj
+[ 86%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/fully_connected_common.cc.obj
+[ 86%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/port/mphalport.c.obj
+[ 86%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_embed/shared/runtime/gchelper_generic.c.obj
+[ 87%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/modsentai.c.obj
+[ 87%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/gather.cc.obj
+[ 87%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/micropython_task.c.obj
+[ 87%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/gather_nd.cc.obj
+In file included from /home/bogdan/work/coralmicro/examples/sentai_runtime/modsentai.c:334:
+/home/bogdan/work/coralmicro/examples/sentai_runtime/bindings/modsentai_crazy.c: In function 'mod_sentai_crazy_hl_stop':
+/home/bogdan/work/coralmicro/examples/sentai_runtime/bindings/modsentai_crazy.c:100:27: warning: implicit declaration of function 'sentai_crazy_hl_stop'; did you mean 'sentai_crazy_fly_stop'? [-Wimplicit-function-declaration]
+  100 |     return mp_obj_new_int(sentai_crazy_hl_stop(group));
+      |                           ^~~~~~~~~~~~~~~~~~~~
+      |                           sentai_crazy_fly_stop
+/home/bogdan/work/coralmicro/examples/sentai_runtime/bindings/modsentai_crazy.c: In function 'mod_sentai_crazy_attitude_release_no_disarm':
+/home/bogdan/work/coralmicro/examples/sentai_runtime/bindings/modsentai_crazy.c:199:27: warning: implicit declaration of function 'sentai_crazy_attitude_release_no_disarm'; did you mean 'mod_sentai_crazy_attitude_release_no_disarm'? [-Wimplicit-function-declaration]
+  199 |     return mp_obj_new_int(sentai_crazy_attitude_release_no_disarm());
+      |                           ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      |                           mod_sentai_crazy_attitude_release_no_disarm
+[ 87%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/hard_swish.cc.obj
+[ 87%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/hard_swish_common.cc.obj
+[ 87%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/if.cc.obj
+[ 87%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/mp_port_import.c.obj
+[ 87%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/kernel_runner.cc.obj
+[ 87%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/kernel_util.cc.obj
+[ 87%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/l2_pool_2d.cc.obj
+[ 87%] Building C object examples/sentai_runtime/CMakeFiles/libmicropython.dir/mp_embed_safe.c.obj
+[ 87%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/l2norm.cc.obj
+[ 87%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/leaky_relu.cc.obj
+[ 87%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/leaky_relu_common.cc.obj
+[ 87%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/log_softmax.cc.obj
+[ 87%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/logical.cc.obj
+[ 87%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/logical_common.cc.obj
+[ 87%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/logistic.cc.obj
+[ 88%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/logistic_common.cc.obj
+[ 88%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/lstm_eval.cc.obj
+[ 88%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/maximum_minimum.cc.obj
+[ 88%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/micro_tensor_utils.cc.obj
+[ 88%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/mirror_pad.cc.obj
+[ 88%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/mul.cc.obj
+[ 88%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/mul_common.cc.obj
+[ 88%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/neg.cc.obj
+[ 88%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/pack.cc.obj
+[ 88%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/pad.cc.obj
+[ 88%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/pooling_common.cc.obj
+[ 88%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/prelu.cc.obj
+[ 88%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/prelu_common.cc.obj
+[ 88%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/quantize.cc.obj
+[ 88%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/quantize_common.cc.obj
+[ 88%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/read_variable.cc.obj
+[ 88%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/reduce.cc.obj
+[ 88%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/reduce_common.cc.obj
+[ 88%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/reshape.cc.obj
+[ 89%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/resize_bilinear.cc.obj
+[ 89%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/resize_nearest_neighbor.cc.obj
+[ 89%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/round.cc.obj
+[ 89%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/shape.cc.obj
+[ 89%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/slice.cc.obj
+[ 89%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/softmax.cc.obj
+[ 89%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/softmax_common.cc.obj
+[ 89%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/space_to_batch_nd.cc.obj
+[ 89%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/space_to_depth.cc.obj
+[ 89%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/split.cc.obj
+[ 89%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/split_v.cc.obj
+[ 89%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/squared_difference.cc.obj
+[ 89%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/squeeze.cc.obj
+[ 89%] Linking C static library liblibmicropython.a
+[ 89%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/strided_slice.cc.obj
+[ 89%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/sub.cc.obj
+[ 89%] Built target libmicropython
+[ 89%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/sub_common.cc.obj
+[ 89%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/svdf_common.cc.obj
+[ 89%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/tanh.cc.obj
+[ 90%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/transpose.cc.obj
+[ 90%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/transpose_conv.cc.obj
+[ 90%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/unidirectional_sequence_lstm.cc.obj
+[ 90%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/var_handle.cc.obj
+[ 90%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/unpack.cc.obj
+[ 90%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/while.cc.obj
+[ 90%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/kernels/zeros_like.cc.obj
+[ 90%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/memory_helpers.cc.obj
+[ 90%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/memory_planner/greedy_memory_planner.cc.obj
+[ 90%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/memory_planner/linear_memory_planner.cc.obj
+[ 90%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/memory_planner/non_persistent_buffer_planner_shim.cc.obj
+[ 90%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/micro_allocation_info.cc.obj
+[ 90%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/micro_allocator.cc.obj
+[ 90%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/micro_context.cc.obj
+[ 90%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/micro_error_reporter.cc.obj
+[ 90%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/micro_graph.cc.obj
+[ 90%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/micro_interpreter.cc.obj
+[ 90%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/micro_profiler.cc.obj
+[ 90%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/micro_resource_variable.cc.obj
+[ 91%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/micro_string.cc.obj
+[ 91%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/micro_time.cc.obj
+/home/bogdan/work/coralmicro/third_party/tflite-micro/tensorflow/lite/micro/memory_helpers.cc: In function 'TfLiteStatus tflite::BytesRequiredForTensor(const tflite::Tensor&, size_t*, size_t*, tflite::ErrorReporter*)':
+/home/bogdan/work/coralmicro/third_party/tflite-micro/tensorflow/lite/micro/memory_helpers.cc:106:62: warning: 'flatbuffers::uoffset_t flatbuffers::Vector<T>::Length() const [with T = long int; flatbuffers::uoffset_t = long unsigned int]' is deprecated: use size() instead [-Wdeprecated-declarations]
+  106 |     for (size_t n = 0; n < flatbuffer_tensor.shape()->Length(); ++n) {
+      |                                                              ^
+In file included from /home/bogdan/work/coralmicro/third_party/tflite-micro/tensorflow/lite/schema/schema_generated.h:21,
+                 from /home/bogdan/work/coralmicro/third_party/tflite-micro/tensorflow/lite/micro/memory_helpers.h:23,
+                 from /home/bogdan/work/coralmicro/third_party/tflite-micro/tensorflow/lite/micro/memory_helpers.cc:16:
+/home/bogdan/work/coralmicro/third_party/flatbuffers/include/flatbuffers/flatbuffers.h:251:13: note: declared here
+  251 |   uoffset_t Length() const { return size(); }
+      |             ^~~~~~
+[ 91%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/micro_utils.cc.obj
+[ 91%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/mock_micro_graph.cc.obj
+[ 91%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/recording_micro_allocator.cc.obj
+[ 91%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/micro/system_setup.cc.obj
+[ 91%] Building CXX object libs/tensorflow/CMakeFiles/libs_tensorflow-m4.dir/__/__/third_party/tflite-micro/tensorflow/lite/schema/schema_utils.cc.obj
+[ 91%] Linking CXX static library liblibs_tensorflow-m4.a
+[ 91%] Built target libs_tensorflow-m4
+make: *** [Makefile:91: all] Error 2
+make: Leaving directory '/home/bogdan/work/coralmicro/build'

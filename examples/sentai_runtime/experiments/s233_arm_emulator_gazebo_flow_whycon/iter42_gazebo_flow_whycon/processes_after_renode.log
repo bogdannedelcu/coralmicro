@@ -1,0 +1,538 @@
+    PID    PPID STAT CMD
+      1       0 Ss   /usr/lib/systemd/systemd --switched-root --system --deserialize=53 splash
+      2       0 S    [kthreadd]
+      3       2 S    [pool_workqueue_release]
+      4       2 I<   [kworker/R-rcu_gp]
+      5       2 I<   [kworker/R-sync_wq]
+      6       2 I<   [kworker/R-kvfree_rcu_reclaim]
+      7       2 I<   [kworker/R-slub_flushwq]
+      8       2 I<   [kworker/R-netns]
+     10       2 I<   [kworker/0:0H-kblockd]
+     13       2 I<   [kworker/R-mm_percpu_wq]
+     14       2 S    [ksoftirqd/0]
+     15       2 I    [rcu_preempt]
+     16       2 S    [rcu_exp_par_gp_kthread_worker/1]
+     17       2 S    [rcu_exp_gp_kthread_worker]
+     18       2 S    [migration/0]
+     19       2 S    [kprobe-optimizer]
+     20       2 S    [idle_inject/0]
+     21       2 S    [cpuhp/0]
+     22       2 S    [cpuhp/2]
+     23       2 S    [idle_inject/2]
+     24       2 S    [migration/2]
+     25       2 S    [ksoftirqd/2]
+     27       2 I<   [kworker/2:0H-kblockd]
+     28       2 S    [cpuhp/4]
+     29       2 S    [idle_inject/4]
+     30       2 S    [migration/4]
+     31       2 S    [ksoftirqd/4]
+     33       2 I<   [kworker/4:0H-kblockd]
+     34       2 S    [cpuhp/6]
+     35       2 S    [idle_inject/6]
+     36       2 S    [migration/6]
+     37       2 S    [ksoftirqd/6]
+     39       2 I<   [kworker/6:0H-kblockd]
+     40       2 S    [cpuhp/8]
+     41       2 S    [idle_inject/8]
+     42       2 S    [migration/8]
+     43       2 S    [ksoftirqd/8]
+     45       2 I<   [kworker/8:0H-kblockd]
+     46       2 S    [cpuhp/10]
+     47       2 S    [idle_inject/10]
+     48       2 S    [migration/10]
+     49       2 S    [ksoftirqd/10]
+     51       2 I<   [kworker/10:0H-kblockd]
+     52       2 S    [cpuhp/12]
+     53       2 S    [idle_inject/12]
+     54       2 S    [migration/12]
+     55       2 S    [ksoftirqd/12]
+     57       2 I<   [kworker/12:0H-kblockd]
+     58       2 S    [rcu_exp_par_gp_kthread_worker/2]
+     59       2 S    [cpuhp/14]
+     60       2 S    [idle_inject/14]
+     61       2 S    [migration/14]
+     62       2 S    [ksoftirqd/14]
+     64       2 I<   [kworker/14:0H-kblockd]
+     65       2 S    [cpuhp/16]
+     66       2 S    [idle_inject/16]
+     67       2 S    [migration/16]
+     68       2 S    [ksoftirqd/16]
+     70       2 I<   [kworker/16:0H-kblockd]
+     71       2 S    [cpuhp/17]
+     72       2 S    [idle_inject/17]
+     73       2 S    [migration/17]
+     74       2 S    [ksoftirqd/17]
+     76       2 I<   [kworker/17:0H-kblockd]
+     77       2 S    [cpuhp/18]
+     78       2 S    [idle_inject/18]
+     79       2 S    [migration/18]
+     80       2 S    [ksoftirqd/18]
+     82       2 I<   [kworker/18:0H-kblockd]
+     83       2 S    [cpuhp/19]
+     84       2 S    [idle_inject/19]
+     85       2 S    [migration/19]
+     86       2 S    [ksoftirqd/19]
+     88       2 I<   [kworker/19:0H-kblockd]
+     89       2 S    [cpuhp/20]
+     90       2 S    [idle_inject/20]
+     91       2 S    [migration/20]
+     92       2 S    [ksoftirqd/20]
+     94       2 I<   [kworker/20:0H-kblockd]
+     95       2 S    [cpuhp/21]
+     96       2 S    [idle_inject/21]
+     97       2 S    [migration/21]
+     98       2 S    [ksoftirqd/21]
+    100       2 I<   [kworker/21:0H-kblockd]
+    101       2 S    [cpuhp/22]
+    102       2 S    [idle_inject/22]
+    103       2 S    [migration/22]
+    104       2 S    [ksoftirqd/22]
+    106       2 I<   [kworker/22:0H-kblockd]
+    107       2 S    [cpuhp/23]
+    108       2 S    [idle_inject/23]
+    109       2 S    [migration/23]
+    110       2 S    [ksoftirqd/23]
+    112       2 I<   [kworker/23:0H-kblockd]
+    113       2 S    [cpuhp/1]
+    114       2 S    [idle_inject/1]
+    115       2 S    [migration/1]
+    116       2 S    [ksoftirqd/1]
+    118       2 I<   [kworker/1:0H-kblockd]
+    119       2 S    [cpuhp/3]
+    120       2 S    [idle_inject/3]
+    121       2 S    [migration/3]
+    122       2 S    [ksoftirqd/3]
+    124       2 I<   [kworker/3:0H-kblockd]
+    125       2 S    [cpuhp/5]
+    126       2 S    [idle_inject/5]
+    127       2 S    [migration/5]
+    128       2 S    [ksoftirqd/5]
+    130       2 I<   [kworker/5:0H-kblockd]
+    131       2 S    [cpuhp/7]
+    132       2 S    [idle_inject/7]
+    133       2 S    [migration/7]
+    134       2 S    [ksoftirqd/7]
+    136       2 I<   [kworker/7:0H-kblockd]
+    137       2 S    [cpuhp/9]
+    138       2 S    [idle_inject/9]
+    139       2 S    [migration/9]
+    140       2 S    [ksoftirqd/9]
+    142       2 I<   [kworker/9:0H-kblockd]
+    143       2 S    [cpuhp/11]
+    144       2 S    [idle_inject/11]
+    145       2 S    [migration/11]
+    146       2 S    [ksoftirqd/11]
+    148       2 I<   [kworker/11:0H-kblockd]
+    149       2 S    [cpuhp/13]
+    150       2 S    [idle_inject/13]
+    151       2 S    [migration/13]
+    152       2 S    [ksoftirqd/13]
+    154       2 I<   [kworker/13:0H-kblockd]
+    155       2 S    [cpuhp/15]
+    156       2 S    [idle_inject/15]
+    157       2 S    [migration/15]
+    158       2 S    [ksoftirqd/15]
+    160       2 I<   [kworker/15:0H]
+    161       2 S    [kdevtmpfs]
+    162       2 I<   [kworker/R-inet_frag_wq]
+    163       2 I    [rcu_tasks_kthread]
+    164       2 I    [rcu_tasks_rude_kthread]
+    165       2 S    [kauditd]
+    166       2 S    [khungtaskd]
+    167       2 S    [oom_reaper]
+    170       2 I<   [kworker/R-writeback]
+    171       2 S    [kcompactd0]
+    172       2 SN   [ksmd]
+    173       2 SN   [khugepaged]
+    174       2 I<   [kworker/R-kblockd]
+    175       2 I<   [kworker/R-blkcg_punt_bio]
+    176       2 I<   [kworker/R-kintegrityd]
+    177       2 S    [irq/9-acpi]
+    179       2 I    [kworker/1:1-mm_percpu_wq]
+    181       2 I<   [kworker/R-tpm_dev_wq]
+    182       2 I<   [kworker/R-ata_sff]
+    183       2 I<   [kworker/R-md_bitmap]
+    184       2 I<   [kworker/R-md_llbitmap_io]
+    185       2 I<   [kworker/R-md_llbitmap_unplug]
+    186       2 I<   [kworker/R-md]
+    187       2 I<   [kworker/R-edac-poller]
+    188       2 I<   [kworker/R-devfreq_wq]
+    189       2 S    [watchdogd]
+    190       2 I<   [kworker/R-quota_events_unbound]
+    192       2 S    [kswapd0]
+    193       2 S    [ecryptfs-kthread]
+    194       2 I<   [kworker/R-kthrotld]
+    195       2 S    [irq/120-aerdrv]
+    196       2 S    [irq/121-aerdrv]
+    197       2 S    [irq/122-pciehp]
+    198       2 S    [irq/123-aerdrv]
+    199       2 I<   [kworker/R-acpi_thermal_pm]
+    201       2 S    [hwrng]
+    202       2 I<   [kworker/R-hfi-updates]
+    203       2 I<   [kworker/R-mld]
+    204       2 I<   [kworker/R-ipv6_addrconf]
+    205       2 I<   [kworker/R-kstrp]
+    211       2 I    [kworker/3:1-events]
+    225       2 I<   [kworker/u97:0]
+    236       2 I<   [kworker/R-charger_manager]
+    550       2 I<   [kworker/R-nvme-wq]
+    551       2 I<   [kworker/R-nvme-reset-wq]
+    552       2 I<   [kworker/R-nvme-delete-wq]
+    553       2 I<   [kworker/R-nvme-auth-wq]
+    554       2 S    [scsi_eh_0]
+    555       2 I<   [kworker/R-scsi_tmf_0]
+    556       2 S    [scsi_eh_1]
+    557       2 I<   [kworker/R-scsi_tmf_1]
+    558       2 S    [scsi_eh_2]
+    559       2 I<   [kworker/R-scsi_tmf_2]
+    560       2 S    [scsi_eh_3]
+    561       2 I<   [kworker/R-scsi_tmf_3]
+    562       2 S    [scsi_eh_4]
+    563       2 I<   [kworker/R-scsi_tmf_4]
+    564       2 S    [scsi_eh_5]
+    565       2 I<   [kworker/R-scsi_tmf_5]
+    566       2 S    [scsi_eh_6]
+    567       2 I<   [kworker/R-scsi_tmf_6]
+    568       2 S    [scsi_eh_7]
+    569       2 I<   [kworker/R-scsi_tmf_7]
+    595       2 I<   [kworker/12:1H-kblockd]
+    596       2 I<   [kworker/2:1H-kblockd]
+    597       2 I<   [kworker/4:1H-kblockd]
+    623       2 I<   [kworker/R-xfsalloc]
+    624       2 I<   [kworker/R-xfs_mru_cache]
+    625       2 I<   [kworker/R-xfs-buf/sda2]
+    626       2 I<   [kworker/R-xfs-conv/sda2]
+    627       2 I<   [kworker/R-xfs-reclaim/sda2]
+    628       2 I<   [kworker/R-xfs-blockgc/sda2]
+    629       2 I<   [kworker/R-xfs-inodegc/sda2]
+    630       2 I<   [kworker/R-xfs-log/sda2]
+    631       2 I<   [kworker/R-xfs-cil/sda2]
+    632       2 S    [xfsaild/sda2]
+    633       2 I<   [kworker/17:1H-kblockd]
+    634       2 I<   [kworker/9:1H-kblockd]
+    837       2 I<   [kworker/20:1H-kblockd]
+    855       1 S<s  /usr/lib/systemd/systemd-journald
+    891       2 I<   [kworker/21:1H-kblockd]
+    895       2 I<   [kworker/10:1H-kblockd]
+    898       2 I<   [kworker/6:1H-kblockd]
+    900       2 I<   [kworker/14:1H-kblockd]
+    903       2 I<   [kworker/16:1H-kblockd]
+    906       1 Ss   /usr/lib/systemd/systemd-oomd
+    907       1 Ss   /usr/lib/systemd/systemd-resolved
+    913       1 Ss   /usr/lib/systemd/systemd-udevd
+    915       2 S    [psimon]
+    983       2 I<   [kworker/0:1H-kblockd]
+    984       2 I<   [kworker/19:1H-kblockd]
+    986       2 S    [irq/135-mei_me]
+    995       2 I<   [kworker/23:1H-kblockd]
+   1218       2 S    [nv_queue]
+   1219       2 S    [nv_mem_pool_scrubber_queue]
+   1220       2 S    [nv_mem_pool_scrubber_queue]
+   1221       2 S    [nv_mem_pool_scrubber_queue]
+   1222       2 S    [nv_queue]
+   1223       2 S    [nv_open_q]
+   1478       2 I<   [kworker/R-ttm]
+   1479       2 S    [card1-crtc0]
+   1480       2 S    [card1-crtc1]
+   1481       2 S    [card1-crtc2]
+   1482       2 S    [card1-crtc3]
+   1483       2 S    [nvidia-modeset/kthread_q]
+   1484       2 S    [nvidia-modeset/deferred_close_kthread_q]
+   1486       2 S    [irq/138-nvidia]
+   1487       2 S    [nvidia]
+   1488       2 S    [nv_queue]
+   1497       2 I    [kworker/15:2-mm_percpu_wq]
+   1672       2 I<   [kworker/8:1H-kblockd]
+   1678       2 I<   [kworker/15:1H-kblockd]
+   1696       2 I<   [kworker/3:1H-kblockd]
+   1764       2 I<   [kworker/11:1H-kblockd]
+   1788       2 I<   [kworker/22:1H-kblockd]
+   1801       2 I<   [kworker/13:1H-kblockd]
+   1872       2 I<   [kworker/1:1H-kblockd]
+   1875       2 I<   [kworker/18:1H-kblockd]
+   1881       2 I<   [kworker/7:1H-kblockd]
+   1956       2 S    [UVM global queue]
+   1958       2 S    [UVM deferred release queue]
+   1959       2 S    [UVM Tools Event Queue]
+   6835       1 Ss   avahi-daemon: running [lhpc.local]
+   6836       1 Ss   /bin/sh /usr/lib/systemd/scripts/chronyd-starter.sh -n -F 1
+   6837       1 Ss   @dbus-daemon --system --address=systemd: --nofork --nopidfile --systemd-activation --syslog-only
+   6844       1 Ss   /usr/bin/python3 /usr/bin/networkd-dispatcher --run-startup-triggers
+   6848       1 Ssl  /usr/lib/polkit-1/polkitd --no-debug --log-level=notice
+   6855       1 Ss   /usr/bin/nvidia-persistenced --user nvidia-persistenced --no-persistence-mode --verbose
+   6859       1 Ss   /usr/sbin/cron -f -P
+   6862       1 Ssl  /usr/libexec/switcheroo-control
+   6870       1 Ss   /usr/lib/systemd/systemd-logind
+   6872       1 Ssl  /usr/sbin/thermald --systemd --dbus-enable --adaptive
+   6873       1 Ssl  /usr/libexec/udisks2/udisksd
+   6886    6835 S    avahi-daemon: chroot helper
+   6904    6836 S    /usr/sbin/chronyd -n -F 1
+   6978    6904 S    /usr/sbin/chronyd -n -F 1
+   7005       1 Ssl  /usr/sbin/rsyslogd -n -iNONE
+   7011       1 Ssl  /usr/sbin/NetworkManager --no-daemon
+   7029       1 Ss   /usr/sbin/wpa_supplicant -u -s -O DIR=/run/wpa_supplicant GROUP=netdev
+   7045       1 Ssl  /usr/sbin/ModemManager
+   7132       1 Ss   /usr/sbin/cupsd -l
+   7136       1 Ssl  /usr/bin/python3 /usr/share/unattended-upgrades/unattended-upgrade-shutdown --wait-for-signal
+   7270       2 I<   [kworker/5:1H-kblockd]
+   7648       1 Ssl  /usr/sbin/cups-browsed
+   7745       1 Ssl  /usr/sbin/gdm3
+   7903       1 SNsl /usr/libexec/rtkit-daemon
+   8095       1 Ssl  /usr/libexec/colord
+   8145       1 Ssl  /usr/libexec/upowerd
+   9651       1 Ssl  /usr/libexec/power-profiles-daemon
+   9686    7132 S    /usr/lib/cups/notifier/dbus dbus://
+  13535       1 Ss   /usr/sbin/uuidd --socket-activation --cont-clock
+  25610       1 Ss   /usr/lib/systemd/systemd --user
+  25612   25610 S    (sd-pam)
+  25890   25610 Ssl  /usr/libexec/gcr-ssh-agent --base-dir /run/user/1000/gcr
+  25892   25610 Ss   /usr/bin/ssh-agent -D
+  50763       1 Ssl  /usr/libexec/fwupd/fwupd
+  52381       1 Ssl  /usr/lib/podman/netavark firewalld-reload
+  53511   25610 S    catatonit -P
+  54141   25610 Ss   /usr/bin/conmon --api-version 1 -c 4975d34302bf31f94307a823a1b0c770898dd84739ace61fb876fa8dc6a103ab -u 4975d34302bf31f94307a823a1b0c770898dd84739ace61fb876fa8dc6a103ab -r /usr/bin/crun -b /home/bogdan/snap/code/244/.local/share/containers/storage/overlay-containers/4975d34302bf31f94307a823a1b0c770898dd84739ace61fb876fa8dc6a103ab/userdata -p /run/user/1000/containers/overlay-containers/4975d34302bf31f94307a823a1b0c770898dd84739ace61fb876fa8dc6a103ab/userdata/pidfile -n crazysim-garden --exit-dir /run/user/1000/libpod/tmp/exits --persist-dir /run/user/1000/libpod/tmp/persist/4975d34302bf31f94307a823a1b0c770898dd84739ace61fb876fa8dc6a103ab --full-attach -s -l journald --log-level warning --syslog --runtime-arg --log-format=json --runtime-arg --log --runtime-arg=/run/user/1000/containers/overlay-containers/4975d34302bf31f94307a823a1b0c770898dd84739ace61fb876fa8dc6a103ab/userdata/oci-log --conmon-pidfile /run/user/1000/containers/overlay-containers/4975d34302bf31f94307a823a1b0c770898dd84739ace61fb876fa8dc6a103ab/userdata/conmon.pid --exit-command /usr/bin/podman --exit-command-arg --root --exit-command-arg /home/bogdan/snap/code/244/.local/share/containers/storage --exit-command-arg --runroot --exit-command-arg /run/user/1000/containers --exit-command-arg --log-level --exit-command-arg warning --exit-command-arg --cgroup-manager --exit-command-arg systemd --exit-command-arg --tmpdir --exit-command-arg /run/user/1000/libpod/tmp --exit-command-arg --network-config-dir --exit-command-arg  --exit-command-arg --network-backend --exit-command-arg netavark --exit-command-arg --volumepath --exit-command-arg /home/bogdan/snap/code/244/.local/share/containers/storage/volumes --exit-command-arg --db-backend --exit-command-arg sqlite --exit-command-arg --transient-store=false --exit-command-arg --hooks-dir --exit-command-arg /usr/share/containers/oci/hooks.d --exit-command-arg --runtime --exit-command-arg crun --exit-command-arg --storage-driver --exit-command-arg overlay --exit-command-arg --events-backend --exit-command-arg journald --exit-command-arg container --exit-command-arg cleanup --exit-command-arg --stopped-only --exit-command-arg 4975d34302bf31f94307a823a1b0c770898dd84739ace61fb876fa8dc6a103ab
+  54143   54141 Ss   /bin/sh /usr/bin/entrypoint --verbose --name bogdan --user 1000 --group 1000 --home /home/bogdan --init 0 --nvidia 0 --pre-init-hooks  --additional-packages  --
+ 164539       1 Ssl  /usr/local/bin/ollama serve
+ 167881       2 I    [kworker/5:1-events]
+ 200595       2 I    [kworker/7:1-events]
+ 234499       2 I    [kworker/11:1-cgroup_release]
+ 263552       2 I    [kworker/21:2-events]
+ 268418       2 I    [kworker/18:2-events]
+ 295753       2 S    [jfsIO]
+ 295754       2 S    [jfsCommit]
+ 295755       2 S    [jfsCommit]
+ 295756       2 S    [jfsCommit]
+ 295757       2 S    [jfsCommit]
+ 295758       2 S    [jfsCommit]
+ 295759       2 S    [jfsCommit]
+ 295760       2 S    [jfsCommit]
+ 295761       2 S    [jfsCommit]
+ 295762       2 S    [jfsCommit]
+ 295763       2 S    [jfsCommit]
+ 295764       2 S    [jfsCommit]
+ 295765       2 S    [jfsCommit]
+ 295766       2 S    [jfsCommit]
+ 295767       2 S    [jfsCommit]
+ 295768       2 S    [jfsCommit]
+ 295769       2 S    [jfsCommit]
+ 295770       2 S    [jfsCommit]
+ 295771       2 S    [jfsCommit]
+ 295772       2 S    [jfsCommit]
+ 295773       2 S    [jfsCommit]
+ 295774       2 S    [jfsCommit]
+ 295775       2 S    [jfsCommit]
+ 295776       2 S    [jfsCommit]
+ 295777       2 S    [jfsCommit]
+ 295778       2 S    [jfsSync]
+ 296277       2 I    [kworker/15:1-events]
+ 297468       2 I    [kworker/11:0-events]
+ 305604       2 I    [kworker/22:2-events]
+ 313454       2 I    [kworker/17:2-mm_percpu_wq]
+ 314953       2 I    [kworker/19:0-cgroup_release]
+ 315302       2 I    [kworker/4:2-events]
+ 317870       2 I    [kworker/13:2-events]
+ 319982       2 I    [kworker/14:2-events]
+ 320062       2 I    [kworker/10:1-events]
+ 322393       2 I    [kworker/2:1-memcg]
+ 323154       2 I    [kworker/18:0-events]
+ 323949       2 I    [kworker/8:3-events]
+ 325937       2 I    [kworker/0:2-events]
+ 329543       2 I    [kworker/16:1-inode_switch_wbs]
+ 329671       2 I    [kworker/21:0-mm_percpu_wq]
+ 329875       2 I    [kworker/12:0-events]
+ 330824       2 I    [kworker/12:1-events]
+ 330868       2 I    [kworker/u96:0-xfs-blockgc/sda2]
+ 332901       2 I    [kworker/6:0-events]
+ 332902       2 I    [kworker/6:3-mm_percpu_wq]
+ 332907       1 Ss   login -- bogdan
+ 332975  332907 Ss+  -bash
+ 333329       2 I    [kworker/5:0-mm_percpu_wq]
+ 333341       2 I    [kworker/2:2-mm_percpu_wq]
+ 333529       1 Ss+  /usr/sbin/agetty --noreset --noclear --issue-file=/etc/issue:/etc/issue.d:/run/issue.d:/usr/lib/issue.d - linux
+ 336045       2 I    [kworker/23:0-events]
+ 336840       1 Ssl  /usr/lib/snapd/snapd
+ 336846       2 I    [kworker/4:1-events]
+ 337250       2 I    [kworker/19:1-mm_percpu_wq]
+ 337468       2 S    [psimon]
+ 337476       1 Ssl  /usr/libexec/accounts-daemon
+ 340214       2 I    [kworker/14:1-events]
+ 344066       2 I    [kworker/8:0-mm_percpu_wq]
+ 349636       2 I    [kworker/23:3-memcg]
+ 349749       2 I    [kworker/1:2-events]
+ 349751       2 I    [kworker/u96:8-flush-8:0]
+ 349752       2 I    [kworker/u96:9-flush-8:0]
+ 349756       2 I    [kworker/0:1-events]
+ 349840       2 I    [kworker/3:2-cgroup_free]
+ 349844       2 I    [kworker/13:1-events]
+ 351513       2 I    [kworker/10:2-cgroup_free]
+ 351638       2 I    [kworker/7:0-mm_percpu_wq]
+ 352852       2 I    [kworker/16:3-events]
+ 354145       1 Ssl  /usr/libexec/gnome-remote-desktop-daemon --system
+ 356447    7745 Sl   gdm-session-worker [pam/gdm-launch-environment]
+ 356631       2 I    [kworker/20:3-events]
+ 356658       2 I    [kworker/20:4-mm_percpu_wq]
+ 356718       1 Ss   /usr/lib/systemd/systemd --user
+ 356759  356718 S    (sd-pam)
+ 356795  356718 Ss   /usr/bin/dbus-daemon --session --address=systemd: --nofork --nopidfile --systemd-activation --syslog-only
+ 356796  356718 S<sl /usr/bin/pipewire
+ 356801  356447 Ssl+ /usr/libexec/gdm-wayland-session gnome-session
+ 356815  356801 Sl+  /usr/libexec/gnome-session-init-worker gnome-login
+ 356816  356718 Ss   /usr/bin/mpris-proxy
+ 356820  356718 S<sl /usr/bin/wireplumber
+ 356823  356718 Ssl  /usr/bin/pipewire -c filter-chain.conf
+ 356826  356718 S<sl /usr/bin/pipewire-pulse
+ 356914  356718 Ssl  /usr/libexec/gcr-ssh-agent --base-dir /run/user/60584/gcr
+ 356915  356718 Ssl  /usr/bin/gnome-keyring-daemon --foreground --components=pkcs11,secrets --control-directory=/run/user/60584/keyring
+ 356916  356718 Ssl  /usr/libexec/gnome-session-ctl --monitor
+ 356917  356718 Ss   /usr/bin/ssh-agent -D
+ 356944  356718 Ssl  /usr/libexec/xdg-document-portal
+ 356958  356718 Ssl  /usr/libexec/xdg-permission-store
+ 356965  356944 Ss   fusermount3 -o rw,nosuid,nodev,fsname=portal,auto_unmount,subtype=portal -- /run/user/60584/doc
+ 357014  356718 Ssl  /usr/libexec/gnome-session-service --session=gnome-login
+ 357040  356718 Ssl  /usr/bin/gnome-shell --mode=gdm
+ 357057       2 S    [nvidia-drm/timeline-4a5]
+ 357085  356718 Ssl  /usr/libexec/at-spi-bus-launcher
+ 357092  357085 S    /usr/bin/dbus-daemon --config-file=/usr/share/defaults/at-spi2/accessibility.conf --nofork --print-address 11 --address=unix:path=/run/user/60584/at-spi/bus
+ 357094  356718 Sl   /usr/libexec/at-spi2-registryd --use-gnome-session
+ 357195  356718 Sl   /usr/bin/gjs -m /usr/share/gnome-shell/org.gnome.Shell.Notifications
+ 357209  356718 Ssl  /usr/bin/ibus-daemon --panel disable
+ 357210  356718 Ssl  /usr/libexec/gsd-a11y-settings
+ 357212  356718 Ssl  /usr/libexec/gsd-keyboard
+ 357214  356718 Ssl  /usr/libexec/gsd-media-keys
+ 357215  356718 Ssl  /usr/libexec/gsd-power
+ 357222  356718 Ssl  /usr/libexec/gsd-rfkill
+ 357223  356718 Ssl  /usr/libexec/gsd-sharing
+ 357225  356718 Ssl  /usr/libexec/gsd-smartcard
+ 357226  356718 Ssl  /usr/libexec/gsd-usb-protection
+ 357270  356718 Sl   /usr/bin/gjs -m /usr/share/gnome-shell/org.gnome.ScreenSaver
+ 358286  357209 Sl   /usr/libexec/ibus-dconf
+ 358289  356718 Sl   /usr/libexec/ibus-portal
+ 358290  356718 Ssl  /usr/libexec/xdg-desktop-portal
+ 358309  357209 Sl   /usr/libexec/ibus-engine-simple
+ 358310  356718 Ssl  /usr/libexec/xdg-desktop-portal-gnome
+ 358583  356718 Ssl  /usr/libexec/xdg-desktop-portal-gtk
+ 358689   25610 Ss   /usr/bin/dbus-daemon --session --address=systemd: --nofork --nopidfile --systemd-activation --syslog-only
+ 358690   25610 Ssl  /usr/libexec/xdg-document-portal
+ 358694   25610 Ssl  /usr/libexec/xdg-permission-store
+ 358701  358690 Ss   fusermount3 -o rw,nosuid,nodev,fsname=portal,auto_unmount,subtype=portal -- /run/user/1000/doc
+ 359337       2 S    [vidmem lazy free]
+ 359351       2 S    [UVM GPU1 BH]
+ 359352       2 S    [UVM GPU1 KC]
+ 359368       2 I    [kworker/17:1-events]
+ 360666    7745 Sl   gdm-session-worker [pam/gdm-password]
+ 361038   25610 SLsl /usr/bin/gnome-keyring-daemon --foreground --components=pkcs11,secrets --control-directory=/run/user/1000/keyring
+ 361102  360666 Ssl  /usr/libexec/gdm-wayland-session /usr/bin/gnome-session --session=ubuntu
+ 361130  361102 Sl   /usr/libexec/gnome-session-init-worker ubuntu
+ 361194   25610 Ssl  /usr/libexec/gnome-session-ctl --monitor
+ 361204   25610 Ssl  /usr/libexec/gvfsd
+ 361216   25610 Sl   /usr/libexec/gvfsd-fuse /run/user/1000/gvfs -f
+ 361222   25610 Ssl  /usr/libexec/gnome-session-service --session=ubuntu
+ 361240   25610 SLsl /usr/bin/gnome-shell --mode=ubuntu
+ 361260       2 S    [nvidia-drm/timeline-4b0]
+ 361272   25610 Ssl  /usr/libexec/at-spi-bus-launcher
+ 361279  361272 S    /usr/bin/dbus-daemon --config-file=/usr/share/defaults/at-spi2/accessibility.conf --nofork --print-address 11 --address=unix:path=/run/user/1000/at-spi/bus
+ 361281   25610 Sl   /usr/libexec/at-spi2-registryd --use-gnome-session
+ 361300   25610 Sl   /usr/libexec/gnome-shell-calendar-server
+ 361308   25610 Ssl  /usr/libexec/evolution-source-registry
+ 361321   25610 Sl   /usr/bin/gjs -m /usr/share/gnome-shell/org.gnome.Shell.Notifications
+ 361328   25610 Ssl  /usr/bin/ibus-daemon --panel disable
+ 361330   25610 Ssl  /usr/libexec/gsd-a11y-settings
+ 361335   25610 Ssl  /usr/libexec/gsd-color
+ 361340   25610 Ssl  /usr/libexec/gsd-datetime
+ 361341   25610 Ssl  /usr/libexec/gsd-housekeeping
+ 361342   25610 Ssl  /usr/libexec/gsd-keyboard
+ 361343   25610 Ssl  /usr/libexec/gsd-media-keys
+ 361345   25610 Ssl  /usr/libexec/gsd-power
+ 361346   25610 Ssl  /usr/libexec/gsd-print-notifications
+ 361349   25610 Ssl  /usr/libexec/gsd-rfkill
+ 361351   25610 Ssl  /usr/libexec/gsd-screensaver-proxy
+ 361355   25610 Ssl  /usr/libexec/gsd-sharing
+ 361365   25610 Ssl  /usr/libexec/gsd-smartcard
+ 361370   25610 Ssl  /usr/libexec/gsd-sound
+ 361373   25610 Ssl  /usr/libexec/gsd-usb-protection
+ 361376   25610 Sl   /usr/libexec/gsd-disk-utility-notify
+ 361381   25610 Ssl  /usr/libexec/gsd-wwan
+ 361385   25610 Sl   /usr/libexec/evolution-data-server/evolution-alarm-notify
+ 361400   25610 Ssl  /usr/libexec/gvfs-udisks2-volume-monitor
+ 361426   25610 Sl   /usr/bin/update-notifier
+ 361496   25610 Sl   /usr/bin/gjs -m /usr/share/gnome-shell/org.gnome.ScreenSaver
+ 361502   25610 Sl   /usr/libexec/goa-daemon
+ 361506  361328 Sl   /usr/libexec/ibus-dconf
+ 361512  361328 Sl   /usr/libexec/ibus-extension-gtk3
+ 361525   25610 Sl   /usr/libexec/ibus-portal
+ 361580   25610 Sl   /usr/libexec/goa-identity-service
+ 361585   25610 SLsl /usr/libexec/gnome-remote-desktop-daemon --handover
+ 361587   25610 SNsl /usr/libexec/localsearch-3
+ 361588   25610 Ssl  /usr/bin/pipewire
+ 361590   25610 Ssl  /usr/bin/wireplumber
+ 361591   25610 Ssl  /usr/bin/pipewire-pulse
+ 361592   25610 Ssl  /usr/libexec/xdg-desktop-portal
+ 361595   25610 Ssl  /usr/libexec/evolution-calendar-factory
+ 361596   25610 Sl   /usr/libexec/gsd-printer
+ 361597   25610 Ssl  /usr/libexec/gvfs-mtp-volume-monitor
+ 361634   25610 Ssl  /usr/libexec/xdg-desktop-portal-gnome
+ 361636   25610 Ssl  /usr/libexec/gvfs-gphoto2-volume-monitor
+ 361655   25610 Ssl  /usr/libexec/gvfs-goa-volume-monitor
+ 361662   25610 Ssl  /usr/libexec/evolution-addressbook-factory
+ 361667   25610 Ssl  /usr/libexec/gvfs-afc-volume-monitor
+ 361709  361328 Sl   /usr/libexec/ibus-engine-simple
+ 361739   25610 Ssl  /usr/libexec/dconf-service
+ 361745   25610 Ssl  /usr/libexec/gvfsd-metadata
+ 361746  361204 Sl   /usr/libexec/gvfsd-trash --spawner :1.10 /org/gtk/gvfs/exec_spaw/0
+ 361770       2 S    [nvidia-drm/timeline-4b5]
+ 361813   25610 Ssl  /usr/libexec/xdg-desktop-portal-gtk
+ 362508   25610 Ss   /snap/snapd-desktop-integration/361/usr/bin/snapd-desktop-integration
+ 362567  362508 Sl   /snap/snapd-desktop-integration/361/usr/bin/snapd-desktop-integration
+ 362737   25610 SLsl /snap/code/244/usr/share/code/code --no-sandbox --force-user-env --ozone-platform=x11
+ 362739  362737 S    /snap/code/244/usr/share/code/code --type=zygote --no-zygote-sandbox --no-sandbox
+ 362740  362737 S    /snap/code/244/usr/share/code/code --type=zygote --no-sandbox
+ 362754   25610 Sl   /snap/code/244/usr/share/code/chrome_crashpad_handler --monitor-self-annotation=ptype=crashpad-handler --no-rate-limit --database=/home/bogdan/.config/Code/Crashpad --url=appcenter://code?aid=fba07a4d-84bd-4fc8-a125-9640fc8ce171&uid=fa5787aa-404a-457b-972b-7b13797fe482&iid=fa5787aa-404a-457b-972b-7b13797fe482&sid=fa5787aa-404a-457b-972b-7b13797fe482 --annotation=_companyName=Microsoft --annotation=_productName=VSCode --annotation=_version=1.123.0 --annotation=lsb-release=Ubuntu 26.04 LTS --annotation=plat=Linux --annotation=prod=Electron --annotation=ver=42.2.0 --initial-client-fd=48 --shared-client-connection
+ 362757  361240 R    /usr/bin/Xwayland :0 -rootless -noreset -accessx -core -auth /run/user/1000/.mutter-Xwaylandauth.NJZJQ3 -listenfd 4 -listenfd 5 -displayfd 6 -initfd 7 -byteswappedclients -enable-ei-portal
+ 362758       2 S    [nvidia-drm/timeline-4b6]
+ 362763   25610 Ssl  /usr/libexec/gsd-xsettings
+ 362769  361240 Sl   /usr/libexec/mutter-x11-frames
+ 362787   25610 Sl   /usr/libexec/ibus-x11
+ 362803  362737 Rl   /snap/code/244/usr/share/code/code --type=gpu-process --disable-gpu-sandbox --no-sandbox --ozone-platform=x11 --crashpad-handler-pid=362754 --enable-crash-reporter=50d320f8-9312-416a-a81b-ac83f9d1b720,no_channel --user-data-dir=/home/bogdan/.config/Code --gpu-preferences=UAAAAAAAAAAgAQAEAAAAAAAAAAAAAGAAAQAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAAAAAAAAAAAYAAAAAAAAABgAAAAAAAAAAQAAAAAAAAAIAAAAAAAAAAgAAAAAAAAA --shared-files --field-trial-handle=3,i,6561233610540983023,3343091456343645668,262144 --enable-features=DocumentPolicyIncludeJSCallStacksInCrashReports,EarlyEstablishGpuChannel,EstablishGpuChannelAsync --disable-features=CalculateNativeWinOcclusion,DropInputEventsWhilePaintHolding,LocalNetworkAccessChecks,ScreenAIOCREnabled,SpareRendererForSitePerProcess,TraceSiteInstanceGetProcessCreation --variations-seed-version --pseudonymization-salt-handle=7,i,5899365060511717246,11005039139688484542,4 --trace-process-track-uuid=3190708988185955192
+ 362805  362737 Sl   /snap/code/244/usr/share/code/code --type=utility --utility-sub-type=network.mojom.NetworkService --lang=en-US --service-sandbox-type=none --no-sandbox --crashpad-handler-pid=362754 --enable-crash-reporter=50d320f8-9312-416a-a81b-ac83f9d1b720,no_channel --user-data-dir=/home/bogdan/.config/Code --standard-schemes=vscode-webview,vscode-file --secure-schemes=vscode-webview,vscode-file,vscode-remote-resource --cors-schemes=vscode-webview,vscode-file,vscode-remote-resource --fetch-schemes=vscode-webview,vscode-file,vscode-remote-resource --service-worker-schemes=vscode-webview --code-cache-schemes=vscode-webview,vscode-file --shared-files=v8_context_snapshot_data:100 --field-trial-handle=3,i,6561233610540983023,3343091456343645668,262144 --enable-features=DocumentPolicyIncludeJSCallStacksInCrashReports,EarlyEstablishGpuChannel,EstablishGpuChannelAsync --disable-features=CalculateNativeWinOcclusion,DropInputEventsWhilePaintHolding,LocalNetworkAccessChecks,ScreenAIOCREnabled,SpareRendererForSitePerProcess,TraceSiteInstanceGetProcessCreation --variations-seed-version --pseudonymization-salt-handle=7,i,5899365060511717246,11005039139688484542,4 --trace-process-track-uuid=3190708989122997041
+ 362854       2 S    [nvidia-drm/timeline-4b7]
+ 362856  362740 Sl   /snap/code/244/usr/share/code/code --type=renderer --crashpad-handler-pid=362754 --enable-crash-reporter=50d320f8-9312-416a-a81b-ac83f9d1b720,no_channel --user-data-dir=/home/bogdan/.config/Code --standard-schemes=vscode-webview,vscode-file --secure-schemes=vscode-webview,vscode-file,vscode-remote-resource --cors-schemes=vscode-webview,vscode-file,vscode-remote-resource --fetch-schemes=vscode-webview,vscode-file,vscode-remote-resource --service-worker-schemes=vscode-webview --code-cache-schemes=vscode-webview,vscode-file --app-path=/snap/code/244/usr/share/code/resources/app --enable-sandbox --enable-blink-features=HighlightAPI --no-sandbox --max-active-webgl-contexts=32 --ozone-platform=x11 --disable-blink-features=FontMatchingCTMigration,StandardizedBrowserZoom, --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=4 --time-ticks-at-unix-epoch=-1780664963832010 --launch-time-ticks=65634830398 --shared-files=v8_context_snapshot_data:100 --field-trial-handle=3,i,6561233610540983023,3343091456343645668,262144 --enable-features=DocumentPolicyIncludeJSCallStacksInCrashReports,EarlyEstablishGpuChannel,EstablishGpuChannelAsync --disable-features=CalculateNativeWinOcclusion,DropInputEventsWhilePaintHolding,LocalNetworkAccessChecks,ScreenAIOCREnabled,SpareRendererForSitePerProcess,TraceSiteInstanceGetProcessCreation --variations-seed-version --pseudonymization-salt-handle=7,i,5899365060511717246,11005039139688484542,4 --trace-process-track-uuid=3190708990060038890 --vscode-window-config=vscode:c89e4873-48c3-4df7-a4d0-57f05a223510
+ 362980  362737 Sl   /snap/code/244/usr/share/code/code --type=utility --utility-sub-type=node.mojom.NodeService --lang=en-US --service-sandbox-type=none --no-sandbox --dns-result-order=ipv4first --experimental-network-inspection --inspect-port=0 --crashpad-handler-pid=362754 --enable-crash-reporter=50d320f8-9312-416a-a81b-ac83f9d1b720,no_channel --user-data-dir=/home/bogdan/.config/Code --standard-schemes=vscode-webview,vscode-file --secure-schemes=vscode-webview,vscode-file,vscode-remote-resource --cors-schemes=vscode-webview,vscode-file,vscode-remote-resource --fetch-schemes=vscode-webview,vscode-file,vscode-remote-resource --service-worker-schemes=vscode-webview --code-cache-schemes=vscode-webview,vscode-file --shared-files=v8_context_snapshot_data:100 --field-trial-handle=3,i,6561233610540983023,3343091456343645668,262144 --enable-features=DocumentPolicyIncludeJSCallStacksInCrashReports,EarlyEstablishGpuChannel,EstablishGpuChannelAsync --disable-features=CalculateNativeWinOcclusion,DropInputEventsWhilePaintHolding,LocalNetworkAccessChecks,ScreenAIOCREnabled,SpareRendererForSitePerProcess,TraceSiteInstanceGetProcessCreation --variations-seed-version --pseudonymization-salt-handle=7,i,5899365060511717246,11005039139688484542,4 --trace-process-track-uuid=3190708990997080739
+ 363016  362740 Sl   /snap/code/244/usr/share/code/code --type=renderer --crashpad-handler-pid=362754 --enable-crash-reporter=50d320f8-9312-416a-a81b-ac83f9d1b720,no_channel --user-data-dir=/home/bogdan/.config/Code --standard-schemes=vscode-webview,vscode-file --secure-schemes=vscode-webview,vscode-file,vscode-remote-resource --cors-schemes=vscode-webview,vscode-file,vscode-remote-resource --fetch-schemes=vscode-webview,vscode-file,vscode-remote-resource --service-worker-schemes=vscode-webview --code-cache-schemes=vscode-webview,vscode-file --app-path=/snap/code/244/usr/share/code/resources/app --enable-sandbox --enable-blink-features=HighlightAPI --no-sandbox --max-active-webgl-contexts=32 --ozone-platform=x11 --disable-blink-features=FontMatchingCTMigration,StandardizedBrowserZoom, --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=6 --time-ticks-at-unix-epoch=-1780664963832010 --launch-time-ticks=65635423036 --shared-files=v8_context_snapshot_data:100 --field-trial-handle=3,i,6561233610540983023,3343091456343645668,262144 --enable-features=DocumentPolicyIncludeJSCallStacksInCrashReports,EarlyEstablishGpuChannel,EstablishGpuChannelAsync --disable-features=CalculateNativeWinOcclusion,DropInputEventsWhilePaintHolding,LocalNetworkAccessChecks,ScreenAIOCREnabled,SpareRendererForSitePerProcess,TraceSiteInstanceGetProcessCreation --variations-seed-version --pseudonymization-salt-handle=7,i,5899365060511717246,11005039139688484542,4 --trace-process-track-uuid=3190708991934122588 --vscode-window-config=vscode:c89e4873-48c3-4df7-a4d0-57f05a223510
+ 363022  362737 Sl   /snap/code/244/usr/share/code/code --type=utility --utility-sub-type=node.mojom.NodeService --lang=en-US --service-sandbox-type=none --no-sandbox --crashpad-handler-pid=362754 --enable-crash-reporter=50d320f8-9312-416a-a81b-ac83f9d1b720,no_channel --user-data-dir=/home/bogdan/.config/Code --standard-schemes=vscode-webview,vscode-file --secure-schemes=vscode-webview,vscode-file,vscode-remote-resource --cors-schemes=vscode-webview,vscode-file,vscode-remote-resource --fetch-schemes=vscode-webview,vscode-file,vscode-remote-resource --service-worker-schemes=vscode-webview --code-cache-schemes=vscode-webview,vscode-file --shared-files=v8_context_snapshot_data:100 --field-trial-handle=3,i,6561233610540983023,3343091456343645668,262144 --enable-features=DocumentPolicyIncludeJSCallStacksInCrashReports,EarlyEstablishGpuChannel,EstablishGpuChannelAsync --disable-features=CalculateNativeWinOcclusion,DropInputEventsWhilePaintHolding,LocalNetworkAccessChecks,ScreenAIOCREnabled,SpareRendererForSitePerProcess,TraceSiteInstanceGetProcessCreation --variations-seed-version --pseudonymization-salt-handle=7,i,5899365060511717246,11005039139688484542,4 --trace-process-track-uuid=3190708992871164437
+ 363023  362737 Sl   /snap/code/244/usr/share/code/code --type=utility --utility-sub-type=node.mojom.NodeService --lang=en-US --service-sandbox-type=none --no-sandbox --crashpad-handler-pid=362754 --enable-crash-reporter=50d320f8-9312-416a-a81b-ac83f9d1b720,no_channel --user-data-dir=/home/bogdan/.config/Code --standard-schemes=vscode-webview,vscode-file --secure-schemes=vscode-webview,vscode-file,vscode-remote-resource --cors-schemes=vscode-webview,vscode-file,vscode-remote-resource --fetch-schemes=vscode-webview,vscode-file,vscode-remote-resource --service-worker-schemes=vscode-webview --code-cache-schemes=vscode-webview,vscode-file --shared-files=v8_context_snapshot_data:100 --field-trial-handle=3,i,6561233610540983023,3343091456343645668,262144 --enable-features=DocumentPolicyIncludeJSCallStacksInCrashReports,EarlyEstablishGpuChannel,EstablishGpuChannelAsync --disable-features=CalculateNativeWinOcclusion,DropInputEventsWhilePaintHolding,LocalNetworkAccessChecks,ScreenAIOCREnabled,SpareRendererForSitePerProcess,TraceSiteInstanceGetProcessCreation --variations-seed-version --pseudonymization-salt-handle=7,i,5899365060511717246,11005039139688484542,4 --trace-process-track-uuid=3190708993808206286
+ 363070  362980 Sl   /home/bogdan/.vscode/extensions/openai.chatgpt-26.602.40724-linux-x64/bin/linux-x86_64/codex app-server --analytics-default-enabled
+ 366435       2 I    [kworker/9:6-xfs-conv/sda2]
+ 366440       2 I    [kworker/9:11-xfs-conv/sda2]
+ 367588       2 I    [kworker/22:1-mm_percpu_wq]
+ 368034       2 I    [kworker/6:1]
+ 368072       2 I    [kworker/4:0-events]
+ 368145       2 I    [kworker/0:0]
+ 368216       2 I    [kworker/18:1-events]
+ 369383       2 I    [kworker/17:0]
+ 371106       2 I    [kworker/u96:1-flush-8:0]
+ 371414  363070 Ss   python3 examples/sentai_runtime/experiments/s233_arm_emulator_gazebo_flow_whycon/run_s233.py --camera-forward-fps 15 --camera-out-width 640 --camera-out-height 480 --camera-out-format rgb888
+ 372765   25610 S    /bin/sh /usr/bin/distrobox enter crazysim-garden -- bash /home/bogdan/work/coralmicro/sim/scripts/launch_hybrid_cf2.sh sentai_whycon_small
+ 372768  372765 Sl   podman exec --interactive --detach-keys= --user=bogdan --workdir=/home/bogdan/work/coralmicro --env=PWD=/home/bogdan/work/coralmicro --env=CONTAINER_ID=crazysim-garden --env=DISTROBOX_ENTER_PATH=/usr/bin/distrobox-enter --env=GJS_DEBUG_TOPICS=JS ERROR;JS LOG --env=LESSOPEN=| /usr/bin/lesspipe %s --env=VSCODE_CWD=/home/bogdan --env=VSCODE_ESM_ENTRYPOINT=vs/workbench/api/node/extensionHostProcess --env=CODEX_CI=1 --env=USER=bogdan --env=SNAP_COMMON=/var/snap/code/common --env=CODEX_INTERNAL_ORIGINATOR_OVERRIDE=codex_vscode --env=FONTCONFIG_PATH=/etc/fonts --env=GIO_MODULE_DIR=/home/bogdan/snap/code/common/.cache/gio-modules --env=VSCODE_HANDLES_UNCAUGHT_ERRORS=true --env=XDG_SESSION_TYPE=wayland --env=DEBUG=release --env=SNAP_UID=1000 --env=SHLVL=0 --env=CHROME_DESKTOP=code.desktop --env=SNAP_LIBRARY_PATH=/var/lib/snapd/lib/gl:/var/lib/snapd/lib/gl32 --env=DESKTOP_SESSION=ubuntu --env=SNAP_USER_DATA=/home/bogdan/snap/code/244 --env=GTK_PATH=/snap/code/244/usr/lib/x86_64-linux-gnu/gtk-3.0 --env=VSCODE_IPC_HOOK=/run/user/1000/vscode-4744f262-1.12-main.sock --env=IM_CONFIG_ENTRY=profile --env=GTK_IM_MODULE_FILE=/home/bogdan/snap/code/common/.cache/immodules/immodules.cache --env=GIO_LAUNCHED_DESKTOP_FILE=/var/lib/snapd/desktop/applications/code_code.desktop --env=GTK_MODULES=gail:atk-bridge --env=PAGER=cat --env=MANAGERPID=25610 --env=LC_CTYPE=C.UTF-8 --env=SYSTEMD_EXEC_PID=361240 --env=NO_COLOR=1 --env=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus --env=SNAP_REVISION=244 --env=COLORTERM= --env=GIO_LAUNCHED_DESKTOP_FILE_PID=362690 --env=VSCODE_CRASH_REPORTER_PROCESS_TYPE=extensionHost --env=DEBUGINFOD_URLS=https://debuginfod.ubuntu.com  --env=WAYLAND_DISPLAY=wayland-0 --env=LOGNAME=bogdan --env=SNAP_CONTEXT=OlaD_IPpwsxlBqBDSJS87RbBE3elS7P1-d1N4aDZ8i-0yFVK8Xxn --env=MANAGERPIDFDID=90550 --env=JOURNAL_STREAM=10:836886 --env=MEMORY_PRESSURE_WATCH=/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/session.slice/org.gnome.Shell@ubuntu.service/memory.pressure --env=XDG_SESSION_CLASS=user --env=SNAP_VERSION=6a44c352 --env=RUST_LOG=warn --env=USERNAME=bogdan --env=TERM=dumb --env=GNOME_DESKTOP_SESSION_ID=this-is-deprecated --env=SNAP_INSTANCE_NAME=code --env=FC_FONTATIONS=1 --env=GTK_EXE_PREFIX=/snap/code/244/usr --env=INVOCATION_ID=849026a6b92245f6ad475cabda52e9c6 --env=XDG_MENU_PREFIX=gnome- --env=GNOME_SETUP_DISPLAY=unix:/tmp/.X11-unix/X1 --env=SNAP_DATA=/var/snap/code/244 --env=XDG_RUNTIME_DIR=/run/user/1000 --env=GDK_BACKEND=x11 --env=DISPLAY=:0 --env=LOCPATH=/snap/code/244/usr/lib/locale --env=LANG=en_US.UTF-8 --env=XDG_CURRENT_DESKTOP=ubuntu:GNOME --env=XDG_DATA_HOME=/home/bogdan/snap/code/244/.local/share --env=XMODIFIERS=@im=ibus --env=GH_PAGER=cat --env=XDG_SESSION_DESKTOP=ubuntu --env=XAUTHORITY=/run/user/1000/.mutter-Xwaylandauth.NJZJQ3 --env=LS_COLORS=rs=0:di=01;34:ln=01;36:mh=00:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:mi=00:su=37;41:sg=30;43:ca=00:tw=30;42:ow=34;42:st=37;44:ex=01;32:*.tar=01;31:*.tgz=01;31:*.arc=01;31:*.arj=01;31:*.taz=01;31:*.lha=01;31:*.lz4=01;31:*.lzh=01;31:*.lzma=01;31:*.tlz=01;31:*.txz=01;31:*.tzo=01;31:*.t7z=01;31:*.zip=01;31:*.z=01;31:*.dz=01;31:*.gz=01;31:*.lrz=01;31:*.lz=01;31:*.lzo=01;31:*.xz=01;31:*.zst=01;31:*.tzst=01;31:*.bz2=01;31:*.bz=01;31:*.tbz=01;31:*.tbz2=01;31:*.tz=01;31:*.deb=01;31:*.rpm=01;31:*.jar=01;31:*.war=01;31:*.ear=01;31:*.sar=01;31:*.rar=01;31:*.alz=01;31:*.ace=01;31:*.zoo=01;31:*.cpio=01;31:*.7z=01;31:*.rz=01;31:*.cab=01;31:*.wim=01;31:*.swm=01;31:*.dwm=01;31:*.esd=01;31:*.avif=01;35:*.jpg=01;35:*.jpeg=01;35:*.mjpg=01;35:*.mjpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.svg=01;35:*.svgz=01;35:*.mng=01;35:*.pcx=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.m2v=01;35:*.mkv=01;35:*.webm=01;35:*.webp=01;35:*.ogm=01;35:*.mp4=01;35:*.m4v=01;35:*.mp4v=01;35:*.vob=01;35:*.qt=01;35:*.nuv=01;35:*.wmv=01;35:*.asf=01;35:*.rm=01;35:*.rmvb=01;35:*.flc=01;35:*.avi=01;35:*.fli=01;35:*.flv=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.yuv=01;35:*.cgm=01;35:*.emf=01;35:*.ogv=01;35:*.ogx=01;35:*.aac=00;36:*.au=00;36:*.flac=00;36:*.m4a=00;36:*.mid=00;36:*.midi=00;36:*.mka=00;36:*.mp3=00;36:*.mpc=00;36:*.ogg=00;36:*.ra=00;36:*.wav=00;36:*.oga=00;36:*.opus=00;36:*.spx=00;36:*.xspf=00;36:*~=00;90:*#=00;90:*.bak=00;90:*.old=00;90:*.orig=00;90:*.part=00;90:*.rej=00;90:*.swp=00;90:*.tmp=00;90:*.dpkg-dist=00;90:*.dpkg-old=00;90:*.ucf-dist=00;90:*.ucf-new=00;90:*.ucf-old=00;90:*.rpmnew=00;90:*.rpmorig=00;90:*.rpmsave=00;90: --env=SNAP_USER_COMMON=/home/bogdan/snap/code/common --env=SSH_AUTH_SOCK=/run/user/1000/gcr/ssh --env=GSETTINGS_SCHEMA_DIR=/home/bogdan/snap/code/244/.local/share/glib-2.0/schemas --env=SNAP_ARCH=amd64 --env=SNAP_COOKIE=OlaD_IPpwsxlBqBDSJS87RbBE3elS7P1-d1N4aDZ8i-0yFVK8Xxn --env=GDK_PIXBUF_MODULEDIR=/snap/code/244/usr/lib/x86_64-linux-gnu/gdk-pixbuf-2.0/2.10.0/loaders --env=QT_ACCESSIBILITY=1 --env=ELECTRON_RUN_AS_NODE=1 --env=GDMSESSION=ubuntu --env=LESSCLOSE=/usr/bin/lesspipe %s %s --env=SNAP_NAME=code --env=FONTCONFIG_FILE=/etc/fonts/fonts.conf --env=CODEX_THREAD_ID=019e9846-8604-7c32-a12e-02d47b8a73c6 --env=GDK_PIXBUF_MODULE_FILE=/home/bogdan/snap/code/common/.cache/gdk-pixbuf-loaders.cache --env=GPG_AGENT_INFO=/run/user/1000/gnupg/S.gpg-agent:0:1 --env=GJS_DEBUG_OUTPUT=stderr --env=SNAP_LAUNCHER_ARCH_TRIPLET=x86_64-linux-gnu --env=GIT_PAGER=cat --env=QT_IM_MODULE=ibus --env=VSCODE_CLI=1 --env=LC_ALL=C.UTF-8 --env=SNAP_REAL_HOME=/home/bogdan --env=VSCODE_CODE_CACHE_PATH=/home/bogdan/.config/Code/CachedData/6a44c352bd24569c417e530095901b649960f9f8 --env=XDG_SESSION_EXTRA_DEVICE_ACCESS=render:accel --env=SNAP_EUID=1000 --env=SNAP=/snap/code/244 --env=QT_IM_MODULES=wayland;ibus --env=MEMORY_PRESSURE_WRITE=c29tZSAyMDAwMDAgMjAwMDAwMAA= --env=ELECTRON_NO_ATTACH_CONSOLE=1 --env=VSCODE_PID=362737 --env=PATH=/home/bogdan/.local/bin:/home/bogdan/.codex/tmp/arg0/codex-arg0BWG6q5:/home/bogdan/.local/bin:/home/bogdan/.local/bin:/home/bogdan/.local/bin:/home/bogdan/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin:/home/bogdan/.vscode/extensions/openai.chatgpt-26.602.40724-linux-x64/bin/linux-x86_64:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin --env=XDG_DATA_DIRS=/home/bogdan/snap/code/244/.local/share:/home/bogdan/snap/code/244:/snap/code/244/usr/share:/usr/share/ubuntu:/usr/share/gnome:/usr/local/share/:/usr/share/:/var/lib/snapd/desktop:/usr/local/share:/usr/share --env=XDG_CACHE_HOME=/home/bogdan/.cache --env=XDG_CONFIG_HOME=/home/bogdan/.config --env=XDG_DATA_HOME=/home/bogdan/.local/share --env=XDG_STATE_HOME=/home/bogdan/.local/state --env=XDG_CONFIG_DIRS=/etc/xdg/xdg-ubuntu:/etc/xdg crazysim-garden bash /home/bogdan/work/coralmicro/sim/scripts/launch_hybrid_cf2.sh sentai_whycon_small
+ 372866   25610 Ss   /usr/bin/conmon --api-version 1 -c 4975d34302bf31f94307a823a1b0c770898dd84739ace61fb876fa8dc6a103ab -u 9866c38cf2ebbf001e643fb8c733d6d6ad7aca823fe79b189c166ae1d4945f82 -r /usr/bin/crun -b /home/bogdan/snap/code/244/.local/share/containers/storage/overlay-containers/4975d34302bf31f94307a823a1b0c770898dd84739ace61fb876fa8dc6a103ab/userdata/9866c38cf2ebbf001e643fb8c733d6d6ad7aca823fe79b189c166ae1d4945f82 -p /home/bogdan/snap/code/244/.local/share/containers/storage/overlay-containers/4975d34302bf31f94307a823a1b0c770898dd84739ace61fb876fa8dc6a103ab/userdata/9866c38cf2ebbf001e643fb8c733d6d6ad7aca823fe79b189c166ae1d4945f82/exec_pid -n crazysim-garden --exit-dir /home/bogdan/snap/code/244/.local/share/containers/storage/overlay-containers/4975d34302bf31f94307a823a1b0c770898dd84739ace61fb876fa8dc6a103ab/userdata/9866c38cf2ebbf001e643fb8c733d6d6ad7aca823fe79b189c166ae1d4945f82/exit --persist-dir /home/bogdan/snap/code/244/.local/share/containers/storage/overlay-containers/4975d34302bf31f94307a823a1b0c770898dd84739ace61fb876fa8dc6a103ab/userdata/9866c38cf2ebbf001e643fb8c733d6d6ad7aca823fe79b189c166ae1d4945f82/persist/4975d34302bf31f94307a823a1b0c770898dd84739ace61fb876fa8dc6a103ab --full-attach -s -l none --log-level warning --syslog --runtime-arg --log-format=json --runtime-arg --log --runtime-arg=/home/bogdan/snap/code/244/.local/share/containers/storage/overlay-containers/4975d34302bf31f94307a823a1b0c770898dd84739ace61fb876fa8dc6a103ab/userdata/9866c38cf2ebbf001e643fb8c733d6d6ad7aca823fe79b189c166ae1d4945f82/oci-log -i -e --exec-attach --exec-process-spec /home/bogdan/snap/code/244/.local/share/containers/storage/overlay-containers/4975d34302bf31f94307a823a1b0c770898dd84739ace61fb876fa8dc6a103ab/userdata/9866c38cf2ebbf001e643fb8c733d6d6ad7aca823fe79b189c166ae1d4945f82/exec-process-1948226611 --exit-command /usr/bin/podman --exit-command-arg --root --exit-command-arg /home/bogdan/snap/code/244/.local/share/containers/storage --exit-command-arg --runroot --exit-command-arg /run/user/1000/containers --exit-command-arg --log-level --exit-command-arg warning --exit-command-arg --cgroup-manager --exit-command-arg systemd --exit-command-arg --tmpdir --exit-command-arg /run/user/1000/libpod/tmp --exit-command-arg --network-config-dir --exit-command-arg  --exit-command-arg --network-backend --exit-command-arg netavark --exit-command-arg --volumepath --exit-command-arg /home/bogdan/snap/code/244/.local/share/containers/storage/volumes --exit-command-arg --db-backend --exit-command-arg sqlite --exit-command-arg --transient-store=false --exit-command-arg --hooks-dir --exit-command-arg /usr/share/containers/oci/hooks.d --exit-command-arg --runtime --exit-command-arg crun --exit-command-arg --storage-driver --exit-command-arg overlay --exit-command-arg --events-backend --exit-command-arg journald --exit-command-arg container --exit-command-arg cleanup --exit-command-arg --stopped-only --exit-command-arg --exec --exit-command-arg 9866c38cf2ebbf001e643fb8c733d6d6ad7aca823fe79b189c166ae1d4945f82 --exit-command-arg 4975d34302bf31f94307a823a1b0c770898dd84739ace61fb876fa8dc6a103ab
+ 372869  372866 Ss   bash /home/bogdan/work/coralmicro/sim/scripts/launch_hybrid_cf2.sh sentai_whycon_small
+ 372873  372869 S    Xvfb :99 -screen 0 1024x768x24
+ 373079  372869 Sl   gz sim -s -r -v 3 /home/bogdan/work/crazyflie/CrazySim/crazyflie-firmware/tools/crazyflie-simulation/simulator_files/gazebo/worlds/sentai_whycon_small.sdf
+ 373261  372869 Sl   /home/bogdan/work/crazyflie/CrazySim/crazyflie-firmware/sitl_make/build/cf2 19950
+ 373262  372869 Sl   gz sim -g --gui-config /home/bogdan/work/coralmicro/sim/gazebo/sentai_gui.config
+ 373685  371414 Ssl  /usr/bin/python3 emu/host/sentai_gazebo_uds_to_tcp_bridge.py --uds /tmp/sentai_emu_cam.sock --tcp-host 127.0.0.1 --tcp-port 30233 --max-fps 15.0 --out-width 640 --out-height 480 --out-format rgb888
+ 373687  371414 Ss   /bin/sh /usr/bin/distrobox enter crazysim-garden -- /home/bogdan/work/coralmicro/build-sim/sim/gz_to_uds_bridge --topic /downward_cam/image --in-sock /tmp/sentai_emu_cam.sock --out-sock /tmp/sentai_emu_flow_out.sock
+ 373690  373687 Sl   podman exec --interactive --detach-keys= --user=bogdan --workdir=/home/bogdan/work/coralmicro --env=PWD=/home/bogdan/work/coralmicro --env=CONTAINER_ID=crazysim-garden --env=DISTROBOX_ENTER_PATH=/usr/bin/distrobox-enter --env=GJS_DEBUG_TOPICS=JS ERROR;JS LOG --env=LESSOPEN=| /usr/bin/lesspipe %s --env=VSCODE_CWD=/home/bogdan --env=VSCODE_ESM_ENTRYPOINT=vs/workbench/api/node/extensionHostProcess --env=CODEX_CI=1 --env=USER=bogdan --env=SNAP_COMMON=/var/snap/code/common --env=CODEX_INTERNAL_ORIGINATOR_OVERRIDE=codex_vscode --env=FONTCONFIG_PATH=/etc/fonts --env=GIO_MODULE_DIR=/home/bogdan/snap/code/common/.cache/gio-modules --env=VSCODE_HANDLES_UNCAUGHT_ERRORS=true --env=XDG_SESSION_TYPE=wayland --env=DEBUG=release --env=SNAP_UID=1000 --env=SHLVL=0 --env=CHROME_DESKTOP=code.desktop --env=SNAP_LIBRARY_PATH=/var/lib/snapd/lib/gl:/var/lib/snapd/lib/gl32 --env=DESKTOP_SESSION=ubuntu --env=SNAP_USER_DATA=/home/bogdan/snap/code/244 --env=GTK_PATH=/snap/code/244/usr/lib/x86_64-linux-gnu/gtk-3.0 --env=VSCODE_IPC_HOOK=/run/user/1000/vscode-4744f262-1.12-main.sock --env=IM_CONFIG_ENTRY=profile --env=GTK_IM_MODULE_FILE=/home/bogdan/snap/code/common/.cache/immodules/immodules.cache --env=GIO_LAUNCHED_DESKTOP_FILE=/var/lib/snapd/desktop/applications/code_code.desktop --env=GTK_MODULES=gail:atk-bridge --env=PAGER=cat --env=MANAGERPID=25610 --env=LC_CTYPE=C.UTF-8 --env=SYSTEMD_EXEC_PID=361240 --env=NO_COLOR=1 --env=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus --env=SNAP_REVISION=244 --env=COLORTERM= --env=GIO_LAUNCHED_DESKTOP_FILE_PID=362690 --env=VSCODE_CRASH_REPORTER_PROCESS_TYPE=extensionHost --env=DEBUGINFOD_URLS=https://debuginfod.ubuntu.com  --env=WAYLAND_DISPLAY=wayland-0 --env=LOGNAME=bogdan --env=SNAP_CONTEXT=OlaD_IPpwsxlBqBDSJS87RbBE3elS7P1-d1N4aDZ8i-0yFVK8Xxn --env=MANAGERPIDFDID=90550 --env=JOURNAL_STREAM=10:836886 --env=MEMORY_PRESSURE_WATCH=/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/session.slice/org.gnome.Shell@ubuntu.service/memory.pressure --env=XDG_SESSION_CLASS=user --env=SNAP_VERSION=6a44c352 --env=RUST_LOG=warn --env=USERNAME=bogdan --env=TERM=dumb --env=GNOME_DESKTOP_SESSION_ID=this-is-deprecated --env=SNAP_INSTANCE_NAME=code --env=FC_FONTATIONS=1 --env=GTK_EXE_PREFIX=/snap/code/244/usr --env=INVOCATION_ID=849026a6b92245f6ad475cabda52e9c6 --env=XDG_MENU_PREFIX=gnome- --env=GNOME_SETUP_DISPLAY=unix:/tmp/.X11-unix/X1 --env=SNAP_DATA=/var/snap/code/244 --env=XDG_RUNTIME_DIR=/run/user/1000 --env=GDK_BACKEND=x11 --env=DISPLAY=:0 --env=LOCPATH=/snap/code/244/usr/lib/locale --env=LANG=en_US.UTF-8 --env=XDG_CURRENT_DESKTOP=ubuntu:GNOME --env=XDG_DATA_HOME=/home/bogdan/snap/code/244/.local/share --env=XMODIFIERS=@im=ibus --env=GH_PAGER=cat --env=XDG_SESSION_DESKTOP=ubuntu --env=XAUTHORITY=/run/user/1000/.mutter-Xwaylandauth.NJZJQ3 --env=LS_COLORS=rs=0:di=01;34:ln=01;36:mh=00:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:mi=00:su=37;41:sg=30;43:ca=00:tw=30;42:ow=34;42:st=37;44:ex=01;32:*.tar=01;31:*.tgz=01;31:*.arc=01;31:*.arj=01;31:*.taz=01;31:*.lha=01;31:*.lz4=01;31:*.lzh=01;31:*.lzma=01;31:*.tlz=01;31:*.txz=01;31:*.tzo=01;31:*.t7z=01;31:*.zip=01;31:*.z=01;31:*.dz=01;31:*.gz=01;31:*.lrz=01;31:*.lz=01;31:*.lzo=01;31:*.xz=01;31:*.zst=01;31:*.tzst=01;31:*.bz2=01;31:*.bz=01;31:*.tbz=01;31:*.tbz2=01;31:*.tz=01;31:*.deb=01;31:*.rpm=01;31:*.jar=01;31:*.war=01;31:*.ear=01;31:*.sar=01;31:*.rar=01;31:*.alz=01;31:*.ace=01;31:*.zoo=01;31:*.cpio=01;31:*.7z=01;31:*.rz=01;31:*.cab=01;31:*.wim=01;31:*.swm=01;31:*.dwm=01;31:*.esd=01;31:*.avif=01;35:*.jpg=01;35:*.jpeg=01;35:*.mjpg=01;35:*.mjpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.svg=01;35:*.svgz=01;35:*.mng=01;35:*.pcx=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.m2v=01;35:*.mkv=01;35:*.webm=01;35:*.webp=01;35:*.ogm=01;35:*.mp4=01;35:*.m4v=01;35:*.mp4v=01;35:*.vob=01;35:*.qt=01;35:*.nuv=01;35:*.wmv=01;35:*.asf=01;35:*.rm=01;35:*.rmvb=01;35:*.flc=01;35:*.avi=01;35:*.fli=01;35:*.flv=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.yuv=01;35:*.cgm=01;35:*.emf=01;35:*.ogv=01;35:*.ogx=01;35:*.aac=00;36:*.au=00;36:*.flac=00;36:*.m4a=00;36:*.mid=00;36:*.midi=00;36:*.mka=00;36:*.mp3=00;36:*.mpc=00;36:*.ogg=00;36:*.ra=00;36:*.wav=00;36:*.oga=00;36:*.opus=00;36:*.spx=00;36:*.xspf=00;36:*~=00;90:*#=00;90:*.bak=00;90:*.old=00;90:*.orig=00;90:*.part=00;90:*.rej=00;90:*.swp=00;90:*.tmp=00;90:*.dpkg-dist=00;90:*.dpkg-old=00;90:*.ucf-dist=00;90:*.ucf-new=00;90:*.ucf-old=00;90:*.rpmnew=00;90:*.rpmorig=00;90:*.rpmsave=00;90: --env=SNAP_USER_COMMON=/home/bogdan/snap/code/common --env=SSH_AUTH_SOCK=/run/user/1000/gcr/ssh --env=GSETTINGS_SCHEMA_DIR=/home/bogdan/snap/code/244/.local/share/glib-2.0/schemas --env=SNAP_ARCH=amd64 --env=SNAP_COOKIE=OlaD_IPpwsxlBqBDSJS87RbBE3elS7P1-d1N4aDZ8i-0yFVK8Xxn --env=GDK_PIXBUF_MODULEDIR=/snap/code/244/usr/lib/x86_64-linux-gnu/gdk-pixbuf-2.0/2.10.0/loaders --env=QT_ACCESSIBILITY=1 --env=ELECTRON_RUN_AS_NODE=1 --env=GDMSESSION=ubuntu --env=LESSCLOSE=/usr/bin/lesspipe %s %s --env=FONTCONFIG_FILE=/etc/fonts/fonts.conf --env=SNAP_NAME=code --env=CODEX_THREAD_ID=019e9846-8604-7c32-a12e-02d47b8a73c6 --env=GDK_PIXBUF_MODULE_FILE=/home/bogdan/snap/code/common/.cache/gdk-pixbuf-loaders.cache --env=GPG_AGENT_INFO=/run/user/1000/gnupg/S.gpg-agent:0:1 --env=GJS_DEBUG_OUTPUT=stderr --env=SNAP_LAUNCHER_ARCH_TRIPLET=x86_64-linux-gnu --env=GIT_PAGER=cat --env=QT_IM_MODULE=ibus --env=VSCODE_CLI=1 --env=LC_ALL=C.UTF-8 --env=SNAP_REAL_HOME=/home/bogdan --env=VSCODE_CODE_CACHE_PATH=/home/bogdan/.config/Code/CachedData/6a44c352bd24569c417e530095901b649960f9f8 --env=XDG_SESSION_EXTRA_DEVICE_ACCESS=render:accel --env=SNAP_EUID=1000 --env=SNAP=/snap/code/244 --env=QT_IM_MODULES=wayland;ibus --env=MEMORY_PRESSURE_WRITE=c29tZSAyMDAwMDAgMjAwMDAwMAA= --env=ELECTRON_NO_ATTACH_CONSOLE=1 --env=VSCODE_PID=362737 --env=PATH=/home/bogdan/.local/bin:/home/bogdan/.codex/tmp/arg0/codex-arg0BWG6q5:/home/bogdan/.local/bin:/home/bogdan/.local/bin:/home/bogdan/.local/bin:/home/bogdan/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin:/home/bogdan/.vscode/extensions/openai.chatgpt-26.602.40724-linux-x64/bin/linux-x86_64:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin --env=XDG_DATA_DIRS=/home/bogdan/snap/code/244/.local/share:/home/bogdan/snap/code/244:/snap/code/244/usr/share:/usr/share/ubuntu:/usr/share/gnome:/usr/local/share/:/usr/share/:/var/lib/snapd/desktop:/usr/local/share:/usr/share --env=XDG_CACHE_HOME=/home/bogdan/.cache --env=XDG_CONFIG_HOME=/home/bogdan/.config --env=XDG_DATA_HOME=/home/bogdan/.local/share --env=XDG_STATE_HOME=/home/bogdan/.local/state --env=XDG_CONFIG_DIRS=/etc/xdg/xdg-ubuntu:/etc/xdg crazysim-garden /home/bogdan/work/coralmicro/build-sim/sim/gz_to_uds_bridge --topic /downward_cam/image --in-sock /tmp/sentai_emu_cam.sock --out-sock /tmp/sentai_emu_flow_out.sock
+ 373768   25610 Ss   /usr/bin/conmon --api-version 1 -c 4975d34302bf31f94307a823a1b0c770898dd84739ace61fb876fa8dc6a103ab -u 57c482301bf8d7f9e38e996af2d0ab4ca820c7902834f5ed03436094092ca747 -r /usr/bin/crun -b /home/bogdan/snap/code/244/.local/share/containers/storage/overlay-containers/4975d34302bf31f94307a823a1b0c770898dd84739ace61fb876fa8dc6a103ab/userdata/57c482301bf8d7f9e38e996af2d0ab4ca820c7902834f5ed03436094092ca747 -p /home/bogdan/snap/code/244/.local/share/containers/storage/overlay-containers/4975d34302bf31f94307a823a1b0c770898dd84739ace61fb876fa8dc6a103ab/userdata/57c482301bf8d7f9e38e996af2d0ab4ca820c7902834f5ed03436094092ca747/exec_pid -n crazysim-garden --exit-dir /home/bogdan/snap/code/244/.local/share/containers/storage/overlay-containers/4975d34302bf31f94307a823a1b0c770898dd84739ace61fb876fa8dc6a103ab/userdata/57c482301bf8d7f9e38e996af2d0ab4ca820c7902834f5ed03436094092ca747/exit --persist-dir /home/bogdan/snap/code/244/.local/share/containers/storage/overlay-containers/4975d34302bf31f94307a823a1b0c770898dd84739ace61fb876fa8dc6a103ab/userdata/57c482301bf8d7f9e38e996af2d0ab4ca820c7902834f5ed03436094092ca747/persist/4975d34302bf31f94307a823a1b0c770898dd84739ace61fb876fa8dc6a103ab --full-attach -s -l none --log-level warning --syslog --runtime-arg --log-format=json --runtime-arg --log --runtime-arg=/home/bogdan/snap/code/244/.local/share/containers/storage/overlay-containers/4975d34302bf31f94307a823a1b0c770898dd84739ace61fb876fa8dc6a103ab/userdata/57c482301bf8d7f9e38e996af2d0ab4ca820c7902834f5ed03436094092ca747/oci-log -i -e --exec-attach --exec-process-spec /home/bogdan/snap/code/244/.local/share/containers/storage/overlay-containers/4975d34302bf31f94307a823a1b0c770898dd84739ace61fb876fa8dc6a103ab/userdata/57c482301bf8d7f9e38e996af2d0ab4ca820c7902834f5ed03436094092ca747/exec-process-482681646 --exit-command /usr/bin/podman --exit-command-arg --root --exit-command-arg /home/bogdan/snap/code/244/.local/share/containers/storage --exit-command-arg --runroot --exit-command-arg /run/user/1000/containers --exit-command-arg --log-level --exit-command-arg warning --exit-command-arg --cgroup-manager --exit-command-arg systemd --exit-command-arg --tmpdir --exit-command-arg /run/user/1000/libpod/tmp --exit-command-arg --network-config-dir --exit-command-arg  --exit-command-arg --network-backend --exit-command-arg netavark --exit-command-arg --volumepath --exit-command-arg /home/bogdan/snap/code/244/.local/share/containers/storage/volumes --exit-command-arg --db-backend --exit-command-arg sqlite --exit-command-arg --transient-store=false --exit-command-arg --hooks-dir --exit-command-arg /usr/share/containers/oci/hooks.d --exit-command-arg --runtime --exit-command-arg crun --exit-command-arg --storage-driver --exit-command-arg overlay --exit-command-arg --events-backend --exit-command-arg journald --exit-command-arg container --exit-command-arg cleanup --exit-command-arg --stopped-only --exit-command-arg --exec --exit-command-arg 57c482301bf8d7f9e38e996af2d0ab4ca820c7902834f5ed03436094092ca747 --exit-command-arg 4975d34302bf31f94307a823a1b0c770898dd84739ace61fb876fa8dc6a103ab
+ 373771  373768 Ssl  /home/bogdan/work/coralmicro/build-sim/sim/gz_to_uds_bridge --topic /downward_cam/image --in-sock /tmp/sentai_emu_cam.sock --out-sock /tmp/sentai_emu_flow_out.sock
+ 373799       2 I    [kworker/11:2-events]
+ 373800       2 I    [kworker/13:0]
+ 373806       2 I    [kworker/9:0-xfs-conv/sda2]
+ 373807       2 I    [kworker/9:1-xfs-conv/sda2]
+ 373808       2 I    [kworker/9:2-xfs-conv/sda2]
+ 373809       2 I    [kworker/9:3-xfs-conv/sda2]
+ 373868       2 I    [kworker/19:2-cgroup_free]
+ 374214   54143 S    sleep 15
+ 374215       2 I    [kworker/1:0]
+ 374216       2 I    [kworker/u96:2-events_power_efficient]
+ 374217       2 I    [kworker/12:2]
+ 374220  371414 R    ps -eo pid,ppid,stat,cmd

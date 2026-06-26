@@ -106,7 +106,6 @@ int sentai_mic_samples(void);
 int sentai_mic_is_initialized(void);
 int sentai_mic_save_l3(char* out_name, int name_size);
 int sentai_mic_level(void);
-int sentai_sleep_idle(int threshold_db, int timeout_ms, int enable_tap);
 int sentai_tfl_load(const char* path, int arena_kb);
 void sentai_tfl_unload(void);
 int sentai_tfl_invoke(void);
@@ -277,7 +276,6 @@ static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(sentai_verbose_obj, 0, 1,
 #include "../examples/sentai_runtime/bindings/modsentai_mesh.c"
 #include "../examples/sentai_runtime/bindings/modsentai_imu.c"
 #include "../examples/sentai_runtime/bindings/modsentai_mic.c"
-#include "../examples/sentai_runtime/bindings/modsentai_sleep_ns.c"
 #include "../examples/sentai_runtime/bindings/modsentai_aifes.c"
 
 // Shared pure-compute helper namespaces.  These are not flight controllers;
@@ -359,7 +357,6 @@ static const mp_rom_map_elem_t sentai_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_mesh),     MP_ROM_PTR(&sentai_mesh_module) },
     { MP_ROM_QSTR(MP_QSTR_imu),      MP_ROM_PTR(&sentai_imu_module) },
     { MP_ROM_QSTR(MP_QSTR_mic),      MP_ROM_PTR(&sentai_mic_module) },
-    { MP_ROM_QSTR(MP_QSTR_sleep),    MP_ROM_PTR(&sentai_sleep_module) },
     { MP_ROM_QSTR(MP_QSTR_aifes),    MP_ROM_PTR(&sentai_aifes_module) },
     { MP_ROM_QSTR(MP_QSTR_kmeans),   MP_ROM_PTR(&sentai_kmeans_module) },
     { MP_ROM_QSTR(MP_QSTR_pca),      MP_ROM_PTR(&sentai_pca_module) },

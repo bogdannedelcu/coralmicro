@@ -1,0 +1,330 @@
+{
+  "started_at": "2026-06-11T18:32:59+0300",
+  "target": "sentai_emu_hw_stub_namespace_smoke",
+  "renode_script": "emu/renode/sentai_emu_hw_stub_namespace_smoke_ui.resc",
+  "renode_ui": true,
+  "commands": {
+    "configure": [
+      "cmake",
+      "-S",
+      ".",
+      "-B",
+      "build_emu",
+      "-DSENTAI_ARM_EMU=ON",
+      "-DSENTAI_SKIP_SDK_PATCHES=ON"
+    ],
+    "build": [
+      "cmake",
+      "--build",
+      "build_emu",
+      "--target",
+      "sentai_emu_hw_stub_namespace_smoke",
+      "-j24"
+    ],
+    "renode": [
+      "/home/bogdan/work/renode_portable/renode",
+      "--console",
+      "emu/renode/sentai_emu_hw_stub_namespace_smoke_ui.resc"
+    ]
+  },
+  "configure_rc": 0,
+  "build_rc": 0,
+  "nand_reset": {
+    "path": "emu/output/sentai_emu_nand.bin",
+    "existed": true,
+    "size_before": 138412032,
+    "removed": true
+  },
+  "renode_rc": 0,
+  "symbols": {
+    "boot_state": 1280,
+    "heartbeat": 28,
+    "repl_lines": 1,
+    "last_tick": 2903
+  },
+  "hardware_stubs": {
+    "saw_begin": true,
+    "saw_end": true,
+    "checks": {
+      "fs_mkdir_fr": {
+        "status": "FAIL",
+        "detail": ""
+      },
+      "fr_open_events": {
+        "status": "FAIL",
+        "detail": ""
+      },
+      "fr_open_scalars": {
+        "status": "FAIL",
+        "detail": ""
+      },
+      "usb_drive_off": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "usb_drive_on_rejected": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "usb_ip_unavailable": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "usb_open_false": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "usb_available_zero": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "usb_read_requires_open": {
+        "status": "PASS",
+        "detail": "serial not open"
+      },
+      "uart_requires_usb_console": {
+        "status": "PASS",
+        "detail": "REPL must be on USB: call sentai.console('usb')"
+      },
+      "uart_open_false": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "uart_available_zero": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "uart_read_requires_open": {
+        "status": "PASS",
+        "detail": "UART serial not open"
+      },
+      "imu_init_unsupported": {
+        "status": "PASS",
+        "detail": "sentai.imu is board-only; not available in emulator"
+      },
+      "imu_read_unsupported": {
+        "status": "PASS",
+        "detail": "sentai.imu is board-only; not available in emulator"
+      },
+      "imu_degrees_unsupported": {
+        "status": "PASS",
+        "detail": "sentai.imu is board-only; not available in emulator"
+      },
+      "imu_tap_start_unsupported": {
+        "status": "PASS",
+        "detail": "sentai.imu is board-only; not available in emulator"
+      },
+      "imu_poll_unsupported": {
+        "status": "PASS",
+        "detail": "sentai.imu is board-only; not available in emulator"
+      },
+      "mic_start_unsupported": {
+        "status": "PASS",
+        "detail": "sentai.mic is board-only; not available in emulator"
+      },
+      "mic_recording_unsupported": {
+        "status": "PASS",
+        "detail": "sentai.mic is board-only; not available in emulator"
+      },
+      "mic_level_unsupported": {
+        "status": "PASS",
+        "detail": "sentai.mic is board-only; not available in emulator"
+      },
+      "mic_stop_unsupported": {
+        "status": "PASS",
+        "detail": "sentai.mic is board-only; not available in emulator"
+      },
+      "mic_save_unsupported": {
+        "status": "PASS",
+        "detail": "sentai.mic is board-only; not available in emulator"
+      },
+      "sleep_namespace_absent": {
+        "status": "PASS",
+        "detail": "['__name__', 'calib', 'console', 'debug', 'fr', 'fs', 'help', 'imu', 'io', 'mic', 'object_lifter', 'rtos', 'run', 'safety', 'servo', 'sys', 'uart', 'usb', 'verbose', 'version']"
+      },
+      "rtos_sleep_ms_available": {
+        "status": "PASS",
+        "detail": "290->291"
+      },
+      "servo_init_sim": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "servo_arm_sim": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "servo_takeoff_sim": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "servo_move_sim": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "servo_hover_sim": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "servo_land_sim": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "servo_disarm": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "servo_safe_status": {
+        "status": "PASS",
+        "detail": "{'last_result': 0, 'faults_not_armed': 0, 'trace_count': 7, 'faults_oob': 0, 'trace_overwrites': 0, 'flight': 0, 'last_action': 3, 'faults_no_backend': 0, 'backend': 1, 'seq': 7, 't_last_action_ms': 292, 'actions_ok': 7, 'armed': 0}"
+      },
+      "servo_trace_shared": {
+        "status": "PASS",
+        "detail": "[{'p1': 0.0, 'action': 1, 'seq': 1, 'flight': 0, 'p0': 1.0, 'backend': 1, 't_ms': 291, 'p2': 0.0, 'result': 0, 'p3': 0.0}, {'p1': 0.0, 'action': 2, 'seq': 2, 'flight': 0, 'p0': 0.0, 'backend': 1, 't_ms': 291, 'p2': 0.0, 'result': 0, 'p3': 0.0}, {'p1': 0.0, 'action': 4, 'seq': 3, 'flight': 1, 'p0': 0.5, 'backend': 1, 't_ms': 291, 'p2': 0.0, 'result': 0, 'p3': 0.0}, {'p1': 0.0, 'action': 5, 'seq': 4, 'flight': 1, 'p0': 0.01, 'backend': 1, 't_ms': 291, 'p2': 0.0, 'result': 0, 'p3': 0.0}, {'p1': 0.0, 'action': 6, 'seq': 5, 'flight': 1, 'p0': 0.0, 'backend': 1, 't_ms': 291, 'p2': 0.0, 'result': 0, 'p3': 0.0}, {'p1': 0.0, 'action': 7, 'seq': 6, 'flight': 0, 'p0': 0.0, 'backend': 1, 't_ms': 291, 'p2': 0.0, 'result': 0, 'p3': 0.0}, {'p1': 0.0, 'action': 3, 'seq': 7, 'flight': 0, 'p0': 0.0, 'backend': 1, 't_ms': 292, 'p2': 0.0, 'result': 0, 'p3': 0.0}]"
+      },
+      "servo_pose_none": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "servo_pose_not_ready": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "servo_marker_unavailable": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "servo_marker_stop": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "calib_default_R": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "calib_default_offset": {
+        "status": "PASS",
+        "detail": "(-0.04, 0.0, -0.02)"
+      },
+      "calib_not_calibrated": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "calib_kabsch_empty_rejected": {
+        "status": "PASS",
+        "detail": "((1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0), {'reject_code': 5, 'max_residual_deg': 180.0, 'accepted': False, 'n_samples': 0, 'det_R': 1.0, 'mean_residual_deg': 180.0, 'drift_from_persisted_deg': -1.0})"
+      },
+      "calib_commit_R_shared": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "calib_is_calibrated_after_commit": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "calib_clear_shared": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "calib_setup_defaults_unavailable": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "calib_orientation_task_unavailable": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "calib_orientation_task_stop": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "calib_task_start_unavailable": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "calib_task_stop": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "calib_bringup_unavailable": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "lifter_count_zero": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "lifter_list_empty": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "lifter_stats_zero": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "lifter_set_camera_shared": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "lifter_init_shared": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "lifter_count_one_shared": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "lifter_world_pos_shared": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "lifter_clear_shared": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "safety_init": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "safety_clear": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "safety_not_aborted": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "safety_task_start_rejected": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "safety_task_stop": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "safety_enable_markers": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "safety_low_marker_streak_pending": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "safety_test_abort": {
+        "status": "PASS",
+        "detail": ""
+      },
+      "fr_events_file": {
+        "status": "FAIL",
+        "detail": "-1"
+      },
+      "fr_scalars_file": {
+        "status": "FAIL",
+        "detail": "-1"
+      }
+    },
+    "fails": 5,
+    "fs_write_size": -1
+  },
+  "pass": false
+}

@@ -1,0 +1,42 @@
+
+>>> 
+KeyboardInterrupt
+>>> 
+KeyboardInterrupt
+>>> 
+
+>>> 
+>>> 
+>>> import sentai
+import sentai
+>>> 
+>>> print('RM1', sentai.fs.remove('/_tmp_write_probe.txt'))
+print('RM1', sentai.fs.remove('/_tmp_write_probe.txt'))
+RM1 False
+>>> 
+>>> print('WR', sentai.fs.write('/_tmp_write_probe.txt', b'abc'))
+print('WR', sentai.fs.write('/_tmp_write_probe.txt', b'abc'))
+[nand] READ FAIL page=21586 (block=337 sub=18) st=0x1
+WR False
+>>> 
+>>> print('SZ1', sentai.fs.size('/_tmp_write_probe.txt'))
+print('SZ1', sentai.fs.size('/_tmp_write_probe.txt'))
+SZ1 0
+>>> 
+>>> print('AP', sentai.fs.append('/_tmp_write_probe.txt', b'def'))
+print('AP', sentai.fs.append('/_tmp_write_probe.txt', b'def'))
+AP True
+>>> 
+>>> print('SZ2', sentai.fs.size('/_tmp_write_probe.txt'))
+print('SZ2', sentai.fs.size('/_tmp_write_probe.txt'))
+SZ2 3
+>>> 
+>>> print('SYNC', sentai.fs.sync())
+print('SYNC', sentai.fs.sync())
+[bbt] no persisted BBT, starting clean
+SYNC True
+>>> 
+>>> print('RM2', sentai.fs.remove('/_tmp_write_probe.txt'))
+print('RM2', sentai.fs.remove('/_tmp_write_probe.txt'))
+RM2 True
+>>> 

@@ -1,0 +1,20 @@
+PORT /dev/ttyACM0
+import sentai
+>>> rint('VER', sentai.version())
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 'rint' isn't defined
+>>> rint('MODEL_SIZE', sentai.fs.size('/yolo_1_class_512_1_upsample_512_inloc_de_1024_la_P5_32.tflite'))
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 'rint' isn't defined
+>>> rint('SCRIPT_SIZE', sentai.fs.size('/lib/diag/_t_timing_urb.py'))
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 'rint' isn't defined
+>>> rint('URB_STATS_ATTR', hasattr(sentai.tpu,'urb_stats'))
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 'rint' isn't defined
+>>> 
+>>> 

@@ -1,0 +1,9 @@
+
+KeyboardInterrupt
+>>> 
+>>> 
+>>> 
+import sentai
+>>> 
+READ_EXCEPTION SerialException('device reports readiness to read but returned no data (device disconnected or multiple access on port?)')
+SDA_READY after 1s

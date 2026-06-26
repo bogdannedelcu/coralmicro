@@ -1,0 +1,964 @@
+t=4ms pull peripheral ready 127.0.0.1:30233
+t=24ms connected to host pull service
+t=45ms pulled seq=121 pulls=1 empty=0
+t=47ms write begin seq=121 bytes=921600
+t=49ms write done seq=121
+t=239ms write begin seq=124 bytes=921600
+t=240ms write done seq=124
+t=369ms write begin seq=127 bytes=921600
+t=369ms write done seq=127
+t=485ms write begin seq=129 bytes=921600
+t=485ms write done seq=129
+t=660ms pulled seq=134 pulls=5 empty=0
+t=660ms write begin seq=134 bytes=921600
+t=660ms write done seq=134
+t=777ms write begin seq=137 bytes=921600
+t=777ms write done seq=137
+t=868ms write begin seq=139 bytes=921600
+t=869ms write done seq=139
+t=1098ms write begin seq=142 bytes=921600
+t=1098ms write done seq=142
+t=1358ms write begin seq=149 bytes=921600
+t=1359ms write done seq=149
+t=1681ms pulled seq=155 pulls=10 empty=14
+t=1681ms write begin seq=155 bytes=921600
+t=1681ms write done seq=155
+t=2023ms write begin seq=161 bytes=921600
+t=2026ms write done seq=161
+t=2347ms write begin seq=170 bytes=921600
+t=2347ms write done seq=170
+t=2710ms write begin seq=175 bytes=921600
+t=2710ms write done seq=175
+t=3040ms write begin seq=183 bytes=921600
+t=3040ms write done seq=183
+t=3344ms pulled seq=189 pulls=15 empty=14
+t=3344ms write begin seq=189 bytes=921600
+t=3344ms write done seq=189
+t=3656ms write begin seq=198 bytes=921600
+t=3657ms write done seq=198
+t=3960ms write begin seq=203 bytes=921600
+t=3960ms write done seq=203
+t=4297ms write begin seq=211 bytes=921600
+t=4297ms write done seq=211
+t=4620ms write begin seq=217 bytes=921600
+t=4621ms write done seq=217
+t=4936ms pulled seq=223 pulls=20 empty=14
+t=4937ms write begin seq=223 bytes=921600
+t=4937ms write done seq=223
+t=5223ms write begin seq=229 bytes=921600
+t=5223ms write done seq=229
+t=5511ms write begin seq=236 bytes=921600
+t=5511ms write done seq=236
+t=5921ms write begin seq=244 bytes=921600
+t=5921ms write done seq=244
+t=6338ms write begin seq=253 bytes=921600
+t=6339ms write done seq=253
+t=6688ms pulled seq=260 pulls=25 empty=14
+t=6689ms write begin seq=260 bytes=921600
+t=6689ms write done seq=260
+t=6989ms write begin seq=266 bytes=921600
+t=6989ms write done seq=266
+t=7210ms write begin seq=269 bytes=921600
+t=7210ms write done seq=269
+t=7466ms write begin seq=274 bytes=921600
+t=7466ms write done seq=274
+t=7685ms write begin seq=279 bytes=921600
+t=7685ms write done seq=279
+t=7929ms pulled seq=284 pulls=30 empty=14
+t=7930ms write begin seq=284 bytes=921600
+t=7930ms write done seq=284
+t=8145ms write begin seq=287 bytes=921600
+t=8145ms write done seq=287
+t=8380ms write begin seq=293 bytes=921600
+t=8380ms write done seq=293
+t=8590ms write begin seq=299 bytes=921600
+t=8591ms write done seq=299
+t=8761ms write begin seq=302 bytes=921600
+t=8761ms write done seq=302
+t=8967ms pulled seq=307 pulls=35 empty=14
+t=8968ms write begin seq=307 bytes=921600
+t=8968ms write done seq=307
+t=9175ms write begin seq=310 bytes=921600
+t=9176ms write done seq=310
+t=9377ms write begin seq=313 bytes=921600
+t=9377ms write done seq=313
+t=9610ms write begin seq=319 bytes=921600
+t=9610ms write done seq=319
+t=9801ms write begin seq=322 bytes=921600
+t=9801ms write done seq=322
+t=10020ms pulled seq=328 pulls=40 empty=14
+t=10020ms write begin seq=328 bytes=921600
+t=10020ms write done seq=328
+t=10235ms write begin seq=334 bytes=921600
+t=10235ms write done seq=334
+t=10458ms write begin seq=337 bytes=921600
+t=10459ms write done seq=337
+t=10696ms write begin seq=343 bytes=921600
+t=10696ms write done seq=343
+t=10906ms write begin seq=346 bytes=921600
+t=10906ms write done seq=346
+t=11142ms pulled seq=352 pulls=45 empty=14
+t=11142ms write begin seq=352 bytes=921600
+t=11142ms write done seq=352
+t=11360ms write begin seq=358 bytes=921600
+t=11360ms write done seq=358
+t=11534ms write begin seq=361 bytes=921600
+t=11534ms write done seq=361
+t=11778ms write begin seq=366 bytes=921600
+t=11778ms write done seq=366
+t=11981ms write begin seq=368 bytes=921600
+t=11982ms write done seq=368
+t=12224ms pulled seq=376 pulls=50 empty=14
+t=12224ms write begin seq=376 bytes=921600
+t=12224ms write done seq=376
+t=12421ms write begin seq=379 bytes=921600
+t=12421ms write done seq=379
+t=12601ms write begin seq=384 bytes=921600
+t=12601ms write done seq=384
+t=12806ms write begin seq=386 bytes=921600
+t=12806ms write done seq=386
+t=13028ms write begin seq=392 bytes=921600
+t=13029ms write done seq=392
+t=13247ms pulled seq=397 pulls=55 empty=14
+t=13247ms write begin seq=397 bytes=921600
+t=13247ms write done seq=397
+t=13434ms write begin seq=400 bytes=921600
+t=13434ms write done seq=400
+t=13679ms write begin seq=405 bytes=921600
+t=13679ms write done seq=405
+t=13994ms write begin seq=410 bytes=921600
+t=13994ms write done seq=410
+t=14237ms write begin seq=417 bytes=921600
+t=14237ms write done seq=417
+t=14499ms pulled seq=422 pulls=60 empty=14
+t=14499ms write begin seq=422 bytes=921600
+t=14500ms write done seq=422
+t=14695ms write begin seq=425 bytes=921600
+t=14695ms write done seq=425
+t=14932ms write begin seq=431 bytes=921600
+t=14932ms write done seq=431
+t=15127ms write begin seq=436 bytes=921600
+t=15128ms write done seq=436
+t=15352ms write begin seq=439 bytes=921600
+t=15352ms write done seq=439
+t=15580ms pulled seq=445 pulls=65 empty=14
+t=15580ms write begin seq=445 bytes=921600
+t=15580ms write done seq=445
+t=15793ms write begin seq=448 bytes=921600
+t=15794ms write done seq=448
+t=16025ms write begin seq=454 bytes=921600
+t=16025ms write done seq=454
+t=16261ms write begin seq=460 bytes=921600
+t=16261ms write done seq=460
+t=16451ms write begin seq=463 bytes=921600
+t=16451ms write done seq=463
+t=16634ms pulled seq=466 pulls=70 empty=14
+t=16634ms write begin seq=466 bytes=921600
+t=16634ms write done seq=466
+t=16840ms write begin seq=472 bytes=921600
+t=16840ms write done seq=472
+t=17054ms write begin seq=475 bytes=921600
+t=17054ms write done seq=475
+t=17262ms write begin seq=480 bytes=921600
+t=17262ms write done seq=480
+t=17446ms write begin seq=483 bytes=921600
+t=17447ms write done seq=483
+t=17676ms pulled seq=489 pulls=75 empty=14
+t=17676ms write begin seq=489 bytes=921600
+t=17676ms write done seq=489
+t=17894ms write begin seq=495 bytes=921600
+t=17894ms write done seq=495
+t=18090ms write begin seq=498 bytes=921600
+t=18090ms write done seq=498
+t=18311ms write begin seq=503 bytes=921600
+t=18311ms write done seq=503
+t=18527ms write begin seq=506 bytes=921600
+t=18528ms write done seq=506
+t=18738ms pulled seq=511 pulls=80 empty=14
+t=18738ms write begin seq=511 bytes=921600
+t=18738ms write done seq=511
+t=18917ms write begin seq=516 bytes=921600
+t=18917ms write done seq=516
+t=19112ms write begin seq=519 bytes=921600
+t=19112ms write done seq=519
+t=19329ms write begin seq=525 bytes=921600
+t=19330ms write done seq=525
+t=19506ms write begin seq=528 bytes=921600
+t=19507ms write done seq=528
+t=19732ms pulled seq=534 pulls=85 empty=14
+t=19732ms write begin seq=534 bytes=921600
+t=19732ms write done seq=534
+t=19928ms write begin seq=537 bytes=921600
+t=19929ms write done seq=537
+t=20131ms write begin seq=543 bytes=921600
+t=20131ms write done seq=543
+t=20349ms write begin seq=546 bytes=921600
+t=20350ms write done seq=546
+t=20571ms write begin seq=552 bytes=921600
+t=20571ms write done seq=552
+t=20795ms pulled seq=555 pulls=90 empty=14
+t=20795ms write begin seq=555 bytes=921600
+t=20795ms write done seq=555
+t=21019ms write begin seq=561 bytes=921600
+t=21019ms write done seq=561
+t=21221ms write begin seq=567 bytes=921600
+t=21221ms write done seq=567
+t=21412ms write begin seq=569 bytes=921600
+t=21412ms write done seq=569
+t=21634ms write begin seq=575 bytes=921600
+t=21634ms write done seq=575
+t=21921ms pulled seq=580 pulls=95 empty=14
+t=21921ms write begin seq=580 bytes=921600
+t=21921ms write done seq=580
+t=22178ms write begin seq=587 bytes=921600
+t=22179ms write done seq=587
+t=22468ms write begin seq=590 bytes=921600
+t=22469ms write done seq=590
+t=22677ms write begin seq=596 bytes=921600
+t=22677ms write done seq=596
+t=22916ms write begin seq=601 bytes=921600
+t=22916ms write done seq=601
+t=23128ms pulled seq=606 pulls=100 empty=14
+t=23128ms write begin seq=606 bytes=921600
+t=23128ms write done seq=606
+t=23353ms write begin seq=609 bytes=921600
+t=23357ms write done seq=609
+t=23561ms write begin seq=615 bytes=921600
+t=23561ms write done seq=615
+t=23781ms write begin seq=618 bytes=921600
+t=23781ms write done seq=618
+t=23988ms write begin seq=624 bytes=921600
+t=23988ms write done seq=624
+t=24205ms pulled seq=627 pulls=105 empty=14
+t=24205ms write begin seq=627 bytes=921600
+t=24205ms write done seq=627
+t=24370ms write begin seq=632 bytes=921600
+t=24371ms write done seq=632
+t=24600ms write begin seq=635 bytes=921600
+t=24600ms write done seq=635
+t=24810ms write begin seq=641 bytes=921600
+t=24810ms write done seq=641
+t=25000ms write begin seq=644 bytes=921600
+t=25000ms write done seq=644
+t=25223ms pulled seq=650 pulls=110 empty=14
+t=25223ms write begin seq=650 bytes=921600
+t=25223ms write done seq=650
+t=25425ms write begin seq=653 bytes=921600
+t=25425ms write done seq=653
+t=25615ms write begin seq=658 bytes=921600
+t=25618ms write done seq=658
+t=25820ms write begin seq=663 bytes=921600
+t=25820ms write done seq=663
+t=26012ms write begin seq=666 bytes=921600
+t=26012ms write done seq=666
+t=26208ms pulled seq=671 pulls=115 empty=14
+t=26208ms write begin seq=671 bytes=921600
+t=26208ms write done seq=671
+t=26411ms write begin seq=674 bytes=921600
+t=26411ms write done seq=674
+t=26583ms write begin seq=680 bytes=921600
+t=26583ms write done seq=680
+t=26802ms write begin seq=683 bytes=921600
+t=26802ms write done seq=683
+t=27012ms write begin seq=689 bytes=921600
+t=27012ms write done seq=689
+t=27206ms pulled seq=692 pulls=120 empty=14
+t=27206ms write begin seq=692 bytes=921600
+t=27206ms write done seq=692
+t=27422ms write begin seq=698 bytes=921600
+t=27422ms write done seq=698
+t=27597ms write begin seq=701 bytes=921600
+t=27597ms write done seq=701
+t=27798ms write begin seq=706 bytes=921600
+t=27798ms write done seq=706
+t=28023ms write begin seq=709 bytes=921600
+t=28023ms write done seq=709
+t=28214ms pulled seq=715 pulls=125 empty=14
+t=28214ms write begin seq=715 bytes=921600
+t=28214ms write done seq=715
+t=28423ms write begin seq=718 bytes=921600
+t=28423ms write done seq=718
+t=28626ms write begin seq=724 bytes=921600
+t=28626ms write done seq=724
+t=28841ms write begin seq=727 bytes=921600
+t=28841ms write done seq=727
+t=29069ms write begin seq=733 bytes=921600
+t=29069ms write done seq=733
+t=29267ms pulled seq=738 pulls=130 empty=14
+t=29267ms write begin seq=738 bytes=921600
+t=29267ms write done seq=738
+t=29487ms write begin seq=740 bytes=921600
+t=29487ms write done seq=740
+t=29538ms write begin seq=743 bytes=921600
+t=29538ms write done seq=743
+t=29630ms write begin seq=746 bytes=921600
+t=29631ms write done seq=746
+t=29742ms pulled seq=748 pulls=135 empty=53
+t=29742ms write begin seq=748 bytes=921600
+t=29742ms write done seq=748
+t=29881ms write begin seq=751 bytes=921600
+t=29881ms write done seq=751
+t=30037ms write begin seq=754 bytes=921600
+t=30037ms write done seq=754
+t=30142ms pulled seq=756 pulls=140 empty=135
+t=30142ms write begin seq=756 bytes=921600
+t=30142ms write done seq=756
+t=30242ms write begin seq=758 bytes=921600
+t=30243ms write done seq=758
+t=30390ms write begin seq=761 bytes=921600
+t=30391ms write done seq=761
+t=30531ms write begin seq=764 bytes=921600
+t=30531ms write done seq=764
+t=30660ms pulled seq=767 pulls=145 empty=246
+t=30660ms write begin seq=767 bytes=921600
+t=30660ms write done seq=767
+t=30801ms write begin seq=770 bytes=921600
+t=30801ms write done seq=770
+t=30943ms write begin seq=773 bytes=921600
+t=30943ms write done seq=773
+t=31040ms pulled seq=775 pulls=150 empty=346
+t=31040ms write begin seq=775 bytes=921600
+t=31041ms write done seq=775
+t=31188ms write begin seq=778 bytes=921600
+t=31189ms write done seq=778
+t=31323ms write begin seq=781 bytes=921600
+t=31323ms write done seq=781
+t=31460ms write begin seq=784 bytes=921600
+t=31460ms write done seq=784
+t=31598ms write begin seq=787 bytes=921600
+t=31598ms write done seq=787
+t=31745ms pulled seq=790 pulls=155 empty=544
+t=31745ms write begin seq=790 bytes=921600
+t=31745ms write done seq=790
+t=31885ms write begin seq=793 bytes=921600
+t=31885ms write done seq=793
+t=32011ms write begin seq=796 bytes=921600
+t=32011ms write done seq=796
+t=32156ms write begin seq=799 bytes=921600
+t=32157ms write done seq=799
+t=32258ms pulled seq=801 pulls=160 empty=681
+t=32258ms write begin seq=801 bytes=921600
+t=32259ms write done seq=801
+t=32395ms write begin seq=804 bytes=921600
+t=32395ms write done seq=804
+t=32533ms write begin seq=807 bytes=921600
+t=32533ms write done seq=807
+t=32671ms write begin seq=810 bytes=921600
+t=32672ms write done seq=810
+t=32810ms write begin seq=813 bytes=921600
+t=32811ms write done seq=813
+t=32919ms pulled seq=815 pulls=165 empty=857
+t=32919ms write begin seq=815 bytes=921600
+t=32919ms write done seq=815
+t=33048ms write begin seq=818 bytes=921600
+t=33048ms write done seq=818
+t=33184ms write begin seq=821 bytes=921600
+t=33184ms write done seq=821
+t=33297ms write begin seq=823 bytes=921600
+t=33298ms write done seq=823
+t=33423ms write begin seq=826 bytes=921600
+t=33423ms write done seq=826
+t=33570ms pulled seq=829 pulls=170 empty=1034
+t=33575ms write begin seq=829 bytes=921600
+t=33575ms write done seq=829
+t=33710ms write begin seq=832 bytes=921600
+t=33711ms write done seq=832
+t=33853ms write begin seq=835 bytes=921600
+t=33853ms write done seq=835
+t=33993ms pulled seq=838 pulls=175 empty=1161
+t=33993ms write begin seq=838 bytes=921600
+t=33993ms write done seq=838
+t=34113ms write begin seq=841 bytes=921600
+t=34113ms write done seq=841
+t=34219ms write begin seq=843 bytes=921600
+t=34219ms write done seq=843
+t=34364ms write begin seq=846 bytes=921600
+t=34364ms write done seq=846
+t=34493ms pulled seq=849 pulls=180 empty=1303
+t=34497ms write begin seq=849 bytes=921600
+t=34497ms write done seq=849
+t=34636ms write begin seq=852 bytes=921600
+t=34636ms write done seq=852
+t=34771ms write begin seq=855 bytes=921600
+t=34771ms write done seq=855
+t=34927ms pulled seq=858 pulls=185 empty=1418
+t=34927ms write begin seq=858 bytes=921600
+t=34927ms write done seq=858
+t=35060ms write begin seq=861 bytes=921600
+t=35061ms write done seq=861
+t=35202ms write begin seq=864 bytes=921600
+t=35202ms write done seq=864
+t=35337ms write begin seq=867 bytes=921600
+t=35337ms write done seq=867
+t=35474ms write begin seq=870 bytes=921600
+t=35474ms write done seq=870
+t=35605ms pulled seq=873 pulls=190 empty=1611
+t=35609ms write begin seq=873 bytes=921600
+t=35609ms write done seq=873
+t=35744ms write begin seq=876 bytes=921600
+t=35744ms write done seq=876
+t=35887ms write begin seq=879 bytes=921600
+t=35887ms write done seq=879
+t=36038ms pulled seq=882 pulls=195 empty=1728
+t=36038ms write begin seq=882 bytes=921600
+t=36038ms write done seq=882
+t=36175ms write begin seq=885 bytes=921600
+t=36175ms write done seq=885
+t=36320ms write begin seq=888 bytes=921600
+t=36320ms write done seq=888
+t=36444ms write begin seq=891 bytes=921600
+t=36444ms write done seq=891
+t=36590ms pulled seq=894 pulls=200 empty=1889
+t=36590ms write begin seq=894 bytes=921600
+t=36590ms write done seq=894
+t=36739ms write begin seq=897 bytes=921600
+t=36739ms write done seq=897
+t=36880ms write begin seq=900 bytes=921600
+t=36880ms write done seq=900
+t=37011ms write begin seq=903 bytes=921600
+t=37011ms write done seq=903
+t=37137ms write begin seq=906 bytes=921600
+t=37137ms write done seq=906
+t=37270ms pulled seq=909 pulls=205 empty=2057
+t=37270ms write begin seq=909 bytes=921600
+t=37270ms write done seq=909
+t=37431ms write begin seq=912 bytes=921600
+t=37434ms write done seq=912
+t=37556ms write begin seq=915 bytes=921600
+t=37557ms write done seq=915
+t=37699ms write begin seq=918 bytes=921600
+t=37699ms write done seq=918
+t=37804ms pulled seq=920 pulls=210 empty=2200
+t=37804ms write begin seq=920 bytes=921600
+t=37804ms write done seq=920
+t=37954ms write begin seq=923 bytes=921600
+t=37954ms write done seq=923
+t=38056ms write begin seq=925 bytes=921600
+t=38057ms write done seq=925
+t=38164ms pulled seq=927 pulls=215 empty=2264
+t=38164ms write begin seq=927 bytes=921600
+t=38165ms write done seq=927
+t=38305ms write begin seq=930 bytes=921600
+t=38305ms write done seq=930
+t=38449ms write begin seq=933 bytes=921600
+t=38449ms write done seq=933
+t=38584ms write begin seq=936 bytes=921600
+t=38584ms write done seq=936
+t=38733ms write begin seq=939 bytes=921600
+t=38734ms write done seq=939
+t=38828ms pulled seq=941 pulls=220 empty=2413
+t=38831ms write begin seq=941 bytes=921600
+t=38831ms write done seq=941
+t=38933ms write begin seq=943 bytes=921600
+t=38934ms write done seq=943
+t=39066ms write begin seq=946 bytes=921600
+t=39066ms write done seq=946
+t=39207ms write begin seq=949 bytes=921600
+t=39207ms write done seq=949
+t=39343ms pulled seq=952 pulls=225 empty=2585
+t=39349ms write begin seq=952 bytes=921600
+t=39349ms write done seq=952
+t=39484ms write begin seq=955 bytes=921600
+t=39484ms write done seq=955
+t=39618ms write begin seq=958 bytes=921600
+t=39623ms write done seq=958
+t=39763ms write begin seq=961 bytes=921600
+t=39763ms write done seq=961
+t=39899ms write begin seq=964 bytes=921600
+t=39900ms write done seq=964
+t=40021ms pulled seq=967 pulls=230 empty=2767
+t=40021ms write begin seq=967 bytes=921600
+t=40022ms write done seq=967
+t=40160ms write begin seq=970 bytes=921600
+t=40164ms write done seq=970
+t=40306ms write begin seq=973 bytes=921600
+t=40306ms write done seq=973
+t=40444ms write begin seq=976 bytes=921600
+t=40444ms write done seq=976
+t=40579ms pulled seq=979 pulls=235 empty=2945
+t=40586ms write begin seq=979 bytes=921600
+t=40586ms write done seq=979
+t=40724ms write begin seq=982 bytes=921600
+t=40724ms write done seq=982
+t=40864ms write begin seq=985 bytes=921600
+t=40864ms write done seq=985
+t=40993ms write begin seq=988 bytes=921600
+t=40993ms write done seq=988
+t=41131ms pulled seq=991 pulls=240 empty=3111
+t=41131ms write begin seq=991 bytes=921600
+t=41131ms write done seq=991
+t=41270ms write begin seq=994 bytes=921600
+t=41270ms write done seq=994
+t=41421ms write begin seq=997 bytes=921600
+t=41421ms write done seq=997
+t=41524ms write begin seq=999 bytes=921600
+t=41524ms write done seq=999
+t=41668ms pulled seq=1002 pulls=245 empty=3230
+t=41668ms write begin seq=1002 bytes=921600
+t=41668ms write done seq=1002
+t=41771ms write begin seq=1004 bytes=921600
+t=41771ms write done seq=1004
+t=41913ms write begin seq=1007 bytes=921600
+t=41914ms write done seq=1007
+t=42015ms write begin seq=1009 bytes=921600
+t=42016ms write done seq=1009
+t=42167ms pulled seq=1012 pulls=250 empty=3363
+t=42168ms write begin seq=1012 bytes=921600
+t=42168ms write done seq=1012
+t=42299ms write begin seq=1015 bytes=921600
+t=42300ms write done seq=1015
+t=42432ms write begin seq=1018 bytes=921600
+t=42433ms write done seq=1018
+t=42529ms pulled seq=1020 pulls=255 empty=3448
+t=42533ms write begin seq=1020 bytes=921600
+t=42534ms write done seq=1020
+t=42684ms write begin seq=1023 bytes=921600
+t=42684ms write done seq=1023
+t=42826ms write begin seq=1026 bytes=921600
+t=42826ms write done seq=1026
+t=42981ms pulled seq=1029 pulls=260 empty=3571
+t=42981ms write begin seq=1029 bytes=921600
+t=42981ms write done seq=1029
+t=43126ms write begin seq=1032 bytes=921600
+t=43126ms write done seq=1032
+t=43267ms write begin seq=1035 bytes=921600
+t=43267ms write done seq=1035
+t=43411ms write begin seq=1038 bytes=921600
+t=43411ms write done seq=1038
+t=43526ms pulled seq=1041 pulls=265 empty=3730
+t=43526ms write begin seq=1041 bytes=921600
+t=43526ms write done seq=1041
+t=43636ms write begin seq=1043 bytes=921600
+t=43637ms write done seq=1043
+t=43777ms write begin seq=1046 bytes=921600
+t=43777ms write done seq=1046
+t=43928ms write begin seq=1049 bytes=921600
+t=43928ms write done seq=1049
+t=44060ms pulled seq=1052 pulls=270 empty=3861
+t=44060ms write begin seq=1052 bytes=921600
+t=44060ms write done seq=1052
+t=44199ms write begin seq=1055 bytes=921600
+t=44199ms write done seq=1055
+t=44331ms write begin seq=1058 bytes=921600
+t=44331ms write done seq=1058
+t=44470ms write begin seq=1061 bytes=921600
+t=44470ms write done seq=1061
+t=44624ms pulled seq=1064 pulls=275 empty=4012
+t=44624ms write begin seq=1064 bytes=921600
+t=44625ms write done seq=1064
+t=44773ms write begin seq=1067 bytes=921600
+t=44773ms write done seq=1067
+t=44915ms write begin seq=1070 bytes=921600
+t=44915ms write done seq=1070
+t=45056ms write begin seq=1073 bytes=921600
+t=45056ms write done seq=1073
+t=45194ms pulled seq=1076 pulls=280 empty=4171
+t=45194ms write begin seq=1076 bytes=921600
+t=45194ms write done seq=1076
+t=45324ms write begin seq=1079 bytes=921600
+t=45324ms write done seq=1079
+t=45455ms write begin seq=1082 bytes=921600
+t=45455ms write done seq=1082
+t=45589ms write begin seq=1085 bytes=921600
+t=45589ms write done seq=1085
+t=45727ms pulled seq=1088 pulls=285 empty=4280
+t=45727ms write begin seq=1088 bytes=921600
+t=45727ms write done seq=1088
+t=45841ms write begin seq=1090 bytes=921600
+t=45841ms write done seq=1090
+t=45949ms write begin seq=1092 bytes=921600
+t=45950ms write done seq=1092
+t=46084ms write begin seq=1095 bytes=921600
+t=46084ms write done seq=1095
+t=46186ms pulled seq=1097 pulls=290 empty=4357
+t=46190ms write begin seq=1097 bytes=921600
+t=46191ms write done seq=1097
+t=46338ms write begin seq=1100 bytes=921600
+t=46339ms write done seq=1100
+t=46486ms write begin seq=1103 bytes=921600
+t=46486ms write done seq=1103
+t=46628ms write begin seq=1106 bytes=921600
+t=46628ms write done seq=1106
+t=46752ms write begin seq=1109 bytes=921600
+t=46752ms write done seq=1109
+t=46902ms pulled seq=1112 pulls=295 empty=4541
+t=46902ms write begin seq=1112 bytes=921600
+t=46902ms write done seq=1112
+t=47036ms write begin seq=1115 bytes=921600
+t=47036ms write done seq=1115
+t=47177ms write begin seq=1118 bytes=921600
+t=47177ms write done seq=1118
+t=47314ms write begin seq=1121 bytes=921600
+t=47314ms write done seq=1121
+t=47452ms pulled seq=1124 pulls=300 empty=4698
+t=47453ms write begin seq=1124 bytes=921600
+t=47453ms write done seq=1124
+t=47582ms write begin seq=1127 bytes=921600
+t=47582ms write done seq=1127
+t=47726ms write begin seq=1130 bytes=921600
+t=47726ms write done seq=1130
+t=47853ms write begin seq=1133 bytes=921600
+t=47853ms write done seq=1133
+t=47994ms pulled seq=1136 pulls=305 empty=4858
+t=47997ms write begin seq=1136 bytes=921600
+t=47997ms write done seq=1136
+t=48130ms write begin seq=1139 bytes=921600
+t=48130ms write done seq=1139
+t=48274ms pulled seq=1142 pulls=310 empty=4932
+t=48274ms write begin seq=1142 bytes=921600
+t=48274ms write done seq=1142
+t=48404ms write begin seq=1145 bytes=921600
+t=48405ms write done seq=1145
+t=48553ms write begin seq=1148 bytes=921600
+t=48553ms write done seq=1148
+t=48657ms pulled seq=1150 pulls=315 empty=5034
+t=48657ms write begin seq=1150 bytes=921600
+t=48657ms write done seq=1150
+t=48798ms write begin seq=1153 bytes=921600
+t=48799ms write done seq=1153
+t=48919ms write begin seq=1156 bytes=921600
+t=48919ms write done seq=1156
+t=49057ms write begin seq=1159 bytes=921600
+t=49057ms write done seq=1159
+t=49211ms write begin seq=1162 bytes=921600
+t=49211ms write done seq=1162
+t=49342ms pulled seq=1165 pulls=320 empty=5236
+t=49342ms write begin seq=1165 bytes=921600
+t=49342ms write done seq=1165
+t=49491ms write begin seq=1168 bytes=921600
+t=49491ms write done seq=1168
+t=49634ms write begin seq=1171 bytes=921600
+t=49634ms write done seq=1171
+t=49774ms write begin seq=1174 bytes=921600
+t=49774ms write done seq=1174
+t=49913ms write begin seq=1177 bytes=921600
+t=49913ms write done seq=1177
+t=50049ms pulled seq=1180 pulls=325 empty=5448
+t=50049ms write begin seq=1180 bytes=921600
+t=50049ms write done seq=1180
+t=50180ms write begin seq=1183 bytes=921600
+t=50180ms write done seq=1183
+t=50331ms write begin seq=1186 bytes=921600
+t=50332ms write done seq=1186
+t=50477ms write begin seq=1189 bytes=921600
+t=50477ms write done seq=1189
+t=50617ms write begin seq=1192 bytes=921600
+t=50617ms write done seq=1192
+t=50757ms pulled seq=1195 pulls=330 empty=5671
+t=50763ms write begin seq=1195 bytes=921600
+t=50763ms write done seq=1195
+t=50899ms write begin seq=1198 bytes=921600
+t=50899ms write done seq=1198
+t=51053ms write begin seq=1201 bytes=921600
+t=51053ms write done seq=1201
+t=51185ms pulled seq=1204 pulls=335 empty=5792
+t=51185ms write begin seq=1204 bytes=921600
+t=51185ms write done seq=1204
+t=51330ms write begin seq=1207 bytes=921600
+t=51330ms write done seq=1207
+t=51434ms write begin seq=1209 bytes=921600
+t=51435ms write done seq=1209
+t=51565ms write begin seq=1212 bytes=921600
+t=51565ms write done seq=1212
+t=51710ms pulled seq=1215 pulls=340 empty=5929
+t=51710ms write begin seq=1215 bytes=921600
+t=51710ms write done seq=1215
+t=51849ms write begin seq=1218 bytes=921600
+t=51849ms write done seq=1218
+t=51985ms write begin seq=1221 bytes=921600
+t=51985ms write done seq=1221
+t=52120ms write begin seq=1224 bytes=921600
+t=52120ms write done seq=1224
+t=52263ms write begin seq=1227 bytes=921600
+t=52263ms write done seq=1227
+t=52381ms pulled seq=1230 pulls=345 empty=6118
+t=52386ms write begin seq=1230 bytes=921600
+t=52387ms write done seq=1230
+t=52534ms write begin seq=1233 bytes=921600
+t=52534ms write done seq=1233
+t=52642ms write begin seq=1235 bytes=921600
+t=52643ms write done seq=1235
+t=52781ms pulled seq=1238 pulls=350 empty=6240
+t=52785ms write begin seq=1238 bytes=921600
+t=52785ms write done seq=1238
+t=52941ms write begin seq=1241 bytes=921600
+t=52942ms write done seq=1241
+t=53077ms write begin seq=1244 bytes=921600
+t=53078ms write done seq=1244
+t=53181ms pulled seq=1246 pulls=355 empty=6357
+t=53181ms write begin seq=1246 bytes=921600
+t=53181ms write done seq=1246
+t=53314ms write begin seq=1249 bytes=921600
+t=53314ms write done seq=1249
+t=53452ms write begin seq=1252 bytes=921600
+t=53452ms write done seq=1252
+t=53555ms write begin seq=1254 bytes=921600
+t=53555ms write done seq=1254
+t=53688ms write begin seq=1257 bytes=921600
+t=53688ms write done seq=1257
+t=53790ms pulled seq=1259 pulls=360 empty=6499
+t=53791ms write begin seq=1259 bytes=921600
+t=53791ms write done seq=1259
+t=53905ms write begin seq=1261 bytes=921600
+t=53905ms write done seq=1261
+t=54053ms write begin seq=1264 bytes=921600
+t=54053ms write done seq=1264
+t=54204ms write begin seq=1267 bytes=921600
+t=54206ms write done seq=1267
+t=54345ms pulled seq=1270 pulls=365 empty=6608
+t=54345ms write begin seq=1270 bytes=921600
+t=54346ms write done seq=1270
+t=54507ms write begin seq=1273 bytes=921600
+t=54507ms write done seq=1273
+t=54652ms write begin seq=1276 bytes=921600
+t=54652ms write done seq=1276
+t=54795ms pulled seq=1279 pulls=370 empty=6726
+t=54796ms write begin seq=1279 bytes=921600
+t=54796ms write done seq=1279
+t=54897ms write begin seq=1281 bytes=921600
+t=54897ms write done seq=1281
+t=55034ms write begin seq=1284 bytes=921600
+t=55034ms write done seq=1284
+t=55186ms write begin seq=1287 bytes=921600
+t=55186ms write done seq=1287
+t=55321ms write begin seq=1290 bytes=921600
+t=55321ms write done seq=1290
+t=55449ms pulled seq=1293 pulls=375 empty=6898
+t=55449ms write begin seq=1293 bytes=921600
+t=55449ms write done seq=1293
+t=55588ms write begin seq=1296 bytes=921600
+t=55588ms write done seq=1296
+t=55728ms write begin seq=1299 bytes=921600
+t=55732ms write done seq=1299
+t=55864ms write begin seq=1302 bytes=921600
+t=55864ms write done seq=1302
+t=56000ms write begin seq=1305 bytes=921600
+t=56001ms write done seq=1305
+t=56137ms pulled seq=1308 pulls=380 empty=7068
+t=56137ms write begin seq=1308 bytes=921600
+t=56138ms write done seq=1308
+t=56274ms write begin seq=1311 bytes=921600
+t=56274ms write done seq=1311
+t=56404ms write begin seq=1314 bytes=921600
+t=56405ms write done seq=1314
+t=56509ms write begin seq=1316 bytes=921600
+t=56509ms write done seq=1316
+t=56641ms write begin seq=1319 bytes=921600
+t=56641ms write done seq=1319
+t=56743ms pulled seq=1321 pulls=385 empty=7240
+t=56743ms write begin seq=1321 bytes=921600
+t=56743ms write done seq=1321
+t=56875ms write begin seq=1324 bytes=921600
+t=56875ms write done seq=1324
+t=57010ms write begin seq=1327 bytes=921600
+t=57010ms write done seq=1327
+t=57149ms write begin seq=1330 bytes=921600
+t=57149ms write done seq=1330
+t=57283ms write begin seq=1333 bytes=921600
+t=57283ms write done seq=1333
+t=57425ms pulled seq=1336 pulls=390 empty=7408
+t=57425ms write begin seq=1336 bytes=921600
+t=57426ms write done seq=1336
+t=57565ms write begin seq=1339 bytes=921600
+t=57566ms write done seq=1339
+t=57708ms write begin seq=1342 bytes=921600
+t=57708ms write done seq=1342
+t=57807ms pulled seq=1344 pulls=395 empty=7511
+t=57809ms write begin seq=1344 bytes=921600
+t=57809ms write done seq=1344
+t=57925ms write begin seq=1347 bytes=921600
+t=57925ms write done seq=1347
+t=58077ms write begin seq=1350 bytes=921600
+t=58078ms write done seq=1350
+t=58212ms write begin seq=1353 bytes=921600
+t=58213ms write done seq=1353
+t=58352ms pulled seq=1356 pulls=400 empty=7657
+t=58352ms write begin seq=1356 bytes=921600
+t=58353ms write done seq=1356
+t=58505ms write begin seq=1359 bytes=921600
+t=58505ms write done seq=1359
+t=58630ms write begin seq=1362 bytes=921600
+t=58631ms write done seq=1362
+t=58772ms write begin seq=1365 bytes=921600
+t=58773ms write done seq=1365
+t=58901ms write begin seq=1368 bytes=921600
+t=58901ms write done seq=1368
+t=59047ms pulled seq=1371 pulls=405 empty=7841
+t=59047ms write begin seq=1371 bytes=921600
+t=59047ms write done seq=1371
+t=59186ms write begin seq=1374 bytes=921600
+t=59186ms write done seq=1374
+t=59323ms write begin seq=1377 bytes=921600
+t=59323ms write done seq=1377
+t=59464ms write begin seq=1380 bytes=921600
+t=59465ms write done seq=1380
+t=59606ms write begin seq=1383 bytes=921600
+t=59606ms write done seq=1383
+t=59737ms pulled seq=1386 pulls=410 empty=8052
+t=59743ms write begin seq=1386 bytes=921600
+t=59743ms write done seq=1386
+t=59884ms write begin seq=1389 bytes=921600
+t=59884ms write done seq=1389
+t=60014ms write begin seq=1392 bytes=921600
+t=60014ms write done seq=1392
+t=60146ms pulled seq=1395 pulls=415 empty=8140
+t=60151ms write begin seq=1395 bytes=921600
+t=60152ms write done seq=1395
+t=60290ms write begin seq=1398 bytes=921600
+t=60290ms write done seq=1398
+t=60425ms write begin seq=1401 bytes=921600
+t=60425ms write done seq=1401
+t=60561ms pulled seq=1404 pulls=420 empty=8261
+t=60561ms write begin seq=1404 bytes=921600
+t=60561ms write done seq=1404
+t=60695ms write begin seq=1407 bytes=921600
+t=60695ms write done seq=1407
+t=60802ms write begin seq=1409 bytes=921600
+t=60802ms write done seq=1409
+t=60940ms write begin seq=1412 bytes=921600
+t=60940ms write done seq=1412
+t=61080ms pulled seq=1415 pulls=425 empty=8376
+t=61080ms write begin seq=1415 bytes=921600
+t=61080ms write done seq=1415
+t=61217ms write begin seq=1418 bytes=921600
+t=61217ms write done seq=1418
+t=61351ms write begin seq=1421 bytes=921600
+t=61355ms write done seq=1421
+t=61487ms pulled seq=1424 pulls=430 empty=8484
+t=61487ms write begin seq=1424 bytes=921600
+t=61487ms write done seq=1424
+t=61626ms write begin seq=1427 bytes=921600
+t=61626ms write done seq=1427
+t=61782ms write begin seq=1430 bytes=921600
+t=61782ms write done seq=1430
+t=61881ms write begin seq=1432 bytes=921600
+t=61882ms write done seq=1432
+t=62038ms write begin seq=1435 bytes=921600
+t=62038ms write done seq=1435
+t=62180ms pulled seq=1438 pulls=435 empty=8652
+t=62180ms write begin seq=1438 bytes=921600
+t=62180ms write done seq=1438
+t=62331ms write begin seq=1441 bytes=921600
+t=62332ms write done seq=1441
+t=62479ms write begin seq=1444 bytes=921600
+t=62479ms write done seq=1444
+t=62621ms write begin seq=1447 bytes=921600
+t=62622ms write done seq=1447
+t=62725ms write begin seq=1449 bytes=921600
+t=62726ms write done seq=1449
+t=62864ms pulled seq=1452 pulls=440 empty=8837
+t=62867ms write begin seq=1452 bytes=921600
+t=62867ms write done seq=1452
+t=62997ms write begin seq=1455 bytes=921600
+t=62997ms write done seq=1455
+t=63101ms write begin seq=1457 bytes=921600
+t=63101ms write done seq=1457
+t=63229ms write begin seq=1460 bytes=921600
+t=63229ms write done seq=1460
+t=63329ms pulled seq=1462 pulls=445 empty=8958
+t=63337ms write begin seq=1462 bytes=921600
+t=63337ms write done seq=1462
+t=63470ms write begin seq=1465 bytes=921600
+t=63470ms write done seq=1465
+t=63573ms write begin seq=1467 bytes=921600
+t=63573ms write done seq=1467
+t=63672ms pulled seq=1469 pulls=450 empty=9025
+t=63673ms write begin seq=1469 bytes=921600
+t=63673ms write done seq=1469
+t=63813ms write begin seq=1472 bytes=921600
+t=63814ms write done seq=1472
+t=63941ms write begin seq=1475 bytes=921600
+t=63941ms write done seq=1475
+t=64078ms write begin seq=1478 bytes=921600
+t=64078ms write done seq=1478
+t=64214ms write begin seq=1481 bytes=921600
+t=64214ms write done seq=1481
+t=64352ms pulled seq=1484 pulls=455 empty=9197
+t=64352ms write begin seq=1484 bytes=921600
+t=64352ms write done seq=1484
+t=64502ms write begin seq=1487 bytes=921600
+t=64502ms write done seq=1487
+t=64603ms write begin seq=1489 bytes=921600
+t=64603ms write done seq=1489
+t=64740ms write begin seq=1492 bytes=921600
+t=64740ms write done seq=1492
+t=64869ms pulled seq=1495 pulls=460 empty=9332
+t=64869ms write begin seq=1495 bytes=921600
+t=64869ms write done seq=1495
+t=65010ms write begin seq=1498 bytes=921600
+t=65011ms write done seq=1498
+t=65152ms write begin seq=1501 bytes=921600
+t=65152ms write done seq=1501
+t=65285ms write begin seq=1504 bytes=921600
+t=65285ms write done seq=1504
+t=65437ms pulled seq=1507 pulls=465 empty=9501
+t=65437ms write begin seq=1507 bytes=921600
+t=65437ms write done seq=1507
+t=65586ms write begin seq=1510 bytes=921600
+t=65587ms write done seq=1510
+t=65713ms write begin seq=1513 bytes=921600
+t=65713ms write done seq=1513
+t=65816ms pulled seq=1515 pulls=470 empty=9601
+t=65816ms write begin seq=1515 bytes=921600
+t=65816ms write done seq=1515
+t=65955ms write begin seq=1518 bytes=921600
+t=65955ms write done seq=1518
+t=66083ms write begin seq=1521 bytes=921600
+t=66083ms write done seq=1521
+t=66186ms write begin seq=1523 bytes=921600
+t=66187ms write done seq=1523
+t=66286ms pulled seq=1525 pulls=475 empty=9746
+t=66286ms write begin seq=1525 bytes=921600
+t=66287ms write done seq=1525
+t=66435ms write begin seq=1528 bytes=921600
+t=66435ms write done seq=1528
+t=66579ms write begin seq=1531 bytes=921600
+t=66579ms write done seq=1531
+t=66720ms pulled seq=1534 pulls=480 empty=9868
+t=66720ms write begin seq=1534 bytes=921600
+t=66721ms write done seq=1534
+t=66860ms write begin seq=1537 bytes=921600
+t=66860ms write done seq=1537
+t=66960ms write begin seq=1539 bytes=921600
+t=66960ms write done seq=1539
+t=67105ms write begin seq=1542 bytes=921600
+t=67105ms write done seq=1542
+t=67256ms pulled seq=1545 pulls=485 empty=10011
+t=67257ms write begin seq=1545 bytes=921600
+t=67257ms write done seq=1545
+t=67387ms write begin seq=1548 bytes=921600
+t=67387ms write done seq=1548
+t=67541ms write begin seq=1551 bytes=921600
+t=67541ms write done seq=1551
+t=67683ms write begin seq=1554 bytes=921600
+t=67683ms write done seq=1554
+t=67817ms write begin seq=1557 bytes=921600
+t=67817ms write done seq=1557
+t=67965ms pulled seq=1560 pulls=490 empty=10212
+t=67971ms write begin seq=1560 bytes=921600
+t=67971ms write done seq=1560
+t=68113ms write begin seq=1563 bytes=921600
+t=68113ms write done seq=1563
+t=68247ms write begin seq=1566 bytes=921600
+t=68247ms write done seq=1566
+t=68386ms pulled seq=1569 pulls=495 empty=10331
+t=68386ms write begin seq=1569 bytes=921600
+t=68386ms write done seq=1569
+t=68509ms write begin seq=1572 bytes=921600
+t=68509ms write done seq=1572
+t=68653ms write begin seq=1575 bytes=921600
+t=68653ms write done seq=1575
+t=68802ms write begin seq=1578 bytes=921600
+t=68802ms write done seq=1578
+t=68942ms write begin seq=1581 bytes=921600
+t=68942ms write done seq=1581
+t=69068ms pulled seq=1584 pulls=500 empty=10507
+t=69068ms write begin seq=1584 bytes=921600
+t=69068ms write done seq=1584
+t=69214ms write begin seq=1587 bytes=921600
+t=69214ms write done seq=1587
+t=69349ms write begin seq=1590 bytes=921600
+t=69349ms write done seq=1590
+t=69459ms write begin seq=1592 bytes=921600
+t=69459ms write done seq=1592
+t=69589ms pulled seq=1595 pulls=505 empty=10663

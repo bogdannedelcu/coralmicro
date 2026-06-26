@@ -1,0 +1,132 @@
+import sentai; exec(sentai.fs.read('/lib/diag/camera_switch_latency_once.py'))
+S235 B10.5 camera switch latency once
+version=SentAI v1.0 build 1544 (2026-06-24 11:07:59)
+run=0 drain=1 reps=40 warmup=3
+chunk_prev=36864 chunk_now=131072
+model_size=5591680
+Model loaded: 5591680 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x87d0eda232ac7cda
+Input:  uint8[1,512,512,3] (786432 bytes)
+  quant: scale=0.00392157  zero_point=0
+Outputs: 1
+  [0] uint8[1,1344,6] (8064 bytes)
+      quant: scale=0.00392150  zero_point=0
+Arena used: 776 / 8192 KB
+Model name: yolo_1_class_512_1_upsample_512_
+tpu_load=0
+tpu_ready=True
+pipeline_stop_pre=0
+camera_ratio_prev=(0, 0)
+switch_drain_prev=1
+camera_select0=-1
+HandlePowerRequest: try I2C1: Success
+HandlePowerRequest: try I2C2: Success
+CAMERA_RECEIVER_Init = 0
+BOARD_PullCameraPowerDownPin:1
+BOARD_PullCameraResetPin:0
+BOARD_PullCameraPowerDownPin:0
+BOARD_PullCameraResetPin:1
+CAMERA_DEVICE_Init = 0
+CAMERA_DEVICE_Start = 0
+CAMERA_RECEIVER_Start = 0
+[CAM] sensor_fps=30 (1 s sample, target=30)
+[CAM1] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM1] W 0x3820=0x47 (0)
+[CAM1] W 0x3821=0x01 (0)
+[CAM0] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM0] W 0x3820=0x47 (0)
+[CAM0] W 0x3821=0x01 (0)
+camera_init=0
+camera_frame_count=30
+[to_tensor] frame=1ms pxp=12ms quant=0ms total=13ms (512x512)
+warmup_to_tensor[0]=0
+[to_tensor] frame=20ms pxp=11ms quant=0ms total=31ms (512x512)
+warmup_to_tensor[1]=0
+[to_tensor] frame=0ms pxp=11ms quant=0ms total=11ms (512x512)
+warmup_to_tensor[2]=0
+[to_tensor] frame=0ms pxp=12ms quant=0ms total=12ms (512x512)
+[bbt] no persisted BBT, starting clean
+row rep=0 target=0 select_us=4 to_tensor_us=11966 total_us=11970 rc=0 grabbed=0 current=0 frame_delta=0
+[to_tensor] frame=69ms pxp=11ms quant=0ms total=80ms (512x512)
+row rep=1 target=1 select_us=22980 to_tensor_us=80953 total_us=103933 rc=0 grabbed=1 current=1 frame_delta=1
+[to_tensor] frame=68ms pxp=11ms quant=0ms total=79ms (512x512)
+row rep=2 target=0 select_us=22225 to_tensor_us=79953 total_us=102178 rc=0 grabbed=0 current=0 frame_delta=1
+[to_tensor] frame=68ms pxp=11ms quant=0ms total=79ms (512x512)
+row rep=3 target=1 select_us=11919 to_tensor_us=79652 total_us=91571 rc=0 grabbed=1 current=1 frame_delta=2
+[to_tensor] frame=68ms pxp=11ms quant=0ms total=79ms (512x512)
+row rep=4 target=0 select_us=13222 to_tensor_us=79949 total_us=93171 rc=0 grabbed=0 current=0 frame_delta=1
+[to_tensor] frame=69ms pxp=11ms quant=0ms total=80ms (512x512)
+row rep=5 target=1 select_us=10901 to_tensor_us=80646 total_us=91547 rc=0 grabbed=1 current=1 frame_delta=2
+[to_tensor] frame=68ms pxp=11ms quant=0ms total=79ms (512x512)
+row rep=6 target=0 select_us=12203 to_tensor_us=79955 total_us=92158 rc=0 grabbed=0 current=0 frame_delta=1
+[to_tensor] frame=69ms pxp=11ms quant=0ms total=80ms (512x512)
+row rep=7 target=1 select_us=20644 to_tensor_us=80959 total_us=101603 rc=0 grabbed=1 current=1 frame_delta=1
+[to_tensor] frame=67ms pxp=11ms quant=0ms total=78ms (512x512)
+row rep=8 target=0 select_us=11909 to_tensor_us=78652 total_us=90561 rc=0 grabbed=0 current=0 frame_delta=2
+[to_tensor] frame=69ms pxp=11ms quant=0ms total=80ms (512x512)
+row rep=9 target=1 select_us=12185 to_tensor_us=80957 total_us=93142 rc=0 grabbed=1 current=1 frame_delta=1
+[to_tensor] frame=66ms pxp=11ms quant=0ms total=77ms (512x512)
+row rep=10 target=0 select_us=16695 to_tensor_us=77977 total_us=94672 rc=0 grabbed=0 current=0 frame_delta=2
+[to_tensor] frame=69ms pxp=11ms quant=0ms total=80ms (512x512)
+row rep=11 target=1 select_us=12889 to_tensor_us=80950 total_us=93839 rc=0 grabbed=1 current=1 frame_delta=1
+[to_tensor] frame=67ms pxp=11ms quant=0ms total=78ms (512x512)
+row rep=12 target=0 select_us=11898 to_tensor_us=78661 total_us=90559 rc=0 grabbed=0 current=0 frame_delta=2
+[to_tensor] frame=69ms pxp=11ms quant=0ms total=80ms (512x512)
+row rep=13 target=1 select_us=13233 to_tensor_us=80956 total_us=94189 rc=0 grabbed=1 current=1 frame_delta=1
+[to_tensor] frame=68ms pxp=11ms quant=0ms total=79ms (512x512)
+row rep=14 target=0 select_us=10946 to_tensor_us=79652 total_us=90598 rc=0 grabbed=0 current=0 frame_delta=2
+[to_tensor] frame=69ms pxp=11ms quant=0ms total=80ms (512x512)
+row rep=15 target=1 select_us=16572 to_tensor_us=80959 total_us=97531 rc=0 grabbed=1 current=1 frame_delta=1
+[to_tensor] frame=68ms pxp=11ms quant=0ms total=79ms (512x512)
+row rep=16 target=0 select_us=10912 to_tensor_us=79663 total_us=90575 rc=0 grabbed=0 current=0 frame_delta=2
+[to_tensor] frame=69ms pxp=11ms quant=0ms total=80ms (512x512)
+row rep=17 target=1 select_us=7634 to_tensor_us=80954 total_us=88588 rc=0 grabbed=1 current=1 frame_delta=1
+[to_tensor] frame=67ms pxp=11ms quant=0ms total=78ms (512x512)
+row rep=18 target=0 select_us=11932 to_tensor_us=78646 total_us=90578 rc=0 grabbed=0 current=0 frame_delta=2
+[to_tensor] frame=68ms pxp=11ms quant=0ms total=79ms (512x512)
+row rep=19 target=1 select_us=13227 to_tensor_us=79947 total_us=93174 rc=0 grabbed=1 current=1 frame_delta=1
+[to_tensor] frame=68ms pxp=11ms quant=0ms total=79ms (512x512)
+row rep=20 target=0 select_us=11906 to_tensor_us=79650 total_us=91556 rc=0 grabbed=0 current=0 frame_delta=2
+[to_tensor] frame=69ms pxp=11ms quant=0ms total=80ms (512x512)
+row rep=21 target=1 select_us=10740 to_tensor_us=80955 total_us=91695 rc=0 grabbed=1 current=1 frame_delta=1
+[to_tensor] frame=68ms pxp=11ms quant=0ms total=79ms (512x512)
+row rep=22 target=0 select_us=10893 to_tensor_us=79662 total_us=90555 rc=0 grabbed=0 current=0 frame_delta=2
+[to_tensor] frame=68ms pxp=11ms quant=0ms total=79ms (512x512)
+row rep=23 target=1 select_us=11649 to_tensor_us=79952 total_us=91601 rc=0 grabbed=1 current=1 frame_delta=2
+[to_tensor] frame=68ms pxp=11ms quant=0ms total=79ms (512x512)
+row rep=24 target=0 select_us=12868 to_tensor_us=79946 total_us=92814 rc=0 grabbed=0 current=0 frame_delta=1
+[to_tensor] frame=68ms pxp=11ms quant=0ms total=79ms (512x512)
+row rep=25 target=1 select_us=11947 to_tensor_us=79650 total_us=91597 rc=0 grabbed=1 current=1 frame_delta=2
+[to_tensor] frame=68ms pxp=11ms quant=0ms total=79ms (512x512)
+row rep=26 target=0 select_us=12191 to_tensor_us=79961 total_us=92152 rc=0 grabbed=0 current=0 frame_delta=1
+[to_tensor] frame=68ms pxp=11ms quant=0ms total=79ms (512x512)
+row rep=27 target=1 select_us=11899 to_tensor_us=79653 total_us=91552 rc=0 grabbed=1 current=1 frame_delta=2
+[to_tensor] frame=68ms pxp=11ms quant=0ms total=79ms (512x512)
+row rep=28 target=0 select_us=13175 to_tensor_us=79959 total_us=93134 rc=0 grabbed=0 current=0 frame_delta=1
+[to_tensor] frame=68ms pxp=11ms quant=0ms total=79ms (512x512)
+row rep=29 target=1 select_us=11883 to_tensor_us=79650 total_us=91533 rc=0 grabbed=1 current=1 frame_delta=2
+[to_tensor] frame=68ms pxp=11ms quant=0ms total=79ms (512x512)
+row rep=30 target=0 select_us=33921 to_tensor_us=79953 total_us=113874 rc=0 grabbed=0 current=0 frame_delta=1
+[to_tensor] frame=69ms pxp=11ms quant=0ms total=80ms (512x512)
+row rep=31 target=1 select_us=10896 to_tensor_us=80656 total_us=91552 rc=0 grabbed=1 current=1 frame_delta=2
+[to_tensor] frame=68ms pxp=11ms quant=0ms total=79ms (512x512)
+row rep=32 target=0 select_us=13662 to_tensor_us=79953 total_us=93615 rc=0 grabbed=0 current=0 frame_delta=1
+[to_tensor] frame=68ms pxp=11ms quant=0ms total=79ms (512x512)
+row rep=33 target=1 select_us=11855 to_tensor_us=79647 total_us=91502 rc=0 grabbed=1 current=1 frame_delta=2
+[to_tensor] frame=68ms pxp=11ms quant=0ms total=79ms (512x512)
+row rep=34 target=0 select_us=12203 to_tensor_us=79948 total_us=92151 rc=0 grabbed=0 current=0 frame_delta=1
+[to_tensor] frame=68ms pxp=11ms quant=0ms total=79ms (512x512)
+row rep=35 target=1 select_us=11891 to_tensor_us=79648 total_us=91539 rc=0 grabbed=1 current=1 frame_delta=2
+[to_tensor] frame=68ms pxp=11ms quant=0ms total=79ms (512x512)
+row rep=36 target=0 select_us=13167 to_tensor_us=79960 total_us=93127 rc=0 grabbed=0 current=0 frame_delta=1
+[to_tensor] frame=69ms pxp=11ms quant=0ms total=80ms (512x512)
+row rep=37 target=1 select_us=10882 to_tensor_us=80643 total_us=91525 rc=0 grabbed=1 current=1 frame_delta=2
+[to_tensor] frame=67ms pxp=11ms quant=0ms total=78ms (512x512)
+row rep=38 target=0 select_us=27730 to_tensor_us=78951 total_us=106681 rc=0 grabbed=0 current=0 frame_delta=2
+[to_tensor] frame=69ms pxp=11ms quant=0ms total=80ms (512x512)
+row rep=39 target=1 select_us=12883 to_tensor_us=80950 total_us=93833 rc=0 grabbed=1 current=1 frame_delta=1
+[bbt] no persisted BBT, starting clean
+fs_sync=True
+csv=/diags/s235_b10_camera_switch/run_00_drain1.csv
+=== done ===
+>>> 

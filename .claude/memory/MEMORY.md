@@ -140,3 +140,4 @@
 - [MicroPython mp_sched drain hooks needed](feedback_mp_scheduler_drain.md) — `mp_sched_schedule` fires only while VM ticks — add `mp_handle_pending` to stdin + sleeps.
 - [vTaskDelay forbidden pre-scheduler](feedback_vtaskdelay_pre_scheduler.md) — vTaskDelay() pre-vTaskStartScheduler bricks (pxCurrentTCB null). Use bounded_delay_ms.
 - [Radio CRTP MTU 30 B = inline $exec only](feedback_radio_no_file_transfer.md) — Pre-load via USB. Radio: $exec+alias+telemetry. ~6 Hz / 150 B. Don't drive control.
+- [MSC upload gotcha](project_msc_upload_gotcha.md) — model upload via MSC: ROOT only, exit with drive(0) not q, else FileX SAFE_MODE; format() not fx_format()

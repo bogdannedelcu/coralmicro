@@ -33,23 +33,19 @@ constexpr int kMaxPath = 128;
 constexpr int kMaxPlaybackFrames = 64;
 constexpr int kPlaybackStackWords = configMINIMAL_STACK_SIZE * 12;
 
-static uint8_t s_loaded_xrgb[kMaxW * kMaxH * 4]
-#if !defined(SENTAI_PLATFORM_SIM)
-    __attribute__((section(".sdram_bss")))
+#if defined(SENTAI_PLATFORM_SIM)
+#define SENTAI_VCAM_FRAME_BSS
+#else
+#define SENTAI_VCAM_FRAME_BSS \
+    __attribute__((section("NonCacheableCamera,\"aw\",%nobits @"), aligned(64)))
 #endif
-    ;
+
+static uint8_t s_loaded_xrgb[kMaxW * kMaxH * 4] SENTAI_VCAM_FRAME_BSS;
 
 static uint8_t s_frame_xrgb[SENTAI_VIRTUAL_CAMERA_FRAME_SLOTS][kMaxW * kMaxH * 4]
-#if !defined(SENTAI_PLATFORM_SIM)
-    __attribute__((section(".sdram_bss")))
-#endif
-    ;
+    SENTAI_VCAM_FRAME_BSS;
 
-static uint8_t s_bmp_file[54 + kMaxW * kMaxH * 4]
-#if !defined(SENTAI_PLATFORM_SIM)
-    __attribute__((section(".sdram_bss")))
-#endif
-    ;
+static uint8_t s_bmp_file[54 + kMaxW * kMaxH * 4] SENTAI_VCAM_FRAME_BSS;
 
 typedef struct {
   uint32_t seq;
@@ -70,11 +66,7 @@ static int s_current_cam_id = SENTAI_VIRTUAL_CAMERA_ID;
 
 static StaticTask_t s_play_tcb;
 static StackType_t s_play_stack[kPlaybackStackWords]
-    __attribute__((aligned(8)
-#if !defined(SENTAI_PLATFORM_SIM)
-                   , section(".sdram_bss")
-#endif
-                   ));
+    SENTAI_VCAM_FRAME_BSS;
 static TaskHandle_t s_play_task = nullptr;
 static volatile int s_play_running = 0;
 static volatile int s_play_stop_requested = 0;

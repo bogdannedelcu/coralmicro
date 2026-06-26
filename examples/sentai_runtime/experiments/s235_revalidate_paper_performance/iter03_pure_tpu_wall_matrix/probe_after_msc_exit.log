@@ -1,0 +1,38 @@
+open retry 0 SerialException(16, "could not open port /dev/ttyACM0: [Errno 16] Device or resource busy: '/dev/ttyACM0'")
+open retry 1 SerialException(16, "could not open port /dev/ttyACM0: [Errno 16] Device or resource busy: '/dev/ttyACM0'")
+open retry 2 SerialException(16, "could not open port /dev/ttyACM0: [Errno 16] Device or resource busy: '/dev/ttyACM0'")
+open retry 3 SerialException(16, "could not open port /dev/ttyACM0: [Errno 16] Device or resource busy: '/dev/ttyACM0'")
+open retry 4 SerialException(16, "could not open port /dev/ttyACM0: [Errno 16] Device or resource busy: '/dev/ttyACM0'")
+open retry 5 SerialException(16, "could not open port /dev/ttyACM0: [Errno 16] Device or resource busy: '/dev/ttyACM0'")
+open retry 6 SerialException(16, "could not open port /dev/ttyACM0: [Errno 16] Device or resource busy: '/dev/ttyACM0'")
+open retry 7 SerialException(16, "could not open port /dev/ttyACM0: [Errno 16] Device or resource busy: '/dev/ttyACM0'")
+
+KeyboardInterrupt
+>>> 
+KeyboardInterrupt
+>>> 
+>>> 
+>>> 
+--- import sentai
+import sentai
+>>> 
+--- print('VERSION', sentai.version())
+print('VERSION', sentai.version())
+VERSION SentAI v1.0 build 1542 (2026-06-24 10:23:48)
+>>> 
+--- print('ROOT', sentai.fs.ls('/'))
+print('ROOT', sentai.fs.ls('/'))
+ROOT [('lib', 2, 0), ('diags', 2, 0), ('yolo_1_class_512_1_upsample_512_inloc_de_1024_la_P5_32.tflite', 1, 5591680), ('log', 2, 0)]
+>>> 
+--- print('LIB_DIAG', sentai.fs.ls('/lib/diag'))
+print('LIB_DIAG', sentai.fs.ls('/lib/diag'))
+LIB_DIAG [('pure_tpu_wall_one_chunk.py', 1, 4425)]
+>>> 
+--- print('MODEL_SIZE', sentai.fs.size('/yolo_1_class_512_1_upsample_512_inloc_de_1024_la_P5_32.tflite'))
+print('MODEL_SIZE', sentai.fs.size('/yolo_1_class_512_1_upsample_512_inloc_de_1024_la_P5_32.tflite'))
+MODEL_SIZE 5591680
+>>> 
+--- print('SCRIPT_SIZE', sentai.fs.size('/lib/diag/pure_tpu_wall_one_chunk.py'))
+print('SCRIPT_SIZE', sentai.fs.size('/lib/diag/pure_tpu_wall_one_chunk.py'))
+SCRIPT_SIZE 4425
+>>> 

@@ -1,0 +1,16 @@
+Collecting hexformat==0.2
+  Using cached hexformat-0.2-py3-none-any.whl
+Collecting progress==1.5
+  Using cached progress-1.5-py3-none-any.whl
+Collecting pyserial==3.5
+  Using cached pyserial-3.5-py2.py3-none-any.whl.metadata (1.6 kB)
+Collecting pyusb==1.2.0
+  Using cached pyusb-1.2.0-py3-none-any.whl.metadata (2.2 kB)
+Collecting hidapi
+  Using cached hidapi-0.15.0-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (3.7 kB)
+Using cached pyserial-3.5-py2.py3-none-any.whl (90 kB)
+Using cached pyusb-1.2.0-py3-none-any.whl (58 kB)
+Using cached hidapi-0.15.0-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (1.1 MB)
+Installing collected packages: pyserial, progress, hidapi, hexformat, pyusb
+
+Successfully installed hexformat-0.2 hidapi-0.15.0 progress-1.5 pyserial-3.5 pyusb-1.2.0

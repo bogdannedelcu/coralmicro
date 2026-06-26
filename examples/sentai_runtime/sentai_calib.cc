@@ -73,6 +73,27 @@ extern "C" int sentai_camera_grab_gray_zerocopy(const uint8_t** out_buf,
 extern "C" int sentai_cam_init_full(int streaming, int fps, int hflip, int vflip)
     __attribute__((weak));
 extern "C" void sentai_sleep_ms(uint32_t ms) __attribute__((weak));
+extern "C" int sentai_markers_init(sentai_markers_backend_t backend)
+    __attribute__((weak));
+extern "C" void sentai_markers_clear(void) __attribute__((weak));
+extern "C" void sentai_markers_set_intrinsics(float fx, float fy,
+                                               float cx, float cy)
+    __attribute__((weak));
+extern "C" void sentai_markers_set_marker_size(float meters)
+    __attribute__((weak));
+extern "C" void sentai_markers_clear_cam_extrinsics(void)
+    __attribute__((weak));
+extern "C" int sentai_markers_detect_frame(const uint8_t* gray, int w, int h,
+                                            uint32_t frame_seq,
+                                            uint32_t src_ts_ms)
+    __attribute__((weak));
+extern "C" int sentai_markers_get_observation(int img_w,
+                                               int img_h,
+                                               float margin_px,
+                                               SentaiMarkersObservation* out)
+    __attribute__((weak));
+extern "C" int sentai_markers_set_marker_world(int n, const float* xyz_n3)
+    __attribute__((weak));
 
 static const sentai_calib_defaults_t kCalibDefaults = {
     320, 240,
@@ -411,7 +432,7 @@ extern "C" int sentai_calib_get_limits(sentai_calib_limits_t* out) {
 extern "C" int sentai_calib_setup_defaults(void) {
     sentai_calib_init();
 
-    if (&sentai_cam_init_full) {
+    if (sentai_cam_init_full) {
         const int cam_rc = sentai_cam_init_full(1, 30, 0, 1);
         if (cam_rc != 0 && cam_rc != -11) {
             char ev[64];
@@ -419,6 +440,14 @@ extern "C" int sentai_calib_setup_defaults(void) {
             sentai_fr_push_event("calib_setup", ev);
             return -10;
         }
+    }
+
+    if (!sentai_markers_clear || !sentai_markers_init ||
+        !sentai_markers_set_intrinsics || !sentai_markers_set_marker_size ||
+        !sentai_markers_clear_cam_extrinsics ||
+        !sentai_markers_set_marker_world) {
+        sentai_fr_push_event("calib_setup", "markers_hook_missing");
+        return -20;
     }
 
     sentai_markers_clear();
@@ -668,6 +697,11 @@ extern "C" int sentai_calib_sample_observation(
         // invalid, but this is not a hard mission error.
         out->n_raw = 0;
         return 0;
+    }
+
+    if (!sentai_markers_detect_frame || !sentai_markers_get_observation) {
+        sentai_fr_push_event("calib_obs", "markers_hook_missing");
+        return -3;
     }
 
     const int n = sentai_markers_detect_frame(gray, w, h, seq, ts);

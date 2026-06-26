@@ -1,0 +1,450 @@
+    PID    PPID STAT CMD
+      1       0 Ss   /usr/lib/systemd/systemd --switched-root --system --deserialize=52 splash
+      2       0 S    [kthreadd]
+      3       2 S    [pool_workqueue_release]
+      4       2 I<   [kworker/R-rcu_gp]
+      5       2 I<   [kworker/R-sync_wq]
+      6       2 I<   [kworker/R-kvfree_rcu_reclaim]
+      7       2 I<   [kworker/R-slub_flushwq]
+      8       2 I<   [kworker/R-netns]
+     10       2 I<   [kworker/0:0H-kblockd]
+     13       2 I<   [kworker/R-mm_percpu_wq]
+     14       2 S    [ksoftirqd/0]
+     15       2 I    [rcu_preempt]
+     16       2 S    [rcu_exp_par_gp_kthread_worker/1]
+     17       2 S    [rcu_exp_gp_kthread_worker]
+     18       2 S    [migration/0]
+     19       2 S    [kprobe-optimizer]
+     20       2 S    [idle_inject/0]
+     21       2 S    [cpuhp/0]
+     22       2 S    [cpuhp/2]
+     23       2 S    [idle_inject/2]
+     24       2 S    [migration/2]
+     25       2 S    [ksoftirqd/2]
+     27       2 I<   [kworker/2:0H-kblockd]
+     28       2 S    [cpuhp/4]
+     29       2 S    [idle_inject/4]
+     30       2 S    [migration/4]
+     31       2 S    [ksoftirqd/4]
+     33       2 I<   [kworker/4:0H-kblockd]
+     34       2 S    [cpuhp/6]
+     35       2 S    [idle_inject/6]
+     36       2 S    [migration/6]
+     37       2 S    [ksoftirqd/6]
+     39       2 I<   [kworker/6:0H-kblockd]
+     40       2 S    [cpuhp/8]
+     41       2 S    [idle_inject/8]
+     42       2 S    [migration/8]
+     43       2 S    [ksoftirqd/8]
+     45       2 I<   [kworker/8:0H-kblockd]
+     46       2 S    [cpuhp/10]
+     47       2 S    [idle_inject/10]
+     48       2 S    [migration/10]
+     49       2 S    [ksoftirqd/10]
+     51       2 I<   [kworker/10:0H-kblockd]
+     52       2 S    [cpuhp/12]
+     53       2 S    [idle_inject/12]
+     54       2 S    [migration/12]
+     55       2 S    [ksoftirqd/12]
+     57       2 I<   [kworker/12:0H-kblockd]
+     58       2 S    [rcu_exp_par_gp_kthread_worker/2]
+     59       2 S    [cpuhp/14]
+     60       2 S    [idle_inject/14]
+     61       2 S    [migration/14]
+     62       2 S    [ksoftirqd/14]
+     64       2 I<   [kworker/14:0H-kblockd]
+     65       2 S    [cpuhp/16]
+     66       2 S    [idle_inject/16]
+     67       2 S    [migration/16]
+     68       2 S    [ksoftirqd/16]
+     70       2 I<   [kworker/16:0H-kblockd]
+     71       2 S    [cpuhp/17]
+     72       2 S    [idle_inject/17]
+     73       2 S    [migration/17]
+     74       2 S    [ksoftirqd/17]
+     76       2 I<   [kworker/17:0H-kblockd]
+     77       2 S    [cpuhp/18]
+     78       2 S    [idle_inject/18]
+     79       2 S    [migration/18]
+     80       2 S    [ksoftirqd/18]
+     82       2 I<   [kworker/18:0H-kblockd]
+     83       2 S    [cpuhp/19]
+     84       2 S    [idle_inject/19]
+     85       2 S    [migration/19]
+     86       2 S    [ksoftirqd/19]
+     88       2 I<   [kworker/19:0H-kblockd]
+     89       2 S    [cpuhp/20]
+     90       2 S    [idle_inject/20]
+     91       2 S    [migration/20]
+     92       2 S    [ksoftirqd/20]
+     94       2 I<   [kworker/20:0H-kblockd]
+     95       2 S    [cpuhp/21]
+     96       2 S    [idle_inject/21]
+     97       2 S    [migration/21]
+     98       2 S    [ksoftirqd/21]
+    100       2 I<   [kworker/21:0H-kblockd]
+    101       2 S    [cpuhp/22]
+    102       2 S    [idle_inject/22]
+    103       2 S    [migration/22]
+    104       2 S    [ksoftirqd/22]
+    106       2 I<   [kworker/22:0H-kblockd]
+    107       2 S    [cpuhp/23]
+    108       2 S    [idle_inject/23]
+    109       2 S    [migration/23]
+    110       2 S    [ksoftirqd/23]
+    112       2 I<   [kworker/23:0H-kblockd]
+    113       2 S    [cpuhp/1]
+    114       2 S    [idle_inject/1]
+    115       2 S    [migration/1]
+    116       2 S    [ksoftirqd/1]
+    118       2 I<   [kworker/1:0H-kblockd]
+    119       2 S    [cpuhp/3]
+    120       2 S    [idle_inject/3]
+    121       2 S    [migration/3]
+    122       2 S    [ksoftirqd/3]
+    124       2 I<   [kworker/3:0H-kblockd]
+    125       2 S    [cpuhp/5]
+    126       2 S    [idle_inject/5]
+    127       2 S    [migration/5]
+    128       2 S    [ksoftirqd/5]
+    130       2 I<   [kworker/5:0H-kblockd]
+    131       2 S    [cpuhp/7]
+    132       2 S    [idle_inject/7]
+    133       2 S    [migration/7]
+    134       2 S    [ksoftirqd/7]
+    136       2 I<   [kworker/7:0H-kblockd]
+    137       2 S    [cpuhp/9]
+    138       2 S    [idle_inject/9]
+    139       2 S    [migration/9]
+    140       2 S    [ksoftirqd/9]
+    142       2 I<   [kworker/9:0H-kblockd]
+    143       2 S    [cpuhp/11]
+    144       2 S    [idle_inject/11]
+    145       2 S    [migration/11]
+    146       2 S    [ksoftirqd/11]
+    148       2 I<   [kworker/11:0H-kblockd]
+    149       2 S    [cpuhp/13]
+    150       2 S    [idle_inject/13]
+    151       2 S    [migration/13]
+    152       2 S    [ksoftirqd/13]
+    154       2 I<   [kworker/13:0H-kblockd]
+    155       2 S    [cpuhp/15]
+    156       2 S    [idle_inject/15]
+    157       2 S    [migration/15]
+    158       2 S    [ksoftirqd/15]
+    160       2 I<   [kworker/15:0H-kblockd]
+    161       2 S    [kdevtmpfs]
+    162       2 I<   [kworker/R-inet_frag_wq]
+    163       2 I    [rcu_tasks_kthread]
+    164       2 I    [rcu_tasks_rude_kthread]
+    165       2 S    [kauditd]
+    166       2 S    [khungtaskd]
+    167       2 S    [oom_reaper]
+    170       2 I<   [kworker/R-writeback]
+    171       2 S    [kcompactd0]
+    172       2 SN   [ksmd]
+    173       2 SN   [khugepaged]
+    174       2 I<   [kworker/R-kblockd]
+    175       2 I<   [kworker/R-blkcg_punt_bio]
+    176       2 I<   [kworker/R-kintegrityd]
+    177       2 S    [irq/9-acpi]
+    181       2 I<   [kworker/R-tpm_dev_wq]
+    182       2 I<   [kworker/R-ata_sff]
+    183       2 I<   [kworker/R-md_bitmap]
+    184       2 I<   [kworker/R-md_llbitmap_io]
+    185       2 I<   [kworker/R-md_llbitmap_unplug]
+    186       2 I<   [kworker/R-md]
+    187       2 I<   [kworker/R-edac-poller]
+    188       2 I<   [kworker/R-devfreq_wq]
+    189       2 S    [watchdogd]
+    190       2 I<   [kworker/R-quota_events_unbound]
+    192       2 S    [kswapd0]
+    193       2 S    [ecryptfs-kthread]
+    194       2 I<   [kworker/R-kthrotld]
+    195       2 S    [irq/120-aerdrv]
+    196       2 S    [irq/121-aerdrv]
+    197       2 S    [irq/122-pciehp]
+    198       2 S    [irq/123-aerdrv]
+    199       2 I<   [kworker/R-acpi_thermal_pm]
+    200       2 S    [hwrng]
+    201       2 I<   [kworker/R-hfi-updates]
+    202       2 I<   [kworker/R-mld]
+    203       2 I<   [kworker/R-ipv6_addrconf]
+    204       2 I<   [kworker/R-kstrp]
+    225       2 I<   [kworker/u97:0]
+    236       2 I<   [kworker/R-charger_manager]
+    550       2 I<   [kworker/R-nvme-wq]
+    551       2 I<   [kworker/R-nvme-reset-wq]
+    552       2 I<   [kworker/R-nvme-delete-wq]
+    553       2 I<   [kworker/R-nvme-auth-wq]
+    558       2 S    [scsi_eh_0]
+    559       2 I<   [kworker/R-scsi_tmf_0]
+    560       2 S    [scsi_eh_1]
+    561       2 I<   [kworker/R-scsi_tmf_1]
+    562       2 S    [scsi_eh_2]
+    563       2 I<   [kworker/R-scsi_tmf_2]
+    565       2 S    [scsi_eh_3]
+    566       2 I<   [kworker/R-scsi_tmf_3]
+    567       2 S    [scsi_eh_4]
+    568       2 I<   [kworker/R-scsi_tmf_4]
+    569       2 S    [scsi_eh_5]
+    570       2 I<   [kworker/R-scsi_tmf_5]
+    572       2 S    [scsi_eh_6]
+    573       2 I<   [kworker/R-scsi_tmf_6]
+    574       2 S    [scsi_eh_7]
+    575       2 I<   [kworker/R-scsi_tmf_7]
+    594       2 I<   [kworker/11:1H-kblockd]
+    621       2 I<   [kworker/2:1H-kblockd]
+    622       2 I<   [kworker/17:1H-kblockd]
+    624       2 I<   [kworker/R-xfsalloc]
+    625       2 I<   [kworker/R-xfs_mru_cache]
+    626       2 I<   [kworker/R-xfs-buf/sda2]
+    627       2 I<   [kworker/R-xfs-conv/sda2]
+    628       2 I<   [kworker/R-xfs-reclaim/sda2]
+    629       2 I<   [kworker/R-xfs-blockgc/sda2]
+    630       2 I<   [kworker/R-xfs-inodegc/sda2]
+    631       2 I<   [kworker/R-xfs-log/sda2]
+    632       2 I<   [kworker/R-xfs-cil/sda2]
+    633       2 S    [xfsaild/sda2]
+    634       2 I<   [kworker/15:1H-kblockd]
+    635       2 I<   [kworker/10:1H-kblockd]
+    691       2 I<   [kworker/21:1H-kblockd]
+    840       2 I<   [kworker/20:1H-kblockd]
+    858       1 S<s  /usr/lib/systemd/systemd-journald
+    876       2 I<   [kworker/12:1H-kblockd]
+    897       1 Ss   /usr/lib/systemd/systemd-resolved
+    899       2 I<   [kworker/18:1H-kblockd]
+    900       2 I<   [kworker/14:1H-kblockd]
+    901       1 Ss   /usr/lib/systemd/systemd-oomd
+    903       1 Ss   /usr/lib/systemd/systemd-udevd
+    904       2 I<   [kworker/8:1H-kblockd]
+    905       2 I<   [kworker/6:1H-kblockd]
+    910       2 S    [psimon]
+   1000       2 I<   [kworker/0:1H-xfs-log/sda2]
+   1037       2 I<   [kworker/5:1H-kblockd]
+   1159       2 I<   [kworker/1:1H-kblockd]
+   1226       2 S    [nv_queue]
+   1227       2 S    [nv_mem_pool_scrubber_queue]
+   1228       2 S    [nv_mem_pool_scrubber_queue]
+   1229       2 S    [nv_mem_pool_scrubber_queue]
+   1230       2 S    [nv_queue]
+   1231       2 S    [nv_open_q]
+   1238       2 I<   [kworker/16:1H-kblockd]
+   1456       2 S    [nvidia-modeset/kthread_q]
+   1457       2 S    [nvidia-modeset/deferred_close_kthread_q]
+   1459       2 I<   [kworker/R-ttm]
+   1461       2 S    [card1-crtc0]
+   1462       2 S    [card1-crtc1]
+   1463       2 S    [card1-crtc2]
+   1464       2 S    [card1-crtc3]
+   1471       2 S    [irq/138-nvidia]
+   1475       2 S    [nv_queue]
+   1476       2 I<   [kworker/13:1H-kblockd]
+   1485       2 I<   [kworker/7:1H-kblockd]
+   1651       2 I<   [kworker/23:1H-kblockd]
+   1675       2 I<   [kworker/4:1H-kblockd]
+   1677       2 I<   [kworker/9:1H-kblockd]
+   1682       2 I<   [kworker/22:1H-kblockd]
+   1966       2 S    [UVM global queue]
+   1968       2 S    [UVM deferred release queue]
+   1969       2 S    [UVM Tools Event Queue]
+   2370       1 Ss   avahi-daemon: running [lhpc.local]
+   2371       1 Ss   /bin/sh /usr/lib/systemd/scripts/chronyd-starter.sh -n -F 1
+   2372       1 Ss   @dbus-daemon --system --address=systemd: --nofork --nopidfile --systemd-activation --syslog-only
+   2384       1 Ss   /usr/bin/python3 /usr/bin/networkd-dispatcher --run-startup-triggers
+   2404       1 Ssl  /usr/lib/polkit-1/polkitd --no-debug --log-level=notice
+   2405       1 Ss   /usr/bin/nvidia-persistenced --user nvidia-persistenced --no-persistence-mode --verbose
+   2408       1 Ssl  /usr/lib/snapd/snapd
+   2409       1 Ssl  /usr/libexec/accounts-daemon
+   2410       1 Ss   /usr/sbin/cron -f -P
+   2413       1 Ssl  /usr/libexec/switcheroo-control
+   2417       1 Ss   /usr/lib/systemd/systemd-logind
+   2418       1 Ssl  /usr/sbin/thermald --systemd --dbus-enable --adaptive
+   2419       1 Ssl  /usr/libexec/udisks2/udisksd
+   2435    2370 S    avahi-daemon: chroot helper
+   2482    2371 S    /usr/sbin/chronyd -n -F 1
+   2557       1 Ssl  /usr/sbin/rsyslogd -n -iNONE
+   2566    2482 S    /usr/sbin/chronyd -n -F 1
+   2619       1 Ssl  /usr/sbin/NetworkManager --no-daemon
+   2620       1 Ss   /usr/sbin/wpa_supplicant -u -s -O DIR=/run/wpa_supplicant GROUP=netdev
+   2656       1 Ssl  /usr/sbin/ModemManager
+   2750       2 I<   [kworker/19:1H-kblockd]
+   2796       1 Ssl  /usr/bin/python3 /usr/share/unattended-upgrades/unattended-upgrade-shutdown --wait-for-signal
+   2818       1 Ssl  /usr/sbin/gdm3
+   2946       2 I<   [kworker/3:1H-kblockd]
+   3002       1 SNsl /usr/libexec/rtkit-daemon
+   3188       1 Ssl  /usr/libexec/colord
+   3234       1 Ssl  /usr/libexec/upowerd
+   4782       1 Ssl  /usr/local/bin/ollama serve
+   4809       1 Ssl  /usr/libexec/power-profiles-daemon
+   9912       1 Ssl  /usr/libexec/fwupd/fwupd
+ 214763       1 Ss   /usr/lib/systemd/systemd --user
+ 214765  214763 S    (sd-pam)
+ 215069  214763 Ssl  /usr/libexec/gcr-ssh-agent --base-dir /run/user/1000/gcr
+ 215071  214763 Ss   /usr/bin/ssh-agent -D
+ 217069       1 Ss   /usr/sbin/uuidd --socket-activation --cont-clock
+ 374841       2 I    [kworker/11:2-mm_percpu_wq]
+ 375329       2 I    [kworker/15:1-mm_percpu_wq]
+ 379266       2 I    [kworker/5:2-memcg]
+ 389039       2 I    [kworker/7:1-xfs-inodegc/sda2]
+ 392160       2 I    [kworker/11:0-events]
+ 392169       2 I    [kworker/3:1-mm_percpu_wq]
+ 392648       2 I    [kworker/1:1-events]
+ 392720       2 I    [kworker/20:1-cgroup_free]
+ 393740       2 I    [kworker/18:1-events]
+ 394043       2 I    [kworker/13:1-events]
+ 394178       2 I    [kworker/9:1-events]
+ 394183       2 I    [kworker/20:2-events]
+ 394311       2 I    [kworker/13:0-events]
+ 394478       2 I    [kworker/21:1-events]
+ 394544       2 I    [kworker/19:0-events]
+ 394628       2 I    [kworker/19:1-events]
+ 394629       2 I    [kworker/16:2-mm_percpu_wq]
+ 394852       2 I    [kworker/12:1-events]
+ 394859       2 I    [kworker/14:2-events]
+ 394860       2 I    [kworker/21:0-mm_percpu_wq]
+ 394964       2 I    [kworker/14:0-events]
+ 394994       2 I    [kworker/17:0-events]
+ 395081       2 I    [kworker/4:0-events]
+ 395160       2 I    [kworker/12:3-events]
+ 395181       2 I    [kworker/16:0-events]
+ 395200       2 I    [kworker/6:0-cgroup_free]
+ 395204       2 I    [kworker/2:1-mm_percpu_wq]
+ 395262       2 I    [kworker/8:1-mm_percpu_wq]
+ 395323       2 I    [kworker/2:2-events]
+ 395347       2 I    [kworker/18:0-events]
+ 395359       2 I    [kworker/10:0-events]
+ 396825       2 I    [kworker/u96:13-flush-8:0]
+ 396834       2 I    [kworker/u96:22-events_power_efficient]
+ 396843       2 I    [kworker/22:0-events]
+ 396845       2 I    [kworker/1:2-events]
+ 396846       2 I    [kworker/5:0-events]
+ 396847       2 I    [kworker/7:0-events]
+ 396848       2 I    [kworker/8:0-events]
+ 396849       2 I    [kworker/9:0-events]
+ 396859       2 I    [kworker/23:2-mm_percpu_wq]
+ 396860       2 S    [irq/126-mei_me]
+ 396865       2 I    [kworker/u96:36-writeback]
+ 396952       2 S    [nvidia]
+ 397233       1 Ss   /usr/sbin/cupsd -l
+ 397342       1 Ssl  /usr/sbin/cups-browsed
+ 398141  397233 S    /usr/lib/cups/notifier/dbus dbus://
+ 398573       2 I    [kworker/0:11-rcu_gp]
+ 398600       2 I    [kworker/0:38-xfs-conv/sda2]
+ 398718    2818 Sl   gdm-session-worker [pam/gdm-password]
+ 398941       2 I    [kworker/15:3-cgroup_release]
+ 399052       2 I    [kworker/23:3-mm_percpu_wq]
+ 399082  398718 Ssl+ /usr/libexec/gdm-wayland-session /usr/bin/gnome-session --session=ubuntu
+ 399096  214763 Ss   /usr/bin/dbus-daemon --session --address=systemd: --nofork --nopidfile --systemd-activation --syslog-only
+ 399146  399082 Sl+  /usr/libexec/gnome-session-init-worker ubuntu
+ 399241  214763 SLsl /usr/bin/gnome-keyring-daemon --foreground --components=pkcs11,secrets --control-directory=/run/user/1000/keyring
+ 399242  214763 Ssl  /usr/libexec/gnome-session-ctl --monitor
+ 399257  214763 Ssl  /usr/libexec/gvfsd
+ 399258  214763 Ssl  /snap/snapd-desktop-integration/387/usr/bin/user-session-helper /snap/snapd-desktop-integration/387/usr/bin/snapd-desktop-integration
+ 399269  214763 Sl   /usr/libexec/gvfsd-fuse /run/user/1000/gvfs -f
+ 399272  214763 Ssl  /usr/libexec/gnome-session-service --session=ubuntu
+ 399297  214763 Ssl  /usr/libexec/xdg-document-portal
+ 399298  214763 SLsl /usr/bin/gnome-shell --mode=ubuntu
+ 399302  214763 Ssl  /usr/libexec/xdg-permission-store
+ 399309  399297 Ss   fusermount3 -o rw,nosuid,nodev,fsname=portal,auto_unmount,subtype=portal -- /run/user/1000/doc
+ 399373       2 S    [nvidia-drm/timeline-a8]
+ 399399  214763 Ssl  /usr/libexec/at-spi-bus-launcher
+ 399406  399399 S    /usr/bin/dbus-daemon --config-file=/usr/share/defaults/at-spi2/accessibility.conf --nofork --print-address 11 --address=unix:path=/run/user/1000/at-spi/bus
+ 399408  214763 Sl   /usr/libexec/at-spi2-registryd --use-gnome-session
+ 399429  214763 Sl   /usr/libexec/gnome-shell-calendar-server
+ 399437  214763 Ssl  /usr/libexec/evolution-source-registry
+ 399442  214763 Sl   /usr/bin/gjs -m /usr/share/gnome-shell/org.gnome.Shell.Notifications
+ 399453  214763 Ssl  /usr/bin/ibus-daemon --panel disable
+ 399454  214763 Ssl  /usr/libexec/gsd-a11y-settings
+ 399455  214763 Ssl  /usr/libexec/gsd-color
+ 399464  214763 Ssl  /usr/libexec/gsd-datetime
+ 399469  214763 Ssl  /usr/libexec/gsd-housekeeping
+ 399470  214763 Ssl  /usr/libexec/gsd-keyboard
+ 399471  214763 Ssl  /usr/libexec/gsd-media-keys
+ 399473  214763 Ssl  /usr/libexec/gsd-power
+ 399475  214763 Ssl  /usr/libexec/gsd-print-notifications
+ 399477  214763 Ssl  /usr/libexec/gsd-rfkill
+ 399479  214763 Ssl  /usr/libexec/gsd-screensaver-proxy
+ 399489  214763 Ssl  /usr/libexec/gsd-sharing
+ 399493  214763 Ssl  /usr/libexec/gsd-smartcard
+ 399496  214763 Ssl  /usr/libexec/gsd-sound
+ 399500  214763 Ssl  /usr/libexec/gsd-usb-protection
+ 399507  214763 Ssl  /usr/libexec/gsd-wwan
+ 399513  214763 Sl   /usr/libexec/gsd-disk-utility-notify
+ 399520  214763 Sl   /usr/libexec/evolution-data-server/evolution-alarm-notify
+ 399568  214763 Sl   /usr/bin/update-notifier
+ 399619  214763 Sl   /usr/libexec/goa-daemon
+ 399630  214763 Sl   /usr/bin/gjs -m /usr/share/gnome-shell/org.gnome.ScreenSaver
+ 399634  399453 Sl   /usr/libexec/ibus-dconf
+ 399637  399453 Sl   /usr/libexec/ibus-extension-gtk3
+ 399640  214763 Sl   /usr/libexec/ibus-portal
+ 399679  214763 SNsl /usr/libexec/localsearch-3
+ 399681  214763 S<sl /usr/bin/pipewire
+ 399687  214763 S<sl /usr/bin/wireplumber
+ 399690  214763 S<sl /usr/bin/pipewire-pulse
+ 399693  214763 Ssl  /usr/libexec/xdg-desktop-portal
+ 399698  214763 Sl   /usr/libexec/goa-identity-service
+ 399708  214763 Ssl  /usr/libexec/evolution-calendar-factory
+ 399731  214763 Ssl  /usr/libexec/xdg-desktop-portal-gnome
+ 399741  214763 Ssl  /usr/libexec/gvfs-udisks2-volume-monitor
+ 399758  214763 Sl   /usr/libexec/gsd-printer
+ 399779  214763 Ssl  /usr/libexec/evolution-addressbook-factory
+ 399789  214763 Ssl  /usr/libexec/gvfs-mtp-volume-monitor
+ 399802  214763 Ssl  /usr/libexec/gvfs-gphoto2-volume-monitor
+ 399810  214763 Ssl  /usr/libexec/gvfs-goa-volume-monitor
+ 399818  214763 Ssl  /usr/libexec/gvfs-afc-volume-monitor
+ 399833  399453 Sl   /usr/libexec/ibus-engine-simple
+ 399932  214763 Ssl  /usr/libexec/gvfsd-metadata
+ 399941  214763 Ssl  /usr/libexec/dconf-service
+ 400127  399257 Sl   /usr/libexec/gvfsd-trash --spawner :1.7 /org/gtk/gvfs/exec_spaw/0
+ 400336  214763 Ssl  /usr/libexec/xdg-desktop-portal-gtk
+ 400344  399258 Sl   /snap/snapd-desktop-integration/387/usr/bin/snapd-desktop-integration
+ 400492       2 I    [kworker/22:3-mm_percpu_wq]
+ 400501       2 I    [kworker/3:2-events]
+ 400502  399298 Sl   gjs /usr/share/gnome-shell/extensions/ding@rastersoft.com/app/ding.js -E -P /usr/share/gnome-shell/extensions/ding@rastersoft.com/app
+ 401705  399298 S    /usr/bin/Xwayland :0 -rootless -noreset -accessx -core -auth /run/user/1000/.mutter-Xwaylandauth.DCU0Q3 -listenfd 4 -listenfd 5 -displayfd 6 -initfd 7 -byteswappedclients -enable-ei-portal
+ 401706       2 S    [nvidia-drm/timeline-ad]
+ 401711  214763 Ssl  /usr/libexec/gsd-xsettings
+ 401718  399298 Sl   /usr/libexec/mutter-x11-frames
+ 401735  214763 Sl   /usr/libexec/ibus-x11
+ 401739  214763 Sl   /usr/bin/ptyxis --gapplication-service
+ 401792  401739 Ssl  /usr/libexec/ptyxis-agent --socket-fd=3 --rlimit-nofile=1024
+ 402096  214763 S    catatonit -P
+ 402134       2 S    [nvidia-drm/timeline-b4]
+ 402137       2 S    [nvidia-drm/timeline-b5]
+ 402140       2 S    [nvidia-drm/timeline-b6]
+ 402148  401792 Ss+  /usr/bin/bash
+ 406344       2 S    [psimon]
+ 408166       2 I    [kworker/6:1-events]
+ 408181  214763 SLsl /usr/libexec/gnome-remote-desktop-daemon
+ 408189       2 S    [nvidia-drm/timeline-cc]
+ 408191       2 S    [vidmem lazy free]
+ 408192       2 S    [UVM GPU1 BH]
+ 408193       2 S    [UVM GPU1 KC]
+ 409289  214763 SLsl /snap/code/247/usr/share/code/code --no-sandbox --force-user-env --ozone-platform=x11
+ 409291  409289 S    /snap/code/247/usr/share/code/code --type=zygote --no-zygote-sandbox --no-sandbox
+ 409292  409289 S    /snap/code/247/usr/share/code/code --type=zygote --no-sandbox
+ 409306  214763 Sl   /snap/code/247/usr/share/code/chrome_crashpad_handler --monitor-self-annotation=ptype=crashpad-handler --no-rate-limit --database=/home/bogdan/.config/Code/Crashpad --url=appcenter://code?aid=fba07a4d-84bd-4fc8-a125-9640fc8ce171&uid=fa5787aa-404a-457b-972b-7b13797fe482&iid=fa5787aa-404a-457b-972b-7b13797fe482&sid=fa5787aa-404a-457b-972b-7b13797fe482 --annotation=_companyName=Microsoft --annotation=_productName=VSCode --annotation=_version=1.124.0 --annotation=lsb-release=Ubuntu 26.04 LTS --annotation=plat=Linux --annotation=prod=Electron --annotation=ver=42.2.0 --initial-client-fd=48 --shared-client-connection
+ 409318  409289 Sl   /snap/code/247/usr/share/code/code --type=gpu-process --disable-gpu-sandbox --no-sandbox --ozone-platform=x11 --crashpad-handler-pid=409306 --enable-crash-reporter=50d320f8-9312-416a-a81b-ac83f9d1b720,no_channel --user-data-dir=/home/bogdan/.config/Code --gpu-preferences=UAAAAAAAAAAgAQAEAAAAAAAAAAAAAGAAAQAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAAAAAAAAAAAYAAAAAAAAABgAAAAAAAAAAQAAAAAAAAAIAAAAAAAAAAgAAAAAAAAA --shared-files --field-trial-handle=3,i,7587741881210181304,13370999577493097362,262144 --enable-features=DocumentPolicyIncludeJSCallStacksInCrashReports,EarlyEstablishGpuChannel,EstablishGpuChannelAsync --disable-features=CalculateNativeWinOcclusion,DropInputEventsWhilePaintHolding,LocalNetworkAccessChecks,ScreenAIOCREnabled,SpareRendererForSitePerProcess,TraceSiteInstanceGetProcessCreation --variations-seed-version --pseudonymization-salt-handle=7,i,6888753393105082782,7567472931117972686,4 --trace-process-track-uuid=3190708988185955192
+ 409322  409289 Sl   /snap/code/247/usr/share/code/code --type=utility --utility-sub-type=network.mojom.NetworkService --lang=en-US --service-sandbox-type=none --no-sandbox --crashpad-handler-pid=409306 --enable-crash-reporter=50d320f8-9312-416a-a81b-ac83f9d1b720,no_channel --user-data-dir=/home/bogdan/.config/Code --standard-schemes=vscode-webview,vscode-file --secure-schemes=vscode-webview,vscode-file,vscode-remote-resource,vscode-managed-remote-resource --cors-schemes=vscode-webview,vscode-file,vscode-remote-resource,vscode-managed-remote-resource --fetch-schemes=vscode-webview,vscode-file,vscode-remote-resource,vscode-managed-remote-resource --service-worker-schemes=vscode-webview --code-cache-schemes=vscode-webview,vscode-file --shared-files=v8_context_snapshot_data:100 --field-trial-handle=3,i,7587741881210181304,13370999577493097362,262144 --enable-features=DocumentPolicyIncludeJSCallStacksInCrashReports,EarlyEstablishGpuChannel,EstablishGpuChannelAsync --disable-features=CalculateNativeWinOcclusion,DropInputEventsWhilePaintHolding,LocalNetworkAccessChecks,ScreenAIOCREnabled,SpareRendererForSitePerProcess,TraceSiteInstanceGetProcessCreation --variations-seed-version --pseudonymization-salt-handle=7,i,6888753393105082782,7567472931117972686,4 --trace-process-track-uuid=3190708989122997041
+ 409374  409292 Sl   /snap/code/247/usr/share/code/code --type=renderer --crashpad-handler-pid=409306 --enable-crash-reporter=50d320f8-9312-416a-a81b-ac83f9d1b720,no_channel --user-data-dir=/home/bogdan/.config/Code --standard-schemes=vscode-webview,vscode-file --secure-schemes=vscode-webview,vscode-file,vscode-remote-resource,vscode-managed-remote-resource --cors-schemes=vscode-webview,vscode-file,vscode-remote-resource,vscode-managed-remote-resource --fetch-schemes=vscode-webview,vscode-file,vscode-remote-resource,vscode-managed-remote-resource --service-worker-schemes=vscode-webview --code-cache-schemes=vscode-webview,vscode-file --app-path=/snap/code/247/usr/share/code/resources/app --enable-sandbox --enable-blink-features=HighlightAPI --no-sandbox --max-active-webgl-contexts=32 --ozone-platform=x11 --disable-blink-features=FontMatchingCTMigration,StandardizedBrowserZoom, --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=4 --time-ticks-at-unix-epoch=-1781455994278762 --launch-time-ticks=768590722305 --shared-files=v8_context_snapshot_data:100 --field-trial-handle=3,i,7587741881210181304,13370999577493097362,262144 --enable-features=DocumentPolicyIncludeJSCallStacksInCrashReports,EarlyEstablishGpuChannel,EstablishGpuChannelAsync --disable-features=CalculateNativeWinOcclusion,DropInputEventsWhilePaintHolding,LocalNetworkAccessChecks,ScreenAIOCREnabled,SpareRendererForSitePerProcess,TraceSiteInstanceGetProcessCreation --variations-seed-version --pseudonymization-salt-handle=7,i,6888753393105082782,7567472931117972686,4 --trace-process-track-uuid=3190708990060038890 --vscode-window-config=vscode:d50675de-d301-43e4-b847-afac41460975
+ 409385       2 S    [nvidia-drm/timeline-e9]
+ 409535  409289 Sl   /snap/code/247/usr/share/code/code --type=utility --utility-sub-type=node.mojom.NodeService --lang=en-US --service-sandbox-type=none --no-sandbox --crashpad-handler-pid=409306 --enable-crash-reporter=50d320f8-9312-416a-a81b-ac83f9d1b720,no_channel --user-data-dir=/home/bogdan/.config/Code --standard-schemes=vscode-webview,vscode-file --secure-schemes=vscode-webview,vscode-file,vscode-remote-resource,vscode-managed-remote-resource --cors-schemes=vscode-webview,vscode-file,vscode-remote-resource,vscode-managed-remote-resource --fetch-schemes=vscode-webview,vscode-file,vscode-remote-resource,vscode-managed-remote-resource --service-worker-schemes=vscode-webview --code-cache-schemes=vscode-webview,vscode-file --shared-files=v8_context_snapshot_data:100 --field-trial-handle=3,i,7587741881210181304,13370999577493097362,262144 --enable-features=DocumentPolicyIncludeJSCallStacksInCrashReports,EarlyEstablishGpuChannel,EstablishGpuChannelAsync --disable-features=CalculateNativeWinOcclusion,DropInputEventsWhilePaintHolding,LocalNetworkAccessChecks,ScreenAIOCREnabled,SpareRendererForSitePerProcess,TraceSiteInstanceGetProcessCreation --variations-seed-version --pseudonymization-salt-handle=7,i,6888753393105082782,7567472931117972686,4 --trace-process-track-uuid=3190708992871164437
+ 409996  409289 Sl   /snap/code/247/usr/share/code/code --type=utility --utility-sub-type=node.mojom.NodeService --lang=en-US --service-sandbox-type=none --no-sandbox --crashpad-handler-pid=409306 --enable-crash-reporter=50d320f8-9312-416a-a81b-ac83f9d1b720,no_channel --user-data-dir=/home/bogdan/.config/Code --standard-schemes=vscode-webview,vscode-file --secure-schemes=vscode-webview,vscode-file,vscode-remote-resource,vscode-managed-remote-resource --cors-schemes=vscode-webview,vscode-file,vscode-remote-resource,vscode-managed-remote-resource --fetch-schemes=vscode-webview,vscode-file,vscode-remote-resource,vscode-managed-remote-resource --service-worker-schemes=vscode-webview --code-cache-schemes=vscode-webview,vscode-file --shared-files=v8_context_snapshot_data:100 --field-trial-handle=3,i,7587741881210181304,13370999577493097362,262144 --enable-features=DocumentPolicyIncludeJSCallStacksInCrashReports,EarlyEstablishGpuChannel,EstablishGpuChannelAsync --disable-features=CalculateNativeWinOcclusion,DropInputEventsWhilePaintHolding,LocalNetworkAccessChecks,ScreenAIOCREnabled,SpareRendererForSitePerProcess,TraceSiteInstanceGetProcessCreation --variations-seed-version --pseudonymization-salt-handle=7,i,6888753393105082782,7567472931117972686,4 --trace-process-track-uuid=3190708994745248135
+ 410866  409292 Sl   /snap/code/247/usr/share/code/code --type=renderer --crashpad-handler-pid=409306 --enable-crash-reporter=50d320f8-9312-416a-a81b-ac83f9d1b720,no_channel --user-data-dir=/home/bogdan/.config/Code --standard-schemes=vscode-webview,vscode-file --secure-schemes=vscode-webview,vscode-file,vscode-remote-resource,vscode-managed-remote-resource --cors-schemes=vscode-webview,vscode-file,vscode-remote-resource,vscode-managed-remote-resource --fetch-schemes=vscode-webview,vscode-file,vscode-remote-resource,vscode-managed-remote-resource --service-worker-schemes=vscode-webview --code-cache-schemes=vscode-webview,vscode-file --app-path=/snap/code/247/usr/share/code/resources/app --enable-sandbox --enable-blink-features=HighlightAPI --no-sandbox --max-active-webgl-contexts=32 --ozone-platform=x11 --disable-blink-features=FontMatchingCTMigration,StandardizedBrowserZoom, --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=10 --time-ticks-at-unix-epoch=-1781455994278762 --launch-time-ticks=768597093973 --shared-files=v8_context_snapshot_data:100 --field-trial-handle=3,i,7587741881210181304,13370999577493097362,262144 --enable-features=DocumentPolicyIncludeJSCallStacksInCrashReports,EarlyEstablishGpuChannel,EstablishGpuChannelAsync --disable-features=CalculateNativeWinOcclusion,DropInputEventsWhilePaintHolding,LocalNetworkAccessChecks,ScreenAIOCREnabled,SpareRendererForSitePerProcess,TraceSiteInstanceGetProcessCreation --variations-seed-version --pseudonymization-salt-handle=7,i,6888753393105082782,7567472931117972686,4 --trace-process-track-uuid=3190708995682289984 --vscode-window-config=vscode:d50675de-d301-43e4-b847-afac41460975
+ 412572  409289 Sl   /snap/code/247/usr/share/code/code --type=utility --utility-sub-type=node.mojom.NodeService --lang=en-US --service-sandbox-type=none --no-sandbox --dns-result-order=ipv4first --experimental-network-inspection --inspect-port=0 --crashpad-handler-pid=409306 --enable-crash-reporter=50d320f8-9312-416a-a81b-ac83f9d1b720,no_channel --user-data-dir=/home/bogdan/.config/Code --standard-schemes=vscode-webview,vscode-file --secure-schemes=vscode-webview,vscode-file,vscode-remote-resource,vscode-managed-remote-resource --cors-schemes=vscode-webview,vscode-file,vscode-remote-resource,vscode-managed-remote-resource --fetch-schemes=vscode-webview,vscode-file,vscode-remote-resource,vscode-managed-remote-resource --service-worker-schemes=vscode-webview --code-cache-schemes=vscode-webview,vscode-file --shared-files=v8_context_snapshot_data:100 --field-trial-handle=3,i,7587741881210181304,13370999577493097362,262144 --enable-features=DocumentPolicyIncludeJSCallStacksInCrashReports,EarlyEstablishGpuChannel,EstablishGpuChannelAsync --disable-features=CalculateNativeWinOcclusion,DropInputEventsWhilePaintHolding,LocalNetworkAccessChecks,ScreenAIOCREnabled,SpareRendererForSitePerProcess,TraceSiteInstanceGetProcessCreation --variations-seed-version --pseudonymization-salt-handle=7,i,6888753393105082782,7567472931117972686,4 --trace-process-track-uuid=3190708996619331833
+ 412594  409289 Sl   /snap/code/247/usr/share/code/code --type=utility --utility-sub-type=node.mojom.NodeService --lang=en-US --service-sandbox-type=none --no-sandbox --crashpad-handler-pid=409306 --enable-crash-reporter=50d320f8-9312-416a-a81b-ac83f9d1b720,no_channel --user-data-dir=/home/bogdan/.config/Code --standard-schemes=vscode-webview,vscode-file --secure-schemes=vscode-webview,vscode-file,vscode-remote-resource,vscode-managed-remote-resource --cors-schemes=vscode-webview,vscode-file,vscode-remote-resource,vscode-managed-remote-resource --fetch-schemes=vscode-webview,vscode-file,vscode-remote-resource,vscode-managed-remote-resource --service-worker-schemes=vscode-webview --code-cache-schemes=vscode-webview,vscode-file --shared-files=v8_context_snapshot_data:100 --field-trial-handle=3,i,7587741881210181304,13370999577493097362,262144 --enable-features=DocumentPolicyIncludeJSCallStacksInCrashReports,EarlyEstablishGpuChannel,EstablishGpuChannelAsync --disable-features=CalculateNativeWinOcclusion,DropInputEventsWhilePaintHolding,LocalNetworkAccessChecks,ScreenAIOCREnabled,SpareRendererForSitePerProcess,TraceSiteInstanceGetProcessCreation --variations-seed-version --pseudonymization-salt-handle=7,i,6888753393105082782,7567472931117972686,4 --trace-process-track-uuid=3190708997556373682
+ 412616  412572 Sl   /home/bogdan/.vscode/extensions/openai.chatgpt-26.616.71553-linux-x64/bin/linux-x86_64/codex app-server --analytics-default-enabled
+ 412893       2 I    [kworker/17:2-events]
+ 417493       2 I    [kworker/4:1-events]
+ 418129       2 I    [kworker/10:1-events]
+ 418282       2 I    [kworker/14:1]
+ 418347       2 I    [kworker/2:0]
+ 418355       2 I    [kworker/6:2-mm_percpu_wq]
+ 419247       2 I    [kworker/4:2-events]
+ 419266       2 I    [kworker/0:0]
+ 420146  412616 Ss   python3 examples/sentai_runtime/experiments/s216_arm_emulator_namespace_inventory/run_s216.py
+ 420148       2 I    [kworker/u96:0-events_power_efficient]
+ 420150       2 I    [kworker/u96:1-thermal_events]
+ 420516       2 I    [kworker/8:2-events]
+ 420819  420146 R    ps -eo pid,ppid,stat,cmd

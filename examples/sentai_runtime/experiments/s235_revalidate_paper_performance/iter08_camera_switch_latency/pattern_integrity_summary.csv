@@ -1,0 +1,4 @@
+run,protocol,drain,ratio,frames,correct,scrambled,wrong_tag,ambig,cam0,cam1,fps,validity
+0,slow_fs_detail,1,1:1,100,100,0,0,0,50,50,1.917130,valid_integrity_result_timing_perturbed
+1,slow_fs_detail,2,1:1,100,46,1,53,0,25,75,1.232759,valid_integrity_result_timing_perturbed
+2,ram_detail,1,1:1,100,,,,,,,,invalid_board_reset_header_only

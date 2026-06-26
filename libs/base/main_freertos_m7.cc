@@ -184,15 +184,15 @@ void InitializeCDCNCM() {
 }  // namespace
 
 // Toggle storage / default mode by writing the persistence magic to DTC-RAM
-// (primary, survives NVIC_SystemReset; cleared by POR) and to several SRC_GPR
-// registers (diagnostic, to learn which ones actually survive on this part).
+// and to several SRC_GPR registers.  Some host/boot paths preserve only the
+// GPRs across NVIC_SystemReset, so the boot latch accepts either source.
 // The DSB before NVIC_SystemReset guarantees the writes are observable before
 // the system reset request hits the SRC.
 extern "C" int sentai_usb_drive_set(int on) {
   const uint32_t magic = on ? SENTAI_STORAGE_MAGIC : 0u;
   if (on) {
-    printf("[usb] Entering STORAGE mode (MSC only).\r\n"
-           "[usb] Press reset button to return to REPL+IP.\r\n");
+    printf("[usb] Entering STORAGE mode (MSC + REPL).\r\n"
+           "[usb] Unmount host drive, then call sentai.usb.drive(0).\r\n");
   } else {
     printf("[usb] Returning to default REPL+IP mode.\r\n");
   }
@@ -354,10 +354,18 @@ extern "C" int real_main(int argc, char** argv, bool init_console_tx,
 
     g_sentai_boot_mode_flag = g_sentai_gpr_snap[4];  // GPR15 for legacy log
 
-    const bool sram_valid = (g_sentai_sram_magic == SENTAI_STORAGE_MAGIC) &&
-                            (g_sentai_sram_check == ~SENTAI_STORAGE_MAGIC);
-    if (sram_valid) {
-      const uint32_t prev_attempts = g_boot_persist.attempts;
+    const bool sram_valid =
+        (g_sentai_sram_magic == SENTAI_STORAGE_MAGIC) &&
+        (g_sentai_sram_check == ~SENTAI_STORAGE_MAGIC);
+    bool gpr_valid = false;
+    for (uint32_t snap : g_sentai_gpr_snap) {
+      if (snap == SENTAI_STORAGE_MAGIC) {
+        gpr_valid = true;
+        break;
+      }
+    }
+    if (sram_valid || gpr_valid) {
+      const uint32_t prev_attempts = sram_valid ? g_boot_persist.attempts : 0u;
       if (prev_attempts >= kMaxStorageAttempts) {
         // Crash-loop in storage mode → wipe magic and force default boot
         // so the board is recoverable without physical reset.
@@ -366,6 +374,8 @@ extern "C" int real_main(int argc, char** argv, bool init_console_tx,
         g_boot_persist.attempts = 0;
         g_sentai_storage_mode = false;
       } else {
+        g_boot_persist.magic    = SENTAI_STORAGE_MAGIC;
+        g_boot_persist.check    = ~SENTAI_STORAGE_MAGIC;
         g_boot_persist.attempts = prev_attempts + 1;
         g_sentai_storage_mode = true;
       }

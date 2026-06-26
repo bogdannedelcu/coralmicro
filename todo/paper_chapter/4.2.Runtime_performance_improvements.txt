@@ -1,0 +1,116 @@
+4.2 Runtime performance characterization
+
+This section characterizes the runtime performance of the final embedded vision configuration on the physical board. The measurements cover the standalone EdgeTPU invocation path, the complete camera-to-detection pipeline, multi-patch inference, and dual-camera operation. The purpose is to report the sustained behavior available to the onboard runtime, rather than isolated accelerator-only estimates.
+
+All timing values in this section were measured on the embedded target using elapsed wall-clock time from the runtime microsecond timer. Throughput values were computed from complete operation intervals: a standalone invoke includes the USB input transfer, instruction transfer, output readback, and completion event; a pipeline output includes acquisition, preprocessing, EdgeTPU invocation, and publication of the detection result. Repeated pipeline measurements were taken after fresh boots to avoid residual state from previous runs. Visual camera-switch checks were used only to validate frame identity and were not included in timing loops when image serialization could perturb performance.
+
+4.2.1 Measurement Summary
+
+Table 8 summarizes the sustained performance of the final runtime configuration. The 512 x 512 YOLO workload reaches 24.50 standalone EdgeTPU invokes/s. When camera acquisition and preprocessing are included, the single-camera pipeline produces 23.44 detections/s. Multi-patch configurations preserve the requested number of invokes per frame, while total invoke throughput remains close to 24 invokes/s. Continuous dual-camera alternation at a 1:1 ratio reaches 14.39 combined detections/s, corresponding to 7.20 detections/s per camera.
+
+Table 8. Measured runtime performance summary.
+Metric	Measured value	Measurement method
+Standalone EdgeTPU, 512 x 512 YOLO	24.50 invokes/s	complete invoke wall-clock timing
+Single-camera pipeline, one patch/frame	23.44 detections/s	100-output fresh-boot runs
+Pipeline, 2 patches/frame	12.01 frame/s, 24.02 invokes/s	multi-patch wall-clock run
+Pipeline, 4 patches/frame	6.06 frame/s, 24.25 invokes/s	multi-patch wall-clock run
+Manual camera switch, select() -> to_tensor(), drain=1	93.89 ms	post-switch tensor acquisition timing
+Continuous 1:1 camera alternation, drain=1	14.39 detections/s combined, 7.20 detections/s per camera	alternating pipeline wall-clock run with content validation
+
+These measurements show that the effective performance is determined by the complete onboard data path: camera capture, memory movement, preprocessing, USB transfer to the EdgeTPU, result readback, and task scheduling. For the evaluated 512 x 512 workload, the EdgeTPU path sustains approximately 24 invokes/s, and the full single-camera pipeline operates close to that limit.
+
+4.2.2 Standalone EdgeTPU Throughput
+
+The standalone invoke loop isolates the USB-to-EdgeTPU path from camera acquisition and preprocessing. Each invoke sends a 512 x 512 x 3 uint8 input tensor, transfers the model instruction stream required by the EdgeTPU runtime, reads the output tensor, and waits for the completion event. Chunk size was varied to evaluate the effect of transfer granularity on sustained invoke throughput.
+
+Table 9. Standalone EdgeTPU chunk-size measurements.
+Chunk size	Wall time per invoke (ms)	Invoke throughput (invokes/s)	Input wait (ms/invoke)	Instruction wait (ms/invoke)
+33 KB	41.547539	24.068813	24.603979	14.598960
+36 KB	41.428139	24.138182	24.508600	14.572780
+64 KB	41.001480	24.389364	24.244680	14.435160
+128 KB	40.813641	24.501614	24.151621	14.361740
+
+The tested chunk sizes produce similar results, all within a narrow band around 24 invokes/s. The fastest measured configuration uses 128 KB chunks, with an average invoke time of 40.813641 ms. The input tensor transfer is the largest individual component, followed by instruction transfer. Descriptor caching was evaluated separately, but it was not retained because the cached-instruction path did not remain reliable across repeated invocations.
+
+Table 10. Representative standalone invoke timing breakdown.
+Component	Wall time
+USB bulk OUT: input tensor	24.151621 ms
+USB parameters header	about 0.14 ms
+USB bulk OUT: instructions	14.361740 ms
+USB bulk IN: output	about 1.70 ms
+USB event readback	about 0.04 ms
+Invoke total	40.813641 ms
+
+The standalone measurements establish the practical throughput ceiling for this model and transport path. Since a complete invoke takes approximately 41 ms, higher-level pipeline configurations that use the same model are expected to remain close to 24 invokes/s unless they reduce the amount of data transferred or change the EdgeTPU invocation pattern.
+
+4.2.3 Single-Camera End-to-End Pipeline
+
+The single-camera pipeline measurement includes the complete runtime path from camera acquisition to detection publication. The measurement loop counts published outputs, so the reported rate includes acquisition, preprocessing, tensor preparation, EdgeTPU invocation, result readback, and runtime scheduling. Five fresh-boot runs were performed, each measuring the time required to produce 100 outputs.
+
+Table 11. Single-camera pipeline throughput.
+Run	Wall time for 100 outputs (us)	Detection throughput (detections/s)	Timeouts	Infer failures
+0	4390419	22.776869	0	0
+1	4235336	23.610878	0	0
+2	4235444	23.610275	0	0
+3	4235558	23.609640	0	0
+4	4234778	23.613989	0	0
+Mean	-	23.444330	0	0
+Sample standard deviation	-	0.373126	-	-
+
+The pipeline remains stable across all repeated runs. No timeouts or inference failures were observed. The mean output rate is 23.444330 detections/s, corresponding to a detection output period of 42.654 ms. This rate is close to the standalone EdgeTPU limit, indicating that the final runtime overlaps or contains the camera and preprocessing work well enough that the EdgeTPU transfer and invoke path remains the dominant throughput constraint.
+
+4.2.4 Multi-Patch Throughput
+
+The multi-patch mode evaluates configurations in which several regions from one camera frame are sent to the EdgeTPU. This mode increases the number of detections associated with each acquired frame, but it also consumes multiple invokes per frame. For this reason, Table 12 reports both frame throughput and invoke throughput.
+
+Table 12. Multi-patch pipeline throughput.
+Preparation cap (FPS)	Invokes/frame	Mode	Frame throughput (frames/s)	Invoke throughput (invokes/s)	Failures
+0	1	0	23.610554	23.610554	0
+30	1	0	23.614239	23.614239	0
+30	2	1	12.008011	24.016022	0
+20	3	1	8.058186	24.174555	0
+15	4	1	6.062988	24.251953	0
+
+The measured invoke throughput remains close to 24 invokes/s in all multi-patch configurations. As the number of invokes per frame increases, frame throughput decreases accordingly. This behavior is useful when detection density per frame is more important than camera frame rate, because the runtime can trade frame rate for multiple inferences over the same acquired image while preserving stable execution.
+
+4.2.5 Dual-Camera Switching and Alternation
+
+The dual-camera subsystem was evaluated using two complementary measurements. The first measures manual switching from one selected camera to the first usable tensor after the switch. The second measures continuous 1:1 alternation while the pipeline is running. These measurements answer different questions: manual switching captures the cost of changing the active sensor on demand, while continuous alternation reports the sustained rate when both cameras are sampled in a fixed schedule.
+
+Table 13. Dual-camera timing and alternation measurements.
+Scenario	Drain setting	Measured result	Content verdict
+Manual select() -> to_tensor()	1	93.891 ms	valid
+Manual select() -> to_tensor()	2	131.085 ms	manual timing only
+Continuous ratio(1,1)	1	14.392763 detections/s combined, 7.196382 detections/s per camera	valid
+Continuous ratio(1,1)	2	4.981067 detections/s combined, 2.490534 detections/s per camera	invalid for continuous alternation
+
+For manual switching, the application-visible cost is the complete select() -> to_tensor() interval, not only the MUX selection step. With the one-frame drain setting, the first usable post-switch tensor is available after 93.891 ms on average. In continuous alternation, the one-frame drain setting is the validated configuration for the current scheduler. The two-frame drain setting is slower and was not content-correct under continuous 1:1 alternation.
+
+Frame identity was validated with camera-specific patterns. In the controlled pattern, the left column is white for one camera and dark for the other. A correct frame has a uniform left-column signature matching its camera tag. This check detects stale, mis-tagged, or mixed frames without relying on human inspection alone.
+
+Table 14. Dual-camera content validation for continuous alternation.
+Drain setting	Frames inspected	Correct	Mismatch	Mixed	Verdict
+1	2	2	0	0	valid for continuous alternation
+2	2	1	1	0	invalid for continuous alternation
+
+The sustained dual-camera configuration used for the final runtime is therefore continuous ratio(1,1) alternation with drain=1. It provides 14.392763 combined detections/s, or 7.196382 detections/s per camera, while preserving content correctness in the validation run.
+
+4.2.6 Detection Update Periods
+
+The measurements above support update-period claims for the current runtime. A complete photon-to-detection latency distribution would require a same-frame timestamp trace through image exposure, CSI transfer, preprocessing, invoke submission, invoke completion, post-processing, and publication. The present measurements instead report the output periods and switching intervals directly observed by the runtime.
+
+Table 15. Measured and derived update-period quantities.
+Quantity	Value	Source
+Single-camera detection output period	42.654 ms	derived from 23.444330 detections/s
+Standalone EdgeTPU invoke time	40.813641 ms	measured complete invoke timing
+Continuous 1:1 combined output period	69.479 ms	derived from 14.392763 detections/s
+Continuous 1:1 per-camera update period	138.959 ms	derived from 7.196382 detections/s per camera
+Manual select() -> to_tensor(), drain=1	93.891 ms	measured post-switch tensor acquisition timing
+
+In single-camera operation, the runtime publishes detections every 42.654 ms on average. In continuous dual-camera alternation, detections are produced every 69.479 ms overall, while each camera is refreshed every 138.959 ms on average. These values are the appropriate performance quantities for control loops that consume the published detections.
+
+4.2.7 Summary
+
+The final platform sustains real-time onboard vision with a 512 x 512 YOLO model on the EdgeTPU while running the complete embedded camera and preprocessing pipeline. Standalone EdgeTPU execution reaches 24.50 invokes/s, and the full single-camera pipeline reaches 23.44 detections/s with no timeouts or inference failures in the repeated measurements. Multi-patch operation maintains approximately the same total invoke throughput while trading frame rate for multiple detections per frame. Continuous dual-camera alternation is stable and content-correct at 14.39 combined detections/s with the validated drain=1 setting.
+
+These results show that the useful performance of an MCU-class EdgeTPU vision system is defined by the complete onboard chain, not by accelerator execution in isolation. The limiting factors include tensor transfer, instruction transfer, camera scheduling, memory placement, preprocessing, and synchronization. Reporting complete-operation wall-clock measurements therefore provides the most relevant characterization for embedded autonomy workloads.
