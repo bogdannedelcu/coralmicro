@@ -1,0 +1,4 @@
+model,label,size_b,in_shape,out_shape,mean_ms,median_ms,p95_ms,min_ms,fps_mean
+A_main_int8_edgetpu.tflite,PyTorch export.py route (decode on-TPU),1217152,"[1, 480, 640, 3]","[[1, 6000, 6]]",69.133,69.231,69.957,66.732,14.46
+B_silu_int8_edgetpu.tflite,SiLU-activation experiment,1057408,"[1, 480, 640, 3]","[[1, 6000, 6]]",35.312,35.375,36.475,33.831,28.32
+C_onnx2tf_int8_edgetpu.tflite,onnx2tf export route,1418080,"[1, 480, 640, 3]","[[1, 1, 60, 80, 6], [1, 6000, 6], [1, 1, 30, 40, 6]]",79.936,80.050,82.841,72.472,12.51
