@@ -1,0 +1,35 @@
+load: L 0
+=== 1. pipeline.start (detection, PrepTask running) ===
+pipe.start: P 0
+pipe frame_count grows: FC 48
+=== 2. switch flow to shared prep-slot + start ===
+use_prep_slot(1): UPS 1
+flow.start(0): F 0
+=== 3. verify BOTH live ===
+flow running+motion: FL (False, 1482714968, -91, -108, 255, 47, 56)
+flow tuple again (motion changing?): FL2 (False, 1601138520, 86, 67, 255, 85, 63)
+pipe frame_count (still growing?): FC2 155
+infer_stats: I {'ms_sum': 2533, 'ok': 162, 'last_rc': 18, 'fail': 0}
+running: RUN True
+ALIVE: V SentAI v1.0 build 1561 (2026-07-01 18:04:20)
+Traceback (most recent call last):
+  File "<stdin>", line 12, in <module>
+  File "<stdin>", line 5, in <lambda>
+  File "/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s236_model_speed_sweep_640x480/board_serial.py", line 40, in cmd
+    c = ser.read(4096)
+  File "/home/bogdan/work/coralmicro/venv-flash/lib/python3.14/site-packages/serial/serialposix.py", line 595, in read
+    raise SerialException(
+        'device reports readiness to read but returned no data '
+        '(device disconnected or multiple access on port?)')
+serial.serialutil.SerialException: device reports readiness to read but returned no data (device disconnected or multiple access on port?)
+FS ok: EX True N 10
+=== both running; sample over 4s (no tight loop) ===
+Traceback (most recent call last):
+  File "<stdin>", line 18, in <module>
+  File "<stdin>", line 5, in <lambda>
+  File "/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s236_model_speed_sweep_640x480/board_serial.py", line 34, in cmd
+    while ser.in_waiting:
+          ^^^^^^^^^^^^^^
+  File "/home/bogdan/work/coralmicro/venv-flash/lib/python3.14/site-packages/serial/serialposix.py", line 549, in in_waiting
+    s = fcntl.ioctl(self.fd, TIOCINQ, TIOCM_zero_str)
+OSError: [Errno 5] Input/output error

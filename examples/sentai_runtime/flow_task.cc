@@ -45,6 +45,13 @@
 #include <cstdint>
 #include <cstring>
 
+// Prep-slot consume code is COMPILED on ALL targets (real HW too) so FlowTask
+// can share PrepTask's FLOW_GRAY_80x60 slot instead of grabbing the camera
+// itself.  Whether it is USED at runtime is a runtime toggle
+// (g_sentai_flow_use_prep_slot, see below) so standalone ISR-paced cam_grab
+// flow still works unchanged on HW.  SIM/ARM_EMU default the toggle ON (no
+// real CSI ISR there); real HW defaults it OFF (zero regression).
+#define SENTAI_FLOW_HAVE_PREP_SLOT 1
 #if defined(SENTAI_PLATFORM_SIM) || defined(SENTAI_ARM_EMU)
 #define SENTAI_FLOW_USE_PREP_SLOT 1
 #endif
@@ -93,7 +100,7 @@ typedef struct { uint32_t v; } __attribute__((packed, aligned(1))) u32_unaligned
 #endif
 #include "examples/sentai_runtime/flow_shared.h"
 #include "examples/sentai_runtime/sentai_error.h"
-#if defined(SENTAI_FLOW_USE_PREP_SLOT)
+#if defined(SENTAI_FLOW_HAVE_PREP_SLOT)
 #include "examples/sentai_runtime/sentai_prep.h"
 #endif
 
@@ -180,6 +187,25 @@ constexpr uint32_t kDeadbandRecalcEveryN = 16;  // every ~0.5 s @ 30 fps
 volatile int     s_gray_stretch_enabled  = 0;
 volatile uint8_t s_gray_stretch_last_vmin = 0;
 volatile uint8_t s_gray_stretch_last_vmax = 0;
+
+// Frame-source selector (runtime).  0 = standalone: FlowTask grabs the camera
+// itself, ISR-paced (legacy HW default, works with no pipeline).  1 = shared:
+// FlowTask consumes PrepTask's FLOW_GRAY_80x60 slot -> one camera read feeds
+// detection + flow + markers, no CSI-MUX contention (requires the detection
+// pipeline / PrepTask to be running).  SIM/ARM_EMU default ON (no real ISR);
+// real HW defaults OFF for zero regression.  Toggle from script via
+// sentai.flow.use_prep_slot(bool) BEFORE flow.start().
+#if defined(SENTAI_FLOW_USE_PREP_SLOT)
+volatile int g_sentai_flow_use_prep_slot = 1;
+#else
+volatile int g_sentai_flow_use_prep_slot = 0;
+#endif
+extern "C" void sentai_flow_set_use_prep_slot(int on) {
+    g_sentai_flow_use_prep_slot = on ? 1 : 0;
+}
+extern "C" int sentai_flow_get_use_prep_slot(void) {
+    return g_sentai_flow_use_prep_slot;
+}
 
 // Currently-selected camera (mirrored into shared struct so callers
 // can correlate dx/dy with which lens produced it).
@@ -612,7 +638,7 @@ extern "C" void sentai_flow_notify_frame(void) {
 static volatile uint32_t s_pub_notify_timeouts = 0;  // bumped per take=0
 static volatile uint32_t s_pub_notify_overruns = 0;  // ISR notified while we were still computing previous frame
 static volatile uint32_t s_pub_last_take_ms    = 0;
-#if defined(SENTAI_FLOW_USE_PREP_SLOT)
+#if defined(SENTAI_FLOW_HAVE_PREP_SLOT)
 static volatile uint32_t s_sim_last_prep_seq = 0;
 #endif
 
@@ -661,45 +687,63 @@ static void publisher_task_fn(void* /*arg*/) {
     uint32_t db_window_seq0  = sentai_cam_get_sensor_frames();
     uint32_t db_window_iters = 0;
 
-#if defined(SENTAI_FLOW_USE_PREP_SLOT)
-    // SIM/ARM-EMU have no real CSI ISR for virtual frames. FlowTask is a lossy
-    // consumer of PrepTask's FLOW_GRAY_80x60 slot: last-frame-wins, no
-    // producer-side dependency on whether flow is enabled or caught up.
-    g_flow_pub_isr_task = nullptr;
-    s_pub_pending_before_handle = 0;
-#else
-    // Drain any stale notifications left from a previous run.
+    // ISR publish handle: registered on ALL targets so the cam_grab (ISR-paced)
+    // frame source works.  In prep-slot mode the ISR notify is simply never
+    // consumed (harmless -- the loop waits on the prep seqlock instead).  Drain
+    // stale notifies first so the ISR never sees a stale-pending count.
     (void)ulTaskNotifyTake(pdTRUE, 0);
-
-    // Publish handle for the ISR.  Done AFTER the drain so the ISR
-    // never observes a stale-pending count for this run.
     g_flow_pub_isr_task = xTaskGetCurrentTaskHandle();
-    uint32_t pending_before_handle = s_pub_pending_before_handle;
-    s_pub_pending_before_handle = 0;
-    while (pending_before_handle-- > 0) {
-        xTaskNotifyGive(xTaskGetCurrentTaskHandle());
+    {
+        uint32_t pending_before_handle = s_pub_pending_before_handle;
+        s_pub_pending_before_handle = 0;
+        while (pending_before_handle-- > 0) {
+            xTaskNotifyGive(xTaskGetCurrentTaskHandle());
+        }
     }
-#endif
 
-#if defined(SENTAI_FLOW_USE_PREP_SLOT)
+    // Persistent worker.  start/stop toggles s_pub_running; the task is never
+    // deleted (static stack, idles at 10 ms when stopped).  Each iteration
+    // selects its frame source at RUNTIME via g_sentai_flow_use_prep_slot:
+    //   0 = cam_grab_latest, ISR-paced (standalone; works with no pipeline)
+    //   1 = consume PrepTask FLOW_GRAY_80x60 slot (shared 1-camera-read path;
+    //       requires the detection pipeline / PrepTask to be running)
     for (;;) {
         if (!s_pub_running) {
             vTaskDelay(pdMS_TO_TICKS(10));
             continue;
         }
         ++iters;
-#else
-    while (s_pub_running && iters++ < kPubMaxIter) {
+        const int use_prep = g_sentai_flow_use_prep_slot;
+
+#if defined(SENTAI_FLOW_HAVE_PREP_SLOT)
+        if (use_prep) {
+            uint32_t next_seq = 0;
+            const int wait_rc = sentai_prep_slot_wait_update(
+                SENTAI_PREP_SLOT_FLOW_GRAY_80x60,
+                s_sim_last_prep_seq,
+                kPubNotifyWaitMs,
+                &next_seq);
+            if (wait_rc != 0) {
+                if (wait_rc == -2) {
+                    s_pub_notify_timeouts++;
+                    timeout_streak++;
+                    if (timeout_streak == kPubNotifyTimeoutEscalate) {
+                        uint32_t now_ms = (uint32_t)xTaskGetTickCount();
+                        SERR_LOG(SERR_FLOW_NOTIFY_TIMEOUT,
+                                 now_ms - s_pub_last_take_ms);
+                    }
+                } else {
+                    s_pub_grab_fail_total++;
+                }
+                continue;
+            }
+        } else
 #endif
-#if defined(SENTAI_FLOW_USE_PREP_SLOT)
-        uint32_t next_seq = 0;
-        const int wait_rc = sentai_prep_slot_wait_update(
-            SENTAI_PREP_SLOT_FLOW_GRAY_80x60,
-            s_sim_last_prep_seq,
-            kPubNotifyWaitMs,
-            &next_seq);
-        if (wait_rc != 0) {
-            if (wait_rc == -2) {
+        {
+            // Wait for the next sensor-frame notification.  pdTRUE clears
+            // the counter on take, so n>1 indicates a missed-deadline event.
+            uint32_t pending = ulTaskNotifyTake(pdTRUE, kPubNotifyWaitTicks);
+            if (pending == 0) {
                 s_pub_notify_timeouts++;
                 timeout_streak++;
                 if (timeout_streak == kPubNotifyTimeoutEscalate) {
@@ -707,99 +751,76 @@ static void publisher_task_fn(void* /*arg*/) {
                     SERR_LOG(SERR_FLOW_NOTIFY_TIMEOUT,
                              now_ms - s_pub_last_take_ms);
                 }
-            } else {
-                s_pub_grab_fail_total++;
+                continue;  // re-enter wait
             }
-            continue;
-        }
-#else
-        // Wait for the next sensor-frame notification.  pdTRUE clears
-        // the counter on take, so n>1 indicates a missed-deadline event.
-        uint32_t pending = ulTaskNotifyTake(pdTRUE, kPubNotifyWaitTicks);
-        if (pending == 0) {
-            s_pub_notify_timeouts++;
-            timeout_streak++;
-            if (timeout_streak == kPubNotifyTimeoutEscalate) {
-                uint32_t now_ms = (uint32_t)xTaskGetTickCount();
-                SERR_LOG(SERR_FLOW_NOTIFY_TIMEOUT,
-                         now_ms - s_pub_last_take_ms);
+            if (pending > 1) {
+                // ISR fired while we were still processing the previous
+                // frame.  We always grab the LATEST below, so consumers still
+                // see a fresh frame; we just dropped (pending-1) frames.
+                s_pub_notify_overruns += (pending - 1);
+                if (s_pub_notify_overruns == (pending - 1)) {
+                    SERR_LOG(SERR_FLOW_NOTIFY_OVERRUN, pending);
+                }
             }
-            continue;  // re-enter wait; bounded loop owns liveness
         }
-#endif
+
         if (!s_pub_running) {
-#if defined(SENTAI_FLOW_USE_PREP_SLOT)
             continue;
-#else
-            break;
-#endif
         }
         timeout_streak = 0;
         s_pub_last_take_ms = (uint32_t)xTaskGetTickCount();
-#if !defined(SENTAI_FLOW_USE_PREP_SLOT)
-        if (pending > 1) {
-            // ISR fired while we were still processing the previous
-            // frame.  Diagnostic only: we always grab the LATEST below,
-            // so consumers still see a fresh frame; we just dropped
-            // (pending-1) intermediate frames.
-            s_pub_notify_overruns += (pending - 1);
-            // Escalate at first overrun -- if compute is overrunning the
-            // sensor period, downstream cadence is broken.
-            if (s_pub_notify_overruns == (pending - 1)) {
-                SERR_LOG(SERR_FLOW_NOTIFY_OVERRUN, pending);
-            }
-        }
-#endif
 
         const uint32_t loop_t0 = dwt_now();
-#if defined(SENTAI_FLOW_USE_PREP_SLOT)
-        const uint8_t* gray = nullptr;
-        int gray_w = 0;
-        int gray_h = 0;
-        uint32_t ticket = 0;
-        if (sentai_prep_slot_begin_read(SENTAI_PREP_SLOT_FLOW_GRAY_80x60,
-                                        &gray, &gray_w, &gray_h,
-                                        &ticket) != 0 ||
-                !gray || gray_w != FLOW_GRAY_W || gray_h != FLOW_GRAY_H) {
-            s_pub_grab_fail_total++;
-            uint32_t streak = ++s_pub_grab_fail_streak;
-            if (streak == kPubGrabFailEscalate) {
-                SERR_LOG(SERR_FLOW_PUB_GRAB, streak);
+#if defined(SENTAI_FLOW_HAVE_PREP_SLOT)
+        if (use_prep) {
+            const uint8_t* gray = nullptr;
+            int gray_w = 0;
+            int gray_h = 0;
+            uint32_t ticket = 0;
+            if (sentai_prep_slot_begin_read(SENTAI_PREP_SLOT_FLOW_GRAY_80x60,
+                                            &gray, &gray_w, &gray_h,
+                                            &ticket) != 0 ||
+                    !gray || gray_w != FLOW_GRAY_W || gray_h != FLOW_GRAY_H) {
+                s_pub_grab_fail_total++;
+                uint32_t streak = ++s_pub_grab_fail_streak;
+                if (streak == kPubGrabFailEscalate) {
+                    SERR_LOG(SERR_FLOW_PUB_GRAB, streak);
+                }
+                continue;
             }
-            continue;
-        }
-        s_pub_grab_fail_streak = 0;
-        if (ticket != s_sim_last_prep_seq) {
-            flow_publish_gray80x60(gray, s_cam_id);
-            s_sim_last_prep_seq = ticket;
-            s_pub_frames++;
-        }
-        (void)sentai_prep_slot_end_read(SENTAI_PREP_SLOT_FLOW_GRAY_80x60,
-                                        ticket);
-        s_t_loop_cyc = dwt_now() - loop_t0;
-#else
-        uint8_t* raw = nullptr;
-        const uint32_t grab_t0 = dwt_now();
-        int idx = sentai_cam_grab_latest(&raw);
-        s_t_grab_cyc = dwt_now() - grab_t0;
-        if (idx < 0 || !raw) {
-            s_pub_grab_fail_total++;
-            uint32_t streak = ++s_pub_grab_fail_streak;
-            if (streak == kPubGrabFailEscalate) {
-                SERR_LOG(SERR_FLOW_PUB_GRAB, streak);
+            s_pub_grab_fail_streak = 0;
+            if (ticket != s_sim_last_prep_seq) {
+                flow_publish_gray80x60(gray, s_cam_id);
+                s_sim_last_prep_seq = ticket;
+                s_pub_frames++;
             }
-            // No vTaskDelay -- next notify will pace us.  If notifies
-            // also stop, kPubNotifyWaitTicks bounds the recovery wait.
-            continue;
-        }
-        s_pub_grab_fail_streak = 0;
-
-        sentai_flow_publish_frame(raw, DEMO_CAMERA_WIDTH,
-                                  DEMO_CAMERA_HEIGHT, s_cam_id);
-        s_pub_frames++;
-        s_t_loop_cyc = dwt_now() - loop_t0;
-        sentai_cam_return_raw(idx);
+            (void)sentai_prep_slot_end_read(SENTAI_PREP_SLOT_FLOW_GRAY_80x60,
+                                            ticket);
+            s_t_loop_cyc = dwt_now() - loop_t0;
+        } else
 #endif
+        {
+            uint8_t* raw = nullptr;
+            const uint32_t grab_t0 = dwt_now();
+            int idx = sentai_cam_grab_latest(&raw);
+            s_t_grab_cyc = dwt_now() - grab_t0;
+            if (idx < 0 || !raw) {
+                s_pub_grab_fail_total++;
+                uint32_t streak = ++s_pub_grab_fail_streak;
+                if (streak == kPubGrabFailEscalate) {
+                    SERR_LOG(SERR_FLOW_PUB_GRAB, streak);
+                }
+                // No vTaskDelay -- next notify will pace us.
+                continue;
+            }
+            s_pub_grab_fail_streak = 0;
+
+            sentai_flow_publish_frame(raw, DEMO_CAMERA_WIDTH,
+                                      DEMO_CAMERA_HEIGHT, s_cam_id);
+            s_pub_frames++;
+            s_t_loop_cyc = dwt_now() - loop_t0;
+            sentai_cam_return_raw(idx);
+        }
 
         // Rate-aware deadband recompute.  Bounded period derivation
         // (NASA §2): every kDeadbandRecalcEveryN frames sample
@@ -832,16 +853,8 @@ static void publisher_task_fn(void* /*arg*/) {
         }
     }
 
-#if defined(SENTAI_FLOW_USE_PREP_SLOT)
-    // Persistent SIM worker: start/stop only toggles s_pub_running.
-    // This point is intentionally unreachable.
-#else
-    // Single-writer detach: ISR will see NULL on its next entry and
-    // skip the notify call -- no spurious wake of a deleted task.
-    g_flow_pub_isr_task = nullptr;
-    s_pub_task = nullptr;
-    vTaskDelete(nullptr);
-#endif
+    // Persistent worker: the for(;;) above never exits; start/stop only
+    // toggles s_pub_running.  This point is intentionally unreachable.
 }
 
 extern "C" void sentai_flow_poll_once(void) {
@@ -1108,28 +1121,38 @@ extern "C" int sentai_flow_enable(void) {
     sh->frames_processed = 0;
     sh->frames_dropped   = 0;
     sh->m4_heartbeat     = 0xFFFFFFFFu;   // sentinel: M4 NOT used
-#if defined(SENTAI_FLOW_USE_PREP_SLOT)
-    (void)sentai_prep_slot_enable(SENTAI_PREP_SLOT_FLOW_GRAY_80x60);
-    s_cam_id = -1;
-    s_pub_frames = 0;
-    s_sim_last_prep_seq = 0;
-    sentai_flow_phase_corr_reset();
-    s_have_prev = 0;
+#if defined(SENTAI_FLOW_HAVE_PREP_SLOT)
+    if (g_sentai_flow_use_prep_slot) {
+        // Shared path: refcount PrepTask's FLOW_GRAY_80x60 slot so the
+        // detection PrepTask produces it.  Balanced by _disable in flow_stop.
+        (void)sentai_prep_slot_enable(SENTAI_PREP_SLOT_FLOW_GRAY_80x60);
+        s_pub_frames = 0;
+        s_sim_last_prep_seq = 0;
+        sentai_flow_phase_corr_reset();
+        s_have_prev = 0;
+    }
 #endif
     return 0;
 }
 extern "C" int sentai_flow_m4_enable(void) { return sentai_flow_enable(); }
 
-#if defined(SENTAI_FLOW_USE_PREP_SLOT)
+#if defined(SENTAI_FLOW_HAVE_PREP_SLOT)
 extern "C" int sentai_flow_task_init(void) {
     if (s_pub_task) {
         return 0;
     }
     s_pub_running = false;
+    // SIM keeps flow below MP/Prep/virtual-camera (POSIX starvation guard);
+    // real HW keeps the legacy +2 so ISR-paced standalone flow is unchanged.
+#if defined(SENTAI_PLATFORM_SIM)
+    const UBaseType_t flow_prio = tskIDLE_PRIORITY + 1;
+#else
+    const UBaseType_t flow_prio = tskIDLE_PRIORITY + 2;
+#endif
     s_pub_task = xTaskCreateStatic(publisher_task_fn, "flow_pub",
                                    configMINIMAL_STACK_SIZE * 8,
                                    nullptr,
-                                   tskIDLE_PRIORITY + 1,
+                                   flow_prio,
                                    s_pub_stack, &s_pub_tcb);
     if (!s_pub_task) {
         SERR_LOG(SERR_FLOW_PUB_TASK_CREATE, 0);
@@ -1140,11 +1163,10 @@ extern "C" int sentai_flow_task_init(void) {
 #endif
 
 extern "C" int sentai_flow_start(int cam_id) {
-#if defined(SENTAI_FLOW_USE_PREP_SLOT)
+    // cam_id -1 = "no specific lens" (valid in the shared/prep-slot path where
+    // the detection pipeline owns the camera); 0/1 select a lens for standalone
+    // cam_grab.
     if (cam_id != -1 && cam_id != 0 && cam_id != 1) {
-#else
-    if (cam_id != 0 && cam_id != 1) {
-#endif
         SERR_LOG(SERR_FLOW_BAD_CAM_ID, (uint32_t)cam_id);
         return -2;
     }
@@ -1164,7 +1186,11 @@ extern "C" int sentai_flow_start(int cam_id) {
     // produce bogus motion against an unrelated previous run.
     sentai_flow_phase_corr_reset();
     s_have_prev = 0;
-#if defined(SENTAI_FLOW_USE_PREP_SLOT)
+
+    // Persistent worker: create once (idempotent), then just arm it via
+    // s_pub_running.  Stack is sized *8 for the phase-corr CMSIS FFT nesting
+    // (2026-05-05 STACK_OVF fix, code 0x0FF1 BFAR "flow"); see
+    // sentai_flow_task_init.  The task never self-deletes; stop() disarms it.
     if (!s_pub_task) {
         int init_rc = sentai_flow_task_init();
         if (init_rc != 0) {
@@ -1172,37 +1198,6 @@ extern "C" int sentai_flow_start(int cam_id) {
         }
     }
     s_pub_running = true;
-#else
-    if (!s_pub_running) {
-        s_pub_running = true;
-        // Stack 1.5 KB (* 3) was sized for SAD path which has flat
-        // call tree (sad_match -> USAD8 inner loops, no nested fns).
-        // Phase-corr replacement adds CMSIS arm_cfft_f32 + radix4 +
-        // radix8 + bitreversal2 nesting plus 32 KB memcpy with locals.
-        // 2026-05-05 reproducible crash at frame 73 with STACK_OVF
-        // (code 0x0FF1, BFAR=0x666C6F77 "flow"); bumped to 4 KB
-        // (* 8) with measured headroom; add uxTaskGetStackHighWaterMark
-        // probe via flow.pub_health() to track in steady state.
-#if defined(SENTAI_FLOW_USE_PREP_SLOT)
-        // SIM FlowTask is a lossy consumer of PrepTask slots, not an ISR
-        // surrogate.  Keep it below MP/Prep/virtual-camera tasks so waiting
-        // for frames cannot starve command progress on the POSIX port.
-        const UBaseType_t flow_prio = tskIDLE_PRIORITY + 1;
-#else
-        const UBaseType_t flow_prio = tskIDLE_PRIORITY + 2;
-#endif
-        s_pub_task = xTaskCreateStatic(publisher_task_fn, "flow_pub",
-                                       configMINIMAL_STACK_SIZE * 8,
-                                       nullptr,
-                                       flow_prio,
-                                       s_pub_stack, &s_pub_tcb);
-        if (!s_pub_task) {
-            s_pub_running = false;
-            SERR_LOG(SERR_FLOW_PUB_TASK_CREATE, 0);
-            return -3;
-        }
-    }
-#endif
     return 0;
 }
 extern "C" int sentai_flow_m4_cmd_start(int cam_id) { return sentai_flow_start(cam_id); }
@@ -1214,19 +1209,21 @@ extern "C" int sentai_flow_stop(void) {
     sh->cmd_seq  = sh->cmd_seq + 1;
     sh->m4_state = FLOW_STATE_IDLE;
 
+    // Persistent worker: just disarm it.  It idles in the for(;;) at 10 ms
+    // until re-armed; the ISR notify (if any) is drained on the next arm.
     if (s_pub_running) {
         s_pub_running = false;
-#if !defined(SENTAI_FLOW_USE_PREP_SLOT)
         if (s_pub_task) {
+            // Nudge the task out of a blocking ulTaskNotifyTake so it observes
+            // s_pub_running == false promptly (harmless in prep-slot mode).
             xTaskNotifyGive(s_pub_task);
         }
-        for (int i = 0; i < 50 && s_pub_task; ++i) {
-            vTaskDelay(pdMS_TO_TICKS(10));
-        }
-#endif
     }
-#if defined(SENTAI_FLOW_USE_PREP_SLOT)
-    (void)sentai_prep_slot_disable(SENTAI_PREP_SLOT_FLOW_GRAY_80x60);
+#if defined(SENTAI_FLOW_HAVE_PREP_SLOT)
+    // Release the slot refcount only if we took it (prep-slot path).
+    if (g_sentai_flow_use_prep_slot) {
+        (void)sentai_prep_slot_disable(SENTAI_PREP_SLOT_FLOW_GRAY_80x60);
+    }
 #endif
     return 0;
 }
