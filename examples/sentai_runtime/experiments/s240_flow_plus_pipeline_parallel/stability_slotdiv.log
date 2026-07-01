@@ -1,0 +1,5 @@
+slot_div(6): SD 6
+=== sustained flow+detection @ slot_div=6, ~40s, watch uptime+fc for reset ===
+    t     uptime         fc     note
+    6          1          1 *** CORE RESET (uptime dropped) ***
+RESULT: core reset during 40s = True

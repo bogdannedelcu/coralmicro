@@ -118,7 +118,37 @@ memcpy is heavy, so it processes ~1 in 4 camera frames while detection keeps the
 TPU busy). `results_with_flow.csv` has the raw numbers. (Short windows complete
 before the sustained-load watchdog reset noted below.)
 
-### Stability caveat (open)
+### Instability ROOT CAUSE — FOUND: PXP 8:1 downscale hangs PrepTask
+
+Under sustained concurrent operation the board watchdog-resets (frame_count
+157→1 confirms a real core reset; ~3–11 s, intermittent). Root-caused to a
+specific HW-only code path:
+
+`publish_aux_slots_from_raw` (`detection_task.cc:592`) produces the
+`FLOW_GRAY_80x60` slot with `sentai_pxp_xrgb_to_y8` — a **PXP 640×480→80×60
+(8:1) downscale**. The real-HW impl (`sentai_runtime.cc:2526`) does:
+```c
+PXP_SetProcessSurfaceScaler(DEMO_PXP, 640,480, 80,60);   // 8:1
+PXP_Start(DEMO_PXP);
+while (!(kPXP_CompleteFlag & PXP_GetStatusFlags(DEMO_PXP))) taskYIELD();  // UNBOUNDED
+```
+The RT1176 PXP Process-Surface scaler can't do 8:1 in one pass → it never raises
+the complete flag → the **unbounded busy-wait hangs PrepTask** → the watchdog
+fires → reset. Evidence all fits: HW-only (SIM/EMU use software shims and flow's
+standalone path software-decimates); `slot_div` throttling did NOT help (even one
+8:1 production hangs); intermittent; `GRAY_NATIVE` 320×240 (2:1) works while
+80×60 (8:1) doesn't. Before this experiment the FLOW_GRAY slot was never enabled
+on HW, so this PXP path had never run on real hardware.
+
+**Fix (planned/next):** produce FLOW_GRAY without a single-pass 8:1 PXP —
+either a two-pass PXP (640→160→80, each ≤4:1) or a small software 8:1
+decimation (as flow's standalone `sentai_flow_publish_frame` already does). A
+bounded PXP wait would stop the hang but leave FLOW_GRAY invalid.
+
+Also added `sentai.flow.slot_div(n)` (runtime FLOW_GRAY production divisor,
+default 2) — a load knob; useful but does NOT fix the PXP hang (build 1562).
+
+### (superseded) earlier stability note
 
 Under **sustained** concurrent operation the board watchdog-resets after a few
 seconds (2/2 runs; it recovers cleanly, FileX intact). Flow runs BELOW the

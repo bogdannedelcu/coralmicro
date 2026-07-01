@@ -31,6 +31,8 @@ extern void     sentai_flow_poll_once(void);
 #endif
 extern void     sentai_flow_set_use_prep_slot(int on);
 extern int      sentai_flow_get_use_prep_slot(void);
+extern void     sentai_flow_set_slot_div(int n);
+extern int      sentai_flow_get_slot_div(void);
 extern int      sentai_fs_cache_write(const uint8_t* data, int size);
 extern void     sentai_markers_get_cam_extrinsics_matrix(float t_body[3],
                                                          float R[9],
@@ -81,6 +83,17 @@ static mp_obj_t mod_sentai_flow_use_prep_slot(size_t n_args, const mp_obj_t *arg
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_flow_use_prep_slot_obj,
                                             0, 1, mod_sentai_flow_use_prep_slot);
+
+// sentai.flow.slot_div([n]) -> int (current divisor)
+// PrepTask produces the shared FLOW_GRAY_80x60 slot every n-th camera frame.
+// Higher n = flow processes less often -> less M7/SEMC load under concurrent
+// detection. Call BEFORE flow.start(). Default 2.
+static mp_obj_t mod_sentai_flow_slot_div(size_t n_args, const mp_obj_t *args) {
+    if (n_args >= 1) sentai_flow_set_slot_div(mp_obj_get_int(args[0]));
+    return mp_obj_new_int(sentai_flow_get_slot_div());
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_flow_slot_div_obj,
+                                            0, 1, mod_sentai_flow_slot_div);
 
 // sentai.flow.read() -> dict
 //
@@ -325,6 +338,7 @@ static const mp_rom_map_elem_t sentai_flow_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_start),          MP_ROM_PTR(&mod_sentai_flow_start_obj) },
     { MP_ROM_QSTR(MP_QSTR_stop),           MP_ROM_PTR(&mod_sentai_flow_stop_obj) },
     { MP_ROM_QSTR(MP_QSTR_use_prep_slot),  MP_ROM_PTR(&mod_sentai_flow_use_prep_slot_obj) },
+    { MP_ROM_QSTR(MP_QSTR_slot_div),       MP_ROM_PTR(&mod_sentai_flow_slot_div_obj) },
     { MP_ROM_QSTR(MP_QSTR_read),           MP_ROM_PTR(&mod_sentai_flow_read_obj) },
     { MP_ROM_QSTR(MP_QSTR_read_tuple),     MP_ROM_PTR(&mod_sentai_flow_read_tuple_obj) },
     { MP_ROM_QSTR(MP_QSTR_body_read),      MP_ROM_PTR(&mod_sentai_flow_body_read_obj) },

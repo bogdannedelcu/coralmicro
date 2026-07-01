@@ -207,6 +207,20 @@ extern "C" int sentai_flow_get_use_prep_slot(void) {
     return g_sentai_flow_use_prep_slot;
 }
 
+// Prep-slot production divisor for flow (shared path): PrepTask produces the
+// FLOW_GRAY_80x60 slot every Nth camera frame.  Higher N = flow wakes/processes
+// less often -> lower M7/SEMC load contending with the detection pipeline (the
+// FFT + memcpy are the cost).  Default 2 (~half the camera rate; plenty for
+// visual odometry).  Applied in sentai_flow_enable; tune from script via
+// sentai.flow.slot_div(n) BEFORE flow.start().
+volatile int g_sentai_flow_slot_div = 2;
+extern "C" void sentai_flow_set_slot_div(int n) {
+    if (n < 1) n = 1;
+    if (n > 255) n = 255;
+    g_sentai_flow_slot_div = n;
+}
+extern "C" int sentai_flow_get_slot_div(void) { return g_sentai_flow_slot_div; }
+
 // Currently-selected camera (mirrored into shared struct so callers
 // can correlate dx/dy with which lens produced it).
 volatile int s_cam_id = 0;
@@ -1126,6 +1140,11 @@ extern "C" int sentai_flow_enable(void) {
         // Shared path: refcount PrepTask's FLOW_GRAY_80x60 slot so the
         // detection PrepTask produces it.  Balanced by _disable in flow_stop.
         (void)sentai_prep_slot_enable(SENTAI_PREP_SLOT_FLOW_GRAY_80x60);
+        // Throttle flow-slot production to cut M7/SEMC load under concurrent
+        // detection (the extra consumer aggravates the pipeline's sustained-
+        // load instability).  Runtime-tunable via sentai.flow.slot_div().
+        (void)sentai_prep_slot_set_div(SENTAI_PREP_SLOT_FLOW_GRAY_80x60,
+                                       g_sentai_flow_slot_div);
         s_pub_frames = 0;
         s_sim_last_prep_seq = 0;
         sentai_flow_phase_corr_reset();
