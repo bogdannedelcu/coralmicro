@@ -132,18 +132,35 @@ PXP_SetProcessSurfaceScaler(DEMO_PXP, 640,480, 80,60);   // 8:1
 PXP_Start(DEMO_PXP);
 while (!(kPXP_CompleteFlag & PXP_GetStatusFlags(DEMO_PXP))) taskYIELD();  // UNBOUNDED
 ```
-The RT1176 PXP Process-Surface scaler can't do 8:1 in one pass → it never raises
-the complete flag → the **unbounded busy-wait hangs PrepTask** → the watchdog
-fires → reset. Evidence all fits: HW-only (SIM/EMU use software shims and flow's
-standalone path software-decimates); `slot_div` throttling did NOT help (even one
-8:1 production hangs); intermittent; `GRAY_NATIVE` 320×240 (2:1) works while
-80×60 (8:1) doesn't. Before this experiment the FLOW_GRAY slot was never enabled
-on HW, so this PXP path had never run on real hardware.
+The **Y8-output** PXP variant at this 8:1 ratio never raises the complete flag →
+the **unbounded busy-wait hangs PrepTask** → the watchdog fires → reset. Note the
+subtlety: 8:1 PXP itself is fine — standalone flow's `sentai_flow_publish_frame`
+does the SAME 640×480→80×60 8:1 via `sentai_pxp_scale` (XRGB→**RGB888**) and works.
+It's specifically the **`sentai_pxp_xrgb_to_y8` (Y8 output) at 8:1** that hangs.
+Evidence fits: HW-only (SIM/EMU use software shims); `slot_div` throttling didn't
+help (not load — even one Y8 8:1 hangs); intermittent; `GRAY_NATIVE` 2:1 works.
+The FLOW_GRAY slot had never been enabled on HW before flow consumed it, so this
+Y8-8:1 path had never run on real hardware.
 
-**Fix (planned/next):** produce FLOW_GRAY without a single-pass 8:1 PXP —
-either a two-pass PXP (640→160→80, each ≤4:1) or a small software 8:1
-decimation (as flow's standalone `sentai_flow_publish_frame` already does). A
-bounded PXP wait would stop the hang but leave FLOW_GRAY invalid.
+**Fix (implemented, build 1563):** in `publish_aux_slots_from_raw`, produce
+FLOW_GRAY via the proven path — `sentai_pxp_scale` (XRGB→RGB888, works at 8:1) into
+a scratch, then a software RGB→Y loop — exactly mirroring standalone flow. Avoids
+the hanging Y8-output PXP variant entirely.
+
+**Fix result (build 1563, on board): improved but not fully resolved.** With the
+fix, concurrent flow+detection runs noticeably LONGER (reached fc≈355 at ~13 s,
+vs the reliable 3–11 s reset before) — so the Y8-8:1 PXP hang WAS a real cause and
+the fix removes it. But a residual intermittent instability remains: a pipeline
+frame_count reset (fc→1 with uptime CONTINUOUS ≈ pipeline-only restart, ~t=20 s)
+followed by an eventual real core reset (uptime dropped). So there is at least one
+MORE cause beyond the Y8 PXP hang. Candidates for the residual: PXP contention
+between PrepTask's now-3 serial PXP ops/frame (tensor + GRAY_NATIVE + FLOW_GRAY)
+and any other PXP user; or the board's pre-existing sustained-pipeline-load
+instability (s239 VGA45 took transient resets WITHOUT flow). Needs a follow-up
+(detection-alone sustained control test to isolate flow's contribution; JTAG
+fault-catch when the env allows). The strategic fix that sidesteps all of it:
+move flow compute to the idle M4 core (true parallelism — the s240 architectural
+recommendation), which the operator's original intuition pointed at.
 
 Also added `sentai.flow.slot_div(n)` (runtime FLOW_GRAY production divisor,
 default 2) — a load knob; useful but does NOT fix the PXP hang (build 1562).

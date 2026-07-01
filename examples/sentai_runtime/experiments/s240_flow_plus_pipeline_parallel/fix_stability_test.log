@@ -1,0 +1,27 @@
+build: V SentAI v1.0 build 1563 (2026-07-01 19:15:42)
+load: L 0
+pipe.start: P 0
+=== SUSTAINED flow+detection ~45s (uptime must stay continuous = NO reset) ===
+    t     uptime    pipe_fc  flow_fs    fails
+  serial blip; reconnect+check uptime
+
+RESULT: core reset = False | USB blips = 1
+Traceback (most recent call last):
+  File "<stdin>", line 16, in <module>
+  File "<stdin>", line 11, in <lambda>
+  File "/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s236_model_speed_sweep_640x480/board_serial.py", line 34, in cmd
+    while ser.in_waiting:
+          ^^^^^^^^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'in_waiting'
+build/uptime: ild 1563 (2026-07-01 19:15:42) up 107570
+load: L 0
+=== 36s sustained, count CORE resets (uptime drop) ===
+  t=7 up=117716 fc=209
+  t=13 up=121359 fc=355
+  t=20 up=125774 fc=1
+  USB blip
+  ->CORE RESET
+  RESET
+  t=41 up=15509 fc=0
+
+>>> CORE RESETS=2  USB blips=1  over ~36s <<<

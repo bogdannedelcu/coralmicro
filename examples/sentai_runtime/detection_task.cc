@@ -593,11 +593,28 @@ static uint32_t publish_aux_slots_from_raw(uint8_t* raw) {
         int sw = 0, sh = 0;
         uint8_t* sbuf = sentai_prep_slot_begin_write(
             SENTAI_PREP_SLOT_FLOW_GRAY_80x60, &sw, &sh);
-        if (sbuf) {
-            sentai_pxp_xrgb_to_y8(raw, DEMO_CAMERA_WIDTH,
-                                  DEMO_CAMERA_HEIGHT,
-                                  sbuf, sw, sh);
-            sentai_prep_slot_commit(SENTAI_PREP_SLOT_FLOW_GRAY_80x60);
+        if (sbuf && sw > 0 && sh > 0 && (sw * sh) <= (80 * 60)) {
+            // Produce FLOW_GRAY via the PROVEN path used by standalone flow:
+            // PXP XRGB->RGB888 downscale (works at this 8:1 ratio) into a
+            // scratch, then software RGB->Y.  The Y8-OUTPUT PXP variant
+            // (sentai_pxp_xrgb_to_y8) HANGS the PXP at 8:1 -- its complete flag
+            // never rises, so the driver's unbounded busy-wait stalls PrepTask
+            // -> watchdog reset (build 1562 root cause; sentai_pxp_scale RGB888
+            // at the same 8:1 is fine, cf. sentai_flow_publish_frame).
+            static uint8_t s_flow_rgb_scratch[80 * 60 * 3]
+                __attribute__((aligned(8), section(".sdram_bss")));
+            if (sentai_pxp_scale(raw, DEMO_CAMERA_WIDTH, DEMO_CAMERA_HEIGHT,
+                                 s_flow_rgb_scratch, sw, sh) == 0) {
+                const uint8_t* p = s_flow_rgb_scratch;
+                const int n = sw * sh;
+                for (int i = 0; i < n; ++i) {
+                    uint32_t r = p[3 * i + 0];
+                    uint32_t g = p[3 * i + 1];
+                    uint32_t b = p[3 * i + 2];
+                    sbuf[i] = (uint8_t)((r + (g << 1) + b) >> 2);  // Rec.601 approx
+                }
+                sentai_prep_slot_commit(SENTAI_PREP_SLOT_FLOW_GRAY_80x60);
+            }
         }
     }
     return fire_mask;
