@@ -79,6 +79,60 @@ now run; `B_silu` never touches that path.
   measured ~24 FPS input-bound for the non-spill TF-native models; the spill models
   pay the extra 153,600-byte OUTFEED+INFEED there too).
 
+## Op-level breakdown — where the instructions come from
+
+Op histogram of the INT8 graphs (pre-EdgeTPU-fusion), all same `c2f_thick`
+backbone (52 CONV_2D):
+
+| op | A_main | B (low-LOGISTIC) | C_onnx2tf | role |
+|---|---:|---:|---:|---|
+| CONV_2D     | 52 | 52 | 52 | backbone compute (native systolic — cheap, irreducible) |
+| **LOGISTIC** | **56** | **6** | **52** | sigmoid — **transcendental, NOT native**; element-wise pass per call |
+| **MUL**      | **62** | **12** | **60** | element-wise; pairs with LOGISTIC for SiLU = `x·σ(x)` |
+| ADD         | 14 | 14 | 14 | residual adds |
+| CONCAT      | 11 | 11 | 11 | C2f / FPN concat |
+| SPLIT(_V)   | 5  | 5  | 0(+2 SPLIT_V) | C2f channel split |
+| STRIDED_SLICE | 6 | 6 | 10 | decode-head gather |
+| RESHAPE/PAD/QUANTIZE/MAXPOOL/RESIZE/TRANSPOSE | 18 | 18 | 20 | data movement / requant |
+| **TOTAL**   | **224** | **124** | **221** | |
+
+**The SiLU→ReLU win, explained.** `A_main`/`C_onnx2tf` use **SiLU** everywhere:
+each activation is `MUL(x, LOGISTIC(x))` → ~52 LOGISTIC + ~52 MUL from the backbone
+alone. `B` drops to **6 LOGISTIC + 12 MUL** — its backbone activations **fold into
+the conv output clamp (ReLU/ReLU6 family) and emit ZERO ops**. That removed ~50
+LOGISTIC + ~50 MUL ⇒ instruction stream **310 KB → 151 KB**, i.e. ≈1.6 KB of TPU
+instructions per element-wise op.
+
+**Two costs of SiLU, not one:**
+1. *Instructions* — sigmoid is transcendental; the EdgeTPU has no systolic sigmoid,
+   so each `LOGISTIC` is a full element-wise activation-unit pass (instructions ∝
+   tensor size). ReLU6 is free (fused clamp).
+2. *Scratch spill* — `x·σ(x)` needs **two live tensors** (`x` and `σ(x)`) at every
+   layer ⇒ peak activation memory exceeds on-chip SRAM ⇒ the compiler emits the
+   host-scratch round-trip. Measured: SiLU `A_main` → `scratch=153600` (spill);
+   ReLU `B` → `scratch=0` (fits on-chip). So **ReLU also eliminates the spill that
+   crashed the board** (s236) and is responsible for most of the 2× latency.
+
+## Where to cut next (after SiLU→ReLU)
+
+1. **Move the YOLO decode off-TPU** (export raw grid maps, decode on the M7) — the
+   only transcendental left in `B` is the detection head: its **6 LOGISTIC + 12 MUL
+   + 6 STRIDED_SLICE + 4 RESHAPE + part of CONCAT**. The TF-native s236 route already
+   does this (188→ raw maps). Removes the last sigmoids and the gather/reshape
+   plumbing; the decode is trivially cheap on the host.
+2. **Requantize** — 5 `QUANTIZE` ops are scale-bridges between mixed-scale tensors;
+   keeping consistent int8 scales (avoid int16 islands) removes them.
+3. **Structural** — after that, the residue is `CONV_2D` (irreducible) + `CONCAT/
+   SPLIT/ADD/PAD/MAXPOOL`. To cut those you change the **architecture**: `C2f→C3`
+   (fewer SPLIT/CONCAT), narrower channels, or drop the SPPF MaxPool chain.
+
+**Activation guidance (EdgeTPU instruction cost):** ReLU/ReLU6 = free (fused clamp,
+0 ops). LeakyReLU = cheap (MAX+MUL, no transcendental). **Avoid** SiLU/Swish, GELU,
+Mish, Tanh — all expand to transcendental passes (LOGISTIC/EXP/TANH) **and** force
+the extra live-tensor scratch spill. There are no other transcendental
+nonlinearities in YOLOv5n besides the sigmoid; MaxPool/Add/Concat are not
+nonlinearities (native data ops).
+
 ## Files
 
 - `bench_usbcoral.py` — the benchmark

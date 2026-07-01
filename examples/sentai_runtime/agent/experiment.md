@@ -6987,3 +6987,47 @@ with a smaller on-chip param budget.
   exited with `sentai.usb.drive(0)`, NOT `q`. Reformat binding on 1546 is
   `sentai.fs.format()` (the fx-reformat-dev skill's `sentai.diag.fx_format`
   is stale). See memory `project_msc_upload_gotcha`.
+
+## Session 2026-07-01 — s237/s238 ReLU export study + on-board ReLU sweep (build 1560)
+
+Firmware 1560 = build 1546 + the **EdgeTPU host-scratch round-trip fix** (commit
+8510b1b7): wide models that spill activations to a host scratch buffer
+(`SCRATCH OUTFEED`/`FENCE`/`INFEED`) now work instead of wedging the board. That
+fix is what let c2f_thick run at all; see `s236.../iter16_scratch_fix/` and memory
+`project_edgetpu_host_scratch_roundtrip_fix`.
+
+### s237 — PyTorch-route c2f_thick, export sweep on the Coral USB stick
+MLflow run `cover__c2f_thick_PYTORCH` (d62bb783) ships 3 EdgeTPU export routes.
+Host (USB stick, pycoral, 200 iters): **B/ReLU 35.3 ms (28.3 FPS)**, A/SiLU 69.1 ms
+(14.5), C/onnx2tf 79.9 ms (12.5). ReLU is 2× faster because it avoids the scratch
+spill AND halves instructions: SiLU = `MUL(x, LOGISTIC(x))` per layer (56 LOGISTIC
++ 62 MUL, 310 KB instr, scratch=153600); ReLU folds into the conv clamp (6 LOGISTIC
++ 12 MUL, 151 KB instr, scratch=0). The 6 LOGISTIC left are the YOLO decode head;
+move decode off-TPU to remove them + 2 QUANTIZE. See `s237.../README.md`.
+
+### s238 — relu_v1 8-model sweep ON BOARD (the real deliverable)
+MLflow `sentai_revision_relu_v1` (exp 8) = the 8 cover archs with ReLU. All 8
+edgetpu graphs have `scratch_size_bytes=0` (offline `dump_exe`), so no resets
+between models. Fed the s236-chosen real image via `sentai.tpu.load_image`.
+Wall-clock `rtos.micros()`, N=50.
+
+Per-model ms/FPS (all fails=0): msblock 32.6/30.7, c3 32.8/30.5, c2f 33.0/30.3,
+gelan 34.1/29.3, c2f_thick **35.2/28.4** (was CRASH as SiLU in s236), gelan_pan2
+35.4/28.2, c2f_pan2 35.3/28.3, c2f_deep 35.6/28.1. ReLU beats the s236 SiLU set
+(msblock 22.9→30.7). **Input transfer dominates ~26 ms of ~33** — the 921,600-byte
+image re-sent every invoke over USB2; the measurement is transfer-bound, not
+compute-bound.
+
+**Board-vs-host detection parity** (same image, raw cells conf>=0.25, both heads):
+board and host CPU int8 counts match within ±1 cell (threshold-boundary rounding),
+maxconf to 3 decimals — the EdgeTPU inference is host-identical. E.g. c2f_thick
+16/16 dets, maxconf 0.406(board)/0.418(host). See `s238.../README.md` +
+`detections_board_vs_host.csv`.
+
+Gotchas this session: (1) **never `sentai.verbose(0)` during REPL work** — it
+silences printf so the board looks wedged (echoes, evaluates nothing);
+`verbose(1)` restores. (2) The board's MSC volume auto-mounts at
+`/run/media/$USER/0000-0001`; **`/dev/sda` is the HOST system disk** — copying
+there silently writes to host rootfs, not the board. (3) Recovered the board from a
+full power-down (a prior desc_cache wedge) — a physical replug is the only reliable
+POR; see memory `reference_board_usb_wedge_needs_physical_por`.

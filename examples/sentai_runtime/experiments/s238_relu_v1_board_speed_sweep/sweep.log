@@ -1,0 +1,113 @@
+bench("/msblock.tflite", 50)
+Model loaded: 205568 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x8a4e3412fab805b9
+Input:  uint8[1,480,640,3] (921600 bytes)
+  quant: scale=0.00392157  zero_point=0
+Outputs: 2
+  [0] int8[1,30,40,6] (7200 bytes)
+      quant: scale=0.08455707  zero_point=71
+  [1] int8[1,60,80,6] (28800 bytes)
+      quant: scale=0.08071665  zero_point=71
+Arena used: 935 / 8192 KB
+Model name: msblock
+Raw image: 921600 bytes -> tensor 921600 bytes
+RESULT /msblock.tflite 50 1630014 0 3729200 108222 46080400 1298799 2400000 123366
+>>> bench("/c2f.tflite", 50)
+Model loaded: 267008 bytes
+Input:  uint8[1,480,640,3] (921600 bytes)
+  quant: scale=0.00392157  zero_point=0
+Outputs: 2
+  [0] int8[1,30,40,6] (7200 bytes)
+      quant: scale=0.09529951  zero_point=81
+  [1] int8[1,60,80,6] (28800 bytes)
+      quant: scale=0.08746858  zero_point=71
+Arena used: 935 / 8192 KB
+Model name: c2f
+Raw image: 921600 bytes -> tensor 921600 bytes
+RESULT /c2f.tflite 50 1648693 0 4202000 121395 46080400 1299399 2400000 128374
+>>> bench("/c3.tflite", 50)
+Model loaded: 254720 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x8e3412c775b7caee
+Input:  uint8[1,480,640,3] (921600 bytes)
+  quant: scale=0.00392157  zero_point=0
+Outputs: 2
+  [0] int8[1,30,40,6] (7200 bytes)
+      quant: scale=0.07122044  zero_point=67
+  [1] int8[1,60,80,6] (28800 bytes)
+      quant: scale=0.07830989  zero_point=68
+Arena used: 935 / 8192 KB
+Model name: c3
+Raw image: 921600 bytes -> tensor 921600 bytes
+RESULT /c3.tflite 50 1638568 0 3991600 115310 46080400 1299550 2400000 125375
+>>> bench("/c2f_pan2.tflite", 50)
+Model loaded: 332544 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0xeb479ca65d3593d7
+Input:  uint8[1,480,640,3] (921600 bytes)
+  quant: scale=0.00392157  zero_point=0
+Outputs: 2
+  [0] int8[1,30,40,6] (7200 bytes)
+      quant: scale=0.10659301  zero_point=82
+  [1] int8[1,60,80,6] (28800 bytes)
+      quant: scale=0.10209104  zero_point=77
+Arena used: 935 / 8192 KB
+Model name: c2f_pan2
+Raw image: 921600 bytes -> tensor 921600 bytes
+[bbt] no persisted BBT, starting clean
+RESULT /c2f_pan2.tflite 50 1767006 0 5491600 156234 46080400 1378068 2400000 137129
+>>> bench("/gelan.tflite", 50)
+Model loaded: 357120 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0xa1d3887a39c41f20
+Input:  uint8[1,480,640,3] (921600 bytes)
+  quant: scale=0.00392157  zero_point=0
+Outputs: 2
+  [0] int8[1,30,40,6] (7200 bytes)
+      quant: scale=0.09217642  zero_point=79
+  [1] int8[1,60,80,6] (28800 bytes)
+      quant: scale=0.08299741  zero_point=60
+Arena used: 935 / 8192 KB
+Model name: gelan
+Raw image: 921600 bytes -> tensor 921600 bytes
+RESULT /gelan.tflite 50 1706617 0 5826800 166858 46080400 1299916 2400000 141340
+>>> bench("/gelan_pan2.tflite", 50)
+Model loaded: 451328 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x6978a9c92ab8d0ff
+Input:  uint8[1,480,640,3] (921600 bytes)
+  quant: scale=0.00392157  zero_point=0
+Outputs: 2
+  [0] int8[1,30,40,6] (7200 bytes)
+      quant: scale=0.19683050  zero_point=105
+  [1] int8[1,60,80,6] (28800 bytes)
+      quant: scale=0.15110488  zero_point=95
+Arena used: 935 / 8192 KB
+Model name: gelan_pan2
+Raw image: 921600 bytes -> tensor 921600 bytes
+RESULT /gelan_pan2.tflite 50 1770837 0 7711600 220094 46080400 1299862 2400000 153823
+>>> bench("/c2f_deep.tflite", 50)
+Model loaded: 471808 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x0b199f29d086e998
+Input:  uint8[1,480,640,3] (921600 bytes)
+  quant: scale=0.00392157  zero_point=0
+Outputs: 2
+  [0] int8[1,30,40,6] (7200 bytes)
+      quant: scale=0.08458649  zero_point=75
+  [1] int8[1,60,80,6] (28800 bytes)
+      quant: scale=0.13870978  zero_point=94
+Arena used: 935 / 8192 KB
+Model name: c2f_deep
+Raw image: 921600 bytes -> tensor 921600 bytes
+RESULT /c2f_deep.tflite 50 1779304 0 7829200 222569 46080400 1299466 2400000 159312
+>>> bench("/c2f_thick.tflite", 50)
+Model loaded: 942848 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0xb4d576764ee4f1f7
+Input:  uint8[1,480,640,3] (921600 bytes)
+  quant: scale=0.00392157  zero_point=0
+Outputs: 2
+  [0] int8[1,30,40,6] (7200 bytes)
+      quant: scale=0.08683408  zero_point=77
+  [1] int8[1,60,80,6] (28800 bytes)
+      quant: scale=0.08677856  zero_point=69
+Arena used: 935 / 8192 KB
+Model name: c2f_thick
+Raw image: 921600 bytes -> tensor 921600 bytes
+RESULT /c2f_thick.tflite 50 1759774 0 6015600 171305 46080400 1298522 2400000 192453
+>>> 

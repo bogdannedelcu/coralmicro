@@ -47,11 +47,18 @@ static void DumpExecutable(const darwinn::Executable* e, const char* tag) {
     printf("    instruction_bitstreams: %u chunk(s)\n",
            flatbuffers::VectorLength(instr));
     uint32_t total = 0;
+    const char* dumpdir = getenv("DUMP_BITS_DIR");
     for (uint32_t i = 0; i < flatbuffers::VectorLength(instr); ++i) {
       auto* bs = instr->Get(i)->bitstream();
       uint32_t len = bs ? flatbuffers::VectorLength(bs) : 0;
       total += len;
       printf("      [%u] %u bytes\n", i, len);
+      if (dumpdir && bs && len) {
+        char path[512];
+        snprintf(path, sizeof(path), "%s/%s_chunk%u.bin", dumpdir, tag, i);
+        FILE* f = fopen(path, "wb");
+        if (f) { fwrite(bs->data(), 1, len, f); fclose(f); }
+      }
     }
     printf("    instruction TOTAL = %u bytes\n", total);
   } else {
