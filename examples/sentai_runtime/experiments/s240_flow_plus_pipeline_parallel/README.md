@@ -103,6 +103,21 @@ Sequence: `pipeline.start()` (cam0, PrepTask running) → `flow.use_prep_slot(1)
 So flow + detection DO coexist on real HW via the shared PrepTask slot — the
 original goal is proven.
 
+### FPS with flow live (short-window measurement, cam0 640×480)
+
+Measured over a ~1.4 s window (short enough to beat the sustained-load reset):
+
+| model | detection alone | **detection + flow live** | flow rate |
+|---|--:|--:|--:|
+| c2f_thick | 26.6 fps | **20.6 fps** | ~5 fps |
+| msblock   | 27.6 fps | **21.2 fps** | ~5 fps |
+
+Running flow concurrently costs the detection pipeline ~6 FPS (~23%): 27→21.
+Flow itself lands ~5 fps — it's a lossy consumer (its phase-corr FFT + 32 KB
+memcpy is heavy, so it processes ~1 in 4 camera frames while detection keeps the
+TPU busy). `results_with_flow.csv` has the raw numbers. (Short windows complete
+before the sustained-load watchdog reset noted below.)
+
 ### Stability caveat (open)
 
 Under **sustained** concurrent operation the board watchdog-resets after a few

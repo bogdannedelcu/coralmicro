@@ -1,0 +1,7 @@
+=== c2f_thick ===
+ detect-ALONE 30f: Q 30 1126036 26.64 0
+ WITH FLOW 30f: Q 30 1456767 20.59 7
+=== msblock ===
+ detect-ALONE 30f: Q 30 1086512 27.61 0
+ WITH FLOW 30f: Q 30 1416020 21.18 7
+ALIVE: V SentAI v1.0 build 1561 (2026-07-01 18:04:20)
