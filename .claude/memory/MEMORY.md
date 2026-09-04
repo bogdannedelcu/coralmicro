@@ -1,5 +1,9 @@
 # Memory Index
 
+- [FNIRSI power logger already running (2026-09-04)](fnirsi-power-logger-already-running.md) — /tmp/power_log.jsonl; don't start a second.
+
+- [frame_count is HALF rate + alternation tag bug (2026-09-04)](frame-count-half-rate-and-alternation-tag-bug.md) — 44.5 fps works, labels break.
+
 - [Camera trigger mode does NOT exist (2026-09-04)](camera-trigger-mode-does-not-exist.md) — dead code + GPIO8_IO27 unrouted; EXP-s245.
 
 - [sentai.fr scalars ARM fix + drain-wedge limit (2026-07-02)](fr-scalars-arm-fix-and-drain-wedge.md) — never drain fr to NAND live.

@@ -420,13 +420,35 @@ static mp_obj_t mod_sentai_cam_grabbed_id(void) {
 static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_cam_grabbed_id_obj, mod_sentai_cam_grabbed_id);
 
 // sentai.camera.frame_count() -> int
-// Monotonic sensor-frame counter (gated on CSI DMA_DONE flag, not raw
-// ISR entries — see camera_support.c:CSI_IRQHandler for the filter).
-// One tick = one actual sensor frame captured.
+// Monotonic counter gated on the CSI fb2_done flag alone
+// (camera_support.c:432), NOT raw ISR entries.
+//
+// CORRECTED 2026-09-04 (EXP-s246 iter2 PHASE0): this ticks at HALF the
+// sensor rate — measured 22.0 Hz against a 45 fps sensor over a 2 s
+// window.  The previous comment here claimed "one tick = one actual
+// sensor frame captured", which is wrong and is the false claim
+// [[csi-isr-is-timing-sensitive]] flagged.  For a true per-frame count
+// use sentai.camera.sensor_frames() below.
+//
+// Consequence worth knowing: the ratio-alternate scheduler keys its
+// modulo off this counter, so ratio(1,1) flips the MUX once per TWO
+// sensor frames.
 static mp_obj_t mod_sentai_cam_frame_count(void) {
     return mp_obj_new_int(sentai_cam_get_frame_seq());
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_cam_frame_count_obj, mod_sentai_cam_frame_count);
+
+// sentai.camera.sensor_frames() -> int
+// True per-sensor-frame counter: the CSI ISR bumps it on fb1_done OR
+// fb2_done (camera_support.c:434), so one tick = one frame off the
+// sensor.  This is the counter to dedup on when every frame matters —
+// EXP-s246 needs it to tell a DROPPED frame from a merely unobserved one.
+extern uint32_t sentai_cam_get_sensor_frames(void);
+static mp_obj_t mod_sentai_cam_sensor_frames(void) {
+    return mp_obj_new_int_from_uint(sentai_cam_get_sensor_frames());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_cam_sensor_frames_obj,
+                                  mod_sentai_cam_sensor_frames);
 
 // sentai.camera.rotate(cam_id, degrees) -> int (0=ok)
 // cam_id: 0=front, 1=back.  degrees: 0, 90, 180, 270.
@@ -746,6 +768,7 @@ static const mp_rom_map_elem_t sentai_camera_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_peek5_b40),       MP_ROM_PTR(&mod_sentai_cam_peek5_b40_obj) },
     { MP_ROM_QSTR(MP_QSTR_fps),             MP_ROM_PTR(&mod_sentai_cam_fps_obj) },
     { MP_ROM_QSTR(MP_QSTR_frame_count),  MP_ROM_PTR(&mod_sentai_cam_frame_count_obj) },
+    { MP_ROM_QSTR(MP_QSTR_sensor_frames), MP_ROM_PTR(&mod_sentai_cam_sensor_frames_obj) },
     { MP_ROM_QSTR(MP_QSTR_rotate),     MP_ROM_PTR(&mod_sentai_cam_rotate_obj) },
     { MP_ROM_QSTR(MP_QSTR_aec_set),    MP_ROM_PTR(&mod_sentai_cam_aec_set_obj) },
     { MP_ROM_QSTR(MP_QSTR_gain_ceiling_set), MP_ROM_PTR(&mod_sentai_cam_gain_ceiling_set_obj) },

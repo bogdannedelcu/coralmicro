@@ -1,0 +1,13 @@
+phase,knob_a,knob_b,fps,n_frames,seq_span,bars,hband,ambig,scrambled,tag0,tag1,mismatch,grabfail
+phase0,frame_count,sensor_frames,22.50,45.00,,,,,,,
+baseline,sel0,,44.05,40,40,39,0,0,1,40,0
+baseline,sel1,,43.96,40,40,0,40,0,0,0,40
+sweep,drain0,dirty0,44.81,120,120,52,67,0,1,60,60,35,0
+sweep,drain0,dirty1,22.55,118,233,59,59,0,0,59,59,0,0
+sweep,drain0,dirty2,0.69,1,62,1,0,0,0,1,0,0,21
+sweep,drain1,dirty0,22.31,117,233,53,64,0,0,59,58,10,0
+sweep,drain1,dirty1,22.34,117,233,59,58,0,0,59,58,0,0
+sweep,drain1,dirty2,0.00,0,82,0,0,0,0,0,0,0,21
+sweep,drain2,dirty0,11.27,59,232,1,30,0,28,59,0,30,0
+sweep,drain2,dirty1,9.04,47,185,25,0,0,22,0,47,25,0
+sweep,drain2,dirty2,0.00,0,121,0,0,0,0,0,0,0,21

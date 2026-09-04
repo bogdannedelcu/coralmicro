@@ -1,0 +1,4 @@
+build: SentAI v1.0 build 1596 (2026-09-04 09:57:41)
+camera.init(1,45) -> 0 | fps 45
+FAIL: peek_row() unreadable — the instrument does not work, so any
+negative result below would be meaningless.
