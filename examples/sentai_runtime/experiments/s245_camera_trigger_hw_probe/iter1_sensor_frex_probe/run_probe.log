@@ -1,0 +1,51 @@
+build: SentAI v1.0 build 1593 (2026-07-14 10:46:19)
+camera.init(1,45) -> 0 | fps: 45
+
+--- A. FREX / pad / system register dump ---
+addr     name                                 cam0   cam1  agree
+0x3008   SYSTEM_CTROL0 (bit6=sw power down)   0x02   0x02  yes
+0x300E   MIPI_CONTROL00                       0x45   0x45  yes
+0x3016   PAD_OUTPUT_ENABLE00                  0x00   0x00  yes
+0x3017   PAD_OUTPUT_ENABLE01                  0x00   0x00  yes
+0x3018   PAD_OUTPUT_ENABLE02                  0x00   0x00  yes
+0x3019   PAD_OUTPUT_VALUE00                   0xF0   0xF0  yes
+0x301C   PAD_OUTPUT_ENABLE_SEL                0x00   0x00  yes
+0x301D   PAD_OUTPUT_VALUE_SEL                 0x00   0x00  yes
+0x3B00   SRB_CTRL (strobe control)            0x00   0x00  yes
+0x3B01   FREX_EXPOSURE_HH                     0x00   0x00  yes
+0x3B02   FREX_SHUTTER_DLY_HI                  0x08   0x08  yes
+0x3B03   FREX_SHUTTER_DLY_LO                  0x00   0x00  yes
+0x3B04   FREX_EXPOSURE_HI                     0x04   0x04  yes
+0x3B05   FREX_EXPOSURE_LO                     0x00   0x00  yes
+0x3B06   FREX_CTRL01                          0x04   0x04  yes
+0x3B07   FREX_MODE                            0x08   0x08  yes
+0x3B08   FREX_REQUEST                         0x00   0x00  yes
+0x3B09   FREX_HREF_DLY                        0x02   0x02  yes
+0x3B0A   FREX_RST_LENGTH_HI                   0x04   0x04  yes
+0x3B0B   FREX_RST_LENGTH_LO                   0x00   0x00  yes
+0x3B0C   FREX_STROBE_WIDTH                    0x3D   0x3D  yes
+0x3F00   ISP_CTRL_3F00                        0x00   0x00  yes
+0x3F01   ISP_CTRL_3F01                        0x00   0x00  yes
+0x3F02   ISP_CTRL_3F02                        0x00   0x00  yes
+0x4740   IO_PAD_VSYNC_POLARITY                0x21   0x21  yes
+0x3035   SC_PLL_CTRL1 (frame timing)          0x14   0x14  yes
+0x3036   SC_PLL_CTRL2 (frame timing)          0x54   0x54  yes
+
+--- B. FREX write-readback-restore liveness test ---
+cam0 0x3B04 FREX_EXPOSURE_HI     orig=0x04 wrote=['0x5a', '0xa5'] read=['0x5a', '0xa5'] restored=ok -> LIVE
+cam0 0x3B05 FREX_EXPOSURE_LO     orig=0x00 wrote=['0x5a', '0xa5'] read=['0x5a', '0xa5'] restored=ok -> LIVE
+cam1 0x3B04 FREX_EXPOSURE_HI     orig=0x04 wrote=['0x5a', '0xa5'] read=['0x5a', '0xa5'] restored=ok -> LIVE
+cam1 0x3B05 FREX_EXPOSURE_LO     orig=0x00 wrote=['0x5a', '0xa5'] read=['0x5a', '0xa5'] restored=ok -> LIVE
+
+--- C. Verdict ---
+read errors           : 0
+cam0/cam1 disagreements: 0
+FREX block writable   : YES
+FREX_MODE  (0x3B07)   : cam0=0x08 cam1=0x08 
+SRB_CTRL   (0x3B00)   : cam0=0x00 cam1=0x00
+
+PASS criteria: block readable on both cams (no ERR) AND writable.
+RESULT: PASS
+
+wrote /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s245_camera_trigger_hw_probe/iter1_sensor_frex_probe/frex_dump.csv
+wrote /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s245_camera_trigger_hw_probe/iter1_sensor_frex_probe/verdict.json

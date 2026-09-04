@@ -1,0 +1,23 @@
+build: SentAI v1.0 build 1595 (2026-09-04 09:22:21)
+run 0: [0, 1, 0, 854, 1, 1, 1, 1, -1, 0, 0]
+run 1: [0, 1, 0, 886, 1, 1, 1, 1, -1, 0, 0]
+run 2: [0, 1, 0, 873, 1, 1, 1, 1, -1, 0, 0]
+run 3: [0, 1, 0, 886, 1, 1, 1, 1, -1, 0, 0]
+run 4: [0, 1, 0, 876, 1, 1, 1, 1, -1, 0, 0]
+
+--- Per-pin results (5 runs) ---
+pin              pad            nopull pullup pulldn    chg_cyc  verdict
+kCameraTrigger   GPIO_EMC_B2_17      0      1      0        876  FLOATING-or-HIGH-Z
+kEdgeTpuPgood    GPIO_EMC_B2_16      1      1      1        n/a  TIED/DRIVEN
+
+SDRAM canary mismatches per run: [0, 0, 0, 0, 0] -> INTACT
+
+--- Interpretation ---
+control pin (kEdgeTpuPgood) reads: TIED/DRIVEN
+  -> method VALIDATED: a genuinely routed+driven pin does resist
+     the internal pulls, so the test can tell the two apart.
+pin under test (kCameraTrigger) reads: FLOATING-or-HIGH-Z
+CONCLUSION: NO STRONG DRIVER — floating, or routed to a high-Z input (an OV5640 FREX input would look exactly like this)
+
+wrote /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s245_camera_trigger_hw_probe/iter2_gpio_routing_probe/pin_probe.csv
+wrote /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s245_camera_trigger_hw_probe/iter2_gpio_routing_probe/verdict.json

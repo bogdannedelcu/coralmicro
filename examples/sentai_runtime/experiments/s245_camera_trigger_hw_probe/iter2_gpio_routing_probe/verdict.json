@@ -1,0 +1,155 @@
+{
+  "build": "SentAI v1.0 build 1595 (2026-09-04 09:22:21)",
+  "runs": 5,
+  "raw": [
+    [
+      0,
+      1,
+      0,
+      854,
+      1,
+      1,
+      1,
+      1,
+      -1,
+      0,
+      0
+    ],
+    [
+      0,
+      1,
+      0,
+      886,
+      1,
+      1,
+      1,
+      1,
+      -1,
+      0,
+      0
+    ],
+    [
+      0,
+      1,
+      0,
+      873,
+      1,
+      1,
+      1,
+      1,
+      -1,
+      0,
+      0
+    ],
+    [
+      0,
+      1,
+      0,
+      886,
+      1,
+      1,
+      1,
+      1,
+      -1,
+      0,
+      0
+    ],
+    [
+      0,
+      1,
+      0,
+      876,
+      1,
+      1,
+      1,
+      1,
+      -1,
+      0,
+      0
+    ]
+  ],
+  "pins": {
+    "kCameraTrigger": {
+      "gpio": "GPIO8_IO27",
+      "pad": "GPIO_EMC_B2_17",
+      "role": "UNDER TEST",
+      "nopull": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pullup": [
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "pulldown": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "charge_cycles": [
+        854,
+        886,
+        873,
+        886,
+        876
+      ],
+      "charge_cycles_median": 876,
+      "stable": true,
+      "verdict": "FLOATING-or-HIGH-Z"
+    },
+    "kEdgeTpuPgood": {
+      "gpio": "GPIO8_IO26",
+      "pad": "GPIO_EMC_B2_16",
+      "role": "CONTROL (known routed)",
+      "nopull": [
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "pullup": [
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "pulldown": [
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "charge_cycles": [
+        -1,
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "charge_cycles_median": -1,
+      "stable": true,
+      "verdict": "TIED/DRIVEN"
+    }
+  },
+  "sdram_canary_mismatches": [
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "sdram_intact": true,
+  "method_validated_by_control": true,
+  "conclusion": "NO STRONG DRIVER \u2014 floating, or routed to a high-Z input (an OV5640 FREX input would look exactly like this)"
+}

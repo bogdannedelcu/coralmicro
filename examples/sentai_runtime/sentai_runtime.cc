@@ -3377,6 +3377,162 @@ extern "C" int sentai_cam_reg_write(int cam_id, int reg, int val) {
   return cam->WriteToCam(cam_id, (uint16_t)reg, (uint8_t)val) ? 0 : -5;
 }
 
+// ───────────────────────────────────────────────────────────────────
+// EXP-s245 iter2 (TD-S10-A10) — pin-routing probe.
+//
+// Question: is Gpio::kCameraTrigger (GPIO8_IO27, pad GPIO_EMC_B2_17)
+// physically routed to anything on the SentAI board?  The name is
+// inherited from upstream coralmicro (single-camera Dev Board Micro)
+// and NO code in this firmware ever drives it — see the audit in
+// experiments/s245_camera_trigger_hw_probe/README.md.
+//
+// Method — weak-pull flip test.  Configure the pad as an input and
+// read it under the internal pull-up, then under the internal
+// pull-down.  A pad with nothing on it follows whichever pull is
+// applied (1 then 0).  A pad tied to a rail, or driven by another
+// device, ignores the ~50 kΩ internal pull and reads the same both
+// times.
+//
+// KNOWN LIMITATION (stated up front so the result is not overread):
+// a high-impedance INPUT on the far end — which is exactly what an
+// OV5640 FREX trigger input would be — also follows the internal
+// pull.  So "follows the pulls" means FLOATING-OR-HIGH-Z-LOAD and
+// canNOT by itself prove the trace is absent.  Only the TIED/DRIVEN
+// outcome is conclusive.  A conclusive positive needs the functional
+// test (enable the sensor FREX pad, toggle, observe the sensor).
+//
+// Methodology control: the same measurement is run on
+// Gpio::kEdgeTpuPgood (GPIO8_IO26, pad GPIO_EMC_B2_16) — the
+// physically ADJACENT pad in the same bank, known to be routed to the
+// EdgeTPU power-good signal.  If the control reads as driven while
+// the pin under test follows the pulls, the method is working and the
+// difference is real rather than an artefact of the test itself.
+//
+// SDRAM safety: GPIO_EMC_B2_17's alternate function is SEMC_DM03,
+// data mask 3 of a 32-bit SDRAM port.  This board runs the SDRAM at
+// kSEMC_PortSize16Bit (board_hardware.c:76), so DM03 is unused and
+// re-muxing the pad cannot disturb memory.  We verify that claim
+// rather than trusting it: a pattern is written to an SDRAM buffer
+// before the probe and checked after.
+//
+// Restores the boot pad configuration (output, logic 0) on every exit
+// path.
+//
+// out[] layout, 5 entries per pin, pin 0 = kCameraTrigger (under
+// test), pin 1 = kEdgeTpuPgood (control):
+//   [0] read as plain input, no pull
+//   [1] read with internal pull-up
+//   [2] read with internal pull-down
+//   [3] cycles for the pad to reach logic 1 after being driven low
+//       and released to the pull-up (capacitance hint; -1 = never
+//       reached within the bound)
+//   [4] 1 if the pin followed both pulls (floating-or-high-Z),
+//       0 if it ignored them (tied/driven)
+// out[10] = SDRAM integrity, 0 = pattern intact.
+// Returns the number of entries written, or negative on error.
+// ───────────────────────────────────────────────────────────────────
+extern "C" int sentai_pin_probe_cam_trigger(int32_t* out, int n) {
+  if (!out || n < 11) return -1;
+  for (int i = 0; i < n; ++i) out[i] = -1;
+
+  // SDRAM canary.  Region rationale (section-decision): this must live
+  // in SDRAM — it is checking SDRAM — but it deliberately does NOT go
+  // in .sdram_bss.  Adding a static buffer there shifts the FileX /
+  // LevelX state and silently breaks NAND I/O (see the warning above
+  // g_slot_arena and project_filex_layout_fragility.md).  malloc from
+  // m_heap is the sanctioned alternative and is SDRAM-backed:
+  // m_heap ORIGIN = 0x80000000 in MIMXRT1176xxxxx_cm7_ram_mp.ld.
+  // Cold path, freed on every exit, so it costs nothing when unused.
+  //
+  // Scope honesty: this samples 1 KB of a 64 MB SDRAM — a sanity check
+  // that the pad re-mux did not disturb memory, not a proof that no
+  // byte anywhere moved.
+  const int kCanaryWords = 256;
+  uint32_t* canary = (uint32_t*)malloc(kCanaryWords * sizeof(uint32_t));
+  if (!canary) return -2;
+  if (((uintptr_t)canary >> 24) != 0x80u) {   // must be SDRAM to be meaningful
+    free(canary);
+    return -3;
+  }
+  for (int i = 0; i < kCanaryWords; ++i) canary[i] = 0xA5A50000u + (uint32_t)i;
+  __DSB();
+
+  const coralmicro::Gpio pins[2] = { coralmicro::Gpio::kCameraTrigger,
+                                     coralmicro::Gpio::kEdgeTpuPgood };
+
+  for (int p = 0; p < 2; ++p) {
+    const coralmicro::Gpio g = pins[p];
+    int32_t* o = &out[p * 5];
+
+    // Settle time for a ~50 kΩ internal pull against pad + trace
+    // capacitance.  1 tick (1 ms) is ~1000× the RC of even a long
+    // board trace, so the reading is the steady state, not a
+    // transient.
+    coralmicro::GpioSetMode(g, coralmicro::GpioMode::kInput);
+    vTaskDelay(pdMS_TO_TICKS(2));
+    o[0] = coralmicro::GpioGet(g) ? 1 : 0;
+
+    coralmicro::GpioSetMode(g, coralmicro::GpioMode::kInputPullUp);
+    vTaskDelay(pdMS_TO_TICKS(2));
+    o[1] = coralmicro::GpioGet(g) ? 1 : 0;
+
+    coralmicro::GpioSetMode(g, coralmicro::GpioMode::kInputPullDown);
+    vTaskDelay(pdMS_TO_TICKS(2));
+    o[2] = coralmicro::GpioGet(g) ? 1 : 0;
+
+    // Followed both pulls → floating or a high-Z load on the far end.
+    o[4] = (o[1] == 1 && o[2] == 0) ? 1 : 0;
+
+    // Capacitance hint: drive the pad low, release it to the internal
+    // pull-up, and count DWT cycles until it reads high.  More
+    // capacitance (a real trace with a device pin on the end) charges
+    // more slowly, so this separates a bare pad from a routed one.
+    //
+    // DRIVE SAFETY: only run this when the pull test just showed the
+    // pad follows the internal pulls.  If anything on the board were
+    // actively driving the net, turning our pad into an output would
+    // put two push-pull drivers in contention — a direct short
+    // through both.  kEdgeTpuPgood is the TPU PMIC's power-good
+    // OUTPUT, so the control pin must never be driven; the gate below
+    // excludes it for free whenever the PMIC is holding the line.
+    o[3] = -1;
+    if (o[4] == 1) {
+      coralmicro::GpioSetMode(g, coralmicro::GpioMode::kOutput);
+      coralmicro::GpioSet(g, false);
+      vTaskDelay(pdMS_TO_TICKS(2));
+      // Bounded loop (NASA §2): 8e6 cycles ≈ 10 ms at 800 MHz, far
+      // beyond any RC on this board.
+      const uint32_t kMaxCycles = 8000000u;
+      const uint32_t t0 = DWT->CYCCNT;
+      coralmicro::GpioSetMode(g, coralmicro::GpioMode::kInputPullUp);
+      int32_t measured = -1;
+      for (;;) {
+        const uint32_t dt = DWT->CYCCNT - t0;
+        if (coralmicro::GpioGet(g)) { measured = (int32_t)dt; break; }
+        if (dt > kMaxCycles) break;         // never reached 1
+      }
+      o[3] = measured;
+    }
+
+    // Restore boot configuration.  kCameraTrigger boots as an output
+    // driving 0; kEdgeTpuPgood boots as an input and must stay one.
+    if (g == coralmicro::Gpio::kEdgeTpuPgood) {
+      coralmicro::GpioSetMode(g, coralmicro::GpioMode::kInput);
+    } else {
+      coralmicro::GpioSetMode(g, coralmicro::GpioMode::kOutput);
+      coralmicro::GpioSet(g, false);
+    }
+  }
+
+  int bad = 0;
+  for (int i = 0; i < kCanaryWords; ++i) {
+    if (canary[i] != 0xA5A50000u + (uint32_t)i) bad++;
+  }
+  free(canary);
+  out[10] = bad;
+  return 11;
+}
+
 // Rotate camera image. cam_id: 0=front, 1=back. degrees: 0, 90, 180, 270.
 extern "C" int sentai_cam_rotate(int cam_id, int degrees) {
   if (!g_cam_initialized) return -1;

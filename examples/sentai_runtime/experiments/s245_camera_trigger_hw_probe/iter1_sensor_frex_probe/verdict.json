@@ -1,0 +1,21 @@
+{
+  "build": "SentAI v1.0 build 1593 (2026-07-14 10:46:19)\r",
+  "read_errors": 0,
+  "cam_disagreements": 0,
+  "frex_writable": true,
+  "liveness": {
+    "cam0_0x3B04": "LIVE",
+    "cam0_0x3B05": "LIVE",
+    "cam1_0x3B04": "LIVE",
+    "cam1_0x3B05": "LIVE"
+  },
+  "frex_mode": {
+    "cam0": 8,
+    "cam1": 8
+  },
+  "srb_ctrl": {
+    "cam0": 0,
+    "cam1": 0
+  },
+  "result": "PASS"
+}

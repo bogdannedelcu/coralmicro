@@ -1,0 +1,3 @@
+pin,gpio,pad,role,nopull,pullup,pulldown,charge_cycles_median,verdict
+kCameraTrigger,GPIO8_IO27,GPIO_EMC_B2_17,"UNDER TEST",0,1,0,876,FLOATING-or-HIGH-Z
+kEdgeTpuPgood,GPIO8_IO26,GPIO_EMC_B2_16,"CONTROL (known routed)",1,1,1,-1,TIED/DRIVEN
