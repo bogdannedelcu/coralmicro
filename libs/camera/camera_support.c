@@ -134,6 +134,20 @@ volatile int g_cam_grabbed_id = -1;
  * can re-init at a different rate without rebuild + reflash. */
 volatile uint32_t g_runtime_fps = DEMO_CAMERA_FRAME_RATE;
 
+/* sentai YUV420 path (2026-07-02): runtime-selectable camera output color
+ * space, so we can A/B XRGB (RGB detection models) vs native-YUV (YUV420
+ * models) without a rebuild.  0 = XRGB8888 (default, legacy RGB path).
+ * 1 = capture the sensor's native YUV: OV5640 outputs YUYV (YUV422), the
+ * MIPI->CSI bridge upconverts to XYUV8888 (still 4 BPP — MIPI capture is
+ * always 24/32-bit on this SoC, per NXP csi_mipi_yuv + the RGB565 dead-end;
+ * the win is matching the model's training color space + a YUV420 TPU input,
+ * NOT a smaller camera DMA).  Set via sentai.camera.yuv_mode(1) BEFORE
+ * camera.init().  Read only inside BOARD_InitCamera. */
+volatile int g_sentai_camera_yuv_mode = 0;
+
+void sentai_camera_set_yuv_mode(int on) { g_sentai_camera_yuv_mode = on ? 1 : 0; }
+int  sentai_camera_get_yuv_mode(void)   { return g_sentai_camera_yuv_mode; }
+
 /* Build #942 — IN-FLIGHT-AT-FLIP dirty-buffer marker.
  *
  * When the CSI ISR flips the MUX, the buffer currently being filled
@@ -234,12 +248,21 @@ volatile uint32_t g_csi_isr_hist[6]      = {0, 0, 0, 0, 0, 0};
  * landing on EXACTLY the buffers the consumer will dequeue. */
 volatile uint32_t g_cam_csi_hook_fires = 0;
 
-/* AUTHORITATIVE per-buffer source tag — written from the NXP CSI
- * driver hook called at fsl_csi.c:889 when a real frame is queued
- * for the consumer.  Indexed by slot (0..3) found by looking up the
- * buffer address in framebuffers[].  Read by
- * sentai_cam_get_raw_with_recovery for grabbed_id reporting.
- * 0xFF = never tagged. */
+/* DEAD ARRAY — never written, always 0xFF.  Kept only because
+ * sentai.camera.buf_id_dump() still reports it.
+ *
+ * It was documented as the "AUTHORITATIVE" per-buffer source tag, written
+ * from coralmicro_csi_on_frame_complete() at frame-queued time.  Build #944
+ * reduced that hook to a bare counter which discards bufferAddr, so no write
+ * has happened since — measured csi_untagged = 120/120 (EXP-s246 iter4).
+ * The claim that sentai_cam_get_raw_with_recovery reads it was stale too:
+ * nothing reads it.
+ *
+ * EXP-s246 iter7 tried populating it at BUFFER ARM time instead; that scored
+ * far worse than the existing completion-time tags and was reverted — see the
+ * note in coralmicro_csi_on_buffer_arm() below.
+ *
+ * Candidate for deletion: it currently only misleads. */
 volatile uint8_t g_cam_buf_id_csi[DEMO_CAMERA_BUFFER_COUNT] = {
     0xFF, 0xFF, 0xFF, 0xFF};
 
@@ -263,10 +286,69 @@ void coralmicro_csi_on_frame_complete(uint32_t bufferAddr) {
 
 volatile uint32_t g_cam_buf_arm_writes  = 0;
 volatile uint32_t g_cam_buf_arm_idx_miss = 0;
+/* EXP-s246 iter7 — ARM-TIME per-buffer source tag.
+ *
+ * Every previous tag was written at or AFTER frame completion:
+ *   g_cam_buf_id[]      CSI ISR at that buffer's FB-done, from active_cam
+ *                       sampled at ISR entry;
+ *   g_cam_buf_id_task[] at dequeue, from the scalar g_cam_last_completed_id.
+ * By completion time the association is already ambiguous, which is why the
+ * two score IDENTICALLY against pattern content (22/22, 18/18, 24/24 mismatches
+ * at ratio(1,1)) and why no relabelling of a completed buffer recovers it.
+ * Measured mismatch is also unstable run to run (11..35 of 120 over six runs,
+ * against exactly 60 transitions every time) — a race, not an off-by-one.  All
+ * three constant corrections (lag-1, lead-1, lag-1-at-flips) scored WORSE than
+ * doing nothing.  See experiments/s246_alternation_full_speed/.
+ *
+ * ARM time is the only unambiguous instant: whichever camera the MUX selects
+ * when a buffer is armed is, by construction, the camera that will fill it.
+ * This hook is called from inside the NXP CSI driver at exactly that moment.
+ *
+ * Cost: ONE 8-bit store.  No new branch — the slot-validity test already
+ * existed for the counter.  That restraint is deliberate:
+ * [[csi-isr-is-timing-sensitive]] records that merely adding an XOR + store to
+ * CSI_IRQHandler once broke alternation outright (90 %+ TPU invoke failures),
+ * so anything added in CSI ISR context has to be cross-ratio A/B tested before
+ * it is trusted.
+ *
+ * This also retires the dead-code problem: g_cam_buf_id_csi[] was documented as
+ * "AUTHORITATIVE" but build #944 reduced on_frame_complete() to a bare counter
+ * that discarded bufferAddr, leaving every slot 0xFF forever (measured:
+ * csi_untagged = 120/120).  It is now genuinely written — at the right instant.
+ *
+ * Consumers are NOT switched over yet.  sentai.camera.peek5_tags() already
+ * reports this array, so it can be scored against content first; only if it
+ * wins does sentai_cam_get_raw_with_recovery start reading it. */
 __attribute__((section(".ramfunc")))
 void coralmicro_csi_on_buffer_arm(uint32_t bufferAddr) {
     int slot = FramebufferPtrToIndex((const uint8_t*)bufferAddr);
     if (slot >= 0 && slot < (int)DEMO_CAMERA_BUFFER_COUNT) {
+        /* MEASURED AND REVERTED (EXP-s246 iter7, build 1600).  Writing
+         *     g_cam_buf_id_csi[slot] = (uint8_t)g_cam_current_id;
+         * here scored FAR WORSE than the existing completion-time tags:
+         *
+         *     config            mism_task  mism_isr  mism_csi(arm)
+         *     drain0/dirty0        18         18        100 /120
+         *     drain0/dirty1         0          0        117 /118
+         *     drain1/dirty0        22         22         93 /117
+         *
+         * At drain0/dirty1, where both existing tags are perfect, the
+         * arm-time tag is wrong on essentially every frame.
+         *
+         * Why the idea was wrong: CSI arms a buffer BEFORE it starts
+         * filling it, so g_cam_current_id at arm time is not the camera
+         * that will actually write that buffer — arm time is not the
+         * unambiguous instant it looks like.  Do not retry this without
+         * a different source for "which camera will fill this slot".
+         *
+         * Reverted rather than left in place: a populated-but-wrong tag
+         * array is a worse trap than an unwritten one, which at least
+         * announces itself as 0xFF.
+         *
+         * The added store did NOT regress anything measurable (fps, and
+         * both existing tag scores, were unchanged), so the ISR-cost
+         * concern from [[csi-isr-is-timing-sensitive]] did not
+         * materialise for a single store here. */
         g_cam_buf_arm_writes++;
     } else {
         g_cam_buf_arm_idx_miss++;
@@ -794,7 +876,12 @@ void BOARD_InitCamera(void)
      * output (after sensor RGB565 -> upconversion in MIPI pipeline).
      * RGB565 receiver attempted 2026-04-25 but produced 2x2-tile
      * garbage; see header comment for details. */
-    cameraConfig.pixelFormat                = kVIDEO_PixelFormatXRGB8888;
+    /* CSI receiver format: XYUV8888 in YUV mode, XRGB8888 otherwise.  Both
+     * are 4 BPP (the MIPI bridge upconverts the sensor's 16-bit stream to
+     * 32-bit either way), so the buffer/pitch math is identical. */
+    cameraConfig.pixelFormat                = g_sentai_camera_yuv_mode
+                                                  ? kVIDEO_PixelFormatXYUV
+                                                  : kVIDEO_PixelFormatXRGB8888;
     cameraConfig.bytesPerPixel              = DEMO_CAMERA_BUFFER_BPP;
     cameraConfig.resolution                 = FSL_VIDEO_RESOLUTION(DEMO_CAMERA_WIDTH, DEMO_CAMERA_HEIGHT);
     cameraConfig.frameBufferLinePitch_Bytes = DEMO_CAMERA_WIDTH * DEMO_CAMERA_BUFFER_BPP;
@@ -819,7 +906,11 @@ void BOARD_InitCamera(void)
 
     BOARD_InitMipiCsi();
 
-    cameraConfig.pixelFormat   = kVIDEO_PixelFormatRGB565;
+    /* Sensor output format: YUYV (YUV422) in YUV mode so the OV5640's CMX
+     * matrix does RGB->YUV on-sensor; RGB565 otherwise.  Both 16-bit/pixel. */
+    cameraConfig.pixelFormat   = g_sentai_camera_yuv_mode
+                                     ? kVIDEO_PixelFormatYUYV
+                                     : kVIDEO_PixelFormatRGB565;
     cameraConfig.bytesPerPixel = 2;
     cameraConfig.resolution    = FSL_VIDEO_RESOLUTION(DEMO_CAMERA_WIDTH, DEMO_CAMERA_HEIGHT);
     cameraConfig.interface     = kCAMERA_InterfaceMIPI;
