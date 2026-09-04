@@ -314,6 +314,30 @@ static mp_obj_t mod_sentai_cam_peek5_b40(void) {
 static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_cam_peek5_b40_obj,
                                   mod_sentai_cam_peek5_b40);
 
+// sentai.camera.peek5_tags() -> (idx, tag_task, tag_isr, tag_csi, b0..b4)
+// EXP-s246 iter4.  Same single-dequeue 5-row sampling as peek5_b40, but also
+// reports EVERY per-buffer tag source for the buffer actually grabbed, so
+// content can be scored against each instead of trusting one.  See the C
+// implementation in sentai_runtime.cc for what the three arrays mean and why
+// they disagree.
+extern int sentai_cam_peek5_tags(uint8_t* dst5, int32_t* out4);
+static mp_obj_t mod_sentai_cam_peek5_tags(void) {
+    uint8_t b[5];
+    int32_t o[4];
+    if (sentai_cam_peek5_tags(b, o) != 0) {
+        mp_raise_msg(&mp_type_RuntimeError, MP_ERROR_TEXT("peek5_tags failed"));
+    }
+    mp_obj_t items[9] = {
+        mp_obj_new_int(o[0]), mp_obj_new_int(o[1]),
+        mp_obj_new_int(o[2]), mp_obj_new_int(o[3]),
+        mp_obj_new_int(b[0]), mp_obj_new_int(b[1]), mp_obj_new_int(b[2]),
+        mp_obj_new_int(b[3]), mp_obj_new_int(b[4]),
+    };
+    return mp_obj_new_tuple(9, items);
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_cam_peek5_tags_obj,
+                                  mod_sentai_cam_peek5_tags);
+
 // sentai.camera.peek_row(len=64) -> bytes
 // Grab the latest frame and return the first `len` bytes of its
 // XRGB8888 framebuffer.  Used to inspect OV5640 embedded data
@@ -766,6 +790,7 @@ static const mp_rom_map_elem_t sentai_camera_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_dirty_skip_n),    MP_ROM_PTR(&mod_sentai_cam_dirty_skip_n_obj) },
     { MP_ROM_QSTR(MP_QSTR_peek_row),        MP_ROM_PTR(&mod_sentai_cam_peek_row_obj) },
     { MP_ROM_QSTR(MP_QSTR_peek5_b40),       MP_ROM_PTR(&mod_sentai_cam_peek5_b40_obj) },
+    { MP_ROM_QSTR(MP_QSTR_peek5_tags),      MP_ROM_PTR(&mod_sentai_cam_peek5_tags_obj) },
     { MP_ROM_QSTR(MP_QSTR_fps),             MP_ROM_PTR(&mod_sentai_cam_fps_obj) },
     { MP_ROM_QSTR(MP_QSTR_frame_count),  MP_ROM_PTR(&mod_sentai_cam_frame_count_obj) },
     { MP_ROM_QSTR(MP_QSTR_sensor_frames), MP_ROM_PTR(&mod_sentai_cam_sensor_frames_obj) },

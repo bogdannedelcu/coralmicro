@@ -2,7 +2,8 @@
 import time
 import serial
 
-PORT = "/dev/ttyACM0"
+import glob as _g
+PORT = (sorted(_g.glob("/dev/ttyACM*")) or ["/dev/ttyACM0"])[0]
 BAUD = 115200
 
 

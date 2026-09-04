@@ -1,0 +1,14 @@
+{
+  "done": true,
+  "err": null,
+  "elapsed_s": 47.92,
+  "n_power_samples": 5142,
+  "v_min": 5.0154,
+  "v_min_t": 49.359,
+  "v_mean": 5.0438,
+  "v_max": 5.0764,
+  "p_mean": 1.8319,
+  "p_max": 1.91099,
+  "tail_v_min": 5.0154,
+  "diagnosis": "RAIL HELD \u2014 min 5.015 V, no brownout; a reset here is a software fault (watchdog / hard fault), not power"
+}

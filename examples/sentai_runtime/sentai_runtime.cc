@@ -2247,6 +2247,62 @@ extern "C" int sentai_cam_peek5_b40(uint8_t* dst5) {
   return tag;
 }
 
+// EXP-s246 iter4 — same single-dequeue sampling as peek5_b40, but ALSO
+// reports every per-buffer tag source for the buffer actually grabbed, so
+// content can be scored against each one instead of trusting a comment.
+//
+// Three arrays exist and they do not agree:
+//   g_cam_buf_id_task[]  written at dequeue in CameraTask::HandleFrameRequest
+//                        from the SCALAR g_cam_last_completed_id -- i.e. from
+//                        whichever camera finished a frame most recently, not
+//                        necessarily the one that filled THIS buffer.  This is
+//                        what the consumer currently believes.
+//   g_cam_buf_id[]       written per-buffer by the CSI ISR at that buffer's
+//                        own FB-done, from the pre-flip active_cam.
+//   g_cam_buf_id_csi[]   documented "AUTHORITATIVE" but NEVER WRITTEN: build
+//                        #944 reduced coralmicro_csi_on_frame_complete() to a
+//                        bare counter that discards bufferAddr, so every slot
+//                        stays 0xFF.  Reported here to make that visible.
+//
+// Tags are read BEFORE ReturnRawFrame -- once the slot is returned it can be
+// re-armed and re-tagged, which would corrupt the comparison.
+//
+// out4 = { idx, tag_task, tag_isr, tag_csi }.
+extern "C" int sentai_cam_peek5_tags(uint8_t* dst5, int32_t* out4) {
+  // Local externs: the file-scope declarations for these live further down
+  // (near the camera-switch state block), after this function.
+  extern volatile uint8_t g_cam_buf_id[];
+  extern volatile uint8_t g_cam_buf_id_csi[];
+  if (!dst5 || !out4) return -1;
+  uint8_t* raw = nullptr;
+  int idx = sentai_cam_get_raw_with_recovery(&raw);
+  if (idx < 0 || !raw) return -2;
+  const size_t pitch = (size_t)(DEMO_CAMERA_WIDTH + LINE_PADDING)
+                       * (size_t)DEMO_CAMERA_BUFFER_BPP;
+  static const int kRows[5] = {
+      0,
+      DEMO_CAMERA_HEIGHT / 4,
+      DEMO_CAMERA_HEIGHT / 2,
+      (3 * DEMO_CAMERA_HEIGHT) / 4,
+      DEMO_CAMERA_HEIGHT - 1};
+  for (int i = 0; i < 5; ++i) {
+    dst5[i] = raw[(size_t)kRows[i] * pitch + (size_t)40 * 4];
+  }
+  out4[0] = idx;
+  out4[1] = g_cam_grabbed_id;                 // task array (current behaviour)
+  out4[2] = (idx < (int)DEMO_CAMERA_BUFFER_COUNT)
+                ? (int32_t)g_cam_buf_id[idx] : -1;
+  out4[3] = (idx < (int)DEMO_CAMERA_BUFFER_COUNT)
+                ? (int32_t)g_cam_buf_id_csi[idx] : -1;
+  if (sentai_virtual_camera_is_frame_idx(idx)) {
+    sentai_virtual_camera_return_raw(idx);
+    return 0;
+  }
+  auto* cam = coralmicro::CameraTask::GetSingleton();
+  cam->ReturnRawFrame(idx);
+  return 0;
+}
+
 extern "C" void sentai_cam_return_raw(int idx) {
   if (sentai_virtual_camera_is_frame_idx(idx)) {
     sentai_virtual_camera_return_raw(idx);

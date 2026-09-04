@@ -91,31 +91,74 @@ def _collect(nframes, budget_ms=0):
         # sweep, so count it and move on.  (An uncaught raise here aborted the
         # first full run at drain=0/dirty=2.)
         try:
-            r = sentai.camera.peek5_b40()
+            # (idx, tag_task, tag_isr, tag_csi, b0..b4) -- score content against
+            # EVERY tag source, not just the one the consumer happens to use.
+            r = sentai.camera.peek5_tags()
         except Exception:
             fails += 1
             if fails > 20:
                 break                      # this config cannot deliver frames
             sentai.rtos.sleep_ms(2)
             continue
-        recs.append((cur, r[0], _classify_5b(r[1:6])))
+        recs.append((cur, r[1], r[2], r[3], _classify_5b(r[4:9])))
         if (len(recs) % 20) == 0:
             sentai.rtos.repl_kick()
     wall = sentai.rtos.ticks_ms() - t0
     return recs, (last - seq0), wall, fails
 
 
+def _bad(tag, cls):
+    """True when this tag contradicts the content."""
+    return (tag == 0 and cls == "HBAND") or (tag == 1 and cls == "BARS")
+
+
+def _row(phase, ka, kb, fps, n, span, t, tag0, tag1,
+         mism, mism_isr, mism_csi, csi_unt, fails, lag1=0, lead1=0):
+    """Build one CSV line by joining fields, never by a positional format
+    string -- an arity slip there aborted the first iter4 run at PHASE A
+    ("format string didn't convert all arguments")."""
+    return ",".join([phase, ka, kb, "%.2f" % fps] +
+                    [str(x) for x in (n, span, t["BARS"], t["HBAND"],
+                                      t["AMBIG"], t["SCRAMBLED"], tag0, tag1,
+                                      mism, mism_isr, mism_csi, csi_unt,
+                                      fails, lag1, lead1)])
+
+
 def _tally(recs):
     t = {"BARS": 0, "HBAND": 0, "AMBIG": 0, "SCRAMBLED": 0}
-    tag0 = tag1 = mismatch = 0
-    for (_s, tag, cls) in recs:
+    tag0 = tag1 = 0
+    mism_task = mism_isr = mism_csi = 0
+    csi_untagged = 0
+    for (_s, tg_task, tg_isr, tg_csi, cls) in recs:
         t[cls] += 1
-        if tag == 0: tag0 += 1
-        elif tag == 1: tag1 += 1
-        # cam0 must carry BARS, cam1 must carry HBAND
-        if (tag == 0 and cls == "HBAND") or (tag == 1 and cls == "BARS"):
-            mismatch += 1
-    return t, tag0, tag1, mismatch
+        if tg_task == 0: tag0 += 1
+        elif tg_task == 1: tag1 += 1
+        if _bad(tg_task, cls): mism_task += 1
+        if _bad(tg_isr, cls):  mism_isr += 1
+        if tg_csi == 0xFF:     csi_untagged += 1
+        elif _bad(tg_csi, cls): mism_csi += 1
+    # LAG/LEAD scoring -- the actual hypothesis under test.
+    #
+    # At drain=0/dirty=0 the tags alternate exactly 60/60 while the CONTENT
+    # does not (46/73), and frames are clean (1/120 scrambled).  A clean image
+    # carrying the wrong label is what you get when the first buffer after a
+    # MUX flip still holds the PREVIOUS camera's frame -- it was already in
+    # flight through the CSI pipeline when the MUX moved.
+    #
+    # If that is the mechanism, the fix is to DELAY the tag by one frame, not
+    # to discard the frame: we would keep full rate AND label correctly.  So
+    # score content against the neighbouring frames' tags as well.  A near-zero
+    # lag-1 score confirms it; if lag and lead are both as bad as lag-0, the
+    # tag is not merely shifted and something else is wrong.
+    mism_lag1 = mism_lead1 = 0
+    for i in range(len(recs)):
+        cls = recs[i][4]
+        if i > 0 and _bad(recs[i - 1][1], cls):
+            mism_lag1 += 1
+        if i + 1 < len(recs) and _bad(recs[i + 1][1], cls):
+            mism_lead1 += 1
+    return (t, tag0, tag1, mism_task, mism_isr, mism_csi, csi_untagged,
+            mism_lag1, mism_lead1)
 
 
 print("=== boot ===")
@@ -159,7 +202,8 @@ notes.append("frame_count=%.0f Hz, sensor_frames=%.0f Hz (configured 45)"
 if sf_hz > 1.5 * fc_hz:
     notes.append("CONFIRMED: frame_count is fb2-gated at HALF rate; "
                  "ratio() keys off it, so ratio(1,1) flips per TWO frames")
-rows.append("phase0,frame_count,sensor_frames,%.2f,%.2f,,,,,,," % (fc_hz, sf_hz))
+rows.append("phase0,frame_count,sensor_frames,%.2f,%.2f" % (fc_hz, sf_hz)
+            + "," * 14)
 
 # ---- PHASE A: single-cam baseline -- validate the oracle itself -------
 # If the oracle cannot classify a STATIC single camera at 100%, nothing it
@@ -169,16 +213,17 @@ for sel, want in ((0, "BARS"), (1, "HBAND")):
     sentai.camera.select(sel)
     sentai.rtos.sleep_ms(400)
     recs, span, wall, fails = _collect(NB_BASE)
-    t, tag0, tag1, mism = _tally(recs)
+    (t, tag0, tag1, mism, mism_isr, mism_csi, csi_unt,
+     mism_lag1, mism_lead1) = _tally(recs)
     fps = len(recs) * 1000.0 / max(1, wall)
     ok = t[want]
     if not recs:
         notes.append("baseline sel=%d observed NO frames - oracle not running" % sel)
     print("  sel=%d n=%d fps=%.1f %s=%d scrambled=%d ambig=%d mismatch=%d"
           % (sel, len(recs), fps, want, ok, t["SCRAMBLED"], t["AMBIG"], mism))
-    rows.append("baseline,sel%d,,%.2f,%d,%d,%d,%d,%d,%d,%d,%d"
-                % (sel, fps, len(recs), span, t["BARS"], t["HBAND"],
-                   t["AMBIG"], t["SCRAMBLED"], tag0, tag1))
+    rows.append(_row("baseline", "sel%d" % sel, "", fps, len(recs),
+                     span, t, tag0, tag1, mism, mism_isr, mism_csi,
+                     csi_unt, 0, mism_lag1, mism_lead1))
     if ok < len(recs):
         notes.append("baseline sel=%d classified only %d/%d as %s"
                      % (sel, ok, len(recs), want))
@@ -197,23 +242,27 @@ for dr in DRAINS:
         sentai.rtos.sleep_ms(300)
 
         recs, span, wall, fails = _collect(NB_SWEEP)
-        t, tag0, tag1, mism = _tally(recs)
+        (t, tag0, tag1, mism, mism_isr, mism_csi, csi_unt,
+         mism_lag1, mism_lead1) = _tally(recs)
         fps = len(recs) * 1000.0 / max(1, wall)
         # n == 0 means the oracle never ran; calling that "clean" is the
         # trap this driver already fell into once.
         valid = (len(recs) >= NB_SWEEP // 2)
         clean = valid and t["SCRAMBLED"] == 0 and mism == 0
+        clean_isr = valid and t["SCRAMBLED"] == 0 and mism_isr == 0
         dropped = span - len(recs)
         print("  drain=%d dirty=%d fps=%.1f bars=%d hband=%d ambig=%d "
-              "SCRAM=%d mismatch=%d tag0=%d tag1=%d %s"
+              "SCRAM=%d mism_task=%d mism_isr=%d LAG1=%d LEAD1=%d "
+              "tag0=%d tag1=%d %s"
               % (dr, dy, fps, t["BARS"], t["HBAND"], t["AMBIG"],
-                 t["SCRAMBLED"], mism, tag0, tag1,
+                 t["SCRAMBLED"], mism, mism_isr, mism_lag1, mism_lead1, tag0, tag1,
                  ("CLEAN dropped=%d" % dropped) if clean
                  else ("INVALID n=%d grabfail=%d" % (len(recs), fails))
                  if not valid else ("grabfail=%d" % fails)))
-        rows.append("sweep,drain%d,dirty%d,%.2f,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d"
-                    % (dr, dy, fps, len(recs), span, t["BARS"], t["HBAND"],
-                       t["AMBIG"], t["SCRAMBLED"], tag0, tag1, mism, fails))
+        rows.append(_row("sweep", "drain%d" % dr, "dirty%d" % dy, fps,
+                         len(recs), span, t, tag0, tag1, mism,
+                         mism_isr, mism_csi, csi_unt, fails,
+                         mism_lag1, mism_lead1))
         if clean and (best is None or fps > best[0]):
             best = (fps, dr, dy)
         sentai.rtos.repl_kick()
@@ -245,7 +294,8 @@ else:
 # capture is a prime suspect for the mid-sweep resets, so this run removes
 # the filesystem from the experiment entirely rather than reasoning about it.
 hdr = ("phase,knob_a,knob_b,fps,n_frames,seq_span,bars,hband,"
-       "ambig,scrambled,tag0,tag1,mismatch,grabfail")
+       "ambig,scrambled,tag0,tag1,mism_task,mism_isr,mism_csi,"
+       "csi_untagged,grabfail,mism_lag1,mism_lead1")
 print("CSV|" + hdr)
 for _r in rows:
     print("CSV|" + _r)

@@ -1,0 +1,115 @@
+build: SentAI v1.0 build 1599 (2026-09-04 12:21:59)
+driver start t=1788514232.633
+driver end   t=1788514280.509  elapsed=47.9s  done=True  err=None
+
+----- board output -----
+exec(sentai.fs.read_str("/lib/diag/_t_s246_alt.py"))
+=== boot ===
+version= SentAI v1.0 build 1599 (2026-09-04 12:21:59)
+HandlePowerRequest: try I2C1: Success
+HandlePowerRequest: try I2C2: Success
+CAMERA_RECEIVER_Init = 0
+BOARD_PullCameraPowerDownPin:1
+BOARD_PullCameraResetPin:0
+BOARD_PullCameraPowerDownPin:0
+BOARD_PullCameraResetPin:1
+CAMERA_DEVICE_Init = 0
+CAMERA_DEVICE_Start = 0
+CAMERA_RECEIVER_Start = 0
+[CAM] sensor_fps=46 (1 s sample, target=30)
+[CAM1] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM1] W 0x3820=0x47 (0)
+[CAM1] W 0x3821=0x01 (0)
+[CAM0] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM0] W 0x3820=0x47 (0)
+[CAM0] W 0x3821=0x01 (0)
+fps_configured= 45
+--- pattern init: cam0=BARS, cam1=HBAND ---
+[CAM0] W 0x503D=0x80 (0)
+[CAM1] W 0x503D=0x88 (0)
+PHASE0 frame_count=22.0 Hz  sensor_frames=44.5 Hz  over 2000 ms (sensor configured 45)
+--- PHASE A: single-cam baseline ---
+  sel=0 n=40 fps=44.2 BARS=39 scrambled=1 ambig=0 mismatch=0
+  sel=1 n=40 fps=44.8 HBAND=40 scrambled=0 ambig=0 mismatch=0
+--- PHASE B: ratio(1,1) sweep drain x dirty ---
+  drain=0 dirty=0 fps=44.6 bars=46 hband=73 ambig=0 SCRAM=1 mism_task=16 mism_isr=15 csi_untagged=120 tag0=60 tag1=60 grabfail=0
+  drain=0 dirty=1 fps=22.4 bars=59 hband=58 ambig=0 SCRAM=0 mism_task=0 mism_isr=0 csi_untagged=117 tag0=59 tag1=58 CLEAN dropped=115
+  drain=0 dirty=2 fps=0.7 bars=0 hband=0 ambig=0 SCRAM=1 mism_task=0 mism_isr=0 csi_untagged=1 tag0=0 tag1=1 INVALID n=1 grabfail=21
+  drain=1 dirty=0 fps=22.5 bars=29 hband=87 ambig=0 SCRAM=1 mism_task=29 mism_isr=29 csi_untagged=117 tag0=58 tag1=59 grabfail=0
+  drain=1 dirty=1 fps=22.3 bars=58 hband=58 ambig=0 SCRAM=0 mism_task=0 mism_isr=0 csi_untagged=116 tag0=58 tag1=58 CLEAN dropped=115
+  drain=1 dirty=2 fps=0.0 bars=0 hband=0 ambig=0 SCRAM=0 mism_task=0 mism_isr=0 csi_untagged=0 tag0=0 tag1=0 INVALID n=0 grabfail=21
+  drain=2 dirty=0 fps=9.1 bars=47 hband=1 ambig=0 SCRAM=0 mism_task=47 mism_isr=0 csi_untagged=48 tag0=0 tag1=48 INVALID n=48 grabfail=0
+  drain=2 dirty=1 fps=7.0 bars=18 hband=19 ambig=0 SCRAM=0 mism_task=0 mism_isr=0 csi_untagged=37 tag0=18 tag1=19 INVALID n=37 grabfail=0
+  drain=2 dirty=2 fps=0.0 bars=0 hband=0 ambig=0 SCRAM=0 mism_task=0 mism_isr=0 csi_untagged=0 tag0=0 tag1=0 INVALID n=0 grabfail=21
+[CAM0] W 0x503D=0x00 (0)
+[CAM0] W 0x3503=0x00 (0)
+[CAM1] W 0x503D=0x00 (0)
+[CAM1] W 0x3503=0x00 (0)
+--- summary ---
+  note: frame_count=22 Hz, sensor_frames=45 Hz (configured 45)
+  note: CONFIRMED: frame_count is fb2-gated at HALF rate; ratio() keys off it, so ratio(1,1) flips per TWO frames
+  note: baseline sel=0 classified only 39/40 as BARS
+  BEST CLEAN: fps=22.4 at drain=0 dirty=1
+CSV|phase,knob_a,knob_b,fps,n_frames,seq_span,bars,hband,ambig,scrambled,tag0,tag1,mism_task,mism_isr,mism_csi,csi_untagged,grabfail
+CSV|phase0,frame_count,sensor_frames,22.00,44.50,,,,,,,,,,,,
+CSV|baseline,sel0,,44.15,40,40,39,0,0,1,40,0,0,0,0,40,0
+CSV|baseline,sel1,,44.79,40,40,0,40,0,0,0,40,0,0,0,40,0
+CSV|sweep,drain0,dirty0,44.63,120,120,46,73,0,1,60,60,16,15,0,120,0
+CSV|sweep,drain0,dirty1,22.36,117,232,59,58,0,0,59,58,0,0,0,117,0
+CSV|sweep,drain0,dirty2,0.68,1,62,0,0,0,1,0,1,0,0,0,1,21
+CSV|sweep,drain1,dirty0,22.49,117,232,29,87,0,1,58,59,29,29,0,117,0
+CSV|sweep,drain1,dirty1,22.29,116,231,58,58,0,0,58,58,0,0,0,116,0
+CSV|sweep,drain1,dirty2,0.00,0,82,0,0,0,0,0,0,0,0,0,0,21
+CSV|sweep,drain2,dirty0,9.13,48,188,47,1,0,0,0,48,47,0,0,48,0
+CSV|sweep,drain2,dirty1,7.00,37,214,18,19,0,0,18,19,0,0,0,37,0
+CSV|sweep,drain2,dirty2,0.00,0,121,0,0,0,0,0,0,0,0,0,0,21
+=== done ===
+>>> 
+
+----- board output (from PHASE0) -----
+PHASE0 frame_count=22.0 Hz  sensor_frames=44.5 Hz  over 2000 ms (sensor configured 45)
+--- PHASE A: single-cam baseline ---
+  sel=0 n=40 fps=44.2 BARS=39 scrambled=1 ambig=0 mismatch=0
+  sel=1 n=40 fps=44.8 HBAND=40 scrambled=0 ambig=0 mismatch=0
+--- PHASE B: ratio(1,1) sweep drain x dirty ---
+  drain=0 dirty=0 fps=44.6 bars=46 hband=73 ambig=0 SCRAM=1 mism_task=16 mism_isr=15 csi_untagged=120 tag0=60 tag1=60 grabfail=0
+  drain=0 dirty=1 fps=22.4 bars=59 hband=58 ambig=0 SCRAM=0 mism_task=0 mism_isr=0 csi_untagged=117 tag0=59 tag1=58 CLEAN dropped=115
+  drain=0 dirty=2 fps=0.7 bars=0 hband=0 ambig=0 SCRAM=1 mism_task=0 mism_isr=0 csi_untagged=1 tag0=0 tag1=1 INVALID n=1 grabfail=21
+  drain=1 dirty=0 fps=22.5 bars=29 hband=87 ambig=0 SCRAM=1 mism_task=29 mism_isr=29 csi_untagged=117 tag0=58 tag1=59 grabfail=0
+  drain=1 dirty=1 fps=22.3 bars=58 hband=58 ambig=0 SCRAM=0 mism_task=0 mism_isr=0 csi_untagged=116 tag0=58 tag1=58 CLEAN dropped=115
+  drain=1 dirty=2 fps=0.0 bars=0 hband=0 ambig=0 SCRAM=0 mism_task=0 mism_isr=0 csi_untagged=0 tag0=0 tag1=0 INVALID n=0 grabfail=21
+  drain=2 dirty=0 fps=9.1 bars=47 hband=1 ambig=0 SCRAM=0 mism_task=47 mism_isr=0 csi_untagged=48 tag0=0 tag1=48 INVALID n=48 grabfail=0
+  drain=2 dirty=1 fps=7.0 bars=18 hband=19 ambig=0 SCRAM=0 mism_task=0 mism_isr=0 csi_untagged=37 tag0=18 tag1=19 INVALID n=37 grabfail=0
+  drain=2 dirty=2 fps=0.0 bars=0 hband=0 ambig=0 SCRAM=0 mism_task=0 mism_isr=0 csi_untagged=0 tag0=0 tag1=0 INVALID n=0 grabfail=21
+[CAM0] W 0x503D=0x00 (0)
+[CAM0] W 0x3503=0x00 (0)
+[CAM1] W 0x503D=0x00 (0)
+[CAM1] W 0x3503=0x00 (0)
+--- summary ---
+  note: frame_count=22 Hz, sensor_frames=45 Hz (configured 45)
+  note: CONFIRMED: frame_count is fb2-gated at HALF rate; ratio() keys off it, so ratio(1,1) flips per TWO frames
+  note: baseline sel=0 classified only 39/40 as BARS
+  BEST CLEAN: fps=22.4 at drain=0 dirty=1
+CSV|phase,knob_a,knob_b,fps,n_frames,seq_span,bars,hband,ambig,scrambled,tag0,tag1,mism_task,mism_isr,mism_csi,csi_untagged,grabfail
+CSV|phase0,frame_count,sensor_frames,22.00,44.50,,,,,,,,,,,,
+CSV|baseline,sel0,,44.15,40,40,39,0,0,1,40,0,0,0,0,40,0
+CSV|baseline,sel1,,44.79,40,40,0,40,0,0,0,40,0,0,0,40,0
+CSV|sweep,drain0,dirty0,44.63,120,120,46,73,0,1,60,60,16,15,0,120,0
+CSV|sweep,drain0,dirty1,22.36,117,232,59,58,0,0,59,58,0,0,0,117,0
+CSV|sweep,drain0,dirty2,0.68,1,62,0,0,0,1,0,1,0,0,0,1,21
+CSV|sweep,drain1,dirty0,22.49,117,232,29,87,0,1,58,59,29,29,0,117,0
+CSV|sweep,drain1,dirty1,22.29,116,231,58,58,0,0,58,58,0,0,0,116,0
+CSV|sweep,drain1,dirty2,0.00,0,82,0,0,0,0,0,0,0,0,0,0,21
+CSV|sweep,drain2,dirty0,9.13,48,188,47,1,0,0,0,48,47,0,0,48,0
+CSV|sweep,drain2,dirty1,7.00,37,214,18,19,0,0,18,19,0,0,0,37,0
+CSV|sweep,drain2,dirty2,0.00,0,121,0,0,0,0,0,0,0,0,0,0,21
+=== done ===
+>>> 
+
+wrote results.csv (12 rows)
+power samples in window: 5138
+V: min=5.015 mean=5.043 max=5.075   (min at t+49.35s)
+P: min=0.795 mean=1.834 max=1.911 W
+last 1.0 s before end: V min=5.015 max=5.046 | I min=0.350 max=0.379
+DIAGNOSIS: RAIL HELD — min 5.015 V, no brownout; a reset here is a software fault (watchdog / hard fault), not power
+wrote verdict.json
