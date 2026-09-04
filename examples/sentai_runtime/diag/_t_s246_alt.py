@@ -100,7 +100,8 @@ def _collect(nframes, budget_ms=0):
                 break                      # this config cannot deliver frames
             sentai.rtos.sleep_ms(2)
             continue
-        recs.append((cur, r[1], r[2], r[3], _classify_5b(r[4:9])))
+        recs.append((cur, r[1], r[2], r[3], _classify_5b(r[4:9]),
+                     tuple(r[4:9])))
         if (len(recs) % 20) == 0:
             sentai.rtos.repl_kick()
     wall = sentai.rtos.ticks_ms() - t0
@@ -129,7 +130,7 @@ def _tally(recs):
     tag0 = tag1 = 0
     mism_task = mism_isr = mism_csi = 0
     csi_untagged = 0
-    for (_s, tg_task, tg_isr, tg_csi, cls) in recs:
+    for (_s, tg_task, tg_isr, tg_csi, cls, _b) in recs:
         t[cls] += 1
         if tg_task == 0: tag0 += 1
         elif tg_task == 1: tag1 += 1
@@ -177,6 +178,7 @@ sentai.camera.select(1); sentai.rtos.sleep_ms(400)
 
 rows = []          # csv rows
 notes = []
+ref = {}           # sel -> (min, mean, max) b40 for that camera, PHASE A
 
 # ---- PHASE 0: what does frame_count() actually count? -----------------
 # The ISR comment says it is gated on FB2-done and matches the sensor rate;
@@ -227,6 +229,14 @@ for sel, want in ((0, "BARS"), (1, "HBAND")):
     if ok < len(recs):
         notes.append("baseline sel=%d classified only %d/%d as %s"
                      % (sel, ok, len(recs), want))
+    # Reference signature for this camera, from frames we KNOW are its own
+    # (static selection, no flipping).  PHASE C scores the disputed frames
+    # against these.
+    allb = [b for rec in recs for b in rec[5]]
+    if allb:
+        ref[sel] = (min(allb), sum(allb) // len(allb), max(allb))
+        print("  sel=%d reference b40: min=%d mean=%d max=%d"
+              % (sel, ref[sel][0], ref[sel][1], ref[sel][2]))
 
 # ---- PHASE B: alternation sweep --------------------------------------
 print("--- PHASE B: ratio(1,1) sweep drain x dirty ---")
@@ -274,6 +284,134 @@ sentai.camera.dirty_skip_n(1)
 sentai.camera.select(0)
 sentai.camera.test_pattern(0, 0)
 sentai.camera.test_pattern(1, 0)
+
+
+# ---- PHASE C: are the disputed frames REAL cam1 frames, or garbage? --
+#
+# At drain=0/dirty=0 the tags alternate exactly 60/60 while the content splits
+# ~49/70, all the excess on the dark (HBAND) side.  Two stories fit equally:
+#   (a) the TAG is wrong -- those really are cam1 frames, mislabelled;
+#   (b) the ORACLE is wrong -- the post-flip frame is partially filled or dark
+#       garbage, and _classify bins anything dark as HBAND rather than
+#       flagging it.
+# The 5-point classifier cannot separate them, but the RAW values can: a
+# genuine HBAND frame sits inside cam1's PHASE A reference band, garbage does
+# not.  Print the disputed frames' samples and score them against that band.
+print("--- PHASE C: raw samples of disputed frames (drain=0 dirty=0) ---")
+# Re-arm the patterns EXPLICITLY.  The restore block above turns them off, and
+# the first version of this phase ran after it -- so it was classifying a real
+# scene, every frame came back SCRAMBLED (varied rows, correctly flagged) and
+# zero frames were "disputed" because SCRAMBLED never trips the tag check.
+# Arming here makes the phase independent of block ordering.
+sentai.camera.test_pattern(0, 1)
+sentai.camera.test_pattern(1, 2)
+sentai.camera.ratio(0, 0)
+sentai.camera.select(0); sentai.rtos.sleep_ms(400)
+sentai.camera.select(1); sentai.rtos.sleep_ms(400)
+sentai.camera.ratio(0, 0)
+sentai.camera.select(0)
+sentai.rtos.sleep_ms(200)
+sentai.camera.switch_drain(0)
+sentai.camera.dirty_skip_n(0)
+sentai.camera.ratio(1, 1)
+sentai.rtos.sleep_ms(300)
+recs, span, wall, fails = _collect(NB_SWEEP)
+sentai.camera.ratio(0, 0)
+sentai.camera.select(0)
+
+(tc, tc0, tc1, mc, mci, _mcc, _cu, _l1, _l2) = _tally(recs)
+print("  PHASE C collected n=%d span=%d bars=%d hband=%d ambig=%d SCRAM=%d "
+      "tag0=%d tag1=%d mism=%d grabfail=%d"
+      % (len(recs), span, tc["BARS"], tc["HBAND"], tc["AMBIG"],
+         tc["SCRAMBLED"], tc0, tc1, mc, fails))
+# Always show raw samples, matched or not -- if the run happens to produce no
+# disputed frames we still want to see what the data looks like rather than
+# reporting "inconclusive" with nothing to inspect.
+print("  first 8 frames (seq, tag, content, b0..b4):")
+for (sq, tg, _ti, _tc2, cls, b) in recs[:8]:
+    print("    seq=%d tag=%d %s b=%s" % (sq, tg, cls, str(b)))
+
+lo1 = ref.get(1, (0, 0, 0))[0]
+hi1 = ref.get(1, (0, 0, 0))[2]
+lo0 = ref.get(0, (0, 0, 0))[0]
+hi0 = ref.get(0, (0, 0, 0))[2]
+print("  reference cam0 b40 band = [%d..%d], cam1 = [%d..%d]"
+      % (lo0, hi0, lo1, hi1))
+
+n_disp = in_band = out_band = 0
+for (sq, tg, _ti, _tc, cls, b) in recs:
+    if not _bad(tg, cls):
+        continue
+    n_disp += 1
+    # does every sample of this frame sit inside the band of the camera the
+    # CONTENT claims?  If yes the frame is a real frame of that camera and the
+    # tag is what is wrong.  If no, the frame is not a clean frame at all.
+    if cls == "HBAND":
+        ok = all(lo1 <= x <= hi1 for x in b)
+    elif cls == "BARS":
+        ok = all(lo0 <= x <= hi0 for x in b)
+    else:
+        ok = False
+    if ok: in_band += 1
+    else:  out_band += 1
+    if n_disp <= 16:
+        print("  seq=%d tag=%d content=%s b=%s %s"
+              % (sq, tg, cls, str(b), "IN-BAND" if ok else "OUT-OF-BAND"))
+
+print("  disputed=%d  in-band=%d  out-of-band=%d" % (n_disp, in_band, out_band))
+
+# ---- the precise correction test ------------------------------------
+# The disputed frames are all clean frames of the camera their CONTENT says,
+# and they land only on the FIRST frame after a tag transition.  Mechanism:
+# CSI runs double-buffered, so when the ISR flips the MUX at FB1-done, FB2 is
+# ALREADY mid-fill with the old camera -- the flip only takes effect one buffer
+# later than the tag does.
+#
+# A blanket one-frame lag is wrong (it breaks the frames that were already
+# right, which is why the global LAG1 metric scored worse).  The correction is
+# to lag the tag ONLY across a transition.  Score that composite: if it lands
+# near zero, the diagnosis is exact and the fix is a one-buffer tag delay at
+# the flip, NOT a discarded frame.
+mism_corrected = n_trans = trans_bad = 0
+for i in range(len(recs)):
+    cls = recs[i][4]
+    tg = recs[i][1]
+    if i > 0 and recs[i - 1][1] != tg:      # first frame after a flip
+        n_trans += 1
+        eff = recs[i - 1][1]                # use the PRE-flip camera id
+        if _bad(eff, cls):
+            trans_bad += 1
+    else:
+        eff = tg
+    if _bad(eff, cls):
+        mism_corrected += 1
+print("  transitions=%d  as-is mism=%d  CORRECTED mism=%d (bad at flips=%d)"
+      % (n_trans, mc, mism_corrected, trans_bad))
+if mc > 0 and mism_corrected * 5 <= mc:
+    print("  CORRECTION CONFIRMED: lagging the tag by one buffer ONLY across a "
+          "flip removes %d of %d mismatches" % (mc - mism_corrected, mc))
+    notes.append("one-buffer tag delay AT FLIPS fixes %d/%d mismatches"
+                 % (mc - mism_corrected, mc))
+if n_disp == 0:
+    verdict_c = "no disputed frames this run -- inconclusive"
+elif in_band >= int(0.8 * n_disp):
+    verdict_c = ("TAG IS WRONG: %d/%d disputed frames sit inside the content "
+                 "camera's own reference band, so they are real frames of that "
+                 "camera carrying the wrong label" % (in_band, n_disp))
+elif out_band >= int(0.8 * n_disp):
+    verdict_c = ("ORACLE MIS-BINS GARBAGE: %d/%d disputed frames fall OUTSIDE "
+                 "either camera's band -- they are not clean frames at all, so "
+                 "there is no tag bug here" % (out_band, n_disp))
+else:
+    verdict_c = ("MIXED: %d in-band, %d out-of-band -- both effects present"
+                 % (in_band, out_band))
+print("  PHASE C VERDICT:", verdict_c)
+notes.append(verdict_c)
+sentai.camera.test_pattern(0, 0)
+sentai.camera.test_pattern(1, 0)
+rows.append(_row("phasec", "drain0", "dirty0", 0.0, n_disp, span,
+                 {"BARS": in_band, "HBAND": out_band, "AMBIG": 0,
+                  "SCRAMBLED": 0}, 0, 0, 0, 0, 0, 0, fails))
 
 print("--- summary ---")
 for n in notes:
