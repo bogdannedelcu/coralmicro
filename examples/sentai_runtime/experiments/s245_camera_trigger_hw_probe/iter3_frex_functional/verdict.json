@@ -1,0 +1,273 @@
+{
+  "build": "SentAI v1.0 build 1596 (2026-09-04 09:57:41)",
+  "baseline_pin": [
+    1,
+    1,
+    0
+  ],
+  "rows": [
+    {
+      "cam": 0,
+      "bit": 0,
+      "pad_en": 1,
+      "drive_low": [
+        1,
+        1,
+        0
+      ],
+      "drive_high": [
+        1,
+        1,
+        0
+      ],
+      "responded": false
+    },
+    {
+      "cam": 0,
+      "bit": 1,
+      "pad_en": 2,
+      "drive_low": [
+        1,
+        1,
+        0
+      ],
+      "drive_high": [
+        1,
+        1,
+        0
+      ],
+      "responded": false
+    },
+    {
+      "cam": 0,
+      "bit": 2,
+      "pad_en": 4,
+      "drive_low": [
+        1,
+        1,
+        0
+      ],
+      "drive_high": [
+        1,
+        1,
+        0
+      ],
+      "responded": false
+    },
+    {
+      "cam": 0,
+      "bit": 3,
+      "pad_en": 8,
+      "drive_low": [
+        1,
+        1,
+        0
+      ],
+      "drive_high": [
+        1,
+        1,
+        0
+      ],
+      "responded": false
+    },
+    {
+      "cam": 0,
+      "bit": 4,
+      "pad_en": 16,
+      "drive_low": [
+        1,
+        1,
+        0
+      ],
+      "drive_high": [
+        1,
+        1,
+        0
+      ],
+      "responded": false
+    },
+    {
+      "cam": 0,
+      "bit": 5,
+      "pad_en": 32,
+      "drive_low": [
+        1,
+        1,
+        0
+      ],
+      "drive_high": [
+        1,
+        1,
+        0
+      ],
+      "responded": false
+    },
+    {
+      "cam": 0,
+      "bit": 6,
+      "pad_en": 64,
+      "drive_low": [
+        1,
+        1,
+        0
+      ],
+      "drive_high": [
+        1,
+        1,
+        0
+      ],
+      "responded": false
+    },
+    {
+      "cam": 0,
+      "bit": 7,
+      "pad_en": 128,
+      "drive_low": [
+        1,
+        1,
+        0
+      ],
+      "drive_high": [
+        1,
+        1,
+        0
+      ],
+      "responded": false
+    },
+    {
+      "cam": 1,
+      "bit": 0,
+      "pad_en": 1,
+      "drive_low": [
+        1,
+        1,
+        0
+      ],
+      "drive_high": [
+        1,
+        1,
+        0
+      ],
+      "responded": false
+    },
+    {
+      "cam": 1,
+      "bit": 1,
+      "pad_en": 2,
+      "drive_low": [
+        1,
+        1,
+        0
+      ],
+      "drive_high": [
+        1,
+        1,
+        0
+      ],
+      "responded": false
+    },
+    {
+      "cam": 1,
+      "bit": 2,
+      "pad_en": 4,
+      "drive_low": [
+        1,
+        1,
+        0
+      ],
+      "drive_high": [
+        1,
+        1,
+        0
+      ],
+      "responded": false
+    },
+    {
+      "cam": 1,
+      "bit": 3,
+      "pad_en": 8,
+      "drive_low": [
+        1,
+        1,
+        0
+      ],
+      "drive_high": [
+        1,
+        1,
+        0
+      ],
+      "responded": false
+    },
+    {
+      "cam": 1,
+      "bit": 4,
+      "pad_en": 16,
+      "drive_low": [
+        1,
+        1,
+        0
+      ],
+      "drive_high": [
+        1,
+        1,
+        0
+      ],
+      "responded": false
+    },
+    {
+      "cam": 1,
+      "bit": 5,
+      "pad_en": 32,
+      "drive_low": [
+        1,
+        1,
+        0
+      ],
+      "drive_high": [
+        1,
+        1,
+        0
+      ],
+      "responded": false
+    },
+    {
+      "cam": 1,
+      "bit": 6,
+      "pad_en": 64,
+      "drive_low": [
+        1,
+        1,
+        0
+      ],
+      "drive_high": [
+        1,
+        1,
+        0
+      ],
+      "responded": false
+    },
+    {
+      "cam": 1,
+      "bit": 7,
+      "pad_en": 128,
+      "drive_low": [
+        1,
+        1,
+        0
+      ],
+      "drive_high": [
+        1,
+        1,
+        0
+      ],
+      "responded": false
+    }
+  ],
+  "hits": [],
+  "aborted": null,
+  "conclusion": "NO RESPONSE \u2014 no 0x3016 bit made GPIO8_IO27 track 0x3019 on either sensor",
+  "implemented_bits": {
+    "0x3016": 3,
+    "0x3019": 255
+  }
+}

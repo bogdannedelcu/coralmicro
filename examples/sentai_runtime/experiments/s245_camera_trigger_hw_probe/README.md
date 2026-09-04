@@ -7,7 +7,7 @@ Anchor: `TD-S10-A10` (paper §4.2) · EXP-s245 · follows
 
 **WBS**: TD-S10-A10
 **Started**: 2026-09-04
-**Status**: 🟡 in progress
+**Status**: 🟡 in progress — trigger question closed (iter1-3); FPS question open (iter4)
 
 ## Why this experiment exists
 
@@ -57,11 +57,14 @@ board can be decided from measurement, not assumption, by establishing:
    I²C on **both** sensors (iter1, no firmware change), and
 2. whether `GPIO8_IO27` is electrically connected to anything, i.e. whether an
    external hardware trigger line exists at all (iter2, needs firmware), and
-3. what the ISR-level floor of alternating capture is — the true hardware cost of
-   a MUX flip measured in µs inside `CSI_IRQHandler`, not through the
-   MicroPython/task round-trip that s243 measured (iter3).
+3. whether any OV5640 output pad reaches that pin, tested functionally by making
+   the sensor drive and watching whether the pin follows (iter3), and
+4. what the ISR-level floor of alternating capture is — the true hardware cost of
+   a MUX flip measured in µs, driven from the rendezvous `CSI_IRQHandler`
+   already provides, not through the MicroPython/task round-trip that s243
+   measured (iter4).
 
-## Governing hypothesis (to be tested in iter3)
+## Governing hypothesis (to be tested in iter4)
 
 `CSI_IRQHandler` flips the MUX inside VBLANK, and build #932 measured ISR latency
 at **2 µs peak vs ~3 ms of VBLANK at VGA45** — a 1500× margin
@@ -91,9 +94,14 @@ If confirmed, there is up to a **2× headroom** on dual-camera capture.
 - **iter2**: pin state of GPIO8_IO27 classified as FLOATING (follows an internal
   weak pull in both directions → unrouted) or TIED/LOADED (does not follow),
   with an SDRAM integrity check passing across the whole toggle sequence.
-- **iter3**: ISR-level histogram of arm→clean-frame latency in µs, N ≥ 500
+- **iter3**: for every implemented `0x3016` pad-enable bit on both sensors, a
+  recorded pin reading under sensor-drive-low and sensor-drive-high. A positive
+  requires the pin to TRACK the driven level; the pre-flight must first prove
+  the register writes take, or a "no response" would prove nothing.
+- **iter4**: ISR-level histogram of arm→clean-frame latency in µs, N ≥ 500
   flips, reported as median/p95/max; plus the measured max sustained alternating
-  capture rate compared against the sensor rate.
+  capture rate compared against the sensor rate, with per-frame content
+  verification so throughput is not won on dirty frames.
 - HW: build counter verified post-flash + USB enumerated as `1fc9:c0a1`.
 
 ## Anti-cheat note
@@ -106,7 +114,9 @@ exists to leak from.
 ## How to run
 
 ```bash
-python3 iter1_sensor_frex_probe/probe_frex.py      # no firmware change needed
+python3 iter1_sensor_frex_probe/probe_frex.py                 # no firmware change needed
+python3 iter2_gpio_routing_probe/probe_pin.py                 # needs build >= 1595
+python3 iter3_frex_functional/probe_frex_functional.py        # needs build >= 1596
 ```
 
 ## Iter results table
@@ -115,8 +125,35 @@ python3 iter1_sensor_frex_probe/probe_frex.py      # no firmware change needed
 |---|---|---|---|
 | iter1 | OV5640 FREX block is reachable + writable over I²C on both sensors | 0 read errors, 0 cam0/cam1 divergences, FREX regs LIVE (write-readback-restore exact on both). Pads disabled (`0x3016`=0x00), strobe off (`0x3B00`=0x00). Found `0x3B08` FREX_REQUEST = a **software** trigger path that may not need the GPIO at all. | ✅ |
 | iter2 | GPIO8_IO27 is / is not routed to the sensors | Pin under test follows both internal pulls (5/5 runs, stable) = **no driver on the net**; adjacent known-routed control `kEdgeTpuPgood` held against the pull = **method validated**. SDRAM canary clean 5/5, confirming DM03 is free. Cannot exclude a high-Z FREX input — that needs the functional test. | ✅ |
-| iter3 | ISR-level flip cost; 1:1 alternation can reach full sensor rate | — | ⬜ |
+| iter3 | Functional test: does any OV5640 output pad reach GPIO8_IO27? | **No.** 16 configs × 2 sensors, pin never tracked `0x3019`. Pre-flight proved `0x3016` implements only bits 0-1, so every existing pad-enable bit was exercised. Two host-side bugs caught and fixed en route (invalid parse, false positive from the floating no-pull column). | ✅ |
+| iter4 | ISR-level flip cost; 1:1 alternation can reach full sensor rate | not started | ⬜ |
 
-## Result (final)
+## Result so far — the trigger question is closed
 
-(Filled in after the last iter ships.)
+**There is no usable hardware trigger path on this board.**
+
+1. **No firmware trigger** (source audit): `CameraMode::kTrigger` is inherited
+   dead code — `Trigger()` is an empty stub, the gates in `GetFrame()` are
+   commented out, and `HandleEnableRequest()` ignores its `mode` argument, so
+   `camera.init(streaming=0)` silently gives streaming.
+2. **No trigger pin** (iter2 + iter3): nothing drives `GPIO8_IO27`, and no
+   OV5640 output pad reaches it on either sensor. `Gpio::kCameraTrigger` is a
+   name inherited from the single-camera Coral Dev Board Micro. Only a FREX
+   *input* remains unexcludable, and that needs a schematic or a scope, not
+   more firmware.
+3. **But a sensor-side software trigger exists** (iter1): the FREX block is
+   live and writable on both sensors, including `0x3B08` FREX_REQUEST. That
+   offers *determinism and cross-camera synchronisation* — not throughput,
+   since the frame still traverses MIPI and I²C paces the request.
+
+### What this means for the original question
+
+The question that started s245 was "how many FPS can demand-paced dual-camera
+capture reach?". The hardware cannot be triggered, so the answer has to come
+from the free-running path — which is where the headroom appears to be anyway.
+
+s243 measured 1:1 alternation at 21.6 fps aggregate, **exactly half** the 45 fps
+sensor rate, while `CSI_IRQHandler` flips the MUX inside VBLANK with a 1500×
+timing margin, meaning the next DMA buffer should already be clean. Roughly one
+good frame per flip is being discarded. That is iter4, and it is worth up to
+**2×**.

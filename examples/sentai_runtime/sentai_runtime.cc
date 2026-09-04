@@ -3431,7 +3431,18 @@ extern "C" int sentai_cam_reg_write(int cam_id, int reg, int val) {
 // out[10] = SDRAM integrity, 0 = pattern intact.
 // Returns the number of entries written, or negative on error.
 // ───────────────────────────────────────────────────────────────────
-extern "C" int sentai_pin_probe_cam_trigger(int32_t* out, int n) {
+// park_input (EXP-s245 iter3): when non-zero, kCameraTrigger is left
+// configured as an INPUT with a pull-down instead of being restored to
+// its boot state (output driving 0).
+//
+// This exists for the strobe-reversal test.  iter3 makes the OV5640
+// drive its STROBE pad and re-runs this probe: if GPIO8_IO27 stops
+// following the internal pulls, the pad IS routed to the sensor.  But
+// an MCU output driving 0 against a sensor output driving 1 is a short
+// through both drivers — so the pin MUST be parked as an input for the
+// whole window in which any sensor output pad is enabled.
+extern "C" int sentai_pin_probe_cam_trigger(int32_t* out, int n,
+                                            int park_input) {
   if (!out || n < 11) return -1;
   for (int i = 0; i < n; ++i) out[i] = -1;
 
@@ -3514,10 +3525,14 @@ extern "C" int sentai_pin_probe_cam_trigger(int32_t* out, int n) {
       o[3] = measured;
     }
 
-    // Restore boot configuration.  kCameraTrigger boots as an output
-    // driving 0; kEdgeTpuPgood boots as an input and must stay one.
+    // Restore.  kEdgeTpuPgood boots as an input and must stay one — it
+    // is the TPU PMIC's output and we must never drive it.
+    // kCameraTrigger boots as an output driving 0, unless the caller
+    // asked for it to be parked as a safe high-impedance input.
     if (g == coralmicro::Gpio::kEdgeTpuPgood) {
       coralmicro::GpioSetMode(g, coralmicro::GpioMode::kInput);
+    } else if (park_input) {
+      coralmicro::GpioSetMode(g, coralmicro::GpioMode::kInputPullDown);
     } else {
       coralmicro::GpioSetMode(g, coralmicro::GpioMode::kOutput);
       coralmicro::GpioSet(g, false);

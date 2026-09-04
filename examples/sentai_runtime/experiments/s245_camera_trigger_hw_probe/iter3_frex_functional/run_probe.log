@@ -1,0 +1,49 @@
+build: SentAI v1.0 build 1596 (2026-09-04 09:57:41)
+camera.init(1,45) -> 0
+baseline streaming: True (7124, 7138)
+baseline pin (nopull, pullup, pulldown): (1, 1, 0)
+  -> pin parked as INPUT for the whole sweep
+
+--- pre-flight: which bits of 0x3016 / 0x3019 are implemented? ---
+0x3016 PAD_OUTPUT_ENABLE00  writable bits = 0x03 (only bits 0,1)
+0x3019 PAD_OUTPUT_VALUE00   writable bits = 0xFF (all 8)
+  -> only the writable bits of 0x3016 can possibly enable a pad;
+     bits outside that mask are not a gap in coverage, they do not exist.
+
+--- cam0: saving 0x3016=0x00 0x3019=0xF0 ---
+cam0 0x3016=0x01 : drive_low=(1, 1, 0) drive_high=(1, 1, 0)  -
+cam0 0x3016=0x02 : drive_low=(1, 1, 0) drive_high=(1, 1, 0)  -
+cam0 0x3016=0x04 : drive_low=(1, 1, 0) drive_high=(1, 1, 0)  -
+cam0 0x3016=0x08 : drive_low=(1, 1, 0) drive_high=(1, 1, 0)  -
+cam0 0x3016=0x10 : drive_low=(1, 1, 0) drive_high=(1, 1, 0)  -
+cam0 0x3016=0x20 : drive_low=(1, 1, 0) drive_high=(1, 1, 0)  -
+cam0 0x3016=0x40 : drive_low=(1, 1, 0) drive_high=(1, 1, 0)  -
+cam0 0x3016=0x80 : drive_low=(1, 1, 0) drive_high=(1, 1, 0)  -
+cam0 restored: 0x3016=0x00 (was 0x00) 0x3019=0xF0 (was 0xF0) OK
+
+--- cam1: saving 0x3016=0x00 0x3019=0xF0 ---
+cam1 0x3016=0x01 : drive_low=(1, 1, 0) drive_high=(1, 1, 0)  -
+cam1 0x3016=0x02 : drive_low=(1, 1, 0) drive_high=(1, 1, 0)  -
+cam1 0x3016=0x04 : drive_low=(1, 1, 0) drive_high=(1, 1, 0)  -
+cam1 0x3016=0x08 : drive_low=(1, 1, 0) drive_high=(1, 1, 0)  -
+cam1 0x3016=0x10 : drive_low=(1, 1, 0) drive_high=(1, 1, 0)  -
+cam1 0x3016=0x20 : drive_low=(1, 1, 0) drive_high=(1, 1, 0)  -
+cam1 0x3016=0x40 : drive_low=(1, 1, 0) drive_high=(1, 1, 0)  -
+cam1 0x3016=0x80 : drive_low=(1, 1, 0) drive_high=(1, 1, 0)  -
+cam1 restored: 0x3016=0x00 (was 0x00) 0x3019=0xF0 (was 0xF0) OK
+
+final streaming check: True (8548, 8561)
+
+--- Verdict ---
+NO RESPONSE — no 0x3016 bit made GPIO8_IO27 track 0x3019 on either sensor
+Combined with iter2 (nothing drives the net), the reasonable reading
+is that GPIO8_IO27 is NOT routed to the OV5640 pads: the name is
+inherited from upstream coralmicro and means nothing on this board.
+Coverage note: 0x3016 implements only bits 0x03, so the sweep did
+exercise every pad-enable bit that physically exists — the masked
+bits are not untested, they are absent.
+Still not a mathematical proof: a FREX INPUT on the sensor never
+drives anything, so it stays invisible to a test that listens.
+
+wrote /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s245_camera_trigger_hw_probe/iter3_frex_functional/frex_functional.csv
+wrote /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s245_camera_trigger_hw_probe/iter3_frex_functional/verdict.json
