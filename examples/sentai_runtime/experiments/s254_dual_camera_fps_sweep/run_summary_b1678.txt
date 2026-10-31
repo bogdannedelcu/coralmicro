@@ -1,0 +1,44 @@
+=== s249 on 1678 ===
+SentAI v1.0 build 1678 (2026-10-31 12:57:27) board 58eb
+R1   PASS SBMR1=0x00000000 SBMR2=0x00000009 SRSR=0x00000000
+R1b  PASS SBMR1=0x%08X SBMR2=0x%08X SRSR=0x%08X zzzzzzzzzzzzz 1086341128
+R2   PASS OverflowError: long long too large
+R3   PASS -1086341128 1086341128 17179869184
+R4   PASS ...     print("tail", i*10) tail 0 tail 10 tail 20
+R5   PASS A-count=20001
+R6   PASS alive 2
+R7   PASS alive 4
+R8   PASS RuntimeError: maximum recursion depth exceeded
+R9   PASS 0 0
+R10  PASS init=0 cam0=6336 cam1=6342
+R11  PASS {'y': 499.712, 'x': 669.536, 'temp': 31.25598, 'z': 586.576}
+R12  PASS ls=1509 B sums={'d7c05fb8dadbdee455261d8f5b2b8046:6336'}
+R13  PASS 10240 b'\x00\x01\x02\x03' b'\xfe\xff'
+R13b PASS dmesg non-empty: True
+R14  PASS True 13
+R14b PASS stall_count stalled = 0 0
+R15  PASS raw_sums={'d7c05fb8dadbdee455261d8f5b2b8046:6336'} ls_ok=10/12 busy=3 fs.stats=(0, 12, 11, 5, 0, 0, 
+failures: 0
+=== VGA30 build #1678 ===
+[cam] genlock: phase -23 us after 0 step(s) (T=33436 us)
+INIT 0
+timing: vblank_us=815 period_us=33436 vts=984
+t=  30s consumed=897 sensor=898 fps=29 phase_us=-23 stale=1 drift=0 stall=0
+t=  60s consumed=897 sensor=898 fps=29 phase_us=-22 stale=2 drift=0 stall=0
+t=  90s consumed=898 sensor=899 fps=29 phase_us=-22 stale=3 drift=0 stall=0
+t= 120s consumed=897 sensor=898 fps=29 phase_us=-22 stale=4 drift=0 stall=0
+t= 150s consumed=897 sensor=898 fps=29 phase_us=-22 stale=5 drift=0 stall=0
+['print("PHASE_END", sentai.camera.phase())', 'PHASE_END (-23, 33433)']
+dmesg CAM events: E:0A06:3 E:0A12:12 E:0A0C:65513 E:0A00:0 E:0A00:1
+=== VGA60 build #1678 ===
+[cam] genlock: phase -14 us after 0 step(s) (T=16718 us)
+INIT 0
+timing: vblank_us=407 period_us=16718 vts=984
+t=  30s consumed=1794 sensor=1795 fps=59 phase_us=-14 stale=1 drift=0 stall=0
+t=  60s consumed=1794 sensor=1795 fps=59 phase_us=-13 stale=2 drift=0 stall=0
+t=  90s consumed=1795 sensor=1796 fps=59 phase_us=-14 stale=3 drift=0 stall=0
+t= 120s consumed=1795 sensor=1796 fps=59 phase_us=-14 stale=4 drift=0 stall=0
+t= 150s consumed=1795 sensor=1796 fps=59 phase_us=-14 stale=5 drift=0 stall=0
+['print("PHASE_END", sentai.camera.phase())', 'PHASE_END (-13, 16712)']
+dmesg CAM events: E:0A06:3 E:0A12:24 E:0A0C:65522 E:0A00:0 E:0A00:1
+T13_DONE

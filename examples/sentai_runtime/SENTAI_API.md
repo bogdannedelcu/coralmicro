@@ -474,6 +474,13 @@ these for bring-up and forensics, not for data.  Board rev 2026-10:
 ### `sentai.sdcard.init()` → bool
 Power the slot and run the SD init sequence.  Idempotent.
 
+### `sentai.imu.scan()` / `reg_read(reg)` / `reg_write(reg, val)`
+I2C5 diagnostics for the LIS2DUX12 (build ≥ 1678): `scan()` lists the 7-bit
+addresses that ACK (expected: 0x18 IMU once awake, 0x5B PMIC, plus 0x10 and
+0x1F seen on rev 2026-10); `reg_read`/`reg_write` access the IMU at 0x19
+raw (negative result = LPI2C status, 902 = NAK).  `init()` now tries 0x19
+then 0x18, each preceded by the deep-power-down wake write (audit F18).
+
 ### `sentai.sdcard.init(deadline_ms=5000)` → bool  /  `sentai.sdcard.init_stage()` → int
 Bounded (audit F14, build ≥ 1675): `SD_Init` runs in a static worker task
 and the call returns `False` after `deadline_ms` if the card does not

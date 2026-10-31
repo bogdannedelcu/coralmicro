@@ -132,8 +132,35 @@ static mp_obj_t mod_sentai_imu_poll_event(size_t n_args, const mp_obj_t* args) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_imu_poll_event_obj, 0, 1, mod_sentai_imu_poll_event);
 
+// ---- bus diagnostics ----
+// sentai.imu.scan() -> list of 7-bit addresses that ACK on I2C5 (0x08..0x77)
+// sentai.imu.reg_read(reg) -> int (0..255) or negative LPI2C status
+// sentai.imu.reg_write(reg, val) -> 0 or negative LPI2C status
+extern int sentai_imu_i2c_probe(int addr);
+extern int sentai_imu_reg_read(int reg);
+extern int sentai_imu_reg_write(int reg, int val);
+static mp_obj_t mod_sentai_imu_scan(void) {
+    mp_obj_t lst = mp_obj_new_list(0, NULL);
+    for (int a = 0x08; a <= 0x77; ++a) {
+        if (sentai_imu_i2c_probe(a) == 0) mp_obj_list_append(lst, mp_obj_new_int(a));
+    }
+    return lst;
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_imu_scan_obj, mod_sentai_imu_scan);
+static mp_obj_t mod_sentai_imu_reg_read(mp_obj_t reg_o) {
+    return mp_obj_new_int(sentai_imu_reg_read(mp_obj_get_int(reg_o)));
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_imu_reg_read_obj, mod_sentai_imu_reg_read);
+static mp_obj_t mod_sentai_imu_reg_write(mp_obj_t reg_o, mp_obj_t val_o) {
+    return mp_obj_new_int(sentai_imu_reg_write(mp_obj_get_int(reg_o), mp_obj_get_int(val_o)));
+}
+static MP_DEFINE_CONST_FUN_OBJ_2(mod_sentai_imu_reg_write_obj, mod_sentai_imu_reg_write);
+
 // ---- module table ----
 static const mp_rom_map_elem_t sentai_imu_globals_table[] = {
+    { MP_ROM_QSTR(MP_QSTR_scan),       MP_ROM_PTR(&mod_sentai_imu_scan_obj) },
+    { MP_ROM_QSTR(MP_QSTR_reg_read),   MP_ROM_PTR(&mod_sentai_imu_reg_read_obj) },
+    { MP_ROM_QSTR(MP_QSTR_reg_write),  MP_ROM_PTR(&mod_sentai_imu_reg_write_obj) },
     { MP_ROM_QSTR(MP_QSTR___name__),   MP_ROM_QSTR(MP_QSTR_imu) },
     { MP_ROM_QSTR(MP_QSTR_init),       MP_ROM_PTR(&mod_sentai_imu_init_obj) },
     { MP_ROM_QSTR(MP_QSTR_read),       MP_ROM_PTR(&mod_sentai_imu_read_obj) },

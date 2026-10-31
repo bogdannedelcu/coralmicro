@@ -300,7 +300,7 @@ static mp_obj_t mod_sentai_cam_stats(void) {
                          &grab_retry, &grab_fatal);
     sentai_cam_stall_get(&stall_count, &stalled);
     sentai_cam_genlock_stats(&phase_us, &pvalid, &gl_ok, &gl_steps, &stale, &drift);
-    mp_obj_t d = mp_obj_new_dict(17);
+    mp_obj_t d = mp_obj_new_dict(20);
     // EXP-s251 genlock / phase monitor / stale guard
     mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_phase_us),
                       pvalid ? mp_obj_new_int(phase_us) : mp_const_none);
@@ -321,6 +321,14 @@ static mp_obj_t mod_sentai_cam_stats(void) {
         sentai_cam_flip_stats(&fd, &fe);
         mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_flips_deferred), mp_obj_new_int_from_uint(fd));
         mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_flips_executed), mp_obj_new_int_from_uint(fe));
+    }
+    {
+        extern void sentai_cam_timing_stats(uint32_t* vblank_us, uint32_t* period_us, uint32_t* vts);
+        uint32_t vb = 0, T = 0, vts = 0;
+        sentai_cam_timing_stats(&vb, &T, &vts);
+        mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_vblank_us), mp_obj_new_int_from_uint(vb));
+        mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_period_us), mp_obj_new_int_from_uint(T));
+        mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_vts_lines), mp_obj_new_int_from_uint(vts));
     }
     {
         extern uint32_t sentai_cam_csi_queue_faults(void);

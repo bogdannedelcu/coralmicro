@@ -34,6 +34,7 @@ def main():
     ap.add_argument('--minutes', type=float, default=15.0)
     ap.add_argument('--tag', default='soak15')
     ap.add_argument('--no-init', action='store_true', help='camera already initialised')
+    ap.add_argument('--fps', type=int, default=45, help='sensor fps for camera.init(1, fps)')
     a = ap.parse_args()
     ser = B.open_repl()
     B.cmd(ser, 'import sentai', 5)
@@ -42,13 +43,15 @@ def main():
     csv.write('t_s,consumed,sensor_frames,ms,fps,phase_us,stale_skips,phase_drift,stall_count\n')
     log.write(B.cmd(ser, 'print(sentai.version())', 8))
     if not a.no_init:
-        out = B.cmd(ser, 'print("INIT", sentai.camera.init(1, 45))', 30)
+        out = B.cmd(ser, 'print("INIT", sentai.camera.init(1, %d))' % a.fps, 40)
         log.write(out)
         for l in out.split('\n'):
             if '[cam] genlock' in l or 'INIT' in l[:5]:
                 print(l.strip())
     out = B.cmd(ser, 'print("STATS0", sentai.camera.stats())', 8)
     log.write(out)
+    m0 = re.search(r"'vblank_us': (\d+)", out); m1 = re.search(r"'period_us': (\d+)", out); m2 = re.search(r"'vts_lines': (\d+)", out)
+    print('timing: vblank_us=%s period_us=%s vts=%s' % (m0.group(1) if m0 else '?', m1.group(1) if m1 else '?', m2.group(1) if m2 else '?'))
     B.cmd(ser, 'sentai.camera.ratio(1, 1)', 5)
     t_start = time.monotonic()
     n_win = int(a.minutes * 2 + 0.5)

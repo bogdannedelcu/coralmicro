@@ -3228,11 +3228,23 @@ static constexpr uint32_t kSccbStartGapUs       = 410;
 static constexpr int32_t  kGenlockTolUs       = 60;
 static constexpr uint32_t kGenlockMaxSteps    = 3;
 static constexpr uint32_t kGenlockMaxLines    = 200;  // one correction < 1/4 frame
-// Drift thresholds: ~VBLANK/2 and ~VBLANK/4 at VGA45 (VBLANK = 24 lines =
-// 543 us).  VBLANK scales with T (same 24-line blanking at every validated
-// fps), so these are conservative at 15/30 fps and tight at 90 fps.
-static constexpr int32_t  kPhaseDriftWarnUs   = 270;
-static constexpr int32_t  kPhaseDriftClearUs  = 150;
+// Drift thresholds are derived at runtime from the sensor geometry:
+// VBLANK_us = (VTS - 960 active rows) * T / VTS, warn at VBLANK/2, clear at
+// VBLANK/4 (543 us -> 270/135 at VGA45; 814 -> 407/203 at VGA30; 407 ->
+// 203/101 at VGA60).  T = measured period when available, else 1e6/fps.
+static volatile uint32_t g_cam_vts_lines = 984;   // last TIMING_VTS read from a sensor
+static constexpr uint32_t kActiveRows      = 960; // 2x480 binned rows at VGA
+static constexpr uint32_t kDefaultBlankRows = 24;
+static uint32_t cam_period_us(void) {
+  uint32_t T = g_cam_phase_T_us;
+  if (T < 5000u || T > 100000u) T = g_runtime_fps ? 1000000u / g_runtime_fps : 22222u;
+  return T;
+}
+extern "C" uint32_t sentai_cam_vblank_us(void) {
+  uint32_t vts = g_cam_vts_lines ? g_cam_vts_lines : 984u;
+  uint32_t blank = (vts > kActiveRows) ? (vts - kActiveRows) : kDefaultBlankRows;
+  return (blank * cam_period_us()) / vts;
+}
 
 static int32_t cam_median_i32(int32_t* v, int n) {
   // insertion sort, n <= 64
@@ -3290,7 +3302,9 @@ extern "C" void sentai_cam_phase_monitor_note(int32_t phi_us) {
   g_cam_phase_us = phi_us;
   g_cam_phase_valid = 1;
   int32_t a = phi_us < 0 ? -phi_us : phi_us;
-  if (a > kPhaseDriftWarnUs) {
+  const int32_t warn_us  = (int32_t)(sentai_cam_vblank_us() / 2u);
+  const int32_t clear_us = (int32_t)(sentai_cam_vblank_us() / 4u);
+  if (a > warn_us) {
     g_cam_phase_excursions++;
     if (!g_cam_phase_drifting) {
       g_cam_phase_drifting = 1;
@@ -3306,7 +3320,7 @@ extern "C" void sentai_cam_phase_monitor_note(int32_t phi_us) {
     }
   } else {
     g_cam_phase_excursions = 0;
-    if (a < kPhaseDriftClearUs && g_cam_phase_drifting) {
+    if (a < clear_us && g_cam_phase_drifting) {
       g_cam_phase_drifting = 0;
       if (g_cam_fullrate) g_cam_dirty_consecutive_n = 0;
       SERR_LOG(SERR_CAM_PHASE_DRIFT_END, (uint32_t)phi_us);
@@ -3385,6 +3399,7 @@ static bool cam_vts_read(int cam_id, uint16_t* vts) {
   uint8_t h = 0, l = 0;
   if (!cam->ReadFromCam(cam_id, 0x380E, &h) || !cam->ReadFromCam(cam_id, 0x380F, &l)) return false;
   *vts = (uint16_t)((h << 8) | l);
+  if (*vts > kActiveRows) g_cam_vts_lines = *vts;   // feeds the fps-independent VBLANK estimate
   return true;
 }
 static bool cam_vts_write(int cam_id, uint16_t vts) {
@@ -3690,6 +3705,11 @@ extern "C" void sentai_cam_flip_stats(uint32_t* deferred, uint32_t* executed) {
 extern "C" void sentai_cam_autotune_stats(uint32_t* pretrim_lines, uint32_t* trims) {
   if (pretrim_lines) *pretrim_lines = g_cam_pretrim_lines;
   if (trims) *trims = g_cam_autotune_trims;
+}
+extern "C" void sentai_cam_timing_stats(uint32_t* vblank_us, uint32_t* period_us, uint32_t* vts) {
+  if (vblank_us) *vblank_us = sentai_cam_vblank_us();
+  if (period_us) *period_us = cam_period_us();
+  if (vts) *vts = g_cam_vts_lines;
 }
 
 // ---- System LittleFS (NAND) raw access for diagnostics -------------------

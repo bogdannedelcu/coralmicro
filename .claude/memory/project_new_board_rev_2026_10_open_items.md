@@ -141,3 +141,22 @@ Operator asked to reseat the card.  Bounded SD init (F14, W23-T12) shipped
 in build 1675 and keeps the REPL alive meanwhile.  ToDo: W23-T11 (genlock
 mode-2 soak 5/10 min), T13 (VGA30/VGA60 tests, fps-derived constants),
 T14 (per-frame ratio alternation).
+**F17 resolved (2026-10-31 ~13:10):** physical reseat of card + board replug ->
+SD mounts again (SD64G, init_stage 10).  The firmware power pulse (30 ms, even
+3 s) does not collapse the card VDD enough; keep in mind after any elf_loader /
+persistent-flash session on this unit: unplug the board if SD_Init times out.
+
+**F18 (2026-10-31, build 1678):** LIS2DUX12 (U8) answers at I2C5 **0x18**, not
+0x19, and comes up in deep power-down after a true power cycle (no ACK at all
+until the EN_DEVICE_CONFIG wake write, which is NAKed but executed).  Earlier
+sessions "worked at 0x19" only because the part was never power-cycled.
+Driver now tries 0x19 then 0x18 with the wake write each time;
+sentai.imu.scan()/reg_read()/reg_write() exist.  Ask the colleague about the
+SA0 strap.  I2C5 scan on this unit: 0x10, 0x18, 0x1F, 0x5B (PMIC).
+**F19:** manufacturer OWL-R2 BOM + PNP saved under agent/ (U6 NX3L1T3157 SD
+IO-rail selector, S floats when pin_mux F5 steals AD_16 -> colleague's
+voltage-mismatch theory for F17).
+**Rail polarity CONFIRMED (2026-10-31):** GPIO9.20 (VDD_1V8_INT_EN) = 1 kills
+I2C5 entirely (pull-ups on that rail) and the mic -> 1 = LDO OFF, 0 = ON.
+After a rail cycle the LIS2DUX12 is back in deep power-down (wake write
+needed).  SA0-follows-rail theory refuted; 0x19 history unexplained.

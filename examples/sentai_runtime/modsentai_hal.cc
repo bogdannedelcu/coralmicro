@@ -300,15 +300,57 @@ int sentai_help_read(char* buf, int max_size) {
 static coralmicro::Lis2dux12 g_imu;  // LIS2DUX12, board rev 2026-10 (I2C5 @0x19)
 static bool g_imu_initialized = false;
 
+static uint8_t g_imu_addr = 0;
+
+// LIS2DUX12 I2C address is 0x18 | SA0.  The schematic strap was read as
+// SA0 = 1 (0x19), but on unit 58eb after a true power cycle (2026-10-31) the
+// part answered at 0x18 once woken from deep power-down -- and the wake
+// write to 0x3E is accepted (NAKed but executed, AN5909 3.1.1) at either
+// address.  Try both; remember the one that passed WHO_AM_I.
 int sentai_imu_init(void) {
     if (g_imu_initialized) return 0;  // already initialized
-    
-    if (!g_imu.Init(I2C5Handle(), 0x19)) {
-        return -1;  // init failed
+    static const uint8_t kAddrs[2] = {0x19, 0x18};
+    for (int i = 0; i < 2; ++i) {
+        if (g_imu.Init(I2C5Handle(), kAddrs[i])) {
+            g_imu_addr = kAddrs[i];
+            g_imu_initialized = true;
+            printf("[LIS2DUX12] ready at 0x%02X\r\n", g_imu_addr);
+            return 0;
+        }
     }
-    
-    g_imu_initialized = true;
-    return 0;
+    return -1;  // init failed at both addresses
+}
+int sentai_imu_address(void) { return g_imu_initialized ? (int)g_imu_addr : -1; }
+
+// ---- IMU bus diagnostics (I2C5): probe / raw register access ----------
+// Bounded single transfers through the RTOS LPI2C handle (same path the
+// driver uses).  Used to tell "device absent / NAK" from "device answers but
+// WHO_AM_I wrong" when imu.init() fails (board rev 2026-10 bring-up).
+static int imu_i2c_xfer(uint8_t addr, lpi2c_direction_t dir, int reg, uint8_t* data, size_t len) {
+    lpi2c_master_transfer_t t{};
+    t.flags = kLPI2C_TransferDefaultFlag;
+    t.slaveAddress = addr;
+    t.direction = dir;
+    t.subaddress = (reg >= 0) ? (uint32_t)reg : 0u;
+    t.subaddressSize = (reg >= 0) ? 1 : 0;
+    t.data = data;
+    t.dataSize = len;
+    status_t st = LPI2C_RTOS_Transfer(I2C5Handle(), &t);
+    return (st == kStatus_Success) ? 0 : (int)st;
+}
+int sentai_imu_i2c_probe(int addr) {           // 0 = ACK, else LPI2C status (NAK = 1105)
+    uint8_t dummy = 0;
+    return imu_i2c_xfer((uint8_t)addr, kLPI2C_Read, -1, &dummy, 1);
+}
+int sentai_imu_reg_read(int reg) {              // value 0..255 or negative LPI2C status
+    uint8_t v = 0;
+    int rc = imu_i2c_xfer(0x19, kLPI2C_Read, reg, &v, 1);
+    return rc == 0 ? (int)v : -rc;
+}
+int sentai_imu_reg_write(int reg, int val) {    // 0 or negative LPI2C status
+    uint8_t v = (uint8_t)val;
+    int rc = imu_i2c_xfer(0x19, kLPI2C_Write, reg, &v, 1);
+    return rc == 0 ? 0 : -rc;
 }
 
 int sentai_imu_read_accel(float* x_mg, float* y_mg, float* z_mg, float* temp_c) {
