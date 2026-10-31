@@ -1,0 +1,178 @@
+>>> print(sentai.version())
+print(sentai.version())
+SentAI v1.1 build 1694 (2026-10-31 16:07:18) board 58eb
+>>> 
+>>> print("IP", sentai.usb.ip(1))
+print("IP", sentai.usb.ip(1))
+[fs_task] started (priority=2 buf=1024KB)
+[httpd] browser.html cached from user FS (13776 bytes)
+[httpd] File browser at http://10.0.0.1/
+USB Ethernet (CDC-NCM) active at 10.0.0.1 — http://10.0.0.1/
+IP 1
+>>> 
+>>> sentai.fs.mkdir("/models")
+sentai.fs.mkdir("/models")
+True
+>>> 
+>>> print("YUVMODE", sentai.camera.yuv_mode(1))
+print("YUVMODE", sentai.camera.yuv_mode(1))
+YUVMODE 1
+>>> 
+>>> print("INIT", sentai.camera.init(1, 45))
+print("INIT", sentai.camera.init(1, 45))
+INIT 0
+>>> 
+>>> print("LOAD", sentai.tpu.load("/models/msblock_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load("/models/msblock_yuv420_int8_edgetpu.tflite"))
+Model loaded: 213856 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x28ccc834f764e0d6
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00332641 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.06770096  zero_point=189
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.07166678  zero_point=186
+Arena used: 485 / 8192 KB
+Model name: msblock_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+Inputs: 2
+in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00332641 zp=0
+in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Arena used: 485 / 8192 KB
+LOAD 0
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (652, 648, 75.2)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'cycle_ms_sum': 6788, 'ok': 665, 'last_rc': 20, 'nms_ms_sum': 1, 'fail': 0, 'infer_wait_ms_sum': 1391, 'ms_sum': 13303}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print("LOAD", sentai.tpu.load("/models/c3_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load("/models/c3_yuv420_int8_edgetpu.tflite"))
+Model loaded: 258912 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x78095c64801b82c0
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00323895 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.07945366  zero_point=203
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.08630606  zero_point=205
+Arena used: 485 / 8192 KB
+Model name: c3_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+Inputs: 2
+in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00323895 zp=0
+in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Arena used: 485 / 8192 KB
+LOAD 0
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (647, 643, 75.4)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'cycle_ms_sum': 6692, 'ok': 660, 'last_rc': 20, 'nms_ms_sum': 0, 'fail': 0, 'infer_wait_ms_sum': 1398, 'ms_sum': 13204}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print("LOAD", sentai.tpu.load("/models/c2f_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load("/models/c2f_yuv420_int8_edgetpu.tflite"))
+Model loaded: 271200 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0xd14808d2b5e11482
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00331566 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.07433487  zero_point=199
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.07863516  zero_point=196
+Arena used: 485 / 8192 KB
+Model name: c2f_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+Inputs: 2
+in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00331566 zp=0
+in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Arena used: 485 / 8192 KB
+LOAD 0
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+E:0B62:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+STATS (645, 641, 75.6)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'cycle_ms_sum': 6518, 'ok': 645, 'last_rc': -2, 'nms_ms_sum': 0, 'fail': 1, 'infer_wait_ms_sum': 1368, 'ms_sum': 13264}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+E:0B62:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+STOP 0
+>>> 
+>>> print("LOAD", sentai.tpu.load("/models/c2f_pan2_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load("/models/c2f_pan2_yuv420_int8_edgetpu.tflite"))
+Model loaded: 344928 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0xd72a3975caf93cd9
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00331440 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00391237 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.12782960  zero_point=210
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.15760142  zero_point=196
+Arena used: 485 / 8192 KB
+Model name: c2f_pan2_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+Inputs: 2
+in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00331440 zp=0
+in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00391237 zp=0
+Arena used: 485 / 8192 KB
+LOAD 0
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> E:0B62:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+

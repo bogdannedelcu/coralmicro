@@ -1,0 +1,34 @@
+SentAI v1.1 build 1702 (2026-10-31 17:34:26) board 58eb
+upload msblock_yuv420_int8_edgetpu.tflite            213856 B -> {"ok":true,"size":213856}
+upload c3_yuv420_int8_edgetpu.tflite                 258912 B -> {"ok":true,"size":258912}
+upload c2f_yuv420_int8_edgetpu.tflite                271200 B -> {"ok":true,"size":271200}
+upload c2f_pan2_yuv420_int8_edgetpu.tflite           344928 B -> {"ok":true,"size":344928}
+upload gelan_yuv420_int8_edgetpu.tflite              361312 B -> {"ok":true,"size":361312}
+upload c2f_thick_yuv420_int8_edgetpu.tflite          951136 B -> {"ok":true,"size":951136}
+['INIT 0']
+model                                      ms_min   ms_avg   ms_max      fps frames   dets
+msblock_yuv420_int8_edgetpu.tflite              0     20.0        0     40.5    693      0   i_ok=693 i_fail=0 last_rc=20
+     Inputs: 2
+     in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00332641 zp=0
+     in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+c3_yuv420_int8_edgetpu.tflite                   0     20.0        0     41.0    689      0   i_ok=689 i_fail=0 last_rc=20
+     Inputs: 2
+     in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00323895 zp=0
+     in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+c2f_yuv420_int8_edgetpu.tflite                  0     20.6        0     40.1    697      0   i_ok=697 i_fail=0 last_rc=20
+     Inputs: 2
+     in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00331566 zp=0
+     in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+c2f_pan2_yuv420_int8_edgetpu.tflite             0     21.4        0     38.7    674      0   i_ok=674 i_fail=0 last_rc=22
+     Inputs: 2
+     in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00331440 zp=0
+     in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00391237 zp=0
+gelan_yuv420_int8_edgetpu.tflite                0     22.0        0     38.4    669      0   i_ok=669 i_fail=0 last_rc=22
+     Inputs: 2
+     in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00305517 zp=0
+     in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00390619 zp=0
+c2f_thick_yuv420_int8_edgetpu.tflite            0     23.0        0     38.2    676      0   i_ok=676 i_fail=0 last_rc=23
+     Inputs: 2
+     in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00326224 zp=0
+     in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+events: E:0A06:3 E:0A12:18 E:0A0C:16

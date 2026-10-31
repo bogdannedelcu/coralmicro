@@ -1,0 +1,35 @@
+SentAI v1.1 build 1694 (2026-10-31 16:07:18) board 58eb
+upload msblock_yuv420_int8_edgetpu.tflite            213856 B -> {"ok":true,"size":213856}
+upload c3_yuv420_int8_edgetpu.tflite                 258912 B -> {"ok":true,"size":258912}
+upload c2f_yuv420_int8_edgetpu.tflite                271200 B -> {"ok":true,"size":271200}
+upload c2f_pan2_yuv420_int8_edgetpu.tflite           344928 B -> {"ok":true,"size":344928}
+upload gelan_yuv420_int8_edgetpu.tflite              361312 B -> {"ok":true,"size":361312}
+upload c2f_thick_yuv420_int8_edgetpu.tflite          951136 B -> {"ok":true,"size":951136}
+['INIT 0']
+model                                      ms_min   ms_avg   ms_max      fps frames   dets
+msblock_yuv420_int8_edgetpu.tflite              0     20.0        0     41.8    665      0   i_ok=665 i_fail=0 last_rc=20
+     Inputs: 2
+     in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00332641 zp=0
+     in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+c3_yuv420_int8_edgetpu.tflite                   0     20.0        0     41.5    660      0   i_ok=660 i_fail=0 last_rc=20
+     Inputs: 2
+     in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00323895 zp=0
+     in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+c2f_yuv420_int8_edgetpu.tflite                  0     20.6        0     40.6    645      0   i_ok=645 i_fail=1 last_rc=-2
+     Inputs: 2
+     in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00331566 zp=0
+     in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Traceback (most recent call last):
+  File "/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s257_tpu_yuv420/run_yuv420.py", line 96, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s257_tpu_yuv420/run_yuv420.py", line 68, in main
+    st = q('print("STATS", sentai.pipeline.stats())', 10)
+  File "/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s257_tpu_yuv420/run_yuv420.py", line 42, in q
+    out = B.cmd(ser, line, t); log.write('>>> %s\n%s\n' % (line, out)); log.flush(); return out
+  File "/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s257_tpu_yuv420/../s236_model_speed_sweep_640x480/board_serial.py", line 35, in cmd
+    while ser.in_waiting:
+          ^^^^^^^^^^^^^^
+  File "/usr/lib/python3/dist-packages/serial/serialposix.py", line 549, in in_waiting
+    s = fcntl.ioctl(self.fd, TIOCINQ, TIOCM_zero_str)
+OSError: [Errno 5] Input/output error

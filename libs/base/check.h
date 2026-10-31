@@ -17,12 +17,14 @@
 #ifndef LIBS_BASE_CHECK_H_
 #define LIBS_BASE_CHECK_H_
 
+#include <cstdint>
 #include <cstdio>
 
 #include "third_party/freertos_kernel/include/FreeRTOS.h"
 #include "third_party/freertos_kernel/include/task.h"
 
 #ifdef SENTAI_PLATFORM_SIM
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #define CHECK(a)                                                   \
@@ -39,6 +41,19 @@
 #include "libs/base/console_m7.h"
 #include "third_party/freertos_kernel/include/FreeRTOS.h"
 #include "third_party/freertos_kernel/include/task.h"
+/* W24-T6: a post-scheduler CHECK failure now leaves the same breadcrumb as
+ * configASSERT (SERR_SYS_ASSERT, r0 = address of the #a text, BFAR field =
+ * address of the __FILE__ text) before the reset, so the next boot's crash
+ * record names it instead of showing a bare software reset.  Both literals
+ * already exist for the EmergencyWrite below, so the compiler merges them:
+ * no extra rodata per CHECK site.  Weak fallbacks: libs/FreeRTOS/app_callbacks.c. */
+extern "C" void sentai_assert_fail(uint32_t lr);   /* matches sentai_fault.h */
+extern "C" volatile const char* g_sentai_assert_expr;
+extern "C" volatile const char* g_sentai_assert_file;
+/* One cold out-of-line helper (libs/base/console_m7.cc) instead of the
+ * report + scheduler check + reset sequence inlined at every CHECK site:
+ * keeps ITCM flat (the inlined form cost 5 KB over ~300 sites). */
+extern "C" void sentai_check_fail(const char* file, int line, const char* expr);
 /* 2026-10-30 hardening (embeded.md §10 anti-brick, audit C2/M11):
  *  - BEFORE the scheduler runs, a failed CHECK must NOT call
  *    vTaskSuspendAll(): it leaves uxSchedulerSuspended != 0, the first
@@ -50,15 +65,7 @@
  *    (same path as configASSERT) so the breadcrumb is the last message. */
 #define CHECK(a)                                                            \
   do {                                                                      \
-    if (!(a)) {                                                             \
-      coralmicro::ConsoleM7::GetSingleton()->EmergencyWrite(                \
-          "%s:%d %s was not true.\r\n", __FILE__, __LINE__, #a);            \
-      if (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED) {          \
-        (*(volatile uint32_t*)0xE000ED0CUL) = (0x5FAUL << 16U) | (1UL << 2U); \
-        for (;;) {                                                          \
-        }                                                                   \
-      }                                                                     \
-    }                                                                       \
+    if (!(a)) sentai_check_fail(__FILE__, __LINE__, #a);                    \
   } while (0)
 #elif (__CORTEX_M == 4)
 #include "libs/base/console_m4.h"

@@ -96,6 +96,21 @@ class EdgeTpuManager {
   // Reserve arena scratch for a package's executables.  Called from the
   // custom-op Prepare stage (RequestScratchBufferInArena is Prepare-only).
   TfLiteStatus PrepareScratch(EdgeTpuPackage* package, TfLiteContext* context);
+  // sentai (OP-S10-W24-T6): drop the packages registered from ONE model
+  // buffer [model_begin, model_begin + model_len).  The package map is keyed
+  // by the custom-op buffer ADDRESS, which lies inside the model's flatbuffer
+  // vector; call this from the model loader after that model's interpreter
+  // is deleted and BEFORE its vector is freed.  Without it the map grew by
+  // one EdgeTpuPackage per tpu.load and a new model whose buffer landed on a
+  // previously used address was served the OLD executable.  Per-range (not
+  // "all") because the TPU slots 1..2 keep their own interpreters alive, and
+  // those hold raw EdgeTpuPackage* in node->user_data.  Also drops the
+  // deleted packages from the parameter-cache bookkeeping (token reset ->
+  // next Invoke re-uploads).  The caller must also invalidate the executable
+  // descriptor cache (sentai_tpu_desc_cache_invalidate()).  Must not run
+  // while an Invoke is in flight (loader checks the pipeline is stopped; the
+  // manager mutex serialises the rest).
+  void UnregisterPackagesInRange(const void* model_begin, size_t model_len);
   // @endcond
 
   // Gets the default Edge TPU device (and starts it if necessary).

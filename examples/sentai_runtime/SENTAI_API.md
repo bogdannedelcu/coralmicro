@@ -255,6 +255,19 @@ Returns 0 on success, negative on error:
 True
 ```
 
+### `sentai.tpu.urb_sync_stats()` → dict
+Synchronous-URB counters of the Edge TPU USB driver (OP-S10-W24-T6, build 1702):
+`entered` / `gave` (completion callbacks seen / semaphore gives), `stale`
+(completions of orphaned, timed-out URBs that were ignored by the sequence
+token), `take_failed` (URB waits that timed out = frames dropped, SERR 0x0B6x),
+`take_ok`, `csr_timeouts` and `csr_mutex_timeouts` (control-transfer path).
+After any `take_failed`/`csr_timeouts` increment the TPU usually needs
+`sentai.tpu.recover()` before invokes succeed again.
+```python
+>>> sentai.tpu.urb_sync_stats()
+{'entered': 81240, 'gave': 81240, 'stale': 0, 'take_failed': 0, 'take_ok': 81240, 'csr_timeouts': 0, 'csr_mutex_timeouts': 0}
+```
+
 ### `sentai.tpu.load_image(path)` → int
 Load an image from flash into the model's input tensor.  
 Supports raw RGB and JPEG (auto-detected by file header `FF D8 FF`).  

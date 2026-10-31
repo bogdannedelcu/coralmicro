@@ -61,3 +61,7 @@ __attribute__((weak)) void vApplicationStackOverflowHook(
 __attribute__((weak)) void sentai_assert_fail(unsigned int lr) {
   (void)lr;
 }
+// Weak default for the failing-expression pointer configASSERT/CHECK set
+// before calling sentai_assert_fail(); sentai_fault.cc owns the strong one.
+__attribute__((weak)) volatile const char* g_sentai_assert_expr = 0;
+__attribute__((weak)) volatile const char* g_sentai_assert_file = 0;

@@ -1,0 +1,7 @@
+model,ms_min,ms_avg,ms_max,fps,frames,detections
+msblock_yuv420_int8_edgetpu.tflite,0,20.0,0,40.5,693,0
+c3_yuv420_int8_edgetpu.tflite,0,20.0,0,41.0,689,0
+c2f_yuv420_int8_edgetpu.tflite,0,20.6,0,40.1,697,0
+c2f_pan2_yuv420_int8_edgetpu.tflite,0,21.4,0,38.7,674,0
+gelan_yuv420_int8_edgetpu.tflite,0,22.0,0,38.4,669,0
+c2f_thick_yuv420_int8_edgetpu.tflite,0,23.0,0,38.2,676,0

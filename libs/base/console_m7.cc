@@ -511,3 +511,27 @@ int ConsoleM7::UartAvailable() const {
 }
 
 }  // namespace coralmicro
+
+// ---------------------------------------------------------------------
+// CHECK() failure path (libs/base/check.h), out of line so every CHECK site
+// costs one call.  2026-10-30 hardening (embeded.md §10, audit C2/M11):
+//  - before the scheduler runs: report and continue (vTaskSuspendAll() here
+//    left uxSchedulerSuspended != 0 -> configASSERT reset loop before USB
+//    enumerated = a true brick; every pre-scheduler precondition has a
+//    downstream guard);
+//  - after the scheduler runs: report, leave the SERR_SYS_ASSERT breadcrumb
+//    (r0 = expr text, BFAR field = file text, LR = the CHECK site) and reset
+//    at once, same path as configASSERT, so the next boot's crash record
+//    names the failing CHECK (W24-T6, 2026-10-31).
+// ---------------------------------------------------------------------
+extern "C" void sentai_check_fail(const char* file, int line, const char* expr) {
+  coralmicro::ConsoleM7::GetSingleton()->EmergencyWrite(
+      "%s:%d %s was not true.\r\n", file, line, expr);
+  if (xTaskGetSchedulerState() == taskSCHEDULER_NOT_STARTED) return;
+  g_sentai_assert_expr = expr;
+  g_sentai_assert_file = file;
+  sentai_assert_fail((uint32_t)(uintptr_t)__builtin_return_address(0));
+  (*(volatile uint32_t*)0xE000ED0CUL) = (0x5FAUL << 16U) | (1UL << 2U);
+  for (;;) {
+  }
+}

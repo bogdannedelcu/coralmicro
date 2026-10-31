@@ -469,6 +469,39 @@ static mp_obj_t mod_sentai_tpu_chunk_size(size_t n_args,
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
     mod_sentai_tpu_chunk_size_obj, 0, 1, mod_sentai_tpu_chunk_size);
 
+// sentai.tpu.urb_sync_stats() -> dict  (OP-S10-W24-T6 diagnosability)
+// Synchronous-URB counters from edgetpu_driver.cc: completions entered /
+// semaphore gives / stale (orphaned-URB completions ignored by the sequence
+// token) / waits that timed out / waits that succeeded.  stale > 0 means a
+// timed-out URB completed later and was contained; take_failed counts the
+// 0B6x-class frame drops.
+extern volatile uint32_t g_sentai_tpu_lambda_entered, g_sentai_tpu_lambda_gave,
+    g_sentai_tpu_stale_completions, g_sentai_tpu_take_failed,
+    g_sentai_tpu_take_succeeded;
+static mp_obj_t mod_sentai_tpu_urb_sync_stats(void) {
+    mp_obj_t d = mp_obj_new_dict(0);
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_entered),
+                      mp_obj_new_int_from_uint(g_sentai_tpu_lambda_entered));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_gave),
+                      mp_obj_new_int_from_uint(g_sentai_tpu_lambda_gave));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_stale),
+                      mp_obj_new_int_from_uint(g_sentai_tpu_stale_completions));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_take_failed),
+                      mp_obj_new_int_from_uint(g_sentai_tpu_take_failed));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_take_ok),
+                      mp_obj_new_int_from_uint(g_sentai_tpu_take_succeeded));
+    {
+        extern volatile uint32_t g_sentai_tpu_csr_timeouts, g_sentai_tpu_csr_mutex_timeouts;
+        mp_obj_dict_store(d, mp_obj_new_str("csr_timeouts", 12),
+                          mp_obj_new_int_from_uint(g_sentai_tpu_csr_timeouts));
+        mp_obj_dict_store(d, mp_obj_new_str("csr_mutex_timeouts", 18),
+                          mp_obj_new_int_from_uint(g_sentai_tpu_csr_mutex_timeouts));
+    }
+    return d;
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_tpu_urb_sync_stats_obj,
+                                 mod_sentai_tpu_urb_sync_stats);
+
 // sentai.tpu.urb_timeout_ms([ms]) -> ms
 static mp_obj_t mod_sentai_tpu_urb_timeout_ms(size_t n_args,
                                               const mp_obj_t* args) {
@@ -681,6 +714,7 @@ static const mp_rom_map_elem_t sentai_tpu_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_urb_stats),   MP_ROM_PTR(&mod_sentai_tpu_urb_stats_obj) },
     { MP_ROM_QSTR(MP_QSTR_chunk_size),  MP_ROM_PTR(&mod_sentai_tpu_chunk_size_obj) },
     { MP_ROM_QSTR(MP_QSTR_urb_timeout_ms), MP_ROM_PTR(&mod_sentai_tpu_urb_timeout_ms_obj) },
+    { MP_ROM_QSTR(MP_QSTR_urb_sync_stats), MP_ROM_PTR(&mod_sentai_tpu_urb_sync_stats_obj) },
     { MP_ROM_QSTR(MP_QSTR_trace),       MP_ROM_PTR(&mod_sentai_tpu_trace_obj) },
     { MP_ROM_QSTR(MP_QSTR_csr_errors),  MP_ROM_PTR(&mod_sentai_tpu_csr_errors_obj) },
     { MP_ROM_QSTR(MP_QSTR_zero_copy_input), MP_ROM_PTR(&mod_sentai_tpu_zero_copy_input_obj) },

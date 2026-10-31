@@ -116,6 +116,12 @@
         taskDISABLE_INTERRUPTS(); \
         printf("configASSERT: " #x "\r\n"); \
         { void sentai_assert_fail(unsigned int lr); \
+          extern volatile const char* g_sentai_assert_expr; \
+          extern volatile const char* g_sentai_assert_file; \
+          /* Reuse the printf literal above (merged by the compiler): no new */ \
+          /* rodata per assert site.  Breadcrumb: r0 = expr text, BFAR = file. */ \
+          g_sentai_assert_expr = "configASSERT: " #x "\r\n"; \
+          g_sentai_assert_file = __FILE__; \
           sentai_assert_fail((unsigned int)__builtin_return_address(0)); } \
         /* SCB->AIRCR = VECTKEY | SYSRESETREQ — no CMSIS header needed */ \
         (*(volatile unsigned int*)0xE000ED0CUL) = (0x5FAUL << 16U) | (1UL << 2U); \

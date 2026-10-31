@@ -309,6 +309,127 @@ static void InitBulkSema() {
     xTaskResumeAll();
 }
 
+// ---------------------------------------------------------------------
+// URB completion slots (OP-S10-W24-T6, 2026-10-31).
+//
+// The synchronous transfer paths used to keep their UsbTransferMetadata on
+// the CALLER'S STACK and hand its address to the EHCI completion callback.
+// On a URB timeout the code deliberately does not cancel the URB (cancelling
+// a partial bulk-OUT corrupts the TPU), so the transfer stays in the EHCI
+// schedule and completes LATER -- after the caller has returned.  The
+// callback then wrote bytes/status/timestamps and gave a semaphore through
+// a pointer into a dead stack frame, i.e. into whatever the task (or another
+// task sharing the heap region) had put there since.  Crash record from
+// EXP-s257 pass 3: HardFault PRECISERR in caam_in_job_ring_add with
+// r0 = 0x00604F90 (garbage base), 20 s after a 0B62 URB timeout.
+//
+// Fix: the metadata lives in a STATIC slot per pipe family (always a valid
+// write target) and the callback receives an opaque SEQUENCE TOKEN instead
+// of a pointer.  A completion whose token does not match the slot's current
+// sequence belongs to an orphaned URB from an earlier, timed-out call: it is
+// counted and otherwise ignored (no write, no give), which also removes the
+// "stale give wakes the next caller early" race the old comment described.
+// Order at every call site: arm (seq++) FIRST, then drain the binary
+// semaphore, then submit -- so an orphan completing between the drain and
+// the submit can neither match the new sequence nor leave a pending give.
+// One bulk slot suffices because the synchronous bulk OUT and bulk IN
+// paths are never in flight together: they are issued strictly one after
+// the other from EdgeTpuExecutable::Invoke under EdgeTpuManager::mutex_,
+// and each blocks until completion or timeout (the binary s_bulk_sema is
+// the completion signal, NOT the mutual exclusion).  The pipelined input
+// path uses s_async_slots and never touches this slot.  The event endpoint
+// has its own slot.
+//
+// Load-bearing assumptions (keep true): (a) the completion callback runs
+// in the USB host task (kUsbHostTaskPriority = configMAX_PRIORITIES-1),
+// which strictly preempts every caller (InferTask, MicroPython task), so
+// UrbComplete's compare-then-write cannot interleave with UrbArm; (b) once
+// a NEW URB is submitted on the same pipe, usb_host_edgetpu.c drops the
+// orphan's completion (transfer != pipe->activeTransfer) before it reaches
+// us — the token only has to cover the arm→submit window and other pipes.
+// ---------------------------------------------------------------------
+struct UrbSlot {
+  UsbTransferMetadata meta;
+  volatile uint32_t seq;
+};
+static UrbSlot s_bulk_slot;   // bulk OUT (staged + zero-copy) and bulk IN
+static UrbSlot s_event_slot;  // interrupt / event IN
+extern "C" volatile uint32_t g_sentai_tpu_stale_completions = 0;
+
+static inline void *UrbArm(UrbSlot &slot, SemaphoreHandle_t sema,
+                           DescriptorTag tag, uint32_t bytes) {
+  slot.seq = slot.seq + 1u;      // 32-bit wrap is fine; 0 never reused in practice
+  slot.meta.sema = sema;
+  slot.meta.status = kStatus_USB_Error;
+  slot.meta.bytes_transferred = 0;
+  slot.meta.tag = tag;
+  slot.meta.bytes_requested = bytes;
+  slot.meta.submit_start_cyc = TpuUrbCycleNow();
+  slot.meta.submit_start_us = TpuUrbMicrosNow();
+  slot.meta.submit_return_cyc = slot.meta.submit_start_cyc;
+  slot.meta.submit_return_us = slot.meta.submit_start_us;
+  slot.meta.callback_cyc = 0;
+  slot.meta.callback_us = 0;
+  return (void *)(uintptr_t)slot.seq;
+}
+
+// Runs in the USB host task's callback context (same as the lambdas it
+// replaces, which used xSemaphoreGive, not the FromISR variant).
+static inline void UrbComplete(UrbSlot &slot, void *param, uint32_t len,
+                               usb_status_t status) {
+  if ((uint32_t)(uintptr_t)param != slot.seq) {
+    g_sentai_tpu_stale_completions++;   // orphaned URB from a timed-out call
+    return;
+  }
+  slot.meta.bytes_transferred = len;
+  slot.meta.status = status;
+  slot.meta.callback_cyc = TpuUrbCycleNow();
+  slot.meta.callback_us = TpuUrbMicrosNow();
+  if (slot.meta.sema) xSemaphoreGive(slot.meta.sema);
+}
+
+static void UrbBulkCallback(void *param, uint8_t *, uint32_t len,
+                            usb_status_t status) {
+  UrbComplete(s_bulk_slot, param, len, status);
+}
+static void UrbEventCallback(void *param, uint8_t *, uint32_t len,
+                             usb_status_t status) {
+  UrbComplete(s_event_slot, param, len, status);
+}
+
+// Control (CSR) transfers: same bug class, worse mechanics.  CSRTransfer
+// used to create a HEAP binary semaphore per call and vSemaphoreDelete() it
+// on the 2 s timeout while the control URB stayed in flight; the late
+// completion then xSemaphoreGive()'d a freed handle.  When the freed block
+// had been reused by a queue with a non-zero item size, FreeRTOS tripped
+// `configASSERT(!(pvItemToQueue == NULL && uxItemSize != 0))` in queue.c
+// (fault-injection run, build 1701, breadcrumb r0 -> that very string).
+// Now: one static semaphore + token slot, and a static mutex because CSR
+// access is NOT confined to Invoke (GetTemperature / DumpTpuErrorCsrs run
+// on the MicroPython task while InferTask invokes).  Bounded: mutex wait
+// 2.5 s > the 2 s completion wait, so the holder always releases first.
+static UrbSlot s_ctrl_slot;
+static StaticSemaphore_t s_ctrl_sema_mem, s_ctrl_mutex_mem;
+static SemaphoreHandle_t s_ctrl_sema = NULL;
+static SemaphoreHandle_t s_ctrl_mutex = NULL;
+extern "C" volatile uint32_t g_sentai_tpu_csr_timeouts = 0;      // completion waits that timed out
+extern "C" volatile uint32_t g_sentai_tpu_csr_mutex_timeouts = 0; // callers that could not get the pipe
+
+static void InitCtrlSync() {
+  if (__atomic_load_n(&s_ctrl_mutex, __ATOMIC_ACQUIRE) != NULL) return;
+  vTaskSuspendAll();
+  if (s_ctrl_mutex == NULL) {
+    s_ctrl_sema = xSemaphoreCreateBinaryStatic(&s_ctrl_sema_mem);
+    SemaphoreHandle_t m = xSemaphoreCreateMutexStatic(&s_ctrl_mutex_mem);
+    __atomic_store_n(&s_ctrl_mutex, m, __ATOMIC_RELEASE);
+  }
+  xTaskResumeAll();
+}
+static void UrbCtrlCallback(void *param, uint8_t *, uint32_t len,
+                            usb_status_t status) {
+  UrbComplete(s_ctrl_slot, param, len, status);
+}
+
 #ifdef SENTAI_PLATFORM_SIM
 static void SimSleepUs(long us) {
   struct timespec ts;
@@ -604,31 +725,31 @@ bool TpuDriver::CSRTransfer(uint64_t reg, void *data, bool read,
       usb_instance_, &setup_packet, (uint8_t *)data, nullptr, nullptr);
   return control_status == kStatus_USB_Success;
 #else
-  SemaphoreHandle_t sema = xSemaphoreCreateBinary();
-
-  control_status = USB_HostEdgeTpuControl(
-      usb_instance_, &setup_packet, (uint8_t *)data,
-      [](void *param, uint8_t *data, uint32_t data_length,
-         usb_status_t status) {
-        SemaphoreHandle_t sema = (SemaphoreHandle_t)param;
-        xSemaphoreGive(sema);
-      },
-      sema);
-  // Counters rather than printf to avoid the USB-CDC feedback loop
-  // documented above (printf → CDC → USB device task → more
-  // contention → more timeouts).  Callers that need visibility poll
-  // g_sentai_tpu_csr_* counters from async_stats.
-  if (control_status != kStatus_USB_Success) {
-    goto exit;
+  // Static slot + token (see s_ctrl_slot above): no heap, no dangling
+  // semaphore after a timeout.  Counters rather than printf to avoid the
+  // USB-CDC feedback loop documented above (printf -> CDC -> USB device
+  // task -> more contention -> more timeouts).
+  InitCtrlSync();
+  if (xSemaphoreTake(s_ctrl_mutex, pdMS_TO_TICKS(2500)) != pdTRUE) {
+    g_sentai_tpu_csr_mutex_timeouts++;
+    return false;
   }
-  if (xSemaphoreTake(sema, pdMS_TO_TICKS(2000)) == pdFALSE) {
-    ret = false;
-    goto exit;
+  {
+    void *tok = UrbArm(s_ctrl_slot, s_ctrl_sema, DescriptorTag::kUnknown,
+                       setup_packet.wLength);
+    (void)xSemaphoreTake(s_ctrl_sema, 0);
+    control_status = USB_HostEdgeTpuControl(
+        usb_instance_, &setup_packet, (uint8_t *)data, UrbCtrlCallback, tok);
+    if (control_status != kStatus_USB_Success) {
+      ret = false;
+    } else if (xSemaphoreTake(s_ctrl_sema, pdMS_TO_TICKS(2000)) == pdFALSE) {
+      g_sentai_tpu_csr_timeouts++;
+      ret = false;   // URB left in flight; its late completion is token-filtered
+    } else {
+      ret = true;    // completion observed (status not checked: legacy semantics)
+    }
   }
-
-  ret = true;
-exit:
-  vSemaphoreDelete(sema);
+  xSemaphoreGive(s_ctrl_mutex);
   return ret;
 #endif
 }
@@ -910,14 +1031,9 @@ static bool BulkOutTransferStaged(usb_host_edgetpu_instance_t *usb,
   while (remain > 0) {
     uint32_t nn = std::min<uint32_t>(kChunk, remain);
     memcpy(s_bulk_staging, src, nn);  // M7 → DTCM, cache-coherent
-    UsbTransferMetadata meta;
 #ifdef SENTAI_PLATFORM_SIM
+    UsbTransferMetadata meta;
     meta.sema = nullptr;
-#else
-    InitBulkSema();
-    meta.sema = s_bulk_sema;
-    (void)xSemaphoreTake(s_bulk_sema, 0);
-#endif
     meta.status = kStatus_USB_Error;
     meta.bytes_transferred = 0;
     meta.tag = DescriptorTag::kInputActivations;
@@ -937,11 +1053,18 @@ static bool BulkOutTransferStaged(usb_host_edgetpu_instance_t *usb,
             m->status = s;
             m->callback_cyc = TpuUrbCycleNow();
             m->callback_us = TpuUrbMicrosNow();
-#ifndef SENTAI_PLATFORM_SIM
-            if (m->sema) xSemaphoreGive(m->sema);
-#endif
         },
         &meta);
+#else
+    InitBulkSema();
+    // Static slot + sequence token: see UrbSlot (W24-T6).  Arm, drain, submit.
+    UsbTransferMetadata &meta = s_bulk_slot.meta;
+    void *tok = UrbArm(s_bulk_slot, s_bulk_sema,
+                       DescriptorTag::kInputActivations, nn);
+    (void)xSemaphoreTake(s_bulk_sema, 0);
+    usb_status_t st = USB_HostEdgeTpuBulkOutSend(
+        usb, endpoint, s_bulk_staging, nn, UrbBulkCallback, tok);
+#endif
     meta.submit_return_cyc = TpuUrbCycleNow();
     meta.submit_return_us = TpuUrbMicrosNow();
     if (st != kStatus_USB_Success) {
@@ -1371,35 +1494,19 @@ ssize_t TpuDriver::BulkOutTransferInternal(uint8_t endpoint,
   return -meta.status;
 #else
   InitBulkSema();
-  UsbTransferMetadata meta;
-  meta.sema   = s_bulk_sema;
-  meta.status = kStatus_USB_Error;
-  meta.bytes_transferred = 0;
-  meta.tag = tag;
-  meta.bytes_requested = data_length;
-  meta.submit_start_cyc = TpuUrbCycleNow();
-  meta.submit_start_us = TpuUrbMicrosNow();
-  meta.submit_return_cyc = meta.submit_start_cyc;
-  meta.submit_return_us = meta.submit_start_us;
-  meta.callback_cyc = 0;
-  meta.callback_us = 0;
+  // Static slot + sequence token: see UrbSlot (W24-T6).  Arm, drain, submit.
+  UsbTransferMetadata &meta = s_bulk_slot.meta;
+  void *tok = UrbArm(s_bulk_slot, s_bulk_sema, tag, data_length);
   (void)xSemaphoreTake(s_bulk_sema, 0);
 
   usb_status_t bulk_status = USB_HostEdgeTpuBulkOutSend(
       usb_instance_, endpoint, (uint8_t *)data, data_length,
-      [](void *param, uint8_t *data, uint32_t data_length,
-         usb_status_t status) {
+      [](void *param, uint8_t *, uint32_t data_length, usb_status_t status) {
         g_sentai_tpu_lambda_entered++;
-        UsbTransferMetadata *meta = static_cast<UsbTransferMetadata *>(param);
-        if (!meta || !meta->sema) { g_sentai_tpu_lambda_null_sema++; return; }
-        meta->bytes_transferred = data_length;
-        meta->status = status;
-        meta->callback_cyc = TpuUrbCycleNow();
-        meta->callback_us = TpuUrbMicrosNow();
-        BaseType_t r = xSemaphoreGive(meta->sema);
-        if (r == pdTRUE) g_sentai_tpu_lambda_gave++;
+        UrbComplete(s_bulk_slot, param, data_length, status);
+        if ((uint32_t)(uintptr_t)param == s_bulk_slot.seq) g_sentai_tpu_lambda_gave++;
       },
-      &meta);
+      tok);
   meta.submit_return_cyc = TpuUrbCycleNow();
   meta.submit_return_us = TpuUrbMicrosNow();
 
@@ -1418,26 +1525,18 @@ ssize_t TpuDriver::BulkOutTransferInternal(uint8_t endpoint,
         == pdFALSE) {
     g_sentai_tpu_take_failed++;
     TpuUrbRecordDone(meta, TpuUrbCycleNow(), TpuUrbMicrosNow(), true);
-    // NO CANCEL.  User theory: cancelling a partial bulk-OUT leaves
-    // the TPU device in an undefined state (it expected a complete
-    // block).  Confirmed empirically: after pipeline runs + cancels,
-    // even standalone `tpu.invoke()` fails identically until full
-    // reflash — so the TPU silicon was being corrupted, not just
-    // the host-side pipe.
+    // NO CANCEL.  Cancelling a partial bulk-OUT leaves the TPU device in
+    // an undefined state (it expected a complete block).  Confirmed
+    // empirically: after pipeline runs + cancels, even standalone
+    // `tpu.invoke()` fails identically until full reflash — so the TPU
+    // silicon was being corrupted, not just the host-side pipe.
     //
-    // New strategy: **pretend we don't care** — just skip the frame.
-    // The URB is still in the EHCI async schedule; its callback
-    // will fire eventually on stack-allocated `meta` (safe: we
-    // return but the stack slot for `meta` is reused by the next
-    // caller, and the lambda's `meta->bytes_transferred = len;
-    // meta->status = status; xSemaphoreGive(meta->sema)` writes
-    // to valid addresses even if `meta` now represents a different
-    // in-flight transfer — the give is idempotent on a binary sema,
-    // the bytes/status fields are overwritten by the new caller
-    // anyway).  Worst case: next call's Take returns early via a
-    // stale give — but THAT take's own in-flight URB will still
-    // complete legit later.  Net effect: occasional duplicate
-    // wake, no TPU corruption, no cascade.
+    // Strategy: skip the frame and leave the URB in the EHCI schedule.
+    // Its completion fires later on the STATIC s_bulk_slot through the
+    // sequence token (see UrbSlot above): a token that no longer matches
+    // is counted in g_sentai_tpu_stale_completions and ignored, so the
+    // orphan can neither write into a dead stack frame (the 2026-10-31
+    // PRECISERR crash, W24-T6) nor wake the next caller early.
     return -1;
   } else {
     g_sentai_tpu_take_succeeded++;
@@ -1569,34 +1668,15 @@ ssize_t TpuDriver::BulkInTransferInternal(uint8_t endpoint, uint8_t *data,
   return -meta.status;
 #else
   InitBulkSema();
-  UsbTransferMetadata meta;
-  meta.sema   = s_bulk_sema;
-  meta.status = kStatus_USB_Error;
-  meta.bytes_transferred = 0;
-  meta.tag = tag;
-  meta.bytes_requested = data_length;
-  meta.submit_start_cyc = TpuUrbCycleNow();
-  meta.submit_start_us = TpuUrbMicrosNow();
-  meta.submit_return_cyc = meta.submit_start_cyc;
-  meta.submit_return_us = meta.submit_start_us;
-  meta.callback_cyc = 0;
-  meta.callback_us = 0;
+  // Static slot + sequence token: see UrbSlot (W24-T6).  Arm, drain, submit.
+  UsbTransferMetadata &meta = s_bulk_slot.meta;
+  void *tok = UrbArm(s_bulk_slot, s_bulk_sema, tag, data_length);
   (void)xSemaphoreTake(s_bulk_sema, 0);
 
   if (g_sentai_tpu_trace) trace_bulkin('S', endpoint, data_length);
 
   usb_status_t bulk_status = USB_HostEdgeTpuBulkInRecv(
-      usb_instance_, endpoint, data, data_length,
-      [](void *param, uint8_t *data, uint32_t data_length,
-         usb_status_t status) {
-        UsbTransferMetadata *meta = static_cast<UsbTransferMetadata *>(param);
-        meta->bytes_transferred = data_length;
-        meta->status = status;
-        meta->callback_cyc = TpuUrbCycleNow();
-        meta->callback_us = TpuUrbMicrosNow();
-        xSemaphoreGive(meta->sema);
-      },
-      &meta);
+      usb_instance_, endpoint, data, data_length, UrbBulkCallback, tok);
   meta.submit_return_cyc = TpuUrbCycleNow();
   meta.submit_return_us = TpuUrbMicrosNow();
 
@@ -1783,35 +1863,17 @@ bool TpuDriver::ReadEvent() const {
   if (!s_event_sema) {
     s_event_sema = xSemaphoreCreateBinaryStatic(&s_event_sema_mem);
   }
-  // Drain any stale give from a prior timed-out call.
+  // Static slot + sequence token: see UrbSlot (W24-T6).  Arm first so an
+  // orphaned event URB from a timed-out call can no longer match, THEN drain
+  // any stale give, then submit.
+  UsbTransferMetadata &meta = s_event_slot.meta;
+  void *tok = UrbArm(s_event_slot, s_event_sema, DescriptorTag::kInterrupt0,
+                     kEventSizeBytes);
   (void)xSemaphoreTake(s_event_sema, 0);
-  UsbTransferMetadata meta;
-  meta.sema = s_event_sema;
-  meta.status = kStatus_USB_Error;
-  meta.bytes_transferred = 0;
-  meta.tag = DescriptorTag::kInterrupt0;
-  meta.bytes_requested = kEventSizeBytes;
-  meta.submit_start_cyc = TpuUrbCycleNow();
-  meta.submit_start_us = TpuUrbMicrosNow();
-  meta.submit_return_cyc = meta.submit_start_cyc;
-  meta.submit_return_us = meta.submit_start_us;
-  meta.callback_cyc = 0;
-  meta.callback_us = 0;
 
   usb_status_t bulk_status = USB_HostEdgeTpuBulkInRecv(
       usb_instance_, kEventInEndpoint, s_event_buf, kEventSizeBytes,
-      [](void *param, uint8_t *data, uint32_t data_length,
-         usb_status_t status) {
-        (void)data;
-        UsbTransferMetadata *meta = static_cast<UsbTransferMetadata *>(param);
-        if (!meta) return;
-        meta->bytes_transferred = data_length;
-        meta->status = status;
-        meta->callback_cyc = TpuUrbCycleNow();
-        meta->callback_us = TpuUrbMicrosNow();
-        xSemaphoreGive(meta->sema);
-      },
-      &meta);
+      UrbEventCallback, tok);
   meta.submit_return_cyc = TpuUrbCycleNow();
   meta.submit_return_us = TpuUrbMicrosNow();
   if (bulk_status != kStatus_USB_Success) {

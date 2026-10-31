@@ -85,8 +85,15 @@ extern "C" int sentai_load_model(const char* path) {
     delete coralmicro::g_interpreter;
     coralmicro::g_interpreter = nullptr;
   }
+  // W24-T6: the custom-op packages are keyed by the address of the custom-op
+  // buffer inside g_model_data; drop THIS model's packages before that buffer
+  // is freed so a new model at the same address cannot be served the old
+  // executable (and so the per-load EdgeTpuPackage leak stops).  Slot 1..2
+  // models keep their packages (per-range, see edgetpu_manager.h).
   sentai_tpu_desc_cache_invalidate();  // always invalidate on (re)load
   if (coralmicro::g_model_data) {
+    coralmicro::EdgeTpuManager::GetSingleton()->UnregisterPackagesInRange(
+        coralmicro::g_model_data->data(), coralmicro::g_model_data->size());
     delete coralmicro::g_model_data;
     coralmicro::g_model_data = nullptr;
   }
@@ -560,6 +567,10 @@ extern "C" int sentai_load_model_slot(int slot, const char* path) {
     auto* old_data = coralmicro::g_slot_model_data[slot];
     coralmicro::g_slot_model_data[slot] = nullptr;
     __sync_synchronize();
+    // W24-T6: same per-model package teardown as slot 0 (see sentai_load_model).
+    coralmicro::EdgeTpuManager::GetSingleton()->UnregisterPackagesInRange(
+        old_data->data(), old_data->size());
+    sentai_tpu_desc_cache_invalidate();
     delete old_data;
   }
   if (!coralmicro::g_slot_arena[slot]) {

@@ -129,10 +129,20 @@ void sentai_fault_clear(void) {
 // sentai_assert_fail — called by configASSERT before the AIRCR reset.
 // Saves SERR_SYS_ASSERT breadcrumb with the call site LR.
 // ---------------------------------------------------------------------------
+// W24-T6 (2026-10-31): configASSERT / CHECK store the address of the failing
+// expression text ("file:expr" literal in flash/ITCM) here before calling;
+// it travels in the r0 field of the breadcrumb so the next boot's crash
+// record names the assert (map with the ELF: x/s <r0>).  Without it the
+// only clue was a caller LR, which was 0 for the kernel asserts seen.
+extern "C" volatile const char* g_sentai_assert_expr = nullptr;
+extern "C" volatile const char* g_sentai_assert_file = nullptr;   // -> BFAR field
+
 extern "C" void sentai_assert_fail(uint32_t caller_lr) {
     sentai_fault_save(SERR_SYS_ASSERT, /*pc=*/0, caller_lr,
-                      /*cfsr=*/0, /*fault_addr=*/0,
-                      g_sentai_uptime_ms, /*r0=*/0);
+                      /*cfsr=*/0,
+                      /*fault_addr=*/(uint32_t)(uintptr_t)g_sentai_assert_file,
+                      g_sentai_uptime_ms,
+                      /*r0=*/(uint32_t)(uintptr_t)g_sentai_assert_expr);
 }
 
 // ---------------------------------------------------------------------------

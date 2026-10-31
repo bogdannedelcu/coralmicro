@@ -236,6 +236,31 @@ TfLiteStatus EdgeTpuManager::Invoke(EdgeTpuPackage* package,
   return package->inference_exe()->Invoke(tpu_driver_, context, node);
 }
 
+void EdgeTpuManager::UnregisterPackagesInRange(const void* model_begin,
+                                               size_t model_len) {
+#if !defined(SENTAI_PLATFORM_SIM) && !defined(SENTAI_ARM_EMU_TPU_HOST_BRIDGE)
+  MutexLock lock(mutex_);
+#endif
+  const uintptr_t lo = (uintptr_t)model_begin;
+  const uintptr_t hi = lo + model_len;
+  for (auto it = packages_.begin(); it != packages_.end();) {
+    if (it->first >= lo && it->first < hi) {
+      EdgeTpuPackage* pkg = it->second;
+      for (auto& cached : cached_packages_) {
+        if (cached == pkg) cached = nullptr;
+      }
+      delete pkg;
+      it = packages_.erase(it);
+      // The TPU-side parameter cache may hold this package's parameters:
+      // forget the token so the next Invoke re-uploads instead of trusting
+      // a stale match.
+      current_parameter_caching_token_ = 0;
+    } else {
+      ++it;
+    }
+  }
+}
+
 TfLiteStatus EdgeTpuManager::PrepareScratch(EdgeTpuPackage* package,
                                             TfLiteContext* context) {
   TfLiteStatus st = package->inference_exe()->PrepareScratch(context);
