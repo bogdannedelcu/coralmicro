@@ -160,3 +160,8 @@ voltage-mismatch theory for F17).
 I2C5 entirely (pull-ups on that rail) and the mic -> 1 = LDO OFF, 0 = ON.
 After a rail cycle the LIS2DUX12 is back in deep power-down (wake write
 needed).  SA0-follows-rail theory refuted; 0x19 history unexplained.
+**Boot straps nailed (2026-10-31):** SW2 "BOOT" held at reset -> SBMR2 BMOD=01
+(serial downloader forced) and SBMR1=0x4C0 (BOOT_CFG correct, = reference
+board).  SW2 pulls BOOT_MODE0.  Missing: pull-up on BOOT_MODE1 (GPIO_LPSR_03,
+R163/R164/R29 DNP) -> populate it; nothing to do in firmware.  J3 = PILOT/UART
++ Crazyflie, J4 = debug only (operator).

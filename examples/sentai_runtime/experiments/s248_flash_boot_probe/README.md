@@ -124,3 +124,20 @@ blocks after the first body line (`'\r'` ended the line, the following
 `'\n'` was read as an empty line).  `repl_readline` now swallows the `\n`
 of a CRLF pair (one-byte pushback otherwise); a 3-line `for` body pasted
 with `\r\n` runs to completion.
+
+## Update 2026-10-31 — SW2 "BOOT" test (OWL Rev2 top silk: SW2 BOOT, SW3 RST)
+
+Operator held SW2 while pulsing SW3, then the firmware (RAM-loaded, SRC
+registers untouched by the RAM load) read the straps latched at that reset:
+
+```
+SRC_SBMR2 = 0x01000009  → BMOD = 01 (Serial Downloader forced), BT_FUSE_SEL = 0
+SRC_SBMR1 = 0x000004C0  → BOOT_CFG sampled: Serial NAND, FlexSPI1 — identical to the flash-booting reference board (s252)
+```
+
+So SW2 pulls **BOOT_MODE0** high (the classic "enter bootloader" button), and
+without it the pins read `00`.  Internal boot needs `10`: **BOOT_MODE1 high,
+BOOT_MODE0 low**.  The BOOT_CFG straps are already correct, so the only
+missing part is the pull-up on BOOT_MODE1 (GPIO_LPSR_03; R163/R164/R29 DNP on
+the 2026-10 schematic).  Populating it should make the board boot the build
+that is on the NAND (`/default.elf` = 1666 since s253) with no firmware change.
