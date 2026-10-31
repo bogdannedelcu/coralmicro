@@ -21,6 +21,7 @@
 
 #include "third_party/freertos_kernel/include/FreeRTOS.h"
 #include "third_party/freertos_kernel/include/task.h"
+#include "third_party/freertos_kernel/include/semphr.h"
 #include "libs/nxp/rt1176-sdk/clock_config.h"
 #include "third_party/modified/nxp/rt1176-sdk/sdmmc_config.h"
 #include "third_party/nxp/rt1176-sdk/middleware/sdmmc/sd/fsl_sd.h"
@@ -32,6 +33,12 @@ extern "C" {
 uint32_t BOARD_USDHC1ClockConfiguration(void);
 void BOARD_USDHC_Errata(void);
 }
+
+/* Progress breadcrumb of the SD bring-up (1..10 = ConfigureSDHost/SD_Init
+ * steps, 100 = worker entered); read with sentai.sys.peek32 or
+ * sentai.sdcard.init_stage() when an init does not come back (audit F14/F17). */
+extern "C" volatile uint32_t g_sd_init_stage;
+volatile uint32_t g_sd_init_stage = 0;
 
 namespace coralmicro {
 
@@ -131,7 +138,9 @@ void ConfigureSDHost() {
                                                 IOMUXC_SW_PAD_CTL_PAD_ODE(0) | IOMUXC_SW_PAD_CTL_PAD_APC(0);
 
     // Rail select + card supply must be settled BEFORE the pads are muxed.
+    g_sd_init_stage = 1;
     SdBoardGpioInit();
+    g_sd_init_stage = 2;
 
     IOMUXC_SetPinMux(IOMUXC_GPIO_SD_B1_00_USDHC1_CMD, true);
     IOMUXC_SetPinMux(IOMUXC_GPIO_SD_B1_01_USDHC1_CLK, false);
@@ -152,7 +161,9 @@ void ConfigureSDHost() {
   s_sdCard.host = &s_host;
   s_sdCard.host->hostController.base = USDHC1;
 
+  g_sd_init_stage = 3;
   s_sdCard.host->hostController.sourceClock_Hz = BOARD_USDHC1ClockConfiguration();
+  g_sd_init_stage = 4;
 
   // Card detect always returns true (assumes card is present)
   s_cd.cdDebounce_ms = 100U;
@@ -171,9 +182,12 @@ void ConfigureSDHost() {
   // Card supply: off for >= 20 ms (discharge), then on.  C78 on the gate
   // soft-starts VSD_3V3; wait for it to settle before the first command.
   SdBoardPower(false);
+  g_sd_init_stage = 5;
   vTaskDelay(pdMS_TO_TICKS(30));
+  g_sd_init_stage = 6;
   SdBoardPower(true);
   vTaskDelay(pdMS_TO_TICKS(30));
+  g_sd_init_stage = 7;
 
   // Set interrupt priority
   NVIC_SetPriority(USDHC1_IRQn, 5);
@@ -185,10 +199,29 @@ void ConfigureSDHost() {
 
 }
 
-}  // namespace
+// ---- bounded init worker (audit F14) --------------------------------------
+// Static allocation (embeded.md: no heap in drivers).  The stack lives in
+// SDRAM: SD_Init() + the SDMMC host need ~1.5 KB; 2048 words is the same
+// size the boot-time mount task uses for the same call chain.
+constexpr uint32_t kInitTaskStackWords = 2048;
+__attribute__((section(".sdram_bss"))) StackType_t s_initTaskStack[kInitTaskStackWords];
+StaticTask_t      s_initTaskTcb;
+StaticSemaphore_t s_initDoneStorage;
+SemaphoreHandle_t s_initDone   = nullptr;
+volatile TaskHandle_t s_initTask = nullptr;
+volatile bool     s_initResult = false;
 
-bool SDCard::Init() {
+bool InitDirect();
 
+void InitTaskFn(void*) {
+  g_sd_init_stage = 100;
+  s_initResult = InitDirect();
+  s_initTask = nullptr;
+  xSemaphoreGive(s_initDone);
+  vTaskDelete(nullptr);
+}
+
+bool InitDirect() {
   if (s_cardInitialized) {
     printf("[SDCard] Init: Already initialized\r\n");
     return true;
@@ -196,11 +229,14 @@ bool SDCard::Init() {
 
   // Configure host controller
   ConfigureSDHost();
+  g_sd_init_stage = 8;
   printf("[SDCard] Init: SD host configured (USDHC1 at %u Hz)\r\n",
          s_sdCard.host->hostController.sourceClock_Hz);
+  g_sd_init_stage = 9;
 
   // Initialize SD card
   status_t status = SD_Init(&s_sdCard);
+  g_sd_init_stage = 10;
 
   if (status != kStatus_Success) {
     printf("[SDCard] Init: FAILED - SD_Init returned error 0x%x\r\n", status);
@@ -211,6 +247,34 @@ bool SDCard::Init() {
   printf("[SDCard] Init: SUCCESS - Card initialized\r\n");
   return true;
 }
+
+}  // namespace
+
+int SDCard::InitBounded(uint32_t deadline_ms) {
+  if (s_cardInitialized) return 1;
+  if (s_initTask != nullptr) return -2;          // previous attempt still inside SD_Init()
+  if (s_initDone == nullptr) {
+    s_initDone = xSemaphoreCreateBinaryStatic(&s_initDoneStorage);
+    if (s_initDone == nullptr) return 0;
+  }
+  (void)xSemaphoreTake(s_initDone, 0);           // drop a stale completion
+  s_initResult = false;
+  // Static task (no heap): stack in SDRAM, TCB + semaphore storage static.
+  // (A/B 2026-10-31: a heap stack behaved identically; the blocked worker
+  // seen that day was the card not answering CMD8, audit F17.)
+  TaskHandle_t h = xTaskCreateStatic(InitTaskFn, "sd_init", kInitTaskStackWords, nullptr,
+                                     uxTaskPriorityGet(nullptr), s_initTaskStack, &s_initTaskTcb);
+  if (h == nullptr) return 0;
+  s_initTask = h;
+  if (xSemaphoreTake(s_initDone, pdMS_TO_TICKS(deadline_ms)) == pdTRUE) {
+    return s_initResult ? 1 : 0;
+  }
+  printf("[SDCard] Init: no answer from SD_Init() within %lu ms (no card / no USDHC wiring?)"
+         " -- worker left running, REPL stays alive\r\n", (unsigned long)deadline_ms);
+  return -1;
+}
+
+bool SDCard::Init() { return InitBounded(kInitDeadlineMs) == 1; }
 
 void SDCard::Deinit() {
   if (!s_cardInitialized) {

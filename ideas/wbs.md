@@ -1009,6 +1009,10 @@ OP — ObjectsPlan thesis
 │        │   writer (-> T9), MP M13/M14 (fs_cache sync), mic pvPortMalloc
 │        │   (M9, accepted), EMU target link unverified.
 │        ├── OP-S10-W23-T9 — Dual-camera alternation: frame identity + full-rate 1:1 🟢 SHIPPED (EXP-s251, 2026-10-31, build 1664: deferred MUX flip on GPT1 OCR2 fixes the CSI wedge F16 (flip raced the Frame-End packet); init pre-trim + cam_tune on-the-fly re-alignment + genlock()/phase() + stale guard + phase monitor + SDK patch 0005/F15)
+│        ├── OP-S10-W23-T11 — Evaluate genlock_auto mode 2 (pre-trim + measured verify at every init, default since 2026-10-31): 5-min then 10-min dual-camera soak with autotune on; accept if phase stays within ±60 µs and 0 stalls ⬜ TODO (operator request 2026-10-31)
+│        ├── OP-S10-W23-T12 — Bounded SD init (audit F14): worker task + 5 s deadline, SERR 0x0D39, sentai.sdcard.init(deadline_ms)/init_stage() 🟢 SHIPPED (build 1675, 2026-10-31); F17 microSD unresponsive after persistent-flash session ⬜ OPEN (reseat pending)
+│        ├── OP-S10-W23-T13 — Dual-camera tests at VGA30 and VGA60: alternation stability + drift over 2-3 min, all phase/VBLANK constants derived from the measured period and VTS ⬜ TODO (operator request 2026-10-31)
+│        ├── OP-S10-W23-T14 — ratio() per-frame alternation (count sensor frames, not FB2 pairs) now that flips are deferred and phase-aligned ⬜ TODO (2026-10-31)
 │        └── OP-S10-W23-T10 — Optional: flip-free phase measurement from the OV5640 STROBE pads (GPT capture); CSI-wedge recovery experiments if F16 ever recurs ⚪ OPTIONAL (2026-10-31, no longer needed for safety)
 │            EXP-s251 iter6: software genlock (one-frame VTS tweak) brings
 │            the sensors to phi = 4 us -> ratio(1,1) with drain=0/dirty=0

@@ -474,6 +474,16 @@ these for bring-up and forensics, not for data.  Board rev 2026-10:
 ### `sentai.sdcard.init()` → bool
 Power the slot and run the SD init sequence.  Idempotent.
 
+### `sentai.sdcard.init(deadline_ms=5000)` → bool  /  `sentai.sdcard.init_stage()` → int
+Bounded (audit F14, build ≥ 1675): `SD_Init` runs in a static worker task
+and the call returns `False` after `deadline_ms` if the card does not
+answer (empty socket, unwired USDHC, or a card that stopped responding —
+F17); dmesg gets `SERR_LFX_SD_INIT_TIMEOUT` (0x0D39).  The worker is left
+running; a later `init()` returns its result once it finishes, or `False`
+immediately while it is still inside `SD_Init`.  `init_stage()` is the
+progress breadcrumb of the last attempt (1–8 host setup, 9 inside
+`SD_Init`, 10 returned, 100 worker entered).
+
 ### `sentai.sdcard.deinit()` → None
 Power the slot down.  Do not call while the FileX volume is mounted.
 

@@ -11,6 +11,7 @@
 // (see [[no-heavy-data-through-mp]]).
 
 #include "libs/sdcard/sdcard.h"
+#include "sentai_error.h"
 #include "third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_common.h"
 
 #include <cstdint>
@@ -73,8 +74,16 @@ int describe_vbr(const uint8_t* s, char* out, size_t out_len) {
 
 extern "C" {
 
-int sentai_sdcard_init(void) {
-  return coralmicro::SDCard::Init() ? 0 : -1;
+// deadline_ms <= 0 -> default.  Returns 0 ok, -1 failed, -2 timeout
+// (SERR_LFX_SD_INIT_TIMEOUT), -3 a previous init is still running.
+int sentai_sdcard_init(int deadline_ms) {
+  uint32_t dl = deadline_ms > 0 ? (uint32_t)deadline_ms : coralmicro::SDCard::kInitDeadlineMs;
+  int r = coralmicro::SDCard::InitBounded(dl);
+  if (r == 1) return 0;
+  if (r == -1) { SERR_LOG(SERR_LFX_SD_INIT_TIMEOUT, dl); return -2; }
+  if (r == -2) return -3;
+  SERR_LOG(SERR_LFX_SD_INIT_FAIL, 0);
+  return -1;
 }
 
 void sentai_sdcard_deinit(void) { coralmicro::SDCard::Deinit(); }

@@ -3204,9 +3204,9 @@ static volatile uint32_t g_cam_genlock_busy    = 0;   // monitor must not judge 
 // (audit F16: FRMCNT frozen, CSI2RX SoT/ECC errors, only a SoC reset
 // recovers).  Until the flip-free phase measurement (STROBE pads, W23-T10)
 // exists, the operator enables it per mission: sentai.camera.genlock_auto(1).
-// 0 = nothing at init; 1 (default) = open-loop PRE-TRIM only (no flips);
-// 2 = pre-trim + measured genlock (flips at an already-aligned phase).
-static volatile uint32_t g_cam_genlock_auto    = 1;
+// 0 = nothing at init; 1 = open-loop PRE-TRIM only (no flips);
+// 2 (default) = pre-trim + measured genlock (flips at an already-aligned phase).
+static volatile uint32_t g_cam_genlock_auto    = 2;   // operator decision 2026-10-31: best mode by default
 // On-the-fly closed loop (operator goal 2026-10-31: "self-calibrate while
 // running, no initial calibration").  The watchdog phase monitor derives
 // phi from the production flips; two consecutive excursions wake the

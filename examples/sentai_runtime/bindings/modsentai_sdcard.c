@@ -6,7 +6,7 @@
 // Scalars and short strings only; sector data never crosses into the
 // MicroPython heap.  Read-only.
 
-extern int  sentai_sdcard_init(void);
+extern int  sentai_sdcard_init(int deadline_ms);
 extern void sentai_sdcard_deinit(void);
 extern int  sentai_sdcard_info(uint32_t *blocks, uint32_t *block_size,
                                uint32_t *capacity_mb, int *high_capacity,
@@ -14,13 +14,26 @@ extern int  sentai_sdcard_info(uint32_t *blocks, uint32_t *block_size,
 extern int  sentai_sdcard_probe(char *out, size_t out_len);
 extern int  sentai_sdcard_hexdump(uint32_t lba);
 
-// sentai.sdcard.init() -> bool
+// sentai.sdcard.init(deadline_ms=5000) -> bool
+// Bounded (audit F14): returns False after deadline_ms if SD_Init() does not
+// answer (no card / no wiring); dmesg gets SERR_LFX_SD_INIT_TIMEOUT.  A later
+// call returns the worker's result once it finishes.
 // Powers the card (SD_PWREN_B low), selects 3.3 V pad rail, runs the SD
 // init sequence.  Idempotent.
-static mp_obj_t mod_sentai_sdcard_init(void) {
-    return mp_obj_new_bool(sentai_sdcard_init() == 0);
+static mp_obj_t mod_sentai_sdcard_init(size_t n_args, const mp_obj_t *args) {
+    int dl = (n_args >= 1) ? mp_obj_get_int(args[0]) : 0;
+    return mp_obj_new_bool(sentai_sdcard_init(dl) == 0);
 }
-static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_sdcard_init_obj, mod_sentai_sdcard_init);
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_sdcard_init_obj, 0, 1, mod_sentai_sdcard_init);
+
+// sentai.sdcard.init_stage() -> int
+// Progress breadcrumb of the last SD init (ConfigureSDHost/SD_Init steps,
+// 100 = worker entered, 10 = SD_Init returned); diagnostic for a stuck init.
+extern volatile uint32_t g_sd_init_stage;
+static mp_obj_t mod_sentai_sdcard_init_stage(void) {
+    return mp_obj_new_int_from_uint(g_sd_init_stage);
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_sdcard_init_stage_obj, mod_sentai_sdcard_init_stage);
 
 // sentai.sdcard.deinit()
 static mp_obj_t mod_sentai_sdcard_deinit(void) {
@@ -75,6 +88,7 @@ static const mp_rom_map_elem_t sentai_sdcard_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_sdcard) },
     { MP_ROM_QSTR(MP_QSTR_init),     MP_ROM_PTR(&mod_sentai_sdcard_init_obj) },
     { MP_ROM_QSTR(MP_QSTR_deinit),   MP_ROM_PTR(&mod_sentai_sdcard_deinit_obj) },
+    { MP_ROM_QSTR(MP_QSTR_init_stage),     MP_ROM_PTR(&mod_sentai_sdcard_init_stage_obj) },
     { MP_ROM_QSTR(MP_QSTR_info),     MP_ROM_PTR(&mod_sentai_sdcard_info_obj) },
     { MP_ROM_QSTR(MP_QSTR_probe),    MP_ROM_PTR(&mod_sentai_sdcard_probe_obj) },
     { MP_ROM_QSTR(MP_QSTR_hexdump),  MP_ROM_PTR(&mod_sentai_sdcard_hexdump_obj) },

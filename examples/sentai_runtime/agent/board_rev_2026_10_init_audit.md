@@ -28,6 +28,7 @@ items need the operator.
 | F11 | USB-C CC controller PTN5150A PORT/ID (GPIO_AD_08/09) untouched: device-only (UFP) today; fine, documented | INFO | — |
 | F12 | JTAG: `JTAG_MOD` (LPSR_13) has R37 DNP + R38 4.7 k pull-down → SWD mode selected correctly; LPSR_10..12 are muxed away from JTAG at boot (TRST/TDO/TDI), TCK/TMS left default; "Failed to power up DAP" (2026-10-30) is still unexplained | INFO | HW/FW later |
 | F14 | `sentai.sdcard.init()` (→ `SDCard::Init` → `SD_Init`) has no bound when no card answers: on the reference board it parked the REPL task for good (Ctrl-C cannot interrupt native code, the watchdog keeps kicking).  Boot mount is protected by `FxUserBootMount`'s 20 s task deadline; the REPL/REPL-driven paths are not | MEDIUM | FW |
+| F17 | **microSD stopped answering after the persistent-flash session** (2026-10-31, after EXP-s253): every `SD_Init()` blocks in `SD_CardInit` after CMD8 (USDHC1 idle: `PRES_STATE 0xFF888088`, CMD/DATA lines high, `INT_STATUS 0`, `RSP0 0`), the known-good build 1664 rebuilt from commit 35c3f695 fails identically, a 3 s `SD_PWREN_B` power-off does not recover it. Suspect: the elf_loader (old-board pinout) ran on this unit during the persistent flash and drove the SD rail/VSELECT or pads into a state the card did not come back from. Pending: physical card reseat / other card | HIGH (bring-up blocker for the SD FS) | HW/FW: reseat first; then decide whether `ConfigureSDHost` needs a longer discharge (> 30 ms) and a VSELECT reset; F14 bounded init already keeps the REPL alive |
 | F16 | **CSI input wedge on MUX flip** (EXP-s251 iter9/iter12, builds 1654/1658): during 1:1 alternation at the as-found phase (+400 µs, cam0 margin ~130 µs) the CSI stopped receiving frames (CR3.FRMCNT frozen, SR without overrun, CSI2RX IRQ_STATUS 0x13d = CRC + 2-bit ECC + ULPS + SoT + SoT-sync + ERRCONTROL, PPI_ERRSOT_HS lane 0, PPI_ERRSOTSYNC_HS lane 1); both sensors still streaming and answering on I2C. NOT recovered by sensor standby toggle, MUX switch, or `camera.stop()+init()` (which re-runs CSI2RX_Init incl. PHY PD cycle and the sensor PWDN/RESET pulse); only a SoC reset recovers. 2 of 10 cold boots during the genlock measurement | HIGH (dual-camera; latent in production alternation, same ISR flip path) | FW: genlock_auto default OFF; flip-free phase measurement via STROBE pads (W23-T10); deeper recovery (VIDEO_MUX / PGMC BPC4 / CSR re-init) to be tried on the next wedged unit |
 | F15 | NXP CSI driver keeps its empty-buffer linked list INSIDE the frame buffers; a DMA write into a still-linked buffer turns the list head into pixel data → BusFault in the CSI ISR re-arm (caught by the new crash record during EXP-s251; likely the same defect behind the iter3 LOCKUP) | HIGH (latent, dual-camera) | FW — **SHIPPED** SDK patch 0005, build 1657 |
 | F13 | SD card runs at 3.3 V signalling (SD1_VSELECT → U6 → NVCC_SD = 3V3); the hardware supports 1.8 V UHS-I switching, unused (16 MB/s read today) | INFO (future speed) | FW later |
@@ -291,7 +292,18 @@ the reference board, no USDHC1 wiring at all) the SDK init never returned.
 20 s deadline, so boot is safe; `sentai.sdcard.init()` and `FxUserRemount`
 are not.
 
-**FW proposal:** run `SD_Init` in the same deadline pattern (worker task +
+**Status (2026-10-31, build 1675): SHIPPED** — `SDCard::InitBounded(deadline_ms)`
+runs `SD_Init` in a static worker task (`sd_init`, 2048-word SDRAM stack, no
+heap) and waits at most 5 s; `-1` timeout → `SERR_LFX_SD_INIT_TIMEOUT`
+(0x0D39), the worker is left running and a later call returns its result;
+`-2` while a previous attempt is still inside `SD_Init`.  Used by
+`FxSdInit` (boot mount, remount) and `sentai.sdcard.init(deadline_ms)`;
+`sentai.sdcard.init_stage()` exposes the progress breadcrumb.  Verified on
+the REPL: `init(1)` returns False in 0.3 s with the SERR logged, the REPL
+stays alive (before: blocked forever).  The no-card path itself was
+exercised unintentionally by F17.
+
+**FW proposal (original):** run `SD_Init` in the same deadline pattern (worker task +
 `xSemaphoreTake(…, 5 s)`), or probe the card first with a bounded
 `SDMMCHOST` command (CMD0/CMD8 with the host's own transfer timeout) and
 return `-ETIMEDOUT` to the REPL; add `SERR_LFX_SD_INIT_TIMEOUT`.  Test:

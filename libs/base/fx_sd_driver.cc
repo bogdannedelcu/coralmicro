@@ -87,9 +87,13 @@ int FxSdInit(void) {
     coralmicro::SDCard::Deinit();
     s_card_was_init = false;
   }
-  if (!coralmicro::SDCard::Init()) {
-    SERR_LOG(SERR_LFX_SD_INIT_FAIL, 0);
-    return 0;
+  {
+    const int r = coralmicro::SDCard::InitBounded(coralmicro::SDCard::kInitDeadlineMs);
+    if (r != 1) {
+      if (r == -1) SERR_LOG(SERR_LFX_SD_INIT_TIMEOUT, coralmicro::SDCard::kInitDeadlineMs);
+      else         SERR_LOG(SERR_LFX_SD_INIT_FAIL, (uint32_t)(-r));
+      return 0;
+    }
   }
   s_card_was_init = true;
   if (coralmicro::SDCard::GetBlockSize() != FX_SD_BLOCK_SIZE ||

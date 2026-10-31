@@ -132,3 +132,12 @@ went from build 1602 to 1666 (read back from a fresh RAM load through the new
 FCB page 0 (s248).  The only defect is BOOT_MODE[1:0]=00 at POR (hardware).
 Every `--ram` load leaves the NAND untouched, so the NAND holds the LAST
 persistent build, not the running one.
+
+**F17 (2026-10-31 ~12:30, after EXP-s253 persistent flash):** the microSD stopped
+answering: SD_Init blocks after CMD8 (USDHC idle, lines high, no response);
+the known-good build 1664 rebuilt from 35c3f695 fails the same way; 3 s
+SD_PWREN_B power-off did not help -> hardware/card state, not firmware.
+Operator asked to reseat the card.  Bounded SD init (F14, W23-T12) shipped
+in build 1675 and keeps the REPL alive meanwhile.  ToDo: W23-T11 (genlock
+mode-2 soak 5/10 min), T13 (VGA30/VGA60 tests, fps-derived constants),
+T14 (per-frame ratio alternation).

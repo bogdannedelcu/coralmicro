@@ -241,6 +241,7 @@ extern "C" {
 #define SERR_LFX_FS_UNKNOWN     (SERR_MOD_LFX | 0x30)  // card has data but FileX cannot mount it (exFAT/foreign); SAFE MODE (val=fx_status)
 #define SERR_LFX_SD_READ_FAIL   (SERR_MOD_LFX | 0x31)  // SD_ReadBlocks failed (val=lba)
 #define SERR_LFX_SD_WRITE_FAIL  (SERR_MOD_LFX | 0x32)  // SD_WriteBlocks failed (val=lba)
+#define SERR_LFX_SD_INIT_TIMEOUT (SERR_MOD_LFX | 0x39) // SD_Init() gave no answer within the bounded wait (no card / no USDHC wiring); worker left running (val=deadline_ms) - audit F14
 #define SERR_LFX_MOUNT_TIMEOUT  (SERR_MOD_LFX | 0x33)  // boot-time mount task exceeded its deadline; SAFE MODE, task left for fx_format to reap (val=deadline_ms)
 #define SERR_LFX_BPB_INVALID    (SERR_MOD_LFX | 0x34)  // boot sector failed sanity checks before fx_media_open (val=check_id 1..10)
 #define SERR_LFX_MOUNT_REAP_FAIL (SERR_MOD_LFX | 0x35) // stuck boot-mount did not unwind after SD abort within the bounded wait; SD layer disabled until reboot (val=wait_ms)

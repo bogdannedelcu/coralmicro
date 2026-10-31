@@ -169,3 +169,4 @@ CODE,MODULE,NAME,DESCRIPTION,VERSION_ADDED,STATUS
 0x0E30,FLOW,NOTIFY_TIMEOUT,ISR notify not received within deadline; sensor stalled or CSI ISR silenced (val=ms_since_last),v1.8,ACTIVE
 0x0E31,FLOW,NOTIFY_OVERRUN,ISR notifies arriving faster than task can drain; compute deadline missed (val=pending),v1.8,ACTIVE
 0x0D38,LFX,LOCK_RECLAIMED,sentai_fs_lock found the mutex already owned by the calling task (a MicroPython binding raised while holding it) - reclaimed instead of timing out (val=task handle),v1.9,ACTIVE
+0x0D39,LFX,SD_INIT_TIMEOUT,SD_Init() gave no answer within the bounded wait (empty socket or no USDHC wiring) - init worker task left running and REPL stays alive; a later init returns its result (val=deadline_ms) - audit F14,v1.9,ACTIVE

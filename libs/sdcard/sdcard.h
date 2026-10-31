@@ -63,7 +63,17 @@ class SDCard {
   // pins, detects the card, and performs SD card initialization sequence.
   //
   // @return True if initialization succeeds, false otherwise.
+  // Bounded: equivalent to InitBounded(kInitDeadlineMs) == 1.
   static bool Init();
+
+  // Bounded init (audit F14): SD_Init() has no deadline of its own and never
+  // returns on an empty socket / unwired USDHC, so it runs in a dedicated
+  // worker task (static stack, no heap) and the caller waits at most
+  // `deadline_ms`.  Returns 1 = card initialised, 0 = SD_Init failed,
+  // -1 = deadline exceeded (worker still running; a later call returns its
+  // result once it finishes), -2 = a previous init is still running.
+  static int InitBounded(uint32_t deadline_ms);
+  static constexpr uint32_t kInitDeadlineMs = 5000;
 
   // Deinitializes the SD card interface and powers down the card.
   static void Deinit();
