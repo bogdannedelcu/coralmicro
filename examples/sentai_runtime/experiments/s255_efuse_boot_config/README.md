@@ -62,3 +62,18 @@ build #1682**; **SW2 held + RST → `1fc9:013d`** (Serial Downloader, recovery
 path intact); plain RST → back to the firmware.  The health indicator
 (STAT LED code 1 = no SD card, `sys.health()`) runs on the flash-booted
 build.  Next: unit 58eb.
+
+## Result — unit 58eb (rev 1.1, cameras + microSD) — 2026-10-31
+
+Operator ran the burn (`burn_board58eb.log`): 0x940 → `0x000004C0` OK, 0x960 →
+`0x00000018` OK; after `blhost reset` the board enumerated from the NAND as
+build #1666 (what s253 had left there).  Persistent flash of build 1682 →
+boots 1682 by itself.  **s249 regression 15/15 on the flash-booted firmware**
+(`SBMR2 = 0x00000019`); `sys.health()`: SD, both cameras and the TPU present,
+genlock verified (phase 3 µs, pre-trim 12 lines at the default 30 fps).  One
+finding: the boot-time IMU probe failed on the cold start (code 4) while the
+same init passed seconds later → the driver now retries the wake over three
+rounds (build 1683).
+
+Both rev-1.1 units now boot from flash with BOOT_MODE `00`; the strap fix
+(R163) is unnecessary.  Recovery stays SW2 + RST → Serial Downloader.

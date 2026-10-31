@@ -1,0 +1,9 @@
+FUSE 0x940 BOOT_CFG1/2         idx 0x14 = 0x00000000
+FUSE 0x960 BT_FUSE_SEL(b4)     idx 0x16 = 0x00000008
+FUSE 0x9A0 FLASH_CONN/PINGRP   idx 0x1A = 0x00000000
+FUSE 0xC80 NAND timing         idx 0x48 = 0x00000000
+PROGRAMMING idx 0x14 |= 0x000004C0 ...
+  read-back 0x000004C0 OK
+PROGRAMMING idx 0x16 |= 0x00000010 ...
+  read-back 0x00000018 OK
+done; resetting the board

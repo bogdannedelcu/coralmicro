@@ -309,14 +309,21 @@ static uint8_t g_imu_addr = 0;
 // address.  Try both; remember the one that passed WHO_AM_I.
 int sentai_imu_init(void) {
     if (g_imu_initialized) return 0;  // already initialized
+    // Right after a cold power-up the part needs more than one wake write +
+    // 25 ms before WHO_AM_I answers (58eb, 2026-10-31: the boot probe failed,
+    // the same call a few seconds later passed).  Up to 3 rounds over both
+    // addresses, 30 ms apart; bounded (< 400 ms worst case).
     static const uint8_t kAddrs[2] = {0x19, 0x18};
-    for (int i = 0; i < 2; ++i) {
-        if (g_imu.Init(I2C5Handle(), kAddrs[i])) {
-            g_imu_addr = kAddrs[i];
-            g_imu_initialized = true;
-            printf("[LIS2DUX12] ready at 0x%02X\r\n", g_imu_addr);
-            return 0;
+    for (int round = 0; round < 3; ++round) {
+        for (int i = 0; i < 2; ++i) {
+            if (g_imu.Init(I2C5Handle(), kAddrs[i])) {
+                g_imu_addr = kAddrs[i];
+                g_imu_initialized = true;
+                printf("[LIS2DUX12] ready at 0x%02X (round %d)\r\n", g_imu_addr, round);
+                return 0;
+            }
         }
+        vTaskDelay(pdMS_TO_TICKS(30));
     }
     return -1;  // init failed at both addresses
 }

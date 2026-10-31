@@ -192,3 +192,7 @@ persistent flash on a fused board runs for real at the next reset.
 85b1 fully verified after the fuse burn: POR replug boots 1682 from NAND, SW2+RST
 -> SDP, plain RST -> firmware.  Persistent flashtool runs are now "live" on
 85b1 (the next reset runs what was flashed).
+**58eb FUSED too (2026-10-31):** boots from NAND, persistent 1682 runs at reset,
+s249 15/15 from flash with SD + cameras.  BOTH rev-1.1 units now flash-boot;
+R163 unnecessary.  IMU boot probe needed a retry (3 rounds, build 1683).
+Persistent flashtool is now the normal path; --ram only for quick tests.
