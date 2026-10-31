@@ -196,3 +196,7 @@ persistent flash on a fused board runs for real at the next reset.
 s249 15/15 from flash with SD + cameras.  BOTH rev-1.1 units now flash-boot;
 R163 unnecessary.  IMU boot probe needed a retry (3 rounds, build 1683).
 Persistent flashtool is now the normal path; --ram only for quick tests.
+**Cold POR check on 58eb, build 1686 (2026-10-31 end):** sys.health() clean
+(sd/imu/tpu True, no led codes, no 0F11/0D39) -> the 3-round IMU wake works
+from cold.  Rev-1.1 hardware bring-up COMPLETE (W22 effectively closed except
+T8 EMU storage parked, T9 F2/F4/F6-F10 postponed).
