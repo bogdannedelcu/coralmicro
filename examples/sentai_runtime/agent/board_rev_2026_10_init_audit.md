@@ -28,6 +28,7 @@ items need the operator.
 | F11 | USB-C CC controller PTN5150A PORT/ID (GPIO_AD_08/09) untouched: device-only (UFP) today; fine, documented | INFO | — |
 | F12 | JTAG: `JTAG_MOD` (LPSR_13) has R37 DNP + R38 4.7 k pull-down → SWD mode selected correctly; LPSR_10..12 are muxed away from JTAG at boot (TRST/TDO/TDI), TCK/TMS left default; "Failed to power up DAP" (2026-10-30) is still unexplained | INFO | HW/FW later |
 | F14 | `sentai.sdcard.init()` (→ `SDCard::Init` → `SD_Init`) has no bound when no card answers: on the reference board it parked the REPL task for good (Ctrl-C cannot interrupt native code, the watchdog keeps kicking).  Boot mount is protected by `FxUserBootMount`'s 20 s task deadline; the REPL/REPL-driven paths are not | MEDIUM | FW |
+| F15 | NXP CSI driver keeps its empty-buffer linked list INSIDE the frame buffers; a DMA write into a still-linked buffer turns the list head into pixel data → BusFault in the CSI ISR re-arm (caught by the new crash record during EXP-s251; likely the same defect behind the iter3 LOCKUP) | HIGH (latent, dual-camera) | FW (SDK patch) |
 | F13 | SD card runs at 3.3 V signalling (SD1_VSELECT → U6 → NVCC_SD = 3V3); the hardware supports 1.8 V UHS-I switching, unused (16 MB/s read today) | INFO (future speed) | FW later |
 
 ## 1. Pin / net map (nets that firmware drives or should know)
@@ -295,6 +296,29 @@ are not.
 return `-ETIMEDOUT` to the REPL; add `SERR_LFX_SD_INIT_TIMEOUT`.  Test:
 `sentai.sdcard.init()` with the card removed returns False within 5 s and
 the REPL stays alive.
+
+### F15 — NXP CSI driver: empty-buffer list lives inside the frame buffers (EXP-s251, build 1651)
+
+Caught by the new crash-text path (first real field use): `BUS_FAULT
+PC=0x0000EA8A` = `CSI_TransferGetEmptyBuffer` (fsl_csi.c:235) called from
+`CSI_TransferHandleIRQ` re-arm path, `BFAR = r0 = 0x00604F90` — a pixel
+value (XRGB 60/4F/90) dereferenced as a pointer.  The SDK driver keeps its
+empty-buffer list as a singly linked list whose "next" word is stored in
+the first 4 bytes of each empty frame buffer.  If the CSI DMA writes into a
+buffer that is still linked (double submission, the single-buffer branch
+at fsl_csi.c:944-948 when the queue is full, or a skipped double-done
+IRQ), the list head becomes pixel data and the next re-arm faults inside
+the ISR.  It happened 3534 s into a session while both sensors were put in
+software standby and restarted (s251 sync-start test); the iter3 LOCKUP
+(fault during a fault, no breadcrumb) is probably the same defect caught
+one level deeper.  The stale-queue condition of finding 5 (three full
+buffers, single-buffer mode) makes the window wider.
+
+**FW proposal (SDK patch 0005):** keep the empty list in a side array
+(indices into the known 4-buffer pool) and bounds-check `emptyBuffer`
+before dereferencing; on corruption drop to a `SERR_CAM_QUEUE_CORRUPT`
+counter and re-initialise the queue instead of faulting.  Plus the stale
+guard of s251 proposal C so the queue never sits full.
 
 ## 3. Sleep / wake architecture (what the board allows)
 

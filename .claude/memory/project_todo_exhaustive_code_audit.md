@@ -140,3 +140,10 @@ probe MUST consume frames (frame-complete hook only fires when a frame is
 queued; log freezes otherwise).  First grab after >=1 s idle is a stale
 buffer (0.5-1 s old).  MicroPython: ints > 2^30 are long-long and cannot mix
 with floats.  One unexplained M7 LOCKUP reset during iter3.
+
+**F15 (2026-10-31, caught by the crash-text path):** fsl_csi.c keeps the
+empty-buffer linked list inside the frame buffers; DMA into a still-linked
+buffer -> `CSI_TransferGetEmptyBuffer` dereferences a pixel (BFAR 0x00604F90)
+in the CSI ISR.  Seen once during the s251 sensor standby/restart test
+(up=3534 s); the iter3 LOCKUP is probably the same bug.  Proposal: SDK patch
+0005 (side-array list + bounds check + SERR) and the stale-queue guard.

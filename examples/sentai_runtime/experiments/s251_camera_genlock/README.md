@@ -102,9 +102,40 @@ mapped to (−T/2, T/2].  Steady interval T = 22 283 µs (VGA45: VTS 984 lines �
    long-long ints which raise `TypeError` when mixed with floats; the driver
    is integer-only.
 
+## iter7 — synchronous start over I²C (operator question)
+
+Both sensors into software standby (`0x3008 = 0x42`), wait 60 ms (0 frames
+arrive), release them back-to-back from MicroPython, measure φ while
+dequeuing:
+
+| release order | 1st write → 2nd write | φ(cam1 − cam0) after |
+|---|--:|--:|
+| cam0 first | 414 µs | +447 µs |
+| cam1 first | 402 µs | −383 µs |
+| cam0 first | 400 µs | +432 µs |
+
+Each `sentai.camera.reg_write` costs ~400–420 µs through the CameraTask /
+LPI2C path, and **φ equals the release gap, with the sign of the order** —
+which is also why the as-found value after every `camera.init()` is
+≈ +411 µs (cam0 is started first).  Consequences: the phase is deterministic
+per firmware (not random), a C-side release with both LPI2C transfers
+issued within a few microseconds would land |φ| in the tens of µs by
+construction, and the remaining error is removable with one VTS tweak.
+Sensors resumed at 45 fps after each restart (17–18 frames / 400 ms).
+
+Hazard: the first attempt of this test faulted the board — see
+`agent/board_rev_2026_10_init_audit.md` F15 (NXP CSI driver keeps its
+empty-buffer list inside the frame buffers; a DMA write into a still-linked
+buffer makes the ISR dereference pixel data).  The record was rescued by
+the new crash-text slot (`BUS_FAULT PC=0xEA8A CSI_TransferGetEmptyBuffer,
+BFAR=0x00604F90`).  Draining the queue before the standby avoided it in the
+second attempt; the defect itself stays open (SDK patch proposal).
+
 ## Proposal (next, needs operator go)
 
-A. `sentai.camera.genlock()` — C implementation of iter6's loop at
+A. `sentai.camera.genlock()` — C implementation at `camera.init()`:
+   release both sensors from standby back-to-back in C (|φ| → tens of µs
+   by construction, iter7), then iter6's loop as verification/trim: at
    `camera.init()`: alternate 1:1 for ~70 frames while dequeuing, estimate φ
    from the FB-done log, apply one VTS tweak (cap 200 lines per step), verify
    (|φ| < 60 µs), two steps max (~3 s).  Expose φ in `camera.stats()` and
