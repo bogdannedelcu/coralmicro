@@ -942,7 +942,7 @@ OP — ObjectsPlan thesis
 │   │    ├── OP-S10-W22-T5 — T5838 mic pin remap (THSEL = GPIO_AD_18 per sheet 12; AD_19 is tied to MIC_CLK) ✅ DONE (build 1642)
 │   │    ├── OP-S10-W22-T6 — VDD_1V8_INT_EN polarity verification    ✅ DONE (sheet 4: TCR2LN18 CONTROL active-high; rail fed by PMIC via R13, pin held LOW on purpose)
 │   │    ├── OP-S10-W22-T7 — Persistent-flash boot + MSC storage mode re-test ⬜ BLOCKED (hardware, T4)
-│   │    └── OP-S10-W22-T8 — EMU (Renode) storage targets vs the SD backend ⬜ TODO
+│   │    ├── OP-S10-W22-T8 — EMU (Renode) storage targets vs the SD backend ⬜ TODO
 │   │        emu/CMakeLists.txt still pairs fx_user_fs.cc with
 │   │        fx_nand_driver.cc (Renode nand_bridge host image) in 5
 │   │        targets (fx_storage, fs_stage_assets, fs_repl*, gazebo_flow
@@ -953,6 +953,16 @@ OP — ObjectsPlan thesis
 │   │        Renode (keeps persistence), or a RAM-disk FxSd* stub (loses
 │   │        the host image).  Decide with the operator; EMU is a dev
 │   │        tool, not a deliverable.
+│   │    └── OP-S10-W22-T9 — Hardware vs firmware init audit (schematic + BOM) 🟡 PROPOSAL (2026-10-31)
+│   │        examples/sentai_runtime/agent/board_rev_2026_10_init_audit.md:
+│   │        F1 boot straps inverted + SW1/R163/R164 DNP (BLOCKER, HW);
+│   │        F2 SDK debug console on LPUART6 = PILOT connector; F3
+│   │        VDD_1V8_INT_EN inverted by Q9 (0 = rail ON, R13 DNP); F4
+│   │        PwmInit re-muxes AD_00/01 (CAM1 I2C switch); F5 legacy
+│   │        pin_mux; F6 IRQ table gaps; F7 WAKEUP pad unhandled; F8 TPU
+│   │        PGOOD unbounded; F9-F13 hygiene/info.  Sleep levels L1-L3
+│   │        (L3 = SNVS power-down, wake on mic AAD / IMU INT1 via
+│   │        WAKEUP) blocked by F1.  Awaiting operator decisions (§5).
 │   │
 │   └── OP-S10-W23 — Firmware hardening audit (races, hangs, OOM)   🟡 IN-PROGRESS (2026-10-30)
 │        │ Operator request 2026-10-30: exhaustive audit of the SentAI

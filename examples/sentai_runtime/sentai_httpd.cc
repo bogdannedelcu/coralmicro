@@ -33,7 +33,12 @@ static uint8_t g_browser_html_cache_buf[kBrowserHtmlCacheMax]
 static size_t g_browser_html_cache_len = 0;
 
 // POST upload body (512 KB max)
-static constexpr size_t kPostBufSize = 512 * 1024;
+// 2026-10-31: 512 KB -> 1 MB (EdgeTPU model uploads over HTTP now that the
+// NCM path runs at ~5 MB/s).  Bodies above the cap are drained and answered
+// with an explicit JSON error instead of lwIP's generic 404 page.
+static constexpr size_t kPostBufSize = 1024 * 1024;
+static bool g_post_too_large = false;
+static int  g_post_content_len = 0;
 static uint8_t g_post_buf[kPostBufSize]
     __attribute__((section(".sdram_bss")));
 static size_t g_post_buf_len = 0;
@@ -168,6 +173,19 @@ class SentaiHttpServer : public coralmicro::HttpServer {
       if (len == (size_t)-1) {
         return 0;  // 404: file not found or empty
       }
+      if (len == FS_RESP_TOO_LARGE) {
+        // Explicit refusal: the old path truncated to the buffer size and
+        // returned 200 OK with a short body.
+        static char too_large[96];
+        int n = snprintf(too_large, sizeof(too_large),
+                         "{\"error\":\"too_large\",\"max\":%u}",
+                         (unsigned)sentai_fs_resp_cap());
+        file->data  = too_large;
+        file->len   = n;
+        file->index = n;
+        file->flags = FS_FILE_FLAGS_HEADER_PERSISTENT;
+        return 1;
+      }
       if (len == 0) {
         // Not ready — tell browser to retry.
         file->data  = kLfsBusy;
@@ -210,7 +228,11 @@ class SentaiHttpServer : public coralmicro::HttpServer {
                   u16_t response_uri_len, u8_t* post_auto_wnd) override {
     (void)connection; (void)http_request; (void)http_request_len;
     (void)response_uri; (void)response_uri_len;
-    if (content_len > static_cast<int>(kPostBufSize)) return ERR_MEM;
+    // Accept the connection even when the body is too big: drain it and
+    // answer with a JSON error in PostFinished (ERR_MEM here made lwIP emit
+    // its HTML 404 page, which curl users read as "endpoint missing").
+    g_post_too_large   = content_len > static_cast<int>(kPostBufSize);
+    g_post_content_len = content_len;
     snprintf(g_post_uri, sizeof(g_post_uri), "%s", uri);
     g_post_buf_len = 0;
     *post_auto_wnd = 1;
@@ -219,6 +241,7 @@ class SentaiHttpServer : public coralmicro::HttpServer {
 
   err_t PostReceiveData(void* connection, struct pbuf* p) override {
     (void)connection;
+    if (g_post_too_large) { pbuf_free(p); return ERR_OK; }   // drain only
     for (struct pbuf* q = p; q; q = q->next) {
       size_t avail = kPostBufSize - g_post_buf_len;
       size_t copy  = (q->len < avail) ? q->len : avail;
@@ -235,7 +258,11 @@ class SentaiHttpServer : public coralmicro::HttpServer {
     snprintf(g_post_result, sizeof(g_post_result),
              "{\"ok\":false,\"error\":\"unknown endpoint\"}");
 
-    if (sentai_usb_drive_get()) {
+    if (g_post_too_large) {
+      snprintf(g_post_result, sizeof(g_post_result),
+               "{\"ok\":false,\"error\":\"too_large\",\"size\":%d,\"max\":%u}",
+               g_post_content_len, (unsigned)kPostBufSize);
+    } else if (sentai_usb_drive_get()) {
       snprintf(g_post_result, sizeof(g_post_result),
                "{\"ok\":false,\"error\":\"USB drive active — call "
                "sentai.usb.drive(0) first\"}");

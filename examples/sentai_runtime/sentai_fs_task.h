@@ -29,10 +29,14 @@ void sentai_fs_task_start(void);
 //                         call sentai_fs_resp_done() when done streaming
 //   - READY (path mismatch): discards, re-queues new request, returns 0 (retry)
 //   - SERVING: previous response still streaming, returns 0 (retry)
+// FS_RESP_TOO_LARGE: the file exceeds the response buffer; never truncated,
+// the caller answers with an explicit error (2026-10-31).
+#define FS_RESP_TOO_LARGE ((size_t)-2)
 size_t sentai_fs_try_serve(sentai_fs_req_type_t type, const char* path);
 
 // Pointer to the 256KB SDRAM response buffer filled by the lfs_task.
 uint8_t* sentai_fs_resp_buf(void);
+size_t   sentai_fs_resp_cap(void);     // response buffer size, for error messages
 
 // Signal that lwIP has finished streaming from sentai_fs_resp_buf().
 // Must be called from FsCloseCustom after a successful sentai_fs_try_serve().

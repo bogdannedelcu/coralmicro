@@ -49,9 +49,14 @@
 #define LFS_QUEUE_DEPTH    4
 
 // ---------------------------------------------------------------------------
-// Response buffer (SDRAM, 256 KB)
+// Response buffer (SDRAM, 1 MB).  2026-10-31: was 256 KB and DoRaw silently
+// TRUNCATED larger files (a 336 KB model came back as 262144 bytes with a
+// 200 OK -- found while uploading EdgeTPU models over HTTP on the new
+// board).  Files above the cap now get an explicit "too_large" reply
+// (FS_RESP_TOO_LARGE) instead of a truncated body.  Bigger payloads go
+// through the chunked REPL uploader or the USB drive.
 // ---------------------------------------------------------------------------
-static constexpr size_t kRespBufSize = 256 * 1024;
+static constexpr size_t kRespBufSize = 1024 * 1024;
 static uint8_t g_resp_buf[kRespBufSize] __attribute__((section(".sdram_bss")));
 
 // ---------------------------------------------------------------------------
@@ -182,8 +187,8 @@ static size_t DoRaw(const char* path) {
     if (!FxUserIsMounted()) return 0;
     ssize_t sz = FxUserSize(path);
     if (sz <= 0) return 0;
-    size_t to_read = ((size_t)sz < kRespBufSize) ? (size_t)sz : kRespBufSize;
-    return FxUserReadFile(path, g_resp_buf, to_read);
+    if ((size_t)sz > kRespBufSize) return FS_RESP_TOO_LARGE;   // never truncate
+    return FxUserReadFile(path, g_resp_buf, (size_t)sz);
 }
 
 // ---------------------------------------------------------------------------
@@ -272,6 +277,7 @@ size_t sentai_fs_try_serve(sentai_fs_req_type_t type, const char* path) {
         if (s_slot_type == type && strcmp(s_slot_path, path) == 0) {
             size_t len = s_slot_len;
             s_slot_state = SLOT_IDLE;
+            if (len == FS_RESP_TOO_LARGE) return FS_RESP_TOO_LARGE;
             if (len > 0) {
                 s_slot_state = SLOT_SERVING;
                 s_lfs_stats.served_ready_cached++;
@@ -328,6 +334,7 @@ size_t sentai_fs_try_serve(sentai_fs_req_type_t type, const char* path) {
             xSemaphoreTake(s_lfs_mutex, pdMS_TO_TICKS(FAST_PATH_WAIT_MS)) == pdTRUE) {
             size_t len = DoRaw(path);
             xSemaphoreGive(s_lfs_mutex);
+            if (len == FS_RESP_TOO_LARGE) return FS_RESP_TOO_LARGE;
             if (len > 0) {
                 s_slot_state = SLOT_SERVING;
                 s_lfs_stats.served_fast_raw++;
@@ -373,6 +380,7 @@ size_t sentai_fs_try_serve(sentai_fs_req_type_t type, const char* path) {
         if (s_slot_type == type && strcmp(s_slot_path, path) == 0) {
             size_t len = s_slot_len;
             s_slot_state = SLOT_IDLE;
+            if (len == FS_RESP_TOO_LARGE) return FS_RESP_TOO_LARGE;
             if (len > 0) {
                 s_slot_state = SLOT_SERVING;
                 s_lfs_stats.served_after_wait++;
@@ -420,6 +428,7 @@ extern "C" void sentai_fs_stats_get(uint32_t* out, int max_fields) {
 }
 
 uint8_t* sentai_fs_resp_buf(void) { return g_resp_buf; }
+size_t   sentai_fs_resp_cap(void) { return kRespBufSize; }
 
 void sentai_fs_resp_done(void) {
     s_slot_state = SLOT_IDLE;

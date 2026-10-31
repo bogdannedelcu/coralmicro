@@ -96,3 +96,18 @@ targets; `fx_user_fs.cc` now needs `FxSd*` → undefined references.  WBS
 OP-S10-W22-T8.  `cmake -S . -B build-emu -DSENTAI_ARM_EMU=ON
 -DSENTAI_SKIP_SDK_PATCHES=ON` configures; note every EMU build bumps
 `build_version.txt` (restore it afterwards so the counter matches the board).
+
+**Init audit 2026-10-31 (OP-S10-W22-T9, agent/board_rev_2026_10_init_audit.md):**
+BOOT straps: SW1/R163/R164 DNP; sheet-16 Q4/D6 button circuit is inverted
+(open = serial downloader, pressed = internal boot) and pull-ups hang on PMIC
+VDD_1V8 → test: hold USER while resetting.  VDD_1V8_INT_EN goes through Q9
+inverter: 0 = mic+IMU LDO ON (default, survives SNVS), 1 = OFF; R13 DNP so
+the rail is LDO-fed (the "fed from PMIC via R13" comment is wrong).  SDK
+debug console is LPUART6 = PILOT/Crazyflie connector (DbgConsole_Printf in
+cdc_acm.cc leaks onto the link).  PwmInit() re-muxes AD_00/01 every call
+(would open the CAM1 I2C switch).  WAKEUP pad (T8) = GPIO13.0 falling IRQ
+with no handler; mic WAKE (Q1) and IMU INT1 (Q5) pull it low → the SNVS
+power-down wake path exists in hardware; firmware has it only in the
+disabled camera_streaming_http example (commit 0997099b).  Operator has a
+reference board with burnt fuses that boots from flash → RAM-load and dump
+SBMR/OCOTP for comparison when asked.
