@@ -300,7 +300,7 @@ static mp_obj_t mod_sentai_cam_stats(void) {
                          &grab_retry, &grab_fatal);
     sentai_cam_stall_get(&stall_count, &stalled);
     sentai_cam_genlock_stats(&phase_us, &pvalid, &gl_ok, &gl_steps, &stale, &drift);
-    mp_obj_t d = mp_obj_new_dict(20);
+    mp_obj_t d = mp_obj_new_dict(21);
     // EXP-s251 genlock / phase monitor / stale guard
     mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_phase_us),
                       pvalid ? mp_obj_new_int(phase_us) : mp_const_none);
@@ -329,6 +329,10 @@ static mp_obj_t mod_sentai_cam_stats(void) {
         mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_vblank_us), mp_obj_new_int_from_uint(vb));
         mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_period_us), mp_obj_new_int_from_uint(T));
         mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_vts_lines), mp_obj_new_int_from_uint(vts));
+    }
+    {
+        extern int sentai_cam_ratio_unit(int set);
+        mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_ratio_unit), mp_obj_new_int(sentai_cam_ratio_unit(-1)));
     }
     {
         extern uint32_t sentai_cam_csi_queue_faults(void);
@@ -460,6 +464,19 @@ static mp_obj_t mod_sentai_cam_autotune(size_t n_args, const mp_obj_t *args) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_cam_autotune_obj, 0, 1,
                                             mod_sentai_cam_autotune);
+
+// sentai.camera.ratio_unit([n]) -> int
+// Granularity of ratio(a,b): 1 = per sensor frame (cam0,cam1,cam0,...),
+// 2 = legacy FB2 pairs (cam0,cam0,cam1,cam1,...).  Set to 1 automatically
+// when the sensors are phase-aligned (pre-trim / genlock), back to 2 while
+// the drift monitor protects.  (OP-S10-W23-T14)
+extern int sentai_cam_ratio_unit(int set);
+static mp_obj_t mod_sentai_cam_ratio_unit(size_t n_args, const mp_obj_t *args) {
+    int set = (n_args >= 1) ? mp_obj_get_int(args[0]) : -1;
+    return mp_obj_new_int(sentai_cam_ratio_unit(set));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_cam_ratio_unit_obj, 0, 1,
+                                            mod_sentai_cam_ratio_unit);
 
 // sentai.camera.flip_delay_us([us]) -> int
 // Delay between CSI FB-done and the MUX flip (GPT1 output compare).
@@ -1005,6 +1022,7 @@ static const mp_rom_map_elem_t sentai_camera_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_autotune),        MP_ROM_PTR(&mod_sentai_cam_autotune_obj) },
     { MP_ROM_QSTR(MP_QSTR_pretrim),         MP_ROM_PTR(&mod_sentai_cam_pretrim_obj) },
     { MP_ROM_QSTR(MP_QSTR_flip_delay_us),   MP_ROM_PTR(&mod_sentai_cam_flip_delay_us_obj) },
+    { MP_ROM_QSTR(MP_QSTR_ratio_unit),      MP_ROM_PTR(&mod_sentai_cam_ratio_unit_obj) },
     { MP_ROM_QSTR(MP_QSTR_phase),           MP_ROM_PTR(&mod_sentai_cam_phase_obj) },
     { MP_ROM_QSTR(MP_QSTR_frame_log),       MP_ROM_PTR(&mod_sentai_cam_frame_log_obj) },
     { MP_ROM_QSTR(MP_QSTR_fps),             MP_ROM_PTR(&mod_sentai_cam_fps_obj) },

@@ -277,7 +277,24 @@ measured verify: 27 µs, 0 trim steps), `ratio(1,1)` with a consumer.  10 window
 × 30 s: 1346–1347 of 1347–1348 frames per window (44 fps), `phase_us` 27–28 µs
 in every window, end check `phase()` = 27 µs, 0 drift events, 0 stalls, 0 CSI
 queue faults (`t11_soak5_b1683_console.txt`, `results_t11_soak5_b1683.csv`).
-Acceptance (|phase| ≤ 60 µs, 0 stalls): **PASS**.  10-minute run: below.
+Acceptance (|phase| ≤ 60 µs, 0 stalls): **PASS**.  **10-minute run (build 1684,
+`t14_t11_soak10_b1684_console.txt`): 20 windows, phase 4–6 µs throughout,
+44 fps, 0 drift, 0 stalls — PASS.**  Mode 2 stays the default.
+
+### T14 — per-frame alternation (`ratio_unit`), build 1684, `perframe_check.py`
+
+The ratio scheduler used to advance its quotas on FB2-done only, so `ratio(1,1)`
+produced pairs (cam0, cam0, cam1, cam1, …; 22.6 flips/s).  `g_cam_ratio_unit`
+= 1 now counts sensor frames: after init (pre-trim 18 lines, verify 8 µs,
+`ratio_unit` = 1) the FB-done log shows **31 of 31 transitions alternating,
+`1010101010101010`, at 44 fps**.  Per-frame alternation is only valid when the
+sensors are aligned (with dirty-skip armed every frame would be "first after a
+flip"), so the drift monitor degrades to pairs + dirty-skip while it protects
+and restores per-frame when the phase is back — observed in the same run:
+injected error → `0011001100110011` at 21 fps with `ratio_unit` 2 → autotrim
+80 lines → phase 8 µs → `1010…` at 44 fps again.  The phase estimator handles
+both regimes (pairs: same-camera intervals = T; per-frame: two consecutive
+intervals sum to 2T).  `sentai.camera.ratio_unit([1|2])`, `stats()["ratio_unit"]`.
 
 ### On-the-fly re-alignment (closed loop) — iter20 `autotune_check.py`, build 1664
 

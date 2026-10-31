@@ -361,15 +361,25 @@ int sentai_imu_reg_write(int reg, int val) {    // 0 or negative LPI2C status
 }
 
 int sentai_imu_read_accel(float* x_mg, float* y_mg, float* z_mg, float* temp_c) {
-    if (!g_imu_initialized) return -1;
-    
-    bool ready = false;
-    if (!g_imu.IsDataReady(&ready) || !ready) {
-        return -2;  // data not ready
+    // F18 follow-up (build 1685): self-healing read.  If the part was
+    // power-cycled (1V8_INT rail) it sits in deep power-down and NAKs; the
+    // first failing I2C transfer drops the init flag and the next call
+    // re-runs the bounded wake/init sequence (<= ~400 ms) before reading.
+    if (!g_imu_initialized) {
+        if (sentai_imu_init() != 0) return -1;
     }
+    bool ready = false;
+    if (!g_imu.IsDataReady(&ready)) {
+        g_imu_initialized = false;
+        printf("[LIS2DUX12] status read failed -> re-init on next call\r\n");
+        return -3;
+    }
+    if (!ready) return -2;  // data not ready (normal between samples)
     
     coralmicro::AccelData data;
     if (!g_imu.ReadData(&data)) {
+        g_imu_initialized = false;
+        printf("[LIS2DUX12] read failed -> re-init on next call\r\n");
         return -3;  // read failed
     }
     

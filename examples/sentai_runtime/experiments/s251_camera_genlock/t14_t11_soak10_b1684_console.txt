@@ -1,0 +1,47 @@
+persistent flash rc=0
+build #1684 board 58eb
+=== T14 perframe_check ===
+print("INIT", sentai.camera.init(1, 45))
+[cam] pre-trim: cam0 delayed 18 lines (406 us) -> alternation at full rate
+[cam] genlock: phase 8 us after 0 step(s) (T=22285 us)
+INIT 0
+print("UNIT_after_init", sentai.camera.ratio_unit(), "stats", {k: v for k, v in sentai.camera.stats().items() if k in ("phase_us","genlock_ok","pretrim_lines","ratio_unit")})
+UNIT_after_init 1 stats {'ratio_unit': 1, 'genlock_ok': 1, 'pretrim_lines': 18, 'phase_us': 8}
+WIN 269 270 6007 44 0 8 0 0 1 alts 31 of 31 cams 1010101010101010
+INJECT vts 984
+WIN 108 173 5023 21 0 -9321 1 0 2 alts 15 of 31 cams 0011001100110011
+WIN 108 214 5022 21 0 1820 1 1 2 alts 15 of 31 cams 0011001100110011
+WIN 197 225 5002 39 0 8 1 1 1 alts 31 of 31 cams 1010101010101010
+WIN 225 226 5017 44 0 9 1 1 1 alts 31 of 31 cams 1010101010101010
+WIN 225 225 5017 44 0 8 1 1 1 alts 31 of 31 cams 0101010101010101
+WIN 225 225 5012 44 0 8 1 1 1 alts 31 of 31 cams 1010101010101010
+WIN 225 225 5007 44 0 8 1 1 1 alts 31 of 31 cams 0101010101010101
+WIN 225 225 5002 44 0 8 1 1 1 alts 31 of 31 cams 1010101010101010
+CAM events: E:0A06:3 E:0A12:18 E:0A0C:8 E:0A0E:4294957975 E:0A11:80 E:0A10:8
+=== T11 soak 10 min ===
+[cam] genlock: phase 4 us after 0 step(s) (T=22286 us)
+INIT 0
+timing: vblank_us=543 period_us=22286 vts=984
+t=  30s consumed=1346 sensor=1347 fps=44 phase_us=5 stale=1 drift=0 stall=0
+t=  60s consumed=1347 sensor=1348 fps=44 phase_us=5 stale=2 drift=0 stall=0
+t=  90s consumed=1346 sensor=1347 fps=44 phase_us=5 stale=3 drift=0 stall=0
+t= 120s consumed=1346 sensor=1347 fps=44 phase_us=5 stale=4 drift=0 stall=0
+t= 150s consumed=1346 sensor=1347 fps=44 phase_us=5 stale=5 drift=0 stall=0
+t= 180s consumed=1347 sensor=1348 fps=44 phase_us=5 stale=6 drift=0 stall=0
+t= 210s consumed=1347 sensor=1348 fps=44 phase_us=5 stale=7 drift=0 stall=0
+t= 240s consumed=1346 sensor=1347 fps=44 phase_us=5 stale=8 drift=0 stall=0
+t= 270s consumed=1346 sensor=1347 fps=44 phase_us=5 stale=9 drift=0 stall=0
+t= 300s consumed=1346 sensor=1347 fps=44 phase_us=4 stale=10 drift=0 stall=0
+t= 331s consumed=1346 sensor=1347 fps=44 phase_us=5 stale=11 drift=0 stall=0
+t= 361s consumed=1346 sensor=1347 fps=44 phase_us=5 stale=12 drift=0 stall=0
+t= 391s consumed=1346 sensor=1347 fps=44 phase_us=4 stale=13 drift=0 stall=0
+t= 421s consumed=1346 sensor=1347 fps=44 phase_us=5 stale=14 drift=0 stall=0
+t= 451s consumed=1346 sensor=1347 fps=44 phase_us=5 stale=15 drift=0 stall=0
+t= 481s consumed=1346 sensor=1347 fps=44 phase_us=5 stale=16 drift=0 stall=0
+t= 511s consumed=1347 sensor=1348 fps=44 phase_us=5 stale=17 drift=0 stall=0
+t= 541s consumed=1346 sensor=1347 fps=44 phase_us=6 stale=18 drift=0 stall=0
+t= 571s consumed=1346 sensor=1347 fps=44 phase_us=5 stale=19 drift=0 stall=0
+t= 601s consumed=1346 sensor=1347 fps=44 phase_us=5 stale=20 drift=0 stall=0
+['print("PHASE_END", sentai.camera.phase())', 'PHASE_END (4, 22282)']
+dmesg CAM events: E:0A06:3 E:0A12:18 E:0A0C:4 E:0A00:0
+T14_T11_DONE

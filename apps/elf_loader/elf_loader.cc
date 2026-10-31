@@ -28,6 +28,8 @@
 #include "third_party/freertos_kernel/include/task.h"
 #include "third_party/freertos_kernel/include/timers.h"
 #include "third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_soc_src.h"
+#include "third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_gpio.h"
+#include "third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_iomuxc.h"
 
 extern "C" uint32_t disable_usb_timeout;
 uint32_t disable_usb_timeout __attribute__((section(".noinit_rpmsg_sh_mem")));
@@ -257,6 +259,21 @@ void usb_timer_callback(TimerHandle_t timer) {
 
 extern "C" int main(int argc, char **argv) {
   BOARD_InitHardware(false);
+  // SentAI board rev 2026-10 (audit F5/F17, 2026-10-31): the legacy pin_mux
+  // leaves GPIO_AD_12 (SD_PWREN_B, FDN306P gate) and GPIO_AD_16 (SD1_VSELECT,
+  // NX3L1T3157 S, no pull) as parallel-CSI pads while the loader runs -- for
+  // minutes during a persistent flash -- so the microSD rail/IO voltage was
+  // undefined and a card once stopped answering until a physical reseat.
+  // Park them: card unpowered (PWREN_B = 1) and IO rail at 3.3 V (VSELECT = 0).
+  // Harmless on the older revision (those pads are unused CSI lines there).
+  {
+    IOMUXC_SetPinMux(IOMUXC_GPIO_AD_12_GPIO_MUX3_IO11, 0U);
+    IOMUXC_SetPinMux(IOMUXC_GPIO_AD_16_GPIO_MUX3_IO15, 0U);
+    gpio_pin_config_t off = {kGPIO_DigitalOutput, 1, kGPIO_NoIntmode};   // PWREN_B high = card off
+    gpio_pin_config_t v33 = {kGPIO_DigitalOutput, 0, kGPIO_NoIntmode};   // VSELECT low = 3.3 V
+    GPIO_PinInit(GPIO3, 11, &off);
+    GPIO_PinInit(GPIO3, 15, &v33);
+  }
   coralmicro::LfsInit();
 
   TaskHandle_t usb_task;

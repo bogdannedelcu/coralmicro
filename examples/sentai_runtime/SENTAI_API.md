@@ -646,6 +646,13 @@ receiver can wedge (audit F16).  The firmware therefore:
    (`autotune(1)`, default on); when |φ| is back below ~VBLANK/4 the dirty
    skip is released again.
 
+### `sentai.camera.ratio_unit([n])` → int
+Granularity of `ratio(a, b)` (build ≥ 1684): `1` = per sensor frame
+(`ratio(1,1)` → cam0, cam1, cam0, cam1 … true frame interleave), `2` = legacy
+FB2 pairs (cam0, cam0, cam1, cam1 …).  Set to 1 automatically when the sensors
+are phase-aligned (pre-trim / genlock) and back to 2 (with dirty-skip) while
+the drift monitor protects; `stats()["ratio_unit"]` shows the current value.
+
 ### `sentai.camera.flip_delay_us([us])` → int
 Delay between the CSI FB-done interrupt and the MUX flip, executed on GPT1
 output compare 2 (default 40 µs).  A flip executed immediately in the CSI

@@ -195,6 +195,14 @@ volatile uint32_t g_cam_dirty_consecutive_n = 1u;
  * 40 us: >10x the measured race margin, still far inside the 543 us
  * VBLANK even at the as-found +400 us phase (cam0 SOF at ~+143 us).
  * Validated: 20 us hold -> 3/3 clean boots, 0 us -> 2/2 wedged. */
+/* Ratio scheduler granularity (OP-S10-W23-T14, 2026-10-31): 2 = legacy,
+ * quotas advance on FB2-done only (one quota = a PAIR of sensor frames, so
+ * ratio(1,1) gives cam0,cam0,cam1,cam1,...); 1 = per sensor frame
+ * (cam0,cam1,cam0,cam1,... = true frame interleave).  Per-frame is only
+ * meaningful in the phase-aligned regime: with dirty-skip armed every frame
+ * would be the "first after a flip", so the drift monitor switches back to
+ * 2 while it protects and returns to 1 when the phase is back. */
+volatile uint32_t g_cam_ratio_unit     = 2u;
 volatile uint32_t g_cam_flip_delay_us  = 40u;
 volatile uint32_t g_cam_flips_executed = 0u;   /* GPT1 OF2 flips; arms are counted in g_cam_flips_deferred below */
 static volatile int g_cam_flip_armed_id = -1;  /* target cam while the timer runs */
@@ -625,7 +633,7 @@ void CSI_IRQHandler(void)
     uint32_t rb = packed & 0xFFFFu;
     uint32_t total = ra + rb;
     if (total > 0u && g_cam_pending_mux_id < 0) {
-        uint32_t pos = g_camera_frame_seq % total;
+        uint32_t pos = ((g_cam_ratio_unit == 1u) ? g_camera_sensor_frames : g_camera_frame_seq) % total;
         int target = (pos < ra) ? 0 : 1;
         if (target != g_cam_current_id) {
             g_cam_pending_mux_id = target;

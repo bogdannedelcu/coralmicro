@@ -1,0 +1,81 @@
+print(sentai.version())
+SentAI v1.1 build 1685 (2026-10-31 14:29:00) board 58eb
+>>> print("INIT", sentai.camera.init(1, 45))
+HandlePowerRequest: cam0 (bus 1): OK, cam1 (bus 2): OK
+CAMERA_RECEIVER_Init = 0
+BOARD_PullCameraPowerDownPin:1
+BOARD_PullCameraResetPin:0
+BOARD_PullCameraPowerDownPin:0
+BOARD_PullCameraResetPin:1
+CAMERA_DEVICE_Init = 0
+CAMERA_DEVICE_Start = 0
+CAMERA_RECEIVER_Start = 0
+[CAM] sensor_fps=46 (1 s sample, target=30)
+[CAM1] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM1] W 0x3820=0x47 (0)
+[CAM1] W 0x3821=0x01 (0)
+[CAM0] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM0] W 0x3820=0x47 (0)
+[CAM0] W 0x3821=0x01 (0)
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xEA (0)
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xD8 (0)
+[cam] pre-trim: cam0 delayed 18 lines (406 us) -> alternation at full rate
+[cam] genlock: phase 4 us after 0 step(s) (T=22286 us)
+INIT 0
+>>> print("STATS0", sentai.camera.stats())
+STATS0 {'phase_drift': 0, 'vts_lines': 984, 'csi_queue_faults': 0, 'autotrims': 0, 'switch_ok_eof': 0, 'grab_retry': 0, 'pretrim_lines': 18, 'grab_fatal': 0, 'vblank_us': 543, 'drain_timeout': 0, 'stale_skips': 0, 'phase_us': 4, 'stalled': 0, 'stall_count': 0, 'period_us': 22286, 'switch_fallback': 0, 'genlock_steps': 0, 'genlock_ok': 1, 'flips_executed': 31, 'ratio_unit': 1, 'flips_deferred': 31}
+>>> exec("t0=sentai.rtos.ticks_ms()\nf0=sentai.camera.sensor_frames()\nn=0\nwhile sentai.rtos.ticks_ms()-t0<30000:\n  sentai.camera.peek_col(40); n+=1\ndt=sentai.rtos.ticks_ms()-t0\ns=sentai.camera.stats()\nprint('WIN',n,sentai.camera.sensor_frames()-f0,dt,(n*1000)//dt,s['phase_us'],s['stale_skips'],s['phase_drift'],s['stall_count'])")
+WIN 1346 1347 30007 44 5 1 0 0
+>>> exec("t0=sentai.rtos.ticks_ms()\nf0=sentai.camera.sensor_frames()\nn=0\nwhile sentai.rtos.ticks_ms()-t0<30000:\n  sentai.camera.peek_col(40); n+=1\ndt=sentai.rtos.ticks_ms()-t0\ns=sentai.camera.stats()\nprint('WIN',n,sentai.camera.sensor_frames()-f0,dt,(n*1000)//dt,s['phase_us'],s['stale_skips'],s['phase_drift'],s['stall_count'])")
+WIN 1347 1348 30024 44 5 2 0 0
+>>> exec("t0=sentai.rtos.ticks_ms()\nf0=sentai.camera.sensor_frames()\nn=0\nwhile sentai.rtos.ticks_ms()-t0<30000:\n  sentai.camera.peek_col(40); n+=1\ndt=sentai.rtos.ticks_ms()-t0\ns=sentai.camera.stats()\nprint('WIN',n,sentai.camera.sensor_frames()-f0,dt,(n*1000)//dt,s['phase_us'],s['stale_skips'],s['phase_drift'],s['stall_count'])")
+WIN 1346 1347 30004 44 5 3 0 0
+>>> exec("t0=sentai.rtos.ticks_ms()\nf0=sentai.camera.sensor_frames()\nn=0\nwhile sentai.rtos.ticks_ms()-t0<30000:\n  sentai.camera.peek_col(40); n+=1\ndt=sentai.rtos.ticks_ms()-t0\ns=sentai.camera.stats()\nprint('WIN',n,sentai.camera.sensor_frames()-f0,dt,(n*1000)//dt,s['phase_us'],s['stale_skips'],s['phase_drift'],s['stall_count'])")
+WIN 1346 1347 30017 44 5 4 0 0
+>>> exec("t0=sentai.rtos.ticks_ms()\nf0=sentai.camera.sensor_frames()\nn=0\nwhile sentai.rtos.ticks_ms()-t0<30000:\n  sentai.camera.peek_col(40); n+=1\ndt=sentai.rtos.ticks_ms()-t0\ns=sentai.camera.stats()\nprint('WIN',n,sentai.camera.sensor_frames()-f0,dt,(n*1000)//dt,s['phase_us'],s['stale_skips'],s['phase_drift'],s['stall_count'])")
+WIN 1346 1347 30015 44 5 5 0 0
+>>> exec("t0=sentai.rtos.ticks_ms()\nf0=sentai.camera.sensor_frames()\nn=0\nwhile sentai.rtos.ticks_ms()-t0<30000:\n  sentai.camera.peek_col(40); n+=1\ndt=sentai.rtos.ticks_ms()-t0\ns=sentai.camera.stats()\nprint('WIN',n,sentai.camera.sensor_frames()-f0,dt,(n*1000)//dt,s['phase_us'],s['stale_skips'],s['phase_drift'],s['stall_count'])")
+WIN 1347 1348 30024 44 5 6 0 0
+>>> exec("t0=sentai.rtos.ticks_ms()\nf0=sentai.camera.sensor_frames()\nn=0\nwhile sentai.rtos.ticks_ms()-t0<30000:\n  sentai.camera.peek_col(40); n+=1\ndt=sentai.rtos.ticks_ms()-t0\ns=sentai.camera.stats()\nprint('WIN',n,sentai.camera.sensor_frames()-f0,dt,(n*1000)//dt,s['phase_us'],s['stale_skips'],s['phase_drift'],s['stall_count'])")
+WIN 1347 1348 30022 44 5 7 0 0
+>>> exec("t0=sentai.rtos.ticks_ms()\nf0=sentai.camera.sensor_frames()\nn=0\nwhile sentai.rtos.ticks_ms()-t0<30000:\n  sentai.camera.peek_col(40); n+=1\ndt=sentai.rtos.ticks_ms()-t0\ns=sentai.camera.stats()\nprint('WIN',n,sentai.camera.sensor_frames()-f0,dt,(n*1000)//dt,s['phase_us'],s['stale_skips'],s['phase_drift'],s['stall_count'])")
+WIN 1346 1347 30014 44 5 8 0 0
+>>> exec("t0=sentai.rtos.ticks_ms()\nf0=sentai.camera.sensor_frames()\nn=0\nwhile sentai.rtos.ticks_ms()-t0<30000:\n  sentai.camera.peek_col(40); n+=1\ndt=sentai.rtos.ticks_ms()-t0\ns=sentai.camera.stats()\nprint('WIN',n,sentai.camera.sensor_frames()-f0,dt,(n*1000)//dt,s['phase_us'],s['stale_skips'],s['phase_drift'],s['stall_count'])")
+WIN 1346 1347 30014 44 5 9 0 0
+>>> exec("t0=sentai.rtos.ticks_ms()\nf0=sentai.camera.sensor_frames()\nn=0\nwhile sentai.rtos.ticks_ms()-t0<30000:\n  sentai.camera.peek_col(40); n+=1\ndt=sentai.rtos.ticks_ms()-t0\ns=sentai.camera.stats()\nprint('WIN',n,sentai.camera.sensor_frames()-f0,dt,(n*1000)//dt,s['phase_us'],s['stale_skips'],s['phase_drift'],s['stall_count'])")
+WIN 1346 1347 30014 44 4 10 0 0
+>>> exec("t0=sentai.rtos.ticks_ms()\nf0=sentai.camera.sensor_frames()\nn=0\nwhile sentai.rtos.ticks_ms()-t0<30000:\n  sentai.camera.peek_col(40); n+=1\ndt=sentai.rtos.ticks_ms()-t0\ns=sentai.camera.stats()\nprint('WIN',n,sentai.camera.sensor_frames()-f0,dt,(n*1000)//dt,s['phase_us'],s['stale_skips'],s['phase_drift'],s['stall_count'])")
+WIN 1346 1347 30012 44 5 11 0 0
+>>> exec("t0=sentai.rtos.ticks_ms()\nf0=sentai.camera.sensor_frames()\nn=0\nwhile sentai.rtos.ticks_ms()-t0<30000:\n  sentai.camera.peek_col(40); n+=1\ndt=sentai.rtos.ticks_ms()-t0\ns=sentai.camera.stats()\nprint('WIN',n,sentai.camera.sensor_frames()-f0,dt,(n*1000)//dt,s['phase_us'],s['stale_skips'],s['phase_drift'],s['stall_count'])")
+WIN 1346 1347 30010 44 5 12 0 0
+>>> exec("t0=sentai.rtos.ticks_ms()\nf0=sentai.camera.sensor_frames()\nn=0\nwhile sentai.rtos.ticks_ms()-t0<30000:\n  sentai.camera.peek_col(40); n+=1\ndt=sentai.rtos.ticks_ms()-t0\ns=sentai.camera.stats()\nprint('WIN',n,sentai.camera.sensor_frames()-f0,dt,(n*1000)//dt,s['phase_us'],s['stale_skips'],s['phase_drift'],s['stall_count'])")
+WIN 1346 1347 30014 44 4 13 0 0
+>>> exec("t0=sentai.rtos.ticks_ms()\nf0=sentai.camera.sensor_frames()\nn=0\nwhile sentai.rtos.ticks_ms()-t0<30000:\n  sentai.camera.peek_col(40); n+=1\ndt=sentai.rtos.ticks_ms()-t0\ns=sentai.camera.stats()\nprint('WIN',n,sentai.camera.sensor_frames()-f0,dt,(n*1000)//dt,s['phase_us'],s['stale_skips'],s['phase_drift'],s['stall_count'])")
+WIN 1346 1347 30007 44 5 14 0 0
+>>> exec("t0=sentai.rtos.ticks_ms()\nf0=sentai.camera.sensor_frames()\nn=0\nwhile sentai.rtos.ticks_ms()-t0<30000:\n  sentai.camera.peek_col(40); n+=1\ndt=sentai.rtos.ticks_ms()-t0\ns=sentai.camera.stats()\nprint('WIN',n,sentai.camera.sensor_frames()-f0,dt,(n*1000)//dt,s['phase_us'],s['stale_skips'],s['phase_drift'],s['stall_count'])")
+WIN 1346 1347 30005 44 5 15 0 0
+>>> exec("t0=sentai.rtos.ticks_ms()\nf0=sentai.camera.sensor_frames()\nn=0\nwhile sentai.rtos.ticks_ms()-t0<30000:\n  sentai.camera.peek_col(40); n+=1\ndt=sentai.rtos.ticks_ms()-t0\ns=sentai.camera.stats()\nprint('WIN',n,sentai.camera.sensor_frames()-f0,dt,(n*1000)//dt,s['phase_us'],s['stale_skips'],s['phase_drift'],s['stall_count'])")
+WIN 1346 1347 30009 44 5 16 0 0
+>>> exec("t0=sentai.rtos.ticks_ms()\nf0=sentai.camera.sensor_frames()\nn=0\nwhile sentai.rtos.ticks_ms()-t0<30000:\n  sentai.camera.peek_col(40); n+=1\ndt=sentai.rtos.ticks_ms()-t0\ns=sentai.camera.stats()\nprint('WIN',n,sentai.camera.sensor_frames()-f0,dt,(n*1000)//dt,s['phase_us'],s['stale_skips'],s['phase_drift'],s['stall_count'])")
+WIN 1347 1348 30024 44 5 17 0 0
+>>> exec("t0=sentai.rtos.ticks_ms()\nf0=sentai.camera.sensor_frames()\nn=0\nwhile sentai.rtos.ticks_ms()-t0<30000:\n  sentai.camera.peek_col(40); n+=1\ndt=sentai.rtos.ticks_ms()-t0\ns=sentai.camera.stats()\nprint('WIN',n,sentai.camera.sensor_frames()-f0,dt,(n*1000)//dt,s['phase_us'],s['stale_skips'],s['phase_drift'],s['stall_count'])")
+WIN 1346 1347 30008 44 6 18 0 0
+>>> exec("t0=sentai.rtos.ticks_ms()\nf0=sentai.camera.sensor_frames()\nn=0\nwhile sentai.rtos.ticks_ms()-t0<30000:\n  sentai.camera.peek_col(40); n+=1\ndt=sentai.rtos.ticks_ms()-t0\ns=sentai.camera.stats()\nprint('WIN',n,sentai.camera.sensor_frames()-f0,dt,(n*1000)//dt,s['phase_us'],s['stale_skips'],s['phase_drift'],s['stall_count'])")
+WIN 1346 1347 30005 44 5 19 0 0
+>>> exec("t0=sentai.rtos.ticks_ms()\nf0=sentai.camera.sensor_frames()\nn=0\nwhile sentai.rtos.ticks_ms()-t0<30000:\n  sentai.camera.peek_col(40); n+=1\ndt=sentai.rtos.ticks_ms()-t0\ns=sentai.camera.stats()\nprint('WIN',n,sentai.camera.sensor_frames()-f0,dt,(n*1000)//dt,s['phase_us'],s['stale_skips'],s['phase_drift'],s['stall_count'])")
+WIN 1346 1347 30000 44 5 20 0 0
+>>> print("PHASE_END", sentai.camera.phase())
+PHASE_END (4, 22282)
+>>> print(sentai.rtos.dmesg())
+[         0] I E:0F01:1
+[      4045] I E:0500:30
+[      9045] I E:0A06:3
+[     14045] I E:0A12:18
+[     14045] I E:0A0C:4
+[    304045] I E:0500:304
+[    604045] I E:0500:604
+[    619045] I E:0A00:0
+
+>>> 

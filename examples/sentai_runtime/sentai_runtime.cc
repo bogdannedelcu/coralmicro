@@ -114,6 +114,7 @@ extern volatile int g_cam_current_id;
 extern volatile uint32_t g_cam_ratio_packed;   // defined in the camera section (file scope)
 extern volatile uint32_t g_cam_csi_queue_faults, g_cam_csi_queue_fault_kind;  // libs/camera/camera_support.c (SDK patch 0005)
 extern volatile uint32_t g_cam_flog_head;                                     // libs/camera/camera_support.c (FB-done log)
+extern volatile uint32_t g_cam_ratio_unit;                                    // libs/camera/camera_support.c (1 = per frame, 2 = FB2 pairs)
 
 namespace {
 
@@ -3284,11 +3285,24 @@ extern "C" int sentai_cam_phase_from_log(int32_t* phi_us, uint32_t* T_us) {
       steady[ns++] = (int32_t)dt;
     }
   }
-  // ns >= 4 at ratio(1,1) relies on quotas being FB2-gated (g_camera_frame_seq
-  // advances on fb2_done only -> 1 quota = 2 sensor frames), so every flip
-  // is followed by one same-camera interval ("frame_count is half rate").
-  if (ns < 4 || (n1 < 2 && n0 < 2)) return -2;
-  int32_t T = cam_median_i32(steady, ns);
+  if (n1 < 2 && n0 < 2) return -2;
+  int32_t T = 0;
+  if (ns >= 4) {
+    // pair-granularity alternation (ratio_unit 2): same-camera intervals = T
+    T = cam_median_i32(steady, ns);
+  } else {
+    // per-frame alternation (ratio_unit 1): every interval is a flip interval,
+    // but two consecutive ones sum to (T + phi) + (T - phi) = 2T exactly.
+    int32_t pairs[64]; int np = 0;
+    for (int k = 2; k < n && np < 64; ++k) {
+      uint32_t d1 = ts[k - 1] - ts[k - 2], d2 = ts[k] - ts[k - 1];
+      if (d1 > 200000u || d2 > 200000u) continue;
+      if (cam[k] == cam[k - 1] || cam[k - 1] == cam[k - 2]) continue;
+      pairs[np++] = (int32_t)((d1 + d2) / 2u);
+    }
+    if (np < 4) return -2;
+    T = cam_median_i32(pairs, np);
+  }
   if (T <= 0) return -1;
   int32_t phi = 0, phi0 = 0; bool have1 = false, have0 = false;
   if (n1 >= 2) {
@@ -3319,7 +3333,7 @@ extern "C" void sentai_cam_phase_monitor_note(int32_t phi_us) {
       g_cam_phase_drifting = 1;
       g_cam_phase_drift_cnt++;
       // Protect consumers until the phase is back: re-arm the dirty skip.
-      if (g_cam_fullrate) g_cam_dirty_consecutive_n = 1;
+      if (g_cam_fullrate) { g_cam_ratio_unit = 2; g_cam_dirty_consecutive_n = 1; }
       SERR_LOG(SERR_CAM_PHASE_DRIFT, (uint32_t)phi_us);
     }
     // Two consecutive excursions -> ask cam_tune for one blind trim.
@@ -3331,7 +3345,7 @@ extern "C" void sentai_cam_phase_monitor_note(int32_t phi_us) {
     g_cam_phase_excursions = 0;
     if (a < clear_us && g_cam_phase_drifting) {
       g_cam_phase_drifting = 0;
-      if (g_cam_fullrate) g_cam_dirty_consecutive_n = 0;
+      if (g_cam_fullrate) { g_cam_dirty_consecutive_n = 0; g_cam_ratio_unit = 1; }
       SERR_LOG(SERR_CAM_PHASE_DRIFT_END, (uint32_t)phi_us);
     }
   }
@@ -3377,7 +3391,9 @@ extern "C" int sentai_cam_phase_measure(int32_t* phi_us, uint32_t* T_us) {
   uint32_t drain_prev = g_cam_switch_drain_threshold;
   uint32_t dirty_prev = g_cam_dirty_consecutive_n;
   uint32_t ratio_prev = g_cam_ratio_packed;
+  uint32_t unit_prev = g_cam_ratio_unit;
   int cam_prev = g_cam_current_id;
+  g_cam_ratio_unit = 2;                      // measure on pair granularity (steady intervals)
   sentai_cam_ratio_set(0, 0);
   (void)sentai_cam_switch(0);
   vTaskDelay(pdMS_TO_TICKS(150));
@@ -3398,6 +3414,7 @@ extern "C" int sentai_cam_phase_measure(int32_t* phi_us, uint32_t* T_us) {
   g_cam_switch_drain_threshold = drain_prev;
   g_cam_dirty_consecutive_n = dirty_prev;
   if (cam_prev == 1) (void)sentai_cam_switch(1);
+  g_cam_ratio_unit = unit_prev;
   g_cam_ratio_packed = ratio_prev;
   if (rc == 0) { g_cam_phase_us = *phi_us; g_cam_phase_valid = 1; }
   return rc == 0 ? 0 : -30;
@@ -3591,6 +3608,7 @@ extern "C" int sentai_cam_pretrim(void) {
   g_cam_fullrate = 1;
   g_cam_switch_drain_threshold = 0;
   g_cam_dirty_consecutive_n = 0;
+  g_cam_ratio_unit = 1;                      // T14: true frame interleave
   SERR_LOG(SERR_CAM_PRETRIM, lines);
   printf("[cam] pre-trim: cam0 delayed %lu lines (%lu us) -> alternation at full rate\r\n",
          (unsigned long)lines, (unsigned long)((lines * line_ns) / 1000u));
@@ -3663,6 +3681,7 @@ static int sentai_cam_genlock_run(coralmicro::CameraTask* cam, int sync_start) {
       g_cam_fullrate = 1;
       g_cam_switch_drain_threshold = 0;
       g_cam_dirty_consecutive_n = 0;
+      g_cam_ratio_unit = 1;                  // T14: true frame interleave
       SERR_LOG(SERR_CAM_GENLOCK, (step << 16) | ((uint32_t)phi & 0xFFFFu));
       printf("[cam] genlock: phase %ld us after %lu step(s) (T=%lu us)\r\n",
              (long)phi, (unsigned long)step, (unsigned long)T);
@@ -3702,6 +3721,10 @@ extern "C" int sentai_cam_autotune(int set) {       // set < 0: query
 }
 
 extern volatile uint32_t g_cam_flip_delay_us, g_cam_flips_deferred, g_cam_flips_executed;  // camera_support.c
+extern "C" int sentai_cam_ratio_unit(int set) {       // set < 0: query; 1 or 2
+  if (set == 1 || set == 2) g_cam_ratio_unit = (uint32_t)set;
+  return (int)g_cam_ratio_unit;
+}
 extern "C" int sentai_cam_flip_delay_us(int set) {   // set < 0: query; 0 = legacy immediate flip
   if (set >= 0) g_cam_flip_delay_us = (set > 400) ? 400u : (uint32_t)set;
   return (int)g_cam_flip_delay_us;

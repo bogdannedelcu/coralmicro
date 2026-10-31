@@ -40,3 +40,10 @@ cold-boot alternation A/B (`experiments/s251_camera_genlock/alt_only_check.py`);
 keep `flip_delay_us` > 0 in production; patch 0005 is innocent and stays.
 Related: [[project_fb2_counter_fix]] (CSI ISR timing-sensitive),
 [[project_todo_exhaustive_code_audit]] (W23-T9).
+
+**T14 (build 1684):** `g_cam_ratio_unit` 1 = per sensor frame (true
+cam0/cam1 interleave, 31/31 transitions at 44 fps), 2 = legacy FB2 pairs.
+Armed =1 by pretrim/genlock; the drift monitor sets 2 + dirty while
+protecting and restores 1.  Phase estimator: pairs -> steady intervals = T;
+per-frame -> consecutive-interval sums = 2T.  T11 soaks (5 + 10 min) PASS
+with mode 2 default.
