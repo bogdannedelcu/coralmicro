@@ -1,0 +1,15 @@
+build: SentAI v1.0 build 1586 (2026-07-02 11:25:49)
+cam: 0
+  inputs: ['Inputs: 2']
+fr.open: 0
+fr.task_start (drain DURING run): 0
+Traceback (most recent call last):
+  File "<stdin>", line 26, in <module>
+  File "<stdin>", line 14, in <lambda>
+  File "/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s236_model_speed_sweep_640x480/board_serial.py", line 40, in cmd
+    c = ser.read(4096)
+  File "/home/bogdan/work/coralmicro/venv-flash/lib/python3.14/site-packages/serial/serialposix.py", line 595, in read
+    raise SerialException(
+        'device reports readiness to read but returned no data '
+        '(device disconnected or multiple access on port?)')
+serial.serialutil.SerialException: device reports readiness to read but returned no data (device disconnected or multiple access on port?)

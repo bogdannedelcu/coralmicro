@@ -178,10 +178,128 @@ extra consumer — not a defect in the toggle itself (the mechanism is functiona
 correct). Root-causing the load instability (JTAG vector-catch on HardFault vs a
 clean WDOG reset; SEMC arbitration; flow FFT cost) is the follow-up.
 
+### Residual instability RESOLVED — SEMC-bandwidth contention (build 1565 + throttle)
+
+After the Y8-8:1 PXP hang was fixed (1563), the residual reset was isolated by
+control tests: detection-alone STABLE, detection + FLOW_GRAY-production-only
+STABLE, detection + **FlowTask** RESETS → FlowTask's compute is the trigger. The
+operator's diagnostic question ("is the flow output in OCRAM? if the buffers
+aren't in OCRAM the algorithms will run very slowly") pointed straight at the
+cause: **every flow working buffer lived in SDRAM (`.sdram_bss`, SEMC bus).**
+
+Root cause = **SEMC-bandwidth contention**. Flow's phase-corr does a 2D 64×64 FFT
+per frame over `s_curr_fft`/`s_cross`/`s_cross_spec` (3×32 KB) + a 32 KB gray
+memcpy + an 8 KB Tukey window — all in SDRAM. At full production rate those
+per-frame FFT bursts saturate the SEMC bus concurrently with the TPU-input DMA
+(786 KB `.tpu_input` in OCRAM is fine, but the pipeline's SDRAM traffic + PXP +
+flow FFT together over-subscribe SEMC) → the M7 stalls long enough to trip the
+watchdog → core reset.
+
+**Hard constraint discovered:** the fast on-chip RAM is **full**. OCRAM
+(0x20240000, 1 MB) holds `.tpu_input` (786 KB) + RPMSG → ~13 KB free. DTCM
+(`m_data` 0x20008000, 0x38000 = 224 KB) holds the firmware `.bss` (~215 KB) →
+~9 KB free. Moving flow's 96 KB of FFT buffers into fast RAM **does not fit**:
+attempting it (build 1566) overflowed `m_data` by 105 016 bytes. So the "proper"
+fix (buffers off SEMC into TCM) is blocked by the memory budget on the M7.
+
+**What DID fit (build 1565):** the two hottest small buffers moved to DTCM —
+FlowTask stack (`s_pub_stack`, aligned(8)) and the double-buffered gray
+(`s_gray[2][80*60]`, aligned(4)). This alone was **not enough** (still reset at
+t≈14 s) because the 96 KB FFT buffers remain on SEMC.
+
+**Resolution (mitigation that attacks the cause, not the symptom):** throttle
+flow production so the FFT bursts fire less often, dropping SEMC occupancy below
+the contention threshold. `sentai.flow.slot_div(n)` divides the FLOW_GRAY
+production rate. Sweep result on build 1565, cam0 640×480, `c2f_thick` +
+flow concurrent:
+
+| slot_div | flow rate | result over 40–48 s |
+|---|--:|---|
+| 2 (default) | ~13 fps | resets (SEMC saturated) |
+| 6 | ~4 fps | **USB CDC unstable** (8/8 windows dropped) |
+| **12** | **~2 fps** | **STABLE — 0 core resets, 0 USB blips, uptime continuous 44→66 s, detection ~26 fps sustained (fc 220→1152)** |
+
+So the shippable concurrent operating point is **build 1565 + `slot_div(12)`**:
+flow at ~2 fps (adequate for slow drift estimation on a hovering drone) alongside
+detection at the full ~26 fps, sustained with no resets. Set it from the mission
+script right after `flow.start`:
+```python
+sentai.pipeline.start(...); sentai.flow.use_prep_slot(1)
+sentai.flow.slot_div(12); sentai.flow.start(0)
+```
+
+**Proper long-term fix (recovers the throttled FPS too): move flow compute to the
+idle M4 core.** M4 has its own TCM (separate from the M7 DTCM that's full) for the
+FFT buffers, off the M7's SEMC path, and runs truly in parallel — this is the
+architectural recommendation the operator's original intuition ("it runs in
+parallel, the CPU has time") pointed at. Tracked as the s240 follow-up; the
+throttle is the correct interim resolution given the M7 memory ceiling.
+
+### OCRAM placement experiment (build 1568) — NEGATIVE RESULT, reverted
+
+Operator proposed freeing OCRAM by demoting the now-unused ArUco buffers (ArUco is
+superseded by WhyCon markers) and moving flow's 3 hot FFT scratch buffers
+(`s_curr_fft`/`s_cross`/`s_cross_spec`, 96 KB) there, off the SEMC bus. Budget
+worked: ArUco's `.ocram_bss` is ~93 KB; demoting it + the ~9 KB tail gave ~103 KB,
+and the 96 KB fit (build 1568, 7 KB headroom, no ASSERT). **But on-board it made
+stability WORSE**: with the FFT in OCRAM, `slot_div=12` reset the board at
+t≈13 s (USB dropped), whereas the same throttle with the FFT in **SDRAM** had run
+clean.
+
+**Why OCRAM is the wrong place — the key correction to the root-cause model:** the
+TPU's input tensor `.tpu_input` **lives in OCRAM**, and `c2f_thick`'s input is a
+**full 640×480×3 = 921 600-byte** image that the TPU **re-DMAs every invoke
+(~26 ms of input transfer per s238)**. Putting flow's per-frame FFT in OCRAM
+(directly after `.tpu_input`) collides flow against the TPU's single largest
+memory operation on the OCRAM/AXI path — worse than the SEMC contention it was
+meant to relieve. So the earlier "OCRAM is fine, only 786 KB" note above is
+misleading: OCRAM isn't free, it's the *busiest* bus during inference.
+
+**The real conclusion: on the M7, neither memory bus is free.** OCRAM is owned by
+the 900 KB TPU-input DMA; SEMC/SDRAM is owned by the camera DMA + PXP. Detection
+**alone** already saturates the M7's memory bandwidth; flow's FFT tips it over no
+matter which bus it sits on. Reverted to the SDRAM layout (build 1569 = 1565
+semantics: FFT in SDRAM, ArUco back in OCRAM, stack+`s_gray` in DTCM).
+
+### Honest status on the throttle: reduces but does NOT reliably eliminate resets
+
+Re-testing the reverted 1569 exposed that `slot_div(12)` is **not a reliable
+fix** — the reset is **intermittent** (as the original characterization above
+always noted: 3–11 s, sometimes reaching fc≈355 at 13 s). One early 1565 run at
+div=12 went clean for 48 s (fc 220→1152), but a later 1569 run at the same div=12
+reset right at `flow.start`. Throttling **lowers the reset probability** (higher
+div = fewer FFT bursts = less bandwidth pressure) but the memory-bandwidth
+saturation is fundamental, so no M7-side throttle removes it entirely.
+
+### THE fix: move flow compute to the M4 core
+
+This is no longer just "recovers FPS" — it is the **only** way to make flow +
+detection reliably coexist, because it is the only way to get flow's FFT working
+set off **both** contended M7 buses:
+- M4 has its **own TCM** (ITCM/DTCM), physically separate from the M7 DTCM (full)
+  and not on the OCRAM or SEMC path — the FFT scratch + prev-frame caches live
+  there with zero contention against TPU-input DMA or camera/PXP.
+- M4 runs truly in parallel (the operator's original intuition: "it runs in
+  parallel, the CPU has time" — correct; it's the *memory bus*, not the CPU, that
+  was the bottleneck, and M4's TCM sidesteps it).
+- Flow input (the 80×60 gray slot) is a tiny once-per-frame cross-core handoff via
+  RPMSG/shared OCRAM — negligible bandwidth vs the FFT itself.
+
+Tracked as the s240 follow-up WP. Until then, flow + detection concurrent on the
+M7 is **best-effort** (throttle high, expect occasional resets under sustained
+load); detection-alone and flow-alone are both stable.
+
 ## Status
 
-Runtime toggle implemented, built (1561), and **proven to work** (flow+detection
-concurrent on one camera). Sustained-load stability is a separate open item.
+Runtime toggle implemented, built, and **proven to functionally work**
+(flow+detection concurrent on one shared camera — motion + detection both produce
+output). Root cause of the instability is understood and is **fundamental to the
+M7**: detection alone saturates the M7 memory bandwidth (OCRAM = 900 KB TPU-input
+DMA/invoke; SEMC = camera+PXP), so flow's FFT tips it over on whichever bus it
+uses. The OCRAM-placement attempt (1568) was a NEGATIVE result — worse, reverted
+to 1569. `slot_div` throttle lowers reset probability but does not reliably
+eliminate it. **Definitive fix = move flow to the M4 core (its own TCM, off both
+contended buses).** That is the recommended next WP.
 
 ## Gotcha logged
 

@@ -1,0 +1,9 @@
+resetting for clean state...
+ver: SentAI v1.0 build 1580 (2026-07-02 10:10:39)
+=== ISOLATED RGB benchmark (c2f_thick, single-input 921600B) ===
+  Inputs: 1
+  in[0] uint8[1,480,640,3] (921600 bytes)  scale=0.00392157 zp=0
+  RC 0
+
+>>> RGB invoke (n=50): min=5 p25=6 MEDIAN=6 mean=6.96 p95=14 max=14
+>>> RGB median FPS: 166.7

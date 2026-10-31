@@ -1,0 +1,32 @@
+build: SentAI v1.0 build 1590 (2026-07-02 17:58:59)
+exists: True
+
+=== RGB group (yuv_mode=0) ===
+cam init(1,45): 0
+camera.fps: 45
+>>>
+  msblock      in= 1  invoke=32.0+-0.0ms  FPS=27.2+-0.09 (3 trials)
+  c3           in= 1  invoke=32.4+-0.5ms  FPS=27.0+-0.09 (3 trials)
+  c2f          in= 1  invoke=33.0+-0.0ms  FPS=26.8+-0.00 (3 trials)
+  c2f_pan2     in= 1  invoke=33.7+-0.4ms  FPS=26.3+-0.00 (3 trials)
+  gelan        in= 1  invoke=34.0+-0.0ms  FPS=26.2+-0.09 (3 trials)
+  c2f_thick    in= 1  invoke=35.0+-0.0ms  FPS=26.2+-0.00 (3 trials)
+FAIL measure gelan_pan2 inv=30 fps=0
+FAIL measure c2f_deep inv=30 fps=0
+
+=== YUV group (yuv_mode=1) ===
+cam init(1,45): 0
+camera.fps: 45
+>>>
+  c2f_yuv420   in= 1  invoke=22.0+-0.0ms  FPS=40.4+-0.09 (3 trials)
+
+=== DONE. CSV: /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s241_relu_yuv_vga45_stats/results_vga45.csv ===
+model,fmt,n_inputs,invoke_n,invoke_mean_ms,invoke_std_ms,invoke_min_ms,invoke_max_ms,invoke_median_ms,fps_trials,fps_mean,fps_std,fps_min,fps_max,per_ms_frame
+msblock,RGB,1,30,32.00,0.00,32,32,32.0,3,27.24,0.09,27.14,27.30,36.70
+c3,RGB,1,30,32.43,0.50,32,33,32.0,3,27.03,0.09,26.98,27.14,36.99
+c2f,RGB,1,30,33.00,0.00,33,33,33.0,3,26.82,0.00,26.82,26.82,37.28
+c2f_pan2,RGB,1,30,33.73,0.45,33,34,34.0,3,26.35,0.00,26.35,26.35,37.96
+gelan,RGB,1,30,34.00,0.00,34,34,34.0,3,26.24,0.09,26.19,26.35,38.11
+c2f_thick,RGB,1,30,35.00,0.00,35,35,35.0,3,26.19,0.00,26.19,26.19,38.19
+c2f_yuv420,YUV,1,30,22.00,0.00,22,22,22.0,3,40.36,0.09,40.31,40.47,24.77
+

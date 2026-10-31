@@ -1,0 +1,28 @@
+% s241 ReLU-RGB vs YUV420, VGA45, i.MX RT1176 build 1590
+\begin{table}[t]\centering
+\caption{On-board detector performance (i.MX RT1176, EdgeTPU/USB2, 640$\times$480@45\,fps). Isolated invoke and full-pipeline FPS, mean$\pm\sigma$ ($N{=}30$ invokes, $M{=}3$ FPS trials). mAP is the float model (person, 1 class).}
+\label{tab:s241}
+\begin{tabular}{llrrrr}
+\toprule
+arch & fmt & mAP$_{.5}$ & mAP$_{.5:.95}$ & invoke (ms) & FPS \\
+\midrule
+msblock & RGB & 0.645 & 0.228 & 32.0$\pm$0.0 & 27.2$\pm$0.09 \\
+c3 & RGB & 0.683 & 0.261 & 32.4$\pm$0.5 & 27.0$\pm$0.00 \\
+c2f & RGB & 0.702 & 0.278 & 33.0$\pm$0.0 & 26.9$\pm$0.09 \\
+c2f\_pan2 & RGB & 0.707 & 0.276 & 33.7$\pm$0.5 & 26.4$\pm$0.00 \\
+gelan & RGB & 0.690 & 0.266 & 34.0$\pm$0.0 & 26.4$\pm$0.00 \\
+c2f\_thick & RGB & 0.803 & 0.360 & 35.0$\pm$0.0 & 26.2$\pm$0.00 \\
+gelan\_pan2 & RGB & 0.661 & 0.255 & 35.0$\pm$0.0 & 25.4$\pm$0.00 \\
+c2f\_deep & RGB & 0.705 & 0.283 & 35.0$\pm$0.0 & unstable$^{*}$ \\
+\midrule
+msblock & YUV & 0.522 & 0.158 & 19.0$\pm$0.0 & 42.8$\pm$0.09 \\
+c3 & YUV & 0.700 & 0.258 & 19.0$\pm$0.0 & 42.6$\pm$0.09 \\
+c2f & YUV & 0.720 & 0.275 & 19.4$\pm$0.5 & 42.3$\pm$0.09 \\
+c2f\_pan2 & YUV & 0.707 & 0.269 & 20.0$\pm$0.0 & 41.0$\pm$0.09 \\
+gelan & YUV & 0.734 & 0.285 & 20.9$\pm$0.3 & 40.6$\pm$0.00 \\
+c2f\_thick & YUV & 0.823 & 0.368 & 21.9$\pm$0.3 & 40.5$\pm$0.00 \\
+gelan\_pan2 & YUV & 0.712 & 0.261 & 22.0$\pm$0.0 & 38.8$\pm$0.09 \\
+c2f\_deep & YUV & 0.736 & 0.282 & 22.0$\pm$0.0 & 38.9$\pm$0.09 \\
+\bottomrule
+\end{tabular}
+\end{table}

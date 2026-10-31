@@ -1,28 +1,44 @@
-// flow_task_m4.cc — M4-core worker for sentai.flow offload.
+// flow_task_m4.cc — M4-core worker for sentai.flow offload (s240 rewrite).
 //
 // Architecture (strictly one-way data flow, lock-free):
 //
-//   M7 PrepTask                 shared OCRAM             M4 app_main
+//   M7 PrepTask                 shared OCRAM             M4 (bare-metal)
 //   ──────────                 ─────────────              ──────────
 //   grab raw XRGB                                         poll cmd
 //   PXP → tensor                                          if frame_valid:
-//   decimate → gray[80×60] ──▶  gray buffer   ──────────▶    SAD vs prev
+//   decimate → gray[80×60] ──▶  gray buffer   ──────────▶    USADA8 SAD vs prev
 //   frame_seq++ ; valid=1 ──▶  header                         publish dx,dy
 //                                              ◀──────────   valid=0
 //
-// M7 stays fast: camera + PXP go to the detection pipeline as usual,
-// plus a ~50 µs step-8 CPU decimation to the shared gray buffer.  M4
-// owns the SAD loop entirely — no PXP, no camera, no I2C.
+// The M4 owns the SAD loop entirely — no PXP, no camera, no I2C, no
+// scheduler.  The value of this offload is NOT compute speed (M4 is
+// ~2.4× slower than M7 per the OP-S10-W16 ablation); it is that the
+// SAD + its buffers run on the M4 core's OWN memory, off BOTH of the
+// M7's contended buses (OCRAM = 900 KB TPU-input DMA/invoke; SEMC =
+// camera + PXP).  See experiments/s240.../m4_offload_review.md.
 //
-// Startup bypasses `libs_base-m4_freertos`'s default main() because
-// that calls BOARD_InitHardware() which resets pin-mux + PLLs the
-// M7 camera is already using.  We only need MPU + MCMGR here.
+// s240 rewrite — three defects fixed vs the pre-#1130 version:
+//   1. FREEZE: the old code ran a FreeRTOS scheduler on a SysTick that
+//      was miscalibrated (custom main skips BOARD_InitBootClocks to
+//      protect the M7 camera PLLs, which left configCPU_CLOCK_HZ vs the
+//      real M4 clock mismatched → tick ISR ~360× too fast → 1 fps +
+//      hang).  FIX: run BARE-METAL — no scheduler, no vTaskDelay, no
+//      xTaskGetTickCount.  All timing from DWT->CYCCNT (the only
+//      reliable timer on this core; the M4 clock is already programmed
+//      by the M7 before the M4 leaves reset, so DWT counts real cycles).
+//   2. SLOW: the old SAD did byte-wise abs-diff.  FIX: USADA8 DSP SIMD
+//      (4 bytes / instruction), same intrinsic the M7 flow path uses.
+//   3. OVERLAP: FLOW_SHARED_ADDR was a stale pointer into .tpu_input.
+//      Fixed in flow_shared.h (relocated off the TPU input tensor).
+//
+// Startup deliberately overrides the weak libs_base-m4_freertos main()
+// so we do NOT call BOARD_InitHardware()/BOARD_InitBootClocks() — those
+// reset pin-mux + PLLs + PMIC + I2C the running M7 camera depends on.
+// We only need MPU (for the non-cacheable shared window) + MCMGR (for
+// the M7 StartM4 boot handshake).
 
-#include <cstdio>
+#include <cstdint>
 #include <cstring>
-
-#include "third_party/freertos_kernel/include/FreeRTOS.h"
-#include "third_party/freertos_kernel/include/task.h"
 
 #include "third_party/nxp/rt1176-sdk/devices/MIMXRT1176/MIMXRT1176_cm4.h"
 #include "third_party/nxp/rt1176-sdk/middleware/multicore/mcmgr/src/mcmgr.h"
@@ -33,30 +49,17 @@ void BOARD_ConfigMPU(void);
 
 #include "examples/sentai_runtime/flow_shared.h"
 
-// =============================================================
-// SAD block-match
-// =============================================================
-
-// Reference block at the centre of the 80×60 frame.  Kept smaller
-// than the frame on both axes so the ±kSearchRange window stays
-// inside the image.  Same constants as the M7 reference implementation
-// so results can be cross-checked.
 namespace {
 
 // ------------------------------------------------------------------
 // DWT cycle counter — the reliable high-resolution timer on the M4.
-// FreeRTOS tick on this core is unreliable as a wall clock because
-// our custom main() skips BOARD_InitBootClocks (needed to avoid
-// resetting the M7 camera PLLs), so SysTick-derived `tick_ms`
-// reports bogus absolute time.  DWT->CYCCNT free-runs at whatever
-// the core clock actually is; the **delta** between two samples
-// always equals the elapsed cycles regardless of the absolute Hz.
-// We publish cycles in shared-mem and let the host convert if a
-// Hz value is available.  Publishing cycles (not µs) avoids a
-// false-precision lie.
+// FreeRTOS SysTick is unusable here (we skip BOARD_InitBootClocks), so
+// we run bare-metal and derive all timing from DWT->CYCCNT.  The M4
+// core clock is programmed by the M7 before releasing this core from
+// reset, so CYCCNT free-runs at the real core Hz.
 // ------------------------------------------------------------------
-#define DWT_CTRL_REG   (*(volatile uint32_t*)0xE0001000)
-#define DWT_CYCCNT_REG (*(volatile uint32_t*)0xE0001004)
+#define DWT_CTRL_REG        (*(volatile uint32_t*)0xE0001000)
+#define DWT_CYCCNT_REG      (*(volatile uint32_t*)0xE0001004)
 #define CoreDebug_DEMCR_REG (*(volatile uint32_t*)0xE000EDFC)
 
 static inline uint32_t dwt_cycles(void) { return DWT_CYCCNT_REG; }
@@ -67,52 +70,91 @@ static void dwt_init(void) {
     DWT_CTRL_REG        |= 1u;           // CYCCNTENA
 }
 
-// Block + search-range scaled to the 80×60 grid (was 40×30 before the
-// 2026-04-21 rpmsg-window expansion).  Block 32×32 centred, search
-// ±12 px ⇒ worst-case SAD = 25² × 32² ≈ 640 000 add/abs operations.
-// On the M4 @ ~240-400 MHz boot-default core clock that's 2-3 ms —
-// still well under the 22 ms VGA/45 frame period.  Compared to the
-// previous 40×30 config we get 4× more spatial resolution and 2×
-// more search range at only ~5× the compute.
+// Heartbeat cadence: ~100 ms at an assumed ~400 MHz M4 clock.  The
+// exact Hz is irrelevant — this only has to change regularly so the
+// M7 liveness check (magic + advancing heartbeat) sees the M4 alive.
+constexpr uint32_t kHeartbeatCycles = 40000000u;
+
+// Poll throttle — CRITICAL (s240).  Without it, this bare-metal loop
+// reads FLOW_SHARED (frame_valid/cmd_seq, in OCRAM) at the full core
+// rate (~100 M reads/s), saturating the OCRAM bus against the M7 TPU's
+// 900 KB input DMA -> "edgetpu-custom-op failed to invoke".  We spin on
+// DWT->CYCCNT (a core-local PPB register, NOT OCRAM) between polls, so
+// no OCRAM traffic occurs during the wait.  ~500 µs @ 400 MHz is far
+// below the ~22 ms frame period, so it adds negligible pickup latency
+// while cutting idle OCRAM reads ~1000x.
+constexpr uint32_t kPollThrottleCycles = 200000u;   // ~500 µs @ 400 MHz
+
+static inline void dwt_spin(uint32_t cyc) {
+    const uint32_t start = DWT_CYCCNT_REG;              // read once
+    while ((uint32_t)(DWT_CYCCNT_REG - start) < cyc) {
+        // spin on the core-local cycle counter only — no OCRAM access
+        __asm volatile("" ::: "memory");
+    }
+}
+
+// USADA8: 4-byte sum-of-abs-differences + accumulate (DSP-extension
+// SIMD on Cortex-M4F).  arm_acle's __USADA8 isn't shipped on our
+// toolchain, so inline-asm.  Mirrors m4_aruco_bench.cc::m4_usada8.
+__attribute__((always_inline)) static inline uint32_t
+m4_usada8(uint32_t a, uint32_t b, uint32_t acc) {
+    uint32_t r;
+    __asm volatile ("usada8 %0, %1, %2, %3" : "=r"(r) : "r"(a), "r"(b), "r"(acc));
+    return r;
+}
+
+// Unaligned 32-bit load — the search offset makes the prev pointer
+// unaligned; Cortex-M4 does unaligned LDR transparently but the
+// compiler needs this packed-struct hint or it emits memcpy() and
+// kills the USADA8 win.  Same trick as flow_task.cc:57.
+typedef struct { uint32_t v; } __attribute__((packed)) m4_u32u_t;
+#define M4_LD32U(p) (((const m4_u32u_t*)(p))->v)
+
+// Block 32×32 centred in the 80×60 grid, search ±12 px — same
+// constants as the M7 reference so results cross-check against
+// s083_flow_m7_validate.  32 is a multiple of 4 → clean USADA8 unroll.
 constexpr int kBlockW      = 32;
 constexpr int kBlockH      = 32;
 constexpr int kSearchRange = 12;
 
-// Ping-pong gray buffers local to M4 so we keep the previous frame
-// even after M7 overwrites shared.gray with a newer one.  Living in
-// the default linker section on M4 (cacheable OCRAM) is INTENTIONAL
-// and safe because M7 NEVER reads these buffers — only M4 writes via
-// memcpy from the non-cacheable shared window and later reads back
-// from the same slot.  Single-core access ⇒ no coherency issue.
-// Do NOT share these with M7; the MPU would need region surgery and
-// the shared_gray buffer in flow_shared_t already covers that role.
+// M4-LOCAL ping-pong gray buffers.  No section attribute → default
+// .bss, which on the M4 linker lands in m_data (DTCM, 1-cycle access).
+// This is the whole point: the SAD inner loop touches ONLY DTCM +
+// registers, never the M7's OCRAM/SEMC buses.  M7 never reads these.
 static uint8_t s_gray[2][FLOW_GRAY_PIXELS] __attribute__((aligned(4)));
+
+// USADA8 SAD for one (dx,dy) candidate.  Fully unrolled 8× over the
+// 32-wide block row (32 bytes = 8 × 4).  No early-exit (branchless is
+// faster here than the mispredict + the whole exhaustive sweep is
+// ~0.4 ms).  curr/prev point at DTCM-local buffers.
+__attribute__((always_inline)) static inline uint32_t
+sad_at(const uint8_t* curr, const uint8_t* prev, int dx, int dy) {
+    const int bx = (FLOW_GRAY_W - kBlockW) / 2;
+    const int by = (FLOW_GRAY_H - kBlockH) / 2;
+    uint32_t sad = 0;
+    for (int y = 0; y < kBlockH; ++y) {
+        const uint8_t* c = curr + (by + y) * FLOW_GRAY_W + bx;
+        const uint8_t* p = prev + (by + y + dy) * FLOW_GRAY_W + (bx + dx);
+        sad = m4_usada8(M4_LD32U(c +  0), M4_LD32U(p +  0), sad);
+        sad = m4_usada8(M4_LD32U(c +  4), M4_LD32U(p +  4), sad);
+        sad = m4_usada8(M4_LD32U(c +  8), M4_LD32U(p +  8), sad);
+        sad = m4_usada8(M4_LD32U(c + 12), M4_LD32U(p + 12), sad);
+        sad = m4_usada8(M4_LD32U(c + 16), M4_LD32U(p + 16), sad);
+        sad = m4_usada8(M4_LD32U(c + 20), M4_LD32U(p + 20), sad);
+        sad = m4_usada8(M4_LD32U(c + 24), M4_LD32U(p + 24), sad);
+        sad = m4_usada8(M4_LD32U(c + 28), M4_LD32U(p + 28), sad);
+    }
+    return sad;
+}
 
 static void sad_match(const uint8_t* curr, const uint8_t* prev,
                       int* dx_out, int* dy_out, uint32_t* sad_out) {
-    const int bx = (FLOW_GRAY_W - kBlockW) / 2;
-    const int by = (FLOW_GRAY_H - kBlockH) / 2;
-
     uint32_t best = 0xFFFFFFFFu;
     int best_dx = 0, best_dy = 0;
-
     for (int dy = -kSearchRange; dy <= kSearchRange; ++dy) {
         for (int dx = -kSearchRange; dx <= kSearchRange; ++dx) {
-            uint32_t sad = 0;
-            for (int y = 0; y < kBlockH; ++y) {
-                const uint8_t* c = curr + (by + y) * FLOW_GRAY_W + bx;
-                const uint8_t* p = prev + (by + y + dy) * FLOW_GRAY_W + (bx + dx);
-                for (int x = 0; x < kBlockW; ++x) {
-                    int d = (int)c[x] - (int)p[x];
-                    sad += (uint32_t)(d < 0 ? -d : d);
-                }
-                if (sad >= best) break;
-            }
-            if (sad < best) {
-                best = sad;
-                best_dx = dx;
-                best_dy = dy;
-            }
+            const uint32_t sad = sad_at(curr, prev, dx, dy);
+            if (sad < best) { best = sad; best_dx = dx; best_dy = dy; }
         }
     }
     *dx_out = best_dx;
@@ -127,23 +169,16 @@ static uint8_t sad_to_confidence(uint32_t sad) {
     return (uint8_t)(255u - ((mad * 255u) / 64u));
 }
 
-}  // namespace
-
-// =============================================================
-// app_main — M4 main loop
-// =============================================================
-
-extern "C" [[noreturn]] void app_main(void* /*param*/) {
+// ------------------------------------------------------------------
+// Bare-metal worker loop — never returns.  Tight poll of frame_valid;
+// no scheduler, no SysTick, DWT for the heartbeat cadence only.
+// ------------------------------------------------------------------
+[[noreturn]] static void flow_loop(void) {
     volatile flow_shared_t* sh = &FLOW_SHARED();
-    dwt_init();
 
-    // Zero the M4-owned half of the struct before publishing magic,
-    // so a stale reading from a previous warm-reset boot doesn't mix
-    // into the new lifetime.
+    // Publish a fresh lifetime: zero the M4-owned fields, then magic.
     sh->version          = FLOW_SHARED_VERSION;
     sh->m4_heartbeat     = 0;
-    sh->m4_tick_ms       = 0;
-    sh->m4_boot_ts_ms    = (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS);
     sh->m4_state         = FLOW_STATE_IDLE;
     sh->last_dx          = 0;
     sh->last_dy          = 0;
@@ -153,47 +188,37 @@ extern "C" [[noreturn]] void app_main(void* /*param*/) {
     sh->frames_processed = 0;
     sh->frames_dropped   = 0;
     sh->last_compute_us  = 0;
-    sh->avg_compute_us   = 0;
     sh->cmd_ack_seq      = 0;
     __DSB();
     sh->magic = FLOW_SHARED_MAGIC;
     __DSB();
 
-    bool     have_prev = false;
-    int      prev_slot = 0;
-    uint32_t seen_frame_seq = 0;
-    uint32_t last_hb_ms = 0;
-    uint32_t beat = 0;
-    uint64_t avg_accum_us = 0;
+    bool     have_prev   = false;
+    int      prev_slot   = 0;
+    uint32_t beat        = 0;
+    uint32_t last_hb_cyc = dwt_cycles();
 
-    // 1 ms loop — fast enough to not miss frames at ~45 Hz, slow
-    // enough to never starve FreeRTOS idle / timer ticks.
-    while (true) {
-        // Heartbeat — every 100 ms.
-        const uint32_t now_ms = (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS);
-        if (now_ms - last_hb_ms >= 100) {
-            last_hb_ms = now_ms;
-            sh->m4_tick_ms = now_ms;
+    for (;;) {
+        // Heartbeat on a DWT cadence (no ticks).  Modular subtract is
+        // correct across the 2^32 wrap.
+        const uint32_t now_cyc = dwt_cycles();
+        if ((uint32_t)(now_cyc - last_hb_cyc) >= kHeartbeatCycles) {
+            last_hb_cyc = now_cyc;
             __DMB();
             sh->m4_heartbeat = ++beat;
         }
 
-        // Command handshake (one-shot).  Apply, then mirror the seq
-        // so M7 sees the ack.  Changes to m4_state take effect on
-        // the next iteration.  The __DMB() after reading cmd_seq is
-        // the reader-side pair for M7's write fence between updating
-        // `cmd` and bumping `cmd_seq`; without it the M4 could see
-        // the new cmd_seq but still read a stale `cmd`.
+        // Command handshake (one-shot).  __DMB pairs with M7's fence
+        // between writing `cmd` and bumping `cmd_seq`.
         const uint32_t cmd_seq = sh->cmd_seq;
         if (cmd_seq != sh->cmd_ack_seq) {
             __DMB();
             switch (sh->cmd) {
                 case FLOW_CMD_START:
                     sh->m4_state = FLOW_STATE_RUNNING;
-                    have_prev = false;   // start from a clean baseline
+                    have_prev = false;   // clean baseline
                     sh->frames_processed = 0;
                     sh->frames_dropped   = 0;
-                    avg_accum_us         = 0;
                     break;
                 case FLOW_CMD_STOP:
                     sh->m4_state = FLOW_STATE_IDLE;
@@ -205,27 +230,17 @@ extern "C" [[noreturn]] void app_main(void* /*param*/) {
             sh->cmd_ack_seq = cmd_seq;
         }
 
-        // Process a new frame only when we're in RUNNING state and
-        // M7 has flagged one as unread.
+        // Process a new frame only in RUNNING state with an unread one.
         if (sh->m4_state == FLOW_STATE_RUNNING && sh->frame_valid) {
-            // Acquire fence — after observing frame_valid=1 we must
-            // __DMB() before reading frame_seq / gray.  Without this,
-            // Cortex-M4's load buffer may hand us a stale row of the
-            // gray buffer even though M7 already executed its __DMB()
-            // write fence.  The M7's barrier only orders M7's own
-            // writes; cross-core visibility at the reader requires
-            // the reader to barrier too.  NASA/JPL §E — explicit
-            // reader-side ordering, no implicit coherency assumptions.
-            __DMB();
+            __DMB();   // acquire fence before reading frame_seq / gray
             const uint32_t new_seq = sh->frame_seq;
 
-            // Copy the shared gray (non-cacheable) into M4-local
-            // cacheable OCRAM so the SAD loop runs at L1 speed.
+            // Copy shared (non-cacheable) gray into a DTCM-local slot so
+            // the SAD sweep runs entirely on local RAM.
             const int curr_slot = prev_slot ^ 1;
             memcpy(s_gray[curr_slot], (const void*)sh->gray, FLOW_GRAY_PIXELS);
 
-            // Release the publish slot as early as possible so M7
-            // can fill the next frame without having to wait.
+            // Release the publish slot ASAP so M7 can fill the next.
             sh->frame_valid = 0;
             __DSB();
 
@@ -233,74 +248,51 @@ extern "C" [[noreturn]] void app_main(void* /*param*/) {
             if (have_prev) {
                 int dx = 0, dy = 0;
                 uint32_t sad = 0;
-                sad_match(s_gray[curr_slot], s_gray[prev_slot],
-                          &dx, &dy, &sad);
-
-                const uint32_t c1 = dwt_cycles();
-                // Delta is modular-subtract on uint32 — correct across
-                // the 2^32-cycle wrap boundary (~10.7 s at 400 MHz).
-                // We expose the field as "compute_us" for API
-                // compatibility, but the value is actually **cycles**
-                // — divide by core-clock-Hz to convert to seconds if
-                // a host-side mapping is available.  Tick-based µs
-                // was unreliable because BOARD_InitBootClocks is
-                // skipped on this M4.
-                const uint32_t compute_cycles = c1 - c0;
+                sad_match(s_gray[curr_slot], s_gray[prev_slot], &dx, &dy, &sad);
+                const uint32_t compute_cycles = dwt_cycles() - c0;
 
                 sh->last_dx         = dx;
                 sh->last_dy         = dy;
                 sh->last_sad        = sad;
                 sh->last_frame_seq  = new_seq;
                 sh->last_confidence = sad_to_confidence(sad);
-                sh->last_compute_us = compute_cycles;
-
-                avg_accum_us += compute_cycles;
-                const uint32_t fp = sh->frames_processed + 1;
-                sh->frames_processed = fp;
-                sh->avg_compute_us   = (uint32_t)(avg_accum_us / fp);
+                sh->last_compute_us = compute_cycles;   // cycles, not µs
+                sh->frames_processed = sh->frames_processed + 1;
             } else {
                 have_prev = true;
-                sh->frames_processed = 1;  // counting the baseline frame
+                sh->frames_processed = 1;   // baseline frame
             }
-
-            prev_slot     = curr_slot;
-            seen_frame_seq = new_seq;
-            (void)seen_frame_seq;
+            prev_slot = curr_slot;
         }
 
-        vTaskDelay(pdMS_TO_TICKS(1));
+        // Throttle the poll so idle OCRAM reads don't contend with the
+        // M7 TPU input DMA (s240).  Spins on DWT (core-local), not OCRAM.
+        dwt_spin(kPollThrottleCycles);
     }
 }
 
-// =============================================================
-// main — minimal startup (no BOARD_InitHardware)
-// =============================================================
-
-namespace {
-constexpr size_t kM4StackSize = configMINIMAL_STACK_SIZE * 10;
-static StaticTask_t s_m4_task_buf;
-static StackType_t  s_m4_stack[kM4StackSize];
 }  // namespace
 
+// =============================================================
+// main — minimal bare-metal startup (overrides the weak SDK main).
+// No BOARD_InitHardware / BOARD_InitBootClocks: those touch PMIC/I2C/
+// PLLs the running M7 camera owns.  No scheduler.
+// =============================================================
 extern "C" int main(int argc, char** argv) {
     (void)argc;
     (void)argv;
 
-    // MPU is per-core.  Configure region 15 as non-cacheable so
-    // writes to the shared window land in the physical OCRAM cell
-    // the M7 reads from (otherwise they'd be swallowed by M4's L1).
+    // MPU is per-core: mark the shared window non-cacheable so writes
+    // land in the physical OCRAM cell the M7 reads (else swallowed by
+    // M4 L1).  (Region set up in BOARD_ConfigMPU.)
     BOARD_ConfigMPU();
 
-    // MU interrupt plumbing — required for MCMGR/RPMsg handshake.
-    // We do NOT call IpcM4::Init() because the M7 doesn't use RPMsg
-    // for this feature; M4IsAlive() will therefore time out on the
-    // M7, which is why `sentai.flow.m4_enable()` returns rc=-2 even
-    // though the M4 is up (check the shared magic instead).
+    // MU plumbing for the MCMGR/StartM4 boot handshake.  We do NOT call
+    // IpcM4::Init() (no RPMsg for this feature — M7 checks the shared
+    // magic for liveness, not M4IsAlive()).
     MCMGR_Init();
 
-    xTaskCreateStatic(app_main, "flow_m4", kM4StackSize,
-                      nullptr, 2, s_m4_stack, &s_m4_task_buf);
-    vTaskStartScheduler();
-    while (true) { /* unreachable */ }
-    return 0;
+    dwt_init();
+    flow_loop();       // never returns
+    return 0;          // unreachable
 }

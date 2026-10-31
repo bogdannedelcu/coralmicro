@@ -1,0 +1,13 @@
+=== YUV420 dual-input @ 45fps camera (yuv_mode=1, c2f_yuv420) ===
+cam init(1,45): ['0']
+  Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00326224 zp
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp
+  LD 0
+pstart: 0
+  t=6 up=17818 fc=229 S {'ms_sum': 5435, 'ok': 248, 'last_rc': 22, 'fail
+  t=12 up=21799 fc=405 S {'ms_sum': 9251, 'ok': 423, 'last_rc': 22, 'fail
+  t=18 up=25692 fc=578 S {'ms_sum': 13032, 'ok': 596, 'last_rc': 22, 'fai
+  t=24 up=29626 fc=751 S {'ms_sum': 16807, 'ok': 769, 'last_rc': 22, 'fai
+  t=30 up=33539 fc=923 S {'ms_sum': 20557, 'ok': 941, 'last_rc': 22, 'fai
+>>> YUV420 @45fps SUSTAINED: 29.3 fps (resets=0)

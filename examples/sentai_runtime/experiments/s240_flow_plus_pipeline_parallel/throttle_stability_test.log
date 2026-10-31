@@ -1,0 +1,10 @@
+slot_div(12): SD 12
+  t=7 up=43904 fc=220 flow_fs=31 
+  t=14 up=47505 fc=375 flow_fs=32 
+  t=21 up=51210 fc=529 flow_fs=31 
+  t=28 up=55016 fc=685 flow_fs=32 
+  t=35 up=58765 fc=841 flow_fs=31 
+  t=41 up=62461 fc=997 flow_fs=31 
+  t=48 up=66244 fc=1152 flow_fs=31 
+
+>>> 1565 + slot_div(12): CORE RESETS=0 USB blips=0 over ~48s <<<

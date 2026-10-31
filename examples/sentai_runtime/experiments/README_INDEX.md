@@ -1,0 +1,215 @@
+# Experiment session index (s001–s244)
+
+Table of contents for the 194 saved on-board / emulator / simulator experiment sessions
+under `examples/sentai_runtime/experiments/`. Sessions marked ★ are cited in the doctoral thesis.
+
+> Provenance rule: absolute Edge TPU detection throughput = the Drones paper (~26 det/s RGB, ~40 det/s
+> YUV420); raw per-session FPS are relative/stage-level only. See the thesis §8.6.3 / §11.6.
+
+## Camera, TPU, and runtime basics (27)
+- `s001_memcheck` — memcheck
+- `s002_cam_speed` — cam speed
+- `s003_jpeg_test` — jpeg test
+- `s004_t1_simple` — t1 simple
+- `s005_basics` ★ — basics
+- `s006_cam_basic` — cam basic
+- `s007_tpu_basic` — tpu basic
+- `s008_live_loop` — live loop
+- `s009_loop2` — loop2
+- `s010_loop3` — loop3
+- `s011_loop_fix` — loop fix
+- `s012_final` — final
+- `s033_e16_camswitch_512` — e16 camswitch 512
+- `s063_e28_both_cams` — e28 both cams
+- `s082_e39_cam_switch_visual` — e39 cam switch visual
+- `s085_cam_snapshot` — cam snapshot
+- `s089_phase4_closed_loop` ★ — phase4 closed loop
+- `s143_loop_closure` — loop closure
+- `s144_realframe_loop_closure` — realframe loop closure
+- `s150_loop_closure_mp` — loop closure mp
+- `s151_realframe_loop_closure_mp` — realframe loop closure mp
+- `s155_loop_closure_servo` — loop closure servo
+- `s156_realframe_loop_closure_servo` ★ — realframe loop closure servo
+- `s194_calib_axis_id_pd_closed_loop` — calib axis id pd closed loop
+- `s209_virtual_camera_tpu_e2e` ★ — virtual camera tpu e2e
+- `s230_arm_emulator_camera_markers` ★ — arm emulator camera markers
+- `s243_camera_alternation_yuv` — camera alternation yuv
+
+## Detection, model, quantization and throughput sweeps (17)
+- `s049_e21_vga_capture` ★ — e21 vga capture
+- `s050_e21_vga_capture` — e21 vga capture
+- `s054_e23_vga45_alt` ★ — e23 vga45 alt
+- `s057_e23_vga45_alt_post_cleanup` — e23 vga45 alt post cleanup
+- `s061_e21_vga_no_rotate` — e21 vga no rotate
+- `s077_e36_aec_sweep` — e36 aec sweep
+- `s110_px4_wind_sweep` ★ — px4 wind sweep
+- `s138_lost_recovery` ★ — lost recovery
+- `s148_lost_recovery_mp` — lost recovery mp
+- `s154_lost_recovery_servo` ★ — lost recovery servo
+- `s160_aruco_alt_sweep` ★ — aruco alt sweep
+- `s236_model_speed_sweep_640x480` — model speed sweep 640x480
+- `s237_pytorch_c2f_thick_route_sweep_usbcoral` — pytorch c2f thick route sweep usbcoral
+- `s238_relu_v1_board_speed_sweep` — relu v1 board speed sweep
+- `s239_relu_full_pipeline_fps` — relu full pipeline fps
+- `s241_relu_yuv_vga45_stats` ★ — relu yuv vga45 stats
+- `s242_detection_plus_flow_vga45` — detection plus flow vga45
+
+## ARM firmware emulation and emulator-to-Coral bridge (9)
+- `s213_arm_emulator_idle` ★ — arm emulator idle
+- `s214_arm_emulator_flow_task` — arm emulator flow task
+- `s215_arm_emulator_flow_tpu_parallel` ★ — arm emulator flow tpu parallel
+- `s216_arm_emulator_namespace_inventory` ★ — arm emulator namespace inventory
+- `s218_arm_emulator_core_namespaces` ★ — arm emulator core namespaces
+- `s219_arm_emulator_crazy_bridge` ★ — arm emulator crazy bridge
+- `s228_arm_emulator_hw_stub_namespaces` ★ — arm emulator hw stub namespaces
+- `s229_arm_emulator_gazebo_calib_precursor` ★ — arm emulator gazebo calib precursor
+- `s233_arm_emulator_gazebo_flow_whycon` ★ — arm emulator gazebo flow whycon
+
+## Simulation, SITL, and Gazebo integration (9)
+- `s087_gazebo_capture` ★ — gazebo capture
+- `s132_lifter_gazebo` — lifter gazebo
+- `s134_explore_gazebo` — explore gazebo
+- `s163_slam_sim_e2e` — slam sim e2e
+- `s181_whycon_sim_eval` ★ — whycon sim eval
+- `s182_whycon_gazebo_eval` ★ — whycon gazebo eval
+- `s185_yaw_smoke_gazebo` — yaw smoke gazebo
+- `s187_calib_bringup_gazebo` ★ — calib bringup gazebo
+- `s211_tfl_cpu_sim_smoke` ★ — tfl cpu sim smoke
+
+## WhyCon, optical flow, markers, and calibration (44)
+- `s066_e30_flow_trace` — e30 flow trace
+- `s068_e30_square` — e30 square
+- `s069_e30_square` — e30 square
+- `s071_e32_square` — e32 square
+- `s072_e33_flow_imu` ★ — e33 flow imu
+- `s076_e34_square_dualcap` — e34 square dualcap
+- `s083_flow_m7_validate` ★ — flow m7 validate
+- `s084_flow_phase_corr_30fps` ★ — flow phase corr 30fps
+- `s092_axis_calib` ★ — axis calib
+- `s097_px4_takeoff_land` ★ — px4 takeoff land
+- `s098_px4_hover_flow` ★ — px4 hover flow
+- `s099_link_flow_c_forward` — link flow c forward
+- `s101b_px4_flow_only` —  px4 flow only
+- `s104b_px4_offboard_flow` ★ —  px4 offboard flow
+- `s106_px4_mockflow_offboard` — px4 mockflow offboard
+- `s107_px4_offboard_pos_mockflow` ★ — px4 offboard pos mockflow
+- `s127_flowbaseline` ★ — flowbaseline
+- `s157_calib_smoke` — calib smoke
+- `s158_calib_takeoff` ★ — calib takeoff
+- `s164_square_drift_baseline` — square drift baseline
+- `s165_square_drift_gt` — square drift gt
+- `s166_flowbaseline_gt` ★ — flowbaseline gt
+- `s167_flowbaseline_calibrated` ★ — flowbaseline calibrated
+- `s172_flow_autotune_baseline` — flow autotune baseline
+- `s173_flow_hold_validation` — flow hold validation
+- `s180_aruco_whycon_apples_to_apples` ★ — aruco whycon apples to apples
+- `s183_whycon_square_baseline` ★ — whycon square baseline
+- `s184_drone_pose_kabsch` — drone pose kabsch
+- `s186_calib_whycon_synth` ★ — calib whycon synth
+- `s188_calib_ini_persist` — calib ini persist
+- `s189_calib_kp_persist` — calib kp persist
+- `s190_calib_bringup_rpyt_hl_handoff` ★ — calib bringup rpyt hl handoff
+- `s191_calib_classic_only` ★ — calib classic only
+- `s192_calib_whycon_postT10` — calib whycon postT10
+- `s193_calib_full_postT10` — calib full postT10
+- `s195_sota_uncalibrated_visual_servo` — sota uncalibrated visual servo
+- `s196_hl_handoff_after_calib` — hl handoff after calib
+- `s197_sota_calib_orientation_guarded` — sota calib orientation guarded
+- `s199_calib_envelope_survey` — calib envelope survey
+- `s201_inflight_handoff_hl_marker_control` ★ — inflight handoff hl marker control
+- `s203_hl_marker_control_with_flow` ★ — hl marker control with flow
+- `s205_cpp_calib_orientation_task` — cpp calib orientation task
+- `s207_cpp_marker_control_task` ★ — cpp marker control task
+- `s240_flow_plus_pipeline_parallel` — flow plus pipeline parallel
+
+## Flight, mission, and navigation (8)
+- `s128_l41baseline_seeded` — l41baseline seeded
+- `s129_l42baseline_centering` — l42baseline centering
+- `s130_image_only_nav` — image only nav
+- `s141_descriptor_baseline` — descriptor baseline
+- `s145_mission_template` ★ — mission template
+- `s161_hsv_baseline` — hsv baseline
+- `s170_security_aruco_baseline` — security aruco baseline
+- `s174_yaw_aruco_baseline` — yaw aruco baseline
+
+## Other (80)
+- `s013_e13` — e13
+- `s014_e13` — e13
+- `s015_e14` — e14
+- `s016_e15_512` — e15 512
+- `s017_e15_512` — e15 512
+- `s018_e15_512` — e15 512
+- `s019_e15_512` — e15 512
+- `s020_e15_512` — e15 512
+- `s021_e14_x20` — e14 x20
+- `s022_e14_x20` — e14 x20
+- `s023_e14_x20` — e14 x20
+- `s024_e15_x20` — e15 x20
+- `s025_e14_x20` — e14 x20
+- `s026_e15_x20` — e15 x20
+- `s027_e15_512` — e15 512
+- `s028_e15_512` — e15 512
+- `s029_e15_512` — e15 512
+- `s030_e15_512` — e15 512
+- `s031_e14_x20` ★ — e14 x20
+- `s032_e15_x20` ★ — e15 x20
+- `s034_e15_vs_e16_x40` — e15 vs e16 x40
+- `s035_e15_vs_e16_x40` — e15 vs e16 x40
+- `s036_e17_drain_ab` — e17 drain ab
+- `s037_e17_drain_ab` — e17 drain ab
+- `s038_e17_drain_ab` — e17 drain ab
+- `s039_e17_drain_ab` — e17 drain ab
+- `s040_e17_drain_ab` — e17 drain ab
+- `s041_e17_eof_check` ★ — e17 eof check
+- `s042_e16_eof_30fps_x40` — e16 eof 30fps x40
+- `s043_e18_headtail_drain2` ★ — e18 headtail drain2
+- `s044_e18_headtail_drain2` ★ — e18 headtail drain2
+- `s045_e18_post_refactor` ★ — e18 post refactor
+- `s062_e21_no_mirror_no_rotate` — e21 no mirror no rotate
+- `s064_e29_orientation` — e29 orientation
+- `s065_e29_orientation_readable` — e29 orientation readable
+- `s073_e33_corners` — e33 corners
+- `s078_e37_aec_gain` — e37 aec gain
+- `s079_e38_isp_preset` — e38 isp preset
+- `s081_e38_isp_80x60` — e38 isp 80x60
+- `s086_radio_smoke` ★ — radio smoke
+- `s088_pxp_fft_shim_smoke` ★ — pxp fft shim smoke
+- `s090_hover_over_cat` ★ — hover over cat
+- `s091_aruco_lowalt` ★ — aruco lowalt
+- `s093_max_velocity` ★ — max velocity
+- `s095_px4_link_ping` ★ — px4 link ping
+- `s096_repl_over_mavlink` ★ — repl over mavlink
+- `s100_px4_gz_smoke` ★ — px4 gz smoke
+- `s101_px4_hover_nowind` — px4 hover nowind
+- `s102_px4_vision_mock` ★ — px4 vision mock
+- `s104_px4_offboard` ★ — px4 offboard
+- `s105_offboard_plus_vision` ★ — offboard plus vision
+- `s108_px4_aruco_vpe` ★ — px4 aruco vpe
+- `s109_px4_aruco_wind` ★ — px4 aruco wind
+- `s119_h3_smoke` — h3 smoke
+- `s125_integrated_demo` — integrated demo
+- `s131_lifter_replay` — lifter replay
+- `s133_explore_skeleton` ★ — explore skeleton
+- `s135_explore_clean` ★ — explore clean
+- `s136_explore_real` — explore real
+- `s137_explore_long` ★ — explore long
+- `s139_phog` — phog
+- `s140_gist` — gist
+- `s142_hex_descriptor_patrol` — hex descriptor patrol
+- `s146_pose_feedback` ★ — pose feedback
+- `s147_explore_long_mp` — explore long mp
+- `s149_hex_patrol_mp` — hex patrol mp
+- `s152_hex_patrol_servo` ★ — hex patrol servo
+- `s153_explore_long_servo` ★ — explore long servo
+- `s159_aruco_smoke` — aruco smoke
+- `s162_slam_task_smoke` — slam task smoke
+- `s171_safety_unit` — safety unit
+- `s175_pnp_planar_ambiguity` ★ — pnp planar ambiguity
+- `s176_pnp_python_prototype` ★ — pnp python prototype
+- `s177_corner_subpix_prototype` — corner subpix prototype
+- `s178_cv2_vs_ours_dump` — cv2 vs ours dump
+- `s179_hw_aruco_perf_bench` — hw aruco perf bench
+- `s194val_independent_validation` — al independent validation
+- `s234_tpu512_timing_recheck` — tpu512 timing recheck
+- `s235_revalidate_paper_performance` ★ — revalidate paper performance
+- `s244_onboard_gaps_build1590` ★ — onboard gaps build1590

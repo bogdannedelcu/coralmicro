@@ -1,0 +1,22 @@
+ver: SentAI v1.0 build 1568 (2026-07-01 21:40:48)
+load  : 0
+pstart: 0
+running: True
+pipeline-only fc: 58 -> 109 (PRODUCING)
+
+=== div=2 (FULL RATE) ===
+ SD SD 2
+  t=7 up=51144 fc=344 flow_seq=15 
+  t=14 up=54989 fc=500 flow_seq=15 
+  t=20 USB blip
+  t=29 up=10411 fc=0 flow_seq=71 *** CORE RESET ***
+  t=36 up=17091 fc=0 flow_seq=71 
+  t=43 up=23781 fc=0 flow_seq=71 
+  t=50 up=30451 fc=0 flow_seq=71 
+  t=57 up=37141 fc=0 flow_seq=71 
+>>> div=2: RESETS=1 blips=1 | flow advanced 1/8 samples <<<
+
+==== VERDICT (build 1568, FFT scratch in OCRAM, FULL rate div=2) ====
+  resets=1  usb_blips=1  flow_advancing=YES
+  final flow tuple: (False, 4026730563, 448803669, -268236669, 0, 1142435891, 71)
+  infer_stats: {'ms_sum': 0, 'ok': 0, 'last_rc': 0, 'fail': 0}

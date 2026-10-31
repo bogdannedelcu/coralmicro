@@ -14,6 +14,25 @@ static mp_obj_t mod_sentai_is_ready(void) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_is_ready_obj, mod_sentai_is_ready);
 
+// sentai.tpu.recover() -> int (0 ok) — s240: PMIC power-cycle the wedged
+// EdgeTPU + re-enumerate + reload the last model, WITHOUT reflashing the M7.
+// Stop the detection pipeline first (pipeline.stop()).
+extern int sentai_tpu_recover(void);
+static mp_obj_t mod_sentai_tpu_recover(void) {
+    return mp_obj_new_int(sentai_tpu_recover());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_tpu_recover_obj, mod_sentai_tpu_recover);
+
+// sentai.tpu.set_mode(n) -> int (0 ok) — set Edge TPU clock at runtime:
+// 0=kLow(63MHz) 1=kMedium(125) 2=kHigh(250) 3=kMax(500).  Re-opens the device
+// and reloads the current model.  Stop the detection pipeline first.  applsci
+// energy paper WS0 (transfer-bound test).
+extern int sentai_tpu_set_mode(int mode);
+static mp_obj_t mod_sentai_tpu_set_mode(mp_obj_t mode_obj) {
+    return mp_obj_new_int(sentai_tpu_set_mode(mp_obj_get_int(mode_obj)));
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_tpu_set_mode_obj, mod_sentai_tpu_set_mode);
+
 // sentai.tpu.num_outputs() -> int
 static mp_obj_t mod_sentai_num_outputs(void) {
     return mp_obj_new_int(sentai_tpu_num_outputs());
@@ -641,6 +660,8 @@ static const mp_rom_map_elem_t sentai_tpu_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_load_image),  MP_ROM_PTR(&mod_sentai_load_image_obj) },
     { MP_ROM_QSTR(MP_QSTR_invoke),      MP_ROM_PTR(&mod_sentai_invoke_obj) },
     { MP_ROM_QSTR(MP_QSTR_ready),       MP_ROM_PTR(&mod_sentai_is_ready_obj) },
+    { MP_ROM_QSTR(MP_QSTR_recover),     MP_ROM_PTR(&mod_sentai_tpu_recover_obj) },
+    { MP_ROM_QSTR(MP_QSTR_set_mode),    MP_ROM_PTR(&mod_sentai_tpu_set_mode_obj) },
     { MP_ROM_QSTR(MP_QSTR_num_outputs), MP_ROM_PTR(&mod_sentai_num_outputs_obj) },
     { MP_ROM_QSTR(MP_QSTR_output_size), MP_ROM_PTR(&mod_sentai_output_size_obj) },
     { MP_ROM_QSTR(MP_QSTR_output),      MP_ROM_PTR(&mod_sentai_get_output_obj) },

@@ -1,0 +1,46 @@
+build: SentAI v1.0 build 1590 (2026-07-02 17:58:59)
+
+=== RGB group (yuv_mode=0) ===
+cam init(1,45): 0
+camera.fps: 45
+>>>
+  msblock      RGB in=1 invoke=32.0+-0.0ms FPS=27.2+-0.09 (3)
+  c3           RGB in=1 invoke=32.4+-0.5ms FPS=27.0+-0.00 (3)
+  c2f          RGB in=1 invoke=33.0+-0.0ms FPS=26.9+-0.09 (3)
+  c2f_pan2     RGB in=1 invoke=33.7+-0.4ms FPS=26.3+-0.00 (3)
+  gelan        RGB in=1 invoke=34.0+-0.0ms FPS=26.3+-0.00 (3)
+  c2f_thick    RGB in=1 invoke=35.0+-0.0ms FPS=26.2+-0.00 (3)
+  gelan_pan2   RGB in=1 invoke=35.0+-0.0ms FPS=25.4+-0.00 (2)
+FAIL measure RGB c2f_deep inv=30 fps=0
+
+=== YUV group (yuv_mode=1) ===
+cam init(1,45): 0
+camera.fps: 45
+>>>
+  msblock      YUV in=1 invoke=19.0+-0.0ms FPS=42.7+-0.09 (3)
+  c3           YUV in=1 invoke=19.0+-0.0ms FPS=42.6+-0.09 (3)
+  c2f          YUV in=1 invoke=19.4+-0.5ms FPS=42.3+-0.09 (3)
+  c2f_pan2     YUV in=1 invoke=20.0+-0.0ms FPS=41.0+-0.09 (3)
+  gelan        YUV in=1 invoke=20.9+-0.3ms FPS=40.6+-0.00 (3)
+  c2f_thick    YUV in=1 invoke=21.9+-0.3ms FPS=40.5+-0.00 (3)
+  gelan_pan2   YUV in=1 invoke=22.0+-0.0ms FPS=38.8+-0.09 (3)
+  c2f_deep     YUV in=1 invoke=22.0+-0.0ms FPS=38.9+-0.09 (3)
+
+=== DONE ===
+model,fmt,n_inputs,invoke_n,invoke_mean_ms,invoke_std_ms,invoke_min_ms,invoke_max_ms,invoke_median_ms,fps_trials,fps_mean,fps_std,fps_min,fps_max,per_ms_frame
+msblock,RGB,1,30,32.00,0.00,32,32,32.0,3,27.19,0.09,27.14,27.30,36.77
+c3,RGB,1,30,32.43,0.50,32,33,32.0,3,26.98,0.00,26.98,26.98,37.06
+c2f,RGB,1,30,33.00,0.00,33,33,33.0,3,26.87,0.09,26.82,26.98,37.21
+c2f_pan2,RGB,1,30,33.73,0.45,33,34,34.0,3,26.35,0.00,26.35,26.35,37.96
+gelan,RGB,1,30,34.00,0.00,34,34,34.0,3,26.35,0.00,26.35,26.35,37.96
+c2f_thick,RGB,1,30,35.00,0.00,35,35,35.0,3,26.19,0.00,26.19,26.19,38.19
+gelan_pan2,RGB,1,30,35.00,0.00,35,35,35.0,2,25.39,0.00,25.39,25.39,39.38
+msblock,YUV,1,30,19.00,0.00,19,19,19.0,3,42.75,0.09,42.69,42.85,23.39
+c3,YUV,1,30,19.00,0.00,19,19,19.0,3,42.64,0.09,42.53,42.69,23.45
+c2f,YUV,1,30,19.37,0.49,19,20,19.0,3,42.27,0.09,42.22,42.37,23.66
+c2f_pan2,YUV,1,30,20.00,0.00,20,20,20.0,3,41.00,0.09,40.95,41.11,24.39
+gelan,YUV,1,30,20.90,0.31,20,21,21.0,3,40.63,0.00,40.63,40.63,24.61
+c2f_thick,YUV,1,30,21.90,0.31,21,22,22.0,3,40.47,0.00,40.47,40.47,24.71
+gelan_pan2,YUV,1,30,22.00,0.00,22,22,22.0,3,38.83,0.09,38.72,38.88,25.75
+c2f_deep,YUV,1,30,22.00,0.00,22,22,22.0,3,38.94,0.09,38.88,39.04,25.68
+

@@ -1,0 +1,9 @@
+model,pipeline_fps,infer_fails,invoke_ms_avg
+msblock,27.05,0,9.8
+c2f,26.82,0,9.9
+c3,26.89,0,10.0
+c2f_pan2,26.29,0,10.1
+gelan,26.14,0,10.7
+gelan_pan2,25.4,0,10.7
+c2f_deep,25.38,0,10.8
+c2f_thick,26.01,0,10.8

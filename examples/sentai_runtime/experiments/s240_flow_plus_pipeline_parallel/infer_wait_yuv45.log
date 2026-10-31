@@ -1,0 +1,15 @@
+cam: 0
+load: True
+pstart: 0
+
+==== DECOMPOSITION (YUV @45fps, 30.2 fps = 33.1 ms/frame) ====
+  invoke:             23.0 ms/frame
+  NMS:                 0.0 ms/frame
+  infer_wait(prep):    0.1 ms/frame   <== KEY
+  --- prep side ---
+  sem_wait(buf):      13.8 ms/frame
+  pxp:                 7.2 ms/frame
+
+  VERDICT: infer_wait=0.1 ~0 -> prep NOT the pole -> gap is scheduling/invoke-internal, Y-double WON'T help
+RAW: {'cycle_ms_sum': 5676, 'ok': 479, 'last_rc': 23, 'nms_ms_sum': 7, 'fail': 0, 'infer_wait_ms_sum': 63, 'ms_sum': 11038}
+>>>

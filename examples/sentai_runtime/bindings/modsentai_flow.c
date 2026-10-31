@@ -95,6 +95,55 @@ static mp_obj_t mod_sentai_flow_slot_div(size_t n_args, const mp_obj_t *args) {
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_flow_slot_div_obj,
                                             0, 1, mod_sentai_flow_slot_div);
 
+// ---- s240: M4 flow offload ----
+extern int  sentai_flow_m4_boot(uint32_t timeout_ms);
+extern int  sentai_flow_m4_stop_worker(void);
+extern int  sentai_flow_m4_read(int* dx, int* dy, int* conf, uint32_t* seq,
+                                uint32_t* cyc, uint32_t* hb, uint32_t* state,
+                                uint32_t* frames);
+extern void sentai_flow_m4_set_mode(int on);
+extern int  sentai_flow_m4_get_mode(void);
+
+// sentai.flow.m4_start([timeout_ms]) -> int rc (0 ok, -1 no M4 ELF, -2 M4
+// didn't come up).  Enables M4-offload mode (M7 publishes gray, M4 computes
+// SAD off both M7 buses) then boots the M4 + sends START.  Call AFTER
+// flow.use_prep_slot(1) + flow.start() so the gray is flowing.
+static mp_obj_t mod_sentai_flow_m4_start(size_t n_args, const mp_obj_t *args) {
+    uint32_t to = (n_args >= 1) ? (uint32_t)mp_obj_get_int(args[0]) : 1000u;
+    sentai_flow_m4_set_mode(1);
+    int rc = sentai_flow_m4_boot(to);
+    if (rc != 0) sentai_flow_m4_set_mode(0);   // roll back on failure
+    return mp_obj_new_int(rc);
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_flow_m4_start_obj,
+                                            0, 1, mod_sentai_flow_m4_start);
+
+// sentai.flow.m4_stop() -> int rc.  Sends STOP to the M4 and returns M7 flow
+// to local compute (the M4 core stays booted; it just idles).
+static mp_obj_t mod_sentai_flow_m4_stop(void) {
+    sentai_flow_m4_set_mode(0);
+    return mp_obj_new_int(sentai_flow_m4_stop_worker());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_flow_m4_stop_obj,
+                                 mod_sentai_flow_m4_stop);
+
+// sentai.flow.m4_result() -> tuple (rc, dx, dy, conf, frame_seq, cycles,
+// heartbeat, m4_state, frames_processed).  rc<0 => M4 not up.
+static mp_obj_t mod_sentai_flow_m4_result(void) {
+    int dx = 0, dy = 0, conf = 0;
+    uint32_t seq = 0, cyc = 0, hb = 0, st = 0, fr = 0;
+    int rc = sentai_flow_m4_read(&dx, &dy, &conf, &seq, &cyc, &hb, &st, &fr);
+    mp_obj_t t[9] = {
+        mp_obj_new_int(rc),  mp_obj_new_int(dx),  mp_obj_new_int(dy),
+        mp_obj_new_int(conf), mp_obj_new_int_from_uint(seq),
+        mp_obj_new_int_from_uint(cyc), mp_obj_new_int_from_uint(hb),
+        mp_obj_new_int_from_uint(st),  mp_obj_new_int_from_uint(fr),
+    };
+    return mp_obj_new_tuple(9, t);
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_flow_m4_result_obj,
+                                 mod_sentai_flow_m4_result);
+
 // sentai.flow.read() -> dict
 //
 // Returns the latest SAD result.  All fields published by the M7
@@ -339,6 +388,9 @@ static const mp_rom_map_elem_t sentai_flow_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_stop),           MP_ROM_PTR(&mod_sentai_flow_stop_obj) },
     { MP_ROM_QSTR(MP_QSTR_use_prep_slot),  MP_ROM_PTR(&mod_sentai_flow_use_prep_slot_obj) },
     { MP_ROM_QSTR(MP_QSTR_slot_div),       MP_ROM_PTR(&mod_sentai_flow_slot_div_obj) },
+    { MP_ROM_QSTR(MP_QSTR_m4_start),       MP_ROM_PTR(&mod_sentai_flow_m4_start_obj) },
+    { MP_ROM_QSTR(MP_QSTR_m4_stop),        MP_ROM_PTR(&mod_sentai_flow_m4_stop_obj) },
+    { MP_ROM_QSTR(MP_QSTR_m4_result),      MP_ROM_PTR(&mod_sentai_flow_m4_result_obj) },
     { MP_ROM_QSTR(MP_QSTR_read),           MP_ROM_PTR(&mod_sentai_flow_read_obj) },
     { MP_ROM_QSTR(MP_QSTR_read_tuple),     MP_ROM_PTR(&mod_sentai_flow_read_tuple_obj) },
     { MP_ROM_QSTR(MP_QSTR_body_read),      MP_ROM_PTR(&mod_sentai_flow_body_read_obj) },

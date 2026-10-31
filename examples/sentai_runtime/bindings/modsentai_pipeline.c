@@ -723,11 +723,14 @@ static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
 extern void sentai_pipeline_infer_stats(uint32_t* ok, uint32_t* fail,
                                         uint32_t* ms_sum,
                                         int32_t*  last_rc);
+extern void sentai_pipeline_extra_stats(uint32_t* nms_sum, uint32_t* cycle_sum,
+                                        uint32_t* wait_sum);
 extern void sentai_pipeline_infer_reset(void);
 static mp_obj_t mod_sentai_pipeline_infer_stats(void) {
-    uint32_t ok=0, fail=0, ms=0;
+    uint32_t ok=0, fail=0, ms=0, nms=0, cyc=0, iwait=0;
     int32_t  last_rc=0;
     sentai_pipeline_infer_stats(&ok, &fail, &ms, &last_rc);
+    sentai_pipeline_extra_stats(&nms, &cyc, &iwait);
     mp_obj_t d = mp_obj_new_dict(0);
     mp_obj_dict_store(d, mp_obj_new_str("ok", 2),
                       mp_obj_new_int_from_uint(ok));
@@ -737,6 +740,12 @@ static mp_obj_t mod_sentai_pipeline_infer_stats(void) {
                       mp_obj_new_int_from_uint(ms));
     mp_obj_dict_store(d, mp_obj_new_str("last_rc", 7),
                       mp_obj_new_int(last_rc));
+    mp_obj_dict_store(d, mp_obj_new_str("nms_ms_sum", 10),
+                      mp_obj_new_int_from_uint(nms));
+    mp_obj_dict_store(d, mp_obj_new_str("cycle_ms_sum", 12),
+                      mp_obj_new_int_from_uint(cyc));
+    mp_obj_dict_store(d, mp_obj_new_str("infer_wait_ms_sum", 17),
+                      mp_obj_new_int_from_uint(iwait));
     return d;
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_pipeline_infer_stats_obj,

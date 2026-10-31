@@ -1,0 +1,32 @@
+camera.init(1,45) VGA45: CI 0
+sensor fps sample: SF 45
+
+PIPELINE FPS @ VGA45 (Camera+Prep/PXP+Infer/TPU concurrent, cam0 640x480 @45fps)
+model             fps  fails   invoke_ms
+msblock         27.05      0         9.8
+c2f             26.82      0         9.9
+c3              26.89      0        10.0
+c2f_pan2        26.29      0        10.1
+Traceback (most recent call last):
+  File "<stdin>", line 28, in <module>
+  File "<stdin>", line 5, in <lambda>
+  File "/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s236_model_speed_sweep_640x480/board_serial.py", line 40, in cmd
+    c = ser.read(4096)
+  File "/home/bogdan/work/coralmicro/venv-flash/lib/python3.14/site-packages/serial/serialposix.py", line 595, in read
+    raise SerialException(
+        'device reports readiness to read but returned no data '
+        '(device disconnected or multiple access on port?)')
+serial.serialutil.SerialException: device reports readiness to read but returned no data (device disconnected or multiple access on port?)
+sensor fps (still 45?): SF 30
+model             fps  fails   invoke_ms
+gelan        START FAIL
+gelan_pan2   START FAIL
+c2f_deep     START FAIL
+c2f_thick    START FAIL
+init(1,45): CI 0
+sensor fps: SF 45
+model             fps  fails   invoke_ms
+gelan           26.14      0        10.7
+gelan_pan2       25.4      0        10.7
+c2f_deep        25.38      0        10.8
+c2f_thick       26.01      0        10.8

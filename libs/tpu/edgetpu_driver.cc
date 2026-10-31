@@ -988,6 +988,13 @@ static bool BulkOutTransferStaged(usb_host_edgetpu_instance_t *usb,
 // Null-safe: when no pipeline owns it, SendInputs gives nothing.
 extern "C" volatile SemaphoreHandle_t g_sentai_tpu_input_done_sema = nullptr;
 extern "C" volatile uint32_t          g_sentai_tpu_input_done_count = 0;
+// s240/YUV420 multi-input overlap: when >0, DEFER the sema give until this
+// many input BYTES have been transferred within the current arm, so the
+// release fires after the LAST input plane of a multi-input model instead
+// of the first.  0 = legacy one-shot on the first SendInputs (single-input
+// RGB path).  The accumulator resets on every (re)arm and on fire.
+extern "C" volatile uint32_t g_sentai_tpu_input_done_byte_target = 0;
+static   volatile uint32_t   s_sentai_tpu_input_done_bytes_acc   = 0;
 
 bool TpuDriver::SendInputs(const uint8_t *data, uint32_t length) const {
   g_sentai_tpu_send_inputs_calls++;
@@ -1052,14 +1059,30 @@ bool TpuDriver::SendInputs(const uint8_t *data, uint32_t length) const {
   // Failure path leaves the pointer intact so InferTask's post-invoke
   // cleanup can decide whether to give manually.
   if (ok) {
-      SemaphoreHandle_t s = reinterpret_cast<SemaphoreHandle_t>(
-          __atomic_exchange_n(
-              reinterpret_cast<void* volatile*>(&g_sentai_tpu_input_done_sema),
-              static_cast<void*>(nullptr),
-              __ATOMIC_ACQ_REL));
-      if (s) {
-          xSemaphoreGive(s);
-          g_sentai_tpu_input_done_count++;
+      // Multi-input (byte_target > 0): accumulate this plane's bytes and
+      // only fire once the running total reaches the target (i.e. after
+      // the LAST plane).  Single-input (byte_target == 0): fire on the
+      // first SendInputs, as before.  Same-thread as the arming call
+      // (InferTask), so no arm/accumulate race.
+      const uint32_t target = g_sentai_tpu_input_done_byte_target;
+      bool fire;
+      if (target == 0u) {
+          fire = true;
+      } else {
+          s_sentai_tpu_input_done_bytes_acc += length;
+          fire = (s_sentai_tpu_input_done_bytes_acc >= target);
+      }
+      if (fire) {
+          SemaphoreHandle_t s = reinterpret_cast<SemaphoreHandle_t>(
+              __atomic_exchange_n(
+                  reinterpret_cast<void* volatile*>(&g_sentai_tpu_input_done_sema),
+                  static_cast<void*>(nullptr),
+                  __ATOMIC_ACQ_REL));
+          if (s) {
+              xSemaphoreGive(s);
+              g_sentai_tpu_input_done_count++;
+          }
+          s_sentai_tpu_input_done_bytes_acc = 0;
       }
   }
   return ok;
@@ -1070,6 +1093,21 @@ bool TpuDriver::SendInputs(const uint8_t *data, uint32_t length) const {
 // to call from task context; atomic release-store so the next
 // SendInputs either sees the full new value or null.
 extern "C" void sentai_tpu_set_input_done_sema(SemaphoreHandle_t sema) {
+    s_sentai_tpu_input_done_bytes_acc = 0;
+    __atomic_store_n(&g_sentai_tpu_input_done_byte_target, 0u, __ATOMIC_RELEASE);
+    __atomic_store_n(&g_sentai_tpu_input_done_sema, sema, __ATOMIC_RELEASE);
+}
+
+// s240/YUV420: arm the SendInputs release sema to fire only after
+// `byte_target` input bytes have been transferred this invoke -- used by
+// the dual-input pipeline so PrepTask is released after BOTH the Y and UV
+// planes are out (target = 460800), not after the first.  Same-thread as
+// Invoke(), so the reset + arm are sequenced before any SendInputs.
+extern "C" void sentai_tpu_set_input_done_sema2(SemaphoreHandle_t sema,
+                                                uint32_t byte_target) {
+    s_sentai_tpu_input_done_bytes_acc = 0;
+    __atomic_store_n(&g_sentai_tpu_input_done_byte_target, byte_target,
+                     __ATOMIC_RELEASE);
     __atomic_store_n(&g_sentai_tpu_input_done_sema, sema, __ATOMIC_RELEASE);
 }
 

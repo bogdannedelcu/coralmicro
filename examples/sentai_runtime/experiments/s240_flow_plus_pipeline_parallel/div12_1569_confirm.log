@@ -1,0 +1,11 @@
+load  : 0
+pstart: 0
+=== 1569 + div=12 (blip-tolerant, tracks core resets only) ===
+  t=13 up=3368 fc=0 flow_seq=71 
+  t=20 up=10078 fc=0 flow_seq=71 
+  t=27 up=16778 fc=0 flow_seq=71 
+  t=34 up=23458 fc=0 flow_seq=71 
+  t=41 up=30128 fc=0 flow_seq=71 
+  t=48 up=36808 fc=0 flow_seq=71 
+  t=55 up=43488 fc=0 flow_seq=71 
+>>> 1569+div12: CORE RESETS=0 over 48s (uptime 1->43488) <<<

@@ -45,6 +45,11 @@
 #include <cstdint>
 #include <cstring>
 
+// s240: M4 flow offload host uses IpcM7 to boot the M4 core (ARM only).
+#if !defined(SENTAI_PLATFORM_SIM)
+#include "libs/base/ipc_m7.h"
+#endif
+
 // Prep-slot consume code is COMPILED on ALL targets (real HW too) so FlowTask
 // can share PrepTask's FLOW_GRAY_80x60 slot instead of grabbing the camera
 // itself.  Whether it is USED at runtime is a runtime toggle
@@ -132,11 +137,13 @@ extern "C" {
 static uint8_t s_pxp_scratch[FLOW_GRAY_W * FLOW_GRAY_H * 3]
     __attribute__((aligned(32), section(".sdram_bss")));
 
-// M7-local ping-pong gray buffers: SAD compares curr vs prev.  Cached
-// SDRAM is fine since M7 is the sole writer + reader (no cross-core
-// coherency to worry about).  4-byte aligned for fast 32-bit reads.
-static uint8_t s_gray[2][FLOW_GRAY_PIXELS]
-    __attribute__((aligned(4), section(".sdram_bss")));
+// M7-local ping-pong gray buffers: the phase-corr FFT reads these every
+// frame.  Placed in DTCM (default .bss, NOT SDRAM/SEMC): CPU-only (no DMA, no
+// cross-core coherency), zero-wait on-chip, and off the SEMC bus so it doesn't
+// contend with the concurrent detection pipeline (TPU-input DMA + PXP + camera
+// all hammer SEMC) -- the residual flow+detection instability (s240).  OCRAM is
+// full (.tpu_input + RPMSG), so DTCM.
+static uint8_t s_gray[2][FLOW_GRAY_PIXELS] __attribute__((aligned(4)));
 
 // =====================================================================
 // Algorithm constants
@@ -508,21 +515,35 @@ extern "C" void sentai_flow_publish_frame(const uint8_t* raw,
     s_prev_slot = curr_slot;
 }
 
+extern "C" volatile int g_sentai_flow_m4_mode;   // 1 = offload SAD to M4
+
 static void flow_publish_gray80x60(const uint8_t* gray80x60, int cam_id) {
     if (!__atomic_load_n(&s_compute_enabled, __ATOMIC_ACQUIRE)) return;
     if (!gray80x60) return;
 
     volatile flow_shared_t* sh = &FLOW_SHARED();
+
+    // s240 M4-offload mode: if the previous frame is still unread by the
+    // M4 (frame_valid==1), drop this one so we never tear the gray buffer
+    // out from under M4's memcpy.
+    if (g_sentai_flow_m4_mode && sh->frame_valid) {
+        return;
+    }
+
     dwt_enable_once();
     const uint32_t t0 = dwt_now();
 
     const int curr_slot = s_prev_slot ^ 1;
     uint8_t* dst_local = s_gray[curr_slot];
-    volatile uint8_t* dst_shared = sh->gray;
-    for (int i = 0; i < FLOW_GRAY_PIXELS; ++i) {
-        uint8_t y = gray80x60[i];
-        dst_local[i] = y;
-        dst_shared[i] = y;
+    // Word-optimized copy to the non-cached shared OCRAM (memcpy emits
+    // LDM/STM, ~4x fewer bus transactions than the old byte-by-byte loop).
+    // The byte loop was 4800 individual OCRAM writes per frame contending
+    // with the TPU's OCRAM input DMA (s240).  In M4-offload mode the M7
+    // does not compute, so the local (cached) copy is only needed for the
+    // M7 compute path.
+    memcpy((void*)sh->gray, gray80x60, FLOW_GRAY_PIXELS);
+    if (!g_sentai_flow_m4_mode) {
+        memcpy(dst_local, gray80x60, FLOW_GRAY_PIXELS);
     }
     const uint32_t t_after_rgb2y = dwt_now();
     s_t_pxp_cyc = 0;
@@ -538,6 +559,20 @@ static void flow_publish_gray80x60(const uint8_t* gray80x60, int cam_id) {
     s_t_stretch_cyc = t_after_stretch - t_after_rgb2y;
 
     sh->frame_cam_id = (uint8_t)cam_id;
+
+    // s240 M4-offload: hand the gray to the M4 worker and RETURN — the M4
+    // computes the SAD on its own core (off both M7 buses) and writes
+    // last_dx/dy.  The M7 does NOT compute (that is the entire point of
+    // the offload).  frame_seq/frame_valid form the producer→consumer
+    // handshake; M4 clears frame_valid after copying the gray.
+    if (g_sentai_flow_m4_mode) {
+        s_publish_seq++;
+        SENTAI_DMB();
+        sh->frame_seq   = s_publish_seq;
+        sh->frame_valid = 1;
+        s_prev_slot     = curr_slot;
+        return;
+    }
 
 #if defined(SENTAI_PLATFORM_SIM)
     int dx_q = 0;
@@ -611,6 +646,84 @@ extern "C" int sentai_flow_m4_publish_set(int enable) {
 }
 
 // =====================================================================
+// s240 — M4 flow-offload HOST (M7 side).  Boots the M4 core (running
+// flow_task_m4.cc), hands it the 80×60 gray via FLOW_SHARED(), and
+// reads back the SAD result.  The M4 does NOT use RPMsg (its custom
+// bare-metal main skips IpcM4::Init), so liveness is the shared magic,
+// not M4IsAlive().  See experiments/s240.../m4_offload_review.md.
+// =====================================================================
+extern "C" { volatile int g_sentai_flow_m4_mode = 0; }   // 1 = offload to M4
+
+#if !defined(SENTAI_PLATFORM_SIM)
+static volatile int s_m4_booted  = 0;
+static uint32_t     s_m4_cmd_seq = 0;
+
+// Boot the M4 (once) and send FLOW_CMD_START.  Returns 0 on success,
+// -1 if no M4 ELF is embedded, -2 if the M4 didn't publish its magic
+// within timeout_ms.  Idempotent: re-arms START on repeat calls.
+extern "C" int sentai_flow_m4_boot(uint32_t timeout_ms) {
+    volatile flow_shared_t* sh = &FLOW_SHARED();
+    if (!s_m4_booted) {
+        if (!coralmicro::IpcM7::HasM4Application()) return -1;
+        sh->magic = 0;                 // clear so we detect the M4 setting it
+        SENTAI_DMB();
+        coralmicro::IpcM7::GetSingleton()->StartM4();   // async, non-blocking
+        s_m4_booted = 1;
+    }
+    uint32_t waited = 0;
+    while (sh->magic != FLOW_SHARED_MAGIC && waited < timeout_ms) {
+        vTaskDelay(pdMS_TO_TICKS(5));
+        waited += 5;
+    }
+    if (sh->magic != FLOW_SHARED_MAGIC) return -2;
+    sh->cmd = FLOW_CMD_START;
+    SENTAI_DMB();
+    sh->cmd_seq = ++s_m4_cmd_seq;      // one-shot handshake; M4 acks
+    return 0;
+}
+
+extern "C" int sentai_flow_m4_stop_worker(void) {
+    volatile flow_shared_t* sh = &FLOW_SHARED();
+    if (sh->magic != FLOW_SHARED_MAGIC) return -1;
+    sh->cmd = FLOW_CMD_STOP;
+    SENTAI_DMB();
+    sh->cmd_seq = ++s_m4_cmd_seq;
+    return 0;
+}
+
+// Read the latest M4 result + liveness.  Returns 0 ok, -1 if M4 not up.
+extern "C" int sentai_flow_m4_read(int* dx, int* dy, int* conf,
+                                   uint32_t* seq, uint32_t* cyc,
+                                   uint32_t* hb, uint32_t* state,
+                                   uint32_t* frames) {
+    volatile flow_shared_t* sh = &FLOW_SHARED();
+    if (sh->magic != FLOW_SHARED_MAGIC) return -1;
+    if (dx)     *dx     = sh->last_dx;
+    if (dy)     *dy     = sh->last_dy;
+    if (conf)   *conf   = sh->last_confidence;
+    if (seq)    *seq    = sh->last_frame_seq;
+    if (cyc)    *cyc    = sh->last_compute_us;
+    if (hb)     *hb     = sh->m4_heartbeat;
+    if (state)  *state  = sh->m4_state;
+    if (frames) *frames = sh->frames_processed;
+    return 0;
+}
+#else
+extern "C" int sentai_flow_m4_boot(uint32_t timeout_ms) { (void)timeout_ms; return -1; }
+extern "C" int sentai_flow_m4_stop_worker(void) { return -1; }
+extern "C" int sentai_flow_m4_read(int* dx, int* dy, int* conf,
+                                   uint32_t* seq, uint32_t* cyc,
+                                   uint32_t* hb, uint32_t* state,
+                                   uint32_t* frames) {
+    (void)dx;(void)dy;(void)conf;(void)seq;(void)cyc;(void)hb;(void)state;(void)frames;
+    return -1;
+}
+#endif  // !SIM
+
+extern "C" void sentai_flow_m4_set_mode(int on) { g_sentai_flow_m4_mode = on ? 1 : 0; }
+extern "C" int  sentai_flow_m4_get_mode(void)   { return g_sentai_flow_m4_mode; }
+
+// =====================================================================
 // Standalone publisher task -- runs ONLY when no TPU pipeline is
 // already publishing through detection_task::PrepTask.
 // =====================================================================
@@ -618,12 +731,13 @@ extern "C" int sentai_flow_m4_publish_set(int enable) {
 static volatile bool s_pub_running = false;
 static TaskHandle_t  s_pub_task    = nullptr;
 static StaticTask_t  s_pub_tcb;
+// FlowTask stack in DTCM (default .bss, NOT SDRAM): a task stack is touched on
+// every call/return + every FFT butterfly local; in SDRAM those accesses go
+// through SEMC, which stalls hard under the detection pipeline's concurrent
+// SEMC traffic -> the residual flow+detection instability (s240).  DTCM is
+// zero-wait on-chip, off the SEMC bus.  (OCRAM is full: .tpu_input + RPMSG.)
 static StackType_t   s_pub_stack[configMINIMAL_STACK_SIZE * 8]
-    __attribute__((aligned(8)
-#if !defined(SENTAI_PLATFORM_SIM)
-                   , section(".sdram_bss")
-#endif
-                   ));
+    __attribute__((aligned(8)));
 
 // ISR-side rendezvous handle.  CSI_IRQHandler reads this atomically;
 // when non-NULL it calls vTaskNotifyGiveFromISR exactly once per

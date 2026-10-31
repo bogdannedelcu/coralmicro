@@ -1,0 +1,6 @@
+  Inputs: 1
+  in[0] uint8[1,480,640,3] (921600 bytes)  scale=0.00392157 zp=0
+  RC 0
+
+>>> RGB invoke (us, n=60): min=34973 p25=35105 MEDIAN=35159 mean=35172 p95=35309 max=35315
+>>> RGB median: 35.16 ms = 28.4 fps  (mean 35.17 ms)

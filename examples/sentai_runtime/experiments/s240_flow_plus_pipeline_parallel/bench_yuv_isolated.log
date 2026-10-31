@@ -1,0 +1,10 @@
+resetting for clean state...
+ver: SentAI v1.0 build 1580 (2026-07-02 10:10:39)
+=== ISOLATED YUV420 benchmark (c2f_yuv420, dual-input 460800B) ===
+  Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00326224 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+  RC 0
+
+>>> YUV420 invoke (n=50): min=5 p25=5 MEDIAN=5 mean=5.76 p95=10 max=11
+>>> YUV420 median FPS: 200.0

@@ -1,0 +1,18 @@
+build: SentAI v1.0 build 1586 (2026-07-02 11:25:49)
+cam init(1,45): 0
+cam fps: 45
+>>>
+load: True inputs: ['Inputs: 2']
+pstart: 0
+
+==== YUV @45fps PROFILE : 30.7 fps det (32.6 ms/frame), 488 prep frames ====
+  sem_wait (blocked waiting free buf)  13.94 ms/frame
+  cam_grab (wait+get camera frame)     0.54 ms/frame
+  pxp (resize/convert Y+UV)            7.27 ms/frame
+  quant                                0.00 ms/frame
+  prep TOTAL (whole iteration)        22.31 ms/frame
+  invoke (transfer+compute)           23.05 ms/frame (last_rc=23)
+
+prep_buf_timeout: 1
+RAW prep: {'pxp_ms_sum': 3547, 'cam_grab_ms_sum': 262, 'quant_ms_sum': 0, 'frames': 488, 'total_ms_sum': 10885, 'sem_wait_ms_sum': 6802}
+>>

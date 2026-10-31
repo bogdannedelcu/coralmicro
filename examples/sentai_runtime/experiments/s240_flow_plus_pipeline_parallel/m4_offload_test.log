@@ -1,0 +1,16 @@
+load  : 0
+pstart: 0
+detection producing: 51->102 (OK)
+use_prep: Node edgetpu-custom-op (number 0) failed to invoke with status 1
+flow.start: Node edgetpu-custom-op (number 0) failed to invoke with status 1
+>>> booting M4 (flow offload)...
+m4_start rc: Node edgetpu-custom-op (number 0) failed to invoke with status 1
+Traceback (most recent call last):
+  File "<stdin>", line 41, in <module>
+  File "<stdin>", line 14, in <lambda>
+  File "/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s236_model_speed_sweep_640x480/board_serial.py", line 34, in cmd
+    while ser.in_waiting:
+          ^^^^^^^^^^^^^^
+  File "/home/bogdan/work/coralmicro/venv-flash/lib/python3.14/site-packages/serial/serialposix.py", line 549, in in_waiting
+    s = fcntl.ioctl(self.fd, TIOCINQ, TIOCM_zero_str)
+OSError: [Errno 5] Input/output error

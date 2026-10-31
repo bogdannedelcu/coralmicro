@@ -1,0 +1,8 @@
+cam: 0
+load: True
+
+=== THROTTLE-BUG TEST @45fps camera, YUV ===
+  target_fps=45 (default)  30.0 fps (33.3 ms/frame, invoke=23 ms)
+  target_fps=0 (throttle OFF) 40.5 fps (24.7 ms/frame, invoke=23 ms)
+
+>>> 30.0 -> 40.5 fps  (+35%)  THROTTLE-BUG CONFIRMED

@@ -23,11 +23,14 @@
 #include <stdint.h>
 
 #define FLOW_SHARED_MAGIC    0x53464C57u  // 'SFLW'
-#define FLOW_SHARED_VERSION  4u           // v4: + m4_curr_gray (the
-                                          //     EXACT gray frame M4 used
-                                          //     for its last SAD; lets
-                                          //     host replay match
-                                          //     firmware bit-for-bit).
+#define FLOW_SHARED_VERSION  5u           // v5 (s240): REMOVED m4_curr_gray.
+                                          //     The mirror publish was a
+                                          //     4800 B memcpy to non-cached
+                                          //     OCRAM every frame that
+                                          //     cratered M4 SAD to ~1 fps
+                                          //     (experiment.md:1127) — a
+                                          //     validation-only field, gone.
+                                          // v4: + m4_curr_gray (removed).
                                           // v3: dx/dy carry milli-grid-px
                                           //     after parabolic sub-pixel
                                           //     fit (1000 = 1 grid-px).
@@ -98,25 +101,25 @@ typedef struct {
     // ── M7 → M4: 80×60 gray frame (4800 bytes) ───────────────────  0x60
     volatile uint8_t  gray[FLOW_GRAY_PIXELS];
 
-    // ── M4 → M7: the EXACT gray M4 used as 'curr' in its last
-    //              sad_match (4800 bytes).  M4 copies its local
-    //              s_gray[curr_slot] here AFTER sad completes,
-    //              before clearing frame_valid for the next round.
-    //              Host's bulk capture should grab this (NOT the
-    //              shared-publish gray) so offline replay sees the
-    //              same input bytes M4 saw and produces bit-identical
-    //              SAD results.  Useful for algorithm validation;
-    //              ignore in production builds that don't bulk-cap.
-    volatile uint8_t  m4_curr_gray[FLOW_GRAY_PIXELS];
+    // (v5 s240: m4_curr_gray mirror REMOVED — its per-frame 4800 B
+    //  memcpy to non-cached OCRAM cratered M4 SAD to ~1 fps.  It was
+    //  a validation-only echo; offline replay can use the published
+    //  `gray` instead.)
 } flow_shared_t;
 
-// Physical address on RT1176.  Inside the 16 KB rpmsg_sh_mem window
-// (2026-04-21 the region was bumped from 8 KB to 16 KB in all 5
-// RT1176 linker scripts to host the 80×60 gray buffer; MPU region 15
-// re-sizes automatically via BOARD_ConfigMPU's log2-of-symbol
-// calculation).  Window is 0x202C0000..0x202C3FFF; offset 0x1000 leaves
-// 4 KB of head-room below for the RPMsg queues and 12 KB above for the
-// flow struct.
+// Physical address on RT1176.  Inside the 16 KB rpmsg_sh_mem window.
+//
+// s240 (2026-07-01) RELOCATION: this used to be 0x202C1000 — an address
+// that was valid ONLY for the old OCRAM layout where rpmsg_sh_mem sat at
+// 0x202C0000/16 KB.  The sentai layout moved rpmsg to the END of OCRAM2
+// (0x2033C000) and it had shrunk to 8 KB, so 0x202C1000 had gone STALE
+// and landed in the MIDDLE of .tpu_input (the 900 KB TPU input tensor) —
+// silently corrupting detection when M4 flow ran concurrently.  Fixed by
+// (a) pointing at the current rpmsg window and (b) re-widening rpmsg back
+// to 16 KB (0x2033C000..0x2033FFFF) in BOTH core linker scripts so the
+// struct fits with the 4 KB RPMsg-queue head-room.  MPU region auto-sizes
+// from __RPMSG_SH_MEM_SIZE.  Window base 0x2033C000; +0x1000 head-room ⇒
+// flow struct at 0x2033D000.
 //
 // SIM cannot dereference a board physical address, so the simulator
 // provides a static flow_shared_t symbol and keeps the same macro shape.
@@ -131,17 +134,16 @@ extern volatile flow_shared_t g_sentai_flow_shared;
 #endif
 #define FLOW_SHARED() (g_sentai_flow_shared)
 #else
-#define FLOW_SHARED_ADDR 0x202C1000u
+#define FLOW_SHARED_ADDR 0x2033D000u
 #define FLOW_SHARED() (*(volatile flow_shared_t*)FLOW_SHARED_ADDR)
 #endif
 
 // Sanity: the layout must fit into the 12 KB that the RPMsg window
 // gives us past offset 0x1000 (16 KB total − 4 KB queue head-room).
-// With 80×60 gray, header + frame = 0x60 + 4800 ≈ 4.8 KB; with
-// the v4 m4_curr_gray addition, total ~9.7 KB; leaves ~2 KB margin
-// before we have to widen the rpmsg_sh_mem region in the linker
-// scripts again.  Keep this assert tight so a future field add
-// fails loudly at compile time, not at runtime cross-core corruption.
+// v5 (s240): header + 80×60 gray = 0x60 + 4800 ≈ 4.8 KB (the
+// m4_curr_gray mirror was removed).  Comfortable margin.  Keep this
+// assert tight so a future field add fails loudly at compile time,
+// not at runtime cross-core corruption.
 #ifdef __cplusplus
 static_assert(sizeof(flow_shared_t) <= 0x3000,
               "flow_shared_t exceeds the 12 KB allocation past FLOW_SHARED_ADDR");

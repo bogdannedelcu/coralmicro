@@ -1,0 +1,14 @@
+model: True
+load : 0
+pstart: 0
+=== fresh healthy board: detection-ALONE 60s ===
+Traceback (most recent call last):
+  File "<stdin>", line 25, in <module>
+  File "<stdin>", line 14, in <lambda>
+  File "/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s236_model_speed_sweep_640x480/board_serial.py", line 40, in cmd
+    c = ser.read(4096)
+  File "/home/bogdan/work/coralmicro/venv-flash/lib/python3.14/site-packages/serial/serialposix.py", line 595, in read
+    raise SerialException(
+        'device reports readiness to read but returned no data '
+        '(device disconnected or multiple access on port?)')
+serial.serialutil.SerialException: device reports readiness to read but returned no data (device disconnected or multiple access on port?)

@@ -1,0 +1,15 @@
+load  : 0
+pstart: 0
+det producing: 51->103
+
+=== slot_div=2 ===
+ use_prep: Node edgetpu-custom-op (number 0) failed to invoke with status 1
+ m4_start: Node edgetpu-custom-op (number 0) failed to invoke with status 1
+ flow.start: Node edgetpu-custom-op (number 0) failed to invoke with status 1
+  t=10 up=1 det_fc=1 det_adv=False m4_fr=None 
+  t=21 up=1 det_fc=1 det_adv=False m4_fr=None 
+  t=31 up=-1 det_fc=1 det_adv=False m4_fr=None 
+  t=42 up=1 det_fc=1 det_adv=False m4_fr=None 
+  t=52 up=-1 det_fc=-1 det_adv=False m4_fr=None 
+ >>> div=2: resets=0 det_advancing=0/7 m4_advancing=0/7 <<<
+DONE

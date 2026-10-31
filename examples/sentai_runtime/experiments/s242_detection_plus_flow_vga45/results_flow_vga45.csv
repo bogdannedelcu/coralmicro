@@ -1,0 +1,6 @@
+mode,det_trials,det_fps_mean,det_fps_std,flow_trials,flow_fps_mean,flow_fps_std,resets,last_conf
+detect_only,4,38.95,0.00,0,0.00,0.00,0,-1
+detect+flow_M7,4,31.68,0.00,0,0.00,0.00,0,255
+detect+flow_M4,0,0.00,0.00,0,0.00,0.00,0,252
+detect_only_VGA30,4,29.00,0.07,0,0.00,0.00,0,-1
+detect+flow_M7_VGA30,4,29.00,0.07,0,0.00,0.00,0,255

@@ -1,0 +1,10 @@
+=== RGB baseline @ 45fps camera (yuv_mode=0, c2f_thick) ===
+cam init(1,45): ['0']
+load: 0
+pstart: 0
+  t=6 up=16596 fc=177 S {'ms_sum': 6884, 'ok': 190, 'last_rc': 36, 'fail
+  t=12 up=19636 fc=307 S {'ms_sum': 11579, 'ok': 320, 'last_rc': 37, 'fai
+  t=18 up=22557 fc=436 S {'ms_sum': 16232, 'ok': 449, 'last_rc': 36, 'fai
+  t=24 up=25690 fc=568 S {'ms_sum': 20997, 'ok': 581, 'last_rc': 36, 'fai
+  t=30 up=28770 fc=700 S {'ms_sum': 25757, 'ok': 713, 'last_rc': 36, 'fai
+>>> RGB @45fps SUSTAINED: 22.2 fps (resets=0)

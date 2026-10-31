@@ -1,0 +1,11 @@
+build: SentAI v1.0 build 1589 (2026-07-02 16:07
+yuv_mode: 0 (0=RGB)
+cam: 0
+load c2f_thick: True | inputs: ['Inputs: 1']
+
+=== RGB (c2f_thick) @45fps, throttle FIXED (build 1589) ===
+  target_fps=45 (fixed)      26.2 fps (38.2 ms/frame, invoke=36 ms)
+  target_fps=0 (off)         26.2 fps (38.2 ms/frame, invoke=36 ms)
+
+>>> RGB throttle-fixed: 26.2 fps (invoke 36 ms) | old buggy baseline was 22.2 fps
+>>> throttle-off cross-check: 26.2 fps

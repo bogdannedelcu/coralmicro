@@ -1,0 +1,11 @@
+prep_enable(4): PE 1
+=== detection + FLOW_GRAY PRODUCTION only (no flow task), ~40s ===
+  t=7 up=113008 fc=189 
+  t=13 up=116787 fc=343 
+  t=20 up=120448 fc=496 
+  t=26 up=124269 fc=650 
+  t=33 up=127740 fc=799 
+  t=40 up=131489 fc=953 
+  t=46 up=135180 fc=1105 
+
+>>> PRODUCTION-ONLY (no flow task): CORE RESETS=0 USB blips=0 <<<

@@ -1,0 +1,14 @@
+load  : 0
+pstart: 0
+use_prep: 1
+m4_start: 0
+flow.start: 0
+  t=7 up=13615 det_fc=0 {'ms_sum': 0, 'ok': 0, 'last_rc':  m4_fr=0 
+  t=14 up=20585 det_fc=0 {'ms_sum': 0, 'ok': 0, 'last_rc':  m4_fr=0 
+  t=22 up=27565 det_fc=0 {'ms_sum': 0, 'ok': 0, 'last_rc':  m4_fr=0 
+  t=29 up=34535 det_fc=0 {'ms_sum': 0, 'ok': 0, 'last_rc':  m4_fr=0 
+  t=36 up=41525 det_fc=0 {'ms_sum': 0, 'ok': 0, 'last_rc':  m4_fr=0 
+  t=43 up=48485 det_fc=0 {'ms_sum': 0, 'ok': 0, 'last_rc':  m4_fr=0 
+  t=50 up=55465 det_fc=0 {'ms_sum': 0, 'ok': 0, 'last_rc':  m4_fr=0 
+  t=58 up=62415 det_fc=0 {'ms_sum': 0, 'ok': 0, 'last_rc':  m4_fr=0 
+>>> M4 offload + slot_div6: resets=0 m4_advancing=0/9 <<<

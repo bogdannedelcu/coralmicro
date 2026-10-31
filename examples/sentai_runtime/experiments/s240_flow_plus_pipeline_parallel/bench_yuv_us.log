@@ -1,0 +1,7 @@
+  Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00326224 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+  RC 0
+
+>>> YUV420 invoke (us, n=60): min=21660 p25=21906 MEDIAN=21971 mean=21957 p95=22079 max=22083
+>>> YUV420 median: 21.97 ms = 45.5 fps  (mean 21.96 ms)

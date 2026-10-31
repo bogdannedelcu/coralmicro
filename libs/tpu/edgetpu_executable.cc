@@ -303,18 +303,38 @@ TfLiteStatus EdgeTpuExecutable::Invoke(const TpuDriver& tpu_driver,
             g_sentai_tpu_by_params  += dma_hint->size_in_bytes();
             break;
           }
-          case platforms::darwinn::Description_BASE_ADDRESS_INPUT_ACTIVATION:
+          case platforms::darwinn::Description_BASE_ADDRESS_INPUT_ACTIVATION: {
             name = dma_hint->meta()->name()->c_str();
+            // s240/YUV420 MULTI-INPUT: route each input layer to the model
+            // input tensor whose element count matches.  Single-input RGB
+            // models keep using input 0 (the default below).  Sizes are
+            // distinct per input (e.g. dual-input YUV420: UV 153600 vs Y
+            // 307200), so element-count matching is unambiguous.
+            const TfLiteEvalTensor* in_t = input_tensor;  // default: input 0
+            int in_sz = input_size;
             if (executable_->input_layers()) {
               for (const auto* input_layer : *(executable_->input_layers())) {
                 if (!strcmp(input_layer->name()->c_str(), name)) {
+                  const int want = (int)input_layer->x_dim() *
+                                   (int)input_layer->y_dim() *
+                                   (int)input_layer->z_dim();
+                  if (node->inputs->size > 1) {
+                    for (int k = 0; k < node->inputs->size; k++) {
+                      const TfLiteEvalTensor* t =
+                          tflite::micro::GetEvalInput(context, node, k);
+                      if (t && tflite::micro::GetTensorShape(t).FlatSize() == want) {
+                        in_t = t; in_sz = want; break;
+                      }
+                    }
+                  }
                   if (OutputLayer::SignedDataType(input_layer->data_type())) {
                     OutputLayer::TransformSignedDataType(
-                        input_tensor->data.uint8, input_size,
+                        in_t->data.uint8, in_sz,
                         TensorDataTypeSize(input_layer->data_type()),
                         input_layer->x_dim(), input_layer->y_dim(),
                         input_layer->z_dim());
                   }
+                  break;
                 }
               }
             }
@@ -323,13 +343,14 @@ TfLiteStatus EdgeTpuExecutable::Invoke(const TpuDriver& tpu_driver,
                   dma_hint->size_in_bytes(), dma_hint->offset_in_bytes());
               uint32_t t0 = tpu_cyc();
               RETURN_IF_ERROR_S(tpu_driver.SendInputs(
-                  input_tensor->data.uint8 + dma_hint->offset_in_bytes(),
+                  in_t->data.uint8 + dma_hint->offset_in_bytes(),
                   dma_hint->size_in_bytes()), 0x0B61);
               g_sentai_tpu_cyc_input += (tpu_cyc() - t0);
               g_sentai_tpu_n_input   += 1;
               g_sentai_tpu_by_input  += dma_hint->size_in_bytes();
             }
             break;
+          }
           case platforms::darwinn::Description_BASE_ADDRESS_OUTPUT_ACTIVATION: {
             name = dma_hint->meta()->name()->c_str();
             if (output_layers_.find(name) == output_layers_.end()) {
@@ -364,6 +385,23 @@ TfLiteStatus EdgeTpuExecutable::Invoke(const TpuDriver& tpu_driver,
               trace_hint('O', name, dma_hint->size_in_bytes(),
                          dma_hint->offset_in_bytes());
             }
+            // s240 BOUNDS GUARD: the output bulk-IN DMA must not write past the
+            // heap output_buffer_ (sized alloc_size()).  An overrun corrupts the
+            // heap -> delayed crash.  Skip the guard only on the discard path
+            // (256 KB scratch, checked above).  Clean error instead of corruption.
+            {
+              OutputLayer* olg = output_layers_.at(name);
+              const bool discarding = (output != olg->output_buffer());
+              if (!discarding &&
+                  static_cast<uint32_t>(dma_hint->size_in_bytes()) > olg->alloc_size()) {
+                g_sentai_tpu_invoke_fail_code = 0x0B63;
+                if (g_sentai_tpu_trace)
+                  printf("[obuf] *** OVERFLOW BLOCKED *** %s dma=%lu alloc=%lu\r\n",
+                         name, (unsigned long)dma_hint->size_in_bytes(),
+                         (unsigned long)olg->alloc_size());
+                return kTfLiteError;
+              }
+            }
             uint32_t t0 = tpu_cyc();
             RETURN_IF_ERROR_S(
                 tpu_driver.GetOutputs(output, dma_hint->size_in_bytes()),
@@ -392,6 +430,27 @@ TfLiteStatus EdgeTpuExecutable::Invoke(const TpuDriver& tpu_driver,
             if (scratch == nullptr) {
               g_sentai_tpu_invoke_fail_code = 0x0B65;
               return kTfLiteError;
+            }
+            // s240 BOUNDS GUARD: never let the spill DMA read/write past the
+            // reserved arena scratch region.  Without this, an OUTFEED whose
+            // offset+size exceeds scratch_size_bytes() overwrites adjacent
+            // tensors in the arena -> silent corruption -> "works fine then
+            // crashes" (the c2f_thick wedge class).  Turn the overrun into a
+            // clean, diagnosable error (0x0B65) instead of memory corruption.
+            {
+              const uint64_t need =
+                  (uint64_t)dma_hint->offset_in_bytes() +
+                  (uint64_t)dma_hint->size_in_bytes();
+              const uint64_t cap = executable_->scratch_size_bytes();
+              if (need > cap) {
+                g_sentai_tpu_invoke_fail_code = 0x0B65;
+                if (g_sentai_tpu_trace)
+                  printf("[scratch] *** OVERRUN *** off=%lu sz=%lu need=%lu cap=%lu\r\n",
+                         (unsigned long)dma_hint->offset_in_bytes(),
+                         (unsigned long)dma_hint->size_in_bytes(),
+                         (unsigned long)need, (unsigned long)cap);
+                return kTfLiteError;
+              }
             }
             uint8_t* p = scratch + dma_hint->offset_in_bytes();
             if (hint->direction() == platforms::darwinn::Direction_OUTFEED) {

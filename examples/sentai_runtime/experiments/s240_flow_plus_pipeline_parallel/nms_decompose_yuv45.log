@@ -1,0 +1,12 @@
+cam: 0
+load: True | n_out: 2 | out bytes: [1, 1]
+pstart: 0
+
+==== InferTask decomposition (YUV @45fps, 31.2 fps = 32.1 ms/frame, n=494) ====
+  invoke (transfer+compute):   23.0 ms/frame
+  NMS (sentai_tpu_detect):      0.0 ms/frame   <-- serial post-invoke tail
+  full InferTask cycle:        13.3 ms/frame
+  --> invoke+NMS = 23.1 ms (frame period 32.1)
+
+RAW: {'cycle_ms_sum': 6555, 'ms_sum': 11383, 'ok': 494, 'last_rc': 23, 'nms_ms_sum': 6, 'fail': 0}
+>>>

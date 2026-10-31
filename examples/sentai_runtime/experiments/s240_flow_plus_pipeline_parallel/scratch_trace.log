@@ -1,0 +1,533 @@
+model: True
+load : 0
+trace: True
+=== capturing trace during a few invokes ===
+--- captured trace lines ---
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0
+  [obuf] StatefulPartitionedCall:0 dma=38400 alloc=38400 raw=38400 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:0 bytes=38400 off=0
+  [bulkin] S v1=1 v2=36864
+  [bulkin] S v1=1 v2=1536
+  [obuf] StatefulPartitionedCall:1 dma=9600 alloc=9600 raw=9600 exec=1 ok
+  [tpu] O name=StatefulPartitionedCall:1 bytes=9600 off=0
+  [bulkin] S v1=1 v2=9600
+  [tpu] I name=serving_default_rgb_uint8_image:0 bytes=921600 off=0

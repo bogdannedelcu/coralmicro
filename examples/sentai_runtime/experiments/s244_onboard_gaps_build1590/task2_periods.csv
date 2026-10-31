@@ -1,0 +1,3 @@
+input,single_output_ms,invoke_ms,dual_combined_ms,dual_percam_ms,switch_drain1_us,switch_drain1_std
+RGB,38.1,58,44.4,88.8,75995,19321
+YUV,24.7,44,44.3,88.6,74879,19365

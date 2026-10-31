@@ -22,6 +22,7 @@ extern "C" {
 #include "libs/base/filesystem.h"
 #include "libs/tpu/edgetpu_manager.h"
 #include "libs/tpu/edgetpu_op.h"
+#include "libs/tpu/edgetpu_task.h"   // s240: EdgeTpuTask::SetPower for wedge recovery
 #include "third_party/freertos_kernel/include/FreeRTOS.h"
 #include "third_party/freertos_kernel/include/task.h"
 #include "third_party/tflite-micro/tensorflow/lite/micro/micro_error_reporter.h"
@@ -48,6 +49,7 @@ extern tflite::MicroInterpreter* g_slot_interp[kNumTpuSlots];
 extern std::vector<uint8_t>* g_slot_model_data[kNumTpuSlots];
 extern volatile bool g_slot_ready[kNumTpuSlots];
 extern std::shared_ptr<EdgeTpuContext> g_tpu_context;
+extern PerformanceMode g_tpu_mode;  // runtime-selectable Edge TPU clock (see sentai_runtime.cc)
 }  // namespace coralmicro
 
 static constexpr int kTensorArenaSize = 8 * 1024 * 1024;
@@ -61,10 +63,22 @@ extern "C" void sentai_quant_uint8_to_int8(uint8_t* buf, int count, int zp);
 // identity and must upload its parameters + instructions afresh.
 extern "C" void sentai_tpu_desc_cache_invalidate(void);
 
+// s240: remember the last-loaded model path so the TPU wedge-recovery
+// (sentai_tpu_recover) can re-upload the same model after a power-cycle.
+static char g_current_model_path[160] = {0};
+
+// s240/YUV420: set to 1 by the loader when the model has >=2 inputs (dual-input
+// YUV420 = UV + Y).  Read by detection_task.cc's PrepTask/InferTask.
+extern "C" { volatile int g_sentai_yuv_dual = 0; }
+
 extern "C" int sentai_load_model(const char* path) {
   if (sentai_detection_is_running()) {
     printf("ERROR: stop detection pipeline before loading a new model\r\n");
     return -10;
+  }
+  if (path && path != g_current_model_path) {
+    strncpy(g_current_model_path, path, sizeof(g_current_model_path) - 1);
+    g_current_model_path[sizeof(g_current_model_path) - 1] = '\0';
   }
   if (coralmicro::g_interpreter) {
     coralmicro::g_tpu_ready = false;
@@ -88,7 +102,7 @@ extern "C" int sentai_load_model(const char* path) {
     for (int i = 0; i < 15 && !coralmicro::g_tpu_context; i++) {
       coralmicro::g_tpu_context =
           coralmicro::EdgeTpuManager::GetSingleton()->OpenDevice(
-              coralmicro::PerformanceMode::kMax);
+              coralmicro::g_tpu_mode);
       if (coralmicro::g_tpu_context) break;
       printf(".");
       vTaskDelay(pdMS_TO_TICKS(1000));
@@ -150,8 +164,11 @@ extern "C" int sentai_load_model(const char* path) {
     return -3;
   }
 
-  if (coralmicro::g_interpreter->inputs().size() != 1) {
-    printf("ERROR: Model must have exactly one input tensor\r\n");
+  // s240/YUV420: accept multi-input models (e.g. dual-input YUV420 = UV + Y).
+  // Single-input RGB models still work unchanged.  Reject only 0 inputs.
+  const int n_in = (int)coralmicro::g_interpreter->inputs().size();
+  if (n_in < 1) {
+    printf("ERROR: Model has no input tensor\r\n");
     delete coralmicro::g_interpreter;
     coralmicro::g_interpreter = nullptr;
     return -4;
@@ -169,13 +186,19 @@ extern "C" int sentai_load_model(const char* path) {
     }
   };
 
-  auto* input = coralmicro::g_interpreter->input_tensor(0);
-  printf("Input:  %s[", type_name(input->type));
-  for (int i = 0; i < input->dims->size; i++)
-    printf("%s%ld", i ? "," : "", (long)input->dims->data[i]);
-  printf("] (%ld bytes)\r\n", (long)input->bytes);
-  printf("  quant: scale=%.8f  zero_point=%d\r\n",
-         (double)input->params.scale, (int)input->params.zero_point);
+  printf("Inputs: %d\r\n", n_in);
+  for (int ii = 0; ii < n_in; ii++) {
+    auto* input = coralmicro::g_interpreter->input_tensor(ii);
+    printf("  in[%d] %s[", ii, type_name(input->type));
+    for (int i = 0; i < input->dims->size; i++)
+      printf("%s%ld", i ? "," : "", (long)input->dims->data[i]);
+    printf("] (%ld bytes)  scale=%.8f zp=%d\r\n", (long)input->bytes,
+           (double)input->params.scale, (int)input->params.zero_point);
+  }
+  // s240/YUV420: a 2-input model is the dual-input YUV420 net (UV + Y).  Flag it
+  // so PrepTask produces Y+UV via PXP (no RGB scale/quant) and InferTask binds
+  // both tensors.  Requires the camera in yuv_mode(1) so `raw` is XYUV8888.
+  g_sentai_yuv_dual = (n_in >= 2) ? 1 : 0;
 
   int num_out = (int)coralmicro::g_interpreter->outputs().size();
   printf("Outputs: %d\r\n", num_out);
@@ -199,6 +222,106 @@ extern "C" int sentai_load_model(const char* path) {
   printf("Model name: %s\r\n", vision_get_model_name());
 
   return 0;
+}
+
+// ---- sentai_tpu_set_mode: change Edge TPU clock at runtime (energy sweep) ----
+//
+// applsci energy paper, WS0 transfer-bound test.  Arg: 0=kLow(63) 1=kMedium(125)
+// 2=kHigh(250) 3=kMax(500) MHz.  Tears down the interpreter + releases the TPU
+// context so the device actually closes (EdgeTpuManager debounces repeat opens on
+// a live device — only a full release lets a re-OpenDevice apply a new clock),
+// re-opens at the requested clock, then reloads the current model on it.
+extern "C" int sentai_tpu_set_mode(int m) {
+  if (sentai_detection_is_running()) {
+    printf("ERROR: stop detection pipeline before changing TPU clock\r\n");
+    return -10;
+  }
+  coralmicro::PerformanceMode mode;
+  switch (m) {
+    case 0:  mode = coralmicro::PerformanceMode::kLow;    break;
+    case 1:  mode = coralmicro::PerformanceMode::kMedium; break;
+    case 2:  mode = coralmicro::PerformanceMode::kHigh;   break;
+    default: mode = coralmicro::PerformanceMode::kMax;    break;
+  }
+  if (coralmicro::g_interpreter) {
+    coralmicro::g_tpu_ready = false;
+    delete coralmicro::g_interpreter;
+    coralmicro::g_interpreter = nullptr;
+  }
+  sentai_tpu_desc_cache_invalidate();
+  if (coralmicro::g_model_data) {
+    delete coralmicro::g_model_data;
+    coralmicro::g_model_data = nullptr;
+  }
+  coralmicro::g_tpu_context.reset();  // drop the last strong ref -> device closes
+  coralmicro::g_tpu_mode = mode;
+  coralmicro::g_tpu_context =
+      coralmicro::EdgeTpuManager::GetSingleton()->OpenDevice(mode);
+  if (!coralmicro::g_tpu_context) {
+    printf("ERROR: re-open EdgeTPU at mode %d failed\r\n", m);
+    return -1;
+  }
+  printf("Edge TPU clock -> mode %d\r\n", (int)mode);
+  if (g_current_model_path[0]) return sentai_load_model(g_current_model_path);
+  return 0;
+}
+
+// ---- sentai_tpu_recover: PMIC power-cycle + re-enumerate + reload ----
+//
+// s240 wedge recovery.  When the EdgeTPU wedges under sustained load (SEMC
+// contention -> URB timeout cascade; see tpu-usb-wedge-mechanism memory), the
+// ONLY safe reset is a full hardware power-cycle — cancelling an in-flight USB
+// transfer corrupts the TPU silicon (needs reflash).  Here we:
+//   1. tear down the stale interpreter + context (drops the power ref),
+//   2. force the EdgeTPU power rail off then on via the PMIC/GPIO
+//      (EdgeTpuTask::SetPower -> kEdgeTpuPmic + kEdgeTpuReset, waits PGOOD),
+//      which triggers automatic USB re-enumeration (kAttach -> kConnected),
+//   3. reload the last model (sentai_load_model re-runs OpenDevice + rebuilds
+//      the interpreter + re-uploads the executable to the fresh TPU).
+// Caller MUST have stopped the detection pipeline first (sentai_load_model
+// refuses while it runs).  Returns 0 on success, sentai_load_model's rc<0 else,
+// -20 if no model was ever loaded.
+extern "C" int sentai_tpu_recover(void) {
+  if (g_current_model_path[0] == '\0') {
+    printf("TPU recover: no model was loaded; nothing to restore\r\n");
+    return -20;
+  }
+  printf("TPU recover: power-cycling EdgeTPU + reloading %s\r\n",
+         g_current_model_path);
+
+  // 1. Block invokes and tear down the wedged context/interpreter.
+  coralmicro::g_tpu_ready = false;
+  if (coralmicro::g_interpreter) {
+    delete coralmicro::g_interpreter;
+    coralmicro::g_interpreter = nullptr;
+  }
+  sentai_tpu_desc_cache_invalidate();
+  if (coralmicro::g_model_data) {
+    delete coralmicro::g_model_data;
+    coralmicro::g_model_data = nullptr;
+  }
+  // Releasing the context drops its power ref (dtor -> SetPower(false)).
+  coralmicro::g_tpu_context.reset();
+
+  // 2. Force a clean rail power-cycle.  The extra SetPower(false) drives
+  //    enabled_count_ to 0 (clamped) so the GPIO actually de-asserts even if
+  //    a stale ref lingered; SetPower(true) re-powers + waits PGOOD, and the
+  //    USB host re-enumerates the freshly-booted TPU asynchronously.
+  auto* tpu = coralmicro::EdgeTpuTask::GetSingleton();
+  tpu->SetPower(false);
+  vTaskDelay(pdMS_TO_TICKS(50));
+  tpu->SetPower(true);
+  vTaskDelay(pdMS_TO_TICKS(250));   // let USB re-enumerate to kConnected
+
+  // 3. Re-open + rebuild interpreter + re-upload model (OpenDevice retry loop
+  //    inside sentai_load_model covers any residual enumeration latency).
+  int rc = sentai_load_model(g_current_model_path);
+  if (rc == 0) {
+    printf("TPU recover: OK — invokes restored without reflash\r\n");
+  } else {
+    printf("TPU recover: FAILED (rc=%d) — TPU may need a board power-cycle\r\n", rc);
+  }
+  return rc;
 }
 
 // ---- sentai_load_image ----

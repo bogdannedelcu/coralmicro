@@ -1,0 +1,11 @@
+=== flow+detection @ build 1565 (stack+s_gray in DTCM), ~48s ===
+  t=7 up=37935 fc=206 flow_fs=48 
+  t=14 up=1 fc=1 flow_fs=1 *** CORE RESET ***
+  t=20 USB blip
+  t=29 up=11338 fc=0 flow_fs=71 
+  t=36 up=18008 fc=0 flow_fs=71 
+  t=43 up=24688 fc=0 flow_fs=71 
+  t=50 up=31368 fc=0 flow_fs=71 
+
+>>> BUILD 1565 over ~48s: CORE RESETS=1  fc-resets=0  USB blips=1 <<<
+flow tuple: FL (False, 4026730563, 448803669, -268236669, 0, 1142435891, 71)

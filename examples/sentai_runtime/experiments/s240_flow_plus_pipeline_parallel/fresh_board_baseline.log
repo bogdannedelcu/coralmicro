@@ -1,0 +1,17 @@
+ver  : SentAI v1.0 build 1573 (2026-07-01 23:26:11)
+up   : 39438
+fs   : False
+model: False
+load : -2
+pstart: RuntimeError: pipeline start failed (-2)
+=== fresh board: detection-ALONE sustained ===
+  t=7 up=53011 fc=0 {'ms_sum': 0, 'ok': 0, 'last_rc': 0, 'fail': 0}
+  t=14 up=59721 fc=0 {'ms_sum': 0, 'ok': 0, 'last_rc': 0, 'fail': 0}
+  t=21 up=66431 fc=0 {'ms_sum': 0, 'ok': 0, 'last_rc': 0, 'fail': 0}
+  t=28 up=73131 fc=0 {'ms_sum': 0, 'ok': 0, 'last_rc': 0, 'fail': 0}
+  t=35 up=79811 fc=0 {'ms_sum': 0, 'ok': 0, 'last_rc': 0, 'fail': 0}
+  t=42 up=86511 fc=0 {'ms_sum': 0, 'ok': 0, 'last_rc': 0, 'fail': 0}
+  t=49 up=93201 fc=0 {'ms_sum': 0, 'ok': 0, 'last_rc': 0, 'fail': 0}
+  t=56 up=99861 fc=0 {'ms_sum': 0, 'ok': 0, 'last_rc': 0, 'fail': 0}
+  t=62 up=106551 fc=0 {'ms_sum': 0, 'ok': 0, 'last_rc': 0, 'fail': 0}
+>>> fresh detection-alone: advancing=0/10 resets=0 <<<

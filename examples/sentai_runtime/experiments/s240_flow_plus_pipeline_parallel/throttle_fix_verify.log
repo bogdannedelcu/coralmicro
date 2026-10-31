@@ -1,0 +1,11 @@
+build: SentAI v1.0 build 1589 (2026-07-02 16:07
+cam: 0
+load: True
+
+=== THROTTLE FIX VERIFY (build 1589) ===
+target_fps default: 45
+  target_fps=45 (FIXED throttle) 40.6 fps (24.7 ms/frame, invoke=23)
+  target_fps=0 (throttle off) 40.6 fps (24.7 ms/frame, invoke=23)
+
+>>> FIXED throttle @45: 40.6 fps | throttle-off: 40.6 fps
+>>> FIX WORKS: throttle no longer costs FPS

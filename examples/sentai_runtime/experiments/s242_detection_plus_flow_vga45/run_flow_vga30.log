@@ -1,0 +1,15 @@
+build: SentAI v1.0 build 1590 (2026-07-02 17:58
+cam init(1,30): 0
+camera.fps: 30
+>>
+load: True
+  detect_only trial 0: 29.1 fps reset=0 conf=-1
+  detect_only trial 1: 28.9 fps reset=0 conf=-1
+  detect_only trial 2: 28.9 fps reset=0 conf=-1
+  detect_only trial 3: 29.1 fps reset=0 conf=-1
+>>> detect_only @VGA30: 29.0 +- 0.07 fps (resets 0/4)
+  detect+flow_M7 trial 0: 28.9 fps reset=0 conf=255
+  detect+flow_M7 trial 1: 29.1 fps reset=0 conf=255
+  detect+flow_M7 trial 2: 28.9 fps reset=0 conf=255
+  detect+flow_M7 trial 3: 29.1 fps reset=0 conf=255
+>>> detect+flow_M7 @VGA30: 29.0 +- 0.07 fps (resets 0/4 conf=255)

@@ -280,7 +280,142 @@ of change versus the baseline, and the session(s) that document it.
 
 ---
 
-## 8. Discussion (of results only; full discussion in [discussion.md](discussion.md))
+## 8. Per-architecture on-board throughput — activation & pipeline sweep (MDPI revision)
+
+For the *Drones* revision we re-measured the eight cover-split detector
+architectures at the deployed **480×640 (HxW)** input on the physical board. The
+single 512×512 `yolo_1` SiLU figure (≈23–24 detections/invocations per second,
+[s235](../experiments/s235_revalidate_paper_performance/)) is one model; the revision (i) replaces
+SiLU with **ReLU**, (ii) validates board detections against a host reference, and
+(iii) measures the full concurrent camera→detection pipeline, RGB vs native YUV420
+(§8.3, the definitive build-1590 benchmark that corrects the earlier s239 figures).
+Firmware build 1560 for §8.1–§8.2, build 1590 for §8.3.
+
+### 8.1 Standalone EdgeTPU invoke (isolated)
+
+**Table 8.** Standalone EdgeTPU invoke on the i.MX RT1176 board (640×480, N=50,
+real image, `sentai.rtos.micros()` wall clock). SiLU column =
+[s236](../experiments/s236_model_speed_sweep_640x480/); ReLU columns =
+[s238](../experiments/s238_relu_v1_board_speed_sweep/) (board) and the Coral USB
+Accelerator (host-side, invoke-only). Same architecture per row; only the
+activation / link differs.
+
+| model | Board SiLU (FPS) | **Board ReLU (FPS)** | USB-stick ReLU (FPS) | ReLU instr (ms) | input (ms) |
+|---|---:|---:|---:|---:|---:|
+| msblock    | 22.9 | **30.7** | 39.3 | 2.16 | 25.98 |
+| c3         | 26.2 | **30.5** | 39.0 | 2.31 | 25.99 |
+| c2f        | 26.2 | **30.3** | 38.7 | 2.43 | 25.99 |
+| gelan      | 24.4 | **29.3** | 37.2 | 3.34 | 26.00 |
+| c2f_pan2   | 24.9 | **28.3** | 37.0 | 3.12 | 27.56 |
+| gelan_pan2 | 22.8 | **28.2** | 35.1 | 4.40 | 26.00 |
+| c2f_deep   | 22.6 | **28.1** | 35.0 | 4.45 | 25.99 |
+| c2f_thick  | *crash (0B62)* | **28.4** | 34.0 | 3.43 | 25.97 |
+
+The ≈23–24 head-line figure is **activation-limited, not fundamental: it is a
+SiLU number.** Switching every activation to ReLU raises standalone on-board
+throughput to **28–31 FPS across all eight architectures** (msblock 22.9→30.7,
+c2f 26.2→30.3 — a **+16–34 %** gain). The mechanism is the instruction stream:
+ReLU/ReLU6 fuse into the preceding convolution's output clamp and emit **zero
+EdgeTPU operations**, whereas SiLU compiles to a per-element `LOGISTIC`+`MUL` pair
+(≈2× the ops), so ReLU ships a much smaller instruction bitstream per invoke
+(2.2–4.5 ms vs the SiLU set). ReLU also removes the activation-scratch spill that
+**crashed the champion `c2f_thick` on the board as SiLU** (`0B62`, s236); under
+ReLU it runs cleanly. The isolated invoke stays **input-transfer-bound** — the
+480×640×3 (≈921 KB) frame costs ≈26 ms on the board's internal USB2 link, 74–80 %
+of each inference — which is why the board figures sit below the host USB-stick
+numbers (34–39 FPS) for identical models.
+
+### 8.2 Board-vs-host detection parity
+
+To confirm the on-board INT8 graphs are numerically correct — and stay correct
+under the concurrent load of §8.3 — we compare the board's detections against a
+host CPU INT8 reference on the same 640×480 frame ([s238](../experiments/s238_relu_v1_board_speed_sweep/),
+`detections_board_vs_host.csv`).
+
+**Table 9.** Detection parity, board vs host CPU INT8 reference (same frame,
+same model, ReLU). `dets` = boxes after NMS; `maxconf` = peak class confidence.
+
+| model | board dets | host dets | Δ | board maxconf | host maxconf |
+|---|---:|---:|---:|---:|---:|
+| msblock    | 18 | 18 |  0 | 0.393 | 0.393 |
+| c2f        | 17 | 17 |  0 | 0.420 | 0.421 |
+| c3         | 26 | 25 | +1 | 0.367 | 0.367 |
+| c2f_pan2   | 17 | 18 | −1 | 0.389 | 0.390 |
+| gelan      | 18 | 18 |  0 | 0.410 | 0.411 |
+| gelan_pan2 | 14 | 14 |  0 | 0.395 | 0.395 |
+| c2f_deep   | 20 | 21 | −1 | 0.364 | 0.364 |
+| c2f_thick  | 16 | 16 |  0 | 0.406 | 0.418 |
+
+Board and host agree to **within ±1 detection** (a single box straddling the
+confidence threshold) and **identical peak confidence to three decimals**. The
+board EdgeTPU path reproduces the reference detector; concurrent operation does
+not corrupt the output.
+
+### 8.3 Full detection-pipeline throughput — RGB vs YUV420 (definitive)
+
+> **⚠ CORRECTION (build 1590, supersedes s239).** An earlier draft of this section (from
+> [s239](../experiments/s239_relu_full_pipeline_fps/)) reported the pipeline as *camera-bound at ≈27 fps*
+> with an ≈11 ms in-pipeline invoke. **That was an artifact of a FreeRTOS SysTick tick-starvation bug**:
+> the TPU invoke's USB bursts starve the tick ISR, so `xTaskGetTickCount` under-counted (i) the in-pipeline
+> invoke time (≈11 ms reported for a real ≈32 ms invoke) and (ii) the InferTask FPS throttle, which then
+> injected a spurious ≈9 ms delay per frame and **capped throughput at ≈30 fps**. Both were fixed (GPT1 µs)
+> in build 1590 and re-measured in [s241](../experiments/s241_relu_yuv_vga45_stats/). **The pipeline is
+> invoke-bound, not camera-bound**; the table below replaces the retracted s239 numbers.
+
+The deployment-realistic figure runs `CameraTask`, `PrepTask` (PXP downscale + INT8 quant) and `InferTask`
+(EdgeTPU invoke) **simultaneously** (CSI/PXP/USB/SEMC contention). We benchmark the 8 ReLU **RGB** detectors
+against their 8 **YUV420** dual-input counterparts — native YUV halves the per-frame input transfer
+(921,600 → 460,800 B) — at 640×480 @ 45 fps ([s241](../experiments/s241_relu_yuv_vga45_stats/); isolated
+invoke N=30, pipeline M=3 × 6 s, GPT1-µs timed, mean ± σ).
+
+**Table 10.** On-board RGB vs YUV420 (build 1590, 640×480 @ 45 fps, mean ± σ). Same weights per
+architecture; only the input format differs.
+
+| arch | fmt | invoke ms | pipeline FPS | | arch | fmt | invoke ms | pipeline FPS |
+|---|---|---:|---:|---|---|---|---:|---:|
+| msblock | RGB | 32.0±0.0 | 27.2±0.09 | | msblock | YUV | 19.0±0.0 | **42.8±0.09** |
+| c3 | RGB | 32.4±0.5 | 27.0±0.00 | | c3 | YUV | 19.0±0.0 | **42.6±0.09** |
+| c2f | RGB | 33.0±0.0 | 26.9±0.09 | | c2f | YUV | 19.4±0.5 | **42.3±0.09** |
+| c2f_pan2 | RGB | 33.7±0.5 | 26.4±0.00 | | c2f_pan2 | YUV | 20.0±0.0 | **41.0±0.09** |
+| gelan | RGB | 34.0±0.0 | 26.4±0.00 | | gelan | YUV | 20.9±0.3 | **40.6±0.00** |
+| c2f_thick | RGB | 35.0±0.0 | 26.2±0.00 | | c2f_thick | YUV | 21.9±0.3 | **40.5±0.00** |
+| gelan_pan2 | RGB | 35.0±0.0 | 25.4±0.00 | | gelan_pan2 | YUV | 22.0±0.0 | **38.8±0.09** |
+| c2f_deep | RGB | 35.0±0.0 | *unstable\** | | c2f_deep | YUV | 22.0±0.0 | **38.9±0.09** |
+
+\* **c2f_deep RGB pipeline is unstable** — its 153,600 B host-scratch spill wedges the pipeline under
+camera+prep bus contention (isolated invoke is fine, 35.0 ms). Its YUV counterpart (smaller graph, no
+spill) runs stably at 38.9 fps, so **YUV also removes this deployability failure**.
+
+Three results follow. First, the pipeline is **invoke-bound**: the invoke drops from **32–35 ms (RGB) to
+19–22 ms (YUV)** — the model graph barely moves it, so the EdgeTPU invoke is **input-transfer-bound over
+USB2**, and halving the input (native YUV) nearly halves the transfer-dominated invoke. Second, this makes
+**YUV420 a 1.53–1.58× on-board throughput win on every architecture** — RGB **25.4–27.2 fps → YUV
+38.8–42.8 fps** — for the same weights and (§8.2) essentially the same detections. Third, timing is highly
+**deterministic** (σ ≤ 0.09 fps / ≤ 0.5 ms) once the throttle bug is removed. mAP@.5 is preserved or
+improved for 7/8 architectures under YUV; the exception is `msblock` (−0.123), the smallest backbone,
+which loses accuracy in the 2-plane input and is not a YUV candidate.
+
+### 8.4 Revised throughput claim
+
+Consolidating Tables 8–10, the head-line performance sentence should read:
+
+> On the 512×512 SiLU workload the optimized single-camera pipeline runs stably at about **23 detections
+> per second**, close to that model's **≈24-invocation-per-second** standalone EdgeTPU limit. **Both
+> figures are activation-limited.** With the revision's **ReLU** detectors at **480×640**, standalone
+> EdgeTPU throughput rises to **28–31 invocations per second** (Table 8), and — measured on the physical
+> board at build 1590, all pipeline tasks live — the full camera→detection pipeline sustains **≈25–27
+> detections per second** with zero inference failures, while board detections match the host INT8
+> reference to within ±1 box and identical peak confidence (Table 9). Feeding the camera's **native YUV
+> 4:2:0** to a dual-input detector halves the input transfer and, because the invoke is input-transfer-
+> bound, raises the pipeline to **≈39–43 detections per second — a 1.5–1.6× gain — for the same weights
+> and essentially the same accuracy** (Table 10). The recommended production detector, `c2f_thick_yuv420`,
+> **wins on both axes: the best mAP of the set (0.823 vs the RGB champion's 0.803) and 40.5 fps vs 26.2**.
+> Detections are exposed to drone-control workflows (MAVLink/PX4 and Crazyflie) through the scriptable
+> layer as an integration interface rather than a validated autonomy stack.
+
+---
+
+## 9. Discussion (of results only; full discussion in [discussion.md](discussion.md))
 
 Three observations that belong here rather than in the implementation
 chapters because they relate to the results taken together:

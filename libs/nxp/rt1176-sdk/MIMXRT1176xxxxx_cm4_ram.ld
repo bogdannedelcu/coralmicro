@@ -43,7 +43,10 @@ STACK_SIZE = DEFINED(__stack_size__) ? __stack_size__ : 0x0400;
  * and friends are disabled in the build (examples/CMakeLists.txt:
  * 41-43); if/when re-enabled they need the standard M7 layout and
  * this file would need to revert (or move sentai to a side linker). */
-RPMSG_SHMEM_SIZE = DEFINED(__use_shmem__) ? 0x2000 : 0;
+/* s240 (2026-07-01): 8 KB -> 16 KB, MUST stay matched with the M7
+ * sentai linker (RPMSG cross-core alignment hard rule) — hosts the
+ * relocated flow_shared_t for the M4 flow offload. */
+RPMSG_SHMEM_SIZE = DEFINED(__use_shmem__) ? 0x4000 : 0;
 NCACHE_SIZE = 0x800;
 
 /* Specify the memory areas */

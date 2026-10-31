@@ -47,6 +47,7 @@
 extern "C" {
 extern int sentai_fs_write(const char* path, const uint8_t* buf, int size);
 extern int sentai_fs_append(const char* path, const uint8_t* buf, int size);
+extern int sentai_fs_size(const char* path);
 }
 #endif
 
@@ -236,13 +237,30 @@ extern "C" int sentai_fr_open(sentai_fr_channel_t ch, const char* path) {
             }
         }
     } else if (ch == SENTAI_FR_CH_EVENTS) {
+#ifdef __arm__
+        // ARM: newlib fopen write-glue to FileX is not wired, so fopen("ab")
+        // fails here (returns IO error).  Sink to the FileX append API — the
+        // same path the DEBUG channel already uses.  Header only when new.
+        if (sentai_fs_size(path) <= 0) {
+            static const char hdr[] = "# sentai.fr events  ts_ms,type,text\n";
+            (void)sentai_fs_append(path, (const uint8_t*)hdr, (int)(sizeof(hdr) - 1));
+        }
+#else
         if (s_events_fp) { fclose(s_events_fp); s_events_fp = nullptr; }
         s_events_fp = open_append_(path, "# sentai.fr events  ts_ms,type,text");
         if (!s_events_fp) return SENTAI_FR_ERR_IO;
+#endif
     } else if (ch == SENTAI_FR_CH_SCALARS) {
+#ifdef __arm__
+        if (sentai_fs_size(path) <= 0) {
+            static const char hdr[] = "# sentai.fr scalars  ts_ms,label,value\n";
+            (void)sentai_fs_append(path, (const uint8_t*)hdr, (int)(sizeof(hdr) - 1));
+        }
+#else
         if (s_scalars_fp) { fclose(s_scalars_fp); s_scalars_fp = nullptr; }
         s_scalars_fp = open_append_(path, "# sentai.fr scalars  ts_ms,label,value");
         if (!s_scalars_fp) return SENTAI_FR_ERR_IO;
+#endif
     } else if (ch == SENTAI_FR_CH_DEBUG) {
 #ifdef __arm__
         uint8_t empty = 0;
@@ -444,7 +462,11 @@ bool drain_one_frame_() {
 
 bool drain_one_event_() {
     EventSlot snap;
+#ifdef __arm__
+    char path[128];
+#else
     FILE* fp;
+#endif
     {
         MuGuard g;
         ChanState& c = s_chans[SENTAI_FR_CH_EVENTS];
@@ -452,17 +474,70 @@ bool drain_one_event_() {
         snap = s_event_pool[c.tail % SENTAI_FR_EVENTS_SLOTS];
         c.tail++;
         c.stats.queue_depth = c.head - c.tail;
+#ifdef __arm__
+        copy_str_(path, sizeof(path), c.stats.path);
+#else
         fp = s_events_fp;
+#endif
     }
-    if (!fp) return true;
-    fprintf(fp, "%u,%s,%s\n",
-             (unsigned)snap.ts_ms, snap.type, snap.text);
+    bool ok;
+#ifdef __arm__
+    char line[SENTAI_FR_EVENT_TYPE_LEN + SENTAI_FR_EVENT_TEXT_LEN + 32];
+    int n = snprintf(line, sizeof(line), "%u,%s,%s\n",
+                     (unsigned)snap.ts_ms, snap.type, snap.text);
+    if (n < 0) n = 0;
+    if (n > (int)sizeof(line) - 1) n = (int)sizeof(line) - 1;
+    ok = (sentai_fs_append(path, (const uint8_t*)line, n) > 0);
+#else
+    if (!s_events_fp) return true;
+    fp = s_events_fp;
+    ok = (fprintf(fp, "%u,%s,%s\n",
+                  (unsigned)snap.ts_ms, snap.type, snap.text) > 0);
     fflush(fp);
+#endif
     MuGuard g;
-    s_chans[SENTAI_FR_CH_EVENTS].stats.writes_ok++;
+    if (ok) s_chans[SENTAI_FR_CH_EVENTS].stats.writes_ok++;
+    else    s_chans[SENTAI_FR_CH_EVENTS].stats.writes_fail++;
     return true;
 }
 
+#ifdef __arm__
+// Batched scalar drain (ARM).  Per-row FxUserAppendFile (open + seek-to-end
+// + write + close, once per row) produced a burst of NAND program cycles
+// that starved the USB host ISR and dropped CDC-ACM when many scalars
+// drained at once.  Instead, format all pending rows that fit into one
+// static buffer under a single lock and issue ONE FileX append per round.
+// A partial ring (buffer full) leaves the remainder for the next round, so
+// each round does exactly one bounded (<=~3 KB) NAND append with 20 ms of
+// breathing room between rounds.
+static uint32_t drain_scalars_batch_() {
+    static char s_scalar_linebuf[48 * (SENTAI_FR_SCALAR_LABEL_LEN + 48)];
+    char path[128];
+    int off = 0, cnt = 0;
+    {
+        MuGuard g;
+        ChanState& c = s_chans[SENTAI_FR_CH_SCALARS];
+        if (c.tail == c.head || !c.stats.enabled) return 0;
+        while (c.tail != c.head) {
+            const ScalarSlot& s = s_scalar_pool[c.tail % SENTAI_FR_SCALARS_SLOTS];
+            int n = snprintf(s_scalar_linebuf + off,
+                             sizeof(s_scalar_linebuf) - (size_t)off,
+                             "%u,%s,%.9g\n",
+                             (unsigned)s.ts_ms, s.label, s.value);
+            if (n < 0 || off + n >= (int)sizeof(s_scalar_linebuf)) break;
+            off += n; c.tail++; cnt++;
+        }
+        c.stats.queue_depth = c.head - c.tail;
+        copy_str_(path, sizeof(path), c.stats.path);
+    }
+    if (off <= 0) return 0;
+    bool ok = (sentai_fs_append(path, (const uint8_t*)s_scalar_linebuf, off) > 0);
+    MuGuard g;
+    if (ok) s_chans[SENTAI_FR_CH_SCALARS].stats.writes_ok  += (uint32_t)cnt;
+    else    s_chans[SENTAI_FR_CH_SCALARS].stats.writes_fail += (uint32_t)cnt;
+    return (uint32_t)cnt;
+}
+#else
 bool drain_one_scalar_() {
     ScalarSlot snap;
     FILE* fp;
@@ -482,6 +557,7 @@ bool drain_one_scalar_() {
     s_chans[SENTAI_FR_CH_SCALARS].stats.writes_ok++;
     return true;
 }
+#endif
 
 bool drain_one_debug_() {
     DebugSlot snap;
@@ -531,7 +607,11 @@ extern "C" uint32_t sentai_fr_drain_round(void) {
     uint32_t n = 0;
     for (int i = 0; i < 8 && drain_one_frame_();  ++i) ++n;
     for (int i = 0; i < 8 && drain_one_event_();  ++i) ++n;
+#ifdef __arm__
+    n += drain_scalars_batch_();   // one bounded NAND append per round
+#else
     for (int i = 0; i < 8 && drain_one_scalar_(); ++i) ++n;
+#endif
     for (int i = 0; i < 32 && drain_one_debug_(); ++i) ++n;
     return n;
 }

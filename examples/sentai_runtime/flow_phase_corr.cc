@@ -81,6 +81,14 @@ static int   s_have_cross_avg_per[FLOW_N_PIPES] = {0};
 // Shared intermediates — written + read sequentially within one
 // compute() call, so no race between pipes (calls are serialised on
 // caller side).
+// s240 (2026-07-01): these FFT scratch buffers were tried in OCRAM (.ocram_bss)
+// to get them off the SEMC bus, but that made stability WORSE: the TPU's
+// 900 KB input tensor also lives in OCRAM and is re-DMAed every invoke (~26 ms),
+// so flow's per-frame FFT collided with the TPU input transfer on the OCRAM/AXI
+// path -> reset even at slot_div=12 (which was rock-solid with these in SDRAM).
+// Conclusion: neither bus is free on the M7 (OCRAM owned by TPU input, SEMC by
+// camera/PXP); flow's FFT must move to the M4 (its own TCM) for a real fix.
+// Kept in SDRAM here; concurrent stability relies on slot_div throttle.
 static float s_curr_fft[2 * N2]          __attribute__((section(".sdram_bss")));
 static float s_cross[2 * N2]             __attribute__((section(".sdram_bss")));
 static float s_cross_spec[2 * N2]        __attribute__((section(".sdram_bss")));

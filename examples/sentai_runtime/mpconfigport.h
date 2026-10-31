@@ -9,6 +9,7 @@
 
 // Enable compiler so we can run source strings.
 #define MICROPY_ENABLE_COMPILER         (1)
+#define MICROPY_STACK_CHECK             (1)   // RecursionError instead of FreeRTOS stack overflow (2026-10-30)
 
 // Enable GC for memory management.
 #define MICROPY_ENABLE_GC               (1)
