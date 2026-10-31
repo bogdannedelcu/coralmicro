@@ -421,9 +421,13 @@ authoritative agent doc (`agent/agent.md`) for the full chronology.
 - **MicroPython QSTR regen recipe**: see `agent/agent.md` §6 — must
   be re-run after any `MP_QSTR_*` / `MP_REGISTER_MODULE()` change in
   `modsentai.c` or the binding will silently miss the symbol.
-- **SDK patches**: 4 patches at `patches/coralmicro-rt1176-sdk/`
+- **SDK / MicroPython patches**: 4 patches at `patches/coralmicro-rt1176-sdk/`
+  and 1 at `patches/micropython/` (long-int literal parsing, 2026-10-31),
   applied idempotently at CMake configure (`scripts/apply_sdk_patches.sh`).
-  `git status` always shows submodule dirty — that's the patch trail.
+  `git status` always shows both submodules dirty — that's the patch trail.
+  The MicroPython fix must also be present in the tracked embed copy
+  `examples/sentai_runtime/micropython_embed/py/` (regen copies it from
+  the patched submodule).
 - **No HTTP file upload** — chunked `sentai.fs.write` via REPL
   (`diag/_host_upload_repl.py`); HTTP `/api/write` is unreliable
   under load.

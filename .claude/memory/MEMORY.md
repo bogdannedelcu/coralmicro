@@ -1,36 +1,30 @@
 # Memory Index
 
+- [TODO — exhaustive firmware audit: races, hangs, unbounded waits (requested 2026-10-30)](project_todo_exhaustive_code_audit.md) — WBS OP-S10-W23; T8 = open items.
+- [DECISION — SentAI FS moves exclusively to SD card; drop NAND user partition (2026-10-30)](project_fs_moves_to_sdcard_decision.md) — LittleFS system stays; FatFs on SD.
+- [microSD on USDHC1 bring-up PASSED (2026-10-30)](project_sdcard_usdhc1_bringup.md) — SD_PWREN_B/VSELECT GPIOs; 64 GB exFAT; build 1605.
+- [New board rev 2026-10 open items](project_new_board_rev_2026_10_open_items.md) — WBS OP-S10-W22; CAM1→I2C1, FlexPWM1 low; boots to SDP, flash doesn't run.
+- [HARD RULE — J-Link headless only](feedback_jlink_headless_only.md) — -nogui 1; no dialogs clickable.
+
 - [FNIRSI power logger already running (2026-09-04)](fnirsi-power-logger-already-running.md) — /tmp/power_log.jsonl; don't start a second.
-
 - [frame_count is HALF rate + alternation tag bug (2026-09-04)](frame-count-half-rate-and-alternation-tag-bug.md) — 44.5 fps works, labels break.
-
 - [Camera trigger mode does NOT exist (2026-09-04)](camera-trigger-mode-does-not-exist.md) — dead code + GPIO8_IO27 unrouted; EXP-s245.
-
 - [sentai.fr scalars ARM fix + drain-wedge limit (2026-07-02)](fr-scalars-arm-fix-and-drain-wedge.md) — never drain fr to NAND live.
-
 - [TPU invoke timing was ticks (bogus), fixed to GPT1 µs (2026-07-02)](tpu-invoke-timing-ticks-bug.md) — RGB 35ms vs YUV420 22ms.
-
 - [Native YUV camera capture WORKS (2026-07-02)](camera-yuv420-native-capture.md) — yuv_mode(1) before init.
-
-- [TPU-USB wedge mechanism + fixes (2026-07-01)](tpu-usb-wedge-mechanism.md) — TPU load → USB starves M7 → REPL drops.
-
 - [Flash does NOT corrupt FileX — CORRECTED (2026-07-02)](reflash-corrupts-filex-littlefs-mismatch.md) — fs.sync() before flashing.
-
+- [TPU-USB wedge mechanism + fixes (2026-07-01)](tpu-usb-wedge-mechanism.md) — TPU load starves M7 USB, REPL drops; [USB-wedge needs physical POR (2026-06-26)](reference_board_usb_wedge_needs_physical_por.md) only unplug/replug.
 - [Flow+detection M7 memory-bandwidth saturation (2026-07-01)](flow-detection-semc-contention.md) — real fix = M4-offload.
-- [EdgeTPU host-scratch round-trip fix (2026-06-26)](project_edgetpu_host_scratch_roundtrip_fix.md) — 8510b1b7, build 1560.
-- [EdgeTPU instruction caching / 256KB (2026-06-26)](reference_edgetpu_instruction_caching_256kb.md) — desc_cache WEDGES board.
-- [Board USB-wedge needs physical POR (2026-06-26)](reference_board_usb_wedge_needs_physical_por.md) — only unplug/replug recovers.
+- [EdgeTPU host-scratch round-trip fix (2026-06-26)](project_edgetpu_host_scratch_roundtrip_fix.md) — 8510b1b7, build 1560; [instruction caching 256KB](reference_edgetpu_instruction_caching_256kb.md) — desc_cache WEDGES board.
 - [Emu transport bridge pattern (2026-06-02)](project_emu_transport_bridge_pattern.md) — TPU→libusb; Crazyflie→TCP.
 - [HARD RULE — emu TPU = real edgetpu_manager + USB passthrough (2026-06-02)](feedback_emu_tpu_must_run_real_edgetpu_manager.md)
 - [HARD RULE — emu Y8 != production XRGB8888 (2026-06-02)](feedback_emu_pixel_format_caveat.md)
 - [HARD RULE — emu scaffolding must NOT reuse production task names (2026-06-02)](feedback_emu_must_not_reuse_production_task_names.md)
 - [HARD RULE — emu REPL on UART is test scaffolding (2026-06-02)](feedback_emu_repl_transport_caveat.md)
-- [s193 calib 18 iters partial progress (2026-05-23 eve)](project_s193_calib_18_iters_partial_progress.md) — SAMPLE still fails.
+- [OP-S10-W21 calib bringup — T4 phase-2 OPEN, cf2 no-baro hover blocker, T5-T9 open (2026-05-21..23)](project_op_s10_w21_t4_session2_open.md); [s193 18 iters partial](project_s193_calib_18_iters_partial_progress.md) SAMPLE still fails; [T14 RPYT-only fallback idea](project_op_s10_w21_t14_rpyt_only_calib_idea.md).
 - [HARD RULE — always cross-reference logs with GT (2026-05-23)](feedback_always_cross_reference_logs_with_gt.md)
-- [OP-S10-W21-T14 RPYT-only calib fallback idea (2026-05-23)](project_op_s10_w21_t14_rpyt_only_calib_idea.md)
-- [OP-S10-W17-T10 synth perception bench SHIPPED (2026-05-23)](project_op_s10_w17_t10_synth_bench_shipped.md) — b4eb37ce. recall 0.998.
+- [OP-S10-W17 WhyCon-lite SHIPPED M7 — 6.00 ms @ 4 markers (2026-05-19)](project_op_s10_w17_whycon.md) — 5.3× ArUco; [T10 synth perception bench SHIPPED (2026-05-23)](project_op_s10_w17_t10_synth_bench_shipped.md) b4eb37ce, recall 0.998.
 - [2026-05-21 day arc — W19-T6b + W20 + W21 calib bringup shipped](project_2026_05_21_w19_w21_shipped.md) — 11 commits. Session 2 open.
-- [OP-S10-W21-T4 phase-2 OPEN — sim cf2 no-baro hover blocker (2026-05-21 night)](project_op_s10_w21_t4_session2_open.md) — T5-T9 open.
 - [Yaw-anchor picker for symmetric Kabsch pads (2026-05-21)](feedback_yaw_anchor_mirror_picker.md) — sign(R[ii]) vs cos(yaw).
 - [HARD RULE — sentai.calib is PRODUCTION bringup (2026-05-21)](feedback_sentai_calib_is_production_bringup.md) — not thesis-only.
 - [HARD RULE — kill all gz before launch](feedback_kill_all_gz_before_launch.md) — pkill -9 gz + sleep 2.
@@ -38,25 +32,20 @@
 - [HARD RULE — experiments in own folder + log dead-ends (2026-05-20)](feedback_experiments_in_own_folder_log_dead_ends.md)
 - [OP-S10-W19 sentai.markers unified namespace planning (2026-05-20)](project_op_s10_w19_markers_plan.md) — WhyCon needs PnP.
 - [HARD RULE — IPC clamp in worker NOT host (2026-05-20)](feedback_ipc_clamp_in_worker_not_host.md) — fix 5f34a8dc.
-- [OP-S10-W17 WhyCon-lite SHIPPED M7 — 6.00 ms @ 4 markers (2026-05-19)](project_op_s10_w17_whycon.md) — 5.3× ArUco.
-- [OP-S10-W16 ablation 4th rev — M7 SDRAM beats M4 OCRAM 2.4× (2026-05-19)](project_op_s10_w16_ablation_findings.md) — DCE fix 576fc1d5.
+- [OP-S10-W16 Multi-core investigation WP (2026-05-19)](project_op_s10_w16_multicore.md) — open ToDo, M7=all; [ablation 4th rev](project_op_s10_w16_ablation_findings.md) — M7 SDRAM beats M4 OCRAM 2.4×, DCE fix 576fc1d5.
 - [HARD RULE — RPMSG cross-core linker alignment (2026-05-19)](feedback_rpmsg_cross_core_alignment.md) — 692f8b95.
-- [OP-S10-W16 Multi-core investigation WP (2026-05-19)](project_op_s10_w16_multicore.md) — open ToDo. M7=all.
-- [OP-S10-W14-T18-T+U SIMD ArUco threshold SHIPPED (2026-05-19)](project_op_s10_w14_t18_simd_threshold.md) — #1353. 24→22ms.
+- [OP-S10-W14-T18-T+U SIMD ArUco threshold SHIPPED (2026-05-19)](project_op_s10_w14_t18_simd_threshold.md) — #1353, 24→22ms; [autotune CONVERGES Kp_flow=0.39±0.05 (2026-05-18)](project_op_s10_w14_autotune_converged.md) ec25f458, 7/7.
 - [T22 ARM build restored (2026-05-19)](project_t22_arm_build_fix.md) — 3a89466f. HEAP 14MB.
 - [OP-S10-W15 ARM memory budget WP — open ToDo (2026-05-19)](project_op_s10_w15_arm_memory_budget.md) — hot buffers 32B aligned.
 - [Critical path to defense ~5-7 weeks post-yaw (2026-05-19)](project_critical_path_post_yaw.md) — ARM S9 highest risk.
 - [Diary convention (2026-05-18)](feedback_diary_convention.md) — diary/YYYY-MM-DD.md, English.
 - [Per-WP spec files convention (2026-05-19)](project_objects_plan_per_wp_specs.md) — ideas/objects_plan/.
-- [OP-S10-W14 autotune CONVERGES Kp_flow=0.39±0.05 (2026-05-18)](project_op_s10_w14_autotune_converged.md) — ec25f458. 7/7.
 - [OP-S10-W12 + W13 sentai.safety + sentai.fr SHIPPED (2026-05-18)](project_op_s10_w12_w13_shipped.md) — 6303b95d.
 - [HARD RULE — FB2 abort if <4 markers 30 frames (2026-05-18)](feedback_flowbaseline2_4markers_abort.md) — reset only at n_dets==4.
-- [OP-S8-W1 mission safety triggers (2026-05-18)](project_op_s8_w1_mission_safety_triggers.md) — PnP-z<0.20m, FOV≥30, EKF-z>3×.
+- [OP-S8-W1 crisis — cf2 SIM honest (2026-05-17)](project_op_s8_w1_cf2_sim_honest.md) — T1-T5 SHIPPED, T6-T11 pending; [mission safety triggers (2026-05-18)](project_op_s8_w1_mission_safety_triggers.md) PnP-z<0.20m, FOV≥30, EKF-z>3×.
 - [gt_recorder canonical tool (2026-05-18)](reference_gt_recorder_tool.md) — sim/scripts/gt_recorder.py.
 - [cf2 SITL cheat — gz-sim-odometry-publisher (2026-05-17)](feedback_cf2_sitl_cheat_odom_gt.md) — HARD RULE. Disabled.
-- [OP-S8-W1 crisis — cf2 SIM honest (2026-05-17)](project_op_s8_w1_cf2_sim_honest.md) — T1-T5 SHIPPED. T6-T11 pending.
-- [OP-S6-W3 sentai.aruco SHIPPED (2026-05-17)](project_op_s6_w3_aruco_shipped.md) — s159 12/12.
-- [OP-S6-W1 sentai.calib SHIPPED (2026-05-17)](project_op_s6_w1_calib_shipped.md) — Kabsch+SVD. s157 6/6.
+- [OP-S6-W1 sentai.calib SHIPPED (2026-05-17)](project_op_s6_w1_calib_shipped.md) — Kabsch+SVD, s157 6/6; [OP-S6-W3 sentai.aruco SHIPPED](project_op_s6_w3_aruco_shipped.md) s159 12/12.
 - [OP-S10-W11 prep pipeline T1..T4 SHIPPED (2026-05-17)](project_op_s10_w11_prep_pipeline.md) — 5/5. FB 8.92cm.
 - [No heavy data through MP (2026-05-17)](feedback_no_heavy_data_through_mp.md) — HARD RULE. C ptrs+scalars.
 - [ARM HW primitives first (2026-05-17)](feedback_arm_hw_primitives_first.md) — HARD RULE. PXP/CMSIS/SIMD first.
@@ -65,56 +54,36 @@
 - [Short-term plan OP-S6-W1 + OP-S10 SIM-only (2026-05-17)](project_short_term_plan_2026_05_17.md)
 - [Local LLM distill tool (2026-05-17)](reference_ai_distill_tool.md) — scripts/ai_distill.sh → Ollama.
 - [sentai_sim AIR-GAPPED from GT (2026-05-17)](feedback_sentai_sim_air_gapped_from_truth.md) — HARD RULE. Camera+CRTP only.
-- [s147-s151 MP-only migrations shipped (2026-05-16)](project_s147_s151_migrations_shipped.md) — MP heap 256→512KB.
-- [s146 pose feedback CRTP-LOG pure MP shipped (2026-05-16)](project_s146_pose_feedback_shipped.md) — crtp_log.py. 11 PASS.
-- [s145 mission migration template shipped (2026-05-16)](project_s145_mission_template_shipped.md) — ref for s146+.
+- [MP-only mission migrations s145..s151 shipped (2026-05-16)](project_s147_s151_migrations_shipped.md) — MP heap 256→512KB; [s145 template](project_s145_mission_template_shipped.md); [s146 pose feedback CRTP-LOG](project_s146_pose_feedback_shipped.md) crtp_log.py, 11 PASS.
 - [File-org refactor T0+T1 (2026-05-16)](project_refactor_file_org_2026_05_16.md) — SIM 1684→164 LoC.
 - [Missions run in SentAI firmware ONLY (2026-05-16)](feedback_missions_run_in_sentai_only.md) — HARD RULE. Host=launcher.
 - [SIM flight test VALID iff returns to home (2026-05-15)](feedback_sim_test_must_return_home.md) — ≤10cm origin.
 - [Test must be RELEVANT to its claim (2026-05-15)](feedback_test_must_be_relevant_to_claim.md) — HARD assertions.
-- [s136 L6 explore REAL exploration PASS (2026-05-16)](project_s136_explore_real_shipped.md) — land_err 1.7cm.
-- [s137 L6 LONG-DISTANCE exploration PASS (2026-05-16)](project_s137_explore_long_shipped.md) — 4.80m. L5 inject().
-- [s138 L6 LOST state recovery PASS (2026-05-16)](project_s138_lost_recovery_shipped.md) — force_lost→ascend→recovers.
-- [s139 PHOG descriptor SIM PASS (2026-05-16)](project_s139_phog_shipped.md) — Bosch 2007, 168 floats.
-- [s140 GIST-lite descriptor SIM PASS (2026-05-16)](project_s140_gist_shipped.md) — Oliva-Torralba, 64 floats.
-- [s141 DescriptorBaseline anti-regression gate (2026-05-16)](project_s141_descriptor_baseline_shipped.md) — Goldens. 15/15.
-- [s142 HexPatrol mission PASS (2026-05-16)](project_s142_hex_patrol_shipped.md) — L3 places. closure 1.8cm.
-- [s143 Loop closure mission PASS (2026-05-16)](project_s143_loop_closure_shipped.md) — Lap-2 MATCH 100%.
-- [s135 L6 explore CLEAN origin-locked PASS×3 (2026-05-15)](project_s135_explore_clean_shipped.md) — return-to-home.
-- [L6 sentai.explore skeleton shipped (2026-05-15)](project_l6_skeleton_shipped.md) — s133. FSM 10 states.
+- [ObjectsPlan L6 sentai.explore skeleton s133 (2026-05-15)](project_l6_skeleton_shipped.md) — FSM 10 states; [s135 clean origin-locked ×3](project_s135_explore_clean_shipped.md); [s136 REAL exploration](project_s136_explore_real_shipped.md) land_err 1.7cm; [s137 long 4.80m](project_s137_explore_long_shipped.md); [s138 LOST recovery](project_s138_lost_recovery_shipped.md).
+- [Place descriptors SIM (2026-05-16)](project_s141_descriptor_baseline_shipped.md) — s141 DescriptorBaseline goldens 15/15; [s139 PHOG](project_s139_phog_shipped.md) Bosch 2007, 168 floats; [s140 GIST-lite](project_s140_gist_shipped.md) 64 floats.
+- [Place missions SIM (2026-05-16)](project_s143_loop_closure_shipped.md) — s143 loop closure Lap-2 MATCH 100%; [s142 HexPatrol](project_s142_hex_patrol_shipped.md) L3 places, closure 1.8cm.
 - [AirREPL mini-paper plan (2026-05-15)](project_airrepl_paper_lit_review.md) — FW17. Post-defense.
 - [ObjectsPlan vs FutureWork — scope rule (2026-05-15)](feedback_objectsplan_vs_futurework.md) — thesis vs deferred.
-- [s132 L5 lifter Gazebo integration PASS (2026-05-15)](project_s132_lifter_gazebo_shipped.md) — 6827e42a. FB 7.1cm.
 - [Places two-track decision (2026-05-15)](project_places_two_track_decision.md) — Track A primary; DNN deferred.
-- [ObjectsPlan — layered re-implementation (2026-05-13)](project_objectsplan.md) — L1→L7. FB-gated.
+- [ObjectsPlan L5 sentai_object_lifter shipped (2026-05-15)](project_l5_shipped.md) — 17cbe3aa, 38/38, FB 4.77cm; [s131 math](project_s131_lifter_math_shipped.md) Civera inv-depth 898e8d05; [s132 Gazebo](project_s132_lifter_gazebo_shipped.md) 6827e42a, FB 7.1cm.
+- [ObjectsPlan — layered re-implementation (2026-05-13)](project_objectsplan.md) — L1→L7 FB-gated; [L2 sentai.objects eaf67e75](project_objects_l2_shipped.md) frozen API; [L3 sentai.places 19c40d88](project_places_l3_shipped.md) H3 64-slot, 58/58.
 - [No broken-branch test reuse for ObjectsPlan](feedback_no_broken_branch_test_reuse.md) — tests fresh per layer.
 - [Gate every ObjectsPlan layer — no exceptions](feedback_gate_every_layer_no_exceptions.md) — s127 after every commit.
 - [Experiments must start cf2 from origin](feedback_experiments_start_from_origin.md) — else biased takeoff.
-- [s130 Stage 4.5Baseline PASS image-only nav](project_s130_45baseline_shipped.md) — multi-marker PnP. 1.2cm.
 - [Camera-mount R_cam_to_body calibration concern (2026-05-14)](project_camera_mount_calibration.md) — Kabsch at takeoff. §21.
-- [s131 lifter math validation PASS (2026-05-15)](project_s131_lifter_math_shipped.md) — Civera inv-depth. 898e8d05.
-- [ObjectsPlan L5 sentai_object_lifter shipped (2026-05-15)](project_l5_shipped.md) — 17cbe3aa. 38/38. FB 4.77cm.
-- [s129 L4.2Baseline PASS IBVS centering](project_s129_l42baseline_shipped.md) — px_dist 15.1.
-- [s128 L4.1Baseline PASS closed-loop EKF, 4 markers](project_s128_l41baseline_shipped.md) — iterate-until-converges.
+- [ObjectsPlan L4 sentai.servo shipped (f8420bec)](project_servo_l4_shipped.md) — 88/88, frozen L6; [s128 L4.1 EKF 4 markers](project_s128_l41baseline_shipped.md); [s129 L4.2 IBVS](project_s129_l42baseline_shipped.md) px_dist 15.1; [s130 4.5Baseline image-only](project_s130_45baseline_shipped.md) 1.2cm.
 - [sentai.sim.journal_* SIM-only debug log](project_sentai_sim_journal.md) — §10x.
-- [ObjectsPlan L4 sentai.servo shipped (f8420bec)](project_servo_l4_shipped.md) — 88/88. Frozen L6.
-- [ObjectsPlan L3 sentai.places shipped (19c40d88)](project_places_l3_shipped.md) — H3 64-slot. 58/58.
 - [Gazebo GUI required for ALL experiments](feedback_gazebo_gui_required.md) — headless=invalid.
-- [ObjectsPlan L2 sentai.objects shipped (eaf67e75)](project_objects_l2_shipped.md) — frozen API.
 - [SIM REPL test recipe (Sim.md §10w)](feedback_sim_repl_test_recipe.md) — fs_root import; paste broken.
 - [FlowBaseline canonical config (s127, 2026-05-13)](project_flowbaseline_canonical_config.md) — NO wind. 7.4cm.
 - [No safety/battery/emergency in sentai.explore](feedback_no_safety_logic_in_explore.md) — aborts in sentai.safety.
 - [H3 (Uber) submodule integration recipe](project_h3_integration.md) — v4.4.1. s119 PASS.
 - [ITCM/m_text budget (s113 P2.5)](project_itcm_budget.md) — default .sdram_text.
-- [sentai.flow.anchor_forward — auto-VPE (s113 P2)](project_anchor_auto_forward.md) — priority +2 on POSIX.
-- [sentai.flow.mode("anchor") platform-abstracted (s112)](project_flow_anchor_platform_shim.md) — same MP API ARM+SIM.
+- [sentai.flow.mode("anchor") platform-abstracted (s112)](project_flow_anchor_platform_shim.md) — same MP API ARM+SIM; [anchor_forward auto-VPE (s113 P2)](project_anchor_auto_forward.md) priority +2 on POSIX.
 - [M7 ArUco bench s111: PXP+SIMD+DTCM = 11× CPU](project_m7_aruco_bench_findings.md) — 12.1→1.1ms. SIMD 16×.
 - [PXP needs PXP_Init() if used before camera](project_pxp_init_required.md) — idempotent.
-- [PX4 + flow ARCH VALIDATED s107](project_px4_flow_arch_pass_axis_open.md) — axis-sign open.
-- [PX4 flow-only nav BLOCKED (s101b)](project_px4_flow_only_blocker.md) — EKF refuses arm. Use VPE.
+- [PX4 SIM track (s101..s107): flow ARCH VALIDATED, axis-sign open](project_px4_flow_arch_pass_axis_open.md); [flow-only nav BLOCKED s101b](project_px4_flow_only_blocker.md) EKF refuses arm, use VPE; [Phase 6d assets](reference_px4_phase6d_assets.md) §10n; [C flow forwarder](project_px4_flow_c_forwarder.md) sentai.link.flow().
 - [PX4+gz takeoff — 3 pitfalls (s101)](feedback_px4_gz_takeoff_pitfalls.md) — lockstep, NaN, spawn high.
-- [PX4 Phase 6d asset map](reference_px4_phase6d_assets.md) — §10n.
-- [PX4 flow forwarder C-side (Python on/off)](project_px4_flow_c_forwarder.md) — sentai.link.flow() task.
 - [cf2 PID_POS_VEL_X_MAX=1.0 caps SITL drone](project_cf2_velmax_cap.md) — raise to 2.5; 3.0 max.
 - [PnP marker size + axis bugs FIXED (2026-05-11)](project_pnp_bugs_fixed.md) — MARKER_SIZE 0.0625.
 - [No Gazebo Harmonic — Garden only](feedback_no_harmonic.md) — Garden 7.9.
@@ -122,41 +91,32 @@
 - [flashtool no manual SDP if alive](feedback_flashtool_no_manual_sdp.md) — 1fc9:c0a1 auto-resets.
 - [SAFE MODE pre-scheduler brick (#1225)](project_safe_mode_brick_fix.md) — FxUserInit return 1.
 - [No experiments in /tmp](feedback_no_tmp_experiments.md) — experiments/sNNN_<name>/.
-- [LFS Task Architecture Fix](project_lfs_task_fix.md) — dedicated lfs_task.
-- [USB Mode-Switch Architecture](project_usb_mode_switch.md) — .noinit_boot_persist + warm reset.
-- [Storage-mode watchdog reset fix](project_storage_watchdog_fix.md) — keeps WDOG1 kicks.
+- [USB storage-mode architecture](project_usb_mode_switch.md) — .noinit_boot_persist + warm reset; [dedicated lfs_task](project_lfs_task_fix.md); [storage watchdog fix](project_storage_watchdog_fix.md) keeps WDOG1 kicks.
 - [REPL-based diag upload helper](project_upload_diag_repl.md) — chunked when HTTP hangs. CHUNK=48.
 - [Experiment run cadence](feedback_experiment_run_cadence.md) — verbose(1) single then multi.
-- [OV5640 AEC dominance](project_ov5640_aec_dominance.md) — post-capture stretch only.
+- [OV5640 AEC dominance](project_ov5640_aec_dominance.md) — post-capture stretch only; [TODO exposure auto-calc](project_ov5640_exposure_calc_todo.md) SXGA15 underexposed.
 - [TPU USB throughput investigation](project_tpu_usb_perf.md) — pipe callback blocks single-pipe.
-- [TPU pipeline 41.4 FPS via OCRAM tensor](project_tpu_pipeline_agressor.md) — SDRAM→OCRAM. yolo_1.
+- [TPU pipeline 41.4 FPS via OCRAM tensor](project_tpu_pipeline_agressor.md) — SDRAM→OCRAM, yolo_1; [Arena-in-OCRAM SHIPPED](project_arena_in_ocram_done.md) 800KB, +0.95 FPS; [Cale 1 PURE ring buffer](project_cale1_ring_buffer_shipped.md) .tpu_ring 72KB OCRAM, UNTESTED.
 - [RT1176/EdgeTPU reference sources](reference_tpu_pipeline_sources.md) — AN12437, IMXRT1170RM.
-- [Arena-in-OCRAM SHIPPED](project_arena_in_ocram_done.md) — 800KB OCRAM, +0.95 FPS.
 - [CSI ISR is timing-sensitive — DO NOT modify](project_fb2_counter_fix.md) — counter half rate.
-- [Runtime camera HW config](project_runtime_camera_hw.md) — second reinit hangs. Forces XRGB8888.
-- [SXGA 1280×960 camera mode](project_sxga_camera_support.md) — 2×2 binned. Post may wedge.
-- [Cale 1 PURE SHIPPED](project_cale1_ring_buffer_shipped.md) — .tpu_ring 72KB OCRAM. UNTESTED.
+- [Runtime camera HW config](project_runtime_camera_hw.md) — second reinit hangs, forces XRGB8888; [SXGA 1280×960 mode](project_sxga_camera_support.md) 2×2 binned, post may wedge.
 - [Host Coral USB testing](reference_host_coral_testing.md) — Py3.9 venv-coral/ + pycoral.
 - [paper/ docs inventory](reference_paper_docs.md) — models.md, apex_fw.md.
 - [CSI RGB565 SDRAM dead-end (ERR051248)](project_csi_rgb565_silicon_dead_end.md) — always XRGB8888.
 - [Production cleanup 2026-04-25](project_production_cleanup_2026_04_25.md) — #878: 43/76 FPS.
 - [Camera switch drain semantics](project_cam_switch_drain_semantics.md) — glitch-free. queue-bound.
-- [TODO — OV5640 exposure auto-calc](project_ov5640_exposure_calc_todo.md) — SXGA15 underexposed.
 - [HTTP requires explicit usb.ip(1)](feedback_http_needs_usb_ip.md) — opt-in via sentai.usb.ip(1).
-- [VGA fps bench state](project_vga_bench_state.md) — VGA45/60 wedge at warm-up.
+- [Runtime fps switch: VGA45/60 UNBLOCKED (#98x)](project_runtime_fps_unblocked.md) — tHsSettle keyed on g_runtime_fps; [why it wedged (2026-04-26)](project_runtime_fps_switch_blocked.md); [VGA bench state](project_vga_bench_state.md) VGA45/60 wedge at warm-up.
 - [Unwedge with --ram flash](feedback_unwedge_with_ram_flash.md) — resets fast, no persist.
-- [Runtime fps switch blocked](project_runtime_fps_switch_blocked.md) — 4 set_fps wedge CSI.
-- [VGA45/60 runtime fps UNBLOCKED (#98x)](project_runtime_fps_unblocked.md) — tHsSettle compile-time.
 - [iarna p3p4 on-board bench (#1077)](project_iarna_models_bench.md) — 90 FPS. p2p4_5ep BROKEN.
 - [No complex serial orchestration](feedback_no_complex_serial_orchestration.md) — host pushes+downloads CSV.
-- [Flow stack M7-only architecture](project_flow_m7_validated.md) — M4 retired. Bit-perfect.
+- [Flow stack M7-only architecture](project_flow_m7_validated.md) — M4 retired, bit-perfect; [body-frame baseline cam0 + vflip=1 EMPIRICAL](project_flow_body_frame_baseline.md) body_xform[0]=(-1,0,0,+1).
 - [Cortex-M7 SIMD inner loop best practices](feedback_cortex_m7_simd_loop.md) — __USADA8. no memcpy(&u32,p,4).
 - [No EMA at integration source](feedback_no_ema_for_integration.md) — deadband+conf-floor.
 - [Camera VGA30 → 18 fps regression](project_camera_fps_regression.md) — out-of-scope for flow.
 - [Driver log loops MUST dedup by frame_seq](feedback_dedup_log_by_seq.md) — inflates 2-3×.
 - [Git stash without -u loses untracked NEW files](feedback_git_stash_safety.md) — use -u.
 - [Crazyflie radio bridge SHIPPED firmware auto-init](project_crazyflie_radio_bridge.md) — #1224. Auto-inits pre-main.
-- [Flow body-frame baseline cam0 + vflip=1 EMPIRICAL](project_flow_body_frame_baseline.md) — body_xform[0]=(-1,0,0,+1).
 - [MicroPython mp_sched drain hooks needed](feedback_mp_scheduler_drain.md) — mp_handle_pending to stdin.
 - [vTaskDelay forbidden pre-scheduler](feedback_vtaskdelay_pre_scheduler.md) — use bounded_delay_ms.
 - [Radio CRTP MTU 30 B = inline $exec only](feedback_radio_no_file_transfer.md) — ~6 Hz. Don't drive control.

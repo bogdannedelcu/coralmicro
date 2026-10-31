@@ -325,10 +325,22 @@ Save all output tensors to a CSV file on flash. Returns 0 on success.
 
 ---
 
-## sentai.fs — Filesystem (LittleFS)
+## sentai.fs — Filesystem (FileX / FAT32 on the microSD card)
+
+Since 2026-10-30 the user filesystem lives on the microSD card (USDHC1,
+FileX with the fault-tolerant journal, FAT32 32 KB clusters) — the NAND
+user partition is gone; only the LittleFS *system* partition remains on
+NAND.  `/main.py`, `/log`, `/diags`, captures and models are all on the
+card.  The card is mounted after the scheduler starts (bounded 20 s
+deadline); without a card the firmware boots normally and `sentai.fs.*`
+raises `OSError`.  Block-level access is `sentai.sdcard.*` (below).
+
+Whole-file reads are capped at **512 KB** (`read_base64`: 256 KB) because
+the result lands on the 1 MB MicroPython heap; larger files go over HTTP
+(`/api/raw/<path>`) or the USB drive (`sentai.usb.drive(1)`).
 
 ### `sentai.fs.read(path)` → bytes
-Read entire file as bytes.
+Read entire file as bytes (≤ 512 KB, see above).
 ```python
 >>> data = sentai.fs.read("/models/model.tflite")
 >>> len(data)
@@ -520,10 +532,13 @@ Capture frame and load directly into TPU input tensor (PXP hardware scaled to mo
 
 ---
 
-## sentai.imu — LIS2DU12 Accelerometer
+## sentai.imu — LIS2DUX12 Accelerometer
 
-On-board STMicroelectronics LIS2DU12 3-axis accelerometer connected via I2C5 (address 0x19).  
-Returns acceleration in milli-g (mg) and temperature in °C as native floats.
+On-board STMicroelectronics **LIS2DUX12** 3-axis accelerometer (board rev
+2026-10; WHO_AM_I 0x47, replaces the LIS2DU12 of the previous revision)
+connected via I2C5 (address 0x19).  Driver: `libs/lis2dux12/` over the
+vendored ST PID driver.  Returns acceleration in milli-g (mg) and
+temperature in °C as native floats.  Same API as before.
 
 ### `sentai.imu.init()` → int
 Initialize the LIS2DU12 accelerometer. Must be called once before `read()`.  

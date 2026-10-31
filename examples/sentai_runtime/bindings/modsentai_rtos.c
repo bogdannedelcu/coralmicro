@@ -163,9 +163,13 @@ static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_cpu_usage_obj, mod_sentai_cpu_usage)
 
 // ===================== Task suspend/resume =====================
 
-// Protected task names that should never be suspended
+// Protected task names that should never be suspended (substring match).
+// Suspending any of these takes the REPL, the USB stack, the HTTP path, the
+// filesystem or the watchdog kicker down with it — the operator loses the
+// board instead of gaining a measurement (audit 2026-10-30, m6).
 static const char* protected_tasks[] = {
-    "mp_repl", "IDLE", "Tmr Svc", "ctrlc", "console", "usb_dev", NULL
+    "mp_repl", "IDLE", "Tmr Svc", "ctrlc", "console", "usb",
+    "tcpip", "lfs_task", "fs_task", "hw_wdog", "wdog", "sd_", NULL
 };
 
 static int is_protected_task(const char* name) {

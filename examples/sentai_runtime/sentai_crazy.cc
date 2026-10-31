@@ -1101,15 +1101,22 @@ extern "C" int sentai_crazy_init(uint32_t baudrate) {
         return -1;
     }
 
-    // Create TX mutex and CTS semaphore
-    g_crazy_tx_mutex = xSemaphoreCreateMutex();
-    g_crazy_cts      = xSemaphoreCreateBinary();
-    g_crazy_ping_sem = xSemaphoreCreateBinary();
-    g_param_resp_sem = xSemaphoreCreateBinary();
-    g_cmd_done_sem   = xSemaphoreCreateBinary();
-    g_log_resp_sem   = xSemaphoreCreateBinary();
-    g_log_data_sem   = xSemaphoreCreateBinary();
-    g_telem_resp_sem = xSemaphoreCreateBinary();
+    // Synchronisation objects are created ONCE and live for the firmware's
+    // lifetime (audit 2026-10-30, M7).  They used to be re-created on every
+    // init and vSemaphoreDelete()d in stop(): a late RX/CMD task iteration,
+    // the CRTP dispatcher or a REPL caller still holding the old handle
+    // became a use-after-free, and g_telem_resp_sem was never deleted at
+    // all (one leaked semaphore per init/stop cycle).  Binary semaphores
+    // are drained here so a stale give from the previous session cannot
+    // satisfy the first wait of this one.
+    if (!g_crazy_tx_mutex) g_crazy_tx_mutex = xSemaphoreCreateMutex();
+    SemaphoreHandle_t* const binaries[] = {
+        &g_crazy_cts, &g_crazy_ping_sem, &g_param_resp_sem, &g_cmd_done_sem,
+        &g_log_resp_sem, &g_log_data_sem, &g_telem_resp_sem};
+    for (SemaphoreHandle_t* h : binaries) {
+        if (!*h) *h = xSemaphoreCreateBinary();
+        else (void)xSemaphoreTake(*h, 0);
+    }
 
     /* Visual heartbeat timer — allocated once at init, reused for
      * every accepted radio frame. See led_blink_kick_1s comments. */
@@ -1247,13 +1254,14 @@ extern "C" int sentai_crazy_stop(void) {
     g_crazy_running = 0;
     vTaskDelay(pdMS_TO_TICKS(200));  // let RX task exit
 
-    if (g_crazy_tx_mutex) { vSemaphoreDelete(g_crazy_tx_mutex); g_crazy_tx_mutex = nullptr; }
-    if (g_crazy_cts)      { vSemaphoreDelete(g_crazy_cts);      g_crazy_cts = nullptr; }
-    if (g_crazy_ping_sem) { vSemaphoreDelete(g_crazy_ping_sem); g_crazy_ping_sem = nullptr; }
-    if (g_param_resp_sem) { vSemaphoreDelete(g_param_resp_sem); g_param_resp_sem = nullptr; }
-    if (g_cmd_done_sem)   { vSemaphoreDelete(g_cmd_done_sem);   g_cmd_done_sem = nullptr; }
-    if (g_log_resp_sem)   { vSemaphoreDelete(g_log_resp_sem);   g_log_resp_sem = nullptr; }
-    if (g_log_data_sem)   { vSemaphoreDelete(g_log_data_sem);   g_log_data_sem = nullptr; }
+    // Semaphores are persistent (see init): never deleted, only drained so
+    // the next init starts from a known-empty state.
+    SemaphoreHandle_t const binaries[] = {
+        g_crazy_cts, g_crazy_ping_sem, g_param_resp_sem, g_cmd_done_sem,
+        g_log_resp_sem, g_log_data_sem, g_telem_resp_sem};
+    for (SemaphoreHandle_t h : binaries) {
+        if (h) (void)xSemaphoreTake(h, 0);
+    }
     g_cmd_task = nullptr;
     g_cmd_state = CMD_IDLE;
 

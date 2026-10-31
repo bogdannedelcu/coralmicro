@@ -156,6 +156,13 @@ extern "C" {
 #define SERR_CAM_DRAIN_TIMEOUT    (SERR_MOD_CAM | 0x02)  // Post-switch drain wait hit 300ms ceiling (val=wait_ms)
 #define SERR_CAM_GRAB_RETRY       (SERR_MOD_CAM | 0x03)  // GetRawFrame failed, toggling to recover (val=recovery_attempt)
 #define SERR_CAM_GRAB_FAIL        (SERR_MOD_CAM | 0xF0)  // Fatal: GetRawFrame failed after all recoveries (val=cam_id)
+/* 2026-10-30 hardening (camera audit C1/C2/M1/M2/M7) */
+#define SERR_CAM_DEV_INIT_FAIL    (SERR_MOD_CAM | 0x04)  // BOARD_InitCamera: MIPI clock check / OV5640 Init / Start failed (val=status)
+#define SERR_CAM_I2C_FAIL         (SERR_MOD_CAM | 0x05)  // SCCB transfer failed on a detected camera bus (val=(bus<<8)|reg_hi)
+#define SERR_CAM_DETECT           (SERR_MOD_CAM | 0x06)  // Power-on detect result bitmask (val=bit0 cam0 ok, bit1 cam1 ok)
+#define SERR_CAM_PXP_TIMEOUT      (SERR_MOD_CAM | 0x07)  // PXP completion wait exceeded deadline; PXP reset (val=source line)
+#define SERR_CAM_GRAB_TIMEOUT     (SERR_MOD_CAM | 0x08)  // Blocking GetFrame: no frame within the camera-task 4 s poll (val=cam_id)
+#define SERR_CAM_HOLD_LIMIT       (SERR_MOD_CAM | 0x09)  // Frame hand-out refused: consumers already hold kFramebufferCount-2 buffers (val=held)
 
 // ===================== TPU Errors (0x0Bxx) =====================
 #define SERR_TPU_ARENA_ALLOC    (SERR_MOD_TPU | 0x40)   // Arena allocation failed
@@ -218,6 +225,19 @@ extern "C" {
 #define SERR_LFX_FIRST_BOOT_FORMAT (SERR_MOD_LFX | 0x2A) // virgin NAND, auto-formatting (val=lx_status)
 #define SERR_LFX_SYNC_LX_CLOSE  (SERR_MOD_LFX | 0x2B)  // FxUserSync: lx_close failed (val=lx_status)
 #define SERR_LFX_SYNC_LX_REOPEN (SERR_MOD_LFX | 0x2C)  // FxUserSync: lx_reopen failed (val=lx_status); volume now unmounted
+/* 2026-10-30 — user FS moved to the microSD card (FileX over fx_sd_driver,
+ * no LevelX).  LX-specific codes above stay for forensics of old logs. */
+#define SERR_LFX_SD_INIT_FAIL   (SERR_MOD_LFX | 0x2E)  // SD card init failed / no card / block size != 512 (val=block_size or 0)
+#define SERR_LFX_SD_BLANK_FORMAT (SERR_MOD_LFX | 0x2F) // blank card (no 0x55AA at LBA0) -> first-use auto-format (val=0)
+#define SERR_LFX_FS_UNKNOWN     (SERR_MOD_LFX | 0x30)  // card has data but FileX cannot mount it (exFAT/foreign); SAFE MODE (val=fx_status)
+#define SERR_LFX_SD_READ_FAIL   (SERR_MOD_LFX | 0x31)  // SD_ReadBlocks failed (val=lba)
+#define SERR_LFX_SD_WRITE_FAIL  (SERR_MOD_LFX | 0x32)  // SD_WriteBlocks failed (val=lba)
+#define SERR_LFX_MOUNT_TIMEOUT  (SERR_MOD_LFX | 0x33)  // boot-time mount task exceeded its deadline; SAFE MODE, task left for fx_format to reap (val=deadline_ms)
+#define SERR_LFX_BPB_INVALID    (SERR_MOD_LFX | 0x34)  // boot sector failed sanity checks before fx_media_open (val=check_id 1..10)
+#define SERR_LFX_MOUNT_REAP_FAIL (SERR_MOD_LFX | 0x35) // stuck boot-mount did not unwind after SD abort within the bounded wait; SD layer disabled until reboot (val=wait_ms)
+#define SERR_LFX_SD_LOST        (SERR_MOD_LFX | 0x36)  // N consecutive SD command failures -> card considered removed; FS unmounted, SAFE MODE (val=consecutive_errors)
+#define SERR_LFX_STORAGE_NO_CARD (SERR_MOD_LFX | 0x37) // storage mode: SD block layer unavailable, MSC reports no medium (val=0)
+#define SERR_LFX_LOCK_RECLAIMED (SERR_MOD_LFX | 0x38)  // fs lock already owned by the calling task: a binding leaked it via an exception; reclaimed (val=task handle)
 #define SERR_LFX_LXONLY_FAIL_SAFE (SERR_MOD_LFX | 0x2D) // FxUserOpenLxOnly: failed; refusing implicit format (val=lx_status)
 #define SERR_LFX_RESTORE_LFS    (SERR_MOD_LFX | 0xF0)  // LfsUserInit re-format failed after smoke
 

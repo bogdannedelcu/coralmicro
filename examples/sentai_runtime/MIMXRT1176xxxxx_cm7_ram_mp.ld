@@ -30,10 +30,16 @@ ENTRY(Reset_Handler)
 /* HEAP_SIZE was 16 MB; reduced to 14 MB on 2026-05-18 to make room for
  * sentai_fr frame/event/scalar pools in .sdram_bss.  Newlib malloc still
  * gets 14 MB which is enormous for an M7 firmware (MP has its own 1 MB
- * GC heap in .sdram_bss, FreeRTOS has its own ucHeap). */
+ * GC heap in .sdram_bss).  NOTE: FreeRTOS uses heap_useNewlib, so task
+ * stacks, queues and pvPortMalloc() ALL come out of this same 14 MB —
+ * there is no separate ucHeap. */
 HEAP_SIZE  = DEFINED(__heap_size__)  ? __heap_size__  : 0x00E00000;
 STACK_SIZE = DEFINED(__stack_size__) ? __stack_size__ : 0x0400;
-RPMSG_SHMEM_SIZE = DEFINED(__use_shmem__) ? 0x2000 : 0;
+/* s240 (2026-07-01): 8 KB -> 16 KB to host the relocated flow_shared_t
+ * (M4 flow offload) above the 4 KB RPMsg-queue head-room.  MUST stay
+ * matched with the M4 linker (RPMSG cross-core alignment hard rule).
+ * Eats 8 KB of the OCRAM tail; .ocram_bss ASSERT below still passes. */
+RPMSG_SHMEM_SIZE = DEFINED(__use_shmem__) ? 0x4000 : 0;
 NCACHE_SIZE = 0x8000;
 
 /*
@@ -298,6 +304,31 @@ SECTIONS
      *liblibs_aifes_task_m7.a:*(.rodata .rodata*)
      __aifes_end = .;
      . = ALIGN(4);
+  } > m_sdram
+
+  /* .sdcard (2026-10-30): microSD stack on USDHC1 — libs/sdcard glue,
+     NXP sdmmc host/sd middleware and FatFs.  Cold path: REPL-driven
+     block reads / future file logging, never per-frame.  Routed to
+     SDRAM per [[itcm-budget]]; adding it to m_text overflowed ITCM.
+     DMA descriptors/sector buffers use the NonCacheable section. */
+  .sdcard :
+  {
+     . = ALIGN(4);
+     __sdcard_start = .;
+     *liblibs_sdcard_freertos.a:*(.text .text*)
+     *liblibs_sdcard_freertos.a:*(.data .data*)
+     *liblibs_sdcard_freertos.a:*(.rodata .rodata*)
+     *liblibs_nxp_rt1176-sdk_sdmmc.a:*(.text .text*)
+     *liblibs_nxp_rt1176-sdk_sdmmc.a:*(.data .data*)
+     *liblibs_nxp_rt1176-sdk_sdmmc.a:*(.rodata .rodata*)
+     *liblibs_nxp_rt1176-sdk_middleware_sdmmc_sd.a:*(.text .text*)
+     *liblibs_nxp_rt1176-sdk_middleware_sdmmc_sd.a:*(.data .data*)
+     *liblibs_nxp_rt1176-sdk_middleware_sdmmc_sd.a:*(.rodata .rodata*)
+     *sentai_sdcard_glue.cc.obj(.text .text*)
+     *sentai_sdcard_glue.cc.obj(.data .data*)
+     *sentai_sdcard_glue.cc.obj(.rodata .rodata*)
+     . = ALIGN(4);
+     __sdcard_end = .;
   } > m_sdram
 
   /* .sentai_slow: moved OCRAM → SDRAM 2026-04-22 (TPU pipeline sprint).
@@ -605,15 +636,17 @@ SECTIONS
      . = ALIGN(4);
   } > m_sdram
 
-  /* fx_nand_driver.cc + fx_user_fs.cc are also cold-path; route them
-     to SDRAM rather than spending precious ITCM on smoke-only code. */
+  /* fx_sd_driver.cc + fx_user_fs.cc are cold-path (REPL/log-driven file
+     I/O, never per-frame); route them to SDRAM rather than ITCM.
+     2026-10-30: fx_nand_driver.cc (LevelX NAND adapter) left the build
+     when the user FS moved to the SD card. */
   .fx_glue :
   {
      . = ALIGN(4);
      __fx_glue_start = .;
-     *fx_nand_driver.cc.obj(.text .text*)
-     *fx_nand_driver.cc.obj(.data .data*)
-     *fx_nand_driver.cc.obj(.rodata .rodata*)
+     *fx_sd_driver.cc.obj(.text .text*)
+     *fx_sd_driver.cc.obj(.data .data*)
+     *fx_sd_driver.cc.obj(.rodata .rodata*)
      *fx_user_fs.cc.obj(.text .text*)
      *fx_user_fs.cc.obj(.data .data*)
      *fx_user_fs.cc.obj(.rodata .rodata*)

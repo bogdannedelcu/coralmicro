@@ -78,6 +78,11 @@ extern "C" {
     // is done reading the current one -- not after the full invoke
     // (compute + output) finishes.  Pass nullptr to disarm.
     void sentai_tpu_set_input_done_sema(SemaphoreHandle_t sema);
+    // s240/YUV420: byte-target variant -- fire the release sema only after
+    // `byte_target` input bytes are transferred (after the LAST plane of a
+    // multi-input model), not the first.  See edgetpu_driver.cc.
+    void sentai_tpu_set_input_done_sema2(SemaphoreHandle_t sema,
+                                         uint32_t byte_target);
     int sentai_camera_wait_frame(int timeout_ms) __attribute__((weak));
     int sentai_detection_is_running(void);  // used by direct_tensor_set guard
     int sentai_tpu_detect(int conf_permil, int iou_permil, int max_dets,
@@ -86,6 +91,20 @@ extern "C" {
     // Wrappers added for pipeline access:
     int  sentai_pxp_scale(const uint8_t* src, int sw, int sh,
                           uint8_t* dst, int dw, int dh);
+    // s240/YUV420 dual-input pipeline: split the XYUV camera frame into Y+UV
+    // (one PXP pass) and invoke the 2-input model with both planes.
+    int  sentai_pxp_xyuv_to_yuv420(const uint8_t* src, int sw, int sh,
+                                   uint8_t* y_dst, uint8_t* uv_dst);
+    int  sentai_tpu_invoke_with_inputs2(uint8_t* uv_buf, uint8_t* y_buf);
+    extern volatile int g_sentai_yuv_dual;   // set by the loader (>=2 inputs)
+    // s240: per-invoke timing telemetry via the flight recorder.  Fast
+    // mutex-guarded ring enqueue (no inline I/O); a silent no-op unless the
+    // "scalars" channel is opened, so it's free on the production hot path.
+    int  sentai_fr_push_scalar(const char* label, double value, uint32_t ts_ms);
+    // GPT1 hardware µs counter (same source as sentai.rtos.micros()).  NOT
+    // ISR-dependent, so unlike xTaskGetTickCount it does NOT under-count
+    // during the USB-heavy TPU invoke.  Used by the InferTask FPS throttle.
+    uint32_t vPortGetRunTimeCounterValue(void);
     int  sentai_get_tensor_info(int* w, int* h, int* ch,
                                 uint8_t** buf, int* type, int* zp);
     int  sentai_cam_grab_latest(uint8_t** raw);
@@ -352,6 +371,15 @@ static volatile uint32_t s_infer_ok_count    = 0;
 static volatile uint32_t s_infer_fail_count  = 0;
 static volatile uint32_t s_infer_ms_sum      = 0;
 static volatile int32_t  s_infer_last_rc     = 0;
+// s240 profiling: cumulative NMS (sentai_tpu_detect) ms and full InferTask
+// cycle ms, to quantify the serial post-invoke tail vs the invoke itself.
+static volatile uint32_t s_nms_ms_sum        = 0;
+static volatile uint32_t s_cycle_ms_sum      = 0;
+// s240: cumulative ms InferTask spends BLOCKED on prep_done (i.e. waiting
+// for PrepTask).  Large => InferTask is the pole (prep hidden).  Near-zero
+// => prep is NOT overlapping the invoke (scheduling/serialization), so a
+// deeper input buffer would not help.
+static volatile uint32_t s_infer_wait_ms_sum = 0;
 extern "C" int  sentai_pipeline_debug_no_invoke_get(void) {
     return s_debug_no_invoke;
 }
@@ -371,6 +399,18 @@ extern "C" void sentai_pipeline_infer_reset(void) {
     s_infer_fail_count = 0;
     s_infer_ms_sum     = 0;
     s_infer_last_rc    = 0;
+    s_nms_ms_sum       = 0;
+    s_cycle_ms_sum     = 0;
+    s_infer_wait_ms_sum = 0;
+}
+// s240: NMS + full-cycle + infer-wait sums (frames = s_infer_ok_count).
+// Separate getter so the existing 4-arg infer_stats callers stay unchanged.
+extern "C" void sentai_pipeline_extra_stats(uint32_t* nms_sum,
+                                            uint32_t* cycle_sum,
+                                            uint32_t* wait_sum) {
+    if (nms_sum)   *nms_sum   = s_nms_ms_sum;
+    if (cycle_sum) *cycle_sum = s_cycle_ms_sum;
+    if (wait_sum)  *wait_sum  = s_infer_wait_ms_sum;
 }
 
 // Synchronization
@@ -651,6 +691,7 @@ static void prep_task_fn(void* /*param*/) {
     while (s_running) {
         if (s_prep_only_mode) {
             TickType_t t_iter_start = xTaskGetTickCount();
+            uint32_t t_iter_start_us = vPortGetRunTimeCounterValue();  // throttle uses µs
             TickType_t t_cam_start = t_iter_start;
             uint8_t* raw = nullptr;
             uint32_t rgb_seq = 0;
@@ -707,11 +748,13 @@ static void prep_task_fn(void* /*param*/) {
             s_last_prep_frame_tick = xTaskGetTickCount();
 
             if (s_prep_target_fps > 0) {
-                const TickType_t min_period =
-                    pdMS_TO_TICKS(1000 / s_prep_target_fps);
-                TickType_t elapsed = xTaskGetTickCount() - t_iter_start;
-                if (elapsed < min_period) {
-                    vTaskDelay(min_period - elapsed);
+                const uint32_t min_period_us =
+                    1000000u / (uint32_t)s_prep_target_fps;
+                const uint32_t elapsed_us =
+                    vPortGetRunTimeCounterValue() - t_iter_start_us;
+                if (elapsed_us < min_period_us) {
+                    uint32_t delay_ms = (min_period_us - elapsed_us) / 1000u;
+                    if (delay_ms > 0) vTaskDelay(pdMS_TO_TICKS(delay_ms));
                 }
             }
             if (s_pipeline_loop_delay_ms > 0) {
@@ -737,6 +780,11 @@ static void prep_task_fn(void* /*param*/) {
         if (!sem_input_free) { vTaskDelay(pdMS_TO_TICKS(10)); continue; }
 
         TickType_t t_iter_start = xTaskGetTickCount();
+        // GPT1 µs stamp for the prep FPS throttle: this iteration overlaps
+        // InferTask's invoke, during which SysTick is starved, so a
+        // tick-based elapsed would under-count and the throttle would inject
+        // a spurious delay (same bug fixed in the InferTask throttle).
+        uint32_t t_iter_start_us = vPortGetRunTimeCounterValue();
         TickType_t t_sem_start  = t_iter_start;
         if (xSemaphoreTake(sem_input_free, pdMS_TO_TICKS(100)) != pdTRUE) {
             if (direct) s_dt_prep_buf_timeout++;
@@ -892,6 +940,7 @@ static void prep_task_fn(void* /*param*/) {
         // no consumer is active.
         {
             const uint32_t fire_mask = publish_aux_slots_from_raw(raw);
+            (void)fire_mask;  // only logged on SIM/EMU below
 #if defined(SENTAI_PLATFORM_SIM) || defined(SENTAI_ARM_EMU)
             if (s_sim_prep_grab_logs <= 8) {
                 sentai_logf("det_prep", "fire_mask=0x%08lx",
@@ -935,8 +984,18 @@ static void prep_task_fn(void* /*param*/) {
             sentai_logf("det_prep", "pxp begin %dx%d", w, h);
         }
 #endif
-        int rc = sentai_pxp_scale(raw, DEMO_CAMERA_WIDTH, DEMO_CAMERA_HEIGHT,
+        int rc;
+        if (g_sentai_yuv_dual) {
+            // s240/YUV420: one PXP pass splits the XYUV frame into Y (dst_buf[0],
+            // 640x480) + UV (dst_buf[Y_SIZE], 320x240x2).  `raw` MUST be XYUV
+            // (camera in yuv_mode).  No int8 quant — the model is uint8.
+            const int Y_SIZE = DEMO_CAMERA_WIDTH * DEMO_CAMERA_HEIGHT;  // 307200
+            rc = sentai_pxp_xyuv_to_yuv420(raw, DEMO_CAMERA_WIDTH, DEMO_CAMERA_HEIGHT,
+                                           dst_buf, dst_buf + Y_SIZE);
+        } else {
+            rc = sentai_pxp_scale(raw, DEMO_CAMERA_WIDTH, DEMO_CAMERA_HEIGHT,
                                   dst_buf, w, h);
+        }
         TickType_t t_pxp_end = xTaskGetTickCount();
 #if defined(SENTAI_PLATFORM_SIM) || defined(SENTAI_ARM_EMU)
         if (s_sim_prep_grab_logs <= 8) {
@@ -973,7 +1032,7 @@ static void prep_task_fn(void* /*param*/) {
         // Int8 quantization in-place on the same buffer we just wrote.
         // Skipped in MODE 3 (PXP-only isolation).
         TickType_t t_quant_start = xTaskGetTickCount();
-        if (prep_mode != 3 && type == 9 /* kTfLiteInt8 */) {
+        if (prep_mode != 3 && type == 9 /* kTfLiteInt8 */ && !g_sentai_yuv_dual) {
             sentai_quant_uint8_to_int8(dst_buf, total, zp);
         }
         TickType_t t_quant_end = xTaskGetTickCount();
@@ -1020,12 +1079,15 @@ static void prep_task_fn(void* /*param*/) {
         // PrepTask FPS throttle — match user-set cadence.  Runs after
         // the give() so the next iteration's sem_free take starts
         // counting from the throttle boundary, not from cam_grab.
+        // Uses GPT1 µs (not ticks) — the iteration overlaps the invoke where
+        // SysTick is starved; see t_iter_start_us note above.
         if (s_prep_target_fps > 0) {
-            const TickType_t min_period =
-                pdMS_TO_TICKS(1000 / s_prep_target_fps);
-            TickType_t elapsed = xTaskGetTickCount() - t_iter_start;
-            if (elapsed < min_period) {
-                vTaskDelay(min_period - elapsed);
+            const uint32_t min_period_us = 1000000u / (uint32_t)s_prep_target_fps;
+            const uint32_t elapsed_us =
+                vPortGetRunTimeCounterValue() - t_iter_start_us;
+            if (elapsed_us < min_period_us) {
+                uint32_t delay_ms = (min_period_us - elapsed_us) / 1000u;
+                if (delay_ms > 0) vTaskDelay(pdMS_TO_TICKS(delay_ms));
             }
         }
         // Raw post-iteration sleep (sweet-spot exploration).  Applied
@@ -1175,10 +1237,13 @@ static void infer_task_fn(void* /*param*/) {
 #else
         const TickType_t prep_wait_ticks = pdMS_TO_TICKS(100);
 #endif
+        TickType_t t_iwait_start = xTaskGetTickCount();
         if (xSemaphoreTake(sem_prep, prep_wait_ticks) != pdTRUE) {
             if (direct) s_dt_infer_wait_timeout++;
             continue;  // timeout — recheck s_running
         }
+        s_infer_wait_ms_sum +=
+            (uint32_t)((xTaskGetTickCount() - t_iwait_start) * portTICK_PERIOD_MS);
 #if defined(SENTAI_PLATFORM_SIM) || defined(SENTAI_ARM_EMU)
         static int s_sim_infer_logs = 0;
         if (s_sim_infer_logs < 8) {
@@ -1189,6 +1254,12 @@ static void infer_task_fn(void* /*param*/) {
         if (!s_running) break;
 
         TickType_t t0 = xTaskGetTickCount();
+        // GPT1 µs stamp for the FPS throttle: xTaskGetTickCount() under-counts
+        // during the invoke (SysTick starved by the USB host task), so a
+        // tick-based elapsed reads ~13 ms for a real 23 ms frame and the
+        // throttle then injects a spurious ~9 ms vTaskDelay every frame
+        // (measured: 30 fps vs 40 fps unthrottled).  Real µs fixes it.
+        uint32_t t0_us = vPortGetRunTimeCounterValue();
 
         // Read staging metadata
         int total = s_stg_total;
@@ -1241,9 +1312,14 @@ static void infer_task_fn(void* /*param*/) {
             }
             if (active_slot < 0 || active_slot >= 3) active_slot = 0;
             s_slot_invokes[active_slot]++;
-            #define INVOKE_DT(buf_ptr) ((active_slot == 0) \
-                ? sentai_tpu_invoke_with_input(buf_ptr) \
-                : sentai_tpu_invoke_slot_with_input(active_slot, buf_ptr))
+            // s240/YUV420: dual-input model binds UV (buf[Y_SIZE]) + Y (buf[0]);
+            // single-input models use the legacy per-slot direct invoke.
+            #define INVOKE_DT(buf_ptr) (g_sentai_yuv_dual \
+                ? sentai_tpu_invoke_with_inputs2( \
+                      (buf_ptr) + (DEMO_CAMERA_WIDTH * DEMO_CAMERA_HEIGHT), (buf_ptr)) \
+                : ((active_slot == 0) \
+                   ? sentai_tpu_invoke_with_input(buf_ptr) \
+                   : sentai_tpu_invoke_slot_with_input(active_slot, buf_ptr)))
 
 #if defined(SENTAI_PLATFORM_SIM) || defined(SENTAI_ARM_EMU)
             // SIM keeps the same PrepTask/InferTask separation as ARM, but
@@ -1261,7 +1337,45 @@ static void infer_task_fn(void* /*param*/) {
             sentai_tpu_set_input_done_sema(nullptr);
             xSemaphoreGive(sem_free);
 #else
-            if (n_calls == 1 || sync_mode == 0) {
+            if (g_sentai_yuv_dual) {
+                // s240/YUV420 dual-input: the invoke issues TWO SendInputs --
+                // Y (640*480 = 307200 B) then UV (320*240*2 = 153600 B), both
+                // living in the same `buf` (Y at buf[0], UV at buf[Y_SIZE]).
+                // The legacy one-shot fires on the FIRST (Y) SendInputs, which
+                // would free `buf` while UV is still being transferred.  Use
+                // the byte-target arm so the driver gives sem_free only after
+                // BOTH planes are out (>= 460800 B, i.e. the 2nd SendInputs) --
+                // PrepTask then overlaps the compute+output tail exactly like
+                // the single-input path, recovering most of the lost overlap.
+                const uint32_t yuv_in_bytes =
+                    (uint32_t)(DEMO_CAMERA_WIDTH * DEMO_CAMERA_HEIGHT)              // Y
+                  + (uint32_t)((DEMO_CAMERA_WIDTH / 2) * (DEMO_CAMERA_HEIGHT / 2) * 2); // UV
+                if (n_calls <= 1) {
+                    sentai_tpu_set_input_done_sema2(sem_free, yuv_in_bytes);
+                    invoke_ms = s_debug_no_invoke ? 0 : INVOKE_DT(buf);
+                } else {
+                    // Multi-invoke: 1..N-1 run disarmed so `buf` stays owned;
+                    // arm the byte-target only before the LAST invoke.
+                    sentai_tpu_set_input_done_sema(nullptr);
+                    invoke_ms = s_debug_no_invoke ? 0 : INVOKE_DT(buf);
+                    for (int k = 1; k < n_calls - 1 && invoke_ms >= 0; k++) {
+                        int extra_ms = INVOKE_DT(buf);
+                        if (extra_ms < 0) { invoke_ms = extra_ms; break; }
+                        s_infer_ok_count++;
+                        s_infer_ms_sum += (uint32_t)extra_ms;
+                    }
+                    if (invoke_ms >= 0) {
+                        sentai_tpu_set_input_done_sema2(sem_free, yuv_in_bytes);
+                        int last_ms = INVOKE_DT(buf);
+                        if (last_ms < 0) {
+                            invoke_ms = last_ms;
+                        } else {
+                            s_infer_ok_count++;
+                            s_infer_ms_sum += (uint32_t)last_ms;
+                        }
+                    }
+                }
+            } else if (n_calls == 1 || sync_mode == 0) {
                 // Legacy / single-invoke: arm once at the top; first
                 // SendInputs releases PrepTask.  For n=1 this is the
                 // race-free fast path.
@@ -1347,6 +1461,11 @@ static void infer_task_fn(void* /*param*/) {
         if (invoke_ms >= 0) {
             s_infer_ok_count++;
             s_infer_ms_sum += (uint32_t)invoke_ms;
+            // s240: record per-frame invoke cost with an auto (now) ms
+            // stamp.  Post-mortem: consecutive stamps give the true frame
+            // period (instantaneous FPS) with zero REPL polling overhead
+            // during the run.  No-op unless fr "scalars" channel is open.
+            sentai_fr_push_scalar("infer_ms", (double)invoke_ms, 0);
         } else {
             s_infer_fail_count++;
         }
@@ -1392,6 +1511,8 @@ static void infer_task_fn(void* /*param*/) {
         result.total_ms     = static_cast<uint32_t>((t_end - t0) * portTICK_PERIOD_MS);
         result.memcpy_ms    = static_cast<uint32_t>((t_memcpy_end - t_memcpy_start) * portTICK_PERIOD_MS);
         result.nms_ms       = static_cast<uint32_t>((t_nms_end - t_nms_start) * portTICK_PERIOD_MS);
+        s_nms_ms_sum   += result.nms_ms;
+        s_cycle_ms_sum += result.total_ms;
 
         for (int i = 0; i < det_count && i < DETECTION_MAX_DETS; i++) {
             result.dets[i].x1          = det_buf[i * 6 + 0];
@@ -1463,11 +1584,17 @@ static void infer_task_fn(void* /*param*/) {
         // and lowers peak power draw.  Runtime-tunable via
         // sentai.pipeline.target_fps(n); 0 disables (run flat out).
         if (s_target_fps > 0) {
-            const TickType_t min_period_ticks =
-                pdMS_TO_TICKS(1000 / s_target_fps);
-            TickType_t elapsed = xTaskGetTickCount() - t0;
-            if (elapsed < min_period_ticks) {
-                vTaskDelay(min_period_ticks - elapsed);
+            // Measure the elapsed frame time in GPT1 µs (real time), NOT
+            // FreeRTOS ticks: SysTick is starved during the invoke so a
+            // tick delta reads far short and the throttle would inject a
+            // spurious delay (see t0_us note above).  At 23 ms invoke this
+            // now correctly adds ZERO delay (already over the 45-fps period)
+            // yet still caps a faster model at exactly s_target_fps.
+            const uint32_t min_period_us = 1000000u / (uint32_t)s_target_fps;
+            const uint32_t elapsed_us = vPortGetRunTimeCounterValue() - t0_us;
+            if (elapsed_us < min_period_us) {
+                uint32_t delay_ms = (min_period_us - elapsed_us) / 1000u;
+                if (delay_ms > 0) vTaskDelay(pdMS_TO_TICKS(delay_ms));
             }
         }
     }

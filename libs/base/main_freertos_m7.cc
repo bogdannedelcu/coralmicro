@@ -23,6 +23,7 @@
 #include "libs/base/filesystem.h"
 #include "libs/base/fx_user_fs.h"
 #include "libs/base/gpio.h"
+#include "libs/base/i2c.h"
 #include "libs/base/ipc_m7.h"
 #include "libs/base/network.h"
 #include "libs/base/random.h"
@@ -94,6 +95,11 @@ static constexpr uint32_t kMaxStorageAttempts = 3;
 static bool g_sentai_storage_mode = false;
 lpi2c_rtos_handle_t g_i2c5_handle;
 lpi2c_rtos_handle_t g_i2c6_handle;
+// Board rev 2026-10 (schematic sheet 9): Camera 1 moved from I2C5 to
+// LPI2C1 (pads GPIO_AD_32/33, external pull-ups to VDD_1V8, isolated by
+// U9 whose enable follows VDD_1V8_CAM1 unless FLEXPWM1_PWM0_A/GPIO_AD_00
+// is driven HIGH — keep that pad an input).  I2C5 now serves the PMIC only.
+coralmicro::I2cConfig g_i2c1_cam_config;
 coralmicro::CdcEem g_cdc_eem;
 coralmicro::MscUms g_msc_ums;
 
@@ -129,6 +135,7 @@ static volatile bool g_ncm_initialized = false;
 #define ENABLE_RANDOM 0
 #endif
 
+__attribute__((unused))  // kept for the EEM build variant; NCM is the default
 void InitializeCDCEEM() {
   using namespace std::placeholders;
   g_cdc_eem.Init(
@@ -153,13 +160,8 @@ void InitializeUMS() {
       std::bind(&coralmicro::MscUms::SetClassHandle, &g_msc_ums, _1),
       std::bind(&coralmicro::MscUms::HandleEvent, &g_msc_ums, _1, _2),
       g_msc_ums.descriptor_data(), g_msc_ums.descriptor_data_size());
-  // Mark medium present so /dev/sda appears automatically on first plug.
-  // SetUnitReady() no longer auto-arms UNIT_ATTENTION (Fix B), so the
-  // first TUR from usb-storage returns GOOD and the SCSI scan completes
-  // cleanly without the bulk-IN STALL → BOT-Reset → bus reset cascade
-  // we used to hit.  Disk is read-only at boot (write_protected_=true);
-  // sentai.usb.drive(1) flips that.
-  g_msc_ums.SetUnitReady(true);
+  // Medium-present is armed later by app_main via sentai_msc_set_unit_ready()
+  // once the SD block layer is up (2026-10-30; was unconditional here).
 }
 
 #if ENABLE_USB_NCM
@@ -227,6 +229,24 @@ extern "C" int sentai_usb_drive_set(int on) {
 extern "C" int sentai_usb_drive_get(void) {
   // 1 = currently running in storage mode, 0 = default REPL+IP mode.
   return g_sentai_storage_mode ? 1 : 0;
+}
+
+// Storage mode: flip the MSC "medium present" state.  app_main calls it
+// with 1 after FxUserOpenBlockOnly() succeeds (SD card answering), so the
+// host's TEST UNIT READY polls see NOT READY -> READY instead of a LUN that
+// answers READY and then fails every READ.
+extern "C" void sentai_msc_set_unit_ready(int on) {
+#if ENABLE_USB_UMS
+  if (g_sentai_storage_mode) {
+    g_msc_ums.SetUnitReady(on != 0);
+    // The MSC class may have cached zero geometry from a GetLbaInformation
+    // issued before the card was up; a UNIT ATTENTION forces the host to
+    // re-run READ CAPACITY before any READ/WRITE.
+    if (on) g_msc_ums.NotifyMediaChanged();
+  }
+#else
+  (void)on;
+#endif
 }
 
 #if ENABLE_USB_NCM
@@ -391,20 +411,16 @@ extern "C" int real_main(int argc, char** argv, bool init_console_tx,
 
   CHECK(coralmicro::LfsInit());
   sentai_boot_progress_mark(0x03);
+  // 2026-10-30: the user filesystem lives on the microSD card (FileX over
+  // fx_sd_driver).  Its mount — and, in storage mode, the raw block-layer
+  // open for MSC — happens in app_main(), POST-scheduler: the USDHC host
+  // blocks on FreeRTOS events, so calling it here would hang pre-scheduler.
+  // Every FxUser* consumer already gates on FxUserIsMounted(), and USB CDC
+  // comes up below regardless of the card's state (anti-brick rule §M).
   if (!g_sentai_storage_mode) {
-    // Default mode: mount the user partition, start the IP stack and
-    // expose CDC-NCM.  No MSC interface in the descriptor → usb-storage
-    // does not probe and the cdc_ncm cascade we used to see at T+1 s is
-    // gone entirely.
-    CHECK(coralmicro::LfsUserInit());
-    /* If a previous storage-mode session left a debug log in SDRAM,
-     * flush it to /log/storage_debug.log now that the FileX volume is
-     * remounted. */
-    int storage_log_bytes = sentai_storage_log_flush_to_fs();
-    if (storage_log_bytes > 0) {
-      printf("[storage] flushed %d bytes of debug log to /log/storage_debug.log\r\n",
-             storage_log_bytes);
-    }
+    // Default mode: start the IP stack and expose CDC-NCM.  No MSC
+    // interface in the descriptor → usb-storage does not probe and the
+    // cdc_ncm cascade we used to see at T+1 s is gone entirely.
     #if ENABLE_NETWORK_STACK || ENABLE_USB_NCM
       tcpip_init(nullptr, nullptr);
     #endif
@@ -412,15 +428,7 @@ extern "C" int real_main(int argc, char** argv, bool init_console_tx,
       coralmicro::DnsInit();
     #endif
   }
-  // Storage mode: open the LevelX flash so MSC reads/writes are
-  // routed through the same wear-leveling layer FileX uses.  This
-  // means /dev/sda exposes a real FAT volume that the host can
-  // mount directly (`mount /dev/sda /mnt`).  We still skip the FileX
-  // media open — only LevelX needs to be live for MSC sector ops.
   if (g_sentai_storage_mode) {
-    if (!FxUserOpenLxOnly()) {
-      printf("[storage] FxUserOpenLxOnly FAILED — MSC will return I/O errors\r\n");
-    }
     /* Reset the SDRAM-backed debug log ring; MSC handler appends events
      * here while we're disconnected from the REPL.  Flushed to
      * /log/storage_debug.log on next default-mode boot. */
@@ -446,12 +454,21 @@ extern "C" int real_main(int argc, char** argv, bool init_console_tx,
   #if ENABLE_USB_UMS
   if (g_sentai_storage_mode) {
     InitializeUMS();
-    g_msc_ums.SetUnitReady(true);
-    g_msc_ums.SetWriteProtect(false);  // host owns NAND in this mode
+    // Medium is reported NOT READY until app_main has brought the SD
+    // block layer up (sentai_msc_set_unit_ready(1)); the host then sees
+    // a clean "not ready -> ready" transition instead of I/O errors.
+    g_msc_ums.SetUnitReady(false);
+    g_msc_ums.SetWriteProtect(false);  // host owns the card in this mode
   }
   #endif
   sentai_boot_progress_mark(0x04);
-  coralmicro::UsbDeviceTask::GetSingleton()->Init();
+  if (!coralmicro::UsbDeviceTask::GetSingleton()->Init()) {
+    // Anti-brick (embeded.md §10): never CHECK() here.  Without USB there
+    // is no REPL and no HTTP, so this line is for boot_prev.log and the
+    // UART console; the firmware keeps booting so the radio bridge and
+    // the storage-mode button path stay reachable (audit 2026-10-30, M7).
+    printf("[boot] ERROR: UsbDeviceTask::Init failed -- USB CDC/NCM unavailable\r\n");
+  }
   sentai_boot_progress_mark(0x05);
   coralmicro::UsbHostTask::GetSingleton()->Init();
   #if ENABLE_EDGETPU_DFU
@@ -468,6 +485,7 @@ extern "C" int real_main(int argc, char** argv, bool init_console_tx,
   NVIC_SetPriority(LPI2C5_IRQn, 3);
   lpi2c_master_config_t config;
   LPI2C_MasterGetDefaultConfig(&config);
+  config.pinLowTimeout_ns = 20000000U;   // bound stuck-bus waits (audit M3)
   LPI2C_RTOS_Init(&g_i2c5_handle, reinterpret_cast<LPI2C_Type*>(LPI2C5_BASE),
                   &config, CLOCK_GetFreq(kCLOCK_OscRc48MDiv2));
 
@@ -507,6 +525,7 @@ extern "C" int real_main(int argc, char** argv, bool init_console_tx,
   NVIC_SetPriority(LPI2C6_IRQn, 3);
   lpi2c_master_config_t config6;
   LPI2C_MasterGetDefaultConfig(&config6);
+  config6.pinLowTimeout_ns = 20000000U;  // bound stuck-bus waits (audit M3)
   LPI2C_RTOS_Init(&g_i2c6_handle, reinterpret_cast<LPI2C_Type*>(LPI2C6_BASE),
                   &config6, CLOCK_GetFreq(kCLOCK_OscRc48MDiv2));
 
@@ -542,7 +561,43 @@ extern "C" int real_main(int argc, char** argv, bool init_console_tx,
   // See section 12.4.4.18 in the IMX1170 TRM for more details.
   IOMUXC_GPR->GPR16 |= IOMUXC_GPR_GPR16_CM7_FORCE_HCLK_EN(1);
 
-  coralmicro::CameraTask::GetSingleton()->Init(&g_i2c5_handle, &g_i2c6_handle);
+  // Camera 1 bus: LPI2C1 (see g_i2c1_cam_config note).  BOARD_InitPins left
+  // GPIO_AD_32/33 muxed as GPIO; I2cInitController re-muxes them to LPI2C1
+  // and the pad config below enables open-drain (0x10 = ODE), as the Arduino
+  // pin table did for the same pads.  Pre-scheduler safe: same LPI2C_RTOS_Init
+  // path as I2C5/I2C6 above.
+  g_i2c1_cam_config = coralmicro::I2cGetDefaultConfig(coralmicro::I2c::kI2c1);
+  // Same source clock the I2C5/I2C6 inits use: LPI2C1_CLK_ROOT is
+  // OSC_RC_48M_DIV2 = 24 MHz (clock_config.c).  I2cGetDefaultConfig()
+  // derives it from the CCM observation mux, which is not guaranteed to be
+  // set up this early; a wrong value here means a wrong SCCB baud rate.
+  g_i2c1_cam_config.clk_freq = CLOCK_GetFreq(kCLOCK_OscRc48MDiv2);
+  if (!coralmicro::I2cInitController(g_i2c1_cam_config)) {
+    printf("[i2c] LPI2C1 (camera 1) init FAILED\r\n");
+  }
+  IOMUXC_SetPinConfig(IOMUXC_GPIO_AD_32_LPI2C1_SCL, 0x10U);
+  IOMUXC_SetPinConfig(IOMUXC_GPIO_AD_33_LPI2C1_SDA, 0x10U);
+
+  // FLEXPWM1_PWM0_A / GPIO_AD_00 gates the CAM1 I2C isolation switch: HIGH
+  // turns Q7 on and cuts LPI2C1 off from camera 1 (sheet 6).  The pad
+  // powers up with its internal pull-up enabled (SW_PAD_CTL = 0x0E, read
+  // back on build 1621: pin level 1 -> camera 1 NAKed every transfer).
+  // Force it LOW: GPIO output 0 + pad pull-down (DSE|PUE, PUS=0).  Same
+  // treatment for GPIO_AD_01 (PWM0_B) which gates the add-on I2C1 switch.
+  IOMUXC_SetPinMux(IOMUXC_GPIO_AD_00_GPIO_MUX2_IO31, 0U);
+  IOMUXC_SetPinMux(IOMUXC_GPIO_AD_01_GPIO_MUX3_IO00, 0U);
+  IOMUXC_SetPinConfig(IOMUXC_GPIO_AD_00_GPIO_MUX2_IO31, 0x06U);
+  IOMUXC_SetPinConfig(IOMUXC_GPIO_AD_01_GPIO_MUX3_IO00, 0x06U);
+  {
+    gpio_pin_config_t low = {kGPIO_DigitalOutput, 0, kGPIO_NoIntmode};
+    GPIO_PinInit(GPIO2, 31, &low);   // GPIO_AD_00 -> GPIO_MUX2_IO31
+    GPIO_PinInit(GPIO3, 0, &low);    // GPIO_AD_01 -> GPIO_MUX3_IO00
+  }
+
+  // cam_id 0 = Camera 1 on LPI2C1, cam_id 1 = Camera 2 on LPI2C6
+  // (matches the cam_mux.h convention: GPIO level == cam_id == bus index).
+  coralmicro::CameraTask::GetSingleton()->Init(&g_i2c1_cam_config.controller_handle,
+                                               &g_i2c6_handle);
 
   coralmicro::PmicTask::GetSingleton()->Init(&g_i2c5_handle);
 

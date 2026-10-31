@@ -29,6 +29,8 @@ extern "C" {
 
 #include "libs/base/console_m7.h"
 #include "libs/base/filesystem.h"
+// applsci energy sweep: read persisted Edge TPU clock in Main() (see below).
+extern "C" size_t FxUserReadFile(const char* path, uint8_t* buf, size_t size);
 #include "libs/base/fx_user_fs.h"
 #include "libs/base/gpio.h"
 #include "libs/base/ipc_m7.h"
@@ -36,6 +38,7 @@ extern "C" {
 #include "examples/sentai_runtime/flow_shared.h"
 #include "libs/base/reset.h"
 #include "libs/camera/camera.h"
+#include "libs/pmic/pmic.h"
 #include "libs/libjpeg/jpeg.h"
 #include "libs/camera/camera_support.h"
 #include "fsl_pxp.h"
@@ -342,8 +345,11 @@ void boot_log_stop() {
 // =============================================================================
 // Saves crash/hang info to /log/crash_NNN.log for post-mortem analysis.
 // Keeps multiple crash logs (kCrashLogMaxFiles) with automatic rotation.
-// Hardware watchdog auto-resets board if BOTH HTTP AND REPL are dead for 120s.
-// This ensures the board can always be recovered remotely.
+// Hardware watchdog (WDOG1, 30 s) is kicked unconditionally by
+// CombinedWatchdogTask every 5 s; it only fires if that task itself stops
+// running (scheduler wedge, hard fault without reset, priority inversion).
+// Idle is NOT a fault (changed 2026-10-30): a quiet board stays up and only
+// logs a task snapshot every 10 min.
 
 static constexpr size_t kCrashLogMaxSize = 8 * 1024;   // Max size per crash log file
 static constexpr int kCrashLogMaxFiles = 10;           // Keep last N crash logs
@@ -599,7 +605,8 @@ extern "C" uint32_t sentai_get_repl_inputs(void) {
 // - WDOG1 timeout = 30s (hardware, independent of CPU)
 // - Task kicks WDOG1 every 5s IF system is healthy
 // - If task doesn't run (CPU blocked) -> WDOG1 resets automatically
-// - If system hangs (no activity) -> we don't kick -> WDOG1 resets
+// - If this task cannot run (scheduler hung) -> we don't kick -> WDOG1 resets
+// - Idle (no REPL/HTTP traffic) is NOT treated as a hang (2026-10-30)
 static void CombinedWatchdogTask(void* param) {
     (void)param;
     
@@ -609,7 +616,7 @@ static void CombinedWatchdogTask(void* param) {
     constexpr uint32_t kWdogTimeoutSec = 30;
     constexpr uint32_t kKickIntervalMs = 5000;    // Kick every 5 seconds
     constexpr uint32_t kWarningThresholdMs = 60000; // 60 seconds = start warning (still kicks)
-    constexpr uint32_t kDeadThresholdMs = 120000;   // 120 seconds = stop kicking → WDOG1 fires
+    constexpr uint32_t kDeadThresholdMs = 120000;   // 120 seconds = "long idle" diagnostics tier (still kicks; see below)
     
     // Initialize WDOG1 directly (not using coralmicro API which uses timers)
     wdog_config_t wdog_config;
@@ -688,61 +695,33 @@ static void CombinedWatchdogTask(void* param) {
             continue;
         }
         
-        // === WARNING ZONE: 15-25s without activity ===
-        if (min_idle >= kWarningThresholdMs && min_idle < kDeadThresholdMs) {
-            // Still kick, but log warning (once per warning period)
-            WDOG_Refresh(WDOG1);
-            
-            if (now - last_warning_time > 10000) {  // Log every 10s max
-                last_warning_time = now;
-                char buf[64];
-                snprintf(buf, sizeof(buf), "idle=%lu H=%lu R=%lu",
-                    min_idle / 1000, http_idle / 1000, repl_idle / 1000);
-                crash_log_write("WDG_WARN", buf);
-                SERR_LOG(SERR_WDG_WARN, min_idle / 1000);
-                // Snapshot task states so we can see which one is blocked.
-                crash_log_task_dump("WDG_WARN");
-            }
-            consecutive_kicks = 0;
-            continue;
-        }
-        
-        // === DEAD ZONE: both HTTP and REPL idle > kDeadThresholdMs ===
-        // Log once, then stop kicking. WDOG1 fires 30s later.
-        // Belt-and-suspenders: also call NVIC_SystemReset after 35s in case
-        // WDOG1 doesn't fire (e.g. debugger attached with enableDebug=false override).
-        g_network_healthy = false;
-        {
+        // (The former 60-120 s "WARNING ZONE" that wrote a WDG_WARN entry
+        // plus a task dump to the card every 10 s was removed 2026-10-31:
+        // six SD writes per coffee break, no diagnostic value once idle is
+        // not a fault.  kDeadThresholdMs is kept only as the tier boundary.)
+        (void)kDeadThresholdMs;
+        consecutive_kicks = 0;
+
+        // === LONG IDLE (>= kWarningThresholdMs without REPL/HTTP traffic) ===
+        // 2026-10-30 hardening: this used to be the "DEAD ZONE" — stop
+        // kicking WDOG1 and force a reset.  That reset a perfectly healthy
+        // board that simply had no host talking to it (every idle pause
+        // on a RAM-loaded image dropped the board to ROM SDP).  Idle is
+        // NOT a fault: a hung scheduler is already caught by the hardware
+        // (this task stops running -> WDOG1 fires), and a hung MicroPython
+        // script is bounded by the ctrl-c monitor / main.py timeout.  So we
+        // keep kicking, keep the diagnostics (one task snapshot per
+        // 10 minutes of idle), and never reset on idleness alone.
+        WDOG_Refresh(WDOG1);
+        g_network_healthy = true;
+        if (now - last_warning_time > 600000u) {
+            last_warning_time = now;
             char buf[64];
             snprintf(buf, sizeof(buf), "idle=%lu H=%lu R=%lu",
                 min_idle / 1000, http_idle / 1000, repl_idle / 1000);
-            crash_log_write("WDG_DEAD", buf);
-            SERR_LOG(SERR_WDG_DEAD, min_idle / 1000);
-            // Final task snapshot before WDOG1 fires — useful on next boot.
-            crash_log_task_dump("WDG_DEAD");
-        }
-        // Stop kicking. Give WDOG1 its 30s to fire, then force-reset.
-        for (int dead_wait = 0; dead_wait < 7; dead_wait++) {
-            vTaskDelay(pdMS_TO_TICKS(5000));  // 7 × 5s = 35s total wait
-            // Recovery check: if someone just used HTTP or REPL, cancel the dead state.
-            uint32_t t = xTaskGetTickCount() * portTICK_PERIOD_MS;
-            if ((t - g_http_last_activity) < kDeadThresholdMs ||
-                (t - g_repl_last_activity) < kDeadThresholdMs) {
-                // Interface came back — return to normal kicking
-                g_network_healthy = true;
-                consecutive_kicks = 0;
-                break;
-            }
-        }
-        // If still dead after 35s: WDOG1 should have fired. Force-reset as fallback.
-        {
-            uint32_t t = xTaskGetTickCount() * portTICK_PERIOD_MS;
-            if ((t - g_http_last_activity) >= kDeadThresholdMs &&
-                (t - g_repl_last_activity) >= kDeadThresholdMs) {
-                crash_log_write("WDG_RESET", "Force reset after sustained dead state");
-                vTaskDelay(pdMS_TO_TICKS(50));  // let crash log flush
-                NVIC_SystemReset();
-            }
+            crash_log_write("WDG_IDLE", buf);
+            SERR_LOG(SERR_WDG_WARN, min_idle / 1000);
+            crash_log_task_dump("WDG_IDLE");
         }
         consecutive_kicks = 0;
     }
@@ -782,14 +761,14 @@ static void start_network_watchdog(void) {
 
 // Override _write to capture all printf output
 // This replaces the version in libs/base/console_m7.cc
-extern "C" int _write(int handle, char* buffer, int size) {
-    if ((handle != STDOUT_FILENO) && (handle != STDERR_FILENO)) {
-        return -1;
-    }
-
-    // Convert bare \n to \r\n for USB/UART terminals.
+// One slice of console output: converts bare \n to \r\n into a stack
+// buffer and forwards it.  `size` <= 256 so the patched copy (<= 512)
+// always fits — the old single-buffer version silently TRUNCATED any
+// chunk whose patched length exceeded 511 bytes (audit M11: "prints
+// > ~1 KB lose data").
+static void write_slice(const char* buffer, int size) {
     char stack_buf[512];
-    char* out = buffer;
+    const char* out = buffer;
     int out_len = size;
 
     bool needs_patch = false;
@@ -801,12 +780,11 @@ extern "C" int _write(int handle, char* buffer, int size) {
     }
     if (needs_patch) {
         int j = 0;
-        int cap = (int)sizeof(stack_buf);
-        for (int i = 0; i < size && j < cap - 1; ++i) {
+        for (int i = 0; i < size; ++i) {
             if (buffer[i] == '\n' && (i == 0 || buffer[i - 1] != '\r')) {
                 stack_buf[j++] = '\r';
             }
-            if (j < cap) stack_buf[j++] = buffer[i];
+            stack_buf[j++] = buffer[i];
         }
         out = stack_buf;
         out_len = j;
@@ -821,14 +799,28 @@ extern "C" int _write(int handle, char* buffer, int size) {
     // while the detection pipeline is running), nothing reaches
     // ConsoleM7::Write — this prevents the CDC-ACM bulk-IN endpoint from
     // stalling tx_task and the REPL.  FR debug above remains best-effort.
-    if (!g_sentai_frame_verbose) return size;
+    if (!g_sentai_frame_verbose) return;
 
-    // Write to console
-    coralmicro::ConsoleM7::GetSingleton()->Write(out, out_len);
+    coralmicro::ConsoleM7::GetSingleton()->Write(const_cast<char*>(out), out_len);
+    boot_log_write(const_cast<char*>(out), out_len);
+}
 
-    // Also capture to boot log if active
-    boot_log_write(out, out_len);
+extern "C" int _write(int handle, char* buffer, int size) {
+    if ((handle != STDOUT_FILENO) && (handle != STDERR_FILENO)) {
+        return -1;
+    }
+    // Fault / ISR context (HardFault handlers, stack-overflow and malloc
+    // hooks, PendSV): the console path takes RTOS locks and allocates —
+    // illegal there and the cause of nested faults that clobbered the
+    // breadcrumb (audit M1).  Those paths already saved their breadcrumb
+    // with sentai_fault_save(); drop the text.
+    if (xPortIsInsideInterrupt()) return size;
 
+    for (int off = 0; off < size; off += 256) {
+        int n = size - off;
+        if (n > 256) n = 256;
+        write_slice(buffer + off, n);
+    }
     return size;
 }
 
@@ -908,6 +900,10 @@ tflite::MicroInterpreter* g_interpreter = nullptr;
 volatile bool g_tpu_ready = false;
 std::vector<uint8_t>* g_model_data = nullptr;
 std::shared_ptr<EdgeTpuContext> g_tpu_context;
+// Runtime-selectable Edge TPU clock (kLow 63 / kMedium 125 / kHigh 250 / kMax 500 MHz).
+// Set via sentai.tpu.set_mode(n); read by Main()'s OpenDevice and by the
+// re-open retry in sentai_load_model.  Default kMax (was hardcoded pre-#1590).
+PerformanceMode g_tpu_mode = PerformanceMode::kMax;
 
 // Slot 0 ↔ legacy global sync is done INLINE in
 // sentai_load_model_slot() (sentai_slow_bridge.cc) — both stores
@@ -935,8 +931,26 @@ void logf(const char* fmt, ...) {
 void Main() {
   logf("SentAI MicroPython Runtime\r\n");
 
+  // applsci energy sweep (WS0): persist the Edge TPU clock across reboots via a
+  // one-char file "/tpu_mode" ('0'=kLow '1'=kMedium '2'=kHigh '3'=kMax).  Read
+  // here so the device is opened ONCE, cleanly, at the requested clock — no
+  // runtime set_mode() reopen (which can wedge the USB/TPU).  Missing/invalid
+  // file => keep the compile-time default (kMax).
+  {
+    uint8_t mb[4] = {0};
+    if (::FxUserReadFile("/tpu_mode", mb, sizeof(mb)) > 0) {
+      switch (mb[0]) {
+        case '0': g_tpu_mode = PerformanceMode::kLow;    break;
+        case '1': g_tpu_mode = PerformanceMode::kMedium; break;
+        case '2': g_tpu_mode = PerformanceMode::kHigh;   break;
+        case '3': g_tpu_mode = PerformanceMode::kMax;    break;
+        default: break;
+      }
+    }
+  }
+
   // Open EdgeTPU on this task (not app_main) to avoid interfering with USB init
-  coralmicro::PerformanceMode tpu_mode = coralmicro::PerformanceMode::kMax;
+  coralmicro::PerformanceMode tpu_mode = g_tpu_mode;
   g_tpu_context = EdgeTpuManager::GetSingleton()->OpenDevice(tpu_mode);
   if (!g_tpu_context) {
     logf("ERROR: Failed to get EdgeTpu context\r\n");
@@ -1026,6 +1040,13 @@ extern "C" void vApplicationStackOverflowHook(TaskHandle_t xTask,
     for (;;) {}
 }
 
+// SD-card user FS entry points used by app_main (libs/base/fx_user_fs.cc,
+// libs/base/main_freertos_m7.cc).  Linkage specs must be at file scope.
+extern "C" int  FxUserBootMount(uint32_t deadline_ms);
+extern "C" int  FxUserOpenBlockOnly(void);
+extern "C" int  sentai_storage_log_flush_to_fs(void);
+extern "C" void sentai_msc_set_unit_ready(int on);
+
 extern "C" void app_main(void* param) {
   (void)param;
 
@@ -1101,8 +1122,41 @@ extern "C" void app_main(void* param) {
   extern void sentai_flow_phase_corr_dump_bc(void);
   sentai_flow_phase_corr_dump_bc();
 
-  // Initialize LFS and boot log file
-  // LFS should be initialized by main_freertos before app_main
+  // === User filesystem: microSD card (2026-10-30) ===
+  // FileX over fx_sd_driver, mounted HERE (post-scheduler) because the
+  // USDHC host blocks on FreeRTOS events.  Outcomes:
+  //   mounted      -> boot_log_fs_init() below writes /log/* to the card
+  //   no/bad card  -> SAFE MODE: FxUserIsMounted()==0, every FxUser* call
+  //                   returns a clean error, logs stay in the SDRAM ring,
+  //                   USB CDC + REPL + radio are unaffected (anti-brick §M).
+  // Storage mode opens only the block layer and then tells MSC the medium
+  // is present, so the host mounts the raw card like a USB card reader.
+  {
+    if (!sentai_storage_mode_active()) {
+      /* Bounded: 20 s covers a 64 GB FAT32 free-cluster scan with margin;
+       * a corrupt volume that never returns leaves us in SAFE MODE. */
+      (void)FxUserBootMount(20000u);
+      if (FxUserIsMounted()) {
+        /* A previous storage-mode session may have left a debug log in
+         * SDRAM; persist it now that the volume is mounted. */
+        int storage_log_bytes = sentai_storage_log_flush_to_fs();
+        if (storage_log_bytes > 0) {
+          coralmicro::logf("[storage] flushed %d bytes of debug log to /log/storage_debug.log\r\n",
+                           storage_log_bytes);
+        }
+      } else {
+        coralmicro::logf("[fs] SD card not mounted -- SAFE MODE (logs stay in RAM)\r\n");
+      }
+    } else {
+      if (FxUserOpenBlockOnly()) {
+        sentai_msc_set_unit_ready(1);
+      } else {
+        coralmicro::logf("[storage] SD block layer unavailable -- MSC reports no medium\r\n");
+      }
+    }
+  }
+
+  // Initialize boot log file on the (now mounted) user FS
   boot_log_fs_init();
   sentai_boot_progress_mark(0x12);
   coralmicro::logf("Boot logging to /log/boot.log\r\n");
@@ -1234,7 +1288,7 @@ extern "C" void app_main(void* param) {
 
   // Start combined watchdog (monitors HTTP + REPL, auto-resets if both dead)
   start_network_watchdog();
-  coralmicro::logf("Watchdog started (auto-reset if HTTP+REPL dead for 2min)\r\n");
+  coralmicro::logf("Watchdog started (WDOG1 30 s; resets only if the scheduler stalls — idle is not a fault)\r\n");
 
   // Mark boot complete — transitions from BOOTING to NORMAL (if healthy)
   sentai_health_boot_complete();
@@ -1281,12 +1335,20 @@ extern "C" void sentai_quant_uint8_to_int8(uint8_t* buf, int count, int zp);
 // sentai_load_model, sentai_load_image → moved to sentai_slow_bridge.cc (OCRAM)
 
 // Internal invoke — no pipeline guard.  Called by detection_task.cc.
+// s240: the TPU invoke's USB transfers starve SysTick (the tick ISR is
+// preempted by the high-priority USB host task), so xTaskGetTickCount()
+// UNDER-COUNTS during Invoke() — it reported ~6 ms for a real 35 ms invoke,
+// making every invoke benchmark bogus (167 "fps", physically impossible over
+// USB2).  Use the GPT1-backed run-time counter (vPortGetRunTimeCounterValue,
+// microseconds, hardware timer, not ISR-dependent — same source as
+// sentai.rtos.micros()) and return real milliseconds.
+extern "C" uint32_t vPortGetRunTimeCounterValue(void);
 extern "C" int sentai_tpu_invoke_internal(void) {
   if (!coralmicro::g_tpu_ready || !coralmicro::g_interpreter) return -1;
-  TickType_t t0 = xTaskGetTickCount();
+  uint32_t t0 = vPortGetRunTimeCounterValue();
   if (coralmicro::g_interpreter->Invoke() != kTfLiteOk) return -2;
-  TickType_t t1 = xTaskGetTickCount();
-  return (int)((t1 - t0) * portTICK_PERIOD_MS);
+  uint32_t t1 = vPortGetRunTimeCounterValue();
+  return (int)((t1 - t0) / 1000u);   // µs -> ms (real)
 }
 
 // Direct-input invoke: swap the TFLite input tensor's data pointer to
@@ -1311,12 +1373,12 @@ extern "C" int sentai_tpu_invoke_with_input(uint8_t* input_buf) {
   if (!input) return -4;
   uint8_t* const saved = input->data.uint8;
   input->data.uint8 = input_buf;
-  TickType_t t0 = xTaskGetTickCount();
+  uint32_t t0 = vPortGetRunTimeCounterValue();   // µs (SysTick starves during invoke)
   TfLiteStatus rc = coralmicro::g_interpreter->Invoke();
-  TickType_t t1 = xTaskGetTickCount();
+  uint32_t t1 = vPortGetRunTimeCounterValue();
   input->data.uint8 = saved;   // restore on ALL paths (no early return between)
   if (rc != kTfLiteOk) return -2;
-  return (int)((t1 - t0) * portTICK_PERIOD_MS);
+  return (int)((t1 - t0) / 1000u);   // µs -> ms (real)
 }
 
 // Public invoke — blocks while detection pipeline owns the TPU.
@@ -1341,10 +1403,10 @@ extern "C" int sentai_tpu_invoke_slot(int slot) {
   if (!coralmicro::g_slot_ready[slot] || !coralmicro::g_slot_interp[slot])
     return -1;
   auto* interp = coralmicro::g_slot_interp[slot];
-  TickType_t t0 = xTaskGetTickCount();
+  uint32_t t0 = vPortGetRunTimeCounterValue();   // µs (SysTick starves during invoke)
   if (interp->Invoke() != kTfLiteOk) return -2;
-  TickType_t t1 = xTaskGetTickCount();
-  return (int)((t1 - t0) * portTICK_PERIOD_MS);
+  uint32_t t1 = vPortGetRunTimeCounterValue();
+  return (int)((t1 - t0) / 1000u);   // µs -> ms (real)
 }
 
 // Same pointer-patch trick as sentai_tpu_invoke_with_input for slot N.
@@ -1361,12 +1423,37 @@ extern "C" int sentai_tpu_invoke_slot_with_input(int slot, uint8_t* buf) {
   if (!input) return -4;
   uint8_t* const saved = input->data.uint8;
   input->data.uint8 = buf;
-  TickType_t t0 = xTaskGetTickCount();
+  uint32_t t0 = vPortGetRunTimeCounterValue();   // µs (SysTick starves during invoke)
   TfLiteStatus rc = interp->Invoke();
-  TickType_t t1 = xTaskGetTickCount();
+  uint32_t t1 = vPortGetRunTimeCounterValue();
   input->data.uint8 = saved;
   if (rc != kTfLiteOk) return -2;
-  return (int)((t1 - t0) * portTICK_PERIOD_MS);
+  return (int)((t1 - t0) / 1000u);   // µs -> ms (real)
+}
+
+// s240/YUV420: dual-input direct invoke.  Binds input[0]=UV, input[1]=Y (the
+// c2f_thick_yuv420 model order — verified via the tflite: input[0]
+// serving_default_uv [1,240,320,2], input[1] serving_default_y [1,480,640,1]),
+// invokes, and restores both data pointers.  Same zero-copy pointer-patch as
+// sentai_tpu_invoke_with_input, extended to two planes.  Returns real ms.
+extern "C" int sentai_tpu_invoke_with_inputs2(uint8_t* uv_buf, uint8_t* y_buf) {
+  if (!coralmicro::g_tpu_ready || !coralmicro::g_interpreter) return -1;
+  auto* interp = coralmicro::g_interpreter;
+  if ((int)interp->inputs().size() < 2) return -5;   // not a dual-input model
+  auto* in0 = interp->input_tensor(0);   // UV
+  auto* in1 = interp->input_tensor(1);   // Y
+  if (!in0 || !in1) return -4;
+  uint8_t* const s0 = in0->data.uint8;
+  uint8_t* const s1 = in1->data.uint8;
+  in0->data.uint8 = uv_buf;
+  in1->data.uint8 = y_buf;
+  uint32_t t0 = vPortGetRunTimeCounterValue();
+  TfLiteStatus rc = interp->Invoke();
+  uint32_t t1 = vPortGetRunTimeCounterValue();
+  in0->data.uint8 = s0;
+  in1->data.uint8 = s1;
+  if (rc != kTfLiteOk) return -2;
+  return (int)((t1 - t0) / 1000u);
 }
 
 extern "C" int sentai_tpu_num_outputs_slot(int slot) {
@@ -2469,6 +2556,25 @@ extern "C" int sentai_cam_is_initialized(void) {
 // src must be in non-cacheable memory (camera framebuffer).
 // dst must be 64-byte aligned for best results.
 // Returns 0 on success.
+
+/* Bounded PXP completion wait (2026-10-30 audit M7).  The Y8 output path
+ * is documented to hang the PXP at 8:1 scaling (build 1562), and every
+ * caller used to spin on the complete flag with no deadline.  50 ms is
+ * >10x the longest legitimate VGA conversion.  On timeout the PXP is reset
+ * so the next conversion starts clean; the caller must fail the frame. */
+static bool sentai_pxp_wait_complete(void) {
+  const TickType_t deadline = xTaskGetTickCount() + pdMS_TO_TICKS(50);
+  while (!(kPXP_CompleteFlag & PXP_GetStatusFlags(DEMO_PXP))) {
+    if ((int32_t)(xTaskGetTickCount() - deadline) >= 0) {
+      PXP_Reset(DEMO_PXP);
+      return false;
+    }
+    taskYIELD();
+  }
+  PXP_ClearStatusFlags(DEMO_PXP, kPXP_CompleteFlag);
+  return true;
+}
+
 static int pxp_scale_xrgb_to_rgb(const uint8_t* src, int src_w, int src_h,
                                   uint8_t* dst, int dst_w, int dst_h) {
   // Warn once if dst not 32-byte aligned (cache ops may touch adjacent data).
@@ -2526,10 +2632,10 @@ static int pxp_scale_xrgb_to_rgb(const uint8_t* src, int src_w, int src_h,
   PXP_Start(DEMO_PXP);
 
   // Yield CPU while PXP works instead of busy-waiting
-  while (!(kPXP_CompleteFlag & PXP_GetStatusFlags(DEMO_PXP))) {
-    taskYIELD();
+  if (!sentai_pxp_wait_complete()) {
+    SERR_LOG(SERR_CAM_PXP_TIMEOUT, __LINE__);
+    return -7;
   }
-  PXP_ClearStatusFlags(DEMO_PXP, kPXP_CompleteFlag);
 
   // Invalidate cache so CPU sees PXP DMA output.
   // Plain Invalidate (without writeback) is safe here because:
@@ -2616,14 +2722,101 @@ int sentai_pxp_xrgb_to_y8(const uint8_t* src, int src_w, int src_h,
   PXP_SetOutputBufferConfig(DEMO_PXP, &out_cfg);
   PXP_Start(DEMO_PXP);
 
-  while (!(kPXP_CompleteFlag & PXP_GetStatusFlags(DEMO_PXP))) {
-    taskYIELD();
+  if (!sentai_pxp_wait_complete()) {
+    SERR_LOG(SERR_CAM_PXP_TIMEOUT, __LINE__);
+    return -7;
   }
-  PXP_ClearStatusFlags(DEMO_PXP, kPXP_CompleteFlag);
 
 #if (__CORTEX_M == 7)
   DCACHE_InvalidateByRange((uint32_t)dst, dst_size);
 #endif
+  return 0;
+}
+
+// ---------------------------------------------------------------------
+// sentai_pxp_xyuv_to_yuv420 (s240/YUV420):  ONE PXP pass that splits the
+// camera's native XYUV8888 frame into the two planes the dual-input
+// YUV420 model wants:
+//   y_dst  = Y  plane, src_w x src_h,     1 byte/px  -> model input[1]
+//   uv_dst = UV plane, src_w/2 x src_h/2, 2 bytes/px -> model input[0]
+// No CSC: the OV5640 already emitted YUV (the model's training color
+// space), so we just repack + 2x2-subsample the chroma.  This replaces
+// the 900 KB RGB tensor with a 460 KB YUV420 pair (Y 307 KB + UV 153 KB),
+// which is HALF the TPU input transfer AND frees ~460 KB of OCRAM.
+// Returns 0 on success.  dst dims are implied: Y = src, UV = src/2.
+// ---------------------------------------------------------------------
+extern "C"
+__attribute__((section(".sdram_text")))
+int sentai_pxp_xyuv_to_yuv420(const uint8_t* src, int src_w, int src_h,
+                              uint8_t* y_dst, uint8_t* uv_dst) {
+  pxp_ps_buffer_config_t ps_cfg;
+  memset(&ps_cfg, 0, sizeof(ps_cfg));
+  ps_cfg.pixelFormat = kPXP_PsPixelFormatYUV1P444;  /* 32-bit XYUV unpacked */
+  ps_cfg.swapByte    = false;
+  ps_cfg.bufferAddr  = (uint32_t)src;
+  ps_cfg.bufferAddrU = 0;
+  ps_cfg.bufferAddrV = 0;
+  ps_cfg.pitchBytes  = (src_w + LINE_PADDING) * DEMO_CAMERA_BUFFER_BPP;
+
+  pxp_output_buffer_config_t out_cfg;
+  memset(&out_cfg, 0, sizeof(out_cfg));
+  out_cfg.pixelFormat    = kPXP_OutputPixelFormatYUV2P420;  /* Y + interleaved UV */
+  out_cfg.interlacedMode = kPXP_OutputProgressive;
+  out_cfg.buffer0Addr    = (uint32_t)y_dst;    /* Y  plane */
+  out_cfg.buffer1Addr    = (uint32_t)uv_dst;   /* UV plane (2x2 subsampled) */
+  out_cfg.pitchBytes     = src_w;              /* Y pitch; UV derives internally */
+  out_cfg.width          = src_w;
+  out_cfg.height         = src_h;
+
+  const uint32_t y_size  = (uint32_t)(src_w * src_h);
+  const uint32_t uv_size = (uint32_t)((src_w / 2) * (src_h / 2) * 2);
+
+#if (__CORTEX_M == 7)
+  DCACHE_CleanInvalidateByRange((uint32_t)y_dst, y_size);
+  DCACHE_CleanInvalidateByRange((uint32_t)uv_dst, uv_size);
+#endif
+
+  PXP_SetProcessSurfaceBufferConfig(DEMO_PXP, &ps_cfg);
+  PXP_SetProcessSurfaceScaler(DEMO_PXP, src_w, src_h, src_w, src_h);  /* Y 1:1 */
+  PXP_SetProcessSurfacePosition(DEMO_PXP, 0, 0, src_w - 1, src_h - 1);
+  PXP_SetAlphaSurfacePosition(DEMO_PXP, 0xFFFFU, 0xFFFFU, 0U, 0U);
+  /* Input is already YUV — no color-space conversion, just subsample. */
+  PXP_SetProcessSurfaceYUVFormat(DEMO_PXP, kPXP_PsYUVFormatYUV);
+  PXP_EnableCsc1(DEMO_PXP, false);
+  PXP_SetOutputBufferConfig(DEMO_PXP, &out_cfg);
+  PXP_Start(DEMO_PXP);
+
+  if (!sentai_pxp_wait_complete()) {
+    SERR_LOG(SERR_CAM_PXP_TIMEOUT, __LINE__);
+    return -7;
+  }
+
+#if (__CORTEX_M == 7)
+  DCACHE_InvalidateByRange((uint32_t)y_dst, y_size);
+  DCACHE_InvalidateByRange((uint32_t)uv_dst, uv_size);
+#endif
+  return 0;
+}
+
+// s240/YUV420 Phase-3 diagnostic: grab the current (XYUV, yuv_mode=1) camera
+// frame, split it into Y + UV planes via the PXP, and dump both raw to FS so
+// the host can reconstruct grayscale/chroma images and confirm the extraction
+// is clean.  Test buffers live in SDRAM (OCRAM is full); the production
+// placement is Phase 4.  Returns 0 ok, <0 on grab/PXP/write failure.
+extern "C" int sentai_cam_grab_latest(uint8_t** raw);
+extern "C" int sentai_fs_write(const char* path, const uint8_t* data, int size);
+extern "C" int sentai_pxp_xyuv_to_yuv420(const uint8_t* src, int src_w, int src_h,
+                                         uint8_t* y_dst, uint8_t* uv_dst);
+extern "C" int sentai_yuv420_extract_test(const char* y_path, const char* uv_path) {
+  static uint8_t s_y[640 * 480]      __attribute__((section(".sdram_bss"), aligned(32)));
+  static uint8_t s_uv[320 * 240 * 2] __attribute__((section(".sdram_bss"), aligned(32)));
+  uint8_t* raw = 0;
+  int idx = sentai_cam_grab_latest(&raw);
+  if (idx < 0 || !raw) return -1;
+  int rc = sentai_pxp_xyuv_to_yuv420(raw, 640, 480, s_y, s_uv);
+  if (rc) return -2;
+  if (y_path  && !sentai_fs_write(y_path,  s_y,  (int)sizeof(s_y)))  return -3;
+  if (uv_path && !sentai_fs_write(uv_path, s_uv, (int)sizeof(s_uv))) return -4;
   return 0;
 }
 
@@ -2730,6 +2923,32 @@ extern "C" int sentai_cam_stop(void) {
   cam->Disable();
   cam->SetPower(false);
   g_cam_initialized = false;
+  return 0;
+}
+
+/* Board rev 2026-10 bring-up: the camera LDO rails (PMIC LDO1..4 =
+ * VDD_1V8/2V8 for CAM1 and CAM2) are not switched by the camera driver
+ * (its PMIC sequence is compiled out, "PMIC is not working well").  On
+ * the new board the CAM1 I2C isolation switch (U9) is enabled BY the
+ * VDD_1V8_CAM1 rail, so without it camera 1 NAKs on LPI2C1.  REPL knob:
+ * sentai.camera.power_rails(1).  2V8 first, then 1V8 (OV5640 sequence). */
+extern "C" int sentai_cam_rails_set(int on) {
+  auto* pmic = coralmicro::PmicTask::GetSingleton();
+  using coralmicro::PmicRail;
+  if (on) {
+    pmic->SetRailState(PmicRail::kCam1_2V8, true);
+    pmic->SetRailState(PmicRail::kCam2_2V8, true);
+    vTaskDelay(pdMS_TO_TICKS(20));
+    pmic->SetRailState(PmicRail::kCam1_1V8, true);
+    pmic->SetRailState(PmicRail::kCam2_1V8, true);
+  } else {
+    pmic->SetRailState(PmicRail::kCam1_1V8, false);
+    pmic->SetRailState(PmicRail::kCam2_1V8, false);
+    vTaskDelay(pdMS_TO_TICKS(20));
+    pmic->SetRailState(PmicRail::kCam1_2V8, false);
+    pmic->SetRailState(PmicRail::kCam2_2V8, false);
+  }
+  vTaskDelay(pdMS_TO_TICKS(50));  // rail + isolation-switch settle
   return 0;
 }
 

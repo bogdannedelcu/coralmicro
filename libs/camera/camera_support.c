@@ -612,7 +612,7 @@ void BOARD_InitCameraResource(void)
     /* CSI MCLK is connect to dedicated 24M OSC, so don't need to configure it. */
 }
 
-void BOARD_InitMipiCsi(void)
+status_t BOARD_InitMipiCsi(void)
 {
     csi2rx_config_t csi2rxConfig = {0};
 
@@ -647,10 +647,10 @@ void BOARD_InitMipiCsi(void)
 
     if (kStatus_Success != BOARD_VerifyCameraClockSource())
     {
+        /* 2026-10-30: was `while (1) {}` in camera_task at priority 4 —
+         * starved USB and the watchdog kicker.  Report instead. */
         PRINTF("MIPI CSI clock source not valid\r\n");
-        while (1)
-        {
-        }
+        return kStatus_Fail;
     }
 
     /* MIPI CSI2 connect to CSI. */
@@ -667,9 +667,7 @@ void BOARD_InitMipiCsi(void)
     if (DEMO_CSI_CLK_FREQ < DEMO_MIPI_CSI2_UI_CLK_FREQ)
     {
         PRINTF("CSI clock should be faster than MIPI CSI2 ui clock.\r\n");
-        while (1)
-        {
-        }
+        return kStatus_Fail;
     }
 
     /* MIPI DPHY power on and isolation off. */
@@ -815,6 +813,7 @@ void BOARD_InitMipiCsi(void)
     }
 
     CSI2RX_Init(MIPI_CSI2RX, &csi2rxConfig);
+    return kStatus_Success;
 }
 
 static status_t BOARD_VerifyCameraClockSource(void)
@@ -861,9 +860,10 @@ void BOARD_InitPxp(void)
     PXP_EnableCsc1(DEMO_PXP, false);
 }
 
-void BOARD_InitCamera(void)
+status_t BOARD_InitCamera(void)
 {
     status_t status;
+    status_t result = kStatus_Success;
     camera_config_t cameraConfig;
 
     memset(&cameraConfig, 0, sizeof(cameraConfig));
@@ -904,7 +904,9 @@ void BOARD_InitCamera(void)
      * (2) so USB IOC handling is never preempted by the camera. */
     NVIC_SetPriority(CSI_IRQn, 5);
 
-    BOARD_InitMipiCsi();
+    if (BOARD_InitMipiCsi() != kStatus_Success) {
+        return kStatus_Fail;
+    }
 
     /* Sensor output format: YUYV (YUV422) in YUV mode so the OV5640's CMX
      * matrix does RGB->YUV on-sensor; RGB565 otherwise.  Both 16-bit/pixel. */
@@ -920,9 +922,11 @@ void BOARD_InitCamera(void)
 
     status = CAMERA_DEVICE_Init(&cameraDevice, &cameraConfig);
     printf("CAMERA_DEVICE_Init = %ld\n", status);
+    if (status != kStatus_Success) result = status;
 
     status = CAMERA_DEVICE_Start(&cameraDevice);
     printf("CAMERA_DEVICE_Start = %ld\n", status);
+    if (status != kStatus_Success && result == kStatus_Success) result = status;
 
     /* Submit the empty frame buffers to buffer queue. */
     for (uint32_t i = 0; i < DEMO_CAMERA_BUFFER_COUNT; i++)
@@ -930,6 +934,7 @@ void BOARD_InitCamera(void)
         status = CAMERA_RECEIVER_SubmitEmptyBuffer(&cameraReceiver, (uint32_t)(framebuffers[i]));
         // printf("CAMERA_RECEIVER_SubmitEmptyBuffer (%08lX) = %ld\n", (uint32_t)framebuffers[i], status);
     }
+    return result;
 }
 
 void BOARD_PxpConfig(void)

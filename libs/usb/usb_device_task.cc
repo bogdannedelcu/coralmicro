@@ -43,16 +43,27 @@ constexpr int kUSBControllerId = kUSB_ControllerEhci0;
 // ascii into 2-byte expansion).
 //
 // Expects param->buffer to be set to a suitable output buffer
+// USB string descriptors are at most 255 bytes: 2 header + 2 per UTF-16
+// char -> 126 chars.  The caller's buffer is sized for that maximum.
+constexpr size_t kUsbStringMaxChars = 126;
+constexpr size_t kUsbStringBufferSize = 2 + 2 * kUsbStringMaxChars;
+
 void ToUsbStringDescriptor(const char* s,
                            usb_device_get_string_descriptor_struct_t* param) {
   uint8_t* output = param->buffer;
 
+  // 2026-10-30 audit C1: the product string ("... SentAI build #NNNN", 32+
+  // chars) overflowed the old 64-byte buffer into csiPrivateData.  Clamp.
+  size_t n = strlen(s);
+  if (n > kUsbStringMaxChars) n = kUsbStringMaxChars;
+
   // prefix is size and type
-  *output++ = 2 + 2 * strlen(s);
+  *output++ = (uint8_t)(2 + 2 * n);
   *output++ = USB_DESCRIPTOR_TYPE_STRING;
   param->length = 2;
 
-  while (*s) {
+  const char* end = s + n;
+  while (s < end) {
     *output++ = *s++;
     *output++ = 0;
     param->length += 2;
@@ -62,7 +73,7 @@ void ToUsbStringDescriptor(const char* s,
 
 usb_status_t UsbDeviceTask::Handler(usb_device_handle device_handle,
                                     uint32_t event, void* param) {
-  static uint8_t string_buffer[64];
+  static uint8_t string_buffer[kUsbStringBufferSize];
   bool event_ret = true;
   usb_status_t ret = kStatus_USB_Error;
   switch (event) {

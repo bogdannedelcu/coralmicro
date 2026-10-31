@@ -261,12 +261,52 @@ mp_obj_t mp_obj_new_int_from_ull(unsigned long long val) {
 }
 
 mp_obj_t mp_obj_new_int_from_str_len(const char **str, size_t len, bool neg, unsigned int base) {
-    // TODO this does not honor the given length of the string, but it all cases it should anyway be null terminated
-    // TODO check overflow
+    // sentai patch 0001: honour `len`.  Upstream used strtoll() on *str and
+    // assumed NUL termination, but the parser hands over lex->vstr.buf which
+    // is NOT terminated — strtoll() kept reading stale bytes left in the vstr
+    // by a longer previous token (e.g. a format string), so a literal that
+    // overflows the 31-bit small int (0x40C04008, 1086341128, ...) failed
+    // with "invalid syntax for integer" whenever an earlier token on the
+    // line was longer than the literal.  Bounded digit loop, '_' separators
+    // accepted (the lexer passes them through), explicit overflow error
+    // instead of silent wrap, and `neg` is applied (strtoll never saw the
+    // sign, which the caller had already consumed).
+    const char *s = *str;
+    const char *top = s + len;
+    unsigned long long val = 0;
+    bool overflow = false;
+    for (; s < top; s++) {
+        unsigned int dig = (unsigned char)*s;
+        if (dig >= '0' && dig <= '9') {
+            dig -= '0';
+        } else if (dig == '_') {
+            continue;
+        } else {
+            dig |= 0x20;
+            if (dig >= 'a' && dig <= 'z') {
+                dig -= 'a' - 10;
+            } else {
+                break;
+            }
+        }
+        if (dig >= base) {
+            break;
+        }
+        // keep consuming digits after an overflow so *str lands on the
+        // first non-digit, as the caller expects
+        if (val > (~0ULL - dig) / base) {
+            overflow = true;
+        } else {
+            val = val * base + dig;
+        }
+    }
+    *str = s;
+    unsigned long long limit = (~0ULL >> 1) + (neg ? 1ULL : 0ULL);
+    if (overflow || val > limit) {
+        mp_raise_msg(&mp_type_OverflowError, MP_ERROR_TEXT("long long too large"));
+    }
     mp_obj_int_t *o = mp_obj_malloc(mp_obj_int_t, &mp_type_int);
-    char *endptr;
-    o->val = strtoll(*str, &endptr, base);
-    *str = endptr;
+    o->val = neg ? (long long)(0ULL - val) : (long long)val;
     return o;
 }
 

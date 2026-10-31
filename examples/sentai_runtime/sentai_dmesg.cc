@@ -135,32 +135,65 @@ void sentai_dmesg(dmesg_level_t level, const char *fmt, ...) {
     va_end(ap);
 }
 
+// Readers copy in DMESG_READ_CHUNK slices, each under its own short critical
+// section, instead of holding interrupts off for a 16 KiB memcpy (audit
+// 2026-10-30: the CSI ISR is timing-sensitive, a 16 KiB copy from SDRAM is
+// ~tens of µs of masked interrupts).  Writers may lap the reader between
+// slices; `g_dmesg_head` is monotonic, so the bytes at offset `off` from the
+// snapshot tail are stale once more than (free space + off) bytes have been
+// appended since the snapshot.  In that case the read stops early: the
+// caller gets the slices copied so far (the OLDER part of the snapshot,
+// each slice internally consistent) and misses the newest lines, which
+// the next read will return.
+#define DMESG_READ_CHUNK 256U
+
 size_t sentai_dmesg_read(char *out, size_t out_size) {
     if (out == NULL || out_size == 0U) return 0U;
 
     UBaseType_t saved = taskENTER_CRITICAL_FROM_ISR();
     uint32_t count = g_dmesg_count;
-    uint32_t head  = g_dmesg_head & DMESG_BUF_MASK;
+    uint32_t head0 = g_dmesg_head;
+    taskEXIT_CRITICAL_FROM_ISR(saved);
+
+    uint32_t head = head0 & DMESG_BUF_MASK;
     // Tail = head - count (modulo buffer size).
     uint32_t tail  = (head + DMESG_BUF_SIZE - count) & DMESG_BUF_MASK;
 
     size_t to_copy = (count <= out_size - 1U) ? (size_t)count
                                               : (size_t)(out_size - 1U);
     // Skip the oldest bytes if the caller's buffer is smaller than count.
+    uint32_t skipped = 0U;
     if ((size_t)count > to_copy) {
-        uint32_t skip = (uint32_t)((size_t)count - to_copy);
-        tail = (tail + skip) & DMESG_BUF_MASK;
+        skipped = (uint32_t)((size_t)count - to_copy);
+        tail = (tail + skipped) & DMESG_BUF_MASK;
     }
+    uint32_t slack = (DMESG_BUF_SIZE - count) + skipped;  // bytes writers may add before clobbering offset 0
 
-    size_t first = (size_t)(DMESG_BUF_SIZE - tail);
-    if (first > to_copy) first = to_copy;
-    memcpy(out, &g_dmesg_buf[tail], first);
-    if (to_copy > first) {
-        memcpy(out + first, &g_dmesg_buf[0], to_copy - first);
+    size_t done = 0U;
+    while (done < to_copy) {
+        size_t n = to_copy - done;
+        if (n > DMESG_READ_CHUNK) n = DMESG_READ_CHUNK;
+        uint32_t pos = (tail + (uint32_t)done) & DMESG_BUF_MASK;
+        size_t first = (size_t)(DMESG_BUF_SIZE - pos);
+        if (first > n) first = n;
+
+        saved = taskENTER_CRITICAL_FROM_ISR();
+        uint32_t appended = g_dmesg_head - head0;
+        if (appended > slack + (uint32_t)done) {
+            // Writers overtook this slice: what we would copy is no longer
+            // the data we snapshotted.  Stop with what we have.
+            taskEXIT_CRITICAL_FROM_ISR(saved);
+            break;
+        }
+        memcpy(out + done, &g_dmesg_buf[pos], first);
+        if (n > first) {
+            memcpy(out + done + first, &g_dmesg_buf[0], n - first);
+        }
+        taskEXIT_CRITICAL_FROM_ISR(saved);
+        done += n;
     }
-    out[to_copy] = '\0';
-    taskEXIT_CRITICAL_FROM_ISR(saved);
-    return to_copy;
+    out[done] = '\0';
+    return done;
 }
 
 void sentai_dmesg_clear(void) {

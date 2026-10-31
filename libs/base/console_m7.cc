@@ -110,8 +110,15 @@ void ConsoleM7::Write(char* buffer, int size) {
   memcpy(msg.str, buffer, size);
   // Bounded timeout: drop message if queue stays full for 200ms.
   // Prevents infinite hang when USB CDC is non-responsive (e.g. re-enumeration).
-  if (xQueueSend(console_queue_, &msg, pdMS_TO_TICKS(200)) != pdTRUE) {
+  // Pre-scheduler (ticks frozen) or interrupt context: never block
+  // (2026-10-30 audit M4 — a blocked pre-scheduler printf would stall boot
+  // before USB enumerates).
+  const TickType_t wait =
+      (xTaskGetSchedulerState() == taskSCHEDULER_RUNNING && !xPortIsInsideInterrupt())
+          ? pdMS_TO_TICKS(200) : 0;
+  if (xQueueSend(console_queue_, &msg, wait) != pdTRUE) {
     delete[] msg.str;  // queue full — drop to prevent hang
+    tx_dropped_++;
     return;
   }
 #ifdef BLOCKING_PRINTF
@@ -129,7 +136,12 @@ int ConsoleM7::Read(char* buffer, int size) {
       buffer[i] = (char)usb_rx_buf_[usb_rx_read_];
       usb_rx_read_ = (usb_rx_read_ + 1) % kUsbRxBufferSize;
     }
+    // The producer (UsbRxHandler, usb_device_task) increments this counter
+    // concurrently; an unprotected read-modify-write here lost updates and
+    // shifted the stream (2026-10-30 audit M2/M5: corrupted long lines).
+    taskENTER_CRITICAL();
     usb_rx_available_ -= n;
+    taskEXIT_CRITICAL();
     return n;
   }
 
@@ -311,10 +323,21 @@ void ConsoleM7::UsbRxHandler(const uint8_t* data, uint32_t len) {
   if (repl_target_ != ReplTarget::kUsb && !usb_serial_mode_) return;
 
   for (uint32_t i = 0; i < len; i++) {
-    if (usb_rx_available_ >= kUsbRxBufferSize) break;  // drop if full
+    if (usb_ctrlc_intercept_ && data[i] == 0x03) {
+      usb_ctrlc_seen_ = true;   // consumed here, never reaches the line editor
+      continue;
+    }
+    if (usb_rx_available_ >= kUsbRxBufferSize) {  // drop if full (counted)
+      usb_rx_dropped_ += (uint32_t)(len - i);
+      break;
+    }
     usb_rx_buf_[usb_rx_write_] = data[i];
     usb_rx_write_ = (usb_rx_write_ + 1) % kUsbRxBufferSize;
-    ++usb_rx_available_;
+    {
+      UBaseType_t saved = portSET_INTERRUPT_MASK_FROM_ISR();
+      ++usb_rx_available_;
+      portCLEAR_INTERRUPT_MASK_FROM_ISR(saved);
+    }
   }
   // Wake up any task blocked in UsbRead()
   BaseType_t xHigherPriorityTaskWoken = pdFALSE;
@@ -374,8 +397,23 @@ int ConsoleM7::UsbRead(uint8_t* buf, int max_size, int timeout_ms) {
     buf[i] = usb_rx_buf_[usb_rx_read_];
     usb_rx_read_ = (usb_rx_read_ + 1) % kUsbRxBufferSize;
   }
+  taskENTER_CRITICAL();
   usb_rx_available_ -= n;
+  taskEXIT_CRITICAL();
   return n;
+}
+
+// C wrappers for micropython_task.c (ctrl-c interception + drop counters).
+extern "C" void sentai_console_ctrlc_intercept(int on) {
+  coralmicro::ConsoleM7::GetSingleton()->UsbCtrlCIntercept(on != 0);
+}
+extern "C" int sentai_console_ctrlc_take(void) {
+  return coralmicro::ConsoleM7::GetSingleton()->UsbCtrlCTake() ? 1 : 0;
+}
+extern "C" void sentai_console_drops(uint32_t* rx_dropped, uint32_t* tx_dropped) {
+  auto* c = coralmicro::ConsoleM7::GetSingleton();
+  if (rx_dropped) *rx_dropped = c->UsbRxDropped();
+  if (tx_dropped) *tx_dropped = c->TxDropped();
 }
 
 // ===================== REPL Target Switching =====================

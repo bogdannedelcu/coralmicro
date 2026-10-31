@@ -95,6 +95,8 @@ static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_crazy_stop_motors_obj, 0, 
 // Generic Setpoints (hover, attitude) actually drive the drone
 // instead of being overridden by HL position-hold.  Does NOT kill
 // motors; caller must already be sending Generic Setpoints at 10+ Hz.
+extern int sentai_crazy_hl_stop(uint8_t group_mask);
+extern int sentai_crazy_attitude_release_no_disarm(void);
 static mp_obj_t mod_sentai_crazy_hl_stop(size_t n_args, const mp_obj_t *args) {
     uint8_t group = (n_args > 0) ? (uint8_t)mp_obj_get_int(args[0]) : 0;
     return mp_obj_new_int(sentai_crazy_hl_stop(group));
@@ -618,7 +620,14 @@ static mp_obj_t crazy_dispatch_drain(mp_obj_t arg) {
         if (sentai_crazy_dispatch_pop(&kind, &channel, buf, sizeof(buf), &len) == 0)
             break;
         if (kind == CRAZY_KIND_EXEC) {
+            /* Same supervision as main.py: Ctrl-C monitor + 30 s deadline
+             * (2026-10-30 audit C3 — a `$while True: pass` used to hang the
+             * VM, the REPL and the radio surface forever). */
+            extern void sentai_mp_exec_guard_begin(int timeout_ms);
+            extern void sentai_mp_exec_guard_end(void);
+            sentai_mp_exec_guard_begin(30000);
             crazy_run_exec(buf, len);
+            sentai_mp_exec_guard_end();
         } else if (kind == CRAZY_KIND_USER) {
             crazy_run_user(channel, buf, len);
         }

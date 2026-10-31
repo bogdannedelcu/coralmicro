@@ -2,6 +2,7 @@
 
 #include "sentai_log.h"
 
+#include "sentai_dmesg.h"
 #include "sentai_fr.h"
 
 #include <stdarg.h>
@@ -49,5 +50,10 @@ int sentai_logf(const char* tag, const char* fmt, ...) {
       buf[(int)sizeof(buf) - 1] = '\n';
     }
   }
+  // Second sink: the 16 KiB in-RAM dmesg ring (sentai.rtos.dmesg()).  Until
+  // 2026-10-31 nothing wrote to that ring, so SERR_LOG codes were only
+  // recoverable through the Flight Recorder debug channel.  The ring adds
+  // its own timestamp and '\n', hence len-1.
+  sentai_dmesg(DMESG_INFO, "%.*s", len - 1, buf);
   return sentai_fr_push_debug(buf, len);
 }

@@ -35,7 +35,41 @@ extern "C" void start_dhcp_server(uint32_t local_addr);
 
 namespace coralmicro {
 
+// How long TransmitNtb/TransmitFrame wait for the previous bulk-IN transfer
+// to complete before dropping the new NTB.  Runs on cdc_ncm_task at the top
+// priority: the wait is a blocking semaphore take, never a spin.
+static constexpr TickType_t kSendBusyWaitMs = 50;
+// lwIP -> cdc_ncm_task hand-off queue (see Init) and how long TxFunc may
+// block tcpip_thread when it is full.
+static constexpr UBaseType_t kTxQueueDepth = 64;
+static constexpr TickType_t kTxQueueWaitMs = 5;
+
 std::map<class_handle_t, CdcNcm *> CdcNcm::handle_map_;
+
+bool CdcNcm::TxWaitIdle() {
+  // The flag is the truth; the semaphore is only a wake-up.  A binary
+  // semaphore keeps a "give" from a completion nobody was waiting for, so a
+  // single take would return immediately while the NEXT transfer is still
+  // in flight (that dropped every second NTB in build 1639).  Loop on the
+  // flag until the deadline instead.
+  const TickType_t deadline = xTaskGetTickCount() + pdMS_TO_TICKS(kSendBusyWaitMs);
+  while (tx_in_flight_) {
+    const int32_t remain = (int32_t)(deadline - xTaskGetTickCount());
+    if (remain <= 0) return false;
+    if (tx_done_sem_) {
+      (void)xSemaphoreTake(tx_done_sem_, (TickType_t)remain);
+    } else {
+      vTaskDelay(1);
+    }
+  }
+  return true;
+}
+
+void CdcNcm::TxStarted(uint32_t total_len) {
+  tx_zlp_pending_ =
+      (total_len % cdc_acm_data_endpoints_[DATA_IN].maxPacketSize) == 0;
+  tx_in_flight_ = true;
+}
 
 void CdcNcm::Init(uint8_t interrupt_ep, uint8_t bulk_in_ep,
                    uint8_t bulk_out_ep, uint8_t comm_iface,
@@ -70,7 +104,14 @@ void CdcNcm::Init(uint8_t interrupt_ep, uint8_t bulk_in_ep,
   mutable_descriptor_.out_ep.endpoint_address = bulk_out_ep & 0x7F;
 
   // TX queue and task
-  tx_queue_ = xQueueCreate(10, sizeof(void *));
+  // Depth must exceed the largest burst lwIP can hand us before cdc_ncm_task
+  // (same priority as tcpip_thread) gets to drain: TCP_SND_BUF = 16
+  // segments.  At 10 the 11th..16th segment of every burst was dropped,
+  // the host dup-ACKed and lwIP sat in 1.3 s RTO stalls -- 256 KB over
+  // HTTP took 18 s (EXP-s250, 2026-10-31).  Entries are pointers; payloads
+  // are per-packet heap vectors (<= 1.5 KB each, <= 96 KB worst case).
+  tx_queue_ = xQueueCreate(kTxQueueDepth, sizeof(void *));
+  tx_done_sem_ = xSemaphoreCreateBinary();
   CHECK(tx_queue_);
   CHECK(xTaskCreate(CdcNcm::StaticTaskFunction, "cdc_ncm_task",
                     configMINIMAL_STACK_SIZE * 10, this, kUsbDeviceTaskPriority,
@@ -158,8 +199,11 @@ err_t CdcNcm::TxFunc(struct netif *netif, struct pbuf *p) {
     delete packet;
     return ERR_IF;
   }
-  if (xQueueSendToBack(tx_queue_, &packet, 0) != pdTRUE) {
+  // Bounded wait (tcpip_thread): gives cdc_ncm_task a chance to drain one
+  // NTB rather than dropping a segment that TCP then recovers by RTO.
+  if (xQueueSendToBack(tx_queue_, &packet, pdMS_TO_TICKS(kTxQueueWaitMs)) != pdTRUE) {
     delete packet;
+    tx_queue_drops_++;
     return ERR_IF;
   }
   return ERR_OK;
@@ -171,6 +215,10 @@ err_t CdcNcm::TransmitFrame(void *buffer, uint32_t length) {
   }
   if (length > kMaxFrameSize) {
     return ERR_BUF;
+  }
+  if (!TxWaitIdle()) {
+    tx_busy_drops_++;
+    return ERR_IF;
   }
 
   // Build NTB16 with single datagram:
@@ -207,22 +255,14 @@ err_t CdcNcm::TransmitFrame(void *buffer, uint32_t length) {
   nth->block_length = total_len;
   nth->ndp_index = ndp_offset;
 
-  usb_status_t status;
-  while (true) {
-    status = USB_DeviceCdcAcmSend(class_handle_, bulk_in_ep_, tx_buffer_,
-                                  total_len);
-    if (status == kStatus_USB_Busy) {
-      taskYIELD();
-    } else {
-      break;
-    }
-  }
-
-  // Send ZLP if needed
-  if (status == kStatus_USB_Success &&
-      (total_len % cdc_acm_data_endpoints_[DATA_IN].maxPacketSize) == 0) {
-    static uint8_t zlp = 0;
-    USB_DeviceCdcAcmSend(class_handle_, bulk_in_ep_, &zlp, 0);
+  // Endpoint confirmed idle by TxWaitIdle() before the buffer was written
+  // (see TransmitNtb for the full note).
+  usb_status_t status = USB_DeviceCdcAcmSend(class_handle_, bulk_in_ep_,
+                                             tx_buffer_, total_len);
+  if (status == kStatus_USB_Success) {
+    TxStarted(total_len);   // ZLP, if needed, goes out from the completion event
+  } else {
+    tx_busy_drops_++;
   }
 
   if (status != kStatus_USB_Success) {
@@ -234,6 +274,10 @@ err_t CdcNcm::TransmitFrame(void *buffer, uint32_t length) {
 err_t CdcNcm::TransmitNtb(void *buffers[], uint16_t lengths[],
                           uint32_t count) {
   if (!attached_ || count == 0) return ERR_IF;
+  if (!TxWaitIdle()) {   // previous NTB still being DMA'd out of tx_buffer_
+    tx_busy_drops_++;
+    return ERR_IF;
+  }
 
   memset(tx_buffer_, 0, sizeof(NcmNth16));  // Only clear header
 
@@ -286,21 +330,17 @@ err_t CdcNcm::TransmitNtb(void *buffers[], uint16_t lengths[],
   nth->block_length = total_len;
   nth->ndp_index = ndp_offset;
 
-  usb_status_t status;
-  while (true) {
-    status = USB_DeviceCdcAcmSend(class_handle_, bulk_in_ep_, tx_buffer_,
-                                  total_len);
-    if (status == kStatus_USB_Busy) {
-      taskYIELD();
-    } else {
-      break;
-    }
-  }
-
-  if (status == kStatus_USB_Success &&
-      (total_len % cdc_acm_data_endpoints_[DATA_IN].maxPacketSize) == 0) {
-    static uint8_t zlp = 0;
-    USB_DeviceCdcAcmSend(class_handle_, bulk_in_ep_, &zlp, 0);
+  // The endpoint was confirmed idle by TxWaitIdle() before the buffer was
+  // written; a Busy here means a race with a notification on another
+  // endpoint or a detach -- drop, TCP retransmits.  The ZLP (if the NTB is
+  // a multiple of the packet size) is sent from the completion event, not
+  // here: a second Send() while the first is queued always returned Busy.
+  usb_status_t status = USB_DeviceCdcAcmSend(class_handle_, bulk_in_ep_,
+                                             tx_buffer_, total_len);
+  if (status == kStatus_USB_Success) {
+    TxStarted(total_len);
+  } else {
+    tx_busy_drops_++;
   }
 
   if (status != kStatus_USB_Success) {
@@ -404,6 +444,11 @@ void CdcNcm::SendSpeedChangeNotification() {
 bool CdcNcm::HandleEvent(uint32_t event, void *param) {
   switch (event) {
     case kUSB_DeviceEventSetConfiguration: {
+      // (Re)enumeration aborts any queued IN transfer: forget it, or the
+      // first NTB after a replug would wait 50 ms and be dropped.
+      tx_in_flight_ = false;
+      tx_zlp_pending_ = false;
+      if (tx_done_sem_) (void)xSemaphoreTake(tx_done_sem_, 0);
       attached_ = true;
       // Send network connection + speed notifications to bring link UP
       SendConnectionNotification();
@@ -434,6 +479,28 @@ usb_status_t CdcNcm::Handler(uint32_t event, void *param) {
 
   switch (event) {
     case kUSB_DeviceCdcEventSendResponse:
+      // Completion of a bulk-IN transfer from tx_buffer_ (or of its ZLP).
+      // Notifications on the interrupt endpoint complete through the same
+      // event; tell them apart by buffer address.
+      if (ep_cb && (ep_cb->buffer == tx_buffer_ || ep_cb->buffer == &tx_zlp_)) {
+        if (ep_cb->buffer == tx_buffer_ && tx_zlp_pending_) {
+          tx_zlp_pending_ = false;
+          if (USB_DeviceCdcAcmSend(class_handle_, bulk_in_ep_, &tx_zlp_, 0) ==
+              kStatus_USB_Success) {
+            break;  // still in flight until the ZLP completes
+          }
+        }
+        tx_in_flight_ = false;
+        if (tx_done_sem_) {
+          if (xPortIsInsideInterrupt()) {
+            BaseType_t hpw = pdFALSE;
+            xSemaphoreGiveFromISR(tx_done_sem_, &hpw);
+            portYIELD_FROM_ISR(hpw);
+          } else {
+            xSemaphoreGive(tx_done_sem_);
+          }
+        }
+      }
       ret = kStatus_USB_Success;
       break;
 

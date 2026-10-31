@@ -24,7 +24,7 @@
  *      cam_id == 0  ≡  sensor on LPI2C1 (CameraTask::i2c_handle_)
  *                   ≡  GPIO kCamMux == 0
  *
- *      cam_id == 1  ≡  sensor on LPI2C2 (CameraTask::i2c_handle2_)
+ *      cam_id == 1  ≡  sensor on LPI2C6 (CameraTask::i2c_handle2_)  [board rev 2026-10; was LPI2C2]
  *                   ≡  GPIO kCamMux == 1
  *
  * The GPIO level numerically equals cam_id.  This is intentional —
@@ -51,7 +51,7 @@
  *   The board has two OV5640 footprints labelled (somewhat informally)
  *   FRONT and BACK on the silkscreen of older revisions.  Which logical
  *   cam_id corresponds to which physical footprint is a *board-level*
- *   choice that depends on how the schematic wires LPI2C1 / LPI2C2 and
+ *   choice that depends on how the schematic wires LPI2C1 / LPI2C6 and
  *   the MUX inputs.  The legacy macro names CAM_MUX_LEVEL_FRONT /
  *   CAM_MUX_LEVEL_BACK kept below are *aliases for cam_id GPIO levels*,
  *   NOT statements about which physical lens you are looking out of.

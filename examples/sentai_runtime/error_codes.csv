@@ -69,6 +69,12 @@ CODE,MODULE,NAME,DESCRIPTION,VERSION_ADDED,STATUS
 0x0A01,CAM,SWITCH_FALLBACK,ISR did not consume MUX arm within 150ms - sync fallback (val=cam_id),v1.2,ACTIVE
 0x0A02,CAM,DRAIN_TIMEOUT,Post-switch drain wait hit 300ms ceiling (val=wait_ms),v1.2,ACTIVE
 0x0A03,CAM,GRAB_RETRY,GetRawFrame failed - toggling MUX to recover (val=recovery_attempt),v1.2,ACTIVE
+0x0A04,CAM,DEV_INIT_FAIL,BOARD_InitCamera failed: MIPI clock check or OV5640 Init/Start (val=status),v1.9,ACTIVE
+0x0A05,CAM,I2C_FAIL,SCCB transfer failed on a detected camera bus (val=(bus<<8)|reg_hi),v1.9,ACTIVE
+0x0A06,CAM,DETECT,Power-on detect result bitmask: bit0 cam0 answers on its bus bit1 cam1 (val=mask),v1.9,ACTIVE
+0x0A07,CAM,PXP_TIMEOUT,PXP completion wait exceeded its deadline - PXP reset and operation failed (val=source line),v1.9,ACTIVE
+0x0A08,CAM,GRAB_TIMEOUT,Blocking GetFrame got no frame within the camera task 4 s poll - returned -1 instead of retrying forever (val=cam_id),v1.9,ACTIVE
+0x0A09,CAM,HOLD_LIMIT,Frame hand-out refused: consumers already hold kFramebufferCount-2 buffers so the CSI keeps 2 armed - buffer re-armed and -1 returned (val=held),v1.9,ACTIVE
 0x0AF0,CAM,GRAB_FAIL,Fatal: GetRawFrame failed after all recoveries (val=cam_id),v1.2,ACTIVE
 # === Module 0x0B: TPU ===
 0x0B40,TPU,ARENA_ALLOC,Tensor arena allocation failed,v1.0,ACTIVE
@@ -122,6 +128,16 @@ CODE,MODULE,NAME,DESCRIPTION,VERSION_ADDED,STATUS
 0x0D2B,LFX,SYNC_LX_CLOSE,FxUserSync: _lx_nand_flash_close failed during LevelX cache flush (val=lx_status),v1.8,ACTIVE
 0x0D2C,LFX,SYNC_LX_REOPEN,FxUserSync: lx_nand_flash_open after close failed - volume now unmounted (val=lx_status),v1.8,ACTIVE
 0x0D2D,LFX,LXONLY_FAIL_SAFE,FxUserOpenLxOnly mount failed after retries; refusing implicit format - storage MSC unavailable (val=last_lx_status),v1.8,ACTIVE
+0x0D2E,LFX,SD_INIT_FAIL,SD card init failed - no card / host error / block size != 512; user FS enters SAFE MODE (val=block_size or 0),v1.9,ACTIVE
+0x0D2F,LFX,SD_BLANK_FORMAT,Blank SD card (no 0x55AA signature at LBA0) - first-use auto-format FAT32 permitted (val=0),v1.9,ACTIVE
+0x0D30,LFX,FS_UNKNOWN,SD card holds data FileX cannot mount (exFAT/foreign/corrupt); SAFE MODE - operator may fx_format(0xDEADBEEF) (val=fx_status),v1.9,ACTIVE
+0x0D31,LFX,SD_READ_FAIL,SD_ReadBlocks failed (val=lba),v1.9,ACTIVE
+0x0D32,LFX,SD_WRITE_FAIL,SD_WriteBlocks failed (val=lba),v1.9,ACTIVE
+0x0D33,LFX,MOUNT_TIMEOUT,Boot-time SD mount task exceeded its deadline (corrupt FAT chains etc.); SAFE MODE - stuck task reaped by the next fx_format (val=deadline_ms),v1.9,ACTIVE
+0x0D34,LFX,BPB_INVALID,SD boot sector failed sanity checks before fx_media_open - exFAT/foreign/corrupt; SAFE MODE (val=check_id 1..10),v1.9,ACTIVE
+0x0D35,LFX,MOUNT_REAP_FAIL,Stuck boot-mount task did not unwind after SD abort within the bounded wait; SD layer disabled until reboot (val=wait_ms),v1.9,ACTIVE
+0x0D36,LFX,SD_LOST,N consecutive SD command failures - card considered removed; FS unmounted and SAFE MODE until remount (val=consecutive_errors),v1.9,ACTIVE
+0x0D37,LFX,STORAGE_NO_CARD,Storage mode: SD block layer unavailable - MSC reports no medium (val=0),v1.9,ACTIVE
 0x0DF0,LFX,RESTORE_LFS,LfsUserInit re-format failed after smoke - user partition unusable until reflash,v1.5,ACTIVE
 # === Module 0x0F: System ===
 0x0F01,SYS,BOOT_ATTEMPT,Boot attempt N - counter from SRC_GPR1 (val=attempt_number),v1.0,ACTIVE
@@ -142,3 +158,4 @@ CODE,MODULE,NAME,DESCRIPTION,VERSION_ADDED,STATUS
 0x0E20,FLOW,BAD_CAM_ID,flow.m4_start called with cam_id != 0/1 (val=cam_id),v1.7,ACTIVE
 0x0E30,FLOW,NOTIFY_TIMEOUT,ISR notify not received within deadline; sensor stalled or CSI ISR silenced (val=ms_since_last),v1.8,ACTIVE
 0x0E31,FLOW,NOTIFY_OVERRUN,ISR notifies arriving faster than task can drain; compute deadline missed (val=pending),v1.8,ACTIVE
+0x0D38,LFX,LOCK_RECLAIMED,sentai_fs_lock found the mutex already owned by the calling task (a MicroPython binding raised while holding it) - reclaimed instead of timing out (val=task handle),v1.9,ACTIVE

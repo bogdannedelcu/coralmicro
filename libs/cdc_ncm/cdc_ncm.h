@@ -21,6 +21,8 @@
 
 /* clang-format off */
 #include "libs/usb/descriptors.h"
+#include "third_party/freertos_kernel/include/FreeRTOS.h"
+#include "third_party/freertos_kernel/include/semphr.h"
 #include "third_party/nxp/rt1176-sdk/middleware/lwip/src/include/lwip/netifapi.h"
 #include "third_party/nxp/rt1176-sdk/middleware/usb/device/usb_device.h"
 #include "third_party/nxp/rt1176-sdk/middleware/usb/include/usb.h"
@@ -143,6 +145,22 @@ class CdcNcm {
   uint8_t interrupt_ep_, bulk_in_ep_, bulk_out_ep_;
   QueueHandle_t tx_queue_;
   uint16_t tx_sequence_ = 0;
+
+  // Bulk-IN ownership of tx_buffer_.  USB_DeviceCdcAcmSend() is
+  // asynchronous (DMA straight from tx_buffer_); the next NTB may only be
+  // built once the previous one has completed (kUSB_DeviceCdcEventSendResponse)
+  // -- before 2026-10-31 the buffer was overwritten while in flight, which
+  // corrupted every back-to-back NTB (host RX errors, 256 KB at 17 KB/s).
+  volatile bool tx_in_flight_ = false;
+  volatile bool tx_zlp_pending_ = false;   // send a ZLP when the data NTB completes
+  SemaphoreHandle_t tx_done_sem_ = nullptr;
+  uint32_t tx_busy_drops_ = 0;             // NTBs dropped: IN still busy after kSendBusyWaitMs
+  uint32_t tx_queue_drops_ = 0;            // lwIP frames dropped: tx_queue_ full after kTxQueueWaitMs
+  alignas(4) uint8_t tx_zlp_ = 0;
+  // Blocks (bounded) until the IN endpoint is free; false = still busy, drop.
+  bool TxWaitIdle();
+  // Marks a successful data send as in flight (and arms the ZLP if needed).
+  void TxStarted(uint32_t total_len);
 
   alignas(4) uint8_t tx_buffer_[kNtbMaxSize];
   alignas(4) uint8_t rx_buffer_[kNtbMaxSize];

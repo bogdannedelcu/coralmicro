@@ -1,0 +1,11 @@
+SentAI v1.0 build 1637 (2026-10-31 00:45:52)
+(124735488, 512, 60906, True, 'SD64G')
+
+| size | write ms | write KB/s | read ms | read KB/s | ok |
+|---|---|---|---|---|---|
+| 64 KB | 74 | 865 | 5 | 12800 | True |
+| 256 KB | 236 | 1085 | 16 | 16000 | True |
+
+B3 64 x 4 KB append: 394 ms (6.2 ms/append, 650 KB/s)
+B4 fs.sync(): 0 ms
+B5 HTTP /api/raw 256 KB x3: median 15.443 s = 17 KB/s

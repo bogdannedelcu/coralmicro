@@ -104,6 +104,12 @@ usb_status_t CdcAcm::SetControlLineState(
 }
 
 void CdcAcm::SetConfiguration() {
+  // A (re)configuration means any previous bulk-IN transfer is gone; the
+  // completion callback that would have cleared tx_in_flight_ will never
+  // fire (audit M3: cable yank mid-print left the console mute until
+  // reboot).  Reset the latch and drain a stale completion token.
+  tx_in_flight_ = false;
+  if (tx_semaphore_) (void)xSemaphoreTake(tx_semaphore_, 0);
   usb_status_t status =
       USB_DeviceCdcAcmRecv(class_handle_, bulk_out_ep_, rx_buffer_,
                            cdc_acm_data_endpoints_[DATA_OUT].maxPacketSize);

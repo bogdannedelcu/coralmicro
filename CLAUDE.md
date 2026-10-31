@@ -134,7 +134,9 @@ python3 scripts/flashtool.py -e sentai_runtime --ram
 | `0003-fsl-csi-coralmicro-irq-hooks.patch` | flow / pipeline can't tag per-buffer cam_id |
 | `0004-lwip-httpd-empty-body-post.patch` | `/api/write` HTTP returns 500 on empty body |
 
-`git status` ALWAYS shows the SDK submodule as dirty (` m third_party/nxp/rt1176-sdk`) — **this is intentional**, the dirty state means patches are live. After any `git submodule update --init --recursive`, re-run `bash scripts/apply_sdk_patches.sh` (or just re-run cmake configure). Bypass with `-DSENTAI_SKIP_SDK_PATCHES=ON` only for CI sanity checks.
+The same script also applies `patches/micropython/` onto `third_party/micropython` (currently `0001-objint-longlong-from-str-len-honour-len.patch` — without it any int literal > 2^30 fails to parse when a longer token precedes it on the line). The ARM build compiles the embed copy under `examples/sentai_runtime/micropython_embed/py/`, which `/qstr-regen` regenerates from the patched submodule — keep both in sync.
+
+`git status` ALWAYS shows the SDK and MicroPython submodules as dirty (` m third_party/nxp/rt1176-sdk`, ` m third_party/micropython`) — **this is intentional**, the dirty state means patches are live. After any `git submodule update --init --recursive`, re-run `bash scripts/apply_sdk_patches.sh` (or just re-run cmake configure). Bypass with `-DSENTAI_SKIP_SDK_PATCHES=ON` only for CI sanity checks.
 
 The other knob in the top-level `CMakeLists.txt` is `-DSENTAI_TPU_MULTI_EP=ON` to select the experimental multi-endpoint EdgeTPU firmware blob (default OFF = single-EP).
 

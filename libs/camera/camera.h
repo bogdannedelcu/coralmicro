@@ -388,9 +388,20 @@ class CameraTask
   void SetDefaultRegisters();
   void SetMotionDetectionRegisters();
   bool Detect(void);
+  // Per-bus detect: reads WHO_AM_I on cam_id's own bus and checks BOTH the
+  // transfer status and the value (the legacy Detect() could report a dead
+  // bus as present because Read() fills one buffer from both buses).
+  bool Detect(int cam_id);
+  // Bitmask of cameras that answered at the last SetPower(true): bit0 cam0.
+  uint8_t DetectedMask() const { return detected_mask_; }
 
   lpi2c_rtos_handle_t* i2c_handle_;
   lpi2c_rtos_handle_t* i2c_handle2_;
+  uint8_t detected_mask_ = 0;
+  // Frames currently handed out to consumers (camera_task context only).
+  // Bounded so the CSI always keeps >= 2 buffers armed; see
+  // HandleFrameRequest.
+  int frames_held_ = 0;
   csi_handle_t csi_handle_;
   csi_config_t csi_config_;
   CameraMode mode_;

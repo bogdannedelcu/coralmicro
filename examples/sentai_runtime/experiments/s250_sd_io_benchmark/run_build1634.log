@@ -1,0 +1,11 @@
+SentAI v1.0 build 1634 (2026-10-31 00:35:36)
+(124735488, 512, 60906, True, 'SD64G')
+
+| size | write ms | write KB/s | read ms | read KB/s | ok |
+|---|---|---|---|---|---|
+| 64 KB | 64 | 1000 | 2 | 32000 | True |
+| 256 KB | 20 | 12488 | 24 | 10667 | False |
+
+B3 64 x 4 KB append: 2050 ms (32.0 ms/append, 125 KB/s)
+B4 fs.sync(): OSError: lfs busy ms
+B5 HTTP: no complete transfer

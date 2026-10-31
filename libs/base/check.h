@@ -37,13 +37,28 @@
 
 #if (__CORTEX_M == 7)
 #include "libs/base/console_m7.h"
-#define CHECK(a)                                                 \
-  do {                                                           \
-    if (!(a)) {                                                  \
-      coralmicro::ConsoleM7::GetSingleton()->EmergencyWrite(     \
-          "%s:%d %s was not true.\r\n", __FILE__, __LINE__, #a); \
-      vTaskSuspendAll();                                         \
-    }                                                            \
+#include "third_party/freertos_kernel/include/FreeRTOS.h"
+#include "third_party/freertos_kernel/include/task.h"
+/* 2026-10-30 hardening (embeded.md §10 anti-brick, audit C2/M11):
+ *  - BEFORE the scheduler runs, a failed CHECK must NOT call
+ *    vTaskSuspendAll(): it leaves uxSchedulerSuspended != 0, the first
+ *    task to block then trips configASSERT -> reset loop before USB ever
+ *    enumerates (a true brick).  We report and continue; every
+ *    pre-scheduler precondition has a downstream guard.
+ *  - AFTER the scheduler runs, a failed CHECK used to freeze every task
+ *    silently until WDOG1 fired 30 s later.  Report, then reset at once
+ *    (same path as configASSERT) so the breadcrumb is the last message. */
+#define CHECK(a)                                                            \
+  do {                                                                      \
+    if (!(a)) {                                                             \
+      coralmicro::ConsoleM7::GetSingleton()->EmergencyWrite(                \
+          "%s:%d %s was not true.\r\n", __FILE__, __LINE__, #a);            \
+      if (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED) {          \
+        (*(volatile uint32_t*)0xE000ED0CUL) = (0x5FAUL << 16U) | (1UL << 2U); \
+        for (;;) {                                                          \
+        }                                                                   \
+      }                                                                     \
+    }                                                                       \
   } while (0)
 #elif (__CORTEX_M == 4)
 #include "libs/base/console_m4.h"

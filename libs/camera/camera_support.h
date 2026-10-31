@@ -163,7 +163,7 @@ void BOARD_EarlyInitCamera(void);
 
 void BOARD_InitCameraResource(void);
 
-void BOARD_InitMipiCsi(void);
+status_t BOARD_InitMipiCsi(void);  /* kStatus_Fail: MIPI clock sanity check failed (no spin) */
 
 status_t BOARD_Camera_I2C_SendSCCB(
     uint8_t deviceAddress, uint32_t subAddress, uint8_t subAddressSize, const uint8_t *txBuff, uint8_t txBuffSize);
@@ -176,7 +176,7 @@ void BOARD_PullCameraResetPin(bool pullUp);
 void BOARD_PullCameraPowerDownPin(bool pullUp);
 
 void BOARD_InitPxp(void);
-void BOARD_InitCamera(void);
+status_t BOARD_InitCamera(void);   /* propagates MIPI check + OV5640 Init/Start status */
 void BOARD_PxpConfig(void);
 
 uint8_t* IndexToFramebufferPtr(int index);

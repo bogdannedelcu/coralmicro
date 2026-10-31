@@ -20,6 +20,7 @@
 //   and POST is user-initiated / infrequent.
 
 #include "sentai_fs_task.h"
+#include "sentai_error.h"
 
 #include "libs/base/filesystem.h"
 #include "libs/base/fx_user_fs.h"
@@ -35,7 +36,10 @@
 // Configuration
 // ---------------------------------------------------------------------------
 #define LFS_TASK_PRIORITY  2    // above mp_repl(1), below hw_wdog(3)
-#define LFS_TASK_STACK     512  // words = 2KB
+// words.  Was 512 (2 KB): EXP-s249 measured 49 words (196 B) free after one
+// /api/ls + three /api/raw requests on build 1630 — FileX directory walk +
+// JSON formatting sit on this stack.  6 KB gives 3x headroom (audit M5).
+#define LFS_TASK_STACK     1536
 
 // Queue depth 4 (Phase 3.4): under concurrent REPL writes + HTTP /api/ls
 // burst, depth=1 saturates immediately and causes ~50% lfs_busy responses.
@@ -55,6 +59,7 @@ static uint8_t g_resp_buf[kRespBufSize] __attribute__((section(".sdram_bss")));
 // Shared with: crash_log_write, boot_log_flush, modsentai_fs, lfs_task itself.
 // ---------------------------------------------------------------------------
 static SemaphoreHandle_t s_lfs_mutex = nullptr;
+static TaskHandle_t      s_lfs_owner = nullptr;   // see sentai_fs_lock()
 
 // ---------------------------------------------------------------------------
 // Request type and queue
@@ -386,11 +391,32 @@ void sentai_fs_resp_done(void) {
 // ---------------------------------------------------------------------------
 extern "C" int sentai_fs_lock(void) {
     if (!s_lfs_mutex) return 1;  // Pre-init: single-threaded boot, allow.
-    return xSemaphoreTake(s_lfs_mutex, pdMS_TO_TICKS(2000)) == pdTRUE ? 1 : 0;
+    // Leak recovery (EXP-s250, build 1634): a MicroPython exception raised
+    // while a binding held this mutex unwinds past the unlock, and every
+    // later fs.* call from the same task then times out ("lfs busy") until
+    // reboot.  The mutex has an owner: if the caller already owns it, the
+    // previous take was leaked -- report it once and let this call proceed;
+    // its unlock balances the leaked take.  (A non-recursive mutex taken
+    // twice by its owner would otherwise block for the full timeout.)
+    // Owner tracked here (INCLUDE_xSemaphoreGetMutexHolder is off in the
+    // shared FreeRTOSConfig); written only by the holder, read racily by
+    // a would-be taker -- a stale read merely falls through to the normal
+    // bounded take.
+    TaskHandle_t self = xTaskGetCurrentTaskHandle();
+    if (s_lfs_owner == self) {
+        SERR_LOG(SERR_LFX_LOCK_RECLAIMED, (uint32_t)(uintptr_t)self);
+        printf("[fs] lock reclaimed: previous holder in this task leaked it\r\n");
+        return 1;
+    }
+    if (xSemaphoreTake(s_lfs_mutex, pdMS_TO_TICKS(2000)) != pdTRUE) return 0;
+    s_lfs_owner = self;
+    return 1;
 }
 
 extern "C" void sentai_fs_unlock(void) {
-    if (s_lfs_mutex) xSemaphoreGive(s_lfs_mutex);
+    if (!s_lfs_mutex) return;
+    s_lfs_owner = nullptr;
+    xSemaphoreGive(s_lfs_mutex);
 }
 
 // ---------------------------------------------------------------------------
@@ -404,8 +430,16 @@ extern "C" void sentai_fs_task_start(void) {
     s_lfs_mutex = xSemaphoreCreateMutex();
     s_req_queue  = xQueueCreate(LFS_QUEUE_DEPTH, sizeof(LfsRequest));
 
-    xTaskCreate(LfsTaskFn, "lfs_task", LFS_TASK_STACK, nullptr,
-                LFS_TASK_PRIORITY, nullptr);
+    if (s_lfs_mutex == nullptr || s_req_queue == nullptr ||
+        xTaskCreate(LfsTaskFn, "lfs_task", LFS_TASK_STACK, nullptr,
+                    LFS_TASK_PRIORITY, nullptr) != pdPASS) {
+        // HTTP /api/* is served through this task; without it every request
+        // times out.  Say so once instead of failing silently.
+        printf("[fs_task] ERROR: start failed (mutex=%p queue=%p) -- "
+               "HTTP file API unavailable\r\n",
+               (void*)s_lfs_mutex, (void*)s_req_queue);
+        return;
+    }
 
     printf("[fs_task] started (priority=%d buf=%uKB)\r\n",
            LFS_TASK_PRIORITY, (unsigned)(kRespBufSize / 1024));

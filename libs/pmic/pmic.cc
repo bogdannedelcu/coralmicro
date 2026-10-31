@@ -228,29 +228,23 @@ bool PmicTask::Transfer(lpi2c_master_transfer_t* transfer) {
   status_t res = kStatus_Success;
   uint32_t attempts = 0;
 
-  res = LPI2C_RTOS_Transfer(i2c_handle_, transfer);
-  printf("[PMIC]: %s|0x%04X=0x%02X%02X|(s1: %ld)\n", 
-      transfer->direction == kLPI2C_Read ? "Rx" : "Tx", 
-      transfer->subaddress, 
-      ((uint8_t*)transfer->data)[0],
-      ((uint8_t*)transfer->data)[1],
-      res);
+  // Bounded retry on bus-busy / arbitration-lost only; every other status
+  // is a real failure.  Log failures only: a printf per transfer (the
+  // bring-up trace) churned the console heap from a priority-4 task.
+  do {
+    res = LPI2C_RTOS_Transfer(i2c_handle_, transfer);
+    if (res != kStatus_LPI2C_Busy && res != kStatus_LPI2C_ArbitrationLost) {
+      break;
+    }
+    attempts++;
+    taskYIELD();
+  } while (attempts < kMaxTransferRetries);
 
-  // do {
-  //   if (res == kStatus_LPI2C_Busy) {
-  //     taskYIELD();
-  //   } else if (res == kStatus_LPI2C_ArbitrationLost) {
-  //     attempts++;
-  //     if (attempts >= kMaxTransferRetries) {
-  //       break;
-  //     } else {
-  //       // Retry right away.
-  //     }
-  //   }
-  //   res = LPI2C_RTOS_Transfer(i2c_handle_, transfer);
-  // } while ((res == kStatus_LPI2C_Busy) ||
-  //          (res == kStatus_LPI2C_ArbitrationLost));
-
+  if (res != kStatus_Success) {
+    printf("[PMIC] %s reg 0x%04X failed: status %ld after %lu attempts\r\n",
+           transfer->direction == kLPI2C_Read ? "read" : "write",
+           (unsigned)transfer->subaddress, (long)res, (unsigned long)attempts);
+  }
   return res == kStatus_Success;
 }
 

@@ -138,6 +138,21 @@ class ConsoleM7 {
   volatile size_t usb_rx_read_ = 0, usb_rx_write_ = 0, usb_rx_available_ = 0;
   SemaphoreHandle_t usb_rx_sem_ = nullptr;   // signaled when USB RX data arrives
   void UsbRxHandler(const uint8_t* data, uint32_t len);
+  // Ctrl-C interception (2026-10-30): while a Python statement executes,
+  // 0x03 is removed from the RX stream here and latched, so the ctrl-c
+  // monitor never has to read (and steal) ordinary input bytes.
+  volatile bool usb_ctrlc_intercept_ = false;
+  volatile bool usb_ctrlc_seen_ = false;
+  volatile uint32_t usb_rx_dropped_ = 0;     // bytes dropped: RX ring full
+  volatile uint32_t tx_dropped_ = 0;         // messages dropped: TX queue full
+
+ public:
+  void UsbCtrlCIntercept(bool on) { usb_ctrlc_intercept_ = on; if (!on) usb_ctrlc_seen_ = false; }
+  bool UsbCtrlCTake() { bool v = usb_ctrlc_seen_; usb_ctrlc_seen_ = false; return v; }
+  uint32_t UsbRxDropped() const { return usb_rx_dropped_; }
+  uint32_t TxDropped() const { return tx_dropped_; }
+
+ private:
 
   // REPL target state
   ReplTarget repl_target_ = ReplTarget::kUsb;

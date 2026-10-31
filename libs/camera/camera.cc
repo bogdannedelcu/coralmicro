@@ -15,6 +15,7 @@
  */
 
 #include "libs/camera/camera.h"
+#include "examples/sentai_runtime/sentai_error.h"
 
 #include "camera.h"
 #include "libs/base/check.h"
@@ -146,6 +147,7 @@ static void Rgb8888ToRgb(const uint8_t* in, uint8_t* out, int width, int height,
   }
 }
 
+__attribute__((unused))  // legacy software path; PXP does this conversion now
 static void Rgb888ToRgb(const uint8_t* in, uint8_t* out, int width, int height, int line_padding=LINE_PADDING) {
   for (int y = 0; y < height; ++y) {
     for (int x = 0; x < width; ++x) {
@@ -533,12 +535,26 @@ bool CameraTask::Read(uint16_t reg, uint8_t* val) {
   transfer.data = val;
   transfer.dataSize = sizeof(*val);
 
-  status_t status2 = LPI2C_RTOS_Transfer(i2c_handle2_, &transfer);
-  status_t status1 = LPI2C_RTOS_Transfer(i2c_handle_, &transfer);
+  // Read from the detected camera(s); cam0's value wins when both answer
+  // (same sensor type, same register map).  A bus whose camera was not
+  // detected at power-on is skipped so it cannot mask the live one.
+  const uint8_t mask = detected_mask_ ? detected_mask_ : 0x3u;
+  status_t status2 = (mask & 2u) ? LPI2C_RTOS_Transfer(i2c_handle2_, &transfer)
+                                 : kStatus_Success;
+  status_t status1 = (mask & 1u) ? LPI2C_RTOS_Transfer(i2c_handle_, &transfer)
+                                 : kStatus_Success;
 
   DBG_OUTPUT("Rx|0x%04X=0x%02X|(s1: %ld)(s2:%ld)\n", reg, val[0], status1, status2);
+  if (status1 != kStatus_Success || status2 != kStatus_Success) {
+    // Cold path (failures only): names the register + per-bus LPI2C status
+    // so a NACK on one camera bus is visible without the DBG build.
+    printf("[CAM] R 0x%04X FAIL s1=%ld s2=%ld\r\n", reg, (long)status1,
+           (long)status2);
+    SERR_LOG(SERR_CAM_I2C_FAIL,
+             ((status1 != kStatus_Success ? 1u : 2u) << 8) | (reg >> 8));
+  }
 
-  return status1 == kStatus_Success;
+  return status1 == kStatus_Success && status2 == kStatus_Success;
 }
 
 bool CameraTask::Write(uint16_t reg, uint8_t val) {
@@ -555,12 +571,24 @@ bool CameraTask::Write(uint16_t reg, const uint8_t *val, int size) {
   transfer.data = (void *)val;
   transfer.dataSize = size;
 
-  status_t status1 = LPI2C_RTOS_Transfer(i2c_handle_, &transfer);
-  status_t status2 = LPI2C_RTOS_Transfer(i2c_handle2_, &transfer);
+  // Write to every detected camera; success requires each of them to ACK
+  // (2026-10-30 audit M2: the old code returned bus-1 status only, so a
+  // half-programmed cam1 looked like a successful init).
+  const uint8_t mask = detected_mask_ ? detected_mask_ : 0x3u;
+  status_t status1 = (mask & 1u) ? LPI2C_RTOS_Transfer(i2c_handle_, &transfer)
+                                 : kStatus_Success;
+  status_t status2 = (mask & 2u) ? LPI2C_RTOS_Transfer(i2c_handle2_, &transfer)
+                                 : kStatus_Success;
 
   DBG_OUTPUT("Tx|0x%04X=0x%02X|(s1: %ld)(s2:%ld)\n", reg, val[0], status1, status2);
+  if (status1 != kStatus_Success || status2 != kStatus_Success) {
+    printf("[CAM] W 0x%04X=0x%02X FAIL s1=%ld s2=%ld\r\n", reg, val[0],
+           (long)status1, (long)status2);
+    SERR_LOG(SERR_CAM_I2C_FAIL,
+             ((status1 != kStatus_Success ? 1u : 2u) << 8) | (reg >> 8));
+  }
 
-  return status1 == kStatus_Success;
+  return status1 == kStatus_Success && status2 == kStatus_Success;
 }
 
 bool CameraTask::WriteToCam(int cam_id, uint16_t reg, uint8_t val) {
@@ -664,7 +692,8 @@ void CameraTask::Init(lpi2c_rtos_handle_t* i2c_handle, lpi2c_rtos_handle_t* i2c_
   GpioSetMode(Gpio::kCamPwrDn2, GpioMode::kOutput);
   GpioSetMode(Gpio::kCamMux, GpioMode::kOutput);
 
-  printf ("%s: i2c_Handle: 0x%x, i2c_handle2: 0x%x", __func__, i2c_handle, i2c_handle2);
+  printf ("%s: i2c_Handle: %p, i2c_handle2: %p\r\n", __func__,
+          static_cast<void*>(i2c_handle), static_cast<void*>(i2c_handle2));
 }
 
 void CameraTask::SwitchCamera(SwitchCameraId cameraId) {
@@ -679,14 +708,19 @@ int CameraTask::GetFrame(uint8_t** buffer, bool block) {
   req.type = camera::RequestType::kFrame;
   req.request.frame.index = -1;
   // Non-blocking callers (TryGetRawFrame) must NOT stall inside the camera
-  // task's 4-second polling loop.  Blocking callers keep the original
-  // re-request behaviour until a buffer becomes available.
+  // task's 4-second polling loop.  Blocking callers get exactly ONE pass of
+  // that bounded poll (2026-10-30 audit C1: the old `do { } while (index ==
+  // -1)` re-sent the request forever, so a sensor that produced no frames
+  // parked the REPL in SendRequest() with no supervisor escape).  The
+  // documented contract — "-1 on failure" — now actually holds and the
+  // callers' recovery paths become reachable.
   req.request.frame.try_only = !block;
-  camera::Response resp;
-
-  do {
-    resp = SendRequest(req);
-  } while (block && resp.response.frame.index == -1);
+  camera::Response resp = SendRequest(req);
+  if (resp.response.frame.index == -1) {
+    if (block) SERR_LOG(SERR_CAM_GRAB_TIMEOUT, g_cam_current_id);
+    *buffer = nullptr;
+    return -1;
+  }
   *buffer = IndexToFramebufferPtr(resp.response.frame.index);
   return resp.response.frame.index;
 }
@@ -827,12 +861,18 @@ bool CameraTask::VideoConvert(uint32_t in)
 
   printf("pxp waiting to complete ...\r\n");
 
-  /* Wait for PXP process complete. */
-  while (!(kPXP_CompleteFlag & PXP_GetStatusFlags(DEMO_PXP)));
+  /* Wait for PXP process complete — bounded (legacy helper, unused by
+   * SentAI; kept compiling, never spin forever). */
+  uint32_t spins = 0;
+  for (; !(kPXP_CompleteFlag & PXP_GetStatusFlags(DEMO_PXP)) && spins < 2000000u;
+       ++spins) {
+  }
+  const bool completed = (kPXP_CompleteFlag & PXP_GetStatusFlags(DEMO_PXP)) != 0;
 
-  printf("pxp done\r\n");
+  printf("pxp %s\r\n", completed ? "done" : "TIMEOUT");
 
   PXP_ClearStatusFlags(DEMO_PXP, kPXP_CompleteFlag);
+  return completed;  // was falling off the end of a bool function (UB)
 }
 
 // Owned by sentai_runtime.cc.  We write it here, atomically with the
@@ -887,7 +927,7 @@ void CameraTask::HandleSwitchCameraRequest(const SwitchCameraId cameraId) {
         break;
 
     default:
-        printf("Invalid switchCameraId: %d\n", cameraId);
+        printf("Invalid switchCameraId: %d\n", static_cast<int>(cameraId));
         return;
   }
 }
@@ -896,12 +936,24 @@ void CameraTask::HandleSwitchCameraRequest(const SwitchCameraId cameraId) {
 camera::EnableResponse CameraTask::HandleEnableRequest(const CameraMode& mode) {
   camera::EnableResponse resp;
   status_t status;
-  camera_config_t cameraConfig;
 
   // vTaskDelay(pdMS_TO_TICKS(1000));
 
   BOARD_InitPxp();
-  BOARD_InitCamera();
+  {
+    // MIPI clock sanity + OV5640 Init/Start now return status instead of
+    // spinning forever / printing only (2026-10-30 audit C2 + M2).
+    status_t init_st = BOARD_InitCamera();
+    if (init_st != kStatus_Success) {
+      SERR_LOG(SERR_CAM_DEV_INIT_FAIL, (uint32_t)init_st);
+      printf("[CAM] BOARD_InitCamera failed: %ld -> camera stays disabled\r\n",
+             (long)init_st);
+      resp.success = false;
+      return resp;
+    }
+  }
+  // BOARD_InitCamera re-armed every framebuffer: nothing is held any more.
+  frames_held_ = 0;
 
   for(int n=0; n<10; n++)
   {
@@ -950,6 +1002,20 @@ camera::EnableResponse CameraTask::HandleEnableRequest(const CameraMode& mode) {
   }
 
   return resp;
+}
+
+bool CameraTask::Detect(int cam_id)
+{
+  // Status-checked, single-bus detect.  Bounded: 10 attempts.
+  for (int i = 0; i < 10; ++i) {
+    uint8_t h = 0xff, l = 0xff;
+    if (ReadFromCam(cam_id, 0x300A, &h) && ReadFromCam(cam_id, 0x300B, &l) &&
+        h == kModelIdHExpected && l == kModelIdLExpected) {
+      return true;
+    }
+    vTaskDelay(pdMS_TO_TICKS(2));
+  }
+  return false;
 }
 
 bool CameraTask::Detect(void)
@@ -1019,19 +1085,15 @@ camera::PowerResponse CameraTask::HandlePowerRequest(
     vTaskDelay(pdMS_TO_TICKS(40));
     // Set MUX on front camera by default
     coralmicro::GpioSet((coralmicro::Gpio) Gpio::kCamMux, MUX_FRONT_CAMERA);
-    // Init Cam on I2C1
-    resp.success = CameraTask::Detect();
-    printf ("%s: try I2C1: %s\n", __func__,
-      resp.success ? "Success":"Failed");
-    if (i2c_handle2_) {
-      lpi2c_rtos_handle_t *old = i2c_handle_;
-      i2c_handle_ = i2c_handle2_;
-      // Init Cam on I2C2
-      resp.success = CameraTask::Detect();
-      printf ("%s: try I2C2: %s\n", __func__,
-        resp.success ? "Success":"Failed");
-      i2c_handle_ = old;
-    }
+    // Per-bus, status-checked detect (2026-10-30 audit M1).  The legacy
+    // swap-the-handle probe reported cam1's answer for both buses.
+    const bool cam0_ok = Detect(0);
+    const bool cam1_ok = (i2c_handle2_ != nullptr) && Detect(1);
+    detected_mask_ = (cam0_ok ? 1u : 0u) | (cam1_ok ? 2u : 0u);
+    printf("%s: cam0 (bus 1): %s, cam1 (bus 2): %s\n", __func__,
+           cam0_ok ? "OK" : "NO ANSWER", cam1_ok ? "OK" : "NO ANSWER");
+    SERR_LOG(SERR_CAM_DETECT, detected_mask_);
+    resp.success = (detected_mask_ != 0u);  // at least one sensor present
   } else {
     // Power down: assert power-down and reset pins with same delays as enable
     coralmicro::GpioSet((coralmicro::Gpio)Gpio::kCamPwrDn, 1);
@@ -1112,6 +1174,29 @@ camera::FrameResponse CameraTask::HandleFrameRequest(
         coralmicro::GpioSet((coralmicro::Gpio) coralmicro::Gpio::kStatusLed, 0);
       }
 
+      // Holder cap (audit 2026-10-30, camera M4).  The CSI driver needs two
+      // buffers armed to keep streaming; with kFramebufferCount buffers a
+      // consumer set that holds kFramebufferCount-1 of them and then waits
+      // for a new frame waits forever.  Refuse the hand-out instead: re-arm
+      // this buffer and report -1, which every caller already treats as
+      // "no frame" (same path as a grab timeout).
+      // Cap = kFramebufferCount-1: with one buffer left armed the CSI
+      // stalls (it needs two) but recovers as soon as any holder returns;
+      // only "all buffers held" is a true deadlock.  A cap of -2 (first
+      // attempt, build 1632) fired on the legitimate transient of
+      // sentai_cam_grab_latest() (probe N+1 before returning N) whenever a
+      // second consumer held a frame -- at frame rate, flooding the logs
+      // (§14 review MAJOR 1).  Log rate-limited: first hit, then every 256th.
+      if (frames_held_ >= kFramebufferCount - 1) {
+        static uint32_t hold_limit_hits = 0;
+        if ((hold_limit_hits++ & 0xFFu) == 0u) {
+          SERR_LOG(SERR_CAM_HOLD_LIMIT, hold_limit_hits);
+        }
+        CAMERA_RECEIVER_SubmitEmptyBuffer(&cameraReceiver, buffer);
+        resp.index = -1;
+        return resp;
+      }
+      frames_held_++;
       resp.index = FramebufferPtrToIndex(reinterpret_cast<uint8_t*>(buffer));
 
       // Build #947 — back to the scalar g_cam_last_completed_id.
@@ -1148,6 +1233,7 @@ camera::FrameResponse CameraTask::HandleFrameRequest(
 #endif
       status = CAMERA_RECEIVER_SubmitEmptyBuffer(&cameraReceiver, (uint32_t)buffer);
       DBG_OUTPUT ("CAMERA_RECEIVER_SubmitEmptyBuffer:status = %ld\r\n", status);
+      if (frames_held_ > 0) frames_held_--;
     }
   }
 
@@ -1176,7 +1262,12 @@ void CameraTask::HandleTestPatternRequest(
 
 void CameraTask::HandleDiscardRequest(const camera::DiscardRequest& discard) {
   int discarded = 0;
-  while (discarded < discard.count) {
+  // Bounded: each failed poll costs up to 4 s inside the camera task and
+  // blocks every other camera request, so give up after count+2 misses
+  // (2026-10-30 audit C3).
+  int attempts = 0;
+  const int max_attempts = discard.count + 2;
+  while (discarded < discard.count && attempts++ < max_attempts) {
     camera::FrameRequest request;
     request.index = -1;
     camera::FrameResponse resp = HandleFrameRequest(request);

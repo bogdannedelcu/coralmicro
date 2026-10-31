@@ -8,57 +8,72 @@
 extern int  sentai_fs_lock(void);
 extern void sentai_fs_unlock(void);
 
-// sentai.fs.read(path) -> bytes
-static mp_obj_t mod_sentai_fs_read(mp_obj_t path_obj) {
-    _fs_check_usb();
-    const char* path = mp_obj_str_get_str(path_obj);
+// Whole-file reads land on the 1 MB MicroPython GC heap.  Cap them so a
+// large capture/log does not raise MemoryError deep inside a mission (or
+// fragment the heap for the rest of the session); bulk data goes over HTTP
+// /api/raw or the USB drive (audit 2026-10-30, M10).  The read goes
+// straight into the result object's storage (vstr), so the file is copied
+// once, not twice as with the old m_new + mp_obj_new_bytes pair.
+#define FS_READ_MAX_BYTES  (512 * 1024)
+
+// Locks, sizes and reads `path` into `vstr` (len = bytes actually read).
+// Raises OSError on lock timeout, missing file, oversize or read error.
+//
+// LOCK DISCIPLINE: nothing that can raise (allocation!) may run while the
+// FS lock is held — a MicroPython exception unwinds straight past the
+// unlock and leaves every later fs.* call failing with "lfs busy" until
+// reboot (seen in EXP-s250 on build 1634, a MemoryError inside the read).
+// Hence two short lock windows with the allocation in between; the size
+// can change in between, so the read length is taken from the actual
+// return value.
+static void fs_read_whole(const char* path, vstr_t* vstr, int max_bytes) {
     if (!sentai_fs_lock()) {
         mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("lfs busy"));
     }
     int size = sentai_fs_size(path);
+    sentai_fs_unlock();
     if (size < 0) {
-        sentai_fs_unlock();
         mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("file not found"));
     }
-    mp_obj_t result;
-    if (size == 0) {
-        sentai_fs_unlock();
-        result = mp_obj_new_bytes((const uint8_t*)"", 0);
-    } else {
-        uint8_t* buf = m_new(uint8_t, size);
-        int n = sentai_fs_read(path, buf, size);
-        sentai_fs_unlock();
-        result = mp_obj_new_bytes(buf, n > 0 ? n : 0);
-        m_del(uint8_t, buf, size);
+    if (size > max_bytes) {
+        mp_raise_msg_varg(&mp_type_OSError,
+            MP_ERROR_TEXT("file too large for fs.read (%d B > %d B): use HTTP /api/raw"),
+            size, max_bytes);
     }
-    return result;
+    if (size == 0) {
+        vstr_init(vstr, 1);
+        return;
+    }
+    vstr_init_len(vstr, (size_t)size);   // may raise MemoryError — no lock held
+
+    if (!sentai_fs_lock()) {
+        vstr_clear(vstr);
+        mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("lfs busy"));
+    }
+    int n = sentai_fs_read(path, (uint8_t*)vstr->buf, size);
+    sentai_fs_unlock();
+    if (n < 0) {
+        vstr_clear(vstr);
+        mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("read error"));
+    }
+    vstr->len = (size_t)n;
+}
+
+// sentai.fs.read(path) -> bytes
+static mp_obj_t mod_sentai_fs_read(mp_obj_t path_obj) {
+    _fs_check_usb();
+    vstr_t vstr;
+    fs_read_whole(mp_obj_str_get_str(path_obj), &vstr, FS_READ_MAX_BYTES);
+    return mp_obj_new_bytes_from_vstr(&vstr);
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_fs_read_obj, mod_sentai_fs_read);
 
 // sentai.fs.read_str(path) -> str
 static mp_obj_t mod_sentai_fs_read_str(mp_obj_t path_obj) {
     _fs_check_usb();
-    const char* path = mp_obj_str_get_str(path_obj);
-    if (!sentai_fs_lock()) {
-        mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("lfs busy"));
-    }
-    int size = sentai_fs_size(path);
-    if (size < 0) {
-        sentai_fs_unlock();
-        mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("file not found"));
-    }
-    mp_obj_t result;
-    if (size == 0) {
-        sentai_fs_unlock();
-        result = mp_obj_new_str("", 0);
-    } else {
-        uint8_t* buf = m_new(uint8_t, size);
-        int n = sentai_fs_read(path, buf, size);
-        sentai_fs_unlock();
-        result = mp_obj_new_str((const char*)buf, n > 0 ? n : 0);
-        m_del(uint8_t, buf, size);
-    }
-    return result;
+    vstr_t vstr;
+    fs_read_whole(mp_obj_str_get_str(path_obj), &vstr, FS_READ_MAX_BYTES);
+    return mp_obj_new_str_from_vstr(&vstr);
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_fs_read_str_obj, mod_sentai_fs_read_str);
 
@@ -68,22 +83,15 @@ static const char b64_table[] =
 
 static mp_obj_t mod_sentai_fs_read_base64(mp_obj_t path_obj) {
     _fs_check_usb();
-    const char* path = mp_obj_str_get_str(path_obj);
-    if (!sentai_fs_lock()) {
-        mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("lfs busy"));
-    }
-    int size = sentai_fs_size(path);
-    if (size < 0) {
-        sentai_fs_unlock();
-        mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("file not found"));
-    }
-    uint8_t* buf = m_new(uint8_t, size > 0 ? size : 1);
-    int n = sentai_fs_read(path, buf, size);
-    sentai_fs_unlock();
-    if (n <= 0) {
-        m_del(uint8_t, buf, size > 0 ? size : 1);
+    // Raw + base64 copies coexist (2.33x the file), so the cap is lower.
+    vstr_t vstr;
+    fs_read_whole(mp_obj_str_get_str(path_obj), &vstr, FS_READ_MAX_BYTES / 2);
+    if (vstr.len == 0) {
+        vstr_clear(&vstr);
         mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("read error"));
     }
+    const uint8_t* buf = (const uint8_t*)vstr.buf;
+    int n = (int)vstr.len;
     int b64_len = ((n + 2) / 3) * 4;
     char* b64 = m_new(char, b64_len + 1);
     int j = 0;
@@ -98,7 +106,7 @@ static mp_obj_t mod_sentai_fs_read_base64(mp_obj_t path_obj) {
         b64[j++] = (i + 2 < n) ? b64_table[triple & 0x3F] : '=';
     }
     b64[j] = '\0';
-    m_del(uint8_t, buf, size > 0 ? size : 1);
+    vstr_clear(&vstr);
     for (int i = 0; i < j; i += 76) {
         int chunk = (j - i > 76) ? 76 : (j - i);
         sentai_console_write(b64 + i, chunk);

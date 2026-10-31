@@ -49,6 +49,10 @@ void I2cInit(I2cConfig& config, bool controller) {
   config.controller = controller;
   if (controller) {
     LPI2C_MasterGetDefaultConfig(&config.controller_config);
+    // Bound every transfer: a slave that clock-stretches forever (or a lost
+    // LPI2C IRQ) otherwise parks LPI2C_RTOS_Transfer at portMAX_DELAY
+    // (2026-10-30 audit M3).  Hardware limit ~43 ms at 24 MHz; 20 ms.
+    config.controller_config.pinLowTimeout_ns = 20000000U;
   } else {
     LPI2C_SlaveGetDefaultConfig(&config.target_config);
   }

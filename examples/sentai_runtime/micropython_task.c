@@ -6,6 +6,7 @@
 #include "port/micropython_embed.h"
 #include "mp_embed_safe.h"
 #include "py/runtime.h"
+#include "py/stackctrl.h"
 
 #include "third_party/freertos_kernel/include/FreeRTOS.h"
 #include "third_party/freertos_kernel/include/task.h"
@@ -90,13 +91,19 @@ extern void sentai_console_write(const char* buf, int size);
 static volatile int ctrlc_monitor_running = 0;
 static TaskHandle_t ctrlc_monitor_handle = NULL;
 
+extern void sentai_console_ctrlc_intercept(int on);
+extern int  sentai_console_ctrlc_take(void);
+
+// 2026-10-30 audit M1: this task used to READ one byte per 20 ms from the
+// console stream and discard anything that was not 0x03 — during a paste it
+// ate the first character of every following line, and a monitor left over
+// from a quick Ctrl-C kept stealing bytes for the rest of the session.  It
+// now only polls a flag that the USB RX path latches when it intercepts 0x03.
 static void ctrlc_monitor_task(void* param) {
     (void)param;
-    char ch;
     TickType_t last_heartbeat = xTaskGetTickCount();
     while (ctrlc_monitor_running) {
-        int n = sentai_console_read(&ch, 1);
-        if (n == 1 && ch == 0x03) {
+        if (sentai_console_ctrlc_take()) {
             mp_sched_keyboard_interrupt();
             // Small delay to avoid flooding interrupts
             vTaskDelay(pdMS_TO_TICKS(200));
@@ -112,22 +119,30 @@ static void ctrlc_monitor_task(void* param) {
             last_heartbeat = now;
         }
     }
+    ctrlc_monitor_handle = NULL;   // published before the task disappears
     vTaskDelete(NULL);
 }
 
 static void ctrlc_monitor_start(void) {
+    sentai_console_ctrlc_intercept(1);
+    if (ctrlc_monitor_handle != NULL) return;   // never run two monitors
     ctrlc_monitor_running = 1;
-    xTaskCreate(ctrlc_monitor_task, "ctrlc",
-                512 / sizeof(StackType_t),
-                NULL, tskIDLE_PRIORITY + 2,
-                &ctrlc_monitor_handle);
+    if (xTaskCreate(ctrlc_monitor_task, "ctrlc",
+                    1024 / sizeof(StackType_t),
+                    NULL, tskIDLE_PRIORITY + 2,
+                    &ctrlc_monitor_handle) != pdPASS) {
+        ctrlc_monitor_handle = NULL;
+        ctrlc_monitor_running = 0;
+    }
 }
 
 static void ctrlc_monitor_stop(void) {
     ctrlc_monitor_running = 0;
-    // Give the monitor task time to exit
-    vTaskDelay(pdMS_TO_TICKS(50));
-    ctrlc_monitor_handle = NULL;
+    // Bounded join: the task sleeps at most 200 ms per iteration.
+    for (int i = 0; i < 30 && ctrlc_monitor_handle != NULL; ++i) {
+        vTaskDelay(pdMS_TO_TICKS(10));
+    }
+    sentai_console_ctrlc_intercept(0);
 }
 
 // ===================== Safe boot: crash counter =====================
@@ -168,57 +183,79 @@ static int safe_boot_check(void) {
         return 1;  // safe mode - skip main.py
     }
 
-    // Write incremented counter
-    sentai_fs_makedirs("/log");
+    // Write incremented counter.  If the card refuses the write there is no
+    // boot-loop protection this boot — say so instead of failing silently
+    // (audit m4), the operator reads it in boot.log.
+    (void)sentai_fs_makedirs("/log");
     uint8_t counter = (uint8_t)attempts;
-    sentai_fs_write("/log/.boot_pending", &counter, 1);
+    if (sentai_fs_write("/log/.boot_pending", &counter, 1) != 1) {
+        printf("[safe_boot] WARNING: cannot write /log/.boot_pending -- "
+               "boot-loop protection inactive this boot\r\n");
+    }
 
     return 0;
 }
 
 static void safe_boot_clear(void) {
-    sentai_fs_remove("/log/.boot_pending");
+    if (sentai_fs_remove("/log/.boot_pending") != 0 &&
+        sentai_fs_file_exists("/log/.boot_pending")) {
+        printf("[safe_boot] WARNING: cannot clear /log/.boot_pending -- "
+               "next boot counts as a failure\r\n");
+    }
 }
 
 // ===================== Timeout timer for main.py =====================
 static TimerHandle_t mainpy_timeout_timer = NULL;
 
+static volatile int mainpy_timed_out = 0;
 static void mainpy_timeout_callback(TimerHandle_t timer) {
     (void)timer;
-    printf("\r\n[main.py] TIMEOUT after %d seconds - interrupting\r\n",
-           MAINPY_TIMEOUT_MS / 1000);
+    // Runs on the 720 B FreeRTOS timer task: no printf here (audit C1 —
+    // printf -> _write needs >512 B of stack and takes RTOS locks).  Flag
+    // it; the REPL task prints after the interrupted script returns.
+    mainpy_timed_out = 1;
     mp_sched_keyboard_interrupt();
+}
+
+// ---- Supervised exec guard (shared by main.py and the radio $exec path) ----
+// Ctrl-C monitor + one-shot deadline.  Re-entrant calls are refused so a
+// nested guard cannot stop the outer one.
+static volatile int exec_guard_depth = 0;
+void sentai_mp_exec_guard_begin(int timeout_ms) {
+    if (exec_guard_depth++ > 0) return;
+    ctrlc_monitor_start();
+    mainpy_timed_out = 0;
+    if (timeout_ms > 0) {
+        if (mainpy_timeout_timer == NULL) {
+            mainpy_timeout_timer = xTimerCreate("mp_exec_to", pdMS_TO_TICKS(timeout_ms),
+                                                pdFALSE, NULL, mainpy_timeout_callback);
+        }
+        if (mainpy_timeout_timer) {
+            xTimerChangePeriod(mainpy_timeout_timer, pdMS_TO_TICKS(timeout_ms), pdMS_TO_TICKS(100));
+            xTimerStart(mainpy_timeout_timer, pdMS_TO_TICKS(100));
+        } else {
+            printf("[mp] exec deadline timer unavailable -- running unbounded\r\n");
+        }
+    }
+}
+void sentai_mp_exec_guard_end(void) {
+    if (exec_guard_depth == 0) return;
+    if (--exec_guard_depth > 0) return;
+    if (mainpy_timeout_timer) xTimerStop(mainpy_timeout_timer, pdMS_TO_TICKS(100));
+    ctrlc_monitor_stop();
+    if (mainpy_timed_out) {
+        mainpy_timed_out = 0;
+        printf("\r\n[mp] exec TIMEOUT -- interrupted by deadline\r\n");
+    }
 }
 
 // Execute main.py with Ctrl+C monitor AND timeout.
 // Returns: 0 = success, -1 = exception/timeout/error
 static int mp_exec_mainpy(const char* src, int timeout_ms) {
-    // Start Ctrl+C monitor
-    ctrlc_monitor_start();
-
-    // Start one-shot timeout timer
-    if (timeout_ms > 0) {
-        mainpy_timeout_timer = xTimerCreate(
-            "mainpy_to", pdMS_TO_TICKS(timeout_ms),
-            pdFALSE, NULL, mainpy_timeout_callback);
-        if (mainpy_timeout_timer) {
-            xTimerStart(mainpy_timeout_timer, portMAX_DELAY);
-        }
-    }
-
+    sentai_mp_exec_guard_begin(timeout_ms);
     // Execute with safe error handling (returns -1 on exception)
     int rc = mp_embed_exec_str_safe(src);
-
-    // Stop timeout timer
-    if (mainpy_timeout_timer) {
-        xTimerStop(mainpy_timeout_timer, portMAX_DELAY);
-        xTimerDelete(mainpy_timeout_timer, portMAX_DELAY);
-        mainpy_timeout_timer = NULL;
-    }
-
-    // Stop Ctrl+C monitor
-    ctrlc_monitor_stop();
-
+    sentai_mp_exec_guard_end();
     return rc;
 }
 
@@ -235,8 +272,23 @@ static void mp_exec_str_with_ctrlc(const char* src) {
 // actually run instead of waiting until the user pastes Python bytecode.
 // This mirrors the standard MicroPython port pattern where stdin polling
 // is the natural place to call mp_handle_pending(true).
+// One-byte pushback so repl_readline can peek past a '\r' for the '\n' of a
+// CRLF pair without losing a byte that turned out to be something else.
+static int repl_pushback = -1;
+// Set when a line ended on a bare '\r' with nothing following within the
+// peek window; a '\n' arriving as the first byte of the next line is then
+// the rest of that CRLF pair, not an empty line.
+static int repl_last_was_cr = 0;
+// Max bytes discarded after an over-long line (bounded drain).
+#define REPL_DRAIN_MAX (64 * 1024)
+
 static int repl_getchar(void) {
     char ch;
+    if (repl_pushback >= 0) {
+        int c = repl_pushback;
+        repl_pushback = -1;
+        return c;
+    }
     while (1) {
         int n = sentai_console_read(&ch, 1);
         if (n == 1) return (unsigned char)ch;
@@ -254,6 +306,11 @@ static int repl_getchar(void) {
 static int repl_getchar_timeout(int timeout_ms) {
     char ch;
     int waited = 0;
+    if (repl_pushback >= 0) {
+        int c = repl_pushback;
+        repl_pushback = -1;
+        return c;
+    }
     while (waited < timeout_ms) {
         int n = sentai_console_read(&ch, 1);
         if (n == 1) return (unsigned char)ch;
@@ -315,7 +372,23 @@ static int repl_readline(char* buf, int max_len) {
     while (pos < max_len - 1) {
         int ch = repl_getchar();
 
+        if (ch == '\n' && pos == 0 && repl_last_was_cr) {
+            // Second half of a CRLF pair whose '\n' arrived after we had
+            // already returned the line (USB packet boundary) -- not an
+            // empty line.  State-based, so it does not depend on timing.
+            repl_last_was_cr = 0;
+            continue;
+        }
+        repl_last_was_cr = 0;
         if (ch == '\r' || ch == '\n') {
+            if (ch == '\r') {
+                // CRLF endings (pasted scripts, most terminals) arrive as
+                // two bytes.  Swallow the '\n' here, otherwise it is read as
+                // an empty line and terminates an indented block early.
+                int nx = repl_getchar_timeout(5);
+                if (nx >= 0 && nx != '\n') repl_pushback = nx;
+                if (nx < 0) repl_last_was_cr = 1;   // '\n' may still follow
+            }
             repl_puts("\r\n");
             break;
         }
@@ -382,6 +455,27 @@ static int repl_readline(char* buf, int max_len) {
     buf[pos] = '\0';
     // Notify watchdog that REPL received input
     sentai_repl_activity();
+    if (pos >= max_len - 1) {
+        // Line overflowed the editor buffer.  Drain the rest of it (bounded)
+        // so the tail is not executed as a second, truncated statement.
+        int drained = 0;
+        while (drained < REPL_DRAIN_MAX) {
+            int c = repl_getchar_timeout(200);
+            if (c < 0 || c == '\r' || c == '\n') break;
+            drained++;
+        }
+        char msg[160];
+        snprintf(msg, sizeof(msg),
+                 "\r\n[repl] line too long (>%d chars, %d more discarded) -- "
+                 "input cancelled; use sentai.fs + exec() for long code\r\n",
+                 max_len - 1, drained);
+        repl_puts(msg);
+        buf[0] = '\0';
+        // -1 = "cancel", same as Ctrl-C: inside a block this discards the
+        // whole block instead of letting a 0 ("empty line") execute the
+        // truncated part (§14 review).
+        return -1;
+    }
     return pos;
 }
 
@@ -404,52 +498,11 @@ static int is_blank(const char* line) {
     return 1;
 }
 
-// ===================== Fixed-script task =====================
-
-typedef struct {
-    const char* script;
-} mp_task_params_t;
-
-static void micropython_task(void* param) {
-    mp_task_params_t* params = (mp_task_params_t*)param;
-    const char* script = params->script;
-
-    printf("[MicroPython] Task started\r\n");
-
-    static char gc_heap[MP_GC_HEAP_SIZE] __attribute__((section(".sdram_bss")));
-    int stack_top;
-    mp_embed_init(&gc_heap[0], sizeof(gc_heap), &stack_top);
-
-    printf("[MicroPython] Executing script...\r\n");
-    mp_exec_str_with_ctrlc(script);
-    printf("[MicroPython] Script finished\r\n");
-
-    mp_embed_deinit();
-
-    vPortFree(params);
-    vTaskDelete(NULL);
-}
-
-void micropython_start_task(const char* script, unsigned int stack_size,
-                            unsigned int priority) {
-    mp_task_params_t* params =
-        (mp_task_params_t*)pvPortMalloc(sizeof(mp_task_params_t));
-    if (!params) {
-        printf("[MicroPython] ERROR: Failed to allocate task params\r\n");
-        return;
-    }
-    params->script = script;
-
-    BaseType_t ret = xTaskCreate(
-        micropython_task, "mp_task",
-        stack_size / sizeof(StackType_t),
-        params, priority, NULL);
-
-    if (ret != pdPASS) {
-        printf("[MicroPython] ERROR: Failed to create task\r\n");
-        vPortFree(params);
-    }
-}
+// The fixed-script task (`micropython_start_task`) was removed 2026-10-31:
+// it had no callers and its own `static char gc_heap[MP_GC_HEAP_SIZE]`
+// kept a second 1 MB of .sdram_bss reserved for nothing (audit m1).  Two
+// MicroPython instances cannot coexist anyway — the embed port has one
+// global state.
 
 // ===================== REPL task =====================
 
@@ -461,6 +514,10 @@ static void micropython_repl_task(void* param) {
 
     printf("[MicroPython] REPL task started\r\n");
     mp_embed_init(&gc_heap[0], sizeof(gc_heap), &stack_top);
+    // Python recursion must raise RecursionError, not overflow the 16 KB
+    // FreeRTOS stack into a hardware reset (audit M3).  Leave 3 KB for the
+    // C frames below the VM (console, FileX, lexer).
+    mp_stack_set_limit(16384 - 3072);
 
     // Populate sys.path so 'import mymodule' finds /mymodule.py on LittleFS
     mp_obj_list_append(mp_sys_path, mp_obj_new_str("/", 1));
