@@ -1,6 +1,6 @@
 # Memory Index
 
-- [TPU URB-timeout crash class FIXED — static URB slots + tokens, CSR heap-sema bug (2026-10-31)](project_tpu_urb_stack_metadata_crash_w24_t6.md) — W24-T6 + W24-T7 auto-recover (5 fails/3 attempts, give-up stops pipeline); fault-injection recipe; J-Link SWD no-connect (W24-T8).
+- [TPU URB-timeout crash class FIXED — static URB slots + tokens, CSR heap-sema bug (2026-10-31)](project_tpu_urb_stack_metadata_crash_w24_t6.md) — W24-T6/T7 auto-recover; W24-T9 natural wedge = model switch after one 0B62 (desync latch → power-cycle at load, 1706); multi-EP = SuperSpeed-only dead end; flashtool needs venv-flash.
 - [YUV JPEG path SHIPPED — IJG-9 raw_data_in needs do_fancy_downsampling=FALSE (2026-10-31)](project_yuv_jpeg_path_libjpeg9_raw_gotcha.md) — build 1694; 68 vs 108 ms; s257 YUV420 TPU 20–23 ms all 6 models, c2f_thick runs; W24-T5 AWB stall, W24-T6 REPL silence open.
 - [CSI MUX flip deferred 40 us on GPT1 — F16 root cause + on-the-fly phase autotune (2026-10-31)](project_csi_mux_flip_deferred_f16.md) — never flip inside CSI_IRQHandler; build 1664.
 - [TODO — exhaustive firmware audit: races, hangs, unbounded waits (requested 2026-10-30)](project_todo_exhaustive_code_audit.md) — WBS OP-S10-W23; T8 = open items.

@@ -64,3 +64,25 @@ never delete a semaphore a callback may still give.  After any URB timeout the
 TPU needs `tpu.recover()`; auto-recovery in the pipeline is W24-T7.  J-Link SWD
 attach does not connect on rev-1.1 (W24-T8) — rely on `/log/crash_prev.txt`,
 `/log/crash_NNN.log` breadcrumbs and `boot_old.log` "Reset reason".
+
+## W24-T9 addendum (2026-10-31, builds 1705–1706) — the NATURAL wedge is a model switch after a desynchronised invoke
+
+- Operator hypothesis "maybe model switching is buggy" CONFIRMED by `s257/model_switch_stress.py`:
+  2 wedges / 36 switches on 1705. Pattern: ONE instruction-URB timeout (0B62) in model A, model A
+  keeps running fine, next `tpu.load` of model B → every invoke fails (-2) until a rail power-cycle.
+  Controlled repro: one injected 1 ms instruction timeout → same model also dead → load other → dead →
+  `tpu.recover()` ok (`desync_single_timeout_b1705.log`). All 18 natural failures were at the
+  instruction stage (first transfer of an invoke; order is instr → Y → UV → outputs → event).
+- Fix in 1706: `g_sentai_tpu_desync_pending` latched by RETURN_IF_ERROR_S in Invoke;
+  `sentai_load_model()` power-cycles the TPU rail before loading while latched (SERR 0x0B76);
+  `tpu.recover()` now UnregisterPackagesInRange before delete (was leaking ~50 KB heap per recover).
+- Evidence counters (1706): `tpu.urb_sync_stats()` → desync_pending/count, usb_attach/detach,
+  max_wait_us per tag, `events` ring (slow >50 ms / timeout / error / submit-refused URBs, 8 deep);
+  `pipeline.infer_stats()` → first_fail_idx / first_fail_ms.  48-switch run on 1706: 0 events,
+  max instr URB wait 1.1 ms — the natural >200 ms stall is rare (~2/5500 invokes once, 0/16000 other
+  runs) and still unobserved with the ring.  If it COMPLETES within ~1 s → raise the instruction-URB
+  timeout (libusb waits 6 s; CH32 notes #5: never give up on a NAKing device).
+- From ~/work/ch569w (operator's CH32H417 USB3 Coral host): TPU clock already kMax here (same
+  scu_ctrl_3 recipe, no 8x win left); libedgetpu allows MULTI-EP firmware ONLY at SuperSpeed
+  (usb_driver.cc:1521-1542) → multi_ep blob / p2p4_5ep on this USB2 host is a DEAD END, not a bug.
+- Tooling: flashtool needs `venv-flash/bin/python` (system python3 lacks `progress`/`hid`).

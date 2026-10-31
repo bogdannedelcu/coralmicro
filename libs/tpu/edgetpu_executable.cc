@@ -215,10 +215,22 @@ __attribute__((noinline, cold, section(".sdram_text")))
 static void trace_event(char tag, int32_t v1, int32_t v2) {
   printf("[tpu] %c v1=%ld v2=%ld\r\n", tag, (long)v1, (long)v2);
 }
+// W24-T9 (2026-10-31): a failed transfer inside Invoke leaves the Edge TPU
+// mid-protocol (instructions delivered late by the orphan URB, inputs never
+// sent, ...).  The device may still answer the SAME executable afterwards, but
+// the next DIFFERENT executable wedges it hard (s257 model_switch_stress).
+// Latch that state here; sentai_load_model() power-cycles the rail before it
+// uploads a new model while the latch is set, and tpu.urb_sync_stats()
+// reports both counters.
+extern "C" volatile uint32_t g_sentai_tpu_desync_pending = 0;
+extern "C" volatile uint32_t g_sentai_tpu_desync_count = 0;
+
 #define RETURN_IF_ERROR_S(expr, CODE) \
   do {                                \
     if (!(expr)) {                    \
       g_sentai_tpu_invoke_fail_code = (CODE); \
+      g_sentai_tpu_desync_pending = 1; \
+      g_sentai_tpu_desync_count++;     \
       /* sentai: latch TPU error CSRs into RAM at the instant of fault, before \
        * the USB transport fully wedges (the fault kills the CDC REPL, so this \
        * snapshot is JTAG-readable from g_sentai_tpu_fault_csr afterward). */ \

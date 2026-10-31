@@ -432,6 +432,17 @@ extern "C" void sentai_pipeline_infer_stats(uint32_t* ok, uint32_t* fail,
     if (ms_sum)  *ms_sum  = s_infer_ms_sum;
     if (last_rc) *last_rc = s_infer_last_rc;
 }
+// W24-T9: where in the run the FIRST invoke failure happened — ok-count at
+// that moment and ms since infer_reset().  Distinguishes "fails on the first
+// frame after a model switch" from "fails at a random frame".
+static uint32_t s_first_fail_idx = 0xFFFFFFFFu;
+static uint32_t s_first_fail_ms  = 0;
+static uint32_t s_infer_reset_us = 0;
+extern "C" uint32_t vPortGetRunTimeCounterValue(void);
+extern "C" void sentai_pipeline_first_fail(uint32_t* idx, uint32_t* ms) {
+    if (idx) *idx = s_first_fail_idx;
+    if (ms)  *ms  = s_first_fail_ms;
+}
 extern "C" void sentai_pipeline_infer_reset(void) {
     s_infer_ok_count   = 0;
     s_infer_fail_count = 0;
@@ -440,6 +451,9 @@ extern "C" void sentai_pipeline_infer_reset(void) {
     s_nms_ms_sum       = 0;
     s_cycle_ms_sum     = 0;
     s_infer_wait_ms_sum = 0;
+    s_first_fail_idx   = 0xFFFFFFFFu;
+    s_first_fail_ms    = 0;
+    s_infer_reset_us   = vPortGetRunTimeCounterValue();
 }
 // s240: NMS + full-cycle + infer-wait sums (frames = s_infer_ok_count).
 // Separate getter so the existing 4-arg infer_stats callers stay unchanged.
@@ -1511,6 +1525,10 @@ static void infer_task_fn(void* /*param*/) {
             sentai_fr_push_scalar("infer_ms", (double)invoke_ms, 0);
         } else {
             s_infer_fail_count++;
+            if (s_first_fail_idx == 0xFFFFFFFFu) {   // W24-T9 evidence
+                s_first_fail_idx = s_infer_ok_count;
+                s_first_fail_ms  = (vPortGetRunTimeCounterValue() - s_infer_reset_us) / 1000u;
+            }
         }
 
         if (invoke_ms < 0) {

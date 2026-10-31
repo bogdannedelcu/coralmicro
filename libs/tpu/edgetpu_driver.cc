@@ -156,6 +156,66 @@ enum TpuUrbStatField {
 
 static uint64_t s_tpu_urb_stats[kUrbStatCount][kUrbFieldCount];
 
+// W24-T9 (2026-10-31): evidence ring for the natural TPU wedge.  Every URB
+// that times out, completes with an error status, is refused at submit, or
+// simply takes longer than kTpuUrbSlowUs is recorded here with its wall-clock
+// stamp, so a post-mortem can tell "the device paused for 300 ms and then
+// resumed" from "the device died".  Per-tag worst-case wait is kept too.
+// Fixed-size, no heap, written from task context only (the record functions
+// run after the completion, never in the callback).
+enum TpuUrbEvKind : uint32_t {
+  kTpuUrbEvSlow = 1, kTpuUrbEvTimeout = 2, kTpuUrbEvError = 3, kTpuUrbEvSubmitFail = 4,
+};
+struct TpuUrbEvent {
+  uint32_t seq;        // monotonic event number (0 = empty slot)
+  uint32_t kind;       // TpuUrbEvKind
+  uint32_t tag;        // DescriptorTag
+  uint32_t bytes;      // bytes requested
+  uint32_t wait_us;    // submit -> done/timeout
+  uint32_t status;     // usb_status_t (0 if timeout/submit-fail)
+  uint32_t t_us;       // TimerMicros() at record time
+};
+static constexpr int kTpuUrbEvRing = 8;
+static constexpr uint32_t kTpuUrbSlowUs = 50000;   // 50 ms: ~3x a worst-case 36 KB chunk
+static TpuUrbEvent s_tpu_urb_ev[kTpuUrbEvRing];
+static uint32_t s_tpu_urb_ev_seq = 0;
+static uint32_t s_tpu_urb_max_wait_us[kUrbStatCount];
+
+static void TpuUrbEventPush(uint32_t kind, DescriptorTag tag, uint32_t bytes,
+                            uint32_t wait_us, uint32_t status, uint32_t t_us) {
+  taskENTER_CRITICAL();
+  const uint32_t seq = ++s_tpu_urb_ev_seq;
+  TpuUrbEvent& e = s_tpu_urb_ev[seq % kTpuUrbEvRing];
+  e.seq = seq; e.kind = kind; e.tag = (uint32_t)tag; e.bytes = bytes;
+  e.wait_us = wait_us; e.status = status; e.t_us = t_us;
+  taskEXIT_CRITICAL();
+}
+
+// Copies the ring (oldest first) as 7 words per event; returns events copied.
+extern "C" uint32_t sentai_tpu_urb_events(uint32_t* out, uint32_t max_events) {
+  if (!out) return 0;
+  uint32_t n = 0;
+  taskENTER_CRITICAL();
+  const uint32_t last = s_tpu_urb_ev_seq;
+  const uint32_t first = (last > (uint32_t)kTpuUrbEvRing) ? last - kTpuUrbEvRing + 1 : 1;
+  for (uint32_t s = first; s <= last && n < max_events; ++s) {
+    const TpuUrbEvent& e = s_tpu_urb_ev[s % kTpuUrbEvRing];
+    if (e.seq != s) continue;
+    out[n * 7 + 0] = e.seq;   out[n * 7 + 1] = e.kind;  out[n * 7 + 2] = e.tag;
+    out[n * 7 + 3] = e.bytes; out[n * 7 + 4] = e.wait_us; out[n * 7 + 5] = e.status;
+    out[n * 7 + 6] = e.t_us;
+    n++;
+  }
+  taskEXIT_CRITICAL();
+  return n;
+}
+
+extern "C" void sentai_tpu_urb_max_wait(uint32_t* out, uint32_t max_tags) {
+  if (!out) return;
+  for (uint32_t i = 0; i < max_tags && i < (uint32_t)kUrbStatCount; ++i)
+    out[i] = s_tpu_urb_max_wait_us[i];
+}
+
 static inline uint32_t TpuUrbCycleNow() {
 #ifdef SENTAI_PLATFORM_SIM
   return (uint32_t)xTaskGetTickCount();
@@ -214,6 +274,7 @@ static void TpuUrbRecordSubmitFailure(DescriptorTag tag, uint32_t bytes,
   TpuUrbStatAdd(idx, kUrbFieldSubmitCycles, submit_cycles);
   TpuUrbStatAdd(idx, kUrbFieldSubmitUs, submit_us);
   TpuUrbStatAdd(idx, kUrbFieldSubmitFailures, 1);
+  TpuUrbEventPush(kTpuUrbEvSubmitFail, tag, bytes, submit_us, 0, TpuUrbMicrosNow());
 }
 
 static void TpuUrbRecordDone(const UsbTransferMetadata& meta,
@@ -228,12 +289,20 @@ static void TpuUrbRecordDone(const UsbTransferMetadata& meta,
                 TpuUrbDelta(wait_end_cyc, meta.submit_start_cyc));
   TpuUrbStatAdd(idx, kUrbFieldSubmitUs,
                 TpuUrbDelta(meta.submit_return_us, meta.submit_start_us));
-  TpuUrbStatAdd(idx, kUrbFieldWaitUs,
-                TpuUrbDelta(wait_end_us, meta.submit_start_us));
+  const uint32_t wait_us = TpuUrbDelta(wait_end_us, meta.submit_start_us);
+  TpuUrbStatAdd(idx, kUrbFieldWaitUs, wait_us);
+  if (idx >= 0 && idx < kUrbStatCount && wait_us > s_tpu_urb_max_wait_us[idx])
+    s_tpu_urb_max_wait_us[idx] = wait_us;
   if (timeout) {
     TpuUrbStatAdd(idx, kUrbFieldTimeouts, 1);
+    TpuUrbEventPush(kTpuUrbEvTimeout, meta.tag, meta.bytes_requested, wait_us, 0, wait_end_us);
     return;
   }
+  if (meta.status != kStatus_USB_Success)
+    TpuUrbEventPush(kTpuUrbEvError, meta.tag, meta.bytes_requested, wait_us,
+                    (uint32_t)meta.status, wait_end_us);
+  else if (wait_us > kTpuUrbSlowUs)
+    TpuUrbEventPush(kTpuUrbEvSlow, meta.tag, meta.bytes_requested, wait_us, 0, wait_end_us);
   TpuUrbStatAdd(idx, kUrbFieldCallbacks, 1);
   TpuUrbStatAdd(idx, kUrbFieldBytesDone, meta.bytes_transferred);
   TpuUrbStatAdd(idx, kUrbFieldCallbackCycles,

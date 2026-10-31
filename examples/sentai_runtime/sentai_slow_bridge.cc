@@ -78,10 +78,41 @@ extern "C" { volatile int g_sentai_yuv_dual = 0; }
 // InferTask stops giving for the duration (same model -> same arena layout).
 static volatile int g_sentai_tpu_reload_from_pipeline = 0;
 
+// W24-T9: set by the executable when a transfer inside Invoke failed (the
+// device is then mid-protocol); cleared by the rail power-cycle below or in
+// sentai_tpu_recover().  g_sentai_tpu_in_recover suppresses the double
+// power-cycle when recover() itself calls sentai_load_model().
+extern "C" volatile uint32_t g_sentai_tpu_desync_pending;
+extern "C" volatile uint32_t g_sentai_tpu_desync_count;
+static volatile int g_sentai_tpu_in_recover = 0;
+
+static void sentai_tpu_rail_power_cycle(void) {
+  auto* tpu = coralmicro::EdgeTpuTask::GetSingleton();
+  tpu->SetPower(false);
+  vTaskDelay(pdMS_TO_TICKS(50));
+  tpu->SetPower(true);
+  vTaskDelay(pdMS_TO_TICKS(250));   // let USB re-enumerate to kConnected
+  g_sentai_tpu_desync_pending = 0;
+}
+
 extern "C" int sentai_load_model(const char* path) {
   if (sentai_detection_is_running() && !g_sentai_tpu_reload_from_pipeline) {
     printf("ERROR: stop detection pipeline before loading a new model\r\n");
     return -10;
+  }
+  // W24-T9: a model switch on a desynchronised Edge TPU wedges it (s257
+  // model_switch_stress: the SAME model kept running after a single
+  // instruction-URB timeout, the NEXT model failed every invoke until a
+  // power-cycle).  Resync the device first; costs ~300 ms, only after a
+  // failure, never on the hot path.
+  if (g_sentai_tpu_desync_pending && !g_sentai_tpu_in_recover) {
+    SERR_LOG(SERR_TPU_RESYNC_AT_LOAD, g_sentai_tpu_desync_count);
+    printf("[tpu] load: earlier invoke transfer failed (%lu); power-cycling "
+           "the Edge TPU before loading %s\r\n",
+           (unsigned long)g_sentai_tpu_desync_count, path ? path : "?");
+    coralmicro::g_tpu_ready = false;
+    coralmicro::g_tpu_context.reset();   // drops its power ref first
+    sentai_tpu_rail_power_cycle();
   }
   if (path && path != g_current_model_path) {
     strncpy(g_current_model_path, path, sizeof(g_current_model_path) - 1);
@@ -316,6 +347,11 @@ extern "C" int sentai_tpu_recover(void) {
   }
   sentai_tpu_desc_cache_invalidate();
   if (coralmicro::g_model_data) {
+    // W24-T9: same per-range package unregister as sentai_load_model(); the
+    // recover path skipped it and leaked one EdgeTpuPackage (~50 KB of heap
+    // per recover in s257 model_switch_stress).
+    coralmicro::EdgeTpuManager::GetSingleton()->UnregisterPackagesInRange(
+        coralmicro::g_model_data->data(), coralmicro::g_model_data->size());
     delete coralmicro::g_model_data;
     coralmicro::g_model_data = nullptr;
   }
@@ -325,16 +361,15 @@ extern "C" int sentai_tpu_recover(void) {
   // 2. Force a clean rail power-cycle.  The extra SetPower(false) drives
   //    enabled_count_ to 0 (clamped) so the GPIO actually de-asserts even if
   //    a stale ref lingered; SetPower(true) re-powers + waits PGOOD, and the
-  //    USB host re-enumerates the freshly-booted TPU asynchronously.
-  auto* tpu = coralmicro::EdgeTpuTask::GetSingleton();
-  tpu->SetPower(false);
-  vTaskDelay(pdMS_TO_TICKS(50));
-  tpu->SetPower(true);
-  vTaskDelay(pdMS_TO_TICKS(250));   // let USB re-enumerate to kConnected
+  //    USB host re-enumerates the freshly-booted TPU asynchronously.  Also
+  //    clears the W24-T9 desync latch.
+  sentai_tpu_rail_power_cycle();
 
   // 3. Re-open + rebuild interpreter + re-upload model (OpenDevice retry loop
   //    inside sentai_load_model covers any residual enumeration latency).
+  g_sentai_tpu_in_recover = 1;
   int rc = sentai_load_model(g_current_model_path);
+  g_sentai_tpu_in_recover = 0;
   if (rc == 0) {
     printf("TPU recover: OK — invokes restored without reflash\r\n");
     // W24-T7: a give-up reported the TPU missing (LED code 5); a successful

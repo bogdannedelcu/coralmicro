@@ -1,0 +1,21 @@
+SentAI v1.1 build 1705 (2026-10-31 18:46:21) board 58eb
+[cam] pre-trim: cam0 delayed 18 lines (406 us) -> alternation at full rate  [cam] genlock: phase 24 us after 0 step(s) (T=22289 us)  YUV 1 INIT 0
+Arena used: 485 / 8192 KB  Model name: c3_yuv420_int8_edgetpu  LOAD c3 0
+c3 pre [23, 19, 19] 0x45f19fe7
+urb {'csr_timeouts': 0, 'gave': 67, 'stale': 0, 'take_failed': 0, 'entered': 67, 'take_ok'
+--- inject ONE instruction timeout (160 KB chunk, 1 ms timeout)
+163840  to 1
+E:0B62:0  Node edgetpu-custom-op (number 0) failed to invoke with status 1  c3 injected -2
+36864  to 200 36864
+urb {'csr_timeouts': 0, 'gave': 69, 'stale': 0, 'take_failed': 1, 'entered': 69, 'take_ok'
+--- same model continues?
+E:0B62:0  Node edgetpu-custom-op (number 0) failed to invoke with status 1  c3 post [-2, -2, -2, -2, -2, -2] 0x45f19fe7
+urb {'csr_timeouts': 1, 'gave': 70, 'stale': 0, 'take_failed': 4, 'entered': 70, 'take_ok'
+--- switch model
+Arena used: 485 / 8192 KB  Model name: c2f_yuv420_int8_edgetpu  LOAD c2f 0
+E:0B62:0  Node edgetpu-custom-op (number 0) failed to invoke with status 1  c2f [-2, -2, -2] 0x45f19fe7
+urb {'csr_timeouts': 1, 'gave': 70, 'stale': 0, 'take_failed': 4, 'entered': 70, 'take_ok'
+latched ['0xfa17c562', '0x0', '0x0', '0x0', '0x0', '0x0', '0x0', '0x0', '0x0', '0x0', '0xb
+--- recover
+Model name: c2f_yuv420_int8_edgetpu  TPU recover: OK — invokes restored without reflash  RECOVER 0
+c2f after recover [24, 19, 19] 0xca2ec207

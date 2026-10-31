@@ -112,11 +112,13 @@ cmake --build build --target sentai_runtime
 # (lsusb shows 1fc9:c0a1), flashtool auto-resets it into SDP via HID — NO
 # manual USER+RESET button press needed.  Only ask the user for a physical
 # button if the board is truly bricked (no enum at all and no 1fc9:013d).
-python3 scripts/flashtool.py -e sentai_runtime
+# flashtool's deps (progress, hid, pyusb, hexformat) live in ./venv-flash —
+# the system python3 lacks them.
+venv-flash/bin/python scripts/flashtool.py -e sentai_runtime
 
 # RAM-only flash (fast unwedge; lost on power cycle; ALSO lost on sys.reset() —
 # NVIC reset returns to ROM bootloader which runs whatever is in persistent flash)
-python3 scripts/flashtool.py -e sentai_runtime --ram
+venv-flash/bin/python scripts/flashtool.py -e sentai_runtime --ram
 ```
 
 `apps/CMakeLists.txt` has only `elf_loader` enabled — `mfg_test`, `multicore_model_cascade`, `rack_test`, `usb_drive`, and `my_project` are commented out (`.bss` overflows `m_data` once UMS is on). The vendor `examples/` tree builds independently.

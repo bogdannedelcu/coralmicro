@@ -234,9 +234,61 @@ So 40 fps is real and within USB 2.0, but USB is the bottleneck of the
 invoke: a faster TPU would not help, a smaller input (or on-TPU
 decimation) would.
 
+## Model switching — the natural wedge reproduced (OP-S10-W24-T9, builds 1705–1706)
+
+Operator hypothesis 2026-10-31: "maybe switching models is the bug" (the pass-1
+silence hit at the 3rd/4th `tpu.load` of a boot).  `model_switch_stress.py`
+exercises it: 12 back-to-back loads without inference, then N rounds of
+`load_slot(0, <next model>)` → two probe invokes (output hash must repeat) →
+3 s pipeline → stats, cycling the six YUV420 models at 45 fps.
+
+| run | build | rounds | result |
+|---|---|---|---|
+| cycle (1st, parse bug, no hash probe) | 1705 | 36 | 0 fails |
+| cycle | 1705 | 36 | **2 wedges**: round 0 (c3) 1 fail / 1 URB timeout, c3 *kept running* (152 more ok frames); round 1 (c2f) probes `-2 -2`, pipeline 5 fails → auto-recover (1 attempt) → ok.  Identical episode at rounds 12/13.  Heap: −50 KB per recover (package leak in `tpu.recover()`). |
+| cycle | 1706 | 48 | 0 fails, 0 desync; `max_wait_us` instr 1117 / input 1081 / params 1074 / output 3480 / event 54 |
+
+So the wedge is real and **model-switch-triggered in its visible form**: the
+trigger is a single instruction-URB timeout (`0B62`, all 18 natural failures
+were at the instruction stage: 6 timeouts, 10 submit-refused, 2 error
+completions), after which the *same* executable may keep working but the
+*next* executable fails every invoke until a rail power-cycle.  A controlled
+version (`desync_single_timeout_b1705.log`): c3 ok ×3 → one injected 1 ms
+instruction timeout → c3 `-2` ×6 → load c2f → `-2` ×3 → `tpu.recover()` → ok.
+The latched fault CSRs read all-zero with `okmask=0`: the control pipe is dead
+too at that point (one 2 s CSR timeout, the rest refused), i.e. the device, not
+just a pipe, is stuck mid-protocol.  Matches the CH32H417 host notes
+(`~/work/ch569w/archive/BEST_PRACTICES.md` #5/#6): giving up on a NAKing
+device desynchronises everything after it; libusb waits up to 6 s.
+
+**Build 1706 changes**
+
+- `g_sentai_tpu_desync_pending` / `_count` set by `RETURN_IF_ERROR_S` in
+  `EdgeTpuExecutable::Invoke`; `sentai_load_model()` power-cycles the Edge TPU
+  rail before uploading a new model while the latch is set (SERR `0x0B76`,
+  ~300 ms, only after a failure).  `tpu.recover()` clears the latch and now
+  unregisters the model's packages before freeing it (leak fix).
+- Evidence: `tpu.urb_sync_stats()` gains `desync_pending/count`,
+  `usb_attach/detach`, per-tag `max_wait_us` and `events` — a ring of the last
+  8 slow (>50 ms), timed-out, errored or submit-refused URBs with wait time and
+  wall-clock stamp; `pipeline.infer_stats()` gains `first_fail_idx/ms`.
+- Open: the root trigger of the natural >200 ms instruction stall is still
+  unobserved with the ring (0 events in 48 rounds); longer campaigns running.
+  If the ring shows the stall *completing* at 200–1000 ms, the mitigation is a
+  longer instruction-URB timeout (libusb: 6 s); if it never completes, the
+  resync-at-load + auto-recover already contain it.
+
+Also from the CH32 notes, checked against this tree: the Edge TPU already runs
+at `kMax` (GCB 500 / AXI 250 / 8051 500 MHz, `g_tpu_mode` default), so the 8×
+clock win reported there is already in; and libedgetpu allows multi-endpoint
+firmware only on SuperSpeed (`usb_driver.cc:1521-1542`), which is why the
+`multi_ep` blob / `p2p4_5ep` never worked on this USB2 host — a dead end, not a
+bug to fix.
+
 ## Files
 
 - `run_yuv420.py` — driver (upload + sweep; `--no-upload` to reuse the SD copies).
+- `model_switch_stress.py`, `switch_b1705_cycle.{log,stdout}`, `switch_b1706_cycle*.{log,stdout}`, `desync_single_timeout_b1705.log` — W24-T9 model-switch campaign.
 - `run_b1705_fps30.{log,stdout}`, `results_b1705_fps30.csv`, `run_b1705_fps45.{log,stdout}`, `results_b1705_fps45.csv` — the 30 vs 45 fps comparison above.
 - `results_b1694_r2.csv`, `run_b1694_r2.log` — pass 2 (the result above).
 - `run_b1694.log` — pass 1 (REPL silence after the 4th load).

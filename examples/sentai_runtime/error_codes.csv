@@ -109,6 +109,7 @@ CODE,MODULE,NAME,DESCRIPTION,VERSION_ADDED,STATUS
 0x0B73,TPU,SLOT_VEC,new std::vector<uint8_t> returned NULL (val=slot),v1.6,ACTIVE
 0x0B74,TPU,SLOT_NOT_READY,Pipeline routed cam to unloaded slot (val=cam<<4|slot),v1.6,ACTIVE
 0x0B75,TPU,OPEN_TIMEOUT,Model load gave up: no Edge TPU USB instance after bounded OpenDevice retries (val=tries; each try waits <= 3 s),v1.1,ACTIVE
+0x0B76,TPU,RESYNC_AT_LOAD,Model load power-cycled the Edge TPU because an earlier invoke transfer failed and left the device mid-protocol (val=desync_count),v1.1,ACTIVE
 # === Module 0x0C: USB ===
 0x0C01,USB,NCM_TX_DROP,NCM TX dropped - not attached (alt=0),v1.1,ACTIVE
 0x0C02,USB,NCM_RX_DROP,NCM RX dropped - endpoint busy,v1.1,ACTIVE

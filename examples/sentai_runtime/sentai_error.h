@@ -200,6 +200,7 @@ extern "C" {
 #define SERR_TPU_SLOT_VEC          (SERR_MOD_TPU | 0x73) // new std::vector returned NULL (val=slot)
 #define SERR_TPU_SLOT_NOT_READY    (SERR_MOD_TPU | 0x74) // Pipeline routed cam to unloaded slot (val=cam<<4|slot)
 #define SERR_TPU_OPEN_TIMEOUT      (SERR_MOD_TPU | 0x75) // W24-T7: no Edge TPU USB instance after bounded OpenDevice retries (val=tries)
+#define SERR_TPU_RESYNC_AT_LOAD    (SERR_MOD_TPU | 0x76) // W24-T9: model load power-cycled a desynchronised Edge TPU (earlier invoke transfer failed) (val=desync_count)
 
 // ===================== Filesystem Errors (0x07xx) =====================
 #define SERR_FS_MUTEX_TIMEOUT   (SERR_MOD_FS | 0x01)    // LFS mutex timeout

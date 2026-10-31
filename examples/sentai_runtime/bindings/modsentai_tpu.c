@@ -497,6 +497,38 @@ static mp_obj_t mod_sentai_tpu_urb_sync_stats(void) {
         mp_obj_dict_store(d, mp_obj_new_str("csr_mutex_timeouts", 18),
                           mp_obj_new_int_from_uint(g_sentai_tpu_csr_mutex_timeouts));
     }
+    {   // W24-T9 wedge evidence: desync latch, USB attach/detach, per-tag
+        // worst-case URB wait (us; tags: instr, input, params, output, event,
+        // unknown) and the ring of slow/failed URBs as tuples
+        // (seq, kind 1=slow 2=timeout 3=error 4=submit_fail, tag, bytes,
+        //  wait_us, usb_status, t_us).
+        extern volatile uint32_t g_sentai_tpu_desync_pending, g_sentai_tpu_desync_count;
+        extern volatile uint32_t g_sentai_tpu_usb_attach, g_sentai_tpu_usb_detach;
+        extern uint32_t sentai_tpu_urb_events(uint32_t* out, uint32_t max_events);
+        extern void sentai_tpu_urb_max_wait(uint32_t* out, uint32_t max_tags);
+        mp_obj_dict_store(d, mp_obj_new_str("desync_pending", 14),
+                          mp_obj_new_int_from_uint(g_sentai_tpu_desync_pending));
+        mp_obj_dict_store(d, mp_obj_new_str("desync_count", 12),
+                          mp_obj_new_int_from_uint(g_sentai_tpu_desync_count));
+        mp_obj_dict_store(d, mp_obj_new_str("usb_attach", 10),
+                          mp_obj_new_int_from_uint(g_sentai_tpu_usb_attach));
+        mp_obj_dict_store(d, mp_obj_new_str("usb_detach", 10),
+                          mp_obj_new_int_from_uint(g_sentai_tpu_usb_detach));
+        uint32_t mw[6] = {0};
+        sentai_tpu_urb_max_wait(mw, 6);
+        mp_obj_t mwt[6];
+        for (int i = 0; i < 6; ++i) mwt[i] = mp_obj_new_int_from_uint(mw[i]);
+        mp_obj_dict_store(d, mp_obj_new_str("max_wait_us", 11), mp_obj_new_tuple(6, mwt));
+        uint32_t ev[8 * 7] = {0};
+        uint32_t n = sentai_tpu_urb_events(ev, 8);
+        mp_obj_t rows[8];
+        for (uint32_t r = 0; r < n; ++r) {
+            mp_obj_t f[7];
+            for (int k = 0; k < 7; ++k) f[k] = mp_obj_new_int_from_uint(ev[r * 7 + k]);
+            rows[r] = mp_obj_new_tuple(7, f);
+        }
+        mp_obj_dict_store(d, mp_obj_new_str("events", 6), mp_obj_new_list(n, rows));
+    }
     return d;
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_tpu_urb_sync_stats_obj,

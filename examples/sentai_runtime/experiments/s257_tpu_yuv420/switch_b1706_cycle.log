@@ -1,0 +1,2795 @@
+>>> print(sentai.version())
+print(sentai.version())
+SentAI v1.1 build 1706 (2026-10-31 20:54:16) board 58eb
+>>> 
+>>> print("YUVMODE", sentai.camera.yuv_mode(1))
+print("YUVMODE", sentai.camera.yuv_mode(1))
+YUVMODE 1
+>>> 
+>>> print("INIT", sentai.camera.init(1, 45))
+print("INIT", sentai.camera.init(1, 45))
+HandlePowerRequest: cam0 (bus 1): OK, cam1 (bus 2): OK
+CAMERA_RECEIVER_Init = 0
+BOARD_PullCameraPowerDownPin:1
+BOARD_PullCameraResetPin:0
+BOARD_PullCameraPowerDownPin:0
+BOARD_PullCameraResetPin:1
+CAMERA_DEVICE_Init = 0
+CAMERA_DEVICE_Start = 0
+CAMERA_RECEIVER_Start = 0
+[CAM] sensor_fps=45 (1 s sample, target=30)
+[CAM1] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM1] W 0x3820=0x47 (0)
+[CAM1] W 0x3821=0x01 (0)
+[CAM0] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM0] W 0x3820=0x47 (0)
+[CAM0] W 0x3821=0x01 (0)
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xEA (0)
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xD8 (0)
+[cam] pre-trim: cam0 delayed 18 lines (406 us) -> alternation at full rate
+[cam] genlock: phase 22 us after 0 step(s) (T=22288 us)
+INIT 0
+>>> 
+>>> print(sentai.rtos.heap_info())
+print(sentai.rtos.heap_info())
+{'rtos_free': 14569480, 'gc_used': 1184, 'gc_total': 1032384, 'gc_free': 1031200, 'gc_max_free': 64416, 'gc_max_block': 8, 'gc_num_1block': 38}
+>>> 
+>>> print("LOAD", sentai.tpu.load("/models/msblock_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load("/models/msblock_yuv420_int8_edgetpu.tflite"))
+Model loaded: 213856 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x28ccc834f764e0d6
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00332641 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.06770096  zero_point=189
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.07166678  zero_point=186
+Arena used: 485 / 8192 KB
+Model name: msblock_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("LOAD", sentai.tpu.load("/models/c3_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load("/models/c3_yuv420_int8_edgetpu.tflite"))
+Model loaded: 258912 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x78095c64801b82c0
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00323895 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.07945366  zero_point=203
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.08630606  zero_point=205
+Arena used: 485 / 8192 KB
+Model name: c3_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("LOAD", sentai.tpu.load("/models/c2f_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load("/models/c2f_yuv420_int8_edgetpu.tflite"))
+Model loaded: 271200 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0xd14808d2b5e11482
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00331566 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.07433487  zero_point=199
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.07863516  zero_point=196
+Arena used: 485 / 8192 KB
+Model name: c2f_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("LOAD", sentai.tpu.load("/models/c2f_pan2_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load("/models/c2f_pan2_yuv420_int8_edgetpu.tflite"))
+Model loaded: 344928 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0xd72a3975caf93cd9
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00331440 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00391237 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.12782960  zero_point=210
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.15760142  zero_point=196
+Arena used: 485 / 8192 KB
+Model name: c2f_pan2_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("LOAD", sentai.tpu.load("/models/gelan_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load("/models/gelan_yuv420_int8_edgetpu.tflite"))
+Model loaded: 361312 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x0b9a33cfa57ebce2
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00305517 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00390619 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.08101762  zero_point=201
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.09669585  zero_point=203
+Arena used: 485 / 8192 KB
+Model name: gelan_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("LOAD", sentai.tpu.load("/models/c2f_thick_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load("/models/c2f_thick_yuv420_int8_edgetpu.tflite"))
+Model loaded: 951136 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0xb0032226b8e358e1
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00326224 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.09776910  zero_point=208
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.09557785  zero_point=208
+Arena used: 485 / 8192 KB
+Model name: c2f_thick_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("LOAD", sentai.tpu.load("/models/msblock_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load("/models/msblock_yuv420_int8_edgetpu.tflite"))
+Model loaded: 213856 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x28ccc834f764e0d6
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00332641 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.06770096  zero_point=189
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.07166678  zero_point=186
+Arena used: 485 / 8192 KB
+Model name: msblock_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("LOAD", sentai.tpu.load("/models/c3_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load("/models/c3_yuv420_int8_edgetpu.tflite"))
+Model loaded: 258912 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x78095c64801b82c0
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00323895 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.07945366  zero_point=203
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.08630606  zero_point=205
+Arena used: 485 / 8192 KB
+Model name: c3_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("LOAD", sentai.tpu.load("/models/c2f_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load("/models/c2f_yuv420_int8_edgetpu.tflite"))
+Model loaded: 271200 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0xd14808d2b5e11482
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00331566 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.07433487  zero_point=199
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.07863516  zero_point=196
+Arena used: 485 / 8192 KB
+Model name: c2f_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("LOAD", sentai.tpu.load("/models/c2f_pan2_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load("/models/c2f_pan2_yuv420_int8_edgetpu.tflite"))
+Model loaded: 344928 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0xd72a3975caf93cd9
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00331440 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00391237 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.12782960  zero_point=210
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.15760142  zero_point=196
+Arena used: 485 / 8192 KB
+Model name: c2f_pan2_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("LOAD", sentai.tpu.load("/models/gelan_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load("/models/gelan_yuv420_int8_edgetpu.tflite"))
+Model loaded: 361312 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x0b9a33cfa57ebce2
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00305517 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00390619 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.08101762  zero_point=201
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.09669585  zero_point=203
+Arena used: 485 / 8192 KB
+Model name: gelan_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("LOAD", sentai.tpu.load("/models/c2f_thick_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load("/models/c2f_thick_yuv420_int8_edgetpu.tflite"))
+Model loaded: 951136 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0xb0032226b8e358e1
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00326224 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.09776910  zero_point=208
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.09557785  zero_point=208
+Arena used: 485 / 8192 KB
+Model name: c2f_thick_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print(sentai.rtos.heap_info())
+print(sentai.rtos.heap_info())
+{'rtos_free': 13569148, 'gc_used': 3696, 'gc_total': 1032384, 'gc_free': 1028688, 'gc_max_free': 64253, 'gc_max_block': 8, 'gc_num_1block': 129}
+>>> 
+>>> print("LOAD", sentai.tpu.load_slot(0, "/models/c3_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load_slot(0, "/models/c3_yuv420_int8_edgetpu.tflite"))
+Model loaded: 258912 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x78095c64801b82c0
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00323895 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.07945366  zero_point=203
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.08630606  zero_point=205
+Arena used: 485 / 8192 KB
+Model name: c3_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P1 24 0x47e84ffd
+>>> 
+>>> print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P2 19 0x47e84ffd
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (139, 135, 75.7)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 1494, 'nms_ms_sum': 0, 'ms_sum': 3020, 'ok': 151, 'infer_wait_ms_sum': 336, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 20, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.rtos.heap_info())
+print(sentai.rtos.heap_info())
+{'rtos_free': 14258244, 'gc_used': 5744, 'gc_total': 1032384, 'gc_free': 1026640, 'gc_max_free': 64155, 'gc_max_block': 9, 'gc_num_1block': 215}
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 3367, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1075, 1067, 1062, 2127, 52, 0), 'gave': 3367, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 3367, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("LOAD", sentai.tpu.load_slot(0, "/models/c2f_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load_slot(0, "/models/c2f_yuv420_int8_edgetpu.tflite"))
+Model loaded: 271200 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0xd14808d2b5e11482
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00331566 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.07433487  zero_point=199
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.07863516  zero_point=196
+Arena used: 485 / 8192 KB
+Model name: c2f_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P1 24 0xcfb3d873
+>>> 
+>>> print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P2 20 0xcfb3d873
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (138, 134, 75.4)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 1481, 'nms_ms_sum': 0, 'ms_sum': 3110, 'ok': 150, 'infer_wait_ms_sum': 390, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 21, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.rtos.heap_info())
+print(sentai.rtos.heap_info())
+{'rtos_free': 14245956, 'gc_used': 8384, 'gc_total': 1032384, 'gc_free': 1024000, 'gc_max_free': 63990, 'gc_max_block': 9, 'gc_num_1block': 323}
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 6694, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1075, 1067, 1062, 2195, 52, 0), 'gave': 6694, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 6694, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("LOAD", sentai.tpu.load_slot(0, "/models/c2f_pan2_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load_slot(0, "/models/c2f_pan2_yuv420_int8_edgetpu.tflite"))
+Model loaded: 344928 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0xd72a3975caf93cd9
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00331440 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00391237 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.12782960  zero_point=210
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.15760142  zero_point=196
+Arena used: 485 / 8192 KB
+Model name: c2f_pan2_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P1 26 0x388a2036
+>>> 
+>>> print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P2 20 0x388a2036
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (133, 129, 76.3)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 1531, 'nms_ms_sum': 1, 'ms_sum': 3145, 'ok': 146, 'infer_wait_ms_sum': 378, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 21, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.rtos.heap_info())
+print(sentai.rtos.heap_info())
+{'rtos_free': 14172228, 'gc_used': 10992, 'gc_total': 1032384, 'gc_free': 1021392, 'gc_max_free': 63827, 'gc_max_block': 9, 'gc_num_1block': 429}
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 10105, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1075, 1067, 1062, 2366, 52, 0), 'gave': 10105, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 10105, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("LOAD", sentai.tpu.load_slot(0, "/models/gelan_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load_slot(0, "/models/gelan_yuv420_int8_edgetpu.tflite"))
+Model loaded: 361312 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x0b9a33cfa57ebce2
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00305517 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00390619 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.08101762  zero_point=201
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.09669585  zero_point=203
+Arena used: 485 / 8192 KB
+Model name: gelan_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P1 27 0xa904e4cb
+>>> 
+>>> print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P2 21 0xa904e4cb
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (132, 128, 75.8)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 1520, 'nms_ms_sum': 1, 'ms_sum': 3168, 'ok': 144, 'infer_wait_ms_sum': 385, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 22, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.rtos.heap_info())
+print(sentai.rtos.heap_info())
+{'rtos_free': 14155844, 'gc_used': 13632, 'gc_total': 1032384, 'gc_free': 1018752, 'gc_max_free': 63662, 'gc_max_block': 9, 'gc_num_1block': 537}
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 13474, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1117, 1067, 1062, 2460, 52, 0), 'gave': 13474, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 13474, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("LOAD", sentai.tpu.load_slot(0, "/models/c2f_thick_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load_slot(0, "/models/c2f_thick_yuv420_int8_edgetpu.tflite"))
+Model loaded: 951136 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0xb0032226b8e358e1
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00326224 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.09776910  zero_point=208
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.09557785  zero_point=208
+Arena used: 485 / 8192 KB
+Model name: c2f_thick_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P1 44 0xc944e52b
+>>> 
+>>> print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P2 22 0xc944e52b
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (132, 128, 76.1)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 1657, 'nms_ms_sum': 1, 'ms_sum': 3312, 'ok': 144, 'infer_wait_ms_sum': 234, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 23, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.rtos.heap_info())
+print(sentai.rtos.heap_info())
+{'rtos_free': 13566020, 'gc_used': 16272, 'gc_total': 1032384, 'gc_free': 1016112, 'gc_max_free': 63497, 'gc_max_block': 9, 'gc_num_1block': 645}
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 16838, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1117, 1067, 1062, 3472, 52, 0), 'gave': 16838, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 16838, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("LOAD", sentai.tpu.load_slot(0, "/models/msblock_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load_slot(0, "/models/msblock_yuv420_int8_edgetpu.tflite"))
+Model loaded: 213856 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x28ccc834f764e0d6
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00332641 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.06770096  zero_point=189
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.07166678  zero_point=186
+Arena used: 485 / 8192 KB
+Model name: msblock_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P1 22 0xf2321364
+>>> 
+>>> print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P2 19 0xf2321364
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (139, 135, 75.4)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 1503, 'nms_ms_sum': 0, 'ms_sum': 3040, 'ok': 152, 'infer_wait_ms_sum': 353, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 20, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.rtos.heap_info())
+print(sentai.rtos.heap_info())
+{'rtos_free': 14303300, 'gc_used': 18912, 'gc_total': 1032384, 'gc_free': 1013472, 'gc_max_free': 63332, 'gc_max_block': 9, 'gc_num_1block': 753}
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 20204, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1117, 1067, 1062, 3472, 52, 0), 'gave': 20204, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 20204, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("LOAD", sentai.tpu.load_slot(0, "/models/c3_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load_slot(0, "/models/c3_yuv420_int8_edgetpu.tflite"))
+Model loaded: 258912 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x78095c64801b82c0
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00323895 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.07945366  zero_point=203
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.08630606  zero_point=205
+Arena used: 485 / 8192 KB
+Model name: c3_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P1 24 0x47e84ffd
+>>> 
+>>> print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P2 19 0x47e84ffd
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (139, 135, 76.3)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 1486, 'nms_ms_sum': 0, 'ms_sum': 3023, 'ok': 151, 'infer_wait_ms_sum': 343, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 20, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.rtos.heap_info())
+print(sentai.rtos.heap_info())
+{'rtos_free': 14258244, 'gc_used': 21552, 'gc_total': 1032384, 'gc_free': 1010832, 'gc_max_free': 63167, 'gc_max_block': 9, 'gc_num_1block': 861}
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 23571, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1117, 1067, 1074, 3472, 52, 0), 'gave': 23571, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 23571, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("LOAD", sentai.tpu.load_slot(0, "/models/c2f_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load_slot(0, "/models/c2f_yuv420_int8_edgetpu.tflite"))
+Model loaded: 271200 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0xd14808d2b5e11482
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00331566 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.07433487  zero_point=199
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.07863516  zero_point=196
+Arena used: 485 / 8192 KB
+Model name: c2f_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P1 24 0xcfb3d873
+>>> 
+>>> print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P2 20 0xcfb3d873
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (138, 134, 76.2)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 1479, 'nms_ms_sum': 0, 'ms_sum': 3112, 'ok': 150, 'infer_wait_ms_sum': 387, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 20, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.rtos.heap_info())
+print(sentai.rtos.heap_info())
+{'rtos_free': 14245956, 'gc_used': 24192, 'gc_total': 1032384, 'gc_free': 1008192, 'gc_max_free': 63002, 'gc_max_block': 9, 'gc_num_1block': 969}
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 26898, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1117, 1067, 1074, 3472, 52, 0), 'gave': 26898, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 26898, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("LOAD", sentai.tpu.load_slot(0, "/models/c2f_pan2_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load_slot(0, "/models/c2f_pan2_yuv420_int8_edgetpu.tflite"))
+Model loaded: 344928 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0xd72a3975caf93cd9
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00331440 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00391237 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.12782960  zero_point=210
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.15760142  zero_point=196
+Arena used: 485 / 8192 KB
+Model name: c2f_pan2_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P1 26 0x388a2036
+>>> 
+>>> print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P2 20 0x388a2036
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (134, 130, 74.1)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 1560, 'nms_ms_sum': 1, 'ms_sum': 3145, 'ok': 146, 'infer_wait_ms_sum': 385, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 22, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.rtos.heap_info())
+print(sentai.rtos.heap_info())
+{'rtos_free': 14172228, 'gc_used': 26800, 'gc_total': 1032384, 'gc_free': 1005584, 'gc_max_free': 62839, 'gc_max_block': 9, 'gc_num_1block': 1075}
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 30288, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1117, 1067, 1074, 3472, 54, 0), 'gave': 30288, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 30288, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("LOAD", sentai.tpu.load_slot(0, "/models/gelan_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load_slot(0, "/models/gelan_yuv420_int8_edgetpu.tflite"))
+Model loaded: 361312 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x0b9a33cfa57ebce2
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00305517 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00390619 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.08101762  zero_point=201
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.09669585  zero_point=203
+Arena used: 485 / 8192 KB
+Model name: gelan_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P1 27 0xa904e4cb
+>>> 
+>>> print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P2 21 0xa904e4cb
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (132, 128, 92.3)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 1203, 'nms_ms_sum': 0, 'ms_sum': 3168, 'ok': 144, 'infer_wait_ms_sum': 352, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 22, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.rtos.heap_info())
+print(sentai.rtos.heap_info())
+{'rtos_free': 14155844, 'gc_used': 29440, 'gc_total': 1032384, 'gc_free': 1002944, 'gc_max_free': 62674, 'gc_max_block': 9, 'gc_num_1block': 1183}
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 33657, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1117, 1067, 1074, 3472, 54, 0), 'gave': 33657, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 33657, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("LOAD", sentai.tpu.load_slot(0, "/models/c2f_thick_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load_slot(0, "/models/c2f_thick_yuv420_int8_edgetpu.tflite"))
+Model loaded: 951136 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0xb0032226b8e358e1
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00326224 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.09776910  zero_point=208
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.09557785  zero_point=208
+Arena used: 485 / 8192 KB
+Model name: c2f_thick_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P1 44 0xc944e52b
+>>> 
+>>> print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P2 22 0xc944e52b
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (131, 127, 71.0)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 1769, 'nms_ms_sum': 0, 'ms_sum': 3312, 'ok': 144, 'infer_wait_ms_sum': 258, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 23, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.rtos.heap_info())
+print(sentai.rtos.heap_info())
+{'rtos_free': 13566020, 'gc_used': 32080, 'gc_total': 1032384, 'gc_free': 1000304, 'gc_max_free': 62509, 'gc_max_block': 9, 'gc_num_1block': 1291}
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 37021, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1117, 1067, 1074, 3479, 54, 0), 'gave': 37021, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 37021, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("LOAD", sentai.tpu.load_slot(0, "/models/msblock_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load_slot(0, "/models/msblock_yuv420_int8_edgetpu.tflite"))
+Model loaded: 213856 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x28ccc834f764e0d6
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00332641 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.06770096  zero_point=189
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.07166678  zero_point=186
+Arena used: 485 / 8192 KB
+Model name: msblock_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P1 22 0xf2321364
+>>> 
+>>> print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P2 19 0xf2321364
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (139, 135, 71.4)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 1621, 'nms_ms_sum': 0, 'ms_sum': 3040, 'ok': 152, 'infer_wait_ms_sum': 359, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 20, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.rtos.heap_info())
+print(sentai.rtos.heap_info())
+{'rtos_free': 14303300, 'gc_used': 34720, 'gc_total': 1032384, 'gc_free': 997664, 'gc_max_free': 62344, 'gc_max_block': 9, 'gc_num_1block': 1399}
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 40387, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1117, 1067, 1074, 3479, 54, 0), 'gave': 40387, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 40387, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("LOAD", sentai.tpu.load_slot(0, "/models/c3_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load_slot(0, "/models/c3_yuv420_int8_edgetpu.tflite"))
+Model loaded: 258912 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x78095c64801b82c0
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00323895 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.07945366  zero_point=203
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.08630606  zero_point=205
+Arena used: 485 / 8192 KB
+Model name: c3_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P1 24 0x47e84ffd
+>>> 
+>>> print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P2 19 0x47e84ffd
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (139, 135, 72.0)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 1589, 'nms_ms_sum': 0, 'ms_sum': 3022, 'ok': 151, 'infer_wait_ms_sum': 345, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 20, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.rtos.heap_info())
+print(sentai.rtos.heap_info())
+{'rtos_free': 14258244, 'gc_used': 37360, 'gc_total': 1032384, 'gc_free': 995024, 'gc_max_free': 62179, 'gc_max_block': 9, 'gc_num_1block': 1507}
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 43754, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1117, 1067, 1074, 3479, 54, 0), 'gave': 43754, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 43754, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("LOAD", sentai.tpu.load_slot(0, "/models/c2f_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load_slot(0, "/models/c2f_yuv420_int8_edgetpu.tflite"))
+Model loaded: 271200 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0xd14808d2b5e11482
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00331566 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.07433487  zero_point=199
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.07863516  zero_point=196
+Arena used: 485 / 8192 KB
+Model name: c2f_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P1 24 0xcfb3d873
+>>> 
+>>> print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P2 19 0xcfb3d873
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (138, 134, 75.8)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 1475, 'nms_ms_sum': 0, 'ms_sum': 3114, 'ok': 150, 'infer_wait_ms_sum': 384, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 21, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.rtos.heap_info())
+print(sentai.rtos.heap_info())
+{'rtos_free': 14245956, 'gc_used': 40000, 'gc_total': 1032384, 'gc_free': 992384, 'gc_max_free': 62014, 'gc_max_block': 9, 'gc_num_1block': 1615}
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 47081, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1117, 1067, 1074, 3479, 54, 0), 'gave': 47081, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 47081, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("LOAD", sentai.tpu.load_slot(0, "/models/c2f_pan2_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load_slot(0, "/models/c2f_pan2_yuv420_int8_edgetpu.tflite"))
+Model loaded: 344928 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0xd72a3975caf93cd9
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00331440 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00391237 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.12782960  zero_point=210
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.15760142  zero_point=196
+Arena used: 485 / 8192 KB
+Model name: c2f_pan2_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P1 26 0x388a2036
+>>> 
+>>> print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P2 20 0x388a2036
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (134, 130, 72.3)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 1605, 'nms_ms_sum': 0, 'ms_sum': 3140, 'ok': 146, 'infer_wait_ms_sum': 395, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 22, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.rtos.heap_info())
+print(sentai.rtos.heap_info())
+{'rtos_free': 14172228, 'gc_used': 42608, 'gc_total': 1032384, 'gc_free': 989776, 'gc_max_free': 61851, 'gc_max_block': 9, 'gc_num_1block': 1721}
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 50471, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1117, 1067, 1074, 3479, 54, 0), 'gave': 50471, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 50471, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("LOAD", sentai.tpu.load_slot(0, "/models/gelan_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load_slot(0, "/models/gelan_yuv420_int8_edgetpu.tflite"))
+Model loaded: 361312 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x0b9a33cfa57ebce2
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00305517 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00390619 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.08101762  zero_point=201
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.09669585  zero_point=203
+Arena used: 485 / 8192 KB
+Model name: gelan_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P1 27 0xa904e4cb
+>>> 
+>>> print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P2 21 0xa904e4cb
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (132, 128, 71.6)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 1599, 'nms_ms_sum': 1, 'ms_sum': 3167, 'ok': 144, 'infer_wait_ms_sum': 401, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 22, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.rtos.heap_info())
+print(sentai.rtos.heap_info())
+{'rtos_free': 14155844, 'gc_used': 45248, 'gc_total': 1032384, 'gc_free': 987136, 'gc_max_free': 61686, 'gc_max_block': 9, 'gc_num_1block': 1829}
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 53840, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1117, 1067, 1074, 3479, 54, 0), 'gave': 53840, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 53840, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("LOAD", sentai.tpu.load_slot(0, "/models/c2f_thick_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load_slot(0, "/models/c2f_thick_yuv420_int8_edgetpu.tflite"))
+Model loaded: 951136 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0xb0032226b8e358e1
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00326224 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.09776910  zero_point=208
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.09557785  zero_point=208
+Arena used: 485 / 8192 KB
+Model name: c2f_thick_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P1 44 0xc944e52b
+>>> 
+>>> print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P2 22 0xc944e52b
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (131, 127, 84.2)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 1462, 'nms_ms_sum': 0, 'ms_sum': 3289, 'ok': 143, 'infer_wait_ms_sum': 229, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 23, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.rtos.heap_info())
+print(sentai.rtos.heap_info())
+{'rtos_free': 13566020, 'gc_used': 47888, 'gc_total': 1032384, 'gc_free': 984496, 'gc_max_free': 61521, 'gc_max_block': 9, 'gc_num_1block': 1937}
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 57183, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1117, 1067, 1074, 3479, 54, 0), 'gave': 57183, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 57183, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("LOAD", sentai.tpu.load_slot(0, "/models/msblock_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load_slot(0, "/models/msblock_yuv420_int8_edgetpu.tflite"))
+Model loaded: 213856 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x28ccc834f764e0d6
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00332641 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.06770096  zero_point=189
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.07166678  zero_point=186
+Arena used: 485 / 8192 KB
+Model name: msblock_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P1 22 0xf2321364
+>>> 
+>>> print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P2 19 0xf2321364
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (139, 135, 72.4)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 1580, 'nms_ms_sum': 0, 'ms_sum': 3040, 'ok': 152, 'infer_wait_ms_sum': 353, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 20, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.rtos.heap_info())
+print(sentai.rtos.heap_info())
+{'rtos_free': 14303300, 'gc_used': 50528, 'gc_total': 1032384, 'gc_free': 981856, 'gc_max_free': 61356, 'gc_max_block': 9, 'gc_num_1block': 2045}
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 60549, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1117, 1067, 1074, 3479, 54, 0), 'gave': 60549, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 60549, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("LOAD", sentai.tpu.load_slot(0, "/models/c3_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load_slot(0, "/models/c3_yuv420_int8_edgetpu.tflite"))
+Model loaded: 258912 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x78095c64801b82c0
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00323895 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.07945366  zero_point=203
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.08630606  zero_point=205
+Arena used: 485 / 8192 KB
+Model name: c3_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P1 24 0x47e84ffd
+>>> 
+>>> print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P2 19 0x47e84ffd
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (139, 135, 73.1)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 1594, 'nms_ms_sum': 0, 'ms_sum': 3041, 'ok': 152, 'infer_wait_ms_sum': 343, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 20, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.rtos.heap_info())
+print(sentai.rtos.heap_info())
+{'rtos_free': 14258244, 'gc_used': 53168, 'gc_total': 1032384, 'gc_free': 979216, 'gc_max_free': 61191, 'gc_max_block': 9, 'gc_num_1block': 2153}
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 63896, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1117, 1067, 1074, 3479, 54, 0), 'gave': 63896, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 63896, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("LOAD", sentai.tpu.load_slot(0, "/models/c2f_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load_slot(0, "/models/c2f_yuv420_int8_edgetpu.tflite"))
+Model loaded: 271200 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0xd14808d2b5e11482
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00331566 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.07433487  zero_point=199
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.07863516  zero_point=196
+Arena used: 485 / 8192 KB
+Model name: c2f_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P1 24 0xcfb3d873
+>>> 
+>>> print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P2 20 0xcfb3d873
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (138, 134, 72.4)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 1568, 'nms_ms_sum': 0, 'ms_sum': 3121, 'ok': 151, 'infer_wait_ms_sum': 372, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 21, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.rtos.heap_info())
+print(sentai.rtos.heap_info())
+{'rtos_free': 14245956, 'gc_used': 55808, 'gc_total': 1032384, 'gc_free': 976576, 'gc_max_free': 61026, 'gc_max_block': 9, 'gc_num_1block': 2261}
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 67223, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1117, 1067, 1074, 3479, 54, 0), 'gave': 67223, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 67223, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("LOAD", sentai.tpu.load_slot(0, "/models/c2f_pan2_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load_slot(0, "/models/c2f_pan2_yuv420_int8_edgetpu.tflite"))
+Model loaded: 344928 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0xd72a3975caf93cd9
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00331440 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00391237 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.12782960  zero_point=210
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.15760142  zero_point=196
+Arena used: 485 / 8192 KB
+Model name: c2f_pan2_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P1 26 0x388a2036
+>>> 
+>>> print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P2 20 0x388a2036
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (133, 129, 71.6)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 1580, 'nms_ms_sum': 2, 'ms_sum': 3128, 'ok': 145, 'infer_wait_ms_sum': 407, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 22, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.rtos.heap_info())
+print(sentai.rtos.heap_info())
+{'rtos_free': 14172228, 'gc_used': 58416, 'gc_total': 1032384, 'gc_free': 973968, 'gc_max_free': 60863, 'gc_max_block': 9, 'gc_num_1block': 2367}
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 70592, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1117, 1067, 1074, 3479, 54, 0), 'gave': 70592, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 70592, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("LOAD", sentai.tpu.load_slot(0, "/models/gelan_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load_slot(0, "/models/gelan_yuv420_int8_edgetpu.tflite"))
+Model loaded: 361312 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x0b9a33cfa57ebce2
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00305517 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00390619 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.08101762  zero_point=201
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.09669585  zero_point=203
+Arena used: 485 / 8192 KB
+Model name: gelan_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P1 27 0xa904e4cb
+>>> 
+>>> print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P2 21 0xa904e4cb
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (132, 128, 71.9)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 1592, 'nms_ms_sum': 1, 'ms_sum': 3190, 'ok': 145, 'infer_wait_ms_sum': 391, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 22, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.rtos.heap_info())
+print(sentai.rtos.heap_info())
+{'rtos_free': 14155844, 'gc_used': 61056, 'gc_total': 1032384, 'gc_free': 971328, 'gc_max_free': 60698, 'gc_max_block': 9, 'gc_num_1block': 2475}
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 73961, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1117, 1067, 1074, 3479, 54, 0), 'gave': 73961, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 73961, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("LOAD", sentai.tpu.load_slot(0, "/models/c2f_thick_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load_slot(0, "/models/c2f_thick_yuv420_int8_edgetpu.tflite"))
+Model loaded: 951136 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0xb0032226b8e358e1
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00326224 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.09776910  zero_point=208
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.09557785  zero_point=208
+Arena used: 485 / 8192 KB
+Model name: c2f_thick_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P1 44 0xc944e52b
+>>> 
+>>> print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P2 22 0xc944e52b
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (132, 128, 72.9)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 1720, 'nms_ms_sum': 0, 'ms_sum': 3312, 'ok': 144, 'infer_wait_ms_sum': 234, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 23, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.rtos.heap_info())
+print(sentai.rtos.heap_info())
+{'rtos_free': 13566020, 'gc_used': 63696, 'gc_total': 1032384, 'gc_free': 968688, 'gc_max_free': 60533, 'gc_max_block': 9, 'gc_num_1block': 2583}
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 77346, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1117, 1067, 1074, 3479, 54, 0), 'gave': 77346, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 77346, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("LOAD", sentai.tpu.load_slot(0, "/models/msblock_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load_slot(0, "/models/msblock_yuv420_int8_edgetpu.tflite"))
+Model loaded: 213856 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x28ccc834f764e0d6
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00332641 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.06770096  zero_point=189
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.07166678  zero_point=186
+Arena used: 485 / 8192 KB
+Model name: msblock_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P1 22 0xf2321364
+>>> 
+>>> print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P2 19 0xf2321364
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (140, 136, 73.2)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 1574, 'nms_ms_sum': 0, 'ms_sum': 3040, 'ok': 152, 'infer_wait_ms_sum': 343, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 20, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.rtos.heap_info())
+print(sentai.rtos.heap_info())
+{'rtos_free': 14303300, 'gc_used': 66336, 'gc_total': 1032384, 'gc_free': 966048, 'gc_max_free': 60368, 'gc_max_block': 9, 'gc_num_1block': 2691}
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 80712, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1117, 1067, 1074, 3479, 54, 0), 'gave': 80712, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 80712, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("LOAD", sentai.tpu.load_slot(0, "/models/c3_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load_slot(0, "/models/c3_yuv420_int8_edgetpu.tflite"))
+Model loaded: 258912 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x78095c64801b82c0
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00323895 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.07945366  zero_point=203
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.08630606  zero_point=205
+Arena used: 485 / 8192 KB
+Model name: c3_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P1 24 0x47e84ffd
+>>> 
+>>> print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P2 19 0x47e84ffd
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (138, 134, 72.0)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 1576, 'nms_ms_sum': 0, 'ms_sum': 3023, 'ok': 151, 'infer_wait_ms_sum': 357, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 20, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.rtos.heap_info())
+print(sentai.rtos.heap_info())
+{'rtos_free': 14258244, 'gc_used': 68976, 'gc_total': 1032384, 'gc_free': 963408, 'gc_max_free': 60203, 'gc_max_block': 9, 'gc_num_1block': 2799}
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 84039, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1117, 1067, 1074, 3479, 54, 0), 'gave': 84039, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 84039, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("LOAD", sentai.tpu.load_slot(0, "/models/c2f_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load_slot(0, "/models/c2f_yuv420_int8_edgetpu.tflite"))
+Model loaded: 271200 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0xd14808d2b5e11482
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00331566 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.07433487  zero_point=199
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.07863516  zero_point=196
+Arena used: 485 / 8192 KB
+Model name: c2f_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P1 24 0xcfb3d873
+>>> 
+>>> print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P2 20 0xcfb3d873
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (137, 133, 90.4)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 1151, 'nms_ms_sum': 0, 'ms_sum': 3139, 'ok': 150, 'infer_wait_ms_sum': 392, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 21, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.rtos.heap_info())
+print(sentai.rtos.heap_info())
+{'rtos_free': 14245956, 'gc_used': 71616, 'gc_total': 1032384, 'gc_free': 960768, 'gc_max_free': 60038, 'gc_max_block': 9, 'gc_num_1block': 2907}
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 87366, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1117, 1067, 1074, 3479, 54, 0), 'gave': 87366, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 87366, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("LOAD", sentai.tpu.load_slot(0, "/models/c2f_pan2_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load_slot(0, "/models/c2f_pan2_yuv420_int8_edgetpu.tflite"))
+Model loaded: 344928 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0xd72a3975caf93cd9
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00331440 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00391237 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.12782960  zero_point=210
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.15760142  zero_point=196
+Arena used: 485 / 8192 KB
+Model name: c2f_pan2_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P1 26 0x388a2036
+>>> 
+>>> print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P2 20 0x388a2036
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (133, 129, 91.0)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 1220, 'nms_ms_sum': 5, 'ms_sum': 3159, 'ok': 145, 'infer_wait_ms_sum': 363, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 22, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.rtos.heap_info())
+print(sentai.rtos.heap_info())
+{'rtos_free': 14172228, 'gc_used': 74224, 'gc_total': 1032384, 'gc_free': 958160, 'gc_max_free': 59875, 'gc_max_block': 9, 'gc_num_1block': 3013}
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 90756, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1117, 1067, 1074, 3479, 54, 0), 'gave': 90756, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 90756, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("LOAD", sentai.tpu.load_slot(0, "/models/gelan_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load_slot(0, "/models/gelan_yuv420_int8_edgetpu.tflite"))
+Model loaded: 361312 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x0b9a33cfa57ebce2
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00305517 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00390619 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.08101762  zero_point=201
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.09669585  zero_point=203
+Arena used: 485 / 8192 KB
+Model name: gelan_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P1 27 0xa904e4cb
+>>> 
+>>> print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P2 21 0xa904e4cb
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (132, 128, 72.4)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 1607, 'nms_ms_sum': 0, 'ms_sum': 3190, 'ok': 145, 'infer_wait_ms_sum': 388, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 22, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.rtos.heap_info())
+print(sentai.rtos.heap_info())
+{'rtos_free': 14155844, 'gc_used': 76864, 'gc_total': 1032384, 'gc_free': 955520, 'gc_max_free': 59710, 'gc_max_block': 9, 'gc_num_1block': 3121}
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 94125, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1117, 1067, 1074, 3479, 54, 0), 'gave': 94125, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 94125, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("LOAD", sentai.tpu.load_slot(0, "/models/c2f_thick_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load_slot(0, "/models/c2f_thick_yuv420_int8_edgetpu.tflite"))
+Model loaded: 951136 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0xb0032226b8e358e1
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00326224 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.09776910  zero_point=208
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.09557785  zero_point=208
+Arena used: 485 / 8192 KB
+Model name: c2f_thick_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P1 44 0xc944e52b
+>>> 
+>>> print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P2 22 0xc944e52b
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (132, 128, 73.0)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 1721, 'nms_ms_sum': 0, 'ms_sum': 3312, 'ok': 144, 'infer_wait_ms_sum': 253, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 23, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.rtos.heap_info())
+print(sentai.rtos.heap_info())
+{'rtos_free': 13566020, 'gc_used': 79504, 'gc_total': 1032384, 'gc_free': 952880, 'gc_max_free': 59545, 'gc_max_block': 9, 'gc_num_1block': 3229}
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 97468, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1117, 1067, 1074, 3479, 54, 0), 'gave': 97468, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 97468, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("LOAD", sentai.tpu.load_slot(0, "/models/msblock_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load_slot(0, "/models/msblock_yuv420_int8_edgetpu.tflite"))
+Model loaded: 213856 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x28ccc834f764e0d6
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00332641 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.06770096  zero_point=189
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.07166678  zero_point=186
+Arena used: 485 / 8192 KB
+Model name: msblock_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P1 22 0xf2321364
+>>> 
+>>> print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P2 19 0xf2321364
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (140, 136, 71.6)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 1604, 'nms_ms_sum': 0, 'ms_sum': 3040, 'ok': 152, 'infer_wait_ms_sum': 354, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 20, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.rtos.heap_info())
+print(sentai.rtos.heap_info())
+{'rtos_free': 14303300, 'gc_used': 82144, 'gc_total': 1032384, 'gc_free': 950240, 'gc_max_free': 59380, 'gc_max_block': 9, 'gc_num_1block': 3337}
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 100834, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1117, 1067, 1074, 3479, 54, 0), 'gave': 100834, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 100834, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("LOAD", sentai.tpu.load_slot(0, "/models/c3_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load_slot(0, "/models/c3_yuv420_int8_edgetpu.tflite"))
+Model loaded: 258912 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x78095c64801b82c0
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00323895 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.07945366  zero_point=203
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.08630606  zero_point=205
+Arena used: 485 / 8192 KB
+Model name: c3_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P1 23 0x47e84ffd
+>>> 
+>>> print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P2 19 0x47e84ffd
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (138, 134, 75.2)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 1493, 'nms_ms_sum': 0, 'ms_sum': 3022, 'ok': 151, 'infer_wait_ms_sum': 360, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 20, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.rtos.heap_info())
+print(sentai.rtos.heap_info())
+{'rtos_free': 14258244, 'gc_used': 84784, 'gc_total': 1032384, 'gc_free': 947600, 'gc_max_free': 59215, 'gc_max_block': 9, 'gc_num_1block': 3445}
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 104181, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1117, 1067, 1074, 3479, 54, 0), 'gave': 104181, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 104181, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("LOAD", sentai.tpu.load_slot(0, "/models/c2f_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load_slot(0, "/models/c2f_yuv420_int8_edgetpu.tflite"))
+Model loaded: 271200 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0xd14808d2b5e11482
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00331566 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.07433487  zero_point=199
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.07863516  zero_point=196
+Arena used: 485 / 8192 KB
+Model name: c2f_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P1 24 0xcfb3d873
+>>> 
+>>> print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P2 20 0xcfb3d873
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (138, 134, 77.1)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 1443, 'nms_ms_sum': 0, 'ms_sum': 3110, 'ok': 150, 'infer_wait_ms_sum': 372, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 21, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.rtos.heap_info())
+print(sentai.rtos.heap_info())
+{'rtos_free': 14245956, 'gc_used': 87424, 'gc_total': 1032384, 'gc_free': 944960, 'gc_max_free': 59050, 'gc_max_block': 9, 'gc_num_1block': 3553}
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 107508, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1117, 1067, 1074, 3479, 54, 0), 'gave': 107508, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 107508, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("LOAD", sentai.tpu.load_slot(0, "/models/c2f_pan2_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load_slot(0, "/models/c2f_pan2_yuv420_int8_edgetpu.tflite"))
+Model loaded: 344928 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0xd72a3975caf93cd9
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00331440 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00391237 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.12782960  zero_point=210
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.15760142  zero_point=196
+Arena used: 485 / 8192 KB
+Model name: c2f_pan2_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P1 26 0x388a2036
+>>> 
+>>> print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P2 20 0x388a2036
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (133, 129, 75.7)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 1505, 'nms_ms_sum': 1, 'ms_sum': 3126, 'ok': 145, 'infer_wait_ms_sum': 397, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 22, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.rtos.heap_info())
+print(sentai.rtos.heap_info())
+{'rtos_free': 14172228, 'gc_used': 90032, 'gc_total': 1032384, 'gc_free': 942352, 'gc_max_free': 58887, 'gc_max_block': 9, 'gc_num_1block': 3659}
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 110898, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1117, 1074, 1074, 3479, 54, 0), 'gave': 110898, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 110898, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("LOAD", sentai.tpu.load_slot(0, "/models/gelan_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load_slot(0, "/models/gelan_yuv420_int8_edgetpu.tflite"))
+Model loaded: 361312 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x0b9a33cfa57ebce2
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00305517 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00390619 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.08101762  zero_point=201
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.09669585  zero_point=203
+Arena used: 485 / 8192 KB
+Model name: gelan_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P1 27 0xa904e4cb
+>>> 
+>>> print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P2 21 0xa904e4cb
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (132, 128, 75.2)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 1536, 'nms_ms_sum': 0, 'ms_sum': 3190, 'ok': 145, 'infer_wait_ms_sum': 384, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 22, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.rtos.heap_info())
+print(sentai.rtos.heap_info())
+{'rtos_free': 14155844, 'gc_used': 92672, 'gc_total': 1032384, 'gc_free': 939712, 'gc_max_free': 58722, 'gc_max_block': 9, 'gc_num_1block': 3767}
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 114267, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1117, 1074, 1074, 3479, 54, 0), 'gave': 114267, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 114267, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("LOAD", sentai.tpu.load_slot(0, "/models/c2f_thick_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load_slot(0, "/models/c2f_thick_yuv420_int8_edgetpu.tflite"))
+Model loaded: 951136 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0xb0032226b8e358e1
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00326224 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.09776910  zero_point=208
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.09557785  zero_point=208
+Arena used: 485 / 8192 KB
+Model name: c2f_thick_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P1 44 0xc944e52b
+>>> 
+>>> print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P2 22 0xc944e52b
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (131, 127, 80.4)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 1534, 'nms_ms_sum': 0, 'ms_sum': 3312, 'ok': 144, 'infer_wait_ms_sum': 239, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 23, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.rtos.heap_info())
+print(sentai.rtos.heap_info())
+{'rtos_free': 13566020, 'gc_used': 95312, 'gc_total': 1032384, 'gc_free': 937072, 'gc_max_free': 58557, 'gc_max_block': 9, 'gc_num_1block': 3875}
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 117631, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1117, 1081, 1074, 3480, 54, 0), 'gave': 117631, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 117631, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("LOAD", sentai.tpu.load_slot(0, "/models/msblock_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load_slot(0, "/models/msblock_yuv420_int8_edgetpu.tflite"))
+Model loaded: 213856 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x28ccc834f764e0d6
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00332641 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.06770096  zero_point=189
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.07166678  zero_point=186
+Arena used: 485 / 8192 KB
+Model name: msblock_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P1 22 0xf2321364
+>>> 
+>>> print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P2 19 0xf2321364
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (139, 135, 77.9)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 1449, 'nms_ms_sum': 0, 'ms_sum': 3040, 'ok': 152, 'infer_wait_ms_sum': 349, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 20, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.rtos.heap_info())
+print(sentai.rtos.heap_info())
+{'rtos_free': 14303300, 'gc_used': 97952, 'gc_total': 1032384, 'gc_free': 934432, 'gc_max_free': 58392, 'gc_max_block': 9, 'gc_num_1block': 3983}
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 120997, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1117, 1081, 1074, 3480, 54, 0), 'gave': 120997, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 120997, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("LOAD", sentai.tpu.load_slot(0, "/models/c3_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load_slot(0, "/models/c3_yuv420_int8_edgetpu.tflite"))
+Model loaded: 258912 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x78095c64801b82c0
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00323895 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.07945366  zero_point=203
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.08630606  zero_point=205
+Arena used: 485 / 8192 KB
+Model name: c3_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P1 24 0x47e84ffd
+>>> 
+>>> print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P2 19 0x47e84ffd
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (138, 134, 75.8)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 1463, 'nms_ms_sum': 0, 'ms_sum': 3021, 'ok': 151, 'infer_wait_ms_sum': 354, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 20, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.rtos.heap_info())
+print(sentai.rtos.heap_info())
+{'rtos_free': 14258244, 'gc_used': 100592, 'gc_total': 1032384, 'gc_free': 931792, 'gc_max_free': 58227, 'gc_max_block': 9, 'gc_num_1block': 4091}
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 124344, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1117, 1081, 1074, 3480, 54, 0), 'gave': 124344, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 124344, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("LOAD", sentai.tpu.load_slot(0, "/models/c2f_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load_slot(0, "/models/c2f_yuv420_int8_edgetpu.tflite"))
+Model loaded: 271200 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0xd14808d2b5e11482
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00331566 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.07433487  zero_point=199
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.07863516  zero_point=196
+Arena used: 485 / 8192 KB
+Model name: c2f_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P1 24 0xcfb3d873
+>>> 
+>>> print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P2 20 0xcfb3d873
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (138, 134, 90.9)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 1161, 'nms_ms_sum': 0, 'ms_sum': 3134, 'ok': 150, 'infer_wait_ms_sum': 386, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 21, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.rtos.heap_info())
+print(sentai.rtos.heap_info())
+{'rtos_free': 14245956, 'gc_used': 103232, 'gc_total': 1032384, 'gc_free': 929152, 'gc_max_free': 58062, 'gc_max_block': 9, 'gc_num_1block': 4199}
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 127671, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1117, 1081, 1074, 3480, 54, 0), 'gave': 127671, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 127671, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("LOAD", sentai.tpu.load_slot(0, "/models/c2f_pan2_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load_slot(0, "/models/c2f_pan2_yuv420_int8_edgetpu.tflite"))
+Model loaded: 344928 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0xd72a3975caf93cd9
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00331440 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00391237 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.12782960  zero_point=210
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.15760142  zero_point=196
+Arena used: 485 / 8192 KB
+Model name: c2f_pan2_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P1 26 0x388a2036
+>>> 
+>>> print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P2 20 0x388a2036
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (133, 129, 75.3)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 1518, 'nms_ms_sum': 1, 'ms_sum': 3133, 'ok': 145, 'infer_wait_ms_sum': 395, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 22, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.rtos.heap_info())
+print(sentai.rtos.heap_info())
+{'rtos_free': 14172228, 'gc_used': 105840, 'gc_total': 1032384, 'gc_free': 926544, 'gc_max_free': 57899, 'gc_max_block': 9, 'gc_num_1block': 4305}
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 131061, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1117, 1081, 1074, 3480, 54, 0), 'gave': 131061, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 131061, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("LOAD", sentai.tpu.load_slot(0, "/models/gelan_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load_slot(0, "/models/gelan_yuv420_int8_edgetpu.tflite"))
+Model loaded: 361312 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x0b9a33cfa57ebce2
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00305517 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00390619 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.08101762  zero_point=201
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.09669585  zero_point=203
+Arena used: 485 / 8192 KB
+Model name: gelan_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P1 27 0xa904e4cb
+>>> 
+>>> print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P2 21 0xa904e4cb
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (132, 128, 75.5)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 1552, 'nms_ms_sum': 0, 'ms_sum': 3190, 'ok': 145, 'infer_wait_ms_sum': 378, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 22, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.rtos.heap_info())
+print(sentai.rtos.heap_info())
+{'rtos_free': 14155844, 'gc_used': 108480, 'gc_total': 1032384, 'gc_free': 923904, 'gc_max_free': 57734, 'gc_max_block': 9, 'gc_num_1block': 4413}
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 134430, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1117, 1081, 1074, 3480, 54, 0), 'gave': 134430, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 134430, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("LOAD", sentai.tpu.load_slot(0, "/models/c2f_thick_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load_slot(0, "/models/c2f_thick_yuv420_int8_edgetpu.tflite"))
+Model loaded: 951136 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0xb0032226b8e358e1
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00326224 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.09776910  zero_point=208
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.09557785  zero_point=208
+Arena used: 485 / 8192 KB
+Model name: c2f_thick_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P1 44 0xc944e52b
+>>> 
+>>> print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P2 22 0xc944e52b
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (131, 127, 89.4)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 1387, 'nms_ms_sum': 0, 'ms_sum': 3312, 'ok': 144, 'infer_wait_ms_sum': 222, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 23, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.rtos.heap_info())
+print(sentai.rtos.heap_info())
+{'rtos_free': 13566020, 'gc_used': 111120, 'gc_total': 1032384, 'gc_free': 921264, 'gc_max_free': 57569, 'gc_max_block': 9, 'gc_num_1block': 4521}
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 137773, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1117, 1081, 1074, 3480, 54, 0), 'gave': 137773, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 137773, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("LOAD", sentai.tpu.load_slot(0, "/models/msblock_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load_slot(0, "/models/msblock_yuv420_int8_edgetpu.tflite"))
+Model loaded: 213856 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x28ccc834f764e0d6
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00332641 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.06770096  zero_point=189
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.07166678  zero_point=186
+Arena used: 485 / 8192 KB
+Model name: msblock_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P1 22 0xf2321364
+>>> 
+>>> print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P2 19 0xf2321364
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (140, 136, 71.2)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 1629, 'nms_ms_sum': 0, 'ms_sum': 3040, 'ok': 152, 'infer_wait_ms_sum': 349, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 20, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.rtos.heap_info())
+print(sentai.rtos.heap_info())
+{'rtos_free': 14303300, 'gc_used': 113760, 'gc_total': 1032384, 'gc_free': 918624, 'gc_max_free': 57404, 'gc_max_block': 9, 'gc_num_1block': 4629}
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 141139, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1117, 1081, 1074, 3480, 54, 0), 'gave': 141139, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 141139, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("LOAD", sentai.tpu.load_slot(0, "/models/c3_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load_slot(0, "/models/c3_yuv420_int8_edgetpu.tflite"))
+Model loaded: 258912 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x78095c64801b82c0
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00323895 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.07945366  zero_point=203
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.08630606  zero_point=205
+Arena used: 485 / 8192 KB
+Model name: c3_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P1 24 0x47e84ffd
+>>> 
+>>> print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P2 19 0x47e84ffd
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (138, 134, 71.0)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 1611, 'nms_ms_sum': 0, 'ms_sum': 3020, 'ok': 151, 'infer_wait_ms_sum': 357, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 20, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.rtos.heap_info())
+print(sentai.rtos.heap_info())
+{'rtos_free': 14258244, 'gc_used': 116400, 'gc_total': 1032384, 'gc_free': 915984, 'gc_max_free': 57239, 'gc_max_block': 9, 'gc_num_1block': 4737}
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 144486, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1117, 1081, 1074, 3480, 54, 0), 'gave': 144486, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 144486, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("LOAD", sentai.tpu.load_slot(0, "/models/c2f_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load_slot(0, "/models/c2f_yuv420_int8_edgetpu.tflite"))
+Model loaded: 271200 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0xd14808d2b5e11482
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00331566 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.07433487  zero_point=199
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.07863516  zero_point=196
+Arena used: 485 / 8192 KB
+Model name: c2f_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P1 24 0xcfb3d873
+>>> 
+>>> print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P2 20 0xcfb3d873
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (138, 134, 71.8)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 1596, 'nms_ms_sum': 0, 'ms_sum': 3100, 'ok': 150, 'infer_wait_ms_sum': 359, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 20, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.rtos.heap_info())
+print(sentai.rtos.heap_info())
+{'rtos_free': 14245956, 'gc_used': 119040, 'gc_total': 1032384, 'gc_free': 913344, 'gc_max_free': 57074, 'gc_max_block': 9, 'gc_num_1block': 4845}
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 147813, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1117, 1081, 1074, 3480, 54, 0), 'gave': 147813, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 147813, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("LOAD", sentai.tpu.load_slot(0, "/models/c2f_pan2_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load_slot(0, "/models/c2f_pan2_yuv420_int8_edgetpu.tflite"))
+Model loaded: 344928 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0xd72a3975caf93cd9
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00331440 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00391237 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.12782960  zero_point=210
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.15760142  zero_point=196
+Arena used: 485 / 8192 KB
+Model name: c2f_pan2_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P1 26 0x388a2036
+>>> 
+>>> print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P2 20 0x388a2036
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (133, 129, 70.6)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 1615, 'nms_ms_sum': 2, 'ms_sum': 3118, 'ok': 145, 'infer_wait_ms_sum': 405, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 22, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.rtos.heap_info())
+print(sentai.rtos.heap_info())
+{'rtos_free': 14172228, 'gc_used': 121648, 'gc_total': 1032384, 'gc_free': 910736, 'gc_max_free': 56911, 'gc_max_block': 9, 'gc_num_1block': 4951}
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 151203, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1117, 1081, 1074, 3480, 54, 0), 'gave': 151203, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 151203, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("LOAD", sentai.tpu.load_slot(0, "/models/gelan_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load_slot(0, "/models/gelan_yuv420_int8_edgetpu.tflite"))
+Model loaded: 361312 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x0b9a33cfa57ebce2
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00305517 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00390619 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.08101762  zero_point=201
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.09669585  zero_point=203
+Arena used: 485 / 8192 KB
+Model name: gelan_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P1 27 0xa904e4cb
+>>> 
+>>> print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P2 21 0xa904e4cb
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (132, 128, 71.5)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 1640, 'nms_ms_sum': 0, 'ms_sum': 3190, 'ok': 145, 'infer_wait_ms_sum': 383, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 22, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.rtos.heap_info())
+print(sentai.rtos.heap_info())
+{'rtos_free': 14155844, 'gc_used': 124288, 'gc_total': 1032384, 'gc_free': 908096, 'gc_max_free': 56746, 'gc_max_block': 9, 'gc_num_1block': 5059}
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 154572, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1117, 1081, 1074, 3480, 54, 0), 'gave': 154572, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 154572, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("LOAD", sentai.tpu.load_slot(0, "/models/c2f_thick_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load_slot(0, "/models/c2f_thick_yuv420_int8_edgetpu.tflite"))
+Model loaded: 951136 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0xb0032226b8e358e1
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00326224 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.09776910  zero_point=208
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.09557785  zero_point=208
+Arena used: 485 / 8192 KB
+Model name: c2f_thick_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P1 44 0xc944e52b
+>>> 
+>>> print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P2 22 0xc944e52b
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (131, 127, 70.6)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 1768, 'nms_ms_sum': 1, 'ms_sum': 3312, 'ok': 144, 'infer_wait_ms_sum': 251, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 23, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.rtos.heap_info())
+print(sentai.rtos.heap_info())
+{'rtos_free': 13566020, 'gc_used': 126928, 'gc_total': 1032384, 'gc_free': 905456, 'gc_max_free': 56581, 'gc_max_block': 9, 'gc_num_1block': 5167}
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 157936, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1117, 1081, 1074, 3480, 54, 0), 'gave': 157936, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 157936, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("LOAD", sentai.tpu.load_slot(0, "/models/msblock_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load_slot(0, "/models/msblock_yuv420_int8_edgetpu.tflite"))
+Model loaded: 213856 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x28ccc834f764e0d6
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00332641 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.06770096  zero_point=189
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.07166678  zero_point=186
+Arena used: 485 / 8192 KB
+Model name: msblock_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P1", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P1 22 0xf2321364
+>>> 
+>>> print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+print("P2", sentai.tpu.invoke(), hex(sentai.tpu.output_hash(0)))
+P2 19 0xf2321364
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (140, 136, 70.9)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 1655, 'nms_ms_sum': 0, 'ms_sum': 3040, 'ok': 152, 'infer_wait_ms_sum': 352, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 20, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.rtos.heap_info())
+print(sentai.rtos.heap_info())
+{'rtos_free': 14303300, 'gc_used': 129568, 'gc_total': 1032384, 'gc_free': 902816, 'gc_max_free': 56416, 'gc_max_block': 9, 'gc_num_1block': 5275}
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 161302, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1117, 1081, 1074, 3480, 54, 0), 'gave': 161302, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 161302, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print(sentai.rtos.dmesg())
+print(sentai.rtos.dmesg())
+[         0] I E:0F01:1
+[      3818] I E:0500:30
+[      8818] I E:0A06:3
+[      8818] I E:0A12:18
+[      8818] I E:0A0C:22
+[     13818] I E:0480:500
+[     18818] I E:0481:166
+[     18818] I E:0480:500
+[     18818] I E:0481:164
+[     23818] I E:0480:500
+[     23818] I E:0481:160
+[     28818] I E:0480:500
+[     28818] I E:0481:158
+[     28818] I E:0480:500
+[     33818] I E:0481:157
+[     33818] I E:0480:500
+[     38818] I E:0481:166
+[     38818] I E:0480:500
+[     43818] I E:0481:166
+[     43818] I E:0480:500
+[     43818] I E:0481:164
+[     48818] I E:0480:500
+[     48818] I E:0481:159
+[     53818] I E:0480:500
+[     53818] I E:0481:158
+[     53818] I E:0480:500
+[     58818] I E:0481:157
+[     58818] I E:0480:500
+[     63818] I E:0481:166
+[     63818] I E:0480:500
+[     68818] I E:0481:166
+[     68818] I E:0480:500
+[     68818] I E:0481:164
+[     73818] I E:0480:500
+[     73818] I E:0481:159
+[     78818] I E:0480:500
+[     78818] I E:0481:158
+[     78818] I E:0480:500
+[     83818] I E:0481:156
+[     83818] I E:0480:500
+[     88818] I E:0481:166
+[     88818] I E:0480:500
+[     93818] I E:0481:165
+[     93818] I E:0480:500
+[     93818] I E:0481:164
+[     98818] I E:0480:500
+[     98818] I E:0481:158
+[    103818] I E:0480:500
+[    103818] I E:0481:158
+[    103818] I E:0480:500
+[    108818] I E:0481:158
+[    108818] I E:0480:500
+[    113818] I E:0481:166
+[    113818] I E:0480:500
+[    118818] I E:0481:164
+[    118818] I E:0480:500
+[    118818] I E:0481:164
+[    123818] I E:0480:500
+[    123818] I E:0481:159
+[    123818] I E:0480:500
+[    128818] I E:0481:158
+[    128818] I E:0480:500
+[    133818] I E:0481:156
+[    133818] I E:0480:500
+[    138818] I E:0481:166
+[    138818] I E:0480:500
+[    138818] I E:0481:165
+[    143818] I E:0480:500
+[    143818] I E:0481:164
+[    148818] I E:0480:500
+[    148818] I E:0481:159
+[    148818] I E:0480:500
+[    153818] I E:0481:158
+[    153818] I E:0480:500
+[    158818] I E:0481:157
+[    158818] I E:0480:500
+[    163818] I E:0481:166
+[    163818] I E:0480:500
+[    163818] I E:0481:165
+[    168818] I E:0480:500
+[    168818] I E:0481:164
+[    173818] I E:0480:500
+[    173818] I E:0481:159
+[    173818] I E:0480:500
+[    178818] I E:0481:158
+[    178818] I E:0480:500
+[    183818] I E:0481:156
+[    183818] I E:0480:500
+[    183818] I E:0481:166
+[    188818] I E:0480:500
+[    188818] I E:0481:165
+[    193818] I E:0480:500
+[    193818] I E:0481:164
+[    193818] I E:0480:500
+[    198818] I E:0481:159
+[    198818] I E:0480:500
+[    203818] I E:0481:158
+[    203818] I E:0480:500
+[    208818] I E:0481:157
+[    208818] I E:0480:500
+[    208818] I E:0481:166
+
+>>> 
+>>> print(sentai.rtos.heap_info())
+print(sentai.rtos.heap_info())
+{'rtos_free': 14303300, 'gc_used': 133296, 'gc_total': 1032384, 'gc_free': 899088, 'gc_max_free': 56184, 'gc_max_block': 164, 'gc_num_1block': 5321}
+>>> 
+>>> print("OK")
+print("OK")
+OK
+>>> 

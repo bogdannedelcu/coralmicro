@@ -776,6 +776,14 @@ static mp_obj_t mod_sentai_pipeline_infer_stats(void) {
         mp_obj_dict_store(d, mp_obj_new_str("recover_fail", 12),     mp_obj_new_int_from_uint(rf));
         mp_obj_dict_store(d, mp_obj_new_str("recover_giveup", 14),   mp_obj_new_int_from_uint(rg));
     }
+    {   // W24-T9: first failure position in this run (idx = ok-count at that
+        // moment, 0xFFFFFFFF = none; ms since infer_reset()).
+        extern void sentai_pipeline_first_fail(uint32_t*, uint32_t*);
+        uint32_t fi = 0, fm = 0;
+        sentai_pipeline_first_fail(&fi, &fm);
+        mp_obj_dict_store(d, mp_obj_new_str("first_fail_idx", 14), mp_obj_new_int_from_uint(fi));
+        mp_obj_dict_store(d, mp_obj_new_str("first_fail_ms", 13),  mp_obj_new_int_from_uint(fm));
+    }
     return d;
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_pipeline_infer_stats_obj,

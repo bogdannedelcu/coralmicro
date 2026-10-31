@@ -1,0 +1,21 @@
+SentAI v1.1 build 1706 (2026-10-31 20:54:16) board 58eb
+['INIT 0']
+heap at start: {'rtos_free': 14569480, 'gc_used': 1184, 'gc_total': 1032384, 'gc_free': 1031200, 'gc_max_free': 64416, 'gc_max_block': 8, 'gc_num_1block': 38}
+phase A: 12 cold loads, load s = [0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3], heap = {'rtos_free': 13569148, 'gc_used': 3696, 'gc_total': 1032384, 'gc_free': 1028688, 'gc_max_free': 64253, 'gc_max_block': 8, 'gc_num_1block': 129}
+ rnd model      load_s      hash1      hash2 frames   fail     ms heapfree    urb_to
+   0 c3            0.3 0x47e84ffd 0x47e84ffd    152      0   20.0 14258244         0
+   1 c2f           0.3 0xcfb3d873 0xcfb3d873    150      0   20.7 14245956         0
+   2 c2f_pan2      0.3 0x388a2036 0x388a2036    145      0   21.6 14172228         0
+   3 gelan         0.3 0xa904e4cb 0xa904e4cb    145      0   22.0 14155844         0
+   4 c2f_thick     0.3 0xc944e52b 0xc944e52b    144      0   23.0 13566020         0
+   5 msblock       0.3 0xf2321364 0xf2321364    152      0   20.0 14303300         0
+   6 c3            0.3 0x47e84ffd 0x47e84ffd    151      0   20.0 14258244         0
+   7 c2f           0.3 0xcfb3d873 0xcfb3d873    150      0   20.7 14245956         0
+   8 c2f_pan2      0.3 0x388a2036 0x388a2036    145      0   21.6 14172228         0
+   9 gelan         0.3 0xa904e4cb 0xa904e4cb    145      0   22.0 14155844         0
+  10 c2f_thick     0.3 0xc944e52b 0xc944e52b    145      0   23.0 13566020         0
+  11 msblock       0.3 0xf2321364 0xf2321364    152      0   20.0 14303300         0
+  12 c3            0.3 0x47e84ffd 0x47e84ffd    152      0   20.0 14258244         0
+  13 c2f           0.3 0xcfb3d873 0xcfb3d873    151      0   20.7 14245956         0
+  14 c2f_pan2      0.3 0x388a2036 0x388a2036    146      0   21.5 14172228         0
+  15 gelan         0.3 0xa904e4cb 0xa904e4cb    145      0   22.0 14155844         0

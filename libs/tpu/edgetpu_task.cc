@@ -31,6 +31,10 @@ extern "C" void sentai_usb_edgetpu_dump_eps(void);
 
 // W24-T7 diagnosability: PGOOD did not assert within the bounded wait.
 extern "C" volatile uint32_t g_sentai_tpu_pgood_timeouts = 0;
+// W24-T9: USB attach/detach events seen for the Edge TPU, so a wedge analysis
+// can tell a device that silently re-enumerated from one that stayed put.
+extern "C" volatile uint32_t g_sentai_tpu_usb_attach = 0;
+extern "C" volatile uint32_t g_sentai_tpu_usb_detach = 0;
 
 using namespace std::placeholders;
 
@@ -71,9 +75,11 @@ usb_status_t EdgeTpuTask::USBHostEvent(
       return (this->device_handle() != nullptr) ? kStatus_USB_Success
                                                 : kStatus_USB_NotSupported;
     case kUSB_HostEventEnumerationDone:
+      g_sentai_tpu_usb_attach++;
       SetNextState(EdgeTpuState::kAttached);
       return kStatus_USB_Success;
     case kUSB_HostEventDetach:
+      g_sentai_tpu_usb_detach++;
 #if 0
       printf("EdgeTPU went away...\r\n");
 #endif
