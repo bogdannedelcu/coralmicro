@@ -54,3 +54,12 @@ comments, know that:
   via `sentai.fs.write` survived `drive(1) → /dev/sda visible → 'q' exit
   → sentai.fs.read` and came back byte-identical. Three back-to-back
   cycles all clean. User exhaustive test passed.
+
+**2026-10-31 re-test on the fused rev-1.1 board 58eb (build 1683):** storage
+mode works through the real flash boot: `sentai.usb.drive(1)` -> re-enumeration
+as CDC-ACM + MSC, host sees "SENTAI FLASH STORAGE" 59.5 GiB FAT32 (desktop
+auto-mounts it; `udisksctl unmount -b /dev/sdX` before leaving).  In THIS build
+the REPL stays alive in storage mode and a stray byte on ttyACM0 did NOT exit
+it; leave with `sentai.usb.drive(0)` (back to ACM+NCM, FS mounted).  The USER
+button (SW2) also enters storage mode -- pressing it during boot-strap tests
+leaves the board in MSC mode.

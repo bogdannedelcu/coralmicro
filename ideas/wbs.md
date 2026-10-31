@@ -941,7 +941,7 @@ OP — ObjectsPlan thesis
 │   │    │   programming is operator-only (irreversible).
 │   │    ├── OP-S10-W22-T5 — T5838 mic pin remap (THSEL = GPIO_AD_18 per sheet 12; AD_19 is tied to MIC_CLK) ✅ DONE (build 1642)
 │   │    ├── OP-S10-W22-T6 — VDD_1V8_INT_EN polarity verification    ✅ DONE (sheet 4: TCR2LN18 CONTROL active-high; rail fed by PMIC via R13, pin held LOW on purpose)
-│   │    ├── OP-S10-W22-T7 — Persistent-flash boot + MSC storage mode re-test ⬜ BLOCKED (hardware, T4)
+│   │    ├── OP-S10-W22-T7 — Persistent-flash boot + MSC storage mode re-test 🟢 DONE (2026-10-31, 58eb fused: drive(1) → warm reset → boots from NAND into CDC+MSC, host sees the 64 GB FAT32 card; drive(0) → default mode, FS mounted again)
 │   │    ├── OP-S10-W22-T8 — EMU (Renode) storage targets vs the SD backend ⬜ TODO
 │   │        emu/CMakeLists.txt still pairs fx_user_fs.cc with
 │   │        fx_nand_driver.cc (Renode nand_bridge host image) in 5
