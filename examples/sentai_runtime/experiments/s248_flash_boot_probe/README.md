@@ -182,3 +182,11 @@ Q4) is reversible, free and already fully characterised — do that first;
 keep the fuse route for units that cannot be reworked, and then only after
 the fusemap bits are confirmed in the RM and the exact words were tried on
 one unit.
+
+## Resolution 2026-10-31 — eFuses (EXP-s255)
+
+Rehearsed on the rev-1.0 unit 42a9, then programmed on 85b1: OCOTP 0x940 =
+`0x000004C0` (BOOT_CFG1/2 = the strap values of the booting boards) and 0x960
+bit 4 (BT_FUSE_SEL).  With BOOT_MODE `00` the ROM now boots from the fuses →
+85b1 came up as "SentAI v1.1 build #1679" straight from the NAND.  R163 is no
+longer required; SW2 (BOOT_MODE0 → `01`) keeps the Serial Downloader reachable.

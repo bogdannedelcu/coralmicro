@@ -185,3 +185,7 @@ confirmed the layout.  Tool: experiments/s255_efuse_boot_config/efuse_boot_cfg.p
 (--read / --burn I-UNDERSTAND).  Rev-1.1 units pending operator go; after the
 burn, BOOT_MODE 00 boots from fuses -> R163 not needed; SW2 (BOOT_MODE0) still
 forces SDP for recovery.
+**85b1 FUSED (2026-10-31, operator ran the burn):** boots from NAND in mode 00 ->
+"SentAI v1.1 build #1679 board 85b1" straight from flash.  Flash-boot blocker
+F1 is solved by fuses, not by R163.  58eb pending the same burn.  Every future
+persistent flash on a fused board runs for real at the next reset.

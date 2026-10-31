@@ -15,7 +15,7 @@ items need the operator.
 
 | # | Finding | Severity | Owner |
 |---|---|---|---|
-| F1 | Boot straps: the USER-button circuit drives BOOT_MODE[1:0] inverted vs its own table; the external boot DIP switch SW1 (and R163/R164) is DNP; both strap pull-ups hang on PMIC `VDD_1V8`, which may not be up when the ROM samples the pins → board always enters the serial downloader | BLOCKER for flash boot | HW (+ a 1-minute button test) |
+| F1 | Boot straps: the USER-button circuit drives BOOT_MODE[1:0] inverted vs its own table; the external boot DIP switch SW1 (and R163/R164) is DNP; both strap pull-ups hang on PMIC `VDD_1V8`, which may not be up when the ROM samples the pins → board always enters the serial downloader | BLOCKER for flash boot | HW (+ a 1-minute button test) **RESOLVED by eFuses on 85b1 (EXP-s255, 2026-10-31): BOOT_CFG 0x4C0 + BT_FUSE_SEL → BOOT_MODE 00 boots from fuses; 58eb pending; R163 no longer needed** |
 | F2 | SDK debug console (`DbgConsole_Init`) runs on **LPUART6**, which on this rev is the PILOT (Crazyflie) connector J3; error paths emit text onto the autopilot link | HIGH | FW |
 | F3 | `VDD_1V8_INT_EN` logic is inverted by Q9: writing 1 **turns the mic+IMU LDO off**; the rail is ON by default (R59 pull-up to VSYS_DA) and stays on in SNVS power-down — correct behaviour today, wrong comment in firmware, and a landmine for any future "power-save" code | MEDIUM (doc) / HIGH (if touched) | FW doc |
 | F4 | `PwmInit()` re-muxes GPIO_AD_00/AD_01 to FLEXPWM1 on every call (`muxed` never set); any use of `LedSet(Led::kTpu)` or the PWM API would open the CAM1 I²C isolation switch U9 → camera 1 NAKs | HIGH (latent) | FW |
