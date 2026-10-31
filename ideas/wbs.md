@@ -941,7 +941,18 @@ OP — ObjectsPlan thesis
 │   │    │   programming is operator-only (irreversible).
 │   │    ├── OP-S10-W22-T5 — T5838 mic pin remap (THSEL = GPIO_AD_18 per sheet 12; AD_19 is tied to MIC_CLK) ✅ DONE (build 1642)
 │   │    ├── OP-S10-W22-T6 — VDD_1V8_INT_EN polarity verification    ✅ DONE (sheet 4: TCR2LN18 CONTROL active-high; rail fed by PMIC via R13, pin held LOW on purpose)
-│   │    └── OP-S10-W22-T7 — Persistent-flash boot + MSC storage mode re-test ⬜ BLOCKED (hardware, T4)
+│   │    ├── OP-S10-W22-T7 — Persistent-flash boot + MSC storage mode re-test ⬜ BLOCKED (hardware, T4)
+│   │    └── OP-S10-W22-T8 — EMU (Renode) storage targets vs the SD backend ⬜ TODO
+│   │        emu/CMakeLists.txt still pairs fx_user_fs.cc with
+│   │        fx_nand_driver.cc (Renode nand_bridge host image) in 5
+│   │        targets (fx_storage, fs_stage_assets, fs_repl*, gazebo_flow
+│   │        _whycon_repl, flow_tpu_parallel); since T1 the user FS needs
+│   │        FxSd*/fx_sd_driver, so these fail to link (found 2026-10-31
+│   │        while verifying the detection_task.cc guard — that guard
+│   │        itself compiles).  Options: host-backed SD block bridge in
+│   │        Renode (keeps persistence), or a RAM-disk FxSd* stub (loses
+│   │        the host image).  Decide with the operator; EMU is a dev
+│   │        tool, not a deliverable.
 │   │
 │   └── OP-S10-W23 — Firmware hardening audit (races, hangs, OOM)   🟡 IN-PROGRESS (2026-10-30)
 │        │ Operator request 2026-10-30: exhaustive audit of the SentAI

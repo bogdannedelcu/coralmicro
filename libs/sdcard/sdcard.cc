@@ -98,13 +98,11 @@ bool s_cardInitialized = false;
 
 // Configure the SD card host (similar to BOARD_SDIO_Config but for SD cards)
 void ConfigureSDHost() {
-  printf("[SDCard] ConfigureSDHost: Setting up DMA buffers...\r\n");
   s_host.dmaDesBuffer = s_sdmmcHostDmaBuffer;
   s_host.dmaDesBufferWordsNum = 32;
 
 #if ((defined __DCACHE_PRESENT) && __DCACHE_PRESENT) || \
     (defined FSL_FEATURE_HAS_L1CACHE && FSL_FEATURE_HAS_L1CACHE)
-  printf("[SDCard] ConfigureSDHost: Enabling cache control\r\n");
   s_host.enableCacheControl = kSDMMCHOST_CacheControlRWBuffer;
 #endif
 
@@ -148,25 +146,15 @@ void ConfigureSDHost() {
     IOMUXC_SetPinConfig(IOMUXC_GPIO_SD_B1_04_USDHC1_DATA2, usdhc_data_pullup_settings);
     IOMUXC_SetPinConfig(IOMUXC_GPIO_SD_B1_05_USDHC1_DATA3, usdhc_data_pullup_settings);
 
-  printf("[SDCard] ConfigureSDHost: DMA and cache setup complete\r\n");
 
   // Configure SD card structure
-  printf("[SDCard] ConfigureSDHost: STEP 1\r\n");
-  printf("[SDCard] ConfigureSDHost: STEP 2\r\n");
   std::memset(&s_sdCard, 0, sizeof(s_sdCard));
-  printf("[SDCard] ConfigureSDHost: STEP 3 - memset DONE\r\n");
   s_sdCard.host = &s_host;
-  printf("[SDCard] ConfigureSDHost: Host pointer assigned, setting USDHC1 base...\r\n");
   s_sdCard.host->hostController.base = USDHC1;
-  printf("[SDCard] ConfigureSDHost: USDHC1 base set\r\n");
 
-  printf("[SDCard] ConfigureSDHost: Configuring USDHC1 clock...\r\n");
   s_sdCard.host->hostController.sourceClock_Hz = BOARD_USDHC1ClockConfiguration();
-  printf("[SDCard] ConfigureSDHost: Clock configured to %u Hz\r\n",
-         s_sdCard.host->hostController.sourceClock_Hz);
 
   // Card detect always returns true (assumes card is present)
-  printf("[SDCard] ConfigureSDHost: Setting up card detect...\r\n");
   s_cd.cdDebounce_ms = 100U;
   s_cd.type = kSD_DetectCardByGpioCD;
   s_cd.cardDetected = SdBoardCardDetected;
@@ -182,29 +170,24 @@ void ConfigureSDHost() {
   // Initialize power control
   // Card supply: off for >= 20 ms (discharge), then on.  C78 on the gate
   // soft-starts VSD_3V3; wait for it to settle before the first command.
-  printf("[SDCard] ConfigureSDHost: Power-cycling card supply...\r\n");
   SdBoardPower(false);
   vTaskDelay(pdMS_TO_TICKS(30));
   SdBoardPower(true);
   vTaskDelay(pdMS_TO_TICKS(30));
 
   // Set interrupt priority
-  printf("[SDCard] ConfigureSDHost: Setting USDHC1 interrupt priority...\r\n");
   NVIC_SetPriority(USDHC1_IRQn, 5);
 
 #if __CORTEX_M == 7
   // Apply RT1176 errata workaround
-  printf("[SDCard] ConfigureSDHost: Applying RT1176 errata workaround...\r\n");
   BOARD_USDHC_Errata();
 #endif
 
-  printf("[SDCard] ConfigureSDHost: Configuration complete\r\n");
 }
 
 }  // namespace
 
 bool SDCard::Init() {
-  printf("[SDCard] Init: Starting SD card initialization...\r\n");
 
   if (s_cardInitialized) {
     printf("[SDCard] Init: Already initialized\r\n");
@@ -212,15 +195,12 @@ bool SDCard::Init() {
   }
 
   // Configure host controller
-  printf("[SDCard] Init: Configuring SD host controller...\r\n");
   ConfigureSDHost();
   printf("[SDCard] Init: SD host configured (USDHC1 at %u Hz)\r\n",
          s_sdCard.host->hostController.sourceClock_Hz);
 
   // Initialize SD card
-  printf("[SDCard] Init: Calling SD_Init()...\r\n");
   status_t status = SD_Init(&s_sdCard);
-  printf("[SDCard] Init: SD_Init() returned status = 0x%x\r\n", status);
 
   if (status != kStatus_Success) {
     printf("[SDCard] Init: FAILED - SD_Init returned error 0x%x\r\n", status);

@@ -73,12 +73,13 @@ uint32_t          g_mount_failures = 0;
 /* ===== Idle-driven auto-sync (Pas 2 brownout protection) =============
  *
  * Phase 3.2 (build #1074) dropped per-write fx_media_flush for 41-139×
- * small-write speed-up — but writes then live ONLY in the FileX/LevelX
- * SDRAM caches until an explicit FxUserSync().  If the operator pulls
- * USB or the board switches USB→battery (Crazyflie BL deck VBAT ~3.7V
- * vs board's 5V need) before sync, the last write's NAND program may
- * be in-flight when brownout hits, leaving an ECC-corrupted page that
- * fails the next mount.
+ * small-write speed-up — but FAT / directory sectors then live ONLY in
+ * the FileX sector cache (SDRAM) until an explicit FxUserSync().  If the
+ * operator pulls USB or the board switches USB→battery (Crazyflie BL
+ * deck VBAT ~3.7V vs board's 5V need) before sync, the file data is on
+ * the card but the FAT chain / directory entry is not: the file is lost
+ * or truncated at the next mount (the fault-tolerant journal protects
+ * metadata consistency, not the unflushed cache).
  *
  * Fix (build #1226+): track unflushed writes + last-write timestamp.
  * The hardware-watchdog task (CombinedWatchdogTask) calls
@@ -103,19 +104,21 @@ static inline void note_write(void) {
 /* ===== Mount retry policy (embeded.md §F: bounded local retry) =====
  *
  * 3 attempts × 50 ms inter-attempt delay = 150 ms worst-case extra
- * boot latency.  Tolerates a single transient NAND ECC blip after a
- * brownout reset without escalating to data-destroying format.
+ * boot latency.  Tolerates a transient card-command failure right after
+ * power-up / brownout reset without escalating to a data-destroying
+ * format.
  *
- * If retries are exhausted AND the volume is NOT virgin (LevelX
- * reports a recognisable header), we enter SAFE MODE: g_mounted
- * stays false, all FxUser* APIs return clean errors, but REPL +
- * radio remain alive so the operator can diagnose and explicitly
- * recover via `sentai.diag.fx_format(FX_DESTRUCTIVE_CONFIRM_MAGIC)`.
+ * If retries are exhausted AND the card is NOT blank (block 0 carries a
+ * 0x55AA boot-sector signature, see is_blank_card()), we enter SAFE
+ * MODE: g_mounted stays false, all FxUser* APIs return clean errors, but
+ * REPL + radio remain alive so the operator can diagnose and explicitly
+ * recover via `sentai.fs.format()` (FX_DESTRUCTIVE_CONFIRM_MAGIC).
  *
- * Auto-format runs ONLY when LevelX reports a virgin-NAND signature
- * (LX_SYSTEM_INVALID_FORMAT or LX_NO_PAGES) — first-boot bootstrap.
- * Any other failure code is treated as corruption-of-real-data and
- * preserved for forensic analysis. */
+ * Auto-format runs ONLY on a blank card (no boot-sector signature) —
+ * first-boot bootstrap.  Any card with a signature that still fails
+ * validate_boot_sector() / fx_media_open() (exFAT, foreign FS,
+ * corruption) is preserved for forensic analysis.  (The LevelX /
+ * virgin-NAND wording of the earlier NAND backend no longer applies.) */
 constexpr uint32_t kMountRetries       = 3u;
 constexpr uint32_t kMountRetryDelayMs  = 50u;
 
@@ -699,11 +702,11 @@ extern "C" int FxUserWriteFile(const char* path, const uint8_t* buf,
     }
     (void)fx_file_close(&f);
     /* Phase 3.2: NO per-write fx_media_flush.  fx_file_close already
-     * flushes the file's own FAT chain and directory entry; an extra
-     * media_flush forces a full FAT-table writeback that costs ~1 s
-     * on NAND with sector_size=2048 and is redundant for one-shot
-     * small writes.  Callers that need durability should call
-     * FxUserSync() explicitly. */
+     * updates the file's FAT chain and directory entry in the sector
+     * cache; a media_flush per write would add a full cache writeback
+     * (tens of ms on the card, ~1 s on the old NAND backend) that is
+     * redundant for one-shot small writes.  Callers that need durability
+     * call FxUserSync() explicitly; the idle auto-sync bounds the rest. */
     note_write();
     return 1;
 }
@@ -747,27 +750,18 @@ extern "C" int FxUserAppendFile(const char* path, const uint8_t* buf,
     return ok;
 }
 
-/* Public sync.  Flushes BOTH cache layers down to NAND so any pending
- * writes are durable across power loss:
+/* Public sync.  Flushes the FileX sector cache (data, FAT and directory
+ * sectors) to the card so every pending write is durable across power
+ * loss.  The SD backend has a single cache layer: fx_sd_driver commits
+ * each WriteBlocks before returning, so after fx_media_flush() nothing
+ * is pending anywhere.  (The old NAND backend had a second LevelX layer
+ * that needed _lx_nand_flash_close; gone since 2026-10-30.)
  *
- *   N1+N2 (FileX logical-sector cache + FAT/dir cache)
- *         flushed by fx_media_flush.
- *   N3    (LevelX log-page indirection + wear-level mapping table)
- *         flushed only by _lx_nand_flash_close.  Re-open immediately
- *         so consumers see no mount gap.
- *
- * Without the N3 flush, fx_media_flush returns success but log-page
- * mapping stays in g_lx_memory_buffer (32 KB SDRAM).  Power loss
- * then leaves the FAT table on NAND referencing logical sectors
- * whose physical NAND pages were never actually written, so on next
- * boot try_mount_existing returns garbage (or refuses to mount,
- * which used to trigger silent format — now SAFE MODE per §F).
- *
- * Cost: ~200-500 ms per call (NAND write of LX log + metadata).
- * Callers should invoke sparingly — typically before sys.reset()
- * or after a critical write (e.g. /main.py upload).  Per-write
- * sync is NOT needed and was explicitly removed in Phase 3.2 for
- * 41-139× small-write speed-up. */
+ * Cost: EXP-s250 measured ~0-5 ms when little is dirty, bounded by the
+ * 32-sector cache.  Callers invoke it before sys.reset() or after a
+ * critical write (e.g. /main.py upload); per-write sync is NOT needed
+ * and was explicitly removed in Phase 3.2 for 41-139× small-write
+ * speed-up.  The idle auto-sync (FxUserMaybeIdleSync) covers the rest. */
 extern "C" int FxUserSync(void) {
     if (!g_mounted) return 0;
     LockGuard guard;

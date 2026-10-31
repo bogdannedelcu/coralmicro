@@ -89,3 +89,10 @@ and refuses SPI-NAND reads past block 0 (`kStatus_InvalidArgument`) — use
 **How to apply:** every test on this board must be re-loaded with `--ram`
 after a power cycle; do not assume persistent flash runs.  Before any CAM1
 work, implement the I2C1 move + FlexPWM1 guard first.
+
+**EMU (Renode) storage targets broken by the SD migration (2026-10-31):**
+`emu/CMakeLists.txt` links `fx_user_fs.cc` + `fx_nand_driver.cc` in five
+targets; `fx_user_fs.cc` now needs `FxSd*` → undefined references.  WBS
+OP-S10-W22-T8.  `cmake -S . -B build-emu -DSENTAI_ARM_EMU=ON
+-DSENTAI_SKIP_SDK_PATCHES=ON` configures; note every EMU build bumps
+`build_version.txt` (restore it afterwards so the counter matches the board).

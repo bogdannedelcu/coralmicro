@@ -273,3 +273,12 @@ reads the record back after the reboot.
 DTCM budget after 1646: `.bss` ends 0x2003E504, `.stack` placeholder to
 0x2003E908, crash slot 0x2003E910–0x2003ED10, `__StackLimit` 0x2003FBFC
 (≈ 3.8 KB free between the slot and the live MSP).
+
+### Build 1647 (2026-10-31 07:41) — `run_build1647.log`
+
+**R1–R15 all PASS (18 checks), failures: 0.**  Cleanup-only batch from the
+SD-migration review minors: 19 `[SDCard] ... STEP n` boot prints removed
+(boot.log now carries two SD lines: host clock and init result), stale
+NAND/LevelX wording in `fx_user_fs.cc` rewritten for the SD backend
+(auto-sync rationale, blank-card auto-format rule, `FxUserSync` cost
+≈ 0–5 ms per EXP-s250).  No functional change.
