@@ -261,6 +261,7 @@ extern "C" {
 
 // ===================== System Errors (0x0Fxx) =====================
 #define SERR_SYS_BOOT_ATTEMPT   (SERR_MOD_SYS | 0x01)   // Boot attempt N (val=attempt_count)
+#define SERR_SYS_PERIPH_MISSING (SERR_MOD_SYS | 0x11)  // A probed peripheral did not answer (val=PeripheralId: 1 SD, 2 cam0, 3 cam1, 4 IMU, 5 TPU); STAT LED blinks the code for 60 s
 #define SERR_SYS_FR_LOCK_TIMEOUT (SERR_MOD_SYS | 0x10)  // sentai.fr channel mutex not acquired within the bound; push dropped (val=timeouts so far)
 #define SERR_SYS_RECOVERY_MODE  (SERR_MOD_SYS | 0xF0)   // Recovery mode entered (val=attempts)
 #define SERR_SYS_STACK_OVF      (SERR_MOD_SYS | 0xF1)   // Stack overflow

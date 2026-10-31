@@ -1188,6 +1188,7 @@ void Main() {
   // Open EdgeTPU on this task (not app_main) to avoid interfering with USB init
   coralmicro::PerformanceMode tpu_mode = g_tpu_mode;
   g_tpu_context = EdgeTpuManager::GetSingleton()->OpenDevice(tpu_mode);
+  sentai_health_periph(PERIPH_TPU, g_tpu_context ? 1 : 0);
   if (!g_tpu_context) {
     logf("ERROR: Failed to get EdgeTpu context\r\n");
   } else {
@@ -1369,6 +1370,7 @@ extern "C" void app_main(void* param) {
       /* Bounded: 20 s covers a 64 GB FAT32 free-cluster scan with margin;
        * a corrupt volume that never returns leaves us in SAFE MODE. */
       (void)FxUserBootMount(20000u);
+      sentai_health_periph(PERIPH_SD, FxUserIsMounted() ? 1 : 0);
       if (FxUserIsMounted()) {
         /* A previous storage-mode session may have left a debug log in
          * SDRAM; persist it now that the volume is mounted. */
@@ -1532,6 +1534,13 @@ extern "C" void app_main(void* param) {
   // Start combined watchdog (monitors HTTP + REPL, auto-resets if both dead)
   start_network_watchdog();
   coralmicro::logf("Watchdog started (WDOG1 30 s; resets only if the scheduler stalls — idle is not a fault)\r\n");
+
+  // Board bring-up (2026-10-31): probe the IMU once (wake + WHO_AM_I, ~60 ms)
+  // so the STAT LED can report it, then start the peripheral indicator:
+  // blink code per missing peripheral for 60 s (1 SD, 2 cam0, 3 cam1, 4 IMU,
+  // 5 TPU), three short flashes when everything answered.
+  { extern int sentai_imu_init(void); sentai_health_periph(PERIPH_IMU, sentai_imu_init() == 0 ? 1 : 0); }
+  sentai_health_led_start();
 
   // Mark boot complete — transitions from BOOTING to NORMAL (if healthy)
   sentai_health_boot_complete();
@@ -3811,6 +3820,8 @@ extern "C" __attribute__((section(".sdram_text"))) int sentai_cam_init_full(
   auto* cam = coralmicro::CameraTask::GetSingleton();
   if (!cam->SetPower(true)) {
     g_runtime_fps = prev_fps;
+    sentai_health_periph(PERIPH_CAM0, (cam->DetectedMask() & 1u) ? 1 : 0);
+    sentai_health_periph(PERIPH_CAM1, (cam->DetectedMask() & 2u) ? 1 : 0);
     return -1;
   }
   auto mode = streaming ? coralmicro::CameraMode::kStreaming
@@ -3821,6 +3832,8 @@ extern "C" __attribute__((section(".sdram_text"))) int sentai_cam_init_full(
      * roll back the runtime fps. */
     (void)cam->SetPower(false);
     g_runtime_fps = prev_fps;
+    sentai_health_periph(PERIPH_CAM0, (cam->DetectedMask() & 1u) ? 1 : 0);
+    sentai_health_periph(PERIPH_CAM1, (cam->DetectedMask() & 2u) ? 1 : 0);
     return -2;
   }
   g_cam_initialized = true;
@@ -3838,6 +3851,11 @@ extern "C" __attribute__((section(".sdram_text"))) int sentai_cam_init_full(
   if (hflip >= 0 && vflip >= 0) {
     int deg = sentai_flip_to_degrees(hflip, vflip);
     (void)cam->SetCameraRotation(0, deg);
+  }
+  {
+    uint8_t dm = cam->DetectedMask();
+    sentai_health_periph(PERIPH_CAM0, (dm & 1u) ? 1 : 0);
+    sentai_health_periph(PERIPH_CAM1, (dm & 2u) ? 1 : 0);
   }
   // EXP-s251 proposal A: bring the two sensors in phase so ratio(a,b)
   // alternation is clean at the full sensor rate.  Typically 2-3 s, bounded

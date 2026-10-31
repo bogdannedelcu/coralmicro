@@ -165,3 +165,10 @@ needed).  SA0-follows-rail theory refuted; 0x19 history unexplained.
 board).  SW2 pulls BOOT_MODE0.  Missing: pull-up on BOOT_MODE1 (GPIO_LPSR_03,
 R163/R164/R29 DNP) -> populate it; nothing to do in firmware.  J3 = PILOT/UART
 + Crazyflie, J4 = debug only (operator).
+**Second rev-1.1 unit 85b1 (2026-10-31, no SD, no cameras):** identical boot
+straps/fuses (BMOD 00 -> SDP), persistent flash written and verified (v1.1
+1679 on NAND), SD init times out cleanly at 5 s (F14 real no-card case), IMU
+answers at 0x19 (58eb: 0x18) -> SA0 differs per unit, keep the fallback.
+Firmware version string is v1.1 since build 1679 (also in the USB product
+string).  Operator wants: resilience to missing peripherals + an LED code
+for "incomplete system".

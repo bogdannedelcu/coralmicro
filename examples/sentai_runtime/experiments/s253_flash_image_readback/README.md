@@ -57,3 +57,14 @@ build is wanted.
 
 - `probe_default_elf.py` — the read-back (REPL over `/dev/ttyACM0`).
 - `probe_before_flash.log`, `probe_after_flash_1666.log`, `flashtool_persistent_1666.log`.
+
+## Second board (id 85b1, same rev 1.1, no SD card / no cameras) — 2026-10-31
+
+| step | `/default.elf` on NAND |
+|---|---|
+| as received | 244 616 bytes, no `SentAI v1.` string (factory image) |
+| `flashtool.py -e sentai_runtime` (build 1679, rc=0; `flashtool_persistent_1679_board85b1.log`) | board re-enumerates as ROM SDP `1fc9:013d`, like 58eb |
+| RAM-load + read-back | **1 364 228 bytes, `SentAI v1.1 build #%d board %s`, timestamps 2026-10-31 13:16:38** |
+
+Same picture on two units: the persistent write lands on the NAND every
+time; only the boot straps keep the ROM out of internal boot.

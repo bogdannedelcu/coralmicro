@@ -474,6 +474,17 @@ these for bring-up and forensics, not for data.  Board rev 2026-10:
 ### `sentai.sdcard.init()` → bool
 Power the slot and run the SD init sequence.  Idempotent.
 
+### `sentai.sys.health()` → dict — peripheral presence and the STAT-LED error code
+Build ≥ 1681.  `{'sd': True/False/None, 'cam0', 'cam1', 'imu', 'tpu', 'led_codes': [...], 'led_ms_left': N}`;
+`None` = not probed yet (cameras are probed at `camera.init()`).  The **STAT
+LED** (SNVS_02) blinks, for 60 s after boot, the code of every missing
+peripheral in turn: **1 = microSD / user FS, 2 = camera 0, 3 = camera 1,
+4 = IMU, 5 = Edge TPU** (N × 150 ms flashes, 1 s pause between codes, 2 s
+between rounds), then goes dark.  Everything present = three short flashes
+once.  A peripheral found missing later (e.g. a camera at `camera.init()`)
+re-opens the 60 s window with its code.  Each report also logs
+`SERR_SYS_PERIPH_MISSING` (0x0F11, val = code).  The user LED is untouched.
+
 ### `sentai.imu.scan()` / `reg_read(reg)` / `reg_write(reg, val)`
 I2C5 diagnostics for the LIS2DUX12 (build ≥ 1678): `scan()` lists the 7-bit
 addresses that ACK (expected: 0x18 IMU once awake, 0x5B PMIC, plus 0x10 and

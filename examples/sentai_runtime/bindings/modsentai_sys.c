@@ -74,6 +74,29 @@ static mp_obj_t mod_sentai_sys_peek32(mp_obj_t addr_obj) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_sys_peek32_obj, mod_sentai_sys_peek32);
 
+// sentai.sys.health() -> dict: per-peripheral presence (True/False/None =
+// not probed yet), the missing-code list the STAT LED blinks (1 SD, 2 cam0,
+// 3 cam1, 4 IMU, 5 TPU) and the remaining indication window in ms.
+extern void     sentai_health_periph(int id, int present);
+extern uint32_t sentai_health_periph_missing_mask(void);
+extern uint32_t sentai_health_periph_known_mask(void);
+extern uint32_t sentai_health_led_remaining_ms(void);
+static mp_obj_t mod_sentai_sys_health(void) {
+    uint32_t miss = sentai_health_periph_missing_mask(), known = sentai_health_periph_known_mask();
+    static const char* names[6] = {"", "sd", "cam0", "cam1", "imu", "tpu"};
+    mp_obj_t d = mp_obj_new_dict(8);
+    mp_obj_t codes = mp_obj_new_list(0, NULL);
+    for (int id = 1; id <= 5; ++id) {
+        mp_obj_t v = !(known & (1u << id)) ? mp_const_none : ((miss & (1u << id)) ? mp_const_false : mp_const_true);
+        mp_obj_dict_store(d, mp_obj_new_str(names[id], strlen(names[id])), v);
+        if (miss & (1u << id)) mp_obj_list_append(codes, mp_obj_new_int(id));
+    }
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_led_codes), codes);
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_led_ms_left), mp_obj_new_int_from_uint(sentai_health_led_remaining_ms()));
+    return d;
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_sys_health_obj, mod_sentai_sys_health);
+
 // System LittleFS (NAND boot partition) diagnostics -- see sentai_runtime.cc.
 // sentai.sys.sysfs_size(path) -> int (bytes, or negative error)
 // sentai.sys.sysfs_read(path, off, n) -> bytes (n <= 512)
@@ -130,6 +153,7 @@ static const mp_rom_map_elem_t sentai_sys_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_boot_attempts),  MP_ROM_PTR(&mod_sentai_sys_boot_attempts_obj) },
     { MP_ROM_QSTR(MP_QSTR_uid),            MP_ROM_PTR(&mod_sentai_sys_uid_obj) },
     { MP_ROM_QSTR(MP_QSTR_peek32),         MP_ROM_PTR(&mod_sentai_sys_peek32_obj) },
+    { MP_ROM_QSTR(MP_QSTR_health),         MP_ROM_PTR(&mod_sentai_sys_health_obj) },
     { MP_ROM_QSTR(MP_QSTR_sysfs_size),     MP_ROM_PTR(&mod_sentai_sys_sysfs_size_obj) },
     { MP_ROM_QSTR(MP_QSTR_sysfs_read),     MP_ROM_PTR(&mod_sentai_sys_sysfs_read_obj) },
     { MP_ROM_QSTR(MP_QSTR_sysfs_find),     MP_ROM_PTR(&mod_sentai_sys_sysfs_find_obj) },

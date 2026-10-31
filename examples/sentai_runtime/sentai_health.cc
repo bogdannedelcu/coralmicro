@@ -295,6 +295,82 @@ void sentai_health_boot_complete(void) {
     }
 }
 
+// ===================== Peripheral presence + STAT LED code ======================
+// Static task, no heap.  Pattern (50 ms steps): for each missing peripheral
+// in code order: N x (150 ms on, 150 ms off), then 1 s off; after the last
+// code 2 s off; repeat while the window is open (kLedWindowMs).  Nothing
+// missing: 3 x 80 ms flashes once.  The window (re)opens on boot and whenever
+// a peripheral is newly reported missing, so a camera found missing at
+// camera.init() minutes after boot is signalled too.
+#include "libs/base/led.h"
+namespace {
+volatile uint32_t s_periph_missing = 0;
+volatile uint32_t s_periph_known   = 0;
+volatile TickType_t s_led_window_end = 0;
+volatile uint32_t s_led_window_open = 0;
+volatile uint32_t s_led_ok_pending  = 0;
+constexpr uint32_t kLedWindowMs = 60000;
+StaticTask_t s_led_tcb;
+__attribute__((section(".sdram_bss"))) StackType_t s_led_stack[512];
+TaskHandle_t s_led_task = nullptr;
+
+inline void led(bool on) { coralmicro::LedSet(coralmicro::Led::kStatus, on); }
+inline bool window_open() {
+    return s_led_window_open && (int32_t)(s_led_window_end - xTaskGetTickCount()) > 0;
+}
+// Sleep in 50 ms slices so a newly reported fault restarts the pattern promptly.
+void led_wait(uint32_t ms) {
+    while (ms) { uint32_t d = ms > 50 ? 50 : ms; vTaskDelay(pdMS_TO_TICKS(d)); ms -= d; }
+}
+void led_task(void*) {
+    for (;;) {
+        if (s_led_ok_pending) {
+            s_led_ok_pending = 0;
+            for (int i = 0; i < 3; ++i) { led(true); led_wait(80); led(false); led_wait(120); }
+        }
+        if (!window_open()) { led(false); s_led_window_open = 0; vTaskDelay(pdMS_TO_TICKS(200)); continue; }
+        uint32_t mask = s_periph_missing;
+        if (mask == 0) { led(false); vTaskDelay(pdMS_TO_TICKS(200)); continue; }
+        for (uint32_t id = 1; id < PERIPH_COUNT && window_open(); ++id) {
+            if (!(mask & (1u << id))) continue;
+            for (uint32_t n = 0; n < id; ++n) { led(true); led_wait(150); led(false); led_wait(150); }
+            led_wait(1000);
+        }
+        led_wait(2000);
+    }
+}
+}  // namespace
+
+void sentai_health_periph(PeripheralId_t id, int present) {
+    if (id <= 0 || id >= PERIPH_COUNT) return;
+    uint32_t bit = 1u << id;
+    s_periph_known |= bit;
+    if (present) {
+        s_periph_missing &= ~bit;
+    } else {
+        bool newly = (s_periph_missing & bit) == 0;
+        s_periph_missing |= bit;
+        if (newly) {
+            SERR_LOG(SERR_SYS_PERIPH_MISSING, (uint32_t)id);
+            s_led_window_end = xTaskGetTickCount() + pdMS_TO_TICKS(kLedWindowMs);
+            s_led_window_open = 1;
+        }
+    }
+}
+uint32_t sentai_health_periph_missing_mask(void) { return s_periph_missing; }
+uint32_t sentai_health_periph_known_mask(void)   { return s_periph_known; }
+uint32_t sentai_health_led_remaining_ms(void) {
+    if (!window_open()) return 0;
+    return (uint32_t)((s_led_window_end - xTaskGetTickCount()) * portTICK_PERIOD_MS);
+}
+void sentai_health_led_start(void) {
+    if (s_led_task) return;
+    if (s_periph_missing == 0) s_led_ok_pending = 1;
+    else { s_led_window_end = xTaskGetTickCount() + pdMS_TO_TICKS(kLedWindowMs); s_led_window_open = 1; }
+    s_led_task = xTaskCreateStatic(led_task, "health_led", 512, nullptr, tskIDLE_PRIORITY + 1,
+                                   s_led_stack, &s_led_tcb);
+}
+
 int sentai_health_is_safe_mode(void) {
     return s_system_mode == SYS_MODE_SAFE;
 }

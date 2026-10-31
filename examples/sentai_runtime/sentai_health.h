@@ -27,6 +27,26 @@ typedef enum {
     HEALTH_UNAVAILABLE  = 4,   // Not initialized or disabled
 } HealthState_t;
 
+// ===================== Peripheral presence (board bring-up) =====================
+// Which hardware actually answered.  Reported by the code that probes it
+// (boot mount, TPU open, camera.init(), IMU probe).  The STAT LED blinks
+// the code of every missing peripheral for ~60 s after boot (and again
+// for 60 s whenever something new is reported missing); nothing missing =
+// three short flashes once.  Codes = blink counts.
+typedef enum {
+    PERIPH_SD    = 1,   // microSD card / user FS mounted
+    PERIPH_CAM0  = 2,   // OV5640 #0 answered on its SCCB bus
+    PERIPH_CAM1  = 3,   // OV5640 #1
+    PERIPH_IMU   = 4,   // LIS2DUX12 WHO_AM_I
+    PERIPH_TPU   = 5,   // Edge TPU opened
+    PERIPH_COUNT = 6
+} PeripheralId_t;
+void     sentai_health_periph(PeripheralId_t id, int present);   // report a probe result
+uint32_t sentai_health_periph_missing_mask(void);               // bit (1<<id) set = reported missing
+uint32_t sentai_health_periph_known_mask(void);                 // bit set = probed at least once
+void     sentai_health_led_start(void);                         // start the STAT-LED indicator task (once)
+uint32_t sentai_health_led_remaining_ms(void);                  // 0 when the indication window is over
+
 // ===================== Subsystem IDs =====================
 typedef enum {
     SUBSYS_LINK     = 0,   // MAVLink bridge

@@ -141,3 +141,7 @@ BOOT_MODE0 low**.  The BOOT_CFG straps are already correct, so the only
 missing part is the pull-up on BOOT_MODE1 (GPIO_LPSR_03; R163/R164/R29 DNP on
 the 2026-10 schematic).  Populating it should make the board boot the build
 that is on the NAND (`/default.elf` = 1666 since s253) with no firmware change.
+
+**Second unit (85b1, 2026-10-31):** `SBMR2 = 0x00000009`, `SBMR1 = 0`, boot
+fuses `0xFFF70008` — identical to 58eb.  Two of two rev-1.1 boards: the
+BOOT_MODE1 pull-up is missing on the revision, not on one unit.
