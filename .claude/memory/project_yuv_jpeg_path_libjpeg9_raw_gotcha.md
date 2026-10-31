@@ -43,6 +43,13 @@ encode) leaves 2T same-camera entries → T doubled → spurious PHASE_DRIFT
 (phi = T − 4 µs).  Now flip-pair estimate first, then folded/sanity-checked
 against the VTS-derived period.
 
+**W24-T3 (EXP-s257, build 1694):** all six on-disk YUV420 dual-input models run
+from native camera YUV: 20–23 ms invoke, 39–41.5 fps, 0 fails; c2f 38.1 → 20.5 ms
+vs its RGB export; **c2f_thick runs (23 ms) where the RGB export fails (0B62)**
+— the YUV420 export is the deployable champion.  Open W24-T6: REPL went silent
+after the 4th tpu.load in a boot that had just taken a 2.4 MB NCM upload (HTTP
+still alive; flashtool --ram recovered); not reproduced without the upload.
+
 **Why:** the YUV path is the production direction (Edge TPU YUV420 models,
 W24-T3) and halves the JPEG CPU cost on the recorder.
 **How to apply:** any new libjpeg raw-data producer must set

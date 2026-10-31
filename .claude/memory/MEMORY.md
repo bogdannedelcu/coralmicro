@@ -1,6 +1,6 @@
 # Memory Index
 
-- [YUV JPEG path SHIPPED — IJG-9 raw_data_in needs do_fancy_downsampling=FALSE (2026-10-31)](project_yuv_jpeg_path_libjpeg9_raw_gotcha.md) — build 1694; 68 vs 108 ms; cam1 AWB stall seen once (W24-T5).
+- [YUV JPEG path SHIPPED — IJG-9 raw_data_in needs do_fancy_downsampling=FALSE (2026-10-31)](project_yuv_jpeg_path_libjpeg9_raw_gotcha.md) — build 1694; 68 vs 108 ms; s257 YUV420 TPU 20–23 ms all 6 models, c2f_thick runs; W24-T5 AWB stall, W24-T6 REPL silence open.
 - [CSI MUX flip deferred 40 us on GPT1 — F16 root cause + on-the-fly phase autotune (2026-10-31)](project_csi_mux_flip_deferred_f16.md) — never flip inside CSI_IRQHandler; build 1664.
 - [TODO — exhaustive firmware audit: races, hangs, unbounded waits (requested 2026-10-30)](project_todo_exhaustive_code_audit.md) — WBS OP-S10-W23; T8 = open items.
 - [DECISION — SentAI FS moves exclusively to SD card; drop NAND user partition (2026-10-30)](project_fs_moves_to_sdcard_decision.md) — LittleFS system stays; FatFs on SD.
