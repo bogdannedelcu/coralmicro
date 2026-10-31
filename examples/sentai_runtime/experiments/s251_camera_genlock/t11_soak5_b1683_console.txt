@@ -1,0 +1,16 @@
+[cam] genlock: phase 27 us after 0 step(s) (T=22293 us)
+INIT 0
+timing: vblank_us=543 period_us=22293 vts=984
+t=  30s consumed=1346 sensor=1347 fps=44 phase_us=27 stale=1 drift=0 stall=0
+t=  60s consumed=1346 sensor=1347 fps=44 phase_us=27 stale=2 drift=0 stall=0
+t=  90s consumed=1346 sensor=1347 fps=44 phase_us=28 stale=3 drift=0 stall=0
+t= 120s consumed=1346 sensor=1347 fps=44 phase_us=27 stale=4 drift=0 stall=0
+t= 150s consumed=1346 sensor=1347 fps=44 phase_us=28 stale=5 drift=0 stall=0
+t= 180s consumed=1346 sensor=1347 fps=44 phase_us=27 stale=6 drift=0 stall=0
+t= 210s consumed=1346 sensor=1347 fps=44 phase_us=27 stale=7 drift=0 stall=0
+t= 240s consumed=1346 sensor=1347 fps=44 phase_us=28 stale=8 drift=0 stall=0
+t= 270s consumed=1346 sensor=1347 fps=44 phase_us=27 stale=9 drift=0 stall=0
+t= 300s consumed=1347 sensor=1348 fps=44 phase_us=28 stale=10 drift=0 stall=0
+['print("PHASE_END", sentai.camera.phase())', 'PHASE_END (27, 22285)']
+dmesg CAM events: E:0A06:3 E:0A12:18 E:0A0C:27 E:0A00:0
+T11_SOAK5_DONE

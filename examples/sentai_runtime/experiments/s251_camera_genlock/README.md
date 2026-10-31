@@ -270,6 +270,15 @@ Cold boot, pre-trim 18 lines, `ratio(1,1)` with a consumer: 10 windows ×
 events, 0 stalls, 0 CSI queue faults; dmesg only `DETECT`, `PRETRIM 18` and
 one task-level switch.  Files: `results_soak5_b1664.csv`, `run_soak5_b1664.log`.
 
+### T11 — genlock_auto mode 2 evaluation (operator request): 5-minute soak, build 1683, board 58eb booted from flash
+
+`soak_phase.py --minutes 5 --fps 45`: init with mode 2 (pre-trim 18 lines, then
+measured verify: 27 µs, 0 trim steps), `ratio(1,1)` with a consumer.  10 windows
+× 30 s: 1346–1347 of 1347–1348 frames per window (44 fps), `phase_us` 27–28 µs
+in every window, end check `phase()` = 27 µs, 0 drift events, 0 stalls, 0 CSI
+queue faults (`t11_soak5_b1683_console.txt`, `results_t11_soak5_b1683.csv`).
+Acceptance (|phase| ≤ 60 µs, 0 stalls): **PASS**.  10-minute run: below.
+
 ### On-the-fly re-alignment (closed loop) — iter20 `autotune_check.py`, build 1664
 
 Cold boot → `init(1,45)` pre-trims cam0 by 18 lines → 6 s of 1:1 at 44 fps
