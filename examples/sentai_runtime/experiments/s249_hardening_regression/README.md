@@ -299,3 +299,13 @@ read `10` there.  See `../s252_reference_board_fuses/README.md`.
 FB-done frame log in the CSI frame-complete hook (`.ramfunc` 0x208 → 0x278,
 camera fps unchanged at 44.4–44.8 in s251).  One unexplained M7 LOCKUP
 reset occurred during s251 iter3 (not reproduced in six later runs).
+
+## Note 2026-10-31 — R15 is statistically marginal
+
+Runs on build 1686 (58eb booted from flash, SD + cameras): `ls_ok` 9/12 (FAIL,
+threshold ≥ 10), then 11/12, 11/12 (PASS); `busy` = `lfs_busy` replies 2–5 per
+run.  The busy replies are the slot FSM working as designed (an `/api/ls`
+arriving while a 1 MB `/api/raw` owns the slot is refused, not queued), so the
+threshold measures host-side timing as much as firmware.  Treat a single 9/12
+as noise and re-run; a consistent drop below 10 is the signal to investigate.
+All other steps R1–R14b passed on every run today (builds 1676–1686).

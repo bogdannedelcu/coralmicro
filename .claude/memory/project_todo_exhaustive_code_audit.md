@@ -161,3 +161,12 @@ buffer -> `CSI_TransferGetEmptyBuffer` dereferences a pixel (BFAR 0x00604F90)
 in the CSI ISR.  Seen once during the s251 sensor standby/restart test
 (up=3534 s); the iter3 LOCKUP is probably the same bug.  Proposal: SDK patch
 0005 (side-array list + bounds check + SERR) and the stale-queue guard.
+
+**2026-10-31 end of day:** W23 T9 (genlock + deferred flip), T11 (mode-2 soaks
+PASS), T12 (bounded SD init), T13 (fps-derived constants, VGA30/60), T14
+(per-frame ratio_unit), T15 (IMU 0x18/0x19 + self-healing read), T16
+(health + STAT-LED codes) all SHIPPED; W22 T4/T7/T10 closed by the eFuse burn
+(both rev-1.1 boards boot from NAND).  Still open: W22-T8 EMU storage (parked),
+W22-T9 F2/F4/F6-F10 postponed, W23-T10 optional (STROBE).  s249 R15 is marginal
+(ls_ok 9-11/12), not a regression.  Pending operator check: cold POR on 58eb
+-> sys.health() imu True (3-round wake).
