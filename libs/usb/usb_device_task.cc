@@ -32,7 +32,7 @@ extern "C" void USB_OTG1_IRQHandler(void) {
 // strong definition of sentai_build_version_string().  Kept inside libs/
 // so libs/usb/ has no dependency on examples/sentai_runtime/.
 extern "C" __attribute__((weak)) const char *sentai_build_version_string(void) {
-  return "- autonomous.ro SentAI board v1.0";
+  return "- autonomous.ro SentAI board v1.1";
 }
 
 namespace coralmicro {
