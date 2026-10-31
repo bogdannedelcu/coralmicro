@@ -285,11 +285,14 @@ static mp_obj_t mod_sentai_rtos_dmesg(size_t n_args, const mp_obj_t *args) {
     if (max_bytes < 64)    max_bytes = 64;
     if (max_bytes > 65536) max_bytes = 65536;
 
-    char* buf = m_new(char, max_bytes);
-    size_t n = sentai_dmesg_read(buf, (size_t)max_bytes);
-    mp_obj_t result = mp_obj_new_str(buf, n);
-    m_del(char, buf, max_bytes);
-    return result;
+    // Single copy: read straight into the vstr that becomes the str object
+    // (audit m5: the old m_new + mp_obj_new_str path copied 16-64 KB twice
+    // and briefly held both on a 1 MB GC heap).
+    vstr_t vstr;
+    vstr_init_len(&vstr, (size_t)max_bytes);
+    size_t n = sentai_dmesg_read(vstr.buf, (size_t)max_bytes);
+    vstr.len = n;
+    return mp_obj_new_str_from_vstr(&vstr);
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_rtos_dmesg_obj,
                                             0, 1, mod_sentai_rtos_dmesg);
@@ -354,6 +357,8 @@ static const mp_rom_map_elem_t sentai_rtos_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_dmesg_clear),  MP_ROM_PTR(&mod_sentai_rtos_dmesg_clear_obj) },
     { MP_ROM_QSTR(MP_QSTR_dmesg_stats),  MP_ROM_PTR(&mod_sentai_rtos_dmesg_stats_obj) },
     { MP_ROM_QSTR(MP_QSTR_repl_kick),    MP_ROM_PTR(&mod_sentai_rtos_repl_kick_obj) },
+    // (requests, hangs, healthy) -- was defined but never registered.
+    { MP_ROM_QSTR(MP_QSTR_http_stats),   MP_ROM_PTR(&mod_sentai_http_stats_obj) },
     { MP_ROM_QSTR(MP_QSTR_suspend),      MP_ROM_PTR(&mod_sentai_task_suspend_obj) },
     { MP_ROM_QSTR(MP_QSTR_resume),       MP_ROM_PTR(&mod_sentai_task_resume_obj) },
     { MP_ROM_QSTR(MP_QSTR_suspend_all),  MP_ROM_PTR(&mod_sentai_task_suspend_all_obj) },

@@ -51,7 +51,32 @@ bursts, stale-semaphore drop -> 256 KB HTTP 18.6 s -> 49 ms (s250).
 over-long line, state-based CRLF).  `patches/micropython/` is UNTRACKED --
 must be git-added with the batch.
 
-**Still open from the three reports:** camera M5
+**Batch 4 done (build 1642, 2026-10-31, s249 18/18):** fs_task slot FSM
+(fast path only when IDLE, compare-and-publish with request seq), fault
+hooks write a no-libc record into the .sdram_boot_log ring instead of
+printf (rescued to /log/boot_prev.log), watchdog camera liveness observer
+(SERR_CAM_STALL 0x0A0A / END 0x0A0B, report only; sentai.camera.stats()
+stall_count/stalled), sentai.fs.stats() 13-tuple, rtos.dmesg single copy,
+THRS GPIO10.6 (= USDHC1_DATA1!) removed from boot, T5838 THSEL -> GPIO_AD_18,
+VDD_1V8_INT_EN documented as intentionally LOW (PMIC feeds the rail via R13),
+SIM links again (sim/sentai_sim_link_shims.c).
+
+**Batch 4b (build 1644, s249 18/18):** sentai.fr channel lock = mutex with
+bounded take (200 ms push / 2 s config, SERR 0x0F10 on timeout, SD I/O moved
+out of sentai_fr_open's lock); PMIC rail/chip-id CHECK() -> report + skip;
+g_network_healthy = "no NCM TX drops in the last kick interval";
+rtos.http_stats() registered; SIM links (shims for http stats too).
+
+**Batch 4c (builds 1645-1646, s249 18/18 + crash_text_probe PASS):** §14
+review of batch 4 applied.  KEY LESSON: on this board SDRAM NOLOAD data does
+NOT survive a reset (ROM SDP wait, no refresh) -> the crash-text slot lives
+in DTCM `.noinit.$crash_text` (ld section after `.stack`, 0x2003E910); the
+`.sdram_boot_log` boot_prev.log rescue only works on a flash-booting board.
+Fault handler skips text when BFAR is in SDRAM; SRC_SRMR=0 (lockup = system
+reset).  CFSR decode table in app_main was shifted since v1.0 (fixed).
+fs_task FSM publish-before-send + single busy counter per reply.
+
+**Still open from the three reports (after batch 4c):** camera M5
 (camera liveness in watchdog), M6/M8 (g_cam_current_id single writer), M9
 (HWM evidence -> now in s249 README); base M1 (fault hooks printf), M4
 (ConsoleM7 heap per printf), M8 (1V8_INT
@@ -96,3 +121,11 @@ that never had one (camera task, USB storage mode, health/watchdog),
   [[fs-moves-to-sdcard-decision]]): stale NAND/LevelX comments in
   `fx_user_fs.cc`, `[SDCard] STEP n` boot printf noise, mount state
   spread over four booleans, late-mount-after-deadline not logged.
+
+**T9 (approved 2026-10-31) — camera alternation frame identity:** see
+`ideas/wbs.md` OP-S10-W23-T9.  Key facts for the next session: both OV5640s
+share one 24 MHz XCLK (frequency-locked, phase random per boot, no FSIN pin);
+BARS/HBAND oracle is roll-blind (use 0x84/0x8C vertical gradient); task tag
+comes from a scalar (copy `g_cam_buf_id[idx]` at dequeue instead); arm-time
+tag cannot work (BASEADDR_SWITCH fills the armed buffer at k+2).  Plan =
+EXP-s251 (oracle, timestamps, software genlock via one-frame VTS tweak).

@@ -161,3 +161,115 @@ EXP-s250 README):
   `vApplicationStackOverflowHook` still calls `SERR_LOG` (now also dmesg)
   on an overflowed stack — pre-existing, candidate for a breadcrumb-only
   path.
+
+### Build 1642 (2026-10-31 07:04) — `run_build1642.log` — OP-S10-W23-T8
+
+**R1–R15 all PASS (18 checks), failures: 0.**  Two checks were added for
+this batch:
+- **R14 / R14b** — `sentai.fs.stats()` is the new 13-tuple;
+  `sentai.camera.stats()` reports `stall_count == 0, stalled == 0` after
+  12 s of streaming with no consumer, i.e. the new watchdog liveness
+  observer does not false-trigger on an idle-but-live CSI.
+- **R15** — slot-FSM contention: 12 rounds of `/api/ls/` and `/api/raw`
+  issued concurrently from two curl processes.  12/12 ls bodies parse,
+  every raw body has the same MD5 as R12, 3 of 24 requests answered
+  `lfs_busy` (by design; the browser retries).  Before 1642 this pattern
+  could stream a RAW body from `g_resp_buf` while `lfs_task` overwrote it
+  with the next LS (the fast path ran while the slot was PENDING and the
+  late `SLOT_READY` relabelled a `SERVING` slot).
+
+What changed underneath (audit T8):
+- `sentai_fs_task.cc`: RAW fast path only while the slot is IDLE; the FS
+  task publishes READY only for the request it processed (sequence
+  number, compare-and-publish in a critical section); counters
+  `stale_result`, `busy_fast_raw_pending`.
+- Fault path: `sentai_fault_c`, the malloc-failed hook and
+  `vApplicationStackOverflowHook` write their record with a no-libc
+  formatter into the `.sdram_boot_log` ring (`sentai_fault_text`) instead
+  of printf/SERR_LOG from handler mode; it is rescued to
+  `/log/boot_prev.log` on the next boot.
+- Watchdog camera liveness: `SERR_CAM_STALL 0x0A0A` / `SERR_CAM_STALL_END
+  0x0A0B` + `CAM_STALL` crash-log rows, report only.
+- `rtos.dmesg()` single copy; `main_freertos_m7.cc` no longer drives
+  GPIO10.6 (= USDHC1_DATA1 on this board rev) at boot; T5838 THSEL moved
+  to GPIO_AD_18; VDD_1V8_INT_EN comment corrected (held LOW on purpose).
+- SIM target links again (`sim/sentai_sim_link_shims.c`), boots to the
+  MicroPython banner.
+
+Task stack high-water marks after the run (words free): lfs_task 1073,
+hw_wdog 1384, mp_repl 464, IDLE 51, DHCP 81, edgetpu_task 152, Tmr Svc 135.
+
+### Build 1644 (2026-10-31 07:16) — `run_build1644.log`
+
+**R1–R15 all PASS (18 checks), failures: 0.**  Plus manual probes:
+`sentai.rtos.http_stats()` → `(28, 0, True)` (the binding existed but was
+never registered in the module table); `sentai.fr.open/push_event/stats`
+→ `(1, 1, 0, 0, 0, 1, 1)` after one push with the bounded channel lock.
+
+What changed underneath:
+- `sentai_fr.cc`: channel lock is a FreeRTOS mutex (priority inheritance)
+  taken with a bound — 200 ms for producers/drains, 2 s for the REPL
+  configuration calls — instead of a binary semaphore with
+  `portMAX_DELAY`.  `sentai_fr_push_debug()` sits under every `printf`,
+  so the old wait could park any printing task behind a 76 KB frame
+  memcpy or behind `sentai_fr_open()`'s SD I/O (now done before the lock).
+  A timed-out producer drops and counts (`SERR_SYS_FR_LOCK_TIMEOUT`
+  0x0F10, rate-limited, never from the debug channel to avoid recursion).
+- `libs/pmic/pmic.cc`: a PMIC NAK on a rail request or chip-id read no
+  longer `CHECK()`s (= immediate reset, reachable from
+  `sentai.camera.power_rails`); it prints once and leaves the rail as is.
+- `g_network_healthy` now means "no CDC-NCM TX drop during the last
+  watchdog interval" (was forced true on every kick).
+
+### Builds 1645 → 1646 (2026-10-31 07:21 – 07:35) — `run_build1645.log`, `run_build1646.log`, `crash_text_probe_1646.log`
+
+**R1–R15 all PASS on both builds (18 checks).**  New: `crash_text_probe.py`
+(not part of the automatic run — it resets the board and re-loads the RAM
+image): forces a precise BusFault with `sentai.sys.peek32(0x00400000)` and
+reads the record back after the reboot.
+
+§14 review of batch 4 (embeded-reviewer): 0 CRITICAL, 2 MAJOR, 9 minor.
+- **MAJOR 1 — crash text overwritten before rescue.**  The fault record
+  used to be appended to the live boot-log ring; after `boot_log_stop()`
+  the next boot's printf re-used that ring from offset 0 before
+  `boot_log_fs_init()` copied it out.  Fix (1645): a dedicated
+  `CrashTextPersist` slot (1 KB, own magic/check/len/truncated header),
+  snapshotted by `boot_log_init()` before the first printf and written to
+  `/log/crash_prev.txt` + echoed to the console.
+  **Measured on this board (1645): the SDRAM slot does NOT survive** —
+  after a reset the board sits in the ROM serial downloader for seconds
+  with no SDRAM refresh (BOOT_MODE straps, EXP-s248), so the record
+  decayed (`/log/crash_prev.txt` not created; GPR breadcrumb row
+  `BUS_FAULT code=0x0FF4 PC=0x80E45054 BFAR=0x00400000` in `crash_013.log`
+  proved the handler ran).  1646 moves the slot to DTCM
+  (`.noinit.$crash_text`, linker section after the `.stack` placeholder at
+  0x2003E910, below `__StackLimit` and above the elf_loader's DTCM use
+  that ends at 0x2000A5B0).  Probe result:
+  `*** CRASH: code=0x00000FF4 PC=0x80E45054 LR=0x80E4504B CFSR=0x00008200
+  HFSR=0 BFAR=0x00400000 | r0..r3 | PRECISERR: precise data bus error @
+  BFAR | Stack hint: (none in range)` — **PASS**.
+- **MAJOR 2 — ~30 SDRAM stores inside the fault handler could re-fault
+  if the fault is the SDRAM path itself.**  Now moot for the slot (DTCM),
+  and the handler additionally skips the text when CFSR.BFARVALID and
+  BFAR ∈ [0x80000000, 0x8FFFFFFF].  `SRC_SRMR` read on the board = 0
+  (all reset modes = system reset), so an M7 lockup still resets;
+  documented at the handler.
+- Minors applied: slot FSM publishes PENDING before `xQueueSend` and
+  rolls back on failure (no longer depends on lfs_task < tcpip_thread
+  priority); one `busy_*` counter per `lfs_busy` reply (fast-path skip
+  suppresses the Step 4 counter); stale `LFS_QUEUE_DEPTH` rationale
+  rewritten; `sentai_fault_text` / `sentai_fault_stack_overflow_record`
+  declared in `sentai_fault.h`; camera.init(0) noted as not a
+  false-positive source (CSI always streams, EXP-s245).
+- Found by the probe, pre-existing: the CFSR decode table in app_main was
+  shifted (0x200 labelled INVSTATE, 0x1000 PRECISERR, VECTTBL read from
+  CFSR) — every bus fault since v1.0 was mislabelled in `crash_NNN.log`.
+  Fixed to ARM DDI0403 bit positions; the same fault now reads
+  `[PRECISERR ]` (compare `crash_004.log` vs `crash_013.log`).
+- Not done: EMU target (`SENTAI_ARM_EMU`) not built in this batch; the
+  watchdog still does one bounded SD write per camera-stall edge (kept:
+  once per transition, inside the 30 s window).
+
+DTCM budget after 1646: `.bss` ends 0x2003E504, `.stack` placeholder to
+0x2003E908, crash slot 0x2003E910–0x2003ED10, `__StackLimit` 0x2003FBFC
+(≈ 3.8 KB free between the slot and the live MSP).

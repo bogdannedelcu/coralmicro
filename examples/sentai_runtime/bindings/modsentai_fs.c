@@ -237,6 +237,25 @@ static mp_obj_t mod_sentai_fs_sync(void) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_fs_sync_obj, mod_sentai_fs_sync);
 
+// sentai.fs.stats() -> 13-tuple of HTTP file-API slot-FSM counters
+// (sentai_fs_task.cc).  Order:
+//   0 served_ready_cached  1 served_fast_raw   2 served_after_wait
+//   3 busy_serving_prev    4 busy_fast_raw_mutex 5 busy_slow_timeout
+//   6 busy_slow_state_drift 7 busy_path_mismatch 8 busy_not_inited
+//   9 enqueue_ok          10 enqueue_fail      11 stale_result
+//  12 busy_fast_raw_pending
+// Every `lfs_busy` HTTP reply increments exactly one busy_* counter, so a
+// host script can tell which arm of the state machine refused it.
+extern void sentai_fs_stats_get(uint32_t* out, int max_fields);
+static mp_obj_t mod_sentai_fs_stats(void) {
+    uint32_t v[13] = {0};
+    sentai_fs_stats_get(v, 13);
+    mp_obj_t items[13];
+    for (int i = 0; i < 13; i++) items[i] = mp_obj_new_int_from_uint(v[i]);
+    return mp_obj_new_tuple(13, items);
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_fs_stats_obj, mod_sentai_fs_stats);
+
 // Callback context for listdir
 typedef struct {
     mp_obj_list_t* list;
@@ -283,6 +302,7 @@ static const mp_rom_map_elem_t sentai_fs_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_remove),      MP_ROM_PTR(&mod_sentai_fs_remove_obj) },
     { MP_ROM_QSTR(MP_QSTR_mkdir),       MP_ROM_PTR(&mod_sentai_fs_mkdir_obj) },
     { MP_ROM_QSTR(MP_QSTR_sync),        MP_ROM_PTR(&mod_sentai_fs_sync_obj) },
+    { MP_ROM_QSTR(MP_QSTR_stats),       MP_ROM_PTR(&mod_sentai_fs_stats_obj) },
     { MP_ROM_QSTR(MP_QSTR_ls),          MP_ROM_PTR(&mod_sentai_ls_obj) },
 };
 static MP_DEFINE_CONST_DICT(sentai_fs_globals, sentai_fs_globals_table);

@@ -320,18 +320,33 @@ void PmicTask::HandleRailRequest(const pmic::RailRequest& rail) {
       break;
   }
 
-  CHECK(Read(reg, &val));
+  // A NAK / bus fault here used to CHECK() -> immediate system reset, and
+  // this path is reachable from the REPL (sentai.camera.power_rails) and
+  // from camera power sequencing.  A PMIC that does not answer is a
+  // degraded board, not a reason to reboot it (2026-10-31 audit, W23-T8):
+  // report once per call and leave the rail as it is.
+  if (reg == PmicRegisters::kUnknown || !Read(reg, &val)) {
+    printf("[pmic] rail %d: read failed, rail left unchanged\r\n",
+           static_cast<int>(rail.rail));
+    return;
+  }
   if (rail.enable) {
     val |= 1;
   } else {
     val &= ~1;
   }
-  CHECK(Write(reg, val));
+  if (!Write(reg, val)) {
+    printf("[pmic] rail %d: write failed, rail left unchanged\r\n",
+           static_cast<int>(rail.rail));
+  }
 }
 
 uint8_t PmicTask::HandleChipIdRequest() {
-  uint8_t device_id = 0xff;
-  CHECK(Read(PmicRegisters::kDeviceId, &device_id));
+  uint8_t device_id = 0xff;   // 0xFF = "no answer" to the caller
+  if (!Read(PmicRegisters::kDeviceId, &device_id)) {
+    printf("[pmic] chip id read failed\r\n");
+    device_id = 0xff;
+  }
   return device_id;
 }
 

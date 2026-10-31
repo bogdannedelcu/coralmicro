@@ -1,0 +1,13 @@
+SentAI v1.0 build 1646 (2026-10-31 07:27:47)
+sync: True
+triggering BusFault at 0x00400000 ...
+  (port error during fault, expected): device reports readiness to read but returned no data (device disconnected or multiple access on port?)
+board left USB after the fault: True
+re-loading RAM image ...
+  flashtool rc 0 Flashing to RAM is complete, your application should be executing.
+SentAI v1.0 build 1646 (2026-10-31 07:27:47)
+--- /log/crash_prev.txt ---
+| *** CRASH: code=0x00000FF4 PC=0x80E45054 LR=0x80E4504B CFSR=0x00008200 HFSR=0x00000000 BFAR=0x00400000 up=59066ms |   r0=0x00400000 r1=0x00000000 r2=0x80000000 r3=0x00000000 |   PRECISERR: precise data bus error @ BFAR |   Stack hint (possible callers): (none in range) |
+--- breadcrumb ---
+[      4077] I E:0500:30
+crash_text_probe: PASS

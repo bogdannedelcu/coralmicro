@@ -1,0 +1,13 @@
+SentAI v1.0 build 1645 (2026-10-31 07:20:55)
+sync: True
+triggering BusFault at 0x00400000 ...
+  (port error during fault, expected): device reports readiness to read but returned no data (device disconnected or multiple access on port?)
+board left USB after the fault: True
+re-loading RAM image ...
+  flashtool rc 0 Flashing to RAM is complete, your application should be executing.
+SentAI v1.0 build 1645 (2026-10-31 07:20:55)
+--- /log/crash_prev.txt ---
+OSError: file not found
+--- breadcrumb ---
+[      4065] I E:0500:30
+crash_text_probe: FAIL

@@ -75,6 +75,8 @@ CODE,MODULE,NAME,DESCRIPTION,VERSION_ADDED,STATUS
 0x0A07,CAM,PXP_TIMEOUT,PXP completion wait exceeded its deadline - PXP reset and operation failed (val=source line),v1.9,ACTIVE
 0x0A08,CAM,GRAB_TIMEOUT,Blocking GetFrame got no frame within the camera task 4 s poll - returned -1 instead of retrying forever (val=cam_id),v1.9,ACTIVE
 0x0A09,CAM,HOLD_LIMIT,Frame hand-out refused: consumers already hold kFramebufferCount-2 buffers so the CSI keeps 2 armed - buffer re-armed and -1 returned (val=held),v1.9,ACTIVE
+0x0A0A,CAM,STALL,Watchdog liveness: camera initialised but g_camera_sensor_frames did not advance for >= 2 kicks (10 s) - reported only - no reset (val=sensor_frames),v1.9,ACTIVE
+0x0A0B,CAM,STALL_END,Watchdog liveness: sensor frames resumed after a reported stall (val=stall duration s),v1.9,ACTIVE
 0x0AF0,CAM,GRAB_FAIL,Fatal: GetRawFrame failed after all recoveries (val=cam_id),v1.2,ACTIVE
 # === Module 0x0B: TPU ===
 0x0B40,TPU,ARENA_ALLOC,Tensor arena allocation failed,v1.0,ACTIVE
@@ -141,6 +143,7 @@ CODE,MODULE,NAME,DESCRIPTION,VERSION_ADDED,STATUS
 0x0DF0,LFX,RESTORE_LFS,LfsUserInit re-format failed after smoke - user partition unusable until reflash,v1.5,ACTIVE
 # === Module 0x0F: System ===
 0x0F01,SYS,BOOT_ATTEMPT,Boot attempt N - counter from SRC_GPR1 (val=attempt_number),v1.0,ACTIVE
+0x0F10,SYS,FR_LOCK_TIMEOUT,sentai.fr channel mutex not acquired within the bounded wait (200 ms push / 2 s config) - the push is dropped and counted; was an unbounded portMAX_DELAY wait reachable from printf (val=timeouts so far),v1.9,ACTIVE
 0x0FF0,SYS,RECOVERY_MODE,Recovery mode entered after boot loop (val=attempt_count),v1.0,ACTIVE
 0x0FF1,SYS,STACK_OVF,Stack overflow detected,v1.0,ACTIVE
 0x0FF2,SYS,MALLOC_FAIL,pvPortMalloc returned NULL,v1.0,ACTIVE

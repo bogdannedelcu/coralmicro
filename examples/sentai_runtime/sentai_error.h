@@ -163,6 +163,8 @@ extern "C" {
 #define SERR_CAM_PXP_TIMEOUT      (SERR_MOD_CAM | 0x07)  // PXP completion wait exceeded deadline; PXP reset (val=source line)
 #define SERR_CAM_GRAB_TIMEOUT     (SERR_MOD_CAM | 0x08)  // Blocking GetFrame: no frame within the camera-task 4 s poll (val=cam_id)
 #define SERR_CAM_HOLD_LIMIT       (SERR_MOD_CAM | 0x09)  // Frame hand-out refused: consumers already hold kFramebufferCount-2 buffers (val=held)
+#define SERR_CAM_STALL            (SERR_MOD_CAM | 0x0A)  // Watchdog: camera initialised but no sensor frame for >= 10 s (val=sensor_frames)
+#define SERR_CAM_STALL_END        (SERR_MOD_CAM | 0x0B)  // Watchdog: sensor frames resumed after a stall (val=stall seconds)
 
 // ===================== TPU Errors (0x0Bxx) =====================
 #define SERR_TPU_ARENA_ALLOC    (SERR_MOD_TPU | 0x40)   // Arena allocation failed
@@ -251,6 +253,7 @@ extern "C" {
 
 // ===================== System Errors (0x0Fxx) =====================
 #define SERR_SYS_BOOT_ATTEMPT   (SERR_MOD_SYS | 0x01)   // Boot attempt N (val=attempt_count)
+#define SERR_SYS_FR_LOCK_TIMEOUT (SERR_MOD_SYS | 0x10)  // sentai.fr channel mutex not acquired within the bound; push dropped (val=timeouts so far)
 #define SERR_SYS_RECOVERY_MODE  (SERR_MOD_SYS | 0xF0)   // Recovery mode entered (val=attempts)
 #define SERR_SYS_STACK_OVF      (SERR_MOD_SYS | 0xF1)   // Stack overflow
 #define SERR_SYS_MALLOC_FAIL    (SERR_MOD_SYS | 0xF2)   // Malloc failed

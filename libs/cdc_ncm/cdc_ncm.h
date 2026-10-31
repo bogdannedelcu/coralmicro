@@ -101,6 +101,10 @@ class CdcNcm {
     class_handle_ = class_handle;
   }
   bool HandleEvent(uint32_t event, void *param);
+  // Frames/NTBs the TX path had to drop (queue full after the bounded wait,
+  // or IN endpoint still busy).  Monotonic; read by the health observer in
+  // sentai_runtime.cc (audit base-M10).  Plain 32-bit reads, no lock.
+  uint32_t TxDrops() const { return tx_busy_drops_ + tx_queue_drops_; }
 
  private:
   static std::map<class_handle_t, CdcNcm *> handle_map_;

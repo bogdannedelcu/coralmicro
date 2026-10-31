@@ -939,8 +939,8 @@ OP — ObjectsPlan thesis
 │   │    │   to Serial Downloader.  Missing pull-up on BOOT_MODE1
 │   │    │   (GPIO_LPSR_03).  Hardware fix pending (colleague); fuse
 │   │    │   programming is operator-only (irreversible).
-│   │    ├── OP-S10-W22-T5 — T5838 mic pin remap (THSEL AD_19, WAKE AD_18) ⬜ TODO
-│   │    ├── OP-S10-W22-T6 — VDD_1V8_INT_EN polarity verification    ⬜ TODO
+│   │    ├── OP-S10-W22-T5 — T5838 mic pin remap (THSEL = GPIO_AD_18 per sheet 12; AD_19 is tied to MIC_CLK) ✅ DONE (build 1642)
+│   │    ├── OP-S10-W22-T6 — VDD_1V8_INT_EN polarity verification    ✅ DONE (sheet 4: TCR2LN18 CONTROL active-high; rail fed by PMIC via R13, pin held LOW on purpose)
 │   │    └── OP-S10-W22-T7 — Persistent-flash boot + MSC storage mode re-test ⬜ BLOCKED (hardware, T4)
 │   │
 │   └── OP-S10-W23 — Firmware hardening audit (races, hangs, OOM)   🟡 IN-PROGRESS (2026-10-30)
@@ -967,12 +967,47 @@ OP — ObjectsPlan thesis
 │        │   lfs_task stack 512→1536, camera frame-hold cap (SERR 0x0A09),
 │        │   I2C pin-low timeout, CDC-ACM reconfig latch reset.
 │        ├── OP-S10-W23-T7 — Regression + benchmark harnesses         ✅ DONE (EXP-s249 15/15, EXP-s250)
-│        └── OP-S10-W23-T8 — Remaining audit items                    ⬜ TODO
-│            Camera liveness in the watchdog (camera M5), fault hooks
-│            without printf on an overflowed stack (base M1), fs_task
-│            slot FSM shared state (MP M4), g_cam_current_id single
-│            writer (camera M6/M8 — CSI ISR, operator approval needed),
-│            SIM link shims, PmicTask CHECK() on rail requests.
+│        ├── OP-S10-W23-T8 — Remaining audit items                    🟡 MOSTLY DONE (build 1642, 2026-10-31)
+│        │   DONE: camera liveness in the watchdog (camera M5, SERR
+│        │   0x0A0A/0x0A0B, report only); fault hooks without printf
+│        │   (base M1, record into the .sdram_boot_log ring); fs_task
+│        │   slot FSM (MP M4, fast path only when IDLE + compare-and-
+│        │   publish); SIM link shims; rtos.dmesg single copy; W22-T5
+│        │   (THRS on USDHC1_DATA1 removed, THSEL -> GPIO_AD_18) and
+│        │   W22-T6 (1V8_INT_EN held LOW, documented) folded in.
+│        │   s249 R1-R15 18/18 PASS.  Build 1644: sentai.fr lock bounded
+│        │   (MP M12, SERR 0x0F10), PmicTask CHECK() on rail requests ->
+│        │   report+skip, g_network_healthy = NCM TX drops in the last
+│        │   kick interval (base M10), rtos.http_stats() registered.
+│        │   Builds 1645-1646: §14 review of batch 4 applied (crash-text
+│        │   slot moved to DTCM after SDRAM proved volatile through the
+│        │   ROM SDP wait; CFSR decode table fixed; FSM publish order).
+│        │   crash_text_probe.py PASS.  OPEN: g_cam_current_id single
+│        │   writer (-> T9), MP M13/M14 (fs_cache sync), mic pvPortMalloc
+│        │   (M9, accepted), EMU target link unverified.
+│        └── OP-S10-W23-T9 — Dual-camera alternation: frame identity + full-rate 1:1 ⬜ TODO (approved 2026-10-31)
+│            Review of the s243-s246 tagging work (operator ask).  Findings:
+│            (a) HandleFrameRequest tags from the SCALAR g_cam_last_completed_id,
+│            wrong whenever >= 2 frames are queued at dequeue -> copy the ISR
+│            per-buffer tag g_cam_buf_id[idx] instead (buffer is held, no re-arm
+│            race; no ISR change); (b) BASEADDR_SWITCH arms the buffer filled at
+│            k+2, so arm-time tagging cannot work (fix the fsl_csi.c comment);
+│            (c) ratio scheduler keys on the half-rate FB2 counter; (d) the
+│            BARS/HBAND oracle is roll-blind: 0x80 and 0x88 are both constant
+│            along rows, so a frame made of two consecutive frames of the SAME
+│            camera (vertical roll after a MUX flip into a sensor mid-frame)
+│            reads as "clean"; the 44.8 fps / 0-dropped result means the CSI
+│            does not wait for the new sensor's SOF, so post-flip frames are
+│            probably rolled.  Hardware: both sensors share one 24 MHz XCLK
+│            (frequency-locked, phase random per boot, no FSIN on the DF30
+│            connector).  Plan EXP-s251: (1) roll-sensitive oracle with the
+│            vertical-gradient patterns 0x84/0x8C; (2) per-frame dequeue
+│            timestamps to measure dead time / phase; (3) software genlock —
+│            one-frame TIMING_VTS (0x380E/F) adjust on cam1 with AEC
+│            frame-length extension disabled, then re-run drain=0/dirty=0;
+│            (4) only then switch the consumer tag source and guard the ISR
+│            flip on fb1_done||fb2_done.  Goal: 1:1 alternation at the full
+│            sensor rate with 0 mixed frames and 0 tag mismatches.
 
 └── Milestones
     ├── OP-M1 — Thesis MVP (SIM): 4 descriptors + L1 + calib working end-to-end

@@ -17,7 +17,14 @@ sentai
 │   ├── tasks()
 │   ├── heap_info()
 │   ├── cpu_usage()
-│   └── uptime()
+│   ├── uptime()
+│   ├── dmesg(max_bytes=16384) / dmesg_clear() / dmesg_stats()
+│   ├── http_stats()       # (requests, hangs, healthy): healthy = no NCM TX drop in the last 5 s
+│   └── suspend(name) / resume(name)   # protected tasks refused
+├── sys                    # Reset / boot-mode diagnostics
+│   ├── reset()
+│   ├── peek32(addr)       # ARM only
+│   └── poke32(addr, v)    # ARM only, bring-up use
 ├── tpu                    # EdgeTPU inference
 │   ├── load(path)
 │   ├── load_image(path)
@@ -31,17 +38,25 @@ sentai
 │   ├── row(oidx, row)
 │   ├── value(oidx, fi)
 │   └── save_output(path)
-├── fs                     # Filesystem (LittleFS)
-│   ├── read(path)
+├── fs                     # Filesystem (FileX / FAT32 on microSD)
+│   ├── read(path)         # <= 512 KB
 │   ├── read_str(path)
 │   ├── read_base64(path)
 │   ├── write(path, data)
+│   ├── append(path, data)
 │   ├── size(path)
 │   ├── exists(path)
 │   ├── format()
 │   ├── remove(path)
 │   ├── mkdir(path)
+│   ├── sync()
+│   ├── stats()            # HTTP file-API slot FSM counters
 │   └── ls(path)
+├── sdcard                 # Block-level microSD (USDHC1)
+│   ├── init() / deinit()
+│   ├── info()
+│   ├── probe()
+│   └── hexdump(lba=0)
 ├── camera                 # Camera capture
 │   ├── init(streaming=1)
 │   ├── stop()
@@ -52,8 +67,10 @@ sentai
 │   ├── set_resolution(w, h)
 │   ├── native_res()
 │   ├── select(id)
-│   └── frame_count()
-├── imu                     # LIS2DU12 accelerometer
+│   ├── frame_count() / sensor_frames()
+│   ├── stats()            # switch / grab / stall counters
+│   └── power_rails(on=1)  # PMIC camera LDOs (board rev 2026-10)
+├── imu                     # LIS2DUX12 accelerometer
 │   ├── init()
 │   ├── read()
 │   ├── degrees()
@@ -402,9 +419,25 @@ Create directories recursively (like `mkdir -p`).
 True
 ```
 
+### `sentai.fs.stats()` → tuple
+Thirteen monotonic counters from the HTTP file-API slot state machine
+(`sentai_fs_task.cc`), in this order: `served_ready_cached`,
+`served_fast_raw`, `served_after_wait`, `busy_serving_prev`,
+`busy_fast_raw_mutex`, `busy_slow_timeout`, `busy_slow_state_drift`,
+`busy_path_mismatch`, `busy_not_inited`, `enqueue_ok`, `enqueue_fail`,
+`stale_result`, `busy_fast_raw_pending`.  Every `{"error":"lfs_busy"}`
+reply from `/api/ls` or `/api/raw` increments exactly one `busy_*`
+counter, so a host script can tell which arm refused the request.
+`stale_result` counts results the FS task computed for a request the
+HTTP side had already abandoned (discarded, never served).
+```python
+>>> sentai.fs.stats()
+(12, 40, 3, 0, 0, 0, 0, 0, 0, 15, 0, 0, 0)
+```
+
 ### `sentai.fs.format()` → bool
-Force-reformat the user LittleFS partition. **Erases all user data** (models, images, scripts).  
-Use this to recover from filesystem corruption (e.g., NAND read errors, mount failures).
+Force-reformat the user FAT32 volume on the microSD card. **Erases all user data** (models, images, scripts).  
+Use this to recover from filesystem corruption (mount failures, journal errors).
 ```python
 >>> sentai.fs.format()
 True
@@ -424,6 +457,55 @@ Type: 1=file, 2=directory.
   524288B  model.tflite
       DIR  backup
 ```
+
+---
+
+## sentai.sdcard — microSD block device (USDHC1)
+
+Block-level access to the card under the FileX volume (`sentai.fs`).
+Read-only except `init`/`deinit`, which the boot path already runs; use
+these for bring-up and forensics, not for data.  Board rev 2026-10:
+`SD_PWREN_B` GPIO powers the slot, `VSELECT` picks the 3.3 V pad rail.
+
+### `sentai.sdcard.init()` → bool
+Power the slot and run the SD init sequence.  Idempotent.
+
+### `sentai.sdcard.deinit()` → None
+Power the slot down.  Do not call while the FileX volume is mounted.
+
+### `sentai.sdcard.info()` → tuple
+`(blocks, block_size, capacity_mb, high_capacity, name)`.
+```python
+>>> sentai.sdcard.info()
+(124735488, 512, 60906, 1, 'SD64G')
+```
+
+### `sentai.sdcard.probe()` → str
+Identify the partition table / filesystem from LBA 0 (and the VBR).
+
+### `sentai.sdcard.hexdump(lba=0)` → None
+Print one 512-byte sector to the console.
+
+---
+
+## sentai.sys — Reset and boot-mode diagnostics
+
+### `sentai.sys.reset()` → None
+Software reset after flushing the boot log and syncing the card.  On a
+RAM-loaded image the board returns to the ROM bootloader (SDP).
+
+### `sentai.sys.peek32(addr)` → int
+Volatile 32-bit read of a word-aligned address (peripheral registers or
+memory).  Added for EXP-s248 to read the boot-mode straps latched in
+`SRC_SBMR1/2` (`0x40C04008` / `0x40C0400C`).  ARM only; SIM raises `OSError`.
+```python
+>>> hex(sentai.sys.peek32(0x40C0400C))
+'0x9'
+```
+
+### `sentai.sys.poke32(addr, value)` → None
+Volatile 32-bit write.  **Bring-up diagnostic only** (pad / GPIO polarity
+checks): a wrong address can crash or hang the running image.  ARM only.
 
 ---
 
@@ -453,6 +535,27 @@ Select camera. `0`=front, `1`=back. Returns 0 on success.
 0
 >>> sentai.camera.select(1)   # back camera
 0
+```
+
+### `sentai.camera.power_rails(on=1)` → int
+Switch the PMIC camera LDO rails (CAM1/CAM2 1V8 + 2V8; 2V8 first on
+power-up).  On board rev 2026-10 the CAM1 I²C isolation switch is enabled
+by `VDD_1V8_CAM1`, so camera 1 only answers on LPI2C1 while the rails are
+on.  The rails default to on; `sentai.camera.init()` does not touch them.
+Returns 0 on success.
+
+### `sentai.camera.stats()` → dict
+Monotonic fault counters since boot: `switch_ok_eof`, `switch_fallback`,
+`drain_timeout`, `grab_retry`, `grab_fatal`, plus the watchdog liveness
+observer: `stall_count` (times the CSI stopped delivering sensor frames
+for ≥ 10 s while the camera was initialised) and `stalled` (1 while such
+a stall is ongoing).  A stall is reported (`SERR_CAM_STALL` 0x0A0A in
+`rtos.dmesg()`, a `CAM_STALL` row in `/log/crash_NNN.log`) but never acted
+on; `SERR_CAM_STALL_END` 0x0A0B marks the recovery.
+```python
+>>> sentai.camera.stats()
+{'stall_count': 0, 'stalled': 0, 'switch_ok_eof': 4, 'switch_fallback': 0,
+ 'drain_timeout': 0, 'grab_retry': 0, 'grab_fatal': 0}
 ```
 
 ### `sentai.camera.frame_count()` → int

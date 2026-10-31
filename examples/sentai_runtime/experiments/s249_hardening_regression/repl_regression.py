@@ -22,6 +22,14 @@ Checks (see README.md for the defect each one pins down):
     R10 camera init + capture of both sensors to the SD card (size > 0)
     R11 IMU init + read returns a dict with x/y/z
     R12 HTTP /api/ls and /api/raw over NCM return the capture, 3x identical
+    R14 fs.stats() is a 13-tuple; camera.stats() has stall_count/stalled == 0
+        after 12 s of streaming with no consumer (liveness observer, no
+        false positive)
+    R15 HTTP slot FSM under contention: 12 rounds of /api/ls + /api/raw
+        issued concurrently (two curl processes) -- every raw body
+        identical, every ls parses as JSON, no "lfs_busy" leaks into a
+        body (build 1642 fix: fast path only while the slot is IDLE,
+        FS-task result published only for the current request)
 """
 import argparse
 import hashlib
@@ -165,6 +173,40 @@ def main():
     check('R13', "10240 b'\\x00\\x01\\x02\\x03' b'\\xfe\\xff'" in o, o.strip().split('\n')[-2].strip() if '\n' in o else o)
     out = r.one('print(len(sentai.rtos.dmesg()) > 0)', 8)
     check('R13b', out == 'True', 'dmesg non-empty: ' + out)
+
+    # R14 — new counters exist, liveness observer stays quiet on a live CSI
+    out = r.one('t=sentai.fs.stats(); print(isinstance(t, tuple), len(t))', 8)
+    check("R14", out == "True 13", out)
+    if not a.no_camera:
+        r.one('sentai.camera.init()', 10)
+        time.sleep(12.0)   # > 2 watchdog kicks with nobody grabbing frames
+        out = r.one('d=sentai.camera.stats(); print(d["stall_count"], d["stalled"])', 8)
+        check('R14b', out == '0 0', 'stall_count stalled = ' + out)
+
+    if not a.no_http and not a.no_camera:
+        # R15 — concurrent ls + raw against the slot FSM
+        import json, concurrent.futures
+        def curl(url, m='10'):
+            return subprocess.run(['curl', '-s', '-m', m, url], capture_output=True).stdout
+        raw_sums, ls_ok, busy = set(), 0, 0
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as ex:
+            for _ in range(12):
+                f_ls = ex.submit(curl, 'http://10.0.0.1/api/ls/')
+                f_raw = ex.submit(curl, 'http://10.0.0.1/api/raw/s249_cam0.jpg', '15')
+                ls_b, raw_b = f_ls.result(), f_raw.result()
+                if b'lfs_busy' in raw_b:
+                    busy += 1
+                else:
+                    raw_sums.add(hashlib.md5(raw_b).hexdigest() + ':%d' % len(raw_b))
+                try:
+                    if isinstance(json.loads(ls_b.decode()), list):
+                        ls_ok += 1
+                except Exception:
+                    if b'lfs_busy' in ls_b:
+                        busy += 1
+        st = r.one('print(sentai.fs.stats())', 8)
+        check('R15', len(raw_sums) == 1 and not next(iter(raw_sums)).endswith(':0') and ls_ok >= 10,
+              'raw_sums=%s ls_ok=%d/12 busy=%d fs.stats=%s' % (raw_sums, ls_ok, busy, st))
 
     print('--- task stack high-water marks (words free) ---')
     print(r.one('print(sentai.rtos.tasks())', 10))

@@ -660,6 +660,10 @@ static uint32_t publish_aux_slots_from_raw(uint8_t* raw) {
     return fire_mask;
 }
 
+// ARM definition.  SIM / EMU builds compile sentai_camera_frame_backend.c,
+// which provides the virtual-camera version of this entry point (W23-T8:
+// both were linked into sentai_sim -> duplicate symbol).
+#if !defined(SENTAI_PLATFORM_SIM) && !defined(SENTAI_ARM_EMU)
 extern "C" int sentai_camera_backend_publish_prep_once(void) {
     if (!sentai_cam_is_initialized()) return -1;
     uint8_t* raw = nullptr;
@@ -669,6 +673,7 @@ extern "C" int sentai_camera_backend_publish_prep_once(void) {
     sentai_cam_return_raw(idx);
     return 0;
 }
+#endif
 
 static int publish_aux_slots_from_rgb888(uint8_t* rgb) {
     if (!rgb || !sentai_camera_backend_publish_prep_slots_rgb888) return -1;

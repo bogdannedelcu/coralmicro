@@ -107,6 +107,10 @@ int      sentai_storage_mode_active(void);
 // On boot: /log/boot.log → /log/boot_old.log, then fresh boot.log created.
 // Uses a RAM buffer that's flushed periodically and at REPL start.
 
+// Defined in the camera section below (global scope); the watchdog task in
+// the anonymous namespace reads it for the CAM_STALL crash-log line.
+extern volatile int g_cam_current_id;
+
 namespace {
 
 // Boot log state.  Refactored 2026-04-29:
@@ -136,6 +140,39 @@ struct BootLogPersist {
 };
 __attribute__((section(".sdram_boot_log"))) __attribute__((used))
 static volatile BootLogPersist g_boot_log_persist;
+
+// Crash-text slot (2026-10-31, audit base-M1 / §14 review MAJOR 1).  The
+// fault handlers write their decoded record here, NOT into the live boot
+// log: after boot_log_stop() the live buffer is re-used from offset 0 by
+// the next boot's printf before boot_log_fs_init() can rescue it, which
+// overwrote the record.  This slot is separate NOLOAD storage, snapshotted
+// by boot_log_init() before the first printf of the new boot, and
+// written to /log/crash_prev.txt (+ echoed to the console) once the card
+// is mounted.
+//
+// Placement: DTCM (.noinit.$crash_text, linker puts it above the stack at
+// the top of m_data), NOT SDRAM.  SDRAM needs refresh: on a board that
+// returns to the ROM serial downloader after a reset (BOOT_MODE straps,
+// EXP-s248) the seconds until flashtool reloads the image decay the SDRAM
+// slot (measured build 1645: record lost).  DTCM holds without refresh
+// through the warm reset, the ROM and the elf_loader (whose own DTCM use
+// ends at 0x2000A5B0).  Cleared only by POR.
+static constexpr uint32_t kCrashTextMagic = 0xC5A5E7E0UL;
+static constexpr size_t   kCrashTextSize  = 1008;
+struct CrashTextPersist {
+    volatile uint32_t magic;
+    volatile uint32_t check;      // ~magic
+    volatile uint32_t len;        // bytes valid in text[]
+    volatile uint32_t truncated;  // 1 = record did not fit
+    char              text[kCrashTextSize];
+};
+__attribute__((section(".noinit.$crash_text"))) __attribute__((used))
+static volatile CrashTextPersist g_crash_text_persist;
+// Snapshot taken by boot_log_init (before any printf of this boot).
+__attribute__((section(".sdram_bss")))
+static char     s_prev_crash_text[kCrashTextSize];
+static uint32_t s_prev_crash_len = 0;
+static uint32_t s_prev_crash_truncated = 0;
 // Captured at real_main entry — IF the previous boot crashed mid-log,
 // these hold the magic + payload length we observed before zeroing
 // the header for the current boot's writes.  flushed to
@@ -167,6 +204,26 @@ static void boot_log_init() {
     } else {
         g_prev_boot_log_len = 0;
     }
+
+    // Rescue the previous boot's crash-text record (fault handler output)
+    // before anything else can touch SDRAM state.  Cleared right away so
+    // a clean boot after the rescue shows nothing stale.
+    s_prev_crash_len = 0;
+    s_prev_crash_truncated = 0;
+    if (g_crash_text_persist.magic == kCrashTextMagic &&
+        g_crash_text_persist.check == ~kCrashTextMagic &&
+        g_crash_text_persist.len > 0 &&
+        g_crash_text_persist.len <= kCrashTextSize) {
+        s_prev_crash_len = g_crash_text_persist.len;
+        s_prev_crash_truncated = g_crash_text_persist.truncated;
+        for (uint32_t i = 0; i < s_prev_crash_len; i++) {
+            s_prev_crash_text[i] = g_crash_text_persist.text[i];
+        }
+    }
+    g_crash_text_persist.magic = 0;
+    g_crash_text_persist.check = 0;
+    g_crash_text_persist.len   = 0;
+    g_crash_text_persist.truncated = 0;
 
     // Reset header for THIS boot's trace.  Magic remains valid only
     // while we're actively logging — boot_log_stop() also keeps it set
@@ -215,6 +272,22 @@ static void boot_log_fs_init() {
         FxUserWriteFile("/log/boot_prev.log",
                         (const uint8_t*)g_boot_log_persist.buf,
                         g_prev_boot_log_len);
+    }
+
+    // Crash-text record from the previous boot (HardFault / stack overflow
+    // / malloc-failed handler output, see sentai_fault.cc).  Written to
+    // its own file and echoed to the console so it is visible on the
+    // first REPL screen after a crash.
+    if (s_prev_crash_len > 0) {
+        FxUserWriteFile("/log/crash_prev.txt",
+                        (const uint8_t*)s_prev_crash_text, s_prev_crash_len);
+        if (s_prev_crash_truncated) {
+            static const char trunc[] = "[record truncated]\r\n";
+            FxUserAppendFile("/log/crash_prev.txt", (const uint8_t*)trunc,
+                             sizeof(trunc) - 1);
+        }
+        printf("[boot] previous crash record (/log/crash_prev.txt):\r\n%.*s\r\n",
+               (int)s_prev_crash_len, s_prev_crash_text);
     }
 
     // Rotate boot.log -> boot_old.log if a previous boot left one behind.
@@ -369,10 +442,27 @@ extern "C" void sentai_verbose_set(int v) {
 static volatile uint32_t g_http_last_activity = 0;    // Last HTTP activity tick
 static volatile uint32_t g_http_request_count = 0;    // Total HTTP requests
 static volatile uint32_t g_http_hang_count = 0;       // Detected hangs
-static volatile bool g_network_healthy = true;        // Network health flag
+// Network health flag (audit base-M10, 2026-10-31).  Meaning: the USB-NCM
+// TX path dropped nothing during the last watchdog interval.  Set true by
+// a successful HTTP request, false by an HTTP hang report or by NCM TX
+// drops advancing between two kicks; it used to be forced true on every
+// kick and therefore carried no information.
+static volatile bool g_network_healthy = true;
+extern "C" uint32_t sentai_ncm_tx_drops(void);   // libs/base/main_freertos_m7.cc
 
 static volatile uint32_t g_repl_last_activity = 0;    // Last REPL activity tick
 static volatile uint32_t g_repl_input_count = 0;      // Total REPL inputs
+
+// Camera liveness (2026-10-31 audit camera-M5).  Observed by the watchdog
+// task every kick: while the camera is initialised and streaming the CSI
+// ISR must advance g_camera_sensor_frames.  A stall is REPORTED (SERR +
+// dmesg + crash log + counter), never acted on -- recovery stays with the
+// grab path (SERR_CAM_GRAB_RETRY) and the operator.  Written by the
+// watchdog task only; read from MP via sentai.camera.stats().
+static volatile uint32_t g_cam_stall_count    = 0;   // stalls seen since boot
+static volatile bool     g_cam_stalled        = false;
+static volatile uint32_t g_cam_stall_start_ms = 0;
+extern "C" int sentai_cam_is_initialized(void);
 
 // Hardware watchdog control
 static volatile bool g_hw_watchdog_enabled = false;
@@ -655,6 +745,69 @@ static void CombinedWatchdogTask(void* param) {
         uint32_t now = xTaskGetTickCount() * portTICK_PERIOD_MS;
         sentai_fault_set_uptime(now);  // update crash timestamp hint for fault handler
 
+        // --- Network path health (base-M10) ------------------------------
+        // NCM TX drops advancing since the previous kick = unhealthy; a
+        // quiet interval restores the flag.  Observed only, logged once per
+        // transition so a lossy link leaves a trace in dmesg.
+        {
+            static uint32_t last_drops = 0;
+            uint32_t drops = sentai_ncm_tx_drops();
+            bool ok = (drops == last_drops);
+            if (ok != g_network_healthy) {
+                SERR_LOG(ok ? SERR_WDG_KICK : SERR_WDG_WARN, drops);
+            }
+            g_network_healthy = ok;
+            last_drops = drops;
+        }
+
+        // --- Camera liveness (camera-M5) ---------------------------------
+        // Two consecutive kicks (10 s) without a new sensor frame while the
+        // camera is initialised = stall.  kCamStallKicks=2 so one slow kick
+        // (SD sync, USB burst) cannot raise a false alarm.  camera.init(0)
+        // ("trigger mode") is not a false-positive source: HandleEnableRequest
+        // ignores the mode and always starts the CSI receiver (EXP-s245).
+        // The SD write below (crash_log_write) is bounded by the FileX lock
+        // timeout and fires once per stall edge, inside the 30 s WDOG window.
+        {
+            constexpr uint32_t kCamStallKicks = 2;
+            static uint32_t last_frames = 0;
+            static uint32_t idle_kicks  = 0;
+            if (sentai_cam_is_initialized()) {
+                uint32_t frames = g_camera_sensor_frames;
+                if (frames == last_frames) {
+                    if (idle_kicks < 0xFFFFu) idle_kicks++;
+                } else {
+                    if (g_cam_stalled) {
+                        g_cam_stalled = false;
+                        uint32_t dur = now - g_cam_stall_start_ms;
+                        SERR_LOG(SERR_CAM_STALL_END, dur / 1000u);
+                        char buf[64];
+                        snprintf(buf, sizeof(buf), "frames resumed after %lus (n=%lu)",
+                                 (unsigned long)(dur / 1000u), (unsigned long)frames);
+                        crash_log_write("CAM_STALL_END", buf);
+                    }
+                    idle_kicks = 0;
+                }
+                last_frames = frames;
+                if (idle_kicks >= kCamStallKicks && !g_cam_stalled) {
+                    g_cam_stalled = true;
+                    g_cam_stall_count++;
+                    g_cam_stall_start_ms = now - idle_kicks * kKickIntervalMs;
+                    SERR_LOG(SERR_CAM_STALL, frames);
+                    char buf[64];
+                    snprintf(buf, sizeof(buf), "no sensor frame for %lus (n=%lu, cam=%d)",
+                             (unsigned long)(idle_kicks * kKickIntervalMs / 1000u),
+                             (unsigned long)frames, (int)g_cam_current_id);
+                    crash_log_write("CAM_STALL", buf);
+                }
+            } else {
+                // Camera off: nothing to observe; clear any stall state.
+                idle_kicks = 0;
+                last_frames = g_camera_sensor_frames;
+                g_cam_stalled = false;
+            }
+        }
+
         // Idle-driven auto-sync: bound the unflushed-data window so a
         // USB→battery brownout doesn't catch a NAND program in-flight.
         // No-op when nothing's pending or when writes are still hot;
@@ -670,7 +823,6 @@ static void CombinedWatchdogTask(void* param) {
         // auto-reset until they exit storage mode themselves.
         if (sentai_storage_mode_active()) {
             WDOG_Refresh(WDOG1);
-            g_network_healthy = true;
             consecutive_kicks = 0;
             continue;
         }
@@ -685,7 +837,6 @@ static void CombinedWatchdogTask(void* param) {
         if (min_idle < kWarningThresholdMs) {
             // All good - kick the watchdog
             WDOG_Refresh(WDOG1);
-            g_network_healthy = true;
             consecutive_kicks++;
             
             // Log periodic status (every 60 kicks = ~5 minutes)
@@ -713,7 +864,6 @@ static void CombinedWatchdogTask(void* param) {
         // keep kicking, keep the diagnostics (one task snapshot per
         // 10 minutes of idle), and never reset on idleness alone.
         WDOG_Refresh(WDOG1);
-        g_network_healthy = true;
         if (now - last_warning_time > 600000u) {
             last_warning_time = now;
             char buf[64];
@@ -822,6 +972,30 @@ extern "C" int _write(int handle, char* buffer, int size) {
         write_slice(buffer + off, n);
     }
     return size;
+}
+
+// Fault-context append into the crash-text slot (2026-10-31 audit
+// base-M1).  Called from sentai_fault.cc while the core is in a fault
+// handler, PendSV (stack-overflow hook) or with the scheduler suspended
+// (malloc-failed hook): no locks, no libc, no RTOS calls -- nothing else
+// runs at that point and a reset follows.  Linear slot, 1008 bytes; an
+// overflow sets `truncated` instead of wrapping so the head of the record
+// (code / PC / LR / CFSR) always survives.
+extern "C" void sentai_fault_text(const char* s, size_t len) {
+    if (!s || len == 0) return;
+    if (g_crash_text_persist.magic != kCrashTextMagic ||
+        g_crash_text_persist.check != ~kCrashTextMagic ||
+        g_crash_text_persist.len > kCrashTextSize) {
+        g_crash_text_persist.magic = kCrashTextMagic;
+        g_crash_text_persist.check = ~kCrashTextMagic;
+        g_crash_text_persist.len   = 0;
+        g_crash_text_persist.truncated = 0;
+    }
+    size_t pos = g_crash_text_persist.len;
+    size_t space = kCrashTextSize - pos;
+    if (len > space) { len = space; g_crash_text_persist.truncated = 1; }
+    for (size_t i = 0; i < len; i++) g_crash_text_persist.text[pos + i] = s[i];
+    g_crash_text_persist.len = pos + len;
 }
 
 // Export for micropython_task.c to call when REPL starts
@@ -1025,16 +1199,13 @@ extern "C" void vApplicationStackOverflowHook(TaskHandle_t xTask,
     for (int i = 0; i < 4 && pcTaskName[i]; i++) {
         name_hash = (name_hash << 8) | (uint8_t)pcTaskName[i];
     }
-    // Save crash breadcrumb: fault_addr = task name hash, lr = return addr
-    sentai_fault_save(SERR_SYS_STACK_OVF,
-                      /*pc=*/0,
-                      /*lr=*/(uint32_t)__builtin_return_address(0),
-                      /*cfsr=*/0,
-                      /*fault_addr=*/name_hash,
-                      /*uptime_ms=*/g_sentai_uptime_ms,
-                      /*r0=*/0);
-    printf("\r\n*** STACK OVERFLOW in task '%.16s' — resetting\r\n", pcTaskName);
-    SERR_LOG(SERR_SYS_STACK_OVF, name_hash);
+    // This hook runs from vTaskSwitchContext inside PendSV (handler mode):
+    // printf / SERR_LOG / dmesg take task-level critical sections there
+    // and trip configASSERT, which re-entered the reset path and lost the
+    // record (2026-10-31 audit base-M1).  Breadcrumb + text go through the
+    // fault-safe path instead; the text surfaces in /log/boot_prev.log.
+    sentai_fault_stack_overflow_record(pcTaskName, name_hash,
+                                       (uint32_t)__builtin_return_address(0));
     // Reset immediately — watchdog/boot counter will handle repeated failures
     (*(volatile uint32_t*)0xE000ED0CUL) = (0x5FAUL << 16U) | (1UL << 2U);
     for (;;) {}
@@ -1196,18 +1367,28 @@ extern "C" void app_main(void* param) {
       default:                   fault_name = "UNKNOWN_FAULT"; break;
     }
     // Decode CFSR into a short readable flag string
-    char cfsr_flags[64] = "";
+    char cfsr_flags[128] = "";
     uint32_t cf = s_prev_crash.cfsr;
-    if (cf & 0x00000001UL) strncat(cfsr_flags, "IACCVIOL ",  sizeof(cfsr_flags)-strlen(cfsr_flags)-1);
-    if (cf & 0x00000002UL) strncat(cfsr_flags, "DACCVIOL ",  sizeof(cfsr_flags)-strlen(cfsr_flags)-1);
-    if (cf & 0x00000200UL) strncat(cfsr_flags, "INVSTATE ",  sizeof(cfsr_flags)-strlen(cfsr_flags)-1);
-    if (cf & 0x00000400UL) strncat(cfsr_flags, "INVPC ",     sizeof(cfsr_flags)-strlen(cfsr_flags)-1);
-    if (cf & 0x00001000UL) strncat(cfsr_flags, "PRECISERR ", sizeof(cfsr_flags)-strlen(cfsr_flags)-1);
-    if (cf & 0x00002000UL) strncat(cfsr_flags, "STKER ",     sizeof(cfsr_flags)-strlen(cfsr_flags)-1);
-    if (cf & 0x00004000UL) strncat(cfsr_flags, "LSPER ",     sizeof(cfsr_flags)-strlen(cfsr_flags)-1);
-    if (cf & 0x00010000UL) strncat(cfsr_flags, "UNALIGNED ", sizeof(cfsr_flags)-strlen(cfsr_flags)-1);
-    if (cf & 0x00020000UL) strncat(cfsr_flags, "DIVBYZERO ", sizeof(cfsr_flags)-strlen(cfsr_flags)-1);
-    if (cf & 0x40000000UL) strncat(cfsr_flags, "VECTTBL ",   sizeof(cfsr_flags)-strlen(cfsr_flags)-1);
+    // Bit positions per ARM DDI0403 (CFSR = MMFSR[7:0] | BFSR[15:8] |
+    // UFSR[31:16]).  The previous table was shifted (0x200 was labelled
+    // INVSTATE, 0x1000 PRECISERR ...) and mislabelled every bus fault
+    // (found on the EXP-s249 crash probe, build 1645).  VECTTBL lives in
+    // HFSR, not CFSR, and is not recorded in the breadcrumb.
+    if (cf & 0x00000001UL) strncat(cfsr_flags, "IACCVIOL ",   sizeof(cfsr_flags)-strlen(cfsr_flags)-1);
+    if (cf & 0x00000002UL) strncat(cfsr_flags, "DACCVIOL ",   sizeof(cfsr_flags)-strlen(cfsr_flags)-1);
+    if (cf & 0x00000008UL) strncat(cfsr_flags, "MUNSTKERR ",  sizeof(cfsr_flags)-strlen(cfsr_flags)-1);
+    if (cf & 0x00000010UL) strncat(cfsr_flags, "MSTKERR ",    sizeof(cfsr_flags)-strlen(cfsr_flags)-1);
+    if (cf & 0x00000100UL) strncat(cfsr_flags, "IBUSERR ",    sizeof(cfsr_flags)-strlen(cfsr_flags)-1);
+    if (cf & 0x00000200UL) strncat(cfsr_flags, "PRECISERR ",  sizeof(cfsr_flags)-strlen(cfsr_flags)-1);
+    if (cf & 0x00000400UL) strncat(cfsr_flags, "IMPRECISERR ", sizeof(cfsr_flags)-strlen(cfsr_flags)-1);
+    if (cf & 0x00000800UL) strncat(cfsr_flags, "BUNSTKERR ",  sizeof(cfsr_flags)-strlen(cfsr_flags)-1);
+    if (cf & 0x00001000UL) strncat(cfsr_flags, "BSTKERR ",    sizeof(cfsr_flags)-strlen(cfsr_flags)-1);
+    if (cf & 0x00010000UL) strncat(cfsr_flags, "UNDEFINSTR ", sizeof(cfsr_flags)-strlen(cfsr_flags)-1);
+    if (cf & 0x00020000UL) strncat(cfsr_flags, "INVSTATE ",   sizeof(cfsr_flags)-strlen(cfsr_flags)-1);
+    if (cf & 0x00040000UL) strncat(cfsr_flags, "INVPC ",      sizeof(cfsr_flags)-strlen(cfsr_flags)-1);
+    if (cf & 0x00080000UL) strncat(cfsr_flags, "NOCP ",       sizeof(cfsr_flags)-strlen(cfsr_flags)-1);
+    if (cf & 0x01000000UL) strncat(cfsr_flags, "UNALIGNED ",  sizeof(cfsr_flags)-strlen(cfsr_flags)-1);
+    if (cf & 0x02000000UL) strncat(cfsr_flags, "DIVBYZERO ",  sizeof(cfsr_flags)-strlen(cfsr_flags)-1);
     if (cfsr_flags[0] == '\0') strncat(cfsr_flags, "-", sizeof(cfsr_flags)-1);
 
     char details[220];
@@ -2461,6 +2642,12 @@ static volatile uint32_t g_cam_switch_fallback_count  = 0; // ISR did not consum
 static volatile uint32_t g_cam_drain_timeout_count    = 0; // drain wait_iters hit 300 ms ceiling
 static volatile uint32_t g_cam_grab_retry_count       = 0; // GetRawFrame failed, toggling
 static volatile uint32_t g_cam_grab_fatal_count       = 0; // GetRawFrame failed after all recoveries
+
+// Camera liveness snapshot (watchdog observer, see CombinedWatchdogTask).
+extern "C" void sentai_cam_stall_get(uint32_t* count, uint32_t* stalled) {
+  if (count)   *count   = g_cam_stall_count;
+  if (stalled) *stalled = g_cam_stalled ? 1u : 0u;
+}
 
 extern "C" void sentai_cam_stats_get(uint32_t* ok_eof,
                                      uint32_t* fallback,

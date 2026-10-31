@@ -12,6 +12,9 @@
 // SIM-only initially; ARM port (FxUser sinks) deferred.
 
 #include "sentai_fr.h"
+#if defined(__arm__)
+#include "sentai_error.h"   // SERR_SYS_FR_LOCK_TIMEOUT
+#endif
 
 #include <stdint.h>
 #include <stdio.h>
@@ -120,18 +123,31 @@ inline uint32_t pool_size_for(sentai_fr_channel_t c) {
     }
 }
 
-// ── Binary semaphore (FreeRTOS, no priority inheritance) ───────────────
+// ── Channel mutex (FreeRTOS mutex: priority inheritance) ───────────────
 // Held briefly (single slot memcpy or snapshot).  Worker (in
 // sentai_fr_task.cc) polls via vTaskDelay — no condition variable.
+//
+// 2026-10-31 (audit MP-M12): the lock used to be a binary semaphore taken
+// with portMAX_DELAY.  sentai_fr_push_debug() sits under every printf()
+// (write_slice -> push_debug), so any task holding the lock a little too
+// long -- a 76 KB frame memcpy, or sentai_fr_open() doing SD I/O under
+// the lock -- parked every printing task, including high-priority ones,
+// with no inheritance to shorten it.  Now: a real mutex, every take is
+// bounded (kPushLockMs for producers/drains, kConfigLockMs for the REPL
+// configuration calls), and a timed-out producer DROPS its item and
+// counts it instead of waiting.
 static StaticSemaphore_t s_lock_buf;
 static SemaphoreHandle_t s_lock = nullptr;
+static constexpr uint32_t kPushLockMs   = 200;
+static constexpr uint32_t kConfigLockMs = 2000;
+static volatile uint32_t s_lock_timeouts = 0;
 inline void mu_init() {
-    if (!s_lock) {
-        s_lock = xSemaphoreCreateBinaryStatic(&s_lock_buf);
-        if (s_lock) xSemaphoreGive(s_lock);   // start "available"
-    }
+    if (!s_lock) s_lock = xSemaphoreCreateMutexStatic(&s_lock_buf);
 }
-inline void mu_lock()   { if (s_lock) xSemaphoreTake(s_lock, portMAX_DELAY); }
+inline bool mu_lock_for(uint32_t ms) {
+    if (!s_lock) return true;   // pre-init: single-threaded
+    return xSemaphoreTake(s_lock, pdMS_TO_TICKS(ms)) == pdTRUE;
+}
 inline void mu_unlock() { if (s_lock) xSemaphoreGive(s_lock); }
 // Producers used to signal the worker via a counting semaphore; that
 // mechanism was removed when the worker switched to a 20 ms polling
@@ -139,7 +155,28 @@ inline void mu_unlock() { if (s_lock) xSemaphoreGive(s_lock); }
 // push_* sites still compile.
 inline void wake_post() {}
 
-struct MuGuard { MuGuard(){ mu_lock(); } ~MuGuard(){ mu_unlock(); } };
+// Scoped bounded lock.  `ok` false = not acquired within the bound: the
+// caller must not touch channel state and must return (drop / retry).
+struct MuGuard {
+    bool ok;
+    explicit MuGuard(uint32_t ms = kPushLockMs) : ok(mu_lock_for(ms)) {}
+    ~MuGuard() { if (ok) mu_unlock(); }
+    MuGuard(const MuGuard&) = delete;
+    MuGuard& operator=(const MuGuard&) = delete;
+};
+
+// Producer lock timeout: count, and log every 64th -- except from the
+// DEBUG channel, whose producer IS the printf path (a log here would
+// recurse into push_debug).
+inline int lock_timeout_(bool from_debug_push) {
+    uint32_t n = ++s_lock_timeouts;
+#if defined(__arm__)
+    if (!from_debug_push && (n & 63u) == 1u) SERR_LOG(SERR_SYS_FR_LOCK_TIMEOUT, n);
+#else
+    (void)from_debug_push;
+#endif
+    return SENTAI_FR_ERR_FULL;   // same contract as a full queue: dropped
+}
 
 static uint32_t fr_now_ms_() {
 #if defined(__arm__)
@@ -216,7 +253,8 @@ inline FILE* open_append_(const char* path, const char* header) {
 
 extern "C" int sentai_fr_init(void) {
     mu_init();
-    MuGuard g;
+    MuGuard g(kConfigLockMs);
+    if (!g.ok) return SENTAI_FR_ERR_STATE;
     for (int i = 0; i < SENTAI_FR_CH__COUNT; ++i) s_chans[i] = ChanState{};
     return 0;
 }
@@ -225,7 +263,28 @@ extern "C" int sentai_fr_open(sentai_fr_channel_t ch, const char* path) {
     if (ch <= 0 || ch >= SENTAI_FR_CH__COUNT) return SENTAI_FR_ERR_UNKNOWN;
     if (!path || !*path) return SENTAI_FR_ERR_PARAMS;
     mu_init();
-    MuGuard g;
+#ifdef __arm__
+    // ARM: create/header the sink file BEFORE taking the channel lock --
+    // SD I/O (FileX append, up to the 2 s FS-lock bound) must not park
+    // every printf() behind push_debug (audit MP-M12).  The channel is
+    // still disabled at this point, so nothing drains it meanwhile.
+    if (ch == SENTAI_FR_CH_EVENTS) {
+        if (sentai_fs_size(path) <= 0) {
+            static const char hdr[] = "# sentai.fr events  ts_ms,type,text\n";
+            (void)sentai_fs_append(path, (const uint8_t*)hdr, (int)(sizeof(hdr) - 1));
+        }
+    } else if (ch == SENTAI_FR_CH_SCALARS) {
+        if (sentai_fs_size(path) <= 0) {
+            static const char hdr[] = "# sentai.fr scalars  ts_ms,label,value\n";
+            (void)sentai_fs_append(path, (const uint8_t*)hdr, (int)(sizeof(hdr) - 1));
+        }
+    } else if (ch == SENTAI_FR_CH_DEBUG) {
+        uint8_t empty = 0;
+        (void)sentai_fs_write(path, &empty, 0);
+    }
+#endif
+    MuGuard g(kConfigLockMs);
+    if (!g.ok) return SENTAI_FR_ERR_STATE;
     ChanState& c = s_chans[ch];
     // Frames: path = dir
     if (ch == SENTAI_FR_CH_FRAMES) {
@@ -237,35 +296,21 @@ extern "C" int sentai_fr_open(sentai_fr_channel_t ch, const char* path) {
             }
         }
     } else if (ch == SENTAI_FR_CH_EVENTS) {
-#ifdef __arm__
-        // ARM: newlib fopen write-glue to FileX is not wired, so fopen("ab")
-        // fails here (returns IO error).  Sink to the FileX append API — the
-        // same path the DEBUG channel already uses.  Header only when new.
-        if (sentai_fs_size(path) <= 0) {
-            static const char hdr[] = "# sentai.fr events  ts_ms,type,text\n";
-            (void)sentai_fs_append(path, (const uint8_t*)hdr, (int)(sizeof(hdr) - 1));
-        }
-#else
+#ifndef __arm__
+        // (ARM: newlib fopen write-glue to FileX is not wired; the FileX
+        // header append ran above, before the lock.)
         if (s_events_fp) { fclose(s_events_fp); s_events_fp = nullptr; }
         s_events_fp = open_append_(path, "# sentai.fr events  ts_ms,type,text");
         if (!s_events_fp) return SENTAI_FR_ERR_IO;
 #endif
     } else if (ch == SENTAI_FR_CH_SCALARS) {
-#ifdef __arm__
-        if (sentai_fs_size(path) <= 0) {
-            static const char hdr[] = "# sentai.fr scalars  ts_ms,label,value\n";
-            (void)sentai_fs_append(path, (const uint8_t*)hdr, (int)(sizeof(hdr) - 1));
-        }
-#else
+#ifndef __arm__
         if (s_scalars_fp) { fclose(s_scalars_fp); s_scalars_fp = nullptr; }
         s_scalars_fp = open_append_(path, "# sentai.fr scalars  ts_ms,label,value");
         if (!s_scalars_fp) return SENTAI_FR_ERR_IO;
 #endif
     } else if (ch == SENTAI_FR_CH_DEBUG) {
-#ifdef __arm__
-        uint8_t empty = 0;
-        (void)sentai_fs_write(path, &empty, 0);
-#else
+#ifndef __arm__
         if (s_debug_fp) { fclose(s_debug_fp); s_debug_fp = nullptr; }
         s_debug_fp = open_append_(path, nullptr);
         if (!s_debug_fp) return SENTAI_FR_ERR_IO;
@@ -281,7 +326,8 @@ extern "C" int sentai_fr_open(sentai_fr_channel_t ch, const char* path) {
 
 extern "C" int sentai_fr_close(sentai_fr_channel_t ch) {
     if (ch <= 0 || ch >= SENTAI_FR_CH__COUNT) return SENTAI_FR_ERR_UNKNOWN;
-    MuGuard g;
+    MuGuard g(kConfigLockMs);
+    if (!g.ok) return SENTAI_FR_ERR_STATE;
     s_chans[ch].stats.enabled = 0;
     if (ch == SENTAI_FR_CH_EVENTS && s_events_fp) {
         fflush(s_events_fp); fclose(s_events_fp); s_events_fp = nullptr;
@@ -301,6 +347,7 @@ extern "C" int sentai_fr_push_frame(const uint8_t* gray, int w, int h,
     if (w > SENTAI_FR_FRAMES_MAX_W || h > SENTAI_FR_FRAMES_MAX_H)
         return SENTAI_FR_ERR_PARAMS;
     MuGuard g;
+    if (!g.ok) return lock_timeout_(false);
     ChanState& c = s_chans[SENTAI_FR_CH_FRAMES];
     if (!c.stats.enabled) return SENTAI_FR_OK;  // silent no-op
     c.stats.pushes_total++;
@@ -326,6 +373,7 @@ extern "C" int sentai_fr_push_event(const char* type, const char* text) {
     if (!type) type = "";
     if (!text) text = "";
     MuGuard g;
+    if (!g.ok) return lock_timeout_(false);
     ChanState& c = s_chans[SENTAI_FR_CH_EVENTS];
     if (!c.stats.enabled) return SENTAI_FR_OK;
     c.stats.pushes_total++;
@@ -353,6 +401,7 @@ extern "C" int sentai_fr_push_scalar(const char* label, double value,
                                        uint32_t ts_ms) {
     if (!label) label = "";
     MuGuard g;
+    if (!g.ok) return lock_timeout_(false);
     ChanState& c = s_chans[SENTAI_FR_CH_SCALARS];
     if (!c.stats.enabled) return SENTAI_FR_OK;
     c.stats.pushes_total++;
@@ -378,6 +427,7 @@ extern "C" int sentai_fr_push_scalar(const char* label, double value,
 extern "C" int sentai_fr_push_debug(const char* data, int len) {
     if (!data || len <= 0) return SENTAI_FR_ERR_PARAMS;
     MuGuard g;
+    if (!g.ok) return lock_timeout_(true);
     ChanState& c = s_chans[SENTAI_FR_CH_DEBUG];
     if (!c.stats.enabled) return SENTAI_FR_OK;
     c.stats.pushes_total++;
@@ -404,7 +454,8 @@ extern "C" int sentai_fr_get_stats(sentai_fr_channel_t ch,
                                      sentai_fr_channel_stats_t* out) {
     if (!out) return SENTAI_FR_ERR_PARAMS;
     if (ch <= 0 || ch >= SENTAI_FR_CH__COUNT) return SENTAI_FR_ERR_UNKNOWN;
-    MuGuard g;
+    MuGuard g(kConfigLockMs);
+    if (!g.ok) return SENTAI_FR_ERR_STATE;
     *out = s_chans[ch].stats;
     return SENTAI_FR_OK;
 }
@@ -428,6 +479,7 @@ bool drain_one_frame_() {
     char dirpath[128];
     {
         MuGuard g;
+        if (!g.ok) return false;
         ChanState& c = s_chans[SENTAI_FR_CH_FRAMES];
         if (c.tail == c.head || !c.stats.enabled) return false;
         // Copy into static drain-side scratch under the lock; the
@@ -453,9 +505,11 @@ bool drain_one_frame_() {
     }
     {
         MuGuard g;
-        ChanState& c = s_chans[SENTAI_FR_CH_FRAMES];
-        if (ok) c.stats.writes_ok++;
-        else    c.stats.writes_fail++;
+        if (g.ok) {
+            ChanState& c = s_chans[SENTAI_FR_CH_FRAMES];
+            if (ok) c.stats.writes_ok++;
+            else    c.stats.writes_fail++;
+        }
     }
     return true;
 }
@@ -469,6 +523,7 @@ bool drain_one_event_() {
 #endif
     {
         MuGuard g;
+        if (!g.ok) return false;
         ChanState& c = s_chans[SENTAI_FR_CH_EVENTS];
         if (c.tail == c.head || !c.stats.enabled) return false;
         snap = s_event_pool[c.tail % SENTAI_FR_EVENTS_SLOTS];
@@ -496,8 +551,10 @@ bool drain_one_event_() {
     fflush(fp);
 #endif
     MuGuard g;
-    if (ok) s_chans[SENTAI_FR_CH_EVENTS].stats.writes_ok++;
-    else    s_chans[SENTAI_FR_CH_EVENTS].stats.writes_fail++;
+    if (g.ok) {
+        if (ok) s_chans[SENTAI_FR_CH_EVENTS].stats.writes_ok++;
+        else    s_chans[SENTAI_FR_CH_EVENTS].stats.writes_fail++;
+    }
     return true;
 }
 
@@ -516,6 +573,7 @@ static uint32_t drain_scalars_batch_() {
     int off = 0, cnt = 0;
     {
         MuGuard g;
+        if (!g.ok) return 0;
         ChanState& c = s_chans[SENTAI_FR_CH_SCALARS];
         if (c.tail == c.head || !c.stats.enabled) return 0;
         while (c.tail != c.head) {
@@ -533,8 +591,10 @@ static uint32_t drain_scalars_batch_() {
     if (off <= 0) return 0;
     bool ok = (sentai_fs_append(path, (const uint8_t*)s_scalar_linebuf, off) > 0);
     MuGuard g;
-    if (ok) s_chans[SENTAI_FR_CH_SCALARS].stats.writes_ok  += (uint32_t)cnt;
-    else    s_chans[SENTAI_FR_CH_SCALARS].stats.writes_fail += (uint32_t)cnt;
+    if (g.ok) {
+        if (ok) s_chans[SENTAI_FR_CH_SCALARS].stats.writes_ok  += (uint32_t)cnt;
+        else    s_chans[SENTAI_FR_CH_SCALARS].stats.writes_fail += (uint32_t)cnt;
+    }
     return (uint32_t)cnt;
 }
 #else
@@ -543,6 +603,7 @@ bool drain_one_scalar_() {
     FILE* fp;
     {
         MuGuard g;
+        if (!g.ok) return false;
         ChanState& c = s_chans[SENTAI_FR_CH_SCALARS];
         if (c.tail == c.head || !c.stats.enabled) return false;
         snap = s_scalar_pool[c.tail % SENTAI_FR_SCALARS_SLOTS];
@@ -554,7 +615,7 @@ bool drain_one_scalar_() {
     fprintf(fp, "%u,%s,%.9g\n", (unsigned)snap.ts_ms, snap.label, snap.value);
     fflush(fp);
     MuGuard g;
-    s_chans[SENTAI_FR_CH_SCALARS].stats.writes_ok++;
+    if (g.ok) s_chans[SENTAI_FR_CH_SCALARS].stats.writes_ok++;
     return true;
 }
 #endif
@@ -568,6 +629,7 @@ bool drain_one_debug_() {
 #endif
     {
         MuGuard g;
+        if (!g.ok) return false;
         ChanState& c = s_chans[SENTAI_FR_CH_DEBUG];
         if (c.tail == c.head || !c.stats.enabled) return false;
         snap = s_debug_pool[c.tail % SENTAI_FR_DEBUG_SLOTS];
@@ -592,8 +654,10 @@ bool drain_one_debug_() {
     }
 #endif
     MuGuard g;
-    if (ok) s_chans[SENTAI_FR_CH_DEBUG].stats.writes_ok++;
-    else    s_chans[SENTAI_FR_CH_DEBUG].stats.writes_fail++;
+    if (g.ok) {
+        if (ok) s_chans[SENTAI_FR_CH_DEBUG].stats.writes_ok++;
+        else    s_chans[SENTAI_FR_CH_DEBUG].stats.writes_fail++;
+    }
     return true;
 }
 

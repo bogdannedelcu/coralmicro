@@ -1,0 +1,22 @@
+SentAI v1.0 build 1645 (2026-10-31 07:20:55)
+R1   PASS SBMR1=0x00000000 SBMR2=0x00000009 SRSR=0x00000000
+R1b  PASS SBMR1=0x%08X SBMR2=0x%08X SRSR=0x%08X zzzzzzzzzzzzz 1086341128
+R2   PASS OverflowError: long long too large
+R3   PASS -1086341128 1086341128 17179869184
+R4   PASS ...     print("tail", i*10) tail 0 tail 10 tail 20
+R5   PASS A-count=20001
+R6   PASS alive 2
+R7   PASS alive 4
+R8   PASS RuntimeError: maximum recursion depth exceeded
+R9   PASS 0 0
+R10  PASS init=0 cam0=5429 cam1=5426
+R11  PASS {'y': -514.352, 'x': 758.352, 'temp': 33.2813, 'z': 423.584}
+R12  PASS ls=529 B sums={'cd853b3c77572a72e755f13a711773d7:5429'}
+R13  PASS 10240 b'\x00\x01\x02\x03' b'\xfe\xff'
+R13b PASS dmesg non-empty: True
+R14  PASS True 13
+R14b PASS stall_count stalled = 0 0
+R15  PASS raw_sums={'cd853b3c77572a72e755f13a711773d7:5429'} ls_ok=12/12 busy=4 fs.stats=(0, 11, 13, 4, 0, 0, 0, 0, 0, 1
+--- task stack high-water marks (words free) ---
+[('mp_repl', 'running', 1, 464), ('IDLE', 'ready', 0, 51), ('ctrlc', 'blocked', 2, 231), ('crazy_cmd', 'blocked', 2, 262), ('crazy_rx', 'blocked', 2, 736), ('DHCP thread', 'blocked', 3, 81), ('hw_wdog', 'blocked', 3, 1384), ('tcpip_thread', 'blocked', 4, 647), ('ipc_rx_task', 'suspended', 4, 889), ('pmic_task', 'blocked', 4, 861), ('m4_console_task', 'blocked', 3, 815), ('btn_usb', 'suspended', 1, 333), ('m7_console_task_rx', 'blocked', 3, 851), ('edgetpu_dfu_task', 'blocked', 3, 189), ('edgetpu_task', 'blocked', 3, 152), ('app_main', 'suspended', 3, 2161), ('camera_task', 'blocked', 4, 600), ('lfs_task', 'blocked', 2, 1067), ('cdc_ncm_task', 'blocked', 4, 798), ('Tmr Svc', 'blocked', 4, 140), ('UsbHostTask', 'blocked', 4, 786), ('usb_device_task', 'blocked', 4, 738), ('m7_console_task_tx', 'blocked', 3, 846), ('ipc_tx_task', 'suspended', 4, 889)]
+failures: 0

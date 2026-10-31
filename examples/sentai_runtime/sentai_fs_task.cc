@@ -41,11 +41,11 @@
 // JSON formatting sit on this stack.  6 KB gives 3x headroom (audit M5).
 #define LFS_TASK_STACK     1536
 
-// Queue depth 4 (Phase 3.4): under concurrent REPL writes + HTTP /api/ls
-// burst, depth=1 saturates immediately and causes ~50% lfs_busy responses.
-// The lfs_task drains in FIFO order; each entry is small (~300 B) so 4
-// pending requests cost ~1.2 KB queue memory.  Beyond 4 the wait becomes
-// long enough that the browser-side 600 ms retry kicks in anyway.
+// Queue depth: since the slot FSM only enqueues while the slot is IDLE
+// (sentai_fs_try_serve Step 4) at most ONE request is ever outstanding, so
+// the queue is effectively depth 1.  Kept at 4 (~1.2 KB) as slack against a
+// future second slot; it is not a throughput knob.  (The old "burst of 4
+// pending requests" rationale predates the single-slot FSM.)
 #define LFS_QUEUE_DEPTH    4
 
 // ---------------------------------------------------------------------------
@@ -66,6 +66,7 @@ static TaskHandle_t      s_lfs_owner = nullptr;   // see sentai_fs_lock()
 // ---------------------------------------------------------------------------
 typedef struct {
     sentai_fs_req_type_t type;
+    uint32_t             seq;    // s_slot_seq at enqueue; see LfsTaskFn
     char path[256];
 } LfsRequest;
 
@@ -89,6 +90,11 @@ typedef enum {
 
 static volatile SlotState          s_slot_state = SLOT_IDLE;
 static volatile size_t             s_slot_len   = 0;
+// Sequence number of the request the slot currently describes.  Bumped
+// by EnqueueLfsRequest (tcpip_thread); lfs_task publishes a result only
+// if the slot still belongs to the request it processed (2026-10-31
+// audit MP-M4 -- see LfsTaskFn).
+static volatile uint32_t           s_slot_seq   = 0;
 static char                        s_slot_path[256] = {};
 static sentai_fs_req_type_t       s_slot_type  = FS_REQ_LS;
 
@@ -109,6 +115,8 @@ typedef struct {
     volatile uint32_t busy_not_inited;       // no queue yet (pre-boot)
     volatile uint32_t enqueue_ok;            // xQueueSend succeeded
     volatile uint32_t enqueue_fail;          // xQueueSend failed (queue full)
+    volatile uint32_t stale_result;          // lfs_task result discarded: slot moved on
+    volatile uint32_t busy_fast_raw_pending; // Step 3: RAW fast path refused, slot not IDLE
 } lfs_stats_t;
 
 static lfs_stats_t s_lfs_stats = {};
@@ -202,10 +210,23 @@ static void LfsTaskFn(void* /*arg*/) {
 
         if (s_lfs_mutex) xSemaphoreGive(s_lfs_mutex);
 
-        // Publish result. Memory barrier ensures s_slot_len is visible before SLOT_READY.
-        s_slot_len = len;
-        __asm volatile("dmb 0xF" : : : "memory");
-        s_slot_state = SLOT_READY;
+        // Publish the result -- but only if the slot still describes THIS
+        // request.  tcpip_thread may have given up on it (slow-path wait
+        // timed out), discarded it (Step 1 path mismatch -> IDLE) and moved
+        // on; publishing READY then would relabel the slot with a stale
+        // length while g_resp_buf may already be streaming another response
+        // (2026-10-31 audit MP-M4: READY written over SERVING corrupted the
+        // in-flight body).  Compare-and-publish under a short critical
+        // section so the check and the two stores are one step.
+        taskENTER_CRITICAL();
+        if (s_slot_state == SLOT_PENDING && req.seq == s_slot_seq) {
+            s_slot_len = len;
+            __asm volatile("dmb 0xF" : : : "memory");
+            s_slot_state = SLOT_READY;
+        } else {
+            s_lfs_stats.stale_result++;
+        }
+        taskEXIT_CRITICAL();
     }
 }
 
@@ -216,24 +237,28 @@ static void LfsTaskFn(void* /*arg*/) {
 static size_t EnqueueLfsRequest(sentai_fs_req_type_t type, const char* path) {
     LfsRequest req;
     req.type = type;
+    req.seq  = s_slot_seq + 1u;
     strncpy(req.path, path, sizeof(req.path) - 1);
     req.path[sizeof(req.path) - 1] = '\0';
 
-    // Only publish the slot's path/type + state **after** xQueueSend
-    // accepts the request.  Pre-publishing on a failed send used to
-    // leave the invariant broken (path pointed to the new URI, state
-    // still IDLE), and every retry re-entered this path, failed to
-    // enqueue (queue already full with a prior in-flight request),
-    // and returned lfs_busy forever.  NASA/JPL §E — atomic publish-on-
-    // success.
-    if (xQueueSend(s_req_queue, &req, 0) != pdTRUE) {
-        s_lfs_stats.enqueue_fail++;
-        return 0;
-    }
+    // Publish the slot (path/type/seq -> PENDING) BEFORE handing the
+    // request to lfs_task, and roll back to IDLE if the send fails.  This
+    // keeps the FSM correct regardless of task priorities: if lfs_task ever
+    // ran above tcpip_thread, a publish-after-send would let it finish and
+    // compare against a slot that is still IDLE (result discarded), leaving
+    // the slot PENDING forever (§14 review of build 1642, minor 1).  The
+    // rollback preserves the older invariant from Phase 3.4 ("never leave
+    // the slot describing a request nobody enqueued").
     s_slot_type = type;
     strncpy(s_slot_path, path, sizeof(s_slot_path) - 1);
     s_slot_path[sizeof(s_slot_path) - 1] = '\0';
+    s_slot_seq   = req.seq;
     s_slot_state = SLOT_PENDING;
+    if (xQueueSend(s_req_queue, &req, 0) != pdTRUE) {
+        s_slot_state = SLOT_IDLE;
+        s_lfs_stats.enqueue_fail++;
+        return 0;
+    }
     s_lfs_stats.enqueue_ok++;
     return 0;
 }
@@ -281,7 +306,23 @@ size_t sentai_fs_try_serve(sentai_fs_req_type_t type, const char* path) {
     // strictly bounded.  LS therefore ALWAYS goes through lfs_task (slow
     // path) below; the browser retries on `lfs_busy` after 600 ms and the
     // subsequent request hits the SLOT_READY cache.
-    if (type == FS_REQ_RAW) {
+    //
+    // 2026-10-31 (audit MP-M4): the fast path shares g_resp_buf with
+    // lfs_task, so it may run ONLY while the slot is IDLE.  Running it while
+    // a slow-path request was PENDING serialised the two DoRaw/DoLs calls on
+    // the mutex but not the buffer: lfs_task finished first, tcpip_thread
+    // then overwrote g_resp_buf with the RAW body and started streaming it,
+    // and lfs_task's late READY relabelled the slot -- the next request
+    // enqueued over a buffer lwIP was still sending from.
+    // Counter discipline: a `lfs_busy` reply increments exactly ONE busy_*
+    // counter.  The two fast-path counters below record why the fast path
+    // was skipped; when the slow path then also fails, `fast_path_skipped`
+    // suppresses the Step 4 counter so the reply is attributed once.
+    bool fast_path_skipped = false;
+    if (type == FS_REQ_RAW && s_slot_state != SLOT_IDLE) {
+        s_lfs_stats.busy_fast_raw_pending++;
+        fast_path_skipped = true;
+    } else if (type == FS_REQ_RAW) {
         constexpr TickType_t FAST_PATH_WAIT_MS = 500;
         if (s_lfs_mutex &&
             xSemaphoreTake(s_lfs_mutex, pdMS_TO_TICKS(FAST_PATH_WAIT_MS)) == pdTRUE) {
@@ -295,6 +336,7 @@ size_t sentai_fs_try_serve(sentai_fs_req_type_t type, const char* path) {
             return (size_t)-1;  // 404 / empty
         }
         s_lfs_stats.busy_fast_raw_mutex++;
+        fast_path_skipped = true;
     }
 
     // Step 4 — SLOW PATH.  Either this is an LS request (always deferred)
@@ -338,11 +380,13 @@ size_t sentai_fs_try_serve(sentai_fs_req_type_t type, const char* path) {
             }
             return (size_t)-1;  // 404 / empty
         }
-        s_lfs_stats.busy_path_mismatch++;
+        if (!fast_path_skipped) s_lfs_stats.busy_path_mismatch++;
         return 0;
     }
     // Still PENDING after the bounded wait — lfs_task is slow or stuck.
-    if (s_slot_state == SLOT_PENDING) {
+    if (fast_path_skipped) {
+        // already attributed to busy_fast_raw_*
+    } else if (s_slot_state == SLOT_PENDING) {
         s_lfs_stats.busy_slow_timeout++;
     } else {
         s_lfs_stats.busy_slow_state_drift++;
@@ -358,6 +402,10 @@ size_t sentai_fs_try_serve(sentai_fs_req_type_t type, const char* path) {
 // ------------------------------------------------------------------
 extern "C" void sentai_fs_stats_get(uint32_t* out, int max_fields) {
     if (max_fields < 11 || !out) return;
+    if (max_fields >= 13) {
+        out[11] = s_lfs_stats.stale_result;
+        out[12] = s_lfs_stats.busy_fast_raw_pending;
+    }
     out[0]  = s_lfs_stats.served_ready_cached;
     out[1]  = s_lfs_stats.served_fast_raw;
     out[2]  = s_lfs_stats.served_after_wait;

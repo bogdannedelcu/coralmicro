@@ -109,6 +109,9 @@ coralmicro::MscUms g_msc_ums;
 
 #if ENABLE_USB_NCM
 coralmicro::CdcNcm g_cdc_ncm;
+// Health observer hook (sentai_runtime.cc CombinedWatchdogTask): total TX
+// drops on the NCM path since boot.
+extern "C" uint32_t sentai_ncm_tx_drops(void) { return g_cdc_ncm.TxDrops(); }
 static volatile bool g_ncm_initialized = false;
 #endif
 
@@ -530,31 +533,30 @@ extern "C" int real_main(int argc, char** argv, bool init_console_tx,
                   &config6, CLOCK_GetFreq(kCLOCK_OscRc48MDiv2));
 
   
+  // VDD_1V8_INT_EN (GPIO_AD_21 -> GPIO9.20) is the CONTROL pin of the
+  // TCR2LN18 LDO U3 (sheet 4, 430 k pull-down R59).  Toshiba TCR2LN: CONTROL
+  // high = ON.  We hold it LOW on purpose: on board rev 2026-10 the mic +
+  // IMU rail VDD_1V8_INT is fed from the PMIC VDD_1V8_AON through R13 (0 R)
+  // and the LDO output joins the same net through R12 (0 R) -- turning the
+  // LDO on would parallel two regulators on one rail.  The IMU answers on
+  // I2C5 with this pin low, which confirms the PMIC path is populated.
+  // Set to 1 ONLY on a board where R13 is DNP (LDO-fed rail).  Audit W22-T6.
 #define LDO_1V8_INT_EN_GPIO      GPIO9
 #define LDO_1V8_INT_EN_PIN       20U
-  // Initialize VDD_1V8_INT_EN pin as output
   gpio_pin_config_t ldo_1v8_pin_config = {
       .direction = kGPIO_DigitalOutput,
       .outputLogic = 0,
       .interruptMode = kGPIO_NoIntmode,
   };
-
   GPIO_PinInit(LDO_1V8_INT_EN_GPIO, LDO_1V8_INT_EN_PIN, &ldo_1v8_pin_config);
   GPIO_PinWrite(LDO_1V8_INT_EN_GPIO, LDO_1V8_INT_EN_PIN, 0);
-  printf("Enable the LDO_1V8_INT_EN\n");
+  printf("[boot] LDO_1V8_INT held OFF (rail fed from PMIC VDD_1V8_AON)\n");
 
-#define THRS_GPIO      GPIO10
-#define THRS_PIN       6U
-  // Initialize THRS pin as output
-  gpio_pin_config_t thrs_pin_config = {
-      .direction = kGPIO_DigitalOutput,
-      .outputLogic = 0,
-      .interruptMode = kGPIO_NoIntmode,
-  };
-
-  GPIO_PinInit(THRS_GPIO, THRS_PIN, &thrs_pin_config);
-  GPIO_PinWrite(THRS_GPIO, THRS_PIN, 0);
-  printf("Enable the THRS pin\n");
+  // (Removed 2026-10-31, audit W22-T5): a "THRS" output on GPIO10.6 =
+  // GPIO_SD_B1_03, which on this board rev is USDHC1_DATA1 -- the pad was
+  // driven low at boot before libs/sdcard re-muxed it.  The T5838 THSEL
+  // pin moved to GPIO_AD_18 (libs/t5838/t5838.h); SentAI does not drive it
+  // at boot.
 
   // Allows the AHB clock to run while the core is asleep,
   // so that the TCM is accessible.

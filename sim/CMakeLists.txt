@@ -257,6 +257,9 @@ add_executable_sim(sentai_sim
                                   # so SIM-side PGM loaders compile.
     sentai_uart_serial_udp.c      # Phase 6 — sentai.link UART→UDP bridge for SIM
     sentai_platform_sim_backend.c # SIM backend for shared sentai_runtime bindings
+    sentai_sim_link_shims.c       # W23-T8 — ARM-only symbols (TPU mode/recover,
+                                  # YUV dual invoke, PXP, pin probe, exec guard,
+                                  # run-time counter) so the SIM links again
     sentai_mavlink_udp_bridge.cc
     sentai_crazy_crtp_udp_bridge.cc
     # Task #44 — CRTP LOG (TOC scan + block subscribe + pose cache) in C.

@@ -24,6 +24,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -62,6 +63,18 @@ void sentai_fault_clear(void);
 // Strong definition is in sentai_fault.cc; app_callbacks.c provides a weak
 // no-op fallback so builds without sentai_fault.cc still link.
 void sentai_assert_fail(uint32_t caller_lr);
+
+// Fault-context text sink (sentai_runtime.cc): appends into the dedicated
+// crash-text slot of the .sdram_boot_log NOLOAD area.  Plain stores, no
+// libc, no RTOS; safe from HardFault / PendSV / scheduler-suspended
+// context.  Rescued to /log/crash_prev.txt on the next boot.
+void sentai_fault_text(const char *s, size_t len);
+
+// Stack-overflow record (sentai_fault.cc): breadcrumb + crash text, no
+// printf.  Called from vApplicationStackOverflowHook (PendSV context).
+void sentai_fault_stack_overflow_record(const char *task_name,
+                                        uint32_t name_hash,
+                                        uint32_t caller_lr);
 
 // Updated periodically by the watchdog task via sentai_fault_set_uptime().
 // The HardFault handler reads this to get a coarse crash timestamp.

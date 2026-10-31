@@ -12,8 +12,51 @@
 
 #include "third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_soc_src.h"
 
-#include <stdio.h>
 #include <stdint.h>
+#include <stddef.h>
+
+// ---------------------------------------------------------------------------
+// Fault-context text output (2026-10-31 audit base-M1).
+//
+// printf is NOT usable here: the console path takes RTOS locks and
+// allocates, and FreeRTOS asserts when a task-level critical section is
+// entered from handler mode -- the assert then re-entered the fault path
+// and clobbered the breadcrumb.  _write() already drops text inside
+// interrupts, so the decoded crash record never reached anyone.
+//
+// Instead the record goes straight into the .sdram_boot_log NOLOAD ring
+// through sentai_fault_text() (sentai_runtime.cc): plain stores, no libc,
+// no RTOS.  The next boot rescues that ring to /log/boot_prev.log, where
+// `*** CRASH ...` lines are found exactly as the console used to show
+// them.  Formatting below is hand-rolled so the handler runs with a few
+// dozen bytes of stack and no newlib state.
+// ---------------------------------------------------------------------------
+static size_t fault_strlen(const char *s) {
+    size_t n = 0;
+    while (s[n] != '\0' && n < 64u) n++;
+    return n;
+}
+static void fault_puts(const char *s) { sentai_fault_text(s, fault_strlen(s)); }
+static void fault_puthex(uint32_t v) {
+    char buf[11];
+    buf[0] = '0'; buf[1] = 'x';
+    for (int i = 0; i < 8; i++) {
+        uint32_t nib = (v >> (28 - 4 * i)) & 0xFu;
+        buf[2 + i] = (char)(nib < 10u ? ('0' + nib) : ('A' + nib - 10u));
+    }
+    buf[10] = '\0';
+    sentai_fault_text(buf, 10);
+}
+static void fault_putdec(uint32_t v) {
+    char buf[11];
+    int i = 10;
+    buf[i] = '\0';
+    do { buf[--i] = (char)('0' + (v % 10u)); v /= 10u; } while (v != 0u && i > 0);
+    sentai_fault_text(buf + i, (size_t)(10 - i));
+}
+static void fault_field(const char *name, uint32_t v) {
+    fault_puts(name); fault_puthex(v);
+}
 
 // ---------------------------------------------------------------------------
 // Uptime hint — updated externally by health/watchdog task each cycle.
@@ -123,44 +166,55 @@ extern "C" void sentai_fault_c(uint32_t *frame, uint16_t fault_code) {
     sentai_fault_save(fault_code, pc, lr, cfsr, fault_addr,
                       g_sentai_uptime_ms, r0);
 
-    // --- Best-effort UART output (goes to boot log ring buffer if active) ---
-    printf("\r\n*** CRASH: code=0x%04X PC=0x%08lX LR=0x%08lX "
-           "CFSR=0x%08lX HFSR=0x%08lX BFAR=0x%08lX up=%lums\r\n",
-           (unsigned)fault_code,
-           (unsigned long)pc, (unsigned long)lr,
-           (unsigned long)cfsr, (unsigned long)hfsr,
-           (unsigned long)fault_addr,
-           (unsigned long)g_sentai_uptime_ms);
-    printf("  r0=0x%08lX r1=0x%08lX r2=0x%08lX r3=0x%08lX\r\n",
-           (unsigned long)frame[0], (unsigned long)frame[1],
-           (unsigned long)frame[2], (unsigned long)frame[3]);
+    // --- Crash record into the persistent crash-text slot (no printf) ---
+    // The slot lives in SDRAM.  If THIS fault is a precise bus fault on the
+    // SDRAM window (SEMC / self-refresh / clock problem, BFAR 0x8000_0000..
+    // 0x8FFF_FFFF), writing the record would re-fault inside the handler;
+    // skip the text and go straight to the reset.  The GPR breadcrumb above
+    // already holds code/PC/LR/CFSR/BFAR.  Should a nested fault still
+    // happen, SRC_SRMR is at its reset value 0 on this board (read 2026-10-31
+    // via sentai.sys.peek32(0x40C04004)), i.e. an M7 lockup generates a
+    // system reset, which reset.cc counts as kSRC_M7CoreM7LockUpResetFlag.
+    if ((cfsr & CFSR_BFARVALID) &&
+        fault_addr >= 0x80000000UL && fault_addr <= 0x8FFFFFFFUL) {
+        *AIRCR_ADDR = (0x5FAUL << 16U) | (1UL << 2U);
+        for (;;) {}
+    }
+    fault_puts("\r\n*** CRASH: code="); fault_puthex(fault_code);
+    fault_field(" PC=", pc);  fault_field(" LR=", lr);
+    fault_field(" CFSR=", cfsr); fault_field(" HFSR=", hfsr);
+    fault_field(" BFAR=", fault_addr);
+    fault_puts(" up="); fault_putdec(g_sentai_uptime_ms); fault_puts("ms\r\n");
+    fault_field("  r0=", frame[0]); fault_field(" r1=", frame[1]);
+    fault_field(" r2=", frame[2]);  fault_field(" r3=", frame[3]);
+    fault_puts("\r\n");
 
     // Decode CFSR bits (ARM DDI0403D): MMFSR[7:0] | BFSR[15:8] | UFSR[31:16]
     // MMFSR — MemManage Fault Status
-    if (cfsr & 0x00000001UL) printf("  IACCVIOL: MPU instruction access violation\r\n");
-    if (cfsr & 0x00000002UL) printf("  DACCVIOL: MPU data access violation\r\n");
-    if (cfsr & 0x00000008UL) printf("  MUNSTKERR: MPU fault on exception return\r\n");
-    if (cfsr & 0x00000010UL) printf("  MSTKERR: MPU fault on exception entry\r\n");
+    if (cfsr & 0x00000001UL) fault_puts("  IACCVIOL: MPU instruction access violation\r\n");
+    if (cfsr & 0x00000002UL) fault_puts("  DACCVIOL: MPU data access violation\r\n");
+    if (cfsr & 0x00000008UL) fault_puts("  MUNSTKERR: MPU fault on exception return\r\n");
+    if (cfsr & 0x00000010UL) fault_puts("  MSTKERR: MPU fault on exception entry\r\n");
     // BFSR — Bus Fault Status
-    if (cfsr & 0x00000100UL) printf("  IBUSERR: instruction bus error\r\n");
-    if (cfsr & 0x00000200UL) printf("  PRECISERR: precise data bus error @ BFAR\r\n");
-    if (cfsr & 0x00000400UL) printf("  IMPRECISERR: imprecise data bus error\r\n");
-    if (cfsr & 0x00000800UL) printf("  BUNSTKERR: bus fault on exception return\r\n");
-    if (cfsr & 0x00001000UL) printf("  BSTKERR: bus fault on exception entry\r\n");
+    if (cfsr & 0x00000100UL) fault_puts("  IBUSERR: instruction bus error\r\n");
+    if (cfsr & 0x00000200UL) fault_puts("  PRECISERR: precise data bus error @ BFAR\r\n");
+    if (cfsr & 0x00000400UL) fault_puts("  IMPRECISERR: imprecise data bus error\r\n");
+    if (cfsr & 0x00000800UL) fault_puts("  BUNSTKERR: bus fault on exception return\r\n");
+    if (cfsr & 0x00001000UL) fault_puts("  BSTKERR: bus fault on exception entry\r\n");
     // UFSR — UsageFault Status
-    if (cfsr & 0x00010000UL) printf("  UNDEFINSTR: undefined instruction\r\n");
-    if (cfsr & 0x00020000UL) printf("  INVSTATE: invalid CPU state (bad EPSR.T)\r\n");
-    if (cfsr & 0x00040000UL) printf("  INVPC: invalid exception return value\r\n");
-    if (cfsr & 0x00080000UL) printf("  NOCP: coprocessor access (FPU disabled?)\r\n");
-    if (cfsr & 0x01000000UL) printf("  UNALIGNED: unaligned memory access\r\n");
-    if (cfsr & 0x02000000UL) printf("  DIVBYZERO: integer divide by zero\r\n");
+    if (cfsr & 0x00010000UL) fault_puts("  UNDEFINSTR: undefined instruction\r\n");
+    if (cfsr & 0x00020000UL) fault_puts("  INVSTATE: invalid CPU state (bad EPSR.T)\r\n");
+    if (cfsr & 0x00040000UL) fault_puts("  INVPC: invalid exception return value\r\n");
+    if (cfsr & 0x00080000UL) fault_puts("  NOCP: coprocessor access (FPU disabled?)\r\n");
+    if (cfsr & 0x01000000UL) fault_puts("  UNALIGNED: unaligned memory access\r\n");
+    if (cfsr & 0x02000000UL) fault_puts("  DIVBYZERO: integer divide by zero\r\n");
     // HFSR
-    if (hfsr & 0x00000002UL) printf("  VECTTBL: vector table read fault\r\n");
-    if (hfsr & 0x40000000UL) printf("  FORCED: hard fault escalated from lower fault\r\n");
+    if (hfsr & 0x00000002UL) fault_puts("  VECTTBL: vector table read fault\r\n");
+    if (hfsr & 0x40000000UL) fault_puts("  FORCED: hard fault escalated from lower fault\r\n");
 
     // Scan stack above exception frame for potential return addresses (stack hint)
     // Code lives in ITCM (0x00000000-0x001FFFFF). Thumb addresses have bit 0 set.
-    printf("  Stack hint (possible callers):");
+    fault_puts("  Stack hint (possible callers):");
     int found = 0;
     for (int i = 8; i < 40 && found < 5; i++) {
         uint32_t word = frame[i];
@@ -168,12 +222,12 @@ extern "C" void sentai_fault_c(uint32_t *frame, uint16_t fault_code) {
         if ((word & 1UL) &&
             ((word >= 0x00004000UL && word <= 0x001FFFFFUL) ||
              (word >= 0x20200000UL && word <= 0x2027FFFFUL))) {
-            printf(" 0x%08lX", (unsigned long)(word & ~1UL));
+            fault_puts(" "); fault_puthex(word & ~1UL);
             found++;
         }
     }
-    if (found == 0) printf(" (none in range)");
-    printf("\r\n");
+    if (found == 0) fault_puts(" (none in range)");
+    fault_puts("\r\n");
 
     // --- Immediate system reset (triggers watchdog path, increments boot counter) ---
     *AIRCR_ADDR = (0x5FAUL << 16U) | (1UL << 2U);
@@ -233,6 +287,26 @@ extern "C" __attribute__((naked)) void MemManage_Handler(void) {
 }
 
 // ---------------------------------------------------------------------------
+// sentai_fault_stack_overflow_record -- called from vApplicationStackOverflowHook
+// (PendSV / handler context: no printf, no SERR_LOG, no dmesg).
+// ---------------------------------------------------------------------------
+extern "C" void sentai_fault_stack_overflow_record(const char *task_name,
+                                                   uint32_t name_hash,
+                                                   uint32_t caller_lr) {
+    sentai_fault_save(SERR_SYS_STACK_OVF, /*pc=*/0, caller_lr,
+                      /*cfsr=*/0, /*fault_addr=*/name_hash,
+                      g_sentai_uptime_ms, /*r0=*/0);
+    fault_puts("\r\n*** STACK OVERFLOW in task '");
+    if (task_name) {
+        size_t n = fault_strlen(task_name);
+        sentai_fault_text(task_name, n > 16u ? 16u : n);
+    }
+    fault_puts("' LR="); fault_puthex(caller_lr);
+    fault_puts(" up="); fault_putdec(g_sentai_uptime_ms);
+    fault_puts("ms -- resetting\r\n");
+}
+
+// ---------------------------------------------------------------------------
 // vApplicationMallocFailedHook — strong override of the weak version in
 // libs/FreeRTOS/app_callbacks.c.  Saves breadcrumb and resets.
 // ---------------------------------------------------------------------------
@@ -241,8 +315,8 @@ extern "C" void vApplicationMallocFailedHook(void) {
     uint32_t caller_lr = (uint32_t)__builtin_return_address(0);
     sentai_fault_save(SERR_SYS_MALLOC_FAIL, 0, caller_lr, 0, 0,
                       g_sentai_uptime_ms, 0);
-    printf("\r\n*** MALLOC FAILED (caller LR=0x%08lX) — resetting\r\n",
-           (unsigned long)caller_lr);
+    fault_puts("\r\n*** MALLOC FAILED caller LR="); fault_puthex(caller_lr);
+    fault_puts(" -- resetting\r\n");
     // Immediate reset
     *AIRCR_ADDR = (0x5FAUL << 16U) | (1UL << 2U);
     for (;;) {}

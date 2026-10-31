@@ -288,12 +288,20 @@ static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_cam_last_capture_id_obj, mod_sentai_
 extern void sentai_cam_stats_get(uint32_t* ok_eof, uint32_t* fallback,
                                  uint32_t* drain_timeout,
                                  uint32_t* grab_retry, uint32_t* grab_fatal);
+extern void sentai_cam_stall_get(uint32_t* count, uint32_t* stalled);
 static mp_obj_t mod_sentai_cam_stats(void) {
     uint32_t ok_eof = 0, fallback = 0, drain_timeout = 0,
-             grab_retry = 0, grab_fatal = 0;
+             grab_retry = 0, grab_fatal = 0, stall_count = 0, stalled = 0;
     sentai_cam_stats_get(&ok_eof, &fallback, &drain_timeout,
                          &grab_retry, &grab_fatal);
-    mp_obj_t d = mp_obj_new_dict(5);
+    sentai_cam_stall_get(&stall_count, &stalled);
+    mp_obj_t d = mp_obj_new_dict(7);
+    // Watchdog liveness observer (audit camera-M5): stalls since boot and
+    // whether one is in progress right now.
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_stall_count),
+                      mp_obj_new_int_from_uint(stall_count));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_stalled),
+                      mp_obj_new_int_from_uint(stalled));
     mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_switch_ok_eof),
                       mp_obj_new_int_from_uint(ok_eof));
     mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_switch_fallback),

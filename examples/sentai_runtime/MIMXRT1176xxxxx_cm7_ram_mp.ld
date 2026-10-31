@@ -987,6 +987,22 @@ SECTIONS
     . += STACK_SIZE;
   } > m_data
 
+  /* Crash-text slot (2026-10-31, OP-S10-W23-T8): ~1 KB written by the
+   * fault handlers (sentai_fault.cc) and rescued to /log/crash_prev.txt
+   * on the next boot.  DTCM, NOLOAD: survives warm reset, the ROM serial
+   * downloader and the elf_loader (SDRAM would need refresh and decays
+   * while the board sits in SDP).  Placed after the .stack placeholder,
+   * below __StackLimit (the live MSP occupies the top STACK_SIZE bytes
+   * of m_data).  Not zeroed by startup; the header carries its own
+   * magic/check. */
+  .noinit_crash_text (NOLOAD) : ALIGN(16)
+  {
+    __CRASH_TEXT_START__ = .;
+    *(.noinit.$crash_text*)
+    . = ALIGN(16);
+    __CRASH_TEXT_END__ = .;
+  } > m_data
+
   .ncamera :
   {
     __noncachecameradata_start__ = .;
