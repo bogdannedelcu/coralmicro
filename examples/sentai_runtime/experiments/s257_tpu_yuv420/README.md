@@ -184,8 +184,59 @@ follows; (b) `g_sentai_tpu_stale_completions` stayed 0 in the floods because
 pipe's active one — the token is the backstop for the arm→submit window and
 cross-pipe orphans; (c) J-Link SWD attach does not connect on this board (W24-T8).
 
+## Camera 30 fps vs 45 fps, and the USB 2.0 budget (build 1705, flash)
+
+Question raised 2026-10-31: does anything in the TPU path stall at a 45 fps
+camera, and how much USB bandwidth does ~40 fps inference actually use?
+Same six models, fresh boot per run (`sentai.sys.reset()`), no upload,
+20 s per model (`run_b1705_fps30.*`, `run_b1705_fps45.*`):
+
+| camera | pipeline fps (6 models) | invoke ms avg | frames (6 × 20 s) | invoke fails | URBs | URB timeouts (bulk / CSR) | stale |
+|---|---|---|---|---|---|---|---|
+| 30 fps (33.3 ms frame) | 29.5 for all six (camera-bound) | 19.0 / 19.0 / 19.0 / 20.0 / 20.0 / 21.1 | 617 each | 0 | 77 184 | 0 / 0 | 0 |
+| 45 fps (22.2 ms frame) | 42.3 / 42.1 / 42.0 / 40.6 / 40.2 / 40.1 (invoke-bound) | 20.0 / 20.0 / 20.0 / 21.0 / 21.8 / 23.0 | 884 / 881 / 878 / 848 / 841 / 838 | 0 | 107 650 | 0 / 0 | 0 |
+
+Nothing stalls at 45 fps: zero invoke failures and zero synchronous-URB
+timeouts in both runs (and in the five earlier 45 fps sweeps on 1695–1702).
+The pass-1 silence / reset at 45 fps was the W24-T6 crash class plus the
+package leak, both fixed; it was never a bandwidth limit.  The only effect of
+the camera rate on the TPU is ~1 ms extra per invoke at 45 fps (20.0 vs
+19.0 ms), i.e. SDRAM/bus contention from the CSI + PXP traffic, not USB.
+
+**Per-invoke USB traffic (dual-input YUV420 model):**
+
+| item | bytes | notes |
+|---|---|---|
+| Y plane 640×480×1 | 307 200 | bulk OUT, 36 KB chunks (default `tpu.chunk_size`) |
+| UV plane 320×240×2 | 153 600 | bulk OUT |
+| input total | **460 800** | 13 bulk-OUT URBs |
+| instructions + parameters | model-dependent, tens of KB | instruction stream is re-sent per invoke (parameter caching keeps weights on the TPU) |
+| outputs (detection heads) + event | a few KB | bulk IN + interrupt |
+| URBs per invoke | ≈ 21 | 107 650 URBs / 5 170 invokes |
+
+Bus arithmetic (USB 2.0 high-speed bulk: 13 × 512 B per 125 µs microframe =
+53.2 MB/s theoretical; the RT1176 EHCI path sustains ≈ 35–40 MB/s in practice,
+measured in s240 from the RGB-vs-YUV invoke delta: 460.8 KB more input cost
+~13 ms):
+
+- 460.8 KB of input per invoke ≈ **12–13 ms of bus time** out of the 20–23 ms
+  invoke → the invoke is **transfer-bound**, with ~7–10 ms left for
+  instruction upload, TPU compute, output read and the completion event.
+- At 42 fps the input alone is 460.8 KB × 42 ≈ **19.4 MB/s ≈ 155 Mbit/s**,
+  i.e. roughly half of the practical bulk capacity and ~36 % of the
+  480 Mbit/s signalling rate.  The bus is busy ~55–60 % of the time (the
+  transfer phase of each invoke); it is not oversubscribed.
+- The RGB (3-byte) models move 921.6 KB per invoke → 35 ms → 28 fps max,
+  which is why the YUV420 export is the deployable form: halving the input
+  bytes is what buys the 40 fps, not the compute.
+
+So 40 fps is real and within USB 2.0, but USB is the bottleneck of the
+invoke: a faster TPU would not help, a smaller input (or on-TPU
+decimation) would.
+
 ## Files
 
 - `run_yuv420.py` — driver (upload + sweep; `--no-upload` to reuse the SD copies).
+- `run_b1705_fps30.{log,stdout}`, `results_b1705_fps30.csv`, `run_b1705_fps45.{log,stdout}`, `results_b1705_fps45.csv` — the 30 vs 45 fps comparison above.
 - `results_b1694_r2.csv`, `run_b1694_r2.log` — pass 2 (the result above).
 - `run_b1694.log` — pass 1 (REPL silence after the 4th load).

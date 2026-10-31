@@ -85,7 +85,10 @@ def main():
         if not st.strip() or 'STATS' not in st:
             print('REPL silent after %s -> stop sweep' % name); break
     out = q('print(sentai.rtos.dmesg())', 10)
-    print('events:', ' '.join(re.findall(r'E:0[AB][0-9A-F]{2}:\d+', out))[:300])
+    print('events:', ' '.join(re.findall(r'E:0[AB4][0-9A-F]{2}:\d+', out))[:300])
+    # W24-T6/T7 counters: synchronous-URB timeouts and in-pipeline recoveries.
+    out = q('print("URB", sentai.tpu.urb_sync_stats())', 10)
+    print([l.strip()[:200] for l in out.split('\n') if l.strip().startswith('URB')])
     with open(os.path.join(HERE, 'results_%s.csv' % a.tag), 'w') as f:
         f.write('model,ms_min,ms_avg,ms_max,fps,frames,detections\n')
         for r in rows: f.write(','.join(str(x) for x in r) + '\n')

@@ -1,0 +1,29 @@
+SentAI v1.1 build 1705 (2026-10-31 18:46:21) board 58eb
+['[cam] genlock: phase 25 us after 0 step(s) (T=22290 us)', 'INIT 0']
+model                                      ms_min   ms_avg   ms_max      fps frames   dets
+msblock_yuv420_int8_edgetpu.tflite              0     20.0        0     42.3    884      0   i_ok=884 i_fail=0 last_rc=20
+     Inputs: 2
+     in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00332641 zp=0
+     in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+c3_yuv420_int8_edgetpu.tflite                   0     20.0        0     42.1    881      0   i_ok=881 i_fail=0 last_rc=20
+     Inputs: 2
+     in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00323895 zp=0
+     in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+c2f_yuv420_int8_edgetpu.tflite                  0     20.0        0     42.0    878      0   i_ok=878 i_fail=0 last_rc=20
+     Inputs: 2
+     in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00331566 zp=0
+     in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+c2f_pan2_yuv420_int8_edgetpu.tflite             0     21.0        0     40.6    848      0   i_ok=848 i_fail=0 last_rc=21
+     Inputs: 2
+     in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00331440 zp=0
+     in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00391237 zp=0
+gelan_yuv420_int8_edgetpu.tflite                0     21.8        0     40.2    841      0   i_ok=841 i_fail=0 last_rc=22
+     Inputs: 2
+     in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00305517 zp=0
+     in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00390619 zp=0
+c2f_thick_yuv420_int8_edgetpu.tflite            0     23.0        0     40.1    838      0   i_ok=838 i_fail=0 last_rc=23
+     Inputs: 2
+     in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00326224 zp=0
+     in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+events: E:0A06:3 E:0A12:18 E:0A0C:25 E:0480:500 E:0481:898 E:0480:500 E:0481:895 E:0480:500 E:0481:891 E:0480:500 E:0481:861 E:0480:500 E:0481:854 E:0480:500 E:0481:852
+["URB {'csr_timeouts': 0, 'gave': 107650, 'stale': 0, 'take_failed': 0, 'entered': 107650, 'take_ok': 107650, 'csr_mutex_timeouts': 0}"]
