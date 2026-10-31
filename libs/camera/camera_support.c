@@ -695,6 +695,15 @@ void sentai_cam_deferred_flip_isr(void)
     /* Build #952 — runtime-settable via g_cam_dirty_consecutive_n. */
     g_cam_dirty_pending_count = g_cam_dirty_consecutive_n;
 }
+/* Weak fallbacks so the camera library links into vendor examples (blink_led
+ * etc.) that do not carry the SentAI runtime; sentai_runtime.cc / flow_task.cc
+ * provide the strong definitions.  2026-10-31. */
+__attribute__((weak)) volatile int      g_cam_current_id     = 0;
+__attribute__((weak)) volatile uint32_t g_cam_switch_seq     = 0;
+__attribute__((weak)) volatile bool     g_cam_switch_pending = false;
+__attribute__((weak)) volatile int      g_cam_pending_mux_id = -1;
+__attribute__((weak)) volatile uint32_t g_cam_ratio_packed   = 0;
+__attribute__((weak)) volatile TaskHandle_t g_flow_pub_isr_task = NULL;
 #endif /* !CPU_MIMXRT1176CVM8A_cm4 */
 
 void BOARD_EarlyInitCamera(void)

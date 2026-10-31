@@ -16,7 +16,7 @@
 #add_subdirectory(audio_streaming)  # disabled: .bss overflows m_data with UMS enabled
 #add_subdirectory(ble_beacon)
 #add_subdirectory(ble_beacon_scan)
-#add_subdirectory(blink_led)
+add_subdirectory(blink_led)
 #add_subdirectory(button_led)
 #add_subdirectory(camera_motion_detection)
 #add_subdirectory(camera_streaming_http)  # disabled 2026-05-10: pre-existing link errors (sentai_repl_activity / g_cam_* unresolved); not used by SentAI
