@@ -74,6 +74,35 @@ static mp_obj_t mod_sentai_sys_peek32(mp_obj_t addr_obj) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_sys_peek32_obj, mod_sentai_sys_peek32);
 
+// System LittleFS (NAND boot partition) diagnostics -- see sentai_runtime.cc.
+// sentai.sys.sysfs_size(path) -> int (bytes, or negative error)
+// sentai.sys.sysfs_read(path, off, n) -> bytes (n <= 512)
+// sentai.sys.sysfs_find(path, needle, start=0) -> int offset or -1
+extern int sentai_sysfs_size(const char* path);
+extern int sentai_sysfs_read(const char* path, uint32_t off, uint8_t* buf, uint32_t n);
+extern int sentai_sysfs_find(const char* path, const uint8_t* needle, uint32_t nlen, uint32_t start);
+static mp_obj_t mod_sentai_sys_sysfs_size(mp_obj_t path_o) {
+    return mp_obj_new_int(sentai_sysfs_size(mp_obj_str_get_str(path_o)));
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_sys_sysfs_size_obj, mod_sentai_sys_sysfs_size);
+static mp_obj_t mod_sentai_sys_sysfs_read(mp_obj_t path_o, mp_obj_t off_o, mp_obj_t n_o) {
+    extern uint8_t g_sysfs_read_buf[512];   // SDRAM, sentai_runtime.cc
+    uint8_t* buf = g_sysfs_read_buf;
+    mp_int_t n = mp_obj_get_int(n_o);
+    if (n < 0 || n > 512) mp_raise_ValueError(MP_ERROR_TEXT("n must be 0..512"));
+    int r = sentai_sysfs_read(mp_obj_str_get_str(path_o), (uint32_t)mp_obj_get_int(off_o), buf, (uint32_t)n);
+    if (r < 0) mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("sysfs read failed"));
+    return mp_obj_new_bytes(buf, (size_t)r);
+}
+static MP_DEFINE_CONST_FUN_OBJ_3(mod_sentai_sys_sysfs_read_obj, mod_sentai_sys_sysfs_read);
+static mp_obj_t mod_sentai_sys_sysfs_find(size_t n_args, const mp_obj_t *args) {
+    mp_buffer_info_t nb;
+    mp_get_buffer_raise(args[1], &nb, MP_BUFFER_READ);
+    uint32_t start = (n_args >= 3) ? (uint32_t)mp_obj_get_int(args[2]) : 0u;
+    return mp_obj_new_int(sentai_sysfs_find(mp_obj_str_get_str(args[0]), (const uint8_t*)nb.buf, (uint32_t)nb.len, start));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_sys_sysfs_find_obj, 2, 3, mod_sentai_sys_sysfs_find);
+
 // sentai.sys.poke32(addr, value) → None
 // Volatile 32-bit write.  BRING-UP DIAGNOSTIC ONLY (board rev 2026-10 pad /
 // GPIO polarity checks); it can crash or brick the running image if misused.
@@ -101,6 +130,9 @@ static const mp_rom_map_elem_t sentai_sys_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_boot_attempts),  MP_ROM_PTR(&mod_sentai_sys_boot_attempts_obj) },
     { MP_ROM_QSTR(MP_QSTR_uid),            MP_ROM_PTR(&mod_sentai_sys_uid_obj) },
     { MP_ROM_QSTR(MP_QSTR_peek32),         MP_ROM_PTR(&mod_sentai_sys_peek32_obj) },
+    { MP_ROM_QSTR(MP_QSTR_sysfs_size),     MP_ROM_PTR(&mod_sentai_sys_sysfs_size_obj) },
+    { MP_ROM_QSTR(MP_QSTR_sysfs_read),     MP_ROM_PTR(&mod_sentai_sys_sysfs_read_obj) },
+    { MP_ROM_QSTR(MP_QSTR_sysfs_find),     MP_ROM_PTR(&mod_sentai_sys_sysfs_find_obj) },
     { MP_ROM_QSTR(MP_QSTR_poke32),         MP_ROM_PTR(&mod_sentai_sys_poke32_obj) },
 };
 static MP_DEFINE_CONST_DICT(sentai_sys_globals, sentai_sys_globals_table);

@@ -520,6 +520,15 @@ memory).  Added for EXP-s248 to read the boot-mode straps latched in
 '0x9'
 ```
 
+### `sentai.sys.sysfs_size(path)` / `sysfs_read(path, off, n)` / `sysfs_find(path, needle, start=0)`
+Diagnostics over the NAND **system** LittleFS partition (the one the ROM /
+elf_loader boots from: `/default.elf`, `/usb_ip_address`, …), not the SD
+user FS.  `sysfs_size` → bytes or a negative error; `sysfs_read` → `bytes`
+(n ≤ 512); `sysfs_find` → first offset ≥ `start` of `needle` (≤ 64 bytes) or
+−1, scanning in 4 KB chunks.  Static SDRAM buffers, bounded by the file
+size.  Used by EXP-s253 to prove that a persistent `flashtool.py` run
+really updates `/default.elf` on a board that cannot boot from flash.
+
 ### `sentai.sys.poke32(addr, value)` → None
 Volatile 32-bit write.  **Bring-up diagnostic only** (pad / GPIO polarity
 checks): a wrong address can crash or hang the running image.  ARM only.

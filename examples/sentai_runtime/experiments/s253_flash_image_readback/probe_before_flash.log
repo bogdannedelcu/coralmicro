@@ -1,0 +1,16 @@
+>>> print("RUNNING", sentai.version())
+print("RUNNING", sentai.version())
+RUNNING SentAI v1.0 build 1666 (2026-10-31 12:12:55) board 58eb
+>>> 
+>>> print("SIZE", sentai.sys.sysfs_size("/default.elf"))
+print("SIZE", sentai.sys.sysfs_size("/default.elf"))
+SIZE 1346820
+>>> 
+>>> exec("p='/default.elf'\ns=0\nhits=[]\nwhile len(hits)<6:\n  o=sentai.sys.sysfs_find(p,b'2026-',s)\n  if o<0: break\n  hits.append((o,sentai.sys.sysfs_read(p,o,19)))\n  s=o+1\nprint('HITS',hits)")
+exec("p='/default.elf'\ns=0\nhits=[]\nwhile len(hits)<6:\n  o=sentai.sys.sysfs_find(p,b'2026-',s)\n  if o<0: break\n  hits.append((o,sentai.sys.sysfs_read(p,o,19)))\n  s=o+1\nprint('HITS',hits)")
+HITS [(198313, b'2026-10-30 20:46:10'), (816526, b'2026-10-30 20:46:10'), (834068, b'2026-10-30 20:46:10'), (892549, b'2026-09-04\x00\xc0\x02\x00\x00#\x04\x00\x00'), (1223069, b'2026-present Eclips')]
+>>> 
+>>> exec("p='/default.elf'\no=sentai.sys.sysfs_find(p,b'SentAI v1.0 build',0)\nprint('VER',o,sentai.sys.sysfs_read(p,max(o,0),64) if o>=0 else None)")
+exec("p='/default.elf'\no=sentai.sys.sysfs_find(p,b'SentAI v1.0 build',0)\nprint('VER',o,sentai.sys.sysfs_read(p,max(o,0),64) if o>=0 else None)")
+VER 816502 b'SentAI v1.0 build 1602 (2026-10-30 20:46:10)\x00marker_world requir'
+>>> 

@@ -124,3 +124,11 @@ with build 1649 loaded it has no SD, no cam on LPI2C1, IMU None -> probably
 the previous revision.  `sentai.sdcard.init()` without a card hangs the REPL
 (audit F14).  Board id: USB iSerial = OCOTP UNIQUE_ID; `sentai.sys.uid()`;
 product string "... build #N board XXXX" (build 1649).
+
+**EXP-s253 (2026-10-31, build 1666):** persistent `flashtool.py -e
+sentai_runtime` DOES write the NAND: `/default.elf` in the system LittleFS
+went from build 1602 to 1666 (read back from a fresh RAM load through the new
+`sentai.sys.sysfs_size/read/find`).  Boot image = elf_loader at blocks 4/8,
+FCB page 0 (s248).  The only defect is BOOT_MODE[1:0]=00 at POR (hardware).
+Every `--ram` load leaves the NAND untouched, so the NAND holds the LAST
+persistent build, not the running one.

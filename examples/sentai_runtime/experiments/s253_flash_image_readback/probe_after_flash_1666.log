@@ -1,0 +1,50 @@
+>>> print("RUNNING", sentai.version())
+[fx_user] *** MOUNT DEADLINE (20000 ms) EXCEEDED -- SAFE MODE ***
+[fx_user]   Card structures look corrupt.  REPL stays alive;
+[fx_user]   sentai.fs.format() reaps the stuck mount and reformats.
+[00:20:000] [fs] SD card not mounted -- SAFE MODE (logs stay in RAM)
+[00:20:000] Boot logging to /log/boot.log
+[00:20:000] [boot-mode] storage=0 attempts=0 prev_progress=0x00 sram=00000000/00000000 GPR9=00000000 GPR10=00000000 GPR11=00000000 GPR12=00000000 GPR15=00000000 GPR16=00000000
+[00:20:001] User button -> sentai.usb.drive(1)  [enter STORAGE mode]
+[00:20:001] Starting MicroPython REPL task...
+[MicroPython] REPL task created (stack=16384, priority=1)
+[00:20:001] Watchdog started (WDOG1 30 s; resets only if the scheduler stalls — idle is not a fault)
+[00:20:001] Boot complete, system mode: NORMAL
+[00:20:001] M4 offload: disabled (flow runs on M7).
+[00:20:001] SentAI MicroPython Runtime
+[EdgeTPU mgr] creating context
+[MicroPython] REPL task started
+[crazy] RX task started
+[crazy] CMD task started
+[crazy] initialized at 576000 baud (CPX/CRTP)
+[boot] crazy bridge auto-init OK (radio surface up)
+[MicroPython] Boot log saved to /log/boot.log
+
+MicroPython REPL on SentAI board v1.0  [build #1666  2026-10-31 12:12:55]
+Ctrl+C to interrupt running code or cancel input.
+
+>>> 
+>>> 
+KeyboardInterrupt
+>>> 
+KeyboardInterrupt
+>>> 
+>>> import sentai
+>>> print("RUNNING", sentai.version())
+RUNNING SentAI v1.0 build 1666 (2026-10-31 12:12:55) board 58eb
+>>> 
+>>> print("SIZE", sentai.sys.sysfs_size("/default.elf"))
+print("SIZE", sentai.sys.sysfs_size("/default.elf"))
+SIZE 1363036
+>>> 
+>>> exec("p='/default.elf'\ns=0\nhits=[]\nwhile len(hits)<6:\n  o=sentai.sys.sysfs_find(p,b'2026-',s)\n  if o<0: break\n  hits.append((o,sentai.sys.sysfs_read(p,o,19)))\n  s=o+1\nprint('HITS',hits)")
+exec("p='/default.elf'\ns=0\nhits=[]\nwhile len(hits)<6:\n  o=sentai.sys.sysfs_find(p,b'2026-',s)\n  if o<0: break\n  hits.append((o,sentai.sys.sysfs_read(p,o,19)))\n  s=o+1\nprint('HITS',hits)")
+[EdgeTPU mgr] initializing driver
+[EdgeTPU mgr] driver initialized
+[00:21:186] Edge TPU opened (mode 3)
+HITS [(212919, b'2026-10-31 12:12:55'), (821869, b'2026-10-31 12:12:55'), (837299, b'2026-10-31 12:12:55'), (896283, b'2026-10-31\x00\x00\x00\xce\x02\x00\x00C\x04'), (1246589, b'2026-present Eclips')]
+>>> 
+>>> exec("p='/default.elf'\no=sentai.sys.sysfs_find(p,b'SentAI v1.0 build',0)\nprint('VER',o,sentai.sys.sysfs_read(p,max(o,0),64) if o>=0 else None)")
+exec("p='/default.elf'\no=sentai.sys.sysfs_find(p,b'SentAI v1.0 build',0)\nprint('VER',o,sentai.sys.sysfs_read(p,max(o,0),64) if o>=0 else None)")
+VER 821845 b'SentAI v1.0 build 1666 (2026-10-31 12:12:55)\x00%s board %s\x00axis mu'
+>>> 

@@ -3692,6 +3692,68 @@ extern "C" void sentai_cam_autotune_stats(uint32_t* pretrim_lines, uint32_t* tri
   if (trims) *trims = g_cam_autotune_trims;
 }
 
+// ---- System LittleFS (NAND) raw access for diagnostics -------------------
+// Bounded, static-buffer readers over the NAND system partition (the one
+// the ROM/elf_loader boots from: /default.elf).  Used to confirm what a
+// persistent flashtool run actually left on the NAND when the board cannot
+// boot from flash (board rev 2026-10 boot straps, EXP-s248/s253).
+// (lfs.h and coralmicro::Lfs() come from libs/base/filesystem.h)
+// DTCM (m_data) is full to the byte: cold diagnostic buffers go to SDRAM.
+__attribute__((section(".sdram_bss"))) static uint8_t g_sysfs_scan_buf[4096 + 64];
+__attribute__((section(".sdram_bss"))) uint8_t g_sysfs_read_buf[512];
+
+extern "C" int sentai_sysfs_size(const char* path) {
+  lfs_t* lfs = coralmicro::Lfs();
+  if (!lfs) return -1;
+  lfs_file_t f;
+  if (lfs_file_open(lfs, &f, path, LFS_O_RDONLY) < 0) return -2;
+  lfs_soff_t sz = lfs_file_size(lfs, &f);
+  lfs_file_close(lfs, &f);
+  return (int)sz;
+}
+
+extern "C" int sentai_sysfs_read(const char* path, uint32_t off, uint8_t* buf, uint32_t n) {
+  lfs_t* lfs = coralmicro::Lfs();
+  if (!lfs) return -1;
+  lfs_file_t f;
+  if (lfs_file_open(lfs, &f, path, LFS_O_RDONLY) < 0) return -2;
+  int rc = -3;
+  if (lfs_file_seek(lfs, &f, (lfs_soff_t)off, LFS_SEEK_SET) >= 0) {
+    lfs_ssize_t r = lfs_file_read(lfs, &f, buf, n);
+    rc = (r < 0) ? -3 : (int)r;
+  }
+  lfs_file_close(lfs, &f);
+  return rc;
+}
+
+// First offset >= start where `needle` (nlen <= 64) occurs, or -1.  Scans in
+// 4 KB chunks with a (nlen-1) overlap; bounded by the file size.
+extern "C" int sentai_sysfs_find(const char* path, const uint8_t* needle, uint32_t nlen, uint32_t start) {
+  if (nlen == 0 || nlen > 64) return -4;
+  lfs_t* lfs = coralmicro::Lfs();
+  if (!lfs) return -1;
+  lfs_file_t f;
+  if (lfs_file_open(lfs, &f, path, LFS_O_RDONLY) < 0) return -2;
+  lfs_soff_t size = lfs_file_size(lfs, &f);
+  int found = -1;
+  uint32_t pos = start;
+  while (size > 0 && pos + nlen <= (uint32_t)size) {
+    if (lfs_file_seek(lfs, &f, (lfs_soff_t)pos, LFS_SEEK_SET) < 0) break;
+    lfs_ssize_t r = lfs_file_read(lfs, &f, g_sysfs_scan_buf, sizeof(g_sysfs_scan_buf));
+    if (r < (lfs_ssize_t)nlen) break;
+    for (uint32_t i = 0; i + nlen <= (uint32_t)r; ++i) {
+      if (g_sysfs_scan_buf[i] == needle[0] && memcmp(g_sysfs_scan_buf + i, needle, nlen) == 0) {
+        found = (int)(pos + i);
+        break;
+      }
+    }
+    if (found >= 0) break;
+    pos += 4096;
+  }
+  lfs_file_close(lfs, &f);
+  return found;
+}
+
 extern "C" uint32_t sentai_cam_csi_queue_faults(void) {
   return g_cam_csi_queue_faults;
 }
