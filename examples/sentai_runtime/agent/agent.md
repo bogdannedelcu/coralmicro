@@ -119,7 +119,7 @@ These are load-bearing.  Violating them has cost whole days of debug.
    "regression" that turned out to be carry-over state).
 
 10. **Build counter (`#xxx`) confirms what's actually flashed** — pyserial
-    `sentai.version()` returns `SentAI v1.0 build NNN (date time)`.  After
+    `sentai.version()` returns `SentAI v1.1 build NNN (date time) board XXXX` (v1.1 since 2026-10-31 = board rev 2026-10 line with the microSD user FS; v1.0 = NAND/LittleFS era).  After
     flashtool, verify build # incremented vs expected.  Mismatch = stale
     firmware, your code changes aren't live.
 

@@ -1073,7 +1073,7 @@ extern "C" const char *sentai_build_version_string(void) {
     static bool init = false;
     if (!init) {
         snprintf(s, sizeof(s),
-                 "autonomous.ro SentAI build #%d board %s", BUILD_VERSION,
+                 "autonomous.ro SentAI v1.1 build #%d board %s", BUILD_VERSION,
                  sentai_board_id_short());
         init = true;
     }

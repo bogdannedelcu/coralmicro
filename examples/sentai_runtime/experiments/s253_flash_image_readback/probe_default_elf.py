@@ -18,6 +18,6 @@ print(q('print("SIZE", sentai.sys.sysfs_size("/default.elf"))').strip().split('\
 out = q('exec("p=\'/default.elf\'\\ns=0\\nhits=[]\\nwhile len(hits)<6:\\n  o=sentai.sys.sysfs_find(p,b\'2026-\',s)\\n  if o<0: break\\n  hits.append((o,sentai.sys.sysfs_read(p,o,19)))\\n  s=o+1\\nprint(\'HITS\',hits)")', 240)
 for l in out.split('\n'):
     if l.strip().startswith('HITS'): print(l.strip()[:400])
-out = q('exec("p=\'/default.elf\'\\no=sentai.sys.sysfs_find(p,b\'SentAI v1.0 build\',0)\\nprint(\'VER\',o,sentai.sys.sysfs_read(p,max(o,0),64) if o>=0 else None)")', 240)
+out = q('exec("p=\'/default.elf\'\\no=sentai.sys.sysfs_find(p,b\'SentAI v1.\',0)\\nprint(\'VER\',o,sentai.sys.sysfs_read(p,max(o,0),64) if o>=0 else None)")', 240)
 for l in out.split('\n'):
     if l.strip().startswith('VER'): print(l.strip()[:300])

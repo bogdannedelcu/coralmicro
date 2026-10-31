@@ -525,7 +525,7 @@ digits (`board XXXX`) so a plain `lsusb` tells the bench boards apart.
 >>> sentai.sys.uid()
 '0d1db80e829358eb'
 >>> sentai.version()
-'SentAI v1.0 build 1649 (2026-10-31 08:40:00) board 58eb'
+'SentAI v1.1 build 1679 (2026-10-31 13:40:00) board 58eb'   # v1.1 = microSD-FS line (2026-10-31); v1.0 = NAND era
 ```
 
 ### `sentai.sys.peek32(addr)` → int

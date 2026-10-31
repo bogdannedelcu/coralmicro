@@ -50,7 +50,7 @@ void mp_embed_exit_critical(void);
 #define MICROPY_ENABLE_EXTERNAL_IMPORT  (1)
 
 // Board identification for sys.implementation._machine
-#define MICROPY_HW_BOARD_NAME           "SentAI board v1.0"
+#define MICROPY_HW_BOARD_NAME           "SentAI board v1.1"
 #define MICROPY_HW_MCU_NAME             "i.MX RT1176"
 
 // ── Enabled features (tier 1: essential + tier 2: quality-of-life) ──────

@@ -179,7 +179,7 @@ prefix is recognised by the uploader's exclusion rule).
 
 Default boot exposes USB CDC-ACM at `/dev/ttyACM0` (REPL) and CDC-NCM at `10.0.0.1` (HTTP). `lsusb` should show NXP `1fc9:c0a1`; if it shows Google Coral `18d1:9307` the firmware is dead and only a physical button press (USER held during plug-in / reset) recovers it. See `agent/agent.md` §2 (rule 1 — "Never brick the board") and §4 (unwedge recipes) before touching boot/USB code.
 
-Build counter on the board: `sentai.version()` returns `SentAI v1.0 build NNN (...)`. After flashing, verify the build # incremented vs expected — mismatch means stale firmware.
+Build counter on the board: `sentai.version()` returns `SentAI v1.1 build NNN (...) board XXXX` (v1.1 = microSD-FS line since 2026-10-31). After flashing, verify the build # incremented vs expected — mismatch means stale firmware.
 
 ## Environment quirks
 

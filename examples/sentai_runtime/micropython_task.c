@@ -615,7 +615,7 @@ static void micropython_repl_task(void* param) {
     {
         char banner[128];
         snprintf(banner, sizeof(banner),
-            "MicroPython REPL on SentAI board v1.0  [build #%d  %s]\r\n",
+            "MicroPython REPL on SentAI board v1.1  [build #%d  %s]\r\n",
             BUILD_VERSION, BUILD_TIMESTAMP);
         repl_puts(banner);
     }

@@ -2,7 +2,11 @@
 // This file is #include'd from modsentai.c / emulator module wrappers.
 
 #ifndef SENTAI_VERSION_PREFIX
-#define SENTAI_VERSION_PREFIX "SentAI v1.0"
+// v1.1 (2026-10-31, operator decision): board rev 2026-10 bring-up line --
+// user FS on microSD (FatFs/FileX on USDHC1), LIS2DUX12, CAM1 on LPI2C1,
+// deferred MUX flip + phase autotune.  v1.0 = the NAND/LittleFS era without a
+// working SD card.
+#define SENTAI_VERSION_PREFIX "SentAI v1.1"
 #endif
 
 #define STRINGIFY2(x) #x
@@ -11,7 +15,7 @@
     SENTAI_VERSION_PREFIX " build " STRINGIFY(BUILD_VERSION) " (" BUILD_TIMESTAMP ")"
 
 // sentai.version() -> str
-//   "SentAI v1.0 build N (timestamp) board XXXX" -- XXXX = last 4 hex digits
+//   "SentAI v1.1 build N (timestamp) board XXXX" -- XXXX = last 4 hex digits
 //   of the chip UNIQUE_ID (full value: sentai.sys.uid()).  SIM has no OCOTP
 //   and reports "board sim".
 #ifndef SENTAI_PLATFORM_SIM
