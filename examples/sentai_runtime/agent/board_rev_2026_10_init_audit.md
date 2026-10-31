@@ -27,6 +27,7 @@ items need the operator.
 | F10 | TPU LED (LED5, GPIO_AD_02 → Q3) is muxed to FLEXPWM1_PWM1_A with no driver running → undefined/dim; board-status LED Q10 is ON by default by design | LOW | FW |
 | F11 | USB-C CC controller PTN5150A PORT/ID (GPIO_AD_08/09) untouched: device-only (UFP) today; fine, documented | INFO | — |
 | F12 | JTAG: `JTAG_MOD` (LPSR_13) has R37 DNP + R38 4.7 k pull-down → SWD mode selected correctly; LPSR_10..12 are muxed away from JTAG at boot (TRST/TDO/TDI), TCK/TMS left default; "Failed to power up DAP" (2026-10-30) is still unexplained | INFO | HW/FW later |
+| F14 | `sentai.sdcard.init()` (→ `SDCard::Init` → `SD_Init`) has no bound when no card answers: on the reference board it parked the REPL task for good (Ctrl-C cannot interrupt native code, the watchdog keeps kicking).  Boot mount is protected by `FxUserBootMount`'s 20 s task deadline; the REPL/REPL-driven paths are not | MEDIUM | FW |
 | F13 | SD card runs at 3.3 V signalling (SD1_VSELECT → U6 → NVCC_SD = 3V3); the hardware supports 1.8 V UHS-I switching, unused (16 MB/s read today) | INFO (future speed) | FW later |
 
 ## 1. Pin / net map (nets that firmware drives or should know)
@@ -278,6 +279,23 @@ SD1_VSELECT = 0 → U6 routes VDD_3V3 to NVCC_SD; the card runs DS/HS at
 3.3 V (50 MHz, 4-bit, 16 MB/s read in EXP-s250).  The hardware supports
 UHS-I 1.8 V switching (U6 Y1 = VDD_1V8).  A later work item, not bring-up.
 
+### F14 — `SD_Init` without a card is unbounded (EXP-s252)
+
+`libs/sdcard/sdcard.cc`: `SdBoardCardDetected()` always returns true ("no
+card-detect switch; let SD_Init fail"), `s_cd.type = kSD_DetectCardByGpioCD`,
+and `SD_Init()` is called with no deadline.  With an empty socket (or, on
+the reference board, no USDHC1 wiring at all) the SDK init never returned.
+`FxUserBootMount` already runs the boot-time mount in a worker task with a
+20 s deadline, so boot is safe; `sentai.sdcard.init()` and `FxUserRemount`
+are not.
+
+**FW proposal:** run `SD_Init` in the same deadline pattern (worker task +
+`xSemaphoreTake(…, 5 s)`), or probe the card first with a bounded
+`SDMMCHOST` command (CMD0/CMD8 with the host's own transfer timeout) and
+return `-ETIMEDOUT` to the REPL; add `SERR_LFX_SD_INIT_TIMEOUT`.  Test:
+`sentai.sdcard.init()` with the card removed returns False within 5 s and
+the REPL stays alive.
+
 ## 3. Sleep / wake architecture (what the board allows)
 
 Power diagram (sheet 3) and sheet 5: `VDD_SNVS_IN` is fed by U2
@@ -325,7 +343,8 @@ SNVS + U3 + mic AAD + IMU LP ≈ well below 1 mA), wake latency to REPL.
 | D | F8 TPU PGOOD bound + BOOT_FAIL/SD_ALARM exposure | low | new SERR codes |
 | E | F7 WAKEUP handler + `wake_events()`; IMU/mic wake arming bindings | medium | — |
 | F | L3 SNVS sleep (`sentai.sys.sleep`) | medium | **F1 hardware fix first** |
-| — | F1 button test now; reference-board fuse/strap read-out; HW change request to the colleague | — | operator |
+| D' | F14 bounded `sentai.sdcard.init()` | low | — |
+| — | F1 button test now; reference-board fuse/strap read-out (DONE: EXP-s252 — the reference board boots through straps, BMOD=10, no fuses burnt; it is most likely the earlier revision); HW change request to the colleague | — | operator |
 
 Not proposed (explicitly left alone): PMIC rail sequencing (works, LDO1-4
 default on), camera power/reset sequence, SD power/VSELECT, USB-C CC

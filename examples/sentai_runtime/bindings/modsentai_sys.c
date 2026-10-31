@@ -43,6 +43,23 @@ static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_sys_boot_attempts_obj, mod_sentai_sy
 // must be word-aligned.  EXP-s248 added it to read the boot-mode straps
 // latched in SRC_SBMR1/2 when neither J-Link nor the flashloader could.
 // SIM has no MMIO: raises OSError.
+// sentai.sys.uid() -> str
+// 64-bit chip UNIQUE_ID from OCOTP (fuse words 0x900/0x910) as 16 lower-case
+// hex digits; identical to the USB iSerial descriptor, so
+// /dev/serial/by-id/*_<uid>-if00 names the same board.  SIM: "sim".
+#ifndef SENTAI_PLATFORM_SIM
+extern const char *sentai_board_serial(void);
+#endif
+static mp_obj_t mod_sentai_sys_uid(void) {
+#ifdef SENTAI_PLATFORM_SIM
+    return mp_obj_new_str("sim", 3);
+#else
+    const char *s = sentai_board_serial();
+    return mp_obj_new_str(s, strlen(s));
+#endif
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_sys_uid_obj, mod_sentai_sys_uid);
+
 static mp_obj_t mod_sentai_sys_peek32(mp_obj_t addr_obj) {
 #ifdef SENTAI_PLATFORM_SIM
     (void)addr_obj;
@@ -82,6 +99,7 @@ static const mp_rom_map_elem_t sentai_sys_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_reset),          MP_ROM_PTR(&mod_sentai_sys_reset_obj) },
     { MP_ROM_QSTR(MP_QSTR_recovery_mode),  MP_ROM_PTR(&mod_sentai_sys_recovery_mode_obj) },
     { MP_ROM_QSTR(MP_QSTR_boot_attempts),  MP_ROM_PTR(&mod_sentai_sys_boot_attempts_obj) },
+    { MP_ROM_QSTR(MP_QSTR_uid),            MP_ROM_PTR(&mod_sentai_sys_uid_obj) },
     { MP_ROM_QSTR(MP_QSTR_peek32),         MP_ROM_PTR(&mod_sentai_sys_peek32_obj) },
     { MP_ROM_QSTR(MP_QSTR_poke32),         MP_ROM_PTR(&mod_sentai_sys_poke32_obj) },
 };

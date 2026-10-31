@@ -282,3 +282,13 @@ SD-migration review minors: 19 `[SDCard] ... STEP n` boot prints removed
 NAND/LevelX wording in `fx_user_fs.cc` rewritten for the SD backend
 (auto-sync rationale, blank-card auto-format rule, `FxUserSync` cost
 ≈ 0–5 ms per EXP-s250).  No functional change.
+
+### Build 1649 on the reference board (2026-10-31 08:31) — `run_build1649_refboard.log`
+
+Not a regression run of the firmware: build 1649 (board-id in
+`sentai.version()` / USB product string, `sentai.sys.uid()`) was RAM-loaded
+on the operator's flash-booting reference board for EXP-s252.  R1–R9 and
+R14 PASS; R10–R13 FAIL because that board has no microSD, no camera on
+LPI2C1 and no LIS2DUX12 (it is most likely the previous hardware revision).
+R1 shows the useful bit: `SBMR1=0x4C0 SBMR2=0x02000009` — BOOT_MODE straps
+read `10` there.  See `../s252_reference_board_fuses/README.md`.

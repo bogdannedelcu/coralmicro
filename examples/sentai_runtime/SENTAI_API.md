@@ -23,6 +23,7 @@ sentai
 │   └── suspend(name) / resume(name)   # protected tasks refused
 ├── sys                    # Reset / boot-mode diagnostics
 │   ├── reset()
+│   ├── uid()              # 64-bit chip id (= USB iSerial)
 │   ├── peek32(addr)       # ARM only
 │   └── poke32(addr, v)    # ARM only, bring-up use
 ├── tpu                    # EdgeTPU inference
@@ -493,6 +494,19 @@ Print one 512-byte sector to the console.
 ### `sentai.sys.reset()` → None
 Software reset after flushing the boot log and syncing the card.  On a
 RAM-loaded image the board returns to the ROM bootloader (SDP).
+
+### `sentai.sys.uid()` → str
+The chip's 64-bit UNIQUE_ID (OCOTP fuse words 0x900/0x910) as 16 lower-case
+hex digits.  It is also the USB **iSerial** string, so `lsusb -v` and
+`/dev/serial/by-id/usb-autonomous.ro_..._<uid>-if00` identify the same
+board; `sentai.version()` and the USB product string carry its last four
+digits (`board XXXX`) so a plain `lsusb` tells the bench boards apart.
+```python
+>>> sentai.sys.uid()
+'0d1db80e829358eb'
+>>> sentai.version()
+'SentAI v1.0 build 1649 (2026-10-31 08:40:00) board 58eb'
+```
 
 ### `sentai.sys.peek32(addr)` → int
 Volatile 32-bit read of a word-aligned address (peripheral registers or

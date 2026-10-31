@@ -41,6 +41,7 @@ extern "C" size_t FxUserReadFile(const char* path, uint8_t* buf, size_t size);
 #include "libs/pmic/pmic.h"
 #include "libs/libjpeg/jpeg.h"
 #include "libs/camera/camera_support.h"
+#include "libs/base/utils.h"   // GetSerialNumber (board UID)
 #include "fsl_pxp.h"
 #if (__CORTEX_M == 7)
 #include "third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/cm7/fsl_cache.h"
@@ -1007,12 +1008,37 @@ extern "C" void sentai_boot_log_stop(void) {
 // The string is published as the USB Product descriptor so that
 // `lsusb -v -d 1fc9:c0a1` (or just `lsusb`) shows the running build
 // number — quick visual confirmation that flashtool succeeded.
+// Board serial = the 64-bit OCOTP UNIQUE_ID (fuse words 0x900/0x910), as 16
+// lower-case hex digits -- the same string the USB iSerial descriptor
+// carries (coralmicro::GetSerialNumber).  Stable per chip, so hosts can
+// target one board with /dev/serial/by-id even with several plugged in.
+extern "C" const char *sentai_board_serial(void) {
+    static char s[17];
+    static bool init = false;
+    if (!init) {
+        std::string ser = coralmicro::GetSerialNumber();
+        snprintf(s, sizeof(s), "%s", ser.c_str());
+        init = true;
+    }
+    return s;
+}
+
+// Short board id = last 4 hex digits of the serial (enough to tell the
+// bench boards apart at a glance); shown in sentai.version() and in the
+// USB product string so plain `lsusb` lists build AND board.
+extern "C" const char *sentai_board_id_short(void) {
+    const char *ser = sentai_board_serial();
+    size_t n = strlen(ser);
+    return (n >= 4) ? ser + n - 4 : ser;
+}
+
 extern "C" const char *sentai_build_version_string(void) {
-    static char s[64];
+    static char s[96];
     static bool init = false;
     if (!init) {
         snprintf(s, sizeof(s),
-                 "autonomous.ro SentAI build #%d", BUILD_VERSION);
+                 "autonomous.ro SentAI build #%d board %s", BUILD_VERSION,
+                 sentai_board_id_short());
         init = true;
     }
     return s;

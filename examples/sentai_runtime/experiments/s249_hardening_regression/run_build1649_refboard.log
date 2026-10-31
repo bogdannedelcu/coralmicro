@@ -1,0 +1,22 @@
+SentAI v1.0 build 1649 (2026-10-31 08:30:32) board 42a9
+R1   PASS SBMR1=0x000004C0 SBMR2=0x02000009 SRSR=0x00000000
+R1b  PASS SBMR1=0x%08X SBMR2=0x%08X SRSR=0x%08X zzzzzzzzzzzzz 1086341128
+R2   PASS OverflowError: long long too large
+R3   PASS -1086341128 1086341128 17179869184
+R4   PASS ...     print("tail", i*10) tail 0 tail 10 tail 20
+R5   PASS A-count=20001
+R6   PASS alive 2
+R7   PASS alive 4
+R8   PASS RuntimeError: maximum recursion depth exceeded
+R9   PASS 0 0
+R10  FAIL init=-1 cam0=RuntimeError: cam capture fail cam1=RuntimeError: cam capture fail
+R11  FAIL None
+R12  FAIL ls=2 B sums={'031b94feb6faf1f42e58faea436b206f:565'}
+R13  FAIL OSError: file not found
+R13b PASS dmesg non-empty: True
+R14  PASS True 13
+R14b PASS stall_count stalled = 0 0
+R15  PASS raw_sums={'031b94feb6faf1f42e58faea436b206f:565'} ls_ok=12/12 busy=2 fs.stats=(0, 0, 13, 2, 0, 0, 0, 0, 0, 13,
+--- task stack high-water marks (words free) ---
+[('mp_repl', 'running', 1, 464), ('IDLE', 'ready', 0, 53), ('crazy_rx', 'blocked', 2, 727), ('ctrlc', 'blocked', 2, 231), ('tcpip_thread', 'blocked', 4, 818), ('hw_wdog', 'blocked', 3, 1384), ('DHCP thread', 'blocked', 3, 81), ('crazy_cmd', 'blocked', 2, 219), ('ipc_rx_task', 'suspended', 4, 889), ('pmic_task', 'blocked', 4, 861), ('m7_console_task_rx', 'blocked', 3, 851), ('m4_console_task', 'blocked', 3, 815), ('fs_mount', 'blocked', 3, 1774), ('btn_usb', 'suspended', 1, 333), ('edgetpu_dfu_task', 'blocked', 3, 189), ('edgetpu_task', 'blocked', 3, 152), ('app_main', 'suspended', 3, 2316), ('camera_task', 'blocked', 4, 616), ('lfs_task', 'blocked', 2, 1423), ('cdc_ncm_task', 'blocked', 4, 798), ('Tmr Svc', 'blocked', 4, 138), ('UsbHostTask', 'blocked', 4, 786), ('usb_device_task', 'blocked', 4, 714), ('m7_console_task_tx', 'blocked', 3, 840), ('ipc_tx_task', 'suspended', 4, 889)]
+failures: 4

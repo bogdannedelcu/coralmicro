@@ -111,3 +111,16 @@ power-down wake path exists in hardware; firmware has it only in the
 disabled camera_streaming_http example (commit 0997099b).  Operator has a
 reference board with burnt fuses that boots from flash → RAM-load and dump
 SBMR/OCOTP for comparison when asked.
+
+**2026-10-31 decision:** init-audit items F1-F10 are POSTPONED by the operator
+(ToDo in ideas/wbs.md OP-S10-W22-T9); do not implement them unasked.  Next:
+EXP-s252 compares SRC/OCOTP of the flash-booting reference board (build 1601
+in its flash) with the bring-up unit.
+
+**EXP-s252 (2026-10-31):** the operator's "fuse-burnt" reference board has
+SBMR2 = 0x02000009 (BMOD = 10 internal boot, BT_FUSE_SEL = 0) and the SAME
+boot fuses as our unit -> it boots through the BOOT_MODE straps, not fuses;
+with build 1649 loaded it has no SD, no cam on LPI2C1, IMU None -> probably
+the previous revision.  `sentai.sdcard.init()` without a card hangs the REPL
+(audit F14).  Board id: USB iSerial = OCOTP UNIQUE_ID; `sentai.sys.uid()`;
+product string "... build #N board XXXX" (build 1649).

@@ -11,8 +11,23 @@
     SENTAI_VERSION_PREFIX " build " STRINGIFY(BUILD_VERSION) " (" BUILD_TIMESTAMP ")"
 
 // sentai.version() -> str
+//   "SentAI v1.0 build N (timestamp) board XXXX" -- XXXX = last 4 hex digits
+//   of the chip UNIQUE_ID (full value: sentai.sys.uid()).  SIM has no OCOTP
+//   and reports "board sim".
+#ifndef SENTAI_PLATFORM_SIM
+extern const char *sentai_board_id_short(void);
+#endif
 static mp_obj_t mod_sentai_version(void) {
-    return mp_obj_new_str(SENTAI_VERSION_STR, strlen(SENTAI_VERSION_STR));
+    char buf[128];
+#ifndef SENTAI_PLATFORM_SIM
+    const char *bid = sentai_board_id_short();
+#else
+    const char *bid = "sim";
+#endif
+    int n = snprintf(buf, sizeof(buf), "%s board %s", SENTAI_VERSION_STR, bid);
+    if (n < 0) n = 0;
+    if (n > (int)sizeof(buf) - 1) n = (int)sizeof(buf) - 1;
+    return mp_obj_new_str(buf, (size_t)n);
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_version_obj, mod_sentai_version);
 

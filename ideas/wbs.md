@@ -962,7 +962,9 @@ OP — ObjectsPlan thesis
 │   │        pin_mux; F6 IRQ table gaps; F7 WAKEUP pad unhandled; F8 TPU
 │   │        PGOOD unbounded; F9-F13 hygiene/info.  Sleep levels L1-L3
 │   │        (L3 = SNVS power-down, wake on mic AAD / IMU INT1 via
-│   │        WAKEUP) blocked by F1.  Awaiting operator decisions (§5).
+│   │        WAKEUP) blocked by F1.  2026-10-31 operator decision:
+│   │        F1-F10 POSTPONED (ToDo, not scheduled); first compare with
+│   │        the reference board that boots from flash (EXP-s252).
 │   │
 │   └── OP-S10-W23 — Firmware hardening audit (races, hangs, OOM)   🟡 IN-PROGRESS (2026-10-30)
 │        │ Operator request 2026-10-30: exhaustive audit of the SentAI
