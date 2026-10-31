@@ -129,3 +129,14 @@ BARS/HBAND oracle is roll-blind (use 0x84/0x8C vertical gradient); task tag
 comes from a scalar (copy `g_cam_buf_id[idx]` at dequeue instead); arm-time
 tag cannot work (BASEADDR_SWITCH fills the armed buffer at k+2).  Plan =
 EXP-s251 (oracle, timestamps, software genlock via one-frame VTS tweak).
+
+**T9 RESULT (EXP-s251, 2026-10-31):** no roll/seam exists; the two OV5640s are
+frequency-locked (shared XCLK) with a per-boot phase offset (found +411 us).
+A MUX flip is clean only if the new sensor's frame start lies in the old one's
+VBLANK (543 us at VGA45) -> margin 132 us -> 1 in 8 frames mislabelled.
+Software genlock = one-frame TIMING_VTS+d write shifts a sensor by d lines
+exactly; after phi -> 4 us: 1:1 at 44.7 fps, 0 mixed, 0 mislabelled.  Phase
+probe MUST consume frames (frame-complete hook only fires when a frame is
+queued; log freezes otherwise).  First grab after >=1 s idle is a stale
+buffer (0.5-1 s old).  MicroPython: ints > 2^30 are long-long and cannot mix
+with floats.  One unexplained M7 LOCKUP reset during iter3.

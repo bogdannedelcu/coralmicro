@@ -383,6 +383,54 @@ static mp_obj_t mod_sentai_cam_peek5_tags(void) {
 static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_cam_peek5_tags_obj,
                                   mod_sentai_cam_peek5_tags);
 
+// sentai.camera.peek_col(x=40) -> (tag_task, tag_isr, bytes[480], idx, ts_us, now_us)
+// EXP-s251: B-channel profile of column x over every row of ONE dequeued
+// buffer, plus the two per-buffer camera tags.  Roll/seam-sensitive oracle
+// for the dual-camera alternation work (pair with test patterns 0x84/0x8C).
+extern int sentai_cam_peek_col(int x, uint8_t* dst, int rows, int32_t* out3);
+static mp_obj_t mod_sentai_cam_peek_col(size_t n_args, const mp_obj_t *args) {
+    int x = (n_args >= 1) ? mp_obj_get_int(args[0]) : 40;
+    static uint8_t col[480];
+    int32_t o[5];
+    int rc = sentai_cam_peek_col(x, col, 480, o);
+    if (rc != 0) {
+        mp_raise_msg(&mp_type_RuntimeError, MP_ERROR_TEXT("peek_col failed"));
+    }
+    mp_obj_t items[6] = {
+        mp_obj_new_int(o[1]), mp_obj_new_int(o[2]),
+        mp_obj_new_bytes(col, 480),
+        mp_obj_new_int(o[0]),
+        mp_obj_new_int_from_uint((uint32_t)o[3]),
+        mp_obj_new_int_from_uint((uint32_t)o[4]),
+    };
+    return mp_obj_new_tuple(6, items);
+}
+
+// sentai.camera.frame_log(n=64) -> list of (ts_us, idx, cam, seq), oldest
+// first: the last n CSI FB-done events as recorded by the frame-complete
+// hook (EXP-s251).  ts is GPT1 microseconds (wraps at 2^32).
+extern int sentai_cam_frame_log(int n, uint32_t* ts, uint8_t* idx,
+                                uint8_t* cam, uint16_t* seq);
+static mp_obj_t mod_sentai_cam_frame_log(size_t n_args, const mp_obj_t *args) {
+    int n = (n_args >= 1) ? mp_obj_get_int(args[0]) : 64;
+    if (n < 1) n = 1;
+    if (n > 64) n = 64;
+    static uint32_t ts[64]; static uint8_t idx[64]; static uint8_t cam[64];
+    static uint16_t seq[64];
+    int got = sentai_cam_frame_log(n, ts, idx, cam, seq);
+    mp_obj_t lst = mp_obj_new_list(0, NULL);
+    for (int k = 0; k < got; k++) {
+        mp_obj_t it[4] = { mp_obj_new_int_from_uint(ts[k]), mp_obj_new_int(idx[k]),
+                           mp_obj_new_int(cam[k]), mp_obj_new_int(seq[k]) };
+        mp_obj_list_append(lst, mp_obj_new_tuple(4, it));
+    }
+    return lst;
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_cam_frame_log_obj, 0, 1,
+                                            mod_sentai_cam_frame_log);
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_cam_peek_col_obj, 0, 1,
+                                            mod_sentai_cam_peek_col);
+
 // sentai.camera.peek_row(len=64) -> bytes
 // Grab the latest frame and return the first `len` bytes of its
 // XRGB8888 framebuffer.  Used to inspect OV5640 embedded data
@@ -839,6 +887,8 @@ static const mp_rom_map_elem_t sentai_camera_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_peek_row),        MP_ROM_PTR(&mod_sentai_cam_peek_row_obj) },
     { MP_ROM_QSTR(MP_QSTR_peek5_b40),       MP_ROM_PTR(&mod_sentai_cam_peek5_b40_obj) },
     { MP_ROM_QSTR(MP_QSTR_peek5_tags),      MP_ROM_PTR(&mod_sentai_cam_peek5_tags_obj) },
+    { MP_ROM_QSTR(MP_QSTR_peek_col),        MP_ROM_PTR(&mod_sentai_cam_peek_col_obj) },
+    { MP_ROM_QSTR(MP_QSTR_frame_log),       MP_ROM_PTR(&mod_sentai_cam_frame_log_obj) },
     { MP_ROM_QSTR(MP_QSTR_fps),             MP_ROM_PTR(&mod_sentai_cam_fps_obj) },
     { MP_ROM_QSTR(MP_QSTR_frame_count),  MP_ROM_PTR(&mod_sentai_cam_frame_count_obj) },
     { MP_ROM_QSTR(MP_QSTR_sensor_frames), MP_ROM_PTR(&mod_sentai_cam_sensor_frames_obj) },

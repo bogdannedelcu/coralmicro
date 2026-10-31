@@ -69,6 +69,7 @@ sentai
 │   ├── native_res()
 │   ├── select(id)
 │   ├── frame_count() / sensor_frames()
+│   ├── peek_col(x=40) / frame_log(n=64)   # EXP-s251 diagnostics
 │   ├── stats()            # switch / grab / stall counters
 │   └── power_rails(on=1)  # PMIC camera LDOs (board rev 2026-10)
 ├── imu                     # LIS2DUX12 accelerometer
@@ -571,6 +572,20 @@ on; `SERR_CAM_STALL_END` 0x0A0B marks the recovery.
 {'stall_count': 0, 'stalled': 0, 'switch_ok_eof': 4, 'switch_fallback': 0,
  'drain_timeout': 0, 'grab_retry': 0, 'grab_fatal': 0}
 ```
+
+### `sentai.camera.peek_col(x=40)` → tuple
+Diagnostic for the dual-camera work (EXP-s251): dequeues ONE frame and
+returns `(tag_task, tag_isr, bytes[480], idx, ts_us, now_us)` — the B-channel
+column `x` over all rows of that buffer, both per-buffer camera tags, the
+buffer slot and its FB-done time (GPT1 µs) next to the current time, so a
+stale buffer is visible as `now_us - ts_us`.
+
+### `sentai.camera.frame_log(n=64)` → list
+The last `n` CSI frame-complete events as `(ts_us, idx, cam, seq)`, oldest
+first (64-entry ring written by the SDK-patch hook).  Only frames that the
+driver actually queued are logged: with no consumer the 3-deep queue fills
+and the log stops advancing, so measure while dequeuing.  Used by the
+inter-sensor phase measurement (EXP-s251).
 
 ### `sentai.camera.frame_count()` → int
 Return the hardware frame sequence counter. This is a `uint32_t` incremented by the

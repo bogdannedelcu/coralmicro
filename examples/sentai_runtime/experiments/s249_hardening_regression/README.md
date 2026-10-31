@@ -292,3 +292,10 @@ R14 PASS; R10–R13 FAIL because that board has no microSD, no camera on
 LPI2C1 and no LIS2DUX12 (it is most likely the previous hardware revision).
 R1 shows the useful bit: `SBMR1=0x4C0 SBMR2=0x02000009` — BOOT_MODE straps
 read `10` there.  See `../s252_reference_board_fuses/README.md`.
+
+### Builds 1650–1651 (2026-10-31, EXP-s251 instrumentation) — `run_build1651.log`
+
+**R1–R15 all PASS on 1651.**  1650 adds `sentai.camera.peek_col()`; 1651 the
+FB-done frame log in the CSI frame-complete hook (`.ramfunc` 0x208 → 0x278,
+camera fps unchanged at 44.4–44.8 in s251).  One unexplained M7 LOCKUP
+reset occurred during s251 iter3 (not reproduced in six later runs).

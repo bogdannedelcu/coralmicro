@@ -2597,6 +2597,64 @@ extern "C" int sentai_cam_peek5_tags(uint8_t* dst5, int32_t* out4) {
   return 0;
 }
 
+// EXP-s251 — full-column profile of ONE buffer.  dst[r] = B byte of pixel
+// (x, r) for r in [0, rows).  With the OV5640 vertical-gradient test
+// patterns (0x503D = 0x84 / 0x8C) the profile is a known ramp, so a frame
+// made of two sensor frames (vertical roll / seam after a MUX flip) shows as
+// a discontinuity, which the 5-row oracle of EXP-s246 could not see.
+// out3 = { idx, tag_task, tag_isr }, read before the buffer is returned.
+extern "C" int sentai_cam_peek_col(int x, uint8_t* dst, int rows, int32_t* out3) {
+  extern volatile uint8_t g_cam_buf_id[];
+  extern volatile uint32_t g_cam_buf_ts_us[];
+  if (!dst || !out3 || x < 0 || x >= DEMO_CAMERA_WIDTH || rows <= 0 ||
+      rows > DEMO_CAMERA_HEIGHT) return -1;
+  uint8_t* raw = nullptr;
+  int idx = sentai_cam_get_raw_with_recovery(&raw);
+  if (idx < 0 || !raw) return -2;
+  const size_t pitch = (size_t)(DEMO_CAMERA_WIDTH + LINE_PADDING)
+                       * (size_t)DEMO_CAMERA_BUFFER_BPP;
+  const uint8_t* p = raw + (size_t)x * DEMO_CAMERA_BUFFER_BPP;
+  for (int r = 0; r < rows; ++r) dst[r] = p[(size_t)r * pitch];
+  out3[0] = idx;
+  out3[1] = g_cam_grabbed_id;
+  out3[2] = (idx < (int)DEMO_CAMERA_BUFFER_COUNT) ? (int32_t)g_cam_buf_id[idx] : -1;
+  // out3[3] = FB-done time of this buffer (GPT1 us), out3[4] = now (us):
+  // age = now - ts tells a stale queued frame from a fresh one.
+  out3[3] = (idx < (int)DEMO_CAMERA_BUFFER_COUNT) ? (int32_t)g_cam_buf_ts_us[idx] : 0;
+  out3[4] = (int32_t)GPT1->CNT;
+  if (sentai_virtual_camera_is_frame_idx(idx)) {
+    sentai_virtual_camera_return_raw(idx);
+    return 0;
+  }
+  auto* cam = coralmicro::CameraTask::GetSingleton();
+  cam->ReturnRawFrame(idx);
+  return 0;
+}
+
+// EXP-s251 frame log read-out: copies the last `n` FB-done entries
+// (oldest first) under a short critical section.  Returns the count.
+extern "C" int sentai_cam_frame_log(int n, uint32_t* ts, uint8_t* idx,
+                                    uint8_t* cam, uint16_t* seq) {
+  extern volatile uint32_t g_cam_flog_ts[];
+  extern volatile uint8_t  g_cam_flog_idx[];
+  extern volatile uint8_t  g_cam_flog_cam[];
+  extern volatile uint16_t g_cam_flog_seq[];
+  extern volatile uint32_t g_cam_flog_head;
+  const int kN = 64;
+  if (n > kN) n = kN;
+  taskENTER_CRITICAL();
+  uint32_t head = g_cam_flog_head;
+  int avail = (head < (uint32_t)kN) ? (int)head : kN;
+  if (n > avail) n = avail;
+  for (int k = 0; k < n; ++k) {
+    uint32_t i = (head - (uint32_t)n + (uint32_t)k) % (uint32_t)kN;
+    ts[k] = g_cam_flog_ts[i]; idx[k] = g_cam_flog_idx[i];
+    cam[k] = g_cam_flog_cam[i]; seq[k] = g_cam_flog_seq[i];
+  }
+  taskEXIT_CRITICAL();
+  return n;
+}
+
 extern "C" void sentai_cam_return_raw(int idx) {
   if (sentai_virtual_camera_is_frame_idx(idx)) {
     sentai_virtual_camera_return_raw(idx);

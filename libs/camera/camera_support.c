@@ -278,10 +278,39 @@ extern int FramebufferPtrToIndex(const uint8_t* framebuffer_ptr);
 /* Build #944: counter-only hooks, placed in ITCM (.ramfunc) per
  * agent.md §2.2 — these are called from inside the NXP CSI ISR
  * and are now on the hot path. */
+/* EXP-s251 frame log.  Written here, in the NXP driver's FB-done path
+ * (CSI ISR context, the same hook EXP-s246 iter7 showed tolerates one
+ * store without any measurable effect on fps), read by sentai.camera.
+ * frame_log() / peek_col().  Per completed buffer: GPT1 time (1 MHz),
+ * buffer slot, MUX owner at completion and the FB2-gated sequence.
+ * Purpose: (1) exact FB-done cadence around a MUX flip -- is there dead
+ * time, which buffer completes first after the flip; (2) a per-buffer
+ * timestamp so a consumer can tell a STALE frame (queued while nobody
+ * consumed, see s251 "first grab after idle is old") from a fresh one.
+ * Single writer (this hook); readers copy under a critical section. */
+#define CAM_FRAME_LOG_N 64u
+volatile uint32_t g_cam_buf_ts_us[DEMO_CAMERA_BUFFER_COUNT];
+volatile uint32_t g_cam_flog_ts[CAM_FRAME_LOG_N];
+volatile uint8_t  g_cam_flog_idx[CAM_FRAME_LOG_N];
+volatile uint8_t  g_cam_flog_cam[CAM_FRAME_LOG_N];
+volatile uint16_t g_cam_flog_seq[CAM_FRAME_LOG_N];
+volatile uint32_t g_cam_flog_head = 0;   /* total entries written */
+
 __attribute__((section(".ramfunc")))
 void coralmicro_csi_on_frame_complete(uint32_t bufferAddr) {
     g_cam_csi_hook_fires++;
-    (void)bufferAddr;
+    uint32_t now = GPT1->CNT;                       /* 1 MHz free-running */
+    int slot = FramebufferPtrToIndex((const uint8_t*)bufferAddr);
+    uint32_t h = g_cam_flog_head;
+    uint32_t i = h % CAM_FRAME_LOG_N;
+    g_cam_flog_ts[i]  = now;
+    g_cam_flog_idx[i] = (uint8_t)(slot < 0 ? 0xFF : slot);
+    g_cam_flog_cam[i] = (uint8_t)g_cam_current_id;
+    g_cam_flog_seq[i] = (uint16_t)g_camera_frame_seq;
+    g_cam_flog_head = h + 1u;
+    if (slot >= 0 && slot < (int)DEMO_CAMERA_BUFFER_COUNT) {
+        g_cam_buf_ts_us[slot] = now;
+    }
 }
 
 volatile uint32_t g_cam_buf_arm_writes  = 0;

@@ -1008,7 +1008,16 @@ OP — ObjectsPlan thesis
 │        │   crash_text_probe.py PASS.  OPEN: g_cam_current_id single
 │        │   writer (-> T9), MP M13/M14 (fs_cache sync), mic pvPortMalloc
 │        │   (M9, accepted), EMU target link unverified.
-│        └── OP-S10-W23-T9 — Dual-camera alternation: frame identity + full-rate 1:1 ⬜ TODO (approved 2026-10-31)
+│        └── OP-S10-W23-T9 — Dual-camera alternation: frame identity + full-rate 1:1 🟢 RESULT (EXP-s251, 2026-10-31)
+│            EXP-s251 iter6: software genlock (one-frame VTS tweak) brings
+│            the sensors to phi = 4 us -> ratio(1,1) with drain=0/dirty=0
+│            runs at 44.7 fps, 0 mixed, 0 mislabelled (was 22.4 fps or 29 %
+│            mismatch).  Mechanism: flip clean only if the new sensor's
+│            frame start is inside the old one's VBLANK (543 us); as-found
+│            phi = +411 us left 132 us margin.  Per-boot calibration needed
+│            (phi set by sensor start order).  Next: sentai.camera.genlock()
+│            in C at init (proposal A-D in the s251 README).  Also found:
+│            first grab after idle returns a buffer up to 1 s old.
 │            Review of the s243-s246 tagging work (operator ask).  Findings:
 │            (a) HandleFrameRequest tags from the SCALAR g_cam_last_completed_id,
 │            wrong whenever >= 2 frames are queued at dequeue -> copy the ISR
