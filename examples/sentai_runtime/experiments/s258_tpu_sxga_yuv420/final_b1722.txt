@@ -1,0 +1,4 @@
+SentAI v1.1 build 1722 (2026-10-31 22:47 | SXGA30 sxga    cam 1280@30 BMCR1,TXFILL,SBUS=0x4060ffff 0x100000 0x3         pipe  13.0 fps invoke  76.0 ms pxp  61.6 ms frames 264 fails 0 | buf_err +0 xact +0 to +0 desync +0
+SentAI v1.1 build 1722 (2026-10-31 22:47 | SXGA15 sxga    cam 1280@15 BMCR1,TXFILL,SBUS=0x4060ffff 0x100000 0x3         pipe  11.2 fps invoke  68.6 ms pxp  44.7 ms frames 227 fails 0 | buf_err +0 xact +0 to +0 desync +0
+SentAI v1.1 build 1722 (2026-10-31 22:47 | VGA45 c2f      cam  640@45 BMCR1,TXFILL,SBUS=0x4060ffff 0x100000 0x3         pipe  42.5 fps invoke  20.0 ms pxp   7.0 ms frames 863 fails 0 | buf_err +0 xact +0 to +0 desync +0
+SentAI v1.1 build 1722 (2026-10-31 22:47 | VGA45 c2f_thick cam  640@45 BMCR1,TXFILL,SBUS=0x4060ffff 0x100000 0x3         pipe  40.6 fps invoke  22.8 ms pxp   7.1 ms frames 824 fails 0 | buf_err +0 xact +0 to +0 desync +0

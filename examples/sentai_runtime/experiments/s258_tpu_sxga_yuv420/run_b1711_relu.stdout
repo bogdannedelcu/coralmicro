@@ -1,0 +1,11 @@
+SentAI v1.1 build 1711 (2026-10-31 21:24:45) board 58eb
+INIT 0
+A-vga   c2f (trained, s257)              iso min/avg/max/fail = (19, 19.0, 19, 0) | pipe {'fps': 42.4, 'invoke_ms': 20.02, 'frames': 661, 'fail': 0, 'cycle_ms': 9.6, 'wait_ms': 2.0, 'first_fail': 4294967295, 'stats': 'STATS (649, 645, 79.2)', 'pstats': "PSTATS {'pxp_ms_sum': 4966, 'cam_grab_ms_sum': 87, 'quant_ms_sum': 0, 'frames': 676, 'total_ms_sum': 8505, 'sem_wait_ms_sum': 3107}"} | urb {'take_failed': 0, 'csr_timeouts': 0, 'desync_count': 0, 'usb_detach': 0}
+A-vga   c2f_vga_relu replica             iso min/avg/max/fail = (20, 20.0, 20, 0) | pipe {'fps': 41.7, 'invoke_ms': 21.0, 'frames': 650, 'fail': 0, 'cycle_ms': 9.6, 'wait_ms': 3.0, 'first_fail': 4294967295, 'stats': 'STATS (637, 633, 79.3)', 'pstats': "PSTATS {'pxp_ms_sum': 9855, 'cam_grab_ms_sum': 189, 'quant_ms_sum': 1, 'frames': 1340, 'total_ms_sum': 16874, 'sem_wait_ms_sum': 6146}"} | urb {'take_failed': 0, 'csr_timeouts': 0, 'desync_count': 0, 'usb_detach': 0}
+    ['in[0] uint8[1,480,640,2] (614400 bytes)  scale=0.00392157 zp=0', 'in[1] uint8[1,960,1280,1] (1228800 bytes)  scale=0.00392157 zp=0']
+A-iso   c2f_sxga_relu (stride-2 stem)    iso min/avg/max/fail = (65, 65.0, 65, 0) | pipe - | urb {'take_failed': 0, 'csr_timeouts': 0, 'desync_count': 0, 'usb_detach': 0}
+    ['in[0] uint8[1,480,640,2] (614400 bytes)  scale=0.00392157 zp=0', 'in[1] uint8[1,960,1280,1] (1228800 bytes)  scale=0.00392157 zp=0']
+A-iso   c2f_sxga_s2d_relu                iso min/avg/max/fail = (65, 65.0, 65, 0) | pipe - | urb {'take_failed': 0, 'csr_timeouts': 0, 'desync_count': 0, 'usb_detach': 0}
+SentAI v1.1 build 1711 (2026-10-31 21:24:45) board 58eb
+SXGA INIT -10 []
+camera SXGA init failed -> stop

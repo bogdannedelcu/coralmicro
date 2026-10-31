@@ -179,6 +179,16 @@ static mp_obj_t mod_sentai_cam_set_resolution(mp_obj_t w_obj, mp_obj_t h_obj) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_2(mod_sentai_cam_set_resolution_obj, mod_sentai_cam_set_resolution);
 
+// sentai.camera.set_hw(w, h) -> int (0=ok, -1=unsupported geometry, -2=camera
+// already initialised).  W24-T11: select the SENSOR output geometry BEFORE
+// init(): (640, 480) default or (1280, 960) SXGA (15/30 fps rows only).  Needs
+// a sys.reset() to change again — the receiver cannot be re-initialised.
+extern int sentai_cam_set_hw(int w, int h);
+static mp_obj_t mod_sentai_cam_set_hw(mp_obj_t w_obj, mp_obj_t h_obj) {
+    return mp_obj_new_int(sentai_cam_set_hw(mp_obj_get_int(w_obj), mp_obj_get_int(h_obj)));
+}
+static MP_DEFINE_CONST_FUN_OBJ_2(mod_sentai_cam_set_hw_obj, mod_sentai_cam_set_hw);
+
 // sentai.camera.native_res() -> tuple (width, height) - sensor native resolution
 static mp_obj_t mod_sentai_cam_native_res(void) {
     mp_obj_t items[2];
@@ -1000,6 +1010,7 @@ static const mp_rom_map_elem_t sentai_camera_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_save_jpeg),  MP_ROM_PTR(&mod_sentai_cam_save_jpeg_obj) },
     { MP_ROM_QSTR(MP_QSTR_resolution),     MP_ROM_PTR(&mod_sentai_cam_resolution_obj) },
     { MP_ROM_QSTR(MP_QSTR_set_resolution), MP_ROM_PTR(&mod_sentai_cam_set_resolution_obj) },
+    { MP_ROM_QSTR(MP_QSTR_set_hw),         MP_ROM_PTR(&mod_sentai_cam_set_hw_obj) },
     { MP_ROM_QSTR(MP_QSTR_native_res), MP_ROM_PTR(&mod_sentai_cam_native_res_obj) },
     { MP_ROM_QSTR(MP_QSTR_select),     MP_ROM_PTR(&mod_sentai_cam_select_obj) },
     { MP_ROM_QSTR(MP_QSTR_yuv_mode),   MP_ROM_PTR(&mod_sentai_cam_yuv_mode_obj) },

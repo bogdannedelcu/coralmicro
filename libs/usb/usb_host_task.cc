@@ -115,6 +115,27 @@ UsbHostTask::UsbHostTask() {
     return;
   }
 
+  // W24-T12 (2026-10-31): EHCI DMA tuning for bulk OUT from SDRAM under
+  // camera / PXP load.  The Edge TPU input planes are fetched by the EHCI
+  // from SDRAM while the CSI (up to 147 MB/s at SXGA 30 fps) and the PXP
+  // compete on the single 16-bit SEMC port.  With the SDK defaults
+  // (SBUSCFG AHBBRST = INCR8, TXFILLTUNING TXFIFOTHRES = 10 x 64 B) the TX
+  // FIFO ran dry mid-packet: qTD "Data Buffer Error" (32 per 12 s at SXGA
+  // 30 fps, EXP-s258), the URB fails, the TPU is left mid-protocol and the
+  // pipeline collapses.  INCR16 bursts + a 1 KB prefetch threshold (the
+  // whole 512 B packet is in the FIFO before it starts) measured 0 errors
+  // in the same scenario and -3 ms per SXGA invoke; TXFIFOTHRES 8 made it
+  // worse, 24/31 no better, fixed BURSTSIZE without AHBBRST 3x slower.
+  // Tunable at runtime through sys.poke32 (USB_OTG2 0x4042C090 / 0x4042C164).
+  {
+    USB_Type* usb = (kUSBControllerId == kUSB_ControllerEhci1) ? USB_OTG2 : USB_OTG1;
+    usb->SBUSCFG = USB_SBUSCFG_AHBBRST(3u);                       // INCR16
+    usb->TXFILLTUNING = (usb->TXFILLTUNING & ~0x3F0000u) | (16u << 16);  // TXFIFOTHRES = 16
+    printf("[usb host] EHCI tuning: SBUSCFG=0x%lx TXFILLTUNING=0x%lx BURSTSIZE=0x%lx\r\n",
+           (unsigned long)usb->SBUSCFG, (unsigned long)usb->TXFILLTUNING,
+           (unsigned long)usb->BURSTSIZE);
+  }
+
 #if 0
     uint32_t usb_version;
     USB_HostGetVersion(&usb_version);

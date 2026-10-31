@@ -1,0 +1,10 @@
+SentAI v1.1 build 1716 (2026-10-31 21:52:35) board 58eb
+set_hw: HW 0
+SXGA INIT 0 ['[cam] pre-trim: cam0 delayed 12 lines (406 us) -> alternation at full rate', '[cam] genlock step 0: phase -107 us -> cam1 VTS 984+5 for one frame', '[cam] genlock step 1: phase -105 us -> cam1 VTS 984+5 for one frame']
+cam fps: FPS 30
+alive: True
+B-sxga  c2f_sxga_relu (stride-2 stem)    iso min/avg/max/fail = - | pipe {'fps': 0.7, 'invoke_ms': 69.09, 'frames': 11, 'fail': 15, 'cycle_ms': 44.3, 'wait_ms': 57.3, 'first_fail': 5, 'stats': 'STATS (11, 7, 0.7)', 'pstats': "PSTATS {'pxp_ms_sum': 1565, 'cam_grab_ms_sum': 590, 'quant_ms_sum': 0, 'frames': 30, 'total_ms_sum': 3235, 'sem_wait_ms_sum': 1073}"} | urb {'take_failed': 9, 'csr_timeouts': 3, 'desync_count': 15, 'usb_detach': 3}
+   health: {'led_codes': [], 'sd': True, 'cam0': True, 'cam1': True, 'imu': True, 'tpu': True, 'led_ms_left': 0}
+B-sxga  c2f_sxga_s2d_relu                iso min/avg/max/fail = - | pipe {'fps': 8.4, 'invoke_ms': 67.2, 'frames': 131, 'fail': 0, 'cycle_ms': 42.1, 'wait_ms': 51.0, 'first_fail': 4294967295, 'stats': 'STATS (129, 125, 10.6)', 'pstats': "PSTATS {'pxp_ms_sum': 8702, 'cam_grab_ms_sum': 1252, 'quant_ms_sum': 0, 'frames': 165, 'total_ms_sum': 15828, 'sem_wait_ms_sum': 5838}"} | urb {'take_failed': 9, 'csr_timeouts': 3, 'desync_count': 15, 'usb_detach': 3}
+   health: {'led_codes': [], 'sd': True, 'cam0': True, 'cam1': True, 'imu': True, 'tpu': True, 'led_ms_left': 0}
+events: E:0F01:1 E:0500:30 E:0A06:3 E:0A12:12 E:0A00:1 E:0A00:0 E:0A00:0 E:0A00:1 E:0A00:0 E:0A00:0 E:0A00:1 E:0A00:0 E:0A00:0 E:0A0D:40 E:0480:500 E:0420:2 E:0421:1 E:0421:2 E:0421:3 E:0481:11 E:0480:500 E:0481:135

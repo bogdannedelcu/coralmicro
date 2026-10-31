@@ -1,0 +1,13 @@
+baseline               cam@30 BMCR0,BMCR1=0x104085 0x40602485     iso  66.0 | pipe  12.1 fps invoke  81.2 ms pxp  60.7 ms fails   0 | buf_err +0 xact +0 to +0
+WPH=0xFF               cam@30 BMCR0,BMCR1=0x104085 0x4060ff85     iso  66.0 | pipe  12.5 fps invoke  78.9 ms pxp  61.1 ms fails   0 | buf_err +0 xact +0 to +0
+WBR=0xFF               cam@30 BMCR0,BMCR1=0x104085 0xff602485     iso  66.0 | pipe  12.3 fps invoke  80.0 ms pxp  59.7 ms fails   0 | buf_err +0 xact +0 to +0
+WRWS=0xFF              cam@30 BMCR0,BMCR1=0x104085 0x40ff2485     iso  66.0 | pipe  11.9 fps invoke  82.6 ms pxp  61.3 ms fails   0 | buf_err +0 xact +0 to +0
+WPH+WBR+WRWS=0xFF      cam@30 BMCR0,BMCR1=0x104085 0xffffff85     iso  66.0 | pipe  11.5 fps invoke  85.8 ms pxp  61.5 ms fails   0 | buf_err +0 xact +0 to +0
+WQOS=0xF WAGE=0xF      cam@30 BMCR0,BMCR1=0x104085 0x406024ff     iso  66.0 | pipe  12.8 fps invoke  76.5 ms pxp  61.8 ms fails   0 | buf_err +0 xact +0 to +0
+all max both q         cam@30 BMCR0,BMCR1=0xffffffff 0xffffffff   iso  66.0 | pipe  11.5 fps invoke  85.8 ms pxp  61.5 ms fails   0 | buf_err +0 xact +0 to +0
+QOS/AGE=F + WPH=FF         cam 1280@30 BMCR1=0x4060ffff iso  66.0 | pipe  12.9 fps invoke  76.0 ms pxp  61.6 ms fails   0 | buf_err +0 xact +0 to +0
+QOS/AGE=F + WBR=FF         cam 1280@30 BMCR1=0xff6024ff iso  66.0 | pipe  12.0 fps invoke  81.9 ms pxp  59.9 ms fails   0 | buf_err +0 xact +0 to +0
+QOS/AGE=F + WPH+WBR=FF     cam 1280@30 BMCR1=0xff60ffff iso  66.0 | pipe  11.9 fps invoke  83.0 ms pxp  59.0 ms fails   0 | buf_err +0 xact +0 to +0
+QOS/AGE=F (repeat)         cam 1280@30 BMCR1=0x406024ff iso  66.0 | pipe  12.8 fps invoke  76.5 ms pxp  61.8 ms fails   0 | buf_err +0 xact +0 to +0
+VGA45 c2f baseline         cam  640@45 BMCR1=0x40602485 iso  19.0 | pipe  42.4 fps invoke  20.0 ms pxp   7.0 ms fails   0 | buf_err +0 xact +0 to +0
+VGA45 c2f QOS/AGE=F+WPH    cam  640@45 BMCR1=0x4060ffff iso  19.0 | pipe  42.4 fps invoke  20.0 ms pxp   7.0 ms fails   0 | buf_err +0 xact +0 to +0

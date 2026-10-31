@@ -180,10 +180,20 @@ target_compile_options(libh3_arm PRIVATE
     -w                          # H3 sources are clean upstream; silence ARM-host warnings
 )
 
+# W24-T11: the virtual camera (BMP playback, SIM/bench tool) costs 7.4 MB of the
+# non-cacheable camera SDRAM on the board and is not used there; the SXGA
+# camera mode needs that space.  OFF links a stub that reports "inactive".
+option(SENTAI_VIRTUAL_CAMERA "Link the virtual camera (BMP playback) into the board build" OFF)
+if(SENTAI_VIRTUAL_CAMERA)
+    set(SENTAI_VCAM_SRC sentai_virtual_camera.cc)
+else()
+    set(SENTAI_VCAM_SRC sentai_virtual_camera_stub.cc)
+endif()
+
 add_executable_m7(sentai_runtime
     LINKER_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/MIMXRT1176xxxxx_cm7_ram_mp.ld
     sentai_runtime.cc
-    sentai_virtual_camera.cc
+    ${SENTAI_VCAM_SRC}
     sentai_fault.cc
     sentai_tfl_bridge.cc
     sentai_slow_bridge.cc

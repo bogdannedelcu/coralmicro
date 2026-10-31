@@ -1,0 +1,696 @@
+>>> print(sentai.version())
+print(sentai.version())
+SentAI v1.1 build 1708 (2026-10-31 21:13:22) board 58eb
+>>> 
+>>> print("YUVMODE", sentai.camera.yuv_mode(1))
+print("YUVMODE", sentai.camera.yuv_mode(1))
+YUVMODE 1
+>>> 
+>>> print("INIT", sentai.camera.init(1, 45))
+print("INIT", sentai.camera.init(1, 45))
+HandlePowerRequest: cam0 (bus 1): OK, cam1 (bus 2): OK
+CAMERA_RECEIVER_Init = 0
+BOARD_PullCameraPowerDownPin:1
+BOARD_PullCameraResetPin:0
+BOARD_PullCameraPowerDownPin:0
+BOARD_PullCameraResetPin:1
+CAMERA_DEVICE_Init = 0
+CAMERA_DEVICE_Start = 0
+CAMERA_RECEIVER_Start = 0
+[CAM] sensor_fps=45 (1 s sample, target=30)
+[CAM1] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM1] W 0x3820=0x47 (0)
+[CAM1] W 0x3821=0x01 (0)
+[CAM0] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM0] W 0x3820=0x47 (0)
+[CAM0] W 0x3821=0x01 (0)
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xEA (0)
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xD8 (0)
+[cam] pre-trim: cam0 delayed 18 lines (406 us) -> alternation at full rate
+[cam] genlock: phase 15 us after 0 step(s) (T=22288 us)
+INIT 0
+>>> 
+>>> print("LOAD", sentai.tpu.load("/models/c3_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load("/models/c3_yuv420_int8_edgetpu.tflite"))
+Model loaded: 258912 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x78095c64801b82c0
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00323895 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.07945366  zero_point=203
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.08630606  zero_point=205
+Arena used: 485 / 8192 KB
+Model name: c3_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("CS", sentai.tpu.chunk_size(36864))
+print("CS", sentai.tpu.chunk_size(36864))
+CS 36864
+>>> 
+>>> sentai.tpu.invoke()
+sentai.tpu.invoke()
+23
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 27, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1033, 1048, 1028, 2125, 50, 0), 'ehci': (0, 0, 0, 0, 0, 0, 0, 0, 0, 0), 'gave': 27, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 27, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("ISO", [sentai.tpu.invoke() for _ in range(40)])
+print("ISO", [sentai.tpu.invoke() for _ in range(40)])
+ISO [19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19]
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 827, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1053, 1053, 1028, 2131, 53, 0), 'ehci': (0, 0, 0, 0, 0, 0, 0, 0, 0, 0), 'gave': 827, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 827, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (439, 435, 92.1)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 3521, 'nms_ms_sum': 0, 'ms_sum': 9040, 'ok': 452, 'infer_wait_ms_sum': 934, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 20, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 10147, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1053, 1076, 1028, 2139, 53, 0), 'ehci': (0, 0, 0, 0, 0, 0, 0, 0, 0, 0), 'gave': 10147, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 10147, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("CS", sentai.tpu.chunk_size(65536))
+print("CS", sentai.tpu.chunk_size(65536))
+CS 65536
+>>> 
+>>> sentai.tpu.invoke()
+sentai.tpu.invoke()
+19
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 10160, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1854, 1846, 1028, 2195, 53, 0), 'ehci': (0, 0, 0, 0, 0, 0, 0, 0, 0, 0), 'gave': 10160, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 10160, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("ISO", [sentai.tpu.invoke() for _ in range(40)])
+print("ISO", [sentai.tpu.invoke() for _ in range(40)])
+ISO [19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19]
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 10680, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1854, 1849, 1028, 2200, 53, 0), 'ehci': (0, 0, 0, 0, 0, 0, 0, 0, 0, 0), 'gave': 10680, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 10680, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (443, 439, 45.4)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 8644, 'nms_ms_sum': 2, 'ms_sum': 9120, 'ok': 456, 'infer_wait_ms_sum': 892, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 20, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 16790, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1854, 1857, 1028, 2211, 53, 0), 'ehci': (0, 0, 0, 0, 0, 0, 0, 0, 0, 0), 'gave': 16790, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 16790, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("CS", sentai.tpu.chunk_size(98304))
+print("CS", sentai.tpu.chunk_size(98304))
+CS 98304
+>>> 
+>>> sentai.tpu.invoke()
+sentai.tpu.invoke()
+19
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 16800, 'desync_count': 0, 'stale': 0, 'max_wait_us': (2374, 2730, 1028, 2211, 53, 0), 'ehci': (0, 0, 0, 0, 0, 0, 0, 0, 0, 0), 'gave': 16800, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 16800, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("ISO", [sentai.tpu.invoke() for _ in range(40)])
+print("ISO", [sentai.tpu.invoke() for _ in range(40)])
+ISO [19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19]
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 17200, 'desync_count': 0, 'stale': 0, 'max_wait_us': (2391, 2750, 1028, 2211, 54, 0), 'ehci': (0, 0, 0, 0, 0, 0, 0, 0, 0, 0), 'gave': 17200, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 17200, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (444, 440, 45.5)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 8611, 'nms_ms_sum': 0, 'ms_sum': 9140, 'ok': 457, 'infer_wait_ms_sum': 956, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 20, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 21910, 'desync_count': 0, 'stale': 0, 'max_wait_us': (2399, 2751, 1028, 2211, 54, 0), 'ehci': (0, 0, 0, 0, 0, 0, 0, 0, 0, 0), 'gave': 21910, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 21910, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("CS", sentai.tpu.chunk_size(131072))
+print("CS", sentai.tpu.chunk_size(131072))
+CS 131072
+>>> 
+>>> sentai.tpu.invoke()
+sentai.tpu.invoke()
+19
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 21919, 'desync_count': 0, 'stale': 0, 'max_wait_us': (2399, 3647, 1028, 2211, 54, 0), 'ehci': (0, 0, 0, 0, 0, 0, 0, 0, 0, 0), 'gave': 21919, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 21919, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("ISO", [sentai.tpu.invoke() for _ in range(40)])
+print("ISO", [sentai.tpu.invoke() for _ in range(40)])
+ISO [19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19]
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 22279, 'desync_count': 0, 'stale': 0, 'max_wait_us': (2399, 3653, 1028, 2211, 54, 0), 'ehci': (0, 0, 0, 0, 0, 0, 0, 0, 0, 0), 'gave': 22279, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 22279, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (444, 440, 44.7)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 8815, 'nms_ms_sum': 1, 'ms_sum': 9140, 'ok': 457, 'infer_wait_ms_sum': 933, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 20, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 26518, 'desync_count': 0, 'stale': 0, 'max_wait_us': (2399, 3678, 1028, 2211, 54, 0), 'ehci': (0, 0, 0, 0, 0, 0, 0, 0, 0, 0), 'gave': 26518, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 26518, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("CS", sentai.tpu.chunk_size(163840))
+print("CS", sentai.tpu.chunk_size(163840))
+CS 163840
+>>> 
+>>> sentai.tpu.invoke()
+sentai.tpu.invoke()
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+-2
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 26521, 'desync_count': 1, 'stale': 0, 'max_wait_us': (2399, 3678, 1028, 2211, 54, 0), 'ehci': (0, 0, 0, 0, 0, 0, 0, 0, 0, 0), 'gave': 26521, 'csr_mutex_timeouts': 0, 'desync_pending': 1, 'events': [(1, 4, 1, 163840, 48, 0, 79336446, 0)], 'take_failed': 0, 'entered': 26521, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("ISO", [sentai.tpu.invoke() for _ in range(40)])
+print("ISO", [sentai.tpu.invoke() for _ in range(40)])
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+ISO [-2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2]
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 26641, 'desync_count': 41, 'stale': 0, 'max_wait_us': (2399, 3678, 1028, 2211, 54, 0), 'ehci': (0, 0, 0, 0, 0, 0, 0, 0, 0, 0), 'gave': 26641, 'csr_mutex_timeouts': 0, 'desync_pending': 1, 'events': [(34, 4, 1, 163840, 49, 0, 80042477, 0), (35, 4, 1, 163840, 49, 0, 80045519, 0), (36, 4, 1, 163840, 49, 0, 80048496, 0), (37, 4, 1, 163840, 49, 0, 80051482, 0), (38, 4, 1, 163840, 49, 0, 80054492, 0), (39, 4, 1, 163840, 49, 0, 80057502, 0), (40, 4, 1, 163840, 49, 0, 80060512, 0), (41, 4, 1, 163840, 49, 0, 80063524, 0)], 'take_failed': 0, 'entered': 26641, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (0, 0, 0.0)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 3, 'cycle_ms_sum': 0, 'nms_ms_sum': 0, 'ms_sum': 0, 'ok': 0, 'infer_wait_ms_sum': 448, 'recover_fail': 0, 'recover_giveup': 1, 'first_fail_idx': 0, 'fail': 20, 'last_rc': -2, 'first_fail_ms': 351, 'recover_attempts': 3}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 26701, 'desync_count': 61, 'stale': 0, 'max_wait_us': (2399, 3678, 1028, 2211, 54, 0), 'ehci': (0, 0, 0, 0, 0, 0, 0, 0, 0, 0), 'gave': 26701, 'csr_mutex_timeouts': 0, 'desync_pending': 1, 'events': [(54, 4, 2, 135680, 41, 0, 85082493, 0), (55, 4, 2, 135680, 41, 0, 85104058, 0), (56, 4, 2, 135680, 41, 0, 85125654, 0), (57, 4, 2, 135680, 41, 0, 87414921, 0), (58, 4, 2, 135680, 41, 0, 87469251, 0), (59, 4, 2, 135680, 41, 0, 87490896, 0), (60, 4, 2, 135680, 41, 0, 87512451, 0), (61, 4, 2, 135680, 41, 0, 87534446, 0)], 'take_failed': 0, 'entered': 26701, 'usb_attach': 4, 'usb_detach': 3, 'csr_timeouts': 0}
+>>> 
+>>> print("LOAD", sentai.tpu.load("/models/c2f_thick_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load("/models/c2f_thick_yuv420_int8_edgetpu.tflite"))
+[tpu] load: earlier invoke transfer failed (61); power-cycling the Edge TPU before loading /models/c2f_thick_yuv420_int8_edgetpu.tflite
+Waiting for EdgeTPU init[EdgeTPU mgr] creating context
+OpenDevice: Error encountered while bringing up the tpu
+.[EdgeTPU mgr] creating context
+[EdgeTPU mgr] initializing driver
+[EdgeTPU mgr] driver initialized
+
+EdgeTPU ready!
+Model loaded: 951136 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0xb0032226b8e358e1
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00326224 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.09776910  zero_point=208
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.09557785  zero_point=208
+Arena used: 485 / 8192 KB
+Model name: c2f_thick_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> print("CS", sentai.tpu.chunk_size(36864))
+print("CS", sentai.tpu.chunk_size(36864))
+CS 36864
+>>> 
+>>> sentai.tpu.invoke()
+sentai.tpu.invoke()
+44
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 26747, 'desync_count': 61, 'stale': 0, 'max_wait_us': (2399, 3678, 1048, 3458, 54, 0), 'ehci': (0, 0, 0, 0, 0, 0, 0, 0, 0, 0), 'gave': 26747, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [(54, 4, 2, 135680, 41, 0, 85082493, 0), (55, 4, 2, 135680, 41, 0, 85104058, 0), (56, 4, 2, 135680, 41, 0, 85125654, 0), (57, 4, 2, 135680, 41, 0, 87414921, 0), (58, 4, 2, 135680, 41, 0, 87469251, 0), (59, 4, 2, 135680, 41, 0, 87490896, 0), (60, 4, 2, 135680, 41, 0, 87512451, 0), (61, 4, 2, 135680, 41, 0, 87534446, 0)], 'take_failed': 0, 'entered': 26747, 'usb_attach': 5, 'usb_detach': 4, 'csr_timeouts': 0}
+>>> 
+>>> print("ISO", [sentai.tpu.invoke() for _ in range(40)])
+print("ISO", [sentai.tpu.invoke() for _ in range(40)])
+ISO [22, 22, 21, 22, 22, 21, 21, 22, 22, 21, 22, 22, 21, 22, 21, 22, 22, 21, 22, 22, 22, 21, 21, 22, 21, 22, 22, 21, 21, 22, 22, 21, 21, 22, 21, 21, 21, 22, 21, 21]
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 27587, 'desync_count': 61, 'stale': 0, 'max_wait_us': (2399, 3678, 1048, 3480, 54, 0), 'ehci': (0, 0, 0, 0, 0, 0, 0, 0, 0, 0), 'gave': 27587, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [(54, 4, 2, 135680, 41, 0, 85082493, 0), (55, 4, 2, 135680, 41, 0, 85104058, 0), (56, 4, 2, 135680, 41, 0, 85125654, 0), (57, 4, 2, 135680, 41, 0, 87414921, 0), (58, 4, 2, 135680, 41, 0, 87469251, 0), (59, 4, 2, 135680, 41, 0, 87490896, 0), (60, 4, 2, 135680, 41, 0, 87512451, 0), (61, 4, 2, 135680, 41, 0, 87534446, 0)], 'take_failed': 0, 'entered': 27587, 'usb_attach': 5, 'usb_detach': 4, 'csr_timeouts': 0}
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (419, 415, 92.1)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 3, 'cycle_ms_sum': 3756, 'nms_ms_sum': 5, 'ms_sum': 9883, 'ok': 430, 'infer_wait_ms_sum': 761, 'recover_fail': 0, 'recover_giveup': 1, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 23, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 36911, 'desync_count': 61, 'stale': 0, 'max_wait_us': (2399, 3678, 1048, 3480, 54, 0), 'ehci': (0, 0, 0, 0, 0, 0, 0, 0, 0, 0), 'gave': 36911, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [(54, 4, 2, 135680, 41, 0, 85082493, 0), (55, 4, 2, 135680, 41, 0, 85104058, 0), (56, 4, 2, 135680, 41, 0, 85125654, 0), (57, 4, 2, 135680, 41, 0, 87414921, 0), (58, 4, 2, 135680, 41, 0, 87469251, 0), (59, 4, 2, 135680, 41, 0, 87490896, 0), (60, 4, 2, 135680, 41, 0, 87512451, 0), (61, 4, 2, 135680, 41, 0, 87534446, 0)], 'take_failed': 0, 'entered': 36911, 'usb_attach': 5, 'usb_detach': 4, 'csr_timeouts': 0}
+>>> 
+>>> print("CS", sentai.tpu.chunk_size(65536))
+print("CS", sentai.tpu.chunk_size(65536))
+CS 65536
+>>> 
+>>> sentai.tpu.invoke()
+sentai.tpu.invoke()
+21
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 36924, 'desync_count': 61, 'stale': 0, 'max_wait_us': (2399, 3678, 1048, 3516, 54, 0), 'ehci': (0, 0, 0, 0, 0, 0, 0, 0, 0, 0), 'gave': 36924, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [(54, 4, 2, 135680, 41, 0, 85082493, 0), (55, 4, 2, 135680, 41, 0, 85104058, 0), (56, 4, 2, 135680, 41, 0, 85125654, 0), (57, 4, 2, 135680, 41, 0, 87414921, 0), (58, 4, 2, 135680, 41, 0, 87469251, 0), (59, 4, 2, 135680, 41, 0, 87490896, 0), (60, 4, 2, 135680, 41, 0, 87512451, 0), (61, 4, 2, 135680, 41, 0, 87534446, 0)], 'take_failed': 0, 'entered': 36924, 'usb_attach': 5, 'usb_detach': 4, 'csr_timeouts': 0}
+>>> 
+>>> print("ISO", [sentai.tpu.invoke() for _ in range(40)])
+print("ISO", [sentai.tpu.invoke() for _ in range(40)])
+ISO [21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21]
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 37444, 'desync_count': 61, 'stale': 0, 'max_wait_us': (2399, 3678, 1048, 3534, 54, 0), 'ehci': (0, 0, 0, 0, 0, 0, 0, 0, 0, 0), 'gave': 37444, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [(54, 4, 2, 135680, 41, 0, 85082493, 0), (55, 4, 2, 135680, 41, 0, 85104058, 0), (56, 4, 2, 135680, 41, 0, 85125654, 0), (57, 4, 2, 135680, 41, 0, 87414921, 0), (58, 4, 2, 135680, 41, 0, 87469251, 0), (59, 4, 2, 135680, 41, 0, 87490896, 0), (60, 4, 2, 135680, 41, 0, 87512451, 0), (61, 4, 2, 135680, 41, 0, 87534446, 0)], 'take_failed': 0, 'entered': 37444, 'usb_attach': 5, 'usb_detach': 4, 'csr_timeouts': 0}
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (423, 419, 42.5)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 3, 'cycle_ms_sum': 9533, 'nms_ms_sum': 6, 'ms_sum': 9593, 'ok': 436, 'infer_wait_ms_sum': 691, 'recover_fail': 0, 'recover_giveup': 1, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 22, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 43281, 'desync_count': 61, 'stale': 0, 'max_wait_us': (2399, 3678, 1048, 3534, 54, 0), 'ehci': (0, 0, 0, 0, 0, 0, 0, 0, 0, 0), 'gave': 43281, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [(54, 4, 2, 135680, 41, 0, 85082493, 0), (55, 4, 2, 135680, 41, 0, 85104058, 0), (56, 4, 2, 135680, 41, 0, 85125654, 0), (57, 4, 2, 135680, 41, 0, 87414921, 0), (58, 4, 2, 135680, 41, 0, 87469251, 0), (59, 4, 2, 135680, 41, 0, 87490896, 0), (60, 4, 2, 135680, 41, 0, 87512451, 0), (61, 4, 2, 135680, 41, 0, 87534446, 0)], 'take_failed': 0, 'entered': 43281, 'usb_attach': 5, 'usb_detach': 4, 'csr_timeouts': 0}
+>>> 
+>>> print("CS", sentai.tpu.chunk_size(98304))
+print("CS", sentai.tpu.chunk_size(98304))
+CS 98304
+>>> 
+>>> sentai.tpu.invoke()
+sentai.tpu.invoke()
+21
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 43292, 'desync_count': 61, 'stale': 0, 'max_wait_us': (2737, 3678, 1048, 3534, 54, 0), 'ehci': (0, 0, 0, 0, 0, 0, 0, 0, 0, 0), 'gave': 43292, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [(54, 4, 2, 135680, 41, 0, 85082493, 0), (55, 4, 2, 135680, 41, 0, 85104058, 0), (56, 4, 2, 135680, 41, 0, 85125654, 0), (57, 4, 2, 135680, 41, 0, 87414921, 0), (58, 4, 2, 135680, 41, 0, 87469251, 0), (59, 4, 2, 135680, 41, 0, 87490896, 0), (60, 4, 2, 135680, 41, 0, 87512451, 0), (61, 4, 2, 135680, 41, 0, 87534446, 0)], 'take_failed': 0, 'entered': 43292, 'usb_attach': 5, 'usb_detach': 4, 'csr_timeouts': 0}
+>>> 
+>>> print("ISO", [sentai.tpu.invoke() for _ in range(40)])
+print("ISO", [sentai.tpu.invoke() for _ in range(40)])
+ISO [21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21]
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 43732, 'desync_count': 61, 'stale': 0, 'max_wait_us': (2750, 3678, 1048, 3537, 54, 0), 'ehci': (0, 0, 0, 0, 0, 0, 0, 0, 0, 0), 'gave': 43732, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [(54, 4, 2, 135680, 41, 0, 85082493, 0), (55, 4, 2, 135680, 41, 0, 85104058, 0), (56, 4, 2, 135680, 41, 0, 85125654, 0), (57, 4, 2, 135680, 41, 0, 87414921, 0), (58, 4, 2, 135680, 41, 0, 87469251, 0), (59, 4, 2, 135680, 41, 0, 87490896, 0), (60, 4, 2, 135680, 41, 0, 87512451, 0), (61, 4, 2, 135680, 41, 0, 87534446, 0)], 'take_failed': 0, 'entered': 43732, 'usb_attach': 5, 'usb_detach': 4, 'csr_timeouts': 0}
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (425, 421, 42.3)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 3, 'cycle_ms_sum': 9724, 'nms_ms_sum': 1, 'ms_sum': 9614, 'ok': 437, 'infer_wait_ms_sum': 554, 'recover_fail': 0, 'recover_giveup': 1, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 22, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 48693, 'desync_count': 61, 'stale': 0, 'max_wait_us': (2750, 3678, 1048, 3542, 54, 0), 'ehci': (0, 0, 0, 0, 0, 0, 0, 0, 0, 0), 'gave': 48693, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [(54, 4, 2, 135680, 41, 0, 85082493, 0), (55, 4, 2, 135680, 41, 0, 85104058, 0), (56, 4, 2, 135680, 41, 0, 85125654, 0), (57, 4, 2, 135680, 41, 0, 87414921, 0), (58, 4, 2, 135680, 41, 0, 87469251, 0), (59, 4, 2, 135680, 41, 0, 87490896, 0), (60, 4, 2, 135680, 41, 0, 87512451, 0), (61, 4, 2, 135680, 41, 0, 87534446, 0)], 'take_failed': 0, 'entered': 48693, 'usb_attach': 5, 'usb_detach': 4, 'csr_timeouts': 0}
+>>> 
+>>> print("CS", sentai.tpu.chunk_size(131072))
+print("CS", sentai.tpu.chunk_size(131072))
+CS 131072
+>>> 
+>>> sentai.tpu.invoke()
+sentai.tpu.invoke()
+21
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 48702, 'desync_count': 61, 'stale': 0, 'max_wait_us': (3549, 3678, 1048, 3542, 54, 0), 'ehci': (0, 0, 0, 0, 0, 0, 0, 0, 0, 0), 'gave': 48702, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [(54, 4, 2, 135680, 41, 0, 85082493, 0), (55, 4, 2, 135680, 41, 0, 85104058, 0), (56, 4, 2, 135680, 41, 0, 85125654, 0), (57, 4, 2, 135680, 41, 0, 87414921, 0), (58, 4, 2, 135680, 41, 0, 87469251, 0), (59, 4, 2, 135680, 41, 0, 87490896, 0), (60, 4, 2, 135680, 41, 0, 87512451, 0), (61, 4, 2, 135680, 41, 0, 87534446, 0)], 'take_failed': 0, 'entered': 48702, 'usb_attach': 5, 'usb_detach': 4, 'csr_timeouts': 0}
+>>> 
+>>> print("ISO", [sentai.tpu.invoke() for _ in range(40)])
+print("ISO", [sentai.tpu.invoke() for _ in range(40)])
+ISO [21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21]
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 49062, 'desync_count': 61, 'stale': 0, 'max_wait_us': (3549, 3678, 1048, 3542, 54, 0), 'ehci': (0, 0, 0, 0, 0, 0, 0, 0, 0, 0), 'gave': 49062, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [(54, 4, 2, 135680, 41, 0, 85082493, 0), (55, 4, 2, 135680, 41, 0, 85104058, 0), (56, 4, 2, 135680, 41, 0, 85125654, 0), (57, 4, 2, 135680, 41, 0, 87414921, 0), (58, 4, 2, 135680, 41, 0, 87469251, 0), (59, 4, 2, 135680, 41, 0, 87490896, 0), (60, 4, 2, 135680, 41, 0, 87512451, 0), (61, 4, 2, 135680, 41, 0, 87534446, 0)], 'take_failed': 0, 'entered': 49062, 'usb_attach': 5, 'usb_detach': 4, 'csr_timeouts': 0}
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (425, 421, 42.5)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 3, 'cycle_ms_sum': 9472, 'nms_ms_sum': 7, 'ms_sum': 9614, 'ok': 437, 'infer_wait_ms_sum': 750, 'recover_fail': 0, 'recover_giveup': 1, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 22, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 53112, 'desync_count': 61, 'stale': 0, 'max_wait_us': (3549, 3678, 1048, 3542, 54, 0), 'ehci': (0, 0, 0, 0, 0, 0, 0, 0, 0, 0), 'gave': 53112, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [(54, 4, 2, 135680, 41, 0, 85082493, 0), (55, 4, 2, 135680, 41, 0, 85104058, 0), (56, 4, 2, 135680, 41, 0, 85125654, 0), (57, 4, 2, 135680, 41, 0, 87414921, 0), (58, 4, 2, 135680, 41, 0, 87469251, 0), (59, 4, 2, 135680, 41, 0, 87490896, 0), (60, 4, 2, 135680, 41, 0, 87512451, 0), (61, 4, 2, 135680, 41, 0, 87534446, 0)], 'take_failed': 0, 'entered': 53112, 'usb_attach': 5, 'usb_detach': 4, 'csr_timeouts': 0}
+>>> 
+>>> print("CS", sentai.tpu.chunk_size(163840))
+print("CS", sentai.tpu.chunk_size(163840))
+CS 163840
+>>> 
+>>> sentai.tpu.invoke()
+sentai.tpu.invoke()
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+-2
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 53115, 'desync_count': 62, 'stale': 0, 'max_wait_us': (3549, 3678, 1048, 3542, 54, 0), 'ehci': (0, 0, 0, 0, 0, 0, 0, 0, 0, 0), 'gave': 53115, 'csr_mutex_timeouts': 0, 'desync_pending': 1, 'events': [(55, 4, 2, 135680, 41, 0, 85104058, 0), (56, 4, 2, 135680, 41, 0, 85125654, 0), (57, 4, 2, 135680, 41, 0, 87414921, 0), (58, 4, 2, 135680, 41, 0, 87469251, 0), (59, 4, 2, 135680, 41, 0, 87490896, 0), (60, 4, 2, 135680, 41, 0, 87512451, 0), (61, 4, 2, 135680, 41, 0, 87534446, 0), (62, 4, 1, 163840, 49, 0, 150472659, 0)], 'take_failed': 0, 'entered': 53115, 'usb_attach': 5, 'usb_detach': 4, 'csr_timeouts': 0}
+>>> 
+>>> print("ISO", [sentai.tpu.invoke() for _ in range(40)])
+print("ISO", [sentai.tpu.invoke() for _ in range(40)])
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B61:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B62:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B62:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B62:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B62:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B62:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B62:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B62:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B62:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B62:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B62:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B62:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B62:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B62:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B62:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B62:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B62:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B62:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B62:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B62:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B62:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B62:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B62:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B62:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B62:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B62:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B62:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B62:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B62:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B62:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B62:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B62:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B62:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B62:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B62:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B62:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B62:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B62:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B62:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+ISO [-2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2]
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 53122, 'desync_count': 102, 'stale': 0, 'max_wait_us': (207980, 3678, 1048, 3542, 54, 0), 'ehci': (0, 0, 0, 0, 0, 0, 0, 0, 0, 0), 'gave': 53122, 'csr_mutex_timeouts': 0, 'desync_pending': 1, 'events': [(95, 4, 0, 8, 14, 0, 151293682, 0), (96, 4, 0, 8, 3, 0, 151293781, 0), (97, 4, 0, 8, 13, 0, 151293853, 0), (98, 4, 0, 8, 14, 0, 151293931, 0), (99, 4, 0, 8, 3, 0, 151294009, 0), (100, 4, 0, 8, 4, 0, 151294088, 0), (101, 4, 0, 8, 4, 0, 151294158, 0), (102, 4, 0, 8, 11, 0, 151294256, 0)], 'take_failed': 1, 'entered': 53122, 'usb_attach': 5, 'usb_detach': 4, 'csr_timeouts': 0}
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> E:0B62:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B62:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B62:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B62:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+E:0B62:0
+Node edgetpu-custom-op (number 0) failed to invoke with status 1
+
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (0, 0, 0.0)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 6, 'cycle_ms_sum': 0, 'nms_ms_sum': 0, 'ms_sum': 0, 'ok': 0, 'infer_wait_ms_sum': 458, 'recover_fail': 0, 'recover_giveup': 2, 'first_fail_idx': 0, 'fail': 20, 'last_rc': -2, 'first_fail_ms': 345, 'recover_attempts': 3}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 53167, 'desync_count': 122, 'stale': 0, 'max_wait_us': (207980, 3678, 1048, 3542, 54, 0), 'ehci': (1, 0, 0, 0, 0, 1, 72, 75776, 126304, 152401085), 'gave': 53167, 'csr_mutex_timeouts': 0, 'desync_pending': 1, 'events': [(115, 4, 2, 163840, 49, 0, 156350199, 0), (116, 4, 2, 163840, 49, 0, 156371866, 0), (117, 4, 2, 163840, 49, 0, 156393548, 0), (118, 4, 2, 163840, 49, 0, 158795501, 0), (119, 4, 2, 163840, 49, 0, 158844963, 0), (120, 4, 2, 163840, 49, 0, 158866572, 0), (121, 4, 2, 163840, 49, 0, 158888264, 0), (122, 4, 2, 163840, 48, 0, 158909882, 0)], 'take_failed': 1, 'entered': 53167, 'usb_attach': 8, 'usb_detach': 7, 'csr_timeouts': 0}
+>>> 
+>>> print("CS", sentai.tpu.chunk_size(36864))
+print("CS", sentai.tpu.chunk_size(36864))
+CS 36864
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 53167, 'desync_count': 122, 'stale': 0, 'max_wait_us': (207980, 3678, 1048, 3542, 54, 0), 'ehci': (1, 0, 0, 0, 0, 1, 72, 75776, 126304, 152401085), 'gave': 53167, 'csr_mutex_timeouts': 0, 'desync_pending': 1, 'events': [(115, 4, 2, 163840, 49, 0, 156350199, 0), (116, 4, 2, 163840, 49, 0, 156371866, 0), (117, 4, 2, 163840, 49, 0, 156393548, 0), (118, 4, 2, 163840, 49, 0, 158795501, 0), (119, 4, 2, 163840, 49, 0, 158844963, 0), (120, 4, 2, 163840, 49, 0, 158866572, 0), (121, 4, 2, 163840, 49, 0, 158888264, 0), (122, 4, 2, 163840, 48, 0, 158909882, 0)], 'take_failed': 1, 'entered': 53167, 'usb_attach': 8, 'usb_detach': 7, 'csr_timeouts': 0}
+>>> 

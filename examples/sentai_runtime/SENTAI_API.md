@@ -66,6 +66,7 @@ sentai
 │   ├── save_jpeg(path, q=75)
 │   ├── resolution()
 │   ├── set_resolution(w, h)
+- `sentai.camera.set_hw(w, h)` → int. Select the SENSOR geometry before `init()`: `(640, 480)` (default) or `(1280, 960)` SXGA (15/30 fps rows). 0 ok, -1 unsupported, -2 camera already initialised (needs `sys.reset()`). W24-T11.
 │   ├── native_res()
 │   ├── select(id)
 │   ├── frame_count() / sensor_frames()
@@ -256,6 +257,7 @@ True
 ```
 
 ### `sentai.tpu.urb_sync_stats()` → dict
+  Since build 1708 the dict also carries `desync_pending/desync_count` (an invoke transfer failed; the next `tpu.load` power-cycles the TPU, SERR 0x0B76), `usb_attach/usb_detach`, `max_wait_us` per tag, `events` (ring of slow/timed-out/errored/refused URBs: seq, kind, tag, bytes, wait_us, usb_status, t_us, bytes_done) and `ehci` (qTD error bits from SDK patch 0006: xacterr, babble, buffer_err, missed_uf, halted_only, total, last_status, last_sofar, last_len, last_t_us).
 Synchronous-URB counters of the Edge TPU USB driver (OP-S10-W24-T6, build 1702):
 `entered` / `gave` (completion callbacks seen / semaphore gives), `stale`
 (completions of orphaned, timed-out URBs that were ignored by the sequence

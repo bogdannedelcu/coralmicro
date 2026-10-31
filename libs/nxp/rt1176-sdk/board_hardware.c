@@ -95,8 +95,20 @@ bool BOARD_InitSEMC(void) {
   sdramconfig.refreshBurstLen = 1;
   sdramconfig.delayChain = 2;
 
-  return SEMC_ConfigureSDRAM(SEMC, kSEMC_SDRAM_CS0, &sdramconfig, clockFrq) ==
-         kStatus_Success;
+  // W24-T12 (2026-10-31, EXP-s258): SDRAM arbitration weights for the
+  // non-core AXI queue (CSI / PXP / USB EHCI / eDMA).  Max QoS and age
+  // weight plus max page-hit weight measured -5 ms per 1.9 MB Edge TPU
+  // input transfer under SXGA 30 fps camera + PXP load (81 -> 76 ms, 12.1
+  // -> 12.9 fps), no change on the VGA45 path.  Bank-rotation weight (WBR)
+  // and read/write-switch weight (WRWS) made it worse.  SDK typical values
+  // were WQOS 5 / WAGE 8 / WPH 0x24 / WRWS 0x60 / WBR 0x40.
+  bool ok = SEMC_ConfigureSDRAM(SEMC, kSEMC_SDRAM_CS0, &sdramconfig, clockFrq) ==
+            kStatus_Success;
+  if (ok) {
+    SEMC->BMCR1 = SEMC_BMCR1_WQOS(0xFU) | SEMC_BMCR1_WAGE(0xFU) | SEMC_BMCR1_WPH(0xFFU) |
+                  SEMC_BMCR1_WRWS(0x60U) | SEMC_BMCR1_WBR(0x40U);
+  }
+  return ok;
 }
 
 void BOARD_InitCAAM(void) {

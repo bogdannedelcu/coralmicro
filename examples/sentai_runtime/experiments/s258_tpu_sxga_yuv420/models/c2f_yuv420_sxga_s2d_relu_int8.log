@@ -1,0 +1,28 @@
+Edge TPU Compiler version 16.0.384591198
+Started a compilation timeout timer of 180 seconds.
+
+Model compiled successfully in 414 ms.
+
+Input model: /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s258_tpu_sxga_yuv420/models/c2f_yuv420_sxga_s2d_relu_int8.tflite
+Input size: 222.57KiB
+Output model: /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s258_tpu_sxga_yuv420/models/c2f_yuv420_sxga_s2d_relu_int8_edgetpu.tflite
+Output size: 488.84KiB
+On-chip memory used for caching model parameters: 350.75KiB
+On-chip memory remaining for caching model parameters: 5.75MiB
+Off-chip memory used for streaming uncached model parameters: 0.00B
+Number of Edge TPU subgraphs: 1
+Total number of operations: 76
+Operation log: /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s258_tpu_sxga_yuv420/models/c2f_yuv420_sxga_s2d_relu_int8_edgetpu.log
+
+Operator                       Count      Status
+
+MAX_POOL_2D                    3          Mapped to Edge TPU
+ADD                            6          Mapped to Edge TPU
+CONCATENATION                  9          Mapped to Edge TPU
+SPACE_TO_DEPTH                 3          Mapped to Edge TPU
+RESIZE_NEAREST_NEIGHBOR        1          Mapped to Edge TPU
+STRIDED_SLICE                  10         Mapped to Edge TPU
+CONV_2D                        39         Mapped to Edge TPU
+QUANTIZE                       5          Mapped to Edge TPU
+Compilation child process completed within timeout period.
+Compilation succeeded! 

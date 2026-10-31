@@ -71,8 +71,17 @@ __attribute__((section("NonCacheableCamera,\"aw\",%nobits @")))
 __attribute__((aligned(DEMO_CAMERA_BUFFER_ALIGN)))
 uint8_t
     framebuffers[DEMO_CAMERA_BUFFER_COUNT]
-        [(DEMO_CAMERA_HEIGHT) * (DEMO_CAMERA_WIDTH + LINE_PADDING) * DEMO_CAMERA_BUFFER_BPP];
+        [(CAM_MAX_HEIGHT) * (CAM_MAX_WIDTH + LINE_PADDING) * CAM_MAX_BUFFER_BPP];
 #endif
+
+/* W24-T11 (2026-10-31): RUNTIME sensor geometry.  Defaults to the VGA
+ * compile-time constants; sentai_cam_set_hw() may set SXGA 1280x960 before
+ * the first camera init.  Every place below that configures the receiver,
+ * the sensor or the D-PHY settle time keys on these, not on
+ * DEMO_CAMERA_WIDTH/HEIGHT.  The frame buffers above are sized for the
+ * maximum (4 x 4.9 MB in m_ncamera). */
+volatile uint32_t g_runtime_cam_w = DEMO_CAMERA_WIDTH;
+volatile uint32_t g_runtime_cam_h = DEMO_CAMERA_HEIGHT;
 
 /* Monotonic frame counter — incremented by CSI ISR on each DMA frame
  * completion.  Never reset (stays monotonic across camera switches).
@@ -920,7 +929,7 @@ status_t BOARD_InitMipiCsi(void)
      * DEMO_CAMERA_FRAME_RATE=45 at compile time. */
     for (uint8_t i = 0; i < ARRAY_SIZE(csi2rxHsSettle); i++)
     {
-        if ((FSL_VIDEO_RESOLUTION(DEMO_CAMERA_WIDTH, DEMO_CAMERA_HEIGHT) == csi2rxHsSettle[i][0]) &&
+        if ((FSL_VIDEO_RESOLUTION(g_runtime_cam_w, g_runtime_cam_h) == csi2rxHsSettle[i][0]) &&
             (csi2rxHsSettle[i][1] == g_runtime_fps))
         {
             csi2rxConfig.tHsSettle_EscClk = csi2rxHsSettle[i][2];
@@ -999,8 +1008,8 @@ status_t BOARD_InitCamera(void)
                                                   ? kVIDEO_PixelFormatXYUV
                                                   : kVIDEO_PixelFormatXRGB8888;
     cameraConfig.bytesPerPixel              = DEMO_CAMERA_BUFFER_BPP;
-    cameraConfig.resolution                 = FSL_VIDEO_RESOLUTION(DEMO_CAMERA_WIDTH, DEMO_CAMERA_HEIGHT);
-    cameraConfig.frameBufferLinePitch_Bytes = DEMO_CAMERA_WIDTH * DEMO_CAMERA_BUFFER_BPP;
+    cameraConfig.resolution                 = FSL_VIDEO_RESOLUTION(g_runtime_cam_w, g_runtime_cam_h);
+    cameraConfig.frameBufferLinePitch_Bytes = g_runtime_cam_w * DEMO_CAMERA_BUFFER_BPP;
     cameraConfig.interface                  = kCAMERA_InterfaceGatedClock;
     cameraConfig.controlFlags               = DEMO_CAMERA_CONTROL_FLAGS;
     cameraConfig.framePerSec                = g_runtime_fps;
@@ -1034,7 +1043,7 @@ status_t BOARD_InitCamera(void)
                                      ? kVIDEO_PixelFormatYUYV
                                      : kVIDEO_PixelFormatRGB565;
     cameraConfig.bytesPerPixel = 2;
-    cameraConfig.resolution    = FSL_VIDEO_RESOLUTION(DEMO_CAMERA_WIDTH, DEMO_CAMERA_HEIGHT);
+    cameraConfig.resolution    = FSL_VIDEO_RESOLUTION(g_runtime_cam_w, g_runtime_cam_h);
     cameraConfig.interface     = kCAMERA_InterfaceMIPI;
     cameraConfig.controlFlags  = DEMO_CAMERA_CONTROL_FLAGS;
     cameraConfig.framePerSec   = g_runtime_fps;

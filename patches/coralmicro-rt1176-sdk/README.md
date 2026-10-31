@@ -76,6 +76,26 @@ the second hook (the upstream driver passes
 it to the hook).  No control-flow changes, no new error paths, no
 new branching — minimal surface for upstream merges to drift over.
 
+### `0006-ehci-transfer-error-hook.patch`
+
+**Why (OP-S10-W24-T9, 2026-10-31):** the natural Edge TPU wedge starts with
+one bulk-OUT chunk completing `kStatus_USB_TransferFailed` (seen on the last
+12 KB of a Y plane after 401 µs).  The NXP host stack maps every qTD error
+bit except Halted-alone to that single status, so the application cannot
+tell a **Transaction Error** (bit 3: wire / device not responding, 3 retries
+exhausted) from a **Data Buffer Error** (bit 5: the EHCI could not fetch the
+OUT data from memory in time — SDRAM contention with CSI/PXP DMA) or Babble
+(bit 4) / Missed micro-frame (bit 2).  Those call for different fixes
+(signal / device power vs. buffer placement / bus arbitration).
+
+**What:** before each of the two `kStatus_USB_TransferFailed` callbacks in
+`USB_HostEhciTransactionDone` the stack now calls
+`sentai_ehci_transfer_error_hook(qtd_status, transfer_sofar, transfer_length)`.
+The SDK side defines it `__attribute__((weak))` as a no-op; SentAI overrides
+it in `libs/tpu/edgetpu_driver.cc` with per-bit counters and a last-error
+record exposed through `sentai.tpu.urb_sync_stats()['ehci']`.  No control-flow
+change, no new error path.
+
 ## Adding a new patch
 
 1. Edit the submodule tree under `third_party/nxp/rt1176-sdk/` directly.

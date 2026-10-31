@@ -1,0 +1,200 @@
+>>> print(sentai.version())
+print(sentai.version())
+SentAI v1.1 build 1711 (2026-10-31 21:24:45) board 58eb
+>>> 
+>>> print("YUV", sentai.camera.yuv_mode(1))
+print("YUV", sentai.camera.yuv_mode(1))
+YUV 1
+>>> 
+>>> print("INIT", sentai.camera.init(1, 45))
+print("INIT", sentai.camera.init(1, 45))
+HandlePowerRequest: cam0 (bus 1): OK, cam1 (bus 2): OK
+CAMERA_RECEIVER_Init = 0
+BOARD_PullCameraPowerDownPin:1
+BOARD_PullCameraResetPin:0
+BOARD_PullCameraPowerDownPin:0
+BOARD_PullCameraResetPin:1
+CAMERA_DEVICE_Init = 0
+CAMERA_DEVICE_Start = 0
+CAMERA_RECEIVER_Start = 0
+[CAM] sensor_fps=46 (1 s sample, target=30)
+[CAM1] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM1] W 0x3820=0x47 (0)
+[CAM1] W 0x3821=0x01 (0)
+[CAM0] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM0] W 0x3820=0x47 (0)
+[CAM0] W 0x3821=0x01 (0)
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xEA (0)
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xD8 (0)
+[cam] pre-trim: cam0 delayed 18 lines (406 us) -> alternation at full rate
+[cam] genlock: phase 35 us after 0 step(s) (T=22290 us)
+INIT 0
+>>> 
+>>> print("LOAD", sentai.tpu.load("/models/c2f_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load("/models/c2f_yuv420_int8_edgetpu.tflite"))
+Model loaded: 271200 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0xd14808d2b5e11482
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00331566 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.07433487  zero_point=199
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.07863516  zero_point=196
+Arena used: 485 / 8192 KB
+Model name: c2f_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> sentai.tpu.invoke()
+sentai.tpu.invoke()
+24
+>>> 
+>>> print("ISO", [sentai.tpu.invoke() for _ in range(30)])
+print("ISO", [sentai.tpu.invoke() for _ in range(30)])
+ISO [19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19]
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (649, 645, 96.9)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 4824, 'nms_ms_sum': 0, 'ms_sum': 13237, 'ok': 661, 'infer_wait_ms_sum': 1361, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 20, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(dir(sentai.pipeline))
+print(dir(sentai.pipeline))
+['__name__', 'count', 'get', 'start', 'stop', 'auto_recover', 'calibrate', 'camera_config', 'debug_no_invoke', 'debug_prep_mode', 'detections', 'direct_stats', 'direct_tensor', 'dma_memcpy', 'event', 'force_parity', 'force_parity_reset', 'force_parity_stats', 'frame_count', 'get_ex', 'get_slot_for_cam', 'infer_reset', 'infer_stats', 'invokes_per_frame', 'loop_delay', 'multi_invoke_mode', 'on_detection', 'once', 'prep_fps', 'prep_reset', 'prep_start', 'prep_stats', 'prep_stop', 'probe_ratios', 'running', 'save', 'set_pose', 'set_slot_for_cam', 'slot_stats', 'slot_stats_reset', 'start_once', 'stats', 'target_fps', 'task_health', 'track_config', 'tracks']
+>>> 
+>>> print("PSTATS", sentai.pipeline.prep_stats())
+print("PSTATS", sentai.pipeline.prep_stats())
+PSTATS {'pxp_ms_sum': 5042, 'cam_grab_ms_sum': 74, 'quant_ms_sum': 0, 'frames': 676, 'total_ms_sum': 7038, 'sem_wait_ms_sum': 1598}
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 14147, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1067, 1063, 1041, 2201, 55, 0), 'ehci': (0, 0, 0, 0, 0, 0, 0, 0, 0, 0), 'gave': 14147, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 14147, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("LOAD", sentai.tpu.load("/models/c2f_yuv420_vga_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load("/models/c2f_yuv420_vga_int8_edgetpu.tflite"))
+Model loaded: 402272 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0xffb907095f5b1bbf
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00392157 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.00002495  zero_point=108
+  [1] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.00000201  zero_point=133
+Arena used: 1385 / 8192 KB
+Model name: c2f_yuv420_vga_int8_edgetpu
+LOAD 0
+>>> 
+>>> sentai.tpu.invoke()
+sentai.tpu.invoke()
+92
+>>> 
+>>> print("ISO", [sentai.tpu.invoke() for _ in range(30)])
+print("ISO", [sentai.tpu.invoke() for _ in range(30)])
+ISO [87, 87, 87, 87, 87, 87, 87, 87, 87, 87, 87, 87, 87, 87, 87, 87, 87, 87, 87, 87, 87, 87, 87, 87, 87, 87, 87, 87, 87, 87]
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("STATS", sentai.pipeline.stats())
+print("STATS", sentai.pipeline.stats())
+STATS (175, 171, 16.5)
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 10677, 'nms_ms_sum': 0, 'ms_sum': 15486, 'ok': 178, 'infer_wait_ms_sum': 36, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 87, 'first_fail_ms': 0, 'recover_attempts': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print(dir(sentai.pipeline))
+print(dir(sentai.pipeline))
+['__name__', 'count', 'get', 'start', 'stop', 'auto_recover', 'calibrate', 'camera_config', 'debug_no_invoke', 'debug_prep_mode', 'detections', 'direct_stats', 'direct_tensor', 'dma_memcpy', 'event', 'force_parity', 'force_parity_reset', 'force_parity_stats', 'frame_count', 'get_ex', 'get_slot_for_cam', 'infer_reset', 'infer_stats', 'invokes_per_frame', 'loop_delay', 'multi_invoke_mode', 'on_detection', 'once', 'prep_fps', 'prep_reset', 'prep_start', 'prep_stats', 'prep_stop', 'probe_ratios', 'running', 'save', 'set_pose', 'set_slot_for_cam', 'slot_stats', 'slot_stats_reset', 'start_once', 'stats', 'target_fps', 'task_health', 'track_config', 'tracks']
+>>> 
+>>> print("PSTATS", sentai.pipeline.prep_stats())
+print("PSTATS", sentai.pipeline.prep_stats())
+PSTATS {'pxp_ms_sum': 6191, 'cam_grab_ms_sum': 451, 'quant_ms_sum': 0, 'frames': 859, 'total_ms_sum': 17990, 'sem_wait_ms_sum': 10918}
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 24855, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1067, 1063, 1041, 4773, 55, 0), 'ehci': (0, 0, 0, 0, 0, 0, 0, 0, 0, 0), 'gave': 24855, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 24855, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("LOAD", sentai.tpu.load("/models/c2f_yuv420_sxga_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load("/models/c2f_yuv420_sxga_int8_edgetpu.tflite"))
+Model loaded: 807776 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x5f54e8fa3c9f3711
+Inputs: 2
+  in[0] uint8[1,480,640,2] (614400 bytes)  scale=0.00392157 zp=0
+  in[1] uint8[1,960,1280,1] (1228800 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.00000776  zero_point=80
+  [1] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.00000068  zero_point=115
+Arena used: 1835 / 8192 KB
+Model name: c2f_yuv420_sxga_int8_edgetpu
+LOAD 0
+>>> 
+>>> sentai.tpu.invoke()
+sentai.tpu.invoke()
+84
+>>> 
+>>> print("ISO", [sentai.tpu.invoke() for _ in range(30)])
+print("ISO", [sentai.tpu.invoke() for _ in range(30)])
+ISO [79, 79, 79, 79, 79, 79, 79, 79, 79, 79, 79, 79, 79, 79, 79, 79, 78, 79, 79, 79, 79, 79, 79, 79, 79, 79, 78, 79, 79, 79]
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 27281, 'desync_count': 0, 'stale': 0, 'max_wait_us': (4615, 1903, 1041, 4773, 55, 0), 'ehci': (0, 0, 0, 0, 0, 0, 0, 0, 0, 0), 'gave': 27281, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 27281, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("LOAD", sentai.tpu.load("/models/c2f_yuv420_sxga_s2d_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load("/models/c2f_yuv420_sxga_s2d_int8_edgetpu.tflite"))
+Model loaded: 684896 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0xa3a27e24f842190f
+Inputs: 2
+  in[0] uint8[1,480,640,2] (614400 bytes)  scale=0.00392157 zp=0
+  in[1] uint8[1,960,1280,1] (1228800 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.00001402  zero_point=122
+  [1] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.00000116  zero_point=117
+Arena used: 3208 / 8192 KB
+Model name: c2f_yuv420_sxga_s2d_int8_edgetpu
+LOAD 0
+>>> 
+>>> sentai.tpu.invoke()
+sentai.tpu.invoke()
+209
+>>> 
+>>> print("ISO", [sentai.tpu.invoke() for _ in range(30)])
+print("ISO", [sentai.tpu.invoke() for _ in range(30)])
+ISO [204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204]
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 32032, 'desync_count': 0, 'stale': 0, 'max_wait_us': (4615, 1903, 1048, 4802, 55, 0), 'ehci': (0, 0, 0, 0, 0, 0, 0, 0, 0, 0), 'gave': 32032, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 32032, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 

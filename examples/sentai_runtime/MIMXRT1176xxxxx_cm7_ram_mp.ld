@@ -71,7 +71,7 @@ MEMORY
   rpmsg_sh_mem          (RW)  : ORIGIN = 0x20340000 - RPMSG_SHMEM_SIZE, LENGTH = RPMSG_SHMEM_SIZE
   m_heap                (RW)  : ORIGIN = 0x80000000, LENGTH = HEAP_SIZE
   m_sdram               (RX)  : ORIGIN = 0x80000000 + HEAP_SIZE, LENGTH = 0x02000000 - HEAP_SIZE
-  m_ncamera             (RW)  : ORIGIN = 0x82000000, LENGTH = 0x01800000
+  m_ncamera             (RW)  : ORIGIN = 0x82000000, LENGTH = 0x02000000  /* W24-T11: 24 -> 32 MB (SDRAM is 64 MB; 4 SXGA XYUV frame buffers 19.7 MB + virtual camera 7.4 MB + SXGA YUV420 staging 1.8 MB) */
 }
 
 /* Define output sections */

@@ -163,6 +163,7 @@ static uint64_t s_tpu_urb_stats[kUrbStatCount][kUrbFieldCount];
 // resumed" from "the device died".  Per-tag worst-case wait is kept too.
 // Fixed-size, no heap, written from task context only (the record functions
 // run after the completion, never in the callback).
+static inline uint32_t TpuUrbMicrosNow();   // defined below
 enum TpuUrbEvKind : uint32_t {
   kTpuUrbEvSlow = 1, kTpuUrbEvTimeout = 2, kTpuUrbEvError = 3, kTpuUrbEvSubmitFail = 4,
 };
@@ -174,6 +175,7 @@ struct TpuUrbEvent {
   uint32_t wait_us;    // submit -> done/timeout
   uint32_t status;     // usb_status_t (0 if timeout/submit-fail)
   uint32_t t_us;       // TimerMicros() at record time
+  uint32_t done;       // bytes the host stack reports transferred (error/slow events)
 };
 static constexpr int kTpuUrbEvRing = 8;
 static constexpr uint32_t kTpuUrbSlowUs = 50000;   // 50 ms: ~3x a worst-case 36 KB chunk
@@ -182,16 +184,17 @@ static uint32_t s_tpu_urb_ev_seq = 0;
 static uint32_t s_tpu_urb_max_wait_us[kUrbStatCount];
 
 static void TpuUrbEventPush(uint32_t kind, DescriptorTag tag, uint32_t bytes,
-                            uint32_t wait_us, uint32_t status, uint32_t t_us) {
+                            uint32_t wait_us, uint32_t status, uint32_t t_us,
+                            uint32_t done) {
   taskENTER_CRITICAL();
   const uint32_t seq = ++s_tpu_urb_ev_seq;
   TpuUrbEvent& e = s_tpu_urb_ev[seq % kTpuUrbEvRing];
   e.seq = seq; e.kind = kind; e.tag = (uint32_t)tag; e.bytes = bytes;
-  e.wait_us = wait_us; e.status = status; e.t_us = t_us;
+  e.wait_us = wait_us; e.status = status; e.t_us = t_us; e.done = done;
   taskEXIT_CRITICAL();
 }
 
-// Copies the ring (oldest first) as 7 words per event; returns events copied.
+// Copies the ring (oldest first) as 8 words per event; returns events copied.
 extern "C" uint32_t sentai_tpu_urb_events(uint32_t* out, uint32_t max_events) {
   if (!out) return 0;
   uint32_t n = 0;
@@ -201,13 +204,48 @@ extern "C" uint32_t sentai_tpu_urb_events(uint32_t* out, uint32_t max_events) {
   for (uint32_t s = first; s <= last && n < max_events; ++s) {
     const TpuUrbEvent& e = s_tpu_urb_ev[s % kTpuUrbEvRing];
     if (e.seq != s) continue;
-    out[n * 7 + 0] = e.seq;   out[n * 7 + 1] = e.kind;  out[n * 7 + 2] = e.tag;
-    out[n * 7 + 3] = e.bytes; out[n * 7 + 4] = e.wait_us; out[n * 7 + 5] = e.status;
-    out[n * 7 + 6] = e.t_us;
+    out[n * 8 + 0] = e.seq;   out[n * 8 + 1] = e.kind;  out[n * 8 + 2] = e.tag;
+    out[n * 8 + 3] = e.bytes; out[n * 8 + 4] = e.wait_us; out[n * 8 + 5] = e.status;
+    out[n * 8 + 6] = e.t_us;  out[n * 8 + 7] = e.done;
     n++;
   }
   taskEXIT_CRITICAL();
   return n;
+}
+
+// SDK patch 0006: the NXP EHCI host calls this right before it completes a
+// transfer with kStatus_USB_TransferFailed, with the raw qTD status byte.
+// Per-bit counters tell a wire/device Transaction Error (bit 3) from a host
+// memory underrun (Data Buffer Error, bit 5), Babble (bit 4) or a missed
+// micro-frame (bit 2).  Runs in the USB host task; plain stores.
+struct SentaiEhciErrStats {
+  volatile uint32_t xacterr, babble, buffer_err, missed_uf, halted_only, total;
+  volatile uint32_t last_status, last_sofar, last_len, last_t_us;
+};
+static SentaiEhciErrStats s_ehci_err;
+extern "C" void sentai_ehci_transfer_error_hook(uint32_t qtd_status,
+                                                uint32_t transfer_sofar,
+                                                uint32_t transfer_length) {
+  s_ehci_err.total++;
+  if (qtd_status & 0x08u) s_ehci_err.xacterr++;
+  if (qtd_status & 0x10u) s_ehci_err.babble++;
+  if (qtd_status & 0x20u) s_ehci_err.buffer_err++;
+  if (qtd_status & 0x04u) s_ehci_err.missed_uf++;
+  if ((qtd_status & 0x7Eu) == 0x40u) s_ehci_err.halted_only++;
+  s_ehci_err.last_status = qtd_status;
+  s_ehci_err.last_sofar  = transfer_sofar;
+  s_ehci_err.last_len    = transfer_length;
+  s_ehci_err.last_t_us   = TpuUrbMicrosNow();
+}
+// 10 words: xacterr, babble, buffer_err, missed_uf, halted_only, total,
+//           last_status, last_sofar, last_len, last_t_us
+extern "C" void sentai_tpu_ehci_err_stats(uint32_t* out, uint32_t max_words) {
+  if (!out || max_words < 10) return;
+  out[0] = s_ehci_err.xacterr;     out[1] = s_ehci_err.babble;
+  out[2] = s_ehci_err.buffer_err;  out[3] = s_ehci_err.missed_uf;
+  out[4] = s_ehci_err.halted_only; out[5] = s_ehci_err.total;
+  out[6] = s_ehci_err.last_status; out[7] = s_ehci_err.last_sofar;
+  out[8] = s_ehci_err.last_len;    out[9] = s_ehci_err.last_t_us;
 }
 
 extern "C" void sentai_tpu_urb_max_wait(uint32_t* out, uint32_t max_tags) {
@@ -274,7 +312,7 @@ static void TpuUrbRecordSubmitFailure(DescriptorTag tag, uint32_t bytes,
   TpuUrbStatAdd(idx, kUrbFieldSubmitCycles, submit_cycles);
   TpuUrbStatAdd(idx, kUrbFieldSubmitUs, submit_us);
   TpuUrbStatAdd(idx, kUrbFieldSubmitFailures, 1);
-  TpuUrbEventPush(kTpuUrbEvSubmitFail, tag, bytes, submit_us, 0, TpuUrbMicrosNow());
+  TpuUrbEventPush(kTpuUrbEvSubmitFail, tag, bytes, submit_us, 0, TpuUrbMicrosNow(), 0);
 }
 
 static void TpuUrbRecordDone(const UsbTransferMetadata& meta,
@@ -295,14 +333,15 @@ static void TpuUrbRecordDone(const UsbTransferMetadata& meta,
     s_tpu_urb_max_wait_us[idx] = wait_us;
   if (timeout) {
     TpuUrbStatAdd(idx, kUrbFieldTimeouts, 1);
-    TpuUrbEventPush(kTpuUrbEvTimeout, meta.tag, meta.bytes_requested, wait_us, 0, wait_end_us);
+    TpuUrbEventPush(kTpuUrbEvTimeout, meta.tag, meta.bytes_requested, wait_us, 0, wait_end_us, 0);
     return;
   }
   if (meta.status != kStatus_USB_Success)
     TpuUrbEventPush(kTpuUrbEvError, meta.tag, meta.bytes_requested, wait_us,
-                    (uint32_t)meta.status, wait_end_us);
+                    (uint32_t)meta.status, wait_end_us, (uint32_t)meta.bytes_transferred);
   else if (wait_us > kTpuUrbSlowUs)
-    TpuUrbEventPush(kTpuUrbEvSlow, meta.tag, meta.bytes_requested, wait_us, 0, wait_end_us);
+    TpuUrbEventPush(kTpuUrbEvSlow, meta.tag, meta.bytes_requested, wait_us, 0, wait_end_us,
+                    (uint32_t)meta.bytes_transferred);
   TpuUrbStatAdd(idx, kUrbFieldCallbacks, 1);
   TpuUrbStatAdd(idx, kUrbFieldBytesDone, meta.bytes_transferred);
   TpuUrbStatAdd(idx, kUrbFieldCallbackCycles,
@@ -955,7 +994,12 @@ extern "C" void     sentai_tpu_chunk_size_set(uint32_t n) {
 #ifdef SENTAI_PLATFORM_SIM
     if (n > 1024 * 1024) n = 1024 * 1024;
 #else
-    if (n > 160 * 1024) n = 160 * 1024;
+    // W24-T10 (2026-10-31, s257 chunk_sweep): 160 KB chunks fail EVERY
+    // invoke with a qTD Transaction Error after ~76 KB (EHCI qTD chain
+    // exhaustion), and 64..128 KB buy nothing over 36 KB (invoke 19/21 ms,
+    // pipeline fps identical -- the EHCI already pipelines the qTDs).
+    // Clamp at 128 KB; the default stays 36 KB.
+    if (n > 128 * 1024) n = 128 * 1024;
 #endif
     g_sentai_tpu_chunk_size = n;
 }
@@ -1186,6 +1230,7 @@ extern "C" volatile uint32_t          g_sentai_tpu_input_done_count = 0;
 // of the first.  0 = legacy one-shot on the first SendInputs (single-input
 // RGB path).  The accumulator resets on every (re)arm and on fire.
 extern "C" volatile uint32_t g_sentai_tpu_input_done_byte_target = 0;
+extern "C" volatile uint32_t g_sentai_tpu_input_done_us = 0;   // W24-T12: GPT1 us of the last early release
 static   volatile uint32_t   s_sentai_tpu_input_done_bytes_acc   = 0;
 
 bool TpuDriver::SendInputs(const uint8_t *data, uint32_t length) const {
@@ -1273,6 +1318,7 @@ bool TpuDriver::SendInputs(const uint8_t *data, uint32_t length) const {
           if (s) {
               xSemaphoreGive(s);
               g_sentai_tpu_input_done_count++;
+              g_sentai_tpu_input_done_us = TpuUrbMicrosNow();   // W24-T12 trace
           }
           s_sentai_tpu_input_done_bytes_acc = 0;
       }

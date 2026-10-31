@@ -1,0 +1,8 @@
+HCSPARAMS,HCCPARAMS,USBCMD = ['0x10011', '0x6', '0xb31']
+baseline     invoke avg/min/max = (65.0, 65, 65)  input MB/s = 34.8
+ASPE=1 ASP=1 USBCMD=0x931 invoke avg/min/max = (81.0, 81, 81)  input MB/s = 27.6
+ASPE=1 ASP=2 USBCMD=0xa31 invoke avg/min/max = (70.0, 70, 70)  input MB/s = 32.6
+ASPE=1 ASP=3 USBCMD=0xb31 invoke avg/min/max = (65.0, 65, 65)  input MB/s = 34.8
+park off     USBCMD=0x31 (81.0, 81, 81)
+ITC=1        USBCMD=0x10031 (85.0, 85, 85)  input MB/s = 26.4
+urb sync: (0, 0, 0, 0, 0, 0, 0, 0, 0, 0) 0

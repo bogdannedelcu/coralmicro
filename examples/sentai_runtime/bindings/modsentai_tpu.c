@@ -519,15 +519,24 @@ static mp_obj_t mod_sentai_tpu_urb_sync_stats(void) {
         mp_obj_t mwt[6];
         for (int i = 0; i < 6; ++i) mwt[i] = mp_obj_new_int_from_uint(mw[i]);
         mp_obj_dict_store(d, mp_obj_new_str("max_wait_us", 11), mp_obj_new_tuple(6, mwt));
-        uint32_t ev[8 * 7] = {0};
+        // events: (seq, kind, tag, bytes, wait_us, usb_status, t_us, bytes_done)
+        uint32_t ev[8 * 8] = {0};
         uint32_t n = sentai_tpu_urb_events(ev, 8);
         mp_obj_t rows[8];
         for (uint32_t r = 0; r < n; ++r) {
-            mp_obj_t f[7];
-            for (int k = 0; k < 7; ++k) f[k] = mp_obj_new_int_from_uint(ev[r * 7 + k]);
-            rows[r] = mp_obj_new_tuple(7, f);
+            mp_obj_t f[8];
+            for (int k = 0; k < 8; ++k) f[k] = mp_obj_new_int_from_uint(ev[r * 8 + k]);
+            rows[r] = mp_obj_new_tuple(8, f);
         }
         mp_obj_dict_store(d, mp_obj_new_str("events", 6), mp_obj_new_list(n, rows));
+        // ehci (SDK patch 0006): (xacterr, babble, buffer_err, missed_uf,
+        // halted_only, total, last_qtd_status, last_sofar, last_len, last_t_us)
+        extern void sentai_tpu_ehci_err_stats(uint32_t* out, uint32_t max_words);
+        uint32_t eh[10] = {0};
+        sentai_tpu_ehci_err_stats(eh, 10);
+        mp_obj_t eht[10];
+        for (int k = 0; k < 10; ++k) eht[k] = mp_obj_new_int_from_uint(eh[k]);
+        mp_obj_dict_store(d, mp_obj_new_str("ehci", 4), mp_obj_new_tuple(10, eht));
     }
     return d;
 }

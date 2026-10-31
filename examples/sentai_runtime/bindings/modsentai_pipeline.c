@@ -784,10 +784,35 @@ static mp_obj_t mod_sentai_pipeline_infer_stats(void) {
         mp_obj_dict_store(d, mp_obj_new_str("first_fail_idx", 14), mp_obj_new_int_from_uint(fi));
         mp_obj_dict_store(d, mp_obj_new_str("first_fail_ms", 13),  mp_obj_new_int_from_uint(fm));
     }
+    {   // W24-T12: in-flight buffer cap and current free count
+        extern void sentai_pipeline_bufs(int*, int*);
+        int cap = 0, fr = 0; sentai_pipeline_bufs(&cap, &fr);
+        mp_obj_dict_store(d, mp_obj_new_str("bufs_cap", 8),  mp_obj_new_int(cap));
+        mp_obj_dict_store(d, mp_obj_new_str("bufs_free", 9), mp_obj_new_int(fr));
+    }
     return d;
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_pipeline_infer_stats_obj,
                                   mod_sentai_pipeline_infer_stats);
+
+// sentai.pipeline.trace([reset]) -> list of (t_us, kind, slot, seq) — W24-T12
+// pipeline timeline (last 128 events; kinds documented in detection_task.cc).
+extern unsigned int sentai_pipeline_trace(unsigned int* out, unsigned int max_ev);
+extern void sentai_pipeline_trace_reset(void);
+static mp_obj_t mod_sentai_pipeline_trace(size_t n_args, const mp_obj_t* args) {
+    if (n_args > 0 && mp_obj_is_true(args[0])) { sentai_pipeline_trace_reset(); return mp_const_none; }
+    static unsigned int ev[128 * 4];
+    unsigned int n = sentai_pipeline_trace(ev, 128);
+    mp_obj_t list = mp_obj_new_list(0, NULL);
+    for (unsigned int i = 0; i < n; ++i) {
+        mp_obj_t t[4] = { mp_obj_new_int_from_uint(ev[i*4]), mp_obj_new_int(ev[i*4+1]),
+                          mp_obj_new_int(ev[i*4+2]), mp_obj_new_int_from_uint(ev[i*4+3]) };
+        mp_obj_list_append(list, mp_obj_new_tuple(4, t));
+    }
+    return list;
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_pipeline_trace_obj, 0, 1, mod_sentai_pipeline_trace);
+
 static mp_obj_t mod_sentai_pipeline_infer_reset(void) {
     sentai_pipeline_infer_reset();
     return mp_const_none;
@@ -1411,6 +1436,7 @@ static const mp_rom_map_elem_t sentai_pipeline_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_debug_prep_mode), MP_ROM_PTR(&mod_sentai_pipeline_debug_prep_mode_obj) },
     { MP_ROM_QSTR(MP_QSTR_debug_no_invoke), MP_ROM_PTR(&mod_sentai_pipeline_debug_no_invoke_obj) },
     { MP_ROM_QSTR(MP_QSTR_infer_stats),     MP_ROM_PTR(&mod_sentai_pipeline_infer_stats_obj) },
+    { MP_ROM_QSTR(MP_QSTR_trace), MP_ROM_PTR(&mod_sentai_pipeline_trace_obj) },
     { MP_ROM_QSTR(MP_QSTR_infer_reset),     MP_ROM_PTR(&mod_sentai_pipeline_infer_reset_obj) },
     { MP_ROM_QSTR(MP_QSTR_invokes_per_frame), MP_ROM_PTR(&mod_sentai_pipeline_invokes_per_frame_obj) },
     { MP_ROM_QSTR(MP_QSTR_multi_invoke_mode), MP_ROM_PTR(&mod_sentai_pipeline_multi_invoke_mode_obj) },

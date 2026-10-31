@@ -1,0 +1,7 @@
+SentAI v1.1 build 1721 (2026-10-31 22:32:50) board 58eb
+first cam  640x480 @45  regs TXFILL,BURST,SBUS=0x100000 0x1010 0x3       iso  19.0 ms | pipe  42.5 fps invoke  20.0 ms fails   0 recover 0/0 | buf_err +0 xact +0 to +0 desync +0
+vga   cam  640x480 @45  regs TXFILL,BURST,SBUS=0x100000 0x1010 0x3       iso  21.8 ms | pipe  40.7 fps invoke  22.9 ms fails   0 recover 0/0 | buf_err +0 xact +0 to +0 desync +0
+sxga  cam 1280x960 @15  regs TXFILL,BURST,SBUS=0x100000 0x1010 0x3       iso  65.5 ms | pipe  11.2 fps invoke  69.4 ms fails   0 recover 0/0 | buf_err +0 xact +0 to +0 desync +0
+   grabs (t_ms, cam_id, frame_seq): [(0.0, 1, 183), (85.0, 1, 184), (176.0, 1, 184), (266.0, 1, 185), (356.0, 1, 185), (446.0, 1, 186), (531.0, 1, 186), (622.0, 1, 187), (712.0, 1, 187), (802.0, 1, 188), (892.0, 1, 188), (977.0, 1, 189)]
+sxga  cam 1280x960 @30  regs TXFILL,BURST,SBUS=0x100000 0x1010 0x3       iso  66.0 ms | pipe  12.2 fps invoke  81.2 ms fails   0 recover 0/0 | buf_err +0 xact +0 to +0 desync +0
+   grabs (t_ms, cam_id, frame_seq): [(0.0, 0, 325), (81.4, 0, 326), (163.7, 0, 327), (244.6, 0, 328), (327.3, 0, 329), (408.8, 0, 330), (491.5, 0, 331), (572.8, 0, 331), (654.9, 0, 332), (735.8, 0, 333), (818.5, 0, 334), (900.0, 0, 335)]

@@ -2500,6 +2500,16 @@ extern "C" int sentai_pxp_rgb888_to_y8(const uint8_t* src, int src_w,
                               dst, dst_w, dst_h, SENTAI_PXP_FORMAT_Y8);
 }
 
+// W24-T11: byte size of input tensor `idx` of the main interpreter (-1 if
+// not loaded / out of range).  PrepTask uses it to check that a dual-input
+// YUV420 model matches the runtime camera geometry before staging planes.
+extern "C" int sentai_get_input_bytes(int idx) {
+  if (!coralmicro::g_tpu_ready || !coralmicro::g_interpreter) return -1;
+  if (idx < 0 || (size_t)idx >= coralmicro::g_interpreter->inputs().size()) return -1;
+  auto* t = coralmicro::g_interpreter->input_tensor(idx);
+  return t ? (int)t->bytes : -1;
+}
+
 extern "C" int sentai_get_tensor_info(int* w, int* h, int* ch,
                                        uint8_t** buf, int* type, int* zp) {
   if (!coralmicro::g_tpu_ready || !coralmicro::g_interpreter) return -1;
@@ -2874,14 +2884,27 @@ extern "C" int sentai_cam_is_initialized(void) {
 // dst must be 64-byte aligned for best results.
 // Returns 0 on success.
 
+// W24-T11: PXP completion deadline.  50 ms is sized for a VGA frame (repack
+// 7-8 ms, scale ~5 ms); an SXGA XYUV frame is 4x the pixels and the repack
+// measured 42 ms at a 15 fps camera on the 16-bit SDRAM, so the deadline is
+// scaled with the sensor geometry in sentai_cam_set_hw().
+extern "C" volatile uint32_t g_sentai_pxp_deadline_ms = 50;
+
 /* Bounded PXP completion wait (2026-10-30 audit M7).  The Y8 output path
  * is documented to hang the PXP at 8:1 scaling (build 1562), and every
  * caller used to spin on the complete flag with no deadline.  50 ms is
  * >10x the longest legitimate VGA conversion.  On timeout the PXP is reset
+
  * so the next conversion starts clean; the caller must fail the frame. */
 static bool sentai_pxp_wait_complete(void) {
-  const TickType_t deadline = xTaskGetTickCount() + pdMS_TO_TICKS(50);
+  const TickType_t deadline = xTaskGetTickCount() + pdMS_TO_TICKS(g_sentai_pxp_deadline_ms);
   while (!(kPXP_CompleteFlag & PXP_GetStatusFlags(DEMO_PXP))) {
+    // W24-T11: PrepTask and InferTask share priority 2 with time slicing
+    // OFF, so a busy-poll here starves InferTask's per-chunk URB submits for
+    // the whole PXP pass (42 ms at SXGA -> prep and invoke serialised, 9.5
+    // fps instead of ~15).  Yield each poll; costs nothing when nobody else
+    // of equal priority is ready.
+    taskYIELD();
     if ((int32_t)(xTaskGetTickCount() - deadline) >= 0) {
       PXP_Reset(DEMO_PXP);
       return false;
@@ -2984,10 +3007,30 @@ static int pxp_scale_xrgb_to_rgb(const uint8_t* src, int src_w, int src_h,
   return 0;
 }
 
+extern "C" volatile uint32_t g_runtime_cam_w;   // libs/camera/camera_support.c (W24-T11)
+extern "C" volatile uint32_t g_runtime_cam_h;
+
 extern "C" int sentai_cam_set_res(int w, int h) {
-  if (w <= 0 || h <= 0 || w > DEMO_CAMERA_WIDTH || h > DEMO_CAMERA_HEIGHT) return -1;
+  if (w <= 0 || h <= 0 || w > (int)g_runtime_cam_w || h > (int)g_runtime_cam_h) return -1;
   g_cam_width = w;
   g_cam_height = h;
+  return 0;
+}
+
+// W24-T11 (2026-10-31): select the SENSOR geometry before the first camera
+// init.  Only the two modes with receiver + D-PHY + OV5640 PLL table rows:
+// VGA 640x480 (15/30/45/60/90 fps) and SXGA 1280x960 (15/30 fps, 2x2 binned
+// full-sensor readout, XYUV 4.9 MB per frame buffer).  Refused once the
+// camera is initialised (the receiver cannot be re-initialised; sys.reset()).
+// Returns 0, -1 bad geometry, -2 camera already initialised.
+extern "C" int sentai_cam_set_hw(int w, int h) {
+  if (!((w == 640 && h == 480) || (w == 1280 && h == 960))) return -1;
+  if (g_cam_initialized) return -2;
+  g_runtime_cam_w = (uint32_t)w;
+  g_runtime_cam_h = (uint32_t)h;
+  g_cam_width = w;
+  g_cam_height = h;
+  g_sentai_pxp_deadline_ms = (w * h > 640 * 480) ? 200u : 50u;
   return 0;
 }
 

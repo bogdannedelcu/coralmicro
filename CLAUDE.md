@@ -136,6 +136,7 @@ venv-flash/bin/python scripts/flashtool.py -e sentai_runtime --ram
 | `0003-fsl-csi-coralmicro-irq-hooks.patch` | flow / pipeline can't tag per-buffer cam_id |
 | `0004-lwip-httpd-empty-body-post.patch` | `/api/write` HTTP returns 500 on empty body |
 | `0005-fsl-csi-empty-list-side-array-f15.patch` | CSI empty-buffer list lives inside the frame buffers → BusFault in the CSI ISR after a sensor restart / full queue (audit F15) |
+| `0006-ehci-transfer-error-hook.patch` | Edge TPU URB failures all read `kStatus_USB_TransferFailed`; without the hook the qTD error bits (XactErr vs Data Buffer Error vs Babble) are lost and `sentai.tpu.urb_sync_stats()['ehci']` stays zero (W24-T9 wedge forensics) |
 
 The same script also applies `patches/micropython/` onto `third_party/micropython` (currently `0001-objint-longlong-from-str-len-honour-len.patch` — without it any int literal > 2^30 fails to parse when a longer token precedes it on the line). The ARM build compiles the embed copy under `examples/sentai_runtime/micropython_embed/py/`, which `/qstr-regen` regenerates from the patched submodule — keep both in sync.
 

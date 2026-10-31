@@ -1,0 +1,33 @@
+SentAI v1.1 build 1711 (2026-10-31 21:24:45) board 58eb
+INIT 0
+A-vga   c2f (trained, s257)              iso min/avg/max/fail = (19, 19.0, 19, 0) | pipe {'fps': 42.4, 'invoke_ms': 20.03, 'frames': 661, 'fail': 0, 'cycle_ms': 7.3, 'wait_ms': 2.1, 'first_fail': 4294967295, 'stats': 'STATS (649, 645, 96.9)', 'pstats': "PSTATS {'pxp_ms_sum': 5042, 'cam_grab_ms_sum': 74, 'quant_ms_sum': 0, 'frames': 676, 'total_ms_sum': 7038, 'sem_wait_ms_sum': 1598}"} | urb {'take_failed': 0, 'csr_timeouts': 0, 'desync_count': 0, 'usb_detach': 0}
+A-vga   c2f_vga replica                  iso min/avg/max/fail = (87, 87.0, 87, 0) | pipe {'fps': 11.4, 'invoke_ms': 87.0, 'frames': 178, 'fail': 0, 'cycle_ms': 60.0, 'wait_ms': 0.2, 'first_fail': 4294967295, 'stats': 'STATS (175, 171, 16.5)', 'pstats': "PSTATS {'pxp_ms_sum': 6191, 'cam_grab_ms_sum': 451, 'quant_ms_sum': 0, 'frames': 859, 'total_ms_sum': 17990, 'sem_wait_ms_sum': 10918}"} | urb {'take_failed': 0, 'csr_timeouts': 0, 'desync_count': 0, 'usb_detach': 0}
+    ['in[0] uint8[1,480,640,2] (614400 bytes)  scale=0.00392157 zp=0', 'in[1] uint8[1,960,1280,1] (1228800 bytes)  scale=0.00392157 zp=0']
+A-iso   c2f_sxga (stride-2 stem)         iso min/avg/max/fail = (78, 78.93333333333334, 79, 0) | pipe - | urb {'take_failed': 0, 'csr_timeouts': 0, 'desync_count': 0, 'usb_detach': 0}
+    ['in[0] uint8[1,480,640,2] (614400 bytes)  scale=0.00392157 zp=0', 'in[1] uint8[1,960,1280,1] (1228800 bytes)  scale=0.00392157 zp=0']
+A-iso   c2f_sxga_s2d                     iso min/avg/max/fail = (204, 204.0, 204, 0) | pipe - | urb {'take_failed': 0, 'csr_timeouts': 0, 'desync_count': 0, 'usb_detach': 0}
+Traceback (most recent call last):
+  File "/usr/lib/python3/dist-packages/serial/serialposix.py", line 322, in open
+    self.fd = os.open(self.portstr, os.O_RDWR | os.O_NOCTTY | os.O_NONBLOCK)
+              ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/dev/ttyACM0'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s258_tpu_sxga_yuv420/run_sxga.py", line 143, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s258_tpu_sxga_yuv420/run_sxga.py", line 118, in main
+    bd = Board(log)
+  File "/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s258_tpu_sxga_yuv420/run_sxga.py", line 37, in __init__
+    self.ser = B.open_repl(); B.cmd(self.ser, 'import sentai', 5); self.log = log
+               ~~~~~~~~~~~^^
+  File "/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s258_tpu_sxga_yuv420/../s236_model_speed_sweep_640x480/board_serial.py", line 24, in open_repl
+    ser = serial.Serial(PORT, BAUD, timeout=0.3)
+  File "/usr/lib/python3/dist-packages/serial/serialutil.py", line 244, in __init__
+    self.open()
+    ~~~~~~~~~^^
+  File "/usr/lib/python3/dist-packages/serial/serialposix.py", line 325, in open
+    raise SerialException(msg.errno, "could not open port {}: {}".format(self._port, msg))
+serial.serialutil.SerialException: [Errno 2] could not open port /dev/ttyACM0: [Errno 2] No such file or directory: '/dev/ttyACM0'

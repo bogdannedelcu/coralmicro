@@ -164,6 +164,45 @@ static uint8_t* const s_tpu_input_buf[2] = {
 // memcpy → tensor_buf).  No memory cost — same bytes.
 #define s_staging_buf (s_tpu_input_buf[0])
 
+// W24-T11 (2026-10-31): SXGA 1280x960 YUV420 dual-input staging.  Y+UV at
+// SXGA is 1 843 200 B, twice the OCRAM .tpu_input buffer and more than the
+// whole 1 MB OCRAM, so it lives in SDRAM -- in the non-cacheable camera
+// region (m_ncamera, 24 MB, ~11 MB free after the 4 SXGA frame buffers;
+// .sdram_bss is full: +1.8 MB there overflows m_sdram by 738 KB).  Both
+// producers/consumers are DMA masters (PXP writes, EHCI reads), so the
+// non-cacheable placement also needs no cache maintenance.  Single buffer
+// (both ping-pong slots alias it, like the VGA buffer).  Used only when the
+// camera is larger than VGA and the model is dual-input YUV420; VGA keeps
+// OCRAM.  SDRAM-sourced bulk OUT is already exercised every boot by
+// tpu.invoke() on the SDRAM tensor arena (W24-T3 probes), so this is not a
+// new path for the USB host, only a bigger one.
+// Two buffers (3.7 MB): unlike the OCRAM VGA pair, which aliases one buffer,
+// SDRAM can afford a real ping-pong so the 42 ms PXP repack of the next frame
+// overlaps the 67 ms invoke of the current one (first SXGA run, build 1712:
+// one buffer serialised them -> 9.5 fps with the camera at 15 fps).
+static constexpr int kSxgaYuvStagingSize = 1280 * 960 * 3 / 2;  // 1 843 200 B
+static uint8_t s_tpu_input_buf_sxga[2][kSxgaYuvStagingSize]
+    __attribute__((aligned(64), section("NonCacheableCamera,\"aw\",%nobits @")));
+extern "C" int sentai_cam_get_width(void);
+extern "C" int sentai_cam_get_height(void);
+extern "C" int sentai_get_input_bytes(int idx);
+// Runtime camera frame geometry for the YUV420 dual-input path (the RGB
+// path still uses the compile-time VGA constants for the PXP scaler).
+static inline int yuv_cam_w(void) { return sentai_cam_get_width(); }
+static inline int yuv_cam_h(void) { return sentai_cam_get_height(); }
+static inline int yuv_y_bytes(void) { return yuv_cam_w() * yuv_cam_h(); }
+static inline int yuv_total_bytes(void) {
+    return yuv_y_bytes() + (yuv_cam_w() / 2) * (yuv_cam_h() / 2) * 2;
+}
+// The ONE place that decides which staging buffer a ping-pong slot maps to:
+// PrepTask (writer) and InferTask (reader) must agree, or the TPU reads a
+// buffer nobody filled (the first SXGA run on 1712 did exactly that).
+static inline uint8_t* yuv_in_buf(unsigned slot) {
+    if (g_sentai_yuv_dual && yuv_total_bytes() > kMaxStagingSize)
+        return s_tpu_input_buf_sxga[slot & 1u];
+    return s_tpu_input_buf[slot & 1u];
+}
+
 // ---------------------------------------------------------------------------
 // Direct-to-tensor ping-pong state (Step 4 — feature-flagged, default OFF)
 // ---------------------------------------------------------------------------
@@ -432,6 +471,39 @@ extern "C" void sentai_pipeline_infer_stats(uint32_t* ok, uint32_t* fail,
     if (ms_sum)  *ms_sum  = s_infer_ms_sum;
     if (last_rc) *last_rc = s_infer_last_rc;
 }
+
+// W24-T12 pipeline timeline trace (GPT1 us).  128-entry ring, written by
+// PrepTask / InferTask only (plain stores), read by sentai.pipeline.trace().
+// kinds: 1 P_WAIT_BUF 2 P_GOT_BUF 3 P_GRAB_OK 4 P_PXP_START 5 P_PXP_END
+//        6 P_GIVE_DONE 10 I_WAIT_PREP 11 I_GOT_PREP 12 I_INVOKE_START
+//        13 I_INPUT_DONE(t from driver) 14 I_INVOKE_END 15 I_GIVE_BUF
+struct PipeEv { uint32_t t_us; uint16_t kind; uint16_t slot; uint32_t seq; };
+static PipeEv s_pipe_ev[128];
+static volatile uint32_t s_pipe_ev_n = 0;
+static inline void pipe_trace(uint16_t kind, uint16_t slot, uint32_t seq, uint32_t t_us = 0) {
+    uint32_t n = s_pipe_ev_n++;
+    PipeEv& e = s_pipe_ev[n & 127u];
+    e.t_us = t_us ? t_us : vPortGetRunTimeCounterValue(); e.kind = kind; e.slot = slot; e.seq = seq;
+}
+extern "C" uint32_t sentai_pipeline_trace(uint32_t* out, uint32_t max_ev) {
+    if (!out) return 0;
+    uint32_t n = s_pipe_ev_n; uint32_t cnt = n < 128u ? n : 128u;
+    uint32_t first = n - cnt; uint32_t k = 0;
+    for (uint32_t i = first; i < n && k < max_ev; ++i) {
+        const PipeEv& e = s_pipe_ev[i & 127u];
+        out[k*4+0] = e.t_us; out[k*4+1] = e.kind; out[k*4+2] = e.slot; out[k*4+3] = e.seq; k++;
+    }
+    return k;
+}
+extern "C" void sentai_pipeline_trace_reset(void) { s_pipe_ev_n = 0; }
+static int s_bufs_free_cap = 0;   // W24-T12: in-flight frame cap chosen at start()
+static int s_prep_done_cap = 0;
+extern "C" void sentai_pipeline_bufs(int* cap, int* free_now) {
+    if (cap) *cap = s_bufs_free_cap;
+    if (free_now) *free_now = s_sem_bufs_free ? (int)uxSemaphoreGetCount(s_sem_bufs_free) : -1;
+}
+extern "C" volatile uint32_t g_sentai_tpu_input_done_us;
+
 // W24-T9: where in the run the FIRST invoke failure happened — ok-count at
 // that moment and ms since infer_reset().  Distinguishes "fails on the first
 // frame after a model switch" from "fails at a random frame".
@@ -843,16 +915,23 @@ static void prep_task_fn(void* /*param*/) {
         // a spurious delay (same bug fixed in the InferTask throttle).
         uint32_t t_iter_start_us = vPortGetRunTimeCounterValue();
         TickType_t t_sem_start  = t_iter_start;
+        pipe_trace(1, (uint16_t)(s_prep_count_dt & 1u), s_prep_count_dt);
         if (xSemaphoreTake(sem_input_free, pdMS_TO_TICKS(100)) != pdTRUE) {
             if (direct) s_dt_prep_buf_timeout++;
             continue;  // timeout — recheck s_running (normal when pipeline just started)
         }
+        pipe_trace(2, (uint16_t)(s_prep_count_dt & 1u), s_prep_count_dt);
         TickType_t t_sem_end = xTaskGetTickCount();
         if (!s_running) break;
 
         uint8_t* dst_buf = direct
             ? s_tpu_input_buf[s_prep_count_dt & 1u]
             : s_staging_buf;
+        // W24-T11: a YUV420 dual-input frame larger than the OCRAM buffer
+        // (SXGA) is staged in SDRAM instead.
+        if (g_sentai_yuv_dual) {
+            dst_buf = yuv_in_buf(direct ? (s_prep_count_dt & 1u) : 0u);
+        }
 
         // MOCK mode — simulate prep cadence with zero bus traffic.
         // Sleep ~20 ms (approx full-pipeline iteration), fill metadata,
@@ -877,6 +956,7 @@ static void prep_task_fn(void* /*param*/) {
             s_stg_frame_seq++;
             s_stg_cam_id = -1;  // mock mode: no real camera
             s_last_prep_frame_tick = xTaskGetTickCount();
+            pipe_trace(6, (uint16_t)(s_prep_count_dt & 1u), s_prep_count_dt);
             if (direct) { s_prep_count_dt++; xSemaphoreGive(s_sem_prep_done_c); }
             else        { xSemaphoreGive(s_sem_prep_done); }
             continue;
@@ -905,6 +985,7 @@ static void prep_task_fn(void* /*param*/) {
         TickType_t t_cam_start = xTaskGetTickCount();
         uint8_t* raw = nullptr;
         int idx = sentai_cam_grab_latest(&raw);
+        pipe_trace(3, (uint16_t)(sentai_cam_grabbed_id() & 0xFFFF), sentai_cam_get_frame_seq());  // slot = cam id, seq = camera frame seq
 #if defined(SENTAI_PLATFORM_SIM) || defined(SENTAI_ARM_EMU)
         static int s_sim_prep_grab_logs = 0;
         if (s_sim_prep_grab_logs < 8) {
@@ -1027,6 +1108,7 @@ static void prep_task_fn(void* /*param*/) {
             s_stg_cam_id = prep_cam_id;  // CAM mode: source from per-buffer tag
             s_last_grabbed_cam_id = prep_cam_id;  // for force_parity tracking
             s_last_prep_frame_tick = xTaskGetTickCount();
+            pipe_trace(6, (uint16_t)(s_prep_count_dt & 1u), s_prep_count_dt);
             if (direct) { s_prep_count_dt++; xSemaphoreGive(s_sem_prep_done_c); }
             else        { xSemaphoreGive(s_sem_prep_done); }
             continue;
@@ -1044,11 +1126,25 @@ static void prep_task_fn(void* /*param*/) {
         int rc;
         if (g_sentai_yuv_dual) {
             // s240/YUV420: one PXP pass splits the XYUV frame into Y (dst_buf[0],
-            // 640x480) + UV (dst_buf[Y_SIZE], 320x240x2).  `raw` MUST be XYUV
+            // W x H) + UV (dst_buf[Y_SIZE], W/2 x H/2 x 2).  `raw` MUST be XYUV
             // (camera in yuv_mode).  No int8 quant — the model is uint8.
-            const int Y_SIZE = DEMO_CAMERA_WIDTH * DEMO_CAMERA_HEIGHT;  // 307200
-            rc = sentai_pxp_xyuv_to_yuv420(raw, DEMO_CAMERA_WIDTH, DEMO_CAMERA_HEIGHT,
-                                           dst_buf, dst_buf + Y_SIZE);
+            // W24-T11: geometry is the RUNTIME camera size (VGA or SXGA); the
+            // model's Y tensor must match it exactly or the TPU would read
+            // past the staged planes.
+            const int cw = yuv_cam_w(), chh = yuv_cam_h();
+            const int Y_SIZE = cw * chh;
+            if (sentai_get_input_bytes(1) != Y_SIZE ||
+                sentai_get_input_bytes(0) != (cw / 2) * (chh / 2) * 2) {
+                SERR_LOG(SERR_DET_TENSOR_SIZE, (uint32_t)Y_SIZE);
+                sentai_health_fail(SUBSYS_DETECT);
+                sentai_cam_return_raw(idx);
+                xSemaphoreGive(sem_input_free);
+                vTaskDelay(pdMS_TO_TICKS(1000));
+                continue;
+            }
+            pipe_trace(4, (uint16_t)(s_prep_count_dt & 1u), s_prep_count_dt);
+            rc = sentai_pxp_xyuv_to_yuv420(raw, cw, chh, dst_buf, dst_buf + Y_SIZE);
+            pipe_trace(5, (uint16_t)(s_prep_count_dt & 1u), s_prep_count_dt);
         } else {
             rc = sentai_pxp_scale(raw, DEMO_CAMERA_WIDTH, DEMO_CAMERA_HEIGHT,
                                   dst_buf, w, h);
@@ -1295,10 +1391,12 @@ static void infer_task_fn(void* /*param*/) {
         const TickType_t prep_wait_ticks = pdMS_TO_TICKS(100);
 #endif
         TickType_t t_iwait_start = xTaskGetTickCount();
+        pipe_trace(10, (uint16_t)(s_infer_count_dt & 1u), s_infer_count_dt);
         if (xSemaphoreTake(sem_prep, prep_wait_ticks) != pdTRUE) {
             if (direct) s_dt_infer_wait_timeout++;
             continue;  // timeout — recheck s_running
         }
+        pipe_trace(11, (uint16_t)(s_infer_count_dt & 1u), s_infer_count_dt);
         s_infer_wait_ms_sum +=
             (uint32_t)((xTaskGetTickCount() - t_iwait_start) * portTICK_PERIOD_MS);
 #if defined(SENTAI_PLATFORM_SIM) || defined(SENTAI_ARM_EMU)
@@ -1340,7 +1438,8 @@ static void infer_task_fn(void* /*param*/) {
         if (direct) {
             // Direct mode: PrepTask wrote into s_tpu_input_buf[index] in
             // OCRAM; InferTask hands the same pointer to invoke.  Zero-copy.
-            uint8_t* buf = s_tpu_input_buf[s_infer_count_dt & 1u];
+            uint8_t* buf = g_sentai_yuv_dual ? yuv_in_buf(s_infer_count_dt & 1u)
+                                             : s_tpu_input_buf[s_infer_count_dt & 1u];
             s_infer_count_dt++;
             t_memcpy_end = t_memcpy_start;
             // Fine-grained pipeline sync (2026-04-25): instead of
@@ -1373,7 +1472,7 @@ static void infer_task_fn(void* /*param*/) {
             // single-input models use the legacy per-slot direct invoke.
             #define INVOKE_DT(buf_ptr) (g_sentai_yuv_dual \
                 ? sentai_tpu_invoke_with_inputs2( \
-                      (buf_ptr) + (DEMO_CAMERA_WIDTH * DEMO_CAMERA_HEIGHT), (buf_ptr)) \
+                      (buf_ptr) + yuv_y_bytes(), (buf_ptr)) \
                 : ((active_slot == 0) \
                    ? sentai_tpu_invoke_with_input(buf_ptr) \
                    : sentai_tpu_invoke_slot_with_input(active_slot, buf_ptr)))
@@ -1404,12 +1503,16 @@ static void infer_task_fn(void* /*param*/) {
                 // BOTH planes are out (>= 460800 B, i.e. the 2nd SendInputs) --
                 // PrepTask then overlaps the compute+output tail exactly like
                 // the single-input path, recovering most of the lost overlap.
-                const uint32_t yuv_in_bytes =
-                    (uint32_t)(DEMO_CAMERA_WIDTH * DEMO_CAMERA_HEIGHT)              // Y
-                  + (uint32_t)((DEMO_CAMERA_WIDTH / 2) * (DEMO_CAMERA_HEIGHT / 2) * 2); // UV
+                const uint32_t yuv_in_bytes = (uint32_t)yuv_total_bytes();  // Y + UV, runtime geometry (W24-T11)
                 if (n_calls <= 1) {
                     sentai_tpu_set_input_done_sema2(sem_free, yuv_in_bytes);
+                    const uint32_t trace_seq = s_infer_count_dt - 1u;
+                    pipe_trace(12, (uint16_t)(trace_seq & 1u), trace_seq);
+                    g_sentai_tpu_input_done_us = 0;
                     invoke_ms = s_debug_no_invoke ? 0 : INVOKE_DT(buf);
+                    pipe_trace(14, (uint16_t)(trace_seq & 1u), trace_seq);
+                    if (g_sentai_tpu_input_done_us)
+                        pipe_trace(13, (uint16_t)(trace_seq & 1u), trace_seq, g_sentai_tpu_input_done_us);
                 } else {
                     // Multi-invoke: 1..N-1 run disarmed so `buf` stays owned;
                     // arm the byte-target only before the LAST invoke.
@@ -1753,10 +1856,33 @@ extern "C" int sentai_detection_start(int conf_permil, int iou_permil, int max_d
     // Single OCRAM tensor → counting sem max=1 for strict serial.
     //   s_sem_bufs_free   : counting, max 1, init 1 — buffer is free
     //   s_sem_prep_done_c : counting, max 1, init 0 — no frame ready yet
-    if (!s_sem_bufs_free)
-        s_sem_bufs_free   = xSemaphoreCreateCounting(1, 1);
-    if (!s_sem_prep_done_c)
-        s_sem_prep_done_c = xSemaphoreCreateCounting(1, 0);
+    // W24-T11: the SXGA YUV420 staging pair in SDRAM is two REAL buffers, so
+    // two frames may be in flight (PXP of frame k+1 overlaps the invoke of
+    // frame k).  The cap is decided per start() from the model + camera
+    // geometry (fixed per boot) and the semaphore is recreated if it changes;
+    // the pipeline is stopped here, so nobody holds it.
+    {
+        const int cap = (g_sentai_yuv_dual && yuv_total_bytes() > kMaxStagingSize) ? 2 : 1;
+        if (s_sem_bufs_free && s_bufs_free_cap != cap) {
+            vSemaphoreDelete(s_sem_bufs_free);
+            s_sem_bufs_free = nullptr;
+        }
+        if (!s_sem_bufs_free) {
+            s_sem_bufs_free = xSemaphoreCreateCounting((UBaseType_t)cap, (UBaseType_t)cap);
+            s_bufs_free_cap = cap;
+        }
+        // prep_done_c must hold as many "frame ready" tokens as frames in
+        // flight, or the second give is dropped and InferTask misses a frame.
+        if (s_sem_prep_done_c && (int)uxSemaphoreGetCount(s_sem_prep_done_c) == 0 &&
+            s_prep_done_cap != cap) {
+            vSemaphoreDelete(s_sem_prep_done_c);
+            s_sem_prep_done_c = nullptr;
+        }
+        if (!s_sem_prep_done_c) {
+            s_sem_prep_done_c = xSemaphoreCreateCounting((UBaseType_t)cap, 0);
+            s_prep_done_cap = cap;
+        }
+    }
     if (!s_det_queue)
         s_det_queue = xQueueCreate(4, sizeof(DetectionFrame));
     if (!s_det_event_sem)
@@ -1784,7 +1910,10 @@ extern "C" int sentai_detection_start(int conf_permil, int iou_permil, int max_d
     // same initial-state invariant (bufs_free=1, prep_done_c=0).
     while (xSemaphoreTake(s_sem_bufs_free,   0) == pdTRUE) { }
     while (xSemaphoreTake(s_sem_prep_done_c, 0) == pdTRUE) { }
-    xSemaphoreGive(s_sem_bufs_free);  // single slot = free
+    // W24-T12: one token per in-flight buffer (1 for the aliased OCRAM VGA
+    // pair, 2 for the SXGA SDRAM pair).  A single give here silently capped
+    // the SXGA pipeline at one frame in flight (9.5 fps, trace on 1718/1719).
+    for (int k = 0; k < s_bufs_free_cap; ++k) xSemaphoreGive(s_sem_bufs_free);
     s_prep_count_dt  = 0;
     s_infer_count_dt = 0;
 

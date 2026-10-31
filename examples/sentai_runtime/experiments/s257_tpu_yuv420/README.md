@@ -285,9 +285,28 @@ firmware only on SuperSpeed (`usb_driver.cc:1521-1542`), which is why the
 `multi_ep` blob / `p2p4_5ep` never worked on this USB2 host — a dead end, not a
 bug to fix.
 
+## Fewer URBs per invoke (OP-S10-W24-T10, build 1708, `chunk_sweep.py`)
+
+| chunk | URBs / invoke (c3) | isolated invoke ms | pipeline fps (45 fps camera) |
+|---|---|---|---|
+| 36 KB (default) | 20 | 19 | 45.2 |
+| 64 KB | 13 | 19 | 45.4 |
+| 96 KB | 10 | 19 | 45.5 |
+| 128 KB | 9 | 19 | 44.7 |
+| 160 KB | 3 | **fails every invoke** | 0 |
+
+No measurable gain from 36 to 128 KB (c2f_thick identical: 21 ms, 42.5 fps) —
+the EHCI pipelines qTDs, the per-URB overhead is hidden.  160 KB breaks
+deterministically: the new EHCI hook recorded qTD status 0x48 (Halted +
+Transaction Error) after 75 776 of 126 304 bytes, i.e. qTD-chain exhaustion.
+`tpu.chunk_size()` is now clamped at 128 KB; default stays 36 KB.  The bulk-OUT
+rate is a flat ~35 MB/s for every tag and chunk size (see s258 §1: it is the
+Edge TPU's USB2 intake rate).
+
 ## Files
 
 - `run_yuv420.py` — driver (upload + sweep; `--no-upload` to reuse the SD copies).
+- `chunk_sweep.py`, `chunk_b1708.{stdout,csv,log}` — W24-T10.
 - `model_switch_stress.py`, `switch_b1705_cycle.{log,stdout}`, `switch_b1706_cycle*.{log,stdout}`, `desync_single_timeout_b1705.log` — W24-T9 model-switch campaign.
 - `run_b1705_fps30.{log,stdout}`, `results_b1705_fps30.csv`, `run_b1705_fps45.{log,stdout}`, `results_b1705_fps45.csv` — the 30 vs 45 fps comparison above.
 - `results_b1694_r2.csv`, `run_b1694_r2.log` — pass 2 (the result above).

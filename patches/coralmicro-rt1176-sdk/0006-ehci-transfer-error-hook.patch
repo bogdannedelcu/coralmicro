@@ -1,0 +1,41 @@
+diff --git a/middleware/usb/host/usb_host_ehci.c b/middleware/usb/host/usb_host_ehci.c
+index deb263ab..0e093f3f 100644
+--- a/middleware/usb/host/usb_host_ehci.c
++++ b/middleware/usb/host/usb_host_ehci.c
+@@ -17,6 +17,18 @@
+ #include "fsl_device_registers.h"
+ #include "usb_host_ehci.h"
+ #include "usb_phy.h"
++
++/* sentai (patch 0006): called just before a bulk/control/interrupt transfer is
++ * completed with kStatus_USB_TransferFailed.  qtd_status = the qTD token
++ * status byte (bit3 XactErr, bit4 Babble, bit5 Data Buffer Error, bit2 Missed
++ * micro-frame, bit6 Halted) so the application can tell a wire/device error
++ * from a host-memory underrun.  Weak no-op default; sentai_runtime overrides. */
++__attribute__((weak)) void sentai_ehci_transfer_error_hook(uint32_t qtd_status, uint32_t transfer_sofar,
++                                                           uint32_t transfer_length)
++{
++    (void)qtd_status; (void)transfer_sofar; (void)transfer_length;
++}
++
+ #if ((defined USB_HOST_CONFIG_COMPLIANCE_TEST) && (USB_HOST_CONFIG_COMPLIANCE_TEST))
+ #include "usb_host.h"
+ #endif
+@@ -3668,6 +3680,8 @@ void USB_HostEhciTransactionDone(usb_host_ehci_instance_t *ehciInstance)
+                             if (0U != (qtdStatus & EHCI_HOST_QH_STATUS_NOSTALL_ERROR_MASK))
+                             {
+                                 /* callback function is different from the current condition */
++                                sentai_ehci_transfer_error_hook(qtdStatus, transfer->transferSofar,
++                                                                transfer->transferLength);
+                                 transfer->callbackFn(transfer->callbackParam, transfer,
+                                                      kStatus_USB_TransferFailed); /* transfer fail */
+                             }
+@@ -3769,6 +3783,8 @@ void USB_HostEhciTransactionDone(usb_host_ehci_instance_t *ehciInstance)
+                             if (0U != (qtdStatus & EHCI_HOST_QH_STATUS_NOSTALL_ERROR_MASK))
+                             {
+                                 /* callback function is different from the current condition */
++                                sentai_ehci_transfer_error_hook(qtdStatus, transfer->transferSofar,
++                                                                transfer->transferLength);
+                                 transfer->callbackFn(transfer->callbackParam, transfer,
+                                                      kStatus_USB_TransferFailed); /* transfer fail */
+                             }

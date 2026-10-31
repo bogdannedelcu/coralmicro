@@ -1,0 +1,21 @@
+cam 15 fps  ID,TXFILL,BURST,SBUSCFG=0xe4a1fa05 0xa0000 0x808 0x2            pipeline  11.1 fps  invoke  72.8 ms  fails   0  recover 0/0 | buffer_err +0 xacterr +0 take_failed +0 desync +0
+cam 15 fps  ID,TXFILL,BURST,SBUSCFG=0xe4a1fa05 0x80000 0x808 0x2            pipeline   0.3 fps  invoke  67.0 ms  fails  11  recover 2/0 | buffer_err +3 xacterr +2 take_failed +8 desync +13
+cam 15 fps  ID,TXFILL,BURST,SBUSCFG=0xe4a1fa05 0x100000 0x808 0x2           pipeline  11.1 fps  invoke  77.0 ms  fails   0  recover 0/0 | buffer_err +0 xacterr +0 take_failed +0 desync +0
+cam 30 fps  ID,TXFILL,BURST,SBUSCFG=0xe4a1fa05 0x80000 0x808 0x2            pipeline   0.4 fps  invoke  69.2 ms  fails  20  recover 3/1 | buffer_err +20 xacterr +0 take_failed +0 desync +20
+cam 30 fps  ID,TXFILL,BURST,SBUSCFG=0xe4a1fa05 0x100000 0x808 0x2           pipeline  10.7 fps  invoke  91.2 ms  fails   0  recover 0/0 | buffer_err +0 xacterr +0 take_failed +0 desync +0
+cam 30  TXFILL,BURST,SBUSCFG=0xc0000 0x808 0x2           iso  66.5 ms | pipe   4.5 fps invoke  85.7 ms fails  10 recover 2/0 | buf_err +2 xact +3 to +5 desync +10
+cam 30  TXFILL,BURST,SBUSCFG=0x100000 0x1010 0x3         iso  66.0 ms | pipe  12.2 fps invoke  80.8 ms fails   0 recover 0/0 | buf_err +0 xact +0 to +0 desync +0
+cam 30  TXFILL,BURST,SBUSCFG=0x100000 0x1008 0x0         iso 186.2 ms | pipe   4.1 fps invoke 237.2 ms fails   0 recover 0/0 | buf_err +0 xact +0 to +0 desync +0
+cam 30  TXFILL,BURST,SBUSCFG=0x100000 0x2008 0x0         iso 186.2 ms | pipe   4.1 fps invoke 237.3 ms fails   0 recover 0/0 | buf_err +0 xact +0 to +0 desync +0
+cam 15  TXFILL,BURST,SBUSCFG=0xc0000 0x808 0x2           iso  65.8 ms | pipe  11.1 fps invoke  73.8 ms fails   0 recover 0/0 | buf_err +0 xact +0 to +0 desync +0
+cam 15  TXFILL,BURST,SBUSCFG=0x100000 0x1010 0x3         iso  65.9 ms | pipe  11.1 fps invoke  69.8 ms fails   0 recover 0/0 | buf_err +0 xact +0 to +0 desync +0
+cam 30  TXFILL,BURST,SBUSCFG=0x100000 0x1010 0x7         chunk 36 iso  78.0 ms | pipe  11.0 fps invoke  89.9 ms fails   0 recover 0/0 | buf_err +0 xact +0 to +0 desync +0
+cam 30  TXFILL,BURST,SBUSCFG=0x180000 0x1010 0x3         chunk 36 iso  66.2 ms | pipe  12.2 fps invoke  80.7 ms fails   0 recover 0/0 | buf_err +0 xact +0 to +0 desync +0
+cam 30  TXFILL,BURST,SBUSCFG=0x1f0000 0x1010 0x3         chunk 36 iso  66.0 ms | pipe  12.2 fps invoke  80.7 ms fails   0 recover 0/0 | buf_err +0 xact +0 to +0 desync +0
+cam 30  TXFILL,BURST,SBUSCFG=0x100000 0x1010 0x3         chunk 128 iso  65.0 ms | pipe  12.3 fps invoke  80.0 ms fails   0 recover 0/0 | buf_err +0 xact +0 to +0 desync +0
+cam 15  TXFILL,BURST,SBUSCFG=0x100000 0x1010 0x3         chunk 36 iso  66.0 ms | pipe  11.1 fps invoke  69.8 ms fails   0 recover 0/0 | buf_err +0 xact +0 to +0 desync +0
+   seq 131: P_wait@175 wait 0.0 grab@221 pxp 44.9 give@-40818 | I_wait@245 wait 20.5 inv@266 in_done 63.6 inv 70.8
+   seq 132: P_wait@266 wait 0.0 grab@311 pxp 45.1 give@-40818 | I_wait@337 wait 19.2 inv@356 in_done 63.4 inv 70.7
+   seq 133: P_wait@356 wait 0.0 grab@401 pxp 45.0 give@-40818 | I_wait@427 wait 19.2 inv@446 in_done 63.4 inv 70.6
+   seq 134: P_wait@446 wait 0.0 grab@491 pxp 45.0 give@-40818 | I_wait@517 wait 19.3 inv@536 in_done 63.2 inv 70.3
+   seq 135: P_wait@536 wait 0.0 grab@576 pxp 45.5 give@-40818 | I_wait@606 wait 15.0 inv@621 in_done 62.6 inv 69.8

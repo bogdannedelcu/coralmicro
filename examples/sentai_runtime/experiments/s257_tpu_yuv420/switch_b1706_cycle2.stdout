@@ -19,3 +19,155 @@ phase A: 12 cold loads, load s = [0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0
   13 c2f           0.3 0xcfb3d873 0xcfb3d873    151      0   20.7 14245956         0
   14 c2f_pan2      0.3 0x388a2036 0x388a2036    146      0   21.5 14172228         0
   15 gelan         0.3 0xa904e4cb 0xa904e4cb    145      0   22.0 14155844         0
+  16 c2f_thick     0.3 0xc944e52b 0xc944e52b    144      0   23.0 13566020         0
+  17 msblock       0.3 0xf2321364 0xf2321364    152      0   20.0 14303300         0
+  18 c3            0.3 0x47e84ffd 0x47e84ffd    151      0   20.0 14258244         0
+  19 c2f           0.3 0xcfb3d873 0xcfb3d873    151      0   20.7 14245956         0
+  20 c2f_pan2      0.3 0x388a2036 0x388a2036    145      0   21.7 14172228         0
+  21 gelan         0.3 0xa904e4cb 0xa904e4cb    145      0   22.0 14155844         0
+  22 c2f_thick     0.3 0xc944e52b 0xc944e52b    144      0   23.0 13566020         0
+  23 msblock       0.3 0xf2321364 0xf2321364    152      0   20.0 14303300         0
+  24 c3            0.3 0x47e84ffd 0x47e84ffd    151      0   20.0 14258244         0
+  25 c2f           0.3 0xcfb3d873 0xcfb3d873    151      0   20.6 14245956         0
+  26 c2f_pan2      0.3 0x388a2036 0x388a2036    145      0   21.6 14172228         0
+  27 gelan         0.3 0xa904e4cb 0xa904e4cb    144      0   22.0 14154376         2
+  28 c2f_thick    1.84 0xc944e52b 0xc944e52b    144      0   23.0 13564544         2
+  29 msblock       0.3 0xf2321364 0xf2321364    152      0   20.0 14301824         2
+  30 c3            0.3 0x47e84ffd 0x47e84ffd    151      0   20.0 14256768         2
+  31 c2f           0.3 0xcfb3d873 0xcfb3d873    150      0   20.7 14244480         2
+  32 c2f_pan2      0.3 0x388a2036 0x388a2036    146      0   21.5 14170752         2
+  33 gelan         0.3 0xa904e4cb 0xa904e4cb    144      0   22.0 14154368         2
+  34 c2f_thick     0.3 0xc944e52b 0xc944e52b    144      0   23.0 13564544         2
+  35 msblock       0.3 0xf2321364 0xf2321364    153      0   20.0 14301824         2
+  36 c3            0.3 0x47e84ffd 0x47e84ffd    151      0   20.0 14256768         2
+  37 c2f           0.3 0xcfb3d873 0xcfb3d873    151      0   20.7 14244480         2
+  38 c2f_pan2      0.3 0x388a2036 0x388a2036    146      0   21.5 14170752         2
+  39 gelan         0.3 0xa904e4cb 0xa904e4cb    144      0   22.0 14154368         2
+  40 c2f_thick     0.3 0xc944e52b 0xc944e52b    144      0   23.0 13564544         2
+  41 msblock       0.3 0xf2321364 0xf2321364    152      0   20.0 14301824         2
+  42 c3            0.3 0x47e84ffd 0x47e84ffd    151      0   20.0 14256768         2
+  43 c2f           0.3 0xcfb3d873 0xcfb3d873    150      0   20.7 14244480         2
+  44 c2f_pan2      0.3 0x388a2036 0x388a2036    146      0   21.6 14170752         2
+  45 gelan         0.3 0xa904e4cb 0xa904e4cb    145      0   22.0 14154368         2
+  46 c2f_thick     0.3 0xc944e52b 0xc944e52b    143      0   23.0 13564544         2
+  47 msblock       0.3 0xf2321364 0xf2321364    153      0   20.0 14301824         2
+  48 c3            0.3 0x47e84ffd 0x47e84ffd    151      0   20.0 14256768         2
+  49 c2f           0.3 0xcfb3d873 0xcfb3d873    150      0   20.7 14244480         2
+  50 c2f_pan2      0.3 0x388a2036 0x388a2036    145      0   21.6 14170752         2
+  51 gelan         0.3 0xa904e4cb 0xa904e4cb    144      0   22.0 14154368         2
+  52 c2f_thick     0.3 0xc944e52b 0xc944e52b    143      0   23.0 13564544         2
+  53 msblock       0.3 0xf2321364 0xf2321364    152      0   20.0 14301824         2
+  54 c3            0.3 0x47e84ffd 0x47e84ffd    150      0   20.0 14256768         2
+  55 c2f           0.3 0xcfb3d873 0xcfb3d873    150      0   20.6 14244480         2
+  56 c2f_pan2      0.3 0x388a2036 0x388a2036    145      0   21.5 14170752         2
+  57 gelan         0.3 0xa904e4cb 0xa904e4cb    145      0   22.0 14154368         2
+  58 c2f_thick     0.3 0xc944e52b 0xc944e52b    143      0   23.0 13564544         2
+  59 msblock       0.3 0xf2321364 0xf2321364    153      0   20.0 14301824         2
+  60 c3            0.3 0x47e84ffd 0x47e84ffd    151      0   20.0 14256768         2
+  61 c2f           0.3 0xcfb3d873 0xcfb3d873    151      0   20.6 14244480         2
+  62 c2f_pan2      0.3 0x388a2036 0x388a2036    145      0   21.4 14170752         2
+  63 gelan         0.3 0xa904e4cb 0xa904e4cb    145      0   22.0 14154368         2
+  64 c2f_thick     0.3 0xc944e52b 0xc944e52b    144      0   23.0 13564544         2
+  65 msblock       0.3 0xf2321364 0xf2321364    152      0   20.0 14301824         2
+  66 c3            0.3 0x47e84ffd 0x47e84ffd    150      0   20.0 14256768         2
+  67 c2f           0.3 0xcfb3d873 0xcfb3d873    150      0   20.6 14244480         2
+  68 c2f_pan2      0.3 0x388a2036 0x388a2036    145      0   21.5 14170752         2
+  69 gelan         0.3 0xa904e4cb 0xa904e4cb    145      0   22.0 14154368         2
+  70 c2f_thick     0.3 0xc944e52b 0xc944e52b    143      0   23.0 13564544         2
+  71 msblock       0.3 0xf2321364 0xf2321364    153      0   20.0 14301824         2
+  72 c3            0.3 0x47e84ffd 0x47e84ffd    152      0   20.0 14256768         2
+  73 c2f           0.3 0xcfb3d873 0xcfb3d873    151      0   20.6 14244480         2
+  74 c2f_pan2      0.3 0x388a2036 0x388a2036    146      0   21.5 14170752         2
+  75 gelan         0.3 0xa904e4cb 0xa904e4cb    144      0   22.0 14154368         2
+  76 c2f_thick     0.3 0xc944e52b 0xc944e52b    144      0   23.0 13564544         2
+  77 msblock       0.3 0xf2321364 0xf2321364    152      0   20.0 14301824         2
+  78 c3            0.3 0x47e84ffd 0x47e84ffd    151      0   20.0 14256768         2
+  79 c2f           0.3 0xcfb3d873 0xcfb3d873    150      0   20.6 14244480         2
+  80 c2f_pan2      0.3 0x388a2036 0x388a2036    146      0   21.6 14170752         2
+  81 gelan         0.3 0xa904e4cb 0xa904e4cb    144      0   22.0 14154368         2
+  82 c2f_thick     0.3 0xc944e52b 0xc944e52b    144      0   23.0 13564544         2
+  83 msblock       0.3 0xf2321364 0xf2321364    153      0   20.0 14301824         2
+  84 c3            0.3 0x47e84ffd 0x47e84ffd    152      0   20.0 14256768         2
+  85 c2f           0.3 0xcfb3d873 0xcfb3d873    150      0   20.6 14244480         2
+  86 c2f_pan2      0.3 0x388a2036 0x388a2036    146      0   21.5 14170752         2
+  87 gelan         0.3 0xa904e4cb 0xa904e4cb    144      0   22.0 14154368         2
+  88 c2f_thick     0.3 0xc944e52b 0xc944e52b    144      0   23.0 13564544         2
+  89 msblock       0.3 0xf2321364 0xf2321364    151      0   20.0 14301824         2
+  90 c3            0.3 0x47e84ffd 0x47e84ffd    151      0   20.0 14256768         2
+  91 c2f           0.3 0xcfb3d873 0xcfb3d873    150      0   20.6 14244480         2
+  92 c2f_pan2      0.3 0x388a2036 0x388a2036    146      0   21.6 14170752         2
+  93 gelan         0.3 0xa904e4cb 0xa904e4cb    144      0   22.0 14154368         2
+  94 c2f_thick     0.3 0xc944e52b 0xc944e52b    144      0   23.0 13564544         2
+  95 msblock       0.3 0xf2321364 0xf2321364    152      0   20.0 14301824         2
+events: E:0A06:3 E:0A12:18 E:0A0C:24 E:0480:500 E:0481:165 E:0480:500 E:0481:164 E:0480:500 E:0481:159 E:0480:500 E:0481:157 E:0480:500 E:0481:158 E:0480:500 E:0481:166 E:0480:500 E:0481:165 E:0480:500 E:0481:164 E:0480:500 E:0481:159 E:0480:500 E:0481:158 E:0480:500 E:0481:158 E:0480:500 E:0481:166 E:0480:500 E:0481:165 E:0480:500 E:0481:164 E:0480:500 E:0481:160 E:0480:500 E:0481:158 E:0480:500 E:0481:1
+heap keys: ['rtos_free', 'gc_used', 'gc_total', 'gc_free', 'gc_max_free', 'gc_max_block', 'gc_num_1block']
+VERDICT: FAIL
+  - round 27 gelan: frames=144 fail=0 urb_timeouts=2
+  - round 28 c2f_thick: frames=144 fail=0 urb_timeouts=2
+  - round 29 msblock: frames=152 fail=0 urb_timeouts=2
+  - round 30 c3: frames=151 fail=0 urb_timeouts=2
+  - round 31 c2f: frames=150 fail=0 urb_timeouts=2
+  - round 32 c2f_pan2: frames=146 fail=0 urb_timeouts=2
+  - round 33 gelan: frames=144 fail=0 urb_timeouts=2
+  - round 34 c2f_thick: frames=144 fail=0 urb_timeouts=2
+  - round 35 msblock: frames=153 fail=0 urb_timeouts=2
+  - round 36 c3: frames=151 fail=0 urb_timeouts=2
+  - round 37 c2f: frames=151 fail=0 urb_timeouts=2
+  - round 38 c2f_pan2: frames=146 fail=0 urb_timeouts=2
+  - round 39 gelan: frames=144 fail=0 urb_timeouts=2
+  - round 40 c2f_thick: frames=144 fail=0 urb_timeouts=2
+  - round 41 msblock: frames=152 fail=0 urb_timeouts=2
+  - round 42 c3: frames=151 fail=0 urb_timeouts=2
+  - round 43 c2f: frames=150 fail=0 urb_timeouts=2
+  - round 44 c2f_pan2: frames=146 fail=0 urb_timeouts=2
+  - round 45 gelan: frames=145 fail=0 urb_timeouts=2
+  - round 46 c2f_thick: frames=143 fail=0 urb_timeouts=2
+  - round 47 msblock: frames=153 fail=0 urb_timeouts=2
+  - round 48 c3: frames=151 fail=0 urb_timeouts=2
+  - round 49 c2f: frames=150 fail=0 urb_timeouts=2
+  - round 50 c2f_pan2: frames=145 fail=0 urb_timeouts=2
+  - round 51 gelan: frames=144 fail=0 urb_timeouts=2
+  - round 52 c2f_thick: frames=143 fail=0 urb_timeouts=2
+  - round 53 msblock: frames=152 fail=0 urb_timeouts=2
+  - round 54 c3: frames=150 fail=0 urb_timeouts=2
+  - round 55 c2f: frames=150 fail=0 urb_timeouts=2
+  - round 56 c2f_pan2: frames=145 fail=0 urb_timeouts=2
+  - round 57 gelan: frames=145 fail=0 urb_timeouts=2
+  - round 58 c2f_thick: frames=143 fail=0 urb_timeouts=2
+  - round 59 msblock: frames=153 fail=0 urb_timeouts=2
+  - round 60 c3: frames=151 fail=0 urb_timeouts=2
+  - round 61 c2f: frames=151 fail=0 urb_timeouts=2
+  - round 62 c2f_pan2: frames=145 fail=0 urb_timeouts=2
+  - round 63 gelan: frames=145 fail=0 urb_timeouts=2
+  - round 64 c2f_thick: frames=144 fail=0 urb_timeouts=2
+  - round 65 msblock: frames=152 fail=0 urb_timeouts=2
+  - round 66 c3: frames=150 fail=0 urb_timeouts=2
+  - round 67 c2f: frames=150 fail=0 urb_timeouts=2
+  - round 68 c2f_pan2: frames=145 fail=0 urb_timeouts=2
+  - round 69 gelan: frames=145 fail=0 urb_timeouts=2
+  - round 70 c2f_thick: frames=143 fail=0 urb_timeouts=2
+  - round 71 msblock: frames=153 fail=0 urb_timeouts=2
+  - round 72 c3: frames=152 fail=0 urb_timeouts=2
+  - round 73 c2f: frames=151 fail=0 urb_timeouts=2
+  - round 74 c2f_pan2: frames=146 fail=0 urb_timeouts=2
+  - round 75 gelan: frames=144 fail=0 urb_timeouts=2
+  - round 76 c2f_thick: frames=144 fail=0 urb_timeouts=2
+  - round 77 msblock: frames=152 fail=0 urb_timeouts=2
+  - round 78 c3: frames=151 fail=0 urb_timeouts=2
+  - round 79 c2f: frames=150 fail=0 urb_timeouts=2
+  - round 80 c2f_pan2: frames=146 fail=0 urb_timeouts=2
+  - round 81 gelan: frames=144 fail=0 urb_timeouts=2
+  - round 82 c2f_thick: frames=144 fail=0 urb_timeouts=2
+  - round 83 msblock: frames=153 fail=0 urb_timeouts=2
+  - round 84 c3: frames=152 fail=0 urb_timeouts=2
+  - round 85 c2f: frames=150 fail=0 urb_timeouts=2
+  - round 86 c2f_pan2: frames=146 fail=0 urb_timeouts=2
+  - round 87 gelan: frames=144 fail=0 urb_timeouts=2
+  - round 88 c2f_thick: frames=144 fail=0 urb_timeouts=2
+  - round 89 msblock: frames=151 fail=0 urb_timeouts=2
+  - round 90 c3: frames=151 fail=0 urb_timeouts=2
+  - round 91 c2f: frames=150 fail=0 urb_timeouts=2
+  - round 92 c2f_pan2: frames=146 fail=0 urb_timeouts=2
+  - round 93 gelan: frames=144 fail=0 urb_timeouts=2
+  - round 94 c2f_thick: frames=144 fail=0 urb_timeouts=2
+  - round 95 msblock: frames=152 fail=0 urb_timeouts=2

@@ -1,0 +1,180 @@
+>>> print(sentai.version())
+print(sentai.version())
+SentAI v1.1 build 1711 (2026-10-31 21:24:45) board 58eb
+>>> 
+>>> print("IP", sentai.usb.ip(1))
+print("IP", sentai.usb.ip(1))
+[fs_task] started (priority=2 buf=1024KB)
+[httpd] browser.html cached from user FS (13776 bytes)
+[httpd] File browser at http://10.0.0.1/
+USB Ethernet (CDC-NCM) active at 10.0.0.1 — http://10.0.0.1/
+IP 1
+>>> 
+>>> print("LOAD", sentai.tpu.load("/models/c2f_yuv420_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load("/models/c2f_yuv420_int8_edgetpu.tflite"))
+Model loaded: 271200 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0xd14808d2b5e11482
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00331566 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.07433487  zero_point=199
+  [1] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.07863516  zero_point=196
+Arena used: 485 / 8192 KB
+Model name: c2f_yuv420_int8_edgetpu
+LOAD 0
+>>> 
+>>> sentai.tpu.invoke()
+sentai.tpu.invoke()
+24
+>>> 
+>>> print("ISO", [sentai.tpu.invoke() for _ in range(20)])
+print("ISO", [sentai.tpu.invoke() for _ in range(20)])
+ISO [19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19]
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 427, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1052, 1051, 1041, 2200, 55, 0), 'ehci': (0, 0, 0, 0, 0, 0, 0, 0, 0, 0), 'gave': 427, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 427, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("LOAD", sentai.tpu.load("/models/c2f_yuv420_vga_div8_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load("/models/c2f_yuv420_vga_div8_int8_edgetpu.tflite"))
+Model loaded: 410464 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x389e2bb889f238b1
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00392157 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.00002570  zero_point=166
+  [1] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.00000229  zero_point=105
+Arena used: 1685 / 8192 KB
+Model name: c2f_yuv420_vga_div8_int8_edgetpu
+LOAD 0
+>>> 
+>>> sentai.tpu.invoke()
+sentai.tpu.invoke()
+114
+>>> 
+>>> print("ISO", [sentai.tpu.invoke() for _ in range(20)])
+print("ISO", [sentai.tpu.invoke() for _ in range(20)])
+ISO [108, 108, 108, 108, 108, 108, 108, 108, 108, 108, 108, 108, 108, 108, 108, 108, 108, 108, 108, 108]
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 1674, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1052, 1072, 1042, 4801, 55, 0), 'ehci': (0, 0, 0, 0, 0, 0, 0, 0, 0, 0), 'gave': 1674, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 1674, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("LOAD", sentai.tpu.load("/models/c2f_yuv420_vga_nosplit_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load("/models/c2f_yuv420_vga_nosplit_int8_edgetpu.tflite"))
+Model loaded: 410464 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x339b976e1f68cd94
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00392157 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.00003182  zero_point=118
+  [1] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.00000295  zero_point=153
+Arena used: 1385 / 8192 KB
+Model name: c2f_yuv420_vga_nosplit_int8_edge
+LOAD 0
+>>> 
+>>> sentai.tpu.invoke()
+sentai.tpu.invoke()
+93
+>>> 
+>>> print("ISO", [sentai.tpu.invoke() for _ in range(20)])
+print("ISO", [sentai.tpu.invoke() for _ in range(20)])
+ISO [87, 87, 87, 87, 87, 87, 87, 87, 87, 87, 87, 87, 87, 87, 87, 87, 87, 87, 87, 87]
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 2753, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1052, 1072, 1042, 4801, 55, 0), 'ehci': (0, 0, 0, 0, 0, 0, 0, 0, 0, 0), 'gave': 2753, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 2753, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("LOAD", sentai.tpu.load("/models/c2f_yuv420_vga_relu_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load("/models/c2f_yuv420_vga_relu_int8_edgetpu.tflite"))
+Model loaded: 324448 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x1f514c2b54205ac9
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00392157 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.00048991  zero_point=138
+  [1] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.00006236  zero_point=82
+Arena used: 485 / 8192 KB
+Model name: c2f_yuv420_vga_relu_int8_edgetpu
+LOAD 0
+>>> 
+>>> sentai.tpu.invoke()
+sentai.tpu.invoke()
+25
+>>> 
+>>> print("ISO", [sentai.tpu.invoke() for _ in range(20)])
+print("ISO", [sentai.tpu.invoke() for _ in range(20)])
+ISO [20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 19, 20, 20, 20, 20, 20, 20]
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 3181, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1052, 1072, 1049, 4801, 55, 0), 'ehci': (0, 0, 0, 0, 0, 0, 0, 0, 0, 0), 'gave': 3181, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 3181, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("LOAD", sentai.tpu.load("/models/c2f_yuv420_vga_nospd_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load("/models/c2f_yuv420_vga_nospd_int8_edgetpu.tflite"))
+Model loaded: 398176 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0xb74981bb64149c28
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00392157 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.00001704  zero_point=131
+  [1] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.00000122  zero_point=124
+Arena used: 1385 / 8192 KB
+Model name: c2f_yuv420_vga_nospd_int8_edgetp
+LOAD 0
+>>> 
+>>> sentai.tpu.invoke()
+sentai.tpu.invoke()
+93
+>>> 
+>>> print("ISO", [sentai.tpu.invoke() for _ in range(20)])
+print("ISO", [sentai.tpu.invoke() for _ in range(20)])
+ISO [87, 87, 87, 87, 87, 87, 87, 87, 87, 87, 87, 87, 87, 87, 87, 87, 87, 87, 87, 87]
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 4239, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1052, 1078, 1049, 4801, 55, 0), 'ehci': (0, 0, 0, 0, 0, 0, 0, 0, 0, 0), 'gave': 4239, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 4239, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 
+>>> print("LOAD", sentai.tpu.load("/models/c2f_yuv420_vga_div8_nosplit_relu_nospd_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load("/models/c2f_yuv420_vga_div8_nosplit_relu_nospd_int8_edgetpu.tflite"))
+Model loaded: 320352 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x82b1d02b9c4dce1a
+Inputs: 2
+  in[0] uint8[1,240,320,2] (153600 bytes)  scale=0.00392157 zp=0
+  in[1] uint8[1,480,640,1] (307200 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.00085461  zero_point=133
+  [1] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.00029513  zero_point=145
+Arena used: 485 / 8192 KB
+Model name: c2f_yuv420_vga_div8_nosplit_relu
+LOAD 0
+>>> 
+>>> sentai.tpu.invoke()
+sentai.tpu.invoke()
+25
+>>> 
+>>> print("ISO", [sentai.tpu.invoke() for _ in range(20)])
+print("ISO", [sentai.tpu.invoke() for _ in range(20)])
+ISO [20, 20, 20, 19, 20, 19, 20, 20, 19, 20, 19, 20, 20, 19, 20, 20, 19, 20, 19, 20]
+>>> 
+>>> print(sentai.tpu.urb_sync_stats())
+print(sentai.tpu.urb_sync_stats())
+{'take_ok': 4667, 'desync_count': 0, 'stale': 0, 'max_wait_us': (1056, 1078, 1049, 4801, 55, 0), 'ehci': (0, 0, 0, 0, 0, 0, 0, 0, 0, 0), 'gave': 4667, 'csr_mutex_timeouts': 0, 'desync_pending': 0, 'events': [], 'take_failed': 0, 'entered': 4667, 'usb_attach': 1, 'usb_detach': 0, 'csr_timeouts': 0}
+>>> 

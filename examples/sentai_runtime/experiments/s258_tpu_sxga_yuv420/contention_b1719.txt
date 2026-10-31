@@ -1,0 +1,29 @@
+SentAI v1.1 build 1719 (2026-10-31 22:04:39) board 58eb
+A  camera OFF        SXGA model isolated invoke ms (min/avg/max/fail): (65, 65.0, 65, 0) {'take_failed': 0, 'desync_count': 0, 'csr_timeouts': 0}
+B  camera SXGA15 on  SXGA model isolated invoke: (65, 65.7, 66, 0) {'take_failed': 0, 'desync_count': 0, 'csr_timeouts': 0}
+C  pipeline SXGA15 : {'recover_ok': 0, 'cycle_ms_sum': 1738, 'nms_ms_sum': 0, 'ms_sum': 2782, 'ok': 41, 'infer_wait_ms_sum': 1499, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 65, 'first_fail_ms': 0, 'bufs_cap': 2, 'bufs_free': 1, 'recover_attempts': 0}
+seq 30 slot P0/I0: P_wait 60.8 ms, pxp 42.4, I_wait 36.6, in_done 61.0, inv 68.5
+seq 31 slot P0/I0: P_wait 61.0 ms, pxp 42.5, I_wait 35.7, in_done 61.0, inv 68.4
+seq 32 slot P0/I0: P_wait 61.0 ms, pxp 42.5, I_wait 35.7, in_done 61.0, inv 68.4
+seq 33 slot P0/I0: P_wait 61.0 ms, pxp 42.2, I_wait 35.4, in_done 60.9, inv 68.3
+seq 34 slot P0/I0: P_wait 60.9 ms, pxp 42.0, I_wait 35.2, in_done 60.9, inv 68.4
+seq 35 slot P0/I0: P_wait 61.0 ms, pxp 42.0, I_wait 35.2, in_done 60.9, inv 68.1
+slots used (kind,slot): [(2, 0), (2, 1), (12, 0), (12, 1)]
+D  camera VGA45 on   SXGA model isolated invoke: (65, 65.6, 66, 0) {'take_failed': 0, 'desync_count': 0, 'csr_timeouts': 0}
+E  camera VGA45 on   VGA trained c2f isolated invoke: (19, 19.3, 20, 0) {'take_failed': 0, 'desync_count': 0, 'csr_timeouts': 0}
+F  camera OFF        VGA trained c2f isolated invoke: (19, 19.0, 19, 0) {'take_failed': 0, 'desync_count': 0, 'csr_timeouts': 0}
+c2f_yuv420_sxga_relu_int8_ed chunk  36 KB  invoke avg 65.0 ms
+   instr   URBs/inv  11.0  bytes/inv    297520  wait/inv   8.68 ms  submit/inv  0.13 ms  ->  34.3 MB/s
+   input   URBs/inv  57.0  bytes/inv   1866272  wait/inv  53.63 ms  submit/inv  0.73 ms  ->  34.8 MB/s
+   output  URBs/inv   3.0  bytes/inv     48000  wait/inv   2.00 ms  submit/inv  0.03 ms  ->  24.0 MB/s
+   event   URBs/inv   1.0  bytes/inv        16  wait/inv   0.05 ms  submit/inv  0.00 ms  ->   0.3 MB/s
+c2f_yuv420_sxga_relu_int8_ed chunk 128 KB  invoke avg 64.0 ms
+   instr   URBs/inv   5.0  bytes/inv    297520  wait/inv   8.53 ms  submit/inv  0.11 ms  ->  34.9 MB/s
+   input   URBs/inv  21.0  bytes/inv   1866272  wait/inv  52.71 ms  submit/inv  0.60 ms  ->  35.4 MB/s
+   output  URBs/inv   2.0  bytes/inv     48000  wait/inv   2.00 ms  submit/inv  0.02 ms  ->  24.0 MB/s
+   event   URBs/inv   1.0  bytes/inv        16  wait/inv   0.03 ms  submit/inv  0.00 ms  ->   0.5 MB/s
+c2f_yuv420_int8_edgetpu.tfli chunk  36 KB  invoke avg 19.0 ms
+   instr   URBs/inv   4.0  bytes/inv     90040  wait/inv   2.58 ms  submit/inv  0.05 ms  ->  34.8 MB/s
+   input   URBs/inv  16.0  bytes/inv    460816  wait/inv  13.09 ms  submit/inv  0.19 ms  ->  35.2 MB/s
+   output  URBs/inv   3.0  bytes/inv     48000  wait/inv   2.61 ms  submit/inv  0.03 ms  ->  18.4 MB/s
+   event   URBs/inv   1.0  bytes/inv        16  wait/inv   0.04 ms  submit/inv  0.00 ms  ->   0.4 MB/s
