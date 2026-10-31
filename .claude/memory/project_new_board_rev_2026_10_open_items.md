@@ -172,3 +172,16 @@ answers at 0x19 (58eb: 0x18) -> SA0 differs per unit, keep the fallback.
 Firmware version string is v1.1 since build 1679 (also in the USB product
 string).  Operator wants: resilience to missing peripherals + an LED code
 for "incomplete system".
+**Post-strap-fix test plan (2026-10-31):** HW: populate R163 4.7k 0201
+(BOOT_MODE1 -> DCDC_1V8_OUT, NOT PMIC VDD_1V8), ideally remove Q4; quick
+test = 4.7k wire during RST.  Then: `flashtool.py -e blink_led` (persistent,
+vendor examples link again since 21a6dfb5) -> STAT steady + user LED 0.5 s
+blink with no USB proves ROM internal boot; then SentAI.  Health/STAT-LED
+error code shipped (T16): 1 SD, 2 cam0, 3 cam1, 4 IMU, 5 TPU, 60 s window.
+**eFuse rehearsal PASSED on rev-1.0 unit 42a9 (2026-10-31, EXP-s255):**
+blhost idx 0x14 (OCOTP 0x940) = 0x000004C0 and idx 0x16 (0x960) |= 0x10
+(BT_FUSE_SEL); board still boots from flash, SBMR2 0x02000019.  RM Table 26-6
+confirmed the layout.  Tool: experiments/s255_efuse_boot_config/efuse_boot_cfg.py
+(--read / --burn I-UNDERSTAND).  Rev-1.1 units pending operator go; after the
+burn, BOOT_MODE 00 boots from fuses -> R163 not needed; SW2 (BOOT_MODE0) still
+forces SDP for recovery.
