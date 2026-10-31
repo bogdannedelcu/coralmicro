@@ -131,6 +131,19 @@ the new crash-text slot (`BUS_FAULT PC=0xEA8A CSI_TransferGetEmptyBuffer,
 BFAR=0x00604F90`).  Draining the queue before the standby avoided it in the
 second attempt; the defect itself stays open (SDK patch proposal).
 
+## Implementation rule (operator, 2026-10-31)
+
+`diag/_t_s251_genlock.py` is a **measurement driver**, not the mechanism:
+per the project rule (CLAUDE.md "compute-intensive work lives in C/C++;
+MicroPython is for logic, control and glue") everything below that touches
+the hardware is C in the firmware — `sentai_cam_peek_col()`, the CSI
+frame-complete hook with its ring and per-buffer timestamps, `sentai_cam_
+frame_log()`, the SCCB register access.  The production genlock (proposal
+A), the stale-frame guard (C), the CSI driver patch (audit F15) and the
+phase monitor (D) will be implemented in C; MicroPython only triggers and
+reads them (`sentai.camera.genlock()`, `camera.stats()["phase_us"]`).  The
+s251 driver stays as the independent test of that implementation.
+
 ## Proposal (next, needs operator go)
 
 A. `sentai.camera.genlock()` — C implementation at `camera.init()`:
