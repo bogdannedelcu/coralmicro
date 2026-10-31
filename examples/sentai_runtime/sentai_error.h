@@ -129,6 +129,9 @@ extern "C" {
 #define SERR_DET_QUEUE_FULL     (SERR_MOD_DET | 0x10)   // Detection queue full
 #define SERR_DET_QUEUE_CORRUPT  (SERR_MOD_DET | 0x11)   // Queue recv failed after send
 #define SERR_DET_INVOKE_FAIL    (SERR_MOD_DET | 0x20)   // TPU invoke failed
+#define SERR_DET_AUTO_RECOVER   (SERR_MOD_DET | 0x21)   // W24-T7: InferTask power-cycles + reloads the TPU after K consecutive invoke failures (val=attempt#)
+#define SERR_DET_AUTO_RECOVER_FAIL (SERR_MOD_DET | 0x22) // W24-T7: in-pipeline recover attempt failed (val=abs(rc))
+#define SERR_DET_AUTO_RECOVER_GIVEUP (SERR_MOD_DET | 0x23) // W24-T7: attempts exhausted -> pipeline stops itself, TPU reported missing (val=consecutive fails)
 #define SERR_DET_TENSOR_SIZE    (SERR_MOD_DET | 0x40)   // Tensor too large
 #define SERR_DET_TENSOR_INFO    (SERR_MOD_DET | 0x41)   // Cannot read tensor info
 #define SERR_DET_MODEL_NONE     (SERR_MOD_DET | 0x42)   // Model not loaded
@@ -196,6 +199,7 @@ extern "C" {
 #define SERR_TPU_SLOT_INTERP       (SERR_MOD_TPU | 0x72) // new MicroInterpreter returned NULL (val=slot)
 #define SERR_TPU_SLOT_VEC          (SERR_MOD_TPU | 0x73) // new std::vector returned NULL (val=slot)
 #define SERR_TPU_SLOT_NOT_READY    (SERR_MOD_TPU | 0x74) // Pipeline routed cam to unloaded slot (val=cam<<4|slot)
+#define SERR_TPU_OPEN_TIMEOUT      (SERR_MOD_TPU | 0x75) // W24-T7: no Edge TPU USB instance after bounded OpenDevice retries (val=tries)
 
 // ===================== Filesystem Errors (0x07xx) =====================
 #define SERR_FS_MUTEX_TIMEOUT   (SERR_MOD_FS | 0x01)    // LFS mutex timeout

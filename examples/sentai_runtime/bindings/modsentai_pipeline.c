@@ -178,6 +178,27 @@ static mp_obj_t mod_sentai_pipeline_target_fps(size_t n_args, const mp_obj_t *ar
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_pipeline_target_fps_obj,
                                             0, 1, mod_sentai_pipeline_target_fps);
 
+// sentai.pipeline.auto_recover([after_k[, max_attempts]]) -> (after_k, max_attempts)
+// W24-T7: InferTask power-cycles + reloads the TPU after `after_k`
+// consecutive invoke failures, at most `max_attempts` times per run, then
+// stops the pipeline and reports the TPU missing.  after_k=0 disables.
+// Defaults (5, 3).  Counters: infer_stats()["recover_attempts" / "recover_ok"
+// / "recover_fail" / "recover_giveup"].
+extern void sentai_pipeline_auto_recover_get(int* after_k, int* max_attempts);
+extern void sentai_pipeline_auto_recover_set(int after_k, int max_attempts);
+static mp_obj_t mod_sentai_pipeline_auto_recover(size_t n_args, const mp_obj_t *args) {
+    int k = 0, m = 0;
+    sentai_pipeline_auto_recover_get(&k, &m);
+    if (n_args >= 1) k = mp_obj_get_int(args[0]);
+    if (n_args >= 2) m = mp_obj_get_int(args[1]);
+    if (n_args >= 1) sentai_pipeline_auto_recover_set(k, m);
+    sentai_pipeline_auto_recover_get(&k, &m);
+    mp_obj_t t[2] = { mp_obj_new_int(k), mp_obj_new_int(m) };
+    return mp_obj_new_tuple(2, t);
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_pipeline_auto_recover_obj,
+                                           0, 2, mod_sentai_pipeline_auto_recover);
+
 // sentai.pipeline.prep_fps([n]) -> int
 // Caps PrepTask (cam_grab + PXP + quant) at `n` frames/sec.  0 = free
 // run.  Convention (2026-04-22): pair with target_fps at 1:2 ratio
@@ -746,6 +767,15 @@ static mp_obj_t mod_sentai_pipeline_infer_stats(void) {
                       mp_obj_new_int_from_uint(cyc));
     mp_obj_dict_store(d, mp_obj_new_str("infer_wait_ms_sum", 17),
                       mp_obj_new_int_from_uint(iwait));
+    {   // W24-T7 auto-recovery counters
+        extern void sentai_pipeline_recover_stats(uint32_t*, uint32_t*, uint32_t*, uint32_t*);
+        uint32_t ra=0, ro=0, rf=0, rg=0;
+        sentai_pipeline_recover_stats(&ra, &ro, &rf, &rg);
+        mp_obj_dict_store(d, mp_obj_new_str("recover_attempts", 16), mp_obj_new_int_from_uint(ra));
+        mp_obj_dict_store(d, mp_obj_new_str("recover_ok", 10),       mp_obj_new_int_from_uint(ro));
+        mp_obj_dict_store(d, mp_obj_new_str("recover_fail", 12),     mp_obj_new_int_from_uint(rf));
+        mp_obj_dict_store(d, mp_obj_new_str("recover_giveup", 14),   mp_obj_new_int_from_uint(rg));
+    }
     return d;
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_pipeline_infer_stats_obj,
@@ -1357,6 +1387,7 @@ static const mp_rom_map_elem_t sentai_pipeline_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_direct_stats),  MP_ROM_PTR(&mod_sentai_pipeline_direct_stats_obj) },
     { MP_ROM_QSTR(MP_QSTR_target_fps),    MP_ROM_PTR(&mod_sentai_pipeline_target_fps_obj) },
     { MP_ROM_QSTR(MP_QSTR_prep_fps),      MP_ROM_PTR(&mod_sentai_pipeline_prep_fps_obj) },
+    { MP_ROM_QSTR(MP_QSTR_auto_recover),  MP_ROM_PTR(&mod_sentai_pipeline_auto_recover_obj) },
     { MP_ROM_QSTR(MP_QSTR_prep_stats),    MP_ROM_PTR(&mod_sentai_pipeline_prep_stats_obj) },
     { MP_ROM_QSTR(MP_QSTR_prep_reset),    MP_ROM_PTR(&mod_sentai_pipeline_prep_reset_obj) },
     { MP_ROM_QSTR(MP_QSTR_prep_start),    MP_ROM_PTR(&mod_sentai_pipeline_prep_start_obj) },

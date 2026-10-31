@@ -29,6 +29,9 @@ extern "C" void sentai_usb_edgetpu_dump_eps(void);
 #include "libs/tpu/usb_host_edgetpu.h"
 #include "libs/usb/usb_host_task.h"
 
+// W24-T7 diagnosability: PGOOD did not assert within the bounded wait.
+extern "C" volatile uint32_t g_sentai_tpu_pgood_timeouts = 0;
+
 using namespace std::placeholders;
 
 namespace coralmicro {
@@ -146,10 +149,20 @@ void EdgeTpuTask::HandleSetPowerRequest(SetPowerRequest &req) {
 
   GpioSet(Gpio::kEdgeTpuPmic, req.enable);
   if (req.enable) {
+    // W24-T7 (2026-10-31): BOUNDED PGOOD wait.  The original busy-loop never
+    // returned if the TPU rail did not come up, which hung this task and,
+    // through SendRequest's portMAX_DELAY, every caller of SetPower().  The
+    // rail normally asserts PGOOD within a few ms; 200 ms is generous.  On
+    // timeout we still release reset (the USB enumeration path is itself
+    // bounded now) and count it for diagnostics.
     bool power_good{false};
-    while (!power_good) {
+    for (int waited_ms = 0; !power_good && waited_ms < 200; ++waited_ms) {
       power_good = GpioGet(Gpio::kEdgeTpuPgood);
-      taskYIELD();
+      if (!power_good) vTaskDelay(pdMS_TO_TICKS(1));
+    }
+    if (!power_good) {
+      g_sentai_tpu_pgood_timeouts++;
+      printf("[EdgeTPU] PGOOD not asserted within 200 ms after power-on\r\n");
     }
     vTaskDelay(pdMS_TO_TICKS(10));
   }

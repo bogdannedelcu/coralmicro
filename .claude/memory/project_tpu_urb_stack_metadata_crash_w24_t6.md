@@ -41,6 +41,21 @@ out-of-line call (`sentai_check_fail`).
 board alive, `take_failed`/`csr_timeouts` > 0, every invoke 0B62 until
 `sentai.tpu.recover()` ("invokes restored without reflash"), then clean.
 
+**W24-T7 auto-recovery (build 1703/1704):** InferTask calls
+`sentai_tpu_recover_in_pipeline()` after 5 consecutive invoke failures, max 3
+attempts/run with 250 ms × attempt back-off (SERR 0x0421/0x0422); exhausted →
+0x0423, pipeline stops itself, `sentai_health_periph(PERIPH_TPU, 0)` (LED
+code 5); a successful recover (auto or `tpu.recover()`) reports the TPU
+present again.  Knob `sentai.pipeline.auto_recover(k, n)`, counters in
+`pipeline.infer_stats()`.  Verified: transient flood self-heals in one attempt
+and the run continues; sustained flood gives up cleanly.  **1705:** the first
+1704 test hung — `EdgeTpuManager::OpenDevice()` waited for the USB instance
+in an unbounded loop holding `mutex_` (TPU did not re-enumerate under the
+flood) and a REPL `tpu.recover()` blocked behind it → REPL dead.  Now bounded:
+OpenDevice ≤ 3 s, loader 4 tries (SERR 0x0B75), `SetPower` PGOOD ≤ 200 ms.
+Rule: every wait on the TPU bring-up path must be bounded — the REPL shares
+the manager mutex with the pipeline.
+
 **Why:** this is the real mechanism behind the long-standing "TPU load → REPL
 drops / needs physical POR" lore in [[tpu-usb-wedge-mechanism]]; the orphan URB
 was corrupting memory, not just the pipe.

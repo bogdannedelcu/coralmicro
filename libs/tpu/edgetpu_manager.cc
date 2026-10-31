@@ -74,6 +74,9 @@ void EdgeTpuManager::NotifyConnected(
 
 void EdgeTpuManager::NotifyError() { usb_error_ = true; }
 
+// W24-T7 diagnosability: OpenDevice gave up waiting for the USB instance.
+extern "C" volatile uint32_t g_sentai_tpu_open_timeouts = 0;
+
 std::shared_ptr<EdgeTpuContext> EdgeTpuManager::OpenDevice(
     PerformanceMode mode) {
 #if !defined(SENTAI_PLATFORM_SIM) && !defined(SENTAI_ARM_EMU_TPU_HOST_BRIDGE)
@@ -86,10 +89,22 @@ std::shared_ptr<EdgeTpuContext> EdgeTpuManager::OpenDevice(
   printf("[EdgeTPU mgr] creating context\r\n");
   context = std::make_shared<EdgeTpuContext>();
 
-  while (!usb_instance_) {
+  // W24-T7 (2026-10-31): BOUNDED wait for the USB instance.  This loop used
+  // to spin until enumeration completed; when the Edge TPU did not come back
+  // after a power-cycle (observed under a URB-timeout fault during DFU) the
+  // caller hung here forever HOLDING mutex_, which then blocked every other
+  // tpu.* call (REPL tpu.recover() dead, pipeline stuck in auto-recover).
+  // 3 s is 10x a normal re-enumeration + DFU; the loader retries a bounded
+  // number of times on nullptr (sentai_load_model).
+  for (int waited_ms = 0; !usb_instance_; waited_ms += 100) {
     if (usb_error_) {
       printf("%s: Error encountered while bringing up the tpu\r\n", __func__);
       usb_error_ = false;  // Reset error.
+      return nullptr;
+    }
+    if (waited_ms >= 3000) {
+      printf("%s: no Edge TPU USB instance after %d ms\r\n", __func__, waited_ms);
+      g_sentai_tpu_open_timeouts++;
       return nullptr;
     }
     taskYIELD();

@@ -380,6 +380,44 @@ static volatile uint32_t s_cycle_ms_sum      = 0;
 // => prep is NOT overlapping the invoke (scheduling/serialization), so a
 // deeper input buffer would not help.
 static volatile uint32_t s_infer_wait_ms_sum = 0;
+
+// ---- W24-T7: in-pipeline TPU auto-recovery -------------------------------
+// After an orphaned URB (0B6x timeout) the Edge TPU stays wedged: every later
+// invoke fails until the rail is power-cycled and the model re-uploaded
+// (sentai_tpu_recover).  Until 2026-10-31 that needed a REPL tpu.recover().
+// Now InferTask does it itself after s_recover_after_k CONSECUTIVE failures,
+// at most s_recover_max_attempts times per run, with a back-off of
+// 250 ms x attempt between attempts; when exhausted it stops the pipeline
+// (safe state: no more invokes) and reports the TPU missing to health.
+// after_k = 0 disables.  Defaults: 5 failures (~125 ms at 40 fps), 3 attempts.
+static volatile int      s_recover_after_k      = 5;
+static volatile int      s_recover_max_attempts = 3;
+static volatile uint32_t s_recover_consec_fail  = 0;   // consecutive invoke failures
+static volatile uint32_t s_recover_attempts     = 0;   // this run
+static volatile uint32_t s_recover_ok_total     = 0;   // since boot
+static volatile uint32_t s_recover_fail_total   = 0;
+static volatile uint32_t s_recover_giveup_total = 0;
+extern "C" int sentai_tpu_recover_in_pipeline(void);
+extern "C" void sentai_pipeline_auto_recover_get(int* after_k, int* max_attempts) {
+    if (after_k)      *after_k      = s_recover_after_k;
+    if (max_attempts) *max_attempts = s_recover_max_attempts;
+}
+extern "C" void sentai_pipeline_auto_recover_set(int after_k, int max_attempts) {
+    if (after_k < 0)  after_k = 0;
+    if (after_k > 1000) after_k = 1000;
+    if (max_attempts < 0) max_attempts = 0;
+    if (max_attempts > 10) max_attempts = 10;
+    s_recover_after_k      = after_k;
+    s_recover_max_attempts = max_attempts;
+}
+extern "C" void sentai_pipeline_recover_stats(uint32_t* attempts, uint32_t* ok,
+                                              uint32_t* fail, uint32_t* giveup) {
+    if (attempts) *attempts = s_recover_attempts;
+    if (ok)       *ok       = s_recover_ok_total;
+    if (fail)     *fail     = s_recover_fail_total;
+    if (giveup)   *giveup   = s_recover_giveup_total;
+}
+
 extern "C" int  sentai_pipeline_debug_no_invoke_get(void) {
     return s_debug_no_invoke;
 }
@@ -1486,8 +1524,41 @@ static void infer_task_fn(void* /*param*/) {
             }
             s_fail_seen++;
             sentai_health_fail(SUBSYS_DETECT);
+            // W24-T7 auto-recovery (see s_recover_* above).
+            s_recover_consec_fail++;
+            if (s_recover_after_k > 0 &&
+                s_recover_consec_fail >= (uint32_t)s_recover_after_k) {
+                if ((int)s_recover_attempts < s_recover_max_attempts) {
+                    s_recover_attempts++;
+                    SERR_LOG(SERR_DET_AUTO_RECOVER, s_recover_attempts);
+                    // Back-off: a transient USB stall clears on its own; do
+                    // not hammer the rail.  Bounded: <= 250 ms x 10.
+                    vTaskDelay(pdMS_TO_TICKS(250u * s_recover_attempts));
+                    if (!s_running) break;
+                    int rrc = sentai_tpu_recover_in_pipeline();
+                    if (rrc == 0) {
+                        s_recover_ok_total++;
+                        s_recover_consec_fail = 0;
+                    } else {
+                        s_recover_fail_total++;
+                        SERR_LOG(SERR_DET_AUTO_RECOVER_FAIL, (uint32_t)(-rrc));
+                    }
+                } else {
+                    // Exhausted: safe state = stop invoking, tell health.
+                    s_recover_giveup_total++;
+                    SERR_LOG(SERR_DET_AUTO_RECOVER_GIVEUP, s_recover_consec_fail);
+                    sentai_health_periph(PERIPH_TPU, 0);
+                    s_running = false;
+                    if (s_sem_staging_free) xSemaphoreGive(s_sem_staging_free);
+                    if (s_sem_prep_done)    xSemaphoreGive(s_sem_prep_done);
+                    if (s_sem_bufs_free)    xSemaphoreGive(s_sem_bufs_free);
+                    if (s_sem_prep_done_c)  xSemaphoreGive(s_sem_prep_done_c);
+                    break;
+                }
+            }
             continue;
         }
+        s_recover_consec_fail = 0;
         if (direct) s_dt_frames++;
 
         // NMS post-processing on output tensors
@@ -1706,6 +1777,8 @@ extern "C" int sentai_detection_start(int conf_permil, int iou_permil, int max_d
     // grab of the new run can never trigger a same-id skip.  Counters are
     // left intact (REPL can call force_parity_reset to clear them).
     s_last_grabbed_cam_id = -1;
+    s_recover_consec_fail = 0;      // W24-T7: per-run auto-recovery budget
+    s_recover_attempts    = 0;
     s_running          = true;
     s_stop_after_one_result = s_start_one_shot_request;
     s_start_one_shot_request = false;

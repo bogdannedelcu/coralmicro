@@ -38,6 +38,9 @@ CODE,MODULE,NAME,DESCRIPTION,VERSION_ADDED,STATUS
 0x0410,DET,QUEUE_FULL,Detection result queue full (val=dropped_count),v1.0,ACTIVE
 0x0411,DET,QUEUE_CORRUPT,Queue receive failed after send (val=frame_count),v1.0,ACTIVE
 0x0420,DET,INVOKE_FAIL,TPU Invoke() returned error (val=abs(rc)),v1.0,ACTIVE
+0x0421,DET,AUTO_RECOVER,InferTask auto-recovery: TPU power-cycle + model reload after K consecutive invoke failures (val=attempt number),v1.1,ACTIVE
+0x0422,DET,AUTO_RECOVER_FAIL,In-pipeline TPU recover attempt failed (val=abs(rc) of sentai_load_model),v1.1,ACTIVE
+0x0423,DET,AUTO_RECOVER_GIVEUP,Auto-recovery attempts exhausted: pipeline stopped itself and the TPU is reported missing to health (val=consecutive failures),v1.1,ACTIVE
 0x0440,DET,TENSOR_SIZE,Tensor too large for staging buffer (val=total_bytes),v1.0,ACTIVE
 0x0441,DET,TENSOR_INFO,Cannot read tensor info,v1.0,ACTIVE
 0x0442,DET,MODEL_NONE,Model not loaded,v1.0,ACTIVE
@@ -105,6 +108,7 @@ CODE,MODULE,NAME,DESCRIPTION,VERSION_ADDED,STATUS
 0x0B72,TPU,SLOT_INTERP,new MicroInterpreter returned NULL (val=slot),v1.6,ACTIVE
 0x0B73,TPU,SLOT_VEC,new std::vector<uint8_t> returned NULL (val=slot),v1.6,ACTIVE
 0x0B74,TPU,SLOT_NOT_READY,Pipeline routed cam to unloaded slot (val=cam<<4|slot),v1.6,ACTIVE
+0x0B75,TPU,OPEN_TIMEOUT,Model load gave up: no Edge TPU USB instance after bounded OpenDevice retries (val=tries; each try waits <= 3 s),v1.1,ACTIVE
 # === Module 0x0C: USB ===
 0x0C01,USB,NCM_TX_DROP,NCM TX dropped - not attached (alt=0),v1.1,ACTIVE
 0x0C02,USB,NCM_RX_DROP,NCM RX dropped - endpoint busy,v1.1,ACTIVE

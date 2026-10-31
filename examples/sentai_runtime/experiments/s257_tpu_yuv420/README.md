@@ -151,9 +151,35 @@ task).  Counters `csr_timeouts`, `csr_mutex_timeouts`.
 | flood B | 1702 | same | **board alive**: 2 CSR timeouts, 13 bulk timeouts, frames dropped; TPU wedged (every invoke 0B62) until `sentai.tpu.recover()` → "invokes restored without reflash", then 472 frames / 10 s, 0 fails |
 | repro4 | 1702 | upload + sweep, **same boot** that survived flood B | 6/6 clean, 0 fails (20.0–23.0 ms, 38–41 fps); counters unchanged from the flood (13 / 2), 99 116 URBs total |
 
-Residuals: (a) after orphaned transfers the TPU itself needs `tpu.recover()`
-(PMIC power-cycle + reload); the pipeline does not call it automatically yet
-(W24-T7); (b) `g_sentai_tpu_stale_completions` stayed 0 in the floods because
+### W24-T7 — in-pipeline auto-recovery (build 1703)
+
+InferTask now recovers the TPU itself: after `after_k` consecutive invoke
+failures (default 5, ≈125 ms at 40 fps) it logs `0x0421`, backs off
+250 ms × attempt, power-cycles the rail and reloads the model
+(`sentai_tpu_recover_in_pipeline`, the only caller allowed to reload while the
+pipeline runs — PrepTask is blocked on the semaphores InferTask stops giving).
+At most `max_attempts` per run (default 3); when exhausted it logs `0x0423`,
+stops the pipeline (safe state) and reports the TPU missing to health (LED
+code 5).  `sentai.pipeline.auto_recover([k[, n]])`, counters in
+`pipeline.infer_stats()` (`recover_attempts/ok/fail/giveup`).
+
+| scenario | build | outcome |
+|---|---|---|
+| 1.5 s URB-timeout flood while running | 1703, 1705 | 5 fails → 1 attempt → recovered; run continued at full rate, 0 further fails |
+| sustained flood | 1703 | 3 attempts (reload OK each time, invokes still failing under the flood) → give-up `0x0423:5`, `running()` False, `sys.health()['tpu']` False; after the flood `tpu.recover()` + `start()` → 348 frames / 8 s, 0 fails |
+| sustained flood | **1704** | **hang**: attempt 1 never returned — `EdgeTpuManager::OpenDevice()` waited for the USB instance in an *unbounded* loop while holding the manager mutex (the TPU did not re-enumerate under the flood, DFU included); a REPL `tpu.recover()` then blocked on that mutex and the REPL died. Pre-existing bounded-wait violation, exposed by the automatic path. |
+| sustained flood | 1705 | bounded path: 3 attempts, give-up at t = 7 s, REPL answered in 0.3 s throughout, health `tpu` False + LED code 5; flood off → `tpu.recover()` 1.8 s → health `tpu` True, LED code cleared; transient flood afterwards self-healed again |
+
+Bounds added in 1705: `OpenDevice` waits ≤ 3 s for the USB instance (was
+∞), the loader retries it 4× (≤ ~16 s, SERR `0x0B75` on give-up, was 15×∞),
+`EdgeTpuTask::SetPower` waits ≤ 200 ms for PGOOD (was a bare busy-loop).
+The 1705 run's attempts completed quickly, so the new bounds were not hit in
+this session; they exist so the failure mode of 1704 degrades into a logged,
+bounded failed attempt instead of a hang.
+
+Residuals: (a) `recover_ok` counts successful *reloads*, not restored invokes
+— under a persistent fault all three attempts "succeed" and the give-up
+follows; (b) `g_sentai_tpu_stale_completions` stayed 0 in the floods because
 `usb_host_edgetpu.c` already drops a completion whose transfer is no longer the
 pipe's active one — the token is the backstop for the arm→submit window and
 cross-pipe orphans; (c) J-Link SWD attach does not connect on this board (W24-T8).

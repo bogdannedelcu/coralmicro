@@ -30,6 +30,7 @@ extern "C" {
 #include "third_party/tflite-micro/tensorflow/lite/micro/micro_mutable_op_resolver.h"
 
 #include "sentai_error.h"
+#include "sentai_health.h"   // W24-T7: TPU presence after a recover
 #include "sentai_vision_common.h"
 
 extern "C" {
@@ -71,8 +72,14 @@ static char g_current_model_path[160] = {0};
 // YUV420 = UV + Y).  Read by detection_task.cc's PrepTask/InferTask.
 extern "C" { volatile int g_sentai_yuv_dual = 0; }
 
+// W24-T7: set only by sentai_tpu_recover_in_pipeline() so InferTask itself
+// may rebuild the interpreter while the pipeline is "running".  Safe because
+// the caller IS the only invoker, and PrepTask is blocked on the semaphores
+// InferTask stops giving for the duration (same model -> same arena layout).
+static volatile int g_sentai_tpu_reload_from_pipeline = 0;
+
 extern "C" int sentai_load_model(const char* path) {
-  if (sentai_detection_is_running()) {
+  if (sentai_detection_is_running() && !g_sentai_tpu_reload_from_pipeline) {
     printf("ERROR: stop detection pipeline before loading a new model\r\n");
     return -10;
   }
@@ -105,8 +112,12 @@ extern "C" int sentai_load_model(const char* path) {
     // model loading.  The coralmicro::EdgeTpuManager singleton
     // internally debounces repeat opens — calling it on an already-
     // live device is a no-op returning the existing context.
+    // W24-T7: OpenDevice itself is bounded (3 s per call); 4 tries keeps the
+    // whole load under ~16 s so an in-pipeline auto-recover attempt and a
+    // REPL tpu.load/recover can never hang indefinitely.
     printf("Waiting for EdgeTPU init");
-    for (int i = 0; i < 15 && !coralmicro::g_tpu_context; i++) {
+    const int kOpenTries = 4;
+    for (int i = 0; i < kOpenTries && !coralmicro::g_tpu_context; i++) {
       coralmicro::g_tpu_context =
           coralmicro::EdgeTpuManager::GetSingleton()->OpenDevice(
               coralmicro::g_tpu_mode);
@@ -116,8 +127,9 @@ extern "C" int sentai_load_model(const char* path) {
     }
     printf("\r\n");
     if (!coralmicro::g_tpu_context) {
-      printf("ERROR: EdgeTPU not initialized after 15s\r\n");
-      printf("  Check: is EdgeTPU connected? Try power-cycling the board.\r\n");
+      SERR_LOG(SERR_TPU_OPEN_TIMEOUT, (uint32_t)kOpenTries);
+      printf("ERROR: EdgeTPU not initialized after %d tries (~16 s)\r\n", kOpenTries);
+      printf("  Check: is EdgeTPU connected? Try sentai.tpu.recover() or a board power-cycle.\r\n");
       return -1;
     }
     printf("EdgeTPU ready!\r\n");
@@ -325,9 +337,21 @@ extern "C" int sentai_tpu_recover(void) {
   int rc = sentai_load_model(g_current_model_path);
   if (rc == 0) {
     printf("TPU recover: OK — invokes restored without reflash\r\n");
+    // W24-T7: a give-up reported the TPU missing (LED code 5); a successful
+    // recover is the probe result that clears it.
+    sentai_health_periph(PERIPH_TPU, 1);
   } else {
     printf("TPU recover: FAILED (rc=%d) — TPU may need a board power-cycle\r\n", rc);
   }
+  return rc;
+}
+
+// W24-T7: in-pipeline variant for InferTask's auto-recovery.  Same sequence
+// as sentai_tpu_recover(); the only difference is the reload guard bypass.
+extern "C" int sentai_tpu_recover_in_pipeline(void) {
+  g_sentai_tpu_reload_from_pipeline = 1;
+  int rc = sentai_tpu_recover();
+  g_sentai_tpu_reload_from_pipeline = 0;
   return rc;
 }
 
