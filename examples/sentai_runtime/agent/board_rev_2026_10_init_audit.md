@@ -28,7 +28,8 @@ items need the operator.
 | F11 | USB-C CC controller PTN5150A PORT/ID (GPIO_AD_08/09) untouched: device-only (UFP) today; fine, documented | INFO | — |
 | F12 | JTAG: `JTAG_MOD` (LPSR_13) has R37 DNP + R38 4.7 k pull-down → SWD mode selected correctly; LPSR_10..12 are muxed away from JTAG at boot (TRST/TDO/TDI), TCK/TMS left default; "Failed to power up DAP" (2026-10-30) is still unexplained | INFO | HW/FW later |
 | F14 | `sentai.sdcard.init()` (→ `SDCard::Init` → `SD_Init`) has no bound when no card answers: on the reference board it parked the REPL task for good (Ctrl-C cannot interrupt native code, the watchdog keeps kicking).  Boot mount is protected by `FxUserBootMount`'s 20 s task deadline; the REPL/REPL-driven paths are not | MEDIUM | FW |
-| F15 | NXP CSI driver keeps its empty-buffer linked list INSIDE the frame buffers; a DMA write into a still-linked buffer turns the list head into pixel data → BusFault in the CSI ISR re-arm (caught by the new crash record during EXP-s251; likely the same defect behind the iter3 LOCKUP) | HIGH (latent, dual-camera) | FW (SDK patch) |
+| F16 | **CSI input wedge on MUX flip** (EXP-s251 iter9/iter12, builds 1654/1658): during 1:1 alternation at the as-found phase (+400 µs, cam0 margin ~130 µs) the CSI stopped receiving frames (CR3.FRMCNT frozen, SR without overrun, CSI2RX IRQ_STATUS 0x13d = CRC + 2-bit ECC + ULPS + SoT + SoT-sync + ERRCONTROL, PPI_ERRSOT_HS lane 0, PPI_ERRSOTSYNC_HS lane 1); both sensors still streaming and answering on I2C. NOT recovered by sensor standby toggle, MUX switch, or `camera.stop()+init()` (which re-runs CSI2RX_Init incl. PHY PD cycle and the sensor PWDN/RESET pulse); only a SoC reset recovers. 2 of 10 cold boots during the genlock measurement | HIGH (dual-camera; latent in production alternation, same ISR flip path) | FW: genlock_auto default OFF; flip-free phase measurement via STROBE pads (W23-T10); deeper recovery (VIDEO_MUX / PGMC BPC4 / CSR re-init) to be tried on the next wedged unit |
+| F15 | NXP CSI driver keeps its empty-buffer linked list INSIDE the frame buffers; a DMA write into a still-linked buffer turns the list head into pixel data → BusFault in the CSI ISR re-arm (caught by the new crash record during EXP-s251; likely the same defect behind the iter3 LOCKUP) | HIGH (latent, dual-camera) | FW — **SHIPPED** SDK patch 0005, build 1657 |
 | F13 | SD card runs at 3.3 V signalling (SD1_VSELECT → U6 → NVCC_SD = 3V3); the hardware supports 1.8 V UHS-I switching, unused (16 MB/s read today) | INFO (future speed) | FW later |
 
 ## 1. Pin / net map (nets that firmware drives or should know)
@@ -319,6 +320,77 @@ buffers, single-buffer mode) makes the window wider.
 before dereferencing; on corruption drop to a `SERR_CAM_QUEUE_CORRUPT`
 counter and re-initialise the queue instead of faulting.  Plus the stale
 guard of s251 proposal C so the queue never sits full.
+
+**Status (2026-10-31, build 1657): SHIPPED as SDK patch
+`0005-fsl-csi-empty-list-side-array-f15.patch`.**  `csi_handle_t` now
+carries `emptyBufferStack[CSI_DRIVER_ACTUAL_QUEUE_SIZE]` (LIFO) instead of
+the `emptyBuffer` list head; `CSI_TransferGetEmptyBuffer` /
+`CSI_TransferPutEmptyBuffer` are bounds-checked and call
+`coralmicro_csi_on_queue_fault(kind)` (kind 1 = get on empty, 2 = put on
+full; ISR-safe counter in `camera_support.c`, M4 stub), and
+`CSI_TransferSubmitEmptyBuffer` returns `kStatus_CSI_QueueFull` on
+overflow.  `CombinedWatchdogTask` reports a counter change as
+`SERR_CAM_CSI_QUEUE_FAULT` (0x0A0F, val = kind<<16 | count);
+`sentai.camera.stats()["csi_queue_faults"]`.  The stale guard (s251
+proposal C) shipped in the same build.  The queue is NOT re-initialised on
+a fault (not needed: nothing can corrupt the side array), it is only
+reported.
+
+### F16 — CSI input wedge on MUX flip (EXP-s251 iter9 / iter12, builds 1654 / 1658)
+
+Observed twice in ten cold boots while the C genlock measured the phase by
+alternating 1:1 at the as-found offset (+400 µs: the flip towards cam0 has
+only ~130 µs of VBLANK margin).  Forensics taken on the wedged unit
+(iter12, before any reset):
+
+| probe | value | meaning |
+|---|---|---|
+| `camera.sensor_frames()` | 182, frozen | CSI FB-done IRQs stopped |
+| `CSI->CR3` | `0xB61021` → FRMCNT = 182 | the CSI itself counted no further frame starts |
+| `CSI->SR` | `0x80204000` | F1_INT, STATFF_INT, bit 31; no RxFIFO overrun, no DMA-done |
+| `CSI2RX IRQ_STATUS` | `0x13D` | CRC err, 2-bit ECC err, ULPS change, ERRSOT_HS, ERRSOTSYNC_HS, ERRCONTROL |
+| `CSI2RX PPI_ERRSOT_HS / PPI_ERRSOTSYNC_HS` | `0x1` / `0x2` | SoT error on lane 0, SoT-sync error on lane 1 |
+| OV5640 cam0 / cam1 `0x3008 0x380E/F 0x4202 0x300E 0x3A00` | `02 03D8 00 45 58` on both | streaming, VTS 984 (restored), MIPI 2-lane, night mode off |
+| recovery tries | sensor standby toggle (cam0, both), `select(1)`, `camera.stop()+init(1,45)` | **none** brought frames back (after re-init FRMCNT reset to 0 and stayed 0; SR showed SOF_INT once) |
+
+Interpretation: a flip that lands outside the new sensor's blanking puts a
+mid-packet HS burst on the lanes; the CSI2RX normally resyncs at the next
+LP-11, but occasionally the receiver / pixel-link / CSI path stays stuck in
+a state that neither CSI2RX_Init (controller SW reset + PHY PD cycle) nor
+a sensor PWDN/RESET pulse clears — only a SoC reset does.  Candidate state
+not touched by re-init: VIDEO_MUX, PGMC BPC4 D-PHY power domain, the
+MIPI_CSI CSR pixel-link master.  The s251 iter3 LOCKUP (no breadcrumb) may
+be the same event taken one level deeper.
+
+**Root cause found and fixed the same day (EXP-s251 iter17–iter20, builds
+1661–1664).**  A/B on cold boots: patch 0005 reverted → 3/3 clean; patch
+applied → 8/9 wedged; patch applied **plus a 20 µs hold before the MUX
+flip** → 3/3 clean, the same build with the hold set to 0 → 2/2 wedged.
+The flip executed inside the CSI FB-done ISR was racing the OLD sensor's
+MIPI **Frame-End short packet**: DMA-done fires when the last line is
+written, FE follows within a few µs, and a flip that cuts the FE burst
+leaves the CSI2RX / D-PHY in an error state that survives sensor restarts
+and `CSI2RX_Init()`.  Which side of the race the flip landed on depended on
+the ISR's own latency — patch 0005 removed one non-cacheable SDRAM read
+from the re-arm path (a few hundred ns) and turned 1-in-8 into 8-in-9;
+s246's "an XOR + store in the ISR broke alternation" was the same race.
+The phase (as-found vs aligned) was never the deciding factor.
+
+**Fix (build 1664):** the CSI ISR no longer flips; it arms **GPT1 output
+compare 2** at `CNT + g_cam_flip_delay_us` (default 40 µs, ~10× the race
+margin, far inside the 543 µs VBLANK even at the as-found phase) and
+`GPT1_IRQHandler` executes the flip in `sentai_cam_deferred_flip_isr()`
+(ITCM, counters + one GPIO write, GPT1_IRQn at the CSI priority so the two
+never preempt each other).  `sentai.camera.flip_delay_us([us])` exposes the
+knob (0 = legacy immediate flip, diagnostics only); `stats()` reports
+`flips_deferred` / `flips_executed`.  Patch 0005 stays.  With the race gone,
+the init-time genlock measurement is safe again; the default remains the
+flip-free pre-trim (`genlock_auto` 1) with the on-the-fly `cam_tune` loop,
+and mode 2 adds the measured verify.  W23-T10 (STROBE-pad phase
+measurement) is no longer needed for safety and is kept only as an
+optional future improvement.  If a unit ever wedges again: try `VIDEO_MUX`
+re-select, PGMC BPC4 power cycle and `CSI2RX_Deinit()` + `CSI_Deinit()`
+before resetting, and record what recovers it.
 
 ## 3. Sleep / wake architecture (what the board allows)
 

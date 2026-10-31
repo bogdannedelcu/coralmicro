@@ -1,0 +1,75 @@
+>>> import sentai
+import sentai
+>>> 
+>>> print(sentai.version())
+print(sentai.version())
+SentAI v1.0 build 1660 (2026-10-31 11:06:48) board 58eb
+>>> 
+>>> print("AUTO", sentai.camera.genlock_auto())
+print("AUTO", sentai.camera.genlock_auto())
+AUTO 1
+>>> 
+>>> print("INIT", sentai.camera.init(1, 45))
+print("INIT", sentai.camera.init(1, 45))
+HandlePowerRequest: cam0 (bus 1): OK, cam1 (bus 2): OK
+CAMERA_RECEIVER_Init = 0
+BOARD_PullCameraPowerDownPin:1
+BOARD_PullCameraResetPin:0
+BOARD_PullCameraPowerDownPin:0
+BOARD_PullCameraResetPin:1
+CAMERA_DEVICE_Init = 0
+CAMERA_DEVICE_Start = 0
+CAMERA_RECEIVER_Start = 0
+[CAM] sensor_fps=46 (1 s sample, target=30)
+[CAM1] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM1] W 0x3820=0x47 (0)
+[CAM1] W 0x3821=0x01 (0)
+[CAM0] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM0] W 0x3820=0x47 (0)
+[CAM0] W 0x3821=0x01 (0)
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xEA (0)
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xD8 (0)
+[cam] pre-trim: cam0 delayed 18 lines (406 us) -> alternation at full rate
+INIT 0
+>>> 
+>>> sentai.rtos.sleep_ms(3000)
+sentai.rtos.sleep_ms(3000)
+>>> 
+>>> print("SF_A", sentai.camera.sensor_frames()); sentai.rtos.sleep_ms(500); print("SF_B", sentai.camera.sensor_frames())
+print("SF_A", sentai.camera.sensor_frames()); sentai.rtos.sleep_ms(500); print("SF_B", sentai.camera.sensor_frames())
+SF_A 207
+SF_B 231
+>>> 
+>>> print("PEEK", sentai.camera.peek_col(40)[:2])
+print("PEEK", sentai.camera.peek_col(40)[:2])
+PEEK (0, 0)
+>>> 
+>>> exec("sentai.camera.switch_drain(0)\nsentai.camera.dirty_skip_n(0)\nsentai.camera.ratio(1,1)\nt0=sentai.rtos.ticks_ms()\nf0=sentai.camera.sensor_frames()\nn=0\nerr=0\nwhile sentai.rtos.ticks_ms()-t0<6000:\n  try:\n    sentai.camera.peek_col(40); n+=1\n  except Exception as e:\n    err+=1\n    if err>3: break\ndt=sentai.rtos.ticks_ms()-t0\nprint('ALT consumed',n,'sensor',sentai.camera.sensor_frames()-f0,'ms',dt,'fps',(n*1000)//max(dt,1),'err',err)\nsentai.camera.ratio(0,0)")
+exec("sentai.camera.switch_drain(0)\nsentai.camera.dirty_skip_n(0)\nsentai.camera.ratio(1,1)\nt0=sentai.rtos.ticks_ms()\nf0=sentai.camera.sensor_frames()\nn=0\nerr=0\nwhile sentai.rtos.ticks_ms()-t0<6000:\n  try:\n    sentai.camera.peek_col(40); n+=1\n  except Exception as e:\n    err+=1\n    if err>3: break\ndt=sentai.rtos.ticks_ms()-t0\nprint('ALT consumed',n,'sensor',sentai.camera.sensor_frames()-f0,'ms',dt,'fps',(n*1000)//max(dt,1),'err',err)\nsentai.camera.ratio(0,0)")
+ALT consumed 13 sensor 14 ms 12697 fps 1 err 1
+>>> 
+>>> print("STATS_ALT", sentai.camera.stats())
+print("STATS_ALT", sentai.camera.stats())
+STATS_ALT {'switch_fallback': 0, 'grab_retry': 2, 'csi_queue_faults': 0, 'phase_drift': 0, 'grab_fatal': 1, 'genlock_ok': 0, 'pretrim_lines': 18, 'stall_count': 0, 'drain_timeout': 0, 'autotrims': 0, 'stale_skips': 2, 'phase_us': -12, 'stalled': 0, 'genlock_steps': 0, 'switch_ok_eof': 0}
+>>> 
+>>> print("SF_C", sentai.camera.sensor_frames()); sentai.rtos.sleep_ms(500); print("SF_D", sentai.camera.sensor_frames())
+print("SF_C", sentai.camera.sensor_frames()); sentai.rtos.sleep_ms(500); print("SF_D", sentai.camera.sensor_frames())
+SF_C 262
+SF_D 262
+>>> 
+>>> print("DMESG", sentai.rtos.dmesg())
+print("DMESG", sentai.rtos.dmesg())
+DMESG [         0] I E:0F01:1
+[      3813] I E:0500:30
+[      8158] I E:0A06:3
+[      8813] I E:0A12:18
+[     13813] I E:0A08:1
+[     13813] I E:0A03:0
+[     18813] I E:0A08:0
+[     18813] I E:0A03:1
+[     23813] I E:0A08:1
+[     23813] I E:0AF0:1
+
+>>> 

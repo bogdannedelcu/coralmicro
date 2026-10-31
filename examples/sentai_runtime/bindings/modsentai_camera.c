@@ -289,13 +289,44 @@ extern void sentai_cam_stats_get(uint32_t* ok_eof, uint32_t* fallback,
                                  uint32_t* drain_timeout,
                                  uint32_t* grab_retry, uint32_t* grab_fatal);
 extern void sentai_cam_stall_get(uint32_t* count, uint32_t* stalled);
+extern void sentai_cam_genlock_stats(int32_t* phase_us, uint32_t* valid,
+                                     uint32_t* ok, uint32_t* steps,
+                                     uint32_t* stale_skips, uint32_t* drift);
 static mp_obj_t mod_sentai_cam_stats(void) {
     uint32_t ok_eof = 0, fallback = 0, drain_timeout = 0,
              grab_retry = 0, grab_fatal = 0, stall_count = 0, stalled = 0;
+    int32_t phase_us = 0; uint32_t pvalid = 0, gl_ok = 0, gl_steps = 0, stale = 0, drift = 0;
     sentai_cam_stats_get(&ok_eof, &fallback, &drain_timeout,
                          &grab_retry, &grab_fatal);
     sentai_cam_stall_get(&stall_count, &stalled);
-    mp_obj_t d = mp_obj_new_dict(7);
+    sentai_cam_genlock_stats(&phase_us, &pvalid, &gl_ok, &gl_steps, &stale, &drift);
+    mp_obj_t d = mp_obj_new_dict(17);
+    // EXP-s251 genlock / phase monitor / stale guard
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_phase_us),
+                      pvalid ? mp_obj_new_int(phase_us) : mp_const_none);
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_genlock_ok), mp_obj_new_int_from_uint(gl_ok));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_genlock_steps), mp_obj_new_int_from_uint(gl_steps));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_stale_skips), mp_obj_new_int_from_uint(stale));
+    mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_phase_drift), mp_obj_new_int_from_uint(drift));
+    {
+        extern void sentai_cam_autotune_stats(uint32_t* pretrim_lines, uint32_t* trims);
+        uint32_t pl = 0, tr = 0;
+        sentai_cam_autotune_stats(&pl, &tr);
+        mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_pretrim_lines), mp_obj_new_int_from_uint(pl));
+        mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_autotrims), mp_obj_new_int_from_uint(tr));
+    }
+    {
+        extern void sentai_cam_flip_stats(uint32_t* deferred, uint32_t* executed);
+        uint32_t fd = 0, fe = 0;
+        sentai_cam_flip_stats(&fd, &fe);
+        mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_flips_deferred), mp_obj_new_int_from_uint(fd));
+        mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_flips_executed), mp_obj_new_int_from_uint(fe));
+    }
+    {
+        extern uint32_t sentai_cam_csi_queue_faults(void);
+        mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_csi_queue_faults),
+                          mp_obj_new_int_from_uint(sentai_cam_csi_queue_faults()));
+    }
     // Watchdog liveness observer (audit camera-M5): stalls since boot and
     // whether one is in progress right now.
     mp_obj_dict_store(d, MP_ROM_QSTR(MP_QSTR_stall_count),
@@ -382,6 +413,79 @@ static mp_obj_t mod_sentai_cam_peek5_tags(void) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_cam_peek5_tags_obj,
                                   mod_sentai_cam_peek5_tags);
+
+// sentai.camera.genlock(sync_start=0) -> int
+// Bring the two sensors in phase (EXP-s251): measure phi from the FB-done
+// log while alternating, apply one-frame TIMING_VTS tweaks (<= 3), return
+// the residual phase in us; negative = error (-10 pipeline running, -20
+// sensors did not restart, -30 not measurable, -40 not converged, -50 SCCB,
+// -51 VTS restore failed).
+// sync_start=1 first restarts both sensors from standby back-to-back.
+// Runs automatically (sync_start=0) at camera.init() when both sensors are
+// detected AND genlock_auto(1) was set (default off, audit F16).  Blocking; typically 2-3 s, worst case ~20 s.
+extern int sentai_cam_genlock(int sync_start);
+static mp_obj_t mod_sentai_cam_genlock(size_t n_args, const mp_obj_t *args) {
+    int sync = (n_args >= 1) ? mp_obj_get_int(args[0]) : 0;
+    return mp_obj_new_int(sentai_cam_genlock(sync));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_cam_genlock_obj, 0, 1,
+                                            mod_sentai_cam_genlock);
+
+// sentai.camera.genlock_auto([mode]) -> int
+// What camera.init() does when both sensors are detected: 0 nothing,
+// 1 (default) open-loop pre-trim only (no MUX flip, audit F16), 2 pre-trim
+// followed by the measured genlock (flips at an already-aligned phase).
+extern int sentai_cam_genlock_auto(int set);
+static mp_obj_t mod_sentai_cam_genlock_auto(size_t n_args, const mp_obj_t *args) {
+    int set = (n_args >= 1) ? mp_obj_get_int(args[0]) : -1;
+    return mp_obj_new_int(sentai_cam_genlock_auto(set));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_cam_genlock_auto_obj, 0, 1,
+                                            mod_sentai_cam_genlock_auto);
+
+// sentai.camera.autotune([on]) -> int
+// Query / set the on-the-fly phase re-alignment (cam_tune task, default 1).
+extern int sentai_cam_autotune(int set);
+static mp_obj_t mod_sentai_cam_autotune(size_t n_args, const mp_obj_t *args) {
+    int set = (n_args >= 1) ? (mp_obj_get_int(args[0]) ? 1 : 0) : -1;
+    return mp_obj_new_int(sentai_cam_autotune(set));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_cam_autotune_obj, 0, 1,
+                                            mod_sentai_cam_autotune);
+
+// sentai.camera.flip_delay_us([us]) -> int
+// Delay between CSI FB-done and the MUX flip (GPT1 output compare).
+// Default 40; 0 = legacy immediate flip in the CSI ISR (races the old
+// sensor's Frame-End packet -> CSI2RX wedge, audit F16; diagnostics only).
+extern int sentai_cam_flip_delay_us(int set);
+static mp_obj_t mod_sentai_cam_flip_delay_us(size_t n_args, const mp_obj_t *args) {
+    int set = (n_args >= 1) ? mp_obj_get_int(args[0]) : -1;
+    return mp_obj_new_int(sentai_cam_flip_delay_us(set));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_cam_flip_delay_us_obj, 0, 1,
+                                            mod_sentai_cam_flip_delay_us);
+
+// sentai.camera.pretrim() -> lines applied (>0) or negative code
+// Open-loop removal of the start-order phase offset on cam0 (no MUX flip).
+extern int sentai_cam_pretrim(void);
+static mp_obj_t mod_sentai_cam_pretrim(void) {
+    return mp_obj_new_int(sentai_cam_pretrim());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_cam_pretrim_obj, mod_sentai_cam_pretrim);
+
+// sentai.camera.phase() -> (phi_us, T_us) or negative int
+// One ~1.6 s measurement of the inter-sensor phase (alternates 1:1 while
+// dequeuing; restores the caller's ratio and camera).  Errors: -1 camera
+// off, -10 detection pipeline running, -30 not measurable.
+extern int sentai_cam_phase_measure(int32_t* phi_us, uint32_t* T_us);
+static mp_obj_t mod_sentai_cam_phase(void) {
+    int32_t phi = 0; uint32_t T = 0;
+    int rc = sentai_cam_phase_measure(&phi, &T);
+    if (rc != 0) return mp_obj_new_int(rc);
+    mp_obj_t it[2] = { mp_obj_new_int(phi), mp_obj_new_int_from_uint(T) };
+    return mp_obj_new_tuple(2, it);
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_cam_phase_obj, mod_sentai_cam_phase);
 
 // sentai.camera.peek_col(x=40) -> (tag_task, tag_isr, bytes[480], idx, ts_us, now_us)
 // EXP-s251: B-channel profile of column x over every row of ONE dequeued
@@ -888,6 +992,12 @@ static const mp_rom_map_elem_t sentai_camera_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_peek5_b40),       MP_ROM_PTR(&mod_sentai_cam_peek5_b40_obj) },
     { MP_ROM_QSTR(MP_QSTR_peek5_tags),      MP_ROM_PTR(&mod_sentai_cam_peek5_tags_obj) },
     { MP_ROM_QSTR(MP_QSTR_peek_col),        MP_ROM_PTR(&mod_sentai_cam_peek_col_obj) },
+    { MP_ROM_QSTR(MP_QSTR_genlock),         MP_ROM_PTR(&mod_sentai_cam_genlock_obj) },
+    { MP_ROM_QSTR(MP_QSTR_genlock_auto),    MP_ROM_PTR(&mod_sentai_cam_genlock_auto_obj) },
+    { MP_ROM_QSTR(MP_QSTR_autotune),        MP_ROM_PTR(&mod_sentai_cam_autotune_obj) },
+    { MP_ROM_QSTR(MP_QSTR_pretrim),         MP_ROM_PTR(&mod_sentai_cam_pretrim_obj) },
+    { MP_ROM_QSTR(MP_QSTR_flip_delay_us),   MP_ROM_PTR(&mod_sentai_cam_flip_delay_us_obj) },
+    { MP_ROM_QSTR(MP_QSTR_phase),           MP_ROM_PTR(&mod_sentai_cam_phase_obj) },
     { MP_ROM_QSTR(MP_QSTR_frame_log),       MP_ROM_PTR(&mod_sentai_cam_frame_log_obj) },
     { MP_ROM_QSTR(MP_QSTR_fps),             MP_ROM_PTR(&mod_sentai_cam_fps_obj) },
     { MP_ROM_QSTR(MP_QSTR_frame_count),  MP_ROM_PTR(&mod_sentai_cam_frame_count_obj) },

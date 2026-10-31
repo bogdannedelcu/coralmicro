@@ -114,8 +114,19 @@ void TimerSetRtcTime(uint32_t sec) {
 
 }  // namespace coralmicro
 
+// Deferred dual-camera MUX flip (libs/camera/camera_support.c, M7).  The
+// CSI ISR arms GPT1 output-compare 2; the flip runs here.  Weak default so
+// builds without the camera library (and the M4) link unchanged.
+extern "C" __attribute__((weak)) void sentai_cam_deferred_flip_isr(void) {}
+
 extern "C" void GPT1_IRQHandler() {
-  if (GPT_GetStatusFlags(GPT1, kGPT_RollOverFlag)) {
+  uint32_t sr = GPT1->SR;
+  if (sr & GPT_SR_OF2_MASK) {
+    GPT1->SR = GPT_SR_OF2_MASK;
+    GPT1->IR &= ~GPT_IR_OF2IE_MASK;
+    sentai_cam_deferred_flip_isr();
+  }
+  if (sr & GPT_SR_ROV_MASK) {
     GPT_ClearStatusFlags(GPT1, kGPT_RollOverFlag);
     ++coralmicro::g_micros_rollover;
   }

@@ -125,7 +125,7 @@ python3 scripts/flashtool.py -e sentai_runtime --ram
 
 ## SDK patches (load-bearing)
 
-`third_party/nxp/rt1176-sdk` is upstream-clean + 4 patches applied **at CMake configure time** by `scripts/apply_sdk_patches.sh` (idempotent). Patches live under `patches/coralmicro-rt1176-sdk/`:
+`third_party/nxp/rt1176-sdk` is upstream-clean + 5 patches applied **at CMake configure time** by `scripts/apply_sdk_patches.sh` (idempotent). Patches live under `patches/coralmicro-rt1176-sdk/`:
 
 | Patch | Symptom if missing |
 |---|---|
@@ -133,6 +133,7 @@ python3 scripts/flashtool.py -e sentai_runtime --ram
 | `0002-ehci-queue-depth-16.patch` | TPU USB transfer stalls under high pipeline load |
 | `0003-fsl-csi-coralmicro-irq-hooks.patch` | flow / pipeline can't tag per-buffer cam_id |
 | `0004-lwip-httpd-empty-body-post.patch` | `/api/write` HTTP returns 500 on empty body |
+| `0005-fsl-csi-empty-list-side-array-f15.patch` | CSI empty-buffer list lives inside the frame buffers → BusFault in the CSI ISR after a sensor restart / full queue (audit F15) |
 
 The same script also applies `patches/micropython/` onto `third_party/micropython` (currently `0001-objint-longlong-from-str-len-honour-len.patch` — without it any int literal > 2^30 fails to parse when a longer token precedes it on the line). The ARM build compiles the embed copy under `examples/sentai_runtime/micropython_embed/py/`, which `/qstr-regen` regenerates from the patched submodule — keep both in sync.
 

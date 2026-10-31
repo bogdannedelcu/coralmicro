@@ -180,6 +180,24 @@ volatile uint32_t g_cam_dirty_pending_count = 0u;
  * the sweet spot at the user's ratio.  Default N=1 keeps the
  * baseline behaviour. */
 volatile uint32_t g_cam_dirty_consecutive_n = 1u;
+/* Deferred MUX flip (EXP-s251 iter18, audit F16 root cause, 2026-10-31).
+ * A flip executed inside the CSI FB-done ISR races the OLD sensor's
+ * MIPI Frame-End packet: DMA-done fires when the last line is written,
+ * the FE short packet follows within a few us, and whether the flip
+ * lands before or after it depends on the ISR's own latency (a few
+ * hundred ns of driver change -- SDK patch 0005 -- turned 1-in-8 wedges
+ * into 8-in-9; s246's "an XOR in the ISR broke alternation" was the same
+ * race).  A flip that cuts the FE burst leaves the CSI2RX/D-PHY in an
+ * error state that neither a sensor restart nor CSI2RX_Init() clears.
+ * The CSI ISR therefore only ARMS GPT1 output-compare channel 2 at
+ * CNT + g_cam_flip_delay_us; the flip itself runs in GPT1_IRQHandler
+ * (sentai_cam_deferred_flip_isr) -- deterministic, no wait in any ISR.
+ * 40 us: >10x the measured race margin, still far inside the 543 us
+ * VBLANK even at the as-found +400 us phase (cam0 SOF at ~+143 us).
+ * Validated: 20 us hold -> 3/3 clean boots, 0 us -> 2/2 wedged. */
+volatile uint32_t g_cam_flip_delay_us  = 40u;
+volatile uint32_t g_cam_flips_executed = 0u;   /* GPT1 OF2 flips; arms are counted in g_cam_flips_deferred below */
+static volatile int g_cam_flip_armed_id = -1;  /* target cam while the timer runs */
 volatile uint8_t  g_cam_buf_dirty[DEMO_CAMERA_BUFFER_COUNT] = {0, 0, 0, 0};
 volatile uint32_t g_cam_buf_dirty_marks    = 0;
 volatile uint32_t g_cam_buf_dirty_skips    = 0;
@@ -204,7 +222,10 @@ volatile uint32_t g_cam_buf_tag_skip_both = 0;
 /* VBLANK-gated MUX flip diagnostics (build #905+).
  * g_cam_vblank_flips      : MUX flips committed inside VBLANK
  *                           (sof_seen_pre==false && SR_SOF_INT==0).
- * g_cam_flips_deferred    : total IRQ events where the flip was
+ * g_cam_flips_deferred    : (re-purposed 2026-10-31) GPT1 OCR2 arms of the
+ *                           deferred MUX flip; equals g_cam_flips_executed
+ *                           in steady state.  Historic meaning (build
+ *                           #919-#925 VBLANK gate): IRQ events where the flip was
  *                           deferred because the gate detected an
  *                           SOF in/before the ISR.
  * g_cam_flips_deferred_streak : consecutive deferrals for the
@@ -384,6 +405,18 @@ void coralmicro_csi_on_buffer_arm(uint32_t bufferAddr) {
     }
     (void)bufferAddr;
 }
+
+/* SDK patch 0005 (audit F15): the CSI driver reports an empty-list
+ * underflow (kind 1) or overflow (kind 2) here instead of faulting.
+ * ISR context: counters only; CombinedWatchdogTask turns a change into
+ * SERR_CAM_CSI_QUEUE_FAULT. */
+volatile uint32_t g_cam_csi_queue_faults = 0;
+volatile uint32_t g_cam_csi_queue_fault_kind = 0;
+__attribute__((section(".ramfunc")))
+void coralmicro_csi_on_queue_fault(uint32_t kind) {
+    g_cam_csi_queue_faults++;
+    g_cam_csi_queue_fault_kind = kind;
+}
 #else
 /* M4 stub: g_cam_current_id is M7-only.  M4 doesn't drive cameras
  * directly; provide no-ops so fsl_csi.c links cleanly on M4 too. */
@@ -392,6 +425,9 @@ void coralmicro_csi_on_frame_complete(uint32_t bufferAddr) {
 }
 void coralmicro_csi_on_buffer_arm(uint32_t bufferAddr) {
     (void)bufferAddr;
+}
+void coralmicro_csi_on_queue_fault(uint32_t kind) {
+    (void)kind;
 }
 #endif
 
@@ -608,14 +644,27 @@ void CSI_IRQHandler(void)
     int pending = g_cam_pending_mux_id;
     if (pending >= 0) {
         bool level = (CAM_MUX_LEVEL_FOR_ID(pending) != 0);
-        SentaiCamMuxSetFromIsr(level);
-        g_cam_switch_seq     = g_camera_frame_seq;
-        g_cam_switch_pending = true;
-        g_cam_current_id     = pending;
-        g_cam_pending_mux_id = -1;
-        g_cam_vblank_flips++;
-        /* Build #952 — runtime-settable via g_cam_dirty_consecutive_n. */
-        g_cam_dirty_pending_count = g_cam_dirty_consecutive_n;
+        (void)level;
+        if (g_cam_flip_delay_us == 0u) {
+            /* Legacy immediate flip (diagnostics only; races the FE packet). */
+            SentaiCamMuxSetFromIsr(CAM_MUX_LEVEL_FOR_ID(pending) != 0);
+            g_cam_switch_seq     = g_camera_frame_seq;
+            g_cam_switch_pending = true;
+            g_cam_current_id     = pending;
+            g_cam_pending_mux_id = -1;
+            g_cam_vblank_flips++;
+            g_cam_dirty_pending_count = g_cam_dirty_consecutive_n;
+        } else if (g_cam_flip_armed_id < 0) {
+            /* Arm GPT1 OCR2; the flip executes in sentai_cam_deferred_flip_isr.
+             * g_cam_pending_mux_id stays >= 0 until then so the ratio
+             * scheduler does not re-arm and the 2nd IRQ of this frame
+             * (re-arm path) is ignored by the armed check. */
+            g_cam_flip_armed_id = pending;
+            GPT1->OCR[1] = GPT1->CNT + g_cam_flip_delay_us;
+            GPT1->SR = GPT_SR_OF2_MASK;
+            GPT1->IR |= GPT_IR_OF2IE_MASK;
+            g_cam_flips_deferred++;
+        }
     }
 
     /* Build #942: ISR-exit timing instrumentation removed (#925
@@ -624,6 +673,27 @@ void CSI_IRQHandler(void)
      * the histogram pays no further cost).  The DWT->CYCCNT read
      * stays in case future profiling needs it. */
     (void)isr_t0;
+}
+/* GPT1 output-compare 2 handler (called from GPT1_IRQHandler, libs/base/
+ * timer.cc, M7 only).  Executes the MUX flip armed by CSI_IRQHandler.
+ * Shares the flip-state globals with the CSI ISR: GPT1_IRQn is set to the
+ * CSI priority (5) in BOARD_InitCamera so the two never preempt each
+ * other and there is one writer at a time. */
+__attribute__((section(".ramfunc")))
+void sentai_cam_deferred_flip_isr(void)
+{
+    int pending = g_cam_flip_armed_id;
+    if (pending < 0) return;
+    SentaiCamMuxSetFromIsr(CAM_MUX_LEVEL_FOR_ID(pending) != 0);
+    g_cam_switch_seq     = g_camera_frame_seq;
+    g_cam_switch_pending = true;
+    g_cam_current_id     = pending;
+    g_cam_pending_mux_id = -1;
+    g_cam_flip_armed_id  = -1;
+    g_cam_vblank_flips++;
+    g_cam_flips_executed++;
+    /* Build #952 — runtime-settable via g_cam_dirty_consecutive_n. */
+    g_cam_dirty_pending_count = g_cam_dirty_consecutive_n;
 }
 #endif /* !CPU_MIMXRT1176CVM8A_cm4 */
 
@@ -932,6 +1002,10 @@ status_t BOARD_InitCamera(void)
      * syscall priority boundary.  Priority 5 puts CSI below USB
      * (2) so USB IOC handling is never preempted by the camera. */
     NVIC_SetPriority(CSI_IRQn, 5);
+    /* The deferred MUX flip runs in GPT1_IRQHandler (output compare 2):
+     * same priority as the CSI ISR so the two never preempt each other
+     * and the flip-state globals keep a single writer at a time. */
+    NVIC_SetPriority(GPT1_IRQn, 5);
 
     if (BOARD_InitMipiCsi() != kStatus_Success) {
         return kStatus_Fail;

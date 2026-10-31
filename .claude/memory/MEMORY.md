@@ -1,5 +1,6 @@
 # Memory Index
 
+- [CSI MUX flip deferred 40 us on GPT1 — F16 root cause + on-the-fly phase autotune (2026-10-31)](project_csi_mux_flip_deferred_f16.md) — never flip inside CSI_IRQHandler; build 1664.
 - [TODO — exhaustive firmware audit: races, hangs, unbounded waits (requested 2026-10-30)](project_todo_exhaustive_code_audit.md) — WBS OP-S10-W23; T8 = open items.
 - [DECISION — SentAI FS moves exclusively to SD card; drop NAND user partition (2026-10-30)](project_fs_moves_to_sdcard_decision.md) — LittleFS system stays; FatFs on SD.
 - [microSD on USDHC1 bring-up PASSED (2026-10-30)](project_sdcard_usdhc1_bringup.md) — SD_PWREN_B/VSELECT GPIOs; 64 GB exFAT; build 1605.

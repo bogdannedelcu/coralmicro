@@ -1925,6 +1925,7 @@ behaviour:
 | `0002-ehci-queue-depth-16.patch` | USB EHCI QH/QTD pool 8 → 16 | TPU USB transfer stalls under high pipeline load |
 | `0003-fsl-csi-coralmicro-irq-hooks.patch` | CSI ISR hooks for camera_support | flow / pipeline can't tag per-buffer cam_id |
 | `0004-lwip-httpd-empty-body-post.patch` | Accept empty-body HTTP POST | `/api/write` HTTP returns 500 on empty body |
+| `0005-fsl-csi-empty-list-side-array-f15.patch` | CSI empty-buffer list in a side array of the handle (bounds-checked, `coralmicro_csi_on_queue_fault` hook) instead of a linked list threaded through pixel memory | BusFault in `CSI_TransferGetEmptyBuffer` when DMA writes a still-linked buffer (sensor restart, full queue) — audit F15, EXP-s251 |
 
 **`git status` ALWAYS shows the submodule as dirty** (` m third_party/nxp/rt1176-sdk`)
 because patches are applied in-place but never committed.  This is

@@ -165,6 +165,13 @@ extern "C" {
 #define SERR_CAM_HOLD_LIMIT       (SERR_MOD_CAM | 0x09)  // Frame hand-out refused: consumers already hold kFramebufferCount-2 buffers (val=held)
 #define SERR_CAM_STALL            (SERR_MOD_CAM | 0x0A)  // Watchdog: camera initialised but no sensor frame for >= 10 s (val=sensor_frames)
 #define SERR_CAM_STALL_END        (SERR_MOD_CAM | 0x0B)  // Watchdog: sensor frames resumed after a stall (val=stall seconds)
+#define SERR_CAM_GENLOCK          (SERR_MOD_CAM | 0x0C)  // Dual-camera genlock converged (val=(steps<<16)|(residual_us & 0xFFFF), EXP-s251)
+#define SERR_CAM_GENLOCK_FAIL     (SERR_MOD_CAM | 0x0D)  // Genlock failed (val=|code|: 10 pipeline, 20 no frames, 30 not measurable, 40 not converged, 50 SCCB, 51 VTS restore)
+#define SERR_CAM_PHASE_DRIFT      (SERR_MOD_CAM | 0x0E)  // Watchdog phase monitor: |cam1-cam0 phase| left the VBLANK window while alternating (val=phase us as uint32)
+#define SERR_CAM_CSI_QUEUE_FAULT  (SERR_MOD_CAM | 0x0F)  // CSI driver empty-list underflow/overflow caught by SDK patch 0005 (val=(kind<<16)|count) - audit F15
+#define SERR_CAM_PHASE_DRIFT_END  (SERR_MOD_CAM | 0x10)  // Phase monitor: |phase| back inside the window (val=phase us as uint32)
+#define SERR_CAM_PHASE_TRIM       (SERR_MOD_CAM | 0x11)  // cam_tune applied a blind one-frame VTS trim (val=(cam<<16)|lines)
+#define SERR_CAM_PRETRIM          (SERR_MOD_CAM | 0x12)  // camera.init() open-loop pre-trim applied to cam0 (val=lines)
 
 // ===================== TPU Errors (0x0Bxx) =====================
 #define SERR_TPU_ARENA_ALLOC    (SERR_MOD_TPU | 0x40)   // Arena allocation failed

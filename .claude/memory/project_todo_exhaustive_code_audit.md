@@ -141,6 +141,20 @@ queued; log freezes otherwise).  First grab after >=1 s idle is a stale
 buffer (0.5-1 s old).  MicroPython: ints > 2^30 are long-long and cannot mix
 with floats.  One unexplained M7 LOCKUP reset during iter3.
 
+**T9 FINAL (build 1664, 2026-10-31):** see [[csi-mux-flip-deferred-f16]] --
+the wedge below (iter9) was the F16 flip race, fixed by the deferred flip;
+genlock_auto default = pre-trim (mode 1); cam_tune closed loop shipped.
+
+**T9 SHIPPED in C (build 1657, 2026-10-31):** `sentai_cam_genlock()` runs at
+`camera.init()` (phase from the FB-done log while alternating, one-frame
+VTS+d trim SYNCHRONISED to the trimmed sensor's frame edge: write 5 ms after
+FB-done, restore 1.25 T later -- an unsynchronised pair shifts by d OR 2d and
+oscillates, iter8).  Converges in 1 step (|phi| <= 10 us) on 6/7 cold boots;
+on success drain=0/dirty=0 -> ratio(1,1) at 44.7 fps.  Stale guard
+(g_cam_buf_ts_us age > 2 T) and watchdog phase monitor (SERR 0x0A0E) shipped
+too.  One cold boot (iter9) had the camera wedge right at init before any
+flip (genlock -30, then stall) -- not attributed yet.  SDK patch 0005 = F15.
+
 **F15 (2026-10-31, caught by the crash-text path):** fsl_csi.c keeps the
 empty-buffer linked list inside the frame buffers; DMA into a still-linked
 buffer -> `CSI_TransferGetEmptyBuffer` dereferences a pixel (BFAR 0x00604F90)

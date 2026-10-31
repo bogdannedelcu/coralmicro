@@ -1,0 +1,99 @@
+>>> import sentai
+import sentai
+>>> 
+>>> print(sentai.version())
+print(sentai.version())
+SentAI v1.0 build 1653 (2026-10-31 10:19:01) board 58eb
+>>> 
+>>> print("INIT", sentai.camera.init(1, 45))
+print("INIT", sentai.camera.init(1, 45))
+HandlePowerRequest: cam0 (bus 1): OK, cam1 (bus 2): OK
+CAMERA_RECEIVER_Init = 0
+BOARD_PullCameraPowerDownPin:1
+BOARD_PullCameraResetPin:0
+BOARD_PullCameraPowerDownPin:0
+BOARD_PullCameraResetPin:1
+CAMERA_DEVICE_Init = 0
+CAMERA_DEVICE_Start = 0
+CAMERA_RECEIVER_Start = 0
+[CAM] sensor_fps=46 (1 s sample, target=30)
+[CAM1] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM1] W 0x3820=0x47 (0)
+[CAM1] W 0x3821=0x01 (0)
+[CAM0] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM0] W 0x3820=0x47 (0)
+[CAM0] W 0x3821=0x01 (0)
+[cam] genlock step 0: phase 432 us -> cam0 VTS 984+19 for one frame
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xEB (0)
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xD8 (0)
+[cam] genlock step 1: phase -430 us -> cam1 VTS 984+19 for one frame
+[CAM1] W 0x380E=0x03 (0)
+[CAM1] W 0x380F=0xEB (0)
+[CAM1] W 0x380E=0x03 (0)
+[CAM1] W 0x380F=0xD8 (0)
+[cam] genlock step 2: phase 431 us -> cam0 VTS 984+19 for one frame
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xEB (0)
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xD8 (0)
+[cam] genlock: phase 1 us after 3 step(s) (T=22288 us)
+INIT 0
+>>> 
+>>> print("STATS1", sentai.camera.stats())
+print("STATS1", sentai.camera.stats())
+STATS1 {'phase_drift': 1, 'switch_fallback': 0, 'grab_retry': 0, 'grab_fatal': 0, 'genlock_steps': 3, 'genlock_ok': 1, 'stalled': 0, 'stale_skips': 0, 'stall_count': 0, 'switch_ok_eof': 3, 'drain_timeout': 0, 'phase_us': 1}
+>>> 
+>>> print("PHASE1", sentai.camera.phase())
+print("PHASE1", sentai.camera.phase())
+PHASE1 (2, 22288)
+>>> 
+>>> exec("import time\nsentai.camera.ratio(1,1)\nt0=time.ticks_ms()\nf0=sentai.camera.sensor_frames()\nn=0\nwhile time.ticks_diff(time.ticks_ms(),t0)<3000:\n  sentai.camera.peek_col(40); n+=1\ndt=time.ticks_diff(time.ticks_ms(),t0)\nprint('ALT consumed',n,'sensor',sentai.camera.sensor_frames()-f0,'ms',dt,'fps',(n*1000)//dt)\nsentai.camera.ratio(0,0)")
+exec("import time\nsentai.camera.ratio(1,1)\nt0=time.ticks_ms()\nf0=sentai.camera.sensor_frames()\nn=0\nwhile time.ticks_diff(time.ticks_ms(),t0)<3000:\n  sentai.camera.peek_col(40); n+=1\ndt=time.ticks_diff(time.ticks_ms(),t0)\nprint('ALT consumed',n,'sensor',sentai.camera.sensor_frames()-f0,'ms',dt,'fps',(n*1000)//dt)\nsentai.camera.ratio(0,0)")
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+  File "<string>", line 1, in <module>
+ImportError: no module named 'time'
+>>> 
+>>> print("STATS2", sentai.camera.stats())
+print("STATS2", sentai.camera.stats())
+STATS2 {'phase_drift': 1, 'switch_fallback': 0, 'grab_retry': 0, 'grab_fatal': 0, 'genlock_steps': 3, 'genlock_ok': 1, 'stalled': 0, 'stale_skips': 0, 'stall_count': 0, 'switch_ok_eof': 4, 'drain_timeout': 0, 'phase_us': 2}
+>>> 
+>>> print("GENLOCK_SYNC", sentai.camera.genlock(1))
+print("GENLOCK_SYNC", sentai.camera.genlock(1))
+[CAM0] W 0x3008=0x42 (0)
+[CAM1] W 0x3008=0x42 (0)
+[CAM0] W 0x3008=0x02 (0)
+[CAM1] W 0x3008=0x02 (0)
+[cam] genlock step 0: phase 438 us -> cam0 VTS 984+19 for one frame
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xEB (0)
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xD8 (0)
+[cam] genlock step 1: phase -423 us -> cam1 VTS 984+19 for one frame
+[CAM1] W 0x380E=0x03 (0)
+[CAM1] W 0x380F=0xEB (0)
+[CAM1] W 0x380E=0x03 (0)
+[CAM1] W 0x380F=0xD8 (0)
+[cam] genlock step 2: phase 439 us -> cam0 VTS 984+19 for one frame
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xEB (0)
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xD8 (0)
+[cam] genlock FAILED: residual phase -423 us
+GENLOCK_SYNC -40
+>>> 
+>>> print("STATS3", sentai.camera.stats())
+print("STATS3", sentai.camera.stats())
+STATS3 {'phase_drift': 1, 'switch_fallback': 0, 'grab_retry': 0, 'grab_fatal': 0, 'genlock_steps': 3, 'genlock_ok': 0, 'stalled': 0, 'stale_skips': 0, 'stall_count': 0, 'switch_ok_eof': 9, 'drain_timeout': 0, 'phase_us': -423}
+>>> 
+>>> print("PHASE2", sentai.camera.phase())
+print("PHASE2", sentai.camera.phase())
+PHASE2 (-423, 22287)
+>>> 
+>>> print("DMESG"); sentai.rtos.dmesg()
+print("DMESG"); sentai.rtos.dmesg()
+DMESG
+'[         0] I E:0F01:1\n[      3866] I E:0500:30\n[     48866] I E:0A06:3\n[     53866] I E:0A00:0\n[     53866] I E:0A00:0\n[     53866] I E:0A00:0\n[     58866] I E:0A0E:431\n[     58866] I E:0A0C:196609\n[     58866] I E:0A00:0\n[     63866] I E:0A00:0\n[     63866] I E:0A00:0\n[     63866] I E:0A00:0\n[     68866] I E:0A00:0\n[     68866] I E:0A00:0\n[     68866] I E:0A0D:4294966873\n[     68866] I E:0A00:0\n'
+>>> 

@@ -1,0 +1,14 @@
+INIT 0
+t=  30s consumed=1345 sensor=1346 fps=44 phase_us=-13 stale=1 drift=0 stall=0
+t=  60s consumed=1346 sensor=1347 fps=44 phase_us=-13 stale=2 drift=0 stall=0
+t=  90s consumed=1346 sensor=1347 fps=44 phase_us=-13 stale=3 drift=0 stall=0
+t= 120s consumed=1346 sensor=1347 fps=44 phase_us=-13 stale=4 drift=0 stall=0
+t= 150s consumed=1346 sensor=1347 fps=44 phase_us=-13 stale=5 drift=0 stall=0
+t= 180s consumed=1346 sensor=1347 fps=44 phase_us=-13 stale=6 drift=0 stall=0
+t= 210s consumed=1346 sensor=1347 fps=44 phase_us=-12 stale=7 drift=0 stall=0
+t= 240s consumed=1346 sensor=1347 fps=44 phase_us=-13 stale=8 drift=0 stall=0
+t= 270s consumed=1346 sensor=1347 fps=44 phase_us=-12 stale=9 drift=0 stall=0
+t= 300s consumed=1346 sensor=1347 fps=44 phase_us=-13 stale=10 drift=0 stall=0
+['print("PHASE_END", sentai.camera.phase())', 'PHASE_END (-13, 22283)']
+dmesg CAM events: E:0A06:3 E:0A12:18 E:0A00:0
+SOAK_DONE

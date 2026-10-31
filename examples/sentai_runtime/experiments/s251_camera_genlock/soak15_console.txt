@@ -1,0 +1,37 @@
+<frozen site>:107: RuntimeWarning: Unexpected value in sys.prefix, expected /home/bogdan/work/coralmicro/venv-flash, got /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s251_camera_genlock/../../../../venv-flash
+<frozen site>:107: RuntimeWarning: Unexpected value in sys.exec_prefix, expected /home/bogdan/work/coralmicro/venv-flash, got /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s251_camera_genlock/../../../../venv-flash
+[cam] genlock step 0: phase 413 us -> cam0 VTS 984+18 for one frame
+[cam] genlock: phase 6 us after 1 step(s) (T=22291 us)
+INIT 0
+t=  30s consumed=1343 sensor=1345 fps=44 phase_us=6 stale=1 drift=0 stall=0
+t=  60s consumed=1343 sensor=1344 fps=44 phase_us=6 stale=2 drift=0 stall=0
+t=  90s consumed=1345 sensor=1346 fps=44 phase_us=5 stale=3 drift=0 stall=0
+t= 120s consumed=1343 sensor=1344 fps=44 phase_us=6 stale=4 drift=0 stall=0
+t= 150s consumed=1341 sensor=1342 fps=44 phase_us=6 stale=5 drift=0 stall=0
+t= 180s consumed=1341 sensor=1342 fps=44 phase_us=5 stale=6 drift=0 stall=0
+t= 210s consumed=1344 sensor=1345 fps=44 phase_us=6 stale=7 drift=0 stall=0
+t= 240s consumed=1340 sensor=1341 fps=44 phase_us=6 stale=8 drift=0 stall=0
+t= 270s consumed=1342 sensor=1343 fps=44 phase_us=5 stale=9 drift=0 stall=0
+t= 300s consumed=1343 sensor=1344 fps=44 phase_us=5 stale=10 drift=0 stall=0
+t= 331s consumed=1344 sensor=1345 fps=44 phase_us=6 stale=11 drift=0 stall=0
+t= 361s consumed=1342 sensor=1343 fps=44 phase_us=6 stale=12 drift=0 stall=0
+t= 391s consumed=1344 sensor=1345 fps=44 phase_us=6 stale=13 drift=0 stall=0
+t= 421s consumed=1344 sensor=1345 fps=44 phase_us=6 stale=14 drift=0 stall=0
+t= 451s consumed=1343 sensor=1344 fps=44 phase_us=6 stale=15 drift=0 stall=0
+t= 481s consumed=1342 sensor=1343 fps=44 phase_us=6 stale=16 drift=0 stall=0
+t= 511s consumed=1343 sensor=1344 fps=44 phase_us=6 stale=17 drift=0 stall=0
+t= 541s consumed=1343 sensor=1344 fps=44 phase_us=6 stale=18 drift=0 stall=0
+t= 571s consumed=1344 sensor=1345 fps=44 phase_us=6 stale=19 drift=0 stall=0
+t= 601s consumed=1345 sensor=1346 fps=44 phase_us=6 stale=20 drift=0 stall=0
+t= 632s consumed=1345 sensor=1346 fps=44 phase_us=6 stale=21 drift=0 stall=0
+t= 662s consumed=1344 sensor=1345 fps=44 phase_us=6 stale=22 drift=0 stall=0
+t= 692s consumed=1342 sensor=1343 fps=44 phase_us=6 stale=23 drift=0 stall=0
+t= 722s consumed=1339 sensor=1340 fps=44 phase_us=6 stale=24 drift=0 stall=0
+t= 752s consumed=1344 sensor=1345 fps=44 phase_us=6 stale=25 drift=0 stall=0
+t= 782s consumed=1342 sensor=1343 fps=44 phase_us=6 stale=26 drift=0 stall=0
+t= 812s consumed=1344 sensor=1345 fps=44 phase_us=6 stale=27 drift=0 stall=0
+t= 842s consumed=1343 sensor=1344 fps=44 phase_us=6 stale=28 drift=0 stall=0
+t= 872s consumed=1340 sensor=1341 fps=44 phase_us=6 stale=29 drift=0 stall=0
+t= 902s consumed=1344 sensor=1345 fps=44 phase_us=6 stale=30 drift=0 stall=0
+['print("PHASE_END", sentai.camera.phase())', 'PHASE_END (6, 22285)']
+dmesg CAM events: E:0A06:3 E:0A00:0 E:0A00:0 E:0A0C:65542 E:0A00:0

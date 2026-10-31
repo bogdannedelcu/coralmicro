@@ -77,6 +77,13 @@ CODE,MODULE,NAME,DESCRIPTION,VERSION_ADDED,STATUS
 0x0A09,CAM,HOLD_LIMIT,Frame hand-out refused: consumers already hold kFramebufferCount-2 buffers so the CSI keeps 2 armed - buffer re-armed and -1 returned (val=held),v1.9,ACTIVE
 0x0A0A,CAM,STALL,Watchdog liveness: camera initialised but g_camera_sensor_frames did not advance for >= 2 kicks (10 s) - reported only - no reset (val=sensor_frames),v1.9,ACTIVE
 0x0A0B,CAM,STALL_END,Watchdog liveness: sensor frames resumed after a reported stall (val=stall duration s),v1.9,ACTIVE
+0x0A0C,CAM,GENLOCK,Dual-camera genlock converged: sensors brought in phase by a one-frame TIMING_VTS tweak (val=(steps<<16)|(residual_us&0xFFFF)) - EXP-s251,v1.9,ACTIVE
+0x0A0D,CAM,GENLOCK_FAIL,Genlock failed (val=|code|: 10 pipeline running; 20 sensors did not restart / no frame edge; 30 phase not measurable; 40 not converged in 3 steps; 50 SCCB write failed; 51 VTS restore failed - sensor left slower),v1.9,ACTIVE
+0x0A0E,CAM,PHASE_DRIFT,Watchdog phase monitor: while alternating the measured |cam1-cam0 phase| exceeded VBLANK/2 (val=phase us as uint32) - alternation may mislabel frames,v1.9,ACTIVE
+0x0A0F,CAM,CSI_QUEUE_FAULT,CSI driver empty-buffer list underflow (kind 1) or overflow (kind 2) caught by SDK patch 0005 instead of a BusFault (val=(kind<<16)|count) - audit F15,v1.9,ACTIVE
+0x0A10,CAM,PHASE_DRIFT_END,Watchdog phase monitor: |cam1-cam0 phase| back below VBLANK/4 after a PHASE_DRIFT (val=phase us as uint32),v1.9,ACTIVE
+0x0A11,CAM,PHASE_TRIM,cam_tune task applied a blind one-frame TIMING_VTS trim to re-align the sensors after two consecutive PHASE_DRIFT samples (val=(cam<<16)|lines),v1.9,ACTIVE
+0x0A12,CAM,PRETRIM,camera.init() open-loop pre-trim: cam0 delayed by the deterministic start-order offset (one SCCB write) with no MUX flip (val=lines),v1.9,ACTIVE
 0x0AF0,CAM,GRAB_FAIL,Fatal: GetRawFrame failed after all recoveries (val=cam_id),v1.2,ACTIVE
 # === Module 0x0B: TPU ===
 0x0B40,TPU,ARENA_ALLOC,Tensor arena allocation failed,v1.0,ACTIVE

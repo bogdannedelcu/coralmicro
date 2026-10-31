@@ -70,6 +70,8 @@ sentai
 │   ├── select(id)
 │   ├── frame_count() / sensor_frames()
 │   ├── peek_col(x=40) / frame_log(n=64)   # EXP-s251 diagnostics
+│   ├── pretrim() / genlock(sync_start=0) / phase()           # dual-sensor phase alignment (EXP-s251)
+│   ├── genlock_auto([mode]) / autotune([on])                # init behaviour / on-the-fly re-alignment
 │   ├── stats()            # switch / grab / stall counters
 │   └── power_rails(on=1)  # PMIC camera LDOs (board rev 2026-10)
 ├── imu                     # LIS2DUX12 accelerometer
@@ -570,8 +572,93 @@ on; `SERR_CAM_STALL_END` 0x0A0B marks the recovery.
 ```python
 >>> sentai.camera.stats()
 {'stall_count': 0, 'stalled': 0, 'switch_ok_eof': 4, 'switch_fallback': 0,
- 'drain_timeout': 0, 'grab_retry': 0, 'grab_fatal': 0}
+ 'drain_timeout': 0, 'grab_retry': 0, 'grab_fatal': 0,
+ 'phase_us': 6, 'genlock_ok': 1, 'genlock_steps': 1, 'stale_skips': 1,
+ 'phase_drift': 0, 'csi_queue_faults': 0, 'pretrim_lines': 18, 'autotrims': 0,
+ 'flips_deferred': 1340, 'flips_executed': 1340}
 ```
+
+Dual-camera fields (build ≥ 1657, EXP-s251): `phase_us` = last measured
+cam1 − cam0 frame-start offset (None until measured; refreshed by the
+watchdog phase monitor once per kick while `ratio(a,b)` alternates),
+`genlock_ok` / `genlock_steps` = result of the last `genlock()`,
+`stale_skips` = queued buffers older than two frame periods dropped by the
+grab path (first grab after idle), `phase_drift` = monitor excursions
+(`SERR_CAM_PHASE_DRIFT`, |phase| > ~VBLANK/2), `csi_queue_faults` = CSI
+driver empty-list underflow/overflow events caught by SDK patch 0005
+(`SERR_CAM_CSI_QUEUE_FAULT`; expected 0), `pretrim_lines` = lines applied by
+the init-time open-loop pre-trim (0 = none), `autotrims` = blind trims
+applied by the `cam_tune` task (`SERR_CAM_PHASE_TRIM`).
+
+### How the dual-camera phase is kept (build ≥ 1660)
+Both OV5640s share one 24 MHz clock, so their frame phase φ (cam1 − cam0
+frame start) is fixed until a sensor restarts or a timing register is
+written.  A MUX flip is clean only when the new sensor is in vertical
+blanking (543 µs at VGA45); at the as-found φ ≈ +400 µs (cam0 is started one
+SCCB write before cam1) the flip towards cam0 leaves ~130 µs and the MIPI
+receiver can wedge (audit F16).  The firmware therefore:
+1. **pre-trims at `init()`** — delays cam0 by the known offset with one
+   frame-synchronised `TIMING_VTS+d` write, no MUX flip (`pretrim()`,
+   `genlock_auto` mode 1, default); on success `switch_drain(0)` and
+   `dirty_skip_n(0)` are set so `ratio(1,1)` runs at the full sensor rate;
+2. **measures φ for free** from the production flips (watchdog phase
+   monitor, `stats()["phase_us"]`) and, on two consecutive samples with
+   |φ| > ~VBLANK/2, re-arms `dirty_skip_n(1)` and wakes the `cam_tune` task,
+   which applies one blind trim (edges predicted from the sensor's last
+   FB-done timestamp, no MUX flip), rate-limited to one per 10 s
+   (`autotune(1)`, default on); when |φ| is back below ~VBLANK/4 the dirty
+   skip is released again.
+
+### `sentai.camera.flip_delay_us([us])` → int
+Delay between the CSI FB-done interrupt and the MUX flip, executed on GPT1
+output compare 2 (default 40 µs).  A flip executed immediately in the CSI
+ISR races the old sensor's MIPI Frame-End packet and can wedge the CSI
+receiver until a reset (audit F16); `0` restores that legacy behaviour for
+diagnostics only.  `stats()["flips_deferred"]` / `["flips_executed"]` count
+the arms and the executed flips (equal in steady state).
+
+### `sentai.camera.pretrim()` → int
+Apply the open-loop pre-trim now (cam0 delayed by one SCCB-write worth of
+lines, ~18 at VGA45).  Returns the lines applied or a negative tweak code.
+Runs automatically at `init()` in `genlock_auto` modes 1 and 2.
+
+### `sentai.camera.autotune([on])` → int
+Query or set the on-the-fly re-alignment (default 1).
+
+### `sentai.camera.genlock(sync_start=0)` → int
+Bring the two OV5640s in phase so `ratio(a,b)` alternation is clean at the
+full sensor rate (both sensors share one 24 MHz XCLK, so the phase is fixed
+until something restarts a sensor).  Measures the phase from the FB-done log
+while alternating 1:1 for ~70 frames, then delays the leading sensor by
+exactly the measured number of lines with a one-frame `TIMING_VTS+d` write
+synchronised to that sensor's frame edge; up to 3 steps, tolerance 60 µs,
+≤ 200 lines per step.  Returns the residual phase in µs; negative = error:
+`-1` camera off, `-10` detection pipeline running, `-20` sensors did not
+restart / no frame edge, `-30` phase not measurable, `-40` not converged,
+`-50` SCCB write failed (sensor unchanged), `-51` VTS restore failed (that
+sensor is left slower; reported).  `sync_start=1` first puts both sensors in software
+standby and releases them back-to-back (phase ≈ one SCCB write ≈ 400 µs by
+construction) before trimming.  Runs automatically at `camera.init()` only
+in `genlock_auto` mode 2 (the measurement flips the MUX, which at an
+unaligned phase wedged the CSI input on several cold boots, audit F16 — mode
+1 pre-trims first, without flips); typically one step, 2–3 s; on success it
+sets `switch_drain(0)` and `dirty_skip_n(0)` so `ratio(1,1)` runs at ~44.7
+fps instead of 22.4.  Blocking; typically 2–3 s, worst case ~20 s.  Logs
+`SERR_CAM_GENLOCK` (val = steps<<16 | residual) or `SERR_CAM_GENLOCK_FAIL`
+(val = |code|).
+
+### `sentai.camera.genlock_auto([mode])` → int
+What `camera.init()` does when both sensors are detected: `0` nothing,
+`1` (default) open-loop `pretrim()` only (no MUX flip), `2` pre-trim followed
+by the measured `genlock()` (its flips then happen at an already-aligned
+phase).
+
+### `sentai.camera.phase()` → `(phase_us, T_us)` or negative int
+One ~1.6 s measurement of the inter-sensor phase (alternates 1:1 while
+dequeuing, then restores the caller's ratio and camera).  Errors: `-1`
+camera off, `-10` detection pipeline running, `-30` not measurable.  `T_us` is the sensor frame
+period (22 288 µs at VGA45).  Diagnostic; the production value is in
+`stats()["phase_us"]`.
 
 ### `sentai.camera.peek_col(x=40)` → tuple
 Diagnostic for the dual-camera work (EXP-s251): dequeues ONE frame and

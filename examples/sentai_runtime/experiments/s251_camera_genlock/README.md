@@ -1,10 +1,15 @@
 # EXP-s251 — dual-camera alternation: frame identity, phase offset and software genlock
 
 **WBS:** OP-S10-W23-T9 (approved 2026-10-31).  **Board:** rev 2026-10 (board id 58eb),
-builds 1650–1651 RAM-loaded.  **Follows:** s243 (−44 % at 1:1), s245 (no HW
+builds 1650–1664 RAM-loaded.  **Follows:** s243 (−44 % at 1:1), s245 (no HW
 trigger), s246 (29 % tag/content mismatch at full rate, four tag hypotheses
-refuted).  **Status: 🟢 RESULT — full-rate 1:1 alternation with 0 mixed and 0
-mislabelled frames after a software genlock (iter6).**
+refuted).  **Status: 🟢 SHIPPED (build 1664) — full-rate 1:1 alternation at
+44.7 fps with 0 mixed / 0 mislabelled frames; phase kept by an open-loop
+pre-trim at init plus an on-the-fly closed loop (no calibration with flips);
+the CSI wedge seen along the way (audit F16) was root-caused to the MUX flip
+racing the Frame-End packet and fixed by deferring the flip 40 µs on GPT1.**
+Sections: measurement result (iter1–7), C implementation (1653–1664), 15-min
+soak, F16 root cause, closed loop.
 
 ## Result in one table
 
@@ -162,6 +167,126 @@ C. Stale-frame guard in `sentai_cam_get_raw_with_recovery()`: drop queued
    new `g_cam_buf_ts_us[]`), so the first frame after a pause is fresh.
 D. Phase monitor: keep the FB-done log and alarm (SERR) if |φ| grows past
    VBLANK/2 — a cheap continuous health check for the dual-camera path.
+
+## Implementation in C (builds 1653–1657, proposals A–D + F15) — SHIPPED
+
+| build | change | result |
+|---|---|---|
+| 1653 | `sentai_cam_genlock()` in `sentai_runtime.cc`: phase from the FB-done log while alternating 1:1 and dequeuing (`cam_consume_frames`), one-frame `TIMING_VTS+d` trim, ≤ 3 steps, tol 60 µs; runs at the end of `camera.init()`; stale-frame guard (C); watchdog phase monitor (D); `sentai.camera.genlock()/phase()`, stats fields | iter8: init genlock converged (1 µs) but only after **3 steps that oscillated ±430 µs**; `genlock(1)` failed (−40) with the same oscillation |
+| 1654 | **frame-synchronised trim** (`cam_vts_tweak_one_frame`): put the sensor to be trimmed on the MUX, wait for its FB-done edge, write `VTS+d` 5 ms later (latches at the next edge), restore 1.25 T later; `g_cam_genlock_busy` mutes the monitor during the genlock's own alternation | iter10: 395 → **10 µs in 1 step**; `genlock(1)` 421 → −8 µs in 1 step; 1:1 alternation 135/136 frames in 3.0 s = **44 fps**; stale guard fired once (first grab after idle) |
+| 1657 | SDK patch `0005-fsl-csi-empty-list-side-array-f15.patch` (audit F15): CSI empty-buffer list moved out of pixel memory, bounds-checked, `coralmicro_csi_on_queue_fault` counter → `SERR_CAM_CSI_QUEUE_FAULT`; `stats()["csi_queue_faults"]` | 15-minute soak below: phase 5–6 µs throughout, 0 faults |
+| 1664 | **Deferred MUX flip** (root-cause fix of the F16 wedge): the CSI ISR arms GPT1 output-compare 2 at +40 µs and `sentai_cam_deferred_flip_isr()` flips there; `flip_delay_us()` knob, `flips_deferred/executed` stats; GPT1_IRQn at the CSI priority | iter20: **3/3 cold boots clean at 44 fps**, `flips_deferred == flips_executed`; closed-loop autotune test and s249 regression 15/15 (below).  (iter19 logs named "deferred" actually ran on 1662 — the 1663 build failed on a duplicate symbol — and show the same results with the 20 µs hold.) |
+| 1662 | hypothesis test: patch 0005 re-applied + 20 µs busy-wait before the ISR flip (experiment only) | iter18: **3/3 clean with the hold, 2/2 wedged with the hold set to 0** (same build, `poke32`) |
+| 1661 | A/B: patch 0005 reverted | iter17: 3/3 clean (vs 8/9 wedged with the patch) → the patch exposed a timing race, see below |
+| 1660 | **open-loop pre-trim at init** (`pretrim()`, `genlock_auto` mode 1 default) + **`cam_tune` closed loop** (blind frame-synchronised trim on two consecutive drift samples, dirty-skip re-armed while drifting) | iter15: pre-trim 18 lines → φ −5/−10 µs ✓, but the first alternation wedged on both boots (→ A/B above) |
+| 1659 | **init-time genlock made opt-in** (`sentai.camera.genlock_auto(1)`, default off) and the measurement shortened to 48 frames / 12 flips, after the second CSI wedge (iter12, below) | iter13: wedged again during the init measurement (3rd event) → isolation test below |
+| 1658 | embeded.md §14 review fixes: VTS restore retried ×3 and reported (−51) instead of leaving a sensor slower; sync-start path releases both sensors on any failure; `phase()` guarded against the running pipeline and restores the caller's ratio/camera; trim write at 0.25 T after the edge with the restore anchored to the pre-write tick (`vTaskDelayUntil`); measurement requires ≥ 32 fresh log entries; stale skips no longer consume the CSI-recovery budget; monitor skips kicks where the log did not advance; `SERR_CAM_PHASE_DRIFT_END` (0x0A10); genlock only in streaming mode; `phase()` returns the error code instead of None | iter12 (regression) |
+
+### 15-minute soak (build 1657, `soak_phase.py --minutes 15`)
+
+Operator question: would a reviewer ask for a long run to show the phase does
+not drift, and could the firmware re-align itself?  Cold boot, `camera.init(1,
+45)` (genlock 413 → 6 µs in one step), then `ratio(1,1)` with a consumer
+(`peek_col`) for 30 windows of 30 s; `stats()` sampled per window.
+
+| | value |
+|---|--:|
+| windows | 30 × 30 s = 15.0 min |
+| frames consumed / sensor frames | 40 286 / 40 317 (**99.92 %**) |
+| fps per window | 44 in every window |
+| `phase_us` per window (watchdog monitor) | **5…6 µs in every window**; independent `phase()` at the end: 6 µs |
+| `phase_drift` / `stall_count` / `csi_queue_faults` | 0 / 0 / 0 |
+| `stale_skips` | 30 = exactly one per window (the host's REPL round-trip between windows idles the consumer; the guard drops the aged buffer — intended) |
+
+The phase is pinned, not merely stable: both sensors count the same 24 MHz
+clock, so without a register write or a sensor restart it cannot move.  The
+monitor therefore stays **report-only** (`SERR_CAM_PHASE_DRIFT` /
+`_END`); an automatic re-alignment is cheap to add (the same one-frame trim
+from a non-watchdog task when |φ| > VBLANK/2 for two consecutive kicks, rate-
+limited) but there is nothing for it to correct in normal operation — it is
+recorded as a follow-up, to be added only if a field log ever shows a drift
+event.  Files: `results_soak15.csv`, `run_soak15.log`, `soak15_console.txt`.
+
+**Why iter8 oscillated (finding 8).**  OV5640 timing registers latch at the
+frame start.  An unsynchronised write/restore pair holds the long VTS for
+one OR two frames depending on where in the frame the write landed, so the
+shift was `d` or `2d` — with `d = φ` the 2d case flips the sign of φ and the
+loop bounces between +430 and −430 µs.  This also explains the iter6 history
+(200 lines moved the phase by 2 × 200 lines, 40 lines by 1 × 40).  The fix
+is timing, not gain: with the write 5 ms after the trimmed sensor's own
+FB-done edge, the long frame spans [0.75 T, 1.75 T + d] after the write and
+the restore at 1.25 T lands mid frame with ± 0.5 T of margin → exactly `d`.
+
+**Cold-boot statistics (build 1654, iter11, 4 boots + iter10):** init-time
+genlock converged in **1 step on 5/5** boots (residuals 8, −1, −10, −9, 10
+µs); 1:1 alternation 134–135 consumed / 135–136 sensor frames per 3 s on
+every boot (44 fps).  As-found phase after `camera.init()` was +395…+432 µs
+on every boot (= one SCCB write, cam0 started first — deterministic).
+
+**Incident — CSI input wedge during the genlock measurement (iter9 build
+1654, iter12 build 1658, iter13 build 1659) = audit F16.**  The camera
+stopped delivering frames while the genlock alternated 1:1 at the as-found
+phase (+400 µs, cam0 margin ~130 µs): genlock returned −30, then
+`GRAB_TIMEOUT`, `SWITCH_FALLBACK`, `DRAIN_TIMEOUT`, `SERR_CAM_STALL`.
+Forensics on the iter12 unit (`run_iter12.log`, probes in the audit doc):
+CSI `CR3.FRMCNT` frozen at 182, CSI2RX `IRQ_STATUS 0x13D` (CRC, 2-bit ECC,
+SoT, SoT-sync, ERRCONTROL), both sensors streaming and answering on I2C;
+sensor standby toggles, a MUX switch and `camera.stop()+init()` did NOT
+recover it — only a SoC reset.  `drain`/`dirty` are consumer-side only, so
+production alternation uses the very same ISR flip; the hazard is the flip
+at a bad phase, which is what the genlock removes — hence the W23-T10
+proposal to measure the phase without flipping (OV5640 STROBE pads).  The
+iter3 LOCKUP had the same shape.
+
+Files: `genlock_check.py` (one boot: init → stats → phase → 3 s alternation →
+`genlock(1)` → phase), `run_iter8.log` … `run_iter11_boot4.log`,
+`soak_phase.py` / `results_soak15.csv` / `run_soak15.log` (15-minute soak).
+
+### Root cause of the CSI wedge (F16) and fix — iter17–iter19
+
+| build | configuration | clean / boots |
+|---|---|--:|
+| 1658–1660 | patch 0005 applied, flip in the CSI ISR | 1 / 9 |
+| 1661 | patch 0005 reverted, flip in the CSI ISR | 3 / 3 |
+| 1662 | patch 0005 + 20 µs hold before the flip | 3 / 3 |
+| 1662 | same build, hold set to 0 via `poke32` | 0 / 2 |
+| 1664 | patch 0005 + flip deferred to GPT1 OCR2 (+40 µs) | 3 / 3 (iter20) + 3 / 3 on 1662 with the 20 µs hold (iter19) |
+
+A MUX flip executed at DMA-done races the old sensor's **Frame-End short
+packet** (sent a few µs after the last line); cutting that burst leaves the
+CSI2RX/D-PHY in an error state that only a SoC reset clears.  The ISR's own
+latency decided the race: patch 0005 removed one SDRAM read from the re-arm
+path and made the loss near-certain; s246's "an XOR in the ISR broke
+alternation" was the same mechanism.  The phase was never the deciding
+factor (wedges at +400 µs and at −5 µs alike).  Fix: arm a GPT1 output
+compare in the CSI ISR and flip in the timer ISR, 40 µs later — no wait in
+any ISR, deterministic, far inside the blanking.
+
+### 5-minute soak of the final build (1664, `soak_phase.py --minutes 5 --tag soak5_b1664`)
+
+Cold boot, pre-trim 18 lines, `ratio(1,1)` with a consumer: 10 windows ×
+30 s, **13 459 / 13 469 frames consumed (99.93 %)**, 44 fps in every window,
+`phase_us` −13…−12 µs throughout (end check `phase()` = −13 µs), 0 drift
+events, 0 stalls, 0 CSI queue faults; dmesg only `DETECT`, `PRETRIM 18` and
+one task-level switch.  Files: `results_soak5_b1664.csv`, `run_soak5_b1664.log`.
+
+### On-the-fly re-alignment (closed loop) — iter20 `autotune_check.py`, build 1664
+
+Cold boot → `init(1,45)` pre-trims cam0 by 18 lines → 6 s of 1:1 at 44 fps
+with φ = −35 µs → one unsynchronised `VTS+40` frame injected on cam1 →
+φ = +1776 µs (CSI waits a frame on one direction: 25 fps) → the watchdog
+monitor flags `PHASE_DRIFT` and re-arms the dirty skip → `cam_tune` applies
+one blind trim of 78 lines to cam1 (`SERR_CAM_PHASE_TRIM`, no MUX flip, no
+frame-queue access) → φ = +10 µs, `PHASE_DRIFT_END`, 44 fps again; total
+recovery ≈ 15 s (two monitor samples at the 5 s kick + the trim).  dmesg:
+`E:0A12:18 E:0A0E:1776 E:0A11:78 E:0A10:10`.  No initial calibration with
+flips is needed any more: pre-trim (open loop, deterministic offset) +
+monitor + blind trim keep the sensors within ±35 µs of each other.
+
+Files: `alt_only_check.py` (init → alternation → optional genlock, `--settle`,
+`--no-genlock`, `--pre`), `autotune_check.py` (pre-trim → alternation →
+injected 40-line phase error → closed-loop re-alignment), `run_iter14*` …
+`run_iter19*`.
 
 ## Files
 

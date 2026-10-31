@@ -1008,7 +1008,8 @@ OP — ObjectsPlan thesis
 │        │   crash_text_probe.py PASS.  OPEN: g_cam_current_id single
 │        │   writer (-> T9), MP M13/M14 (fs_cache sync), mic pvPortMalloc
 │        │   (M9, accepted), EMU target link unverified.
-│        └── OP-S10-W23-T9 — Dual-camera alternation: frame identity + full-rate 1:1 🟢 RESULT (EXP-s251, 2026-10-31)
+│        ├── OP-S10-W23-T9 — Dual-camera alternation: frame identity + full-rate 1:1 🟢 SHIPPED (EXP-s251, 2026-10-31, build 1664: deferred MUX flip on GPT1 OCR2 fixes the CSI wedge F16 (flip raced the Frame-End packet); init pre-trim + cam_tune on-the-fly re-alignment + genlock()/phase() + stale guard + phase monitor + SDK patch 0005/F15)
+│        └── OP-S10-W23-T10 — Optional: flip-free phase measurement from the OV5640 STROBE pads (GPT capture); CSI-wedge recovery experiments if F16 ever recurs ⚪ OPTIONAL (2026-10-31, no longer needed for safety)
 │            EXP-s251 iter6: software genlock (one-frame VTS tweak) brings
 │            the sensors to phi = 4 us -> ratio(1,1) with drain=0/dirty=0
 │            runs at 44.7 fps, 0 mixed, 0 mislabelled (was 22.4 fps or 29 %

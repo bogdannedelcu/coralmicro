@@ -1,0 +1,46 @@
+<frozen site>:107: RuntimeWarning: Unexpected value in sys.prefix, expected /home/bogdan/work/coralmicro/venv-flash, got /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s251_camera_genlock/../../../../venv-flash
+<frozen site>:107: RuntimeWarning: Unexpected value in sys.exec_prefix, expected /home/bogdan/work/coralmicro/venv-flash, got /home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s251_camera_genlock/../../../../venv-flash
+print("INIT", sentai.camera.init(1, 45))
+HandlePowerRequest: cam0 (bus 1): OK, cam1 (bus 2): OK
+CAMERA_RECEIVER_Init = 0
+BOARD_PullCameraPowerDownPin:1
+BOARD_PullCameraResetPin:0
+BOARD_PullCameraPowerDownPin:0
+BOARD_PullCameraResetPin:1
+CAMERA_DEVICE_Init = 0
+CAMERA_DEVICE_Start = 0
+CAMERA_RECEIVER_Start = 0
+[CAM] sensor_fps=45 (1 s sample, target=30)
+[CAM1] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM1] W 0x3820=0x47 (0)
+[CAM1] W 0x3821=0x01 (0)
+[CAM0] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM0] W 0x3820=0x47 (0)
+[CAM0] W 0x3821=0x01 (0)
+[cam] genlock step 0: phase 375 us -> cam0 VTS 984+17 for one frame
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xE9 (0)
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xD8 (0)
+[cam] genlock: phase -9 us after 1 step(s) (T=22288 us)
+INIT 0
+>>> 
+print("STATS", sentai.camera.stats())
+STATS {'phase_drift': 0, 'switch_fallback': 0, 'grab_retry': 0, 'grab_fatal': 0, 'genlock_steps': 1, 'genlock_ok': 1, 'stalled': 0, 'stale_skips': 0, 'stall_count': 0, 'switch_ok_eof': 2, 'drain_timeout': 0, 'phase_us': -9}
+>>> 
+print("PHASE", sentai.camera.phase())
+PHASE (-10, 22289)
+>>> 
+exec("sentai.camera.ratio(1,1)\nt0=sentai.rtos.ticks_ms()\nf0=sentai.camera.sensor_frames()\nn=0\nwhile sentai.rtos.ticks_ms()-t0<3000:\n  sentai.camera.peek_col(40); n+=1\ndt=sentai.rtos.ticks_ms()-t0\nprint('ALT',n,sentai.camera.sensor_frames()-f0,dt,(n*1000)//dt)\nsentai.camera.ratio(0,0)")
+ALT 134 135 3002 44
+>>> 
+print("DMESG", sentai.rtos.dmesg())
+DMESG [         0] I E:0F01:1
+[      3806] I E:0500:30
+[      7592] I E:0A06:3
+[      8806] I E:0A00:0
+[      8806] I E:0A00:0
+[      8806] I E:0A0C:131063
+[      8806] I E:0A00:0
+
+>>> 

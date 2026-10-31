@@ -111,6 +111,9 @@ int      sentai_storage_mode_active(void);
 // Defined in the camera section below (global scope); the watchdog task in
 // the anonymous namespace reads it for the CAM_STALL crash-log line.
 extern volatile int g_cam_current_id;
+extern volatile uint32_t g_cam_ratio_packed;   // defined in the camera section (file scope)
+extern volatile uint32_t g_cam_csi_queue_faults, g_cam_csi_queue_fault_kind;  // libs/camera/camera_support.c (SDK patch 0005)
+extern volatile uint32_t g_cam_flog_head;                                     // libs/camera/camera_support.c (FB-done log)
 
 namespace {
 
@@ -464,6 +467,10 @@ static volatile uint32_t g_cam_stall_count    = 0;   // stalls seen since boot
 static volatile bool     g_cam_stalled        = false;
 static volatile uint32_t g_cam_stall_start_ms = 0;
 extern "C" int sentai_cam_is_initialized(void);
+// Dual-camera phase monitor (EXP-s251, proposal D): defined in the camera
+// section below; the watchdog samples it once per kick while alternating.
+extern "C" int sentai_cam_phase_from_log(int32_t* phi_us, uint32_t* T_us);
+extern "C" void sentai_cam_phase_monitor_note(int32_t phi_us);
 
 // Hardware watchdog control
 static volatile bool g_hw_watchdog_enabled = false;
@@ -759,6 +766,35 @@ static void CombinedWatchdogTask(void* param) {
             }
             g_network_healthy = ok;
             last_drops = drops;
+        }
+
+        // --- Dual-camera phase monitor (EXP-s251 D) ----------------------
+        // Only meaningful while the ratio scheduler alternates (both quotas
+        // > 0) and only from the FB-done log, which advances while frames
+        // are consumed.  Report-only: SERR_CAM_PHASE_DRIFT on an excursion.
+        if (sentai_cam_is_initialized()) {
+            uint32_t rp = g_cam_ratio_packed;
+            static uint32_t last_flog_head = 0;
+            uint32_t fh = g_cam_flog_head;
+            // The log only advances while frames are consumed; do not re-judge
+            // the same 64 entries kick after kick.
+            if ((rp >> 16) != 0u && (rp & 0xFFFFu) != 0u && fh != last_flog_head) {
+                int32_t phi = 0; uint32_t T = 0;
+                if (sentai_cam_phase_from_log(&phi, &T) == 0) {
+                    sentai_cam_phase_monitor_note(phi);
+                }
+            }
+            last_flog_head = fh;
+        }
+
+        // --- CSI queue-fault observer (SDK patch 0005 / audit F15) --------
+        {
+            static uint32_t last_qf = 0;
+            uint32_t qf = g_cam_csi_queue_faults;
+            if (qf != last_qf) {
+                last_qf = qf;
+                SERR_LOG(SERR_CAM_CSI_QUEUE_FAULT, (g_cam_csi_queue_fault_kind << 16) | (qf & 0xFFFFu));
+            }
         }
 
         // --- Camera liveness (camera-M5) ---------------------------------
@@ -3124,6 +3160,553 @@ static int sentai_flip_to_degrees(int hflip, int vflip) {
  * land in the same configured orientation.  -1 (default for both)
  * means "leave whatever the OV5640 init driver programmed", which is
  * H-mirror ON, V-flip OFF.  Pass 0/0 explicitly to clear both. */
+// =====================================================================
+// Dual-camera genlock (EXP-s251, OP-S10-W23-T9) -- C implementation.
+//
+// Facts (s251): both OV5640s share one 24 MHz XCLK, so their frame phase is
+// fixed for the session; it is set by the order in which the sensors are
+// started (one SCCB write apart ~ +411 us with cam0 first).  A MUX flip at
+// FB-done of the old sensor is clean only if the new sensor's frame start
+// lies inside the old one's vertical blanking (VTS - 2*480 lines ~ 24 lines
+// ~ 543 us at VGA45); margins are VBLANK -/+ phi, so the optimum is phi = 0.
+// Writing TIMING_VTS + d to one sensor for a single frame delays it by
+// exactly d lines.  With phi within +/- 60 us, ratio(1,1) runs at the full
+// sensor rate with drain=0 / dirty=0 and 0 mislabelled frames (iter6).
+//
+// Phase measurement uses the FB-done log written by the CSI frame-complete
+// hook: at ratio(1,1) the interval of the first frame after a flip TO cam1
+// is T + phi and after a flip TO cam0 it is T - phi (reduced mod T when the
+// CSI had to wait a frame).  The hook only runs when the driver queues a
+// frame, so the measurement loop DEQUEUES while it measures.
+//
+// Everything here is task context (REPL / init), bounded (<= 3 corrections,
+// <= 4 s per measurement), no heap, no ISR changes.
+// =====================================================================
+extern "C" int sentai_cam_frame_log(int n, uint32_t* ts, uint8_t* idx,
+                                    uint8_t* cam, uint16_t* seq);
+extern "C" int sentai_cam_switch(int id);
+extern "C" int sentai_cam_ratio_set(uint32_t a, uint32_t b);
+extern "C" int sentai_detection_is_running(void);
+extern volatile uint32_t g_cam_dirty_consecutive_n;   // camera_support.c
+extern volatile uint32_t g_cam_buf_ts_us[];            // camera_support.c
+
+static volatile int32_t  g_cam_phase_us        = 0;   // last measured phi (cam1 - cam0), us
+static volatile uint32_t g_cam_phase_valid     = 0;
+static volatile uint32_t g_cam_genlock_ok      = 0;
+static volatile uint32_t g_cam_genlock_steps   = 0;
+static volatile uint32_t g_cam_stale_skips     = 0;   // proposal C: old queued frames dropped
+static volatile uint32_t g_cam_phase_drift_cnt = 0;   // proposal D: excursions reported
+static volatile uint32_t g_cam_phase_drifting  = 0;
+static volatile uint32_t g_cam_genlock_busy    = 0;   // monitor must not judge the genlock's own alternation
+// Run the genlock automatically at camera.init()?  Default OFF (2026-10-31):
+// the measurement alternates the MUX at the as-found phase (~+400 us, cam0
+// margin ~130 us) and 2 of 10 cold boots ended with the CSI input wedged
+// (audit F16: FRMCNT frozen, CSI2RX SoT/ECC errors, only a SoC reset
+// recovers).  Until the flip-free phase measurement (STROBE pads, W23-T10)
+// exists, the operator enables it per mission: sentai.camera.genlock_auto(1).
+// 0 = nothing at init; 1 (default) = open-loop PRE-TRIM only (no flips);
+// 2 = pre-trim + measured genlock (flips at an already-aligned phase).
+static volatile uint32_t g_cam_genlock_auto    = 1;
+// On-the-fly closed loop (operator goal 2026-10-31: "self-calibrate while
+// running, no initial calibration").  The watchdog phase monitor derives
+// phi from the production flips; two consecutive excursions wake the
+// cam_tune task, which applies one blind frame-synchronised VTS trim to the
+// leading sensor, rate-limited.  While drifting, the dirty-skip protection
+// is re-armed so mixed frames cannot reach a consumer.
+static volatile uint32_t g_cam_autotune_enabled = 1;
+static volatile uint32_t g_cam_autotune_trims   = 0;
+static volatile uint32_t g_cam_pretrim_lines    = 0;   // lines applied by the init pre-trim (0 = none)
+static volatile uint32_t g_cam_fullrate         = 0;   // drain=0/dirty=0 regime armed by pretrim/genlock
+static volatile int32_t  g_cam_autotune_req_phi = 0;
+static volatile uint32_t g_cam_phase_T_us       = 22288;  // last measured sensor period
+static volatile uint32_t g_cam_phase_excursions = 0;
+static TaskHandle_t      s_cam_autotune_task    = nullptr;
+static constexpr uint32_t kAutotuneMinGapMs     = 10000;
+// As-found phase after camera.init(): cam0 is started one SCCB write before
+// cam1 (EXP-s251 iter7/8/10/11/14: +391..+438 us on every boot).
+static constexpr uint32_t kSccbStartGapUs       = 410;
+static constexpr int32_t  kGenlockTolUs       = 60;
+static constexpr uint32_t kGenlockMaxSteps    = 3;
+static constexpr uint32_t kGenlockMaxLines    = 200;  // one correction < 1/4 frame
+// Drift thresholds: ~VBLANK/2 and ~VBLANK/4 at VGA45 (VBLANK = 24 lines =
+// 543 us).  VBLANK scales with T (same 24-line blanking at every validated
+// fps), so these are conservative at 15/30 fps and tight at 90 fps.
+static constexpr int32_t  kPhaseDriftWarnUs   = 270;
+static constexpr int32_t  kPhaseDriftClearUs  = 150;
+
+static int32_t cam_median_i32(int32_t* v, int n) {
+  // insertion sort, n <= 64
+  for (int i = 1; i < n; ++i) {
+    int32_t x = v[i]; int j = i - 1;
+    while (j >= 0 && v[j] > x) { v[j + 1] = v[j]; --j; }
+    v[j + 1] = x;
+  }
+  return v[n / 2];
+}
+
+// phi from the last 64 FB-done events.  0 = ok, -1 = not enough data,
+// -2 = no flips in the window, -3 = inconsistent (cam1/cam0 estimates differ).
+extern "C" int sentai_cam_phase_from_log(int32_t* phi_us, uint32_t* T_us) {
+  uint32_t ts[64]; uint8_t idx[64]; uint8_t cam[64]; uint16_t seq[64];
+  // NOTE: also records T for the autotune task (single 32-bit store).
+  int n = sentai_cam_frame_log(64, ts, idx, cam, seq);
+  if (n < 16) return -1;
+  int32_t steady[64], to1[64], to0[64];
+  int ns = 0, n1 = 0, n0 = 0;
+  for (int k = 1; k < n; ++k) {
+    uint32_t dt = ts[k] - ts[k - 1];           // unsigned wrap-safe
+    if (dt > 200000u) continue;                // gap: log not continuous
+    if (cam[k] != cam[k - 1]) {
+      if (cam[k] == 1) { if (n1 < 64) to1[n1++] = (int32_t)dt; }
+      else             { if (n0 < 64) to0[n0++] = (int32_t)dt; }
+    } else if (ns < 64) {
+      steady[ns++] = (int32_t)dt;
+    }
+  }
+  // ns >= 4 at ratio(1,1) relies on quotas being FB2-gated (g_camera_frame_seq
+  // advances on fb2_done only -> 1 quota = 2 sensor frames), so every flip
+  // is followed by one same-camera interval ("frame_count is half rate").
+  if (ns < 4 || (n1 < 2 && n0 < 2)) return -2;
+  int32_t T = cam_median_i32(steady, ns);
+  if (T <= 0) return -1;
+  int32_t phi = 0, phi0 = 0; bool have1 = false, have0 = false;
+  if (n1 >= 2) {
+    int32_t e = ((cam_median_i32(to1, n1) - T) % T + T) % T;   // 0..T-1
+    phi = (e <= T / 2) ? e : e - T; have1 = true;
+  }
+  if (n0 >= 2) {
+    int32_t e = ((cam_median_i32(to0, n0) - T) % T + T) % T;
+    phi0 = -((e <= T / 2) ? e : e - T); have0 = true;
+  }
+  if (have1 && have0 && (phi - phi0 > 300 || phi0 - phi > 300)) return -3;
+  *phi_us = have1 ? phi : phi0;
+  *T_us = (uint32_t)T;
+  g_cam_phase_T_us = (uint32_t)T;
+  return 0;
+}
+
+extern "C" void sentai_cam_phase_monitor_note(int32_t phi_us) {
+  if (g_cam_genlock_busy) return;
+  g_cam_phase_us = phi_us;
+  g_cam_phase_valid = 1;
+  int32_t a = phi_us < 0 ? -phi_us : phi_us;
+  if (a > kPhaseDriftWarnUs) {
+    g_cam_phase_excursions++;
+    if (!g_cam_phase_drifting) {
+      g_cam_phase_drifting = 1;
+      g_cam_phase_drift_cnt++;
+      // Protect consumers until the phase is back: re-arm the dirty skip.
+      if (g_cam_fullrate) g_cam_dirty_consecutive_n = 1;
+      SERR_LOG(SERR_CAM_PHASE_DRIFT, (uint32_t)phi_us);
+    }
+    // Two consecutive excursions -> ask cam_tune for one blind trim.
+    if (g_cam_phase_excursions >= 2u && g_cam_autotune_enabled && s_cam_autotune_task) {
+      g_cam_autotune_req_phi = phi_us;
+      xTaskNotifyGive(s_cam_autotune_task);
+    }
+  } else {
+    g_cam_phase_excursions = 0;
+    if (a < kPhaseDriftClearUs && g_cam_phase_drifting) {
+      g_cam_phase_drifting = 0;
+      if (g_cam_fullrate) g_cam_dirty_consecutive_n = 0;
+      SERR_LOG(SERR_CAM_PHASE_DRIFT_END, (uint32_t)phi_us);
+    }
+  }
+}
+
+// Dequeue (and immediately return) frames until `nframes` distinct sensor
+// frames have passed or `budget_ms` elapsed.  Keeps the CSI queue from
+// filling so the FB-done hook keeps logging.
+static void cam_consume_frames(int nframes, uint32_t budget_ms) {
+  auto* cam = coralmicro::CameraTask::GetSingleton();
+  TickType_t t0 = xTaskGetTickCount();
+  uint32_t last = g_camera_sensor_frames;
+  int seen = 0;
+  while (seen < nframes &&
+         (xTaskGetTickCount() - t0) < pdMS_TO_TICKS(budget_ms)) {
+    uint32_t q = g_camera_sensor_frames;
+    if (q == last) { vTaskDelay(pdMS_TO_TICKS(1)); continue; }
+    last = q; ++seen;
+    uint8_t* tmp = nullptr;
+    int idx = cam->TryGetRawFrame(&tmp);
+    if (idx >= 0) cam->ReturnRawFrame(idx);
+  }
+}
+
+static void cam_drain_queue(void) {
+  auto* cam = coralmicro::CameraTask::GetSingleton();
+  for (int i = 0; i < DEMO_CAMERA_BUFFER_COUNT; ++i) {
+    uint8_t* tmp = nullptr;
+    int idx = cam->TryGetRawFrame(&tmp);
+    if (idx < 0) break;
+    cam->ReturnRawFrame(idx);
+  }
+}
+
+// Measure phi by alternating 1:1 for ~70 frames while consuming.  Leaves
+// ratio(0,0) on cam0.  Returns 0 or a negative code.
+// Returns 0, -1 camera off, -10 detection pipeline owns the frames, -30 not
+// measurable (fewer than 32 fresh FB-done entries, or no usable flips).
+// Restores the caller's ratio and MUX camera; drain/dirty are restored too.
+extern "C" int sentai_cam_phase_measure(int32_t* phi_us, uint32_t* T_us) {
+  if (!g_cam_initialized) return -1;
+  if (sentai_detection_is_running()) return -10;
+  uint32_t drain_prev = g_cam_switch_drain_threshold;
+  uint32_t dirty_prev = g_cam_dirty_consecutive_n;
+  uint32_t ratio_prev = g_cam_ratio_packed;
+  int cam_prev = g_cam_current_id;
+  sentai_cam_ratio_set(0, 0);
+  (void)sentai_cam_switch(0);
+  vTaskDelay(pdMS_TO_TICKS(150));
+  g_cam_switch_drain_threshold = 0;
+  g_cam_dirty_consecutive_n = 0;
+  cam_drain_queue();
+  uint32_t head0 = g_cam_flog_head;
+  sentai_cam_ratio_set(1, 1);
+  vTaskDelay(pdMS_TO_TICKS(250));
+  // 48 frames = 12 flips: enough for >= 32 fresh log entries (4 steady
+  // intervals + >= 2 flips per direction) while keeping the exposure to the
+  // F16 flip hazard as short as possible.
+  cam_consume_frames(48, 3000);
+  int rc = (g_cam_flog_head - head0 >= 32u) ? sentai_cam_phase_from_log(phi_us, T_us) : -1;
+  sentai_cam_ratio_set(0, 0);
+  vTaskDelay(pdMS_TO_TICKS(100));
+  cam_drain_queue();
+  g_cam_switch_drain_threshold = drain_prev;
+  g_cam_dirty_consecutive_n = dirty_prev;
+  if (cam_prev == 1) (void)sentai_cam_switch(1);
+  g_cam_ratio_packed = ratio_prev;
+  if (rc == 0) { g_cam_phase_us = *phi_us; g_cam_phase_valid = 1; }
+  return rc == 0 ? 0 : -30;
+}
+
+static bool cam_vts_read(int cam_id, uint16_t* vts) {
+  auto* cam = coralmicro::CameraTask::GetSingleton();
+  uint8_t h = 0, l = 0;
+  if (!cam->ReadFromCam(cam_id, 0x380E, &h) || !cam->ReadFromCam(cam_id, 0x380F, &l)) return false;
+  *vts = (uint16_t)((h << 8) | l);
+  return true;
+}
+static bool cam_vts_write(int cam_id, uint16_t vts) {
+  auto* cam = coralmicro::CameraTask::GetSingleton();
+  return cam->WriteToCam(cam_id, 0x380E, (uint8_t)(vts >> 8)) &&
+         cam->WriteToCam(cam_id, 0x380F, (uint8_t)(vts & 0xFF));
+}
+
+// Wait for the next FB-done edge of the sensor currently on the MUX.
+// Returns false if no frame arrived within budget_ms.
+static bool cam_wait_frame_edge(uint32_t budget_ms) {
+  TickType_t t0 = xTaskGetTickCount();
+  uint32_t q0 = g_camera_sensor_frames;
+  while (g_camera_sensor_frames == q0) {
+    if ((xTaskGetTickCount() - t0) >= pdMS_TO_TICKS(budget_ms)) return false;
+    vTaskDelay(pdMS_TO_TICKS(1));
+  }
+  return true;
+}
+
+// Delay sensor `cam_id` by exactly `lines` lines (one frame of VTS+lines).
+// OV5640 timing registers latch at the frame start, so an unsynchronised
+// write/restore pair holds the long VTS for one OR two frames depending on
+// where in the frame the write landed (iter8: every 19-line tweak moved the
+// phase by 2 x 19 lines and the loop oscillated).  Here the sensor is put
+// on the MUX so g_camera_sensor_frames follows ITS frame edges; the write
+// goes out 5 ms after an edge (latches at the next edge, ~0.75 T later;
+// the long frame then spans [0.75 T, 1.75 T + d]) and the restore 1.25 T
+// after the write, i.e. mid long frame with +/- 0.5 T of margin.
+// Returns 0, -20 no frame edge, -50 SCCB write failed (sensor unchanged),
+// -51 the RESTORE failed after 3 attempts: the sensor is left at VTS+lines
+// (slower frame) -- reported, the caller must treat the genlock as failed.
+// Always leaves the MUX on cam0.
+static int cam_vts_tweak_one_frame(int cam_id, uint16_t vts, uint32_t lines, uint32_t T_us) {
+  int rc = 0;
+  if (sentai_cam_switch(cam_id) < 0) return -50;
+  vTaskDelay(pdMS_TO_TICKS(60));
+  cam_drain_queue();
+  if (!cam_wait_frame_edge(200)) { rc = -20; goto out; }
+  vTaskDelay(pdMS_TO_TICKS(T_us / 4000u));                     // 0.25 T after the edge
+  {
+    TickType_t t_write = xTaskGetTickCount();
+    if (!cam_vts_write(cam_id, (uint16_t)(vts + lines))) { rc = -50; goto out; }
+    // Restore 1.25 T after the write, anchored to the tick taken before the
+    // write so the SCCB/printf cost inside WriteToCam does not eat the margin.
+    vTaskDelayUntil(&t_write, pdMS_TO_TICKS((T_us * 5u) / 4000u));
+    bool restored = false;
+    for (int attempt = 0; attempt < 3 && !restored; ++attempt) {
+      restored = cam_vts_write(cam_id, vts);
+      if (!restored) vTaskDelay(pdMS_TO_TICKS(2));
+    }
+    if (!restored) {
+      uint16_t rb = 0;
+      (void)cam_vts_read(cam_id, &rb);
+      SERR_LOG(SERR_CAM_GENLOCK_FAIL, 51u);
+      printf("[cam] genlock: VTS restore FAILED on cam%d (readback 0x%04X, wanted 0x%04X)\r\n",
+             cam_id, (unsigned)rb, (unsigned)vts);
+      rc = -51;
+      goto out;
+    }
+  }
+  vTaskDelay(pdMS_TO_TICKS(60));
+out:
+  if (cam_id != 0) (void)sentai_cam_switch(0);
+  return rc;
+}
+
+// Genlock.  sync_start != 0: first put both sensors in software standby and
+// release them back-to-back (phi ~ one SCCB write apart, cam0 first), then
+// trim; 0: trim only.  Returns the residual phase in us on success (|phi| <=
+// kGenlockTolUs), or a negative code: -1 camera off, -10 detection pipeline
+// running (owns the frames), -20 sensors did not restart / no frame edge,
+// -30 phase not measurable, -40 did not converge, -50 SCCB write failed
+// (sensor unchanged), -51 VTS restore failed (sensor left slower; reported).
+// Duration: typically 2-3 s (one measurement + one trim); worst case ~20 s
+// (4 measurements of up to 4.5 s + 3 trims).  SERR_CAM_GENLOCK_FAIL val =
+// |code|.  Premise: AEC frame-length extension (0x3A00 bit 2, "night
+// mode") stays off in the init table, otherwise low light would move the
+// phase and trip the drift monitor.
+// Wait (1 ms steps) until GPT1 reaches `t_us`; false if it is further than
+// `max_us` away or already more than one period in the past.
+static bool cam_wait_until_us(uint32_t t_us, uint32_t max_us) {
+  for (;;) {
+    int32_t d = (int32_t)(t_us - GPT1->CNT);
+    if (d <= 0) return (uint32_t)(-d) < max_us;   // not hopelessly late
+    if ((uint32_t)d > max_us) return false;
+    vTaskDelay(pdMS_TO_TICKS(1));
+  }
+}
+
+// BLIND one-frame VTS trim of `cam_id`: the sensor is NOT put on the MUX;
+// its frame edges are predicted from its last FB-done entry in the frame
+// log (ts + k*T, T known to ~1 us).  Same timing as cam_vts_tweak_one_frame
+// (write at edge + 0.25 T, restore 1.25 T after the write).  Returns 0, -20
+// no recent edge of that sensor in the log, -50/-51 as the sync tweak.
+static int cam_vts_trim_blind(int cam_id, uint32_t lines, uint32_t T_us) {
+  uint32_t ts[64]; uint8_t idx[64]; uint8_t cam[64]; uint16_t seq[64];
+  int n = sentai_cam_frame_log(64, ts, idx, cam, seq);
+  int last = -1;
+  for (int k = n - 1; k >= 0; --k) if (cam[k] == cam_id) { last = k; break; }
+  if (last < 0 || T_us < 5000u) return -20;
+  uint32_t now = GPT1->CNT;
+  uint32_t age = now - ts[last];
+  if (age > 60u * T_us) return -20;                       // > ~1.3 s old: not trusted
+  uint32_t k = age / T_us + 1u;                            // next predicted edge after now
+  uint32_t edge = ts[last] + k * T_us;
+  if ((int32_t)(edge - now) < 2000) edge += T_us;         // leave >= 2 ms to get there
+  uint16_t vts = 0;
+  if (!cam_vts_read(cam_id, &vts) || vts == 0) return -50;
+  if (!cam_wait_until_us(edge + T_us / 4u, 3u * T_us)) return -20;
+  uint32_t t_write = GPT1->CNT;
+  if (!cam_vts_write(cam_id, (uint16_t)(vts + lines))) return -50;
+  (void)cam_wait_until_us(t_write + (T_us * 5u) / 4u, 3u * T_us);
+  bool restored = false;
+  for (int attempt = 0; attempt < 3 && !restored; ++attempt) {
+    restored = cam_vts_write(cam_id, vts);
+    if (!restored) vTaskDelay(pdMS_TO_TICKS(2));
+  }
+  if (!restored) { SERR_LOG(SERR_CAM_GENLOCK_FAIL, 51u); return -51; }
+  return 0;
+}
+
+// cam_tune task: sleeps until the phase monitor notifies, then applies one
+// blind trim to the leading sensor.  Rate-limited; never touches the MUX or
+// the frame queue, so it is safe while the detection pipeline runs.
+static void CamAutotuneTask(void*) {
+  TickType_t last = 0;
+  for (;;) {
+    (void)ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+    if (!g_cam_initialized || !g_cam_autotune_enabled) continue;
+    TickType_t now = xTaskGetTickCount();
+    if (last != 0 && (now - last) < pdMS_TO_TICKS(kAutotuneMinGapMs)) continue;
+    int32_t phi = g_cam_autotune_req_phi;
+    uint32_t T = g_cam_phase_T_us;
+    int32_t a = phi < 0 ? -phi : phi;
+    if (a <= kGenlockTolUs || T < 5000u) continue;
+    int cam_id = (phi > 0) ? 0 : 1;                        // delaying cam0 lowers phi
+    uint16_t vts = 0;
+    if (!cam_vts_read(cam_id, &vts) || vts == 0) continue;
+    uint32_t line_ns = (T * 1000u) / vts;
+    uint32_t lines = ((uint32_t)a * 1000u + line_ns / 2u) / line_ns;
+    if (lines == 0) lines = 1;
+    if (lines > kGenlockMaxLines) lines = kGenlockMaxLines;
+    int rc = cam_vts_trim_blind(cam_id, lines, T);
+    last = xTaskGetTickCount();
+    g_cam_phase_excursions = 0;
+    if (rc == 0) {
+      g_cam_autotune_trims++;
+      SERR_LOG(SERR_CAM_PHASE_TRIM, ((uint32_t)cam_id << 16) | lines);
+    } else {
+      SERR_LOG(SERR_CAM_GENLOCK_FAIL, (uint32_t)(-rc));
+    }
+  }
+}
+
+static void cam_autotune_task_start(void) {
+  if (s_cam_autotune_task) return;
+  (void)xTaskCreate(CamAutotuneTask, "cam_tune", 1024, nullptr,
+                    tskIDLE_PRIORITY + 2, &s_cam_autotune_task);
+}
+
+// Open-loop pre-trim at camera.init(): remove the deterministic start-order
+// offset (cam0 leads by one SCCB write, kSccbStartGapUs) with a single
+// frame-synchronised VTS tweak on cam0 -- the sensor already on the MUX, so
+// NO MUX flip happens before the sensors are aligned (audit F16).  Returns
+// the lines applied (> 0) or a negative tweak code.
+extern "C" int sentai_cam_pretrim(void) {
+  if (!g_cam_initialized || g_runtime_fps == 0) return -1;
+  uint16_t vts0 = 0;
+  if (!cam_vts_read(0, &vts0) || vts0 == 0) return -50;
+  uint32_t T_us = 1000000u / g_runtime_fps;                // nominal period
+  uint32_t line_ns = (T_us * 1000u) / vts0;
+  uint32_t lines = (kSccbStartGapUs * 1000u + line_ns / 2u) / line_ns;
+  if (lines == 0 || lines > kGenlockMaxLines) return -30;
+  g_cam_genlock_busy = 1;
+  int rc = cam_vts_tweak_one_frame(0, vts0, lines, T_us);
+  g_cam_genlock_busy = 0;
+  if (rc != 0) { SERR_LOG(SERR_CAM_GENLOCK_FAIL, (uint32_t)(-rc)); return rc; }
+  g_cam_pretrim_lines = lines;
+  g_cam_fullrate = 1;
+  g_cam_switch_drain_threshold = 0;
+  g_cam_dirty_consecutive_n = 0;
+  SERR_LOG(SERR_CAM_PRETRIM, lines);
+  printf("[cam] pre-trim: cam0 delayed %lu lines (%lu us) -> alternation at full rate\r\n",
+         (unsigned long)lines, (unsigned long)((lines * line_ns) / 1000u));
+  return (int)lines;
+}
+
+static int sentai_cam_genlock_run(coralmicro::CameraTask* cam, int sync_start);
+extern "C" int sentai_cam_genlock(int sync_start) {
+  if (!g_cam_initialized) return -1;
+  if (sentai_detection_is_running()) return -10;
+  auto* cam = coralmicro::CameraTask::GetSingleton();
+  g_cam_genlock_ok = 0;
+  g_cam_genlock_steps = 0;
+  g_cam_genlock_busy = 1;
+  int rc = sentai_cam_genlock_run(cam, sync_start);
+  g_cam_genlock_busy = 0;
+  return rc;
+}
+
+static int sentai_cam_genlock_run(coralmicro::CameraTask* cam, int sync_start) {
+
+  if (sync_start) {
+    // F15 hazard: never leave the CSI queue full across the restart.
+    sentai_cam_ratio_set(0, 0);
+    (void)sentai_cam_switch(0);
+    vTaskDelay(pdMS_TO_TICKS(100));
+    cam_drain_queue();
+    uint32_t q0 = g_camera_sensor_frames;
+    bool sb0 = cam->WriteToCam(0, 0x3008, 0x42);
+    bool sb1 = sb0 && cam->WriteToCam(1, 0x3008, 0x42);
+    bool ok0 = false, ok1 = false;
+    if (sb1) {
+      vTaskDelay(pdMS_TO_TICKS(60));
+      cam_drain_queue();
+      // back-to-back release: cam0 then cam1 -> phi ~ +(one write time)
+      ok0 = cam->WriteToCam(0, 0x3008, 0x02);
+      ok1 = cam->WriteToCam(1, 0x3008, 0x02);
+    }
+    if (!sb1 || !ok0 || !ok1) {
+      // Never leave a sensor in standby: best-effort release of both.
+      (void)cam->WriteToCam(0, 0x3008, 0x02);
+      (void)cam->WriteToCam(1, 0x3008, 0x02);
+      SERR_LOG(SERR_CAM_GENLOCK_FAIL, 50u);
+      return -50;
+    }
+    vTaskDelay(pdMS_TO_TICKS(400));
+    if (g_camera_sensor_frames - q0 < 5u) {
+      SERR_LOG(SERR_CAM_GENLOCK_FAIL, 20u);
+      return -20;
+    }
+    cam_drain_queue();
+  }
+
+  uint16_t vts0 = 0, vts1 = 0;
+  if (!cam_vts_read(0, &vts0) || !cam_vts_read(1, &vts1) || vts0 == 0 || vts1 == 0) return -50;
+
+  int32_t phi = 0; uint32_t T = 0;
+  for (uint32_t step = 0; step <= kGenlockMaxSteps; ++step) {
+    int rc = sentai_cam_phase_measure(&phi, &T);
+    if (rc != 0) {
+      SERR_LOG(SERR_CAM_GENLOCK_FAIL, (uint32_t)(-rc));
+      return rc;
+    }
+    int32_t a = phi < 0 ? -phi : phi;
+    if (a <= kGenlockTolUs) {
+      g_cam_genlock_ok = 1;
+      g_cam_genlock_steps = step;
+      // Proposal B: with the sensors in phase the per-flip skip is no longer
+      // needed -- alternation runs at the full sensor rate.
+      g_cam_fullrate = 1;
+      g_cam_switch_drain_threshold = 0;
+      g_cam_dirty_consecutive_n = 0;
+      SERR_LOG(SERR_CAM_GENLOCK, (step << 16) | ((uint32_t)phi & 0xFFFFu));
+      printf("[cam] genlock: phase %ld us after %lu step(s) (T=%lu us)\r\n",
+             (long)phi, (unsigned long)step, (unsigned long)T);
+      return (int)phi;
+    }
+    if (step == kGenlockMaxSteps) break;
+    // one-frame VTS tweak: delaying cam0 lowers phi, delaying cam1 raises it
+    uint32_t line_ns = (T * 1000u) / (uint32_t)vts0;
+    if (line_ns == 0) return -30;
+    uint32_t lines = ((uint32_t)a * 1000u + line_ns / 2u) / line_ns;
+    if (lines == 0) lines = 1;
+    if (lines > kGenlockMaxLines) lines = kGenlockMaxLines;
+    int cam_id = (phi > 0) ? 0 : 1;
+    uint16_t vts = (cam_id == 0) ? vts0 : vts1;
+    printf("[cam] genlock step %lu: phase %ld us -> cam%d VTS %u+%lu for one frame\r\n",
+           (unsigned long)step, (long)phi, cam_id, (unsigned)vts, (unsigned long)lines);
+    int trc = cam_vts_tweak_one_frame(cam_id, vts, lines, T);
+    if (trc != 0) {
+      if (trc != -51) SERR_LOG(SERR_CAM_GENLOCK_FAIL, (uint32_t)(-trc));  // -51 already logged
+      return trc;
+    }
+    g_cam_genlock_steps = step + 1;
+  }
+  SERR_LOG(SERR_CAM_GENLOCK_FAIL, 40u);
+  printf("[cam] genlock FAILED: residual phase %ld us\r\n", (long)phi);
+  return -40;
+}
+
+extern "C" int sentai_cam_genlock_auto(int set) {   // set < 0: query; 0/1/2
+  if (set >= 0) g_cam_genlock_auto = (set > 2) ? 2u : (uint32_t)set;
+  return (int)g_cam_genlock_auto;
+}
+
+extern "C" int sentai_cam_autotune(int set) {       // set < 0: query
+  if (set >= 0) g_cam_autotune_enabled = set ? 1u : 0u;
+  return (int)g_cam_autotune_enabled;
+}
+
+extern volatile uint32_t g_cam_flip_delay_us, g_cam_flips_deferred, g_cam_flips_executed;  // camera_support.c
+extern "C" int sentai_cam_flip_delay_us(int set) {   // set < 0: query; 0 = legacy immediate flip
+  if (set >= 0) g_cam_flip_delay_us = (set > 400) ? 400u : (uint32_t)set;
+  return (int)g_cam_flip_delay_us;
+}
+extern "C" void sentai_cam_flip_stats(uint32_t* deferred, uint32_t* executed) {
+  if (deferred) *deferred = g_cam_flips_deferred;
+  if (executed) *executed = g_cam_flips_executed;
+}
+
+extern "C" void sentai_cam_autotune_stats(uint32_t* pretrim_lines, uint32_t* trims) {
+  if (pretrim_lines) *pretrim_lines = g_cam_pretrim_lines;
+  if (trims) *trims = g_cam_autotune_trims;
+}
+
+extern "C" uint32_t sentai_cam_csi_queue_faults(void) {
+  return g_cam_csi_queue_faults;
+}
+
+extern "C" void sentai_cam_genlock_stats(int32_t* phase_us, uint32_t* valid,
+                                         uint32_t* ok, uint32_t* steps,
+                                         uint32_t* stale_skips, uint32_t* drift) {
+  if (phase_us) *phase_us = g_cam_phase_us;
+  if (valid) *valid = g_cam_phase_valid;
+  if (ok) *ok = g_cam_genlock_ok;
+  if (steps) *steps = g_cam_genlock_steps;
+  if (stale_skips) *stale_skips = g_cam_stale_skips;
+  if (drift) *drift = g_cam_phase_drift_cnt;
+}
+
 extern "C" __attribute__((section(".sdram_text"))) int sentai_cam_init_full(
     int streaming, int fps, int hflip, int vflip) {
   /* Validate fps against the patched fsl_ov5640.c VGA table. */
@@ -3173,6 +3756,17 @@ extern "C" __attribute__((section(".sdram_text"))) int sentai_cam_init_full(
   if (hflip >= 0 && vflip >= 0) {
     int deg = sentai_flip_to_degrees(hflip, vflip);
     (void)cam->SetCameraRotation(0, deg);
+  }
+  // EXP-s251 proposal A: bring the two sensors in phase so ratio(a,b)
+  // alternation is clean at the full sensor rate.  Typically 2-3 s, bounded
+  // (worst case ~20 s, see sentai_cam_genlock); failure is logged
+  // (SERR_CAM_GENLOCK_FAIL) and leaves the conservative drain/dirty defaults
+  // in place.  Measurement only (no standby restart) at init: the restart
+  // path is available via sentai.camera.genlock(1).  Streaming mode only.
+  if (streaming && cam->DetectedMask() == 0x3) {
+    cam_autotune_task_start();
+    if (g_cam_genlock_auto >= 1u) (void)sentai_cam_pretrim();      // no flips
+    if (g_cam_genlock_auto >= 2u) (void)sentai_cam_genlock(0);     // measured verify (flips)
   }
   return 0;
 }
@@ -3340,6 +3934,7 @@ static int sentai_cam_get_raw_with_recovery(uint8_t** raw_out) {
     }
   }
 
+  int stale_skips_here = 0;
   for (int recovery = 0; recovery <= kMaxRecoveries; ++recovery) {
     // Drain the FIFO queue non-blockingly and keep only the most recent frame.
     // TryGetRawFrame is now truly non-blocking (single GetFullBuffer probe, no
@@ -3349,6 +3944,7 @@ static int sentai_cam_get_raw_with_recovery(uint8_t** raw_out) {
     uint8_t* kept_frame = nullptr;
     int kept_idx = -1;
     int drained = 0;
+    static_assert(DEMO_CAMERA_BUFFER_COUNT <= 8, "stale-skip bound assumes a small pool");
     for (int i = 0; i < DEMO_CAMERA_BUFFER_COUNT - 1; ++i) {
       uint8_t* tmp = nullptr;
       int idx = cam->TryGetRawFrame(&tmp);
@@ -3386,6 +3982,30 @@ static int sentai_cam_get_raw_with_recovery(uint8_t** raw_out) {
           g_cam_buf_dirty_skips++;
           cam->ReturnRawFrame(kept_idx);
           continue;
+        }
+      }
+      // EXP-s251 proposal C: a buffer that sat in the queue while nobody
+      // consumed is OLD (measured 0.5-1 s after an idle second: three full
+      // buffers wait in the queue while the CSI overwrites the fourth).
+      // Drop anything older than two frame periods and let the blocking
+      // grab below return a fresh one.  ts == 0 means never queued through
+      // the frame-complete hook (e.g. before the first frame): no opinion.
+      {
+        extern volatile uint32_t g_cam_buf_ts_us[];
+        uint32_t ts = (kept_idx < (int)DEMO_CAMERA_BUFFER_COUNT) ? g_cam_buf_ts_us[kept_idx] : 0u;
+        if (ts != 0u) {
+          uint32_t age_us = GPT1->CNT - ts;
+          uint32_t fps = g_runtime_fps ? g_runtime_fps : 30u;
+          uint32_t stale_us = 2000000u / fps;
+          if (age_us > stale_us && stale_skips_here < DEMO_CAMERA_BUFFER_COUNT) {
+            // Bounded by the pool size and does not consume the recovery
+            // budget: a stale buffer is not a CSI failure.
+            g_cam_stale_skips++;
+            stale_skips_here++;
+            cam->ReturnRawFrame(kept_idx);
+            --recovery;
+            continue;
+          }
         }
       }
       g_cam_grabbed_id = (int)g_cam_buf_id_task[kept_idx];  // build #911 baseline

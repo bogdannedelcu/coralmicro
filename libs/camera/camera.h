@@ -369,6 +369,11 @@ class CameraTask
   // 0=normal, 90=mirror only, 180=mirror+flip, 270=flip only.
   bool SetCameraRotation(int cam_id, int degrees);
 
+  // Bitmask of cameras that answered at the last SetPower(true): bit0 cam0.
+  // Read-only; used by the runtime to decide whether a dual-sensor genlock
+  // (EXP-s251) is applicable.
+  uint8_t DetectedMask() const { return detected_mask_; }
+
  private:
   bool VideoConvert(uint32_t in);
   int GetFrame(uint8_t** buffer, bool block);
@@ -392,9 +397,6 @@ class CameraTask
   // transfer status and the value (the legacy Detect() could report a dead
   // bus as present because Read() fills one buffer from both buses).
   bool Detect(int cam_id);
-  // Bitmask of cameras that answered at the last SetPower(true): bit0 cam0.
-  uint8_t DetectedMask() const { return detected_mask_; }
-
   lpi2c_rtos_handle_t* i2c_handle_;
   lpi2c_rtos_handle_t* i2c_handle2_;
   uint8_t detected_mask_ = 0;

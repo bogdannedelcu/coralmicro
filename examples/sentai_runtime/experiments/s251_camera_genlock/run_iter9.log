@@ -1,0 +1,67 @@
+>>> import sentai
+import sentai
+>>> 
+>>> print(sentai.version())
+print(sentai.version())
+SentAI v1.0 build 1654 (2026-10-31 10:22:30) board 58eb
+>>> 
+>>> print("INIT", sentai.camera.init(1, 45))
+print("INIT", sentai.camera.init(1, 45))
+HandlePowerRequest: cam0 (bus 1): OK, cam1 (bus 2): OK
+CAMERA_RECEIVER_Init = 0
+BOARD_PullCameraPowerDownPin:1
+BOARD_PullCameraResetPin:0
+BOARD_PullCameraPowerDownPin:0
+BOARD_PullCameraResetPin:1
+CAMERA_DEVICE_Init = 0
+CAMERA_DEVICE_Start = 0
+CAMERA_RECEIVER_Start = 0
+[CAM] sensor_fps=46 (1 s sample, target=30)
+[CAM1] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM1] W 0x3820=0x47 (0)
+[CAM1] W 0x3821=0x01 (0)
+[CAM0] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM0] W 0x3820=0x47 (0)
+[CAM0] W 0x3821=0x01 (0)
+INIT 0
+>>> 
+>>> print("STATS1", sentai.camera.stats())
+print("STATS1", sentai.camera.stats())
+STATS1 {'phase_drift': 0, 'switch_fallback': 0, 'grab_retry': 0, 'grab_fatal': 0, 'genlock_steps': 0, 'genlock_ok': 0, 'stalled': 0, 'stale_skips': 0, 'stall_count': 0, 'switch_ok_eof': 0, 'drain_timeout': 0, 'phase_us': None}
+>>> 
+>>> print("PHASE1", sentai.camera.phase())
+print("PHASE1", sentai.camera.phase())
+PHASE1 None
+>>> 
+>>> exec("sentai.camera.ratio(1,1)\nt0=sentai.rtos.ticks_ms()\nf0=sentai.camera.sensor_frames()\nn=0\nwhile sentai.rtos.ticks_ms()-t0<3000:\n  sentai.camera.peek_col(40); n+=1\ndt=sentai.rtos.ticks_ms()-t0\nprint('ALT consumed',n,'sensor',sentai.camera.sensor_frames()-f0,'ms',dt,'fps',(n*1000)//dt)\nsentai.camera.ratio(0,0)")
+exec("sentai.camera.ratio(1,1)\nt0=sentai.rtos.ticks_ms()\nf0=sentai.camera.sensor_frames()\nn=0\nwhile sentai.rtos.ticks_ms()-t0<3000:\n  sentai.camera.peek_col(40); n+=1\ndt=sentai.rtos.ticks_ms()-t0\nprint('ALT consumed',n,'sensor',sentai.camera.sensor_frames()-f0,'ms',dt,'fps',(n*1000)//dt)\nsentai.camera.ratio(0,0)")
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+  File "<string>", line 6, in <module>
+RuntimeError: peek_col failed
+>>> 
+>>> print("STATS2", sentai.camera.stats())
+print("STATS2", sentai.camera.stats())
+STATS2 {'phase_drift': 0, 'switch_fallback': 1, 'grab_retry': 2, 'grab_fatal': 1, 'genlock_steps': 0, 'genlock_ok': 0, 'stalled': 1, 'stale_skips': 0, 'stall_count': 1, 'switch_ok_eof': 0, 'drain_timeout': 1, 'phase_us': None}
+>>> 
+>>> print("GENLOCK_SYNC", sentai.camera.genlock(1))
+print("GENLOCK_SYNC", sentai.camera.genlock(1))
+[CAM0] W 0x3008=0x42 (0)
+[CAM1] W 0x3008=0x42 (0)
+[CAM0] W 0x3008=0x02 (0)
+[CAM1] W 0x3008=0x02 (0)
+GENLOCK_SYNC -20
+>>> 
+>>> print("STATS3", sentai.camera.stats())
+print("STATS3", sentai.camera.stats())
+STATS3 {'phase_drift': 0, 'switch_fallback': 1, 'grab_retry': 2, 'grab_fatal': 1, 'genlock_steps': 0, 'genlock_ok': 0, 'stalled': 1, 'stale_skips': 0, 'stall_count': 1, 'switch_ok_eof': 0, 'drain_timeout': 1, 'phase_us': None}
+>>> 
+>>> print("PHASE2", sentai.camera.phase())
+print("PHASE2", sentai.camera.phase())
+PHASE2 None
+>>> 
+>>> print("DMESG"); sentai.rtos.dmesg()
+print("DMESG"); sentai.rtos.dmesg()
+DMESG
+'[         0] I E:0F01:1\n[      3810] I E:0500:30\n[      7875] I E:0A06:3\n[      8810] I E:0A0D:4294967266\n[     13810] I E:0A01:0\n[     18810] I E:0A02:300\n[     18810] I E:0A08:0\n[     23810] I E:0A0A:54\n[     23810] I E:0A08:0\n[     23810] I E:0A03:0\n[     28817] I E:0A08:1\n[     28817] I E:0A03:1\n[     33817] I E:0A08:0\n[     33817] I E:0AF0:0\n[     33817] I E:0A0D:4294967276\n'
+>>> 
