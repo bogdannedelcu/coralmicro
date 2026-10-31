@@ -340,6 +340,9 @@ bool SDCard::GetCardInfo(SDCardInfo* info) {
   // Copy product name (max 5 characters + null terminator)
   std::memcpy(info->product_name, s_sdCard.cid.productName, 5);
   info->product_name[5] = '\0';
+  info->bus_clock_hz = s_sdCard.busClock_Hz;
+  info->timing_mode = (uint8_t)s_sdCard.currentTiming;
+  info->bus_width = (s_sdCard.flags & kSD_Support4BitWidthFlag) ? 4 : 1;
 
   return true;
 }

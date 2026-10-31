@@ -545,7 +545,7 @@ OP — ObjectsPlan thesis
 │                            via sentai_crazy_go_to(rel=0) absolute
 │                            position step using PnP anchor.            ⬜ TODO (phase 2)
 │
-├── OP-S10-W15 — ARM memory allocation + task-priority budget       ⬜ TODO (open ToDo,
+├── OP-S10-W15 — ARM memory allocation + task-priority budget       🟢 SHIPPED core (2026-10-31, build 1688): agent/arm_memory_budget.md + scripts/mem_budget.py; ITCM 2 KB → 36 KB free, DTCM 0 → 34 KB, OCRAM 1.5 KB → 78 KB free (cold buffers → SDRAM, CMSIS-NN + newlib float → SDRAM); TPU/USB placements untouched; s249 15/15
 │                operator-requested 2026-05-19, not scheduled yet)
 │   │
 │   │  Motivation:

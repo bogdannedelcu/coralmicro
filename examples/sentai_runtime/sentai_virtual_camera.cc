@@ -77,7 +77,7 @@ static int s_play_limit = 0;
 static int s_play_fps = 10;
 static int s_play_memory_mode = 0;
 static char s_play_dir[kMaxPath] = {0};
-static char s_play_paths[kMaxPlaybackFrames][kMaxPath];
+static char s_play_paths[kMaxPlaybackFrames][kMaxPath] __attribute__((section(".sdram_bss")));  // W15: cold, 8 KB out of DTCM
 
 static uint16_t rd16(const uint8_t* p) {
   return (uint16_t)p[0] | ((uint16_t)p[1] << 8);

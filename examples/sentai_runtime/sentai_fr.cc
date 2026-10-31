@@ -568,7 +568,7 @@ bool drain_one_event_() {
 // each round does exactly one bounded (<=~3 KB) NAND append with 20 ms of
 // breathing room between rounds.
 static uint32_t drain_scalars_batch_() {
-    static char s_scalar_linebuf[48 * (SENTAI_FR_SCALAR_LABEL_LEN + 48)];
+    static char s_scalar_linebuf[48 * (SENTAI_FR_SCALAR_LABEL_LEN + 48)] __attribute__((section(".sdram_bss")));  // W15: cold drain path, 3 KB out of DTCM
     char path[128];
     int off = 0, cnt = 0;
     {

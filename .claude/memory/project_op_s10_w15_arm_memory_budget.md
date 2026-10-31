@@ -109,3 +109,13 @@ ones in a single sweep.
 
 Design + audit only.  No functional refactor.  If any allocation
 moves, document before/after.  Lifetime: 1-2 days when pulled in.
+
+**2026-10-31 SHIPPED core (build 1688):** `agent/arm_memory_budget.md` +
+`scripts/mem_budget.py` (region usage, exit 1 under 4 KB guard, --top N).
+Before: ITCM ~2 KB free, DTCM 0 (overflowed twice), OCRAM ~1.5 KB.  After:
+ITCM 36 KB, DTCM 34 KB, OCRAM 78 KB free.  Moves: s_decim/s_play_paths/
+s_scalar_linebuf -> .sdram_bss; s_test_gray (aruco synthetic bench) OCRAM ->
+SDRAM; CMSIS-NN kernels -> .cmsis_nn (SDRAM); newlib _dtoa/_strtod/printf_float
+-> .libc_cold (SDRAM).  NOT moved (history, operator warning): s_bulk_staging
+(TPU, DTCM), OCRAM TPU tensor, EHCI QH/QTD in .ncache, lwIP/NCM pools.  Rule:
+default SDRAM; DTCM/OCRAM/ITCM need justification + budget run.

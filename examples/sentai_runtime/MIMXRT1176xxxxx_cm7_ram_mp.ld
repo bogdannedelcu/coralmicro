@@ -254,6 +254,42 @@ SECTIONS
      . = ALIGN(4);
   } > m_sdram
 
+  /* .cmsis_nn — CMSIS-NN kernels (TFLM CPU fallback ops).  W15 2026-10-31:
+     ITCM was 2 KB from full; the models run on the Edge TPU, so these
+     int8 kernels are not on the per-frame hot path.  Keeps .cmsis_dsp
+     (FFT for optical flow) in ITCM. */
+  .cmsis_nn :
+  {
+     . = ALIGN(4);
+     *liblibs_CMSIS-m7.a:*arm_nn*(.text .text*)
+     *liblibs_CMSIS-m7.a:*arm_convolve*(.text .text*)
+     *liblibs_CMSIS-m7.a:*arm_depthwise*(.text .text*)
+     *liblibs_CMSIS-m7.a:*arm_fully_connected*(.text .text*)
+     *liblibs_CMSIS-m7.a:*arm_elementwise*(.text .text*)
+     *liblibs_CMSIS-m7.a:*arm_relu*(.text .text*)
+     *liblibs_CMSIS-m7.a:*arm_softmax*(.text .text*)
+     *liblibs_CMSIS-m7.a:*arm_avgpool*(.text .text*)
+     *liblibs_CMSIS-m7.a:*arm_max_pool*(.text .text*)
+     *liblibs_CMSIS-m7.a:*arm_q7*(.text .text*)
+     *liblibs_CMSIS-m7.a:*arm_concatenation*(.text .text*)
+     *liblibs_CMSIS-m7.a:*arm_svdf*(.text .text*)
+     *liblibs_CMSIS-m7.a:*arm_reshape*(.text .text*)
+     . = ALIGN(4);
+  } > m_sdram
+
+  /* .libc_cold — newlib float formatting/parsing (printf %f, strtod).
+     W15 2026-10-31: ~8 KB of ITCM for code that runs on cold REPL/log
+     paths only.  The no-libc fault formatter never calls these. */
+  .libc_cold :
+  {
+     . = ALIGN(4);
+     *(.text._dtoa_r .text._strtod_l .text._strtod_r .text.__gethex .text.__hexnan)
+     *(.text._printf_float .text._printf_i .text.__ssprint_r)
+     *(.text.__mprec* .text._mprec* .text.__d2b .text.__b2d .text.__ratio .text.__ulp .text.__any_on .text.__lo0bits .text.__hi0bits .text.__copybits)
+     *(.text.__s2b .text.__i2b .text.__multadd .text.__pow5mult .text.__lshift .text.__mcmp .text.__mdiff .text.__multiply .text._Balloc .text._Bfree)
+     . = ALIGN(4);
+  } > m_sdram
+
   /* libm math functions — moved OCRAM → SDRAM 2026-04-22 to free
      space for the TPU output tensor relocation. */
   .libm :

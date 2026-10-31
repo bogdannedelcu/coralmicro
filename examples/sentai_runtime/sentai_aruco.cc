@@ -1873,7 +1873,9 @@ static int aruco_pnp_from_corners(const float corners[8],
 // Placing it in OCRAM gives 3-cyc access vs ~50-cyc SDRAM cache miss
 // (per OP-S10-W16 ablation), AND mirrors where PXP DMA already lands
 // the production camera Y8.
-static uint8_t s_test_gray[ARUCO_BUF_SZ] ARUCO_OCRAM_ATTR;
+// W15 (2026-10-31): synthetic test frame -> SDRAM (bench-only input; production
+// frames come from the SDRAM camera buffers anyway).  Frees 75 KB of OCRAM.
+static uint8_t s_test_gray[ARUCO_BUF_SZ] __attribute__((section(".sdram_bss"), aligned(32)));
 
 // DWT cycle counter for Cortex-M7 (no-op on POSIX SIM — returns 0).
 static inline uint32_t markers_dwt_cyc(void) {

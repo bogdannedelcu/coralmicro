@@ -26,6 +26,23 @@ static mp_obj_t mod_sentai_sdcard_init(size_t n_args, const mp_obj_t *args) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_sdcard_init_obj, 0, 1, mod_sentai_sdcard_init);
 
+// sentai.sdcard.bus() -> (clock_hz, timing_mode, bus_width, mode_name)
+// Host-side SD bus state after init: timing 0 = SDR12/default (identification
+// speed), 1 = SDR25 high speed (what SentAI runs: 50 MHz, 3.3 V, 4-bit),
+// 2/3/4 = UHS modes (unused, no 1.8 V switch).
+extern int sentai_sdcard_bus_info(uint32_t* clock_hz, int* timing_mode, int* bus_width);
+static mp_obj_t mod_sentai_sdcard_bus(void) {
+    uint32_t clk = 0; int tm = 0, bw = 0;
+    if (sentai_sdcard_bus_info(&clk, &tm, &bw) != 0) {
+        mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("sdcard not initialised"));
+    }
+    static const char* const names[5] = {"SDR12/default", "SDR25 high-speed", "SDR50", "SDR104", "DDR50"};
+    const char* nm = (tm >= 0 && tm <= 4) ? names[tm] : "?";
+    mp_obj_t items[4] = { mp_obj_new_int_from_uint(clk), mp_obj_new_int(tm), mp_obj_new_int(bw), mp_obj_new_str(nm, strlen(nm)) };
+    return mp_obj_new_tuple(4, items);
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_sdcard_bus_obj, mod_sentai_sdcard_bus);
+
 // sentai.sdcard.init_stage() -> int
 // Progress breadcrumb of the last SD init (ConfigureSDHost/SD_Init steps,
 // 100 = worker entered, 10 = SD_Init returned); diagnostic for a stuck init.
@@ -89,6 +106,7 @@ static const mp_rom_map_elem_t sentai_sdcard_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_init),     MP_ROM_PTR(&mod_sentai_sdcard_init_obj) },
     { MP_ROM_QSTR(MP_QSTR_deinit),   MP_ROM_PTR(&mod_sentai_sdcard_deinit_obj) },
     { MP_ROM_QSTR(MP_QSTR_init_stage),     MP_ROM_PTR(&mod_sentai_sdcard_init_stage_obj) },
+    { MP_ROM_QSTR(MP_QSTR_bus),            MP_ROM_PTR(&mod_sentai_sdcard_bus_obj) },
     { MP_ROM_QSTR(MP_QSTR_info),     MP_ROM_PTR(&mod_sentai_sdcard_info_obj) },
     { MP_ROM_QSTR(MP_QSTR_probe),    MP_ROM_PTR(&mod_sentai_sdcard_probe_obj) },
     { MP_ROM_QSTR(MP_QSTR_hexdump),  MP_ROM_PTR(&mod_sentai_sdcard_hexdump_obj) },

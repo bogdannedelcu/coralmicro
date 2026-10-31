@@ -31,6 +31,9 @@ struct SDCardInfo {
   uint8_t manufacturer_id; // Card manufacturer ID
   uint16_t oem_id;         // OEM/Application ID
   char product_name[6];    // Product name string (5 chars + null terminator)
+  uint32_t bus_clock_hz;   // Current SD bus clock (host-side), e.g. 50000000 in HS
+  uint8_t timing_mode;     // sd_timing_mode_t: 0 SDR12/default, 1 SDR25 high speed, 2 SDR50, 3 SDR104, 4 DDR50
+  uint8_t bus_width;       // 1 or 4 data lines
 };
 
 // Block-level access to the microSD card on USDHC1.

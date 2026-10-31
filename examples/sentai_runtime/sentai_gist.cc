@@ -84,7 +84,8 @@ SENTAI_GIST_TEXT int sentai_gist_compute(const uint8_t* gray, int w, int h,
     // 16 KB FreeRTOS task stack).
     //
     // Buffer sized for typical camera frames up to 640×480 → 160×120 decim.
-    static uint8_t s_decim[160 * 120];
+    // W15 (2026-10-31): cold descriptor scratch -> SDRAM, DTCM is full.
+    static uint8_t s_decim[160 * 120] __attribute__((section(".sdram_bss")));
     if (dw * dh > (int)sizeof(s_decim)) return -2;  // image too large
 
     gist_decimate_4x(gray, w, h, s_decim);

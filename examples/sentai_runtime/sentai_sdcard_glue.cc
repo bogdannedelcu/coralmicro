@@ -88,6 +88,15 @@ int sentai_sdcard_init(int deadline_ms) {
 
 void sentai_sdcard_deinit(void) { coralmicro::SDCard::Deinit(); }
 
+int sentai_sdcard_bus_info(uint32_t* clock_hz, int* timing_mode, int* bus_width) {
+  coralmicro::SDCardInfo info;
+  if (!coralmicro::SDCard::GetCardInfo(&info)) return -1;
+  *clock_hz = info.bus_clock_hz;
+  *timing_mode = info.timing_mode;
+  *bus_width = info.bus_width;
+  return 0;
+}
+
 int sentai_sdcard_info(uint32_t* blocks, uint32_t* block_size,
                        uint32_t* capacity_mb, int* high_capacity, char* name,
                        size_t name_len) {

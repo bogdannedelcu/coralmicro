@@ -37,7 +37,7 @@
 - [HARD RULE — RPMSG cross-core linker alignment (2026-05-19)](feedback_rpmsg_cross_core_alignment.md) — 692f8b95.
 - [OP-S10-W14-T18-T+U SIMD ArUco threshold SHIPPED (2026-05-19)](project_op_s10_w14_t18_simd_threshold.md) — #1353, 24→22ms; [autotune CONVERGES Kp_flow=0.39±0.05 (2026-05-18)](project_op_s10_w14_autotune_converged.md) ec25f458, 7/7.
 - [T22 ARM build restored (2026-05-19)](project_t22_arm_build_fix.md) — 3a89466f. HEAP 14MB.
-- [OP-S10-W15 ARM memory budget WP — open ToDo (2026-05-19)](project_op_s10_w15_arm_memory_budget.md) — hot buffers 32B aligned.
+- [OP-S10-W15 ARM memory budget — SHIPPED core (2026-10-31)](project_op_s10_w15_arm_memory_budget.md) — agent/arm_memory_budget.md + scripts/mem_budget.py; default SDRAM; TPU/USB placements untouchable.
 - [Critical path to defense ~5-7 weeks post-yaw (2026-05-19)](project_critical_path_post_yaw.md) — ARM S9 highest risk.
 - [Diary convention (2026-05-18)](feedback_diary_convention.md) — diary/YYYY-MM-DD.md, English.
 - [Per-WP spec files convention (2026-05-19)](project_objects_plan_per_wp_specs.md) — ideas/objects_plan/.
