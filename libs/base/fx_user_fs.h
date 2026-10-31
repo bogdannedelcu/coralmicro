@@ -12,12 +12,15 @@
  * primitives, so existing high-level callers (sentai.fs.*, modsentai_fs,
  * etc.) continue to work unchanged.
  *
- * Layering:
+ * Layering (2026-10-30: user FS lives on the microSD card, no LevelX):
  *   sentai.fs.* (MicroPython)  ->  modsentai_fs / modsentai_hal
  *   modsentai_*                ->  coralmicro::LfsUser* helpers
  *   coralmicro::LfsUser*       ->  FxUser* (this header)
- *   FxUser*                    ->  fx_*  (FileX) -> lx_* (LevelX)
- *   lx_*                       ->  fx_nand_driver_* -> Nand_Flash_*
+ *   FxUser*                    ->  fx_*  (FileX, fault-tolerant journal)
+ *   fx_*                       ->  fx_sd_driver (libs/base/fx_sd_driver.h)
+ *   fx_sd_driver               ->  coralmicro::SDCard (USDHC1, 512 B blocks)
+ *
+ * The NAND keeps only the LittleFS system partition (elf_loader boot).
  *
  * Concurrency: every FxUser* call serialises through a single FreeRTOS
  * mutex held inside fx_user_fs.cc, mirroring LittleFS's existing
@@ -47,18 +50,26 @@ extern "C" {
 
 /* ===== Mount / lifecycle ============================================== */
 
-/* Bring the FileX-over-LevelX volume up on the user partition (NAND
- * blocks 76..523).  If the volume is unformatted (first boot or after
- * storage-mode wipe), this auto-formats.
+/* Bring the FileX volume up on the microSD card.  A blank card (no boot
+ * signature at block 0) is auto-formatted FAT32; a card with a
+ * filesystem FileX cannot mount is left untouched and the FS enters
+ * SAFE MODE (FxUserIsMounted()==0, every helper returns a clean error).
  *
- * `force_format` = true wipes the volume unconditionally — used by the
- *                   "factory reset" path.
+ * `force_format` = true formats the card unconditionally — operator
+ *                   confirmed path (FX_DESTRUCTIVE_CONFIRM_MAGIC).
  *
- * Idempotent on success: a second call mounts cleanly without
- * re-formatting.  Returns 1 on success, 0 on failure (volume left
- * unmounted; FxUser*() helpers all become no-ops returning errors).
- */
+ * POST-SCHEDULER ONLY (USDHC host blocks on FreeRTOS events): called
+ * from app_main, never from real_main.  Idempotent on success.  Returns
+ * 1 when boot may continue (mounted OR SAFE MODE), 0 only on internal
+ * failure (mutex). */
 int  FxUserInit(int force_format);
+
+/* Boot-path wrapper: runs FxUserInit(0) in a dedicated task and waits at
+ * most `deadline_ms`.  Returns 1 when the volume is mounted, 0 for SAFE
+ * MODE (no card, foreign/corrupt FS, or deadline exceeded — in the last
+ * case the stuck task is reaped by the next FxUserInit(1), i.e.
+ * sentai.fs.format()).  Bounded by construction (embeded.md §B). */
+int  FxUserBootMount(uint32_t deadline_ms);
 
 /* Re-open the FileX volume after USB MSC host access.  Use this from
  * the storage-mode exit path; equivalent to a forced unmount + remount
@@ -169,12 +180,7 @@ int  FxUserRename(const char* from, const char* to);
 
 /* ===== Diagnostics =================================================== */
 
-/* NAND BD adapter counters (cumulative since boot).  Pointers may be NULL. */
-void fx_nand_driver_get_stats(uint32_t* reads, uint32_t* writes,
-                              uint32_t* erases,
-                              uint32_t* read_errors, uint32_t* write_errors,
-                              uint32_t* erase_errors,
-                              uint32_t* bad_blocks);
+/* Block-layer counters: see fx_sd_driver_get_stats() in fx_sd_driver.h. */
 
 /* FileX media-level counters. */
 typedef struct {
@@ -191,33 +197,26 @@ void FxUserGetStats(FxUserStats* out);
 
 /* ===== Compile-time MSC geometry constants ==========================
  *
- * Mirrors fx_nand_driver.h so libs/msc_ums/msc_ums.cc can size its
- * static URB buffers without pulling in lx_api.h. */
-/* Sector size: matches FX_NAND_BYTES_PER_PAGE = 2048 (full data area;
- * physical NAND OOB carries the LevelX 64-byte spare separately).
- * Power-of-2, so Linux usb-storage accepts the LUN and FAT mounts
- * directly via `mount /dev/sda /mnt`. */
-#define FX_USER_LBA_SIZE     2048u
-#define FX_USER_LBA_COUNT    28160u  /* (448 - 8) * 64 reserved blocks  */
+ * libs/msc_ums/msc_ums.cc sizes its static URB buffers from this.  The
+ * LBA COUNT is a runtime value now (card size) — use FxUserMscLbaCount(). */
+#define FX_USER_LBA_SIZE     512u
 
 /* ===== Storage-mode MSC routing =====================================
  *
- * In storage mode the firmware exposes the user partition as a USB MSC
- * LUN.  Phase 2 routes those reads/writes through LevelX so the host
- * sees a real FAT volume at LBA 0 (instead of raw NAND with LX
- * metadata, which is unmountable).  The MSC handler in
- * libs/msc_ums/msc_ums.cc calls these helpers; FxUser* file APIs are
+ * In storage mode the firmware exposes the RAW microSD card as a USB
+ * MSC LUN (512-byte LBAs), so the host mounts whatever filesystem the
+ * card carries exactly as it would from a card reader.  The MSC handler
+ * in libs/msc_ums/msc_ums.cc calls these helpers; FxUser* file APIs are
  * NOT used while storage mode is active. */
 
-/* Open ONLY the LevelX flash on the user partition (no FileX media
- * mount).  Used by the storage-mode boot path before MSC starts.
- * Returns 1 on success, 0 on failure.  Idempotent: a second call on an
- * already-open LX instance returns 1 without re-opening. */
-int FxUserOpenLxOnly(void);
+/* Bring up ONLY the SD block layer (no FileX mount).  Used by the
+ * storage-mode boot path (app_main) before MSC reports the medium
+ * present.  Returns 1 on success, 0 when no card answers.  Idempotent. */
+int FxUserOpenBlockOnly(void);
 
 /* MSC LBA primitives.  Each LBA is FxUserMscLbaSize() bytes, total
  * count is FxUserMscLbaCount().  Reads/writes return 1 on success,
- * 0 on failure (LevelX error logged via SERR_LFX_*). */
+ * 0 on failure (SD error logged via SERR_LFX_SD_*). */
 int FxUserMscLbaSize(void);
 int FxUserMscLbaCount(void);
 int FxUserMscRead(uint32_t lba, uint8_t* buf);

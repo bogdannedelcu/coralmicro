@@ -1,0 +1,37 @@
+# --- build 1617: Camera 1 on LPI2C1, Camera 2 on LPI2C6 — first init ---
+sentai.version()
+'SentAI v1.0 build 1617 (2026-10-30 23:10:50)'
+>>>
+sentai.verbose(1)
+1
+>>>
+t0=sentai.rtos.ticks_ms(); rc=sentai.camera.init(1, 30); print("CAM INIT rc=", rc, "in", sentai.rtos.ticks_ms()-t0, "ms")
+HandlePowerRequest: try I2C1: Success
+HandlePowerRequest: try I2C2: Success
+CAMERA_RECEIVER_Init = 0
+BOARD_PullCameraPowerDownPin:1
+BOARD_PullCameraResetPin:0
+BOARD_PullCameraPowerDownPin:0
+BOARD_PullCameraResetPin:1
+CAMERA_DEVICE_Init = 1
+CAMERA_DEVICE_Start = 1
+CAMERA_RECEIVER_Start = 0
+[CAM] sensor_fps=0 (1 s sample, target=30)
+[CAM1] Rotation 270° (mirror=0 flip=1) reg20=0x40 reg21=0x00 -> reg20=0x46 reg21=0x00
+[CAM1] W 0x3820=0x46 (0)
+[CAM1] W 0x3821=0x00 (0)
+CAM INIT rc= 0 in 1215 ms
+>>>
+print("current_id:", sentai.camera.current_id(), "frames:", sentai.camera.frame_count())
+current_id: 0 frames: 0
+>>>
+print("select0:", sentai.camera.select(0))
+select0: 0
+>>>
+print("frames after 1s:", sentai.camera.frame_count())
+frames after 1s: 0
+>>>
+print("save0:", sentai.camera.save_jpeg("/diags/s247_sdcard_usdhc1_bringup/cam0.jpg", 80))
+
+
+

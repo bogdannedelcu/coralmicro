@@ -32,7 +32,7 @@ add_library_m7(libs_base-m7_freertos STATIC
     analog.cc
     console_m7.cc
     filesystem.cc
-    fx_nand_driver.cc
+    fx_sd_driver.cc
     fx_user_fs.cc
     gpio.cc
     i2c.cc
@@ -58,8 +58,8 @@ set(libs_base-m7_freertos_LINK_LIBRARIES_REVISION
     libs_camera_freertos
     libs_pmic_freertos
     libs_littlefs
-    libs_levelx
     libs_filex
+    libs_sdcard_freertos       # user FS backend: microSD on USDHC1 (2026-10-30)
     libs_nxp_rt1176-sdk_lwip
     libs_nxp_rt1176-sdk_lwip_httpd
 )

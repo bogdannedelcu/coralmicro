@@ -66,6 +66,16 @@ static mp_obj_t mod_sentai_cam_stop(void) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_cam_stop_obj, mod_sentai_cam_stop);
 
+// sentai.camera.power_rails(on=1) -> int
+// Switch the PMIC camera LDO rails (CAM1/CAM2 1V8 + 2V8).  Board rev
+// 2026-10 gates the CAM1 I2C isolation switch with VDD_1V8_CAM1.
+extern int sentai_cam_rails_set(int on);
+static mp_obj_t mod_sentai_cam_power_rails(size_t n_args, const mp_obj_t *args) {
+    int on = (n_args > 0) ? mp_obj_get_int(args[0]) : 1;
+    return mp_obj_new_int(sentai_cam_rails_set(on));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_cam_power_rails_obj, 0, 1, mod_sentai_cam_power_rails);
+
 // sentai.camera.jpeg(quality=75) -> bytes (JPEG data)
 // Captures a frame at camera native resolution and returns JPEG
 static mp_obj_t mod_sentai_cam_jpeg(size_t n_args, const mp_obj_t *args) {
@@ -186,6 +196,33 @@ static mp_obj_t mod_sentai_cam_select(size_t n_args, const mp_obj_t *args) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_cam_select_obj,
                                             1, 2, mod_sentai_cam_select);
+
+// sentai.camera.yuv_mode([on]) -> int (current mode).  s240/YUV420: select the
+// camera output color space.  0 = XRGB8888 (RGB detection models, default).
+// 1 = native YUV (OV5640 YUYV -> CSI XYUV8888) for YUV420 models — matches the
+// model's training color space; the CSI DMA stays 4 BPP (MIPI hw limit).
+// Call BEFORE camera.init()/select() — read only at BOARD_InitCamera time.
+extern void sentai_camera_set_yuv_mode(int on);
+extern int  sentai_camera_get_yuv_mode(void);
+static mp_obj_t mod_sentai_cam_yuv_mode(size_t n_args, const mp_obj_t *args) {
+    if (n_args >= 1) sentai_camera_set_yuv_mode(mp_obj_is_true(args[0]) ? 1 : 0);
+    return mp_obj_new_int(sentai_camera_get_yuv_mode());
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_cam_yuv_mode_obj,
+                                            0, 1, mod_sentai_cam_yuv_mode);
+
+// sentai.camera.yuv420_test(y_path, uv_path) -> int (0 ok).  s240/YUV420 Phase-3
+// diagnostic: split the current XYUV camera frame into Y + UV planes via PXP and
+// dump both raw to FS.  Requires yuv_mode(1) + a live frame.
+extern int sentai_yuv420_extract_test(const char* y_path, const char* uv_path);
+static mp_obj_t mod_sentai_cam_yuv420_test(size_t n_args, const mp_obj_t *args) {
+    _fs_check_usb();
+    const char* yp = mp_obj_str_get_str(args[0]);
+    const char* uvp = (n_args > 1) ? mp_obj_str_get_str(args[1]) : NULL;
+    return mp_obj_new_int(sentai_yuv420_extract_test(yp, uvp));
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_cam_yuv420_test_obj,
+                                            1, 2, mod_sentai_cam_yuv420_test);
 
 // sentai.camera.play(dir, fps=10, count=0) -> number of BMP frames loaded.
 // Starts VirtualCameraTask.  Files are read from dir in lexicographic order;
@@ -766,6 +803,7 @@ static const mp_rom_map_elem_t sentai_camera_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__),   MP_ROM_QSTR(MP_QSTR_camera) },
     { MP_ROM_QSTR(MP_QSTR_init),       MP_ROM_PTR(&mod_sentai_cam_init_obj) },
     { MP_ROM_QSTR(MP_QSTR_stop),       MP_ROM_PTR(&mod_sentai_cam_stop_obj) },
+    { MP_ROM_QSTR(MP_QSTR_power_rails), MP_ROM_PTR(&mod_sentai_cam_power_rails_obj) },
     { MP_ROM_QSTR(MP_QSTR_jpeg),       MP_ROM_PTR(&mod_sentai_cam_jpeg_obj) },
     { MP_ROM_QSTR(MP_QSTR_to_tensor),  MP_ROM_PTR(&mod_sentai_cam_to_tensor_obj) },
     { MP_ROM_QSTR(MP_QSTR_save_jpeg),  MP_ROM_PTR(&mod_sentai_cam_save_jpeg_obj) },
@@ -773,6 +811,8 @@ static const mp_rom_map_elem_t sentai_camera_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_set_resolution), MP_ROM_PTR(&mod_sentai_cam_set_resolution_obj) },
     { MP_ROM_QSTR(MP_QSTR_native_res), MP_ROM_PTR(&mod_sentai_cam_native_res_obj) },
     { MP_ROM_QSTR(MP_QSTR_select),     MP_ROM_PTR(&mod_sentai_cam_select_obj) },
+    { MP_ROM_QSTR(MP_QSTR_yuv_mode),   MP_ROM_PTR(&mod_sentai_cam_yuv_mode_obj) },
+    { MP_ROM_QSTR(MP_QSTR_yuv420_test), MP_ROM_PTR(&mod_sentai_cam_yuv420_test_obj) },
     { MP_ROM_QSTR(MP_QSTR_play),       MP_ROM_PTR(&mod_sentai_cam_play_obj) },
     { MP_ROM_QSTR(MP_QSTR_replay),     MP_ROM_PTR(&mod_sentai_cam_replay_obj) },
     { MP_ROM_QSTR(MP_QSTR_play_stop),  MP_ROM_PTR(&mod_sentai_cam_play_stop_obj) },

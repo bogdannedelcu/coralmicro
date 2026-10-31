@@ -1,0 +1,65 @@
+sentai.version()
+'SentAI v1.0 build 1621 (2026-10-30 23:23:27)'
+>>>
+sentai.verbose(1)
+1
+>>>
+print("before rails: cam0 id", sentai.camera.reg_read(0, 0x300A), "cam1 id", sentai.camera.reg_read(1, 0x300A))
+before rails: cam0 id -1 cam1 id -1
+>>>
+print("rails:", sentai.camera.power_rails(1))
+[PMIC]: Rx|0x0667=0x397F|(s1: 0)
+[PMIC]: Tx|0x0667=0x3949|(s1: 0)
+[PMIC]: Rx|0x0667=0x397F|(s1: 0)
+[PMIC]: Rx|0x0660=0x39F5|(s1: 0)
+[PMIC]: Tx|0x0660=0x39B0|(s1: 0)
+[PMIC]: Rx|0x0660=0x39F5|(s1: 0)
+[PMIC]: Rx|0x066E=0x39FC|(s1: 0)
+[PMIC]: Tx|0x066E=0x395F|(s1: 0)
+[PMIC]: Rx|0x066E=0x39FC|(s1: 0)
+[PMIC]: Rx|0x0659=0x395E|(s1: 0)
+[PMIC]: Tx|0x0659=0x3967|(s1: 0)
+[PMIC]: Rx|0x0659=0x395E|(s1: 0)
+rails: 0
+>>>
+print("after rails: cam0 id", sentai.camera.reg_read(0, 0x300A), sentai.camera.reg_read(0, 0x300B), "cam1 id", sentai.camera.reg_read(1, 0x300A))
+after rails: cam0 id -1 -1 cam1 id -1
+>>>
+# --- rails already on; now camera init (asserts PWDN/RESET) ---
+t0=sentai.rtos.ticks_ms(); rc=sentai.camera.init(1, 30); print("CAM INIT rc=", rc, "in", sentai.rtos.ticks_ms()-t0, "ms")
+[CAM] R 0x300A FAIL s1=902 s2=0
+[CAM] R 0x300B FAIL s1=902 s2=0
+HandlePowerRequest: try I2C1: Success
+HandlePowerRequest: try I2C2: Success
+CAMERA_RECEIVER_Init = 0
+BOARD_PullCameraPowerDownPin:1
+BOARD_PullCameraResetPin:0
+BOARD_PullCameraPowerDownPin:0
+BOARD_PullCameraResetPin:1
+[CAM] W 0x3103=0x11 FAIL s1=902 s2=0
+CAMERA_DEVICE_Init = 1
+[CAM] W 0x3008=0x02 FAIL s1=902 s2=0
+CAMERA_DEVICE_Start = 1
+[CAM] R 0x3008 FAIL s1=902 s2=0
+[CAM] R 0x3008 FAIL s1=902 s2=0
+[CAM] R 0x3008 FAIL s1=902 s2=0
+[CAM] R 0x3008 FAIL s1=902 s2=0
+[CAM] R 0x3008 FAIL s1=902 s2=0
+[CAM] R 0x3008 FAIL s1=902 s2=0
+[CAM] R 0x3008 FAIL s1=902 s2=0
+[CAM] R 0x3008 FAIL s1=902 s2=0
+[CAM] R 0x3008 FAIL s1=902 s2=0
+[CAM] R 0x3008 FAIL s1=902 s2=0
+CAMERA_RECEIVER_Start = 0
+[CAM] sensor_fps=0 (1 s sample, target=30)
+[CAM1] Rotation 270° (mirror=0 flip=1) reg20=0x40 reg21=0x00 -> reg20=0x46 reg21=0x00
+[CAM1] W 0x3820=0x46 (0)
+[CAM1] W 0x3821=0x00 (0)
+CAM INIT rc= 0 in 1212 ms
+>>>
+print("cam0 id:", sentai.camera.reg_read(0, 0x300A), sentai.camera.reg_read(0, 0x300B), " cam1 id:", sentai.camera.reg_read(1, 0x300A), sentai.camera.reg_read(1, 0x300B))
+cam0 id: -1 -1  cam1 id: 86 64
+>>>
+print("frames:", sentai.camera.frame_count(), "sensor_frames:", sentai.camera.sensor_frames())
+frames: 0 sensor_frames: 0
+>>>

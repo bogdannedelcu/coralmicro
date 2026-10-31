@@ -5,6 +5,7 @@
 //   sentai.sys.reset()          — flush crash log then NVIC_SystemReset
 //   sentai.sys.recovery_mode()  — True if boot loop detected, running minimal REPL
 //   sentai.sys.boot_attempts()  — Current SRC_GPR boot attempt counter value
+//   sentai.sys.peek32(addr)     — Read one 32-bit word (diagnostics; ARM only)
 
 // C API implemented in sentai_runtime.cc (extern "C" linkage)
 extern bool    sentai_is_recovery_mode(void);
@@ -36,12 +37,53 @@ static mp_obj_t mod_sentai_sys_boot_attempts(void) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_sys_boot_attempts_obj, mod_sentai_sys_boot_attempts);
 
+// sentai.sys.peek32(addr) → int
+// Volatile 32-bit read of an arbitrary address — peripheral registers
+// (SRC_SBMR*, CCM, IOMUXC …) or memory.  Read-only diagnostic; the address
+// must be word-aligned.  EXP-s248 added it to read the boot-mode straps
+// latched in SRC_SBMR1/2 when neither J-Link nor the flashloader could.
+// SIM has no MMIO: raises OSError.
+static mp_obj_t mod_sentai_sys_peek32(mp_obj_t addr_obj) {
+#ifdef SENTAI_PLATFORM_SIM
+    (void)addr_obj;
+    mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("peek32 not available on SIM"));
+#else
+    uint32_t addr = (uint32_t)mp_obj_get_int_truncated(addr_obj);
+    if (addr & 3u) {
+        mp_raise_ValueError(MP_ERROR_TEXT("peek32: address must be 4-byte aligned"));
+    }
+    return mp_obj_new_int_from_uint(*(volatile uint32_t *)addr);
+#endif
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(mod_sentai_sys_peek32_obj, mod_sentai_sys_peek32);
+
+// sentai.sys.poke32(addr, value) → None
+// Volatile 32-bit write.  BRING-UP DIAGNOSTIC ONLY (board rev 2026-10 pad /
+// GPIO polarity checks); it can crash or brick the running image if misused.
+// Not available on SIM.
+static mp_obj_t mod_sentai_sys_poke32(mp_obj_t addr_obj, mp_obj_t val_obj) {
+#ifdef SENTAI_PLATFORM_SIM
+    (void)addr_obj; (void)val_obj;
+    mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("poke32 not available on SIM"));
+#else
+    uint32_t addr = (uint32_t)mp_obj_get_int_truncated(addr_obj);
+    if (addr & 3u) {
+        mp_raise_ValueError(MP_ERROR_TEXT("poke32: address must be 4-byte aligned"));
+    }
+    *(volatile uint32_t *)addr = (uint32_t)mp_obj_get_int_truncated(val_obj);
+    return mp_const_none;
+#endif
+}
+static MP_DEFINE_CONST_FUN_OBJ_2(mod_sentai_sys_poke32_obj, mod_sentai_sys_poke32);
+
 // ---- module table ----
 static const mp_rom_map_elem_t sentai_sys_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__),       MP_ROM_QSTR(MP_QSTR_sys) },
     { MP_ROM_QSTR(MP_QSTR_reset),          MP_ROM_PTR(&mod_sentai_sys_reset_obj) },
     { MP_ROM_QSTR(MP_QSTR_recovery_mode),  MP_ROM_PTR(&mod_sentai_sys_recovery_mode_obj) },
     { MP_ROM_QSTR(MP_QSTR_boot_attempts),  MP_ROM_PTR(&mod_sentai_sys_boot_attempts_obj) },
+    { MP_ROM_QSTR(MP_QSTR_peek32),         MP_ROM_PTR(&mod_sentai_sys_peek32_obj) },
+    { MP_ROM_QSTR(MP_QSTR_poke32),         MP_ROM_PTR(&mod_sentai_sys_poke32_obj) },
 };
 static MP_DEFINE_CONST_DICT(sentai_sys_globals, sentai_sys_globals_table);
 static const mp_obj_module_t sentai_sys_module = {

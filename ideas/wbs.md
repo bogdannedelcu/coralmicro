@@ -814,107 +814,166 @@ OP — ObjectsPlan thesis
 │   │    │ post-commit (Kabsch numerics bit-identical).  Unblocks
 │   │    │ W19-T6b and W19-T3.
 │   │
-│   └── OP-S10-W21 — Unified calib bringup (extrinsics+PID+INI)      ⬜ DESIGN (2026-05-21)
-│        │ Spec: ideas/objects_plan/OP-S10-W21_calib_unified_bringup.md
-│        │ Operator request 2026-05-21: sentai.calib is the PRODUCTION
-│        │ BRINGUP method for every shipped drone — auto-discovers
-│        │ R_cam_to_body + cam_offset + Kp_x/y/yaw (+ future intrinsics)
-│        │ and persists to /system/calib.ini.  One C-side orchestrator
-│        │ `sentai_calib_run_bringup(ctx)` callable from REPL ONE-LINER;
-│        │ never autoruns at boot (anti-brick).  Validated in Gazebo
-│        │ as digital twin of bench bringup (s187).  See memory entry
-│        │ [[sentai-calib-is-production-bringup]] for framing.
-│        ├── OP-S10-W21-T1 — sentai.markers refactor in calib_task    ✅ SHIPPED (2026-05-21, commit 13b6d7be)
-│        │   Discovery: code was already using sentai_markers_*;
-│        │   only doc comments were stale.  4-comment refactor.
-│        ├── OP-S10-W21-T2 — INI persistence (replaces cam_calib.json) ✅ SHIPPED (2026-05-21 eve)
-│        │   Schema v1 JSON -> v2 INI.  Path /system/cam_calib.json
-│        │   -> /system/calib.ini.  format_json/parse_json swapped
-│        │   for format_ini/parse_ini.  Forward-compat parser
-│        │   (unknown keys silently ignored).  s157 + s186 regress
-│        │   green; new s188 5/5 PASS (on-disk format, schema reject,
-│        │   forward-compat, corruption handling, comment tolerance).
-│        │   ARM build #1424 + SIM build clean.
-│        ├── OP-S10-W21-T3 — Schema v2 + Kp persist in calib.ini      ✅ SHIPPED (2026-05-21 eve)
-│        │   SENTAI_CALIB_AXIS_YAW=2 added; s_kp_persisted[3] state;
-│        │   commit_kp/get_persisted_kp API; format_ini/parse_ini
-│        │   include kp_x, kp_y, kp_yaw lines.  MP bindings:
-│        │   sentai.calib.commit_kp(axis, kp), get_persisted_kp(axis).
-│        │   Axis parser accepts "x", "y", "yaw", or int 0/1/2.
-│        │   Smokes 4/4: s157, s186, s188 regress green + new s189
-│        │   5/5 PASS (round-trip, defaults, invalid reject, sentinel
-│        │   accept, on-disk format).  ARM #1425 clean.
-│        ├── OP-S10-W21-T4 — `sentai_calib_run_bringup()` orchestrator ✅ SHIPPED (2026-05-21, 29a9f92f)
-│        │   ~350 LoC FreeRTOS task.  Phase FSM SAMPLE → KABSCH →
-│        │   AUTOTUNE_X → AUTOTUNE_Y → HOLD → SAVE.  T4a-d phases
-│        │   chased Gazebo end-to-end on original WhyCon pad —
-│        │   reached reproducible PASS via clear() + THRESH_C=30 +
-│        │   autotune VPE/canal fixes + soft-fallback Kp.  Phase-2
-│        │   on smaller 0.5× pad blocked by cf2 SITL no-baro
-│        │   positioning → superseded by T7 (clean rewrite).
-│        ├── OP-S10-W21-T5 — Camera intrinsics auto-cal (DEFERRED)    ⬜ FW
-│        ├── OP-S10-W21-T6 — SUBSYS_CALIB state + REPL-only trigger   ✅ SHIPPED (2026-05-21, 8454b713)
-│        │   sentai.calib.assert_calibrated() takeoff-refusal guard.
-│        ├── OP-S10-W21-T7 — Calib bringup via RPYT→HL handoff       ⚠️ SUPERSEDED-BY-T12 (2026-05-22)
-│        │   Clean rewrite of T4 phase-2 path.  Operator-stated:
-│        │   we DO NOT inject GT into cf2 SITL.  Instead:
-│        │     1. pre-airborne + climb via Classic Commander RPYT
-│        │        (CRTP port 3 ch 0, IMU-stabilized attitude+thrust,
-│        │        no positioning needed) — same as XBox controller
-│        │        flight per UART_RPYT_AGENT_PROMPT.md
-│        │     2. ramp thrust gradually until markers visible (n≥4
-│        │        + valid PnP stable 5 frames)
-│        │     3. switch to ExtPos (port 6 ch 0) via
-│        │        crtp_localization_service with PnP-derived (x,y,z)
-│        │        — HW-parity, vision-only, anti-cheat clean
-│        │     4. relax commander priority via meta-cmd
-│        │        `notifySetpointsStop` (port 7 ch 1, byte 0)
-│        │     5. transition to HL `go_to` (priority=HIGHLEVEL=1)
-│        │     6. run sentai_calib_run_bringup() as normal
-│        │   Pre-work: backout iter-85+ SENSOR_TOF_SIM cheat patches
-│        │   (done); FR + journal auto-start at sentai_sim boot
-│        │   (done as T10); gt_recorder auto-start via
-│        │   sim/scripts/launch_sim.sh (done as T11).
-│        │   Iter sweep: T_BASE / T_MAX / RAMP_S tuning per
-│        │   drone mass — future FW-C: auto-learn ramp.
-│        ├── OP-S10-W21-T8 — coplanar multi-marker PnP (vision Z)    ⬜ FW
-│        │   Replace single-marker Krajník depth-from-ring (perspective
-│        │   biased) with DLT/homography-on-plane PnP using all 6
-│        │   pixel positions + marker_world.  Unblocks: unbiased Z →
-│        │   ExtPos doesn't poison cf2 EKF (iter-13 positive-feedback
-│        │   crash).  Sized at ~100-200 LoC C++.
-│        ├── OP-S10-W21-T9 — sentai.flow Z-from-vision rewrite       ⬜ FW
-│        │   Current sentai.flow assumes cf2 EKF provides altitude
-│        │   for metric scaling — circular dependency.  Rewrite to
-│        │   estimate Z from image scale (object size change) or
-│        │   monocular SLAM-lite.  Required if we want flow as the
-│        │   real-HW XY anchor independently of vision PnP.
-│        ├── OP-S10-W21-T10 — sentai.fr + journal auto-start at boot ✅ SHIPPED (2026-05-22)
-│        │   sim/main_sim.c: events.csv + scalars.csv auto-opened at
-│        │   $SENTAI_FR_DIR or $SENTAI_SIM_ROOT/fr/.
-│        │   Journal_open via mp_embed_exec_str("...").
-│        │   Missions can still re-open with per-experiment paths.
-│        ├── OP-S10-W21-T11 — gt_recorder auto-start in launch       ✅ SHIPPED (2026-05-22)
-│        │   sim/scripts/launch_sim.sh — host-side wrapper that calls
-│        │   launch_hybrid_cf2.sh (distrobox) + camera bridge +
-│        │   gt_recorder.  Companion launch_sim_cleanup.sh.
-│        └── OP-S10-W21-T12 — Calib RPYT-only cascaded PD            ⬜ IN-PROGRESS (2026-05-22, s191)
-│            Replaces T7.  T7's RPYT→HL handoff bug was solved
-│            (commit e0d5a67b) but bringup orchestrator's
-│            hover()/HL commands still cause HELICAL DRIFT (operator
-│            visual: 'incepe un drift ciudat elicoidal') because cf2
-│            without mag/lighthouse has ~1°/s yaw drift — over 7s
-│            bringup that's ~7° spiral.
-│            New approach: STAY ON CLASSIC COMMANDER (CRTP 3/0) for
-│            the entire calibration.  Mission-side cascaded PD on
-│            X/Y/Z/Yaw using PnP feedback.  YAW LOCK eliminates
-│            helical drift.  Implementation strategy: MP-FIRST then
-│            promote to C++ in sentai.calib namespace once tuned.
-│            Pre-condition: T7's PD takeoff (iter-21 GT peak 0.91m
-│            stable) is REUSED — only the post-handoff path changes.
-│            Reuses existing primitives: sentai.calib.commit_R,
-│            commit_kp, save.  Adds: X-PD, Y-PD, Yaw-PD in mission.
+│   ├── OP-S10-W21 — Unified calib bringup (extrinsics+PID+INI)      ⬜ DESIGN (2026-05-21)
+│   │    │ Spec: ideas/objects_plan/OP-S10-W21_calib_unified_bringup.md
+│   │    │ Operator request 2026-05-21: sentai.calib is the PRODUCTION
+│   │    │ BRINGUP method for every shipped drone — auto-discovers
+│   │    │ R_cam_to_body + cam_offset + Kp_x/y/yaw (+ future intrinsics)
+│   │    │ and persists to /system/calib.ini.  One C-side orchestrator
+│   │    │ `sentai_calib_run_bringup(ctx)` callable from REPL ONE-LINER;
+│   │    │ never autoruns at boot (anti-brick).  Validated in Gazebo
+│   │    │ as digital twin of bench bringup (s187).  See memory entry
+│   │    │ [[sentai-calib-is-production-bringup]] for framing.
+│   │    ├── OP-S10-W21-T1 — sentai.markers refactor in calib_task    ✅ SHIPPED (2026-05-21, commit 13b6d7be)
+│   │    │   Discovery: code was already using sentai_markers_*;
+│   │    │   only doc comments were stale.  4-comment refactor.
+│   │    ├── OP-S10-W21-T2 — INI persistence (replaces cam_calib.json) ✅ SHIPPED (2026-05-21 eve)
+│   │    │   Schema v1 JSON -> v2 INI.  Path /system/cam_calib.json
+│   │    │   -> /system/calib.ini.  format_json/parse_json swapped
+│   │    │   for format_ini/parse_ini.  Forward-compat parser
+│   │    │   (unknown keys silently ignored).  s157 + s186 regress
+│   │    │   green; new s188 5/5 PASS (on-disk format, schema reject,
+│   │    │   forward-compat, corruption handling, comment tolerance).
+│   │    │   ARM build #1424 + SIM build clean.
+│   │    ├── OP-S10-W21-T3 — Schema v2 + Kp persist in calib.ini      ✅ SHIPPED (2026-05-21 eve)
+│   │    │   SENTAI_CALIB_AXIS_YAW=2 added; s_kp_persisted[3] state;
+│   │    │   commit_kp/get_persisted_kp API; format_ini/parse_ini
+│   │    │   include kp_x, kp_y, kp_yaw lines.  MP bindings:
+│   │    │   sentai.calib.commit_kp(axis, kp), get_persisted_kp(axis).
+│   │    │   Axis parser accepts "x", "y", "yaw", or int 0/1/2.
+│   │    │   Smokes 4/4: s157, s186, s188 regress green + new s189
+│   │    │   5/5 PASS (round-trip, defaults, invalid reject, sentinel
+│   │    │   accept, on-disk format).  ARM #1425 clean.
+│   │    ├── OP-S10-W21-T4 — `sentai_calib_run_bringup()` orchestrator ✅ SHIPPED (2026-05-21, 29a9f92f)
+│   │    │   ~350 LoC FreeRTOS task.  Phase FSM SAMPLE → KABSCH →
+│   │    │   AUTOTUNE_X → AUTOTUNE_Y → HOLD → SAVE.  T4a-d phases
+│   │    │   chased Gazebo end-to-end on original WhyCon pad —
+│   │    │   reached reproducible PASS via clear() + THRESH_C=30 +
+│   │    │   autotune VPE/canal fixes + soft-fallback Kp.  Phase-2
+│   │    │   on smaller 0.5× pad blocked by cf2 SITL no-baro
+│   │    │   positioning → superseded by T7 (clean rewrite).
+│   │    ├── OP-S10-W21-T5 — Camera intrinsics auto-cal (DEFERRED)    ⬜ FW
+│   │    ├── OP-S10-W21-T6 — SUBSYS_CALIB state + REPL-only trigger   ✅ SHIPPED (2026-05-21, 8454b713)
+│   │    │   sentai.calib.assert_calibrated() takeoff-refusal guard.
+│   │    ├── OP-S10-W21-T7 — Calib bringup via RPYT→HL handoff       ⚠️ SUPERSEDED-BY-T12 (2026-05-22)
+│   │    │   Clean rewrite of T4 phase-2 path.  Operator-stated:
+│   │    │   we DO NOT inject GT into cf2 SITL.  Instead:
+│   │    │     1. pre-airborne + climb via Classic Commander RPYT
+│   │    │        (CRTP port 3 ch 0, IMU-stabilized attitude+thrust,
+│   │    │        no positioning needed) — same as XBox controller
+│   │    │        flight per UART_RPYT_AGENT_PROMPT.md
+│   │    │     2. ramp thrust gradually until markers visible (n≥4
+│   │    │        + valid PnP stable 5 frames)
+│   │    │     3. switch to ExtPos (port 6 ch 0) via
+│   │    │        crtp_localization_service with PnP-derived (x,y,z)
+│   │    │        — HW-parity, vision-only, anti-cheat clean
+│   │    │     4. relax commander priority via meta-cmd
+│   │    │        `notifySetpointsStop` (port 7 ch 1, byte 0)
+│   │    │     5. transition to HL `go_to` (priority=HIGHLEVEL=1)
+│   │    │     6. run sentai_calib_run_bringup() as normal
+│   │    │   Pre-work: backout iter-85+ SENSOR_TOF_SIM cheat patches
+│   │    │   (done); FR + journal auto-start at sentai_sim boot
+│   │    │   (done as T10); gt_recorder auto-start via
+│   │    │   sim/scripts/launch_sim.sh (done as T11).
+│   │    │   Iter sweep: T_BASE / T_MAX / RAMP_S tuning per
+│   │    │   drone mass — future FW-C: auto-learn ramp.
+│   │    ├── OP-S10-W21-T8 — coplanar multi-marker PnP (vision Z)    ⬜ FW
+│   │    │   Replace single-marker Krajník depth-from-ring (perspective
+│   │    │   biased) with DLT/homography-on-plane PnP using all 6
+│   │    │   pixel positions + marker_world.  Unblocks: unbiased Z →
+│   │    │   ExtPos doesn't poison cf2 EKF (iter-13 positive-feedback
+│   │    │   crash).  Sized at ~100-200 LoC C++.
+│   │    ├── OP-S10-W21-T9 — sentai.flow Z-from-vision rewrite       ⬜ FW
+│   │    │   Current sentai.flow assumes cf2 EKF provides altitude
+│   │    │   for metric scaling — circular dependency.  Rewrite to
+│   │    │   estimate Z from image scale (object size change) or
+│   │    │   monocular SLAM-lite.  Required if we want flow as the
+│   │    │   real-HW XY anchor independently of vision PnP.
+│   │    ├── OP-S10-W21-T10 — sentai.fr + journal auto-start at boot ✅ SHIPPED (2026-05-22)
+│   │    │   sim/main_sim.c: events.csv + scalars.csv auto-opened at
+│   │    │   $SENTAI_FR_DIR or $SENTAI_SIM_ROOT/fr/.
+│   │    │   Journal_open via mp_embed_exec_str("...").
+│   │    │   Missions can still re-open with per-experiment paths.
+│   │    ├── OP-S10-W21-T11 — gt_recorder auto-start in launch       ✅ SHIPPED (2026-05-22)
+│   │    │   sim/scripts/launch_sim.sh — host-side wrapper that calls
+│   │    │   launch_hybrid_cf2.sh (distrobox) + camera bridge +
+│   │    │   gt_recorder.  Companion launch_sim_cleanup.sh.
+│   │    └── OP-S10-W21-T12 — Calib RPYT-only cascaded PD            ⬜ IN-PROGRESS (2026-05-22, s191)
+│   │        Replaces T7.  T7's RPYT→HL handoff bug was solved
+│   │        (commit e0d5a67b) but bringup orchestrator's
+│   │        hover()/HL commands still cause HELICAL DRIFT (operator
+│   │        visual: 'incepe un drift ciudat elicoidal') because cf2
+│   │        without mag/lighthouse has ~1°/s yaw drift — over 7s
+│   │        bringup that's ~7° spiral.
+│   │        New approach: STAY ON CLASSIC COMMANDER (CRTP 3/0) for
+│   │        the entire calibration.  Mission-side cascaded PD on
+│   │        X/Y/Z/Yaw using PnP feedback.  YAW LOCK eliminates
+│   │        helical drift.  Implementation strategy: MP-FIRST then
+│   │        promote to C++ in sentai.calib namespace once tuned.
+│   │        Pre-condition: T7's PD takeoff (iter-21 GT peak 0.91m
+│   │        stable) is REUSED — only the post-handoff path changes.
+│   │        Reuses existing primitives: sentai.calib.commit_R,
+│   │        commit_kp, save.  Adds: X-PD, Y-PD, Yaw-PD in mission.
 │
+│
+│   ├── OP-S10-W22 — New board rev 2026-10 bring-up                  🟡 IN-PROGRESS (2026-10-30)
+│   │    │ Hardware: schematic 2026-10-30 (electronics colleague).  CAM1
+│   │    │ moved to LPI2C1 (FlexPWM1 PWM0_A must be held low — U9/Q7 I2C
+│   │    │ isolation switch), LIS2DUX12 accelerometer (replaces LIS2DU12),
+│   │    │ microSD on USDHC1 (SD_PWREN_B / VSELECT GPIOs), T5838 PDM mic
+│   │    │ pins moved, debug SWD shared with DMIC pads.  Memory:
+│   │    │ project_new_board_rev_2026_10_open_items.md.
+│   │    ├── OP-S10-W22-T1 — microSD on USDHC1 + user FS on SD       ✅ DONE (EXP-s247, build 1608/1622)
+│   │    │   libs/sdcard rewrite (no FatFs dependency), libs/base/
+│   │    │   fx_sd_driver.{cc,h} FileX media driver (512 B LBAs, no
+│   │    │   LevelX), sentai.sdcard.* bindings, MSC exposes the raw card.
+│   │    │   Decision: SD is the ONLY user FS; LittleFS system partition
+│   │    │   stays on NAND (memory project_fs_moves_to_sdcard_decision.md).
+│   │    ├── OP-S10-W22-T2 — LIS2DUX12 driver (ST lis2dux12-pid)     ✅ DONE (build 1622)
+│   │    │   libs/lis2dux12 + third_party/st/lis2dux12-pid; WHO_AM_I 0x47.
+│   │    ├── OP-S10-W22-T3 — CAM1 on LPI2C1 + FlexPWM1 pad guard     ✅ DONE (build 1622)
+│   │    │   main_freertos_m7.cc: LPI2C1 handle for cam 0, GPIO_AD_00/01
+│   │    │   pull-down + low before camera init; sentai.camera.power_rails.
+│   │    ├── OP-S10-W22-T4 — Flash-boot probe (SRC_SBMR via peek32)  ✅ DONE (EXP-s248, build 1609)
+│   │    │   Root cause: BOOT_MODE[1:0] = 00 + BT_FUSE_SEL = 0 → ROM falls
+│   │    │   to Serial Downloader.  Missing pull-up on BOOT_MODE1
+│   │    │   (GPIO_LPSR_03).  Hardware fix pending (colleague); fuse
+│   │    │   programming is operator-only (irreversible).
+│   │    ├── OP-S10-W22-T5 — T5838 mic pin remap (THSEL AD_19, WAKE AD_18) ⬜ TODO
+│   │    ├── OP-S10-W22-T6 — VDD_1V8_INT_EN polarity verification    ⬜ TODO
+│   │    └── OP-S10-W22-T7 — Persistent-flash boot + MSC storage mode re-test ⬜ BLOCKED (hardware, T4)
+│   │
+│   └── OP-S10-W23 — Firmware hardening audit (races, hangs, OOM)   🟡 IN-PROGRESS (2026-10-30)
+│        │ Operator request 2026-10-30: exhaustive audit of the SentAI
+│        │ firmware for race conditions, hangs, unbounded waits, OOM
+│        │ risks; fix and re-test on the board after each batch (RAM
+│        │ loads).  Discipline: agent/embeded.md (NASA/JPL), §14 review
+│        │ by the embeded-reviewer agent per batch.  Memory:
+│        │ project_todo_exhaustive_code_audit.md.
+│        ├── OP-S10-W23-T1 — Audit reports (camera/pipeline, base/boot/USB/health, MP/FS/httpd) ✅ DONE
+│        ├── OP-S10-W23-T2 — Watchdog idle behaviour + boot/console fixes ✅ DONE (builds 1623-1628)
+│        │   No idle reset; console printf non-blocking pre-scheduler/ISR;
+│        │   USB product-string overflow; CHECK() no longer suspends all
+│        │   tasks; BOARD_InitMipiCsi returns status instead of while(1).
+│        ├── OP-S10-W23-T3 — MicroPython REPL + parser hardening     ✅ DONE (builds 1628-1633)
+│        │   patches/micropython/0001 (objint_longlong strtoll on a
+│        │   non-terminated buffer), CRLF paste, over-long line cancel,
+│        │   dead 1 MB gc_heap removed.
+│        ├── OP-S10-W23-T4 — FS lock discipline (no alloc under lock, owner reclaim) ✅ DONE (build 1637, SERR 0x0D38)
+│        ├── OP-S10-W23-T5 — CDC-NCM TX path (in-flight gate, queue 64, ZLP) ✅ DONE (build 1640, 17 KB/s → 5.2 MB/s)
+│        ├── OP-S10-W23-T6 — Batch-3 audit fixes                      ✅ DONE (builds 1629-1640)
+│        │   dmesg chunked copy + SERR_LOG feed, rtos.suspend protected
+│        │   list, PMIC retry without printf, crazy semaphore lifecycle,
+│        │   lfs_task stack 512→1536, camera frame-hold cap (SERR 0x0A09),
+│        │   I2C pin-low timeout, CDC-ACM reconfig latch reset.
+│        ├── OP-S10-W23-T7 — Regression + benchmark harnesses         ✅ DONE (EXP-s249 15/15, EXP-s250)
+│        └── OP-S10-W23-T8 — Remaining audit items                    ⬜ TODO
+│            Camera liveness in the watchdog (camera M5), fault hooks
+│            without printf on an overflowed stack (base M1), fs_task
+│            slot FSM shared state (MP M4), g_cam_current_id single
+│            writer (camera M6/M8 — CSI ISR, operator approval needed),
+│            SIM link shims, PmicTask CHECK() on rail requests.
+
 └── Milestones
     ├── OP-M1 — Thesis MVP (SIM): 4 descriptors + L1 + calib working end-to-end
     ├── OP-M2 — ARM bring-up done: same source compiles + runs on RT1176 over radio

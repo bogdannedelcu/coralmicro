@@ -371,6 +371,11 @@ static void _fs_check_usb(void) {
 #include "bindings/modsentai_sys.c"
 #include "bindings/modsentai_top.c"
 #include "bindings/modsentai_version.c"
+// microSD socket on USDHC1 (board rev with SD_PWREN_B / SD1_VSELECT
+// GPIO rail control).  ARM-only: SIM (sim/modsentai_sim.c) does not
+// include it.  Read-only probe surface for now; glue in
+// sentai_sdcard_glue.cc, driver in libs/sdcard.
+#include "bindings/modsentai_sdcard.c"
 
 // =====================================================================
 // Top-level module: import sentai
@@ -388,6 +393,7 @@ static const mp_rom_map_elem_t sentai_module_globals_table[] = {
     // Sub-modules
     { MP_ROM_QSTR(MP_QSTR_io),        MP_ROM_PTR(&sentai_io_module) },
     { MP_ROM_QSTR(MP_QSTR_rtos),      MP_ROM_PTR(&sentai_rtos_module) },
+    { MP_ROM_QSTR(MP_QSTR_sdcard),    MP_ROM_PTR(&sentai_sdcard_module) },
     { MP_ROM_QSTR(MP_QSTR_tpu),       MP_ROM_PTR(&sentai_tpu_module) },
     { MP_ROM_QSTR(MP_QSTR_fs),        MP_ROM_PTR(&sentai_fs_module) },
     { MP_ROM_QSTR(MP_QSTR_camera),    MP_ROM_PTR(&sentai_camera_module) },

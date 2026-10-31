@@ -16,9 +16,11 @@ add_library_m7(libs_sdcard_freertos STATIC
     sdcard.cc
 )
 
+# Block-level only.  libs_base-m7_freertos links THIS library (the user FS
+# backend lives in libs/base/fx_sd_driver.cc), so no dependency back on
+# libs_base here, and no FatFs: the filesystem on the card is FileX.
 target_link_libraries(libs_sdcard_freertos
-    libs_base-m7_freertos
+    libs_nxp_rt1176-sdk_freertos
     libs_nxp_rt1176-sdk_sdmmc
     libs_nxp_rt1176-sdk_middleware_sdmmc_sd
-    libs_nxp_rt1176-sdk_fatfs
 )

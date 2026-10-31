@@ -1,0 +1,208 @@
+# SentAI build 1608 (2026-10-30 21:14:15), RAM-loaded, card SD64G in USDHC1 socket
+>>> sentai.version()
+'SentAI v1.0 build 1608 (2026-10-30 21:14:15)'
+>>> sentai.verbose(1)
+1
+>>> print("INIT:", sentai.sdcard.init())
+[SDCard] Init: Starting SD card initialization...
+[SDCard] Init: Configuring SD host controller...
+[SDCard] ConfigureSDHost: Setting up DMA buffers...
+[SDCard] ConfigureSDHost: Enabling cache control
+[SDCard] ConfigureSDHost: DMA and cache setup complete
+[SDCard] ConfigureSDHost: Host pointer assigned, setting USDHC1 base...
+[SDCard] ConfigureSDHost: USDHC1 base set
+[SDCard] ConfigureSDHost: Configuring USDHC1 clock...
+[SDCard] ConfigureSDHost: Clock configured to 198000000 Hz
+[SDCard] ConfigureSDHost: Setting up card detect...
+[SDCard] ConfigureSDHost: Power-cycling card supply...
+[SDCard] ConfigureSDHost: Setting USDHC1 interrupt priority...
+[SDCard] ConfigureSDHost: Applying RT1176 errata workaround...
+[SDCard] ConfigureSDHost: Configuration complete
+[SDCard] Init: SD host configured (USDHC1 at 198000000 Hz)
+[SDCard] Init: Calling SD_Init()...
+[SDCard] Init: SD_Init() returned status = 0x0
+[SDCard] Init: Copying card info to global g_sd...
+[SDCard] Init: SUCCESS - Card initialized
+INIT: True
+>>> print("MOUNT:", sentai.sdcard.mount())
+[SDCard] Mount: "/sd" -> FatFs drive "2:" fs_type=4
+MOUNT: True
+>>> print("FSINFO:", sentai.sdcard.fs_info())
+FSINFO: ('exFAT', '', 60874, 36882)
+>>> print("LS /:", sentai.sdcard.ls("/"))
+  <DIR>       System Volume Information
+  <DIR>       HU
+       17661  .lge.upgrade.xml
+      387393  .whatsnew.tar.gz
+    10791388  AppUpgrade
+        2862  Sorento_PHEV_MY22_EU.ver
+  <DIR>       DCIM
+  <DIR>       EVENT
+  <DIR>       _DB
+       12288  data_get_from_awe.csv
+  <DIR>       MISC
+       12318  original_data_from_DUT.csv
+  <DIR>       .mf
+         137  Get_started_with_GoPro.url
+  <DIR>       coral
+LS /: 15
+
+# Earlier (build 1605, 21:03) — probe + raw sector 0, before mount support existed
+>>> print("INFO:", sentai.sdcard.info())
+INFO: (124735488, 512, 60906, True, 'SD64G')
+>>> print("PROBE:", sentai.sdcard.probe())
+PROBE: LBA0=MBR part0 type=0x07 start=32768 sectors=124702720 exFAT bytes/sec=512 sec/clus=256
+>>> sentai.sdcard.hexdump(0)
+000001B0  00 00 00 00 00 00 00 00 58 29 97 6C 00 00 00 0A  |........X).l....|
+000001C0  09 02 07 FE FF FF 00 80 00 00 00 D0 6E 07 00 00  |............n...|
+000001F0  00 00 00 00 00 00 00 00 00 00 00 00 00 00 55 AA  |..............U.|
+(rows 0x000..0x1A0 and 0x1D0..0x1E0 all zero)
+# --- FAT32 format of the SD card from firmware (build 1612) ---
+sentai.verbose(1)
+1
+>>>
+t0=sentai.rtos.ticks_ms(); r=sentai.fs.format(); print("FORMAT:", r, "in", sentai.rtos.ticks_ms()-t0, "ms")
+[fx_user] force_format requested (operator confirmed)
+[fx_user] fx_media_format failed: 144
+FORMAT: False in 27 ms
+>>>
+print("mounted:", sentai.fs.exists("/"))
+mounted: False
+>>>
+print("mkdir:", sentai.fs.mkdir("/diags/s247_sdcard_usdhc1_bringup"))
+mkdir: False
+>>>
+print("write:", sentai.fs.write("/diags/s247_sdcard_usdhc1_bringup/hello.txt", b"SentAI user FS on microSD (FileX FAT32, build 1612)\n"))
+write: False
+>>>
+# --- second format attempt (partition offset reset) ---
+
+
+
+
+
+
+# --- FAT32 format, build 1614 (bounded mount + BPB validation) ---
+sentai.verbose(1)
+1
+>>>
+t0=sentai.rtos.ticks_ms(); r=sentai.fs.format(); print("FORMAT:", r, "in", sentai.rtos.ticks_ms()-t0, "ms")
+[fx_user] force_format requested (operator confirmed)
+[fx_user] fx_media_format failed: 144
+FORMAT: False in 0 ms
+>>>
+print("mounted:", sentai.fs.exists("/"))
+mounted: False
+>>>
+print("mkdir:", sentai.fs.mkdir("/diags/s247_sdcard_usdhc1_bringup"))
+mkdir: False
+>>>
+print("write:", sentai.fs.write("/diags/s247_sdcard_usdhc1_bringup/hello.txt", b"SentAI user FS on microSD (FileX FAT32 + journal, build 1614)\n"))
+write: False
+>>>
+print("read:", sentai.fs.read("/diags/s247_sdcard_usdhc1_bringup/hello.txt"))
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+OSError: file not found
+>>>
+print("ls /:", sentai.fs.ls("/"))
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+OSError: dir not found
+>>>
+print("sync:", sentai.fs.sync())
+sync: False
+>>>
+print("dmesg tail:", repr(sentai.rtos.dmesg()[-400:]))
+dmesg tail: ''
+>>>
+# --- format attempt with driver tracing ---
+sentai.version()
+'SentAI v1.0 build 1615 (2026-10-30 23:03:39)'
+>>>
+sentai.verbose(1)
+1
+>>>
+t0=sentai.rtos.ticks_ms(); r=sentai.fs.format(); print("FORMAT:", r, "in", sentai.rtos.ticks_ms()-t0, "ms")
+[fx_user] force_format requested (operator confirmed)
+[SDCard] WriteBlocks(lba=0) busy-wait failed: status=1844
+[fx_sd] driver req=7 lba=2 n=1 -> status 144
+[fx_user] fx_media_format failed: 144
+FORMAT: False in 0 ms
+>>>
+# --- FAT32 format with the WriteBlocks status fix ---
+sentai.version()
+'SentAI v1.0 build 1616 (2026-10-30 23:05:25)'
+>>>
+sentai.verbose(1)
+1
+>>>
+t0=sentai.rtos.ticks_ms(); r=sentai.fs.format(); print("FORMAT:", r, "in", sentai.rtos.ticks_ms()-t0, "ms")
+[fx_user] force_format requested (operator confirmed)
+[fx_user] fx_media_format ok (124735488 sectors) in 2327 ms
+[fx_user] mounted (post-format)
+FORMAT: True in 2587 ms
+>>>
+print("mounted:", sentai.fs.exists("/"))
+mounted: True
+>>>
+print("mkdir:", sentai.fs.mkdir("/diags/s247_sdcard_usdhc1_bringup"))
+mkdir: True
+>>>
+print("write:", sentai.fs.write("/diags/s247_sdcard_usdhc1_bringup/hello.txt", b"SentAI user FS on microSD (FileX FAT32 + journal, build 1616)\n"))
+write: True
+>>>
+print("read:", sentai.fs.read("/diags/s247_sdcard_usdhc1_bringup/hello.txt"))
+read: b'SentAI user FS on microSD (FileX FAT32 + journal, build 1616)\n'
+>>>
+print("ls /:", sentai.fs.ls("/"))
+ls /: [('diags', 2, 0)]
+>>>
+print("ls /diags:", sentai.fs.ls("/diags"))
+ls /diags: [('s247_sdcard_usdhc1_bringup', 2, 0)]
+>>>
+t0=sentai.rtos.ticks_ms(); print("sync:", sentai.fs.sync(), sentai.rtos.ticks_ms()-t0, "ms")
+sync: True 2 ms
+>>>
+# --- after reload: persistence + boot log on card ---
+sentai.verbose(1)
+1
+>>>
+print("ls /:", sentai.fs.ls("/"))
+ls /: [('diags', 2, 0), ('log', 2, 0)]
+>>>
+print("ls /log:", sentai.fs.ls("/log"))
+ls /log: [('boot.log', 1, 2193)]
+>>>
+print("hello:", sentai.fs.read("/diags/s247_sdcard_usdhc1_bringup/hello.txt"))
+hello: b'SentAI user FS on microSD (FileX FAT32 + journal, build 1616)\n'
+>>>
+print(sentai.fs.read("/log/boot.log")[:900].decode())
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+AttributeError: 'bytes' object has no attribute 'decode'
+>>>
+b=sentai.fs.read("/log/boot.log"); print(len(b)); print(str(b[:700], "utf-8"))
+2193
+[00:00:000] 
+SentAI build #1616 (2026-10-30 23:05:25)
+[00:00:000] Reset reason: 0x08000002 [00:00:000] 
+[flowpc] bc: no prior breadcrumbs (magic=00000000)
+[SDCard] Init: Starting SD card initialization...
+[SDCard] Init: Configuring SD host controller...
+[SDCard] ConfigureSDHost: Setting up DMA buffers...
+[SDCard] ConfigureSDHost: Enabling cache control
+[SDCard] ConfigureSDHost: DMA and cache setup complete
+[SDCard] ConfigureSDHost: STEP 1
+[SDCard] ConfigureSDHost: STEP 2
+[SDCard] ConfigureSDHost: STEP 3 - memset DONE
+[SDCard] ConfigureSDHost: Host pointer assigned, setting USDHC1 base...
+[SDCard] ConfigureSDHost: USDHC1 base set
+[SDCard] ConfigureSDHost: Configuring USDHC1 cloc
+>>>
+print("PROBE:", sentai.sdcard.probe())
+PROBE: LBA0=MBR with empty partition table
+>>>
+print("FS stats:", sentai.fs.exists("/log/boot.log"), sentai.fs.size("/log/boot.log"))
+FS stats: True 2193
+>>>

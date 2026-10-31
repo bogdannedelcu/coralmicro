@@ -32,20 +32,21 @@ extern "C" void sentai_storage_log(const char* fmt, ...) __attribute__((format(p
 
 namespace coralmicro {
 namespace {
-/* MSC LBA geometry — matches the FileX/LevelX volume so the host sees a
- * real FAT mountable directly via `mount /dev/sda /mnt`. */
-constexpr size_t kLbaSize  = FX_USER_LBA_SIZE;   /* 2016 */
-constexpr int    kLbaCount = FX_USER_LBA_COUNT;  /* 28160 */
+/* MSC LBA geometry — the RAW microSD card (2026-10-30): 512-byte LBAs,
+ * count read at runtime from the card (FxUserMscLbaCount()), so the host
+ * mounts the card exactly as it would from a card reader. */
+constexpr size_t kLbaSize  = FX_USER_LBA_SIZE;   /* 512 */
 
-/* USB bulk URB buffer: hold an integral number of LBAs.  Four LBAs at
- * 2016 = 8064 bytes — fits one default URB. */
-constexpr size_t kLbasPerUrb = 4u;
-constexpr size_t kBulkBufBytes = kLbasPerUrb * kLbaSize;       /* 8064 */
+/* USB bulk URB buffer: hold an integral number of LBAs.  16 LBAs at
+ * 512 = 8192 bytes — fits one default URB. */
+constexpr size_t kLbasPerUrb = 16u;
+constexpr size_t kBulkBufBytes = kLbasPerUrb * kLbaSize;       /* 8192 */
 }  // namespace
 
-/* Word-aligned for USB DMA. */
-uint32_t g_mscReadRequestBuffer[(kBulkBufBytes + 3u) / 4u];
-uint32_t g_mscWriteRequestBuffer[(kBulkBufBytes + 3u) / 4u];
+/* 32-byte aligned: USB DMA needs word alignment, and the SD host does
+ * D-cache maintenance on these buffers (whole cache lines only). */
+alignas(32) uint32_t g_mscReadRequestBuffer[(kBulkBufBytes + 3u) / 4u];
+alignas(32) uint32_t g_mscWriteRequestBuffer[(kBulkBufBytes + 3u) / 4u];
 
 usb_device_inquiry_data_fromat_struct_t g_InquiryInfo = {
     (USB_DEVICE_MSC_UFI_PERIPHERAL_QUALIFIER
@@ -191,13 +192,13 @@ usb_status_t MscUms::Handler(uint32_t event, void *param) {
       lbaInformation->logicalUnitNumberSupported = LOGICAL_UNIT_SUPPORTED;
       lbaInformation->logicalUnitInformations[0].lengthOfEachLba = kLbaSize;
       lbaInformation->logicalUnitInformations[0].totalLbaNumberSupports =
-          kLbaCount;
+          (uint32_t)FxUserMscLbaCount();
       lbaInformation->logicalUnitInformations[0].bulkInBufferSize =
           kBulkBufBytes;
       lbaInformation->logicalUnitInformations[0].bulkOutBufferSize =
           kBulkBufBytes;
       sentai_storage_log("MSC GetLbaInfo lba_size=%u total=%u",
-                         (unsigned)kLbaSize, (unsigned)kLbaCount);
+                         (unsigned)kLbaSize, (unsigned)FxUserMscLbaCount());
       break;
     case kUSB_DeviceMscEventTestUnitReady:
       /*change the test unit ready command's sense data if need, be careful to
@@ -247,16 +248,16 @@ usb_status_t MscUms::Handler(uint32_t event, void *param) {
     case kUSB_DeviceMscEventReadCapacity:
       capacityInformation = (usb_device_capacity_information_struct_t *)param;
       capacityInformation->lengthOfEachLba = kLbaSize;
-      capacityInformation->totalLbaNumberSupports = kLbaCount;
+      capacityInformation->totalLbaNumberSupports = (uint32_t)FxUserMscLbaCount();
       sentai_storage_log("MSC ReadCapacity lba=%u tot=%u",
-                         (unsigned)kLbaSize, (unsigned)kLbaCount);
+                         (unsigned)kLbaSize, (unsigned)FxUserMscLbaCount());
       break;
     case kUSB_DeviceMscEventReadFormatCapacity:
       capacityInformation = (usb_device_capacity_information_struct_t *)param;
       capacityInformation->lengthOfEachLba = kLbaSize;
-      capacityInformation->totalLbaNumberSupports = kLbaCount;
+      capacityInformation->totalLbaNumberSupports = (uint32_t)FxUserMscLbaCount();
       sentai_storage_log("MSC ReadFormatCap lba=%u tot=%u",
-                         (unsigned)kLbaSize, (unsigned)kLbaCount);
+                         (unsigned)kLbaSize, (unsigned)FxUserMscLbaCount());
       break;
     default:
       error = kStatus_USB_InvalidRequest;

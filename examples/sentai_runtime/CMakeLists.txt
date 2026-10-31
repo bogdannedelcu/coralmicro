@@ -256,6 +256,7 @@ add_executable_m7(sentai_runtime
     sentai_log.c
     sentai_explore.cc
     modsentai_hal.cc
+    sentai_sdcard_glue.cc        # sentai.sdcard — C shim over libs/sdcard (USDHC1 microSD)
     sentai_mesh.cc
     sentai_link.cc
     sentai_crazy.cc
@@ -267,7 +268,7 @@ add_executable_m7(sentai_runtime
     sentai_fs_cache.cc
     m4_bench_host.cc           # OP-S10-W16-T3: M7 driver for the M4 ArUco bench
     M4_EXECUTABLE
-    sentai_m4_aruco_bench
+    sentai_m4_flow             # s240: M4 flow-offload worker (was sentai_m4_aruco_bench)
     DATA
 )
 
@@ -286,6 +287,19 @@ add_executable_m4(sentai_m4_aruco_bench
     m4_aruco_bench.cc
 )
 target_link_libraries(sentai_m4_aruco_bench
+    libs_base-m4_freertos
+)
+
+# s240 (2026-07-01): M4 flow-offload worker — REVIVED with 3 fixes vs the
+# pre-#1130 version (bare-metal loop / no scheduler-on-broken-SysTick;
+# USADA8 SIMD SAD; relocated flow_shared off .tpu_input).  This is the
+# M4_EXECUTABLE embedded + booted by sentai_runtime.  Its own main()
+# overrides the weak SDK main to skip BOARD_InitHardware (protects the
+# running M7 camera PLLs).  See experiments/s240.../m4_offload_review.md.
+add_executable_m4(sentai_m4_flow
+    flow_task_m4.cc
+)
+target_link_libraries(sentai_m4_flow
     libs_base-m4_freertos
 )
 # OP-S10-W16 fix 2026-05-19: the global M4 linker
@@ -336,7 +350,7 @@ target_link_libraries(sentai_runtime
     libs_base-m7_freertos
     libs_base-m7_http_server
     libs_jpeg_m7
-    libs_lis2du12_freertos
+    libs_lis2dux12_freertos     # LIS2DUX12 (board rev 2026-10); libs_lis2du12 kept for the old board
     libs_t5838_freertos
     libs_audio_freertos
     shine
@@ -344,6 +358,7 @@ target_link_libraries(sentai_runtime
     libs_aifes_task_m7
     libs_CMSIS-m7              # CMSIS-DSP arm_cfft_f32 (flow_phase_corr.cc)
     libh3_arm                  # ObjectsPlan L3 — H3 spatial index (sentai.places)
+    libs_sdcard_freertos       # sentai.sdcard — microSD on USDHC1 (+ sdmmc/sd, fatfs)
     nanopb
     meshtastic_pb
 )

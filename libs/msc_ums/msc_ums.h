@@ -49,6 +49,10 @@ class MscUms {
   // target on the first try.
   void SetUnitReady(bool ready) { unit_ready_ = ready; }
   bool IsUnitReady() const { return unit_ready_; }
+  // Arm a UNIT ATTENTION (NOT READY -> READY) so the host re-reads
+  // capacity after the medium appears late (SD block layer comes up in
+  // app_main, after USB enumeration).
+  void NotifyMediaChanged() { media_changed_ = true; }
 
   // Write protection: when true, MODE SENSE returns the WP bit and WRITE(10)
   // is rejected with InvalidRequest.  Toggling does NOT require a USB bus

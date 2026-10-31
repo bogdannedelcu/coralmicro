@@ -6,7 +6,7 @@
 #include "libs/base/fx_user_fs.h"
 #include "libs/base/led.h"
 #include "libs/base/gpio.h"
-#include "libs/lis2du12/lis2du12.h"
+#include "libs/lis2dux12/lis2dux12.h"
 #include "libs/t5838/t5838.h"
 #include "libs/base/main_freertos_m7.h"
 
@@ -297,7 +297,7 @@ int sentai_help_read(char* buf, int max_size) {
 
 // ===================== IMU (LIS2DU12 accelerometer) =====================
 
-static coralmicro::Lis2du12 g_imu;
+static coralmicro::Lis2dux12 g_imu;  // LIS2DUX12, board rev 2026-10 (I2C5 @0x19)
 static bool g_imu_initialized = false;
 
 int sentai_imu_init(void) {
@@ -364,7 +364,12 @@ static volatile uint32_t s_imu_i2c_errors_total = 0;
 
 // Bounded busy-wait counter for tap_stop join. We never sleep > IMU_STOP_*.
 #define IMU_STOP_POLL_MS        10u
-#define IMU_STOP_MAX_POLLS      20u   // 200 ms total bounded wait
+// 1 s total bounded wait: must outlast one full LPI2C transfer timeout
+// (pin-low timeout 20 ms + RTOS handoff) with margin, so the cooperative
+// exit wins in every case short of a truly wedged bus.  Force-deleting a
+// task that may hold the LPI2C RTOS mutex deadlocks every other user of
+// that bus (audit 2026-10-30, M8) -- it stays as the last resort only.
+#define IMU_STOP_MAX_POLLS      100u
 
 static void sentai_imu_event_task(void* p) {
     (void)p;
@@ -389,8 +394,8 @@ static void sentai_imu_event_task(void* p) {
             continue;
         }
 
-        lis2du12_all_sources_t sources{};
-        const int rc = lis2du12_all_sources_get(g_imu.GetDevCtx(), &sources);
+        coralmicro::Lis2dux12::EventSources sources{};
+        const int rc = g_imu.PollEvents(&sources) ? 0 : -1;
         if (rc != 0) {
             s_imu_i2c_errors_total++;
             if (++i2c_err_streak == IMU_I2C_ERR_DEGRADED) {
@@ -468,13 +473,9 @@ int sentai_imu_tap_start(void) {
     // Single-axis Z, threshold 2 LSB (~125 mg) — board lies flat so taps
     // arrive from above. Disable tap_double.en so SINGLE_TAP_IA fires
     // independently for each tap.
-    lis2du12_tap_md_t tap{};
-    lis2du12_tap_mode_get(g_imu.GetDevCtx(), &tap);
-    tap.x_en = 0; tap.y_en = 0; tap.z_en = 1;
-    tap.threshold.x = 0; tap.threshold.y = 0; tap.threshold.z = 2;
-    tap.priority = LIS2DU12_ZYX;
-    tap.tap_double.en = 0;  // SINGLE only; we cluster in software
-    if (lis2du12_tap_mode_set(g_imu.GetDevCtx(), &tap) != 0) return -8;
+    // LIS2DUX12: one tap axis, peak threshold in 62.5 mg steps (2 ~ 125 mg),
+    // SINGLE only; doubles are clustered in software below.
+    if (!g_imu.ConfigureTap(LIS2DUX12_TAP_ON_Z, 2, /*single*/true, /*double*/false)) return -8;
     if (!s_imu_evq) {
         s_imu_evq = xQueueCreate(SENTAI_IMU_EVQ_DEPTH, sizeof(uint32_t));
         if (!s_imu_evq) return -3;
@@ -512,12 +513,7 @@ int sentai_imu_tap_stop(void) {
     // does not boot into a still-armed wake_up/tap pipeline that prevents
     // Init() from soft-resetting the chip cleanly.
     if (g_imu_initialized) {
-        lis2du12_int_mode_t off{};   // enable=0, all defaults
-        lis2du12_interrupt_mode_set(g_imu.GetDevCtx(), &off);
-        lis2du12_pin_int_route_t route{};  // all routes off
-        lis2du12_pin_int2_route_set(g_imu.GetDevCtx(), &route);
-        lis2du12_all_sources_t dump;  // read-clear latched flags
-        lis2du12_all_sources_get(g_imu.GetDevCtx(), &dump);
+        (void)g_imu.DisableEvents();  // int off, INT1/INT2 un-routed, flags read-cleared
     }
     return 0;
 }

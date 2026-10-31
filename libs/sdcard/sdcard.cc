@@ -19,28 +19,61 @@
 #include <cstdio>
 #include <cstring>
 
-#include "libs/base/check.h"
+#include "third_party/freertos_kernel/include/FreeRTOS.h"
+#include "third_party/freertos_kernel/include/task.h"
 #include "libs/nxp/rt1176-sdk/clock_config.h"
 #include "third_party/modified/nxp/rt1176-sdk/sdmmc_config.h"
 #include "third_party/nxp/rt1176-sdk/middleware/sdmmc/sd/fsl_sd.h"
 #include "third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_gpio.h"
-#include "third_party/nxp/rt1176-sdk/middleware/fatfs/source/ff.h"
-#include "third_party/nxp/rt1176-sdk/middleware/fatfs/source/fsl_sd_disk/fsl_sd_disk.h"
 #include "third_party/nxp/rt1176-sdk/devices/MIMXRT1176/drivers/fsl_iomuxc.h"
 
-// Forward declarations for board-specific functions
+// Board-specific helpers still shared with the SDIO (Wi-Fi) code.
 extern "C" {
-void BOARD_SDCardPowerResetInit(void);
-void BOARD_SDCardPowerControl(bool enable);
-bool BOARD_SDCardGetDetectStatus(void);
-void BOARD_SDCardDetectInit(sd_cd_t cd, void *userData);
-uint32_t BOARD_USDHC2ClockConfiguration(void);
+uint32_t BOARD_USDHC1ClockConfiguration(void);
 void BOARD_USDHC_Errata(void);
 }
 
 namespace coralmicro {
 
 namespace {
+
+// SD card socket wiring on the current board revision (schematic page 16,
+// "Interface", and page 6, RT1176 PART2).  The socket sits on USDHC1
+// (GPIO_SD_B1_00..05); it does NOT use USDHC2 and has no card-detect pin.
+//   SD_PWREN_B  GPIO_AD_12 (GPIO_MUX3_IO11 -> GPIO3 pin 11): gate of the
+//               P-FET U12 that switches VDD_3V3 -> VSD_3V3 (the card supply).
+//               Active low: 0 = card powered, 1 = card off.
+//   SD1_VSELECT GPIO_AD_16 (GPIO_MUX3_IO15 -> GPIO3 pin 15): select of the
+//               NX3L1T3157 analog switch U6 that feeds NVCC_SD1 (the I/O
+//               rail of the SD pads).  0 = VDD_3V3, 1 = VDD_1V8.
+// The card itself is only ever supplied with 3.3 V, so signalling stays at
+// 3.3 V and UHS-I (1.8 V) switching is disabled (ioVoltage == nullptr).
+constexpr uint32_t kSdPwrEnPin = 11;
+constexpr uint32_t kSdVselectPin = 15;
+
+void SdBoardGpioInit() {
+  IOMUXC_SetPinMux(IOMUXC_GPIO_AD_12_GPIO_MUX3_IO11, 0U);
+  IOMUXC_SetPinMux(IOMUXC_GPIO_AD_16_GPIO_MUX3_IO15, 0U);
+
+  // Rail select first (3.3 V I/O), card supply OFF, so the pads are never
+  // driven at 1.8 V while a 3.3 V card is powered.
+  gpio_pin_config_t cfg = {kGPIO_DigitalOutput, 0, kGPIO_NoIntmode};
+  GPIO_PinInit(GPIO3, kSdVselectPin, &cfg);
+  cfg.outputLogic = 1;
+  GPIO_PinInit(GPIO3, kSdPwrEnPin, &cfg);
+}
+
+// SD driver callback: enable == true powers the card.  SD_PWREN_B is
+// active low.
+void SdBoardPower(bool enable) {
+  GPIO_PinWrite(GPIO3, kSdPwrEnPin, enable ? 0 : 1);
+}
+
+bool SdBoardCardDetected() {
+  // No card-detect switch is wired on this board; assume present and let
+  // SD_Init() fail if the socket is empty.
+  return true;
+}
 
 // DMA descriptor buffer (must be non-cacheable and properly aligned)
 AT_NONCACHEABLE_SECTION_ALIGN(uint32_t s_sdmmcHostDmaBuffer[32],
@@ -56,40 +89,12 @@ SDK_ALIGN(uint8_t s_sdmmcCacheLineAlignBuffer[64],
 // Host controller configuration
 sdmmchost_t s_host;
 
-// I/O voltage control
-sd_io_voltage_t s_ioVoltage = {
-    .type = kSD_IOVoltageCtrlByHost,
-    .func = nullptr,
-};
-
 // Card detect structure
 sd_detect_card_t s_cd;
 
 // SD card state
 sd_card_t s_sdCard;
 bool s_cardInitialized = false;
-
-// FatFS state
-FATFS s_fatfs;
-bool s_fsMounted = false;
-char s_mountPoint[16] = {0};
-
-}  // namespace
-
-// Reference to g_sd defined in fsl_sd_disk.c
-extern "C" {
-extern sd_card_t g_sd;
-
-// Provide get_fattime function for FatFS
-DWORD get_fattime(void) {
-  // Return a default timestamp (2025-01-01 00:00:00)
-  // Format: bit31-25=Year(from 1980), bit24-21=Month, bit20-16=Day
-  //         bit15-11=Hour, bit10-5=Minute, bit4-0=Second/2
-  return ((DWORD)(2025 - 1980) << 25) | ((DWORD)1 << 21) | ((DWORD)1 << 16);
-}
-}
-
-namespace {
 
 // Configure the SD card host (similar to BOARD_SDIO_Config but for SD cards)
 void ConfigureSDHost() {
@@ -109,41 +114,39 @@ void ConfigureSDHost() {
   s_host.cacheAlignBufferSize = 64;
 #endif
 
-    // SD Card
-    #define BOARD_USDHC2_CMD_IOMUXC IOMUXC_GPIO_SD_B2_05_USDHC2_CMD
-    #define BOARD_USDHC2_CLK_IOMUXC IOMUXC_GPIO_SD_B2_04_USDHC2_CLK
-    #define BOARD_USDHC2_DATA0_IOMUXC IOMUXC_GPIO_SD_B2_03_USDHC2_DATA0
-    #define BOARD_USDHC2_DATA1_IOMUXC IOMUXC_GPIO_SD_B2_02_USDHC2_DATA1
-    #define BOARD_USDHC2_DATA2_IOMUXC IOMUXC_GPIO_SD_B2_01_USDHC2_DATA2
-    #define BOARD_USDHC2_DATA3_IOMUXC IOMUXC_GPIO_SD_B2_00_USDHC2_DATA3
-
+    // SD card socket pins (USDHC1).  Pad PULL field: 1 = internal pull-up,
+    // 3 = no pull.  Only CMD and DATA0 have external 10k pull-ups to NVCC_SD
+    // (R373/R374); DATA1..3 rely on the internal pull-ups.
     #ifndef IOMUXC_SW_PAD_CTL_PAD_APC
     #define IOMUXC_SW_PAD_CTL_PAD_APC_MASK  (0xF0000000U)
     #define IOMUXC_SW_PAD_CTL_PAD_APC_SHIFT (28U)
     #define IOMUXC_SW_PAD_CTL_PAD_APC(x)    (((uint32_t)(((uint32_t)(x)) << IOMUXC_SW_PAD_CTL_PAD_APC_SHIFT)) & IOMUXC_SW_PAD_CTL_PAD_APC_MASK)
     #endif
 
-    const uint32_t usdhc_cmd_pin_settings = IOMUXC_SW_PAD_CTL_PAD_PDRV(1) | IOMUXC_SW_PAD_CTL_PAD_PULL(0) |
+    const uint32_t usdhc_cmd_pin_settings = IOMUXC_SW_PAD_CTL_PAD_PDRV(1) | IOMUXC_SW_PAD_CTL_PAD_PULL(3) |
                                             IOMUXC_SW_PAD_CTL_PAD_ODE(0) | IOMUXC_SW_PAD_CTL_PAD_APC(0);
-    const uint32_t usdhc_clk_pin_settings = IOMUXC_SW_PAD_CTL_PAD_PDRV(0) | IOMUXC_SW_PAD_CTL_PAD_PULL(3) |
+    const uint32_t usdhc_clk_pin_settings = IOMUXC_SW_PAD_CTL_PAD_PDRV(1) | IOMUXC_SW_PAD_CTL_PAD_PULL(3) |
                                             IOMUXC_SW_PAD_CTL_PAD_ODE(0) | IOMUXC_SW_PAD_CTL_PAD_APC(0);
-    const uint32_t usdhc_data_pin_settings = IOMUXC_SW_PAD_CTL_PAD_PDRV(0) | IOMUXC_SW_PAD_CTL_PAD_PULL(3) |
-                                            IOMUXC_SW_PAD_CTL_PAD_ODE(0) | IOMUXC_SW_PAD_CTL_PAD_APC(0);
-    const uint32_t usdhc_data_pin_nopull = IOMUXC_SW_PAD_CTL_PAD_PDRV(0) | IOMUXC_SW_PAD_CTL_PAD_PULL(3) |
-                                        IOMUXC_SW_PAD_CTL_PAD_ODE(0) | IOMUXC_SW_PAD_CTL_PAD_APC(0);
+    const uint32_t usdhc_data_pin_settings = IOMUXC_SW_PAD_CTL_PAD_PDRV(1) | IOMUXC_SW_PAD_CTL_PAD_PULL(3) |
+                                             IOMUXC_SW_PAD_CTL_PAD_ODE(0) | IOMUXC_SW_PAD_CTL_PAD_APC(0);
+    const uint32_t usdhc_data_pullup_settings = IOMUXC_SW_PAD_CTL_PAD_PDRV(1) | IOMUXC_SW_PAD_CTL_PAD_PULL(1) |
+                                                IOMUXC_SW_PAD_CTL_PAD_ODE(0) | IOMUXC_SW_PAD_CTL_PAD_APC(0);
 
-    IOMUXC_SetPinMux(BOARD_USDHC2_DATA1_IOMUXC, false);
-    IOMUXC_SetPinMux(BOARD_USDHC2_DATA2_IOMUXC, false);
-    IOMUXC_SetPinMux(BOARD_USDHC2_DATA3_IOMUXC, false);
-    IOMUXC_SetPinConfig(BOARD_USDHC2_DATA1_IOMUXC, usdhc_data_pin_settings);
-    IOMUXC_SetPinConfig(BOARD_USDHC2_DATA2_IOMUXC, usdhc_data_pin_settings);
-    IOMUXC_SetPinConfig(BOARD_USDHC2_DATA3_IOMUXC, usdhc_data_pin_settings);
-    IOMUXC_SetPinMux(BOARD_USDHC2_CMD_IOMUXC, true);
-    IOMUXC_SetPinMux(BOARD_USDHC2_CLK_IOMUXC, false);
-    IOMUXC_SetPinMux(BOARD_USDHC2_DATA0_IOMUXC, false);
-    IOMUXC_SetPinConfig(BOARD_USDHC2_CMD_IOMUXC, usdhc_cmd_pin_settings);
-    IOMUXC_SetPinConfig(BOARD_USDHC2_CLK_IOMUXC, usdhc_clk_pin_settings);
-    IOMUXC_SetPinConfig(BOARD_USDHC2_DATA0_IOMUXC, usdhc_data_pin_settings);
+    // Rail select + card supply must be settled BEFORE the pads are muxed.
+    SdBoardGpioInit();
+
+    IOMUXC_SetPinMux(IOMUXC_GPIO_SD_B1_00_USDHC1_CMD, true);
+    IOMUXC_SetPinMux(IOMUXC_GPIO_SD_B1_01_USDHC1_CLK, false);
+    IOMUXC_SetPinMux(IOMUXC_GPIO_SD_B1_02_USDHC1_DATA0, false);
+    IOMUXC_SetPinMux(IOMUXC_GPIO_SD_B1_03_USDHC1_DATA1, false);
+    IOMUXC_SetPinMux(IOMUXC_GPIO_SD_B1_04_USDHC1_DATA2, false);
+    IOMUXC_SetPinMux(IOMUXC_GPIO_SD_B1_05_USDHC1_DATA3, false);
+    IOMUXC_SetPinConfig(IOMUXC_GPIO_SD_B1_00_USDHC1_CMD, usdhc_cmd_pin_settings);
+    IOMUXC_SetPinConfig(IOMUXC_GPIO_SD_B1_01_USDHC1_CLK, usdhc_clk_pin_settings);
+    IOMUXC_SetPinConfig(IOMUXC_GPIO_SD_B1_02_USDHC1_DATA0, usdhc_data_pin_settings);
+    IOMUXC_SetPinConfig(IOMUXC_GPIO_SD_B1_03_USDHC1_DATA1, usdhc_data_pullup_settings);
+    IOMUXC_SetPinConfig(IOMUXC_GPIO_SD_B1_04_USDHC1_DATA2, usdhc_data_pullup_settings);
+    IOMUXC_SetPinConfig(IOMUXC_GPIO_SD_B1_05_USDHC1_DATA3, usdhc_data_pullup_settings);
 
   printf("[SDCard] ConfigureSDHost: DMA and cache setup complete\r\n");
 
@@ -153,12 +156,12 @@ void ConfigureSDHost() {
   std::memset(&s_sdCard, 0, sizeof(s_sdCard));
   printf("[SDCard] ConfigureSDHost: STEP 3 - memset DONE\r\n");
   s_sdCard.host = &s_host;
-  printf("[SDCard] ConfigureSDHost: Host pointer assigned, setting USDHC2 base...\r\n");
-  s_sdCard.host->hostController.base = USDHC2;
-  printf("[SDCard] ConfigureSDHost: USDHC2 base set\r\n");
+  printf("[SDCard] ConfigureSDHost: Host pointer assigned, setting USDHC1 base...\r\n");
+  s_sdCard.host->hostController.base = USDHC1;
+  printf("[SDCard] ConfigureSDHost: USDHC1 base set\r\n");
 
-  printf("[SDCard] ConfigureSDHost: Configuring USDHC2 clock...\r\n");
-  s_sdCard.host->hostController.sourceClock_Hz = BOARD_USDHC2ClockConfiguration();
+  printf("[SDCard] ConfigureSDHost: Configuring USDHC1 clock...\r\n");
+  s_sdCard.host->hostController.sourceClock_Hz = BOARD_USDHC1ClockConfiguration();
   printf("[SDCard] ConfigureSDHost: Clock configured to %u Hz\r\n",
          s_sdCard.host->hostController.sourceClock_Hz);
 
@@ -166,25 +169,28 @@ void ConfigureSDHost() {
   printf("[SDCard] ConfigureSDHost: Setting up card detect...\r\n");
   s_cd.cdDebounce_ms = 100U;
   s_cd.type = kSD_DetectCardByGpioCD;
-  s_cd.cardDetected = BOARD_SDCardGetDetectStatus;
+  s_cd.cardDetected = SdBoardCardDetected;
   s_cd.callback = nullptr;
   s_cd.userData = nullptr;
 
   s_sdCard.usrParam.cd = &s_cd;
-  s_sdCard.usrParam.pwr = BOARD_SDCardPowerControl;
+  s_sdCard.usrParam.pwr = SdBoardPower;
   s_sdCard.usrParam.ioStrength = nullptr;
-  s_sdCard.usrParam.ioVoltage = &s_ioVoltage;
-  s_sdCard.usrParam.maxFreq = 200000000U;  // 200MHz max for SDR104
+  s_sdCard.usrParam.ioVoltage = nullptr;  // 3.3 V only, no UHS-I
+  s_sdCard.usrParam.maxFreq = 50000000U;  // 50 MHz high-speed, 3.3 V signalling
 
   // Initialize power control
-  printf("[SDCard] ConfigureSDHost: Initializing power control...\r\n");
-  BOARD_SDCardPowerResetInit();
-  printf("[SDCard] ConfigureSDHost: Initializing card detect GPIO...\r\n");
-  BOARD_SDCardDetectInit(nullptr, nullptr);
+  // Card supply: off for >= 20 ms (discharge), then on.  C78 on the gate
+  // soft-starts VSD_3V3; wait for it to settle before the first command.
+  printf("[SDCard] ConfigureSDHost: Power-cycling card supply...\r\n");
+  SdBoardPower(false);
+  vTaskDelay(pdMS_TO_TICKS(30));
+  SdBoardPower(true);
+  vTaskDelay(pdMS_TO_TICKS(30));
 
   // Set interrupt priority
-  printf("[SDCard] ConfigureSDHost: Setting USDHC2 interrupt priority...\r\n");
-  NVIC_SetPriority(USDHC2_IRQn, 5);
+  printf("[SDCard] ConfigureSDHost: Setting USDHC1 interrupt priority...\r\n");
+  NVIC_SetPriority(USDHC1_IRQn, 5);
 
 #if __CORTEX_M == 7
   // Apply RT1176 errata workaround
@@ -208,7 +214,7 @@ bool SDCard::Init() {
   // Configure host controller
   printf("[SDCard] Init: Configuring SD host controller...\r\n");
   ConfigureSDHost();
-  printf("[SDCard] Init: SD host configured (USDHC2 at %u Hz)\r\n",
+  printf("[SDCard] Init: SD host configured (USDHC1 at %u Hz)\r\n",
          s_sdCard.host->hostController.sourceClock_Hz);
 
   // Initialize SD card
@@ -220,10 +226,6 @@ bool SDCard::Init() {
     printf("[SDCard] Init: FAILED - SD_Init returned error 0x%x\r\n", status);
     return false;
   }
-
-  // Copy to global for FatFS disk layer
-  printf("[SDCard] Init: Copying card info to global g_sd...\r\n");
-  std::memcpy(&g_sd, &s_sdCard, sizeof(sd_card_t));
 
   s_cardInitialized = true;
   printf("[SDCard] Init: SUCCESS - Card initialized\r\n");
@@ -250,6 +252,10 @@ bool SDCard::ReadBlocks(uint32_t start_block, uint8_t* buffer,
   }
 
   status_t status = SD_ReadBlocks(&s_sdCard, buffer, start_block, block_count);
+  if (status != kStatus_Success) {
+    printf("[SDCard] ReadBlocks(lba=%lu, n=%lu) failed: status=%ld\r\n",
+           (unsigned long)start_block, (unsigned long)block_count, (long)status);
+  }
   return status == kStatus_Success;
 }
 
@@ -259,14 +265,19 @@ bool SDCard::WriteBlocks(uint32_t start_block, const uint8_t* buffer,
     return false;
   }
 
+  // SD_WriteBlocks() already waits for the card's internal program to finish
+  // (SD_Write -> SD_PollingCardStatusBusy before returning), so no extra
+  // busy-wait here.  NOTE: SD_PollingCardStatusBusy() signals success with
+  // kStatus_SDMMC_CardStatusIdle, NOT kStatus_Success — the inherited code
+  // compared against kStatus_Success and reported every good write as a
+  // failure (2026-10-30, first FAT32 format attempt).
   status_t status = SD_WriteBlocks(&s_sdCard, buffer, start_block, block_count);
-
-  // Wait for write to complete (SD_WriteBlocks is async)
-  if (status == kStatus_Success) {
-    status = SD_PollingCardStatusBusy(&s_sdCard, 1000);  // 1 second timeout
+  if (status != kStatus_Success) {
+    printf("[SDCard] WriteBlocks(lba=%lu, n=%lu) failed: status=%ld\r\n",
+           (unsigned long)start_block, (unsigned long)block_count, (long)status);
+    return false;
   }
-
-  return status == kStatus_Success;
+  return true;
 }
 
 bool SDCard::GetCardInfo(SDCardInfo* info) {
@@ -317,89 +328,12 @@ bool SDCard::EraseBlocks(uint32_t start_block, uint32_t block_count) {
   }
 
   status_t status = SD_EraseBlocks(&s_sdCard, start_block, block_count);
+  if (status != kStatus_Success) return false;
 
-  // Wait for erase to complete (SD_EraseBlocks is async)
-  if (status == kStatus_Success) {
-    status = SD_PollingCardStatusBusy(&s_sdCard, 30000);  // 30 second timeout for erase
-  }
-
-  return status == kStatus_Success;
-}
-
-bool SDCard::Mount(const char* mount_point) {
-  if (!s_cardInitialized) {
-    return false;
-  }
-
-  if (s_fsMounted) {
-    // Already mounted
-    return true;
-  }
-
-  if (!mount_point || mount_point[0] != '/') {
-    // Invalid mount point
-    return false;
-  }
-
-  // Store mount point (remove leading slash for FatFS)
-  const char* drive = mount_point + 1;
-  if (std::strlen(drive) >= sizeof(s_mountPoint)) {
-    return false;
-  }
-  std::strcpy(s_mountPoint, drive);
-
-  // Mount filesystem
-  FRESULT result = f_mount(&s_fatfs, drive, 1);
-  if (result != FR_OK) {
-    return false;
-  }
-
-  s_fsMounted = true;
-  return true;
-}
-
-bool SDCard::Unmount() {
-  if (!s_fsMounted) {
-    return true;
-  }
-
-  // Unmount filesystem
-  FRESULT result = f_mount(nullptr, s_mountPoint, 0);
-  if (result != FR_OK) {
-    return false;
-  }
-
-  s_fsMounted = false;
-  s_mountPoint[0] = '\0';
-  return true;
-}
-
-bool SDCard::IsMounted() {
-  return s_fsMounted;
-}
-
-bool SDCard::Format() {
-  if (!s_cardInitialized) {
-    return false;
-  }
-
-  // Unmount if currently mounted
-  if (s_fsMounted) {
-    Unmount();
-  }
-
-  // Format with FAT32
-  BYTE work[FF_MAX_SS];  // Work buffer for formatting
-  MKFS_PARM opt = {
-      FM_FAT32,      // Format type: FAT32
-      0,             // Number of FATs (0 = default)
-      0,             // Align size (0 = default)
-      0,             // Number of root directory entries (0 = default)
-      0              // Cluster size (0 = auto)
-  };
-
-  FRESULT result = f_mkfs("0:", &opt, work, sizeof(work));
-  return result == FR_OK;
+  // Wait for erase to complete.  SD_PollingCardStatusBusy() reports success
+  // as kStatus_SDMMC_CardStatusIdle (see WriteBlocks note above).
+  status = SD_PollingCardStatusBusy(&s_sdCard, 30000);  // 30 second timeout for erase
+  return status == kStatus_SDMMC_CardStatusIdle || status == kStatus_Success;
 }
 
 }  // namespace coralmicro

@@ -345,7 +345,10 @@ add_library_m7(libs_nxp_rt1176-sdk_fatfs
     ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/fatfs/source/ffsystem.c
     ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/fatfs/source/ffunicode.c
     ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/fatfs/source/diskio.c
-    ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/fatfs/source/fsl_sd_disk/fsl_sd_disk.c
+    # SentAI 2026-10-30: modified copy — sd_disk_initialize() no longer
+    # re-runs SD_Init() on a card that libs/sdcard already brought up
+    # (double SDMMCHOST_Init on the same host deadlocked f_mount).
+    ${PROJECT_SOURCE_DIR}/third_party/modified/nxp/rt1176-sdk/fatfs/fsl_sd_disk.c
 )
 
 target_include_directories(libs_nxp_rt1176-sdk_fatfs PUBLIC

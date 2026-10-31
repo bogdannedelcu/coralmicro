@@ -18,7 +18,7 @@
  */
 
 #include "libs/base/fx_user_fs.h"
-#include "libs/base/fx_nand_driver.h"
+#include "libs/base/fx_sd_driver.h"
 #include "libs/base/filesystem.h"
 
 #include <cstdarg>
@@ -28,7 +28,6 @@
 
 extern "C" {
 #include "fx_api.h"
-#include "lx_api.h"
 }
 
 #include "examples/sentai_runtime/sentai_error.h"
@@ -43,18 +42,25 @@ namespace {
 /* ===== Static memory =================================================
  *
  * All buffers live in .sdram_bss.  Embeded.md §D: static allocation
- * only; no heap in steady state.  Total SDRAM cost ~48 KB.
+ * only; no heap in steady state.  Total SDRAM cost ~20 KB.
+ *
+ * 2026-10-30: backend is the microSD card (fx_sd_driver, 512 B blocks,
+ * no LevelX).  The FileX sector cache is also the DMA target for the
+ * USDHC host, so it is 32-byte aligned (D-cache line) — fx_sd_driver
+ * bounces anything less aligned through its own staging buffer.
  */
-constexpr size_t kLxMemorySize  = 32u * 1024u;
-constexpr size_t kFxMediaSize   = 16u * 1024u;
+constexpr size_t kFxMediaSize   = 16u * 1024u;   /* 32 cached sectors */
+constexpr size_t kFxFtSize      = 4u * 1024u;    /* >= FX_FAULT_TOLERANT_MINIMAL_BUFFER_SIZE */
 constexpr size_t kPathScratch   = 256u;
 
-ULONG g_lx_memory_buffer[kLxMemorySize / sizeof(ULONG)]
-    __attribute__((aligned(8), section(".sdram_bss")));
 UCHAR g_fx_media_memory[kFxMediaSize]
-    __attribute__((aligned(8), section(".sdram_bss")));
+    __attribute__((aligned(32), section(".sdram_bss")));
+UCHAR g_fx_ft_memory[kFxFtSize]
+    __attribute__((aligned(32), section(".sdram_bss")));
+/* Scratch for the LBA0 blank-card probe (never handed to FileX). */
+UCHAR g_fx_probe_sector[FX_SD_BLOCK_SIZE]
+    __attribute__((aligned(32), section(".sdram_bss")));
 
-LX_NAND_FLASH g_lx_nand   __attribute__((section(".sdram_bss")));
 FX_MEDIA      g_fx_media  __attribute__((section(".sdram_bss")));
 
 /* ===== State ========================================================== */
@@ -146,99 +152,26 @@ inline uint32_t now_ms() {
     return static_cast<uint32_t>(xTaskGetTickCount() * portTICK_PERIOD_MS);
 }
 
-/* ===== Bridge driver: FX_MEDIA <-> LX_NAND_FLASH ======================
+/* ===== Media driver ==================================================
  *
- * Modeled after fx_nand_flash_simulated_driver.c upstream but rewired
- * to OUR LX_NAND_FLASH instance and our hardware.  LX is opened/closed
- * by the caller (FxUserInit / FxUserUnmount) so the DRIVER_INIT and
- * DRIVER_UNINIT cases here are no-ops. */
-extern "C" void fx_user_nand_driver(FX_MEDIA* media_ptr) {
-    ULONG  logical_sector;
-    ULONG  count;
-    UCHAR* buffer;
-    UINT   status;
+ * fx_sd_driver() (libs/base/fx_sd_driver.cc) is the FX_MEDIA driver:
+ * 512-byte card blocks, MBR-partition aware, DMA-alignment safe.  The
+ * old FX<->LevelX bridge (NAND user partition) was removed 2026-10-30. */
+inline void (*fx_user_media_driver())(FX_MEDIA*) {
+    return reinterpret_cast<void (*)(FX_MEDIA*)>(fx_sd_driver);
+}
 
-    switch (media_ptr->fx_media_driver_request) {
-        case FX_DRIVER_READ:
-            logical_sector = media_ptr->fx_media_driver_logical_sector;
-            count = media_ptr->fx_media_driver_sectors;
-            buffer = static_cast<UCHAR*>(media_ptr->fx_media_driver_buffer);
-            for (ULONG remaining = count; remaining != 0; --remaining) {
-                status = _lx_nand_flash_sector_read(&g_lx_nand,
-                                                    logical_sector, buffer);
-                if (status != LX_SUCCESS) {
-                    media_ptr->fx_media_driver_status = FX_IO_ERROR;
-                    return;
-                }
-                ++logical_sector;
-                buffer += media_ptr->fx_media_bytes_per_sector;
-            }
-            media_ptr->fx_media_driver_status = FX_SUCCESS;
-            break;
-
-        case FX_DRIVER_WRITE:
-            logical_sector = media_ptr->fx_media_driver_logical_sector;
-            count = media_ptr->fx_media_driver_sectors;
-            buffer = static_cast<UCHAR*>(media_ptr->fx_media_driver_buffer);
-            for (ULONG remaining = count; remaining != 0; --remaining) {
-                status = _lx_nand_flash_sector_write(&g_lx_nand,
-                                                     logical_sector, buffer);
-                if (status != LX_SUCCESS) {
-                    media_ptr->fx_media_driver_status = FX_IO_ERROR;
-                    return;
-                }
-                ++logical_sector;
-                buffer += media_ptr->fx_media_bytes_per_sector;
-            }
-            media_ptr->fx_media_driver_status = FX_SUCCESS;
-            break;
-
-        case FX_DRIVER_RELEASE_SECTORS:
-            logical_sector = media_ptr->fx_media_driver_logical_sector;
-            count = media_ptr->fx_media_driver_sectors;
-            for (ULONG remaining = count; remaining != 0; --remaining) {
-                status = _lx_nand_flash_sector_release(&g_lx_nand,
-                                                       logical_sector);
-                if (status != LX_SUCCESS) {
-                    media_ptr->fx_media_driver_status = FX_IO_ERROR;
-                    return;
-                }
-                ++logical_sector;
-            }
-            media_ptr->fx_media_driver_status = FX_SUCCESS;
-            break;
-
-        case FX_DRIVER_FLUSH:
-        case FX_DRIVER_ABORT:
-            media_ptr->fx_media_driver_status = FX_SUCCESS;
-            break;
-
-        case FX_DRIVER_INIT:
-            media_ptr->fx_media_driver_free_sector_update = FX_TRUE;
-            media_ptr->fx_media_driver_status             = FX_SUCCESS;
-            break;
-
-        case FX_DRIVER_UNINIT:
-            media_ptr->fx_media_driver_status = FX_SUCCESS;
-            break;
-
-        case FX_DRIVER_BOOT_READ:
-            status = _lx_nand_flash_sector_read(&g_lx_nand, 0,
-                static_cast<UCHAR*>(media_ptr->fx_media_driver_buffer));
-            media_ptr->fx_media_driver_status =
-                (status == LX_SUCCESS) ? FX_SUCCESS : FX_IO_ERROR;
-            break;
-
-        case FX_DRIVER_BOOT_WRITE:
-            status = _lx_nand_flash_sector_write(&g_lx_nand, 0,
-                static_cast<UCHAR*>(media_ptr->fx_media_driver_buffer));
-            media_ptr->fx_media_driver_status =
-                (status == LX_SUCCESS) ? FX_SUCCESS : FX_IO_ERROR;
-            break;
-
-        default:
-            media_ptr->fx_media_driver_status = FX_IO_ERROR;
-            break;
+/* FileX fault-tolerant journal.  Must be enabled right after a
+ * successful fx_media_open() and before any other media operation.
+ * Failure is non-fatal (volume still usable, just without the journal)
+ * but logged so brownout forensics know the protection was missing. */
+inline void enable_fault_tolerant() {
+    UINT fx = fx_fault_tolerant_enable(&g_fx_media, g_fx_ft_memory,
+                                       sizeof(g_fx_ft_memory));
+    if (fx != FX_SUCCESS) {
+        SERR_LOG(SERR_LFX_FT, fx);
+        printf("[fx_user] fault_tolerant_enable failed: %u (continuing)\r\n",
+               (unsigned)fx);
     }
 }
 
@@ -272,133 +205,137 @@ struct LockGuard {
     ~LockGuard() { if (held) unlock(); }
 };
 
-/* ===== Internal: format the volume (LX wipe + FAT format) ============
+/* ===== Internal: format the card (FAT32 superfloppy) =================
  *
- * Caller MUST hold g_fx_mutex.  On entry, both LX and FX may be in any
- * state — we close everything first.  On success the volume is left
- * MOUNTED (fx_media_open done). */
+ * Caller MUST hold g_fx_mutex and FxSdInit() must have succeeded.  On
+ * success the volume is left MOUNTED (fx_media_open done, journal on).
+ *
+ * Layout: no MBR (FileX writes the VBR at block 0 — "superfloppy",
+ * mounted natively by Linux/Windows/macOS), 512 B sectors, 64 sectors
+ * (32 KB) per cluster, one FAT.  FileX picks FAT32 from the cluster
+ * count (a 64 GB card → ~1.9 M clusters).  32 KB clusters amortise the
+ * per-write FAT/dir-entry overhead for JPEG captures and FR logs; the
+ * fault-tolerant journal protects metadata across brownouts. */
 bool format_and_mount() {
-    /* Close anything that may already be open.  These are no-ops if the
-     * media is not in the matching state; ignore returns. */
-    (void)fx_media_close(&g_fx_media);
-    (void)_lx_nand_flash_close(&g_lx_nand);
+    (void)fx_media_close(&g_fx_media);   /* no-op if not open */
     sentai_repl_activity();
 
-    /* Wipe + write LX metadata. */
+    ULONG total_sectors = FxSdBlockCount();
+    if (total_sectors == 0u) {
+        SERR_LOG(SERR_LFX_SD_INIT_FAIL, 0);
+        return false;
+    }
+    /* Superfloppy: the new VBR goes to block 0, whatever MBR offset the
+     * failed mount attempts may have learnt from the old content. */
+    FxSdResetPartition();
     uint32_t t0 = now_ms();
-    UINT lx = lx_nand_flash_format(&g_lx_nand, (CHAR*)"sentai_user",
-                                   fx_nand_driver_initialize,
-                                   g_lx_memory_buffer,
-                                   sizeof(g_lx_memory_buffer));
-    if (lx != LX_SUCCESS) {
-        printf("[fx_user] lx_format failed: %u\r\n", (unsigned)lx);
-        SERR_LOG(SERR_LFX_LX_FORMAT, lx);
-        return false;
-    }
-    printf("[fx_user] lx_format ok in %u ms\r\n", (unsigned)(now_ms() - t0));
-    sentai_repl_activity();
-
-    /* Re-open LX; format closes. */
-    lx = lx_nand_flash_open(&g_lx_nand, (CHAR*)"sentai_user",
-                            fx_nand_driver_initialize,
-                            g_lx_memory_buffer,
-                            sizeof(g_lx_memory_buffer));
-    if (lx != LX_SUCCESS) {
-        printf("[fx_user] lx_open after format failed: %u\r\n", (unsigned)lx);
-        SERR_LOG(SERR_LFX_LX_OPEN, lx);
-        return false;
-    }
-
-    /* Lay out the FAT. Sector size = data per page (2048, power-of-2 so
-     * Linux usb-storage accepts the MSC LUN).  Cluster of 4 sectors
-     * (8 KB) cuts FAT updates by 4× for typical write patterns —
-     * Phase 3 perf tuning showed each fx_file_write hit ~2.7 s of
-     * fixed overhead (FAT + dir entry + flush), independent of size,
-     * so larger clusters amortise that cost across more bytes.
-     * Tradeoff: minimum file size on disk grows from 2 KB to 8 KB. */
-    ULONG total_sectors = (FX_NAND_USER_BLOCK_COUNT - 8u) *
-                          FX_NAND_PAGES_PER_BLOCK;
     UINT fx = fx_media_format(&g_fx_media,
-                              fx_user_nand_driver,
+                              fx_user_media_driver(),
                               FX_NULL,
                               g_fx_media_memory,
                               sizeof(g_fx_media_memory),
-                               (CHAR*)"SENTAI_USER",
-                               1,                       /* number of FATs   */
-                               256,                     /* root dir entries */
-                               0,                       /* hidden sectors   */
-                               total_sectors,
-                               FX_NAND_BYTES_PER_PAGE,  /* sector size      */
-                               1,                       /* sectors/cluster (Phase 3.1 reverted: cluster=4 regressed large-file writes) */
-                               1,                       /* heads            */
-                               1);                      /* sectors/track    */
+                              (CHAR*)"SENTAI",
+                              1,                 /* number of FATs   */
+                              512,               /* root dir entries (FAT12/16 only) */
+                              0,                 /* hidden sectors   */
+                              total_sectors,
+                              FX_SD_BLOCK_SIZE,  /* sector size      */
+                              64,                /* sectors/cluster = 32 KB */
+                              255,               /* heads            */
+                              63);               /* sectors/track    */
     if (fx != FX_SUCCESS) {
         printf("[fx_user] fx_media_format failed: %u\r\n", (unsigned)fx);
         SERR_LOG(SERR_LFX_FX_FORMAT, fx);
-        (void)_lx_nand_flash_close(&g_lx_nand);
         return false;
     }
-    printf("[fx_user] fx_media_format ok\r\n");
+    printf("[fx_user] fx_media_format ok (%lu sectors) in %u ms\r\n",
+           (unsigned long)total_sectors, (unsigned)(now_ms() - t0));
     g_format_count++;
     sentai_repl_activity();
 
-    /* Open the freshly-formatted FAT. */
-    fx = fx_media_open(&g_fx_media, (CHAR*)"sentai_user",
-                       fx_user_nand_driver, FX_NULL,
+    fx = fx_media_open(&g_fx_media, (CHAR*)"sentai_sd",
+                       fx_user_media_driver(), FX_NULL,
                        g_fx_media_memory, sizeof(g_fx_media_memory));
     if (fx != FX_SUCCESS) {
         printf("[fx_user] fx_media_open after format failed: %u\r\n",
                (unsigned)fx);
         SERR_LOG(SERR_LFX_FX_OPEN, fx);
-        (void)_lx_nand_flash_close(&g_lx_nand);
         return false;
     }
+    enable_fault_tolerant();
     g_mounted = true;
     printf("[fx_user] mounted (post-format)\r\n");
     return true;
 }
 
-/* Try to mount an EXISTING volume.  Returns LX_SUCCESS only when both
- * LX and FX opened cleanly.  On failure, *fx_out reports the FileX
- * status (FX_NOT_OPEN if the LX layer never opened, otherwise the
- * actual fx_media_open return).  This split lets the caller
- * distinguish three cases:
- *   1. LX != LX_SUCCESS              -> LevelX layer broken (or virgin)
- *   2. LX == LX_SUCCESS, FX != OK    -> FAT layer broken (LX is fine)
- *   3. LX == LX_SUCCESS, FX == OK    -> mounted ok (g_mounted = true)
- *
- * Caller (FxUserInit) uses (1) to decide first-boot bootstrap vs
- * SAFE MODE, and treats (2) as SAFE MODE (FAT corruption alone
- * should NOT be papered over with a format that wipes LX too). */
-UINT try_mount_existing(UINT* fx_out) {
-    if (fx_out != nullptr) *fx_out = FX_NOT_OPEN;
-    UINT lx = lx_nand_flash_open(&g_lx_nand, (CHAR*)"sentai_user",
-                                 fx_nand_driver_initialize,
-                                 g_lx_memory_buffer,
-                                 sizeof(g_lx_memory_buffer));
-    if (lx != LX_SUCCESS) {
-        return lx;
+/* Boot-sector sanity check BEFORE fx_media_open (embeded.md §H: validate
+ * persistent state before trusting it).  FileX itself accepts almost any
+ * BPB and then walks FAT chains built from garbage — on a half-formatted
+ * card that walk never returned (2026-10-30, build 1613).  Returns 0 when
+ * the volume looks like a FAT12/16/32 we can mount, else the id of the
+ * failed check (logged as SERR_LFX_BPB_INVALID val). */
+extern "C" UINT _fx_partition_offset_calculate(void*, UINT, ULONG*, ULONG*);
+inline uint16_t rd16(const UCHAR* p) { return (uint16_t)(p[0] | (p[1] << 8)); }
+inline uint32_t rd32(const UCHAR* p) {
+    return (uint32_t)p[0] | ((uint32_t)p[1] << 8) | ((uint32_t)p[2] << 16) |
+           ((uint32_t)p[3] << 24);
+}
+int validate_boot_sector() {
+    const uint32_t card_blocks = FxSdBlockCount();
+    if (!FxSdRead(0, g_fx_probe_sector, 1)) return 1;
+    ULONG start = 0, size = 0;
+    if (_fx_partition_offset_calculate(g_fx_probe_sector, 0, &start, &size)
+            != FX_SUCCESS) return 2;
+    if (start != 0u) {
+        if (start >= card_blocks) return 3;
+        if (!FxSdRead(start, g_fx_probe_sector, 1)) return 1;
     }
-    UINT fx = fx_media_open(&g_fx_media, (CHAR*)"sentai_user",
-                            fx_user_nand_driver, FX_NULL,
-                            g_fx_media_memory, sizeof(g_fx_media_memory));
-    if (fx_out != nullptr) *fx_out = fx;
-    if (fx != FX_SUCCESS) {
-        (void)_lx_nand_flash_close(&g_lx_nand);
-        return LX_SUCCESS;  /* LX side is clean; caller inspects *fx_out */
-    }
-    g_mounted = true;
-    return LX_SUCCESS;
+    const UCHAR* b = g_fx_probe_sector;
+    if (!(b[0] == 0xEBu || b[0] == 0xE9u)) return 4;
+    if (!(b[510] == 0x55u && b[511] == 0xAAu)) return 4;
+    if (rd16(b + 0x0B) != FX_SD_BLOCK_SIZE) return 5;      /* exFAT has 0 here */
+    const uint8_t spc = b[0x0D];
+    if (spc == 0u || (spc & (spc - 1u)) != 0u) return 6;    /* power of two */
+    if (rd16(b + 0x0E) == 0u) return 7;                      /* reserved sectors */
+    const uint8_t fats = b[0x10];
+    if (fats == 0u || fats > 2u) return 7;
+    uint32_t total = rd16(b + 0x13) ? rd16(b + 0x13) : rd32(b + 0x20);
+    if (total == 0u || total > card_blocks - start) return 8;
+    uint32_t spf = rd16(b + 0x16) ? rd16(b + 0x16) : rd32(b + 0x24);
+    if (spf == 0u || (uint64_t)rd16(b + 0x0E) + (uint64_t)fats * spf >= total) return 9;
+    /* hidden_sectors must equal the MBR partition start (or 0 on a
+     * superfloppy); the driver applies the MBR offset alone. */
+    const uint32_t hidden = rd32(b + 0x1C);
+    if (hidden != 0u && hidden != start) return 10;
+    return 0;
 }
 
-/* True if `lx_status` indicates the LevelX header is missing or the
- * partition is uninitialised — i.e. the only states where auto-format
- * cannot destroy real user data.  Any other non-success code is
- * treated as POTENTIAL corruption of valid data and triggers SAFE
- * MODE, never silent format. */
-inline bool is_virgin_nand_signature(UINT lx_status) {
-    return lx_status == LX_SYSTEM_INVALID_FORMAT ||
-           lx_status == LX_NO_PAGES;
+/* Try to mount an EXISTING volume.  Returns the fx_media_open status
+ * (FX_MEDIA_INVALID when the boot sector fails validation);
+ * FX_SUCCESS => g_mounted = true (journal enabled). */
+UINT try_mount_existing() {
+    int bad = validate_boot_sector();
+    if (bad != 0) {
+        SERR_LOG(SERR_LFX_BPB_INVALID, bad);
+        return FX_MEDIA_INVALID;
+    }
+    UINT fx = fx_media_open(&g_fx_media, (CHAR*)"sentai_sd",
+                            fx_user_media_driver(), FX_NULL,
+                            g_fx_media_memory, sizeof(g_fx_media_memory));
+    if (fx != FX_SUCCESS) return fx;
+    enable_fault_tolerant();
+    g_mounted = true;
+    return FX_SUCCESS;
+}
+
+/* True when block 0 carries no boot-sector signature (0x55AA) — a card
+ * that was never formatted (or was wiped).  That is the ONLY state in
+ * which auto-format cannot destroy user data.  A card with a signature
+ * that FileX still cannot mount (exFAT, foreign FS, corruption) goes to
+ * SAFE MODE; the operator decides with fx_format(0xDEADBEEF). */
+inline bool is_blank_card() {
+    if (!FxSdRead(0, g_fx_probe_sector, 1)) return false;  /* unreadable != blank */
+    return !(g_fx_probe_sector[510] == 0x55u && g_fx_probe_sector[511] == 0xAAu);
 }
 
 /* FileX FAT accepts both '/' and '\\' as separators; we keep the
@@ -410,7 +347,87 @@ inline bool is_virgin_nand_signature(UINT lx_status) {
 
 /* ===== Public API ===================================================== */
 
+/* ===== Boot-time mount with deadline ==================================
+ *
+ * fx_media_open() / fx_fault_tolerant_enable() walk on-card structures;
+ * on a corrupt volume those walks are not guaranteed to terminate (seen
+ * 2026-10-30 on a half-formatted exFAT card: boot never reached the REPL).
+ * embeded.md §B: every timing-sensitive path must be bounded, so app_main
+ * runs the mount in its own task and waits at most `deadline_ms`.  On
+ * timeout the board continues in SAFE MODE (g_mounted stays false, every
+ * FxUser* call returns a clean error after a 2 s lock timeout) and the
+ * stuck task is left alone until the operator asks for a format, which
+ * reaps it (reap_stuck_mount) before touching the card. */
+namespace {
+TaskHandle_t      g_mount_task      = nullptr;
+SemaphoreHandle_t g_mount_done      = nullptr;
+volatile bool     g_mount_stuck     = false;
+
+void mount_task_fn(void*) {
+    (void)FxUserInit(0);
+    if (g_mount_done) xSemaphoreGive(g_mount_done);
+    g_mount_task = nullptr;
+    vTaskDelete(nullptr);
+}
+
+/* Caller must NOT hold g_fx_mutex (the stuck task may own it).
+ *
+ * No vTaskDelete / vSemaphoreDelete: the stuck task may be inside the SDK
+ * host transfer holding host->lock, or inside FileX holding g_fx_mutex
+ * with other tasks blocked on it.  Instead the SD layer is switched to
+ * "abort": every FxSdRead/Write fails at once, FileX's own error paths
+ * unwind, FxUserInit() returns through its normal SAFE-MODE exit (lock
+ * released, g_mount_done given) and the task deletes itself.  Bounded
+ * wait: one in-flight SD command can still take a hardware data-timeout.
+ * If it does not unwind in time, the SD layer stays disabled until
+ * reboot — never free objects the stuck task may own. */
+constexpr uint32_t kReapWaitMs = 5000u;
+bool reap_stuck_mount() {
+    if (!g_mount_stuck) return true;
+    printf("[fx_user] unwinding stuck boot-mount task (SD abort)\r\n");
+    FxSdAbortSet(1);
+    bool done = (xSemaphoreTake(g_mount_done, pdMS_TO_TICKS(kReapWaitMs)) == pdTRUE);
+    FxSdAbortSet(0);
+    if (!done) {
+        SERR_LOG(SERR_LFX_MOUNT_REAP_FAIL, kReapWaitMs);
+        printf("[fx_user] *** stuck mount did not unwind in %lu ms -- SD disabled until reboot ***\r\n",
+               (unsigned long)kReapWaitMs);
+        return false;
+    }
+    (void)fx_media_abort(&g_fx_media);     /* drop any half-open media state */
+    g_mounted = false;
+    g_mount_stuck = false;
+    printf("[fx_user] stuck mount unwound cleanly\r\n");
+    return true;
+}
+}  /* namespace */
+
+extern "C" int FxUserBootMount(uint32_t deadline_ms) {
+    if (g_mount_done == nullptr) {
+        g_mount_done = xSemaphoreCreateBinary();
+        if (g_mount_done == nullptr) return 0;
+    }
+    if (xTaskCreate(mount_task_fn, "fs_mount", 2048, nullptr,
+                    uxTaskPriorityGet(nullptr), &g_mount_task) != pdPASS) {
+        printf("[fx_user] fs_mount task create failed -- SAFE MODE\r\n");
+        return 0;
+    }
+    if (xSemaphoreTake(g_mount_done, pdMS_TO_TICKS(deadline_ms)) == pdTRUE) {
+        return g_mounted ? 1 : 0;
+    }
+    g_mount_stuck = true;
+    SERR_LOG(SERR_LFX_MOUNT_TIMEOUT, deadline_ms);
+    printf("[fx_user] *** MOUNT DEADLINE (%lu ms) EXCEEDED -- SAFE MODE ***\r\n",
+           (unsigned long)deadline_ms);
+    printf("[fx_user]   Card structures look corrupt.  REPL stays alive;\r\n");
+    printf("[fx_user]   sentai.fs.format() reaps the stuck mount and reformats.\r\n");
+    return 0;
+}
+
 extern "C" int FxUserInit(int force_format) {
+    /* A wedged boot-time mount still owns the mutex: only a format
+     * request (operator-confirmed) is allowed to unwind it. */
+    if (force_format && !reap_stuck_mount()) return 0;
     if (g_fx_mutex == nullptr) {
         g_fx_mutex = xSemaphoreCreateMutex();
         if (g_fx_mutex == nullptr) {
@@ -423,41 +440,59 @@ extern "C" int FxUserInit(int force_format) {
 
     if (!g_systems_initialized) {
         fx_system_initialize();
-        lx_nand_flash_initialize();
         g_systems_initialized = true;
     }
 
     /* If currently mounted, close cleanly before re-init. */
     if (g_mounted) {
         (void)fx_media_close(&g_fx_media);
-        (void)_lx_nand_flash_close(&g_lx_nand);
         g_mounted = false;
+    }
+
+    /* Card bring-up.  Bounded inside the SD stack (command timeouts);
+     * no card / dead card => SAFE MODE right here.  Post-scheduler only:
+     * the USDHC host blocks on FreeRTOS events (app_main calls us). */
+    const uint32_t t_init0 = now_ms();
+    const int sd_ok = FxSdInit();
+    printf("[fx_user] SD init %s in %u ms\r\n", sd_ok ? "ok" : "FAILED",
+           (unsigned)(now_ms() - t_init0));
+    if (!sd_ok) {
+        g_mount_failures++;
+        printf("[fx_user] *** NO SD CARD (or init failed) -- SAFE MODE ***\r\n");
+        printf("[fx_user]   Insert a card and reboot, or run from RAM/dmesg only.\r\n");
+        g_mounted = false;
+        /* Boot path: SAFE MODE is a successful boot (see note at the end).
+         * Operator format: there is nothing to format -> report failure. */
+        return force_format ? 0 : 1;
     }
 
     /* Operator-confirmed format path — only entered with force_format=1
      * (e.g. `sentai.diag.fx_format(FX_DESTRUCTIVE_CONFIRM_MAGIC)`).
-     * Distinct from any auto-format below. */
+     * Distinct from the blank-card auto-format below. */
     if (force_format) {
         printf("[fx_user] force_format requested (operator confirmed)\r\n");
         return format_and_mount() ? 1 : 0;
     }
 
-    /* Bounded retry — embeded.md §F: tolerate transient ECC blips
-     * before any escalation.  Each attempt either mounts or returns
-     * the LX/FX status from the failure for the next decision step. */
-    UINT last_lx = LX_ERROR;
+    /* Bounded retry — embeded.md §F: tolerate a transient card hiccup
+     * right after power-up before any escalation. */
     UINT last_fx = FX_NOT_OPEN;
     for (uint32_t attempt = 0; attempt < kMountRetries; ++attempt) {
-        last_lx = try_mount_existing(&last_fx);
-        if (last_lx == LX_SUCCESS && last_fx == FX_SUCCESS) {
+        const uint32_t t_mount0 = now_ms();
+        last_fx = try_mount_existing();
+        if (last_fx == FX_SUCCESS) {
+            printf("[fx_user] fx_media_open + journal in %u ms\r\n",
+                   (unsigned)(now_ms() - t_mount0));
             if (attempt > 0) {
-                /* Recovered after retry — log so post-mortem can correlate
-                 * with brownout / RX-noise events. */
                 SERR_LOG(SERR_LFX_MOUNT_RETRY_OK, attempt);
                 printf("[fx_user] mounted (existing volume) after %u retr%s\r\n",
                        (unsigned)attempt, attempt == 1u ? "y" : "ies");
             } else {
-                printf("[fx_user] mounted (existing volume)\r\n");
+                printf("[fx_user] mounted SD volume (part start %lu, %lu clusters x %lu B)\r\n",
+                       (unsigned long)FxSdPartitionStart(),
+                       (unsigned long)g_fx_media.fx_media_total_clusters,
+                       (unsigned long)(g_fx_media.fx_media_sectors_per_cluster *
+                                       g_fx_media.fx_media_bytes_per_sector));
             }
             sentai_repl_activity();
             return 1;
@@ -469,16 +504,14 @@ extern "C" int FxUserInit(int force_format) {
 
     g_mount_failures++;
 
-    /* Virgin-NAND first-boot bootstrap is the ONLY auto-format path.
-     * LevelX returns LX_SYSTEM_INVALID_FORMAT or LX_NO_PAGES when the
-     * partition has no recognisable LX header — i.e. nothing to
-     * destroy.  Any other failure code (LX_ERROR, LX_BAD_BLOCK,
-     * LX_NAND_ERROR_NOT_CORRECTED, ...) implies the volume HAD valid
-     * data that's now unreadable; we will NOT silently destroy it. */
-    if (is_virgin_nand_signature(last_lx)) {
-        SERR_LOG(SERR_LFX_FIRST_BOOT_FORMAT, last_lx);
-        printf("[fx_user] virgin NAND (lx=%u) -> first-boot format\r\n",
-               (unsigned)last_lx);
+    /* Blank-card bootstrap is the ONLY auto-format path: no 0x55AA at
+     * block 0 means there is nothing to destroy.  Anything else (exFAT
+     * from a PC, a foreign FS, a damaged FAT) is preserved for the
+     * operator to inspect / decide. */
+    if (is_blank_card()) {
+        SERR_LOG(SERR_LFX_SD_BLANK_FORMAT, 0);
+        printf("[fx_user] blank card (fx=%u) -> first-use FAT32 format\r\n",
+               (unsigned)last_fx);
         return format_and_mount() ? 1 : 0;
     }
 
@@ -488,13 +521,14 @@ extern "C" int FxUserInit(int force_format) {
      * USB CDC is up, REPL is up, radio bridge auto-init still runs.
      * FxUser* APIs return clean errors on every write/read attempt
      * because g_mounted is false. */
-    SERR_LOG(SERR_LFX_MOUNT_FAIL_SAFE, last_lx);
-    printf("[fx_user] *** MOUNT FAIL (lx=%u, fx=%u) -- SAFE MODE ***\r\n",
-           (unsigned)last_lx, (unsigned)last_fx);
+    SERR_LOG(SERR_LFX_FS_UNKNOWN, last_fx);
+    printf("[fx_user] *** MOUNT FAIL (fx=%u) -- SAFE MODE ***\r\n",
+           (unsigned)last_fx);
+    printf("[fx_user]   Card holds a filesystem FileX cannot mount (exFAT/foreign/damaged).\r\n");
     printf("[fx_user]   FS is read+write disabled to protect existing data.\r\n");
     printf("[fx_user]   REPL + radio remain alive for diagnosis.\r\n");
-    printf("[fx_user]   To DESTROY user data and re-format:\r\n");
-    printf("[fx_user]     sentai.diag.fx_format(0xDEADBEEF)\r\n");
+    printf("[fx_user]   To DESTROY the card contents and format FAT32:\r\n");
+    printf("[fx_user]     sentai.fs.format()\r\n");
     g_mounted = false;
     /* SAFE MODE = boot SUCCESS with FS in degraded mode.
      * Returning 0 here propagates to LfsUserInit() -> false ->
@@ -520,7 +554,6 @@ extern "C" void FxUserUnmount(void) {
     if (!guard.held) return;
     if (g_mounted) {
         (void)fx_media_close(&g_fx_media);
-        (void)_lx_nand_flash_close(&g_lx_nand);
         g_mounted = false;
         printf("[fx_user] unmounted\r\n");
     }
@@ -632,9 +665,13 @@ extern "C" int FxUserWriteFile(const char* path, const uint8_t* buf,
              * avoid recursive-mutex requirement. */
             unlock();
             FxUserMakeDirs(parent);
-            (void)lock();
-            /* Note: we let any failure here through silently — the
-             * subsequent fx_file_create will surface the real issue. */
+            if (!lock()) {
+                /* Re-lock failed (2 s): we must NOT continue into FileX
+                 * unlocked next to another user (audit M6 — FAT corruption
+                 * class).  The guard must not give a mutex we do not own. */
+                guard.held = false;
+                return 0;
+            }
         }
     }
 
@@ -736,41 +773,14 @@ extern "C" int FxUserSync(void) {
     LockGuard guard;
     if (!guard.held) return 0;
 
-    /* Step 1: FileX cache -> LevelX layer. */
+    /* FileX sector cache + FAT + directory entries -> card.  The SD
+     * controller commits each WriteBlocks before returning, so after
+     * fx_media_flush() every pending write is durable on the card. */
     UINT fx = fx_media_flush(&g_fx_media);
     if (fx != FX_SUCCESS) {
         SERR_LOG(SERR_LFX_FX_OPEN, fx);  /* re-using FX_OPEN code: fx err on flush */
         return 0;
     }
-
-    /* Step 2: LevelX cache -> NAND (only path that actually does this). */
-    UINT lx = _lx_nand_flash_close(&g_lx_nand);
-    if (lx != LX_SUCCESS) {
-        /* LX close failed -- volume state is inconsistent (FileX
-         * thinks it's mounted but LX is half-closed).  Mark unmounted
-         * to force operator-visible error on subsequent FS calls
-         * rather than silent corruption. */
-        SERR_LOG(SERR_LFX_SYNC_LX_CLOSE, lx);
-        g_mounted = false;
-        return 0;
-    }
-
-    /* Step 3: re-open LX so the volume stays usable.  No FX re-open
-     * needed; FileX retains its in-RAM media descriptor and the next
-     * fx_* call will issue driver-level sector reads through the new
-     * LX session transparently. */
-    lx = lx_nand_flash_open(&g_lx_nand, (CHAR*)"sentai_user",
-                            fx_nand_driver_initialize,
-                            g_lx_memory_buffer,
-                            sizeof(g_lx_memory_buffer));
-    if (lx != LX_SUCCESS) {
-        SERR_LOG(SERR_LFX_SYNC_LX_REOPEN, lx);
-        printf("[fx_user] *** SYNC: LX reopen failed (%u) -- UNMOUNTED ***\r\n",
-               (unsigned)lx);
-        g_mounted = false;
-        return 0;
-    }
-    /* Sync succeeded — every pending write is now durable on NAND. */
     g_unflushed_writes = 0;
     return 1;
 }
@@ -787,6 +797,20 @@ extern "C" int FxUserSync(void) {
  * failure.  Failures are logged via SERR_LOG inside FxUserSync. */
 extern "C" int FxUserMaybeIdleSync(void) {
     if (!g_mounted) return 0;
+    /* Card pulled at runtime (fx_sd_driver flagged SD_LOST after N
+     * consecutive command failures): drop to SAFE MODE here, on the 5 s
+     * watchdog tick, so cached FAT/dir sectors are never flushed onto a
+     * different card.  FxUserRemount() brings a new card back. */
+    if (!FxSdIsReady()) {
+        LockGuard guard;
+        if (guard.held && g_mounted) {
+            (void)fx_media_abort(&g_fx_media);
+            g_mounted = false;
+            g_unflushed_writes = 0;
+            printf("[fx_user] *** SD card lost -- FS unmounted (SAFE MODE) ***\r\n");
+        }
+        return -1;
+    }
     if (g_unflushed_writes == 0u) return 0;
     uint32_t now = (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS);
     if ((now - g_last_write_ms) < kIdleSyncMs) return 0;
@@ -988,7 +1012,7 @@ extern "C" void FxUserGetStats(FxUserStats* out) {
 /* ===== Storage-mode MSC entry points ================================ */
 
 namespace {
-bool g_lx_only_open = false;  /* true after FxUserOpenLxOnly() succeeds */
+bool g_block_only_open = false;  /* true after FxUserOpenBlockOnly() succeeds */
 }  /* namespace */
 
 /* ===== Storage-mode debug log ========================================
@@ -1130,123 +1154,70 @@ extern "C" int sentai_storage_log_flush_to_fs(void) {
     return ok ? (int)len : 0;
 }
 
-extern "C" int FxUserOpenLxOnly(void) {
+extern "C" int FxUserOpenBlockOnly(void) {
     if (g_fx_mutex == nullptr) {
         g_fx_mutex = xSemaphoreCreateMutex();
         if (g_fx_mutex == nullptr) return 0;
     }
     LockGuard guard;
     if (!guard.held) return 0;
-    if (g_lx_only_open) return 1;
+    if (g_block_only_open) return 1;
     if (!g_systems_initialized) {
         fx_system_initialize();
-        lx_nand_flash_initialize();
         g_systems_initialized = true;
     }
 
-    /* Bounded retry — same policy as FxUserInit (embeded.md §F). */
-    UINT lx = LX_ERROR;
-    for (uint32_t attempt = 0; attempt < kMountRetries; ++attempt) {
-        lx = lx_nand_flash_open(&g_lx_nand, (CHAR*)"sentai_user",
-                                fx_nand_driver_initialize,
-                                g_lx_memory_buffer,
-                                sizeof(g_lx_memory_buffer));
-        if (lx == LX_SUCCESS) {
-            g_lx_only_open = true;
-            if (attempt > 0) {
-                SERR_LOG(SERR_LFX_MOUNT_RETRY_OK, attempt);
-            }
-            printf("[fx_user] LxOnly mounted for storage MSC%s\r\n",
-                   attempt > 0 ? " (after retry)" : "");
-            return 1;
-        }
-        if (attempt + 1u < kMountRetries) {
-            bounded_delay_ms(kMountRetryDelayMs);
-        }
+    /* Storage mode exposes the RAW card to the host over MSC, so only
+     * the block layer is needed — whatever filesystem the card carries
+     * (our FAT32, a PC's exFAT, nothing) is the host's business.  No
+     * format is ever implied here. */
+    if (!FxSdInit()) {
+        SERR_LOG(SERR_LFX_STORAGE_NO_CARD, 0);
+        printf("[fx_user] *** storage mode: NO SD CARD -- MSC unavailable ***\r\n");
+        return 0;
     }
-
-    /* Virgin-NAND first-boot in storage mode is legitimate (board
-     * just flashed, host wants to inspect raw partition).  Auto-
-     * format ONLY on the unambiguous virgin signature; otherwise
-     * refuse and force the operator to recover via default-mode
-     * boot + explicit `sentai.diag.fx_format(0xDEADBEEF)`. */
-    if (is_virgin_nand_signature(lx)) {
-        SERR_LOG(SERR_LFX_FIRST_BOOT_FORMAT, lx);
-        printf("[fx_user] LxOnly: virgin NAND (lx=%u) -> first-boot format\r\n",
-               (unsigned)lx);
-        UINT fmt = lx_nand_flash_format(&g_lx_nand, (CHAR*)"sentai_user",
-                                        fx_nand_driver_initialize,
-                                        g_lx_memory_buffer,
-                                        sizeof(g_lx_memory_buffer));
-        if (fmt != LX_SUCCESS) {
-            SERR_LOG(SERR_LFX_LX_FORMAT, fmt);
-            return 0;
-        }
-        lx = lx_nand_flash_open(&g_lx_nand, (CHAR*)"sentai_user",
-                                fx_nand_driver_initialize,
-                                g_lx_memory_buffer,
-                                sizeof(g_lx_memory_buffer));
-        if (lx != LX_SUCCESS) {
-            SERR_LOG(SERR_LFX_LX_OPEN, lx);
-            return 0;
-        }
-        g_lx_only_open = true;
-        printf("[fx_user] LxOnly mounted (post first-boot format)\r\n");
-        return 1;
-    }
-
-    /* SAFE MODE for storage MSC: refuse to mount, refuse to format.
-     * Storage MSC simply won't expose /dev/sda; operator boots into
-     * default mode where FxUserInit will reach the same SAFE-MODE
-     * gate and surface a recoverable error. */
-    SERR_LOG(SERR_LFX_LXONLY_FAIL_SAFE, lx);
-    printf("[fx_user] *** LxOnly MOUNT FAIL (lx=%u) -- SAFE MODE ***\r\n",
-           (unsigned)lx);
-    printf("[fx_user]   Storage MSC unavailable; refusing implicit format.\r\n");
-    printf("[fx_user]   Reboot to default mode and run:\r\n");
-    printf("[fx_user]     sentai.diag.fx_format(0xDEADBEEF)  [DESTROYS DATA]\r\n");
-    return 0;
+    g_block_only_open = true;
+    printf("[fx_user] SD block layer open for storage MSC (%lu x 512 B)\r\n",
+           (unsigned long)FxSdBlockCount());
+    return 1;
 }
 
 extern "C" int FxUserMscLbaSize(void) {
-    return (int)FX_NAND_BYTES_PER_PAGE;  /* 2048 — power-of-2 FAT sector */
+    return (int)FX_SD_BLOCK_SIZE;
 }
 
 extern "C" int FxUserMscLbaCount(void) {
-    /* Match the logical-sector range FileX uses (see format_and_mount). */
-    return (int)((FX_NAND_USER_BLOCK_COUNT - 8u) * FX_NAND_PAGES_PER_BLOCK);
+    return (int)FxSdBlockCount();
 }
 
 extern "C" int FxUserMscRead(uint32_t lba, uint8_t* buf) {
     if (buf == nullptr) return 0;
-    if (lba >= FX_USER_LBA_COUNT) {
+    if (lba >= FxSdBlockCount()) {
         SERR_LOG(SERR_LFX_LBA_RANGE, lba);
         return 0;
     }
-    if (!g_lx_only_open && !g_mounted) {
+    if (!g_block_only_open && !g_mounted) {
         SERR_LOG(SERR_LFX_NOT_MOUNTED, 0x01u /* MscRead */);
         return 0;
     }
     LockGuard guard;
     if (!guard.held) return 0;  /* SERR_LFX_LOCK_TIMEOUT already logged */
-    UINT lx = _lx_nand_flash_sector_read(&g_lx_nand, lba, buf);
-    return (lx == LX_SUCCESS) ? 1 : 0;
+    return FxSdRead(lba, buf, 1);
 }
 
 extern "C" int FxUserMscWrite(uint32_t lba, const uint8_t* buf) {
     if (buf == nullptr) return 0;
-    if (lba >= FX_USER_LBA_COUNT) {
+    if (lba >= FxSdBlockCount()) {
         SERR_LOG(SERR_LFX_LBA_RANGE, lba);
         return 0;
     }
-    if (!g_lx_only_open && !g_mounted) {
+    if (!g_block_only_open && !g_mounted) {
         SERR_LOG(SERR_LFX_NOT_MOUNTED, 0x02u /* MscWrite */);
         return 0;
     }
     LockGuard guard;
     if (!guard.held) return 0;
-    UINT lx = _lx_nand_flash_sector_write(&g_lx_nand, lba, (VOID*)buf);
-    return (lx == LX_SUCCESS) ? 1 : 0;
+    return FxSdWrite(lba, buf, 1);
 }
 
 extern "C" int FxUserBenchRoot(FxBenchResult* out) {

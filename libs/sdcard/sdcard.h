@@ -33,10 +33,11 @@ struct SDCardInfo {
   char product_name[6];    // Product name string (5 chars + null terminator)
 };
 
-// Provides access to the microSD card interface.
+// Block-level access to the microSD card on USDHC1.
 //
-// This class provides a simple interface for reading and writing blocks
-// to/from an SD card connected to the USDHC1 interface.
+// Filesystem access is NOT here: the SentAI user FS is FileX, driven by
+// libs/base/fx_sd_driver.cc on top of these block primitives (2026-10-30).
+// Init() needs the FreeRTOS scheduler running (USDHC host uses OSA events).
 //
 // Example usage:
 // ```
@@ -119,41 +120,6 @@ class SDCard {
   // @param block_count Number of blocks to erase.
   // @return True if erase succeeds, false otherwise.
   static bool EraseBlocks(uint32_t start_block, uint32_t block_count);
-
-  // Mounts the FAT filesystem on the SD card.
-  //
-  // This enables file operations using standard POSIX functions (fopen, fwrite,
-  // fread, etc.) with the mount point as the path prefix.
-  //
-  // Example:
-  // ```
-  // SDCard::Mount("/sd");
-  // FILE* f = fopen("/sd/test.txt", "w");
-  // fprintf(f, "Hello World!\n");
-  // fclose(f);
-  // SDCard::Unmount();
-  // ```
-  //
-  // @param mount_point The mount point path (e.g., "/sd"). Must start with "/".
-  // @return True if mount succeeds, false otherwise.
-  static bool Mount(const char* mount_point);
-
-  // Unmounts the FAT filesystem.
-  //
-  // @return True if unmount succeeds, false otherwise.
-  static bool Unmount();
-
-  // Checks if the filesystem is currently mounted.
-  //
-  // @return True if mounted, false otherwise.
-  static bool IsMounted();
-
-  // Formats the SD card with FAT32 filesystem.
-  //
-  // WARNING: This will erase all data on the SD card!
-  //
-  // @return True if format succeeds, false otherwise.
-  static bool Format();
 };
 
 }  // namespace coralmicro

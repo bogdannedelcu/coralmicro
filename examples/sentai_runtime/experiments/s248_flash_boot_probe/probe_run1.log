@@ -1,0 +1,54 @@
+== step 1: board -> SDP
+SDP enumerated
+== step 2: load flashloader
+$ blhost get-property 1
+  Inject command 'get-property'
+  Response status = 0 (0x0) Success.
+  Response word 1 = 1258424320 (0x4b020800)
+  Current Version = K2.8.0
+== step 3: SRC boot-mode / reset-status registers
+Traceback (most recent call last):
+  File "/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s248_flash_boot_probe/probe_boot.py", line 120, in <module>
+    main()
+    ~~~~^^
+  File "/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s248_flash_boot_probe/probe_boot.py", line 87, in main
+    sbmr1, sbmr2 = read_words(0x40C04008, 2)
+    ^^^^^^^^^^^^
+ValueError: not enough values to unpack (expected 2, got 0)
+sentai.version()
+'SentAI v1.0 build 1609 (2026-10-30 21:58:16)'
+>>>
+sentai.verbose(1)
+1
+>>>
+
+>>> p=sentai.sys.peek32
+>>> bmr1=p(0x40C04008); sbmr2=p(0x40C0400C); srsr=p(0x40C04010)
+>>> rint("SBMR1=0x%08X cfg1=0x%02X cfg2=0x%02X cfg3=0x%02X cfg4=0x%02X" % (sbmr1, sbmr1&0xFF, (sbmr1>>8)&0xFF, (sbmr1>>16)&0xFF, (sbmr1>>24)&0xFF))
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 'rint' isn't defined
+>>> mod=(sbmr2>>24)&3
+>>> rint("SBMR2=0x%08X BMOD=%d (%s) BT_FUSE_SEL=%d SEC_CONFIG=%d" % (sbmr2, bmod, ("fuses","SERIAL DOWNLOADER","internal boot","reserved")[bmod], (sbmr2>>4)&1, (sbmr2>>0)&3))
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 'rint' isn't defined
+>>> rint("SRSR=0x%08X" % srsr)
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 'rint' isn't defined
+>>> 
+>>>
+p=sentai.sys.peek32
+>>>
+print("SBMR1=0x%08X SBMR2=0x%08X SRSR=0x%08X GPR0_boot=0x%08X" % (p(0x40C04008), p(0x40C0400C), p(0x40C04010), p(0x40C04100)))
+Traceback (most recent call last):
+  File "<stdin>", line 1
+SyntaxError: invalid syntax for integer with base 16
+>>>
+v=p(0x40C0400C); print("BMOD=%d (%s)  BT_FUSE_SEL=%d  SEC_CONFIG=%d  SBMR2_raw_bits31..0=%s" % ((v>>24)&3, ("fuses","SERIAL DOWNLOADER","internal boot","reserved")[(v>>24)&3], (v>>4)&1, v&3, bin(v)))
+BMOD=0 (fuses)  BT_FUSE_SEL=0  SEC_CONFIG=1  SBMR2_raw_bits31..0=0b1001
+>>>
+v=p(0x40C04008); print("BOOT_CFG1=0x%02X BOOT_CFG2=0x%02X BOOT_CFG3=0x%02X BOOT_CFG4=0x%02X  -> primary dev bits[7:6]=%d, FlexSPI inst bit[11]=%d, raw=%s" % (v&0xFF,(v>>8)&0xFF,(v>>16)&0xFF,(v>>24)&0xFF, (v>>6)&3, (v>>11)&1, bin(v)))
+BOOT_CFG1=0x00 BOOT_CFG2=0x00 BOOT_CFG3=0x00 BOOT_CFG4=0x00  -> primary dev bits[7:6]=0, FlexSPI inst bit[11]=0, raw=0b0
+>>>

@@ -1,0 +1,80 @@
+sentai.version()
+'SentAI v1.0 build 1622 (2026-10-30 23:27:12)'
+>>>
+sentai.verbose(1)
+1
+>>>
+p=sentai.sys.peek32; print("AD_00 PAD=%08X GPIO2.31 level=%d" % (p(0x400E8350), (p(0x40130008)>>31)&1))
+AD_00 PAD=00000006 GPIO2.31 level=0
+>>>
+t0=sentai.rtos.ticks_ms(); rc=sentai.camera.init(1, 30); print("CAM INIT rc=", rc, "in", sentai.rtos.ticks_ms()-t0, "ms")
+HandlePowerRequest: try I2C1: Success
+HandlePowerRequest: try I2C2: Success
+CAMERA_RECEIVER_Init = 0
+BOARD_PullCameraPowerDownPin:1
+BOARD_PullCameraResetPin:0
+BOARD_PullCameraPowerDownPin:0
+BOARD_PullCameraResetPin:1
+CAMERA_DEVICE_Init = 0
+CAMERA_DEVICE_Start = 0
+CAMERA_RECEIVER_Start = 0
+[CAM] sensor_fps=30 (1 s sample, target=30)
+[CAM1] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM1] W 0x3820=0x47 (0)
+[CAM1] W 0x3821=0x01 (0)
+[CAM0] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM0] W 0x3820=0x47 (0)
+[CAM0] W 0x3821=0x01 (0)
+CAM INIT rc= 0 in 1225 ms
+>>>
+print("cam0 id:", sentai.camera.reg_read(0, 0x300A), sentai.camera.reg_read(0, 0x300B), " cam1 id:", sentai.camera.reg_read(1, 0x300A), sentai.camera.reg_read(1, 0x300B))
+cam0 id: 86 64  cam1 id: 86 64
+>>>
+print("frames:", sentai.camera.frame_count(), "sensor_frames:", sentai.camera.sensor_frames())
+frames: 39 sensor_frames: 78
+>>>
+sentai.verbose(1)
+1
+>>>
+print("select0:", sentai.camera.select(0)); sentai.rtos.sleep_ms(400)
+select0: 0
+>>>
+print("grabbed_id:", sentai.camera.grabbed_id(), "current:", sentai.camera.current_id())
+grabbed_id: -1 current: 0
+>>>
+print("save0:", sentai.camera.save_jpeg("/diags/s247_sdcard_usdhc1_bringup/cam0.jpg", 85))
+  [capture_jpeg] drain=1ms pxp=11ms jpeg=83ms total=95ms (640x480)
+[save_jpeg] /diags/s247_sdcard_usdhc1_bringup/cam0.jpg: capture=95ms save=34ms total=129ms (26234 bytes, q=85)
+save0: 26234
+>>>
+print("select1:", sentai.camera.select(1)); sentai.rtos.sleep_ms(400)
+select1: 0
+>>>
+print("grabbed_id:", sentai.camera.grabbed_id(), "current:", sentai.camera.current_id())
+grabbed_id: 0 current: 1
+>>>
+print("save1:", sentai.camera.save_jpeg("/diags/s247_sdcard_usdhc1_bringup/cam1.jpg", 85))
+  [capture_jpeg] drain=2ms pxp=10ms jpeg=83ms total=95ms (640x480)
+[save_jpeg] /diags/s247_sdcard_usdhc1_bringup/cam1.jpg: capture=95ms save=34ms total=129ms (26968 bytes, q=85)
+save1: 26968
+>>>
+print("ls:", sentai.fs.ls("/diags/s247_sdcard_usdhc1_bringup"))
+ls: [('hello.txt', 1, 62), ('cam0.jpg', 1, 26234), ('cam1.jpg', 1, 26968)]
+>>>
+print("sync:", sentai.fs.sync())
+sync: True
+>>>
+# --- fresh boot, NO power_rails(): does camera init still work? ---
+sentai.version()
+'SentAI v1.0 build 1622 (2026-10-30 23:27:12)'
+>>>
+sentai.verbose(0)
+>>>
+rc=sentai.camera.init(1, 30)
+>>>
+sentai.verbose(1)
+0
+>>>
+print("rc:", rc, "cam0 id:", sentai.camera.reg_read(0, 0x300A), " cam1 id:", sentai.camera.reg_read(1, 0x300A), " frames:", sentai.camera.frame_count())
+rc: 0 cam0 id: 86  cam1 id: 86  frames: 43
+>>>
