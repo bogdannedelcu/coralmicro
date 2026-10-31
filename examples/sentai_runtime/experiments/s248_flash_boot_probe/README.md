@@ -145,3 +145,40 @@ that is on the NAND (`/default.elf` = 1666 since s253) with no firmware change.
 **Second unit (85b1, 2026-10-31):** `SBMR2 = 0x00000009`, `SBMR1 = 0`, boot
 fuses `0xFFF70008` — identical to 58eb.  Two of two rev-1.1 boards: the
 BOOT_MODE1 pull-up is missing on the revision, not on one unit.
+
+## eFuse option — analysis (2026-10-31, on request; NOT executed)
+
+**What we know (measured, both rev-1.1 units + the old reference board):**
+
+| item | value | meaning |
+|---|---|---|
+| OCOTP word 0x960 (shadow FUSE022) | `0xFFF70008` on all three boards | bit 4 = **BT_FUSE_SEL = 0** (confirmed location: [NXP community](https://community.nxp.com/t5/i-MX-RT-Crossover-MCUs/Checking-Fuses/m-p/1719041)); bit 3 set and the upper half `0xFFF7` are factory/unknown bits, identical everywhere → leave alone |
+| OCOTP 0x940 / 0x950 (FUSE020/021) | `0xFFFF0000` | lower halves 0 → no BOOT_CFG fuses programmed |
+| `SRC_SBMR1` on the reference board | `0x000004C0` | the strap-sampled BOOT_CFG the ROM *did* boot from: BOOT_CFG1 = `0xC0` (bit 7 = NAND boot, bit 6 = option), BOOT_CFG2 = `0x04` |
+| `SRC_SBMR2` with SW2 held | BMOD `01` | Serial Downloader stays reachable through SW2 |
+
+**What a fuse fix would be:** `BT_FUSE_SEL = 1` (0x960 bit 4) **plus** the
+BOOT_CFG fuses set to exactly what the straps give on the reference board
+(`BOOT_CFG1 = 0xC0`, `BOOT_CFG2 = 0x04`).  BT_FUSE_SEL alone is wrong for
+us: with BOOT_CFG fuses at 0 the ROM boots FlexSPI **NOR**
+([Embedded Artists](https://www.manualslib.com/manual/2200790/Embedded-Artists-Imx-Rt1176.html?page=12), [NXP community](https://community.nxp.com/t5/i-MX-RT-Crossover-MCUs/Regarding-Boot-Configuration-Settings-on-MIMXRT1170/m-p/1906794/highlight/true?profile.language=en)) and we have serial NAND.
+The fuse word that holds BOOT_CFG1/2 is 0x940 by our reading of the RM; it
+was **not** confirmed by a primary source in this session — IMXRT1170RM
+"System Boot → Fusemap" (table 8-x) must be checked bit by bit before any
+burn ([forum reading of BOOT_CFG1[7] = NAND](https://community.nxp.com/t5/i-MX-RT-Crossover-MCUs/Unable-to-boot-from-NAND-flash-in-imxrt1170-eval-board/m-p/1817553?profile.language=en)).
+
+**Procedure if ever done (one unit first, 85b1):** flashloader via
+flashtool, `blhost efuse-read-once 0x16` and `0x14` to confirm the current
+words, then `efuse-program-once 0x14 <BOOT_CFG word>` and only after a
+read-back `efuse-program-once 0x16 0x10` (BT_FUSE_SEL) — fuses are OR-only,
+one shot, no undo ([blhost UG](https://www.NXP.com/docs/en/user-guide/MCUBLHOSTUG.pdf), [EA how-to](https://www.embeddedartists.com/wp-content/uploads/2020/03/iMX_Howto_Program_Fuses.pdf)).  Never touch SDP_DISABLE / SEC_CONFIG / DIR_BT_DIS bits.
+
+**Risk / consequence:** irreversible; boot device locked to serial NAND on
+FlexSPI1 for the life of the chip (no SD-card or NOR boot experiments later);
+a wrong BOOT_CFG value is *recoverable* (ROM falls back to the Serial
+Downloader, and SW2 = BOOT_MODE0 forces it) as long as SDP stays enabled.
+**Recommendation:** the hardware fix (R163 to DCDC_1V8_OUT, optionally drop
+Q4) is reversible, free and already fully characterised — do that first;
+keep the fuse route for units that cannot be reworked, and then only after
+the fusemap bits are confirmed in the RM and the exact words were tried on
+one unit.
