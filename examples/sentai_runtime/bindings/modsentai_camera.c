@@ -76,10 +76,15 @@ static mp_obj_t mod_sentai_cam_power_rails(size_t n_args, const mp_obj_t *args) 
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_cam_power_rails_obj, 0, 1, mod_sentai_cam_power_rails);
 
-// sentai.camera.jpeg(quality=75) -> bytes (JPEG data)
-// Captures a frame at camera native resolution and returns JPEG
+// sentai.camera.jpeg(quality=75, yuv=0) -> bytes (JPEG data)
+// Captures a frame at camera native resolution and returns JPEG.
+// yuv=1 (EXP-s256): requires camera.yuv_mode(1) before init(); the PXP
+// repacks the native XYUV frame into Y + UV 4:2:0 planes (no colour math,
+// the RT1176 PXP has no CSC2) and the codec takes them raw.
+extern int sentai_cam_capture_jpeg_yuv(uint8_t* jpeg_buf, int jpeg_buf_size, int quality);
 static mp_obj_t mod_sentai_cam_jpeg(size_t n_args, const mp_obj_t *args) {
     int quality = (n_args > 0) ? mp_obj_get_int(args[0]) : 75;
+    int yuv = (n_args > 1) ? mp_obj_get_int(args[1]) : 0;
     int w = sentai_cam_get_width();
     int h = sentai_cam_get_height();
     // Max JPEG buffer - typically much smaller than RGB
@@ -88,7 +93,8 @@ static mp_obj_t mod_sentai_cam_jpeg(size_t n_args, const mp_obj_t *args) {
     if (!buf) {
         mp_raise_msg(&mp_type_MemoryError, MP_ERROR_TEXT("jpeg buf alloc"));
     }
-    int jpeg_size = sentai_cam_capture_jpeg(buf, max_jpeg, w, h, quality);
+    int jpeg_size = yuv ? sentai_cam_capture_jpeg_yuv(buf, max_jpeg, quality)
+                        : sentai_cam_capture_jpeg(buf, max_jpeg, w, h, quality);
     if (jpeg_size <= 0) {
         free(buf);
         mp_raise_msg(&mp_type_RuntimeError, MP_ERROR_TEXT("cam capture fail"));
@@ -97,7 +103,7 @@ static mp_obj_t mod_sentai_cam_jpeg(size_t n_args, const mp_obj_t *args) {
     free(buf);
     return result;
 }
-static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_cam_jpeg_obj, 0, 1, mod_sentai_cam_jpeg);
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_cam_jpeg_obj, 0, 2, mod_sentai_cam_jpeg);
 
 // sentai.camera.to_tensor([path[, quality]]) -> int
 // Captures camera frame into TPU input tensor.  If path is given, also saves

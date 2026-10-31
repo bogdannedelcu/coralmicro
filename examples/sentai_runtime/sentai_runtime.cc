@@ -3286,13 +3286,17 @@ extern "C" int sentai_cam_phase_from_log(int32_t* phi_us, uint32_t* T_us) {
     }
   }
   if (n1 < 2 && n0 < 2) return -2;
+  // Period estimate.  Per-frame alternation (ratio_unit 1): every interval is
+  // a flip interval, but two consecutive ones sum to (T + phi) + (T - phi) =
+  // 2T exactly, so flip pairs give T regardless of phi.  Pair-granularity
+  // alternation (ratio_unit 2) has no 0-1-0 triples, so fall back to the
+  // same-camera intervals (= T there).  The pairs estimate is tried FIRST:
+  // in the per-frame regime a consumer that blocks for > T (JPEG encode,
+  // EXP-s256) leaves same-camera entries 2T apart in the log, and judging
+  // the regime by their count made T = 2T_real and phi = T_real - 4 us, a
+  // spurious PHASE_DRIFT (build 1693 run log).
   int32_t T = 0;
-  if (ns >= 4) {
-    // pair-granularity alternation (ratio_unit 2): same-camera intervals = T
-    T = cam_median_i32(steady, ns);
-  } else {
-    // per-frame alternation (ratio_unit 1): every interval is a flip interval,
-    // but two consecutive ones sum to (T + phi) + (T - phi) = 2T exactly.
+  {
     int32_t pairs[64]; int np = 0;
     for (int k = 2; k < n && np < 64; ++k) {
       uint32_t d1 = ts[k - 1] - ts[k - 2], d2 = ts[k] - ts[k - 1];
@@ -3300,8 +3304,18 @@ extern "C" int sentai_cam_phase_from_log(int32_t* phi_us, uint32_t* T_us) {
       if (cam[k] == cam[k - 1] || cam[k - 1] == cam[k - 2]) continue;
       pairs[np++] = (int32_t)((d1 + d2) / 2u);
     }
-    if (np < 4) return -2;
-    T = cam_median_i32(pairs, np);
+    if (np >= 4)       T = cam_median_i32(pairs, np);
+    else if (ns >= 4)  T = cam_median_i32(steady, ns);
+    else return -2;
+  }
+  // Sanity: the sensor period is known from VTS; a log that mixes regimes
+  // can still fold to a multiple of it.
+  {
+    uint32_t Tn = cam_period_us();
+    if (Tn > 1000u) {
+      while (T > (int32_t)(Tn + Tn / 2u)) T /= 2;
+      if (T < (int32_t)(Tn - Tn / 4u) || T > (int32_t)(Tn + Tn / 4u)) return -4;
+    }
   }
   if (T <= 0) return -1;
   int32_t phi = 0, phi0 = 0; bool have1 = false, have0 = false;
@@ -4208,6 +4222,66 @@ extern "C" int sentai_cam_capture_rgb(uint8_t* buf, int width, int height) {
 // Persistent RGB buffer in SDRAM — avoids allocating 2.7MB on every call
 static uint8_t s_jpeg_rgb_buf[DEMO_CAMERA_WIDTH * DEMO_CAMERA_HEIGHT * 3]
     __attribute__((section(".sdram_bss")));
+
+// ---- EXP-s256: YUV 4:2:0 path -------------------------------------------
+// The RT1176 PXP has no CSC2 (FSL_FEATURE_PXP_HAS_NO_CSC2), so RGB -> YCbCr
+// cannot be done in hardware.  Instead the camera itself runs in native YUV
+// (sentai.camera.yuv_mode(1) before init: OV5640 YUV 4:2:2 -> CSI stores
+// XYUV8888) and the existing s240 PXP pass repacks that into a Y plane plus
+// an interleaved UV plane with 2x2 chroma decimation -- no colour math at
+// all.  A short integer pass splits UV into the Cb/Cr planes libjpeg's
+// raw_data_in wants.  Same buffer family the Edge TPU YUV420 models use.
+static uint8_t s_jpeg_y[DEMO_CAMERA_WIDTH * DEMO_CAMERA_HEIGHT]
+    __attribute__((section(".sdram_bss"), aligned(32)));
+static uint8_t s_jpeg_cbcr[DEMO_CAMERA_WIDTH * DEMO_CAMERA_HEIGHT / 2]
+    __attribute__((section(".sdram_bss"), aligned(32)));
+static uint8_t s_jpeg_cb[DEMO_CAMERA_WIDTH * DEMO_CAMERA_HEIGHT / 4]
+    __attribute__((section(".sdram_bss"), aligned(32)));
+static uint8_t s_jpeg_cr[DEMO_CAMERA_WIDTH * DEMO_CAMERA_HEIGHT / 4]
+    __attribute__((section(".sdram_bss"), aligned(32)));
+extern "C" int sentai_pxp_xyuv_to_yuv420(const uint8_t* src, int src_w, int src_h,
+                                         uint8_t* y_dst, uint8_t* uv_dst);
+extern "C" int sentai_camera_get_yuv_mode(void);
+
+// Split interleaved CbCr (w/2 x h/2 pairs) into two planes: 4 pairs per
+// 64-bit step, pure integer, ~1 ms for 640x480 on the M7.
+static void cbcr_deinterleave(const uint8_t* cbcr, uint8_t* cb, uint8_t* cr, int pairs) {
+  const uint32_t* s = (const uint32_t*)cbcr;
+  int i = 0;
+  for (; i + 2 <= pairs; i += 2) {
+    uint32_t v = *s++;                        // Cb0 Cr0 Cb1 Cr1
+    cb[i]     = (uint8_t)(v);
+    cr[i]     = (uint8_t)(v >> 8);
+    cb[i + 1] = (uint8_t)(v >> 16);
+    cr[i + 1] = (uint8_t)(v >> 24);
+  }
+  for (; i < pairs; ++i) { cb[i] = cbcr[2 * i]; cr[i] = cbcr[2 * i + 1]; }
+}
+
+// Capture + JPEG through the YUV path (full camera resolution only).
+extern "C" int sentai_cam_capture_jpeg_yuv(uint8_t* jpeg_buf, int jpeg_buf_size, int quality) {
+  if (sentai_detection_is_running()) return -10;
+  if (!g_cam_initialized) return -1;
+  if (!sentai_camera_get_yuv_mode()) return -6;   // frames are XRGB: use the RGB path
+  const int w = DEMO_CAMERA_WIDTH, h = DEMO_CAMERA_HEIGHT;
+  uint8_t* raw = nullptr;
+  TickType_t t0 = xTaskGetTickCount();
+  int idx = sentai_cam_get_raw_with_recovery(&raw);
+  TickType_t t1 = xTaskGetTickCount();
+  if (idx < 0 || !raw) return -2;
+  int rc = sentai_pxp_xyuv_to_yuv420(raw, w, h, s_jpeg_y, s_jpeg_cbcr);
+  sentai_cam_return_raw(idx);
+  if (rc != 0) return rc;
+  TickType_t t2 = xTaskGetTickCount();
+  cbcr_deinterleave(s_jpeg_cbcr, s_jpeg_cb, s_jpeg_cr, (w / 2) * (h / 2));
+  TickType_t t3 = xTaskGetTickCount();
+  unsigned long used = coralmicro::JpegCompressYuv420(s_jpeg_y, s_jpeg_cb, s_jpeg_cr, w, h, quality,
+                                                      (unsigned char*)jpeg_buf, (unsigned long)jpeg_buf_size);
+  TickType_t t4 = xTaskGetTickCount();
+  printf("  [capture_jpeg_yuv] drain=%ldms pxp=%ldms split=%ldms jpeg=%ldms total=%ldms\r\n",
+         (long)(t1 - t0), (long)(t2 - t1), (long)(t3 - t2), (long)(t4 - t3), (long)(t4 - t0));
+  return (int)used;
+}
 
 // Capture + JPEG compress. Returns JPEG size or negative error.
 // Uses PXP hardware for XRGB8888→RGB888 conversion (+ optional scaling),

@@ -1,0 +1,3 @@
+t_s,consumed,sensor_frames,ms,fps,saves,enc_ms_avg,write_ms_avg,bytes,kBps,errs,stall,csi_faults,phase_us
+31,1064,1415,30020,35,70,69,29,2715294,88,0,0,0,-5
+63,1076,1416,30019,35,71,70,24,2770796,90,0,0,0,-5

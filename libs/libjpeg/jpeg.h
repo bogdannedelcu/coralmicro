@@ -32,6 +32,15 @@ namespace coralmicro {
 // @param buf The buffer to return the JPEG image data to.
 // @param size The size allocated for buf.
 // @return The size of the resulting JPEG buffer.
+// EXP-s256 (2026-10-31): compress planar YCbCr 4:2:0 (Y w*h, Cb and Cr
+// (w/2)*(h/2)) straight into `out` via raw_data_in -- the codec skips its
+// RGB->YCbCr conversion and the chroma downsampling (PXP CSC2 already did
+// both in hardware).  width and height must be multiples of 16.  Returns
+// the JPEG size or 0 on error.
+unsigned long JpegCompressYuv420(const unsigned char* y, const unsigned char* cb,
+                                 const unsigned char* cr, int width, int height,
+                                 int quality, unsigned char* out, unsigned long out_size);
+
 unsigned long JpegCompressRgb(unsigned char* rgb, int width, int height,
                               int quality, unsigned char* buf,
                               unsigned long size);

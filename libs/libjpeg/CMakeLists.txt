@@ -60,6 +60,9 @@ add_library_m7(libs_libjpeg
     ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/libjpeg/src/jquant2.c
     ${PROJECT_SOURCE_DIR}/third_party/nxp/rt1176-sdk/middleware/libjpeg/src/jutils.c
 )
+# EXP-s256 (2026-10-31): the project builds Release at -Os; the JPEG encoder
+# is a per-frame hot path on the recorder, so build the codec for speed.
+target_compile_options(libs_libjpeg PRIVATE -O2)
 
 target_include_directories(libs_libjpeg PUBLIC
     .

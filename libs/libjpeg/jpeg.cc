@@ -110,10 +110,15 @@ void jpeg_buf_dest(j_compress_ptr cinfo, unsigned char* buf, unsigned long size,
   dest->out_size = out_size;
 }
 
+
 void JpegCompressImpl(struct jpeg_compress_struct* cinfo, unsigned char* rgb,
                       int quality) {
   jpeg_set_defaults(cinfo);
   jpeg_set_quality(cinfo, quality, TRUE);
+  // EXP-s256 (2026-10-31): the integer "fast" DCT is ~2x cheaper than the
+  // default islow on a Cortex-M7 and visually indistinguishable at q <= 90;
+  // the encode was 116 ms / 640x480 frame with islow at -Os.
+  cinfo->dct_method = JDCT_IFAST;
 
   jpeg_start_compress(cinfo, TRUE);
 
@@ -130,6 +135,55 @@ void JpegCompressImpl(struct jpeg_compress_struct* cinfo, unsigned char* rgb,
   jpeg_destroy_compress(cinfo);
 }
 }  // namespace
+
+unsigned long JpegCompressYuv420(const unsigned char* y, const unsigned char* cb,
+                                 const unsigned char* cr, int width, int height,
+                                 int quality, unsigned char* out, unsigned long out_size) {
+  if ((width & 15) || (height & 15) || width <= 0 || height <= 0) return 0;
+  struct jpeg_compress_struct cinfo;
+  struct jpeg_error_mgr jerr;
+  cinfo.err = jpeg_std_error(&jerr);
+  jpeg_create_compress(&cinfo);
+  unsigned long used = 0;
+  jpeg_buf_dest(&cinfo, out, out_size, &used);
+  cinfo.image_width = width;
+  cinfo.image_height = height;
+  cinfo.input_components = 3;
+  cinfo.in_color_space = JCS_YCbCr;
+  jpeg_set_defaults(&cinfo);
+  jpeg_set_quality(&cinfo, quality, TRUE);
+  cinfo.dct_method = JDCT_IFAST;
+  cinfo.raw_data_in = TRUE;                   // we hand over MCU rows of planes
+  // IJG 9 gotcha (EXP-s256, host-reproduced): with do_fancy_downsampling
+  // left TRUE the encoder implements the 2x2 chroma subsampling *inside the
+  // DCT* (16x16 chroma blocks, DCT_h/v_scaled_size = 16) and expects
+  // full-resolution chroma rows.  In raw_data_in mode we already supply
+  // 2x2-subsampled Cb/Cr (8 rows per iMCU row), so the 16-row reads ran off
+  // the plane rows -> 16-row-period garbage stripes.  FALSE keeps 8x8 DCTs.
+  cinfo.do_fancy_downsampling = FALSE;
+  cinfo.comp_info[0].h_samp_factor = 2;       // Y 2x2, Cb/Cr 1x1 = 4:2:0
+  cinfo.comp_info[0].v_samp_factor = 2;
+  cinfo.comp_info[1].h_samp_factor = 1;
+  cinfo.comp_info[1].v_samp_factor = 1;
+  cinfo.comp_info[2].h_samp_factor = 1;
+  cinfo.comp_info[2].v_samp_factor = 1;
+  jpeg_start_compress(&cinfo, TRUE);
+  JSAMPROW yrows[16], cbrows[8], crrows[8];
+  JSAMPARRAY planes[3] = {yrows, cbrows, crrows};
+  const int cw = width / 2;
+  while (cinfo.next_scanline < cinfo.image_height) {
+    const int row = (int)cinfo.next_scanline;
+    for (int i = 0; i < 16; ++i) yrows[i] = (JSAMPROW)(y + (size_t)(row + i) * width);
+    for (int i = 0; i < 8; ++i) {
+      cbrows[i] = (JSAMPROW)(cb + (size_t)(row / 2 + i) * cw);
+      crrows[i] = (JSAMPROW)(cr + (size_t)(row / 2 + i) * cw);
+    }
+    jpeg_write_raw_data(&cinfo, planes, 16);
+  }
+  jpeg_finish_compress(&cinfo);
+  jpeg_destroy_compress(&cinfo);
+  return used;
+}
 
 unsigned long JpegCompressRgb(unsigned char* rgb, int width, int height,
                               int quality, unsigned char* buf,

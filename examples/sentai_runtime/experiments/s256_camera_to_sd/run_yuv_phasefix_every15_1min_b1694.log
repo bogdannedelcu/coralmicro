@@ -1,0 +1,216 @@
+>>> print(sentai.version())
+print(sentai.version())
+SentAI v1.1 build 1694 (2026-10-31 16:07:18) board 58eb
+>>> 
+>>> print("YUVMODE", sentai.camera.yuv_mode(1))
+print("YUVMODE", sentai.camera.yuv_mode(1))
+YUVMODE 1
+>>> 
+>>> print("INIT", sentai.camera.init(1, 45))
+print("INIT", sentai.camera.init(1, 45))
+HandlePowerRequest: cam0 (bus 1): OK, cam1 (bus 2): OK
+CAMERA_RECEIVER_Init = 0
+BOARD_PullCameraPowerDownPin:1
+BOARD_PullCameraResetPin:0
+BOARD_PullCameraPowerDownPin:0
+BOARD_PullCameraResetPin:1
+CAMERA_DEVICE_Init = 0
+CAMERA_DEVICE_Start = 0
+CAMERA_RECEIVER_Start = 0
+[CAM] sensor_fps=45 (1 s sample, target=30)
+[CAM1] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM1] W 0x3820=0x47 (0)
+[CAM1] W 0x3821=0x01 (0)
+[CAM0] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM0] W 0x3820=0x47 (0)
+[CAM0] W 0x3821=0x01 (0)
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xEA (0)
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xD8 (0)
+[cam] pre-trim: cam0 delayed 18 lines (406 us) -> alternation at full rate
+[cam] genlock: phase -5 us after 0 step(s) (T=22287 us)
+INIT 0
+>>> 
+>>> print(sentai.sdcard.bus())
+print(sentai.sdcard.bus())
+(49500000, 1, 4, 'SDR25 high-speed')
+>>> 
+>>> sentai.fs.mkdir("/rec")
+sentai.fs.mkdir("/rec")
+True
+>>> 
+>>> sentai.camera.ratio(1, 1)
+sentai.camera.ratio(1, 1)
+(0, 0)
+>>> 
+>>> exec("t0=sentai.rtos.ticks_ms()\nf0=sentai.camera.sensor_frames()\nn=0\nsv=0\nem=0\nwm=0\nby=0\ner=0\nwhile sentai.rtos.ticks_ms()-t0<30000:\n  try:\n    sentai.camera.peek_col(40); n+=1\n  except Exception as e:\n    er+=1\n    if er>5: break\n  if n % 15 == 0:\n    t1=sentai.rtos.ticks_ms(); j=sentai.camera.jpeg(75, 1); t2=sentai.rtos.ticks_ms()\n    ok=sentai.fs.write('/rec/f%05d.jpg' % (sv % 100), j); t3=sentai.rtos.ticks_ms()\n    em+=t2-t1; wm+=t3-t2; by+=len(j); sv+=1\n    if not ok: er+=1\ndt=sentai.rtos.ticks_ms()-t0\ns=sentai.camera.stats()\nprint('WIN',n,sentai.camera.sensor_frames()-f0,dt,(n*1000)//max(dt,1),sv,em//max(sv,1),wm//max(sv,1),by,(by*1000)//max(dt,1)//1024,er,s['stall_count'],s['csi_queue_faults'],s['phase_us'])")
+exec("t0=sentai.rtos.ticks_ms()\nf0=sentai.camera.sensor_frames()\nn=0\nsv=0\nem=0\nwm=0\nby=0\ner=0\nwhile sentai.rtos.ticks_ms()-t0<30000:\n  try:\n    sentai.camera.peek_col(40); n+=1\n  except Exception as e:\n    er+=1\n    if er>5: break\n  if n % 15 == 0:\n    t1=sentai.rtos.ticks_ms(); j=sentai.camera.jpeg(75, 1); t2=sentai.rtos.ticks_ms()\n    ok=sentai.fs.write('/rec/f%05d.jpg' % (sv % 100), j); t3=sentai.rtos.ticks_ms()\n    em+=t2-t1; wm+=t3-t2; by+=len(j); sv+=1\n    if not ok: er+=1\ndt=sentai.rtos.ticks_ms()-t0\ns=sentai.camera.stats()\nprint('WIN',n,sentai.camera.sensor_frames()-f0,dt,(n*1000)//max(dt,1),sv,em//max(sv,1),wm//max(sv,1),by,(by*1000)//max(dt,1)//1024,er,s['stall_count'],s['csi_queue_faults'],s['phase_us'])")
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=20ms pxp=10ms split=5ms jpeg=30ms total=65ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=20ms pxp=10ms split=5ms jpeg=31ms total=66ms
+  [capture_jpeg_yuv] drain=20ms pxp=10ms split=5ms jpeg=30ms total=65ms
+  [capture_jpeg_yuv] drain=20ms pxp=10ms split=5ms jpeg=30ms total=65ms
+  [capture_jpeg_yuv] drain=20ms pxp=10ms split=5ms jpeg=31ms total=66ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=31ms total=71ms
+  [capture_jpeg_yuv] drain=20ms pxp=10ms split=5ms jpeg=30ms total=65ms
+  [capture_jpeg_yuv] drain=20ms pxp=10ms split=5ms jpeg=30ms total=65ms
+  [capture_jpeg_yuv] drain=20ms pxp=10ms split=5ms jpeg=30ms total=65ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=20ms pxp=10ms split=5ms jpeg=30ms total=65ms
+  [capture_jpeg_yuv] drain=20ms pxp=10ms split=5ms jpeg=31ms total=66ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=31ms total=71ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=20ms pxp=10ms split=5ms jpeg=30ms total=65ms
+  [capture_jpeg_yuv] drain=20ms pxp=10ms split=5ms jpeg=30ms total=65ms
+  [capture_jpeg_yuv] drain=20ms pxp=10ms split=5ms jpeg=30ms total=65ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=31ms total=71ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=20ms pxp=10ms split=5ms jpeg=30ms total=65ms
+  [capture_jpeg_yuv] drain=20ms pxp=10ms split=5ms jpeg=30ms total=65ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=20ms pxp=10ms split=5ms jpeg=30ms total=65ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=20ms pxp=10ms split=5ms jpeg=30ms total=65ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=20ms pxp=10ms split=5ms jpeg=30ms total=65ms
+  [capture_jpeg_yuv] drain=20ms pxp=10ms split=5ms jpeg=30ms total=65ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=20ms pxp=10ms split=5ms jpeg=30ms total=65ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=31ms total=71ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=31ms total=71ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=20ms pxp=10ms split=5ms jpeg=30ms total=65ms
+  [capture_jpeg_yuv] drain=20ms pxp=10ms split=5ms jpeg=31ms total=66ms
+  [capture_jpeg_yuv] drain=20ms pxp=10ms split=5ms jpeg=30ms total=65ms
+  [capture_jpeg_yuv] drain=20ms pxp=10ms split=5ms jpeg=30ms total=65ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=31ms total=71ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=20ms pxp=10ms split=5ms jpeg=31ms total=66ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=20ms pxp=10ms split=5ms jpeg=31ms total=66ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=20ms pxp=10ms split=5ms jpeg=30ms total=65ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=31ms total=71ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=31ms total=71ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=31ms total=71ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=31ms total=71ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=20ms pxp=10ms split=5ms jpeg=30ms total=65ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=20ms pxp=10ms split=5ms jpeg=30ms total=65ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=20ms pxp=10ms split=5ms jpeg=30ms total=65ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=31ms total=71ms
+WIN 1064 1415 30020 35 70 69 29 2715294 88 0 0 0 -5
+>>> 
+>>> exec("t0=sentai.rtos.ticks_ms()\nf0=sentai.camera.sensor_frames()\nn=0\nsv=0\nem=0\nwm=0\nby=0\ner=0\nwhile sentai.rtos.ticks_ms()-t0<30000:\n  try:\n    sentai.camera.peek_col(40); n+=1\n  except Exception as e:\n    er+=1\n    if er>5: break\n  if n % 15 == 0:\n    t1=sentai.rtos.ticks_ms(); j=sentai.camera.jpeg(75, 1); t2=sentai.rtos.ticks_ms()\n    ok=sentai.fs.write('/rec/f%05d.jpg' % (sv % 100), j); t3=sentai.rtos.ticks_ms()\n    em+=t2-t1; wm+=t3-t2; by+=len(j); sv+=1\n    if not ok: er+=1\ndt=sentai.rtos.ticks_ms()-t0\ns=sentai.camera.stats()\nprint('WIN',n,sentai.camera.sensor_frames()-f0,dt,(n*1000)//max(dt,1),sv,em//max(sv,1),wm//max(sv,1),by,(by*1000)//max(dt,1)//1024,er,s['stall_count'],s['csi_queue_faults'],s['phase_us'])")
+exec("t0=sentai.rtos.ticks_ms()\nf0=sentai.camera.sensor_frames()\nn=0\nsv=0\nem=0\nwm=0\nby=0\ner=0\nwhile sentai.rtos.ticks_ms()-t0<30000:\n  try:\n    sentai.camera.peek_col(40); n+=1\n  except Exception as e:\n    er+=1\n    if er>5: break\n  if n % 15 == 0:\n    t1=sentai.rtos.ticks_ms(); j=sentai.camera.jpeg(75, 1); t2=sentai.rtos.ticks_ms()\n    ok=sentai.fs.write('/rec/f%05d.jpg' % (sv % 100), j); t3=sentai.rtos.ticks_ms()\n    em+=t2-t1; wm+=t3-t2; by+=len(j); sv+=1\n    if not ok: er+=1\ndt=sentai.rtos.ticks_ms()-t0\ns=sentai.camera.stats()\nprint('WIN',n,sentai.camera.sensor_frames()-f0,dt,(n*1000)//max(dt,1),sv,em//max(sv,1),wm//max(sv,1),by,(by*1000)//max(dt,1)//1024,er,s['stall_count'],s['csi_queue_faults'],s['phase_us'])")
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=31ms total=71ms
+  [capture_jpeg_yuv] drain=20ms pxp=10ms split=5ms jpeg=30ms total=65ms
+  [capture_jpeg_yuv] drain=20ms pxp=10ms split=5ms jpeg=30ms total=65ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=20ms pxp=10ms split=5ms jpeg=31ms total=66ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=20ms pxp=10ms split=5ms jpeg=30ms total=65ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=20ms pxp=10ms split=5ms jpeg=30ms total=65ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=20ms pxp=10ms split=5ms jpeg=30ms total=65ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=31ms total=71ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=31ms total=71ms
+  [capture_jpeg_yuv] drain=20ms pxp=10ms split=5ms jpeg=30ms total=65ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=20ms pxp=10ms split=5ms jpeg=30ms total=65ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=20ms pxp=10ms split=5ms jpeg=31ms total=66ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=31ms total=71ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=20ms pxp=10ms split=5ms jpeg=30ms total=65ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=31ms total=71ms
+  [capture_jpeg_yuv] drain=20ms pxp=10ms split=5ms jpeg=30ms total=65ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=20ms pxp=10ms split=5ms jpeg=31ms total=66ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=20ms pxp=10ms split=5ms jpeg=31ms total=66ms
+  [capture_jpeg_yuv] drain=20ms pxp=10ms split=5ms jpeg=30ms total=65ms
+  [capture_jpeg_yuv] drain=20ms pxp=10ms split=5ms jpeg=31ms total=66ms
+  [capture_jpeg_yuv] drain=20ms pxp=10ms split=5ms jpeg=31ms total=66ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=20ms pxp=10ms split=5ms jpeg=31ms total=66ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=20ms pxp=10ms split=5ms jpeg=31ms total=66ms
+  [capture_jpeg_yuv] drain=20ms pxp=10ms split=5ms jpeg=30ms total=65ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=20ms pxp=10ms split=5ms jpeg=31ms total=66ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=31ms total=71ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=20ms pxp=10ms split=5ms jpeg=30ms total=65ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=31ms total=71ms
+  [capture_jpeg_yuv] drain=20ms pxp=10ms split=5ms jpeg=30ms total=65ms
+  [capture_jpeg_yuv] drain=20ms pxp=10ms split=5ms jpeg=30ms total=65ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=20ms pxp=10ms split=5ms jpeg=30ms total=65ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+  [capture_jpeg_yuv] drain=20ms pxp=10ms split=5ms jpeg=30ms total=65ms
+  [capture_jpeg_yuv] drain=20ms pxp=10ms split=5ms jpeg=30ms total=65ms
+  [capture_jpeg_yuv] drain=25ms pxp=10ms split=5ms jpeg=30ms total=70ms
+WIN 1076 1416 30019 35 71 70 24 2770796 90 0 0 0 -5
+>>> 
+>>> sentai.camera.ratio(0,0)
+sentai.camera.ratio(0,0)
+(1, 1)
+>>> 
+>>> print(sentai.fs.sync())
+print(sentai.fs.sync())
+True
+>>> 
+>>> print(sentai.rtos.dmesg())
+print(sentai.rtos.dmesg())
+[         0] I E:0F01:1
+[      3816] I E:0500:30
+[      8816] I E:0A06:3
+[      8816] I E:0A12:18
+[      8816] I E:0A0C:65531
+
+>>> 
+>>> print(sentai.fs.stats())
+print(sentai.fs.stats())
+(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+>>> 
