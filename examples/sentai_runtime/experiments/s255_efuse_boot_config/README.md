@@ -56,5 +56,9 @@ Operator ran the burn (`burn_board85b1.log`): 0x940 → `0x000004C0` OK, 0x960 �
 `0x00000018` OK, `blhost reset`.  **The board enumerated directly from the NAND:
 `1fc9:c0a1` "autonomous.ro SentAI v1.1 build #1679 board 85b1"** — the first
 rev-1.1 boot from flash, with no hardware change (`00` = boot from fuses).
-Pending checks: true power cycle (USB replug) and SW2 + RST → `1fc9:013d`
-(recovery path).  Then unit 58eb.
+Follow-up checks on 85b1 (operator + lsusb): persistent flash of build 1682
+→ boots 1682 from the NAND by itself; **USB replug (true POR) → `1fc9:c0a1`
+build #1682**; **SW2 held + RST → `1fc9:013d`** (Serial Downloader, recovery
+path intact); plain RST → back to the firmware.  The health indicator
+(STAT LED code 1 = no SD card, `sys.health()`) runs on the flash-booted
+build.  Next: unit 58eb.

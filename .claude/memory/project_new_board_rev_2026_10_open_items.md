@@ -189,3 +189,6 @@ forces SDP for recovery.
 "SentAI v1.1 build #1679 board 85b1" straight from flash.  Flash-boot blocker
 F1 is solved by fuses, not by R163.  58eb pending the same burn.  Every future
 persistent flash on a fused board runs for real at the next reset.
+85b1 fully verified after the fuse burn: POR replug boots 1682 from NAND, SW2+RST
+-> SDP, plain RST -> firmware.  Persistent flashtool runs are now "live" on
+85b1 (the next reset runs what was flashed).
