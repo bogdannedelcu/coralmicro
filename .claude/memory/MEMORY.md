@@ -7,7 +7,7 @@
 - [DECISION — SentAI FS moves exclusively to SD card; drop NAND user partition (2026-10-30)](project_fs_moves_to_sdcard_decision.md) — LittleFS system stays; FatFs on SD.
 - [microSD on USDHC1 bring-up PASSED (2026-10-30)](project_sdcard_usdhc1_bringup.md) — SD_PWREN_B/VSELECT GPIOs; 64 GB exFAT; build 1605.
 - [New board rev 2026-10 open items](project_new_board_rev_2026_10_open_items.md) — WBS OP-S10-W22; CAM1→I2C1, FlexPWM1 low; boots to SDP, flash doesn't run.
-- [HARD RULE — J-Link headless only](feedback_jlink_headless_only.md) — -nogui 1; no dialogs clickable.
+- [HARD RULE — J-Link headless only](feedback_jlink_headless_only.md) — -nogui 1; no dialogs clickable; EDU Mini needs a human Accept per connect (2026-10-31), else SWD "times out".
 
 - [FNIRSI power logger already running (2026-09-04)](fnirsi-power-logger-already-running.md) — /tmp/power_log.jsonl; don't start a second.
 - [frame_count is HALF rate + alternation tag bug (2026-09-04)](frame-count-half-rate-and-alternation-tag-bug.md) — 44.5 fps works, labels break.

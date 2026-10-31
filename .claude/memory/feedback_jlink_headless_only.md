@@ -34,3 +34,16 @@ when they are away.  DLL V9.54.
 - Never run `JLinkGDBServer`, `JFlash`, `JLinkSWOViewer` GUIs or Ozone.
 - J-Link PLUS shows as `1366:0101` in `lsusb`; it is attached to the new
   board rev (see [[new-board-rev-2026-10-open-items]]).  Skill: `jtag-debug`.
+
+**Addendum 2026-10-31 (W24-T8):** the probe on the bench is now a **J-Link
+EDU Mini** (S/N 801030457, VTref 1.8 V).  EDU probes show a Terms-of-Use
+dialog that must be clicked **Accept** on the host display at every connect;
+with `-nogui` the DLL cannot show it and "Connecting to target via SWD" just
+times out (JLinkExe rc 124, GDBServerCL rc 144 from my shell).  Not a wiring
+or fuse problem.  Headless attach works only after the operator has clicked
+Accept in the current host session, or with a non-EDU probe (the J-Link PLUS
+used earlier).  Syntax note: `JLinkExe -nogui 1`, but `JLinkGDBServerCLExe
+-nogui` (no argument; "1" is rejected as an unknown parameter).  When the
+probe is unavailable, use `/log/crash_prev.txt`, `/log/crash_NNN.log`
+(assert breadcrumbs now carry file+expr string addresses, `gdb x/s` on the
+ELF) and `boot_old.log` "Reset reason" — that path solved W24-T6.
