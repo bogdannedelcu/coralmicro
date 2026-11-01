@@ -1,0 +1,29 @@
+===== SXGA 15 legacy =====
+version SentAI v1.1 build 1760 (2026-11-01 23:19:20) board 58eb
+set_hw -> 0
+init(1, 15) -> 0
+resolution (1280, 960) peek rows 960
+cam0: frame rows 960, locate rows 480, scale 2.00
+cam1: frame rows 960, locate rows 480, scale 2.00
+ratio(1,1) -> (0, 0)  ratio_unit 1  stats phase_us -3
+frames 480 | interval mean 66.86 ms sd 0.01 (15.0 fps) | code step: mean 516.00, repeats 0, >3 2 | orientation vs tag mismatches 480, ambiguous 239
+display frames per capture (from code): 516.000  -> implied capture rate 0.12 fps at 60 Hz
+tag sequence (first 24): 101010101010101010101010  orientation (first 24): R?R?R?R?R?R?R?R?R?R?R?R?
+codes (first 16): [343, None, 351, None, 359, None, 367, None, 375, None, 383, None, 391, None, 399, None]
+cam0: 1 frames, interval 0.00 ms, code steps {} (expected 8.02), stale(0) or skipped(>10): 0
+cam1: 240 frames, interval 133.73 ms, code steps {8: 228, 7: 4, 6: 3, 9: 2} (expected 8.02), stale(0) or skipped(>10): 1
+===== SXGA 30 packed (byte 1 = Y1) =====
+version SentAI v1.1 build 1760 (2026-11-01 23:19:20) board 58eb
+set_hw -> 0
+packed420(1) -> 1
+init(1, 30) -> 0
+resolution (1280, 960) peek rows 960
+cam0: frame rows 960, locate rows 480, scale 2.00
+cam1: frame rows 960, locate rows 480, scale 2.00
+ratio(1,1) -> (0, 0)  ratio_unit 1  stats phase_us 384
+frames 600 | interval mean 63.51 ms sd 19.22 (15.7 fps) | code step: mean 502.09, repeats 0, >3 281 | orientation vs tag mismatches 163, ambiguous 163
+display frames per capture (from code): 502.088  -> implied capture rate 0.12 fps at 60 Hz
+tag sequence (first 24): 101010101010101010101010  orientation (first 24): UUUUUUUUUUUU?U?U?U?U?U?U
+codes (first 16): [128, 347, 32, 351, 0, 355, 160, 359, 640, 363, 544, 367, None, 371, None, 375]
+cam0: 286 frames, interval 133.14 ms, code steps {8: 221, 4: 29, 7: 13, 16: 13} (expected 7.62), stale(0) or skipped(>10): 14
+cam1: 151 frames, interval 253.63 ms, code steps {384: 26, 128: 24, 640: 18, 896: 10} (expected 7.62), stale(0) or skipped(>10): 150

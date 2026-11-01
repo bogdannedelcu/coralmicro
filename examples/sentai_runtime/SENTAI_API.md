@@ -732,10 +732,21 @@ period (22 288 µs at VGA45).  Diagnostic; the production value is in
 
 ### `sentai.camera.peek_col(x=40)` → tuple
 Diagnostic for the dual-camera work (EXP-s251): dequeues ONE frame and
-returns `(tag_task, tag_isr, bytes[480], idx, ts_us, now_us)` — the B-channel
+returns `(tag_task, tag_isr, bytes[rows], idx, ts_us, now_us)` — the B-channel
 column `x` over all rows of that buffer, both per-buffer camera tags, the
 buffer slot and its FB-done time (GPT1 µs) next to the current time, so a
-stale buffer is visible as `now_us - ts_us`.
+stale buffer is visible as `now_us - ts_us`.  `rows` is the runtime frame
+height (480 at VGA, 960 at SXGA) and the row pitch follows the runtime
+geometry and the packed YUV420 mode (build ≥ 1757, EXP-s266; before that the
+VGA constants were used and the SXGA column was two columns interleaved over
+half the frame).  In packed mode byte 0 of a pixel pair is chroma, not B.
+
+Note on JPEG capture at SXGA (build ≥ 1757): `jpeg()` / `save_jpeg()` encode
+the 1280x960 frame **halved to 640x480** (the RGB staging buffer and the
+MicroPython heap are sized for VGA); before 1757 every SXGA capture failed
+with `cam capture fail` (-5: the source size was the compile-time VGA
+constant).  In packed YUV420 mode the capture returns -7 (the frame is not
+XRGB); use `save_raw` there.
 
 ### `sentai.camera.frame_log(n=64)` → list
 The last `n` CSI frame-complete events as `(ts_us, idx, cam, seq)`, oldest

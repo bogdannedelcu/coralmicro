@@ -87,6 +87,9 @@ static mp_obj_t mod_sentai_cam_jpeg(size_t n_args, const mp_obj_t *args) {
     int yuv = (n_args > 1) ? mp_obj_get_int(args[1]) : 0;
     int w = sentai_cam_get_width();
     int h = sentai_cam_get_height();
+    // SXGA frames are encoded at half size: the RGB staging buffer and the MicroPython
+    // heap are sized for 640x480 (EXP-s266; before this every SXGA capture failed)
+    while ((size_t)w * (size_t)h > 640u * 480u) { w /= 2; h /= 2; }
     // Max JPEG buffer - typically much smaller than RGB
     int max_jpeg = w * h;  // generous upper bound
     uint8_t* buf = (uint8_t*)malloc(max_jpeg);
@@ -130,6 +133,7 @@ static mp_obj_t mod_sentai_cam_save_jpeg(size_t n_args, const mp_obj_t *args) {
     int quality = (n_args > 1) ? mp_obj_get_int(args[1]) : 75;
     int w = sentai_cam_get_width();
     int h = sentai_cam_get_height();
+    while ((size_t)w * (size_t)h > 640u * 480u) { w /= 2; h /= 2; }   // SXGA -> VGA JPEG
     int max_jpeg = w * h;
     uint8_t* buf = (uint8_t*)malloc(max_jpeg);
     if (!buf) {
@@ -642,18 +646,24 @@ static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_cam_phase_obj, mod_sentai_cam_phase)
 // EXP-s251: B-channel profile of column x over every row of ONE dequeued
 // buffer, plus the two per-buffer camera tags.  Roll/seam-sensitive oracle
 // for the dual-camera alternation work (pair with test patterns 0x84/0x8C).
-extern int sentai_cam_peek_col(int x, uint8_t* dst, int rows, int32_t* out3);
+extern int sentai_cam_peek_col_byte(int x, int byte, uint8_t* dst, int rows, int32_t* out3);
+extern volatile uint32_t g_runtime_cam_h;   // 480 or 960 (W24-T11)
+// sentai.camera.peek_col(x=40, byte=0): byte 0 = B/X of the XYUV pixel (legacy),
+// byte 1 = Y1 of a packed YUV420 pixel pair (EXP-s266)
 static mp_obj_t mod_sentai_cam_peek_col(size_t n_args, const mp_obj_t *args) {
     int x = (n_args >= 1) ? mp_obj_get_int(args[0]) : 40;
-    static uint8_t col[480];
+    int byte = (n_args >= 2) ? mp_obj_get_int(args[1]) : 0;
+    static uint8_t col[1024];
+    int rows = (int)g_runtime_cam_h;
+    if (rows <= 0 || rows > 1024) rows = 480;
     int32_t o[5];
-    int rc = sentai_cam_peek_col(x, col, 480, o);
+    int rc = sentai_cam_peek_col_byte(x, byte, col, rows, o);
     if (rc != 0) {
         mp_raise_msg(&mp_type_RuntimeError, MP_ERROR_TEXT("peek_col failed"));
     }
     mp_obj_t items[6] = {
         mp_obj_new_int(o[1]), mp_obj_new_int(o[2]),
-        mp_obj_new_bytes(col, 480),
+        mp_obj_new_bytes(col, rows),
         mp_obj_new_int(o[0]),
         mp_obj_new_int_from_uint((uint32_t)o[3]),
         mp_obj_new_int_from_uint((uint32_t)o[4]),
@@ -683,7 +693,7 @@ static mp_obj_t mod_sentai_cam_frame_log(size_t n_args, const mp_obj_t *args) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_cam_frame_log_obj, 0, 1,
                                             mod_sentai_cam_frame_log);
-static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_cam_peek_col_obj, 0, 1,
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_cam_peek_col_obj, 0, 2,
                                             mod_sentai_cam_peek_col);
 
 // sentai.camera.peek_row(len=64) -> bytes

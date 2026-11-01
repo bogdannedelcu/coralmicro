@@ -1,0 +1,33 @@
+{
+ "per_camera": {
+  "0": {
+   "frames": 1,
+   "interval_ms": 0.0,
+   "step_hist": {},
+   "expected_step": 8.02,
+   "stale_or_skipped": 0
+  },
+  "1": {
+   "frames": 240,
+   "interval_ms": 133.72835983263602,
+   "step_hist": {
+    "5": 1,
+    "6": 3,
+    "7": 4,
+    "8": 228,
+    "9": 2,
+    "11": 1
+   },
+   "expected_step": 8.02,
+   "stale_or_skipped": 1
+  }
+ },
+ "frames": 480,
+ "interval_ms": 66.86417536534447,
+ "fps": 14.955691811587009,
+ "code_step_mean": 516.0,
+ "repeats": 0,
+ "big_steps": 2,
+ "mismatches": 480,
+ "ambiguous": 239
+}

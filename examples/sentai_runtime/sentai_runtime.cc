@@ -2697,17 +2697,31 @@ extern "C" int sentai_cam_peek5_tags(uint8_t* dst5, int32_t* out4) {
 // made of two sensor frames (vertical roll / seam after a MUX flip) shows as
 // a discontinuity, which the 5-row oracle of EXP-s246 could not see.
 // out3 = { idx, tag_task, tag_isr }, read before the buffer is returned.
+// `byte` selects which byte of the 4-byte pixel is sampled: 0 = B (XYUV: X) in the
+// legacy layout, 1 = Y1 in packed YUV420 ([C,Y1,Y2,0] per pixel pair) -- EXP-s266.
+extern "C" int sentai_cam_peek_col_byte(int x, int byte, uint8_t* dst, int rows, int32_t* out3);
 extern "C" int sentai_cam_peek_col(int x, uint8_t* dst, int rows, int32_t* out3) {
+  return sentai_cam_peek_col_byte(x, 0, dst, rows, out3);
+}
+extern "C" int sentai_cam_peek_col_byte(int x, int byte, uint8_t* dst, int rows, int32_t* out3) {
   extern volatile uint8_t g_cam_buf_id[];
   extern volatile uint32_t g_cam_buf_ts_us[];
-  if (!dst || !out3 || x < 0 || x >= DEMO_CAMERA_WIDTH || rows <= 0 ||
-      rows > DEMO_CAMERA_HEIGHT) return -1;
+  extern volatile int g_sentai_cam_packed420;
+  extern volatile uint32_t g_runtime_cam_w;
+  extern volatile uint32_t g_runtime_cam_h;
+  if (byte < 0 || byte > 3) return -1;
+  // Runtime geometry (EXP-s266): at SXGA the frame is 1280x960 and the row pitch
+  // 1280*4 (640*4 in packed YUV420 mode), not the compile-time VGA constants --
+  // with those this function read two columns interleaved over half the frame.
+  const int fw = (int)g_runtime_cam_w, fh = (int)g_runtime_cam_h;
+  if (!dst || !out3 || x < 0 || x >= fw || rows <= 0 || rows > fh) return -1;
   uint8_t* raw = nullptr;
   int idx = sentai_cam_get_raw_with_recovery(&raw);
   if (idx < 0 || !raw) return -2;
-  const size_t pitch = (size_t)(DEMO_CAMERA_WIDTH + LINE_PADDING)
-                       * (size_t)DEMO_CAMERA_BUFFER_BPP;
-  const uint8_t* p = raw + (size_t)x * DEMO_CAMERA_BUFFER_BPP;
+  const size_t pitch = g_sentai_cam_packed420
+                           ? (size_t)(fw / 2) * (size_t)DEMO_CAMERA_BUFFER_BPP
+                           : (size_t)(fw + LINE_PADDING) * (size_t)DEMO_CAMERA_BUFFER_BPP;
+  const uint8_t* p = raw + (size_t)x * DEMO_CAMERA_BUFFER_BPP + (size_t)byte;
   for (int r = 0; r < rows; ++r) dst[r] = p[(size_t)r * pitch];
   out3[0] = idx;
   out3[1] = g_cam_grabbed_id;
@@ -4746,13 +4760,19 @@ extern "C" int sentai_cam_capture_jpeg(uint8_t* jpeg_buf, int jpeg_buf_size,
                                       int width, int height, int quality) {
   if (sentai_detection_is_running()) return -10;  // pipeline owns PXP
   if (!g_cam_initialized && !sentai_virtual_camera_active()) return -1;
+  // Source = the runtime sensor geometry (640x480 or 1280x960, W24-T11), not the
+  // compile-time VGA constants: with those every SXGA capture failed with -5
+  // (EXP-s266).  The RGB staging buffer holds 640x480x3, so the caller asks for
+  // an output no larger than that (the MicroPython binding halves SXGA to VGA).
   int src_w = sentai_virtual_camera_active()
                   ? sentai_virtual_camera_width()
-                  : DEMO_CAMERA_WIDTH;
+                  : (int)g_runtime_cam_w;
   int src_h = sentai_virtual_camera_active()
                   ? sentai_virtual_camera_height()
-                  : DEMO_CAMERA_HEIGHT;
+                  : (int)g_runtime_cam_h;
   if (width > src_w || height > src_h) return -5;
+  if ((size_t)width * (size_t)height * 3u > sizeof(s_jpeg_rgb_buf)) return -6;
+  if (g_sentai_cam_packed420 && !sentai_virtual_camera_active()) return -7;  // frame is not XRGB
 
   uint8_t* raw = nullptr;
   TickType_t t0 = xTaskGetTickCount();

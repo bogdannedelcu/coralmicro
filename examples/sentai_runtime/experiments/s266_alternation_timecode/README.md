@@ -2,7 +2,7 @@
 
 **WBS**: OP-S10-W24-T19
 **Started**: 2026-11-01 (late evening, scaffold + first run)
-**Status**: 🟢 VGA30 and VGA45 PASS (30 s each); VGA60 inconclusive (display tearing vs camera mix undecidable without a redundant code); SXGA not run (JPEG capture fails at SXGA, locate needs the 2x homography)
+**Status**: 🟢 VGA30, VGA45 PASS and SXGA15 PASS on cam1 (30 s each); VGA60 inconclusive (display tearing vs camera mix undecidable without a redundant code); SXGA15 cam0 column unusable (geometry), SXGA30 packed needs the FB-done ring for cadence and a packed-layout check for cam1. Firmware: SXGA JPEG and `peek_col` fixed (builds 1757–1760).
 **Board**: 58eb, build 1756, VGA 30 fps, both OV5640, Kamvas 16 as the time-code display
 
 ## Claim
@@ -92,7 +92,29 @@ the VGA30 homographies mis-decoded cam0; `iter2_vga45` was redone with its own l
 | VGA 30 (iter1) | 33.43 ms, sd 0.01 | 960 | 960 | 4 (437/479, 391/479), rest 3/5 | 0 stale, 2 skips (display gaps) | **PASS** |
 | VGA 45 (iter2, exp 3.4 ms, gain 10x) | 22.38 ms, sd 1.44; 6 intervals of 45 ms | 1440 | 1440 | {3: 463, 2: 248} / {3: 414, 2: 267, 4: 25} vs 2.69 expected | **0** broken codes | **PASS** (6 dequeues missed by the Python loop, 0.4 %) |
 | VGA 60 (iter3, exp 3.4 ms, gain 12x) | 16.92 ms, sd 2.15; 14 × 33 ms, 4 × 50 ms | 1800 | 1800 | 2 dominant on both | **134** broken (cam0 47, cam1 87) | inconclusive, see below |
-| SXGA 15 legacy / SXGA 30 packed (iter4/5) | — | — | — | — | — | not run: `save_jpeg` → "cam capture fail" at SXGA, so `locate.py` could not run; needs the SXGA homography (= 2 × VGA) and a check of `peek_col` at 1280x960 |
+| SXGA 15 legacy (iter4, build 1760, exp 50 lines, gain 10x) | 66.86 ms, sd 0.01 (15.0 fps); per camera 133.7 ms | 480 | cam1 240 / 240, cam0 0 (all ambiguous) | cam1 {8: 228, 7: 4, 6: 3, 9: 2} vs 8.02 expected | cam1: 0 stale, 1 skipped | **cam1 PASS**; cam0 column 40 unusable at SXGA (see below) |
+| SXGA 30 packed (iter5, build 1760, byte 1 = Y1, exp 100 lines) | 63.5 ms, **sd 19.2** (15.7 fps dequeued) | 600 | cam0 286 ok, cam1 mostly garbage | cam0 {8: 221, 4: 29, 7: 13, 16: 13} | cam0 14 skipped | **not a valid cadence measurement**: the REPL loop dequeues every other 2.5 MB frame |
+
+Firmware fixes that made the SXGA runs possible (builds 1757–1760, committed with this iteration):
+`sentai_cam_capture_jpeg` took its source size from the compile-time VGA constants and returned
+-5 for every SXGA frame ("cam capture fail"); it now uses `g_runtime_cam_w/h`, the JPEG of an
+SXGA frame is encoded at 640x480 (RGB staging buffer and MicroPython heap are VGA-sized) and
+packed-mode frames are refused with -7.  `sentai_cam_peek_col` used the VGA pitch and bounds
+(at SXGA it read two interleaved columns over half the frame); it now follows the runtime
+geometry and the packed pitch, returns `g_runtime_cam_h` rows, and takes a second argument
+`byte` (0 = B/X, 1 = Y1 of a packed pixel pair).  The SXGA localisation therefore runs on the
+halved JPEG and the band rows are scaled ×2 to frame rows (`run_timecode.py` detects the scale).
+
+SXGA observations: (1) the CSI cadence at SXGA15 1:1 is as clean as at VGA (66.86 ms, sd 0.01);
+(2) cam0's column 40 reads ambiguous markers on every SXGA frame while cam1 decodes perfectly
+with the same method — the SXGA readout window of cam0 puts image column 40 somewhere the VGA
+homography ×2 does not predict (vertical shift between modes again, or a horizontal offset at
+SXGA); fix: locate at SXGA with a column probe instead of the JPEG, or sample a column nearer
+the centre (x ≈ 400); (3) at SXGA30 packed the `peek_col` loop (one 2.5 MB frame dequeued per
+REPL call) keeps up with only every other frame (63.5 ms, sd 19 ms), so cadence at SXGA30 must
+be read from the firmware's FB-done ring (`camera.frame_log(64)`), not from the Python loop; cam1's
+codes in packed mode are single-bit patterns (128/384/640/896) → the Y1 sampling or the band
+table is off for cam1 in packed layout — to be checked with a `save_raw` dump.
 
 VGA60: the broken frames show band means like `[0, 0, 0, 141, 129, 0, 144, 141, 140, 115, 41, 78]`
 — the white marker band reads black and bands in the lower part are intermediate: the frame

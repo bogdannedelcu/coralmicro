@@ -23,13 +23,13 @@ sys.path.insert(0, os.path.join(HERE, '..', 's265_camera_color_calibration'))
 from board_repl import Repl  # noqa: E402
 
 BOARD_LOOP = r"""
-def _tc(nframes, bands):
+def _tc(nframes, bands, byte=0):
     # bands = {tag: [(row_a, row_b), ...]} rows of column 40 that fall inside each stripe band
     # (computed on the host from the s265 homographies); mean B value per band
     import sentai
     out = []
     for _ in range(nframes):
-        r = sentai.camera.peek_col(40)
+        r = sentai.camera.peek_col(40, byte)
         col = r[2]
         tb = bands.get(r[0]) or bands.get(0)
         vals = []
@@ -43,12 +43,13 @@ def _tc(nframes, bands):
 """
 
 
-def band_rows(loc_cam, nbands, y0f, y1f, x=40, cam_h=480, keep=0.6):
+def band_rows(loc_cam, nbands, y0f, y1f, x=40, cam_h=480, keep=0.6, scale=1.0):
     """Rows of camera column x that fall in each stripe band, from the camera->screen homography
-    (pattern px, 1920x1080).  Each band keeps its central `keep` fraction of rows."""
+    (pattern px, 1920x1080).  Each band keeps its central `keep` fraction of rows.  `scale` =
+    frame rows / homography rows (2 at SXGA: the locate JPEG is the 1280x960 frame halved)."""
     Hinv = np.asarray(loc_cam['H_cam_to_mon'])
     rows = np.arange(cam_h)
-    P = np.stack([np.full(cam_h, float(x)), rows.astype(float), np.ones(cam_h)])
+    P = np.stack([np.full(cam_h, float(x) / scale), rows.astype(float) / scale, np.ones(cam_h)])
     Q = Hinv @ P
     Y = Q[1] / Q[2]
     X = Q[0] / Q[2]
@@ -101,13 +102,19 @@ def main():
     ap.add_argument('--exp-lines', type=int, default=90, help='manual exposure in lines (~3 ms at VGA30)')
     ap.add_argument('--gain', type=int, default=0x60, help='AGC in 1/16 (0x60 = 6x)')
     ap.add_argument('--batch', type=int, default=120, help='frames per on-board call')
+    ap.add_argument('--byte', type=int, default=0, help='pixel byte sampled: 0 = B (legacy XYUV), 1 = Y1 (packed YUV420)')
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
     r = Repl(log=open(os.path.join(a.out, 'repl.log'), 'a'))
     loc = json.load(open(a.locate))
+    # frame height on the board (480 at VGA, 960 at SXGA) vs the locate JPEG height
+    frame_h = int(r.value('len(sentai.camera.peek_col(40)[2])'))
     bands = {}
     for cam in (0, 1):
-        t, miss = band_rows(loc['cams'][str(cam)], a.bits + 2, a.y0, a.y1)
+        jpeg_h = loc['cams'][str(cam)]['cam_size'][1]
+        scale = frame_h / float(jpeg_h)
+        print('cam%d: frame rows %d, locate rows %d, scale %.2f' % (cam, frame_h, jpeg_h, scale))
+        t, miss = band_rows(loc['cams'][str(cam)], a.bits + 2, a.y0, a.y1, cam_h=frame_h, scale=scale)
         if t is None:
             print('cam%d does not see band %d of the stack: shrink --y0/--y1' % (cam, miss)); return
         bands[cam] = t
@@ -125,7 +132,7 @@ def main():
     frames = []
     t_end = time.time() + a.seconds
     while time.time() < t_end:
-        out = r.cmd('print(_tc(%d, _bands))' % a.batch, 60)
+        out = r.cmd('print(_tc(%d, _bands, %d))' % (a.batch, a.byte), 60)
         line = [l for l in out.replace('\r', '').split('\n') if l.strip().startswith('[')]
         if not line:
             print('no data:', out[:200]); break

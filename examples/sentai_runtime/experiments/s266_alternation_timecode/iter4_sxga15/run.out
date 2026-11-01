@@ -1,0 +1,29 @@
+set_hw(1280, 960) -> 0
+init(1, 15) -> 0
+period_us 16716 resolution (1280, 960) ratio_unit 1
+== locate (iter4_sxga15) ==
+cam0: 11 captures in 16.4 s
+cam0: cells 204/208, residual median 0.64 px max 2.25 px, valid 81 %, sees screen rect x=856 y=0 w=1064 h=966
+cam1: 11 captures in 16.9 s
+cam1: cells 274/283, residual median 0.93 px max 3.24 px, valid 100 %, sees screen rect x=357 y=42 w=1304 h=942
+common screen rect: x=856 y=42 w=804 h=924
+== timecode (iter4_sxga15, exp 50 lines, gain 160/16) ==
+  n, dt.mean() / 1000, dt.std() / 1000, 1e6 / dt.mean(), np.mean(steps), rep, big, mis, amb))
+  ret = ret.dtype.type(ret / rcount)
+  ret = _var(a, axis=axis, dtype=dtype, out=out, ddof=ddof,
+  arrmean = um.true_divide(arrmean, div, out=arrmean,
+  ret = ret.dtype.type(ret / rcount)
+  exp_step = 2 * 60.0 / (1e6 / dt.mean()) if dt.mean() > 0 else 0
+  verdict = {'per_camera': percam, 'frames': n, 'interval_ms': float(dt.mean() / 1000), 'fps': float(1e6 / dt.mean()),
+cam0: frame rows 960, locate rows 480, scale 2.00
+cam1: frame rows 960, locate rows 480, scale 2.00
+ratio(1,1) -> (0, 0)  ratio_unit 1  stats phase_us 21
+no data: Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+  File "<string>", line 8, in _tc
+TypeError: function expected at most 1 arguments, got 2
+frames 0 | interval mean nan ms sd nan (nan fps) | code step: mean nan, repeats 0, >3 0 | orientation vs tag mismatches 0, ambiguous 0
+tag sequence (first 24):   orientation (first 24): 
+codes (first 16): []
+cam0: 0 frames, interval 0.00 ms, code steps {} (expected 0.00), stale(0) or skipped(>2): 0
+cam1: 0 frames, interval 0.00 ms, code steps {} (expected 0.00), stale(0) or skipped(>2): 0

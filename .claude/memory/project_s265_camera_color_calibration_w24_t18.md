@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 0213fcbf-a574-4225-a0ea-7da5f47ce784
-  modified: 2026-11-01T21:08:23.678Z
+  modified: 2026-11-01T21:24:22.597Z
 ---
 
 **EXP-s265 `examples/sentai_runtime/experiments/s265_camera_color_calibration/` (W24-T18), board 58eb build 1756, no firmware change.**
@@ -87,8 +87,16 @@ Operator goals: each camera as close as possible to the real (sRGB) colours, eve
   Mode sweep (`run_mode.sh`): VGA45 PASS (0 broken codes) — but a mode change shifts the image ~20 rows,
   so locate.py must be re-run per mode; VGA60 inconclusive (7 % frames split between two display frames
   = display tearing at camera period ≈ display period, or camera mix; needs a redundant two-copy code);
-  SXGA: `camera.save_jpeg` fails ("cam capture fail") at 1280x960 → locate impossible; use 2x VGA
-  homography and verify `peek_col` (DEMO_CAMERA_WIDTH/HEIGHT constants) at SXGA. Exposure per mode:
-  lines scale with the line time (VGA45 150 lines ≈ 3.4 ms, VGA60 200 lines).
+  SXGA: TWO FIRMWARE BUGS fixed in builds 1757–1760 — `sentai_cam_capture_jpeg` used compile-time
+  DEMO_CAMERA_WIDTH/HEIGHT as the source size (every SXGA JPEG → -5 "cam capture fail"; now runtime
+  g_runtime_cam_w/h, SXGA JPEG encoded at 640x480, packed → -7) and `sentai_cam_peek_col` used the VGA
+  pitch/bounds (two interleaved columns at SXGA; now runtime geometry, packed pitch (w/2)*4, rows =
+  g_runtime_cam_h, new 2nd arg `byte`: 0 = B/X, 1 = Y1 packed). Bug class: compile-time VGA constants
+  in paths that run at SXGA/packed — a review agent audited it (see s266 README / its report).
+  SXGA15 legacy 1:1: cadence 66.86 ms sd 0.01, cam1 240/240, 0 stale (PASS); cam0 column 40 ambiguous
+  at SXGA (geometry differs from 2x VGA homography, open). SXGA30 packed: the REPL `peek_col` loop only
+  keeps up with every other 2.5 MB frame → use `camera.frame_log(64)` for cadence; cam1 packed codes
+  garbage (open). Exposure per mode: lines scale with line time (VGA45 150 lines ≈ 3.4 ms, VGA60 200,
+  SXGA15 50, SXGA30 100).
 - Open: production integration (register set per camera after init, group write 0x3212), the linear
   pipeline option above, print target under one steady illuminant, s266 soak / VGA45 / select().
