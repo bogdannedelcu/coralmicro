@@ -1,0 +1,10 @@
+>>> import sentai
+
+>>> print(sentai.camera.select(0))
+
+0
+>>> print(sentai.camera.save_jpeg("/s265_sl.jpg", 90))
+
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+RuntimeError: cam capture fail

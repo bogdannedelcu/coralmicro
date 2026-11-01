@@ -2,7 +2,7 @@
 
 **WBS**: OP-S10-W24-T19
 **Started**: 2026-11-01 (late evening, scaffold + first run)
-**Status**: 🟢 iter1 PASS (30 s); soak and VGA45 pending
+**Status**: 🟢 VGA30 and VGA45 PASS (30 s each); VGA60 inconclusive (display tearing vs camera mix undecidable without a redundant code); SXGA not run (JPEG capture fails at SXGA, locate needs the 2x homography)
 **Board**: 58eb, build 1756, VGA 30 fps, both OV5640, Kamvas 16 as the time-code display
 
 ## Claim
@@ -80,6 +80,33 @@ not the camera's (`display_log.csv`: 59.2 Hz, sd 1.8 ms, max gap 43 ms).
 Follow-ups: pre-render the stripe pixbufs so the display holds 60.00 Hz; decode each frame with
 both band tables on the host (explicit cross-check of identity); repeat at VGA45 (`init(0, 45)`) and
 with `select()` switching instead of `ratio(1,1)`; 60 s soak.
+
+## iter2–iter5 — mode sweep (`run_mode.sh`: reset → init → locate at that mode → time code, 30 s each)
+
+A mode change shifts the image vertically by ~20 rows (sensor window differs per mode), so the
+band tables must come from a localisation made **in the same mode** (the first VGA45 attempt with
+the VGA30 homographies mis-decoded cam0; `iter2_vga45` was redone with its own locate).
+
+| mode | capture interval (FB-done) | frames / 30 s | decoded | per-camera code steps | sequence breaks | verdict |
+|---|---|---|---|---|---|---|
+| VGA 30 (iter1) | 33.43 ms, sd 0.01 | 960 | 960 | 4 (437/479, 391/479), rest 3/5 | 0 stale, 2 skips (display gaps) | **PASS** |
+| VGA 45 (iter2, exp 3.4 ms, gain 10x) | 22.38 ms, sd 1.44; 6 intervals of 45 ms | 1440 | 1440 | {3: 463, 2: 248} / {3: 414, 2: 267, 4: 25} vs 2.69 expected | **0** broken codes | **PASS** (6 dequeues missed by the Python loop, 0.4 %) |
+| VGA 60 (iter3, exp 3.4 ms, gain 12x) | 16.92 ms, sd 2.15; 14 × 33 ms, 4 × 50 ms | 1800 | 1800 | 2 dominant on both | **134** broken (cam0 47, cam1 87) | inconclusive, see below |
+| SXGA 15 legacy / SXGA 30 packed (iter4/5) | — | — | — | — | — | not run: `save_jpeg` → "cam capture fail" at SXGA, so `locate.py` could not run; needs the SXGA homography (= 2 × VGA) and a check of `peek_col` at 1280x960 |
+
+VGA60: the broken frames show band means like `[0, 0, 0, 141, 129, 0, 144, 141, 140, 115, 41, 78]`
+— the white marker band reads black and bands in the lower part are intermediate: the frame
+contains two different display frames, split at a horizontal line.  With the camera period equal
+to the display period the tear line stays put, so it hits the code every frame; at 45 and 30 fps
+the beat moves it and the 3 ms exposure rarely straddles a refresh.  The firmware side is regular
+(tags 0 1 0 1, intervals 16.9 ms), so this is the display (pixbuf swap not vsynced under XWayland)
+and/or the rolling shutter reading across the refresh, not a stale or mixed camera frame — but
+the current code cannot prove that: a camera-mixed frame would also show a split.  To settle it
+the code needs redundancy (the stack drawn twice, top and bottom half: a display tear corrupts
+one copy, a camera MUX mix would show the *other camera's* reversed stack in the lower part) or a
+vsynced display path.  The 1 % of 33/50 ms intervals at 60 fps are dequeues the MicroPython loop
+missed (one `peek_col` per frame at 60 Hz is at the REPL loop's limit); they are not drops in the
+CSI path.
 
 ## Files
 

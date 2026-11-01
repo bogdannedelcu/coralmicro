@@ -163,7 +163,24 @@ def main():
     print('tag sequence (first 24):', ''.join('0' if t == 0 else '1' for t in tags[:24]),
           ' orientation (first 24):', ''.join('U' if o == 'upright' else 'R' if o == 'rotated' else '?' for o in orient[:24]))
     print('codes (first 16):', codes[:16])
-    verdict = {'frames': n, 'interval_ms': float(dt.mean() / 1000), 'fps': float(1e6 / dt.mean()),
+    # per-camera statistics (the firmware tag selects the band table, so this is the real test)
+    percam = {}
+    for cam in (0, 1):
+        sel = [i for i in range(n) if tags[i] == cam and codes[i] is not None]
+        c = [codes[i] for i in sel]; t = ts[sel]
+        st = [((b - a_) % (1 << a.bits)) for a_, b in zip(c, c[1:])]
+        hist = {}
+        for s in st:
+            hist[s] = hist.get(s, 0) + 1
+        dtc = (np.diff(t) & 0xFFFFFFFF) / 1000.0 if len(t) > 1 else np.array([0.0])
+        exp_step = 2 * 60.0 / (1e6 / dt.mean()) if dt.mean() > 0 else 0
+        bad = sum(v for k, v in hist.items() if k == 0 or k > exp_step + 2)
+        percam[cam] = {'frames': len(sel), 'interval_ms': float(dtc.mean()), 'step_hist': {int(k): int(v) for k, v in sorted(hist.items())},
+                       'expected_step': round(exp_step, 2), 'stale_or_skipped': int(bad)}
+        top = sorted(hist.items(), key=lambda kv: -kv[1])[:4]
+        print('cam%d: %d frames, interval %.2f ms, code steps %s (expected %.2f), stale(0) or skipped(>%.0f): %d' % (
+            cam, len(sel), dtc.mean(), dict(top), exp_step, exp_step + 2, bad))
+    verdict = {'per_camera': percam, 'frames': n, 'interval_ms': float(dt.mean() / 1000), 'fps': float(1e6 / dt.mean()),
                'code_step_mean': float(np.mean(steps)) if steps else None, 'repeats': rep, 'big_steps': big,
                'mismatches': mis, 'ambiguous': amb}
     json.dump(verdict, open(os.path.join(a.out, 'verdict.json'), 'w'), indent=1)

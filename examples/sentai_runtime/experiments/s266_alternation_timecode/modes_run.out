@@ -1,0 +1,59 @@
+init(1, 45) -> 0
+period_us 22286 resolution (640, 480) ratio_unit 1
+== locate (iter2_vga45) ==
+cam0: 11 captures in 15.6 s
+cam0: cells 204/208, residual median 0.65 px max 2.00 px, valid 81 %, sees screen rect x=857 y=2 w=1063 h=966
+cam1: 11 captures in 15.8 s
+cam1: cells 275/283, residual median 0.95 px max 3.03 px, valid 100 %, sees screen rect x=357 y=46 w=1302 h=939
+common screen rect: x=857 y=46 w=801 h=922
+== timecode (iter2_vga45, exp 150 lines, gain 160/16) ==
+ratio(1,1) -> (0, 0)  ratio_unit 1  stats phase_us 18
+frames 1440 | interval mean 22.38 ms sd 1.44 (44.7 fps) | code step: mean 1.32, repeats 285, >3 0 | orientation vs tag mismatches 0, ambiguous 0
+display frames per capture (from code): 1.325  -> implied capture rate 45.30 fps at 60 Hz
+tag sequence (first 24): 010101010101010101010101  orientation (first 24): UUUUUUUUUUUUUUUUUUUUUUUU
+codes (first 16): [316, 317, 319, 320, 322, 322, 324, 325, 327, 328, 330, 330, 332, 333, 335, 336]
+cam0: 720 frames, interval 44.75 ms, code steps {3: 463, 2: 248, 1: 5, 5: 2} (expected 2.69), stale(0) or skipped(>5): 3
+cam1: 720 frames, interval 44.75 ms, code steps {3: 414, 2: 267, 4: 25, 1: 8} (expected 2.69), stale(0) or skipped(>5): 5
+init(1, 60) -> 0
+period_us 22288 resolution (640, 480) ratio_unit 1
+== locate (iter3_vga60) ==
+cam0: 11 captures in 15.7 s
+cam0: cells 206/208, residual median 0.72 px max 2.33 px, valid 81 %, sees screen rect x=858 y=3 w=1062 h=966
+cam1: 11 captures in 15.8 s
+cam1: cells 277/286, residual median 0.92 px max 2.96 px, valid 100 %, sees screen rect x=355 y=46 w=1303 h=939
+common screen rect: x=858 y=46 w=800 h=922
+== timecode (iter3_vga60, exp 200 lines, gain 192/16) ==
+ratio(1,1) -> (0, 0)  ratio_unit 1  stats phase_us None
+frames 1800 | interval mean 16.92 ms sd 2.15 (59.1 fps) | code step: mean 27.76, repeats 499, >3 96 | orientation vs tag mismatches 1800, ambiguous 0
+display frames per capture (from code): 27.760  -> implied capture rate 2.16 fps at 60 Hz
+tag sequence (first 24): 010101010101010101010101  orientation (first 24): RRRRRRRRRRRRRRRRRRRRRRRR
+codes (first 16): [322, 323, 324, 325, 326, 327, 695, 329, 330, 331, 332, 333, 334, 335, 336, 337]
+cam0: 900 frames, interval 33.84 ms, code steps {2: 667, 1: 74, 3: 62, 4: 5} (expected 2.03), stale(0) or skipped(>4): 91
+cam1: 900 frames, interval 33.84 ms, code steps {2: 826, 1: 37, 3: 27, 4: 6} (expected 2.03), stale(0) or skipped(>4): 3
+set_hw(1280, 960) -> 0
+init(1, 15) -> 0
+period_us 22288 resolution (1280, 960) ratio_unit 1
+== locate (iter4_sxga15) ==
+== timecode (iter4_sxga15, exp 50 lines, gain 160/16) ==
+Traceback (most recent call last):
+  File "/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s266_alternation_timecode/run_timecode.py", line 190, in <module>
+    main()
+    ~~~~^^
+  File "/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s266_alternation_timecode/run_timecode.py", line 107, in main
+    loc = json.load(open(a.locate))
+                    ~~~~^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'iter4_sxga15/locate.json'
+set_hw(1280, 960) -> 0
+packed420(1) -> 1
+init(1, 30) -> 0
+period_us 22288 resolution (1280, 960) ratio_unit 1
+== locate (iter5_sxga30) ==
+== timecode (iter5_sxga30, exp 100 lines, gain 160/16) ==
+Traceback (most recent call last):
+  File "/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s266_alternation_timecode/run_timecode.py", line 190, in <module>
+    main()
+    ~~~~^^
+  File "/home/bogdan/work/coralmicro/examples/sentai_runtime/experiments/s266_alternation_timecode/run_timecode.py", line 107, in main
+    loc = json.load(open(a.locate))
+                    ~~~~^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'iter5_sxga30/locate.json'

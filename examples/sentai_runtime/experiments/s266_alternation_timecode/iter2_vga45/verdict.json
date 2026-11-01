@@ -1,0 +1,40 @@
+{
+ "per_camera": {
+  "0": {
+   "frames": 720,
+   "interval_ms": 44.754927677329626,
+   "step_hist": {
+    "1": 5,
+    "2": 248,
+    "3": 463,
+    "5": 2,
+    "6": 1
+   },
+   "expected_step": 2.69,
+   "stale_or_skipped": 3
+  },
+  "1": {
+   "frames": 720,
+   "interval_ms": 44.75492211404728,
+   "step_hist": {
+    "0": 1,
+    "1": 8,
+    "2": 267,
+    "3": 414,
+    "4": 25,
+    "5": 3,
+    "6": 1
+   },
+   "expected_step": 2.69,
+   "stale_or_skipped": 5
+  }
+ },
+ "frames": 1440,
+ "interval_ms": 22.377410701876304,
+ "fps": 44.68792271467547,
+ "code_step_mean": 1.3245309242529535,
+ "repeats": 285,
+ "big_steps": 0,
+ "mismatches": 0,
+ "ambiguous": 0
+}

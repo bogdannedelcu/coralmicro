@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 0213fcbf-a574-4225-a0ea-7da5f47ce784
-  modified: 2026-11-01T20:57:49.950Z
+  modified: 2026-11-01T21:08:23.678Z
 ---
 
 **EXP-s265 `examples/sentai_runtime/experiments/s265_camera_color_calibration/` (W24-T18), board 58eb build 1756, no firmware change.**
@@ -84,5 +84,11 @@ Operator goals: each camera as close as possible to the real (sRGB) colours, eve
   s265 homographies; VGA 30 fps ratio(1,1): 960 frames / 30 s, 33.43 ms, 0 stale/dup, per-camera step
   4 display frames, cam1 one display frame later (rolling shutter + rotated module). Display jitter 59.2 Hz
   ± 1.8 ms is the residual. Exposure 3 ms / gain 6x for the code; cameras restored to the Kamvas sets after.
+  Mode sweep (`run_mode.sh`): VGA45 PASS (0 broken codes) — but a mode change shifts the image ~20 rows,
+  so locate.py must be re-run per mode; VGA60 inconclusive (7 % frames split between two display frames
+  = display tearing at camera period ≈ display period, or camera mix; needs a redundant two-copy code);
+  SXGA: `camera.save_jpeg` fails ("cam capture fail") at 1280x960 → locate impossible; use 2x VGA
+  homography and verify `peek_col` (DEMO_CAMERA_WIDTH/HEIGHT constants) at SXGA. Exposure per mode:
+  lines scale with the line time (VGA45 150 lines ≈ 3.4 ms, VGA60 200 lines).
 - Open: production integration (register set per camera after init, group write 0x3212), the linear
   pipeline option above, print target under one steady illuminant, s266 soak / VGA45 / select().
