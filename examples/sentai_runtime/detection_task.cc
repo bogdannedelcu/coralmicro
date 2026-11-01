@@ -98,6 +98,15 @@ extern "C" {
     // EXP-s260 option B: packed YUV420 camera buffer -> 1.5 B/px byte-drop.
     int  sentai_pxp_pack420_drop(const uint8_t* src, int w2, int h, uint8_t* dst);
     extern volatile int g_sentai_cam_packed420;
+    // EXP-s262: OCRAM input ring (libs/tpu/edgetpu_driver.cc).
+    int      sentai_tpu_ring_setup(uint8_t* base, uint32_t slot_bytes, uint32_t nslots);
+    void     sentai_tpu_ring_enable(int on);
+    int      sentai_tpu_ring_enabled(void);
+    uint32_t sentai_tpu_ring_slot_bytes(void);
+    int      sentai_tpu_ring_begin_frame(const uint8_t* stream_base, uint32_t total);
+    int      sentai_tpu_ring_produce_wait(uint32_t timeout_ms);
+    uint8_t* sentai_tpu_ring_slot_ptr(void);
+    void     sentai_tpu_ring_produced(void);
     int  sentai_tpu_invoke_with_inputs2(uint8_t* uv_buf, uint8_t* y_buf);
     extern volatile int g_sentai_yuv_dual;   // set by the loader (>=2 inputs)
     // s240: per-invoke timing telemetry via the flight recorder.  Fast
@@ -514,6 +523,25 @@ extern "C" int sentai_pipeline_dump_staging(const char* path, int slot, uint32_t
     if (!buf) return -2;
     return sentai_fs_write(path, buf, (int)nbytes) ? (int)nbytes : -3;
 }
+
+// EXP-s262: OCRAM input ring for the packed-YUV420 SXGA path.  Reuses the
+// 921 KB OCRAM `.tpu_input` buffer (idle at SXGA, where the staging pair is
+// in SDRAM) as 3 slots of 128 packed rows (128 x 640 x 3 = 245 760 B each,
+// 737 280 B total).  128 rows x 5 = the 1 228 800-byte "Y" tensor exactly, so
+// the Y/UV tensor boundary falls on a slot boundary.
+static int s_ring_rows = 128;
+extern "C" int sentai_pipeline_ocram_ring_set(int on) {
+    if (!on) { sentai_tpu_ring_enable(0); return 0; }
+    const int cw = yuv_cam_w(), chh = yuv_cam_h();
+    if (cw <= 0 || chh <= 0) return -1;
+    const uint32_t slot = (uint32_t)s_ring_rows * (uint32_t)(cw / 2) * 3u;
+    if (3u * slot > (uint32_t)kMaxStagingSize) return -2;
+    int rc = sentai_tpu_ring_setup(s_tpu_input_buf_single, slot, 3u);
+    if (rc) return rc;
+    sentai_tpu_ring_enable(1);
+    return 0;
+}
+extern "C" int sentai_pipeline_ocram_ring_get(void) { return sentai_tpu_ring_enabled(); }
 
 // EXP-s261: staging buffer pointer for out-of-pipeline PXP experiments (the
 // pipeline must be stopped; the caller owns the PXP).  Slot 0/1.
@@ -1153,6 +1181,7 @@ static void prep_task_fn(void* /*param*/) {
         }
 #endif
         int rc;
+        bool ring_streamed = false;   // EXP-s262: frame already signalled to InferTask
         if (g_sentai_yuv_dual) {
             // s240/YUV420: one PXP pass splits the XYUV frame into Y (dst_buf[0],
             // W x H) + UV (dst_buf[Y_SIZE], W/2 x H/2 x 2).  `raw` MUST be XYUV
@@ -1172,7 +1201,33 @@ static void prep_task_fn(void* /*param*/) {
                 continue;
             }
             pipe_trace(4, (uint16_t)(s_prep_count_dt & 1u), s_prep_count_dt);
-            if (g_sentai_cam_packed420) {
+            if (g_sentai_cam_packed420 && sentai_tpu_ring_enabled() &&
+                yuv_total_bytes() > kMaxStagingSize) {
+                // EXP-s262: STREAMING prep.  Publish the frame to InferTask
+                // right away (the driver maps the staging pointer to the OCRAM
+                // ring), then produce the packed rows slice by slice into ring
+                // slots while the USB transfer consumes them.  The metadata /
+                // signal block further down is skipped for this frame.
+                ring_streamed = true;
+                sentai_tpu_ring_begin_frame(dst_buf, (uint32_t)yuv_total_bytes());
+                s_stg_w = w; s_stg_h = h; s_stg_ch = ch; s_stg_total = total;
+                s_stg_frame_seq = sentai_cam_get_frame_seq();
+                s_stg_cam_id = prep_cam_id; s_last_grabbed_cam_id = prep_cam_id;
+                s_last_prep_frame_tick = xTaskGetTickCount();
+                s_prep_count_dt++;
+                if (direct) { xSemaphoreGive(s_sem_prep_done_c); }
+                else        { s_prep_count_dt--; xSemaphoreGive(s_sem_prep_done); }
+                rc = 0;
+                const int w2 = cw / 2;
+                const uint32_t src_pitch = (uint32_t)w2 * 4u;
+                for (int r = 0; r < chh && rc == 0; r += s_ring_rows) {
+                    const int rows = (chh - r) < s_ring_rows ? (chh - r) : s_ring_rows;
+                    if (sentai_tpu_ring_produce_wait(800) != 0) { rc = -20; break; }
+                    rc = sentai_pxp_pack420_drop(raw + (uint32_t)r * src_pitch, w2, rows,
+                                                 sentai_tpu_ring_slot_ptr());
+                    sentai_tpu_ring_produced();
+                }
+            } else if (g_sentai_cam_packed420) {
                 // EXP-s260 option B: camera frame is packed YUV420 (2 B/px,
                 // [C,Y1,Y2,0] per pixel pair); the PXP drops the zero byte
                 // -> [C,Y1,Y2] = 1.5 B/px, same byte count as Y + UV, into
@@ -1237,6 +1292,7 @@ static void prep_task_fn(void* /*param*/) {
         s_prep_stage_quant_ms    += (uint32_t)(t_quant_end - t_quant_start);
         s_prep_stage_total_ms    += (uint32_t)(t_quant_end - t_iter_start);
 
+        if (!ring_streamed) {
         // Publish metadata (safe: InferTask won't read until we signal)
         s_stg_w  = w;
         s_stg_h  = h;
@@ -1260,6 +1316,7 @@ static void prep_task_fn(void* /*param*/) {
             s_prep_count_dt--;
             xSemaphoreGive(s_sem_prep_done);
         }
+        }   // !ring_streamed (EXP-s262: already signalled before producing)
 #if defined(SENTAI_PLATFORM_SIM) || defined(SENTAI_ARM_EMU)
         if (s_sim_prep_grab_logs <= 8) {
             sentai_logf("det_prep", "frame signaled seq=%lu",

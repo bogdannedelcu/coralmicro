@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 0213fcbf-a574-4225-a0ea-7da5f47ce784
-  modified: 2026-11-01T09:01:37.720Z
+  modified: 2026-11-01T10:18:23.216Z
 ---
 
 **EXP-s260 (W24-T16) + EXP-s261 (W24-T15 step 1), builds 1733–1741, board 58eb, one camera.**
@@ -56,6 +56,23 @@ metadata:
   Why 28.6 not 30 before: PXP 32.5 + 1 ms hand-off > 33.2 ms period → one frame
   skipped every ~14 (deterministic slip, not jitter); CSI 74 + PXP 132 MB/s = SEMC
   practical limit.
+- **OCRAM input ring (s262, builds 1749–1752, `pipeline.ocram_ring(1)`):** 3 × 245 760 B
+  slots in the idle `.tpu_input` OCRAM buffer; PrepTask produces packed rows per slice,
+  the TPU driver's SendInputs maps the staging pointer to ring slots, waits per slice,
+  releases per slot, one frame in flight (`frame_done` gate — without it the 2-frame
+  cap reset the ring mid-transfer → desync).  SXGA option B **13.0 → 15.6 fps**,
+  invoke 74 → 61 ms (= 35 MB/s intake), 0 errors, outputs byte-identical to staging.
+  Model hint order: Y in 3 overlapping tiles (9-row halo), then UV.  URB 36 vs 120 KB
+  no difference.  SDRAM per SXGA frame now 4.9 MB (CSI + PXP read only).
+- **CRITICAL BUG FIXED (build 1751):** the direct-tensor path (default 1) never fed the
+  Edge TPU: `input_tensor(k)->data` patch does not reach the EvalTensor the op reads
+  (TFLM copies the pointer at allocation) → output identical for bars/natural/gradient
+  and equal to a bare invoke on the arena.  Fix: `g_sentai_tpu_input_override[k]` set
+  by the invoke wrappers, consumed in `EdgeTpuExecutable::Invoke` (+ int8 transform on
+  it).  Speed numbers unaffected; detection quality on that path before 2026-11-01 was
+  on stale data.  Test: s262 `input_path_check2.py` (output fingerprint per scene).
+- ch569w lessons checked: SentAI already opens the TPU at kMax (GCB 500/AXI 250/8051
+  500); instructions are re-sent per inference by design; warm Coral stalls M3 run-state.
 - "Retrain" for option B is probably unnecessary: packed `[C,Y1,Y2]` is a
   space-to-depth of Y along x plus U/V row interleave, so the planar stem's weights
   re-index exactly into an H×W/2×3 stem with stride (2,1); only the TPU compiler

@@ -1,0 +1,184 @@
+>>> print("LS", sentai.fs.listdir("/models"))
+print("LS", sentai.fs.listdir("/models"))
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+AttributeError: 'module' object has no attribute 'listdir'
+>>> 
+>>> print("LOAD", sentai.tpu.load("/models/c2f_yuv420_sxga_relu_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load("/models/c2f_yuv420_sxga_relu_int8_edgetpu.tflite"))
+Model loaded: 516960 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x0296f8b3eb875be6
+Inputs: 2
+  in[0] uint8[1,480,640,2] (614400 bytes)  scale=0.00392157 zp=0
+  in[1] uint8[1,960,1280,1] (1228800 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.00034542  zero_point=134
+  [1] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.00012524  zero_point=83
+Arena used: 1835 / 8192 KB
+Model name: c2f_yuv420_sxga_relu_int8_edgetp
+LOAD 0
+>>> 
+>>> sentai.tpu.invoke()
+sentai.tpu.invoke()
+71
+>>> 
+>>> print("TR", sentai.tpu.trace(1)); print("INV", sentai.tpu.invoke()); print("TR", sentai.tpu.trace(0))
+print("TR", sentai.tpu.trace(1)); print("INV", sentai.tpu.invoke()); print("TR", sentai.tpu.trace(0))
+TR True
+[tpu] N v1=0 v2=261728
+[bulkout] B v1=8 v2=8
+[bulkout] b v1=8 v2=0
+[bulkout] B v1=36864 v2=261728
+[bulkout] b v1=36864 v2=224864
+[bulkout] B v1=36864 v2=224864
+[bulkout] b v1=36864 v2=188000
+[bulkout] B v1=36864 v2=188000
+[bulkout] b v1=36864 v2=151136
+[bulkout] B v1=36864 v2=151136
+[bulkout] b v1=36864 v2=114272
+[bulkout] B v1=36864 v2=114272
+[bulkout] b v1=36864 v2=77408
+[bulkout] B v1=36864 v2=77408
+[bulkout] b v1=36864 v2=40544
+[bulkout] B v1=36864 v2=40544
+[bulkout] b v1=36864 v2=3680
+[bulkout] B v1=3680 v2=3680
+[bulkout] b v1=3680 v2=0
+[tpu] I name=serving_default_y:0 bytes=416000 off=0
+[bulkout] B v1=8 v2=8
+[bulkout] b v1=8 v2=0
+[bulkout] B v1=36864 v2=416000
+[bulkout] b v1=36864 v2=379136
+[bulkout] B v1=36864 v2=379136
+[bulkout] b v1=36864 v2=342272
+[bulkout] B v1=36864 v2=342272
+[bulkout] b v1=36864 v2=305408
+[bulkout] B v1=36864 v2=305408
+[bulkout] b v1=36864 v2=268544
+[bulkout] B v1=36864 v2=268544
+[bulkout] b v1=36864 v2=231680
+[bulkout] B v1=36864 v2=231680
+[bulkout] b v1=36864 v2=194816
+[bulkout] B v1=36864 v2=194816
+[bulkout] b v1=36864 v2=157952
+[bulkout] B v1=36864 v2=157952
+[bulkout] b v1=36864 v2=121088
+[bulkout] B v1=36864 v2=121088
+[bulkout] b v1=36864 v2=84224
+[bulkout] B v1=36864 v2=84224
+[bulkout] b v1=36864 v2=47360
+[bulkout] B v1=36864 v2=47360
+[bulkout] b v1=36864 v2=10496
+[bulkout] B v1=10496 v2=10496
+[bulkout] b v1=10496 v2=0
+[tpu] I name=serving_default_y:0 bytes=421120 off=404480
+[bulkout] B v1=8 v2=8
+[bulkout] b v1=8 v2=0
+[bulkout] B v1=36864 v2=421120
+[bulkout] b v1=36864 v2=384256
+[bulkout] B v1=36864 v2=384256
+[bulkout] b v1=36864 v2=347392
+[bulkout] B v1=36864 v2=347392
+[bulkout] b v1=36864 v2=310528
+[bulkout] B v1=36864 v2=310528
+[bulkout] b v1=36864 v2=273664
+[bulkout] B v1=36864 v2=273664
+[bulkout] b v1=36864 v2=236800
+[bulkout] B v1=36864 v2=236800
+[bulkout] b v1=36864 v2=199936
+[bulkout] B v1=36864 v2=199936
+[bulkout] b v1=36864 v2=163072
+[bulkout] B v1=36864 v2=163072
+[bulkout] b v1=36864 v2=126208
+[bulkout] B v1=36864 v2=126208
+[bulkout] b v1=36864 v2=89344
+[bulkout] B v1=36864 v2=89344
+[bulkout] b v1=36864 v2=52480
+[bulkout] B v1=36864 v2=52480
+[bulkout] b v1=36864 v2=15616
+[bulkout] B v1=15616 v2=15616
+[bulkout] b v1=15616 v2=0
+[tpu] I name=serving_default_y:0 bytes=414720 off=814080
+[bulkout] B v1=8 v2=8
+[bulkout] b v1=8 v2=0
+[bulkout] B v1=36864 v2=414720
+[bulkout] b v1=36864 v2=377856
+[bulkout] B v1=36864 v2=377856
+[bulkout] b v1=36864 v2=340992
+[bulkout] B v1=36864 v2=340992
+[bulkout] b v1=36864 v2=304128
+[bulkout] B v1=36864 v2=304128
+[bulkout] b v1=36864 v2=267264
+[bulkout] B v1=36864 v2=267264
+[bulkout] b v1=36864 v2=230400
+[bulkout] B v1=36864 v2=230400
+[bulkout] b v1=36864 v2=193536
+[bulkout] B v1=36864 v2=193536
+[bulkout] b v1=36864 v2=156672
+[bulkout] B v1=36864 v2=156672
+[bulkout] b v1=36864 v2=119808
+[bulkout] B v1=36864 v2=119808
+[bulkout] b v1=36864 v2=82944
+[bulkout] B v1=36864 v2=82944
+[bulkout] b v1=36864 v2=46080
+[bulkout] B v1=36864 v2=46080
+[bulkout] b v1=36864 v2=9216
+[bulkout] B v1=9216 v2=9216
+[bulkout] b v1=9216 v2=0
+[tpu] I name=serving_default_uv:0 bytes=614400 off=0
+[bulkout] B v1=8 v2=8
+[bulkout] b v1=8 v2=0
+[bulkout] B v1=36864 v2=614400
+[bulkout] b v1=36864 v2=577536
+[bulkout] B v1=36864 v2=577536
+[bulkout] b v1=36864 v2=540672
+[bulkout] B v1=36864 v2=540672
+[bulkout] b v1=36864 v2=503808
+[bulkout] B v1=36864 v2=503808
+[bulkout] b v1=36864 v2=466944
+[bulkout] B v1=36864 v2=466944
+[bulkout] b v1=36864 v2=430080
+[bulkout] B v1=36864 v2=430080
+[bulkout] b v1=36864 v2=393216
+[bulkout] B v1=36864 v2=393216
+[bulkout] b v1=36864 v2=356352
+[bulkout] B v1=36864 v2=356352
+[bulkout] b v1=36864 v2=319488
+[bulkout] B v1=36864 v2=319488
+[bulkout] b v1=36864 v2=282624
+[bulkout] B v1=36864 v2=282624
+[bulkout] b v1=36864 v2=245760
+[bulkout] B v1=36864 v2=245760
+[bulkout] b v1=36864 v2=208896
+[bulkout] B v1=36864 v2=208896
+[bulkout] b v1=36864 v2=172032
+[bulkout] B v1=36864 v2=172032
+[bulkout] b v1=36864 v2=135168
+[bulkout] B v1=36864 v2=135168
+[bulkout] b v1=36864 v2=98304
+[bulkout] B v1=36864 v2=98304
+[bulkout] b v1=36864 v2=61440
+[bulkout] B v1=36864 v2=61440
+[bulkout] b v1=36864 v2=24576
+[bulkout] B v1=24576 v2=24576
+[bulkout] b v1=24576 v2=0
+[tpu] N v1=1 v2=35776
+[bulkout] B v1=8 v2=8
+[bulkout] b v1=8 v2=0
+[bulkout] B v1=35776 v2=35776
+[bulkout] b v1=35776 v2=0
+[obuf] StatefulPartitionedCall_1:1 dma=38400 alloc=38400 raw=38400 exec=1 ok
+[tpu] O name=StatefulPartitionedCall_1:1 bytes=38400 off=0
+[bulkin] S v1=1 v2=36864
+[bulkin] D v1=36864 v2=0
+[bulkin] S v1=1 v2=1536
+[bulkin] D v1=1536 v2=0
+[obuf] StatefulPartitionedCall_1:0 dma=9600 alloc=9600 raw=9600 exec=1 ok
+[tpu] O name=StatefulPartitionedCall_1:0 bytes=9600 off=0
+[bulkin] S v1=1 v2=9600
+[bulkin] D v1=9600 v2=0
+INV 67
+TR False
+>>> 

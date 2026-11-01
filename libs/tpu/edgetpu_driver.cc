@@ -1233,9 +1233,208 @@ extern "C" volatile uint32_t g_sentai_tpu_input_done_byte_target = 0;
 extern "C" volatile uint32_t g_sentai_tpu_input_done_us = 0;   // W24-T12: GPT1 us of the last early release
 static   volatile uint32_t   s_sentai_tpu_input_done_bytes_acc   = 0;
 
+// ===========================================================================
+// EXP-s262 / OP-S10-W24-T15 step 3: OCRAM input ring.
+//
+// The producer (PrepTask) writes the TPU input stream slice by slice into a
+// small ring of OCRAM slots instead of the big SDRAM staging buffer; the
+// consumer (this driver, inside SendInputs) streams each slice to the Edge
+// TPU as soon as it is filled and hands the slot back.  The executable keeps
+// passing the logical (SDRAM staging) pointer: SendInputs recognises data
+// inside [stream_base, stream_base + total) and maps the stream offset to the
+// ring.  Result: the EHCI reads OCRAM only (no SDRAM contention with the CSI),
+// the PXP writes OCRAM, and the USB transfer of a frame overlaps the PXP of
+// the SAME frame.  Semaphores: `free` (slots the producer may fill, initial
+// nslots) and `filled` (slices ready for the consumer).  Bounded waits; a
+// timeout fails the frame (counted), never blocks forever.
+// ===========================================================================
+static uint8_t*            s_ring_base        = nullptr;
+static uint32_t            s_ring_slot_bytes  = 0;
+static uint32_t            s_ring_nslots      = 0;
+static const uint8_t* volatile s_ring_stream  = nullptr;
+static volatile uint32_t   s_ring_total       = 0;
+static SemaphoreHandle_t   s_ring_filled      = nullptr;
+static SemaphoreHandle_t   s_ring_free        = nullptr;
+static SemaphoreHandle_t   s_ring_frame_done  = nullptr;   // binary: the consumer finished the previous frame's stream
+static volatile uint32_t   s_ring_produced    = 0;   // slices produced this frame
+static volatile uint32_t   s_ring_avail       = 0;   // slices the consumer has taken from `filled`
+extern "C" volatile int    g_sentai_tpu_ring_enabled = 0;
+extern "C" volatile uint32_t g_sentai_tpu_ring_frames = 0, g_sentai_tpu_ring_urbs = 0,
+                             g_sentai_tpu_ring_wait_us = 0, g_sentai_tpu_ring_waits = 0,
+                             g_sentai_tpu_ring_cons_timeouts = 0, g_sentai_tpu_ring_prod_timeouts = 0;
+
+extern "C" int sentai_tpu_ring_setup(uint8_t* base, uint32_t slot_bytes, uint32_t nslots) {
+  if (!base || slot_bytes == 0 || nslots < 2 || nslots > 8) return -1;
+  if (!s_ring_filled) {
+    s_ring_filled = xSemaphoreCreateCounting(64, 0);
+    s_ring_free   = xSemaphoreCreateCounting(8, 0);
+    s_ring_frame_done = xSemaphoreCreateBinary();
+    if (!s_ring_filled || !s_ring_free || !s_ring_frame_done) return -2;
+    xSemaphoreGive(s_ring_frame_done);
+  }
+  s_ring_base = base; s_ring_slot_bytes = slot_bytes; s_ring_nslots = nslots;
+  return 0;
+}
+extern "C" void sentai_tpu_ring_enable(int on) { g_sentai_tpu_ring_enabled = on ? 1 : 0; }
+extern "C" int  sentai_tpu_ring_enabled(void)  { return g_sentai_tpu_ring_enabled && s_ring_base != nullptr; }
+extern "C" uint32_t sentai_tpu_ring_slot_bytes(void) { return s_ring_slot_bytes; }
+extern "C" int sentai_tpu_ring_begin_frame(const uint8_t* stream_base, uint32_t total) {
+  if (!s_ring_base || !s_ring_filled) return -1;
+  /* ONE frame in flight: wait until the consumer has streamed the previous
+   * frame's last byte before the ring state is reset (the pipeline's
+   * two-frames-in-flight cap would otherwise let PrepTask reset the ring
+   * under a running transfer).  Bounded; on timeout reset anyway. */
+  if (xSemaphoreTake(s_ring_frame_done, pdMS_TO_TICKS(1500)) != pdTRUE) {
+    g_sentai_tpu_ring_prod_timeouts++;
+  }
+  while (xSemaphoreTake(s_ring_filled, 0) == pdTRUE) { }
+  while (xSemaphoreTake(s_ring_free, 0) == pdTRUE) { }
+  for (uint32_t i = 0; i < s_ring_nslots; i++) xSemaphoreGive(s_ring_free);
+  s_ring_produced = 0; s_ring_avail = 0;
+  s_ring_total  = total;
+  __atomic_store_n(&s_ring_stream, stream_base, __ATOMIC_RELEASE);
+  g_sentai_tpu_ring_frames++;
+  return 0;
+}
+extern "C" int sentai_tpu_ring_produce_wait(uint32_t timeout_ms) {
+  if (xSemaphoreTake(s_ring_free, pdMS_TO_TICKS(timeout_ms)) != pdTRUE) {
+    g_sentai_tpu_ring_prod_timeouts++;
+    if (g_sentai_tpu_ring_prod_timeouts <= 2) {
+      printf("[ring] produce_wait timeout: produced=%lu avail=%lu free=%lu filled=%lu nslots=%lu slot=%lu stream=%p total=%lu\r\n",
+             (unsigned long)s_ring_produced, (unsigned long)s_ring_avail,
+             (unsigned long)uxSemaphoreGetCount(s_ring_free), (unsigned long)uxSemaphoreGetCount(s_ring_filled),
+             (unsigned long)s_ring_nslots, (unsigned long)s_ring_slot_bytes, (const void*)s_ring_stream,
+             (unsigned long)s_ring_total);
+    }
+    return -1;
+  }
+  return 0;
+}
+extern "C" uint8_t* sentai_tpu_ring_slot_ptr(void) {
+  return s_ring_base + (s_ring_produced % s_ring_nslots) * s_ring_slot_bytes;
+}
+extern "C" void sentai_tpu_ring_produced(void) {
+  s_ring_produced++;
+  xSemaphoreGive(s_ring_filled);
+}
+extern "C" void sentai_tpu_ring_stats(uint32_t* out6) {
+  out6[0] = g_sentai_tpu_ring_frames; out6[1] = g_sentai_tpu_ring_urbs; out6[2] = g_sentai_tpu_ring_wait_us;
+  out6[3] = g_sentai_tpu_ring_waits; out6[4] = g_sentai_tpu_ring_cons_timeouts; out6[5] = g_sentai_tpu_ring_prod_timeouts;
+}
+extern "C" void sentai_tpu_ring_stats_reset(void) {
+  g_sentai_tpu_ring_frames = g_sentai_tpu_ring_urbs = g_sentai_tpu_ring_wait_us = 0;
+  g_sentai_tpu_ring_waits = g_sentai_tpu_ring_cons_timeouts = g_sentai_tpu_ring_prod_timeouts = 0;
+}
+
+#ifndef SENTAI_PLATFORM_SIM
+// One synchronous zero-copy bulk-OUT URB through the static bulk slot
+// (same machinery as BulkOutTransferStaged minus the memcpy).
+static bool RingUrbSend(usb_host_edgetpu_instance_t *usb, uint8_t endpoint,
+                        const uint8_t *src, uint32_t nn) {
+  InitBulkSema();
+  UsbTransferMetadata &meta = s_bulk_slot.meta;
+  void *tok = UrbArm(s_bulk_slot, s_bulk_sema, DescriptorTag::kInputActivations, nn);
+  (void)xSemaphoreTake(s_bulk_sema, 0);
+  usb_status_t st = USB_HostEdgeTpuBulkOutSend(usb, endpoint, const_cast<uint8_t*>(src), nn,
+                                               UrbBulkCallback, tok);
+  meta.submit_return_cyc = TpuUrbCycleNow();
+  meta.submit_return_us = TpuUrbMicrosNow();
+  if (st != kStatus_USB_Success) {
+    TpuUrbRecordSubmitFailure(DescriptorTag::kInputActivations, nn,
+                              TpuUrbDelta(meta.submit_return_cyc, meta.submit_start_cyc),
+                              TpuUrbDelta(meta.submit_return_us, meta.submit_start_us));
+    return false;
+  }
+  if (xSemaphoreTake(meta.sema, pdMS_TO_TICKS(2000)) == pdFALSE) {
+    TpuUrbRecordDone(meta, TpuUrbCycleNow(), TpuUrbMicrosNow(), true);
+    return false;
+  }
+  TpuUrbRecordDone(meta, TpuUrbCycleNow(), TpuUrbMicrosNow(), false);
+  g_sentai_tpu_ring_urbs++;
+  return meta.status == kStatus_USB_Success;
+}
+
+// Consumer: stream [off, off + length) of the logical input stream from the
+// ring.  Waits for each slice to be produced, never crosses a slot boundary
+// inside one URB, releases a slot when its last byte is on the wire.
+static bool RingSendStream(usb_host_edgetpu_instance_t *usb, uint8_t endpoint,
+                           uint32_t off, uint32_t length) {
+  uint32_t remain = length;
+  const uint32_t kChunk = g_sentai_tpu_chunk_size;
+  while (remain > 0) {
+    const uint32_t slice = off / s_ring_slot_bytes;
+    while (s_ring_avail <= slice) {
+      const uint32_t tw = TpuUrbMicrosNow();
+      if (xSemaphoreTake(s_ring_filled, pdMS_TO_TICKS(800)) != pdTRUE) {
+        g_sentai_tpu_ring_cons_timeouts++;
+        return false;
+      }
+      g_sentai_tpu_ring_wait_us += TpuUrbDelta(TpuUrbMicrosNow(), tw);
+      g_sentai_tpu_ring_waits++;
+      s_ring_avail++;
+    }
+    const uint32_t in_slot = off % s_ring_slot_bytes;
+    uint32_t nn = std::min<uint32_t>(kChunk, s_ring_slot_bytes - in_slot);
+    nn = std::min<uint32_t>(nn, remain);
+    const uint8_t *src = s_ring_base + (slice % s_ring_nslots) * s_ring_slot_bytes + in_slot;
+    if (!RingUrbSend(usb, endpoint, src, nn)) return false;
+    off += nn; remain -= nn;
+    if (in_slot + nn == s_ring_slot_bytes || off >= s_ring_total) {
+      xSemaphoreGive(s_ring_free);      // slot fully consumed
+    }
+    if (off >= s_ring_total) {
+      xSemaphoreGive(s_ring_frame_done);   // whole stream on the wire
+    }
+  }
+  return true;
+}
+#endif
+
 bool TpuDriver::SendInputs(const uint8_t *data, uint32_t length) const {
   g_sentai_tpu_send_inputs_calls++;
   g_sentai_tpu_send_inputs_bytes += length;
+#ifndef SENTAI_PLATFORM_SIM
+  {
+    const uint8_t* sb = __atomic_load_n(&s_ring_stream, __ATOMIC_ACQUIRE);
+    if (g_sentai_tpu_ring_enabled && s_ring_base && sb &&
+        !(data >= sb && data + length <= sb + s_ring_total)) {
+      static uint32_t s_ring_miss_prints = 0;
+      if (s_ring_miss_prints++ < 3)
+        printf("[ring] SendInputs outside stream: data=%p len=%lu stream=%p total=%lu\r\n",
+               (const void*)data, (unsigned long)length, (const void*)sb, (unsigned long)s_ring_total);
+    }
+    if (g_sentai_tpu_ring_enabled && s_ring_base && sb &&
+        data >= sb && data + length <= sb + s_ring_total) {
+      bool rok;
+      const uint32_t off = (uint32_t)(data - sb);
+      if (g_sentai_tpu_multi_ep_routing == 0) {
+        uint8_t header[8];
+        PrepareHeaderInto(DescriptorTag::kInputActivations, length, header);
+        if (!BulkOutTransfer(kSingleBulkOutEndpoint, header, 8,
+                             DescriptorTag::kInputActivations)) {
+          return false;
+        }
+        rok = RingSendStream(usb_instance_, kSingleBulkOutEndpoint, off, length);
+      } else {
+        rok = RingSendStream(usb_instance_, kOutEpInputActivations, off, length);
+      }
+      if (rok) {
+        const uint32_t target = g_sentai_tpu_input_done_byte_target;
+        bool fire;
+        if (target == 0u) { fire = true; }
+        else { s_sentai_tpu_input_done_bytes_acc += length; fire = (s_sentai_tpu_input_done_bytes_acc >= target); }
+        if (fire) {
+          SemaphoreHandle_t s = reinterpret_cast<SemaphoreHandle_t>(__atomic_exchange_n(
+              reinterpret_cast<void* volatile*>(&g_sentai_tpu_input_done_sema),
+              static_cast<void*>(nullptr), __ATOMIC_ACQ_REL));
+          if (s) { xSemaphoreGive(s); g_sentai_tpu_input_done_count++; g_sentai_tpu_input_done_us = TpuUrbMicrosNow(); }
+          s_sentai_tpu_input_done_bytes_acc = 0;
+        }
+      }
+      return rok;
+    }
+  }
+#endif
   // `.tpu_input` lives in OCRAM (V22 baseline), so SendInputs reads via
   // AXBS — not SEMC — and zero-copy is the production path.  When
   // zero-copy is disabled (diagnostic A/B), route input through the

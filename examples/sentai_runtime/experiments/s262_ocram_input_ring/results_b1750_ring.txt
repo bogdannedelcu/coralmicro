@@ -1,0 +1,1 @@
+{'phase': 'sxga_b_ring', 'cam_rate': 26.0, 'fps': 1.1, 'frames': 7, 'fail': 0, 'invoke_ms': 66.0, 'cycle_ms': 42.7, 'pxp_ms': 0.0, 'grab_ms': 0.0, 'sem_ms': 0.0, 'prep_total_ms': 0.0, 'prep_frames': 0, 'first_fail': 4294967295, 'urb': {'take_failed': 0, 'csr_timeouts': 0, 'desync_count': 0, 'usb_detach': 0}}

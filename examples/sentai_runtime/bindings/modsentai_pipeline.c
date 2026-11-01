@@ -827,6 +827,34 @@ static mp_obj_t mod_sentai_pipeline_dump_staging(size_t n_args, const mp_obj_t* 
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_pipeline_dump_staging_obj, 1, 3, mod_sentai_pipeline_dump_staging);
 
+// sentai.pipeline.ocram_ring([on]) -> int.  EXP-s262: stream the packed-YUV420
+// SXGA TPU input through a 3-slot OCRAM ring (PXP producer, USB consumer)
+// instead of the SDRAM staging buffer.  Camera must be initialised (geometry).
+// Raises on a negative setup code.
+extern int sentai_pipeline_ocram_ring_set(int on);
+extern int sentai_pipeline_ocram_ring_get(void);
+static mp_obj_t mod_sentai_pipeline_ocram_ring(size_t n_args, const mp_obj_t* args) {
+    if (n_args >= 1) {
+        int rc = sentai_pipeline_ocram_ring_set(mp_obj_is_true(args[0]) ? 1 : 0);
+        if (rc < 0) mp_raise_msg_varg(&mp_type_RuntimeError, MP_ERROR_TEXT("ocram_ring rc %d"), rc);
+    }
+    return mp_obj_new_int(sentai_pipeline_ocram_ring_get());
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_pipeline_ocram_ring_obj, 0, 1, mod_sentai_pipeline_ocram_ring);
+
+// sentai.pipeline.ring_stats([reset]) -> (frames, urbs, consumer_wait_us,
+// consumer_waits, consumer_timeouts, producer_timeouts).
+extern void sentai_tpu_ring_stats(uint32_t* out6);
+extern void sentai_tpu_ring_stats_reset(void);
+static mp_obj_t mod_sentai_pipeline_ring_stats(size_t n_args, const mp_obj_t* args) {
+    uint32_t v[6]; sentai_tpu_ring_stats(v);
+    if (n_args >= 1 && mp_obj_is_true(args[0])) sentai_tpu_ring_stats_reset();
+    mp_obj_t t[6];
+    for (int i = 0; i < 6; i++) t[i] = mp_obj_new_int_from_uint(v[i]);
+    return mp_obj_new_tuple(6, t);
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_pipeline_ring_stats_obj, 0, 1, mod_sentai_pipeline_ring_stats);
+
 static mp_obj_t mod_sentai_pipeline_infer_reset(void) {
     sentai_pipeline_infer_reset();
     return mp_const_none;
@@ -1452,6 +1480,8 @@ static const mp_rom_map_elem_t sentai_pipeline_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_infer_stats),     MP_ROM_PTR(&mod_sentai_pipeline_infer_stats_obj) },
     { MP_ROM_QSTR(MP_QSTR_trace), MP_ROM_PTR(&mod_sentai_pipeline_trace_obj) },
     { MP_ROM_QSTR(MP_QSTR_dump_staging), MP_ROM_PTR(&mod_sentai_pipeline_dump_staging_obj) },
+    { MP_ROM_QSTR(MP_QSTR_ocram_ring), MP_ROM_PTR(&mod_sentai_pipeline_ocram_ring_obj) },
+    { MP_ROM_QSTR(MP_QSTR_ring_stats), MP_ROM_PTR(&mod_sentai_pipeline_ring_stats_obj) },
     { MP_ROM_QSTR(MP_QSTR_infer_reset),     MP_ROM_PTR(&mod_sentai_pipeline_infer_reset_obj) },
     { MP_ROM_QSTR(MP_QSTR_invokes_per_frame), MP_ROM_PTR(&mod_sentai_pipeline_invokes_per_frame_obj) },
     { MP_ROM_QSTR(MP_QSTR_multi_invoke_mode), MP_ROM_PTR(&mod_sentai_pipeline_multi_invoke_mode_obj) },

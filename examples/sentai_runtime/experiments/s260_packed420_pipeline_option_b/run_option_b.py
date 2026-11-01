@@ -31,6 +31,8 @@ PHASES = {
     'sxga15_legacy': (1280, 960, 15, False),
     'sxga36_legacy': (1280, 960, 36, False),
     'sxga36_b':      (1280, 960, 36, True),
+    'sxga_b_ring':   (1280, 960, 30, 'ring'),
+    'sxga36_b_ring': (1280, 960, 36, 'ring'),
     'sxga15_b':      (1280, 960, 15, True),
 }
 
@@ -109,6 +111,9 @@ def phase(name, seconds, log, bars_dump=False):
         if 'LOAD 0' not in out:
             print('  LOAD FAILED', out[-200:]); res['error'] = 'load'; return res
         bd.q('sentai.tpu.invoke()', 30)   # parameter upload
+        if packed == 'ring':
+            print('  ocram_ring:', bd.last(bd.q('print("RG", sentai.pipeline.ocram_ring(1))', 10), 'RG'))
+            bd.q('sentai.pipeline.ring_stats(1)', 5)
         # warm-up: the camera autotune/genlock started by init() runs for several
         # seconds and steals frames (probe_fps.py: first run 24 fps, second 41 fps)
         wu = pipeline(bd, 8); print('  warm-up run: fps %.1f grab %.1f ms (discarded)' % (wu['fps'], wu['grab_ms']))
@@ -117,6 +122,8 @@ def phase(name, seconds, log, bars_dump=False):
         print('  pipeline: fps %.1f  invoke %.1f ms  cycle %.1f ms | prep: pxp %.1f ms grab %.1f sem %.1f total %.1f (%d frames) | fail %d first_fail %d | urb %s' % (
             p['fps'], p['invoke_ms'], p['cycle_ms'], p['pxp_ms'], p['grab_ms'], p['sem_ms'], p['prep_total_ms'], p['prep_frames'], p['fail'], p['first_fail'], res['urb']))
         print('  health:', bd.q('print(sentai.sys.health())', 8).strip().split('\n')[-2][:120])
+        if packed == 'ring':
+            print('  ring_stats (frames, urbs, cons_wait_us, cons_waits, cons_timeouts, prod_timeouts):', bd.last(bd.q('print("RS", sentai.pipeline.ring_stats())', 5), 'RS'))
         st = bd.last(bd.q('print("ST", sentai.camera.stats())', 10), 'ST'); print('  cam:', st[:200])
         if bars_dump and packed:
             cam = bd.last(bd.q('print("CI", sentai.camera.current_id())', 5), 'CI').split()[-1]
