@@ -110,6 +110,22 @@ on other OV5640 modules.  Folder `experiments/s265_camera_color_calibration/` (`
   pattern dimmed the screen and silently ruined two runs → `tune_colors.py` aborts when the grid's
   white patch is not visible; per-patch window restarts (> 1 s to map) → persistent window.
 
+### s265 continued (late evening) and s266 — alternation against a monitor time code (W24-T19)
+
+- s265: ΔE2000 added; printed chart under lamps invalid (light changed during runs, flicker);
+  Huion Kamvas 16 (sRGB mode) as reference with every patch at the frame centre: cam0 ΔE00 4.5,
+  cam1 7.8; a lens a few cm from a panel sees a 25–40 % luminance gradient, so spread-out grids
+  and ramps are unusable there.  **cam1 root cause proven**: with the sensor's RAW gamma off a 3x3
+  matrix corrects it to RGB rms 2.5 (yellow exact); the OV5640 gamma-before-CMX order is what
+  blocks it in normal operation.  OTP empty on both modules.  GNOME keyring prompt (autologin +
+  custom unlock unit + deleted keyring) ruined three runs before the operator fixed it.
+- s266 (`experiments/s266_alternation_timecode/`): stripes with a 10-bit Gray-code frame counter
+  redrawn at the Kamvas frame clock; the board alternates 1:1 and reads column 40 of every
+  dequeued frame (`peek_col`), band rows per camera from the s265 homographies (cam1 reversed).
+  30 s: 960 frames at 33.43 ms (29.9 fps), tags 0101, all decoded, **0 stale / duplicated
+  frames**, per-camera step 4 display frames; cam1 one display frame behind cam0 by rolling-shutter
+  geometry.  The display's own jitter (59.2 Hz ± 1.8 ms) is the residual.
+
 ### Open after this session
 Option B production integration (3-channel H×W/2 stem by weight re-indexing, sensor
 row from init, frame-layout flag for JPEG/flow/markers); W24-T13 instruction loop for

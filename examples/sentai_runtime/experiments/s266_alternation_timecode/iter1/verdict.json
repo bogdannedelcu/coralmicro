@@ -1,0 +1,10 @@
+{
+ "frames": 960,
+ "interval_ms": 33.42788842544317,
+ "fps": 29.915141132242862,
+ "code_step_mean": 1.986444212721585,
+ "repeats": 28,
+ "big_steps": 22,
+ "mismatches": 480,
+ "ambiguous": 0
+}

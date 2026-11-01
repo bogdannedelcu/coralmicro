@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 0213fcbf-a574-4225-a0ea-7da5f47ce784
-  modified: 2026-11-01T20:46:33.413Z
+  modified: 2026-11-01T20:57:49.950Z
 ---
 
 **EXP-s265 `examples/sentai_runtime/experiments/s265_camera_color_calibration/` (W24-T18), board 58eb build 1756, no firmware change.**
@@ -78,5 +78,11 @@ Operator goals: each camera as close as possible to the real (sRGB) colours, eve
   downstream (M7 256-entry LUT, PXP LUT mode, or models on linear input), or a lower-crosstalk module.
   OTP 0x3D00-1F is all zero on both modules (no per-module id) → identify by connector + AWB fingerprint.
   Hold-out (6 patches) and `--avg N` frame averaging added to tune_colors.py.
+- **EXP-s266 (W24-T19, alternation vs monitor time code)**: Gray-code stripe counter at the Kamvas frame
+  clock (`timecode_display.py`, pixbuf scaling — python3-gi-cairo is NOT installed, Cairo draw fails),
+  board reads column 40 per dequeued frame via `camera.peek_col(40)` with per-camera band rows from the
+  s265 homographies; VGA 30 fps ratio(1,1): 960 frames / 30 s, 33.43 ms, 0 stale/dup, per-camera step
+  4 display frames, cam1 one display frame later (rolling shutter + rotated module). Display jitter 59.2 Hz
+  ± 1.8 ms is the residual. Exposure 3 ms / gain 6x for the code; cameras restored to the Kamvas sets after.
 - Open: production integration (register set per camera after init, group write 0x3212), the linear
-  pipeline option above, print target under one steady illuminant.
+  pipeline option above, print target under one steady illuminant, s266 soak / VGA45 / select().
