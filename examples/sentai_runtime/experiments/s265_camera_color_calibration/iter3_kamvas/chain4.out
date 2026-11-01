@@ -1,0 +1,22 @@
+cam1 stage expo
+  cam1 expo it0: AGC 140 (8.75x) neutral8 G=246.0 target 200
+  cam1 expo it1: AGC 89 (5.56x) neutral8 G=246.0 target 200
+  cam1 expo it2: AGC 56 (3.50x) neutral8 G=168.0 target 200
+  cam1 expo it3: AGC 82 (5.12x) neutral8 G=245.9 target 200
+  cam1 expo it4: AGC 52 (3.25x) neutral8 G=167.7 target 200
+  cam1 expo it5: AGC 77 (4.81x) neutral8 G=233.2 target 200
+cam1 stage tone_centre
+  cam1 tone_centre round 0: luma rms 3.7  gamma ['10', '23', '36', '5B', '60', '60', '6A', '83', '93', '93', '93', '96', 'B0', 'B9', 'CB']
+    target     8  18  28  38  48  58  68  78  88  98 108 118 128 138 148 158 168 178 190 202 214 226 238 250
+    measured  16  20  28  37  43  55  66  78  88  96 112 122 132 143 149 158 160 174 191 199 210 226 243 247
+  cam1 tone_centre round 1: luma rms 2.9  gamma ['0A', '24', '38', '5C', '62', '62', '69', '80', '91', '91', '91', '96', 'B3', 'BA', 'CD']
+    target     8  18  28  38  48  58  68  78  88  98 108 118 128 138 148 158 168 178 190 202 214 226 238 250
+    measured   9  16  27  36  46  57  69  79  88  95 110 122 129 143 149 158 161 175 192 200 210 227 243 247
+cam1 stage awb
+  cam1 awb it0: R gain 1083 B gain 1660  mid-grey RGB 121.0 121.8 177.1
+  cam1 awb it1: R gain 1088 B gain 1297  mid-grey RGB 122.8 127.5 137.7
+  cam1 awb it2: R gain 1103 B gain 1231  mid-grey RGB 238.8 229.2 226.4
+  cam1 awb it3: R gain 1087 B gain 1266  mid-grey RGB 236.1 229.0 231.1
+  cam1 awb it4: R gain 1058 B gain 1255  mid-grey RGB 232.7 230.1 230.3
+  cam1 awb it5: R gain 1043 B gain 1253  mid-grey RGB 229.8 230.6 230.3
+cam1: mean dE76 32.3 -> 54.0 (greys 34.4); worst blue 83.3

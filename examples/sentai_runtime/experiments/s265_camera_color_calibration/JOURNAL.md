@@ -576,6 +576,48 @@ Results (`iter3_kamvas/locate.out`, `chain.out`, `chain2.out`):
 - Consequence for the method: on a display viewed this close, colour and tone must be measured
   with each patch at the frame centre (`--centre`), and the tone stage needs a centre-mode
   variant (knot update from the measured ramp, no Jacobian, ≈ 1 min per round).
+- `stage_tone_centre` (`chain3.out`): **cam0 converges in 3 rounds**, ramp luma rms 14.9 → 4.7
+  → 2.2; measured ramp 14 15 25 39 48 58 67 77 87 97 108 121 127 135 151 161 168 180 192 203
+  215 228 242 251 against 8 … 250.  AWB touch-up at the centre: greys ΔE76 3.3, grid-centre
+  mean 8.4 (yellow 32 remains).  **cam1 clips**: its AGC (10x) had been set on the spread-out
+  grid where the panel is darker, so at the brighter centre every grey ≥ 148 reads 239–244 and
+  the knot update only pulls the curve down (rms 42 → 29, garbage); the AWB that followed drifted
+  (B gain 1660).  Fix: in centre mode the exposure must be set at the centre too; cam1 gamma
+  restored from `tuned_regs_cam1_final2.json` and re-run `expo, tone_centre, awb --centre`.
+  Lesson for the script: with `--centre`, every stage including `expo` runs at the centre.
+- cam1 re-run (`chain4.out`): the `expo` stage oscillated 168 ↔ 246 (output ∝ gain, not
+  gain^(1/2.2), in this part of the curve) → the stage now estimates the exponent by a secant
+  like the AWB stage; `tone_centre` reached rms 2.9 in two rounds from the restored gamma; the
+  AWB that followed was ruined again by the keyring dialog (mid grey 230/230/230 = its white
+  box) → the centre-mode guard now also rejects a dark patch that reads bright.
+- **Keyring dialog, root cause and fix (operator authorised, 22:17–22:20).**  The machine uses
+  autologin; a custom user unit `keyring-unlock.service` used to unlock the login keyring with
+  the stored password.  After the operator deleted the keyring (21:09) the daemon kept a broken
+  "login" collection (advertised on D-Bus, object missing; assertion failures in the journal),
+  so every secret request from the desktop raised the "Authentication required" prompt, which
+  the login password could not satisfy.  Fix: `login.keyring` → `.bak`, a new login keyring
+  with an empty password created through `gnome-keyring-daemon --unlock` (operator ran it), and
+  `systemctl --user restart gnome-keyring-daemon.service` to load it: `Locked = false`, no
+  pending prompt.  The Claude Code permission classifier refused to run the blank-keyring step
+  itself ("security weaken"), rightly: the operator did it.
+
+### Kamvas, final (`chain5.out`, registers `iter3_kamvas/tuned_regs_cam{0,1}_kamvas.json`, 109 each)
+
+cam1 AWB at the centre converged in 3 iterations (R 1118, B 1227, mid grey 128/129/129).
+
+| measurement | cam0 ΔE00 (greys) | cam1 ΔE00 (greys) | what it measures |
+|---|---|---|---|
+| centre mode, each patch at the frame centre | **4.5 (3.8)**, 95th 8.9, worst orange 11.2 | **7.8 (4.4)**, 95th 18.4, worst orange-yellow 22.2 | the sensor's colour rendering, position-free |
+| (Philips, centre mode, step 12 registers, for comparison) | 6.8 (8.2) | 11.6 (8.4) | same metric on the uncalibrated monitor before LENC / tone_centre |
+| grid mode, 24 patches spread over the common rect | 8.7 (7.2) | 13.7 (12.2) | sensor + panel angular gradient + residual shading |
+
+The centre-mode numbers are the ones that describe the cameras: cam0 at ΔE00 4.5 against a
+factory-calibrated display in sRGB mode is close to the 2–4 that a tuned camera reaches on a
+real ColorChecker; cam1 at 7.8 keeps its yellow / orange deficit (module).  Grid mode is 2× worse
+on both cameras for the same registers, which is the signature of the measurement geometry
+(lens a few cm from a panel whose luminance falls 25–40 % across the field of view), not of the
+sensor — the `--centre` path is therefore the default for display targets from now on.
+`grid_rectified_final.png` shows the panel's left-right brightness gradient directly.
 
 ## Step 13 — replay test (reproducibility)
 

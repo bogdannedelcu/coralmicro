@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 0213fcbf-a574-4225-a0ea-7da5f47ce784
-  modified: 2026-11-01T19:14:05.646Z
+  modified: 2026-11-01T20:25:17.456Z
 ---
 
 **EXP-s265 `examples/sentai_runtime/experiments/s265_camera_color_calibration/` (W24-T18), board 58eb build 1756, no firmware change.**
@@ -55,5 +55,21 @@ Operator goals: each camera as close as possible to the real (sRGB) colours, eve
   → G 133 vs 104) that the OV5640 cannot undo because its gamma runs BEFORE the colour matrix; fix is
   physical (module/IR filter).  Do NOT white-balance on the paper (spectrum shifts warm); AWB on grid greys.
   Full sets incl. LENC: `iter1/tuned_regs_cam{0,1}_final2.json` (109 regs).
-- Open: ΔE2000 metric + hold-out validation, group write (0x3212) of the final set, production
-  integration of the register set (per camera, applied after init), cam1 module physical check.
+- **Later the same night:** ΔE2000 added to analyze.py (final Philips: cam0 5.7, cam1 10.7). Printed
+  A4 chart (`make_chart_pdf.py`, `locate_print.py` from corner fiducials) — runs under lamps invalid
+  (light changed during runs, AGC 30-44x, PWM flicker): rule = one steady illuminant, AGC <= 4x, lamps
+  at 45°. **Huion Kamvas 16 (sRGB mode) as reference**: same registers → cam0 ΔE00 7.6 vs 5.7 on the
+  Philips (~2 ΔE00 reference uncertainty). A lens a few cm from a panel sees a 25-40 % luminance
+  gradient across the field (angular falloff, worse on the matte pen display) → spread-out ramps and
+  grids are unusable there; `--centre` mode (one patch at the frame centre) + `tone_centre` (knot update
+  from the measured ramp, no Jacobian) + expo/awb at the centre: **cam0 ΔE00 4.5 (greys 3.8), cam1 7.8
+  (4.4)**; grid mode is 2x worse for the same registers. Register sets `iter3_kamvas/tuned_regs_cam*_kamvas.json`.
+  Expo stage: output ∝ gain^e with e 0.45–1 → secant exponent (fixed 1/2.2 oscillated).
+- **GNOME keyring prompt** ("Authentication required") kept popping over the display (autologin +
+  custom `keyring-unlock.service`; keyring deleted → broken collection): ruined 3 runs. Fixed by the
+  operator (blank-password login keyring + `systemctl --user restart gnome-keyring-daemon.service`);
+  Claude Code's permission classifier refuses the blank-keyring step ("security weaken") — don't retry
+  it, let the operator run it with `!`. Guards: grid white/black and centre-mode bright/dark checks.
+- Open: hold-out validation, group write (0x3212) of the final set, production integration of the
+  register set (per camera, applied after init), cam1 module physical check, print target under one
+  steady illuminant.

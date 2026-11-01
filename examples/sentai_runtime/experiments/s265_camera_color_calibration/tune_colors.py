@@ -129,10 +129,15 @@ class Tuner:
             m = measure(Image.open(io.BytesIO(jpg)), self.H, one, 0.4)[0]
             if m:
                 d[p['name']] = m
-                # visibility guard in centre mode: a bright patch must read bright
-                if p['srgb'][0] >= 230 and p['srgb'][1] >= 230 and np.mean(m['mean']) < MIN_WHITE:
+                # visibility guard in centre mode: a bright patch must read bright and a dark
+                # patch dark (a GNOME dialog's white box over the centre reads ~230 everywhere)
+                lum = np.mean(m['mean'])
+                if p['srgb'][0] >= 230 and p['srgb'][1] >= 230 and lum < MIN_WHITE:
                     raise RuntimeError('pattern not visible (patch %s reads %.0f): a dialog or the desktop '
-                                       'is covering the display' % (p['name'], np.mean(m['mean'])))
+                                       'is covering the display' % (p['name'], lum))
+                if max(p['srgb']) <= 60 and lum > 120:
+                    raise RuntimeError('dark patch %s reads %.0f: something bright (a dialog?) covers the '
+                                       'display centre' % (p['name'], lum))
         self.n += 1
         json.dump(d, open(os.path.join(self.out, 'tune_cam%d_%03d_%s_centre.json' % (self.cam, self.n, tag)), 'w'))
         return d
@@ -179,6 +184,7 @@ class Tuner:
         gain = (self.read(0x350A) << 8) | self.read(0x350B)
         exp = (self.read(0x3500) << 16) | (self.read(0x3501) << 8) | self.read(0x3502)
         self.log(ev='expo_start', agc=gain, exposure=exp)
+        prev = None
         for i in range(iters):
             d = self.capture('expo%d' % i)
             g = d['neutral 8']['mean'][1]
@@ -186,10 +192,14 @@ class Tuner:
                   % (self.cam, i, gain, gain / 16.0, g, TARGET_N8))
             if abs(g - TARGET_N8) <= tol:
                 break
-            # sensor is ~linear before gamma; gamma ~2.2 makes output ∝ gain^(1/2.2)
-            ratio = (TARGET_N8 / max(g, 1.0)) ** 2.2
+            # output ∝ gain^e with e between ~0.45 (gamma-compressed highlights) and ~1 (the
+            # near-linear part of the curve); a fixed 1/2.2 made cam1 oscillate 168 <-> 246 on
+            # the Kamvas.  Estimate e from the previous step (secant), start at 0.6.
+            e = self._secant_exp(prev, gain, g, 0.6)
+            prev = (gain, g)
+            ratio = (TARGET_N8 / max(g, 1.0)) ** (1.0 / e)
             ratio = min(max(ratio, 0.5), 2.0)
-            gain = int(round(min(max(gain * ratio, 0x10), 0x3FF)))
+            gain = int(round(min(max(gain * (1 + 0.8 * (ratio - 1)), 0x10), 0x3FF)))
             self.write(0x350A, gain >> 8)
             self.write(0x350B, gain & 0xFF)
         return {'0x3503': 0x03, '0x350A': gain >> 8, '0x350B': gain & 0xFF}

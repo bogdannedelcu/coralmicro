@@ -83,6 +83,8 @@ accuracy; the procedure (locate → measure → closed-loop register tuning) sta
 | + sde / cmx / ccm | saturation, CMX Jacobian, analytic CCM | **8.7 (7.8)** | **17.4 (6.5)** | matrices barely move the error: residual is not 3x3-linear |
 | centre mode | each patch alone at the frame centre | 9.3 | 17.5 | cam1 error is field-position dominated (centre green, edges pink) |
 | + LENC (paper diffuser) + AWB | 86-register measured Jacobian on a flat field, 2 rounds; AWB on grid greys | **8.4 (5.3)** | **19.6 (6.6)** | colour shading ±4 % on both; most of cam1's "pink ring" was the bare LCD's viewing angle; grid dE unchanged → cam1 residual = RAW-domain G/B crosstalk, not correctable after the sensor's pre-matrix gamma |
+| iter2_print: printed chart under lamps | locate from corner fiducials; expo/awb per illuminant | — | — | runs invalid: light changed 4x during them, AGC 30–44x, flicker; setup rules recorded |
+| iter3_kamvas: Kamvas 16 (factory-calibrated, sRGB mode), **centre mode** | expo + tone_centre + awb at the frame centre | **ΔE00 4.5 (3.8)**; grid mode 8.7 | **ΔE00 7.8 (4.4)**; grid mode 13.7 | Philips vs Kamvas with the same registers: ~2 ΔE00 (reference uncertainty); spread-out patches add the panel's angular gradient → centre mode is the method for display targets |
 
 Dead ends (details in `JOURNAL.md`): gamma-2.2 model for the AWB loop (oscillates),
 GNOME dialogs over the pattern (two runs invalidated → visibility guard), X11 window on the
