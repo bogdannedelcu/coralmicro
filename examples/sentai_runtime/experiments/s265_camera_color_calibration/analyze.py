@@ -43,6 +43,65 @@ def de76(rgb1, rgb2):
     return float(np.linalg.norm(srgb_to_lab(rgb1) - srgb_to_lab(rgb2)))
 
 
+def de2000_lab(lab1, lab2, kL=1.0, kC=1.0, kH=1.0):
+    """CIEDE2000 (Sharma, Wu, Dalal 2005).  Validated against their test data: pair 1
+    (50, 2.6772, -79.7751) vs (50, 0, -82.7485) -> 2.0425; pair 17 (50, 2.5, 0) vs
+    (73, 25, -18) -> 27.1492."""
+    L1, a1, b1 = lab1
+    L2, a2, b2 = lab2
+    C1, C2 = np.hypot(a1, b1), np.hypot(a2, b2)
+    Cm = (C1 + C2) / 2
+    G = 0.5 * (1 - np.sqrt(Cm ** 7 / (Cm ** 7 + 25.0 ** 7)))
+    a1p, a2p = (1 + G) * a1, (1 + G) * a2
+    C1p, C2p = np.hypot(a1p, b1), np.hypot(a2p, b2)
+    h1p = np.degrees(np.arctan2(b1, a1p)) % 360 if (a1p != 0 or b1 != 0) else 0.0
+    h2p = np.degrees(np.arctan2(b2, a2p)) % 360 if (a2p != 0 or b2 != 0) else 0.0
+    dLp = L2 - L1
+    dCp = C2p - C1p
+    if C1p * C2p == 0:
+        dhp = 0.0
+    elif abs(h2p - h1p) <= 180:
+        dhp = h2p - h1p
+    elif h2p - h1p > 180:
+        dhp = h2p - h1p - 360
+    else:
+        dhp = h2p - h1p + 360
+    dHp = 2 * np.sqrt(C1p * C2p) * np.sin(np.radians(dhp / 2))
+    Lpm = (L1 + L2) / 2
+    Cpm = (C1p + C2p) / 2
+    if C1p * C2p == 0:
+        hpm = h1p + h2p
+    elif abs(h1p - h2p) <= 180:
+        hpm = (h1p + h2p) / 2
+    elif h1p + h2p < 360:
+        hpm = (h1p + h2p + 360) / 2
+    else:
+        hpm = (h1p + h2p - 360) / 2
+    T = (1 - 0.17 * np.cos(np.radians(hpm - 30)) + 0.24 * np.cos(np.radians(2 * hpm))
+         + 0.32 * np.cos(np.radians(3 * hpm + 6)) - 0.20 * np.cos(np.radians(4 * hpm - 63)))
+    dtheta = 30 * np.exp(-((hpm - 275) / 25) ** 2)
+    RC = 2 * np.sqrt(Cpm ** 7 / (Cpm ** 7 + 25.0 ** 7))
+    SL = 1 + 0.015 * (Lpm - 50) ** 2 / np.sqrt(20 + (Lpm - 50) ** 2)
+    SC = 1 + 0.045 * Cpm
+    SH = 1 + 0.015 * Cpm * T
+    RT = -np.sin(np.radians(2 * dtheta)) * RC
+    return float(np.sqrt((dLp / (kL * SL)) ** 2 + (dCp / (kC * SC)) ** 2 + (dHp / (kH * SH)) ** 2
+                         + RT * (dCp / (kC * SC)) * (dHp / (kH * SH))))
+
+
+def de2000(rgb1, rgb2):
+    return de2000_lab(srgb_to_lab(rgb1), srgb_to_lab(rgb2))
+
+
+def _selftest():
+    assert abs(de2000_lab((50, 2.6772, -79.7751), (50, 0, -82.7485)) - 2.0425) < 1e-3
+    assert abs(de2000_lab((50, 2.5, 0), (73, 25, -18)) - 27.1492) < 1e-3
+    assert abs(de2000_lab((50, 2.5, 0), (50, 3.1736, 0.5854)) - 1.0) < 1e-3
+
+
+_selftest()
+
+
 def apply_h(Hm, pts):
     p = np.c_[pts, np.ones(len(pts))] @ np.asarray(Hm).T
     return p[:, :2] / p[:, 2:3]
@@ -70,25 +129,31 @@ def measure(img, Hm, patches, shrink=0.3):
         out.append({'name': p['name'], 'target': p['srgb'], 'mean': mean.round(1).tolist(),
                     'std': std.round(1).tolist(), 'bbox': [float(x0), float(y0), float(x1), float(y1)],
                     'n_px': int(roi.shape[0] * roi.shape[1]),
-                    'dE76': round(de76(mean, p['srgb']), 2)})
+                    'dE76': round(de76(mean, p['srgb']), 2),
+                    'dE00': round(de2000(mean, p['srgb']), 2)})
     return out
 
 
 def report(cam, meas):
     rows = [m for m in meas if m]
     print('cam%d: %d of %d patches in frame' % (cam, len(rows), len(meas)))
-    print('  %-14s %-15s %-18s %-16s %s' % ('patch', 'target RGB', 'measured RGB', 'delta', 'dE76'))
+    print('  %-14s %-15s %-18s %-16s %5s %5s' % ('patch', 'target RGB', 'measured RGB', 'delta', 'dE76', 'dE00'))
     for m in rows:
         d = [round(a - b, 1) for a, b in zip(m['mean'], m['target'])]
-        print('  %-14s %-15s %-18s %-16s %5.1f' % (m['name'], tuple(m['target']),
-                                                   tuple(m['mean']), tuple(d), m['dE76']))
+        print('  %-14s %-15s %-18s %-16s %5.1f %5.1f' % (m['name'], tuple(m['target']),
+                                                         tuple(int(round(v)) for v in m['mean']), tuple(d),
+                                                         m['dE76'], m['dE00']))
     greys = [m for m in rows if m['name'] in ('white', 'neutral 8', 'neutral 6.5',
                                               'neutral 5', 'neutral 3.5', 'black')]
     if rows:
+        e00 = sorted(m['dE00'] for m in rows)
         print('  mean dE76 all %.1f | greys %.1f | max %.1f (%s)' % (
             np.mean([m['dE76'] for m in rows]),
             np.mean([m['dE76'] for m in greys]) if greys else float('nan'),
             max(m['dE76'] for m in rows), max(rows, key=lambda m: m['dE76'])['name']))
+        print('  mean dE00 all %.1f | greys %.1f | 95th pct %.1f | max %.1f (%s)' % (
+            np.mean(e00), np.mean([m['dE00'] for m in greys]) if greys else float('nan'),
+            e00[int(0.95 * (len(e00) - 1))], e00[-1], max(rows, key=lambda m: m['dE00'])['name']))
     return rows
 
 

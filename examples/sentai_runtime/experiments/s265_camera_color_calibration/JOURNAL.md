@@ -486,6 +486,31 @@ sensor would be to switch the RAW gamma off (0x5000 bit 5) and give up the tone 
 the TPU models trained on sRGB images cannot afford.  So the fix is physical: confirm the IR-cut
 filter / module difference (TV remote test, module swap) and replace or match the module.
 
+## Step 18 — ΔE2000 metric and a printable chart
+
+`analyze.py` now reports CIEDE2000 (Sharma–Wu–Dalal 2005 formula, self-tested against three of
+their published pairs: 2.0425, 27.1492, 1.0) next to ΔE76; mean, greys, 95th percentile, max.
+
+| capture | cam | ΔE76 mean | ΔE00 mean | ΔE00 greys | ΔE00 95th | ΔE00 max |
+|---|---|---|---|---|---|---|
+| stock | 0 | 17.7 | 10.0 | 8.4 | 14.7 | 16.2 cyan |
+| stock | 1 | 41.4 | 20.7 | 18.5 | 31.3 | 37.2 yellow |
+| LENC + AWB (final) | 0 | 8.4 | **5.7** | 5.4 | 7.7 | 10.8 dark skin |
+| LENC + AWB (final) | 1 | 19.6 | **10.7** | 5.8 | 20.2 | 23.7 yellow |
+
+As expected ΔE00 compresses the saturated-patch errors (cam1 yellow 54.6 → 23.7) and weighs
+the greys more.  Industry reference: a well-tuned camera on a ColorChecker reaches ΔE00 ≈ 2–4
+mean; cam0 at 5.7 against an uncalibrated consumer monitor is within a factor two of that,
+cam1 is limited by the module.
+
+`make_chart_pdf.py` → `patterns/colorchecker_a4.pdf` (+ .png, .json with the geometry): A4
+landscape, 24 patches of 38 mm, 3 mm gaps, four 12 mm black corner fiducials with a white
+centre dot, reference values printed on the sheet.  Operator will print it as a reflective
+target; caveat on the sheet: an office printer is not calibrated, the chart gives real-light
+reflective colours of unknown absolute value — for absolute accuracy a measured ColorChecker
+is needed.  Next session: `locate.py` variant that finds the four fiducials (no Gray code on
+paper) and the same stages against the print under room light.
+
 ## Step 13 — replay test (reproducibility)
 
 Full register snapshot per camera (47 registers: 0x3503, 0x350A/B, 0x3500–02, 0x3400–0x3406,
