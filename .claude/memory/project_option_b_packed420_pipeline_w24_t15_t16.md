@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 0213fcbf-a574-4225-a0ea-7da5f47ce784
-  modified: 2026-11-01T10:18:23.216Z
+  modified: 2026-11-01T11:07:29.320Z
 ---
 
 **EXP-s260 (W24-T16) + EXP-s261 (W24-T15 step 1), builds 1733–1741, board 58eb, one camera.**
@@ -71,6 +71,17 @@ metadata:
   by the invoke wrappers, consumed in `EdgeTpuExecutable::Invoke` (+ int8 transform on
   it).  Speed numbers unaffected; detection quality on that path before 2026-11-01 was
   on stale data.  Test: s262 `input_path_check2.py` (output fingerprint per scene).
+- **Chase producer (s263, `pipeline.chase_prep(1)`):** PrepTask repacks the in-flight
+  frame slice by slice into the ring: last line → TPU input done 75 → 20 ms, but fps
+  15.9 → 13.2 (USB paced by the camera with a 1-frame ring).  Knob, default off.
+- **CSI line ring in OCRAM = DEAD END:** with IMAG_PARA height 128/480 the CSI DMA done
+  rate stays 30/s (SOF-gated; no mid-frame FB1/FB2 restart) — s261 `csi_slice_rate.py`.
+- **Instruction caching (tinycoral `~/work/edgetpu/oracle_lab/INSTRUCTIONS_ONCE.md`):**
+  loop the compiled program on the scalar core (4 extra words, both sync inits inside
+  the loop), send instructions once, per frame only inputs/outputs, interrupt after N
+  frames; only if the program fits the 256 KB instruction memory (≤16 384 words):
+  VGA YUV420 detectors fit (5–8 k words), the SXGA model (297 KB) does not.  Input of
+  frame k+1 cannot overlap compute k on single-EP (device pops on demand).
 - ch569w lessons checked: SentAI already opens the TPU at kMax (GCB 500/AXI 250/8051
   500); instructions are re-sent per inference by design; warm Coral stalls M3 run-state.
 - "Retrain" for option B is probably unnecessary: packed `[C,Y1,Y2]` is a

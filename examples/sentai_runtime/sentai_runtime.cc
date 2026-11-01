@@ -3442,6 +3442,101 @@ int sentai_pxp_chase_test(int n_slices, uint32_t* out, int out_max) {
   return n;
 }
 
+// ===========================================================================
+// EXP-s263 / W24-T15 step 2: chase producer for PrepTask.  Same mechanics as
+// sentai_pxp_chase_test (CSI frame-counter sync, DMASA_FB1/FB2 candidates,
+// padding-byte markers with D-cache maintenance) packaged as begin / wait /
+// end so the OCRAM-ring producer can start repacking a frame while the CSI
+// is still writing it, instead of after GetRawFrame() returns the complete
+// frame.  Packed-YUV420 geometry only (byte 3 of every pixel pair is written
+// as 0).  One chase at a time (static state, PrepTask only).
+// ===========================================================================
+namespace {
+struct ChaseState { uint8_t* buf; uint32_t pitch; int rows; int nslices; int h; };
+ChaseState s_chase = {nullptr, 0, 0, 0, 0};
+inline int chase_last_row(const ChaseState& c, int k) { int r = (k + 1) * c.rows; return (r < c.h ? r : c.h) - 1; }
+inline volatile uint8_t* chase_marker(uint8_t* buf, uint32_t pitch, int row) {
+  return (volatile uint8_t*)(buf + (uint32_t)row * pitch + pitch - 1u);
+}
+inline uint8_t chase_rd(volatile uint8_t* p) {
+  SCB_InvalidateDCache_by_Addr((uint32_t*)((uint32_t)p & ~31u), 32);
+  return *p;
+}
+inline void chase_wr(volatile uint8_t* p, uint8_t v) {
+  *p = v;
+  SCB_CleanDCache_by_Addr((uint32_t*)((uint32_t)p & ~31u), 32);
+}
+}  // namespace
+extern "C" volatile uint32_t g_sentai_chase_begin_fail = 0, g_sentai_chase_slice_fail = 0, g_sentai_chase_ok = 0;
+
+// Returns 0 and the in-flight buffer; <0 on timeout.  `wait_sync` = wait for the
+// next CSI frame boundary first (PrepTask calls it right after returning the
+// previous frame, i.e. already inside the vertical blank: wait_sync = 0).
+extern "C" __attribute__((section(".sdram_text")))
+int sentai_cam_chase_begin(int rows_per_slice, int wait_sync, uint8_t** out_buf, uint32_t* t_sync_us) {
+  const int w = (int)g_runtime_cam_w, h = (int)g_runtime_cam_h;
+  if (!g_sentai_cam_packed420 || rows_per_slice <= 0) return -1;
+  const uint32_t pitch = (uint32_t)(w / 2) * 4u;
+  const int n = (h + rows_per_slice - 1) / rows_per_slice;   // last slice may be partial (960 = 7.5 x 128)
+  auto last_row = [&](int k) { int r = (k + 1) * rows_per_slice; return (r < h ? r : h) - 1; };
+  auto now_us = []() { return (uint32_t)vPortGetRunTimeCounterValue(); };
+  uint32_t t0 = now_us();
+  if (wait_sync) {
+    const uint32_t fc0 = (CSI->CR3 & CSI_CR3_FRMCNT_MASK) >> CSI_CR3_FRMCNT_SHIFT;
+    uint32_t ts = 0;
+    while (now_us() - t0 < 100000u) {
+      if (((CSI->CR3 & CSI_CR3_FRMCNT_MASK) >> CSI_CR3_FRMCNT_SHIFT) != fc0) { ts = now_us(); break; }
+      taskYIELD();
+    }
+    if (!ts) { g_sentai_chase_begin_fail++; return -2; }
+    t0 = ts;
+    while (now_us() - t0 < 150u) { }
+  }
+  uint8_t* cand[2] = { (uint8_t*)CSI->DMASA_FB1, (uint8_t*)CSI->DMASA_FB2 };
+  const int ncand = (cand[0] == cand[1]) ? 1 : 2;
+  for (int c = 0; c < ncand; c++) {
+    if (FramebufferPtrToIndex(cand[c]) < 0) { g_sentai_chase_begin_fail++; return -3; }
+    for (int k = 0; k < n; k++) chase_wr(chase_marker(cand[c], pitch, last_row(k)), 0xFF);
+  }
+  uint8_t* cur = nullptr;
+  while (now_us() - t0 < 120000u) {
+    for (int c = 0; c < ncand; c++) {
+      if (chase_rd(chase_marker(cand[c], pitch, rows_per_slice - 1)) == 0) { cur = cand[c]; break; }
+    }
+    if (cur) break;
+    taskYIELD();
+  }
+  for (int c = 0; c < ncand; c++) {
+    if (cand[c] != cur) for (int k = 0; k < n; k++) chase_wr(chase_marker(cand[c], pitch, last_row(k)), 0);
+  }
+  if (!cur) { g_sentai_chase_begin_fail++; return -4; }
+  s_chase.buf = cur; s_chase.pitch = pitch; s_chase.rows = rows_per_slice; s_chase.nslices = n; s_chase.h = h;
+  if (out_buf) *out_buf = cur;
+  if (t_sync_us) *t_sync_us = t0;
+  return 0;
+}
+extern "C" __attribute__((section(".sdram_text")))
+int sentai_cam_chase_wait_slice(int k, uint32_t timeout_us) {
+  if (!s_chase.buf || k < 0 || k >= s_chase.nslices) return -1;
+  volatile uint8_t* m = chase_marker(s_chase.buf, s_chase.pitch, chase_last_row(s_chase, k));
+  const uint32_t tw = (uint32_t)vPortGetRunTimeCounterValue();
+  while (chase_rd(m) != 0) {
+    if ((uint32_t)vPortGetRunTimeCounterValue() - tw > timeout_us) { g_sentai_chase_slice_fail++; return -2; }
+    taskYIELD();
+  }
+  return 0;
+}
+extern "C" void sentai_cam_chase_end(void) {
+  if (s_chase.buf) {
+    for (int k = 0; k < s_chase.nslices; k++) chase_wr(chase_marker(s_chase.buf, s_chase.pitch, chase_last_row(s_chase, k)), 0);
+    g_sentai_chase_ok++;
+  }
+  s_chase.buf = nullptr;
+}
+extern "C" void sentai_cam_chase_stats(uint32_t* out3) {
+  out3[0] = g_sentai_chase_ok; out3[1] = g_sentai_chase_begin_fail; out3[2] = g_sentai_chase_slice_fail;
+}
+
 // EXP-s260 option B capture mode: sensor "YUV420 for MIPI only" + CSI receiver
 // at half width (2 B/px, see EXP-s259).  Set before camera.init(); the init
 // path writes the sensor registers to the ACTIVE camera after the OV5640

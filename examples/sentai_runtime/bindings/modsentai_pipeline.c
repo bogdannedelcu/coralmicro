@@ -855,6 +855,25 @@ static mp_obj_t mod_sentai_pipeline_ring_stats(size_t n_args, const mp_obj_t* ar
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_pipeline_ring_stats_obj, 0, 1, mod_sentai_pipeline_ring_stats);
 
+// sentai.pipeline.chase_prep([on]) -> int.  EXP-s263: with the OCRAM ring on,
+// PrepTask repacks the frame the CSI is still writing (slice markers) instead of
+// waiting for the completed frame.  Latency experiment; packed YUV420 SXGA only.
+extern int  sentai_pipeline_chase_prep_get(void);
+extern void sentai_pipeline_chase_prep_set(int on);
+extern void sentai_cam_chase_stats(uint32_t* out3);
+static mp_obj_t mod_sentai_pipeline_chase_prep(size_t n_args, const mp_obj_t* args) {
+    if (n_args >= 1) sentai_pipeline_chase_prep_set(mp_obj_is_true(args[0]) ? 1 : 0);
+    return mp_obj_new_int(sentai_pipeline_chase_prep_get());
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_pipeline_chase_prep_obj, 0, 1, mod_sentai_pipeline_chase_prep);
+// sentai.pipeline.chase_stats() -> (ok, begin_fail, slice_fail)
+static mp_obj_t mod_sentai_pipeline_chase_stats(void) {
+    uint32_t v[3]; sentai_cam_chase_stats(v);
+    mp_obj_t t[3] = { mp_obj_new_int_from_uint(v[0]), mp_obj_new_int_from_uint(v[1]), mp_obj_new_int_from_uint(v[2]) };
+    return mp_obj_new_tuple(3, t);
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(mod_sentai_pipeline_chase_stats_obj, mod_sentai_pipeline_chase_stats);
+
 static mp_obj_t mod_sentai_pipeline_infer_reset(void) {
     sentai_pipeline_infer_reset();
     return mp_const_none;
@@ -1482,6 +1501,8 @@ static const mp_rom_map_elem_t sentai_pipeline_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_dump_staging), MP_ROM_PTR(&mod_sentai_pipeline_dump_staging_obj) },
     { MP_ROM_QSTR(MP_QSTR_ocram_ring), MP_ROM_PTR(&mod_sentai_pipeline_ocram_ring_obj) },
     { MP_ROM_QSTR(MP_QSTR_ring_stats), MP_ROM_PTR(&mod_sentai_pipeline_ring_stats_obj) },
+    { MP_ROM_QSTR(MP_QSTR_chase_prep), MP_ROM_PTR(&mod_sentai_pipeline_chase_prep_obj) },
+    { MP_ROM_QSTR(MP_QSTR_chase_stats), MP_ROM_PTR(&mod_sentai_pipeline_chase_stats_obj) },
     { MP_ROM_QSTR(MP_QSTR_infer_reset),     MP_ROM_PTR(&mod_sentai_pipeline_infer_reset_obj) },
     { MP_ROM_QSTR(MP_QSTR_invokes_per_frame), MP_ROM_PTR(&mod_sentai_pipeline_invokes_per_frame_obj) },
     { MP_ROM_QSTR(MP_QSTR_multi_invoke_mode), MP_ROM_PTR(&mod_sentai_pipeline_multi_invoke_mode_obj) },

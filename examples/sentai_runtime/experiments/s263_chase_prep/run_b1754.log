@@ -1,0 +1,306 @@
+>>> sentai.camera.yuv_mode(1)
+sentai.camera.yuv_mode(1)
+1
+>>> 
+>>> sentai.camera.set_hw(1280, 960)
+sentai.camera.set_hw(1280, 960)
+0
+>>> 
+>>> sentai.camera.packed420(1)
+sentai.camera.packed420(1)
+1
+>>> 
+>>> print("INIT", sentai.camera.init(1, 36))
+print("INIT", sentai.camera.init(1, 36))
+HandlePowerRequest: cam0 (bus 1): OK, cam1 (bus 2): OK
+CAMERA_RECEIVER_Init = 0
+CSI probe: bus=24 wdiv=2 CR1=40020912 CR3=00000021 CR18=0000D008 CR20=00000000 IMAG=028003C0 FBUF=00000000
+BOARD_PullCameraPowerDownPin:1
+BOARD_PullCameraResetPin:0
+BOARD_PullCameraPowerDownPin:0
+BOARD_PullCameraResetPin:1
+CAMERA_DEVICE_Init = 0
+CAMERA_DEVICE_Start = 0
+CAMERA_RECEIVER_Start = 0
+[CAM] sensor_fps=30 (1 s sample, target=30)
+[CAM1] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM1] W 0x3820=0x47 (0)
+[CAM1] W 0x3821=0x01 (0)
+[CAM0] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM0] W 0x3820=0x47 (0)
+[CAM0] W 0x3821=0x01 (0)
+[CAM0] W 0x4300=0x5F (0)
+[CAM0] W 0x460C=0x22 (0)
+[CAM0] W 0x3824=0x01 (0)
+[cam] packed420 capture: sensor format 0x5F + PCLK div manual/1 -> ok
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xE7 (0)
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xD8 (0)
+[cam] pre-trim: cam0 delayed 15 lines (423 us) -> alternation at full rate
+[cam] genlock step 0: phase 254 us -> cam0 VTS 984+15 for one frame
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xE7 (0)
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xD8 (0)
+[cam] genlock step 1: phase 253 us -> cam0 VTS 984+15 for one frame
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xE7 (0)
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xD8 (0)
+[cam] genlock step 2: phase 253 us -> cam0 VTS 984+15 for one frame
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xE7 (0)
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xD8 (0)
+[cam] genlock FAILED: residual phase 253 us
+INIT 0
+>>> 
+>>> print("LOAD", sentai.tpu.load("/models/c2f_yuv420_sxga_relu_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load("/models/c2f_yuv420_sxga_relu_int8_edgetpu.tflite"))
+Model loaded: 516960 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x0296f8b3eb875be6
+Inputs: 2
+  in[0] uint8[1,480,640,2] (614400 bytes)  scale=0.00392157 zp=0
+  in[1] uint8[1,960,1280,1] (1228800 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.00034542  zero_point=134
+  [1] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.00012524  zero_point=83
+Arena used: 1835 / 8192 KB
+Model name: c2f_yuv420_sxga_relu_int8_edgetp
+LOAD 0
+>>> 
+>>> sentai.tpu.invoke()
+sentai.tpu.invoke()
+71
+>>> 
+>>> print("RG", sentai.pipeline.ocram_ring(1))
+print("RG", sentai.pipeline.ocram_ring(1))
+RG 1
+>>> 
+>>> print("CP", sentai.pipeline.chase_prep(0))
+print("CP", sentai.pipeline.chase_prep(0))
+CP 0
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> sentai.pipeline.prep_reset()
+sentai.pipeline.prep_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 6196, 'nms_ms_sum': 0, 'ms_sum': 8175, 'ok': 134, 'infer_wait_ms_sum': 40, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 61, 'first_fail_ms': 0, 'bufs_cap': 2, 'bufs_free': 0, 'recover_attempts': 0}
+>>> 
+>>> print("PSTATS", sentai.pipeline.prep_stats())
+print("PSTATS", sentai.pipeline.prep_stats())
+PSTATS {'pxp_ms_sum': 6206, 'cam_grab_ms_sum': 171, 'quant_ms_sum': 0, 'frames': 139, 'total_ms_sum': 6474, 'sem_wait_ms_sum': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> sentai.pipeline.trace(1)
+sentai.pipeline.trace(1)
+>>> 
+>>> sentai.pipeline.ring_stats(1)
+sentai.pipeline.ring_stats(1)
+(145, 7975, 487, 1160, 0, 0)
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> sentai.pipeline.prep_reset()
+sentai.pipeline.prep_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 11547, 'nms_ms_sum': 0, 'ms_sum': 15130, 'ok': 248, 'infer_wait_ms_sum': 65, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 61, 'first_fail_ms': 0, 'bufs_cap': 2, 'bufs_free': 1, 'recover_attempts': 0}
+>>> 
+>>> print("PSTATS", sentai.pipeline.prep_stats())
+print("PSTATS", sentai.pipeline.prep_stats())
+PSTATS {'pxp_ms_sum': 11423, 'cam_grab_ms_sum': 283, 'quant_ms_sum': 0, 'frames': 253, 'total_ms_sum': 11854, 'sem_wait_ms_sum': 0}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print("TR", sentai.pipeline.trace())
+print("TR", sentai.pipeline.trace())
+TR [(49768485, 14, 1, 245), (49763538, 13, 1, 245), (49768522, 10, 0, 246), (49768523, 11, 0, 246), (49768525, 12, 0, 246), (49809453, 5, 1, 247), (49809810, 1, 1, 247), (49809810, 2, 1, 247), (49810191, 3, 0, 566), (49810192, 4, 1, 247), (49829981, 14, 0, 246), (49824808, 13, 0, 246), (49830016, 10, 1, 247), (49830017, 11, 1, 247), (49830019, 12, 1, 247), (49870919, 5, 0, 248), (49871277, 1, 0, 248), (49871278, 2, 0, 248), (49872351, 3, 0, 567), (49872353, 4, 0, 248), (49891464, 14, 1, 247), (49886277, 13, 1, 247), (49891498, 10, 0, 248), (49891499, 11, 0, 248), (49891501, 12, 0, 248), (49932450, 5, 1, 249), (49932807, 1, 1, 249), (49932808, 2, 1, 249), (49937289, 3, 0, 568), (49937292, 4, 1, 249), (49952807, 14, 0, 248), (49947622, 13, 0, 248), (49952848, 10, 1, 249), (49952849, 11, 1, 249), (49952852, 12, 1, 249), (49993858, 5, 0, 250), (49994219, 1, 0, 250), (49994220, 2, 0, 250), (49994601, 3, 0, 568), (49994603, 4, 0, 250), (50014405, 14, 1, 249), (50009216, 13, 1, 249), (50014442, 10, 0, 250), (50014443, 11, 0, 250), (50014445, 12, 0, 250), (50055425, 5, 1, 251), (50055780, 1, 1, 251), (50055781, 2, 1, 251), (50056858, 3, 0, 569), (50056859, 4, 1, 251), (50075929, 14, 0, 250), (50070761, 13, 0, 250), (50075965, 10, 1, 251), (50075967, 11, 1, 251), (50075970, 12, 1, 251), (50116894, 5, 0, 252), (50117250, 1, 0, 252), (50117252, 2, 0, 252), (50117634, 3, 0, 570), (50117636, 4, 0, 252), (50137212, 14, 1, 251), (50132233, 13, 1, 251), (50137246, 10, 0, 252), (50137247, 11, 0, 252), (50137250, 12, 0, 252), (50178200, 5, 1, 253), (50178558, 1, 1, 253), (50178559, 2, 1, 253), (50179632, 3, 0, 571), (50179634, 4, 1, 253), (50198747, 14, 0, 252), (50193580, 13, 0, 252), (50198782, 10, 1, 253), (50198783, 11, 1, 253), (50198785, 12, 1, 253), (50239820, 5, 0, 254), (50240173, 1, 0, 254), (50240174, 2, 0, 254), (50240558, 3, 0, 572), (50240562, 4, 0, 254), (50260256, 14, 1, 253), (50255049, 13, 1, 253), (50260296, 10, 0, 254), (50260297, 11, 0, 254), (50260298, 12, 0, 254), (50301479, 5, 1, 255), (50301833, 1, 1, 255), (50301834, 2, 1, 255), (50302908, 3, 0, 573), (50302910, 4, 1, 255), (50321909, 14, 0, 254), (50316741, 13, 0, 254), (50321949, 10, 1, 255), (50321951, 11, 1, 255), (50321953, 12, 1, 255), (50362946, 5, 0, 256), (50363302, 1, 0, 256), (50363303, 2, 0, 256), (50373283, 3, 0, 574), (50373285, 4, 0, 256), (50383123, 14, 1, 255), (50377958, 13, 1, 255), (50383159, 10, 0, 256), (50383160, 11, 0, 256), (50383162, 12, 0, 256), (50424237, 5, 1, 257), (50424591, 1, 1, 257), (50424592, 2, 1, 257), (50424975, 3, 0, 575), (50424977, 4, 1, 257), (50444763, 14, 0, 256), (50439593, 13, 0, 256), (50444799, 10, 1, 257), (50444800, 11, 1, 257), (50444802, 12, 1, 257), (50485705, 5, 0, 258), (50486058, 1, 0, 258), (50486059, 2, 0, 258), (50487133, 3, 0, 576), (50487135, 4, 0, 258), (50506050, 14, 1, 257), (50501075, 13, 1, 257), (50506086, 10, 0, 258), (50506087, 11, 0, 258), (50506090, 12, 0, 258), (50547293, 5, 1, 259), (50567234, 14, 0, 258), (50562547, 13, 0, 258)]
+>>> 
+>>> print("RS", sentai.pipeline.ring_stats())
+print("RS", sentai.pipeline.ring_stats())
+RS (259, 14245, 859, 2072, 0, 0)
+>>> 
+>>> print("CS", sentai.pipeline.chase_stats())
+print("CS", sentai.pipeline.chase_stats())
+CS (0, 0, 0)
+>>> 
+>>> print(sentai.sys.health())
+print(sentai.sys.health())
+{'led_codes': [], 'sd': True, 'cam0': True, 'cam1': True, 'imu': True, 'tpu': True, 'led_ms_left': 0}
+>>> 
+>>> sentai.camera.yuv_mode(1)
+sentai.camera.yuv_mode(1)
+1
+>>> 
+>>> sentai.camera.set_hw(1280, 960)
+sentai.camera.set_hw(1280, 960)
+0
+>>> 
+>>> sentai.camera.packed420(1)
+sentai.camera.packed420(1)
+1
+>>> 
+>>> print("INIT", sentai.camera.init(1, 36))
+print("INIT", sentai.camera.init(1, 36))
+HandlePowerRequest: cam0 (bus 1): OK, cam1 (bus 2): OK
+CAMERA_RECEIVER_Init = 0
+CSI probe: bus=24 wdiv=2 CR1=40020912 CR3=00000021 CR18=0000D008 CR20=00000000 IMAG=028003C0 FBUF=00000000
+BOARD_PullCameraPowerDownPin:1
+BOARD_PullCameraResetPin:0
+BOARD_PullCameraPowerDownPin:0
+BOARD_PullCameraResetPin:1
+CAMERA_DEVICE_Init = 0
+CAMERA_DEVICE_Start = 0
+CAMERA_RECEIVER_Start = 0
+[CAM] sensor_fps=30 (1 s sample, target=30)
+[CAM1] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM1] W 0x3820=0x47 (0)
+[CAM1] W 0x3821=0x01 (0)
+[CAM0] Rotation 270° (mirror=0 flip=1) reg20=0x41 reg21=0x07 -> reg20=0x47 reg21=0x01
+[CAM0] W 0x3820=0x47 (0)
+[CAM0] W 0x3821=0x01 (0)
+[CAM0] W 0x4300=0x5F (0)
+[CAM0] W 0x460C=0x22 (0)
+[CAM0] W 0x3824=0x01 (0)
+[cam] packed420 capture: sensor format 0x5F + PCLK div manual/1 -> ok
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xE7 (0)
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xD8 (0)
+[cam] pre-trim: cam0 delayed 15 lines (423 us) -> alternation at full rate
+[cam] genlock step 0: phase 261 us -> cam0 VTS 984+15 for one frame
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xE7 (0)
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xD8 (0)
+[cam] genlock step 1: phase 261 us -> cam0 VTS 984+15 for one frame
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xE7 (0)
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xD8 (0)
+[cam] genlock step 2: phase 261 us -> cam0 VTS 984+15 for one frame
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xE7 (0)
+[CAM0] W 0x380E=0x03 (0)
+[CAM0] W 0x380F=0xD8 (0)
+[cam] genlock FAILED: residual phase 261 us
+INIT 0
+>>> 
+>>> print("LOAD", sentai.tpu.load("/models/c2f_yuv420_sxga_relu_int8_edgetpu.tflite"))
+print("LOAD", sentai.tpu.load("/models/c2f_yuv420_sxga_relu_int8_edgetpu.tflite"))
+Model loaded: 516960 bytes
+[EdgeTPU pkg] inference_exe type=2  parameter_caching_exe=present  token=0x0296f8b3eb875be6
+Inputs: 2
+  in[0] uint8[1,480,640,2] (614400 bytes)  scale=0.00392157 zp=0
+  in[1] uint8[1,960,1280,1] (1228800 bytes)  scale=0.00392157 zp=0
+Outputs: 2
+  [0] uint8[1,60,80,6] (28800 bytes)
+      quant: scale=0.00034542  zero_point=134
+  [1] uint8[1,30,40,6] (7200 bytes)
+      quant: scale=0.00012524  zero_point=83
+Arena used: 1835 / 8192 KB
+Model name: c2f_yuv420_sxga_relu_int8_edgetp
+LOAD 0
+>>> 
+>>> sentai.tpu.invoke()
+sentai.tpu.invoke()
+71
+>>> 
+>>> print("RG", sentai.pipeline.ocram_ring(1))
+print("RG", sentai.pipeline.ocram_ring(1))
+RG 1
+>>> 
+>>> print("CP", sentai.pipeline.chase_prep(1))
+print("CP", sentai.pipeline.chase_prep(1))
+CP 1
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> sentai.pipeline.prep_reset()
+sentai.pipeline.prep_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 6872, 'nms_ms_sum': 1, 'ms_sum': 8151, 'ok': 123, 'infer_wait_ms_sum': 50, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 66, 'first_fail_ms': 0, 'bufs_cap': 2, 'bufs_free': 1, 'recover_attempts': 0}
+>>> 
+>>> print("PSTATS", sentai.pipeline.prep_stats())
+print("PSTATS", sentai.pipeline.prep_stats())
+PSTATS {'pxp_ms_sum': 7008, 'cam_grab_ms_sum': 190, 'quant_ms_sum': 0, 'frames': 128, 'total_ms_sum': 7199, 'sem_wait_ms_sum': 1}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> sentai.pipeline.trace(1)
+sentai.pipeline.trace(1)
+>>> 
+>>> sentai.pipeline.ring_stats(1)
+sentai.pipeline.ring_stats(1)
+(133, 7315, 777971, 1064, 0, 0)
+>>> 
+>>> sentai.pipeline.infer_reset()
+sentai.pipeline.infer_reset()
+>>> 
+>>> sentai.pipeline.prep_reset()
+sentai.pipeline.prep_reset()
+>>> 
+>>> print("START", sentai.pipeline.start(0.5))
+print("START", sentai.pipeline.start(0.5))
+START 0
+>>> 
+>>> print("ISTATS", sentai.pipeline.infer_stats())
+print("ISTATS", sentai.pipeline.infer_stats())
+ISTATS {'recover_ok': 0, 'cycle_ms_sum': 12798, 'nms_ms_sum': 0, 'ms_sum': 15125, 'ok': 229, 'infer_wait_ms_sum': 43, 'recover_fail': 0, 'recover_giveup': 0, 'first_fail_idx': 4294967295, 'fail': 0, 'last_rc': 66, 'first_fail_ms': 0, 'bufs_cap': 2, 'bufs_free': 1, 'recover_attempts': 0}
+>>> 
+>>> print("PSTATS", sentai.pipeline.prep_stats())
+print("PSTATS", sentai.pipeline.prep_stats())
+PSTATS {'pxp_ms_sum': 12834, 'cam_grab_ms_sum': 300, 'quant_ms_sum': 0, 'frames': 234, 'total_ms_sum': 13135, 'sem_wait_ms_sum': 1}
+>>> 
+>>> print("STOP", sentai.pipeline.stop())
+print("STOP", sentai.pipeline.stop())
+STOP 0
+>>> 
+>>> print("TR", sentai.pipeline.trace())
+print("TR", sentai.pipeline.trace())
+TR [(50079582, 11, 0, 232), (50079584, 12, 0, 232), (50075063, 7, 1, 232), (50091132, 8, 0, 232), (50095478, 8, 1, 232), (50099828, 8, 2, 232), (50104178, 8, 3, 232), (50108562, 8, 4, 232), (50112912, 8, 5, 232), (50117262, 8, 6, 232), (50120498, 8, 7, 232), (50126108, 5, 1, 233), (50126109, 1, 1, 233), (50126110, 2, 1, 233), (50127194, 3, 0, 571), (50127195, 4, 1, 233), (50146390, 14, 0, 232), (50141558, 13, 0, 232), (50146427, 10, 1, 233), (50146428, 11, 1, 233), (50146430, 12, 1, 233), (50141940, 7, 0, 233), (50158014, 8, 0, 233), (50162360, 8, 1, 233), (50166709, 8, 2, 233), (50171059, 8, 3, 233), (50175443, 8, 4, 233), (50179794, 8, 5, 233), (50184143, 8, 6, 233), (50187332, 8, 7, 233), (50192925, 5, 0, 234), (50192926, 1, 0, 234), (50192927, 2, 0, 234), (50194009, 3, 0, 572), (50194011, 4, 0, 234), (50213189, 14, 1, 233), (50208291, 13, 1, 233), (50213230, 10, 0, 234), (50213231, 11, 0, 234), (50213233, 12, 0, 234), (50208691, 7, 1, 234), (50224893, 8, 0, 234), (50229238, 8, 1, 234), (50233588, 8, 2, 234), (50237937, 8, 3, 234), (50242321, 8, 4, 234), (50246670, 8, 5, 234), (50251021, 8, 6, 234), (50254326, 8, 7, 234), (50259933, 5, 1, 235), (50259934, 1, 1, 235), (50259935, 2, 1, 235), (50261019, 3, 0, 573), (50261022, 4, 1, 235), (50280180, 14, 0, 234), (50275357, 13, 0, 234), (50280217, 10, 1, 235), (50280218, 11, 1, 235), (50280220, 12, 1, 235), (50275738, 7, 0, 235), (50291772, 8, 0, 235), (50296118, 8, 1, 235), (50300468, 8, 2, 235), (50304818, 8, 3, 235), (50309202, 8, 4, 235), (50313552, 8, 5, 235), (50317902, 8, 6, 235), (50321160, 8, 7, 235), (50326774, 5, 0, 236), (50326775, 1, 0, 236), (50326776, 2, 0, 236), (50327858, 3, 0, 574), (50327860, 4, 0, 236), (50346870, 14, 1, 235), (50342046, 13, 1, 235), (50346904, 10, 0, 236), (50346905, 11, 0, 236), (50346906, 12, 0, 236), (50342427, 7, 1, 236), (50358650, 8, 0, 236), (50362996, 8, 1, 236), (50367346, 8, 2, 236), (50371696, 8, 3, 236), (50376080, 8, 4, 236), (50380430, 8, 5, 236), (50384779, 8, 6, 236), (50388069, 8, 7, 236), (50393663, 5, 1, 237), (50393663, 1, 1, 237), (50393664, 2, 1, 237), (50394748, 3, 0, 575), (50394750, 4, 1, 237), (50413775, 14, 0, 236), (50408964, 13, 0, 236), (50413812, 10, 1, 237), (50413813, 11, 1, 237), (50413815, 12, 1, 237), (50409348, 7, 0, 237), (50425530, 8, 0, 237), (50429874, 8, 1, 237), (50434224, 8, 2, 237), (50438575, 8, 3, 237), (50442958, 8, 4, 237), (50447309, 8, 5, 237), (50451659, 8, 6, 237), (50454902, 8, 7, 237), (50460498, 5, 0, 238), (50460499, 1, 0, 238), (50460500, 2, 0, 238), (50461581, 3, 0, 576), (50461583, 4, 0, 238), (50480755, 14, 1, 237), (50475910, 13, 1, 237), (50480792, 10, 0, 238), (50480793, 11, 0, 238), (50480795, 12, 0, 238), (50476293, 7, 1, 238), (50492413, 8, 0, 238), (50496759, 8, 1, 238), (50501108, 8, 2, 238), (50505458, 8, 3, 238), (50509843, 8, 4, 238), (50514193, 8, 5, 238), (50518543, 8, 6, 238), (50521834, 8, 7, 238), (50527530, 5, 1, 239), (50547469, 14, 0, 238), (50542731, 13, 0, 238)]
+>>> 
+>>> print("RS", sentai.pipeline.ring_stats())
+print("RS", sentai.pipeline.ring_stats())
+RS (239, 13145, 1352039, 1912, 0, 0)
+>>> 
+>>> print("CS", sentai.pipeline.chase_stats())
+print("CS", sentai.pipeline.chase_stats())
+CS (372, 0, 0)
+>>> 
+>>> print(sentai.sys.health())
+print(sentai.sys.health())
+{'led_codes': [], 'sd': True, 'cam0': True, 'cam1': True, 'imu': True, 'tpu': True, 'led_ms_left': 0}
+>>> 

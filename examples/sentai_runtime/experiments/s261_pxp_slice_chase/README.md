@@ -68,6 +68,17 @@ point.  n = 1 is the baseline (full-frame PXP after EOF).
    1.84 MB into the 921 KB OCRAM buffer → precise bus error at 0x20400000 (build 1740,
    `crash_prev.txt`).  `sentai_pipeline_staging_buf()` now selects by size.
 
+## Step 4 answered: the CSI DMA does not restart mid-frame (`csi_slice_probe.py`, `csi_slice_rate.py`, build 1752)
+
+Receiver height set to 128 or 480 lines (`csi_geom(640, H)`, packed YUV420, SXGA
+true-30 row): the CSI keeps running, captures the top H lines of every frame, and the
+DMA frame-done rate stays **30–31/s** in all three cases (960 / 480 / 128) while a
+consumer dequeues (`sensor_frames` = DMA done events, `frame_count`, CSI `FRMCNT`).
+A mid-frame FB1/FB2 restart would have shown 60 or 225 per second.  The DMA "frame"
+is SOF-gated: after IMAG_PARA lines it waits for the next frame start.  A CSI line
+ring in OCRAM is therefore **not possible** on the RT1176 CSI; the OCRAM gain was
+taken on the TPU side instead (EXP-s262: PXP output ring in OCRAM, 15.6 fps).
+
 ## What this enables (next steps, not done here)
 
 * PrepTask integration (W24-T15 step 2): start the repack when the frame is ~1/n

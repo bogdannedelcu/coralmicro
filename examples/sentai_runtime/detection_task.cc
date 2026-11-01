@@ -107,6 +107,10 @@ extern "C" {
     int      sentai_tpu_ring_produce_wait(uint32_t timeout_ms);
     uint8_t* sentai_tpu_ring_slot_ptr(void);
     void     sentai_tpu_ring_produced(void);
+    // EXP-s263: chase producer (sentai_runtime.cc) — repack while the CSI writes.
+    int  sentai_cam_chase_begin(int rows_per_slice, int wait_sync, uint8_t** out_buf, uint32_t* t_sync_us);
+    int  sentai_cam_chase_wait_slice(int k, uint32_t timeout_us);
+    void sentai_cam_chase_end(void);
     int  sentai_tpu_invoke_with_inputs2(uint8_t* uv_buf, uint8_t* y_buf);
     extern volatile int g_sentai_yuv_dual;   // set by the loader (>=2 inputs)
     // s240: per-invoke timing telemetry via the flight recorder.  Fast
@@ -530,6 +534,12 @@ extern "C" int sentai_pipeline_dump_staging(const char* path, int slot, uint32_t
 // 737 280 B total).  128 rows x 5 = the 1 228 800-byte "Y" tensor exactly, so
 // the Y/UV tensor boundary falls on a slot boundary.
 static int s_ring_rows = 128;
+// EXP-s263 (W24-T15 step 2): with the ring on, produce from the frame the CSI
+// is currently writing (slice by slice, padding-byte markers) instead of the
+// completed frame GetRawFrame() returned; that frame is returned immediately.
+static volatile int s_chase_prep = 0;
+extern "C" int  sentai_pipeline_chase_prep_get(void) { return s_chase_prep; }
+extern "C" void sentai_pipeline_chase_prep_set(int on) { s_chase_prep = on ? 1 : 0; }
 extern "C" int sentai_pipeline_ocram_ring_set(int on) {
     if (!on) { sentai_tpu_ring_enable(0); return 0; }
     const int cw = yuv_cam_w(), chh = yuv_cam_h();
@@ -1182,6 +1192,7 @@ static void prep_task_fn(void* /*param*/) {
 #endif
         int rc;
         bool ring_streamed = false;   // EXP-s262: frame already signalled to InferTask
+        bool raw_returned  = false;   // EXP-s263: chase producer returned `raw` early
         if (g_sentai_yuv_dual) {
             // s240/YUV420: one PXP pass splits the XYUV frame into Y (dst_buf[0],
             // W x H) + UV (dst_buf[Y_SIZE], W/2 x H/2 x 2).  `raw` MUST be XYUV
@@ -1220,13 +1231,31 @@ static void prep_task_fn(void* /*param*/) {
                 rc = 0;
                 const int w2 = cw / 2;
                 const uint32_t src_pitch = (uint32_t)w2 * 4u;
+                const uint8_t* src_frame = raw;
+                bool chasing = false;
+                if (s_chase_prep) {
+                    // EXP-s263: hand the completed frame straight back and chase
+                    // the one being written now (we are inside its vertical blank).
+                    sentai_cam_return_raw(idx);
+                    raw_returned = true;
+                    uint8_t* live = nullptr; uint32_t t_sync = 0;
+                    if (sentai_cam_chase_begin(s_ring_rows, 0, &live, &t_sync) == 0) {
+                        src_frame = live; chasing = true;
+                        pipe_trace(7, (uint16_t)(s_prep_count_dt & 1u), s_prep_count_dt - 1u, t_sync);
+                    } else {
+                        rc = -21;   // could not identify the in-flight buffer this frame
+                    }
+                }
                 for (int r = 0; r < chh && rc == 0; r += s_ring_rows) {
                     const int rows = (chh - r) < s_ring_rows ? (chh - r) : s_ring_rows;
+                    if (chasing && sentai_cam_chase_wait_slice(r / s_ring_rows, 120000u) != 0) { rc = -22; break; }
+                    if (chasing) pipe_trace(8, (uint16_t)(r / s_ring_rows), s_prep_count_dt - 1u);
                     if (sentai_tpu_ring_produce_wait(800) != 0) { rc = -20; break; }
-                    rc = sentai_pxp_pack420_drop(raw + (uint32_t)r * src_pitch, w2, rows,
+                    rc = sentai_pxp_pack420_drop(src_frame + (uint32_t)r * src_pitch, w2, rows,
                                                  sentai_tpu_ring_slot_ptr());
                     sentai_tpu_ring_produced();
                 }
+                if (chasing) sentai_cam_chase_end();
             } else if (g_sentai_cam_packed420) {
                 // EXP-s260 option B: camera frame is packed YUV420 (2 B/px,
                 // [C,Y1,Y2,0] per pixel pair); the PXP drops the zero byte
@@ -1257,6 +1286,7 @@ static void prep_task_fn(void* /*param*/) {
             sentai_logf("det_prep", "flow publish begin");
         }
 #endif
+        if (!raw_returned) {
         sentai_flow_m4_publish_frame(raw, DEMO_CAMERA_WIDTH,
                                      DEMO_CAMERA_HEIGHT,
                                      sentai_cam_current_id());
@@ -1266,6 +1296,7 @@ static void prep_task_fn(void* /*param*/) {
         }
 #endif
         sentai_cam_return_raw(idx);
+        }   // !raw_returned (EXP-s263)
 
         if (rc != 0) {
             // PXP failure is always reportable — hardware error, not a transient miss.
