@@ -813,6 +813,20 @@ static mp_obj_t mod_sentai_pipeline_trace(size_t n_args, const mp_obj_t* args) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_pipeline_trace_obj, 0, 1, mod_sentai_pipeline_trace);
 
+// sentai.pipeline.dump_staging(path, slot=0, nbytes=0) -> int bytes written.
+// EXP-s260: write the last PXP output for the TPU (staging slot) to a file so
+// the host can verify its layout.  nbytes 0 = whole staging buffer.
+extern int sentai_pipeline_dump_staging(const char* path, int slot, uint32_t nbytes);
+static mp_obj_t mod_sentai_pipeline_dump_staging(size_t n_args, const mp_obj_t* args) {
+    const char* path = mp_obj_str_get_str(args[0]);
+    int slot = (n_args > 1) ? mp_obj_get_int(args[1]) : 0;
+    uint32_t n = (n_args > 2) ? (uint32_t)mp_obj_get_int(args[2]) : 0u;
+    int rc = sentai_pipeline_dump_staging(path, slot, n);
+    if (rc < 0) mp_raise_msg(&mp_type_RuntimeError, MP_ERROR_TEXT("dump_staging failed"));
+    return mp_obj_new_int(rc);
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_pipeline_dump_staging_obj, 1, 3, mod_sentai_pipeline_dump_staging);
+
 static mp_obj_t mod_sentai_pipeline_infer_reset(void) {
     sentai_pipeline_infer_reset();
     return mp_const_none;
@@ -1437,6 +1451,7 @@ static const mp_rom_map_elem_t sentai_pipeline_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_debug_no_invoke), MP_ROM_PTR(&mod_sentai_pipeline_debug_no_invoke_obj) },
     { MP_ROM_QSTR(MP_QSTR_infer_stats),     MP_ROM_PTR(&mod_sentai_pipeline_infer_stats_obj) },
     { MP_ROM_QSTR(MP_QSTR_trace), MP_ROM_PTR(&mod_sentai_pipeline_trace_obj) },
+    { MP_ROM_QSTR(MP_QSTR_dump_staging), MP_ROM_PTR(&mod_sentai_pipeline_dump_staging_obj) },
     { MP_ROM_QSTR(MP_QSTR_infer_reset),     MP_ROM_PTR(&mod_sentai_pipeline_infer_reset_obj) },
     { MP_ROM_QSTR(MP_QSTR_invokes_per_frame), MP_ROM_PTR(&mod_sentai_pipeline_invokes_per_frame_obj) },
     { MP_ROM_QSTR(MP_QSTR_multi_invoke_mode), MP_ROM_PTR(&mod_sentai_pipeline_multi_invoke_mode_obj) },

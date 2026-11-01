@@ -3180,6 +3180,67 @@ int sentai_pxp_xyuv_to_yuv420(const uint8_t* src, int src_w, int src_h,
   return 0;
 }
 
+// EXP-s260 / W24-T16 option B: the packed YUV420 camera buffer (EXP-s259:
+// [C,Y1,Y2,0] per pixel pair, C = U on even rows / V on odd rows, i.e. a
+// W/2 x H image of 32-bit pixels) is copied by the PXP as RGB888 (32-bit
+// unpacked) -> RGB888P (24-bit packed), which simply drops the zero byte:
+// dst = [C,Y1,Y2] per pixel pair = 1.5 bytes per camera pixel, the same byte
+// count as the model's Y + UV planes.  No scaler, no CSC.  `w2` is the
+// camera width / 2.  Returns 0 on success.
+extern "C"
+__attribute__((section(".sdram_text")))
+int sentai_pxp_pack420_drop(const uint8_t* src, int w2, int h, uint8_t* dst) {
+  pxp_ps_buffer_config_t ps_cfg;
+  memset(&ps_cfg, 0, sizeof(ps_cfg));
+  ps_cfg.pixelFormat = kPXP_PsPixelFormatRGB888;   /* 32-bit unpacked: B=C, G=Y1, R=Y2, X=0 */
+  ps_cfg.swapByte    = false;
+  ps_cfg.bufferAddr  = (uint32_t)src;
+  ps_cfg.pitchBytes  = (uint32_t)w2 * 4u;
+
+  pxp_output_buffer_config_t out_cfg;
+  memset(&out_cfg, 0, sizeof(out_cfg));
+  out_cfg.pixelFormat    = kPXP_OutputPixelFormatRGB888P;   /* 24-bit packed */
+  out_cfg.interlacedMode = kPXP_OutputProgressive;
+  out_cfg.buffer0Addr    = (uint32_t)dst;
+  out_cfg.pitchBytes     = (uint32_t)w2 * 3u;
+  out_cfg.width          = (uint16_t)w2;
+  out_cfg.height         = (uint16_t)h;
+
+  const uint32_t dst_size = (uint32_t)w2 * (uint32_t)h * 3u;
+#if (__CORTEX_M == 7)
+  DCACHE_CleanInvalidateByRange((uint32_t)dst, dst_size);
+#endif
+  PXP_SetProcessSurfaceBufferConfig(DEMO_PXP, &ps_cfg);
+  PXP_SetProcessSurfaceScaler(DEMO_PXP, w2, h, w2, h);
+  PXP_SetProcessSurfacePosition(DEMO_PXP, 0, 0, w2 - 1, h - 1);
+  PXP_SetAlphaSurfacePosition(DEMO_PXP, 0xFFFFU, 0xFFFFU, 0U, 0U);
+  PXP_EnableCsc1(DEMO_PXP, false);
+  PXP_SetOutputBufferConfig(DEMO_PXP, &out_cfg);
+  PXP_Start(DEMO_PXP);
+  if (!sentai_pxp_wait_complete()) {
+    SERR_LOG(SERR_CAM_PXP_TIMEOUT, __LINE__);
+    return -7;
+  }
+#if (__CORTEX_M == 7)
+  DCACHE_InvalidateByRange((uint32_t)dst, dst_size);
+#endif
+  return 0;
+}
+
+// EXP-s260 option B capture mode: sensor "YUV420 for MIPI only" + CSI receiver
+// at half width (2 B/px, see EXP-s259).  Set before camera.init(); the init
+// path writes the sensor registers to the ACTIVE camera after the OV5640
+// driver init.  PrepTask then uses sentai_pxp_pack420_drop() instead of the
+// XYUV -> YUV420 repack.  Everything else still assumes XYUV: diagnostics only.
+volatile int g_sentai_cam_packed420 = 0;
+extern "C" int sentai_camera_set_csi_mode(uint32_t bus, uint32_t cr18_or, uint32_t cr20_or, uint32_t wdiv);
+extern "C" int sentai_cam_set_packed420(int on) {
+  if (g_cam_initialized) return -2;
+  g_sentai_cam_packed420 = on ? 1 : 0;
+  return sentai_camera_set_csi_mode(24u, 0u, 0u, on ? 2u : 1u);
+}
+extern "C" int sentai_cam_get_packed420(void) { return g_sentai_cam_packed420; }
+
 // s240/YUV420 Phase-3 diagnostic: grab the current (XYUV, yuv_mode=1) camera
 // frame, split it into Y + UV planes via the PXP, and dump both raw to FS so
 // the host can reconstruct grayscale/chroma images and confirm the extraction
@@ -3958,6 +4019,20 @@ extern "C" __attribute__((section(".sdram_text"))) int sentai_cam_init_full(
     uint8_t dm = cam->DetectedMask();
     sentai_health_periph(PERIPH_CAM0, (dm & 1u) ? 1 : 0);
     sentai_health_periph(PERIPH_CAM1, (dm & 2u) ? 1 : 0);
+  }
+  if (g_sentai_cam_packed420) {
+    /* EXP-s260 option B: switch the ACTIVE sensor (cam 0) to "YUV420 for
+     * MIPI only" (0x4300=0x5F).  The SXGA rows also need the DVP PCLK
+     * divider forced to manual /1 (0x460C bit1 + 0x3824), otherwise the
+     * bytes arrive scrambled (EXP-s259).  VGA rows already run 0x22/0x02. */
+    bool ok = cam->WriteToCam(0, 0x4300, 0x5F);
+    if (g_runtime_cam_w == 1280u) {
+      ok &= cam->WriteToCam(0, 0x460C, 0x22);
+      ok &= cam->WriteToCam(0, 0x3824, 0x01);
+    }
+    printf("[cam] packed420 capture: sensor format 0x5F%s -> %s\r\n",
+           g_runtime_cam_w == 1280u ? " + PCLK div manual/1" : "", ok ? "ok" : "I2C FAIL");
+    vTaskDelay(pdMS_TO_TICKS(80));   /* two frames for the format to settle */
   }
   // EXP-s251 proposal A: bring the two sensors in phase so ratio(a,b)
   // alternation is clean at the full sensor rate.  Typically 2-3 s, bounded

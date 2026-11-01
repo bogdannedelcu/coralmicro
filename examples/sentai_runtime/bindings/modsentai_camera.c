@@ -245,6 +245,23 @@ static mp_obj_t mod_sentai_cam_yuv_mode(size_t n_args, const mp_obj_t *args) {
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_cam_yuv_mode_obj,
                                             0, 1, mod_sentai_cam_yuv_mode);
 
+// sentai.camera.packed420([on]) -> int (current).  EXP-s260 option B: capture
+// the sensor's "YUV420 for MIPI only" stream at 2 B/px (receiver at half width)
+// and let the detection pipeline run the PXP byte-drop instead of the XYUV
+// repack.  Set BEFORE init(); raises if the camera is already initialised.
+// Diagnostics / speed evaluation only: JPEG, flow and markers still assume XYUV.
+extern int sentai_cam_set_packed420(int on);
+extern int sentai_cam_get_packed420(void);
+static mp_obj_t mod_sentai_cam_packed420(size_t n_args, const mp_obj_t *args) {
+    if (n_args >= 1) {
+        if (sentai_cam_set_packed420(mp_obj_is_true(args[0]) ? 1 : 0) != 0) {
+            mp_raise_msg(&mp_type_RuntimeError, MP_ERROR_TEXT("packed420: set before init()"));
+        }
+    }
+    return mp_obj_new_int(sentai_cam_get_packed420());
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_sentai_cam_packed420_obj, 0, 1, mod_sentai_cam_packed420);
+
 // sentai.camera.csi_mode([bus, cr18_or]) -> (bus, cr18_or, CR1, CR3, CR18)
 // EXP-s259 / W24-T14 capture-layer probe: CSI receiver bus width (24 = legacy
 // 4 BPP, 16 or 8 = YUYV 2 BPP) plus raw CSICR18 bits OR'd in after CSI_Init()
@@ -1083,6 +1100,7 @@ static const mp_rom_map_elem_t sentai_camera_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_select),     MP_ROM_PTR(&mod_sentai_cam_select_obj) },
     { MP_ROM_QSTR(MP_QSTR_yuv_mode),   MP_ROM_PTR(&mod_sentai_cam_yuv_mode_obj) },
     { MP_ROM_QSTR(MP_QSTR_csi_mode),   MP_ROM_PTR(&mod_sentai_cam_csi_mode_obj) },
+    { MP_ROM_QSTR(MP_QSTR_packed420),  MP_ROM_PTR(&mod_sentai_cam_packed420_obj) },
     { MP_ROM_QSTR(MP_QSTR_csi_geom),   MP_ROM_PTR(&mod_sentai_cam_csi_geom_obj) },
     { MP_ROM_QSTR(MP_QSTR_csi_settle), MP_ROM_PTR(&mod_sentai_cam_csi_settle_obj) },
     { MP_ROM_QSTR(MP_QSTR_yuv420_test), MP_ROM_PTR(&mod_sentai_cam_yuv420_test_obj) },

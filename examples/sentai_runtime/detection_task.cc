@@ -95,6 +95,9 @@ extern "C" {
     // (one PXP pass) and invoke the 2-input model with both planes.
     int  sentai_pxp_xyuv_to_yuv420(const uint8_t* src, int sw, int sh,
                                    uint8_t* y_dst, uint8_t* uv_dst);
+    // EXP-s260 option B: packed YUV420 camera buffer -> 1.5 B/px byte-drop.
+    int  sentai_pxp_pack420_drop(const uint8_t* src, int w2, int h, uint8_t* dst);
+    extern volatile int g_sentai_cam_packed420;
     int  sentai_tpu_invoke_with_inputs2(uint8_t* uv_buf, uint8_t* y_buf);
     extern volatile int g_sentai_yuv_dual;   // set by the loader (>=2 inputs)
     // s240: per-invoke timing telemetry via the flight recorder.  Fast
@@ -498,6 +501,20 @@ extern "C" uint32_t sentai_pipeline_trace(uint32_t* out, uint32_t max_ev) {
 extern "C" void sentai_pipeline_trace_reset(void) { s_pipe_ev_n = 0; }
 static int s_bufs_free_cap = 0;   // W24-T12: in-flight frame cap chosen at start()
 static int s_prep_done_cap = 0;
+// EXP-s260: dump the first `nbytes` of staging slot `slot` (the last frame
+// PrepTask produced for the TPU) to the user partition, so the host can
+// verify the layout the PXP wrote.  Diagnostics; call with the pipeline
+// stopped.  Returns bytes written or negative.
+extern "C" int sentai_fs_write(const char* path, const uint8_t* data, int size);
+extern "C" int sentai_pipeline_dump_staging(const char* path, int slot, uint32_t nbytes) {
+    if (!path || slot < 0 || slot > 1) return -1;
+    const uint32_t cap = (uint32_t)yuv_total_bytes();
+    if (nbytes == 0 || nbytes > cap) nbytes = cap;
+    const uint8_t* buf = yuv_in_buf((unsigned)slot);
+    if (!buf) return -2;
+    return sentai_fs_write(path, buf, (int)nbytes) ? (int)nbytes : -3;
+}
+
 extern "C" void sentai_pipeline_bufs(int* cap, int* free_now) {
     if (cap) *cap = s_bufs_free_cap;
     if (free_now) *free_now = s_sem_bufs_free ? (int)uxSemaphoreGetCount(s_sem_bufs_free) : -1;
@@ -1143,7 +1160,16 @@ static void prep_task_fn(void* /*param*/) {
                 continue;
             }
             pipe_trace(4, (uint16_t)(s_prep_count_dt & 1u), s_prep_count_dt);
-            rc = sentai_pxp_xyuv_to_yuv420(raw, cw, chh, dst_buf, dst_buf + Y_SIZE);
+            if (g_sentai_cam_packed420) {
+                // EXP-s260 option B: camera frame is packed YUV420 (2 B/px,
+                // [C,Y1,Y2,0] per pixel pair); the PXP drops the zero byte
+                // -> [C,Y1,Y2] = 1.5 B/px, same byte count as Y + UV, into
+                // the same staging buffer.  Model-layout mismatch is accepted
+                // for the SPEED test (the 2-input model reads the same bytes).
+                rc = sentai_pxp_pack420_drop(raw, cw / 2, chh, dst_buf);
+            } else {
+                rc = sentai_pxp_xyuv_to_yuv420(raw, cw, chh, dst_buf, dst_buf + Y_SIZE);
+            }
             pipe_trace(5, (uint16_t)(s_prep_count_dt & 1u), s_prep_count_dt);
         } else {
             rc = sentai_pxp_scale(raw, DEMO_CAMERA_WIDTH, DEMO_CAMERA_HEIGHT,
