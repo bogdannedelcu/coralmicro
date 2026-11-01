@@ -43,9 +43,11 @@ from PIL import Image
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from board_repl import Repl  # noqa: E402
-from analyze import measure, de76  # noqa: E402
+from analyze import measure, de76, de2000  # noqa: E402
 
 TARGET_N8 = 200.0           # sRGB value of the 'neutral 8' patch
+AVG_FRAMES = 1              # frames averaged per centre-mode patch (--avg)
+HOLDOUT = ('light skin', 'blue flower', 'moderate red', 'yellow green', 'cyan', 'neutral 6.5')
 MIN_WHITE = 150.0           # visibility guard: monitor 150; a dim printed chart needs ~50 (--min-white)
 GREYS = ('neutral 6.5', 'neutral 5')
 ALL_GREYS = ('white', 'neutral 8', 'neutral 6.5', 'neutral 5', 'neutral 3.5', 'black')
@@ -124,9 +126,20 @@ class Tuner:
             subprocess.run([sys.executable, os.path.join(HERE, 'show_pattern.py'), '--png', png],
                            check=True, stdout=subprocess.DEVNULL)
             time.sleep(self.centre_settle)
-            jpg = self.r.snap_cur('/s265_tune.jpg', 90)
             one = [{'name': p['name'], 'srgb': p['srgb'], 'rect': self.centre_rect}]
-            m = measure(Image.open(io.BytesIO(jpg)), self.H, one, 0.4)[0]
+            # AVG_FRAMES captures averaged (sensor noise at 3-10x gain, PWM flicker of lamps)
+            ms = []
+            for _ in range(max(1, AVG_FRAMES)):
+                jpg = self.r.snap_cur('/s265_tune.jpg', 90)
+                mm = measure(Image.open(io.BytesIO(jpg)), self.H, one, 0.4)[0]
+                if mm:
+                    ms.append(mm)
+            m = None
+            if ms:
+                m = dict(ms[0])
+                m['mean'] = np.mean([x['mean'] for x in ms], axis=0).round(1).tolist()
+                m['dE76'] = round(de76(m['mean'], p['srgb']), 2)
+                m['dE00'] = round(de2000(m['mean'], p['srgb']), 2)
             if m:
                 d[p['name']] = m
                 # visibility guard in centre mode: a bright patch must read bright and a dark
@@ -426,21 +439,25 @@ class Tuner:
         self.write(0x538B, s_b)
         return {'0x%04X' % r: int(v) for r, v in zip(CMX_REGS, mags)} | {'0x538A': s_a, '0x538B': s_b}
 
-    def stage_ccm(self, rounds=2, damp=0.9, clip_lo=6, clip_hi=250):
+    def stage_ccm(self, rounds=2, damp=0.9, clip_lo=6, clip_hi=250, holdout=True):
+        """Fit on the patches not in HOLDOUT, report the predicted error on the held-out six
+        as well: a fit that only helps the training patches is over-fitting the display."""
         Kinv = np.linalg.inv(self.K)
         tuned = {}
         for rd in range(rounds):
             d = self.capture('ccm%d_base' % rd)
             M, signs = self.read_cmx()
-            out, tgt = [], []
+            out, tgt, ho_out, ho_tgt = [], [], [], []
             for p in self.patches:
                 m = d.get(p['name'])
                 if not m:
                     continue
                 if min(m['mean']) < clip_lo or max(m['mean']) > clip_hi:
                     continue            # clipped channel: not linear, leave it out
-                out.append(m['mean'])
-                tgt.append(p['srgb'])
+                if holdout and p['name'] in HOLDOUT:
+                    ho_out.append(m['mean']); ho_tgt.append(p['srgb'])
+                else:
+                    out.append(m['mean']); tgt.append(p['srgb'])
             out, tgt = np.array(out, float), np.array(tgt, float)
             # least squares C · out ≈ tgt, then row-normalise so greys stay neutral
             C, *_ = np.linalg.lstsq(out, tgt, rcond=None)
@@ -452,6 +469,10 @@ class Tuner:
             Mnew = self.K @ C @ Kinv @ M
             print('  cam%d ccm round %d: %d patches, RGB rms %.1f -> predicted %.1f; C=%s' % (
                 self.cam, rd, len(out), e_before, e_pred, np.array2string(C, precision=3, separator=',').replace('\n', '')))
+            if ho_out:
+                ho_out, ho_tgt = np.array(ho_out, float), np.array(ho_tgt, float)
+                print('    held-out %d patches: RGB rms %.1f -> predicted %.1f' % (
+                    len(ho_out), np.sqrt(np.mean((ho_out - ho_tgt) ** 2)), np.sqrt(np.mean((ho_out @ C.T - ho_tgt) ** 2))))
             self.log(ev='ccm_update', C=C.round(4).tolist(), cmx_old=M.round(4).tolist(), cmx_new=Mnew.round(4).tolist())
             if np.abs(Mnew * 128).max() > 255:
                 print('  cam%d ccm: magnitude overflow (%.0f/128), scaling U/V rows down' % (self.cam, np.abs(Mnew * 128).max()))
@@ -469,7 +490,7 @@ class Tuner:
 
 
 def main():
-    global TARGET_N8, MIN_WHITE
+    global TARGET_N8, MIN_WHITE, AVG_FRAMES
     ap = argparse.ArgumentParser()
     ap.add_argument('--out', required=True)
     ap.add_argument('--cams', default='0,1')
@@ -483,7 +504,9 @@ def main():
                     help='measure each patch alone at the camera frame centre (24 captures per measurement)')
     ap.add_argument('--min-white', type=float, default=150.0,
                     help='visibility guard: minimum mean of the white patch (monitor 150, dim print ~50)')
+    ap.add_argument('--avg', type=int, default=1, help='frames averaged per centre-mode patch')
     a = ap.parse_args()
+    AVG_FRAMES = a.avg
     TARGET_N8 = a.n8
     MIN_WHITE = a.min_white
     loc = json.load(open(os.path.join(a.out, 'locate.json')))

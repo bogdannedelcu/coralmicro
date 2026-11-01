@@ -619,6 +619,49 @@ on both cameras for the same registers, which is the signature of the measuremen
 sensor — the `--centre` path is therefore the default for display targets from now on.
 `grid_rectified_final.png` shows the panel's left-right brightness gradient directly.
 
+### Registers not yet used, and the CCM in centre mode (`chain6.out`)
+
+Operator cannot light the printed chart properly → the Kamvas stays the only target.  Unused
+so far: SDE hue (0x5581/82), CMX 2.6 mode (0x5380), raw-gamma enable (0x5000 bit 5), BLC
+target (0x4009), SDE contrast/brightness (0x5586/87), 0x5490.  Tried first the analytic CCM on
+clean centre-mode data (hold-out of 6 patches added, `--avg` frame averaging added):
+cam0 RGB rms 17.4 → 14.5 predicted, 15.1 obtained, ΔE76 8.5 → 9.1; cam1 19.6 → 18.6, ΔE76
+14.0 → 14.2.  Even on position-free data a 3x3 matrix after the sensor's gamma buys nothing
+→ CMX reverted to the pre-ccm Kamvas set on both cameras.
+
+**OTP**: 0x3D00–0x3D1F read on both modules (0x3D21 read-enable, 0x3D20 never touched): all
+32 bytes are 0x00 on both, chip id 0x5640 — the module maker wrote no identifier, so a
+per-module config cannot be keyed on the sensor.  Identification options: connector position
+(bus 1 = cam0, bus 2 = cam1; stable unless modules are swapped) plus a measured fingerprint
+(the manual AWB gains for the same grey differ clearly: cam0 ≈ 1.37/1.25, cam1 ≈ 1.08/1.20).
+
+### Diagnostic: RAW gamma off (`gammaoff_cam1.out`, `measure_centre_gammaoff_cam1.json`)
+
+cam1, 0x5000 bit 5 cleared (0xA7 → 0x87: the sensor's gamma block bypassed, output ≈ linear in
+light), 24 patches measured at the frame centre, then bit restored.  Fit of a 3x3 matrix from
+the measured (linear) output to the **linearised** sRGB targets, 21 unclipped patches:
+
+| | RGB rms vs linear target |
+|---|---|
+| as measured | 13.4 |
+| after the fitted 3x3 | **2.5** |
+
+C = [[1.00, −0.20, 0.05], [−0.05, 1.04, −0.14], [0.07, −0.18, 0.94]]: yellow (232,152,16) →
+(203,143,3) vs target (203,145,3); orange-yellow → (189,93,8) vs (190,93,6); blue → (14,13,77) vs
+(10,11,77).  **cam1's colour is fully correctable in the linear domain.**  What blocks it in
+normal operation is the OV5640 pipeline order (gamma on the RAW channels, colour matrix after):
+once the per-channel gamma has been applied, the mixing γ(R + 0.2·G) can no longer be undone by a
+matrix, which is exactly what the CMX / CCM stages showed (no gain, on grid or centre data).  So
+cam1 is not "broken": it has stronger G/B crosstalk than cam0 (a −0.2 / −0.18 off-diagonal
+instead of cam0's smaller terms) and the sensor's ISP cannot absorb it.
+
+Production options that follow from this (W24-T18 follow-up, not done tonight):
+1. Run the sensor with the RAW gamma off and the CMX fitted in the linear domain, and apply the
+   sRGB transfer curve downstream (a 256-entry per-channel LUT on the M7 over the frame, or in
+   the PXP where a LUT mode exists, or retrain the TPU models on linear input).
+2. Keep the sensor as is and accept ΔE00 ≈ 8 on cam1 / ≈ 4.5 on cam0.
+3. Replace the cam1 module with one whose crosstalk is as low as cam0's.
+
 ## Step 13 — replay test (reproducibility)
 
 Full register snapshot per camera (47 registers: 0x3503, 0x350A/B, 0x3500–02, 0x3400–0x3406,

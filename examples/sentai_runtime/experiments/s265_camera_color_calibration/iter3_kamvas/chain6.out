@@ -1,0 +1,10 @@
+cam0 stage ccm
+  cam0 ccm round 0: 23 patches, RGB rms 17.4 -> predicted 14.5; C=[[ 1.223,-0.054,-0.17 ], [ 0.015, 1.084,-0.099], [-0.158,-0.101, 1.259]]
+  cam0 ccm round 1: 23 patches, RGB rms 14.5 -> predicted 14.6; C=[[ 1.008,-0.003,-0.005], [-0.004, 1.007,-0.004], [-0.006,-0.018, 1.024]]
+  cam0 ccm final: RGB rms 15.1
+cam0: mean dE76 8.5 -> 9.1 (greys 3.9); worst blue 25.8
+cam1 stage ccm
+  cam1 ccm round 0: 23 patches, RGB rms 19.6 -> predicted 18.9; C=[[ 1.054, 0.013,-0.067], [ 0.013, 1.01 ,-0.023], [-0.043,-0.091, 1.134]]
+  cam1 ccm round 1: 23 patches, RGB rms 18.9 -> predicted 18.9; C=[[ 0.99 , 0.006, 0.004], [ 0.005, 0.993, 0.002], [ 0.009,-0.028, 1.019]]
+  cam1 ccm final: RGB rms 18.6
+cam1: mean dE76 14.0 -> 14.2 (greys 5.4); worst yellow green 40.2

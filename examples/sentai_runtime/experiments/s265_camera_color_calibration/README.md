@@ -98,11 +98,16 @@ light / glare (refuted: patch colour independent of the surround).
   worst patch magenta 17.  Replayable register set `iter1/tuned_regs_cam0_final2.json`
   (109 registers incl. LENC; `tuned_regs_cam0_final.json` = the 47-register set before LENC).
 - **cam1**: 19.6 (from 41.4); greys 6.6; yellow, magenta, moderate red stay far off (dE 25–55).
-  Root cause narrowed down: the module separates green from blue much worse than cam0
-  (primaries test), a RAW-domain crosstalk the OV5640 cannot correct because its gamma runs
-  before the colour matrix.  Hardware suspicion: IR-cut filter / module batch — physical checks
-  pending (TV remote, swap modules).  The LENC table flattened its shading (±4 %) but that was
-  not the cause of the colour error.
+  Root cause **established**: the module has stronger green/blue crosstalk than cam0 (primaries
+  test; linear-domain CCM off-diagonals −0.20 / −0.18), and the OV5640 applies its gamma to the
+  RAW channels before the colour matrix, so no CMX can undo the mixing afterwards.  Proof: with
+  the RAW gamma switched off (0x5000 bit 5) a fitted 3x3 matrix brings cam1 from RGB rms 13.4
+  to **2.5** against linearised targets (yellow exact).  The module is usable; the fix is
+  architectural (gamma downstream of a linear CMX) or a module with lower crosstalk.  The LENC
+  table flattened its shading (±4 %) but that was not the cause of the colour error.
+- **Kamvas 16 (factory-calibrated, sRGB mode), centre mode**: cam0 ΔE00 4.5 (greys 3.8),
+  cam1 7.8 (4.4); sets `iter3_kamvas/tuned_regs_cam*_kamvas.json`.  OTP of both modules is
+  empty (no per-module id): identify by connector position + AWB-gain fingerprint.
 - **Method / tooling** (the deliverable for other OV5640 modules): `locate.py` (monitor →
   camera homography), `tune_colors.py` with stages `reset, expo, tone, awb, sde, cmx, ccm,
   measure` and `--centre`, `--apply <json>` for replay, visibility guard; `shading_map.py`,

@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 0213fcbf-a574-4225-a0ea-7da5f47ce784
-  modified: 2026-11-01T20:25:17.456Z
+  modified: 2026-11-01T20:46:33.413Z
 ---
 
 **EXP-s265 `examples/sentai_runtime/experiments/s265_camera_color_calibration/` (W24-T18), board 58eb build 1756, no firmware change.**
@@ -70,6 +70,13 @@ Operator goals: each camera as close as possible to the real (sRGB) colours, eve
   operator (blank-password login keyring + `systemctl --user restart gnome-keyring-daemon.service`);
   Claude Code's permission classifier refuses the blank-keyring step ("security weaken") — don't retry
   it, let the operator run it with `!`. Guards: grid white/black and centre-mode bright/dark checks.
-- Open: hold-out validation, group write (0x3212) of the final set, production integration of the
-  register set (per camera, applied after init), cam1 module physical check, print target under one
-  steady illuminant.
+- **cam1 root cause ESTABLISHED (RAW-gamma-off diagnostic):** with 0x5000 bit5 cleared (sensor gamma
+  bypassed, linear output) a fitted 3x3 matrix takes cam1 from RGB rms 13.4 → 2.5 vs linearised sRGB
+  targets (yellow exact; C off-diagonals −0.20/−0.18 = strong G/B crosstalk). The OV5640 applies gamma to
+  RAW before the CMX, so no in-sensor matrix can undo it (CMX/CCM stages: no gain on grid or centre
+  data). Module is fine; fix is architectural: linear sensor output + CMX in linear domain + sRGB LUT
+  downstream (M7 256-entry LUT, PXP LUT mode, or models on linear input), or a lower-crosstalk module.
+  OTP 0x3D00-1F is all zero on both modules (no per-module id) → identify by connector + AWB fingerprint.
+  Hold-out (6 patches) and `--avg N` frame averaging added to tune_colors.py.
+- Open: production integration (register set per camera after init, group write 0x3212), the linear
+  pipeline option above, print target under one steady illuminant.
