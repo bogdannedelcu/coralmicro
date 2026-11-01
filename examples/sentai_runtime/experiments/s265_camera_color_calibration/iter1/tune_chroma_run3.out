@@ -1,0 +1,30 @@
+cam0 stage sde
+  cam0 sde round 0: RGB rms 17.5  [64, 16]
+  cam0 sde round 1: RGB rms 17.4  [69, 21]
+  cam0 sde final: RGB rms 17.3  [72, 48]
+cam0 stage cmx
+  cam0 cmx round 0: RGB rms 17.3  [30, 88, 15, 16, 127, 142, 131, 114, 16]
+  cam0 cmx round 1: RGB rms 17.0  [32, 85, 17, 8, 135, 144, 138, 125, 10]
+  cam0 cmx round 2: RGB rms 16.7  [35, 89, 9, 12, 134, 146, 143, 136, 4]
+  cam0 cmx final: RGB rms 16.7  [35, 88, 10, 12, 135, 148, 148, 143, 2]
+cam0 stage awb
+  cam0 awb it0: R gain 1471 B gain 1267  mid-grey RGB 127.8 123.8 126.5
+  cam0 awb it1: R gain 1439 B gain 1248  mid-grey RGB 126.9 124.4 123.5
+  cam0 awb it2: R gain 1373 B gain 1252  mid-grey RGB 122.0 126.8 123.3
+  cam0 awb it3: R gain 1417 B gain 1335  mid-grey RGB 127.0 123.5 132.0
+  cam0 awb it4: R gain 1396 B gain 1278  mid-grey RGB 124.9 125.7 126.0
+cam0: mean dE76 10.6 -> 9.0 (greys 7.4); worst cyan 17.9
+cam1 stage sde
+  cam1 sde round 0: RGB rms 23.8  [64, 16]
+  cam1 sde round 1: RGB rms 23.5  [69, 52]
+  cam1 sde final: RGB rms 23.7  [72, 89]
+cam1 stage cmx
+  cam1 cmx round 0: RGB rms 23.6  [36, 86, 3, 18, 124, 140, 132, 106, 22]
+  cam1 cmx round 1: RGB rms 23.6  [38, 80, 7, 29, 114, 140, 136, 106, 27]
+  cam1 cmx round 2: RGB rms 23.2  [40, 78, 7, 33, 108, 138, 143, 111, 28]
+  cam1 cmx final: RGB rms 22.9  [43, 75, 6, 39, 99, 136, 147, 120, 22]
+cam1 stage awb
+  cam1 awb it0: R gain 1290 B gain 1213  mid-grey RGB 137.4 123.9 124.2
+  cam1 awb it1: R gain 1202 B gain 1211  mid-grey RGB 123.0 125.9 125.1
+  cam1 awb it2: R gain 1215 B gain 1228  mid-grey RGB 124.3 125.5 126.4
+cam1: mean dE76 18.0 -> 17.5 (greys 6.6); worst yellow 51.1

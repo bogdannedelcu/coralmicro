@@ -1,0 +1,10 @@
+# Jacobian perturbation captures (hundreds of near-identical JPEGs, ~70 MB); the
+# measurements they produced are in iter1/tune_cam*.jsonl.  Base/final/before/after
+# captures and all diagnostics stay tracked.
+iter1/tune_cam*_j[0-9]*.jpg
+iter1/tune_cam*_expo[0-9]*.jpg
+iter1/tune_cam*_awb[0-9]*.jpg
+# REPL transcripts: they contain every downloaded JPEG as base64 (tune_repl.log = 52 MB)
+iter1/*repl*.log
+iter1/locate.log
+iter1/*_capture.log

@@ -83,6 +83,33 @@ that does not mean the frame rate is confusing → SXGA keys = measured fps:
 `(1, 30)` = 30.0 (packed only; legacy at 30 → -12).  SDK patch 0007 rewritten as
 `0007-ov5640-sxga-true-fps-rows`; logs of builds 1742–1755 use the old keys 36/18.
 
+### s265 — camera colour calibration against a monitor (W24-T18, evening, no firmware change)
+
+Operator: both cameras look at the Philips 234E5 on the RTX 4090; show a colour grid, tune the
+cameras so the pictures match the monitor, journal every step so the procedure can be replayed
+on other OV5640 modules.  Folder `experiments/s265_camera_color_calibration/` (`JOURNAL.md`,
+`README.md`, `COLOR_CALIBRATION_SOTA.md`).
+
+- **Tooling**: `show_pattern.py` (persistent fullscreen GTK window through XWayland, image
+  swapped via a control file; `DISPLAY=:0` forced because the SSH shell carries an X-forwarded
+  display), `locate.py` (Gray-code stripes → homography monitor→camera; each camera sees ~907x653
+  screen px, common rect 843,229,555,653; cam1 mounted 180° to cam0), `capture.py`, `analyze.py`
+  (patch means through the homography, dE76), `tune_colors.py` (stages reset / expo / tone / awb /
+  sde / cmx / ccm / measure, `--centre`, `--apply`), `shading_map.py`, `primaries.py`,
+  `glare_test.py`, `rectify.py`.
+- **Results**: cam0 mean dE76 17.7 → 8.7 (greys 7.8), cam1 41.4 → 17.4 (greys 6.5); the saved
+  47-register sets replay after `sys.reset()` + `camera.init()` to 8.7 / 19.6.  AWB response to
+  gain is ~linear (a gamma-2.2 update oscillated); the gamma block needed a shadow lift on both
+  cameras; matrix/saturation stages barely move the residual (not 3x3-linear).
+- **cam1 anomaly**: purple stock frame, blue excess on yellow/orange, pink ring on a grey field,
+  centre green; at the frame centre ColorChecker yellow → (254,185,83) and moderate red →
+  (198,142,64).  Refuted: stray light, raw clipping, UV-adjust auto desaturation, channel swap.
+  Suspected module optics (IR-cut filter); operator checks pending (TV remote, swap modules,
+  move the board back).
+- **Dead ends worth remembering**: a GNOME keyring "Authentication required" dialog over the
+  pattern dimmed the screen and silently ruined two runs → `tune_colors.py` aborts when the grid's
+  white patch is not visible; per-patch window restarts (> 1 s to map) → persistent window.
+
 ### Open after this session
 Option B production integration (3-channel H×W/2 stem by weight re-indexing, sensor
 row from init, frame-layout flag for JPEG/flow/markers); W24-T13 instruction loop for

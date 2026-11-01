@@ -1,0 +1,2 @@
+cam0 measure: mean dE76 9.3; cyan (70, 143, 188) dE 14 | foliage (75, 116, 56) dE 14 | blue (64, 87, 190) dE 13 | purplish blue (83, 112, 203) dE 12 | yellow (238, 213, 79) dE 12 | bluish green (111, 210, 175) dE 12
+cam1 measure: mean dE76 17.5; moderate red (198, 142, 64) dE 46 | magenta (179, 140, 132) dE 44 | blue sky (74, 159, 157) dE 32 | yellow (254, 185, 83) dE 26 | yellow green (157, 184, 112) dE 24 | red (207, 80, 46) dE 23

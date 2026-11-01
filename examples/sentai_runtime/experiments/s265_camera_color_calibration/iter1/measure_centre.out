@@ -1,0 +1,2 @@
+cam0 measure: mean dE76 30.0; yellow (90, 84, 34) dE 66 | orange yellow (90, 69, 39) dE 60 | yellow green (61, 82, 37) dE 53 | white (92, 110, 101) dE 52 | neutral 8 (75, 89, 83) dE 45 | magenta (79, 51, 66) dE 43
+cam1 measure: mean dE76 57.2; blue (254, 244, 236) dE 89 | red (254, 244, 236) dE 75 | black (254, 244, 236) dE 75 | yellow (254, 244, 236) dE 75 | purple (254, 244, 236) dE 74 | purplish blue (254, 244, 236) dE 74

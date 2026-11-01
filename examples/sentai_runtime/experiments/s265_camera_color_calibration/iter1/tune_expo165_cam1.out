@@ -1,0 +1,4 @@
+cam1 stage expo
+  cam1 expo it0: AGC 47 (2.94x) neutral8 G=170.5 target 165
+  cam1 expo it1: AGC 44 (2.75x) neutral8 G=164.4 target 165
+cam1: mean dE76 17.3 -> 19.7 (greys 8.1); worst yellow 56.1
