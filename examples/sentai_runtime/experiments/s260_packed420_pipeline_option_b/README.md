@@ -141,7 +141,13 @@ invoke 20 → 21.1 ms.  The longer PXP bursts win the SDRAM arbitration against 
 EHCI's small reads, so what the PXP gains the USB transfer loses, and the pipeline is
 USB-bound.  Block size 16 therefore stays a knob (`sentai.camera.pxp_block16(1)`,
 default 8x8): right for camera-only / no-TPU workloads (flow, markers, recording),
-wrong for the detection pipeline.
+wrong for the detection pipeline.  Caveat on the size of the effect: with the TPU
+running the repeat of the 8x8 reference (build 1748) gave SXGA option B 13.1 fps /
+invoke 74.0 ms / PXP 32.8 ms against 13.8 / 70.3 / 25.2 on build 1733 — the PXP time
+in the live pipeline depends on where it lands relative to the CSI active window, so
+the run-to-run spread (±5 %) is of the same order as the 16x16 penalty (12.2–12.5 fps,
+77–79 ms); the direction is consistent across four runs, the magnitude is not
+precise.
 
 ## Method notes
 

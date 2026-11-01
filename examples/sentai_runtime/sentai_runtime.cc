@@ -3193,13 +3193,13 @@ int sentai_pxp_xyuv_to_yuv420(const uint8_t* src, int src_w, int src_h,
 // count as the model's Y + UV planes.  No scaler, no CSC.  `w2` is the
 // camera width / 2.  Returns 0 on success.
 /* EXP-s260: PXP 16x16 processing blocks for the two camera repack passes.
- * 16 source rows per block instead of 8 halves the SDRAM page switching while
- * the CSI writes the other buffer: SXGA true-30 byte-drop 32.5 -> 19.6 ms,
- * legacy repack 62 -> 44 ms, VGA legacy 6 -> 5 ms; output bit-identical on the
- * colour-bar pattern and identical in distribution on gradients / live scenes
- * (block size only changes the memory access order).  Default ON; the knob
- * sentai.camera.pxp_block16(0) restores the 8x8 behaviour for A/B tests. */
-volatile int g_sentai_pxp_block16 = 1;
+ * Without the TPU running they cut the repack 30-40 % under CSI load (SXGA
+ * true-30 byte-drop 32.5 -> 19.6 ms, legacy 62 -> 44 ms) with identical
+ * output -- but WITH the Edge TPU streaming over USB the longer PXP bursts
+ * starve the EHCI reads instead (build 1746: invoke 70 -> 77 ms, SXGA pipeline
+ * 13.8 -> 12.5 fps, VGA 44 -> 42.5).  Default OFF (SDK 8x8); the knob
+ * sentai.camera.pxp_block16(1) is for camera-only workloads / tests. */
+volatile int g_sentai_pxp_block16 = 0;
 extern "C" int sentai_pxp_set_block16(int on) { g_sentai_pxp_block16 = on ? 1 : 0; return g_sentai_pxp_block16; }
 extern "C"
 __attribute__((section(".sdram_text")))
