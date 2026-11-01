@@ -46,6 +46,7 @@ from board_repl import Repl  # noqa: E402
 from analyze import measure, de76  # noqa: E402
 
 TARGET_N8 = 200.0           # sRGB value of the 'neutral 8' patch
+MIN_WHITE = 150.0           # visibility guard: monitor 150; a dim printed chart needs ~50 (--min-white)
 GREYS = ('neutral 6.5', 'neutral 5')
 ALL_GREYS = ('white', 'neutral 8', 'neutral 6.5', 'neutral 5', 'neutral 3.5', 'black')
 CMX_REGS = list(range(0x5381, 0x538A))
@@ -150,7 +151,7 @@ class Tuner:
         # the white patch must be bright and brighter than the black one by a wide margin
         if 'white' in d and 'black' in d:
             wv, bv = np.mean(d['white']['mean']), np.mean(d['black']['mean'])
-            if wv < 150 or wv - bv < 80:
+            if wv < MIN_WHITE or wv - bv < MIN_WHITE * 0.5:
                 self.log(ev='pattern_not_visible', tag=tag, white=wv, black=bv, file=os.path.basename(p))
                 raise RuntimeError('pattern not visible on the monitor (white %.0f, black %.0f) at %s — '
                                    'a dialog or the desktop is covering it; see %s' % (wv, bv, tag, p))
@@ -406,7 +407,7 @@ class Tuner:
 
 
 def main():
-    global TARGET_N8
+    global TARGET_N8, MIN_WHITE
     ap = argparse.ArgumentParser()
     ap.add_argument('--out', required=True)
     ap.add_argument('--cams', default='0,1')
@@ -418,10 +419,16 @@ def main():
     ap.add_argument('--n8', type=float, default=200.0, help="exposure target for the 'neutral 8' patch (green)")
     ap.add_argument('--centre', action='store_true',
                     help='measure each patch alone at the camera frame centre (24 captures per measurement)')
+    ap.add_argument('--min-white', type=float, default=150.0,
+                    help='visibility guard: minimum mean of the white patch (monitor 150, dim print ~50)')
     a = ap.parse_args()
     TARGET_N8 = a.n8
+    MIN_WHITE = a.min_white
     loc = json.load(open(os.path.join(a.out, 'locate.json')))
-    patches = show('grid', a.region, a.layout)
+    if a.grid_json != os.path.join(HERE, 'patterns', 'pattern_grid.json'):
+        patches = json.load(open(a.grid_json))      # printed chart (or any other target): no monitor
+    else:
+        patches = show('grid', a.region, a.layout)
     r = Repl(log=open(os.path.join(a.out, 'tune_repl.log'), 'a'))
     for cam in [int(c) for c in a.cams.split(',')]:
         r.select(cam, 1.5)

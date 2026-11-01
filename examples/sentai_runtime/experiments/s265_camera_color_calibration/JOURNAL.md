@@ -511,6 +511,36 @@ reflective colours of unknown absolute value — for absolute accuracy a measure
 is needed.  Next session: `locate.py` variant that finds the four fiducials (no Gray code on
 paper) and the same stages against the print under room light.
 
+## iter2_print — the printed chart under room lights (late evening, work in progress)
+
+Operator printed `colorchecker_a4.pdf`, put it in front of the cameras with lamps on it;
+monitor switched off (`rm /tmp/mps_pause`, PowerSaveMode 3 — the Unreal script keeps it off).
+
+- **Localisation from the fiducials** (`locate_print.py`): dark compact squares found by local
+  contrast (a global threshold fails: the frame holds large black areas and a strong lighting
+  gradient), the four most outlying ones are the corners; chart orientation (cam1 sees it rotated
+  180°) decided by the luminance order of the grey row, which is robust to any colour cast.
+  The white centre dot of the fiducials is too small (≈ 3 px) to be a reliable test at low light
+  and is no longer required.  Works on cam1 (4/4, grey row ordered 5/5); cam0 sees the A4 sheet
+  cut at the left edge (2 fiducials) → operator prints a smaller chart.
+- **Flicker**: the lamps band the image (vertical stripes, sensor rotated 270°).  Exposure set to
+  exactly 30.0 ms = 886 lines at VTS 984 (3 periods of 100 Hz) on both cameras; the banding
+  index barely changed, so the lamps flicker at another frequency (PWM LED dimming?).  Frame
+  averaging or non-flickering light is needed.
+- **Light level**: with the first lamp arrangement the white patch needed AGC 30–44x to reach the
+  exposure target (noise, and the UV-adjust desaturation if it were on); after diffusing the
+  lamps with paper and adding the room light, ~7–8x.  Target: AGC ≤ 4x, i.e. roughly twice the
+  light again, from the side at ~45° to avoid glare.
+- **Moving target**: the sheet was moved and the lights were changed four times during the
+  tuning runs (`tune_cam1_*` in `iter2_print/`), so the exposure loop oscillated (4x → 8x → 6x
+  → 8x) and the final capture (`print_tuned_cam1.jpg`) shows a cold blue-cyan cast with clipped
+  whites — a warm-lamp AWB (R gain 790 < 1x, B 1793) under a newly added cold source.  Mixed
+  colour temperatures also give a colour gradient across the sheet that no global AWB can
+  remove.  Numbers from these runs (dE76 31, dE00 17.5) are not a result; the setup rule for the
+  replay script: one illuminant type, steady during a run, AGC ≤ 4x, matte chart, lamps at 45°.
+- Still valid from the monitor work: the register sets `tuned_regs_cam*_final2.json` (LENC,
+  gamma, CMX); on the print only exposure and AWB have to be redone for the illuminant.
+
 ## Step 13 — replay test (reproducibility)
 
 Full register snapshot per camera (47 registers: 0x3503, 0x350A/B, 0x3500–02, 0x3400–0x3406,
