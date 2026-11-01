@@ -1619,6 +1619,14 @@ extern "C" int sentai_tpu_invoke_internal(void) {
 //     of `sentai_get_tensor_info` observes the arena pointer.
 //   - `input_buf` is trusted — the caller owns the buffer's lifetime
 //     and must keep it valid until this function returns.
+// 2026-11-01 (EXP-s262 finding): patching input_tensor(k)->data alone does
+// NOT reach the Edge TPU op -- TFLM copies the pointer into that TfLiteTensor
+// at allocation and the op reads the EvalTensor (verified on the board: the
+// output was scene-independent and equal to an invoke on the untouched arena).
+// The executable now honours g_sentai_tpu_input_override[k]; the wrappers
+// publish the caller's buffers there for the duration of Invoke().
+extern "C" uint8_t* volatile g_sentai_tpu_input_override[4];
+
 extern "C" int sentai_tpu_invoke_with_input(uint8_t* input_buf) {
   if (!coralmicro::g_tpu_ready || !coralmicro::g_interpreter) return -1;
   if (input_buf == nullptr) return -3;
@@ -1626,9 +1634,11 @@ extern "C" int sentai_tpu_invoke_with_input(uint8_t* input_buf) {
   if (!input) return -4;
   uint8_t* const saved = input->data.uint8;
   input->data.uint8 = input_buf;
+  g_sentai_tpu_input_override[0] = input_buf;
   uint32_t t0 = vPortGetRunTimeCounterValue();   // µs (SysTick starves during invoke)
   TfLiteStatus rc = coralmicro::g_interpreter->Invoke();
   uint32_t t1 = vPortGetRunTimeCounterValue();
+  g_sentai_tpu_input_override[0] = nullptr;
   input->data.uint8 = saved;   // restore on ALL paths (no early return between)
   if (rc != kTfLiteOk) return -2;
   return (int)((t1 - t0) / 1000u);   // µs -> ms (real)
@@ -1676,9 +1686,11 @@ extern "C" int sentai_tpu_invoke_slot_with_input(int slot, uint8_t* buf) {
   if (!input) return -4;
   uint8_t* const saved = input->data.uint8;
   input->data.uint8 = buf;
+  g_sentai_tpu_input_override[0] = buf;
   uint32_t t0 = vPortGetRunTimeCounterValue();   // µs (SysTick starves during invoke)
   TfLiteStatus rc = interp->Invoke();
   uint32_t t1 = vPortGetRunTimeCounterValue();
+  g_sentai_tpu_input_override[0] = nullptr;
   input->data.uint8 = saved;
   if (rc != kTfLiteOk) return -2;
   return (int)((t1 - t0) / 1000u);   // µs -> ms (real)
@@ -1700,9 +1712,13 @@ extern "C" int sentai_tpu_invoke_with_inputs2(uint8_t* uv_buf, uint8_t* y_buf) {
   uint8_t* const s1 = in1->data.uint8;
   in0->data.uint8 = uv_buf;
   in1->data.uint8 = y_buf;
+  g_sentai_tpu_input_override[0] = uv_buf;   // node input 0 = UV
+  g_sentai_tpu_input_override[1] = y_buf;    // node input 1 = Y
   uint32_t t0 = vPortGetRunTimeCounterValue();
   TfLiteStatus rc = interp->Invoke();
   uint32_t t1 = vPortGetRunTimeCounterValue();
+  g_sentai_tpu_input_override[0] = nullptr;
+  g_sentai_tpu_input_override[1] = nullptr;
   in0->data.uint8 = s0;
   in1->data.uint8 = s1;
   if (rc != kTfLiteOk) return -2;

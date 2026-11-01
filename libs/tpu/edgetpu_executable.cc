@@ -50,6 +50,10 @@
 // invalidate() is called from sentai_load_model (sentai_slow_bridge.cc)
 // to clear the cache key when a new model is loaded — a new
 // (this, token) identity forces a full fresh upload.
+// sentai 2026-11-01: per-node-input source pointer override consumed by
+// Invoke() when sending input activations (see the comment there).  Set and
+// cleared by the sentai_tpu_invoke_with_input* wrappers around Invoke().
+extern "C" uint8_t* volatile g_sentai_tpu_input_override[4] = {nullptr, nullptr, nullptr, nullptr};
 extern "C" volatile int g_sentai_tpu_desc_cache_enabled = 0;   // default OFF
 extern "C" volatile uint32_t g_sentai_tpu_desc_cache_sent_params = 0;
 extern "C" volatile uint32_t g_sentai_tpu_desc_cache_sent_ins    = 0;
@@ -324,6 +328,7 @@ TfLiteStatus EdgeTpuExecutable::Invoke(const TpuDriver& tpu_driver,
             // 307200), so element-count matching is unambiguous.
             const TfLiteEvalTensor* in_t = input_tensor;  // default: input 0
             int in_sz = input_size;
+            int in_k = 0;                                  // node input index of in_t
             if (executable_->input_layers()) {
               for (const auto* input_layer : *(executable_->input_layers())) {
                 if (!strcmp(input_layer->name()->c_str(), name)) {
@@ -335,13 +340,35 @@ TfLiteStatus EdgeTpuExecutable::Invoke(const TpuDriver& tpu_driver,
                       const TfLiteEvalTensor* t =
                           tflite::micro::GetEvalInput(context, node, k);
                       if (t && tflite::micro::GetTensorShape(t).FlatSize() == want) {
-                        in_t = t; in_sz = want; break;
+                        in_t = t; in_sz = want; in_k = k; break;
                       }
                     }
                   }
+                  break;
+                }
+              }
+            }
+            // sentai 2026-11-01 (EXP-s262 finding): the "zero-copy pointer
+            // patch" in sentai_tpu_invoke_with_input(s2) rewrites the
+            // TfLiteTensor returned by MicroInterpreter::input_tensor(), but
+            // TFLM copies the data pointer into that struct at allocation
+            // time -- the EvalTensor read HERE keeps the arena address, so
+            // the TPU was fed the untouched arena (output identical for any
+            // scene; verified on the board).  The invoke wrappers now publish
+            // the caller's buffer per node-input index and this is the one
+            // place that consumes it.  nullptr = plain eval-tensor data.
+            uint8_t* in_data = in_t->data.uint8;
+            if (in_k >= 0 && in_k < (int)(sizeof(g_sentai_tpu_input_override) /
+                                        sizeof(g_sentai_tpu_input_override[0])) &&
+                g_sentai_tpu_input_override[in_k]) {
+              in_data = g_sentai_tpu_input_override[in_k];
+            }
+            if (executable_->input_layers()) {
+              for (const auto* input_layer : *(executable_->input_layers())) {
+                if (!strcmp(input_layer->name()->c_str(), name)) {
                   if (OutputLayer::SignedDataType(input_layer->data_type())) {
                     OutputLayer::TransformSignedDataType(
-                        in_t->data.uint8, in_sz,
+                        in_data, in_sz,
                         TensorDataTypeSize(input_layer->data_type()),
                         input_layer->x_dim(), input_layer->y_dim(),
                         input_layer->z_dim());
@@ -355,7 +382,7 @@ TfLiteStatus EdgeTpuExecutable::Invoke(const TpuDriver& tpu_driver,
                   dma_hint->size_in_bytes(), dma_hint->offset_in_bytes());
               uint32_t t0 = tpu_cyc();
               RETURN_IF_ERROR_S(tpu_driver.SendInputs(
-                  in_t->data.uint8 + dma_hint->offset_in_bytes(),
+                  in_data + dma_hint->offset_in_bytes(),
                   dma_hint->size_in_bytes()), 0x0B61);
               g_sentai_tpu_cyc_input += (tpu_cyc() - t0);
               g_sentai_tpu_n_input   += 1;
