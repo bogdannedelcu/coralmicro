@@ -129,6 +129,10 @@ class Tuner:
             m = measure(Image.open(io.BytesIO(jpg)), self.H, one, 0.4)[0]
             if m:
                 d[p['name']] = m
+                # visibility guard in centre mode: a bright patch must read bright
+                if p['srgb'][0] >= 230 and p['srgb'][1] >= 230 and np.mean(m['mean']) < MIN_WHITE:
+                    raise RuntimeError('pattern not visible (patch %s reads %.0f): a dialog or the desktop '
+                                       'is covering the display' % (p['name'], np.mean(m['mean'])))
         self.n += 1
         json.dump(d, open(os.path.join(self.out, 'tune_cam%d_%03d_%s_centre.json' % (self.cam, self.n, tag)), 'w'))
         return d
@@ -274,6 +278,54 @@ class Tuner:
             self.patches = grid_patches
             show('grid', self.region, self.layout)
         return {'0x%04X' % r: v for r, v in zip(GAMMA_REGS, cur)}
+
+    def stage_tone_centre(self, rounds=3, damp=0.7):
+        """Tone curve with every grey shown alone at the frame centre (no field position in the
+        measurement) and no Jacobian: the measured output m of a grey g tells which part of the
+        curve produced it (the knots whose output is near m), and those knots are moved by
+        (g - m), interpolated over the knot index, damped and kept monotonic.  One centre-mode
+        ramp measurement (24 captures) per round."""
+        from show_pattern import RAMP
+        grid_patches = self.patches
+        if not getattr(self, 'centre_rect', None):
+            raise RuntimeError('tone_centre needs --centre')
+        ramp = [{'name': n, 'srgb': list(rgb), 'rect': self.centre_rect} for n, rgb in RAMP]
+        self.patches = ramp
+        for p in ramp:                                     # PNGs for the ramp greys
+            png = os.path.join(self.centre_dir, p['name'].replace(' ', '_') + '.png')
+            if not os.path.exists(png):
+                img = Image.new('RGB', (1920, 1080), (118, 118, 118))
+                img.paste(Image.new('RGB', (self.centre_rect[2], self.centre_rect[3]), tuple(p['srgb'])),
+                          (self.centre_rect[0], self.centre_rect[1]))
+                img.save(png)
+        cur = np.array([self.read(r) for r in GAMMA_REGS], float)
+        self.log(ev='tone_centre_start', gamma=cur.tolist())
+        try:
+            for rd in range(rounds):
+                d = self.capture('tonec%d' % rd)
+                g = np.array([p['srgb'][0] for p in ramp if p['name'] in d], float)
+                m = np.array([np.mean(d[p['name']]['mean']) for p in ramp if p['name'] in d])
+                err = g - m
+                print('  cam%d tone_centre round %d: luma rms %.1f  gamma %s' % (
+                    self.cam, rd, np.sqrt(np.mean(err ** 2)), ['%02X' % int(v) for v in cur]))
+                print('    target   ' + ' '.join('%3d' % v for v in g))
+                print('    measured ' + ' '.join('%3.0f' % v for v in m))
+                if np.sqrt(np.mean(err ** 2)) < 3.0:
+                    break
+                # knot k currently outputs cur[k]; the correction it needs is err at the grey
+                # whose measured output is closest to cur[k] (interpolated along m)
+                order = np.argsort(m)
+                corr = np.interp(cur, m[order], err[order])
+                new = np.clip(cur + damp * corr, 0, 255)
+                new = np.maximum.accumulate(new)
+                new = np.round(new)
+                self.log(ev='tone_centre_update', old=cur.tolist(), new=new.tolist())
+                for reg, v in zip(GAMMA_REGS, new):
+                    self.write(reg, int(v))
+                cur = new
+        finally:
+            self.patches = grid_patches
+        return {'0x%04X' % r: int(v) for r, v in zip(GAMMA_REGS, cur)}
 
     def _err_vec(self, d):
         """Stacked (measured - target) RGB over the patches, greys weighted x2."""

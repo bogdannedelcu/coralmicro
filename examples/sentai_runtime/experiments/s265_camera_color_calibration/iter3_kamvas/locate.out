@@ -1,0 +1,5 @@
+cam0: 11 captures in 16.0 s
+cam0: cells 200/208, residual median 0.78 px max 2.40 px, valid 86 %, sees screen rect x=860 y=3 w=1060 h=966
+cam1: 11 captures in 15.6 s
+cam1: cells 278/286, residual median 1.21 px max 3.37 px, valid 100 %, sees screen rect x=352 y=46 w=1301 h=940
+common screen rect: x=860 y=46 w=794 h=923

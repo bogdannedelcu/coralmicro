@@ -541,6 +541,42 @@ monitor switched off (`rm /tmp/mps_pause`, PowerSaveMode 3 — the Unreal script
 - Still valid from the monitor work: the register sets `tuned_regs_cam*_final2.json` (LENC,
   gamma, CMX); on the print only exposure and AWB have to be redone for the illuminant.
 
+## iter3_kamvas — a second display as reference: Huion Kamvas 16 (Gen 3)
+
+Operator's idea: the pen display is factory calibrated (Huion: ΔE < 1.5) and has an sRGB
+colour mode; lying flat under the board it also removes the viewing-angle problem of a vertical
+monitor a few cm away.  Detected on `card2-HDMI-A-3` in place of the Philips (EDID "HAT
+Kamvas 16"), 2560x1440@60 (16:9, so the 1920x1080 patterns scale without letterboxing); woken
+with `/tmp/mps_pause` + PowerSaveMode 0.  Operator set sRGB mode and fixed brightness.  Both
+cameras see almost the whole panel (it sits farther than the Philips did) → larger common
+region.  Plan: `locate.py` → grid in the common rect → measure with the current register sets
+(cam1 still carries the lamp AWB) → `expo`, `awb` on each camera → compare cam0 on Kamvas vs
+Philips: the difference is the uncertainty of "the monitor as reference".
+
+Results (`iter3_kamvas/locate.out`, `chain.out`, `chain2.out`):
+
+- Localisation: cam0 200/208 cells, residual 0.78 px, sees x 860–1920; cam1 278/286, 1.21 px,
+  sees x 352–1653; common rect **860, 46, 794, 923** (pattern px), grid 4x6 inside it.
+- **Same registers, other display** (the reference-uncertainty measurement): cam0 ΔE00 **7.6**
+  on the Kamvas vs 5.7 on the Philips (ΔE76 11.7 vs 8.4); cam1 19.3 (still carrying the lamp
+  AWB from iter2).  Two consumer displays fed the same sRGB values differ, as seen by the same
+  camera, by ≈ 2 ΔE00 — that is the floor of what a monitor-based calibration can claim.
+- `expo` + `awb` on the Kamvas: cam0 AGC 64 → 45 (the Kamvas in sRGB mode is dimmer than the
+  Philips), AWB almost unchanged (1427/1276 → 1433/1304: both displays have a similar white);
+  cam1 AGC 160 (10x: cam1 is at the far side), AWB 790/1793 → 1103/1325.  cam0's ΔE got worse
+  (ΔE00 7.6 → 9.5): mid greys 160 → 116, the Philips-fitted gamma does not match this panel.
+- `tone` on the Kamvas (ramp spread over the common rect) **does not converge** (cam0 luma rms
+  18.2 → 15.7, cam1 33.4 → 29.8) and the measured ramp is periodic with the 4 columns of the
+  layout: cam0 10 20 32 43 | 36 62 75 80 | 73 92 109 123 | … — every grey in column 1 reads
+  ~25–40 % darker than in column 4, i.e. a strong **horizontal luminance gradient of the panel
+  as seen by the camera** (the matte anti-glare film of a pen display scatters light and its
+  brightness drops quickly off-axis; the lens is a few cm away so the columns are seen under
+  very different angles).  Position and tone are confounded; the ramp fit is meaningless in
+  this geometry.  Final grid after tone + awb: cam0 ΔE00 8.8 (greys 7.2), cam1 12.2 (greys 8.3).
+- Consequence for the method: on a display viewed this close, colour and tone must be measured
+  with each patch at the frame centre (`--centre`), and the tone stage needs a centre-mode
+  variant (knot update from the measured ramp, no Jacobian, ≈ 1 min per round).
+
 ## Step 13 — replay test (reproducibility)
 
 Full register snapshot per camera (47 registers: 0x3503, 0x350A/B, 0x3500–02, 0x3400–0x3406,
