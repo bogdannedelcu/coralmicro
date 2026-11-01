@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 0213fcbf-a574-4225-a0ea-7da5f47ce784
-  modified: 2026-11-01T11:07:29.320Z
+  modified: 2026-11-01T12:39:47.167Z
 ---
 
 **EXP-s260 (W24-T16) + EXP-s261 (W24-T15 step 1), builds 1733–1741, board 58eb, one camera.**
@@ -74,6 +74,14 @@ metadata:
 - **Chase producer (s263, `pipeline.chase_prep(1)`):** PrepTask repacks the in-flight
   frame slice by slice into the ring: last line → TPU input done 75 → 20 ms, but fps
   15.9 → 13.2 (USB paced by the camera with a 1-frame ring).  Knob, default off.
+- **Lockstep at the pipeline rate (s264, W24-T17, build 1755):** stock "SXGA 15" row = 11.2 fps
+  real; new true-15 row = fps key **18** (PLL 0x70 + sysdiv 4, SDK patch 0008, settle 0x13).
+  Option B + ring at key 18: camera 14.98/s, processed 14.98/s, ratio 1.000 (454/454; 1805/1806
+  in 120 s), invoke 60 ms in a 66.7 ms period, 0 drops → the TPU sees EVERY frame (camera-switch
+  safe).  Key 36 gives 16.3 fps but drops 46 %.  `chase_prep` + key 18 is broken (slow CSI
+  readout → ring consumer timeouts → URB desync): chase is a key-36 knob only.  Measure lockstep
+  with CSI FRMCNT and infer ok read in ONE REPL statement in steady state; a start..stop window
+  under-counts ~8 %.
 - **CSI line ring in OCRAM = DEAD END:** with IMAG_PARA height 128/480 the CSI DMA done
   rate stays 30/s (SOF-gated; no mid-frame FB1/FB2 restart) — s261 `csi_slice_rate.py`.
 - **Instruction caching (tinycoral `~/work/edgetpu/oracle_lab/INSTRUCTIONS_ONCE.md`):**

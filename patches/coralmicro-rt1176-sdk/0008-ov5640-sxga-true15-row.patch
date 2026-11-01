@@ -1,0 +1,23 @@
+--- a/components/video/camera/device/ov5640/fsl_ov5640.c
++++ b/components/video/camera/device/ov5640/fsl_ov5640.c
+@@ -514,6 +514,20 @@
+         .pclkPeriod  = 0x08,
+     },
+     {
++        /* sentai 2026-11-01 (EXP-s264): SXGA at a TRUE 15 fps.  The stock SXGA
++         * fps-15 row (sysdiv 4, PLL 84x) is the 22.6 fps row halved = 11.2 fps
++         * measured on CSI FRMCNT.  Same PLL as the true-30 row (key 36) with
++         * sysdiv 4 (0x41) -> exactly half of 30.0.  Keyed on 18 (= 15 x 1.2,
++         * the same ratio as 36/30).  pclkPeriod doubled vs key 36 (0x10). */
++        .resolution  = FSL_VIDEO_RESOLUTION(1280, 960),
++        .framePerSec = 18,
++        .pllCtrl1    = 0x41,
++        .pllCtrl2    = 0x70,
++        .vfifoCtrl0C = 0x20,
++        .pclkDiv     = 0x04,
++        .pclkPeriod  = 0x10,
++    },
++    {
+         .resolution  = (uint32_t)kVIDEO_ResolutionVGA,
+         .framePerSec = 15,
+         .pllCtrl1    = 0x22,

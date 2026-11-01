@@ -927,6 +927,14 @@ status_t BOARD_InitMipiCsi(void)
             0x12,
         },
         {
+            /* EXP-s264: SXGA true-15 row (fsl_ov5640.c fps key 18, PLL 896 MHz,
+             * sysdiv 4 -> lane rate 2/3 of the stock SXGA30 row's).  Between
+             * the stock SXGA15 row's 0x14 and SXGA30's 0x12. */
+            FSL_VIDEO_RESOLUTION(1280, 960),
+            18,
+            0x13,
+        },
+        {
             kVIDEO_Resolution1080P,
             15,
             0x12,

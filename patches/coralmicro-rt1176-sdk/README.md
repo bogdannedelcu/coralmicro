@@ -114,6 +114,21 @@ receiver's D-PHY settle for (SXGA, 36) is 0x12 in `camera_support.c`;
 legacy XYUV capture (4 B/px, 147 MB/s) hangs the board (SDRAM starvation of
 the USB/REPL tasks); the packed YUV420 capture (`camera.packed420(1)`) runs.
 
+### `0008-ov5640-sxga-true15-row.patch`
+
+**Why (OP-S10-W24-T17, 2026-11-01, EXP-s264):** the stock "SXGA 15 fps" row
+(patch 0001: sysdiv 4, PLL 84x) is the 22.6 fps row halved — the CSI frame
+counter measures **11.2 frames/s**.  The SXGA detection pipeline runs at
+~15–16 fps (USB-bound), so a sensor row at a true 15 fps lets the Edge TPU
+process every camera frame in lockstep (no frame slip, no desync on camera
+switches).
+
+**What:** one more `s_ov5640MipiClockConfigs` row for 1280x960, keyed on the
+fake frame rate **18** (= 15 x 1.2, the same ratio as 36/30), with the true-30
+row's PLL (0x70, 896 MHz) and sysdiv 4 (`pllCtrl1` 0x41), `pclkPeriod` 0x10;
+measured 14.98 frames/s.  D-PHY settle for (SXGA, 18) is 0x13 in
+`camera_support.c`.  The fps-15 row is kept unchanged.
+
 ## Adding a new patch
 
 1. Edit the submodule tree under `third_party/nxp/rt1176-sdk/` directly.

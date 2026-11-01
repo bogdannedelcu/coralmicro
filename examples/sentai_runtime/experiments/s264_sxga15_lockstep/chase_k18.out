@@ -1,0 +1,21 @@
+
+=== SXGA fps key 18, option B + OCRAM ring, chase_prep
+  SentAI v1.1 build 1755 (2026-11-01 14:28:59) board 58eb
+  init INIT 0
+  reg 3035 = 0x41
+  reg 3036 = 0x70
+  reg 380E = 0x3
+  reg 380F = 0xd8
+  CSI FRMCNT rate idle: 14.88 frames/s
+  ocram_ring: RG 1
+  chase_prep: CP 1
+  warm-up run: fps 14.2 (discarded)
+  steady state 30.3 s: CSI frames 456 (15.05/s) | processed 222 (7.33/s) | processed/captured = 0.487 | stale skips in window 5
+  invoke 66.1 ms  cycle 63.6 ms | prep: pxp 76.6 grab 1.8 sem 0.0 | fail 10 | urb {'take_failed': 5, 'csr_timeouts': 1, 'desync_count': 10, 'usb_detach': 2}
+  cam stats: stale_skips=7 grab_retry=0 grab_fatal=0 period_us=16715 vblank_us=407 csi_queue_faults=0
+  ring_stats: RS (248, 13145, 1543629, 1912, 3, 12)
+  health: {'led_codes': [], 'sd': True, 'cam0': True, 'cam1': True, 'imu': True, 'tpu': True, 'led_ms_left': 0}
+
+=== summary (b1755_k18_chase)
+key     csi/s      fps  invoke   cycle    pxp   ratio  stale  fail
+18      15.05     7.33    66.1    63.6   76.6   0.487      5    10

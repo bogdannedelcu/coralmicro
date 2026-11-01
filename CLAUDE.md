@@ -127,7 +127,7 @@ venv-flash/bin/python scripts/flashtool.py -e sentai_runtime --ram
 
 ## SDK patches (load-bearing)
 
-`third_party/nxp/rt1176-sdk` is upstream-clean + 7 patches applied **at CMake configure time** by `scripts/apply_sdk_patches.sh` (idempotent). Patches live under `patches/coralmicro-rt1176-sdk/`:
+`third_party/nxp/rt1176-sdk` is upstream-clean + 8 patches applied **at CMake configure time** by `scripts/apply_sdk_patches.sh` (idempotent). Patches live under `patches/coralmicro-rt1176-sdk/`:
 
 | Patch | Symptom if missing |
 |---|---|
@@ -138,6 +138,7 @@ venv-flash/bin/python scripts/flashtool.py -e sentai_runtime --ram
 | `0005-fsl-csi-empty-list-side-array-f15.patch` | CSI empty-buffer list lives inside the frame buffers → BusFault in the CSI ISR after a sensor restart / full queue (audit F15) |
 | `0006-ehci-transfer-error-hook.patch` | Edge TPU URB failures all read `kStatus_USB_TransferFailed`; without the hook the qTD error bits (XactErr vs Data Buffer Error vs Babble) are lost and `sentai.tpu.urb_sync_stats()['ehci']` stays zero (W24-T9 wedge forensics) |
 | `0007-ov5640-sxga-true30-row.patch` | `camera.init(1, 36)` (SXGA at a true 30 fps, PLL 112x) returns -10 / no row; the stock "SXGA 30" row (fps key 30) only delivers 22.6 fps (EXP-s260) |
+| `0008-ov5640-sxga-true15-row.patch` | `camera.init(1, 18)` (SXGA at a true 15 fps, PLL 112x / sysdiv 4) returns -10 / no row; the stock "SXGA 15" row (fps key 15) only delivers 11.2 fps; key 18 is the row that lets the SXGA TPU pipeline process every camera frame (EXP-s264) |
 
 The same script also applies `patches/micropython/` onto `third_party/micropython` (currently `0001-objint-longlong-from-str-len-honour-len.patch` — without it any int literal > 2^30 fails to parse when a longer token precedes it on the line). The ARM build compiles the embed copy under `examples/sentai_runtime/micropython_embed/py/`, which `/qstr-regen` regenerates from the patched submodule — keep both in sync.
 
