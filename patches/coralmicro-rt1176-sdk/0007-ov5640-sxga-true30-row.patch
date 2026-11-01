@@ -1,13 +1,13 @@
 diff --git a/components/video/camera/device/ov5640/fsl_ov5640.c b/components/video/camera/device/ov5640/fsl_ov5640.c
-index d875caf8..d3c8b35f 100644
+index d875caf8..a04600ef 100644
 --- a/components/video/camera/device/ov5640/fsl_ov5640.c
 +++ b/components/video/camera/device/ov5640/fsl_ov5640.c
-@@ -653,6 +653,23 @@ static const ov5640_clock_config_t s_ov5640MipiClockConfigs[] = {
-         .pclkDiv     = 0x04,
-         .pclkPeriod  = 0x0a,
-     },
+@@ -496,6 +496,23 @@ static const ov5640_clock_config_t s_ov5640DvpClockConfigs[] = {
+ 
+ /* MIPI */
+ static const ov5640_clock_config_t s_ov5640MipiClockConfigs[] = {
 +    {
-+        /* sentai 2026-11-01 (EXP-s260): the row above was cloned from 720P/30
++        /* sentai 2026-11-01 (EXP-s260): the SXGA fps-30 row (patch 0001) was cloned from 720P/30
 +         * but the 1280x960 frame has 984 lines (VTS) instead of 720p's ~740,
 +         * so the CSI frame counter measures 22.6 fps, not 30.  Frame rate is
 +         * proportional to PLL mult / (sysdiv x mipi_div): keep sysdiv 2 /
@@ -23,6 +23,6 @@ index d875caf8..d3c8b35f 100644
 +        .pclkDiv     = 0x04,
 +        .pclkPeriod  = 0x08,
 +    },
- };
- 
- static const ov5640_light_mode_config_t s_ov5640LightModeConfigs[] = {
+     {
+         .resolution  = (uint32_t)kVIDEO_ResolutionVGA,
+         .framePerSec = 15,
